@@ -398,6 +398,8 @@
   "animator.field.line_width": "Track width",
   "animator.field.zoom": "Zoom level",
   "animator.field.camera_follow_track": "Camera follows track",
+  "animator.field.follow_inertia": "Camera inertia",
+  "animator.field.follow_inertia_tip": "0 = locked to the point (can jitter), higher = the camera trails more smoothly",
   "animator.field.camera_follow_track_tooltip": "When on, the camera re-centers on the current track point each frame. Off: camera stays locked to the configured map position.",
   "animator.field.line_style": "Line style",
   "animator.line_style.solid": "Solid",

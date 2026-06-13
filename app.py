@@ -221,6 +221,7 @@ DEFAULT_SETTINGS = {
         # v0.8.17 — Classic-Modus: Kamera folgt Track-Punkt (an) oder bleibt
         # statisch auf Bbox-Center (aus, Default). Im KF-Modus ignoriert.
         "camera_follow_track": False,
+        "camera_follow_inertia_pct": 0,  # v0.9.275 — Trägheit (0..100 %) beim Kamera-Folgen
         # Stats-Overlays: pro Box enabled + Position (tl/tr/bl/br/bc)
         "overlay_totals_enabled": True,
         "overlay_totals_position": "tl",
@@ -1363,6 +1364,7 @@ class Api:
             line_style_spacing=float(params.get("line_style_spacing", 1.0)),
             track_style=_be_track_style,
             camera_follow_track=bool(params.get("camera_follow_track", False)),
+            camera_follow_inertia=float(params.get("camera_follow_inertia", 0.0)),
             timeline_events=list(params.get("timeline_events", []) or []),
             show_overlays=bool(params.get("show_overlays", True)),
             overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),

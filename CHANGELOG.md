@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Hinzugefügt (Leo-Feedback)
+
+- **Kamera-Trägheit für „Kamera folgt Track".** Neuer Regler unter dem „🚶 Kamera folgt Track"-
+  Häkchen: bei 0 % klebt die Kamera hart am aktuellen Punkt (kann bei GPS-Rauschen wackeln),
+  je höher, desto **weicher zieht die Kamera nach** — ruhigeres Bild wie die „Trägheit" in
+  GPX-Animator. Wirkt im **gerenderten Video** (die Live-Vorschau-Glättung folgt). Default 0 %
+  (= bisheriges Verhalten unverändert).
+
 ### Behoben (Leo-Feedback)
 
 - **„Kamera folgt Track" stürzte beim Rendern ab** (`'TrackPoint' object is not subscriptable`).

@@ -398,6 +398,8 @@
   "animator.field.line_width": "Grosor de la ruta",
   "animator.field.zoom": "Nivel de zoom",
   "animator.field.camera_follow_track": "La cámara sigue la traza",
+  "animator.field.follow_inertia": "Inercia de cámara",
+  "animator.field.follow_inertia_tip": "0 = fija en el punto (puede temblar), más alto = la cámara sigue con más suavidad",
   "animator.field.camera_follow_track_tooltip": "Si está activo, la cámara se centra en el punto actual de la traza en cada fotograma. Apagado: la cámara permanece fija en la posición del mapa.",
   "animator.field.line_style": "Estilo de línea",
   "animator.line_style.solid": "Continua",

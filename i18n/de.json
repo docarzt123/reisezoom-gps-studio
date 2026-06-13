@@ -398,6 +398,8 @@
   "animator.field.line_width": "Track-Dicke",
   "animator.field.zoom": "Zoom-Stufe",
   "animator.field.camera_follow_track": "Kamera folgt Track",
+  "animator.field.follow_inertia": "Kamera-Trägheit",
+  "animator.field.follow_inertia_tip": "0 = hart am Punkt (kann wackeln), höher = die Kamera zieht weicher nach",
   "animator.field.camera_follow_track_tooltip": "Wenn aktiv, zentriert sich die Kamera bei jedem Frame auf den aktuell gezeichneten Track-Punkt. Aus: Kamera bleibt fest auf der eingestellten Karten-Position.",
   "animator.field.line_style": "Linien-Stil",
   "animator.line_style.solid": "Durchgezogen",

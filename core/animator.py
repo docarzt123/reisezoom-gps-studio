@@ -147,6 +147,10 @@ class AnimatorConfig:
     # Bbox-Center zu bleiben. Im Keyframe-Modus wird pro Keyframe entschieden
     # (Field `center` im KF) und dieser globale Toggle wird ignoriert.
     camera_follow_track: bool = False
+    # v0.9.275 (Leo) — Trägheit beim „Kamera folgt Track": 0 = hart am Punkt (wackelt
+    # bei GPS-Rauschen), 1 = sehr träge/weich (Kamera zieht sanft nach). Exponentielle
+    # Glättung des Folge-Zentrums über die Frames.
+    camera_follow_inertia: float = 0.0
     # Timeline-Events (v0.7.0) — Liste von Dicts (kind/anchor/payload).
     # Aktuell unterstützt: kind="camera" mit anchor/pitch/bearing/zoom_offset.
     # Vorbereitet für: kind="photo" (v0.7.1), kind="text" (v0.7.2).
@@ -2347,6 +2351,12 @@ async def render(
                     _gpu = "unknown"
                 _log.warning("⏱ RENDER-TIMING aktiv | GPU-Renderer: %s | %dx%d @ %dfps | %d Frames",
                              _gpu, cfg.width, cfg.height, cfg.fps, total_frames)
+            # v0.9.275 (Leo) — Trägheit beim „Kamera folgt Track": exponentielle Glättung
+            # des Folge-Zentrums über die Frames. inertia 0 → k=1 (hart, wie bisher),
+            # inertia 1 → k≈0.03 (sehr weich, Kamera zieht sanft nach).
+            _foll_k = max(0.03, 1.0 - max(0.0, min(1.0, float(getattr(cfg, "camera_follow_inertia", 0.0)))) * 0.97)
+            _foll_lon = None
+            _foll_lat = None
             for frame in range(total_frames):
                 # Cancel-Check VOR jeder teuren Frame-Operation
                 check_cancel()
@@ -2408,10 +2418,16 @@ async def render(
                     frame_lat = kf_center[1]
                 elif cfg.camera_follow_track and idx < len(points):
                     # v0.9.124 — TrackPoint ist ein dataclass, NICHT subscriptable.
-                    # Bug-Report Beta-Tester (v0.9.73): „'TrackPoint' object is not
-                    # subscriptable" beim Classic-Render mit Kameraverfolgung.
-                    frame_lon = points[idx].lon
-                    frame_lat = points[idx].lat
+                    _tlon = points[idx].lon
+                    _tlat = points[idx].lat
+                    # v0.9.275 (Leo) — Trägheit: Folge-Zentrum glätten (gegen GPS-Wackeln).
+                    if _foll_lon is None or _foll_k >= 0.999:
+                        _foll_lon, _foll_lat = _tlon, _tlat
+                    else:
+                        _foll_lon += (_tlon - _foll_lon) * _foll_k
+                        _foll_lat += (_tlat - _foll_lat) * _foll_k
+                    frame_lon = _foll_lon
+                    frame_lat = _foll_lat
                 else:
                     frame_lon = center[0]
                     frame_lat = center[1]

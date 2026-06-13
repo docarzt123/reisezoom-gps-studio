@@ -467,6 +467,13 @@ function mountAnimator(body, headerActions, opts) {
               <input type="checkbox" id="anim-camera-follow">
               <span>🚶 ${t("animator.field.camera_follow_track")}</span>
             </label>
+            <!-- v0.9.275 (Leo) — Trägheit: weiches Nachziehen statt hartem Kleben am Punkt.
+                 Nur sinnvoll wenn „Kamera folgt Track" an ist. -->
+            <div class="field" id="anim-follow-inertia-row">
+              <label class="field-label">${t("animator.field.follow_inertia", "Kamera-Trägheit")} <span class="label-val" id="anim-follow-inertia-v">0%</span></label>
+              <input type="range" id="anim-follow-inertia" min="0" max="100" step="5" value="0"
+                     title="${t("animator.field.follow_inertia_tip", "0 = hart am Punkt (kann wackeln), höher = die Kamera zieht weicher nach")}">
+            </div>
           </div>
 
           <!-- Keyframe-Modus (KF an): pro Keyframe Anchor/Pitch/Bearing/Zoom + Buttons.
@@ -1093,6 +1100,14 @@ function mountAnimator(body, headerActions, opts) {
   });
   // v0.8.17 — „Kamera folgt Track" im Classic-Modus
   bindSetting("anim-camera-follow", _MODKEY, "camera_follow_track", { type: "bool" });
+  // v0.9.275 (Leo) — Kamera-Trägheit (0..100 %). Label-Update + nur sichtbar wenn Follow an.
+  { const _fiLbl = () => { const v = document.getElementById("anim-follow-inertia-v"); const s = document.getElementById("anim-follow-inertia"); if (v && s) v.textContent = (parseInt(s.value, 10) || 0) + "%"; };
+    bindSetting("anim-follow-inertia", _MODKEY, "camera_follow_inertia_pct", { type: "number", onLoad: _fiLbl, onChange: _fiLbl });
+    const _fiSync = () => { const row = document.getElementById("anim-follow-inertia-row"); const cb = document.getElementById("anim-camera-follow"); if (row && cb) row.style.display = cb.checked ? "" : "none"; };
+    _fiSync(); _fiLbl();
+    document.getElementById("anim-camera-follow")?.addEventListener("change", _fiSync);
+    document.getElementById("anim-follow-inertia")?.addEventListener("input", _fiLbl);
+  }
   bindSetting("anim-ex", _MODKEY, "exaggeration", { type: "number",
     onLoad: v => updateLabel("anim-ex-v", v, "×") });
   bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number" });
@@ -7914,6 +7929,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.8.17 — Classic-Mode Toggle „Kamera folgt Track" → Backend bewegt
       // Center pro Frame zum aktuellen Track-Punkt. Im KF-Modus per KF gesteuert.
       camera_follow_track: !!document.getElementById("anim-camera-follow")?.checked,
+      camera_follow_inertia: (parseInt(document.getElementById("anim-follow-inertia")?.value, 10) || 0) / 100,
       show_overlays: !_isReiseroute && !!document.getElementById("anim-overlays")?.checked,
       line_color: document.getElementById("anim-color").value,
       // v0.9.157 — line_width für den Render auf Preview-Dicke hochskaliert
