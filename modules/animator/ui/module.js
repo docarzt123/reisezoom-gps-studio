@@ -1099,15 +1099,17 @@ function mountAnimator(body, headerActions, opts) {
     },
   });
   // v0.8.17 — „Kamera folgt Track" im Classic-Modus
-  bindSetting("anim-camera-follow", _MODKEY, "camera_follow_track", { type: "bool" });
-  // v0.9.275 (Leo) — Kamera-Trägheit (0..100 %). Label-Update + nur sichtbar wenn Follow an.
-  { const _fiLbl = () => { const v = document.getElementById("anim-follow-inertia-v"); const s = document.getElementById("anim-follow-inertia"); if (v && s) v.textContent = (parseInt(s.value, 10) || 0) + "%"; };
-    bindSetting("anim-follow-inertia", _MODKEY, "camera_follow_inertia_pct", { type: "number", onLoad: _fiLbl, onChange: _fiLbl });
-    const _fiSync = () => { const row = document.getElementById("anim-follow-inertia-row"); const cb = document.getElementById("anim-camera-follow"); if (row && cb) row.style.display = cb.checked ? "" : "none"; };
-    _fiSync(); _fiLbl();
-    document.getElementById("anim-camera-follow")?.addEventListener("change", _fiSync);
-    document.getElementById("anim-follow-inertia")?.addEventListener("input", _fiLbl);
-  }
+  // v0.9.275/277 (Leo) — Kamera-Trägheit (0..100 %), nur sichtbar wenn „Kamera folgt Track" an.
+  // WICHTIG (Marc-Bug v0.9.277): _fiSync MUSS auch beim PROJEKTWECHSEL laufen. bindSetting
+  // setzt die Follow-Checkbox dann programmatisch (kein `change`-Event) → darum `onLoad: _fiSync`
+  // an der Follow-Bindung, sonst bleibt der Regler nach Projektwechsel versteckt obwohl Follow an.
+  const _fiLbl = () => { const v = document.getElementById("anim-follow-inertia-v"); const s = document.getElementById("anim-follow-inertia"); if (v && s) v.textContent = (parseInt(s.value, 10) || 0) + "%"; };
+  const _fiSync = () => { const row = document.getElementById("anim-follow-inertia-row"); const cb = document.getElementById("anim-camera-follow"); if (row && cb) row.style.display = cb.checked ? "" : "none"; };
+  bindSetting("anim-camera-follow", _MODKEY, "camera_follow_track", { type: "bool", onLoad: _fiSync, onChange: _fiSync });
+  bindSetting("anim-follow-inertia", _MODKEY, "camera_follow_inertia_pct", { type: "number", onLoad: _fiLbl, onChange: _fiLbl });
+  document.getElementById("anim-camera-follow")?.addEventListener("change", _fiSync);
+  document.getElementById("anim-follow-inertia")?.addEventListener("input", _fiLbl);
+  _fiSync(); _fiLbl();
   bindSetting("anim-ex", _MODKEY, "exaggeration", { type: "number",
     onLoad: v => updateLabel("anim-ex-v", v, "×") });
   bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number" });

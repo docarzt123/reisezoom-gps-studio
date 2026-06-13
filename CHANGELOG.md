@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.278] – 2026-06-13
+
 ### Hinzugefügt (Leo-Feedback)
 
 - **Kamera-Trägheit für „Kamera folgt Track".** Neuer Regler unter dem „🚶 Kamera folgt Track"-
@@ -34,6 +36,11 @@ Bei jeder neuen Version:
   Dieselbe Falle wie früher im Haupt-Render-Loop war im **Tile-Cache-Vorwärmen** übersehen
   worden (Tupel-Zugriff statt `.lon`/`.lat` auf das TrackPoint-Objekt). Jetzt rendert „Kamera
   folgt Track" wieder durch.
+- **Trägheits-Regler war nach Projektwechsel verschwunden.** Wenn „Kamera folgt Track" im
+  geladenen Projekt aktiv war, blieb der Trägheits-Regler trotzdem versteckt — die Sichtbarkeit
+  wurde nur beim manuellen Klick auf das Häkchen aktualisiert, nicht beim programmatischen
+  Wiederherstellen eines Projekts. Jetzt synchronisiert sich der Regler korrekt mit dem
+  gespeicherten Häkchen-Zustand bei jedem Projektwechsel.
 
 ## [0.9.274] – 2026-06-13
 
