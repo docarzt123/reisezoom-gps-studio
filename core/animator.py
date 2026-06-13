@@ -2354,7 +2354,10 @@ async def render(
             # v0.9.275 (Leo) — Trägheit beim „Kamera folgt Track": exponentielle Glättung
             # des Folge-Zentrums über die Frames. inertia 0 → k=1 (hart, wie bisher),
             # inertia 1 → k≈0.03 (sehr weich, Kamera zieht sanft nach).
-            _foll_k = max(0.03, 1.0 - max(0.0, min(1.0, float(getattr(cfg, "camera_follow_inertia", 0.0)))) * 0.97)
+            # v0.9.277 (Leo: „100 % zu wenig träge") — quadratische Kurve + tieferer Boden,
+            # damit hohe Werte spürbar weicher ziehen (100 % ≈ k 0.005 → sehr träge).
+            _foll_inertia = max(0.0, min(1.0, float(getattr(cfg, "camera_follow_inertia", 0.0))))
+            _foll_k = max(0.005, (1.0 - _foll_inertia) ** 2)
             _foll_lon = None
             _foll_lat = None
             for frame in range(total_frames):

@@ -19,7 +19,8 @@ Bei jeder neuen Version:
 - **Kamera-Trägheit für „Kamera folgt Track".** Neuer Regler unter dem „🚶 Kamera folgt Track"-
   Häkchen: bei 0 % klebt die Kamera hart am aktuellen Punkt (kann bei GPS-Rauschen wackeln),
   je höher, desto **weicher zieht die Kamera nach** — ruhigeres Bild wie die „Trägheit" in
-  GPX-Animator. Wirkt im **gerenderten Video** (die Live-Vorschau-Glättung folgt). Default 0 %
+  GPX-Animator. Wirkt jetzt **live in der Vorschau UND im Video** (WYSIWYG, zeitbasiert
+  abgestimmt). Höhere Werte sind deutlich träger als zuvor (quadratische Kurve). Default 0 %
   (= bisheriges Verhalten unverändert).
 
 ### Behoben (Leo-Feedback)

@@ -4029,6 +4029,11 @@ function mountAnimator(body, headerActions, opts) {
     _previewHoldMs = holdMs;
     if (_tlBar) _tlBar.setPlaying(true);
     // v0.9.83 — Spin-Akkumulator reset für jeden neuen Probelauf
+    // v0.9.277 (Leo) — Kamera-Trägheit im Probelauf (WYSIWYG zum Render). EMA des
+    // Folge-Zentrums, ZEITBASIERT gerechnet (auf 30fps-Render referenziert), damit
+    // die Vorschau (≈60fps) genauso träge wirkt wie das Video.
+    let _follLL = null;
+    let _follLastNow = 0;
     const step = (now) => {
       const elapsed = (now - _previewT0) * _previewSpeed;
       // v0.9.53: Track-Position-Trim, fixe Render-Zeit (anim + hold).
@@ -4121,9 +4126,23 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.136 — center.lng (abgewickelt) hat Vorrang vor Track-Punkt. Die
       // Welt-Drehung steckt in der center.lng (Insta360-Modell); die separate
       // rotation-Lane ist abgeschafft.
-      if (interp.center) { jumpArgs.center = interp.center.slice(); }
+      if (interp.center) { jumpArgs.center = interp.center.slice(); _follLL = null; }
       else if (!isClassic2 || cameraFollow2) {
-        jumpArgs.center = currentCoords[coordIdx].slice();
+        const _tgt = currentCoords[coordIdx];
+        // v0.9.277 (Leo) — Kamera-Trägheit: EMA des Folge-Zentrums, zeitbasiert auf
+        // 30fps-Render referenziert → Vorschau wirkt genauso träge wie das Video.
+        const _inertia = (parseInt(document.getElementById("anim-follow-inertia")?.value, 10) || 0) / 100;
+        const _kRender = Math.max(0.005, Math.pow(1 - _inertia, 2));
+        if (_inertia <= 0 || !_follLL) {
+          _follLL = [_tgt[0], _tgt[1]];
+        } else {
+          const _dv = Math.max(0, now - _follLastNow) * _previewSpeed / 1000;   // Video-Sek.
+          const _kPrev = 1 - Math.pow(1 - _kRender, 30 * _dv);                   // 30 = Render-fps-Referenz
+          _follLL = [_follLL[0] + (_tgt[0] - _follLL[0]) * _kPrev,
+                     _follLL[1] + (_tgt[1] - _follLL[1]) * _kPrev];
+        }
+        _follLastNow = now;
+        jumpArgs.center = _follLL.slice();
       }
       // position-padding mit smooth Fade-Out zwischen Zoom 4 und 8
       // (zoom <= 4: 100 %, 4..8: linear, >= 8: 0 %). Siehe scrubPreview.

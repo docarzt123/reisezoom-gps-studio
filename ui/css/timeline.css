@@ -629,6 +629,16 @@
 .anim-timeline-host--kf-off #tl-track {
   min-height: 28px;
 }
+/* v0.9.277 (Leo) — DER eigentliche Trim-Classic-Bug: die Trim-Handles haben
+   top:30px / height:calc(100% - 30px) (Platz für die Keyframe-Cluster-Zeile). Im
+   Classic-Modus (kf-off) kollabiert der Track auf 28px → calc(28px-30px) wird negativ
+   → Handles schrumpfen auf 0 = unsichtbar + nicht ziehbar. Hier über den ganzen
+   Mini-Streifen ziehen, da es im Classic-Modus keine Cluster-Zeile gibt. */
+.anim-timeline-host--kf-off .timeline-trim-handle,
+.anim-timeline-host--kf-off .timeline-trim-region {
+  top: 0 !important;
+  height: 100% !important;
+}
 .anim-timeline-host--kf-off #tl-track::before {
   content: "";
   position: absolute;
