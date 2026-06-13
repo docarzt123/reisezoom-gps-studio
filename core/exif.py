@@ -30,6 +30,10 @@ from typing import Any, Optional
 
 import piexif
 
+# v0.9.274 (Beta-Tester-Bug) — Windows: Kindprozesse (exiftool-Daemon, ffmpeg) OHNE
+# sichtbares Konsolenfenster starten. Auf POSIX 0 (kein Effekt).
+_WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+
 _log = logging.getLogger("reisezoom.exif")
 
 # v0.9.57 — pillow-heif als HEIC-Decoder registrieren (optional).
@@ -317,9 +321,11 @@ class _ExifToolDaemon:
             # Neue Session → eigener Process-Group-Leader (pgid == pid).
             popen_kwargs["start_new_session"] = True
         elif os.name == "nt":
-            # Windows: eigene Prozessgruppe, damit terminate() sauber greift.
-            popen_kwargs["creationflags"] = getattr(
-                subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            # Windows: eigene Prozessgruppe (für sauberes terminate()) + KEIN
+            # sichtbares Konsolenfenster (Beta-Tester-Bug: exiftool-Daemon öffnete ein
+            # dauerhaft offenes CMD-Fenster).
+            popen_kwargs["creationflags"] = (
+                getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | _WIN_NO_WINDOW)
         # bufsize=0 macht stdout zu raw FileIO (kein read1). Default-Buffered
         # gibt uns BufferedReader mit read1, was wir brauchen.
         self._proc = subprocess.Popen(
@@ -1057,14 +1063,14 @@ def extract_video_thumbnail(path: str) -> Optional[bytes]:
         # 1 Sekunde rein-seeken (Keyframe-Seek, schnell)
         r = subprocess.run(
             [ff, "-noaccurate_seek", "-ss", "1", "-i", path, *common],
-            capture_output=True, timeout=20,
+            capture_output=True, timeout=20, creationflags=_WIN_NO_WINDOW,
         )
         if r.returncode == 0 and r.stdout and len(r.stdout) > 500:
             return r.stdout
         # Fallback: Frame bei 0 sec (z.B. Videos kürzer als 1 s)
         r = subprocess.run(
             [ff, "-i", path, *common],
-            capture_output=True, timeout=20,
+            capture_output=True, timeout=20, creationflags=_WIN_NO_WINDOW,
         )
         if r.returncode == 0 and r.stdout and len(r.stdout) > 500:
             return r.stdout

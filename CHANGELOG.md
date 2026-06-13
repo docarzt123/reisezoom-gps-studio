@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Behoben (Beta-Tester-Feedback)
+
+- **Windows: kein extra Konsolenfenster mehr.** ExifTool (und ffmpeg) wurden unter
+  Windows mit einem sichtbaren CMD-Fenster gestartet, das dauerhaft offen blieb. Jetzt
+  laufen sie unsichtbar im Hintergrund (`CREATE_NO_WINDOW` für exiftool-Daemon + alle
+  ffmpeg-Aufrufe in Geotagger, Animator und Höhen-Animator).
+- **Schwarze Karten-Vorschau beim Reinzoomen.** Wenn man einen Tick zu weit hineinzoomte,
+  wurde die Vorschau schwarz (Satellit hat in abgelegenen Gegenden oberhalb ~Zoom 18 keine
+  Kacheln). Der maximale Zoom ist jetzt auf 18 begrenzt (Karte + Animator-Zoom-Regler) →
+  der schwarze Zustand ist nicht mehr erreichbar.
+
 ### Hinzugefügt
 
 - **Reisezoom-Links in der App.** Oben rechts in der Titelleiste gibt es jetzt einen

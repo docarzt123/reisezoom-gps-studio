@@ -122,7 +122,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.273"
+APP_VERSION = "0.9.274"
 
 RENDERS_DIR = APP_SUPPORT / "_renders"
 BACKUPS_DIR = APP_SUPPORT / "_backups_photos"

@@ -17,6 +17,9 @@ import shutil
 import subprocess
 import sys
 import time
+
+# v0.9.274 (Beta-Tester-Bug) — Windows: ffmpeg ohne sichtbares Konsolenfenster starten.
+_WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
@@ -1762,7 +1765,8 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
         ffmpeg_cmd.append(cfg.output_path)
         _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                              creationflags=_WIN_NO_WINDOW)
 
         def _bearing_at(gp: float) -> float:
             # Kontinuierlicher Sweep über das gesamte Video (wie Single-Track).
@@ -2302,7 +2306,8 @@ async def render(
         ffmpeg_cmd.append(cfg.output_path)
         _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                              creationflags=_WIN_NO_WINDOW)
 
         try:
             # Preview alle ~3 Frames pushen — bei 30fps reicht das für eine

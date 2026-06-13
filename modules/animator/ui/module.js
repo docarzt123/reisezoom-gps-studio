@@ -461,7 +461,7 @@ function mountAnimator(body, headerActions, opts) {
 
             <div class="field">
               <label class="field-label">${t("animator.field.zoom")} <span class="label-val" id="anim-zoom-v">12.0</span></label>
-              <input type="range" id="anim-zoom" min="0" max="22" step="0.1" value="12">
+              <input type="range" id="anim-zoom" min="0" max="18" step="0.1" value="12">
             </div>
             <label class="checkbox-row" title="${t("animator.field.camera_follow_track_tooltip")}">
               <input type="checkbox" id="anim-camera-follow">

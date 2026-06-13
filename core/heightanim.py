@@ -28,6 +28,9 @@ import logging
 import os
 import subprocess
 import time
+
+# v0.9.274 (Beta-Tester-Bug) — Windows: ffmpeg ohne sichtbares Konsolenfenster starten.
+_WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
@@ -468,7 +471,8 @@ async def render(cfg: HeightConfig,
         ffmpeg_cmd.append(cfg.output_path)
         _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                              creationflags=_WIN_NO_WINDOW)
 
         try:
             preview_every = max(1, cfg.fps // 10)

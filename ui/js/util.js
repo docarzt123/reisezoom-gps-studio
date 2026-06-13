@@ -186,13 +186,14 @@ function createMap(opts) {
   if (token && token.startsWith("pk.")) {
     _mapMode = "mapbox";
     mapboxgl.accessToken = token;
-    // v0.9.246 (Beta-Tester-Feedback): maxZoom begrenzen, sonst zoomt man bis ins
+    // v0.9.246/274 (Beta-Tester-Feedback): maxZoom begrenzen, sonst zoomt man bis ins
     // Daten-Nichts (schwarze Fläche), besonders in entlegenen Outdoor-Gebieten
-    // wo Satellit-Tiles früh enden. 20 lässt nahe Close-ups, stoppt aber das Void.
+    // wo Satellit-Tiles früh enden. 20 reichte noch nicht (Beta-Tester bekam weiter
+    // Schwarz „einen Tick zu weit"), darum jetzt 18 — verhindert das Void zuverlässig.
     const map = new mapboxgl.Map(Object.assign({
       container: opts.container,
       style: opts.mapboxStyle || "mapbox://styles/mapbox/standard-satellite",
-      maxZoom: 20,
+      maxZoom: 18,
     }, opts.common || {}));
     return { map, engine: "mapbox", lib: mapboxgl };
   }
