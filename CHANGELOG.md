@@ -24,6 +24,11 @@ Bei jeder neuen Version:
 
 ### Behoben (Leo-Feedback)
 
+- **Anfang/Ende abschneiden (Trim) ging im Classic-Modus nicht.** Ohne aktivierte Keyframes
+  war die Timeline ausgegraut — dadurch sahen die Trim-Handles „anders aus" und ließen sich
+  nicht ziehen. Der Trim (Render-Anfang/-Ende) ist aber unabhängig vom Keyframe-Modus und
+  ist jetzt **in beiden Modi voll bedienbar** (praktisch zum Anonymisieren von Start/Ziel,
+  z.B. der Heim-Adresse).
 - **„Kamera folgt Track" stürzte beim Rendern ab** (`'TrackPoint' object is not subscriptable`).
   Dieselbe Falle wie früher im Haupt-Render-Loop war im **Tile-Cache-Vorwärmen** übersehen
   worden (Tupel-Zugriff statt `.lon`/`.lat` auf das TrackPoint-Objekt). Jetzt rendert „Kamera

@@ -14,8 +14,17 @@
 }
 
 .timeline-bar.is-disabled {
-  opacity: 0.45;
   pointer-events: none;
+}
+/* v0.9.276 (Leo) — Der Trim (Render-Anfang/-Ende) ist unabhängig vom Keyframe-Modus
+   und MUSS auch im Classic-Modus (KF-Editierung aus) voll bedienbar sein + normal
+   aussehen. Darum NICHT die ganze Timeline ausgrauen (das machte die Trim-Handles
+   blass + klick-tot) — nur die Keyframe-Editierung ist über die deaktivierten Buttons
+   gesperrt. Trim-Handles bleiben anklickbar. */
+.timeline-bar.is-disabled .timeline-trim-handle,
+.timeline-bar.is-disabled .timeline-trim-region,
+.timeline-bar.is-disabled .timeline-trim-shade {
+  pointer-events: auto;
 }
 
 /* ── Track (Bar mit Achse + Markern + Scrubber) ────────────────────────── */
