@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.274] – 2026-06-13
+
 ### Behoben (Beta-Tester-Feedback)
 
 - **Windows: kein extra Konsolenfenster mehr.** ExifTool (und ffmpeg) wurden unter
