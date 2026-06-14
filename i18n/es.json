@@ -845,5 +845,7 @@
   "update.check": "Buscar actualizaciones",
   "update.checking": "Buscando…",
   "update.uptodate": "Tienes la versión más reciente (v{v}).",
-  "update.error": "Error al buscar actualizaciones (¿sin conexión?)."
+  "update.error": "Error al buscar actualizaciones (¿sin conexión?).",
+  "geotagger.place.set_time_toggle": "Tomar la hora de captura del track",
+  "geotagger.place.set_time_hint": "Solo para fotos ajustadas al track: escribe la hora del punto del track como hora de captura — ideal para fotos de WhatsApp sin hora correcta."
 }

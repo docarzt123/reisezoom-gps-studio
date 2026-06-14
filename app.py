@@ -122,7 +122,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.280"
+APP_VERSION = "0.9.281"
 
 # v0.9.280 (Beta-Tester-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
@@ -301,6 +301,9 @@ DEFAULT_SETTINGS = {
         "make_backup": True,
         "overwrite_existing": False,
         "adjust_photo_time": False,
+        # v0.9.281 (Beta-Tester): Aufnahmezeit (DateTimeOriginal) für eingerastete Fotos
+        # aus der Track-Zeit setzen — für WhatsApp-Fotos ohne korrekte Uhrzeit.
+        "set_time_from_track": False,
         # v0.9.27 (Beta-Tester-Feedback): State-Persistenz über Modul-Wechsel + App-Restart
         "last_photos_dir": "",              # Letzter via Folder-Pick geladener Ordner
         "last_photos_paths": [],            # Letzte einzelne Foto-Pfade (Pick-Modus)
@@ -3218,13 +3221,18 @@ class Api:
                               make_backup: bool = True,
                               overwrite_existing: bool = False,
                               adjust_photo_time: bool = False,
-                              offset_seconds: float = 0.0) -> dict:
+                              offset_seconds: float = 0.0,
+                              set_time_from_track: bool = False) -> dict:
         """Startet den Schreibvorgang in einem Background-Thread.
-        - `matches`: Liste mit {path, lat, lon, alt, matched_time_utc, existing_gps?}
+        - `matches`: Liste mit {path, lat, lon, alt, matched_time_utc, existing_gps?, manual?}
         - `make_backup`: vorher ZIP-Backup der Fotos
         - `overwrite_existing`: True = auch Fotos mit bereits gesetzten GPS-Tags überschreiben
         - `adjust_photo_time`: zusätzlich DateTimeOriginal um `offset_seconds` verschieben
         - `offset_seconds`: Wert wird auf alle Foto-Aufnahmezeiten addiert
+        - `set_time_from_track`: (v0.9.281, Beta-Tester) für MANUELL eingerastete Fotos die
+          Track-Zeit als Aufnahmezeitpunkt (DateTimeOriginal) setzen — für Fotos mit
+          falscher/fehlender Zeit (z.B. WhatsApp). Wirkt nur auf `manual`-Matches mit
+          `matched_time_utc`, lässt zeitlich gematchte Fotos unangetastet.
         """
         log.info("geotagger_start_write: %d matches eingegangen | make_backup=%s overwrite_existing=%s adjust_time=%s offset=%s",
                  len(matches) if matches else 0, make_backup, overwrite_existing, adjust_photo_time, offset_seconds)
@@ -3292,7 +3300,8 @@ class Api:
         # Worker starten
         self._write_worker = threading.Thread(
             target=self._write_worker_run,
-            args=(to_write, make_backup, adjust_photo_time, offset_seconds),
+            args=(to_write, make_backup, adjust_photo_time, offset_seconds,
+                  set_time_from_track),
             daemon=True,
         )
         self._write_worker.start()
@@ -3301,10 +3310,11 @@ class Api:
 
     def _write_worker_run(self, items: list[dict], make_backup: bool,
                           adjust_photo_time: bool = False,
-                          offset_seconds: float = 0.0) -> None:
+                          offset_seconds: float = 0.0,
+                          set_time_from_track: bool = False) -> None:
         """Background-Worker: erst Backup-ZIP, dann pro Foto schreiben."""
-        log.info("_write_worker_run: START (items=%d make_backup=%s adjust_time=%s offset=%s)",
-                 len(items), make_backup, adjust_photo_time, offset_seconds)
+        log.info("_write_worker_run: START (items=%d make_backup=%s adjust_time=%s offset=%s set_time_from_track=%s)",
+                 len(items), make_backup, adjust_photo_time, offset_seconds, set_time_from_track)
         # v0.9.152: Erkennen ob die Fotos per Drag&Drop kamen (liegen dann unter
         # _drops/ — die WebView liefert keinen Original-Pfad). Dann werden NUR die
         # Wegwerf-Kopien getaggt, nicht die Originale → die UI bietet danach den
@@ -3380,6 +3390,20 @@ class Api:
                                     float(m["alt"]) if m.get("alt") is not None else None,
                                     ts)
                     log.info("_write_worker_run: [%d/%d] write_gps OK → %s", idx + 1, len(items), m.get("path"))
+                    # v0.9.281 (Beta-Tester): Aufnahmezeit aus Track setzen — NUR für manuell
+                    # eingerastete Fotos mit Track-Zeit (z.B. WhatsApp ohne korrekte Zeit).
+                    if set_time_from_track and m.get("manual") and ts is not None:
+                        try:
+                            cexif.set_datetime(m["path"], ts)
+                            log.info("_write_worker_run: [%d/%d] set_datetime aus Track OK → %s (%s)",
+                                     idx + 1, len(items), m.get("path"), ts)
+                        except Exception as e3:
+                            log.exception("_write_worker_run: [%d/%d] set_datetime FEHLGESCHLAGEN für %s",
+                                          idx + 1, len(items), m.get("path"))
+                            with self._write_lock:
+                                self._write_state["errors"].append(
+                                    f"{m['path']}: Aufnahmezeit aus Track fehlgeschlagen: {e3}"
+                                )
                     # Optionale Zeit-Korrektur (verschiebt DateTimeOriginal/CreateDate/ModifyDate)
                     if adjust_photo_time and offset_seconds:
                         try:

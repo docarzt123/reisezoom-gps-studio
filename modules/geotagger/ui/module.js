@@ -118,6 +118,12 @@ function mountGeotagger(body, headerActions) {
           <span>${t("geotagger.place.snap_toggle", "Auf Track einrasten")}</span>
         </label>
         <div class="small-info" id="gt-snap-cmd-hint" style="margin-top:4px; opacity:0.8;">${t("geotagger.place.cmd_hint", "⌘ beim Ablegen kehrt das kurz um.")}</div>
+        <!-- v0.9.281 (Beta-Tester-Wunsch): Aufnahmezeit aus Track für eingerastete Fotos -->
+        <label class="checkbox-row" style="margin-top:8px;">
+          <input type="checkbox" id="gt-set-time-from-track">
+          <span>${t("geotagger.place.set_time_toggle", "Aufnahmezeit aus Track übernehmen")}</span>
+        </label>
+        <div class="small-info" style="margin-top:4px; opacity:0.8;">${t("geotagger.place.set_time_hint", "Nur für eingerastete Fotos: schreibt die Uhrzeit des Track-Punkts als Aufnahmezeitpunkt — ideal für WhatsApp-Fotos ohne korrekte Zeit.")}</div>
       </div>
 
       <div class="divider"></div>
@@ -453,6 +459,7 @@ function mountGeotagger(body, headerActions) {
   bindSetting("gt-backup", "geotagger", "make_backup", { type: "bool" });
   bindSetting("gt-overwrite", "geotagger", "overwrite_existing", { type: "bool" });
   bindSetting("gt-adjust-time", "geotagger", "adjust_photo_time", { type: "bool" });
+  bindSetting("gt-set-time-from-track", "geotagger", "set_time_from_track", { type: "bool" });
   // v0.9.67: Undo-Listener auf #gt-panel
   _wireGeotaggerUndoListeners();
 
@@ -1294,6 +1301,9 @@ function mountGeotagger(body, headerActions) {
       m.in_range = true;                     // manuell gesetzt = gilt als taggbar
       m.manual = true;
       m.existing_gps = !!ph.existing_gps;
+      // v0.9.281 — beim Einrasten gefundene Track-Zeit mitnehmen (GPS-Zeitstempel +
+      // optional „Aufnahmezeit aus Track"). Bei freier Platzierung ohne Snap: null.
+      if (pos.track_time) m.matched_time_utc = pos.track_time;
     });
   }
 
@@ -1302,17 +1312,19 @@ function mountGeotagger(body, headerActions) {
     const ph = photos.find(p => p.path === path);
     if (!ph) return;
     let alt = null;
+    let trackTime = null;
     if (snap && _gtHasTrack()) {
       try {
         const res = await api().geotagger_track_point_at(lon, lat);
         if (res && res.ok) {
           lat = res.lat; lon = res.lon;
           if (res.ele != null) alt = res.ele;   // Track-Höhe gleich mitnehmen
+          if (res.time) trackTime = res.time;    // v0.9.281 — Track-Zeit für „Aufnahmezeit aus Track"
         }
       } catch (_) {}
     }
     if (isUnmounted) return;
-    _gtManual.set(path, { lat, lon, alt });
+    _gtManual.set(path, { lat, lon, alt, track_time: trackTime });
     selectedPath = path;
     _gtMergeManual();
     _gtRefreshAfterManual();
@@ -1323,18 +1335,19 @@ function mountGeotagger(body, headerActions) {
     if (isUnmounted) return;
     let ll;
     try { ll = mk.getLngLat(); } catch (_) { return; }
-    let lat = ll.lat, lon = ll.lng, alt = null;
+    let lat = ll.lat, lon = ll.lng, alt = null, trackTime = null;
     if (_gtSnapWanted(_gtMetaDown) && _gtHasTrack()) {
       try {
         const res = await api().geotagger_track_point_at(lon, lat);
-        if (res && res.ok) { lat = res.lat; lon = res.lon; if (res.ele != null) alt = res.ele; }
+        if (res && res.ok) { lat = res.lat; lon = res.lon; if (res.ele != null) alt = res.ele; if (res.time) trackTime = res.time; }
       } catch (_) {}
     } else {
       const prev = _gtManual.get(path);
       alt = prev ? prev.alt : null;            // bisherige Höhe behalten
+      trackTime = prev ? (prev.track_time || null) : null;
     }
     if (isUnmounted) return;
-    _gtManual.set(path, { lat, lon, alt });
+    _gtManual.set(path, { lat, lon, alt, track_time: trackTime });
     _gtMergeManual();
     _gtRefreshAfterManual();
   }
@@ -1672,6 +1685,7 @@ function mountGeotagger(body, headerActions) {
     const overwrite = document.getElementById("gt-overwrite").checked;
     const backup = document.getElementById("gt-backup").checked;
     const adjustTime = document.getElementById("gt-adjust-time").checked;
+    const setTimeFromTrack = !!(document.getElementById("gt-set-time-from-track") || {}).checked;
     const offsetSec = getOffsetSeconds();
 
     // Wie viele werden übersprungen (haben schon GPS)?
@@ -1715,13 +1729,13 @@ function mountGeotagger(body, headerActions) {
       openModal({ closable: true }).close();
     };
     document.getElementById("modal-ok").onclick = async () => {
-      runWriteWithProgress(writable, backup, overwrite, adjustTime, offsetSec);
+      runWriteWithProgress(writable, backup, overwrite, adjustTime, offsetSec, setTimeFromTrack);
     };
   });
 
-  async function runWriteWithProgress(writable, backup, overwrite, adjustTime, offsetSec) {
+  async function runWriteWithProgress(writable, backup, overwrite, adjustTime, offsetSec, setTimeFromTrack) {
     const res = await api().geotagger_start_write(
-      writable, backup, overwrite, adjustTime, offsetSec
+      writable, backup, overwrite, adjustTime, offsetSec, !!setTimeFromTrack
     );
     if (!res.ok) {
       openModal({ title: "Fehler", body: `<p>${res.error}</p>`,

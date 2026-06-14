@@ -845,5 +845,7 @@
   "update.check": "Nach Updates suchen",
   "update.checking": "Suche…",
   "update.uptodate": "Du hast die aktuelle Version (v{v}).",
-  "update.error": "Update-Prüfung fehlgeschlagen (keine Verbindung?)."
+  "update.error": "Update-Prüfung fehlgeschlagen (keine Verbindung?).",
+  "geotagger.place.set_time_toggle": "Aufnahmezeit aus Track übernehmen",
+  "geotagger.place.set_time_hint": "Nur für eingerastete Fotos: schreibt die Uhrzeit des Track-Punkts als Aufnahmezeitpunkt — ideal für WhatsApp-Fotos ohne korrekte Zeit."
 }

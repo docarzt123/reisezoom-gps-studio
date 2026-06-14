@@ -831,6 +831,69 @@ def shift_datetime(path: str, seconds: float) -> bool:
     return False
 
 
+def set_datetime(path: str, dt) -> bool:
+    """v0.9.281 (Beta-Tester-Wunsch) — Setzt den Aufnahmezeitpunkt ABSOLUT auf `dt`
+    (DateTimeOriginal/CreateDate/ModifyDate + OffsetTime*-Tags). Für Fotos, die
+    auf den Track eingerastet wurden und deren eigene Uhrzeit falsch/fehlt (z.B.
+    WhatsApp-Weiterleitungen): die Zeit des getroffenen Track-Punkts wird zum
+    Aufnahmezeitpunkt, damit sich das Foto korrekt zwischen die anderen einsortiert.
+
+    `dt` ist ein datetime. GPX-Zeiten sind UTC; naive dt → als UTC interpretiert.
+    Geschrieben wird die LOKALE Darstellung (System-Zeitzone) + passender
+    OffsetTime. Das ist korrekt, wenn man in seiner Heim-Zeitzone unterwegs war
+    (der Normalfall). Routing wie write_gps: piexif für JPEG, exiftool sonst.
+    Liefert True bei Erfolg."""
+    if dt is None:
+        return False
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    local = dt.astimezone()                       # System-Zeitzone
+    date_str = local.strftime("%Y:%m:%d %H:%M:%S")
+    off = local.strftime("%z")                    # z.B. "+0200" / "-0500"
+    offset_str = (off[:3] + ":" + off[3:]) if len(off) == 5 else "+00:00"
+
+    if is_jpeg_like(path):
+        try:
+            ex = piexif.load(path)
+        except Exception:
+            ex = {"0th": {}, "Exif": {}, "GPS": {}, "1st": {}, "thumbnail": None}
+        try:
+            raw = date_str.encode("ascii")
+            ex.setdefault("Exif", {})
+            ex.setdefault("0th", {})
+            ex["Exif"][piexif.ExifIFD.DateTimeOriginal] = raw
+            ex["Exif"][piexif.ExifIFD.DateTimeDigitized] = raw
+            ex["0th"][piexif.ImageIFD.DateTime] = raw
+            off_raw = offset_str.encode("ascii")
+            ex["Exif"][piexif.ExifIFD.OffsetTimeOriginal] = off_raw
+            ex["Exif"][piexif.ExifIFD.OffsetTimeDigitized] = off_raw
+            ex["Exif"][piexif.ExifIFD.OffsetTime] = off_raw
+            piexif.insert(piexif.dump(ex), path)
+            _log.info("set_datetime (piexif): %s → %s %s", path, date_str, offset_str)
+            return True
+        except Exception as e:
+            _log.exception("set_datetime piexif fehlgeschlagen für %s: %s", path, e)
+            return False
+
+    if is_raw(path) or is_tiff(path) or is_heif(path):
+        try:
+            daemon = _ensure_write_daemon()
+        except ExifToolMissingError:
+            return False
+        args = [
+            "-overwrite_original",
+            f"-AllDates={date_str}",
+            f"-OffsetTimeOriginal={offset_str}",
+            f"-OffsetTimeDigitized={offset_str}",
+            f"-OffsetTime={offset_str}",
+            path,
+        ]
+        ok, msg = daemon.write_args(args)
+        _log.info("set_datetime (exiftool): %s → %s %s | ok=%s", path, date_str, offset_str, ok)
+        return ok
+    return False
+
+
 def _exiftool_read_video_meta(path: str) -> dict:
     """Liest Video-Metadaten (MP4/MOV/Insta360/etc.) — analog _exiftool_read_meta
     aber andere Tag-Quellen (QuickTime nicht EXIF).

@@ -472,6 +472,7 @@ Manche Fotos lassen sich **nicht über die Zeit zuordnen** — z.B. weil sie nur
 - **Auf Track einrasten:** Der Schalter **„Auf Track einrasten"** (Sektion „Manuell platzieren" links) setzt das Foto stattdessen auf den **nächstgelegenen Track-Punkt** (inkl. dessen Höhe). **⌘ gedrückt halten** beim Ablegen kehrt den Modus kurzzeitig um (frei ↔ einrasten).
 - **Feinjustieren:** Manuell gesetzte Pins sind **blau** und lassen sich **direkt auf der Karte verschieben**. Beim Verschieben gilt dieselbe Einrast-Logik (Toggle + ⌘).
 - Ein Hinweis-Balken auf der Karte zeigt beim Ziehen an, ob gerade **frei** oder **auf den Track** gesetzt wird.
+- **Aufnahmezeit aus Track übernehmen (seit v0.9.281):** Der Schalter **„Aufnahmezeit aus Track übernehmen"** (direkt unter „Auf Track einrasten") schreibt beim Taggen für **eingerastete** Fotos zusätzlich die **Uhrzeit des Track-Punkts** als Aufnahmezeitpunkt (`DateTimeOriginal`) ins Foto. Perfekt für **WhatsApp-Fotos von Freunden**, die nur eine falsche Weiterleitungs-Zeit haben — so sortieren sie sich nach dem Taggen korrekt zwischen deine eigenen Fotos ein. Wirkt **nur** auf eingerastete Fotos; zeitlich automatisch gematchte Fotos behalten ihre Original-Zeit. Die Track-Zeit (UTC) wird in deine lokale Zeitzone umgerechnet — korrekt, wenn du in deiner Heim-Zeitzone unterwegs warst.
 
 > Hinweis: Manuelle Platzierungen gelten für die laufende Sitzung. Wechselst du das Modul und kommst zurück, musst du sie ggf. neu setzen.
 

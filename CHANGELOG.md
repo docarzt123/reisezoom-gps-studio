@@ -14,6 +14,22 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.281] – 2026-06-14
+
+### Hinzugefügt (Beta-Tester-Wunsch)
+
+- **Aufnahmezeit aus Track übernehmen (Geotagger).** Neue Option „Aufnahmezeit aus Track
+  übernehmen" unter „Manuell platzieren". Wenn man ein Foto **auf den Track einrastet**,
+  schreibt der Geotagger auf Wunsch die **Uhrzeit des getroffenen Track-Punkts** als
+  Aufnahmezeitpunkt (`DateTimeOriginal`/`CreateDate` + passender `OffsetTime`) ins Foto.
+  Ideal für **WhatsApp-Fotos von Freunden**, die nur eine falsche Weiterleitungs-Zeit
+  haben — so sortieren sie sich korrekt zwischen die eigenen Fotos ein. Wirkt **nur** auf
+  manuell eingerastete Fotos (zeitlich gematchte behalten ihre Original-Zeit) und nur wenn
+  die Option aktiv ist. Die Track-Zeit (UTC) wird in die lokale Zeitzone umgerechnet
+  geschrieben (korrekt, wenn man in seiner Heim-Zeitzone unterwegs war). Beim Einrasten
+  wird die Track-Zeit jetzt außerdem als GPS-Zeitstempel (`GPSDateStamp`/`GPSTimeStamp`)
+  mitgeschrieben.
+
 ## [0.9.280] – 2026-06-14
 
 ### Hinzugefügt (Beta-Tester-Wunsch)

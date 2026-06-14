@@ -845,5 +845,7 @@
   "update.check": "Check for updates",
   "update.checking": "Checking…",
   "update.uptodate": "You're on the latest version (v{v}).",
-  "update.error": "Update check failed (no connection?)."
+  "update.error": "Update check failed (no connection?).",
+  "geotagger.place.set_time_toggle": "Take capture time from track",
+  "geotagger.place.set_time_hint": "Only for snapped photos: writes the track point's time as the capture time — ideal for WhatsApp photos with no correct time."
 }
