@@ -335,12 +335,13 @@ python app.py</code></pre>
 <li><strong>Ghost-Track (seit v0.9.169)</strong> — zeigt die <strong>komplette Route</strong> schon halbtransparent im Hintergrund, während nur der animierte Teil voll deckend darüber gezeichnet wird. So sieht man von Anfang an, wo es noch hingeht. Einstellbar: <strong>eigene Ghost-Track-Farbe</strong> (eigener Color-Picker, unabhängig von der Track-Farbe — z.B. dezentes Grau, seit v0.9.170) und <strong>Deckkraft</strong> (Slider 5–80 %, Default 30 %). Wirkt in Vorschau und Render inkl. Alpha/Transparent-Modus. Standard aus.</li>
 <li><strong>Karte ohne Beschriftungen</strong> (seit v0.4.4) — blendet Ortsnamen, Straßennamen und POI-Icons auf der Karte aus. Macht die Karte zum reinen Hintergrund — guter Look wenn du den Track als visuellen Hauptdarsteller haben willst statt einer Google-Maps-mäßigen Übersicht. Funktioniert mit allen Karten-Stilen und auch im Tour-Map-Modul.</li>
 </ul>
-<p><strong>Overlays</strong> (alle einzeln togglebar, frei platzierbar — vier Ecken plus <strong>oben mittig (↥)</strong>, <strong>Bildschirm-Mitte (✛)</strong> und unten mittig/breit (↧); die mittigen Positionen seit v0.9.283 für Titel-/Eröffnungs-Karten):</p>
+<p><strong>Overlays</strong> (alle einzeln togglebar, frei platzierbar):</p>
 <ul>
 <li><strong>Totals-Box</strong> — Strecke, Zeit, Aufstieg, Abstieg, Max-Höhe</li>
 <li><strong>Live-Box</strong> — zurückgelegt, vergangen, Höhe (zählt während der Animation hoch)</li>
-<li><strong>Höhenprofil</strong> — animierte Linie unten</li>
+<li><strong>Höhenprofil</strong> — animierte Linie</li>
 </ul>
+<p><strong>Positionen (seit v0.9.284):</strong> Stats-Boxen in einem <strong>3×3-Raster</strong> — vier Ecken plus <strong>oben (↥)</strong>, <strong>unten (↧)</strong>, <strong>links (⇤)</strong>, <strong>rechts (⇥)</strong> mittig und <strong>Mitte (✛)</strong> (z.B. für eine Titel-/Eröffnungs-Einblendung). Das <strong>Höhenprofil</strong> ist schmaler und bietet zusätzlich <strong>oben breit / unten breit</strong> (über die volle Breite).</p>
 <p><strong>⏱ Zeitfenster pro Box</strong> (seit v0.9.228): Unter jeder Overlay-Box kannst du einstellen, <strong>ab welcher und bis zu welcher Video-Sekunde</strong> sie eingeblendet wird — z.B. die Live-Box erst ab Sekunde 2 zeigen, oder die Totals-Box nach Sekunde 8 wieder ausblenden. Zwei Felder „ab … s&quot; / „bis … s&quot;, gezählt über das <strong>ganze Video</strong> (Intro + Animation + Hold). <strong>Leer oder 0</strong> = wie bisher (ganze Zeit sichtbar). Das Ein-/Ausblenden siehst du schon im <strong>Probelauf</strong>, bevor du renderst.</p>
 <p><strong>Kamera:</strong></p>
 <ul>

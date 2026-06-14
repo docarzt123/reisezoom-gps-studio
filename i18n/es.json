@@ -431,7 +431,7 @@
   "animator.pos.tr": "↗ arriba der.",
   "animator.pos.bl": "↙ abajo izq.",
   "animator.pos.br": "↘ abajo der.",
-  "animator.pos.bc": "↧ abajo ancho",
+  "animator.pos.bc": "↧ abajo",
   "animator.section.camera": "Cámara",
   "animator.field.pitch": "Inclinación",
   "animator.field.rotation": "Rotación",
@@ -852,6 +852,10 @@
   "export_gpx.done": "GPX exportado.",
   "export_gpx.no_track": "Ningún track cargado — abre un archivo primero.",
   "export_gpx.error": "Error al exportar GPX.",
-  "animator.pos.tc": "↥ centro arriba",
-  "animator.pos.cc": "✛ centro"
+  "animator.pos.tc": "↥ arriba",
+  "animator.pos.cc": "✛ centro",
+  "animator.pos.ml": "⇤ izquierda",
+  "animator.pos.mr": "⇥ derecha",
+  "animator.pos.tcw": "↥ arriba ancho",
+  "animator.pos.bcw": "↧ abajo ancho"
 }

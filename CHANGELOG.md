@@ -14,6 +14,23 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.284] – 2026-06-14
+
+### Geändert (Beta-Tester-Wunsch, Feinschliff zu v0.9.283)
+
+- **Overlay-Positionen vervollständigt.** Die Statistik-Boxen (Gesamt-/Live-Werte) gibt's
+  jetzt in einem vollständigen **3×3-Raster**: vier Ecken plus **oben (↥)**, **unten (↧)**,
+  **links (⇤)** und **rechts (⇥)** jeweils mittig sowie **Mitte (✛)**. „links/rechts mittig"
+  sind vertikal zentriert am Seitenrand — so sammelt sich die Statistik auf einer Seite.
+- **„Unten" statt „unten breit".** Die mittigen Stats-Boxen werden **nicht mehr über die
+  volle Breite gestreckt**, sondern bleiben kompakt wie die Eck-Boxen (sah sonst „auseinander-
+  gezogen" aus).
+- **Höhenprofil schmaler + eigene Breit-Optionen.** Das Höhenprofil ist standardmäßig
+  **schmaler** und hat jetzt **oben / oben breit / unten / unten breit** zur Auswahl (nur das
+  Höhenprofil wird über die volle Breite gezogen, wenn man „breit" wählt).
+
+  Gilt für Animator und Tour-Map (Spiegelung), live in der Vorschau und im Video.
+
 ## [0.9.283] – 2026-06-14
 
 ### Hinzugefügt (Beta-Tester-Wunsch)

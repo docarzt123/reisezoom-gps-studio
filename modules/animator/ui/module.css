@@ -354,18 +354,20 @@
   display: flex;
   flex-direction: column;
 }
-.overlay-preview-layer .ov-ele-box.pos-bc {
-  left: 10%;
-  right: 10%;
-  bottom: calc(40px * var(--overlay-scale));
-}
+/* v0.9.284 (Beta-Tester) — Höhenprofil: schmal (feste Breite) bei allen normalen
+   Positionen; nur tcw/bcw (oben/unten breit) gehen über volle Breite.
+   Synchron zu core/animator.py _overlay_css. */
 .overlay-preview-layer .ov-ele-box.pos-tl,
 .overlay-preview-layer .ov-ele-box.pos-bl,
 .overlay-preview-layer .ov-ele-box.pos-tr,
-.overlay-preview-layer .ov-ele-box.pos-br { width: calc(480px * var(--overlay-scale)); }
-/* v0.9.283 (Beta-Tester) — Höhenprofil mittig: feste Breite (synchron zu animator.py). */
+.overlay-preview-layer .ov-ele-box.pos-br,
 .overlay-preview-layer .ov-ele-box.pos-tc,
-.overlay-preview-layer .ov-ele-box.pos-cc { width: calc(560px * var(--overlay-scale)); }
+.overlay-preview-layer .ov-ele-box.pos-bc,
+.overlay-preview-layer .ov-ele-box.pos-cc,
+.overlay-preview-layer .ov-ele-box.pos-ml,
+.overlay-preview-layer .ov-ele-box.pos-mr { width: calc(480px * var(--overlay-scale)); }
+.overlay-preview-layer .ov-ele-box.pos-tcw { left: 10%; right: 10%; top: calc(40px * var(--overlay-scale)); }
+.overlay-preview-layer .ov-ele-box.pos-bcw { left: 10%; right: 10%; bottom: calc(40px * var(--overlay-scale)); }
 .overlay-preview-layer .ov-ele-header {
   display: flex;
   justify-content: space-between;
@@ -395,12 +397,20 @@
 .overlay-preview-layer .pos-tr { top: calc(40px * var(--overlay-scale));    right: calc(40px * var(--overlay-scale));  text-align: right; }
 .overlay-preview-layer .pos-bl { bottom: calc(40px * var(--overlay-scale)); left: calc(40px * var(--overlay-scale)); }
 .overlay-preview-layer .pos-br { bottom: calc(40px * var(--overlay-scale)); right: calc(40px * var(--overlay-scale));  text-align: right; }
-/* v0.9.283 (Beta-Tester) — mittige Positionen (synchron zu animator.py _overlay_css). */
-.overlay-preview-layer .ov-box.pos-bc { left: 10%; right: 10%; bottom: calc(40px * var(--overlay-scale)); }
+/* v0.9.283/284 (Beta-Tester) — mittige Positionen (synchron zu animator.py _overlay_css).
+   Kompakt+zentriert: tc/bc/cc; vertikal mittig am Rand: ml/mr; volle Breite (nur
+   Höhenprofil): tcw/bcw. */
 .overlay-preview-layer .pos-tc { top: calc(40px * var(--overlay-scale)); left: 50%; transform: translateX(-50%); text-align: center; }
+.overlay-preview-layer .pos-bc { bottom: calc(40px * var(--overlay-scale)); left: 50%; transform: translateX(-50%); text-align: center; }
 .overlay-preview-layer .pos-cc { top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+.overlay-preview-layer .pos-ml { top: 50%; left: calc(40px * var(--overlay-scale)); transform: translateY(-50%); }
+.overlay-preview-layer .pos-mr { top: 50%; right: calc(40px * var(--overlay-scale)); transform: translateY(-50%); text-align: right; }
+.overlay-preview-layer .pos-tcw { top: calc(40px * var(--overlay-scale)); left: 10%; right: 10%; }
+.overlay-preview-layer .pos-bcw { bottom: calc(40px * var(--overlay-scale)); left: 10%; right: 10%; }
 .overlay-preview-layer .pos-tc .ov-row,
+.overlay-preview-layer .pos-bc .ov-row,
 .overlay-preview-layer .pos-cc .ov-row { justify-content: center; }
+.overlay-preview-layer .pos-mr .ov-row { justify-content: flex-end; }
 
 /* OSM-Modus: Style-Picker disabled + Hinweis mit CTA für Token-Settings */
 .field.is-osm-disabled {

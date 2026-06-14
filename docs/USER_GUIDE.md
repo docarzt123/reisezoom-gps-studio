@@ -210,10 +210,12 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Ghost-Track (seit v0.9.169)** — zeigt die **komplette Route** schon halbtransparent im Hintergrund, während nur der animierte Teil voll deckend darüber gezeichnet wird. So sieht man von Anfang an, wo es noch hingeht. Einstellbar: **eigene Ghost-Track-Farbe** (eigener Color-Picker, unabhängig von der Track-Farbe — z.B. dezentes Grau, seit v0.9.170) und **Deckkraft** (Slider 5–80 %, Default 30 %). Wirkt in Vorschau und Render inkl. Alpha/Transparent-Modus. Standard aus.
 - **Karte ohne Beschriftungen** (seit v0.4.4) — blendet Ortsnamen, Straßennamen und POI-Icons auf der Karte aus. Macht die Karte zum reinen Hintergrund — guter Look wenn du den Track als visuellen Hauptdarsteller haben willst statt einer Google-Maps-mäßigen Übersicht. Funktioniert mit allen Karten-Stilen und auch im Tour-Map-Modul.
 
-**Overlays** (alle einzeln togglebar, frei platzierbar — vier Ecken plus **oben mittig (↥)**, **Bildschirm-Mitte (✛)** und unten mittig/breit (↧); die mittigen Positionen seit v0.9.283 für Titel-/Eröffnungs-Karten):
+**Overlays** (alle einzeln togglebar, frei platzierbar):
 - **Totals-Box** — Strecke, Zeit, Aufstieg, Abstieg, Max-Höhe
 - **Live-Box** — zurückgelegt, vergangen, Höhe (zählt während der Animation hoch)
-- **Höhenprofil** — animierte Linie unten
+- **Höhenprofil** — animierte Linie
+
+**Positionen (seit v0.9.284):** Stats-Boxen in einem **3×3-Raster** — vier Ecken plus **oben (↥)**, **unten (↧)**, **links (⇤)**, **rechts (⇥)** mittig und **Mitte (✛)** (z.B. für eine Titel-/Eröffnungs-Einblendung). Das **Höhenprofil** ist schmaler und bietet zusätzlich **oben breit / unten breit** (über die volle Breite).
 
 **⏱ Zeitfenster pro Box** (seit v0.9.228): Unter jeder Overlay-Box kannst du
 einstellen, **ab welcher und bis zu welcher Video-Sekunde** sie eingeblendet
