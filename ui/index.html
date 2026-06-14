@@ -51,6 +51,15 @@
   </div>
 </header>
 
+<!-- v0.9.280 (Beta-Tester-Wunsch) — Update-Hinweis-Banner. Per JS bei Start befüllt
+     wenn GitHub eine neuere Version meldet. Dismissbar pro Version. -->
+<div class="update-banner" id="update-banner" hidden>
+  <span class="update-banner-icon">⬆️</span>
+  <span class="update-banner-text" id="update-banner-text"></span>
+  <button class="update-banner-dl" id="update-banner-dl" type="button">Herunterladen</button>
+  <button class="update-banner-x" id="update-banner-close" type="button" title="Ausblenden">✕</button>
+</div>
+
 <main class="main" id="main">
   <!-- Module wird via JS hier reingerendert -->
 </main>

@@ -839,5 +839,11 @@
   "gpxinspect.routing": "Finding a route between A and B …",
   "gpxinspect.route_failed": "Could not compute route: ",
   "gpxinspect.route_nomatch": "No route found — A or B is too far from a road.",
-  "gpxinspect.routed": "Routed A→B along roads: "
+  "gpxinspect.routed": "Routed A→B along roads: ",
+  "update.banner": "A new version <b>v{v}</b> is available.",
+  "update.download": "Download",
+  "update.check": "Check for updates",
+  "update.checking": "Checking…",
+  "update.uptodate": "You're on the latest version (v{v}).",
+  "update.error": "Update check failed (no connection?)."
 }

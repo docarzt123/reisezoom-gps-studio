@@ -14,6 +14,34 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.280] – 2026-06-14
+
+### Hinzugefügt (Beta-Tester-Wunsch)
+
+- **Update-Hinweis in der App.** Beim Start prüft die App im Hintergrund, ob auf
+  GitHub eine neuere Version vorliegt, und zeigt dann ein dezentes Banner unter der
+  Leiste: „Neue Version vX.Y.Z ist verfügbar" mit **Herunterladen**-Button (öffnet
+  den passenden Mac-/Windows-Download im Browser) und einem **Ausblenden**-✕. Eine
+  weggeklickte Version nervt nicht erneut; die nächste wird wieder gemeldet. Im
+  **Über-Dialog** gibt es zusätzlich einen **„Nach Updates suchen"**-Button für die
+  manuelle Prüfung. Die Netzabfrage ist auf einmal pro 12 h gedrosselt (Cache in den
+  Settings); abschaltbar über `update_check_enabled`. Reiner Hinweis — die App
+  installiert sich **nicht** selbst (bewusst, wegen fehlender Apple-Notarisierung auf
+  dem Mac), der Download/Installer bleibt manuell.
+
+## [0.9.279] – 2026-06-14
+
+### Behoben (Beta-Tester-Feedback)
+
+- **Tour-Map-Rendern stürzte komplett ab** (`TourmapConfig got unexpected keyword argument 'ghost_track_enabled'`).
+  Die Ghost-Track-Felder (eigener Track blass + zweite Vergleichs-GPX) waren im Animator
+  ergänzt, aber nie in `TourmapConfig` nachgezogen worden (Verstoß gegen die Animator↔Tour-Map-
+  Spiegelung). Dadurch crashte **jedes** Tour-Map-Rendern beim Klick auf „Rendern". Behoben:
+  alle 8 Ghost-Felder in `TourmapConfig` ergänzt. Die zweite **Vergleichs-GPX** (`ghost_gpx`)
+  wird in der Tour-Map jetzt als blasse, gestrichelte Linie mitgerendert; das „Geister"-Abbild
+  des eigenen Tracks (`ghost_track`) ergibt auf einer statischen Tour-Map keinen Sinn (der ganze
+  Track ist sowieso durchgezogen sichtbar) und wird daher angenommen, aber nicht gezeichnet.
+
 ## [0.9.278] – 2026-06-13
 
 ### Hinzugefügt (Leo-Feedback)

@@ -122,7 +122,21 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.278"
+APP_VERSION = "0.9.280"
+
+# v0.9.280 (Beta-Tester-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
+# kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
+# meldet dem UI, ob ein neueres Release da ist. Download bleibt manuell (Shortlink).
+GITHUB_REPO = "docarzt123/reisezoom-gps-studio"
+UPDATE_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+UPDATE_DOWNLOAD_PAGE = f"https://github.com/{GITHUB_REPO}/releases/latest"
+# Plattform-spezifische Direkt-Download-Shortlinks (Linux baut aus Quelle → Seite).
+_UPDATE_SHORTLINKS = {
+    "darwin": "https://s.reisezoom.com/gps-studio-mac",
+    "win32": "https://s.reisezoom.com/gps-studio-win",
+}
+# Netzwerk-Abfrage höchstens alle 12 h (sonst Cache aus Settings), außer force.
+UPDATE_CHECK_THROTTLE_S = 12 * 3600
 
 RENDERS_DIR = APP_SUPPORT / "_renders"
 BACKUPS_DIR = APP_SUPPORT / "_backups_photos"
@@ -172,6 +186,11 @@ DEFAULT_SETTINGS = {
     "onboarding_done": False,      # First-Run-Modal nicht mehr zeigen
     # v0.9.27 (Beta-Tester-Feedback): letzten GPX-Pfad über App-Restart persistieren
     "last_gpx_path": "",
+    # v0.9.280 (Beta-Tester-Wunsch): In-App-Update-Check.
+    "update_check_enabled": True,    # beim Start GitHub-Releases prüfen
+    "update_last_check": "",         # ISO-Zeit der letzten Netzabfrage (Throttle)
+    "update_latest_known": "",       # zuletzt gesehene Release-Version (Cache)
+    "update_dismissed_version": "",  # vom User weggeklickte Version (nicht nochmal nerven)
     # v0.9.28 (Marc-Feedback): Fenster-Geometrie wird IMMER persistiert.
     # Erststart (x/y = -1) → maximiert. Danach merkt sich die App immer
     # die letzte Größe + Position. Kein Setting-Toggle mehr — wer das
@@ -344,6 +363,21 @@ def _migrate_settings(s: dict) -> dict:
             g.pop(k, None)
         s["geotagger"] = g
     return s
+
+
+def _version_tuple(v: str) -> tuple:
+    """'0.9.280' → (0, 9, 280) für robusten Versionsvergleich. Nicht-numerische
+    Teile (z.B. '-beta') werden ignoriert; fehlende Stellen zählen als 0."""
+    out = []
+    for part in str(v or "").lstrip("vV").split("."):
+        num = ""
+        for ch in part:
+            if ch.isdigit():
+                num += ch
+            else:
+                break
+        out.append(int(num) if num else 0)
+    return tuple(out)
 
 
 def _load_settings() -> dict:
@@ -673,6 +707,95 @@ class Api:
                 webbrowser.open(url, new=2)
                 return {"ok": True}
             return {"ok": False, "error": "Ungültige URL"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Update-Check (Beta-Tester-Wunsch v0.9.280) ──────────────────────────────────
+
+    def check_for_update(self, force: bool = False) -> dict:
+        """Prüft die GitHub-Releases-API auf eine neuere Version (Stufe 1: nur
+        Hinweis, kein Selbst-Update). Throttelt Netzabfragen auf alle 12 h und
+        cached das Ergebnis in den Settings, damit der App-Start nicht jedes Mal
+        eine HTTP-Anfrage feuert. `force=True` (manueller „Suchen"-Button) umgeht
+        Throttle UND das `update_check_enabled`-Flag.
+
+        Rückgabe:
+          ok               – Abfrage gelaufen (auch wenn aktuell)
+          available        – True wenn latest > current
+          current/latest   – Versions-Strings ohne „v"
+          download_url     – plattformpassender Direkt-Download (Linux → Seite)
+          page_url         – GitHub-Releases-Seite
+          dismissed        – True wenn der User genau diese Version weggeklickt hat
+          checked_network  – ob diesmal wirklich GitHub gefragt wurde
+        """
+        s = _load_settings()
+        current = APP_VERSION
+        page_url = UPDATE_DOWNLOAD_PAGE
+        dl_url = _UPDATE_SHORTLINKS.get(sys.platform, UPDATE_DOWNLOAD_PAGE)
+
+        if not force and not s.get("update_check_enabled", True):
+            return {"ok": True, "available": False, "enabled": False,
+                    "current": current, "checked_network": False}
+
+        # Throttle: innerhalb von 12 h kein neuer Netz-Call → Cache aus Settings.
+        latest = str(s.get("update_latest_known", "") or "")
+        do_network = force
+        if not do_network:
+            last = str(s.get("update_last_check", "") or "")
+            if not last:
+                do_network = True
+            else:
+                try:
+                    age = (datetime.now(timezone.utc)
+                           - datetime.fromisoformat(last)).total_seconds()
+                    do_network = age >= UPDATE_CHECK_THROTTLE_S
+                except Exception:
+                    do_network = True
+
+        if do_network:
+            try:
+                import urllib.request
+                req = urllib.request.Request(
+                    UPDATE_RELEASES_API,
+                    headers={"User-Agent": f"ReisezoomGPSStudio/{current}",
+                             "Accept": "application/vnd.github+json"},
+                )
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                tag = str(data.get("tag_name") or "").lstrip("vV").strip()
+                if tag:
+                    latest = tag
+                s["update_latest_known"] = latest
+                s["update_last_check"] = datetime.now(timezone.utc).isoformat()
+                _save_settings(s)
+            except Exception as e:
+                log.info("check_for_update: Netzabfrage fehlgeschlagen: %s", e)
+                # Bei Fehler: still bleiben, nur Cache nutzen (kein UI-Fehler).
+                return {"ok": False, "available": False, "current": current,
+                        "latest": latest, "checked_network": True,
+                        "error": str(e)}
+
+        available = bool(latest) and _version_tuple(latest) > _version_tuple(current)
+        dismissed = (str(s.get("update_dismissed_version", "") or "") == latest)
+        return {
+            "ok": True,
+            "available": available,
+            "current": current,
+            "latest": latest,
+            "download_url": dl_url,
+            "page_url": page_url,
+            "dismissed": dismissed,
+            "checked_network": do_network,
+        }
+
+    def update_dismiss(self, version: str) -> dict:
+        """Merkt sich, dass der User diese Version weggeklickt hat — Banner kommt
+        für genau diese Version nicht wieder (für die nächste schon)."""
+        try:
+            s = _load_settings()
+            s["update_dismissed_version"] = str(version or "")
+            _save_settings(s)
+            return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 

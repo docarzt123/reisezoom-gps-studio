@@ -415,6 +415,13 @@ async function openAboutModal() {
         <div class="muted" style="font-size:12px; margin-top:4px;">
           ${t("about.version")}&nbsp;${escapeHtml(info.version || "?")}&nbsp;·&nbsp;Python&nbsp;${escapeHtml(info.python || "?")}
         </div>
+        <!-- v0.9.280 (Beta-Tester-Wunsch) — manueller Update-Check -->
+        <div style="margin-top:10px;">
+          <button id="about-check-update" class="btn"
+                  style="padding:6px 14px; border-radius:8px; background:var(--bg-3); color:var(--text); font-size:12px; font-weight:600; border:1px solid var(--border); cursor:pointer;">
+            ${t("update.check")}
+          </button>
+        </div>
         <div class="muted" style="font-size:12.5px; margin:14px auto 0; max-width:380px; line-height:1.55;">
           ${t("about.tagline")}
         </div>
@@ -489,6 +496,15 @@ async function openAboutModal() {
   // Topbar-Version auf Backend-Version syncen
   const topbarV = document.getElementById("topbar-version");
   if (topbarV && info.version) topbarV.textContent = "v" + info.version;
+  // v0.9.280 — manueller Update-Check aus dem Über-Dialog
+  const upBtn = document.getElementById("about-check-update");
+  if (upBtn) upBtn.onclick = async () => {
+    const prev = upBtn.textContent;
+    upBtn.textContent = t("update.checking");
+    upBtn.disabled = true;
+    try { await checkForUpdate(true); }
+    finally { upBtn.textContent = prev; upBtn.disabled = false; }
+  };
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
@@ -576,6 +592,40 @@ async function openFirstRunMapboxModal() {
   });
 }
 
+// v0.9.280 (Beta-Tester-Wunsch) — In-App-Update-Check (Stufe 1: nur Hinweis-Banner,
+// kein Selbst-Update). Fragt das Backend (throttelt GitHub auf alle 12 h) und
+// zeigt bei neuerer Version ein dismissbares Banner unter der Topbar. `force`
+// (manueller „Suchen"-Button im Über-Dialog) umgeht Throttle + zeigt Toast.
+async function checkForUpdate(force = false) {
+  const banner = document.getElementById("update-banner");
+  let res;
+  try { res = await api().check_for_update(!!force); }
+  catch (_) { if (force) toast(t("update.error"), "warn"); return; }
+  if (!res || !res.ok) { if (force) toast(t("update.error"), "warn"); return; }
+
+  if (res.available && (force || !res.dismissed)) {
+    if (banner) {
+      const txt = document.getElementById("update-banner-text");
+      if (txt) txt.innerHTML = t("update.banner", { v: res.latest });
+      const dl = document.getElementById("update-banner-dl");
+      if (dl) {
+        dl.textContent = t("update.download");
+        dl.onclick = () => { try { api().open_url(res.download_url || res.page_url); } catch (_) {} };
+      }
+      const x = document.getElementById("update-banner-close");
+      if (x) x.onclick = () => {
+        banner.hidden = true;
+        try { api().update_dismiss(res.latest); } catch (_) {}
+      };
+      banner.hidden = false;
+    }
+  } else {
+    if (banner) banner.hidden = true;
+    if (force) toast(t("update.uptodate", { v: res.current }), "success");
+  }
+}
+window.checkForUpdate = checkForUpdate;
+
 window.addEventListener("DOMContentLoaded", async () => {
   await whenApiReady();
   await loadSettings();
@@ -600,6 +650,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     const tv = document.getElementById("topbar-version");
     if (tv && info && info.version) tv.textContent = "v" + info.version;
   } catch (_) {}
+
+  // v0.9.280 — Update-Check im Hintergrund (blockiert den Start nicht).
+  setTimeout(() => { checkForUpdate(false); }, 1500);
 
   // First-Run: nur wenn die Settings-Datei noch nie eine Mapbox-Entscheidung
   // gespeichert haben → blockierendes Modal mit zwei Optionen:

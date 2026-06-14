@@ -2232,3 +2232,44 @@ body.is-rendering .modal-overlay * {
 .osm-block-title { font-size: 16px; font-weight: 700; color: var(--text, #e8edf2); margin-bottom: 8px; }
 .osm-block-body { font-size: 13px; line-height: 1.55; color: var(--text-muted, #93a1b0); margin-bottom: 18px; }
 .osm-block-overlay .osm-block-cta { min-width: 180px; }
+
+/* v0.9.280 (Beta-Tester-Wunsch) — Update-Hinweis-Banner unter der Topbar.
+   Dezent, accent-getönt, mit Download- und Ausblenden-Button. */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--accent-dim);
+  color: var(--text);
+  font-size: 13px;
+}
+.update-banner[hidden] { display: none; }
+.update-banner-icon { font-size: 14px; flex: none; }
+.update-banner-text { flex: 1 1 auto; }
+.update-banner-text b { color: var(--accent); }
+.update-banner-dl {
+  flex: none;
+  padding: 5px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+.update-banner-dl:hover { background: var(--accent-dim); }
+.update-banner-x {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+}
+.update-banner-x:hover { background: var(--bg-3); color: var(--text); }

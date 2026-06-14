@@ -839,5 +839,11 @@
   "gpxinspect.routing": "Buscando una ruta entre A y B …",
   "gpxinspect.route_failed": "No se pudo calcular la ruta: ",
   "gpxinspect.route_nomatch": "No se encontró ruta — A o B está demasiado lejos de una calle.",
-  "gpxinspect.routed": "Ruta A→B ajustada a las calles: "
+  "gpxinspect.routed": "Ruta A→B ajustada a las calles: ",
+  "update.banner": "Hay una nueva versión <b>v{v}</b> disponible.",
+  "update.download": "Descargar",
+  "update.check": "Buscar actualizaciones",
+  "update.checking": "Buscando…",
+  "update.uptodate": "Tienes la versión más reciente (v{v}).",
+  "update.error": "Error al buscar actualizaciones (¿sin conexión?)."
 }

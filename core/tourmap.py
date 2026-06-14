@@ -94,6 +94,23 @@ class TourmapConfig:
     photos_size_px: int = 48
     photos_show: bool = True
 
+    # v0.9.279 (Beta-Tester-Crash-Fix) — Ghost-Felder gespiegelt vom AnimatorConfig.
+    # WARUM hier nötig: app.py.tourmap_render schleift dieselben ghost_*-Params
+    # durch wie animator_render. Fehlten die Felder, crashte das TourMap-Rendern
+    # mit „TourmapConfig got unexpected keyword 'ghost_track_enabled'".
+    # ghost_track_* (eigener Track blass als „Geist" der animierten Linie) ist für
+    # eine STATISCHE TourMap inhaltlich sinnlos — der ganze Track ist immer
+    # durchgezogen sichtbar — wird also angenommen, aber NICHT gerendert.
+    # ghost_gpx_* (zweite Vergleichs-GPX) wird hingegen gerendert (siehe _make_html).
+    ghost_track_enabled: bool = False
+    ghost_track_opacity: float = 0.30
+    ghost_track_color: str = "#ff6b35"
+    ghost_gpx_coords: list = field(default_factory=list)
+    ghost_gpx_color: str = "#7fa8ff"
+    ghost_gpx_opacity: float = 0.60
+    ghost_gpx_width: float = 2.5
+    ghost_gpx_dashed: bool = True
+
 
 def _format_km(m: float) -> str:
     return f"{m / 1000:.1f} km" if m < 100000 else f"{m / 1000:.0f} km"
@@ -362,6 +379,27 @@ def _make_html(cfg: TourmapConfig, coords: list, total_stats: dict,
     }});
 """
 
+    # v0.9.279 — zweite Vergleichs-GPX als blasse, gestrichelte Linie (Spiegelung
+    # animator.py „_gpx_ghost_js"). Wird VOR dem Haupt-Track-Layer eingefügt,
+    # damit der echte Track oben drauf liegt.
+    _tm_gpx_ghost_js = "// gpx-ghost off"
+    _gg_coords = getattr(cfg, "ghost_gpx_coords", None) or []
+    if len(_gg_coords) > 1:
+        _gg = json.dumps([[float(c[0]), float(c[1])] for c in _gg_coords])
+        _gg_zoff = ",'line-z-offset':150" if cfg.enable_terrain else ""
+        _gg_dash = ",'line-dasharray':[2,2]" if getattr(cfg, "ghost_gpx_dashed", True) else ""
+        _gg_col = str(getattr(cfg, "ghost_gpx_color", "#7fa8ff"))
+        _gg_op = max(0.0, min(1.0, float(getattr(cfg, "ghost_gpx_opacity", 0.60))))
+        _gg_w = float(getattr(cfg, "ghost_gpx_width", 2.5))
+        _tm_gpx_ghost_js = (
+            "map.addSource('gpx-ghost',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:"
+            + _gg + "}}});"
+            "map.addLayer({id:'gpx-ghost',type:'line',source:'gpx-ghost',"
+            "layout:{'line-cap':'round','line-join':'round'},"
+            f"paint:{{'line-color':'{_gg_col}','line-width':{_gg_w:.2f},'line-opacity':{_gg_op:.2f}"
+            + _gg_dash + _gg_zoff + "}});"
+        )
+
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js"></script>
@@ -386,6 +424,7 @@ let mapReady = false;
 map.on('style.load', () => {{
   {hide_labels_block}
   {terrain_block}
+  {_tm_gpx_ghost_js}
   map.addSource('track', {{ type: 'geojson', data: {{ type: 'Feature', geometry: {{ type: 'LineString', coordinates: allCoords }} }} }});
   // Round caps + line-join für saubere Track-Endungen (statt Mapbox-Default
   // butt/miter). Plus line-dasharray bei nicht-solid Linien-Stil.

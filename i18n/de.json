@@ -839,5 +839,11 @@
   "gpxinspect.routing": "Suche Route zwischen A und B …",
   "gpxinspect.route_failed": "Route konnte nicht berechnet werden: ",
   "gpxinspect.route_nomatch": "Keine Route gefunden — A oder B liegt zu weit von einer Straße entfernt.",
-  "gpxinspect.routed": "Strecke A→B auf die Straße gelegt: "
+  "gpxinspect.routed": "Strecke A→B auf die Straße gelegt: ",
+  "update.banner": "Neue Version <b>v{v}</b> ist verfügbar.",
+  "update.download": "Herunterladen",
+  "update.check": "Nach Updates suchen",
+  "update.checking": "Suche…",
+  "update.uptodate": "Du hast die aktuelle Version (v{v}).",
+  "update.error": "Update-Prüfung fehlgeschlagen (keine Verbindung?)."
 }
