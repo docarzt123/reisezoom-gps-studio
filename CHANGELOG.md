@@ -14,6 +14,28 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.282] – 2026-06-14
+
+### Hinzugefügt (Beta-Tester/Leo-Wunsch)
+
+- **Andere Track-Formate öffnen — automatisch nach GPX umgewandelt.** Man öffnet jetzt
+  einfach eine `.fit`, `.nmea`/`.log`, `.kml`/`.kmz`, `.tcx` oder `.geojson` wie eine GPX
+  (Picker oder Drag&Drop) — die App konvertiert sie beim Laden transparent in eine GPX und
+  arbeitet damit weiter. Nichts ändert sich am restlichen Workflow.
+  - **FIT** (`.fit`) — Garmin/Wahoo/Coros/Suunto/Strava (Radcomputer & Sportuhren, **Leo**)
+  - **NMEA 0183** (`.nmea`/`.log`) — Canon EOS 6D, Marine-GPS, GPS-Logger (**Beta-Tester**)
+  - **KML/KMZ** (`.kml`/`.kmz`) — Google Earth / My Maps
+  - **TCX** (`.tcx`) — Garmin Training Center / Strava-Export
+  - **GeoJSON** (`.geojson`) — Web-/OSM-Tools
+- **„Als GPX exportieren…"** im Reisezoom-Menü. Speichert den aktuell geladenen Track als
+  echte `.gpx` — auch wenn er aus einem Fremdformat stammt. So bekommt z.B. Beta-Tester aus seiner
+  Canon-`.log` eine saubere GPX, ohne externen Konverter (gpsvisualizer.com & Co. entfallen).
+
+### Geändert
+
+- Neue Bibliothek **fitdecode** (MIT) für den FIT-Import — im Mac-/Windows-Bundle enthalten,
+  Credits im Über-Dialog ergänzt. NMEA/KML/TCX/GeoJSON kommen ohne Zusatz-Lib aus.
+
 ## [0.9.281] – 2026-06-14
 
 ### Hinzugefügt (Beta-Tester-Wunsch)

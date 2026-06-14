@@ -81,6 +81,9 @@ hidden = [
     "PIL",
     "piexif",
     "gpxpy",
+    # v0.9.282 — FIT-Import (Garmin/Wahoo). Lazy import in core/imports.py → muss
+    # explizit als hidden-import rein, sonst fehlt's im PyInstaller-Bundle.
+    "fitdecode",
     "playwright",
     "playwright.async_api",
     "imageio_ffmpeg",   # gebündeltes ffmpeg-Binary für Animator-MP4-Encode

@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
 import tempfile
 import threading
@@ -70,6 +71,7 @@ import webview
 from PIL import Image, ImageOps
 
 from core import gpx as cgpx
+from core import imports as cimports  # v0.9.282: universelle Track-Import-Schicht
 from core import exif as cexif
 from core import geotag as cgeo
 from core import backup as cbak
@@ -122,7 +124,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.281"
+APP_VERSION = "0.9.282"
 
 # v0.9.280 (Beta-Tester-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
@@ -147,11 +149,14 @@ SETTINGS_FILE = APP_SUPPORT / "settings.json"
 # v0.8.0: Sessions + Projekte (track-bound). Siehe core/sessions.py
 SESSIONS_FILE = APP_SUPPORT / "sessions.json"
 SESSIONS_GPX_DIR = APP_SUPPORT / "sessions"
+# v0.9.282: gecachte GPX-Konvertate fremder Track-Formate (FIT/NMEA/KML/…)
+IMPORTS_DIR = APP_SUPPORT / "_imports"
 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
 BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
 DROPS_DIR.mkdir(parents=True, exist_ok=True)
 TOURMAPS_DIR.mkdir(parents=True, exist_ok=True)
 SESSIONS_GPX_DIR.mkdir(parents=True, exist_ok=True)
+IMPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # v0.9.153: schützt den Zugriff auf pywebviews internen Drag&Drop-Pfad-Puffer
 # (webview.dom._dnd_state['paths']) beim Auslesen via consume_drop_paths().
@@ -1269,11 +1274,49 @@ class Api:
             return {"photos": [], "skipped_count": 0, "failed_count": 0,
                     "total": 0, "error": str(e)}
 
+    # ── Universelle Track-Import-Schicht (v0.9.282) ────────────────────────────
+
+    def _ensure_gpx(self, path: str) -> str:
+        """Macht aus beliebigen Track-Formaten (FIT/NMEA/KML/KMZ/TCX/GeoJSON)
+        transparent eine GPX: `.gpx` bleibt unverändert, alles andere wird
+        konvertiert + im `_imports`-Cache abgelegt und der GPX-Pfad
+        zurückgegeben. So arbeitet die ganze App weiter ausschließlich mit GPX.
+        Wirft `cimports.TrackImportError` bei kaputten/leeren Fremdformaten."""
+        return cimports.ensure_gpx(path, IMPORTS_DIR)
+
+    def export_current_gpx(self) -> dict:
+        """v0.9.282 — „Als GPX exportieren" (Menü). Nimmt den aktuell geladenen
+        Track (auch wenn er aus FIT/NMEA/KML/… stammt — dann liegt eine
+        konvertierte GPX im Cache) und speichert ihn per Save-Dialog als echte
+        .gpx-Datei. So bekommt z.B. Beta-Tester aus seiner Canon-NMEA-Datei eine
+        saubere GPX, ohne externen Konverter."""
+        try:
+            s = _load_settings()
+            src = str(s.get("last_gpx_path", "") or "")
+            if not src or not os.path.exists(src):
+                return {"ok": False, "error": "Kein Track geladen."}
+            gpx_path = self._ensure_gpx(src)   # .gpx bleibt, Fremdformat → Cache-GPX
+            default_name = os.path.splitext(os.path.basename(src))[0] + ".gpx"
+            dest = self.pick_save_path(default_name, str(Path.home()),
+                                       ["GPX (*.gpx)"])
+            if not dest:
+                return {"ok": False, "cancelled": True}
+            if not dest.lower().endswith(".gpx"):
+                dest += ".gpx"
+            shutil.copyfile(gpx_path, dest)
+            log.info("export_current_gpx: %s → %s", gpx_path, dest)
+            return {"ok": True, "path": dest}
+        except Exception as e:
+            log.exception("export_current_gpx fehlgeschlagen")
+            return {"ok": False, "error": str(e)}
+
     # ── Animator ──────────────────────────────────────────────────────────────
 
     def animator_load_gpx(self, path: str) -> dict:
-        """Lädt eine GPX, gibt downsampled GeoJSON + Stats fürs UI zurück."""
+        """Lädt eine GPX, gibt downsampled GeoJSON + Stats fürs UI zurück.
+        Andere Track-Formate werden vorher automatisch nach GPX konvertiert."""
         try:
+            path = self._ensure_gpx(path)
             pts, stats = cgpx.parse_gpx(path)
             ds = cgpx.downsample(pts, 800)
             coords = [[p.lon, p.lat] for p in ds]
@@ -1284,6 +1327,9 @@ class Api:
             return {
                 "ok": True,
                 "name": stats.name or Path(path).stem,
+                # v0.9.282: aufgelöster GPX-Pfad (bei FIT/NMEA/… der Cache-GPX),
+                # damit Multi-Track-Render echte GPX nutzt statt das Fremdformat.
+                "gpx_path": path,
                 "coords": coords,
                 "elevations": elevations,
                 "bbox": stats.bbox,
@@ -1845,6 +1891,7 @@ class Api:
         (jeweils downsampled für UI-Performance) + Stats für die Live-
         Vorschau-Kurve."""
         try:
+            path = self._ensure_gpx(path)   # v0.9.282: FIT/NMEA/KML/… → GPX
             pts, stats = cgpx.parse_gpx(path)
             # Downsample auf 800 Punkte (UI-Performance, sub-pixel-genau für
             # Standard-Viewport-Breiten).
@@ -2562,6 +2609,7 @@ class Api:
     def geotagger_load_gpx(self, path: str) -> dict:
         try:
             import math
+            path = self._ensure_gpx(path)   # v0.9.282: FIT/NMEA/KML/… → GPX
             pts, stats = cgpx.parse_gpx(path)
             self._gtg_track = pts
             self._gtg_stats = stats
@@ -3864,6 +3912,8 @@ def main() -> None:
         # (open_url-Bridge gibt's eh schon, ein Menu-Action kapselt das).
         def _open_blog():    _trigger_js("window.pywebview && window.pywebview.api.open_url('https://reisezoom.com')")
         def _open_youtube(): _trigger_js("window.pywebview && window.pywebview.api.open_url('https://www.youtube.com/@reisezoom')")
+        # v0.9.282 — „Als GPX exportieren" (auch für importierte FIT/NMEA/KML-Tracks)
+        def _export_gpx_from_menu(): _trigger_js("window.exportCurrentGpx && window.exportCurrentGpx()")
 
         _s = _load_settings()
         _active_lang = ci18n.resolve(_s.get("language", "auto") or "auto")
@@ -3876,10 +3926,12 @@ def main() -> None:
         _menu_mapbox     = _strings.get("menu.mapbox_help", "Mapbox Token Help")
         _menu_blog       = _strings.get("menu.blog", "Blog (reisezoom.com)")
         _menu_youtube    = _strings.get("menu.youtube", "YouTube-Kanal")
+        _menu_export_gpx = _strings.get("menu.export_gpx", "Als GPX exportieren…")
 
         menu = [
             Menu("Reisezoom", [
                 MenuAction(_menu_settings, _open_settings_from_menu),
+                MenuAction(_menu_export_gpx, _export_gpx_from_menu),
                 MenuAction(_menu_blog, _open_blog),
                 MenuAction(_menu_youtube, _open_youtube),
             ]),

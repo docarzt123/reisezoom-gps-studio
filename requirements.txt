@@ -1,5 +1,7 @@
 pywebview>=6.0
 gpxpy>=1.6
+# v0.9.282 — FIT-Import (Garmin/Wahoo/Coros/Suunto/Strava). MIT-Lizenz.
+fitdecode>=0.10
 piexif>=1.1.3
 Pillow>=10.0
 # v0.9.57 — HEIC/HEIF-Decoder als Pillow-Plugin. Wird im Bundle mitgeliefert,

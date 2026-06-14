@@ -847,5 +847,9 @@
   "update.uptodate": "Du hast die aktuelle Version (v{v}).",
   "update.error": "Update-Prüfung fehlgeschlagen (keine Verbindung?).",
   "geotagger.place.set_time_toggle": "Aufnahmezeit aus Track übernehmen",
-  "geotagger.place.set_time_hint": "Nur für eingerastete Fotos: schreibt die Uhrzeit des Track-Punkts als Aufnahmezeitpunkt — ideal für WhatsApp-Fotos ohne korrekte Zeit."
+  "geotagger.place.set_time_hint": "Nur für eingerastete Fotos: schreibt die Uhrzeit des Track-Punkts als Aufnahmezeitpunkt — ideal für WhatsApp-Fotos ohne korrekte Zeit.",
+  "menu.export_gpx": "Als GPX exportieren…",
+  "export_gpx.done": "GPX exportiert.",
+  "export_gpx.no_track": "Kein Track geladen — erst eine Datei öffnen.",
+  "export_gpx.error": "GPX-Export fehlgeschlagen."
 }

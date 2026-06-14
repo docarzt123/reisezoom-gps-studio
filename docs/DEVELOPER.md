@@ -129,6 +129,29 @@ Download-on-first-render ist `chromium-headless-shell` jetzt im Bundle:
 
 ## 3 · Core-Module im Detail
 
+### `core/imports.py` (seit v0.9.282) — universelle Track-Import-Schicht
+
+**Zweck:** Fremde Track-Formate (FIT, NMEA, KML/KMZ, TCX, GeoJSON) werden beim Öffnen transparent nach GPX konvertiert. Damit arbeitet die **gesamte App weiter ausschließlich mit GPX** — kein Downstream-Code (Animator/Tour-Map/Geotagger/Höhen) muss Formate kennen.
+
+**Öffentliche API:**
+| Funktion | Zweck |
+|---|---|
+| `is_convertible(path)` | True wenn Endung in `IMPORT_EXTS` |
+| `parse_points(path)` | dispatcht per Endung → `list[(lat, lon, ele|None, time_iso|None)]` |
+| `write_gpx(points, out, name)` | schreibt GPX via gpxpy (lat/lon/ele/time) |
+| `convert_to_gpx(src, out, name)` | `parse_points` + `write_gpx` |
+| `ensure_gpx(path, cache_dir)` | `.gpx` → unverändert; sonst konvertieren + cachen, GPX-Pfad zurück |
+
+**Pattern „ein Format = ein Parser":** `_DISPATCH` mappt Endung → Parser-Key, jeder `_parse_*` gibt die einheitliche Point-Liste zurück. Neues Format = `_parse_x` + Eintrag in `_DISPATCH`. `.txt`/`.json` sind mehrdeutig → Content-Sniffing (`_looks_like_nmea`/`_looks_like_geojson`).
+
+**Caching:** `ensure_gpx` legt Konvertate in `APP_SUPPORT/_imports/<stem>-<sha1[:12]>.gpx` (Schlüssel = abspath+mtime+size). Re-Öffnen derselben Datei = Cache-Hit.
+
+**Integration (app.py):** Bridge-Helper `Api._ensure_gpx(path)` ruft `cimports.ensure_gpx(path, IMPORTS_DIR)`. Eingehängt am **Anfang** von `animator_load_gpx`, `geotagger_load_gpx`, `heightanim_load_gpx` (Tour-Map delegiert an Animator). `animator_load_gpx` gibt zusätzlich `gpx_path` (aufgelöste GPX) zurück, damit Multi-Track-Render echte GPX nutzt. Fehler → `TrackImportError` → saubere UI-Meldung. Export: `Api.export_current_gpx()` (Menü „Als GPX exportieren…").
+
+**FIT** braucht `fitdecode` (MIT, lazy import → in `.spec` hiddenimports). Semicircles → Grad: `deg = raw * 180/2³¹`. Die übrigen Parser nutzen Bordmittel (`xml.etree`, `json`, `zipfile`).
+
+**Frontend:** `window.TRACK_PICK_FILTER` (Datei-Dialog) + `window.TRACK_DROP_RE` (Drag&Drop-Regex) in `ui/js/gpx-bar.js`; Geotagger-/Animator-Drops nutzen dieselben. Drop-Persist auf `"binary"` (FIT/KMZ sind binär).
+
 ### `core/gpx.py`
 
 **Hauptfunktionen:**

@@ -148,6 +148,27 @@ Die Session-Daten liegen unter:
 
 ---
 
+## 2b · Track-Dateien öffnen — viele Formate (seit v0.9.282) ⭐
+
+Du musst **keine GPX** haben. Öffne (über die GPX-Leiste oder per Drag & Drop) einfach eines dieser Formate — die App wandelt es beim Laden automatisch in eine GPX um und arbeitet damit weiter:
+
+| Format | Endung | Kommt typischerweise von |
+|---|---|---|
+| **GPX** | `.gpx` | fast alle Apps (Komoot, Strava, Garmin Connect, …) |
+| **FIT** | `.fit` | Garmin, Wahoo, Coros, Suunto, Strava (Radcomputer & Sportuhren) |
+| **NMEA 0183** | `.nmea` / `.log` | Canon EOS 6D, Marine-GPS, GPS-Logger |
+| **KML / KMZ** | `.kml` / `.kmz` | Google Earth, Google My Maps |
+| **TCX** | `.tcx` | Garmin Training Center, Strava-Export |
+| **GeoJSON** | `.geojson` | Web-/OSM-Tools |
+
+Höhen und Zeitstempel werden — soweit im Format vorhanden — übernommen (wichtig fürs Geotagging und die Geschwindigkeits-Anzeige).
+
+**Als GPX exportieren:** Über das Menü **Reisezoom → „Als GPX exportieren…"** speicherst du den aktuell geladenen Track als echte `.gpx`-Datei — auch wenn er aus einem anderen Format kam. Praktisch, wenn du z.B. aus einer Kamera-`.log` eine saubere GPX brauchst.
+
+> Hinweis: Eine `.json` wird nur dann erkannt, wenn sie wie ein GeoJSON-Track aussieht; eine `.txt` nur, wenn echte NMEA-Sätze (`$GP…`) drinstehen.
+
+---
+
 ## 3 · Modul: Animator — GPX als Video rendern
 
 ### Was es macht

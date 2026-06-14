@@ -847,5 +847,9 @@
   "update.uptodate": "You're on the latest version (v{v}).",
   "update.error": "Update check failed (no connection?).",
   "geotagger.place.set_time_toggle": "Take capture time from track",
-  "geotagger.place.set_time_hint": "Only for snapped photos: writes the track point's time as the capture time — ideal for WhatsApp photos with no correct time."
+  "geotagger.place.set_time_hint": "Only for snapped photos: writes the track point's time as the capture time — ideal for WhatsApp photos with no correct time.",
+  "menu.export_gpx": "Export as GPX…",
+  "export_gpx.done": "GPX exported.",
+  "export_gpx.no_track": "No track loaded — open a file first.",
+  "export_gpx.error": "GPX export failed."
 }

@@ -7747,12 +7747,13 @@ function mountAnimator(body, headerActions, opts) {
   async function _animAddTour() {
     let files = null;
     try {
-      files = await api().pick_file("open", ["GPX (*.gpx)"], false);
+      // v0.9.282 — auch FIT/NMEA/KML/… als Extra-Tour zulassen (Backend konvertiert).
+      files = await api().pick_file("open", window.TRACK_PICK_FILTER, false);
     } catch (e) {
       console.warn("pick_file (tours):", e);
     }
     if (!files || !files.length) return;
-    const path = files[0];
+    let path = files[0];
     if (path === currentGpx || _extraTours.some(t => t.gpx_path === path)) {
       toast(t("animator.tours.dup", "Diese Tour ist schon geladen."), "info");
       return;
@@ -7761,7 +7762,12 @@ function mountAnimator(body, headerActions, opts) {
     let coords = null;
     try {
       const res = await api().animator_load_gpx(path);
-      if (res && res.ok) coords = res.coords;
+      if (res && res.ok) {
+        coords = res.coords;
+        // v0.9.282: aufgelösten GPX-Pfad merken (bei Fremdformaten der Cache-GPX),
+        // damit der Multi-Track-Render echte GPX nutzt statt FIT/NMEA/…
+        if (res.gpx_path) path = res.gpx_path;
+      }
       else { toast(res?.error || t("animator.tours.load_fail", "Tour konnte nicht geladen werden."), "error"); return; }
     } catch (e) {
       console.warn("animator_load_gpx (tour):", e);
@@ -7769,7 +7775,7 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
     const color = _TOUR_PALETTE[_extraTours.length % _TOUR_PALETTE.length];
-    const name = (path.split("/").pop() || "Tour").replace(/\.gpx$/i, "");
+    const name = (path.split("/").pop() || "Tour").replace(/\.[^.]+$/i, "");
     _extraTours.push({ gpx_path: path, line_color: color, name, coords });
     _animRenderToursList();
     _animDrawExtraToursPreview();

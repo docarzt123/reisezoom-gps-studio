@@ -1899,11 +1899,13 @@ function mountGeotagger(body, headerActions) {
   // den Track automatisch in seine Karte.
   setupDropZone({
     target: "#gt-mapdrop",
-    accept: ["gpx"],
+    // v0.9.282 — auch FIT/NMEA/KML/… annehmen (Backend konvertiert nach GPX)
+    accept: ["gpx", "fit", "nmea", "log", "kml", "kmz", "tcx", "geojson"],
     async onDrop(files) {
       if (!files.length) return;
       if (files.length > 1) toast("Nur die erste GPX wird geladen", "warn");
-      const paths = await persistDroppedFiles([files[0]], "text");
+      // "binary" statt "text" — FIT/KMZ sind Binärformate (base64 erhält auch GPX-Text).
+      const paths = await persistDroppedFiles([files[0]], "binary");
       if (typeof loadGlobalGpx === "function") {
         await loadGlobalGpx(paths[0]);
       } else {
@@ -1924,12 +1926,13 @@ function mountGeotagger(body, headerActions) {
              // Videos
              "mp4", "mov", "m4v", "qt", "insv", "insp",
              "mts", "m2ts", "lrv", "3gp", "avi", "mkv",
-             // GPX wird hier mit erkannt — separat behandelt im onDrop
-             "gpx"],
+             // Track-Dateien werden hier mit erkannt — separat behandelt im onDrop.
+             // v0.9.282: nicht nur GPX, sondern alle konvertierbaren Formate.
+             "gpx", "fit", "nmea", "log", "kml", "kmz", "tcx", "geojson"],
     async onDrop(files) {
-      // Aufteilen: GPX-Files vs. Foto/Video-Files
-      const gpxFiles = files.filter(f => /\.gpx$/i.test(f.relPath));
-      const mediaFiles = files.filter(f => !/\.gpx$/i.test(f.relPath));
+      // Aufteilen: Track-Files vs. Foto/Video-Files
+      const gpxFiles = files.filter(f => window.TRACK_DROP_RE.test(f.relPath));
+      const mediaFiles = files.filter(f => !window.TRACK_DROP_RE.test(f.relPath));
 
       // GPX zuerst — Match-Berechnung läuft sonst ohne Track ins Leere.
       // v0.9.33 (Marc-Feedback): `loadGlobalGpx` statt nur lokal, damit der
@@ -1938,7 +1941,7 @@ function mountGeotagger(body, headerActions) {
       if (gpxFiles.length) {
         if (gpxFiles.length > 1) toast("Nur die erste GPX wird geladen", "warn");
         try {
-          const paths = await persistDroppedFiles([gpxFiles[0]], "text");
+          const paths = await persistDroppedFiles([gpxFiles[0]], "binary");
           if (typeof loadGlobalGpx === "function") {
             await loadGlobalGpx(paths[0]);
           } else {

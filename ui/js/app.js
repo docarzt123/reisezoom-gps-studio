@@ -478,6 +478,9 @@ async function openAboutModal() {
             <a href="#" class="md-about-link" data-url="https://github.com/bigcat88/pillow_heif">pillow-heif</a> — BSD-3-Clause ·
             <a href="#" class="md-about-link" data-url="https://github.com/strukturag/libheif">libheif</a> — LGPL v3
           </li>
+          <li>
+            <a href="#" class="md-about-link" data-url="https://github.com/polyvertex/fitdecode">fitdecode</a> — MIT (FIT-Import: Garmin/Wahoo)
+          </li>
         </ul>
       </div>
     `,
@@ -625,6 +628,19 @@ async function checkForUpdate(force = false) {
   }
 }
 window.checkForUpdate = checkForUpdate;
+
+// v0.9.282 — „Als GPX exportieren" (Menü). Exportiert den aktuell geladenen
+// Track als echte .gpx — auch wenn er aus FIT/NMEA/KML/… importiert wurde.
+async function exportCurrentGpx() {
+  let res;
+  try { res = await api().export_current_gpx(); }
+  catch (_) { toast(t("export_gpx.error"), "warn"); return; }
+  if (!res) return;
+  if (res.cancelled) return;
+  if (res.ok) toast(t("export_gpx.done"), "success");
+  else toast(res.error === "Kein Track geladen." ? t("export_gpx.no_track") : (res.error || t("export_gpx.error")), "warn");
+}
+window.exportCurrentGpx = exportCurrentGpx;
 
 window.addEventListener("DOMContentLoaded", async () => {
   await whenApiReady();

@@ -285,6 +285,13 @@ python app.py</code></pre>
 </ul>
 <p>(Je Track-Hash ein Ordner mit GPX-Snapshot + projects.json mit allen Varianten.)</p>
 <hr>
+<h2 id="2b-track-dateien-ffnen-viele-formate-seit-v0-9-282">2b · Track-Dateien öffnen — viele Formate (seit v0.9.282) ⭐</h2>
+<p>Du musst <strong>keine GPX</strong> haben. Öffne (über die GPX-Leiste oder per Drag &amp; Drop) einfach eines dieser Formate — die App wandelt es beim Laden automatisch in eine GPX um und arbeitet damit weiter:</p>
+<table><thead><tr><th>Format</th><th>Endung</th><th>Kommt typischerweise von</th></tr></thead><tbody><tr><td><strong>GPX</strong></td><td><code>.gpx</code></td><td>fast alle Apps (Komoot, Strava, Garmin Connect, …)</td></tr><tr><td><strong>FIT</strong></td><td><code>.fit</code></td><td>Garmin, Wahoo, Coros, Suunto, Strava (Radcomputer &amp; Sportuhren)</td></tr><tr><td><strong>NMEA 0183</strong></td><td><code>.nmea</code> / <code>.log</code></td><td>Canon EOS 6D, Marine-GPS, GPS-Logger</td></tr><tr><td><strong>KML / KMZ</strong></td><td><code>.kml</code> / <code>.kmz</code></td><td>Google Earth, Google My Maps</td></tr><tr><td><strong>TCX</strong></td><td><code>.tcx</code></td><td>Garmin Training Center, Strava-Export</td></tr><tr><td><strong>GeoJSON</strong></td><td><code>.geojson</code></td><td>Web-/OSM-Tools</td></tr></tbody></table>
+<p>Höhen und Zeitstempel werden — soweit im Format vorhanden — übernommen (wichtig fürs Geotagging und die Geschwindigkeits-Anzeige).</p>
+<p><strong>Als GPX exportieren:</strong> Über das Menü <strong>Reisezoom → „Als GPX exportieren…&quot;</strong> speicherst du den aktuell geladenen Track als echte <code>.gpx</code>-Datei — auch wenn er aus einem anderen Format kam. Praktisch, wenn du z.B. aus einer Kamera-<code>.log</code> eine saubere GPX brauchst.</p>
+<blockquote>Hinweis: Eine <code>.json</code> wird nur dann erkannt, wenn sie wie ein GeoJSON-Track aussieht; eine <code>.txt</code> nur, wenn echte NMEA-Sätze (<code>$GP…</code>) drinstehen.</blockquote>
+<hr>
 <h2 id="3-modul-animator-gpx-als-video-rendern">3 · Modul: Animator — GPX als Video rendern</h2>
 <h3 id="was-es-macht">Was es macht</h3>
 <p>Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über eine 3D-Mapbox-Karte gezeichnet wird. Einsatz: Intro für YouTube-Videos, Loops für Webseiten, Erinnerungs-Animation.</p>

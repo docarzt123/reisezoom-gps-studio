@@ -19,6 +19,17 @@
 (function() {
   "use strict";
 
+  // v0.9.282 — Universelle Track-Import-Schicht: nicht nur GPX, sondern auch
+  // FIT/NMEA/KML/KMZ/TCX/GeoJSON öffnen — das Backend konvertiert beim Laden
+  // transparent nach GPX. Filter (Picker) + Erkennungs-Regex (Drag&Drop).
+  // Global auf window, damit Module (Geotagger) denselben Filter nutzen.
+  window.TRACK_PICK_FILTER = [
+    "Track-Dateien (*.gpx;*.fit;*.nmea;*.log;*.kml;*.kmz;*.tcx;*.geojson;*.json)",
+    "GPX (*.gpx)",
+  ];
+  // Drag&Drop: generische .json/.txt bewusst NICHT mitnehmen (zu mehrdeutig).
+  window.TRACK_DROP_RE = /\.(gpx|fit|nmea|log|kml|kmz|tcx|geojson)$/i;
+
   // ── Globaler State ────────────────────────────────────────────────────
   let _gpxPath = "";
   let _gpxData = null;
@@ -197,7 +208,7 @@
   }
 
   async function pickGpx() {
-    const files = await api().pick_file("open", ["GPX (*.gpx)"], false);
+    const files = await api().pick_file("open", window.TRACK_PICK_FILTER, false);
     if (!files || !files.length) return;
     await window.loadGlobalGpx(files[0]);
   }
@@ -221,15 +232,15 @@
       const nativeMap = (typeof consumeNativeDropMap === "function")
                         ? await consumeNativeDropMap() : {};
       const files = (e.dataTransfer && e.dataTransfer.files) || [];
-      const gpx = Array.from(files).find(f => /\.gpx$/i.test(f.name));
+      const gpx = Array.from(files).find(f => window.TRACK_DROP_RE.test(f.name));
       let path = null;
       if (gpx) {
         path = nativePathFromMap(nativeMap, gpx.name) || gpx.path || null;
       }
-      // Auffang: JS bekam keine Files (WKWebView) → erste .gpx aus nativen Pfaden
+      // Auffang: JS bekam keine Files (WKWebView) → erster Track aus nativen Pfaden
       if (!path) {
         for (const k in nativeMap) {
-          if (/\.gpx$/i.test(k)) { path = nativeMap[k]; break; }
+          if (window.TRACK_DROP_RE.test(k)) { path = nativeMap[k]; break; }
         }
       }
       if (path) await window.loadGlobalGpx(path);
