@@ -120,6 +120,8 @@ async function openSettingsModal() {
   // v0.9.247 — OSM-Modus erzwingen (Test)
   const forceOsm = !!(_settingsCache && _settingsCache.force_osm);
   const hasTok = !!(currentTok && currentTok.startsWith("pk."));
+  // v0.9.287 — Eigene Standardwerte für neue Tracks (Marc-Wunsch)
+  const udInfo = await api().get_user_defaults_info().catch(() => ({ has_custom: false }));
 
   openModal({
     title: t("settings.title"),
@@ -191,12 +193,52 @@ async function openSettingsModal() {
         <p class="muted" style="margin-top:8px; font-size:11px; line-height:1.5;">${t("settings.render.hint")}</p>
       </div>
 
+      <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border);">
+        <p class="muted" style="margin-bottom:6px; font-weight:600; color:var(--text);">${t("settings.defaults.title")}</p>
+        <p class="muted" style="font-size:11px; line-height:1.5; margin-bottom:10px;">${t("settings.defaults.help")}</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn" id="md-save-defaults">${t("settings.defaults.save")}</button>
+          <button class="btn" id="md-reset-defaults"${udInfo && udInfo.has_custom ? "" : " disabled"}>${t("settings.defaults.reset")}</button>
+        </div>
+        <p class="muted" id="md-defaults-status" style="font-size:11px; margin-top:8px;">${(udInfo && udInfo.has_custom) ? t("settings.defaults.status_custom") : t("settings.defaults.status_factory")}</p>
+      </div>
+
     `,
     footer: `
       <button class="btn" id="md-cancel-set">${t("common.cancel")}</button>
       <button class="btn btn-primary" id="md-ok-set">${t("common.save")}</button>
     `,
   });
+
+  // v0.9.287 — Eigene Standardwerte für neue Tracks (Marc-Wunsch). Wirkt sofort
+  // (unabhängig von Speichern/Abbrechen des Dialogs), da es ein eigener Vorgang ist.
+  {
+    const saveDefBtn = document.getElementById("md-save-defaults");
+    const resetDefBtn = document.getElementById("md-reset-defaults");
+    const defStatus = document.getElementById("md-defaults-status");
+    if (saveDefBtn) saveDefBtn.onclick = async () => {
+      const sess = (typeof getActiveSession === "function") ? getActiveSession() : null;
+      const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      try {
+        const res = await api().save_user_defaults((sess && sess.track_hash) || "", (proj && proj.id) || "");
+        if (res && res.ok) {
+          toast(t("settings.defaults.saved"), "success");
+          if (resetDefBtn) resetDefBtn.disabled = false;
+          if (defStatus) defStatus.textContent = t("settings.defaults.status_custom");
+        } else { toast(t("settings.defaults.error"), "warn"); }
+      } catch (_) { toast(t("settings.defaults.error"), "warn"); }
+    };
+    if (resetDefBtn) resetDefBtn.onclick = async () => {
+      try {
+        const res = await api().reset_user_defaults();
+        if (res && res.ok) {
+          toast(t("settings.defaults.reset_done"), "success");
+          resetDefBtn.disabled = true;
+          if (defStatus) defStatus.textContent = t("settings.defaults.status_factory");
+        } else { toast(t("settings.defaults.error"), "warn"); }
+      } catch (_) { toast(t("settings.defaults.error"), "warn"); }
+    };
+  }
 
   document.getElementById("md-mapbox-help-link").onclick = (e) => {
     e.preventDefault();
@@ -397,6 +439,16 @@ function openHelpModal() {
   document.getElementById("md-help-ok").onclick = () => openModal({}).close();
 }
 
+// v0.9.289 — Spenden-/Unterstützen-Links (Marc). HIER deine echten URLs eintragen.
+// Leerer String ("") = Button wird ausgeblendet. Solange "DEIN_" drinsteht, gilt
+// der Link als Platzhalter und der Button wird (noch) NICHT angezeigt — so kann
+// nichts auf eine tote Seite führen, bevor du die echten Links eingetragen hast.
+const SUPPORT_LINKS = {
+  kofi:   "https://ko-fi.com/A0A6KR1N",      // Marcs Ko-fi (2026-06-15)
+  paypal: "https://paypal.me/reisezoom",     // Marcs PayPal.me (2026-06-15)
+};
+function _supportLinkOk(u) { return !!u && !u.includes("DEIN_"); }
+
 async function openAboutModal() {
   let info = {};
   try { info = await api().get_app_info(); } catch (_) {}
@@ -437,6 +489,22 @@ async function openAboutModal() {
         </div>
         <div class="muted" style="font-size:11px; margin-top:8px;">${t("about.promo", "Outdoor, Fotografie &amp; Kameras von Marc – schau vorbei!")}</div>
       </div>
+
+      <!-- v0.9.289 — Unterstützen / Spenden (Marc). Links in SUPPORT_LINKS (oben). -->
+      <hr style="border:none; border-top:1px solid var(--border); margin:18px 0 12px;">
+      <div style="text-align:center;">
+        <div style="font-size:12.5px; font-weight:600; color:var(--text);">${t("about.support.title")}</div>
+        <div class="muted" style="font-size:11.5px; margin:6px auto 0; max-width:400px; line-height:1.55;">${t("about.support.body")}</div>
+        <div style="margin-top:12px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+          ${_supportLinkOk(SUPPORT_LINKS.kofi)
+            ? `<a href="#" class="md-about-link btn" data-url="${SUPPORT_LINKS.kofi}" style="text-decoration:none; padding:8px 16px; border-radius:8px; background:#ffdd66; color:#3a2d00; font-size:12.5px; font-weight:700;">☕&nbsp;${t("about.support.kofi")}</a>`
+            : `<a href="#" class="md-support-todo btn" style="text-decoration:none; padding:8px 16px; border-radius:8px; background:var(--bg-3); color:var(--text-muted); font-size:12.5px; font-weight:700; border:1px dashed var(--border);">☕&nbsp;${t("about.support.kofi")}</a>`}
+          ${_supportLinkOk(SUPPORT_LINKS.paypal)
+            ? `<a href="#" class="md-about-link btn" data-url="${SUPPORT_LINKS.paypal}" style="text-decoration:none; padding:8px 16px; border-radius:8px; background:var(--bg-3); color:var(--text); font-size:12.5px; font-weight:700; border:1px solid var(--border);">${t("about.support.paypal")}</a>`
+            : `<a href="#" class="md-support-todo btn" style="text-decoration:none; padding:8px 16px; border-radius:8px; background:var(--bg-3); color:var(--text-muted); font-size:12.5px; font-weight:700; border:1px dashed var(--border);">${t("about.support.paypal")}</a>`}
+        </div>
+      </div>
+
       <hr style="border:none; border-top:1px solid var(--border); margin:18px 0 12px;">
       <div style="font-size:11px; color:var(--text-muted); line-height:1.7; font-family:ui-monospace,Menlo,monospace; word-break:break-all;">
         <div><strong style="color:var(--text-dim); font-family:inherit;">${t("about.paths.app_support")}:</strong><br>${escapeHtml(info.app_support || "?")}</div>
@@ -494,6 +562,14 @@ async function openAboutModal() {
       const url = a.dataset.url;
       try { if (url && api().open_url) api().open_url(url); }
       catch (_) { window.open(url, "_blank"); }
+    });
+  });
+  // v0.9.289 — Platzhalter-Spenden-Buttons: noch kein echter Link hinterlegt →
+  // sanfter Hinweis statt toter Seite (Marc trägt Links in SUPPORT_LINKS ein).
+  document.querySelectorAll(".md-support-todo").forEach(a => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      try { toast(t("about.support.todo"), "info"); } catch (_) {}
     });
   });
   // Topbar-Version auf Backend-Version syncen
@@ -649,16 +725,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   applyI18nToModuleManifests();
 
   document.getElementById("topbar-settings").addEventListener("click", openSettingsModal);
-  document.getElementById("topbar-help").addEventListener("click", openHelpModal);
-  document.getElementById("topbar-feedback").addEventListener("click", () => {
-    window.openBugReportModal("Feedback (Topbar)");
-  });
-  // v0.9.273 — Reisezoom-Promo: YouTube + Blog dauerhaft sichtbar in der Topbar.
-  const _openExt = (url) => { try { if (api().open_url) api().open_url(url); else window.open(url, "_blank"); } catch (_) { window.open(url, "_blank"); } };
-  { const yt = document.getElementById("topbar-youtube");
-    if (yt) yt.addEventListener("click", () => _openExt("https://www.youtube.com/@reisezoom")); }
-  { const bl = document.getElementById("topbar-blog");
-    if (bl) bl.addEventListener("click", () => _openExt("https://reisezoom.com")); }
+  // v0.9.288 — Topbar aufgeräumt (Marc): Hilfe/Feedback/YouTube/Blog sind aus der
+  // Topbar raus und leben jetzt im macOS-Menü („Datei"/„Hilfe", siehe app.py).
+  // openHelpModal/openBugReportModal bleiben als Funktionen erhalten (Menü ruft
+  // openBugReportModal direkt; einzelne Help-Items hängen direkt am Menü).
 
   // Topbar-Version aus Backend syncen (sonst hardcoded v0.2 im HTML)
   try {

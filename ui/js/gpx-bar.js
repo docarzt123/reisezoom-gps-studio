@@ -215,6 +215,9 @@
     if (!files || !files.length) return;
     await window.loadGlobalGpx(files[0]);
   }
+  // v0.9.288 — global exponiert, damit das macOS-Menü „Datei → Track öffnen…"
+  // denselben Picker auslösen kann wie der Topbar-Button.
+  window.pickGpx = pickGpx;
 
   function _setupDragDrop() {
     if (!_container || _container._gpxDndBound) return;

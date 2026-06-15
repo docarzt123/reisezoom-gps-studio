@@ -14,6 +14,110 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.290] – 2026-06-15
+
+### Geändert (Beta-Tester-Feedback)
+
+- **Overlay-Vorschau zeigt jetzt den Endzustand statt 50 %.** Vor dem Rendern
+  standen Live-Stats (zurückgelegte Strecke/Zeit) und Höhenprofil auf **halber
+  Strecke** — als „so sieht's mittendrin aus"-Demo gedacht, wirkte aber wie echte
+  Daten („ich bin doch noch gar nicht losgefahren", z.B. „25,3 km" bei einem
+  50-km-Track). Jetzt zeigt das ruhende Standbild den **fertigen Endzustand**
+  (volle Strecke, Profil komplett gefüllt) — passend zum letzten Frame des Videos.
+  Probe-Lauf und Render zählen wie gehabt korrekt von 0 hoch.
+  - *Hinweis zur Garmin-Abweichung (Beta-Tester):* Unterschiede bei Distanz/Höhenmeter
+    gegenüber Garmin sind **normal** — Garmin misst Höhe barometrisch, wir aus den
+    (verrauschten) GPS-Höhen mit Glättung. Kein Fehler; betrifft alle Tools.
+
+## [0.9.289] – 2026-06-15
+
+### Hinzugefügt (Monetarisierung — Schritt 1)
+
+- **Unterstützen / Spenden im „Über"-Dialog.** Kostenlos-&-werbefrei-Hinweis +
+  „Kaffee spendieren ☕" / „Spenden 💛"-Buttons. Plus neuer Menüpunkt
+  **Hilfe → „Entwicklung unterstützen ☕"** (öffnet den Über-Dialog).
+  - Die Links liegen zentral in `ui/js/app.js` → `SUPPORT_LINKS` (Ko-fi / PayPal).
+    Solange dort noch der Platzhalter steht, zeigt der Button einen freundlichen
+    Hinweis statt auf eine tote Seite zu führen — Marc trägt seine echten Links
+    ein, dann sind die Buttons sofort live. DE/EN/ES.
+  - **Geplant (separat):** Affiliate-Block „Meine Ausrüstung" (Insta360 X5 / GPS
+    Remote / Dive Case) im selben Dialog — sobald die Affiliate-Links da sind.
+
+## [0.9.288] – 2026-06-15
+
+### Geändert (Marc — Aufräumen)
+
+- **Topbar entrümpelt.** Die obere Leiste hatte 6 Icons; YouTube, Blog, Feedback
+  und Hilfe sind raus. Übrig bleibt nur noch das Nötige: **Track-Auswahl ·
+  ⚙ Einstellungen · Version** (plus Projekt-Dropdown, wenn ein Track offen ist).
+- **macOS-/App-Menü neu geordnet** — mit Trennlinien gruppiert:
+  - **Datei**: Track öffnen… · Als GPX exportieren… · — · Einstellungen…
+  - **Hilfe**: Benutzerhandbuch · Mapbox-Token-Hilfe · Feedback / Fehler melden… ·
+    Logdatei öffnen · — · YouTube-Kanal · Blog (reisezoom.com) · — · Über
+- Nichts geht verloren: Feedback, Hilfe, YouTube und Blog sind weiter über das
+  Menü (oben bzw. im Fenster-Menü unter Windows) erreichbar — nur eben aufgeräumt
+  statt als Icon-Reihe im Werkzeug.
+
+## [0.9.287] – 2026-06-15
+
+### Hinzugefügt (Marc-Wunsch)
+
+- **Eigene Standardwerte für neue Tracks.** Bisher merkte sich jeder Track seine
+  eigenen Einstellungen, aber **neue** Tracks starteten immer mit den fest
+  eingebauten Werkseinstellungen — man musste seinen Look (Stil, Farbe, Overlays,
+  „Karte glätten" …) bei jedem neuen Track neu setzen. Neu in den **Einstellungen**:
+  - **„Aktuelle Einstellungen als Standard speichern"** → dein aktueller Look gilt
+    ab sofort für **jeden neuen Track**.
+  - **„Auf Werkseinstellungen zurücksetzen"** → zurück zum Auslieferungszustand.
+  - **Bestehende Tracks bleiben unverändert** — das wirkt nur beim Anlegen neuer.
+  - Track-spezifische Dinge (Keyframes, Trim, Foto-Auswahl, Welt-Position) werden
+    bewusst **nicht** mitgespeichert, damit neue Tracks sauber starten.
+  - Status-Zeile zeigt, ob gerade eigene oder Werks-Defaults aktiv sind. DE/EN/ES.
+
+## [0.9.286] – 2026-06-15
+
+### Behoben (Beta-Tester-Bug)
+
+- **„Nach Update suchen"-Fehlermeldung unlesbar.** Wenn die Update-Prüfung im
+  Über-Dialog fehlschlug (z.B. „Keine Verbindung"), erschien die Toast-Meldung
+  **hinter dem Weichzeichner-Backdrop** des Dialogs und war nur unten rechts zu
+  erahnen. Ursache: der Toast lag auf einer niedrigeren Ebene (`z-index: 200`)
+  als das Modal-Overlay (`1000`). Toasts liegen jetzt über allen Dialogen
+  (`z-index: 2000`) → immer lesbar.
+
+### Behoben (Marc-Bug)
+
+- **Erster Frame im Video teils schwarz.** Beim Rendern (z.B. Reiseroute mit weitem
+  Start-/Welt-Blick) war der allererste Frame teilweise schwarz — die Satelliten-Kacheln
+  des Startbilds waren noch nicht geladen, als der Frame aufgenommen wurde. Ursache: nach
+  dem sofortigen Start-Sprung **bewegt sich die Karte nicht mehr**, also überspringt Mapbox
+  das Neu-Zeichnen (No-Op) → der Screenshot griff den **eingefrorenen, noch leeren
+  WebGL-Puffer**. Behoben mit einem erzwungenen `triggerRepaint()` pro Frame (zeichnet auch
+  statische Frames sauber neu) plus einer **Schwarz-Frame-Erkennung** als Sicherheitsnetz
+  (erste Frames werden am Bild auf großen Schwarz-Anteil geprüft und nötigenfalls neu
+  aufgenommen). Betrifft Animator + Reiseroute.
+
+- **Leichtes Flimmern in 4K-Videos.** Bei 4K-Renders flimmerte das Bild leicht „wie bei
+  falscher Belichtungszeit unter Kunstlicht". Es ist **kein Render-Fehler** (statische
+  Frames sind beweisbar bit-identisch), sondern **Bewegungs-Aliasing**: feines
+  Satelliten-Detail „kriecht" beim Kamera-Schwenk übers Pixelraster. Zwei Ursachen behoben:
+  - **Kachel-Cross-Fade abgeschaltet** (`raster-fade-duration: 0`): jede neu geladene
+    Satelliten-Kachel blendete ~300 ms mit der Eltern-Kachel über → jeder Frame traf die
+    Überblendung in anderem Mischzustand. Jetzt erscheinen Kacheln sofort, deterministisch.
+  - **Leichter Karten-Tiefpass bei 4K** (gegen „zu scharf"): ein dezenter Weichzeichner
+    liegt **nur auf der Satelliten-Karte** (`#map canvas`), **nicht** auf
+    Overlays/Statistik/Track-Linie/Foto-Pins — wie der optische Anti-Moiré-Filter einer
+    Kamera. Das ist der eigentliche Flimmer-Killer: er nimmt der hochfrequenten
+    Satelliten-Textur genau die Schärfe, die beim Schwenk „kriecht". Text und Zahlen
+    bleiben gestochen scharf. **Einstellbar über den neuen Regler „Karte glätten"**
+    (Video-Einstellungen, Default 1,3 px; 0 = aus/schärfste Karte). Wirkt nur ab 4K.
+  - **Supersampling (SSAA) bei 4K**: zusätzlich läuft der Render intern in **1,25×-Auflösung**
+    und wird pro Frame per **Area-Downscale** auf die Zielauflösung gerechnet (saubere
+    Kanten an Track-Linie & Co.). Greift automatisch ab 4K (längere Kante ≥ 3840 px);
+    kleinere Auflösungen bleiben unverändert schnell. WYSIWYG bleibt exakt erhalten.
+    Hinweis: 4K-Renders sind dadurch etwas langsamer (~1,56× Render-Pixel) — deutlich
+    weniger als die anfänglichen 1,5×-SSAA, weil der Karten-Tiefpass die Hauptarbeit macht.
+
 ## [0.9.285] – 2026-06-14
 
 ### Behoben (Beta-Tester-Feedback, kritisch)

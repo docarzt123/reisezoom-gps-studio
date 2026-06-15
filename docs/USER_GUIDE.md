@@ -625,7 +625,20 @@ Aktuell unterstützt: CR3, CR2, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW, HEI
 ### Render frisst Stunden / scheint zu hängen
 Animator-Render bei 4K mit 30 fps × 17 Sek = 510 Frames. Pro Frame ~3-5 Sekunden bei aktiviertem Terrain = ~30 Min realistisch für ein 17-Sek-Video.
 
+Seit v0.9.286 läuft bei **4K** zusätzlich **Supersampling (Anti-Flimmern)**: das Bild wird intern größer berechnet und sauber runtergerechnet, damit feines Satelliten-Detail beim Schwenk nicht flimmert. Das macht 4K-Renders **etwas langsamer**, aber spürbar ruhiger. 1080p ist davon nicht betroffen — wenn du Tempo brauchst und auf den letzten Schliff verzichten kannst, rendere in 1080p.
+
 Am Ende dauert ffmpeg's `+faststart`-Phase nochmal 2-3 Min (Dateigröße bleibt konstant — **das ist kein Hänger**, das ist Mapbox-Encoder-Finalisierung).
+
+### Merkt sich die App meine Einstellungen? Kann ich Standards festlegen?
+Ja, in zwei Stufen:
+
+- **Pro Track:** Jede Strecke merkt sich ihre **eigenen** Einstellungen (Stil, Farbe, Pitch, Overlays, Keyframes, Fotos, „Karte glätten" …). Öffnest du denselben Track später wieder, ist alles wie zuletzt. Erkannt wird der Track am **Inhalt** (nicht am Dateinamen).
+- **Für neue Tracks:** Ein **neuer** Track startet normalerweise mit den Werkseinstellungen. Wenn du immer denselben Look willst, geh in die **Einstellungen** → **„Aktuelle Einstellungen als Standard speichern"**. Ab dann übernimmt jeder neue Track deinen Look. Mit **„Auf Werkseinstellungen zurücksetzen"** geht's wieder zum Auslieferungszustand. Bestehende Tracks bleiben dabei unangetastet. Track-spezifisches (Keyframes, Trim, Foto-Auswahl) wird absichtlich nicht als Standard übernommen.
+
+### Mein 4K-Video flimmert leicht („wie falsche Belichtungszeit")
+Das war ein bekanntes Thema bis v0.9.286 und ist jetzt behoben (Kachel-Überblendung abgeschaltet + Supersampling + ein leichter Karten-Weichzeichner gegen das Textur-Flimmern). Falls du noch ein altes Video hast: einfach mit der aktuellen Version neu rendern.
+
+Die Stärke steuerst du über den Regler **„Karte glätten"** in den **Video-Einstellungen** (Animator). Standard ist ein dezenter Wert, der das Flimmern nimmt, ohne die Karte matschig zu machen. Wenn dir die Karte zu weich ist → Regler runter (0 = aus, schärfste Karte). Wenn noch Flimmern da ist → Regler hoch. Wirkt nur bei 4K-Renders; Statistik, Zahlen und die Track-Linie bleiben immer scharf.
 
 ### Track ist falsch positioniert auf der Karte
 Wahrscheinlich Zeitzonen-Problem: Foto-Aufnahmezeit passt nicht zur GPX-Track-Zeit. Lösung im Geotagger:

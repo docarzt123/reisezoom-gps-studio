@@ -677,6 +677,35 @@ ffmpeg's `image2pipe`-Demuxer erkennt JPEG vs PNG automatisch. **Wichtig:** JPEG
 
 Neue `AnimatorConfig`-Felder: `frame_format` ("jpeg"|"png"), `jpeg_quality` (1–100), `encoder_preset`.
 
+#### Supersampling (SSAA) gegen 4K-Flimmern (v0.9.286)
+
+**Problem:** Marc meldete „leichtes Flimmern" in 4K-Videos („wie falsche Belichtungszeit bei Kunstlicht"). Isolations-Test (3× Screenshot eines exakt statischen Satelliten-Views) ergab **0,000 % Diff, bit-identisch** → der Render ist deterministisch, **kein** Render-Bug. Ursache = **Bewegungs-Aliasing**: feines Satelliten-Detail „kriecht" beim Kamera-Schwenk übers Pixelraster (klassisches Texture-Shimmer), bei 4K besonders sichtbar, weil dort das volle Detail 1:1 gezeigt wird.
+
+**Zwei Gegenmaßnahmen:**
+1. **`raster-fade-duration: 0`** (im `style.load`-Handler über alle Raster-Layer): schaltet den ~300 ms-Cross-Fade neu geladener Satelliten-Kacheln ab. Der Konstruktor-Param `fadeDuration:0` steuert nur Label-Fade, **nicht** Raster-Fade — daher der explizite Per-Layer-Loop. Beim Frame-für-Frame-Render traf sonst jeder Frame die Überblendung in anderem Mischzustand.
+2. **Karten-Tiefpass (v0.9.286b, der eigentliche Flimmer-Killer):** ein dezenter
+   `filter: blur(~1.3 Output-px)` liegt im ersten HTML-Template **nur** auf `#map canvas`
+   (= WebGL-Satellit + Track-Linie), NICHT auf den Overlay-DOM-Geschwistern oder den
+   `.mapboxgl-marker`-Foto-Pins. Marcs Befund war „zu scharf" — genau die hochfrequente
+   Satelliten-Textur, die beim Schwenk „kriecht". Der Blur ist der optische Tiefpass
+   (Anti-Moiré). Wert: in CSS-px = Ziel-Output-px / `_render_dsf` (CSS-blur wird im Capture
+   `×dsf×ss`, nach `/ss`-Downscale `×dsf` → Output). Nur bei 4K (`_render_ss>1`). Text/Zahlen
+   bleiben gestochen scharf, weil sie eigene DOM-Schicht sind. Der alpha-Modus (`_make_html_alpha`,
+   transparent, „Ohne Karte") bekommt **keinen** Blur — kein Satellit.
+   **Einstellbar** über `AnimatorConfig.map_smoothing` (Output-px, Default 1.3, 0 = aus) →
+   UI-Regler „Karte glätten" (`anim-map-smoothing`) in den Video-Einstellungen, persistiert
+   als Modul-Setting `map_smoothing`, im Render-Params-Objekt + `app.py`-Bridge (beide Pfade)
+   durchgeschleift. Reiner Render-Param (keine Live-Preview — greift nur im 4K-Export).
+3. **SSAA via `_render_ss(width, height)`** (gibt `1.25` ab längster Kante ≥ 3840 px, sonst `1.0`; früher `1.5` — runter, weil der Karten-Tiefpass die Hauptarbeit macht): Der Browser läuft mit `device_scale_factor = _render_dsf × _render_ss`, der CSS-Viewport (`W/_dsf × H/_dsf`) bleibt **unverändert**. Dadurch ist der Screenshot `SS×` größer als die Zielauflösung (4K → Capture 4800×2700). `_grab_frame` / `_downscale_frame` skalieren ihn per **`Image.BOX`** (Area-Averaging = korrekter SSAA-Resolve **und** schneller als Lanczos; Lanczos überschwingt/schärft sogar → kontraproduktiv gegen Shimmer) auf `cfg.width × cfg.height` runter. Sorgt für saubere Kanten an Track-Linie & Co.
+
+**WYSIWYG bleibt exakt:** Eine `3.5`-CSS-px-Linie wird `3.5 × _dsf × SS` Device-px im Capture, nach `1/SS`-Downscale wieder `3.5 × _dsf` Output-px — identisch zum Nicht-SSAA-Pfad, weil der CSS-Viewport (der die Linienbreite bestimmt) gleich bleibt. Der Downscale kompensiert sich mathematisch raus.
+
+**Frame-Format unter SSAA — WICHTIG (Perf-Falle, v0.9.286b):** `_grab_frame` greift den Screenshot im **normalen schnellen Format** (JPEG bleibt JPEG) und skaliert erst danach runter. Ein früher Versuch, unter SSAA verlustfrei als PNG zu greifen, machte 4K **~16× langsamer** (`page.screenshot(type="png")` ist lt. Messung ~16× teurer als JPEG) — die doppelte JPEG-Kompression (q92 → Downscale → q92) ist nach dem Verkleinern unsichtbar, der PNG-Grab dagegen tödlich. NIE auf PNG umschalten nur für SSAA.
+
+**Spiegelung:** `core/tourmap.py` (`render_png`) nutzt dieselbe `_render_ss`-Logik — beim statischen 4K-Standbild gibt's kein Bewegungs-Aliasing, aber SSAA glättet das feine Detail trotzdem (schärferes Still). Dort wird der Screenshot bei `_ss>1` zu Bytes gegriffen, per PIL/Lanczos runterskaliert und geschrieben statt direkt `path=`. **Kein** Karten-Blur im Tour-Map — ein Standbild soll scharf sein.
+
+**Perf-Hinweis:** SSAA bei 4K = **1,56× Render-Pixel** (SS=1.25) → Screenshot (eh 96 % der Render-Zeit) wächst entsprechend + `Image.BOX`-Downscale pro Frame (~80 ms @4K). Bewusst niedrig gehalten, weil der **Karten-Blur** die Haupt-Anti-Flimmer-Arbeit macht (GPU-günstig, kostet kaum Zeit) — so bleibt 4K erträglich. Verlauf: erst SS=1.5 (zu langsam: „brutaaaaal"), dann SS=1.25 + Blur.
+
 #### Globale Render-Qualität (Settings statt Sidebar, v0.9.245)
 
 `DEFAULT_SETTINGS["render"]` (top-level in `app.py`): `frame_format/jpeg_quality/codec/crf/encoder_preset`. Der Settings-Dialog **„Qualität & Export"** (`ui/js/app.js openSettingsModal`, gespeichert per `saveSettings({render:…})`) ist die einzige UI dafür. Die Render-Bridge liest sie server-seitig (`_load_settings().get("render")`) und setzt `cfg` — das **Codec-Dropdown ist aus der Animator-Sidebar entfernt**; Alpha (Stil „Ohne Karte") erzwingt weiter ProRes. (Der Höhen-Animator hat noch seinen eigenen Codec im `core/heightanim.py`-Pfad — offener Follow-up.)
@@ -876,6 +905,25 @@ Projekt-Wechsel). Topbar-UI in `ui/js/projects.js`.
 **Wichtige Garantie:** Eine Session hat IMMER mindestens 1 Projekt
 („Standard"). Wenn das letzte Projekt gelöscht wird, wird automatisch
 ein neues „Standard" angelegt — sonst gäb's Race-Conditions.
+
+**Eigene Standardwerte für neue Tracks (v0.9.287, Marc-Wunsch):** Neue Sessions
+werden via `_project_from_defaults(name, global_defaults)` geseedet; `global_defaults`
+kommt aus `Api._session_get_global_defaults()`. Das ist jetzt **`DEFAULT_SETTINGS`
++ `settings.json["user_defaults"]`** (deep-merge pro Modul). Bridges:
+- `save_user_defaults(track_hash, project_id)` — nimmt den Look des angegebenen
+  aktiven Projekts (Source-of-Truth aus `sessions.json`; Fallback `_load_settings()`
+  wenn kein GPX offen) und schreibt `settings.json["user_defaults"]`. Übernimmt **nur**
+  Keys, die in `DEFAULT_SETTINGS[modul]` existieren, **minus** einer Blacklist
+  track-spezifischer Keys, die zwar in DEFAULT_SETTINGS als Leerwerte stehen
+  (`animator`: `timeline_events`, `render_start/end_anchor`, `timeline_anchor_v`,
+  `last_save_dir`; `geotagger`: `last_photos_dir/paths`). So vergiftet „Speichern"
+  keine neuen Tracks mit Keyframes/Trim/Foto-Pfaden des aktuellen Tracks.
+- `reset_user_defaults()` — entfernt `user_defaults` → zurück auf Werk.
+- `get_user_defaults_info()` — `{has_custom, modules}` für die Settings-UI.
+
+Bestehende Sessions/Projekte werden NICHT angefasst — der Merge greift nur beim
+**Neu-Anlegen** einer Session. UI: zwei Buttons im Settings-Modal (`openSettingsModal`,
+`md-save-defaults`/`md-reset-defaults`), wirken sofort (unabhängig von Speichern/Abbrechen).
 
 **Migration alter Projekte** (UI-Schicht):
 - v0.8.11: `migrateTimelineAnchorsIfNeeded` (Track-Anker → Timeline-Anker)

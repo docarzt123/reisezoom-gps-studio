@@ -225,6 +225,12 @@ class AnimatorConfig:
     # Opacity bleiben bei 2.85× bzw. 0.35 — Strength macht's „weicher/härter".
     glow_enabled: bool = True
     glow_strength: float = 4.0
+    # === Karte glätten / Anti-Flimmer (v0.9.286b, Marc) ===
+    # Leichter Tiefpass NUR auf den Satelliten-Canvas gegen Bewegungs-Aliasing
+    # („zu scharf"-Flimmern) bei 4K. Wert in Output-Pixeln. 0 = aus (schärfste
+    # Karte), Default 1.3 = guter Anti-Flimmer-Kompromiss. Greift nur ab 4K
+    # (längere Kante ≥ 3840 px); bei kleineren Auflösungen wirkungslos.
+    map_smoothing: float = 1.3
     # === Ghost-Track (v0.9.169) ===
     # Die GANZE Route schwach/transparent als Hintergrund-Linie vorzeichnen,
     # während nur der animierte Teil normal (voll deckend) darüber gezeichnet
@@ -410,6 +416,29 @@ def _render_dsf(width: int, height: int) -> float:
     Device-Pixel im Output → identische Optik wie Retina-Preview, downscaled
     auf 1080p-Player ergibt wieder 3.5 sichtbare Pixel = Slider-Wert. WYSIWYG."""
     return max(1.0, max(width, height) / 1920.0)
+
+
+def _render_ss(width: int, height: int) -> float:
+    """Supersampling-(SSAA-)Faktor gegen Bewegungs-Aliasing/Flimmern (Marc-Bug
+    v0.9.286). Bei 4K zeigt Mapbox feines Satelliten-Detail 1:1 — beim
+    Frame-für-Frame-Schwenk „kriecht"/flimmert die scharfe Textur übers
+    Pixelraster (klassisches Texture-Shimmer). Lösung: intern SS× größer rendern
+    (device_scale_factor wird mit SS multipliziert) und jeden Frame per Lanczos
+    auf die Zielauflösung runterskalieren → jeder Ausgabe-Pixel ist das Mittel
+    mehrerer Samples → Detail geglättet, Flimmern weg.
+
+    WYSIWYG bleibt exakt: der CSS-Viewport ändert sich NICHT (Linienbreiten
+    werden in CSS-Pixeln gemalt), nur die Device-Auflösung steigt; der Downscale
+    um 1/SS kompensiert sich mathematisch sauber raus.
+
+    Schwelle: ab 4K (längere Kante ≥ 3840 px). Faktor 1.25 → 1.56× Render-Pixel.
+    v0.9.286b: von 1.5 auf 1.25 reduziert, weil zusätzlich ein leichter Tiefpass
+    direkt auf den Map-Canvas läuft (siehe `_make_html`, „zu scharf"-Fix) — der
+    Blur erledigt jetzt die Haupt-Anti-Flimmer-Arbeit, daher reicht weniger SSAA
+    (= schnellerer Render). Trade-off Marc: „zu langsam" + „flimmert, zu scharf"."""
+    if max(width, height) >= 3840:
+        return 1.25
+    return 1.0
 
 
 def _overlay_scale(render_height: int, dsf: float = 1.0) -> float:
@@ -644,6 +673,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "  if (pt !== undefined) map.setPitch(pt);\n"
             "  const g = (TOUR_OFFSETS[tourIdx]||0) + li;\n"
             "  updateOverlays(Math.max(0, Math.min(g, totalPoints-1)));\n"
+            "  if (map.triggerRepaint) map.triggerRepaint();\n"  # v0.9.286 — wie advanceFrame: statische Frames neu malen
             "};\n"
             # Per-Tour-Bounds-Fit über Mapbox (matched Single-Track-Genauigkeit).
             "window.fitTourView = (coords) => {\n"
@@ -1059,6 +1089,18 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             + _gg_dash + _gg_zoff + "}});"
         )
 
+    # v0.9.286b (Marc-Bug: 4K flimmert „zu scharf") — leichter Tiefpass NUR auf
+    # die WebGL-Karte (#map canvas = Satellit + Track-Linie), NICHT auf Overlays/
+    # Stats/Foto-Marker (eigene DOM-Geschwister bzw. .mapboxgl-marker außerhalb
+    # der canvas) → wie der optische Anti-Moiré-Filter einer Kamera. Tötet das
+    # hochfrequente Textur-Shimmer, das SSAA allein nicht wegbekam.
+    # Wert in CSS-px; im Capture wird daraus css×dsf×ss px, nach /ss-Downscale
+    # css×dsf Output-px. Ziel ~1.3 Output-px → css = 1.3/dsf. Nur bei 4K.
+    _blur_dsf = _render_dsf(cfg.width, cfg.height)
+    _blur_out_px = max(0.0, cfg.map_smoothing) if _render_ss(cfg.width, cfg.height) > 1.0 else 0.0
+    _map_blur_css = (f"  #map canvas {{ filter: blur({_blur_out_px / _blur_dsf:.3f}px); }}\n"
+                     if _blur_out_px > 0 else "")
+
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js"></script>
@@ -1070,7 +1112,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     -webkit-font-smoothing: antialiased;
   }}
   #map {{ width: 100%; height: 100%; }}
-{_overlay_css(cfg)}
+{_map_blur_css}{_overlay_css(cfg)}
 </style></head>
 <body>
 <div id="map"></div>
@@ -1146,6 +1188,18 @@ updateOverlays(0);
 {multi_consts_js}
 let mapReady=false;
 map.on('style.load', () => {{
+  // v0.9.286 (Marc-Bug: Flimmern) — Raster-Kachel-Cross-Fade abschalten. Beim
+  // Frame-für-Frame-Rendern blendet jede neu geladene Satelliten-Kachel ~300 ms mit
+  // ihrer Eltern-Kachel über; jeder Frame trifft die Fade in anderem Mischzustand →
+  // hochfrequentes Flimmern (besonders in 4K). raster-fade-duration=0 → Kacheln
+  // erscheinen sofort ohne Überblenden → deterministische, flimmerfreie Frames.
+  try {{
+    (map.getStyle().layers || []).forEach(l => {{
+      if (l.type === 'raster') {{
+        try {{ map.setPaintProperty(l.id, 'raster-fade-duration', 0); }} catch (_) {{}}
+      }}
+    }});
+  }} catch (_) {{}}
   {hide_labels_block}
   {terrain_block}
   map.addSource('track', {{type:'geojson', data:{{type:'Feature',geometry:{{type:'LineString',coordinates:[]}}}}}});
@@ -1252,6 +1306,15 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt) => {{
     const markerAnchor = totalPoints > 1 ? (safe / (totalPoints - 1)) : 0;
     window.__signsAnchorFilter(markerAnchor);
   }}
+  // v0.9.286 (Marc-Bug: erster Frame schwarz) — DETERMINISTISCHER Fix. Bei
+  // statischen Frames (Intro-/End-Hold: identische setCenter/setZoom/setBearing)
+  // überspringt Mapbox das Repaint (No-Op) → der WebGL-Buffer bleibt auf der
+  // unfertigen Erst-Bemalung (schwarze, noch nicht geladene Kacheln) eingefroren,
+  // und der Screenshot greift genau diesen schwarzen Buffer ab (im Log: 8× kein
+  // Effekt). `triggerRepaint()` erzwingt bei JEDEM Frame ein Neu-Malen → sobald die
+  // Kacheln da sind, erscheinen sie. Kein Mehraufwand (wir screenshotten eh jeden
+  // Frame). Zusammen mit der Schwarz-Frame-Schleife unten = robust.
+  if (map.triggerRepaint) map.triggerRepaint();
 }};
 {multi_advance_js}
 // v0.9.14 — `idle`-Wait statt `render`-Wait.
@@ -1268,8 +1331,16 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt) => {{
 window.waitForRender = () => new Promise(r => {{
   const settleMs = 60;
   const finish = () => setTimeout(r, settleMs);
-  // Bereits idle? → sofort
-  if (map.loaded() && !map.isMoving() && !map.isZooming() && !map.isEasing()) {{
+  // Bereits idle? → sofort.
+  // v0.9.286 (Marc-Bug: erster Frame teils schwarz): ZUSÄTZLICH `areTilesLoaded()`
+  // prüfen. Bei Frame 0 ist die Karte direkt nach dem instant `jumpTo` zwar
+  // „nicht in Bewegung" (kein Animations-Flug), aber die Satelliten-Kacheln des
+  // Startbilds sind noch nicht geladen → ohne diesen Check nahm waitForRender die
+  // 60-ms-Abkürzung und der Screenshot wurde schwarz/halbleer aufgenommen. Mit dem
+  // Kachel-Check fällt Frame 0 in den `idle`-Wait unten (feuert erst nach Tile-Laden).
+  let _tilesOk = true;
+  try {{ _tilesOk = map.areTilesLoaded(); }} catch (_) {{ _tilesOk = true; }}
+  if (map.loaded() && _tilesOk && !map.isMoving() && !map.isZooming() && !map.isEasing()) {{
     return finish();
   }}
   let done = false;
@@ -1695,11 +1766,15 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
         _log.info("Chromium gestartet in %.1fs", time.time() - t_pw)
 
         _dsf = _render_dsf(cfg.width, cfg.height)
+        _ss = _render_ss(cfg.width, cfg.height)  # v0.9.286: SSAA bei 4K
         _vp_w = max(1, int(round(cfg.width / _dsf)))
         _vp_h = max(1, int(round(cfg.height / _dsf)))
+        if _ss > 1.0:
+            _log.info("SSAA aktiv (4K): SS=%.2f → Capture %dx%d device px, downscale auf %dx%d",
+                      _ss, int(_vp_w * _dsf * _ss), int(_vp_h * _dsf * _ss), cfg.width, cfg.height)
         page = await browser.new_page(
             viewport={"width": _vp_w, "height": _vp_h},
-            device_scale_factor=_dsf,
+            device_scale_factor=_dsf * _ss,
         )
 
         def _on_console(msg):
@@ -1896,17 +1971,75 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
     return cfg.output_path
 
 
+def _frame_black_ratio(img_bytes: bytes) -> float:
+    """Anteil (0..1) nahezu schwarzer Pixel im Frame. v0.9.286 — dient dazu, einen
+    halb-geladenen Satelliten-Frame zu erkennen: ungemalte Kacheln sind PURES
+    Schwarz (#000), echte Kartenpixel (auch Nacht-Style) sind nie ganz schwarz.
+    Downscale auf ~192 px für Tempo (JPEG+PNG via Pillow)."""
+    try:
+        import io
+        from PIL import Image
+        im = Image.open(io.BytesIO(img_bytes)).convert("L")
+        im.thumbnail((192, 192))
+        data = list(im.getdata())
+        if not data:
+            return 0.0
+        return sum(1 for v in data if v < 12) / len(data)
+    except Exception:
+        return 0.0
+
+
+def _downscale_frame(raw: bytes, target_w: int, target_h: int,
+                     transparent: bool, jpeg_q: int) -> bytes:
+    """Supersampling-Downscale (Marc-Bug v0.9.286): der Screenshot kommt bei
+    aktivem SSAA in SS×-Auflösung rein; auf die Zielauflösung runterskalieren →
+    Anti-Aliasing der feinen Satelliten-Textur. Filter = `BOX` (echtes
+    Area-Averaging = der korrekte SSAA-Resolve, **und** deutlich schneller als
+    Lanczos — relevant, weil das pro Frame läuft). Behält Alpha bei transparenten
+    Renders. Re-encode im gleichen Format wie ohne SSAA."""
+    import io
+    from PIL import Image
+    im = Image.open(io.BytesIO(raw))
+    if im.size != (target_w, target_h):
+        im = im.resize((target_w, target_h), Image.BOX)
+    out = io.BytesIO()
+    if transparent:
+        im.save(out, format="PNG")
+    elif jpeg_q > 0:
+        im.convert("RGB").save(out, format="JPEG", quality=jpeg_q)
+    else:
+        im.save(out, format="PNG")
+    return out.getvalue()
+
+
 async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
     """Einen Frame als Bild-Bytes greifen. Alpha → PNG (Transparenz), sonst je
     nach cfg.frame_format JPEG (schnell) oder PNG (verlustfrei). v0.9.245.
-    ffmpeg's image2pipe-Demuxer erkennt JPEG vs PNG automatisch."""
+    ffmpeg's image2pipe-Demuxer erkennt JPEG vs PNG automatisch.
+
+    v0.9.286: Bei 4K läuft der Browser mit erhöhtem device_scale_factor (SSAA,
+    siehe _render_ss), d.h. der Screenshot ist SS× größer als cfg.width/height.
+    Wir skalieren ihn dann auf die Zielauflösung runter → Flimmern der scharfen
+    Satelliten-Textur geglättet. **Wichtig:** der Screenshot wird im NORMALEN
+    schnellen Format gegriffen (JPEG bleibt JPEG) — NICHT auf PNG umschalten,
+    sonst killt der ~16× langsamere PNG-Grab bei 4K die Render-Zeit. Die minimale
+    Doppel-JPEG-Kompression (q92 → Downscale → q92) ist nach dem Verkleinern
+    unsichtbar."""
+    _ss = _render_ss(cfg.width, cfg.height)
+    is_jpeg = (not cfg.transparent_background) and (cfg.frame_format or "jpeg").lower() == "jpeg"
+    q = max(1, min(100, int(cfg.jpeg_quality or 92)))
+
     if cfg.transparent_background:
-        return await page.screenshot(type="png", omit_background=True)
-    if (cfg.frame_format or "jpeg").lower() == "jpeg":
-        q = int(cfg.jpeg_quality or 92)
-        q = max(1, min(100, q))
-        return await page.screenshot(type="jpeg", quality=q)
-    return await page.screenshot(type="png")
+        raw = await page.screenshot(type="png", omit_background=True)
+    elif is_jpeg:
+        raw = await page.screenshot(type="jpeg", quality=q)
+    else:
+        raw = await page.screenshot(type="png")
+
+    if _ss <= 1.0:
+        return raw
+    return _downscale_frame(raw, cfg.width, cfg.height,
+                            cfg.transparent_background, q if is_jpeg else 0)
 
 
 async def render(
@@ -2130,13 +2263,17 @@ async def render(
         # font-sizes als CSS-Pixel → bei 4K mit DSF=2 wird eine 3.5-px-Linie
         # als 7 Device-Pixel im Output, matched die Retina-Preview-Optik.
         _dsf = _render_dsf(cfg.width, cfg.height)
+        _ss = _render_ss(cfg.width, cfg.height)  # v0.9.286: SSAA gegen 4K-Flimmern
         _vp_w = max(1, int(round(cfg.width / _dsf)))
         _vp_h = max(1, int(round(cfg.height / _dsf)))
-        _log.info("Playwright viewport=%dx%d CSS · DSF=%.2f · output=%dx%d device px",
-                  _vp_w, _vp_h, _dsf, cfg.width, cfg.height)
+        _log.info("Playwright viewport=%dx%d CSS · DSF=%.2f · SSAA=%.2f · output=%dx%d device px",
+                  _vp_w, _vp_h, _dsf, _ss, cfg.width, cfg.height)
+        if _ss > 1.0:
+            _log.info("SSAA aktiv (4K): Capture %dx%d → Lanczos-Downscale auf %dx%d",
+                      int(_vp_w * _dsf * _ss), int(_vp_h * _dsf * _ss), cfg.width, cfg.height)
         page = await browser.new_page(
             viewport={"width": _vp_w, "height": _vp_h},
-            device_scale_factor=_dsf,
+            device_scale_factor=_dsf * _ss,
         )
 
         # Console-Logs aus dem Headless-Chromium ins App-Log spiegeln —
@@ -2515,6 +2652,17 @@ async def render(
                         f"window.__signsAnchorFilter && window.__signsAnchorFilter({_sign_hold_anchor})"
                     )
                 await page.evaluate("window.waitForRender()")
+                # v0.9.286 (Marc-Bug: erster Frame teils schwarz) — Frame 0 extra
+                # absichern: direkt nach dem instant `jumpTo` kann `areTilesLoaded()`
+                # spurious `true` liefern (Tile-Requests des Startbilds sind noch
+                # nicht registriert) → der Retry-Loop unten bräche sofort ab und der
+                # Screenshot würde schwarz/halbleer. Einmal kurz settlen + neu
+                # rendern, damit der Loop echte Tile-Stati sieht. Nur Frame 0 →
+                # einmalig ~0,4 s, kein Quality-Loss.
+                if frame == 0:
+                    await asyncio.sleep(0.4)
+                    try: await page.evaluate("window.waitForRender()")
+                    except Exception: pass
                 if _rt:
                     _now = time.perf_counter(); _rt_acc["wait"] += _now - _rt_t; _rt_t = _now
                 # v0.9.125 — Smart-Tile-Retry. Bei großen Zoom-Sprüngen (z.B.
@@ -2545,6 +2693,43 @@ async def render(
                 # Hintergrund (sonst füllt Chromium den body mit Weiß).
                 # ffmpeg's image2pipe-Decoder erkennt RGBA-PNGs automatisch.
                 shot = await _grab_frame(page, cfg)
+                # v0.9.286 (Marc-Bug: erster Frame teils schwarz) — robuster
+                # Schwarz-Frame-Schutz für die ersten Frames. `areTilesLoaded()`
+                # kann nach dem Start-Sprung `true` melden (Kacheln im Cache durchs
+                # Prewarm), obwohl die Satelliten-Kacheln noch NICHT gemalt sind →
+                # der Screenshot ist großflächig schwarz. Wir messen den Schwarz-
+                # Anteil direkt am Bild und greifen neu, bis er sauber ist (max 8×1s).
+                # Nur Frame 0–2 und nicht im Alpha-Modus (transparenter Hintergrund
+                # liest sich sonst als „schwarz" → würde endlos retrien).
+                if frame <= 2 and not cfg.transparent_background:
+                    # ECHTE URSACHE (v0.9.286, Log-bestätigt): bei den statischen
+                    # Intro-Frames (Stillstand, identische Kamera) macht Mapbox KEIN
+                    # Repaint → der WebGL-Buffer bleibt auf der unfertigen Erst-
+                    # Bemalung (noch nicht geladene = schwarze Kacheln) eingefroren.
+                    # Bloßes Neu-Greifen half NICHT (8× kein Effekt im Log), weil
+                    # immer derselbe eingefrorene Buffer abgegriffen wurde. Erst ein
+                    # erzwungenes `triggerRepaint()` malt den Buffer mit den inzwischen
+                    # geladenen Kacheln neu. Schwelle 5 % (sauber ≈ 0 %, kaputt >10 %).
+                    for _bk in range(6):
+                        _bratio = _frame_black_ratio(shot)
+                        if _bratio < 0.05:
+                            break
+                        _log.warning(
+                            f"Frame {frame + 1}: ~{int(_bratio * 100)}% schwarz "
+                            f"(Buffer eingefroren) — triggerRepaint + neu greifen ({_bk + 1}/6) …"
+                        )
+                        try:
+                            await page.evaluate(
+                                "map.triggerRepaint && map.triggerRepaint()"
+                            )
+                        except Exception:
+                            pass
+                        await asyncio.sleep(0.5)
+                        try:
+                            await page.evaluate("window.waitForRender()")
+                        except Exception:
+                            pass
+                        shot = await _grab_frame(page, cfg)
                 if _rt:
                     _now = time.perf_counter(); _rt_acc["shot"] += _now - _rt_t; _rt_t = _now
                 ff.stdin.write(shot)

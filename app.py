@@ -124,7 +124,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.285"
+APP_VERSION = "0.9.290"
 
 # v0.9.280 (Beta-Tester-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
@@ -240,6 +240,8 @@ DEFAULT_SETTINGS = {
         "show_overlays": True,
         "line_color": "#ff6b35",
         "line_width": 3.5,                         # Track-Dicke
+        # v0.9.286b — Karte glätten (Anti-Flimmer-Tiefpass, nur 4K, Output-px)
+        "map_smoothing": 1.3,
         # v0.8.10 — Track-Optik: "flat" (klassisch 2D) | "tube" (3D-Wurm, weißes Highlight oben)
         "track_style": "flat",
         # v0.8.17 — Classic-Modus: Kamera folgt Track-Punkt (an) oder bleibt
@@ -890,8 +892,103 @@ class Api:
         dann landete der Wert in settings.json). Diese landeten dann
         als „Defaults" in jedem neuen Projekt → neues Projekt war nicht
         leer sondern hatte den letzten Stand der globalen Settings.
-        Jetzt: echte Defaults aus DEFAULT_SETTINGS-Konstante."""
-        return json.loads(json.dumps(DEFAULT_SETTINGS))
+        Jetzt: echte Defaults aus DEFAULT_SETTINGS-Konstante.
+
+        v0.9.287 (Marc-Wunsch „eigene Defaults"): Auf die Werks-Defaults werden
+        die vom User gespeicherten Standardwerte (`settings.json["user_defaults"]`,
+        gesetzt via `save_user_defaults`) draufgemergt. So startet jeder NEUE Track
+        mit Marcs bevorzugtem Look statt mit den nackten Werkswerten. Bestehende
+        Projekte bleiben unberührt (greift nur beim Neu-Anlegen einer Session)."""
+        base = json.loads(json.dumps(DEFAULT_SETTINGS))
+        try:
+            raw = {}
+            if SETTINGS_FILE.exists():
+                with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
+                    raw = json.load(fh)
+            ud = raw.get("user_defaults") or {}
+            for mod, vals in ud.items():
+                if mod in base and isinstance(base[mod], dict) and isinstance(vals, dict):
+                    base[mod].update(vals)
+        except Exception:
+            pass  # Defekte Defaults → still auf Werk zurückfallen
+        return base
+
+    def save_user_defaults(self, track_hash: str = "", project_id: str = "") -> dict:
+        """Speichert den aktuellen Look als eigene Standardwerte für NEUE Tracks
+        (Marc-Wunsch v0.9.287). Quelle: das angegebene aktive Projekt aus
+        sessions.json (Source-of-Truth, immer aktuell, da saveProjectSettings
+        sofort persistiert). Ohne Session → globale settings.json (Scratch-Stand
+        bei keinem geladenen GPX).
+
+        Es werden NUR Keys übernommen, die in DEFAULT_SETTINGS[modul] existieren —
+        damit bleibt track-spezifischer Kram (Keyframes/`timeline_events`, Fotos,
+        Route, Trim, Welt-Offsets) automatisch draußen und vergiftet keine neuen
+        Tracks. Bestehende Projekte werden NICHT verändert."""
+        try:
+            source = {}
+            if track_hash and project_id:
+                data = _sessions.load_sessions(SESSIONS_FILE)
+                sess = data.get("sessions", {}).get(track_hash)
+                if sess:
+                    source = sess.get("projects", {}).get(project_id) or {}
+            if not source:
+                source = _load_settings()  # Fallback: globaler Scratch-Stand
+            # Track-spezifische Keys, die ZWAR in DEFAULT_SETTINGS stehen (als
+            # leere Anfangswerte), aber NIEMALS als globaler Default taugen —
+            # sonst bekäme jeder neue Track z.B. die Keyframes/Trim/Foto-Pfade
+            # vom Track, auf dem „Speichern" geklickt wurde.
+            blacklist = {
+                "animator": {"timeline_events", "render_start_anchor",
+                             "render_end_anchor", "timeline_anchor_v", "last_save_dir"},
+                "geotagger": {"last_photos_dir", "last_photos_paths"},
+            }
+            ud = {}
+            for mod, defaults in DEFAULT_SETTINGS.items():
+                if not isinstance(defaults, dict):
+                    continue
+                src_mod = source.get(mod)
+                if not isinstance(src_mod, dict):
+                    continue
+                bl = blacklist.get(mod, set())
+                picked = {k: src_mod[k] for k in defaults.keys()
+                          if k in src_mod and k not in bl}
+                if picked:
+                    ud[mod] = picked
+            raw = {}
+            if SETTINGS_FILE.exists():
+                with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
+                    raw = json.load(fh)
+            raw["user_defaults"] = ud
+            _save_settings(raw)
+            return {"ok": True, "modules": list(ud.keys())}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def reset_user_defaults(self) -> dict:
+        """Entfernt die eigenen Standardwerte → neue Tracks starten wieder mit
+        den Werkseinstellungen. Bestehende Projekte bleiben unberührt."""
+        try:
+            raw = {}
+            if SETTINGS_FILE.exists():
+                with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
+                    raw = json.load(fh)
+            had = bool(raw.pop("user_defaults", None))
+            _save_settings(raw)
+            return {"ok": True, "had_custom": had}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_user_defaults_info(self) -> dict:
+        """Status für die UI: gibt es eigene Standardwerte?"""
+        try:
+            raw = {}
+            if SETTINGS_FILE.exists():
+                with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
+                    raw = json.load(fh)
+            ud = raw.get("user_defaults") or {}
+            return {"ok": True, "has_custom": bool(ud), "modules": list(ud.keys())}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "has_custom": False}
 
     def session_open_for_track(self, coords: list, gpx_path: str = "") -> dict:
         """Aktiviert (oder erstellt) eine Session für die gegebenen
@@ -1571,6 +1668,7 @@ class Api:
             shadow_strength=float(params.get("shadow_strength", 4.0)),
             glow_enabled=bool(params.get("glow_enabled", True)),
             glow_strength=float(params.get("glow_strength", 4.0)),
+            map_smoothing=float(params.get("map_smoothing", 1.3)),
             ghost_track_enabled=bool(params.get("ghost_track_enabled", False)),
             ghost_track_opacity=float(params.get("ghost_track_opacity", 0.30)),
             ghost_track_color=str(params.get("ghost_track_color", "#ff6b35")),
@@ -1792,6 +1890,7 @@ class Api:
             track_style=_be_track_style,
             glow_enabled=bool(params.get("glow_enabled", True)),
             glow_strength=float(params.get("glow_strength", 4.0)),
+            map_smoothing=float(params.get("map_smoothing", 1.3)),
             ghost_track_enabled=bool(params.get("ghost_track_enabled", False)),
             ghost_track_opacity=float(params.get("ghost_track_opacity", 0.30)),
             ghost_track_color=str(params.get("ghost_track_color", "#ff6b35")),
@@ -3894,7 +3993,7 @@ def main() -> None:
     # Wichtig: das Menü wird beim App-Start einmal erstellt; nach Sprachwechsel
     # zur Laufzeit bleibt das Label wie's beim Start war (pywebview-Limitation).
     try:
-        from webview.menu import Menu, MenuAction  # type: ignore
+        from webview.menu import Menu, MenuAction, MenuSeparator  # type: ignore
 
         def _open_settings_from_menu():
             try:
@@ -3919,31 +4018,48 @@ def main() -> None:
         def _open_youtube(): _trigger_js("window.pywebview && window.pywebview.api.open_url('https://www.youtube.com/@reisezoom')")
         # v0.9.282 — „Als GPX exportieren" (auch für importierte FIT/NMEA/KML-Tracks)
         def _export_gpx_from_menu(): _trigger_js("window.exportCurrentGpx && window.exportCurrentGpx()")
+        # v0.9.288 — Topbar aufgeräumt → diese Aktionen leben jetzt im Menü.
+        def _open_track_from_menu():    _trigger_js("window.pickGpx && window.pickGpx()")
+        def _open_feedback_from_menu(): _trigger_js("window.openBugReportModal && window.openBugReportModal('Feedback (Menü)')")
+        # v0.9.289 — Spenden/Unterstützen: öffnet den Über-Dialog (enthält den Block)
+        def _open_support_from_menu():  _trigger_js("window.openAboutModal && window.openAboutModal()")
 
         _s = _load_settings()
         _active_lang = ci18n.resolve(_s.get("language", "auto") or "auto")
         _strings = ci18n.get_strings(_active_lang)
+        _menu_file       = _strings.get("menu.file", "Datei")
+        _menu_open_track = _strings.get("menu.open_track", "Track öffnen…")
         _menu_settings   = _strings.get("menu.settings", "Settings…")
         _menu_help       = _strings.get("menu.help", "Help")
         _menu_user_guide = _strings.get("menu.user_guide", "User Guide")
         _menu_log        = _strings.get("menu.open_log", "Open Log File")
         _menu_about      = _strings.get("menu.about", "About Reisezoom GPS Studio")
         _menu_mapbox     = _strings.get("menu.mapbox_help", "Mapbox Token Help")
+        _menu_feedback   = _strings.get("menu.feedback", "Feedback / Fehler melden…")
+        _menu_support    = _strings.get("menu.support", "Entwicklung unterstützen ☕")
         _menu_blog       = _strings.get("menu.blog", "Blog (reisezoom.com)")
         _menu_youtube    = _strings.get("menu.youtube", "YouTube-Kanal")
         _menu_export_gpx = _strings.get("menu.export_gpx", "Als GPX exportieren…")
 
+        # v0.9.288 — aufgeräumte Menüstruktur (Marc): Dokument-Aktionen unter
+        # „Datei", alles Hilfe/Web/Über unter „Hilfe" — mit Trennlinien gruppiert.
         menu = [
-            Menu("Reisezoom", [
-                MenuAction(_menu_settings, _open_settings_from_menu),
+            Menu(_menu_file, [
+                MenuAction(_menu_open_track, _open_track_from_menu),
                 MenuAction(_menu_export_gpx, _export_gpx_from_menu),
-                MenuAction(_menu_blog, _open_blog),
-                MenuAction(_menu_youtube, _open_youtube),
+                MenuSeparator(),
+                MenuAction(_menu_settings, _open_settings_from_menu),
             ]),
             Menu(_menu_help, [
                 MenuAction(_menu_user_guide, _open_user_guide_from_menu),
                 MenuAction(_menu_mapbox, _open_mapbox_help_from_menu),
+                MenuAction(_menu_feedback, _open_feedback_from_menu),
                 MenuAction(_menu_log, _open_log_from_menu),
+                MenuSeparator(),
+                MenuAction(_menu_support, _open_support_from_menu),
+                MenuAction(_menu_youtube, _open_youtube),
+                MenuAction(_menu_blog, _open_blog),
+                MenuSeparator(),
                 MenuAction(_menu_about, _open_about_from_menu),
             ]),
         ]

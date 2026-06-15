@@ -20,7 +20,7 @@ from typing import Callable, Optional
 
 # Wir teilen das Overlay-CSS mit dem Animator — gleiche Stats-Box-Optik,
 # gleiche Skalierungs-Logik. Reuse vermeidet Drift zwischen beiden Modulen.
-from .animator import _overlay_css, _dasharray_mapbox, _render_dsf  # type: ignore
+from .animator import _overlay_css, _dasharray_mapbox, _render_dsf, _render_ss  # type: ignore
 
 
 _log = logging.getLogger("tourmap")
@@ -520,13 +520,17 @@ async def render_png(cfg: TourmapConfig,
         # und der Output bei 4K denselben visuellen Anteil im Frame hat wie
         # die Retina-Preview im App.
         _dsf = _render_dsf(cfg.width, cfg.height)
+        _ss = _render_ss(cfg.width, cfg.height)  # v0.9.286: SSAA bei 4K (Spiegelung Animator)
         _vp_w = max(1, int(round(cfg.width / _dsf)))
         _vp_h = max(1, int(round(cfg.height / _dsf)))
-        _log.info("Tour-Map: Playwright viewport=%dx%d CSS · DSF=%.2f · output=%dx%d device px",
-                  _vp_w, _vp_h, _dsf, cfg.width, cfg.height)
+        _log.info("Tour-Map: Playwright viewport=%dx%d CSS · DSF=%.2f · SSAA=%.2f · output=%dx%d device px",
+                  _vp_w, _vp_h, _dsf, _ss, cfg.width, cfg.height)
+        if _ss > 1.0:
+            _log.info("Tour-Map SSAA aktiv (4K): Capture %dx%d → Lanczos-Downscale auf %dx%d",
+                      int(_vp_w * _dsf * _ss), int(_vp_h * _dsf * _ss), cfg.width, cfg.height)
         page = await browser.new_page(
             viewport={"width": _vp_w, "height": _vp_h},
-            device_scale_factor=_dsf,
+            device_scale_factor=_dsf * _ss,
         )
         page.on("console", lambda m: _log.info("page.console [%s] %s", m.type, m.text))
         page.on("pageerror", lambda e: _log.error("page.pageerror: %s", e))
@@ -549,7 +553,18 @@ async def render_png(cfg: TourmapConfig,
         emit(0.85, "PNG screenshot …")
         # Output-Verzeichnis sicherstellen
         Path(cfg.output_path).parent.mkdir(parents=True, exist_ok=True)
-        await page.screenshot(path=cfg.output_path, type="png", full_page=False)
+        if _ss > 1.0:
+            # v0.9.286 SSAA: in SS×-Auflösung greifen, per Lanczos auf Zielgröße
+            # runterskalieren → anti-aliasing des feinen 4K-Satelliten-Details.
+            import io
+            from PIL import Image
+            raw = await page.screenshot(type="png", full_page=False)
+            im = Image.open(io.BytesIO(raw))
+            if im.size != (cfg.width, cfg.height):
+                im = im.resize((cfg.width, cfg.height), Image.LANCZOS)
+            im.save(cfg.output_path, format="PNG")
+        else:
+            await page.screenshot(path=cfg.output_path, type="png", full_page=False)
         try:
             sz = Path(cfg.output_path).stat().st_size
             _log.info("Output OK: %s (%.1f MB)", cfg.output_path, sz / 1_000_000)

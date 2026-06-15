@@ -745,6 +745,11 @@ function mountAnimator(body, headerActions, opts) {
               </select>
             </div>
           </div>
+          <div class="field">
+            <label class="field-label">${t("animator.field.map_smoothing")} <span class="label-val" id="anim-map-smoothing-v">1.3 px</span></label>
+            <input type="range" id="anim-map-smoothing" min="0" max="3" step="0.1" value="1.3">
+            <div class="muted" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.field.map_smoothing_hint")}</div>
+          </div>
         </div>
       </section>
 
@@ -824,6 +829,7 @@ function mountAnimator(body, headerActions, opts) {
   bindLabel("anim-lw", "anim-lw-v", " px");
   bindLabel("anim-shadow-strength", "anim-shadow-strength-v", " px");
   bindLabel("anim-glow-strength", "anim-glow-strength-v", " px");
+  bindLabel("anim-map-smoothing", "anim-map-smoothing-v", " px");
   document.getElementById("anim-color").addEventListener("input", e => {
     document.getElementById("anim-color-v").textContent = e.target.value;
   });
@@ -1195,6 +1201,11 @@ function mountAnimator(body, headerActions, opts) {
       updateLabel("anim-glow-strength-v", parseFloat(v).toFixed(1), " px");
       applyGlowToLayers();
     }});
+  // Karte glätten / Anti-Flimmer (v0.9.286b, Marc) — reiner Render-Param,
+  // keine Live-Preview (greift nur im 4K-Export).
+  bindSetting("anim-map-smoothing", _MODKEY, "map_smoothing", { type: "number",
+    onLoad: v => updateLabel("anim-map-smoothing-v", parseFloat(v).toFixed(1), " px"),
+    onChange: v => updateLabel("anim-map-smoothing-v", parseFloat(v).toFixed(1), " px") });
   // v0.8.19 — Stärke-Slider komplett weg wenn Toggle aus (synchron syncShadowUi).
   (function syncGlowUi() {
     const cb = document.getElementById("anim-glow-enabled");
@@ -6945,14 +6956,18 @@ function mountAnimator(body, headerActions, opts) {
     const descTxt = s ? Math.round(s.descent_m) + " m" : "—";
     const eleMaxTxt = s && s.ele_max != null ? Math.round(s.ele_max) + " m" : "—";
 
-    // Live-Werte: Mid-Track als Demo (50% gefahren)
-    const liveDistTxt = s ? fmtKmLocal(s.distance_km * 0.5) : "0.0 km";
-    const liveTimeTxt = s ? fmtDurLocal(dur * 0.5) : "00:00";
-    const liveEleTxt  = s && s.ele_max != null && s.ele_min != null
-      ? Math.round((s.ele_max + s.ele_min) / 2) + " m"
-      : "0 m";
+    // v0.9.290 (Beta-Tester): ruhende Vorschau zeigt den ENDZUSTAND (100 %, = letzter
+    // Frame) statt 50 %. Die alten 50 %-Demowerte sahen aus wie echte „schon
+    // halbe Strecke gefahren"-Daten und verwirrten vor dem Render. Die animierte
+    // Vorschau (Probe-Lauf) und der Render selbst zählen weiterhin korrekt 0→Ende.
+    const liveDistTxt = s ? fmtKmLocal(s.distance_km) : "0.0 km";
+    const liveTimeTxt = s ? fmtDurLocal(dur) : "00:00";
+    const liveEleTxt  = (_gpxElevations && _gpxElevations.length)
+      ? Math.round(_gpxElevations[_gpxElevations.length - 1]) + " m"
+      : (s && s.ele_max != null ? Math.round(s.ele_max) + " m" : "0 m");
 
-    // Höhenprofil-SVG: einfache Polyline aus _gpxElevations (50% gefüllt)
+    // Höhenprofil-SVG: einfache Polyline aus _gpxElevations (v0.9.290: 100% =
+    // Endzustand gefüllt, passend zur Live-Stat oben).
     let eleSvg = "";
     if (ele && _gpxElevations && _gpxElevations.length > 1) {
       const W = 1000, H = 120, PY = 10;
@@ -6962,7 +6977,7 @@ function mountAnimator(body, headerActions, opts) {
       const yOf = (e) => H - PY - ((e - eMin) / eRng) * (H - PY * 2);
       const xOf = (i) => (i / Math.max(1, _gpxElevations.length - 1)) * W;
       const bgPts = _gpxElevations.map((e, i) => `${xOf(i).toFixed(1)},${yOf(e).toFixed(1)}`).join(" ");
-      const half = Math.max(2, Math.floor(_gpxElevations.length * 0.5));
+      const half = _gpxElevations.length;   // v0.9.290: voll gefüllt (Endzustand)
       const activePairs = [];
       for (let i = 0; i < half; i++) activePairs.push([xOf(i), yOf(_gpxElevations[i])]);
       const activePts = activePairs.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
@@ -8023,6 +8038,8 @@ function mountAnimator(body, headerActions, opts) {
       // v0.6.8: Glow um die Track-Linie (Aura)
       glow_enabled: document.getElementById("anim-glow-enabled").checked,
       glow_strength: parseFloat(document.getElementById("anim-glow-strength").value),
+      // v0.9.286b: Karte glätten (Anti-Flimmer-Tiefpass, nur 4K-Wirkung)
+      map_smoothing: parseFloat(document.getElementById("anim-map-smoothing")?.value || "1.3"),
       // v0.9.169: Ghost-Track — ganze Route schwach im Hintergrund vorgezeichnet
       ghost_track_enabled: currentGhostEnabled(),
       ghost_track_opacity: currentGhostOpacity(),

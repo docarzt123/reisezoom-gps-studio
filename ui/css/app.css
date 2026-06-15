@@ -1151,7 +1151,10 @@ input[type="color"] {
   color: var(--text);
   font-size: 13px;
   box-shadow: var(--shadow);
-  z-index: 200;
+  /* v0.9.286 (Beta-Tester-Bug): über ALLE Modals (.modal-overlay z-index:1000),
+     sonst liegt z.B. die „Update-Prüfung fehlgeschlagen"-Meldung hinter dem
+     Blur-Backdrop des Über-Dialogs und ist unlesbar. */
+  z-index: 2000;
   animation: toast-in 0.2s ease-out;
 }
 .toast.success { border-left: 3px solid var(--success); }
