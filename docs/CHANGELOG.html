@@ -109,9 +109,26 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.297</span>
+    <span class="version-date">16. Juni 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Der GPX-Inspektor wird zum sichtbaren Werkzeug: Höhenprofil direkt mit der Karte verknüpft, Auto-Heilen für Ausreißer <em>und</em> Lücken, klickbare Punkte — plus Track-Export als CSV und ruhigeres Laden im Animator.</p>
+
+  <div class="highlight">
+    <strong>🔍 GPX-Inspektor: Höhenkorrektur, die man sieht</strong> — statt eines „blinden" Knopfes zeigt der Inspektor jetzt <strong>unter der Karte ein Höhenprofil</strong> mit drei Linien: GPS-Original, Karte/Mapbox und die fette grüne Ergebnis-Linie, die <strong>live</strong> mit dem Regler GPS ⟷ Karte wandert. So siehst du genau, was die Mischung macht, bevor du sie übernimmst.<br><br>
+    <strong>🔗 Karte und Profil gehören zusammen</strong> — zoomst/pannst du die Karte, zeigt das Höhenprofil automatisch nur den sichtbaren Abschnitt (und umgekehrt). Fährst du mit der Maus über die Karte, markiert ein Balken die Stelle im Profil; über dem Profil ein Ring auf dem Track. Punkte sind <strong>anklickbar</strong> — ein leichtes Info-Feld erscheint direkt am Punkt (ohne den Hintergrund abzudunkeln) mit allen Daten.<br><br>
+    <strong>🩹 Auto-Heilen: Ausreißer + Lücken</strong> — findet jetzt nicht nur GPS-Ausreißer (orange), sondern auch <strong>Lücken/Dropouts</strong> (magenta) — als Vorschau auf der ganzen Karte, <em>bevor</em> etwas geändert wird. „Alle heilen" glättet die Ausreißer und füllt die Lücken mit interpolierten Punkten.<br><br>
+    <strong>📄 Track als CSV exportieren</strong> — neben „Als GPX exportieren" gibt es jetzt <strong>„Als CSV exportieren…"</strong> (Tabelle mit Index, Position, Höhe, Zeit) — praktisch für Tabellenkalkulation und eigene Auswertungen.<br><br>
+    <strong>🧭 Inspektor öffnet auch andere Formate</strong> — eine Kamera-<code>.LOG</code>, <code>.fit</code>, <code>.kml</code> & Co. laden jetzt auch im Inspektor direkt (vorher gab's eine Fehlermeldung).<br><br>
+    <strong>🎬 Ruhigeres Laden</strong> — beim Laden/Wechseln eines Tracks springt die Karte im Animator &amp; in der Tour-Map jetzt direkt auf den ganzen Track, statt von der Weltkugel hereinzufliegen — kein Ruckeln mehr auf schwächeren Rechnern.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.290</span>
     <span class="version-date">15. Juni 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <p class="version-tagline">Ruhigere 4K-Videos, deine Lieblings-Einstellungen als Standard für neue Tracks, aufgeräumte Oberfläche — und du kannst die Entwicklung jetzt unterstützen.</p>
 
