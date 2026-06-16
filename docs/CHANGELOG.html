@@ -5,104 +5,107 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reisezoom GPS Studio — Versions-Verlauf</title>
 <meta name="description" content="Alle Neuerungen in Reisezoom GPS Studio — was sich für dich in jeder Version geändert hat.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { -webkit-text-size-adjust: 100%; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    line-height: 1.6;
-    color: #2c2c2c;
-    background: #fafafa;
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{-webkit-text-size-adjust:100%;}
+  :root{
+    --bg:#f4ede0; --paper:#fbf6ec; --paper2:#efe7d6;
+    --ink:#1c1814; --muted:#7a6f60; --rule:#e3d9c5;
+    --green:#2f8a3e; --green-soft:rgba(47,138,62,.10);
+    --terra:#c46a3a; --terra-soft:rgba(196,106,58,.12); --yt:#e0322a;
+    --serif:"Instrument Serif","Cormorant Garamond",Georgia,serif;
+    --sans:Manrope,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   }
-  a { color: #ff6b35; text-decoration: none; }
-  a:hover { text-decoration: underline; }
+  body{font-family:var(--sans); font-weight:400; font-size:17px; line-height:1.6; color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;}
+  a{color:var(--green); text-decoration:none; transition:color .15s;}
+  a:hover{color:var(--ink);}
+  h1,h2,h3{font-family:var(--serif); font-weight:400; letter-spacing:.2px; line-height:1.12;}
 
-  .wrap { max-width: 860px; margin: 0 auto; padding: 48px 24px 96px; }
+  /* Reisezoom-Header */
+  .top-nav{background:var(--paper); border-bottom:1px solid var(--rule); position:sticky; top:0; z-index:600;}
+  .top-nav__inner{max-width:1080px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px;}
+  .top-nav__logo{display:inline-flex; align-items:center; gap:11px;}
+  .top-nav__logo img{height:38px; width:auto; display:block;}
+  .top-nav__logo-words{display:flex; flex-direction:column; line-height:1;}
+  .top-nav__logo-name{font-family:var(--serif); font-size:21px; color:var(--ink);}
+  .top-nav__logo-tag{font-size:11px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted); margin-top:3px;}
+  .top-nav__menu{display:flex; align-items:center; gap:20px;}
+  .top-nav__menu a{color:var(--ink); font-weight:600; font-size:15px;}
+  .top-nav__menu a:hover{color:var(--green);}
+  .top-nav__menu .cta-app{background:var(--green); color:#fff; padding:8px 16px; border-radius:10px;}
+  .top-nav__menu .cta-app:hover{background:#256e31; color:#fff;}
+  .top-nav__menu .yt{display:inline-flex; align-items:center; color:var(--yt);}
+  .top-nav__menu .yt svg{width:24px; height:24px; fill:currentColor;}
 
-  header.page-head {
-    text-align: center;
-    margin-bottom: 56px;
-    padding-bottom: 32px;
-    border-bottom: 1px solid #e6e6e6;
-  }
-  header.page-head h1 {
-    font-size: 36px; font-weight: 700; letter-spacing: -0.5px;
-    margin-bottom: 12px; color: #1a1a1a;
-  }
-  header.page-head .lead {
-    font-size: 17px; color: #666; max-width: 580px; margin: 0 auto 18px;
-  }
-  header.page-head .download-cta {
-    display: inline-block; margin-top: 8px; padding: 10px 22px;
-    background: #ff6b35; color: #fff; border-radius: 8px;
-    font-weight: 600; font-size: 15px; transition: background .15s;
-  }
-  header.page-head .download-cta:hover { background: #e55a25; text-decoration: none; }
+  .wrap{max-width:860px; margin:0 auto; padding:48px 24px 80px;}
 
-  .version {
-    background: #fff; border: 1px solid #e6e6e6; border-radius: 12px;
-    padding: 28px 32px; margin-bottom: 24px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  }
-  .version.latest {
-    border-color: #ff6b35; border-width: 2px;
-    box-shadow: 0 4px 16px rgba(255,107,53,0.08);
-  }
-  .version-head {
-    display: flex; flex-wrap: wrap; align-items: baseline; gap: 14px;
-    margin-bottom: 6px; padding-bottom: 14px;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  .version-num { font-size: 24px; font-weight: 700; color: #1a1a1a; letter-spacing: -0.3px; }
-  .version-date { font-size: 14px; color: #888; font-variant-numeric: tabular-nums; }
-  .version-badge {
-    display: inline-block; padding: 3px 10px;
-    background: #ff6b35; color: #fff; border-radius: 999px;
-    font-size: 12px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase;
-  }
-  .version-tagline { font-size: 16px; color: #666; font-style: italic; margin: 14px 0 18px; }
+  /* Intro */
+  .page-head{text-align:center; margin-bottom:48px; padding-bottom:32px; border-bottom:1px solid var(--rule);}
+  .page-head h1{font-size:46px; margin-bottom:14px;}
+  .page-head .lead{font-size:18px; color:var(--muted); max-width:580px; margin:0 auto 22px;}
+  .page-head .download-cta{display:inline-block; padding:11px 24px; background:var(--green); color:#fff; border-radius:10px; font-weight:700; font-size:15px; transition:background .15s;}
+  .page-head .download-cta:hover{background:#256e31; color:#fff;}
 
-  .highlight {
-    background: #fff7f2; border-left: 3px solid #ff6b35;
-    padding: 14px 18px; border-radius: 6px; margin: 14px 0;
-  }
-  .highlight strong { color: #c44a1a; }
+  /* Versions-Karten */
+  .version{background:var(--paper); border:1px solid var(--rule); border-radius:16px; padding:28px 32px; margin-bottom:22px;}
+  .version.latest{border-color:var(--green); box-shadow:0 6px 22px var(--green-soft);}
+  .version-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:14px; margin-bottom:6px; padding-bottom:14px; border-bottom:1px solid var(--rule);}
+  .version-num{font-family:var(--serif); font-size:28px; color:var(--ink); letter-spacing:.2px;}
+  .version-date{font-size:14px; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .version-badge{display:inline-block; padding:3px 11px; background:var(--green); color:#fff; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;}
+  .version-tagline{font-size:16px; color:var(--muted); font-style:italic; margin:14px 0 18px;}
 
-  .version ul { list-style: none; margin: 8px 0 0; padding: 0; }
-  .version ul li {
-    padding: 6px 0 6px 26px; position: relative;
-    font-size: 15px; color: #444;
-  }
-  .version ul li::before {
-    content: "→"; position: absolute; left: 0;
-    color: #ff6b35; font-weight: 700;
-  }
+  .highlight{background:var(--terra-soft); border-left:3px solid var(--terra); padding:15px 18px; border-radius:10px; margin:14px 0;}
+  .highlight strong{color:var(--terra);}
 
-  footer.page-foot {
-    margin-top: 48px; padding-top: 24px;
-    border-top: 1px solid #e6e6e6;
-    text-align: center; color: #888; font-size: 14px;
-  }
-  footer.page-foot a { color: #888; }
+  .version ul{list-style:none; margin:8px 0 0; padding:0;}
+  .version ul li{padding:6px 0 6px 26px; position:relative; font-size:15px; color:var(--ink);}
+  .version ul li::before{content:"\2192"; position:absolute; left:0; color:var(--green); font-weight:700;}
 
-  @media (max-width: 600px) {
-    .wrap { padding: 28px 16px 64px; }
-    header.page-head h1 { font-size: 28px; }
-    .version { padding: 22px 20px; }
-    .version-num { font-size: 20px; }
+  /* Footer */
+  .page-foot{background:var(--paper); border-top:1px solid var(--rule);}
+  .page-foot__inner{max-width:860px; margin:0 auto; padding:28px 24px 40px; text-align:center; color:var(--muted); font-size:14px;}
+  .page-foot__links a{color:var(--ink); font-weight:600;}
+  .page-foot__links a:hover{color:var(--green);}
+  .page-foot__note{margin-top:10px;}
+
+  @media (max-width:600px){
+    .wrap{padding:28px 16px 56px;}
+    .page-head h1{font-size:34px;}
+    .version{padding:22px 20px;}
+    .version-num{font-size:23px;}
+    .top-nav__inner{padding:10px 16px;}
+    .hideSm{display:none;}
+    .top-nav__logo img{height:32px;}
+    .top-nav__menu{gap:14px;}
   }
 </style>
 </head>
 <body>
 
+<header class="top-nav"><div class="top-nav__inner">
+  <a class="top-nav__logo" href="https://reisezoom.com/" target="_blank" rel="noopener">
+    <img src="https://gps-studio.reisezoom.com/assets/logo.png" alt="Reisezoom">
+    <span class="top-nav__logo-words"><span class="top-nav__logo-name">Reisezoom</span><span class="top-nav__logo-tag">GPS Studio</span></span>
+  </a>
+  <nav class="top-nav__menu">
+    <a class="hideSm" href="https://reisezoom.com/" target="_blank" rel="noopener">Start</a>
+    <a class="hideSm" href="https://reisezoom.com/category/fotografie/" target="_blank" rel="noopener">Fotografie</a>
+    <a class="hideSm" href="https://reisezoom.com/category/reisen-ausfluege/" target="_blank" rel="noopener">Reisen</a>
+    <a class="cta-app" href="https://reisezoom.com/reisezoom-gps-studio/" target="_blank" rel="noopener">App laden</a>
+    <a class="yt" href="https://www.youtube.com/@reisezoom?sub_confirmation=1" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 24 24"><path d="M23 12s0-3.2-.4-4.7a2.5 2.5 0 0 0-1.8-1.8C19.3 5 12 5 12 5s-7.3 0-8.8.5A2.5 2.5 0 0 0 1.4 7.3C1 8.8 1 12 1 12s0 3.2.4 4.7a2.5 2.5 0 0 0 1.8 1.8C4.7 19 12 19 12 19s7.3 0 8.8-.5a2.5 2.5 0 0 0 1.8-1.8C23 15.2 23 12 23 12zM9.8 15.3V8.7l6 3.3-6 3.3z"/></svg></a>
+  </nav>
+</div></header>
+
 <div class="wrap">
 
 <header class="page-head">
-  <h1>Reisezoom GPS Studio — Versions-Verlauf</h1>
-  <p class="lead">
-    Was sich in jeder Version geändert hat — kurz und ohne Technik-Kauderwelsch.
-  </p>
-  <a class="download-cta" href="https://reisezoom.com/reisezoom-gps-studio/">📥 App herunterladen</a>
+  <h1>Versions-Verlauf</h1>
+  <p class="lead">Was sich in jeder Version von <strong>Reisezoom GPS Studio</strong> geändert hat — kurz und ohne Technik-Kauderwelsch.</p>
+  <a class="download-cta" href="https://reisezoom.com/reisezoom-gps-studio/" target="_blank" rel="noopener">📥 App herunterladen</a>
 </header>
 
 <!-- BEGIN VERSION BLOCKS — ab hier kopierst du den Inhalt in WordPress -->
@@ -969,16 +972,18 @@
 
 <!-- END VERSION BLOCKS -->
 
-<footer class="page-foot">
-  <p>
-    <a href="https://reisezoom.com/reisezoom-gps-studio/">Reisezoom GPS Studio</a> ·
-    <a href="https://reisezoom.com/">Blog</a> ·
-    <a href="https://www.youtube.com/@reisezoom">YouTube</a>
-  </p>
-  <p style="margin-top:8px;">Du bist Beta-Tester? Schick mir Feedback direkt aus der App über den 💬-Button — oder per Mail an <a href="mailto:marc@reisezoom.com">marc@reisezoom.com</a>.</p>
-</footer>
+</div><!-- /.wrap -->
 
-</div>
+<footer class="page-foot">
+  <div class="page-foot__inner">
+    <p class="page-foot__links">
+      <a href="https://reisezoom.com/reisezoom-gps-studio/" target="_blank" rel="noopener">Reisezoom GPS Studio</a> ·
+      <a href="https://reisezoom.com/" target="_blank" rel="noopener">Blog</a> ·
+      <a href="https://www.youtube.com/@reisezoom" target="_blank" rel="noopener">YouTube</a>
+    </p>
+    <p class="page-foot__note">Feedback? Direkt aus der App über den 💬-Button — oder per Mail an <a href="mailto:marc@reisezoom.com">marc@reisezoom.com</a>.</p>
+  </div>
+</footer>
 
 </body>
 </html>
