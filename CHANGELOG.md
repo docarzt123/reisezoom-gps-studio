@@ -14,6 +14,10 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.316] – 2026-06-17
+### Behoben (Nutzer-Bug)
+- **„Nach Update suchen" scheiterte mit „keine Verbindung".** Der Update-Check rief die GitHub-Releases-API über `urllib` mit dem System-SSL-Kontext auf — im gebündelten App-Build findet Pythons OpenSSL die CA-Zertifikate aber nicht, also starb jeder HTTPS-Aufruf mit `CERTIFICATE_VERIFY_FAILED`, was die App als „keine Verbindung" meldete (auf dem Entwickler-Mac fiel das nicht auf, bei Nutzern schon). Gleiche Wurzel wie der frühere Reiseroute-SSL-Fix: der Update-Check nutzt jetzt ebenfalls das gebündelte `certifi`-CA-Bundle. (v0.9.286 hatte nur die *Lesbarkeit* der Fehlermeldung behoben, nicht die Ursache.)
+
 ## [0.9.315] – 2026-06-17
 ### Behoben
 - **GPX-Inspektor „Heilen": keine erfundenen Schleifen mehr.** Beim Lücken-Füllen mit einem **Straßen-Profil** (Wandern/Fahrrad/Auto) konnte Mapbox an Kreuzungen einen Umweg/Kreisel zurückrouten und so eine **Schleife in eine saubere Spur** schreiben, die so nie gefahren wurde. Jetzt prüft das Heilen jede geroutete Lücke: ist die Route deutlich länger als die Luftlinie (Umweg/Schleife), wird sie **verworfen und gerade gefüllt**. Gleicher Schutz beim manuellen „Strecke A→B (Straße folgen)".

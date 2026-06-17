@@ -126,7 +126,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.315"
+APP_VERSION = "0.9.316"
 
 # v0.9.280 (Nutzer-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
@@ -773,12 +773,24 @@ class Api:
         if do_network:
             try:
                 import urllib.request
+                import ssl
+                # v0.9.316 (Nutzer-Bug Update-Check „keine Verbindung"): im
+                # PyInstaller-Bundle findet Pythons OpenSSL die System-CA-Zertifikate
+                # NICHT → urlopen gegen die GitHub-API starb mit
+                # CERTIFICATE_VERIFY_FAILED, was die App als „keine Verbindung"
+                # meldete. Gleiche Wurzel wie der Reiseroute-SSL-Fix (core/route.py).
+                # certifi ist via requests gebündelt; cacert.pem liegt im Bundle.
+                try:
+                    import certifi
+                    _ctx = ssl.create_default_context(cafile=certifi.where())
+                except Exception:  # noqa: BLE001
+                    _ctx = ssl.create_default_context()
                 req = urllib.request.Request(
                     UPDATE_RELEASES_API,
                     headers={"User-Agent": f"ReisezoomGPSStudio/{current}",
                              "Accept": "application/vnd.github+json"},
                 )
-                with urllib.request.urlopen(req, timeout=5) as resp:
+                with urllib.request.urlopen(req, timeout=5, context=_ctx) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                 tag = str(data.get("tag_name") or "").lstrip("vV").strip()
                 if tag:
