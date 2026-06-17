@@ -26,6 +26,21 @@
   mount: function (body, headerActions) { return mountAnimator(body, headerActions, { mode: "reiseroute", moduleSlug: "reiseroute" }); },
 };
 
+// v0.9.308 — Tour-Map = DRY-Klon des Animators im STANDBILD-Modus. Dieselbe
+// mountAnimator-Funktion, `mode:"staticFrame"`. Blendet die Animations-Regler
+// aus (Dauer/FPS/Codec/Keyframe-Timeline) und rendert EIN PNG (still_frame).
+// Ersetzt das alte modules/tourmap/ui/module.js (dort ist die Registrierung raus).
+(window.RZGPS_MODULES = window.RZGPS_MODULES || {}).tourmap = {
+  manifest: {
+    slug: "tourmap",
+    name: "Tour-Map",
+    description: "Statische Karten-PNG",
+    icon: "🗺",
+    sort_order: 40,
+  },
+  mount: function (body, headerActions) { return mountAnimator(body, headerActions, { mode: "staticFrame", moduleSlug: "tourmap" }); },
+};
+
 function mountAnimator(body, headerActions, opts) {
   // v0.9.207/208 — opts steuert den DRY-Klon (Animator ↔ Reiseroute). RZ_MODE
   // gated das Reiseroute-Verhalten. _MODKEY ist der EIGENE Namespace pro Tab:
@@ -35,6 +50,7 @@ function mountAnimator(body, headerActions, opts) {
   opts = opts || {};
   const RZ_MODE = opts.mode || "animator";
   const _isReiseroute = (RZ_MODE === "reiseroute");
+  const _isStaticFrame = (RZ_MODE === "staticFrame");  // v0.9.308 — Tour-Map
   const _MODKEY = opts.moduleSlug || "animator";
   // v0.9.212 — Schilder/Fotos pro Modul trennen. Animator behält den Root-Key
   // "signs" (Back-Compat zu bestehenden Projekten); Reiseroute bekommt eigene
@@ -259,21 +275,15 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.line_style_spacing")} <span class="label-val" id="anim-line-spacing-v">1.0×</span></label>
             <input type="range" id="anim-line-spacing" min="0.5" max="5" step="0.25" value="1">
           </div>
-          <label class="checkbox-row" title="${t("animator.shadow.tooltip")}">
-            <input type="checkbox" id="anim-shadow-enabled" checked>
-            <span>${t("animator.toggle.shadow")}</span>
-          </label>
-          <div class="field" id="anim-shadow-strength-field">
-            <label class="field-label">${t("animator.field.shadow_strength")} <span class="label-val" id="anim-shadow-strength-v">4 px</span></label>
-            <input type="range" id="anim-shadow-strength" min="0" max="10" step="0.5" value="4">
+          <!-- v0.9.309 — Checkbox raus (Marc): der Stärke-Slider IST der Schalter.
+               0 px = aus, hochziehen = Schatten/Glow an. -->
+          <div class="field" id="anim-shadow-strength-field" title="${t("animator.shadow.tooltip")}">
+            <label class="field-label">${t("animator.toggle.shadow")} <span class="label-val" id="anim-shadow-strength-v">0 px</span></label>
+            <input type="range" id="anim-shadow-strength" min="0" max="10" step="0.5" value="0">
           </div>
-          <label class="checkbox-row" title="${t("animator.glow.tooltip")}">
-            <input type="checkbox" id="anim-glow-enabled" checked>
-            <span>${t("animator.toggle.glow")}</span>
-          </label>
-          <div class="field" id="anim-glow-strength-field">
-            <label class="field-label">${t("animator.field.glow_strength")} <span class="label-val" id="anim-glow-strength-v">4 px</span></label>
-            <input type="range" id="anim-glow-strength" min="0" max="10" step="0.5" value="4">
+          <div class="field" id="anim-glow-strength-field" title="${t("animator.glow.tooltip")}">
+            <label class="field-label">${t("animator.toggle.glow")} <span class="label-val" id="anim-glow-strength-v">0 px</span></label>
+            <input type="range" id="anim-glow-strength" min="0" max="10" step="0.5" value="0">
           </div>
           <!-- v0.9.169 — Ghost-Track: ganze Route schwach vorgezeichnet -->
           <label class="checkbox-row" title="${t("animator.ghost.tooltip", "Zeigt die ganze Route schon schwach/transparent im Hintergrund; nur der animierte Teil wird voll gezeichnet.")}">
@@ -456,6 +466,16 @@ function mountAnimator(body, headerActions, opts) {
             <span>🎥 ${t("animator.kf.enable_label")}</span>
           </label>
 
+          <!-- v0.9.311 (Marc) — Kamera-Höhe glätten: bei starker Neigung + 3D-Terrain
+               reitet die Kamera sonst 1:1 auf dem Gelände und hüpft hoch/runter, egal
+               ob Track-Folgen oder Keyframe-Schwenk. Gilt für ALLE Kamera-Modi → steht
+               daher ÜBER der Classic/KF-Umschaltung. Wirkt nur mit Terrain (sonst No-Op). -->
+          <div class="field" id="anim-follow-height-row" style="margin-bottom:10px;">
+            <label class="field-label">${t("animator.field.follow_height", "Kamera-Höhe halten")} <span class="label-val" id="anim-follow-height-v">75%</span></label>
+            <input type="range" id="anim-follow-height" min="0" max="100" step="5" value="75"
+                   title="${t("animator.field.follow_height_tip", "Gegen das Hoch-Runter-Hüpfen der Kamera über bergigem Gelände. 0 = aus, höher = ruhigere Flughöhe.")}">
+          </div>
+
           <!-- Classic-Modus (KF aus): statischer Pitch + lineare Rotation über das ganze Video.
                v0.8.17: zusätzlich Zoom-Stufe (absoluter Mapbox-Zoom; setzt direkt die Map)
                und Track-folgen-Toggle (Backend-Field camera_follow_track). -->
@@ -486,6 +506,28 @@ function mountAnimator(body, headerActions, opts) {
               <label class="field-label">${t("animator.field.follow_inertia", "Kamera-Trägheit")} <span class="label-val" id="anim-follow-inertia-v">0%</span></label>
               <input type="range" id="anim-follow-inertia" min="0" max="100" step="5" value="0"
                      title="${t("animator.field.follow_inertia_tip", "0 = hart am Punkt (kann wackeln), höher = die Kamera zieht weicher nach")}">
+            </div>
+
+            <!-- v0.9.310 — Standbild-Modus (Tour-Map): feste Kamera-Regler.
+                 Per Default hidden, wird nur im staticFrame-Modus eingeblendet
+                 (siehe _isStaticFrame-Block). Steuert Ausrichtung (bearing),
+                 Randabstand (padding_pct) und Start/Ziel-Markierung (show_pins)
+                 — direkt WYSIWYG in der Vorschau (fitTrackPreview liest sie). -->
+            <div id="anim-static-camera" hidden>
+              <div class="field">
+                <label class="field-label">${t("animator.field.bearing", "Ausrichtung")} <span class="label-val" id="anim-static-bearing-v">-10°</span></label>
+                <input type="range" id="anim-static-bearing" min="-180" max="180" step="1" value="-10"
+                       title="${t("animator.field.bearing_tip", "Drehung der Karte (Kompass-Richtung nach oben)")}">
+              </div>
+              <div class="field">
+                <label class="field-label">${t("animator.field.padding", "Randabstand")} <span class="label-val" id="anim-static-padding-v">8%</span></label>
+                <input type="range" id="anim-static-padding" min="0" max="30" step="1" value="8"
+                       title="${t("animator.field.padding_tip", "Luft zwischen Track und Bildrand")}">
+              </div>
+              <label class="checkbox-row" title="${t("animator.field.static_pins_tip", "Start- und Endpunkt als Markierung auf der Karte")}">
+                <input type="checkbox" id="anim-static-pins" checked>
+                <span>📍 ${t("animator.field.static_pins", "Start/Ziel-Markierung")}</span>
+              </label>
             </div>
           </div>
 
@@ -830,6 +872,9 @@ function mountAnimator(body, headerActions, opts) {
   bindLabel("anim-shadow-strength", "anim-shadow-strength-v", " px");
   bindLabel("anim-glow-strength", "anim-glow-strength-v", " px");
   bindLabel("anim-map-smoothing", "anim-map-smoothing-v", " px");
+  // v0.9.310 — Standbild-Kamera-Slider (existieren im DOM unabhängig vom Modus)
+  if (document.getElementById("anim-static-bearing")) bindLabel("anim-static-bearing", "anim-static-bearing-v", "°");
+  if (document.getElementById("anim-static-padding")) bindLabel("anim-static-padding", "anim-static-padding-v", "%");
   document.getElementById("anim-color").addEventListener("input", e => {
     document.getElementById("anim-color-v").textContent = e.target.value;
   });
@@ -948,6 +993,52 @@ function mountAnimator(body, headerActions, opts) {
     // Reiseroute: Stats-Overlays raus (dafür ist hier der GPX-Ghost). bindSetting
     // no-op't auf fehlende Elemente (util.js) → sicher zu entfernen.
     try { document.querySelector('#anim-panel [data-accordion-section="overlays"]')?.remove(); } catch (_) {}
+  }
+
+  // v0.9.308 — Standbild-Modus (Tour-Map): Animations-Regler AUSBLENDEN (nicht
+  // entfernen → der bestehende Init-/Probe-Lauf-/Timeline-Code findet seine
+  // DOM-Nodes weiter, kein Crash). Sichtbar bleiben: Karte, Track, statische
+  // Kamera (Neigung), Overlays, Schilder/Fotos, Auflösung.
+  if (_isStaticFrame) {
+    // Alles ausblenden (display:none, NICHT remove → Init-Code crasht nicht),
+    // was nur fürs animierte Video Sinn ergibt. Ein Standbild zeigt immer alles.
+    const _hideSel = (sel) => { try { const el = document.querySelector(sel); if (el) el.style.display = "none"; } catch (_) {} };
+    const _hideClosest = (id, sel) => { try { const c = document.getElementById(id)?.closest(sel); if (c) c.style.display = "none"; } catch (_) {} };
+    // — Video-Sektion: Animations-Felder raus, Auflösung BLEIBT.
+    _hideClosest("anim-intro", ".row-3");          // Intro/Dauer/Hold
+    _hideClosest("anim-fps", ".row-2");            // FPS
+    _hideClosest("anim-map-smoothing", ".field");  // Karte glätten (4K-Anti-Flimmer)
+    // — Kamera: alles Animations-Bezogene raus, nur Neigung (pitch) bleibt.
+    _hideSel("#anim-panel #anim-camera-body-keyframe");   // Keyframe-Editor
+    _hideClosest("anim-kf-enabled", ".checkbox-row");     // KF-Modus-Toggle
+    _hideClosest("anim-rot", ".field");                   // Rotation (Schwenk über die Anim)
+    _hideClosest("anim-camera-follow", ".checkbox-row");  // Kamera folgt Track
+    _hideSel("#anim-follow-inertia-row");                 // Kamera-Trägheit
+    _hideSel("#anim-follow-height-row");                  // Kamera-Höhe glätten
+    _hideSel("#anim-cinematic-flyto-row");                // Cinematic-Flug
+    // — v0.9.310: Standbild-Kamera-Regler (Ausrichtung/Randabstand/Pins) ZEIGEN.
+    try { const sc = document.getElementById("anim-static-camera"); if (sc) sc.hidden = false; } catch (_) {}
+    // — Overlays: Live-Stats (zeit-animiert) raus; Trim-Stats-Optionen raus
+    //   (kein Trim ohne Timeline). Gesamt-Stats + Höhenprofil bleiben.
+    _hideSel("#anim-overlay-live-group");
+    try { const w = document.getElementById("anim-stats-use-trim")?.closest(".checkbox-row")?.parentElement; if (w) w.style.display = "none"; } catch (_) {}
+    // — Schilder/Fotos: „In der Vorschau ALLE zeigen" — im Standbild eh immer alle.
+    _hideClosest("anim-signs-preview-all", ".checkbox");
+    // — Timeline-Bar (Probe-Lauf/Scrubber) raus + reservierten Platz freigeben.
+    //   .anim-canvas reserviert padding-bottom = var(--anim-tl-h, 230px) für die
+    //   Timeline. Da der Host jetzt 0px hoch ist, setzt der Mess-Code
+    //   (offsetHeight>0) die Variable NICHT → der 230px-Default bliebe → Karte
+    //   klebte oben. Im Standbild explizit 0 → Vorschau zentriert über die Höhe.
+    _hideSel("#anim-timeline-host");
+    try { document.getElementById("anim-drop")?.style.setProperty("--anim-tl-h", "0px"); } catch (_) {}
+    // — Render-Button-Text.
+    try { const rb = document.getElementById("anim-render"); if (rb) rb.textContent = t("tourmap.btn.render", "🖼 Karte als PNG rendern"); } catch (_) {}
+    // — v0.9.310: Sektion-Header „Video-Einstellungen" → „Bild-Einstellungen"
+    //   (enthält im Standbild-Modus nur noch die Auflösung).
+    try {
+      const vh = document.querySelector('[data-accordion-section="video"] .section-collapse-header > span:first-child');
+      if (vh) vh.textContent = t("tourmap.section.image_settings", "Bild-Einstellungen");
+    } catch (_) {}
   }
 
   // Sektion-Akkordeons (v0.6.0): alle data-accordion-section-Elemente
@@ -1117,18 +1208,56 @@ function mountAnimator(body, headerActions, opts) {
       }
     },
   });
+  // v0.9.310 — Standbild-Kamera (Tour-Map): Ausrichtung (bearing), Randabstand
+  // (padding_pct) und Start/Ziel-Markierung (show_pins). Persistiert pro Projekt.
+  // onChange triggert im Standbild-Modus ein Re-Fit → WYSIWYG-Vorschau.
+  if (document.getElementById("anim-static-bearing")) {
+    bindSetting("anim-static-bearing", _MODKEY, "static_bearing", { type: "number",
+      onLoad: v => updateLabel("anim-static-bearing-v", Math.round(parseFloat(v) || 0), "°"),
+      onChange: v => {
+        updateLabel("anim-static-bearing-v", Math.round(parseFloat(v) || 0), "°");
+        if (_isStaticFrame) { try { fitTrackPreview(true); } catch (_) {} }
+      },
+    });
+  }
+  if (document.getElementById("anim-static-padding")) {
+    bindSetting("anim-static-padding", _MODKEY, "static_padding", { type: "number",
+      onLoad: v => updateLabel("anim-static-padding-v", Math.round(parseFloat(v) || 0), "%"),
+      onChange: v => {
+        updateLabel("anim-static-padding-v", Math.round(parseFloat(v) || 0), "%");
+        if (_isStaticFrame) { try { fitTrackPreview(true); } catch (_) {} }
+      },
+    });
+  }
+  if (document.getElementById("anim-static-pins")) {
+    bindSetting("anim-static-pins", _MODKEY, "static_pins", { type: "bool",
+      onChange: () => { if (_isStaticFrame) { try { updateStaticPinsPreview(); } catch (_) {} } },
+    });
+  }
+
   // v0.8.17 — „Kamera folgt Track" im Classic-Modus
   // v0.9.275/277 (Nutzer) — Kamera-Trägheit (0..100 %), nur sichtbar wenn „Kamera folgt Track" an.
   // WICHTIG (Marc-Bug v0.9.277): _fiSync MUSS auch beim PROJEKTWECHSEL laufen. bindSetting
   // setzt die Follow-Checkbox dann programmatisch (kein `change`-Event) → darum `onLoad: _fiSync`
   // an der Follow-Bindung, sonst bleibt der Regler nach Projektwechsel versteckt obwohl Follow an.
   const _fiLbl = () => { const v = document.getElementById("anim-follow-inertia-v"); const s = document.getElementById("anim-follow-inertia"); if (v && s) v.textContent = (parseInt(s.value, 10) || 0) + "%"; };
-  const _fiSync = () => { const row = document.getElementById("anim-follow-inertia-row"); const cb = document.getElementById("anim-camera-follow"); if (row && cb) row.style.display = cb.checked ? "" : "none"; };
+  // v0.9.311 — Kamera-Höhe-Glätten-Regler: gleiche Show/Hide-Logik wie Trägheit (nur bei Follow).
+  const _fhLbl = () => { const v = document.getElementById("anim-follow-height-v"); const s = document.getElementById("anim-follow-height"); if (v && s) v.textContent = (parseInt(s.value, 10) || 0) + "%"; };
+  // v0.9.311 — „Kamera-Höhe glätten" ist NICHT mehr an Follow gekoppelt (gilt
+  // auch im Keyframe-Schwenk), steht außerhalb der Classic/KF-Bodies und bleibt
+  // immer sichtbar. _fiSync togglet nur noch die (Follow-spezifische) Trägheit.
+  const _fiSync = () => {
+    const cb = document.getElementById("anim-camera-follow");
+    const row = document.getElementById("anim-follow-inertia-row");
+    if (cb && row) row.style.display = cb.checked ? "" : "none";
+  };
   bindSetting("anim-camera-follow", _MODKEY, "camera_follow_track", { type: "bool", onLoad: _fiSync, onChange: _fiSync });
   bindSetting("anim-follow-inertia", _MODKEY, "camera_follow_inertia_pct", { type: "number", onLoad: _fiLbl, onChange: _fiLbl });
+  bindSetting("anim-follow-height", _MODKEY, "follow_height_smooth_pct", { type: "number", onLoad: _fhLbl, onChange: _fhLbl });
   document.getElementById("anim-camera-follow")?.addEventListener("change", _fiSync);
   document.getElementById("anim-follow-inertia")?.addEventListener("input", _fiLbl);
-  _fiSync(); _fiLbl();
+  document.getElementById("anim-follow-height")?.addEventListener("input", _fhLbl);
+  _fiSync(); _fiLbl(); _fhLbl();
   bindSetting("anim-ex", _MODKEY, "exaggeration", { type: "number",
     onLoad: v => updateLabel("anim-ex-v", v, "×") });
   bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number" });
@@ -1173,28 +1302,12 @@ function mountAnimator(body, headerActions, opts) {
   // Alpha ist jetzt ein Karten-Stil-Wert ("alpha"), kein eigenes bool mehr.
   // Backwards-compat: alte settings.json mit transparent_background=true wird
   // beim ersten Render-Klick aus dem Stil abgeleitet, nicht aus dem Feld.
-  // Schlagschatten (v0.4)
-  bindSetting("anim-shadow-enabled", _MODKEY, "shadow_enabled", { type: "bool" });
+  // v0.9.309 — Schlagschatten + Glow: Checkbox raus (Marc). Der Stärke-Slider
+  // ist der Schalter (0 px = aus). Kein shadow_enabled/glow_enabled-Toggle mehr;
+  // das Backend gated über `strength > 0`. Default-Stärke 0 = aus.
   bindSetting("anim-shadow-strength", _MODKEY, "shadow_strength", { type: "number",
     onLoad: v => updateLabel("anim-shadow-strength-v", parseFloat(v).toFixed(1), " px"),
     onChange: v => updateLabel("anim-shadow-strength-v", parseFloat(v).toFixed(1), " px") });
-  // v0.8.19 — Marc-Wunsch: Stärke-Slider komplett weg wenn Toggle aus
-  // (vorher: nur opacity 0.5 / disabled — Slider war noch sichtbar).
-  (function syncShadowUi() {
-    const cb = document.getElementById("anim-shadow-enabled");
-    const field = document.getElementById("anim-shadow-strength-field");
-    const apply = () => {
-      if (!field) return;
-      const hide = !cb.checked;
-      field.hidden = hide;
-      field.style.display = hide ? "none" : "";
-    };
-    cb.addEventListener("change", apply);
-    apply();
-  })();
-  // Glow (v0.6.8 — Marc-Frage „wo regle ich den Glow?")
-  bindSetting("anim-glow-enabled", _MODKEY, "glow_enabled", { type: "bool",
-    onChange: () => applyGlowToLayers() });
   bindSetting("anim-glow-strength", _MODKEY, "glow_strength", { type: "number",
     onLoad: v => updateLabel("anim-glow-strength-v", parseFloat(v).toFixed(1), " px"),
     onChange: v => {
@@ -1206,19 +1319,6 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-map-smoothing", _MODKEY, "map_smoothing", { type: "number",
     onLoad: v => updateLabel("anim-map-smoothing-v", parseFloat(v).toFixed(1), " px"),
     onChange: v => updateLabel("anim-map-smoothing-v", parseFloat(v).toFixed(1), " px") });
-  // v0.8.19 — Stärke-Slider komplett weg wenn Toggle aus (synchron syncShadowUi).
-  (function syncGlowUi() {
-    const cb = document.getElementById("anim-glow-enabled");
-    const field = document.getElementById("anim-glow-strength-field");
-    const apply = () => {
-      if (!field) return;
-      const hide = !cb.checked;
-      field.hidden = hide;
-      field.style.display = hide ? "none" : "";
-    };
-    cb.addEventListener("change", apply);
-    apply();
-  })();
   // v0.9.169/170 — Ghost-Track (ganze Route schwach im Hintergrund) + eigene Farbe
   bindSetting("anim-ghost-enabled", _MODKEY, "ghost_track_enabled", { type: "bool",
     onChange: () => applyGhost() });
@@ -1741,14 +1841,15 @@ function mountAnimator(body, headerActions, opts) {
     return Math.max(0, Math.min(n - 1, Math.round(markerReal * (n - 1))));
   }
 
-  function currentShadowEnabled() {
-    return !!document.getElementById("anim-shadow-enabled")?.checked;
-  }
   function currentShadowStrength() {
     return parseFloat(document.getElementById("anim-shadow-strength")?.value) || 0;
   }
+  // v0.9.309 — kein Toggle mehr: „an" = Stärke > 0.
+  function currentShadowEnabled() {
+    return currentShadowStrength() > 0;
+  }
   function currentGlowEnabled() {
-    return !!document.getElementById("anim-glow-enabled")?.checked;
+    return currentGlowStrength() > 0;
   }
   function currentGlowStrength() {
     return parseFloat(document.getElementById("anim-glow-strength")?.value) || 0;
@@ -1880,6 +1981,51 @@ function mountAnimator(body, headerActions, opts) {
     // v0.7.0: Camera-Keyframe-Pins zeichnen (gelbe Kreise auf der Track-Linie
     // bei den jeweiligen Track-Anker-Positionen).
     rebuildCameraKeyframePins();
+    // v0.9.310: Standbild-Modus — Start/Ziel-Markierung in die Vorschau (WYSIWYG
+    // zum Render). Nur wenn staticFrame + Toggle an.
+    try { updateStaticPinsPreview(); } catch (_) {}
+  }
+
+  // v0.9.310 — Start/Ziel-Pins in der Live-Vorschau (nur Standbild/Tour-Map).
+  // Spiegelt den Render-Stil aus core/animator.py (SHOW_PINS-Block): weißer
+  // Glow + zweifarbiger Kern (Start = weiß mit Linienfarbe-Rand, Ziel umgekehrt).
+  function updateStaticPinsPreview() {
+    if (!map) return;
+    const want = _isStaticFrame
+      && (document.getElementById("anim-static-pins")?.checked ?? true)
+      && Array.isArray(currentCoords) && currentCoords.length >= 2;
+    const removePins = () => {
+      ["preview-pin-core", "preview-pin-glow"].forEach(l => { try { if (map.getLayer(l)) map.removeLayer(l); } catch (_) {} });
+      try { if (map.getSource("preview-pins")) map.removeSource("preview-pins"); } catch (_) {}
+    };
+    if (!want) { removePins(); return; }
+    const color = currentLineColor();
+    const data = { type: "FeatureCollection", features: [
+      { type: "Feature", properties: { kind: "start" }, geometry: { type: "Point", coordinates: currentCoords[0] } },
+      { type: "Feature", properties: { kind: "end" },   geometry: { type: "Point", coordinates: currentCoords[currentCoords.length - 1] } },
+    ]};
+    if (!map.getSource("preview-pins")) {
+      map.addSource("preview-pins", { type: "geojson", data });
+    } else {
+      try { map.getSource("preview-pins").setData(data); } catch (_) {}
+    }
+    if (!map.getLayer("preview-pin-glow")) {
+      map.addLayer({ id: "preview-pin-glow", type: "circle", source: "preview-pins",
+        paint: { "circle-radius": 14, "circle-color": "#ffffff", "circle-opacity": 0.3, "circle-blur": 0.7, "circle-pitch-alignment": "map" } });
+    }
+    if (!map.getLayer("preview-pin-core")) {
+      map.addLayer({ id: "preview-pin-core", type: "circle", source: "preview-pins",
+        paint: { "circle-radius": 7,
+          "circle-color": ["match", ["get", "kind"], "start", "#ffffff", "end", color, "#fff"],
+          "circle-stroke-color": ["match", ["get", "kind"], "start", color, "end", "#ffffff", "#fff"],
+          "circle-stroke-width": 2.5, "circle-pitch-alignment": "map" } });
+    } else {
+      // Linienfarbe kann sich geändert haben → Paint nachziehen.
+      try {
+        map.setPaintProperty("preview-pin-core", "circle-color", ["match", ["get", "kind"], "start", "#ffffff", "end", color, "#fff"]);
+        map.setPaintProperty("preview-pin-core", "circle-stroke-color", ["match", ["get", "kind"], "start", color, "end", "#ffffff", "#fff"]);
+      } catch (_) {}
+    }
   }
 
   // ── v0.7.0: Camera-Keyframe-Pins auf der Karte ───────────────────────────
@@ -4060,6 +4206,8 @@ function mountAnimator(body, headerActions, opts) {
     // die Vorschau (≈60fps) genauso träge wirkt wie das Video.
     let _follLL = null;
     let _follLastNow = 0;
+    // v0.9.314 — Kamera-Höhe HALTEN: eingefrorene Gelände-Referenz pro Probelauf.
+    let _camStabBase = null;
     const step = (now) => {
       const elapsed = (now - _previewT0) * _previewSpeed;
       // v0.9.53: Track-Position-Trim, fixe Render-Zeit (anim + hold).
@@ -4152,8 +4300,10 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.136 — center.lng (abgewickelt) hat Vorrang vor Track-Punkt. Die
       // Welt-Drehung steckt in der center.lng (Insta360-Modell); die separate
       // rotation-Lane ist abgeschafft.
+      let _didFollow = false;
       if (interp.center) { jumpArgs.center = interp.center.slice(); _follLL = null; }
       else if (!isClassic2 || cameraFollow2) {
+        _didFollow = true;
         const _tgt = currentCoords[coordIdx];
         // v0.9.277 (Nutzer) — Kamera-Trägheit: EMA des Folge-Zentrums, zeitbasiert auf
         // 30fps-Render referenziert → Vorschau wirkt genauso träge wie das Video.
@@ -4175,6 +4325,36 @@ function mountAnimator(body, headerActions, opts) {
       const _zfStep = Math.max(0, Math.min(1, (8 - _curZoom) / 4));
       if (jumpArgs.center) _seedLngAccum(jumpArgs.center[0]);  // v0.9.136
       map.jumpTo(jumpArgs);
+      // v0.9.311 — Kamera-Höhe glätten im Probelauf (WYSIWYG zum Render): die
+      // Kamera reitet sonst 1:1 auf der Geländehöhe unter der Mitte → Hüpfen.
+      // Geländehöhe tiefpassen, Flughöhe (Offset) konstant halten, Blick = Mitte.
+      // Gilt für JEDE bewegte Mitte (Follow ODER Keyframe-Schwenk), nicht nur Follow.
+      // Welt-Ansicht (zoom < 8.5) ausgenommen.
+      // v0.9.314 — Kamera-Höhe HALTEN (WYSIWYG zum Render): 0 = Kamera reitet aufs
+      // Gelände (hüpft), 1 = feste Flughöhe (Gelände-Referenz beim ersten Track-Frame
+      // eingefroren). Gilt für jede bewegte Mitte; Welt-Ansicht (zoom<8.5) ausgenommen.
+      const _amt = (parseInt(document.getElementById("anim-follow-height")?.value, 10) || 0) / 100;
+      if (_amt > 0 && jumpArgs.center && _curZoom >= 8.5 && map.getTerrain && map.getTerrain()) {
+        try {
+          const cam = map.getFreeCameraOptions();
+          if (cam && cam.position) {
+            const camAlt = cam.position.toAltitude();
+            const terr = map.queryTerrainElevation(jumpArgs.center);
+            if (terr != null) {
+              const off = camAlt - terr;
+              // Referenz folgt dem Gelände nur SEHR langsam → kein Hüpfen, aber bei
+              // großen Anstiegen läuft die Kamera nicht in den Berg. _amt=1 ≈ feste Höhe.
+              if (_camStabBase == null) _camStabBase = terr;
+              else _camStabBase += (terr - _camStabBase) * 0.02;
+              const effTerr = terr * (1 - _amt) + _camStabBase * _amt;
+              const ll = cam.position.toLngLat();
+              cam.position = mapboxgl.MercatorCoordinate.fromLngLat(ll, effTerr + off);
+              cam.lookAtPoint(jumpArgs.center);
+              map.setFreeCameraOptions(cam);
+            }
+          }
+        } catch (_) {}
+      }
       // Padding ebenfalls mit zoomFade gewichten, damit der Welt-Offset
       // genauso sanft ausläuft wie die Drehung.
       if (_zfStep > 0 && interp.position) {
@@ -6931,7 +7111,8 @@ function mountAnimator(body, headerActions, opts) {
     if (_isReiseroute) { layer.innerHTML = ""; return; }
     const master = document.getElementById("anim-overlays")?.checked ?? true;
     const totals = document.getElementById("anim-ov-totals")?.checked ?? true;
-    const live   = document.getElementById("anim-ov-live")?.checked ?? true;
+    // v0.9.309 — im Standbild (Tour-Map) keine Live-Box (zeit-animiert).
+    const live   = !_isStaticFrame && (document.getElementById("anim-ov-live")?.checked ?? true);
     const ele    = document.getElementById("anim-ov-ele")?.checked ?? true;
     const posT   = document.getElementById("anim-ov-totals-pos")?.value || "tl";
     const posL   = document.getElementById("anim-ov-live-pos")?.value || "tr";
@@ -7556,7 +7737,10 @@ function mountAnimator(body, headerActions, opts) {
         Date.now() - fitTrackPreview._lastFitTs < 700) {
       return;
     }
-    const PAD_FACTOR = 0.08;   // Synchron mit core/animator.py
+    // v0.9.310 — Standbild-Modus: Randabstand kommt vom Slider (padding_pct),
+    // sonst der animierte Default 8 %.
+    const _staticPad = _isStaticFrame ? parseFloat(document.getElementById("anim-static-padding")?.value) : NaN;
+    const PAD_FACTOR = (!isNaN(_staticPad)) ? (_staticPad / 100) : 0.08;   // Synchron mit core/animator.py
     // Letterbox-Viewport hat exakt die Render-Aspect-Ratio — pad in der
     // gleichen Proportion ergibt identischen Zoom wie der Render.
     const vpEl = document.getElementById("anim-viewport") || document.getElementById("map-canvas");
@@ -7579,9 +7763,11 @@ function mountAnimator(body, headerActions, opts) {
     const pxPad = Math.max(2, Math.round(PAD_FACTOR * vpMin));
     // Bearing zeigen wir als End-Bearing der Animation (Render sweept von
     // -10 bis -10+rotation). So sieht der User wo die Kamera am Ende landet.
+    // v0.9.310 — Standbild-Modus: feste Ausrichtung vom Slider (bearing).
     const startBearing = -10;
     const rot = parseFloat(document.getElementById("anim-rot")?.value) || 0;
-    const endBearing = startBearing + rot;
+    const _staticBearing = _isStaticFrame ? parseFloat(document.getElementById("anim-static-bearing")?.value) : NaN;
+    const endBearing = (!isNaN(_staticBearing)) ? _staticBearing : (startBearing + rot);
     try {
       map.fitBounds(
         [[b.min_lon, b.min_lat], [b.max_lon, b.max_lat]],
@@ -7855,10 +8041,13 @@ function mountAnimator(body, headerActions, opts) {
     const gpxStem = (currentGpx.split("/").pop() || "tour").replace(/\.gpx$/i, "");
     // .mov für Alpha ODER ProRes-ohne-Alpha; .mp4 für H.264/H.265.
     const needsMov = alpha || codec === "prores";
-    const ext = needsMov ? "mov" : "mp4";
+    // v0.9.308 — Standbild (Tour-Map): PNG statt Video.
+    const ext = _isStaticFrame ? "png" : (needsMov ? "mov" : "mp4");
     const codecLabel = alpha ? "alpha" : codec;
-    const defaultName = `${gpxStem}_${w}x${h}_${codecLabel}.${ext}`;
-    const fileFilter = needsMov ? ["MOV (*.mov)"] : ["MP4 (*.mp4)"];
+    const defaultName = _isStaticFrame
+      ? `${gpxStem}_${w}x${h}.png`
+      : `${gpxStem}_${w}x${h}_${codecLabel}.${ext}`;
+    const fileFilter = _isStaticFrame ? ["PNG (*.png)"] : (needsMov ? ["MOV (*.mov)"] : ["MP4 (*.mp4)"]);
     const lastDir = (_settingsCache && _settingsCache[_MODKEY] && _settingsCache[_MODKEY].last_save_dir) || "";
 
     const savePath = await api().pick_save_path(defaultName, lastDir, fileFilter);
@@ -7973,6 +8162,16 @@ function mountAnimator(body, headerActions, opts) {
       })(),
       output_path: savePath,
       map_style: document.getElementById("anim-style").value,
+      // v0.9.308 — Standbild-Modus (Tour-Map): EIN PNG via render_frame.
+      // v0.9.310 — bearing/padding_pct/show_pins kommen jetzt aus eigenen
+      // Reglern in der Kamera-Sektion (WYSIWYG zur Vorschau). Fallback auf die
+      // bisherigen Tour-Map-Defaults wenn ein Element fehlt.
+      still_frame: _isStaticFrame,
+      ...(_isStaticFrame ? {
+        bearing: (() => { const v = parseFloat(document.getElementById("anim-static-bearing")?.value); return isNaN(v) ? -10 : v; })(),
+        padding_pct: (() => { const v = parseFloat(document.getElementById("anim-static-padding")?.value); return isNaN(v) ? 8 : v; })(),
+        show_pins: (document.getElementById("anim-static-pins")?.checked ?? true),
+      } : {}),
       duration_s: parseInt(document.getElementById("anim-dur").value),
       hold_s: parseInt(document.getElementById("anim-hold").value),
       intro_s: parseInt(document.getElementById("anim-intro")?.value || "0"),  // v0.9.59
@@ -7991,6 +8190,7 @@ function mountAnimator(body, headerActions, opts) {
       // Center pro Frame zum aktuellen Track-Punkt. Im KF-Modus per KF gesteuert.
       camera_follow_track: !!document.getElementById("anim-camera-follow")?.checked,
       camera_follow_inertia: (parseInt(document.getElementById("anim-follow-inertia")?.value, 10) || 0) / 100,
+      follow_height_smooth: (parseInt(document.getElementById("anim-follow-height")?.value, 10) || 0) / 100,
       show_overlays: !_isReiseroute && !!document.getElementById("anim-overlays")?.checked,
       line_color: document.getElementById("anim-color").value,
       // v0.9.157 — line_width für den Render auf Preview-Dicke hochskaliert
@@ -8002,7 +8202,7 @@ function mountAnimator(body, headerActions, opts) {
       // + in Reiseroute IMMER aus (dort gibt es keine Stats-Overlays).
       overlay_totals_enabled: !_isReiseroute && !!document.getElementById("anim-ov-totals")?.checked,
       overlay_totals_position: document.getElementById("anim-ov-totals-pos")?.value || "top-left",
-      overlay_live_enabled: !_isReiseroute && !!document.getElementById("anim-ov-live")?.checked,
+      overlay_live_enabled: !_isReiseroute && !_isStaticFrame && !!document.getElementById("anim-ov-live")?.checked,
       overlay_live_position: document.getElementById("anim-ov-live-pos")?.value || "bottom-left",
       overlay_elevation_enabled: !_isReiseroute && !!document.getElementById("anim-ov-ele")?.checked,
       overlay_elevation_position: document.getElementById("anim-ov-ele-pos")?.value || "bottom-right",
@@ -8038,12 +8238,12 @@ function mountAnimator(body, headerActions, opts) {
         return (v >= max) ? 0 : v;
       })(),
       transparent_background: document.getElementById("anim-style").value === "alpha",
-      // v0.4: Schlagschatten unter Track-Linie + Punkt
-      shadow_enabled: document.getElementById("anim-shadow-enabled").checked,
-      shadow_strength: parseFloat(document.getElementById("anim-shadow-strength").value),
-      // v0.6.8: Glow um die Track-Linie (Aura)
-      glow_enabled: document.getElementById("anim-glow-enabled").checked,
-      glow_strength: parseFloat(document.getElementById("anim-glow-strength").value),
+      // v0.4/v0.9.309: Schlagschatten — Slider IST der Schalter (Stärke 0 = aus).
+      shadow_enabled: currentShadowEnabled(),
+      shadow_strength: currentShadowStrength(),
+      // v0.6.8/v0.9.309: Glow — Slider IST der Schalter (Stärke 0 = aus).
+      glow_enabled: currentGlowEnabled(),
+      glow_strength: currentGlowStrength(),
       // v0.9.286b: Karte glätten (Anti-Flimmer-Tiefpass, nur 4K-Wirkung)
       map_smoothing: parseFloat(document.getElementById("anim-map-smoothing")?.value || "1.3"),
       // v0.9.169: Ghost-Track — ganze Route schwach im Hintergrund vorgezeichnet

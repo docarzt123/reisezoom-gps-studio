@@ -1,8 +1,0 @@
-{
-  "slug": "tourmap",
-  "name": "Tour-Map",
-  "description": "Statische Karten-PNG (z.B. für YouTube-Thumbnails)",
-  "icon": "🗺",
-  "sort_order": 15,
-  "status": "active"
-}

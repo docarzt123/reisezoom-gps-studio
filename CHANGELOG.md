@@ -14,6 +14,94 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.315] – 2026-06-17
+### Behoben
+- **GPX-Inspektor „Heilen": keine erfundenen Schleifen mehr.** Beim Lücken-Füllen mit einem **Straßen-Profil** (Wandern/Fahrrad/Auto) konnte Mapbox an Kreuzungen einen Umweg/Kreisel zurückrouten und so eine **Schleife in eine saubere Spur** schreiben, die so nie gefahren wurde. Jetzt prüft das Heilen jede geroutete Lücke: ist die Route deutlich länger als die Luftlinie (Umweg/Schleife), wird sie **verworfen und gerade gefüllt**. Gleicher Schutz beim manuellen „Strecke A→B (Straße folgen)".
+### Geändert
+- **„Ganzen Track auf Wegenetz snappen" entschärft:** überschreibt alle aufgezeichneten Punkte — jetzt mit klarer Warnung + **2-Klick-Bestätigung** statt stiller Ausführung.
+- **A→B-Rausschneiden sichtbarer:** Der „Manuell bearbeiten (A→B)"-Bereich ist jetzt **standardmäßig offen**, der Lösch-Button heißt klarer **„✂️ Punkte zwischen A→B rausschneiden"** (Schleifen/Abstecher direkt rausschneiden — gab's funktional schon, war nur versteckt).
+
+## [0.9.314] – 2026-06-17
+### Geändert
+- **„Kamera-Höhe glätten" → „Kamera-Höhe halten" (umgebaut, Marc-Feedback).** Die bisherige Glättung folgte der langsamen Geländeänderung und entfernte nur das Zittern — das große, langsame Auf-/Ab-Schweben über Bergen blieb. Jetzt **hält** der Regler die Kamera auf fester Flughöhe: 0 % = Kamera folgt dem Boden (alt), 100 % = feste Höhe (die Gelände-Referenz wird beim ersten Track-Frame eingefroren, die Kamera bleibt auf gleicher Höhe, egal was die Berge machen). Werte dazwischen mischen. Headless verifiziert (Live-Messung im Probelauf: roh-Höhe vs. gehaltene Höhe), gilt in Probelauf + Render, alle Kamera-Modi.
+
+## [0.9.313] – 2026-06-17
+### Geändert
+- **„Kamera-Höhe glätten" ist jetzt standardmäßig AN (75 %)** (Marc: „ich will nur, dass das Hüpfen aufhört, ohne was einzustellen"). Das Kamera-Hüpfen über bergigem Gelände ist damit out-of-the-box weg — der Regler oben in der Kamera-Sektion ist nur noch zum Feintunen da (auf 0 = altes Verhalten).
+
+## [0.9.312] – 2026-06-17
+### Geändert
+- **„Kamera-Höhe glätten" gilt jetzt für ALLE Kamera-Modi** (Marc-Korrektur): das Kamera-Hüpfen über Bergen tritt auch beim **Keyframe-Schwenk** entlang des Tracks auf, nicht nur bei „Kamera folgt Track". Der Regler ist daher von der Follow-Checkbox entkoppelt und sitzt jetzt **oben in der Kamera-Sektion** (über der Keyframe-Umschaltung) — sichtbar im Classic- **und** Keyframe-Modus. Greift in beiden (Welt-Ansicht zoom < 8.5 ausgenommen).
+
+## [0.9.311] – 2026-06-17
+### Hinzugefügt
+- **Animator: „Kamera-Höhe glätten" gegen das Kamera-Hüpfen über Bergen.** Bei „Kamera folgt Track" + 3D-Terrain reitet die Kamera sonst 1:1 auf der Geländehöhe unter der Bildmitte — sie hüpft hoch und runter, während der Track an ihr vorbeifährt. Neuer Regler in der Kamera-Sektion (erscheint nur bei „Kamera folgt Track"): tiefpassfiltert die Geländehöhe und hält die Flughöhe konstant → ruhige Kamera, Track bleibt zentriert. 0 % = aus (altes Verhalten), höher = ruhiger. Wirkt **live im Probelauf und im Render** (WYSIWYG, gleicher Zeit-Filter referenziert auf 30 fps).
+
+## [0.9.310] – 2026-06-17
+### Hinzugefügt
+- **Tour-Map: eigene Kamera-Regler fürs Standbild.** In der Kamera-Sektion gibt es jetzt **Ausrichtung** (Karten-Drehung), **Randabstand** (Luft zwischen Track und Bildrand) und einen **Start/Ziel-Markierung**-Schalter. Alle drei wirken **live WYSIWYG** in der Vorschau (inkl. der zweifarbigen Start/Ziel-Punkte) und landen 1:1 im gerenderten PNG. Vorher waren das feste Default-Werte.
+### Geändert
+- **Tour-Map: Sektion „Video-Einstellungen" heißt im Standbild-Modus jetzt „Bild-Einstellungen"** (enthält dort nur noch die Auflösung).
+### Entfernt
+- **Toter Code aufgeräumt:** `core/tourmap.py` und das alte `modules/tourmap/ui/`-Modul (CSS + JS) sind gelöscht. Die Tour-Map läuft seit v0.9.308 vollständig über den Standbild-Modus des Animators (`render_frame`), die alten Dateien wurden nicht mehr geladen.
+
+## [0.9.309] – 2026-06-17
+### Geändert (Nutzer-Feedback)
+- **Schatten- & Glow-Checkbox entfernt (Animator + Tour-Map).** Der Stärke-Regler ist jetzt selbst der Schalter: **0 px = aus**, hochziehen schaltet Schatten bzw. Glow ein. Die Checkbox war doppelt gemoppelt. Neuer Default ist **0 (aus)**.
+- **Tour-Map (Standbild) aufgeräumt — nur noch was für ein Standbild zählt.** Ausgeblendet: **Live-Stats-Box** (zeit-animiert), **Trim-Optionen** (Stats-vom-Trim / Track-vor-Trim — ohne Timeline kein Trim), **Cinematic-Flug**, **Kamera-folgt-Track** + Kamera-Trägheit, **Rotations-Schwenk**, und **„In der Vorschau ALLE zeigen"** (im Standbild sind eh immer alle Fotos/Schilder sichtbar). Bleibt: Karte, Track, Neigung, Auflösung, Gesamt-Stats + Höhenprofil, Fotos/Schilder.
+- **Tour-Map-Vorschau füllt jetzt die volle Höhe** (vorher klebte die Karte oben, weil der Platz der ausgeblendeten Timeline reserviert blieb).
+### Behoben
+- **Tour-Karten-PNG bekam fälschlich eine `.mp4`-Endung** (der Render-Pfad erzwang die Video-Endung). Standbilder werden jetzt korrekt als `.png` gespeichert.
+
+## [0.9.308] – 2026-06-17
+### Geändert (Architektur — Tour-Map nutzt jetzt die Animator-Sidebar)
+- **Tour-Map ist jetzt das Animator-Modul im Standbild-Modus** (DRY-Klon wie schon „Reiseroute"): dieselbe Sidebar + Vorschau, nur Animations-Regler ausgeblendet (Dauer/Intro/Hold, FPS, Karte-glätten, Keyframe-Editor, Probe-Lauf-Timeline) und der Render-Knopf erzeugt **ein PNG** statt Video. Damit gibt es **keinen doppelten UI-Code** mehr — alle Karten-/Track-/Overlay-/Foto-/Schilder-Funktionen vom Animator stehen automatisch auch in der Tour-Map zur Verfügung.
+  - *Frontend:* `modules/animator/ui/module.js` registriert `tourmap` via `mountAnimator(…, {mode:"staticFrame", moduleSlug:"tourmap"})`; das alte `modules/tourmap/ui/module.js` registriert nichts mehr.
+  - *Backend:* `app.py::animator_start_render` erkennt `still_frame` im Param-Dict und rendert via `canim.render_frame` (PNG) statt Video — die ganze bewährte Render-Flow-Logik (Save-Dialog, Status-Polling, Fortschritt) wird wiederverwendet.
+  - *Erste Stufe — noch zu prüfen/feinschleifen (visueller Test):* eigene Tour-Map-Kamera-Regler (Bearing/Padding/Pins) sind noch nicht als Sidebar-Slider drin (es gelten sinnvolle Defaults); die Vorschau ist noch die Animator-Vorschau. Alter `core/tourmap.py` + `modules/tourmap/ui/module.js` werden im Folgeschritt ganz gelöscht.
+
+## [0.9.307] – 2026-06-17
+### Geändert (Architektur — Tour-Map = ein Standbild vom Animator)
+- **Tour-Karten werden jetzt von der Animator-Pipeline gerendert** — ein einziger statischer Frame statt eines eigenen, doppelten Render-Pfads. Vorteil: alles was der Animator kann (Track, Glow, Linien-Stile, Schilder/Fotos, Overlays, Terrain) erscheint in der Tour-Karte automatisch und 1:1 identisch (echtes WYSIWYG), und es gibt keinen doppelt gepflegten Code mehr. Für dich ändert sich die Bedienung (noch) nicht — die Tour-Karte sieht aus wie bisher (Start/End-Pins, Padding, Bearing bleiben), kommt aber jetzt aus derselben Render-Engine wie das Video.
+  - *Backend:* neue `core/animator.py::render_frame()` (ein PNG, volle Strecke, feste Kamera); `AnimatorConfig` um `still_frame`, `bearing`, `padding_pct`, `show_pins` erweitert; Start/End-Pin-Ebene aus der alten Tour-Map in den Animator übernommen. `app.py::tourmap_render` baut jetzt eine `AnimatorConfig` und ruft `render_frame`. Der alte `core/tourmap.py`-Renderpfad ist damit stillgelegt.
+  - *Noch offen (nächster Schritt):* die Tour-Map-**Sidebar** soll die Animator-Sidebar im Standbild-Modus werden (Animations-Regler ausgeblendet), damit auch dort kein Doppel-Code mehr ist.
+
+## [0.9.306] – 2026-06-17
+### Geändert (Nutzer-Wunsch)
+- **Foto-Pins komplett neu: nummerierte Kreise statt schwebender Thumbnails.** Fotos auf der Karte erscheinen jetzt als kleine **nummerierte Kreise** (1, 2, 3 … in Reihenfolge entlang des Tracks) — viel ruhiger und klarer für die Story/Reihenfolge. Das **Foto-Vorschaubild** poppt jetzt nur noch beim **Drüberfahren mit der Maus** (Hover) auf, nicht mehr dauerhaft. Im **fertigen Video/PNG** erscheinen ebenfalls die nummerierten Kreise (WYSIWYG, identisch zur Vorschau) — im Animator weiterhin nacheinander, sobald der Track-Marker den jeweiligen Punkt erreicht. Gilt für Animator **und** Tour-Map (gespiegelt), inkl. Render-Backend.
+
+## [0.9.305] – 2026-06-17
+### Behoben (Nutzer-Feedback)
+- **Fehlende Quelldatei wird klar gemeldet statt kaputt auszusehen.** Wenn die zuletzt geladene GPX-Datei nicht mehr lesbar ist (externe Platte abgesteckt, Datei verschoben/gelöscht), liefen einzelne Module (Tour-Map, Höhen-Animator, Geotagger, GPX-Inspektor) vorher still in einen leeren/falsch wirkenden Zustand (Karte auf Europa, leeres Höhenprofil, „Kein Track geladen"). Jetzt erscheint **ein klares Banner** oben: *„Quelldatei nicht gefunden — Laufwerk gemountet?"* mit Knopf **„Datei neu wählen"**.
+- **GPX-Inspektor: A/B-Anker setzen ist nicht mehr fummelig.** Ein Klick auf die Karte wählt jetzt **immer den nächstgelegenen Track-Punkt** — egal wie weit weg geklickt wurde. Vorher musste man innerhalb von 18 px eines Punkts treffen, was bei dünn gesetzten Punkten oft ins Leere ging.
+- **Glow ohne Wirkung behoben.** In Animator und Tour-Map konnte „Glow um Track-Linie" aktiviert sein, während die Glow-Stärke auf 0 px stand — sichtbar passierte dann nichts. Beim Einschalten wird die Stärke jetzt automatisch auf einen sinnvollen Wert (4 px) gehoben, wenn sie 0 war.
+
+## [0.9.304] – 2026-06-16
+### Geändert (Nutzer-Feedback)
+- **GPX-Inspektor: A/B-Anker auf der Karte deutlich sichtbar.** Statt nur etwas größerer farbiger Kreise sind die Anker jetzt klare **Pin-Badges** mit „A" (grün) und „B" (rot), weißem Rand und Schatten — auch bei dichten Tracks sofort zu finden.
+
+## [0.9.303] – 2026-06-16
+### Geändert (Nutzer-Feedback)
+- **GPX-Inspektor: Punkt-Daten jetzt live in einer Ecken-Box.** Statt eines Info-Popups beim Klicken (das unter das Höhenprofil rutschte) zeigt eine feste Box **oben links** immer die Daten des Punkts **unter dem Mauszeiger** — kein Klicken nötig. Ein **Klick auf einen Punkt setzt jetzt direkt Anker A/B** (passend zum „klick zwei Punkte"-Prinzip). Das alte verschiebbare Klick-Popup entfällt.
+
+## [0.9.302] – 2026-06-16
+### Geändert (Nutzer-Feedback)
+- **GPX-Inspektor: Sidebar komplett aufgeräumt.** Die über viele Versionen gewachsene, unübersichtliche Heilen-Bedienung ist jetzt klar in zwei Bereiche geteilt:
+  - **🩹 Heilen (automatisch)** — ein Block mit **Bereich-Umschalter „Ganzer Track / Abschnitt A→B"** und Checkboxen: Ausreißer glätten · Lücken füllen (+ *an echte Wege anpassen*) · ganzen Track auf Wege snappen (nur bei „Ganzer Track"). Gemeinsames **Wege-Profil** (🚶/🚴/🚗), Empfindlichkeit, Füll-Abstand. Ein einziger **„Heilen"-Knopf**.
+  - **✏️ Manuell bearbeiten (A→B)** — eingeklappte Sektion mit den Feinwerkzeugen (Sprung glätten, Lücke füllen, Strecke A→B auf Straße, Pfad zeichnen, Punkte löschen).
+- **Hilfetexte aufgeräumt:** die langen Erklär-Absätze in der Sidebar sind weg und durch kleine **?-Symbole mit Tooltip** ersetzt — viel ruhigeres Layout.
+- **Lücken-Füllen vereinfacht:** statt zweier Checkboxen („an Wege anpassen", „snappen") gibt es jetzt nur die Auswahl **„Lücken füllen als"** mit **📏 Luftlinie** (gerade) oder **🚶/🚴/🚗** (folgt echten Wegen). Logisch: Wegart gewählt = an Wege angepasst, Luftlinie = gerade.
+### Behoben
+- **GPX-Inspektor: Undo behält die A/B-Auswahl** (war vorher bei jedem Rückgängig weg, obwohl die Auswahl nur UI-Zustand ist).
+### Hinzugefügt (Nutzer-Wunsch)
+- **GPX-Inspektor: Lücken an die echte Route anpassen.** Neue Auswahl **„Lücken füllen"** beim Auto-Heilen: **Gerade Linie** (wie bisher, schnell) oder **🚶 Wandern / 🚴 Fahrrad / 🚗 Auto** — dann sucht die App für jede Lücke die echte Route auf dem Wege-/Straßennetz (Mapbox Directions) und füllt sie naturgetreu statt mit einer geraden Linie. Bei vielen Lücken sieht der Track damit deutlich realistischer aus. Sehr große Lücken (z. B. Flüge/interkontinentale Sprünge) werden automatisch linear gefüllt. Braucht Internet + Mapbox-Token; ohne Token wird linear gefüllt.
+
+## [0.9.299] – 2026-06-16
+### Geändert (Nutzer-Feedback)
+- **GPX-Inspektor „Auto-Heilen" ist jetzt ein Klick.** Vorher musste man erst markieren (Vorschau) und dann „Alle heilen" drücken — das war missverständlich (es sah aus, als würde nicht gefüllt). Jetzt findet **und heilt** ein einziger Klick direkt: Ausreißer werden geglättet, Lücken mit Punkten gefüllt (eingefügte Punkte farblich markiert), Rückgängig jederzeit möglich. Danach zeigt die Karte den **ganzen Track** statt aufs erste Stück zu zoomen.
+### Behoben (Nutzer-Feedback)
+- **Lücken werden jetzt zuverlässig komplett gefüllt.** Zwei Probleme: (1) die Erkennung hatte eine zu hohe feste Mindestschwelle (~130 m), wodurch sichtbare Funklöcher knapp darunter durchrutschten; (2) das Füllen ließ Reste übrig. Neu erkennt die App den **typischen Punktabstand** des Tracks und markiert **jedes Segment, das deutlich länger ist, als Loch — egal wie groß**. Die Schwelle ist an den Füll-Abstand gekoppelt, sodass nach dem Heilen **kein Loch mehr übrig bleibt** (auf einer dichten Test-Wanderung: vorher 18 erkannt/teilgefüllt → jetzt alle ~30 sichtbaren Löcher erkannt und restlos gefüllt). Empfindlichkeits-Slider justiert weiter.
+
 ## [0.9.297] – 2026-06-16
 ### Hinzugefügt
 - **Track als CSV exportieren.** Neuer Menüpunkt **Reisezoom → „Als CSV exportieren…"** speichert den aktuell geladenen Track als Tabelle (`index,lat,lon,ele,time`, Zeit als ISO-UTC) — ergänzend zum bestehenden GPX-Export. Praktisch für Tabellenkalkulation und eigene Auswertungen.

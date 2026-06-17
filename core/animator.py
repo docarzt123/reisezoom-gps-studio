@@ -109,6 +109,13 @@ class AnimatorConfig:
     height: int = 1080
     pitch: float = 40.0                 # 0 = flat top-down, 85 = max
     rotation: float = 20.0              # Bearing-Sweep über Animation
+    # v0.9.307 — Standbild-Modus (Tour-Map = ein statischer Frame vom Animator).
+    # `still_frame` aktiviert render_frame(): EIN PNG, volle Strecke, alle
+    # Fotos/Schilder/Overlays sichtbar, feste Kamera (kein Sweep/Spin/KFs).
+    still_frame: bool = False
+    bearing: float = -10.0              # Fester Kamera-Bearing im Standbild
+    padding_pct: float = 8.0            # Fit-Rand in % der kürzeren Achse (Standbild)
+    show_pins: bool = False             # Start/End-Pin-Ebene (Tour-Map-Erbe)
     # v0.9.82 (Nutzer-Idee „Erde rotiert in Globe-View") — Spin in deg/sec.
     # Wird PRO FRAME on top auf den interpolierten Bearing addiert, in ALLEN
     # Phasen (Intro/Anim/Hold). 0 = aus. Positive Werte = im Uhrzeigersinn,
@@ -151,6 +158,10 @@ class AnimatorConfig:
     # bei GPS-Rauschen), 1 = sehr träge/weich (Kamera zieht sanft nach). Exponentielle
     # Glättung des Folge-Zentrums über die Frames.
     camera_follow_inertia: float = 0.0
+    # v0.9.311 (Marc) — Kamera-Höhe glätten bei „Kamera folgt Track" + Terrain:
+    # 0 = aus (Kamera reitet 1:1 auf dem Gelände → hüpft bei starkem Pitch),
+    # 0..1 = Tiefpass auf die Geländehöhe unter der Kamera-Mitte (1 = sehr ruhig).
+    follow_height_smooth: float = 0.0
     # Timeline-Events (v0.7.0) — Liste von Dicts (kind/anchor/payload).
     # Aktuell unterstützt: kind="camera" mit anchor/pitch/bearing/zoom_offset.
     # Vorbereitet für: kind="photo" (v0.7.1), kind="text" (v0.7.2).
@@ -697,6 +708,15 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # sinnvollen Track-Frame der nicht zu dicht am Rand klebt.
     PAD_FACTOR = 0.08
     px_pad = max(2, int(round(PAD_FACTOR * min(cfg.width, cfg.height))))
+    # v0.9.311 — Kamera-Höhe glätten (Follow + Terrain): Per-Frame-Tiefpass-Faktor
+    # für die Geländehöhe unter der Kamera-Mitte. Sonst reitet die Kamera 1:1 auf
+    # dem Gelände → Hüpfen bei starkem Pitch. 0 = aus. Referenz 30 fps, damit die
+    # Glättung in Sekunden konstant ist (Preview rechnet identisch, WYSIWYG).
+    # v0.9.311/314 — Kamera-Höhe HALTEN (alle Kamera-Modi). 0 = Kamera reitet aufs
+    # Gelände (Mapbox-Default, hüpft), 1 = feste Flughöhe (Gelände-Referenz wird beim
+    # ersten Track-Frame eingefroren → Kamera bleibt auf der Höhe, egal was die Berge
+    # machen). Werte dazwischen mischen linear. Kein Zeit-/fps-Faktor nötig.
+    _cam_stab_amt = max(0.0, min(1.0, float(getattr(cfg, "follow_height_smooth", 0.0) or 0.0)))
     # Pos-Slot-Mapping → CSS-Klasse + Block-Reihenfolge
     # Master `show_overlays` bleibt führend. Einzelne `*_enabled` schalten Boxen aus.
     totals_html = ""
@@ -827,6 +847,14 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         "  preserveDrawingBuffer:true, antialias:true, fadeDuration:0,\n"
         "  prefetchZoomDelta:6\n"
     )
+    # v0.9.307 — Standbild-Modus: Bounds-Fit nutzt cfg.padding_pct + cfg.bearing
+    # (Tour-Map-Parität). Im Video-Modus bleibt's bei 8 % / bearing -10.
+    if cfg.still_frame:
+        _fit_pad = max(2, int(round((float(cfg.padding_pct) / 100.0) * min(cfg.width, cfg.height))))
+        _fit_bearing = float(cfg.bearing)
+    else:
+        _fit_pad = px_pad
+        _fit_bearing = -10
     if cfg.override_center is not None and cfg.override_zoom is not None:
         ovc = cfg.override_center
         # v0.9.131 — 4K-WYSIWYG-Fix (synchron zu tourmap.py). Das Frontend
@@ -850,7 +878,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             f"const map = new mapboxgl.Map({{\n"
             f"  container:'map', style:'{style_url}',\n"
             f"  bounds: [[{min_lon}, {min_lat}], [{max_lon}, {max_lat}]],\n"
-            f"  fitBoundsOptions: {{ padding: {px_pad}, pitch: {cfg.pitch}, bearing: -10 }},\n"
+            f"  fitBoundsOptions: {{ padding: {_fit_pad}, pitch: {cfg.pitch}, bearing: {_fit_bearing} }},\n"
             f"{common_opts}"
             f"}});"
         )
@@ -870,8 +898,11 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         # v0.9.79 (Phase 2) — track_anchor für Pop-In im Animator-Render
         # berechnen, falls nicht schon vom UI mitgeliefert.
         from . import photos as _cphotos
+        # v0.9.305 — visible + valide Koordinaten (Badge braucht keinen thumb mehr,
+        # Spiegelung zu ui/js/photos.js das jetzt ALLE sichtbaren Fotos zeigt).
         _photos_input = [p for p in cfg.photos
-                         if p.get("thumb") and p.get("visible", True) is not False]
+                         if p.get("visible", True) is not False
+                         and p.get("lon") is not None and p.get("lat") is not None]
         # In-place track_anchor setzen wenn coords + photos da sind. Mutiert
         # die Refs in cfg.photos — das ist für die Render-Dauer ok.
         try:
@@ -883,18 +914,35 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             _cphotos.compute_track_anchors(_photos_input, track_coords)
         except Exception:
             pass
+        # v0.9.305 — Nummerierung 1..N in Track-Reihenfolge (track_anchor),
+        # exakt wie ui/js/photos.js._toGeoJson.
+        _order = sorted(range(len(_photos_input)),
+                        key=lambda k: float(_photos_input[k].get("track_anchor", 0) or 0))
+        _num_by_idx = {k: rank + 1 for rank, k in enumerate(_order)}
         photos_for_render = [{
             "lon": float(p.get("lon", 0)),
             "lat": float(p.get("lat", 0)),
-            "thumb": p.get("thumb"),
+            "num": _num_by_idx[k],
             # Float-Cast für JS-Serialization-Safety
             "track_anchor": float(p.get("track_anchor", 0) or 0),
-        } for p in _photos_input]
+        } for k, p in enumerate(_photos_input)]
         photos_json_str = json.dumps(photos_for_render)
         # v0.9.224 — × render_scale (WYSIWYG: Foto-Pin gleich groß wie in Preview).
-        photos_size_factor = (max(12, min(200, int(cfg.photos_size_px))) / 64.0) \
+        # v0.9.305 — Basis /48 (Badge ist 24 CSS-px @ icon-size 1).
+        photos_size_factor = (max(12, min(200, int(cfg.photos_size_px))) / 48.0) \
             * float(getattr(cfg, "render_scale", 1.0) or 1.0)
         photo_pins_block = (
+            "function __mkBadge(num){\n"
+            "  var S=48; var c=document.createElement('canvas'); c.width=S; c.height=S;\n"
+            "  var ctx=c.getContext('2d'); var cx=S/2, cy=S/2, r=S/2-4;\n"
+            "  ctx.save(); ctx.shadowColor='rgba(0,0,0,0.35)'; ctx.shadowBlur=4; ctx.shadowOffsetY=1;\n"
+            "  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle='#ff385c'; ctx.fill(); ctx.restore();\n"
+            "  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.lineWidth=3; ctx.strokeStyle='#ffffff'; ctx.stroke();\n"
+            "  var label=String(num); var fs=label.length>=3?18:(label.length===2?22:26);\n"
+            "  ctx.fillStyle='#ffffff'; ctx.textAlign='center'; ctx.textBaseline='middle';\n"
+            "  ctx.font='bold '+fs+'px -apple-system, system-ui, Arial, sans-serif';\n"
+            "  ctx.fillText(label,cx,cy+1); return ctx.getImageData(0,0,S,S);\n"
+            "}\n"
             "const __photoPins = " + photos_json_str + ";\n"
             "window.__photoPinsAnchorFilter = (markerAnchor) => {\n"
             "  if (!map.getLayer('photo-pins-lyr')) return;\n"
@@ -902,44 +950,27 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "  catch(_) {}\n"
             "};\n"
             "if (__photoPins.length) {\n"
-            "  let __loaded = 0;\n"
-            "  const __onAllLoaded = () => {\n"
-            "    if (map.getSource('photo-pins-src')) return;\n"
-            "    map.addSource('photo-pins-src', {type:'geojson', data:{\n"
-            "      type:'FeatureCollection',\n"
-            "      features: __photoPins.map((p, i) => ({\n"
-            "        type:'Feature', id:i,\n"
-            "        properties:{ imgId: 'photo-thumb-'+i, track_anchor: (typeof p.track_anchor === 'number' ? p.track_anchor : 0) },\n"
-            "        geometry:{ type:'Point', coordinates:[p.lon, p.lat] }\n"
-            "      }))\n"
-            "    }});\n"
-            "    map.addLayer({\n"
-            "      id:'photo-pins-lyr', type:'symbol', source:'photo-pins-src',\n"
-            "      // v0.9.79 (Phase 2) — Foto erscheint erst wenn Track-Marker dort vorbei.\n"
-            "      // Default-Filter '<= 0' = nichts sichtbar; advanceFrame setzt den Filter pro Frame.\n"
-            "      filter: ['<=', ['get', 'track_anchor'], -1],\n"
-            "      layout:{\n"
-            "        'icon-image': ['get', 'imgId'],\n"
-            f"        'icon-size': {photos_size_factor:.4f},\n"
-            "        'icon-allow-overlap': true,\n"
-            "        'icon-ignore-placement': true,\n"
-            "        'icon-anchor': 'center'\n"
-            "      }\n"
-            "    });\n"
-            "  };\n"
-            "  __photoPins.forEach((p, i) => {\n"
-            "    const id = 'photo-thumb-'+i;\n"
-            "    const im = new Image();\n"
-            "    im.onload = () => {\n"
-            "      if (!map.hasImage(id)) map.addImage(id, im, {pixelRatio:2});\n"
-            "      __loaded += 1;\n"
-            "      if (__loaded === __photoPins.length) __onAllLoaded();\n"
-            "    };\n"
-            "    im.onerror = () => {\n"
-            "      __loaded += 1;\n"
-            "      if (__loaded === __photoPins.length) __onAllLoaded();\n"
-            "    };\n"
-            "    im.src = p.thumb;\n"
+            "  __photoPins.forEach(p => { const id='photo-num-'+p.num; if(!map.hasImage(id)) map.addImage(id, __mkBadge(p.num), {pixelRatio:2}); });\n"
+            "  map.addSource('photo-pins-src', {type:'geojson', data:{\n"
+            "    type:'FeatureCollection',\n"
+            "    features: __photoPins.map((p, i) => ({\n"
+            "      type:'Feature', id:i,\n"
+            "      properties:{ badgeId: 'photo-num-'+p.num, track_anchor: (typeof p.track_anchor === 'number' ? p.track_anchor : 0) },\n"
+            "      geometry:{ type:'Point', coordinates:[p.lon, p.lat] }\n"
+            "    }))\n"
+            "  }});\n"
+            "  map.addLayer({\n"
+            "    id:'photo-pins-lyr', type:'symbol', source:'photo-pins-src',\n"
+            "    // v0.9.79 (Phase 2) — Foto erscheint erst wenn Track-Marker dort vorbei.\n"
+            "    // Default-Filter '<= -1' = nichts sichtbar; advanceFrame setzt den Filter pro Frame.\n"
+            "    filter: ['<=', ['get', 'track_anchor'], -1],\n"
+            "    layout:{\n"
+            "      'icon-image': ['get', 'badgeId'],\n"
+            f"      'icon-size': {photos_size_factor:.4f},\n"
+            "      'icon-allow-overlap': true,\n"
+            "      'icon-ignore-placement': true,\n"
+            "      'icon-anchor': 'center'\n"
+            "    }\n"
             "  });\n"
             "}\n"
         )
@@ -1129,6 +1160,8 @@ const SHOW_OVERLAYS = {str(cfg.show_overlays).lower()};
 // Linie am Trim-Start statt am Track-Anfang (= „Pre-Trim"-Portion ausgeblendet).
 const SHOW_PRETRIM_TRACK = {str(cfg.show_pretrim_track).lower()};
 const TRIM_START_IDX = Math.max(0, Math.min(totalPoints - 1, Math.floor({float(cfg.render_start_anchor)} * (totalPoints - 1))));
+const SHOW_PINS = {str(bool(cfg.show_pins)).lower()};  // v0.9.307 — Start/End-Pins (Standbild/Tour-Map-Erbe)
+window.__camStabAmt = {_cam_stab_amt};  // v0.9.314 — Kamera-Höhe halten (0=aus, 1=fest)
 // v0.9.24 — Flags: bei Track ohne Höhe/Zeit fehlen die zugehörigen DOM-Nodes
 // (Höhenprofil-SVG + live-Stats-Zeilen werden conditional erzeugt). Das JS
 // muss das wissen, sonst crasht `getElementById(...).setAttribute(...)` mit
@@ -1259,6 +1292,21 @@ map.on('style.load', () => {{
     paint:{{'circle-radius':10,'circle-color':'#fff','circle-opacity':0.3,'circle-blur':0.8,'circle-pitch-alignment':'map'}}}});
   map.addLayer({{id:'dot-core',type:'circle',source:'dot',
     paint:{{'circle-radius':5,'circle-color':'#fff','circle-opacity':0.95,'circle-stroke-color':'{cfg.line_color}','circle-stroke-width':2,'circle-pitch-alignment':'map'}}}});
+  // v0.9.307 — Start/End-Pins (aus der Tour-Map übernommen, Standbild-Modus).
+  // Identische Optik wie früher core/tourmap.py: weißer Start, Track-farbiges Ende.
+  if (SHOW_PINS && allCoords.length >= 2) {{
+    map.addSource('pins', {{type:'geojson', data:{{type:'FeatureCollection', features:[
+      {{type:'Feature', properties:{{kind:'start'}}, geometry:{{type:'Point', coordinates: allCoords[0]}}}},
+      {{type:'Feature', properties:{{kind:'end'}},   geometry:{{type:'Point', coordinates: allCoords[allCoords.length-1]}}}}
+    ]}}}});
+    map.addLayer({{id:'pin-glow', type:'circle', source:'pins',
+      paint:{{'circle-radius':14,'circle-color':'#ffffff','circle-opacity':0.3,'circle-blur':0.7,'circle-pitch-alignment':'map'}}}});
+    map.addLayer({{id:'pin-core', type:'circle', source:'pins',
+      paint:{{'circle-radius':7,
+        'circle-color':['match',['get','kind'],'start','#ffffff','end','{cfg.line_color}','#fff'],
+        'circle-stroke-color':['match',['get','kind'],'start','{cfg.line_color}','end','#ffffff','#fff'],
+        'circle-stroke-width':2.5,'circle-pitch-alignment':'map'}}}});
+  }}
   // v0.9.74 — Foto-Pins (Phase 1): permanent sichtbar ab Frame 0.
 {photo_pins_block}
   // v0.9.171 — Wegpunkt-Schilder (HTML-Marker, erscheinen bei Erreichen).
@@ -1280,6 +1328,33 @@ window.getInitialView = () => ({{
   center: window._initialCenter || [{(min_lon+max_lon)/2}, {(min_lat+max_lat)/2}],
   zoom: window._initialZoom || 12
 }});
+// v0.9.311 — Kamera-Höhe glätten (Follow + Terrain). Mapbox setzt die Kamera-Höhe
+// = Geländehöhe unter der Mitte + feste Flughöhe. Folgt die Kamera dem Track über
+// Berg und Tal, hüpft sie 1:1 mit dem Gelände. Wir tiefpassen die Geländehöhe und
+// halten die Flughöhe (off) konstant → kein Hüpfen, Blickpunkt bleibt der Track.
+window.__stabCamHeight = (lon, lat) => {{
+  const amt = window.__camStabAmt || 0;
+  if (amt <= 0) return;
+  if (!(map.getTerrain && map.getTerrain())) return;
+  if (map.getZoom() < 8.5) return;  // keine Höhen-Haltung in der Welt-Ansicht
+  try {{
+    const cam = map.getFreeCameraOptions();
+    if (!cam || !cam.position) return;
+    const camAlt = cam.position.toAltitude();
+    let terr = map.queryTerrainElevation([lon, lat]);
+    if (terr == null) return;
+    const off = camAlt - terr;                       // Flughöhe über Boden (Zoom/Pitch)
+    // Referenz folgt dem Gelände nur SEHR langsam (kein Hüpfen, aber bei großen
+    // Anstiegen läuft die Kamera nicht in den Berg). amt=1 ≈ feste Höhe.
+    if (window.__camStabBase == null) window.__camStabBase = terr;
+    else window.__camStabBase += (terr - window.__camStabBase) * 0.02;
+    const effTerr = terr * (1 - amt) + window.__camStabBase * amt;
+    const ll = cam.position.toLngLat();
+    cam.position = mapboxgl.MercatorCoordinate.fromLngLat(ll, effTerr + off);
+    cam.lookAtPoint([lon, lat]);
+    map.setFreeCameraOptions(cam);
+  }} catch (_e) {{}}
+}};
 window.advanceFrame = (idx, brg, lon, lat, zm, pt) => {{
   const safe = Math.max(0, Math.min(idx, totalPoints-1));
   // v0.9.55: optional Pre-Trim-Portion (coords[0..TRIM_START_IDX-1]) ausblenden.
@@ -1293,6 +1368,7 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt) => {{
   map.setBearing(brg); map.setCenter([lon,lat]);
   if (zm !== undefined) map.setZoom(zm);
   if (pt !== undefined) map.setPitch(pt);
+  __stabCamHeight(lon, lat);
   updateOverlays(safe);
   // v0.9.79 (Phase 2) — Foto-Pins: Filter auf aktuelle Marker-Position.
   // markerAnchor = safe/(totalPoints-1) ist die Position im realen Track,
@@ -2040,6 +2116,153 @@ async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
         return raw
     return _downscale_frame(raw, cfg.width, cfg.height,
                             cfg.transparent_background, q if is_jpeg else 0)
+
+
+async def render_frame(
+    cfg: AnimatorConfig,
+    on_progress: Optional[Callable[[float, str], None]] = None,
+    is_cancelled: Optional[Callable[[], bool]] = None,
+) -> str:
+    """v0.9.307 — Rendert EINEN statischen Frame als PNG (Tour-Map = ein
+    Standbild vom Animator). Nutzt exakt dieselbe `_make_html`-Pipeline wie das
+    Video → garantierte Optik-Parität (WYSIWYG), nur:
+      - volle Strecke gezeichnet (advanceFrame auf letzten Punkt),
+      - alle Fotos/Schilder/Overlays sichtbar (markerAnchor = 1.0),
+      - feste Kamera (Bounds-Fit + pitch + bearing), kein Sweep/Spin/Keyframe,
+      - kein ffmpeg, ein PNG.
+    Gibt den Pfad zur PNG-Datei (cfg.output_path) zurück.
+    """
+    def emit(p: float, msg: str) -> None:
+        if on_progress:
+            try: on_progress(p, msg)
+            except Exception: pass
+
+    def check_cancel() -> None:
+        if is_cancelled and is_cancelled():
+            raise RenderCancelled("Vom User abgebrochen")
+
+    emit(0.0, "Lade GPX-Datei …")
+    _log.info("render_frame() start · GPX=%s · output=%s", cfg.gpx_path, cfg.output_path)
+    if not cfg.transparent_background and (not cfg.mapbox_token or not cfg.mapbox_token.startswith("pk.")):
+        _log.warning("Mapbox-Token fehlt/ungültig — Standbild-Render wird fehlschlagen.")
+
+    raw_points, total_stats = core_parse_gpx(cfg.gpx_path)
+    if cfg.point_count <= 0 or cfg.point_count >= len(raw_points):
+        points = raw_points
+    else:
+        points = downsample(raw_points, max(2, cfg.point_count))
+    if len(points) < 2:
+        raise ValueError("GPX hat zu wenige Punkte für ein Standbild.")
+
+    cum_dist = [0.0] + [points[i].dist_m for i in range(1, len(points))]
+    cum_time = [0.0] + [points[i].elapsed_s for i in range(1, len(points))]
+    if total_stats.duration_s == 0:
+        cum_time = [(d / cum_dist[-1] if cum_dist[-1] else 0) for d in cum_dist]
+
+    lons = [p.lon for p in points]; lats = [p.lat for p in points]
+    bbox = (min(lons), min(lats), max(lons), max(lats))
+    total_stats_dict = {
+        "distance_m": total_stats.distance_m, "duration_s": total_stats.duration_s,
+        "ascent_m": total_stats.ascent_m, "descent_m": total_stats.descent_m,
+        "ele_min": total_stats.ele_min, "ele_max": total_stats.ele_max,
+    }
+
+    html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
+
+    emit(0.1, "Karte rendern …")
+    from playwright.async_api import async_playwright
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--use-angle=default", "--enable-webgl", "--ignore-gpu-blocklist", "--disable-gpu-sandbox"],
+        )
+        try:
+            _dsf = _render_dsf(cfg.width, cfg.height)
+            _ss = _render_ss(cfg.width, cfg.height)
+            _vp_w = max(1, int(round(cfg.width / _dsf)))
+            _vp_h = max(1, int(round(cfg.height / _dsf)))
+            page = await browser.new_page(
+                viewport={"width": _vp_w, "height": _vp_h},
+                device_scale_factor=_dsf * _ss,
+            )
+            page.on("console", lambda m: _log.info("page.console [%s] %s", m.type, m.text))
+            page.on("pageerror", lambda e: _log.error("page.pageerror: %s", e))
+            await page.set_content(html)
+
+            check_cancel()
+            ready = False
+            for _i in range(60):
+                ready = await page.evaluate("window.isReady()")
+                if ready: break
+                await asyncio.sleep(0.5)
+            if not ready:
+                _log.warning("Standbild: Map nicht ready nach 30s — fahre fort.")
+            # Auf Schild-Bilder warten (Foto-Karten), damit sie im Frame sind.
+            if cfg.signs_show and cfg.signs:
+                for _i in range(40):
+                    try:
+                        if await page.evaluate("window.__signsReady === true"): break
+                    except Exception: break
+                    await asyncio.sleep(0.25)
+            if not cfg.transparent_background:
+                await asyncio.sleep(3)  # Terrain-Tiles nachladen
+
+            view = await page.evaluate("window.getInitialView()")
+            if isinstance(view, dict):
+                center = view.get("center") or [(bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2]
+                zoom = view.get("zoom", 12)
+            else:
+                center = [(bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2]; zoom = 12
+
+            # Volle Strecke + Endzustand: advanceFrame auf den letzten Punkt mit
+            # fester Kamera (Bounds-Fit-Center/Zoom + cfg.pitch/cfg.bearing).
+            last_idx = len(points) - 1
+            await page.evaluate(
+                f"window.advanceFrame({last_idx}, {float(cfg.bearing)}, "
+                f"{float(center[0])}, {float(center[1])}, {float(zoom)}, {float(cfg.pitch)})"
+            )
+            # Den animierten „aktuelle-Position"-Punkt im Standbild ausblenden.
+            await page.evaluate(
+                "['dot-core','dot-glow'].forEach(id => { try { "
+                "if (map.getLayer(id)) map.setLayoutProperty(id,'visibility','none'); } catch(_){} });"
+            )
+            try: await page.evaluate("window.waitForRender()")
+            except Exception: pass
+
+            shot = await _grab_still_png(page, cfg)
+            # Schwarz-Frame-Schutz (wie im Video, Frame 0): triggerRepaint + neu greifen.
+            for _bk in range(6):
+                if cfg.transparent_background: break
+                if _frame_black_ratio(shot) < 0.05: break
+                _log.warning(f"Standbild ~schwarz — triggerRepaint + neu greifen ({_bk+1}/6) …")
+                try: await page.evaluate("map.triggerRepaint && map.triggerRepaint()")
+                except Exception: pass
+                await asyncio.sleep(0.5)
+                try: await page.evaluate("window.waitForRender()")
+                except Exception: pass
+                shot = await _grab_still_png(page, cfg)
+
+            check_cancel()
+            with open(cfg.output_path, "wb") as f:
+                f.write(shot)
+            _log.info("render_frame() fertig → %s (%d bytes)", cfg.output_path, len(shot))
+            emit(1.0, "Fertig")
+            return cfg.output_path
+        finally:
+            try: await browser.close()
+            except Exception: pass
+
+
+async def _grab_still_png(page, cfg: "AnimatorConfig") -> bytes:
+    """PNG-Capture für das Standbild (immer PNG, SSAA-Downscale wie im Video)."""
+    _ss = _render_ss(cfg.width, cfg.height)
+    if cfg.transparent_background:
+        raw = await page.screenshot(type="png", omit_background=True)
+    else:
+        raw = await page.screenshot(type="png")
+    if _ss <= 1.0:
+        return raw
+    return _downscale_frame(raw, cfg.width, cfg.height, cfg.transparent_background, 0)
 
 
 async def render(

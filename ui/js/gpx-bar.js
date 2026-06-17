@@ -49,6 +49,40 @@
     }
   }
 
+  // ── Quelldatei-fehlt-Banner (v0.9.305) ────────────────────────────────
+  // Wenn die zuletzt geladene GPX-Datei nicht mehr lesbar ist (externe Platte
+  // ab, Datei verschoben/gelöscht), zeigen wir EIN klares Banner statt jedes
+  // Modul still in einen kaputt aussehenden Leer-Zustand laufen zu lassen.
+  // Module rufen window.showSourceMissingBanner(path) in ihrem Load-Fehlerpfad.
+  const _MISSING_FILE_RE = /no such file|errno\s*2|enoent|nicht gefunden|cannot find|file not found/i;
+  window.isMissingFileError = (err) => _MISSING_FILE_RE.test(String(err || ""));
+  let _smBannerBound = false;
+  function _bindSourceMissingBanner() {
+    if (_smBannerBound) return;
+    const pick = document.getElementById("source-missing-banner-pick");
+    const close = document.getElementById("source-missing-banner-close");
+    if (!pick || !close) return;
+    _smBannerBound = true;
+    pick.onclick = () => { window.hideSourceMissingBanner(); if (typeof window.pickGpx === "function") window.pickGpx(); };
+    close.onclick = () => window.hideSourceMissingBanner();
+  }
+  window.showSourceMissingBanner = function(path) {
+    const bar = document.getElementById("source-missing-banner");
+    const txt = document.getElementById("source-missing-banner-text");
+    if (!bar || !txt) return;
+    _bindSourceMissingBanner();
+    const name = String(path || "").split("/").pop() || path || "";
+    const tpl = (typeof t === "function")
+      ? t("app.source_missing", "Quelldatei nicht gefunden: <b>{name}</b> — Laufwerk gemountet?")
+      : "Quelldatei nicht gefunden: <b>{name}</b> — Laufwerk gemountet?";
+    txt.innerHTML = tpl.replace("{name}", escapeHtml(name));
+    bar.hidden = false;
+  };
+  window.hideSourceMissingBanner = function() {
+    const bar = document.getElementById("source-missing-banner");
+    if (bar) bar.hidden = true;
+  };
+
   /** Lädt ein GPX einmal global. Master-Parse via animator_load_gpx
    *  (liefert die breiteste Stats-Sicht inkl. elevations). Aktiviert die
    *  Session, benachrichtigt alle Module. */
@@ -59,9 +93,11 @@
       const res = await api().animator_load_gpx(path);
       if (!res || !res.ok) {
         if (window.applog) window.applog("error", `[loadGlobalGpx] parse fail: ${res?.error}`);
-        toast(res?.error || "GPX-Fehler", "error");
+        if (window.isMissingFileError(res?.error)) window.showSourceMissingBanner(path);
+        else toast(res?.error || "GPX-Fehler", "error");
         return false;
       }
+      window.hideSourceMissingBanner();
       if (window.applog) window.applog("info", `[loadGlobalGpx] parsed n_coords=${res.coords?.length}`);
       _gpxPath = path;
       _gpxData = res;
@@ -78,7 +114,8 @@
       return true;
     } catch (err) {
       console.warn("loadGlobalGpx error:", err);
-      toast("GPX konnte nicht geladen werden: " + err, "error");
+      if (window.isMissingFileError(err)) window.showSourceMissingBanner(path);
+      else toast("GPX konnte nicht geladen werden: " + err, "error");
       return false;
     }
   };

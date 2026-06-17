@@ -7,7 +7,6 @@
 <link rel="stylesheet" href="css/timeline.css">
 <!-- Modul-CSS (Cache-Buster patcht hier den ?v=... an) -->
 <link rel="stylesheet" href="../modules/animator/ui/module.css">
-<link rel="stylesheet" href="../modules/tourmap/ui/module.css">
 <link rel="stylesheet" href="../modules/geotagger/ui/module.css">
 <link rel="stylesheet" href="../modules/heightanim/ui/module.css">
 <link rel="stylesheet" href="../modules/gpxinspect/ui/module.css">
@@ -58,6 +57,15 @@
   <button class="update-banner-x" id="update-banner-close" type="button" title="Ausblenden">✕</button>
 </div>
 
+<!-- Quelldatei-fehlt-Banner. Per JS gezeigt wenn die zuletzt geladene GPX-Datei
+     nicht mehr lesbar ist (externe Platte ab, Datei verschoben/gelöscht). -->
+<div class="source-missing-banner" id="source-missing-banner" hidden>
+  <span class="source-missing-banner-icon">⚠️</span>
+  <span class="source-missing-banner-text" id="source-missing-banner-text"></span>
+  <button class="source-missing-banner-pick" id="source-missing-banner-pick" type="button">Datei neu wählen</button>
+  <button class="source-missing-banner-x" id="source-missing-banner-close" type="button" title="Ausblenden">✕</button>
+</div>
+
 <main class="main" id="main">
   <!-- Module wird via JS hier reingerendert -->
 </main>
@@ -84,7 +92,6 @@
 <script src="js/sign_draw.js"></script>
 <script src="js/sign_dom.js"></script>
 <script src="../modules/animator/ui/module.js"></script>
-<script src="../modules/tourmap/ui/module.js"></script>
 <script src="../modules/geotagger/ui/module.js"></script>
 <script src="../modules/heightanim/ui/module.js"></script>
 <script src="../modules/gpxinspect/ui/module.js"></script>

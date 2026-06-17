@@ -228,8 +228,11 @@ Zeit sichtbar). Das Ein-/Ausblenden siehst du schon im **Probelauf**, bevor du
 renderst.
 
 **Kamera:**
+- **Kamera-Höhe halten** (ganz oben in der Sektion) — *gegen das Hoch-Runter-Hüpfen der Kamera über bergigem Gelände.* Wenn die Kamera stark geneigt durch die Berge fährt — egal ob per **„Kamera folgt Track"** oder per **Keyframe-Schwenk** — springt sie sonst auf jeder Steigung mit nach oben und im Tal nach unten (Mapbox hält normalerweise eine feste Höhe **über dem Boden**). Dieser Regler hält die Kamera stattdessen auf **fester Flughöhe**: **0 % = Kamera folgt dem Boden** (altes Verhalten), **100 % = feste Höhe** — die Kamera bleibt auf gleicher Höhe wie zu Beginn der Fahrt, egal was die Berge machen (wie eine Drohne auf konstanter Flughöhe). Werte dazwischen mischen. Wirkt nur mit aktivem 3D-Terrain.
 - **Neigung (Pitch)** 0–80° — wie schräg die Kamera draufschaut
 - **Rotation** 0–60° — Sweep der Kamera während des Videos. Bei 0 = keine Rotation. Bei 20° dreht sie sich um 20° gleichmäßig über die Video-Länge.
+- **Kamera folgt Track** — die Kamera bleibt am laufenden Punkt statt auf der ganzen Route.
+  - **Kamera-Trägheit** (erscheint dann) — weiches Nachziehen statt hartem Kleben am Punkt (gegen GPS-Zittern).
 - **Terrain-Übertreibung** 0–4× — wie ausgeprägt die Berge wirken
 
 **Zeit & Größe:**
@@ -432,17 +435,22 @@ Straßen-Routen + Adress-Suche laufen über Mapbox (derselbe Token wie die Karte
 ### Was es macht
 Wie der Animator, aber **ein einziges Bild statt einem Video**. Output: PNG in beliebiger Auflösung. Einsatz: YouTube-Thumbnails, Instagram-Posts, Blog-Cover, Komoot-Galerie-Bilder.
 
+Die Tour-Map ist **dieselbe Oberfläche wie der Animator** — nur im **Standbild-Modus**: alles, was nur für ein bewegtes Video Sinn ergibt (Timeline, Keyframes, Live-Stats, Trim, Kameraflug, FPS/Dauer), ist ausgeblendet. Was du auf der Karte siehst, ist **genau** das gerenderte PNG (WYSIWYG).
+
 ### Workflow
 1. **GPX laden** (gleicher Weg wie Animator)
 2. **Format wählen**: YouTube 16:9 (1920×1080) · 4K · Shorts 9:16 (1080×1920) · Instagram 1:1 (1080×1080) · oder eigene
-3. **Stil + Kamera** wie im Animator
-4. **Pan/Zoom** manuell für den perfekten Bildausschnitt (Letterbox-Vorschau im richtigen Aspect)
+3. **Stil + Kamera** wie im Animator — Karten-Stil, Linien-Optik, Neigung, Zoom-Stufe, Schilder/Fotos
+4. **Bildausschnitt feintunen** über die Kamera-Regler (siehe unten) oder direkt mit Pan/Zoom auf der Karte
 5. **„🗺 Karte als PNG rendern"** → Save-Dialog → PNG ist in 3-5 Sekunden fertig
 
-### Spezielle Optionen ggü. Animator
-- **Format-Presets**: vier vordefinierte Aspect-Ratios — ein Klick und der Letterbox-Vorschau-Rahmen springt um
-- **Padding**: wieviel Luft um den Track rum (0–25 %)
-- **Start-/End-Pin**: optional zwei Punkte (Start weiß, End in Track-Farbe)
+### Standbild-Kamera-Regler (seit v0.9.310)
+In der **Kamera**-Sektion gibt es drei Regler, die nur im Standbild-Modus auftauchen — alle wirken **sofort live in der Vorschau**:
+- **Ausrichtung** (−180…180°) — dreht die Karte (welche Kompass-Richtung oben ist)
+- **Randabstand** (0–30 %) — wieviel Luft zwischen Track und Bildrand bleibt
+- **Start/Ziel-Markierung** (An/Aus) — zwei Punkte: **Start weiß** mit Track-farbigem Rand, **Ziel in Track-Farbe** mit weißem Rand
+
+Dazu wie im Animator: **Neigung** (Pitch) und **Zoom-Stufe**. Die Sektion **„Bild-Einstellungen"** enthält nur noch die Auflösung.
 
 ### Result-View
 Nach dem Render: großes Vorschaubild, „Im Finder zeigen", „Pfad kopieren", „Neue Karte".
@@ -534,6 +542,12 @@ Statt von Hand zu suchen: **🩹 Auto-Heilen** scannt den ganzen Track und zeigt
 - **🟣 Lücken** (magenta, gestrichelte Linie + helle Geister-Punkte) — größere Aussetzer/Dropouts ohne Punkte dazwischen. Werden beim Heilen mit interpolierten Punkten gefüllt (Position, Höhe und Zeit).
 
 Mit **‹ / Nächster ›** springst du durch die Ausreißer, **🩹 Alle heilen** wendet beides auf einmal an. Der **Empfindlichkeits-Regler** (1–10) stellt ein, wie streng gesucht wird (niedrig = nur krasse Sprünge/große Lücken, hoch = auch kleine), der **Füll-Abstand** bestimmt, wie dicht Lücken aufgefüllt werden — beide aktualisieren die Vorschau live. Alles lässt sich mit **⌘Z** rückgängig machen.
+
+**Lücken füllen als** (Profil): **Luftlinie** = gerade Verbindung (sicher, fasst nur die Lücke an). **Wandern/Fahrrad/Auto** = sucht die echte Route auf dem Wegenetz (Mapbox). ⚠️ **Schutz seit v0.9.315:** Falls die Straßen-Route einen großen **Umweg/eine Schleife** ergibt (Mapbox routet an Kreuzungen manchmal über Ausfahrt + Kreisel zurück), wird sie **automatisch verworfen und die Lücke gerade gefüllt** — so wird eine saubere Spur nicht mehr verbogen. Im Toast steht dann „… Umwege verworfen".
+
+**Schleife/Abstecher rausschneiden:** Hast du im Track eine Stelle, die hin- und zurückläuft (z. B. ein alter Heil-Abstecher oder eine echte Wende, die du nicht im Video willst): unter **„Manuell bearbeiten (A→B)"** **Anker A** vor und **Anker B** nach der Stelle setzen, dann **✂️ Punkte zwischen A→B rausschneiden**. A und B bleiben, die Linie verbindet sie direkt. (⌘Z macht's rückgängig.)
+
+**„Ganzen Track auf Wegenetz snappen"** legt den **kompletten** Track auf Mapbox-Straßen und **überschreibt deine Punkte** — das kann an Kreuzungen Umwege/Schleifen erzeugen. Daher seit v0.9.315 mit **Warnung + 2-Klick-Bestätigung**. Für nur Lücken/Ausreißer lieber das normale **Heilen** nehmen.
 
 ### ⛰ Höhe korrigieren (Karte statt GPS) — seit v0.9.292
 GPS-Höhenwerte sind oft verrauscht — gerade bei wenig Empfang springt die Höhe um ein paar Meter hin und her, und am Ende stehen viel zu viele **Höhenmeter** in den Stats (z. B. 1800 statt 1400). Hier kannst du die **glatte Gelände-Höhe aus der Mapbox-Karte** (digitales Höhenmodell) mit deiner GPS-Höhe mischen — und siehst dabei **genau, was passiert**:
@@ -665,6 +679,9 @@ Wahrscheinlich Zeitzonen-Problem: Foto-Aufnahmezeit passt nicht zur GPX-Track-Ze
 - Offset-Slider verschieben bis Marker da landen wo sie hingehören
 - **Kamera-Zeitzone** im Offset-Dialog (✎) wählen — wenn die Bilder um genau ganze Stunden daneben liegen (typisch bei Auslandsreisen mit Kameras ohne Zeitzonen-Tag, z.B. Olympus/OM)
 - Oder Referenz-Foto setzen (siehe Geotagger-Workflow)
+
+### Oben erscheint „Quelldatei nicht gefunden — Laufwerk gemountet?" (seit v0.9.305)
+Deine zuletzt geladene GPX-Datei ist gerade nicht lesbar — meistens weil die **externe Festplatte abgesteckt** wurde oder die Datei verschoben/gelöscht ist. Schließ die Platte wieder an (das Banner verschwindet beim nächsten Laden) oder klick **„Datei neu wählen"** und such die GPX neu aus. Solange das Banner steht, können Tour-Map, Höhen-Animator und Geotagger den Track nicht aufbauen.
 
 ### Wie melde ich einen Bug?
 **Hilfe → 📧 Feedback / Bug-Report an Marc** — alles vorbefüllt (siehe Sektion 7).

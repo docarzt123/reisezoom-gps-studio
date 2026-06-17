@@ -566,7 +566,12 @@ function mountGeotagger(body, headerActions) {
     if (isUnmounted) return;
     const res = await api().geotagger_load_gpx(path);
     if (isUnmounted) return;
-    if (!res.ok) { toast(res.error, "error"); return; }
+    if (!res.ok) {
+      if (window.isMissingFileError && window.isMissingFileError(res.error)) window.showSourceMissingBanner(path);
+      else toast(res.error, "error");
+      return;
+    }
+    if (window.hideSourceMissingBanner) window.hideSourceMissingBanner();
     currentGpxPath = path;
     _gtUpdateSnapAvail();             // v0.9.166 — Snap-Toggle aktivieren (Track da)
     setLabel("gt-gpx-path", path.split("/").slice(-1)[0]);

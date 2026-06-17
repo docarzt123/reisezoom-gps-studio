@@ -554,18 +554,21 @@ function mountHeightAnim(body, headerActions) {
         window.applog("info", `[heightanim] load result ok=${res?.ok} n_elev=${res?.elevations?.length || 0}`);
       }
       if (res && res.ok) {
+        if (window.hideSourceMissingBanner) window.hideSourceMissingBanner();
         _currentData = res;
         _progress = 0;
         setProgressUi(0);
         drawElevationSvg();
         // Auto-Play: direkt loslegen sobald ein neuer Track geladen ist
         startPlay();
-      } else if (res && res.error && window.applog) {
-        window.applog("error", `[heightanim] load error: ${res.error}`);
+      } else if (res && res.error) {
+        if (window.applog) window.applog("error", `[heightanim] load error: ${res.error}`);
+        if (window.isMissingFileError && window.isMissingFileError(res.error)) window.showSourceMissingBanner(path);
       }
     } catch (e) {
       console.warn("[heightanim] load failed", e);
       if (window.applog) window.applog("error", `[heightanim] load exception: ${e}`);
+      if (window.isMissingFileError && window.isMissingFileError(e)) window.showSourceMissingBanner(path);
     }
   }
 

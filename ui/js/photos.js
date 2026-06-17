@@ -11,8 +11,14 @@
  *
  * Layer-Konvention pro Map:
  *   Source:  'photo-pins-src'
- *   Layer:   'photo-pins-lyr'
- *   Image-IDs: 'photo-thumb-<index>' (Mapbox-`addImage`)
+ *   Layer:   'photo-pins-lyr'  (Symbol-Layer mit nummerierten Badge-Icons)
+ *   Image-IDs: 'photo-num-<n>' (Canvas-Badge pro Nummer, `addImage`)
+ *
+ * v0.9.305 — Optik-Umbau (Marc): statt schwebender Thumbnails jetzt
+ * **nummerierte Kreise** (1,2,3… in Track-Reihenfolge). Das Thumbnail
+ * erscheint nur als **Hover-Vorschau** in der Live-Preview (kein Teil des
+ * Renders). Die Badges sind Canvas-generierte Bilder → font-unabhängig und
+ * im Preview + Render identisch (WYSIWYG).
  *
  * Aufruf-Pattern (Animator + Tour-Map identisch):
  *   1. Beim Mount/Aktivate: PhotoPins.attachToMap(map, project.photos, {sizePx})
@@ -21,15 +27,47 @@
  *   4. Bei Unmount: PhotoPins.detach(map)
  *
  * WYSIWYG: das Render-Backend (core/animator.py + core/tourmap.py)
- * verwendet denselben Layer-Aufbau (gleiche IDs, gleiche `addImage`-Logik)
- * mit den persistierten Thumb-data-URLs aus `photos_refresh_thumbs`.
+ * verwendet denselben Badge-Aufbau (gleiche IDs, gleiche Canvas-Zeichnung).
  */
 (function () {
   "use strict";
 
   const SRC_ID = "photo-pins-src";
   const LAYER_ID = "photo-pins-lyr";
-  const IMG_PREFIX = "photo-thumb-";
+  const IMG_PREFIX = "photo-thumb-";   // Legacy-Cleanup in detach()
+  const BADGE_PREFIX = "photo-num-";
+  const PIN_FILL = "#ff385c";
+  const PIN_STROKE = "#ffffff";
+  const PIN_TEXT = "#ffffff";
+
+  function _escHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g,
+      c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // Canvas-Badge (Kreis + Nummer) → ImageData für Mapbox addImage.
+  // Identisch (1:1) zur JS-Funktion in core/animator.py / core/tourmap.py.
+  function _makeBadgeImageData(num) {
+    const S = 48;                          // 24 CSS-px @ pixelRatio 2
+    const c = document.createElement("canvas");
+    c.width = S; c.height = S;
+    const ctx = c.getContext("2d");
+    const cx = S / 2, cy = S / 2, r = S / 2 - 4;
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = PIN_FILL; ctx.fill();
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.lineWidth = 3; ctx.strokeStyle = PIN_STROKE; ctx.stroke();
+    const label = String(num);
+    const fs = label.length >= 3 ? 18 : (label.length === 2 ? 22 : 26);
+    ctx.fillStyle = PIN_TEXT;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "bold " + fs + 'px -apple-system, system-ui, Arial, sans-serif';
+    ctx.fillText(label, cx, cy + 1);
+    return ctx.getImageData(0, 0, S, S);
+  }
 
   // v0.9.77 — visible-Flag: photo.visible === false → nicht auf der Map.
   // Default ist true (Backward-Compat zu v0.9.76 wo das Feld noch nicht
@@ -40,30 +78,38 @@
 
   function _toGeoJson(photos) {
     // Nur sichtbare Fotos kommen in die Features-Liste. Index bleibt aber
-    // global (für stabile addImage-IDs).
+    // global (für stabile Feature-IDs / Hover-Lookup).
+    const vis = (photos || []).map((p, i) => ({ p, i })).filter(({ p }) => _isVisible(p));
+    // Nummerierung 1..N in TRACK-Reihenfolge (track_anchor), sonst Array-Order.
+    const order = vis.slice().sort((a, b) => {
+      const ta = typeof a.p.track_anchor === "number" ? a.p.track_anchor : a.i;
+      const tb = typeof b.p.track_anchor === "number" ? b.p.track_anchor : b.i;
+      return ta - tb;
+    });
+    const numByIdx = new Map();
+    order.forEach((o, k) => numByIdx.set(o.i, k + 1));
     return {
       type: "FeatureCollection",
-      features: (photos || [])
-        .map((p, i) => ({ p, i }))
-        .filter(({ p }) => _isVisible(p))
-        .map(({ p, i }) => ({
+      features: vis.map(({ p, i }) => {
+        const num = numByIdx.get(i) || 1;
+        return {
           type: "Feature",
           id: i,
           properties: {
             idx: i,
             path: p.path,
-            imgId: `${IMG_PREFIX}${i}`,
+            num: num,
+            badgeId: `${BADGE_PREFIX}${num}`,
             // v0.9.79 — Track-Anchor (0..1) für Mapbox-Filter
             // [„<=", [„get", „track_anchor"], currentMarkerAnchor].
-            // Default 0 = sichtbar ab Frame 0 (= Phase-1-Fallback wenn
-            // keine coords übergeben wurden).
             track_anchor: typeof p.track_anchor === "number" ? p.track_anchor : 0,
           },
           geometry: {
             type: "Point",
             coordinates: [Number(p.lon), Number(p.lat)],
           },
-        })),
+        };
+      }),
     };
   }
 
@@ -169,51 +215,31 @@
     // Vorherigen Layer + Source + Images aufräumen, falls vorhanden
     detach(map);
 
-    // v0.9.77 — Nur sichtbare Fotos für Image-Load + GeoJSON.
+    // v0.9.77 — Nur sichtbare Fotos für GeoJSON.
     const visiblePhotos = photos.filter(_isVisible);
     if (!visiblePhotos.length) return;  // alle abgewählt = leere Map
 
-    // Pro Foto Image registrieren. Mapbox erlaubt addImage NUR EINMAL pro id —
-    // deshalb hat jeder Pin seine eigene id (Index-basiert auf die GESAMTE
-    // photos-Liste, damit Toggle nur die Features ändert, nicht die IDs).
-    // Wir laden alle sichtbaren parallel; fehlende thumbs werden skipped.
-    let loadedOk = 0;
-    const addImagePromises = photos.map(async (p, i) => {
-      if (!_isVisible(p)) return false;
-      const imgId = `${IMG_PREFIX}${i}`;
-      if (!p.thumb) return false;
+    // v0.9.305 — GeoJSON enthält pro Feature `num` (Track-Reihenfolge) +
+    // `badgeId`. Pro Nummer EIN Canvas-Badge als Mapbox-Image registrieren
+    // (dedupliziert über badgeId).
+    const gj = _toGeoJson(photos);
+    const seenBadges = new Set();
+    for (const f of gj.features) {
+      const badgeId = f.properties.badgeId;
+      if (seenBadges.has(badgeId)) continue;
+      seenBadges.add(badgeId);
       try {
-        const img = await _loadImage(p.thumb);
-        if (!map.hasImage(imgId)) {
-          // pixelRatio 2 = Retina: Mapbox skaliert das Image dann auf die Hälfte
-          // damit es auf normalen Screens scharf bleibt.
-          map.addImage(imgId, img, { pixelRatio: 2 });
+        if (!map.hasImage(badgeId)) {
+          map.addImage(badgeId, _makeBadgeImageData(f.properties.num), { pixelRatio: 2 });
         }
-        loadedOk++;
-        return true;
       } catch (e) {
-        console.warn("[photo-pins] image load failed", p.path, e);
-        return false;
+        console.warn("[photo-pins] badge addImage failed", badgeId, e);
       }
-    });
-    await Promise.all(addImagePromises);
-    if (loadedOk === 0) {
-      console.warn("[photo-pins] kein Image geladen — Layer wird nicht hinzugefügt");
-      return;
-    }
-
-    // Defensive: zwischen dem Promise-await und addLayer kann der User
-    // einen Style-Wechsel angestoßen haben. Nochmal prüfen.
-    if (typeof map.isStyleLoaded === "function" && !map.isStyleLoaded()) {
-      map.once("idle", () => attachToMap(map, photos, opts));
-      return;
     }
 
     try {
-      const gj = _toGeoJson(photos);
       if (map.getSource(SRC_ID)) {
-        // Falls in der Zwischenzeit ein paralleler Call schon was angelegt
-        // hat (z.B. style.load + manueller attach race) — sauber raus.
+        // Falls ein paralleler Call (style.load-Race) schon was angelegt hat.
         try { map.removeLayer(LAYER_ID); } catch (_) {}
         try { map.removeSource(SRC_ID); } catch (_) {}
       }
@@ -223,14 +249,11 @@
         type: "symbol",
         source: SRC_ID,
         layout: {
-          "icon-image": ["get", "imgId"],
-          // sizePx ÷ 64 = brauchbarer Default-Faktor (Thumbs sind ~128 px, mit
-          // pixelRatio:2 also 64 CSS-px Basis-Größe).
-          "icon-size": sizePx / 64,
+          "icon-image": ["get", "badgeId"],
+          // Badge ist 24 CSS-px groß (icon-size 1). sizePx/48 → Default 48 = 24 px.
+          "icon-size": sizePx / 48,
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
-          // Pin sitzt mit Foto-MITTE auf der GPS-Position (nicht mit Boden,
-          // weil's eher schwebende Polaroids als Kartennadeln sind).
           "icon-anchor": "center",
         },
       };
@@ -241,9 +264,43 @@
         layerDef.filter = ["<=", ["get", "track_anchor"], opts.markerAnchor];
       }
       map.addLayer(layerDef);
+      _setupHover(map);
     } catch (e) {
       console.warn("[photo-pins] addSource/addLayer fehlgeschlagen", e);
     }
+  }
+
+  // v0.9.305 — Hover-Vorschau: über einem nummerierten Pin poppt das Thumbnail
+  // auf (nur Live-Preview, NICHT Teil des Renders). Pro Map einmal installiert.
+  function _setupHover(map) {
+    if (map.__rzPhotoHover) return;
+    const PopupCtor = (window.maplibregl && window.maplibregl.Popup) ||
+                      (window.mapboxgl && window.mapboxgl.Popup);
+    if (!PopupCtor) return;
+    map.__rzPhotoHover = true;
+    const popup = new PopupCtor({
+      closeButton: false, closeOnClick: false, offset: 16, className: "photo-hover-popup",
+    });
+    map.on("mouseenter", LAYER_ID, (e) => {
+      try { map.getCanvas().style.cursor = "pointer"; } catch (_) {}
+      const f = e.features && e.features[0];
+      if (!f) return;
+      const st = _attachState.get(map);
+      const p = st && st.photos && st.photos[f.properties.idx];
+      if (!p || !p.thumb) return;
+      const name = (p.path || "").split("/").pop();
+      popup.setLngLat(f.geometry.coordinates)
+        .setHTML(
+          '<div class="photo-hover-card">' +
+          '<img src="' + _escHtml(p.thumb) + '" alt="">' +
+          '<span class="photo-hover-cap">#' + _escHtml(f.properties.num) +
+          " · " + _escHtml(name) + "</span></div>")
+        .addTo(map);
+    });
+    map.on("mouseleave", LAYER_ID, () => {
+      try { map.getCanvas().style.cursor = ""; } catch (_) {}
+      popup.remove();
+    });
   }
 
   // v0.9.79 — Live-Update des Anchor-Filters. Wird vom Animator pro
@@ -269,7 +326,7 @@
     if (!map.getLayer(LAYER_ID)) return;
     const v = Math.max(12, Math.min(200, +sizePx || 48));
     try {
-      map.setLayoutProperty(LAYER_ID, "icon-size", v / 64);
+      map.setLayoutProperty(LAYER_ID, "icon-size", v / 48);
     } catch (e) {
       // setLayoutProperty kann während style-loading werfen — egal,
       // beim nächsten attachToMap greift's wieder.
@@ -282,12 +339,11 @@
       if (map.getLayer && map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID);
       if (map.getSource && map.getSource(SRC_ID)) map.removeSource(SRC_ID);
     } catch (e) { /* ignore */ }
-    // Images entfernen — wir wissen die Indizes nicht mehr, aber bis ~500
-    // Fotos ist's kein Performance-Issue, das listImages-API zu nutzen.
+    // Badge-Images (+ Legacy-Thumb-Images) entfernen.
     try {
       if (map.listImages) {
         for (const id of map.listImages()) {
-          if (id.indexOf(IMG_PREFIX) === 0 && map.hasImage(id)) {
+          if ((id.indexOf(BADGE_PREFIX) === 0 || id.indexOf(IMG_PREFIX) === 0) && map.hasImage(id)) {
             map.removeImage(id);
           }
         }

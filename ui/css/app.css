@@ -2276,3 +2276,73 @@ body.is-rendering .modal-overlay * {
   cursor: pointer;
 }
 .update-banner-x:hover { background: var(--bg-3); color: var(--text); }
+
+/* Quelldatei-fehlt-Banner (warnender Ton statt accent). */
+.source-missing-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: rgba(220, 80, 40, 0.14);
+  border-bottom: 1px solid rgba(220, 80, 40, 0.45);
+  color: var(--text);
+  font-size: 13px;
+}
+.source-missing-banner[hidden] { display: none; }
+.source-missing-banner-icon { font-size: 14px; flex: none; }
+.source-missing-banner-text { flex: 1 1 auto; }
+.source-missing-banner-text b { color: #e2603a; }
+.source-missing-banner-pick {
+  flex: none;
+  padding: 5px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #d9542b;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+.source-missing-banner-pick:hover { background: #c0481f; }
+.source-missing-banner-x {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+}
+.source-missing-banner-x:hover { background: var(--bg-3); color: var(--text); }
+
+/* Foto-Pin Hover-Vorschau (v0.9.305) — Thumbnail beim Überfahren des
+   nummerierten Pins. Nur Live-Preview, nicht im Render. */
+.photo-hover-popup .maplibregl-popup-content,
+.photo-hover-popup .mapboxgl-popup-content {
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--bg-2, #1e1e1e);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.photo-hover-popup .maplibregl-popup-tip,
+.photo-hover-popup .mapboxgl-popup-tip { display: none; }
+.photo-hover-card { display: flex; flex-direction: column; gap: 4px; max-width: 200px; }
+.photo-hover-card img {
+  display: block;
+  width: 180px;
+  height: auto;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.photo-hover-cap {
+  font-size: 11px;
+  color: var(--text-dim, #aaa);
+  padding: 0 2px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

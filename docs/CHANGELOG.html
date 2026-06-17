@@ -112,9 +112,24 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.315</span>
+    <span class="version-date">17. Juni 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Tour-Map ist jetzt dieselbe Oberfläche wie der Animator (nur als Standbild) mit eigenen Bild-Reglern, eine neue Kamera-Höhe-Haltung beendet das Hüpfen über Bergen, und der GPX-Inspektor erfindet beim Heilen keine Schleifen mehr.</p>
+
+  <div class="highlight">
+    <strong>🗺 Tour-Map = der Animator als Standbild</strong> — die Tour-Map nutzt jetzt dieselbe Oberfläche wie der Animator, nur auf <strong>ein Bild</strong> reduziert (kein doppelter Code mehr). Mit eigenen Reglern fürs Standbild: <strong>Ausrichtung</strong> (Karte drehen), <strong>Randabstand</strong> und <strong>Start/Ziel-Markierung</strong> — alles live in der Vorschau, genau so wie im gerenderten PNG.<br><br>
+    <strong>🎥 Kamera-Höhe halten — Schluss mit dem Hüpfen</strong> — fährt die Kamera stark geneigt durch die Berge (egal ob „Kamera folgt Track" oder Keyframe-Schwenk), sprang sie bisher auf jeder Steigung mit hoch und runter. Der neue Regler <strong>„Kamera-Höhe halten"</strong> hält die Flughöhe stabil — ruhige Fahrt wie mit einer Drohne, der Track bleibt im Bild.<br><br>
+    <strong>🩹 GPX-Inspektor: Heilen ohne erfundene Schleifen</strong> — beim Lücken-Füllen über Straßen konnte Mapbox an Kreuzungen einen Umweg/Kreisel einbauen, der nie gefahren wurde. Das wird jetzt erkannt und <strong>verworfen</strong> (gerade gefüllt) — saubere Spuren bleiben sauber.<br><br>
+    <strong>✂️ Schleifen &amp; Abstecher rausschneiden</strong> — Anker A und B setzen, <strong>„Punkte zwischen A→B rausschneiden"</strong>, fertig. Der Bereich „Manuell bearbeiten (A→B)" ist jetzt gleich offen, statt versteckt. Außerdem fragt „Ganzen Track auf Wegenetz snappen" jetzt sicherheitshalber nach (2-Klick-Bestätigung), weil es alle Punkte überschreibt.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.297</span>
     <span class="version-date">16. Juni 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <p class="version-tagline">Der GPX-Inspektor wird zum sichtbaren Werkzeug: Höhenprofil direkt mit der Karte verknüpft, Auto-Heilen für Ausreißer <em>und</em> Lücken, klickbare Punkte — plus Track-Export als CSV und ruhigeres Laden im Animator.</p>
 

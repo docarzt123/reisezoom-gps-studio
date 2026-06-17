@@ -346,8 +346,11 @@ python app.py</code></pre>
 <p><strong>⏱ Zeitfenster pro Box</strong> (seit v0.9.228): Unter jeder Overlay-Box kannst du einstellen, <strong>ab welcher und bis zu welcher Video-Sekunde</strong> sie eingeblendet wird — z.B. die Live-Box erst ab Sekunde 2 zeigen, oder die Totals-Box nach Sekunde 8 wieder ausblenden. Zwei Felder „ab … s&quot; / „bis … s&quot;, gezählt über das <strong>ganze Video</strong> (Intro + Animation + Hold). <strong>Leer oder 0</strong> = wie bisher (ganze Zeit sichtbar). Das Ein-/Ausblenden siehst du schon im <strong>Probelauf</strong>, bevor du renderst.</p>
 <p><strong>Kamera:</strong></p>
 <ul>
+<li><strong>Kamera-Höhe halten</strong> (ganz oben in der Sektion) — <em>gegen das Hoch-Runter-Hüpfen der Kamera über bergigem Gelände.</em> Wenn die Kamera stark geneigt durch die Berge fährt — egal ob per <strong>„Kamera folgt Track&quot;</strong> oder per <strong>Keyframe-Schwenk</strong> — springt sie sonst auf jeder Steigung mit nach oben und im Tal nach unten (Mapbox hält normalerweise eine feste Höhe <strong>über dem Boden</strong>). Dieser Regler hält die Kamera stattdessen auf <strong>fester Flughöhe</strong>: <strong>0 % = Kamera folgt dem Boden</strong> (altes Verhalten), <strong>100 % = feste Höhe</strong> — die Kamera bleibt auf gleicher Höhe wie zu Beginn der Fahrt, egal was die Berge machen (wie eine Drohne auf konstanter Flughöhe). Werte dazwischen mischen. Wirkt nur mit aktivem 3D-Terrain.</li>
 <li><strong>Neigung (Pitch)</strong> 0–80° — wie schräg die Kamera draufschaut</li>
 <li><strong>Rotation</strong> 0–60° — Sweep der Kamera während des Videos. Bei 0 = keine Rotation. Bei 20° dreht sie sich um 20° gleichmäßig über die Video-Länge.</li>
+<li><strong>Kamera folgt Track</strong> — die Kamera bleibt am laufenden Punkt statt auf der ganzen Route.</li>
+<li><strong>Kamera-Trägheit</strong> (erscheint dann) — weiches Nachziehen statt hartem Kleben am Punkt (gegen GPS-Zittern).</li>
 <li><strong>Terrain-Übertreibung</strong> 0–4× — wie ausgeprägt die Berge wirken</li>
 </ul>
 <p><strong>Zeit &amp; Größe:</strong></p>
@@ -516,20 +519,23 @@ python app.py</code></pre>
 <h2 id="5-modul-tour-map-statische-karten-png">5 · Modul: Tour-Map — Statische Karten-PNG</h2>
 <h3 id="was-es-macht">Was es macht</h3>
 <p>Wie der Animator, aber <strong>ein einziges Bild statt einem Video</strong>. Output: PNG in beliebiger Auflösung. Einsatz: YouTube-Thumbnails, Instagram-Posts, Blog-Cover, Komoot-Galerie-Bilder.</p>
+<p>Die Tour-Map ist <strong>dieselbe Oberfläche wie der Animator</strong> — nur im <strong>Standbild-Modus</strong>: alles, was nur für ein bewegtes Video Sinn ergibt (Timeline, Keyframes, Live-Stats, Trim, Kameraflug, FPS/Dauer), ist ausgeblendet. Was du auf der Karte siehst, ist <strong>genau</strong> das gerenderte PNG (WYSIWYG).</p>
 <h3 id="workflow">Workflow</h3>
 <ol>
 <li><strong>GPX laden</strong> (gleicher Weg wie Animator)</li>
 <li><strong>Format wählen</strong>: YouTube 16:9 (1920×1080) · 4K · Shorts 9:16 (1080×1920) · Instagram 1:1 (1080×1080) · oder eigene</li>
-<li><strong>Stil + Kamera</strong> wie im Animator</li>
-<li><strong>Pan/Zoom</strong> manuell für den perfekten Bildausschnitt (Letterbox-Vorschau im richtigen Aspect)</li>
+<li><strong>Stil + Kamera</strong> wie im Animator — Karten-Stil, Linien-Optik, Neigung, Zoom-Stufe, Schilder/Fotos</li>
+<li><strong>Bildausschnitt feintunen</strong> über die Kamera-Regler (siehe unten) oder direkt mit Pan/Zoom auf der Karte</li>
 <li><strong>„🗺 Karte als PNG rendern&quot;</strong> → Save-Dialog → PNG ist in 3-5 Sekunden fertig</li>
 </ol>
-<h3 id="spezielle-optionen-gg-animator">Spezielle Optionen ggü. Animator</h3>
+<h3 id="standbild-kamera-regler-seit-v0-9-310">Standbild-Kamera-Regler (seit v0.9.310)</h3>
+<p>In der <strong>Kamera</strong>-Sektion gibt es drei Regler, die nur im Standbild-Modus auftauchen — alle wirken <strong>sofort live in der Vorschau</strong>:</p>
 <ul>
-<li><strong>Format-Presets</strong>: vier vordefinierte Aspect-Ratios — ein Klick und der Letterbox-Vorschau-Rahmen springt um</li>
-<li><strong>Padding</strong>: wieviel Luft um den Track rum (0–25 %)</li>
-<li><strong>Start-/End-Pin</strong>: optional zwei Punkte (Start weiß, End in Track-Farbe)</li>
+<li><strong>Ausrichtung</strong> (−180…180°) — dreht die Karte (welche Kompass-Richtung oben ist)</li>
+<li><strong>Randabstand</strong> (0–30 %) — wieviel Luft zwischen Track und Bildrand bleibt</li>
+<li><strong>Start/Ziel-Markierung</strong> (An/Aus) — zwei Punkte: <strong>Start weiß</strong> mit Track-farbigem Rand, <strong>Ziel in Track-Farbe</strong> mit weißem Rand</li>
 </ul>
+<p>Dazu wie im Animator: <strong>Neigung</strong> (Pitch) und <strong>Zoom-Stufe</strong>. Die Sektion <strong>„Bild-Einstellungen&quot;</strong> enthält nur noch die Auflösung.</p>
 <h3 id="result-view">Result-View</h3>
 <p>Nach dem Render: großes Vorschaubild, „Im Finder zeigen&quot;, „Pfad kopieren&quot;, „Neue Karte&quot;.</p>
 <hr>
@@ -609,6 +615,9 @@ python app.py</code></pre>
 <li><strong>🟣 Lücken</strong> (magenta, gestrichelte Linie + helle Geister-Punkte) — größere Aussetzer/Dropouts ohne Punkte dazwischen. Werden beim Heilen mit interpolierten Punkten gefüllt (Position, Höhe und Zeit).</li>
 </ul>
 <p>Mit <strong>‹ / Nächster ›</strong> springst du durch die Ausreißer, <strong>🩹 Alle heilen</strong> wendet beides auf einmal an. Der <strong>Empfindlichkeits-Regler</strong> (1–10) stellt ein, wie streng gesucht wird (niedrig = nur krasse Sprünge/große Lücken, hoch = auch kleine), der <strong>Füll-Abstand</strong> bestimmt, wie dicht Lücken aufgefüllt werden — beide aktualisieren die Vorschau live. Alles lässt sich mit <strong>⌘Z</strong> rückgängig machen.</p>
+<p><strong>Lücken füllen als</strong> (Profil): <strong>Luftlinie</strong> = gerade Verbindung (sicher, fasst nur die Lücke an). <strong>Wandern/Fahrrad/Auto</strong> = sucht die echte Route auf dem Wegenetz (Mapbox). ⚠️ <strong>Schutz seit v0.9.315:</strong> Falls die Straßen-Route einen großen <strong>Umweg/eine Schleife</strong> ergibt (Mapbox routet an Kreuzungen manchmal über Ausfahrt + Kreisel zurück), wird sie <strong>automatisch verworfen und die Lücke gerade gefüllt</strong> — so wird eine saubere Spur nicht mehr verbogen. Im Toast steht dann „… Umwege verworfen&quot;.</p>
+<p><strong>Schleife/Abstecher rausschneiden:</strong> Hast du im Track eine Stelle, die hin- und zurückläuft (z. B. ein alter Heil-Abstecher oder eine echte Wende, die du nicht im Video willst): unter <strong>„Manuell bearbeiten (A→B)&quot;</strong> <strong>Anker A</strong> vor und <strong>Anker B</strong> nach der Stelle setzen, dann <strong>✂️ Punkte zwischen A→B rausschneiden</strong>. A und B bleiben, die Linie verbindet sie direkt. (⌘Z macht&#x27;s rückgängig.)</p>
+<p><strong>„Ganzen Track auf Wegenetz snappen&quot;</strong> legt den <strong>kompletten</strong> Track auf Mapbox-Straßen und <strong>überschreibt deine Punkte</strong> — das kann an Kreuzungen Umwege/Schleifen erzeugen. Daher seit v0.9.315 mit <strong>Warnung + 2-Klick-Bestätigung</strong>. Für nur Lücken/Ausreißer lieber das normale <strong>Heilen</strong> nehmen.</p>
 <h3 id="h-he-korrigieren-karte-statt-gps-seit-v0-9-292">⛰ Höhe korrigieren (Karte statt GPS) — seit v0.9.292</h3>
 <p>GPS-Höhenwerte sind oft verrauscht — gerade bei wenig Empfang springt die Höhe um ein paar Meter hin und her, und am Ende stehen viel zu viele <strong>Höhenmeter</strong> in den Stats (z. B. 1800 statt 1400). Hier kannst du die <strong>glatte Gelände-Höhe aus der Mapbox-Karte</strong> (digitales Höhenmodell) mit deiner GPS-Höhe mischen — und siehst dabei <strong>genau, was passiert</strong>:</p>
 <ol>
@@ -716,6 +725,8 @@ python app.py</code></pre>
 <li><strong>Kamera-Zeitzone</strong> im Offset-Dialog (✎) wählen — wenn die Bilder um genau ganze Stunden daneben liegen (typisch bei Auslandsreisen mit Kameras ohne Zeitzonen-Tag, z.B. Olympus/OM)</li>
 <li>Oder Referenz-Foto setzen (siehe Geotagger-Workflow)</li>
 </ul>
+<h3 id="oben-erscheint-quelldatei-nicht-gefunden-laufwerk-gemountet-seit-v0-9-305">Oben erscheint „Quelldatei nicht gefunden — Laufwerk gemountet?&quot; (seit v0.9.305)</h3>
+<p>Deine zuletzt geladene GPX-Datei ist gerade nicht lesbar — meistens weil die <strong>externe Festplatte abgesteckt</strong> wurde oder die Datei verschoben/gelöscht ist. Schließ die Platte wieder an (das Banner verschwindet beim nächsten Laden) oder klick <strong>„Datei neu wählen&quot;</strong> und such die GPX neu aus. Solange das Banner steht, können Tour-Map, Höhen-Animator und Geotagger den Track nicht aufbauen.</p>
 <h3 id="wie-melde-ich-einen-bug">Wie melde ich einen Bug?</h3>
 <p><strong>Hilfe → 📧 Feedback / Bug-Report an Marc</strong> — alles vorbefüllt (siehe Sektion 7).</p>
 <hr>

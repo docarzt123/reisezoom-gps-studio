@@ -40,6 +40,7 @@ function mountGpxInspect(body, headerActions) {
   let _syncing = false;             // Reentrancy-Schutz Karte<->Profil
   let _profDraw = null;             // letzte Zeichen-Parameter fürs Hit-Testing
   let _maplib = null;               // Karten-Lib (mapboxgl/maplibregl) für Popup
+  let _aMarker = null, _bMarker = null;   // v0.9.304 — deutliche A/B-Anker-Pins
   let _ptPopup = null;              // Mapbox-Popup mit Punkt-Info (Karte)
   let _clickTimer = null;           // Einzel-/Doppelklick-Entscheidung
 
@@ -51,7 +52,13 @@ function mountGpxInspect(body, headerActions) {
     apply: (snap) => {
       _points = JSON.parse(JSON.stringify((snap && snap.points) || []));
       _dirty = !!(snap && snap.dirty);
-      _selA = _selB = null; _drawMode = false; _drawPts = [];
+      // A/B-Auswahl ist UI-Zustand (keine Daten) → nach Undo/Redo behalten, solange die
+      // Anker-Indizes noch im Track liegen. Nur ungültige (out of range) verwerfen.
+      const _n = _points.length;
+      if (_selA != null && _selA >= _n) _selA = null;
+      if (_selB != null && _selB >= _n) _selB = null;
+      if (_selA == null) _selB = null;
+      _drawMode = false; _drawPts = [];
       clearSpikes();
       renderAll(); renderDraw(); updateUI();
     },
@@ -66,84 +73,69 @@ function mountGpxInspect(body, headerActions) {
         <div class="gpxi-empty" id="gpxi-empty">${t("gpxinspect.empty", "Lade ein GPX über die Leiste oben — dann erscheint hier jeder einzelne Track-Punkt.")}</div>
         <div class="gpxi-panel" id="gpxi-panel" hidden>
           <div class="gpxi-stat" id="gpxi-stat"></div>
-          <p class="gpxi-help">${t("gpxinspect.help", "Klick nacheinander zwei Punkte auf der Karte (Anker A grün, B rot). Dann wähle eine Aktion für den Abschnitt dazwischen.")}</p>
-          <div class="gpxi-sel" id="gpxi-sel">${t("gpxinspect.sel_none", "Keine Auswahl")}</div>
-          <button class="btn gpxi-act" id="gpxi-heal" disabled
-            title="${t("gpxinspect.heal_tip", "Die Punkte zwischen A und B auf die direkte Linie legen (Position + Höhe interpoliert). Zeitstempel bleiben → Geschwindigkeit wird wieder realistisch.")}">
-            🩹 ${t("gpxinspect.heal", "Heilen (Sprung glätten)")}</button>
-          <button class="btn gpxi-act" id="gpxi-fill" disabled
-            title="${t("gpxinspect.fill_tip", "Zwischen A und B neue Punkte einfügen (Position, Höhe und Zeit interpoliert) — füllt Lücken/Sprünge mit sauberen Zwischenpunkten.")}">
-            ➕ ${t("gpxinspect.fill", "Lücke füllen (Luftlinie)")}</button>
-          <button class="btn gpxi-act" id="gpxi-drawfill" disabled
-            title="${t("gpxinspect.drawfill_tip", "Pfad zwischen A und B selbst auf der Karte zeichnen (Stützpunkte klicken). Wird mit Position, Höhe und Zeit aufgefüllt.")}">
-            ✏️ ${t("gpxinspect.drawfill", "Pfad zeichnen & füllen")}</button>
-          <div class="gpxi-drawbox" id="gpxi-drawbox" hidden>
-            <div class="gpxi-drawhint" id="gpxi-drawhint"></div>
-            <button class="btn btn-primary gpxi-act" id="gpxi-draw-apply" disabled>✓ ${t("gpxinspect.draw_apply", "Pfad übernehmen")}</button>
-            <button class="btn gpxi-act" id="gpxi-draw-undo" disabled>⤺ ${t("gpxinspect.draw_undo", "Letzten Punkt zurück")}</button>
-            <button class="btn gpxi-act" id="gpxi-draw-cancel">✕ ${t("gpxinspect.draw_cancel", "Zeichnen abbrechen")}</button>
+          <div class="gpxi-mm-title">🩹 ${t("gpxinspect.heal_title", "Heilen (automatisch)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_help", "Findet automatisch GPS-Ausreißer und Lücken und behebt sie. Bereich und Aktionen wählen, dann Heilen. Rückgängig jederzeit.")}">?</span></div>
+          <div class="gpxi-segrow" role="radiogroup">
+            <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-track" value="track" checked> ${t("gpxinspect.scope_track", "Ganzer Track")}</label>
+            <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-ab" value="ab"> ${t("gpxinspect.scope_ab", "Abschnitt A→B")}</label>
           </div>
-          <button class="btn gpxi-act gpxi-del" id="gpxi-delete-one" disabled
-            title="${t("gpxinspect.delete_one_tip", "Den ausgewählten Punkt (Anker A) entfernen. Geht auch mit Entf/Backspace.")}">
-            🗑 ${t("gpxinspect.delete_one", "Diesen Punkt löschen")}</button>
-          <button class="btn gpxi-act gpxi-del" id="gpxi-delete" disabled
-            title="${t("gpxinspect.delete_tip", "Die Punkte zwischen A und B ganz entfernen.")}">
-            🗑 ${t("gpxinspect.delete", "Punkte dazwischen löschen")}</button>
-          <button class="btn gpxi-clear" id="gpxi-clearsel" disabled>${t("gpxinspect.clear_sel", "Auswahl aufheben")}</button>
-          <div class="gpxi-undorow">
-            <button class="btn" id="gpxi-undo" disabled title="⌘Z">↩︎ ${t("gpxinspect.undo", "Rückgängig")}</button>
-            <button class="btn" id="gpxi-redo" disabled title="⌘⇧Z">↪︎ ${t("gpxinspect.redo", "Wiederherstellen")}</button>
-          </div>
-          <hr class="gpxi-hr">
-          <div class="gpxi-mm-title">${t("gpxinspect.mm_title", "🛣 Auf Straße/Weg matchen")}</div>
-          <div class="gpxi-fillrow">
-            <label>${t("gpxinspect.mm_profile", "Profil")}</label>
-            <select id="gpxi-mm-profile">
-              <option value="walking">${t("gpxinspect.mm_walking", "Zu Fuß / Wandern")}</option>
-              <option value="cycling">${t("gpxinspect.mm_cycling", "Fahrrad")}</option>
-              <option value="driving">${t("gpxinspect.mm_driving", "Auto")}</option>
+          <label class="gpxi-check"><input type="checkbox" id="gpxi-heal-spikes" checked> ${t("gpxinspect.heal_opt_spikes", "Ausreißer/Sprünge glätten")}</label>
+          <label class="gpxi-check"><input type="checkbox" id="gpxi-heal-gaps" checked> ${t("gpxinspect.heal_opt_gaps", "Lücken mit Punkten füllen")}</label>
+          <div class="gpxi-fillrow" id="gpxi-profilerow">
+            <label>${t("gpxinspect.profile", "Lücken füllen als")}<span class="gpxi-q" data-tip="${t("gpxinspect.profile_help", "Luftlinie = gerade Linie zwischen den Punkten. Wandern/Fahrrad/Auto = die echte Route auf dem Wegenetz suchen (Mapbox, Internet + Token) und der Track folgt den Wegen. Sehr große Lücken (z. B. Flüge) bleiben immer gerade.")}">?</span></label>
+            <select id="gpxi-profile">
+              <option value="linear" selected>📏 ${t("gpxinspect.profile_linear", "Luftlinie (gerade)")}</option>
+              <option value="walking">🚶 ${t("gpxinspect.mm_walking", "Zu Fuß / Wandern")}</option>
+              <option value="cycling">🚴 ${t("gpxinspect.mm_cycling", "Fahrrad")}</option>
+              <option value="driving">🚗 ${t("gpxinspect.mm_driving", "Auto")}</option>
             </select>
           </div>
-          <button class="btn gpxi-act" id="gpxi-match-sel" disabled
-            title="${t("gpxinspect.match_sel_tip", "Findet die echte Straßen-/Wege-Route zwischen Anker A und B (Directions). Robust gegen GPS-Drift — kein 50-m-Limit.")}">
-            🛣 ${t("gpxinspect.match_sel", "Strecke A→B (Straße folgen)")}</button>
-          <div class="gpxi-note muted">${t("gpxinspect.match_sel_hint", "Für einen Abschnitt, der einem Weg folgt: A und B setzen, dann die Route dazwischen suchen lassen.")}</div>
-          <div class="gpxi-fillrow gpxi-sensrow" title="${t("gpxinspect.mm_radius_tip", "Wie weit vom Weg entfernt noch gesnappt wird. Klein = nur sehr nah am Weg, groß = fängt mehr GPS-Drift, snapt aber eher auf parallele Wege. (Mapbox-Max 50 m.) Gilt für den ganzen Track.")}">
-            <label>${t("gpxinspect.mm_radius", "Snap-Radius (ganzer Track)")}</label>
-            <input type="range" id="gpxi-mm-radius" min="5" max="50" step="5" value="25">
-            <span id="gpxi-mm-radius-val" class="gpxi-sensval">25 m</span>
-          </div>
-          <button class="btn gpxi-act" id="gpxi-match-all"
-            title="${t("gpxinspect.match_all_tip", "Den GANZEN Track auf das Wegenetz snappen (Map Matching, Radius oben). Nur bei weg-/straßenbasierten Tracks sinnvoll — bei Querfeldein-Wanderungen kann es die Spur verfälschen.")}">
-            🛣 ${t("gpxinspect.match_all", "Ganzen Track snappen")}</button>
-          <div class="gpxi-note muted">${t("gpxinspect.match_hint", "Nur sinnvoll, wenn der Track Wegen/Straßen folgt. Braucht Internet + Mapbox-Token.")}</div>
-          <hr class="gpxi-hr">
-          <button class="btn gpxi-act" id="gpxi-despike"
-            title="${t("gpxinspect.despike_tip", "Durchsucht den ganzen Track nach GPS-Ausreißern (orange) UND Lücken/Dropouts (magenta gestrichelt). Zeigt als Vorschau auf der Karte, was geheilt würde — dann Alle heilen.")}">
-            🩹 ${t("gpxinspect.despike", "Auto-Heilen: Ausreißer + Lücken")}</button>
-          <div class="gpxi-note muted">${t("gpxinspect.heal_legend", "Vorschau: 🟠 Ausreißer (werden geglättet) · 🟣 Lücken (werden gefüllt)")}</div>
-          <div class="gpxi-fillrow gpxi-sensrow" title="${t("gpxinspect.sens_tip", "Wie empfindlich gesucht wird. Niedrig = nur krasse Sprünge/große Lücken, hoch = auch kleine. Während du ziehst, aktualisiert sich die Vorschau.")}">
-            <label>${t("gpxinspect.sens", "Empfindlichkeit")}</label>
+          <div class="gpxi-fillrow gpxi-sensrow">
+            <label>${t("gpxinspect.sens", "Empfindlichkeit")}<span class="gpxi-q" data-tip="${t("gpxinspect.sens_help", "Wie streng gesucht wird. Niedrig = nur krasse Ausreißer und große Lücken, hoch = auch kleine.")}">?</span></label>
             <input type="range" id="gpxi-sens" min="1" max="10" step="1" value="5">
             <span id="gpxi-sens-val" class="gpxi-sensval">5</span>
           </div>
-          <div class="gpxi-spikebox" id="gpxi-spikebox" hidden>
-            <div class="gpxi-spikehint" id="gpxi-spikehint"></div>
-            <div class="gpxi-spikenav">
-              <button class="btn" id="gpxi-spike-prev" title="${t("gpxinspect.spike_prev", "Voriger")}">‹</button>
-              <button class="btn" id="gpxi-spike-next" title="${t("gpxinspect.spike_next", "Nächster")}">${t("gpxinspect.spike_next", "Nächster")} ›</button>
-            </div>
-            <button class="btn btn-primary gpxi-act" id="gpxi-spike-healall">🩹 ${t("gpxinspect.spike_healall", "Alle heilen")}</button>
-            <button class="btn gpxi-clear" id="gpxi-spike-clear">${t("gpxinspect.spike_clear", "Markierung entfernen")}</button>
-          </div>
-          <hr class="gpxi-hr">
           <div class="gpxi-fillrow">
             <label>${t("gpxinspect.spacing", "Abstand beim Füllen")}</label>
             <input type="number" id="gpxi-spacing" min="2" max="500" step="1" value="20"> m
           </div>
+          <div class="gpxi-sel" id="gpxi-sel">${t("gpxinspect.sel_none", "Keine Auswahl")}</div>
+          <button class="btn btn-primary gpxi-act" id="gpxi-heal-run">🩹 ${t("gpxinspect.heal_run", "Heilen")}</button>
+          <div class="gpxi-undorow">
+            <button class="btn" id="gpxi-undo" disabled title="⌘Z">↩︎ ${t("gpxinspect.undo", "Rückgängig")}</button>
+            <button class="btn" id="gpxi-redo" disabled title="⌘⇧Z">↪︎ ${t("gpxinspect.redo", "Wiederherstellen")}</button>
+          </div>
+
           <hr class="gpxi-hr">
-          <div class="gpxi-mm-title">⛰ ${t("gpxinspect.ele_title", "Höhe korrigieren")}</div>
-          <div class="gpxi-note muted">${t("gpxinspect.ele_hint", "GPS-Höhe ist verrauscht (Höhenmeter oft zu hoch). Lade das Höhenprofil aus der Karte — unter der Karte siehst du dann beide Linien übereinander und mischst sie mit dem Regler. Die fette Linie ist das Ergebnis. Braucht Mapbox-Token + Internet.")}</div>
+          <details class="gpxi-manual" open>
+            <summary class="gpxi-mm-title">✏️ ${t("gpxinspect.manual_title", "Manuell bearbeiten (A→B)")}<span class="gpxi-q" data-tip="${t("gpxinspect.manual_help", "Zwei Punkte auf der Karte klicken (A grün, B rot), dann eine Aktion für den Abschnitt dazwischen wählen — z. B. Punkte dazwischen löschen.")}">?</span></summary>
+            <button class="btn gpxi-act" id="gpxi-heal" disabled
+              title="${t("gpxinspect.heal_tip", "Die Punkte zwischen A und B auf die direkte Linie legen (Position + Höhe interpoliert). Zeitstempel bleiben → Geschwindigkeit wird wieder realistisch.")}">
+              🩹 ${t("gpxinspect.heal", "Sprung glätten (A→B gerade)")}</button>
+            <button class="btn gpxi-act" id="gpxi-fill" disabled
+              title="${t("gpxinspect.fill_tip", "Zwischen A und B neue Punkte einfügen (Position, Höhe und Zeit interpoliert).")}">
+              ➕ ${t("gpxinspect.fill", "Lücke füllen (Luftlinie)")}</button>
+            <button class="btn gpxi-act" id="gpxi-match-sel" disabled
+              title="${t("gpxinspect.match_sel_tip", "Findet die echte Straßen-/Wege-Route zwischen A und B (Wege-Profil oben). Robust gegen GPS-Drift.")}">
+              🛣 ${t("gpxinspect.match_sel", "Strecke A→B (Straße folgen)")}</button>
+            <button class="btn gpxi-act" id="gpxi-drawfill" disabled
+              title="${t("gpxinspect.drawfill_tip", "Pfad zwischen A und B selbst auf der Karte zeichnen. Wird mit Position, Höhe und Zeit aufgefüllt.")}">
+              ✏️ ${t("gpxinspect.drawfill", "Pfad zeichnen & füllen")}</button>
+            <div class="gpxi-drawbox" id="gpxi-drawbox" hidden>
+              <div class="gpxi-drawhint" id="gpxi-drawhint"></div>
+              <button class="btn btn-primary gpxi-act" id="gpxi-draw-apply" disabled>✓ ${t("gpxinspect.draw_apply", "Pfad übernehmen")}</button>
+              <button class="btn gpxi-act" id="gpxi-draw-undo" disabled>⤺ ${t("gpxinspect.draw_undo", "Letzten Punkt zurück")}</button>
+              <button class="btn gpxi-act" id="gpxi-draw-cancel">✕ ${t("gpxinspect.draw_cancel", "Zeichnen abbrechen")}</button>
+            </div>
+            <button class="btn gpxi-act gpxi-del" id="gpxi-delete-one" disabled
+              title="${t("gpxinspect.delete_one_tip", "Den ausgewählten Punkt (Anker A) entfernen. Geht auch mit Entf/Backspace.")}">
+              🗑 ${t("gpxinspect.delete_one", "Diesen Punkt löschen")}</button>
+            <button class="btn gpxi-act gpxi-del" id="gpxi-delete" disabled
+              title="${t("gpxinspect.delete_tip", "Die Punkte zwischen A und B ganz entfernen (Schleifen/Abstecher rausschneiden). A und B bleiben, die Linie verbindet sie direkt.")}">
+              ✂️ ${t("gpxinspect.delete", "Punkte zwischen A→B rausschneiden")}</button>
+            <button class="btn gpxi-clear" id="gpxi-clearsel" disabled>${t("gpxinspect.clear_sel", "Auswahl aufheben")}</button>
+          </details>
+          <hr class="gpxi-hr">
+          <div class="gpxi-mm-title">⛰ ${t("gpxinspect.ele_title", "Höhe korrigieren")}<span class="gpxi-q" data-tip="${t("gpxinspect.ele_help", "GPS-Höhe ist verrauscht. Lädt das Höhenprofil aus der Karte; darunter mischst du GPS und Karte mit dem Regler. Braucht Mapbox-Token + Internet.")}">?</span></div>
           <button class="btn gpxi-act" id="gpxi-ele-load">🗺 ${t("gpxinspect.ele_load", "Höhenprofil aus Karte laden")}</button>
           <div class="gpxi-fillrow gpxi-sensrow">
             <label>${t("gpxinspect.ele_weight", "GPS ⟷ Karte")}</label>
@@ -160,6 +152,7 @@ function mountGpxInspect(body, headerActions) {
     </div>
     <section class="canvas" id="gpxi-canvaswrap">
       <div id="gpxi-canvas"></div>
+      <div id="gpxi-hoverbox" class="gpxi-hoverbox gpxi-pinfo" hidden></div>
       <div id="gpxi-ele-profile" class="gpxi-eleprof" hidden>
         <div class="gpxi-eleprof-head">
           <span class="gpxi-eleprof-title">⛰ ${t("gpxinspect.ele_profile_title", "Höhenprofil")}</span>
@@ -301,7 +294,12 @@ function mountGpxInspect(body, headerActions) {
     let res;
     try { res = await api().gpxinspect_load(path); } catch (e) { res = { ok: false, error: String(e) }; }
     if (isUnmounted) return;
-    if (!res || !res.ok) { toast((res && res.error) || "GPX-Fehler", "error", 5000); return; }
+    if (!res || !res.ok) {
+      if (window.isMissingFileError && window.isMissingFileError(res && res.error)) window.showSourceMissingBanner(path);
+      else toast((res && res.error) || "GPX-Fehler", "error", 5000);
+      return;
+    }
+    if (window.hideSourceMissingBanner) window.hideSourceMissingBanner();
     _points = (res.points || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time }));
     _srcPath = res.src || path;   // v0.9.295 — konvertierter GPX-Pfad (Fremdformate), sonst Original
     _hasTime = !!res.has_time; _hasEle = !!res.has_ele;
@@ -348,6 +346,31 @@ function mountGpxInspect(body, headerActions) {
       };
     }
     try { map.getSource("gpxi-pts").setData({ type: "FeatureCollection", features: feats }); } catch (_) {}
+    renderAnchorMarkers();
+  }
+  // v0.9.304 — Deutliche A/B-Anker als Pin-Badges (statt nur etwas größerer Kreise).
+  function _mkAnchorEl(lab, cls) {
+    // WICHTIG: kein CSS-transform am Marker-Element selbst — Mapbox/MapLibre setzt dort
+    // sein eigenes translate fürs Positionieren und würde es überschreiben. Runder Badge.
+    const el = document.createElement("div");
+    el.className = "gpxi-anchor-mk " + cls;
+    el.textContent = lab;
+    return el;
+  }
+  function renderAnchorMarkers() {
+    if (!map || !_maplib || typeof _maplib.Marker !== "function") return;
+    try {
+      if (_aMarker) { _aMarker.remove(); _aMarker = null; }
+      if (_bMarker) { _bMarker.remove(); _bMarker = null; }
+      if (_selA != null && _points[_selA]) {
+        _aMarker = new _maplib.Marker({ element: _mkAnchorEl("A", "gpxi-anchor-a") })
+          .setLngLat([_points[_selA].lon, _points[_selA].lat]).addTo(map);
+      }
+      if (_selB != null && _points[_selB]) {
+        _bMarker = new _maplib.Marker({ element: _mkAnchorEl("B", "gpxi-anchor-b") })
+          .setLngLat([_points[_selB].lon, _points[_selB].lat]).addTo(map);
+      }
+    } catch (_) {}
   }
 
   function fitTrack(bbox) {
@@ -382,10 +405,14 @@ function mountGpxInspect(body, headerActions) {
   function onMapClick(e) {
     if (_drawMode) { onMapClickDraw(e); return; }
     if (_dragMoved) { _dragMoved = false; return; }   // Klick direkt nach Drag schlucken
-    const i = _nearestIdxToPoint(e.point.x, e.point.y, _HIT_TOL_PX);
+    // v0.9.305 (Nutzer-Feedback): Anker-Klick wählt IMMER den nächstgelegenen
+    // Track-Punkt — egal wie weit der Klick entfernt ist (kein 18px-Limit mehr).
+    // Man klickt grob hin, der nächste Punkt wird gesetzt.
+    const i = _nearestIdxToPoint(e.point.x, e.point.y, Infinity);
     if (i < 0) return;
     if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
-    _clickTimer = setTimeout(() => { _clickTimer = null; showPointInfoMap(i); }, 240);
+    // v0.9.303 — Einzelklick setzt direkt Anker A/B (Daten gibt's live in der Hover-Box).
+    _clickTimer = setTimeout(() => { _clickTimer = null; selectAnchor(i); }, 240);
   }
   function onMapDbl(e) {
     if (_drawMode) return;
@@ -458,6 +485,24 @@ function mountGpxInspect(body, headerActions) {
     const la1 = a.lat * rad, la2 = b.lat * rad;
     const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  // v0.9.315 — Plausi-Check gegen erfundene Umwege/Schleifen beim Routen/Matchen.
+  // Mapbox routet an Kreuzungen schon mal über Ausfahrt+Kreisel zurück — eine saubere
+  // GPS-Spur darf dadurch NICHT verbogen werden. ratio = Pfadlänge / Luftlinie A→B.
+  // Liegt sie über maxRatio, ist es ein Umweg/Schleife → Caller verwirft die Route.
+  function _routePathLen(coords) {
+    let L = 0;
+    for (let i = 1; i < coords.length; i++) {
+      L += _haversine({ lon: coords[i - 1][0], lat: coords[i - 1][1] }, { lon: coords[i][0], lat: coords[i][1] });
+    }
+    return L;
+  }
+  function _routeIsDetour(coords, straightDist, maxRatio) {
+    if (!Array.isArray(coords) || coords.length < 2) return false;
+    const L = _routePathLen(coords);
+    const ref = Math.max(straightDist || 0, 30);   // kleine Lücken nicht überempfindlich
+    return L > ref * maxRatio;
   }
 
   function fillGap() {
@@ -612,7 +657,7 @@ function mountGpxInspect(body, headerActions) {
   async function _runMatch(startIdx, endIdx, label) {
     if (_mmBusy || _drawMode) return;
     if (endIdx - startIdx < 1) return;
-    const profile = (document.getElementById("gpxi-mm-profile") || {}).value || "walking";
+    let profile = (document.getElementById("gpxi-profile") || {}).value || "walking"; if (profile === "linear") profile = "walking";
     const radius = parseInt((document.getElementById("gpxi-mm-radius") || {}).value, 10) || 25;
     const coords = _points.slice(startIdx, endIdx + 1).map(p => [p.lon, p.lat]);
     _mmBusy = true; updateUI();
@@ -647,7 +692,7 @@ function mountGpxInspect(body, headerActions) {
   async function routeSelection() {
     if (_selA === null || _selB === null || _selB <= _selA) return;
     if (_mmBusy || _drawMode) return;
-    const profile = (document.getElementById("gpxi-mm-profile") || {}).value || "walking";
+    let profile = (document.getElementById("gpxi-profile") || {}).value || "walking"; if (profile === "linear") profile = "walking";
     const A = _points[_selA], B = _points[_selB];
     _mmBusy = true; updateUI();
     toast(t("gpxinspect.routing", "Suche Route zwischen A und B …"), "info", 2000);
@@ -666,14 +711,32 @@ function mountGpxInspect(body, headerActions) {
       toast(t("gpxinspect.route_nomatch", "Keine Route gefunden — A oder B liegt zu weit von einer Straße entfernt."), "warn", 3500);
       updateUI(); return;
     }
+    // v0.9.315 — Schleifen-Schutz: Straßen sind legitim länger als die Luftlinie, aber
+    // ein grober Umweg/eine Schleife (z. B. Mapbox routet über Ausfahrt+Kreisel zurück)
+    // wird NICHT angewendet. Nutzer kann dann „Luftlinie" oder „Pfad zeichnen" nehmen.
+    if (_routeIsDetour(coords, _haversine(A, B), 4.0)) {
+      toast(t("gpxinspect.route_detour", "Die gefundene Route macht einen großen Umweg/eine Schleife — nicht angewendet. Nimm „Lücke füllen (Luftlinie)“ oder „Pfad zeichnen & füllen“."), "warn", 5000);
+      updateUI(); return;
+    }
     _pushUndo(t("gpxinspect.match_sel", "Strecke A→B"));
     _applyRoutedRange(_selA, _selB, coords);
     _dirty = true; clearSpikes(); clearSelection();
     renderAll(); updateUI();
     toast(t("gpxinspect.routed", "Strecke A→B auf die Straße gelegt: ") + coords.length + " " + t("gpxinspect.points", "Punkte"), "success", 2500);
   }
+  // v0.9.315 — „Ganzen Track snappen" entschärft: überschreibt ALLE Punkte mit Mapbox-
+  // Straßengeometrie (kann an Kreuzungen Umwege/Schleifen erzeugen). Bewusste 2-Klick-
+  // Bestätigung statt stiller Ausführung. Für nur Lücken/Ausreißer → „Heilen" nutzen.
+  let _matchWholeArm = 0;
   function matchWhole() {
     if (_points.length < 2) return;
+    const now = (typeof performance !== "undefined" && performance.now) ? performance.now() : 0;
+    if (now - _matchWholeArm > 4000) {
+      _matchWholeArm = now;
+      toast(t("gpxinspect.match_all_warn", "Achtung: legt den GANZEN Track auf Mapbox-Straßen und überschreibt deine aufgezeichneten Punkte — an Kreuzungen können Umwege/Schleifen entstehen. Für nur Lücken/Ausreißer lieber „Heilen“. Zum Bestätigen nochmal klicken."), "warn", 4000);
+      return;
+    }
+    _matchWholeArm = 0;
     _runMatch(0, _points.length - 1, t("gpxinspect.match_all", "Ganzen Track matchen"));
   }
 
@@ -830,18 +893,23 @@ function mountGpxInspect(body, headerActions) {
   function detectGaps() {
     const P = _points, n = P.length;
     if (n < 2) return [];
+    // v0.9.299 — Lücke = Segment, das DEUTLICH länger ist als der typische Punktabstand
+    // des Tracks (= sichtbares Loch, egal wie groß). Robust über den Median, und die
+    // Schwelle ist an den FÜLL-Abstand gekoppelt: ein Loch muss deutlich größer sein als
+    // die Punkte, mit denen wir füllen — sonst hätte Füllen keinen Effekt und das geheilte
+    // Stück würde sofort wieder als Loch zählen. So bleibt nach „Heilen" nichts übrig.
     const seg = new Array(n - 1);
     for (let i = 0; i < n - 1; i++) seg[i] = _haversine(P[i], P[i + 1]);
-    const sorted = [...seg].sort((a, b) => a - b);
-    const base = sorted[Math.floor(sorted.length * 0.25)] || sorted[0] || 0;  // typischer „guter" Abstand
+    const sd = [...seg].sort((a, b) => a - b);
+    const median = sd[Math.floor(sd.length / 2)] || sd[0] || 0;   // typischer Abstand (Abtast-Kadenz)
+    const spacing = _gapSpacing();
     const sens = Math.max(1, Math.min(10, parseFloat((document.getElementById("gpxi-sens") || {}).value) || 5));
     const lerp = (a, b) => a + (b - a) * (sens - 1) / 9;
-    const GAP_FACTOR = lerp(10, 4);     // 1 = nur riesige Lücken, 10 = auch kleinere
-    const GAP_FLOOR = lerp(200, 40);    // absolute Mindest-Lückenweite in m
-    const TH = Math.max(GAP_FLOOR, base * GAP_FACTOR);
+    // Empfindlich: niedrig = nur große Löcher, hoch = auch kleine Abweichungen vom Takt.
+    const distTH = Math.max(spacing * lerp(2.5, 1.6), median * lerp(3.5, 1.8));
     const gaps = [];
     for (let i = 0; i < n - 1; i++) {
-      if (seg[i] > TH && !_spikeSet.has(i) && !_spikeSet.has(i + 1)) {
+      if (seg[i] > distTH && !_spikeSet.has(i) && !_spikeSet.has(i + 1)) {
         gaps.push({ a: i, b: i + 1, dist: seg[i] });
       }
     }
@@ -882,27 +950,48 @@ function mountGpxInspect(body, headerActions) {
     } catch (_) {}
   }
 
-  function runDespike(opts) {
-    if (_drawMode || !_points.length) return;
-    const silent = !!(opts && opts.silent);   // vom Slider: nur Markierung neu, kein Toast/Zoom
-    _despikeRan = true;
-    const groups = detectSpikes();
-    _spikes = groups; _spikeIdx = -1;
-    _spikeSet = new Set();
-    for (const g of groups) for (let k = g.from; k <= g.to; k++) _spikeSet.add(k);
-    // v0.9.294 — zusätzlich Lücken erkennen (nach Spikes, damit _spikeSet steht) + Vorschau.
-    _gaps = detectGaps();
-    _selA = _selB = null;
-    renderPoints(); renderGaps(); updateUI();
-    if (silent) return;
-    const nS = groups.length, nG = _gaps.length;
-    if (!nS && !nG) { toast(t("gpxinspect.heal_none", "Nichts zu heilen gefunden 👍"), "info", 2800); return; }
-    const spacing = _gapSpacing();
-    const fillPts = _gaps.reduce((s, g) => s + _gapFillCount(g.dist, spacing), 0);
-    toast(t("gpxinspect.heal_marked", "Gefunden: %s Ausreißer, %g Lücken (~%p Füllpunkte)")
-      .replace("%s", nS).replace("%g", nG).replace("%p", fillPts), "success", 3400);
-    if (nS) gotoSpike(0);
-    else if (nG) _zoomToGap(0);
+  // v0.9.302 — EIN „Heilen" (Automatik), gesteuert über Bereich (ganzer Track / Abschnitt
+  // A→B) + Checkboxen: Ausreißer glätten · Lücken füllen (optional an Wege anpassen) ·
+  // ganzen Track snappen (nur Bereich = Track).
+  function _healScope() {
+    return ((document.getElementById("gpxi-scope-ab") || {}).checked) ? "ab" : "track";
+  }
+  async function runHeal() {
+    if (_drawMode || !_points.length || _mmBusy) return;
+    const scope = _healScope();
+    const doSpikes = !!((document.getElementById("gpxi-heal-spikes") || {}).checked);
+    const doGaps = !!((document.getElementById("gpxi-heal-gaps") || {}).checked);
+    if (!doSpikes && !doGaps) {
+      toast(t("gpxinspect.heal_nothing_sel", "Nichts ausgewählt — hak an, was geheilt werden soll."), "info", 2800);
+      return;
+    }
+    let lo = 0, hi = _points.length - 1;
+    if (scope === "ab") {
+      if (_selA === null || _selB === null || _selB <= _selA) {
+        toast(t("gpxinspect.heal_need_ab", "Bereich „Abschnitt A→B“: erst zwei Punkte auf der Karte setzen (A grün, B rot)."), "warn", 3600);
+        return;
+      }
+      lo = _selA; hi = _selB;
+    }
+    // 1) Ausreißer glätten + Lücken füllen (je nach Checkbox, evtl. nur im Bereich).
+    if (doSpikes || doGaps) {
+      let groups = doSpikes ? detectSpikes() : [];
+      if (scope === "ab") groups = groups.filter((g) => g.from >= lo && g.to <= hi);
+      _spikes = groups; _spikeIdx = -1;
+      _spikeSet = new Set();
+      for (const g of groups) for (let k = g.from; k <= g.to; k++) _spikeSet.add(k);
+      let gaps = doGaps ? detectGaps() : [];
+      if (scope === "ab") gaps = gaps.filter((g) => g.a >= lo && g.b <= hi);
+      _gaps = gaps;
+      _selA = _selB = null;
+      if (_spikes.length || _gaps.length) {
+        await healAllSpikes();   // füllt Lücken laut Profil (Luftlinie oder Route)
+      } else {
+        toast(t("gpxinspect.heal_none", "Nichts zu heilen gefunden 👍"), "info", 2800);
+      }
+    }
+    // Übersicht: ganzen Track zeigen.
+    try { map.fitBounds(_trackBounds(), { padding: 50, duration: 600 }); } catch (_) {}
   }
   function _zoomToGap(k) {
     const g = _gaps[k]; if (!g || !map) return;
@@ -932,7 +1021,7 @@ function mountGpxInspect(body, headerActions) {
     updateUI();
   }
 
-  function healAllSpikes() {
+  async function healAllSpikes() {
     if (!_spikes.length && !_gaps.length) return;
     _pushUndo(t("gpxinspect.heal_all", "Auto-Heilen"));
     // 1) Ausreißer geraderücken — verschiebt nur (kein Splice) → Indizes bleiben gültig.
@@ -947,35 +1036,78 @@ function mountGpxInspect(body, headerActions) {
       }
     }
     const nS = _spikes.length;
-    // 2) Lücken füllen — Splice ändert Indizes, also von HINTEN nach VORNE einfügen.
+    const nG = _gaps.length;
     const spacing = _gapSpacing();
+    // Füll-Art direkt aus dem Profil: 'linear' (Luftlinie) ODER walking/cycling/driving (Route).
+    const fillMode = (document.getElementById("gpxi-profile") || {}).value || "linear";
+
+    // 2) Lücken füllen — von HINTEN nach VORNE, damit Indizes gültig bleiben.
+    if (fillMode !== "linear" && nG) {
+      // Route-Modus: jede Lücke entlang echter Wege/Straßen (Profil) routen.
+      const gapsAB = _gaps.map((g) => [_points[g.a].lon, _points[g.a].lat, _points[g.b].lon, _points[g.b].lat]);
+      _mmBusy = true; updateUI();
+      toast(t("gpxinspect.gap_routing", "Suche Routen für %g Lücken …").replace("%g", nG), "info", 4000);
+      let res;
+      try { res = await api().gpxinspect_route_gaps(gapsAB, fillMode); }
+      catch (e) { res = { ok: false, error: String(e) }; }
+      _mmBusy = false;
+      if (res && res.error === "no_token") {
+        toast(t("gpxinspect.match_no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen) — fülle linear."), "warn", 3500);
+      }
+      const routes = (res && res.ok && Array.isArray(res.routes)) ? res.routes : [];
+      let routed = 0, fillPts = 0, detour = 0;
+      const order = _gaps.map((g, i) => ({ g, i })).sort((x, y) => y.g.a - x.g.a);
+      for (const { g, i } of order) {
+        const r = routes[i];
+        // v0.9.315 — nur anwenden, wenn die Route KEIN Umweg/Schleife ist (sonst gerade
+        // füllen). Schützt saubere Spuren davor, an Kreuzungen verbogen zu werden.
+        if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2 && !_routeIsDetour(r.coords, g.dist, 2.5)) {
+          _applyRoutedRange(g.a, g.b, r.coords);   // ersetzt [a..b] durch die Wege-Route
+          routed++;
+        } else {
+          if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2) detour++;  // war Route, aber Umweg
+          fillPts += _linearFillGap(g, spacing);   // Fallback: gerade Linie (Flugbögen ODER verworfener Umweg)
+        }
+      }
+      _dirty = true; clearSpikes(); _selA = _selB = null;
+      renderAll(); updateUI();
+      const msg = t("gpxinspect.heal_done_route", "Geheilt: %s Ausreißer · %r Lücken an Route angepasst, %l gerade gefüllt")
+        .replace("%s", nS).replace("%r", routed).replace("%l", nG - routed)
+        + (detour ? " (" + detour + " " + t("gpxinspect.heal_detour", "Umwege verworfen") + ")" : "");
+      toast(msg, "success", 4000);
+      return;
+    }
+
+    // Linear-Modus (Standard).
     let fillPts = 0;
     const gapsDesc = [..._gaps].sort((a, b) => b.a - a.a);
-    for (const g of gapsDesc) {
-      const A = _points[g.a], B = _points[g.b];
-      if (!A || !B) continue;
-      const dist = _haversine(A, B);
-      const n = _gapFillCount(dist, spacing);
-      const tA = A.time ? Date.parse(A.time) : null;
-      const tB = B.time ? Date.parse(B.time) : null;
-      const inserted = [];
-      for (let k = 1; k <= n; k++) {
-        const tt = k / (n + 1);
-        inserted.push({
-          lat: A.lat + (B.lat - A.lat) * tt,
-          lon: A.lon + (B.lon - A.lon) * tt,
-          ele: (A.ele != null && B.ele != null) ? (A.ele + (B.ele - A.ele) * tt) : (A.ele != null ? A.ele : null),
-          time: (tA != null && tB != null) ? new Date(tA + (tB - tA) * tt).toISOString() : null,
-        });
-      }
-      _points.splice(g.a + 1, 0, ...inserted);   // b = a+1 → reines Einfügen
-      fillPts += inserted.length;
-    }
-    const nG = _gaps.length;
+    for (const g of gapsDesc) fillPts += _linearFillGap(g, spacing);
     _dirty = true; clearSpikes(); _selA = _selB = null;
     renderAll(); updateUI();
     toast(t("gpxinspect.heal_done", "Geheilt: %s Ausreißer, %g Lücken (+%p Punkte)")
       .replace("%s", nS).replace("%g", nG).replace("%p", fillPts), "success", 3200);
+  }
+  // Eine Lücke mit gerade interpolierten Punkten füllen (Position/Höhe/Zeit linear). Gibt
+  // die Anzahl eingefügter Punkte zurück. b = a+1 → reines Einfügen bei a+1.
+  function _linearFillGap(g, spacing) {
+    const A = _points[g.a], B = _points[g.b];
+    if (!A || !B) return 0;
+    const dist = _haversine(A, B);
+    const n = _gapFillCount(dist, spacing);
+    const tA = A.time ? Date.parse(A.time) : null;
+    const tB = B.time ? Date.parse(B.time) : null;
+    const inserted = [];
+    for (let k = 1; k <= n; k++) {
+      const tt = k / (n + 1);
+      inserted.push({
+        lat: A.lat + (B.lat - A.lat) * tt,
+        lon: A.lon + (B.lon - A.lon) * tt,
+        ele: (A.ele != null && B.ele != null) ? (A.ele + (B.ele - A.ele) * tt) : (A.ele != null ? A.ele : null),
+        time: (tA != null && tB != null) ? new Date(tA + (tB - tA) * tt).toISOString() : null,
+      });
+    }
+    _points.splice(g.a + 1, 0, ...inserted);
+    return inserted.length;
   }
 
   // ── Höhe korrigieren: Höhenprofil GPS vs. Karte zeigen + live mischen ────────
@@ -1192,7 +1324,7 @@ function mountGpxInspect(body, headerActions) {
     if (idx < 0) return;
     const cx = e.clientX, cy = e.clientY;
     if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null; }
-    _clickTimer = setTimeout(() => { _clickTimer = null; showPointInfoProfile(idx, cx, cy); }, 240);
+    _clickTimer = setTimeout(() => { _clickTimer = null; selectAnchor(idx); }, 240);
   }
   function onProfileDblClick(e) {
     const idx = _profileIdxAtClientX(e.clientX);
@@ -1227,6 +1359,12 @@ function mountGpxInspect(body, headerActions) {
   // Maus über der Karte → vertikaler Balken im Profil; Maus über dem Profil → Ring
   // auf dem Track. Beides läuft über setHover(idx).
   function setHover(idx) {
+    // 0) Live-Daten-Box in der Ecke: zeigt immer den Punkt unter dem Mauszeiger.
+    const hbox = document.getElementById("gpxi-hoverbox");
+    if (hbox) {
+      if (idx == null || !_points[idx]) { hbox.hidden = true; }
+      else { hbox.innerHTML = _pointDataTable(idx); hbox.hidden = false; }
+    }
     // 1) Ring-Marker auf der Karte
     try {
       const src = map && map.getSource("gpxi-hover");
@@ -1266,7 +1404,6 @@ function mountGpxInspect(body, headerActions) {
   }
   let _hoverRAF = 0, _hoverLL = null;
   function onMapHover(e) {
-    if (!_profileVisible()) return;
     _hoverLL = e.lngLat;
     if (_hoverRAF) return;
     _hoverRAF = requestAnimationFrame(() => {
@@ -1285,7 +1422,7 @@ function mountGpxInspect(body, headerActions) {
   // ── Punkt-Info-Feld (v0.9.293) — leichtes Feld AM Punkt, dunkelt NICHT ab ─────
   // Karte = natives Popup (folgt dem Punkt). Profil = schwebende Box an der Klick-
   // stelle. Neuer Klick → das Feld wandert zum neuen Punkt.
-  function _pointInfoHtml(idx) {
+  function _pointDataTable(idx) {
     const p = _points[idx];
     const cum = _cumDist();
     const distStart = cum[idx] || 0;
@@ -1299,7 +1436,7 @@ function mountGpxInspect(body, headerActions) {
     const dem = _demEles ? _demEles[idx] : null;
     const rows = [];
     const row = (k, v) => rows.push(`<tr><td class="gpxi-pm-k">${k}</td><td class="gpxi-pm-v">${v}</td></tr>`);
-    row(t("gpxinspect.pm_index", "Punkt"), "#" + (idx + 1) + " / " + _points.length);
+    row(t("gpxinspect.pm_index", "Punkt"), "#" + (idx + 1) + " / " + _points.length);  // _pointDataTable
     row(t("gpxinspect.pm_pos", "Position"), p.lat.toFixed(6) + ", " + p.lon.toFixed(6));
     row(t("gpxinspect.pm_ele", "Höhe (GPS)"), p.ele != null ? Math.round(p.ele) + " m" : "—");
     if (dem != null && isFinite(dem)) row(t("gpxinspect.pm_ele_map", "Höhe (Karte)"), Math.round(dem) + " m");
@@ -1309,7 +1446,10 @@ function mountGpxInspect(body, headerActions) {
     if (speed != null) row(t("gpxinspect.pm_speed", "Geschwindigkeit"), speed.toFixed(1) + " km/h");
     if (grade != null) row(t("gpxinspect.pm_grade", "Steigung"), (grade >= 0 ? "+" : "") + grade.toFixed(1) + " %");
     return `<div class="gpxi-pi-head">${t("gpxinspect.pm_title", "Punkt-Daten")}</div>` +
-      `<table class="gpxi-pm-tbl"><tbody>${rows.join("")}</tbody></table>` +
+      `<table class="gpxi-pm-tbl"><tbody>${rows.join("")}</tbody></table>`;
+  }
+  function _pointInfoHtml(idx) {
+    return _pointDataTable(idx) +
       `<div class="gpxi-pi-actions">` +
       `<button class="btn" id="gpxi-pi-a">${t("gpxinspect.pm_set_a", "Als Anker A")}</button>` +
       `<button class="btn" id="gpxi-pi-b">${t("gpxinspect.pm_set_b", "Als Anker B")}</button>` +
@@ -1499,7 +1639,7 @@ function mountGpxInspect(body, headerActions) {
     setDisabled("gpxi-undo", _drawMode || !(_undo && _undo.canUndo()));
     setDisabled("gpxi-redo", _drawMode || !(_undo && _undo.canRedo()));
     // Auto-Despike: Button frei wenn Punkte da & nicht im Zeichnen-Modus.
-    setDisabled("gpxi-despike", _drawMode);
+    setDisabled("gpxi-heal-run", _drawMode || _mmBusy || !_points.length);
     const spikeBox = document.getElementById("gpxi-spikebox");
     const nSpk = _spikes.length, nGap = _gaps.length;
     if (spikeBox) spikeBox.hidden = (nSpk === 0 && nGap === 0) || _drawMode;
@@ -1540,9 +1680,6 @@ function mountGpxInspect(body, headerActions) {
   _on("gpxi-delete", deleteBetween);
   _on("gpxi-clearsel", clearSelection);
   _on("gpxi-match-sel", routeSelection);
-  _on("gpxi-match-all", matchWhole);
-  { const rad = document.getElementById("gpxi-mm-radius"), rlbl = document.getElementById("gpxi-mm-radius-val");
-    if (rad && rlbl) rad.addEventListener("input", () => { rlbl.textContent = rad.value + " m"; }); }
 
   // Entf/Backspace: einzelnen Punkt (nur A) oder Bereich (A+B) löschen.
   // Nicht feuern wenn man in einem Eingabefeld tippt oder im Zeichnen-Modus ist.
@@ -1559,18 +1696,32 @@ function mountGpxInspect(body, headerActions) {
   document.addEventListener("keydown", onKeyDown);
   _on("gpxi-undo", () => { if (_undo) _undo.undo(); });
   _on("gpxi-redo", () => { if (_undo) _undo.redo(); });
-  _on("gpxi-despike", () => runDespike());
-  // Empfindlichkeits-Slider: Label live, und wenn schon gesucht wurde, Markierung
-  // sofort neu rechnen (ohne Toast/Zoom) während man zieht.
+  _on("gpxi-heal-run", runHeal);
+  // ?-Tooltip: native title-Tooltips rendern in der WebView nicht → eigenes Popup,
+  // das per position:fixed auch aus dem scrollbaren Panel herausragen darf.
   (function () {
-    const sl = document.getElementById("gpxi-sens");
-    const lbl = document.getElementById("gpxi-sens-val");
-    if (!sl) return;
-    sl.addEventListener("input", () => {
-      if (lbl) lbl.textContent = sl.value;
-      if (_despikeRan && !_drawMode) runDespike({ silent: true });
-    });
+    let tip = document.getElementById("gpxi-tip");
+    if (!tip) { tip = document.createElement("div"); tip.id = "gpxi-tip"; tip.className = "gpxi-tip"; document.body.appendChild(tip); }
+    const scope = document.getElementById("gpxi-panel") || body;
+    function show(el) {
+      const txt = el.getAttribute("data-tip"); if (!txt) return;
+      tip.textContent = txt; tip.style.display = "block";
+      const r = el.getBoundingClientRect();
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      let left = r.left + r.width / 2 - tw / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+      let top = r.top - th - 8;
+      if (top < 8) top = r.bottom + 8;
+      tip.style.left = left + "px"; tip.style.top = top + "px";
+    }
+    function hide() { tip.style.display = "none"; }
+    scope.addEventListener("mouseover", (e) => { const q = e.target.closest && e.target.closest(".gpxi-q"); if (q) show(q); });
+    scope.addEventListener("mouseout", (e) => { const q = e.target.closest && e.target.closest(".gpxi-q"); if (q) hide(); });
+    scope.addEventListener("click", (e) => { const q = e.target.closest && e.target.closest(".gpxi-q"); if (q) { e.preventDefault(); (tip.style.display === "block" ? hide() : show(q)); } });
   })();
+  // Empfindlichkeits-Slider: nur Label live.
+  { const sl = document.getElementById("gpxi-sens"), lbl = document.getElementById("gpxi-sens-val");
+    if (sl) sl.addEventListener("input", () => { if (lbl) lbl.textContent = sl.value; }); }
   // v0.9.294 — Füll-Abstand ändert die Lücken-Vorschau (Geister-Punkte) live nach.
   { const sp = document.getElementById("gpxi-spacing");
     if (sp) sp.addEventListener("input", () => { if (_gaps.length) renderGaps(); }); }
@@ -1596,10 +1747,6 @@ function mountGpxInspect(body, headerActions) {
     const rr = document.getElementById("gpxi-ele-result");
     if (rr) rr.textContent = t("gpxinspect.ele_need_token", "Braucht einen Mapbox-Token (Einstellungen).");
   }
-  _on("gpxi-spike-prev", () => gotoSpike(_spikeIdx - 1));
-  _on("gpxi-spike-next", () => gotoSpike(_spikeIdx + 1));
-  _on("gpxi-spike-healall", healAllSpikes);
-  _on("gpxi-spike-clear", () => { clearSpikes(); _selA = _selB = null; renderPoints(); updateUI(); });
   _on("gpxi-save", saveTrack);
   _on("gpxi-reset", () => { if (_srcPath) loadTrack(_srcPath); });
 

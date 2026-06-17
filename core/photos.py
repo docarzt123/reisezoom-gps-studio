@@ -22,8 +22,9 @@ Thumbnails:
   Cache-Dir: APP_SUPPORT/photo_thumb_cache/
 
 Wird sowohl im Preview-UI (über `app.photos_load` Bridge) als auch im
-Render-Backend (`core/animator.py` + `core/tourmap.py` über die gleichen
-data-URLs im HTML-Template) verwendet — gleiche Bytes, echtes WYSIWYG.
+Render-Backend (`core/animator.py` — auch im Standbild-Modus der Tour-Map —
+über die gleichen data-URLs im HTML-Template) verwendet — gleiche Bytes,
+echtes WYSIWYG.
 
 Mirror-Hinweis: keine. Dieses Modul wird von beiden Modulen geteilt; UI
 liest project.photos vom shared Project-Schema.

@@ -54,7 +54,7 @@ Reisezoom-GPS-Studio/
 │   ├── geotag.py            # Match-Algorithmus, Offset-Ableitung
 │   ├── backup.py            # ZIP-Snapshots mit Retention
 │   ├── animator.py          # Mapbox-+-Playwright-+-ffmpeg Pipeline
-│   ├── tourmap.py           # Statischer Karten-PNG-Render
+│   │                        #   (Video via render() + Standbild via render_frame() — auch für Tour-Map)
 │   └── timeline.py          # Camera-Keyframe-Interpolation (v0.7.0)
 ├── modules/                 # Self-contained Module (UI + zukünftig Backend)
 │   ├── animator/
@@ -441,6 +441,8 @@ in `RZGPS_MODULES` (`animator` + `reiseroute`); `mount: (b,h) => mountAnimator(b
 
 **Auto-Despike** (`detectSpikes`): markiert Punkte mit großem **Umweg über die Sehne** der Nachbarn (`dist(A,P)+dist(P,B) − dist(A,B)`), geometrisch + optionalem Speed-Gate; echte Lücken (gerader Sprung ohne Rückkehr) haben ~0 Umweg → unmarkiert. Empfindlichkeits-Slider (1–10) skaliert per `lerp` alle Schwellen (Faktor/Floor/SpeedCap).
 
+**Schleifen-Schutz beim Routen/Matchen (v0.9.315):** Straßen-Profile (Wandern/Fahrrad/Auto) füllen Lücken über `gpxinspect_route_gaps`→`directions_geometry` bzw. matchen über `map_match`. Mapbox kann an Kreuzungen einen **Umweg/Kreisel** zurückrouten und so eine **Schleife in eine saubere Spur** schreiben (Marc-Bug: Teneriffa-Track, Punkt ~826 — im Original geradeaus, im `_geheilt` ein erfundener Abstecher; headless verifiziert: 0 Original-Punkte im Schleifen-Bereich). **Guard** `_routeIsDetour(coords, straightDist, maxRatio)` = Pfadlänge/Luftlinie > maxRatio (Floor 30 m gegen Überempfindlichkeit bei Mini-Lücken). Auto-Heilen: `maxRatio 2.5` → Route verworfen, **gerade gefüllt** (`_linearFillGap`), Zähler „Umwege verworfen" im Toast. Manuelles „Strecke A→B": `maxRatio 4.0` (Straßen sind legitim länger, nur grobe Schleifen blocken) → Warn-Toast statt anwenden. **„Ganzen Track snappen"** (`matchWhole`, überschreibt ALLE Punkte) hat jetzt 2-Klick-Bestätigung (`_matchWholeArm`, 4 s Fenster) + Warn-Toast. **Prinzip:** Heilen fügt nur in echte Lücken ein, fasst vorhandene Punkte nie über einen Umweg an.
+
 **Undo:** via globalem `window.createUndoController` (s. „Undo/Redo-System"), registriert als `window.__rzUndoControllers.gpxinspect`, ⌘Z geroutet über die Panel-ID `gpxi-panel`.
 
 **v0.9.263 — Zeitstempel + Map Matching:** (a) `_ptInfo(idx)` schreibt Index/Uhrzeit(lokal)/Höhe in die Auswahl-Zeile (`gpxi-sel`); bei A+B zusätzlich Dauer via `_fmtDur(tB-tA)`. (b) **Map Matching**: Buttons `gpxi-match-sel` (Bereich A→B, enabled wie `gpxi-fill`) + `gpxi-match-all` (ganzer Track) + Profil-Select `gpxi-mm-profile`. `_runMatch(start,end,label)` → Bridge **`gpxinspect_map_match(coords, profile)`** (app.py → `croute.map_match`, Token via `_active_mapbox_token()`) → `_applyMatchedRange()` ersetzt `_points[start..end]` durch die gematchte Linie, verteilt Zeit + Höhe **linear über die kumulative Streckenlänge** zwischen den Endpunkt-Werten (A.time→B.time, A.ele→B.ele). `_pushUndo` vor dem Ersetzen → ⌘Z möglich. `_mmBusy`-Flag sperrt die Buttons während des Requests. Fehler-Codes: `no_token`/`NoMatch`/Netz → eigene Toasts.
@@ -473,9 +475,29 @@ Flow: **`loadEleProfile()`** (Button `gpxi-ele-load`) fährt `fitBounds(_trackBo
 | `find_ffmpeg() -> str` | PATH-Suche + Homebrew-Fallback + imageio-ffmpeg-Bundle |
 | `_make_html(...)` | HTML-Generator — branch zu `_make_html_alpha` bei `transparent_background=True` |
 | `_make_html_alpha(...)` | **Alpha-Variante** — kein Mapbox, nur SVG-Track auf transparent + Overlay-Boxen |
-| `render(cfg, on_progress)` | Async-Pipeline, Progress-Callback |
+| `render(cfg, on_progress)` | Async-Pipeline (Video, ffmpeg), Progress-Callback |
+| `render_frame(cfg, on_progress)` | **(v0.9.307)** EIN statischer PNG-Frame über dieselbe `_make_html`-Pipeline — Tour-Map = Standbild vom Animator |
+
+#### Tour-Map = ein Standbild vom Animator (v0.9.307)
+
+**Motivation:** früher hatte `core/tourmap.py` einen **eigenen, kompletten Render** (eigenes `_make_html`, eigene `TourmapConfig`, eigenes Foto-System) — doppelter Code, der ständig zum Animator nachgezogen werden musste (Spiegelungsregel) und auseinanderdriftete (z.B. Fotos = PhotoPins in Tour-Map, aber Schilder im Animator). **Jetzt:** Tour-Map rendert über die Animator-Pipeline.
+
+- **`render_frame(cfg)`** baut das HTML mit `_make_html(cfg, …)` (identisch zum Video), wartet `isReady`, ruft **einmal** `advanceFrame(lastIdx, bearing, fitCenter, fitZoom, pitch)` (volle Strecke + alle Fotos/Schilder/Overlays via markerAnchor=1), blendet die bewegte `dot-*`-Ebene aus, greift **ein** PNG (`_grab_still_png`, immer PNG + SSAA-Downscale), Schwarz-Frame-Schutz wie Frame 0 im Video. **Kein** ffmpeg, **kein** Loop.
+- **`AnimatorConfig`-Felder dafür:** `still_frame` (aktiviert den Pfad), `bearing` (fester Kamera-Bearing), `padding_pct` (Fit-Rand %), `show_pins` (Start/End-Pins). In `_make_html`: `SHOW_PINS`-JS-Konstante + Pin-Ebene (`pin-glow`/`pin-core`, 1:1 aus alter tourmap.py); Bounds-Fit nutzt bei `still_frame` `padding_pct`+`bearing`, sonst weiter `8 %`/`-10` → **Video-Pfad byte-gleich**.
+- **Bridge:** Der Render läuft über `app.py::animator_start_render` mit `still_frame=True` (Worker-Branch ruft `canim.render_frame` statt `canim.render`). `overlay_live_enabled=False` (Standbild hat keine Live-Box).
+- **UI (P4, v0.9.308):** Es gibt **kein eigenes Tour-Map-Modul-JS mehr**. `modules/animator/ui/module.js` registriert `RZGPS_MODULES.tourmap` und mountet sich selbst per `mountAnimator(body, headerActions, { mode: "staticFrame", moduleSlug: "tourmap" })`. `_isStaticFrame` blendet alles Animations-Spezifische aus (Timeline, KF-Editor, Live-Stats, Trim, Flug, Rotation, FPS/Dauer …) und schaltet die Standbild-Kamera-Regler frei. Settings persistieren unter dem Projekt-Namespace `tourmap`.
+- **Standbild-Kamera-Regler (P4-Ergänzung, v0.9.310):** `#anim-static-camera` (nur im `staticFrame`-Modus sichtbar) mit `anim-static-bearing` (Ausrichtung), `anim-static-padding` (Randabstand %) und `anim-static-pins` (Start/Ziel-Markierung). Persistiert als `static_bearing`/`static_padding`/`static_pins`. `fitTrackPreview` liest im `staticFrame` Bearing+Padding aus den Slidern (sonst `8 %`/`-10` wie der Video-Pfad → byte-gleich). `updateStaticPinsPreview()` zeichnet Start/Ziel-Pins (`preview-pin-glow`/`preview-pin-core`) live in die Vorschau, identisch zum Render-`SHOW_PINS`-Block. Die Params-Builder schicken die Slider-Werte als `bearing`/`padding_pct`/`show_pins`.
+- **Status (v0.9.310):** `core/tourmap.py` und `modules/tourmap/ui/` (CSS+JS) sind **gelöscht**. Der `ctmap`-Import in `app.py` ist raus, `ui/index.html` lädt die Dateien nicht mehr. Der Projekt-Settings-Namespace `tourmap` (in `DEFAULT_SETTINGS`) bleibt — er ist jetzt der Settings-Store des `staticFrame`-Modus.
 
 **Overlay-Zeitfenster (v0.9.228, „Nutzer — ab Sek X bis Sek Y"):** Pro Stats-Box (`overlay-totals` / `overlay-live` / `overlay-bottom`) je `overlay_*_from_s` + `overlay_*_to_s` in `AnimatorConfig` (Video-Sekunden; `to<=0` = bis Ende; Default 0/0 = immer sichtbar). Backend-Helper: `_overlay_windows(cfg)` (ID→`[from,to]`), `_overlay_has_timing(cfg)` (gibt es überhaupt ein Fenster?), `_overlay_timing_js(cfg)` (`<script>` mit `window.__overlayTiming(tSek)` → setzt `visibility` pro Box). Das Script wird an **beide** `overlays_block`-Varianten (normal + alpha) angehängt. Der Single-Track-Render-Loop ruft `window.__overlayTiming(frame/fps)` pro Frame — **nur** wenn `_ov_timed` (= `_overlay_has_timing`) true ist (kein Perf-Overhead sonst). Frontend-WYSIWYG: `_animOverlayTimingPreview(tSek)` spiegelt das im Probelauf (`runTimelinePreview` step: `tSek = timelineProgress × (intro+anim+hold)`), Preview-Boxen sind via `data-ovbox="totals|live|ele"` taggbar; `tSek<0` blendet alle wieder ein. UI: zwei `number`-Inputs pro Box in der Sidebar-Overlay-Sektion (`anim-ov-{totals,live,ele}-{from,to}`), `bindSetting` `type:"number"`, projekt-bewusst.
+
+**Kamera-Höhe halten (v0.9.311→314, alle Kamera-Modi + Terrain):** Mapbox GL v3 setzt bei `setCenter([lon,lat])`/`jumpTo` mit aktivem Terrain die **Kamera-Höhe = Geländehöhe unter der Mitte + feste Flughöhe** (headless verifiziert: `getFreeCameraOptions().position.toAltitude()` ≈ `queryTerrainElevation(center)` + ~konstanter Offset; gemessen Gipfel 5526 m → camAlt 7182 m, Tal 1147 m → 3299 m). Folgt die Kamera dem Track über Berg/Tal — egal ob „Kamera folgt Track" ODER Keyframe-Schwenk — reitet sie 1:1 aufs Gelände und hüpft (v.a. bei hohem Pitch).
+- **Designweg (v0.9.311–313 verworfen):** EMA-Tiefpass der Geländehöhe entfernte nur Hochfrequenz-Zittern — die langsame, große Auf-/Ab-Bewegung (= das was der Nutzer als „Hüpfen" sieht) blieb (Live-Messung: roh-Höhe ≈ geglättete Höhe). **v0.9.314 = HALTEN statt glätten.**
+- **Modell (v0.9.314):** pro Frame `off = camAlt - terr` (= reine Zoom/Pitch-Flughöhe, terr-unabhängig). Eine **Referenz `base`** folgt dem Gelände nur sehr langsam (`base += (terr-base)*0.02`, gegen Reinlaufen in große Anstiege). `effTerr = terr*(1-amt) + base*amt`; Kamera-Position auf `effTerr + off`, dann `lookAtPoint(center)`. `amt=0` → `effTerr=terr` → `camAlt` unverändert (altes Hüpfen). `amt=1` → `effTerr≈base` (quasi konstant) → Höhe terrain-unabhängig → **kein Hüpfen** (Zoom-Keyframes wirken weiter über `off`).
+- **Config:** `AnimatorConfig.follow_height_smooth` (0..1; **Default-Setting `follow_height_smooth_pct: 75`** = an). Bridge `follow_height_smooth`. Gilt für ALLE Modi (nicht an `camera_follow_track` gebunden).
+- **Render (`core/animator.py`):** `window.__camStabAmt = {_cam_stab_amt}` (0..1). Helper `window.__stabCamHeight(lon,lat)` (vor `updateOverlays` in `advanceFrame`): guards `amt>0` + `getTerrain()` + `getZoom()>=8.5` (Welt-Ansicht aus), `base` in `window.__camStabBase`. Nur in `_make_html` (Alpha hat kein Terrain → unnötig).
+- **Preview (`modules/animator/ui/module.js`):** `runTimelinePreview`-`step` nach `map.jumpTo(jumpArgs)`: identisches Modell, Guard `_amt>0 && jumpArgs.center && _curZoom>=8.5 && getTerrain()`, `base` in `_camStabBase` (Reset pro Probelauf). **Nicht** in `scrubPreview` (statische Einzel-Ansicht = roh). UI-Regler `#anim-follow-height` steht ÜBER der Classic/KF-Umschaltung (immer sichtbar, nicht Follow-gebunden), Label `tourmap`-staticFrame blendet ihn aus.
+- **Mapbox-API-Hinweis:** v3.12 hat **kein** `setCenterClampedToGround` (geprüft) → FreeCamera ist der Weg. Genutzt: `getFreeCameraOptions/setFreeCameraOptions`, `position.toAltitude()/toLngLat()`, `MercatorCoordinate.fromLngLat`, `FreeCameraOptions.lookAtPoint`.
 
 **Ghost-Track (v0.9.169/170):** `AnimatorConfig.ghost_track_enabled` + `ghost_track_opacity` (0..1) + `ghost_track_color` (eigener Color-Picker, v0.9.170, Default = Track-Farbe). Zeichnet die GANZE Route schwach im Hintergrund, während nur der animierte Teil (Source `track`, per `advanceFrame` getrimmt) voll darüber liegt. UI-Helper: `currentGhostColor()`, Persistenz-Key `ghost_track_color`; Toggle/Opacity/Color teilen sich `syncGhostUi` (Felder `anim-ghost-color-field` + `anim-ghost-opacity-field`).
 - **Mapbox-Render (`_make_html`):** eigene Source `track-ghost` mit ALLEN `allCoords`, Layer `track-ghost` direkt nach der `track`-Source added = unterster Track-Layer. Statisch (nie animiert).
@@ -1196,6 +1218,32 @@ rotes ✕** in der GPX-Bar (`ui/js/gpx-bar.js`, neben dem GPX-Namen). Mechanik:
 Der `data-gpxbar="clear"`-Pfad (alt: nur Track entfernen) bleibt als Legacy-
 Fallback im `_bindEvents`-Switch erhalten, das Template nutzt jetzt aber
 `data-gpxbar="clearws"` → `clearWorkspaceGlobal()`.
+
+### Quelldatei-fehlt-Banner (v0.9.305)
+
+**Problem:** Module holen den Track nicht einheitlich. `animator` zeichnet aus
+den per `onGpxLoaded({path, data})` **gepushten** `data.coords` (robust gegen
+fehlende Datei). `tourmap`/`heightanim`/`geotagger`/`gpxinspect` rufen dagegen
+ihre eigene Bridge mit dem **Pfad** (`tourmap_load_gpx`, `heightanim_load_gpx`,
+`geotagger_load_gpx`, `gpxinspect_load`) und re-lesen die Datei von der Platte.
+Ist die Quelle weg (externe Platte ab, Datei verschoben), liefen diese Module
+still in einen leeren/falsch wirkenden Zustand (Karte auf Europa, leeres
+Höhenprofil, „Kein Track geladen", Stats „—").
+
+**Lösung (Marc-Wahl „Lösung 3" = ehrliches Banner, kein stiller Snapshot-Fallback):**
+- Globales Banner `#source-missing-banner` in `ui/index.html` (parallel zum
+  `update-banner`), CSS warnend-orange in `ui/css/app.css`.
+- Helper in `ui/js/gpx-bar.js` (global): `window.isMissingFileError(err)`
+  (Regex auf ENOENT-Signaturen), `window.showSourceMissingBanner(path)`,
+  `window.hideSourceMissingBanner()`. „Datei neu wählen" ruft `window.pickGpx()`.
+- Verdrahtung: `loadGlobalGpx` (zentral, Erfolg → `hideSourceMissingBanner`,
+  Fehler → bei Missing-File `show…` statt Toast) + die vier Modul-Load-Fehler-
+  pfade. i18n-Key `app.source_missing` (de/en/es).
+- **Hinweis für später (nicht umgesetzt):** Die saubere Variante wäre, alle
+  Module auf die gepushten `data.coords` umzustellen (Single Source of Truth,
+  wie `animator`) bzw. auf `gpx_snapshot_path` (jede Session legt eine lokale
+  Kopie unter `sessions/<hash>.gpx` ab). Das Banner ist die bewusst gewählte,
+  transparente Zwischenlösung.
 
 ---
 

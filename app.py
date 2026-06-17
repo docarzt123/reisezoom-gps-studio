@@ -77,7 +77,8 @@ from core import geotag as cgeo
 from core import backup as cbak
 from core import animator as canim
 from core import sessions as _sessions  # v0.8.0: Sessions + Projekte
-from core import tourmap as ctmap
+# v0.9.310 — core/tourmap.py entfernt: Tour-Map rendert jetzt über
+# canim.render_frame() (Standbild-Modus des Animators). Kein ctmap mehr.
 from core import i18n as ci18n
 from core import logger as clog
 from core import photos as cphotos  # v0.9.74: Foto-Pins für Animator + Tour-Map
@@ -125,7 +126,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.297"
+APP_VERSION = "0.9.315"
 
 # v0.9.280 (Nutzer-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
@@ -249,6 +250,7 @@ DEFAULT_SETTINGS = {
         # statisch auf Bbox-Center (aus, Default). Im KF-Modus ignoriert.
         "camera_follow_track": False,
         "camera_follow_inertia_pct": 0,  # v0.9.275 — Trägheit (0..100 %) beim Kamera-Folgen
+        "follow_height_smooth_pct": 75,  # v0.9.311/313 — Kamera-Höhe glätten (0..100 %); Default AN (Marc: Hüpfen soll out-of-the-box weg sein)
         # Stats-Overlays: pro Box enabled + Position (tl/tr/bl/br/bc)
         "overlay_totals_enabled": True,
         "overlay_totals_position": "tl",
@@ -1614,13 +1616,16 @@ class Api:
         # kann keinen Alpha-Kanal); sonst der global gewählte Codec.
         codec = "prores" if alpha else _g_codec
         needs_mov = alpha or codec in ("prores", "prores4444")
-        target_ext = ".mov" if needs_mov else ".mp4"
+        # v0.9.309 — Standbild (Tour-Map) → PNG, kein Video-Container.
+        _still = bool(params.get("still_frame", False))
+        target_ext = ".png" if _still else (".mov" if needs_mov else ".mp4")
+        _valid_exts = (".png",) if _still else (".mp4", ".mov")
 
         # Output-Dateiname
         out_name = params.get("output_name") or (Path(gpx_path).stem + target_ext)
         # Falls Endung falsch → swap auf Ziel-Endung
         out_stem, out_ext = os.path.splitext(out_name)
-        if out_ext.lower() not in (".mp4", ".mov") or out_ext.lower() != target_ext:
+        if out_ext.lower() not in _valid_exts or out_ext.lower() != target_ext:
             out_name = out_stem + target_ext
         # Pfad: User-Auswahl (Save-Dialog) oder Default in _renders/
         out_path = params.get("output_path") or str(RENDERS_DIR / out_name)
@@ -1648,6 +1653,13 @@ class Api:
             output_path=out_path,
             mapbox_token=_active_mapbox_token(),
             map_style=effective_map_style,
+            # v0.9.308 — Standbild-Modus (Tour-Map = ein Frame vom Animator).
+            # Wenn das UI still_frame=True schickt, rendert der Worker EIN PNG
+            # via canim.render_frame statt eines Videos.
+            still_frame=bool(params.get("still_frame", False)),
+            bearing=float(params.get("bearing", -10)),
+            padding_pct=float(params.get("padding_pct", 8)),
+            show_pins=bool(params.get("show_pins", False)),
             duration_s=int(params.get("duration_s", 12)),
             hold_s=int(params.get("hold_s", 5)),
             intro_s=int(params.get("intro_s", 0)),  # v0.9.59
@@ -1667,6 +1679,7 @@ class Api:
             track_style=_be_track_style,
             camera_follow_track=bool(params.get("camera_follow_track", False)),
             camera_follow_inertia=float(params.get("camera_follow_inertia", 0.0)),
+            follow_height_smooth=float(params.get("follow_height_smooth", 0.0)),
             timeline_events=list(params.get("timeline_events", []) or []),
             show_overlays=bool(params.get("show_overlays", True)),
             overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
@@ -1791,12 +1804,18 @@ class Api:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    loop.run_until_complete(canim.render(
-                        cfg,
-                        on_progress=on_progress,
-                        on_preview=on_preview,
-                        is_cancelled=is_cancelled,
-                    ))
+                    if getattr(cfg, "still_frame", False):
+                        # Standbild (Tour-Map) — ein PNG, kein Video/ffmpeg.
+                        loop.run_until_complete(canim.render_frame(
+                            cfg, on_progress=on_progress, is_cancelled=is_cancelled,
+                        ))
+                    else:
+                        loop.run_until_complete(canim.render(
+                            cfg,
+                            on_progress=on_progress,
+                            on_preview=on_preview,
+                            is_cancelled=is_cancelled,
+                        ))
                 finally:
                     loop.close()
                 self._render_state["running"] = False
@@ -1891,10 +1910,15 @@ class Api:
         else:
             _be_line_style = _ui_line_style
             _be_track_style = params.get("track_style", "flat")
-        cfg = ctmap.TourmapConfig(
+        # v0.9.307 — Tour-Map = ein statischer Frame vom Animator. Statt der
+        # eigenen TourmapConfig/render_png bauen wir eine AnimatorConfig mit
+        # still_frame=True und rendern über canim.render_frame() → EINE
+        # Render-Pipeline, kein Doppel-Code mehr. Felder 1:1 wie früher.
+        cfg = canim.AnimatorConfig(
             gpx_path=gpx_path,
             output_path=out_path,
             mapbox_token=token,
+            still_frame=True,
             map_style=params.get("map_style", "satellite"),
             width=int(params.get("width", 1920)),
             height=int(params.get("height", 1080)),
@@ -1904,7 +1928,6 @@ class Api:
             exaggeration=float(params.get("exaggeration", 1.5)),
             enable_terrain=bool(params.get("enable_terrain", True)),
             hide_labels=bool(params.get("hide_labels", False)),
-            # v0.5.0 — Karten-Feinabstimmung (gleiche Felder wie Animator)
             light_preset=params.get("light_preset", "day"),
             show_place_labels=bool(params.get("show_place_labels", True)),
             show_road_labels=bool(params.get("show_road_labels", True)),
@@ -1930,10 +1953,12 @@ class Api:
             show_overlays=bool(params.get("show_overlays", True)),
             overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
             overlay_totals_position=params.get("overlay_totals_position", "tl"),
+            # Tour-Map (Standbild) hat keine Live-Box (zeit-animiert).
+            overlay_live_enabled=False,
             overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", False)),
             overlay_elevation_position=params.get("overlay_elevation_position", "bc"),
             show_pins=bool(params.get("show_pins", True)),
-            # v0.9.74 — Foto-Pins
+            # v0.9.74 — Foto-Pins (nummerierte Kreise im Standbild-Render)
             photos=list(params.get("photos") or []),
             photos_size_px=int(params.get("photos_size_px", 48) or 48),
             photos_show=bool(params.get("photos_show", True)),
@@ -1942,7 +1967,7 @@ class Api:
             signs_size_px=int(params.get("signs_size_px", 40) or 40),
             signs_style=str(params.get("signs_style", "callout") or "callout"),
             signs_color=str(params.get("signs_color", "#ff6b35") or "#ff6b35"),
-            render_scale=float(params.get("render_scale", 1.0) or 1.0),  # v0.9.224 WYSIWYG Schild/Pin-Größe
+            render_scale=float(params.get("render_scale", 1.0) or 1.0),
             override_center=tuple(params["override_center"]) if params.get("override_center") else None,
             override_zoom=float(params["override_zoom"]) if params.get("override_zoom") is not None else None,
         )
@@ -1974,7 +1999,7 @@ class Api:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    loop.run_until_complete(ctmap.render_png(
+                    loop.run_until_complete(canim.render_frame(
                         cfg, on_progress=on_progress, is_cancelled=is_cancelled,
                     ))
                 finally:
@@ -2708,6 +2733,40 @@ class Api:
             return {"ok": False, "error": str(e)}
         except Exception as e:  # noqa: BLE001
             log.error("gpxinspect_route_ab: %s\n%s", e, traceback.format_exc())
+            return {"ok": False, "error": str(e)}
+
+    def gpxinspect_route_gaps(self, gaps: list, profile: str = "walking") -> dict:
+        """v0.9.300 — Mehrere Lücken auf einmal entlang echter Wege/Straßen routen
+        (Directions, Profile walking/cycling/driving). `gaps` = [[Alon,Alat,Blon,Blat], …].
+        Returns {ok, routes:[{ok, coords}, …]} (gleiche Reihenfolge wie `gaps`). Lücken mit
+        Luftlinie > 300 km (z. B. Flugbögen) werden übersprungen (ok:False) → Caller füllt
+        sie linear. Pro Lücke ein Directions-Request; bei ~30 Lücken kurze Wartezeit."""
+        try:
+            token = _active_mapbox_token()
+            if not token:
+                return {"ok": False, "error": "no_token"}
+            prof = str(profile or "walking")
+            routes = []
+            for g in (gaps or []):
+                try:
+                    alon, alat, blon, blat = float(g[0]), float(g[1]), float(g[2]), float(g[3])
+                except Exception:  # noqa: BLE001
+                    routes.append({"ok": False}); continue
+                try:
+                    dist = croute._haversine_m(alat, alon, blat, blon)
+                except Exception:  # noqa: BLE001
+                    dist = 0.0
+                if dist > 300000:   # interkontinental → Mapbox routet das nicht
+                    routes.append({"ok": False, "reason": "too_far"}); continue
+                try:
+                    res = croute.directions_geometry([alon, alat], [blon, blat], token, profile=prof)
+                    cc = res.get("coords", [])
+                    routes.append({"ok": bool(res.get("matched")) and len(cc) >= 2, "coords": cc})
+                except Exception as e:  # noqa: BLE001
+                    routes.append({"ok": False, "error": str(e)})
+            return {"ok": True, "routes": routes}
+        except Exception as e:  # noqa: BLE001
+            log.error("gpxinspect_route_gaps: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
 
     def gpxinspect_map_match(self, coords: list, profile: str = "walking", radius_m: int = 25) -> dict:
