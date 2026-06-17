@@ -153,13 +153,14 @@ jobs:
       - name: Vendor exiftool (Windows)
         shell: pwsh
         run: |
-          # Version dynamisch holen — exiftool.org hostet nur die aktuelle Version
-          # unter dem versionierten Pfad (alte → 404). Fallback auf bekannte Version.
+          # Version von exiftool.org/ver.txt holen, aber von SourceForge LADEN:
+          # exiftool.org hostet nur die aktuelle Version (neue raus → alte URL 404,
+          # killt den Build, v0.9.315). SourceForge archiviert ALLE Versionen.
           try { $ver = (Invoke-WebRequest "https://exiftool.org/ver.txt" -UseBasicParsing).Content.Trim() } catch { $ver = "" }
           if (-not $ver) { $ver = "13.59" }
-          Write-Host "ExifTool-Version: $ver"
+          Write-Host "ExifTool-Version: $ver (Download via SourceForge)"
           New-Item -ItemType Directory -Force -Path vendor/exiftool/windows | Out-Null
-          Invoke-WebRequest "https://exiftool.org/exiftool-${ver}_64.zip" -OutFile et.zip
+          Invoke-WebRequest "https://downloads.sourceforge.net/project/exiftool/exiftool-${ver}_64.zip" -OutFile et.zip
           Expand-Archive et.zip -DestinationPath vendor/exiftool/windows -Force
           $k = "vendor/exiftool/windows/exiftool-${ver}_64/exiftool(-k).exe"
           if (Test-Path $k) { Rename-Item $k "exiftool.exe" }
