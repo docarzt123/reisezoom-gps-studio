@@ -126,7 +126,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.316"
+APP_VERSION = "0.9.318"
 
 # v0.9.280 (Nutzer-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
@@ -250,7 +250,7 @@ DEFAULT_SETTINGS = {
         # statisch auf Bbox-Center (aus, Default). Im KF-Modus ignoriert.
         "camera_follow_track": False,
         "camera_follow_inertia_pct": 0,  # v0.9.275 — Trägheit (0..100 %) beim Kamera-Folgen
-        "follow_height_smooth_pct": 75,  # v0.9.311/313 — Kamera-Höhe glätten (0..100 %); Default AN (Marc: Hüpfen soll out-of-the-box weg sein)
+        "smooth_camera_3d": False,  # v0.9.318 — Ruhige Kamera (entkoppelte FreeCamera gegen Berg-Hüpfen); Default AUS (alter, gut getesteter Modus). Ersetzt den toten follow_height_smooth_pct-Regler.
         # Stats-Overlays: pro Box enabled + Position (tl/tr/bl/br/bc)
         "overlay_totals_enabled": True,
         "overlay_totals_position": "tl",
@@ -1454,6 +1454,40 @@ class Api:
             log.exception("export_current_csv fehlgeschlagen")
             return {"ok": False, "error": str(e)}
 
+    def export_current(self, fmt: str = "gpx") -> dict:
+        """v0.9.317 — generischer Export des aktuell geladenen Tracks in JEDES
+        unterstützte Zielformat: GPX · KML · KMZ · TCX · GeoJSON · CSV. Nimmt den
+        zuletzt geladenen Track (auch aus FIT/NMEA/KML/… → Cache-GPX) und nutzt
+        core.trackio.export_payload — dieselbe Single-Source wie der Web-Konverter.
+        KMZ ist binär (gezipptes KML), daher wird immer als bytes geschrieben."""
+        try:
+            fmt = (fmt or "gpx").lower()
+            if fmt not in ctrackio.SUPPORTED_EXPORT:
+                fmt = "gpx"
+            s = _load_settings()
+            src = str(s.get("last_gpx_path", "") or "")
+            if not src or not os.path.exists(src):
+                return {"ok": False, "error": "Kein Track geladen."}
+            gpx_path = self._ensure_gpx(src)
+            pts, st = cgpx.parse_gpx(gpx_path)
+            name = (getattr(st, "name", None) or os.path.splitext(os.path.basename(src))[0])
+            data, _mime = ctrackio.export_payload(pts, fmt, name)
+            label = fmt.upper()
+            default_name = os.path.splitext(os.path.basename(src))[0] + "." + fmt
+            dest = self.pick_save_path(default_name, str(Path.home()),
+                                       [f"{label} (*.{fmt})"])
+            if not dest:
+                return {"ok": False, "cancelled": True}
+            if not dest.lower().endswith("." + fmt):
+                dest += "." + fmt
+            with open(dest, "wb") as f:
+                f.write(data if isinstance(data, (bytes, bytearray)) else str(data).encode("utf-8"))
+            log.info("export_current[%s]: %s → %s", fmt, gpx_path, dest)
+            return {"ok": True, "path": dest, "fmt": fmt}
+        except Exception as e:
+            log.exception("export_current[%s] fehlgeschlagen", fmt)
+            return {"ok": False, "error": str(e)}
+
     # ── Animator ──────────────────────────────────────────────────────────────
 
     def animator_load_gpx(self, path: str) -> dict:
@@ -1691,7 +1725,7 @@ class Api:
             track_style=_be_track_style,
             camera_follow_track=bool(params.get("camera_follow_track", False)),
             camera_follow_inertia=float(params.get("camera_follow_inertia", 0.0)),
-            follow_height_smooth=float(params.get("follow_height_smooth", 0.0)),
+            smooth_camera_3d=bool(params.get("smooth_camera_3d", False)),  # v0.9.318 — entkoppelte FreeCamera
             timeline_events=list(params.get("timeline_events", []) or []),
             show_overlays=bool(params.get("show_overlays", True)),
             overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
@@ -4127,6 +4161,11 @@ def main() -> None:
         def _export_gpx_from_menu(): _trigger_js("window.exportCurrentGpx && window.exportCurrentGpx()")
         # v0.9.297 — „Als CSV exportieren" (gleiche core.trackio-Logik wie das Web)
         def _export_csv_from_menu(): _trigger_js("window.exportCurrentCsv && window.exportCurrentCsv()")
+        # v0.9.317 — weitere Zielformate (Kreuz-und-quer-Export, wie im Web-Konverter)
+        def _export_kml_from_menu():     _trigger_js("window.exportCurrent && window.exportCurrent('kml')")
+        def _export_kmz_from_menu():     _trigger_js("window.exportCurrent && window.exportCurrent('kmz')")
+        def _export_tcx_from_menu():     _trigger_js("window.exportCurrent && window.exportCurrent('tcx')")
+        def _export_geojson_from_menu(): _trigger_js("window.exportCurrent && window.exportCurrent('geojson')")
         # v0.9.288 — Topbar aufgeräumt → diese Aktionen leben jetzt im Menü.
         def _open_track_from_menu():    _trigger_js("window.pickGpx && window.pickGpx()")
         def _open_feedback_from_menu(): _trigger_js("window.openBugReportModal && window.openBugReportModal('Feedback (Menü)')")
@@ -4149,6 +4188,10 @@ def main() -> None:
         _menu_blog       = _strings.get("menu.blog", "Blog (reisezoom.com)")
         _menu_youtube    = _strings.get("menu.youtube", "YouTube-Kanal")
         _menu_export_gpx = _strings.get("menu.export_gpx", "Als GPX exportieren…")
+        _menu_export_kml = _strings.get("menu.export_kml", "Als KML exportieren…")
+        _menu_export_kmz = _strings.get("menu.export_kmz", "Als KMZ exportieren…")
+        _menu_export_tcx = _strings.get("menu.export_tcx", "Als TCX exportieren…")
+        _menu_export_geojson = _strings.get("menu.export_geojson", "Als GeoJSON exportieren…")
         _menu_export_csv = _strings.get("menu.export_csv", "Als CSV exportieren…")
 
         # v0.9.288 — aufgeräumte Menüstruktur (Marc): Dokument-Aktionen unter
@@ -4157,6 +4200,10 @@ def main() -> None:
             Menu(_menu_file, [
                 MenuAction(_menu_open_track, _open_track_from_menu),
                 MenuAction(_menu_export_gpx, _export_gpx_from_menu),
+                MenuAction(_menu_export_kml, _export_kml_from_menu),
+                MenuAction(_menu_export_kmz, _export_kmz_from_menu),
+                MenuAction(_menu_export_tcx, _export_tcx_from_menu),
+                MenuAction(_menu_export_geojson, _export_geojson_from_menu),
                 MenuAction(_menu_export_csv, _export_csv_from_menu),
                 MenuSeparator(),
                 MenuAction(_menu_settings, _open_settings_from_menu),

@@ -705,30 +705,25 @@ async function checkForUpdate(force = false) {
 }
 window.checkForUpdate = checkForUpdate;
 
-// v0.9.282 — „Als GPX exportieren" (Menü). Exportiert den aktuell geladenen
-// Track als echte .gpx — auch wenn er aus FIT/NMEA/KML/… importiert wurde.
-async function exportCurrentGpx() {
+// v0.9.317 — „Als <Format> exportieren" (Menü). Exportiert den aktuell geladenen
+// Track (auch aus FIT/NMEA/KML/… importiert) in jedes Zielformat:
+// GPX · KML · KMZ · TCX · GeoJSON · CSV. Nutzt core.trackio (geteilt mit dem Web).
+async function exportCurrent(fmt) {
+  fmt = (fmt || "gpx").toLowerCase();
   let res;
-  try { res = await api().export_current_gpx(); }
-  catch (_) { toast(t("export_gpx.error"), "warn"); return; }
+  try { res = await api().export_current(fmt); }
+  catch (_) { toast(t("export.error", "Export fehlgeschlagen."), "warn"); return; }
   if (!res) return;
   if (res.cancelled) return;
-  if (res.ok) toast(t("export_gpx.done"), "success");
-  else toast(res.error === "Kein Track geladen." ? t("export_gpx.no_track") : (res.error || t("export_gpx.error")), "warn");
+  if (res.ok) toast(t("export.done", "Exportiert") + " (" + (res.fmt || fmt).toUpperCase() + ")", "success");
+  else toast(res.error === "Kein Track geladen."
+        ? t("export.no_track", "Kein Track geladen.")
+        : (res.error || t("export.error", "Export fehlgeschlagen.")), "warn");
 }
-window.exportCurrentGpx = exportCurrentGpx;
-
-// v0.9.297 — „Als CSV exportieren" (Menü). Gleiche core.trackio-Logik wie das Web.
-async function exportCurrentCsv() {
-  let res;
-  try { res = await api().export_current_csv(); }
-  catch (_) { toast(t("export_csv.error"), "warn"); return; }
-  if (!res) return;
-  if (res.cancelled) return;
-  if (res.ok) toast(t("export_csv.done"), "success");
-  else toast(res.error === "Kein Track geladen." ? t("export_csv.no_track") : (res.error || t("export_csv.error")), "warn");
-}
-window.exportCurrentCsv = exportCurrentCsv;
+window.exportCurrent = exportCurrent;
+// Rückwärtskompatible Wrapper (alte Menü-Trigger / evtl. Aufrufer)
+window.exportCurrentGpx = () => exportCurrent("gpx");
+window.exportCurrentCsv = () => exportCurrent("csv");
 
 window.addEventListener("DOMContentLoaded", async () => {
   await whenApiReady();

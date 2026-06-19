@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Hinzugefügt
+- **Ruhige Kamera über 3D-Terrain (entkoppelte FreeCamera)** (v0.9.318): Neue Checkbox **„🎥 Ruhige Kamera (3D-Terrain)"** in der Kamera-Sektion (Default **AUS** = klassischer, gut getesteter Modus). Angehakt fliegt die Kamera bei Keyframe-Flügen nicht mehr auf dem Gelände reitend (= Berg-Hüpfen), sondern entkoppelt durch den 3D-Raum: pro Keyframe wird die exakte 3D-Kamera ausgelesen, dazwischen Position+Orientierung interpoliert → framing-treu an den Keyframes, ruhig dazwischen. Gilt in **Render UND Probelauf** (WYSIWYG). In der Sandbox bei 2× Überhöhung ~3× ruhiger; headless verifiziert + Marc-getestet (kein Hüpfen). **Ersetzt** den wirkungslosen „Kamera-Höhe halten"-Regler (raus). i18n de/en/es. **Noch offen:** Edge-Case-Prüfung (Welt-Anflug-Keyframes, Multi-Track), Tour-Map ist statisch (unberührt).
+
+## [0.9.317] – 2026-06-18
+### Geändert (Kamera-Höhe-Halten zurückgebaut — sauberer Neuanfang)
+- **Das „Kamera-Höhe halten" wurde komplett deaktiviert.** Die bisherige Free-Camera-Logik (Gelände-Tiefpass) hat über bergigem Gelände gehüpft — mehrere Reparaturversuche haben das nicht zuverlässig gelöst. Für einen sauberen Stand läuft die Kamera jetzt rein über `map.setCenter/setZoom/setPitch/setBearing` (No-Op statt Free-Camera-Eingriff), in Render **und** Probelauf identisch. Die Kamera reitet damit wieder vorhersehbar auf dem Gelände; das Höhen-Halten wird separat neu konzipiert. Der Slider „Kamera-Höhe halten" bleibt vorerst sichtbar, hat aber keine Wirkung.
+
+
+### Hinzugefügt
+- **Track in jedes Format exportieren (Menü „Datei").** Der aktuell geladene Track (egal ob aus GPX, FIT, KML, KMZ, TCX, GeoJSON oder NMEA importiert) lässt sich jetzt als **GPX · KML · KMZ · TCX · GeoJSON · CSV** speichern — nicht mehr nur GPX/CSV. Damit ist die Desktop-App ein vollwertiger Track-Konverter (gleiche Engine wie der Web-Konverter auf gps-studio.reisezoom.com). FIT/NMEA als Ziel bewusst weggelassen (Binär bzw. verlustbehaftet).
+- **`core/trackio`: Export-Writer für KML, KMZ, TCX, GeoJSON** (zusätzlich zu GPX/CSV), plus `export_payload()` (binär-sicher, gibt bytes+MIME — KMZ ist gezipptes KML) und `EXPORT_MIME`/`SUPPORTED_EXPORT`. Single source of truth für App **und** Web. Neue Bridge `export_current(fmt)`; Menü-Einträge „Als KML/KMZ/TCX/GeoJSON exportieren…".
+
 ## [0.9.316] – 2026-06-17
 ### Behoben (Nutzer-Bug)
 - **„Nach Update suchen" scheiterte mit „keine Verbindung".** Der Update-Check rief die GitHub-Releases-API über `urllib` mit dem System-SSL-Kontext auf — im gebündelten App-Build findet Pythons OpenSSL die CA-Zertifikate aber nicht, also starb jeder HTTPS-Aufruf mit `CERTIFICATE_VERIFY_FAILED`, was die App als „keine Verbindung" meldete (auf dem Entwickler-Mac fiel das nicht auf, bei Nutzern schon). Gleiche Wurzel wie der frühere Reiseroute-SSL-Fix: der Update-Check nutzt jetzt ebenfalls das gebündelte `certifi`-CA-Bundle. (v0.9.286 hatte nur die *Lesbarkeit* der Fehlermeldung behoben, nicht die Ursache.)

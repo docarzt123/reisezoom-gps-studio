@@ -466,15 +466,16 @@ function mountAnimator(body, headerActions, opts) {
             <span>🎥 ${t("animator.kf.enable_label")}</span>
           </label>
 
-          <!-- v0.9.311 (Marc) — Kamera-Höhe glätten: bei starker Neigung + 3D-Terrain
-               reitet die Kamera sonst 1:1 auf dem Gelände und hüpft hoch/runter, egal
-               ob Track-Folgen oder Keyframe-Schwenk. Gilt für ALLE Kamera-Modi → steht
-               daher ÜBER der Classic/KF-Umschaltung. Wirkt nur mit Terrain (sonst No-Op). -->
-          <div class="field" id="anim-follow-height-row" style="margin-bottom:10px;">
-            <label class="field-label">${t("animator.field.follow_height", "Kamera-Höhe halten")} <span class="label-val" id="anim-follow-height-v">75%</span></label>
-            <input type="range" id="anim-follow-height" min="0" max="100" step="5" value="75"
-                   title="${t("animator.field.follow_height_tip", "Gegen das Hoch-Runter-Hüpfen der Kamera über bergigem Gelände. 0 = aus, höher = ruhigere Flughöhe.")}">
-          </div>
+          <!-- v0.9.318 (Marc) — Ruhige Kamera (entkoppelte FreeCamera): gegen das
+               Hoch-Runter-Hüpfen über bergigem 3D-Terrain. Kamera reitet nicht mehr
+               aufs Gelände, sondern fliegt entkoppelt durch den 3D-Raum (framing-treu
+               an den Keyframes). Default AUS = alter, gut getesteter Modus. Gilt für
+               ALLE Kamera-Modi → steht über der Classic/KF-Umschaltung. -->
+          <label class="checkbox-row" id="anim-smooth-camera-row" style="margin-bottom:10px;"
+                 title="${t("animator.field.smooth_camera_tip", "Gegen das Hoch-Runter-Hüpfen der Kamera über bergigem 3D-Terrain. Aus = klassisch (Standard). An = ruhige, entkoppelte Kamera.")}">
+            <input type="checkbox" id="anim-smooth-camera">
+            <span>🎥 ${t("animator.field.smooth_camera", "Ruhige Kamera (3D-Terrain)")}</span>
+          </label>
 
           <!-- Classic-Modus (KF aus): statischer Pitch + lineare Rotation über das ganze Video.
                v0.8.17: zusätzlich Zoom-Stufe (absoluter Mapbox-Zoom; setzt direkt die Map)
@@ -1014,7 +1015,7 @@ function mountAnimator(body, headerActions, opts) {
     _hideClosest("anim-rot", ".field");                   // Rotation (Schwenk über die Anim)
     _hideClosest("anim-camera-follow", ".checkbox-row");  // Kamera folgt Track
     _hideSel("#anim-follow-inertia-row");                 // Kamera-Trägheit
-    _hideSel("#anim-follow-height-row");                  // Kamera-Höhe glätten
+    _hideSel("#anim-smooth-camera-row");                  // Ruhige Kamera (3D)
     _hideSel("#anim-cinematic-flyto-row");                // Cinematic-Flug
     // — v0.9.310: Standbild-Kamera-Regler (Ausrichtung/Randabstand/Pins) ZEIGEN.
     try { const sc = document.getElementById("anim-static-camera"); if (sc) sc.hidden = false; } catch (_) {}
@@ -1241,11 +1242,9 @@ function mountAnimator(body, headerActions, opts) {
   // setzt die Follow-Checkbox dann programmatisch (kein `change`-Event) → darum `onLoad: _fiSync`
   // an der Follow-Bindung, sonst bleibt der Regler nach Projektwechsel versteckt obwohl Follow an.
   const _fiLbl = () => { const v = document.getElementById("anim-follow-inertia-v"); const s = document.getElementById("anim-follow-inertia"); if (v && s) v.textContent = (parseInt(s.value, 10) || 0) + "%"; };
-  // v0.9.311 — Kamera-Höhe-Glätten-Regler: gleiche Show/Hide-Logik wie Trägheit (nur bei Follow).
-  const _fhLbl = () => { const v = document.getElementById("anim-follow-height-v"); const s = document.getElementById("anim-follow-height"); if (v && s) v.textContent = (parseInt(s.value, 10) || 0) + "%"; };
-  // v0.9.311 — „Kamera-Höhe glätten" ist NICHT mehr an Follow gekoppelt (gilt
-  // auch im Keyframe-Schwenk), steht außerhalb der Classic/KF-Bodies und bleibt
-  // immer sichtbar. _fiSync togglet nur noch die (Follow-spezifische) Trägheit.
+  // v0.9.318 — „Kamera-Höhe halten"-Regler ersetzt durch „Ruhige Kamera (3D)"-Checkbox
+  // (entkoppelte FreeCamera). Default AUS = alter Modus. _fiSync togglet nur noch die
+  // (Follow-spezifische) Trägheit.
   const _fiSync = () => {
     const cb = document.getElementById("anim-camera-follow");
     const row = document.getElementById("anim-follow-inertia-row");
@@ -1253,11 +1252,13 @@ function mountAnimator(body, headerActions, opts) {
   };
   bindSetting("anim-camera-follow", _MODKEY, "camera_follow_track", { type: "bool", onLoad: _fiSync, onChange: _fiSync });
   bindSetting("anim-follow-inertia", _MODKEY, "camera_follow_inertia_pct", { type: "number", onLoad: _fiLbl, onChange: _fiLbl });
-  bindSetting("anim-follow-height", _MODKEY, "follow_height_smooth_pct", { type: "number", onLoad: _fhLbl, onChange: _fhLbl });
+  // v0.9.318 — Ruhige Kamera (entkoppelte FreeCamera). Default AUS. Toggle aktualisiert
+  // den Probelauf (falls gerade einer läuft → neu starten, sonst egal).
+  const _smoothCamSync = () => { try { if (_previewRaf) runTimelinePreview(true); } catch (_) {} };
+  bindSetting("anim-smooth-camera", _MODKEY, "smooth_camera_3d", { type: "bool", onChange: _smoothCamSync });
   document.getElementById("anim-camera-follow")?.addEventListener("change", _fiSync);
   document.getElementById("anim-follow-inertia")?.addEventListener("input", _fiLbl);
-  document.getElementById("anim-follow-height")?.addEventListener("input", _fhLbl);
-  _fiSync(); _fiLbl(); _fhLbl();
+  _fiSync(); _fiLbl();
   bindSetting("anim-ex", _MODKEY, "exaggeration", { type: "number",
     onLoad: v => updateLabel("anim-ex-v", v, "×") });
   bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number" });
@@ -4208,6 +4209,79 @@ function mountAnimator(body, headerActions, opts) {
     let _follLastNow = 0;
     // v0.9.314 — Kamera-Höhe HALTEN: eingefrorene Gelände-Referenz pro Probelauf.
     let _camStabBase = null;
+    // v0.9.318 — Entkoppelte FreeCamera (WYSIWYG zum Render). Pro Keyframe-Anker
+    // die exakte 3D-Kamera (Position + Orientierung) auslesen, im step dazwischen
+    // Position linear + Orientierung per nlerp interpolieren → kein Berg-Hüpfen,
+    // framing-treu an den KFs. Spiegel von __camPrepFaithful/__camFaithful im Render.
+    let _faithCams = null, _useFaithful = false;
+    const _nlerpQ = (a, b, t) => {
+      const dot = a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
+      const bb = dot < 0 ? [-b[0], -b[1], -b[2], -b[3]] : b;
+      const r = [a[0]+(bb[0]-a[0])*t, a[1]+(bb[1]-a[1])*t, a[2]+(bb[2]-a[2])*t, a[3]+(bb[3]-a[3])*t];
+      const len = Math.hypot(r[0], r[1], r[2], r[3]) || 1;
+      return [r[0]/len, r[1]/len, r[2]/len, r[3]/len];
+    };
+    const _faithSeek = (tp) => {
+      const cams = _faithCams; if (!cams || !cams.length) return;
+      const fc = map.getFreeCameraOptions();
+      if (cams.length === 1) {
+        const c = cams[0];
+        fc.position = new mapboxgl.MercatorCoordinate(c.pos[0], c.pos[1], c.pos[2]);
+        fc.orientation = c.ori; map.setFreeCameraOptions(fc); return;
+      }
+      let i = 0; while (i < cams.length - 2 && tp > cams[i+1].t) i++;
+      const A = cams[i], B = cams[i+1], span = (B.t - A.t) || 1e-6;
+      const u = Math.max(0, Math.min(1, (tp - A.t) / span));
+      fc.position = new mapboxgl.MercatorCoordinate(
+        A.pos[0]+(B.pos[0]-A.pos[0])*u, A.pos[1]+(B.pos[1]-A.pos[1])*u, A.pos[2]+(B.pos[2]-A.pos[2])*u);
+      fc.orientation = _nlerpQ(A.ori, B.ori, u);
+      map.setFreeCameraOptions(fc);
+    };
+    try {
+      const _fProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      // v0.9.318 — Default AUS: nur an, wenn Checkbox/Setting explizit true.
+      const _fSmooth = _fProj?.[_MODKEY]?.smooth_camera_3d === true;
+      if (_fSmooth && map && map.getFreeCameraOptions && typeof mapboxgl !== "undefined") {
+        const _camKinds = { center: 1, pitch: 1, zoom: 1, bearing: 1, position: 1, rotation: 1 };
+        const _anchSet = new Set([0, 1]);
+        (events || []).forEach((e) => {
+          if (e && _camKinds[e.kind] && e.value != null) {
+            const a = Math.round((+e.anchor || 0) * 1e6) / 1e6;
+            if (a >= 0 && a <= 1) _anchSet.add(a);
+          }
+        });
+        const _anchors = Array.from(_anchSet).sort((x, y) => x - y);
+        if (_anchors.length >= 2) {
+          const _fCine = !_fProj?.[_MODKEY] || _fProj[_MODKEY].cinematic_flyto !== false;
+          const _fFollow = !!document.getElementById("anim-camera-follow")?.checked;
+          const _fStatic = (() => { try { const c = map.getCenter(); return [c.lng, c.lat]; } catch (_) { return [0, 0]; } })();
+          const _fti = introFraction(), _ftf = trackFraction(), _ftn = currentCoords.length;
+          const _ftrim = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
+          const _ftA = Math.max(0, Math.min(1, _ftrim.start ?? 0)), _ftB = Math.max(_ftA, Math.min(1, _ftrim.end ?? 1));
+          const _markerAt = (tp) => {
+            if (tp < _fti) return _ftA;
+            if (tp < _ftf) { const p = (tp - _fti) / Math.max(0.0001, _ftf - _fti); return _ftA + p * (_ftB - _ftA); }
+            return _ftB;
+          };
+          const _savedCam = map.getFreeCameraOptions();
+          _faithCams = _anchors.map((a) => {
+            const ip = interpolateCameraJs(events, a, defaultPitch, defaultRotation, undefined, _previewFitBase, { cinematic: _fCine });
+            const zm = _previewFitBase + (ip.zoom_offset || 0);
+            let ll;
+            if (ip.center) ll = ip.center.slice();
+            else if (_fFollow) {
+              const ci = Math.max(0, Math.min(_ftn - 1, Math.round(_markerAt(a) * (_ftn - 1))));
+              ll = currentCoords[ci] ? [currentCoords[ci][0], currentCoords[ci][1]] : _fStatic;
+            } else ll = _fStatic;
+            map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
+            const fc = map.getFreeCameraOptions(), o = fc.orientation;
+            return { t: a, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]] };
+          });
+          try { map.setFreeCameraOptions(_savedCam); } catch (_) {}
+          _useFaithful = true;
+        }
+      }
+    } catch (_) { _useFaithful = false; _faithCams = null; }
     const step = (now) => {
       const elapsed = (now - _previewT0) * _previewSpeed;
       // v0.9.53: Track-Position-Trim, fixe Render-Zeit (anim + hold).
@@ -4324,37 +4398,9 @@ function mountAnimator(body, headerActions, opts) {
       // (zoom <= 4: 100 %, 4..8: linear, >= 8: 0 %). Siehe scrubPreview.
       const _zfStep = Math.max(0, Math.min(1, (8 - _curZoom) / 4));
       if (jumpArgs.center) _seedLngAccum(jumpArgs.center[0]);  // v0.9.136
-      map.jumpTo(jumpArgs);
-      // v0.9.311 — Kamera-Höhe glätten im Probelauf (WYSIWYG zum Render): die
-      // Kamera reitet sonst 1:1 auf der Geländehöhe unter der Mitte → Hüpfen.
-      // Geländehöhe tiefpassen, Flughöhe (Offset) konstant halten, Blick = Mitte.
-      // Gilt für JEDE bewegte Mitte (Follow ODER Keyframe-Schwenk), nicht nur Follow.
-      // Welt-Ansicht (zoom < 8.5) ausgenommen.
-      // v0.9.314 — Kamera-Höhe HALTEN (WYSIWYG zum Render): 0 = Kamera reitet aufs
-      // Gelände (hüpft), 1 = feste Flughöhe (Gelände-Referenz beim ersten Track-Frame
-      // eingefroren). Gilt für jede bewegte Mitte; Welt-Ansicht (zoom<8.5) ausgenommen.
-      const _amt = (parseInt(document.getElementById("anim-follow-height")?.value, 10) || 0) / 100;
-      if (_amt > 0 && jumpArgs.center && _curZoom >= 8.5 && map.getTerrain && map.getTerrain()) {
-        try {
-          const cam = map.getFreeCameraOptions();
-          if (cam && cam.position) {
-            const camAlt = cam.position.toAltitude();
-            const terr = map.queryTerrainElevation(jumpArgs.center);
-            if (terr != null) {
-              const off = camAlt - terr;
-              // Referenz folgt dem Gelände nur SEHR langsam → kein Hüpfen, aber bei
-              // großen Anstiegen läuft die Kamera nicht in den Berg. _amt=1 ≈ feste Höhe.
-              if (_camStabBase == null) _camStabBase = terr;
-              else _camStabBase += (terr - _camStabBase) * 0.02;
-              const effTerr = terr * (1 - _amt) + _camStabBase * _amt;
-              const ll = cam.position.toLngLat();
-              cam.position = mapboxgl.MercatorCoordinate.fromLngLat(ll, effTerr + off);
-              cam.lookAtPoint(jumpArgs.center);
-              map.setFreeCameraOptions(cam);
-            }
-          }
-        } catch (_) {}
-      }
+      // v0.9.318 — entkoppelte FreeCamera (WYSIWYG zum Render) statt setCenter/-Zoom.
+      if (_useFaithful) { _faithSeek(timelineProgress); }
+      else { map.jumpTo(jumpArgs); }
       // Padding ebenfalls mit zoomFade gewichten, damit der Welt-Offset
       // genauso sanft ausläuft wie die Drehung.
       if (_zfStep > 0 && interp.position) {
@@ -8190,7 +8236,7 @@ function mountAnimator(body, headerActions, opts) {
       // Center pro Frame zum aktuellen Track-Punkt. Im KF-Modus per KF gesteuert.
       camera_follow_track: !!document.getElementById("anim-camera-follow")?.checked,
       camera_follow_inertia: (parseInt(document.getElementById("anim-follow-inertia")?.value, 10) || 0) / 100,
-      follow_height_smooth: (parseInt(document.getElementById("anim-follow-height")?.value, 10) || 0) / 100,
+      smooth_camera_3d: !!document.getElementById("anim-smooth-camera")?.checked,  // v0.9.318 entkoppelte FreeCamera
       show_overlays: !_isReiseroute && !!document.getElementById("anim-overlays")?.checked,
       line_color: document.getElementById("anim-color").value,
       // v0.9.157 — line_width für den Render auf Preview-Dicke hochskaliert

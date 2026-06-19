@@ -162,6 +162,10 @@ class AnimatorConfig:
     # 0 = aus (Kamera reitet 1:1 auf dem Gelände → hüpft bei starkem Pitch),
     # 0..1 = Tiefpass auf die Geländehöhe unter der Kamera-Mitte (1 = sehr ruhig).
     follow_height_smooth: float = 0.0
+    # v0.9.318 — Ruhige Kamera (entkoppelte FreeCamera) gegen Berg-Hüpfen. Default AUS.
+    # An = pro Keyframe die exakte 3D-Kamera auslesen + dazwischen interpolieren statt
+    # setCenter-aufs-Gelände. Ersetzt das tote follow_height_smooth.
+    smooth_camera_3d: bool = False
     # Timeline-Events (v0.7.0) — Liste von Dicts (kind/anchor/payload).
     # Aktuell unterstützt: kind="camera" mit anchor/pitch/bearing/zoom_offset.
     # Vorbereitet für: kind="photo" (v0.7.1), kind="text" (v0.7.2).
@@ -1332,30 +1336,53 @@ window.getInitialView = () => ({{
 // = Geländehöhe unter der Mitte + feste Flughöhe. Folgt die Kamera dem Track über
 // Berg und Tal, hüpft sie 1:1 mit dem Gelände. Wir tiefpassen die Geländehöhe und
 // halten die Flughöhe (off) konstant → kein Hüpfen, Blickpunkt bleibt der Track.
-window.__stabCamHeight = (lon, lat) => {{
-  const amt = window.__camStabAmt || 0;
-  if (amt <= 0) return;
-  if (!(map.getTerrain && map.getTerrain())) return;
-  if (map.getZoom() < 8.5) return;  // keine Höhen-Haltung in der Welt-Ansicht
-  try {{
-    const cam = map.getFreeCameraOptions();
-    if (!cam || !cam.position) return;
-    const camAlt = cam.position.toAltitude();
-    let terr = map.queryTerrainElevation([lon, lat]);
-    if (terr == null) return;
-    const off = camAlt - terr;                       // Flughöhe über Boden (Zoom/Pitch)
-    // Referenz folgt dem Gelände nur SEHR langsam (kein Hüpfen, aber bei großen
-    // Anstiegen läuft die Kamera nicht in den Berg). amt=1 ≈ feste Höhe.
-    if (window.__camStabBase == null) window.__camStabBase = terr;
-    else window.__camStabBase += (terr - window.__camStabBase) * 0.02;
-    const effTerr = terr * (1 - amt) + window.__camStabBase * amt;
-    const ll = cam.position.toLngLat();
-    cam.position = mapboxgl.MercatorCoordinate.fromLngLat(ll, effTerr + off);
-    cam.lookAtPoint([lon, lat]);
-    map.setFreeCameraOptions(cam);
-  }} catch (_e) {{}}
+// v0.9.317 — Höhe-Halten KOMPLETT deaktiviert (No-Op). Die alte Free-Camera-Logik
+// (Gelände-Tiefpass) hat über bergigem Gelände gehüpft und wurde für einen sauberen
+// Neuanfang entfernt. Die Kamera läuft jetzt rein über map.jumpTo/setCenter/setZoom/
+// setPitch (= reitet auf dem Gelände, vorhersehbar). Neukonzept folgt separat.
+window.__stabCamHeight = (lon, lat) => {{ return; }};
+
+// v0.9.318 — Entkoppelte FreeCamera gegen Berg-Hüpfen (in Sandbox validiert).
+// Pro Keyframe die exakte 3D-Kamera auslesen (Position Mercator-x/y/z + Orientierung-
+// Quaternion), zwischen Keyframes Position linear im 3D-Raum + Orientierung per nlerp
+// interpolieren → Kamera reitet NICHT mehr aufs Gelände, framing-treu an den KFs.
+window.__kfCams = null;
+window.__camPrepFaithful = (camList) => {{
+  window.__kfCams = camList.map((k) => {{
+    map.jumpTo({{ center: [k.lng, k.lat], zoom: k.zoom, pitch: k.pitch, bearing: k.bearing }});
+    try {{ if (map._render) map._render(); }} catch (e) {{}}
+    const fc = map.getFreeCameraOptions();
+    const o = fc.orientation;
+    return {{ t: k.t, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]] }};
+  }});
 }};
-window.advanceFrame = (idx, brg, lon, lat, zm, pt) => {{
+window.__nlerpQuat = (a, b, t) => {{
+  const dot = a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
+  const bb = dot < 0 ? [-b[0], -b[1], -b[2], -b[3]] : b;
+  const r = [a[0]+(bb[0]-a[0])*t, a[1]+(bb[1]-a[1])*t, a[2]+(bb[2]-a[2])*t, a[3]+(bb[3]-a[3])*t];
+  const len = Math.hypot(r[0], r[1], r[2], r[3]) || 1;
+  return [r[0]/len, r[1]/len, r[2]/len, r[3]/len];
+}};
+window.__camFaithful = (t) => {{
+  const cams = window.__kfCams;
+  if (!cams || cams.length === 0) return;
+  const fc = map.getFreeCameraOptions();
+  if (cams.length === 1) {{
+    const c = cams[0];
+    fc.position = new mapboxgl.MercatorCoordinate(c.pos[0], c.pos[1], c.pos[2]);
+    fc.orientation = c.ori; map.setFreeCameraOptions(fc); return;
+  }}
+  let i = 0;
+  while (i < cams.length - 2 && t > cams[i+1].t) i++;
+  const A = cams[i], B = cams[i+1];
+  const span = (B.t - A.t) || 1e-6;
+  const u = Math.max(0, Math.min(1, (t - A.t) / span));
+  const px = A.pos[0] + (B.pos[0]-A.pos[0])*u, py = A.pos[1] + (B.pos[1]-A.pos[1])*u, pz = A.pos[2] + (B.pos[2]-A.pos[2])*u;
+  fc.position = new mapboxgl.MercatorCoordinate(px, py, pz);
+  fc.orientation = window.__nlerpQuat(A.ori, B.ori, u);
+  map.setFreeCameraOptions(fc);
+}};
+window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam) => {{
   const safe = Math.max(0, Math.min(idx, totalPoints-1));
   // v0.9.55: optional Pre-Trim-Portion (coords[0..TRIM_START_IDX-1]) ausblenden.
   const sliceStart = SHOW_PRETRIM_TRACK ? 0 : Math.min(TRIM_START_IDX, safe);
@@ -1365,10 +1392,14 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt) => {{
   }}
   const head = coords[coords.length-1] || allCoords[0];
   map.getSource('dot').setData({{type:'Feature',geometry:{{type:'Point',coordinates:head}}}});
-  map.setBearing(brg); map.setCenter([lon,lat]);
-  if (zm !== undefined) map.setZoom(zm);
-  if (pt !== undefined) map.setPitch(pt);
-  __stabCamHeight(lon, lat);
+  // v0.9.318 — setCam===false: Kamera NICHT hier setzen (entkoppelte FreeCamera
+  // übernimmt das via __camFaithful). Linie/Punkt/Overlays laufen trotzdem.
+  if (setCam !== false) {{
+    map.setBearing(brg); map.setCenter([lon,lat]);
+    if (zm !== undefined) map.setZoom(zm);
+    if (pt !== undefined) map.setPitch(pt);
+    __stabCamHeight(lon, lat);
+  }}
   updateOverlays(safe);
   // v0.9.79 (Phase 2) — Foto-Pins: Filter auf aktuelle Marker-Position.
   // markerAnchor = safe/(totalPoints-1) ist die Position im realen Track,
@@ -2735,6 +2766,56 @@ async def render(
             _foll_k = max(0.005, (1.0 - _foll_inertia) ** 2)
             _foll_lon = None
             _foll_lat = None
+            # v0.9.318 — Entkoppelte FreeCamera (gegen Berg-Hüpfen, Sandbox-validiert):
+            # pro Keyframe-Anker die exakte 3D-Kamera (Pos+Orientierung) auslesen, im
+            # Loop dazwischen interpolieren. Klassik/<2 KFs → unberührt (alter Pfad).
+            _smooth_cam = bool(getattr(cfg, "smooth_camera_3d", False)) and os.environ.get("RZ_NOFAITHFUL") != "1"
+            _use_faithful = False
+            if _smooth_cam and total_frames > 2:
+                _cam_kinds = ("center", "pitch", "zoom", "bearing", "position", "rotation")
+                _anchors = {0.0, 1.0}
+                for _ev in (cfg.timeline_events or []):
+                    if _ev.get("kind") in _cam_kinds and _ev.get("value") is not None:
+                        try:
+                            _anchors.add(round(float(_ev.get("anchor", 0.0)), 6))
+                        except Exception:
+                            pass
+                _anchors = sorted(a for a in _anchors if 0.0 <= a <= 1.0)
+                if len(_anchors) >= 2:
+                    def _idx_at_frame(_fr):
+                        if _fr < intro_frames:
+                            return _start_idx
+                        if _fr < intro_frames + anim_frames:
+                            _rel = int((_fr - intro_frames) * coords_per_frame)
+                            return min(_start_idx + _rel, _end_idx)
+                        return _end_idx
+                    _kf_cam_list = []
+                    for _a in _anchors:
+                        _fr = round(_a * (total_frames - 1))
+                        _pp, _bp, _zop, _kc, _kpos, _kr = _timeline.interpolate_properties(
+                            cfg.timeline_events, _a,
+                            default_pitch=cfg.pitch, default_rotation=cfg.rotation,
+                            fit_zoom_base=zoom, cinematic_flyto=cfg.cinematic_flyto,
+                            track_point_at=_track_point_at, zoom_abs_shift=_zoom_abs_shift,
+                        )
+                        _pf = _pp if _pp is not None else cfg.pitch
+                        _bf = _bp if _bp is not None else (-10.0 + _a * cfg.rotation)
+                        _zo = max(-22.0, min(22.0, _zop if _zop is not None else 0.0))
+                        _idx = _idx_at_frame(_fr)
+                        if _kc:
+                            _lo, _la = _kc[0], _kc[1]
+                        elif cfg.camera_follow_track and _idx < len(points):
+                            _lo, _la = points[_idx].lon, points[_idx].lat
+                        else:
+                            _lo, _la = center[0], center[1]
+                        _kf_cam_list.append({
+                            "t": _a, "lng": _lo, "lat": _la,
+                            "zoom": zoom + _zo, "pitch": _pf, "bearing": _bf,
+                        })
+                    await page.evaluate("(cams)=>window.__camPrepFaithful(cams)", _kf_cam_list)
+                    _use_faithful = True
+                    if _rt:
+                        _log.info("🎥 entkoppelte FreeCamera aktiv (%d Keyframes)", len(_kf_cam_list))
             for frame in range(total_frames):
                 # Cancel-Check VOR jeder teuren Frame-Operation
                 check_cancel()
@@ -2848,9 +2929,16 @@ async def render(
                     _last_position_applied = (0, 0)
 
                 _rt_t = time.perf_counter() if _rt else 0.0
-                await page.evaluate(
-                    f"window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f})"
-                )
+                if _use_faithful:
+                    # Daten (Linie/Punkt/Overlays) ohne Kamera, dann entkoppelte FreeCamera.
+                    await page.evaluate(
+                        f"window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f}, false)"
+                    )
+                    await page.evaluate(f"window.__camFaithful({timeline_progress})")
+                else:
+                    await page.evaluate(
+                        f"window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f})"
+                    )
                 # v0.9.228 — Overlay-Zeitfenster (Nutzer): Box pro Video-Sekunde
                 # ein-/ausblenden. Nur wenn überhaupt ein Fenster gesetzt ist.
                 if _ov_timed:

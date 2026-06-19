@@ -83,8 +83,143 @@ def to_csv_string(points) -> str:
     return buf.getvalue()
 
 
+def to_geojson_string(points, name: Optional[str] = None) -> str:
+    """Punkte als GeoJSON FeatureCollection mit einer LineString-Feature.
+    Koordinaten [lon, lat(, ele)]; Zeiten (falls vorhanden) als `coordTimes`."""
+    import json
+    coords = []
+    times = []
+    for p in points:
+        lat = _get(p, "lat"); lon = _get(p, "lon")
+        if lat is None or lon is None:
+            continue
+        c = [round(float(lon), 7), round(float(lat), 7)]
+        ele = _get(p, "ele")
+        if ele is not None:
+            try:
+                c.append(round(float(ele), 2))
+            except (TypeError, ValueError):
+                pass
+        coords.append(c)
+        dt = _parse_iso(_get(p, "time"))
+        times.append(dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if dt else None)
+    props = {"name": name or "Track"}
+    if any(times):
+        props["coordTimes"] = times
+    fc = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": props,
+         "geometry": {"type": "LineString", "coordinates": coords}}]}
+    return json.dumps(fc, ensure_ascii=False)
+
+
+def to_kml_string(points, name: Optional[str] = None) -> str:
+    """Punkte als KML 2.2 (ein Placemark mit LineString)."""
+    nm = _sx.escape(name) if name else "Track"
+    coords = []
+    for p in points:
+        lat = _get(p, "lat"); lon = _get(p, "lon")
+        if lat is None or lon is None:
+            continue
+        ele = _get(p, "ele")
+        try:
+            e = float(ele) if ele is not None else 0.0
+        except (TypeError, ValueError):
+            e = 0.0
+        coords.append(f"{float(lon):.7f},{float(lat):.7f},{e:.2f}")
+    out = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>',
+        f"<name>{nm}</name>",
+        f"<Placemark><name>{nm}</name><LineString><tessellate>1</tessellate>",
+        "<coordinates>" + " ".join(coords) + "</coordinates>",
+        "</LineString></Placemark>",
+        "</Document></kml>",
+    ]
+    return "\n".join(out) + "\n"
+
+
+def to_kmz_bytes(points, name: Optional[str] = None) -> bytes:
+    """KMZ = gezipptes KML (doc.kml)."""
+    import zipfile
+    kml = to_kml_string(points, name)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("doc.kml", kml)
+    return buf.getvalue()
+
+
+def to_tcx_string(points, name: Optional[str] = None) -> str:
+    """Punkte als Garmin TCX (Activity). TCX braucht je Trackpoint eine Zeit —
+    fehlende Zeiten werden sekundenweise ab vorigem/Basis aufgefüllt."""
+    from datetime import timedelta
+    pts = [p for p in points if _get(p, "lat") is not None and _get(p, "lon") is not None]
+    raw = [_parse_iso(_get(p, "time")) for p in pts]
+    if not any(raw):
+        b = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        times = [b + timedelta(seconds=i) for i in range(len(pts))]
+    else:
+        times = []
+        last = None
+        for dt in raw:
+            if dt is None:
+                dt = (last + timedelta(seconds=1)) if last else datetime(2020, 1, 1, tzinfo=timezone.utc)
+            times.append(dt); last = dt
+    fz = lambda dt: dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    sid = fz(times[0]) if times else "2020-01-01T00:00:00Z"
+    out = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">',
+        '<Activities><Activity Sport="Other">',
+        f"<Id>{sid}</Id>",
+        f'<Lap StartTime="{sid}"><Track>',
+    ]
+    for p, dt in zip(pts, times):
+        lat = float(_get(p, "lat")); lon = float(_get(p, "lon")); ele = _get(p, "ele")
+        seg = ["<Trackpoint>", f"<Time>{fz(dt)}</Time>",
+               f"<Position><LatitudeDegrees>{lat:.7f}</LatitudeDegrees>"
+               f"<LongitudeDegrees>{lon:.7f}</LongitudeDegrees></Position>"]
+        if ele is not None:
+            try:
+                seg.append(f"<AltitudeMeters>{float(ele):.2f}</AltitudeMeters>")
+            except (TypeError, ValueError):
+                pass
+        seg.append("</Trackpoint>")
+        out.append("".join(seg))
+    out += ["</Track></Lap></Activity></Activities>", "</TrainingCenterDatabase>"]
+    return "\n".join(out) + "\n"
+
+
+# fmt → MIME-Typ. Single source of truth für App + Web-Export.
+EXPORT_MIME = {
+    "gpx": "application/gpx+xml",
+    "csv": "text/csv",
+    "geojson": "application/geo+json",
+    "kml": "application/vnd.google-earth.kml+xml",
+    "kmz": "application/vnd.google-earth.kmz",
+    "tcx": "application/vnd.garmin.tcx+xml",
+}
+SUPPORTED_EXPORT = tuple(EXPORT_MIME.keys())
+
+
 def to_string(points, fmt: str = "gpx", name: Optional[str] = None) -> str:
     fmt = (fmt or "gpx").lower()
     if fmt == "csv":
         return to_csv_string(points)
+    if fmt == "geojson":
+        return to_geojson_string(points, name)
+    if fmt == "kml":
+        return to_kml_string(points, name)
+    if fmt == "tcx":
+        return to_tcx_string(points, name)
     return to_gpx_string(points, name)
+
+
+def export_payload(points, fmt: str = "gpx", name: Optional[str] = None):
+    """Binär-sicherer Export: gibt (bytes, mime) zurück. KMZ ist gezippt,
+    alle anderen sind UTF-8-Text."""
+    fmt = (fmt or "gpx").lower()
+    if fmt not in EXPORT_MIME:
+        fmt = "gpx"
+    if fmt == "kmz":
+        return to_kmz_bytes(points, name), EXPORT_MIME["kmz"]
+    return to_string(points, fmt, name).encode("utf-8"), EXPORT_MIME[fmt]
