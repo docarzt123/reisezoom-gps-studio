@@ -2264,6 +2264,19 @@ body.is-rendering .modal-overlay * {
   cursor: pointer;
 }
 .update-banner-dl:hover { background: var(--accent-dim); }
+/* v0.9.319 — „Was ist neu?" sekundärer Button (Ghost), damit „Herunterladen" Haupt-CTA bleibt. */
+.update-banner-changelog {
+  flex: none;
+  padding: 5px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+.update-banner-changelog:hover { background: rgba(255,255,255,0.08); }
 .update-banner-x {
   flex: none;
   width: 24px;

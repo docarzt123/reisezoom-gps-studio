@@ -944,6 +944,7 @@
   "gpxinspect.routed": "Routed A→B along roads: ",
   "update.banner": "A new version <b>v{v}</b> is available.",
   "update.download": "Download",
+  "update.whatsnew": "What's new?",
   "update.check": "Check for updates",
   "update.checking": "Checking…",
   "update.uptodate": "You're on the latest version (v{v}).",

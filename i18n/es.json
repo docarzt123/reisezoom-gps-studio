@@ -944,6 +944,7 @@
   "gpxinspect.routed": "Ruta A→B ajustada a las calles: ",
   "update.banner": "Hay una nueva versión <b>v{v}</b> disponible.",
   "update.download": "Descargar",
+  "update.whatsnew": "¿Qué hay de nuevo?",
   "update.check": "Buscar actualizaciones",
   "update.checking": "Buscando…",
   "update.uptodate": "Tienes la versión más reciente (v{v}).",

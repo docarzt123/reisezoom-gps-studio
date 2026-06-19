@@ -944,6 +944,7 @@
   "gpxinspect.routed": "Strecke A→B auf die Straße gelegt: ",
   "update.banner": "Neue Version <b>v{v}</b> ist verfügbar.",
   "update.download": "Herunterladen",
+  "update.whatsnew": "Was ist neu?",
   "update.check": "Nach Updates suchen",
   "update.checking": "Suche…",
   "update.uptodate": "Du hast die aktuelle Version (v{v}).",

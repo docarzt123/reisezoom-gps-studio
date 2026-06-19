@@ -691,6 +691,19 @@ async function checkForUpdate(force = false) {
         dl.textContent = t("update.download");
         dl.onclick = () => { try { api().open_url(res.download_url || res.page_url); } catch (_) {} };
       }
+      // v0.9.319 — „Was ist neu?": öffnet den User-Changelog, gefiltert auf die
+      // Versionen NEUER als die eigene (?since=<current>).
+      const cl = document.getElementById("update-banner-changelog");
+      if (cl) {
+        cl.textContent = t("update.whatsnew", "Was ist neu?");
+        cl.onclick = () => {
+          try {
+            const base = res.changelog_url || "https://reisezoom.com/downloads/gps-studio/latest/changelog.html";
+            const url = base + (base.indexOf("?") >= 0 ? "&" : "?") + "since=" + encodeURIComponent(res.current || "");
+            api().open_url(url);
+          } catch (_) {}
+        };
+      }
       const x = document.getElementById("update-banner-close");
       if (x) x.onclick = () => {
         banner.hidden = true;

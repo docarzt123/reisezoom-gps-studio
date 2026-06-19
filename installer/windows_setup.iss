@@ -46,6 +46,10 @@ AppSupportURL={#AppURL}
 AppUpdatesURL={#AppURL}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
+; Hinweis: DisableDirPage ist bewusst NICHT gesetzt → Inno-Default `auto`. Das
+; zeigt die Ordner-Auswahl (Laufwerk/Pfad/Ordner) bei einer NEUINSTALLATION und
+; blendet sie beim UPDATE aus (behält automatisch den vorhandenen Installationsort).
+; Genau dieses Verhalten ist gewünscht (Marc 2026-06-19).
 DisableProgramGroupPage=yes
 LicenseFile=
 ; Privilegien:

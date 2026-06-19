@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.319] – 2026-06-19
+
+### Hinzugefügt
+- **„Was ist neu?" im Update-Hinweis.** Wenn die App auf eine neuere Version hinweist, gibt's jetzt neben „Herunterladen" einen Button **„Was ist neu?"** → öffnet den User-Changelog im Browser, **gefiltert auf die Versionen neuer als die eigene** (`?since=<aktuelle Version>`). So sieht man genau, was das Update bringt. Umgesetzt: Bridge `check_for_update` liefert `changelog_url`; `docs/CHANGELOG.html` blendet per JS die Versionen ≤ `since` aus und passt den Kopf an („Das alles erwartet dich beim Update von Version X"). Kein Selbst-Update (bewusst), nur Hinweis + Überblick. i18n de/en/es (`update.whatsnew`).
+
 ## [0.9.318] – 2026-06-19
 
 ### Hinzugefügt

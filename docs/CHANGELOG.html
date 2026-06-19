@@ -112,15 +112,16 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.318</span>
+    <span class="version-num">v0.9.319</span>
     <span class="version-date">19. Juni 2026</span>
     <span class="version-badge">Aktuell</span>
   </div>
-  <p class="version-tagline">Track in jedes Format exportieren — und ein neuer Modus für ruhige Kamerafahrten über bergigem 3D-Gelände.</p>
+  <p class="version-tagline">Track in jedes Format exportieren, ein neuer Modus für ruhige Kamerafahrten über bergigem 3D-Gelände — und ein „Was ist neu?" direkt im Update-Hinweis.</p>
 
   <div class="highlight">
     <strong>💾 Track in jedes Format exportieren</strong> — der geladene Track (egal woher importiert: GPX, FIT, KML, …) lässt sich jetzt über das Menü „Datei" als <strong>GPX · KML · KMZ · TCX · GeoJSON · CSV</strong> speichern. Damit ist die App auch ein vollwertiger Track-Konverter (gleiche Engine wie der Web-Konverter).<br><br>
-    <strong>🎥 Ruhige Kamera (3D-Terrain)</strong> — neue Option in der Kamera-Sektion (standardmäßig aus). Angehakt fliegt die Kamera bei Keyframe-Fahrten nicht mehr auf den Bergen reitend (= Hoch-Runter-Hüpfen), sondern ruhig und entkoppelt durch den Raum wie eine Drohne — an deinen Keyframes trifft sie exakt dein Bild. Bei Hüpf-Problemen über bergigem Gelände einfach einschalten. <em>(Ersetzt den alten „Kamera-Höhe halten"-Regler.)</em>
+    <strong>🎥 Ruhige Kamera (3D-Terrain)</strong> — neue Option in der Kamera-Sektion (standardmäßig aus). Angehakt fliegt die Kamera bei Keyframe-Fahrten nicht mehr auf den Bergen reitend (= Hoch-Runter-Hüpfen), sondern ruhig und entkoppelt durch den Raum wie eine Drohne — an deinen Keyframes trifft sie exakt dein Bild. Bei Hüpf-Problemen über bergigem Gelände einfach einschalten. <em>(Ersetzt den alten „Kamera-Höhe halten"-Regler.)</em><br><br>
+    <strong>🆕 „Was ist neu?" im Update-Hinweis</strong> — meldet die App eine neue Version, zeigt ein Klick auf „Was ist neu?" genau die Änderungen, die seit <em>deiner</em> Version dazugekommen sind.
   </div>
 </article>
 
@@ -1025,5 +1026,34 @@
   </div>
 </footer>
 
+<!-- v0.9.319 — „Was ist neu?": Wird die Seite mit ?since=X.Y.Z geöffnet (aus dem
+     Update-Hinweis der App), werden nur die Versionen NEUER als die eigene gezeigt. -->
+<script>
+(function () {
+  try {
+    var since = new URLSearchParams(location.search).get("since");
+    if (!since) return;
+    function ver(s){ var m=(s||"").match(/(\d+)\.(\d+)\.(\d+)/); return m?[+m[1],+m[2],+m[3]]:null; }
+    function cmp(a,b){ for(var i=0;i<3;i++){ if(a[i]!==b[i]) return a[i]-b[i]; } return 0; }
+    var sv = ver(since); if (!sv) return;
+    var shown = 0;
+    document.querySelectorAll("article.version").forEach(function(a){
+      var n = a.querySelector(".version-num");
+      var av = ver(n ? n.textContent : "");
+      if (av && cmp(av, sv) > 0) { shown++; }
+      else { a.style.display = "none"; }
+    });
+    var h1 = document.querySelector(".page-head h1");
+    var lead = document.querySelector(".page-head .lead");
+    if (shown > 0) {
+      if (h1) h1.textContent = "Was ist neu?";
+      if (lead) lead.innerHTML = "Das alles erwartet dich beim Update von Version <strong>" + since + "</strong> — " + shown + (shown === 1 ? " Version" : " Versionen") + " neuer.";
+    } else {
+      if (h1) h1.textContent = "Alles aktuell";
+      if (lead) lead.innerHTML = "Du hast bereits die neueste Version (<strong>" + since + "</strong>). 🎉";
+    }
+  } catch (e) {}
+})();
+</script>
 </body>
 </html>

@@ -126,7 +126,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.318"
+APP_VERSION = "0.9.319"
 
 # v0.9.280 (Nutzer-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
@@ -139,6 +139,9 @@ _UPDATE_SHORTLINKS = {
     "darwin": "https://s.reisezoom.com/gps-studio-mac",
     "win32": "https://s.reisezoom.com/gps-studio-win",
 }
+# v0.9.319 — „Was ist neu?": User-Changelog (deployed neben den Downloads). Mit
+# ?since=<version> filtert die Seite auf die Versionen NEUER als die eigene.
+UPDATE_CHANGELOG_URL = "https://reisezoom.com/downloads/gps-studio/latest/changelog.html"
 # Netzwerk-Abfrage höchstens alle 12 h (sonst Cache aus Settings), außer force.
 UPDATE_CHECK_THROTTLE_S = 12 * 3600
 
@@ -814,6 +817,7 @@ class Api:
             "latest": latest,
             "download_url": dl_url,
             "page_url": page_url,
+            "changelog_url": UPDATE_CHANGELOG_URL,  # v0.9.319 — „Was ist neu?"
             "dismissed": dismissed,
             "checked_network": do_network,
         }
