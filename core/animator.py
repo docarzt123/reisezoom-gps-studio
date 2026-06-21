@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import bisect
 import io
 import json
 import logging
@@ -398,10 +399,16 @@ OVERLAY_TOTAL_FIELDS = [
      "py": lambda ts: _format_km(ts["distance_m"])},
     {"id": "duration",   "requires": "time", "label": "Zeit",
      "py": lambda ts: _format_dur(ts["duration_s"])},
+    {"id": "moving_time", "requires": "time", "label": "Fahrzeit",
+     "py": lambda ts: _format_dur(ts.get("moving_time_s") or ts.get("duration_s") or 0)},
     {"id": "avg_speed",  "requires": "time", "label": "&Oslash; Tempo",
-     "py": lambda ts: (f'{ts["distance_m"] / ts["duration_s"] * 3.6:.0f} km/h' if ts.get("duration_s") else "—")},
+     # v0.9.323 (Nutzer-Feedback): Ø aus FAHRZEIT (ohne Pausen), nicht aus Gesamtzeit. 1 Nachkomma.
+     "py": lambda ts: (f'{ts["distance_m"] / (ts.get("moving_time_s") or ts["duration_s"]) * 3.6:.1f} km/h' if (ts.get("moving_time_s") or ts.get("duration_s")) else "—")},
+    {"id": "avg_speed_total", "requires": "time", "label": "&Oslash; Tempo (gesamt)",
+     # Ø aus GESAMTZEIT (inkl. Pausen) — wählbar als zweites Feld.
+     "py": lambda ts: (f'{ts["distance_m"] / ts["duration_s"] * 3.6:.1f} km/h' if ts.get("duration_s") else "—")},
     {"id": "max_speed",  "requires": "time", "label": "Max. Tempo",
-     "py": lambda ts: f'{ts.get("max_speed_kmh", 0):.0f} km/h'},
+     "py": lambda ts: f'{ts.get("max_speed_kmh", 0):.1f} km/h'},
     {"id": "elev_gain",  "requires": "ele",  "label": "Bergauf",
      "py": lambda ts: f'&uarr; {ts["ascent_m"]:.0f} m'},
     {"id": "elev_loss",  "requires": "ele",  "label": "Bergab",
@@ -474,25 +481,74 @@ def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool) -> str:
     return "\n".join(lines)
 
 
-def _overlay_compute_speed_grade(cum_dist, cum_time, eles, has_time: bool, has_ele: bool):
-    """Pro-Punkt-Geschwindigkeit (km/h) und Steigung (%) mit kleinem Glättungsfenster."""
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Luftlinie zweier Lat/Lon-Punkte in Metern."""
+    R = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * R * math.asin(min(1.0, math.sqrt(a)))
+
+
+def _overlay_compute_speed_grade(points, cum_dist, cum_time, eles, has_time: bool, has_ele: bool):
+    """Pro-Punkt-Tempo (km/h, geglättet für Live-Anzeige) + Steigung (%) +
+    Bewegungszeit (Fahrzeit) + echtes Max-Tempo.
+    v0.9.323 — Pausenerkennung über gleitendes Zeitfenster (Nutzer-Feedback): ein
+    Segment zählt nur dann zur Fahrzeit, wenn im ±60-s-Fenster NETTO (Luftlinie
+    Anfang→Ende) echter Fortschritt gemacht wurde. So zählt langsames Steil-Gehen
+    (~1 km/h, aber stetig) als Bewegung, nur echte Standzeiten als Pause."""
     n = len(cum_dist)
-    speed = [0.0] * n
+    speed = [0.0] * n   # ±2-geglättet → ruhige Live-Anzeige
     grade = [0.0] * n
+    moving_time_s = 0.0
+    max_speed_kmh = 0.0
     W = 2
+    HW = 60.0             # halbes Zeitfenster (±60 s) für die Pausenerkennung
+    FLOOR_MS = 0.6 / 3.6  # netto < 0,6 km/h Fortschritt im Fenster = Pause
+    SPIKE_CAP_MS = 33.3   # ~120 km/h: darüber GPS-Ausreißer, nicht fürs Max
     if has_time and n > 1:
         for i in range(n):
             a, b = max(0, i - W), min(n - 1, i + W)
             dd = cum_dist[b] - cum_dist[a]
             dt = cum_time[b] - cum_time[a]
             speed[i] = (dd / dt * 3.6) if dt > 0 else 0.0
+        # Max-Tempo: ±1-Fenster (~2 s) → einzelne GPS-Spikes raus, echte Peaks bleiben.
+        for i in range(n):
+            a, b = max(0, i - 1), min(n - 1, i + 1)
+            dt = cum_time[b] - cum_time[a]
+            if dt <= 0:
+                continue
+            v = (cum_dist[b] - cum_dist[a]) / dt  # m/s
+            if v <= SPIKE_CAP_MS:
+                max_speed_kmh = max(max_speed_kmh, v * 3.6)
+        # Fahrzeit: Fenster-Methode (Netto-Fortschritt). Fallback auf Roh-Segment-
+        # Tempo, falls keine Koordinaten vorliegen oder nicht ausgerichtet.
+        use_window = bool(points) and len(points) == n
+        for i in range(1, n):
+            dt_seg = cum_time[i] - cum_time[i - 1]
+            if dt_seg <= 0:
+                continue
+            if use_window:
+                mid = 0.5 * (cum_time[i] + cum_time[i - 1])
+                aa = max(0, min(bisect.bisect_left(cum_time, mid - HW), i - 1))
+                bb = min(n - 1, max(bisect.bisect_right(cum_time, mid + HW) - 1, i))
+                wdt = cum_time[bb] - cum_time[aa]
+                if wdt <= 0:
+                    continue
+                net = _haversine_m(points[aa].lat, points[aa].lon, points[bb].lat, points[bb].lon)
+                moving = (net / wdt) >= FLOOR_MS
+            else:
+                moving = ((cum_dist[i] - cum_dist[i - 1]) / dt_seg) >= FLOOR_MS
+            if moving:
+                moving_time_s += dt_seg
     if has_ele and n > 1 and eles:
         for i in range(n):
             a, b = max(0, i - W), min(n - 1, i + W)
             dd = cum_dist[b] - cum_dist[a]
             dh = eles[b] - eles[a]
             grade[i] = (dh / dd * 100.0) if dd > 0 else 0.0
-    return speed, grade
+    return speed, grade, moving_time_s, max_speed_kmh
 
 
 def _overlay_font_link(cfg: "AnimatorConfig") -> str:
@@ -902,12 +958,13 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # irreführenden Null-Werten + leeres Höhenprofil-Overlay.
     has_time = bool(total_stats.get('duration_s'))
     has_ele = total_stats.get('ele_max') is not None and total_stats.get('ele_min') is not None
-    # v0.9.321 — Stats-Editor: Pro-Punkt-Speed/Grade + Max-Speed für die Felder.
-    speed_kmh, grade_pct = _overlay_compute_speed_grade(cum_dist, cum_time, eles, has_time, has_ele)
+    # v0.9.321/323 — Stats-Editor: Pro-Punkt-Speed/Grade + Fahrzeit + echtes Max-Tempo.
+    speed_kmh, grade_pct, _moving_s, _max_kmh = _overlay_compute_speed_grade(ds_points, cum_dist, cum_time, eles, has_time, has_ele)
     speed_json = json.dumps([round(x, 2) for x in speed_kmh])
     grade_json = json.dumps([round(x, 2) for x in grade_pct])
     total_stats = dict(total_stats)
-    total_stats["max_speed_kmh"] = (max(speed_kmh) if (has_time and speed_kmh) else 0.0)
+    total_stats["max_speed_kmh"] = (_max_kmh if has_time else 0.0)
+    total_stats["moving_time_s"] = (_moving_s if has_time else 0.0)
     live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
@@ -1687,12 +1744,13 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     # irreführenden Null-Werten + leeres Höhenprofil-Overlay.
     has_time = bool(total_stats.get('duration_s'))
     has_ele = total_stats.get('ele_max') is not None and total_stats.get('ele_min') is not None
-    # v0.9.321 — Stats-Editor: Pro-Punkt-Speed/Grade + Max-Speed für die Felder.
-    speed_kmh, grade_pct = _overlay_compute_speed_grade(cum_dist, cum_time, eles, has_time, has_ele)
+    # v0.9.321/323 — Stats-Editor: Pro-Punkt-Speed/Grade + Fahrzeit + echtes Max-Tempo.
+    speed_kmh, grade_pct, _moving_s, _max_kmh = _overlay_compute_speed_grade(ds_points, cum_dist, cum_time, eles, has_time, has_ele)
     speed_json = json.dumps([round(x, 2) for x in speed_kmh])
     grade_json = json.dumps([round(x, 2) for x in grade_pct])
     total_stats = dict(total_stats)
-    total_stats["max_speed_kmh"] = (max(speed_kmh) if (has_time and speed_kmh) else 0.0)
+    total_stats["max_speed_kmh"] = (_max_kmh if has_time else 0.0)
+    total_stats["moving_time_s"] = (_moving_s if has_time else 0.0)
     live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:

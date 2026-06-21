@@ -998,5 +998,7 @@
   "animator.overlay.text_color": "Text colour",
   "animator.overlay.bg_color": "Background",
   "animator.overlay.bg_opacity": "Background opacity",
-  "animator.overlay.reorder": "Drag to reorder"
+  "animator.overlay.reorder": "Drag to reorder",
+  "animator.statsfield.moving_time": "Moving time",
+  "animator.statsfield.avg_speed_total": "Avg speed (total)"
 }

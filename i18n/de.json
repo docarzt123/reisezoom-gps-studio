@@ -998,5 +998,7 @@
   "animator.overlay.text_color": "Textfarbe",
   "animator.overlay.bg_color": "Hintergrund",
   "animator.overlay.bg_opacity": "Deckkraft Hintergrund",
-  "animator.overlay.reorder": "Ziehen zum Sortieren"
+  "animator.overlay.reorder": "Ziehen zum Sortieren",
+  "animator.statsfield.moving_time": "Fahrzeit",
+  "animator.statsfield.avg_speed_total": "Ø Tempo (gesamt)"
 }

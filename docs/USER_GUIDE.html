@@ -308,6 +308,7 @@ python app.py</code></pre>
 </ol>
 <blockquote><strong>Anreise/Route animieren?</strong> Dafür gibt es seit v0.9.205 ein eigenes Modul <strong>🛣 Reiseroute</strong> (Start/Ziel → berechnete Strecke). Siehe Kapitel 4.</blockquote>
 <h3 id="einstellungen">Einstellungen</h3>
+<blockquote><strong>↩︎ Rückgängig für alles (seit v0.9.322):</strong> Jede Einstellungsänderung lässt sich mit <strong>⌘Z</strong> (Mac) / <strong>Strg+Z</strong> (Windows) rückgängig machen — in <strong>Animator, Tour-Map, Geotagger und Höhen-Animator</strong>: Farben, Schrift, Linienbreite, Glow, Overlay-Felder, Keyframes, Trim, Zeit-Offset usw. <strong>Wiederherstellen</strong> mit <strong>⌘⇧Z</strong> / <strong>Strg+Y</strong>. (Ein Slider-Zug = ein Schritt.)</blockquote>
 <p><strong>Karte:</strong></p>
 <ul>
 <li><strong>Stil</strong>: 6 Mapbox-Stile (Satellite 3D, Satellite+Streets, Outdoors, Streets, Hell, Dunkel)</li>
@@ -345,7 +346,8 @@ python app.py</code></pre>
 <p><strong>🆕 Stats-Editor (seit v0.9.321): du wählst, was angezeigt wird — und in welcher Reihenfolge.</strong> Unter der Totals- und der Live-Box steht jeweils eine <strong>Feldliste</strong>. Häkchen setzen/entfernen bestimmt, was erscheint; mit dem <strong>⠿-Griff ziehst du die Felder in die gewünschte Reihenfolge</strong>. Wählbare Werte:</p>
 <ul>
 <li><strong>Live (läuft mit der Animation mit):</strong> Zurückgelegt, Verbleibend, <strong>Tempo (km/h)</strong>, Vergangen, <strong>Restzeit</strong>, Höhe, <strong>Steigung (%)</strong>.</li>
-<li><strong>Gesamt:</strong> Strecke, Zeit, <strong>Ø Tempo</strong>, <strong>Max. Tempo</strong>, Bergauf, Bergab, <strong>Höchster Punkt</strong>, <strong>Tiefster Punkt</strong>.</li>
+<li><strong>Gesamt:</strong> Strecke, Zeit (Gesamtzeit), <strong>Fahrzeit</strong> (Bewegungszeit ohne Pausen), <strong>Ø Tempo</strong> (aus Fahrzeit), <strong>Ø Tempo (gesamt)</strong> (aus Gesamtzeit), <strong>Max. Tempo</strong>, Bergauf, Bergab, <strong>Höchster Punkt</strong>, <strong>Tiefster Punkt</strong>.</li>
+<li><em>Pausenerkennung:</em> Eine Pause ist ein Abschnitt, in dem du über ein <strong>60-Sekunden-Fenster netto kaum vorangekommen</strong> bist — nicht das momentane Tempo zählt. So gilt langsames Steil-Gehen (~1 km/h, aber stetig) als Bewegung, nur echtes Stehenbleiben als Pause.</li>
 <li>Werte, die dein Track nicht hergibt (z. B. Tempo/Zeit ohne Zeitstempel, Höhe/Steigung ohne Höhendaten), werden <strong>automatisch ausgegraut</strong>.</li>
 </ul>
 <p><strong>🎨 Aussehen der Stats-Boxen (seit v0.9.321):</strong> unten in der Overlays-Sektion wählst du <strong>Schriftart</strong> (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), <strong>Textfarbe</strong>, <strong>Hintergrundfarbe</strong> und <strong>Deckkraft des Hintergrunds</strong> — gilt für alle Boxen, mit Live-Vorschau auf der Karte.</p>

@@ -583,6 +583,22 @@ function mountHeightAnim(body, headerActions) {
     onGpxLoaded(applyGlobalGpxToHeightModule);
   }
 
+  // ── v0.9.322 — Undo/Redo (⌘Z) für alle Höhen-Animator-Einstellungen ────────
+  // Höhen-Animator hält seine Werte direkt in den Controls (kein Settings-Dict) →
+  // DOM-Snapshot-Controller. apply stellt die Werte her, feuert Events + zeichnet neu.
+  const _haUndoCtrl = (typeof window.rzMakePanelUndoController === "function")
+    ? window.rzMakePanelUndoController("height-panel", {
+        section: "heightanim",
+        after: () => { try { drawElevationSvg(); } catch (_) {} },
+        toast: (m) => { try { if (typeof toast === "function") toast(m, "info", 1000); } catch (_) {} },
+      })
+    : null;
+  if (_haUndoCtrl) {
+    window.__rzUndoControllers = window.__rzUndoControllers || {};
+    window.__rzUndoControllers.heightanim = _haUndoCtrl;
+    // Push-Listener verdrahtet rzMakePanelUndoController selbst (Pre-Change-Erfassung).
+  }
+
   // ── Event-Bindings ─────────────────────────────────────────────────────
   // Optik-Inputs re-drawen den aktuellen Frame
   ["height-bg", "height-color", "height-lw", "height-grid", "height-axes", "height-marker"]

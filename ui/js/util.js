@@ -966,6 +966,21 @@ function bindSetting(elementId, section, key, opts = {}) {
     if (type === "bool") val = el.checked;
     else if (type === "number") val = parseFloat(el.value);
     else val = el.value;
+    // v0.9.322 — Undo: VOR dem Speichern den aktuellen (= alten) Modul-Stand in
+    // den Undo-Controller der Sektion pushen. Diskrete Controls (Select/Checkbox
+    // = "change") als eigener Schritt (force), kontinuierliche (Slider/Color =
+    // "input") per Throttle zu einem Schritt pro Geste gebündelt.
+    const _panelManaged = window.__rzPanelUndoSections && window.__rzPanelUndoSections.has(section);
+    const _uc = window.__rzUndoControllers && window.__rzUndoControllers[section];
+    if (_uc && !_panelManaged) {
+      // Eigener Undo-Schritt bei diskreten Controls ODER beim Wechsel auf ein
+      // ANDERES Control; dasselbe Control kontinuierlich ziehen (Slider/Color) =
+      // ein Schritt pro Geste (Throttle). (Bei panel-verwalteten Sektionen — z.B.
+      // Geotagger — übernimmt der Panel-Controller das Pushen mit Pre-Change-Stand.)
+      const diffEl = (window.__rzLastUndoEl !== elementId);
+      try { _uc.push("Einstellung", { force: (evName === "change") || diffEl }); } catch (_) {}
+      window.__rzLastUndoEl = elementId;
+    }
     // Modul-Settings ans Projekt, Sonstige (z.B. "language") an settings.json
     if (isProjectModule && _activeSession && _activeProject) {
       saveProjectSettings(section, { [key]: val });
@@ -987,12 +1002,80 @@ function rebindAllSettings() {
     const projectSection = (r.isProjectModule && _activeProject && _activeProject[r.section]) ? _activeProject[r.section] : null;
     const globalSection = _settingsCache[r.section] || {};
     const cur = (projectSection && r.key in projectSection) ? projectSection[r.key] : globalSection[r.key];
-    if (cur === undefined || cur === null) continue;
+    if (cur === undefined || cur === null) {
+      // v0.9.322 — Beim Undo-Apply: ein im Ziel-Snapshot FEHLENDER Wert (z.B. eine
+      // Einstellung, die vor der Änderung noch nie gesetzt war / altes Projekt)
+      // soll das Control auf seinen HTML-Default zurücksetzen — sonst bliebe es auf
+      // dem geänderten Wert hängen (Textfarbe-Bug). Ausserhalb von Undo: wie bisher
+      // überspringen (Wert beibehalten).
+      if (window.__rzUndoApplying) {
+        let dv;
+        if (r.type === "bool") { el.checked = el.defaultChecked; dv = el.checked; }
+        else if (el.tagName === "SELECT") {
+          const def = Array.from(el.options).find(o => o.defaultSelected) || el.options[0];
+          if (def) el.value = def.value;
+          dv = el.value;
+        } else { el.value = el.defaultValue; dv = el.value; }
+        if (r.opts.onLoad) { try { r.opts.onLoad(dv); } catch (_) {} }
+      }
+      continue;
+    }
     if (r.type === "bool") el.checked = !!cur;
     else el.value = String(cur);
     if (r.opts.onLoad) {
       try { r.opts.onLoad(cur); } catch (_) {}
     }
+  }
+  // v0.9.322 — echter Projekt-/Session-Wechsel → Undo-Stacks leeren (man soll
+  // nicht in den Stand eines anderen Projekts „zurück"-undoen). NICHT wenn der
+  // Aufruf aus einem laufenden Undo-Apply kommt (Flag von createUndoController).
+  if (!window.__rzUndoApplying && window.__rzUndoControllers) {
+    for (const k in window.__rzUndoControllers) {
+      try { window.__rzUndoControllers[k].reset(); } catch (_) {}
+    }
+  }
+}
+
+/** v0.9.322 — Undo-Helfer: nach dem Wiederherstellen eines Settings-Snapshots
+ *  für JEDES geänderte Control der Sektion das native input/change-Event feuern,
+ *  damit nicht nur der Wert, sondern auch die SICHTBARE Wirkung (z.B. Linienfarbe
+ *  auf die Karte, Linienbreite, Overlay-Vorschau) neu angewendet wird — viele
+ *  Module hängen ihre apply-Logik an einen separaten input-Listener, nicht an
+ *  bindSetting.onChange. `prevSection` = Settings-Stand VOR dem Restore (zum
+ *  Vergleich, damit nur tatsächlich geänderte Controls feuern). */
+/** v0.9.322 — Liest/Schreibt den Settings-Block einer Modul-Sektion an der
+ *  richtigen Stelle: aktives Projekt wenn vorhanden, sonst globale settings.json.
+ *  Vom Undo-Controller genutzt, damit Undo auch ohne aktives Projekt greift. */
+function _rzIsProjectSection(section) {
+  return (section === "animator" || section === "tourmap" || section === "geotagger" || section === "reiseroute");
+}
+window.rzReadModuleSettings = function (section) {
+  if (_rzIsProjectSection(section) && _activeSession && _activeProject && _activeProject[section]) {
+    return _activeProject[section];
+  }
+  return (_settingsCache && _settingsCache[section]) || {};
+};
+window.rzWriteModuleSettings = function (section, obj) {
+  if (_rzIsProjectSection(section) && _activeSession && _activeProject) {
+    _activeProject[section] = JSON.parse(JSON.stringify(obj));
+    saveProjectSettings(section, obj);
+  } else {
+    if (_settingsCache) _settingsCache[section] = JSON.parse(JSON.stringify(obj));
+    saveSettings({ [section]: obj });
+  }
+};
+
+function rzReapplySection(section, prevSection) {
+  const proj = window.rzReadModuleSettings(section);
+  for (const r of _bindRegistry) {
+    if (r.section !== section) continue;
+    const el = document.getElementById(r.elementId);
+    if (!el) continue;
+    const before = prevSection ? prevSection[r.key] : undefined;
+    const after = proj[r.key];
+    if (JSON.stringify(before) === JSON.stringify(after)) continue;  // unverändert → kein Event
+    const ev = (el.tagName === "SELECT" || el.type === "checkbox") ? "change" : "input";
+    try { el.dispatchEvent(new Event(ev, { bubbles: true })); } catch (_) {}
   }
 }
 
@@ -1328,7 +1411,11 @@ window.createUndoController = function(opts) {
     options = options || {};
     const now = performance.now();
     if (!options.force && now - lastSnapAt < THROTTLE_MS) return;
-    const snap = opts.snapshot ? opts.snapshot() : null;
+    // v0.9.322 — `options.state` erlaubt es, einen explizit VORHER erfassten Zustand
+    // zu pushen (DOM-Snapshot-Controller: Wert ist beim input-Event schon geändert).
+    const snap = (options.state !== undefined && options.state !== null)
+      ? options.state
+      : (opts.snapshot ? opts.snapshot() : null);
     if (snap == null) return;
     const top = undoStack[undoStack.length - 1];
     try {
@@ -1342,12 +1429,16 @@ window.createUndoController = function(opts) {
   function _runApply(state) {
     if (!opts.apply) return;
     isApplying = true;
+    // v0.9.322 — globaler Flag, damit rebindAllSettings den Undo-Stack NICHT
+    // zurücksetzt, während ein Undo/Redo gerade angewendet wird (nur echte
+    // Projekt-Wechsel sollen resetten).
+    window.__rzUndoApplying = true;
     try { opts.apply(state); }
     finally {
       // Mikrotask-Delay, damit auch async-dispatched input-Events während
       // apply() den Guard noch sehen (input-Events laufen synchron im selben
       // Task, aber Defensive ist günstig).
-      setTimeout(() => { isApplying = false; }, 0);
+      setTimeout(() => { isApplying = false; window.__rzUndoApplying = false; }, 0);
     }
   }
   function undo() {
@@ -1388,6 +1479,88 @@ window.createUndoController = function(opts) {
   };
 };
 
+// v0.9.322 — Universeller DOM-Snapshot-Undo-Controller für Module, die ihre
+// Einstellungen NICHT über bindSetting/Settings-Dict führen, sondern direkt in den
+// Controls halten (z.B. Geotagger, Höhen-Animator). Snapshot = alle input/select/
+// textarea-Werte im Panel; apply = Werte zurücksetzen + native Events feuern, damit
+// die modul-eigenen input/change-Listener (Neu-Zeichnen, Neuberechnen) anspringen.
+//   opts.after(snap)  — optionaler Callback nach dem Restore (z.B. Redraw erzwingen)
+window.__rzPanelUndoSections = window.__rzPanelUndoSections || new Set();
+window.rzMakePanelUndoController = function (panelId, opts) {
+  opts = opts || {};
+  // Sektion als „panel-verwaltet" markieren → der bindSetting-Hook pusht für diese
+  // Sektion NICHT zusätzlich (sonst Doppel-Push pre+post → Undo daneben).
+  if (opts.section) window.__rzPanelUndoSections.add(opts.section);
+  const readControls = () => {
+    const root = document.getElementById(panelId);
+    if (!root) return null;
+    const o = {};
+    root.querySelectorAll("input, select, textarea").forEach(el => {
+      if (!el.id) return;
+      o[el.id] = (el.type === "checkbox" || el.type === "radio") ? !!el.checked : el.value;
+    });
+    return o;
+  };
+  const ctrl = window.createUndoController({
+    snapshot: readControls,
+    apply: (snap) => {
+      if (!snap) return;
+      Object.keys(snap).forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.type === "checkbox" || el.type === "radio") {
+          if (el.checked !== snap[id]) { el.checked = snap[id]; el.dispatchEvent(new Event("change", { bubbles: true })); }
+        } else if (el.value !== String(snap[id])) {
+          el.value = String(snap[id]);
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      });
+      _prev = readControls();  // neue Baseline nach Undo/Redo
+      if (opts.after) { try { opts.after(snap); } catch (_) {} }
+    },
+    toast: opts.toast,
+    throttleMs: opts.throttleMs,
+  });
+  // Pre-Change-Erfassung: Beim input/change-Event ist der Wert SCHON geändert.
+  // Deshalb erfassen wir den Zustand VOR der Änderung bei pointerdown/focusin/keydown
+  // und pushen ihn beim input/change. `_prev` = letzter committeter Stand.
+  let _prev = null;
+  const _capture = () => { _prev = readControls(); };
+  const _push = (ev, discrete) => {
+    const tgt = ev.target;
+    if (!tgt || !tgt.id || tgt.closest("#" + panelId) == null) return;
+    const force = discrete || (window.__rzLastUndoEl !== tgt.id);
+    ctrl.push((tgt.id || "Wert") + " geändert", { force, state: _prev });
+    window.__rzLastUndoEl = tgt.id;
+    _prev = readControls();  // ab jetzt ist DAS der „Vorher"-Stand für die nächste Änderung
+  };
+  function _wire() {
+    const root = document.getElementById(panelId);
+    if (!root) return false;
+    if (root.dataset.rzPanelUndo === "1") return true;
+    root.dataset.rzPanelUndo = "1";
+    ["pointerdown", "focusin", "keydown"].forEach(evt =>
+      root.addEventListener(evt, _capture, true));  // capture-Phase: VOR der Wertänderung
+    root.addEventListener("input", (ev) => _push(ev, false));
+    root.addEventListener("change", (ev) => {
+      const ty = (ev.target && ev.target.type || "").toLowerCase();
+      const tag = (ev.target && ev.target.tagName || "").toLowerCase();
+      _push(ev, tag === "select" || ty === "checkbox" || ty === "radio");
+    });
+    _prev = readControls();  // Baseline
+    return true;
+  }
+  // Panel ist evtl. noch nicht im DOM (Controller wird vor body.innerHTML erstellt) →
+  // dann das Verdrahten per rAF nachholen, sobald das Panel da ist.
+  if (!_wire()) {
+    let _tries = 0;
+    const _retry = () => { if (_wire() || ++_tries > 60) return; requestAnimationFrame(_retry); };
+    requestAnimationFrame(_retry);
+  }
+  return ctrl;
+};
+
 // Modul-Registry: jedes Modul registriert seinen Controller hier beim Mount.
 // Globaler Keyboard-Listener routet Cmd/Ctrl+Z zum aktiven Modul.
 window.__rzUndoControllers = window.__rzUndoControllers || {};
@@ -1399,6 +1572,7 @@ function _rzActiveModuleForUndo() {
     ["tmap-panel", "tourmap"],
     ["gt-panel",   "geotagger"],
     ["gpxi-panel", "gpxinspect"],  // v0.9.238 — GPX-Inspektor (Track-Edits undoable)
+    ["height-panel", "heightanim"],  // v0.9.322 — Höhen-Animator (Einstellungen undoable)
   ];
   for (const [id, key] of candidates) {
     const el = document.getElementById(id);

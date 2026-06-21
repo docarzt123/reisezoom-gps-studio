@@ -1097,58 +1097,41 @@ function mountAnimator(body, headerActions, opts) {
   // 50 Schritte, 800 ms Throttle für Drag-Operationen. Globaler Keyboard-
   // Listener in util.js routet Cmd/Ctrl+Z zum aktiven Modul.
   const _animUndoCtrl = window.createUndoController({
+    // v0.9.322 — Snapshot = KOMPLETTER Modul-Settings-Block (Farben, Linie, Glow,
+    // Schatten, Overlays/Stats-Editor + Styling, Karten-Labels, Keyframes/Trim …).
+    // Damit ist JEDE Sidebar-Einstellung undo-bar, nicht nur Keyframes.
     snapshot: () => {
-      const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
-      const a = (proj && proj[_MODKEY]) || (_settingsCache && _settingsCache[_MODKEY]) || {};
-      return {
-        timeline_events:     JSON.parse(JSON.stringify(a.timeline_events || [])),
-        intro_s:             a.intro_s ?? 0,
-        duration_s:          a.duration_s ?? 12,
-        hold_s:              a.hold_s ?? 5,
-        render_start_anchor: a.render_start_anchor ?? 0.0,
-        render_end_anchor:   a.render_end_anchor ?? 1.0,
-        keyframes_enabled:   !!a.keyframes_enabled,
-      };
+      try { return JSON.parse(JSON.stringify(window.rzReadModuleSettings(_MODKEY) || {})); }
+      catch (_) { return null; }
     },
     apply: (snap) => {
       if (!snap) return;
-      saveProjectSettings(_MODKEY, {
-        timeline_events:     JSON.parse(JSON.stringify(snap.timeline_events)),
-        intro_s:             snap.intro_s,
-        duration_s:          snap.duration_s,
-        hold_s:              snap.hold_s,
-        render_start_anchor: snap.render_start_anchor,
-        render_end_anchor:   snap.render_end_anchor,
-        keyframes_enabled:   snap.keyframes_enabled,
-      });
-      if (_settingsCache) {
-        _settingsCache[_MODKEY] = _settingsCache[_MODKEY] || {};
-        Object.assign(_settingsCache[_MODKEY], {
-          timeline_events: JSON.parse(JSON.stringify(snap.timeline_events)),
-          intro_s: snap.intro_s, duration_s: snap.duration_s, hold_s: snap.hold_s,
-          render_start_anchor: snap.render_start_anchor,
-          render_end_anchor: snap.render_end_anchor,
-          keyframes_enabled: snap.keyframes_enabled,
-        });
-      }
-      const setVal = (id, v) => { const el = document.getElementById(id); if (el && el.value !== String(v)) el.value = String(v); };
-      setVal("anim-intro", snap.intro_s);
-      setVal("anim-dur",   snap.duration_s);
-      setVal("anim-hold",  snap.hold_s);
+      let before = {};
+      try { before = JSON.parse(JSON.stringify(window.rzReadModuleSettings(_MODKEY) || {})); } catch (_) {}
+      // 1) Vollen Settings-Block wiederherstellen (Projekt oder global).
+      try { window.rzWriteModuleSettings(_MODKEY, snap); } catch (_) {}
+      // 2) Gebundene Controls: Werte + sichtbare Wirkung (Farbe→Karte, Breite, …).
+      try { if (typeof rebindAllSettings === "function") rebindAllSettings(); } catch (_) {}
+      try { if (typeof rzReapplySection === "function") rzReapplySection(_MODKEY, before); } catch (_) {}
+      // 3) Custom-Controls (nicht via bindSetting): Stats-Editor-Felder + BG-Opacity.
+      try {
+        const op = snap.overlay_bg_opacity, sl = document.getElementById("anim-ov-bgopacity"), lb = document.getElementById("anim-ov-bgopacity-val");
+        if (sl && typeof op === "number") { sl.value = String(Math.round(op * 100)); if (lb) lb.textContent = sl.value + " %"; }
+      } catch (_) {}
+      try { _ovRebuildEditors(); } catch (_) {}
+      try { renderOverlayPreview(); } catch (_) {}
+      // 4) Keyframe-/Trim-/Timeline-spezifische Wiederherstellung (wie bisher).
       const masterCb = document.getElementById("anim-kf-enabled");
       if (masterCb) masterCb.checked = !!snap.keyframes_enabled;
-      if (_tlBar && _tlBar.setTrim) _tlBar.setTrim(snap.render_start_anchor, snap.render_end_anchor);
-      applyTrimToTrackPreview(snap.render_start_anchor, snap.render_end_anchor);
-      applyKeyframesEnabled();
-      if (_tlBar) {
-        _tlBar.refresh();
-        if (_tlBar.setTrackFraction) _tlBar.setTrackFraction(trackFraction(), introFraction());
-      }
+      try { if (_tlBar && _tlBar.setTrim) _tlBar.setTrim(snap.render_start_anchor ?? 0, snap.render_end_anchor ?? 1); } catch (_) {}
+      try { applyTrimToTrackPreview(snap.render_start_anchor ?? 0, snap.render_end_anchor ?? 1); } catch (_) {}
+      try { applyKeyframesEnabled(); } catch (_) {}
+      try { if (_tlBar) { _tlBar.refresh(); if (_tlBar.setTrackFraction) _tlBar.setTrackFraction(trackFraction(), introFraction()); } } catch (_) {}
       _selectedKfIdx = null;
       _selectedEvent = null;
-      rebuildCameraKeyframePins();
-      renderKeyframeEditor();
-      refreshPreviewTrackData();
+      try { rebuildCameraKeyframePins(); } catch (_) {}
+      try { renderKeyframeEditor(); } catch (_) {}
+      try { refreshPreviewTrackData(); } catch (_) {}
     },
     toast: (msg) => { if (typeof toast === "function") toast(msg, "info", 1000); },
   });
@@ -1446,6 +1429,7 @@ function mountAnimator(body, headerActions, opts) {
     sync();
     sl.addEventListener("input", () => {
       sync();
+      if (_animUndoCtrl) { try { _animUndoCtrl.push("Deckkraft", { force: (window.__rzLastUndoEl !== "anim-ov-bgopacity") }); window.__rzLastUndoEl = "anim-ov-bgopacity"; } catch (_) {} }
       saveProjectSettings(_MODKEY, { overlay_bg_opacity: (parseFloat(sl.value) || 0) / 100 });
       renderOverlayPreview();
     });
@@ -7208,7 +7192,7 @@ function mountAnimator(body, headerActions, opts) {
     ],
     totals: [
       { id: "dist_total", req: "none" }, { id: "duration", req: "time" },
-      { id: "avg_speed", req: "time" }, { id: "max_speed", req: "time" },
+      { id: "moving_time", req: "time" }, { id: "avg_speed", req: "time" }, { id: "avg_speed_total", req: "time" }, { id: "max_speed", req: "time" },
       { id: "elev_gain", req: "ele" }, { id: "elev_loss", req: "ele" },
       { id: "ele_high", req: "ele" }, { id: "ele_low", req: "ele" },
     ],
@@ -7220,7 +7204,7 @@ function mountAnimator(body, headerActions, opts) {
   const _OV_FALLBACK_LABEL = {
     dist_done: "Zurückgelegt", dist_left: "Verbleibend", speed: "Tempo",
     time_elapsed: "Vergangen", time_left: "Restzeit", ele_now: "Höhe", grade: "Steigung",
-    dist_total: "Strecke", duration: "Zeit", avg_speed: "Ø Tempo", max_speed: "Max. Tempo",
+    dist_total: "Strecke", duration: "Zeit", moving_time: "Fahrzeit", avg_speed: "Ø Tempo", avg_speed_total: "Ø Tempo (gesamt)", max_speed: "Max. Tempo",
     elev_gain: "Bergauf", elev_loss: "Bergab", ele_high: "Höchster Punkt", ele_low: "Tiefster Punkt",
   };
   const _ovFieldLabel = (id) => t("animator.statsfield." + id, _OV_FALLBACK_LABEL[id] || id);
@@ -7262,6 +7246,7 @@ function mountAnimator(body, headerActions, opts) {
       .map(r => r.dataset.fid);
   }
   function _ovPersist(box) {
+    if (_animUndoCtrl) { try { _animUndoCtrl.push("Stats-Felder", { force: true }); } catch (_) {} }
     saveProjectSettings(_MODKEY, { ["overlay_" + box + "_fields"]: _ovGetFields(box) });
   }
   let _ovDragEl = null;
@@ -7307,9 +7292,9 @@ function mountAnimator(body, headerActions, opts) {
     switch (id) {
       case "dist_done": case "dist_total": return _ovFmtKm(km);
       case "dist_left": return _ovFmtKm(0);
-      case "speed": case "avg_speed": return Math.round(avg) + " km/h";
-      case "max_speed": return "≈ " + Math.round(avg * 1.4) + " km/h";
-      case "time_elapsed": case "duration": return _ovFmtDur(dur);
+      case "speed": case "avg_speed": case "avg_speed_total": return avg.toFixed(1) + " km/h";
+      case "max_speed": return "≈ " + (avg * 1.4).toFixed(1) + " km/h";
+      case "time_elapsed": case "duration": case "moving_time": return _ovFmtDur(dur);
       case "time_left": return _ovFmtDur(0);
       case "ele_now": return lastEle != null ? lastEle + " m" : "—";
       case "grade": return "0 %";

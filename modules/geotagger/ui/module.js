@@ -16,49 +16,18 @@ function mountGeotagger(body, headerActions) {
   // Snapshot: nur die nicht-destruktiven Settings (Offset, Referenz-Pfad,
   // Foldermode etc.). Geschriebene GPS-Tags in Fotos sind NICHT undoable
   // (destruktiv → braucht separaten Restore-Workflow, siehe Marc-Choice).
-  const _gtgUndoCtrl = window.createUndoController({
-    snapshot: () => {
-      const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
-      const g = (proj && proj.geotagger) || {};
-      return {
-        offset_seconds:   g.offset_seconds ?? 0,
-        reference_path:   g.reference_path || null,
-        reference_mode:   g.reference_mode || null,
-        folder_recursive: !!g.folder_recursive,
-      };
-    },
-    apply: (snap) => {
-      if (!snap) return;
-      saveProjectSettings("geotagger", JSON.parse(JSON.stringify(snap)));
-      if (typeof rebindAllSettings === "function") rebindAllSettings();
-      // Offset-Slider triggert recalculation der Matches
-      const offEl = document.getElementById("gt-offset");
-      if (offEl) offEl.dispatchEvent(new Event("input", { bubbles: true }));
-    },
+  // v0.9.322 — Undo für ALLE Geotagger-Controls (vorher nur 4 Keys). DOM-Snapshot:
+  // erfasst/stellt alle Panel-Controls direkt her + feuert deren Events (Offset →
+  // Match-Neuberechnung, Checkboxen, Backup/Überschreiben usw.).
+  const _gtgUndoCtrl = window.rzMakePanelUndoController("gt-panel", {
+    section: "geotagger",
     toast: (msg) => { if (typeof toast === "function") toast(msg, "info", 1000); },
   });
   window.__rzUndoControllers.geotagger = _gtgUndoCtrl;
   const _gtgPushUndo = (label, opts) => _gtgUndoCtrl.push(label, opts);
-  // Generic-Hook auf #gt-panel
-  function _wireGeotaggerUndoListeners() {
-    const root = document.getElementById("gt-panel");
-    if (!root) return;
-    if (root.dataset.undoWired === "1") return;
-    root.dataset.undoWired = "1";
-    root.addEventListener("input", (ev) => {
-      const t = ev.target;
-      if (!t) return;
-      _gtgPushUndo(`${t.id || t.name || "Wert"} geändert`);
-    });
-    root.addEventListener("change", (ev) => {
-      const t = ev.target;
-      if (!t) return;
-      const tag = (t.tagName || "").toLowerCase();
-      const ty = (t.type || "").toLowerCase();
-      const isDiscrete = tag === "select" || ty === "checkbox" || ty === "radio";
-      _gtgPushUndo(`${t.id || t.name || tag} geändert`, { force: isDiscrete });
-    });
-  }
+  // v0.9.322 — Push-Listener verdrahtet jetzt rzMakePanelUndoController selbst
+  // (Pre-Change-Erfassung). Diese Funktion bleibt als No-Op für Altaufrufe.
+  function _wireGeotaggerUndoListeners() { /* siehe rzMakePanelUndoController */ }
   const _origGtgProjChanged = window._geotaggerOnProjectChanged;
   window._geotaggerOnProjectChanged = function() {
     _gtgUndoCtrl.reset();

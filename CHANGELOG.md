@@ -14,6 +14,23 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.323] – 2026-06-21
+
+### Behoben (Nutzer-Feedback)
+- **Ø Tempo & Max. Tempo korrigiert.** Das Ø-Tempo rechnet jetzt mit der **Fahrzeit** (Bewegungszeit ohne Pausen) statt der Gesamtzeit, und das Max-Tempo wird nicht mehr durch die Glättung gedrückt (echtes Spitzentempo, GPS-Ausreißer > 120 km/h gefiltert). Tempo-Werte mit einer Nachkommastelle (z. B. 43,8 km/h).
+- **Bessere Pausenerkennung.** Eine Pause wird jetzt über ein **gleitendes 60-Sekunden-Fenster** erkannt — entscheidend ist, ob man **netto vorangekommen** ist, nicht das momentane Tempo. Dadurch zählt langsames Steil-Gehen (~1 km/h, aber stetig) korrekt als Bewegung; nur echte Standzeiten gelten als Pause. (Die alte feste Schwelle hat z. B. bei einer Bergwanderung Stunden echtes Gehen fälschlich als Pause gewertet.)
+
+### Hinzugefügt
+- Neue Stats-Felder: **„Fahrzeit"** (Bewegungszeit), **„Ø Tempo"** (aus Fahrzeit) und **„Ø Tempo (gesamt)"** (aus Gesamtzeit) — alle einzeln wählbar, so entscheidest du selbst, welche Basis angezeigt wird.
+
+## [0.9.322] – 2026-06-21
+
+### Hinzugefügt
+- **Rückgängig (⌘Z / Strg+Z) für ALLE Einstellungen — in jedem Modul.** Bisher konnte man nur Keyframe-/Trim-Änderungen rückgängig machen; jetzt **jede Einstellung** in **Animator, Tour-Map, Geotagger und Höhen-Animator** — Track-Farbe, Stats-Textfarbe/Hintergrund/Schrift, Linienbreite, Glow, Schatten, Karten-Labels, Overlay-Felder & -Reihenfolge, Zeit-Offset, Optik des Höhenprofils usw. **Wiederherstellen** mit ⌘⇧Z / Strg+Y. Slider-Ziehen zählt als ein Schritt; jedes andere Control ist ein eigener Schritt. (Der GPX-Inspektor hatte sein Punkt-Undo schon.)
+
+### Behoben
+- Einstellungen, die noch nie gespeichert waren (z. B. in älteren Projekten), werden beim Rückgängig jetzt korrekt auf ihren Standardwert zurückgesetzt, statt auf dem geänderten Wert hängen zu bleiben.
+
 ## [0.9.321] – 2026-06-20
 
 ### Hinzugefügt
