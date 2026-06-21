@@ -126,7 +126,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.319"
+APP_VERSION = "0.9.321"
 
 # v0.9.280 (Nutzer-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
@@ -261,6 +261,13 @@ DEFAULT_SETTINGS = {
         "overlay_live_position": "tr",
         "overlay_elevation_enabled": True,
         "overlay_elevation_position": "bc",
+        # v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
+        "overlay_live_fields": ["dist_done", "time_elapsed", "ele_now"],
+        "overlay_totals_fields": ["dist_total", "duration", "elev_gain", "elev_loss", "ele_high"],
+        "overlay_font": "system",
+        "overlay_text_color": "#ffffff",
+        "overlay_bg_color": "#000000",
+        "overlay_bg_opacity": 0.55,
         # Zuletzt benutzter Save-Dir vom Render-Save-Dialog
         "last_save_dir": "",
         # v0.8.16: Master-Toggle für den Keyframe-Editor. Default false →
@@ -340,6 +347,12 @@ DEFAULT_SETTINGS = {
         "overlay_totals_position": "tl",
         "overlay_elevation_enabled": False,
         "overlay_elevation_position": "bc",
+        # v0.9.321 — Stats-Editor: Totals-Felder + globales Styling (gespiegelt)
+        "overlay_totals_fields": ["dist_total", "duration", "elev_gain", "elev_loss", "ele_high"],
+        "overlay_font": "system",
+        "overlay_text_color": "#ffffff",
+        "overlay_bg_color": "#000000",
+        "overlay_bg_opacity": 0.55,
         "show_pins": True,
         # v0.9.74 — Foto-Pin-Größe (Phase 1, gespiegelt zum Animator).
         "photos_size_px": 48,
@@ -1738,6 +1751,13 @@ class Api:
             overlay_live_position=params.get("overlay_live_position", "tr"),
             overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", True)),
             overlay_elevation_position=params.get("overlay_elevation_position", "bc"),
+            # v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
+            overlay_live_fields=(list(params.get("overlay_live_fields") or []) or None),
+            overlay_totals_fields=(list(params.get("overlay_totals_fields") or []) or None),
+            overlay_font=params.get("overlay_font", "system"),
+            overlay_text_color=params.get("overlay_text_color", "#ffffff"),
+            overlay_bg_color=params.get("overlay_bg_color", "#000000"),
+            overlay_bg_opacity=float(params.get("overlay_bg_opacity", 0.55) or 0.55),
             # v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y")
             overlay_totals_from_s=float(params.get("overlay_totals_from_s", 0) or 0),
             overlay_totals_to_s=float(params.get("overlay_totals_to_s", 0) or 0),
@@ -2007,6 +2027,12 @@ class Api:
             overlay_live_enabled=False,
             overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", False)),
             overlay_elevation_position=params.get("overlay_elevation_position", "bc"),
+            # v0.9.321 — Stats-Editor: Totals-Felder + globales Styling (gespiegelt)
+            overlay_totals_fields=(list(params.get("overlay_totals_fields") or []) or None),
+            overlay_font=params.get("overlay_font", "system"),
+            overlay_text_color=params.get("overlay_text_color", "#ffffff"),
+            overlay_bg_color=params.get("overlay_bg_color", "#000000"),
+            overlay_bg_opacity=float(params.get("overlay_bg_opacity", 0.55) or 0.55),
             show_pins=bool(params.get("show_pins", True)),
             # v0.9.74 — Foto-Pins (nummerierte Kreise im Standbild-Render)
             photos=list(params.get("photos") or []),

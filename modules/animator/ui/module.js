@@ -379,6 +379,7 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="number" id="anim-ov-totals-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
                 <span class="ov-timing-unit">s</span>
               </div>
+              <div class="ov-fieldeditor" id="anim-ov-totals-fields" data-ovbox="totals"></div>
             </div>
             <div class="overlay-group" id="anim-overlay-live-group">
               <label class="checkbox-row inline">
@@ -403,6 +404,7 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="number" id="anim-ov-live-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
                 <span class="ov-timing-unit">s</span>
               </div>
+              <div class="ov-fieldeditor" id="anim-ov-live-fields" data-ovbox="live"></div>
             </div>
             <div class="overlay-group" id="anim-overlay-elevation-group">
               <label class="checkbox-row inline">
@@ -425,6 +427,34 @@ function mountAnimator(body, headerActions, opts) {
                 <span class="ov-timing-dash">–</span>
                 <input type="number" id="anim-ov-ele-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
                 <span class="ov-timing-unit">s</span>
+              </div>
+            </div>
+            <!-- v0.9.321 — Stats-Editor: globales Styling aller Stats-Boxen -->
+            <div class="ov-style" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
+              <div class="ov-style-title">🎨 ${t("animator.overlay.style", "Aussehen der Stats-Boxen")}</div>
+              <div class="ov-style-row">
+                <label for="anim-ov-font">${t("animator.overlay.font", "Schrift")}</label>
+                <select id="anim-ov-font" class="pos-select">
+                  <option value="system">${t("animator.overlay.font_system", "System (Standard)")}</option>
+                  <option value="nunito">Nunito</option>
+                  <option value="quicksand">Quicksand</option>
+                  <option value="fredoka">Fredoka</option>
+                  <option value="oswald">Oswald</option>
+                  <option value="bebas">Bebas Neue</option>
+                </select>
+              </div>
+              <div class="ov-style-row">
+                <label for="anim-ov-textcolor">${t("animator.overlay.text_color", "Textfarbe")}</label>
+                <input type="color" id="anim-ov-textcolor" value="#ffffff">
+              </div>
+              <div class="ov-style-row">
+                <label for="anim-ov-bgcolor">${t("animator.overlay.bg_color", "Hintergrund")}</label>
+                <input type="color" id="anim-ov-bgcolor" value="#000000">
+              </div>
+              <div class="ov-style-row">
+                <label for="anim-ov-bgopacity">${t("animator.overlay.bg_opacity", "Deckkraft Hintergrund")}</label>
+                <input type="range" id="anim-ov-bgopacity" min="0" max="100" step="5" value="55">
+                <span class="ov-style-val" id="anim-ov-bgopacity-val">55 %</span>
               </div>
             </div>
             <!-- v0.9.41 — Stats-Quelle bei aktivem Trim:
@@ -1401,6 +1431,27 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-ov-live-to", _MODKEY, "overlay_live_to_s", { type: "number" });
   bindSetting("anim-ov-ele-from", _MODKEY, "overlay_elevation_from_s", { type: "number" });
   bindSetting("anim-ov-ele-to", _MODKEY, "overlay_elevation_to_s", { type: "number" });
+  // v0.9.321 — Stats-Editor: globales Styling (Schrift/Textfarbe/BG/Opacity).
+  bindSetting("anim-ov-font", _MODKEY, "overlay_font", { onChange: renderOverlayPreview });
+  bindSetting("anim-ov-textcolor", _MODKEY, "overlay_text_color", { onChange: renderOverlayPreview });
+  bindSetting("anim-ov-bgcolor", _MODKEY, "overlay_bg_color", { onChange: renderOverlayPreview });
+  // BG-Opacity: gespeichert als 0..1, UI-Slider 0..100 → eigene Anbindung.
+  (function bindOvOpacity() {
+    const sl = document.getElementById("anim-ov-bgopacity");
+    const lbl = document.getElementById("anim-ov-bgopacity-val");
+    if (!sl) return;
+    const stored = _activeProject?.[_MODKEY]?.overlay_bg_opacity;
+    if (typeof stored === "number") sl.value = String(Math.round(stored * 100));
+    const sync = () => { if (lbl) lbl.textContent = sl.value + " %"; };
+    sync();
+    sl.addEventListener("input", () => {
+      sync();
+      saveProjectSettings(_MODKEY, { overlay_bg_opacity: (parseFloat(sl.value) || 0) / 100 });
+      renderOverlayPreview();
+    });
+  })();
+  // (Feld-Editoren werden weiter unten gebaut, sobald der Feld-Katalog initialisiert
+  //  ist — siehe `_ovRebuildEditors()` nach dem Katalog-Block. TDZ-Schutz.)
   // v0.9.41 — Stats-Quelle bei aktivem Trim
   bindSetting("anim-stats-use-trim", _MODKEY, "stats_use_trim", { type: "bool" });
   // v0.9.55 (Marc): Pre-Trim-Track-Linie im Render an/aus
@@ -7146,6 +7197,132 @@ function mountAnimator(body, headerActions, opts) {
   let _gpxStats = null;
   let _gpxElevations = null;
 
+  // ── v0.9.321 Stats-Editor ────────────────────────────────────────────────
+  // Feld-Katalog — Spiegel von core/animator.py (OVERLAY_LIVE/TOTAL_FIELDS).
+  // Bei Änderung BEIDE pflegen. req: "none" | "time" | "ele".
+  const OVERLAY_FIELD_CATALOG = {
+    live: [
+      { id: "dist_done", req: "none" }, { id: "dist_left", req: "none" },
+      { id: "speed", req: "time" }, { id: "time_elapsed", req: "time" }, { id: "time_left", req: "time" },
+      { id: "ele_now", req: "ele" }, { id: "grade", req: "ele" },
+    ],
+    totals: [
+      { id: "dist_total", req: "none" }, { id: "duration", req: "time" },
+      { id: "avg_speed", req: "time" }, { id: "max_speed", req: "time" },
+      { id: "elev_gain", req: "ele" }, { id: "elev_loss", req: "ele" },
+      { id: "ele_high", req: "ele" }, { id: "ele_low", req: "ele" },
+    ],
+  };
+  const OVERLAY_DEFAULT_FIELDS = {
+    live: ["dist_done", "time_elapsed", "ele_now"],
+    totals: ["dist_total", "duration", "elev_gain", "elev_loss", "ele_high"],
+  };
+  const _OV_FALLBACK_LABEL = {
+    dist_done: "Zurückgelegt", dist_left: "Verbleibend", speed: "Tempo",
+    time_elapsed: "Vergangen", time_left: "Restzeit", ele_now: "Höhe", grade: "Steigung",
+    dist_total: "Strecke", duration: "Zeit", avg_speed: "Ø Tempo", max_speed: "Max. Tempo",
+    elev_gain: "Bergauf", elev_loss: "Bergab", ele_high: "Höchster Punkt", ele_low: "Tiefster Punkt",
+  };
+  const _ovFieldLabel = (id) => t("animator.statsfield." + id, _OV_FALLBACK_LABEL[id] || id);
+  const _ovHasTime = () => !!(_gpxStats && _gpxStats.duration_s > 0);
+  const _ovHasEle = () => !!(_gpxStats && _gpxStats.ele_max != null);
+  const _ovAvail = (req) => req === "time" ? _ovHasTime() : req === "ele" ? _ovHasEle() : true;
+  const _ovFmtKm = (km) => km < 100 ? km.toFixed(1) + " km" : km.toFixed(0) + " km";
+  const _ovFmtDur = (sec) => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60, p = n => n < 10 ? "0" + n : "" + n; return h > 0 ? h + ":" + p(m) + ":" + p(x) : p(m) + ":" + p(x); };
+  // Font-Stacks (Spiegel von core/animator.py _OVERLAY_FONTS). Google-Fonts werden
+  // in der App-WebView wie im Render per <link>/@import geladen; hier reicht der Stack.
+  const OVERLAY_FONT_STACK = {
+    system: "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif",
+    nunito: "'Nunito', sans-serif", quicksand: "'Quicksand', sans-serif",
+    fredoka: "'Fredoka', sans-serif", oswald: "'Oswald', sans-serif", bebas: "'Bebas Neue', sans-serif",
+  };
+  function _ovHexRgba(hex, a) {
+    let h = String(hex || "#000000").replace("#", "");
+    if (h.length === 3) h = h.split("").map(c => c + c).join("");
+    const r = parseInt(h.slice(0, 2), 16) || 0, g = parseInt(h.slice(2, 4), 16) || 0, b = parseInt(h.slice(4, 6), 16) || 0;
+    return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`;
+  }
+
+  // Gespeicherte Auswahl (Projekt) → {order:[alle ids in Reihenfolge], on:Set}
+  function _ovReadOrder(box) {
+    const cat = OVERLAY_FIELD_CATALOG[box].map(f => f.id);
+    let saved = _activeProject?.[_MODKEY]?.["overlay_" + box + "_fields"];
+    if (!Array.isArray(saved) || !saved.length) saved = OVERLAY_DEFAULT_FIELDS[box];
+    saved = saved.filter(id => cat.includes(id));
+    const on = new Set(saved);
+    const order = saved.concat(cat.filter(id => !on.has(id)));
+    return { order, on };
+  }
+  // Aktuelle Auswahl aus dem DOM (Reihenfolge + nur angehakte, verfügbare Felder)
+  function _ovGetFields(box) {
+    const cont = document.getElementById("anim-ov-" + box + "-fields");
+    if (!cont) return OVERLAY_DEFAULT_FIELDS[box].slice();
+    return Array.from(cont.querySelectorAll(".ov-fieldrow"))
+      .filter(r => !r.classList.contains("unavail") && r.querySelector("input")?.checked)
+      .map(r => r.dataset.fid);
+  }
+  function _ovPersist(box) {
+    saveProjectSettings(_MODKEY, { ["overlay_" + box + "_fields"]: _ovGetFields(box) });
+  }
+  let _ovDragEl = null;
+  function _ovBuildEditor(box) {
+    const cont = document.getElementById("anim-ov-" + box + "-fields");
+    if (!cont) return;
+    const { order, on } = _ovReadOrder(box);
+    cont.innerHTML = order.map(id => {
+      const f = OVERLAY_FIELD_CATALOG[box].find(x => x.id === id);
+      const avail = _ovAvail(f.req);
+      const checked = on.has(id) && avail;
+      return `<div class="ov-fieldrow${avail ? "" : " unavail"}" draggable="${avail ? "true" : "false"}" data-fid="${id}">`
+        + `<span class="ov-grip" title="${t("animator.overlay.reorder", "Ziehen zum Sortieren")}">⠿</span>`
+        + `<label class="ov-fieldlbl"><input type="checkbox" ${checked ? "checked" : ""} ${avail ? "" : "disabled"}>`
+        + `<span>${_ovFieldLabel(id)}</span></label>`
+        + (avail ? "" : `<span class="ov-unavail">${t("animator.statsfield.unavail", "—")}</span>`)
+        + `</div>`;
+    }).join("");
+    // Checkbox-Änderung
+    cont.querySelectorAll(".ov-fieldrow input").forEach(cb => {
+      cb.addEventListener("change", () => { _ovPersist(box); renderOverlayPreview(); });
+    });
+    // Drag-Sortierung
+    cont.querySelectorAll(".ov-fieldrow").forEach(row => {
+      row.addEventListener("dragstart", (e) => { _ovDragEl = row; row.classList.add("ov-dragging"); try { e.dataTransfer.effectAllowed = "move"; } catch (_) {} });
+      row.addEventListener("dragend", () => { row.classList.remove("ov-dragging"); _ovDragEl = null; _ovPersist(box); renderOverlayPreview(); });
+      row.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (!_ovDragEl || _ovDragEl === row || row.parentElement !== cont) return;
+        const rect = row.getBoundingClientRect();
+        const after = (e.clientY - rect.top) > rect.height / 2;
+        cont.insertBefore(_ovDragEl, after ? row.nextSibling : row);
+      });
+    });
+  }
+  function _ovRebuildEditors() { _ovBuildEditor("totals"); _ovBuildEditor("live"); }
+  // Vorschau-Wert (Endzustand) für ein Feld — WYSIWYG-Annäherung.
+  function _ovFieldValue(id) {
+    const s = _gpxStats; if (!s) return "—";
+    const km = s.distance_km || 0, dur = s.duration_s || 0;
+    const avg = dur > 0 ? (km / (dur / 3600)) : 0;
+    const lastEle = (_gpxElevations && _gpxElevations.length) ? Math.round(_gpxElevations[_gpxElevations.length - 1]) : (s.ele_max != null ? Math.round(s.ele_max) : null);
+    switch (id) {
+      case "dist_done": case "dist_total": return _ovFmtKm(km);
+      case "dist_left": return _ovFmtKm(0);
+      case "speed": case "avg_speed": return Math.round(avg) + " km/h";
+      case "max_speed": return "≈ " + Math.round(avg * 1.4) + " km/h";
+      case "time_elapsed": case "duration": return _ovFmtDur(dur);
+      case "time_left": return _ovFmtDur(0);
+      case "ele_now": return lastEle != null ? lastEle + " m" : "—";
+      case "grade": return "0 %";
+      case "elev_gain": return "↑ " + Math.round(s.ascent_m || 0) + " m";
+      case "elev_loss": return "↓ " + Math.round(s.descent_m || 0) + " m";
+      case "ele_high": return s.ele_max != null ? Math.round(s.ele_max) + " m" : "—";
+      case "ele_low": return s.ele_min != null ? Math.round(s.ele_min) + " m" : "—";
+    }
+    return "—";
+  }
+  // Initialer Editor-Aufbau — hier sind Katalog-Consts + _gpxStats sicher initialisiert.
+  _ovRebuildEditors();
+
   /** Spiegelt die Render-Overlays als HTML-Layer auf der Preview-Karte.
    *  Wird gerufen bei Mount, GPX-Load, Color-/Toggle-/Position-Change. */
   function renderOverlayPreview() {
@@ -7232,25 +7409,24 @@ function mountAnimator(body, headerActions, opts) {
         </svg>`;
     }
 
+    // v0.9.321 — globales Styling (Schrift/Textfarbe/BG/Opacity) auf alle Boxen
+    const fontKey = document.getElementById("anim-ov-font")?.value || "system";
+    const fontFam = OVERLAY_FONT_STACK[fontKey] || OVERLAY_FONT_STACK.system;
+    const txtCol  = document.getElementById("anim-ov-textcolor")?.value || "#ffffff";
+    const bgCol   = document.getElementById("anim-ov-bgcolor")?.value || "#000000";
+    const bgOpac  = (parseFloat(document.getElementById("anim-ov-bgopacity")?.value) || 55) / 100;
+    const boxStyle = `font-family:${fontFam}; color:${txtCol}; background:${_ovHexRgba(bgCol, bgOpac)};`;
+    // v0.9.321 — katalog-getriebene, sortierbare Felder pro Box (Endzustand-Werte)
+    const rowsHtml = (box) => _ovGetFields(box).map(id => {
+      const accent = (id === "dist_done") ? ` style="color:${color}"` : "";
+      return `<div class="ov-row"><span class="ov-l">${_ovFieldLabel(id)}</span><span class="ov-v"${accent}>${_ovFieldValue(id)}</span></div>`;
+    }).join("");
+
     let html = "";
-    if (totals) {
-      html += `<div class="ov-box pos-${posT}" data-ovbox="totals">
-        <div class="ov-row"><span class="ov-l">${t("animator.overlay.label.distance")}</span><span class="ov-v">${distTxt}</span></div>
-        <div class="ov-row"><span class="ov-l">${t("animator.overlay.label.time")}</span><span class="ov-v">${durTxt}</span></div>
-        <div class="ov-row"><span class="ov-l">${t("animator.overlay.label.ascent")}</span><span class="ov-v">↑ ${ascTxt}</span></div>
-        <div class="ov-row"><span class="ov-l">${t("animator.overlay.label.descent")}</span><span class="ov-v">↓ ${descTxt}</span></div>
-        <div class="ov-row"><span class="ov-l">${t("animator.overlay.label.elevation_max")}</span><span class="ov-v">${eleMaxTxt}</span></div>
-      </div>`;
-    }
-    if (live) {
-      html += `<div class="ov-box pos-${posL}" data-ovbox="live">
-        <div class="ov-row"><span class="ov-l">${t("animator.overlay.label.live_distance")}</span><span class="ov-v" style="color:${color}">${liveDistTxt}</span></div>
-        <div class="ov-row"><span class="ov-l">${t("animator.overlay.label.live_time")}</span><span class="ov-v">${liveTimeTxt}</span></div>
-        <div class="ov-row"><span class="ov-l">${t("animator.overlay.label.live_elevation")}</span><span class="ov-v">${liveEleTxt}</span></div>
-      </div>`;
-    }
+    if (totals) { const r = rowsHtml("totals"); if (r) html += `<div class="ov-box pos-${posT}" data-ovbox="totals" style="${boxStyle}">${r}</div>`; }
+    if (live)   { const r = rowsHtml("live");   if (r) html += `<div class="ov-box pos-${posL}" data-ovbox="live" style="${boxStyle}">${r}</div>`; }
     if (ele && eleSvg) {
-      html += `<div class="ov-ele-box pos-${posE}" data-ovbox="ele">${eleSvg}</div>`;
+      html += `<div class="ov-ele-box pos-${posE}" data-ovbox="ele" style="${boxStyle}">${eleSvg}</div>`;
     }
     layer.innerHTML = html;
   }
@@ -7284,6 +7460,7 @@ function mountAnimator(body, headerActions, opts) {
     currentGpx = path;
     _gpxStats = res.stats;
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
+    try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
     // Stats-Bar umschalten: Empty-Hint aus, Karten an
     document.getElementById("anim-stats-empty").hidden = true;
     document.getElementById("anim-stats-cards").hidden = false;
@@ -7611,6 +7788,7 @@ function mountAnimator(body, headerActions, opts) {
     currentGpx = path;
     _gpxStats = res.stats;
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
+    try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
     try {
       document.getElementById("anim-stats-empty").hidden = true;
       document.getElementById("anim-stats-cards").hidden = false;
@@ -8260,6 +8438,13 @@ function mountAnimator(body, headerActions, opts) {
       overlay_live_to_s: parseFloat(document.getElementById("anim-ov-live-to")?.value) || 0,
       overlay_elevation_from_s: parseFloat(document.getElementById("anim-ov-ele-from")?.value) || 0,
       overlay_elevation_to_s: parseFloat(document.getElementById("anim-ov-ele-to")?.value) || 0,
+      // v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
+      overlay_totals_fields: _ovGetFields("totals"),
+      overlay_live_fields: _ovGetFields("live"),
+      overlay_font: document.getElementById("anim-ov-font")?.value || "system",
+      overlay_text_color: document.getElementById("anim-ov-textcolor")?.value || "#ffffff",
+      overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",
+      overlay_bg_opacity: (parseFloat(document.getElementById("anim-ov-bgopacity")?.value) || 55) / 100,
       // codec/crf/frame_format kommen jetzt server-seitig aus den globalen
       // Render-Settings (Dialog „Qualität & Export"), nicht mehr aus der Sidebar.
       // v0.9.157 — override_* abgeschafft (Classic = 2 hidden KFs, s.o.).

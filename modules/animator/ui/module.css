@@ -244,6 +244,67 @@
   padding: 4px 0;
   flex-wrap: wrap;  /* v0.9.228 — Timing-Zeile bricht in eigene Zeile um */
 }
+/* v0.9.321 — Stats-Editor: sortierbare Feldliste pro Box */
+.ov-fieldeditor {
+  flex: 1 1 100%;
+  margin: 4px 0 2px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ov-fieldrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 6px;
+  background: var(--surface-2, rgba(255,255,255,0.03));
+  font-size: 12px;
+  cursor: default;
+}
+.ov-fieldrow.ov-dragging { opacity: 0.5; }
+.ov-fieldrow.unavail { opacity: 0.45; }
+.ov-grip {
+  cursor: grab;
+  color: var(--text-muted, #888);
+  user-select: none;
+  font-size: 13px;
+  line-height: 1;
+}
+.ov-fieldrow.unavail .ov-grip { cursor: not-allowed; }
+.ov-fieldlbl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  margin: 0;
+  cursor: pointer;
+}
+.ov-fieldlbl input { margin: 0; }
+.ov-unavail {
+  font-size: 10px;
+  color: var(--text-muted, #888);
+  font-style: italic;
+}
+/* v0.9.321 — globales Box-Styling (Schrift/Farbe/BG/Opacity) */
+.ov-style { flex: 1 1 100%; }
+.ov-style-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; opacity: 0.85; }
+.ov-style-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  font-size: 12px;
+}
+.ov-style-row label { flex: 1; color: var(--text-muted, #aaa); }
+.ov-style-row input[type="color"] {
+  width: 34px; height: 24px;
+  padding: 0; border: 1px solid var(--border, #2a2a2a);
+  border-radius: 5px; background: none; cursor: pointer;
+}
+.ov-style-row input[type="range"] { flex: 1.4; }
+.ov-style-val { width: 42px; text-align: right; opacity: 0.8; font-variant-numeric: tabular-nums; }
 /* v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y") */
 .ov-timing {
   flex: 1 1 100%;

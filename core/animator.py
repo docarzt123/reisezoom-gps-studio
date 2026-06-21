@@ -192,6 +192,16 @@ class AnimatorConfig:
     overlay_live_to_s: float = 0.0
     overlay_elevation_from_s: float = 0.0
     overlay_elevation_to_s: float = 0.0
+    # v0.9.321 — Stats-Editor: wählbare + sortierbare Felder pro Box. Leere/None
+    # Liste = Default-Felder (= bisheriges Verhalten, Backward-Compat). IDs siehe
+    # OVERLAY_LIVE_FIELDS / OVERLAY_TOTAL_FIELDS.
+    overlay_live_fields: list = field(default_factory=lambda: list(DEFAULT_LIVE_FIELDS))
+    overlay_totals_fields: list = field(default_factory=lambda: list(DEFAULT_TOTAL_FIELDS))
+    # Globales Styling aller Stats-Boxen.
+    overlay_font: str = "system"        # Key aus _OVERLAY_FONTS
+    overlay_text_color: str = "#ffffff"
+    overlay_bg_color: str = "#000000"
+    overlay_bg_opacity: float = 0.55    # 0..1
     codec: str = "h264"                 # "h264" oder "h265" (HEVC, kleinere Files)
     crf: int = 20                       # Qualität: niedriger = besser, 18-22 typisch
     # v0.9.245 — Frame-Erfassung: JPEG ist ~16× schneller zu encoden+übertragen
@@ -356,6 +366,158 @@ def _format_dur(s: float) -> str:
     h, rem = divmod(s, 3600)
     m, sec = divmod(rem, 60)
     return f"{h}:{m:02d}:{sec:02d}" if h else f"{m:02d}:{sec:02d}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stats-Overlay-Feld-Katalog (v0.9.321) — wählbare + sortierbare Felder.
+# Single source of truth fürs Backend; das Frontend (modules/animator/ui/module.js,
+# `OVERLAY_FIELD_CATALOG`) spiegelt diese IDs/Labels/Requires — bei Änderung BEIDE
+# pflegen. `requires`: "none" | "time" (braucht Zeitstempel) | "ele" (braucht Höhe).
+#   LIVE-Feld `js`  = JS-Ausdruck der aus `idx` den Anzeige-String macht (im
+#     per-Frame-updateOverlays). Verfügbare Symbole: cumDistM, cumTimeS, elevations,
+#     speedKmh, gradePct, TOTAL_DIST_M, TOTAL_TIME_S, fmtKmJS(km), fmtDurJS(sec).
+#   TOTAL-Feld `py` = Funktion(total_stats)->Wert-HTML (server-seitig statisch).
+OVERLAY_LIVE_FIELDS = [
+    {"id": "dist_done",    "requires": "none", "label": "Zur&uuml;ckgelegt", "accent": True,
+     "js": "fmtKmJS(cumDistM[idx]/1000)"},
+    {"id": "dist_left",    "requires": "none", "label": "Verbleibend",
+     "js": "fmtKmJS(Math.max(0,(TOTAL_DIST_M-cumDistM[idx])/1000))"},
+    {"id": "speed",        "requires": "time", "label": "Tempo",
+     "js": "Math.round(speedKmh[idx])+' km/h'"},
+    {"id": "time_elapsed", "requires": "time", "label": "Vergangen",
+     "js": "fmtDurJS(cumTimeS[idx])"},
+    {"id": "time_left",    "requires": "time", "label": "Restzeit",
+     "js": "fmtDurJS(Math.max(0,TOTAL_TIME_S-cumTimeS[idx]))"},
+    {"id": "ele_now",      "requires": "ele",  "label": "H&ouml;he",
+     "js": "Math.round(elevations[idx])+' m'"},
+    {"id": "grade",        "requires": "ele",  "label": "Steigung",
+     "js": "(gradePct[idx]>=0?'+':'')+gradePct[idx].toFixed(0)+' %'"},
+]
+OVERLAY_TOTAL_FIELDS = [
+    {"id": "dist_total", "requires": "none", "label": "Strecke",
+     "py": lambda ts: _format_km(ts["distance_m"])},
+    {"id": "duration",   "requires": "time", "label": "Zeit",
+     "py": lambda ts: _format_dur(ts["duration_s"])},
+    {"id": "avg_speed",  "requires": "time", "label": "&Oslash; Tempo",
+     "py": lambda ts: (f'{ts["distance_m"] / ts["duration_s"] * 3.6:.0f} km/h' if ts.get("duration_s") else "—")},
+    {"id": "max_speed",  "requires": "time", "label": "Max. Tempo",
+     "py": lambda ts: f'{ts.get("max_speed_kmh", 0):.0f} km/h'},
+    {"id": "elev_gain",  "requires": "ele",  "label": "Bergauf",
+     "py": lambda ts: f'&uarr; {ts["ascent_m"]:.0f} m'},
+    {"id": "elev_loss",  "requires": "ele",  "label": "Bergab",
+     "py": lambda ts: f'&darr; {ts["descent_m"]:.0f} m'},
+    {"id": "ele_high",   "requires": "ele",  "label": "H&ouml;chster Punkt",
+     "py": lambda ts: f'{ts["ele_max"]:.0f} m'},
+    {"id": "ele_low",    "requires": "ele",  "label": "Tiefster Punkt",
+     "py": lambda ts: f'{ts["ele_min"]:.0f} m'},
+]
+_OVERLAY_LIVE_BY_ID = {f["id"]: f for f in OVERLAY_LIVE_FIELDS}
+_OVERLAY_TOTAL_BY_ID = {f["id"]: f for f in OVERLAY_TOTAL_FIELDS}
+DEFAULT_LIVE_FIELDS = ["dist_done", "time_elapsed", "ele_now"]
+DEFAULT_TOTAL_FIELDS = ["dist_total", "duration", "elev_gain", "elev_loss", "ele_high"]
+
+# Render-sichere Font-Auswahl. System = body-Default; alle anderen werden per
+# Google-Fonts-<link> im Render-Head geladen (Headless-Chromium hat Netz). NIE
+# Comic Sans/Chalkboard/Marker Felt (globale Projektregel).
+_OVERLAY_FONTS = {
+    "system":    (None, "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif"),
+    "nunito":    ("Nunito:wght@400;600;700",      "'Nunito', sans-serif"),
+    "quicksand": ("Quicksand:wght@400;500;700",   "'Quicksand', sans-serif"),
+    "fredoka":   ("Fredoka:wght@400;500;600",     "'Fredoka', sans-serif"),
+    "oswald":    ("Oswald:wght@400;500;600",      "'Oswald', sans-serif"),
+    "bebas":     ("Bebas+Neue",                   "'Bebas Neue', sans-serif"),
+}
+
+
+def _overlay_field_available(requires: str, has_time: bool, has_ele: bool) -> bool:
+    if requires == "time":
+        return has_time
+    if requires == "ele":
+        return has_ele
+    return True
+
+
+def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool) -> str:
+    rows = []
+    for fid in (field_ids or DEFAULT_TOTAL_FIELDS):
+        f = _OVERLAY_TOTAL_BY_ID.get(fid)
+        if not f or not _overlay_field_available(f["requires"], has_time, has_ele):
+            continue
+        try:
+            val = f["py"](total_stats)
+        except Exception:
+            continue
+        rows.append(f'<div class="stat-row"><span class="label">{f["label"]}</span><span class="value">{val}</span></div>')
+    return "\n".join(rows)
+
+
+def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool) -> str:
+    rows = []
+    for fid in (field_ids or DEFAULT_LIVE_FIELDS):
+        f = _OVERLAY_LIVE_BY_ID.get(fid)
+        if not f or not _overlay_field_available(f["requires"], has_time, has_ele):
+            continue
+        accent = " accent" if f.get("accent") else ""
+        rows.append(f'<div class="stat-row"><span class="label">{f["label"]}</span><span class="value{accent}" id="live-{fid}">&mdash;</span></div>')
+    return "\n".join(rows)
+
+
+def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool) -> str:
+    """JS-Zeilen für updateOverlays(idx): pro aktivem Live-Feld ein textContent-Set.
+    Wird als literaler Block in den per-Frame-Loop injiziert (kein f-string-Reparse)."""
+    lines = []
+    for fid in (field_ids or DEFAULT_LIVE_FIELDS):
+        f = _OVERLAY_LIVE_BY_ID.get(fid)
+        if not f or not _overlay_field_available(f["requires"], has_time, has_ele):
+            continue
+        lines.append(f"  {{ var _e=document.getElementById('live-{fid}'); if(_e) _e.textContent = {f['js']}; }}")
+    return "\n".join(lines)
+
+
+def _overlay_compute_speed_grade(cum_dist, cum_time, eles, has_time: bool, has_ele: bool):
+    """Pro-Punkt-Geschwindigkeit (km/h) und Steigung (%) mit kleinem Glättungsfenster."""
+    n = len(cum_dist)
+    speed = [0.0] * n
+    grade = [0.0] * n
+    W = 2
+    if has_time and n > 1:
+        for i in range(n):
+            a, b = max(0, i - W), min(n - 1, i + W)
+            dd = cum_dist[b] - cum_dist[a]
+            dt = cum_time[b] - cum_time[a]
+            speed[i] = (dd / dt * 3.6) if dt > 0 else 0.0
+    if has_ele and n > 1 and eles:
+        for i in range(n):
+            a, b = max(0, i - W), min(n - 1, i + W)
+            dd = cum_dist[b] - cum_dist[a]
+            dh = eles[b] - eles[a]
+            grade[i] = (dh / dd * 100.0) if dd > 0 else 0.0
+    return speed, grade
+
+
+def _overlay_font_link(cfg: "AnimatorConfig") -> str:
+    """<link> zum Google-Font der gewählten Overlay-Schrift (oder "" für System)."""
+    key = (getattr(cfg, "overlay_font", "") or "system").lower()
+    spec = _OVERLAY_FONTS.get(key) or _OVERLAY_FONTS["system"]
+    if not spec[0]:
+        return ""
+    return f'<link href="https://fonts.googleapis.com/css2?family={spec[0]}&display=swap" rel="stylesheet">'
+
+
+def _overlay_font_family(cfg: "AnimatorConfig") -> str:
+    key = (getattr(cfg, "overlay_font", "") or "system").lower()
+    spec = _OVERLAY_FONTS.get(key) or _OVERLAY_FONTS["system"]
+    return spec[1]
+
+
+def _hex_to_rgb(hex_color: str, fallback=(0, 0, 0)) -> tuple[int, int, int]:
+    try:
+        h = (hex_color or "").lstrip("#")
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+    except Exception:
+        return fallback
 
 
 def _bounds_zoom(points: list[TrackPoint], w: int, h: int) -> tuple[tuple[float, float, float, float], tuple[float, float], float]:
@@ -524,13 +686,21 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
     s = _overlay_scale(cfg.height, _render_dsf(cfg.width, cfg.height))
     def px(n: float) -> str:
         return f"{round(n * s, 1)}px"
-    bg_op = 0.62 if alpha_mode else 0.55
+    # v0.9.321 — Stats-Editor-Styling: BG-Farbe/Opacity, Textfarbe, Schrift aus cfg.
+    _bgr, _bgg, _bgb = _hex_to_rgb(getattr(cfg, "overlay_bg_color", "#000000"), (0, 0, 0))
+    _bg_a = max(0.0, min(1.0, float(getattr(cfg, "overlay_bg_opacity", 0.55) or 0.0)))
+    if alpha_mode:
+        _bg_a = min(1.0, _bg_a + 0.07)   # auf NLE-Composite etwas kräftiger
+    bg_css = f"rgba({_bgr},{_bgg},{_bgb},{round(_bg_a, 3)})"
     sh_op = 0.45 if alpha_mode else 0.35
+    _txt = getattr(cfg, "overlay_text_color", "#ffffff") or "#ffffff"
+    _font = _overlay_font_family(cfg)
     return f"""
   .stats-box {{
-    position: absolute; background: rgba(0,0,0,{bg_op});
+    position: absolute; background: {bg_css};
     -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-    border-radius: {px(12)}; padding: {px(18)} {px(22)}; color: #fff;
+    border-radius: {px(12)}; padding: {px(18)} {px(22)}; color: {_txt};
+    font-family: {_font};
     min-width: {px(260)}; box-shadow: 0 {px(6)} {px(24)} rgba(0,0,0,{sh_op});
   }}
   /* Universal-Position-Slots (auch für #overlay-bottom). Margin in CSS-Pixel
@@ -560,7 +730,7 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
   .accent {{ color: {cfg.line_color}; }}
   #overlay-bottom {{
     position: absolute;
-    height: {px(170)}; background: rgba(0,0,0,{bg_op});
+    height: {px(170)}; background: {bg_css}; font-family: {_font};
     -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
     border-radius: {px(12)}; padding: {px(14)} {px(22)} {px(10)};
     box-shadow: 0 {px(6)} {px(24)} rgba(0,0,0,{sh_op});
@@ -572,7 +742,7 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
   #overlay-bottom.pos-tl, #overlay-bottom.pos-tr, #overlay-bottom.pos-bl,
   #overlay-bottom.pos-br, #overlay-bottom.pos-tc, #overlay-bottom.pos-bc,
   #overlay-bottom.pos-cc, #overlay-bottom.pos-ml, #overlay-bottom.pos-mr {{ width: {px(480)}; }}
-  .ele-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: {px(6)}; color: #fff; }}
+  .ele-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: {px(6)}; color: {_txt}; }}
   .ele-title {{ font-size: {px(11)}; letter-spacing: 1.6px; text-transform: uppercase; opacity: 0.72; font-weight: 500; }}
   .ele-minmax {{ font-size: {px(12)}; opacity: 0.8; font-variant-numeric: tabular-nums; }}
   .ele-minmax .sep {{ margin: 0 {px(10)}; opacity: 0.4; }}
@@ -732,28 +902,27 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # irreführenden Null-Werten + leeres Höhenprofil-Overlay.
     has_time = bool(total_stats.get('duration_s'))
     has_ele = total_stats.get('ele_max') is not None and total_stats.get('ele_min') is not None
+    # v0.9.321 — Stats-Editor: Pro-Punkt-Speed/Grade + Max-Speed für die Felder.
+    speed_kmh, grade_pct = _overlay_compute_speed_grade(cum_dist, cum_time, eles, has_time, has_ele)
+    speed_json = json.dumps([round(x, 2) for x in speed_kmh])
+    grade_json = json.dumps([round(x, 2) for x in grade_pct])
+    total_stats = dict(total_stats)
+    total_stats["max_speed_kmh"] = (max(speed_kmh) if (has_time and speed_kmh) else 0.0)
+    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
-            _rows = [f'<div class="stat-row"><span class="label">Strecke</span><span class="value">{_format_km(total_stats["distance_m"])}</span></div>']
-            if has_time:
-                _rows.append(f'<div class="stat-row"><span class="label">Zeit</span><span class="value">{_format_dur(total_stats["duration_s"])}</span></div>')
-            if has_ele:
-                _rows.append(f'<div class="stat-row"><span class="label">Bergauf</span><span class="value">&uarr; {total_stats["ascent_m"]:.0f} m</span></div>')
-                _rows.append(f'<div class="stat-row"><span class="label">Bergab</span><span class="value">&darr; {total_stats["descent_m"]:.0f} m</span></div>')
-                _rows.append(f'<div class="stat-row"><span class="label">Max. H&ouml;he</span><span class="value">{total_stats["ele_max"]:.0f} m</span></div>')
-            totals_html = f"""
+            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele)
+            if _trows:
+                totals_html = f"""
 <div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
-  {chr(10).join(_rows)}
+  {_trows}
 </div>"""
         if cfg.overlay_live_enabled:
-            _live_rows = ['<div class="stat-row"><span class="label">Zur&uuml;ckgelegt</span><span class="value accent" id="live-dist">0.0 km</span></div>']
-            if has_time:
-                _live_rows.append('<div class="stat-row"><span class="label">Vergangen</span><span class="value" id="live-time">00:00</span></div>')
-            if has_ele:
-                _live_rows.append('<div class="stat-row"><span class="label">H&ouml;he</span><span class="value" id="live-ele">0 m</span></div>')
-            live_html = f"""
+            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
+            if _lrows:
+                live_html = f"""
 <div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">
-  {chr(10).join(_live_rows)}
+  {_lrows}
 </div>"""
         # Höhenprofil nur wenn echte Höhendaten vorhanden — sonst leerer Strich.
         if cfg.overlay_elevation_enabled and has_ele:
@@ -1140,6 +1309,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
 <html><head><meta charset="utf-8">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js"></script>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css" rel="stylesheet">
+{_overlay_font_link(cfg)}
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   body, html {{ width: 100%; height: 100%; overflow: hidden;
@@ -1158,6 +1328,12 @@ const allCoords = {coords_json};
 const elevations = {elevations_json};
 const cumDistM = {cum_dist_json};
 const cumTimeS = {cum_time_json};
+const speedKmh = {speed_json};   // v0.9.321 — Stats-Editor: Pro-Punkt-Tempo
+const gradePct = {grade_json};   // v0.9.321 — Pro-Punkt-Steigung %
+const TOTAL_DIST_M = cumDistM.length ? cumDistM[cumDistM.length - 1] : 0;
+const TOTAL_TIME_S = cumTimeS.length ? cumTimeS[cumTimeS.length - 1] : 0;
+function fmtKmJS(km){{ return km < 100 ? km.toFixed(1)+' km' : km.toFixed(0)+' km'; }}
+function fmtDurJS(sec){{ sec=Math.max(0,Math.floor(sec)); var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60,p=function(n){{return n<10?'0'+n:''+n;}}; return h>0?h+':'+p(m)+':'+p(s):p(m)+':'+p(s); }}
 const totalPoints = allCoords.length;
 const SHOW_OVERLAYS = {str(cfg.show_overlays).lower()};
 // v0.9.55 (Marc): Pre-Trim-Sichtbarkeit. Wenn False, startet die gezeichnete
@@ -1185,20 +1361,8 @@ if (SHOW_OVERLAYS && HAS_ELE) {{
 }}
 function updateOverlays(idx) {{
   if (!SHOW_OVERLAYS) return;
-  const liveDist = document.getElementById('live-dist');
-  if (liveDist) liveDist.textContent = (cumDistM[idx]/1000).toFixed(1) + ' km';
-  if (HAS_TIME) {{
-    const liveTime = document.getElementById('live-time');
-    if (liveTime) {{
-      const sec = Math.max(0, Math.floor(cumTimeS[idx]));
-      const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
-      const pad = n => n<10 ? '0'+n : ''+n;
-      liveTime.textContent = h>0 ? h+':'+pad(m)+':'+pad(s) : pad(m)+':'+pad(s);
-    }}
-  }}
+{live_update_js}
   if (HAS_ELE) {{
-    const liveEle = document.getElementById('live-ele');
-    if (liveEle) liveEle.textContent = Math.round(elevations[idx]) + ' m';
     const pts = [], pairs = [];
     for (let i=0; i<=idx; i++) {{
       const x=idxToX(i).toFixed(2), y=eleToY(elevations[i]).toFixed(2);
@@ -1523,28 +1687,27 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     # irreführenden Null-Werten + leeres Höhenprofil-Overlay.
     has_time = bool(total_stats.get('duration_s'))
     has_ele = total_stats.get('ele_max') is not None and total_stats.get('ele_min') is not None
+    # v0.9.321 — Stats-Editor: Pro-Punkt-Speed/Grade + Max-Speed für die Felder.
+    speed_kmh, grade_pct = _overlay_compute_speed_grade(cum_dist, cum_time, eles, has_time, has_ele)
+    speed_json = json.dumps([round(x, 2) for x in speed_kmh])
+    grade_json = json.dumps([round(x, 2) for x in grade_pct])
+    total_stats = dict(total_stats)
+    total_stats["max_speed_kmh"] = (max(speed_kmh) if (has_time and speed_kmh) else 0.0)
+    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
-            _rows = [f'<div class="stat-row"><span class="label">Strecke</span><span class="value">{_format_km(total_stats["distance_m"])}</span></div>']
-            if has_time:
-                _rows.append(f'<div class="stat-row"><span class="label">Zeit</span><span class="value">{_format_dur(total_stats["duration_s"])}</span></div>')
-            if has_ele:
-                _rows.append(f'<div class="stat-row"><span class="label">Bergauf</span><span class="value">&uarr; {total_stats["ascent_m"]:.0f} m</span></div>')
-                _rows.append(f'<div class="stat-row"><span class="label">Bergab</span><span class="value">&darr; {total_stats["descent_m"]:.0f} m</span></div>')
-                _rows.append(f'<div class="stat-row"><span class="label">Max. H&ouml;he</span><span class="value">{total_stats["ele_max"]:.0f} m</span></div>')
-            totals_html = f"""
+            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele)
+            if _trows:
+                totals_html = f"""
 <div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
-  {chr(10).join(_rows)}
+  {_trows}
 </div>"""
         if cfg.overlay_live_enabled:
-            _live_rows = ['<div class="stat-row"><span class="label">Zur&uuml;ckgelegt</span><span class="value accent" id="live-dist">0.0 km</span></div>']
-            if has_time:
-                _live_rows.append('<div class="stat-row"><span class="label">Vergangen</span><span class="value" id="live-time">00:00</span></div>')
-            if has_ele:
-                _live_rows.append('<div class="stat-row"><span class="label">H&ouml;he</span><span class="value" id="live-ele">0 m</span></div>')
-            live_html = f"""
+            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
+            if _lrows:
+                live_html = f"""
 <div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">
-  {chr(10).join(_live_rows)}
+  {_lrows}
 </div>"""
         # Höhenprofil nur wenn echte Höhendaten vorhanden — sonst leerer Strich.
         if cfg.overlay_elevation_enabled and has_ele:
@@ -1570,6 +1733,7 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     overlays_block = totals_html + live_html + ele_html + _overlay_timing_js(cfg)
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
+{_overlay_font_link(cfg)}
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   html, body {{ width: {cfg.width}px; height: {cfg.height}px; overflow: hidden;
@@ -1616,6 +1780,12 @@ const allCoords = {coords_json};
 const elevations = {elevations_json};
 const cumDistM = {cum_dist_json};
 const cumTimeS = {cum_time_json};
+const speedKmh = {speed_json};   // v0.9.321 — Stats-Editor: Pro-Punkt-Tempo
+const gradePct = {grade_json};   // v0.9.321 — Pro-Punkt-Steigung %
+const TOTAL_DIST_M = cumDistM.length ? cumDistM[cumDistM.length - 1] : 0;
+const TOTAL_TIME_S = cumTimeS.length ? cumTimeS[cumTimeS.length - 1] : 0;
+function fmtKmJS(km){{ return km < 100 ? km.toFixed(1)+' km' : km.toFixed(0)+' km'; }}
+function fmtDurJS(sec){{ sec=Math.max(0,Math.floor(sec)); var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60,p=function(n){{return n<10?'0'+n:''+n;}}; return h>0?h+':'+p(m)+':'+p(s):p(m)+':'+p(s); }}
 const totalPoints = allCoords.length;
 const SHOW_OVERLAYS = {str(cfg.show_overlays).lower()};
 // v0.9.55 (Marc): Pre-Trim-Sichtbarkeit. Wenn False, startet die gezeichnete

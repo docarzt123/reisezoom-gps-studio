@@ -129,6 +129,12 @@ function mountGpxInspect(body, headerActions) {
             <button class="btn gpxi-act gpxi-del" id="gpxi-delete-one" disabled
               title="${t("gpxinspect.delete_one_tip", "Den ausgewählten Punkt (Anker A) entfernen. Geht auch mit Entf/Backspace.")}">
               🗑 ${t("gpxinspect.delete_one", "Diesen Punkt löschen")}</button>
+            <button class="btn gpxi-act gpxi-del" id="gpxi-trim-before" disabled
+              title="${t("gpxinspect.trim_before_tip", "Den Track-Anfang bis zu diesem Punkt entfernen — dieser Punkt wird der neue Start (z. B. Anfahrt oder Stillstand am Anfang wegschneiden).")}">
+              ⏮ ${t("gpxinspect.trim_before", "Alles davor abschneiden")}</button>
+            <button class="btn gpxi-act gpxi-del" id="gpxi-trim-after" disabled
+              title="${t("gpxinspect.trim_after_tip", "Alles nach diesem Punkt entfernen — dieser Punkt wird das neue Ende (z. B. vergessenes Stoppen der Aufzeichnung am Tourende wegschneiden).")}">
+              ⏭ ${t("gpxinspect.trim_after", "Alles danach abschneiden")}</button>
             <button class="btn gpxi-act gpxi-del" id="gpxi-delete" disabled
               title="${t("gpxinspect.delete_tip", "Die Punkte zwischen A und B ganz entfernen (Schleifen/Abstecher rausschneiden). A und B bleiben, die Linie verbindet sie direkt.")}">
               ✂️ ${t("gpxinspect.delete", "Punkte zwischen A→B rausschneiden")}</button>
@@ -823,6 +829,30 @@ function mountGpxInspect(body, headerActions) {
     if (_selA === null || _selB === null || _selB <= _selA + 1) return;
     _pushUndo(t("gpxinspect.delete", "Punkte löschen"));
     const cnt = _selB - _selA - 1;
+    _points.splice(_selA + 1, cnt);
+    _dirty = true; clearSpikes(); clearSelection();
+    renderAll(); updateUI();
+    toast(t("gpxinspect.deleted", "Punkte gelöscht: ") + cnt, "success", 1800);
+  }
+
+  // Track am ausgewählten Punkt (Anker A, ohne B) kappen (v0.9.320, §15.1).
+  // trimBefore: alles VOR A weg → A wird neuer Startpunkt (z. B. Anfahrt rausschneiden).
+  // trimAfter:  alles NACH A weg → A wird neues Ende (z. B. vergessenes Stoppen am Ende).
+  function trimBefore() {
+    if (_selA === null || _selB !== null) return;
+    if (_selA < 1) { toast(t("gpxinspect.trim_noop", "Hier gibt es nichts abzuschneiden."), "warning", 2000); return; }
+    const cnt = _selA;
+    _pushUndo(t("gpxinspect.trim_before", "Anfang abschneiden"));
+    _points.splice(0, cnt);
+    _dirty = true; clearSpikes(); clearSelection();
+    renderAll(); updateUI();
+    toast(t("gpxinspect.deleted", "Punkte gelöscht: ") + cnt, "success", 1800);
+  }
+  function trimAfter() {
+    if (_selA === null || _selB !== null) return;
+    if (_selA > _points.length - 2) { toast(t("gpxinspect.trim_noop", "Hier gibt es nichts abzuschneiden."), "warning", 2000); return; }
+    const cnt = _points.length - _selA - 1;
+    _pushUndo(t("gpxinspect.trim_after", "Ende abschneiden"));
     _points.splice(_selA + 1, cnt);
     _dirty = true; clearSpikes(); clearSelection();
     renderAll(); updateUI();
@@ -1628,6 +1658,10 @@ function mountGpxInspect(body, headerActions) {
     setDisabled("gpxi-fill", !both || _drawMode);
     setDisabled("gpxi-drawfill", !both || _drawMode);
     setDisabled("gpxi-delete-one", !(haveA && !haveB) || _drawMode);
+    // Track kappen (§15.1): nur bei Einzel-Auswahl (A ohne B), und nur wenn es auf
+    // der jeweiligen Seite überhaupt was abzuschneiden gibt (≥2 Punkte bleiben übrig).
+    setDisabled("gpxi-trim-before", !(haveA && !haveB) || _drawMode || _selA < 1);
+    setDisabled("gpxi-trim-after",  !(haveA && !haveB) || _drawMode || _selA > _points.length - 2);
     setDisabled("gpxi-delete", !hasBetween || _drawMode);
     // Map Matching: Bereich sobald A+B gesetzt sind (≥2 Punkte reichen zum Snappen —
     // anders als „Lücke füllen" braucht es KEINE Punkte dazwischen); ganzer Track sobald Punkte da.
@@ -1677,6 +1711,8 @@ function mountGpxInspect(body, headerActions) {
   _on("gpxi-draw-undo", undoDrawPoint);
   _on("gpxi-draw-cancel", cancelDraw);
   _on("gpxi-delete-one", deletePoint);
+  _on("gpxi-trim-before", trimBefore);
+  _on("gpxi-trim-after", trimAfter);
   _on("gpxi-delete", deleteBetween);
   _on("gpxi-clearsel", clearSelection);
   _on("gpxi-match-sel", routeSelection);

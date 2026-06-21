@@ -175,7 +175,7 @@
 <li><strong>Reiseroute</strong> — Anreise als Video: Start/Ziel → berechnete Strecke animiert, das geladene GPX als Ghost</li>
 <li><strong>Tour-Map</strong> — GPX-Track als statisches PNG (z.B. für YouTube-Thumbnails)</li>
 <li><strong>Geotagger</strong> — GPS-Koordinaten aus GPX in JPG / RAW / Video-EXIF schreiben</li>
-<li><strong>GPX-Inspektor</strong> — Track Punkt-für-Punkt reparieren: Ausreißer heilen, Lücken füllen, Punkte verschieben</li>
+<li><strong>GPX-Inspektor</strong> — Track Punkt-für-Punkt reparieren: Ausreißer heilen, Lücken füllen, Punkte verschieben, Anfang/Ende abschneiden</li>
 </ul>
 <hr>
 <h2 id="1-installation">1 · Installation</h2>
@@ -338,10 +338,17 @@ python app.py</code></pre>
 </ul>
 <p><strong>Overlays</strong> (alle einzeln togglebar, frei platzierbar):</p>
 <ul>
-<li><strong>Totals-Box</strong> — Strecke, Zeit, Aufstieg, Abstieg, Max-Höhe</li>
-<li><strong>Live-Box</strong> — zurückgelegt, vergangen, Höhe (zählt während der Animation hoch)</li>
+<li><strong>Totals-Box</strong> — Gesamt-Werte des Tracks</li>
+<li><strong>Live-Box</strong> — Werte, die während der Animation mitlaufen</li>
 <li><strong>Höhenprofil</strong> — animierte Linie</li>
 </ul>
+<p><strong>🆕 Stats-Editor (seit v0.9.321): du wählst, was angezeigt wird — und in welcher Reihenfolge.</strong> Unter der Totals- und der Live-Box steht jeweils eine <strong>Feldliste</strong>. Häkchen setzen/entfernen bestimmt, was erscheint; mit dem <strong>⠿-Griff ziehst du die Felder in die gewünschte Reihenfolge</strong>. Wählbare Werte:</p>
+<ul>
+<li><strong>Live (läuft mit der Animation mit):</strong> Zurückgelegt, Verbleibend, <strong>Tempo (km/h)</strong>, Vergangen, <strong>Restzeit</strong>, Höhe, <strong>Steigung (%)</strong>.</li>
+<li><strong>Gesamt:</strong> Strecke, Zeit, <strong>Ø Tempo</strong>, <strong>Max. Tempo</strong>, Bergauf, Bergab, <strong>Höchster Punkt</strong>, <strong>Tiefster Punkt</strong>.</li>
+<li>Werte, die dein Track nicht hergibt (z. B. Tempo/Zeit ohne Zeitstempel, Höhe/Steigung ohne Höhendaten), werden <strong>automatisch ausgegraut</strong>.</li>
+</ul>
+<p><strong>🎨 Aussehen der Stats-Boxen (seit v0.9.321):</strong> unten in der Overlays-Sektion wählst du <strong>Schriftart</strong> (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), <strong>Textfarbe</strong>, <strong>Hintergrundfarbe</strong> und <strong>Deckkraft des Hintergrunds</strong> — gilt für alle Boxen, mit Live-Vorschau auf der Karte.</p>
 <p><strong>Positionen (seit v0.9.284):</strong> Stats-Boxen in einem <strong>3×3-Raster</strong> — vier Ecken plus <strong>oben (↥)</strong>, <strong>unten (↧)</strong>, <strong>links (⇤)</strong>, <strong>rechts (⇥)</strong> mittig und <strong>Mitte (✛)</strong> (z.B. für eine Titel-/Eröffnungs-Einblendung). Das <strong>Höhenprofil</strong> ist schmaler und bietet zusätzlich <strong>oben breit / unten breit</strong> (über die volle Breite).</p>
 <p><strong>⏱ Zeitfenster pro Box</strong> (seit v0.9.228): Unter jeder Overlay-Box kannst du einstellen, <strong>ab welcher und bis zu welcher Video-Sekunde</strong> sie eingeblendet wird — z.B. die Live-Box erst ab Sekunde 2 zeigen, oder die Totals-Box nach Sekunde 8 wieder ausblenden. Zwei Felder „ab … s&quot; / „bis … s&quot;, gezählt über das <strong>ganze Video</strong> (Intro + Animation + Hold). <strong>Leer oder 0</strong> = wie bisher (ganze Zeit sichtbar). Das Ein-/Ausblenden siehst du schon im <strong>Probelauf</strong>, bevor du renderst.</p>
 <p><strong>Kamera:</strong></p>
@@ -601,6 +608,7 @@ python app.py</code></pre>
 <p><strong>Lücke füllen (Luftlinie)</strong> — wenn zwischen A und B <em>Punkte fehlen</em>: fügt neue Punkte auf der Geraden ein (Position, Höhe und Zeit interpoliert). Abstand per „Abstand beim Füllen&quot; einstellbar.</p>
 <p><strong>Pfad zeichnen &amp; füllen</strong> — wie „Lücke füllen&quot;, aber du zeichnest den Weg selbst: Anker A+B wählen → <strong>✏️ Pfad zeichnen &amp; füllen</strong> → auf die Karte klicken (Cursor wird zum Fadenkreuz) → <strong>✓ Pfad übernehmen</strong>. Die Lücke wird entlang deiner gezeichneten Linie aufgefüllt.</p>
 <p><strong>Einzelne Punkte:</strong> Einen Punkt anklicken (nur Anker A) → <strong>🗑 Diesen Punkt löschen</strong> oder einfach <strong>Entf/Backspace</strong>. Oder den <strong>grünen Punkt mit der Maus verschieben</strong> — z.B. auf den echten Weg ziehen, ohne ihn zu löschen (Zeit + Höhe bleiben, Geschwindigkeit stimmt weiter).</p>
+<p><strong>Anfang oder Ende abschneiden (seit v0.9.320):</strong> Einen Punkt anklicken (nur Anker A) → <strong>⏮ Alles davor abschneiden</strong> (der Punkt wird der neue <strong>Start</strong>) oder <strong>⏭ Alles danach abschneiden</strong> (der Punkt wird das neue <strong>Ende</strong>). Genau das Richtige, wenn du am Tourende <strong>vergessen hast die Aufzeichnung zu stoppen</strong> und der Track einen sinnlosen Schwanz (Heimfahrt/Stillstand) hat — oder die Anfahrt am Anfang weg soll. ⌘Z macht&#x27;s rückgängig.</p>
 <p><strong>Punkt-Info / Zeitstempel (seit v0.9.263):</strong> Sobald du einen Punkt anklickst (Anker A), steht in der Auswahl-Zeile sein <strong>Index, die Uhrzeit (lokal) und die Höhe</strong>. Hast du A <strong>und</strong> B gesetzt, zeigt sie zusätzlich die <strong>Dauer</strong> zwischen den beiden Punkten — praktisch, um zu sehen, wie viel Zeit auf einem Abschnitt liegt.</p>
 <p><strong>🛣 Auf Straße/Weg matchen (Map Matching, seit v0.9.263):</strong> Legt eine verrauschte GPS-Spur sauber auf das <strong>Wegenetz</strong> (glättet Drift entlang Wegen/Straßen). Profil wählen (<strong>Zu Fuß / Fahrrad / Auto</strong>), dann:</p>
 <ul>

@@ -14,6 +14,24 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.321] – 2026-06-20
+
+### Hinzugefügt
+- **Stats-Editor: Du bestimmst, was angezeigt wird — und in welcher Reihenfolge.** In der Overlays-Sektion (Animator + Tour-Map) gibt es jetzt pro Box eine **Feldliste zum An-/Abhaken und Sortieren** (per Drag am ⠿-Griff). Auswählbare Werte:
+  - **Live (läuft mit):** Zurückgelegt, Verbleibend, **Tempo (km/h)**, Vergangen, **Restzeit**, Höhe, **Steigung %**.
+  - **Gesamt:** Strecke, Zeit, **Ø Tempo**, **Max. Tempo**, Bergauf, Bergab, **Höchster/Tiefster Punkt**.
+  - Felder, die der Track nicht hergibt (z. B. Tempo/Zeit ohne Zeitstempel), werden **automatisch ausgegraut**.
+- **Aussehen der Stats-Boxen frei wählbar:** **Schriftart** (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), **Textfarbe**, **Hintergrundfarbe** und **Deckkraft des Hintergrunds**. Gilt für alle Boxen, mit Live-Vorschau auf der Karte. (IDEAS §13)
+
+### Geändert
+- Die feste Live-/Gesamt-Box (3 bzw. 5 fixe Zeilen) ist dem konfigurierbaren Feld-Katalog gewichen. Bestehende Projekte zeigen weiterhin die bisherigen Felder (abwärtskompatibel).
+
+## [0.9.320] – 2026-06-20
+
+### Hinzugefügt
+- **GPX-Inspektor: Track vorne/hinten abschneiden.** Einen Punkt auf der Karte wählen → zwei neue Buttons **„⏮ Alles davor abschneiden"** und **„⏭ Alles danach abschneiden"**. Der gewählte Punkt wird zum neuen Start bzw. neuen Ende. Klassischer Fall: am Tourende vergessen die Aufzeichnung zu stoppen → den sinnlosen Schwanz mit einem Klick weg. Genauso die Anfahrt/Stillstand am Anfang. Beides mit Rückgängig (⌘Z). (IDEAS §15.1)
+  - *Hinweis:* Punkte **dazwischen** löschen ging schon — einzelner Punkt über „🗑 Diesen Punkt löschen" (oder Entf/Backspace), ganze Bereiche über A→B wählen + „✂️ Punkte zwischen A→B rausschneiden".
+
 ## [0.9.319] – 2026-06-19
 
 ### Hinzugefügt

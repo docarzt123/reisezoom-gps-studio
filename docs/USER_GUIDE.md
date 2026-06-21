@@ -7,7 +7,7 @@ Module:
 - **Reiseroute** — Anreise als Video: Start/Ziel → berechnete Strecke animiert, das geladene GPX als Ghost
 - **Tour-Map** — GPX-Track als statisches PNG (z.B. für YouTube-Thumbnails)
 - **Geotagger** — GPS-Koordinaten aus GPX in JPG / RAW / Video-EXIF schreiben
-- **GPX-Inspektor** — Track Punkt-für-Punkt reparieren: Ausreißer heilen, Lücken füllen, Punkte verschieben
+- **GPX-Inspektor** — Track Punkt-für-Punkt reparieren: Ausreißer heilen, Lücken füllen, Punkte verschieben, Anfang/Ende abschneiden
 
 ---
 
@@ -213,9 +213,16 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Karte ohne Beschriftungen** (seit v0.4.4) — blendet Ortsnamen, Straßennamen und POI-Icons auf der Karte aus. Macht die Karte zum reinen Hintergrund — guter Look wenn du den Track als visuellen Hauptdarsteller haben willst statt einer Google-Maps-mäßigen Übersicht. Funktioniert mit allen Karten-Stilen und auch im Tour-Map-Modul.
 
 **Overlays** (alle einzeln togglebar, frei platzierbar):
-- **Totals-Box** — Strecke, Zeit, Aufstieg, Abstieg, Max-Höhe
-- **Live-Box** — zurückgelegt, vergangen, Höhe (zählt während der Animation hoch)
+- **Totals-Box** — Gesamt-Werte des Tracks
+- **Live-Box** — Werte, die während der Animation mitlaufen
 - **Höhenprofil** — animierte Linie
+
+**🆕 Stats-Editor (seit v0.9.321): du wählst, was angezeigt wird — und in welcher Reihenfolge.** Unter der Totals- und der Live-Box steht jeweils eine **Feldliste**. Häkchen setzen/entfernen bestimmt, was erscheint; mit dem **⠿-Griff ziehst du die Felder in die gewünschte Reihenfolge**. Wählbare Werte:
+- **Live (läuft mit der Animation mit):** Zurückgelegt, Verbleibend, **Tempo (km/h)**, Vergangen, **Restzeit**, Höhe, **Steigung (%)**.
+- **Gesamt:** Strecke, Zeit, **Ø Tempo**, **Max. Tempo**, Bergauf, Bergab, **Höchster Punkt**, **Tiefster Punkt**.
+- Werte, die dein Track nicht hergibt (z. B. Tempo/Zeit ohne Zeitstempel, Höhe/Steigung ohne Höhendaten), werden **automatisch ausgegraut**.
+
+**🎨 Aussehen der Stats-Boxen (seit v0.9.321):** unten in der Overlays-Sektion wählst du **Schriftart** (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), **Textfarbe**, **Hintergrundfarbe** und **Deckkraft des Hintergrunds** — gilt für alle Boxen, mit Live-Vorschau auf der Karte.
 
 **Positionen (seit v0.9.284):** Stats-Boxen in einem **3×3-Raster** — vier Ecken plus **oben (↥)**, **unten (↧)**, **links (⇤)**, **rechts (⇥)** mittig und **Mitte (✛)** (z.B. für eine Titel-/Eröffnungs-Einblendung). Das **Höhenprofil** ist schmaler und bietet zusätzlich **oben breit / unten breit** (über die volle Breite).
 
@@ -528,6 +535,8 @@ Zeigt **jeden einzelnen Punkt** deines Tracks auf der Karte (den vollen Roh-Trac
 **Pfad zeichnen & füllen** — wie „Lücke füllen", aber du zeichnest den Weg selbst: Anker A+B wählen → **✏️ Pfad zeichnen & füllen** → auf die Karte klicken (Cursor wird zum Fadenkreuz) → **✓ Pfad übernehmen**. Die Lücke wird entlang deiner gezeichneten Linie aufgefüllt.
 
 **Einzelne Punkte:** Einen Punkt anklicken (nur Anker A) → **🗑 Diesen Punkt löschen** oder einfach **Entf/Backspace**. Oder den **grünen Punkt mit der Maus verschieben** — z.B. auf den echten Weg ziehen, ohne ihn zu löschen (Zeit + Höhe bleiben, Geschwindigkeit stimmt weiter).
+
+**Anfang oder Ende abschneiden (seit v0.9.320):** Einen Punkt anklicken (nur Anker A) → **⏮ Alles davor abschneiden** (der Punkt wird der neue **Start**) oder **⏭ Alles danach abschneiden** (der Punkt wird das neue **Ende**). Genau das Richtige, wenn du am Tourende **vergessen hast die Aufzeichnung zu stoppen** und der Track einen sinnlosen Schwanz (Heimfahrt/Stillstand) hat — oder die Anfahrt am Anfang weg soll. ⌘Z macht's rückgängig.
 
 **Punkt-Info / Zeitstempel (seit v0.9.263):** Sobald du einen Punkt anklickst (Anker A), steht in der Auswahl-Zeile sein **Index, die Uhrzeit (lokal) und die Höhe**. Hast du A **und** B gesetzt, zeigt sie zusätzlich die **Dauer** zwischen den beiden Punkten — praktisch, um zu sehen, wie viel Zeit auf einem Abschnitt liegt.
 
