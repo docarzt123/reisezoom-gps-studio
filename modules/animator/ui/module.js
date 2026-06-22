@@ -911,7 +911,22 @@ function mountAnimator(body, headerActions, opts) {
   });
 
   // Settings-Bindings (Werte aus settings.json laden + bei Änderung speichern)
-  bindSetting("anim-style", _MODKEY, "map_style");
+  // v0.9.329 — onLoad: sobald der Stil aus dem Projekt geladen/neu gebunden wird
+  // (Projekt-/Session-Wechsel, App-Neustart über rebindAllSettings), auf die
+  // Karte anwenden. So matcht die Karte IMMER das Dropdown — vorher blieb sie auf
+  // dem Init-Stil hängen (Nutzer-Bug: Dropdown „Streets", Karte „Satellit").
+  bindSetting("anim-style", _MODKEY, "map_style", {
+    onLoad: (v) => {
+      // try/catch: beim allerersten Mount läuft dieser onLoad BEVOR `let map`
+      // (weiter unten) initialisiert ist → TDZ. Dann no-op (Map-Init übernimmt
+      // den Initial-Stil). Bei späteren rebindAllSettings (Projekt-/Session-
+      // Wechsel, App-Neustart) ist `map` da → Stil wird angewandt.
+      try {
+        if (!map) return;
+        if (v && v !== _currentStyleKey) applyStyle(v);
+      } catch (_) {}
+    },
+  });
 
   // OSM-Modus → Style-Picker disablen + Hinweis mit „Token hinzufügen"-CTA.
   // (Bei Token-Wechsel ruft app.js renderMod() → komplettes Remount,
@@ -3569,6 +3584,8 @@ function mountAnimator(body, headerActions, opts) {
     // bleibt er auf len-1 (Track steht still), während die Kamera weiter
     // interpoliert werden kann.
     const coordIdx = trackIdxFromTimelineAnchor(anchor);
+    // v0.9.325 — Live-Stats beim Scrubben mitlaufen lassen (WYSIWYG).
+    try { _ovUpdateLiveAt(coordIdx / Math.max(1, currentCoords.length - 1)); } catch (_) {}
     // v0.8.7: wenn Keyframe expliziten center hat → nutze ihn, sonst Track-Punkt
     // v0.8.19: Im Classic-Modus (kein KF-Editor) respektieren wir
     // camera_follow_track — wenn aus, bewegt der Scrubber die Kamera NICHT
@@ -4487,6 +4504,8 @@ function mountAnimator(body, headerActions, opts) {
         // markerReal, damit Timing-Fenster in Intro/Hold auch in der Vorschau greifen.
         if (sg && sg.applyMarkerAnchor) sg.applyMarkerAnchor(signAnchor);
       } catch (e) { console.warn("[anim-photos] step filter update failed:", e); }
+      // v0.9.325 — Live-Stats im Probelauf mitlaufen lassen (WYSIWYG zum Render).
+      try { _ovUpdateLiveAt(markerReal); } catch (_) {}
       // Scrubber visuell — siehe Berechnung oben (durch Trim-Handles wandernd).
       if (_tlBar) _tlBar.setScrubber(scrubberVis);
       if (elapsed < totalMs) {
@@ -4839,6 +4858,7 @@ function mountAnimator(body, headerActions, opts) {
     try { renderOverlayPreview(); } catch (_) {}
   }
 
+  let _currentStyleKey = null;   // v0.9.329 — aktuell auf der Karte gesetzter Stil
   function applyStyle(styleKey) {
     if (!map) return;
     if (isOsmMode()) {
@@ -4847,6 +4867,7 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
     const url = MAP_STYLES[styleKey] || MAP_STYLES.satellite;
+    _currentStyleKey = styleKey;   // v0.9.329 — gegen redundante setStyle-Reloads (onLoad)
     map.setStyle(url);
     map.once("style.load", () => {
       rebuildPreviewLayers();
@@ -4863,7 +4884,15 @@ function mountAnimator(body, headerActions, opts) {
         return;
       }
     } catch (_) {}
-    const initialStyleKey = (_settingsCache?.[_MODKEY]?.map_style) || "satellite";
+    // v0.9.329 — Kartenstil beim Init aus dem AKTIVEN PROJEKT lesen, erst dann
+    // global. Das Dropdown (bindSetting) speichert in die Projekt-Settings, der
+    // Init las aber nur die globale settings.json → Dropdown zeigte „Streets",
+    // die Karte rendert aber „Satellit" (bei Modulwechsel + App-Neustart).
+    // Nutzer-Bug (Beta-Tester, Motorrad-Touren).
+    const _styleProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    const initialStyleKey = (_styleProj?.[_MODKEY]?.map_style)
+                            || (_settingsCache?.[_MODKEY]?.map_style) || "satellite";
+    _currentStyleKey = initialStyleKey;   // v0.9.329 — Init-Stil merken (onLoad-Guard)
     // Viewport vor Map-Init dimensionieren — sonst hat Mapbox die falsche Größe.
     updateAnimatorViewport();
     const made = createMap({
@@ -6620,7 +6649,7 @@ function mountAnimator(body, headerActions, opts) {
       const er = document.getElementById("route-end-resolved");   if (er) er.textContent = "";
       try { _routeStatus(""); } catch (_) {}
       // Geladenen Route-Track aus der Vorschau nehmen (frisches Projekt = leer).
-      currentGpx = null; currentCoords = null; currentBbox = null; _gpxStats = null; _gpxElevations = null;
+      currentGpx = null; currentCoords = null; currentBbox = null; _gpxStats = null; _ovSeries = null; _gpxElevations = null;
       if (map) {
         ["preview-line", "preview-glow", "preview-highlight"].forEach(l => { try { if (map.getLayer(l)) map.removeLayer(l); } catch (_) {} });
         try { if (map.getSource("preview-track")) map.removeSource("preview-track"); } catch (_) {}
@@ -7179,6 +7208,7 @@ function mountAnimator(body, headerActions, opts) {
 
   // GPX-Statistiken merken — werden für die Overlay-Live-Vorschau gebraucht.
   let _gpxStats = null;
+  let _ovSeries = null;   // v0.9.325 — Per-Punkt-Reihen für WYSIWYG-Live-Stats (s. animator_load_gpx)
   let _gpxElevations = null;
 
   // ── v0.9.321 Stats-Editor ────────────────────────────────────────────────
@@ -7199,7 +7229,7 @@ function mountAnimator(body, headerActions, opts) {
   };
   const OVERLAY_DEFAULT_FIELDS = {
     live: ["dist_done", "time_elapsed", "ele_now"],
-    totals: ["dist_total", "duration", "elev_gain", "elev_loss", "ele_high"],
+    totals: ["dist_total", "moving_time", "avg_speed", "max_speed", "elev_gain", "elev_loss"],
   };
   const _OV_FALLBACK_LABEL = {
     dist_done: "Zurückgelegt", dist_left: "Verbleibend", speed: "Tempo",
@@ -7287,14 +7317,21 @@ function mountAnimator(body, headerActions, opts) {
   function _ovFieldValue(id) {
     const s = _gpxStats; if (!s) return "—";
     const km = s.distance_km || 0, dur = s.duration_s || 0;
-    const avg = dur > 0 ? (km / (dur / 3600)) : 0;
+    // v0.9.324 — echte Werte aus den Track-Stats (kein Schätz-Faktor mehr).
+    // moving_time_s/max_speed_kmh kommen voll-aufgelöst vom Backend.
+    const movS = (s.moving_time_s != null && s.moving_time_s > 0) ? s.moving_time_s : dur;
+    const avgTotal = dur > 0 ? (km / (dur / 3600)) : 0;
+    const avgMov = movS > 0 ? (km / (movS / 3600)) : 0;
+    const maxKmh = (s.max_speed_kmh != null && s.max_speed_kmh > 0) ? s.max_speed_kmh : 0;
     const lastEle = (_gpxElevations && _gpxElevations.length) ? Math.round(_gpxElevations[_gpxElevations.length - 1]) : (s.ele_max != null ? Math.round(s.ele_max) : null);
     switch (id) {
       case "dist_done": case "dist_total": return _ovFmtKm(km);
       case "dist_left": return _ovFmtKm(0);
-      case "speed": case "avg_speed": case "avg_speed_total": return avg.toFixed(1) + " km/h";
-      case "max_speed": return "≈ " + (avg * 1.4).toFixed(1) + " km/h";
-      case "time_elapsed": case "duration": case "moving_time": return _ovFmtDur(dur);
+      case "speed": case "avg_speed": return avgMov.toFixed(1) + " km/h";
+      case "avg_speed_total": return avgTotal.toFixed(1) + " km/h";
+      case "max_speed": return maxKmh > 0 ? maxKmh.toFixed(1) + " km/h" : "—";
+      case "moving_time": return _ovFmtDur(movS);
+      case "time_elapsed": case "duration": return _ovFmtDur(dur);
       case "time_left": return _ovFmtDur(0);
       case "ele_now": return lastEle != null ? lastEle + " m" : "—";
       case "grade": return "0 %";
@@ -7304,6 +7341,67 @@ function mountAnimator(body, headerActions, opts) {
       case "ele_low": return s.ele_min != null ? Math.round(s.ele_min) + " m" : "—";
     }
     return "—";
+  }
+
+  // v0.9.325 — WYSIWYG: Live-Box + Höhenprofil am aktuellen Track-Fortschritt
+  // mitlaufen lassen. `frac` = 0..1 entlang des realen Tracks (= markerReal im
+  // Probelauf bzw. coordIdx/len beim Scrubben). Nutzt exakt die Render-Formeln
+  // (s. OVERLAY_LIVE_FIELDS[*].js in core/animator.py) auf den Backend-Reihen.
+  function _ovUpdateLiveAt(frac) {
+    frac = Math.max(0, Math.min(1, frac || 0));
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer) return;
+    const sr = _ovSeries;
+    const box = layer.querySelector('[data-ovbox="live"]');
+    if (box && sr && sr.cumDistM && sr.cumDistM.length) {
+      const n = sr.cumDistM.length;
+      let i = Math.round(frac * (n - 1));
+      if (i < 0) i = 0; else if (i > n - 1) i = n - 1;
+      const totD = sr.total_dist_m || sr.cumDistM[n - 1] || 0;
+      const totT = sr.total_time_s || (sr.cumTimeS ? sr.cumTimeS[n - 1] : 0) || 0;
+      box.querySelectorAll('.ov-v[data-ovid]').forEach((el) => {
+        const id = el.getAttribute("data-ovid");
+        let v = null;
+        switch (id) {
+          case "dist_done": v = _ovFmtKm(sr.cumDistM[i] / 1000); break;
+          case "dist_left": v = _ovFmtKm(Math.max(0, (totD - sr.cumDistM[i]) / 1000)); break;
+          case "speed": if (sr.has_time) v = Math.round(sr.speedKmh[i]) + " km/h"; break;
+          case "time_elapsed": if (sr.has_time) v = _ovFmtDur(sr.cumTimeS[i]); break;
+          case "time_left": if (sr.has_time) v = _ovFmtDur(Math.max(0, totT - sr.cumTimeS[i])); break;
+          case "ele_now": if (sr.has_ele) v = Math.round(sr.ele[i]) + " m"; break;
+          case "grade": if (sr.has_ele) { const g = sr.gradePct[i]; v = (g >= 0 ? "+" : "") + g.toFixed(0) + " %"; } break;
+        }
+        if (v != null) el.textContent = v;
+      });
+    }
+    _ovUpdateEleProfileAt(frac);
+  }
+
+  // Höhenprofil progressiv bis zum Marker füllen (wie ele-active-line im Render).
+  function _ovUpdateEleProfileAt(frac) {
+    const line = document.getElementById("ov-ele-line");
+    if (!line || !_gpxElevations || _gpxElevations.length < 2) return;
+    const W = 1000, H = 120, PY = 10;
+    const eMin = Math.min(..._gpxElevations), eMax = Math.max(..._gpxElevations);
+    const eRng = (eMax - eMin) || 1;
+    const yOf = (e) => H - PY - ((e - eMin) / eRng) * (H - PY * 2);
+    const xOf = (i) => (i / Math.max(1, _gpxElevations.length - 1)) * W;
+    const n = _gpxElevations.length;
+    let idx = Math.round(Math.max(0, Math.min(1, frac)) * (n - 1));
+    if (idx < 0) idx = 0; else if (idx > n - 1) idx = n - 1;
+    const pairs = [];
+    for (let i = 0; i <= idx; i++) pairs.push([xOf(i), yOf(_gpxElevations[i])]);
+    const ps = pairs.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+    line.setAttribute("points", ps);
+    const fill = document.getElementById("ov-ele-fill");
+    if (fill && pairs.length >= 2) {
+      fill.setAttribute("points", `${pairs[0][0].toFixed(1)},${H} ${ps} ${pairs[pairs.length - 1][0].toFixed(1)},${H}`);
+    }
+    const dot = document.getElementById("ov-ele-dot");
+    if (dot && pairs.length) {
+      dot.setAttribute("cx", pairs[pairs.length - 1][0].toFixed(1));
+      dot.setAttribute("cy", pairs[pairs.length - 1][1].toFixed(1));
+    }
   }
   // Initialer Editor-Aufbau — hier sind Katalog-Consts + _gpxStats sicher initialisiert.
   _ovRebuildEditors();
@@ -7388,9 +7486,9 @@ function mountAnimator(body, headerActions, opts) {
             </linearGradient>
           </defs>
           <polyline points="${bgPts}" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-          <polygon points="${fillPts}" fill="url(#ov-ele-grad)"/>
-          <polyline points="${activePts}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-          <circle cx="${dotX}" cy="${dotY}" r="4.5" fill="#ffffff" stroke="${color}" stroke-width="2"/>
+          <polygon id="ov-ele-fill" points="${fillPts}" fill="url(#ov-ele-grad)"/>
+          <polyline id="ov-ele-line" points="${activePts}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle id="ov-ele-dot" cx="${dotX}" cy="${dotY}" r="4.5" fill="#ffffff" stroke="${color}" stroke-width="2"/>
         </svg>`;
     }
 
@@ -7403,8 +7501,11 @@ function mountAnimator(body, headerActions, opts) {
     const boxStyle = `font-family:${fontFam}; color:${txtCol}; background:${_ovHexRgba(bgCol, bgOpac)};`;
     // v0.9.321 — katalog-getriebene, sortierbare Felder pro Box (Endzustand-Werte)
     const rowsHtml = (box) => _ovGetFields(box).map(id => {
-      const accent = (id === "dist_done") ? ` style="color:${color}"` : "";
-      return `<div class="ov-row"><span class="ov-l">${_ovFieldLabel(id)}</span><span class="ov-v"${accent}>${_ovFieldValue(id)}</span></div>`;
+      // v0.9.327 — Akzent (Zurückgelegt) erbt die Textfarbe, hebt sich nur über
+      // Fettung ab. Vorher hart auf Track-Farbe → die Textfarbe-Einstellung
+      // wirkte auf dieses Feld nicht (Marc-Bug).
+      const accent = (id === "dist_done") ? ` style="font-weight:800"` : "";
+      return `<div class="ov-row"><span class="ov-l">${_ovFieldLabel(id)}</span><span class="ov-v" data-ovid="${id}"${accent}>${_ovFieldValue(id)}</span></div>`;
     }).join("");
 
     let html = "";
@@ -7444,6 +7545,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!res.ok) { toast(res.error || "GPX-Fehler", "error"); return; }
     currentGpx = path;
     _gpxStats = res.stats;
+    _ovSeries = res.series || null;
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
     try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
     // Stats-Bar umschalten: Empty-Hint aus, Karten an
@@ -7590,7 +7692,7 @@ function mountAnimator(body, headerActions, opts) {
         currentGpx = null;
         currentCoords = null;
         currentBbox = null;
-        _gpxStats = null;
+        _gpxStats = null; _ovSeries = null;
         _gpxElevations = [];
         try {
           document.getElementById("anim-stats-empty").hidden = false;
@@ -7772,6 +7874,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     currentGpx = path;
     _gpxStats = res.stats;
+    _ovSeries = res.series || null;
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
     try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
     try {
@@ -8040,7 +8143,7 @@ function mountAnimator(body, headerActions, opts) {
     currentGpx = null;
     currentCoords = null;
     currentBbox = null;
-    _gpxStats = null;
+    _gpxStats = null; _ovSeries = null;
     _gpxElevations = null;
     // Track-Layer von der Karte entfernen
     if (map) {

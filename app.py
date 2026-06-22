@@ -126,7 +126,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.323"
+APP_VERSION = "0.9.329"
 
 # v0.9.280 (Nutzer-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
@@ -263,7 +263,7 @@ DEFAULT_SETTINGS = {
         "overlay_elevation_position": "bc",
         # v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
         "overlay_live_fields": ["dist_done", "time_elapsed", "ele_now"],
-        "overlay_totals_fields": ["dist_total", "duration", "elev_gain", "elev_loss", "ele_high"],
+        "overlay_totals_fields": ["dist_total", "moving_time", "avg_speed", "max_speed", "elev_gain", "elev_loss"],
         "overlay_font": "system",
         "overlay_text_color": "#ffffff",
         "overlay_bg_color": "#000000",
@@ -348,7 +348,7 @@ DEFAULT_SETTINGS = {
         "overlay_elevation_enabled": False,
         "overlay_elevation_position": "bc",
         # v0.9.321 — Stats-Editor: Totals-Felder + globales Styling (gespiegelt)
-        "overlay_totals_fields": ["dist_total", "duration", "elev_gain", "elev_loss", "ele_high"],
+        "overlay_totals_fields": ["dist_total", "moving_time", "avg_speed", "max_speed", "elev_gain", "elev_loss"],
         "overlay_font": "system",
         "overlay_text_color": "#ffffff",
         "overlay_bg_color": "#000000",
@@ -1519,6 +1519,27 @@ class Api:
             # downsampled (200 Punkte) damit das SVG-Update flüssig bleibt.
             ele_ds = cgpx.downsample(pts, 200)
             elevations = [p.ele if p.ele is not None else 0.0 for p in ele_ds]
+            # v0.9.325 — WYSIWYG-Live-Stats: dieselben Per-Punkt-Reihen, die der
+            # Render pro Frame nutzt (index-gleich zu `coords`/`ds`), damit die
+            # Vorschau-Live-Box beim Scrubben/Probelauf mitläuft wie im Video.
+            has_time = bool(stats.duration_s)
+            has_ele = stats.ele_max is not None and stats.ele_min is not None
+            cum_dist = [p.dist_m for p in ds]
+            cum_time = [p.elapsed_s for p in ds]
+            eles_full = [p.ele if p.ele is not None else 0.0 for p in ds]
+            _spd, _grd, _, _ = canim._overlay_compute_speed_grade(
+                ds, cum_dist, cum_time, eles_full, has_time, has_ele)
+            series = {
+                "cumDistM": cum_dist,
+                "cumTimeS": cum_time,
+                "speedKmh": [round(x, 2) for x in _spd],
+                "gradePct": [round(x, 2) for x in _grd],
+                "ele": [round(e, 1) for e in eles_full],
+                "total_dist_m": stats.distance_m,
+                "total_time_s": stats.duration_s,
+                "has_time": has_time,
+                "has_ele": has_ele,
+            }
             return {
                 "ok": True,
                 "name": stats.name or Path(path).stem,
@@ -1536,7 +1557,12 @@ class Api:
                     "descent_m": stats.descent_m,
                     "ele_max": stats.ele_max,
                     "ele_min": stats.ele_min,
+                    # v0.9.324: echte Bewegungszeit + Spitzentempo (voll aufgelöst)
+                    # damit die Live-Vorschau echte Werte zeigt statt Schätz-Heuristik.
+                    "moving_time_s": stats.moving_time_s,
+                    "max_speed_kmh": stats.max_speed_kmh,
                 },
+                "series": series,
             }
         except Exception as e:
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}

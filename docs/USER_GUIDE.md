@@ -221,8 +221,11 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 **🆕 Stats-Editor (seit v0.9.321): du wählst, was angezeigt wird — und in welcher Reihenfolge.** Unter der Totals- und der Live-Box steht jeweils eine **Feldliste**. Häkchen setzen/entfernen bestimmt, was erscheint; mit dem **⠿-Griff ziehst du die Felder in die gewünschte Reihenfolge**. Wählbare Werte:
 - **Live (läuft mit der Animation mit):** Zurückgelegt, Verbleibend, **Tempo (km/h)**, Vergangen, **Restzeit**, Höhe, **Steigung (%)**.
+  - *WYSIWYG (seit v0.9.325):* Diese Werte laufen schon **in der Vorschau** mit — beim Ziehen des Scrubbers und im Probelauf zählen sie genau wie im fertigen Video, und das Höhenprofil füllt sich bis zur Marker-Position. Du siehst also vorab bildgenau, wie die Stats im Render aussehen.
 - **Gesamt:** Strecke, Zeit (Gesamtzeit), **Fahrzeit** (Bewegungszeit ohne Pausen), **Ø Tempo** (aus Fahrzeit), **Ø Tempo (gesamt)** (aus Gesamtzeit), **Max. Tempo**, Bergauf, Bergab, **Höchster Punkt**, **Tiefster Punkt**.
+  - *Standard (seit v0.9.324):* Neue Tracks zeigen **Strecke · Fahrzeit · Ø Tempo · Max. Tempo · Aufstieg · Abstieg**. Die **Fahrzeit** ist die angezeigte Zeit statt der Gesamtzeit — beides bleibt frei wählbar. Hast du deine Lieblings-Auswahl eingestellt, merkt sich die App sie mit **„Als eigene Standardwerte speichern"** (Projekt-Menü) für **alle** neuen Projekte.
   - *Pausenerkennung:* Eine Pause ist ein Abschnitt, in dem du über ein **60-Sekunden-Fenster netto kaum vorangekommen** bist — nicht das momentane Tempo zählt. So gilt langsames Steil-Gehen (~1 km/h, aber stetig) als Bewegung, nur echtes Stehenbleiben als Pause.
+  - *Genauigkeit (seit v0.9.324):* **Fahrzeit** und **Max. Tempo** werden auf der **vollen Track-Auflösung** berechnet — das Spitzentempo wird nicht mehr durch die Render-Vereinfachung weggeglättet.
 - Werte, die dein Track nicht hergibt (z. B. Tempo/Zeit ohne Zeitstempel, Höhe/Steigung ohne Höhendaten), werden **automatisch ausgegraut**.
 
 **🎨 Aussehen der Stats-Boxen (seit v0.9.321):** unten in der Overlays-Sektion wählst du **Schriftart** (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), **Textfarbe**, **Hintergrundfarbe** und **Deckkraft des Hintergrunds** — gilt für alle Boxen, mit Live-Vorschau auf der Karte.

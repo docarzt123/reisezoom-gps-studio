@@ -14,6 +14,38 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.329] – 2026-06-21
+
+### Behoben (Nutzer-Feedback)
+- **Kartenstil bleibt erhalten.** Wenn man den Kartenstil (z. B. „Streets") eingestellt hat, sprang die Karte beim Ansichtswechsel (Animator ↔ Tour-Map) und beim App-Neustart zurück auf „Satellit" — obwohl im Auswahlfeld weiterhin „Streets" stand. Ursache: Die Karte las den Stil beim Initialisieren aus den globalen Einstellungen statt aus dem aktiven Projekt (wo die Auswahl gespeichert wird). Jetzt wird der Stil korrekt aus dem Projekt geladen und beim Laden/Wechseln zuverlässig auf die Karte angewandt. (Dank an einen Beta-Tester.)
+
+### Behoben (Nutzer-Feedback)
+- **Live-Steigung springt nicht mehr.** Die Steigung wurde über nur zwei Nachbarpunkte berechnet — bei dicht gesampelten Tracks (Punkte alle paar Meter) lässt das verrauschte GPS-Höhensignal die Anzeige wild hin- und herspringen. Sie wird jetzt über eine **feste 240-m-Basis** (±120 m) auf leicht geglätteter Höhe berechnet, unabhängig von der Punktdichte, plus eine kleine Nachglättung. Ergebnis: ruhige, glaubwürdige Steigungsanzeige. (Beispiel-Track: Sprung von bis zu 16 % pro Frame auf ~2 % reduziert.)
+
+### Behoben (Nutzer-Feedback)
+- **Textfarbe der Stats wirkt jetzt auf ALLE Felder.** Das hervorgehobene „Zurückgelegt" wurde fest in der Track-Farbe gezeichnet und ignorierte die eingestellte Textfarbe. Jetzt folgt es der Textfarbe wie alle anderen Werte; die Hervorhebung erfolgt über **Fettung** statt einer fixen Farbe.
+- **Farbwähler bleibt flüssig.** Beim Ziehen im System-Farbwähler (Textfarbe/Hintergrund der Stats) wurde bei jedem Mini-Schritt gespeichert + die ganze Vorschau neu gebaut → der Picker fühlte sich „klebrig" an. Live-Vorschau wird jetzt pro Bild gebündelt und das Speichern leicht verzögert — der Picker reagiert sofort.
+
+### Behoben (Nutzer-Feedback)
+- **Max. Tempo ignoriert jetzt GPS-Ausreißer — ohne feste Tempo-Grenze.** Ein einzelner verrutschter GPS-Punkt erzeugte bisher ein Schein-Maximum (z. B. 7,4 km/h auf einer Wanderung, bei der man nie über 7 war; oder zweistellige Werte aus einem GPS-Teleport). Das Spitzentempo wird jetzt über einen **Median-Filter** ermittelt: er vergleicht jeden Punkt mit seinen Nachbarn statt mit einer festen km/h-Grenze, ist also **skalenfrei** — funktioniert gleichermaßen fürs Wandern wie für Rad-, Auto-, Zug- oder Flug-Tracks. Isolierte Sprünge fallen raus, echtes anhaltendes Tempo bleibt voll erhalten. Der frühere harte 120-km/h-Deckel (der schnelle Tracks fälschlich beschnitten hätte) ist entfallen.
+
+## [0.9.325] – 2026-06-21
+
+### Behoben
+- **Live-Stats im transparenten Video (Alpha/ProRes 4444) liefen nicht mit.** Beim Export mit transparentem Hintergrund (zum Einbetten im Schnittprogramm) blieben die Live-Werte (Zurückgelegt, Zeit, Höhe …) eingefroren, seit der Stats-Editor eingeführt wurde. Der transparente Render nutzt jetzt dieselbe Feld-Logik wie das normale Video — die Werte zählen wieder korrekt mit. (Vom neuen ausführlichen Test gefunden.)
+
+### Hinzugefügt
+- **Live-Statistiken laufen in der Vorschau mit (echtes WYSIWYG).** Beim Scrubben und im Probelauf zählen die Live-Werte — Zurückgelegt, Vergangen/Restzeit, Tempo, Höhe, Steigung — jetzt genauso mit wie im fertigen Video, und das Höhenprofil füllt sich live bis zur Marker-Position. Die Vorschau nutzt dieselben Per-Punkt-Daten wie der Render, ist also bildgenau. (Die Gesamt-Werte stehen weiterhin fest, da sie sich über die Fahrt nicht ändern.)
+
+## [0.9.324] – 2026-06-21
+
+### Behoben (Nutzer-Feedback)
+- **Max. Tempo & Fahrzeit jetzt exakt — unabhängig von der Track-Auflösung.** Beide Werte wurden bisher auf dem fürs Rendering heruntergerechneten Track berechnet, wodurch der Tempo-Peak weggeglättet wurde (gemessene 43 km/h wurden z. B. deutlich zu niedrig angezeigt). Sie werden jetzt **einmalig auf der vollen Track-Auflösung** ermittelt. Beispiel-Track: Max-Tempo vorher 9,5 km/h → korrekt **14,1 km/h**.
+- **Live-Vorschau zeigt jetzt echte Stats statt Schätzwerte.** In der Karten-Vorschau wurden Ø Tempo, Ø Tempo (gesamt) und Max. Tempo bisher nur grob geschätzt — Ø und Ø (gesamt) waren identisch, Max war schlicht „Ø × 1,4". Die Vorschau zeigt jetzt dieselben echten Werte wie das gerenderte Video (Bewegungszeit-Ø, Gesamt-Ø und das tatsächliche Spitzentempo).
+
+### Geändert
+- **Sinnvollere Standard-Statistiken.** Neue Tracks zeigen im Overlay jetzt von Haus aus **Strecke · Fahrzeit · Ø Tempo · Max. Tempo · Aufstieg · Abstieg** (vorher Gesamtzeit ohne Tempo-Werte). Die **Fahrzeit** (Bewegungszeit) ersetzt die Gesamtzeit als angezeigte Zeit; beides bleibt im Stats-Editor frei wählbar. Bestehende Projekte behalten ihre Einstellungen. Mit **„Als eigene Standardwerte speichern"** (Projekt-Menü) wird die gewünschte Feld-Auswahl projektübergreifend gemerkt.
+
 ## [0.9.323] – 2026-06-21
 
 ### Behoben (Nutzer-Feedback)

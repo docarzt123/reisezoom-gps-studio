@@ -421,7 +421,7 @@ OVERLAY_TOTAL_FIELDS = [
 _OVERLAY_LIVE_BY_ID = {f["id"]: f for f in OVERLAY_LIVE_FIELDS}
 _OVERLAY_TOTAL_BY_ID = {f["id"]: f for f in OVERLAY_TOTAL_FIELDS}
 DEFAULT_LIVE_FIELDS = ["dist_done", "time_elapsed", "ele_now"]
-DEFAULT_TOTAL_FIELDS = ["dist_total", "duration", "elev_gain", "elev_loss", "ele_high"]
+DEFAULT_TOTAL_FIELDS = ["dist_total", "moving_time", "avg_speed", "max_speed", "elev_gain", "elev_loss"]
 
 # Render-sichere Font-Auswahl. System = body-Default; alle anderen werden per
 # Google-Fonts-<link> im Render-Head geladen (Headless-Chromium hat Netz). NIE
@@ -543,11 +543,28 @@ def _overlay_compute_speed_grade(points, cum_dist, cum_time, eles, has_time: boo
             if moving:
                 moving_time_s += dt_seg
     if has_ele and n > 1 and eles:
+        # v0.9.328 — Steigung glätten (Nutzer: „springt total hin und her").
+        # GPS-Höhe rauscht ±5–10 m pro Sample; über nur 2 Nachbarpunkte (bei
+        # dichtem Sampling oft nur wenige Meter Basis) explodiert die Steigung.
+        # Daher: (1) Höhe leicht glätten, (2) Steigung über eine FESTE horizontale
+        # Basis von ±120 m rechnen — unabhängig von der Punktdichte (kurze, dicht
+        # gesampelte Tracks waren am schlimmsten), (3) Ergebnis leicht nachglätten.
+        EW = 3
+        sm = [0.0] * n
         for i in range(n):
-            a, b = max(0, i - W), min(n - 1, i + W)
+            a, b = max(0, i - EW), min(n - 1, i + EW)
+            sm[i] = sum(eles[a:b + 1]) / (b - a + 1)
+        GRADE_HALF_M = 120.0
+        raw_g = [0.0] * n
+        for i in range(n):
+            a = max(0, min(bisect.bisect_left(cum_dist, cum_dist[i] - GRADE_HALF_M), i))
+            b = min(n - 1, max(bisect.bisect_right(cum_dist, cum_dist[i] + GRADE_HALF_M) - 1, i))
             dd = cum_dist[b] - cum_dist[a]
-            dh = eles[b] - eles[a]
-            grade[i] = (dh / dd * 100.0) if dd > 0 else 0.0
+            raw_g[i] = ((sm[b] - sm[a]) / dd * 100.0) if dd > 0 else 0.0
+        GW = 2
+        for i in range(n):
+            a, b = max(0, i - GW), min(n - 1, i + GW)
+            grade[i] = sum(raw_g[a:b + 1]) / (b - a + 1)
     return speed, grade, moving_time_s, max_speed_kmh
 
 
@@ -783,7 +800,7 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
   .pos-tc .stat-row, .pos-cc .stat-row, .pos-bc .stat-row {{ justify-content: center; gap: {px(18)}; }}
   .label {{ font-size: {px(11)}; letter-spacing: 1.6px; text-transform: uppercase; opacity: 0.72; font-weight: 500; }}
   .value {{ font-size: {px(22)}; font-weight: 600; font-variant-numeric: tabular-nums; }}
-  .accent {{ color: {cfg.line_color}; }}
+  .accent {{ font-weight: 800; }}  /* v0.9.327: Akzent erbt die Textfarbe, hebt sich nur über Fettung ab (vorher hart line_color → Textfarbe wirkte nicht) */
   #overlay-bottom {{
     position: absolute;
     height: {px(170)}; background: {bg_css}; font-family: {_font};
@@ -963,8 +980,18 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     speed_json = json.dumps([round(x, 2) for x in speed_kmh])
     grade_json = json.dumps([round(x, 2) for x in grade_pct])
     total_stats = dict(total_stats)
-    total_stats["max_speed_kmh"] = (_max_kmh if has_time else 0.0)
-    total_stats["moving_time_s"] = (_moving_s if has_time else 0.0)
+    # v0.9.324 — Max-Tempo + Fahrzeit kommen aus den VOLL aufgelösten Track-Stats
+    # (TrackStats.max_speed_kmh/moving_time_s). Die ds_points-Werte sind nur
+    # Fallback, falls der Aufrufer sie nicht mitliefert — Downsampling würde
+    # den Tempo-Peak sonst wegglätten (Nutzer-Feedback: 43 km/h zu niedrig).
+    if has_time:
+        if not total_stats.get("max_speed_kmh"):
+            total_stats["max_speed_kmh"] = _max_kmh
+        if not total_stats.get("moving_time_s"):
+            total_stats["moving_time_s"] = _moving_s
+    else:
+        total_stats["max_speed_kmh"] = 0.0
+        total_stats["moving_time_s"] = 0.0
     live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
@@ -1749,8 +1776,18 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     speed_json = json.dumps([round(x, 2) for x in speed_kmh])
     grade_json = json.dumps([round(x, 2) for x in grade_pct])
     total_stats = dict(total_stats)
-    total_stats["max_speed_kmh"] = (_max_kmh if has_time else 0.0)
-    total_stats["moving_time_s"] = (_moving_s if has_time else 0.0)
+    # v0.9.324 — Max-Tempo + Fahrzeit kommen aus den VOLL aufgelösten Track-Stats
+    # (TrackStats.max_speed_kmh/moving_time_s). Die ds_points-Werte sind nur
+    # Fallback, falls der Aufrufer sie nicht mitliefert — Downsampling würde
+    # den Tempo-Peak sonst wegglätten (Nutzer-Feedback: 43 km/h zu niedrig).
+    if has_time:
+        if not total_stats.get("max_speed_kmh"):
+            total_stats["max_speed_kmh"] = _max_kmh
+        if not total_stats.get("moving_time_s"):
+            total_stats["moving_time_s"] = _moving_s
+    else:
+        total_stats["max_speed_kmh"] = 0.0
+        total_stats["moving_time_s"] = 0.0
     live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
@@ -1887,20 +1924,11 @@ if (SHOW_OVERLAYS && HAS_ELE) {{
 }}
 function updateOverlays(idx) {{
   if (!SHOW_OVERLAYS) return;
-  const liveDist = document.getElementById('live-dist');
-  if (liveDist) liveDist.textContent = (cumDistM[idx]/1000).toFixed(1) + ' km';
-  if (HAS_TIME) {{
-    const liveTime = document.getElementById('live-time');
-    if (liveTime) {{
-      const sec = Math.max(0, Math.floor(cumTimeS[idx]));
-      const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
-      const pad = n => n<10 ? '0'+n : ''+n;
-      liveTime.textContent = h>0 ? h+':'+pad(m)+':'+pad(s) : pad(m)+':'+pad(s);
-    }}
-  }}
+  // v0.9.325 — katalog-getriebene Live-Felder (identisch zu _make_html). VORHER
+  // setzte der Alpha-Render noch die alten IDs live-dist/-time/-ele → seit dem
+  // Stats-Editor (v0.9.321) blieben die Live-Stats im transparenten Video eingefroren.
+{live_update_js}
   if (HAS_ELE) {{
-    const liveEle = document.getElementById('live-ele');
-    if (liveEle) liveEle.textContent = Math.round(elevations[idx]) + ' m';
     const elActive = document.getElementById('ele-active-line');
     if (elActive) {{
       const pts = [], pairs = [];
@@ -2036,6 +2064,8 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
         "descent_m":  sum(t["stats"].descent_m for t in tours),
         "ele_min": min((t["stats"].ele_min for t in tours if t["stats"].ele_min is not None), default=0.0),
         "ele_max": max((t["stats"].ele_max for t in tours if t["stats"].ele_max is not None), default=0.0),
+        "moving_time_s": sum(getattr(t["stats"], "moving_time_s", 0.0) for t in tours),
+        "max_speed_kmh": max((getattr(t["stats"], "max_speed_kmh", 0.0) for t in tours), default=0.0),
     }
 
     all_lons = [c[0] for t in tours for c in t["coords"]]
@@ -2424,6 +2454,8 @@ async def render_frame(
         "distance_m": total_stats.distance_m, "duration_s": total_stats.duration_s,
         "ascent_m": total_stats.ascent_m, "descent_m": total_stats.descent_m,
         "ele_min": total_stats.ele_min, "ele_max": total_stats.ele_max,
+        "moving_time_s": getattr(total_stats, "moving_time_s", 0.0),
+        "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
     }
 
     html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
@@ -2620,6 +2652,8 @@ async def render(
         "descent_m": total_stats.descent_m,
         "ele_min": total_stats.ele_min,
         "ele_max": total_stats.ele_max,
+        "moving_time_s": getattr(total_stats, "moving_time_s", 0.0),
+        "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
     }
 
     # v0.9.41: bei stats_use_trim die Stats für den Trim-Bereich neu rechnen.
@@ -2651,6 +2685,17 @@ async def render(
         except Exception:
             _asc = total_stats.ascent_m  # Fallback
             _dsc = total_stats.descent_m
+        # Bewegungszeit + Max-Tempo für den Trim-Bereich auf VOLLER Auflösung
+        # (raw_points-Subset nach Trim-Fraktion) — sonst glättet das Render-
+        # Downsampling den Tempo-Peak weg.
+        try:
+            from . import gpx as _gpx
+            _rs = int(_trim_s * (len(raw_points) - 1))
+            _re = int(_trim_e * (len(raw_points) - 1))
+            _trim_moving, _trim_max = _gpx.compute_moving_and_max(raw_points[_rs:_re + 1])
+        except Exception:
+            _trim_moving = getattr(total_stats, "moving_time_s", 0.0)
+            _trim_max = getattr(total_stats, "max_speed_kmh", 0.0)
         total_stats_dict = {
             "distance_m": _trim_dist,
             "duration_s": _trim_time,
@@ -2658,6 +2703,8 @@ async def render(
             "descent_m": _dsc,
             "ele_min": min(_trim_eles) if _trim_eles else total_stats.ele_min,
             "ele_max": max(_trim_eles) if _trim_eles else total_stats.ele_max,
+            "moving_time_s": _trim_moving,
+            "max_speed_kmh": _trim_max,
         }
         _log.info("Stats (Trim %.0f%%-%.0f%%): %.1f km, %ds, %.0f m↑ / %.0f m↓",
                   _trim_s * 100, _trim_e * 100,

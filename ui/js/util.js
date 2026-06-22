@@ -961,11 +961,39 @@ function bindSetting(elementId, section, key, opts = {}) {
   const evName = (el.tagName === "SELECT") ? "change"
                  : (type === "bool") ? "change"
                  : "input";
+  // v0.9.327 — Color-Inputs (macOS-Systempicker) feuern beim Ziehen sehr viele
+  // 'input'-Events. Vorher löste JEDES einen Bridge-Save + vollen Overlay-Rebuild
+  // aus → der Picker wurde träge/„klebrig" (Marc kam kaum raus). Für Color daher:
+  // Live-Vorschau pro Animation-Frame gebündelt, Persistenz trailing-debounced.
+  const isColor = (el.type === "color");
+  let _colorRaf = 0, _colorSaveTimer = 0;
   el.addEventListener(evName, () => {
     let val;
     if (type === "bool") val = el.checked;
     else if (type === "number") val = parseFloat(el.value);
     else val = el.value;
+    if (isColor) {
+      // Undo: ein Schritt pro Pick-Geste (Throttle, wie Slider).
+      const _panelManaged = window.__rzPanelUndoSections && window.__rzPanelUndoSections.has(section);
+      const _uc = window.__rzUndoControllers && window.__rzUndoControllers[section];
+      if (_uc && !_panelManaged) {
+        const diffEl = (window.__rzLastUndoEl !== elementId);
+        try { _uc.push("Farbe", { force: diffEl }); } catch (_) {}
+        window.__rzLastUndoEl = elementId;
+      }
+      // Live-Vorschau: pro Frame gebündelt (flüssig, kein Jank).
+      if (opts.onChange && !_colorRaf) {
+        _colorRaf = requestAnimationFrame(() => { _colorRaf = 0; try { opts.onChange(el.value); } catch (_) {} });
+      }
+      // Persistenz: trailing-debounced (nicht bei jedem Picker-Zucken).
+      if (_colorSaveTimer) clearTimeout(_colorSaveTimer);
+      _colorSaveTimer = setTimeout(() => {
+        const v = el.value;
+        if (isProjectModule && _activeSession && _activeProject) saveProjectSettings(section, { [key]: v });
+        else saveSettings({ [section]: { [key]: v } });
+      }, 140);
+      return;
+    }
     // v0.9.322 — Undo: VOR dem Speichern den aktuellen (= alten) Modul-Stand in
     // den Undo-Controller der Sektion pushen. Diskrete Controls (Select/Checkbox
     // = "change") als eigener Schritt (force), kontinuierliche (Slider/Color =

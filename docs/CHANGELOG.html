@@ -112,9 +112,84 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.323</span>
+    <span class="version-num">v0.9.329</span>
     <span class="version-date">21. Juni 2026</span>
     <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Kartenstil bleibt erhalten — auch nach Ansichtswechsel und Neustart.</p>
+
+  <div class="highlight">
+    <strong>🗺️ Kartenstil-Auswahl bleibt</strong> — wer „Streets" (oder einen anderen Stil) eingestellt hatte, bekam beim Wechsel zwischen Animator und Tour-Map sowie nach einem Neustart wieder „Satellit" zu sehen, obwohl im Auswahlfeld weiter „Streets" stand. Der Stil wird jetzt korrekt aus dem Projekt geladen und zuverlässig auf die Karte angewandt.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.328</span>
+    <span class="version-date">21. Juni 2026</span>
+  </div>
+  <p class="version-tagline">Live-Steigung läuft ruhig statt zu springen.</p>
+
+  <div class="highlight">
+    <strong>📐 Geglättete Steigung</strong> — die Live-Steigung wurde über nur zwei Nachbarpunkte gerechnet und sprang dadurch bei verrauschter GPS-Höhe stark hin und her. Jetzt wird sie über eine feste 240-m-Basis auf geglätteter Höhe ermittelt — ruhig und glaubwürdig, unabhängig davon wie dicht der Track gesampelt ist.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.327</span>
+    <span class="version-date">21. Juni 2026</span>
+  </div>
+  <p class="version-tagline">Stats-Farben rund: Textfarbe wirkt überall, Farbwähler bleibt flüssig.</p>
+
+  <div class="highlight">
+    <strong>🎨 Textfarbe gilt für alle Stat-Felder</strong> — das hervorgehobene „Zurückgelegt" folgt jetzt der eingestellten Textfarbe (statt fest in der Track-Farbe zu bleiben); betont wird es über Fettung.<br><br>
+    <strong>🖌️ Flüssiger Farbwähler</strong> — der System-Farbwähler für Text- und Hintergrundfarbe reagiert beim Ziehen jetzt direkt, ohne „klebriges" Gefühl.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.326</span>
+    <span class="version-date">21. Juni 2026</span>
+  </div>
+  <p class="version-tagline">Max-Tempo ignoriert jetzt GPS-Ausreißer.</p>
+
+  <div class="highlight">
+    <strong>📈 Robustes Max-Tempo — ohne feste Grenze</strong> — ein einzelner verrutschter GPS-Punkt erzeugte bisher ein Schein-Maximum (z. B. 7,4 km/h auf einer Wanderung, bei der man nie über 7 war). Das Spitzentempo wird jetzt per Median-Filter ermittelt — er vergleicht jeden Punkt mit seinen Nachbarn statt mit einer festen km/h-Grenze und ist damit skalenfrei: gleich gut fürs Wandern wie für Rad, Auto, Zug oder Flug. Isolierte GPS-Sprünge fallen raus, echtes anhaltendes Tempo bleibt erhalten.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.325</span>
+    <span class="version-date">21. Juni 2026</span>
+  </div>
+  <p class="version-tagline">Echtes WYSIWYG: die Statistiken laufen jetzt schon in der Vorschau mit.</p>
+
+  <div class="highlight">
+    <strong>▶️ Live-Statistiken in der Vorschau</strong> — beim Scrubben und im Probelauf zählen Zurückgelegt, Zeit, Tempo, Höhe und Steigung jetzt genau wie im fertigen Video mit, und das Höhenprofil füllt sich bis zur Marker-Position. Du siehst vorab exakt, wie die Stats im Render aussehen — gleiche Daten, bildgenau.<br><br>
+    <strong>🐞 Behoben:</strong> Beim Export mit <em>transparentem Hintergrund</em> (Alpha/ProRes 4444 fürs Schneiden) blieben die Live-Werte eingefroren — sie zählen jetzt wieder korrekt mit.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.324</span>
+    <span class="version-date">21. Juni 2026</span>
+  </div>
+  <p class="version-tagline">Max-Tempo &amp; Fahrzeit jetzt exakt — und sinnvollere Standard-Statistiken.</p>
+
+  <div class="highlight">
+    <strong>🚲 Max-Tempo &amp; Fahrzeit jetzt punktgenau</strong> — beide Werte wurden bisher auf dem fürs Rendering vereinfachten Track berechnet, wodurch das Spitzentempo weggeglättet wurde. Jetzt werden sie auf der <strong>vollen Track-Auflösung</strong> ermittelt — dein echtes Maximaltempo kommt korrekt durch.<br><br>
+    <strong>📊 Bessere Standard-Statistiken</strong> — neue Tracks zeigen von Haus aus <strong>Strecke · Fahrzeit · Ø Tempo · Max. Tempo · Aufstieg · Abstieg</strong>. Die <strong>Fahrzeit</strong> (Bewegungszeit) ist die angezeigte Zeit statt der Gesamtzeit. Alles bleibt im Stats-Editor frei wählbar; mit <em>„Als eigene Standardwerte speichern"</em> merkt sich die App deine Auswahl für alle neuen Projekte.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.323</span>
+    <span class="version-date">21. Juni 2026</span>
   </div>
   <p class="version-tagline">Rückgängig (⌘Z) für wirklich alles — und genauere Tempo-Stats mit echter Pausenerkennung.</p>
 
