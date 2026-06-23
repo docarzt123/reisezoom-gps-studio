@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.333] – 2026-06-23
+
+### Hinzugefügt
+- **🌅 Lichtstempel + Blickrichtung im Geotagger.** Zu jedem zeitlich zugeordneten Foto zeigt der Geotagger jetzt die **Lichtstimmung** (Goldene Stunde, Blaue Stunde, Mittagssonne, Dämmerung … — aus Sonnenstand zu GPS-Position + Aufnahmezeit) und die **Aufnahmerichtung**: bevorzugt der echte **Kamera-Kompasskurs** aus dem EXIF (`GPSImgDirection`, viele Handys schreiben den), sonst die **Bewegungsrichtung** aus dem Track. Sichtbar als Chips im Foto-Detail und als **Richtungspfeil am Karten-Pin**. Bei Tageslicht zusätzlich **Gegenlicht / Seitenlicht / Sonne im Rücken**. Logik in `core/sun.py` (eine Quelle der Wahrheit; das Web-Tool spiegelt sie). DE/EN/ES.
+
+### Behoben
+- **„Was ist neu?" zeigte fälschlich „Du hast bereits die neueste Version" (Nutzer-Bug).** Klickte man im Update-Hinweis auf „Was ist neu?", öffnete sich der User-Changelog gefiltert auf Versionen neuer als die eigene (`?since=`). Hinkte die Changelog-Seite der angebotenen Release-Version hinterher (Deploy-Lag oder fehlender Versions-Artikel), gab es nichts „Neueres" → die Seite behauptete „Du hast bereits die neueste Version" — direkt im Widerspruch zum Update-Hinweis. Jetzt zeigt die Seite in dem Fall einfach die letzten Änderungen (`docs/CHANGELOG.html`). Außerdem fehlende Versions-Artikel (0.9.332/0.9.333) auf der User-Changelog-Seite nachgetragen.
+
 ## [0.9.332] – 2026-06-23
 
 ### Hinzugefügt

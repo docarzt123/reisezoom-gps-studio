@@ -1000,5 +1000,17 @@
   "animator.overlay.bg_opacity": "Opacidad del fondo",
   "animator.overlay.reorder": "Arrastrar para ordenar",
   "animator.statsfield.moving_time": "Tiempo en movimiento",
-  "animator.statsfield.avg_speed_total": "Vel. media (total)"
+  "animator.statsfield.avg_speed_total": "Vel. media (total)",
+  "geotagger.compass": "N,NE,E,SE,S,SO,O,NO",
+  "geotagger.light.noon": "Sol de mediodía",
+  "geotagger.light.day": "Luz de día",
+  "geotagger.light.golden": "Hora dorada",
+  "geotagger.light.blue": "Hora azul",
+  "geotagger.light.dusk": "Crepúsculo",
+  "geotagger.light.night": "Noche",
+  "geotagger.dir.cam": "cámara",
+  "geotagger.dir.move": "movimiento",
+  "geotagger.lvd.back": "Contraluz",
+  "geotagger.lvd.side": "Luz lateral",
+  "geotagger.lvd.front": "Sol a tu espalda"
 }

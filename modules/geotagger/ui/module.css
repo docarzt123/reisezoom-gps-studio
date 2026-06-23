@@ -406,3 +406,25 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
 .gt-place-hint.show { opacity: 1; }
 .gt-place-hint.snap { border-color: #ff6b35; }
 .gt-place-hint.snap::before { content: "↪ "; }
+
+/* ── v0.9.333 — Lichtstempel + Blickrichtung (Gimmick) ───────────────────── */
+.gt-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.gt-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  padding: 2px 8px; border-radius: 999px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: #e6edf3;
+}
+.gt-chip.sun  { background: rgba(255,176,102,.14); border-color: rgba(255,176,102,.32); color: #ffc48f; }
+.gt-chip.back { background: rgba(248,81,73,.14);  border-color: rgba(248,81,73,.32);  color: #ff9b94; }
+.gt-chip .dim { opacity: .6; font-weight: 500; }
+/* Blickrichtungs-Pfeil am Foto-Pin (zeigt Aufnahmerichtung) */
+.photo-marker { position: relative; }
+.photo-marker .pm-dir {
+  position: absolute; left: 50%; top: 50%;
+  width: 0; height: 0; margin-top: -22px;
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-bottom: 13px solid #ff7a18;
+  transform-origin: 50% 22px; pointer-events: none;
+  filter: drop-shadow(0 0 1px rgba(0,0,0,.7));
+}

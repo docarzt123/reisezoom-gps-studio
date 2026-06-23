@@ -596,6 +596,23 @@ def _piexif_read_gps(path: str) -> Optional[tuple[float, float, Optional[float]]
     return (lat, lon, alt)
 
 
+def read_img_direction(path: str) -> Optional[float]:
+    """v0.9.333 — Kompass-Kurs der Kamera (GPSImgDirection, 0=N) in Grad, falls im
+    EXIF vorhanden (viele Handys schreiben den). Nur JPEG/TIFF via piexif — fehlt
+    er (oder RAW/HEIC/Video), gibt der Geotagger als Fallback die Bewegungsrichtung
+    aus dem Track aus. Bewusst leichtgewichtig (kein exiftool-Aufruf)."""
+    if not (is_jpeg_like(path) or is_tiff(path)):
+        return None
+    try:
+        ex = piexif.load(path)
+        d = ex.get("GPS", {}).get(piexif.GPSIFD.GPSImgDirection)
+        if d and isinstance(d, (tuple, list)) and len(d) == 2 and d[1]:
+            return (float(d[0]) / float(d[1])) % 360.0
+    except Exception:
+        pass
+    return None
+
+
 def _piexif_write_gps(path: str, lat: float, lon: float,
                       alt: Optional[float] = None,
                       timestamp_utc: Optional[datetime] = None) -> None:

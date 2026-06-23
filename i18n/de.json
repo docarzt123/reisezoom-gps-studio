@@ -1000,5 +1000,17 @@
   "animator.overlay.bg_opacity": "Deckkraft Hintergrund",
   "animator.overlay.reorder": "Ziehen zum Sortieren",
   "animator.statsfield.moving_time": "Fahrzeit",
-  "animator.statsfield.avg_speed_total": "Ø Tempo (gesamt)"
+  "animator.statsfield.avg_speed_total": "Ø Tempo (gesamt)",
+  "geotagger.compass": "N,NO,O,SO,S,SW,W,NW",
+  "geotagger.light.noon": "Mittagssonne",
+  "geotagger.light.day": "Tageslicht",
+  "geotagger.light.golden": "Goldene Stunde",
+  "geotagger.light.blue": "Blaue Stunde",
+  "geotagger.light.dusk": "Dämmerung",
+  "geotagger.light.night": "Nacht",
+  "geotagger.dir.cam": "Kamera",
+  "geotagger.dir.move": "Bewegung",
+  "geotagger.lvd.back": "Gegenlicht",
+  "geotagger.lvd.side": "Seitenlicht",
+  "geotagger.lvd.front": "Sonne im Rücken"
 }

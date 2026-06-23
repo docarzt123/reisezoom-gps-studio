@@ -1000,5 +1000,17 @@
   "animator.overlay.bg_opacity": "Background opacity",
   "animator.overlay.reorder": "Drag to reorder",
   "animator.statsfield.moving_time": "Moving time",
-  "animator.statsfield.avg_speed_total": "Avg speed (total)"
+  "animator.statsfield.avg_speed_total": "Avg speed (total)",
+  "geotagger.compass": "N,NE,E,SE,S,SW,W,NW",
+  "geotagger.light.noon": "Midday sun",
+  "geotagger.light.day": "Daylight",
+  "geotagger.light.golden": "Golden hour",
+  "geotagger.light.blue": "Blue hour",
+  "geotagger.light.dusk": "Twilight",
+  "geotagger.light.night": "Night",
+  "geotagger.dir.cam": "camera",
+  "geotagger.dir.move": "movement",
+  "geotagger.lvd.back": "Backlight",
+  "geotagger.lvd.side": "Side light",
+  "geotagger.lvd.front": "Sun behind you"
 }

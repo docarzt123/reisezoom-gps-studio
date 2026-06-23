@@ -396,6 +396,16 @@ per Doku).
 - **RAW-Schreibvorgang ändert die Datei minimal** (~0.5% Größenänderung bei CR3). Strukturell intakt, alle Bilddaten unangetastet — nur EXIF-IFDs erweitert
 - Backup vor Write trotzdem Pflicht (große ZIPs! Plan: pro Foto 12-50 MB)
 
+### `core/sun.py` (seit v0.9.333) — Lichtstempel + Blickrichtung
+
+Reine Mathematik, keine Abhängigkeiten. **Eine Quelle der Wahrheit** fürs „Lichtstempel"-Gimmick — das Web-Tool (`gps-studio-web`) spiegelt dieselbe Logik in JS (SunCalc).
+- `sun_position(dt_utc, lat, lon)` → (Höhe°, Azimut°), Azimut 0=N im Uhrzeigersinn (SunCalc-Port).
+- `light_phase(alt_deg)` → `noon|day|golden|blue|dusk|night` (gleiche Schwellen wie Web).
+- `bearing(lat1,lon1,lat2,lon2)` → Kompasskurs; `light_vs_dir(sun_az,cam_dir)` → `back|side|front`; `compass8_index(deg)`.
+- **Verdrahtung:** `app.Api._enrich_geotag()` hängt an jeden in-range-Match `dir`/`dir_src` (EXIF-Kamerakurs via `cexif.read_img_direction()` bevorzugt, sonst Bewegungs-Bearing aus den Track-Nachbarn), `sun_alt`, `light_phase`, `light_vs_dir` an. `modules/geotagger/ui/module.js` rendert Chips (`gtChipsHtml`) + Richtungspfeil (`.pm-dir`) am Pin. i18n `geotagger.compass/.light.*/.dir.*/.lvd.*`.
+- **EXIF-Richtung:** `cexif.read_img_direction()` liest `GPSImgDirection` nur aus JPEG/TIFF (piexif) — bewusst leichtgewichtig; RAW/HEIC/Video → None → Bewegungs-Fallback.
+- **Test:** `tests/test_geotag_lichtstempel.py` (End-to-End über die echte `geotagger_match`-Bridge).
+
 ### `core/geotag.py`
 
 **Hauptfunktionen:**

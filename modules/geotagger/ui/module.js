@@ -1039,9 +1039,26 @@ function mountGeotagger(body, headerActions) {
     if (m.lat != null) {
       bits.push(`<span class="coord">${m.lat.toFixed(5)}, ${m.lon.toFixed(5)}</span>`);
     }
-    metaEl.innerHTML = bits.join("<br>");
+    metaEl.innerHTML = bits.join("<br>") + gtChipsHtml(m);
 
     panel.classList.add("show");
+  }
+
+  // v0.9.333 — Lichtstempel + Blickrichtung (Sonnenstand/EXIF-Kurs aus core/sun.py
+  // via Bridge). Spiegelt das Web-Tool. Chips für Detail-Ansicht + Foto-Karten.
+  const _GT_SUN_EMOJI = { noon: "🌞", day: "🌤️", golden: "🌅", blue: "🌆", dusk: "🌌", night: "🌙" };
+  const _GT_LVD_EMOJI = { back: "🌅", side: "☀️", front: "🌞" };
+  function gtCompass(deg) {
+    const a = t("geotagger.compass", "N,NO,O,SO,S,SW,W,NW").split(",");
+    return a[Math.round(deg / 45) % 8] || "";
+  }
+  function gtChipsHtml(m) {
+    if (!m || m.lat == null || !m.in_range) return "";
+    const c = [];
+    if (m.light_phase) c.push(`<span class="gt-chip sun">${_GT_SUN_EMOJI[m.light_phase] || "☀️"} ${t("geotagger.light." + m.light_phase, m.light_phase)}</span>`);
+    if (m.dir != null) c.push(`<span class="gt-chip">🧭 ${gtCompass(m.dir)} ${Math.round(m.dir)}° <span class="dim">(${t("geotagger.dir." + (m.dir_src === "exif" ? "cam" : "move"), m.dir_src)})</span></span>`);
+    if (m.light_vs_dir) c.push(`<span class="gt-chip${m.light_vs_dir === "back" ? " back" : ""}">${_GT_LVD_EMOJI[m.light_vs_dir] || "☀️"} ${t("geotagger.lvd." + m.light_vs_dir, m.light_vs_dir)}</span>`);
+    return c.length ? `<div class="gt-chips">${c.join("")}</div>` : "";
   }
 
   function hidePhotoPopup() {
@@ -1211,6 +1228,14 @@ function mountGeotagger(body, headerActions) {
       if (m.path === referencePath) cls += " reference";
       if (m.path === selectedPath) cls += " selected";
       eltMarker.className = cls;
+      // v0.9.333 — Blickrichtungs-Pfeil (Lichtstempel-Gimmick): zeigt die
+      // Aufnahmerichtung (EXIF-Kamerakurs oder Bewegung) am Pin.
+      if (m.dir != null && m.in_range) {
+        const ar = document.createElement("div");
+        ar.className = "pm-dir";
+        ar.style.transform = "translateX(-50%) rotate(" + m.dir + "deg)";
+        eltMarker.appendChild(ar);
+      }
       eltMarker.title = isManual
         ? (m.name || "") + " — " + t("geotagger.place.marker_title", "manuell gesetzt (ziehen zum Korrigieren)")
         : (m.name || "");

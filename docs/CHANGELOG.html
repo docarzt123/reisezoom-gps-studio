@@ -112,9 +112,33 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.333</span>
+    <span class="version-date">23. Juni 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Sonnenstand, Lichtstimmung und Aufnahmerichtung zu jedem Foto.</p>
+
+  <div class="highlight">
+    <strong>🌅 Lichtstempel &amp; Blickrichtung im Geotagger</strong> — zu jedem zeitlich zugeordneten Foto zeigt der Geotagger jetzt die <strong>Lichtstimmung</strong> (Goldene Stunde, Blaue Stunde, Mittagssonne, Dämmerung … – aus Sonnenstand zu Ort und Aufnahmezeit) und die <strong>Aufnahmerichtung</strong>: bevorzugt der echte Kamera-Kompasskurs aus dem Foto (viele Handys schreiben den), sonst die Bewegungsrichtung aus dem Track. Sichtbar als Chips im Foto-Detail und als <strong>Richtungspfeil am Karten-Pin</strong> – bei Tageslicht zusätzlich Gegenlicht / Seitenlicht / Sonne im Rücken.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.332</span>
+    <span class="version-date">23. Juni 2026</span>
+  </div>
+  <p class="version-tagline">Den Solo-Geotagger gibt's jetzt auch als Download für Mac &amp; Windows.</p>
+
+  <div class="highlight">
+    <strong>💾 Solo-Geotagger zum Herunterladen</strong> — die schlanke Geotagger-App wird jetzt offiziell als <strong>macOS-Version</strong> und <strong>Windows-Installer</strong> bereitgestellt, mit eigenem Namen und Icon. Lässt sich parallel zum vollen GPS Studio installieren.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.331</span>
     <span class="version-date">22. Juni 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <p class="version-tagline">Geotagger jetzt auch solo – und im Browser, ganz ohne Mapbox.</p>
 
@@ -1145,7 +1169,13 @@
 </footer>
 
 <!-- v0.9.319 — „Was ist neu?": Wird die Seite mit ?since=X.Y.Z geöffnet (aus dem
-     Update-Hinweis der App), werden nur die Versionen NEUER als die eigene gezeigt. -->
+     Update-Hinweis der App), werden nur die Versionen NEUER als die eigene gezeigt.
+     v0.9.333 (Nutzer-Bug): Wenn diese Changelog-Seite der angebotenen
+     Release-Version hinterherhinkt (FTP-Deploy lag, oder die neue Version hat noch
+     keinen Artikel), gibt es nichts „Neueres" → früher kam dann „Du hast bereits die
+     neueste Version", direkt im Widerspruch zum Update-Hinweis der App. Jetzt: in dem
+     Fall NICHT behaupten alles sei aktuell (man kommt ja nur hierher, wenn die App ein
+     Update anbietet), sondern einfach die letzten Änderungen zeigen. -->
 <script>
 (function () {
   try {
@@ -1154,21 +1184,25 @@
     function ver(s){ var m=(s||"").match(/(\d+)\.(\d+)\.(\d+)/); return m?[+m[1],+m[2],+m[3]]:null; }
     function cmp(a,b){ for(var i=0;i<3;i++){ if(a[i]!==b[i]) return a[i]-b[i]; } return 0; }
     var sv = ver(since); if (!sv) return;
-    var shown = 0;
-    document.querySelectorAll("article.version").forEach(function(a){
+    var arts = document.querySelectorAll("article.version");
+    var newer = [];
+    arts.forEach(function(a){
       var n = a.querySelector(".version-num");
       var av = ver(n ? n.textContent : "");
-      if (av && cmp(av, sv) > 0) { shown++; }
-      else { a.style.display = "none"; }
+      if (av && cmp(av, sv) > 0) newer.push(a);
     });
     var h1 = document.querySelector(".page-head h1");
     var lead = document.querySelector(".page-head .lead");
-    if (shown > 0) {
+    if (newer.length > 0) {
+      // Nur die Versionen NEUER als die eigene anzeigen.
+      arts.forEach(function(a){ if (newer.indexOf(a) < 0) a.style.display = "none"; });
       if (h1) h1.textContent = "Was ist neu?";
-      if (lead) lead.innerHTML = "Das alles erwartet dich beim Update von Version <strong>" + since + "</strong> — " + shown + (shown === 1 ? " Version" : " Versionen") + " neuer.";
+      if (lead) lead.innerHTML = "Das alles erwartet dich beim Update von Version <strong>" + since + "</strong> — " + newer.length + (newer.length === 1 ? " Version" : " Versionen") + " neuer.";
     } else {
-      if (h1) h1.textContent = "Alles aktuell";
-      if (lead) lead.innerHTML = "Du hast bereits die neueste Version (<strong>" + since + "</strong>). 🎉";
+      // Changelog-Seite hinkt dem Release hinterher → nicht „alles aktuell" behaupten,
+      // sondern die letzten Änderungen so zeigen, wie die Seite normal aussieht.
+      if (h1) h1.textContent = "Was ist neu?";
+      if (lead) lead.innerHTML = "Die Detailliste zu deinem Update wird gerade aktualisiert — hier sind die letzten Änderungen.";
     }
   } catch (e) {}
 })();

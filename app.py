@@ -74,6 +74,7 @@ from core import gpx as cgpx
 from core import imports as cimports  # v0.9.282: universelle Track-Import-Schicht
 from core import exif as cexif
 from core import geotag as cgeo
+from core import sun as csun  # v0.9.333 — Sonnenstand + Blickrichtung (Lichtstempel)
 from core import backup as cbak
 from core import animator as canim
 from core import sessions as _sessions  # v0.8.0: Sessions + Projekte
@@ -126,7 +127,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.332"
+APP_VERSION = "0.9.333"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -3568,7 +3569,7 @@ class Api:
                                         tz_known_paths=tz_known_paths)
             out = []
             for p, m in zip(self._gtg_photos, matches):
-                out.append({
+                d = {
                     "path": p["path"],
                     "name": p["name"],
                     "photo_time": p["photo_time"],
@@ -3578,10 +3579,51 @@ class Api:
                     "time_delta_s": m.time_delta_s,
                     "in_range": m.in_range,
                     "existing_gps": p["existing_gps"],
-                })
+                }
+                # v0.9.333 — Lichtstempel + Blickrichtung (Sonnenstand aus GPS+Zeit,
+                # Kamerarichtung aus EXIF oder Bewegung). Nur für echte Treffer.
+                self._enrich_geotag(d, p, m)
+                out.append(d)
             return {"ok": True, "matches": out}
         except Exception as e:
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
+
+    def _enrich_geotag(self, d: dict, p: dict, m) -> None:
+        """v0.9.333 — hängt Lichtstempel (Sonnenstand) + Blickrichtung an einen Match.
+        Richtung: EXIF-Kamerakurs (GPSImgDirection) bevorzugt, sonst Bewegungsrichtung
+        aus den Track-Nachbarpunkten. Logik in core/sun.py (gespiegelt vom Web-Tool)."""
+        try:
+            if m.lat is None or m.lon is None or not m.in_range or m.matched_time_utc is None:
+                return
+            # Kamerarichtung (EXIF, lazy gecached) ODER Bewegungsrichtung
+            if "img_dir" not in p:
+                try:
+                    p["img_dir"] = cexif.read_img_direction(p["path"])
+                except Exception:
+                    p["img_dir"] = None
+            direction, dsrc = p.get("img_dir"), None
+            if direction is not None:
+                dsrc = "exif"
+            elif m.track_index is not None and self._gtg_track:
+                tr = self._gtg_track
+                i = m.track_index
+                if i + 1 < len(tr) and (tr[i + 1].lat != tr[i].lat or tr[i + 1].lon != tr[i].lon):
+                    direction = csun.bearing(tr[i].lat, tr[i].lon, tr[i + 1].lat, tr[i + 1].lon)
+                    dsrc = "move"
+                elif i - 1 >= 0 and (tr[i - 1].lat != tr[i].lat or tr[i - 1].lon != tr[i].lon):
+                    direction = csun.bearing(tr[i - 1].lat, tr[i - 1].lon, tr[i].lat, tr[i].lon)
+                    dsrc = "move"
+            # Sonnenstand → Lichtphase
+            alt, az = csun.sun_position(m.matched_time_utc, m.lat, m.lon)
+            d["sun_alt"] = round(alt, 1)
+            d["light_phase"] = csun.light_phase(alt)
+            if direction is not None:
+                d["dir"] = round(direction)
+                d["dir_src"] = dsrc
+                if alt > -4:  # Sonne über/knapp unter Horizont → Lichtrichtung sinnvoll
+                    d["light_vs_dir"] = csun.light_vs_dir(az, direction)
+        except Exception:
+            pass
 
     def geotagger_compute_offset_from_reference(self, photo_path: str, ref_lat: float, ref_lon: float) -> dict:
         """User hat ein Foto + dazu den Karten-Klick wo es tatsächlich war.
