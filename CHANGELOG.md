@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.334] – 2026-06-23
+
+### Behoben
+- **⭐ GPX-Inspektor erhält jetzt FIT/TCX-Sensordaten (Nutzer-Bug).** Bisher wurde ein im Inspektor bearbeiteter Track (Lücken heilen, Ausreißer glätten, Punkte löschen) als nacktes GPX zurückgeschrieben — **Herzfrequenz, Temperatur, Trittfrequenz & Co. gingen dabei verloren**. Jetzt trägt jeder Punkt seinen Original-Index; beim Speichern werden die Sensorwerte aus dem internen Format (Sidecar) übernommen: unveränderte/geheilte Punkte behalten ihre echten Werte, eingefügte Lücken-Punkte werden interpoliert. Das geheilte GPX bekommt eine `*.sensors.json`-Sidecar — der Animator zeigt die Sensoren danach unverändert weiter. End-to-end mit einer echten Suunto-FIT verifiziert.
+- **Stats-Felder lassen sich wieder per Drag&Drop sortieren (Windows-Bug).** Auf der Windows-WebView (Edge/WebView2) zeigte der Mauszeiger beim Verschieben „Verboten" und das Ablegen wurde verweigert. Ursache: im `dragover` wurde `dropEffect` nicht gesetzt und kein Drag-Payload mitgegeben. Jetzt sauber sortierbar (auch in den Lücken zwischen den Zeilen).
+
+### Hinzugefügt
+- **Sensorfelder umbenennen & Einheit ändern (Nutzer-Wunsch).** Im Stats-Feld-Editor hat jedes FIT-Sensorfeld jetzt ein **✎** — damit lassen sich **Bezeichnung und Einheit pro Projekt anpassen**: kryptische Geräte-Kürzel wie `GRD_PCT`/`NGP` umbenennen, „Trittfrequenz" beim Laufen zu „Schrittfrequenz / spm" machen, beim Segeln Geschwindigkeit in „Knoten" angeben. Greift in Live-Vorschau **und** Render. Zusätzlich bessere Standard-Labels für gängige Suunto/Garmin-Developer-Felder (`GRD_PCT`→„Steigung %", `NGP`→„Norm. Graded Pace", Vertikaltempo, Bodenkontaktzeit, Schrittlänge, SpO₂).
+
 ## [0.9.333] – 2026-06-23
 
 ### Hinzugefügt

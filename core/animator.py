@@ -199,6 +199,9 @@ class AnimatorConfig:
     # OVERLAY_LIVE_FIELDS / OVERLAY_TOTAL_FIELDS.
     overlay_live_fields: list = field(default_factory=lambda: list(DEFAULT_LIVE_FIELDS))
     overlay_totals_fields: list = field(default_factory=lambda: list(DEFAULT_TOTAL_FIELDS))
+    # v0.9.334 — projekt-eigene Umbenennung/Einheit für Sensorfelder:
+    #   {key: {"label": str, "unit": str}}  (z.B. {"cadence": {"label":"Schrittfrequenz","unit":"spm"}})
+    overlay_field_overrides: dict = field(default_factory=dict)
     # Globales Styling aller Stats-Boxen.
     overlay_font: str = "system"        # Key aus _OVERLAY_FONTS
     overlay_text_color: str = "#ffffff"
@@ -477,13 +480,14 @@ def _overlay_sensor_series_json(ds_points, field_ids) -> str:
     return json.dumps(out)
 
 
-def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool) -> str:
+def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None) -> str:
     rows = []
     for fid in (field_ids or DEFAULT_LIVE_FIELDS):
         # v0.9.331 — FIT-Sensorfeld (sensor:<key>) → Label aus der Registry.
+        # v0.9.334 — projekt-eigene Umbenennung/Einheit (overrides) hat Vorrang.
         if isinstance(fid, str) and fid.startswith("sensor:"):
             key = fid.split(":", 1)[1]
-            lbl, _u = _sensors.field_meta(key)
+            lbl, _u = _sensors.field_meta_ov(key, overrides)
             rows.append(f'<div class="stat-row"><span class="label">{lbl}</span>'
                         f'<span class="value" id="{_sensor_dom_id(key)}">&mdash;</span></div>')
             continue
@@ -495,7 +499,7 @@ def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool) -> str:
     return "\n".join(rows)
 
 
-def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool) -> str:
+def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=None) -> str:
     """JS-Zeilen für updateOverlays(idx): pro aktivem Live-Feld ein textContent-Set.
     Wird als literaler Block in den per-Frame-Loop injiziert (kein f-string-Reparse)."""
     lines = []
@@ -503,7 +507,7 @@ def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool) -> str:
         # v0.9.331 — Sensor-Live-Wert aus sensorSeries[key][idx] (gerundet + Einheit).
         if isinstance(fid, str) and fid.startswith("sensor:"):
             key = fid.split(":", 1)[1]
-            _, unit = _sensors.field_meta(key)
+            _, unit = _sensors.field_meta_ov(key, overrides)
             unit_js = json.dumps((" " + unit) if unit else "")
             lines.append(
                 f"  {{ var _e=document.getElementById('{_sensor_dom_id(key)}');"
@@ -1029,7 +1033,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     else:
         total_stats["max_speed_kmh"] = 0.0
         total_stats["moving_time_s"] = 0.0
-    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
+    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
             _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele)
@@ -1039,7 +1043,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
   {_trows}
 </div>"""
         if cfg.overlay_live_enabled:
-            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
+            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
             if _lrows:
                 live_html = f"""
 <div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">
@@ -1827,7 +1831,7 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     else:
         total_stats["max_speed_kmh"] = 0.0
         total_stats["moving_time_s"] = 0.0
-    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
+    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
             _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele)
@@ -1837,7 +1841,7 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
   {_trows}
 </div>"""
         if cfg.overlay_live_enabled:
-            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele)
+            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
             if _lrows:
                 live_html = f"""
 <div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">

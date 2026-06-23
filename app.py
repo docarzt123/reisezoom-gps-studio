@@ -127,7 +127,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.333"
+APP_VERSION = "0.9.334"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -293,6 +293,7 @@ DEFAULT_SETTINGS = {
         # v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
         "overlay_live_fields": ["dist_done", "time_elapsed", "ele_now"],
         "overlay_totals_fields": ["dist_total", "moving_time", "avg_speed", "max_speed", "elev_gain", "elev_loss"],
+        "overlay_field_overrides": {},   # v0.9.334 — pro-Projekt Umbenennung/Einheit
         "overlay_font": "system",
         "overlay_text_color": "#ffffff",
         "overlay_bg_color": "#000000",
@@ -1819,6 +1820,7 @@ class Api:
             # v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
             overlay_live_fields=(list(params.get("overlay_live_fields") or []) or None),
             overlay_totals_fields=(list(params.get("overlay_totals_fields") or []) or None),
+            overlay_field_overrides=(params.get("overlay_field_overrides") or {}),
             overlay_font=params.get("overlay_font", "system"),
             overlay_text_color=params.get("overlay_text_color", "#ffffff"),
             overlay_bg_color=params.get("overlay_bg_color", "#000000"),
@@ -2094,6 +2096,7 @@ class Api:
             overlay_elevation_position=params.get("overlay_elevation_position", "bc"),
             # v0.9.321 — Stats-Editor: Totals-Felder + globales Styling (gespiegelt)
             overlay_totals_fields=(list(params.get("overlay_totals_fields") or []) or None),
+            overlay_field_overrides=(params.get("overlay_field_overrides") or {}),
             overlay_font=params.get("overlay_font", "system"),
             overlay_text_color=params.get("overlay_text_color", "#ffffff"),
             overlay_bg_color=params.get("overlay_bg_color", "#000000"),
@@ -2937,9 +2940,10 @@ class Api:
         try:
             out = cgpxedit.healed_output_path(src_path or "track.gpx")
             base = os.path.splitext(os.path.basename(out))[0]
-            res = cgpxedit.save_points(points or [], out, name=base)
+            res = cgpxedit.save_points(points or [], out, name=base, src_path=src_path)
             if res.get("ok"):
-                log.info("gpxinspect_save: %d Punkte → %s", res.get("count", 0), out)
+                log.info("gpxinspect_save: %d Punkte → %s (Sensoren erhalten: %s)",
+                         res.get("count", 0), out, res.get("sensors_kept"))
             return res
         except Exception as e:
             log.error("gpxinspect_save: %s\n%s", e, traceback.format_exc())

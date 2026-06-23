@@ -227,6 +227,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
   - *Pausenerkennung:* Eine Pause ist ein Abschnitt, in dem du über ein **60-Sekunden-Fenster netto kaum vorangekommen** bist — nicht das momentane Tempo zählt. So gilt langsames Steil-Gehen (~1 km/h, aber stetig) als Bewegung, nur echtes Stehenbleiben als Pause.
   - *Genauigkeit (seit v0.9.324):* **Fahrzeit** und **Max. Tempo** werden auf der **vollen Track-Auflösung** berechnet — das Spitzentempo wird nicht mehr durch die Render-Vereinfachung weggeglättet.
 - **❤️ Sensorwerte (seit v0.9.330):** Bringt dein Track Sensordaten mit — etwa eine **FIT-/TCX-Datei** von Garmin, Wahoo, Polar oder Coros, oder eine **GPX-Datei mit Herzfrequenz-Extensions** —, erscheinen die vorhandenen Felder (**Herzfrequenz, Trittfrequenz, Temperatur, Leistung** und ggf. weitere) automatisch **unten in der Live-Feldliste**. Anhaken, sortieren und stylen wie jeden anderen Live-Wert; sie laufen im Render und in der Vorschau **Punkt für Punkt synchron zum Track** mit (WYSIWYG). Hat dein Track keine Sensoren, taucht hier auch nichts auf.
+  - **✎ Umbenennen & Einheit (seit v0.9.334):** Jedes Sensorfeld hat ein **✎**. Damit kannst du **Bezeichnung und Einheit pro Projekt** ändern — kryptische Geräte-Kürzel wie `GRD_PCT` oder `NGP` lesbar machen, „Trittfrequenz" beim Laufen in „Schrittfrequenz / spm" umbenennen oder beim Segeln die Geschwindigkeit in „Knoten" angeben. „Zurücksetzen" stellt den Standard wieder her.
 - Werte, die dein Track nicht hergibt (z. B. Tempo/Zeit ohne Zeitstempel, Höhe/Steigung ohne Höhendaten), werden **automatisch ausgegraut**.
 
 **🎨 Aussehen der Stats-Boxen (seit v0.9.321):** unten in der Overlays-Sektion wählst du **Schriftart** (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), **Textfarbe**, **Hintergrundfarbe** und **Deckkraft des Hintergrunds** — gilt für alle Boxen, mit Live-Vorschau auf der Karte.
@@ -539,6 +540,8 @@ ExifTool läuft als Daemon im Hintergrund — RAW-Verarbeitung ist ~8× schnelle
 
 ### Was es macht
 Zeigt **jeden einzelnen Punkt** deines Tracks auf der Karte (den vollen Roh-Track, nicht das geglättete Vorschau-Downsample) und lässt dich kaputte Stellen reparieren: GPS-Ausreißer glätten, Lücken füllen, einzelne Punkte verschieben oder löschen. Braucht **keinen** Mapbox-Token (geht auch im OSM-Modus). Speichert als neue Datei `<name>_geheilt.gpx` — dein Original bleibt unangetastet. Öffnet **alle importierbaren Formate** (GPX, FIT, KML/KMZ, TCX, GeoJSON, NMEA/`.LOG`) — Fremdformate werden automatisch nach GPX konvertiert (seit v0.9.296).
+
+> **❤️ FIT-/TCX-Sensoren bleiben erhalten (seit v0.9.334):** Bearbeitest du einen Track mit Sensordaten (Herzfrequenz, Temperatur, Trittfrequenz …), behält das geheilte GPX diese Werte. Unveränderte und geglättete Punkte tragen ihre echten Messwerte weiter, neu eingefügte Lücken-Punkte werden interpoliert. Du kannst den geheilten Track also danach ganz normal im Animator mit Sensor-Overlay nutzen.
 
 ### Werkzeuge
 

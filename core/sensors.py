@@ -31,6 +31,15 @@ FIELD_META: dict[str, tuple[str, str]] = {
     "battery_soc":  ("Akku",           "%"),
     "assist":       ("Unterstützung",  "%"),
     "motor_power":  ("Motor-Leistung", "W"),
+    # v0.9.334 — gängige Suunto/Garmin-Developer-Felder lesbar machen (Nutzer-
+    # Feedback: „GRD_PCT/NGP versteht keiner"). Pro Projekt umbenennbar (Override).
+    "grd_pct":         ("Steigung",            "%"),
+    "ngp":             ("Norm. Graded Pace",   ""),
+    "vertical_speed":  ("Vertikaltempo",       "m/s"),
+    "stance_time":     ("Bodenkontaktzeit",    "ms"),
+    "step_length":     ("Schrittlänge",        "mm"),
+    "vertical_oscillation": ("Vertikale Bewegung", "cm"),
+    "saturated_hemoglobin_percent": ("SpO₂",   "%"),
 }
 
 # ── FIT-record-Feldname → kanonischer Key ────────────────────────────────────
@@ -82,6 +91,21 @@ GPXPX_NS = "http://www.garmin.com/xmlschemas/PowerExtension/v1"
 def field_meta(key: str) -> tuple[str, str]:
     """(Label, Einheit) für einen Key; Fallback: (Key, "") für Unbekanntes."""
     return FIELD_META.get(key, (key, ""))
+
+
+def field_meta_ov(key: str, overrides=None) -> tuple[str, str]:
+    """Wie field_meta, aber projekt-eigene Overrides haben Vorrang. `overrides`
+    ist ein dict `{key: {"label": str, "unit": str}}` (v0.9.334, Nutzer-Wunsch:
+    GRD_PCT→„Steigung", Trittfrequenz→„Schrittfrequenz/spm", Knoten beim Segeln …)."""
+    lbl, unit = field_meta(key)
+    if overrides:
+        o = overrides.get(key)
+        if isinstance(o, dict):
+            if o.get("label"):
+                lbl = str(o["label"])
+            if o.get("unit") is not None:
+                unit = str(o["unit"])
+    return lbl, unit
 
 
 def describe_fields(keys) -> list[dict]:

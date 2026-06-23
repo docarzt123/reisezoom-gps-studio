@@ -7242,11 +7242,19 @@ function mountAnimator(body, headerActions, opts) {
   const _ovSensorMeta = (key) => (_ovSensorFields || []).find(f => f.key === key);
   const _ovSensorCatItems = () => (_ovSensorFields || []).map(f => ({ id: "sensor:" + f.key, req: "none" }));
   const _ovCat = (box) => box === "live" ? OVERLAY_FIELD_CATALOG.live.concat(_ovSensorCatItems()) : OVERLAY_FIELD_CATALOG[box];
+  // v0.9.334 — projekt-eigene Umbenennung/Einheit (Nutzer-Wunsch): {key:{label,unit}}.
+  const _ovOverrides = () => (_settingsCache && _settingsCache[_MODKEY] && _settingsCache[_MODKEY].overlay_field_overrides) || {};
+  const _ovResolvedMeta = (key) => {
+    const base = _ovSensorMeta(key) || { key: key, label: key, unit: "" };
+    const o = _ovOverrides()[key];
+    if (o) return { key: key, label: (o.label || base.label), unit: (o.unit != null ? o.unit : base.unit) };
+    return base;
+  };
   const _ovFieldLabel = (id) => {
-    if (typeof id === "string" && id.startsWith("sensor:")) { const m = _ovSensorMeta(id.slice(7)); return m ? m.label : id.slice(7); }
+    if (typeof id === "string" && id.startsWith("sensor:")) { return _ovResolvedMeta(id.slice(7)).label; }
     return t("animator.statsfield." + id, _OV_FALLBACK_LABEL[id] || id);
   };
-  const _ovSensorUnit = (key) => { const m = _ovSensorMeta(key); return m && m.unit ? " " + m.unit : ""; };
+  const _ovSensorUnit = (key) => { const m = _ovResolvedMeta(key); return m.unit ? " " + m.unit : ""; };
   const _ovHasTime = () => !!(_gpxStats && _gpxStats.duration_s > 0);
   const _ovHasEle = () => !!(_gpxStats && _gpxStats.ele_max != null);
   const _ovAvail = (req) => req === "time" ? _ovHasTime() : req === "ele" ? _ovHasEle() : true;
@@ -7289,6 +7297,43 @@ function mountAnimator(body, headerActions, opts) {
     saveProjectSettings(_MODKEY, { ["overlay_" + box + "_fields"]: _ovGetFields(box) });
   }
   let _ovDragEl = null;
+  // v0.9.334 — Sensorfeld umbenennen / Einheit ändern (pro Projekt persistiert).
+  function _ovRenameSensor(id) {
+    if (typeof id !== "string" || !id.startsWith("sensor:")) return;
+    const key = id.slice(7);
+    const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const base = _ovSensorMeta(key) || { key: key, label: key, unit: "" };
+    const cur = _ovResolvedMeta(key);
+    openModal({
+      title: t("animator.overlay.rename_title", "Feld umbenennen"),
+      body: `<div style="display:flex;flex-direction:column;gap:12px;min-width:280px;">`
+        + `<label>${t("animator.overlay.rename_label", "Bezeichnung")}<br>`
+        + `<input id="ovrn-label" type="text" value="${esc(cur.label)}" style="width:100%;box-sizing:border-box;"></label>`
+        + `<label>${t("animator.overlay.rename_unit", "Einheit")}<br>`
+        + `<input id="ovrn-unit" type="text" value="${esc(cur.unit)}" style="width:100%;box-sizing:border-box;"></label>`
+        + `<div class="muted" style="font-size:12px;">${t("animator.overlay.rename_default", "Standard")}: ${esc(base.label)}${base.unit ? (" · " + esc(base.unit)) : ""}</div>`
+        + `</div>`,
+      footer: `<button class="btn" id="ovrn-reset">${t("animator.overlay.rename_reset", "Zurücksetzen")}</button>`
+        + `<button class="btn btn-primary" id="ovrn-save">${t("common.save", "Speichern")}</button>`,
+    });
+    const apply = (ov) => {
+      const all = Object.assign({}, _ovOverrides());
+      if (ov === null) delete all[key]; else all[key] = ov;
+      if (_settingsCache) { _settingsCache[_MODKEY] = _settingsCache[_MODKEY] || {}; _settingsCache[_MODKEY].overlay_field_overrides = all; }
+      saveProjectSettings(_MODKEY, { overlay_field_overrides: all });
+      try { openModal({}).close(); } catch (_) {}
+      _ovRebuildEditors(); renderOverlayPreview();
+    };
+    document.getElementById("ovrn-save").onclick = () => {
+      const lbl = (document.getElementById("ovrn-label").value || "").trim();
+      const unit = (document.getElementById("ovrn-unit").value || "").trim();
+      // Nichts geändert ggü. Default → Override entfernen (sauber halten).
+      if (lbl === base.label && unit === base.unit) apply(null);
+      else apply({ label: lbl, unit: unit });
+    };
+    document.getElementById("ovrn-reset").onclick = () => apply(null);
+    setTimeout(() => { try { document.getElementById("ovrn-label").focus(); } catch (_) {} }, 60);
+  }
   function _ovBuildEditor(box) {
     const cont = document.getElementById("anim-ov-" + box + "-fields");
     if (!cont) return;
@@ -7301,6 +7346,9 @@ function mountAnimator(body, headerActions, opts) {
         + `<span class="ov-grip" title="${t("animator.overlay.reorder", "Ziehen zum Sortieren")}">⠿</span>`
         + `<label class="ov-fieldlbl"><input type="checkbox" ${checked ? "checked" : ""} ${avail ? "" : "disabled"}>`
         + `<span>${_ovFieldLabel(id)}</span></label>`
+        // v0.9.334 — Sensorfelder umbenennen / Einheit ändern (Nutzer-Wunsch).
+        + ((typeof id === "string" && id.startsWith("sensor:") && avail)
+            ? `<button type="button" class="ov-rename" data-fid="${id}" title="${t("animator.overlay.rename", "Umbenennen / Einheit")}">✎</button>` : "")
         + (avail ? "" : `<span class="ov-unavail">${t("animator.statsfield.unavail", "—")}</span>`)
         + `</div>`;
     }).join("");
@@ -7308,18 +7356,39 @@ function mountAnimator(body, headerActions, opts) {
     cont.querySelectorAll(".ov-fieldrow input").forEach(cb => {
       cb.addEventListener("change", () => { _ovPersist(box); renderOverlayPreview(); });
     });
-    // Drag-Sortierung
+    // v0.9.334 — Umbenennen-Knopf pro Sensorfeld
+    cont.querySelectorAll(".ov-rename").forEach(btn => {
+      btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); _ovRenameSensor(btn.dataset.fid); });
+    });
+    // Drag-Sortierung. v0.9.334 (Nutzer-Bug Windows): die Windows-WebView (Edge/
+    // WebView2) zeigt den „Verboten"-Cursor und verweigert das Ablegen, wenn im
+    // dragover/dragenter `dropEffect` nicht gesetzt wird und kein dataTransfer-
+    // Payload existiert. Darum: setData beim Start, dragenter+drop preventDefault,
+    // dropEffect="move" — plus Container-Ebene für die Lücken zwischen den Zeilen.
     cont.querySelectorAll(".ov-fieldrow").forEach(row => {
-      row.addEventListener("dragstart", (e) => { _ovDragEl = row; row.classList.add("ov-dragging"); try { e.dataTransfer.effectAllowed = "move"; } catch (_) {} });
+      row.addEventListener("dragstart", (e) => {
+        _ovDragEl = row; row.classList.add("ov-dragging");
+        try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", row.dataset.fid || ""); } catch (_) {}
+      });
       row.addEventListener("dragend", () => { row.classList.remove("ov-dragging"); _ovDragEl = null; _ovPersist(box); renderOverlayPreview(); });
+      row.addEventListener("dragenter", (e) => { e.preventDefault(); });
+      row.addEventListener("drop", (e) => { e.preventDefault(); });
       row.addEventListener("dragover", (e) => {
         e.preventDefault();
+        try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
         if (!_ovDragEl || _ovDragEl === row || row.parentElement !== cont) return;
         const rect = row.getBoundingClientRect();
         const after = (e.clientY - rect.top) > rect.height / 2;
         cont.insertBefore(_ovDragEl, after ? row.nextSibling : row);
       });
     });
+    // Container-Ebene nur einmal binden (innerHTML-Reset entfernt diese Listener
+    // nicht) — macht auch die Zwischenräume zu gültigen Drop-Zonen.
+    if (!cont._ovDndBound) {
+      cont._ovDndBound = true;
+      cont.addEventListener("dragover", (e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = "move"; } catch (_) {} });
+      cont.addEventListener("drop", (e) => { e.preventDefault(); });
+    }
   }
   function _ovRebuildEditors() { _ovBuildEditor("totals"); _ovBuildEditor("live"); }
   // Vorschau-Wert (Endzustand) für ein Feld — WYSIWYG-Annäherung.
@@ -8558,6 +8627,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
       overlay_totals_fields: _ovGetFields("totals"),
       overlay_live_fields: _ovGetFields("live"),
+      overlay_field_overrides: _ovOverrides(),   // v0.9.334 — Umbenennung/Einheit
       overlay_font: document.getElementById("anim-ov-font")?.value || "system",
       overlay_text_color: document.getElementById("anim-ov-textcolor")?.value || "#ffffff",
       overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",

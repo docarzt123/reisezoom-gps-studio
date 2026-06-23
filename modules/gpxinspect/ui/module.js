@@ -21,7 +21,7 @@ function mountGpxInspect(body, headerActions) {
   let isUnmounted = false;
   let _points = [];        // editierbare Kopie: [{lat,lon,ele,time}]
   let _srcPath = null;
-  let _hasTime = false, _hasEle = false;
+  let _hasTime = false, _hasEle = false, _hasSensors = false;
   let _selA = null, _selB = null;   // Anker-Indizes (a <= b)
   let _dirty = false;
   let _drawMode = false;            // Pfad-zeichnen-Modus aktiv?
@@ -306,9 +306,12 @@ function mountGpxInspect(body, headerActions) {
       return;
     }
     if (window.hideSourceMissingBanner) window.hideSourceMissingBanner();
-    _points = (res.points || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time }));
+    // oi = Original-Index → beim Speichern behalten geheilte/unveränderte Punkte ihre
+    // FIT/TCX-Sensorwerte (Herzfrequenz, Temperatur …). Eingefügte Punkte haben kein oi
+    // (undefined) → Backend interpoliert deren Sensoren. v0.9.334 (Nutzer-Feedback).
+    _points = (res.points || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.i }));
     _srcPath = res.src || path;   // v0.9.295 — konvertierter GPX-Pfad (Fremdformate), sonst Original
-    _hasTime = !!res.has_time; _hasEle = !!res.has_ele;
+    _hasTime = !!res.has_time; _hasEle = !!res.has_ele; _hasSensors = !!res.has_sensors;
     _selA = _selB = null; _dirty = false;
     _drawMode = false; _drawPts = [];
     clearSpikes();
@@ -1604,15 +1607,19 @@ function mountGpxInspect(body, headerActions) {
 
   async function saveTrack() {
     if (!_points.length) return;
-    const payload = _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time }));
+    // oi mitsenden → Backend behält die FIT/TCX-Sensoren der Originalpunkte und
+    // interpoliert die eingefügten. v0.9.334 (Nutzer-Feedback).
+    const payload = _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi }));
     let res;
     try { res = await api().gpxinspect_save(payload, _srcPath); } catch (e) { res = { ok: false, error: String(e) }; }
     if (isUnmounted) return;
     if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
     _dirty = false; updateUI();
     const note = document.getElementById("gpxi-note");
-    if (note) note.textContent = t("gpxinspect.saved", "Gespeichert: ") + res.out_path;
-    toast(t("gpxinspect.saved", "Gespeichert: ") + res.out_path, "success", 6000);
+    const savedMsg = t("gpxinspect.saved", "Gespeichert: ") + res.out_path
+      + (res.sensors_kept ? " — " + t("gpxinspect.sensors_kept", "Sensordaten erhalten") : "");
+    if (note) note.textContent = savedMsg;
+    toast(savedMsg, "success", 6000);
     // Geheiltes GPX gleich global laden → alle Module nutzen die saubere Version,
     // und der Inspektor zeigt ab jetzt den geheilten Track.
     if (typeof loadGlobalGpx === "function") { try { loadGlobalGpx(res.out_path); } catch (_) {} }

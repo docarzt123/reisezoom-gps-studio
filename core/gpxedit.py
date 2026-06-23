@@ -44,6 +44,9 @@ def load_points(path: str) -> dict:
             "ele": (None if p.ele is None else float(p.ele)),
             "time": p.time,  # ISO-String oder None
         })
+    # Hat der Quell-Track FIT/TCX-Sensoren? (→ Frontend zeigt Hinweis, dass sie
+    # beim Speichern erhalten bleiben). extra ist nur intern, geht nicht raus.
+    has_sensors = any(getattr(p, "extra", None) for p in pts)
     bbox = getattr(stats, "bbox", None) or {}
     return {
         "ok": True,
@@ -51,6 +54,7 @@ def load_points(path: str) -> dict:
         "count": len(out),
         "has_time": has_time,
         "has_ele": has_ele,
+        "has_sensors": has_sensors,
         "bbox": bbox,
     }
 
@@ -68,10 +72,22 @@ def _parse_iso(s: Optional[str]) -> Optional[datetime]:
         return None
 
 
-def save_points(points: List[dict], out_path: str, *, name: str = "Geheilt") -> dict:
+def save_points(
+    points: List[dict], out_path: str, *, name: str = "Geheilt",
+    src_path: Optional[str] = None,
+) -> dict:
     """Editierte Punkte als neues GPX schreiben (ein Track, ein Segment).
 
-    points = [{lat, lon, ele?, time?}] in Reihenfolge. Returns {ok, out_path, count}.
+    points = [{lat, lon, ele?, time?, oi?}] in Reihenfolge. `oi` = Original-Index
+    im Quell-Track (vom Frontend durchgereicht); eingefügte Punkte haben kein `oi`.
+
+    Wenn `src_path` einen Track mit FIT/TCX-Sensoren (`<src>.sensors.json`) hat,
+    werden die Sensorwerte erhalten: unveränderte/geheilte Punkte behalten ihren
+    Original-Wert (über `oi`), eingefügte Punkte werden interpoliert. Geschrieben
+    wird ein index-gleicher Sidecar `<out>.sensors.json` (internes Format), den der
+    Animator/Geotagger beim Laden des geheilten GPX automatisch wieder einliest.
+
+    Returns {ok, out_path, count, sensors_kept}.
     """
     if not points or len(points) < 2:
         return {"ok": False, "error": "Zu wenige Punkte zum Speichern"}
@@ -80,6 +96,7 @@ def save_points(points: List[dict], out_path: str, *, name: str = "Geheilt") -> 
     gpx.tracks.append(trk)
     seg = gpxpy.gpx.GPXTrackSegment()
     trk.segments.append(seg)
+    oi_list: List[Optional[int]] = []   # Original-Index (oder None) je geschriebenem Punkt
     n = 0
     for p in points:
         try:
@@ -97,13 +114,85 @@ def save_points(points: List[dict], out_path: str, *, name: str = "Geheilt") -> 
             latitude=lat, longitude=lon, elevation=ele_f, time=_parse_iso(p.get("time"))
         )
         seg.points.append(tp)
+        oi = p.get("oi")
+        oi_list.append(oi if isinstance(oi, int) else None)
         n += 1
     if n < 2:
         return {"ok": False, "error": "Zu wenige gültige Punkte"}
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as fh:
         fh.write(gpx.to_xml())
-    return {"ok": True, "out_path": out_path, "count": n}
+    sensors_kept = _preserve_sensors(oi_list, src_path, out_path)
+    return {"ok": True, "out_path": out_path, "count": n, "sensors_kept": sensors_kept}
+
+
+def _preserve_sensors(
+    oi_list: List[Optional[int]], src_path: Optional[str], out_path: str
+) -> bool:
+    """Sensorwerte des Quell-Tracks index-gleich auf den editierten Track mappen
+    und als `<out>.sensors.json` schreiben. True, wenn ein Sidecar entstand."""
+    if not src_path:
+        return False
+    try:
+        src_pts, _ = cgpx.parse_gpx(src_path)   # extra ist aus dem Quell-Sidecar gemergt
+    except Exception:
+        return False
+    if not src_pts or not any(getattr(sp, "extra", None) for sp in src_pts):
+        return False
+    nsrc = len(src_pts)
+    out_extra: List[Optional[dict]] = [None] * len(oi_list)
+    for i, oi in enumerate(oi_list):
+        if oi is not None and 0 <= oi < nsrc:
+            ex = getattr(src_pts[oi], "extra", None)
+            out_extra[i] = dict(ex) if ex else {}
+    _interp_none_runs(out_extra)   # eingefügte Punkte (oi=None) interpolieren
+    try:
+        from . import imports as cimports
+        sc = cimports.write_sidecar([e or {} for e in out_extra], out_path)
+        return bool(sc)
+    except Exception:
+        return False
+
+
+def _interp_extra(left: dict, right: dict, frac: float) -> dict:
+    """Sensorwerte zwischen zwei Punkten linear mischen (frac 0..1)."""
+    out: dict = {}
+    for key in set(left) | set(right):
+        lv = left.get(key); rv = right.get(key)
+        if isinstance(lv, (int, float)) and isinstance(rv, (int, float)):
+            out[key] = lv + (rv - lv) * frac
+        elif lv is not None:
+            out[key] = lv
+        elif rv is not None:
+            out[key] = rv
+    return out
+
+
+def _interp_none_runs(arr: List[Optional[dict]]) -> None:
+    """Lücken (None) in der Extra-Liste füllen: zwischen zwei Originalen linear
+    interpolieren, an den Rändern den nächsten vorhandenen Wert übernehmen."""
+    n = len(arr)
+    i = 0
+    while i < n:
+        if arr[i] is not None:
+            i += 1
+            continue
+        j = i
+        while j < n and arr[j] is None:
+            j += 1
+        left = arr[i - 1] if i - 1 >= 0 else None
+        right = arr[j] if j < n else None
+        for k in range(i, j):
+            if left is not None and right is not None:
+                frac = (k - (i - 1)) / (j - (i - 1))
+                arr[k] = _interp_extra(left, right, frac)
+            elif left is not None:
+                arr[k] = dict(left)
+            elif right is not None:
+                arr[k] = dict(right)
+            else:
+                arr[k] = {}
+        i = j
 
 
 def healed_output_path(src_path: str) -> str:
