@@ -128,7 +128,7 @@
   "gpxinspect.pm_set_a": "Como ancla A",
   "gpxinspect.pm_set_b": "Como ancla B",
   "gpxinspect.pm_close": "Cerrar",
-  "gpxinspect.save": "Guardar GPX sanado",
+  "gpxinspect.save": "Guardar pista corregida …",
   "gpxinspect.reset": "Descartar cambios",
   "gpxinspect.healed": "Tramo suavizado — hora mantenida, velocidad corregida.",
   "gpxinspect.filled": "Hueco rellenado: ",

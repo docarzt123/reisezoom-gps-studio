@@ -223,6 +223,16 @@ def to_tcx_string(points, name: Optional[str] = None) -> str:
                 seg.append(f"<AltitudeMeters>{float(ele):.2f}</AltitudeMeters>")
             except (TypeError, ValueError):
                 pass
+        # v0.9.335 — Sensoren nativ ins TCX (Garmin/Strava lesen HeartRateBpm/Cadence).
+        # TCX-Schema-Reihenfolge: …AltitudeMeters, [DistanceMeters], HeartRateBpm, Cadence.
+        extra = _get(p, "extra")
+        if isinstance(extra, dict) and extra:
+            hr = extra.get("hr")
+            if isinstance(hr, (int, float)) and not isinstance(hr, bool):
+                seg.append(f"<HeartRateBpm><Value>{int(round(hr))}</Value></HeartRateBpm>")
+            cad = extra.get("cadence")
+            if isinstance(cad, (int, float)) and not isinstance(cad, bool):
+                seg.append(f"<Cadence>{max(0, min(254, int(round(cad))))}</Cadence>")
         seg.append("</Trackpoint>")
         out.append("".join(seg))
     out += ["</Track></Lap></Activity></Activities>", "</TrainingCenterDatabase>"]

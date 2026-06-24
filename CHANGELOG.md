@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.335] – 2026-06-24
+
+### Hinzugefügt
+- **GPX-Inspektor: „Speichern unter…" mit Format-Wahl + Sensoren in der Datei (Nutzer-Feedback).** Beim Speichern eines geheilten Tracks kommt jetzt ein Datei-Dialog — der Default-Ordner ist der der **Original-Datei** (nicht mehr der tief vergrabene Library-Cache, der bei FIT-Importen genervt hat). Wählbar **GPX** (mit eingebetteten `gpxtpx`-Sensoren: Herzfrequenz/Trittfrequenz/Temperatur + `<power>`) oder **TCX** (Garmin-nativ: HeartRateBpm/Cadence). Damit ist die geheilte Datei **portabel und verliert keine Standard-Sensoren mehr** — vorher steckten die nur in der Sidecar, die außerhalb von Reisezoom niemand liest. Für GPX wird zusätzlich die Sidecar geschrieben (verlustfrei auch für exotische Geräte-Felder wie `grd_pct`/`ngp` beim Re-Import).
+
+### Geändert
+- **TCX-Export trägt jetzt Herzfrequenz + Trittfrequenz** (`core/trackio.to_tcx_string`) — gilt auch für den normalen „Exportieren als TCX". Garmin/Strava lesen die nativ.
+
 ## [0.9.334] – 2026-06-23
 
 ### Behoben

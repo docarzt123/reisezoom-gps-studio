@@ -127,7 +127,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.334"
+APP_VERSION = "0.9.335"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -2934,16 +2934,20 @@ class Api:
             log.error("gpxinspect_map_match: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
 
-    def gpxinspect_save(self, points: list, src_path: str) -> dict:
-        """Editierten Track als neues GPX neben dem Original speichern
-        (`<name>_geheilt.gpx`). Original bleibt unberührt."""
+    def gpxinspect_save(self, points: list, src_path: str,
+                        out_path: str = "", fmt: str = "gpx") -> dict:
+        """Editierten Track speichern. `out_path` = vom „Speichern unter…"-Dialog
+        gewählter Pfad (leer → Default `<name>_geheilt.gpx` neben der Quelle).
+        `fmt` ∈ {gpx, tcx}; Sensoren werden eingebettet (v0.9.335). Original bleibt
+        unberührt."""
         try:
-            out = cgpxedit.healed_output_path(src_path or "track.gpx")
+            out = out_path or cgpxedit.healed_output_path(src_path or "track.gpx")
             base = os.path.splitext(os.path.basename(out))[0]
-            res = cgpxedit.save_points(points or [], out, name=base, src_path=src_path)
+            res = cgpxedit.save_points(points or [], out, name=base,
+                                       src_path=src_path, fmt=fmt)
             if res.get("ok"):
-                log.info("gpxinspect_save: %d Punkte → %s (Sensoren erhalten: %s)",
-                         res.get("count", 0), out, res.get("sensors_kept"))
+                log.info("gpxinspect_save[%s]: %d Punkte → %s (Sensoren: %s)",
+                         res.get("fmt"), res.get("count", 0), out, res.get("sensors_kept"))
             return res
         except Exception as e:
             log.error("gpxinspect_save: %s\n%s", e, traceback.format_exc())

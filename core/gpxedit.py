@@ -17,9 +17,6 @@ import os
 from datetime import datetime, timezone
 from typing import List, Optional
 
-import gpxpy
-import gpxpy.gpx
-
 from . import gpx as cgpx
 
 
@@ -74,30 +71,33 @@ def _parse_iso(s: Optional[str]) -> Optional[datetime]:
 
 def save_points(
     points: List[dict], out_path: str, *, name: str = "Geheilt",
-    src_path: Optional[str] = None,
+    src_path: Optional[str] = None, fmt: str = "gpx",
 ) -> dict:
-    """Editierte Punkte als neues GPX schreiben (ein Track, ein Segment).
+    """Editierten Track schreiben — als GPX **oder TCX**, mit eingebetteten Sensoren.
 
     points = [{lat, lon, ele?, time?, oi?}] in Reihenfolge. `oi` = Original-Index
     im Quell-Track (vom Frontend durchgereicht); eingefügte Punkte haben kein `oi`.
 
-    Wenn `src_path` einen Track mit FIT/TCX-Sensoren (`<src>.sensors.json`) hat,
-    werden die Sensorwerte erhalten: unveränderte/geheilte Punkte behalten ihren
-    Original-Wert (über `oi`), eingefügte Punkte werden interpoliert. Geschrieben
-    wird ein index-gleicher Sidecar `<out>.sensors.json` (internes Format), den der
-    Animator/Geotagger beim Laden des geheilten GPX automatisch wieder einliest.
+    v0.9.335 (Nutzer-Feedback): Sensoren werden jetzt **direkt in die Datei**
+    geschrieben (gpxtpx HR/Trittfrequenz/Temperatur + `<power>` im GPX, native
+    Felder im TCX — Garmin/Strava lesen das), nicht mehr nur in den Sidecar. So
+    geht beim portablen Weitergeben nichts verloren. Zusätzlich wird für GPX der
+    Sidecar `<out>.sensors.json` geschrieben (verlustfrei auch für exotische
+    Geräte-Felder wie grd_pct/ngp beim Re-Import in Reisezoom).
 
-    Returns {ok, out_path, count, sensors_kept}.
+    `fmt` ∈ {"gpx", "tcx"}. Sensorwerte unveränderter/geheilter Punkte bleiben
+    exakt (über `oi`), eingefügte Punkte werden interpoliert.
+
+    Returns {ok, out_path, count, sensors_kept, fmt}.
     """
     if not points or len(points) < 2:
         return {"ok": False, "error": "Zu wenige Punkte zum Speichern"}
-    gpx = gpxpy.gpx.GPX()
-    trk = gpxpy.gpx.GPXTrack(name=name)
-    gpx.tracks.append(trk)
-    seg = gpxpy.gpx.GPXTrackSegment()
-    trk.segments.append(seg)
-    oi_list: List[Optional[int]] = []   # Original-Index (oder None) je geschriebenem Punkt
-    n = 0
+    fmt = (fmt or "gpx").lower()
+    if fmt not in ("gpx", "tcx"):
+        fmt = "gpx"
+
+    pts: List[dict] = []
+    oi_list: List[Optional[int]] = []   # Original-Index (oder None) je gültigem Punkt
     for p in points:
         try:
             lat = float(p["lat"]); lon = float(p["lon"])
@@ -110,35 +110,52 @@ def save_points(
                 ele_f = float(ele)
             except (TypeError, ValueError):
                 ele_f = None
-        tp = gpxpy.gpx.GPXTrackPoint(
-            latitude=lat, longitude=lon, elevation=ele_f, time=_parse_iso(p.get("time"))
-        )
-        seg.points.append(tp)
+        pts.append({"lat": lat, "lon": lon, "ele": ele_f, "time": p.get("time"), "extra": {}})
         oi = p.get("oi")
         oi_list.append(oi if isinstance(oi, int) else None)
-        n += 1
-    if n < 2:
+    if len(pts) < 2:
         return {"ok": False, "error": "Zu wenige gültige Punkte"}
+
+    # Sensoren re-indizieren und an die Punkte hängen (für den eingebetteten Export).
+    out_extra = _reindex_extra(oi_list, src_path)
+    has_sensors = bool(out_extra) and any(out_extra)
+    if has_sensors:
+        for pt, ex in zip(pts, out_extra):
+            pt["extra"] = ex or {}
+
+    from . import trackio as ctrackio
+    data, _mime = ctrackio.export_payload(pts, fmt, name)
+
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-    with open(out_path, "w", encoding="utf-8") as fh:
-        fh.write(gpx.to_xml())
-    sensors_kept = _preserve_sensors(oi_list, src_path, out_path)
-    return {"ok": True, "out_path": out_path, "count": n, "sensors_kept": sensors_kept}
+    with open(out_path, "wb") as fh:
+        fh.write(data if isinstance(data, (bytes, bytearray)) else str(data).encode("utf-8"))
+
+    # GPX: zusätzlich Sidecar (verlustfrei, auch exotische Felder) neben die Datei.
+    sensors_kept = has_sensors
+    if fmt == "gpx" and has_sensors:
+        try:
+            from . import imports as cimports
+            cimports.write_sidecar([e or {} for e in out_extra], out_path)
+        except Exception:
+            pass
+    return {"ok": True, "out_path": out_path, "count": len(pts),
+            "sensors_kept": sensors_kept, "fmt": fmt}
 
 
-def _preserve_sensors(
-    oi_list: List[Optional[int]], src_path: Optional[str], out_path: str
-) -> bool:
-    """Sensorwerte des Quell-Tracks index-gleich auf den editierten Track mappen
-    und als `<out>.sensors.json` schreiben. True, wenn ein Sidecar entstand."""
+def _reindex_extra(
+    oi_list: List[Optional[int]], src_path: Optional[str]
+) -> List[Optional[dict]]:
+    """Sensorwerte des Quell-Tracks index-gleich auf den editierten Track mappen.
+    Unveränderte/geheilte Punkte (oi gesetzt) behalten ihren Wert, eingefügte
+    (oi=None) werden interpoliert. Leere Liste, wenn die Quelle keine Sensoren hat."""
     if not src_path:
-        return False
+        return []
     try:
         src_pts, _ = cgpx.parse_gpx(src_path)   # extra ist aus dem Quell-Sidecar gemergt
     except Exception:
-        return False
+        return []
     if not src_pts or not any(getattr(sp, "extra", None) for sp in src_pts):
-        return False
+        return []
     nsrc = len(src_pts)
     out_extra: List[Optional[dict]] = [None] * len(oi_list)
     for i, oi in enumerate(oi_list):
@@ -146,12 +163,7 @@ def _preserve_sensors(
             ex = getattr(src_pts[oi], "extra", None)
             out_extra[i] = dict(ex) if ex else {}
     _interp_none_runs(out_extra)   # eingefügte Punkte (oi=None) interpolieren
-    try:
-        from . import imports as cimports
-        sc = cimports.write_sidecar([e or {} for e in out_extra], out_path)
-        return bool(sc)
-    except Exception:
-        return False
+    return out_extra
 
 
 def _interp_extra(left: dict, right: dict, frac: float) -> dict:

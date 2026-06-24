@@ -128,7 +128,7 @@
   "gpxinspect.pm_set_a": "Set as anchor A",
   "gpxinspect.pm_set_b": "Set as anchor B",
   "gpxinspect.pm_close": "Close",
-  "gpxinspect.save": "Save healed GPX",
+  "gpxinspect.save": "Save healed track …",
   "gpxinspect.reset": "Discard changes",
   "gpxinspect.healed": "Segment smoothed — time kept, speed corrected.",
   "gpxinspect.filled": "Gap filled: ",

@@ -542,6 +542,8 @@ ExifTool läuft als Daemon im Hintergrund — RAW-Verarbeitung ist ~8× schnelle
 Zeigt **jeden einzelnen Punkt** deines Tracks auf der Karte (den vollen Roh-Track, nicht das geglättete Vorschau-Downsample) und lässt dich kaputte Stellen reparieren: GPS-Ausreißer glätten, Lücken füllen, einzelne Punkte verschieben oder löschen. Braucht **keinen** Mapbox-Token (geht auch im OSM-Modus). Speichert als neue Datei `<name>_geheilt.gpx` — dein Original bleibt unangetastet. Öffnet **alle importierbaren Formate** (GPX, FIT, KML/KMZ, TCX, GeoJSON, NMEA/`.LOG`) — Fremdformate werden automatisch nach GPX konvertiert (seit v0.9.296).
 
 > **❤️ FIT-/TCX-Sensoren bleiben erhalten (seit v0.9.334):** Bearbeitest du einen Track mit Sensordaten (Herzfrequenz, Temperatur, Trittfrequenz …), behält das geheilte GPX diese Werte. Unveränderte und geglättete Punkte tragen ihre echten Messwerte weiter, neu eingefügte Lücken-Punkte werden interpoliert. Du kannst den geheilten Track also danach ganz normal im Animator mit Sensor-Overlay nutzen.
+>
+> **💾 „Speichern unter…" + Format (seit v0.9.335):** Beim Speichern öffnet sich ein Datei-Dialog — Default-Ordner ist der deiner Original-Datei (nicht mehr ein versteckter System-Ordner). Wähle **GPX** (Sensoren stecken via `gpxtpx` direkt in der Datei) oder **TCX** (Garmin-Format mit Herzfrequenz/Trittfrequenz). So bleibt die Datei portabel und verliert auch außerhalb von Reisezoom keine Standard-Sensoren.
 
 ### Werkzeuge
 

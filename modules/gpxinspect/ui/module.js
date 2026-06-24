@@ -20,7 +20,8 @@ function mountGpxInspect(body, headerActions) {
   let map = null;
   let isUnmounted = false;
   let _points = [];        // editierbare Kopie: [{lat,lon,ele,time}]
-  let _srcPath = null;
+  let _srcPath = null;     // konvertierte/gecachte GPX (für Sensor-Reparse)
+  let _origPath = null;    // v0.9.335 — Original-Datei des Nutzers (für Default-Speicherort)
   let _hasTime = false, _hasEle = false, _hasSensors = false;
   let _selA = null, _selB = null;   // Anker-Indizes (a <= b)
   let _dirty = false;
@@ -151,7 +152,7 @@ function mountGpxInspect(body, headerActions) {
           <button class="btn btn-primary gpxi-act" id="gpxi-ele-apply" disabled>⛰ ${t("gpxinspect.ele_apply", "Diese Höhe übernehmen")}</button>
           <div class="gpxi-note muted" id="gpxi-ele-result"></div>
           <hr class="gpxi-hr">
-          <button class="btn btn-primary" id="gpxi-save" disabled>💾 ${t("gpxinspect.save", "Geheiltes GPX speichern")}</button>
+          <button class="btn btn-primary" id="gpxi-save" disabled>💾 ${t("gpxinspect.save", "Geheilten Track speichern …")}</button>
           <button class="btn gpxi-reset" id="gpxi-reset" disabled>↩︎ ${t("gpxinspect.reset", "Änderungen verwerfen")}</button>
           <div class="gpxi-note muted" id="gpxi-note"></div>
         </div>
@@ -311,6 +312,7 @@ function mountGpxInspect(body, headerActions) {
     // (undefined) → Backend interpoliert deren Sensoren. v0.9.334 (Nutzer-Feedback).
     _points = (res.points || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.i }));
     _srcPath = res.src || path;   // v0.9.295 — konvertierter GPX-Pfad (Fremdformate), sonst Original
+    _origPath = path;             // v0.9.335 — Original-Datei (für Default-Speicherort beim „Speichern unter…")
     _hasTime = !!res.has_time; _hasEle = !!res.has_ele; _hasSensors = !!res.has_sensors;
     _selA = _selB = null; _dirty = false;
     _drawMode = false; _drawPts = [];
@@ -1607,11 +1609,24 @@ function mountGpxInspect(body, headerActions) {
 
   async function saveTrack() {
     if (!_points.length) return;
-    // oi mitsenden → Backend behält die FIT/TCX-Sensoren der Originalpunkte und
-    // interpoliert die eingefügten. v0.9.334 (Nutzer-Feedback).
+    // v0.9.335 (Nutzer-Feedback): „Speichern unter…" mit Format-Wahl —
+    // Default-Ordner ist der der Original-Datei (nicht der tiefe Library-Cache),
+    // GPX (mit eingebetteten Sensoren) oder TCX. oi mitsenden → Sensoren bleiben.
+    const orig = _origPath || _srcPath || "";
+    const slash = Math.max(orig.lastIndexOf("/"), orig.lastIndexOf("\\"));
+    const dir = slash >= 0 ? orig.slice(0, slash) : "";
+    let stem = slash >= 0 ? orig.slice(slash + 1) : orig;
+    const dot = stem.lastIndexOf("."); if (dot > 0) stem = stem.slice(0, dot);
+    const defName = (stem || "track") + "_geheilt.gpx";
+    let dest = "";
+    try {
+      dest = await api().pick_save_path(defName, dir, ["GPX (*.gpx)", "TCX (*.tcx)"]);
+    } catch (_) { dest = ""; }
+    if (!dest) return;   // abgebrochen
+    const fmt = String(dest).toLowerCase().endsWith(".tcx") ? "tcx" : "gpx";
     const payload = _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi }));
     let res;
-    try { res = await api().gpxinspect_save(payload, _srcPath); } catch (e) { res = { ok: false, error: String(e) }; }
+    try { res = await api().gpxinspect_save(payload, _srcPath, dest, fmt); } catch (e) { res = { ok: false, error: String(e) }; }
     if (isUnmounted) return;
     if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
     _dirty = false; updateUI();
@@ -1620,8 +1635,8 @@ function mountGpxInspect(body, headerActions) {
       + (res.sensors_kept ? " — " + t("gpxinspect.sensors_kept", "Sensordaten erhalten") : "");
     if (note) note.textContent = savedMsg;
     toast(savedMsg, "success", 6000);
-    // Geheiltes GPX gleich global laden → alle Module nutzen die saubere Version,
-    // und der Inspektor zeigt ab jetzt den geheilten Track.
+    // Geheilten Track gleich global laden → alle Module nutzen die saubere Version
+    // (auch TCX: _ensure_gpx konvertiert + zieht die Sensoren in den Cache-Sidecar).
     if (typeof loadGlobalGpx === "function") { try { loadGlobalGpx(res.out_path); } catch (_) {} }
   }
 

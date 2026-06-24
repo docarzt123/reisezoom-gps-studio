@@ -128,7 +128,7 @@
   "gpxinspect.pm_set_a": "Als Anker A",
   "gpxinspect.pm_set_b": "Als Anker B",
   "gpxinspect.pm_close": "Schließen",
-  "gpxinspect.save": "Geheiltes GPX speichern",
+  "gpxinspect.save": "Geheilten Track speichern …",
   "gpxinspect.reset": "Änderungen verwerfen",
   "gpxinspect.healed": "Abschnitt geglättet — Zeit behalten, Geschwindigkeit korrigiert.",
   "gpxinspect.filled": "Lücke gefüllt: ",
