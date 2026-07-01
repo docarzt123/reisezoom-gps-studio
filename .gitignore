@@ -94,6 +94,7 @@ docs/BLOGPOST_UPDATE.md
 
 # ── Interne/Marc-spezifische Tooling-Skripte (nicht öffentlich) ───────────
 /scripts/deploy_release.sh
+/scripts/scan_release.sh
 /scripts/backup.sh
 /scripts/build_keyframe_test.sh
 /scripts/render_timing.py
