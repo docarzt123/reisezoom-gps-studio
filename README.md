@@ -65,10 +65,12 @@ Für macOS und Windows gibt es fertige Builds (siehe oben). Für **Linux läuft 
 
 ```bash
 # Fedora
+sudo dnf install git
 sudo dnf install python3 python3-gobject gobject-introspection \
                  webkit2gtk4.1 python3-cairo ffmpeg
 
 # Debian / Ubuntu
+sudo apt install git
 sudo apt install python3 python3-venv python3-gi python3-gi-cairo \
                  gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0 ffmpeg
 ```
