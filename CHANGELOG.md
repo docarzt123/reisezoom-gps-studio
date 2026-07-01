@@ -13,6 +13,8 @@ Bei jeder neuen Version:
 ---
 
 ## [Unreleased]
+
+## [0.9.383] – 2026-07-01
 ### Hinzugefügt
 - **macOS-Release wird jetzt mit Developer ID signiert + notarisiert** (statt nur ad-hoc) — sobald
   die Signing-Secrets im Repo hinterlegt sind, startet die App ohne Gatekeeper-Warnung. Neu:
@@ -20,8 +22,6 @@ Bei jeder neuen Version:
   `scripts/macos_sign.sh`, `scripts/macos_notarize.sh`, Signier-/Notarisierungs-Schritte in
   `release.yml` (GPS Studio **und** Geotagger). Ohne Secrets: automatischer Ad-hoc-Fallback,
   bestehende Releases brechen nicht. Doku: `docs/HANDOVER_DEPLOYMENT.md`.
-
-## [0.9.383] – 2026-07-01
 ### Geändert
 - **Tour-Map: „🗑 Leeren"-Button jetzt immer sichtbar (oben) + mit Sicherheitsabfrage** (Marc). Die
   Tour-Map merkt sich Fotos pro Track (praktisch für echte Projekte). Für einen bewussten Frischstart
