@@ -129,7 +129,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.384"
+APP_VERSION = "0.9.385"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -2809,7 +2809,13 @@ class Api:
                 subdirs = ["chrome-headless-shell-win64", "chrome-headless-shell-win32"]
                 exe_name = "chrome-headless-shell.exe"
             else:
-                subdirs = ["chrome-headless-shell-linux"]
+                # Playwright benennt den Linux-Unterordner "…-linux64" (bzw.
+                # "…-linux-arm64"), NICHT "…-linux". Der alte Name fand den
+                # Browser nie → Render schlug fehl. Danke @uli-heller.
+                if arch in ("arm64", "aarch64"):
+                    subdirs = ["chrome-headless-shell-linux-arm64", "chrome-headless-shell-linux64", "chrome-headless-shell-linux"]
+                else:
+                    subdirs = ["chrome-headless-shell-linux64", "chrome-headless-shell-linux-arm64", "chrome-headless-shell-linux"]
                 exe_name = "chrome-headless-shell"
 
             for d in candidates:

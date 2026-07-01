@@ -14,6 +14,10 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.385] – 2026-07-01
+### Behoben
+- **Linux: Rendern schlug fehl, weil der Playwright-Browser nie gefunden wurde.** `playwright_check()` suchte den Chromium-Unterordner unter `chrome-headless-shell-linux`, Playwright legt ihn aber als `chrome-headless-shell-linux64` (bzw. `…-linux-arm64`) ab. Suche auf die korrekten Namen umgestellt (alter Name bleibt als Fallback). Danke an @uli-heller für Diagnose **und** Fix (GitHub-Fork).
+
 ## [0.9.384] – 2026-07-01
 ### Behoben
 - **Linux: App stürzte beim Start ab** (`GLib-GIO-ERROR … invalid format`). Ursache: Emojis und Klammern in den Hilfe-Menü-Labels (`🌐 Blog (reisezoom.com)`, `▶ YouTube-Kanal`, `☕`) erzeugten unter dem GTK-Backend ungültige interne Action-Namen. Labels auf reinen Text umgestellt (`Blog – reisezoom.com`, `YouTube-Kanal`, `Entwicklung unterstützen`) in DE/EN/ES + Fallbacks in `app.py`. macOS/Windows optisch minimal (Menü ohne Emoji), Funktion identisch. Danke an @commanderf (GitHub-Issue #4) für die präzise Diagnose.
