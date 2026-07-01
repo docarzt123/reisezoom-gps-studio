@@ -489,12 +489,12 @@ Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den
 2. **Fotos auswählen** — entweder „📁 Fotos auswählen", „📁 Ganzen Ordner laden", oder Drag & Drop
 3. **Foto-Tiles** erscheinen in der Mitte mit Thumbnails. Marker auf der Karte zeigen wo jedes Foto basierend auf Aufnahmezeit zugeordnet wurde. **Weitere Fotos reinziehen oder einen weiteren Ordner laden ergänzt die Liste** (seit v0.9.176 — wird *hinzugefügt*, nicht ersetzt; Dubletten werden übersprungen). Zum Leeren das **„🗑 Alle entfernen"** nutzen.
 4. **Offset prüfen** (siehe „Zeitzonen" unten) — meist passt's direkt
-5. **„GPS in Fotos schreiben"** → Backup wird automatisch als ZIP angelegt → fertig
+5. **„GPS in Fotos schreiben"** → **Zielordner wählen** → die fertig getaggten **Kopien** landen dort, deine **Originale bleiben unangetastet** → fertig, der Ordner öffnet sich
 
-### Drag & Drop und „Ordner wählen" taggen jetzt beide die Originale ✅
-- **Seit v0.9.153** kennt die App auch bei **Drag & Drop** die echten Dateipfade — GPS wird **direkt in deine Original-Fotos** geschrieben, genau wie bei „📁 Ganzen Ordner laden" / „📁 Fotos auswählen". Kein Export-Schritt mehr nötig: Foto reinziehen → taggen → fertig, das Original hat jetzt die GPS-Koordinaten.
-- **Technischer Hintergrund:** Frühere Versionen bekamen vom System beim Ziehen nur den Datei-*Inhalt* ohne Pfad und mussten mit Wegwerf-Kopien arbeiten. Die App löst den Original-Pfad jetzt nativ auf (alle Plattformen: macOS, Windows, Linux).
-- **Seltener Fallback:** Sollte der native Pfad einmal nicht verfügbar sein (sehr altes Betriebssystem, ganze Ordner-Struktur gezogen), arbeitet die App weiterhin sicher mit internen Kopien und bietet danach **„Getaggte Fotos speichern …"** an. Für garantiertes In-Place-Tagging in solchen Fällen: „Ordner wählen" nutzen.
+### So werden die getaggten Fotos gespeichert (seit v0.9.372)
+- **Deine Originale werden nie angefasst.** Beim Schreiben wählst du **einmal einen Zielordner**; dorthin schreibt die App die fertig getaggten **Kopien**. Die Originale bleiben damit als Sicherung erhalten — ein separates Backup-ZIP gibt es nicht mehr (unnötig).
+- **Ein einheitlicher Ablauf**, egal ob du die Fotos per **Drag & Drop** oder über **„Ordner wählen"** geladen hast: es entsteht immer ein sauberer Ordner mit den getaggten Bildern. Der Fertig-Dialog zeigt **„Gespeichert in …"** + **„Ordner öffnen"**.
+- **Originale doch direkt taggen?** Wähle einfach den **Ordner deiner Originale** als Ziel. Dann fragt die App **„Originale hier wirklich überschreiben? (kein Backup)"** — bestätigst du, wird in-place getaggt. Ohne Bestätigung überschreibt die App **nie** ein Original.
 
 ### Zeitzonen-Magie
 Die App liest die `OffsetTimeOriginal`-EXIF-Tag aus jedem Foto und konvertiert die Aufnahmezeit zu UTC. Dadurch passt der Track in 95 % der Fälle **out-of-the-box** ohne dass du manuell Offset einstellen musst.
@@ -511,7 +511,7 @@ Wenn doch nicht (z.B. weil die Kamera-Uhr falsch stand):
   Der Knopf jeder Kamera zeigt ihren gesetzten Offset als kleines Badge (z.B. `📷 OM-3 +1h`). Ohne Kamera-Filter („Alle") stellst du den **globalen Standard** ein, der für alle Kameras ohne eigenen Offset gilt. Die Pro-Kamera-Offsets bleiben gespeichert und greifen auch bei der optionalen Aufnahmezeit-Korrektur.
 
 ### Optionen
-- **Backup-ZIP vor dem Schreiben** (Default an) — Original-Fotos werden in `~/Library/.../​_backups_photos/` gesichert
+- **Kein Backup nötig** (seit v0.9.372) — die Originale werden nie angefasst (getaggte Kopien landen im gewählten Zielordner), deshalb gibt es keine Backup-Checkbox mehr.
 - **Wenn ein Foto schon Daten hat** (seit v0.9.339) — drei Modi:
   - **Behalten, nur Fehlendes ergänzen** (Default): Vorhandenes GPS bleibt unangetastet, es wird nur ergänzt, was fehlt (z.B. Adresse, Blickrichtung). Ideal für gemischte Stapel (Handy-Fotos mit eigenem GPS + Kamera-Fotos ohne). **Ein im Foto gespeicherter Standort hat dabei Vorrang vor der Zeit-Zuordnung** — ein Foto, das schon „Porto" als GPS hat, wird in Porto verortet, nicht auf den per Uhrzeit getroffenen Track-Punkt.
   - **Alles überschreiben**: ersetzt auch vorhandene Daten durch die Track-Werte.
@@ -801,7 +801,7 @@ Jedes Modul hat seinen **eigenen Undo-Stack mit 50 Schritten**:
 
 - **Animator:** Keyframes setzen/löschen/verschieben, Trim-Handles, Intro/Animation/Hold-Werte, Keyframe-Editor-Toggle.
 - **Tour-Map:** alle Sidebar-Settings (Linien-Farbe, -Breite, Glow, Stats-Box-Position, Pin-Größe, Karten-Stil…).
-- **Geotagger:** Foto-Offset-Slider, Referenz-Punkt, „Unterordner einbeziehen". **Nicht** undoable: bereits in Fotos geschriebene GPS-Tags — dafür vor dem Tagging die Backup-Checkbox aktivieren.
+- **Geotagger:** Foto-Offset-Slider, Referenz-Punkt, „Unterordner einbeziehen". **Nicht** undoable: bereits in Fotos geschriebene GPS-Tags — dafür getrost, weil seit v0.9.372 immer in Kopien geschrieben wird und die Originale unangetastet bleiben (außer du wählst bewusst den Originalordner + bestätigst das Überschreiben).
 
 Beim Wechsel zwischen Projekten wird der Undo-Stack des betroffenen Moduls geleert (es gibt kein „rückgängig" über Projekt-Grenzen hinweg).
 

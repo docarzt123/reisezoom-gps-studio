@@ -824,10 +824,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Übersichtskarte zum Verorten der Fotos → immer OSM (kein Token, keine
   // Kreditkarte). Onboarding wird still als erledigt markiert + force_osm gesetzt.
   if (window.RZ_EDITION === "geotagger") {
-    if (!(_settingsCache && _settingsCache.onboarding_done && _settingsCache.force_osm)) {
-      try { await saveSettings({ onboarding_done: true, force_osm: true }); } catch (_) {}
-      if (_settingsCache) { _settingsCache.onboarding_done = true; _settingsCache.force_osm = true; }
-    }
+    // v0.9.374 — NICHTS mehr persistieren! Solo-Geotagger und Vollversion teilen sich
+    // dieselbe settings.json (~/…/Reisezoom GPS Studio/). Persistierte die Solo-App
+    // `force_osm:true`, erbte die Vollversion es und fiel trotz Mapbox-Token auf OSM
+    // zurück (kein Satellit/3D/Render — Marc-Bug 2026-07-01). Fix: den OSM-Zwang + das
+    // „kein First-Run-Nag" NUR IN-MEMORY für diese Session setzen. Die Platte (und damit
+    // die Vollversion) bleibt komplett unberührt.
+    if (_settingsCache) { _settingsCache.onboarding_done = true; _settingsCache.force_osm = true; }
   } else {
     const onboardingDone = !!(_settingsCache && _settingsCache.onboarding_done);
     if (!onboardingDone) {

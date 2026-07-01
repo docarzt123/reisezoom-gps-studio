@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened-Runtime-Entitlements für die notarisierte macOS-App (v0.9.383+).
+  Nötig, weil die App eingebettetes Python (PyInstaller), eine WKWebView,
+  Chromium-Headless-Shell (Render) und exiftool/perl bündelt:
+  - disable-library-validation: PyInstaller lädt unsignierte/fremd-signierte
+    .so/.dylib → ohne diese Ausnahme blockt Hardened Runtime den Start.
+  - allow-jit / allow-unsigned-executable-memory: WKWebView-JS + Python.
+  - allow-dyld-environment-variables: PyInstaller-Bootloader/Playwright setzen
+    Umgebungsvariablen (z.B. PLAYWRIGHT_BROWSERS_PATH) beim Start.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<true/>
+	<key>com.apple.security.cs.allow-dyld-environment-variables</key>
+	<true/>
+</dict>
+</plist>

@@ -75,17 +75,25 @@ class Session:
 
 # ── Hash ─────────────────────────────────────────────────────────────────────
 
-def compute_track_hash(coords: Iterable) -> str:
-    """Stabile Hash über GPS-Koordinaten.
+def compute_track_hash(coords: Iterable, name: str = "") -> str:
+    """Stabile Hash über GPS-Koordinaten (+ optional Datei-/Track-Name).
 
-    Auf 5 Nachkommastellen gerundet (~1 m Genauigkeit) damit zwei Exports
-    desselben Tracks aus verschiedenen Tools (mit minimalen
-    Floating-Point-Unterschieden) den gleichen Hash kriegen.
+    Koordinaten auf 5 Nachkommastellen gerundet (~1 m Genauigkeit).
+
+    `name` (seit v0.9.380): Datei-Basename des Tracks. Fließt in den Hash ein,
+    damit **derselbe Track unter anderem Dateinamen als NEUES Projekt** gilt.
+    Hintergrund: Marc benennt eine GPX bewusst um, um frisch zu starten — vorher
+    erkannte die App den Track nur an den Koordinaten wieder und lud das alte
+    Projekt inkl. gespeicherter Tour-Map-Fotos zurück (verwirrend). Mit Name im
+    Hash = Umbenennen ⇒ neue Session. Leerer `name` ⇒ altes Verhalten (nur
+    Koordinaten), z.B. bei Tracks ohne Datei-Pfad.
 
     `coords` ist eine Iterable von (lon, lat) oder [lon, lat] Paaren.
     Returns einen 16-Zeichen-Hex-String.
     """
     h = hashlib.sha1()
+    if name:
+        h.update(f"name:{name}\x00".encode("utf-8", "replace"))
     for c in coords:
         try:
             lon, lat = float(c[0]), float(c[1])

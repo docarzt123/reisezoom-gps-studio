@@ -1006,7 +1006,20 @@ und `modules/tourmap/` bleiben unangetastet.
 
 Track-gebundenes Session-System. Jeder GPX-Track bekommt einen Hash
 (SHA1 über gerundete Koordinaten) und damit eine eigene Session unter
-`<user-data>/sessions/<track_hash>/`. Eine Session enthält:
+`<user-data>/sessions/<track_hash>/`.
+
+> **v0.9.380 → v0.9.382 (ZURÜCKGENOMMEN):** Kurzzeitig floss der Datei-Basename
+> mit in den Hash (`compute_track_hash(coords, name)`), damit Umbenennen ein
+> neues Projekt ergibt. Das brach jedoch, weil `session_open_for_track` pro Load
+> **mehrfach** aufgerufen wird — teils mit `gpx_path`, teils ohne (Geotagger-Drop)
+> → **zwei Sessions für denselben Track**, Speicher-Ziel (Tour-Map) und Render-
+> Quelle (aktives Projekt) drifteten auseinander → „Aus Geotagger" zeigte nichts.
+> Seit v0.9.382 wieder **reiner Koordinaten-Hash** (stabil, ein Track = eine
+> Session). Der `name`-Parameter von `compute_track_hash` bleibt optional
+> vorhanden, wird aber nicht mehr befüllt. „Umbenennen = neues Projekt" später
+> über einen expliziten Button, nicht über den Hash.
+
+Eine Session enthält:
 - `gpx.gpx` — Snapshot der Original-GPX (für späteres Wiedereinladen)
 - `projects.json` — Liste von Projekt-Varianten, jedes mit eigenem
   `animator`-/`tourmap`-/`geotagger`-Settings-Block.

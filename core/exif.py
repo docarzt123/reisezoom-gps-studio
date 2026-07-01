@@ -20,12 +20,14 @@ import json
 import logging
 import os
 import re
+import select
 import shutil
 import signal
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
 import piexif
@@ -71,6 +73,28 @@ ALL_MEDIA_EXTS = ALL_PHOTO_EXTS | VIDEO_EXTS
 
 class ExifToolMissingError(RuntimeError):
     pass
+
+
+class ExifToolTimeout(RuntimeError):
+    """v0.9.369 — exiftool-Daemon hat innerhalb des Timeouts nicht geantwortet.
+    Ursache: eine kaputte/blockierende Datei ließ `read1()` früher UNENDLICH
+    hängen → App fror beim Schreiben komplett ein (Marc-Freeze 2026-06-30, ~8 h).
+    Jetzt wird der Hänger nach `_DAEMON_*_TIMEOUT` Sekunden abgebrochen, der
+    Daemon hart neu gestartet, und der betroffene Schreibvorgang scheitert
+    kontrolliert statt die ganze App zu blockieren."""
+    pass
+
+
+# v0.9.369 — Obergrenzen, ab denen ein exiftool-Call als Hänger gilt.
+#  - READ: Thumbnail-/Meta-Reads (auch träge Video-Vorschauen) → großzügig.
+#  - WRITE: EIN Dateischreiben; selbst ein großes RAW-Rewrite dauert < 10 s.
+#    v0.9.371 — von 180 s auf 60 s gesenkt: 180 s ließ einen (seltenen) Daemon-
+#    Wedge den ganzen sequentiellen Schreib-Batch 3 Min blockieren („hängt beim
+#    Export"). 60 s ist immer noch ~6× über jedem echten Write, kappt den
+#    scheinbaren Hänger aber deutlich. Bei Timeout wird zusätzlich EINMAL mit
+#    frischem Daemon nachgezogen (siehe write_exif_tags).
+_DAEMON_READ_TIMEOUT = 90.0
+_DAEMON_WRITE_TIMEOUT = 60.0
 
 
 def is_raw(path: str) -> bool:
@@ -290,6 +314,7 @@ class _ExifToolDaemon:
                     _log.warning("ExifToolDaemon[%s]: exiftool NICHT gefunden", role)
                     return None
                 inst = cls(et)
+                inst._role = role  # v0.9.369
                 cls._instances[role] = inst
                 _log.info("ExifToolDaemon[%s]: Prozess gestartet (%s, pid=%s)",
                           role, et, getattr(inst._proc, "pid", "?"))
@@ -315,7 +340,13 @@ class _ExifToolDaemon:
         popen_kwargs = dict(
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            # v0.9.371 — stderr NACH /dev/null: Wir lesen stderr nirgends. Als
+            # unbeachtetes PIPE würde exiftool bei genug Warnungen (kaputte
+            # UserComment/ICC-Tags etc.) den 64-KB-stderr-Puffer füllen und beim
+            # nächsten Schreiben darauf BLOCKIEREN → `{ready}`-Marker kommt nie →
+            # Daemon-Deadlock. DEVNULL kann nie volllaufen. (Fehler erkennen wir
+            # weiterhin an stdout: „0 image files updated" / „error".)
+            stderr=subprocess.DEVNULL,
         )
         if os.name == "posix":
             # Neue Session → eigener Process-Group-Leader (pgid == pid).
@@ -338,8 +369,68 @@ class _ExifToolDaemon:
         )
         self._lock = _threading.Lock()
         self._req_counter = 0
+        self._role: Optional[str] = None  # v0.9.369 — für Cache-Invalidierung bei Hänger
 
-    def _send_and_read_text(self, args: list[str]) -> str:
+    def _on_hang(self, timeout: float) -> None:
+        """v0.9.369 — Reißt einen hängenden Daemon-Prozess hart ab und nimmt die
+        Instanz aus dem Cache, damit der nächste Zugriff frisch startet.
+        Nötig, weil nach einem abgebrochenen `-execute` der Marker-Zähler
+        desynchron wäre — ein Weiterbenutzen desselben Prozesses würde alle
+        folgenden Calls verwürfeln. Frischer Prozess = sauberer Zustand."""
+        try:
+            _log.error(
+                "ExifToolDaemon[%s]: HÄNGER (>%.0fs) — Prozess wird gekillt (pid=%s)",
+                self._role, timeout, getattr(self._proc, "pid", "?"))
+        except Exception:
+            pass
+        try:
+            _kill_proc_group(self._proc)
+        except Exception:
+            pass
+        try:
+            with _ExifToolDaemon._instance_lock:
+                if self._role and _ExifToolDaemon._instances.get(self._role) is self:
+                    del _ExifToolDaemon._instances[self._role]
+        except Exception:
+            pass
+
+    def _read_until(self, marker: bytes, timeout: float) -> bytes:
+        """v0.9.369 — Liest stdout via os.read()+select bis `marker` erscheint.
+        Bricht nach `timeout` Sekunden mit ExifToolTimeout ab (statt wie früher
+        mit `read1()` UNENDLICH zu blockieren, wenn exiftool an einer kaputten
+        Datei hängt → App-Freeze). select+os.read statt BufferedReader.read1,
+        damit der Timeout zuverlässig greift und keine Bytes im Python-Puffer
+        „verschwinden". Aufrufer hält self._lock."""
+        assert self._proc.stdout is not None
+        fd = self._proc.stdout.fileno()
+        buf = b""
+        deadline = time.monotonic() + timeout
+        while marker not in buf:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                self._on_hang(timeout)
+                raise ExifToolTimeout(
+                    f"exiftool antwortete nicht innerhalb {timeout:.0f}s")
+            r, _, _ = select.select([fd], [], [], min(remaining, 1.0))
+            if not r:
+                continue
+            try:
+                chunk = os.read(fd, 65536)
+            except OSError:
+                chunk = b""
+            if not chunk:
+                break  # EOF → Prozess weg
+            buf += chunk
+        idx = buf.find(marker)
+        if idx < 0:
+            # Kein Marker trotz EOF → Prozess ist gestorben. Als Hänger behandeln,
+            # damit der nächste Call einen frischen Daemon bekommt.
+            self._on_hang(0)
+            raise ExifToolTimeout("exiftool-Prozess endete ohne Marker")
+        return buf[:idx]
+
+    def _send_and_read_text(self, args: list[str],
+                            timeout: float = _DAEMON_READ_TIMEOUT) -> str:
         """Sendet args + `-execute<N>`, sammelt stdout bis `{ready<N>}`-Marker."""
         with self._lock:
             self._req_counter += 1
@@ -349,17 +440,11 @@ class _ExifToolDaemon:
             self._proc.stdin.write(cmd.encode("utf-8"))
             self._proc.stdin.flush()
             marker = f"{{ready{n}}}".encode()
-            buf = b""
-            assert self._proc.stdout is not None
-            while marker not in buf:
-                chunk = self._proc.stdout.read1(65536)
-                if not chunk:
-                    break
-                buf += chunk
-            idx = buf.find(marker)
-            return buf[:idx].rstrip(b"\r\n").decode("utf-8", errors="replace")
+            out = self._read_until(marker, timeout)
+            return out.rstrip(b"\r\n").decode("utf-8", errors="replace")
 
-    def _send_and_read_binary(self, args: list[str]) -> bytes:
+    def _send_and_read_binary(self, args: list[str],
+                              timeout: float = _DAEMON_READ_TIMEOUT) -> bytes:
         """Wie oben aber gibt Bytes zurück (für `-b PreviewImage` etc.)."""
         with self._lock:
             self._req_counter += 1
@@ -369,15 +454,7 @@ class _ExifToolDaemon:
             self._proc.stdin.write(cmd.encode("utf-8"))
             self._proc.stdin.flush()
             marker = f"{{ready{n}}}".encode()
-            buf = b""
-            assert self._proc.stdout is not None
-            while marker not in buf:
-                chunk = self._proc.stdout.read1(65536)
-                if not chunk:
-                    break
-                buf += chunk
-            idx = buf.find(marker)
-            return buf[:idx].rstrip(b"\r\n")
+            return self._read_until(marker, timeout).rstrip(b"\r\n")
 
     def read_tags_json(self, path: str, tags: list[str], numeric: bool = True) -> Optional[dict]:
         """Liest mehrere Tags in einem Aufruf, gibt JSON-Dict zurück.
@@ -407,7 +484,7 @@ class _ExifToolDaemon:
         """Führt einen Schreibvorgang aus. args muss `-overwrite_original`,
         die Tag-Setzungen und am Ende den Pfad enthalten. Gibt (ok, message) zurück."""
         try:
-            out = self._send_and_read_text(args)
+            out = self._send_and_read_text(args, timeout=_DAEMON_WRITE_TIMEOUT)
             # exiftool gibt '1 image files updated' oder '0 image files updated' aus
             ok = ("error" not in out.lower()) and ("0 image files updated" not in out.lower())
             return ok, out.strip()
@@ -699,6 +776,32 @@ def _to_utc(dt_naive: Optional[datetime], tz_minutes: Optional[int]) -> Optional
     return dt_naive - timedelta(minutes=tz_minutes)
 
 
+def _tz_minutes_from_gps(dt_local_naive: Optional[datetime],
+                         gps_datetime_str) -> Optional[int]:
+    """v0.9.373 — Leitet den Zeitzonen-Offset (Minuten) aus der GPS-UTC-Zeit ab.
+
+    Manche RAW/DNG (z.B. vivo-DNG) speichern KEINEN Exif-`OffsetTimeOriginal`,
+    sondern nur die naive Lokalzeit + eine GPS-UTC-Zeit (`GPSDateTime`). Aus der
+    Differenz Lokalzeit − GPS-UTC ergibt sich die Zeitzone. Wird auf 15 Min
+    gerundet (echte Zeitzonen sind Vielfache davon; GPS-Fix vs. Auslösezeit
+    differieren nur um Sekunden). Gibt None bei fehlenden/unplausiblen Werten."""
+    if not dt_local_naive or not gps_datetime_str:
+        return None
+    s = str(gps_datetime_str).strip().rstrip("Zz").strip().split(".")[0]
+    for fmt in ("%Y:%m:%d %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+        try:
+            gps_utc = datetime.strptime(s, fmt)
+            break
+        except Exception:
+            gps_utc = None
+    if gps_utc is None:
+        return None
+    diff_min = (dt_local_naive - gps_utc).total_seconds() / 60.0
+    if abs(diff_min) > 14 * 60 + 1:   # außerhalb realer Zeitzonen → verwerfen
+        return None
+    return int(round(diff_min / 15.0)) * 15
+
+
 def _exiftool_read_meta(path: str) -> dict:
     """Liest in EINEM Daemon-Call alle relevanten Tags: DateTime + GPS + TZ.
     Bei vorhandenem OffsetTimeOriginal/OffsetTime wird die Zeit zu UTC konvertiert.
@@ -710,6 +813,7 @@ def _exiftool_read_meta(path: str) -> dict:
         "DateTimeOriginal", "CreateDate", "ModifyDate",
         "OffsetTimeOriginal", "OffsetTime", "OffsetTimeDigitized",
         "GPSLatitude", "GPSLongitude", "GPSAltitude",
+        "GPSDateTime",     # v0.9.373 — UTC-Zeit für tz-Ableitung bei RAW/DNG ohne Offset
         "Make", "Model",  # v0.9.164 — Kamera-Modell für den Geotagger-Filter
     ], numeric=True) or {}
     dt = None
@@ -720,6 +824,11 @@ def _exiftool_read_meta(path: str) -> dict:
     tz_min = (_parse_exif_tz_minutes(info.get("OffsetTimeOriginal"))
               or _parse_exif_tz_minutes(info.get("OffsetTime"))
               or _parse_exif_tz_minutes(info.get("OffsetTimeDigitized")))
+    # v0.9.373 — Fallback für RAW/DNG OHNE Exif-Offset (z.B. vivo-DNG): Zeitzone aus
+    # der GPS-UTC-Zeit ableiten. Sonst gilt das Foto als „tz unbekannt" und seine
+    # Lokalzeit wird als UTC fehlinterpretiert → falscher Track-Match (JPG↔DNG-Divergenz).
+    if tz_min is None:
+        tz_min = _tz_minutes_from_gps(dt, info.get("GPSDateTime"))
     dt_utc = _to_utc(dt, tz_min)
     lat = info.get("GPSLatitude")
     lon = info.get("GPSLongitude")
@@ -1394,6 +1503,38 @@ def read_datetime(path: str) -> Optional[datetime]:
         return None
 
 
+def read_datetime_and_tz_min(path: str) -> tuple[Optional[datetime], Optional[int]]:
+    """Wie read_datetime_with_tz, gibt aber den ROHEN Zeitzonen-Offset in Minuten
+    zurück (statt nur True/False). tz_minutes=None → die Kamera hatte keinen
+    eingebetteten Offset; das datetime ist dann die naive Kamera-Lokalzeit.
+    Bei bekanntem Offset ist das datetime bereits auf UTC normiert und die
+    Original-Lokalzeit ergibt sich aus `datetime + tz_minutes`.
+
+    Single source of truth für den Typ-Dispatch — read_datetime_with_tz delegiert."""
+    try:
+        if is_jpeg_like(path) or is_tiff(path):
+            return _piexif_dt_and_tz(path)
+        if is_raw(path):
+            try:
+                m = _exiftool_read_meta(path)
+                return m.get("datetime"), m.get("tz_minutes")
+            except ExifToolMissingError:
+                return None, None
+        if is_video(path):
+            try:
+                m = _exiftool_read_video_meta(path)
+                return m.get("datetime"), m.get("tz_minutes")
+            except ExifToolMissingError:
+                return None, None
+        if is_heif(path):
+            # pillow-heif liefert keine getrennte TZ-Info → konservativ unbekannt.
+            return read_datetime(path), None
+    except Exception:
+        return None, None
+    # Unbekannte Endung
+    return read_datetime(path), None
+
+
 def read_datetime_with_tz(path: str) -> tuple[Optional[datetime], bool]:
     """Wie read_datetime, gibt zusätzlich zurück, OB die Kamera die Zeitzone
     selbst gespeichert hatte (OffsetTimeOriginal o.ä.).
@@ -1405,30 +1546,19 @@ def read_datetime_with_tz(path: str) -> tuple[Optional[datetime], bool]:
 
     Wird für den Geotagger gebraucht, damit eine manuell gesetzte Kamera-Zeitzone
     nur Fotos OHNE eingebetteten Offset verschiebt (sonst doppelte Korrektur)."""
-    try:
-        if is_jpeg_like(path) or is_tiff(path):
-            dt, tz_min = _piexif_dt_and_tz(path)
-            return dt, tz_min is not None
-        if is_raw(path):
-            try:
-                m = _exiftool_read_meta(path)
-                return m.get("datetime"), m.get("tz_minutes") is not None
-            except ExifToolMissingError:
-                return None, False
-        if is_video(path):
-            try:
-                m = _exiftool_read_video_meta(path)
-                return m.get("datetime"), m.get("tz_minutes") is not None
-            except ExifToolMissingError:
-                return None, False
-        if is_heif(path):
-            # pillow-heif liefert keine getrennte TZ-Info → konservativ unbekannt.
-            # (Default-Zeitzone 0 ändert dann ohnehin nichts.)
-            return read_datetime(path), False
-    except Exception:
-        return None, False
-    # Unbekannte Endung
-    return read_datetime(path), False
+    dt, tz_min = read_datetime_and_tz_min(path)
+    return dt, tz_min is not None
+
+
+def local_datetime_from_utc(dt: Optional[datetime], tz_minutes: Optional[int]) -> Optional[datetime]:
+    """Rekonstruiert die ORIGINALE Kamera-Lokalzeit (naive Wanduhr) aus dem
+    (ggf. auf UTC normierten) datetime + bekanntem TZ-Offset. Ohne Offset ist
+    das datetime bereits die Lokalzeit."""
+    if dt is None:
+        return None
+    if tz_minutes is None:
+        return dt
+    return dt + timedelta(minutes=tz_minutes)
 
 
 def read_gps(path: str) -> Optional[tuple[float, float, Optional[float]]]:
@@ -1685,3 +1815,43 @@ def write_exif_tag(path: str, tag: str, value: str) -> None:
     ok, msg = daemon.write_args(args)
     if not ok:
         raise RuntimeError(f"exiftool ({tag}) fehlgeschlagen: {msg[:300]}")
+
+
+def write_exif_tags(path: str, tags: dict[str, str]) -> None:
+    """v0.9.369 — Setzt MEHRERE EXIF-Felder eines Fotos in EINEM exiftool-Call.
+
+    Warum: früher wurde pro Tag EIN eigener `-execute` an den Daemon geschickt
+    (Phase C schrieb Feld für Feld). Bei RAW rewritet exiftool JEDES Mal die
+    ganze Datei — bei vielen globalen Feldern × vielen Fotos wurden das Hunderte
+    Rewrites, und jeder einzelne war eine potenzielle Deadlock-Fläche (Marc-
+    Freeze 2026-06-30). Ein einziger Call mit allen `-Tag=Wert` schreibt die
+    Datei genau EINMAL → drastisch schneller UND weniger Hänger-Risiko.
+
+    Nicht beschreibbare Tags werden übersprungen (nicht geworfen), damit ein
+    einzelnes read-only-Feld nicht den ganzen Batch kippt. Wirft RuntimeError
+    nur, wenn exiftool den (bereinigten) Schreibvorgang ablehnt."""
+    clean: dict[str, str] = {}
+    for raw_tag, value in (tags or {}).items():
+        t = (raw_tag or "").strip()
+        if not t or not exif_tag_writable(t):
+            continue
+        clean[t] = "" if value is None else str(value)
+    if not clean:
+        return
+    args = ["-overwrite_original"] + [f"-{t}={v}" for t, v in clean.items()] + [path]
+    # v0.9.371 — bis zu 2 Versuche: Wenn der Daemon einmal wedged (seltener
+    # -stay_open-Timing-Hänger unter Last), killt der Timeout ihn und nimmt ihn
+    # aus dem Cache; der zweite Versuch bekommt via _ensure_write_daemon() einen
+    # frischen Prozess und geht praktisch immer durch → kein verlorenes Foto.
+    last = ""
+    for attempt in (1, 2):
+        daemon = _ensure_write_daemon()
+        ok, msg = daemon.write_args(args)
+        if ok:
+            return
+        last = msg
+        if attempt == 1 and "innerhalb" in msg:   # Timeout → frischer Daemon
+            _log.warning("write_exif_tags: Timeout bei %s — Retry mit frischem Daemon", path)
+            continue
+        break
+    raise RuntimeError(f"exiftool (Batch {len(clean)} Felder) fehlgeschlagen: {last[:300]}")

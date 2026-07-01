@@ -759,16 +759,15 @@ function mountAnimator(body, headerActions, opts) {
           </div>
           <div class="anim-photos-bulk" style="display:flex; justify-content:space-between; align-items:center; margin:8px 0 6px; font-size:11px;">
             <span class="muted" id="anim-signs-count"></span>
-            <span style="display:flex; gap:6px;">
+            <span style="display:flex; gap:6px; align-items:center;">
               <button type="button" class="btn-link-sm" id="anim-signs-all-on">${t("photos.select_all", "Alle an")}</button>
               <span class="muted">·</span>
               <button type="button" class="btn-link-sm" id="anim-signs-all-off">${t("photos.select_none", "Alle aus")}</button>
+              <span class="muted">·</span>
+              <button type="button" class="btn-link-sm" id="anim-signs-clear" style="color:#e07a7a;">${t("signs.clear_all", "🗑 Leeren")}</button>
             </span>
           </div>
           <div class="photos-list" id="anim-signs-list"></div>
-          <div class="anim-photos-foot" style="display:flex; justify-content:flex-end; align-items:center; margin-top:8px;">
-            <button type="button" class="btn btn-danger-subtle" id="anim-signs-clear">${t("signs.clear_all", "🗑 Alle entfernen")}</button>
-          </div>
         </div>
       </section>
 
@@ -5180,30 +5179,39 @@ function mountAnimator(body, headerActions, opts) {
     }
     function _animPhotosApplyToMap() {
       if (!map || typeof PhotoPins === "undefined") return;
-      // v0.9.198 — Fotos sind im Animator jetzt SCHILDER MIT BILD. Die alten
-      // Foto-Pins werden hier NICHT mehr gezeichnet (leere Liste = vorhandene
-      // Pins werden entfernt). project.photos bleibt nur noch für die Tour-Map.
-      const list = [];
-      // v0.9.79/80 — Phase-2-Verhalten NUR wenn Track-Coords da sind. Sonst
-      // (kein GPX geladen) zeigen wir alle Pins permanent — sonst wäre nichts
-      // sichtbar und der User würde nicht verstehen warum.
-      const hasTrack = Array.isArray(currentCoords) && currentCoords.length >= 2;
+      // v0.9.198 — im ANIMATOR sind Fotos „Schilder mit Bild" → hier KEINE Foto-Pins
+      // (leere Liste entfernt vorhandene Pins).
+      // v0.9.375 — in der TOUR-MAP (staticFrame) SIND die Foto-Pins der Zweck: alle
+      // Fotos aus project.photos permanent zeichnen (statisches Übersichtsbild, kein
+      // Timeline-Reveal). Vorher stand hier hart `[]` → Tour-Map-Vorschau zeigte NIE
+      // Fotos, obwohl sie geladen waren + im Render erschienen (Marc-Bug 2026-07-01).
+      const list = _isStaticFrame ? _animPhotosList() : [];
       const opts = { sizePx: _animPhotosSizePx() };
-      if (hasTrack) {
+      // Timeline-Anchor-Filter (Pins erst am Marker aufdecken) NUR im Animator — in
+      // der Tour-Map sollen alle Foto-Pins gleichzeitig sichtbar sein.
+      const hasTrack = Array.isArray(currentCoords) && currentCoords.length >= 2;
+      if (hasTrack && !_isStaticFrame) {
         const scrubAnchor = (_tlBar && typeof _tlBar.getScrubber === "function")
           ? _tlBar.getScrubber() : 0;
         opts.coords = currentCoords;
         opts.markerAnchor = _animPhotosMarkerAnchor(scrubAnchor);
-        console.log("[anim-photos] applyToMap WITH track, n_photos=" + list.length +
-                    ", n_coords=" + currentCoords.length +
-                    ", markerAnchor=" + opts.markerAnchor.toFixed(4));
-      } else {
-        console.log("[anim-photos] applyToMap NO track (currentCoords leer) → " +
-                    "alle Pins permanent sichtbar");
       }
       try { PhotoPins.attachToMap(map, list, opts); } catch (e) {
         console.warn("[anim-photos] attachToMap fehlgeschlagen", e);
       }
+    }
+    // v0.9.376 — Tour-Map: nach dem Laden frischer Fotos malt Mapbox die Pins
+    // nicht immer im ersten Anlauf (Kamera-Transition vom Track-Fit läuft noch,
+    // viele Badge-Images auf einmal). Der attachToMap-Style-Guard fängt nur den
+    // „Style noch nicht geladen"-Fall — nicht den „Style geladen, aber Karte
+    // gerade in Bewegung"-Fall. Ergebnis: Pins erschienen erst nach Modul-Wechsel
+    // (Marc-Bug 2026-07-01). Fix: sofort attachen UND einen einmaligen Re-Attach
+    // registrieren, sobald die Karte zur Ruhe kommt. `once` feuert genau einmal →
+    // keine Endlosschleife, obwohl der Re-Attach selbst wieder rendert.
+    function _animPhotosApplyToMapEnsured() {
+      _animPhotosApplyToMap();
+      if (!_isStaticFrame || !map || typeof map.once !== "function") return;
+      try { map.once("idle", _animPhotosApplyToMap); } catch (_) {}
     }
     // v0.9.79 — Wandelt Timeline-Anchor (0..1 inkl. intro+hold) in
     // Marker-Position-im-Track (0..1) um. Wiederverwendung der bestehenden
@@ -5314,7 +5322,7 @@ function mountAnimator(body, headerActions, opts) {
         }
         const merged = PhotoPins.dedupePaths(_animPhotosList(), photos);
         _animPhotosSaveListToProject(merged);
-        _animPhotosApplyToMap();
+        _animPhotosApplyToMapEnsured();
         _animPhotosRenderList();
       } catch (e) {
         applog("error", `[anim-photos] load fehlgeschlagen: ${e}`);
@@ -5332,7 +5340,7 @@ function mountAnimator(body, headerActions, opts) {
         }
         const merged = PhotoPins.dedupePaths(_animPhotosList(), photos);
         _animPhotosSaveListToProject(merged);
-        _animPhotosApplyToMap();
+        _animPhotosApplyToMapEnsured();
         _animPhotosRenderList();
         toast(t("photos.toast_loaded", "%n Fotos geladen.")
               .replace("%n", photos.length), "ok", 2500);
@@ -5372,7 +5380,7 @@ function mountAnimator(body, headerActions, opts) {
       } catch (e) {
         applog("warn", `[anim-photos] refresh-thumbs fehlgeschlagen: ${e}`);
       }
-      _animPhotosApplyToMap();
+      _animPhotosApplyToMapEnsured();
       _animPhotosRenderList();
     }
     // ── v0.9.171 — Wegpunkt-Schilder ───────────────────────────────────────
@@ -5580,10 +5588,35 @@ function mountAnimator(body, headerActions, opts) {
     }
     function _animSignsAttachToMap() {
       if (!map) return;
+      // v0.9.379 — Style-Loaded-Guard (analog PhotoPins.attachToMap). Ist der Map-
+      // Style beim Aufruf noch nicht fertig geladen, sind addSource/addLayer ein
+      // No-Op → die Schilder erschienen erst nach einem Modul-Wechsel (2. Mount,
+      // Style dann warm). Betraf besonders „Aus Geotagger" direkt nach Ankunft auf
+      // der Tour-Map (Marc 2026-07-01). Auf idle warten + einmal neu versuchen.
+      if (typeof map.isStyleLoaded === "function" && !map.isStyleLoaded()) {
+        try { map.once("idle", _animSignsAttachToMap); } catch (_) {}
+        return;
+      }
       _animSignsDetach();
       _animSignMetas = [];
       if (!_animSignsShow()) return;
       const allSigns = _animSignsList();
+      // v0.9.378 — Transiente Bild-Flags beim ERSTEN Zugriff nach dem Laden strippen.
+      // Alt-Projekte haben `_imgLoading:true` mit-persistiert (der Persist-Strip kam
+      // erst später). Beim Restore hält der needImg-Filter dann ALLE Schilder für
+      // „lädt gerade" → Bilder werden nie geladen → keine Foto-Pins auf der Karte
+      // (705 Schilder unsichtbar; via Live-Debugging gefunden, Marc 2026-07-01).
+      // `__flagsCleaned` als nicht-enumerierbare Array-Markierung → wird nicht
+      // persistiert (JSON.stringify ignoriert Array-Zusatz-Props).
+      if (allSigns && !allSigns.__flagsCleaned) {
+        allSigns.forEach(s => {
+          if (!s) return;
+          delete s._imgLoading; delete s._imgFailed; delete s._imgBroken;
+          delete s._imgMissing; delete s._imgChecked;
+        });
+        try { Object.defineProperty(allSigns, "__flagsCleaned", { value: true, enumerable: false, configurable: true }); }
+        catch (_) { allSigns.__flagsCleaned = true; }
+      }
       const list = allSigns.filter(s => ((s.text || "").trim() || s.imageSrc) && s.visible !== false);
       if (!list.length) return;
       // Existenz der Original-Bilddatei prüfen (einmal pro Schild) für die Liste-Warnung.
@@ -5643,9 +5676,23 @@ function mountAnimator(body, headerActions, opts) {
     function _animSignsAttachGPU(allSigns, list) {
       const needImg = list.filter(s => s.imageSrc && !_animSignHasImg(s) && !s._imgLoading && !s._imgFailed);
       if (needImg.length) {
-        Promise.all(needImg.map(_animSignEnsureImage)).then(() => {
-          if (map && map.getContainer && !_animSignEditMode) { _animSignsAttachToMap(); _animSignsRenderList(); }
-        });
+        // v0.9.379 — Progressives Nachzeichnen. Vorher wartete ein einziges
+        // Promise.all, bis ALLE Bilder geladen waren → bei vielen Fotos (141)
+        // dauerte das ~10 s und die Karte blieb bis dahin leer (Marc: „erst nach
+        // einer Weile / nach Modul-Wechsel da"). Jetzt: alle 20 geladenen Bilder
+        // (und am Ende) einmal neu zeichnen → die Pins erscheinen in Wellen.
+        // Die noch ladenden Schilder haben `_imgLoading=true` → das Re-Attach
+        // stößt KEINE neuen Ladevorgänge an (kein Nesting), es zeichnet nur die
+        // bereits fertigen. `map.getContainer`-Check schützt vor totem Modul.
+        const _total = needImg.length;
+        let _settled = 0;
+        needImg.forEach(s => _animSignEnsureImage(s).then(() => {
+          _settled++;
+          if (map && map.getContainer && !_animSignEditMode &&
+              (_settled % 20 === 0 || _settled === _total)) {
+            _animSignsAttachToMap(); _animSignsRenderList();
+          }
+        }));
       }
       const dur = _animSignsDuration();
       const features = [];
@@ -5742,7 +5789,11 @@ function mountAnimator(body, headerActions, opts) {
     // GPU-Modus: Sichtbarkeits-Fenster via setFilter + Fade via feature-state.
     function _animSignsApplyGPU(M) {
       if (!map || !map.getLayer(_ANIM_SIGNS_LYR)) return;
-      if (_animSignsPreviewAll) {
+      // v0.9.377 — Tour-Map (staticFrame) hat keine Timeline: ALLE Schilder/Foto-
+      // Schilder müssen permanent sichtbar sein. Ohne diesen Zweig filtert
+      // __rzSignFrame nach Marker-Anker M (=0 im Standbild) → alle ausgeblendet,
+      // die Karte blieb leer, obwohl 705 Einträge geladen waren (Marc-Bug 2026-07-01).
+      if (_animSignsPreviewAll || _isStaticFrame) {
         try {
           map.setFilter(_ANIM_SIGNS_LYR, ["all"]);
           for (let i = 0; i < _animSignMetas.length; i++) { try { map.setFeatureState({ source: _ANIM_SIGNS_SRC, id: i }, { op: 1 }); } catch (_) {} }
@@ -5760,7 +5811,7 @@ function mountAnimator(body, headerActions, opts) {
         if (!mk || !mk.wrap) return;
         const meta = _animSignMetas[fi] || { a_show: -1, a_hide: 2, fade: 0 };
         let op = 1, visible;
-        if (_animSignsPreviewAll || _animSignForceIdx === fi) { visible = true; op = 1; }
+        if (_animSignsPreviewAll || _isStaticFrame || _animSignForceIdx === fi) { visible = true; op = 1; }
         else {
           visible = (M >= meta.a_show && M <= meta.a_hide);
           if (visible && meta.fade > 0) op = Math.max(0, Math.min(1, Math.min((M - meta.a_show) / meta.fade, (meta.a_hide - M) / meta.fade, 1)));
@@ -6432,17 +6483,31 @@ function mountAnimator(body, headerActions, opts) {
             if (r && r.ok) timeAnchors = r.anchors || {};
           }
         } catch (_) {}
-        const seen = new Set(_animSignsList().map(s => (s.imageSrc || "")).filter(Boolean));
+        // v0.9.378 — Dedup per DATEINAME statt vollem Pfad. Jeder „Aus Geotagger"-
+        // Import kopiert die Fotos in einen NEUEN _drops/<hash>/-Ordner → der volle
+        // Pfad ist jedes Mal anders, obwohl es dasselbe Foto ist. Pfad-Dedup griff
+        // deshalb nie → dieselben 141 Fotos landeten 5× im Projekt (705 Schilder,
+        // Marc 2026-07-01). Basename ist im _drops-Schema eindeutig pro Quellfoto.
+        const _baseName = (p) => String(p || "").split(/[\\/]/).pop();
+        const seen = new Set(_animSignsList().map(s => _baseName(s.imageSrc)).filter(Boolean));
         const list = _animSignsList().slice();
         let added = 0;
         photos.forEach(p => {
           const src = p.path || p.imageSrc || "";
-          if (!src || seen.has(src)) return;
-          seen.add(src);
+          const key = _baseName(src);
+          if (!src || !key || seen.has(key)) return;
+          seen.add(key);
           const ta = timeAnchors[src];
           list.push({ ...(_SIGN_DEFAULTS),
             lat: Number(p.lat), lon: Number(p.lon),
-            text: "", imageSrc: src, anchorMode: "free", visible: true,
+            // v0.9.381 — Thumb vom Geotagger-/Foto-Datensatz MITNEHMEN. Vorher
+            // bekam das Schild nur `imageSrc` (Pfad) → beim Zeichnen musste das
+            // Bild per Bridge neu erzeugt werden, was hakte/ausblieb → graue
+            // Platzhalter in der Liste UND keine Pins auf der Karte (frischer
+            // Import, Marc 2026-07-01). Mit Thumb lädt das Bild sofort (data-URL,
+            // keine Bridge) — identisch zum zuverlässigen Reload-Pfad.
+            text: "", imageSrc: src, thumb: (p.thumb || undefined),
+            anchorMode: "free", visible: true,
             ...(typeof ta === "number" ? { timeAnchor: ta } : {}) });
           added++;
         });
@@ -6514,7 +6579,27 @@ function mountAnimator(body, headerActions, opts) {
       const clearBtn = document.getElementById("anim-signs-clear");
       if (clearBtn && !clearBtn._wired) {
         clearBtn._wired = true;
-        clearBtn.addEventListener("click", () => _animSignsClearAll());
+        // v0.9.383 — Zwei-Klick-Bestätigung (destruktiv: leert die gespeicherten
+        // Tour-Map-Fotos für diesen Track). Erster Klick „schärft", zweiter binnen
+        // 4 s führt aus. Kein Modal-Dependency. Für Marcs bewussten „Frischstart".
+        const _clrLabel = t("signs.clear_all", "🗑 Leeren");
+        let _clrArmed = false, _clrTimer = null;
+        const _disarm = () => {
+          _clrArmed = false; clearTimeout(_clrTimer);
+          clearBtn.textContent = _clrLabel; clearBtn.style.color = "#e07a7a";
+        };
+        clearBtn.addEventListener("click", () => {
+          if (!_animSignsList().length) return;
+          if (!_clrArmed) {
+            _clrArmed = true;
+            clearBtn.textContent = t("signs.clear_confirm", "Wirklich? Nochmal klicken");
+            clearBtn.style.color = "#ff5a5a";
+            _clrTimer = setTimeout(_disarm, 4000);
+            return;
+          }
+          _disarm();
+          _animSignsClearAll();
+        });
       }
       // v0.9.198 — „📷 Fotos hinzufügen" (Ordner/Dateien) → Schilder mit Bild
       const addPhotos = document.getElementById("anim-signs-add-photos");

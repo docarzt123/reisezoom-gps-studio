@@ -13,6 +13,352 @@ Bei jeder neuen Version:
 ---
 
 ## [Unreleased]
+### Hinzugefügt
+- **macOS-Release wird jetzt mit Developer ID signiert + notarisiert** (statt nur ad-hoc) — sobald
+  die Signing-Secrets im Repo hinterlegt sind, startet die App ohne Gatekeeper-Warnung. Neu:
+  `entitlements.plist` (Hardened Runtime für eingebettetes Python/Chromium/exiftool),
+  `scripts/macos_sign.sh`, `scripts/macos_notarize.sh`, Signier-/Notarisierungs-Schritte in
+  `release.yml` (GPS Studio **und** Geotagger). Ohne Secrets: automatischer Ad-hoc-Fallback,
+  bestehende Releases brechen nicht. Doku: `docs/HANDOVER_DEPLOYMENT.md`.
+
+## [0.9.383] – 2026-07-01
+### Geändert
+- **Tour-Map: „🗑 Leeren"-Button jetzt immer sichtbar (oben) + mit Sicherheitsabfrage** (Marc). Die
+  Tour-Map merkt sich Fotos pro Track (praktisch für echte Projekte). Für einen bewussten Frischstart
+  gab es zwar schon „Alle entfernen", aber ganz unten unter der Foto-Liste — bei vielen Fotos kaum
+  erreichbar. Jetzt sitzt der „🗑 Leeren"-Button oben in der Aktionszeile (neben „Alle an/aus") und
+  fragt per Zwei-Klick nach („Wirklich? Nochmal klicken", 4 s Fenster), damit nichts versehentlich
+  gelöscht wird.
+
+## [0.9.382] – 2026-07-01
+### Behoben
+- **„Aus Geotagger" zeigte gar nichts mehr — weder Sidebar noch Karte** (Marc). Ursache war eine
+  Regression aus v0.9.380 (Datei-Name im Session-Hash): `session_open_for_track` wird pro Track-Load
+  **mehrfach** aufgerufen — teils mit Dateipfad, teils ohne (z.B. Geotagger-Drop). Mit Name im Hash
+  ergaben sich dadurch **zwei Sessions für denselben Track**. Der „Aus Geotagger"-Import speicherte
+  in Session A, die Tour-Map rendert aber aus dem aktiven Projekt von Session B → Speicher-Ziel und
+  Render-Quelle drifteten auseinander → nichts erschien. In der `sessions.json` bestätigt (zwei
+  Hashes, gleicher Track, Fotos nur in einer). Fix: zurück zum **stabilen reinen Koordinaten-Hash**
+  (ein Track = eine Session). „Umbenennen = neues Projekt" wird später sauber über einen expliziten
+  Button gelöst, nicht über den Hash.
+### Zurückgenommen
+- v0.9.380 „Umbenennen einer GPX ergibt ein neues Projekt" — verursachte die obige Session-Spaltung.
+
+## [0.9.381] – 2026-07-01
+### Behoben
+- **Frisch aus dem Geotagger übernommene Fotos: graue Platzhalter in der Liste, keine Pins auf der
+  Karte** (Marc, via Live-Debugging + Daten-Analyse gefunden). Beim Import bekam jedes Foto-Schild
+  nur den Datei-**Pfad** (`imageSrc`), aber **nicht den mitgelieferten Thumbnail**. Zum Zeichnen
+  musste das Bild dann über die Bridge neu erzeugt werden — das hakte in der WebView / blieb aus →
+  leere Vorschau in der Sidebar UND keine Foto-Pins. (In der `sessions.json` bestätigt: frisch
+  importierte Schilder hatten `thumb=0`, wiederhergestellte `thumb=141`.) Fix: Der Thumbnail des
+  Geotagger-/Foto-Datensatzes wird jetzt direkt ins Schild übernommen → das Bild lädt sofort aus der
+  Daten-URL (keine Bridge), Liste und Karte zeigen die Fotos zuverlässig und schnell. Bereits
+  betroffene Projekte heilen sich beim nächsten Öffnen selbst (die Regenerierung schreibt den
+  fehlenden Thumbnail nach).
+
+## [0.9.380] – 2026-07-01
+### Geändert
+- **Umbenennen einer GPX ergibt jetzt ein neues Projekt** (Marc). Bisher wurde eine Session/ein
+  Projekt allein über die **Track-Geometrie** (Koordinaten) wiedererkannt — der Dateiname war egal.
+  Wer eine GPX bewusst umbenannte, um frisch zu starten, bekam trotzdem das alte Projekt inkl. der
+  gespeicherten Tour-Map-Fotos zurück (die Fotos „hingen" scheinbar aus dem Nichts drin). Jetzt
+  fließt der **Datei-Basename** in den Session-Hash ein: gleicher Track + anderer Dateiname = neues,
+  leeres Projekt. Gleicher Dateiname + gleicher Track = Projekt wird wie gehabt wiedererkannt.
+  **Hinweis:** Bereits bestehende Projekte bekommen dadurch einen neuen Hash — sie sind nach dem
+  Update nicht mehr automatisch mit dem Track verknüpft (kein Datenverlust, nur nicht mehr
+  auto-verbunden; frühes-Stadium-Regel: alte Projekte müssen nur laden, nicht weiterlaufen).
+
+## [0.9.379] – 2026-07-01
+### Behoben
+- **Tour-Map: Foto-Schilder erschienen erst nach einem Modul-Wechsel** (Marc). Beim Ankommen auf
+  der Tour-Map (z.B. vom Geotagger, direkt nach „Aus Geotagger übernehmen") tat sich nichts —
+  erst ein kurzer Wechsel auf ein anderes Modul und zurück brachte die Fotos auf die Karte.
+  Ursache: Das Schilder-System hatte — anders als die Foto-Pins — **keinen „Karte-bereit"-Guard**.
+  Wird es aufgerufen, während der Karten-Stil noch lädt, verpuffen `addSource`/`addLayer` wirkungslos.
+  Beim zweiten Mounten war der Stil warm → es klappte. Fix: `_animSignsAttachToMap` wartet jetzt
+  wie die Foto-Pins auf `map.once("idle")` und zeichnet dann neu, wenn der Stil noch nicht geladen ist.
+- **Bei vielen Fotos (100+) blieb die Tour-Map ~10 s leer, dann erschien alles auf einmal** (Marc).
+  Ursache: Ein einziges `Promise.all` wartete, bis **alle** Foto-Thumbnails dekodiert waren, bevor
+  überhaupt etwas gezeichnet wurde. Fix: Progressives Nachzeichnen — die Foto-Pins erscheinen jetzt
+  **in Wellen** (alle 20 geladenen Bilder), statt alles-oder-nichts nach dem kompletten Laden.
+
+## [0.9.378] – 2026-07-01
+### Behoben
+- **Tour-Map: Foto-Schilder blieben nach App-Neustart dauerhaft unsichtbar** (Marc, via
+  Live-Debugging gefunden). Zweite, tiefere Ursache hinter v0.9.377: Beim Speichern eines
+  Projekts wurde in älteren Versionen versehentlich das interne Lade-Flag `_imgLoading: true`
+  mit-persistiert (der Aufräum-Schritt kam erst später dazu). Nach dem Neustart hielt der
+  Bild-Lade-Filter dann **alle** Foto-Schilder für „wird gerade geladen" → es wurde nie ein
+  Bild geladen → keine Pins auf der Karte, obwohl die Sidebar hunderte Einträge zeigte. Fix:
+  Transiente Bild-Flags (`_imgLoading`/`_imgFailed`/…) werden jetzt beim **Laden** eines
+  Projekts entfernt, nicht nur beim Speichern — betroffene Alt-Projekte heilen sich beim
+  nächsten Öffnen selbst.
+- **„Aus Geotagger übernehmen" legte bei jedem Klick Kopien derselben Fotos an** (Marc). Jeder
+  Import kopiert die Fotos in einen neuen internen `_drops/<hash>/`-Ordner → der volle Pfad war
+  jedes Mal anders, weshalb die Dubletten-Erkennung (die auf den vollen Pfad prüfte) nie griff.
+  Fünf Klicks → dieselben 141 Fotos landeten 5× im Projekt (705 Schilder). Fix: Die Dubletten-
+  Erkennung vergleicht jetzt den **Dateinamen** statt des vollen Pfades.
+
+## [0.9.377] – 2026-07-01
+### Behoben
+- **Tour-Map: „Aus Geotagger übernommene" Fotos/Schilder blieben unsichtbar auf der Karte** (Marc).
+  Die eigentliche Ursache — via Live-Debugging gefunden: Der sichtbare „Aus Geotagger"-Button in
+  der Tour-Map speist die Bilder als **Schilder-mit-Bild** ein (nicht als reine Foto-Pins). Das
+  Schilder-System blendet Schilder aber entlang der **Timeline** ein — und die Tour-Map ist ein
+  Standbild ohne Timeline (Anker = 0), also wurden **alle** Schilder ausgeblendet, obwohl die
+  Sidebar sie als geladen zeigte. Fix: Im Standbild-Modus (`_isStaticFrame`) sind jetzt **immer
+  alle** Schilder/Foto-Schilder sichtbar (GPU- und DOM-Renderpfad), unabhängig vom Timeline-Anker.
+
+## [0.9.376] – 2026-07-01
+### Behoben
+- **Tour-Map: Foto-Pins erschienen erst nach einem Modul-/Tab-Wechsel** (Marc). Nachtrag zu
+  v0.9.375: Die Pins landeten jetzt zwar auf der Karte, wurden bei vielen Fotos aber nicht
+  sofort gezeichnet — erst das Neu-Aufbauen beim Tab-Wechsel machte sie sichtbar. Ursache:
+  Mapbox zeichnet frisch hinzugefügte Symbol-Pins nicht, solange die Karte noch in Bewegung
+  ist (Kamera-Fit auf den Track läuft, viele Foto-Badges auf einmal). Der bestehende
+  Style-Guard fing nur den „Style noch nicht geladen"-Fall ab, nicht den „Karte in
+  Bewegung"-Fall. Fix: Nach dem Laden von Fotos (Datei-Import, Ordner, „Aus Geotagger
+  übernehmen", Projekt-Start) wird ein **einmaliger Neu-Zeichnen-Schritt registriert, sobald
+  die Karte zur Ruhe kommt** — die Pins erscheinen jetzt direkt.
+
+## [0.9.375] – 2026-07-01
+### Behoben
+- **Tour-Map: Foto-Pins wurden in der Live-Vorschau nicht angezeigt** (Marc). Die geladenen
+  Fotos (auch „Aus Geotagger übernehmen") landeten korrekt im Projekt und erschienen im
+  gerenderten Bild, aber die **Karten-Vorschau** zeichnete sie nie. Ursache: Die Foto-Pin-
+  Funktion ist Animator und Tour-Map geteilt; im Animator sind Fotos „Schilder mit Bild",
+  darum stand dort seit v0.9.198 fest eine leere Pin-Liste — und die Tour-Map erbte das.
+  Fix: In der Tour-Map (Standbild) werden jetzt **alle Fotos aus dem Projekt permanent als
+  Pins** gezeichnet; im Animator bleibt es wie gehabt (Fotos = Schilder).
+### Behoben
+- **⚠️ Volle GPS-Studio-App fiel trotz Mapbox-Token auf „Nur OpenStreetMap" zurück** (kein
+  Satellit, kein 3D, kein Render) — nachdem man die **Solo-Geotagger-App** benutzt hatte.
+  Ursache: Beide Editionen teilen sich dieselbe Einstellungsdatei, und der Solo-Geotagger
+  speicherte darin `force_osm` (er braucht bewusst kein Mapbox). Die Vollversion erbte das
+  Flag und schaltete Mapbox ab, obwohl der Token längst hinterlegt war. Fix: Der Solo-
+  Geotagger erzwingt den OSM-Modus jetzt nur noch **für seine eigene Sitzung** und schreibt
+  **nichts** mehr in die geteilte Einstellungsdatei — die Vollversion bleibt unberührt.
+  (Wer schon betroffen war: einmal in den ⚙-Einstellungen der Vollversion „Nur OSM" aus
+  bzw. den Token neu bestätigen — oder die neue Version löst es beim nächsten Start selbst.)
+### Behoben
+- **Geotagger: RAW/DNG bekamen die falsche Zeit, wenn Foto als JPG + DNG vorlag** (Marc,
+  vivo X300 Ultra). Das JPG speichert die Zeitzone im EXIF (`OffsetTimeOriginal +02:00`),
+  das **DNG nicht** — dort steckt sie nur im XMP/GPS. Der Geotagger las nur den EXIF-Offset,
+  hielt das DNG also für „Zeitzone unbekannt" und interpretierte seine Ortszeit als UTC →
+  das DNG landete ~2 h neben dem passenden JPG (falscher Track-Punkt, falsche Aufnahmezeit).
+  Fix: Fehlt der EXIF-Offset bei RAW/DNG, wird die Zeitzone jetzt aus der **GPS-UTC-Zeit**
+  (`GPSDateTime`) abgeleitet (Ortszeit − GPS-UTC, auf 15 Min gerundet). JPG und DNG desselben
+  Fotos werden damit identisch zugeordnet.
+### Geändert
+- **⚠️ Geotagger: komplett neues Speicher-Modell (Marc) — Originale werden NIE mehr
+  angefasst.** Beim „GPS schreiben" wählst du jetzt **einmal einen Zielordner**; dorthin
+  schreiben wir die fertig getaggten **Kopien**. Deine Originale bleiben unangetastet —
+  sie sind damit selbst die Sicherung. Das räumt gleich mehrere alte Baustellen ab:
+  - **Kein Backup-ZIP mehr.** Das riesige ZIP (zuletzt 4,4 GB!) entfällt komplett —
+    unnötig, weil die Originale ja unverändert bleiben.
+  - **Kein verwirrender „jetzt noch exportieren"-Dialog mehr.** Der Zielordner wird
+    vorne im Ablauf gewählt, nicht als Überraschung am Ende. Der Fertig-Dialog zeigt
+    „Gespeichert in …" + **„Ordner öffnen"**.
+  - **Ein einheitliches, sicheres Modell** — egal ob per Drag&Drop oder „Ordner wählen"
+    geladen, es entsteht immer ein sauberer Ordner mit den getaggten Fotos.
+  - **Absicht als Feature:** „Wir fassen deine Originale aus Sicherheit nie an."
+  Wer **doch** seine Originale direkt taggen will, wählt einfach deren Ordner als Ziel —
+  dann fragt die App **„Originale hier wirklich überschreiben? (kein Backup)"** und tagged
+  bei Bestätigung in-place. Ohne Bestätigung werden solche Fotos übersprungen (die App
+  überschreibt nie versehentlich ein Original).
+### Behoben
+- **Geotagger: scheinbarer „Hänger beim Schreiben/Export" bei großen Foto-Batches.**
+  Bei 248 Fotos blieb der Fortschritt ~3 Minuten auf einem einzelnen Foto stehen. Ursache
+  war ein seltener Aussetzer des exiftool-Dauerprozesses (unter hoher Last: viele RAW-
+  Rewrites + Backup-ZIP + Adress-Suche gleichzeitig). Der Timeout aus v0.9.369 hat ihn
+  zwar abgefangen, aber erst nach 180 s — und das eine Foto scheiterte. Drei Verbesserungen:
+  - **exiftool-stderr geht jetzt nach /dev/null** statt in eine nie geleerte Pipe. Ein voller
+    stderr-Puffer (durch Warnungen kaputter EXIF-Tags) hätte den Prozess sonst früher oder
+    später sicher blockiert — ein latenter Deadlock, jetzt ausgeschlossen.
+  - **Schreib-Timeout von 180 s auf 60 s** gesenkt (immer noch ~6× über jedem echten Write) —
+    ein Aussetzer wird also viel schneller erkannt statt 3 Minuten zu blockieren.
+  - **Automatischer zweiter Versuch** bei Timeout: der hängende exiftool-Prozess wird neu
+    gestartet und das betroffene Foto sofort noch einmal geschrieben → **kein verlorenes Foto**
+    mehr (vorher scheiterte es einzeln).
+
+## [0.9.370] – 2026-07-01
+### Geändert
+- **Geotagger: „Aufnahmezeit aus Track übernehmen" komplett überarbeitet** (Marc). Das
+  Feld wirkte bisher **nur auf manuell auf die Karte gezogene Fotos** — der Name versprach
+  aber das Gegenteil und war dadurch verwirrend. Jetzt:
+  - wirkt auf **alle gematchten Fotos** (nicht mehr nur manuell platzierte),
+  - **pro Kamera** an-/abschaltbar (wie Offset & „Foto-GPS ignorieren"), in die Kamera-/
+    Offset-Sektion verschoben und folgt dem Kamera-Filter,
+  - neues, ehrliches Label **„Aufnahmezeit auf Track-Zeit setzen"** + klarer Hilfetext.
+  Nutzen: zwei Kameras mit **unterschiedlich gestellter Uhr** (z. B. eine steht auf
+  Winter-, die andere auf Sommerzeit) laufen in Lightroom wieder zeitlich synchron —
+  geschrieben wird die **lokale** Zeit des getroffenen Track-Punkts. **Das GPS bleibt
+  korrekt**, weil nur die Aufnahmezeit gesetzt wird (Offset/Position unberührt). Persistiert
+  pro Kamera (`set_time_from_track` + `cam_set_time_from_track`), undo-bar, im Reset
+  enthalten. Das Bestätigungs-Modal zeigt, wie viele Fotos ihre Zeit aus dem Track bekommen.
+
+## [0.9.369] – 2026-07-01
+### Behoben
+- **⚠️ Geotagger: App konnte beim Schreiben komplett einfrieren.** Wenn exiftool an
+  einer einzelnen Datei hängen blieb, wartete der Schreib-Worker **unendlich** auf
+  eine Antwort (`read1()` ohne Timeout) — die App war hart eingefroren (bei Marc
+  ~8 Stunden). Der exiftool-Daemon liest jetzt mit **Timeout** (Lesen 90 s,
+  Schreiben 180 s): Antwortet exiftool nicht rechtzeitig, wird der hängende Prozess
+  hart neu gestartet und **nur der betroffene Schreibvorgang** scheitert kontrolliert
+  — statt die ganze App zu blockieren. Deine Fotos bleiben unangetastet (es wird
+  immer erst ein Backup-ZIP angelegt, und gezogene Fotos werden ohnehin nur in
+  Kopien geschrieben).
+### Geändert
+- **Geotagger: EXIF-Felder werden pro Foto in EINEM exiftool-Aufruf geschrieben.**
+  Vorher wurde jedes Feld einzeln geschrieben — bei RAW-Dateien schrieb exiftool
+  dabei jedes Mal die **ganze Datei neu** (bei vielen globalen Feldern × vielen
+  Fotos hunderte Durchläufe, jeder eine potenzielle Hänger-Stelle). Jetzt: eine
+  Datei-Schreibung pro Foto → deutlich schneller **und** robuster.
+
+## [0.9.368] – 2026-06-30
+### Geändert
+- **Geotagger: Die Liste „Was wird ins Foto geschrieben" sitzt jetzt direkt über
+  dem Schreib-Button.** Vorher standen die Aktions-Buttons (Adressen abrufen,
+  Globale Felder, Auto-Tag) dazwischen — jetzt ist die Reihenfolge logisch:
+  erst die Daten holen/setzen, dann ganz unten abhaken was rausgeht, dann
+  „GPS in Fotos schreiben".
+### Hinzugefügt
+- **Geotagger: „Was wird ins Foto geschrieben" um drei Gruppen-Schalter erweitert** —
+  **Stichwörter (Bilderkennung)**, **Globale Felder** (Urheber/Copyright/… aus dem
+  Modal) und **Meine EXIF-Änderungen** (von Hand bearbeitete/hinzugefügte Tags).
+  Bewusst als Gruppen statt Häkchen pro Einzelfeld: Was du nicht gesetzt/bearbeitet
+  hast, wird ohnehin nicht geschrieben — der Schalter ist der „Not-Aus" für die ganze
+  Gruppe. So kannst du z. B. globale Felder oder die Auto-Tag-Stichwörter beim
+  Schreiben weglassen, ohne sie zu löschen. Jeder Schalter ist persistiert; der
+  Bestätigungs-Dialog zählt nur, was tatsächlich rausgeht.
+### Geändert
+- **Geotagger: „Blickrichtung" unter *Was wird ins Foto geschrieben* steuert jetzt
+  auch die Anzeige.** Schaltet man die Blickrichtung aus, verschwindet der
+  Richtungspfeil von den Karten-Pins, der Kompass-Chip aus der Foto-Vorschau und
+  der interaktive Kompass auf der Karte — sofort, ohne Neu-Laden. So zeigt die
+  Karte nur noch, was tatsächlich geschrieben wird (WYSIWYG). Wieder einschalten
+  bringt alles zurück.
+### Behoben
+- **Die Hilfe-„?"-Badges zeigten keinen Tooltip.** Sie hingen am nativen HTML-
+  `title`-Attribut — und das rendert die eingebaute Browser-Engine (pywebview/
+  WKWebView) auf dem Mac schlicht nicht. Jetzt gibt es einen eigenen, schwebenden
+  Hilfe-Tooltip: bei Hover (oder Tastatur-Fokus) auf ein „?" erscheint der
+  Erklärtext sauber neben dem Badge — modulübergreifend, ohne von der Sidebar
+  abgeschnitten zu werden.
+### Hinzugefügt
+- **Geotagger: „Foto-eigenes GPS ignorieren" — pro Kamera.** Neue Checkbox in der
+  Offset-Sektion: Fotos der gewählten Kamera werden dann **nach Aufnahmezeit auf den
+  Track** gesetzt, statt ihr eingebettetes GPS zu verwenden. Ideal für Handys, die
+  per Funkzelle (CELLID) statt echtem GPS verorten und dadurch hunderte Meter daneben
+  liegen — der GPX-Track ist genauer. Die Option wirkt **pro Kamera** (oben nach
+  Kamera filtern, dann Haken setzen; ohne Filter = Standard für alle), wird
+  persistiert (`geotagger.ignore_gps` / `cam_ignore_gps`), ist undo-bar und wird beim
+  Schließen/Track-Löschen zurückgesetzt. Betroffene Fotos werden dann auch tatsächlich
+  mit den Track-Koordinaten geschrieben (nicht mit dem alten Funkzellen-GPS).
+### Geändert
+- **Geotagger sortiert das Foto-Raster jetzt nach Aufnahmezeit** (vorher alphabetisch
+  nach Dateiname, so wie der Ordner-Scan die Dateien liefert). Sobald alle EXIF-Zeiten
+  geladen sind, ordnet sich die Sidebar chronologisch — **auch über mehrere Kameras
+  und Ladevorgänge hinweg** (z. B. Handy + Systemkamera werden zeitlich verzahnt
+  statt blockweise). Fotos ohne brauchbare Aufnahmezeit wandern ans Ende. Sortiert
+  wird nach der echten (UTC-)Aufnahmezeit, unabhängig vom angezeigten Zeit-Offset.
+### Behoben
+- **Geotagger: Filterleiste und Zeit-Offset blieben beim Track-Löschen / Projekt-
+  Schließen stehen.** Jetzt setzt der Geotagger beim Leeren konsequent zurück:
+  Filter-Chips oben verschwinden, der Zeit-Offset (global + pro Kamera) geht auf
+  **0** zurück (inkl. Slider-Anzeige, persistiert), und Blickrichtungen/Adressen/
+  Undo-Stack werden mit aufgeräumt. Das galt für **beide** Wege — das rote ✕ in der
+  GPX-Leiste UND „Session schließen" im Projekt-Menü (zwei getrennte Code-Pfade,
+  jetzt über einen gemeinsamen Reset abgedeckt). Geräte-Voreinstellungen
+  (Backup-Schalter, Kamera-Zeitzone) bleiben erhalten.
+### Behoben
+- **Geotagger zeigte die Aufnahmezeit als UTC statt lokal.** Kameras, die ihre
+  Zeitzone mit ins Foto schreiben (Handys, viele Olympus/OM), wurden beim Import
+  auf UTC normiert (richtig fürs Track-Matching) — aber genau dieser UTC-Wert
+  landete im Info-Tab. Beispiel: OM-3-Foto mit Kamerazeit 05:19 (+01:00) wurde als
+  „04:19" angezeigt. Jetzt zeigt der Info-Tab die **lokale Kamera-Aufnahmezeit**
+  (wie Finder/Lightroom), nicht UTC.
+### Geändert
+- **Der eingestellte Zeit-Offset wirkt jetzt auch auf die angezeigte Aufnahmezeit.**
+  Sobald eine Kamera per Pro-Kamera-Offset (oder global) korrigiert wird, zeigt der
+  Info-Tab die **korrigierte** lokale Zeit. So liest man dort die tatsächliche
+  Uhrzeit ab, nachdem eine schief gestellte Kamera-Uhr ausgeglichen wurde.
+  (Intern bleibt `photo_time` UTC fürs Matching; neu: `photo_time_local` für die
+  Anzeige, Backend `core/exif.read_datetime_and_tz_min` + `local_datetime_from_utc`.)
+
+## [0.9.360] – 2026-06-30
+### Geändert
+- **Geotagger — Aufnahmezeit steht jetzt direkt im Info-Tab.** Bisher tauchte die
+  Aufnahmezeit nur als unbeschriftete Zeile oben im Vorschau-Kopf auf. Jetzt ist
+  sie die **erste, klar beschriftete Zeile „Aufnahmezeit"** in der Info-Feldliste
+  (über Kamera/ISO/…), immer sichtbar — auch bei Fotos ganz ohne Kamera-EXIF.
+  Fehlt die Zeit komplett, steht „— keine Aufnahmezeit".
+
+## [0.9.359] – 2026-06-30
+### Behoben
+- **Geotagger-Karte wurde bei sehr starkem Reinzoomen schwarz.** Bei OSM/MapLibre
+  (Marcs Standard) hatte der Kachel-Layer dieselbe Max-Zoomstufe wie die Karte
+  selbst — auf der letzten Stufe verschwand er und es blieb nur Schwarz. Der
+  Layer nutzt jetzt Overzoom (Quelle `maxzoom: 19`, Layer ohne eigene
+  Obergrenze), sodass die Karte bis ganz nach innen sichtbar bleibt.
+- **Außerhalb der Trackzeit aufgenommene Fotos wurden fälschlich am Track-Anfang
+  auf der Karte gezeigt.** Nicht-zuordenbare Fotos (kein Match, keine manuelle
+  Platzierung) erscheinen nun gar nicht mehr auf der Karte — sie tauchen wie
+  bisher nur in der Liste/Übersicht auf.
+### Geändert
+- **Undo (⌘/Strg+Z) wirkt jetzt auf ALLES im Geotagger.** Bisher konnte nur das
+  Zurücksetzen von Schiebereglern rückgängig gemacht werden. Jetzt sind auch
+  Foto-Platzieren/-Verschieben, EXIF-Werte ändern/hinzufügen, Häkchen umschalten,
+  Blickrichtung setzen, Adresse bearbeiten, Referenz-Offset und Auto-Tags
+  undo-/redo-bar (kompletter JS-Zustand wird pro Schritt gesichert).
+- **Schon platzierte Fotos lassen sich nicht mehr versehentlich ein zweites Mal
+  aus der Liste auf die Karte ziehen** (das führte zu Durcheinander). Stattdessen
+  kommt ein Hinweis: zum Verschieben den Pin direkt auf der Karte anfassen.
+- **Einzelnes getaggtes Foto verschieben:** jeder Foto-Pin auf der Karte ist jetzt
+  direkt ziehbar — anfassen, an die richtige Stelle ziehen, fertig (undo-bar).
+
+## [0.9.358] – 2026-06-30
+### Geändert
+- **Geotagger lädt Fotos jetzt parallel — deutlich schneller.** Die Vorschau-
+  bilder + EXIF-Daten wurden bisher streng nacheinander erzeugt; bei vielen RAWs
+  dauerte das spürbar. Jetzt arbeitet ein kleiner Worker-Pool die Fotos
+  gleichzeitig ab (die Einzel-Schritte warten ohnehin v. a. auf exiftool/Datei-
+  IO). Gemessen an einer echten Kyritzerheide-Sammlung: ~**2,8× schneller**
+  (≈ 14 s → ≈ 5 s für 248 Fotos, 94 RAW + 154 JPG). Das Fenster bleibt dabei
+  bedienbar, Abbrechen/Session-schließen funktioniert weiterhin.
+
+## [0.9.357] – 2026-06-30
+### Geändert
+- **Geotagger — Auto-Tag-Stichwörter folgen jetzt der App-Sprache.** Vorher war
+  die Sprache fest auf Deutsch und unbekannte Apple-Vision-Labels blieben
+  englisch stehen (Mischmasch wie „Schnecke" + „gastropod"). Jetzt: läuft die App
+  auf Deutsch → deutsche Stichwörter, auf Englisch → die Apple-Original-Begriffe,
+  auf Spanisch → spanische. In Deutsch/Spanisch werden nicht übersetzbare Begriffe
+  **weggelassen** statt englisch beigemischt → konsistent eine Sprache. Das
+  Übersetzungs-Wörterbuch wurde stark erweitert (≈ 230 Begriffe, DE + ES, u. a.
+  Schnecke, Schmetterling, Schwan, Ente, Heide, Leuchtturm, Steg …).
+
+## [0.9.356] – 2026-06-30
+### Hinzugefügt
+- **Geotagger — fehlende EXIF-Felder ausfüllen & hinzufügen.** Der EXIF-Tab
+  zeigt jetzt oben einen festen **„Ausfüllen"-Block** mit den häufig genutzten
+  beschreibbaren Feldern (Beschreibung, Titel, Stichwörter, Bewertung, Kommentar,
+  Urheber, Copyright) — **auch wenn sie im Foto fehlen**: leere Felder sind
+  anklickbar und lassen sich befüllen. Damit kann man z. B. RAW-Dateien (OM-3),
+  die von Haus aus wenig EXIF haben, sauber beschriften. Unten gibt es zusätzlich
+  **„＋ Feld hinzufügen"**: aus einer kuratierten Liste (Überschrift, Anweisung,
+  Credit, Quelle, Stadt/Region/Land, Ort, Kamera-Marke/-Modell) wählen oder einen
+  beliebigen exiftool-Tag frei eintippen. Alles wird wie gewohnt gesammelt und
+  beim „Taggen schreiben" mit Backup ins Foto geschrieben.
+
+## [0.9.355] – 2026-06-29
+### Hinzugefügt
+- **Geotagger — Suchfeld im EXIF-Tab.** Über der Tag-Liste gibt es jetzt ein
+  Suchfeld: tippt man z. B. `GPS`, bleiben nur Felder sichtbar, deren Name den
+  Text enthält (`GPSLatitude`, `GPSProcessingMethod` …). Filtert live ohne
+  Neu-Laden, zeigt „Kein Feld passt" wenn nichts übrig bleibt, und startet bei
+  jedem neuen Foto leer.
 
 ## [0.9.354] – 2026-06-29
 ### Hinzugefügt

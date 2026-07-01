@@ -130,11 +130,18 @@ const OSM_STYLE = {
       type: "raster",
       tiles: [OSM_TILE_URL],
       tileSize: 256,
+      // v0.9.359 (Bug schwarze Karte): Source-maxzoom = letzte verfügbare Kachel-
+      // Ebene. Darüber SKALIERT MapLibre die letzte Kachel (Overzoom) statt eine
+      // nicht-existente {z}-Kachel anzufordern → kein schwarzes Loch mehr.
+      maxzoom: 19,
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     },
   },
   layers: [
-    { id: "osm-tiles", type: "raster", source: "osm", minzoom: 0, maxzoom: 19 },
+    // KEIN Layer-maxzoom: vorher 19 == Map-maxZoom → bei Vollzoom verschwand der
+    // Kachel-Layer (Layer-maxzoom ist exklusiv) → schwarz. Layer rendert jetzt
+    // immer; die Source overzoomt sauber.
+    { id: "osm-tiles", type: "raster", source: "osm", minzoom: 0 },
   ],
 };
 
@@ -1529,22 +1536,38 @@ window.rzMakePanelUndoController = function (panelId, opts) {
     });
     return o;
   };
+  // v0.9.359 — optionaler Zusatz-Zustand (JS-State, der NICHT in DOM-Controls liegt,
+  // z.B. Geotagger: manuelle Pin-Platzierungen, EXIF-Edits, Adressen, Häkchen …).
+  // Rückwärtskompatibel: ohne `extraSnapshot` bleibt der Snapshot das flache
+  // Controls-Objekt (Animator/Tour-Map/Inspektor unverändert).
+  const _hasExtra = typeof opts.extraSnapshot === "function";
+  const fullSnap = () => {
+    const c = readControls();
+    if (!_hasExtra) return c;
+    let x = null;
+    try { x = opts.extraSnapshot(); } catch (_) { x = null; }
+    return { __rzc: c, __rzx: x };
+  };
   const ctrl = window.createUndoController({
-    snapshot: readControls,
+    snapshot: fullSnap,
     apply: (snap) => {
       if (!snap) return;
-      Object.keys(snap).forEach(id => {
+      const ctrlSnap = (_hasExtra && snap && snap.__rzc !== undefined) ? snap.__rzc : snap;
+      if (ctrlSnap) Object.keys(ctrlSnap).forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         if (el.type === "checkbox" || el.type === "radio") {
-          if (el.checked !== snap[id]) { el.checked = snap[id]; el.dispatchEvent(new Event("change", { bubbles: true })); }
-        } else if (el.value !== String(snap[id])) {
-          el.value = String(snap[id]);
+          if (el.checked !== ctrlSnap[id]) { el.checked = ctrlSnap[id]; el.dispatchEvent(new Event("change", { bubbles: true })); }
+        } else if (el.value !== String(ctrlSnap[id])) {
+          el.value = String(ctrlSnap[id]);
           el.dispatchEvent(new Event("input", { bubbles: true }));
           el.dispatchEvent(new Event("change", { bubbles: true }));
         }
       });
-      _prev = readControls();  // neue Baseline nach Undo/Redo
+      if (_hasExtra && snap && snap.__rzx !== undefined && typeof opts.extraApply === "function") {
+        try { opts.extraApply(snap.__rzx); } catch (_) {}
+      }
+      _prev = fullSnap();  // neue Baseline nach Undo/Redo
       if (opts.after) { try { opts.after(snap); } catch (_) {} }
     },
     toast: opts.toast,
@@ -1554,14 +1577,14 @@ window.rzMakePanelUndoController = function (panelId, opts) {
   // Deshalb erfassen wir den Zustand VOR der Änderung bei pointerdown/focusin/keydown
   // und pushen ihn beim input/change. `_prev` = letzter committeter Stand.
   let _prev = null;
-  const _capture = () => { _prev = readControls(); };
+  const _capture = () => { _prev = fullSnap(); };
   const _push = (ev, discrete) => {
     const tgt = ev.target;
     if (!tgt || !tgt.id || tgt.closest("#" + panelId) == null) return;
     const force = discrete || (window.__rzLastUndoEl !== tgt.id);
     ctrl.push((tgt.id || "Wert") + " geändert", { force, state: _prev });
     window.__rzLastUndoEl = tgt.id;
-    _prev = readControls();  // ab jetzt ist DAS der „Vorher"-Stand für die nächste Änderung
+    _prev = fullSnap();  // ab jetzt ist DAS der „Vorher"-Stand für die nächste Änderung
   };
   function _wire() {
     const root = document.getElementById(panelId);
@@ -1576,7 +1599,7 @@ window.rzMakePanelUndoController = function (panelId, opts) {
       const tag = (ev.target && ev.target.tagName || "").toLowerCase();
       _push(ev, tag === "select" || ty === "checkbox" || ty === "radio");
     });
-    _prev = readControls();  // Baseline
+    _prev = fullSnap();  // Baseline
     return true;
   }
   // Panel ist evtl. noch nicht im DOM (Controller wird vor body.innerHTML erstellt) →
@@ -1823,3 +1846,61 @@ function showRenderEngineMissingModal(browsersPath, onSuccess) {
     }
   };
 }
+
+// v0.9.365 — Eigener Hilfe-Tooltip für die „?"-Badges (.gt-help) und alle Elemente
+// mit [data-help]. Grund: pywebview/WKWebView zeigt native HTML-`title`-Tooltips
+// NICHT an → die ganzen Hilfetexte kamen nie. Dieser schwebende Tooltip hängt am
+// <body> (position:fixed, hoher z-index) und wird daher nicht von der Sidebar
+// (overflow) abgeschnitten. Liest den Text aus `data-tip`/`title`/`aria-label`,
+// verschiebt `title` einmalig nach `data-tip` (killt den toten nativen Tooltip).
+(function rzHelpTooltip() {
+  if (window.__rzHelpTipInit) return;
+  window.__rzHelpTipInit = true;
+  let tip = null;
+  const SEL = ".gt-help, [data-help]";
+  function ensure() {
+    if (!tip) {
+      tip = document.createElement("div");
+      tip.className = "rz-tip";
+      tip.setAttribute("role", "tooltip");
+      document.body.appendChild(tip);
+    }
+    return tip;
+  }
+  function textFor(el) {
+    if (el.hasAttribute("title")) {           // einmalig umziehen → kein nativer (toter) Tooltip
+      const t = el.getAttribute("title");
+      if (t) el.setAttribute("data-tip", t);
+      el.removeAttribute("title");
+    }
+    return el.getAttribute("data-tip") || el.getAttribute("data-help") || el.getAttribute("aria-label") || "";
+  }
+  function show(el) {
+    const txt = textFor(el);
+    if (!txt) return;
+    const tEl = ensure();
+    tEl.textContent = txt;
+    tEl.style.display = "block";
+    tEl.style.left = "-9999px";
+    tEl.style.top = "0px";
+    const r = el.getBoundingClientRect();
+    const tw = tEl.offsetWidth, th = tEl.offsetHeight, pad = 8, m = 6;
+    let left = r.left - tw - pad;                 // bevorzugt links (Sidebar ist links)
+    if (left < m) left = r.right + pad;           // sonst rechts daneben
+    if (left + tw > window.innerWidth - m) left = window.innerWidth - tw - m;
+    if (left < m) left = m;
+    let top = r.top + r.height / 2 - th / 2;
+    if (top < m) top = m;
+    if (top + th > window.innerHeight - m) top = window.innerHeight - th - m;
+    tEl.style.left = left + "px";
+    tEl.style.top = top + "px";
+  }
+  function hide() { if (tip) tip.style.display = "none"; }
+  function near(e) { return (e.target && e.target.closest) ? e.target.closest(SEL) : null; }
+  document.addEventListener("mouseover", (e) => { const el = near(e); if (el) show(el); });
+  document.addEventListener("mouseout",  (e) => { if (near(e)) hide(); });
+  document.addEventListener("focusin",   (e) => { const el = near(e); if (el) show(el); });
+  document.addEventListener("focusout",  hide);
+  window.addEventListener("scroll", hide, true);
+  window.addEventListener("resize", hide);
+})();

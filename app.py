@@ -129,7 +129,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.354"
+APP_VERSION = "0.9.383"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -355,14 +355,19 @@ DEFAULT_SETTINGS = {
     "geotagger": {
         "offset_seconds": 0,                # Slider-Wert (-43200..+43200) — globaler Default
         "cam_offsets": {},                  # v0.9.354 — {Kamera-Modell: Offset-Sek} Override pro Kamera
+        "ignore_gps": False,                # v0.9.364 — Foto-eigenes GPS ignorieren (globaler Default)
+        "cam_ignore_gps": {},               # v0.9.364 — {Kamera-Modell: bool} Override pro Kamera
         "tz_offset_minutes": 0,             # v0.9.177 — Kamera-Zeitzone (UTC±, Minuten);
                                             # nur für Fotos OHNE eingebetteten TZ-Offset
         "make_backup": True,
         "overwrite_existing": False,
         "adjust_photo_time": False,
-        # v0.9.281 (Nutzer): Aufnahmezeit (DateTimeOriginal) für eingerastete Fotos
-        # aus der Track-Zeit setzen — für WhatsApp-Fotos ohne korrekte Uhrzeit.
-        "set_time_from_track": False,
+        # v0.9.281 (Nutzer): Aufnahmezeit (DateTimeOriginal) aus der Track-Zeit setzen.
+        # v0.9.370 — jetzt für ALLE gematchten Fotos, pro Kamera schaltbar (globaler
+        # Default + Override je Kamera). Nutzen: zwei Kameras mit falsch gestellter Uhr
+        # laufen in Lightroom zeitlich synchron, GPS bleibt korrekt (Offset unberührt).
+        "set_time_from_track": False,       # globaler Default
+        "cam_set_time_from_track": {},      # v0.9.370 — {Kamera-Modell: bool} Override pro Kamera
         # v0.9.27 (Nutzer-Feedback): State-Persistenz über Modul-Wechsel + App-Restart
         "last_photos_dir": "",              # Letzter via Folder-Pick geladener Ordner
         "last_photos_paths": [],            # Letzte einzelne Foto-Pfade (Pick-Modus)
@@ -1091,6 +1096,13 @@ class Api:
         try:
             if not coords or len(coords) < 2:
                 return {"ok": False, "error": "Track zu kurz für Session-Hash"}
+            # v0.9.382 — Name-im-Hash (v0.9.380) ZURÜCKGENOMMEN: `session_open_for_track`
+            # wird pro Load mehrfach aufgerufen, teils MIT gpx_path, teils ohne (z.B.
+            # Geotagger-Drop). Mit Name im Hash ergab das ZWEI Sessions für denselben
+            # Track → Speichern (Tour-Map, Session A) und Rendern (aktives Projekt aus
+            # Session B) drifteten auseinander → „Aus Geotagger" zeigte nichts. Zurück
+            # zum stabilen reinen Koordinaten-Hash. „Umbenennen = neues Projekt" lösen
+            # wir separat + sicher (expliziter Button), nicht über den Hash.
             track_hash = _sessions.compute_track_hash(coords)
             data = _sessions.load_sessions(SESSIONS_FILE)
             defaults = self._session_get_global_defaults()
@@ -3282,7 +3294,7 @@ class Api:
 
             # Neue Platzhalter an die bestehende Liste ANHÄNGEN.
             self._gtg_photos = (self._gtg_photos or []) + [
-                {**r, "photo_time": None, "existing_gps": None, "thumb": None, "camera": None, "tz_known": False}
+                {**r, "photo_time": None, "photo_time_local": None, "existing_gps": None, "thumb": None, "camera": None, "tz_known": False}
                 for r in registered
             ]
 
@@ -3328,81 +3340,97 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def _read_meta_fast(self, path: str) -> tuple[Optional[datetime], Optional[dict], Optional[str], bool]:
+    def _read_meta_fast(self, path: str) -> tuple[Optional[datetime], Optional[dict], Optional[str], bool, Optional[int]]:
         """Liest DateTime + GPS + Kamera-Modell in EINEM Call (für RAW/Video:
-        nutzt den Daemon). Gibt (datetime, gps_dict|None, camera|None, tz_known)
-        zurück. tz_known=True → die Foto-Zeit hatte einen eingebetteten Zeitzonen-
-        Offset und ist bereits UTC (manuelle TZ-Auswahl gilt dann nicht)."""
+        nutzt den Daemon). Gibt (datetime, gps_dict|None, camera|None, tz_known,
+        tz_minutes) zurück. tz_known=True → die Foto-Zeit hatte einen eingebetteten
+        Zeitzonen-Offset und ist bereits UTC (manuelle TZ-Auswahl gilt dann nicht).
+        tz_minutes = roher Offset in Minuten (für die Lokalzeit-Anzeige, v0.9.361)."""
         if cexif.is_video(path):
             try:
                 meta = cexif._exiftool_read_video_meta(path)
                 gps = None
                 if meta["lat"] is not None and meta["lon"] is not None:
                     gps = {"lat": meta["lat"], "lon": meta["lon"], "alt": meta["alt"]}
-                return meta["datetime"], gps, meta.get("camera"), meta.get("tz_minutes") is not None
+                return meta["datetime"], gps, meta.get("camera"), meta.get("tz_minutes") is not None, meta.get("tz_minutes")
             except Exception:
-                return None, None, None, False
+                return None, None, None, False, None
         if cexif.is_raw(path):
             try:
                 meta = cexif._exiftool_read_meta(path)
                 gps = None
                 if meta["lat"] is not None and meta["lon"] is not None:
                     gps = {"lat": meta["lat"], "lon": meta["lon"], "alt": meta["alt"]}
-                return meta["datetime"], gps, meta.get("camera"), meta.get("tz_minutes") is not None
+                return meta["datetime"], gps, meta.get("camera"), meta.get("tz_minutes") is not None, meta.get("tz_minutes")
             except Exception:
-                return None, None, None, False
+                return None, None, None, False, None
         # JPEG/TIFF: piexif ist eh schon schnell, kein Daemon
-        dt, tz_known = cexif.read_datetime_with_tz(path)
+        dt, tz_min = cexif.read_datetime_and_tz_min(path)
         gps_tuple = cexif.read_gps(path)
         gps = ({"lat": gps_tuple[0], "lon": gps_tuple[1], "alt": gps_tuple[2]}
                if gps_tuple else None)
         camera = cexif.read_camera(path)
-        return dt, gps, camera, tz_known
+        return dt, gps, camera, tz_min is not None, tz_min
+
+    def _thumb_one(self, p: str) -> None:
+        """Ein Foto: EXIF + Thumb generieren und in die Queue legen.
+        Wird parallel aus dem Worker-Pool aufgerufen."""
+        # Cancellation: wenn _thumb_progress.running auf False gesetzt, gleich raus
+        with self._thumb_lock:
+            if not self._thumb_progress.get("running"):
+                return
+        try:
+            dt, gps, camera, tz_known, tz_min = self._read_meta_fast(p)
+            thumb = self._photo_thumbnail_data_url(p)
+            # v0.9.361 — Original-Kamera-Lokalzeit (Wanduhr) für die Anzeige; photo_time
+            # bleibt UTC fürs Track-Matching.
+            local_dt = cexif.local_datetime_from_utc(dt, tz_min)
+            data = {
+                "photo_time": dt.isoformat() if dt else None,
+                "photo_time_local": local_dt.isoformat() if local_dt else None,
+                "existing_gps": gps,
+                "thumb": thumb,
+                "camera": camera,      # v0.9.164 — Kamera-Modell
+                "tz_known": tz_known,  # v0.9.177 — eingebetteter TZ-Offset?
+            }
+        except Exception as e:
+            data = {"photo_time": None, "photo_time_local": None, "existing_gps": None,
+                    "thumb": None, "camera": None, "tz_known": False, "error": str(e)}
+        with self._thumb_lock:
+            self._thumb_queue_ready[p] = data
+            self._thumb_progress["done"] = self._thumb_progress.get("done", 0) + 1
+            # Auch im Photo-State aktualisieren, damit match-Logik konsistent ist.
+            # (Felder einzelner Items setzen — die Liste selbst wird nicht mutiert.)
+            for ph in self._gtg_photos:
+                if ph.get("path") == p:
+                    ph["photo_time"] = data["photo_time"]
+                    ph["photo_time_local"] = data["photo_time_local"]
+                    ph["existing_gps"] = data["existing_gps"]
+                    ph["thumb"] = data["thumb"]
+                    ph["camera"] = data["camera"]
+                    ph["tz_known"] = data.get("tz_known", False)
+                    break
 
     def _thumb_worker_run(self, paths: list[str]) -> None:
-        """Background-Thread: pro Foto EXIF + Thumb generieren, in Queue legen."""
-        for p in paths:
-            # v0.9.146 (Geotagger-Freeze): GIL kurz freigeben, damit die
-            # PyObjC/Cocoa-Main-Run-Loop von pywebview Zeit zum Pumpen bekommt.
-            # Ohne das hält der CPU-gebundene Decode-Thread den GIL quasi
-            # durchgehend → das Fenster lässt sich nicht mehr nach vorne holen,
-            # während im Hintergrund Thumbs generiert werden.
-            time.sleep(0.004)
-            # Cancellation: wenn _thumb_progress.running auf False gesetzt, stoppen
+        """Background-Thread: Thumbs + EXIF PARALLEL erzeugen (v0.9.358).
+        Die Einzel-Calls sind latenz-gebunden (exiftool-Round-Trip, Datei-IO),
+        nicht CPU-gebunden — ein kleiner Thread-Pool überlappt das Warten und
+        macht das Laden ~10× schneller. exiftool-Daemon + PIL geben den GIL
+        währenddessen frei, also bleibt die pywebview-Main-Loop responsiv."""
+        import concurrent.futures
+        n_workers = max(2, min(4, (os.cpu_count() or 4) - 1))
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as ex:
+                futures = [ex.submit(self._thumb_one, p) for p in paths]
+                for _f in concurrent.futures.as_completed(futures):
+                    # Abbruch (Session schließen / neuer Load) → keine neuen Tasks mehr
+                    # rechnen lassen; bereits gestartete laufen kurz aus.
+                    with self._thumb_lock:
+                        if not self._thumb_progress.get("running"):
+                            break
+        finally:
             with self._thumb_lock:
-                if not self._thumb_progress.get("running"):
-                    return
-            try:
-                dt, gps, camera, tz_known = self._read_meta_fast(p)
-                thumb = self._photo_thumbnail_data_url(p)
-                with self._thumb_lock:
-                    self._thumb_queue_ready[p] = {
-                        "photo_time": dt.isoformat() if dt else None,
-                        "existing_gps": gps,
-                        "thumb": thumb,
-                        "camera": camera,   # v0.9.164 — Kamera-Modell
-                        "tz_known": tz_known,  # v0.9.177 — eingebetteter TZ-Offset?
-                    }
-                    self._thumb_progress["done"] = self._thumb_progress.get("done", 0) + 1
-                # Auch im Photo-State aktualisieren, damit match-Logik konsistent ist
-                for ph in self._gtg_photos:
-                    if ph["path"] == p:
-                        ph["photo_time"] = (dt.isoformat() if dt else None)
-                        ph["existing_gps"] = gps
-                        ph["thumb"] = thumb
-                        ph["camera"] = camera
-                        ph["tz_known"] = tz_known
-                        break
-            except Exception as e:
-                # Bei Fehler: leeren Datensatz für das Foto, damit der Counter weitergeht
-                with self._thumb_lock:
-                    self._thumb_queue_ready[p] = {
-                        "photo_time": None, "existing_gps": None, "thumb": None,
-                        "camera": None, "error": str(e),
-                    }
-                    self._thumb_progress["done"] = self._thumb_progress.get("done", 0) + 1
-        with self._thumb_lock:
-            self._thumb_progress["running"] = False
+                self._thumb_progress["running"] = False
 
     def geotagger_poll_thumbs(self, known_paths: Optional[list[str]] = None) -> dict:
         """Phase 3: liefert nur die noch nicht bekannten Thumbnail-Ergebnisse + Fortschritt.
@@ -3435,18 +3463,20 @@ class Api:
                 if needs_et and not cexif.find_exiftool():
                     skipped_no_exiftool += 1
                     continue
-                dt, tz_known = cexif.read_datetime_with_tz(p)
+                dt, tz_min = cexif.read_datetime_and_tz_min(p)
+                local_dt = cexif.local_datetime_from_utc(dt, tz_min)
                 gps = cexif.read_gps(p)
                 thumb = self._photo_thumbnail_data_url(p)
                 out.append({
                     "path": p,
                     "name": os.path.basename(p),
                     "photo_time": dt.isoformat() if dt else None,
+                    "photo_time_local": local_dt.isoformat() if local_dt else None,
                     "existing_gps": ({"lat": gps[0], "lon": gps[1], "alt": gps[2]} if gps else None),
                     "thumb": thumb,
                     "is_raw": cexif.is_raw(p),
                     "is_video": cexif.is_video(p),
-                    "tz_known": tz_known,
+                    "tz_known": tz_min is not None,
                 })
             self._gtg_photos = out
             result = {"ok": True, "photos": out}
@@ -3590,8 +3620,38 @@ class Api:
                     pass
         return out
 
+    def _build_ignore_gps_paths(self, ignore_gps_default, cam_ignore_gps) -> set:
+        """v0.9.364 — Menge der Foto-Pfade, deren eingebettetes GPS IGNORIERT werden
+        soll (→ Position nach Aufnahmezeit aus dem Track). Pro Kamera: Override aus
+        `cam_ignore_gps` (Kamera→bool), sonst der globale Default `ignore_gps_default`.
+        Kamera-Key '—' für Fotos ohne Modell (wie im UI)."""
+        out: set = set()
+        cig = cam_ignore_gps if isinstance(cam_ignore_gps, dict) else {}
+        for p in self._gtg_photos:
+            cam = p.get("camera") or "—"
+            eff = bool(cig[cam]) if cam in cig else bool(ignore_gps_default)
+            if eff:
+                out.add(p["path"])
+        return out
+
+    def _build_set_time_paths(self, set_time_default, cam_set_time) -> set:
+        """v0.9.370 — Menge der Foto-Pfade, deren Aufnahmezeit (DateTimeOriginal) auf
+        die getroffene Track-Zeit gesetzt werden soll. Pro Kamera: Override aus
+        `cam_set_time` (Kamera→bool), sonst der globale Default `set_time_default`.
+        Kamera-Key '—' für Fotos ohne Modell (wie im UI). Analog zu
+        `_build_ignore_gps_paths`."""
+        out: set = set()
+        cst = cam_set_time if isinstance(cam_set_time, dict) else {}
+        for p in self._gtg_photos:
+            cam = p.get("camera") or "—"
+            eff = bool(cst[cam]) if cam in cst else bool(set_time_default)
+            if eff:
+                out.add(p["path"])
+        return out
+
     def geotagger_match(self, offset_seconds: float = 0.0, max_gap_seconds: float = 600.0,
-                        tz_offset_minutes: float = 0.0, cam_offsets=None) -> dict:
+                        tz_offset_minutes: float = 0.0, cam_offsets=None,
+                        ignore_gps: bool = False, cam_ignore_gps=None) -> dict:
         """Berechnet die GPS-Position für jedes geladene Foto basierend auf Offset.
 
         tz_offset_minutes (v0.9.177): Zeitzone der Kamera-Uhr (UTC±, in Minuten).
@@ -3612,15 +3672,21 @@ class Api:
                                         tz_offset_seconds=float(tz_offset_minutes) * 60.0,
                                         tz_known_paths=tz_known_paths,
                                         offset_by_path=offset_by_path)
+            # v0.9.364 — Kameras, deren eigenes Foto-GPS ignoriert werden soll (→ Zeit).
+            ignore_gps_paths = self._build_ignore_gps_paths(ignore_gps, cam_ignore_gps)
             out = []
             for p, m in zip(self._gtg_photos, matches):
                 # v0.9.339 — Hat das Foto schon eigenes GPS, hat DAS Vorrang vor der
                 # Zeit-Zuordnung: Position = eigenes GPS, immer „platzierbar". Die
                 # Zeit-Zuordnung (track_index, matched_time) bleibt nur als Info für
                 # Richtung/Lichtstempel erhalten.
+                # v0.9.364 — ES SEI DENN, diese Kamera ist auf „GPS ignorieren" → dann
+                # bleibt die zeit-gematchte Track-Position (m.lat/lon aus match_photos),
+                # und das Foto gilt als „kein eigenes GPS" (für Anzeige + Schreiben).
                 eg = p.get("existing_gps")
+                ignore = p["path"] in ignore_gps_paths
                 pos_src = "track"
-                if eg and eg.get("lat") is not None and eg.get("lon") is not None:
+                if eg and not ignore and eg.get("lat") is not None and eg.get("lon") is not None:
                     m.lat = eg["lat"]
                     m.lon = eg["lon"]
                     if eg.get("alt") is not None:
@@ -3630,14 +3696,19 @@ class Api:
                 d = {
                     "path": p["path"],
                     "name": p["name"],
+                    "camera": p.get("camera"),   # v0.9.370 — für Pro-Kamera-Zählung im UI
                     "photo_time": p["photo_time"],
+                    "photo_time_local": p.get("photo_time_local"),   # v0.9.361 — Anzeige
                     "matched_time_utc": m.matched_time_utc.isoformat() if m.matched_time_utc else None,
                     "lat": m.lat, "lon": m.lon, "alt": m.alt,
                     "track_index": m.track_index,
                     "time_delta_s": m.time_delta_s,
                     "in_range": m.in_range,
-                    "existing_gps": p["existing_gps"],
+                    # Bei „GPS ignorieren" so behandeln, als hätte das Foto kein eigenes
+                    # GPS → Track-Koordinaten werden auch tatsächlich geschrieben.
+                    "existing_gps": None if ignore else p["existing_gps"],
                     "pos_src": pos_src,
+                    "gps_ignored": ignore,   # v0.9.364 — für Anzeige/Badge
                 }
                 # v0.9.333 — Lichtstempel + Blickrichtung (Sonnenstand aus GPS+Zeit,
                 # Kamerarichtung aus EXIF oder Bewegung). Nur für echte Treffer.
@@ -3856,21 +3927,24 @@ class Api:
             self._autotag_state = {"running": True, "total": len(items), "done": 0,
                                    "completed": False, "cancel": False,
                                    "results": {}, "error": ""}
+        # v0.9.357 — Stichwort-Sprache folgt der App-Sprache (de/en/es).
+        _lang = ci18n.resolve(_load_settings().get("language", "auto") or "auto")
         self._autotag_worker = threading.Thread(
-            target=self._autotag_worker_run, args=(items, int(max_tags), float(min_conf)),
+            target=self._autotag_worker_run, args=(items, int(max_tags), float(min_conf), _lang),
             daemon=True)
         self._autotag_worker.start()
         log.info("geotagger_autotag_start: %d Fotos", len(items))
         return {"ok": True, "total": len(items)}
 
-    def _autotag_worker_run(self, items: list, max_tags: int, min_conf: float) -> None:
+    def _autotag_worker_run(self, items: list, max_tags: int, min_conf: float,
+                            lang: str = "de") -> None:
         for idx, path in enumerate(items):
             with self._autotag_lock:
                 if self._autotag_state.get("cancel"):
                     break
             try:
                 kws = cautotag.suggest_keywords(path, max_tags=max_tags,
-                                                min_conf=min_conf, lang="de")
+                                                min_conf=min_conf, lang=lang)
             except Exception as e:
                 kws = []
                 log.exception("autotag: %s fehlgeschlagen", path)
@@ -3924,8 +3998,19 @@ class Api:
                               write_fields: Optional[dict] = None,
                               write_mode: str = "",
                               exif_edits: Optional[dict] = None,
-                              cam_offsets=None) -> dict:
+                              cam_offsets=None,
+                              cam_set_time_from_track=None,
+                              dest_dir: str = "",
+                              overwrite_originals: bool = False) -> dict:
         """Startet den Schreibvorgang in einem Background-Thread.
+        - `dest_dir` (v0.9.372): Zielordner. Neues Modell — Originale werden NIE
+          angefasst; alle getaggten Fotos landen als KOPIEN in `dest_dir` (die
+          Originale sind damit selbst das Backup, kein ZIP mehr). Leer = Legacy-
+          In-Place (nur noch interner Fallback).
+        - `overwrite_originals` (v0.9.372): Nur wenn der Nutzer bewusst den Ordner
+          seiner Originale als Ziel wählt → dann wird dort in-place getaggt (ohne
+          Backup). Frontend fragt das vorher ab; ohne Bestätigung überspringt der
+          Worker Fotos, die aufs eigene Original fallen würden.
         - `write_mode` (v0.9.339): 'fill' = vorhandene Werte behalten, nur Fehlendes
           ergänzen (Default); 'overwrite' = alles überschreiben; 'skip_existing' =
           Fotos mit vorhandenem GPS ganz auslassen. Leer → aus `overwrite_existing`
@@ -3935,10 +4020,14 @@ class Api:
         - `overwrite_existing`: True = auch Fotos mit bereits gesetzten GPS-Tags überschreiben
         - `adjust_photo_time`: zusätzlich DateTimeOriginal um `offset_seconds` verschieben
         - `offset_seconds`: Wert wird auf alle Foto-Aufnahmezeiten addiert
-        - `set_time_from_track`: (v0.9.281, Nutzer) für MANUELL eingerastete Fotos die
-          Track-Zeit als Aufnahmezeitpunkt (DateTimeOriginal) setzen — für Fotos mit
-          falscher/fehlender Zeit (z.B. WhatsApp). Wirkt nur auf `manual`-Matches mit
-          `matched_time_utc`, lässt zeitlich gematchte Fotos unangetastet.
+        - `set_time_from_track` / `cam_set_time_from_track`: (v0.9.281, erweitert v0.9.370)
+          die (lokale) Track-Zeit des getroffenen Punkts als Aufnahmezeitpunkt
+          (DateTimeOriginal) setzen. Seit v0.9.370 für ALLE gematchten Fotos (nicht mehr
+          nur manuell eingerastete) und PRO KAMERA schaltbar (`set_time_from_track` =
+          globaler Default, `cam_set_time_from_track` = {Kamera: bool}-Override). Nutzen:
+          zwei Kameras mit unterschiedlich gestellter Uhr laufen in Lightroom zeitlich
+          synchron — das GPS bleibt korrekt, weil nur die Aufnahmezeit gesetzt wird
+          (Offset/Position unberührt).
         """
         log.info("geotagger_start_write: %d matches eingegangen | make_backup=%s overwrite_existing=%s adjust_time=%s offset=%s",
                  len(matches) if matches else 0, make_backup, overwrite_existing, adjust_photo_time, offset_seconds)
@@ -4031,6 +4120,7 @@ class Api:
                 "completed": False,
                 "cancel": False,
                 "from_drops": False,
+                "saved_dir": dest_dir or "",   # v0.9.372 — Zielordner der Kopien
             }
 
         # v0.9.337 — Feld-Auswahl: was wird geschrieben (Default: alles an).
@@ -4040,11 +4130,15 @@ class Api:
 
         # v0.9.354 — Pro-Kamera-Offset auch für die optionale Aufnahmezeit-Korrektur
         offset_by_path = self._build_offset_by_path(cam_offsets)
+        # v0.9.370 — Pro-Kamera: für welche Fotos die Aufnahmezeit aus dem Track gesetzt wird.
+        set_time_paths = self._build_set_time_paths(set_time_from_track, cam_set_time_from_track)
+        log.info("geotagger_start_write: set_time_from_track für %d Foto(s)", len(set_time_paths))
         # Worker starten
         self._write_worker = threading.Thread(
             target=self._write_worker_run,
             args=(to_write, make_backup, adjust_photo_time, offset_seconds,
-                  set_time_from_track, wf, mode, ee, backup_paths, offset_by_path),
+                  set_time_paths, wf, mode, ee, backup_paths, offset_by_path,
+                  dest_dir or "", bool(overwrite_originals)),
             daemon=True,
         )
         self._write_worker.start()
@@ -4054,69 +4148,92 @@ class Api:
     def _write_worker_run(self, items: list[dict], make_backup: bool,
                           adjust_photo_time: bool = False,
                           offset_seconds: float = 0.0,
-                          set_time_from_track: bool = False,
+                          set_time_paths: Optional[set] = None,
                           write_fields: Optional[dict] = None,
                           write_mode: str = "fill",
                           exif_edits: Optional[dict] = None,
                           backup_paths: Optional[list] = None,
-                          offset_by_path: Optional[dict] = None) -> None:
-        """Background-Worker: erst Backup-ZIP, dann pro Foto schreiben."""
+                          offset_by_path: Optional[dict] = None,
+                          dest_dir: str = "",
+                          overwrite_originals: bool = False) -> None:
+        """Background-Worker: erst Kopieren in den Zielordner, dann pro Foto schreiben.
+        v0.9.372 — statt Backup-ZIP + In-Place: die Fotos werden als Kopien in
+        `dest_dir` getaggt, Originale bleiben unangetastet (= das Backup selbst).
+        `dest_dir` leer → Legacy-In-Place (interner Fallback)."""
         wf = write_fields or {"gps": True, "altitude": True, "direction": True, "address": True}
         mode = write_mode or "fill"
-        log.info("_write_worker_run: START (items=%d make_backup=%s adjust_time=%s offset=%s set_time_from_track=%s fields=%s mode=%s)",
-                 len(items), make_backup, adjust_photo_time, offset_seconds, set_time_from_track, wf, mode)
-        # v0.9.152: Erkennen ob die Fotos per Drag&Drop kamen (liegen dann unter
-        # _drops/ — die WebView liefert keinen Original-Pfad). Dann werden NUR die
-        # Wegwerf-Kopien getaggt, nicht die Originale → die UI bietet danach den
-        # Export der getaggten Dateien in einen Zielordner an.
+        set_time_paths = set_time_paths or set()   # v0.9.370 — Pfade mit „Zeit aus Track"
+        log.info("_write_worker_run: START (items=%d make_backup=%s adjust_time=%s offset=%s set_time_paths=%d fields=%s mode=%s)",
+                 len(items), make_backup, adjust_photo_time, offset_seconds, len(set_time_paths), wf, mode)
         try:
-            drops_root = str(DROPS_DIR)
-            from_drops = any(str(m.get("path", "")).startswith(drops_root) for m in items)
-            with self._write_lock:
-                self._write_state["from_drops"] = from_drops
-            log.info("_write_worker_run: from_drops=%s (Fotos %s)",
-                     from_drops, "aus Drag&Drop → Export nötig" if from_drops else "mit echten Pfaden → in-place")
-        except Exception:
-            log.exception("_write_worker_run: from_drops-Erkennung fehlgeschlagen")
-        try:
-            # Phase A: Backup
-            if make_backup:
-                with self._write_lock:
-                    self._write_state["current_name"] = "Backup wird erstellt …"
-                # v0.9.344 — Backup deckt GPS-Fotos UND EXIF-editierte Fotos ab.
-                photo_paths = backup_paths if backup_paths else [m["path"] for m in items]
-
-                def _bk_cancel() -> bool:
-                    # Kein Lock nötig — atomarer bool-Read reicht für ein Flag.
-                    return bool(self._write_state.get("cancel"))
-
-                def _bk_progress(i: int, n: int, name: str) -> None:
-                    with self._write_lock:
-                        self._write_state["current_name"] = f"Backup {i + 1}/{n}: {name}"
-
-                log.info("_write_worker_run: Phase A — Backup von %d Fotos startet …", len(photo_paths))
+            # v0.9.372 — Phase 0: Fotos in den Zielordner KOPIEREN, dann die Kopien
+            # taggen. Originale bleiben unangetastet (= das Backup selbst, kein ZIP).
+            # dest_dir=="" → Legacy-In-Place. Alle Pfade (items + exif_edits +
+            # set_time_paths + offset_by_path) werden auf die Kopien umgebogen, damit
+            # Phase B/C automatisch dort schreiben.
+            if dest_dir:
+                import shutil as _sh
+                src_list: list[str] = []
+                _seen: set = set()
+                for _m in items:
+                    _p = _m.get("path")
+                    if _p and _p not in _seen:
+                        _seen.add(_p); src_list.append(_p)
+                for _p in (exif_edits or {}):
+                    if _p and _p not in _seen:
+                        _seen.add(_p); src_list.append(_p)
                 try:
-                    backup_path = cbak.make_photo_backup(
-                        photo_paths, str(BACKUPS_DIR), label="geotag",
-                        should_cancel=_bk_cancel,
-                        on_progress=_bk_progress,
-                    )
+                    os.makedirs(dest_dir, exist_ok=True)
+                except Exception as e_mk:
+                    log.exception("_write_worker_run: Zielordner nicht anlegbar")
                     with self._write_lock:
-                        self._write_state["backup_path"] = backup_path
-                    log.info("_write_worker_run: Phase A — Backup fertig: %s", backup_path)
-                except cbak.BackupCancelled:
-                    # v0.9.148: User hat während des Backups abgebrochen → Phase B
-                    # nicht starten, sauber beenden (finally setzt running/completed).
-                    log.info("_write_worker_run: Phase A — Backup vom User abgebrochen")
+                        self._write_state["errors"].append(f"Zielordner nicht nutzbar: {e_mk}")
+                path_map: dict = {}
+                n_copy = len(src_list)
+                for i_c, src in enumerate(src_list):
                     with self._write_lock:
-                        self._write_state["cancelled"] = True
-                    return
-                except Exception as e:
-                    log.exception("_write_worker_run: Phase A — Backup FEHLGESCHLAGEN")
-                    with self._write_lock:
-                        self._write_state["errors"].append(f"Backup fehlgeschlagen: {e}")
+                        if self._write_state.get("cancel"):
+                            self._write_state["cancelled"] = True
+                            log.info("_write_worker_run: Phase 0 — abgebrochen bei %d/%d", i_c, n_copy)
+                            return
+                        self._write_state["current_name"] = f"Kopiere {i_c + 1}/{n_copy} …"
+                    out = os.path.join(dest_dir, os.path.basename(src))
+                    if os.path.abspath(out) == os.path.abspath(src):
+                        # Ziel == Original → nur mit ausdrücklicher Bestätigung in-place
+                        if overwrite_originals:
+                            path_map[src] = src
+                        else:
+                            path_map[src] = None
+                            with self._write_lock:
+                                self._write_state["errors"].append(
+                                    f"{os.path.basename(src)}: würde Original überschreiben — übersprungen")
+                        continue
+                    try:
+                        _sh.copy2(src, out)
+                        path_map[src] = out
+                    except Exception as e_cp:
+                        log.exception("_write_worker_run: Kopie fehlgeschlagen: %s", src)
+                        path_map[src] = None
+                        with self._write_lock:
+                            self._write_state["errors"].append(
+                                f"{os.path.basename(src)}: Kopie fehlgeschlagen: {e_cp}")
+                log.info("_write_worker_run: Phase 0 — %d/%d Foto(s) nach %s kopiert",
+                         sum(1 for v in path_map.values() if v), n_copy, dest_dir)
+
+                def _mp(p):
+                    return path_map.get(p, p)
+                items = [m for m in items if path_map.get(m.get("path")) is not None]
+                for m in items:
+                    m["path"] = path_map[m["path"]]
+                if exif_edits:
+                    exif_edits = {_mp(p): t for p, t in exif_edits.items()
+                                  if path_map.get(p) is not None}
+                set_time_paths = {_mp(p) for p in set_time_paths if path_map.get(p) is not None}
+                if offset_by_path:
+                    offset_by_path = {_mp(p): v for p, v in offset_by_path.items()
+                                      if path_map.get(p) is not None}
             else:
-                log.info("_write_worker_run: Phase A übersprungen (make_backup=False)")
+                log.info("_write_worker_run: dest_dir leer → Legacy-In-Place (kein Kopieren)")
 
             # Phase B: pro Foto schreiben
             log.info("_write_worker_run: Phase B — schreibe GPS in %d Fotos", len(items))
@@ -4190,9 +4307,11 @@ class Api:
                                     f"{path}: Adresse schreiben fehlgeschlagen: {e_addr}")
                     log.info("_write_worker_run: [%d/%d] OK → %s (coords=%s dir=%s addr=%s)",
                              idx + 1, len(items), path, write_coords, img_dir is not None, addr is not None)
-                    # v0.9.281 (Nutzer): Aufnahmezeit aus Track setzen — NUR für manuell
-                    # eingerastete Fotos mit Track-Zeit (z.B. WhatsApp ohne korrekte Zeit).
-                    if set_time_from_track and m.get("manual") and ts is not None:
+                    # v0.9.281 (Nutzer): Aufnahmezeit aus Track setzen. v0.9.370 — jetzt
+                    # für ALLE gematchten Fotos dieser Kamera (nicht mehr nur manuell
+                    # eingerastete), pro Kamera in `set_time_paths` vorentschieden. Nutzen:
+                    # zwei Kameras mit falsch gestellter Uhr laufen in Lightroom synchron.
+                    if m["path"] in set_time_paths and ts is not None:
                         try:
                             cexif.set_datetime(m["path"], ts)
                             log.info("_write_worker_run: [%d/%d] set_datetime aus Track OK → %s (%s)",
@@ -4239,15 +4358,20 @@ class Api:
                             break
                         self._write_state["current_name"] = os.path.basename(path)
                         self._write_state["current_path"] = path
-                    for tag, val in tags.items():
-                        try:
-                            cexif.write_exif_tag(path, tag, val)
-                            log.info("_write_worker_run: EXIF %s=%r → %s", tag, val, path)
-                        except Exception as e_ex:
-                            log.exception("_write_worker_run: EXIF-Edit %s fehlgeschlagen für %s", tag, path)
-                            with self._write_lock:
-                                self._write_state["errors"].append(
-                                    f"{path}: EXIF {tag} fehlgeschlagen: {e_ex}")
+                    # v0.9.369 — ALLE Felder eines Fotos in EINEM exiftool-Call
+                    # statt Feld für Feld (früher: ein -execute pro Tag → bei RAW
+                    # ein voller Datei-Rewrite je Tag, Hunderte Round-Trips, jeder
+                    # eine Deadlock-Fläche → App-Freeze 2026-06-30). Jetzt: die
+                    # Datei wird EINMAL geschrieben, mit Timeout im Daemon abgesichert.
+                    try:
+                        cexif.write_exif_tags(path, tags)
+                        log.info("_write_worker_run: EXIF-Batch %d Feld(er) → %s",
+                                 len(tags), path)
+                    except Exception as e_ex:
+                        log.exception("_write_worker_run: EXIF-Batch fehlgeschlagen für %s", path)
+                        with self._write_lock:
+                            self._write_state["errors"].append(
+                                f"{path}: EXIF-Batch fehlgeschlagen: {e_ex}")
                     if path not in _phase_b_paths:
                         with self._write_lock:
                             self._write_state["done"] = self._write_state.get("done", 0) + 1

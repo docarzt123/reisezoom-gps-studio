@@ -1473,6 +1473,27 @@ input[type="color"] {
   outline: none;
 }
 
+/* v0.9.365 — schwebender Hilfe-Tooltip (ersetzt den toten nativen title-Tooltip
+   in pywebview/WKWebView). Wird per JS am <body> positioniert. */
+.rz-tip {
+  position: fixed;
+  z-index: 99999;
+  display: none;
+  max-width: 260px;
+  padding: 7px 10px;
+  background: rgba(10, 13, 18, 0.97);
+  color: var(--text, #e8eef5);
+  border: 1px solid var(--border-strong, #2a3340);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  white-space: normal;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
 .photo-marker.gt-spidered {
   transition: transform 0.18s ease;
   z-index: 6;
@@ -1557,6 +1578,44 @@ input[type="color"] {
   border-bottom-color: var(--accent);
 }
 .gt-pv-keyexif { margin-top: 8px; }
+/* v0.9.355 — Live-Suche im EXIF-Tab */
+.gt-exif-search {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  padding: 5px 9px;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-3, rgba(255,255,255,.05));
+  border: 1px solid var(--border, #3a3f45);
+  border-radius: 6px;
+  outline: none;
+}
+.gt-exif-search:focus { border-color: var(--accent, #ff6b35); }
+.gt-exif-search::placeholder { color: var(--text-dim); }
+/* v0.9.355 — kuratierter „Ausfüllen"-Block + leere Felder + „+ Feld hinzufügen" */
+.gt-exif-fill { margin-bottom: 6px; }
+.gt-exif-fill-head {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-dim); margin: 2px 0 3px;
+}
+.gt-exif-ph { color: var(--text-dim); font-style: italic; opacity: .8; }
+.gt-exif-grid td.gt-empty { color: var(--text-dim); }
+.gt-exif-addbtn {
+  margin-top: 7px; width: 100%;
+  padding: 5px 9px; font-size: 11px; font-weight: 600;
+  color: var(--text); background: var(--bg-3, rgba(255,255,255,.05));
+  border: 1px dashed var(--border, #3a3f45); border-radius: 6px; cursor: pointer;
+}
+.gt-exif-addbtn:hover { border-color: var(--accent, #ff6b35); color: var(--accent, #ff6b35); }
+.gt-addf-form { display: flex; flex-direction: column; gap: 10px; }
+.gt-addf-row { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.gt-addf-row > span { color: var(--text-dim); }
+.gt-addf-row select, .gt-addf-row input {
+  width: 100%; box-sizing: border-box; padding: 7px 9px; font-size: 13px;
+  color: var(--text); background: var(--bg-3, rgba(255,255,255,.05));
+  border: 1px solid var(--border, #3a3f45); border-radius: 6px;
+}
 .gt-pv-exiftable { max-height: 260px; overflow-y: auto; }
 .gt-pv-loading {
   font-size: 11px;

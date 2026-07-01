@@ -72,9 +72,31 @@ jobs:
           pyinstaller ReisezoomGPSStudio.spec --clean --noconfirm
           ls -la dist/
 
-      - name: Ad-hoc Codesign
+      - name: Signing-Zertifikat importieren (falls Secrets vorhanden)
+        env:
+          MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
         run: |
-          codesign --force --deep --sign - "dist/Reisezoom GPS Studio.app" || true
+          if [ -z "${MACOS_CERT_P12_BASE64:-}" ]; then
+            echo "ℹ️ Keine Signing-Secrets → Ad-hoc (unverändert)"; exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KPW="$(openssl rand -base64 24)"
+          security create-keychain -p "$KPW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KPW" "$KEYCHAIN"
+          echo "$MACOS_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KPW" "$KEYCHAIN" >/dev/null
+          # Signing-Keychain in die Suchliste (sonst findet codesign die Identität nicht)
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | sed 's/[”"]//g')
+          IDENT="$(security find-identity -v -p codesigning "$KEYCHAIN" | grep 'Developer ID Application' | head -1 | sed -E 's/.*"(.*)".*/\1/')"
+          if [ -z "$IDENT" ]; then echo "::error::Keine 'Developer ID Application'-Identität im .p12 gefunden"; exit 1; fi
+          echo "MACOS_SIGN_IDENTITY=$IDENT" >> "$GITHUB_ENV"
+          echo "✅ Signing-Identität: $IDENT"
+
+      - name: Codesign GPS Studio (Developer ID / Ad-hoc-Fallback)
+        run: bash scripts/macos_sign.sh "dist/Reisezoom GPS Studio.app"
 
       - name: Build DMG
         run: |
@@ -101,6 +123,13 @@ jobs:
             -ov -format UDZO "$DMG"
           ls -la dist/dmg/
 
+      - name: Notarisieren + stapeln (GPS Studio DMG)
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash scripts/macos_notarize.sh "dist/dmg/ReisezoomGPSStudio-macos.dmg"
+
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
@@ -123,8 +152,8 @@ jobs:
           pyinstaller ReisezoomGPSStudio.spec --clean --noconfirm
           ls -la dist/
 
-      - name: Ad-hoc Codesign Geotagger
-        run: codesign --force --deep --sign - "dist/Reisezoom Geotagger.app" || true
+      - name: Codesign Geotagger (Developer ID / Ad-hoc-Fallback)
+        run: bash scripts/macos_sign.sh "dist/Reisezoom Geotagger.app"
 
       - name: Build Geotagger DMG
         run: |
@@ -139,6 +168,13 @@ jobs:
           hdiutil create -volname "Reisezoom Geotagger" \
             -srcfolder "dist/Reisezoom Geotagger.app" -ov -format UDZO "$DMG"
           ls -la dist/dmg/
+
+      - name: Notarisieren + stapeln (Geotagger DMG)
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash scripts/macos_notarize.sh "dist/dmg/ReisezoomGeotagger-macos.dmg"
 
       - name: Upload Geotagger DMG artifact
         uses: actions/upload-artifact@v4

@@ -19,9 +19,15 @@ function mountGeotagger(body, headerActions) {
   // v0.9.322 — Undo für ALLE Geotagger-Controls (vorher nur 4 Keys). DOM-Snapshot:
   // erfasst/stellt alle Panel-Controls direkt her + feuert deren Events (Offset →
   // Match-Neuberechnung, Checkboxen, Backup/Überschreiben usw.).
+  // v0.9.359 — Undo deckt jetzt AUCH den Geotagger-JS-State ab (manuelle
+  // Platzierungen, EXIF-Edits, Adressen, Richtungen, Häkchen, Pro-Kamera-Offsets,
+  // Referenzbild) — nicht nur die Panel-Controls. `_gtUndoCaptureState`/
+  // `_gtUndoRestoreState` sind weiter unten als hoisted-Functions definiert.
   const _gtgUndoCtrl = window.rzMakePanelUndoController("gt-panel", {
     section: "geotagger",
     toast: (msg) => { if (typeof toast === "function") toast(msg, "info", 1000); },
+    extraSnapshot: () => _gtUndoCaptureState(),
+    extraApply: (x) => _gtUndoRestoreState(x),
   });
   window.__rzUndoControllers.geotagger = _gtgUndoCtrl;
   const _gtgPushUndo = (label, opts) => _gtgUndoCtrl.push(label, opts);
@@ -80,6 +86,23 @@ function mountGeotagger(body, headerActions) {
 
         <button class="btn btn-block btn-small" id="gt-ref-mode"
                 title="${t("geotagger.btn.ref_mode_tooltip")}">${t("geotagger.btn.ref_mode")}</button>
+
+        <!-- v0.9.364 — Pro-Kamera: eingebettetes Foto-GPS ignorieren und stattdessen
+             nach Aufnahmezeit auf den Track setzen (z.B. Handy mit ungenauem CELLID-GPS). -->
+        <label class="checkbox-row" id="gt-ignore-gps-row" style="margin-top:8px;">
+          <input type="checkbox" id="gt-ignore-gps">
+          <span>${t("geotagger.ignore_gps.label", "Foto-eigenes GPS ignorieren")}${_q("geotagger.ignore_gps.help", "Setzt Fotos dieser Kamera nach Aufnahmezeit auf den Track — statt ihr eingebettetes GPS zu nutzen. Ideal für Handys mit ungenauer Funkzellen-Ortung. Gilt für die oben gefilterte Kamera (ohne Filter = Standard für alle).")}</span>
+        </label>
+        <div class="small-info" id="gt-ignore-gps-ctx" style="display:none; margin-left:24px;"></div>
+
+        <!-- v0.9.370 — Pro-Kamera: Aufnahmezeit exakt auf die (lokale) Track-Zeit setzen.
+             Damit laufen zwei Kameras mit unterschiedlich gestellter Uhr in Lightroom
+             zeitlich synchron. GPS bleibt korrekt (nur die Aufnahmezeit wird gesetzt). -->
+        <label class="checkbox-row" id="gt-set-time-row" style="margin-top:8px;">
+          <input type="checkbox" id="gt-set-time-from-track">
+          <span>${t("geotagger.settime.label", "Aufnahmezeit auf Track-Zeit setzen")}${_q("geotagger.settime.help", "Schreibt bei allen gematchten Fotos dieser Kamera die (lokale) Uhrzeit des getroffenen Track-Punkts als Aufnahmezeit. So laufen zwei Kameras mit falsch gestellter Uhr in Lightroom zeitlich synchron. Das GPS bleibt korrekt. Gilt für die oben gefilterte Kamera (ohne Filter = Standard für alle).")}</span>
+        </label>
+        <div class="small-info" id="gt-set-time-ctx" style="display:none; margin-left:24px;"></div>
       </div>
 
       <!-- v0.9.166 — Fotos manuell auf der Karte platzieren -->
@@ -89,21 +112,14 @@ function mountGeotagger(body, headerActions) {
           <input type="checkbox" id="gt-snap-track">
           <span>${t("geotagger.place.snap_toggle", "Auf Track einrasten")}${_q("geotagger.place.cmd_hint", "⌘ beim Ablegen kehrt das kurz um. Ohne geladenen Track werden Fotos frei platziert.")}</span>
         </label>
-        <!-- v0.9.281 (Nutzer-Wunsch): Aufnahmezeit aus Track für eingerastete Fotos -->
-        <label class="checkbox-row" style="margin-top:8px;">
-          <input type="checkbox" id="gt-set-time-from-track">
-          <span>${t("geotagger.place.set_time_toggle", "Aufnahmezeit aus Track übernehmen")}${_q("geotagger.place.set_time_hint", "Nur für eingerastete Fotos: schreibt die Uhrzeit des Track-Punkts als Aufnahmezeitpunkt — ideal für WhatsApp-Fotos ohne korrekte Zeit.")}</span>
-        </label>
       </div>
 
       <div class="divider"></div>
 
       <div class="section">
         <div class="section-title">${t("geotagger.section.write")}</div>
-        <label class="checkbox-row">
-          <input type="checkbox" id="gt-backup" checked>
-          <span>${t("geotagger.toggle.backup")}</span>
-        </label>
+        <!-- v0.9.372 — „Backup-ZIP"-Checkbox entfernt: Originale werden nie mehr
+             angefasst (Kopien in Zielordner), damit ist ein Backup überflüssig. -->
         <label class="field-label" style="font-size:12px; margin-top:6px; display:block;">${t("geotagger.mode.label", "Wenn ein Foto schon Daten hat")}${_q("geotagger.mode.help", "„Ergänzen“ lässt vorhandenes GPS in Ruhe und fügt nur fehlende Sachen (z.B. Adresse, Blickrichtung) hinzu. Ein im Foto gespeicherter Standort hat dann Vorrang vor der Zeit-Zuordnung.")}</label>
         <select id="gt-write-mode" style="width:100%;">
           <option value="fill">${t("geotagger.mode.fill", "Behalten, nur Fehlendes ergänzen")}</option>
@@ -115,6 +131,20 @@ function mountGeotagger(body, headerActions) {
           <span>${t("geotagger.toggle.adjust_time")}</span>
         </label>
 
+        <button class="btn btn-block" id="gt-geocode" style="margin-top:6px">${t("geotagger.btn.geocode", "📍 Adressen abrufen")}</button>
+        <div class="small-info" id="gt-geocode-status" style="margin-top:4px; opacity:0.85;"></div>
+
+        <!-- v0.9.346 — Globale Felder (Urheber/Copyright/…) für den ganzen Stapel -->
+        <button class="btn btn-block btn-small" id="gt-global-fields" style="margin-top:8px">${t("geotagger.gf.btn", "✎ Globale Felder (Urheber, Copyright …)")}</button>
+        <div class="small-info" id="gt-global-status" style="margin-top:4px; opacity:0.85;"></div>
+
+        <!-- v0.9.349 — Auto-Tag per Bilderkennung (Apple Vision, nur macOS) -->
+        <button class="btn btn-block btn-small" id="gt-autotag" style="margin-top:8px; display:none">${t("geotagger.autotag.btn", "🔍 Auto-Tag (Bilderkennung)")}</button>
+        <div class="small-info" id="gt-autotag-status" style="margin-top:4px; opacity:0.85;"></div>
+
+        <div class="match-summary" id="gt-summary" style="display:none"></div>
+
+        <!-- v0.9.368 (Marc) — „Was wird geschrieben" direkt über den Schreib-Button. -->
         <div class="gt-wf-title">${t("geotagger.wf.title", "Was wird ins Foto geschrieben")}</div>
         <label class="checkbox-row gt-wf">
           <input type="checkbox" id="gt-wf-gps" checked disabled>
@@ -132,18 +162,20 @@ function mountGeotagger(body, headerActions) {
           <input type="checkbox" id="gt-wf-address" checked>
           <span>${t("geotagger.wf.address", "Adresse (Ort, Land, Straße)")}</span>
         </label>
-        <button class="btn btn-block" id="gt-geocode" style="margin-top:6px">${t("geotagger.btn.geocode", "📍 Adressen abrufen")}</button>
-        <div class="small-info" id="gt-geocode-status" style="margin-top:4px; opacity:0.85;"></div>
-
-        <!-- v0.9.346 — Globale Felder (Urheber/Copyright/…) für den ganzen Stapel -->
-        <button class="btn btn-block btn-small" id="gt-global-fields" style="margin-top:8px">${t("geotagger.gf.btn", "✎ Globale Felder (Urheber, Copyright …)")}</button>
-        <div class="small-info" id="gt-global-status" style="margin-top:4px; opacity:0.85;"></div>
-
-        <!-- v0.9.349 — Auto-Tag per Bilderkennung (Apple Vision, nur macOS) -->
-        <button class="btn btn-block btn-small" id="gt-autotag" style="margin-top:8px; display:none">${t("geotagger.autotag.btn", "🔍 Auto-Tag (Bilderkennung)")}</button>
-        <div class="small-info" id="gt-autotag-status" style="margin-top:4px; opacity:0.85;"></div>
-
-        <div class="match-summary" id="gt-summary" style="display:none"></div>
+        <!-- v0.9.367 — Gruppen-Schalter: was du gesetzt/bearbeitet hast, wird nur
+             geschrieben, wenn die Gruppe an ist (kein Häkchen pro Einzelfeld). -->
+        <label class="checkbox-row gt-wf">
+          <input type="checkbox" id="gt-wf-keywords" checked>
+          <span>${t("geotagger.wf.keywords", "Stichwörter (Bilderkennung)")}${_q("geotagger.wf.keywords_help", "Schreibt die per Auto-Tag erkannten Stichwörter ins Foto. Aus = die Bilderkennungs-Keywords werden nicht geschrieben (bleiben aber gespeichert).")}</span>
+        </label>
+        <label class="checkbox-row gt-wf">
+          <input type="checkbox" id="gt-wf-global" checked>
+          <span>${t("geotagger.wf.global", "Globale Felder")}${_q("geotagger.wf.global_help", "Schreibt die im „Globale Felder“-Modal gesetzten Werte (Urheber, Copyright, Credit, Website …) auf alle sichtbaren Fotos. Aus = nichts davon schreiben, ohne die Werte zu löschen.")}</span>
+        </label>
+        <label class="checkbox-row gt-wf">
+          <input type="checkbox" id="gt-wf-exif" checked>
+          <span>${t("geotagger.wf.exif_edits", "Meine EXIF-Änderungen")}${_q("geotagger.wf.exif_edits_help", "Schreibt die im EXIF-Tab von Hand bearbeiteten oder per „+ Feld“ hinzugefügten Tags. Aus = deine manuellen EXIF-Änderungen werden nicht geschrieben (bleiben gespeichert).")}</span>
+        </label>
         <button class="btn btn-primary btn-block" id="gt-write" disabled>${t("geotagger.btn.write")}</button>
       </div>
     </aside>
@@ -176,7 +208,13 @@ function mountGeotagger(body, headerActions) {
               <div class="gt-pv-keyexif" id="gt-preview-keyexif"></div>
             </div>
             <div class="gt-pv-page" id="gt-pv-exif" style="display:none">
+              <!-- v0.9.355 — kuratierte „zum Ausfüllen"-Felder (auch leer anklickbar) -->
+              <div class="gt-exif-fill" id="gt-exif-fill"></div>
+              <input type="text" id="gt-exif-search" class="gt-exif-search"
+                     placeholder="${t("geotagger.exif.search_ph", "Feld suchen … (z. B. GPS)")}"
+                     autocomplete="off" spellcheck="false">
               <div class="gt-pv-exiftable" id="gt-preview-exiftable"></div>
+              <button type="button" class="gt-exif-addbtn" id="gt-exif-addfield">＋ ${t("geotagger.exif.add_field", "Feld hinzufügen")}</button>
             </div>
           </div>
         </div>
@@ -209,6 +247,17 @@ function mountGeotagger(body, headerActions) {
                                   && _settingsCache.geotagger.offset_seconds) || 0) || 0;
   const _gtCamOffsets = Object.assign({}, (_settingsCache && _settingsCache.geotagger
                                            && _settingsCache.geotagger.cam_offsets) || {});
+  // v0.9.364 — Pro-Kamera: eigenes Foto-GPS ignorieren → nach Aufnahmezeit zuordnen.
+  // Gleiches Muster wie der Offset: globaler Default + Pro-Kamera-Override.
+  let _gtGlobalIgnoreGps = !!(_settingsCache && _settingsCache.geotagger
+                              && _settingsCache.geotagger.ignore_gps);
+  const _gtCamIgnoreGps = Object.assign({}, (_settingsCache && _settingsCache.geotagger
+                                             && _settingsCache.geotagger.cam_ignore_gps) || {});
+  // v0.9.370 — Pro-Kamera: Aufnahmezeit aus der Track-Zeit setzen (gleiches Muster).
+  let _gtGlobalSetTime = !!(_settingsCache && _settingsCache.geotagger
+                            && _settingsCache.geotagger.set_time_from_track);
+  const _gtCamSetTime = Object.assign({}, (_settingsCache && _settingsCache.geotagger
+                                           && _settingsCache.geotagger.cam_set_time_from_track) || {});
   // v0.9.337 — Reverse-Geocoding-Ergebnisse (path → Adress-Dict) + manuelle Richtung
   const _gtAddr = new Map();        // path → {display, city, state, country, street, …}
   const _gtDir = new Map();         // path → {dir:Number|null, src:"manual"} (Karten-Kompass)
@@ -351,6 +400,7 @@ function mountGeotagger(body, headerActions) {
   function _gtAutotagApply(s, canceled) {
     const results = (s && s.results) || {};
     let n = 0;
+    if (Object.keys(results).length) _gtgPushUndo("Auto-Tags übernommen", { force: true });   // v0.9.359 — undoable
     Object.keys(results).forEach(path => {
       const kws = results[path] || [];
       if (!kws.length) return;
@@ -400,7 +450,8 @@ function mountGeotagger(body, headerActions) {
     // v0.9.354 — globaler Default + Pro-Kamera-Overrides. `_gtGlobalOffset` und
     // `_gtCamOffsets` werden von den Slider-Handlern live gepflegt; das Backend
     // nimmt pro Foto den Kamera-Offset, sonst den globalen.
-    const res = await api().geotagger_match(_gtGlobalOffset, 1800, getTzOffsetMinutes(), _gtCamOffsets);
+    const res = await api().geotagger_match(_gtGlobalOffset, 1800, getTzOffsetMinutes(), _gtCamOffsets,
+                                            _gtGlobalIgnoreGps, _gtCamIgnoreGps);   // v0.9.364
     if (isUnmounted) return;        // Awaited bridge call kam zurück nachdem unmount
     if (!res.ok) { toast(res.error, "error"); return; }
     matches = res.matches;
@@ -429,6 +480,71 @@ function mountGeotagger(body, headerActions) {
   }
   function _gtContextOffset() { return _gtEffectiveOffset(_gtOffsetCam()); }
   function _gtHasCamOffsets() { return Object.keys(_gtCamOffsets).length > 0; }
+
+  // v0.9.364 — „Foto-eigenes GPS ignorieren" (pro Kamera), gleiche Kontext-Logik
+  // wie der Offset. Effektiv = Kamera-Override falls gesetzt, sonst globaler Default.
+  function _gtEffectiveIgnoreGps(cam) {
+    if (cam && Object.prototype.hasOwnProperty.call(_gtCamIgnoreGps, cam)) return !!_gtCamIgnoreGps[cam];
+    return !!_gtGlobalIgnoreGps;
+  }
+  function _gtContextIgnoreGps() { return _gtEffectiveIgnoreGps(_gtOffsetCam()); }
+  function _gtSetContextIgnoreGps(v, persist) {
+    const cam = _gtOffsetCam();
+    v = !!v;
+    if (cam) {
+      if (v === !!_gtGlobalIgnoreGps) delete _gtCamIgnoreGps[cam];  // == Default → kein Override
+      else _gtCamIgnoreGps[cam] = v;
+      if (persist) saveSettings({ geotagger: { cam_ignore_gps: Object.assign({}, _gtCamIgnoreGps) } });
+    } else {
+      _gtGlobalIgnoreGps = v;
+      if (persist) saveSettings({ geotagger: { ignore_gps: v } });
+    }
+  }
+  // Bringt die Checkbox + Kontext-Hinweis auf den Stand der aktuell gefilterten Kamera.
+  function _gtSyncIgnoreGpsToContext() {
+    const cb = document.getElementById("gt-ignore-gps");
+    if (cb) cb.checked = _gtContextIgnoreGps();
+    const ctx = document.getElementById("gt-ignore-gps-ctx");
+    if (ctx) {
+      const cam = _gtOffsetCam();
+      if (cam && _gtContextIgnoreGps()) {
+        const lbl = (cam === _GT_CAM_UNKNOWN) ? t("geotagger.filter.cam_unknown", "Unbekannt") : cam;
+        ctx.textContent = "📷 " + lbl;
+        ctx.style.display = "";
+      } else { ctx.style.display = "none"; ctx.textContent = ""; }
+    }
+  }
+  // v0.9.370 — „Aufnahmezeit auf Track-Zeit setzen" pro Kamera (analog ignore_gps).
+  function _gtEffectiveSetTime(cam) {
+    if (cam && Object.prototype.hasOwnProperty.call(_gtCamSetTime, cam)) return !!_gtCamSetTime[cam];
+    return !!_gtGlobalSetTime;
+  }
+  function _gtContextSetTime() { return _gtEffectiveSetTime(_gtOffsetCam()); }
+  function _gtSetContextSetTime(v, persist) {
+    const cam = _gtOffsetCam();
+    v = !!v;
+    if (cam) {
+      if (v === !!_gtGlobalSetTime) delete _gtCamSetTime[cam];  // == Default → kein Override
+      else _gtCamSetTime[cam] = v;
+      if (persist) saveSettings({ geotagger: { cam_set_time_from_track: Object.assign({}, _gtCamSetTime) } });
+    } else {
+      _gtGlobalSetTime = v;
+      if (persist) saveSettings({ geotagger: { set_time_from_track: v } });
+    }
+  }
+  function _gtSyncSetTimeToContext() {
+    const cb = document.getElementById("gt-set-time-from-track");
+    if (cb) cb.checked = _gtContextSetTime();
+    const ctx = document.getElementById("gt-set-time-ctx");
+    if (ctx) {
+      const cam = _gtOffsetCam();
+      if (cam && _gtContextSetTime()) {
+        const lbl = (cam === _GT_CAM_UNKNOWN) ? t("geotagger.filter.cam_unknown", "Unbekannt") : cam;
+        ctx.textContent = "📷 " + lbl;
+        ctx.style.display = "";
+      } else { ctx.style.display = "none"; ctx.textContent = ""; }
+    }
+  }
   // Setzt den Offset des aktuellen Kontexts. persist=false = nur in-memory (für
   // jeden Slider-`input`), persist=true = zusätzlich in die Settings schreiben.
   function _gtSetContextOffset(v, persist) {
@@ -612,6 +728,34 @@ function mountGeotagger(body, headerActions) {
     updateMatches();
   });
 
+  // v0.9.364 — „Foto-eigenes GPS ignorieren" (pro Kamera). Wirkt auf den aktuellen
+  // Kamera-Kontext (wie der Offset), persistiert + re-matcht sofort.
+  const _gtIgnoreGpsCb = document.getElementById("gt-ignore-gps");
+  if (_gtIgnoreGpsCb) {
+    _gtIgnoreGpsCb.checked = _gtContextIgnoreGps();
+    _gtSyncIgnoreGpsToContext();
+    _gtIgnoreGpsCb.addEventListener("change", () => {
+      _gtgPushUndo("Foto-GPS-Modus geändert", { force: true });   // undo-bar (v0.9.359-System)
+      _gtSetContextIgnoreGps(_gtIgnoreGpsCb.checked, true);
+      _gtSyncIgnoreGpsToContext();
+      updateMatches();
+    });
+  }
+
+  // v0.9.370 — „Aufnahmezeit auf Track-Zeit setzen" (pro Kamera). Wirkt auf den
+  // aktuellen Kamera-Kontext (wie Offset/ignore_gps). Ändert NICHT das Matching
+  // (nur was geschrieben wird), daher kein re-match — nur persistieren + undo.
+  const _gtSetTimeCb = document.getElementById("gt-set-time-from-track");
+  if (_gtSetTimeCb) {
+    _gtSetTimeCb.checked = _gtContextSetTime();
+    _gtSyncSetTimeToContext();
+    _gtSetTimeCb.addEventListener("change", () => {
+      _gtgPushUndo("Aufnahmezeit-aus-Track geändert", { force: true });
+      _gtSetContextSetTime(_gtSetTimeCb.checked, true);
+      _gtSyncSetTimeToContext();
+    });
+  }
+
   // Reset-Button → 0
   document.getElementById("gt-off-reset").addEventListener("click", () => {
     setOffsetFromSeconds(0);
@@ -705,14 +849,25 @@ function mountGeotagger(body, headerActions) {
     };
   });
 
-  bindSetting("gt-backup", "geotagger", "make_backup", { type: "bool" });
+  // v0.9.372 — „gt-backup" entfällt (kein Backup-ZIP mehr); bindSetting raus.
   bindSetting("gt-write-mode", "geotagger", "write_mode", { type: "string" });  // v0.9.339
   bindSetting("gt-adjust-time", "geotagger", "adjust_photo_time", { type: "bool" });
-  bindSetting("gt-set-time-from-track", "geotagger", "set_time_from_track", { type: "bool" });
+  // v0.9.370 — „gt-set-time-from-track" wird NICHT mehr via bindSetting global
+  // gebunden, sondern pro Kamera über _gtSetContextSetTime (siehe oben).
   // v0.9.337 — EXIF-Feld-Auswahl (was wird geschrieben), persistiert
   bindSetting("gt-wf-altitude", "geotagger", "wf_altitude", { type: "bool" });
   bindSetting("gt-wf-direction", "geotagger", "wf_direction", { type: "bool" });
   bindSetting("gt-wf-address", "geotagger", "wf_address", { type: "bool" });
+  bindSetting("gt-wf-keywords", "geotagger", "wf_keywords", { type: "bool" });   // v0.9.367
+  bindSetting("gt-wf-global", "geotagger", "wf_global", { type: "bool" });
+  bindSetting("gt-wf-exif", "geotagger", "wf_exif", { type: "bool" });
+  // v0.9.366 — Blickrichtung-Schalter steuert auch die ANZEIGE (Pin-Pfeil, Vorschau-
+  // Chip, Karten-Kompass) → bei Umschalten Karte + offene Vorschau neu zeichnen.
+  document.getElementById("gt-wf-direction")?.addEventListener("change", () => {
+    try { redrawMarkers(); } catch (_) {}   // Pin-Pfeile + Karten-Kompass neu bewerten
+    const sel = selectedPath ? matches.find(x => x.path === selectedPath) : null;
+    if (sel) { try { showPhotoPopup(sel); } catch (_) {} }   // Vorschau-Chips neu
+  });
   // v0.9.67: Undo-Listener auf #gt-panel
   _wireGeotaggerUndoListeners();
 
@@ -788,6 +943,24 @@ function mountGeotagger(body, headerActions) {
     if (ev.target.closest(".gt-exif-input, .gt-exif-editbtns")) return;  // im Edit-Modus
     const td = ev.target.closest("td.gt-editable");
     if (td) { ev.stopPropagation(); _gtBeginExifEdit(td); }
+  });
+
+  // v0.9.355 — EXIF-Tab: Live-Suche filtert die Felder (z. B. „GPS")
+  const _gtExifSearchEl = document.getElementById("gt-exif-search");
+  if (_gtExifSearchEl) {
+    _gtExifSearchEl.addEventListener("input", _gtFilterExifRows);
+    _gtExifSearchEl.addEventListener("click", (ev) => ev.stopPropagation());
+  }
+
+  // v0.9.355 — „Ausfüllen"-Block: gleiche Inline-Edit-Logik wie die Tabelle
+  document.getElementById("gt-exif-fill")?.addEventListener("click", (ev) => {
+    if (ev.target.closest(".gt-exif-input, .gt-exif-editbtns")) return;
+    const td = ev.target.closest("td.gt-editable");
+    if (td) { ev.stopPropagation(); _gtBeginExifEdit(td); }
+  });
+  // v0.9.355 — „+ Feld hinzufügen"
+  document.getElementById("gt-exif-addfield")?.addEventListener("click", (ev) => {
+    ev.stopPropagation(); _gtOpenAddField();
   });
 
   // Initial-Render: Empty State sichtbar machen
@@ -927,6 +1100,7 @@ function mountGeotagger(body, headerActions) {
           if (writeBtn) writeBtn.disabled = true;
         } catch (_) {}
         hideGridLoader();
+        _gtResetFiltersAndOffset();  // v0.9.362 (Marc) — auch beim Session-Schließen Filter+Offset weg
         renderPhotoGrid();  // Empty State wieder zeigen
       }
     });
@@ -1142,7 +1316,10 @@ function mountGeotagger(body, headerActions) {
       if (prog.running || (prog.total > 0 && prog.done < prog.total)) {
         thumbPollTimer = setTimeout(() => pollThumbs(known), 250);
       } else {
-        // Fertig
+        // Fertig — jetzt sind alle EXIF-Zeiten da → Raster nach Aufnahmezeit
+        // ordnen (v0.9.363) und einmal frisch aufbauen.
+        _gtSortPhotosByTime();
+        renderPhotoGrid();
         hideGridLoader();
         if (prog.total > 0) {
           toast(`${prog.done} Fotos geladen`, "success", 2500);
@@ -1178,6 +1355,24 @@ function mountGeotagger(body, headerActions) {
       const img = tile.querySelector(".photo-thumb img");
       if (img) img.src = ph.thumb;
     }
+  }
+
+  // v0.9.363 (Marc) — Foto-Raster nach AUFNAHMEZEIT sortieren (statt nach Dateiname,
+  // wie der Ordner-Scan sie liefert). Sortiert das `photos`-Array selbst (nicht nur
+  // die Anzeige), damit DOM-Reihenfolge == Array-Index bleibt (updatePendingTileState
+  // u.a. verlassen sich darauf). Quelle ist `photo_time` (UTC-ISO bei Kameras mit
+  // eingebettetem TZ-Offset, sonst naive Lokalzeit) → über mehrere Kameras hinweg
+  // echte zeitliche Reihenfolge. Fotos ohne Zeit wandern ans Ende, dort nach Name.
+  function _gtSortPhotosByTime() {
+    const key = (p) => {
+      if (p && p.photo_time) { const t = Date.parse(p.photo_time); if (!isNaN(t)) return t; }
+      return Infinity;
+    };
+    photos.sort((a, b) => {
+      const ka = key(a), kb = key(b);
+      if (ka !== kb) return ka - kb;
+      return String((a && a.name) || "").localeCompare(String((b && b.name) || ""));
+    });
   }
 
   function renderPhotoGrid() {
@@ -1332,6 +1527,24 @@ function mountGeotagger(body, headerActions) {
     if (refMode) updateBanner();
   }
 
+  // v0.9.361 — formatierte ANZEIGE-Aufnahmezeit: lokale Kamera-Wanduhr
+  // (DateTimeOriginal, nicht UTC) + aktiver Zeit-Offset (pro Kamera oder global).
+  // photo_time bleibt intern UTC fürs Track-Matching; das hier ist nur Anzeige.
+  function _gtCaptureLocalStr(path) {
+    const m = matches.find(x => x.path === path);
+    const ph = photos.find(p => p.path === path);
+    const iso = (m && m.photo_time_local) || (ph && ph.photo_time_local)
+              || (m && m.photo_time) || (ph && ph.photo_time) || null;
+    if (!iso) return "";
+    try {
+      const cam = (ph && ph.camera) || null;
+      const offSec = _gtEffectiveOffset(cam) || 0;
+      const base = new Date(iso);
+      const shown = offSec ? new Date(base.getTime() + offSec * 1000) : base;
+      return shown.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+    } catch (_) { return ""; }
+  }
+
   function showPhotoPopup(m) {
     const ph = photos.find(p => p.path === m.path);
     if (!ph) return;
@@ -1346,10 +1559,8 @@ function mountGeotagger(body, headerActions) {
       (m.path === referencePath ? ' <span class="ref-pin">🎯 Referenz</span>' : '');
 
     const bits = [];
-    if (m.photo_time) {
-      const dt = new Date(m.photo_time);
-      bits.push(dt.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }));
-    }
+    const _capStr = _gtCaptureLocalStr(m.path);   // v0.9.361 — lokale Zeit + Offset
+    if (_capStr) bits.push(_capStr);
     if (m.lat != null) {
       bits.push(`<span class="coord">${m.lat.toFixed(5)}, ${m.lon.toFixed(5)}</span>`);
     }
@@ -1374,6 +1585,8 @@ function mountGeotagger(body, headerActions) {
 
     // v0.9.341 — EXIF: immer mit Info-Tab starten, Key-Felder + voller Tab nachladen
     _gtSetPvTab("info");
+    const _es = document.getElementById("gt-exif-search");   // v0.9.355 — Suche pro Foto frisch
+    if (_es) _es.value = "";
     _gtRenderExif(m.path);   // aus Cache (oder Lade-Platzhalter)
     _gtFetchExif(m.path);    // async per Bridge nachziehen
 
@@ -1405,18 +1618,65 @@ function mountGeotagger(body, headerActions) {
   }
 
   // v0.9.341 — Key-EXIF (Info-Tab) + voller Tag-Dump (EXIF-Tab) rendern
+  // v0.9.355 — kuratierte beschreibbare Felder. Der „Ausfüllen"-Block oben zeigt
+  // diese IMMER (auch leer → anklickbar), „+ Feld hinzufügen" bietet weitere + freie
+  // Tag-Eingabe. Beide nutzen den bestehenden Inline-Edit-/Pending-Pfad (data-tag →
+  // _gtExifEdits, geschrieben beim „Taggen schreiben" mit Backup).
+  const _GT_FILL_FIELDS = [
+    { tag: "ImageDescription", k: "geotagger.exif.f.description", d: "Beschreibung" },
+    { tag: "Title",            k: "geotagger.exif.f.title",       d: "Titel" },
+    { tag: "Keywords",         k: "geotagger.exif.f.keywords",    d: "Stichwörter" },
+    { tag: "Rating",           k: "geotagger.exif.f.rating",      d: "Bewertung (0–5)" },
+    { tag: "UserComment",      k: "geotagger.exif.f.comment",     d: "Kommentar" },
+    { tag: "Artist",           k: "geotagger.exif.f.artist",      d: "Urheber" },
+    { tag: "Copyright",        k: "geotagger.exif.f.copyright",   d: "Copyright" },
+  ];
+  const _GT_ADD_FIELDS = [
+    { tag: "Headline",     k: "geotagger.exif.f.headline",     d: "Überschrift" },
+    { tag: "Instructions", k: "geotagger.exif.f.instructions", d: "Anweisung" },
+    { tag: "Credit",       k: "geotagger.exif.f.credit",       d: "Credit" },
+    { tag: "Source",       k: "geotagger.exif.f.source",       d: "Quelle" },
+    { tag: "City",         k: "geotagger.exif.f.city",         d: "Stadt" },
+    { tag: "State",        k: "geotagger.exif.f.state",        d: "Bundesland/Region" },
+    { tag: "Country",      k: "geotagger.exif.f.country",      d: "Land" },
+    { tag: "Sublocation",  k: "geotagger.exif.f.sublocation",  d: "Ort/Detail" },
+    { tag: "Make",         k: "geotagger.exif.f.make",         d: "Kamera-Marke" },
+    { tag: "Model",        k: "geotagger.exif.f.model",        d: "Kamera-Modell" },
+  ];
+  const _GT_FILL_TAGS = new Set(_GT_FILL_FIELDS.map(f => f.tag));
+  function _gtFieldLabel(f) { return t(f.k, f.d); }
+
+  // Baut die editierbare <td>-Zelle für einen Tag (geteilt von Füll-Block + Tabelle).
+  // Leere Werte zeigen einen „leer – klicken"-Platzhalter, sind aber editierbar.
+  function _gtExifEditCell(tag, disk, pendVal) {
+    const isPend = pendVal !== undefined;
+    const shown = isPend ? pendVal : (disk == null ? "" : disk);
+    const empty = (shown === "" || shown == null);
+    const cls = "gt-exif-val gt-editable" + (isPend ? " gt-pending" : "") + (empty ? " gt-empty" : "");
+    const inner = empty
+      ? `<span class="gt-exif-ph">${t("geotagger.exif.empty_ph", "leer – klicken")}</span>`
+      : _gtEsc(shown);
+    return `<td class="${cls}" data-tag="${_gtEsc(tag)}" data-disk="${_gtEsc(disk == null ? "" : disk)}" `
+      + `title="${t("geotagger.exif.edit_hint", "Klicken zum Bearbeiten")}">${inner}<span class="gt-edit-ico">✎</span></td>`;
+  }
+
   function _gtRenderExif(path) {
     const keyEl = document.getElementById("gt-preview-keyexif");
     const tblEl = document.getElementById("gt-preview-exiftable");
     const d = _gtExif.get(path);
+    const fillEl0 = document.getElementById("gt-exif-fill");
     if (!d) {
       const loading = `<div class="gt-pv-loading">${t("geotagger.exif.loading", "Lade EXIF …")}</div>`;
       if (keyEl) keyEl.innerHTML = loading;
       if (tblEl) tblEl.innerHTML = loading;
+      if (fillEl0) fillEl0.innerHTML = "";
       return;
     }
     const k = d.key || {};
     const focal = k.focal ? (k.focal35 ? `${k.focal} (KB ${k.focal35})` : k.focal) : "";
+    // v0.9.360 (Marc): Aufnahmezeit IMMER direkt im Info-Tab anzeigen (nicht nur als
+    // nackte Zeile im Meta-Block). v0.9.361: lokale Kamera-Zeit + aktiver Offset.
+    const captured = _gtCaptureLocalStr(path);
     const rows = [
       [t("geotagger.exif.camera", "Kamera"), k.camera],
       [t("geotagger.exif.lens", "Objektiv"), k.lens],
@@ -1427,30 +1687,52 @@ function mountGeotagger(body, headerActions) {
       [t("geotagger.exif.exposure_comp", "Belichtungskorrektur"), k.exposure_comp],
       [t("geotagger.exif.flash", "Blitz"), k.flash],
     ].filter(r => r[1]);
+    // Aufnahmezeit immer als erste Zeile (auch wenn keine Kamera-EXIF da ist).
+    rows.unshift([t("geotagger.exif.captured", "Aufnahmezeit"),
+                  captured || t("geotagger.exif.no_time", "—")]);
     if (keyEl) {
       keyEl.innerHTML = rows.length
         ? `<table class="gt-exif-grid">${rows.map(r =>
             `<tr><th>${_gtEsc(r[0])}</th><td>${_gtEsc(r[1])}</td></tr>`).join("")}</table>`
         : `<div class="gt-pv-loading">${t("geotagger.exif.none", "Keine Kamera-EXIF gefunden.")}</div>`;
     }
+    const all = d.all || {};
+    const edits = _gtExifEdits.get(path);   // Map(tag→neuerWert) oder undefined
+
+    // v0.9.355 — „Ausfüllen"-Block: kuratierte Felder IMMER (auch leer, anklickbar).
+    const fillEl = document.getElementById("gt-exif-fill");
+    if (fillEl) {
+      const fr = _GT_FILL_FIELDS.map(f => {
+        const disk = (f.tag in all) ? all[f.tag] : "";
+        const pend = (edits && edits.has(f.tag)) ? edits.get(f.tag) : undefined;
+        return `<tr><th>${_gtEsc(_gtFieldLabel(f))}</th>${_gtExifEditCell(f.tag, disk, pend)}</tr>`;
+      }).join("");
+      fillEl.innerHTML =
+        `<div class="gt-exif-fill-head">${t("geotagger.exif.fill_head", "Ausfüllen")}</div>`
+        + `<table class="gt-exif-grid">${fr}</table>`;
+    }
+
     if (tblEl) {
-      const all = d.all || {};
       const ro = new Set(d.readonly || []);
-      const edits = _gtExifEdits.get(path);   // Map(tag→neuerWert) oder undefined
-      const keys = Object.keys(all);
+      // Tabelle = vorhandene Tags OHNE die kuratierten (stehen oben) + neu
+      // hinzugefügte Pending-Tags, die (noch) nicht in der Datei sind.
+      const baseKeys = Object.keys(all).filter(kk => !_GT_FILL_TAGS.has(kk));
+      const addedKeys = edits ? [...edits.keys()].filter(kk => !_GT_FILL_TAGS.has(kk) && !(kk in all)) : [];
+      const keys = baseKeys.concat(addedKeys);
       // v0.9.344 — Hinweis, dass es ungespeicherte Änderungen gibt (werden beim Schreiben getaggt)
       const note = (edits && edits.size)
         ? `<div class="gt-exif-pending-note">⏳ ${t("geotagger.exif.pending_note", "{n} Änderung(en) — werden beim „Taggen schreiben“ gespeichert").replace("{n}", edits.size)} <button type="button" class="gt-exif-discard">${t("geotagger.exif.discard", "verwerfen")}</button></div>`
         : "";
       tblEl.innerHTML = keys.length
         ? note + `<table class="gt-exif-grid">${keys.map(kk => {
+            const onDisk = (kk in all);
             const editable = !ro.has(kk);
-            const disk = all[kk];
-            const pend = !!(edits && edits.has(kk));
-            const shown = pend ? edits.get(kk) : disk;
-            const cls = "gt-exif-val" + (editable ? " gt-editable" : " gt-ro") + (pend ? " gt-pending" : "");
-            const ico = editable ? '<span class="gt-edit-ico">✎</span>' : "";
-            return `<tr><th>${_gtEsc(kk)}</th><td class="${cls}" data-tag="${_gtEsc(kk)}" data-disk="${_gtEsc(disk)}" title="${editable ? t("geotagger.exif.edit_hint", "Klicken zum Bearbeiten") : ""}">${_gtEsc(shown)}${ico}</td></tr>`;
+            const disk = onDisk ? all[kk] : "";
+            const pendVal = (edits && edits.has(kk)) ? edits.get(kk) : undefined;
+            if (editable) {
+              return `<tr><th>${_gtEsc(kk)}</th>${_gtExifEditCell(kk, disk, pendVal)}</tr>`;
+            }
+            return `<tr><th>${_gtEsc(kk)}</th><td class="gt-exif-val gt-ro">${_gtEsc(disk)}</td></tr>`;
           }).join("")}</table>`
         : (note || `<div class="gt-pv-loading">${t("geotagger.exif.none_all", "Keine EXIF-Daten.")}</div>`);
       const disc = tblEl.querySelector(".gt-exif-discard");
@@ -1460,6 +1742,90 @@ function mountGeotagger(body, headerActions) {
         _gtRefreshWriteBtn();
         _gtRenderExif(path);
       });
+      _gtFilterExifRows();   // v0.9.355 — aktiven Suchfilter nach Neu-Render wieder anwenden
+    }
+  }
+
+  // v0.9.355 — „+ Feld hinzufügen": kuratierte Liste ODER freier exiftool-Tag,
+  // landet als ausstehende Änderung (geschrieben beim „Taggen schreiben").
+  function _gtOpenAddField() {
+    const path = selectedPath;
+    if (!path) return;
+    const opts = _GT_ADD_FIELDS.map(f =>
+      `<option value="${_gtEsc(f.tag)}">${_gtEsc(_gtFieldLabel(f))} (${_gtEsc(f.tag)})</option>`).join("");
+    openModal({
+      title: t("geotagger.exif.add_title", "EXIF-Feld hinzufügen"),
+      body: `
+        <div class="gt-addf-form">
+          <label class="gt-addf-row"><span>${t("geotagger.exif.add_choose", "Feld")}</span>
+            <select id="gt-addf-sel">
+              ${opts}
+              <option value="__custom__">${t("geotagger.exif.add_custom", "Eigenes Feld (Tag-Name) …")}</option>
+            </select>
+          </label>
+          <label class="gt-addf-row" id="gt-addf-customrow" style="display:none"><span>${t("geotagger.exif.add_custom_label", "Tag-Name")}</span>
+            <input id="gt-addf-custom" type="text" placeholder="${t("geotagger.exif.add_custom_ph", "exiftool-Tag, z. B. Headline")}" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="gt-addf-row"><span>${t("geotagger.exif.add_value", "Wert")}</span>
+            <input id="gt-addf-val" type="text" autocomplete="off">
+          </label>
+          <p class="muted" style="margin:8px 0 0; font-size:11px; line-height:1.5;">${t("geotagger.exif.add_hint", "Wird als ausstehende Änderung gesammelt und beim „Taggen schreiben“ ins Foto geschrieben (mit Backup).")}</p>
+        </div>`,
+      footer: `<button class="btn" id="gt-addf-cancel">${t("common.cancel", "Abbrechen")}</button>
+               <button class="btn btn-primary" id="gt-addf-ok">${t("common.add", "Hinzufügen")}</button>`,
+    });
+    const sel = document.getElementById("gt-addf-sel");
+    const customRow = document.getElementById("gt-addf-customrow");
+    const customInp = document.getElementById("gt-addf-custom");
+    const valInp = document.getElementById("gt-addf-val");
+    sel.addEventListener("change", () => {
+      const isC = sel.value === "__custom__";
+      customRow.style.display = isC ? "" : "none";
+      if (isC && customInp) customInp.focus();
+    });
+    setTimeout(() => valInp && valInp.focus(), 50);
+    document.getElementById("gt-addf-cancel").onclick = () => openModal({}).close();
+    document.getElementById("gt-addf-ok").onclick = () => {
+      let tag = (sel.value === "__custom__" ? (customInp.value || "") : sel.value).trim();
+      tag = tag.replace(/[^A-Za-z0-9:_-]/g, "");   // nur gültige Tag-Zeichen
+      if (!tag) { if (customInp) customInp.focus(); return; }
+      _gtgPushUndo("EXIF-Feld hinzugefügt", { force: true });   // v0.9.359 — undoable
+      let m = _gtExifEdits.get(path);
+      if (!m) { m = new Map(); _gtExifEdits.set(path, m); }
+      m.set(tag, valInp.value);
+      _gtRefreshWriteBtn();
+      _gtRenderExif(path);
+      openModal({}).close();
+    };
+  }
+
+  // v0.9.355 — Live-Filter im EXIF-Tab: tippt man z. B. „GPS", bleiben nur Felder
+  // sichtbar, deren Tag-Name den Text enthält. Reines Zeigen/Verstecken der Zeilen
+  // (kein Re-Render), damit das Eingabefeld den Fokus behält.
+  function _gtFilterExifRows() {
+    const tbl = document.getElementById("gt-preview-exiftable");
+    if (!tbl) return;
+    const inp = document.getElementById("gt-exif-search");
+    const q = (inp ? inp.value : "").trim().toLowerCase();
+    let shown = 0;
+    tbl.querySelectorAll("tr").forEach(tr => {
+      const th = tr.querySelector("th");
+      if (!th) return;
+      const match = !q || th.textContent.toLowerCase().includes(q);
+      tr.style.display = match ? "" : "none";
+      if (match) shown++;
+    });
+    let empty = tbl.querySelector(".gt-exif-nomatch");
+    if (q && shown === 0) {
+      if (!empty) {
+        empty = document.createElement("div");
+        empty.className = "gt-pv-loading gt-exif-nomatch";
+        tbl.appendChild(empty);
+      }
+      empty.textContent = t("geotagger.exif.no_match", "Kein Feld passt zu „{q}“.").replace("{q}", q);
+      empty.style.display = "";
+    } else if (empty) {
+      empty.style.display = "none";
     }
   }
 
@@ -1491,6 +1857,8 @@ function mountGeotagger(body, headerActions) {
       done = true;
       const val = inp.value;
       let m = _gtExifEdits.get(path);
+      const isNoop = (val === disk) ? !(m && m.has(tag)) : (m && m.get(tag) === val);
+      if (!isNoop) _gtgPushUndo("EXIF-Wert geändert", { force: true });   // v0.9.359 — undoable
       if (val === disk) {
         // zurück auf Original → keine ausstehende Änderung
         if (m) { m.delete(tag); if (!m.size) _gtExifEdits.delete(path); }
@@ -1546,6 +1914,7 @@ function mountGeotagger(body, headerActions) {
       edited.display = [edited.street, edited.postcode ? `${edited.postcode} ${city}` : city, country]
         .filter(s => s && s.trim()).join(", ");
       const empty = !edited.street && !edited.postcode && !edited.city && !edited.state && !edited.country;
+      _gtgPushUndo("Adresse bearbeitet", { force: true });   // v0.9.359 — undoable
       if (empty) _gtAddr.delete(path); else _gtAddr.set(path, edited);
       openModal({}).close();
       const mm = matches.find(x => x.path === path);
@@ -1561,11 +1930,18 @@ function mountGeotagger(body, headerActions) {
     const a = t("geotagger.compass", "N,NO,O,SO,S,SW,W,NW").split(",");
     return a[Math.round(deg / 45) % 8] || "";
   }
+  // v0.9.366 — Blickrichtung wird nur ANGEZEIGT (Pin-Pfeil, Vorschau-Chip, Karten-
+  // Kompass), wenn sie laut „Was wird ins Foto geschrieben" auch geschrieben werden
+  // soll. Schalter aus → Blickrichtung überall ausblenden.
+  function _gtWriteDirection() {
+    const cb = document.getElementById("gt-wf-direction");
+    return cb ? cb.checked : true;
+  }
   function gtChipsHtml(m) {
     if (!m || m.lat == null || !m.in_range) return "";
     const c = [];
     if (m.light_phase) c.push(`<span class="gt-chip sun">${_GT_SUN_EMOJI[m.light_phase] || "☀️"} ${t("geotagger.light." + m.light_phase, m.light_phase)}</span>`);
-    if (m.dir != null) { const _ds = m.dir_src === "exif" ? "cam" : (m.dir_src === "logged" ? "logged" : (m.dir_src === "manual" ? "manual" : "move")); c.push(`<span class="gt-chip">🧭 ${gtCompass(m.dir)} ${Math.round(m.dir)}° <span class="dim">(${t("geotagger.dir." + _ds, m.dir_src)})</span></span>`); }
+    if (m.dir != null && _gtWriteDirection()) { const _ds = m.dir_src === "exif" ? "cam" : (m.dir_src === "logged" ? "logged" : (m.dir_src === "manual" ? "manual" : "move")); c.push(`<span class="gt-chip">🧭 ${gtCompass(m.dir)} ${Math.round(m.dir)}° <span class="dim">(${t("geotagger.dir." + _ds, m.dir_src)})</span></span>`); }
     if (m.light_vs_dir) c.push(`<span class="gt-chip${m.light_vs_dir === "back" ? " back" : ""}">${_GT_LVD_EMOJI[m.light_vs_dir] || "☀️"} ${t("geotagger.lvd." + m.light_vs_dir, m.light_vs_dir)}</span>`);
     return c.length ? `<div class="gt-chips">${c.join("")}</div>` : "";
   }
@@ -1630,6 +2006,7 @@ function mountGeotagger(body, headerActions) {
       const { lng, lat } = e.lngLat;
       const res = await api().geotagger_compute_offset_from_reference(selectedPath, lat, lng);
       if (!res.ok) { toast(res.error, "error"); return; }
+      _gtgPushUndo("Referenz-Offset gesetzt", { force: true });   // v0.9.359 — undoable
       setOffsetFromSeconds(res.offset_seconds);   // v0.9.354 — wirkt auf den aktuellen Kamera-Kontext
       referencePath = selectedPath;     // dieses Foto bleibt markiert als Referenz
       refMode = false;
@@ -1747,6 +2124,11 @@ function mountGeotagger(body, headerActions) {
     } catch (_) { return; }
     matches.forEach(m => {
       if (m.lat == null || m.lon == null) return;
+      // v0.9.359 (Marc-Bug): Fotos AUßERHALB der Trackzeit haben zwar eine
+      // geclampte Position (nächster Track-Punkt = oft Track-Anfang) — die gehören
+      // NICHT auf die Karte (sonst „klebt" alles am Start). Nur in_range ODER
+      // manuell platzierte Fotos bekommen einen Pin.
+      if (!m.in_range && !m.manual) return;
       if (!_gtMatchInFilter(m)) return;          // v0.9.340 — Filter wirkt auch auf die Karte
       const isManual = !!m.manual;               // v0.9.166 — manuell platziert
       const eltMarker = document.createElement("div");
@@ -1758,15 +2140,17 @@ function mountGeotagger(body, headerActions) {
       eltMarker.className = cls;
       // v0.9.333 — Blickrichtungs-Pfeil (Lichtstempel-Gimmick): zeigt die
       // Aufnahmerichtung (EXIF-Kamerakurs oder Bewegung) am Pin.
-      if (m.dir != null && m.in_range) {
+      if (m.dir != null && m.in_range && _gtWriteDirection()) {   // v0.9.366 — nur wenn Richtung geschrieben wird
         const ar = document.createElement("div");
         ar.className = "pm-dir";
         ar.style.transform = "translateX(-50%) rotate(" + m.dir + "deg)";
         eltMarker.appendChild(ar);
       }
-      eltMarker.title = isManual
-        ? (m.name || "") + " — " + t("geotagger.place.marker_title", "manuell gesetzt (ziehen zum Korrigieren)")
-        : (m.name || "");
+      // v0.9.359 — JEDER Pin lässt sich ziehen, um genau dieses eine Foto zu
+      // verschieben (auch zeitlich gematchte). Beim Loslassen wird es als manuell
+      // platziert gespeichert.
+      eltMarker.title = (m.name || "") + " — "
+        + t("geotagger.place.marker_drag", "ziehen zum Verschieben");
       // v0.9.347 — Spiderfy: liegen mehrere Pins pixelgenau übereinander, fächert
       // ein Klick sie auf (statt nur den obersten zu treffen). Klick auf ein
       // aufgefächertes Foto wählt es aus + klappt zu.
@@ -1782,13 +2166,14 @@ function mountGeotagger(body, headerActions) {
         else selectPhoto(m.path);
       });
       try {
-        const mk = new (mapLib().Marker)({ element: eltMarker, anchor: "center", draggable: isManual })
+        const mk = new (mapLib().Marker)({ element: eltMarker, anchor: "center", draggable: true })
           .setLngLat([m.lon, m.lat])
           .addTo(map);
         mk._path = m.path;
-        // v0.9.166 — manuelle Pins lassen sich zum Feinjustieren ziehen.
-        // ⌘/Toggle entscheidet, ob beim Loslassen auf den Track eingerastet wird.
-        if (isManual) mk.on("dragend", () => _gtOnMarkerDragEnd(m.path, mk));
+        // v0.9.359 — ALLE Pins ziehbar; beim Loslassen wird genau dieses Foto
+        // repositioniert (⌘/Toggle entscheidet über Track-Einrasten).
+        mk.on("dragstart", () => { _gtgPushUndo("Foto verschoben"); });
+        mk.on("dragend", () => _gtOnMarkerDragEnd(m.path, mk));
         markers.push(mk);
       } catch (err) {
         // Map kann zwischen Check und addTo zerstört worden sein (Tab-Wechsel-Race)
@@ -1939,6 +2324,7 @@ function mountGeotagger(body, headerActions) {
 
   function _gtShowCompass(m) {
     _gtHideCompass();
+    if (!_gtWriteDirection()) return;   // v0.9.366 — Richtung aus → kein Karten-Kompass
     if (isUnmounted || !map || !m || m.lat == null) return;
     if (!(m.in_range || m.manual)) return;
     try {
@@ -1996,6 +2382,7 @@ function mountGeotagger(body, headerActions) {
       paint(tmpDir);
     }
     function commit() {
+      _gtgPushUndo("Blickrichtung gesetzt", { force: true });   // v0.9.359 — undoable
       _gtDir.set(m.path, { dir: tmpDir, src: "manual" });
       m.dir = (tmpDir != null ? tmpDir : null);
       m.dir_src = (tmpDir != null ? "manual" : null);
@@ -2089,9 +2476,68 @@ function mountGeotagger(body, headerActions) {
   }
 
   // Ein Foto an lng/lat setzen. snap=true → vorher nächsten Track-Punkt suchen.
+  // v0.9.359 — Undo-Snapshot/-Restore des kompletten Geotagger-JS-State.
+  // (Foto-Add/Remove ist NICHT abgedeckt — das berührt Backend-Registrierung.)
+  function _gtUndoCaptureState() {
+    return {
+      manual: [..._gtManual.entries()].map(([p, v]) => [p, Object.assign({}, v)]),
+      exif: [..._gtExifEdits.entries()].map(([p, m]) => [p, [...m.entries()]]),
+      dir: [..._gtDir.entries()].map(([p, v]) => [p, Object.assign({}, v)]),
+      addr: [..._gtAddr.entries()].map(([p, v]) => [p, Object.assign({}, v)]),
+      unchecked: [..._gtUnchecked],
+      camOff: Object.assign({}, _gtCamOffsets),
+      globOff: _gtGlobalOffset,
+      camIgnoreGps: Object.assign({}, _gtCamIgnoreGps),   // v0.9.364
+      globIgnoreGps: _gtGlobalIgnoreGps,
+      camSetTime: Object.assign({}, _gtCamSetTime),       // v0.9.370
+      globSetTime: _gtGlobalSetTime,
+      ref: referencePath,
+    };
+  }
+  function _gtUndoRestoreState(s) {
+    if (!s) return;
+    _gtManual.clear();   (s.manual || []).forEach(([p, v]) => _gtManual.set(p, Object.assign({}, v)));
+    _gtExifEdits.clear();(s.exif   || []).forEach(([p, arr]) => _gtExifEdits.set(p, new Map(arr)));
+    _gtDir.clear();      (s.dir    || []).forEach(([p, v]) => _gtDir.set(p, Object.assign({}, v)));
+    _gtAddr.clear();     (s.addr   || []).forEach(([p, v]) => _gtAddr.set(p, Object.assign({}, v)));
+    _gtUnchecked.clear();(s.unchecked || []).forEach(p => _gtUnchecked.add(p));
+    Object.keys(_gtCamOffsets).forEach(k => delete _gtCamOffsets[k]);
+    Object.assign(_gtCamOffsets, s.camOff || {});
+    if (typeof s.globOff === "number") _gtGlobalOffset = s.globOff;
+    Object.keys(_gtCamIgnoreGps).forEach(k => delete _gtCamIgnoreGps[k]);   // v0.9.364
+    Object.assign(_gtCamIgnoreGps, s.camIgnoreGps || {});
+    if (typeof s.globIgnoreGps === "boolean") _gtGlobalIgnoreGps = s.globIgnoreGps;
+    Object.keys(_gtCamSetTime).forEach(k => delete _gtCamSetTime[k]);       // v0.9.370
+    Object.assign(_gtCamSetTime, s.camSetTime || {});
+    if (typeof s.globSetTime === "boolean") _gtGlobalSetTime = s.globSetTime;
+    referencePath = s.ref || null;
+    // alles neu aufbauen
+    try { _gtMergeManual(); } catch (_) {}
+    try { matches.forEach(_gtApplyManualDir); } catch (_) {}
+    try { _gtSyncSliderToContext(); } catch (_) {}
+    try { _gtSyncIgnoreGpsToContext(); } catch (_) {}
+    try { _gtSyncSetTimeToContext(); } catch (_) {}   // v0.9.370
+    try { updateMatches(); } catch (_) {}
+    try { redrawMarkers(); } catch (_) {}
+    try { renderPhotoGrid(); } catch (_) {}
+    try { renderFilterBar(); } catch (_) {}
+    try { updateBadges(); } catch (_) {}
+    try { updateSummary(); } catch (_) {}
+    try { _gtRefreshWriteBtn(); } catch (_) {}
+  }
+
+  // v0.9.359 — ist dieses Foto bereits auf der Karte (manuell platziert, im Track
+  // gematcht ODER mit eigenem GPS)? Dann kein erneutes Raster→Karte-Ziehen (#3).
+  function _gtPhotoIsPlaced(path) {
+    if (_gtManual.has(path)) return true;
+    const m = matches.find(x => x.path === path);
+    return !!(m && m.lat != null && (m.in_range || m.existing_gps));
+  }
+
   async function _gtPlacePhoto(path, lat, lon, snap) {
     const ph = photos.find(p => p.path === path);
     if (!ph) return;
+    _gtgPushUndo("Foto platziert", { force: true });   // v0.9.359 — undoable
     let alt = null;
     let trackTime = null;
     if (snap && _gtHasTrack()) {
@@ -2204,6 +2650,15 @@ function mountGeotagger(body, headerActions) {
       const onMove = (e) => {
         if (!dragging) {
           if (Math.hypot(e.clientX - startX, e.clientY - startY) < 6) return;
+          // v0.9.359 (Marc-Bug): schon platzierte/getaggte Fotos NICHT erneut aus
+          // dem Raster auf die Karte ziehen (führt zu Durcheinander). Zum Verschieben
+          // den Pin direkt auf der Karte ziehen.
+          if (_gtPhotoIsPlaced(path)) {
+            document.removeEventListener("mousemove", onMove, true);
+            document.removeEventListener("mouseup", onUp, true);
+            toast(t("geotagger.place.already_placed", "Schon auf der Karte — zum Verschieben den Pin direkt anfassen."), "info", 2600);
+            return;
+          }
           dragging = true;
           ghost = _gtMakeDragGhost(ph);
           document.body.classList.add("gt-dragging");
@@ -2383,6 +2838,7 @@ function mountGeotagger(body, headerActions) {
   function _gtPhotoChecked(p) { return !!(p && p.path && !_gtUnchecked.has(p.path)); }
   function _gtToggleChecked(path) {
     if (!path) return;
+    _gtgPushUndo("Häkchen umgeschaltet", { force: true });   // v0.9.359 — undoable
     if (_gtUnchecked.has(path)) _gtUnchecked.delete(path);
     else _gtUnchecked.add(path);
     updateSummary();
@@ -2392,6 +2848,8 @@ function mountGeotagger(body, headerActions) {
     if (key === "reset") { _gtFilter = null; _gtCamFilter = null; }
     else _gtFilter = (_gtFilter === key) ? null : key;
     _gtSyncSliderToContext();   // v0.9.354 — Reset stellt den Slider auf den globalen Offset
+    _gtSyncIgnoreGpsToContext();  // v0.9.364 — Checkbox folgt der gefilterten Kamera
+    _gtSyncSetTimeToContext();  // v0.9.370 — Checkbox folgt der gefilterten Kamera
     renderPhotoGrid();
     redrawMarkers();   // v0.9.340 — Filter wirkt auch auf die Karte (WYSIWYG)
     updateSummary();
@@ -2400,6 +2858,8 @@ function mountGeotagger(body, headerActions) {
   function _gtSetCamFilter(cam) {
     _gtCamFilter = (_gtCamFilter === cam) ? null : cam;
     _gtSyncSliderToContext();   // v0.9.354 — Slider folgt der gerade gefilterten Kamera
+    _gtSyncIgnoreGpsToContext();  // v0.9.364 — Checkbox folgt der gefilterten Kamera
+    _gtSyncSetTimeToContext();  // v0.9.370 — Checkbox folgt der gefilterten Kamera
     renderPhotoGrid();
     redrawMarkers();   // v0.9.340 — Filter wirkt auch auf die Karte (WYSIWYG)
     updateSummary();
@@ -2410,6 +2870,7 @@ function mountGeotagger(body, headerActions) {
   // zu löschen und neu reinzuholen. Nur für aktuell manuell platzierte Fotos.
   function _gtResyncPhoto(path) {
     if (!path || !_gtManual.has(path)) return;
+    _gtgPushUndo("Platzierung aufgehoben", { force: true });   // v0.9.359 — undoable
     _gtManual.delete(path);
     // Sofortiges Feedback bis der debounced Re-Match durch ist:
     const m = matches.find(x => x.path === path);
@@ -2440,8 +2901,41 @@ function mountGeotagger(body, headerActions) {
   // v0.9.155: Workspace-Clear läuft zentral über das rote ✕ in der GPX-Bar
   // (window.clearWorkspaceGlobal). Modul registriert nur seine Reset-Logik:
   // GPX-Track, alle Fotos, Match-Daten, Karten-Marker + Backend-State werden
-  // entfernt. Settings (Offset, Backup-Toggle, Aufnahmezeit-Adjust etc.)
-  // bleiben unverändert. DOM-Zugriffe guarded für den nicht-gemounteten Fall.
+  // entfernt. v0.9.362 (Marc): jetzt auch Filterleiste UND Zeit-Offset zurücksetzen
+  // (vorher blieben die Filter-Chips stehen und der Offset auf seinem letzten Wert).
+  // Reine Geräte-Prefs (Backup-Toggle, Kamera-Zeitzone) bleiben. DOM-Zugriffe
+  // guarded für den nicht-gemounteten Fall.
+  // v0.9.362 (Marc-Bug) — gemeinsamer Reset von Filtern, Zeit-Offset, Blickrichtungen/
+  // Adressen, Undo-Stack + Filterleiste. Wird BEIDE Wege aufgerufen: rotes ✕
+  // (_gtClearWorkspace) UND Session-Schließen (leerer onGpxLoaded). Vorher blieben
+  // die Filter-Chips oben stehen und der Offset auf seinem letzten Wert.
+  // Geräte-Prefs (Backup-Toggle, Kamera-Zeitzone) bleiben bewusst unangetastet.
+  function _gtResetFiltersAndOffset() {
+    _gtFilter = null;          // Übersicht-Filter
+    _gtCamFilter = null;       // Kamera-Filter
+    _gtUnchecked.clear();      // Tag-Auswahl
+    _gtManual.clear();         // manuelle Platzierungen
+    _gtDir.clear();            // Blickrichtungen
+    _gtAddr.clear();           // Adressen
+    try { _gtGeoSeen.clear(); } catch (_) {}
+    _gtGlobalOffset = 0;       // Zeit-Offset global + pro Kamera zurück auf 0
+    Object.keys(_gtCamOffsets).forEach(k => delete _gtCamOffsets[k]);
+    _gtGlobalIgnoreGps = false;   // v0.9.364 — Foto-GPS-Ignorieren zurücksetzen
+    Object.keys(_gtCamIgnoreGps).forEach(k => delete _gtCamIgnoreGps[k]);
+    _gtGlobalSetTime = false;     // v0.9.370 — „Zeit aus Track" zurücksetzen
+    Object.keys(_gtCamSetTime).forEach(k => delete _gtCamSetTime[k]);
+    try {
+      const _os = document.getElementById("gt-off-slider");
+      if (_os) { applySliderRange(2); _os.value = "0"; }
+      updateOffsetDisplay();
+      _gtSyncIgnoreGpsToContext();
+      _gtSyncSetTimeToContext();  // v0.9.370
+    } catch (_) {}
+    try { saveSettings({ geotagger: { offset_seconds: 0, cam_offsets: {}, ignore_gps: false, cam_ignore_gps: {}, set_time_from_track: false, cam_set_time_from_track: {} } }); } catch (_) {}
+    try { if (_gtgUndoCtrl && _gtgUndoCtrl.reset) _gtgUndoCtrl.reset(); } catch (_) {}
+    try { renderFilterBar(); } catch (_) {}
+  }
+
   async function _gtClearWorkspace() {
     // 1) Backend-State leeren
     try { await api().geotagger_clear(); } catch (_) {}
@@ -2452,10 +2946,7 @@ function mountGeotagger(body, headerActions) {
     referencePath = null;
     refMode = false;
     currentGpxPath = null;
-    _gtFilter = null;          // v0.9.163 — Übersicht-Filter zurücksetzen
-    _gtCamFilter = null;       // v0.9.164 — Kamera-Filter zurücksetzen
-    _gtUnchecked.clear();      // v0.9.164 — Tag-Auswahl zurücksetzen
-    _gtManual.clear();         // v0.9.166 — manuelle Platzierungen zurücksetzen
+    _gtResetFiltersAndOffset();  // v0.9.362 — Filter, Zeit-Offset, Richtungen/Adressen, Undo
     _gtHideTrackPopup();       // v0.9.163 — Track-Klick-Popup schließen
     // v0.9.27 (Nutzer-Feedback): persistierten Foto-State auch leeren
     try { saveSettings({ geotagger: { last_photos_dir: "", last_photos_paths: [] } }); } catch (_) {}
@@ -2485,8 +2976,9 @@ function mountGeotagger(body, headerActions) {
       _gtUpdateUnsavedBanner();
       const writeBtn = document.getElementById("gt-write");
       if (writeBtn) writeBtn.disabled = true;
-      // 6) Foto-Grid neu rendern (jetzt leer)
+      // 6) Foto-Grid + Filterleiste neu rendern (jetzt leer → Chips verschwinden)
       renderPhotoGrid();
+      renderFilterBar();   // v0.9.362 (Marc) — Filter-Chips oben mit weg
     } catch (_) {}
   }
   if (typeof registerWorkspaceResetter === "function") registerWorkspaceResetter(_gtClearWorkspace);
@@ -2591,20 +3083,30 @@ function mountGeotagger(body, headerActions) {
 
   document.getElementById("gt-write").addEventListener("click", async () => {
     const writable = matches.filter(m => m.lat != null && m.in_range && _gtMatchTaggable(m));
-    // v0.9.344 — ausstehende EXIF-Edits (Tab „EXIF") als reines Objekt sammeln
+    // v0.9.367 — Gruppen-Schalter: getrennt zusammenbauen, je nach Häkchen mitnehmen.
+    const _wf = (id) => { const e = document.getElementById(id); return e ? e.checked : true; };
+    const wfKeywords = _wf("gt-wf-keywords");   // Auto-Tag-Stichwörter
+    const wfExifEdits = _wf("gt-wf-exif");      // manuelle EXIF-Bearbeitungen
+    const wfGlobal = _wf("gt-wf-global");       // globale Felder
+    // v0.9.344/367 — ausstehende EXIF-Edits aufteilen: „Keywords" (Bilderkennung) vs.
+    // sonstige manuelle Edits; jede Gruppe nur, wenn ihr Schalter an ist.
     const exifEdits = {};
+    let manualCount = 0, keywordCount = 0;
     _gtExifEdits.forEach((mm, p) => {
-      const o = {}; mm.forEach((v, k) => { o[k] = v; });
-      if (Object.keys(o).length) exifEdits[p] = o;
+      mm.forEach((v, k) => {
+        const isKw = (k === "Keywords");
+        if (isKw) { keywordCount++; if (!wfKeywords) return; }
+        else { manualCount++; if (!wfExifEdits) return; }
+        (exifEdits[p] = exifEdits[p] || {})[k] = v;
+      });
     });
-    const exifEditCount = _gtPendingExifCount();
+    const exifEditCount = (wfExifEdits ? manualCount : 0) + (wfKeywords ? keywordCount : 0);
 
-    // v0.9.346 — globale Felder (Urheber/Copyright/…) auf alle sichtbaren/angehakten
-    // Fotos mergen. Pro-Foto-Edits haben Vorrang (überschreiben globale Tags).
+    // v0.9.346/367 — globale Felder (Urheber/Copyright/…) nur mergen wenn Gruppe an.
     const globalTags = _gtGlobalTags();
     const globalFieldCount = _gtGlobalActiveCount();
     const globalTargets = _gtGlobalTargetPhotos();
-    const globalActive = Object.keys(globalTags).length > 0 && globalTargets.length > 0;
+    const globalActive = wfGlobal && Object.keys(globalTags).length > 0 && globalTargets.length > 0;
     if (globalActive) {
       globalTargets.forEach(p => {
         exifEdits[p.path] = Object.assign({}, globalTags, exifEdits[p.path] || {});
@@ -2621,9 +3123,13 @@ function mountGeotagger(body, headerActions) {
     const writeFields = getWriteFields();
 
     const writeMode = (document.getElementById("gt-write-mode") || {}).value || "fill";
-    const backup = document.getElementById("gt-backup").checked;
+    const backup = false;   // v0.9.372 — kein Backup-ZIP mehr (Originale unangetastet)
     const adjustTime = document.getElementById("gt-adjust-time").checked;
-    const setTimeFromTrack = !!(document.getElementById("gt-set-time-from-track") || {}).checked;
+    // v0.9.370 — „Aufnahmezeit auf Track-Zeit setzen" pro Kamera (globaler Default
+    // + Override je Kamera, greift im Backend pro Foto). Ersetzt den alten globalen
+    // Schalter aus der „Manuell platzieren"-Sektion.
+    const setTimeFromTrack = _gtGlobalSetTime;
+    const camSetTime = Object.assign({}, _gtCamSetTime);
     // v0.9.354 — globaler Default; Pro-Kamera-Offsets gehen separat als cam_offsets
     // ins Backend (greift dort pro Foto, auch für die Aufnahmezeit-Korrektur).
     const offsetSec = _gtGlobalOffset;
@@ -2650,6 +3156,11 @@ function mountGeotagger(body, headerActions) {
     const timeAdjustBlock = (adjustTime && (offsetSec !== 0 || _hasCamOff))
       ? `<div class="modal-stat-row"><span class="label">⏰ Foto-Aufnahmezeit anpassen</span><span class="val" style="color:var(--warn)">${toWrite} × ${offsetTxt}</span></div>`
       : '';
+    // v0.9.370 — wie viele Fotos bekommen ihre Aufnahmezeit aus der Track-Zeit gesetzt.
+    const _setTimeCount = writable.filter(m => _gtEffectiveSetTime(m.camera || _GT_CAM_UNKNOWN)).length;
+    const setTimeBlock = _setTimeCount
+      ? `<div class="modal-stat-row"><span class="label">🕒 ${t("geotagger.settime.summary_row", "Aufnahmezeit auf Track-Zeit")}</span><span class="val" style="color:var(--warn)">${_setTimeCount}</span></div>`
+      : '';
     const summary = `
       <div class="modal-stat-row"><span class="label">Erkannte Fotos im Track</span><span class="val">${writable.length}</span></div>
       <div class="modal-stat-row"><span class="label">Davon mit bereits gesetztem GPS</span><span class="val">${withExisting}</span></div>
@@ -2658,10 +3169,12 @@ function mountGeotagger(body, headerActions) {
       ${exifEditCount ? `<div class="modal-stat-row"><span class="label">✎ ${t("geotagger.exif.summary_row", "Bearbeitete EXIF-Felder")}</span><span class="val" style="color:var(--accent)">${exifEditCount}</span></div>` : ''}
       ${globalActive ? `<div class="modal-stat-row"><span class="label">🌐 ${t("geotagger.gf.summary_row", "Globale Felder")}</span><span class="val" style="color:var(--accent)">${globalFieldCount} × ${globalTargets.length} ${t("geotagger.gf.summary_photos", "Fotos")}</span></div>` : ''}
       ${timeAdjustBlock}
-      ${backup ? `
-        <p class="muted" style="margin-top:14px">📦 Backup-ZIP wird angelegt unter:</p>
-        <div class="mono" style="font-size:11px; padding:6px 10px; background:var(--bg-3); border-radius:6px; word-break:break-all; color:var(--text-dim);">${paths.backups_photos}</div>
-      ` : '<p style="margin-top:14px; color:var(--warn)">⚠️ Kein Backup wird angelegt!</p>'}
+      ${setTimeBlock}
+      <p class="muted" style="margin-top:14px; line-height:1.45; font-size:12px">
+        💾 Gleich wählst du einen <b>Zielordner</b> — dorthin schreiben wir die
+        getaggten Kopien. Deine <b>Originale bleiben unangetastet</b> (sie sind damit
+        selbst die Sicherung).
+      </p>
     `;
 
     // Nichts zu tun nur, wenn weder GPS noch EXIF-Edits noch globale Felder anstehen
@@ -2682,17 +3195,49 @@ function mountGeotagger(body, headerActions) {
       openModal({ closable: true }).close();
     };
     document.getElementById("modal-ok").onclick = async () => {
-      runWriteWithProgress(writable, backup, writeMode, adjustTime, offsetSec, setTimeFromTrack, writeFields, exifEdits, camOffsets);
+      openModal({}).close();   // Bestätigungs-Modal schließen
+      // v0.9.372 — Zielordner wählen: getaggte KOPIEN landen dort, Originale bleiben
+      // unangetastet (= das Backup selbst). Kein ZIP, kein „danach exportieren" mehr.
+      const folders = await api().pick_file("folder");
+      if (!folders || !folders.length) return;   // abgebrochen
+      const destDir = folders[0];
+      // Würde eine Kopie auf ein Original fallen (Zielordner == Ordner echter
+      // Originale)? Nur für „Ordner wählen"-Fotos relevant — Drops liegen unter _drops/.
+      const norm = (s) => (s || "").replace(/[\\/]+$/, "");
+      const parentDir = (p) => norm((p || "").replace(/[\\/][^\\/]*$/, ""));
+      const wouldOverwrite = writable.some(m =>
+        !/[\\/]_drops[\\/]/.test(m.path || "") && parentDir(m.path) === norm(destDir));
+      let overwriteOriginals = false;
+      if (wouldOverwrite) {
+        overwriteOriginals = await new Promise((resolve) => {
+          openModal({
+            title: "Originale überschreiben?",
+            body: `<p style="line-height:1.5">Das ist der Ordner deiner <b>Originale</b>.
+                   Sollen die Originale hier wirklich <b>überschrieben</b> werden?
+                   <br><span style="color:var(--warn)">Ohne Backup — das lässt sich nicht rückgängig machen.</span></p>`,
+            footer: `<button class="btn" id="ov-cancel">Abbrechen</button>
+                     <button class="btn btn-danger" id="ov-ok">Ja, überschreiben</button>`,
+          });
+          document.getElementById("ov-cancel").onclick = () => { openModal({}).close(); resolve(false); };
+          document.getElementById("ov-ok").onclick = () => { openModal({}).close(); resolve(true); };
+        });
+        if (!overwriteOriginals) return;   // abgebrochen → nichts schreiben
+      }
+      runWriteWithProgress(writable, backup, writeMode, adjustTime, offsetSec, setTimeFromTrack,
+        writeFields, exifEdits, camOffsets, camSetTime, destDir, overwriteOriginals);
     };
   });
 
-  async function runWriteWithProgress(writable, backup, writeMode, adjustTime, offsetSec, setTimeFromTrack, writeFields, exifEdits, camOffsets) {
+  async function runWriteWithProgress(writable, backup, writeMode, adjustTime, offsetSec, setTimeFromTrack, writeFields, exifEdits, camOffsets, camSetTime, destDir, overwriteOriginals) {
     const res = await api().geotagger_start_write(
       writable, backup, (writeMode === "overwrite"), adjustTime, offsetSec, !!setTimeFromTrack,
       writeFields || { gps: true, altitude: true, direction: true, address: true },
       writeMode || "fill",
       exifEdits || {},
-      camOffsets || {}    // v0.9.354 — Pro-Kamera-Offsets
+      camOffsets || {},   // v0.9.354 — Pro-Kamera-Offsets
+      camSetTime || {},   // v0.9.370 — Pro-Kamera „Zeit aus Track"
+      destDir || "",      // v0.9.372 — Zielordner für die getaggten Kopien
+      !!overwriteOriginals // v0.9.372 — Originale bewusst überschreiben (bestätigt)
     );
     if (!res.ok) {
       openModal({ title: "Fehler", body: `<p>${res.error}</p>`,
@@ -2752,23 +3297,14 @@ function mountGeotagger(body, headerActions) {
     const errBlock = (s.errors && s.errors.length)
       ? `<div class="modal-error-list">${errLines}${s.errors.length > 8 ? `<div>+${s.errors.length - 8} weitere</div>` : ''}</div>`
       : '';
-    const bk = s.backup_path
-      ? `<div class="modal-stat-row"><span class="label">Backup-ZIP</span><span class="val mono">${s.backup_path.split('/').pop()}</span></div>`
+    // v0.9.372 — Neues Modell: getaggte Fotos liegen als Kopien im gewählten
+    // Zielordner (Originale unangetastet). Kein Export-Schritt, kein Backup-ZIP mehr.
+    const dir = s.saved_dir || "";
+    const dirName = dir ? dir.replace(/[\\/]+$/, "").split(/[\\/]/).pop() : "";
+    const savedRow = (dir && !canceled && s.done > 0)
+      ? `<div class="modal-stat-row"><span class="label">Gespeichert in</span><span class="val mono">${dirName}</span></div>`
       : '';
-
-    // v0.9.152: Per Drag&Drop importierte Fotos liegen als Wegwerf-Kopien unter
-    // _drops/ — die WebView liefert keinen Original-Pfad. Der GPS-Write landete
-    // daher in den Kopien, NICHT in den Originalen. Damit der User die getaggten
-    // Dateien trotzdem bekommt, bieten wir hier den Export in einen Zielordner an.
-    const dropHint = (s.from_drops && !canceled && s.done > 0)
-      ? `<div class="modal-stat-row" style="display:block;margin-top:8px;line-height:1.4">
-           <span class="muted" style="font-size:12px">Diese Fotos wurden per Drag&amp;Drop importiert — die GPS-Daten
-           stehen in App-internen Kopien, nicht in deinen Original-Dateien. Klick auf
-           <b>„Getaggte Fotos speichern …"</b>, um die fertig getaggten Bilder in einen
-           Ordner deiner Wahl zu exportieren. (Tipp: Wer Originale direkt taggen will,
-           lädt sie über <b>„Ordner wählen"</b> statt per Drag&amp;Drop.)</span>
-         </div>`
-      : '';
+    const canOpen = dir && !canceled && s.done > 0;
 
     openModal({
       title: canceled ? "Abgebrochen" : "Fertig",
@@ -2776,23 +3312,17 @@ function mountGeotagger(body, headerActions) {
         <div class="modal-stat-row"><span class="label">Fotos getaggt</span><span class="val" style="color:var(--success)">${s.done}</span></div>
         ${s.skipped ? `<div class="modal-stat-row"><span class="label">Fehler / übersprungen</span><span class="val" style="color:var(--danger)">${s.skipped}</span></div>` : ''}
         ${s.skipped_existing ? `<div class="modal-stat-row"><span class="label">Bereits getaggt (übersprungen)</span><span class="val muted">${s.skipped_existing}</span></div>` : ''}
-        ${bk}
+        ${savedRow}
         ${errBlock}
-        ${dropHint}
       `,
       footer: `
-        ${(s.from_drops && !canceled && s.done > 0) ? '<button class="btn btn-primary" id="md-export">Getaggte Fotos speichern …</button>' : ''}
-        ${s.backup_path ? '<button class="btn" id="md-finder">Backup im Finder</button>' : ''}
-        <button class="btn ${(s.from_drops && !canceled && s.done > 0) ? '' : 'btn-primary'}" id="md-ok">OK</button>
+        ${canOpen ? '<button class="btn btn-primary" id="md-open">Ordner öffnen</button>' : ''}
+        <button class="btn ${canOpen ? '' : 'btn-primary'}" id="md-ok">OK</button>
       `,
       closable: true,
     });
-    if (s.backup_path) {
-      document.getElementById("md-finder").onclick = () => api().reveal_in_finder(s.backup_path);
-    }
-    const exportBtn = document.getElementById("md-export");
-    if (exportBtn) {
-      exportBtn.onclick = () => exportTaggedDrops();
+    if (canOpen) {
+      document.getElementById("md-open").onclick = () => { api().reveal_in_finder(dir); };
     }
     document.getElementById("md-ok").onclick = () => openModal({}).close();
 
