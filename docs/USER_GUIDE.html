@@ -187,10 +187,11 @@
 <ol>
 <li><code>.dmg</code> doppelklicken</li>
 <li>App per Drag &amp; Drop in den <strong>Programme</strong>-Ordner ziehen</li>
-<li>Beim <strong>ersten Start</strong>: <strong>Rechtsklick</strong> (oder Ctrl+Klick) auf „Reisezoom GPS Studio&quot; → <strong>Öffnen</strong> → im Dialog noch mal <strong>Öffnen</strong> bestätigen.</li>
+<li>Beim <strong>ersten Start</strong> fragt macOS einmal kurz nach („… ist eine aus dem Internet geladene App. Möchtest du sie wirklich öffnen?&quot; — mit dem Hinweis, dass Apple sie geprüft und <strong>keine Malware gefunden</strong> hat) → auf <strong>„Öffnen&quot;</strong> klicken.</li>
 <li>Ab dem zweiten Start reicht normaler Doppelklick.</li>
 </ol>
-<p>Falls macOS sagt „beschädigt und kann nicht geöffnet werden&quot;:</p>
+<blockquote>Die App ist von <strong>Apple signiert und notarisiert</strong> — die frühere „nicht verifizierter Entwickler&quot;-Blockade gibt es nicht mehr. Die einmalige „Wirklich öffnen?&quot;-Frage zeigt macOS bei <strong>jeder</strong> aus dem Netz geladenen App (auch bei signierten) und kommt nur beim ersten Mal.</blockquote>
+<p>Falls macOS ausnahmsweise „beschädigt und kann nicht geöffnet werden&quot; sagt (z.B. nach einem unvollständigen Download):</p>
 <pre><code class="lang-bash">xattr -dr com.apple.quarantine &quot;/Applications/Reisezoom GPS Studio.app&quot;</code></pre>
 <h3 id="windows">Windows</h3>
 <ol>
@@ -200,20 +201,21 @@
 <li>Fertig — App startet automatisch und legt einen Start-Menü-Eintrag an</li>
 <li>Beim ersten Render lädt die App noch Chromium nach (~150 MB, einmalig, dauert 1-2 Min)</li>
 </ol>
+<blockquote><strong>Ganz sichergehen?</strong> Die Windows-Version ist (noch) nicht signiert. Wer möchte, kann die heruntergeladene <code>.exe</code> vorab bei einem Dienst wie <a href="https://www.virustotal.com" target="_blank" rel="noopener">VirusTotal</a> gegenprüfen — die Builds stammen aus einer automatisierten GitHub-Pipeline ohne manuelle Zwischenschritte.</blockquote>
 <p>Deinstallieren wie jede andere Windows-App: <strong>Systemsteuerung → Apps &amp; Features → Reisezoom GPS Studio → Deinstallieren</strong>.</p>
 <h3 id="linux-aus-quellcode">Linux (aus Quellcode)</h3>
 <p>Für Linux gibt es <strong>kein fertiges Binary</strong> — das Karten-/Render-Backend (pywebview) braucht die System-GTK-/WebKit-Bindings, die sich nicht zuverlässig in ein Einzel-Binary packen lassen. Stattdessen läuft die App direkt aus dem (offenen) Quellcode:</p>
 <p><strong>1. System-Pakete</strong> (einmalig — inkl. ffmpeg + ExifTool für Render &amp; Foto-Metadaten):</p>
 <pre><code class="lang-bash"># Fedora / RHEL
-sudo dnf install python3 python3-gobject gobject-introspection \
+sudo dnf install git python3 python3-gobject gobject-introspection \
                  webkit2gtk4.1 python3-cairo ffmpeg perl-Image-ExifTool
 
 # Debian / Ubuntu
-sudo apt install python3 python3-venv python3-gi python3-gi-cairo \
+sudo apt install git python3 python3-venv python3-gi python3-gi-cairo \
                  gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0 ffmpeg libimage-exiftool-perl
 
 # Arch
-sudo pacman -S python python-gobject webkit2gtk-4.1 ffmpeg perl-image-exiftool</code></pre>
+sudo pacman -S git python python-gobject webkit2gtk-4.1 ffmpeg perl-image-exiftool</code></pre>
 <p><strong>2. Repo holen &amp; starten:</strong></p>
 <pre><code class="lang-bash">git clone https://github.com/docarzt123/reisezoom-gps-studio.git
 cd reisezoom-gps-studio
