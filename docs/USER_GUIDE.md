@@ -18,9 +18,11 @@ Lade dir die richtige Version für dein Betriebssystem:
 
 | Plattform | Datei | Link |
 |-----------|-------|------|
-| macOS (Apple Silicon) | `ReisezoomGPSStudio-macos.dmg` | https://s.reisezoom.com/gps-studio-mac |
+| macOS (Apple Silicon, M1 oder neuer) | `ReisezoomGPSStudio-macos.dmg` | https://s.reisezoom.com/gps-studio-mac |
 | Windows (x64) | `ReisezoomGPSStudio-windows-setup.exe` | https://s.reisezoom.com/gps-studio-win |
 | Linux (x64) | aus Quellcode | siehe **Linux**-Abschnitt unten |
+
+> **⚠️ macOS nur mit Apple Silicon (M1/M2/M3/…).** Ältere **Intel-Macs werden nicht unterstützt** — die App startet dort nicht. Ob du einen Apple-Silicon-Mac hast, siehst du unter  → **Über diesen Mac**: steht dort „Chip: Apple M…", passt es; steht dort „Prozessor: Intel", leider nicht.
 
 **Auf macOS & Windows brauchst du nichts extra installieren** — `ffmpeg` und `exiftool` sind in der App enthalten. **Linux** läuft direkt aus dem Quellcode (System-Pakete + `python app.py`, siehe unten).
 
