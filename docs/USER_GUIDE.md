@@ -435,7 +435,7 @@ Reiseroute ist ein **vollwertiger Klon des Animators**: alles was dort geht (Kar
 ### Workflow
 1. **GPX laden** (die Wanderung) — ganz normal über die GPX-Leiste. Im Reiseroute-Tab erscheint sie automatisch als **Ghost** (schwache Linie).
 2. Bereich **„🛫 Route / Anreise"**: **Stil** wählen — **🛣️ Straße folgen** (Mapbox-Route) oder **✈️ Flugroute (Großkreis)** (kürzester Weg auf der Kugel, wie echte Flüge — wölbt sich auf der Karte polwärts).
-3. **Start + Ziel** angeben: als **Adresse/Ort** (z.B. „Dresden Hauptbahnhof"), per **📍 Klick auf die Karte**, oder als `lat,lon`.
+3. **Stationen** angeben — **Start, beliebig viele Zwischenziele und Ziel**. Jede Station als **Adresse/Ort** (z.B. „Dresden Hauptbahnhof") tippen, per **📍 Klick auf die Karte** setzen, oder als `lat,lon`. **„➕ Zwischenziel"** fügt eine Station vor dem Ziel ein; **✕** entfernt eine. Mit **„📍 Klick-Modus"** klickst du die Stationen einfach **nacheinander auf die Karte** — jeder Klick erscheint als neue Station in der Liste (Esc beendet). Praktisch, wenn die echte Strecke (z.B. eine Fähre) nicht dem direkten Weg folgt.
 4. Bei „Straße folgen": **Fortbewegung** (Auto/Fuß/Rad) + **Detailgrad**-Slider (fein → grob). Grob macht eine bewusst **geschwungene, vereinfachte** Linie, die sich locker an der Route orientiert (nicht so kleinteilig wie eine echte Wanderung). Die Animation bleibt dabei immer flüssig.
 5. **„Route berechnen"** → die Strecke wird als animierter Track geladen, die Wanderung bleibt als Ghost dahinter. Distanz + Fahrtzeit stehen unter dem Button.
 6. Wie im Animator weiter: Probelauf, Kamera, Schilder, **Video rendern**.
@@ -446,7 +446,7 @@ Reiseroute ist ein **vollwertiger Klon des Animators**: alles was dort geht (Kar
 Bereich **„👻 GPX-Ghost"**: anzeigen an/aus, **Farbe**, **Deckkraft**, **Linienbreite**, **gestrichelt**. Wirkt live in der Vorschau und im gerenderten Video. (Im Reiseroute-Modul sind dafür die Stats-Overlays ausgeblendet.)
 
 ### Wird gespeichert
-Start, Ziel, Stil, Detailgrad, Profil **und die zuletzt berechnete Route** werden im Projekt gespeichert — nach einem Neustart ist alles wieder da (die Route erscheint ohne erneutes Berechnen).
+Alle Stationen (Start, Zwischenziele, Ziel), Stil, Detailgrad, Profil **und die zuletzt berechnete Route** werden im Projekt gespeichert — nach einem Neustart ist alles wieder da (die Route erscheint ohne erneutes Berechnen).
 
 ### Braucht einen Mapbox-Token
 Straßen-Routen + Adress-Suche laufen über Mapbox (derselbe Token wie die Karte, siehe Erste Schritte). Die Flugroute (Großkreis) braucht keinen API-Call.

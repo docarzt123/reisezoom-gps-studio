@@ -783,5 +783,14 @@
 .route-pt-row .btn { flex: 0 0 auto; padding: 6px 9px; }
 .route-pt-resolved { font-size: 11px; margin-top: 3px; min-height: 14px; color: var(--accent, #ff6b35); }
 
+/* v0.9.386 — Wegpunkt-Liste (Start · Zwischenziele · Ziel) */
+.route-wp { margin-bottom: 9px; }
+.route-wp-head { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.route-wp-badge { font-size: 12px; line-height: 1; }
+.route-wp-role { font-size: 11px; font-weight: 600; opacity: 0.85; }
+.route-wp-del { color: #ff6b6b; }
+.route-wp-actions { display: flex; gap: 6px; margin-top: 2px; }
+.route-wp-actions .btn { flex: 1; padding: 6px 8px; font-size: 12px; }
+
 /* v0.9.208 — Route-Detailgrad-Slider Endpunkt-Labels (fein → grob) */
 .route-coarse-ends { display: flex; justify-content: space-between; font-size: 10px; margin-top: 2px; opacity: 0.7; }

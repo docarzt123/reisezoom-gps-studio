@@ -96,21 +96,14 @@ function mountAnimator(body, headerActions, opts) {
               <label class="seg-opt"><input type="radio" name="route-mode" value="arc"> <span>${t("route.mode.arc", "✈️ Flugroute")}</span></label>
             </div>
           </div>
+          <!-- v0.9.386 — N Wegpunkte: Start · Zwischenziele · Ziel. Dynamisch. -->
           <div class="field">
-            <label class="field-label" for="route-start-input">${t("route.start", "Start")}</label>
-            <div class="route-pt-row">
-              <input type="text" id="route-start-input" placeholder="${t("route.placeholder", "Adresse / Ort oder lon,lat")}">
-              <button type="button" class="btn btn-subtle" id="route-start-pick" title="${t("route.pick", "Auf der Karte klicken")}">📍</button>
+            <label class="field-label">${t("route.points", "Stationen")}</label>
+            <div id="route-wps"></div>
+            <div class="route-wp-actions">
+              <button type="button" class="btn btn-subtle" id="route-add-wp">${t("route.add_wp", "➕ Zwischenziel")}</button>
+              <button type="button" class="btn btn-subtle" id="route-chain" title="${t("route.chain.title", "Punkte nacheinander auf die Karte klicken")}">${t("route.chain", "📍 Klick-Modus")}</button>
             </div>
-            <div class="route-pt-resolved muted" id="route-start-resolved"></div>
-          </div>
-          <div class="field">
-            <label class="field-label" for="route-end-input">${t("route.end", "Ziel")}</label>
-            <div class="route-pt-row">
-              <input type="text" id="route-end-input" placeholder="${t("route.placeholder", "Adresse / Ort oder lon,lat")}">
-              <button type="button" class="btn btn-subtle" id="route-end-pick" title="${t("route.pick", "Auf der Karte klicken")}">📍</button>
-            </div>
-            <div class="route-pt-resolved muted" id="route-end-resolved"></div>
           </div>
           <div class="field" id="route-profile-field">
             <label class="field-label" for="route-profile">${t("route.profile", "Fortbewegung")}</label>
@@ -6663,40 +6656,119 @@ function mountAnimator(body, headerActions, opts) {
     // ── v0.9.205 — Route / Anreise ───────────────────────────────────────────
     // Start+Ziel → Mapbox Directions (Straße) ODER Flug-Bogen → synthetisches
     // GPX → loadGlobalGpx → wie ein normaler Track animiert.
-    let _routePick = null;     // null | "start" | "end" — aktiver Karten-Pick
-    let _routeStart = null;    // {lon,lat} aus Karten-Klick
-    let _routeEnd = null;
+    // v0.9.386 — Reiseroute mit N Wegpunkten: [{text, lon, lat, label}].
+    // Index 0 = Start, letzter = Ziel, dazwischen = Zwischenziele.
+    function _mkWp() { return { text: "", lon: null, lat: null, label: null }; }
+    let _routeWps = [_mkWp(), _mkWp()];
+    let _routePick = null;     // null | Zeilen-Index — aktiver per-Zeile-Karten-Pick
+    let _routeChain = false;   // Klick-Modus: jeder Kartenklick hängt eine Station an
     let _routeBusy = false;
     function _routeStatus(msg, kind) {
       const el = document.getElementById("route-status");
       if (el) { el.textContent = msg || ""; el.style.color = (kind === "err") ? "#ff6b6b" : ""; }
     }
     function _routeFmt(lon, lat) { return `${lat.toFixed(5)}, ${lon.toFixed(5)}`; }
-    function _routeSetResolved(which, label, lon, lat) {
-      const el = document.getElementById(`route-${which}-resolved`);
-      if (el) el.textContent = label ? `✓ ${label}` : `✓ ${_routeFmt(lon, lat)}`;
+    function _routeRole(i) {
+      if (i === 0) return t("route.start", "Start");
+      if (i === _routeWps.length - 1) return t("route.end", "Ziel");
+      return t("route.via", "Zwischenziel");
     }
-    function _routeSetPickMode(which) {
-      _routePick = which || null;
-      const sb = document.getElementById("route-start-pick");
-      const eb = document.getElementById("route-end-pick");
-      if (sb) sb.classList.toggle("btn-primary", _routePick === "start");
-      if (eb) eb.classList.toggle("btn-primary", _routePick === "end");
+    function _routeBadge(i) {
+      if (i === 0) return "🟢";
+      if (i === _routeWps.length - 1) return "🏁";
+      return "🔵";
+    }
+    // Baut die Wegpunkt-Liste in der Sidebar neu auf (Tippen verliert keinen Fokus:
+    // input-Listener re-rendert NICHT, nur pick/add/del/restore tun das).
+    function _routeRenderWps() {
+      const cont = document.getElementById("route-wps");
+      if (!cont) return;
+      const n = _routeWps.length;
+      cont.innerHTML = _routeWps.map((w, i) => {
+        const resolved = w.label ? `✓ ${w.label}` : (w.lon != null ? `✓ ${_routeFmt(w.lon, w.lat)}` : "");
+        const del = n > 2 ? `<button type="button" class="btn btn-subtle route-wp-del" data-i="${i}" title="${t("route.remove", "Entfernen")}">✕</button>` : "";
+        const active = _routePick === i ? " btn-primary" : "";
+        const val = String(w.text || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+        return `
+          <div class="route-wp" data-i="${i}">
+            <div class="route-wp-head"><span class="route-wp-badge">${_routeBadge(i)}</span><span class="route-wp-role">${_routeRole(i)}</span></div>
+            <div class="route-pt-row">
+              <input type="text" class="route-wp-input" data-i="${i}" value="${val}" placeholder="${t("route.placeholder", "Adresse / Ort oder lon,lat")}">
+              <button type="button" class="btn btn-subtle route-wp-pick${active}" data-i="${i}" title="${t("route.pick", "Auf der Karte klicken")}">📍</button>
+              ${del}
+            </div>
+            <div class="route-pt-resolved muted route-wp-resolved" data-i="${i}">${resolved}</div>
+          </div>`;
+      }).join("");
+      cont.querySelectorAll(".route-wp-input").forEach((inp) => {
+        inp.addEventListener("input", () => {
+          const i = +inp.dataset.i, w = _routeWps[i];
+          if (w) { w.text = inp.value; w.lon = null; w.lat = null; w.label = null; }
+        });
+        inp.addEventListener("change", () => _routePersist());
+      });
+      cont.querySelectorAll(".route-wp-pick").forEach((b) => b.addEventListener("click", () => {
+        const i = +b.dataset.i; _routeSetPickMode(_routePick === i ? null : i);
+      }));
+      cont.querySelectorAll(".route-wp-del").forEach((b) => b.addEventListener("click", () => _routeRemoveWp(+b.dataset.i)));
+    }
+    function _routeCursor() {
       const cont = map && map.getCanvas ? map.getCanvas() : null;
-      if (cont) cont.style.cursor = _routePick ? "crosshair" : "";
-      if (_routePick) {
-        const lbl = _routePick === "start" ? t("route.start", "Start") : t("route.end", "Ziel");
-        try { toast(t("route.pick_toast", "📍 Klick auf die Karte für:") + " " + lbl + " (Esc bricht ab)", "info", 4000); } catch (_) {}
+      if (cont) cont.style.cursor = (_routePick != null || _routeChain) ? "crosshair" : "";
+    }
+    function _routeSyncChainBtn() {
+      const cb = document.getElementById("route-chain");
+      if (cb) cb.classList.toggle("btn-primary", _routeChain);
+    }
+    function _routeSetPickMode(idx) {
+      _routePick = (idx == null ? null : idx);
+      if (_routePick != null) _routeChain = false;
+      _routeSyncChainBtn();
+      _routeRenderWps();
+      _routeCursor();
+      if (_routePick != null) {
+        try { toast(t("route.pick_toast", "📍 Klick auf die Karte für:") + " " + _routeRole(_routePick) + " (Esc bricht ab)", "info", 4000); } catch (_) {}
       }
     }
+    function _routeSetChain(on) {
+      _routeChain = !!on;
+      if (_routeChain) _routePick = null;
+      _routeSyncChainBtn();
+      _routeRenderWps();
+      _routeCursor();
+      if (_routeChain) { try { toast(t("route.chain_toast", "📍 Nacheinander auf die Karte klicken — jeder Klick fügt eine Station hinzu (Esc beendet)."), "info", 4500); } catch (_) {} }
+    }
+    function _routeAddWp() {
+      const insAt = Math.max(1, _routeWps.length - 1);  // vor dem Ziel einfügen
+      _routeWps.splice(insAt, 0, _mkWp());
+      _routePick = null;  // Index-Verschiebung → aktiven Pick sicherheitshalber lösen
+      _routeRenderWps();
+      _routePersist();
+      try { const inp = document.querySelector(`.route-wp-input[data-i="${insAt}"]`); if (inp) inp.focus(); } catch (_) {}
+    }
+    function _routeRemoveWp(i) {
+      if (_routeWps.length <= 2) return;
+      _routeWps.splice(i, 1);
+      _routePick = null;  // Index-Verschiebung → aktiven Pick lösen
+      _routeRenderWps();
+      _routePersist();
+    }
     function _routeOnMapClick(e) {
-      if (!_routePick) return false;
-      const which = _routePick;
+      if (_routePick == null && !_routeChain) return false;
       const lon = e.lngLat.lng, lat = e.lngLat.lat;
-      if (which === "start") _routeStart = { lon, lat }; else _routeEnd = { lon, lat };
-      const input = document.getElementById(`route-${which}-input`);
-      if (input) input.value = _routeFmt(lon, lat);  // lat,lon
-      _routeSetResolved(which, null, lon, lat);
+      if (_routeChain) {
+        // Klick-Kette: ersten leeren Slot füllen, sonst neuen Punkt anhängen
+        // (letzter = Ziel; ein neu angehängter Punkt wird das neue Ziel).
+        let target = _routeWps.findIndex((w) => w.lon == null && !String(w.text || "").trim());
+        if (target < 0) { _routeWps.push(_mkWp()); target = _routeWps.length - 1; }
+        const w = _routeWps[target];
+        w.lon = lon; w.lat = lat; w.label = null; w.text = _routeFmt(lon, lat);
+        _routeRenderWps();
+        _routePersist();
+        return true;  // Kette bleibt aktiv für weitere Klicks
+      }
+      const w = _routeWps[_routePick];
+      if (w) { w.lon = lon; w.lat = lat; w.label = null; w.text = _routeFmt(lon, lat); }
       _routeSetPickMode(null);
       _routePersist();
       return true;
@@ -6706,16 +6778,20 @@ function mountAnimator(body, headerActions, opts) {
     function _routePersist(extra) {
       if (!_isReiseroute || typeof saveProjectSettings !== "function") return;
       try {
+        const first = _routeWps[0] || _mkWp();
+        const last = _routeWps[_routeWps.length - 1] || _mkWp();
         const patch = {
-          route_start_text: (document.getElementById("route-start-input") || {}).value || "",
-          route_end_text: (document.getElementById("route-end-input") || {}).value || "",
-          route_start_lonlat: _routeStart || null,
-          route_end_lonlat: _routeEnd || null,
+          route_wps: _routeWps.map((w) => ({ text: w.text || "", lon: (w.lon != null ? w.lon : null), lat: (w.lat != null ? w.lat : null), label: w.label || null })),
           route_mode: (document.querySelector('input[name="route-mode"]:checked') || {}).value || "road",
           // v0.9.231 — KEIN `|| 55`: bei „fein" ist der Slider-Wert 0, und 0 ist
           // in JS falsy → `|| 55` machte aus fein heimlich grob (0.55). isNaN-Guard.
           route_coarseness: (function(){ const v = parseFloat((document.getElementById("route-coarse") || {}).value); return isNaN(v) ? 55 : v; })(),
           route_profile: (document.getElementById("route-profile") || {}).value || "driving",
+          // Legacy-Kompat (erste/letzte Station) — für ältere Projekt-Reader.
+          route_start_text: first.text || "",
+          route_end_text: last.text || "",
+          route_start_lonlat: (first.lon != null ? { lon: first.lon, lat: first.lat } : null),
+          route_end_lonlat: (last.lon != null ? { lon: last.lon, lat: last.lat } : null),
         };
         if (extra) Object.assign(patch, extra);
         saveProjectSettings(_MODKEY, patch);
@@ -6727,11 +6803,10 @@ function mountAnimator(body, headerActions, opts) {
     // (= „neues Projekt dupliziert die Route statt sie zurückzusetzen").
     function _routeReset() {
       if (!_isReiseroute) return;
-      _routeStart = null; _routeEnd = null;
-      const si = document.getElementById("route-start-input"); if (si) si.value = "";
-      const ei = document.getElementById("route-end-input");   if (ei) ei.value = "";
-      const sr = document.getElementById("route-start-resolved"); if (sr) sr.textContent = "";
-      const er = document.getElementById("route-end-resolved");   if (er) er.textContent = "";
+      _routeWps = [_mkWp(), _mkWp()];
+      _routePick = null; _routeChain = false;
+      _routeSyncChainBtn();
+      _routeRenderWps();
       try { _routeStatus(""); } catch (_) {}
       // Geladenen Route-Track aus der Vorschau nehmen (frisches Projekt = leer).
       currentGpx = null; currentCoords = null; currentBbox = null; _gpxStats = null; _ovSeries = null; _ovSensorFields = []; _gpxElevations = null;
@@ -6751,19 +6826,30 @@ function mountAnimator(body, headerActions, opts) {
       let a = null;
       try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
       if (!a) a = (_settingsCache && _settingsCache[_MODKEY]) || {};
-      // Frisches Projekt ohne Route-Daten → sauber zurücksetzen statt alten
-      // Stand stehen lassen (sonst „Duplikat"-Bug beim Projekt-Wechsel/Neu).
-      const _hasRoute = !!(a.route_start_text || a.route_end_text || a.route_start_lonlat
-                           || a.route_end_lonlat || a.route_gpx_path);
-      if (!_hasRoute) { _routeReset(); return; }
-      const si = document.getElementById("route-start-input"); if (si) si.value = (a.route_start_text != null ? a.route_start_text : "");
-      const ei = document.getElementById("route-end-input");   if (ei) ei.value = (a.route_end_text != null ? a.route_end_text : "");
-      _routeStart = a.route_start_lonlat || null;
-      _routeEnd = a.route_end_lonlat || null;
-      const sr = document.getElementById("route-start-resolved"); if (sr) sr.textContent = "";
-      const er = document.getElementById("route-end-resolved");   if (er) er.textContent = "";
-      if (_routeStart) _routeSetResolved("start", null, _routeStart.lon, _routeStart.lat);
-      if (_routeEnd)   _routeSetResolved("end", null, _routeEnd.lon, _routeEnd.lat);
+      const hasNew = Array.isArray(a.route_wps) && a.route_wps.length >= 2;
+      const hasLegacy = !!(a.route_start_text || a.route_end_text || a.route_start_lonlat || a.route_end_lonlat);
+      // Frisches Projekt ohne Route-Daten → sauber zurücksetzen (sonst „Duplikat"-Bug).
+      if (!hasNew && !hasLegacy && !a.route_gpx_path) { _routeReset(); return; }
+      if (hasNew) {
+        _routeWps = a.route_wps.map((w) => ({
+          text: (w && w.text) || "",
+          lon: (w && w.lon != null) ? +w.lon : null,
+          lat: (w && w.lat != null) ? +w.lat : null,
+          label: (w && w.label) || null,
+        }));
+      } else {
+        // Migration alt → neu (nur Start/Ziel vorhanden).
+        const s = _mkWp(), en = _mkWp();
+        s.text = a.route_start_text || "";
+        if (a.route_start_lonlat) { s.lon = a.route_start_lonlat.lon; s.lat = a.route_start_lonlat.lat; }
+        en.text = a.route_end_text || "";
+        if (a.route_end_lonlat) { en.lon = a.route_end_lonlat.lon; en.lat = a.route_end_lonlat.lat; }
+        _routeWps = [s, en];
+      }
+      while (_routeWps.length < 2) _routeWps.push(_mkWp());
+      _routePick = null; _routeChain = false;
+      _routeSyncChainBtn();
+      _routeRenderWps();
       if (a.route_mode) { const r = document.querySelector(`input[name="route-mode"][value="${a.route_mode}"]`); if (r) r.checked = true; }
       if (a.route_coarseness != null) {
         const c = document.getElementById("route-coarse"); if (c) c.value = a.route_coarseness;
@@ -6793,25 +6879,28 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.260 — gibt {coords, hadInput, err} zurück, damit _routeCompute die ECHTE
     // Ursache melden kann (vorher pauschal „Start fehlt", auch bei Geocoding-Fehler/
     // Netzproblem/leerem Treffer → Nutzer-Bugreport: irreführend).
-    async function _routeResolve(which) {
-      const input = document.getElementById(`route-${which}-input`);
-      const txt = (input && input.value || "").trim();
-      // "lat, lon" (Google-Konvention beim Copy-Paste) → direkt nehmen.
+    async function _routeResolve(i) {
+      const w = _routeWps[i];
+      if (!w) return { coords: null, hadInput: false, err: null };
+      const txt = String(w.text || "").trim();
+      // "lat, lon" (Google-Konvention beim Copy-Paste / Karten-Klick) → direkt nehmen.
       const m = txt.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
-      if (m) { const a = parseFloat(m[1]), b = parseFloat(m[2]); return { coords: { lon: b, lat: a }, hadInput: true, err: null }; }
+      if (m) { const a = parseFloat(m[1]), b = parseFloat(m[2]); w.lon = b; w.lat = a; return { coords: { lon: b, lat: a }, hadInput: true, err: null }; }
       if (txt) {
         let r;
         try { r = await api().route_geocode(txt, 1); }
         catch (e) { return { coords: null, hadInput: true, err: "geocode_failed", detail: String(e && e.message || e) }; }
         if (r && r.ok && r.results && r.results.length) {
-          const h = r.results[0]; _routeSetResolved(which, h.name, h.lon, h.lat);
+          const h = r.results[0]; w.lon = h.lon; w.lat = h.lat; w.label = h.name;
+          const el = document.querySelector(`.route-wp-resolved[data-i="${i}"]`); if (el) el.textContent = `✓ ${h.name}`;
           return { coords: { lon: h.lon, lat: h.lat }, hadInput: true, err: null };
         }
         if (r && r.error === "no_token") return { coords: null, hadInput: true, err: "no_token" };
         if (r && r.ok) return { coords: null, hadInput: true, err: "not_found" };  // ok, aber kein Treffer
         return { coords: null, hadInput: true, err: "geocode_failed", detail: (r && r.error) || "unbekannt" };
       }
-      return { coords: (which === "start" ? _routeStart : _routeEnd), hadInput: false, err: null };
+      // Kein Text → gespeicherte Koordinaten (aus Karten-Klick), falls vorhanden.
+      return { coords: (w.lon != null ? { lon: w.lon, lat: w.lat } : null), hadInput: false, err: null };
     }
     async function _routeCompute() {
       if (_routeBusy) return;
@@ -6821,32 +6910,33 @@ function mountAnimator(body, headerActions, opts) {
       if (btn) btn.disabled = true;
       _routeStatus(t("route.computing", "Route wird berechnet …"));
       try {
-        const S = await _routeResolve("start");
-        const E = await _routeResolve("end");
-        // Token fehlt → klare Meldung (gilt für Start ODER Ziel).
-        if (S.err === "no_token" || E.err === "no_token") {
-          _routeStatus(t("route.no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen)."), "err"); return;
+        // Alle Stationen der Reihe nach auflösen (Tippen → Geocode, Klick → Coords).
+        const resolved = [];
+        for (let i = 0; i < _routeWps.length; i++) {
+          const R = await _routeResolve(i);
+          if (R.err === "no_token") {
+            _routeStatus(t("route.no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen)."), "err"); return;
+          }
+          if (!R.coords) {
+            const role = _routeRole(i);
+            if (!R.hadInput) { _routeStatus(t("route.wp_empty", "%s ist leer — Adresse eingeben oder 📍 auf der Karte klicken.").replace("%s", role), "err"); return; }
+            if (R.err === "not_found") { _routeStatus(t("route.not_found", "%s: Adresse nicht gefunden — anders schreiben oder 📍 auf der Karte klicken.").replace("%s", role), "err"); return; }
+            _routeStatus(t("route.geocode_failed", "%s: Adresssuche fehlgeschlagen (Internet/Token prüfen).").replace("%s", role) + (R.detail ? " [" + R.detail + "]" : ""), "err"); return;
+          }
+          resolved.push([R.coords.lon, R.coords.lat]);
         }
-        // Pro Feld die ECHTE Ursache melden statt pauschal „fehlt".
-        const _fieldErr = (R, leerKey, leerDef, label) => {
-          if (R.coords) return false;
-          if (!R.hadInput) { _routeStatus(t(leerKey, leerDef), "err"); return true; }
-          if (R.err === "not_found") { _routeStatus(t("route.not_found", "%s: Adresse nicht gefunden — anders schreiben oder 📍 auf der Karte klicken.").replace("%s", label), "err"); return true; }
-          _routeStatus(t("route.geocode_failed", "%s: Adresssuche fehlgeschlagen (Internet/Token prüfen).").replace("%s", label) + (R.detail ? " [" + R.detail + "]" : ""), "err"); return true;
-        };
-        if (_fieldErr(S, "route.no_start", "Start fehlt — Adresse eingeben oder 📍 auf der Karte klicken.", t("route.start", "Start"))) return;
-        if (_fieldErr(E, "route.no_end", "Ziel fehlt — Adresse eingeben oder 📍 auf der Karte klicken.", t("route.end", "Ziel"))) return;
-        const s = S.coords, en = E.coords;
+        if (resolved.length < 2) { _routeStatus(t("route.no_start", "Start und Ziel nötig."), "err"); return; }
+        _routeRenderWps();  // aufgelöste Labels/Coords in der Liste anzeigen
         const profile = (document.getElementById("route-profile") || {}).value || "driving";
         // v0.9.231 — Falsy-Zero-Fix: „fein" = 0, und `0 || 55` ergab fälschlich
         // 55 → fein war heimlich grob (bei Fußwegen ein Strich). isNaN-Guard.
         const _coarseRaw = parseFloat((document.getElementById("route-coarse") || {}).value);
         const coarseness = (isNaN(_coarseRaw) ? 55 : _coarseRaw) / 100;
-        const sName = (document.getElementById("route-start-input") || {}).value || "Start";
-        const eName = (document.getElementById("route-end-input") || {}).value || "Ziel";
+        const sName = (_routeWps[0] && _routeWps[0].text) || "Start";
+        const eName = (_routeWps[_routeWps.length - 1] && _routeWps[_routeWps.length - 1].text) || "Ziel";
         const name = `${sName} → ${eName}`.slice(0, 60);
         const res = await api().route_compute({
-          waypoints: [[s.lon, s.lat], [en.lon, en.lat]], mode, profile, coarseness, name,
+          waypoints: resolved, mode, profile, coarseness, name,
         });
         if (!res || !res.ok) {
           const code = res && res.error;
@@ -6873,10 +6963,10 @@ function mountAnimator(body, headerActions, opts) {
       }
     }
     function _routeBindUi() {
-      const sp = document.getElementById("route-start-pick");
-      if (sp && !sp._wired) { sp._wired = true; sp.addEventListener("click", () => _routeSetPickMode(_routePick === "start" ? null : "start")); }
-      const ep = document.getElementById("route-end-pick");
-      if (ep && !ep._wired) { ep._wired = true; ep.addEventListener("click", () => _routeSetPickMode(_routePick === "end" ? null : "end")); }
+      const add = document.getElementById("route-add-wp");
+      if (add && !add._wired) { add._wired = true; add.addEventListener("click", _routeAddWp); }
+      const chain = document.getElementById("route-chain");
+      if (chain && !chain._wired) { chain._wired = true; chain.addEventListener("click", () => _routeSetChain(!_routeChain)); }
       const cb = document.getElementById("route-compute");
       if (cb && !cb._wired) { cb._wired = true; cb.addEventListener("click", _routeCompute); }
       const coarse = document.getElementById("route-coarse");
@@ -6902,7 +6992,7 @@ function mountAnimator(body, headerActions, opts) {
       syncMode();
       if (!window.__routeEscWired) {
         window.__routeEscWired = true;
-        document.addEventListener("keydown", (e) => { if (e.key === "Escape" && _routePick) _routeSetPickMode(null); });
+        document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (_routePick != null) _routeSetPickMode(null); else if (_routeChain) _routeSetChain(false); } });
       }
     }
 

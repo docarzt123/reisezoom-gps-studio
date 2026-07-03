@@ -14,6 +14,10 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.386] – 2026-07-02
+### Hinzugefügt
+- **Reiseroute: beliebig viele Zwischenziele** (Nutzer-Wunsch). Statt nur Start + Ziel lässt sich die Route jetzt über **mehrere Stationen** führen: „➕ Zwischenziel" fügt eine Station vor dem Ziel ein, jede Zeile ist per Adresse **tippbar** oder per 📍 **auf die Karte klickbar**, und ein neuer **Klick-Modus** lässt einen die Stationen einfach **nacheinander auf die Karte klicken** — jeder Klick erscheint als Station in der Sidebar. Praktisch z. B. für Fährrouten, die nicht auf dem direkten Großkreis fahren. Funktioniert mit „🛣️ Straße folgen" (Mapbox) **und** „✈️ Flugroute" (Großkreis durch alle Punkte). Alte gespeicherte Routen (nur Start/Ziel) werden automatisch migriert.
+
 ## [0.9.385] – 2026-07-01
 ### Behoben
 - **Linux: Rendern schlug fehl, weil der Playwright-Browser nie gefunden wurde.** `playwright_check()` suchte den Chromium-Unterordner unter `chrome-headless-shell-linux`, Playwright legt ihn aber als `chrome-headless-shell-linux64` (bzw. `…-linux-arm64`) ab. Suche auf die korrekten Namen umgestellt (alter Name bleibt als Fallback). Danke an @uli-heller für Diagnose **und** Fix (GitHub-Fork).
