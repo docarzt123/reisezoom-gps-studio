@@ -962,8 +962,15 @@ function bindSetting(elementId, section, key, opts = {}) {
   // Initial-Apply
   applyToElement(readCurrent());
 
-  // In Registry pushen (für rebindAllSettings bei Projekt-Wechsel)
-  _bindRegistry.push({ elementId, section, key, type, opts, isProjectModule });
+  // In Registry eintragen (für rebindAllSettings bei Projekt-Wechsel).
+  // v0.9.389 — existierenden Eintrag (gleiche elementId+section+key) ERSETZEN statt
+  // blind anhängen. Sonst wächst die Registry pro Modul-Mount unbegrenzt und
+  // rebindAllSettings() feuert `onLoad`-Closures längst entfernter Mounts (die auf
+  // toten Maps operieren → Fehler + Speicher-Leak). Der Kommentar oben beschrieb das
+  // Ersetzen schon als Absicht — der Code hängte bisher nur an.
+  const _entry = { elementId, section, key, type, opts, isProjectModule };
+  const _ri = _bindRegistry.findIndex((r) => r.elementId === elementId && r.section === section && r.key === key);
+  if (_ri >= 0) _bindRegistry[_ri] = _entry; else _bindRegistry.push(_entry);
 
   const evName = (el.tagName === "SELECT") ? "change"
                  : (type === "bool") ? "change"

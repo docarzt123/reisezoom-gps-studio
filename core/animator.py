@@ -17,10 +17,32 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 
 # v0.9.274 (Nutzer-Bug) — Windows: ffmpeg ohne sichtbares Konsolenfenster starten.
 _WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+
+
+def _drain_stderr(pipe):
+    """v0.9.388 — liest den stderr-Pipe eines Subprozesses (ffmpeg) fortlaufend in
+    einem Thread leer. Sonst blockiert ffmpeg, sobald es mehr als ~64 KB auf stderr
+    schreibt (klassisch: Platte voll → 'No space left on device' pro Frame), weil der
+    Pipe-Puffer volläuft → ffmpeg liest stdin nicht mehr → `ff.stdin.write(frame)`
+    hängt für immer (Render „friert" ein, Cancel greift nicht). Gibt (thread, bytearray)
+    zurück; die bytearray füllt sich live und wird nach `ff.wait()` gelesen."""
+    buf = bytearray()
+
+    def _run():
+        try:
+            for chunk in iter(lambda: pipe.read(65536), b""):
+                buf.extend(chunk)
+        except Exception:
+            pass
+
+    th = threading.Thread(target=_run, daemon=True)
+    th.start()
+    return th, buf
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
@@ -1348,6 +1370,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "thumb": _sign_thumb(s),
             "imageSize": float(_sg(s, "imageSize", 60)),  # v0.9.190 — Bildbreite separat
             "decoScale": float(_sg(s, "decoScale", 0.5)),  # v0.9.262 — Stangen-Länge (Banner/Wegweiser); fehlte → Render nahm immer 0.5
+            "direction": ("left" if _sg(s, "direction", "right") == "left" else "right"),  # v0.9.387 — Wegweiser-Pfeilrichtung
         } for s in _signs_input]
         # v0.9.224/225 — render_scale in die icon-size-Stützwerte gerechnet (s.u.).
         _ss = float(getattr(cfg, "render_scale", 1.0) or 1.0)
@@ -2167,7 +2190,11 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
         try:
             browser = await p.chromium.launch(
                 headless=True,
-                args=["--use-angle=default", "--enable-webgl", "--ignore-gpu-blocklist", "--disable-gpu-sandbox"],
+                args=["--use-angle=default", "--enable-webgl", "--ignore-gpu-blocklist", "--disable-gpu-sandbox",
+                      # v0.9.387 — unterdrückt Chromecast/DIAL/mDNS-Geräte-Suche → kein macOS-„Lokales
+                      # Netzwerk"-Zugriffs-Dialog beim Render (wir brauchen nur normales Internet für Tiles).
+                      "--disable-background-networking", "--disable-features=MediaRouter,DialMediaRouteProvider",
+                      "--no-first-run", "--no-default-browser-check"],
             )
         except Exception as e:
             _log.error("Playwright/Chromium-Start fehlgeschlagen: %s", e)
@@ -2270,6 +2297,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                               creationflags=_WIN_NO_WINDOW)
+        _ff_err_th, _ff_err_buf = _drain_stderr(ff.stderr)  # v0.9.388 — Pipe-Deadlock verhindern
 
         def _bearing_at(gp: float) -> float:
             # Kontinuierlicher Sweep über das gesamte Video (wie Single-Track).
@@ -2356,13 +2384,15 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
 
         emit(0.92, "ffmpeg finalisiert (+faststart, kann etwas dauern) …")
         ff.wait()
+        try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
+        except Exception: pass
         if ff.returncode != 0:
-            err = ff.stderr.read().decode(errors="replace")
+            err = bytes(_ff_err_buf).decode(errors="replace")
             _log.error("ffmpeg returncode=%s — stderr:\n%s", ff.returncode, err)
             raise RuntimeError(f"ffmpeg fehlgeschlagen (returncode={ff.returncode}): {err.strip()[:500]}")
         else:
             try:
-                err = ff.stderr.read().decode(errors="replace").strip()
+                err = bytes(_ff_err_buf).decode(errors="replace").strip()
                 if err:
                     _log.info("ffmpeg stderr (info-level): %s", err[:1500])
             except Exception:
@@ -2509,7 +2539,10 @@ async def render_frame(
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
-            args=["--use-angle=default", "--enable-webgl", "--ignore-gpu-blocklist", "--disable-gpu-sandbox"],
+            args=["--use-angle=default", "--enable-webgl", "--ignore-gpu-blocklist", "--disable-gpu-sandbox",
+                  # v0.9.387 — unterdrückt Chromecast/DIAL/mDNS-Geräte-Suche → kein macOS-„Lokales Netzwerk"-Dialog.
+                  "--disable-background-networking", "--disable-features=MediaRouter,DialMediaRouteProvider",
+                  "--no-first-run", "--no-default-browser-check"],
         )
         try:
             _dsf = _render_dsf(cfg.width, cfg.height)
@@ -2822,7 +2855,11 @@ async def render(
         try:
             browser = await p.chromium.launch(
                 headless=True,
-                args=["--use-angle=default", "--enable-webgl", "--ignore-gpu-blocklist", "--disable-gpu-sandbox"],
+                args=["--use-angle=default", "--enable-webgl", "--ignore-gpu-blocklist", "--disable-gpu-sandbox",
+                      # v0.9.387 — unterdrückt Chromecast/DIAL/mDNS-Geräte-Suche → kein macOS-„Lokales
+                      # Netzwerk"-Zugriffs-Dialog beim Render (wir brauchen nur normales Internet für Tiles).
+                      "--disable-background-networking", "--disable-features=MediaRouter,DialMediaRouteProvider",
+                      "--no-first-run", "--no-default-browser-check"],
             )
         except Exception as e:
             _log.error("Playwright/Chromium-Start fehlgeschlagen: %s", e)
@@ -2835,8 +2872,18 @@ async def render(
         # cfg.width × cfg.height physisch, aber Mapbox malt line-widths/blur/
         # font-sizes als CSS-Pixel → bei 4K mit DSF=2 wird eine 3.5-px-Linie
         # als 7 Device-Pixel im Output, matched die Retina-Preview-Optik.
-        _dsf = _render_dsf(cfg.width, cfg.height)
-        _ss = _render_ss(cfg.width, cfg.height)  # v0.9.286: SSAA gegen 4K-Flimmern
+        # v0.9.388 — Alpha/Transparent-Render: DSF & SSAA auf 1.0 erzwingen.
+        # `_make_html_alpha` dimensioniert Body/SVG/Track-Projektion in
+        # cfg.width×cfg.height CSS-Pixeln. Mit dem normalen DSF>1 (bei 4K =2) ist der
+        # CSS-Viewport aber nur cfg.width/dsf → der Screenshot erfasste nur das linke
+        # obere Viertel, rechts/unten platzierte Overlays lagen außerhalb des Bildes.
+        # Bei DSF=1 gilt CSS-px == Device-px == cfg.width → volles, korrektes Bild.
+        if cfg.transparent_background:
+            _dsf = 1.0
+            _ss = 1.0
+        else:
+            _dsf = _render_dsf(cfg.width, cfg.height)
+            _ss = _render_ss(cfg.width, cfg.height)  # v0.9.286: SSAA gegen 4K-Flimmern
         _vp_w = max(1, int(round(cfg.width / _dsf)))
         _vp_h = max(1, int(round(cfg.height / _dsf)))
         _log.info("Playwright viewport=%dx%d CSS · DSF=%.2f · SSAA=%.2f · output=%dx%d device px",
@@ -3040,6 +3087,7 @@ async def render(
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                               creationflags=_WIN_NO_WINDOW)
+        _ff_err_th, _ff_err_buf = _drain_stderr(ff.stderr)  # v0.9.388 — Pipe-Deadlock verhindern
 
         try:
             # Preview alle ~3 Frames pushen — bei 30fps reicht das für eine
@@ -3420,14 +3468,16 @@ async def render(
 
         emit(0.92, "ffmpeg finalisiert (+faststart, kann etwas dauern) …")
         ff.wait()
+        try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
+        except Exception: pass
         if ff.returncode != 0:
-            err = ff.stderr.read().decode(errors="replace")
+            err = bytes(_ff_err_buf).decode(errors="replace")
             _log.error("ffmpeg returncode=%s — stderr:\n%s", ff.returncode, err)
             raise RuntimeError(f"ffmpeg fehlgeschlagen (returncode={ff.returncode}): {err.strip()[:500]}")
         else:
             # Auch im Erfolgsfall stderr loggen falls Warnungen drin sind
             try:
-                err = ff.stderr.read().decode(errors="replace").strip()
+                err = bytes(_ff_err_buf).decode(errors="replace").strip()
                 if err:
                     _log.info("ffmpeg stderr (info-level): %s", err[:1500])
             except Exception:

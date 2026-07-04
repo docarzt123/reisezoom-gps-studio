@@ -80,6 +80,13 @@
   content: ""; position: absolute; top: -2px; left: 50%; transform: translateX(-50%);
   width: 5px; height: var(--rz-post, 55px); background: #5a4632;
 }
+/* Wegweiser-Pfeilspitze (v0.9.387) — externe Spitze, Richtung per Modifier-Klasse */
+.rz-sign__arrow {
+  position: absolute; top: 0; height: 100%; width: var(--rz-arrow, 13px);
+  background: var(--rz-box, #15171c); pointer-events: none;
+}
+.rz-sign--dir-right .rz-sign__arrow { left: calc(100% - 1px); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.rz-sign--dir-left  .rz-sign__arrow { right: calc(100% - 1px); clip-path: polygon(100% 0, 0 50%, 100% 100%); }
 `;
   function injectCss() {
     try {
@@ -216,6 +223,8 @@
     var pinW = Math.round(22 * unit);
     var pinH = Math.round(pinW * 1.5);
     var below = 0;   // wie weit die Dekoration UNTER die Box reicht (für den Anker)
+    // v0.9.387 — Wegweiser-Richtungspfeil nur beim signpost; bei anderen Stilen entfernen.
+    if (styleName !== "signpost") { var _oa = card.querySelector(".rz-sign__arrow"); if (_oa) _oa.remove(); }
     if (styleName === "pin") {
       if (!pin) {
         pin = document.createElement("div"); pin.className = "rz-sign__pin";
@@ -232,6 +241,13 @@
     } else if (styleName === "signpost") {
       if (pin) pin.remove();
       if (!poles) { poles = document.createElement("div"); poles.className = "rz-sign__poles"; card.appendChild(poles); }
+      // v0.9.387 — Richtungs-Pfeil (externe Spitze) + Modifier-Klasse
+      var arrow = card.querySelector(".rz-sign__arrow");
+      if (!arrow) { arrow = document.createElement("div"); arrow.className = "rz-sign__arrow"; card.appendChild(arrow); }
+      var sdir = (o.direction === "left") ? "left" : "right";
+      card.classList.remove("rz-sign--dir-" + (sdir === "left" ? "right" : "left"));
+      card.classList.add("rz-sign--dir-" + sdir);
+      card.style.setProperty("--rz-arrow", Math.max(6, Math.round(13 * unit)) + "px");
       below = postLen;
     } else {
       if (pin) pin.remove();

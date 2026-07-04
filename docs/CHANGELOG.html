@@ -112,9 +112,42 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.389</span>
+    <span class="version-date">4. Juli 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Wegweiser-Pfeile wählbar, mehrere Zwischenziele in der Reiseroute — und eine ganze Welle Render- und Stabilitäts-Fixes.</p>
+
+  <div class="highlight">
+    <strong>🧭 Wegweiser: Pfeilrichtung wählbar</strong> — beim Schild-Stil „Wegweiser" kannst du jetzt wählen, ob der Pfeil nach <strong>links oder rechts</strong> zeigt. Wirkt in der Vorschau und im fertigen Video — und die Vorschau zeigt die Pfeilspitze jetzt überhaupt erst an.
+  </div>
+  <div class="highlight">
+    <strong>🧭 Reiseroute mit Zwischenzielen</strong> — statt nur Start + Ziel führst du die Anreise-Route jetzt über <strong>beliebig viele Stationen</strong>. Jede Station per Adresse eintippen oder auf die Karte klicken; ein neuer Klick-Modus lässt dich die Stationen einfach nacheinander auf die Karte setzen. Praktisch für Fährrouten, die nicht schnurgerade fahren. Funktioniert mit „Straße folgen" und „Flugroute".
+  </div>
+  <div class="highlight">
+    <strong>🎬 Transparent-Export in 4K repariert</strong> — beim Rendern mit transparentem Hintergrund in 4K wurde nur das linke obere Viertel aufgenommen, Overlays lagen außerhalb des Bildes. Jetzt volles, korrektes Bild. (In 1080p war es unauffällig.)
+  </div>
+  <div class="highlight">
+    <strong>⛰️ Höhenprofil-Video wieder sichtbar (Mac)</strong> — das Höhen-Video im h264-Format war auf Macs schwarz. Behoben; außerdem funktionieren Scrub-Regler und Fortschrittsbalken im Höhen-Animator wieder.
+  </div>
+  <div class="highlight">
+    <strong>🧊 Kein Einfrieren mehr beim Rendern</strong> — lief die Festplatte voll (oder schrieb das Video-Werkzeug sehr viel), konnte der Render bei „Frame X/Y" hängen bleiben, ohne Fehlermeldung und ohne dass Abbrechen griff. Das ist behoben — es kommt jetzt sauber eine Meldung statt eines Hängers.
+  </div>
+  <div class="highlight">
+    <strong>📷 Geotagger: kein stiller Foto-Verlust</strong> — zwei Fotos mit gleichem Dateinamen (z.&nbsp;B. zwei Kameras mit <code>IMG_0001.JPG</code>) überschrieben sich beim Speichern gegenseitig. Namensgleichheit bekommt jetzt automatisch einen eindeutigen Namen.
+  </div>
+  <div class="highlight">
+    <strong>🚀 Flüssiger über lange Sitzungen</strong> — bei sehr vielen Tab-Wechseln wurde die App mit der Zeit langsamer und warf Fehler-Spam, weil Reste alter Ansichten hängen blieben. Wird jetzt sauber aufgeräumt.
+  </div>
+  <div class="highlight">
+    <strong>🔒 Kein „Lokales Netzwerk"-Dialog mehr (Mac)</strong> — beim Rendern fragte macOS gelegentlich nach Zugriff auf Geräte im lokalen Netzwerk (der mitgelieferte Browser suchte nach Chromecast/AirPlay). Diese Suche ist jetzt abgeschaltet — sie wird fürs Rendern nicht gebraucht.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.385</span>
     <span class="version-date">1. Juli 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <p class="version-tagline">Linux läuft wieder — Start und Rendern behoben, danke an die Tester auf GitHub.</p>
 

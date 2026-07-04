@@ -6,7 +6,7 @@ Render-Pipeline analog zum Animator:
 - Frame-by-Frame Screenshot → ffmpeg-Pipe → MP4 / .mov
 
 Codec-Modi:
-- "h264" (Default)    → .mp4, yuv444p, +faststart
+- "h264" (Default)    → .mp4, yuv420p, +faststart
 - "h265" / "hevc"     → .mp4 mit hvc1-Tag
 - "prores"            → .mov, ProRes 4444 ohne Alpha
 - transparent_background=True → .mov, ProRes 4444 MIT Alpha (yuva444p10le)
@@ -27,10 +27,29 @@ import json
 import logging
 import os
 import subprocess
+import threading
 import time
 
 # v0.9.274 (Nutzer-Bug) — Windows: ffmpeg ohne sichtbares Konsolenfenster starten.
 _WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+
+
+def _drain_stderr(pipe):
+    """v0.9.388 — liest ffmpeg-stderr fortlaufend leer (Thread), sonst blockiert ffmpeg
+    bei viel stderr (Platte voll) im vollen Pipe-Puffer → `ff.stdin.write` hängt ewig.
+    Gibt (thread, bytearray) zurück. Siehe core/animator.py für Details."""
+    buf = bytearray()
+
+    def _run():
+        try:
+            for chunk in iter(lambda: pipe.read(65536), b""):
+                buf.extend(chunk)
+        except Exception:
+            pass
+
+    th = threading.Thread(target=_run, daemon=True)
+    th.start()
+    return th, buf
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
@@ -399,7 +418,10 @@ async def render(cfg: HeightConfig,
             browser = await p.chromium.launch(
                 headless=True,
                 args=["--use-angle=default", "--enable-webgl",
-                      "--ignore-gpu-blocklist", "--disable-gpu-sandbox"],
+                      "--ignore-gpu-blocklist", "--disable-gpu-sandbox",
+                      # v0.9.387 — kein macOS-„Lokales Netzwerk"-Dialog (Chromecast/mDNS aus).
+                      "--disable-background-networking", "--disable-features=MediaRouter,DialMediaRouteProvider",
+                      "--no-first-run", "--no-default-browser-check"],
             )
         except Exception as e:
             _log.error("Playwright/Chromium-Start fehlgeschlagen: %s", e)
@@ -461,10 +483,12 @@ async def render(cfg: HeightConfig,
                 ffmpeg_bin, "-y", "-loglevel", "error",
                 "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
                 "-c:v", vcodec, "-preset", "fast", "-crf", str(cfg.crf),
-                "-pix_fmt", "yuv444p", "-movflags", "+faststart",
+                # v0.9.388 — yuv420p (war yuv444p + high444-Profil): AVFoundation/
+                # WKWebView/QuickTime dekodieren High-4:4:4 nicht → das Höhen-MP4 blieb
+                # in der App-Vorschau und in QuickTime schwarz. Analog zum Animator-Fix
+                # v0.9.157. Echtes 4:4:4 bleibt über den ProRes-Codec verfügbar.
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart",
             ]
-            if vcodec == "libx264":
-                ffmpeg_cmd += ["-profile:v", "high444"]
             if vcodec == "libx265":
                 ffmpeg_cmd += ["-tag:v", "hvc1"]
 
@@ -473,6 +497,7 @@ async def render(cfg: HeightConfig,
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                               creationflags=_WIN_NO_WINDOW)
+        _ff_err_th, _ff_err_buf = _drain_stderr(ff.stderr)  # v0.9.388 — Pipe-Deadlock verhindern
 
         try:
             preview_every = max(1, cfg.fps // 10)
@@ -520,13 +545,15 @@ async def render(cfg: HeightConfig,
 
         emit(0.92, "ffmpeg finalisiert …")
         ff.wait()
+        try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
+        except Exception: pass
         if ff.returncode != 0:
-            err = ff.stderr.read().decode(errors="replace")
+            err = bytes(_ff_err_buf).decode(errors="replace")
             _log.error("ffmpeg returncode=%s — stderr:\n%s", ff.returncode, err)
             raise RuntimeError(f"ffmpeg fehlgeschlagen (returncode={ff.returncode}): {err.strip()[:500]}")
         else:
             try:
-                err = ff.stderr.read().decode(errors="replace").strip()
+                err = bytes(_ff_err_buf).decode(errors="replace").strip()
                 if err:
                     _log.info("ffmpeg stderr (info-level): %s", err[:1500])
             except Exception:

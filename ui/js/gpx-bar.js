@@ -148,9 +148,12 @@
   // Modul-Wechsel hinweg bestehen (IIFE wird nur 1× geladen, nur das DOM
   // wird ausgetauscht) — deshalb greifen die Resetter auch für gerade nicht
   // gemountete Module (DOM-Zugriffe sind dort guarded/no-op).
-  window.__workspaceResetters = window.__workspaceResetters || new Set();
-  window.registerWorkspaceResetter = function(fn) {
-    if (typeof fn === "function") window.__workspaceResetters.add(fn);
+  window.__workspaceResetters = window.__workspaceResetters || new Map();
+  window.registerWorkspaceResetter = function(fn, key) {
+    // v0.9.389 — per Modul-Key deduplizieren (Map statt Set): bei Re-Mount ersetzt der
+    // neue Resetter den alten, statt dass die Sammlung pro Tab-Wechsel wächst. Sonst lief
+    // „Workspace leeren" N stale Resetter = N× Backend-Clear + N× saveSettings.
+    if (typeof fn === "function") window.__workspaceResetters.set(key || fn, fn);
   };
 
   /** Zeigt EIN Bestätigungs-Modal, räumt dann alle Module + GPX-Bar. */
@@ -169,7 +172,7 @@
   };
 
   async function _runAllResetters() {
-    for (const fn of window.__workspaceResetters) {
+    for (const fn of window.__workspaceResetters.values()) {
       try { await fn(); }
       catch (err) { console.warn("workspace resetter threw:", err); }
     }

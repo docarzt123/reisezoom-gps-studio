@@ -1064,7 +1064,7 @@ function mountGeotagger(body, headerActions) {
   // leer ist. Backend-Cleanup (Thumb-Worker stoppen) macht
   // `api.geotagger_clear()` — wird vom close_session-Handler vorher gerufen.
   if (typeof onGpxLoaded === "function") {
-    onGpxLoaded(({ path }) => {
+    window.__rzGpxUnsub_gt = onGpxLoaded(({ path }) => {
       if (path) loadGpxByPath(path);
       else {
         // Session geschlossen / GPX entfernt — kompletten State räumen
@@ -2981,7 +2981,7 @@ function mountGeotagger(body, headerActions) {
       renderFilterBar();   // v0.9.362 (Marc) — Filter-Chips oben mit weg
     } catch (_) {}
   }
-  if (typeof registerWorkspaceResetter === "function") registerWorkspaceResetter(_gtClearWorkspace);
+  if (typeof registerWorkspaceResetter === "function") registerWorkspaceResetter(_gtClearWorkspace, "geotagger");  // v0.9.389 — Key gegen Dubletten
 
   // v0.9.164 — nur taggen, was SICHTBAR (Filter) UND ANGEHAKT ist (Marc-Wunsch).
   // v0.9.166 — manuell platzierte Fotos sind IMMER taggbar (sofern angehakt):
@@ -3611,6 +3611,8 @@ function mountGeotagger(body, headerActions) {
     // (debouncted updateMatches, in-flight pollThumbs, sessionActivate-Promises)
     // sauber abbrechen bevor sie auf map zugreifen.
     isUnmounted = true;
+    // v0.9.389 — GPX-Listener abmelden (sonst tote Callbacks bei jedem GPX-Laden).
+    try { if (window.__rzGpxUnsub_gt) { window.__rzGpxUnsub_gt(); window.__rzGpxUnsub_gt = null; } } catch (_) {}
     stopThumbPolling();
     // v0.9.166 — globale ⌘-Listener wieder abräumen (sonst Leak pro Tab-Wechsel)
     try {

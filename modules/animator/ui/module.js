@@ -5431,6 +5431,7 @@ function mountAnimator(body, headerActions, opts) {
       radius: 9, padding: 7, opacity: 1,
       borderColor: "none", borderWidth: 0,
       decoScale: 0.5,        // v0.9.256 — Länge der Stangen (Banner/Wegweiser) als Faktor der Box-Höhe
+      direction: "right",    // v0.9.387 — Wegweiser-Pfeilrichtung: "right" | "left"
       shadow: false, shadowColor: "#000000", shadowBlur: 8, shadowStrength: 0.55,
       zoomScale: true, before: 0, after: 0, entry: "none",
       alwaysVisible: false,  // v0.9.188 — ganze Zeit sichtbar (kein Timing-Fenster)
@@ -5455,6 +5456,7 @@ function mountAnimator(body, headerActions, opts) {
       o.opacity = Math.max(0, Math.min(1, Number(o.opacity)));
       o.borderWidth = Number(o.borderWidth) || 0;
       o.decoScale = (o.decoScale == null || isNaN(Number(o.decoScale))) ? 0.5 : Math.max(0.1, Math.min(2, Number(o.decoScale)));
+      o.direction = (o.direction === "left") ? "left" : "right";  // v0.9.387
       o.shadowBlur = Number(o.shadowBlur);
       o.shadowStrength = (o.shadowStrength == null || isNaN(Number(o.shadowStrength)))
         ? 0.55 : Math.max(0.05, Math.min(1, Number(o.shadowStrength)));
@@ -6114,6 +6116,11 @@ function mountAnimator(body, headerActions, opts) {
             <span class="se-inline"><input type="range" id="se-bw" min="0" max="10" step="1" value="${c.borderWidth}"><input type="color" id="se-bc" value="${_animEscapeHtml(c.borderColor !== "none" ? c.borderColor : "#ffffff")}"></span>
             <label id="se-deco-label" title="${t("signs.deco_len_hint", "Länge der Stangen beim Zielbanner / Wegweiser")}" style="${(c.style === "banner" || c.style === "signpost") ? "" : "display:none;"}">${t("signs.deco_len", "Stangen-Länge")}</label>
             <input type="range" id="se-deco" min="10" max="150" step="5" value="${Math.round((c.decoScale != null ? c.decoScale : 0.5) * 100)}" style="${(c.style === "banner" || c.style === "signpost") ? "" : "display:none;"}">
+            <label id="se-dir-label" title="${t("signs.direction_hint", "Nur beim Wegweiser: in welche Richtung die Pfeilspitze zeigt.")}" style="${c.style === "signpost" ? "" : "display:none;"}">${t("signs.direction", "Pfeilrichtung")}</label>
+            <div class="seg-toggle" id="se-dir" style="${c.style === "signpost" ? "" : "display:none;"}">
+              <label class="seg-opt"><input type="radio" name="se-dir-radio" value="left"${c.direction === "left" ? " checked" : ""}> <span>${t("signs.direction.left", "◀ Links")}</span></label>
+              <label class="seg-opt"><input type="radio" name="se-dir-radio" value="right"${c.direction !== "left" ? " checked" : ""}> <span>${t("signs.direction.right", "Rechts ▶")}</span></label>
+            </div>
           </div>
 
           <div class="se-group-title">${t("signs.grp.text", "Schrift")}</div>
@@ -6220,6 +6227,7 @@ function mountAnimator(body, headerActions, opts) {
           borderWidth: parseInt($("#se-bw").value, 10) || 0,
           borderColor: (parseInt($("#se-bw").value, 10) || 0) > 0 ? $("#se-bc").value : "none",
           decoScale: (parseInt($("#se-deco").value, 10) || 50) / 100,
+          direction: ((document.querySelector('input[name="se-dir-radio"]:checked') || {}).value === "left") ? "left" : "right",
           font: $("#se-font").value,
           size: parseInt($("#se-size").value, 10) || 40,
           weight: parseInt($("#se-weight").value, 10) || 700,
@@ -6289,8 +6297,15 @@ function mountAnimator(body, headerActions, opts) {
           const lbl = $("#se-deco-label"), inp = $("#se-deco");
           if (lbl) lbl.style.display = showDeco ? "" : "none";
           if (inp) inp.style.display = showDeco ? "" : "none";
+          // v0.9.387 — Pfeilrichtung nur beim Wegweiser (signpost) zeigen.
+          const showDir = (_seStyle.value === "signpost");
+          const dl = $("#se-dir-label"), di = $("#se-dir");
+          if (dl) dl.style.display = showDir ? "" : "none";
+          if (di) di.style.display = showDir ? "" : "none";
         });
       }
+      // v0.9.387 — Pfeilrichtungs-Radios lösen wie die anderen Felder ein Live-Update aus.
+      document.querySelectorAll('input[name="se-dir-radio"]').forEach((r) => r.addEventListener("change", apply));
       // v0.9.259 — Auslöse-Zeitpunkt manuell festnageln (löst Mehrdeutigkeit bei
       // Hin-und-zurück-Strecken: gleicher Ort, zweimal vorbei). „Auf Zeitleisten-
       // Position" bindet das Schild an die Track-Position, an der der Marker beim
@@ -6338,7 +6353,7 @@ function mountAnimator(body, headerActions, opts) {
         const APPLY_KEYS = [
           // Aussehen
           "style", "color", "bg", "textColor", "font", "weight", "italic",
-          "align", "size", "radius", "padding", "opacity", "borderColor", "borderWidth", "decoScale",
+          "align", "size", "radius", "padding", "opacity", "borderColor", "borderWidth", "decoScale", "direction",
           "shadow", "shadowColor", "shadowBlur", "shadowStrength", "imageSize",
           // Verhalten
           "zoomScale", "entry", "before", "after", "alwaysVisible"];
@@ -6643,12 +6658,18 @@ function mountAnimator(body, headerActions, opts) {
         });
       }
       // Esc bricht den Platzier-Modus ab + schließt den Editor
+      // v0.9.388 — Live-Handle: der EINE globale Esc-Listener ruft immer die Funktionen
+      // des AKTUELLEN Mounts. Vorher band der erste Mount den Listener an seine (nach
+      // Tab-Wechsel toten) Closures → Esc brach ab dem 2. Mount Platzier-/Editor-Modus
+      // nicht mehr ab. Jeder Mount überschreibt hier sein eigenes Handle.
+      window.__rzAnimSignsEsc = () => {
+        if (_animSignPlaceMode) _animSignsSetPlaceMode(false);
+        _animSignsCloseEditor();
+      };
       if (!window.__animSignsEscWired) {
         window.__animSignsEscWired = true;
         document.addEventListener("keydown", (e) => {
-          if (e.key !== "Escape") return;
-          if (_animSignPlaceMode) _animSignsSetPlaceMode(false);
-          _animSignsCloseEditor();
+          if (e.key === "Escape" && typeof window.__rzAnimSignsEsc === "function") window.__rzAnimSignsEsc();
         });
       }
     }
@@ -6990,9 +7011,11 @@ function mountAnimator(body, headerActions, opts) {
       });
       _routeRestore();  // v0.9.214 — gespeicherte Start/Ziel/Einstellungen wiederherstellen
       syncMode();
+      // v0.9.388 — Live-Handle (wie __rzAnimSignsEsc): Esc trifft immer den aktuellen Mount.
+      window.__rzRouteEsc = () => { if (_routePick != null) _routeSetPickMode(null); else if (_routeChain) _routeSetChain(false); };
       if (!window.__routeEscWired) {
         window.__routeEscWired = true;
-        document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (_routePick != null) _routeSetPickMode(null); else if (_routeChain) _routeSetChain(false); } });
+        document.addEventListener("keydown", (e) => { if (e.key === "Escape" && typeof window.__rzRouteEsc === "function") window.__rzRouteEsc(); });
       }
     }
 
@@ -7950,7 +7973,7 @@ function mountAnimator(body, headerActions, opts) {
   // v0.8.1: GPX-Picker ist global in der Sub-Top-Bar. Hier hören wir
   // nur auf das Event und übernehmen das geladene GPX für den Animator.
   if (typeof onGpxLoaded === "function") {
-    onGpxLoaded(({ path, data }) => {
+    window.__rzGpxUnsub_anim = onGpxLoaded(({ path, data }) => {
       if (path && data) {
         // Synthetisches `res`-Objekt analog zum bisherigen loadGpxByPath-Flow
         // v0.9.220 — GESCHÜTZT: wirft applyGlobalGpx (Ghost/fit vor Map-Ready),
@@ -8446,7 +8469,7 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.185 — Schilder via lebenden Handle leeren (closure-sicher).
     try { if (window.__rzAnimSigns && window.__rzAnimSigns.clearAll) window.__rzAnimSigns.clearAll(); } catch (_) {}
   }
-  if (typeof registerWorkspaceResetter === "function") registerWorkspaceResetter(_animClearWorkspace);
+  if (typeof registerWorkspaceResetter === "function") registerWorkspaceResetter(_animClearWorkspace, "animator");  // v0.9.389 — Key gegen Dubletten
 
   // ── v0.9.156 — Multi-Track-Tourenliste ──────────────────────────────────
   const _TOUR_PALETTE = ["#35a7ff", "#7bd35b", "#ffd23f", "#c77dff", "#ff5d8f", "#34d8c9"];
@@ -9101,6 +9124,9 @@ function mountAnimator(body, headerActions, opts) {
 
   return () => {
     clearTimeout(pollTimer);
+    // v0.9.389 — GPX-Listener abmelden, sonst feuern beim nächsten GPX-Laden die
+    // (nach Tab-Wechsel toten) Callbacks aller früheren Mounts auf entfernten Maps.
+    try { if (window.__rzGpxUnsub_anim) { window.__rzGpxUnsub_anim(); window.__rzGpxUnsub_anim = null; } } catch (_) {}
     try { _animSignsCloseEditor(); } catch (_) {}   // v0.9.180 — body-Panel aufräumen
     if (_animViewportObserver) {
       try { _animViewportObserver.disconnect(); } catch (_) {}

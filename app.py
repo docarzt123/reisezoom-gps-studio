@@ -129,7 +129,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.386"
+APP_VERSION = "0.9.389"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -4195,6 +4195,7 @@ class Api:
                     with self._write_lock:
                         self._write_state["errors"].append(f"Zielordner nicht nutzbar: {e_mk}")
                 path_map: dict = {}
+                used_out: set = set()   # v0.9.388 — Basename-Kollisionen im selben Batch verhindern
                 n_copy = len(src_list)
                 for i_c, src in enumerate(src_list):
                     with self._write_lock:
@@ -4214,6 +4215,17 @@ class Api:
                                 self._write_state["errors"].append(
                                     f"{os.path.basename(src)}: würde Original überschreiben — übersprungen")
                         continue
+                    # v0.9.388 — Namensgleichheit im selben Batch (zwei Kameras mit
+                    # "IMG_0001.JPG", DCIM-Rollover 100CANON/101CANON, folder_recursive):
+                    # eindeutigen Zielnamen mit Suffix suchen, sonst überschreibt die
+                    # zweite Kopie die erste → ein Foto würde still im Output fehlen.
+                    if out in used_out:
+                        _stem, _ext = os.path.splitext(os.path.basename(out))
+                        _k = 2
+                        while os.path.join(dest_dir, f"{_stem}_{_k}{_ext}") in used_out:
+                            _k += 1
+                        out = os.path.join(dest_dir, f"{_stem}_{_k}{_ext}")
+                    used_out.add(out)
                     try:
                         _sh.copy2(src, out)
                         path_map[src] = out

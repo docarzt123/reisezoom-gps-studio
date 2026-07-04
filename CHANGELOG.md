@@ -14,6 +14,29 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.389] – 2026-07-04
+### Behoben (Audit-Welle B — Speicher-/Listener-Leaks bei Tab-Wechseln)
+- **App wurde über lange Sitzungen mit vielen Tab-Wechseln langsamer und warf Fehler-Spam**, weil bei jedem Modul-Wechsel Listener und Callbacks des alten Moduls hängen blieben. Behoben:
+  - **GPX-Listener** werden beim Verlassen eines Moduls jetzt abgemeldet (Animator/Tour-Map/Reiseroute, Geotagger, Inspektor, Höhen-Animator) — vorher feuerten beim nächsten GPX-Laden die toten Callbacks aller früheren Mounts auf entfernten Karten.
+  - **Sprachwechsel** räumt das alte Modul jetzt sauber ab, bevor es neu aufgebaut wird (vorher blieb der Karten-/WebGL-Kontext hängen).
+  - **Einstellungs-Registry** ersetzt Einträge beim Re-Mount statt sie endlos anzuhäufen.
+  - **„Workspace leeren"** ruft pro Modul nur noch einen Aufräumer (vorher einen je vergangenem Tab-Besuch → mehrfaches Backend-Leeren).
+
+## [0.9.388] – 2026-07-04
+### Behoben (Audit-Welle — kritische Bugs)
+- **Render konnte einfrieren statt einen Fehler zu zeigen.** ffmpeg-Fehlerausgabe wurde erst nach Prozessende gelesen; schrieb ffmpeg viel (klassisch: **Festplatte voll**), lief der Pipe-Puffer voll und alles blockierte sich gegenseitig — der Render hing bei „Frame X/Y", Abbrechen griff nicht. ffmpeg-stderr wird jetzt fortlaufend in einem Thread geleert (Animator Einzel- + Multi-Track **und** Höhen-Animator).
+- **Transparent-/Alpha-Render bei 4K war kaputt** — es wurde nur das linke obere Viertel aufgenommen, Overlays rechts/unten lagen außerhalb des Bildes. Für Alpha-Renders wird der Device-Scale-Faktor jetzt auf 1 gezwungen → volles, korrektes Bild. (Bei 1080p war es unauffällig.)
+- **Höhenprofil-Video (h264) war auf Macs schwarz** — nutzte `yuv444p`/High-4:4:4, das QuickTime/WKWebView nicht dekodieren. Auf `yuv420p` umgestellt (wie der Animator seit v0.9.157); echtes 4:4:4 bleibt über ProRes.
+- **Höhen-Animator: Scrub-Regler und Fortschrittsbalken funktionierten nicht** (zwei Elemente hatten dieselbe DOM-ID). Getrennt — Playback-Scrubben und der Render-Fortschritt gehen wieder.
+- **Geotagger: stiller Foto-Verlust bei Namensgleichheit.** Zwei Fotos mit gleichem Dateinamen (zwei Kameras mit `IMG_0001.JPG`, DCIM-Ordner-Rollover) überschrieben sich beim Schreiben im Zielordner — ein Foto fehlte, ohne Warnung. Kollisionen bekommen jetzt einen eindeutigen Namen (`_2`).
+- **Schild-/Wegweiser-Platzieren: Esc brach den Modus nach einem Tab-Wechsel nicht mehr ab.** Der Esc-Handler hing am ersten geöffneten Modul; jetzt trifft er immer das aktuelle. Betraf auch den Route-Klick-Modus.
+
+## [0.9.387] – 2026-07-04
+### Hinzugefügt
+- **Wegweiser-Schilder: Pfeilrichtung wählbar (links/rechts).** Im Schild-Editor gibt es beim Stil „Wegweiser" jetzt einen Links/Rechts-Umschalter — die Pfeilspitze zeigt entsprechend. Wirkt in Vorschau **und** Video; die Vorschau zeigt die Pfeilspitze jetzt überhaupt erst (vorher nur im gerenderten Video sichtbar).
+### Behoben
+- **Kein macOS-„Lokales Netzwerk"-Zugriffsdialog mehr beim Rendern.** Das gebündelte Chromium suchte beim Start nach Chromecast-/AirPlay-Geräten im Netzwerk (mDNS/DIAL) → macOS fragte nach „Geräte im lokalen Netzwerk suchen". Diese Geräte-Suche ist jetzt per Startflags deaktiviert (fürs Rendern nicht nötig — es wird nur normales Internet für die Karten-Kacheln gebraucht). Falls der Dialog schon erschien: er kann bedenkenlos mit „Nicht erlauben" beantwortet werden.
+
 ## [0.9.386] – 2026-07-02
 ### Hinzugefügt
 - **Reiseroute: beliebig viele Zwischenziele** (Nutzer-Wunsch). Statt nur Start + Ziel lässt sich die Route jetzt über **mehrere Stationen** führen: „➕ Zwischenziel" fügt eine Station vor dem Ziel ein, jede Zeile ist per Adresse **tippbar** oder per 📍 **auf die Karte klickbar**, und ein neuer **Klick-Modus** lässt einen die Stationen einfach **nacheinander auf die Karte klicken** — jeder Klick erscheint als Station in der Sidebar. Praktisch z. B. für Fährrouten, die nicht auf dem direkten Großkreis fahren. Funktioniert mit „🛣️ Straße folgen" (Mapbox) **und** „✈️ Flugroute" (Großkreis durch alle Punkte). Alte gespeicherte Routen (nur Start/Ziel) werden automatisch migriert.

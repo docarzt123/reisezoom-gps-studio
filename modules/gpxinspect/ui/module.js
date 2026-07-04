@@ -290,7 +290,7 @@ function mountGpxInspect(body, headerActions) {
   });
 
   if (typeof onGpxLoaded === "function") {
-    onGpxLoaded(({ path }) => {
+    window.__rzGpxUnsub_insp = onGpxLoaded(({ path }) => {
       if (isUnmounted) return;
       if (path) loadTrack(path); else clearTrack();
     });
@@ -1813,6 +1813,8 @@ function mountGpxInspect(body, headerActions) {
   // ── Cleanup ──────────────────────────────────────────────────────────────────
   return function cleanup() {
     isUnmounted = true;
+    // v0.9.389 — GPX-Listener abmelden (hielt sonst die komplette _points-Kopie).
+    try { if (window.__rzGpxUnsub_insp) { window.__rzGpxUnsub_insp(); window.__rzGpxUnsub_insp = null; } } catch (_) {}
     try { document.removeEventListener("keydown", onKeyDown); } catch (_) {}
     try { window.removeEventListener("pointerup", onProfileUp); } catch (_) {}   // v0.9.293
     if (_clickTimer) { try { clearTimeout(_clickTimer); } catch (_) {} _clickTimer = null; }

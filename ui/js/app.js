@@ -381,6 +381,11 @@ async function openSettingsModal() {
       await loadI18n();
       applyI18nToModuleManifests();
       renderTabs();
+      // v0.9.389 — altes Modul VOR dem Neu-Mounten sauber abräumen. renderMod()
+      // überschreibt activeCleanup ohne es zu rufen (nur switchMod ruft es), sonst
+      // bleiben beim Sprachwechsel Map/WebGL-Kontext + alle Listener des alten Mounts
+      // hängen (WKWebView hat ein hartes WebGL-Kontext-Limit).
+      if (typeof activeCleanup === "function") { try { activeCleanup(); } catch (_) {} activeCleanup = null; }
       renderMod();
     }
     openModal({}).close();

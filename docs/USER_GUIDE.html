@@ -521,7 +521,7 @@ python app.py</code></pre>
 <ol>
 <li><strong>GPX laden</strong> (die Wanderung) — ganz normal über die GPX-Leiste. Im Reiseroute-Tab erscheint sie automatisch als <strong>Ghost</strong> (schwache Linie).</li>
 <li>Bereich <strong>„🛫 Route / Anreise&quot;</strong>: <strong>Stil</strong> wählen — <strong>🛣️ Straße folgen</strong> (Mapbox-Route) oder <strong>✈️ Flugroute (Großkreis)</strong> (kürzester Weg auf der Kugel, wie echte Flüge — wölbt sich auf der Karte polwärts).</li>
-<li><strong>Start + Ziel</strong> angeben: als <strong>Adresse/Ort</strong> (z.B. „Dresden Hauptbahnhof&quot;), per <strong>📍 Klick auf die Karte</strong>, oder als <code>lat,lon</code>.</li>
+<li><strong>Stationen</strong> angeben — <strong>Start, beliebig viele Zwischenziele und Ziel</strong>. Jede Station als <strong>Adresse/Ort</strong> (z.B. „Dresden Hauptbahnhof&quot;) tippen, per <strong>📍 Klick auf die Karte</strong> setzen, oder als <code>lat,lon</code>. <strong>„➕ Zwischenziel&quot;</strong> fügt eine Station vor dem Ziel ein; <strong>✕</strong> entfernt eine. Mit <strong>„📍 Klick-Modus&quot;</strong> klickst du die Stationen einfach <strong>nacheinander auf die Karte</strong> — jeder Klick erscheint als neue Station in der Liste (Esc beendet). Praktisch, wenn die echte Strecke (z.B. eine Fähre) nicht dem direkten Weg folgt.</li>
 <li>Bei „Straße folgen&quot;: <strong>Fortbewegung</strong> (Auto/Fuß/Rad) + <strong>Detailgrad</strong>-Slider (fein → grob). Grob macht eine bewusst <strong>geschwungene, vereinfachte</strong> Linie, die sich locker an der Route orientiert (nicht so kleinteilig wie eine echte Wanderung). Die Animation bleibt dabei immer flüssig.</li>
 <li><strong>„Route berechnen&quot;</strong> → die Strecke wird als animierter Track geladen, die Wanderung bleibt als Ghost dahinter. Distanz + Fahrtzeit stehen unter dem Button.</li>
 <li>Wie im Animator weiter: Probelauf, Kamera, Schilder, <strong>Video rendern</strong>.</li>
@@ -530,7 +530,7 @@ python app.py</code></pre>
 <h3 id="gpx-ghost-konfigurieren">GPX-Ghost konfigurieren</h3>
 <p>Bereich <strong>„👻 GPX-Ghost&quot;</strong>: anzeigen an/aus, <strong>Farbe</strong>, <strong>Deckkraft</strong>, <strong>Linienbreite</strong>, <strong>gestrichelt</strong>. Wirkt live in der Vorschau und im gerenderten Video. (Im Reiseroute-Modul sind dafür die Stats-Overlays ausgeblendet.)</p>
 <h3 id="wird-gespeichert">Wird gespeichert</h3>
-<p>Start, Ziel, Stil, Detailgrad, Profil <strong>und die zuletzt berechnete Route</strong> werden im Projekt gespeichert — nach einem Neustart ist alles wieder da (die Route erscheint ohne erneutes Berechnen).</p>
+<p>Alle Stationen (Start, Zwischenziele, Ziel), Stil, Detailgrad, Profil <strong>und die zuletzt berechnete Route</strong> werden im Projekt gespeichert — nach einem Neustart ist alles wieder da (die Route erscheint ohne erneutes Berechnen).</p>
 <h3 id="braucht-einen-mapbox-token">Braucht einen Mapbox-Token</h3>
 <p>Straßen-Routen + Adress-Suche laufen über Mapbox (derselbe Token wie die Karte, siehe Erste Schritte). Die Flugroute (Großkreis) braucht keinen API-Call.</p>
 <h2 id="5-modul-tour-map-statische-karten-png">5 · Modul: Tour-Map — Statische Karten-PNG</h2>

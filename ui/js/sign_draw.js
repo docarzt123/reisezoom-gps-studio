@@ -129,7 +129,10 @@
     }
 
     // ── Box-Geometrie ───────────────────────────────────────────────────
-    var arrowW = (style === "signpost") ? 13 * dpr : 0;     // Pfeilspitze rechts
+    var arrowW = (style === "signpost") ? 13 * dpr : 0;     // Pfeilspitze-Breite
+    // v0.9.387 — Wegweiser-Richtung: Pfeil zeigt nach links oder rechts.
+    var signDir = (style === "signpost" && o.direction === "left") ? "left" : "right";
+    var contentDX = (signDir === "left") ? arrowW : 0;      // Inhalt nach rechts rücken, wenn Pfeil links
     var innerW = Math.max(maxw, imgW);
     var boxW = innerW + pad * 2 + arrowW;
     var boxH = (hasImg ? imgH + imgGap : 0) + textH + pad * 2;
@@ -208,14 +211,22 @@
     setShadow(!boxTransparent);
     ctx.fillStyle = boxFill;
     if (decoration === "post") {
-      // Pfeil-Form (rechts spitz)
+      // Pfeil-Form (Spitze links oder rechts — v0.9.387)
       var ax = bx, ay = by, aw = boxW, ah = boxH;
       ctx.beginPath();
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(ax + aw - arrowW, ay);
-      ctx.lineTo(ax + aw, ay + ah / 2);
-      ctx.lineTo(ax + aw - arrowW, ay + ah);
-      ctx.lineTo(ax, ay + ah);
+      if (signDir === "left") {
+        ctx.moveTo(ax + arrowW, ay);
+        ctx.lineTo(ax + aw, ay);
+        ctx.lineTo(ax + aw, ay + ah);
+        ctx.lineTo(ax + arrowW, ay + ah);
+        ctx.lineTo(ax, ay + ah / 2);
+      } else {
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(ax + aw - arrowW, ay);
+        ctx.lineTo(ax + aw, ay + ah / 2);
+        ctx.lineTo(ax + aw - arrowW, ay + ah);
+        ctx.lineTo(ax, ay + ah);
+      }
       ctx.closePath();
       if (!boxTransparent) ctx.fill();
       setShadow(false);
@@ -261,7 +272,7 @@
     // ── Bild (oben in der Box, cover-fit, abgerundet) ───────────────────
     if (hasImg) {
       setShadow(false);
-      var ix = bx + pad, iy = by + pad;
+      var ix = bx + pad + contentDX, iy = by + pad;
       var iwd = boxW - arrowW - pad * 2, ihd = imgH;
       ctx.save();
       rr(ix, iy, iwd, ihd, Math.max(0, radius - pad * 0.5));
@@ -285,9 +296,9 @@
       ctx.textBaseline = "middle";
       var textAreaW = boxW - arrowW - pad * 2;
       var tx, anchorAlign;
-      if (align === "left") { ctx.textAlign = "left"; tx = bx + pad; anchorAlign = "left"; }
-      else if (align === "right") { ctx.textAlign = "right"; tx = bx + pad + textAreaW; anchorAlign = "right"; }
-      else { ctx.textAlign = "center"; tx = bx + pad + textAreaW / 2; anchorAlign = "center"; }
+      if (align === "left") { ctx.textAlign = "left"; tx = bx + pad + contentDX; anchorAlign = "left"; }
+      else if (align === "right") { ctx.textAlign = "right"; tx = bx + pad + contentDX + textAreaW; anchorAlign = "right"; }
+      else { ctx.textAlign = "center"; tx = bx + pad + contentDX + textAreaW / 2; anchorAlign = "center"; }
       var ty0 = by + pad + (hasImg ? imgH + imgGap : 0) + lineH / 2;
       for (var k = 0; k < lines.length; k++) {
         ctx.fillText(lines[k], tx, ty0 + k * lineH);

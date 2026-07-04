@@ -155,7 +155,7 @@ function mountHeightAnim(body, headerActions) {
           <div class="height-trim-shade height-trim-shade-left" id="height-trim-shade-left"></div>
           <div class="height-trim-shade height-trim-shade-right" id="height-trim-shade-right"></div>
           <!-- Progress-Bar (unter den Handles) -->
-          <input type="range" id="height-progress" min="0" max="1000" step="1" value="0" class="height-progress-slider">
+          <input type="range" id="height-scrub" min="0" max="1000" step="1" value="0" class="height-progress-slider">
           <!-- Trim-Handles (links + rechts) wie im Animator -->
           <div class="height-trim-handle height-trim-handle-start" id="height-trim-handle-start"
                title="${t("heightanim.trim.start_tip", "Start ziehen — Trim-Anfang")}">
@@ -499,7 +499,7 @@ function mountHeightAnim(body, headerActions) {
   }
 
   function setProgressUi(p) {
-    const slider = document.getElementById("height-progress");
+    const slider = document.getElementById("height-scrub");
     if (slider) slider.value = String(Math.round(p * 1000));
     const time = document.getElementById("height-time");
     if (time) {
@@ -580,7 +580,7 @@ function mountHeightAnim(body, headerActions) {
   }
   // Auf globalen GPX-Wechsel reagieren — Callback bekommt `{path, data}`
   if (typeof onGpxLoaded === "function") {
-    onGpxLoaded(applyGlobalGpxToHeightModule);
+    window.__rzGpxUnsub_height = onGpxLoaded(applyGlobalGpxToHeightModule);
   }
 
   // ── v0.9.322 — Undo/Redo (⌘Z) für alle Höhen-Animator-Einstellungen ────────
@@ -656,7 +656,7 @@ function mountHeightAnim(body, headerActions) {
   document.getElementById("height-play")?.addEventListener("click", togglePlay);
 
   // Progress-Slider — scrub
-  const progressSlider = document.getElementById("height-progress");
+  const progressSlider = document.getElementById("height-scrub");
   if (progressSlider) {
     progressSlider.addEventListener("input", () => {
       pausePlay();  // beim Scrubben pausieren
@@ -940,6 +940,9 @@ function mountHeightAnim(body, headerActions) {
   // Cleanup: ResizeObserver disconnecten + Animation stoppen + Poll-Timer
   return function cleanup() {
     pausePlay();
+    // v0.9.389 — GPX-Listener abmelden. Sonst lädt die verwaiste Closure bei jedem
+    // GPX-Laden den Track nach + startet startPlay() → rafTick läuft ewig im Hintergrund.
+    try { if (window.__rzGpxUnsub_height) { window.__rzGpxUnsub_height(); window.__rzGpxUnsub_height = null; } } catch (_) {}
     try { ro.disconnect(); } catch (_) {}
     if (_renderPollTimer) { clearTimeout(_renderPollTimer); _renderPollTimer = null; }
   };
