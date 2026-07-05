@@ -440,6 +440,7 @@
   "animator.codec.prores_hint": "Calidad de estudio para edición de vídeo — la salida es .mov, varios cientos de MB por render.",
   "animator.style.osm_disabled_title": "Solo OpenStreetMap activo",
   "animator.style.osm_disabled_body": "Sin token de Mapbox solo está disponible el mapa OSM estándar — sin satélite, sin terreno 3D, sin cambio de estilo. La renderización también está desactivada.",
+  "animator.style.osm_disabled_body_static": "Sin token de Mapbox se usa el mapa OSM estándar — sin satélite, sin terreno 3D, sin cambio de estilo. La exportación a PNG funciona igualmente (con el mapa OSM).",
   "animator.style.osm_disabled_cta": "🔑 Añadir token de Mapbox",
   "animator.toggle.terrain": "Activar terreno 3D",
   "animator.toggle.overlays": "Mostrar estadísticas",

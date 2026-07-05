@@ -440,6 +440,7 @@
   "animator.codec.prores_hint": "Studio quality for video editing — output is .mov, several hundred MB per render.",
   "animator.style.osm_disabled_title": "Only OpenStreetMap active",
   "animator.style.osm_disabled_body": "Without a Mapbox token only the OSM default map is available — no satellite, no 3D terrain, no style switching. Rendering is disabled as well.",
+  "animator.style.osm_disabled_body_static": "Without a Mapbox token the OSM default map is used — no satellite, no 3D terrain, no style switching. PNG rendering still works (with the OSM map).",
   "animator.style.osm_disabled_cta": "🔑 Add Mapbox token",
   "animator.toggle.terrain": "Enable 3D terrain",
   "animator.toggle.overlays": "Show stats overlays",

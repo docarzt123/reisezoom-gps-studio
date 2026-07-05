@@ -129,7 +129,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.390"
+APP_VERSION = "0.9.391"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -1779,6 +1779,11 @@ class Api:
         needs_mov = alpha or codec in ("prores", "prores4444")
         # v0.9.309 — Standbild (Tour-Map) → PNG, kein Video-Container.
         _still = bool(params.get("still_frame", False))
+        # v0.9.391 — OSM-Fallback: NUR die Tour-Map (Standbild) darf ohne
+        # Mapbox-Token rendern (OSM-Raster-Karte). Ein Video braucht weiter einen
+        # Token (das Frontend blockt den Video-Render im OSM-Modus). OSM-Karte ist
+        # flach → Terrain aus, Pitch 0.
+        _osm_render = _still and not _active_mapbox_token()
         target_ext = ".png" if _still else (".mov" if needs_mov else ".mp4")
         _valid_exts = (".png",) if _still else (".mp4", ".mov")
 
@@ -1814,6 +1819,8 @@ class Api:
             output_path=out_path,
             mapbox_token=_active_mapbox_token(),
             map_style=effective_map_style,
+            # v0.9.391 — OSM-Fallback für die Tour-Map (kein Token → OSM-Raster).
+            use_osm=_osm_render,
             # v0.9.308 — Standbild-Modus (Tour-Map = ein Frame vom Animator).
             # Wenn das UI still_frame=True schickt, rendert der Worker EIN PNG
             # via canim.render_frame statt eines Videos.
@@ -1827,12 +1834,13 @@ class Api:
             fps=int(params.get("fps", 30)),
             width=int(params.get("width", 1920)),
             height=int(params.get("height", 1080)),
-            pitch=float(params.get("pitch", 40)),
+            # v0.9.391 — OSM-Raster ist flach: Pitch 0 + Terrain aus erzwingen.
+            pitch=0.0 if _osm_render else float(params.get("pitch", 40)),
             rotation=float(params.get("rotation", 20)),
             spin_dps=float(params.get("spin_dps", 0) or 0),
             cinematic_flyto=bool(params.get("cinematic_flyto", True)),
             exaggeration=float(params.get("exaggeration", 1.5)),
-            enable_terrain=bool(params.get("enable_terrain", True)),
+            enable_terrain=(not _osm_render) and bool(params.get("enable_terrain", True)),
             line_color=params.get("line_color", "#ff6b35"),
             line_width=float(params.get("line_width", 3.5)),
             line_style=_be_line_style,

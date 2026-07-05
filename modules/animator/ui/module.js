@@ -177,7 +177,7 @@ function mountAnimator(body, headerActions, opts) {
             </select>
             <div class="osm-disabled-notice" id="anim-style-osm-notice" hidden>
               <span class="osm-disabled-title">${t("animator.style.osm_disabled_title")}</span>
-              ${t("animator.style.osm_disabled_body")}
+              ${t(_isStaticFrame ? "animator.style.osm_disabled_body_static" : "animator.style.osm_disabled_body")}
               <br>
               <button type="button" class="osm-disabled-cta" id="anim-style-osm-cta">${t("animator.style.osm_disabled_cta")}</button>
             </div>
@@ -1935,7 +1935,11 @@ function mountAnimator(body, headerActions, opts) {
     // dünner / verschoben). Synchron zu core/animator.py (Glow + Main +
     // Highlight haben z-offset; Shadow bewusst NICHT, damit der Schatten am
     // Boden bleibt).
-    const zOffPaint = currentTerrainOn() ? { "line-z-offset": 150 } : {};
+    // v0.9.391 — `line-z-offset` ist eine Mapbox-GL-v3-Property; MapLibre (OSM-
+    // Fallback) kennt sie nicht → betroffene Layer (Glow/Linie/Highlight) rendern
+    // dann gar nicht (nur der Schatten ohne z-offset blieb sichtbar). Im OSM-Modus
+    // gibt es ohnehin kein 3D-Terrain → hier weglassen.
+    const zOffPaint = (currentTerrainOn() && !isOsmMode()) ? { "line-z-offset": 150 } : {};
     // v0.9.169 — Ghost-Track: ganze Route als UNTERSTE Linie (eigene Source mit
     // ALLEN Punkten, wird nie getrimmt/animiert). Zuerst added = ganz unten.
     // Sichtbarkeit/Deckkraft steuert applyGhost().
@@ -4891,9 +4895,12 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.249 — OSM-Modus: Animator + Reiseroute sind Mapbox-only. Statt einer
     // sinnlosen OSM-Vorschau die Karten-Fläche mit klarer „Token nötig"-Meldung
     // überdecken und den Map-Init komplett überspringen (keine OSM-Karte).
+    // v0.9.391 — Die Tour-Map (Standbild) kann ohne Token: createMap() unten baut
+    // dann eine MapLibre-OSM-Karte, und der Render erzeugt ein OSM-PNG. Also NICHT
+    // überdecken. Nur Animator/Reiseroute (Video/animiert) bleiben Mapbox-only.
     try {
       const _cv = body.querySelector("#map-canvas");
-      if (_cv && _cv.parentElement && window.osmBlockOverlay && window.osmBlockOverlay(_cv.parentElement)) {
+      if (!_isStaticFrame && _cv && _cv.parentElement && window.osmBlockOverlay && window.osmBlockOverlay(_cv.parentElement)) {
         return;
       }
     } catch (_) {}
@@ -8658,7 +8665,10 @@ function mountAnimator(body, headerActions, opts) {
     // Alpha-Modus braucht keinen Mapbox-Token (keine Map). Skip Token-Check.
     // v0.6.0: Alpha-Modus = Stil "alpha". Alpha + OSM ist OK (kein Token nötig).
     const alphaModeActive = document.getElementById("anim-style").value === "alpha";
-    if (isOsmMode() && !alphaModeActive) {
+    // v0.9.391 — Tour-Map (Standbild) darf im OSM-Modus rendern: das Backend
+    // baut dann eine OSM-Raster-Karte statt Mapbox. Nur der Video-Render
+    // (Animator) bleibt Token-pflichtig. Alpha braucht sowieso keinen Token.
+    if (isOsmMode() && !alphaModeActive && !_isStaticFrame) {
       openModal({
         title: t("animator.render_needs_token.title"),
         body: `<p>${t("animator.render_needs_token.body")}</p>`,

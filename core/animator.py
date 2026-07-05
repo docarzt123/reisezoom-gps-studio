@@ -122,6 +122,10 @@ class AnimatorConfig:
     output_path: str
     mapbox_token: str
     map_style: str = "satellite"        # key in MAP_STYLES
+    # v0.9.391 — OSM-Fallback (nur Tour-Map/Standbild ohne Mapbox-Token): Karte
+    # aus OSM-Raster-Kacheln statt Mapbox-Style. Terrain/Pitch sind bei Raster
+    # flach → app.py erzwingt im OSM-Modus enable_terrain=False, pitch=0.
+    use_osm: bool = False
     duration_s: int = 12
     hold_s: int = 5
     # v0.9.59 (Nutzer-Wunsch): Intro-Hold analog zu hold_s, aber AM ANFANG.
@@ -920,6 +924,42 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     if cfg.transparent_background:
         return _make_html_alpha(cfg, ds_points, cum_dist, cum_time, total_stats, bbox)
     style_url = MAP_STYLES.get(cfg.map_style, MAP_STYLES["satellite"])
+    # v0.9.391 — OSM-Fallback (Tour-Map ohne Mapbox-Token). mapbox-gl-js rendert
+    # ein Style-OBJEKT mit Raster-Source ohne Token (keine mapbox://-Ressourcen).
+    # Identische Kachel-Quelle wie die Live-Karte (ui/js/util.js OSM_STYLE), damit
+    # Vorschau = Render. Die Source trägt die Attribution → die Default-
+    # AttributionControl zeigt automatisch „© OpenStreetMap". `style_expr` wird
+    # OHNE Quotes direkt ins Map-Init injiziert.
+    _osm = bool(getattr(cfg, "use_osm", False))
+    if _osm:
+        style_expr = (
+            "{version:8,"
+            "sources:{osm:{type:'raster',"
+            "tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],"
+            "tileSize:256,maxzoom:19,"
+            "attribution:'\\u00A9 <a href=\\'https://www.openstreetmap.org/copyright\\'>OpenStreetMap</a>'}},"
+            "layers:[{id:'osm-tiles',type:'raster',source:'osm',minzoom:0}]}"
+        )
+    else:
+        style_expr = "'" + style_url + "'"
+    # v0.9.391 — Karten-Engine wählen. Mapbox GL JS v3 VERLANGT einen gültigen
+    # Token (wirft sonst „valid access token required" und die Karte bleibt leer)
+    # — auch bei reinen Raster-Styles. Darum im OSM-Fall (kein Token) MapLibre GL
+    # JS laden (braucht keinen Token), exakt wie die Live-Karte (ui/index.html).
+    # MapLibre ist API-kompatibel für unsere Nutzung; wir aliasen `mapboxgl` darauf,
+    # damit die restliche Render-JS unverändert bleibt.
+    if _osm:
+        gl_head = (
+            '<script src="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.js"></script>\n'
+            '<link href="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.css" rel="stylesheet">'
+        )
+        gl_token_js = "window.mapboxgl = maplibregl;"
+    else:
+        gl_head = (
+            '<script src="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js"></script>\n'
+            '<link href="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css" rel="stylesheet">'
+        )
+        gl_token_js = f"mapboxgl.accessToken = '{cfg.mapbox_token}';"
     # v0.9.156 — Multi-Track: `tours` = Liste von {"coords":[[lon,lat]..],"color":"#.."}.
     # Wenn ≥2 vorhanden, werden N eigene Track-Sources/Layer (`mtrack{i}`) plus
     # eine `advanceFrameMulti`-Funktion erzeugt; der Single-Track-Code bleibt
@@ -1143,7 +1183,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         "})();"
     )
     terrain_block = ""
-    if cfg.enable_terrain:
+    if cfg.enable_terrain and not _osm:
         terrain_block = f"""
     map.addSource('mapbox-dem', {{
         type: 'raster-dem',
@@ -1193,7 +1233,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         _ov_zoom = cfg.override_zoom - (math.log2(_ov_dsf) if _ov_dsf > 0 else 0.0)
         map_init = (
             f"const map = new mapboxgl.Map({{\n"
-            f"  container:'map', style:'{style_url}',\n"
+            f"  container:'map', style:{style_expr},\n"
             f"  center: [{ovc[0]}, {ovc[1]}],\n"
             f"  zoom: {_ov_zoom},\n"
             f"  pitch:{cfg.pitch}, bearing:-10,\n"
@@ -1203,7 +1243,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     else:
         map_init = (
             f"const map = new mapboxgl.Map({{\n"
-            f"  container:'map', style:'{style_url}',\n"
+            f"  container:'map', style:{style_expr},\n"
             f"  bounds: [[{min_lon}, {min_lat}], [{max_lon}, {max_lat}]],\n"
             f"  fitBoundsOptions: {{ padding: {_fit_pad}, pitch: {cfg.pitch}, bearing: {_fit_bearing} }},\n"
             f"{common_opts}"
@@ -1462,8 +1502,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css" rel="stylesheet">
+{gl_head}
 {_overlay_font_link(cfg)}
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
@@ -1478,7 +1517,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
 <div id="map"></div>
 {overlays_block}
 <script>
-mapboxgl.accessToken = '{cfg.mapbox_token}';
+{gl_token_js}
 const allCoords = {coords_json};
 const elevations = {elevations_json};
 const cumDistM = {cum_dist_json};
@@ -2527,7 +2566,7 @@ async def render_frame(
 
     emit(0.0, "Lade GPX-Datei …")
     _log.info("render_frame() start · GPX=%s · output=%s", cfg.gpx_path, cfg.output_path)
-    if not cfg.transparent_background and (not cfg.mapbox_token or not cfg.mapbox_token.startswith("pk.")):
+    if not cfg.transparent_background and not getattr(cfg, "use_osm", False) and (not cfg.mapbox_token or not cfg.mapbox_token.startswith("pk.")):
         _log.warning("Mapbox-Token fehlt/ungültig — Standbild-Render wird fehlschlagen.")
 
     raw_points, total_stats = core_parse_gpx(cfg.gpx_path)

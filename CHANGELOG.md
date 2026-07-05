@@ -14,7 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.390] – 2026-07-05
+## [0.9.391] – 2026-07-05
+### Hinzugefügt
+- **Tour-Map rendert jetzt auch ohne Mapbox-Token — mit OpenStreetMap-Karte.** Wer keinen Token hinterlegt hat (oder „Karten-Engine: OSM erzwingen" aktiviert), konnte bisher kein Bild rendern („Render braucht Token"). Jetzt erzeugt die Tour-Map in diesem Fall ein PNG mit **OSM-Straßenkarte** (via MapLibre GL JS, wie die Live-Vorschau) — dieselbe Render-Pipeline, nur mit OSM-Kacheln statt Mapbox-Style. Track, Overlays, Pins und Schilder liegen wie gewohnt oben; Attribution „© OpenStreetMap" ist im Bild. OSM-Karten sind flach → Pitch/3D-Terrain sind in diesem Modus aus. **Der Video-Animator bleibt Token-pflichtig** (ein Video zieht sehr viele OSM-Kacheln — das würde die OSM-Fair-Use-Politik verletzen).
 ### Geändert
 - **Track liegt jetzt ÜBER den Karten-Beschriftungen.** Beim Mapbox-Standard-Style („Satellite (3D, Standard)" u. a.) wurden Ortsnamen, Straßennamen und POIs bisher *über* die Track-Linie geschrieben — der Track verschwand teils unter der Beschriftung. Track, Ghost, Punkte, Pins, Fotos und Schilder werden jetzt über die Label-Ebene gehoben (in Vorschau und Render), sodass die Route immer obenauf liegt. Bei klassischen Styles war das ohnehin so.
 ### Behoben
