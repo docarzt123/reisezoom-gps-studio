@@ -14,7 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.391] – 2026-07-05
+## [0.9.392] – 2026-07-05
+### Behoben
+- **Reiseroute: verständliche Meldung, wenn eine Rad-/Fuß-Route zu lang ist** (Beta-Tester). Beispiel: Hamburg → Dortmund (Zwischenziel) → Bremen mit dem Fahrrad schlug fehl, während Auto und zu Fuß gingen und die einzelnen Etappen per Rad routbar sind. Ursache: das Mapbox-Radprofil hat ein **Gesamtstrecken-Limit (~500 km)** — die Kombination (~575 km) wird als `NoRoute` abgelehnt, obwohl jede Etappe für sich passt (Auto/Fuß haben ein viel höheres Limit). Statt „Route fehlgeschlagen: …" zeigt die App jetzt eine klare, profil-abhängige Meldung mit Tipp (auf Auto stellen, Strecke mit mehr Zwischenzielen aufteilen oder Reihenfolge der Stationen ändern). i18n DE/EN/ES.
 ### Hinzugefügt
 - **Tour-Map rendert jetzt auch ohne Mapbox-Token — mit OpenStreetMap-Karte.** Wer keinen Token hinterlegt hat (oder „Karten-Engine: OSM erzwingen" aktiviert), konnte bisher kein Bild rendern („Render braucht Token"). Jetzt erzeugt die Tour-Map in diesem Fall ein PNG mit **OSM-Straßenkarte** (via MapLibre GL JS, wie die Live-Vorschau) — dieselbe Render-Pipeline, nur mit OSM-Kacheln statt Mapbox-Style. Track, Overlays, Pins und Schilder liegen wie gewohnt oben; Attribution „© OpenStreetMap" ist im Bild. OSM-Karten sind flach → Pitch/3D-Terrain sind in diesem Modus aus. **Der Video-Animator bleibt Token-pflichtig** (ein Video zieht sehr viele OSM-Kacheln — das würde die OSM-Fair-Use-Politik verletzen).
 ### Geändert

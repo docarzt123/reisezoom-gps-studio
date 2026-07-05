@@ -155,6 +155,14 @@ def road_route(
         raise RouteError(f"Directions-Anfrage fehlgeschlagen: {e}") from e
     code = data.get("code")
     if code != "Ok":
+        # v0.9.392 — Mapbox liefert `NoRoute`, wenn keine Route existiert. Häufigster
+        # Fall in der Praxis: das Rad-/Fußprofil hat ein Gesamtstrecken-Limit
+        # (cycling ~500 km) — eine an sich fahrbare Route wird abgelehnt, sobald die
+        # Summe aller Etappen zu groß wird (z.B. Hamburg→Dortmund→Bremen mit dem Rad,
+        # ~575 km; jede Etappe einzeln geht). Als stabilen Code weitergeben, damit das
+        # Frontend eine verständliche, profil-abhängige Meldung zeigen kann.
+        if code == "NoRoute":
+            raise RouteError("no_route")
         msg = data.get("message") or code or "Unbekannter Fehler"
         raise RouteError(f"Keine Route gefunden ({msg})")
     routes = data.get("routes") or []

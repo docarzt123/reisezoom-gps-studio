@@ -892,6 +892,8 @@
   "route.computing": "Computing route …",
   "route.done": "✓ Route loaded: ",
   "route.failed": "Route failed: ",
+  "route.no_route_profile": "For this profile (🚴/🚶) the total distance is too long — Mapbox limits cycling/walking routes (cycling ~500 km). Tip: switch to 🚗 car, split the trip with more stops, or change the order of the stops.",
+  "route.no_route": "No route found — a section is probably not passable. Check the stops or try a different order.",
   "route.no_token": "No Mapbox token configured (see Settings).",
   "route.no_start": "Start missing — enter an address or 📍 click on the map.",
   "route.no_end": "Destination missing — enter an address or 📍 click on the map.",

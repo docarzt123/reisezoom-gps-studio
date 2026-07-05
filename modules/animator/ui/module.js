@@ -6989,9 +6989,18 @@ function mountAnimator(body, headerActions, opts) {
         });
         if (!res || !res.ok) {
           const code = res && res.error;
-          const msg = (code === "no_token") ? t("route.no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen).")
-                    : (code === "need_two_points") ? t("route.no_start", "Start und Ziel nötig.")
-                    : (t("route.failed", "Route fehlgeschlagen: ") + (code || "unbekannt"));
+          // v0.9.392 — `no_route`: Mapbox findet keine Route. In der Praxis fast immer
+          // das Rad-/Fuß-Distanzlimit (cycling ~500 km Gesamtstrecke) → verständliche,
+          // profil-abhängige Meldung mit Handlungstipp statt „Route fehlgeschlagen: …".
+          let msg;
+          if (code === "no_token") msg = t("route.no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen).");
+          else if (code === "need_two_points") msg = t("route.no_start", "Start und Ziel nötig.");
+          else if (code === "no_route") {
+            msg = (profile === "cycling" || profile === "walking")
+              ? t("route.no_route_profile", "Für dieses Profil (🚴/🚶) ist die Gesamtstrecke zu lang — Mapbox begrenzt Rad-/Fuß-Routen (Rad ~500 km). Tipp: auf 🚗 Auto stellen, die Strecke mit mehr Zwischenzielen aufteilen oder die Reihenfolge der Stationen ändern.")
+              : t("route.no_route", "Keine Route gefunden — vermutlich ist ein Abschnitt nicht befahrbar. Prüf die Stationen oder versuch eine andere Reihenfolge.");
+          }
+          else msg = t("route.failed", "Route fehlgeschlagen: ") + (code || "unbekannt");
           _routeStatus(msg, "err"); return;
         }
         // v0.9.210 — Route ist der ANIMIERTE Track (lokal geladen, ohne das

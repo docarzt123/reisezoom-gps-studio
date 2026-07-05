@@ -892,6 +892,8 @@
   "route.computing": "Route wird berechnet …",
   "route.done": "✓ Route geladen: ",
   "route.failed": "Route fehlgeschlagen: ",
+  "route.no_route_profile": "Für dieses Profil (🚴/🚶) ist die Gesamtstrecke zu lang — Mapbox begrenzt Rad-/Fuß-Routen (Rad ~500 km). Tipp: auf 🚗 Auto stellen, die Strecke mit mehr Zwischenzielen aufteilen oder die Reihenfolge der Stationen ändern.",
+  "route.no_route": "Keine Route gefunden — vermutlich ist ein Abschnitt nicht befahrbar. Prüf die Stationen oder versuch eine andere Reihenfolge.",
   "route.no_token": "Kein Mapbox-Token konfiguriert (siehe Einstellungen).",
   "route.no_start": "Start fehlt — Adresse eingeben oder 📍 auf der Karte klicken.",
   "route.no_end": "Ziel fehlt — Adresse eingeben oder 📍 auf der Karte klicken.",

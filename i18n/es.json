@@ -892,6 +892,8 @@
   "route.computing": "Calculando ruta …",
   "route.done": "✓ Ruta cargada: ",
   "route.failed": "Ruta fallida: ",
+  "route.no_route_profile": "Para este perfil (🚴/🚶) la distancia total es demasiado larga — Mapbox limita las rutas en bici/a pie (bici ~500 km). Consejo: cambia a 🚗 coche, divide el trayecto con más paradas o cambia el orden de las paradas.",
+  "route.no_route": "No se encontró ruta — probablemente un tramo no es transitable. Revisa las paradas o prueba otro orden.",
   "route.no_token": "No hay token de Mapbox configurado (ver Ajustes).",
   "route.no_start": "Falta el inicio — escribe una dirección o 📍 haz clic en el mapa.",
   "route.no_end": "Falta el destino — escribe una dirección o 📍 haz clic en el mapa.",
