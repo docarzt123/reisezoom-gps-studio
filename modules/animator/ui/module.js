@@ -869,6 +869,7 @@ function mountAnimator(body, headerActions, opts) {
       <div class="render-done hidden" id="anim-done">
         <h2>${t("animator.status.done")}</h2>
         <video id="anim-video" controls autoplay muted></video>
+        <img id="anim-still-img" class="render-still-img" hidden alt="">
         <div class="render-done-buttons">
           <button class="btn" id="anim-play-video">${t("animator.btn.play_video", "▶ Abspielen")}</button>
           <button class="btn" id="anim-open-folder">${t("animator.btn.reveal")}</button>
@@ -2027,6 +2028,26 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.310: Standbild-Modus — Start/Ziel-Markierung in die Vorschau (WYSIWYG
     // zum Render). Nur wenn staticFrame + Toggle an.
     try { updateStaticPinsPreview(); } catch (_) {}
+    // v0.9.390: Track/Overlays über die Karten-Beschriftungen heben (analog Render).
+    try { _rzRaiseOverlayLayers(); } catch (_) {}
+  }
+
+  // v0.9.390 — WYSIWYG zum Render: im Mapbox-Standard-Style (standard/
+  // standard-satellite) landen per addLayer OHNE Slot eingehängte Layer UNTER
+  // den Style-Labels (Ortsnamen/Straßen/POI) → „Beschriftung wird über den Track
+  // geschrieben". moveLayer(id) ohne beforeId hebt unsere (ungeslotteten) Layer
+  // an die Spitze, über die Labels. Bei klassischen Styles ohnehin oben (No-Op).
+  function _rzRaiseOverlayLayers() {
+    if (!map || !map.getStyle) return;
+    let st;
+    try { st = map.getStyle(); } catch (_) { return; }
+    if (!st || !st.layers) return;
+    const pre = ["preview-", "gpx-ghost", "anim-signs", "photo-pins", "mtrack"];
+    st.layers.forEach((l) => {
+      if (pre.some((p) => l.id.indexOf(p) === 0)) {
+        try { if (map.getLayer(l.id)) map.moveLayer(l.id); } catch (_) {}
+      }
+    });
   }
 
   // v0.9.310 — Start/Ziel-Pins in der Live-Vorschau (nur Standbild/Tour-Map).
@@ -8199,6 +8220,21 @@ function mountAnimator(body, headerActions, opts) {
     applog("info", `[drawPreview] n_coords=${res?.coords?.length} hasSource=${!!map?.getSource?.("preview-track")}`);
     currentCoords = res.coords;
     currentBbox = res.bbox;
+    // v0.9.390 — WYSIWYG-Invariante: sobald ein echter Track gezeichnet wird,
+    // MUSS der Render-Button aktiv sein. Vorher hing der Enable am ENDE eines
+    // try-Blocks in applyGlobalGpx (nach den Stats-Box-Updates). Warf dort eine
+    // Zeile (z.B. Stats-DOM in einem Mount-Race noch nicht bereit), wurde der
+    // Enable mitverschluckt → Track sichtbar, aber „Karte als PNG rendern" grau
+    // (intermittierend, va. Tour-Map). Hier idempotent nachziehen — deckt beide
+    // Apply-Pfade ab und heilt einen versehentlichen Disable. Nicht während
+    // eines laufenden Renders (Button ist dann bewusst gesperrt).
+    try {
+      if (res && res.coords && res.coords.length &&
+          !document.body.classList.contains("is-rendering")) {
+        const _rb = document.getElementById("anim-render");
+        if (_rb) _rb.disabled = false;
+      }
+    } catch (_) {}
     // v0.9.80 — wenn Track neu geladen wurde, Foto-Pins re-attachen damit
     // die track_anchors für die neue Track-Geometrie berechnet werden.
     // Sonst bleiben track_anchors auf 0 (vom letzten attach ohne coords)
@@ -9021,6 +9057,31 @@ function mountAnimator(body, headerActions, opts) {
       setRenderingState(false);     // v0.9.12 — UI wieder freigeben
       const done = document.getElementById("anim-done");
       done.classList.remove("hidden");
+      const _fileName = s.output.split("/").slice(-1)[0];
+      // v0.9.390 — Standbild-Modus (Tour-Map): das Ergebnis ist EIN PNG, kein
+      // Video. Der Fertig-Bereich zeigte fälschlich Video-Player + „▶ Abspielen"
+      // + „Nächstes Video". Hier auf Bild-Anzeige + passende Labels umstellen.
+      if (_isStaticFrame) {
+        const v2 = document.getElementById("anim-video");
+        const img = document.getElementById("anim-still-img");
+        if (v2) { try { v2.pause(); v2.removeAttribute("src"); v2.load(); } catch (_) {} v2.hidden = true; }
+        if (img) {
+          img.hidden = false;
+          (async () => {
+            let src = null;
+            try { const r = await api().serve_media(s.output); if (r && r.ok && r.url) src = r.url; } catch (_) {}
+            if (!src) src = encodeURI("file://" + s.output) + "?t=" + Date.now();
+            img.src = src;
+          })();
+        }
+        const playBtn = document.getElementById("anim-play-video");
+        if (playBtn) { playBtn.textContent = t("tourmap.btn.open_image", "🖼 Bild öffnen"); playBtn.onclick = () => api().open_path(s.output); }
+        document.getElementById("anim-open-folder").onclick = () => api().reveal_in_finder(s.output);
+        const newBtn = document.getElementById("anim-new");
+        if (newBtn) { newBtn.textContent = t("tourmap.btn.next", "Neues Bild"); newBtn.onclick = () => { done.classList.add("hidden"); }; }
+        toast(t("tourmap.toast.render_done", "Bild fertig: {file}").replace("{file}", _fileName), "success", 6000);
+        return;
+      }
       const v = document.getElementById("anim-video");
       v.onerror = () => {
         const code = (v.error && v.error.code) || 0;

@@ -1170,7 +1170,14 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # v0.9.307 — Standbild-Modus: Bounds-Fit nutzt cfg.padding_pct + cfg.bearing
     # (Tour-Map-Parität). Im Video-Modus bleibt's bei 8 % / bearing -10.
     if cfg.still_frame:
-        _fit_pad = max(2, int(round((float(cfg.padding_pct) / 100.0) * min(cfg.width, cfg.height))))
+        # v0.9.390 — WYSIWYG-Zoom-Fix: die Render-Map läuft im CSS-Viewport
+        # cfg.width/dsf × cfg.height/dsf (bei 4K ist dsf=2 → 1920×1080). Das
+        # Bounds-Fit-Padding muss sich auf DIESEN Viewport beziehen, nicht auf
+        # die volle Pixel-Auflösung — sonst ist der Rand bei 4K doppelt so groß
+        # wie in der 8%-Live-Vorschau (die im Letterbox-Viewport fittet) und der
+        # Track wird zu klein gerahmt → „Zoom falsch". Padding durch dsf teilen.
+        _fit_dsf = _render_dsf(cfg.width, cfg.height)
+        _fit_pad = max(2, int(round((float(cfg.padding_pct) / 100.0) * (min(cfg.width, cfg.height) / _fit_dsf))))
         _fit_bearing = float(cfg.bearing)
     else:
         _fit_pad = px_pad
@@ -1628,6 +1635,20 @@ map.on('style.load', () => {{
 {photo_pins_block}
   // v0.9.171 — Wegpunkt-Schilder (HTML-Marker, erscheinen bei Erreichen).
 {signs_block}
+  // v0.9.390 — Track + Overlays ÜBER die Karten-Beschriftungen legen. Im
+  // Mapbox-Standard-Style (standard/standard-satellite) landen per addLayer OHNE
+  // Slot eingehängte Layer UNTER den Style-Labels (Ortsnamen/Straßen/POI) →
+  // „Beschriftung wird über den Track geschrieben". moveLayer(id) ohne beforeId
+  // hebt unsere (ungeslotteten) Layer an die Spitze — über die Labels. Bei
+  // klassischen Styles liegen sie ohnehin oben (praktisch No-Op).
+  try {{
+    var _rzTopPrefixes = ['track-','gpx-ghost','dot-','pin-','photo-pins','anim-signs','mtrack'];
+    map.getStyle().layers.map(function(l){{return l.id;}}).forEach(function(_lid){{
+      if (_rzTopPrefixes.some(function(p){{return _lid.indexOf(p)===0;}})) {{
+        try {{ if (map.getLayer(_lid)) map.moveLayer(_lid); }} catch(_){{}}
+      }}
+    }});
+  }} catch(_){{}}
 }});
 map.on('idle', () => {{
   if (!mapReady) {{

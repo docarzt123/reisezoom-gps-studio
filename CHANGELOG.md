@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.390] – 2026-07-05
+### Geändert
+- **Track liegt jetzt ÜBER den Karten-Beschriftungen.** Beim Mapbox-Standard-Style („Satellite (3D, Standard)" u. a.) wurden Ortsnamen, Straßennamen und POIs bisher *über* die Track-Linie geschrieben — der Track verschwand teils unter der Beschriftung. Track, Ghost, Punkte, Pins, Fotos und Schilder werden jetzt über die Label-Ebene gehoben (in Vorschau und Render), sodass die Route immer obenauf liegt. Bei klassischen Styles war das ohnehin so.
+### Behoben
+- **Tour-Map: gerendertes PNG stimmte im Zoom nicht mit der Vorschau überein (kein WYSIWYG), va. bei 4K.** Der Bounds-Fit-Rand im Render wurde aus der vollen Pixel-Auflösung berechnet (z.B. 2160), die Render-Karte läuft aber im CSS-Viewport `Breite/dsf × Höhe/dsf` (bei 4K = 1920×1080). Dadurch war der Rand bei 4K doppelt so groß wie die 8 % der Live-Vorschau → der Track wurde zu klein gerahmt. Padding bezieht sich jetzt auf den echten Render-Viewport (durch `dsf` geteilt). Verifiziert: 1080p- und 4K-Standbild rahmen den Track jetzt deckungsgleich (Δ 0,1 %).
+- **Tour-Map: der Fertig-Bildschirm zeigte fälschlich Video-Steuerung.** Nach dem Erstellen eines PNG erschienen ein Video-Player samt „▶ Abspielen" und „Nächstes Video" — an dieser Stelle falsch. Der Standbild-Modus zeigt jetzt das erzeugte Bild als Vorschau plus „🖼 Bild öffnen" / „Bild im Finder" / „Neues Bild" und meldet „Bild fertig".
+- **Tour-Map: „🖼 Karte als PNG rendern" war manchmal ausgegraut, obwohl der Track sichtbar war** (intermittierend, verschwand nach App-Neustart). Ursache: der Button-Enable stand als letzte Zeile in einem `try/catch`-Block zusammen mit den Stats-Box-Updates in `applyGlobalGpx`; warf beim Modul-Mount eine der Stats-Zeilen (DOM in einem Timing-Fenster noch nicht bereit), wurde der Enable mitverschluckt — der Track zeichnete danach trotzdem. Fix: Der Render-Button wird jetzt idempotent in `drawPreview` freigeschaltet, sobald ein echter Track gezeichnet wird (Invariante „Track sichtbar ⇒ Button aktiv"). Deckt beide Apply-Pfade ab und heilt einen versehentlichen Disable; greift nicht während eines laufenden Renders. Gilt für Animator und Tour-Map (geteilter Code).
+
 ## [0.9.389] – 2026-07-04
 ### Behoben (Audit-Welle B — Speicher-/Listener-Leaks bei Tab-Wechseln)
 - **App wurde über lange Sitzungen mit vielen Tab-Wechseln langsamer und warf Fehler-Spam**, weil bei jedem Modul-Wechsel Listener und Callbacks des alten Moduls hängen blieben. Behoben:
