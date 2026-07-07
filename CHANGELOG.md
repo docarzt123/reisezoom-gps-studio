@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.396] – 2026-07-07
+### Hinzugefügt
+- **Höhen-Animator: der Marker ist jetzt komplett konfigurierbar** (neue Sektion „Marker"). Der laufende Punkt und seine Info-Box lassen sich frei gestalten:
+  - **Punkt:** Farbe + Größe.
+  - **Info-Box:** Hintergrundfarbe + Deckkraft, Randfarbe + Randdicke, Schriftgröße.
+  - **Inhalt wählbar:** ⛰-Symbol, Höhe, Steigung (%) und Distanz je einzeln an-/abschaltbar — die Box passt ihre Größe automatisch an (leer = keine Box).
+  - Alles WYSIWYG in Vorschau + Render, und komplett per **⌘Z** rückgängig. Die Steigungs-Anzeige („Steigung % zeigen") ist von der Info-Leiste in die Marker-Sektion umgezogen.
+
 ## [0.9.395] – 2026-07-07
 ### Hinzugefügt
 - **Höhen-Animator: Gitterfarbe + Beschriftungsfarbe frei wählbar.** Zwei neue Farbwähler in der „Optik"-Sektion — die Gitterfarbe färbt das Hilfsgitter, die Beschriftungsfarbe alle Text-Elemente (Achsen-Labels, Info-Leiste, Marker-Callout). Live in Vorschau und Render.

@@ -129,7 +129,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.395"
+APP_VERSION = "0.9.396"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -2333,6 +2333,17 @@ class Api:
             show_marker=bool(params.get("show_marker", True)),
             grid_color=params.get("grid_color", "#3a3a3a"),
             label_color=params.get("label_color", "#cccccc"),
+            # v0.9.396 — Marker vollständig konfigurierbar
+            marker_dot_color=params.get("marker_dot_color", "#ffffff"),
+            marker_dot_size=float(params.get("marker_dot_size", 6.0)),
+            marker_bg=params.get("marker_bg", "#000000"),
+            marker_bg_opacity=float(params.get("marker_bg_opacity", 0.6)),
+            marker_border_color=params.get("marker_border_color", "#ff6b35"),
+            marker_border_width=float(params.get("marker_border_width", 1.5)),
+            marker_font_size=float(params.get("marker_font_size", 16.0)),
+            marker_show_icon=bool(params.get("marker_show_icon", True)),
+            marker_show_ele=bool(params.get("marker_show_ele", True)),
+            marker_show_dist=bool(params.get("marker_show_dist", True)),
             # v0.9.394 — Info-Leiste + Steigung + Wegpunkte
             show_stats_header=bool(params.get("show_stats_header", True)),
             stats_fields=list(params.get("stats_fields") or [

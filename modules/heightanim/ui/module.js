@@ -100,10 +100,71 @@ function mountHeightAnim(body, headerActions) {
               <input type="checkbox" id="height-axes" checked>
               <span>${t("heightanim.field.axes", "Achsen-Beschriftung zeigen")}</span>
             </label>
+          </div>
+        </section>
+
+        <section class="section" data-accordion-section="marker">
+          <button class="section-collapse-header" type="button">
+            <span>${t("heightanim.section.marker", "Marker")}</span>
+            <span class="collapse-arrow">▸</span>
+          </button>
+          <div class="section-collapse-body" hidden>
             <label class="checkbox-row">
               <input type="checkbox" id="height-marker" checked>
-              <span>${t("heightanim.field.marker", "Marker zeigen")}</span>
+              <span>${t("heightanim.marker.show", "Marker zeigen")}</span>
             </label>
+            <div class="row-2">
+              <div class="field">
+                <label class="field-label">${t("heightanim.marker.dot_color", "Punktfarbe")}</label>
+                <input type="color" id="height-marker-dot-color" value="#ffffff">
+              </div>
+              <div class="field">
+                <label class="field-label">${t("heightanim.marker.dot_size", "Punktgröße")} <span class="label-val" id="height-marker-dot-size-v">6 px</span></label>
+                <input type="range" id="height-marker-dot-size" min="2" max="18" step="1" value="6">
+              </div>
+            </div>
+
+            <div class="section-subhead" style="margin:10px 0 4px; font-size:12px; opacity:0.7;">${t("heightanim.marker.callout", "Info-Box am Marker")}</div>
+            <label class="checkbox-row">
+              <input type="checkbox" id="height-marker-icon" checked>
+              <span>${t("heightanim.marker.icon", "⛰-Symbol zeigen")}</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="height-marker-ele" checked>
+              <span>${t("heightanim.marker.ele", "Höhe zeigen")}</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="height-gradient" checked>
+              <span>${t("heightanim.marker.gradient", "Steigung % zeigen")}</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="height-marker-dist" checked>
+              <span>${t("heightanim.marker.dist", "Distanz zeigen")}</span>
+            </label>
+            <div class="row-2">
+              <div class="field">
+                <label class="field-label">${t("heightanim.marker.bg", "Hintergrundfarbe")}</label>
+                <input type="color" id="height-marker-bg" value="#000000">
+              </div>
+              <div class="field">
+                <label class="field-label">${t("heightanim.marker.bg_op", "Deckkraft")} <span class="label-val" id="height-marker-bg-op-v">60 %</span></label>
+                <input type="range" id="height-marker-bg-op" min="0" max="100" step="5" value="60">
+              </div>
+            </div>
+            <div class="row-2">
+              <div class="field">
+                <label class="field-label">${t("heightanim.marker.border", "Randfarbe")}</label>
+                <input type="color" id="height-marker-border" value="#ff6b35">
+              </div>
+              <div class="field">
+                <label class="field-label">${t("heightanim.marker.border_w", "Randdicke")} <span class="label-val" id="height-marker-bw-v">1.5 px</span></label>
+                <input type="range" id="height-marker-bw" min="0" max="6" step="0.5" value="1.5">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">${t("heightanim.marker.font", "Schriftgröße")} <span class="label-val" id="height-marker-fs-v">16 px</span></label>
+              <input type="range" id="height-marker-fs" min="10" max="34" step="1" value="16">
+            </div>
           </div>
         </section>
 
@@ -121,10 +182,6 @@ function mountHeightAnim(body, headerActions) {
               ${t("heightanim.header.hint", "Welche Werte oben eingeblendet werden:")}
             </div>
             <div id="height-header-fields" class="height-field-list"></div>
-            <label class="checkbox-row" style="margin-top:8px;">
-              <input type="checkbox" id="height-gradient" checked>
-              <span>${t("heightanim.header.gradient", "Steigung % am Marker zeigen")}</span>
-            </label>
           </div>
         </section>
 
@@ -460,6 +517,17 @@ function mountHeightAnim(body, headerActions) {
     const showMarker = document.getElementById("height-marker")?.checked !== false;
     const gridColor = document.getElementById("height-grid-color")?.value || "#3a3a3a";
     const labelColor = document.getElementById("height-label-color")?.value || "#cccccc";
+    // v0.9.396 — Marker vollständig konfigurierbar
+    const mkDotColor = document.getElementById("height-marker-dot-color")?.value || "#ffffff";
+    const mkDotSize  = parseFloat(document.getElementById("height-marker-dot-size")?.value) || 6;
+    const mkBg       = document.getElementById("height-marker-bg")?.value || "#000000";
+    const mkBgOp     = (parseFloat(document.getElementById("height-marker-bg-op")?.value) ?? 60) / 100;
+    const mkBorder   = document.getElementById("height-marker-border")?.value || "#ff6b35";
+    const mkBw       = parseFloat(document.getElementById("height-marker-bw")?.value ?? "1.5");
+    const mkFs       = parseFloat(document.getElementById("height-marker-fs")?.value) || 16;
+    const mkShowIcon = document.getElementById("height-marker-icon")?.checked !== false;
+    const mkShowEle  = document.getElementById("height-marker-ele")?.checked !== false;
+    const mkShowDist = document.getElementById("height-marker-dist")?.checked !== false;
 
     // Background
     const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -626,24 +694,31 @@ function mountHeightAnim(body, headerActions) {
       svg.appendChild(linePath);
     }
 
-    // ── Marker (Kreis am Ende der gezeichneten Linie) ──────────────────
+    // Hex→rgba mit Deckkraft (für die Marker-Box)
+    const _rgba = (hex, a) => {
+      const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+      if (!m) return `rgba(0,0,0,${a})`;
+      const n = parseInt(m[1], 16);
+      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    };
+
+    // ── Marker (Punkt am Ende der gezeichneten Linie) ──────────────────
     if (showMarker && _progress > 0) {
-      // Outer Glow
+      // Glow
       const glow = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       glow.setAttribute("cx", endX.toFixed(1));
       glow.setAttribute("cy", endY.toFixed(1));
-      glow.setAttribute("r", String(Math.max(8, lw * 2.5)));
-      glow.setAttribute("fill", lc);
+      glow.setAttribute("r", String(mkDotSize * 1.8));
+      glow.setAttribute("fill", mkBorder);
       glow.setAttribute("opacity", "0.35");
       svg.appendChild(glow);
-      // Inner solid
+      // Punkt
       const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       dot.setAttribute("cx", endX.toFixed(1));
       dot.setAttribute("cy", endY.toFixed(1));
-      dot.setAttribute("r", String(Math.max(4, lw * 1.1)));
-      dot.setAttribute("fill", "#fff");
-      dot.setAttribute("stroke", lc);
-      dot.setAttribute("stroke-width", "2");
+      dot.setAttribute("r", String(mkDotSize));
+      dot.setAttribute("fill", mkDotColor);
+      if (mkBw > 0) { dot.setAttribute("stroke", mkBorder); dot.setAttribute("stroke-width", String(Math.max(1, mkBw))); }
       svg.appendChild(dot);
     }
 
@@ -699,23 +774,40 @@ function mountHeightAnim(body, headerActions) {
       }
     }
 
-    // ── Marker-Callout: Höhe + Steigung + Distanz am Punkt ───────────────────
+    // ── Marker-Callout: konfigurierbar (Felder + Farben + Schriftgröße) ──────
     if (showMarker && _progress > 0) {
       const grad = _showGradient ? _rzGradAtDist(dists, elevs, dCurrent, 60) : null;
       const curDistKm = (dCurrent - dTrimStart) / 1000;
-      const line1 = `⛰ ${curEle2.toFixed(0)} m`;
-      const arrow = grad == null ? "" : (grad >= 0 ? "↗ +" : "↘ −");
-      const line2 = (grad == null ? "" : `${arrow}${Math.abs(grad).toFixed(1)} %  ·  `) + `${curDistKm.toFixed(2)} km`;
-      const boxW = Math.round(Math.max(line1.length * 18 * 0.6, line2.length * 13 * 0.58) + 24);
-      const boxH = 46;
-      let boxX = endX + 12;
-      if (boxX + boxW > w - padR) boxX = endX - 12 - boxW;
-      boxX = Math.max(padL, boxX);
-      let boxY = endY - boxH - 8;
-      if (boxY < headH + 6) boxY = endY + 12;
-      _mk("rect", { x: boxX, y: boxY, width: boxW, height: boxH, rx: 8, fill: "rgba(0,0,0,0.6)", stroke: lc, "stroke-width": "1.5" });
-      _mk("text", { x: boxX + 11, y: boxY + 21, fill: labelColor, "font-size": 18, "font-weight": "500", "font-family": "-apple-system, sans-serif" }, line1);
-      _mk("text", { x: boxX + 11, y: boxY + 39, fill: (grad != null && grad < 0) ? "#ff9e6b" : "#ffcbb0", "font-size": 13, "font-family": "-apple-system, sans-serif" }, line2);
+      const lines = [];
+      // Zeile 1: ⛰-Symbol + Höhe
+      const l1 = (mkShowIcon ? "⛰" : "") + (mkShowEle ? (mkShowIcon ? " " : "") + `${curEle2.toFixed(0)} m` : "");
+      if (l1) lines.push({ text: l1, size: mkFs, fill: labelColor, weight: "500" });
+      // Zeile 2: Steigung + Distanz
+      const p2 = [];
+      if (grad != null) p2.push(`${grad >= 0 ? "↗ +" : "↘ −"}${Math.abs(grad).toFixed(1)} %`);
+      if (mkShowDist) p2.push(`${curDistKm.toFixed(2)} km`);
+      if (p2.length) lines.push({ text: p2.join("  ·  "), size: mkFs * 0.72,
+        fill: (grad != null && grad < 0) ? "#ff9e6b" : (grad != null ? "#ffcbb0" : labelColor), weight: "400" });
+
+      if (lines.length) {
+        const padX = Math.round(mkFs * 0.7), padTop = Math.round(mkFs * 0.9);
+        const lineGap = Math.round(mkFs * 1.15);
+        const boxH = padTop + (lines.length - 1) * lineGap + Math.round(mkFs * 0.5);
+        const boxW = Math.round(Math.max(...lines.map(l => l.text.length * l.size * 0.6)) + padX * 2);
+        let boxX = endX + 12;
+        if (boxX + boxW > w - padR) boxX = endX - 12 - boxW;
+        boxX = Math.max(padL, boxX);
+        let boxY = endY - boxH - 8;
+        if (boxY < headH + 6) boxY = endY + 12;
+        _mk("rect", { x: boxX, y: boxY, width: boxW, height: boxH, rx: 8,
+          fill: _rgba(mkBg, mkBgOp),
+          ...(mkBw > 0 ? { stroke: mkBorder, "stroke-width": String(mkBw) } : {}) });
+        lines.forEach((l, i) => {
+          _mk("text", { x: boxX + padX, y: boxY + padTop + i * lineGap,
+            fill: l.fill, "font-size": l.size, "font-weight": l.weight,
+            "font-family": "-apple-system, sans-serif" }, l.text);
+        });
+      }
     }
   }
 
@@ -910,7 +1002,10 @@ function mountHeightAnim(body, headerActions) {
   // ── Event-Bindings ─────────────────────────────────────────────────────
   // Optik-Inputs re-drawen den aktuellen Frame
   ["height-bg", "height-color", "height-lw", "height-grid", "height-axes", "height-marker",
-   "height-grid-color", "height-label-color"]
+   "height-grid-color", "height-label-color",
+   "height-marker-dot-color", "height-marker-dot-size", "height-marker-bg", "height-marker-bg-op",
+   "height-marker-border", "height-marker-bw", "height-marker-fs",
+   "height-marker-icon", "height-marker-ele", "height-marker-dist", "height-gradient"]
     .forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -1076,6 +1171,15 @@ function mountHeightAnim(body, headerActions) {
     updateLabel("height-fps-v", e.target.value, ""));
   document.getElementById("height-lw")?.addEventListener("input", e =>
     updateLabel("height-lw-v", parseFloat(e.target.value).toFixed(1), " px"));
+  // Marker-Slider-Labels (v0.9.396)
+  document.getElementById("height-marker-dot-size")?.addEventListener("input", e =>
+    updateLabel("height-marker-dot-size-v", e.target.value, " px"));
+  document.getElementById("height-marker-bg-op")?.addEventListener("input", e =>
+    updateLabel("height-marker-bg-op-v", e.target.value, " %"));
+  document.getElementById("height-marker-bw")?.addEventListener("input", e =>
+    updateLabel("height-marker-bw-v", parseFloat(e.target.value).toFixed(1), " px"));
+  document.getElementById("height-marker-fs")?.addEventListener("input", e =>
+    updateLabel("height-marker-fs-v", e.target.value, " px"));
 
   // Resolution-Picker (analog Animator) — Quick-Buttons setzen W/H,
   // aktiver Button wird highlighted wenn W/H exakt matched.
@@ -1347,6 +1451,17 @@ function mountHeightAnim(body, headerActions) {
       show_marker: document.getElementById("height-marker")?.checked !== false,
       grid_color: document.getElementById("height-grid-color")?.value || "#3a3a3a",
       label_color: document.getElementById("height-label-color")?.value || "#cccccc",
+      // v0.9.396 — Marker vollständig konfigurierbar
+      marker_dot_color: document.getElementById("height-marker-dot-color")?.value || "#ffffff",
+      marker_dot_size: parseFloat(document.getElementById("height-marker-dot-size")?.value || "6"),
+      marker_bg: document.getElementById("height-marker-bg")?.value || "#000000",
+      marker_bg_opacity: (parseFloat(document.getElementById("height-marker-bg-op")?.value || "60")) / 100,
+      marker_border_color: document.getElementById("height-marker-border")?.value || "#ff6b35",
+      marker_border_width: parseFloat(document.getElementById("height-marker-bw")?.value || "1.5"),
+      marker_font_size: parseFloat(document.getElementById("height-marker-fs")?.value || "16"),
+      marker_show_icon: document.getElementById("height-marker-icon")?.checked !== false,
+      marker_show_ele: document.getElementById("height-marker-ele")?.checked !== false,
+      marker_show_dist: document.getElementById("height-marker-dist")?.checked !== false,
       // v0.9.394 — Info-Leiste + Steigung + Wegpunkte (WYSIWYG zur Preview)
       show_stats_header: _showHeader,
       show_gradient: _showGradient,

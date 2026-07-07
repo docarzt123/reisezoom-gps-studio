@@ -503,6 +503,8 @@ Jeder Punkt **taucht animiert auf, sobald die Linie ihn erreicht**. Einzelne Pun
 
 **Farben (seit v0.9.395):** In der „Optik"-Sektion wählst du neben Hintergrund und Linienfarbe jetzt auch **Gitterfarbe** (Hilfsgitter) und **Beschriftungsfarbe** (Achsen, Info-Leiste, Marker-Callout).
 
+**Marker konfigurieren (seit v0.9.396):** Die eigene Sektion **„Marker"** macht den laufenden Punkt und seine Info-Box komplett gestaltbar: **Punktfarbe + -größe**; für die Box **Hintergrundfarbe + Deckkraft, Randfarbe + Randdicke, Schriftgröße**; und welche Werte drinstehen — **⛰-Symbol, Höhe, Steigung (%), Distanz** je einzeln an-/abschaltbar (die Box passt ihre Größe automatisch an).
+
 **Rückgängig:** **⌘Z / Strg+Z** nimmt im Höhen-Animator **alles** zurück — Optik, Farben, Info-Leiste-Felder, Wegpunkte und Quellen-Schalter (ein Druck pro Schritt).
 
 ---

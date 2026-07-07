@@ -95,6 +95,17 @@ class HeightConfig:
         "distance", "updown", "avg_grad", "max_grad", "ele_max"
     ])
     show_gradient: bool = True          # Steigungs-% am laufenden Marker
+    # v0.9.396 — Marker (Punkt + Info-Box) vollständig konfigurierbar
+    marker_dot_color: str = "#ffffff"
+    marker_dot_size: float = 6.0
+    marker_bg: str = "#000000"
+    marker_bg_opacity: float = 0.6
+    marker_border_color: str = "#ff6b35"
+    marker_border_width: float = 1.5
+    marker_font_size: float = 16.0
+    marker_show_icon: bool = True       # ⛰-Symbol in der Box
+    marker_show_ele: bool = True        # Höhe in der Box
+    marker_show_dist: bool = True       # Distanz in der Box
     # Lokalisierte Labels für die Kopf-Leiste {field_id: label}. Aus der UI
     # (t()) durchgereicht damit das Video zur App-Sprache passt. Fallback DE.
     stats_labels: dict = field(default_factory=dict)
@@ -155,6 +166,23 @@ const STATS_FIELDS = {json.dumps(cfg.stats_fields)};
 const STATS_LABELS = {json.dumps(cfg.stats_labels)};
 const SHOW_GRAD = {str(cfg.show_gradient).lower()};
 const WAYPOINTS = {json.dumps(cfg.waypoints)};
+// v0.9.396 — Marker vollständig konfigurierbar
+const MK_DOT_COLOR = {json.dumps(cfg.marker_dot_color)};
+const MK_DOT_SIZE = {float(cfg.marker_dot_size)};
+const MK_BG = {json.dumps(cfg.marker_bg)};
+const MK_BG_OP = {float(cfg.marker_bg_opacity)};
+const MK_BORDER = {json.dumps(cfg.marker_border_color)};
+const MK_BW = {float(cfg.marker_border_width)};
+const MK_FS = {float(cfg.marker_font_size)};
+const MK_SHOW_ICON = {str(cfg.marker_show_icon).lower()};
+const MK_SHOW_ELE = {str(cfg.marker_show_ele).lower()};
+const MK_SHOW_DIST = {str(cfg.marker_show_dist).lower()};
+function _rzRgba(hex, a) {{
+  const m = /^#?([0-9a-f]{{6}})$/i.exec(hex || "");
+  if (!m) return "rgba(0,0,0," + a + ")";
+  const n = parseInt(m[1], 16);
+  return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+}}
 
 // Padding skaliert mit Höhe (für 4K-Render werden Achsenlabels größer)
 const SCALE = H / 1080;
@@ -410,18 +438,18 @@ function draw(progress) {{
     }}));
   }}
 
-  // Marker
+  // Marker-Punkt (konfigurierbar)
   if (SHOW_MARKER && progress > 0) {{
     svg.appendChild(svgNS("circle", {{
       cx: endX, cy: endY,
-      r: Math.max(8, LW * 2.5) * SCALE,
-      fill: LC, opacity: 0.35,
+      r: MK_DOT_SIZE * 1.8 * SCALE,
+      fill: MK_BORDER, opacity: 0.35,
     }}));
-    svg.appendChild(svgNS("circle", {{
-      cx: endX, cy: endY,
-      r: Math.max(4, LW * 1.1) * SCALE,
-      fill: "#fff", stroke: LC, "stroke-width": 2 * SCALE,
-    }}));
+    const _dotAttrs = {{
+      cx: endX, cy: endY, r: MK_DOT_SIZE * SCALE, fill: MK_DOT_COLOR,
+    }};
+    if (MK_BW > 0) {{ _dotAttrs.stroke = MK_BORDER; _dotAttrs["stroke-width"] = Math.max(1, MK_BW) * SCALE; }}
+    svg.appendChild(svgNS("circle", _dotAttrs));
   }}
 
   // ── Wegpunkte auf der Strecke (erscheinen sobald die Linie sie passiert) ──
@@ -495,36 +523,44 @@ function draw(progress) {{
     }}
   }}
 
-  // ── Marker-Callout: Höhe + Steigung + Distanz direkt am Punkt ─────────────
+  // ── Marker-Callout: konfigurierbar (Felder + Farben + Schriftgröße) ───────
   if (SHOW_MARKER && progress > 0) {{
     const grad = SHOW_GRAD ? rzGradAtDist(dists, elevs, dCurrent, 60) : null;
     const curDistKm = (dCurrent - dTrimStart) / 1000;
-    const line1 = "⛰ " + curEle.toFixed(0) + " m";
-    const arrow = grad == null ? "" : (grad >= 0 ? "↗ +" : "↘ −");
-    const line2 = (grad == null ? "" : arrow + Math.abs(grad).toFixed(1) + " %  ·  ")
-                + curDistKm.toFixed(2) + " km";
-    const fs1 = Math.round(20 * SCALE), fs2 = Math.round(15 * SCALE);
-    const boxW = Math.round(Math.max(line1.length * fs1 * 0.6, line2.length * fs2 * 0.58) + 26 * SCALE);
-    const boxH = Math.round(50 * SCALE);
-    let boxX = endX + Math.round(14 * SCALE);
-    if (boxX + boxW > W - PAD_R) boxX = endX - Math.round(14 * SCALE) - boxW;
-    boxX = Math.max(PAD_L, boxX);
-    let boxY = endY - boxH - Math.round(10 * SCALE);
-    if (boxY < HEAD_H + Math.round(8 * SCALE)) boxY = endY + Math.round(14 * SCALE);
-    svg.appendChild(svgNS("rect", {{
-      x: boxX, y: boxY, width: boxW, height: boxH, rx: Math.round(8 * SCALE),
-      fill: "rgba(0,0,0,0.6)", stroke: LC, "stroke-width": Math.max(1, Math.round(1.5 * SCALE)),
-    }}));
-    svg.appendChild(svgNS("text", {{
-      x: boxX + Math.round(12 * SCALE), y: boxY + Math.round(23 * SCALE),
-      fill: LBL_COLOR, "font-size": fs1, "font-weight": "500",
-      "font-family": "-apple-system, sans-serif",
-    }}, line1));
-    svg.appendChild(svgNS("text", {{
-      x: boxX + Math.round(12 * SCALE), y: boxY + Math.round(42 * SCALE),
-      fill: (grad != null && grad < 0) ? "#ff9e6b" : "#ffcbb0",
-      "font-size": fs2, "font-family": "-apple-system, sans-serif",
-    }}, line2));
+    const fs = MK_FS * SCALE;
+    const lines = [];
+    const l1 = (MK_SHOW_ICON ? "⛰" : "") + (MK_SHOW_ELE ? ((MK_SHOW_ICON ? " " : "") + curEle.toFixed(0) + " m") : "");
+    if (l1) lines.push({{ text: l1, size: fs, fill: LBL_COLOR, weight: "500" }});
+    const p2 = [];
+    if (grad != null) p2.push((grad >= 0 ? "↗ +" : "↘ −") + Math.abs(grad).toFixed(1) + " %");
+    if (MK_SHOW_DIST) p2.push(curDistKm.toFixed(2) + " km");
+    if (p2.length) lines.push({{ text: p2.join("  ·  "), size: fs * 0.72,
+      fill: (grad != null && grad < 0) ? "#ff9e6b" : (grad != null ? "#ffcbb0" : LBL_COLOR), weight: "400" }});
+    if (lines.length) {{
+      const padX = Math.round(fs * 0.7), padTop = Math.round(fs * 0.9), lineGap = Math.round(fs * 1.15);
+      const boxH = padTop + (lines.length - 1) * lineGap + Math.round(fs * 0.5);
+      let maxTextW = 0;
+      for (const l of lines) maxTextW = Math.max(maxTextW, l.text.length * l.size * 0.6);
+      const boxW = Math.round(maxTextW + padX * 2);
+      let boxX = endX + Math.round(14 * SCALE);
+      if (boxX + boxW > W - PAD_R) boxX = endX - Math.round(14 * SCALE) - boxW;
+      boxX = Math.max(PAD_L, boxX);
+      let boxY = endY - boxH - Math.round(10 * SCALE);
+      if (boxY < HEAD_H + Math.round(8 * SCALE)) boxY = endY + Math.round(14 * SCALE);
+      const _boxAttrs = {{
+        x: boxX, y: boxY, width: boxW, height: boxH, rx: Math.round(8 * SCALE),
+        fill: _rzRgba(MK_BG, MK_BG_OP),
+      }};
+      if (MK_BW > 0) {{ _boxAttrs.stroke = MK_BORDER; _boxAttrs["stroke-width"] = Math.max(1, MK_BW * SCALE); }}
+      svg.appendChild(svgNS("rect", _boxAttrs));
+      for (let i = 0; i < lines.length; i++) {{
+        svg.appendChild(svgNS("text", {{
+          x: boxX + padX, y: boxY + padTop + i * lineGap,
+          fill: lines[i].fill, "font-size": lines[i].size, "font-weight": lines[i].weight,
+          "font-family": "-apple-system, sans-serif",
+        }}, lines[i].text));
+      }}
+    }}
   }}
 }}
 
