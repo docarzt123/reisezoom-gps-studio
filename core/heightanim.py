@@ -85,6 +85,8 @@ class HeightConfig:
     grid_enabled: bool = True
     show_axes: bool = True
     show_marker: bool = True
+    grid_color: str = "#3a3a3a"          # v0.9.394 — Gitterfarbe (frei wählbar)
+    label_color: str = "#cccccc"         # v0.9.394 — Beschriftungsfarbe (Achsen/Header/Callout)
     # v0.9.394 — Sachliche Info-Leiste + Steigung am Marker + Wegpunkte.
     show_stats_header: bool = True
     # Welche Stat-Felder in der Kopf-Leiste (Reihenfolge = Anzeige-Reihenfolge).
@@ -120,8 +122,8 @@ def _make_html(cfg: HeightConfig, distances_m: list[float], elevations: list[flo
         "elevations": elevations,
     })
     bg = cfg.background_color if not cfg.transparent_background else "transparent"
-    grid_color = "#3a3a3a"
-    label_color = "#cccccc"
+    grid_color = cfg.grid_color or "#3a3a3a"
+    label_color = cfg.label_color or "#cccccc"
 
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>height-render</title>
@@ -478,16 +480,16 @@ function draw(progress) {{
         svg.appendChild(svgNS("line", {{
           x1: fx - Math.round(12 * SCALE), x2: fx - Math.round(12 * SCALE),
           y1: bandTop, y2: bandTop + Math.round(44 * SCALE),
-          stroke: "#333", "stroke-width": Math.max(1, Math.round(SCALE)),
+          stroke: GRID_COLOR, "stroke-width": Math.max(1, Math.round(SCALE)),
         }}));
       }}
       svg.appendChild(svgNS("text", {{
         x: fx, y: bandTop + labFs + Math.round(2 * SCALE),
-        fill: "#8a8a8a", "font-size": labFs, "font-family": "-apple-system, sans-serif",
+        fill: LBL_COLOR, opacity: 0.6, "font-size": labFs, "font-family": "-apple-system, sans-serif",
       }}, rzFieldLabel(fields[k])));
       svg.appendChild(svgNS("text", {{
         x: fx, y: bandTop + labFs + valFs + Math.round(8 * SCALE),
-        fill: "#fff", "font-size": valFs, "font-weight": "500",
+        fill: LBL_COLOR, "font-size": valFs, "font-weight": "500",
         "font-family": "-apple-system, sans-serif",
       }}, rzFieldValue(fields[k], _st)));
     }}
@@ -515,7 +517,7 @@ function draw(progress) {{
     }}));
     svg.appendChild(svgNS("text", {{
       x: boxX + Math.round(12 * SCALE), y: boxY + Math.round(23 * SCALE),
-      fill: "#fff", "font-size": fs1, "font-weight": "500",
+      fill: LBL_COLOR, "font-size": fs1, "font-weight": "500",
       "font-family": "-apple-system, sans-serif",
     }}, line1));
     svg.appendChild(svgNS("text", {{

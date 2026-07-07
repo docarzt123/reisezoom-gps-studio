@@ -129,7 +129,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.394"
+APP_VERSION = "0.9.395"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -2331,6 +2331,8 @@ class Api:
             grid_enabled=bool(params.get("grid_enabled", True)),
             show_axes=bool(params.get("show_axes", True)),
             show_marker=bool(params.get("show_marker", True)),
+            grid_color=params.get("grid_color", "#3a3a3a"),
+            label_color=params.get("label_color", "#cccccc"),
             # v0.9.394 — Info-Leiste + Steigung + Wegpunkte
             show_stats_header=bool(params.get("show_stats_header", True)),
             stats_fields=list(params.get("stats_fields") or [

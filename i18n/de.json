@@ -168,6 +168,8 @@
   "heightanim.field.bg_color": "Hintergrund",
   "heightanim.field.line_color": "Linienfarbe",
   "heightanim.field.line_width": "Liniendicke",
+  "heightanim.field.grid_color": "Gitterfarbe",
+  "heightanim.field.label_color": "Beschriftungsfarbe",
   "heightanim.field.grid": "Hilfsgitter zeigen",
   "heightanim.field.axes": "Achsen-Beschriftung zeigen",
   "heightanim.field.marker": "Marker zeigen",

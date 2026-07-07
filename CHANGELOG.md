@@ -14,6 +14,13 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.395] – 2026-07-07
+### Hinzugefügt
+- **Höhen-Animator: Gitterfarbe + Beschriftungsfarbe frei wählbar.** Zwei neue Farbwähler in der „Optik"-Sektion — die Gitterfarbe färbt das Hilfsgitter, die Beschriftungsfarbe alle Text-Elemente (Achsen-Labels, Info-Leiste, Marker-Callout). Live in Vorschau und Render.
+### Behoben
+- **Undo (⌘Z) erfasst jetzt wirklich alles im Höhen-Animator** — auch die neuen Info-Leiste-Felder, Wegpunkt-Quellen und manuell gesetzten Punkte (setzen/umbenennen/färben/löschen/ausblenden), nicht nur die klassischen Optik-Regler. Dafür sichert der Undo-Controller zusätzlich den JS-internen Zustand (`extraSnapshot`/`extraApply`).
+- **Checkbox-Undo brauchte bisher zwei ⌘Z** (latenter Bug in allen Modulen): Checkboxen lösten beim Umschalten zwei Undo-Einträge aus, sodass das erste ⌘Z ins Leere lief. Jetzt committen Checkboxen/Radios nur noch einmal — ein ⌘Z genügt (gilt auch für Animator, Tour-Map, Geotagger, Inspektor).
+
 ## [0.9.394] – 2026-07-07
 ### Hinzugefügt
 - **Höhen-Animator: sachliche Info-Leiste + Steigung + Wegpunkte auf der Strecke** (Marc-Wunsch nach dem klassischen Höhenprofil-Look). Drei neue Bausteine, alle live in der Vorschau **und** im gerenderten Video (WYSIWYG):

@@ -168,6 +168,8 @@
   "heightanim.field.bg_color": "Background",
   "heightanim.field.line_color": "Line color",
   "heightanim.field.line_width": "Line width",
+  "heightanim.field.grid_color": "Grid color",
+  "heightanim.field.label_color": "Label color",
   "heightanim.field.grid": "Show grid lines",
   "heightanim.field.axes": "Show axis labels",
   "heightanim.field.marker": "Show marker",

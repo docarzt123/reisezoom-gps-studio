@@ -1600,7 +1600,14 @@ window.rzMakePanelUndoController = function (panelId, opts) {
     root.dataset.rzPanelUndo = "1";
     ["pointerdown", "focusin", "keydown"].forEach(evt =>
       root.addEventListener(evt, _capture, true));  // capture-Phase: VOR der Wertänderung
-    root.addEventListener("input", (ev) => _push(ev, false));
+    root.addEventListener("input", (ev) => {
+      // v0.9.394 — Checkbox/Radio feuern input UND change fast gleichzeitig; ein
+      // Push auf beiden speichert den NACHHER-Zustand als 2. Eintrag → erstes Undo
+      // wäre ein No-Op. Sie committen ausschließlich über 'change'.
+      const ty = (ev.target && ev.target.type || "").toLowerCase();
+      if (ty === "checkbox" || ty === "radio") return;
+      _push(ev, false);
+    });
     root.addEventListener("change", (ev) => {
       const ty = (ev.target && ev.target.type || "").toLowerCase();
       const tag = (ev.target && ev.target.tagName || "").toLowerCase();

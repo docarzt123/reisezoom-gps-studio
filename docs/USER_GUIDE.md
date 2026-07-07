@@ -501,6 +501,10 @@ In der Sektion **„Punkte auf der Strecke"** setzt du beschriftete Marker ins P
 
 Jeder Punkt **taucht animiert auf, sobald die Linie ihn erreicht**. Einzelne Punkte aus einer Quelle kannst du in der Liste per 👁 aus-/einblenden. Deine manuellen Punkte + alle Einstellungen werden **pro Projekt** gespeichert.
 
+**Farben (seit v0.9.395):** In der „Optik"-Sektion wählst du neben Hintergrund und Linienfarbe jetzt auch **Gitterfarbe** (Hilfsgitter) und **Beschriftungsfarbe** (Achsen, Info-Leiste, Marker-Callout).
+
+**Rückgängig:** **⌘Z / Strg+Z** nimmt im Höhen-Animator **alles** zurück — Optik, Farben, Info-Leiste-Felder, Wegpunkte und Quellen-Schalter (ein Druck pro Schritt).
+
 ---
 
 ## 6 · Modul: Geotagger — Fotos mit GPS taggen

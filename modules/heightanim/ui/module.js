@@ -82,6 +82,16 @@ function mountHeightAnim(body, headerActions) {
               <label class="field-label">${t("heightanim.field.line_width", "Liniendicke")} <span class="label-val" id="height-lw-v">4.0 px</span></label>
               <input type="range" id="height-lw" min="1" max="10" step="0.5" value="4">
             </div>
+            <div class="row-2">
+              <div class="field">
+                <label class="field-label">${t("heightanim.field.grid_color", "Gitterfarbe")}</label>
+                <input type="color" id="height-grid-color" value="#3a3a3a">
+              </div>
+              <div class="field">
+                <label class="field-label">${t("heightanim.field.label_color", "Beschriftungsfarbe")}</label>
+                <input type="color" id="height-label-color" value="#cccccc">
+              </div>
+            </div>
             <label class="checkbox-row">
               <input type="checkbox" id="height-grid" checked>
               <span>${t("heightanim.field.grid", "Hilfsgitter zeigen")}</span>
@@ -448,6 +458,8 @@ function mountHeightAnim(body, headerActions) {
     const showGrid = document.getElementById("height-grid")?.checked !== false;
     const showAxes = document.getElementById("height-axes")?.checked !== false;
     const showMarker = document.getElementById("height-marker")?.checked !== false;
+    const gridColor = document.getElementById("height-grid-color")?.value || "#3a3a3a";
+    const labelColor = document.getElementById("height-label-color")?.value || "#cccccc";
 
     // Background
     const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -519,7 +531,6 @@ function mountHeightAnim(body, headerActions) {
 
     // Hilfsgitter
     if (showGrid) {
-      const gridColor = "#3a3a3a";
       for (let i = 0; i <= 5; i++) {
         const y = padT + (i / 5) * plotH;
         const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -542,7 +553,7 @@ function mountHeightAnim(body, headerActions) {
 
     // Achsen-Beschriftungen
     if (showAxes) {
-      const lblColor = "#ccc";
+      const lblColor = labelColor;
       for (let i = 0; i <= 6; i++) {
         const x = padL + (i / 6) * plotW;
         const distKm = (i / 6) * (dTrimSpan / 1000);
@@ -682,9 +693,9 @@ function mountHeightAnim(body, headerActions) {
       const n = Math.max(1, fields.length), step = plotW / n, bandTop = 8;
       for (let k = 0; k < fields.length; k++) {
         const fx = padL + k * step;
-        if (k > 0) _mk("line", { x1: fx - 10, x2: fx - 10, y1: bandTop, y2: bandTop + 40, stroke: "#333", "stroke-width": "1" });
-        _mk("text", { x: fx, y: bandTop + 14, fill: "#8a8a8a", "font-size": 12, "font-family": "-apple-system, sans-serif" }, _rzFieldLabel(fields[k]));
-        _mk("text", { x: fx, y: bandTop + 35, fill: "#fff", "font-size": 17, "font-weight": "500", "font-family": "-apple-system, sans-serif" }, _rzFieldValue(fields[k], st));
+        if (k > 0) _mk("line", { x1: fx - 10, x2: fx - 10, y1: bandTop, y2: bandTop + 40, stroke: gridColor, "stroke-width": "1" });
+        _mk("text", { x: fx, y: bandTop + 14, fill: labelColor, opacity: "0.6", "font-size": 12, "font-family": "-apple-system, sans-serif" }, _rzFieldLabel(fields[k]));
+        _mk("text", { x: fx, y: bandTop + 35, fill: labelColor, "font-size": 17, "font-weight": "500", "font-family": "-apple-system, sans-serif" }, _rzFieldValue(fields[k], st));
       }
     }
 
@@ -703,7 +714,7 @@ function mountHeightAnim(body, headerActions) {
       let boxY = endY - boxH - 8;
       if (boxY < headH + 6) boxY = endY + 12;
       _mk("rect", { x: boxX, y: boxY, width: boxW, height: boxH, rx: 8, fill: "rgba(0,0,0,0.6)", stroke: lc, "stroke-width": "1.5" });
-      _mk("text", { x: boxX + 11, y: boxY + 21, fill: "#fff", "font-size": 18, "font-weight": "500", "font-family": "-apple-system, sans-serif" }, line1);
+      _mk("text", { x: boxX + 11, y: boxY + 21, fill: labelColor, "font-size": 18, "font-weight": "500", "font-family": "-apple-system, sans-serif" }, line1);
       _mk("text", { x: boxX + 11, y: boxY + 39, fill: (grad != null && grad < 0) ? "#ff9e6b" : "#ffcbb0", "font-size": 13, "font-family": "-apple-system, sans-serif" }, line2);
     }
   }
@@ -844,24 +855,62 @@ function mountHeightAnim(body, headerActions) {
   }
 
   // ── v0.9.322 — Undo/Redo (⌘Z) für alle Höhen-Animator-Einstellungen ────────
-  // Höhen-Animator hält seine Werte direkt in den Controls (kein Settings-Dict) →
-  // DOM-Snapshot-Controller. apply stellt die Werte her, feuert Events + zeichnet neu.
+  // Höhen-Animator hält Optik/Auflösung in DOM-Controls (Snapshot-Controller) UND
+  // — seit v0.9.394 — Info-Leiste/Wegpunkte in JS-State. Letzterer wird über
+  // extraSnapshot/extraApply mitgesichert (wie im Geotagger). DOM-Änderungen pushen
+  // automatisch (rzMakePanelUndoController); reine JS-Aktionen (Punkt setzen/löschen/
+  // umbenennen/ausblenden) pushen manuell VOR der Mutation via _haPushUndo.
+  function _haUndoCaptureState() {
+    return {
+      showHeader: _showHeader, showGradient: _showGradient,
+      statsFields: _statsFields.slice(),
+      wpSources: Object.assign({}, _wpSources),
+      wpHidden: Object.assign({}, _wpHidden),
+      manualWps: _manualWps.map(w => ({ id: w.id, dist_frac: w.dist_frac, label: w.label, color: w.color })),
+    };
+  }
+  function _haUndoRestoreState(x) {
+    if (!x) return;
+    _showHeader = !!x.showHeader;
+    _showGradient = !!x.showGradient;
+    _statsFields = Array.isArray(x.statsFields) ? x.statsFields.slice() : _statsFields;
+    _wpSources = Object.assign({ photos: true, gpx: true, auto: false }, x.wpSources || {});
+    _wpHidden = Object.assign({}, x.wpHidden || {});
+    _manualWps = Array.isArray(x.manualWps)
+      ? x.manualWps.map(w => ({ id: w.id || ("m" + (_wpSeq++)), dist_frac: +w.dist_frac || 0, label: w.label || "", color: w.color || "#ff6b35" }))
+      : _manualWps;
+    // Fixe Checkboxen an den JS-State angleichen (ohne erneutes Push zu triggern —
+    // wir setzen .checked direkt, kein dispatch).
+    const _sync = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+    _sync("height-header", _showHeader);
+    _sync("height-gradient", _showGradient);
+    _sync("height-src-photos", _wpSources.photos);
+    _sync("height-src-gpx", _wpSources.gpx);
+    _sync("height-src-auto", _wpSources.auto);
+    try { renderHeaderFields(); } catch (_) {}
+    try { renderWaypointList(); } catch (_) {}
+    try { persistHeightWaypoints(); } catch (_) {}
+  }
   const _haUndoCtrl = (typeof window.rzMakePanelUndoController === "function")
     ? window.rzMakePanelUndoController("height-panel", {
         section: "heightanim",
+        extraSnapshot: () => _haUndoCaptureState(),
+        extraApply: (x) => _haUndoRestoreState(x),
         after: () => { try { drawElevationSvg(); } catch (_) {} },
         toast: (m) => { try { if (typeof toast === "function") toast(m, "info", 1000); } catch (_) {} },
       })
     : null;
+  const _haPushUndo = (label) => { try { if (_haUndoCtrl) _haUndoCtrl.push(label, { force: true }); } catch (_) {} };
   if (_haUndoCtrl) {
     window.__rzUndoControllers = window.__rzUndoControllers || {};
     window.__rzUndoControllers.heightanim = _haUndoCtrl;
-    // Push-Listener verdrahtet rzMakePanelUndoController selbst (Pre-Change-Erfassung).
+    // DOM-Push-Listener verdrahtet rzMakePanelUndoController selbst (Pre-Change-Erfassung).
   }
 
   // ── Event-Bindings ─────────────────────────────────────────────────────
   // Optik-Inputs re-drawen den aktuellen Frame
-  ["height-bg", "height-color", "height-lw", "height-grid", "height-axes", "height-marker"]
+  ["height-bg", "height-color", "height-lw", "height-grid", "height-axes", "height-marker",
+   "height-grid-color", "height-label-color"]
     .forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -882,6 +931,7 @@ function mountHeightAnim(body, headerActions) {
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.checked = _statsFields.includes(id);
       cb.addEventListener("change", () => {
+        _haPushUndo("Info-Feld geändert");   // dynamisch (keine id) → manueller Push
         if (cb.checked) { if (!_statsFields.includes(id)) _statsFields.push(id); }
         else _statsFields = _statsFields.filter(f => f !== id);
         persistHeightWaypoints(); drawElevationSvg();
@@ -929,15 +979,23 @@ function mountHeightAnim(body, headerActions) {
         lbl.style.cursor = "pointer";
         lbl.addEventListener("click", () => {
           const nv = window.prompt(t("heightanim.points.rename", "Name des Punkts:"), w.label || "");
-          if (nv != null) { w.label = nv; persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); }
+          if (nv != null) { _haPushUndo("Punkt umbenannt"); w.label = nv; persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); }
         });
         const cpick = document.createElement("input");
         cpick.type = "color"; cpick.value = w.color || "#ff6b35"; cpick.className = "height-wp-color";
-        cpick.addEventListener("input", () => { w.color = cpick.value; persistHeightWaypoints(); drawElevationSvg(); });
+        // Dynamisch (keine id) → manueller Push. Nur EINMAL pro Farb-Edit (erster
+        // input erfasst den Vorher-Zustand, bevor w.color überschrieben wird).
+        let _colPushed = false;
+        cpick.addEventListener("pointerdown", () => { _colPushed = false; });
+        cpick.addEventListener("input", () => {
+          if (!_colPushed) { _haPushUndo("Punkt-Farbe geändert"); _colPushed = true; }
+          w.color = cpick.value; persistHeightWaypoints(); drawElevationSvg();
+        });
+        cpick.addEventListener("change", () => { _colPushed = false; });
         const del = document.createElement("button");
         del.type = "button"; del.className = "height-wp-del"; del.textContent = "✕";
         del.title = t("heightanim.points.delete", "Punkt löschen");
-        del.addEventListener("click", () => { _manualWps.splice(r.i, 1); persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); });
+        del.addEventListener("click", () => { _haPushUndo("Punkt gelöscht"); _manualWps.splice(r.i, 1); persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); });
         row.appendChild(cpick); row.appendChild(del);
       } else {
         // Quellen-Punkt: nur ein-/ausblenden
@@ -946,6 +1004,7 @@ function mountHeightAnim(body, headerActions) {
         eye.textContent = r.hidden ? "🚫" : "👁";
         eye.title = t("heightanim.points.toggle", "Ein-/Ausblenden");
         eye.addEventListener("click", () => {
+          _haPushUndo("Punkt ein-/ausgeblendet");
           if (_wpHidden[r.key]) delete _wpHidden[r.key]; else _wpHidden[r.key] = true;
           persistHeightWaypoints(); renderWaypointList(); drawElevationSvg();
         });
@@ -993,6 +1052,7 @@ function mountHeightAnim(body, headerActions) {
     const frac = Math.max(0, Math.min(1, distM / maxDist));
     const name = window.prompt(t("heightanim.points.name_new", "Name des Punkts:"), t("heightanim.points.default_name", "Punkt"));
     if (name == null) return;
+    _haPushUndo("Punkt gesetzt");
     _manualWps.push({ id: "m" + (_wpSeq++), dist_frac: frac, label: name, color: "#ff6b35" });
     _armAddPoint = false;
     if (_addHint) _addHint.style.display = "none";
@@ -1285,6 +1345,8 @@ function mountHeightAnim(body, headerActions) {
       grid_enabled: document.getElementById("height-grid")?.checked !== false,
       show_axes: document.getElementById("height-axes")?.checked !== false,
       show_marker: document.getElementById("height-marker")?.checked !== false,
+      grid_color: document.getElementById("height-grid-color")?.value || "#3a3a3a",
+      label_color: document.getElementById("height-label-color")?.value || "#cccccc",
       // v0.9.394 — Info-Leiste + Steigung + Wegpunkte (WYSIWYG zur Preview)
       show_stats_header: _showHeader,
       show_gradient: _showGradient,

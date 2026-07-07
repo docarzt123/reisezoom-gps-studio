@@ -168,6 +168,8 @@
   "heightanim.field.bg_color": "Fondo",
   "heightanim.field.line_color": "Color de línea",
   "heightanim.field.line_width": "Grosor de línea",
+  "heightanim.field.grid_color": "Color de cuadrícula",
+  "heightanim.field.label_color": "Color de texto",
   "heightanim.field.grid": "Mostrar cuadrícula",
   "heightanim.field.axes": "Mostrar etiquetas de ejes",
   "heightanim.field.marker": "Mostrar marcador",
