@@ -7470,7 +7470,7 @@ function mountAnimator(body, headerActions, opts) {
   const _OV_FALLBACK_LABEL = {
     dist_done: "Zurückgelegt", dist_left: "Verbleibend", speed: "Tempo",
     time_elapsed: "Vergangen", time_left: "Restzeit", ele_now: "Höhe", grade: "Steigung",
-    dist_total: "Strecke", duration: "Zeit", moving_time: "Fahrzeit", avg_speed: "Ø Tempo", avg_speed_total: "Ø Tempo (gesamt)", max_speed: "Max. Tempo",
+    dist_total: "Strecke", duration: "Zeit", moving_time: "Bewegungszeit", avg_speed: "Ø Tempo", avg_speed_total: "Ø Tempo (gesamt)", max_speed: "Max. Tempo",
     elev_gain: "Bergauf", elev_loss: "Bergab", ele_high: "Höchster Punkt", ele_low: "Tiefster Punkt",
   };
   // v0.9.330 — FIT-Sensorfelder dynamisch an den Live-Katalog anhängen (id = "sensor:<key>").
@@ -7487,6 +7487,9 @@ function mountAnimator(body, headerActions, opts) {
   };
   const _ovFieldLabel = (id) => {
     if (typeof id === "string" && id.startsWith("sensor:")) { return _ovResolvedMeta(id.slice(7)).label; }
+    // v0.9.393 — projekt-eigene Umbenennung auch für Standard-Felder (z.B. „Bewegungszeit" → „Gehzeit").
+    const o = _ovOverrides()[id];
+    if (o && o.label) return o.label;
     return t("animator.statsfield." + id, _OV_FALLBACK_LABEL[id] || id);
   };
   const _ovSensorUnit = (key) => { const m = _ovResolvedMeta(key); return m.unit ? " " + m.unit : ""; };
@@ -7532,20 +7535,31 @@ function mountAnimator(body, headerActions, opts) {
     saveProjectSettings(_MODKEY, { ["overlay_" + box + "_fields"]: _ovGetFields(box) });
   }
   let _ovDragEl = null;
-  // v0.9.334 — Sensorfeld umbenennen / Einheit ändern (pro Projekt persistiert).
-  function _ovRenameSensor(id) {
-    if (typeof id !== "string" || !id.startsWith("sensor:")) return;
-    const key = id.slice(7);
+  // v0.9.334/393 — Feld umbenennen (pro Projekt persistiert). Sensorfelder
+  // (sensor:<key>) haben zusätzlich eine Einheit; Standard-Felder (moving_time …)
+  // nur ein Label — dann wird die Einheit-Zeile weggelassen.
+  function _ovRenameField(id) {
+    if (typeof id !== "string") return;
+    const isSensor = id.startsWith("sensor:");
+    const key = isSensor ? id.slice(7) : id;   // Override-Key: Sensor-Key bzw. Feld-id
+    if (!isSensor && _OV_FALLBACK_LABEL[id] == null) return;  // kein bekanntes Standard-Feld
     const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const base = _ovSensorMeta(key) || { key: key, label: key, unit: "" };
-    const cur = _ovResolvedMeta(key);
+    const base = isSensor
+      ? (_ovSensorMeta(key) || { key: key, label: key, unit: "" })
+      : { key: key, label: t("animator.statsfield." + id, _OV_FALLBACK_LABEL[id] || id), unit: "" };
+    const o = _ovOverrides()[key];
+    const cur = isSensor
+      ? _ovResolvedMeta(key)
+      : { label: (o && o.label) || base.label, unit: base.unit };
     openModal({
       title: t("animator.overlay.rename_title", "Feld umbenennen"),
       body: `<div style="display:flex;flex-direction:column;gap:12px;min-width:280px;">`
         + `<label>${t("animator.overlay.rename_label", "Bezeichnung")}<br>`
         + `<input id="ovrn-label" type="text" value="${esc(cur.label)}" style="width:100%;box-sizing:border-box;"></label>`
-        + `<label>${t("animator.overlay.rename_unit", "Einheit")}<br>`
-        + `<input id="ovrn-unit" type="text" value="${esc(cur.unit)}" style="width:100%;box-sizing:border-box;"></label>`
+        + (isSensor
+            ? `<label>${t("animator.overlay.rename_unit", "Einheit")}<br>`
+              + `<input id="ovrn-unit" type="text" value="${esc(cur.unit)}" style="width:100%;box-sizing:border-box;"></label>`
+            : "")
         + `<div class="muted" style="font-size:12px;">${t("animator.overlay.rename_default", "Standard")}: ${esc(base.label)}${base.unit ? (" · " + esc(base.unit)) : ""}</div>`
         + `</div>`,
       footer: `<button class="btn" id="ovrn-reset">${t("animator.overlay.rename_reset", "Zurücksetzen")}</button>`
@@ -7561,7 +7575,8 @@ function mountAnimator(body, headerActions, opts) {
     };
     document.getElementById("ovrn-save").onclick = () => {
       const lbl = (document.getElementById("ovrn-label").value || "").trim();
-      const unit = (document.getElementById("ovrn-unit").value || "").trim();
+      const unitEl = document.getElementById("ovrn-unit");
+      const unit = unitEl ? (unitEl.value || "").trim() : base.unit;
       // Nichts geändert ggü. Default → Override entfernen (sauber halten).
       if (lbl === base.label && unit === base.unit) apply(null);
       else apply({ label: lbl, unit: unit });
@@ -7582,8 +7597,9 @@ function mountAnimator(body, headerActions, opts) {
         + `<label class="ov-fieldlbl"><input type="checkbox" ${checked ? "checked" : ""} ${avail ? "" : "disabled"}>`
         + `<span>${_ovFieldLabel(id)}</span></label>`
         // v0.9.334 — Sensorfelder umbenennen / Einheit ändern (Nutzer-Wunsch).
-        + ((typeof id === "string" && id.startsWith("sensor:") && avail)
-            ? `<button type="button" class="ov-rename" data-fid="${id}" title="${t("animator.overlay.rename", "Umbenennen / Einheit")}">✎</button>` : "")
+        // v0.9.393 — auch Standard-Felder umbenennbar (z.B. „Bewegungszeit" → „Gehzeit"/„Flugzeit").
+        + ((typeof id === "string" && avail && (id.startsWith("sensor:") || _OV_FALLBACK_LABEL[id] != null))
+            ? `<button type="button" class="ov-rename" data-fid="${id}" title="${t("animator.overlay.rename", "Umbenennen")}">✎</button>` : "")
         + (avail ? "" : `<span class="ov-unavail">${t("animator.statsfield.unavail", "—")}</span>`)
         + `</div>`;
     }).join("");
@@ -7593,7 +7609,7 @@ function mountAnimator(body, headerActions, opts) {
     });
     // v0.9.334 — Umbenennen-Knopf pro Sensorfeld
     cont.querySelectorAll(".ov-rename").forEach(btn => {
-      btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); _ovRenameSensor(btn.dataset.fid); });
+      btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); _ovRenameField(btn.dataset.fid); });
     });
     // Drag-Sortierung. v0.9.334 (Nutzer-Bug Windows): die Windows-WebView (Edge/
     // WebView2) zeigt den „Verboten"-Cursor und verweigert das Ablegen, wenn im

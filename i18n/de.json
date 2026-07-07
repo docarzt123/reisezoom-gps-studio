@@ -1032,7 +1032,7 @@
   "animator.overlay.rename_unit": "Einheit",
   "animator.overlay.rename_default": "Standard",
   "animator.overlay.rename_reset": "Zurücksetzen",
-  "animator.statsfield.moving_time": "Fahrzeit",
+  "animator.statsfield.moving_time": "Bewegungszeit",
   "animator.statsfield.avg_speed_total": "Ø Tempo (gesamt)",
   "geotagger.compass": "N,NO,O,SO,S,SW,W,NW",
   "geotagger.light.noon": "Mittagssonne",

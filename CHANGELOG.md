@@ -14,7 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.392] – 2026-07-05
+## [0.9.393] – 2026-07-05
+### Geändert
+- **Stats-Feld „Fahrzeit" heißt jetzt neutral „Bewegungszeit"** — passt für Wandern, Rad, Auto, Fliegen (statt nur Auto/Rad). Bestehende Projekte übernehmen den neuen Standard automatisch.
+### Hinzugefügt
+- **Alle Stats-Felder sind jetzt umbenennbar** (nicht mehr nur die Sensor-Felder). Über das ✎ im Stats-Feld-Editor lässt sich pro Projekt jedes Feld beschriften — z. B. „Bewegungszeit" → „Gehzeit" beim Wandern oder „Flugzeit". Die Umbenennung wirkt in Vorschau **und** im gerenderten Bild/Video (Animator + Tour-Map).
 ### Behoben
 - **Reiseroute: verständliche Meldung, wenn eine Rad-/Fuß-Route zu lang ist** (Beta-Tester). Beispiel: Hamburg → Dortmund (Zwischenziel) → Bremen mit dem Fahrrad schlug fehl, während Auto und zu Fuß gingen und die einzelnen Etappen per Rad routbar sind. Ursache: das Mapbox-Radprofil hat ein **Gesamtstrecken-Limit (~500 km)** — die Kombination (~575 km) wird als `NoRoute` abgelehnt, obwohl jede Etappe für sich passt (Auto/Fuß haben ein viel höheres Limit). Statt „Route fehlgeschlagen: …" zeigt die App jetzt eine klare, profil-abhängige Meldung mit Tipp (auf Auto stellen, Strecke mit mehr Zwischenzielen aufteilen oder Reihenfolge der Stationen ändern). i18n DE/EN/ES.
 ### Hinzugefügt

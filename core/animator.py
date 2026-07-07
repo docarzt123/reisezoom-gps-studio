@@ -429,7 +429,7 @@ OVERLAY_TOTAL_FIELDS = [
      "py": lambda ts: _format_km(ts["distance_m"])},
     {"id": "duration",   "requires": "time", "label": "Zeit",
      "py": lambda ts: _format_dur(ts["duration_s"])},
-    {"id": "moving_time", "requires": "time", "label": "Fahrzeit",
+    {"id": "moving_time", "requires": "time", "label": "Bewegungszeit",
      "py": lambda ts: _format_dur(ts.get("moving_time_s") or ts.get("duration_s") or 0)},
     {"id": "avg_speed",  "requires": "time", "label": "&Oslash; Tempo",
      # v0.9.323 (Nutzer-Feedback): Ø aus FAHRZEIT (ohne Pausen), nicht aus Gesamtzeit. 1 Nachkomma.
@@ -474,7 +474,18 @@ def _overlay_field_available(requires: str, has_time: bool, has_ele: bool) -> bo
     return True
 
 
-def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool) -> str:
+def _overlay_label_ov(fid, default_label, overrides):
+    """v0.9.393 — projekt-eigene Umbenennung auch für STANDARD-Overlay-Felder
+    (nicht nur Sensorfelder). Override-Key = Feld-id (z.B. "moving_time"). Der
+    User-Text wird escaped; das Katalog-Default-Label enthält bereits HTML-
+    Entities (&uuml; …) und bleibt daher unangetastet."""
+    o = (overrides or {}).get(fid)
+    if isinstance(o, dict) and o.get("label"):
+        return str(o["label"]).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return default_label
+
+
+def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, overrides=None) -> str:
     rows = []
     for fid in (field_ids or DEFAULT_TOTAL_FIELDS):
         f = _OVERLAY_TOTAL_BY_ID.get(fid)
@@ -484,7 +495,8 @@ def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool) 
             val = f["py"](total_stats)
         except Exception:
             continue
-        rows.append(f'<div class="stat-row"><span class="label">{f["label"]}</span><span class="value">{val}</span></div>')
+        lbl = _overlay_label_ov(fid, f["label"], overrides)
+        rows.append(f'<div class="stat-row"><span class="label">{lbl}</span><span class="value">{val}</span></div>')
     return "\n".join(rows)
 
 
@@ -521,7 +533,8 @@ def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None)
         if not f or not _overlay_field_available(f["requires"], has_time, has_ele):
             continue
         accent = " accent" if f.get("accent") else ""
-        rows.append(f'<div class="stat-row"><span class="label">{f["label"]}</span><span class="value{accent}" id="live-{fid}">&mdash;</span></div>')
+        lbl = _overlay_label_ov(fid, f["label"], overrides)  # v0.9.393 — Standard-Feld-Umbenennung
+        rows.append(f'<div class="stat-row"><span class="label">{lbl}</span><span class="value{accent}" id="live-{fid}">&mdash;</span></div>')
     return "\n".join(rows)
 
 
@@ -1098,7 +1111,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
-            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele)
+            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
             if _trows:
                 totals_html = f"""
 <div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
@@ -1917,7 +1930,7 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
-            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele)
+            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
             if _trows:
                 totals_html = f"""
 <div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
