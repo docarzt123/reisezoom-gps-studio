@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.398] – 2026-07-07
+### Behoben
+- **Höhen-Animator: HTML-Export-Ergebnisfeld legte sich als Band über die ganze App** (Marc). Das Ergebnis-Panel (mit Snippet + Buttons) nutzte versehentlich die CSS-Klasse `render-done`, die als **Vollbild-Overlay** definiert ist (`position:absolute; inset:0`) — dadurch erschien es quer über den Modul-Tabs statt unten in der Sidebar. Klasse entfernt; das Panel liegt jetzt korrekt in der Render-Sektion. Derselbe latente Fehler steckte im Video-„Fertig"-Block — mitbehoben.
+- **„Im Finder zeigen"-Button zeigte den rohen Übersetzungs-Schlüssel** statt des Texts: der referenzierte i18n-Key `animator.btn.reveal_in_finder` existiert nicht (korrekt ist `animator.btn.reveal`). Der Höhen-Animator nutzt `t(key)` **ohne** Fallback-Argument (das 2. Argument ist Interpolation, kein Fallback) → fehlender Key wurde 1:1 angezeigt. Behoben; zusätzlich zwei fehlende Trim-Tooltip-Keys (`heightanim.trim.start_tip/end_tip`) ergänzt.
+
 ## [0.9.397] – 2026-07-07
 ### Hinzugefügt
 - **Höhen-Animator: HTML-Export für Blog/Web** (Marc-Wunsch — animiert im Blogpost, ohne Video). Neuer Button „Als HTML exportieren" in der Render-Sektion erzeugt eine **selbst-laufende, in sich geschlossene `.html`-Datei** (reines HTML5 + Vanilla-JS, keine externen Abhängigkeiten, ~50 KB): dieselbe Animation wie im Video, aber sie läuft komplett im Browser des Besuchers — Auto-Loop mit Hold-Pause und dezentem „↻"-Replay-Button, responsive skalierend. Nutzt exakt denselben Zeichen-Code wie der Video-Render (WYSIWYG), inkl. Info-Leiste, Marker-Konfiguration, Wegpunkten und Farben.

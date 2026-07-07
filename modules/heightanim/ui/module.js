@@ -246,10 +246,10 @@ function mountHeightAnim(body, headerActions) {
                 ${t("animator.btn.cancel", "Abbrechen")}
               </button>
             </div>
-            <div class="render-done" id="height-done" style="display:none; margin-top:12px; padding:10px; background:rgba(80,200,120,0.10); border-left:3px solid #50c878; border-radius:4px;">
+            <div id="height-done" style="display:none; margin-top:12px; padding:10px; background:rgba(80,200,120,0.10); border-left:3px solid #50c878; border-radius:4px;">
               <p style="font-size:12px; margin:0 0 8px 0;">${t("heightanim.done.label", "Video fertig.")}</p>
               <button type="button" id="height-open-folder" class="btn btn-secondary" style="width:100%; font-size:12px;">
-                ${t("animator.btn.reveal_in_finder", "Im Finder zeigen")}
+                ${t("animator.btn.reveal")}
               </button>
             </div>
 
@@ -260,10 +260,10 @@ function mountHeightAnim(body, headerActions) {
               <p class="muted" style="font-size:11px; margin:6px 0 0;">
                 ${t("heightanim.html.hint", "Selbst-laufende Animation als HTML — für WordPress & Co., ohne Video.")}
               </p>
-              <div class="render-done" id="height-html-done" style="display:none; margin-top:12px; padding:10px; background:rgba(80,160,220,0.10); border-left:3px solid #4a9be0; border-radius:4px;">
+              <div id="height-html-done" style="display:none; margin-top:12px; padding:10px; background:rgba(80,160,220,0.10); border-left:3px solid #4a9be0; border-radius:4px;">
                 <p style="font-size:12px; margin:0 0 8px 0;" id="height-html-msg">${t("heightanim.html.done", "HTML gespeichert.")}</p>
                 <button type="button" id="height-html-reveal" class="btn btn-secondary" style="width:100%; font-size:12px; margin-bottom:6px;">
-                  ${t("animator.btn.reveal_in_finder", "Im Finder zeigen")}
+                  ${t("animator.btn.reveal")}
                 </button>
                 <p class="muted" style="font-size:11px; margin:8px 0 4px;">
                   ${t("heightanim.html.snippet_hint", "Snippet zum direkten Einfügen in einen „Custom HTML\"-Block:")}

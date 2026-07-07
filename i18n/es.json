@@ -1230,5 +1230,7 @@
   "geotagger.autotag.done": "✓ {n} fotos etiquetadas — revisa + „Escribir etiquetas“.",
   "geotagger.autotag.none": "No se encontraron palabras clave.",
   "geotagger.autotag.toast": "{n} fotos etiquetadas — marcadas como pendientes.",
-  "signs.clear_confirm": "¿Seguro? Clic otra vez"
+  "signs.clear_confirm": "¿Seguro? Clic otra vez",
+  "heightanim.trim.start_tip": "Arrastra el inicio — recorte inicial",
+  "heightanim.trim.end_tip": "Arrastra el final — recorte final"
 }

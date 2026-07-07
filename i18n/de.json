@@ -1230,5 +1230,7 @@
   "geotagger.autotag.done": "✓ {n} Fotos verschlagwortet — prüfen + „Taggen schreiben“.",
   "geotagger.autotag.none": "Keine Stichwörter gefunden.",
   "geotagger.autotag.toast": "{n} Fotos verschlagwortet — als ausstehend markiert.",
-  "signs.clear_confirm": "Wirklich? Nochmal klicken"
+  "signs.clear_confirm": "Wirklich? Nochmal klicken",
+  "heightanim.trim.start_tip": "Start ziehen — Trim-Anfang",
+  "heightanim.trim.end_tip": "Ende ziehen — Trim-Ende"
 }

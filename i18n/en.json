@@ -1230,5 +1230,7 @@
   "geotagger.autotag.done": "✓ {n} photos tagged — review + „Write tags“.",
   "geotagger.autotag.none": "No keywords found.",
   "geotagger.autotag.toast": "{n} photos tagged — marked as pending.",
-  "signs.clear_confirm": "Sure? Click again"
+  "signs.clear_confirm": "Sure? Click again",
+  "heightanim.trim.start_tip": "Drag start — trim beginning",
+  "heightanim.trim.end_tip": "Drag end — trim end"
 }
