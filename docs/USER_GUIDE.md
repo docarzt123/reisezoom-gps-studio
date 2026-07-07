@@ -507,6 +507,11 @@ Jeder Punkt **taucht animiert auf, sobald die Linie ihn erreicht**. Einzelne Pun
 
 **Rückgängig:** **⌘Z / Strg+Z** nimmt im Höhen-Animator **alles** zurück — Optik, Farben, Info-Leiste-Felder, Wegpunkte und Quellen-Schalter (ein Druck pro Schritt).
 
+**Als HTML exportieren (Blog/Web, seit v0.9.397):** Unter dem Video-Render-Button liegt **„Als HTML exportieren"**. Das erzeugt eine **selbst-laufende `.html`-Datei** — dieselbe Animation wie im Video, aber sie läuft **komplett im Browser** (reines HTML, kein Video), mit Auto-Loop und **„↻"-Replay-Button**. Ideal für einen Blogpost. Du bekommst zwei Wege:
+- **Direkt einfügen (kein Upload):** Im Ergebnis-Feld steht ein fertiges **`<iframe>`-Snippet** — auf **„Snippet kopieren"** klicken und in einen WordPress-**„Custom HTML"-Block** einfügen. Die ganze Animation steckt im Snippet (`srcdoc`), sauber vom Theme abgeschottet.
+- **Als Datei einbinden:** Über **„Im Finder zeigen"** findest du die `.html`; lade sie auf deinen Server und binde sie per `<iframe src="…">` ein.
+Kein WordPress-Plugin nötig; kein Mapbox/CDN — die Datei läuft eigenständig.
+
 ---
 
 ## 6 · Modul: Geotagger — Fotos mit GPS taggen

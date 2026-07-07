@@ -252,6 +252,28 @@ function mountHeightAnim(body, headerActions) {
                 ${t("animator.btn.reveal_in_finder", "Im Finder zeigen")}
               </button>
             </div>
+
+            <div style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:12px;">
+              <button type="button" class="btn btn-secondary btn-block" id="height-export-html">
+                ${t("heightanim.btn.export_html", "Als HTML exportieren (Blog/Web)")}
+              </button>
+              <p class="muted" style="font-size:11px; margin:6px 0 0;">
+                ${t("heightanim.html.hint", "Selbst-laufende Animation als HTML — für WordPress & Co., ohne Video.")}
+              </p>
+              <div class="render-done" id="height-html-done" style="display:none; margin-top:12px; padding:10px; background:rgba(80,160,220,0.10); border-left:3px solid #4a9be0; border-radius:4px;">
+                <p style="font-size:12px; margin:0 0 8px 0;" id="height-html-msg">${t("heightanim.html.done", "HTML gespeichert.")}</p>
+                <button type="button" id="height-html-reveal" class="btn btn-secondary" style="width:100%; font-size:12px; margin-bottom:6px;">
+                  ${t("animator.btn.reveal_in_finder", "Im Finder zeigen")}
+                </button>
+                <p class="muted" style="font-size:11px; margin:8px 0 4px;">
+                  ${t("heightanim.html.snippet_hint", "Snippet zum direkten Einfügen in einen „Custom HTML\"-Block:")}
+                </p>
+                <textarea id="height-html-snippet" readonly rows="3" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:10px; resize:vertical; box-sizing:border-box;"></textarea>
+                <button type="button" id="height-html-copy" class="btn btn-secondary" style="width:100%; font-size:12px; margin-top:6px;">
+                  ${t("heightanim.html.copy", "Snippet kopieren")}
+                </button>
+              </div>
+            </div>
           </div>
         </section>
     </aside>
@@ -1426,15 +1448,12 @@ function mountHeightAnim(body, headerActions) {
     _renderPollTimer = setTimeout(pollHeightRender, 350);
   }
 
-  document.getElementById("height-render")?.addEventListener("click", async () => {
+  // v0.9.397 — Params-Sammler: von Video-Render UND HTML-Export genutzt.
+  function collectHeightParams() {
     const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
-    if (!gpxPath) {
-      if (typeof toast === "function") toast(t("heightanim.toast.no_gpx", "Erst GPX laden."), "warn", 3000);
-      return;
-    }
     const codec = codecEl?.value || "h264";
     const alpha = (codec === "alpha");
-    const params = {
+    return {
       gpx_path: gpxPath,
       duration_s: parseInt(document.getElementById("height-dur")?.value || "12", 10),
       hold_s: parseInt(document.getElementById("height-hold")?.value || "2", 10),
@@ -1451,7 +1470,6 @@ function mountHeightAnim(body, headerActions) {
       show_marker: document.getElementById("height-marker")?.checked !== false,
       grid_color: document.getElementById("height-grid-color")?.value || "#3a3a3a",
       label_color: document.getElementById("height-label-color")?.value || "#cccccc",
-      // v0.9.396 — Marker vollständig konfigurierbar
       marker_dot_color: document.getElementById("height-marker-dot-color")?.value || "#ffffff",
       marker_dot_size: parseFloat(document.getElementById("height-marker-dot-size")?.value || "6"),
       marker_bg: document.getElementById("height-marker-bg")?.value || "#000000",
@@ -1462,7 +1480,6 @@ function mountHeightAnim(body, headerActions) {
       marker_show_icon: document.getElementById("height-marker-icon")?.checked !== false,
       marker_show_ele: document.getElementById("height-marker-ele")?.checked !== false,
       marker_show_dist: document.getElementById("height-marker-dist")?.checked !== false,
-      // v0.9.394 — Info-Leiste + Steigung + Wegpunkte (WYSIWYG zur Preview)
       show_stats_header: _showHeader,
       show_gradient: _showGradient,
       stats_fields: _statsFields.slice(),
@@ -1472,6 +1489,15 @@ function mountHeightAnim(body, headerActions) {
       trim_start: _trimStart,
       trim_end: _trimEnd,
     };
+  }
+
+  document.getElementById("height-render")?.addEventListener("click", async () => {
+    const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+    if (!gpxPath) {
+      if (typeof toast === "function") toast(t("heightanim.toast.no_gpx", "Erst GPX laden."), "warn", 3000);
+      return;
+    }
+    const params = collectHeightParams();
 
     setRenderingState(true);
     try {
@@ -1511,6 +1537,56 @@ function mountHeightAnim(body, headerActions) {
     const btn = document.getElementById("height-cancel");
     if (btn) { btn.disabled = true; btn.textContent = "⏳ " + t("animator.cancel.requesting", "Abbruch …"); }
     try { await window.pywebview.api.heightanim_cancel(); } catch (_) {}
+  });
+
+  // ── v0.9.397 — HTML-Export (Blog/Web) ──────────────────────────────────────
+  document.getElementById("height-export-html")?.addEventListener("click", async () => {
+    const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+    if (!gpxPath) {
+      if (typeof toast === "function") toast(t("heightanim.toast.no_gpx", "Erst GPX laden."), "warn", 3000);
+      return;
+    }
+    if (!window.pywebview?.api?.heightanim_export_html) {
+      if (typeof toast === "function") toast("Bridge heightanim_export_html fehlt", "error", 5000);
+      return;
+    }
+    const btn = document.getElementById("height-export-html");
+    const oldTxt = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ " + t("heightanim.html.exporting", "Exportiere HTML …"); }
+    try {
+      const params = collectHeightParams();
+      params.replay_label = "↻ " + t("heightanim.html.replay", "Neu starten");
+      const res = await window.pywebview.api.heightanim_export_html(params);
+      if (!res || !res.ok) {
+        if (typeof toast === "function") toast(t("heightanim.html.failed", "HTML-Export fehlgeschlagen") + ": " + (res?.error || "unknown"), "error", 8000);
+        return;
+      }
+      const done = document.getElementById("height-html-done");
+      const msg = document.getElementById("height-html-msg");
+      const ta = document.getElementById("height-html-snippet");
+      if (msg) msg.textContent = t("heightanim.html.done", "HTML gespeichert.") + " (" + Math.round((res.bytes || 0) / 1024) + " KB)";
+      if (ta) ta.value = res.snippet || "";
+      if (done) done.style.display = "block";
+      const rev = document.getElementById("height-html-reveal");
+      if (rev) rev.onclick = () => window.pywebview.api.reveal_in_finder(res.output);
+      const cpy = document.getElementById("height-html-copy");
+      if (cpy) cpy.onclick = async () => {
+        try {
+          if (ta) { ta.focus(); ta.select(); }
+          if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(res.snippet || "");
+          else document.execCommand("copy");
+          if (typeof toast === "function") toast(t("heightanim.html.copied", "Snippet kopiert."), "success", 2500);
+        } catch (e) {
+          if (typeof toast === "function") toast(t("heightanim.html.copy_manual", "Bitte manuell markieren + kopieren."), "info", 4000);
+        }
+      };
+      if (typeof toast === "function") toast(t("heightanim.html.done", "HTML gespeichert.") + " " + (res.output || "").split("/").pop(), "success", 5000);
+    } catch (e) {
+      console.error("[heightanim] export_html exception", e);
+      if (typeof toast === "function") toast(t("heightanim.html.failed", "HTML-Export fehlgeschlagen") + ": " + e, "error", 8000);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = oldTxt; }
+    }
   });
 
   // Cleanup: ResizeObserver disconnecten + Animation stoppen + Poll-Timer

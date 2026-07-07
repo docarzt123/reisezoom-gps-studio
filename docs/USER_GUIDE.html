@@ -580,6 +580,12 @@ python app.py</code></pre>
 <p><strong>Farben (seit v0.9.395):</strong> In der „Optik&quot;-Sektion wählst du neben Hintergrund und Linienfarbe jetzt auch <strong>Gitterfarbe</strong> (Hilfsgitter) und <strong>Beschriftungsfarbe</strong> (Achsen, Info-Leiste, Marker-Callout).</p>
 <p><strong>Marker konfigurieren (seit v0.9.396):</strong> Die eigene Sektion <strong>„Marker&quot;</strong> macht den laufenden Punkt und seine Info-Box komplett gestaltbar: <strong>Punktfarbe + -größe</strong>; für die Box <strong>Hintergrundfarbe + Deckkraft, Randfarbe + Randdicke, Schriftgröße</strong>; und welche Werte drinstehen — <strong>⛰-Symbol, Höhe, Steigung (%), Distanz</strong> je einzeln an-/abschaltbar (die Box passt ihre Größe automatisch an).</p>
 <p><strong>Rückgängig:</strong> <strong>⌘Z / Strg+Z</strong> nimmt im Höhen-Animator <strong>alles</strong> zurück — Optik, Farben, Info-Leiste-Felder, Wegpunkte und Quellen-Schalter (ein Druck pro Schritt).</p>
+<p><strong>Als HTML exportieren (Blog/Web, seit v0.9.397):</strong> Unter dem Video-Render-Button liegt <strong>„Als HTML exportieren&quot;</strong>. Das erzeugt eine **selbst-laufende <code>.html</code>-Datei<strong> — dieselbe Animation wie im Video, aber sie läuft </strong>komplett im Browser<strong> (reines HTML, kein Video), mit Auto-Loop und </strong>„↻&quot;-Replay-Button**. Ideal für einen Blogpost. Du bekommst zwei Wege:</p>
+<ul>
+<li><strong>Direkt einfügen (kein Upload):</strong> Im Ergebnis-Feld steht ein fertiges **<code>&lt;iframe&gt;</code>-Snippet<strong> — auf </strong>„Snippet kopieren&quot;<strong> klicken und in einen WordPress-</strong>„Custom HTML&quot;-Block** einfügen. Die ganze Animation steckt im Snippet (<code>srcdoc</code>), sauber vom Theme abgeschottet.</li>
+<li><strong>Als Datei einbinden:</strong> Über <strong>„Im Finder zeigen&quot;</strong> findest du die <code>.html</code>; lade sie auf deinen Server und binde sie per <code>&lt;iframe src=&quot;…&quot;&gt;</code> ein.</li>
+</ul>
+<p>Kein WordPress-Plugin nötig; kein Mapbox/CDN — die Datei läuft eigenständig.</p>
 <hr>
 <h2 id="6-modul-geotagger-fotos-mit-gps-taggen">6 · Modul: Geotagger — Fotos mit GPS taggen</h2>
 <blockquote><strong>Den Geotagger gibt es seit v0.9.331 in drei Varianten:</strong></blockquote>

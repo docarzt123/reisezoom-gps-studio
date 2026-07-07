@@ -129,7 +129,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.396"
+APP_VERSION = "0.9.397"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -713,6 +713,46 @@ def _ensure_media_server() -> int:
         _media_httpd = httpd
         log.info("Media-HTTP-Server läuft auf 127.0.0.1:%d", _media_port)
         return _media_port
+
+
+def _height_visual_cfg_kwargs(params: dict) -> dict:
+    """v0.9.397 — die visuellen HeightConfig-Felder aus den UI-Params. Von
+    heightanim_start_render (Video) UND heightanim_export_html (HTML) genutzt,
+    damit Render und Web-Export niemals auseinanderdriften. Enthält NICHT
+    gpx_path/output_path/codec/crf/transparent_background (die setzt der Caller)."""
+    return dict(
+        duration_s=int(params.get("duration_s", 12)),
+        hold_s=int(params.get("hold_s", 2)),
+        fps=int(params.get("fps", 30)),
+        width=int(params.get("width", 1920)),
+        height=int(params.get("height", 1080)),
+        background_color=params.get("background_color", "#1a1a1a"),
+        line_color=params.get("line_color", "#ff6b35"),
+        line_width=float(params.get("line_width", 4.0)),
+        grid_enabled=bool(params.get("grid_enabled", True)),
+        show_axes=bool(params.get("show_axes", True)),
+        show_marker=bool(params.get("show_marker", True)),
+        grid_color=params.get("grid_color", "#3a3a3a"),
+        label_color=params.get("label_color", "#cccccc"),
+        marker_dot_color=params.get("marker_dot_color", "#ffffff"),
+        marker_dot_size=float(params.get("marker_dot_size", 6.0)),
+        marker_bg=params.get("marker_bg", "#000000"),
+        marker_bg_opacity=float(params.get("marker_bg_opacity", 0.6)),
+        marker_border_color=params.get("marker_border_color", "#ff6b35"),
+        marker_border_width=float(params.get("marker_border_width", 1.5)),
+        marker_font_size=float(params.get("marker_font_size", 16.0)),
+        marker_show_icon=bool(params.get("marker_show_icon", True)),
+        marker_show_ele=bool(params.get("marker_show_ele", True)),
+        marker_show_dist=bool(params.get("marker_show_dist", True)),
+        show_stats_header=bool(params.get("show_stats_header", True)),
+        stats_fields=list(params.get("stats_fields") or [
+            "distance", "updown", "avg_grad", "max_grad", "ele_max"]),
+        stats_labels=dict(params.get("stats_labels") or {}),
+        show_gradient=bool(params.get("show_gradient", True)),
+        waypoints=list(params.get("waypoints") or []),
+        trim_start=float(params.get("trim_start", 0.0)),
+        trim_end=float(params.get("trim_end", 1.0)),
+    )
 
 
 class Api:
@@ -2317,42 +2357,10 @@ class Api:
         cfg = cheight.HeightConfig(
             gpx_path=gpx_path,
             output_path=out_path,
-            duration_s=int(params.get("duration_s", 12)),
-            hold_s=int(params.get("hold_s", 2)),
-            fps=int(params.get("fps", 30)),
-            width=int(params.get("width", 1920)),
-            height=int(params.get("height", 1080)),
             codec=codec,
             crf=int(params.get("crf", 20)),
             transparent_background=alpha,
-            background_color=params.get("background_color", "#1a1a1a"),
-            line_color=params.get("line_color", "#ff6b35"),
-            line_width=float(params.get("line_width", 4.0)),
-            grid_enabled=bool(params.get("grid_enabled", True)),
-            show_axes=bool(params.get("show_axes", True)),
-            show_marker=bool(params.get("show_marker", True)),
-            grid_color=params.get("grid_color", "#3a3a3a"),
-            label_color=params.get("label_color", "#cccccc"),
-            # v0.9.396 — Marker vollständig konfigurierbar
-            marker_dot_color=params.get("marker_dot_color", "#ffffff"),
-            marker_dot_size=float(params.get("marker_dot_size", 6.0)),
-            marker_bg=params.get("marker_bg", "#000000"),
-            marker_bg_opacity=float(params.get("marker_bg_opacity", 0.6)),
-            marker_border_color=params.get("marker_border_color", "#ff6b35"),
-            marker_border_width=float(params.get("marker_border_width", 1.5)),
-            marker_font_size=float(params.get("marker_font_size", 16.0)),
-            marker_show_icon=bool(params.get("marker_show_icon", True)),
-            marker_show_ele=bool(params.get("marker_show_ele", True)),
-            marker_show_dist=bool(params.get("marker_show_dist", True)),
-            # v0.9.394 — Info-Leiste + Steigung + Wegpunkte
-            show_stats_header=bool(params.get("show_stats_header", True)),
-            stats_fields=list(params.get("stats_fields") or [
-                "distance", "updown", "avg_grad", "max_grad", "ele_max"]),
-            stats_labels=dict(params.get("stats_labels") or {}),
-            show_gradient=bool(params.get("show_gradient", True)),
-            waypoints=list(params.get("waypoints") or []),
-            trim_start=float(params.get("trim_start", 0.0)),
-            trim_end=float(params.get("trim_end", 1.0)),
+            **_height_visual_cfg_kwargs(params),   # v0.9.397 — geteilt mit HTML-Export
         )
 
         self._height_render_state = {
@@ -2432,6 +2440,49 @@ class Api:
         self._height_render_state["cancel_requested"] = True
         log.info("heightanim_cancel angefordert")
         return {"ok": True}
+
+    def heightanim_export_html(self, params: dict) -> dict:
+        """v0.9.397 — Höhenprofil als selbst-laufende HTML fürs Web/Blog exportieren.
+        Kein Playwright, kein Video — reines HTML5 + Vanilla-JS. Liefert eine
+        .html-Datei UND ein <iframe srcdoc>-Snippet zum direkten Einfügen in
+        einen WordPress-„Custom HTML"-Block (ohne Upload)."""
+        try:
+            gpx_path = params.get("gpx_path", "")
+            if not gpx_path or not Path(gpx_path).exists():
+                return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+            gpx_path = self._ensure_gpx(gpx_path)
+            pts, _stats = cgpx.parse_gpx(gpx_path)
+            if len(pts) < 2:
+                return {"ok": False, "error": "GPX hat zu wenig Punkte (< 2)"}
+            ds = cgpx.downsample(pts, 1000)
+            distances_m = [p.dist_m for p in ds]
+            elevations = [(p.ele if p.ele is not None else 0.0) for p in ds]
+
+            out_name = params.get("output_name") or (Path(gpx_path).stem + "_hoehenprofil.html")
+            if not out_name.lower().endswith(".html"):
+                out_name += ".html"
+            out_path = params.get("output_path") or str(RENDERS_DIR / out_name)
+
+            cfg = cheight.HeightConfig(
+                gpx_path=gpx_path, output_path=out_path,
+                **_height_visual_cfg_kwargs(params),
+            )
+            replay = params.get("replay_label") or "↻ Neu starten"
+            html_doc = cheight.make_standalone_html(
+                cfg, distances_m, elevations, replay_label=replay, loop=True)
+            Path(out_path).write_text(html_doc, encoding="utf-8")
+            snippet = cheight.make_embed_snippet(html_doc, cfg)
+            snip_path = os.path.splitext(out_path)[0] + "_iframe-snippet.txt"
+            Path(snip_path).write_text(snippet, encoding="utf-8")
+            log.info("HTML-Export OK: %s (%.0f KB) + Snippet %s",
+                     out_path, len(html_doc.encode("utf-8")) / 1024, snip_path)
+            return {
+                "ok": True, "output": out_path, "snippet": snippet,
+                "snippet_path": snip_path, "bytes": len(html_doc.encode("utf-8")),
+            }
+        except Exception as e:
+            log.exception("heightanim_export_html fehlgeschlagen: %s", e)
+            return {"ok": False, "error": str(e)}
 
     # ── Drag & Drop ──────────────────────────────────────────────────────────
     #

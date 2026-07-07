@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.397] – 2026-07-07
+### Hinzugefügt
+- **Höhen-Animator: HTML-Export für Blog/Web** (Marc-Wunsch — animiert im Blogpost, ohne Video). Neuer Button „Als HTML exportieren" in der Render-Sektion erzeugt eine **selbst-laufende, in sich geschlossene `.html`-Datei** (reines HTML5 + Vanilla-JS, keine externen Abhängigkeiten, ~50 KB): dieselbe Animation wie im Video, aber sie läuft komplett im Browser des Besuchers — Auto-Loop mit Hold-Pause und dezentem „↻"-Replay-Button, responsive skalierend. Nutzt exakt denselben Zeichen-Code wie der Video-Render (WYSIWYG), inkl. Info-Leiste, Marker-Konfiguration, Wegpunkten und Farben.
+  - **Kein WordPress-Plugin nötig.** Der Export liefert zusätzlich ein fertiges **`<iframe srcdoc>`-Snippet** (im Ergebnis-Feld zum Kopieren): einfach in einen Gutenberg-„Custom HTML"-Block einfügen — die komplette Seite steckt im `srcdoc`, perfekt isoliert vom Theme-CSS, **kein Upload nötig**. Alternativ die `.html`-Datei hochladen und per `<iframe src>` einbinden.
+  - Läuft ohne Playwright/Video-Pipeline (reiner String-Export, sofort fertig). i18n DE/EN/ES.
+### Geändert
+- Die HeightConfig-Feldzuordnung aus den UI-Params liegt jetzt in einem geteilten Helfer (`_height_visual_cfg_kwargs`), den Video-Render **und** HTML-Export nutzen — beide bleiben damit garantiert synchron.
+
 ## [0.9.396] – 2026-07-07
 ### Hinzugefügt
 - **Höhen-Animator: der Marker ist jetzt komplett konfigurierbar** (neue Sektion „Marker"). Der laufende Punkt und seine Info-Box lassen sich frei gestalten:

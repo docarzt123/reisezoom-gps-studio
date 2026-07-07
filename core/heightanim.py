@@ -879,6 +879,73 @@ def _windowed_gradient(dists: list, elevs: list, i: int, window_m: float = 60.0)
     return (e_hi - e_lo) / dd * 100.0
 
 
+def make_standalone_html(cfg: "HeightConfig", distances_m: list, elevations: list,
+                         *, replay_label: str = "↻ Neu", loop: bool = True) -> str:
+    """v0.9.397 — In sich geschlossene, selbst-laufende HTML-Seite fürs Web/Blog.
+
+    Nutzt EXAKT denselben Zeichen-Code wie der Video-Render (`_make_html`),
+    transformiert die Seite aber:
+      - responsive (SVG skaliert, kein Distort → `xMidYMid meet`),
+      - selbst-laufende Animation (requestAnimationFrame-Loop treibt
+        `window.advanceFrame` — dieselbe Funktion, die der Render Frame-für-
+        Frame aufruft), optional Endlos-Loop mit Hold-Pause,
+      - dezenter Replay-Button unten links.
+    Reines HTML5 + Vanilla-JS, keine externen Abhängigkeiten.
+    """
+    import re as _re, html as _h
+    page = _make_html(cfg, distances_m, elevations)
+    bg = cfg.background_color if not cfg.transparent_background else "transparent"
+    new_style = (
+        "<style>"
+        "html,body{margin:0;padding:0;height:100%;background:" + bg + ";overflow:hidden}"
+        "body{position:relative}"
+        "#svg{width:100%;height:100%;display:block}"
+        "#rz-replay{position:absolute;left:14px;bottom:14px;z-index:5;"
+        "font:600 13px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"
+        "color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.35);"
+        "border-radius:8px;padding:7px 13px;cursor:pointer;opacity:.8}"
+        "#rz-replay:hover{opacity:1}"
+        "</style>"
+    )
+    page = _re.sub(r"<style>.*?</style>", lambda m: new_style, page, count=1, flags=_re.S)
+    page = page.replace('preserveAspectRatio="none"', 'preserveAspectRatio="xMidYMid meet"', 1)
+    page = page.replace("<title>height-render</title>", "<title>Höhenprofil</title>", 1)
+    dur_ms = max(100.0, float(cfg.duration_s) * 1000.0)
+    hold_ms = max(0.0, float(cfg.hold_s) * 1000.0)
+    end_behaviour = ("if(HOLD>0){held=ts;}else{t0=ts;}" if loop
+                     else "cancelAnimationFrame(raf);return;")
+    loop_js = (
+        "\n(function(){"
+        "var DUR=" + repr(dur_ms) + ",HOLD=" + repr(hold_ms) + ",t0=null,held=null,raf=null;"
+        "function fr(ts){"
+        "if(t0===null)t0=ts;"
+        "if(held!==null){if(ts-held>=HOLD){held=null;t0=ts;window.advanceFrame(0);}raf=requestAnimationFrame(fr);return;}"
+        "var p=DUR>0?Math.min(1,(ts-t0)/DUR):1;window.advanceFrame(p);"
+        "if(p>=1){" + end_behaviour + "}"
+        "raf=requestAnimationFrame(fr);}"
+        "function start(){t0=null;held=null;if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(fr);}"
+        "var b=document.getElementById('rz-replay');if(b)b.addEventListener('click',start);start();"
+        "})();\n"
+    )
+    btn = '<button id="rz-replay" type="button">' + _h.escape(replay_label) + '</button>'
+    page = page.replace("</script></body></html>",
+                        loop_js + "</script>\n" + btn + "\n</body></html>", 1)
+    return page
+
+
+def make_embed_snippet(standalone_html: str, cfg: "HeightConfig") -> str:
+    """v0.9.397 — Fertiges <iframe srcdoc>-Snippet zum direkten Einfügen in einen
+    Blogpost / WordPress-„Custom HTML"-Block. Die komplette Seite steckt im
+    `srcdoc` → perfekte Isolation vom Theme-CSS, kein Upload nötig."""
+    import html as _h
+    w, h = int(cfg.width), int(cfg.height)
+    esc = _h.escape(standalone_html, quote=True)
+    return ('<iframe title="Höhenprofil" loading="lazy" '
+            'style="width:100%;max-width:' + str(w) + 'px;aspect-ratio:' + str(w) + '/' + str(h)
+            + ';border:0;display:block;margin:1rem auto" '
+            'srcdoc="' + esc + '"></iframe>')
+
+
 def detect_auto_markers(track_pts: list) -> list:
     """Erkennt markante Punkte: höchster + tiefster Punkt, steilster An- und
     Abstieg. Rückgabe [{dist_m, ele, kind, label_key}] — die UI beschriftet.
