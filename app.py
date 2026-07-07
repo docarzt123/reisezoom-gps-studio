@@ -129,7 +129,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.398"
+APP_VERSION = "0.9.399"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -2482,6 +2482,22 @@ class Api:
             }
         except Exception as e:
             log.exception("heightanim_export_html fehlgeschlagen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def heightanim_open_in_browser(self, path: str) -> dict:
+        """v0.9.399 — öffnet die exportierte .html im DEFAULT-BROWSER. Nötig, weil
+        ein Doppelklick im Finder .html je nach System in einem Editor öffnet
+        (dann 'passiert nix' = nur Quelltext). `webbrowser.open` mit file://-URI
+        nimmt den Standard-Browser."""
+        import webbrowser
+        try:
+            p = Path(path)
+            if not p.exists():
+                return {"ok": False, "error": "Datei existiert nicht"}
+            webbrowser.open(p.as_uri(), new=2)
+            return {"ok": True}
+        except Exception as e:
+            log.exception("heightanim_open_in_browser fehlgeschlagen: %s", e)
             return {"ok": False, "error": str(e)}
 
     # ── Drag & Drop ──────────────────────────────────────────────────────────

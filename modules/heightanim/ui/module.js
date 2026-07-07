@@ -260,19 +260,6 @@ function mountHeightAnim(body, headerActions) {
               <p class="muted" style="font-size:11px; margin:6px 0 0;">
                 ${t("heightanim.html.hint", "Selbst-laufende Animation als HTML — für WordPress & Co., ohne Video.")}
               </p>
-              <div id="height-html-done" style="display:none; margin-top:12px; padding:10px; background:rgba(80,160,220,0.10); border-left:3px solid #4a9be0; border-radius:4px;">
-                <p style="font-size:12px; margin:0 0 8px 0;" id="height-html-msg">${t("heightanim.html.done", "HTML gespeichert.")}</p>
-                <button type="button" id="height-html-reveal" class="btn btn-secondary" style="width:100%; font-size:12px; margin-bottom:6px;">
-                  ${t("animator.btn.reveal")}
-                </button>
-                <p class="muted" style="font-size:11px; margin:8px 0 4px;">
-                  ${t("heightanim.html.snippet_hint", "Snippet zum direkten Einfügen in einen „Custom HTML\"-Block:")}
-                </p>
-                <textarea id="height-html-snippet" readonly rows="3" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:10px; resize:vertical; box-sizing:border-box;"></textarea>
-                <button type="button" id="height-html-copy" class="btn btn-secondary" style="width:100%; font-size:12px; margin-top:6px;">
-                  ${t("heightanim.html.copy", "Snippet kopieren")}
-                </button>
-              </div>
             </div>
           </div>
         </section>
@@ -357,15 +344,66 @@ function mountHeightAnim(body, headerActions) {
     if (ha.wp_hidden && typeof ha.wp_hidden === "object") _wpHidden = Object.assign({}, ha.wp_hidden);
   } catch (_) {}
 
+  // v0.9.399 — gespeicherte Control-Werte (Farben/Größen/Auflösung …) SYNCHRON
+  // zurückspielen, BEVOR Listener/Draw laufen (hoisted; Panel-HTML steht schon).
+  try { restoreHeightControls(); } catch (_) {}
+
+  // v0.9.399 — alle DOM-Controls (#height-panel) als {id: value/checked} lesen.
+  function _readHeightControls() {
+    const root = document.getElementById("height-panel");
+    const o = {};
+    if (root) root.querySelectorAll("input, select").forEach(el => {
+      if (!el.id) return;
+      o[el.id] = (el.type === "checkbox" || el.type === "radio") ? !!el.checked : el.value;
+    });
+    return o;
+  }
+  // Slider-Wert-Labels aus den aktuellen Slider-Werten neu setzen (nach Restore,
+  // da wir dabei KEINE input-Events feuern → Undo/Persist bleiben unangetastet).
+  function _refreshHeightSliderLabels() {
+    const set = (sid, lid, fmt, suf) => {
+      const s = document.getElementById(sid), l = document.getElementById(lid);
+      if (s && l) l.textContent = fmt(s.value) + (suf || "");
+    };
+    set("height-dur", "height-dur-v", v => v, " s");
+    set("height-hold", "height-hold-v", v => v, " s");
+    set("height-fps", "height-fps-v", v => v, "");
+    set("height-lw", "height-lw-v", v => parseFloat(v).toFixed(1), " px");
+    set("height-marker-dot-size", "height-marker-dot-size-v", v => v, " px");
+    set("height-marker-bg-op", "height-marker-bg-op-v", v => v, " %");
+    set("height-marker-bw", "height-marker-bw-v", v => parseFloat(v).toFixed(1), " px");
+    set("height-marker-fs", "height-marker-fs-v", v => v, " px");
+  }
+  // v0.9.399 — Beim Mount die gespeicherten Control-Werte zurückspielen (Farben,
+  // Größen, Auflösung, Dauer …). OHNE Event-Dispatch (keine Undo-/Persist-/Draw-
+  // Nebenwirkungen); der normale Initial-Draw/Layout liest die Werte danach.
+  function restoreHeightControls() {
+    try {
+      const proj = (typeof window.getActiveProject === "function") ? window.getActiveProject() : null;
+      const c = proj && proj.heightanim && proj.heightanim.controls;
+      if (!c || typeof c !== "object") return;
+      Object.keys(c).forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.type === "checkbox" || el.type === "radio") el.checked = !!c[id];
+        else el.value = String(c[id]);
+      });
+      _refreshHeightSliderLabels();
+    } catch (_) {}
+  }
+  // Speichert IMMER das KOMPLETTE heightanim-Objekt (Root-Patch macht Shallow-
+  // Replace von `heightanim` → Teil-Patches würden sich gegenseitig überschreiben).
   function persistHeightWaypoints() {
     try {
       if (typeof window.saveActiveProjectPatch === "function") {
         window.saveActiveProjectPatch({
           heightanim: {
+            trim_start: _trimStart, trim_end: _trimEnd,
             show_header: _showHeader, show_gradient: _showGradient,
             stats_fields: _statsFields.slice(), wp_sources: Object.assign({}, _wpSources),
             wp_hidden: Object.assign({}, _wpHidden),
             waypoints: _manualWps.map(w => ({ id: w.id, dist_frac: w.dist_frac, label: w.label, color: w.color })),
+            controls: _readHeightControls(),
           }
         }, { persistOnly: true });
       }
@@ -1245,6 +1283,12 @@ function mountHeightAnim(body, headerActions) {
     });
   }
 
+  // v0.9.399 — jede Control-Änderung im Panel persistieren (Farben, Größen,
+  // Auflösung, Dauer, Checkboxen …). saveActiveProjectPatch debounct selbst (200 ms).
+  document.getElementById("height-panel")?.addEventListener("change", () => {
+    try { persistHeightWaypoints(); } catch (_) {}
+  });
+
   // Section-Akkordeon-Logik
   if (window.setupSectionAccordions) {
     window.setupSectionAccordions("heightanim", document.getElementById("height-panel"));
@@ -1323,13 +1367,9 @@ function mountHeightAnim(body, headerActions) {
   }
 
   function persistTrim() {
-    try {
-      if (typeof window.saveActiveProjectPatch === "function") {
-        window.saveActiveProjectPatch({
-          heightanim: { trim_start: _trimStart, trim_end: _trimEnd }
-        }, { persistOnly: true });
-      }
-    } catch (_) {}
+    // v0.9.399 — schreibt das komplette heightanim-Objekt (Root-Patch = Shallow-
+    // Replace), sonst würde ein Trim-Save Wegpunkte/Controls überschreiben.
+    persistHeightWaypoints();
   }
 
   // Initial-Position
@@ -1539,6 +1579,44 @@ function mountHeightAnim(body, headerActions) {
     try { await window.pywebview.api.heightanim_cancel(); } catch (_) {}
   });
 
+  // ── v0.9.399 — Zentriertes Ergebnis-Modal für den HTML-Export ──────────────
+  function showHtmlExportModal(res) {
+    const kb = Math.round((res.bytes || 0) / 1024);
+    const body = `
+      <p style="font-size:13px; margin:0 0 8px;">${t("heightanim.html.modal_intro", "Selbst-laufende Animation als HTML gespeichert")} (${kb} KB).</p>
+      <p style="font-size:12px; color:var(--text-muted,#aaa); margin:0 0 12px;">${t("heightanim.html.modal_open_hint", "Zum Ansehen „Im Browser öffnen\" nutzen — ein Doppelklick auf die Datei startet je nach System nur einen Editor.")}</p>
+      <p style="font-size:12px; margin:0 0 4px; font-weight:600;">${t("heightanim.html.snippet_hint", "Snippet zum direkten Einfügen in einen „Custom HTML\"-Block:")}</p>
+      <textarea id="height-html-snippet" readonly rows="5" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:10px; resize:vertical; box-sizing:border-box;"></textarea>
+      <p class="muted" style="font-size:11px; margin:6px 0 0;">${t("heightanim.html.snippet_wp", "In WordPress: einen Block „Custom HTML\" einfügen und das Snippet hineinkopieren.")}</p>`;
+    const footer = `
+      <button type="button" id="height-html-browser" class="btn btn-primary">▶ ${t("heightanim.html.open_browser", "Im Browser öffnen")}</button>
+      <button type="button" id="height-html-copy" class="btn btn-secondary">${t("heightanim.html.copy", "Snippet kopieren")}</button>
+      <button type="button" id="height-html-reveal" class="btn btn-secondary">${t("animator.btn.reveal")}</button>
+      <button type="button" id="height-html-close" class="btn btn-secondary">${t("heightanim.html.close", "Schließen")}</button>`;
+    const modal = (typeof openModal === "function") ? openModal({
+      title: t("heightanim.html.modal_title", "HTML exportiert"), body, footer,
+    }) : null;
+    const ta = document.getElementById("height-html-snippet");
+    if (ta) ta.value = res.snippet || "";
+    document.getElementById("height-html-browser")?.addEventListener("click", () => {
+      try { window.pywebview.api.heightanim_open_in_browser(res.output); } catch (_) {}
+    });
+    document.getElementById("height-html-reveal")?.addEventListener("click", () => {
+      try { window.pywebview.api.reveal_in_finder(res.output); } catch (_) {}
+    });
+    document.getElementById("height-html-close")?.addEventListener("click", () => { if (modal) modal.close(); });
+    document.getElementById("height-html-copy")?.addEventListener("click", async () => {
+      try {
+        if (ta) { ta.focus(); ta.select(); }
+        if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(res.snippet || "");
+        else document.execCommand("copy");
+        if (typeof toast === "function") toast(t("heightanim.html.copied", "Snippet kopiert."), "success", 2500);
+      } catch (e) {
+        if (typeof toast === "function") toast(t("heightanim.html.copy_manual", "Bitte manuell markieren + kopieren."), "info", 4000);
+      }
+    });
+  }
+
   // ── v0.9.397 — HTML-Export (Blog/Web) ──────────────────────────────────────
   document.getElementById("height-export-html")?.addEventListener("click", async () => {
     const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
@@ -1561,26 +1639,7 @@ function mountHeightAnim(body, headerActions) {
         if (typeof toast === "function") toast(t("heightanim.html.failed", "HTML-Export fehlgeschlagen") + ": " + (res?.error || "unknown"), "error", 8000);
         return;
       }
-      const done = document.getElementById("height-html-done");
-      const msg = document.getElementById("height-html-msg");
-      const ta = document.getElementById("height-html-snippet");
-      if (msg) msg.textContent = t("heightanim.html.done", "HTML gespeichert.") + " (" + Math.round((res.bytes || 0) / 1024) + " KB)";
-      if (ta) ta.value = res.snippet || "";
-      if (done) done.style.display = "block";
-      const rev = document.getElementById("height-html-reveal");
-      if (rev) rev.onclick = () => window.pywebview.api.reveal_in_finder(res.output);
-      const cpy = document.getElementById("height-html-copy");
-      if (cpy) cpy.onclick = async () => {
-        try {
-          if (ta) { ta.focus(); ta.select(); }
-          if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(res.snippet || "");
-          else document.execCommand("copy");
-          if (typeof toast === "function") toast(t("heightanim.html.copied", "Snippet kopiert."), "success", 2500);
-        } catch (e) {
-          if (typeof toast === "function") toast(t("heightanim.html.copy_manual", "Bitte manuell markieren + kopieren."), "info", 4000);
-        }
-      };
-      if (typeof toast === "function") toast(t("heightanim.html.done", "HTML gespeichert.") + " " + (res.output || "").split("/").pop(), "success", 5000);
+      showHtmlExportModal(res);
     } catch (e) {
       console.error("[heightanim] export_html exception", e);
       if (typeof toast === "function") toast(t("heightanim.html.failed", "HTML-Export fehlgeschlagen") + ": " + e, "error", 8000);

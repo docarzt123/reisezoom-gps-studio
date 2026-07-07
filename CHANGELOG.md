@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.399] – 2026-07-07
+### Geändert
+- **Höhen-Animator HTML-Export: Ergebnis erscheint jetzt als zentriertes Fenster** (Marc) — gut sichtbar in der Bildschirmmitte (statt klein in der Sidebar), mit dem kopierbaren Snippet und Buttons.
+### Hinzugefügt
+- **„Im Browser öffnen"-Button** im Export-Fenster (Marc: „wenn ich die HTML öffne, passiert nix"). Ursache: ein Doppelklick auf die `.html` startet je nach System einen Editor statt eines Browsers (dann sieht man nur Quelltext). Der Button öffnet die Datei garantiert im Standard-Browser — die Animation läuft. i18n DE/EN/ES.
+### Behoben
+- **Höhen-Animator: eingestellte Farben (und alle anderen Regler) werden über Sessions gemerkt** (Marc: „nach App-Neustart wieder Standardfarben"). Der Höhen-Animator persistierte seine Optik-/Marker-/Auflösungs-Regler bisher gar nicht — jetzt landen alle Control-Werte im Projekt (`heightanim.controls`) und werden beim Öffnen wiederhergestellt.
+- **Latenter Datenverlust in der Höhen-Animator-Persistenz behoben:** der Projekt-Root-Patch ersetzt den `heightanim`-Block komplett (Shallow-Replace), wodurch sich Trim-, Wegpunkt- und Control-Speicherungen gegenseitig überschrieben. Alle Speicherungen schreiben jetzt das **vollständige** `heightanim`-Objekt.
+
 ## [0.9.398] – 2026-07-07
 ### Behoben
 - **Höhen-Animator: HTML-Export-Ergebnisfeld legte sich als Band über die ganze App** (Marc). Das Ergebnis-Panel (mit Snippet + Buttons) nutzte versehentlich die CSS-Klasse `render-done`, die als **Vollbild-Overlay** definiert ist (`position:absolute; inset:0`) — dadurch erschien es quer über den Modul-Tabs statt unten in der Sidebar. Klasse entfernt; das Panel liegt jetzt korrekt in der Render-Sektion. Derselbe latente Fehler steckte im Video-„Fertig"-Block — mitbehoben.
