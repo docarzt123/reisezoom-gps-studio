@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.394] – 2026-07-07
+### Hinzugefügt
+- **Höhen-Animator: sachliche Info-Leiste + Steigung + Wegpunkte auf der Strecke** (Marc-Wunsch nach dem klassischen Höhenprofil-Look). Drei neue Bausteine, alle live in der Vorschau **und** im gerenderten Video (WYSIWYG):
+  - **Info-Leiste oben** mit frei wählbaren Werten: Distanz, Höhenmeter ↑/↓, Ø-Steigung, max. Steigung (↑/↓) und Höhe (max/min/Ø). Über die neue Sektion „Info-Leiste" ein-/ausblendbar und pro Feld an-/abwählbar.
+  - **Steigung % am laufenden Marker** — der Marker-Callout zeigt jetzt neben der Höhe auch die aktuelle Steigung (z. B. „↗ +6.2 %" bergauf, „↘ −4.7 %" bergab) und die Distanz.
+  - **Wegpunkte auf der Strecke** aus vier Quellen (neue Sektion „Punkte auf der Strecke"): **manuell gesetzt** (Button „Punkt aufs Profil setzen" → in die Kurve klicken, benennen, Farbe wählen), **aus den Fotos** (die im Projekt verorteten Fotos erscheinen an ihrer Track-Position), **GPX-Wegpunkte** (`<wpt>`-POIs aus der Datei, z. B. von Komoot/Garmin) und **Auto-Marker** (höchster/tiefster Punkt + steilster An-/Abstieg werden erkannt und beschriftet). Punkte erscheinen animiert, sobald die Linie sie passiert. Jede Quelle einzeln zuschaltbar, einzelne Punkte aus-/einblendbar.
+  - i18n DE/EN/ES für alle neuen Bedien- und Feld-Texte.
+
 ## [0.9.393] – 2026-07-05
 ### Geändert
 - **Stats-Feld „Fahrzeit" heißt jetzt neutral „Bewegungszeit"** — passt für Wandern, Rad, Auto, Fliegen (statt nur Auto/Rad). Bestehende Projekte übernehmen den neuen Standard automatisch.

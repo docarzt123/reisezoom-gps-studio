@@ -353,6 +353,37 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
     return pts, stats
 
 
+def parse_waypoints(path: str) -> List[dict]:
+    """Liest die GPX-`<wpt>`-Elemente (Points of Interest) einer Datei.
+
+    Getrennt von `parse_gpx` weil die meisten Tracks keine Waypoints haben
+    und der Höhen-Animator sie optional dazuholt. Liefert eine Liste
+    `[{lat, lon, ele, name, desc, sym}]` — leer wenn keine vorhanden.
+    gpxpy übernimmt das Namespace-Handling (gpx 1.0/1.1).
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            gpx = gpxpy.parse(fh)
+    except Exception:
+        return []
+    out: List[dict] = []
+    for w in getattr(gpx, "waypoints", []) or []:
+        try:
+            lat = float(w.latitude)
+            lon = float(w.longitude)
+        except (TypeError, ValueError):
+            continue
+        out.append({
+            "lat": lat,
+            "lon": lon,
+            "ele": float(w.elevation) if w.elevation is not None else None,
+            "name": (w.name or "").strip(),
+            "desc": (getattr(w, "description", None) or "").strip(),
+            "sym": (getattr(w, "symbol", None) or "").strip(),
+        })
+    return out
+
+
 def downsample(pts: List[TrackPoint], target: int = 500) -> List[TrackPoint]:
     """Reduziert Punkte auf ca. target Stück, gleichmäßig verteilt. Behält erste/letzte."""
     if len(pts) <= target:

@@ -129,7 +129,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.393"
+APP_VERSION = "0.9.394"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -2239,10 +2239,29 @@ class Api:
             ds = cgpx.downsample(pts, 800)
             distances_m = [p.dist_m for p in ds]
             elevations  = [(p.ele if p.ele is not None else 0.0) for p in ds]
+            # Track-Koordinaten (parallel zu distances_m) — damit das Frontend
+            # Foto-Positionen ohne Karte auf die Strecke projizieren kann.
+            latlon = [[round(p.lat, 6), round(p.lon, 6)] for p in ds]
+            # v0.9.394 — Wegpunkt-Quellen fürs Höhenprofil:
+            #   • Auto-Marker (höchster/tiefster/steilster Punkt)
+            #   • GPX-<wpt>-POIs, auf die Strecke projiziert (dist_m + ele)
+            # Fotos + manuelle Punkte baut das Frontend aus dem Projekt-State.
+            try:
+                auto_markers = cheight.detect_auto_markers(ds)
+            except Exception as e:
+                log.warning("auto_markers fehlgeschlagen: %s", e); auto_markers = []
+            try:
+                raw_wpts = cgpx.parse_waypoints(path)
+                gpx_waypoints = cheight.project_points_onto_track(raw_wpts, pts)
+            except Exception as e:
+                log.warning("gpx_waypoints fehlgeschlagen: %s", e); gpx_waypoints = []
             return {
                 "ok": True,
                 "elevations": elevations,
                 "distances_m": distances_m,
+                "latlon": latlon,
+                "auto_markers": auto_markers,
+                "gpx_waypoints": gpx_waypoints,
                 "stats": {
                     "n_points": len(pts),
                     "distance_m": stats.distance_m,
@@ -2312,6 +2331,13 @@ class Api:
             grid_enabled=bool(params.get("grid_enabled", True)),
             show_axes=bool(params.get("show_axes", True)),
             show_marker=bool(params.get("show_marker", True)),
+            # v0.9.394 — Info-Leiste + Steigung + Wegpunkte
+            show_stats_header=bool(params.get("show_stats_header", True)),
+            stats_fields=list(params.get("stats_fields") or [
+                "distance", "updown", "avg_grad", "max_grad", "ele_max"]),
+            stats_labels=dict(params.get("stats_labels") or {}),
+            show_gradient=bool(params.get("show_gradient", True)),
+            waypoints=list(params.get("waypoints") or []),
             trim_start=float(params.get("trim_start", 0.0)),
             trim_end=float(params.get("trim_end", 1.0)),
         )

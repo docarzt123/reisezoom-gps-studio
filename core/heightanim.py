@@ -50,7 +50,7 @@ def _drain_stderr(pipe):
     th = threading.Thread(target=_run, daemon=True)
     th.start()
     return th, buf
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -85,6 +85,20 @@ class HeightConfig:
     grid_enabled: bool = True
     show_axes: bool = True
     show_marker: bool = True
+    # v0.9.394 — Sachliche Info-Leiste + Steigung am Marker + Wegpunkte.
+    show_stats_header: bool = True
+    # Welche Stat-Felder in der Kopf-Leiste (Reihenfolge = Anzeige-Reihenfolge).
+    # Gültige IDs: distance, updown, avg_grad, max_grad, ele_minmax, ele_max, ele_avg
+    stats_fields: list = field(default_factory=lambda: [
+        "distance", "updown", "avg_grad", "max_grad", "ele_max"
+    ])
+    show_gradient: bool = True          # Steigungs-% am laufenden Marker
+    # Lokalisierte Labels für die Kopf-Leiste {field_id: label}. Aus der UI
+    # (t()) durchgereicht damit das Video zur App-Sprache passt. Fallback DE.
+    stats_labels: dict = field(default_factory=dict)
+    # Wegpunkte auf der Strecke: [{dist_m, ele, label, icon, color}]. Bereits
+    # auf dist_m aufgelöst (Projektion/Anchor passiert in der Bridge/UI).
+    waypoints: list = field(default_factory=list)
     # Trim
     trim_start: float = 0.0        # 0..1
     trim_end: float = 1.0          # 0..1
@@ -133,12 +147,20 @@ const TRIM_S = {float(cfg.trim_start)};
 const TRIM_E = {float(cfg.trim_end)};
 const GRID_COLOR = {json.dumps(grid_color)};
 const LBL_COLOR = {json.dumps(label_color)};
+// v0.9.394 — Info-Leiste + Steigung + Wegpunkte
+const SHOW_HEADER = {str(cfg.show_stats_header).lower()};
+const STATS_FIELDS = {json.dumps(cfg.stats_fields)};
+const STATS_LABELS = {json.dumps(cfg.stats_labels)};
+const SHOW_GRAD = {str(cfg.show_gradient).lower()};
+const WAYPOINTS = {json.dumps(cfg.waypoints)};
 
 // Padding skaliert mit Höhe (für 4K-Render werden Achsenlabels größer)
 const SCALE = H / 1080;
 const PAD_L = Math.round(80 * SCALE);
 const PAD_R = Math.round(40 * SCALE);
-const PAD_T = Math.round(60 * SCALE);
+// Header braucht oben eine Bandbreite; Wegpunkt-Labels ragen auch nach oben.
+const HEAD_H = SHOW_HEADER ? Math.round(58 * SCALE) : 0;
+const PAD_T = Math.round((WAYPOINTS.length ? 42 : 30) * SCALE) + HEAD_H + Math.round(30 * SCALE);
 const PAD_B = Math.round((SHOW_AXES ? 80 : 30) * SCALE);
 const PLOT_W = Math.max(20, W - PAD_L - PAD_R);
 const PLOT_H = Math.max(20, H - PAD_T - PAD_B);
@@ -202,6 +224,94 @@ function svgNS(tag, attrs, text) {{
   if (text != null) el.textContent = text;
   return el;
 }}
+
+// ── Profil-Stat-Helfer — SYNCHRON zu ui/js/util.js (rzProfile*) und
+//    modules/heightanim/ui/module.js. Bei Änderung ALLE drei pflegen. ────────
+function rzWindowGrad(ds, es, idx, win, lo0, hi0) {{
+  const n = ds.length;
+  const d0 = ds[idx];
+  let lo = idx; while (lo > lo0 && d0 - ds[lo] < win) lo--;
+  let hi = idx; while (hi < hi0 && ds[hi] - d0 < win) hi++;
+  const dd = ds[hi] - ds[lo];
+  if (dd <= 0) return 0;
+  const eLo = es[lo] == null ? 0 : es[lo];
+  const eHi = es[hi] == null ? 0 : es[hi];
+  return (eHi - eLo) / dd * 100;
+}}
+function rzGradAtDist(ds, es, d, win) {{
+  const n = ds.length;
+  let lo = 0; while (lo < n - 1 && d - ds[lo] > win) lo++;
+  let hi = n - 1; while (hi > 0 && ds[hi] - d > win) hi--;
+  if (hi <= lo) {{ hi = Math.min(n - 1, lo + 1); }}
+  const dd = ds[hi] - ds[lo];
+  if (dd <= 0) return 0;
+  const eLo = es[lo] == null ? 0 : es[lo];
+  const eHi = es[hi] == null ? 0 : es[hi];
+  return (eHi - eLo) / dd * 100;
+}}
+function rzHeaderStats(ds, es, i0, i1) {{
+  let eMin = Infinity, eMax = -Infinity, eSum = 0, eCnt = 0;
+  for (let i = i0; i <= i1; i++) {{
+    const e = es[i]; if (e == null) continue;
+    if (e < eMin) eMin = e; if (e > eMax) eMax = e; eSum += e; eCnt++;
+  }}
+  // Auf-/Abstieg: Glättung (±2) + 3-m-Hysterese-Referenz (wie core/gpx.py)
+  const sm = [];
+  for (let i = i0; i <= i1; i++) {{
+    let s = 0, c = 0;
+    for (let j = Math.max(i0, i - 2); j <= Math.min(i1, i + 2); j++) {{
+      if (es[j] != null) {{ s += es[j]; c++; }}
+    }}
+    sm.push(c ? s / c : (es[i] || 0));
+  }}
+  let asc = 0, desc = 0, ref = sm[0] || 0;
+  for (let k = 1; k < sm.length; k++) {{
+    const dz = sm[k] - ref;
+    if (Math.abs(dz) >= 3) {{ if (dz > 0) asc += dz; else desc += -dz; ref = sm[k]; }}
+  }}
+  // Steigungen (windowed, distanz-gewichtet)
+  let gUpMax = 0, gDnMax = 0, gUpSum = 0, gUpW = 0, gDnSum = 0, gDnW = 0;
+  for (let i = i0 + 1; i <= i1; i++) {{
+    const w = Math.max(0, ds[i] - ds[i - 1]);
+    const g = rzWindowGrad(ds, es, i, 60, i0, i1);
+    if (g > 0.3) {{ if (g > gUpMax) gUpMax = g; gUpSum += g * w; gUpW += w; }}
+    else if (g < -0.3) {{ if (g < -gDnMax) gDnMax = -g; gDnSum += (-g) * w; gDnW += w; }}
+  }}
+  return {{
+    distM: Math.max(0, ds[i1] - ds[i0]),
+    eleMin: eCnt ? eMin : 0, eleMax: eCnt ? eMax : 0,
+    eleAvg: eCnt ? eSum / eCnt : 0,
+    ascent: asc, descent: desc,
+    gradAvgUp: gUpW ? gUpSum / gUpW : 0, gradAvgDown: gDnW ? gDnSum / gDnW : 0,
+    gradMaxUp: gUpMax, gradMaxDown: gDnMax,
+  }};
+}}
+const RZ_FIELD_LABELS_DE = {{
+  distance: "Distanz", updown: "Höhe ↑ / ↓", avg_grad: "Ø-Steigung",
+  max_grad: "Max. Steigung", ele_max: "Höhe max", ele_min: "Höhe min",
+  ele_minmax: "Höhe min / max", ele_avg: "Ø-Höhe",
+}};
+function rzFieldLabel(id) {{
+  return (STATS_LABELS && STATS_LABELS[id]) || RZ_FIELD_LABELS_DE[id] || id;
+}}
+function rzFieldValue(id, st) {{
+  const r = Math.round;
+  switch (id) {{
+    case "distance":   return (st.distM / 1000).toFixed(2) + " km";
+    case "updown":     return "↑" + r(st.ascent) + " / ↓" + r(st.descent) + " m";
+    case "avg_grad":   return "+" + st.gradAvgUp.toFixed(1) + " / −" + st.gradAvgDown.toFixed(1) + " %";
+    case "max_grad":   return "+" + r(st.gradMaxUp) + " / −" + r(st.gradMaxDown) + " %";
+    case "ele_max":    return r(st.eleMax) + " m";
+    case "ele_min":    return r(st.eleMin) + " m";
+    case "ele_minmax": return r(st.eleMin) + " / " + r(st.eleMax) + " m";
+    case "ele_avg":    return r(st.eleAvg) + " m";
+    default:           return "";
+  }}
+}}
+const RZ_WP_KIND_LABEL_DE = {{
+  peak: "⛰ Gipfel", valley: "▼ Tiefpunkt",
+  steep_up: "◤ Steilster Anstieg", steep_down: "◢ Steilster Abstieg",
+}};
 
 function draw(progress) {{
   while (svg.firstChild) svg.removeChild(svg.firstChild);
@@ -312,31 +422,107 @@ function draw(progress) {{
     }}));
   }}
 
-  // Stats-Box oben rechts (live: km + m)
-  if (progress > 0) {{
-    const boxW = Math.round(220 * SCALE), boxH = Math.round(80 * SCALE);
-    const boxX = W - PAD_R - boxW;
-    const boxY = Math.round(20 * SCALE);
+  // ── Wegpunkte auf der Strecke (erscheinen sobald die Linie sie passiert) ──
+  if (WAYPOINTS && WAYPOINTS.length && progress > 0) {{
+    for (const wp of WAYPOINTS) {{
+      const wd = +wp.dist_m;
+      if (!isFinite(wd) || wd < dTrimStart - 1 || wd > dTrimEnd + 1) continue;
+      if (progress < 1 && dCurrent < wd) continue;   // erst zeigen wenn passiert
+      const wx = px(wd);
+      const we = (wp.ele != null) ? +wp.ele : eleAtDist(wd);
+      const wy = py(we);
+      const col = wp.color || "#ffb37a";
+      const stemTop = wy - Math.round(20 * SCALE);
+      svg.appendChild(svgNS("line", {{
+        x1: wx, x2: wx, y1: wy, y2: stemTop,
+        stroke: col, "stroke-width": Math.max(1, Math.round(1.5 * SCALE)),
+      }}));
+      svg.appendChild(svgNS("circle", {{
+        cx: wx, cy: wy, r: Math.max(3, LW * 1.1) * SCALE,
+        fill: col, stroke: (BG === "transparent" ? "#1a1a1a" : BG),
+        "stroke-width": Math.max(1, Math.round(1.5 * SCALE)),
+      }}));
+      const label = (wp.label || "").toString();
+      if (label) {{
+        const fs = Math.round(13 * SCALE);
+        const tw = Math.round(label.length * fs * 0.62 + 16 * SCALE);
+        let bx = wx - tw / 2;
+        bx = Math.max(PAD_L, Math.min(W - PAD_R - tw, bx));
+        let by = stemTop - Math.round(18 * SCALE);
+        by = Math.max(HEAD_H + Math.round(8 * SCALE), by);
+        svg.appendChild(svgNS("rect", {{
+          x: bx, y: by, width: tw, height: Math.round(18 * SCALE),
+          rx: Math.round(4 * SCALE), fill: "#2a2a2a",
+          stroke: col, "stroke-width": Math.max(1, Math.round(SCALE)),
+        }}));
+        svg.appendChild(svgNS("text", {{
+          x: bx + tw / 2, y: by + Math.round(13 * SCALE),
+          fill: "#fff", "font-size": fs, "text-anchor": "middle",
+          "font-family": "-apple-system, sans-serif",
+        }}, label));
+      }}
+    }}
+  }}
+
+  // ── Sachliche Info-Leiste oben (immer sichtbar, über dem Plot) ────────────
+  if (SHOW_HEADER && N >= 2) {{
+    const _st = rzHeaderStats(dists, elevs, i0, i1);
+    const fields = (STATS_FIELDS || []).filter(f => rzFieldValue(f, _st) !== "");
+    const n = Math.max(1, fields.length);
+    const labFs = Math.round(13 * SCALE), valFs = Math.round(19 * SCALE);
+    const bandTop = Math.round(14 * SCALE);
+    const step = PLOT_W / n;
+    for (let k = 0; k < fields.length; k++) {{
+      const fx = PAD_L + k * step;
+      if (k > 0) {{
+        svg.appendChild(svgNS("line", {{
+          x1: fx - Math.round(12 * SCALE), x2: fx - Math.round(12 * SCALE),
+          y1: bandTop, y2: bandTop + Math.round(44 * SCALE),
+          stroke: "#333", "stroke-width": Math.max(1, Math.round(SCALE)),
+        }}));
+      }}
+      svg.appendChild(svgNS("text", {{
+        x: fx, y: bandTop + labFs + Math.round(2 * SCALE),
+        fill: "#8a8a8a", "font-size": labFs, "font-family": "-apple-system, sans-serif",
+      }}, rzFieldLabel(fields[k])));
+      svg.appendChild(svgNS("text", {{
+        x: fx, y: bandTop + labFs + valFs + Math.round(8 * SCALE),
+        fill: "#fff", "font-size": valFs, "font-weight": "500",
+        "font-family": "-apple-system, sans-serif",
+      }}, rzFieldValue(fields[k], _st)));
+    }}
+  }}
+
+  // ── Marker-Callout: Höhe + Steigung + Distanz direkt am Punkt ─────────────
+  if (SHOW_MARKER && progress > 0) {{
+    const grad = SHOW_GRAD ? rzGradAtDist(dists, elevs, dCurrent, 60) : null;
+    const curDistKm = (dCurrent - dTrimStart) / 1000;
+    const line1 = "⛰ " + curEle.toFixed(0) + " m";
+    const arrow = grad == null ? "" : (grad >= 0 ? "↗ +" : "↘ −");
+    const line2 = (grad == null ? "" : arrow + Math.abs(grad).toFixed(1) + " %  ·  ")
+                + curDistKm.toFixed(2) + " km";
+    const fs1 = Math.round(20 * SCALE), fs2 = Math.round(15 * SCALE);
+    const boxW = Math.round(Math.max(line1.length * fs1 * 0.6, line2.length * fs2 * 0.58) + 26 * SCALE);
+    const boxH = Math.round(50 * SCALE);
+    let boxX = endX + Math.round(14 * SCALE);
+    if (boxX + boxW > W - PAD_R) boxX = endX - Math.round(14 * SCALE) - boxW;
+    boxX = Math.max(PAD_L, boxX);
+    let boxY = endY - boxH - Math.round(10 * SCALE);
+    if (boxY < HEAD_H + Math.round(8 * SCALE)) boxY = endY + Math.round(14 * SCALE);
     svg.appendChild(svgNS("rect", {{
-      x: boxX, y: boxY, width: boxW, height: boxH,
-      rx: Math.round(10 * SCALE), ry: Math.round(10 * SCALE),
-      fill: "rgba(0,0,0,0.55)", stroke: LC,
-      "stroke-width": Math.max(1, Math.round(1.5 * SCALE)),
-      opacity: 0.95,
+      x: boxX, y: boxY, width: boxW, height: boxH, rx: Math.round(8 * SCALE),
+      fill: "rgba(0,0,0,0.6)", stroke: LC, "stroke-width": Math.max(1, Math.round(1.5 * SCALE)),
     }}));
-    const curDist = (dCurrent - dTrimStart) / 1000;
     svg.appendChild(svgNS("text", {{
-      x: boxX + Math.round(18 * SCALE),
-      y: boxY + Math.round(34 * SCALE),
-      fill: "#fff", "font-size": Math.round(22 * SCALE),
+      x: boxX + Math.round(12 * SCALE), y: boxY + Math.round(23 * SCALE),
+      fill: "#fff", "font-size": fs1, "font-weight": "500",
       "font-family": "-apple-system, sans-serif",
-    }}, "↗ " + curDist.toFixed(2) + " km"));
+    }}, line1));
     svg.appendChild(svgNS("text", {{
-      x: boxX + Math.round(18 * SCALE),
-      y: boxY + Math.round(64 * SCALE),
-      fill: "#fff", "font-size": Math.round(22 * SCALE),
-      "font-family": "-apple-system, sans-serif",
-    }}, "⛰ " + curEle.toFixed(0) + " m"));
+      x: boxX + Math.round(12 * SCALE), y: boxY + Math.round(42 * SCALE),
+      fill: (grad != null && grad < 0) ? "#ff9e6b" : "#ffcbb0",
+      "font-size": fs2, "font-family": "-apple-system, sans-serif",
+    }}, line2));
   }}
 }}
 
@@ -585,4 +771,106 @@ def downsample_for_preview(elevations: list, max_points: int = 400) -> list:
     out = [elevations[i] for i in range(0, n, step)]
     if out[-1] != elevations[-1]:
         out.append(elevations[-1])
+    return out
+
+
+# ── Wegpunkte + Auto-Marker (v0.9.394) ───────────────────────────────────────
+
+
+def _haversine_m(lat1, lon1, lat2, lon2):
+    from math import radians, sin, cos, atan2, sqrt
+    R = 6371000.0
+    p1, p2 = radians(lat1), radians(lat2)
+    dp = radians(lat2 - lat1)
+    dl = radians(lon2 - lon1)
+    a = sin(dp / 2) ** 2 + cos(p1) * cos(p2) * sin(dl / 2) ** 2
+    return 2 * R * atan2(sqrt(a), sqrt(1 - a))
+
+
+def project_points_onto_track(points: list, track_pts: list) -> list:
+    """Projiziert Punkte (lat/lon) auf die Strecke → dist_m + ele des nächsten
+    Trackpunkts. Für GPX-Waypoints (haben nur lat/lon). Fotos bringen ihren
+    Anchor-Index selbst mit — die werden nicht hier, sondern direkt aufgelöst.
+
+    `points`: [{lat, lon, name?, ...}]  · `track_pts`: List[gpx.TrackPoint]
+    Rückgabe: dieselben Dicts + `dist_m`, `ele` (ele aus Trackpunkt, damit der
+    Pin exakt auf der Kurve sitzt). Punkte weiter als 250 m vom Track werden
+    verworfen (gehören nicht zu dieser Tour).
+    """
+    if not track_pts:
+        return []
+    out = []
+    for pt in points:
+        try:
+            lat = float(pt["lat"]); lon = float(pt["lon"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        best_i, best_d = -1, 1e18
+        for i, tp in enumerate(track_pts):
+            d = _haversine_m(lat, lon, tp.lat, tp.lon)
+            if d < best_d:
+                best_d, best_i = d, i
+        if best_i < 0 or best_d > 250.0:
+            continue
+        tp = track_pts[best_i]
+        merged = dict(pt)
+        merged["dist_m"] = tp.dist_m
+        merged["ele"] = tp.ele if tp.ele is not None else pt.get("ele")
+        out.append(merged)
+    return out
+
+
+def _windowed_gradient(dists: list, elevs: list, i: int, window_m: float = 60.0) -> float:
+    """Steigung in % um Index i über ein ±window Fenster (rausch-robuster als
+    Punkt-zu-Punkt). Positiv = bergauf."""
+    n = len(dists)
+    if n < 2:
+        return 0.0
+    d0 = dists[i]
+    lo = i
+    while lo > 0 and d0 - dists[lo] < window_m:
+        lo -= 1
+    hi = i
+    while hi < n - 1 and dists[hi] - d0 < window_m:
+        hi += 1
+    dd = dists[hi] - dists[lo]
+    if dd <= 0:
+        return 0.0
+    e_lo = elevs[lo] if elevs[lo] is not None else 0.0
+    e_hi = elevs[hi] if elevs[hi] is not None else 0.0
+    return (e_hi - e_lo) / dd * 100.0
+
+
+def detect_auto_markers(track_pts: list) -> list:
+    """Erkennt markante Punkte: höchster + tiefster Punkt, steilster An- und
+    Abstieg. Rückgabe [{dist_m, ele, kind, label_key}] — die UI beschriftet.
+    `kind`: 'peak' | 'valley' | 'steep_up' | 'steep_down'.
+    """
+    pts = [p for p in track_pts if p.ele is not None]
+    if len(pts) < 2:
+        return []
+    dists = [p.dist_m for p in track_pts]
+    elevs = [p.ele for p in track_pts]
+    # Höchster / tiefster Punkt
+    hi_i = max(range(len(track_pts)),
+               key=lambda i: (elevs[i] if elevs[i] is not None else -1e18))
+    lo_i = min(range(len(track_pts)),
+               key=lambda i: (elevs[i] if elevs[i] is not None else 1e18))
+    # Steilster An-/Abstieg (windowed)
+    grads = [_windowed_gradient(dists, elevs, i) for i in range(len(track_pts))]
+    up_i = max(range(len(grads)), key=lambda i: grads[i])
+    dn_i = min(range(len(grads)), key=lambda i: grads[i])
+    out = []
+    seen = set()
+    for i, kind in ((hi_i, "peak"), (lo_i, "valley"),
+                    (up_i, "steep_up"), (dn_i, "steep_down")):
+        if i in seen or elevs[i] is None:
+            continue
+        seen.add(i)
+        out.append({
+            "dist_m": dists[i],
+            "ele": elevs[i],
+            "kind": kind,
+            "grad": round(grads[i], 1),
+        })
     return out

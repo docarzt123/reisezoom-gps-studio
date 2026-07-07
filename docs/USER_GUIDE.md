@@ -478,6 +478,31 @@ Nach dem Render: großes Vorschaubild, „Im Finder zeigen", „Pfad kopieren", 
 
 ---
 
+## 5b · Modul: Höhen-Animator — Höhenprofil als Video ⛰
+
+### Was es macht
+Baut aus deinem Track ein **Video, in dem sich die Höhenprofil-Kurve live aufbaut** — ein mitlaufender Marker zeigt Höhe, Steigung und Distanz. Ideal als Einblendung im Schnitt (auch mit **transparentem Hintergrund** via ProRes-4444-Alpha).
+
+### Workflow
+1. GPX laden (globale GPX-Leiste oben). Die Vorschau spielt sofort.
+2. Optik, Info-Leiste und Punkte einstellen (siehe unten). Alles läuft **WYSIWYG** in der Vorschau.
+3. Mit den **Trim-Handles** unter der Kurve den animierten Bereich eingrenzen (optional).
+4. **▶ Video rendern** — Codec/Alpha wählen, Fortschritt läuft mit.
+
+### Sachliche Info-Leiste (seit v0.9.394) ⭐
+Über dem Profil blendest du eine **Werte-Leiste** ein — in der Sektion **„Info-Leiste"** an-/abschaltbar und pro Feld wählbar: **Distanz, Höhenmeter ↑/↓, Ø-Steigung, max. Steigung (↑/↓), Höhe (max/min/Ø)**. Zusätzlich zeigt der **Marker-Callout** die **aktuelle Steigung** (z. B. „↗ +6.2 %" / „↘ −4.7 %") neben Höhe und Distanz — abschaltbar über „Steigung % am Marker zeigen".
+
+### Punkte auf der Strecke (seit v0.9.394) ⭐
+In der Sektion **„Punkte auf der Strecke"** setzt du beschriftete Marker ins Profil — aus vier Quellen, einzeln zuschaltbar:
+- **Selbst setzen:** **„Punkt aufs Profil setzen"** klicken, dann in die Kurve klicken. Name eingeben, Farbe wählen, später umbenennen oder löschen.
+- **Aus den Fotos:** die im Projekt verorteten Fotos erscheinen an ihrer Track-Position (Name = Dateiname).
+- **GPX-Wegpunkte:** `<wpt>`-POIs aus der GPX-Datei (z. B. von Komoot/Garmin) werden übernommen.
+- **Auto-Marker:** höchster/tiefster Punkt sowie steilster An- und Abstieg werden automatisch erkannt und beschriftet.
+
+Jeder Punkt **taucht animiert auf, sobald die Linie ihn erreicht**. Einzelne Punkte aus einer Quelle kannst du in der Liste per 👁 aus-/einblenden. Deine manuellen Punkte + alle Einstellungen werden **pro Projekt** gespeichert.
+
+---
+
 ## 6 · Modul: Geotagger — Fotos mit GPS taggen
 
 > **Den Geotagger gibt es seit v0.9.331 in drei Varianten:**

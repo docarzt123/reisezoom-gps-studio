@@ -97,6 +97,55 @@ function mountHeightAnim(body, headerActions) {
           </div>
         </section>
 
+        <section class="section" data-accordion-section="header">
+          <button class="section-collapse-header" type="button">
+            <span>${t("heightanim.section.header", "Info-Leiste")}</span>
+            <span class="collapse-arrow">▸</span>
+          </button>
+          <div class="section-collapse-body" hidden>
+            <label class="checkbox-row">
+              <input type="checkbox" id="height-header" checked>
+              <span>${t("heightanim.header.show", "Sachliche Info-Leiste zeigen")}</span>
+            </label>
+            <div class="muted" style="font-size:11px; margin:2px 0 8px;">
+              ${t("heightanim.header.hint", "Welche Werte oben eingeblendet werden:")}
+            </div>
+            <div id="height-header-fields" class="height-field-list"></div>
+            <label class="checkbox-row" style="margin-top:8px;">
+              <input type="checkbox" id="height-gradient" checked>
+              <span>${t("heightanim.header.gradient", "Steigung % am Marker zeigen")}</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="section" data-accordion-section="points">
+          <button class="section-collapse-header" type="button">
+            <span>${t("heightanim.section.points", "Punkte auf der Strecke")}</span>
+            <span class="collapse-arrow">▸</span>
+          </button>
+          <div class="section-collapse-body" hidden>
+            <label class="checkbox-row">
+              <input type="checkbox" id="height-src-photos" checked>
+              <span>${t("heightanim.points.photos", "Fotos anzeigen")}</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="height-src-gpx" checked>
+              <span>${t("heightanim.points.gpx", "GPX-Wegpunkte anzeigen")}</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="height-src-auto">
+              <span>${t("heightanim.points.auto", "Auto-Marker (Gipfel/Tiefpunkt/steilste)")}</span>
+            </label>
+            <button type="button" class="btn btn-secondary btn-block" id="height-add-point" style="margin:8px 0;">
+              + ${t("heightanim.points.add", "Punkt aufs Profil setzen")}
+            </button>
+            <p class="muted" id="height-add-hint" style="font-size:11px; margin:0 0 8px; display:none;">
+              ${t("heightanim.points.add_hint", "Jetzt in die Kurve klicken um den Punkt zu setzen.")}
+            </p>
+            <div id="height-wp-list" class="height-wp-list"></div>
+          </div>
+        </section>
+
         <section class="section" data-accordion-section="render">
           <button class="section-collapse-header" type="button">
             <span>${t("heightanim.section.render", "Rendern")}</span>
@@ -194,6 +243,179 @@ function mountHeightAnim(body, headerActions) {
     if (_trimEnd <= _trimStart) { _trimStart = 0; _trimEnd = 1; }
   } catch (_) {}
 
+  // ── v0.9.394 — Info-Leiste + Steigung + Wegpunkte ──────────────────────────
+  let _showHeader = true;
+  let _showGradient = true;
+  let _statsFields = ["distance", "updown", "avg_grad", "max_grad", "ele_max"];
+  let _wpSources = { photos: true, gpx: true, auto: false };
+  let _manualWps = [];       // [{id, dist_frac, label, color}]
+  let _autoMarkers = [];     // aus load_gpx (dist_m, ele, kind, grad)
+  let _gpxWaypoints = [];    // aus load_gpx (dist_m, ele, name)
+  let _wpHidden = {};        // {key: true} — einzelne Auto/GPX/Foto-Punkte ausblenden
+  let _armAddPoint = false;  // nächster Klick aufs Profil setzt einen Punkt
+  let _wpSeq = 1;
+  try {
+    const proj = (typeof window.getActiveProject === "function") ? window.getActiveProject() : null;
+    const ha = proj?.heightanim || {};
+    if (typeof ha.show_header === "boolean") _showHeader = ha.show_header;
+    if (typeof ha.show_gradient === "boolean") _showGradient = ha.show_gradient;
+    if (Array.isArray(ha.stats_fields) && ha.stats_fields.length) _statsFields = ha.stats_fields.slice();
+    if (ha.wp_sources && typeof ha.wp_sources === "object") _wpSources = Object.assign(_wpSources, ha.wp_sources);
+    if (Array.isArray(ha.waypoints)) _manualWps = ha.waypoints.map(w => ({
+      id: w.id || ("m" + (_wpSeq++)), dist_frac: +w.dist_frac || 0,
+      label: w.label || "", color: w.color || "#ff6b35",
+    }));
+    if (ha.wp_hidden && typeof ha.wp_hidden === "object") _wpHidden = Object.assign({}, ha.wp_hidden);
+  } catch (_) {}
+
+  function persistHeightWaypoints() {
+    try {
+      if (typeof window.saveActiveProjectPatch === "function") {
+        window.saveActiveProjectPatch({
+          heightanim: {
+            show_header: _showHeader, show_gradient: _showGradient,
+            stats_fields: _statsFields.slice(), wp_sources: Object.assign({}, _wpSources),
+            wp_hidden: Object.assign({}, _wpHidden),
+            waypoints: _manualWps.map(w => ({ id: w.id, dist_frac: w.dist_frac, label: w.label, color: w.color })),
+          }
+        }, { persistOnly: true });
+      }
+    } catch (_) {}
+  }
+
+  // ── Geteilte Stat-/Steigungs-Helfer — SYNCHRON zu core/heightanim.py ────────
+  function _rzWindowGrad(ds, es, idx, win, lo0, hi0) {
+    const d0 = ds[idx];
+    let lo = idx; while (lo > lo0 && d0 - ds[lo] < win) lo--;
+    let hi = idx; while (hi < hi0 && ds[hi] - d0 < win) hi++;
+    const dd = ds[hi] - ds[lo]; if (dd <= 0) return 0;
+    const eLo = es[lo] == null ? 0 : es[lo], eHi = es[hi] == null ? 0 : es[hi];
+    return (eHi - eLo) / dd * 100;
+  }
+  function _rzGradAtDist(ds, es, d, win) {
+    const n = ds.length;
+    let lo = 0; while (lo < n - 1 && d - ds[lo] > win) lo++;
+    let hi = n - 1; while (hi > 0 && ds[hi] - d > win) hi--;
+    if (hi <= lo) hi = Math.min(n - 1, lo + 1);
+    const dd = ds[hi] - ds[lo]; if (dd <= 0) return 0;
+    const eLo = es[lo] == null ? 0 : es[lo], eHi = es[hi] == null ? 0 : es[hi];
+    return (eHi - eLo) / dd * 100;
+  }
+  function _rzHeaderStats(ds, es, i0, i1) {
+    let eMin = Infinity, eMax = -Infinity, eSum = 0, eCnt = 0;
+    for (let i = i0; i <= i1; i++) { const e = es[i]; if (e == null) continue; if (e < eMin) eMin = e; if (e > eMax) eMax = e; eSum += e; eCnt++; }
+    const sm = [];
+    for (let i = i0; i <= i1; i++) { let s = 0, c = 0; for (let j = Math.max(i0, i - 2); j <= Math.min(i1, i + 2); j++) { if (es[j] != null) { s += es[j]; c++; } } sm.push(c ? s / c : (es[i] || 0)); }
+    let asc = 0, desc = 0, ref = sm[0] || 0;
+    for (let k = 1; k < sm.length; k++) { const dz = sm[k] - ref; if (Math.abs(dz) >= 3) { if (dz > 0) asc += dz; else desc += -dz; ref = sm[k]; } }
+    let gUpMax = 0, gDnMax = 0, gUpSum = 0, gUpW = 0, gDnSum = 0, gDnW = 0;
+    for (let i = i0 + 1; i <= i1; i++) { const w = Math.max(0, ds[i] - ds[i - 1]); const g = _rzWindowGrad(ds, es, i, 60, i0, i1); if (g > 0.3) { if (g > gUpMax) gUpMax = g; gUpSum += g * w; gUpW += w; } else if (g < -0.3) { if (g < -gDnMax) gDnMax = -g; gDnSum += (-g) * w; gDnW += w; } }
+    return { distM: Math.max(0, ds[i1] - ds[i0]), eleMin: eCnt ? eMin : 0, eleMax: eCnt ? eMax : 0, eleAvg: eCnt ? eSum / eCnt : 0, ascent: asc, descent: desc, gradAvgUp: gUpW ? gUpSum / gUpW : 0, gradAvgDown: gDnW ? gDnSum / gDnW : 0, gradMaxUp: gUpMax, gradMaxDown: gDnMax };
+  }
+  function _rzFieldLabel(id) {
+    return t("heightanim.statfield." + id, {
+      distance: "Distanz", updown: "Höhe ↑ / ↓", avg_grad: "Ø-Steigung",
+      max_grad: "Max. Steigung", ele_max: "Höhe max", ele_min: "Höhe min",
+      ele_minmax: "Höhe min / max", ele_avg: "Ø-Höhe",
+    }[id] || id);
+  }
+  function _rzFieldValue(id, st) {
+    const r = Math.round;
+    switch (id) {
+      case "distance":   return (st.distM / 1000).toFixed(2) + " km";
+      case "updown":     return "↑" + r(st.ascent) + " / ↓" + r(st.descent) + " m";
+      case "avg_grad":   return "+" + st.gradAvgUp.toFixed(1) + " / −" + st.gradAvgDown.toFixed(1) + " %";
+      case "max_grad":   return "+" + r(st.gradMaxUp) + " / −" + r(st.gradMaxDown) + " %";
+      case "ele_max":    return r(st.eleMax) + " m";
+      case "ele_min":    return r(st.eleMin) + " m";
+      case "ele_minmax": return r(st.eleMin) + " / " + r(st.eleMax) + " m";
+      case "ele_avg":    return r(st.eleAvg) + " m";
+      default:           return "";
+    }
+  }
+  function _autoLabel(kind) {
+    return t("heightanim.auto." + kind, {
+      peak: "⛰ Gipfel", valley: "▼ Tiefpunkt",
+      steep_up: "◤ Steilster Anstieg", steep_down: "◢ Steilster Abstieg",
+    }[kind] || kind);
+  }
+
+  // Distanz→Höhe-Interpolation auf den aktuellen Daten
+  function _eleAtDistArr(dists, elevs, d) {
+    const n = dists.length;
+    if (n === 0) return 0;
+    if (d <= dists[0]) return elevs[0];
+    if (d >= dists[n - 1]) return elevs[n - 1];
+    for (let i = 1; i < n; i++) if (dists[i] >= d) {
+      const d0 = dists[i - 1], d1 = dists[i];
+      const seg = d1 > d0 ? (d - d0) / (d1 - d0) : 0;
+      return elevs[i - 1] + (elevs[i] - elevs[i - 1]) * seg;
+    }
+    return elevs[n - 1];
+  }
+
+  // Foto-Anker (0..1) aus latlon nächstem Track-Punkt
+  function _photoAnchorFrac(photo) {
+    if (typeof photo.track_anchor === "number") return Math.max(0, Math.min(1, photo.track_anchor));
+    const ll = _currentData && _currentData.latlon;
+    if (!ll || !ll.length || photo.lat == null || photo.lon == null) return null;
+    let best = 0, bestD = 1e18;
+    const plat = +photo.lat, plon = +photo.lon;
+    for (let i = 0; i < ll.length; i++) {
+      const dlat = ll[i][0] - plat, dlon = (ll[i][1] - plon) * Math.cos(plat * Math.PI / 180);
+      const d = dlat * dlat + dlon * dlon;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return ll.length > 1 ? best / (ll.length - 1) : 0;
+  }
+
+  // Baut die finale Wegpunkt-Liste aus allen 4 Quellen (für Preview + Render)
+  function buildWaypoints() {
+    if (!_currentData || !_currentData.distances_m) return [];
+    const dists = _currentData.distances_m, elevs = _currentData.elevations;
+    const maxDist = dists[dists.length - 1] || 1;
+    const out = [];
+    // Manuell
+    for (const w of _manualWps) {
+      const dm = Math.max(0, Math.min(1, w.dist_frac)) * maxDist;
+      out.push({ dist_m: dm, ele: _eleAtDistArr(dists, elevs, dm), label: w.label || "", color: w.color || "#ff6b35" });
+    }
+    // Fotos
+    if (_wpSources.photos) {
+      try {
+        const proj = (typeof window.getActiveProject === "function") ? window.getActiveProject() : null;
+        const photos = (proj && proj.photos) || [];
+        for (let i = 0; i < photos.length; i++) {
+          const p = photos[i];
+          if (p.visible === false) continue;
+          if (_wpHidden["photo:" + i]) continue;
+          const frac = _photoAnchorFrac(p);
+          if (frac == null) continue;
+          const dm = frac * maxDist;
+          const nm = (p.name || p.filename || "").split("/").pop() || "📷";
+          out.push({ dist_m: dm, ele: _eleAtDistArr(dists, elevs, dm), label: "📷 " + nm.replace(/\.[^.]+$/, ""), color: "#7ab8ff" });
+        }
+      } catch (_) {}
+    }
+    // GPX-Wegpunkte
+    if (_wpSources.gpx) {
+      for (let i = 0; i < _gpxWaypoints.length; i++) {
+        if (_wpHidden["gpx:" + i]) continue;
+        const g = _gpxWaypoints[i];
+        out.push({ dist_m: +g.dist_m, ele: (g.ele != null ? +g.ele : _eleAtDistArr(dists, elevs, +g.dist_m)), label: g.name || "◆", color: "#7ae0a0" });
+      }
+    }
+    // Auto-Marker
+    if (_wpSources.auto) {
+      for (let i = 0; i < _autoMarkers.length; i++) {
+        if (_wpHidden["auto:" + _autoMarkers[i].kind]) continue;
+        const a = _autoMarkers[i];
+        out.push({ dist_m: +a.dist_m, ele: +a.ele, label: _autoLabel(a.kind), color: "#ffb37a" });
+      }
+    }
+    return out;
+  }
+
   // ── Draw ───────────────────────────────────────────────────────────────
   // Zeichnet das Höhenprofil. progress = 0..1 = wie viel der Linie sichtbar ist.
   function drawElevationSvg() {
@@ -234,8 +456,10 @@ function mountHeightAnim(body, headerActions) {
     bgRect.setAttribute("fill", bg);
     svg.appendChild(bgRect);
 
-    // Padding (etwas mehr Boden weil unter dem Plot die Anim-Bar liegt)
-    const padL = 60, padR = 30, padT = 40, padB = showAxes ? 50 : 20;
+    // Padding (etwas mehr Boden weil unter dem Plot die Anim-Bar liegt).
+    // v0.9.394 — Header-Band oben + Platz für Wegpunkt-Labels.
+    const headH = _showHeader ? 48 : 0;
+    const padL = 60, padR = 30, padT = headH + 34, padB = showAxes ? 50 : 20;
     const plotW = Math.max(20, w - padL - padR);
     const plotH = Math.max(20, h - padT - padB);
 
@@ -412,42 +636,75 @@ function mountHeightAnim(body, headerActions) {
       svg.appendChild(dot);
     }
 
-    // ── Live-Stats-Label (aktuelle Distanz + Höhe) ──────────────────────
-    if (_progress > 0) {
-      // Trim-relative Werte
-      let curEle, curDist;
-      if (endIdx <= _i0) {
-        curEle = elevs[_i0]; curDist = 0;
-      } else {
-        const d0 = dists[endIdx - 1], d1 = dists[endIdx];
-        const seg = d1 > d0 ? (dCurrent - d0) / (d1 - d0) : 0;
-        curEle = elevs[endIdx - 1] + (elevs[endIdx] - elevs[endIdx - 1]) * seg;
-        curDist = dCurrent - dTrimStart;   // anzeige beginnt bei 0
+    // aktuelle Höhe am Marker (interpoliert)
+    let curEle2;
+    if (endIdx <= _i0) curEle2 = elevs[_i0];
+    else {
+      const d0 = dists[endIdx - 1], d1 = dists[endIdx];
+      const seg = d1 > d0 ? (dCurrent - d0) / (d1 - d0) : 0;
+      curEle2 = elevs[endIdx - 1] + (elevs[endIdx] - elevs[endIdx - 1]) * seg;
+    }
+
+    const _mk = (tag, attrs, txt) => {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      for (const k in attrs) el.setAttribute(k, attrs[k]);
+      if (txt != null) el.textContent = txt;
+      svg.appendChild(el); return el;
+    };
+
+    // ── Wegpunkte (erscheinen sobald die Linie sie passiert) ────────────────
+    const _wps = buildWaypoints();
+    if (_wps.length && _progress > 0) {
+      for (const wp of _wps) {
+        const wd = +wp.dist_m;
+        if (!isFinite(wd) || wd < dTrimStart - 1 || wd > dTrimEnd + 1) continue;
+        if (_progress < 1 && dCurrent < wd) continue;
+        const wx = px(wd), wy = py(wp.ele != null ? +wp.ele : _eleAtDist(wd));
+        const col = wp.color || "#ffb37a";
+        const stemTop = wy - 18;
+        _mk("line", { x1: wx, x2: wx, y1: wy, y2: stemTop, stroke: col, "stroke-width": "1.5" });
+        _mk("circle", { cx: wx, cy: wy, r: String(Math.max(3, lw * 1.1)), fill: col, stroke: bg, "stroke-width": "1.5" });
+        const label = (wp.label || "").toString();
+        if (label) {
+          const fs = 12, tw = Math.round(label.length * fs * 0.62 + 14);
+          let bx = Math.max(padL, Math.min(w - padR - tw, wx - tw / 2));
+          let by = Math.max(headH + 6, stemTop - 17);
+          _mk("rect", { x: bx, y: by, width: tw, height: 17, rx: 4, fill: "#2a2a2a", stroke: col, "stroke-width": "1" });
+          _mk("text", { x: bx + tw / 2, y: by + 12, fill: "#fff", "font-size": fs, "text-anchor": "middle", "font-family": "-apple-system, sans-serif" }, label);
+        }
       }
-      // Stats-Box oben rechts
-      const sg = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      const sb = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      const boxW = 170, boxH = 56, boxX = w - padR - boxW, boxY = padT - 30;
-      sb.setAttribute("x", boxX); sb.setAttribute("y", boxY);
-      sb.setAttribute("width", boxW); sb.setAttribute("height", boxH);
-      sb.setAttribute("rx", "8"); sb.setAttribute("ry", "8");
-      sb.setAttribute("fill", "rgba(0,0,0,0.55)");
-      sb.setAttribute("stroke", lc); sb.setAttribute("stroke-width", "1.5");
-      sb.setAttribute("opacity", "0.95");
-      sg.appendChild(sb);
-      const t1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      t1.setAttribute("x", boxX + 12); t1.setAttribute("y", boxY + 22);
-      t1.setAttribute("fill", "#fff");
-      t1.setAttribute("font-size", "13"); t1.setAttribute("font-family", "-apple-system, sans-serif");
-      t1.textContent = `↗ ${(curDist / 1000).toFixed(2)} km`;
-      sg.appendChild(t1);
-      const t2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      t2.setAttribute("x", boxX + 12); t2.setAttribute("y", boxY + 42);
-      t2.setAttribute("fill", "#fff");
-      t2.setAttribute("font-size", "13"); t2.setAttribute("font-family", "-apple-system, sans-serif");
-      t2.textContent = `⛰ ${curEle.toFixed(0)} m`;
-      sg.appendChild(t2);
-      svg.appendChild(sg);
+    }
+
+    // ── Sachliche Info-Leiste oben ──────────────────────────────────────────
+    if (_showHeader && nPoints >= 2) {
+      const st = _rzHeaderStats(dists, elevs, _i0, _i1);
+      const fields = (_statsFields || []).filter(f => _rzFieldValue(f, st) !== "");
+      const n = Math.max(1, fields.length), step = plotW / n, bandTop = 8;
+      for (let k = 0; k < fields.length; k++) {
+        const fx = padL + k * step;
+        if (k > 0) _mk("line", { x1: fx - 10, x2: fx - 10, y1: bandTop, y2: bandTop + 40, stroke: "#333", "stroke-width": "1" });
+        _mk("text", { x: fx, y: bandTop + 14, fill: "#8a8a8a", "font-size": 12, "font-family": "-apple-system, sans-serif" }, _rzFieldLabel(fields[k]));
+        _mk("text", { x: fx, y: bandTop + 35, fill: "#fff", "font-size": 17, "font-weight": "500", "font-family": "-apple-system, sans-serif" }, _rzFieldValue(fields[k], st));
+      }
+    }
+
+    // ── Marker-Callout: Höhe + Steigung + Distanz am Punkt ───────────────────
+    if (showMarker && _progress > 0) {
+      const grad = _showGradient ? _rzGradAtDist(dists, elevs, dCurrent, 60) : null;
+      const curDistKm = (dCurrent - dTrimStart) / 1000;
+      const line1 = `⛰ ${curEle2.toFixed(0)} m`;
+      const arrow = grad == null ? "" : (grad >= 0 ? "↗ +" : "↘ −");
+      const line2 = (grad == null ? "" : `${arrow}${Math.abs(grad).toFixed(1)} %  ·  `) + `${curDistKm.toFixed(2)} km`;
+      const boxW = Math.round(Math.max(line1.length * 18 * 0.6, line2.length * 13 * 0.58) + 24);
+      const boxH = 46;
+      let boxX = endX + 12;
+      if (boxX + boxW > w - padR) boxX = endX - 12 - boxW;
+      boxX = Math.max(padL, boxX);
+      let boxY = endY - boxH - 8;
+      if (boxY < headH + 6) boxY = endY + 12;
+      _mk("rect", { x: boxX, y: boxY, width: boxW, height: boxH, rx: 8, fill: "rgba(0,0,0,0.6)", stroke: lc, "stroke-width": "1.5" });
+      _mk("text", { x: boxX + 11, y: boxY + 21, fill: "#fff", "font-size": 18, "font-weight": "500", "font-family": "-apple-system, sans-serif" }, line1);
+      _mk("text", { x: boxX + 11, y: boxY + 39, fill: (grad != null && grad < 0) ? "#ff9e6b" : "#ffcbb0", "font-size": 13, "font-family": "-apple-system, sans-serif" }, line2);
     }
   }
 
@@ -556,8 +813,11 @@ function mountHeightAnim(body, headerActions) {
       if (res && res.ok) {
         if (window.hideSourceMissingBanner) window.hideSourceMissingBanner();
         _currentData = res;
+        _autoMarkers = Array.isArray(res.auto_markers) ? res.auto_markers : [];
+        _gpxWaypoints = Array.isArray(res.gpx_waypoints) ? res.gpx_waypoints : [];
         _progress = 0;
         setProgressUi(0);
+        try { renderWaypointList(); } catch (_) {}
         drawElevationSvg();
         // Auto-Play: direkt loslegen sobald ein neuer Track geladen ist
         startPlay();
@@ -608,6 +868,138 @@ function mountHeightAnim(body, headerActions) {
       el.addEventListener("input", drawElevationSvg);
       el.addEventListener("change", drawElevationSvg);
     });
+
+  // ── v0.9.394 — Info-Leiste + Wegpunkt-Editor ──────────────────────────────
+  const ALL_STAT_FIELDS = ["distance", "updown", "avg_grad", "max_grad", "ele_max", "ele_min", "ele_minmax", "ele_avg"];
+  function renderHeaderFields() {
+    const host = document.getElementById("height-header-fields");
+    if (!host) return;
+    host.innerHTML = "";
+    for (const id of ALL_STAT_FIELDS) {
+      const row = document.createElement("label");
+      row.className = "checkbox-row";
+      row.style.cssText = "font-size:12px; padding:2px 0;";
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = _statsFields.includes(id);
+      cb.addEventListener("change", () => {
+        if (cb.checked) { if (!_statsFields.includes(id)) _statsFields.push(id); }
+        else _statsFields = _statsFields.filter(f => f !== id);
+        persistHeightWaypoints(); drawElevationSvg();
+      });
+      const sp = document.createElement("span");
+      sp.textContent = _rzFieldLabel(id);
+      row.appendChild(cb); row.appendChild(sp); host.appendChild(row);
+    }
+  }
+  // Liste aller Wegpunkte (manuell editierbar; Quellen ausblendbar)
+  function renderWaypointList() {
+    const host = document.getElementById("height-wp-list");
+    if (!host) return;
+    host.innerHTML = "";
+    const rows = [];
+    _manualWps.forEach((w, i) => rows.push({ kind: "manual", i, label: w.label || t("heightanim.points.unnamed", "Punkt"), color: w.color, hidden: false }));
+    if (_wpSources.photos) {
+      try {
+        const proj = (typeof window.getActiveProject === "function") ? window.getActiveProject() : null;
+        ((proj && proj.photos) || []).forEach((p, i) => {
+          if (p.visible === false) return;
+          const nm = (p.name || p.filename || "Foto").split("/").pop().replace(/\.[^.]+$/, "");
+          rows.push({ kind: "photo", key: "photo:" + i, label: "📷 " + nm, color: "#7ab8ff", hidden: !!_wpHidden["photo:" + i] });
+        });
+      } catch (_) {}
+    }
+    if (_wpSources.gpx) _gpxWaypoints.forEach((g, i) => rows.push({ kind: "gpx", key: "gpx:" + i, label: "◆ " + (g.name || "Wegpunkt"), color: "#7ae0a0", hidden: !!_wpHidden["gpx:" + i] }));
+    if (_wpSources.auto) _autoMarkers.forEach((a) => rows.push({ kind: "auto", key: "auto:" + a.kind, label: _autoLabel(a.kind), color: "#ffb37a", hidden: !!_wpHidden["auto:" + a.kind] }));
+    if (!rows.length) {
+      host.innerHTML = `<p class="muted" style="font-size:11px; margin:4px 0;">${t("heightanim.points.empty", "Noch keine Punkte. Quellen oben aktivieren oder unten einen Punkt setzen.")}</p>`;
+      return;
+    }
+    for (const r of rows) {
+      const row = document.createElement("div");
+      row.className = "height-wp-row";
+      const dot = document.createElement("span");
+      dot.className = "height-wp-dot"; dot.style.background = r.color;
+      const lbl = document.createElement("span");
+      lbl.className = "height-wp-label"; lbl.textContent = r.label;
+      if (r.hidden) lbl.style.opacity = "0.4";
+      row.appendChild(dot); row.appendChild(lbl);
+      if (r.kind === "manual") {
+        const w = _manualWps[r.i];
+        lbl.title = t("heightanim.points.rename_tip", "Klicken zum Umbenennen");
+        lbl.style.cursor = "pointer";
+        lbl.addEventListener("click", () => {
+          const nv = window.prompt(t("heightanim.points.rename", "Name des Punkts:"), w.label || "");
+          if (nv != null) { w.label = nv; persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); }
+        });
+        const cpick = document.createElement("input");
+        cpick.type = "color"; cpick.value = w.color || "#ff6b35"; cpick.className = "height-wp-color";
+        cpick.addEventListener("input", () => { w.color = cpick.value; persistHeightWaypoints(); drawElevationSvg(); });
+        const del = document.createElement("button");
+        del.type = "button"; del.className = "height-wp-del"; del.textContent = "✕";
+        del.title = t("heightanim.points.delete", "Punkt löschen");
+        del.addEventListener("click", () => { _manualWps.splice(r.i, 1); persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); });
+        row.appendChild(cpick); row.appendChild(del);
+      } else {
+        // Quellen-Punkt: nur ein-/ausblenden
+        const eye = document.createElement("button");
+        eye.type = "button"; eye.className = "height-wp-del";
+        eye.textContent = r.hidden ? "🚫" : "👁";
+        eye.title = t("heightanim.points.toggle", "Ein-/Ausblenden");
+        eye.addEventListener("click", () => {
+          if (_wpHidden[r.key]) delete _wpHidden[r.key]; else _wpHidden[r.key] = true;
+          persistHeightWaypoints(); renderWaypointList(); drawElevationSvg();
+        });
+        row.appendChild(eye);
+      }
+      host.appendChild(row);
+    }
+  }
+  renderHeaderFields();
+  renderWaypointList();
+
+  // Header/Steigung-Toggles
+  const _hdrCb = document.getElementById("height-header");
+  if (_hdrCb) { _hdrCb.checked = _showHeader; _hdrCb.addEventListener("change", () => { _showHeader = _hdrCb.checked; persistHeightWaypoints(); drawElevationSvg(); }); }
+  const _gradCb = document.getElementById("height-gradient");
+  if (_gradCb) { _gradCb.checked = _showGradient; _gradCb.addEventListener("change", () => { _showGradient = _gradCb.checked; persistHeightWaypoints(); drawElevationSvg(); }); }
+  // Quellen-Toggles
+  [["height-src-photos", "photos"], ["height-src-gpx", "gpx"], ["height-src-auto", "auto"]].forEach(([id, key]) => {
+    const cb = document.getElementById(id);
+    if (!cb) return;
+    cb.checked = !!_wpSources[key];
+    cb.addEventListener("change", () => { _wpSources[key] = cb.checked; persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); });
+  });
+  // „Punkt setzen" → nächster Klick aufs Profil legt einen manuellen Punkt an
+  const _addBtn = document.getElementById("height-add-point");
+  const _addHint = document.getElementById("height-add-hint");
+  _addBtn?.addEventListener("click", () => {
+    _armAddPoint = !_armAddPoint;
+    if (_addHint) _addHint.style.display = _armAddPoint ? "block" : "none";
+    _addBtn.classList.toggle("btn-primary", _armAddPoint);
+    const svg = document.getElementById("height-svg");
+    if (svg) svg.style.cursor = _armAddPoint ? "crosshair" : "";
+  });
+  document.getElementById("height-svg")?.addEventListener("click", (ev) => {
+    if (!_armAddPoint || !_currentData || !_currentData.distances_m) return;
+    const svg = document.getElementById("height-svg");
+    const rect = svg.getBoundingClientRect();
+    const w = rect.width, padL = 60, padR = 30;
+    const plotW = Math.max(1, w - padL - padR);
+    const dists = _currentData.distances_m;
+    const maxDist = dists[dists.length - 1] || 1;
+    const dTrimStart = _trimStart * maxDist, dTrimSpan = Math.max(1, (_trimEnd - _trimStart) * maxDist);
+    const xr = (ev.clientX - rect.left - padL) / plotW;   // 0..1 im Plot
+    const distM = dTrimStart + Math.max(0, Math.min(1, xr)) * dTrimSpan;
+    const frac = Math.max(0, Math.min(1, distM / maxDist));
+    const name = window.prompt(t("heightanim.points.name_new", "Name des Punkts:"), t("heightanim.points.default_name", "Punkt"));
+    if (name == null) return;
+    _manualWps.push({ id: "m" + (_wpSeq++), dist_frac: frac, label: name, color: "#ff6b35" });
+    _armAddPoint = false;
+    if (_addHint) _addHint.style.display = "none";
+    _addBtn?.classList.remove("btn-primary");
+    if (svg) svg.style.cursor = "";
+    persistHeightWaypoints(); renderWaypointList(); drawElevationSvg();
+  });
 
   // Slider-Labels live updaten
   function updateLabel(id, val, suffix) {
@@ -893,6 +1285,13 @@ function mountHeightAnim(body, headerActions) {
       grid_enabled: document.getElementById("height-grid")?.checked !== false,
       show_axes: document.getElementById("height-axes")?.checked !== false,
       show_marker: document.getElementById("height-marker")?.checked !== false,
+      // v0.9.394 — Info-Leiste + Steigung + Wegpunkte (WYSIWYG zur Preview)
+      show_stats_header: _showHeader,
+      show_gradient: _showGradient,
+      stats_fields: _statsFields.slice(),
+      stats_labels: ["distance","updown","avg_grad","max_grad","ele_max","ele_min","ele_minmax","ele_avg"]
+        .reduce((m, id) => { m[id] = _rzFieldLabel(id); return m; }, {}),
+      waypoints: buildWaypoints(),
       trim_start: _trimStart,
       trim_end: _trimEnd,
     };

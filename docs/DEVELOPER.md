@@ -194,6 +194,8 @@ weil der Browser kein ExifTool/Python hat).
 
 **FIT** braucht `fitdecode` (MIT, lazy import → in `.spec` hiddenimports). Semicircles → Grad: `deg = raw * 180/2³¹`. Die übrigen Parser nutzen Bordmittel (`xml.etree`, `json`, `zipfile`).
 
+**Höhen-Animator — Info-Leiste + Steigung + Wegpunkte (v0.9.394):** `core/heightanim.py` `_make_html` rendert eine sachliche Kopf-Leiste (Distanz/↑↓/Ø-/Max-Steigung/Höhe), Steigung am Marker-Callout und beschriftete Wegpunkt-Pins. Die Stat-/Steigungs-Berechnung (`rzHeaderStats`, `rzWindowGrad`, `rzGradAtDist`) läuft **im eingebetteten JS über den Trim-Bereich** und ist **1:1 in `modules/heightanim/ui/module.js` gespiegelt** (Präfix `_rz…`, Kommentar „SYNCHRON zu core/heightanim.py" — bei Änderung beide pflegen). `HeightConfig` bekam `show_stats_header`, `stats_fields`, `stats_labels` (lokalisiert aus der UI, sonst DE-Fallback in `RZ_FIELD_LABELS_DE`), `show_gradient`, `waypoints` (bereits auf `dist_m`+`ele` aufgelöst). Wegpunkt-Quellen: **manuell** (`project.heightanim.waypoints`, `dist_frac`) und **Fotos** baut das Frontend aus dem Projekt-State (`buildWaypoints()`, Foto-Anker via `latlon` aus `heightanim_load_gpx`); **GPX-`<wpt>`** (`gpx.parse_waypoints` → `heightanim.project_points_onto_track`) und **Auto-Marker** (`heightanim.detect_auto_markers`: Peak/Valley/steilster An-/Abstieg) liefert die Bridge. Reveal-Logik: ein Wegpunkt erscheint, sobald `dCurrent >= wp.dist_m` (oder `progress>=1`).
+
 **Frontend:** `window.TRACK_PICK_FILTER` (Datei-Dialog) + `window.TRACK_DROP_RE` (Drag&Drop-Regex) in `ui/js/gpx-bar.js`; Geotagger-/Animator-Drops nutzen dieselben. Drop-Persist auf `"binary"` (FIT/KMZ sind binär).
 
 ### `core/sensors.py` + Sensor-Datenschicht (seit v0.9.330 — IDEAS §15.2 Phase 1)

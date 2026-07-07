@@ -556,6 +556,28 @@ python app.py</code></pre>
 <h3 id="result-view">Result-View</h3>
 <p>Nach dem Render: großes Vorschaubild, „Im Finder zeigen&quot;, „Pfad kopieren&quot;, „Neue Karte&quot;.</p>
 <hr>
+<h2 id="5b-modul-h-hen-animator-h-henprofil-als-video">5b · Modul: Höhen-Animator — Höhenprofil als Video ⛰</h2>
+<h3 id="was-es-macht">Was es macht</h3>
+<p>Baut aus deinem Track ein <strong>Video, in dem sich die Höhenprofil-Kurve live aufbaut</strong> — ein mitlaufender Marker zeigt Höhe, Steigung und Distanz. Ideal als Einblendung im Schnitt (auch mit <strong>transparentem Hintergrund</strong> via ProRes-4444-Alpha).</p>
+<h3 id="workflow">Workflow</h3>
+<ol>
+<li>GPX laden (globale GPX-Leiste oben). Die Vorschau spielt sofort.</li>
+<li>Optik, Info-Leiste und Punkte einstellen (siehe unten). Alles läuft <strong>WYSIWYG</strong> in der Vorschau.</li>
+<li>Mit den <strong>Trim-Handles</strong> unter der Kurve den animierten Bereich eingrenzen (optional).</li>
+<li><strong>▶ Video rendern</strong> — Codec/Alpha wählen, Fortschritt läuft mit.</li>
+</ol>
+<h3 id="sachliche-info-leiste-seit-v0-9-394">Sachliche Info-Leiste (seit v0.9.394) ⭐</h3>
+<p>Über dem Profil blendest du eine <strong>Werte-Leiste</strong> ein — in der Sektion <strong>„Info-Leiste&quot;</strong> an-/abschaltbar und pro Feld wählbar: <strong>Distanz, Höhenmeter ↑/↓, Ø-Steigung, max. Steigung (↑/↓), Höhe (max/min/Ø)</strong>. Zusätzlich zeigt der <strong>Marker-Callout</strong> die <strong>aktuelle Steigung</strong> (z. B. „↗ +6.2 %&quot; / „↘ −4.7 %&quot;) neben Höhe und Distanz — abschaltbar über „Steigung % am Marker zeigen&quot;.</p>
+<h3 id="punkte-auf-der-strecke-seit-v0-9-394">Punkte auf der Strecke (seit v0.9.394) ⭐</h3>
+<p>In der Sektion <strong>„Punkte auf der Strecke&quot;</strong> setzt du beschriftete Marker ins Profil — aus vier Quellen, einzeln zuschaltbar:</p>
+<ul>
+<li><strong>Selbst setzen:</strong> <strong>„Punkt aufs Profil setzen&quot;</strong> klicken, dann in die Kurve klicken. Name eingeben, Farbe wählen, später umbenennen oder löschen.</li>
+<li><strong>Aus den Fotos:</strong> die im Projekt verorteten Fotos erscheinen an ihrer Track-Position (Name = Dateiname).</li>
+<li><strong>GPX-Wegpunkte:</strong> <code>&lt;wpt&gt;</code>-POIs aus der GPX-Datei (z. B. von Komoot/Garmin) werden übernommen.</li>
+<li><strong>Auto-Marker:</strong> höchster/tiefster Punkt sowie steilster An- und Abstieg werden automatisch erkannt und beschriftet.</li>
+</ul>
+<p>Jeder Punkt <strong>taucht animiert auf, sobald die Linie ihn erreicht</strong>. Einzelne Punkte aus einer Quelle kannst du in der Liste per 👁 aus-/einblenden. Deine manuellen Punkte + alle Einstellungen werden <strong>pro Projekt</strong> gespeichert.</p>
+<hr>
 <h2 id="6-modul-geotagger-fotos-mit-gps-taggen">6 · Modul: Geotagger — Fotos mit GPS taggen</h2>
 <blockquote><strong>Den Geotagger gibt es seit v0.9.331 in drei Varianten:</strong></blockquote>
 <blockquote>1. <strong>Im GPS Studio</strong> (dieses Modul) — zusammen mit Animator, Tour-Map &amp; Co.</blockquote>
