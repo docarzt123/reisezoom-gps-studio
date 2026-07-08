@@ -82,6 +82,10 @@ function mountHeightAnim(body, headerActions) {
               <label class="field-label">${t("heightanim.field.line_width", "Liniendicke")} <span class="label-val" id="height-lw-v">4.0 px</span></label>
               <input type="range" id="height-lw" min="1" max="10" step="0.5" value="4">
             </div>
+            <div class="field">
+              <label class="field-label">${t("heightanim.field.smoothing", "Glättung")} <span class="label-val" id="height-smoothing-v">0</span></label>
+              <input type="range" id="height-smoothing" min="0" max="20" step="1" value="0">
+            </div>
             <div class="row-2">
               <div class="field">
                 <label class="field-label">${t("heightanim.field.grid_color", "Gitterfarbe")}</label>
@@ -103,6 +107,115 @@ function mountHeightAnim(body, headerActions) {
           </div>
         </section>
 
+        <section class="section" data-accordion-section="fill">
+          <button class="section-collapse-header" type="button">
+            <span>${t("heightanim.section.fill", "Fläche unter der Linie")}</span>
+            <span class="collapse-arrow">▸</span>
+          </button>
+          <div class="section-collapse-body" hidden>
+            <label class="checkbox-row">
+              <input type="checkbox" id="height-area-fill" checked>
+              <span>${t("heightanim.fill.enabled", "Fläche füllen")}</span>
+            </label>
+            <div class="row-2">
+              <div class="field">
+                <label class="field-label">${t("heightanim.fill.color", "Füllfarbe")}</label>
+                <input type="color" id="height-area-color" value="#ff6b35">
+              </div>
+              <div class="field">
+                <label class="field-label">${t("heightanim.fill.opacity", "Deckkraft")} <span class="label-val" id="height-area-op-v">18 %</span></label>
+                <input type="range" id="height-area-op" min="0" max="100" step="1" value="18">
+              </div>
+            </div>
+            <div class="section-subhead" style="margin:12px 0 4px; font-size:12px; opacity:0.7;">${t("heightanim.fill.zones", "Farbzonen nach Höhe")}</div>
+            <div class="field">
+              <label class="field-label">${t("heightanim.fill.mode", "Farbübergang")}</label>
+              <select id="height-area-mode">
+                <option value="smooth">${t("heightanim.fill.mode_smooth", "Weicher Verlauf")}</option>
+                <option value="bands">${t("heightanim.fill.mode_bands", "Harte Bänder")}</option>
+              </select>
+            </div>
+            <div class="row-2" style="align-items:flex-end;">
+              <div class="field">
+                <label class="field-label">${t("heightanim.fill.steps", "Anzahl Stufen")}</label>
+                <input type="number" id="height-area-steps" min="2" max="12" step="1" value="4">
+              </div>
+              <button type="button" class="btn btn-secondary" id="height-area-gen">${t("heightanim.fill.generate", "Stufen anlegen")}</button>
+            </div>
+            <div id="height-fill-stops" class="height-wp-list"></div>
+            <button type="button" class="btn btn-secondary btn-block" id="height-area-add-stop" style="margin:8px 0 0;">
+              + ${t("heightanim.fill.add", "Höhe hinzufügen")}
+            </button>
+            <p class="muted" style="font-size:11px; margin:6px 0 0;">
+              ${t("heightanim.fill.hint", "Ab jeder eingestellten Höhe wechselt die Füllfarbe. Ohne Zonen gilt die Füllfarbe für die ganze Fläche.")}
+            </p>
+          </div>
+        </section>
+
+        <section class="section" data-accordion-section="bgzones">
+          <button class="section-collapse-header" type="button">
+            <span>${t("heightanim.section.bgzones", "Hintergrund-Höhenstufen")}</span>
+            <span class="collapse-arrow">▸</span>
+          </button>
+          <div class="section-collapse-body" hidden>
+            <p class="muted" style="font-size:11px; margin:0 0 8px;">
+              ${t("heightanim.bg.intro", "Färbt den Hintergrund nach Höhe ein. Basisfarbe ist die „Hintergrund\"-Farbe aus der Optik-Sektion.")}
+            </p>
+            <label class="checkbox-row">
+              <input type="checkbox" id="height-bg-clip">
+              <span>${t("heightanim.bg.clip", "Nur im Diagramm-Bereich (innerhalb der Achsen)")}</span>
+            </label>
+            <div class="field">
+              <label class="field-label">${t("heightanim.fill.mode", "Farbübergang")}</label>
+              <select id="height-bg-mode">
+                <option value="smooth">${t("heightanim.fill.mode_smooth", "Weicher Verlauf")}</option>
+                <option value="bands">${t("heightanim.fill.mode_bands", "Harte Bänder")}</option>
+              </select>
+            </div>
+            <div class="row-2" style="align-items:flex-end;">
+              <div class="field">
+                <label class="field-label">${t("heightanim.fill.steps", "Anzahl Stufen")}</label>
+                <input type="number" id="height-bg-steps" min="2" max="12" step="1" value="4">
+              </div>
+              <button type="button" class="btn btn-secondary" id="height-bg-gen">${t("heightanim.fill.generate", "Stufen anlegen")}</button>
+            </div>
+            <div id="height-bg-stops" class="height-wp-list"></div>
+            <button type="button" class="btn btn-secondary btn-block" id="height-bg-add-stop" style="margin:8px 0 0;">
+              + ${t("heightanim.fill.add", "Höhe hinzufügen")}
+            </button>
+          </div>
+        </section>
+
+        <section class="section" data-accordion-section="linezones">
+          <button class="section-collapse-header" type="button">
+            <span>${t("heightanim.section.linezones", "Linien-Höhenstufen")}</span>
+            <span class="collapse-arrow">▸</span>
+          </button>
+          <div class="section-collapse-body" hidden>
+            <p class="muted" style="font-size:11px; margin:0 0 8px;">
+              ${t("heightanim.line.intro", "Färbt die Höhenlinie nach Höhe ein. Basisfarbe ist die „Linienfarbe\" aus der Optik-Sektion.")}
+            </p>
+            <div class="field">
+              <label class="field-label">${t("heightanim.fill.mode", "Farbübergang")}</label>
+              <select id="height-line-mode">
+                <option value="smooth">${t("heightanim.fill.mode_smooth", "Weicher Verlauf")}</option>
+                <option value="bands">${t("heightanim.fill.mode_bands", "Harte Bänder")}</option>
+              </select>
+            </div>
+            <div class="row-2" style="align-items:flex-end;">
+              <div class="field">
+                <label class="field-label">${t("heightanim.fill.steps", "Anzahl Stufen")}</label>
+                <input type="number" id="height-line-steps" min="2" max="12" step="1" value="4">
+              </div>
+              <button type="button" class="btn btn-secondary" id="height-line-gen">${t("heightanim.fill.generate", "Stufen anlegen")}</button>
+            </div>
+            <div id="height-line-stops" class="height-wp-list"></div>
+            <button type="button" class="btn btn-secondary btn-block" id="height-line-add-stop" style="margin:8px 0 0;">
+              + ${t("heightanim.fill.add", "Höhe hinzufügen")}
+            </button>
+          </div>
+        </section>
+
         <section class="section" data-accordion-section="marker">
           <button class="section-collapse-header" type="button">
             <span>${t("heightanim.section.marker", "Marker")}</span>
@@ -110,8 +223,8 @@ function mountHeightAnim(body, headerActions) {
           </button>
           <div class="section-collapse-body" hidden>
             <label class="checkbox-row">
-              <input type="checkbox" id="height-marker" checked>
-              <span>${t("heightanim.marker.show", "Marker zeigen")}</span>
+              <input type="checkbox" id="height-marker-dot" checked>
+              <span>${t("heightanim.marker.show_dot", "Punkt zeigen (zeichnet die Linie)")}</span>
             </label>
             <div class="row-2">
               <div class="field">
@@ -124,6 +237,10 @@ function mountHeightAnim(body, headerActions) {
               </div>
             </div>
 
+            <label class="checkbox-row" style="margin-top:6px;">
+              <input type="checkbox" id="height-marker" checked>
+              <span>${t("heightanim.marker.show", "Info-Box zeigen")}</span>
+            </label>
             <div class="section-subhead" style="margin:10px 0 4px; font-size:12px; opacity:0.7;">${t("heightanim.marker.callout", "Info-Box am Marker")}</div>
             <label class="checkbox-row">
               <input type="checkbox" id="height-marker-icon" checked>
@@ -310,15 +427,6 @@ function mountHeightAnim(body, headerActions) {
   let _renderPollTimer = null;
   let _lastRenderPreviewB64 = "";
 
-  // Trim aus Project-Settings laden (falls vorhanden)
-  try {
-    const proj = (typeof window.getActiveProject === "function") ? window.getActiveProject() : null;
-    const ha = proj?.heightanim || {};
-    if (typeof ha.trim_start === "number") _trimStart = Math.max(0, Math.min(1, ha.trim_start));
-    if (typeof ha.trim_end   === "number") _trimEnd   = Math.max(0, Math.min(1, ha.trim_end));
-    if (_trimEnd <= _trimStart) { _trimStart = 0; _trimEnd = 1; }
-  } catch (_) {}
-
   // ── v0.9.394 — Info-Leiste + Steigung + Wegpunkte ──────────────────────────
   let _showHeader = true;
   let _showGradient = true;
@@ -330,23 +438,20 @@ function mountHeightAnim(body, headerActions) {
   let _wpHidden = {};        // {key: true} — einzelne Auto/GPX/Foto-Punkte ausblenden
   let _armAddPoint = false;  // nächster Klick aufs Profil setzt einen Punkt
   let _wpSeq = 1;
-  try {
-    const proj = (typeof window.getActiveProject === "function") ? window.getActiveProject() : null;
-    const ha = proj?.heightanim || {};
-    if (typeof ha.show_header === "boolean") _showHeader = ha.show_header;
-    if (typeof ha.show_gradient === "boolean") _showGradient = ha.show_gradient;
-    if (Array.isArray(ha.stats_fields) && ha.stats_fields.length) _statsFields = ha.stats_fields.slice();
-    if (ha.wp_sources && typeof ha.wp_sources === "object") _wpSources = Object.assign(_wpSources, ha.wp_sources);
-    if (Array.isArray(ha.waypoints)) _manualWps = ha.waypoints.map(w => ({
-      id: w.id || ("m" + (_wpSeq++)), dist_frac: +w.dist_frac || 0,
-      label: w.label || "", color: w.color || "#ff6b35",
-    }));
-    if (ha.wp_hidden && typeof ha.wp_hidden === "object") _wpHidden = Object.assign({}, ha.wp_hidden);
-  } catch (_) {}
+  // v0.9.402/403 — Höhen-Farbzonen für drei Ziele: Fläche, Hintergrund, Linie.
+  // Jede Liste: [{id, ele, color}] — ab jeder Höhe wechselt die Farbe des Ziels.
+  let _fillStops = [];
+  let _bgStops = [];
+  let _lineStops = [];
+  let _zoneSeq = 1;
 
-  // v0.9.399 — gespeicherte Control-Werte (Farben/Größen/Auflösung …) SYNCHRON
-  // zurückspielen, BEVOR Listener/Draw laufen (hoisted; Panel-HTML steht schon).
-  try { restoreHeightControls(); } catch (_) {}
+  // v0.9.401 — Projekt-State (Trim, Info-Leiste, Wegpunkte, Control-Farben) aus dem
+  // aktiven Projekt laden. WICHTIG: Beim Kaltstart mountet das Modul BEVOR die Session
+  // async geladen ist (`_activeProject` noch null) → dieser erste Aufruf findet nichts.
+  // Sobald der GPX-Track async lädt (applyGlobalGpxToHeightModule), ist das Projekt da
+  // und wir rufen dieselbe Funktion mit refreshUi erneut → dann greifen die Farben.
+  // (Marc-Bug: „merkt sich die Farben nicht" — der Restore lief nur EINMAL, zu früh.)
+  reloadProjectStateFromActive({ refreshUi: false });
 
   // v0.9.399 — alle DOM-Controls (#height-panel) als {id: value/checked} lesen.
   function _readHeightControls() {
@@ -369,6 +474,8 @@ function mountHeightAnim(body, headerActions) {
     set("height-hold", "height-hold-v", v => v, " s");
     set("height-fps", "height-fps-v", v => v, "");
     set("height-lw", "height-lw-v", v => parseFloat(v).toFixed(1), " px");
+    set("height-smoothing", "height-smoothing-v", v => v, "");
+    set("height-area-op", "height-area-op-v", v => v, " %");
     set("height-marker-dot-size", "height-marker-dot-size-v", v => v, " px");
     set("height-marker-bg-op", "height-marker-bg-op-v", v => v, " %");
     set("height-marker-bw", "height-marker-bw-v", v => parseFloat(v).toFixed(1), " px");
@@ -391,6 +498,47 @@ function mountHeightAnim(body, headerActions) {
       _refreshHeightSliderLabels();
     } catch (_) {}
   }
+  // v0.9.401 — Kompletten Projekt-State (Trim + Info-Leiste + Wegpunkte + Control-
+  // Farben) aus dem aktiven Projekt in die JS-Vars + DOM zurückspielen. Idempotent,
+  // löst KEINE Persist-/Undo-Events aus. `refreshUi:true` rendert die abhängigen
+  // UI-Teile neu (Info-Felder, Wegpunkt-Liste, Trim-Balken) — dafür beim erneuten
+  // Aufruf NACH GPX-Load (Modul ist dann fertig gemountet).
+  function reloadProjectStateFromActive(opts) {
+    opts = opts || {};
+    try {
+      const proj = (typeof window.getActiveProject === "function") ? window.getActiveProject() : null;
+      const ha = proj?.heightanim || {};
+      // Trim
+      if (typeof ha.trim_start === "number") _trimStart = Math.max(0, Math.min(1, ha.trim_start));
+      if (typeof ha.trim_end === "number") _trimEnd = Math.max(0, Math.min(1, ha.trim_end));
+      if (_trimEnd <= _trimStart) { _trimStart = 0; _trimEnd = 1; }
+      // Info-Leiste + Wegpunkte
+      if (typeof ha.show_header === "boolean") _showHeader = ha.show_header;
+      if (typeof ha.show_gradient === "boolean") _showGradient = ha.show_gradient;
+      if (Array.isArray(ha.stats_fields) && ha.stats_fields.length) _statsFields = ha.stats_fields.slice();
+      if (ha.wp_sources && typeof ha.wp_sources === "object") _wpSources = Object.assign({ photos: true, gpx: true, auto: false }, ha.wp_sources);
+      if (Array.isArray(ha.waypoints)) _manualWps = ha.waypoints.map(w => ({
+        id: w.id || ("m" + (_wpSeq++)), dist_frac: +w.dist_frac || 0,
+        label: w.label || "", color: w.color || "#ff6b35",
+      }));
+      if (ha.wp_hidden && typeof ha.wp_hidden === "object") _wpHidden = Object.assign({}, ha.wp_hidden);
+      // v0.9.402/403 — Höhen-Farbzonen (Fläche / Hintergrund / Linie)
+      const _mapZone = (a) => (Array.isArray(a) ? a.map(s => ({
+        id: s.id || ("z" + (_zoneSeq++)), ele: +s.ele || 0, color: s.color || "#88cc66",
+      })) : null);
+      const _fs = _mapZone(ha.fill_stops); if (_fs) _fillStops = _fs;
+      const _bs = _mapZone(ha.bg_stops);   if (_bs) _bgStops = _bs;
+      const _ls = _mapZone(ha.line_stops); if (_ls) _lineStops = _ls;
+    } catch (_) {}
+    // Control-Werte (Farben/Größen/Auflösung/Marker/Glättung) in die DOM-Inputs.
+    try { restoreHeightControls(); } catch (_) {}
+    if (opts.refreshUi) {
+      try { renderHeaderFields(); } catch (_) {}
+      try { renderWaypointList(); } catch (_) {}
+      try { renderAllZones(); } catch (_) {}
+      try { updateTrimVisual(); } catch (_) {}
+    }
+  }
   // Speichert IMMER das KOMPLETTE heightanim-Objekt (Root-Patch macht Shallow-
   // Replace von `heightanim` → Teil-Patches würden sich gegenseitig überschreiben).
   function persistHeightWaypoints() {
@@ -403,6 +551,9 @@ function mountHeightAnim(body, headerActions) {
             stats_fields: _statsFields.slice(), wp_sources: Object.assign({}, _wpSources),
             wp_hidden: Object.assign({}, _wpHidden),
             waypoints: _manualWps.map(w => ({ id: w.id, dist_frac: w.dist_frac, label: w.label, color: w.color })),
+            fill_stops: _fillStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
+            bg_stops: _bgStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
+            line_stops: _lineStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
             controls: _readHeightControls(),
           }
         }, { persistOnly: true });
@@ -411,6 +562,80 @@ function mountHeightAnim(body, headerActions) {
   }
 
   // ── Geteilte Stat-/Steigungs-Helfer — SYNCHRON zu core/heightanim.py ────────
+  // v0.9.400 — Glättung: gleitender Mittelwert über die Höhen (Radius r je Seite).
+  // SYNCHRON zu core/heightanim.py (_rzSmooth). Slider #height-smoothing (0 = aus).
+  function _smoothingVal() {
+    return parseInt(document.getElementById("height-smoothing")?.value || "0", 10) || 0;
+  }
+  function _rzSmooth(arr, r) {
+    r = Math.round(r || 0);
+    if (r <= 0 || !arr || arr.length < 3) return (arr || []).slice();
+    const n = arr.length, out = new Array(n);
+    for (let i = 0; i < n; i++) {
+      let s = 0, c = 0;
+      const lo = Math.max(0, i - r), hi = Math.min(n - 1, i + r);
+      for (let j = lo; j <= hi; j++) { const v = arr[j]; if (v != null) { s += v; c++; } }
+      out[i] = c ? s / c : arr[i];
+    }
+    return out;
+  }
+  // v0.9.402 — Füll-Farbverlauf nach Höhe. Baut die <linearGradient>-Stops
+  // (offset 0 = oben/eHi, offset 1 = unten/eLo). `baseColor` gilt unten (unter der
+  // niedrigsten Zone); jede Zone {ele,color} färbt AB ihrer Höhe aufwärts. bands=true
+  // → harte Kanten (doppelte Stops), sonst weicher Verlauf. SYNCHRON zu core/heightanim.py.
+  function _rzFillStops(baseColor, stops, eHi, eSpan, bands) {
+    const pts = [];
+    (stops || []).forEach(s => {
+      const e = +s.ele;
+      if (!isFinite(e)) return;
+      pts.push({ off: Math.max(0, Math.min(1, (eHi - e) / (eSpan || 1))), color: s.color || "#ffffff" });
+    });
+    pts.push({ off: 1, color: baseColor });          // Basis ganz unten
+    pts.sort((a, b) => a.off - b.off);               // oben (klein) → unten (groß)
+    if (!bands) return pts;
+    const out = [];
+    let prev = 0;
+    for (let k = 0; k < pts.length; k++) {
+      out.push({ off: prev, color: pts[k].color });
+      out.push({ off: pts[k].off, color: pts[k].color });
+      prev = pts[k].off;
+    }
+    return out;
+  }
+  // v0.9.403 — Zonen-Deskriptor: eine gemeinsame Logik für Fläche / Hintergrund / Linie.
+  function _zoneCfg(key) {
+    if (key === "bg") return {
+      key: "bg", get: () => _bgStops, set: v => { _bgStops = v; },
+      listId: "height-bg-stops", modeId: "height-bg-mode", stepsId: "height-bg-steps",
+      gradId: "rzBgGrad", base: () => document.getElementById("height-bg")?.value || "#1a1a1a",
+    };
+    if (key === "line") return {
+      key: "line", get: () => _lineStops, set: v => { _lineStops = v; },
+      listId: "height-line-stops", modeId: "height-line-mode", stepsId: "height-line-steps",
+      gradId: "rzLineGrad", base: () => document.getElementById("height-color")?.value || "#ff6b35",
+    };
+    return {
+      key: "fill", get: () => _fillStops, set: v => { _fillStops = v; },
+      listId: "height-fill-stops", modeId: "height-area-mode", stepsId: "height-area-steps",
+      gradId: "rzFillGrad", base: () => document.getElementById("height-area-color")?.value || "#ff6b35",
+    };
+  }
+  // Farb-Rampe (Terrain-Look) — Stützpunkte werden bei „Stufen anlegen" gesampelt.
+  const _RZ_TERRAIN = ["#2e7d32", "#7cb342", "#c0ca33", "#c9a227", "#8d6e63", "#d7ccc8", "#ffffff"];
+  function _rzLerpHex(a, b, f) {
+    const pa = parseInt((a || "#000000").slice(1), 16), pb = parseInt((b || "#000000").slice(1), 16);
+    const r = Math.round(((pa >> 16) & 255) + (((pb >> 16) & 255) - ((pa >> 16) & 255)) * f);
+    const g = Math.round(((pa >> 8) & 255) + (((pb >> 8) & 255) - ((pa >> 8) & 255)) * f);
+    const bl = Math.round((pa & 255) + ((pb & 255) - (pa & 255)) * f);
+    return "#" + ((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1);
+  }
+  function _rzRampColor(tt) {
+    tt = Math.max(0, Math.min(1, tt));
+    const seg = tt * (_RZ_TERRAIN.length - 1);
+    const i = Math.floor(seg), f = seg - i;
+    if (i >= _RZ_TERRAIN.length - 1) return _RZ_TERRAIN[_RZ_TERRAIN.length - 1];
+    return _rzLerpHex(_RZ_TERRAIN[i], _RZ_TERRAIN[i + 1], f);
+  }
   function _rzWindowGrad(ds, es, idx, win, lo0, hi0) {
     const d0 = ds[idx];
     let lo = idx; while (lo > lo0 && d0 - ds[lo] < win) lo--;
@@ -499,7 +724,7 @@ function mountHeightAnim(body, headerActions) {
   // Baut die finale Wegpunkt-Liste aus allen 4 Quellen (für Preview + Render)
   function buildWaypoints() {
     if (!_currentData || !_currentData.distances_m) return [];
-    const dists = _currentData.distances_m, elevs = _currentData.elevations;
+    const dists = _currentData.distances_m, elevs = _rzSmooth(_currentData.elevations, _smoothingVal());
     const maxDist = dists[dists.length - 1] || 1;
     const out = [];
     // Manuell
@@ -575,8 +800,15 @@ function mountHeightAnim(body, headerActions) {
     const showGrid = document.getElementById("height-grid")?.checked !== false;
     const showAxes = document.getElementById("height-axes")?.checked !== false;
     const showMarker = document.getElementById("height-marker")?.checked !== false;
+    // v0.9.405 — laufender Punkt (zeichnet die Linie) unabhängig von der Info-Box schaltbar
+    const showDot = document.getElementById("height-marker-dot")?.checked !== false;
     const gridColor = document.getElementById("height-grid-color")?.value || "#3a3a3a";
     const labelColor = document.getElementById("height-label-color")?.value || "#cccccc";
+    // v0.9.402 — Fläche unter der Linie (füllen? Farbe? Deckkraft? Höhen-Farbzonen?)
+    const areaFill  = document.getElementById("height-area-fill")?.checked !== false;
+    const areaColor = document.getElementById("height-area-color")?.value || lc;
+    const areaOp    = (parseFloat(document.getElementById("height-area-op")?.value) ?? 18) / 100;
+    const areaBands = document.getElementById("height-area-mode")?.value === "bands";
     // v0.9.396 — Marker vollständig konfigurierbar
     const mkDotColor = document.getElementById("height-marker-dot-color")?.value || "#ffffff";
     const mkDotSize  = parseFloat(document.getElementById("height-marker-dot-size")?.value) || 6;
@@ -603,7 +835,7 @@ function mountHeightAnim(body, headerActions) {
     const plotW = Math.max(20, w - padL - padR);
     const plotH = Math.max(20, h - padT - padB);
 
-    const elevs = _currentData.elevations;
+    const elevs = _rzSmooth(_currentData.elevations, _smoothingVal());
     const dists = _currentData.distances_m;
     const nPoints = elevs.length;
     const maxDist = dists[dists.length - 1] || 1;
@@ -656,6 +888,46 @@ function mountHeightAnim(body, headerActions) {
     // X-Achse: Trim-relativ — links/rechts verschwindet beim Trim-Ziehen.
     function px(distM) { return padL + ((distM - dTrimStart) / dTrimSpan) * plotW; }
     function py(ele)   { return padT + (1 - (ele - eleLo) / eleSpan) * plotH; }
+
+    // v0.9.403 — Zonen-Gradient (Fläche/Hintergrund/Linie): baut eine vertikale
+    // <linearGradient> nach Höhe und gibt die url zurück (oder null bei keinen Zonen).
+    function _zoneGradUrl(gradId, stops, baseColor, bands) {
+      const valid = (stops || []).filter(s => isFinite(+s.ele));
+      if (!valid.length) return null;
+      const NS = "http://www.w3.org/2000/svg";
+      const grad = document.createElementNS(NS, "linearGradient");
+      grad.setAttribute("id", gradId);
+      grad.setAttribute("gradientUnits", "userSpaceOnUse");
+      grad.setAttribute("x1", padL); grad.setAttribute("x2", padL);
+      grad.setAttribute("y1", py(eleHi).toFixed(1)); grad.setAttribute("y2", py(eleLo).toFixed(1));
+      _rzFillStops(baseColor, valid, eleHi, eleSpan, bands).forEach(st => {
+        const s = document.createElementNS(NS, "stop");
+        s.setAttribute("offset", (st.off * 100).toFixed(2) + "%");
+        s.setAttribute("stop-color", st.color);
+        grad.appendChild(s);
+      });
+      let defs = svg.querySelector("defs.rz-zone-defs");
+      if (!defs) { defs = document.createElementNS(NS, "defs"); defs.setAttribute("class", "rz-zone-defs"); svg.insertBefore(defs, svg.firstChild); }
+      defs.appendChild(grad);
+      return "url(#" + gradId + ")";
+    }
+
+    // v0.9.403 — Hintergrund-Höhenstufen: färbt den Hintergrund nach Höhe (liegt
+    // über dem flachen bg-Rect, unter Gitter/Linie/Fläche).
+    if (_bgStops.length) {
+      const bgUrl = _zoneGradUrl("rzBgGrad", _bgStops, bg, document.getElementById("height-bg-mode")?.value === "bands");
+      if (bgUrl) {
+        // v0.9.404 — optional nur im Diagramm-Bereich (innerhalb der Achsen) statt Vollbild
+        const clip = document.getElementById("height-bg-clip")?.checked === true;
+        const r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        r.setAttribute("x", clip ? String(padL) : "0");
+        r.setAttribute("y", clip ? String(padT) : "0");
+        r.setAttribute("width", clip ? String(plotW) : w);
+        r.setAttribute("height", clip ? String(plotH) : h);
+        r.setAttribute("fill", bgUrl);
+        svg.appendChild(r);
+      }
+    }
 
     // Hilfsgitter
     if (showGrid) {
@@ -735,19 +1007,20 @@ function mountHeightAnim(body, headerActions) {
       partialD += ` L${endX.toFixed(1)} ${endY.toFixed(1)}`;
     }
 
-    if (_progress > 0) {
+    if (_progress > 0 && areaFill && areaOp > 0) {
       const fillD = partialD + ` L${endX.toFixed(1)} ${baseline} L${px(dists[_i0]).toFixed(1)} ${baseline} Z`;
       const fillPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
       fillPath.setAttribute("d", fillD);
-      fillPath.setAttribute("fill", lc);
-      fillPath.setAttribute("opacity", "0.18");
+      fillPath.setAttribute("fill", _zoneGradUrl("rzFillGrad", _fillStops, areaColor, areaBands) || areaColor);
+      fillPath.setAttribute("opacity", String(areaOp));
       svg.appendChild(fillPath);
     }
     if (_progress > 0) {
+      const lineStroke = _zoneGradUrl("rzLineGrad", _lineStops, lc, document.getElementById("height-line-mode")?.value === "bands") || lc;
       const linePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
       linePath.setAttribute("d", partialD);
       linePath.setAttribute("fill", "none");
-      linePath.setAttribute("stroke", lc);
+      linePath.setAttribute("stroke", lineStroke);
       linePath.setAttribute("stroke-width", String(lw));
       linePath.setAttribute("stroke-linejoin", "round");
       linePath.setAttribute("stroke-linecap", "round");
@@ -763,7 +1036,7 @@ function mountHeightAnim(body, headerActions) {
     };
 
     // ── Marker (Punkt am Ende der gezeichneten Linie) ──────────────────
-    if (showMarker && _progress > 0) {
+    if (showDot && _progress > 0) {
       // Glow
       const glow = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       glow.setAttribute("cx", endX.toFixed(1));
@@ -980,7 +1253,12 @@ function mountHeightAnim(body, headerActions) {
         _gpxWaypoints = Array.isArray(res.gpx_waypoints) ? res.gpx_waypoints : [];
         _progress = 0;
         setProgressUi(0);
-        try { renderWaypointList(); } catch (_) {}
+        // v0.9.401 — Projekt-State JETZT (erneut) anwenden: beim Kaltstart war
+        // `_activeProject` beim Modul-Mount noch null (Session lädt async), daher
+        // griffen gespeicherte Farben/Trim/Wegpunkte nicht. Jetzt — nach dem GPX-Load
+        // — ist das Projekt da → Farben + Einstellungen werden gesetzt. (Marc-Bug
+        // „merkt sich die Farben nicht".)
+        try { reloadProjectStateFromActive({ refreshUi: true }); } catch (_) {}
         drawElevationSvg();
         // Auto-Play: direkt loslegen sobald ein neuer Track geladen ist
         startPlay();
@@ -1019,6 +1297,9 @@ function mountHeightAnim(body, headerActions) {
       wpSources: Object.assign({}, _wpSources),
       wpHidden: Object.assign({}, _wpHidden),
       manualWps: _manualWps.map(w => ({ id: w.id, dist_frac: w.dist_frac, label: w.label, color: w.color })),
+      fillStops: _fillStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
+      bgStops: _bgStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
+      lineStops: _lineStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
     };
   }
   function _haUndoRestoreState(x) {
@@ -1031,6 +1312,13 @@ function mountHeightAnim(body, headerActions) {
     _manualWps = Array.isArray(x.manualWps)
       ? x.manualWps.map(w => ({ id: w.id || ("m" + (_wpSeq++)), dist_frac: +w.dist_frac || 0, label: w.label || "", color: w.color || "#ff6b35" }))
       : _manualWps;
+    const _mapZoneU = (a, cur) => (Array.isArray(a)
+      ? a.map(s => ({ id: s.id || ("z" + (_zoneSeq++)), ele: +s.ele || 0, color: s.color || "#88cc66" }))
+      : cur);
+    _fillStops = _mapZoneU(x.fillStops, _fillStops);
+    _bgStops = _mapZoneU(x.bgStops, _bgStops);
+    _lineStops = _mapZoneU(x.lineStops, _lineStops);
+    try { renderAllZones(); } catch (_) {}
     // Fixe Checkboxen an den JS-State angleichen (ohne erneutes Push zu triggern —
     // wir setzen .checked direkt, kein dispatch).
     const _sync = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
@@ -1061,9 +1349,11 @@ function mountHeightAnim(body, headerActions) {
 
   // ── Event-Bindings ─────────────────────────────────────────────────────
   // Optik-Inputs re-drawen den aktuellen Frame
-  ["height-bg", "height-color", "height-lw", "height-grid", "height-axes", "height-marker",
+  ["height-bg", "height-color", "height-lw", "height-smoothing", "height-grid", "height-axes", "height-marker",
    "height-grid-color", "height-label-color",
-   "height-marker-dot-color", "height-marker-dot-size", "height-marker-bg", "height-marker-bg-op",
+   "height-area-fill", "height-area-color", "height-area-op", "height-area-mode",
+   "height-bg-mode", "height-bg-clip", "height-line-mode",
+   "height-marker-dot", "height-marker-dot-color", "height-marker-dot-size", "height-marker-bg", "height-marker-bg-op",
    "height-marker-border", "height-marker-bw", "height-marker-fs",
    "height-marker-icon", "height-marker-ele", "height-marker-dist", "height-gradient"]
     .forEach(id => {
@@ -1095,6 +1385,102 @@ function mountHeightAnim(body, headerActions) {
       sp.textContent = _rzFieldLabel(id);
       row.appendChild(cb); row.appendChild(sp); host.appendChild(row);
     }
+  }
+  // v0.9.402 — Füll-Farbzonen-Editor (ab Höhe X wechselt die Füllfarbe)
+  // v0.9.403 — generischer Farbzonen-Editor für ein Ziel (fill/bg/line)
+  function renderZoneStops(key) {
+    const cfg = _zoneCfg(key);
+    const arr = cfg.get();
+    const host = document.getElementById(cfg.listId);
+    if (!host) return;
+    host.innerHTML = "";
+    if (!arr.length) {
+      host.innerHTML = `<p class="muted" style="font-size:11px; margin:4px 0;">${t("heightanim.fill.empty", "Keine Farbzonen — die Basisfarbe gilt für die ganze Fläche.")}</p>`;
+      return;
+    }
+    // Anzeige nach Höhe absteigend (oben = hohe Lagen)
+    const order = arr.map((s, i) => ({ s, i })).sort((a, b) => (+b.s.ele) - (+a.s.ele));
+    for (const { s, i } of order) {
+      const row = document.createElement("div");
+      row.className = "height-wp-row";
+      const num = document.createElement("input");
+      num.type = "number"; num.step = "50";
+      num.value = (s.ele != null ? s.ele : 0);
+      num.className = "height-fill-ele";
+      num.style.cssText = "width:74px; margin-right:4px;";
+      num.title = t("heightanim.fill.ele_tip", "Ab dieser Höhe (m) gilt die Farbe");
+      let _numPushed = false;
+      num.addEventListener("pointerdown", () => { _numPushed = false; });
+      num.addEventListener("input", () => {
+        if (!_numPushed) { _haPushUndo("Farbzone-Höhe geändert"); _numPushed = true; }
+        s.ele = parseFloat(num.value) || 0;
+        persistHeightWaypoints(); drawElevationSvg();
+      });
+      num.addEventListener("change", () => { _numPushed = false; renderZoneStops(key); });
+      const unit = document.createElement("span");
+      unit.textContent = "m"; unit.style.cssText = "opacity:0.6; margin-right:8px; font-size:12px;";
+      const cpick = document.createElement("input");
+      cpick.type = "color"; cpick.value = s.color || "#88cc66"; cpick.className = "height-wp-color";
+      let _colPushed = false;
+      cpick.addEventListener("pointerdown", () => { _colPushed = false; });
+      cpick.addEventListener("input", () => {
+        if (!_colPushed) { _haPushUndo("Farbzone-Farbe geändert"); _colPushed = true; }
+        s.color = cpick.value; persistHeightWaypoints(); drawElevationSvg();
+      });
+      cpick.addEventListener("change", () => { _colPushed = false; });
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "height-wp-del"; del.textContent = "✕";
+      del.title = t("heightanim.fill.delete", "Farbzone löschen");
+      del.addEventListener("click", () => {
+        _haPushUndo("Farbzone gelöscht");
+        cfg.get().splice(i, 1);
+        persistHeightWaypoints(); renderZoneStops(key); drawElevationSvg();
+      });
+      row.appendChild(num); row.appendChild(unit); row.appendChild(cpick); row.appendChild(del);
+      host.appendChild(row);
+    }
+  }
+  function renderAllZones() {
+    renderZoneStops("fill"); renderZoneStops("bg"); renderZoneStops("line");
+  }
+  // Eine neue Zone von Hand hinzufügen (Default-Höhe = Mitte des Höhenbereichs)
+  function addZoneStop(key) {
+    const cfg = _zoneCfg(key);
+    _haPushUndo("Farbzone hinzugefügt");
+    let defEle = 1000;
+    try {
+      const es = _currentData && _currentData.elevations;
+      if (es && es.length) {
+        let mn = Infinity, mx = -Infinity;
+        for (const e of es) { if (e == null) continue; if (e < mn) mn = e; if (e > mx) mx = e; }
+        if (isFinite(mn) && isFinite(mx)) defEle = Math.round((mn + mx) / 2);
+      }
+    } catch (_) {}
+    cfg.get().push({ id: "z" + (_zoneSeq++), ele: defEle, color: cfg.base() });
+    persistHeightWaypoints(); renderZoneStops(key); drawElevationSvg();
+  }
+  // v0.9.403 — „N Stufen anlegen": Höhenbereich des Tracks in N gleiche Bänder teilen
+  // und automatisch Zonen mit Terrain-Farbrampe erzeugen (danach frei editierbar).
+  function genZoneStops(key) {
+    const cfg = _zoneCfg(key);
+    const n = Math.max(2, Math.min(12, parseInt(document.getElementById(cfg.stepsId)?.value || "4", 10) || 4));
+    const es = _currentData && _currentData.elevations;
+    if (!es || !es.length) {
+      try { if (typeof toast === "function") toast(t("heightanim.fill.no_track", "Erst einen Track (GPX) laden."), "info", 1600); } catch (_) {}
+      return;
+    }
+    let mn = Infinity, mx = -Infinity;
+    for (const e of es) { if (e == null) continue; if (e < mn) mn = e; if (e > mx) mx = e; }
+    if (!isFinite(mn) || !isFinite(mx) || mx <= mn) return;
+    _haPushUndo("Höhenstufen erzeugt");
+    const range = mx - mn;
+    const stops = [];
+    for (let k = 0; k < n; k++) {
+      const ele = Math.round((mn + range * k / n) / 10) * 10;   // untere Grenze jedes Bandes
+      stops.push({ id: "z" + (_zoneSeq++), ele, color: _rzRampColor(n > 1 ? k / (n - 1) : 0) });
+    }
+    cfg.set(stops);
+    persistHeightWaypoints(); renderZoneStops(key); drawElevationSvg();
   }
   // Liste aller Wegpunkte (manuell editierbar; Quellen ausblendbar)
   function renderWaypointList() {
@@ -1170,6 +1556,7 @@ function mountHeightAnim(body, headerActions) {
   }
   renderHeaderFields();
   renderWaypointList();
+  renderAllZones();
 
   // Header/Steigung-Toggles
   const _hdrCb = document.getElementById("height-header");
@@ -1231,6 +1618,17 @@ function mountHeightAnim(body, headerActions) {
     updateLabel("height-fps-v", e.target.value, ""));
   document.getElementById("height-lw")?.addEventListener("input", e =>
     updateLabel("height-lw-v", parseFloat(e.target.value).toFixed(1), " px"));
+  document.getElementById("height-smoothing")?.addEventListener("input", e =>
+    updateLabel("height-smoothing-v", e.target.value, ""));
+  document.getElementById("height-area-op")?.addEventListener("input", e =>
+    updateLabel("height-area-op-v", e.target.value, " %"));
+  // v0.9.402/403 — Farbzonen-Buttons für Fläche / Hintergrund / Linie
+  document.getElementById("height-area-add-stop")?.addEventListener("click", () => addZoneStop("fill"));
+  document.getElementById("height-area-gen")?.addEventListener("click", () => genZoneStops("fill"));
+  document.getElementById("height-bg-add-stop")?.addEventListener("click", () => addZoneStop("bg"));
+  document.getElementById("height-bg-gen")?.addEventListener("click", () => genZoneStops("bg"));
+  document.getElementById("height-line-add-stop")?.addEventListener("click", () => addZoneStop("line"));
+  document.getElementById("height-line-gen")?.addEventListener("click", () => genZoneStops("line"));
   // Marker-Slider-Labels (v0.9.396)
   document.getElementById("height-marker-dot-size")?.addEventListener("input", e =>
     updateLabel("height-marker-dot-size-v", e.target.value, " px"));
@@ -1508,8 +1906,22 @@ function mountHeightAnim(body, headerActions) {
       grid_enabled: document.getElementById("height-grid")?.checked !== false,
       show_axes: document.getElementById("height-axes")?.checked !== false,
       show_marker: document.getElementById("height-marker")?.checked !== false,
+      marker_show_dot: document.getElementById("height-marker-dot")?.checked !== false,
       grid_color: document.getElementById("height-grid-color")?.value || "#3a3a3a",
       label_color: document.getElementById("height-label-color")?.value || "#cccccc",
+      smoothing: parseInt(document.getElementById("height-smoothing")?.value || "0", 10),
+      // v0.9.402 — Fläche unter der Linie + Höhen-Farbzonen
+      area_fill: document.getElementById("height-area-fill")?.checked !== false,
+      area_color: document.getElementById("height-area-color")?.value || "#ff6b35",
+      area_opacity: parseInt(document.getElementById("height-area-op")?.value || "18", 10),
+      area_mode: document.getElementById("height-area-mode")?.value || "smooth",
+      fill_stops: _fillStops.map(s => ({ ele: +s.ele || 0, color: s.color || "#88cc66" })),
+      // v0.9.403 — Höhen-Farbzonen für Hintergrund + Linie
+      bg_mode: document.getElementById("height-bg-mode")?.value || "smooth",
+      bg_clip: document.getElementById("height-bg-clip")?.checked === true,
+      bg_stops: _bgStops.map(s => ({ ele: +s.ele || 0, color: s.color || "#1a1a1a" })),
+      line_mode: document.getElementById("height-line-mode")?.value || "smooth",
+      line_stops: _lineStops.map(s => ({ ele: +s.ele || 0, color: s.color || "#ff6b35" })),
       marker_dot_color: document.getElementById("height-marker-dot-color")?.value || "#ffffff",
       marker_dot_size: parseFloat(document.getElementById("height-marker-dot-size")?.value || "6"),
       marker_bg: document.getElementById("height-marker-bg")?.value || "#000000",

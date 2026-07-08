@@ -14,6 +14,31 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.405] – 2026-07-08
+### Geändert
+- **Höhen-Animator: laufender Punkt getrennt schaltbar** (Marc) — der Marker besteht jetzt aus zwei unabhängigen Schaltern: **„Punkt zeigen (zeichnet die Linie)"** für den laufenden Punkt und **„Info-Box zeigen"** für die Info-Box am Marker (vorher „Marker zeigen", das beides gleichzeitig steuerte). So kann man die Info-Box komplett ausschalten und den Punkt trotzdem behalten (oder umgekehrt). Punktfarbe/-größe gelten wie bisher für den Punkt. Persistiert + Undo; WYSIWYG in Vorschau, Video-Render und HTML-Export.
+
+## [0.9.404] – 2026-07-08
+### Hinzugefügt
+- **Höhen-Animator: Option „Hintergrund-Höhenstufen nur im Diagramm-Bereich"** (Marc) — neue Checkbox in der Sektion „Hintergrund-Höhenstufen". Aktiviert man sie, wird der Höhen-Farbverlauf des Hintergrunds **nur innerhalb des Achsen-Rahmens** (dort wo auch die Höhenlinie/Fläche liegt) gezeichnet; außerhalb bleibt die normale Hintergrundfarbe. WYSIWYG in Vorschau, Video-Render und HTML-Export; persistiert + Undo.
+
+## [0.9.403] – 2026-07-07
+### Hinzugefügt
+- **Höhen-Animator: „N Höhenstufen anlegen"-Generator** (Marc) — man gibt eine Zahl (z. B. 4) ein und der Höhenbereich des Tracks wird automatisch in N gleiche Stufen geteilt und mit einer Terrain-Farbrampe (Grün → Braun → Weiß) belegt. Die erzeugten Zonen bleiben **von Hand editierbar** (Höhe/Farbe/löschen). Vorhanden für alle drei Farbzonen-Ziele.
+- **Höhen-Farbzonen jetzt auch für Hintergrund und Linie** (Marc) — zwei neue Sektionen „Hintergrund-Höhenstufen" und „Linien-Höhenstufen" färben den Hintergrund bzw. die Höhenlinie nach Höhe ein (gleiche Logik wie die Flächen-Zonen: Basisfarbe unten, ab jeder Höhe Farbwechsel, umschaltbar weich/hart). WYSIWYG in Vorschau, Video-Render und HTML-Export; volle Persistenz + Undo. i18n DE/EN/ES.
+
+## [0.9.402] – 2026-07-07
+### Hinzugefügt
+- **Höhen-Animator: Fläche unter der Linie konfigurierbar + Höhen-Farbzonen** (Marc). Neue Sektion „Fläche unter der Linie": **füllen an/aus**, **Füllfarbe** und **Deckkraft** (0–100 %) frei einstellbar (vorher fest Linienfarbe bei 18 %). Dazu **Farbzonen nach Höhe**: beliebig viele Höhen-Stützpunkte definieren, ab denen die Füllfarbe wechselt (Reliefkarten-Look, z. B. Grün → Braun → Weiß). Umschaltbar zwischen **weichem Farbverlauf** und **harten Bändern**. WYSIWYG in Vorschau, Video-Render und HTML-Export; volle Persistenz + Undo (⌘Z). i18n DE/EN/ES.
+
+## [0.9.401] – 2026-07-07
+### Behoben
+- **Höhen-Animator: Farben/Einstellungen werden nach App-Neustart wieder angewandt** (Marc: „der merkt sich die Farben nicht"). Der v0.9.399-Restore lief nur **einmal beim Modul-Mount** — zu früh: beim Kaltstart mountet das Modul, **bevor** die Session/das Projekt async geladen ist (`getActiveProject()` liefert dann noch `null` → nichts wird angewandt). Die Werte lagen korrekt auf der Platte (`heightanim.controls`), wurden aber nie zurückgespielt. Fix: der komplette Projekt-State (Farben, Marker, Auflösung, Glättung, Trim, Info-Leiste, Wegpunkte) wird jetzt in `reloadProjectStateFromActive()` gebündelt und **erneut nach dem GPX-Load** angewandt (dann ist das Projekt garantiert da — `sessionActivate` läuft vor `notifyGpxLoaded`).
+
+## [0.9.400] – 2026-07-07
+### Hinzugefügt
+- **Höhen-Animator: Glättungs-Regler** (Marc: „bau noch einen Glättungsfaktor ein, damit es nicht ganz so zackig aussieht") — neuer Slider „Glättung" (0–20) in der Optik-Sektion. Wendet einen zentrierten gleitenden Mittelwert über die Höhendaten an, sodass zackige Profile (viele GPS-Punkte mit kleinen Höhensprüngen) sanfter aussehen. WYSIWYG: Linie, Fläche, Info-Leiste, Steigung am Marker und Wegpunkt-Höhen nutzen alle die geglätteten Werte. Wirkt in Vorschau, Video-Render und HTML-Export identisch. i18n DE/EN/ES.
+
 ## [0.9.399] – 2026-07-07
 ### Geändert
 - **Höhen-Animator HTML-Export: Ergebnis erscheint jetzt als zentriertes Fenster** (Marc) — gut sichtbar in der Bildschirmmitte (statt klein in der Sidebar), mit dem kopierbaren Snippet und Buttons.

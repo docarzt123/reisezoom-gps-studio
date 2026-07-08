@@ -503,6 +503,19 @@ Jeder Punkt **taucht animiert auf, sobald die Linie ihn erreicht**. Einzelne Pun
 
 **Farben (seit v0.9.395):** In der „Optik"-Sektion wählst du neben Hintergrund und Linienfarbe jetzt auch **Gitterfarbe** (Hilfsgitter) und **Beschriftungsfarbe** (Achsen, Info-Leiste, Marker-Callout).
 
+**Glättung (seit v0.9.400):** Der Regler **„Glättung"** in der Optik-Sektion (0–20) macht zackige Profile weicher — hilfreich bei Tracks mit vielen GPS-Punkten und kleinen Höhensprüngen. Er legt einen gleitenden Mittelwert über die Höhendaten; 0 = Rohdaten, höhere Werte = glatter. Die Glättung wirkt WYSIWYG auf alles: Linie, Fläche, Info-Leiste, die Steigung am Marker und die Punkt-Höhen — in Vorschau, Video-Render und HTML-Export gleich.
+
+**Fläche unter der Linie (seit v0.9.402):** In der Sektion **„Fläche unter der Linie"** legst du fest, **ob** die Fläche unter der Kurve gefüllt wird, in welcher **Füllfarbe** und mit welcher **Deckkraft** (0–100 %).
+Darunter kannst du **Farbzonen nach Höhe** anlegen: Mit „**Höhe hinzufügen**" definierst du eine Höhe (in Metern) plus Farbe — **ab dieser Höhe** wechselt die Füllfarbe. So entsteht der klassische Reliefkarten-Look (z. B. Grün im Tal, Braun in mittleren Lagen, Weiß am Gipfel). Unterhalb der niedrigsten Zone gilt die normale Füllfarbe. Über **Farbübergang** wählst du zwischen **weichem Verlauf** (die Farben blenden ineinander) und **harten Bändern** (die Farbe springt an jeder Höhe um). Ohne Zonen wird einfach die Füllfarbe für die ganze Fläche verwendet.
+
+**Höhenstufen automatisch anlegen (seit v0.9.403):** Statt jede Zone von Hand zu setzen, gibst du bei **„Anzahl Stufen"** eine Zahl ein (z. B. 4) und klickst **„Stufen anlegen"** — der Höhenbereich deines Tracks wird dann automatisch in so viele gleich große Stufen geteilt und mit einer Terrain-Farbrampe (Grün → Braun → Weiß) belegt. Die erzeugten Stufen kannst du danach ganz normal weiter editieren (Höhe/Farbe ändern, löschen, ergänzen).
+
+**Höhenstufen für Hintergrund und Linie (seit v0.9.403):** Dieselben Höhen-Farbzonen gibt es zusätzlich in den Sektionen **„Hintergrund-Höhenstufen"** und **„Linien-Höhenstufen"**. Damit färbst du den **Hintergrund** bzw. die **Höhenlinie** nach Höhe ein — jeweils mit demselben Generator, Zonen-Editor und weich/hart-Umschalter. Die Basisfarbe ist die jeweilige Grundfarbe aus der Optik-Sektion („Hintergrund" bzw. „Linienfarbe").
+
+**Punkt & Info-Box getrennt (seit v0.9.405):** In der Sektion „Marker" gibt es zwei unabhängige Schalter: **„Punkt zeigen (zeichnet die Linie)"** steuert den laufenden Punkt an der Spitze der Animation, **„Info-Box zeigen"** steuert die Info-Box daneben. Damit kannst du z. B. die Info-Box komplett ausschalten und trotzdem den Punkt behalten (oder umgekehrt). Punktfarbe und Punktgröße darüber gelten für den Punkt.
+
+**Hintergrund nur im Diagramm (seit v0.9.404):** In der Sektion „Hintergrund-Höhenstufen" gibt es die Checkbox **„Nur im Diagramm-Bereich (innerhalb der Achsen)"**. Ist sie aktiv, wird der Höhen-Farbverlauf des Hintergrunds nur **innerhalb des Achsen-Rahmens** gezeichnet (genau dort, wo die Höhenlinie und die Fläche liegen) — der Rand rundherum behält die normale Hintergrundfarbe. Ohne Häkchen färbt der Verlauf wie bisher das ganze Bild.
+
 **Marker konfigurieren (seit v0.9.396):** Die eigene Sektion **„Marker"** macht den laufenden Punkt und seine Info-Box komplett gestaltbar: **Punktfarbe + -größe**; für die Box **Hintergrundfarbe + Deckkraft, Randfarbe + Randdicke, Schriftgröße**; und welche Werte drinstehen — **⛰-Symbol, Höhe, Steigung (%), Distanz** je einzeln an-/abschaltbar (die Box passt ihre Größe automatisch an).
 
 **Rückgängig:** **⌘Z / Strg+Z** nimmt im Höhen-Animator **alles** zurück — Optik, Farben, Info-Leiste-Felder, Wegpunkte und Quellen-Schalter (ein Druck pro Schritt).

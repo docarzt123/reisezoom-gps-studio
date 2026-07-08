@@ -129,7 +129,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.399"
+APP_VERSION = "0.9.405"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -732,8 +732,20 @@ def _height_visual_cfg_kwargs(params: dict) -> dict:
         grid_enabled=bool(params.get("grid_enabled", True)),
         show_axes=bool(params.get("show_axes", True)),
         show_marker=bool(params.get("show_marker", True)),
+        marker_show_dot=bool(params.get("marker_show_dot", True)),
         grid_color=params.get("grid_color", "#3a3a3a"),
         label_color=params.get("label_color", "#cccccc"),
+        smoothing=int(params.get("smoothing", 0)),
+        area_fill=bool(params.get("area_fill", True)),
+        area_color=params.get("area_color", "#ff6b35"),
+        area_opacity=int(params.get("area_opacity", 18)),
+        area_mode=params.get("area_mode", "smooth"),
+        fill_stops=params.get("fill_stops", []) or [],
+        bg_mode=params.get("bg_mode", "smooth"),
+        bg_clip=bool(params.get("bg_clip", False)),
+        bg_stops=params.get("bg_stops", []) or [],
+        line_mode=params.get("line_mode", "smooth"),
+        line_stops=params.get("line_stops", []) or [],
         marker_dot_color=params.get("marker_dot_color", "#ffffff"),
         marker_dot_size=float(params.get("marker_dot_size", 6.0)),
         marker_bg=params.get("marker_bg", "#000000"),

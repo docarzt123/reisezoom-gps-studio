@@ -85,8 +85,22 @@ class HeightConfig:
     grid_enabled: bool = True
     show_axes: bool = True
     show_marker: bool = True
+    marker_show_dot: bool = True         # v0.9.405 — laufender Punkt (zeichnet die Linie), unabhängig von der Info-Box
     grid_color: str = "#3a3a3a"          # v0.9.394 — Gitterfarbe (frei wählbar)
     label_color: str = "#cccccc"         # v0.9.394 — Beschriftungsfarbe (Achsen/Header/Callout)
+    smoothing: int = 0                   # v0.9.400 — Glättung: Radius (Punkte je Seite) für gleitenden Mittelwert der Höhen; 0 = aus
+    # v0.9.402 — Fläche unter der Linie: an/aus, Farbe, Deckkraft (0..100) + Höhen-Farbzonen.
+    area_fill: bool = True
+    area_color: str = "#ff6b35"
+    area_opacity: int = 18               # Prozent (0..100)
+    area_mode: str = "smooth"            # "smooth" (weicher Verlauf) | "bands" (harte Bänder)
+    fill_stops: list = field(default_factory=list)  # [{"ele": float, "color": "#rrggbb"}] — ab jeder Höhe wechselt die Füllfarbe
+    # v0.9.403 — Höhen-Farbzonen auch für Hintergrund + Linie (gleiche Semantik wie fill_stops)
+    bg_mode: str = "smooth"
+    bg_clip: bool = False                 # v0.9.404 — Hintergrund-Verlauf nur im Diagramm-Bereich
+    bg_stops: list = field(default_factory=list)
+    line_mode: str = "smooth"
+    line_stops: list = field(default_factory=list)
     # v0.9.394 — Sachliche Info-Leiste + Steigung am Marker + Wegpunkte.
     show_stats_header: bool = True
     # Welche Stat-Felder in der Kopf-Leiste (Reihenfolge = Anzeige-Reihenfolge).
@@ -156,6 +170,7 @@ const LW = {float(cfg.line_width)};
 const SHOW_GRID = {str(cfg.grid_enabled).lower()};
 const SHOW_AXES = {str(cfg.show_axes).lower()};
 const SHOW_MARKER = {str(cfg.show_marker).lower()};
+const MK_SHOW_DOT = {str(bool(cfg.marker_show_dot)).lower()};
 const TRIM_S = {float(cfg.trim_start)};
 const TRIM_E = {float(cfg.trim_end)};
 const GRID_COLOR = {json.dumps(grid_color)};
@@ -198,9 +213,58 @@ const FONT_SIZE = Math.round(20 * SCALE);
 const AXES_FONT = `${{FONT_SIZE}}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
 const STATS_FONT = `${{Math.round(22 * SCALE)}}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
 
+// v0.9.400 — Glättung: gleitender Mittelwert über die Höhen (Radius r Punkte
+// je Seite). SYNCHRON zu modules/heightanim/ui/module.js (_rzSmooth).
+const SMOOTHING = {int(cfg.smoothing)};
+function _rzSmooth(arr, r) {{
+  r = Math.round(r || 0);
+  if (r <= 0 || !arr || arr.length < 3) return (arr || []).slice();
+  const n = arr.length, out = new Array(n);
+  for (let i = 0; i < n; i++) {{
+    let s = 0, c = 0;
+    const lo = Math.max(0, i - r), hi = Math.min(n - 1, i + r);
+    for (let j = lo; j <= hi; j++) {{ const v = arr[j]; if (v != null) {{ s += v; c++; }} }}
+    out[i] = c ? s / c : arr[i];
+  }}
+  return out;
+}}
+
+// v0.9.402 — Fläche unter der Linie: füllen? Farbe? Deckkraft? Höhen-Farbzonen?
+// SYNCHRON zu modules/heightanim/ui/module.js (_rzFillStops).
+const AREA_FILL = {str(bool(cfg.area_fill)).lower()};
+const AREA_COLOR = {json.dumps(cfg.area_color)};
+const AREA_OP = {float(cfg.area_opacity) / 100.0};
+const AREA_BANDS = {str(cfg.area_mode == "bands").lower()};
+const FILL_STOPS = {json.dumps([{"ele": float(s.get("ele", 0)), "color": s.get("color", "#88cc66")} for s in (cfg.fill_stops or [])])};
+// v0.9.403 — Höhen-Farbzonen für Hintergrund + Linie
+const BG_BANDS = {str(cfg.bg_mode == "bands").lower()};
+const BG_CLIP = {str(bool(cfg.bg_clip)).lower()};
+const BG_STOPS = {json.dumps([{"ele": float(s.get("ele", 0)), "color": s.get("color", "#1a1a1a")} for s in (cfg.bg_stops or [])])};
+const LINE_BANDS = {str(cfg.line_mode == "bands").lower()};
+const LINE_STOPS = {json.dumps([{"ele": float(s.get("ele", 0)), "color": s.get("color", "#ff6b35")} for s in (cfg.line_stops or [])])};
+function _rzFillStops(baseColor, stops, eHiV, eSpanV, bands) {{
+  const pts = [];
+  (stops || []).forEach(s => {{
+    const e = +s.ele;
+    if (!isFinite(e)) return;
+    pts.push({{ off: Math.max(0, Math.min(1, (eHiV - e) / (eSpanV || 1))), color: s.color || "#ffffff" }});
+  }});
+  pts.push({{ off: 1, color: baseColor }});
+  pts.sort((a, b) => a.off - b.off);
+  if (!bands) return pts;
+  const out = [];
+  let prev = 0;
+  for (let k = 0; k < pts.length; k++) {{
+    out.push({{ off: prev, color: pts[k].color }});
+    out.push({{ off: pts[k].off, color: pts[k].color }});
+    prev = pts[k].off;
+  }}
+  return out;
+}}
+
 // Trim: virtuelles Distanz-Fenster
 const dists = DATA.distances_m;
-const elevs = DATA.elevations;
+const elevs = _rzSmooth(DATA.elevations, SMOOTHING);
 const N = dists.length;
 const dMax = dists[N-1] || 1;
 const dTrimStart = TRIM_S * dMax;
@@ -253,6 +317,24 @@ function svgNS(tag, attrs, text) {{
   if (attrs) for (const k in attrs) el.setAttribute(k, attrs[k]);
   if (text != null) el.textContent = text;
   return el;
+}}
+
+// v0.9.403 — Zonen-Gradient nach Höhe (SYNCHRON zu module.js _zoneGradUrl). Baut
+// eine vertikale <linearGradient> und gibt die url zurück (oder null bei keinen Zonen).
+function _rzZoneGrad(id, stops, baseColor, bands) {{
+  const valid = (stops || []).filter(s => isFinite(+s.ele));
+  if (!valid.length) return null;
+  const grad = svgNS("linearGradient", {{
+    id: id, gradientUnits: "userSpaceOnUse",
+    x1: PAD_L, x2: PAD_L, y1: py(eHi).toFixed(1), y2: py(eLo).toFixed(1),
+  }});
+  _rzFillStops(baseColor, valid, eHi, eSpan, bands).forEach(st => {{
+    grad.appendChild(svgNS("stop", {{ offset: (st.off * 100).toFixed(2) + "%", "stop-color": st.color }}));
+  }});
+  let defs = svg.querySelector("defs.rz-zone-defs");
+  if (!defs) {{ defs = svgNS("defs", {{ "class": "rz-zone-defs" }}); svg.insertBefore(defs, svg.firstChild); }}
+  defs.appendChild(grad);
+  return "url(#" + id + ")";
 }}
 
 // ── Profil-Stat-Helfer — SYNCHRON zu ui/js/util.js (rzProfile*) und
@@ -347,8 +429,16 @@ function draw(progress) {{
   while (svg.firstChild) svg.removeChild(svg.firstChild);
 
   // Background (nur wenn nicht transparent — sonst ist der body transparent)
+  // v0.9.403 — optionale Höhen-Farbzonen als Hintergrund-Gradient.
+  // v0.9.404 — BG_CLIP: Verlauf nur im Diagramm-Bereich (flache Basis füllt den Rest).
   if (!TRANSPARENT) {{
-    svg.appendChild(svgNS("rect", {{ x: 0, y: 0, width: W, height: H, fill: BG }}));
+    const _bgUrl = _rzZoneGrad("rzBgGrad", BG_STOPS, BG, BG_BANDS);
+    if (_bgUrl && BG_CLIP) {{
+      svg.appendChild(svgNS("rect", {{ x: 0, y: 0, width: W, height: H, fill: BG }}));
+      svg.appendChild(svgNS("rect", {{ x: PAD_L, y: PAD_T, width: PLOT_W, height: PLOT_H, fill: _bgUrl }}));
+    }} else {{
+      svg.appendChild(svgNS("rect", {{ x: 0, y: 0, width: W, height: H, fill: _bgUrl || BG }}));
+    }}
   }}
 
   // Hilfsgitter
@@ -420,26 +510,28 @@ function draw(progress) {{
     partialD += " L" + endX.toFixed(1) + " " + endY.toFixed(1);
   }}
 
-  // Fill
-  if (progress > 0) {{
+  // Fill (v0.9.402 — konfigurierbar: an/aus, Farbe, Deckkraft, Höhen-Farbzonen)
+  if (progress > 0 && AREA_FILL && AREA_OP > 0) {{
     const baseline = PAD_T + PLOT_H;
     const fillD = partialD + " L" + endX.toFixed(1) + " " + baseline.toFixed(1)
                 + " L" + px(dists[i0]).toFixed(1) + " " + baseline.toFixed(1) + " Z";
+    const fillVal = _rzZoneGrad("rzFillGrad", FILL_STOPS, AREA_COLOR, AREA_BANDS) || AREA_COLOR;
     svg.appendChild(svgNS("path", {{
-      d: fillD, fill: LC, opacity: 0.18,
+      d: fillD, fill: fillVal, opacity: AREA_OP,
     }}));
   }}
-  // Linie
+  // Linie (v0.9.403 — optionale Höhen-Farbzonen als Stroke-Gradient)
   if (progress > 0) {{
+    const lineStroke = _rzZoneGrad("rzLineGrad", LINE_STOPS, LC, LINE_BANDS) || LC;
     svg.appendChild(svgNS("path", {{
-      d: partialD, fill: "none", stroke: LC,
+      d: partialD, fill: "none", stroke: lineStroke,
       "stroke-width": LW * SCALE,
       "stroke-linejoin": "round", "stroke-linecap": "round",
     }}));
   }}
 
-  // Marker-Punkt (konfigurierbar)
-  if (SHOW_MARKER && progress > 0) {{
+  // Marker-Punkt (konfigurierbar) — v0.9.405: eigener Schalter, unabhängig von der Info-Box
+  if (MK_SHOW_DOT && progress > 0) {{
     svg.appendChild(svgNS("circle", {{
       cx: endX, cy: endY,
       r: MK_DOT_SIZE * 1.8 * SCALE,

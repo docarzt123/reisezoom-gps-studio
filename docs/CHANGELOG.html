@@ -112,9 +112,87 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.405</span>
+    <span class="version-date">8. Juli 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Höhen-Animator: laufenden Punkt und Info-Box getrennt an-/ausschalten.</p>
+
+  <div class="highlight">
+    <strong>⚫ Punkt getrennt schaltbar</strong> — der Marker hat jetzt zwei eigene Schalter: <strong>„Punkt zeigen"</strong> (der laufende Punkt, der die Linie zeichnet) und <strong>„Info-Box zeigen"</strong>. So kannst du z. B. die Info-Box ganz ausblenden und nur den Punkt behalten. Punktfarbe und -größe wie gehabt.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.404</span>
+    <span class="version-date">8. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Höhen-Animator: Hintergrund-Höhenstufen wahlweise nur im Diagramm-Bereich.</p>
+
+  <div class="highlight">
+    <strong>🖼 Nur im Diagramm-Bereich</strong> — neue Option bei den Hintergrund-Höhenstufen: der Höhen-Farbverlauf des Hintergrunds bleibt jetzt auf Wunsch <strong>innerhalb des Achsen-Rahmens</strong> (dort wo die Linie liegt), statt das ganze Bild einzufärben. Außenrum bleibt die normale Hintergrundfarbe.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.403</span>
+    <span class="version-date">7. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Höhen-Animator: Höhenstufen automatisch anlegen — jetzt auch für Hintergrund und Linie.</p>
+
+  <div class="highlight">
+    <strong>🪜 „N Stufen anlegen"</strong> — gib eine Zahl ein (z. B. 4) und der Höhenbereich deines Tracks wird automatisch in gleichmäßige Farbstufen geteilt (Terrain-Rampe Grün → Braun → Weiß). Jede Stufe bleibt frei editierbar.
+  </div>
+  <div class="highlight">
+    <strong>🎨 Höhenstufen für Hintergrund & Linie</strong> — die Höhen-Farbzonen gibt es jetzt in drei neuen Ausführungen: für die <strong>Fläche</strong>, den <strong>Hintergrund</strong> und die <strong>Linie</strong>. So färbt sich z. B. der Hintergrund von tal-grün nach gipfel-weiß, während die Linie eigene Höhenfarben bekommt.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.402</span>
+    <span class="version-date">7. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Höhen-Animator: Fläche unter der Linie frei füllen — mit Farbzonen nach Höhe.</p>
+
+  <div class="highlight">
+    <strong>🎨 Fläche unter der Linie</strong> — in der neuen Sektion „Fläche unter der Linie" stellst du ein, <strong>ob</strong> gefüllt wird, in <strong>welcher Farbe</strong> und wie <strong>stark</strong> (Deckkraft 0–100 %).
+  </div>
+  <div class="highlight">
+    <strong>⛰ Farbzonen nach Höhe</strong> — definiere Höhen, ab denen die Füllfarbe wechselt (z. B. Grün im Tal, Braun am Berg, Weiß am Gipfel — wie eine Reliefkarte). Umschaltbar zwischen <strong>weichem Verlauf</strong> und <strong>harten Bändern</strong>. Alles läuft live in der Vorschau und im fertigen Video.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.401</span>
+    <span class="version-date">7. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Höhen-Animator: gespeicherte Farben & Einstellungen bleiben nach dem Neustart erhalten.</p>
+
+  <div class="highlight">
+    <strong>🎨 Farben werden gemerkt</strong> — deine Farben, Marker-, Auflösungs- und Glättungs-Einstellungen im Höhen-Animator werden jetzt beim App-Neustart wieder korrekt gesetzt. (Sie wurden schon gespeichert, aber beim Start zu früh zurückgeladen — bevor das Projekt bereitstand.)
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.400</span>
+    <span class="version-date">7. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Höhen-Animator: neuer Glättungs-Regler gegen zackige Profile.</p>
+
+  <div class="highlight">
+    <strong>〰️ Glättung</strong> — der neue Regler „Glättung" in der Optik-Sektion glättet zackige Höhenprofile (typisch bei vielen GPS-Punkten mit kleinen Höhensprüngen). Von 0 (Rohdaten) bis 20 (sehr weich); Linie, Fläche, Info-Leiste, Steigung am Marker und Punkt-Höhen laufen alle mit denselben geglätteten Werten — in Vorschau, Video und HTML-Export identisch.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.399</span>
     <span class="version-date">7. Juli 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <p class="version-tagline">Höhen-Animator wie ein echtes Höhenprofil: Info-Leiste, Punkte auf der Strecke, freie Farben, konfigurierbarer Marker, lückenloses Rückgängig — und HTML-Export fürs Blog.</p>
 
