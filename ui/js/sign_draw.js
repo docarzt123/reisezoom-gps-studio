@@ -136,13 +136,27 @@
     var innerW = Math.max(maxw, imgW);
     var boxW = innerW + pad * 2 + arrowW;
     var boxH = (hasImg ? imgH + imgGap : 0) + textH + pad * 2;
+    // v0.9.408 — Sprechblasen-Pfeilrichtung (nur callout/tail): unten|oben|links|rechts.
+    // Eigenes Feld `calloutDir` (NICHT `direction`, das gehört dem Wegweiser/signpost).
+    var calloutDir = "bottom";
+    if (decoration === "tail") {
+      var _cd = o.calloutDir;
+      calloutDir = (_cd === "top" || _cd === "left" || _cd === "right") ? _cd : "bottom";
+    }
+    var tailUp = (decoration === "tail" && calloutDir === "top");
+    var tailLeft = (decoration === "tail" && calloutDir === "left");
+    var tailRight = (decoration === "tail" && calloutDir === "right");
     // Dekorations-Höhe unter der Box
     var decoH = 0, poleH = 0, postH = 0, tailH = 0, pinR = 0, pinGap = 0, pinTipH = 0;
     var decoScale = (o.decoScale != null && !isNaN(Number(o.decoScale))) ? Math.max(0.1, Math.min(2, Number(o.decoScale))) : 0.5;
     if (decoration === "poles") { poleH = Math.round(boxH * decoScale); decoH = poleH; }
     else if (decoration === "post") { postH = Math.round(boxH * decoScale); decoH = postH; }
-    else if (decoration === "tail") { tailH = 8 * dpr; decoH = tailH; }
+    else if (decoration === "tail") { tailH = 8 * dpr; decoH = (calloutDir === "bottom") ? tailH : 0; }
     else if (decoration === "pin") { pinR = Math.max(10 * dpr, fs * 0.42); pinGap = 7 * dpr; pinTipH = 16 * dpr; decoH = pinGap + pinR * 2 + pinTipH; }
+    // Zusatz-Rand für nicht-untenliegende Sprechblasen-Spitzen (oben/links/rechts).
+    var tExtraTop = tailUp ? tailH : 0;
+    var tExtraLeft = tailLeft ? tailH : 0;
+    var tExtraRight = tailRight ? tailH : 0;
 
     // Schatten-Rand (damit der Blur nicht abgeschnitten wird) — unten knapp,
     // damit die Anker-Spitze möglichst am Bildrand bleibt.
@@ -152,8 +166,8 @@
     var ml = shPad, mt = shPad, mr = shPad, mb = shadow ? Math.ceil(shadowBlur * 0.5 + shOffY) : 0;
 
     var contentW = Math.max(boxW, pinR * 2);
-    var W = contentW + ml + mr;
-    var H = boxH + decoH + mt + mb;
+    var W = contentW + ml + mr + tExtraLeft + tExtraRight;
+    var H = boxH + decoH + mt + mb + tExtraTop;
 
     var c = document.createElement("canvas");
     c.width = Math.max(2, Math.ceil(W));
@@ -162,9 +176,10 @@
     ctx.font = FONT;
     ctx.textBaseline = "middle";
 
-    // Box-Ursprung (zentriert horizontal im Content-Bereich)
-    var bx = ml + (contentW - boxW) / 2;
-    var by = mt;
+    // Box-Ursprung (zentriert horizontal im Content-Bereich). tExtraLeft/Top
+    // schieben die Box ein, damit links/oben Platz für die Sprechblasen-Spitze bleibt.
+    var bx = ml + tExtraLeft + (contentW - boxW) / 2;
+    var by = mt + tExtraTop;
 
     var rr = function (x, y, w, h, rad) {
       rad = Math.min(rad, w / 2, h / 2);
@@ -259,11 +274,21 @@
       setShadow(false);
       if (borderW > 0 && borderC) { ctx.lineWidth = borderW; ctx.strokeStyle = borderC; rr(bx + borderW / 2, by + borderW / 2, boxW - borderW, boxH - borderW, radius); ctx.stroke(); }
       if (decoration === "tail" && !boxTransparent) {
-        var tcx = ml + contentW / 2;
+        // v0.9.408 — Sprechblasen-Spitze in gewählter Richtung. Die Spitze sitzt
+        // an der Box-Kante der jeweiligen Seite und ragt um tailH nach außen; ihr
+        // äußerster Punkt fällt (per icon-anchor unten/oben/links/rechts) auf den Geo-Punkt.
+        var half = 7 * dpr;
+        var cxT = bx + boxW / 2, cyT = by + boxH / 2;
         ctx.beginPath();
-        ctx.moveTo(tcx - 7 * dpr, by + boxH - 0.5);
-        ctx.lineTo(tcx + 7 * dpr, by + boxH - 0.5);
-        ctx.lineTo(tcx, by + boxH + tailH);
+        if (calloutDir === "top") {
+          ctx.moveTo(cxT - half, by + 0.5); ctx.lineTo(cxT + half, by + 0.5); ctx.lineTo(cxT, by - tailH);
+        } else if (calloutDir === "left") {
+          ctx.moveTo(bx + 0.5, cyT - half); ctx.lineTo(bx + 0.5, cyT + half); ctx.lineTo(bx - tailH, cyT);
+        } else if (calloutDir === "right") {
+          ctx.moveTo(bx + boxW - 0.5, cyT - half); ctx.lineTo(bx + boxW - 0.5, cyT + half); ctx.lineTo(bx + boxW + tailH, cyT);
+        } else {
+          ctx.moveTo(cxT - half, by + boxH - 0.5); ctx.lineTo(cxT + half, by + boxH - 0.5); ctx.lineTo(cxT, by + boxH + tailH);
+        }
         ctx.closePath();
         ctx.fillStyle = boxFill; ctx.fill();
       }
@@ -305,7 +330,9 @@
       }
     }
 
-    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr };
+    // anchor = auf welchen Bildrand der Geo-Punkt fällt (Sprechblasen-Spitze).
+    // Für alle Nicht-Callout-Stile bleibt es "bottom" (calloutDir default).
+    return { data: ctx.getImageData(0, 0, c.width, c.height), dpr: dpr, anchor: calloutDir };
   }
 
   // ── Pro-Frame: Sichtbarkeits-Fenster + Einblend-Animation ──────────────

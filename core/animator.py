@@ -144,6 +144,32 @@ class AnimatorConfig:
     bearing: float = -10.0              # Fester Kamera-Bearing im Standbild
     padding_pct: float = 8.0            # Fit-Rand in % der kürzeren Achse (Standbild)
     show_pins: bool = False             # Start/End-Pin-Ebene (Tour-Map-Erbe)
+    # v0.9.412 — Snapshot (Animator: aktueller Vorschau-Frame als PNG) + Kamera-
+    # Übernahme (Tour-Map „aus Animator-Blickwinkel"). Ist `snapshot_center` gesetzt,
+    # nutzt render_frame diese EXAKTE Kamera aus der Live-Vorschau statt Bounds-Fit.
+    # `snapshot_anchor` (0..1) = Marker-Position: gesetzt → Teil-Track + laufender
+    # Punkt (Animator-Frame); None → volle Strecke, Punkt aus (Tour-Map-Standbild).
+    snapshot_center: Optional[list] = None      # [lon, lat]
+    snapshot_zoom: Optional[float] = None
+    snapshot_bearing: Optional[float] = None
+    snapshot_pitch: Optional[float] = None
+    snapshot_anchor: Optional[float] = None      # 0..1 Marker-Position; None = volle Strecke
+    snapshot_time_s: float = 0.0                 # für Overlay-Zeitfenster
+    # v0.9.417 — Snapshot bei „ganze Route zeigen" (Vorschau-Toggle preview_full_track):
+    # GESAMTE Track-Linie zeichnen, Punkt bleibt an der Scrubber-Position → Snapshot 1:1
+    # zur Vorschau (voller Track sichtbar statt nur bis zum Scrubber).
+    snapshot_full_track: bool = False
+    # v0.9.415 — Interaktiver HTML-Export der Tour-Karte fürs Blog. Dieselbe
+    # _make_html-Pipeline wie Video/Standbild (identische Karte/Track/Pins/
+    # Schilder via __rzDrawSign → echtes WYSIWYG), aber: KEIN Playwright/Screenshot,
+    # sondern eine eigenständige HTML-Seite die im Besucher-Browser läuft, beim
+    # Laden EINMAL auf die Vorschau-Kamera + volle Strecke springt (advanceFrame)
+    # und danach frei zoom-/pan-bar bleibt. `use_osm` liefert die tokenfreie
+    # OSM-Karte; die drei osm_*-Felder erlauben den gewählten OSM-Kachel-Stil.
+    interactive_export: bool = False
+    osm_tiles_url: Optional[str] = None          # {z}/{x}/{y}(+{s}); None = Standard-OSM
+    osm_max_zoom: int = 19
+    osm_attribution: Optional[str] = None        # Plain-Attribution für die Kachelquelle
     # v0.9.82 (Nutzer-Idee „Erde rotiert in Globe-View") — Spin in deg/sec.
     # Wird PRO FRAME on top auf den interpolierten Bearing addiert, in ALLEN
     # Phasen (Intro/Anim/Hold). 0 = aus. Positive Werte = im Uhrzeigersinn,
@@ -945,12 +971,26 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # OHNE Quotes direkt ins Map-Init injiziert.
     _osm = bool(getattr(cfg, "use_osm", False))
     if _osm:
+        # v0.9.415 — Kachel-Quelle parametrisierbar (gewählter OSM-Stil beim
+        # interaktiven Export). Default = Standard-OSM (wie bisher). `{s}`-Platzhalter
+        # (a/b/c-Subdomains) werden zu expliziten Tile-URLs expandiert (MapLibre
+        # kennt kein {s}). Attribution als Plain-Text ins JS-Single-Quote-Literal.
+        _osm_url = getattr(cfg, "osm_tiles_url", None) or "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        _osm_max = int(getattr(cfg, "osm_max_zoom", 19) or 19)
+        if "{s}" in _osm_url:
+            _tiles = "[" + ",".join(
+                "'" + _osm_url.replace("{s}", sd).replace("'", "\\'") + "'" for sd in ("a", "b", "c")
+            ) + "]"
+        else:
+            _tiles = "['" + _osm_url.replace("'", "\\'") + "']"
+        _osm_attr = getattr(cfg, "osm_attribution", None) or "&copy; OpenStreetMap contributors"
+        _osm_attr = str(_osm_attr).replace("'", "\\'")
         style_expr = (
             "{version:8,"
             "sources:{osm:{type:'raster',"
-            "tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],"
-            "tileSize:256,maxzoom:19,"
-            "attribution:'\\u00A9 <a href=\\'https://www.openstreetmap.org/copyright\\'>OpenStreetMap</a>'}},"
+            "tiles:" + _tiles + ","
+            "tileSize:256,maxzoom:" + str(_osm_max) + ","
+            "attribution:'" + _osm_attr + "'}},"
             "layers:[{id:'osm-tiles',type:'raster',source:'osm',minzoom:0}]}"
         )
     else:
@@ -1243,13 +1283,23 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         # Mapbox-Zoom ist relativ zu CSS-Pixeln → bei dsf>1 (4K=2) wäre der Zoom
         # um log2(dsf) zu hoch. Korrektur: override_zoom - log2(dsf).
         _ov_dsf = _render_dsf(cfg.width, cfg.height)
-        _ov_zoom = cfg.override_zoom - (math.log2(_ov_dsf) if _ov_dsf > 0 else 0.0)
+        # v0.9.415 — Interaktiver Export läuft mit derselben Karten-Engine und in
+        # CSS-Pixeln (kein device_scale_factor wie beim Render) → KEINE dsf-Zoom-
+        # Korrektur, und der Init-Bearing ist die echte Vorschau-Drehung (nicht der
+        # Animations-Start -10). So springt der Export-Bootstrap auf exakt die
+        # Vorschau-Kamera, ohne sichtbaren Dreh/Zoom beim Laden.
+        if getattr(cfg, "interactive_export", False):
+            _ov_zoom = cfg.override_zoom
+            _init_bearing = float(cfg.bearing)
+        else:
+            _ov_zoom = cfg.override_zoom - (math.log2(_ov_dsf) if _ov_dsf > 0 else 0.0)
+            _init_bearing = -10
         map_init = (
             f"const map = new mapboxgl.Map({{\n"
             f"  container:'map', style:{style_expr},\n"
             f"  center: [{ovc[0]}, {ovc[1]}],\n"
             f"  zoom: {_ov_zoom},\n"
-            f"  pitch:{cfg.pitch}, bearing:-10,\n"
+            f"  pitch:{cfg.pitch}, bearing:{_init_bearing},\n"
             f"{common_opts}"
             f"}});"
         )
@@ -1431,6 +1481,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "imageSize": float(_sg(s, "imageSize", 60)),  # v0.9.190 — Bildbreite separat
             "decoScale": float(_sg(s, "decoScale", 0.5)),  # v0.9.262 — Stangen-Länge (Banner/Wegweiser); fehlte → Render nahm immer 0.5
             "direction": ("left" if _sg(s, "direction", "right") == "left" else "right"),  # v0.9.387 — Wegweiser-Pfeilrichtung
+            # v0.9.408 — Sprechblasen-Pfeilrichtung: bottom|top|left|right (Default bottom).
+            "calloutDir": (_sg(s, "calloutDir", "bottom") if _sg(s, "calloutDir", "bottom") in ("top", "left", "right") else "bottom"),
         } for s in _signs_input]
         # v0.9.224/225 — render_scale in die icon-size-Stützwerte gerechnet (s.u.).
         _ss = float(getattr(cfg, "render_scale", 1.0) or 1.0)
@@ -1457,9 +1509,10 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "  const __imgs = await Promise.all(__signs.map(s => s.thumb ? __loadImg(s.thumb) : Promise.resolve(null)));\n"
             "  const __feats = __signs.map((s,i) => {\n"
             "    const id = 'sign-img-'+i;\n"
-            "    try { const o = Object.assign({}, s); if (__imgs[i]) o.image = __imgs[i]; const im = window.__rzDrawSign(o); if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
+            "    let __anchor='bottom';\n"  # v0.9.408 — Sprechblasen-Richtung → icon-anchor pro Schild
+            "    try { const o = Object.assign({}, s); if (__imgs[i]) o.image = __imgs[i]; const im = window.__rzDrawSign(o); if (im && im.anchor) __anchor = im.anchor; if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
             "    const meta = __signMetas[i];\n"
-            "    return { type:'Feature', id:i, properties:{ imgId:id, zoomScale: !!s.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide },\n"
+            "    return { type:'Feature', id:i, properties:{ imgId:id, zoomScale: !!s.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: __anchor },\n"
             "             geometry:{ type:'Point', coordinates:[s.lon, s.lat] } };\n"
             "  });\n"
             "  if (!map.getSource('anim-signs-src')) map.addSource('anim-signs-src', {type:'geojson', data:{type:'FeatureCollection', features:__feats}});\n"
@@ -1471,7 +1524,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             # verlangt ['zoom'] top-level im interpolate, sonst wird der Layer
             # verworfen → gar kein Schild. WYSIWYG: Schild gleich groß wie Preview.
             f"      'icon-size':{_sign_icon_size},\n"
-            "      'icon-anchor':'bottom', 'icon-allow-overlap':true, 'icon-ignore-placement':true,\n"
+            "      'icon-anchor':['coalesce',['get','iconAnchor'],'bottom'], 'icon-allow-overlap':true, 'icon-ignore-placement':true,\n"
             "      'icon-pitch-alignment':'viewport', 'icon-rotation-alignment':'viewport' },\n"
             "    paint:{ 'icon-opacity':['coalesce', ['feature-state','op'], 1] }\n"
             "  });\n"
@@ -1512,6 +1565,38 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     _blur_out_px = max(0.0, cfg.map_smoothing) if _render_ss(cfg.width, cfg.height) > 1.0 else 0.0
     _map_blur_css = (f"  #map canvas {{ filter: blur({_blur_out_px / _blur_dsf:.3f}px); }}\n"
                      if _blur_out_px > 0 else "")
+
+    # v0.9.415 — Interaktiver Export: statischer WYSIWYG-Bootstrap (kein Playwright).
+    # Springt beim Laden EINMAL auf die Init-Kamera + volle Strecke (advanceFrame),
+    # blendet den Lauf-Punkt aus; danach bleibt die Karte frei zoom-/pan-bar. Da die
+    # Schilder asynchron gerastert werden (__rzDrawSign im Besucher-Browser), nach
+    # __signsReady erneut seeken, damit ihr Sichtbarkeits-Filter greift.
+    _interactive_boot_js = ""
+    if getattr(cfg, "interactive_export", False):
+        _interactive_boot_js = """
+// ===== v0.9.415 Interaktiver Export (WYSIWYG, gleiche Engine wie Video/Standbild) =====
+(function(){
+  function seek(){
+    try {
+      var c = map.getCenter();
+      window.advanceFrame(totalPoints - 1, map.getBearing(), c.lng, c.lat, map.getZoom(), map.getPitch());
+      ['dot-core','dot-glow'].forEach(function(id){
+        try { if (map.getLayer(id)) map.setLayoutProperty(id,'visibility','none'); } catch(_){}
+      });
+    } catch(e) { try { console.error('rz-export seek', e); } catch(_){} }
+  }
+  function boot(){
+    seek();
+    var n = 0;
+    var iv = setInterval(function(){
+      n++;
+      if (window.__signsReady || n > 100) { clearInterval(iv); seek(); }
+    }, 100);
+  }
+  if (map && map.loaded && map.loaded()) boot();
+  else if (map) map.on('load', boot);
+})();
+"""
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -1768,15 +1853,19 @@ window.__camFaithful = (t) => {{
   fc.orientation = window.__nlerpQuat(A.ori, B.ori, u);
   map.setFreeCameraOptions(fc);
 }};
-window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam) => {{
+window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
   const safe = Math.max(0, Math.min(idx, totalPoints-1));
   // v0.9.55: optional Pre-Trim-Portion (coords[0..TRIM_START_IDX-1]) ausblenden.
-  const sliceStart = SHOW_PRETRIM_TRACK ? 0 : Math.min(TRIM_START_IDX, safe);
-  const coords = allCoords.slice(sliceStart, safe+1);
+  // v0.9.417: `fullTrack` (Snapshot bei „ganze Route zeigen") → GESAMTE Linie
+  // zeichnen (ab 0), Punkt bleibt aber an der Scrubber-Position `safe` — exakt wie
+  // die Vorschau mit `preview_full_track`.
+  const sliceStart = fullTrack ? 0 : (SHOW_PRETRIM_TRACK ? 0 : Math.min(TRIM_START_IDX, safe));
+  const sliceEnd = fullTrack ? totalPoints : (safe+1);
+  const coords = allCoords.slice(sliceStart, sliceEnd);
   if (coords.length >= 2) {{
     map.getSource('track').setData({{type:'Feature',geometry:{{type:'LineString',coordinates:coords}}}});
   }}
-  const head = coords[coords.length-1] || allCoords[0];
+  const head = allCoords[safe] || allCoords[0];
   map.getSource('dot').setData({{type:'Feature',geometry:{{type:'Point',coordinates:head}}}});
   // v0.9.318 — setCam===false: Kamera NICHT hier setzen (entkoppelte FreeCamera
   // übernimmt das via __camFaithful). Linie/Punkt/Overlays laufen trotzdem.
@@ -1871,7 +1960,40 @@ window.prewarmTiles = async (samples) => {{
     await window.waitForRender();
   }}
 }};
+{_interactive_boot_js}
 </script></body></html>"""
+
+
+def build_interactive_html(cfg: AnimatorConfig) -> str:
+    """v0.9.415 — Baut die eigenständige, INTERAKTIVE Tour-Karten-HTML fürs Blog.
+    Nutzt exakt dieselbe `_make_html`-Pipeline wie Video/Standbild (gleiche Karte,
+    Track, Pins, Schilder via `__rzDrawSign`) → echtes WYSIWYG. KEIN Playwright /
+    Screenshot: die Seite läuft im Browser des Besuchers, springt beim Laden EINMAL
+    auf die (Override-)Kamera + volle Strecke und bleibt danach frei zoom-/pan-bar.
+    Erwartet `cfg.interactive_export=True` und i.d.R. `cfg.use_osm=True` (tokenfrei).
+    Gibt den fertigen, in sich geschlossenen HTML-String zurück.
+    """
+    raw_points, total_stats = core_parse_gpx(cfg.gpx_path)
+    if cfg.point_count <= 0 or cfg.point_count >= len(raw_points):
+        points = raw_points
+    else:
+        points = downsample(raw_points, max(2, cfg.point_count))
+    if len(points) < 2:
+        raise ValueError("GPX hat zu wenige Punkte für die Tour-Karte.")
+    cum_dist = [0.0] + [points[i].dist_m for i in range(1, len(points))]
+    cum_time = [0.0] + [points[i].elapsed_s for i in range(1, len(points))]
+    if total_stats.duration_s == 0:
+        cum_time = [(d / cum_dist[-1] if cum_dist[-1] else 0) for d in cum_dist]
+    lons = [p.lon for p in points]; lats = [p.lat for p in points]
+    bbox = (min(lons), min(lats), max(lons), max(lats))
+    total_stats_dict = {
+        "distance_m": total_stats.distance_m, "duration_s": total_stats.duration_s,
+        "ascent_m": total_stats.ascent_m, "descent_m": total_stats.descent_m,
+        "ele_min": total_stats.ele_min, "ele_max": total_stats.ele_max,
+        "moving_time_s": getattr(total_stats, "moving_time_s", 0.0),
+        "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
+    }
+    return _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
 
 
 def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[float],
@@ -2655,18 +2777,47 @@ async def render_frame(
             else:
                 center = [(bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2]; zoom = 12
 
-            # Volle Strecke + Endzustand: advanceFrame auf den letzten Punkt mit
-            # fester Kamera (Bounds-Fit-Center/Zoom + cfg.pitch/cfg.bearing).
-            last_idx = len(points) - 1
+            # v0.9.412 — Kamera-Übernahme aus der Live-Vorschau (Snapshot / „als
+            # Tour-Map öffnen"): exakter Ausschnitt/Zoom/Drehung/Neigung statt Fit.
+            _snap_cam = getattr(cfg, "snapshot_center", None)
+            if _snap_cam and len(_snap_cam) == 2:
+                center = [float(_snap_cam[0]), float(_snap_cam[1])]
+                if getattr(cfg, "snapshot_zoom", None) is not None:
+                    zoom = float(cfg.snapshot_zoom)
+            _snap_bearing = float(cfg.snapshot_bearing) if getattr(cfg, "snapshot_bearing", None) is not None else float(cfg.bearing)
+            _snap_pitch = float(cfg.snapshot_pitch) if getattr(cfg, "snapshot_pitch", None) is not None else float(cfg.pitch)
+            # Marker-Position: snapshot_anchor gesetzt → Teil-Track + laufender Punkt
+            # (Animator-Frame). None → volle Strecke, Punkt aus (Tour-Map-Standbild).
+            _snap_anchor = getattr(cfg, "snapshot_anchor", None)
+            if _snap_anchor is not None:
+                _a = max(0.0, min(1.0, float(_snap_anchor)))
+                frame_idx = int(round(_a * (len(points) - 1)))
+            else:
+                frame_idx = len(points) - 1
+            # v0.9.417 — Snapshot bei „ganze Route zeigen": volle Track-Linie zeichnen,
+            # Punkt bleibt am Scrubber. Nur sinnvoll wenn ein Anker gesetzt ist (Animator-
+            # Snapshot); beim Tour-Map-Standbild ist ohnehin die ganze Strecke sichtbar.
+            _full_track = bool(getattr(cfg, "snapshot_full_track", False)) and _snap_anchor is not None
             await page.evaluate(
-                f"window.advanceFrame({last_idx}, {float(cfg.bearing)}, "
-                f"{float(center[0])}, {float(center[1])}, {float(zoom)}, {float(cfg.pitch)})"
+                f"window.advanceFrame({frame_idx}, {_snap_bearing}, "
+                f"{float(center[0])}, {float(center[1])}, {float(zoom)}, {_snap_pitch}, "
+                f"true, {'true' if _full_track else 'false'})"
             )
-            # Den animierten „aktuelle-Position"-Punkt im Standbild ausblenden.
-            await page.evaluate(
-                "['dot-core','dot-glow'].forEach(id => { try { "
-                "if (map.getLayer(id)) map.setLayoutProperty(id,'visibility','none'); } catch(_){} });"
-            )
+            # v0.9.412 — Overlay-Zeitfenster (Live-Box „ab Sek X"): auf die Snapshot-Zeit setzen.
+            if getattr(cfg, "snapshot_time_s", 0.0):
+                try:
+                    await page.evaluate(
+                        f"window.__overlayTiming && window.__overlayTiming({float(cfg.snapshot_time_s):.3f})"
+                    )
+                except Exception:
+                    pass
+            # Den laufenden Punkt nur im Voll-Strecke-Standbild ausblenden; beim
+            # Animator-Frame-Snapshot (snapshot_anchor gesetzt) gehört er dazu.
+            if _snap_anchor is None:
+                await page.evaluate(
+                    "['dot-core','dot-glow'].forEach(id => { try { "
+                    "if (map.getLayer(id)) map.setLayoutProperty(id,'visibility','none'); } catch(_){} });"
+                )
             try: await page.evaluate("window.waitForRender()")
             except Exception: pass
 

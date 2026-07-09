@@ -38,7 +38,10 @@
     icon: "🗺",
     sort_order: 40,
   },
-  mount: function (body, headerActions) { return mountAnimator(body, headerActions, { mode: "staticFrame", moduleSlug: "tourmap" }); },
+  // v0.9.422 — Tour-Map = wieder NUR der PNG/Standbild-Editor (der leichte HTML-
+  // Export ist in einen eigenen Tab „Web Karte" ausgezogen). `hideHtmlExport`
+  // blendet die alte MapLibre-HTML-Export-Sektion in der Tour-Map aus.
+  mount: function (body, headerActions) { return mountAnimator(body, headerActions, { mode: "staticFrame", moduleSlug: "tourmap", hideHtmlExport: true }); },
 };
 
 function mountAnimator(body, headerActions, opts) {
@@ -174,7 +177,14 @@ function mountAnimator(body, headerActions, opts) {
               <option value="light">${t("animator.style.light")}</option>
               <option value="dark">${t("animator.style.dark")}</option>
               <option value="alpha">${t("animator.style.alpha")}</option>
+              ${_isStaticFrame ? `<optgroup label="${t("tourmap.style.osm_group", "OpenStreetMap (für HTML-Export)")}">
+                <option value="osm">${t("tourmap.style.osm", "OSM Standard")}</option>
+                <option value="topo">${t("tourmap.style.topo", "OpenTopoMap")}</option>
+                <option value="cyclosm">${t("tourmap.style.cyclosm", "CyclOSM")}</option>
+                <option value="humanitarian">${t("tourmap.style.humanitarian", "Humanitarian")}</option>
+              </optgroup>` : ``}
             </select>
+            ${_isStaticFrame ? `<div class="muted" id="anim-style-osm-hint" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">${t("tourmap.style.osm_hint", "OSM-Stile sind tokenfrei und werden 1:1 in den interaktiven HTML-Export übernommen (WYSIWYG). Mapbox-Stile gelten nur für den PNG-Export.")}</div>` : ``}
             <div class="osm-disabled-notice" id="anim-style-osm-notice" hidden>
               <span class="osm-disabled-title">${t("animator.style.osm_disabled_title")}</span>
               ${t(_isStaticFrame ? "animator.style.osm_disabled_body_static" : "animator.style.osm_disabled_body")}
@@ -820,7 +830,36 @@ function mountAnimator(body, headerActions, opts) {
 
       <div class="section">
         <button class="btn btn-primary btn-block" id="anim-render" disabled>${t("animator.btn.render")}</button>
+        ${!_isStaticFrame ? `
+        <button class="btn btn-secondary btn-block" id="anim-snapshot" style="margin-top:8px;" disabled title="${t("animator.snapshot.tip", "Rendert genau den aktuell in der Vorschau gezeigten Frame (Teil-Track, Kamera, Overlays) als Bild in voller Auflösung.")}">📸 ${t("animator.btn.snapshot", "Aktuellen Frame als Bild")}</button>
+        <button class="btn btn-secondary btn-block" id="anim-open-tourmap" style="margin-top:6px;" disabled title="${t("animator.open_tourmap.tip", "Wechselt in die Tour-Map und übernimmt exakt den aktuellen Ausschnitt/Zoom/Drehung — dort als PNG oder interaktives HTML exportierbar.")}">🗺 ${t("animator.btn.open_tourmap", "Als Tour-Map öffnen")}</button>
+        ` : ``}
       </div>
+
+      ${(_isStaticFrame && !(opts && opts.hideHtmlExport)) ? `
+      <section class="section" data-accordion-section="tourmap-html" id="tourmap-html-section">
+        <button class="section-collapse-header" type="button">
+          <span>🌐 ${t("tourmap.html.section", "Interaktive Karte (HTML)")}</span>
+          <span class="collapse-arrow">▸</span>
+        </button>
+        <div class="section-collapse-body" hidden>
+          <div class="muted" style="font-size:11px; margin:0 0 10px; line-height:1.45;">${t("tourmap.html.section_hint", "Exportiert die Karte 1:1 wie in der Vorschau (Route, Schilder, Fotos) als interaktive Leaflet-Karte zum Einbetten in deinen Blog.")}</div>
+          <div class="field">
+            <label class="check-row">
+              <input type="checkbox" id="tourmap-consent-enabled" checked>
+              <span>${t("tourmap.html.consent_toggle", "DSGVO-Zustimmungs-Button (\"Karte laden\")")}</span>
+            </label>
+            <div class="muted" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("tourmap.html.consent_hint", "Die Karte lädt externe OSM-Kacheln erst nach Klick — DSGVO-freundlich. Text frei editierbar.")}</div>
+          </div>
+          <div class="field" id="tourmap-consent-fields">
+            <label class="field-label" for="tourmap-consent-text">${t("tourmap.html.consent_text_label", "Zustimmungs-Text")}</label>
+            <textarea id="tourmap-consent-text" rows="4" style="width:100%; font-size:12px; resize:vertical; box-sizing:border-box; line-height:1.45;"></textarea>
+            <label class="field-label" for="tourmap-consent-button" style="margin-top:8px;">${t("tourmap.html.consent_button_label", "Button-Beschriftung")}</label>
+            <input type="text" id="tourmap-consent-button" style="width:100%; box-sizing:border-box;">
+          </div>
+          <button class="btn btn-primary btn-block" id="tourmap-export-html" style="margin-top:10px;">🌐 ${t("tourmap.html.export_btn", "Als HTML exportieren")}</button>
+        </div>
+      </section>` : ``}
     </aside>
 
     <section class="canvas drop-target anim-canvas" id="anim-drop" data-drop-hint="${t("animator.dnd.hint")}">
@@ -867,7 +906,7 @@ function mountAnimator(body, headerActions, opts) {
         <button class="btn" id="anim-cancel">⨯ ${t("animator.btn.cancel")}</button>
       </div>
       <div class="render-done hidden" id="anim-done">
-        <h2>${t("animator.status.done")}</h2>
+        <h2 id="anim-done-title">${t(_isStaticFrame ? "tourmap.status.done" : "animator.status.done")}</h2>
         <video id="anim-video" controls autoplay muted></video>
         <img id="anim-still-img" class="render-still-img" hidden alt="">
         <div class="render-done-buttons">
@@ -931,7 +970,13 @@ function mountAnimator(body, headerActions, opts) {
     const ctaEl    = document.getElementById("anim-style-osm-cta");
     if (!fieldEl || !noticeEl || !selectEl || !ctaEl) return;
 
-    if (isOsmMode()) {
+    // v0.9.406 — Tour-Map (Standbild) darf im OSM-Modus die OSM-Stile wählen
+    // (tokenfrei, WYSIWYG-Export). Select bleibt aktiv, keine „Token nötig"-Sperre.
+    if (isOsmMode() && _isStaticFrame) {
+      fieldEl.classList.remove("is-osm-disabled");
+      selectEl.disabled = false;
+      noticeEl.hidden = true;
+    } else if (isOsmMode()) {
       fieldEl.classList.add("is-osm-disabled");
       selectEl.disabled = true;
       noticeEl.hidden = false;
@@ -1903,6 +1948,18 @@ function mountAnimator(body, headerActions, opts) {
     return document.getElementById("anim-style")?.value === "alpha";
   }
 
+  // v0.9.407 — „OSM-Stil aktiv?" — true wenn die Engine im OSM-Modus läuft (kein
+  // Token) ODER (Mapbox-Engine, aber ein OSM-Raster-Stil ist gewählt — Tour-Map).
+  // Nötig, weil Mapbox-GL-v3-only-Paint (`line-z-offset`, 3D-Terrain/DEM) auf einem
+  // reinen Raster-Stil die Track-Layer (Glow/Linie/Highlight) NICHT rendert → Track
+  // verschwindet. `isOsmMode()` allein reicht nicht, denn mit Token bleibt der
+  // Modus „mapbox", auch wenn man einen OSM-Stil fährt.
+  function osmStyleActive() {
+    try {
+      return isOsmMode() || (typeof isOsmStyleKey === "function" && isOsmStyleKey(_currentStyleKey));
+    } catch (_) { return isOsmMode(); }
+  }
+
   function rebuildPreviewLayers() {
     if (!map) return;
     const color = currentLineColor();
@@ -1939,7 +1996,7 @@ function mountAnimator(body, headerActions, opts) {
     // Fallback) kennt sie nicht → betroffene Layer (Glow/Linie/Highlight) rendern
     // dann gar nicht (nur der Schatten ohne z-offset blieb sichtbar). Im OSM-Modus
     // gibt es ohnehin kein 3D-Terrain → hier weglassen.
-    const zOffPaint = (currentTerrainOn() && !isOsmMode()) ? { "line-z-offset": 150 } : {};
+    const zOffPaint = (currentTerrainOn() && !osmStyleActive()) ? { "line-z-offset": 150 } : {};
     // v0.9.169 — Ghost-Track: ganze Route als UNTERSTE Linie (eigene Source mit
     // ALLEN Punkten, wird nie getrimmt/animiert). Zuerst added = ganz unten.
     // Sichtbarkeit/Deckkraft steuert applyGhost().
@@ -4206,7 +4263,21 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function runTimelinePreview(forceStart) {
-    if (!map || !currentCoords || currentCoords.length < 2) return;
+    if (!map) return;
+    // v0.9.409 — Cold-Start-Heilung (Beta-Tester-Bug): Nach App-Neustart ist die
+    // gemerkte Route zwar sichtbar, aber `currentCoords` (Modul-State) kann leer
+    // sein — wenn das globale GPX-Load-Event feuerte, BEVOR dieses Modul seinen
+    // onGpxLoaded-Listener registriert hatte (und onMapReady synchron noch keine
+    // Daten sah). Dann tat der Probe-Lauf nichts (stiller Return unten). Statt zu
+    // verlieren: den globalen GPX-State beim Klick einmal nachziehen.
+    if (!currentCoords || currentCoords.length < 2) {
+      try {
+        const _p = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : null;
+        const _d = (typeof getGlobalGpxData === "function") ? getGlobalGpxData() : null;
+        if (_p && _d) applyGlobalGpx(_p, _d);
+      } catch (_) {}
+    }
+    if (!currentCoords || currentCoords.length < 2) return;
     if (_previewRaf && forceStart !== true) {
       // Aktuell läuft was → stoppen
       cancelAnimationFrame(_previewRaf);
@@ -4815,7 +4886,7 @@ function mountAnimator(body, headerActions, opts) {
 
   function applyTerrain() {
     if (!map) return;
-    if (isOsmMode()) return;   // OSM ohne Token → kein DEM verfügbar
+    if (osmStyleActive()) return;   // OSM (Modus ODER OSM-Raster-Stil) → kein DEM / keine line-z-offset
     const want = currentTerrainOn();
     try {
       if (want) {
@@ -4878,8 +4949,19 @@ function mountAnimator(body, headerActions, opts) {
   let _currentStyleKey = null;   // v0.9.329 — aktuell auf der Karte gesetzter Stil
   function applyStyle(styleKey) {
     if (!map) return;
+    const osmHint = document.getElementById("anim-style-osm-hint");
+    // v0.9.406 — Tour-Map darf OSM-Raster-Stile wählen (auch mit Mapbox-Token).
+    // OSM-Raster funktioniert in beiden Engines (mapboxgl + maplibregl).
+    if (typeof isOsmStyleKey === "function" && isOsmStyleKey(styleKey) && typeof window.osmRasterStyle === "function") {
+      _currentStyleKey = styleKey;
+      map.setStyle(window.osmRasterStyle(styleKey));
+      map.once("style.load", () => { rebuildPreviewLayers(); });
+      if (osmHint) osmHint.hidden = false;
+      return;
+    }
+    if (osmHint) osmHint.hidden = true;
     if (isOsmMode()) {
-      // Im OSM-Modus gibt es nur einen Style — Wechsel ignorieren
+      // Kein Token → Mapbox-Stile nicht möglich
       toast(t("animator.osm_only"), "info", 3000);
       return;
     }
@@ -4922,6 +5004,15 @@ function mountAnimator(body, headerActions, opts) {
     });
     map = made.map;
     map.addControl(new made.lib.NavigationControl(), "top-right");
+
+    // v0.9.406 — Persistierter OSM-Stil (Tour-Map): createMap() kann nur Mapbox-
+    // URLs bzw. den OSM-Standard. Ist ein anderer OSM-Stil (topo/cyclosm/…) oder
+    // — im Mapbox-Modus — überhaupt ein OSM-Stil gewählt, nach dem ersten Load
+    // per applyStyle() das Raster-Objekt setzen. So matcht die Karte das Dropdown.
+    if (_isStaticFrame && typeof isOsmStyleKey === "function" && isOsmStyleKey(initialStyleKey)
+        && !(isOsmMode() && initialStyleKey === "osm")) {
+      map.once("load", () => { try { applyStyle(initialStyleKey); } catch (_) {} });
+    }
 
     // v0.8.6: Karte-Edits → Slider + Keyframe-Sync.
     // Wenn der User in der Karte mit Maus/Cmd+Drag etwas ändert (Pitch,
@@ -5460,6 +5551,7 @@ function mountAnimator(body, headerActions, opts) {
       borderColor: "none", borderWidth: 0,
       decoScale: 0.5,        // v0.9.256 — Länge der Stangen (Banner/Wegweiser) als Faktor der Box-Höhe
       direction: "right",    // v0.9.387 — Wegweiser-Pfeilrichtung: "right" | "left"
+      calloutDir: "bottom",  // v0.9.408 — Sprechblasen-Pfeilrichtung: "bottom" | "top" | "left" | "right"
       shadow: false, shadowColor: "#000000", shadowBlur: 8, shadowStrength: 0.55,
       zoomScale: true, before: 0, after: 0, entry: "none",
       alwaysVisible: false,  // v0.9.188 — ganze Zeit sichtbar (kein Timing-Fenster)
@@ -5485,6 +5577,7 @@ function mountAnimator(body, headerActions, opts) {
       o.borderWidth = Number(o.borderWidth) || 0;
       o.decoScale = (o.decoScale == null || isNaN(Number(o.decoScale))) ? 0.5 : Math.max(0.1, Math.min(2, Number(o.decoScale)));
       o.direction = (o.direction === "left") ? "left" : "right";  // v0.9.387
+      o.calloutDir = (["top", "left", "right"].indexOf(o.calloutDir) >= 0) ? o.calloutDir : "bottom";  // v0.9.408
       o.shadowBlur = Number(o.shadowBlur);
       o.shadowStrength = (o.shadowStrength == null || isNaN(Number(o.shadowStrength)))
         ? 0.55 : Math.max(0.05, Math.min(1, Number(o.shadowStrength)));
@@ -5495,6 +5588,12 @@ function mountAnimator(body, headerActions, opts) {
       o.imageSize = Number(o.imageSize) || 60;
       o.visible = (o.visible === false) ? false : true;   // v0.9.198 — Default sichtbar
       return o;
+    }
+    // v0.9.408 — Marker-/Icon-Anker eines Schilds. Bei callout folgt er der
+    // Sprechblasen-Richtung (Spitze zeigt auf den Geo-Punkt), sonst "bottom".
+    function _signMarkerAnchor(sn) {
+      if (!sn || (sn.style || "callout") !== "callout") return "bottom";
+      return (["top", "left", "right"].indexOf(sn.calloutDir) >= 0) ? sn.calloutDir : "bottom";
     }
     function _animSignsSave(list) {
       if (!_activeProject) return;
@@ -5682,13 +5781,14 @@ function mountAnimator(body, headerActions, opts) {
           _animSignsOpenEditor(fi);
         });
         let marker;
-        try { marker = new MarkerCls({ element: wrap, anchor: "bottom" }).setLngLat([Number(sn.lon), Number(sn.lat)]).addTo(map); } catch (_) { return; }
+        const _mkAnchor = _signMarkerAnchor(sn);   // v0.9.408 — Sprechblasen-Richtung
+        try { marker = new MarkerCls({ element: wrap, anchor: _mkAnchor }).setLngLat([Number(sn.lon), Number(sn.lat)]).addTo(map); } catch (_) { return; }
         // v0.9.256 — jetzt im DOM → Box-Höhe ist messbar → einmal nach-stylen, damit die
         // Banner-/Wegweiser-Pfosten proportional zur echten Box-Höhe sitzen.
         try { window.__rzSignDomStyle(wrap, sn, { imageUrl }); } catch (_) {}
         const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
         _animSignMetas[fi] = window.__rzSignMeta ? window.__rzSignMeta({ ...sn, track_anchor: trackAnchor }, dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
-        _animSignMarkers[fi] = { marker, wrap, zoomScale: !!sn.zoomScale };
+        _animSignMarkers[fi] = { marker, wrap, zoomScale: !!sn.zoomScale, anchor: _mkAnchor };
       });
       if (!_animSignZoomHooked) {
         _animSignZoomHooked = true;
@@ -5735,7 +5835,7 @@ function mountAnimator(body, headerActions, opts) {
         const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
         const meta = window.__rzSignMeta ? window.__rzSignMeta({ ...sn, track_anchor: trackAnchor }, dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
         _animSignMetas[fi] = meta;
-        features.push({ type: "Feature", id: fi, properties: { imgId: id, signIdx: fi, zoomScale: !!sn.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide }, geometry: { type: "Point", coordinates: [Number(sn.lon), Number(sn.lat)] } });
+        features.push({ type: "Feature", id: fi, properties: { imgId: id, signIdx: fi, zoomScale: !!sn.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: _signMarkerAnchor(sn) }, geometry: { type: "Point", coordinates: [Number(sn.lon), Number(sn.lat)] } });
       });
       try {
         map.addSource(_ANIM_SIGNS_SRC, { type: "geojson", data: { type: "FeatureCollection", features } });
@@ -5749,7 +5849,7 @@ function mountAnimator(body, headerActions, opts) {
               12, ["case", ["==", ["get", "zoomScale"], true], 0.8, 1.0],
               16, ["case", ["==", ["get", "zoomScale"], true], 1.5, 1.0],
               20, ["case", ["==", ["get", "zoomScale"], true], 2.4, 1.0]],
-            "icon-anchor": "bottom",
+            "icon-anchor": ["coalesce", ["get", "iconAnchor"], "bottom"],  // v0.9.408 — Sprechblasen-Richtung pro Schild
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,
             "icon-pitch-alignment": "viewport",
@@ -5789,6 +5889,9 @@ function mountAnimator(body, headerActions, opts) {
         const mk = _animSignMarkers[fi];
         if (!mk || !mk.wrap || !mk.marker) { ok = false; return; }
         const sn = _animSignNormalize(s);
+        // v0.9.408 — Sprechblasen-Richtung geändert → Marker-Anker muss neu (nicht
+        // in-place änderbar) → Full-Rebuild anstoßen.
+        if (mk.anchor !== _signMarkerAnchor(sn)) { ok = false; return; }
         let imageUrl = (s._imgEl && s._imgEl.src) || s.thumb || "";
         if (s.imageSrc && !imageUrl) { try { _animSignEnsureImage(s).then(() => { try { _animSignsUpdateInPlace(); } catch (_) {} }); } catch (_) {} }
         try { window.__rzSignDomStyle(mk.wrap, sn, { imageUrl }); } catch (_) {}
@@ -6149,6 +6252,13 @@ function mountAnimator(body, headerActions, opts) {
               <label class="seg-opt"><input type="radio" name="se-dir-radio" value="left"${c.direction === "left" ? " checked" : ""}> <span>${t("signs.direction.left", "◀ Links")}</span></label>
               <label class="seg-opt"><input type="radio" name="se-dir-radio" value="right"${c.direction !== "left" ? " checked" : ""}> <span>${t("signs.direction.right", "Rechts ▶")}</span></label>
             </div>
+            <label id="se-cdir-label" title="${t("signs.callout_dir_hint", "Nur bei der Sprechblase: in welche Richtung die Spitze auf den Punkt zeigt.")}" style="${c.style === "callout" ? "" : "display:none;"}">${t("signs.callout_dir", "Pfeilrichtung")}</label>
+            <select id="se-cdir" style="${c.style === "callout" ? "" : "display:none;"}">
+              <option value="bottom"${c.calloutDir === "bottom" ? " selected" : ""}>${t("signs.callout_dir.bottom", "▼ Unten")}</option>
+              <option value="top"${c.calloutDir === "top" ? " selected" : ""}>${t("signs.callout_dir.top", "▲ Oben")}</option>
+              <option value="left"${c.calloutDir === "left" ? " selected" : ""}>${t("signs.callout_dir.left", "◀ Links")}</option>
+              <option value="right"${c.calloutDir === "right" ? " selected" : ""}>${t("signs.callout_dir.right", "▶ Rechts")}</option>
+            </select>
           </div>
 
           <div class="se-group-title">${t("signs.grp.text", "Schrift")}</div>
@@ -6256,6 +6366,7 @@ function mountAnimator(body, headerActions, opts) {
           borderColor: (parseInt($("#se-bw").value, 10) || 0) > 0 ? $("#se-bc").value : "none",
           decoScale: (parseInt($("#se-deco").value, 10) || 50) / 100,
           direction: ((document.querySelector('input[name="se-dir-radio"]:checked') || {}).value === "left") ? "left" : "right",
+          calloutDir: (["top", "left", "right"].indexOf(($("#se-cdir") || {}).value) >= 0) ? $("#se-cdir").value : "bottom",  // v0.9.408
           font: $("#se-font").value,
           size: parseInt($("#se-size").value, 10) || 40,
           weight: parseInt($("#se-weight").value, 10) || 700,
@@ -6330,10 +6441,17 @@ function mountAnimator(body, headerActions, opts) {
           const dl = $("#se-dir-label"), di = $("#se-dir");
           if (dl) dl.style.display = showDir ? "" : "none";
           if (di) di.style.display = showDir ? "" : "none";
+          // v0.9.408 — Sprechblasen-Pfeilrichtung nur beim callout zeigen.
+          const showCDir = (_seStyle.value === "callout");
+          const cdl = $("#se-cdir-label"), cdi = $("#se-cdir");
+          if (cdl) cdl.style.display = showCDir ? "" : "none";
+          if (cdi) cdi.style.display = showCDir ? "" : "none";
         });
       }
       // v0.9.387 — Pfeilrichtungs-Radios lösen wie die anderen Felder ein Live-Update aus.
       document.querySelectorAll('input[name="se-dir-radio"]').forEach((r) => r.addEventListener("change", apply));
+      // v0.9.408 — Sprechblasen-Richtungs-Select löst ebenso ein Live-Update aus.
+      { const _seCdir = $("#se-cdir"); if (_seCdir) _seCdir.addEventListener("change", apply); }
       // v0.9.259 — Auslöse-Zeitpunkt manuell festnageln (löst Mehrdeutigkeit bei
       // Hin-und-zurück-Strecken: gleicher Ort, zweimal vorbei). „Auf Zeitleisten-
       // Position" bindet das Schild an die Track-Position, an der der Marker beim
@@ -7347,6 +7465,7 @@ function mountAnimator(body, headerActions, opts) {
     if (map) map.setPitch(parseFloat(e.target.value) || 0);
   });
   document.getElementById("anim-refit")?.addEventListener("click", () => {
+    _tmCamActive = false;   // v0.9.412 — „⤢ Auf Track": übernommene Animator-Kamera aufheben
     if (currentBbox) {
       fitTrackPreview(true);
       // v0.8.9: Refit zeigt zusätzlich die GANZE Track-Linie (= „Reset"
@@ -7844,7 +7963,10 @@ function mountAnimator(body, headerActions, opts) {
     const fontFam = OVERLAY_FONT_STACK[fontKey] || OVERLAY_FONT_STACK.system;
     const txtCol  = document.getElementById("anim-ov-textcolor")?.value || "#ffffff";
     const bgCol   = document.getElementById("anim-ov-bgcolor")?.value || "#000000";
-    const bgOpac  = (parseFloat(document.getElementById("anim-ov-bgopacity")?.value) || 55) / 100;
+    // v0.9.409 — Falsy-Zero-Fix (Beta-Tester): Slider auf 0 % ist parseFloat=0 → `|| 55`
+    // machte daraus heimlich 55 % → die Box kam bei 0 % voll gefärbt zurück. isNaN-Guard.
+    const _bgOpRaw = parseFloat(document.getElementById("anim-ov-bgopacity")?.value);
+    const bgOpac  = (isNaN(_bgOpRaw) ? 55 : _bgOpRaw) / 100;
     const boxStyle = `font-family:${fontFam}; color:${txtCol}; background:${_ovHexRgba(bgCol, bgOpac)};`;
     // v0.9.321 — katalog-getriebene, sortierbare Felder pro Box (Endzustand-Werte)
     const rowsHtml = (box) => _ovGetFields(box).map(id => {
@@ -8234,6 +8356,11 @@ function mountAnimator(body, headerActions, opts) {
       document.getElementById("s-asc").textContent = "↑ " + fmtMeter(res.stats.ascent_m);
       document.getElementById("s-desc").textContent = "↓ " + fmtMeter(res.stats.descent_m);
       document.getElementById("anim-render").disabled = false;
+      // v0.9.412 — Snapshot + „Als Tour-Map öffnen" freischalten, sobald ein Track da ist.
+      const _snapBtn = document.getElementById("anim-snapshot");
+      if (_snapBtn) _snapBtn.disabled = false;
+      const _otmBtn = document.getElementById("anim-open-tourmap");
+      if (_otmBtn) _otmBtn.disabled = false;
     } catch (_) {}
     // v0.8.5: applyGlobalGpx wird IMMER aus onMapReady-Callback aufgerufen.
     // Zu dem Zeitpunkt ist `load`-Event garantiert gefeuert. `isStyleLoaded()`
@@ -8402,6 +8529,21 @@ function mountAnimator(body, headerActions, opts) {
 
   function fitTrackPreview(animated = true) {
     if (!map || !currentBbox) return;
+    // v0.9.412 — Tour-Map: Kamera aus dem Animator übernommen? Einmalig per jumpTo
+    // anwenden (statt Auto-Fit) und als „freie Kamera" merken.
+    if (_isStaticFrame && window.__pendingCameraForTourMap) {
+      const pc = window.__pendingCameraForTourMap;
+      window.__pendingCameraForTourMap = null;
+      try {
+        map.jumpTo({ center: pc.center, zoom: pc.zoom, bearing: pc.bearing || 0, pitch: pc.pitch || 0 });
+        _tmCamActive = true;
+        try { if (typeof toast === "function") toast(t("tourmap.cam_taken", "Ausschnitt aus dem Animator übernommen. Mit ⤢ (Auf Track) zurücksetzen."), "info", 5000); } catch (_) {}
+      } catch (_) {}
+      return;
+    }
+    // v0.9.412 — freie Kamera aktiv (übernommen) → Auto-Fit überspringen, damit der
+    // übernommene Ausschnitt beim Re-Layout/Resize nicht wieder auf den Track springt.
+    if (_isStaticFrame && _tmCamActive) return;
     const b = currentBbox;
     if (!("min_lon" in b)) return;
     // v0.9.34 (Marc-Bug-Report): Schutz gegen Animations-Interruption.
@@ -8685,6 +8827,75 @@ function mountAnimator(body, headerActions, opts) {
   });
   _animRenderToursList();
 
+  // ── v0.9.412 — Snapshot (aktueller Vorschau-Frame als Bild) + „Als Tour-Map
+  // öffnen" (Kamera-Übernahme). _snapshotRequest wird vom Snapshot-Button gesetzt
+  // und vom Render-Handler unten in die Params gespreadet → single PNG via
+  // render_frame mit exakter Vorschau-Kamera + Marker-Anker. ─────────────────
+  let _snapshotRequest = null;
+  let _lastRenderWasSnapshot = false;
+  let _tmCamActive = false;   // v0.9.412 — Tour-Map: freie Kamera (aus Animator übernommen) statt Auto-Fit
+  function _animCameraCorrected(rw, rh) {
+    if (!map) return null;
+    try {
+      const c = map.getCenter();
+      const z = (window.correctedZoom ? window.correctedZoom(map, rw, rh) : map.getZoom());
+      return { center: [c.lng, c.lat], zoom: z, bearing: map.getBearing(), pitch: map.getPitch() };
+    } catch (_) { return null; }
+  }
+  // Scrubber (Timeline-Progress 0..1) → Marker-Anker auf dem Track (0..1):
+  // Intro = Start, Anim = linear, Hold = Ende. Plus Video-Sekunde für Overlay-Timing.
+  function _snapshotAnchorAndTime() {
+    const dur = parseFloat(document.getElementById("anim-dur")?.value) || 12;
+    const intro = parseFloat(document.getElementById("anim-intro")?.value) || 0;
+    const hold = parseFloat(document.getElementById("anim-hold")?.value) || 0;
+    const total = Math.max(0.001, intro + dur + hold);
+    const prog = (_tlBar && typeof _tlBar.getScrubber === "function")
+      ? Math.max(0, Math.min(1, _tlBar.getScrubber() || 0)) : 0;
+    const pIntro = intro / total, pAnimEnd = (intro + dur) / total;
+    let anchor;
+    if (prog <= pIntro) anchor = 0;
+    else if (prog >= pAnimEnd) anchor = 1;
+    else anchor = (prog - pIntro) / Math.max(1e-6, (pAnimEnd - pIntro));
+    return { anchor, time_s: prog * total };
+  }
+  document.getElementById("anim-snapshot")?.addEventListener("click", () => {
+    if (!currentCoords || currentCoords.length < 2) { toast(t("animator.snapshot.no_track", "Erst GPX laden."), "warn", 3000); return; }
+    if (document.body.classList.contains("is-rendering")) { toast(t("animator.snapshot.busy", "Render läuft gerade."), "info", 3000); return; }
+    const rw = parseInt(document.getElementById("anim-w").value) || 1920;
+    const rh = parseInt(document.getElementById("anim-h").value) || 1080;
+    const cam = _animCameraCorrected(rw, rh);
+    if (!cam) { toast(t("animator.snapshot.no_cam", "Karte nicht bereit."), "warn", 3000); return; }
+    const at = _snapshotAnchorAndTime();
+    _snapshotRequest = {
+      snapshot: true,
+      snapshot_center: cam.center, snapshot_zoom: cam.zoom,
+      snapshot_bearing: cam.bearing, snapshot_pitch: cam.pitch,
+      snapshot_anchor: at.anchor, snapshot_time_s: at.time_s,
+      // v0.9.417 — „ganze Route zeigen"-Vorschau-Toggle mitschicken → Snapshot
+      // zeichnet dann die GESAMTE Track-Linie (Punkt bleibt am Scrubber), 1:1 Vorschau.
+      snapshot_full_track: (typeof previewFullTrack === "function") ? previewFullTrack() : false,
+    };
+    // Über den normalen Render-Pfad (Save-Dialog → render_frame → PNG). Der
+    // Handler liest _snapshotRequest und räumt es selbst wieder ab.
+    try { document.getElementById("anim-render").click(); }
+    catch (e) { _snapshotRequest = null; }
+  });
+  document.getElementById("anim-open-tourmap")?.addEventListener("click", () => {
+    if (!currentCoords || currentCoords.length < 2) { toast(t("animator.snapshot.no_track", "Erst GPX laden."), "warn", 3000); return; }
+    if (!map) { toast(t("animator.snapshot.no_cam", "Karte nicht bereit."), "warn", 3000); return; }
+    try {
+      const c = map.getCenter();
+      // RAW-Kamera (Preview-Zoom); die Tour-Map wendet jumpTo an und rechnet beim
+      // Render die eigene korrigierte Zoomstufe (eigene Auflösung).
+      window.__pendingCameraForTourMap = {
+        center: [c.lng, c.lat], zoom: map.getZoom(),
+        bearing: map.getBearing(), pitch: map.getPitch(),
+      };
+    } catch (_) { toast(t("animator.snapshot.no_cam", "Karte nicht bereit."), "warn", 3000); return; }
+    try { if (typeof switchMod === "function") switchMod("tourmap"); }
+    catch (e) { try { window.switchMod && window.switchMod("tourmap"); } catch (_) {} }
+  });
+
   document.getElementById("anim-render").addEventListener("click", async () => {
     if (!currentGpx) return;
     // Alpha-Modus braucht keinen Mapbox-Token (keine Map). Skip Token-Check.
@@ -8693,7 +8904,7 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.391 — Tour-Map (Standbild) darf im OSM-Modus rendern: das Backend
     // baut dann eine OSM-Raster-Karte statt Mapbox. Nur der Video-Render
     // (Animator) bleibt Token-pflichtig. Alpha braucht sowieso keinen Token.
-    if (isOsmMode() && !alphaModeActive && !_isStaticFrame) {
+    if (isOsmMode() && !alphaModeActive && !_isStaticFrame && !_snapshotRequest) {
       openModal({
         title: t("animator.render_needs_token.title"),
         body: `<p>${t("animator.render_needs_token.body")}</p>`,
@@ -8721,12 +8932,14 @@ function mountAnimator(body, headerActions, opts) {
     // .mov für Alpha ODER ProRes-ohne-Alpha; .mp4 für H.264/H.265.
     const needsMov = alpha || codec === "prores";
     // v0.9.308 — Standbild (Tour-Map): PNG statt Video.
-    const ext = _isStaticFrame ? "png" : (needsMov ? "mov" : "mp4");
+    // v0.9.412 — Snapshot (Animator-Frame) → PNG, wie das Tour-Map-Standbild.
+    const _asPng = _isStaticFrame || !!_snapshotRequest;
+    const ext = _asPng ? "png" : (needsMov ? "mov" : "mp4");
     const codecLabel = alpha ? "alpha" : codec;
-    const defaultName = _isStaticFrame
-      ? `${gpxStem}_${w}x${h}.png`
+    const defaultName = _asPng
+      ? `${gpxStem}_${w}x${h}${_snapshotRequest ? "_snapshot" : ""}.png`
       : `${gpxStem}_${w}x${h}_${codecLabel}.${ext}`;
-    const fileFilter = _isStaticFrame ? ["PNG (*.png)"] : (needsMov ? ["MOV (*.mov)"] : ["MP4 (*.mp4)"]);
+    const fileFilter = _asPng ? ["PNG (*.png)"] : (needsMov ? ["MOV (*.mov)"] : ["MP4 (*.mp4)"]);
     const lastDir = (_settingsCache && _settingsCache[_MODKEY] && _settingsCache[_MODKEY].last_save_dir) || "";
 
     const savePath = await api().pick_save_path(defaultName, lastDir, fileFilter);
@@ -8851,6 +9064,20 @@ function mountAnimator(body, headerActions, opts) {
         padding_pct: (() => { const v = parseFloat(document.getElementById("anim-static-padding")?.value); return isNaN(v) ? 8 : v; })(),
         show_pins: (document.getElementById("anim-static-pins")?.checked ?? true),
       } : {}),
+      // v0.9.412 — Snapshot (Animator-Frame): exakte Vorschau-Kamera + Marker-Anker.
+      ...(_snapshotRequest || {}),
+      // v0.9.412 — Tour-Map-Freikamera (aus Animator übernommen): aktuelle Preview-
+      // Kamera (korrigierter Zoom für die Render-Auflösung) statt Auto-Fit rendern.
+      ...((_isStaticFrame && _tmCamActive && map) ? (() => {
+        try {
+          const c = map.getCenter();
+          return {
+            snapshot_center: [c.lng, c.lat],
+            snapshot_zoom: (window.correctedZoom ? window.correctedZoom(map, w, h) : map.getZoom()),
+            snapshot_bearing: map.getBearing(), snapshot_pitch: map.getPitch(),
+          };
+        } catch (_) { return {}; }
+      })() : {}),
       duration_s: parseInt(document.getElementById("anim-dur").value),
       hold_s: parseInt(document.getElementById("anim-hold").value),
       intro_s: parseInt(document.getElementById("anim-intro")?.value || "0"),  // v0.9.59
@@ -8900,7 +9127,7 @@ function mountAnimator(body, headerActions, opts) {
       overlay_font: document.getElementById("anim-ov-font")?.value || "system",
       overlay_text_color: document.getElementById("anim-ov-textcolor")?.value || "#ffffff",
       overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",
-      overlay_bg_opacity: (parseFloat(document.getElementById("anim-ov-bgopacity")?.value) || 55) / 100,
+      overlay_bg_opacity: (() => { const v = parseFloat(document.getElementById("anim-ov-bgopacity")?.value); return (isNaN(v) ? 55 : v) / 100; })(),  // v0.9.409 — Falsy-Zero-Fix (0 % war 55 %)
       // codec/crf/frame_format kommen jetzt server-seitig aus den globalen
       // Render-Settings (Dialog „Qualität & Export"), nicht mehr aus der Sidebar.
       // v0.9.157 — override_* abgeschafft (Classic = 2 hidden KFs, s.o.).
@@ -8999,6 +9226,10 @@ function mountAnimator(body, headerActions, opts) {
         };
       })(),
     };
+    // v0.9.412 — Snapshot-Flag für den Done-Handler (Bild-Anzeige statt Video) +
+    // Request abräumen, damit der nächste Render wieder ein normales Video wird.
+    _lastRenderWasSnapshot = !!_snapshotRequest;
+    _snapshotRequest = null;
     const res = await api().animator_start_render(params);
     if (!res.ok) {
       if (res.error_code === "playwright_browser_missing") {
@@ -9096,7 +9327,11 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.390 — Standbild-Modus (Tour-Map): das Ergebnis ist EIN PNG, kein
       // Video. Der Fertig-Bereich zeigte fälschlich Video-Player + „▶ Abspielen"
       // + „Nächstes Video". Hier auf Bild-Anzeige + passende Labels umstellen.
-      if (_isStaticFrame) {
+      // v0.9.412 — Animator-Snapshot ist ebenfalls ein PNG → gleiche Bild-Anzeige.
+      if (_isStaticFrame || _lastRenderWasSnapshot) {
+        // Überschrift auf „Bild fertig" (Standbild/Snapshot ist ein PNG, kein Video).
+        const _h2 = document.getElementById("anim-done-title");
+        if (_h2) _h2.textContent = t("tourmap.status.done", "✓ Bild fertig");
         const v2 = document.getElementById("anim-video");
         const img = document.getElementById("anim-still-img");
         if (v2) { try { v2.pause(); v2.removeAttribute("src"); v2.load(); } catch (_) {} v2.hidden = true; }
@@ -9117,6 +9352,8 @@ function mountAnimator(body, headerActions, opts) {
         toast(t("tourmap.toast.render_done", "Bild fertig: {file}").replace("{file}", _fileName), "success", 6000);
         return;
       }
+      const _h2v = document.getElementById("anim-done-title");
+      if (_h2v) _h2v.textContent = t("animator.status.done", "✓ Video fertig");
       const v = document.getElementById("anim-video");
       v.onerror = () => {
         const code = (v.error && v.error.code) || 0;
@@ -9217,6 +9454,181 @@ function mountAnimator(body, headerActions, opts) {
     };
     document.getElementById("md-rerr-ok").onclick = () => openModal({}).close();
   }
+
+  // ── v0.9.406 — Tour-Map: interaktiver Leaflet+OSM-HTML-Export fürs Blog ──────
+  // WYSIWYG zur Vorschau (Route, Schilder, Fotos, gewählter OSM-Stil) + optionaler
+  // DSGVO-„Karte laden"-Consent mit frei editierbarem Text. Nur Standbild-Modus.
+  if (_isStaticFrame && !(opts && opts.hideHtmlExport)) (function setupTourmapHtmlExport() {
+    const DEFAULT_CONSENT_TEXT = t("tourmap.html.consent_default",
+      "Zum Anzeigen der interaktiven Karte werden Kartenkacheln von OpenStreetMap geladen. Dabei wird deine IP-Adresse an den Kartenanbieter übertragen. Mit Klick auf „Karte laden“ stimmst du dem zu.");
+    const enabledCb  = document.getElementById("tourmap-consent-enabled");
+    const textEl     = document.getElementById("tourmap-consent-text");
+    const btnLabelEl = document.getElementById("tourmap-consent-button");
+    const fieldsWrap = document.getElementById("tourmap-consent-fields");
+    const exportBtn  = document.getElementById("tourmap-export-html");
+    if (!exportBtn) return;
+
+    // Persistenz pro Projekt (bindSetting läuft am Mount-Ende → DOM ist da).
+    if (typeof bindSetting === "function") {
+      try {
+        bindSetting("tourmap-consent-enabled", _MODKEY, "html_consent_enabled", { type: "bool" });
+        bindSetting("tourmap-consent-text",    _MODKEY, "html_consent_text");
+        bindSetting("tourmap-consent-button",  _MODKEY, "html_consent_button");
+      } catch (_) {}
+    }
+    // Standard-Text vorbefüllen, falls noch leer (nichts persistiert).
+    if (textEl && !textEl.value.trim()) textEl.value = DEFAULT_CONSENT_TEXT;
+    if (btnLabelEl && !btnLabelEl.value.trim()) btnLabelEl.value = t("tourmap.html.consent_button_default", "Karte laden");
+
+    function syncConsentFields() {
+      if (fieldsWrap) fieldsWrap.style.display = (enabledCb && enabledCb.checked) ? "" : "none";
+    }
+    if (enabledCb) enabledCb.addEventListener("change", syncConsentFields);
+    syncConsentFields();
+
+    function collectTourmapExportParams() {
+      // v0.9.415 — Der interaktive HTML-Export nutzt jetzt dieselbe Render-Pipeline
+      // wie Video/Standbild (`_make_html` → MapLibre GL + __rzDrawSign). Deshalb
+      // schicken wir die ROHE Szene (rohe Schilder, Foto-Pins, Track-/Linien-/
+      // Overlay-Settings) + die aktuelle Vorschau-Kamera — GENAU wie der PNG-Render.
+      // KEINE Schild-Rasterung mehr im WebView (das war die Fehlerquelle); die
+      // Schilder werden im Besucher-Browser gezeichnet → echtes WYSIWYG.
+      const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      const a = proj?.[_MODKEY] || {};
+      let signs  = Array.isArray(proj?.[_SIGNS_KEY]) ? proj[_SIGNS_KEY] : [];
+      if (proj && !signs.length) {
+        // Robustheit gegen Key-Divergenz: nimm die erste nicht-leere Schild-Liste.
+        for (const k of ["tourmap_signs", "signs", _SIGNS_KEY]) {
+          if (Array.isArray(proj[k]) && proj[k].length) { signs = proj[k]; break; }
+        }
+      }
+      // Gewählter OSM-Kachelstil (Mapbox-Styles → OSM-Standard, tokenfrei fürs Blog).
+      const styleKey = document.getElementById("anim-style")?.value || "osm";
+      const tileStyle = (typeof isOsmStyleKey === "function" && isOsmStyleKey(styleKey)) ? styleKey : "osm";
+      // Aktuelle Vorschau-Kamera ROH übernehmen (gleiche Engine → kein correctedZoom).
+      let cam = {};
+      try {
+        if (map) {
+          const c = map.getCenter();
+          cam = {
+            snapshot_center: [c.lng, c.lat],
+            snapshot_zoom: map.getZoom(),
+            snapshot_bearing: map.getBearing(),
+            snapshot_pitch: map.getPitch(),
+          };
+        }
+      } catch (_) { cam = {}; }
+      const _num = (v, d) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
+      return {
+        gpx_path: (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "",
+        tile_style: tileStyle,
+        ...cam,
+        // Track-/Linien-Stil (roh, wie Vorschau — keine 4K-lineScale-Hochskalierung).
+        line_color: document.getElementById("anim-color")?.value || "#ff6b35",
+        line_width: _num(document.getElementById("anim-lw")?.value, 4.5),
+        line_style: document.getElementById("anim-line-style")?.value || "solid",
+        line_style_spacing: _num(document.getElementById("anim-line-spacing")?.value, 1.0),
+        glow_enabled: (typeof currentGlowEnabled === "function") ? currentGlowEnabled() : true,
+        glow_strength: (typeof currentGlowStrength === "function") ? currentGlowStrength() : 4.0,
+        show_pins: (document.getElementById("anim-static-pins")?.checked ?? true),
+        // Overlays (Stats-Box) 1:1 wie Vorschau.
+        show_overlays: !!document.getElementById("anim-overlays")?.checked,
+        overlay_totals_enabled: !!document.getElementById("anim-ov-totals")?.checked,
+        overlay_totals_position: document.getElementById("anim-ov-totals-pos")?.value || "top-left",
+        // v0.9.416 — Höhenprofil-Overlay 1:1 wie Vorschau (Default im Backend ist AN
+        // → ohne dieses Feld erschien es im Export, auch wenn die Vorschau es aus hat).
+        overlay_elevation_enabled: !!document.getElementById("anim-ov-ele")?.checked,
+        overlay_elevation_position: document.getElementById("anim-ov-ele-pos")?.value || "bottom-right",
+        overlay_totals_fields: (typeof _ovGetFields === "function") ? _ovGetFields("totals") : null,
+        overlay_field_overrides: (typeof _ovOverrides === "function") ? _ovOverrides() : {},
+        overlay_font: document.getElementById("anim-ov-font")?.value || "system",
+        overlay_text_color: document.getElementById("anim-ov-textcolor")?.value || "#ffffff",
+        overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",
+        overlay_bg_opacity: (() => { const v = parseFloat(document.getElementById("anim-ov-bgopacity")?.value); return (isNaN(v) ? 55 : v) / 100; })(),
+        // Schilder + Foto-Pins ROH (werden im Browser via __rzDrawSign gezeichnet).
+        signs: signs,
+        signs_show: (typeof a.signs_show === "boolean") ? a.signs_show : true,
+        signs_size_px: (typeof a.signs_size_px === "number") ? a.signs_size_px : 40,
+        signs_style: a.signs_style || "callout",
+        signs_color: a.signs_color || "#ff6b35",
+        photos: Array.isArray(proj?.photos) ? proj.photos : [],
+        photos_size_px: (typeof a.photos_size_px === "number") ? a.photos_size_px : 48,
+        photos_show: (typeof a.photos_show === "boolean") ? a.photos_show : true,
+        // DSGVO-Consent (frei editierbar).
+        consent_enabled: !!(enabledCb && enabledCb.checked),
+        consent_text: (textEl?.value || "").trim() || DEFAULT_CONSENT_TEXT,
+        consent_button: (btnLabelEl?.value || "").trim() || t("tourmap.html.consent_button_default", "Karte laden"),
+        width:  parseInt(document.getElementById("anim-w")?.value) || 1120,
+        height: parseInt(document.getElementById("anim-h")?.value) || 640,
+      };
+    }
+
+    function showTourmapHtmlExportModal(res) {
+      const kb = Math.round((res.bytes || 0) / 1024);
+      const body = `
+        <p style="font-size:13px; margin:0 0 8px;">${t("tourmap.html.modal_intro", "Interaktive Karte als HTML gespeichert")} (${kb} KB).</p>
+        <p style="font-size:12px; color:var(--text-muted,#aaa); margin:0 0 12px;">${t("tourmap.html.modal_open_hint", "Zum Ansehen „Im Browser öffnen\" nutzen — ein Doppelklick auf die Datei startet je nach System nur einen Editor.")}</p>
+        <p style="font-size:12px; margin:0 0 4px; font-weight:600;">${t("tourmap.html.snippet_hint", "Snippet zum direkten Einfügen in einen „Custom HTML\"-Block:")}</p>
+        <textarea id="tourmap-html-snippet" readonly rows="5" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:10px; resize:vertical; box-sizing:border-box;"></textarea>
+        <p class="muted" style="font-size:11px; margin:6px 0 0;">${t("tourmap.html.snippet_wp", "In WordPress: einen Block „Custom HTML\" einfügen und das Snippet hineinkopieren.")}</p>`;
+      const footer = `
+        <button type="button" id="tourmap-html-browser" class="btn btn-primary">▶ ${t("tourmap.html.open_browser", "Im Browser öffnen")}</button>
+        <button type="button" id="tourmap-html-copy" class="btn btn-secondary">${t("tourmap.html.copy", "Snippet kopieren")}</button>
+        <button type="button" id="tourmap-html-reveal" class="btn btn-secondary">${t("animator.btn.reveal")}</button>
+        <button type="button" id="tourmap-html-close" class="btn btn-secondary">${t("tourmap.html.close", "Schließen")}</button>`;
+      const modal = (typeof openModal === "function") ? openModal({
+        title: t("tourmap.html.modal_title", "HTML exportiert"), body, footer,
+      }) : null;
+      const ta = document.getElementById("tourmap-html-snippet");
+      if (ta) ta.value = res.snippet || "";
+      document.getElementById("tourmap-html-browser")?.addEventListener("click", () => {
+        try { window.pywebview.api.tourmap_open_in_browser(res.output); } catch (_) {}
+      });
+      document.getElementById("tourmap-html-reveal")?.addEventListener("click", () => {
+        try { window.pywebview.api.reveal_in_finder(res.output); } catch (_) {}
+      });
+      document.getElementById("tourmap-html-close")?.addEventListener("click", () => { if (modal) modal.close(); });
+      document.getElementById("tourmap-html-copy")?.addEventListener("click", async () => {
+        try {
+          if (ta) { ta.focus(); ta.select(); }
+          if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(res.snippet || "");
+          else document.execCommand("copy");
+          if (typeof toast === "function") toast(t("tourmap.html.copied", "Snippet kopiert."), "success", 2500);
+        } catch (e) {
+          if (typeof toast === "function") toast(t("tourmap.html.copy_manual", "Bitte manuell markieren + kopieren."), "info", 4000);
+        }
+      });
+    }
+
+    exportBtn.addEventListener("click", async () => {
+      const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+      if (!gpxPath) {
+        if (typeof toast === "function") toast(t("tourmap.html.no_gpx", "Erst GPX laden."), "warn", 3000);
+        return;
+      }
+      if (!window.pywebview?.api?.tourmap_export_html) {
+        if (typeof toast === "function") toast("Bridge tourmap_export_html fehlt", "error", 5000);
+        return;
+      }
+      const oldTxt = exportBtn.textContent;
+      exportBtn.disabled = true;
+      exportBtn.textContent = "⏳ " + t("tourmap.html.exporting", "Exportiere HTML …");
+      try {
+        const res = await window.pywebview.api.tourmap_export_html(collectTourmapExportParams());
+        if (!res || !res.ok) {
+          if (typeof toast === "function") toast(t("tourmap.html.failed", "HTML-Export fehlgeschlagen") + ": " + (res?.error || "unknown"), "error", 8000);
+          return;
+        }
+        showTourmapHtmlExportModal(res);
+      } catch (e) {
+        console.error("[tourmap] export_html exception", e);
+        if (typeof toast === "function") toast(t("tourmap.html.failed", "HTML-Export fehlgeschlagen") + ": " + e, "error", 8000);
+      } finally {
+        exportBtn.disabled = false;
+        exportBtn.textContent = oldTxt;
+      }
+    });
+  })();
 
   return () => {
     clearTimeout(pollTimer);

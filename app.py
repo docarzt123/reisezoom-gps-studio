@@ -87,6 +87,9 @@ from core import logger as clog
 from core import photos as cphotos  # v0.9.74: Foto-Pins für Animator + Tour-Map
 from core import route as croute  # v0.9.205: Anreise/Flug-Route (Directions/Arc)
 from core import heightanim as cheight  # v0.9.92: Höhen-Animator-Modul (Phase 1, Skelett)
+from core import tourmap_html as ctourhtml  # v0.9.406: Tour-Map → interaktiver Leaflet-HTML-Export
+from core import tourmap_leaflet as ctmleaflet  # v0.9.418: leichter Leaflet-Blog-Export (HTML-Modus)
+from core import sign_raster as csignraster  # v0.9.418: serverseitige Schild-Rasterung (WYSIWYG)
 from core import gpxedit as cgpxedit  # v0.9.233: GPX-Inspektor (Track heilen/füllen)
 from core import trackio as ctrackio  # v0.9.297: Track→GPX/CSV-String (geteilt mit Web)
 
@@ -129,7 +132,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.405"
+APP_VERSION = "0.9.428"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -178,6 +181,32 @@ UPDATE_CHECK_THROTTLE_S = 12 * 3600
 
 RENDERS_DIR = APP_SUPPORT / "_renders"
 BACKUPS_DIR = APP_SUPPORT / "_backups_photos"
+
+
+def _shrink_data_uri(uri: str, max_px: int = 520, quality: int = 82) -> str:
+    """v0.9.406 — Verkleinert ein data:image-URI auf max_px längste Kante (JPEG),
+    damit die exportierte Tour-Map-HTML mit vielen Fotos/Schildern nicht explodiert.
+    Kein data-URI oder Fehler → Original unverändert zurück."""
+    uri = str(uri or "")
+    if not uri.startswith("data:image"):
+        return uri
+    try:
+        import base64
+        import io
+        from PIL import Image
+        _, b64 = uri.split(",", 1)
+        im = Image.open(io.BytesIO(base64.b64decode(b64)))
+        im.load()
+        w, h = im.size
+        if max(w, h) <= max_px:
+            return uri
+        scale = max_px / float(max(w, h))
+        im = im.convert("RGB").resize((max(1, int(w * scale)), max(1, int(h * scale))))
+        buf = io.BytesIO()
+        im.save(buf, format="JPEG", quality=quality)
+        return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception:
+        return uri
 DROPS_DIR = APP_SUPPORT / "_drops"      # für per-Drag&Drop importierte Files
 # Tour-Karten landen im Pictures-Ordner, da User sie häufiger braucht
 TOURMAPS_DIR = Path.home() / "Pictures" / "Reisezoom Tour Maps"
@@ -1830,7 +1859,9 @@ class Api:
         codec = "prores" if alpha else _g_codec
         needs_mov = alpha or codec in ("prores", "prores4444")
         # v0.9.309 — Standbild (Tour-Map) → PNG, kein Video-Container.
-        _still = bool(params.get("still_frame", False))
+        # v0.9.412 — Snapshot (aktueller Animator-Vorschau-Frame) → ebenfalls EIN PNG.
+        _snapshot = bool(params.get("snapshot", False))
+        _still = bool(params.get("still_frame", False)) or _snapshot
         # v0.9.391 — OSM-Fallback: NUR die Tour-Map (Standbild) darf ohne
         # Mapbox-Token rendern (OSM-Raster-Karte). Ein Video braucht weiter einen
         # Token (das Frontend blockt den Video-Render im OSM-Modus). OSM-Karte ist
@@ -1980,6 +2011,25 @@ class Api:
             fly_duration_s=float(params.get("fly_duration_s", 3.0) or 3.0),
         )
 
+        # v0.9.412 — Snapshot: exakte Vorschau-Kamera + Marker-Anker → render_frame
+        # rendert genau den aktuellen Animator-Frame (Teil-Track + laufender Punkt
+        # + Overlays) als PNG. `snapshot_center` gesetzt = Kamera-Override aktiv.
+        if _snapshot:
+            _sc = params.get("snapshot_center")
+            if isinstance(_sc, (list, tuple)) and len(_sc) == 2:
+                cfg.snapshot_center = [float(_sc[0]), float(_sc[1])]
+            if params.get("snapshot_zoom") is not None:
+                cfg.snapshot_zoom = float(params.get("snapshot_zoom"))
+            if params.get("snapshot_bearing") is not None:
+                cfg.snapshot_bearing = float(params.get("snapshot_bearing"))
+            if params.get("snapshot_pitch") is not None:
+                cfg.snapshot_pitch = float(params.get("snapshot_pitch"))
+            if params.get("snapshot_anchor") is not None:
+                cfg.snapshot_anchor = max(0.0, min(1.0, float(params.get("snapshot_anchor"))))
+            cfg.snapshot_time_s = float(params.get("snapshot_time_s", 0.0) or 0.0)
+            # v0.9.417 — „ganze Route zeigen" (Vorschau-Toggle) → Snapshot voller Track.
+            cfg.snapshot_full_track = bool(params.get("snapshot_full_track", False))
+
         self._render_state = {"running": True, "progress": 0.0, "status": "Starte …",
                               "output": out_path, "error": "", "log_path": str(LOG_PATH),
                               "preview_b64": "", "cancel_requested": False,
@@ -2033,8 +2083,8 @@ class Api:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    if getattr(cfg, "still_frame", False):
-                        # Standbild (Tour-Map) — ein PNG, kein Video/ffmpeg.
+                    if getattr(cfg, "still_frame", False) or getattr(cfg, "snapshot_center", None) is not None:
+                        # Standbild (Tour-Map) ODER Snapshot (Animator-Frame) — ein PNG, kein Video/ffmpeg.
                         loop.run_until_complete(canim.render_frame(
                             cfg, on_progress=on_progress, is_cancelled=is_cancelled,
                         ))
@@ -2510,6 +2560,310 @@ class Api:
             return {"ok": True}
         except Exception as e:
             log.exception("heightanim_open_in_browser fehlgeschlagen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def tourmap_export_html(self, params: dict) -> dict:
+        """v0.9.415 — Tour-Karte als interaktive HTML fürs Blog exportieren, mit
+        derselben Karten-Engine wie Video/Standbild (MapLibre GL + __rzDrawSign) →
+        echtes WYSIWYG. Baut EINE AnimatorConfig (wie tourmap_render) und lässt
+        `canim.build_interactive_html()` daraus eine eigenständige, im Besucher-
+        Browser laufende, frei zoom-/pan-bare Karte erzeugen (tokenfreie OSM-
+        Kacheln, kein Playwright). Optional ein DSGVO-„Karte laden"-Gate.
+        Liefert .html + <iframe srcdoc>-Snippet (WordPress-„Custom HTML")."""
+        try:
+            gpx_path = params.get("gpx_path", "")
+            if not gpx_path or not Path(gpx_path).exists():
+                return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+            gpx_path = self._ensure_gpx(gpx_path)
+
+            # Gewählter tokenfreier OSM-Kachelstil (Mapbox-Styles → OSM-Standard).
+            style_key = params.get("tile_style") or params.get("map_style") or "osm"
+            st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm")
+
+            # Kamera aus der Live-Vorschau (snapshot_* = map.getCenter/Zoom/Bearing/
+            # Pitch, ROH — gleiche Engine, keine correctedZoom/dsf-Korrektur nötig).
+            _cam = params.get("snapshot_center")
+            override_center = None
+            override_zoom = None
+            if isinstance(_cam, (list, tuple)) and len(_cam) == 2:
+                override_center = (float(_cam[0]), float(_cam[1]))
+                if params.get("snapshot_zoom") is not None:
+                    override_zoom = float(params["snapshot_zoom"])
+            _bearing = float(params.get("snapshot_bearing", params.get("bearing", 0)) or 0)
+            _pitch = float(params.get("snapshot_pitch", 0) or 0)
+
+            # line_style tube-Übersetzung (synchron zu tourmap_render).
+            _ui_line_style = params.get("line_style", "solid")
+            if _ui_line_style == "tube":
+                _be_line_style = "solid"; _be_track_style = "tube"
+            else:
+                _be_line_style = _ui_line_style
+                _be_track_style = params.get("track_style", "flat")
+
+            w = int(params.get("width", 1120) or 1120)
+            h = int(params.get("height", 640) or 640)
+
+            cfg = canim.AnimatorConfig(
+                gpx_path=gpx_path,
+                output_path="",           # kein Playwright/Screenshot → ungenutzt
+                mapbox_token="",          # OSM ist tokenfrei
+                use_osm=True,
+                interactive_export=True,
+                still_frame=True,
+                osm_tiles_url=st["url"],
+                osm_max_zoom=int(st.get("max", 19) or 19),
+                osm_attribution=st.get("attr"),
+                map_style="osm",
+                width=w, height=h,
+                pitch=_pitch, bearing=_bearing,
+                enable_terrain=False, hide_labels=False,
+                line_color=params.get("line_color", "#ff6b35"),
+                line_width=float(params.get("line_width", 4.5) or 4.5),
+                line_style=_be_line_style,
+                line_style_spacing=float(params.get("line_style_spacing", 1.0) or 1.0),
+                track_style=_be_track_style,
+                glow_enabled=bool(params.get("glow_enabled", True)),
+                glow_strength=float(params.get("glow_strength", 4.0) or 4.0),
+                # Overlays (Stats-Box) 1:1 wie in der Vorschau — WYSIWYG.
+                show_overlays=bool(params.get("show_overlays", True)),
+                overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
+                overlay_totals_position=params.get("overlay_totals_position", "tl"),
+                overlay_live_enabled=False,
+                # v0.9.416 — Höhenprofil-Overlay explizit aus Params (Backend-Default
+                # ist True → sonst erschien es im Export trotz ausgeschalteter Vorschau).
+                overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", False)),
+                overlay_elevation_position=params.get("overlay_elevation_position", "bc"),
+                overlay_totals_fields=(list(params.get("overlay_totals_fields") or []) or None),
+                overlay_field_overrides=(params.get("overlay_field_overrides") or {}),
+                overlay_font=params.get("overlay_font", "system"),
+                overlay_text_color=params.get("overlay_text_color", "#ffffff"),
+                overlay_bg_color=params.get("overlay_bg_color", "#000000"),
+                overlay_bg_opacity=float(params.get("overlay_bg_opacity", 0.55) or 0.55),
+                show_pins=bool(params.get("show_pins", True)),
+                photos=list(params.get("photos") or []),
+                photos_size_px=int(params.get("photos_size_px", 48) or 48),
+                photos_show=bool(params.get("photos_show", True)),
+                signs=list(params.get("signs") or []),
+                signs_show=bool(params.get("signs_show", True)),
+                signs_size_px=int(params.get("signs_size_px", 40) or 40),
+                signs_style=str(params.get("signs_style", "callout") or "callout"),
+                signs_color=str(params.get("signs_color", "#ff6b35") or "#ff6b35"),
+                override_center=override_center,
+                override_zoom=override_zoom,
+            )
+
+            html_inner = canim.build_interactive_html(cfg)
+            if bool(params.get("consent_enabled", False)):
+                html_doc = ctourhtml.wrap_with_consent(
+                    html_inner,
+                    params.get("consent_text") or ctourhtml.DEFAULT_CONSENT_TEXT,
+                    params.get("consent_button") or "Karte laden",
+                )
+            else:
+                html_doc = html_inner
+
+            out_name = params.get("output_name") or (Path(gpx_path).stem + "_tourkarte.html")
+            if not out_name.lower().endswith(".html"):
+                out_name += ".html"
+            out_path = params.get("output_path") or str(RENDERS_DIR / out_name)
+            RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+            Path(out_path).write_text(html_doc, encoding="utf-8")
+            snippet = ctourhtml.make_tourmap_embed_snippet(html_doc, w, h)
+            snip_path = os.path.splitext(out_path)[0] + "_iframe-snippet.txt"
+            Path(snip_path).write_text(snippet, encoding="utf-8")
+            log.info("Tour-Map HTML-Export OK (interaktiv/WYSIWYG): %s (%.0f KB) + Snippet %s",
+                     out_path, len(html_doc.encode("utf-8")) / 1024, snip_path)
+            return {"ok": True, "output": out_path, "snippet": snippet,
+                    "snippet_path": snip_path, "bytes": len(html_doc.encode("utf-8"))}
+        except Exception as e:
+            log.exception("tourmap_export_html fehlgeschlagen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def tourmap_open_in_browser(self, path: str) -> dict:
+        """Öffnet die exportierte Tour-Karten-HTML im Default-Browser (wie heightanim)."""
+        return self.heightanim_open_in_browser(path)
+
+    # ── Tour-Map „HTML"-Modus: leichter Leaflet-Blog-Export ──────────────────
+    # v0.9.418 — Eigener, minimaler Leaflet-Export (getrennt vom PNG/„Bild"-Modus,
+    # der über die Animator-Engine läuft). Leicht (~0.2 MB), voller Track sofort,
+    # WYSIWYG-Schilder (serverseitig gerastert), OSM-Kacheln, Consent. Keine Fotos,
+    # kein 3D/Overlay. Eigene Leaflet-Vorschau in der App = exakt dieser Export.
+
+    def tourmap_leaflet_prepare(self, params: dict) -> dict:
+        """Daten für die Leaflet-Blog-VORSCHAU: voller Track als [lat,lon] +
+        serverseitig gerasterte Schilder (WYSIWYG). Kein Screenshot, nur Sign-
+        Rasterung (headless Chromium). Die Vorschau in der App zeichnet damit die
+        IDENTISCHEN Bild-Marker wie der Export → echtes WYSIWYG."""
+        try:
+            gpx_path = params.get("gpx_path", "")
+            track = []
+            if gpx_path and Path(gpx_path).exists():
+                gpx_path = self._ensure_gpx(gpx_path)
+                pts, _stats = cgpx.parse_gpx(gpx_path)
+                ds = cgpx.downsample(pts, 1500)
+                track = [[p.lat, p.lon] for p in ds
+                         if p.lat is not None and p.lon is not None]
+            signs = csignraster.rasterize_signs(
+                list(params.get("signs") or []),
+                signs_show=bool(params.get("signs_show", True)))
+            return {"ok": True, "track": track, "signs": signs}
+        except Exception as e:
+            log.exception("tourmap_leaflet_prepare fehlgeschlagen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def tourmap_export_leaflet(self, params: dict) -> dict:
+        """Leichter Leaflet-Blog-Export: eigenständige interaktive Karte (Leaflet +
+        OSM), voller Track sofort, WYSIWYG-Schilder (serverseitig gerastert),
+        optionaler DSGVO-Consent. Schreibt .html + <iframe srcdoc>-Snippet."""
+        try:
+            gpx_path = params.get("gpx_path", "")
+            if not gpx_path or not Path(gpx_path).exists():
+                return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+            gpx_path = self._ensure_gpx(gpx_path)
+            pts, _stats = cgpx.parse_gpx(gpx_path)
+            if len(pts) < 2:
+                return {"ok": False, "error": "GPX hat zu wenig Punkte (< 2)"}
+            ds = cgpx.downsample(pts, 1500)
+            track = [[p.lat, p.lon] for p in ds
+                     if p.lat is not None and p.lon is not None]
+
+            style_key = params.get("tile_style") or "osm"
+            st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm")
+            rsigns = csignraster.rasterize_signs(
+                list(params.get("signs") or []),
+                signs_show=bool(params.get("signs_show", True)))
+
+            w = int(params.get("width", 1120) or 1120)
+            h = int(params.get("height", 640) or 640)
+            inner = ctmleaflet.make_leaflet_html({
+                "track": track,
+                "line_color": params.get("line_color", "#ff6b35"),
+                "line_width": float(params.get("line_width", 4.5) or 4.5),
+                "tile": st,
+                "signs": rsigns,
+                "show_pins": bool(params.get("show_pins", True)),
+                "start_label": params.get("start_label", "Start"),
+                "end_label": params.get("end_label", "Ziel"),
+                "view_center": params.get("view_center"),
+                "view_zoom": params.get("view_zoom"),
+                "title": params.get("title") or (Path(gpx_path).stem + " — Tour-Karte"),
+                "width": w, "height": h,
+            })
+            if bool(params.get("consent_enabled", False)):
+                html_doc = ctourhtml.wrap_with_consent(
+                    inner,
+                    params.get("consent_text") or ctourhtml.DEFAULT_CONSENT_TEXT,
+                    params.get("consent_button") or "Karte laden")
+            else:
+                html_doc = inner
+            out_name = params.get("output_name") or (Path(gpx_path).stem + "_tourkarte.html")
+            if not out_name.lower().endswith(".html"):
+                out_name += ".html"
+            out_path = params.get("output_path") or str(RENDERS_DIR / out_name)
+            RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+            Path(out_path).write_text(html_doc, encoding="utf-8")
+            snippet = ctourhtml.make_tourmap_embed_snippet(html_doc, w, h)
+            snip_path = os.path.splitext(out_path)[0] + "_iframe-snippet.txt"
+            Path(snip_path).write_text(snippet, encoding="utf-8")
+            log.info("Tour-Map Leaflet-Export OK (leicht/Blog): %s (%.0f KB) + Snippet %s",
+                     out_path, len(html_doc.encode("utf-8")) / 1024, snip_path)
+            return {"ok": True, "output": out_path, "snippet": snippet,
+                    "snippet_path": snip_path, "bytes": len(html_doc.encode("utf-8"))}
+        except Exception as e:
+            log.exception("tourmap_export_leaflet fehlgeschlagen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    # ── Web-Karte (eigener Tab): leichter Leaflet-Export mit Text-Labels ─────
+    # v0.9.422 — Komplett getrennt von der Tour-Map. Kein Playwright/keine Schild-
+    # Rasterung: nur Track (aus GPX) + freie Text-Beschriftungen als Leaflet-Labels.
+
+    def webkarte_prepare(self, params: dict) -> dict:
+        """Track für die Web-Karten-Vorschau: voller Track als [lat, lon]
+        (downsampled). Sehr leicht, kein Screenshot/Playwright."""
+        try:
+            gpx_path = params.get("gpx_path", "")
+            if not gpx_path or not Path(gpx_path).exists():
+                return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+            gpx_path = self._ensure_gpx(gpx_path)
+            pts, _stats = cgpx.parse_gpx(gpx_path)
+            ds = cgpx.downsample(pts, 1500)
+            track = [[p.lat, p.lon] for p in ds
+                     if p.lat is not None and p.lon is not None]
+            return {"ok": True, "track": track}
+        except Exception as e:
+            log.exception("webkarte_prepare fehlgeschlagen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def webkarte_export(self, params: dict) -> dict:
+        """Leichter Leaflet-Blog-Export der Web-Karte: Track + Text-Labels + OSM,
+        optionaler DSGVO-Consent. Schreibt .html + <iframe srcdoc>-Snippet."""
+        try:
+            gpx_path = params.get("gpx_path", "")
+            if not gpx_path or not Path(gpx_path).exists():
+                return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+            gpx_path = self._ensure_gpx(gpx_path)
+            pts, _stats = cgpx.parse_gpx(gpx_path)
+            if len(pts) < 2:
+                return {"ok": False, "error": "GPX hat zu wenig Punkte (< 2)"}
+            ds = cgpx.downsample(pts, 1500)
+            track = [[p.lat, p.lon] for p in ds
+                     if p.lat is not None and p.lon is not None]
+
+            style_key = params.get("tile_style") or "osm"
+            st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm")
+
+            w = int(params.get("width", 1120) or 1120)
+            h = int(params.get("height", 640) or 640)
+            inner = ctmleaflet.make_leaflet_html({
+                "track": track,
+                "line_color": params.get("line_color", "#ff6b35"),
+                "line_width": float(params.get("line_width", 4.5) or 4.5),
+                "tile": st,
+                "labels": list(params.get("labels") or []),
+                "show_pins": bool(params.get("show_pins", True)),
+                "start_label": params.get("start_label", "Start"),
+                "end_label": params.get("end_label", "Ziel"),
+                "view_center": params.get("view_center"),
+                "view_zoom": params.get("view_zoom"),
+                "title": params.get("title") or (Path(gpx_path).stem + " — Karte"),
+                "width": w, "height": h,
+            })
+            if bool(params.get("consent_enabled", False)):
+                # v0.9.426 — lokal eingebettetes Vorschaubild HINTER dem Consent-Gate,
+                # damit es nicht leer wirkt. Karte einmal headless rendern → JPEG-data-URI.
+                bg_uri = ""
+                try:
+                    png = ctmleaflet.render_preview_png(inner, w, h)
+                    if png:
+                        bg_uri = "data:image/jpeg;base64," + base64.b64encode(png).decode("ascii")
+                        log.info("Web-Karte-Consent-Vorschaubild gerendert (%.0f KB)",
+                                 len(png) / 1024)
+                    else:
+                        log.warning("Consent-Vorschaubild: Rendern lieferte nichts (Playwright/Chromium?)")
+                except Exception as e:
+                    log.warning("Consent-Vorschaubild fehlgeschlagen: %s", e)
+                html_doc = ctourhtml.wrap_with_consent(
+                    inner,
+                    params.get("consent_text") or ctourhtml.DEFAULT_CONSENT_TEXT,
+                    params.get("consent_button") or "Karte laden",
+                    bg_uri)
+            else:
+                html_doc = inner
+            out_name = params.get("output_name") or (Path(gpx_path).stem + "_webkarte.html")
+            if not out_name.lower().endswith(".html"):
+                out_name += ".html"
+            out_path = params.get("output_path") or str(RENDERS_DIR / out_name)
+            RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+            Path(out_path).write_text(html_doc, encoding="utf-8")
+            snippet = ctourhtml.make_tourmap_embed_snippet(html_doc, w, h)
+            snip_path = os.path.splitext(out_path)[0] + "_iframe-snippet.txt"
+            Path(snip_path).write_text(snippet, encoding="utf-8")
+            log.info("Web-Karte-Export OK: %s (%.0f KB) + Snippet %s",
+                     out_path, len(html_doc.encode("utf-8")) / 1024, snip_path)
+            return {"ok": True, "output": out_path, "snippet": snippet,
+                    "snippet_path": snip_path, "bytes": len(html_doc.encode("utf-8"))}
+        except Exception as e:
+            log.exception("webkarte_export fehlgeschlagen: %s", e)
             return {"ok": False, "error": str(e)}
 
     # ── Drag & Drop ──────────────────────────────────────────────────────────

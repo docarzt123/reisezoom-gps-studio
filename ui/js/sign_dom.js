@@ -55,11 +55,28 @@
 }
 .rz-sign__img { display: block; width: 100%; height: auto; object-fit: cover; }
 .rz-sign__cap { white-space: pre-line; overflow-wrap: anywhere; }
-/* Sprechblase: Schwänzchen unten Mitte */
-.rz-sign--callout::after {
-  content: ""; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%);
+/* Sprechblase: Schwänzchen in wählbarer Richtung (v0.9.408). Default unten. */
+.rz-sign--callout::after { content: ""; position: absolute; width: 0; height: 0; }
+.rz-sign--callout.rz-sign--tail-bottom::after,
+.rz-sign--callout:not(.rz-sign--tail-top):not(.rz-sign--tail-left):not(.rz-sign--tail-right)::after {
+  left: 50%; bottom: -7px; transform: translateX(-50%);
   border-left: 7px solid transparent; border-right: 7px solid transparent;
   border-top: 8px solid var(--rz-box, #15171c);
+}
+.rz-sign--callout.rz-sign--tail-top::after {
+  left: 50%; top: -7px; transform: translateX(-50%);
+  border-left: 7px solid transparent; border-right: 7px solid transparent;
+  border-bottom: 8px solid var(--rz-box, #15171c);
+}
+.rz-sign--callout.rz-sign--tail-left::after {
+  top: 50%; left: -7px; transform: translateY(-50%);
+  border-top: 7px solid transparent; border-bottom: 7px solid transparent;
+  border-right: 8px solid var(--rz-box, #15171c);
+}
+.rz-sign--callout.rz-sign--tail-right::after {
+  top: 50%; right: -7px; transform: translateY(-50%);
+  border-top: 7px solid transparent; border-bottom: 7px solid transparent;
+  border-left: 8px solid var(--rz-box, #15171c);
 }
 /* Stecknadel: Tropfen (Akzent) unter der Box */
 .rz-sign--pin .rz-sign__pin {
@@ -148,9 +165,18 @@
     var borderC = (o.borderColor && o.borderColor !== "none") ? o.borderColor : null;
     var opacity = (o.opacity != null ? Math.max(0, Math.min(1, Number(o.opacity))) : 1);
 
-    // Klassen (Stil-Dekoration)
-    card.className = "rz-sign rz-sign--" + styleName;
-    card.style.transformOrigin = "bottom center";   // für die Zoom-Skalierung (am Anker unten)
+    // v0.9.408 — Sprechblasen-Pfeilrichtung (nur callout): unten|oben|links|rechts.
+    var calloutDir = "bottom";
+    if (styleName === "callout") {
+      var _cd = o.calloutDir;
+      calloutDir = (_cd === "top" || _cd === "left" || _cd === "right") ? _cd : "bottom";
+    }
+    // Klassen (Stil-Dekoration + Sprechblasen-Richtung)
+    card.className = "rz-sign rz-sign--" + styleName + (styleName === "callout" ? " rz-sign--tail-" + calloutDir : "");
+    // transformOrigin = Anker-Seite (Zoom-Skalierung lässt die Spitze am Geo-Punkt stehen)
+    var _torg = (calloutDir === "top") ? "top center" : (calloutDir === "left") ? "left center"
+              : (calloutDir === "right") ? "right center" : "bottom center";
+    card.style.transformOrigin = _torg;
     card.style.setProperty("--rz-box", boxTransparent ? "transparent" : boxFill);
     card.style.setProperty("--rz-accent", accent);
     card.style.background = boxTransparent ? "transparent" : boxFill;
@@ -260,7 +286,14 @@
     // und ihre Spitze am Punkt sitzt (wie im Canvas), unten so viel Platz reservieren,
     // wie die Dekoration nach unten reicht. Ohne das verschwand z.B. die Sprechblasen-
     // Spitze „unter" dem Anker.
-    wrap.style.paddingBottom = below ? (below + "px") : "0px";
+    // v0.9.408 — Platz für die Dekoration auf der richtigen Seite reservieren. Bei
+    // callout ist das die Spitzen-Seite (oben/unten/links/rechts), sonst immer unten.
+    wrap.style.paddingTop = ""; wrap.style.paddingLeft = ""; wrap.style.paddingRight = ""; wrap.style.paddingBottom = "";
+    var _padPx = below ? (below + "px") : "0px";
+    if (styleName === "callout" && calloutDir === "top") wrap.style.paddingTop = _padPx;
+    else if (styleName === "callout" && calloutDir === "left") wrap.style.paddingLeft = _padPx;
+    else if (styleName === "callout" && calloutDir === "right") wrap.style.paddingRight = _padPx;
+    else wrap.style.paddingBottom = _padPx;
 
     wrap.style.opacity = "1"; // Sichtbarkeits-Opacity steuert der Frame-Loop separat
   }
@@ -281,12 +314,22 @@
     return 1;
   }
 
-  var api = { injectCss: injectCss, build: build, style: style, zoomScale: zoomScale };
+  // v0.9.408 — Marker-Anker (mapboxgl/maplibregl) für ein Schild: bei callout
+  // folgt er der Sprechblasen-Richtung, sonst immer "bottom".
+  function anchorFor(o) {
+    o = o || {};
+    if ((o.style || "callout") !== "callout") return "bottom";
+    var d = o.calloutDir;
+    return (d === "top" || d === "left" || d === "right") ? d : "bottom";
+  }
+
+  var api = { injectCss: injectCss, build: build, style: style, zoomScale: zoomScale, anchorFor: anchorFor };
   if (typeof window !== "undefined") {
     window.__rzSignDomInjectCss = injectCss;
     window.__rzSignDomBuild = build;
     window.__rzSignDomStyle = style;
     window.__rzSignDomZoomScale = zoomScale;
+    window.__rzSignDomAnchor = anchorFor;
     window.__rzSignDom = api;
   }
   if (typeof globalThis !== "undefined") { globalThis.__rzSignDom = api; }

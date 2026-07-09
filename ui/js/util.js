@@ -145,6 +145,38 @@ const OSM_STYLE = {
   ],
 };
 
+// v0.9.406 — Katalog wählbarer OSM-Raster-Stile für die Tour-Map (WYSIWYG-
+// Vorschau + interaktiver HTML-Export). Anders als der Animator (Mapbox-only)
+// darf die Tour-Map OSM-Stile anbieten, AUCH wenn ein Mapbox-Token gesetzt ist.
+// SYNCHRON zu core/tourmap_html.py OSM_TILE_STYLES — bei Änderung beide pflegen.
+const RZ_OSM_TILE_STYLES = {
+  osm:          { label: "OpenStreetMap", url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",                sub: [],               max: 19, attr: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
+  topo:         { label: "OpenTopoMap",   url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",              sub: ["a","b","c"],    max: 17, attr: 'Kartendaten: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende, SRTM | © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)' },
+  cyclosm:      { label: "CyclOSM",       url: "https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", sub: ["a","b","c"], max: 20, attr: '© <a href="https://www.cyclosm.org/">CyclOSM</a> | © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
+  humanitarian: { label: "Humanitarian",  url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",         sub: ["a","b","c"],    max: 20, attr: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Tiles: <a href="https://www.hotosm.org/">HOT</a>' },
+};
+
+/**
+ * Baut ein GL-Style-8-Objekt (raster) für einen OSM-Stil. Funktioniert mit
+ * mapboxgl UND maplibregl — beide rendern Raster-Sources aus Tile-URLs. Das
+ * {s}-Subdomain-Token (Leaflet-Syntax) wird zu mehreren tiles-URLs expandiert,
+ * weil GL kein {s} kennt.
+ */
+function osmRasterStyle(id) {
+  const s = RZ_OSM_TILE_STYLES[id] || RZ_OSM_TILE_STYLES.osm;
+  const urls = (s.sub && s.sub.length) ? s.sub.map((d) => s.url.replace("{s}", d)) : [s.url];
+  return {
+    version: 8,
+    sources: { osm: { type: "raster", tiles: urls, tileSize: 256, maxzoom: s.max, attribution: s.attr } },
+    layers: [{ id: "osm-tiles", type: "raster", source: "osm", minzoom: 0 }],
+  };
+}
+/** True, wenn `key` ein OSM-Raster-Stil aus RZ_OSM_TILE_STYLES ist. */
+function isOsmStyleKey(key) { return !!(key && Object.prototype.hasOwnProperty.call(RZ_OSM_TILE_STYLES, key)); }
+window.RZ_OSM_TILE_STYLES = RZ_OSM_TILE_STYLES;
+window.osmRasterStyle = osmRasterStyle;
+window.isOsmStyleKey = isOsmStyleKey;
+
 /** Liefert den globalen Map-Modus: "mapbox" oder "osm" (kein Token). */
 let _mapMode = null;
 
@@ -944,7 +976,7 @@ function bindSetting(elementId, section, key, opts = {}) {
   // v0.8.0: Wert kommt aus dem aktiven Projekt wenn vorhanden, sonst aus
   // den globalen Settings (settings.json). Schreibt auch dahin zurück
   // wo's herkam — Projekt wenn aktiv, sonst settings.json.
-  const isProjectModule = (section === "animator" || section === "tourmap" || section === "geotagger" || section === "reiseroute");
+  const isProjectModule = (section === "animator" || section === "tourmap" || section === "geotagger" || section === "reiseroute" || section === "webkarte");
 
   const readCurrent = () => {
     const projectSection = (isProjectModule && _activeProject && _activeProject[section]) ? _activeProject[section] : null;
@@ -1089,7 +1121,7 @@ function rebindAllSettings() {
  *  richtigen Stelle: aktives Projekt wenn vorhanden, sonst globale settings.json.
  *  Vom Undo-Controller genutzt, damit Undo auch ohne aktives Projekt greift. */
 function _rzIsProjectSection(section) {
-  return (section === "animator" || section === "tourmap" || section === "geotagger" || section === "reiseroute");
+  return (section === "animator" || section === "tourmap" || section === "geotagger" || section === "reiseroute" || section === "webkarte");
 }
 window.rzReadModuleSettings = function (section) {
   if (_rzIsProjectSection(section) && _activeSession && _activeProject && _activeProject[section]) {

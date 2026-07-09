@@ -112,9 +112,72 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.428</span>
+    <span class="version-date">9. Juli 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Neues Modul „Web Karte" — eine leichte, interaktive Karte fürs Blog mit frei beschriftbarem Track.</p>
+
+  <div class="highlight">
+    <strong>🌐 Neuer Tab „Web Karte"</strong> — ein eigenes, bewusst schlankes Werkzeug für <strong>interaktive Karten im Blog</strong>. Der Track kommt automatisch aus deiner GPX-Datei; das Ergebnis ist eine leichte, eigenständige HTML-Karte (~40 KB) mit tokenfreier OpenStreetMap — zum Zoomen und Verschieben im Browser. Die Vorschau in der App ist exakt der Export.
+  </div>
+  <div class="highlight">
+    <strong>🏷 Beschriftungen mit Text, Farbe &amp; Größe</strong> — setz Beschriftungen direkt auf die Karte und stell pro Eintrag <strong>Text, Farbe und Größe</strong> ein. Auf der Karte lassen sie sich frei verschieben; die Schriftfarbe passt sich automatisch für gute Lesbarkeit an.
+  </div>
+  <div class="highlight">
+    <strong>🔒 DSGVO-„Karte laden" mit Vorschaubild</strong> — optional lädt die eingebettete Karte die externen Kacheln erst nach einem Klick. Dahinter liegt jetzt ein <strong>fest eingebettetes Vorschaubild</strong> deiner Karte (kein Nachladen), damit das Gate nicht leer wirkt — DSGVO-konform.
+  </div>
+  <div class="highlight">
+    <strong>🗺 Tour-Map wieder aufs Standbild fokussiert</strong> — die interaktive Karte ist in den neuen „Web Karte"-Tab umgezogen; die Tour-Map konzentriert sich wieder auf das hochwertige PNG-Standbild (Satellit/3D/Schilder/Fotos).
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.412</span>
+    <span class="version-date">8. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Animator-Snapshot (aktueller Frame als Bild) und „Als Tour-Map öffnen" (Kamera übernehmen) — plus die Fixes aus 0.9.411.</p>
+
+  <div class="highlight">
+    <strong>📸 Snapshot: aktueller Frame als Bild</strong> — im Animator gibt es jetzt einen Button, der genau den in der Vorschau gezeigten Frame (Track bis zur aktuellen Stelle, Kamera, Overlays) als Bild in voller Auflösung speichert.
+  </div>
+  <div class="highlight">
+    <strong>🗺 „Als Tour-Map öffnen"</strong> — übernimmt den aktuellen Ausschnitt aus dem Animator in die Tour-Map, wo du ihn als PNG oder interaktives HTML exportieren kannst. Zurück zur Gesamtansicht mit dem ⤢-Button.
+  </div>
+  <div class="highlight">
+    <strong>🐛 Fix: Schilder im HTML-Export</strong> — im interaktiven HTML-Export der Tour-Map erschienen die Schilder nur als farbige Punkte. Jetzt werden sie exakt wie in der Vorschau als echte Sprechblasen/Schilder (mit Text, Bild, Form und Pfeilrichtung) dargestellt.
+  </div>
+  <div class="highlight">
+    <strong>🐛 Fix: HTML-Export aufklappbar</strong> — in der Tour-Map ließ sich die Sektion „Interaktive Karte (HTML)" nicht aufklappen (Klick tat nichts, sah zugeklappt aus). Jetzt öffnet sie sich normal und der HTML-Export ist erreichbar.
+  </div>
+  <div class="highlight">
+    <strong>🐛 Fix: Stats-Box-Deckkraft 0 %</strong> — bei 0 % Deckkraft sprang der Hintergrund der Stats-Box heimlich auf 55 % zurück (die Box war voll gefärbt statt transparent). Jetzt bleibt 0 % wirklich durchsichtig — in Vorschau und Render.
+  </div>
+  <div class="highlight">
+    <strong>🐛 Fix: Probe-Lauf nach Neustart</strong> — nach einem Programm-Neustart lief der Probe-Lauf einer gemerkten Route beim ersten Klick manchmal nicht an. Jetzt startet er zuverlässig, ohne die Tour vorher neu laden zu müssen.
+  </div>
+  <div class="highlight">
+    <strong>💬 Sprechblasen-Pfeilrichtung</strong> — bei Schildern im Sprechblasen-Stil zeigt die Spitze jetzt wahlweise nach <strong>unten, oben, links oder rechts</strong>. Neues Dropdown „Pfeilrichtung" im Schild-Editor; die Blase rückt automatisch auf die Gegenseite, damit die Spitze immer auf den Ort zeigt.
+  </div>
+  <div class="highlight">
+    <strong>🐛 Fix: Track auf OSM-Karten wieder sichtbar</strong> — auf den neuen OpenStreetMap-Stilen wurde die Route nicht angezeigt (eine Terrain-Eigenschaft der Mapbox-Karten blendete sie auf den Raster-Kacheln aus). Jetzt erscheint der Track auf allen OSM-Stilen korrekt.
+  </div>
+  <div class="highlight">
+    <strong>🌐 Interaktive Karte als HTML</strong> — die Tour-Map exportiert jetzt eine <strong>interaktive Leaflet-Karte</strong> zum Einbetten in deinen Blog (wie die Karte in Reisezoom-Blogposts). Alles aus der Vorschau ist drauf: Route, Start/Ziel-Pins, deine <strong>Schilder</strong> und <strong>Fotos</strong> als anklickbare Popups. Kein Mapbox-Token, kein Upload — fertige <code>.html</code> plus <code>&lt;iframe&gt;</code>-Snippet für einen WordPress-„Custom HTML"-Block.
+  </div>
+  <div class="highlight">
+    <strong>🗺 OpenStreetMap-Stile wählbar</strong> — im Karten-Stil-Dropdown gibt es jetzt zusätzlich <strong>OSM Standard, OpenTopoMap, CyclOSM und Humanitarian</strong> (auch mit Mapbox-Token). Der gewählte OSM-Stil erscheint sofort in der Vorschau und landet 1:1 im HTML-Export.
+  </div>
+  <div class="highlight">
+    <strong>🔒 DSGVO-„Karte laden"-Button (optional)</strong> — auf Wunsch lädt die eingebettete Karte die externen Kartenkacheln erst nach einem Klick auf „Karte laden". Zustimmungs-Text und Button-Beschriftung sind frei editierbar und mit einem Standardtext vorbelegt.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.405</span>
     <span class="version-date">8. Juli 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <p class="version-tagline">Höhen-Animator: laufenden Punkt und Info-Box getrennt an-/ausschalten.</p>
 

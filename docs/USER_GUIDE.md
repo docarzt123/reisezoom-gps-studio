@@ -187,6 +187,11 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 2. **Track wird auf der Karte angezeigt** (Vorschau live, im WYSIWYG-Letterbox-Rahmen)
 3. **Einstellungen tunen** (siehe unten) — alle Änderungen sind sofort in der Vorschau sichtbar
 4. **„▶ Video rendern"** klicken
+
+**Aktuellen Frame als Bild (Snapshot, seit v0.9.412):** Unter dem Render-Button liegt **„📸 Aktuellen Frame als Bild"**. Scrubbe die Vorschau auf eine schöne Stelle und klick den Button — es wird **genau dieser Frame** (Track bis zur aktuellen Position, dein Kamera-Ausschnitt, die Overlays des Moments) als **Bild in voller Auflösung** gespeichert. Perfekt für Thumbnails oder ein Standbild aus einem laufenden Flug.
+
+**Als Tour-Map öffnen (seit v0.9.412):** Der Button **„🗺 Als Tour-Map öffnen"** wechselt in die Tour-Map und **übernimmt genau deinen aktuellen Ausschnitt** (Position, Zoom, Drehung, Neigung) — statt wie sonst die ganze Route einzupassen. Dort kannst du das Standbild als **PNG** rendern; es behält den übernommenen Blickwinkel. *(Eine interaktive Karte fürs Web gibt es im eigenen Modul [„🌐 Web Karte"](#5c--modul-web-karte).)* Mit dem **⤢**-Button (rechts unten auf der Karte) springst du zurück zur Gesamtansicht.
+
 5. **Save-Dialog**: Wohin soll das MP4? Vorschlag: `<GPX-Name>_<WxH>_<codec>.mp4`
 6. Render läuft — Live-Vorschau zeigt jedes Frame
 7. Fertig → Result-View zeigt MP4 + „Im Finder zeigen"-Button
@@ -207,6 +212,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
   - **Platzieren:** **„📍 Auf Track"** → Klick auf den Track (rastet ein), oder **„📌 Frei platzieren"** → Klick **irgendwo** auf die Karte (z.B. eine Sehenswürdigkeit abseits der Route). Bei freier Platzierung richtet sich der **Anzeige-Zeitpunkt** weiter nach dem nächstgelegenen Track-Punkt (Anker am Track + freier Koordinaten-Offset).
   - **Bearbeiten:** Klick auf ein Schild (Liste oder Karte) öffnet ein **schwebendes Editor-Panel** — an der Kopfzeile (⠿) frei verschiebbar, auch aus der Karte heraus. Das gerade bearbeitete Schild ist immer sichtbar (egal wo der Abspiel-Punkt steht).
   - **Optik (alles live):** Form (Sprechblase · Zielbanner · Stecknadel · Wegweiser · Schlicht), **Hintergrund**- + Textfarbe (der **„Hintergrund"-Picker** ist die **eine** Box-/Blasenfarbe des Schilds — seit v0.9.271 gibt es keine separate „Akzentfarbe" und kein „Auto" mehr), Schriftart (System · Rundlich · Schmal · Serif · Monospace · Plakativ), Größe/Stärke/Kursiv/Ausrichtung, mehrzeiliger Text, Eckenradius, Deckkraft, Rahmen (Breite+Farbe), **Stangen-Länge** (nur bei Zielbanner + Wegweiser — wie lang die Pfosten/Stange unter dem Schild sind) und Schlagschatten. **Bild hinzufügen** macht aus dem Schild eine **Foto-Karte** (der Text wird dann zur Bildunterschrift); die Bildgröße ist separat einstellbar.
+    - **Sprechblasen-Pfeilrichtung (seit v0.9.408):** Beim Stil **Sprechblase** wählst du im Editor unter **„Pfeilrichtung"**, wohin die Spitze zeigt — **unten, oben, links oder rechts**. Die Blase rückt automatisch auf die Gegenseite, damit die Spitze immer auf den Ort deutet. (Analog zur Richtungswahl beim Wegweiser; gilt für Animator und Tour-Map.)
     - **Eine Farbe statt zwei (seit v0.9.271):** Früher gab es „Akzentfarbe" **und** „Hintergrund" — beide füllten dieselbe Fläche, das war verwirrend. Jetzt gibt es nur noch den **„Hintergrund"-Picker** = die Farbe des Schilds (bei der Stecknadel auch des Tropfens). Den **Rahmen** stellst du separat unter „Rahmen" ein.
     - **Hintergrund „Keine" (transparent, seit v0.9.269):** Beim Hintergrund kannst du neben „Auto" jetzt **„Keine"** wählen → die Schild-Box wird komplett **durchsichtig**. Praktisch für **Foto-Karten ohne farbigen Rahmen**: dann siehst du nur das Bild (plus optionalem Rahmen), statt eines farbigen Rands rund ums Foto, der zusammen mit dem Rahmen sonst wie ein **doppelter Rahmen** wirkt.
   - **Bearbeiten ist flackerfrei (seit v0.9.255):** Beim Ziehen der Regler (Größe, Ecken, Rahmen, Schatten, Stangen-Länge …) ändert sich die Vorschau sofort und ruhig. Im Probelauf und im fertigen Video laufen die Schilder flüssig mit der Kamera mit.
@@ -475,6 +481,37 @@ Dazu wie im Animator: **Neigung** (Pitch) und **Zoom-Stufe**. Die Sektion **„B
 
 ### Result-View
 Nach dem Render: großes Vorschaubild, „Im Finder zeigen", „Pfad kopieren", „Neue Karte".
+
+### Karten-Stil wählen — auch OpenStreetMap (seit v0.9.406) ⭐
+Im **Karten-Stil**-Dropdown stehen im Tour-Map-Modul zusätzlich zu den Mapbox-Stilen (Satellit, Streets …) vier **OpenStreetMap-Stile** zur Wahl: **OSM Standard, OpenTopoMap, CyclOSM, Humanitarian** — und zwar **auch dann, wenn du einen Mapbox-Token hinterlegt hast**. Wählst du einen OSM-Stil, zeigt ihn die Vorschau sofort an. *(OSM-Stile brauchen keinen Token.)*
+
+> **Interaktive Karte fürs Web?** Die Tour-Map erzeugt ein **Standbild (PNG)**. Wenn du eine **zoom-/verschiebbare Karte für deinen Blog** brauchst, nutze das eigene Modul **„🌐 Web Karte"** (seit v0.9.422) — siehe [Abschnitt 5c](#5c-modul-web-karte).
+
+---
+
+## 5c · Modul: Web Karte 🌐 — interaktive Karte fürs Blog (seit v0.9.422) ⭐
+
+### Was es macht
+Ein eigener, bewusst **schlanker** Tab für **interaktive Karten fürs Web/Blog** — komplett getrennt von der Tour-Map. Der Track wird automatisch aus dem geladenen GPX gezeichnet, dazu setzt du **Text-Beschriftungen direkt auf die Karte**. Ergebnis ist eine leichte, eigenständige HTML-Datei (~40 KB) mit tokenfreier OpenStreetMap-Karte — zum Zoomen und Verschieben im Browser, wie die eingebetteten Karten in Reisezoom-Blogposts. Die Vorschau in der App ist **exakt** der Export.
+
+*(Wenn du stattdessen ein hochwertiges Standbild mit Satellit/3D/Schildern/Fotos willst, nimm die [Tour-Map](#5--modul-tour-map).)*
+
+### Workflow
+1. **GPX laden** (globale GPX-Leiste oben). Der Track erscheint sofort und wird eingepasst.
+2. **Track-Farbe/-Breite** und **Kartenstil** links einstellen.
+3. **Beschriftungen setzen:** **„＋ Beschriftung hinzufügen"** anklicken → auf die Karte tippen. In der **Beschriftungs-Liste** darunter stellst du pro Eintrag **Text, Farbe und Größe** ein und löschst ihn per 🗑. Auf der Karte lässt sich jede Beschriftung **ziehen** (verschieben); ein Klick darauf springt zur passenden Zeile in der Liste. Die Textfarbe (hell/dunkel) wählt sich automatisch passend zur gewählten Farbe.
+4. Optional den **DSGVO-Button** aktivieren (siehe unten).
+5. **„🌐 Als HTML exportieren"** → Fenster mit den Ausgabe-Optionen.
+
+### DSGVO-Button (optional)
+Mit der Checkbox **„DSGVO-Zustimmungs-Button"** bekommt die Karte einen vorgeschalteten Zustimmungs-Layer — die externen Kartenkacheln (und damit die IP-Übertragung an OpenStreetMap) werden **erst nach Klick** geladen. Zustimmungs-Text und Button-Beschriftung sind frei editierbar und sinnvoll vorbefüllt. Hinter dem Text liegt ein **geblurrtes Vorschaubild deiner Karte**, das **fest in die HTML eingebettet** ist (kein Nachladen von außen) — so wirkt das Gate nicht leer und ist trotzdem DSGVO-konform. *(Der Export mit aktivem Consent dauert ein paar Sekunden länger, weil die Karte dafür einmal gerendert wird.)*
+
+### Nach dem Export
+- **▶ Im Browser öffnen** — zeigt die Karte sofort im Standard-Browser. *(Doppelklick auf die Datei öffnet je nach System nur einen Editor — darum diesen Button nutzen.)*
+- **Snippet kopieren (kein Upload):** ein fertiges **`<iframe>`-Snippet** für einen WordPress-**„Custom HTML"-Block**. Die ganze Karte steckt im Snippet (`srcdoc`) — kein separater Datei-Upload nötig.
+- **Im Finder zeigen:** findet die `.html` auf der Platte zum Hochladen auf den eigenen Server.
+
+**Bewusst minimal:** nur Track + Text-Beschriftungen. Keine Fotos, keine Schilder-Grafiken, kein 3D/Overlay — das ist der leichte „Blog-Karten"-Export.
 
 ---
 

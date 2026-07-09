@@ -311,15 +311,15 @@ def create_project(session: dict, name: str, global_defaults: dict, copy_from_id
     new_id = _new_project_id()
     if copy_from_id and copy_from_id in (session.get("projects") or {}):
         src = session["projects"][copy_from_id]
-        proj = {
-            "id": new_id,
-            "name": name,
-            "created_at": now,
-            "modified_at": now,
-            "animator": json.loads(json.dumps(src.get("animator", {}))),
-            "tourmap": json.loads(json.dumps(src.get("tourmap", {}))),
-            "geotagger": json.loads(json.dumps(src.get("geotagger", {}))),
-        }
+        # Tiefe Kopie ALLER Modul-Sektionen (generisch, damit neue Module wie
+        # `webkarte`/`heightanim` automatisch mitkopiert werden — nicht mehr
+        # eine feste Whitelist, die neue Module vergisst). Nur die projekt-
+        # eigenen Meta-Felder werden frisch gesetzt.
+        proj = json.loads(json.dumps(src))
+        proj["id"] = new_id
+        proj["name"] = name
+        proj["created_at"] = now
+        proj["modified_at"] = now
     else:
         proj = _project_from_defaults(name, global_defaults)
         proj["id"] = new_id  # _project_from_defaults generiert eigene ID

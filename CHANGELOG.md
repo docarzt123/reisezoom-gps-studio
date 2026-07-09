@@ -14,6 +14,105 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.428] – 2026-07-08
+### Behoben
+- **Web Karte: Beschriftungen ließen sich nicht bearbeiten/löschen** (Marc) — das Bearbeiten lief bisher über ein fummeliges Karten-Popup, das oft nicht reagierte. Ersetzt durch eine **Beschriftungs-Liste in der Sidebar**: jede Beschriftung hat ein Textfeld, eine Farbwahl, eine Größenwahl und einen Löschen-Button. Zuverlässig und persistent.
+### Hinzugefügt
+- **Web Karte: Beschriftungen mit Text, Farbe & Größe** (Marc) — pro Beschriftung frei einstellbar (Pill-Farbe + 4 Größenstufen). Textfarbe wählt sich automatisch (hell/dunkel) nach Kontrast. Auf der Karte weiterhin per Ziehen verschiebbar; Klick auf eine Beschriftung springt zur passenden Zeile in der Liste. Gilt für Editor **und** HTML-Export (WYSIWYG).
+
+## [0.9.427] – 2026-07-08
+### Behoben
+- **Web Karte: Beschriftungen/Einstellungen nach Neustart weg** (Marc) — die Werte wurden zwar gespeichert, aber beim Öffnen des Tabs nur einmal beim Mount gelesen; stand das Projekt erst danach bereit (GPX-Autoload) oder wurde das Projekt gewechselt, blieb die Karte leer. Der Tab liest jetzt Track-Farbe/-Breite, Kartenstil, DSGVO-Einstellungen **und alle Beschriftungen** bei jedem Session-/Projekt-Wechsel frisch aus dem Projekt (`onSessionChanged`) — nichts geht mehr verloren.
+- **Projekt duplizieren verlor Web-Karte/Höhen-Animator-Daten** — die Projekt-Kopie übernahm nur Animator/Tour-Map/Geotagger. Jetzt werden **alle** Modul-Sektionen generisch mitkopiert (auch `webkarte`, `heightanim`, Fotos).
+
+## [0.9.426] – 2026-07-08
+### Hinzugefügt
+- **Web Karte: Vorschaubild hinter dem DSGVO-Consent** (Marc) — ist der Zustimmungs-Button aktiv, wird die Karte beim Export einmal gerendert und als **lokal eingebettetes Bild** (JPEG im HTML, kein Nachladen) geblurrt+abgedunkelt hinter den Zustimmungs-Text gelegt. Das Gate wirkt dadurch nicht mehr leer und man sieht schon, worum es geht — DSGVO-konform, da erst nach Klick auf „Karte laden“ echte Kartenkacheln geladen werden. *(Der Export mit aktivem Consent dauert dadurch ein paar Sekunden länger, da die Karte einmal headless gerendert wird.)*
+
+## [0.9.425] – 2026-07-08
+### Geändert
+- **Web Karte: Beschriftungen jetzt als Leaflet-Tooltips** (Marc) — der feste-Pixel-Anker aus v0.9.424 hat das Zoom-„Schwimmen“ nur teilweise behoben. Die Labels sind jetzt echte permanente Leaflet-Tooltips, die Leaflet selbst zoom-stabil am Punkt hält. Optik unverändert (dunkles Pill). Verschieben (ziehen) und Umbenennen/Löschen (anklicken) funktionieren weiter über einen eigenen Pointer-Handler direkt auf dem Tooltip. Gilt für Editor **und** HTML-Export (WYSIWYG).
+
+## [0.9.424] – 2026-07-08
+### Behoben
+- **Web Karte: Beschriftungen „schwammen“ beim Zoomen** (Marc) — die Text-Labels rutschten relativ zum Track-Punkt hin und her, weil sie über einen CSS-`translate(-50%)`-Trick an einem 0×0-Anker hingen. Jetzt wird die Pill-Größe einmal gemessen und ein **fester Pixel-Anker** gesetzt (`iconAnchor`), sodass Leaflet die Position ganzzahlig hält — die Beschriftung bleibt beim Zoomen exakt am Punkt. Gilt für Editor **und** HTML-Export (WYSIWYG).
+
+## [0.9.423] – 2026-07-08
+### Behoben
+- **Tour-Map: Fertig-Meldung sagte „✓ Video fertig" statt „✓ Bild fertig"** (Marc) — nach dem Speichern eines Standbilds zeigte die Überschrift im Fertig-Bereich weiterhin den Video-Text. Jetzt zeigen der Standbild-Modus (Tour-Map) **und** der Animator-Snapshot korrekt „✓ Bild fertig".
+
+## [0.9.422] – 2026-07-08
+### Hinzugefügt
+- **Neuer Tab „Web Karte“ 🌐** (Marc) — ein komplett eigenständiges, bewusst schlankes Werkzeug für interaktive Karten fürs Web/Blog, unabhängig von der Tour-Map. Der Track wird automatisch aus dem geladenen GPX gezeichnet (fitBounds). **Text-Beschriftungen setzt man direkt auf der Karte**: „Beschriftung hinzufügen“ → auf die Karte klicken → tippen; ziehen zum Verschieben, anklicken zum Umbenennen/Löschen. Schlichte Leaflet-Labels (kein Server-Rastern → sofort). Tokenfreie OSM-Kacheln (wählbarer Stil), Track-Farbe/-Breite, optionaler DSGVO-„Karte laden“-Gate. Export = leichte, eigenständige Leaflet-HTML (~40 KB) + `<iframe srcdoc>`-Snippet. Die Vorschau ist exakt der Export. Eigenes Datenmodell (`proj.webkarte`). Neu: `modules/web-karte/`, Bridges `webkarte_prepare` + `webkarte_export`; `core/tourmap_leaflet.py` um freie Text-Labels erweitert.
+### Geändert
+- **Tour-Map wieder nur Standbild (PNG)** (Marc) — der in v0.9.418 eingeführte „Bild (PNG) ↔ HTML (Blog)“-Umschalter wurde entfernt. Die interaktive Blog-Karte ist jetzt der eigene Tab „Web Karte“. Die Tour-Map ist damit wieder auf ihren Kern (WYSIWYG-Standbild) reduziert.
+### Entfernt
+- MapLibre-basierter HTML-Export aus dem Tour-Map-Editor (durch „Web Karte“ ersetzt).
+
+## [0.9.418] – 2026-07-08
+### Behoben (live verifiziert v0.9.419–421)
+- Fehlende Übersetzungen (Umschalter + HTML-Editor zeigten i18n-Keys) → DE/EN/ES ergänzt.
+- Leere Leaflet-Vorschau (die `.canvas`-Klasse trug Animator-CSS) → eigener Container + ResizeObserver.
+- GPX beim Start nicht erkannt → HTML-Editor hört jetzt auf `onGpxLoaded`.
+- **Bild-(PNG)-Vorschau leer**: der Modus-Umschalter überschrieb das `.module-body`-Grid mit Flex → der Sub-Container ist jetzt dasselbe Grid (`360px 1fr`), Animator-Karte lädt wieder.
+### Hinzugefügt
+- **Tour-Map: Umschalter „Bild (PNG)“ ↔ „HTML (Blog)“** (Marc) — die Tour-Map hat jetzt zwei getrennte Editoren im selben Tab. **Bild (PNG)** = wie bisher (volle WYSIWYG-Standbild-Engine, MapLibre/Mapbox, Satellit/3D/Overlays). **HTML (Blog)** = ein komplett eigener, bewusst schlanker **Leaflet-Editor** für interaktive Blog-Einbettung: leichte OSM-Rasterkarte (~0,2 MB statt ~1,4 MB), voller Track sofort, **Schilder pixelgenau** (serverseitig via __rzDrawSign gerastert → WYSIWYG, kein WebView-Canvas-Crash), Kachelstil-Auswahl, fitBounds, optionaler DSGVO-Consent. Eigene Leaflet-Vorschau = exakt der Export. **Bewusst minimal: keine Fotos, kein 3D/Overlay.** Neu: core/tourmap_leaflet.py, core/sign_raster.py, modules/tourmap-html/, Bridges tourmap_leaflet_prepare + tourmap_export_leaflet.
+### Geändert
+- Der bisherige (schwere) MapLibre-HTML-Export aus dem Tour-Map-Bild-Editor ist durch den neuen Leaflet-HTML-Modus ersetzt.
+
+## [0.9.417] – 2026-07-08
+### Behoben
+- **Animator-Snapshot zeigte nur den Teil-Track, obwohl „ganze Route zeigen" an war** (Marc) — der Snapshot („📸 Aktuellen Frame als Bild") zeichnete die Linie immer nur bis zur Scrubber-Position, auch wenn die Vorschau via „ganze Route zeigen" (`preview_full_track`) den kompletten Track zeigt. Jetzt übernimmt der Snapshot diesen Zustand: **komplette Track-Linie**, der Positions-Punkt bleibt am Scrubber — 1:1 zur Vorschau, in voller Render-Auflösung.
+
+## [0.9.416] – 2026-07-08
+### Behoben
+- **Tour-Map HTML-Export: Höhenprofil erschien, obwohl in der Vorschau aus** (Marc) — das Höhenprofil-Overlay ist im Backend standardmäßig aktiv; der neue Export reichte den Schalter nicht durch, sodass es im HTML immer auftauchte. Jetzt wird `overlay_elevation_enabled` (und -position) aus der Vorschau übernommen → Overlay-Zustand im Export 1:1 wie in der App.
+
+## [0.9.415] – 2026-07-08
+### Geändert
+- **Tour-Map HTML-Export komplett neu — jetzt echtes WYSIWYG** (Marc) — der interaktive Blog-Export wurde von Grund auf umgestellt: statt die Karte in **Leaflet** nachzubauen und die Schilder separat im App-WebView zu rastern (was dort abstürzte → falsche/fehlende Schilder, falsche Farben, falsche Pins), nutzt der Export jetzt **dieselbe Render-Pipeline wie Video und Standbild** (`core/animator.py` `_make_html`: MapLibre GL + `__rzDrawSign`). Die exportierte HTML ist eine eigenständige, im Besucher-Browser laufende, frei zoom-/pan-bare Karte, die beim Laden auf den **Vorschau-Ausschnitt** springt und die **volle Strecke + alle Schilder/Pins/Overlays** zeigt — pixelgleich zur App. Schilder werden im Browser des Besuchers gezeichnet (Safari/Chrome/Firefox), wo Canvas zuverlässig funktioniert. Tokenfreie OSM-Kacheln (wählbarer Stil), optionaler DSGVO-„Karte laden"-Gate (lädt Karte + Kacheln erst auf Klick). Neu: `AnimatorConfig.interactive_export` + `build_interactive_html()`; `core/tourmap_html.py` liefert nur noch Consent-Wrapper + Embed-Snippet (Leaflet-Generator entfernt).
+
+## [0.9.414] – 2026-07-08
+### Behoben
+- **Tour-Map HTML-Export: Schilder-Diagnose + Robustheit** (Marc) — Zwischenschritt: Export liest Schilder aus jeder passenden Projekt-Liste und protokolliert den Ablauf; deckte auf, dass die WebView-Rasterung zur Laufzeit eine Ausnahme wirft (Ursache für die fehlenden Schilder). Von v0.9.415 abgelöst.
+
+## [0.9.413] – 2026-07-08
+### Behoben
+- **Tour-Map HTML-Export: Zoomstufe passte nicht zur Vorschau** (Marc) — die exportierte HTML-Karte fittete immer auf den **ganzen Track** und war dadurch bei langen Touren viel weiter rausgezoomt als die Vorschau. Jetzt wird der **aktuelle Vorschau-Ausschnitt** (Kartenmitte + sichtbare Bounds) an den Export übergeben, und die HTML-Karte rahmt **genau denselben Bereich** (Leaflet `getBoundsZoom` → konventions- und seitenverhältnis-unabhängig). Echtes WYSIWYG für den Zoom.
+- **Tour-Map HTML-Export: Schilder fehlten komplett** (Marc) — nach der Bild-Rasterung (v0.9.411) konnten Schilder im Export ganz verschwinden, wenn ein Schild ohne fertiges Bild ankam (z. B. wenn App-Fenster und Backend nach einem Update kurz auseinanderliefen). Jetzt gilt: Schild nur verwerfen, wenn **weder Bild noch Text** vorhanden ist — fehlt das Bild, rendert der Export ein **lesbares Text-Label** als Fallback statt das Schild stumm zu verschlucken.
+
+## [0.9.412] – 2026-07-08
+### Hinzugefügt
+- **Animator: Snapshot — aktuellen Vorschau-Frame als Bild** (Marc) — neuer Button **„📸 Aktuellen Frame als Bild"** unter dem Video-Render-Button. Er rendert **genau den Frame, den die Vorschau gerade zeigt** (Track nur bis zur Scrubber-Position, aktuelle Kamera, Overlays der Stelle) als PNG in voller Render-Auflösung. Server-Render über dieselbe Pipeline wie das Video → WYSIWYG. (Neu im Backend: `render_frame` mit Kamera-Override + Marker-Anker; `snapshot`-Pfad in der Render-Bridge.)
+- **Animator: „🗺 Als Tour-Map öffnen"** (Marc) — übernimmt den **aktuellen Ausschnitt/Zoom/Drehung/Neigung** der Animator-Vorschau in die Tour-Map (statt Auto-Fit auf den ganzen Track). Dort weiter feintunen und als **PNG oder interaktives HTML** exportieren — beide Exporte respektieren den übernommenen Blickwinkel. Zurück zum Track-Fit mit dem **⤢**-Button. i18n DE/EN/ES.
+
+## [0.9.411] – 2026-07-08
+### Behoben
+- **Tour-Map HTML-Export: Schilder erschienen nur als Punkte** (Marc) — im interaktiven HTML-Export wurden die Schilder als einfache farbige Punkte (mit Popup) dargestellt statt als die eigentlichen Sprechblasen/Schilder wie in der Vorschau. Jetzt werden die Schilder mit **derselben Engine wie Vorschau und Video** (`__rzDrawSign`) zu einem Bild gerastert und als Karten-Icon eingebettet — inklusive Text, Bild, Farbe, Form und Sprechblasen-Pfeilrichtung. Echtes WYSIWYG.
+
+## [0.9.410] – 2026-07-08
+### Behoben
+- **Tour-Map: „Interaktive Karte (HTML)"-Sektion ließ sich nicht aufklappen** (Marc) — die neue Export-Sektion nutzte ein abweichendes Markup und war nicht ans Akkordeon-System angebunden; ein Klick auf die Kopfzeile tat nichts (Bereich blieb zugeklappt, HTML-Export nicht erreichbar). Jetzt Standard-Sektion (`data-accordion-section`) → Aufklappen funktioniert, standardmäßig offen.
+
+## [0.9.409] – 2026-07-08
+### Behoben
+- **Stats-Boxen: Deckkraft 0 % färbte die Box wieder voll ein** (Beta-Tester) — der Deckkraft-Regler „Hintergrund" sprang bei **0 %** heimlich auf den Standard von 55 % zurück (klassischer „0 ist falsy"-Bug: `parseFloat(0) || 55`). Jetzt bleibt 0 % auch wirklich transparent — in Vorschau **und** Render. (Speichern/Wiederherstellen waren schon korrekt.)
+- **Probe-Lauf startete nach Programm-Neustart nicht** (Beta-Tester) — bei gemerkter Route lief der Probe-Lauf beim ersten Klick manchmal nicht an (der Track war sichtbar, aber der interne Track-Status war nach dem Kaltstart noch leer, weil das GPX-Lade-Ereignis vor der Listener-Registrierung feuerte). Der Probe-Lauf zieht den globalen GPX-Status jetzt beim Klick nach — er startet ab sofort zuverlässig, ohne die Tour neu laden zu müssen.
+
+## [0.9.408] – 2026-07-08
+### Hinzugefügt
+- **Schilder: Sprechblasen-Pfeilrichtung wählbar** (Marc) — beim Schild-Stil **Sprechblase** kann die Spitze jetzt in vier Richtungen zeigen: **unten, oben, links, rechts** (neues Dropdown „Pfeilrichtung" im Schild-Editor, nur bei der Sprechblase sichtbar; analog zur bestehenden Wegweiser-Richtung). Die Sprechblase setzt sich entsprechend auf die gegenüberliegende Seite, sodass die Spitze immer auf den Ort zeigt. WYSIWYG in Vorschau, Probelauf und Video-/PNG-Render (gilt für Animator und Tour-Map — dasselbe Modul); pro Schild gespeichert. Default unten (bestehende Schilder unverändert). i18n DE/EN/ES.
+
+## [0.9.407] – 2026-07-08
+### Behoben
+- **Tour-Map: Track war auf OSM-Karten unsichtbar** (Marc) — bei gesetztem Mapbox-Token blieb der Engine-Modus „mapbox", auch wenn ein OSM-Raster-Stil gewählt war. Dadurch wurde die Mapbox-GL-v3-only-Eigenschaft `line-z-offset` (Terrain-Höhenversatz, standardmäßig aktiv) auf die Track-Layer gelegt — die auf reinen Raster-Kacheln **gar nicht rendern**, also verschwand die Route. Neuer Helfer `osmStyleActive()` (Engine-OSM **oder** OSM-Stil gewählt) gated jetzt `line-z-offset` und die 3D-Terrain-/DEM-Anwendung → auf OSM-Stilen ist der Track wieder sichtbar (mit UND ohne Token).
+
+## [0.9.406] – 2026-07-08
+### Hinzugefügt
+- **Tour-Map: interaktive Karte als HTML exportieren** (Marc) — neue Sektion „🌐 Interaktive Karte (HTML)" im Tour-Map-Modul. Erzeugt eine eigenständige **Leaflet + OpenStreetMap**-Karte (kein Mapbox-Token, keine externen Uploads nötig) mit **Route, Start/Ziel-Pins, Schildern und Foto-Popups** — genau wie in der Vorschau (WYSIWYG). Ausgabe: fertige `.html` + ein `<iframe srcdoc>`-Snippet zum direkten Einfügen in einen WordPress-„Custom HTML"-Block. Bild-Anhänge (Schilder/Fotos) werden als verkleinerte Inline-Data-URIs eingebettet, die HTML ist damit voll portabel.
+- **Tour-Map: OSM-Kartenstil-Auswahl** (Marc) — der Kartenstil-Selektor bietet im Tour-Map-Modul zusätzlich zu den Mapbox-Stilen vier **OpenStreetMap-Stile** (Standard, OpenTopoMap, CyclOSM, Humanitarian) an — **auch wenn ein Mapbox-Token gesetzt ist**. Der gewählte OSM-Stil erscheint live in der Vorschau und wird 1:1 in den HTML-Export übernommen (WYSIWYG). Mapbox-Stile gelten weiterhin für den PNG-Export.
+- **Tour-Map: optionaler DSGVO-„Karte laden"-Button** (Marc) — der HTML-Export kann einen vorgeschalteten Zustimmungs-Overlay erhalten (Karte lädt externe OSM-Kacheln erst nach Klick, IP-schonend). Zustimmungs-Text und Button-Beschriftung sind **frei editierbar** und mit einem DSGVO-Standardtext vorbefüllt. Persistiert pro Projekt. i18n DE/EN/ES.
+
 ## [0.9.405] – 2026-07-08
 ### Geändert
 - **Höhen-Animator: laufender Punkt getrennt schaltbar** (Marc) — der Marker besteht jetzt aus zwei unabhängigen Schaltern: **„Punkt zeigen (zeichnet die Linie)"** für den laufenden Punkt und **„Info-Box zeigen"** für die Info-Box am Marker (vorher „Marker zeigen", das beides gleichzeitig steuerte). So kann man die Info-Box komplett ausschalten und den Punkt trotzdem behalten (oder umgekehrt). Punktfarbe/-größe gelten wie bisher für den Punkt. Persistiert + Undo; WYSIWYG in Vorschau, Video-Render und HTML-Export.
