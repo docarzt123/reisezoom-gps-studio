@@ -1336,5 +1336,17 @@
   "webkarte.size_s": "Small",
   "webkarte.size_m": "Medium",
   "webkarte.size_l": "Large",
-  "webkarte.size_xl": "Extra large"
+  "webkarte.size_xl": "Extra large",
+  "webkarte.consent_preview": "Map preview behind the notice",
+  "webkarte.consent_preview_hint": "Shows a blurred still of your map behind the consent text (embedded locally, GDPR-compliant). Off = much faster export, but an empty gate.",
+  "webkarte.export_rendering": "Rendering the map – the preview image can take a few seconds …",
+  "webkarte.export_working": "Exporting …",
+  "webkarte.leaflet_source": "Leaflet source",
+  "webkarte.leaflet_cdn": "CDN (unpkg)",
+  "webkarte.leaflet_selfhost": "Self-hosted (URL)",
+  "webkarte.leaflet_inline": "Embed in HTML",
+  "webkarte.leaflet_url_ph": "https://yourblog.com/leaflet/",
+  "webkarte.leaflet_hint_cdn": "Loads Leaflet from the public unpkg CDN (smallest file). With the GDPR button on, only after “Load map”.",
+  "webkarte.leaflet_hint_url": "Loads leaflet.css + leaflet.js from your base URL (you host the two files yourself).",
+  "webkarte.leaflet_hint_inline": "Leaflet is written fully into the HTML – no external request (GDPR-clean, works offline), the file grows ~160 KB."
 }

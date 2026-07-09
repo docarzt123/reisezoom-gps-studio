@@ -132,7 +132,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.428"
+APP_VERSION = "0.9.430"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -2777,6 +2777,26 @@ class Api:
     # v0.9.422 — Komplett getrennt von der Tour-Map. Kein Playwright/keine Schild-
     # Rasterung: nur Track (aus GPX) + freie Text-Beschriftungen als Leaflet-Labels.
 
+    _LEAFLET_CACHE = None
+
+    def _leaflet_assets(self):
+        """(css, js) der gebündelten Leaflet-Dateien (ui/vendor/leaflet/) oder
+        (None, None). Für den „inline“-Export + fürs Consent-Vorschaubild-Rendern."""
+        if Api._LEAFLET_CACHE is not None:
+            return Api._LEAFLET_CACHE
+        css = js = None
+        try:
+            d = UI_DIR / "vendor" / "leaflet"
+            fcss = d / "leaflet.css"
+            fjs = d / "leaflet.js"
+            if fcss.is_file() and fjs.is_file():
+                css = fcss.read_text(encoding="utf-8")
+                js = fjs.read_text(encoding="utf-8")
+        except Exception as e:
+            log.warning("Leaflet-Bundle konnte nicht gelesen werden: %s", e)
+        Api._LEAFLET_CACHE = (css, js)
+        return Api._LEAFLET_CACHE
+
     def webkarte_prepare(self, params: dict) -> dict:
         """Track für die Web-Karten-Vorschau: voller Track als [lat, lon]
         (downsampled). Sehr leicht, kein Screenshot/Playwright."""
@@ -2814,7 +2834,21 @@ class Api:
 
             w = int(params.get("width", 1120) or 1120)
             h = int(params.get("height", 640) or 640)
-            inner = ctmleaflet.make_leaflet_html({
+
+            # v0.9.430 — Leaflet-Quelle: cdn | url | inline (self-contained).
+            leaflet_mode = str(params.get("leaflet_mode") or "cdn").lower()
+            _lcss, _ljs = self._leaflet_assets()
+            leaflet_params = {"leaflet_mode": leaflet_mode,
+                              "leaflet_url": str(params.get("leaflet_url") or "")}
+            if leaflet_mode == "inline":
+                if _lcss and _ljs:
+                    leaflet_params["leaflet_css"] = _lcss
+                    leaflet_params["leaflet_js"] = _ljs
+                else:
+                    leaflet_params["leaflet_mode"] = "cdn"
+                    log.warning("Leaflet-Inline gewünscht, aber Bundle-Dateien fehlen → CDN-Fallback")
+
+            base_cfg = {
                 "track": track,
                 "line_color": params.get("line_color", "#ff6b35"),
                 "line_width": float(params.get("line_width", 4.5) or 4.5),
@@ -2827,21 +2861,32 @@ class Api:
                 "view_zoom": params.get("view_zoom"),
                 "title": params.get("title") or (Path(gpx_path).stem + " — Karte"),
                 "width": w, "height": h,
-            })
+            }
+            inner = ctmleaflet.make_leaflet_html({**base_cfg, **leaflet_params})
             if bool(params.get("consent_enabled", False)):
                 # v0.9.426 — lokal eingebettetes Vorschaubild HINTER dem Consent-Gate,
                 # damit es nicht leer wirkt. Karte einmal headless rendern → JPEG-data-URI.
+                # v0.9.429 — optional (consent_preview): aus = schneller Export, leeres Gate.
+                # v0.9.430 — Bild kleiner (560×320, q52) + zum RENDERN Leaflet inline
+                # (funktioniert offline + unabhängig von der gewählten Export-Quelle).
                 bg_uri = ""
-                try:
-                    png = ctmleaflet.render_preview_png(inner, w, h)
-                    if png:
-                        bg_uri = "data:image/jpeg;base64," + base64.b64encode(png).decode("ascii")
-                        log.info("Web-Karte-Consent-Vorschaubild gerendert (%.0f KB)",
-                                 len(png) / 1024)
-                    else:
-                        log.warning("Consent-Vorschaubild: Rendern lieferte nichts (Playwright/Chromium?)")
-                except Exception as e:
-                    log.warning("Consent-Vorschaubild fehlgeschlagen: %s", e)
+                if bool(params.get("consent_preview", True)):
+                    try:
+                        prev_cfg = dict(base_cfg)
+                        if _lcss and _ljs:
+                            prev_cfg["leaflet_mode"] = "inline"
+                            prev_cfg["leaflet_css"] = _lcss
+                            prev_cfg["leaflet_js"] = _ljs
+                        inner_prev = ctmleaflet.make_leaflet_html(prev_cfg)
+                        png = ctmleaflet.render_preview_png(inner_prev, 560, 320, quality=52)
+                        if png:
+                            bg_uri = "data:image/jpeg;base64," + base64.b64encode(png).decode("ascii")
+                            log.info("Web-Karte-Consent-Vorschaubild gerendert (%.0f KB)",
+                                     len(png) / 1024)
+                        else:
+                            log.warning("Consent-Vorschaubild: Rendern lieferte nichts (Playwright/Chromium?)")
+                    except Exception as e:
+                        log.warning("Consent-Vorschaubild fehlgeschlagen: %s", e)
                 html_doc = ctourhtml.wrap_with_consent(
                     inner,
                     params.get("consent_text") or ctourhtml.DEFAULT_CONSENT_TEXT,

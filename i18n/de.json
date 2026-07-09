@@ -1336,5 +1336,17 @@
   "webkarte.size_s": "Klein",
   "webkarte.size_m": "Mittel",
   "webkarte.size_l": "Groß",
-  "webkarte.size_xl": "Sehr groß"
+  "webkarte.size_xl": "Sehr groß",
+  "webkarte.consent_preview": "Vorschaubild der Karte hinter dem Hinweis",
+  "webkarte.consent_preview_hint": "Zeigt ein geblurrtes Standbild deiner Karte hinter dem Zustimmungs-Text (lokal eingebettet, DSGVO-konform). Aus = deutlich schnellerer Export, aber leeres Gate.",
+  "webkarte.export_rendering": "Karte wird gerendert – das Vorschaubild kann ein paar Sekunden dauern …",
+  "webkarte.export_working": "Export läuft …",
+  "webkarte.leaflet_source": "Leaflet-Quelle",
+  "webkarte.leaflet_cdn": "CDN (unpkg)",
+  "webkarte.leaflet_selfhost": "Selbst gehostet (URL)",
+  "webkarte.leaflet_inline": "In HTML einbetten",
+  "webkarte.leaflet_url_ph": "https://deinblog.de/leaflet/",
+  "webkarte.leaflet_hint_cdn": "Lädt Leaflet vom öffentlichen unpkg-CDN (kleinste Datei). Bei aktivem DSGVO-Button erst nach „Karte laden“.",
+  "webkarte.leaflet_hint_url": "Lädt leaflet.css + leaflet.js von deiner Basis-URL (du legst die beiden Dateien selbst dort ab).",
+  "webkarte.leaflet_hint_inline": "Leaflet wird komplett in die HTML geschrieben – kein externer Abruf (DSGVO-sauber, offline-fähig), die Datei wird ~160 KB größer."
 }

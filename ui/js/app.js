@@ -584,6 +584,10 @@ async function openAboutModal() {
             — Mapbox Terms of Service
           </li>
           <li>
+            <a href="#" class="md-about-link" data-url="https://leafletjs.com/">Leaflet</a>
+            — BSD-2-Clause (Web-Karten-Export, gebündelt)
+          </li>
+          <li>
             <a href="#" class="md-about-link" data-url="https://pywebview.flowrl.com/">pywebview</a> — BSD-3-Clause ·
             <a href="#" class="md-about-link" data-url="https://python-pillow.org/">Pillow</a> — HPND ·
             <a href="#" class="md-about-link" data-url="https://github.com/tkrajina/gpxpy">gpxpy</a> — Apache-2.0

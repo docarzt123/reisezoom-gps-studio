@@ -506,6 +506,12 @@ Ein eigener, bewusst **schlanker** Tab für **interaktive Karten fürs Web/Blog*
 ### DSGVO-Button (optional)
 Mit der Checkbox **„DSGVO-Zustimmungs-Button"** bekommt die Karte einen vorgeschalteten Zustimmungs-Layer — die externen Kartenkacheln (und damit die IP-Übertragung an OpenStreetMap) werden **erst nach Klick** geladen. Zustimmungs-Text und Button-Beschriftung sind frei editierbar und sinnvoll vorbefüllt. Hinter dem Text liegt ein **geblurrtes Vorschaubild deiner Karte**, das **fest in die HTML eingebettet** ist (kein Nachladen von außen) — so wirkt das Gate nicht leer und ist trotzdem DSGVO-konform. *(Der Export mit aktivem Consent dauert ein paar Sekunden länger, weil die Karte dafür einmal gerendert wird.)*
 
+### Leaflet-Quelle (seit v0.9.430)
+Im Export-Bereich wählst du, **woher die eingebettete Karte Leaflet lädt**:
+- **CDN (unpkg)** — Standard, kleinste Datei; Leaflet kommt vom öffentlichen CDN (bei aktivem DSGVO-Button erst nach „Karte laden").
+- **Selbst gehostet (URL)** — du gibst eine Basis-URL an (z.B. `https://deinblog.de/leaflet/`); die HTML lädt `leaflet.css` + `leaflet.js` von dort. Du legst die beiden Dateien selbst auf deinen Server.
+- **In HTML einbetten** — Leaflet wird komplett in die Datei geschrieben: **kein externer Abruf** (DSGVO-sauber, funktioniert offline), die Datei wird ~160 KB größer.
+
 ### Nach dem Export
 - **▶ Im Browser öffnen** — zeigt die Karte sofort im Standard-Browser. *(Doppelklick auf die Datei öffnet je nach System nur einen Editor — darum diesen Button nutzen.)*
 - **Snippet kopieren (kein Upload):** ein fertiges **`<iframe>`-Snippet** für einen WordPress-**„Custom HTML"-Block**. Die ganze Karte steckt im Snippet (`srcdoc`) — kein separater Datei-Upload nötig.

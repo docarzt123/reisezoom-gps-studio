@@ -25,7 +25,7 @@ LEAFLET_VERSION = "1.9.4"
 
 
 def render_preview_png(html: str, width: int = 1120, height: int = 640,
-                       timeout_ms: int = 3500) -> bytes | None:
+                       timeout_ms: int = 3500, quality: int = 72) -> bytes | None:
     """Rendert eine Leaflet-HTML headless (Playwright/Chromium) zu einem JPEG und
     gibt die Bytes zurück. Genutzt fürs DSGVO-Consent-Hintergrundbild der Web-Karte
     (ein lokal eingebettetes Standbild der Karte, damit das Gate nicht leer wirkt).
@@ -49,7 +49,7 @@ def render_preview_png(html: str, width: int = 1120, height: int = 640,
                                     device_scale_factor=1)
             page.goto("file://" + tmp, wait_until="load")
             page.wait_for_timeout(int(timeout_ms))  # Kacheln nachladen lassen
-            shot = page.screenshot(type="jpeg", quality=72)
+            shot = page.screenshot(type="jpeg", quality=int(quality))
             browser.close()
             return shot
     except Exception:
@@ -125,9 +125,31 @@ def make_leaflet_html(params: dict) -> str:
     }
     D = json.dumps(data, ensure_ascii=False)
 
+    # v0.9.430 — Leaflet-Einbindung wählbar: CDN (unpkg), selbst gehostet (eigene
+    # Basis-URL) oder komplett in die HTML eingebettet (self-contained, kein externer
+    # Abruf). Das % in Leaflets CSS/JS ist unkritisch: Python interpretiert % nur im
+    # FORMAT-String, nicht in den eingesetzten WERTEN → leaflet_head wird als Wert
+    # sicher übergeben.
+    mode = str(params.get("leaflet_mode") or "cdn").lower()
+    if mode == "inline" and params.get("leaflet_css") and params.get("leaflet_js"):
+        leaflet_head = ("<style>" + str(params["leaflet_css"]) + "</style>\n"
+                        "<script>" + str(params["leaflet_js"]) + "</script>")
+    elif mode == "url" and str(params.get("leaflet_url") or "").strip():
+        base = str(params["leaflet_url"]).strip()
+        if not base.endswith("/"):
+            base += "/"
+        base = base.replace('"', "%22")
+        leaflet_head = ('<link rel="stylesheet" href="' + base + 'leaflet.css">\n'
+                        '<script src="' + base + 'leaflet.js"></script>')
+    else:
+        leaflet_head = ('<link rel="stylesheet" href="https://unpkg.com/leaflet@'
+                        + LEAFLET_VERSION + '/dist/leaflet.css">\n'
+                        '<script src="https://unpkg.com/leaflet@'
+                        + LEAFLET_VERSION + '/dist/leaflet.js"></script>')
+
     return LEAFLET_TEMPLATE % {
         "title": _html.escape(title),
-        "leaflet": LEAFLET_VERSION,
+        "leaflet_head": leaflet_head,
         "data": D,
     }
 
@@ -136,8 +158,7 @@ LEAFLET_TEMPLATE = """<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%(title)s</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@%(leaflet)s/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@%(leaflet)s/dist/leaflet.js"></script>
+%(leaflet_head)s
 <style>
   html,body{margin:0;height:100%%}
   #rz-map{width:100%%;height:100vh;min-height:280px}

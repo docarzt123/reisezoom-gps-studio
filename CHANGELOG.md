@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.430] – 2026-07-09
+### Hinzugefügt
+- **Web Karte: Leaflet-Quelle wählbar** (Marc) — neues Dropdown „Leaflet-Quelle" im Export: **CDN (unpkg)** wie bisher, **Selbst gehostet** (eigene Basis-URL — die HTML lädt `leaflet.css`+`leaflet.js` von dort), oder **In HTML einbetten** = Leaflet komplett self-contained in der Datei (kein externer Abruf, DSGVO-sauber, offline-fähig; ~+160 KB). Leaflet 1.9.4 wird dafür mitgeliefert (BSD-2-Clause, in den Credits ergänzt).
+### Geändert
+- **Web Karte: Consent-Vorschaubild deutlich kleiner** (Marc) — das geblurrte Kartenbild hinterm DSGVO-Gate wird jetzt kleiner gerendert und stärker komprimiert (~16 KB statt ~110 KB), ohne sichtbaren Unterschied (liegt eh geblurrt hinter dem Text). Fürs Rendern des Vorschaubilds wird Leaflet intern eingebettet → funktioniert offline und unabhängig von der gewählten Leaflet-Quelle.
+
+## [0.9.429] – 2026-07-09
+### Hinzugefügt
+- **Web Karte: Fortschritts-Feedback beim HTML-Export** (Marc) — der Export blockiert kurz (v.a. wenn das Consent-Vorschaubild gerendert wird), was wie ein Absturz wirkte. Jetzt zeigt der Export-Bereich einen deutlichen, pulsierenden Hinweis („Karte wird gerendert – das Vorschaubild kann ein paar Sekunden dauern …“), der Button ist während des Vorgangs deaktiviert.
+- **Web Karte: Consent-Vorschaubild an/aus wählbar** (Marc) — neue Checkbox „Vorschaubild der Karte hinter dem Hinweis“ (Standard: an). Aus = deutlich schnellerer Export (kein Headless-Render), das DSGVO-Gate bleibt dann schlicht/leer. An = wie bisher das geblurrte Kartenbild dahinter.
+
 ## [0.9.428] – 2026-07-08
 ### Behoben
 - **Web Karte: Beschriftungen ließen sich nicht bearbeiten/löschen** (Marc) — das Bearbeiten lief bisher über ein fummeliges Karten-Popup, das oft nicht reagierte. Ersetzt durch eine **Beschriftungs-Liste in der Sidebar**: jede Beschriftung hat ein Textfeld, eine Farbwahl, eine Größenwahl und einen Löschen-Button. Zuverlässig und persistent.

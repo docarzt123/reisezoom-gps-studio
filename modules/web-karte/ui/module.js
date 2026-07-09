@@ -27,7 +27,9 @@
         ".leaflet-tooltip.wk-tip{background:none;border:0;padding:0;box-shadow:none;white-space:nowrap;}" +
         ".leaflet-tooltip.wk-tip:before{display:none;}" +
         ".wk-lbl-row{border:1px solid var(--border,#3a3f4a);border-radius:7px;padding:7px;margin-bottom:7px;}" +
-        ".wk-lbl-row.sel{border-color:#ff6b35;box-shadow:0 0 0 1px #ff6b35;}";
+        ".wk-lbl-row.sel{border-color:#ff6b35;box-shadow:0 0 0 1px #ff6b35;}" +
+        ".wk-working{color:#ff6b35;font-weight:600;animation:wkpulse 1.1s ease-in-out infinite;}" +
+        "@keyframes wkpulse{0%,100%{opacity:.45}50%{opacity:1}}";
       document.head.appendChild(st);
     }
     const LBL_COLOR0 = "#15171c";   // Default-Pill-Farbe
@@ -45,6 +47,9 @@
     const consentOn0 = !!get("consent_enabled", false);
     const consentTxt0 = get("consent_text", "");
     const consentBtn0 = get("consent_button", "");
+    const consentPrev0 = get("consent_preview", true) !== false;   // Vorschaubild an by default
+    const leafletMode0 = ["cdn", "url", "inline"].includes(get("leaflet_mode", "cdn")) ? get("leaflet_mode", "cdn") : "cdn";
+    const leafletUrl0 = get("leaflet_url", "");
     const DEFAULT_CONSENT = T("tourmap.html.consent_default",
       "Zum Anzeigen der interaktiven Karte werden Kartenkacheln von OpenStreetMap geladen. Dabei wird deine IP-Adresse an den Kartenanbieter übertragen. Mit Klick auf „Karte laden“ stimmst du dem zu.");
     // Labels: [{lat, lon, text, color, size}] — eigenes Datenmodell.
@@ -89,10 +94,23 @@
             <textarea id="wk-consent-text" rows="4" style="width:100%; box-sizing:border-box; font-size:12px;">${consentTxt0 || DEFAULT_CONSENT}</textarea>
             <label class="field-label" for="wk-consent-button" style="margin-top:8px;">${T("tourmap.html.consent_button_label", "Button-Beschriftung")}</label>
             <input type="text" id="wk-consent-button" value="${consentBtn0 || T("tourmap.html.consent_button_default", "Karte laden")}" style="width:100%; box-sizing:border-box;">
+            <label class="check-row" style="margin-top:10px;">
+              <input type="checkbox" id="wk-consent-preview"${consentPrev0 ? " checked" : ""}>
+              <span>${T("webkarte.consent_preview", "Vorschaubild der Karte hinter dem Hinweis")}</span>
+            </label>
+            <div class="muted" style="font-size:11px; margin-top:4px; line-height:1.4;">${T("webkarte.consent_preview_hint", "Zeigt ein geblurrtes Standbild deiner Karte hinter dem Zustimmungs-Text (lokal eingebettet, DSGVO-konform). Aus = deutlich schnellerer Export, aber leeres Gate.")}</div>
           </div>
         </div>
 
         <div class="section">
+          <label class="field-label" for="wk-leaflet-mode">${T("webkarte.leaflet_source", "Leaflet-Quelle")}</label>
+          <select id="wk-leaflet-mode" style="width:100%;">
+            <option value="cdn"${leafletMode0 === "cdn" ? " selected" : ""}>${T("webkarte.leaflet_cdn", "CDN (unpkg)")}</option>
+            <option value="url"${leafletMode0 === "url" ? " selected" : ""}>${T("webkarte.leaflet_selfhost", "Selbst gehostet (URL)")}</option>
+            <option value="inline"${leafletMode0 === "inline" ? " selected" : ""}>${T("webkarte.leaflet_inline", "In HTML einbetten")}</option>
+          </select>
+          <input type="text" id="wk-leaflet-url" value="${(leafletUrl0 || "").replace(/"/g, "&quot;")}" placeholder="${T("webkarte.leaflet_url_ph", "https://deinblog.de/leaflet/")}" style="width:100%; box-sizing:border-box; margin-top:6px; display:${leafletMode0 === "url" ? "block" : "none"};">
+          <div class="muted" id="wk-leaflet-hint" style="font-size:11px; margin:5px 0 12px; line-height:1.4;"></div>
           <button class="btn btn-primary btn-block" id="wk-export">🌐 ${T("webkarte.export_btn", "Als HTML exportieren")}</button>
           <div class="muted" id="wk-status" style="font-size:11px; margin-top:8px; min-height:14px;"></div>
         </div>
@@ -252,6 +270,10 @@
       if (el("wk-consent-fields")) el("wk-consent-fields").style.display = cons ? "" : "none";
       if (el("wk-consent-text") && a.consent_text) el("wk-consent-text").value = a.consent_text;
       if (el("wk-consent-button") && a.consent_button) el("wk-consent-button").value = a.consent_button;
+      if (el("wk-consent-preview")) el("wk-consent-preview").checked = (a.consent_preview !== false);
+      if (el("wk-leaflet-mode") && ["cdn", "url", "inline"].includes(a.leaflet_mode)) el("wk-leaflet-mode").value = a.leaflet_mode;
+      if (el("wk-leaflet-url") && typeof a.leaflet_url === "string") el("wk-leaflet-url").value = a.leaflet_url;
+      updateLeafletHint();
       // Kachel-Layer an den (evtl. neuen) Stil anpassen
       if (map && tileLayer && el("wk-tile")) {
         try { map.removeLayer(tileLayer); } catch (_) {}
@@ -291,6 +313,20 @@
       } catch (e) { if (!destroyed) status(String(e)); }
     }
 
+    // Leaflet-Quelle: URL-Feld nur bei „url" zeigen + passenden Hinweis setzen.
+    function updateLeafletHint() {
+      const mode = el("wk-leaflet-mode")?.value || "cdn";
+      const urlField = el("wk-leaflet-url");
+      if (urlField) urlField.style.display = (mode === "url") ? "" : "none";
+      const hint = el("wk-leaflet-hint");
+      if (!hint) return;
+      hint.textContent = mode === "inline"
+        ? T("webkarte.leaflet_hint_inline", "Leaflet wird komplett in die HTML geschrieben – kein externer Abruf (DSGVO-sauber, offline-fähig), die Datei wird ~160 KB größer.")
+        : mode === "url"
+          ? T("webkarte.leaflet_hint_url", "Lädt leaflet.css + leaflet.js von deiner Basis-URL (du legst die beiden Dateien selbst dort ab).")
+          : T("webkarte.leaflet_hint_cdn", "Lädt Leaflet vom öffentlichen unpkg-CDN (kleinste Datei). Bei aktivem DSGVO-Button erst nach „Karte laden“.");
+    }
+
     function collectParams() {
       return {
         gpx_path: (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "",
@@ -300,6 +336,9 @@
         show_pins: true,
         labels: labels.map((l) => ({ lat: l.lat, lon: l.lon, text: l.text, color: l.color, size: l.size })),
         consent_enabled: !!el("wk-consent")?.checked,
+        consent_preview: !!el("wk-consent-preview")?.checked,
+        leaflet_mode: el("wk-leaflet-mode")?.value || "cdn",
+        leaflet_url: (el("wk-leaflet-url")?.value || "").trim(),
         consent_text: (el("wk-consent-text")?.value || "").trim() || DEFAULT_CONSENT,
         consent_button: (el("wk-consent-button")?.value || "").trim() || T("tourmap.html.consent_button_default", "Karte laden"),
         ...(map ? (() => { const c = map.getCenter(); return { view_center: [c.lat, c.lng], view_zoom: map.getZoom() }; })() : {}),
@@ -311,14 +350,30 @@
       const btn = el("wk-export");
       const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
       if (!gpxPath) { if (typeof toast === "function") toast(T("webkarte.no_gpx", "Erst eine GPX-Datei laden."), "warn", 3000); return; }
+      // v0.9.429 — deutliches „arbeitet gerade"-Feedback. Der Export blockiert
+      // (v.a. wenn das Consent-Vorschaubild gerendert wird → ein paar Sekunden),
+      // sonst wirkt die App eingefroren.
+      const wantsPreview = !!el("wk-consent")?.checked && !!el("wk-consent-preview")?.checked;
+      const st = el("wk-status");
       const old = btn.textContent; btn.disabled = true; btn.textContent = "⏳ " + T("tourmap.html.exporting", "Exportiere HTML …");
+      if (st) {
+        st.classList.add("wk-working");
+        st.textContent = wantsPreview
+          ? "⏳ " + T("webkarte.export_rendering", "Karte wird gerendert – das Vorschaubild kann ein paar Sekunden dauern …")
+          : "⏳ " + T("webkarte.export_working", "Export läuft …");
+      }
+      // kurzer Tick, damit der Browser den „arbeitet"-Zustand VOR dem blockierenden Call zeichnet
+      await new Promise((r) => setTimeout(r, 30));
       try {
         const res = await window.pywebview.api.webkarte_export(collectParams());
         if (!res || !res.ok) { if (typeof toast === "function") toast(T("tourmap.html.failed", "HTML-Export fehlgeschlagen") + ": " + (res?.error || "?"), "error", 8000); return; }
         showExportModal(res);
       } catch (e) {
         if (typeof toast === "function") toast(T("tourmap.html.failed", "HTML-Export fehlgeschlagen") + ": " + e, "error", 8000);
-      } finally { btn.disabled = false; btn.textContent = old; }
+      } finally {
+        btn.disabled = false; btn.textContent = old;
+        if (st) { st.classList.remove("wk-working"); st.textContent = ""; }
+      }
     }
 
     function showExportModal(res) {
@@ -406,6 +461,9 @@
     });
     el("wk-consent-text")?.addEventListener("change", () => save({ consent_text: el("wk-consent-text").value }));
     el("wk-consent-button")?.addEventListener("change", () => save({ consent_button: el("wk-consent-button").value }));
+    el("wk-consent-preview")?.addEventListener("change", () => save({ consent_preview: !!el("wk-consent-preview").checked }));
+    el("wk-leaflet-mode")?.addEventListener("change", () => { save({ leaflet_mode: el("wk-leaflet-mode").value }); updateLeafletHint(); });
+    el("wk-leaflet-url")?.addEventListener("change", () => save({ leaflet_url: el("wk-leaflet-url").value.trim() }));
     el("wk-export")?.addEventListener("click", doExport);
 
     if (typeof onGpxLoaded === "function") {

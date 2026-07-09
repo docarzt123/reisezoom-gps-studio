@@ -1336,5 +1336,17 @@
   "webkarte.size_s": "Pequeño",
   "webkarte.size_m": "Mediano",
   "webkarte.size_l": "Grande",
-  "webkarte.size_xl": "Muy grande"
+  "webkarte.size_xl": "Muy grande",
+  "webkarte.consent_preview": "Vista previa del mapa tras el aviso",
+  "webkarte.consent_preview_hint": "Muestra una imagen difuminada de tu mapa tras el texto de consentimiento (incrustada localmente, conforme al RGPD). Desactivado = exportación mucho más rápida, pero puerta vacía.",
+  "webkarte.export_rendering": "Renderizando el mapa – la vista previa puede tardar unos segundos …",
+  "webkarte.export_working": "Exportando …",
+  "webkarte.leaflet_source": "Origen de Leaflet",
+  "webkarte.leaflet_cdn": "CDN (unpkg)",
+  "webkarte.leaflet_selfhost": "Autoalojado (URL)",
+  "webkarte.leaflet_inline": "Incrustar en HTML",
+  "webkarte.leaflet_url_ph": "https://tublog.com/leaflet/",
+  "webkarte.leaflet_hint_cdn": "Carga Leaflet desde el CDN público unpkg (archivo más pequeño). Con el botón RGPD activo, solo tras «Cargar mapa».",
+  "webkarte.leaflet_hint_url": "Carga leaflet.css + leaflet.js desde tu URL base (alojas los dos archivos tú mismo).",
+  "webkarte.leaflet_hint_inline": "Leaflet se escribe completo en el HTML – sin petición externa (limpio para RGPD, funciona sin conexión), el archivo crece ~160 KB."
 }

@@ -578,6 +578,13 @@ python app.py</code></pre>
 </ol>
 <h3 id="dsgvo-button-optional">DSGVO-Button (optional)</h3>
 <p>Mit der Checkbox <strong>„DSGVO-Zustimmungs-Button&quot;</strong> bekommt die Karte einen vorgeschalteten Zustimmungs-Layer — die externen Kartenkacheln (und damit die IP-Übertragung an OpenStreetMap) werden <strong>erst nach Klick</strong> geladen. Zustimmungs-Text und Button-Beschriftung sind frei editierbar und sinnvoll vorbefüllt. Hinter dem Text liegt ein <strong>geblurrtes Vorschaubild deiner Karte</strong>, das <strong>fest in die HTML eingebettet</strong> ist (kein Nachladen von außen) — so wirkt das Gate nicht leer und ist trotzdem DSGVO-konform. <em>(Der Export mit aktivem Consent dauert ein paar Sekunden länger, weil die Karte dafür einmal gerendert wird.)</em></p>
+<h3 id="leaflet-quelle-seit-v0-9-430">Leaflet-Quelle (seit v0.9.430)</h3>
+<p>Im Export-Bereich wählst du, <strong>woher die eingebettete Karte Leaflet lädt</strong>:</p>
+<ul>
+<li><strong>CDN (unpkg)</strong> — Standard, kleinste Datei; Leaflet kommt vom öffentlichen CDN (bei aktivem DSGVO-Button erst nach „Karte laden&quot;).</li>
+<li><strong>Selbst gehostet (URL)</strong> — du gibst eine Basis-URL an (z.B. <code>https://deinblog.de/leaflet/</code>); die HTML lädt <code>leaflet.css</code> + <code>leaflet.js</code> von dort. Du legst die beiden Dateien selbst auf deinen Server.</li>
+<li><strong>In HTML einbetten</strong> — Leaflet wird komplett in die Datei geschrieben: <strong>kein externer Abruf</strong> (DSGVO-sauber, funktioniert offline), die Datei wird ~160 KB größer.</li>
+</ul>
 <h3 id="nach-dem-export">Nach dem Export</h3>
 <ul>
 <li><strong>▶ Im Browser öffnen</strong> — zeigt die Karte sofort im Standard-Browser. <em>(Doppelklick auf die Datei öffnet je nach System nur einen Editor — darum diesen Button nutzen.)</em></li>
