@@ -13,6 +13,8 @@ Bei jeder neuen Version:
 ---
 
 ## [Unreleased]
+
+## [0.9.433] – 2026-07-11
 ### Behoben
 - **Tab-Unterschrift „Web Karte" wurde nicht übersetzt** — unter dem Tab stand der rohe i18n-Key `modules.webkarte.desc` statt „Interaktive Karte fürs Web". Die `modules.webkarte.name`/`.desc`-Keys fehlten in de/en/es und sind nun ergänzt. Zusätzlich `applyI18nToModuleManifests()` in `ui/js/app.js` robuster gemacht: fehlt ein `modules.<slug>.desc`-Key, bleibt jetzt der Manifest-Literal stehen statt den rohen Key anzuzeigen.
 
