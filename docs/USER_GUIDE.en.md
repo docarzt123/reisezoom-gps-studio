@@ -503,6 +503,9 @@ A dedicated, deliberately **lean** tab for **interactive maps for the web/blog**
 4. Optionally enable the **GDPR button** (see below).
 5. **"🌐 Export as HTML"** → a window with the output options.
 
+### Multiple tracks (since v0.9.432) ⭐
+You can show several GPX tracks on **one** map — e.g. multiple stages of a tour or the outbound and return legs. The **first track comes from the loaded GPX** (global GPX bar). Add more in the sidebar section **"More tracks"** via **"＋ Add track"** and pick a GPX per file. For each track you set **name, colour, width** and **start/finish pins**; remove it again with 🗑. The map automatically fits to **all** tracks together, and the preview is, as always, **exactly** the export.
+
 ### GDPR button (optional)
 With the **"GDPR consent button"** checkbox the map gets a preceding consent layer — the external map tiles (and thus the IP transfer to OpenStreetMap) are **loaded only after a click**. The consent text and button label are freely editable and pre-filled sensibly. Behind the text lies a **blurred preview image of your map**, which is **embedded firmly in the HTML** (no external loading) — so the gate doesn't look empty and is still GDPR-compliant. *(Exporting with active consent takes a few seconds longer, because the map is rendered once for it.)*
 

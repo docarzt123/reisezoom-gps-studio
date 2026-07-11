@@ -28,6 +28,8 @@
         ".leaflet-tooltip.wk-tip:before{display:none;}" +
         ".wk-lbl-row{border:1px solid var(--border,#3a3f4a);border-radius:7px;padding:7px;margin-bottom:7px;}" +
         ".wk-lbl-row.sel{border-color:#ff6b35;box-shadow:0 0 0 1px #ff6b35;}" +
+        ".wk-trk-row{border:1px solid var(--border,#3a3f4a);border-radius:7px;padding:7px;margin-bottom:7px;}" +
+        ".wk-trk-row .wk-trk-file{color:var(--muted,#8a90a0);}" +
         ".wk-working{color:#ff6b35;font-weight:600;animation:wkpulse 1.1s ease-in-out infinite;}" +
         "@keyframes wkpulse{0%,100%{opacity:.45}50%{opacity:1}}";
       document.head.appendChild(st);
@@ -50,6 +52,7 @@
     const consentPrev0 = get("consent_preview", true) !== false;   // Vorschaubild an by default
     const leafletMode0 = ["cdn", "url", "inline"].includes(get("leaflet_mode", "cdn")) ? get("leaflet_mode", "cdn") : "cdn";
     const leafletUrl0 = get("leaflet_url", "");
+    const attribution0 = get("attribution_enabled", true) !== false;   // Backlink an by default
     const DEFAULT_CONSENT = T("tourmap.html.consent_default",
       "Zum Anzeigen der interaktiven Karte werden Kartenkacheln von OpenStreetMap geladen. Dabei wird deine IP-Adresse an den Kartenanbieter übertragen. Mit Klick auf „Karte laden“ stimmst du dem zu.");
     // Labels: [{lat, lon, text, color, size}] — eigenes Datenmodell.
@@ -59,6 +62,17 @@
       size: (Number(l.size) > 0) ? Number(l.size) : LBL_SIZE0,
     })).filter((l) => isFinite(l.lat) && isFinite(l.lon)) : []);
     let labels = normLabels(get("labels", null));
+    // §17 — weitere Tracks: [{path, name, color, width, show_pins, coords?}]. coords werden
+    // NICHT persistiert (kommen frisch aus der Datei via webkarte_prepare). Der erste Track
+    // bleibt der globale GPX (aus dem GPX-Balken); hier legt man weitere Etappen/Touren dazu.
+    const TRK_PALETTE = ["#2e86de", "#e0322c", "#9b59b6", "#16a085", "#f39c12", "#d35400"];
+    const normTracks = (arr) => (Array.isArray(arr) ? arr.map((t) => ({
+      path: String(t.path || ""), name: String(t.name || ""),
+      color: (typeof t.color === "string" && t.color) ? t.color : "#2e86de",
+      width: (Number(t.width) > 0) ? Number(t.width) : lineWidth0,
+      show_pins: t.show_pins !== false, coords: Array.isArray(t.coords) ? t.coords : [],
+    })).filter((t) => t.path) : []);
+    let tracks = normTracks(get("tracks", null));
 
     const styleOpts = Object.keys(styles).map((k) =>
       `<option value="${k}"${k === tileStyle0 ? " selected" : ""}>${styles[k].label || k}</option>`).join("");
@@ -75,6 +89,13 @@
           <input type="range" id="wk-width" min="1" max="12" step="0.5" value="${lineWidth0}" style="width:100%;">
           <label class="field-label" for="wk-tile" style="margin-top:10px;">${T("webkarte.tile_style", "Kartenstil")}</label>
           <select id="wk-tile" style="width:100%;">${styleOpts}</select>
+        </div>
+
+        <div class="section">
+          <div class="field-label" style="margin-bottom:6px;">${T("webkarte.tracks", "Weitere Tracks")}</div>
+          <button class="btn btn-secondary btn-block" id="wk-add-track">＋ ${T("webkarte.add_track", "Track hinzufügen")}</button>
+          <div id="wk-track-list" style="margin-top:8px;"></div>
+          <div class="muted" style="font-size:11px; margin-top:4px; line-height:1.45;">${T("webkarte.tracks_hint", "Der erste Track kommt aus dem geladenen GPX. Hier fügst du weitere Etappen/Touren dazu — jede mit eigener Farbe, Breite, Name und Start/Ziel-Pins.")}</div>
         </div>
 
         <div class="section">
@@ -111,6 +132,10 @@
           </select>
           <input type="text" id="wk-leaflet-url" value="${(leafletUrl0 || "").replace(/"/g, "&quot;")}" placeholder="${T("webkarte.leaflet_url_ph", "https://deinblog.de/leaflet/")}" style="width:100%; box-sizing:border-box; margin-top:6px; display:${leafletMode0 === "url" ? "block" : "none"};">
           <div class="muted" id="wk-leaflet-hint" style="font-size:11px; margin:5px 0 12px; line-height:1.4;"></div>
+          <label class="check-row" style="margin-bottom:10px;">
+            <input type="checkbox" id="wk-attribution"${attribution0 ? " checked" : ""}>
+            <span>${T("webkarte.attribution", "Link „erstellt mit Reisezoom GPS Studio“ einbetten")}</span>
+          </label>
           <button class="btn btn-primary btn-block" id="wk-export">🌐 ${T("webkarte.export_btn", "Als HTML exportieren")}</button>
           <div class="muted" id="wk-status" style="font-size:11px; margin-top:8px; min-height:14px;"></div>
         </div>
@@ -125,6 +150,7 @@
     let map = null, tileLayer = null, trackLine = null, startPin = null, endPin = null;
     let labelTips = [];
     let track = [];
+    let extraLines = [];   // Leaflet-Layer der Extra-Tracks (§17) — beim Redraw entfernt
     let addMode = false;
     let destroyed = false;
     let _ro = null, _gpxUnsub = null, _sessUnsub = null;
@@ -253,6 +279,60 @@
       focusLabelRow(labels.length - 1);
     }
 
+    // ── §17: weitere Tracks (Liste, analog zur Beschriftungs-Liste) ───────────
+    function persistTracks() {
+      save({ tracks: tracks.map((t) => ({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins })) });
+    }
+    function renderTrackList() {
+      const box = el("wk-track-list"); if (!box) return;
+      if (!tracks.length) { box.innerHTML = ""; return; }
+      box.innerHTML = tracks.map((t, i) => `
+        <div class="wk-trk-row" data-idx="${i}">
+          <input type="text" class="wk-trk-name" data-idx="${i}" value="${esc(t.name)}"
+                 placeholder="${esc(T("webkarte.track_name_ph", "Name (z. B. Tag 1)"))}"
+                 style="width:100%; box-sizing:border-box; font-size:13px; padding:4px 6px; margin-bottom:5px;">
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="color" class="wk-trk-color" data-idx="${i}" value="${t.color}"
+                   title="${esc(T("webkarte.track_color", "Track-Farbe"))}" style="width:34px; height:26px; padding:1px;">
+            <input type="range" class="wk-trk-width" data-idx="${i}" min="1" max="12" step="0.5" value="${t.width}"
+                   title="${esc(T("webkarte.track_width", "Track-Breite"))}" style="flex:1;">
+            <label title="${esc(T("webkarte.track_pins", "Start/Ziel-Pins"))}" style="display:inline-flex; align-items:center; gap:3px; font-size:12px;">
+              <input type="checkbox" class="wk-trk-pins" data-idx="${i}"${t.show_pins ? " checked" : ""}>📍</label>
+            <button type="button" class="wk-trk-del" data-idx="${i}" title="${esc(T("webkarte.delete", "Löschen"))}"
+                    style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px;">🗑</button>
+          </div>
+          <div class="muted wk-trk-file" style="font-size:10px; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc((t.path || "").split("/").pop())}</div>
+        </div>`).join("");
+    }
+    // Koordinaten der Extra-Tracks frisch aus den Dateien holen (nicht persistiert),
+    // per Pfad zugeordnet, dann neu zeichnen.
+    async function loadExtraTracks() {
+      if (!tracks.length) { if (map) drawTrack(); return; }
+      try {
+        const res = await window.pywebview.api.webkarte_prepare({
+          tracks: tracks.map((t) => ({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins })) });
+        if (destroyed) return;
+        if (res && res.ok && Array.isArray(res.tracks)) {
+          const byPath = {};
+          res.tracks.forEach((rt) => { if (rt && rt.path) byPath[rt.path] = rt.coords || []; });
+          tracks.forEach((t) => { t.coords = byPath[t.path] || []; });
+        }
+      } catch (_) { /* Karte bleibt, Track ohne coords wird einfach nicht gezeichnet */ }
+      if (map) drawTrack();
+    }
+    async function addTrack() {
+      let files = [];
+      try { files = await window.pywebview.api.pick_file("open", window.TRACK_PICK_FILTER, false); } catch (_) {}
+      const path = Array.isArray(files) ? files[0] : (typeof files === "string" ? files : "");
+      if (!path) return;
+      const name = (path.split("/").pop() || "Track").replace(/\.[^.]+$/, "");
+      tracks.push({ path, name, color: TRK_PALETTE[tracks.length % TRK_PALETTE.length], width: lineWidth0, show_pins: true, coords: [] });
+      persistTracks(); renderTrackList();
+      status(T("webkarte.loading", "Lade Track …"));
+      await loadExtraTracks();
+      if (!destroyed) status("");
+    }
+
     // v0.9.427 — Alle Einstellungen + Beschriftungen frisch aus dem aktiven Projekt
     // in die UI + Karte übernehmen. Wird beim Mount UND bei jedem Session-/Projekt-
     // Wechsel gerufen (onSessionChanged), damit nichts „vergessen" wird, wenn das
@@ -273,6 +353,7 @@
       if (el("wk-consent-preview")) el("wk-consent-preview").checked = (a.consent_preview !== false);
       if (el("wk-leaflet-mode") && ["cdn", "url", "inline"].includes(a.leaflet_mode)) el("wk-leaflet-mode").value = a.leaflet_mode;
       if (el("wk-leaflet-url") && typeof a.leaflet_url === "string") el("wk-leaflet-url").value = a.leaflet_url;
+      if (el("wk-attribution")) el("wk-attribution").checked = (a.attribution_enabled !== false);
       updateLeafletHint();
       // Kachel-Layer an den (evtl. neuen) Stil anpassen
       if (map && tileLayer && el("wk-tile")) {
@@ -282,21 +363,44 @@
       // Beschriftungen neu aus dem Projekt aufbauen
       labels = normLabels(a.labels);
       renderLabelList();
-      if (map) { rebuildLabels(); drawTrack(); }
+      // §17 — weitere Tracks aus dem Projekt (coords werden gleich frisch nachgeladen)
+      tracks = normTracks(a.tracks);
+      renderTrackList();
+      if (map) { rebuildLabels(); drawTrack(); loadExtraTracks(); }
     }
 
     function drawTrack() {
+      if (!map) return;
+      // Alte Layer weg (globaler Track + Pins + alle Extra-Track-Layer).
+      extraLines.forEach((x) => { if (x) { try { map.removeLayer(x); } catch (_) {} } });
+      extraLines = [];
       [trackLine, startPin, endPin].forEach((x) => { if (x) { try { map.removeLayer(x); } catch (_) {} } });
       trackLine = startPin = endPin = null;
-      if (!track || track.length < 2) return;
-      const color = el("wk-color")?.value || "#ff6b35";
-      const width = parseFloat(el("wk-width")?.value) || 4.5;
-      trackLine = L.polyline(track, { color, weight: width, opacity: 0.95, lineJoin: "round", lineCap: "round" }).addTo(map);
       const pin = (c) => L.divIcon({ className: "wk-pin", iconSize: [20, 20], iconAnchor: [10, 10],
         html: '<span style="display:block;width:14px;height:14px;border-radius:50%;background:' + c + ';border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></span>' });
-      startPin = L.marker(track[0], { icon: pin("#2ecc71"), interactive: false }).addTo(map);
-      endPin = L.marker(track[track.length - 1], { icon: pin("#e74c3c"), interactive: false }).addTo(map);
-      try { map.fitBounds(trackLine.getBounds(), { padding: [30, 30] }); } catch (_) {}
+      let bounds = null;
+      const extendB = (b) => { bounds = bounds ? bounds.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast()); };
+      // 1) globaler Track (aus dem GPX-Balken) — Farbe/Breite aus den Reglern
+      if (track && track.length > 1) {
+        const color = el("wk-color")?.value || "#ff6b35";
+        const width = parseFloat(el("wk-width")?.value) || 4.5;
+        trackLine = L.polyline(track, { color, weight: width, opacity: 0.95, lineJoin: "round", lineCap: "round" }).addTo(map);
+        extendB(trackLine.getBounds());
+        startPin = L.marker(track[0], { icon: pin("#2ecc71"), interactive: false }).addTo(map);
+        endPin = L.marker(track[track.length - 1], { icon: pin("#e74c3c"), interactive: false }).addTo(map);
+      }
+      // 2) weitere Tracks (§17) — je eigene Farbe/Breite/Pins
+      tracks.forEach((t) => {
+        const c = t.coords || [];
+        if (c.length < 2) return;
+        const line = L.polyline(c, { color: t.color, weight: t.width, opacity: 0.95, lineJoin: "round", lineCap: "round" }).addTo(map);
+        extraLines.push(line); extendB(line.getBounds());
+        if (t.show_pins) {
+          extraLines.push(L.marker(c[0], { icon: pin("#2ecc71"), interactive: false }).addTo(map));
+          extraLines.push(L.marker(c[c.length - 1], { icon: pin("#e74c3c"), interactive: false }).addTo(map));
+        }
+      });
+      if (bounds && bounds.isValid && bounds.isValid()) { try { map.fitBounds(bounds, { padding: [30, 30] }); } catch (_) {} }
     }
 
     async function loadTrack() {
@@ -328,22 +432,35 @@
     }
 
     function collectParams() {
-      return {
-        gpx_path: (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "",
+      const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+      const lineColor = el("wk-color")?.value || "#ff6b35";
+      const lineWidth = parseFloat(el("wk-width")?.value) || 4.5;
+      const p = {
+        gpx_path: gpxPath,
         tile_style: el("wk-tile")?.value || "osm",
-        line_color: el("wk-color")?.value || "#ff6b35",
-        line_width: parseFloat(el("wk-width")?.value) || 4.5,
+        line_color: lineColor,
+        line_width: lineWidth,
         show_pins: true,
         labels: labels.map((l) => ({ lat: l.lat, lon: l.lon, text: l.text, color: l.color, size: l.size })),
         consent_enabled: !!el("wk-consent")?.checked,
         consent_preview: !!el("wk-consent-preview")?.checked,
         leaflet_mode: el("wk-leaflet-mode")?.value || "cdn",
         leaflet_url: (el("wk-leaflet-url")?.value || "").trim(),
+        attribution_enabled: !!el("wk-attribution")?.checked,
         consent_text: (el("wk-consent-text")?.value || "").trim() || DEFAULT_CONSENT,
         consent_button: (el("wk-consent-button")?.value || "").trim() || T("tourmap.html.consent_button_default", "Karte laden"),
         ...(map ? (() => { const c = map.getCenter(); return { view_center: [c.lat, c.lng], view_zoom: map.getZoom() }; })() : {}),
         width: 1120, height: 640,
       };
+      // §17 — nur wenn weitere Tracks da sind: vollständige Track-Liste (globaler
+      // GPX als erster Eintrag + Extras). Ohne Extras KEINE `tracks` → Backend nutzt
+      // den Single-Fallback = exakt das bisherige Verhalten.
+      if (tracks.length) {
+        p.tracks = [];
+        if (gpxPath) p.tracks.push({ path: gpxPath, name: "", color: lineColor, width: lineWidth, show_pins: true });
+        tracks.forEach((t) => { if (t.path) p.tracks.push({ path: t.path, name: t.name, color: t.color, width: t.width, show_pins: t.show_pins }); });
+      }
+      return p;
     }
 
     async function doExport() {
@@ -455,6 +572,28 @@
         labels.splice(i, 1); persistLabels(); rebuildLabels(); renderLabelList();
       });
     })();
+    // Track-Liste (§17): hinzufügen + Name/Farbe/Breite/Pins ändern + löschen.
+    el("wk-add-track")?.addEventListener("click", addTrack);
+    (function wireTrackList() {
+      const box = el("wk-track-list"); if (!box) return;
+      const idxOf = (e) => parseInt(e.target.getAttribute("data-idx"), 10);
+      box.addEventListener("input", (e) => {
+        const i = idxOf(e); if (!(i >= 0) || !tracks[i]) return;
+        if (e.target.classList.contains("wk-trk-name")) { tracks[i].name = e.target.value; persistTracks(); }
+        else if (e.target.classList.contains("wk-trk-color")) { tracks[i].color = e.target.value; persistTracks(); drawTrack(); }
+        else if (e.target.classList.contains("wk-trk-width")) { tracks[i].width = parseFloat(e.target.value) || lineWidth0; persistTracks(); drawTrack(); }
+      });
+      box.addEventListener("change", (e) => {
+        const i = idxOf(e); if (!(i >= 0) || !tracks[i]) return;
+        if (e.target.classList.contains("wk-trk-pins")) { tracks[i].show_pins = !!e.target.checked; persistTracks(); drawTrack(); }
+      });
+      box.addEventListener("click", (e) => {
+        const btn = e.target.closest(".wk-trk-del"); if (!btn) return;
+        const i = parseInt(btn.getAttribute("data-idx"), 10);
+        if (!(i >= 0) || !tracks[i]) return;
+        tracks.splice(i, 1); persistTracks(); renderTrackList(); drawTrack();
+      });
+    })();
     el("wk-consent")?.addEventListener("change", () => {
       const on = !!el("wk-consent").checked; save({ consent_enabled: on });
       el("wk-consent-fields").style.display = on ? "" : "none";
@@ -464,6 +603,7 @@
     el("wk-consent-preview")?.addEventListener("change", () => save({ consent_preview: !!el("wk-consent-preview").checked }));
     el("wk-leaflet-mode")?.addEventListener("change", () => { save({ leaflet_mode: el("wk-leaflet-mode").value }); updateLeafletHint(); });
     el("wk-leaflet-url")?.addEventListener("change", () => save({ leaflet_url: el("wk-leaflet-url").value.trim() }));
+    el("wk-attribution")?.addEventListener("change", () => save({ attribution_enabled: !!el("wk-attribution").checked }));
     el("wk-export")?.addEventListener("click", doExport);
 
     if (typeof onGpxLoaded === "function") {

@@ -503,6 +503,9 @@ Una pestaña propia, deliberadamente **ligera**, para **mapas interactivos para 
 4. Opcionalmente activa el **botón RGPD** (ver más abajo).
 5. **«🌐 Exportar como HTML»** → ventana con las opciones de salida.
 
+### Varios tracks (desde v0.9.432) ⭐
+Puedes mostrar varios tracks GPX en **un** mapa — p. ej. varias etapas de una ruta o los tramos de ida y vuelta. El **primer track viene del GPX cargado** (barra GPX global). Los demás los añades en la sección de la barra lateral **«Más tracks»** con **«＋ Añadir track»** y eliges un GPX por archivo. Para cada track ajustas **nombre, color, grosor** y **pines de inicio/fin**; lo quitas de nuevo con 🗑. El mapa se ajusta automáticamente a **todos** los tracks juntos, y la vista previa es, como siempre, **exactamente** la exportación.
+
 ### Botón RGPD (opcional)
 Con la casilla **«Botón de consentimiento RGPD»**, el mapa recibe una capa de consentimiento previa — las teselas externas del mapa (y con ellas la transmisión de la IP a OpenStreetMap) se cargan **solo tras el clic**. El texto de consentimiento y la etiqueta del botón son libremente editables y vienen prellenados de forma sensata. Detrás del texto hay una **imagen de vista previa difuminada de tu mapa**, que está **incrustada de forma fija en el HTML** (sin recarga externa) — así el gate no parece vacío y sigue siendo conforme al RGPD. *(La exportación con el consentimiento activo tarda unos segundos más, porque para ello el mapa se renderiza una vez.)*
 

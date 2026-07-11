@@ -116,8 +116,29 @@ def make_leaflet_html(params: dict) -> str:
         except (TypeError, ValueError):
             view = None
 
+    # §17 — Multi-Track: N Polylines mit eigener Farbe/Breite/Pins/Name.
+    # Fallback (Single-Track): der klassische `track` wird zu einer 1-Element-Liste,
+    # sodass alte Aufrufe (und alte Projekte) unverändert weiterlaufen.
+    tracks_in = params.get("tracks")
+    tracks_norm = []
+    if isinstance(tracks_in, list) and tracks_in:
+        for t in tracks_in:
+            c = [[float(p[0]), float(p[1])] for p in (t.get("coords") or [])
+                 if isinstance(p, (list, tuple)) and len(p) == 2]
+            if not c:
+                continue
+            tracks_norm.append({
+                "c": c, "col": str(t.get("color") or line_color),
+                "w": float(t.get("width", line_width) or line_width),
+                "pins": bool(t.get("show_pins", True)),
+                "name": str(t.get("name") or ""),
+            })
+    if not tracks_norm and track:
+        tracks_norm = [{"c": track, "col": line_color, "w": line_width,
+                        "pins": show_pins, "name": ""}]
+
     data = {
-        "track": track, "signs": signs, "labels": labels, "view": view,
+        "track": track, "tracks": tracks_norm, "signs": signs, "labels": labels, "view": view,
         "lineColor": line_color, "lineWidth": line_width,
         "showPins": show_pins, "startLabel": start_label, "endLabel": end_label,
         "tile": {"url": tile.get("url"), "sub": tile.get("sub", ""),
@@ -147,11 +168,27 @@ def make_leaflet_html(params: dict) -> str:
                         '<script src="https://unpkg.com/leaflet@'
                         + LEAFLET_VERSION + '/dist/leaflet.js"></script>')
 
+    # v0.9.431 — abschaltbarer „erstellt mit"-Backlink auf der Karte (Cross-Promo +
+    # SEO-Backlink zur Webversion). Nur wenn Text UND URL da sind.
+    credit_html = credit_link_html(params.get("credit_text"), params.get("credit_url"))
+
     return LEAFLET_TEMPLATE % {
         "title": _html.escape(title),
         "leaflet_head": leaflet_head,
+        "credit": credit_html,
         "data": D,
     }
+
+
+def credit_link_html(text, url) -> str:
+    """Kleiner „erstellt mit …"-Link (Cross-Promo/Backlink), absolut unten-links.
+    Leerer String, wenn Text oder URL fehlt."""
+    t = str(text or "").strip()
+    u = str(url or "").strip()
+    if not t or not u:
+        return ""
+    return ('<a class="rz-credit" href="' + _html.escape(u, quote=True)
+            + '" target="_blank" rel="noopener">' + _html.escape(t) + "</a>")
 
 
 LEAFLET_TEMPLATE = """<!DOCTYPE html>
@@ -162,11 +199,16 @@ LEAFLET_TEMPLATE = """<!DOCTYPE html>
 <style>
   html,body{margin:0;height:100%%}
   #rz-map{width:100%%;height:100vh;min-height:280px}
+  .rz-credit{position:absolute;left:8px;bottom:8px;z-index:600;background:rgba(255,255,255,.88);
+    color:#1c1814;font:600 11px/1 -apple-system,system-ui,'Segoe UI',Roboto,sans-serif;
+    padding:5px 8px;border-radius:6px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .rz-credit:hover{background:#fff}
   .rz-sign{background:none;border:0}
   .leaflet-tooltip.rz-tip{background:none;border:0;padding:0;box-shadow:none;white-space:nowrap}
   .leaflet-tooltip.rz-tip:before{display:none}
 </style></head><body>
 <div id="rz-map"></div>
+%(credit)s
 <script>
 var D = %(data)s;
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
@@ -187,20 +229,27 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
 (function(){
   var map = L.map('rz-map', { scrollWheelZoom:true });
   L.tileLayer(D.tile.url, { maxZoom:D.tile.max, subdomains:(D.tile.sub||''), attribution:D.tile.attr }).addTo(map);
-  if (D.track && D.track.length > 1) {
-    var line = L.polyline(D.track, { color:D.lineColor, weight:D.lineWidth, opacity:0.95,
-      lineJoin:'round', lineCap:'round' }).addTo(map);
-    if (D.view && D.view.center) { map.setView(D.view.center, D.view.zoom); }
-    else { map.fitBounds(line.getBounds(), { padding:[26,26] }); }
-    if (D.showPins) {
-      L.marker(D.track[0], { icon:pinIcon('#2ecc71') }).bindPopup(esc(D.startLabel)).addTo(map);
-      L.marker(D.track[D.track.length-1], { icon:pinIcon('#e74c3c') }).bindPopup(esc(D.endLabel)).addTo(map);
+  // §17 — mehrere Tracks: pro Track eine Polylinie, fitBounds über die Vereinigung.
+  var allB = null;
+  (D.tracks||[]).forEach(function(t){
+    var c = t.c || [];
+    if (c.length > 1) {
+      var line = L.polyline(c, { color:t.col, weight:t.w, opacity:0.95,
+        lineJoin:'round', lineCap:'round' }).addTo(map);
+      var b = line.getBounds();
+      allB = allB ? allB.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast());
+      if (t.pins) {
+        L.marker(c[0], { icon:pinIcon('#2ecc71') }).bindPopup(esc(t.name || D.startLabel)).addTo(map);
+        L.marker(c[c.length-1], { icon:pinIcon('#e74c3c') }).bindPopup(esc(t.name || D.endLabel)).addTo(map);
+      }
+    } else if (c.length === 1) {
+      var ll = L.latLng(c[0][0], c[0][1]);
+      allB = allB ? allB.extend(ll) : L.latLngBounds(ll, ll);
     }
-  } else if (D.track && D.track.length === 1) {
-    map.setView(D.track[0], 13);
-  } else {
-    map.setView([51.16, 10.45], 5);
-  }
+  });
+  if (D.view && D.view.center) { map.setView(D.view.center, D.view.zoom); }
+  else if (allB && allB.isValid()) { map.fitBounds(allB, { padding:[26,26] }); }
+  else { map.setView([51.16, 10.45], 5); }
   (D.signs||[]).forEach(function(s){
     if (!s.img) return;
     L.marker([s.lat, s.lon], { icon:signIcon(s), interactive:false }).addTo(map);

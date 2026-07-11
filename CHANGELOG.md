@@ -13,6 +13,18 @@ Bei jeder neuen Version:
 ---
 
 ## [Unreleased]
+### Behoben
+- **Tab-Unterschrift „Web Karte" wurde nicht übersetzt** — unter dem Tab stand der rohe i18n-Key `modules.webkarte.desc` statt „Interaktive Karte fürs Web". Die `modules.webkarte.name`/`.desc`-Keys fehlten in de/en/es und sind nun ergänzt. Zusätzlich `applyI18nToModuleManifests()` in `ui/js/app.js` robuster gemacht: fehlt ein `modules.<slug>.desc`-Key, bleibt jetzt der Manifest-Literal stehen statt den rohen Key anzuzeigen.
+
+### Hinzugefügt
+- **Web-Karte: mehrere Tracks (§17)** — die Web-Karte kann jetzt mehrere GPX-Tracks in einer Karte zeigen. Der erste Track kommt aus dem geladenen GPX, weitere fügst du in der neuen Sidebar-Sektion **„Weitere Tracks"** hinzu — jeder mit eigener Farbe, Breite, Name und Start/Ziel-Pins. Backend (Phase 1): `core/tourmap_leaflet.py` `make_leaflet_html` rendert eine `tracks`-Liste (N Polylinien, fitBounds über die Vereinigung); leerer `tracks` fällt auf den klassischen Single-`track` zurück (abwärtskompatibel). `app.py` `webkarte_prepare`/`webkarte_export` nehmen optionale `tracks:[{path,name,color,width,show_pins}]`, laden je Track + downsamplen. UI (Phase 2): `modules/web-karte/ui/module.js` Track-Liste mit Hinzufügen/Umbenennen/Farbe/Breite/Pins/Löschen, Live-Preview + Persistenz pro Projekt. Headless + Syntax verifiziert.
+
+### Geändert
+- **Web-Karte-Backlink zeigt auf `reisezoom.com/gps/`** statt `gps-studio.reisezoom.com` — das Web-Tool ist auf ein Unterverzeichnis der Hauptdomain umgezogen (SEO: bündelt Backlink-Autorität in `reisezoom.com`). Ein 301 auf dem Server fängt die alte Subdomain + bereits existierende Exporte ab. Nur die `WEBKARTE_CREDIT_URL`-Konstante in `app.py` geändert; greift ab dem nächsten Build/Release.
+
+## [0.9.431] – 2026-07-09
+### Hinzugefügt
+- **Web Karte: abschaltbarer „erstellt mit Reisezoom GPS Studio"-Link** (Marc) — die exportierte HTML-Karte bekommt unten-links einen dezenten Link zur Webversion (Cross-Promo + SEO-Backlink). Standard: an, per Checkbox abschaltbar. Bei aktivem DSGVO-Gate steht der Link **außerhalb** des base64-Teils → für Suchmaschinen crawlbar (Backlink zählt auch ohne „Karte laden"). Ziel-URL an einer Stelle im Code (`WEBKARTE_CREDIT_URL`) → bei URL-Umzug leicht änderbar.
 
 ## [0.9.430] – 2026-07-09
 ### Hinzugefügt

@@ -132,7 +132,13 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.430"
+APP_VERSION = "0.9.433"
+
+# v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
+# + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
+# auf reisezoom.com/gps) hier ändern; alte Exporte fängt ein 301 auf dem Server ab.
+WEBKARTE_CREDIT_TEXT = "erstellt mit Reisezoom GPS Studio"
+WEBKARTE_CREDIT_URL = "https://reisezoom.com/gps/"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -2799,8 +2805,33 @@ class Api:
 
     def webkarte_prepare(self, params: dict) -> dict:
         """Track für die Web-Karten-Vorschau: voller Track als [lat, lon]
-        (downsampled). Sehr leicht, kein Screenshot/Playwright."""
+        (downsampled). Sehr leicht, kein Screenshot/Playwright.
+        §17 — Multi-Track: optionale `tracks:[{path,…}]` → je Track downsampled coords.
+        Fallback: einzelner `gpx_path` (klassisch)."""
         try:
+            tracks_in = params.get("tracks")
+            if isinstance(tracks_in, list) and tracks_in:
+                out = []
+                for t in tracks_in:
+                    tp = (t or {}).get("path") or ""
+                    if not tp or not Path(tp).exists():
+                        continue
+                    try:
+                        tgp = self._ensure_gpx(tp)
+                        tpts, _ = cgpx.parse_gpx(tgp)
+                        tds = cgpx.downsample(tpts, 1500)
+                        coords = [[p.lat, p.lon] for p in tds
+                                  if p.lat is not None and p.lon is not None]
+                        if len(coords) < 1:
+                            continue
+                        out.append({"path": tp, "coords": coords, "name": str(t.get("name") or ""),
+                                    "color": str(t.get("color") or "#ff6b35"),
+                                    "width": float(t.get("width", 4.5) or 4.5),
+                                    "show_pins": bool(t.get("show_pins", True))})
+                    except Exception as te:
+                        log.warning("webkarte_prepare: Track '%s' übersprungen: %s", tp, te)
+                return {"ok": True, "tracks": out,
+                        "track": (out[0]["coords"] if out else [])}
             gpx_path = params.get("gpx_path", "")
             if not gpx_path or not Path(gpx_path).exists():
                 return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
@@ -2829,6 +2860,38 @@ class Api:
             track = [[p.lat, p.lon] for p in ds
                      if p.lat is not None and p.lon is not None]
 
+            # §17 — Multi-Track: optionale `tracks:[{path,name,color,width,show_pins}]`.
+            # Jeder Track wird aus seiner Datei geladen + downsampled. Fallback = der
+            # eine globale Track (gpx_path) als Ein-Element-Liste → alte Projekte unverändert.
+            tracks_cfg = []
+            for t in (params.get("tracks") or []):
+                tp = (t or {}).get("path") or ""
+                if not tp or not Path(tp).exists():
+                    continue
+                try:
+                    tgp = self._ensure_gpx(tp)
+                    tpts, _ = cgpx.parse_gpx(tgp)
+                    if len(tpts) < 2:
+                        continue
+                    tds = cgpx.downsample(tpts, 1500)
+                    tcoords = [[p.lat, p.lon] for p in tds
+                               if p.lat is not None and p.lon is not None]
+                    if len(tcoords) < 2:
+                        continue
+                    tracks_cfg.append({
+                        "coords": tcoords, "name": str(t.get("name") or ""),
+                        "color": str(t.get("color") or params.get("line_color", "#ff6b35")),
+                        "width": float(t.get("width", params.get("line_width", 4.5)) or 4.5),
+                        "show_pins": bool(t.get("show_pins", True)),
+                    })
+                except Exception as te:
+                    log.warning("webkarte_export: Track '%s' übersprungen: %s", tp, te)
+            if not tracks_cfg:
+                tracks_cfg = [{"coords": track, "name": "",
+                               "color": params.get("line_color", "#ff6b35"),
+                               "width": float(params.get("line_width", 4.5) or 4.5),
+                               "show_pins": bool(params.get("show_pins", True))}]
+
             style_key = params.get("tile_style") or "osm"
             st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm")
 
@@ -2848,8 +2911,15 @@ class Api:
                     leaflet_params["leaflet_mode"] = "cdn"
                     log.warning("Leaflet-Inline gewünscht, aber Bundle-Dateien fehlen → CDN-Fallback")
 
+            # v0.9.431 — abschaltbarer „erstellt mit"-Backlink (Default an).
+            credit_on = bool(params.get("attribution_enabled", True))
+            credit_text = WEBKARTE_CREDIT_TEXT if credit_on else ""
+            credit_url = WEBKARTE_CREDIT_URL if credit_on else ""
+            credit_html = ctmleaflet.credit_link_html(credit_text, credit_url)
+
             base_cfg = {
                 "track": track,
+                "tracks": tracks_cfg,
                 "line_color": params.get("line_color", "#ff6b35"),
                 "line_width": float(params.get("line_width", 4.5) or 4.5),
                 "tile": st,
@@ -2860,6 +2930,7 @@ class Api:
                 "view_center": params.get("view_center"),
                 "view_zoom": params.get("view_zoom"),
                 "title": params.get("title") or (Path(gpx_path).stem + " — Karte"),
+                "credit_text": credit_text, "credit_url": credit_url,
                 "width": w, "height": h,
             }
             inner = ctmleaflet.make_leaflet_html({**base_cfg, **leaflet_params})
@@ -2891,7 +2962,7 @@ class Api:
                     inner,
                     params.get("consent_text") or ctourhtml.DEFAULT_CONSENT_TEXT,
                     params.get("consent_button") or "Karte laden",
-                    bg_uri)
+                    bg_uri, credit_html)
             else:
                 html_doc = inner
             out_name = params.get("output_name") or (Path(gpx_path).stem + "_webkarte.html")

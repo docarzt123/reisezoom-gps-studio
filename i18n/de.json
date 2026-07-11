@@ -10,6 +10,8 @@
   "modules.animator.desc": "Track als Video rendern",
   "modules.tourmap.name": "Tour-Map",
   "modules.tourmap.desc": "Statische Karten-PNG",
+  "modules.webkarte.name": "Web Karte",
+  "modules.webkarte.desc": "Interaktive Karte fürs Web",
   "tourmap.section.source": "Quelle",
   "tourmap.section.format": "Format & Auflösung",
   "tourmap.section.image_settings": "Bild-Einstellungen",
@@ -1318,6 +1320,11 @@
   "webkarte.intro": "Leichte, interaktive Karte fürs Web. Track kommt automatisch aus dem GPX; Beschriftungen setzt du direkt auf der Karte. Die Vorschau hier ist exakt der Export.",
   "webkarte.track_color": "Track-Farbe",
   "webkarte.track_width": "Track-Breite",
+  "webkarte.tracks": "Weitere Tracks",
+  "webkarte.add_track": "Track hinzufügen",
+  "webkarte.tracks_hint": "Der erste Track kommt aus dem geladenen GPX. Hier fügst du weitere Etappen oder Touren dazu — jede mit eigener Farbe, Breite, Name und Start/Ziel-Pins.",
+  "webkarte.track_name_ph": "Name (z. B. Tag 1)",
+  "webkarte.track_pins": "Start/Ziel-Pins",
   "webkarte.tile_style": "Kartenstil",
   "webkarte.labels": "Beschriftungen",
   "webkarte.add_label": "Beschriftung hinzufügen",
@@ -1348,5 +1355,6 @@
   "webkarte.leaflet_url_ph": "https://deinblog.de/leaflet/",
   "webkarte.leaflet_hint_cdn": "Lädt Leaflet vom öffentlichen unpkg-CDN (kleinste Datei). Bei aktivem DSGVO-Button erst nach „Karte laden“.",
   "webkarte.leaflet_hint_url": "Lädt leaflet.css + leaflet.js von deiner Basis-URL (du legst die beiden Dateien selbst dort ab).",
-  "webkarte.leaflet_hint_inline": "Leaflet wird komplett in die HTML geschrieben – kein externer Abruf (DSGVO-sauber, offline-fähig), die Datei wird ~160 KB größer."
+  "webkarte.leaflet_hint_inline": "Leaflet wird komplett in die HTML geschrieben – kein externer Abruf (DSGVO-sauber, offline-fähig), die Datei wird ~160 KB größer.",
+  "webkarte.attribution": "Link „erstellt mit Reisezoom GPS Studio“ einbetten"
 }

@@ -12,9 +12,13 @@ function applyI18nToModuleManifests() {
     const name = t(`modules.${slug}.name`);
     const desc = t(`modules.${slug}.desc`);
     if (name && name !== `modules.${slug}.name`) m.name = name;
-    if (desc && desc !== `modules.${slug}.desc`) m.desc = desc;
-    if (!("description" in m)) m.description = desc;
-    else m.description = desc;
+    // Nur übernehmen wenn der Key wirklich existiert — sonst würde t() den
+    // rohen Key ("modules.<slug>.desc") liefern und die Tab-Unterschrift damit
+    // überschreiben. Fehlt der Key, bleibt der Manifest-Literal stehen.
+    if (desc && desc !== `modules.${slug}.desc`) {
+      m.desc = desc;
+      m.description = desc;
+    }
   }
 }
 

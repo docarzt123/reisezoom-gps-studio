@@ -66,7 +66,7 @@ def tile_style(style_id: str) -> dict:
 
 
 def wrap_with_consent(inner_html: str, consent_text: str, consent_button: str,
-                      bg_data_uri: str = "") -> str:
+                      bg_data_uri: str = "", credit_html: str = "") -> str:
     """DSGVO-Gate um die interaktive Karte: die komplette Karten-Seite (inkl.
     CDN-Scripts + Kachel-Abrufe) wird ERST geladen, wenn der Nutzer „Karte laden"
     klickt. Die Karte steckt base64-kodiert in der Seite und wird beim Klick in ein
@@ -107,13 +107,19 @@ def wrap_with_consent(inner_html: str, consent_text: str, consent_button: str,
         "color:#fff;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35)}"
         ".rz-consent-inner button:hover{background:#ff5a1f}"
         ".rz-wrap iframe{border:0;width:100%;height:100%;display:block}"
+        # v0.9.431 — der „erstellt mit"-Backlink liegt AUSSERHALB des base64-Gates,
+        # also crawlbar für Suchmaschinen (SEO), auch vor „Karte laden".
+        ".rz-credit{position:absolute;left:8px;bottom:8px;z-index:600;background:rgba(255,255,255,.88);"
+        "color:#1c1814;font:600 11px/1 -apple-system,system-ui,'Segoe UI',Roboto,sans-serif;"
+        "padding:5px 8px;border-radius:6px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.3)}"
+        ".rz-credit:hover{background:#fff}"
         "</style></head><body>"
         '<div class="rz-wrap" id="rz-wrap">'
         '<div class="rz-consent" id="rz-consent">'
         '<div class="rz-bg"></div>'
         '<div class="rz-consent-inner"><p>' + txt + "</p>"
         '<button type="button" id="rz-load">' + btn + "</button>"
-        "</div></div></div>"
+        "</div></div>" + (credit_html or "") + "</div>"
         "<script>"
         'var __rzB64="' + b64 + '";'
         "function __rzUtf8(b){return decodeURIComponent(escape(b));}"

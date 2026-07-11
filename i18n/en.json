@@ -10,6 +10,8 @@
   "modules.animator.desc": "Render track as video",
   "modules.tourmap.name": "Tour Map",
   "modules.tourmap.desc": "Static map PNG",
+  "modules.webkarte.name": "Web Map",
+  "modules.webkarte.desc": "Interactive map for the web",
   "tourmap.section.source": "Source",
   "tourmap.section.format": "Format & Resolution",
   "tourmap.section.image_settings": "Image settings",
@@ -1318,6 +1320,11 @@
   "webkarte.intro": "Lightweight interactive map for the web. The track comes automatically from the GPX; place labels directly on the map. The preview here is exactly the export.",
   "webkarte.track_color": "Track color",
   "webkarte.track_width": "Track width",
+  "webkarte.tracks": "More tracks",
+  "webkarte.add_track": "Add track",
+  "webkarte.tracks_hint": "The first track comes from the loaded GPX. Add further stages or tours here — each with its own colour, width, name and start/finish pins.",
+  "webkarte.track_name_ph": "Name (e.g. Day 1)",
+  "webkarte.track_pins": "Start/finish pins",
   "webkarte.tile_style": "Map style",
   "webkarte.labels": "Labels",
   "webkarte.add_label": "Add label",
@@ -1348,5 +1355,6 @@
   "webkarte.leaflet_url_ph": "https://yourblog.com/leaflet/",
   "webkarte.leaflet_hint_cdn": "Loads Leaflet from the public unpkg CDN (smallest file). With the GDPR button on, only after “Load map”.",
   "webkarte.leaflet_hint_url": "Loads leaflet.css + leaflet.js from your base URL (you host the two files yourself).",
-  "webkarte.leaflet_hint_inline": "Leaflet is written fully into the HTML – no external request (GDPR-clean, works offline), the file grows ~160 KB."
+  "webkarte.leaflet_hint_inline": "Leaflet is written fully into the HTML – no external request (GDPR-clean, works offline), the file grows ~160 KB.",
+  "webkarte.attribution": "Embed “made with Reisezoom GPS Studio” link"
 }

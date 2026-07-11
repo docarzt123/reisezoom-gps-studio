@@ -10,6 +10,8 @@
   "modules.animator.desc": "Renderizar ruta como vídeo",
   "modules.tourmap.name": "Tour Map",
   "modules.tourmap.desc": "Mapa estático PNG",
+  "modules.webkarte.name": "Mapa web",
+  "modules.webkarte.desc": "Mapa interactivo para la web",
   "tourmap.section.source": "Fuente",
   "tourmap.section.format": "Formato y resolución",
   "tourmap.section.image_settings": "Ajustes de imagen",
@@ -1318,6 +1320,11 @@
   "webkarte.intro": "Mapa interactivo ligero para la web. La ruta viene automáticamente del GPX; coloca las etiquetas directamente en el mapa. La vista previa es exactamente la exportación.",
   "webkarte.track_color": "Color de la ruta",
   "webkarte.track_width": "Ancho de la ruta",
+  "webkarte.tracks": "Más tracks",
+  "webkarte.add_track": "Añadir track",
+  "webkarte.tracks_hint": "El primer track viene del GPX cargado. Aquí añades más etapas o rutas — cada una con su color, grosor, nombre y pines de inicio/fin.",
+  "webkarte.track_name_ph": "Nombre (p. ej. Día 1)",
+  "webkarte.track_pins": "Pines inicio/fin",
   "webkarte.tile_style": "Estilo de mapa",
   "webkarte.labels": "Etiquetas",
   "webkarte.add_label": "Añadir etiqueta",
@@ -1348,5 +1355,6 @@
   "webkarte.leaflet_url_ph": "https://tublog.com/leaflet/",
   "webkarte.leaflet_hint_cdn": "Carga Leaflet desde el CDN público unpkg (archivo más pequeño). Con el botón RGPD activo, solo tras «Cargar mapa».",
   "webkarte.leaflet_hint_url": "Carga leaflet.css + leaflet.js desde tu URL base (alojas los dos archivos tú mismo).",
-  "webkarte.leaflet_hint_inline": "Leaflet se escribe completo en el HTML – sin petición externa (limpio para RGPD, funciona sin conexión), el archivo crece ~160 KB."
+  "webkarte.leaflet_hint_inline": "Leaflet se escribe completo en el HTML – sin petición externa (limpio para RGPD, funciona sin conexión), el archivo crece ~160 KB.",
+  "webkarte.attribution": "Insertar enlace «creado con Reisezoom GPS Studio»"
 }
