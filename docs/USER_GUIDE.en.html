@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reisezoom GPS Studio — User Manual — Reisezoom GPS Studio</title>
+<style>
+  :root {
+    --bg-1: #0e1117;
+    --bg-2: #161b22;
+    --bg-3: #21262d;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --text-muted: #6e7681;
+    --accent: #ff6b35;
+    --accent-dim: #d65a2a;
+    --link: #58a6ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg-1); color: var(--text); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .layout {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 32px 36px 80px;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .header-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+  }
+  .header-title { font-size: 18px; font-weight: 600; }
+  .header-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; letter-spacing: 0.3px; }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: #f0f6fc;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 1.6em 0 0.5em;
+    scroll-margin-top: 24px;
+  }
+  h1 { font-size: 28px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h2 { font-size: 22px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 18px; }
+  h4 { font-size: 16px; color: var(--text); }
+  h5 { font-size: 14px; color: var(--text); }
+
+  p { margin: 0.8em 0; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  strong { color: #f0f6fc; font-weight: 600; }
+  em { color: #d2a8ff; font-style: italic; }
+
+  code {
+    background: rgba(110, 118, 129, 0.18);
+    color: #ffb38a;
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 88%;
+    font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+  }
+  pre {
+    background: #0a0d12;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 1em 0;
+    line-height: 1.5;
+  }
+  pre code {
+    background: none;
+    color: var(--text);
+    padding: 0;
+    font-size: 12.5px;
+  }
+  kbd {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 85%;
+    font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+    color: #f0f6fc;
+    white-space: nowrap;
+  }
+
+  ul, ol {
+    margin: 0.6em 0;
+    padding-left: 1.6em;
+  }
+  li { margin: 0.25em 0; }
+  li > ul, li > ol { margin: 0.25em 0; }
+
+  blockquote {
+    margin: 1em 0;
+    padding: 8px 16px;
+    border-left: 3px solid var(--accent);
+    background: rgba(255, 107, 53, 0.06);
+    color: var(--text-dim);
+    border-radius: 0 6px 6px 0;
+  }
+  blockquote p { margin: 0.3em 0; }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2em 0;
+  }
+
+  table {
+    border-collapse: collapse;
+    margin: 1em 0;
+    width: 100%;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+  }
+  th {
+    background: var(--bg-2);
+    color: var(--text);
+    font-weight: 600;
+  }
+  tr:nth-child(even) td { background: rgba(110, 118, 129, 0.05); }
+
+  /* Smooth-Scroll für Anchor-Links */
+  html { scroll-behavior: smooth; }
+
+  /* Mini-Footer mit Build-Hinweis */
+  .footer {
+    margin-top: 60px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11.5px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="header">
+    <img class="header-icon" src="../ui/assets/icon.png" alt="" onerror="this.style.display='none'">
+    <div>
+      <div class="header-title">Reisezoom GPS Studio</div>
+      <div class="header-sub">Reisezoom GPS Studio — User Manual</div>
+    </div>
+    <div class="langswitch" style="margin-left:auto;display:flex;gap:5px"><a href="user-guide.html" style="background:rgba(255,255,255,.08);color:#cbb89a;font:700 12px/1 system-ui,sans-serif;padding:5px 9px;border-radius:999px;text-decoration:none">DE</a><a href="user-guide.en.html" style="background:#c46a3a;color:#fff;font:700 12px/1 system-ui,sans-serif;padding:5px 9px;border-radius:999px;text-decoration:none">EN</a><a href="user-guide.es.html" style="background:rgba(255,255,255,.08);color:#cbb89a;font:700 12px/1 system-ui,sans-serif;padding:5px 9px;border-radius:999px;text-decoration:none">ES</a></div>
+  </div>
+  <h1 id="reisezoom-gps-studio-user-manual">Reisezoom GPS Studio — User Manual</h1>
+<p>Cross-platform suite for GPS workflows (macOS · Windows · Linux). <strong>v0.3.3</strong> — Beta.</p>
+<p>Modules:</p>
+<ul>
+<li><strong>Animator</strong> — GPX track as an animated 3D map video (MP4)</li>
+<li><strong>Travel Route</strong> — the journey there as a video: start/destination → calculated route animated, with the loaded GPX shown as a ghost</li>
+<li><strong>Tour-Map</strong> — GPX track as a static PNG (e.g. for YouTube thumbnails)</li>
+<li><strong>Geotagger</strong> — write GPS coordinates from a GPX into JPG / RAW / video EXIF</li>
+<li><strong>GPX Inspector</strong> — repair a track point by point: heal outliers, fill gaps, move points, trim the start/end</li>
+</ul>
+<hr>
+<h2 id="1-installation">1 · Installation</h2>
+<h3 id="download">Download</h3>
+<p>Grab the right version for your operating system:</p>
+<table><thead><tr><th>Platform</th><th>File</th><th>Link</th></tr></thead><tbody><tr><td>macOS (Apple Silicon, M1 or newer)</td><td><code>ReisezoomGPSStudio-macos.dmg</code></td><td>https://s.reisezoom.com/gps-studio-mac</td></tr><tr><td>Windows (x64)</td><td><code>ReisezoomGPSStudio-windows-setup.exe</code></td><td>https://s.reisezoom.com/gps-studio-win</td></tr><tr><td>Linux (x64)</td><td>from source</td><td>see the <strong>Linux</strong> section below</td></tr></tbody></table>
+<blockquote><strong>⚠️ macOS requires Apple Silicon (M1/M2/M3/…).</strong> Older <strong>Intel Macs are not supported</strong> — the app won&#x27;t launch on them. To check whether you have an Apple Silicon Mac, look under  → <strong>About This Mac</strong>: if it says &quot;Chip: Apple M…&quot;, you&#x27;re good; if it says &quot;Processor: Intel&quot;, unfortunately not.</blockquote>
+<p><strong>On macOS &amp; Windows you don&#x27;t need to install anything extra</strong> — <code>ffmpeg</code> and <code>exiftool</code> are bundled with the app. <strong>Linux</strong> runs directly from source (system packages + <code>python app.py</code>, see below).</p>
+<h3 id="macos-dmg">macOS (.dmg)</h3>
+<ol>
+<li>Double-click the <code>.dmg</code></li>
+<li>Drag &amp; drop the app into the <strong>Applications</strong> folder</li>
+<li>On the <strong>first launch</strong> macOS briefly asks once (&quot;… is an app downloaded from the Internet. Are you sure you want to open it?&quot; — with a note that Apple has checked it and found <strong>no malware</strong>) → click <strong>&quot;Open&quot;</strong>.</li>
+<li>From the second launch on, a normal double-click is enough.</li>
+</ol>
+<blockquote>The app is <strong>signed and notarized by Apple</strong> — the old &quot;unverified developer&quot; block is gone. macOS shows the one-time &quot;Really open?&quot; prompt for <strong>every</strong> app downloaded from the web (even signed ones), and only the first time.</blockquote>
+<p>If macOS unexpectedly says &quot;damaged and can&#x27;t be opened&quot; (e.g. after an incomplete download):</p>
+<pre><code class="lang-bash">xattr -dr com.apple.quarantine &quot;/Applications/Reisezoom GPS Studio.app&quot;</code></pre>
+<h3 id="windows">Windows</h3>
+<ol>
+<li>Double-click <code>ReisezoomGPSStudio-windows-setup.exe</code></li>
+<li>SmartScreen dialog: <strong>&quot;More info&quot;</strong> → <strong>&quot;Run anyway&quot;</strong></li>
+<li>Click through the setup wizard (choose language → confirm path → optional desktop shortcut)</li>
+<li>Done — the app launches automatically and adds a Start-menu entry</li>
+<li>On the first render the app still downloads Chromium (~150 MB, one-time, takes 1-2 min)</li>
+</ol>
+<blockquote><strong>Want to be extra safe?</strong> The Windows version is not (yet) signed. If you like, you can check the downloaded <code>.exe</code> beforehand with a service like <a href="https://www.virustotal.com" target="_blank" rel="noopener">VirusTotal</a> — the builds come from an automated GitHub pipeline with no manual intermediate steps.</blockquote>
+<p>Uninstall like any other Windows app: <strong>Control Panel → Apps &amp; Features → Reisezoom GPS Studio → Uninstall</strong>.</p>
+<h3 id="linux-from-source">Linux (from source)</h3>
+<p>There is <strong>no prebuilt binary</strong> for Linux — the map/render backend (pywebview) needs the system GTK/WebKit bindings, which can&#x27;t be reliably packed into a single binary. Instead, the app runs directly from the (open) source code:</p>
+<p><strong>1. System packages</strong> (one-time — incl. ffmpeg + ExifTool for rendering &amp; photo metadata):</p>
+<pre><code class="lang-bash"># Fedora / RHEL
+sudo dnf install git python3 python3-gobject gobject-introspection \
+                 webkit2gtk4.1 python3-cairo ffmpeg perl-Image-ExifTool
+
+# Debian / Ubuntu
+sudo apt install git python3 python3-venv python3-gi python3-gi-cairo \
+                 gir1.2-webkit2-4.1 libwebkit2gtk-4.1-0 ffmpeg libimage-exiftool-perl
+
+# Arch
+sudo pacman -S git python python-gobject webkit2gtk-4.1 ffmpeg perl-image-exiftool</code></pre>
+<p><strong>2. Get the repo &amp; start:</strong></p>
+<pre><code class="lang-bash">git clone https://github.com/docarzt123/reisezoom-gps-studio.git
+cd reisezoom-gps-studio
+python3 -m venv --system-site-packages .venv   # --system-site-packages → the venv can see the system GTK (gi)
+source .venv/bin/activate
+pip install -r requirements.txt
+python app.py</code></pre>
+<p>On the first render the app downloads Chromium once (~150 MB).</p>
+<p>Without ExifTool, JPEG, TIFF and HEIC photos still work (via piexif + pillow-heif, both built in). Only RAW files (CR3, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW) and video metadata need exiftool, as does writing GPS into HEIC.</p>
+<hr>
+<h2 id="2-getting-started">2 · Getting Started</h2>
+<h3 id="set-up-a-mapbox-token">Set up a Mapbox token 🗺️</h3>
+<p>Animator + Tour-Map need a <strong>free Mapbox token</strong> for the 3D maps. <strong>The Geotagger works without one too</strong>.</p>
+<p>On the first app launch an onboarding modal opens automatically with two options:</p>
+<ul>
+<li><strong>With a Mapbox token</strong> (recommended) — full features, free in 2 minutes</li>
+<li><strong>Without a token (OSM)</strong> — works right away, but only the standard map (no satellite, no 3D)</li>
+</ul>
+<p><strong>Here&#x27;s how to get a free Mapbox token:</strong></p>
+<ol>
+<li>Create an account at <a href="https://account.mapbox.com/auth/signup" target="_blank" rel="noopener">account.mapbox.com</a></li>
+<li>Click the confirmation email</li>
+<li>In the dashboard, go to <a href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener">Access tokens</a></li>
+<li>Copy the &quot;Default public token&quot; — it starts with <code>pk.eyJ…</code></li>
+<li>Paste it into the token field in the app → Save</li>
+</ol>
+<blockquote>⚠️ <strong>Credit card required</strong>: since mid-2026 Mapbox requires a credit card at sign-up — <strong>even for the free account</strong>. It sounds odd at first, but it has become common with many cloud services. <strong>Nothing is charged</strong> as long as you stay in the free tier.</blockquote>
+<blockquote></blockquote>
+<blockquote>💡 <strong>Free tier: 50,000 map loads per month — free.</strong> In practice that&#x27;s enough for a great many renders. With normal hobby use you&#x27;ll never see a bill — you&#x27;d have to produce really intensively to hit the limit.</blockquote>
+<p><strong>Change the token later</strong>: macOS menu → <strong>Reisezoom</strong> → <strong>Settings…</strong> (or Cmd+,) — Windows/Linux: ⚙ button, top right.</p>
+<h3 id="change-the-language">Change the language 🌍</h3>
+<p>The app starts automatically in the <strong>system language</strong> (German, English or Spanish — fallback English). Switch it in the <strong>⚙ Settings modal</strong> → language dropdown. Active immediately, no restart needed.</p>
+<h3 id="set-render-quality-export-since-v0-9-245">Set render quality &amp; export (since v0.9.245) ⭐</h3>
+<p>In the <strong>⚙ Settings modal</strong> there&#x27;s a <strong>&quot;Quality &amp; Export&quot;</strong> block — it applies globally to the Animator video export:</p>
+<ul>
+<li><strong>Frame capture:</strong> <strong>Fast (JPEG)</strong> is the default and makes the render <strong>~10× faster</strong> (grabbing the individual frames was the real bottleneck). Since the video is lossily encoded anyway, the quality is visually identical. <strong>Maximum (PNG, lossless)</strong> is only needed if you genuinely require lossless individual frames — significantly slower.</li>
+<li><strong>JPEG quality</strong> (JPEG only): default 92, perfectly sufficient.</li>
+<li><strong>Video codec:</strong> H.264 (compatible, smallest file) · H.265/HEVC (better compression) · ProRes 4444 (master quality, large file).</li>
+<li><strong>Video quality (CRF)</strong> and <strong>encoder speed</strong> (speed ↔ file size).</li>
+</ul>
+<p>The <strong>alpha mode</strong> (&quot;Without map&quot; in the Animator) automatically uses lossless PNG frames and ProRes 4444 — you don&#x27;t need to set that up separately here.</p>
+<h3 id="what-the-app-remembers">What the app remembers</h3>
+<ul>
+<li>The last module selection</li>
+<li>All render settings per module (style, pitch, resolution, color, codec, FPS, etc.)</li>
+<li>The last save folder (per module)</li>
+<li>The Mapbox token</li>
+<li>The language selection</li>
+</ul>
+<p>Settings file:</p>
+<ul>
+<li>macOS: <code>~/Library/Application Support/Reisezoom GPS Studio/settings.json</code></li>
+<li>Windows: <code>%APPDATA%\Reisezoom GPS Studio\settings.json</code></li>
+<li>Linux: <code>~/.local/share/Reisezoom GPS Studio/settings.json</code></li>
+</ul>
+<h3 id="sessions-projects-since-v0-8">Sessions &amp; Projects (since v0.8) ⭐</h3>
+<p><strong>Sessions</strong> are track-bound: every GPX track automatically gets its own session (recognized via a hash of the track coordinates). Load the same track a second time and you get <strong>all previously made settings + keyframes</strong> back — no more &quot;lost&quot; state when switching modules.</p>
+<p><strong>Projects</strong> are variants within a session — e.g. &quot;Standard variant&quot; + &quot;portrait reels&quot; + &quot;with photo inserts&quot;. You can create any number of projects per track.</p>
+<p><strong>Where do I find this?</strong> Top bar, top right — a project dropdown with 4 actions:</p>
+<ul>
+<li>🆕 <strong>New project</strong> (with pristine defaults)</li>
+<li>📋 <strong>Duplicate current</strong> (copies all settings + keyframes)</li>
+<li>✏️ <strong>Rename</strong></li>
+<li>🗑 <strong>Delete</strong> (the last project of a session can&#x27;t be deleted — it&#x27;s automatically restored as &quot;Standard&quot;)</li>
+</ul>
+<p>The session data lives under:</p>
+<ul>
+<li>macOS: <code>~/Library/Application Support/Reisezoom GPS Studio/sessions/</code></li>
+</ul>
+<p>(One folder per track hash, with a GPX snapshot + projects.json holding all variants.)</p>
+<hr>
+<h2 id="2b-opening-track-files-many-formats-since-v0-9-282">2b · Opening track files — many formats (since v0.9.282) ⭐</h2>
+<p>You don&#x27;t need to have a <strong>GPX</strong>. Just open (via the GPX bar or by drag &amp; drop) any of these formats — the app converts it to a GPX automatically on load and works from there:</p>
+<table><thead><tr><th>Format</th><th>Extension</th><th>Typically comes from</th></tr></thead><tbody><tr><td><strong>GPX</strong></td><td><code>.gpx</code></td><td>almost all apps (Komoot, Strava, Garmin Connect, …)</td></tr><tr><td><strong>FIT</strong></td><td><code>.fit</code></td><td>Garmin, Wahoo, Coros, Suunto, Strava (bike computers &amp; sport watches)</td></tr><tr><td><strong>NMEA 0183</strong></td><td><code>.nmea</code> / <code>.log</code></td><td>Canon EOS 6D, marine GPS, GPS loggers</td></tr><tr><td><strong>KML / KMZ</strong></td><td><code>.kml</code> / <code>.kmz</code></td><td>Google Earth, Google My Maps</td></tr><tr><td><strong>TCX</strong></td><td><code>.tcx</code></td><td>Garmin Training Center, Strava export</td></tr><tr><td><strong>GeoJSON</strong></td><td><code>.geojson</code></td><td>web / OSM tools</td></tr></tbody></table>
+<p>Elevations and timestamps are carried over — as far as the format contains them — which matters for geotagging and the speed readout.</p>
+<p><strong>Export as GPX:</strong> Via the menu <strong>Reisezoom → &quot;Export as GPX…&quot;</strong> you save the currently loaded track as a real <code>.gpx</code> file — even if it came from another format. Handy when, for example, you need a clean GPX out of a camera <code>.log</code>.</p>
+<p><strong>Export as CSV:</strong> Via <strong>Reisezoom → &quot;Export as CSV…&quot;</strong> you get the same track as a table (<code>index,lat,lon,ele,time</code>, time as ISO-UTC). Ideal for spreadsheets, your own analyses, or importing into other tools.</p>
+<blockquote>Note: A <code>.json</code> is only recognized if it looks like a GeoJSON track; a <code>.txt</code> only if it contains real NMEA sentences (<code>$GP…</code>).</blockquote>
+<hr>
+<h2 id="3-module-animator-render-a-gpx-as-a-video">3 · Module: Animator — render a GPX as a video</h2>
+<h3 id="what-it-does">What it does</h3>
+<p>Loads a GPX file and renders an MP4 in which the track line is animated, drawn over a 3D Mapbox map. Use it for: YouTube video intros, website loops, memory animations.</p>
+<h3 id="workflow">Workflow</h3>
+<ol>
+<li><strong>Load GPX</strong>: the &quot;📁 Choose GPX file&quot; button, or drag &amp; drop into the window</li>
+<li><strong>The track is shown on the map</strong> (live preview, in the WYSIWYG letterbox frame)</li>
+<li><strong>Tune the settings</strong> (see below) — all changes are immediately visible in the preview</li>
+<li>Click <strong>&quot;▶ Render video&quot;</strong></li>
+</ol>
+<p><strong>Current frame as an image (snapshot, since v0.9.412):</strong> Below the render button sits <strong>&quot;📸 Current frame as image&quot;</strong>. Scrub the preview to a nice spot and click the button — <strong>exactly this frame</strong> (track up to the current position, your camera framing, the overlays of the moment) is saved as a <strong>full-resolution image</strong>. Perfect for thumbnails or a still from a running flyover.</p>
+<p><strong>Open as Tour-Map (since v0.9.412):</strong> The button <strong>&quot;🗺 Open as Tour-Map&quot;</strong> switches to the Tour-Map and <strong>takes over exactly your current framing</strong> (position, zoom, rotation, tilt) — instead of fitting the whole route as it normally would. There you can render the still as a <strong>PNG</strong>; it keeps the adopted viewpoint. <em>(For an interactive map for the web, there&#x27;s the dedicated <a href="#5c--modul-web-karte" target="_blank" rel="noopener">&quot;🌐 Web Map&quot;</a> module.)</em> With the <strong>⤢</strong> button (bottom right on the map) you jump back to the full view.</p>
+<ol>
+<li><strong>Save dialog</strong>: where should the MP4 go? Suggestion: <code>&lt;GPX name&gt;_&lt;WxH&gt;_&lt;codec&gt;.mp4</code></li>
+<li>The render runs — the live preview shows every frame</li>
+<li>Done → the result view shows the MP4 + a &quot;Show in Finder&quot; button</li>
+</ol>
+<blockquote><strong>Animate the journey / a route?</strong> Since v0.9.205 there&#x27;s a dedicated <strong>🛣 Travel Route</strong> module for that (start/destination → calculated route). See chapter 4.</blockquote>
+<h3 id="settings">Settings</h3>
+<blockquote><strong>↩︎ Undo for everything (since v0.9.322):</strong> Every settings change can be undone with <strong>⌘Z</strong> (Mac) / <strong>Ctrl+Z</strong> (Windows) — in <strong>Animator, Tour-Map, Geotagger and Elevation Animator</strong>: colors, font, line width, glow, overlay fields, keyframes, trim, time offset, etc. <strong>Redo</strong> with <strong>⌘⇧Z</strong> / <strong>Ctrl+Y</strong>. (One slider drag = one step.)</blockquote>
+<p><strong>Map:</strong></p>
+<ul>
+<li><strong>Style</strong>: 6 Mapbox styles (Satellite 3D, Satellite+Streets, Outdoors, Streets, Light, Dark)</li>
+<li>Enable <strong>3D terrain</strong> — for Alpine tours this looks spectacular</li>
+<li><strong>Track color + thickness</strong> — freely selectable</li>
+<li><strong>Line style</strong> (since v0.6.5) — Solid / Dashed / Dotted / Dash-dot / <strong>Tube</strong>. For dash/dot variants there&#x27;s an additional <strong>spacing</strong> slider (multiplies the dash or dot lengths). &quot;Tube&quot; (since v0.8.10, in the line-style dropdown since v0.8.12) lays a white highlight strip on top of the line → makes it look more three-dimensional, like a hose.</li>
+<li><strong>Drop shadow under the track</strong> (since v0.4) — makes the track look like a line floating above the map. Strength 0–10 px (default 4). With 3D terrain active, the shadow stays on the ground while the track is rendered 150 m above it → a three-dimensional 3D look.</li>
+<li><strong>Waypoint signs (since v0.9.171, fully customizable since v0.9.179)</strong> — place text signs along the route (e.g. &quot;Summit reached!&quot;). The <strong>&quot;🚩 Signs&quot;</strong> area in the sidebar:</li>
+<li><strong>Placing:</strong> <strong>&quot;📍 On track&quot;</strong> → click on the track (snaps into place), or <strong>&quot;📌 Place freely&quot;</strong> → click <strong>anywhere</strong> on the map (e.g. a landmark off the route). With free placement, the <strong>display timing</strong> still follows the nearest track point (anchored to the track + a free coordinate offset).</li>
+<li><strong>Editing:</strong> Clicking a sign (in the list or on the map) opens a <strong>floating editor panel</strong> — freely draggable by its header bar (⠿), even out of the map. The sign currently being edited is always visible (no matter where the playback point sits).</li>
+<li><strong>Look (all live):</strong> shape (speech bubble · destination banner · pin · signpost · plain), <strong>background</strong> + text color (the <strong>&quot;Background&quot; picker</strong> is the <strong>one</strong> box/bubble color of the sign — since v0.9.271 there is no separate &quot;accent color&quot; and no &quot;Auto&quot; anymore), font (System · Rounded · Narrow · Serif · Monospace · Bold display), size/weight/italic/alignment, multi-line text, corner radius, opacity, border (width + color), <strong>post length</strong> (only for destination banner + signpost — how long the posts/pole under the sign are) and drop shadow. <strong>Add image</strong> turns the sign into a <strong>photo card</strong> (the text then becomes the caption); the image size is adjustable separately.</li>
+<li><strong>Speech-bubble arrow direction (since v0.9.408):</strong> With the <strong>speech bubble</strong> style you choose in the editor under <strong>&quot;Arrow direction&quot;</strong> where the tip points — <strong>down, up, left or right</strong>. The bubble automatically shifts to the opposite side so the tip always points at the location. (Analogous to choosing the direction on the signpost; applies to Animator and Tour-Map.)</li>
+<li><strong>One color instead of two (since v0.9.271):</strong> There used to be an &quot;accent color&quot; <strong>and</strong> a &quot;background&quot; — both filled the same area, which was confusing. Now there&#x27;s only the <strong>&quot;Background&quot; picker</strong> = the color of the sign (for the pin, also of the drop). You set the <strong>border</strong> separately under &quot;Border&quot;.</li>
+<li><strong>Background &quot;None&quot; (transparent, since v0.9.269):</strong> For the background you can now choose <strong>&quot;None&quot;</strong> alongside &quot;Auto&quot; → the sign box becomes completely <strong>transparent</strong>. Handy for <strong>photo cards without a colored frame</strong>: then you see only the image (plus an optional border), instead of a colored edge around the photo that, together with the border, would otherwise look like a <strong>double frame</strong>.</li>
+<li><strong>Editing is flicker-free (since v0.9.255):</strong> When dragging the sliders (size, corners, border, shadow, post length …) the preview updates instantly and smoothly. In the test run and the finished video the signs move fluidly along with the camera.</li>
+<li><strong>Behavior &amp; timing:</strong> &quot;Grow with zoom&quot; on/off, <strong>&quot;Show the whole time&quot;</strong> (continuously visible), <strong>lead-in</strong> X sec. (appears earlier) + <strong>&quot;Visible for&quot;</strong> X sec. (disappears later; 0 = stays until the end), <strong>fade</strong> (hard/fade-in). Otherwise it appears in the video exactly when the marker reaches the point; it stands upright facing the camera. <strong>Since v0.9.204:</strong> A sign right at the start of the track with a <strong>lead-in</strong> now already appears <strong>in the intro</strong> (lead-in = 1 sec → shows up in the last intro second, instead of popping up only at the track start).</li>
+<li><strong>Trigger timing (since v0.9.259) — for out-and-back routes:</strong> If your track passes the same spot <strong>twice</strong> (e.g. out and back), the app can&#x27;t tell from the click position alone which pass you mean. The solution is in the <strong>&quot;Trigger timing&quot;</strong> block:</li>
+</ul>
+<ol>
+<li>Move the timeline <strong>scrubber</strong> to exactly the moment when the marker is at the spot on the <strong>desired pass</strong>.</li>
+<li>Click <strong>🕐 &quot;To timeline position&quot;</strong> → the sign is fixed to exactly this moment (status line: &quot;Fixed time: NN %&quot;).</li>
+<li><strong>&quot;Auto&quot;</strong> switches back to automatic position detection.</li>
+</ol>
+<p>    This works identically in the preview and the finished video. (For <strong>photo cards</strong> this happens automatically via the photo&#x27;s capture time.)</p>
+<ul>
+<li><strong>Preview help:</strong> the <strong>&quot;Show ALL signs in the preview&quot;</strong> checkbox — shows all signs at once while placing (preview only; in the video the timing still applies).</li>
+<li><strong>Ghost track (since v0.9.169)</strong> — shows the <strong>entire route</strong> semi-transparently in the background while only the animated part is drawn fully opaque on top. That way you can see from the start where things are still headed. Adjustable: <strong>its own ghost-track color</strong> (its own color picker, independent of the track color — e.g. a subtle gray, since v0.9.170) and <strong>opacity</strong> (slider 5–80 %, default 30 %). Works in preview and render including the alpha/transparent mode. Off by default.</li>
+<li><strong>Map without labels</strong> (since v0.4.4) — hides place names, street names and POI icons on the map. Turns the map into a pure background — a good look when you want the track as the visual lead actor instead of a Google-Maps-style overview. Works with all map styles and also in the Tour-Map module.</li>
+</ul>
+<p><strong>Overlays</strong> (all individually toggleable, freely placeable):</p>
+<ul>
+<li><strong>Totals box</strong> — total values of the track</li>
+<li><strong>Live box</strong> — values that update during the animation</li>
+<li><strong>Elevation profile</strong> — animated line</li>
+</ul>
+<p><strong>🆕 Stats editor (since v0.9.321): you choose what&#x27;s shown — and in what order.</strong> Below the Totals and the Live box there&#x27;s a <strong>field list</strong> each. Checking/unchecking determines what appears; with the <strong>⠿ handle you drag the fields into the order you want</strong>. Selectable values:</p>
+<ul>
+<li><strong>Live (updates with the animation):</strong> Traveled, Remaining, <strong>Speed (km/h)</strong>, Elapsed, <strong>Time left</strong>, Elevation, <strong>Gradient (%)</strong>.</li>
+<li><em>WYSIWYG (since v0.9.325):</em> These values already update <strong>in the preview</strong> — while dragging the scrubber and in the test run they count exactly as in the finished video, and the elevation profile fills up to the marker position. So you see in advance, pixel-accurate, how the stats will look in the render.</li>
+<li><strong>Totals:</strong> Distance, Time (total time), <strong>Moving time</strong> (motion time without pauses), <strong>Ø speed</strong> (from moving time), <strong>Ø speed (overall)</strong> (from total time), <strong>Max. speed</strong>, Ascent, Descent, <strong>Highest point</strong>, <strong>Lowest point</strong>.</li>
+<li><em>Default (since v0.9.324):</em> New tracks show <strong>Distance · Moving time · Ø speed · Max. speed · Ascent · Descent</strong>. The <strong>moving time</strong> is the displayed time instead of the total time — both stay freely selectable. Once you&#x27;ve set your favorite selection, the app remembers it with <strong>&quot;Save as my defaults&quot;</strong> (project menu) for <strong>all</strong> new projects.</li>
+<li><em>Pause detection:</em> A pause is a segment in which, over a <strong>60-second window, you barely made net progress</strong> — the instantaneous speed doesn&#x27;t count. So slow steep hiking (~1 km/h, but steady) counts as movement, and only actually standing still counts as a pause.</li>
+<li><em>Accuracy (since v0.9.324):</em> <strong>Moving time</strong> and <strong>Max. speed</strong> are computed at the <strong>full track resolution</strong> — the peak speed is no longer smoothed away by the render simplification.</li>
+<li><strong>❤️ Sensor values (since v0.9.330):</strong> If your track brings sensor data — say a <strong>FIT/TCX file</strong> from Garmin, Wahoo, Polar or Coros, or a <strong>GPX file with heart-rate extensions</strong> — the available fields (<strong>heart rate, cadence, temperature, power</strong> and possibly others) automatically appear <strong>at the bottom of the Live field list</strong>. Check, sort and style them like any other live value; they run <strong>point by point in sync with the track</strong> in the render and preview (WYSIWYG). If your track has no sensors, nothing shows up here.</li>
+<li><strong>✎ Rename &amp; unit (since v0.9.334):</strong> Every sensor field has a <strong>✎</strong>. With it you can change the <strong>label and unit per project</strong> — make cryptic device abbreviations like <code>GRD_PCT</code> or <code>NGP</code> readable, rename &quot;cadence&quot; to &quot;step rate / spm&quot; for running, or specify speed in &quot;knots&quot; for sailing. &quot;Reset&quot; restores the default.</li>
+<li>Values your track doesn&#x27;t provide (e.g. speed/time without timestamps, elevation/gradient without altitude data) are <strong>automatically grayed out</strong>.</li>
+</ul>
+<p><strong>🎨 Appearance of the stats boxes (since v0.9.321):</strong> at the bottom of the Overlays section you choose <strong>font</strong> (System, Nunito, Quicksand, Fredoka, Oswald, Bebas Neue), <strong>text color</strong>, <strong>background color</strong> and <strong>background opacity</strong> — applies to all boxes, with a live preview on the map.</p>
+<p><strong>Positions (since v0.9.284):</strong> stats boxes in a <strong>3×3 grid</strong> — four corners plus <strong>top (↥)</strong>, <strong>bottom (↧)</strong>, <strong>left (⇤)</strong>, <strong>right (⇥)</strong> centered and <strong>center (✛)</strong> (e.g. for a title/opening overlay). The <strong>elevation profile</strong> is narrower and additionally offers <strong>top wide / bottom wide</strong> (across the full width).</p>
+<p><strong>⏱ Time window per box</strong> (since v0.9.228): Under each overlay box you can set <strong>from which and up to which video second</strong> it&#x27;s shown — e.g. show the Live box only from second 2, or hide the Totals box again after second 8. Two fields &quot;from … s&quot; / &quot;to … s&quot;, counted over the <strong>whole video</strong> (intro + animation + hold). <strong>Empty or 0</strong> = as before (visible the whole time). You can see the fade in/out already in the <strong>test run</strong>, before you render.</p>
+<p><strong>Camera:</strong></p>
+<ul>
+<li><strong>🎥 Steady camera (3D terrain)</strong> (checkbox, at the very top of the section, <strong>default: off</strong>) — <em>against the up-and-down bobbing of the camera over mountainous terrain.</em> With keyframe camera flights over 3D terrain, the camera normally &quot;rides&quot; the mountains and bobs up on every climb and down in the valley (especially with a steep tilt). Check this box and the camera <strong>flies decoupled through space like a drone</strong> — it hits exactly the framing you set at your keyframes, and moves steadily in between, without the terrain bobbing. <strong>The default is off</strong> (classic behavior); only check it if the bobbing over mountains bothers you. Applies both in the <strong>test run</strong> and in the finished <strong>render</strong> (what you see is what you get). <em>Tip:</em> If a specific project with the steady camera enabled ever looks odd (e.g. an approach from the world view), just uncheck it again.</li>
+<li><strong>Tilt (pitch)</strong> 0–80° — how steeply the camera looks down</li>
+<li><strong>Rotation</strong> 0–60° — the camera&#x27;s sweep during the video. At 0 = no rotation. At 20° it rotates a steady 20° over the length of the video.</li>
+<li><strong>Camera follows track</strong> — the camera stays on the moving point instead of on the whole route.</li>
+<li><strong>Camera inertia</strong> (appears then) — soft trailing instead of hard sticking to the point (against GPS jitter).</li>
+<li><strong>Terrain exaggeration</strong> 0–4× — how pronounced the mountains look</li>
+</ul>
+<p><strong>Time &amp; size:</strong></p>
+<ul>
+<li><strong>Animation duration</strong> in seconds — how long the track is drawn</li>
+<li><strong>Hold</strong> in seconds — how long the finished image stays on screen at the end</li>
+<li><strong>Resolution</strong>: 4K (3840×2160), 1080p, 4K↕ and 1080↕ (portrait for Shorts/Reels), or custom</li>
+<li><strong>FPS</strong>: 24 (cinema) · 25 (PAL/Europe TV) · 30 (standard) · 50 (PAL HFR) · 60</li>
+<li><strong>Codec</strong>: H.264 (universally compatible) or H.265 (HEVC, ~30% smaller)</li>
+</ul>
+<p><strong>Performance &amp; output (since v0.4):</strong></p>
+<ul>
+<li><strong>Track smoothness (point density)</strong> — how finely the track is drawn:</li>
+<li><strong>Low</strong> (100 points) — fastest render, good for preview</li>
+<li><strong>Medium</strong> (250 points) — recommended default</li>
+<li><strong>High</strong> (500 points) — finer curves with lots of S-bends</li>
+<li><strong>Maximum</strong> — all original GPX points (slower, rarely needed)</li>
+</ul>
+<p>  ℹ️ Render time depends <strong>much more</strong> on <strong>duration × FPS × resolution</strong> than on the number of points. If a render takes too long: reduce FPS/resolution first.</p>
+<ul>
+<li><strong>Animation without map (alpha channel)</strong> ⭐ <strong>For video-editor compositing</strong>:</li>
+<li>Enable the checkbox → renders <strong>only track + point + stats overlays</strong> on a transparent background.</li>
+<li>The output is a **<code>.mov</code> file** (ProRes 4444 with an alpha channel, larger than MP4 but NLE-ready).</li>
+<li>In <strong>Premiere Pro, Final Cut Pro, DaVinci Resolve, CapCut Pro</strong> you can lay this file directly <strong>over real video</strong> — the track appears as an animated overlay on your drone, GoPro or vlog footage.</li>
+<li>A Mapbox token is <strong>not required</strong> in this mode (no map is rendered, after all).</li>
+<li>Map style, terrain, tilt and codec are ignored in alpha mode.</li>
+</ul>
+<p><strong>Manual map position (WYSIWYG):</strong> You can <strong>pan</strong> the preview map with the mouse (click+drag) and <strong>zoom</strong> with the scroll wheel. The render adopts your position 1:1 — what you see in the preview is what comes out in the video.</p>
+<p>If you want the track centered again: the <strong>⤢</strong> button at the bottom right.</p>
+<h3 id="camera-keyframes-timeline-bar-since-v0-7">Camera keyframes (timeline bar, since v0.7) ⭐</h3>
+<blockquote><strong>Since v0.8.16 this is an optional pro feature.</strong> Default for new projects: just a &quot;🎥 Keyframe editor&quot; checkbox in the sidebar. Only when enabled: the timeline bar appears under the map, the detail editor becomes accessible in the sidebar, and map pins are drawn. Existing projects with keyframes are enabled automatically.</blockquote>
+<p>With the timeline bar <strong>below</strong> the map preview you can shape the camera flow dynamically — freely set tilt, rotation and zoom at any points in the track. The engine interpolates cleanly between the keyframes (just like in Premiere or Final Cut).</p>
+<p><strong>Anatomy of the bar:</strong></p>
+<ul>
+<li><strong>Timeline axis 0–100 %</strong> — the entire render duration (animation <strong>+</strong> hold)</li>
+<li>An <strong>orange vertical divider</strong> marks the <strong>end of the animation phase</strong>. To the left the track runs, to the right is the hold phase (the track endpoint stands still, but the camera can keep interpolating).</li>
+<li>The <strong>hold area</strong> is orange-hatched with a &quot;HOLD&quot; label above it</li>
+<li>A <strong>🎥 marker</strong> per set keyframe (outlined in yellow when selected). Keyframes can also be placed into the hold phase — e.g. &quot;zoom out to the whole route at the end&quot; while the track is already finished.</li>
+<li><strong>Scrubber</strong> (yellow line) — shows the current preview position</li>
+<li><strong>Position readout</strong>: <code>Point 234 / 1500 · 15.6 %</code> plus a mode indicator:</li>
+<li><code>🎥 on keyframe #2</code> — the detail editor in the sidebar is active</li>
+<li><code>free (📍 = new keyframe)</code> — the map is freely manipulable, without changing keyframes</li>
+<li><code>⏸ Hold</code> — the scrubber is in the hold phase, the track endpoint stands</li>
+</ul>
+<p><strong>Snapshot workflow</strong> (the core):</p>
+<ol>
+<li>Drag the map normally with the mouse, scroll to zoom</li>
+<li><strong><kbd>Cmd</kbd> + Drag</strong> (Mac) or <strong>Right-click + Drag</strong> tilts the map (pitch + bearing at once)</li>
+<li>When the map is positioned the way you want → press <strong>&quot;📍 Keyframe here&quot;</strong></li>
+<li>Position, pitch, bearing and zoom are all recorded automatically</li>
+<li>Repeat for further spots in the track</li>
+</ol>
+<p><strong>Free mode vs. edit mode:</strong></p>
+<ul>
+<li><strong>On a keyframe</strong> (scrubber exactly on it) → the detail editor appears in the sidebar with 4 sliders (Anchor, Pitch, Bearing, Zoom-Δ) for fine-tuning. Map edits are NOT automatically taken into the keyframe — for that you press &quot;📍 Keyframe here&quot; again (which updates the existing one) or the &quot;Update with current map view&quot; button in the editor.</li>
+<li><strong>Between keyframes</strong> → the editor is gone. The map is <strong>free</strong> — pan/zoom/cmd-drag changes NO existing keyframe. &quot;📍 Keyframe here&quot; creates a new one at this position.</li>
+</ul>
+<p><strong>Test run:</strong> The <strong>▶ button</strong> plays the whole track in your actual animation duration (so if you set 12 s, the test takes 12 s). A second click (or <kbd>Space</kbd>) stops it immediately. A pure preview feature, no render needed.</p>
+<p><strong>Keyboard navigation</strong> (like in an NLE):</p>
+<table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>one GPS point forward/back</td></tr><tr><td><kbd>⇧</kbd> + <kbd>←</kbd>/<kbd>→</kbd></td><td>jump of 10</td></tr><tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td>track start / end</td></tr><tr><td><kbd>Space</kbd></td><td>start/stop test run</td></tr><tr><td><kbd>Del</kbd> / <kbd>Backspace</kbd></td><td>delete the selected keyframe</td></tr></tbody></table>
+<p>Works only when no slider/input currently has focus. If you&#x27;ve just adjusted a slider and the arrow keys don&#x27;t respond → click the map once.</p>
+<p><strong>Deleting a keyframe</strong> works in 4 ways:</p>
+<ol>
+<li><strong>Detail editor</strong> → the &quot;🗑 Delete this keyframe&quot; button at the bottom</li>
+<li><strong>Right-click</strong> on the 🎥 marker in the bar or the map pin</li>
+<li>The <kbd>Del</kbd>/<kbd>Backspace</kbd> key with a keyframe selected</li>
+<li>The &quot;🗑 Clear all&quot; button (removes ALL → back to classic behavior)</li>
+</ol>
+<p><strong>Timeline anchor (since v0.8.11):</strong> The keyframes hang on a <strong>position on the entire timeline</strong> (animation + hold), in the range 0..100 %. With e.g. 12 s animation + 5 s hold, the track end sits at ~70.6 % — keyframes before it move with the track, keyframes after it move only the camera (the track endpoint stands still).</p>
+<p>That&#x27;s how &quot;zoom out to the whole route at the end&quot; works, for instance: a keyframe at the start zooms to the starting point, a keyframe at the track end zooms back to normal, a keyframe far back in the hold phase zooms out to the whole route → a cinematic outro.</p>
+<p><strong>Fallback to classic behavior:</strong> If no keyframes are set, everything runs as before v0.7 — static pitch (from the sidebar slider) + a linear bearing sweep (from the rotation slider). As soon as you set the first keyframe, the two sidebar sliders get a yellow note &quot;⏱ Controlled by timeline keyframes&quot; and become visually secondary. &quot;🗑 Clear all&quot; makes them the primary control again.</p>
+<h3 id="world-rotation-the-earth-spins-on-the-way-to-the-track-since-v0-9-136">World rotation — the Earth spins on the way to the track (since v0.9.136) ⭐</h3>
+<p>If you want to show <strong>the whole globe</strong> at the start and have it spin one or more times as you zoom into the track, that now runs — exactly like on the <strong>Insta360</strong> — directly via the <strong>longitude</strong> of the map position. There&#x27;s no separate &quot;world rotation&quot; track anymore; the rotation is baked into the longitude value itself.</p>
+<p><strong>How it works:</strong> Each keyframe has two new fields in the editor, <strong>Lon</strong> (longitude) and <strong>Lat</strong> (latitude) — a slider plus a click-editable number field, just like pitch/rotation/zoom. The longitude is <strong>unwrapped</strong>: values above ±180° mean full Earth rotations on the way from the previous keyframe.</p>
+<ul>
+<li>Longitude <code>10</code> and at the next KF <code>370</code> → the Earth spins <strong>once completely</strong> and lands back at longitude 10.</li>
+<li><code>10</code> → <code>730</code> → <strong>two full rotations</strong>, then landing at 10.</li>
+<li><code>10</code> → <code>380</code> → one rotation <strong>plus</strong> 10° eastward.</li>
+</ul>
+<p><strong>Workflow for &quot;the Earth spins, then zoom in&quot;:</strong></p>
+<ol>
+<li><strong>KF1 at the start</strong> (anchor 0): zoom to ~0 (globe visible), pitch=0. Optionally the <strong>Center world</strong> button for sensible defaults.</li>
+<li><strong>KF2 at the end</strong> (anchor 1): zoom to e.g. 14 (track detail), and set the <strong>longitude</strong> to the track&#x27;s longitude <strong>plus 360°</strong> (one rotation) or <strong>+720°</strong> (two rotations).</li>
+</ol>
+<p>The Earth spins evenly between the two KFs and ends up exactly at the track — the zoom/pan flight stays clean (no &quot;wild flight&quot;), because the full rotations are computed separately from the flight curve.</p>
+<p><strong>When you drag the map, the value counts up automatically:</strong> if you rotate the Earth with the mouse past the date line, the longitude doesn&#x27;t snap back to −180° but keeps counting (181°, 182°, … 370°, …). Just make as many rotations as you want and then press the snapshot button — the value is taken over with all the rotations.</p>
+<p><strong>Slider tricks:</strong></p>
+<ul>
+<li><strong>Click the Lon label</strong> → type a number directly instead of dragging the slider</li>
+<li>Values <strong>outside the slider range</strong> (e.g. <code>1090</code> for 3 rotations) are also allowed</li>
+<li>The Lon label automatically shows the <strong>rotation counter</strong>: <code>370° (1↻)</code>, <code>730° (2↻)</code></li>
+<li>Works the same for all other KF sliders (Pitch, Bearing, Zoom, Lat)</li>
+</ul>
+<blockquote><strong>Note for old projects:</strong> Projects from earlier versions with the old &quot;world rotation&quot; track still load, but the old rotation track is ignored. Set the rotation anew via the longitude if needed.</blockquote>
+<h3 id="limit-the-render-range-trim-handles-since-v0-9-41">Limit the render range — trim handles (since v0.9.41) ⭐</h3>
+<p>Sometimes you only want to render a <strong>section of the track</strong> instead of the whole route. Example: a 30 km tour, but you only want the mountain section as a video.</p>
+<p>In the timeline bar you&#x27;ll find <strong>two sliders</strong> with a gray handle — the left and right trim handles. Drag them inward to shorten the render range. The selected range is highlighted in light orange; the grayed-out areas remain on the left/right.</p>
+<ul>
+<li><strong>Left trim handle</strong> = where the render track starts</li>
+<li><strong>Right trim handle</strong> = where the render track stops</li>
+<li><strong>Keyframes outside</strong> stay visible (subtly), acting as a &quot;run-up&quot; setup: the camera interpolation runs through them, but the track marker itself only starts at the left handle</li>
+<li><strong>Test run + render</strong> play only the trimmed range (the render output length stays the same, though, because the animation duration is fixed)</li>
+</ul>
+<h3 id="intro-animation-hold-since-v0-9-59">Intro / Animation / Hold (since v0.9.59) ⭐</h3>
+<p>Three input fields in the &quot;Time &amp; size&quot; block control how long your render video runs:</p>
+<table><thead><tr><th>Field</th><th>What happens</th></tr></thead><tbody><tr><td><strong>Intro</strong></td><td>seconds BEFORE the track starts. The marker sits at the left trim handle, camera keyframes run → for setup shots (e.g. globe → route-start zoom)</td></tr><tr><td><strong>Animation</strong></td><td>seconds in which the track is traced</td></tr><tr><td><strong>Hold</strong></td><td>seconds AFTER the track ends. The marker sits at the right trim handle, camera keyframes run → for an outro (e.g. &quot;zoom out to the whole route&quot;)</td></tr></tbody></table>
+<p>The <strong>timeline visualizes</strong> this in three zones:</p>
+<ul>
+<li>🔵 <strong>Light-blue INTRO region</strong> on the left (visible when intro &gt; 0)</li>
+<li>⚪ <strong>Anim region</strong> in the middle (between the trim handles)</li>
+<li>🟠 <strong>Orange HOLD region</strong> on the right (visible when hold &gt; 0)</li>
+</ul>
+<p>Default values: Intro 0 / Animation 12 / Hold 5. So a 17-second output video in total.</p>
+<h3 id="show-the-track-before-the-trim-start-since-v0-9-55">Show the track before the trim start (since v0.9.55) ⭐</h3>
+<p>When you render only part of the track, you can choose whether the <strong>track line before it</strong> stays visible (as a faint background line for orientation) or whether the line only starts at the left trim handle. A checkbox in the overlay settings modal (&quot;🧭 Stats from the trim range&quot; / &quot;🧭 Show track before the trim start&quot;). On by default.</p>
+<h3 id="live-render-preview">Live render preview</h3>
+<p>During the render you see the frame currently being produced in the preview window. If the combination of style and camera angle doesn&#x27;t suit you: click <strong>&quot;⨯ Cancel&quot;</strong> — the half-finished file is deleted immediately and you can reconfigure without having waited 5 min for a render that turns out to be nothing.</p>
+<h3 id="photos-on-the-map-since-v0-9-74">📷 Photos on the map (since v0.9.74) ⭐</h3>
+<p>Photos with GPS EXIF appear as small thumbnails at their capture position. Perfect for travel vlogs: the track runs along, and the photo points are visible as polaroids on the map.</p>
+<p><strong>Workflow:</strong></p>
+<ol>
+<li><strong>Choose a photo source:</strong></li>
+</ol>
+<ul>
+<li><strong>&quot;Choose folder&quot;</strong> → native folder picker. The app scans all photos in the folder (JPEG/HEIC/RAW).</li>
+<li><strong>Drag &amp; drop</strong> into the &quot;📷 Photos&quot; panel (multiple files or a folder).</li>
+<li><strong>&quot;Take over from Geotagger&quot;</strong> — if you first ran the photos through the Geotagger module (with freshly written GPS tags), the list comes over with one click.</li>
+</ul>
+<ol>
+<li><strong>What happens:</strong> photos with GPS land as mini thumbnails on the map. Photos without GPS are skipped — you get a message &quot;X of Y photos loaded, Z skipped&quot;.</li>
+</ol>
+<ol>
+<li><strong>Set the size:</strong> the <strong>Size</strong> slider (24–80 px) controls how large the thumbnails appear on the map. Takes effect instantly and live in the preview and the finished render.</li>
+</ol>
+<ol>
+<li>The <strong>&quot;Show on map&quot;</strong> checkbox hides all pins without clearing the list — handy when you only want them for the Tour-Map and not in the Animator video.</li>
+</ol>
+<ol>
+<li><strong>&quot;🗑 Remove all&quot;</strong> clears the list for the current project completely.</li>
+</ol>
+<p><strong>List in the sidebar:</strong> shows each photo with a thumbnail + filename + coordinates. A click flies the map to the photo.</p>
+<p><strong>Shared between Animator and Tour-Map:</strong> The photo list lives at the project level. What you load in the Animator is instantly on the Tour-Map too (and vice versa). The size is separate per module — the video can have smaller pins than the print map.</p>
+<p><strong>Persistence:</strong> paths + GPS coordinates are stored in the project. On the next opening the thumbnails are regenerated automatically (disk cache, hence fast). If you moved or deleted a photo file in the meantime, it quietly drops out of the list — no crash.</p>
+<p><strong>In the render:</strong> photo pins appear <strong>as soon as the animated marker reaches their position</strong> (since v0.9.187 — before that they were accidentally visible from the first frame), and then stay until the end. The position is exactly the EXIF GPS position (even if it&#x27;s not on the track, e.g. a summit photo next to the hiking trail).</p>
+<hr>
+<h2 id="4-module-travel-route-the-journey-there-as-a-video-since-v0-9-205">4 · Module: Travel Route — the journey there as a video 🛣️ (since v0.9.205)</h2>
+<h3 id="what-it-does">What it does</h3>
+<p>Animates the <strong>journey</strong> to a tour: you enter a start and destination, from which a route is calculated and animated like a track — e.g. as an intro before the actual hiking video. The loaded GPX (the hike) is shown as a <strong>ghost</strong> in the background.</p>
+<p>Travel Route is a <strong>full-fledged clone of the Animator</strong>: everything that works there (map style, keyframes, signs, render options) works here just the same — only, instead of a GPX, the calculated route is animated. Its own settings and its own signs (independent of the Animator).</p>
+<h3 id="workflow">Workflow</h3>
+<ol>
+<li><strong>Load a GPX</strong> (the hike) — as usual via the GPX bar. In the Travel Route tab it appears automatically as a <strong>ghost</strong> (faint line).</li>
+<li>The <strong>&quot;🛫 Route / journey&quot;</strong> area: choose a <strong>style</strong> — <strong>🛣️ Follow the road</strong> (Mapbox route) or <strong>✈️ Flight path (great circle)</strong> (the shortest path on the globe, like real flights — it bows poleward on the map).</li>
+<li>Enter <strong>stations</strong> — <strong>start, any number of waypoints, and destination</strong>. Type each station as an <strong>address/place</strong> (e.g. &quot;Dresden Hauptbahnhof&quot;), set it via <strong>📍 click on the map</strong>, or as <code>lat,lon</code>. <strong>&quot;➕ Waypoint&quot;</strong> inserts a station before the destination; <strong>✕</strong> removes one. With <strong>&quot;📍 Click mode&quot;</strong> you simply click the stations <strong>one after another on the map</strong> — each click appears as a new station in the list (Esc ends it). Handy when the real route (e.g. a ferry) doesn&#x27;t follow the direct path.</li>
+<li>For &quot;Follow the road&quot;: <strong>mode of travel</strong> (car/foot/bike) + a <strong>detail level</strong> slider (fine → coarse). Coarse makes a deliberately <strong>flowing, simplified</strong> line that loosely follows the route (not as fine-grained as a real hike). The animation always stays smooth.</li>
+<li><strong>&quot;Calculate route&quot;</strong> → the route is loaded as an animated track, the hike remains as a ghost behind it. Distance + travel time are shown below the button.</li>
+<li>Continue as in the Animator: test run, camera, signs, <strong>render video</strong>.</li>
+</ol>
+<blockquote><strong>The detail level takes effect only at the next &quot;Calculate route&quot;</strong> — move the slider, then recalculate.</blockquote>
+<h3 id="configure-the-gpx-ghost">Configure the GPX ghost</h3>
+<p>The <strong>&quot;👻 GPX ghost&quot;</strong> area: show on/off, <strong>color</strong>, <strong>opacity</strong>, <strong>line width</strong>, <strong>dashed</strong>. Takes effect live in the preview and in the rendered video. (In the Travel Route module the stats overlays are hidden for this.)</p>
+<h3 id="what-gets-saved">What gets saved</h3>
+<p>All stations (start, waypoints, destination), style, detail level, profile <strong>and the last calculated route</strong> are stored in the project — after a restart everything is back (the route appears without recalculating).</p>
+<h3 id="needs-a-mapbox-token">Needs a Mapbox token</h3>
+<p>Road routes + address search run via Mapbox (the same token as the map, see Getting Started). The flight path (great circle) needs no API call.</p>
+<h2 id="5-module-tour-map-static-map-png">5 · Module: Tour-Map — static map PNG</h2>
+<h3 id="what-it-does">What it does</h3>
+<p>Like the Animator, but <strong>a single image instead of a video</strong>. Output: a PNG in any resolution. Use it for: YouTube thumbnails, Instagram posts, blog covers, Komoot gallery images.</p>
+<p>The Tour-Map is <strong>the same interface as the Animator</strong> — just in <strong>still-image mode</strong>: everything that only makes sense for a moving video (timeline, keyframes, live stats, trim, camera flight, FPS/duration) is hidden. What you see on the map is <strong>exactly</strong> the rendered PNG (WYSIWYG).</p>
+<h3 id="workflow">Workflow</h3>
+<ol>
+<li><strong>Load a GPX</strong> (same way as the Animator)</li>
+<li><strong>Choose a format</strong>: YouTube 16:9 (1920×1080) · 4K · Shorts 9:16 (1080×1920) · Instagram 1:1 (1080×1080) · or custom</li>
+<li><strong>Style + camera</strong> as in the Animator — map style, line look, tilt, zoom level, signs/photos</li>
+<li><strong>Fine-tune the framing</strong> with the camera controls (see below) or directly with pan/zoom on the map</li>
+<li><strong>&quot;🗺 Render map as PNG&quot;</strong> → save dialog → the PNG is ready in 3-5 seconds</li>
+</ol>
+<h3 id="still-image-camera-controls-since-v0-9-310">Still-image camera controls (since v0.9.310)</h3>
+<p>In the <strong>Camera</strong> section there are three controls that only appear in still-image mode — all take effect <strong>instantly, live in the preview</strong>:</p>
+<ul>
+<li><strong>Orientation</strong> (−180…180°) — rotates the map (which compass direction is up)</li>
+<li><strong>Padding</strong> (0–30 %) — how much air stays between the track and the image edge</li>
+<li><strong>Start/destination markers</strong> (On/Off) — two points: <strong>start white</strong> with a track-colored border, <strong>destination in the track color</strong> with a white border</li>
+</ul>
+<p>Plus, as in the Animator: <strong>tilt</strong> (pitch) and <strong>zoom level</strong>. The <strong>&quot;Image settings&quot;</strong> section now only contains the resolution.</p>
+<h3 id="result-view">Result view</h3>
+<p>After the render: a large preview image, &quot;Show in Finder&quot;, &quot;Copy path&quot;, &quot;New map&quot;.</p>
+<h3 id="choose-a-map-style-including-openstreetmap-since-v0-9-406">Choose a map style — including OpenStreetMap (since v0.9.406) ⭐</h3>
+<p>In the <strong>map style</strong> dropdown, the Tour-Map module offers, in addition to the Mapbox styles (Satellite, Streets …), four <strong>OpenStreetMap styles</strong> to choose from: <strong>OSM Standard, OpenTopoMap, CyclOSM, Humanitarian</strong> — and that&#x27;s <strong>even if you have a Mapbox token stored</strong>. If you pick an OSM style, the preview shows it immediately. <em>(OSM styles need no token.)</em></p>
+<blockquote><strong>An interactive map for the web?</strong> The Tour-Map produces a <strong>still image (PNG)</strong>. If you need a <strong>zoomable/pannable map for your blog</strong>, use the dedicated <strong>&quot;🌐 Web Map&quot;</strong> module (since v0.9.422) — see <a href="#5c-modul-web-karte" target="_blank" rel="noopener">section 5c</a>.</blockquote>
+<hr>
+<h2 id="5c-module-web-map-interactive-map-for-your-blog-since-v0-9-422">5c · Module: Web Map 🌐 — interactive map for your blog (since v0.9.422) ⭐</h2>
+<h3 id="what-it-does">What it does</h3>
+<p>A dedicated, deliberately <strong>lean</strong> tab for <strong>interactive maps for the web/blog</strong> — completely separate from the Tour-Map. The track is drawn automatically from the loaded GPX, and you add <strong>text labels directly onto the map</strong>. The result is a light, standalone HTML file (~40 KB) with a token-free OpenStreetMap map — to zoom and pan in the browser, like the embedded maps in Reisezoom blog posts. The preview in the app is <strong>exactly</strong> the export.</p>
+<p><em>(If instead you want a high-quality still image with satellite/3D/signs/photos, use the <a href="#5--modul-tour-map" target="_blank" rel="noopener">Tour-Map</a>.)</em></p>
+<h3 id="workflow">Workflow</h3>
+<ol>
+<li><strong>Load a GPX</strong> (the global GPX bar at the top). The track appears immediately and is fitted.</li>
+<li>Set the <strong>track color/width</strong> and the <strong>map style</strong> on the left.</li>
+<li><strong>Add labels:</strong> click <strong>&quot;＋ Add label&quot;</strong> → tap on the map. In the <strong>label list</strong> below, you set the <strong>text, color and size</strong> for each entry and delete it with 🗑. On the map each label can be <strong>dragged</strong> (moved); clicking it jumps to the matching row in the list. The text color (light/dark) is chosen automatically to match the selected color.</li>
+<li>Optionally enable the <strong>GDPR button</strong> (see below).</li>
+<li><strong>&quot;🌐 Export as HTML&quot;</strong> → a window with the output options.</li>
+</ol>
+<h3 id="gdpr-button-optional">GDPR button (optional)</h3>
+<p>With the <strong>&quot;GDPR consent button&quot;</strong> checkbox the map gets a preceding consent layer — the external map tiles (and thus the IP transfer to OpenStreetMap) are <strong>loaded only after a click</strong>. The consent text and button label are freely editable and pre-filled sensibly. Behind the text lies a <strong>blurred preview image of your map</strong>, which is <strong>embedded firmly in the HTML</strong> (no external loading) — so the gate doesn&#x27;t look empty and is still GDPR-compliant. <em>(Exporting with active consent takes a few seconds longer, because the map is rendered once for it.)</em></p>
+<h3 id="leaflet-source-since-v0-9-430">Leaflet source (since v0.9.430)</h3>
+<p>In the export area you choose <strong>where the embedded map loads Leaflet from</strong>:</p>
+<ul>
+<li><strong>CDN (unpkg)</strong> — default, smallest file; Leaflet comes from the public CDN (with the GDPR button active, only after &quot;Load map&quot;).</li>
+<li><strong>Self-hosted (URL)</strong> — you provide a base URL (e.g. <code>https://yourblog.com/leaflet/</code>); the HTML loads <code>leaflet.css</code> + <code>leaflet.js</code> from there. You put the two files on your server yourself.</li>
+<li><strong>Embed in HTML</strong> — Leaflet is written completely into the file: <strong>no external fetch</strong> (GDPR-clean, works offline), the file grows by ~160 KB.</li>
+</ul>
+<h3 id="after-the-export">After the export</h3>
+<ul>
+<li><strong>▶ Open in browser</strong> — shows the map immediately in the default browser. <em>(Double-clicking the file only opens an editor on some systems — so use this button.)</em></li>
+<li><strong>Copy snippet (no upload):</strong> a ready-made **<code>&lt;iframe&gt;</code> snippet<strong> for a WordPress </strong>&quot;Custom HTML&quot; block**. The entire map is inside the snippet (<code>srcdoc</code>) — no separate file upload needed.</li>
+<li><strong>Show in Finder:</strong> finds the <code>.html</code> on disk to upload to your own server.</li>
+</ul>
+<p><strong>Deliberately minimal:</strong> only track + text labels. No photos, no sign graphics, no 3D/overlay — this is the light &quot;blog map&quot; export.</p>
+<hr>
+<h2 id="5b-module-elevation-animator-the-elevation-profile-as-a-video">5b · Module: Elevation Animator — the elevation profile as a video ⛰</h2>
+<h3 id="what-it-does">What it does</h3>
+<p>Builds a <strong>video from your track in which the elevation-profile curve builds up live</strong> — a moving marker shows elevation, gradient and distance. Ideal as an overlay in the edit (also with a <strong>transparent background</strong> via ProRes 4444 alpha).</p>
+<h3 id="workflow">Workflow</h3>
+<ol>
+<li>Load a GPX (the global GPX bar at the top). The preview plays immediately.</li>
+<li>Set the look, info bar and points (see below). Everything runs <strong>WYSIWYG</strong> in the preview.</li>
+<li>Use the <strong>trim handles</strong> under the curve to limit the animated range (optional).</li>
+<li><strong>▶ Render video</strong> — choose codec/alpha, progress runs along.</li>
+</ol>
+<h3 id="factual-info-bar-since-v0-9-394">Factual info bar (since v0.9.394) ⭐</h3>
+<p>Above the profile you show a <strong>value bar</strong> — toggle it on/off in the <strong>&quot;Info bar&quot;</strong> section and select it per field: <strong>distance, elevation gain ↑/↓, Ø gradient, max. gradient (↑/↓), elevation (max/min/Ø)</strong>. In addition, the <strong>marker callout</strong> shows the <strong>current gradient</strong> (e.g. &quot;↗ +6.2 %&quot; / &quot;↘ −4.7 %&quot;) next to elevation and distance — can be turned off via &quot;Show gradient % at the marker&quot;.</p>
+<h3 id="points-along-the-route-since-v0-9-394">Points along the route (since v0.9.394) ⭐</h3>
+<p>In the <strong>&quot;Points along the route&quot;</strong> section you place labeled markers into the profile — from four sources, individually toggleable:</p>
+<ul>
+<li><strong>Set yourself:</strong> click <strong>&quot;Place a point on the profile&quot;</strong>, then click into the curve. Enter a name, choose a color, rename or delete it later.</li>
+<li><strong>From the photos:</strong> the photos located in the project appear at their track position (name = filename).</li>
+<li><strong>GPX waypoints:</strong> <code>&lt;wpt&gt;</code> POIs from the GPX file (e.g. from Komoot/Garmin) are taken over.</li>
+<li><strong>Auto markers:</strong> the highest/lowest point as well as the steepest ascent and descent are detected and labeled automatically.</li>
+</ul>
+<p>Each point <strong>appears animated as soon as the line reaches it</strong>. You can hide/show individual points from a source in the list via 👁. Your manual points + all settings are stored <strong>per project</strong>.</p>
+<p><strong>Colors (since v0.9.395):</strong> In the &quot;Look&quot; section, alongside background and line color you now also choose the <strong>grid color</strong> (helper grid) and <strong>label color</strong> (axes, info bar, marker callout).</p>
+<p><strong>Smoothing (since v0.9.400):</strong> The <strong>&quot;Smoothing&quot;</strong> slider in the Look section (0–20) softens jagged profiles — helpful with tracks that have many GPS points and small elevation jumps. It applies a moving average over the elevation data; 0 = raw data, higher values = smoother. The smoothing takes effect WYSIWYG on everything: line, area, info bar, the gradient at the marker and the point elevations — the same in preview, video render and HTML export.</p>
+<p><strong>Area under the line (since v0.9.402):</strong> In the <strong>&quot;Area under the line&quot;</strong> section you set <strong>whether</strong> the area under the curve is filled, in which <strong>fill color</strong> and with what <strong>opacity</strong> (0–100 %). Below that you can create <strong>color zones by elevation:</strong> with &quot;<strong>Add elevation</strong>&quot; you define an elevation (in meters) plus a color — <strong>from this elevation up</strong> the fill color changes. This creates the classic relief-map look (e.g. green in the valley, brown at mid-altitudes, white at the summit). Below the lowest zone the normal fill color applies. Via <strong>color transition</strong> you choose between a <strong>soft gradient</strong> (the colors blend into each other) and <strong>hard bands</strong> (the color jumps at each elevation). Without zones, the fill color is simply used for the whole area.</p>
+<p><strong>Create elevation steps automatically (since v0.9.403):</strong> Instead of setting each zone by hand, you enter a number at <strong>&quot;Number of steps&quot;</strong> (e.g. 4) and click <strong>&quot;Create steps&quot;</strong> — the elevation range of your track is then automatically divided into that many equal-sized steps and given a terrain color ramp (green → brown → white). You can edit the generated steps as normal afterwards (change elevation/color, delete, add).</p>
+<p><strong>Elevation steps for background and line (since v0.9.403):</strong> The same elevation color zones are additionally available in the <strong>&quot;Background elevation steps&quot;</strong> and <strong>&quot;Line elevation steps&quot;</strong> sections. With them you color the <strong>background</strong> or the <strong>elevation line</strong> by altitude — each with the same generator, zone editor and soft/hard toggle. The base color is the respective base color from the Look section (&quot;Background&quot; or &quot;Line color&quot;).</p>
+<p><strong>Point &amp; info box separated (since v0.9.405):</strong> In the &quot;Marker&quot; section there are two independent switches: <strong>&quot;Show point (draws the line)&quot;</strong> controls the moving point at the tip of the animation, <strong>&quot;Show info box&quot;</strong> controls the info box beside it. That way you can, for example, turn the info box off entirely and still keep the point (or vice versa). The point color and point size above apply to the point.</p>
+<p><strong>Background only in the chart (since v0.9.404):</strong> In the &quot;Background elevation steps&quot; section there&#x27;s the <strong>&quot;Only in the chart area (inside the axes)&quot;</strong> checkbox. When active, the elevation color gradient of the background is drawn only <strong>inside the axis frame</strong> (exactly where the elevation line and the area sit) — the border all around keeps the normal background color. Without the checkmark, the gradient colors the whole image as before.</p>
+<p><strong>Configure the marker (since v0.9.396):</strong> The dedicated <strong>&quot;Marker&quot;</strong> section makes the moving point and its info box fully customizable: <strong>point color + size</strong>; for the box <strong>background color + opacity, border color + border thickness, font size</strong>; and which values it contains — <strong>⛰ symbol, elevation, gradient (%), distance</strong> each individually toggleable (the box adjusts its size automatically).</p>
+<p><strong>Undo:</strong> <strong>⌘Z / Ctrl+Z</strong> undoes <strong>everything</strong> in the Elevation Animator — look, colors, info-bar fields, waypoints and source switches (one press per step).</p>
+<p><strong>Export as HTML (blog/web, since v0.9.397):</strong> Below the video render button sits <strong>&quot;Export as HTML&quot;</strong>. This produces a **self-running <code>.html</code> file<strong> — the same animation as in the video, but it runs </strong>completely in the browser<strong> (pure HTML, no video), with an auto-loop and a </strong>&quot;↻&quot; replay button<strong>. Ideal for a blog post. After the export a </strong>window opens in the center of the screen** with these options:</p>
+<ul>
+<li><strong>▶ Open in browser</strong> — shows the finished animation immediately in the default browser. <em>(Double-clicking the file in Finder only starts an editor on some systems — then you only see source code; so use this button.)</em></li>
+<li><strong>Copy snippet (no upload):</strong> a ready-made **<code>&lt;iframe&gt;</code> snippet<strong> — paste into a WordPress </strong>&quot;Custom HTML&quot; block**. The entire animation is inside the snippet (<code>srcdoc</code>), cleanly isolated from the theme.</li>
+<li><strong>Show in Finder:</strong> finds the <code>.html</code> on disk; upload it to your server and embed it via <code>&lt;iframe src=&quot;…&quot;&gt;</code>.</li>
+</ul>
+<p>No WordPress plugin needed; no Mapbox/CDN — the file runs on its own.</p>
+<p><strong>Settings are kept (since v0.9.399):</strong> colors, marker settings, resolution, duration, etc. are <strong>stored per project</strong> and restored on the next opening.</p>
+<hr>
+<h2 id="6-module-geotagger-tag-photos-with-gps">6 · Module: Geotagger — tag photos with GPS</h2>
+<blockquote><strong>Since v0.9.331 the Geotagger comes in three variants:</strong></blockquote>
+<blockquote>1. <strong>In GPS Studio</strong> (this module) — together with Animator, Tour-Map &amp; Co.</blockquote>
+<blockquote>2. <strong>As a standalone solo app &quot;Reisezoom Geotagger&quot;</strong> — lean, just for tagging photos, with an <strong>OpenStreetMap map without a Mapbox token</strong> (no credit-card topic). Ideal if you <em>only</em> want to locate photos.</blockquote>
+<blockquote>3. <strong>As a web tool in the browser</strong> — tags <strong>JPEG</strong> photos entirely locally (nothing is uploaded), no installation. For RAW/HEIC/video you need the desktop app.</blockquote>
+<blockquote></blockquote>
+<blockquote>All three use the same logic. The following workflow steps apply to the desktop variants (1 + 2).</blockquote>
+<h3 id="what-it-does">What it does</h3>
+<p>Reads the capture time from the EXIF data of each photo and finds the matching track point in the GPX track. Writes the GPS coordinates as an EXIF tag into the photo. <strong>Works with JPG, RAW (CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/RWL/SRW/HEIC) and video (MP4/MOV/INSV)</strong> (web tool: JPG only).</p>
+<h3 id="workflow">Workflow</h3>
+<ol>
+<li><strong>Load a GPX</strong> — the map shows the track</li>
+<li><strong>Select photos</strong> — either &quot;📁 Choose photos&quot;, &quot;📁 Load a whole folder&quot;, or drag &amp; drop</li>
+<li><strong>Photo tiles</strong> appear in the middle with thumbnails. Markers on the map show where each photo was assigned based on capture time. <strong>Dragging in more photos or loading another folder adds to the list</strong> (since v0.9.176 — it&#x27;s <em>added</em>, not replaced; duplicates are skipped). To clear it, use <strong>&quot;🗑 Remove all&quot;</strong>.</li>
+<li><strong>Check the offset</strong> (see &quot;Time zones&quot; below) — usually it fits right away</li>
+<li><strong>&quot;Write GPS into photos&quot;</strong> → <strong>choose a target folder</strong> → the fully tagged <strong>copies</strong> land there, your <strong>originals stay untouched</strong> → done, the folder opens</li>
+</ol>
+<h3 id="how-the-tagged-photos-are-saved-since-v0-9-372">How the tagged photos are saved (since v0.9.372)</h3>
+<ul>
+<li><strong>Your originals are never touched.</strong> When writing, you choose <strong>a target folder once</strong>; the app writes the fully tagged <strong>copies</strong> there. The originals thus remain as a backup — there&#x27;s no separate backup ZIP anymore (unnecessary).</li>
+<li><strong>A single consistent flow</strong>, whether you loaded the photos via <strong>drag &amp; drop</strong> or via <strong>&quot;Choose folder&quot;</strong>: a clean folder with the tagged images always results. The done dialog shows <strong>&quot;Saved in …&quot;</strong> + <strong>&quot;Open folder&quot;</strong>.</li>
+<li><strong>Tag the originals directly after all?</strong> Just choose the <strong>folder of your originals</strong> as the target. Then the app asks <strong>&quot;Really overwrite the originals here? (no backup)&quot;</strong> — if you confirm, they&#x27;re tagged in place. Without confirmation, the app <strong>never</strong> overwrites an original.</li>
+</ul>
+<h3 id="time-zone-magic">Time-zone magic</h3>
+<p>The app reads the <code>OffsetTimeOriginal</code> EXIF tag from each photo and converts the capture time to UTC. That way the track fits <strong>out of the box</strong> in 95 % of cases without you having to set an offset manually.</p>
+<p>If it doesn&#x27;t after all (e.g. because the camera clock was wrong):</p>
+<ul>
+<li><strong>Offset slider</strong> in the left panel — ±2h default, with expandable ±3 / ±6 / ±12h options</li>
+<li><strong>Set a reference photo</strong> — click a photo tile, then click the actual capture position on the map. The app computes the offset itself.</li>
+<li><strong>Choose the camera time zone</strong> (✎ → &quot;Enter exact offset&quot;) — some cameras (many Olympus/OM, GoPro) store <strong>no</strong> time zone in the photo. If you travel to, say, Vietnam (UTC+7), the images then sit 7 hours off the track. Just set the <strong>time zone of the camera clock</strong> in the offset dialog — once set, everything fits. Photos that stored their own time zone (phones, etc.) stay untouched, so you can tag phone and camera photos from the same trip together without a problem. The active time zone is shown below the offset value.</li>
+<li><strong>Offset per camera (since v0.9.354)</strong> — if you tag photos from <strong>two cameras at once</strong> and only one has the wrong clock, you can give each camera its own offset:</li>
+</ul>
+<ol>
+<li>At the top of the overview, click the <strong>camera button</strong> of the affected camera (filters to only its photos).</li>
+<li>Now the <strong>offset slider</strong> and the <strong>reference photo</strong> apply only to this camera. Set the offset (slider or reference photo).</li>
+<li>If needed, filter to the second camera and adjust separately there.</li>
+<li>Set the filter back to <strong>&quot;All&quot;</strong> — both cameras keep their own offset.</li>
+</ol>
+<p>  Each camera&#x27;s button shows its set offset as a small badge (e.g. <code>📷 OM-3 +1h</code>). Without a camera filter (&quot;All&quot;) you set the <strong>global default</strong>, which applies to all cameras without their own offset. The per-camera offsets stay saved and also take effect in the optional capture-time correction.</p>
+<h3 id="options">Options</h3>
+<ul>
+<li><strong>No backup needed</strong> (since v0.9.372) — the originals are never touched (the tagged copies land in the chosen target folder), so there&#x27;s no backup checkbox anymore.</li>
+<li><strong>When a photo already has data</strong> (since v0.9.339) — three modes:</li>
+<li><strong>Keep, fill in only what&#x27;s missing</strong> (default): existing GPS stays untouched, only what&#x27;s missing is added (e.g. address, view direction). Ideal for mixed batches (phone photos with their own GPS + camera photos without). <strong>A location stored in the photo takes precedence over the time assignment</strong> — a photo that already has &quot;Porto&quot; as GPS is located in Porto, not at the track point matched by clock time.</li>
+<li><strong>Overwrite everything</strong>: also replaces existing data with the track values.</li>
+<li><strong>Skip photos with GPS entirely</strong>: doesn&#x27;t touch photos with their own GPS.</li>
+<li><strong>Also adjust the photo&#x27;s capture time with the offset</strong> (default off)</li>
+</ul>
+<h3 id="view-direction-from-the-reisezoom-logger-since-v0-9-336">View direction from the Reisezoom Logger 🧭 (since v0.9.336)</h3>
+<p>If your GPX track was recorded with the <strong>Reisezoom Logger app</strong> (Android), it contains the <strong>real camera view direction</strong> (compass, true north) per point. The Geotagger writes this as <strong>GPSImgDirection</strong> into the photo — so later, for example, Lightroom or Apple Photos knows which direction you were shooting (an arrow on the map).</p>
+<ul>
+<li>Each photo tile shows a <strong>🧭 chip</strong> with the direction and the source:</li>
+<li><strong>(camera)</strong> — the photo already stored the direction itself (a camera with a compass) → stays untouched</li>
+<li><strong>(logged)</strong> — taken over from the Reisezoom Logger → is written into the photo</li>
+<li><strong>(motion)</strong> — roughly estimated from the direction of movement → is <strong>not</strong> written into the photo (only shown as a hint)</li>
+<li>You don&#x27;t have to set anything: if a logged direction is present, it&#x27;s written along automatically during the normal &quot;Write GPS into photos&quot;.</li>
+<li>Works in the <strong>Studio and the solo Geotagger</strong> alike.</li>
+</ul>
+<h3 id="set-the-shooting-direction-yourself-a-map-compass-since-v0-9-337">Set the shooting direction yourself — a map compass 🧭 (since v0.9.337)</h3>
+<p>You can set each photo&#x27;s view direction <strong>directly on the map</strong>:</p>
+<ul>
+<li><strong>Select a photo</strong> → a <strong>compass</strong> with the photo thumbnail in the center appears on the map.</li>
+<li><strong>Drag the ring</strong> to rotate the direction (N/E/S/W markers + degree readout) — this is how you set which way the camera was pointing.</li>
+<li>The <strong>red ✕</strong> turns the direction off if you don&#x27;t know it (no view direction is then written into the photo).</li>
+<li>If a direction already exists (from the camera or the Reisezoom Logger), it&#x27;s <strong>shown</strong> and can be corrected.</li>
+<li>Manually set directions are written as <strong>GPSImgDirection</strong> when tagging (the chip shows &quot;(manual)&quot;).</li>
+</ul>
+<h3 id="multiple-photos-at-the-same-point-fan-out-since-v0-9-347">Multiple photos at the same point — fan out (since v0.9.347)</h3>
+<p>If two or more photos have (almost) exactly the same position, their map pins lie on top of each other and you only hit the topmost one on a click. <strong>Just click the pin</strong> — it <strong>fans the photos out in a circle</strong> (with small leader lines), then you click the one you want individually. Selecting one collapses it again automatically; a click on the empty map or a move/zoom also collapses it. (Alternatively you can reach every photo via the <strong>list on the left</strong> + the ↑/↓ arrow keys.)</p>
+<h3 id="view-photo-details-exif-tabs-since-v0-9-341">View photo details — EXIF tabs (since v0.9.341)</h3>
+<p>Clicking a photo (in the list or on the map pin) opens the preview panel on the right with two tabs:</p>
+<ul>
+<li><strong>Info</strong> — capture time, coordinates, address and the light-stamp chips, <strong>plus the most important camera data</strong>: camera, lens, focal length (with the 35mm equivalent, if available), ISO, exposure time, aperture, exposure compensation and flash.</li>
+<li><strong>EXIF</strong> — the <strong>complete</strong> list of all metadata fields stored in the photo (everything ExifTool can read), to scroll through. Thumbnail/binary fields are hidden.</li>
+</ul>
+<p><strong>Edit fields directly (since v0.9.343, batched since v0.9.344):</strong> In the <strong>EXIF tab</strong> you can <strong>click and change</strong> any value — an input opens inline, <strong>Enter</strong> (or ✓) applies, <strong>Esc</strong> (or ✕) cancels. Emptying a field = the tag is deleted. Grayed-out fields (filename, file size, image dimensions, ExifTool version …) are inherently <strong>not</strong> editable because ExifTool doesn&#x27;t write them. Tip: camera, lens, ISO, aperture, etc. are found as individually editable tags (<code>Make</code>, <code>Model</code>, <code>LensModel</code>, <code>ISO</code>, <code>FNumber</code>, <code>ExposureTime</code>) in the EXIF tab.</p>
+<p><strong>When is it saved?</strong> Your changes are <strong>not written immediately</strong> into the photo, but collected as <strong>pending</strong> (marked yellow, with a hint line + &quot;discard&quot;) — in addition, a small yellow <strong>warning banner</strong> appears above the photos/map as long as unsaved changes are open. They&#x27;re only written when you click <strong>&quot;Write tags&quot;</strong> at the bottom — together with GPS/address/direction and <strong>within the same ZIP backup</strong>. That way there&#x27;s a backup before every change. The write button is active even if you only edited EXIF fields (without GPS).</p>
+<h3 id="auto-tag-via-image-recognition-since-v0-9-349-mac-only">Auto-tag via image recognition 🔍 (since v0.9.349, Mac only)</h3>
+<p>On the <strong>Mac</strong> the Geotagger can automatically detect <strong>keywords</strong> for each photo — scenes and objects like &quot;outdoor, forest, deer, beach&quot;. This is done by the <strong>built-in Apple Vision framework</strong>: completely <strong>on the device</strong>, no internet, no account, no download, and fast (a fraction of a second per photo). Common terms are translated into German.</p>
+<p>Here&#x27;s how: click the <strong>&quot;🔍 Auto-tag (image recognition)&quot;</strong> button in the write section → the app analyzes all visible/checked photos → the suggestions land as <strong>pending changes</strong> (yellow, in the <code>Keywords</code> field) → you skim/correct them in the EXIF tab and then write them with <strong>&quot;Write tags&quot;</strong> (incl. backup). The AI only suggests — you decide.</p>
+<blockquote><strong>Windows / Linux:</strong> This function is <strong>not</strong> available there — Apple Vision is Mac-exclusive, and we didn&#x27;t want to bundle a huge AI model for it. The button is simply hidden there; everything else in the Geotagger works identically.</blockquote>
+<h3 id="global-fields-creator-copyright-for-the-whole-batch-since-v0-9-346">Global fields — creator &amp; copyright for the whole batch (since v0.9.346)</h3>
+<p>Some fields you want to <strong>set once and write to all photos</strong> — name, copyright, etc. For that there&#x27;s the <strong>&quot;✎ Global fields (creator, copyright …)&quot;</strong> button in the write section. In the form you enter what you need:</p>
+<ul>
+<li><strong>Creator</strong> (your name), <strong>copyright</strong>, <strong>usage terms</strong>, <strong>credit</strong>, <strong>source</strong>, <strong>website/URL</strong>, <strong>email</strong>, <strong>keywords</strong> (comma-separated).</li>
+</ul>
+<p>These values are <strong>stored as a profile</strong> — you type name + copyright <strong>once</strong>, and after that they&#x27;re already there for every batch. On <strong>&quot;Write tags&quot;</strong> they&#x27;re written to <strong>all visible/checked photos</strong>, and per field into several metadata tags at once (EXIF + IPTC + XMP) so that Lightroom, Apple Photos &amp; Co. find them everywhere. If you changed the same value by hand for a photo in the EXIF tab, <strong>your individual change takes precedence</strong> over the global value. Emptying a field in the form = it&#x27;s no longer written.</p>
+<h3 id="write-the-address-into-the-photo-since-v0-9-337-automatic-since-v0-9-338">Write the address into the photo 📍 (since v0.9.337, automatic since v0.9.338)</h3>
+<p>As soon as photos are assigned, the app <strong>automatically</strong> determines the <strong>complete address</strong> (street, town, state, country) for each and shows it in the photo popup. On tagging it&#x27;s written into the photo as <strong>IPTC + XMP</strong> — Lightroom, Apple Photos &amp; Co. then show the location and country. The <strong>&quot;📍 Fetch addresses&quot;</strong> button is now only for <strong>re-fetching</strong>.</p>
+<ul>
+<li><strong>Clever instead of slow:</strong> the lookup runs as a <strong>3-tier pyramid</strong> — first one query on the centroid of all photos (= country), then one per ~1-km area (= town), then finely the street. That way all images are roughly filled after a few queries, with the street following.</li>
+<li><strong>Provider selectable</strong> (⚙ → &quot;Address search&quot;): <strong>Automatic</strong> (uses Mapbox if you have a token stored, otherwise Photon), <strong>Mapbox</strong> (fastest, needs a token), <strong>Photon/Komoot</strong> or <strong>Nominatim/OpenStreetMap</strong> — all without an account except Mapbox. Each option is explained in the dialog.</li>
+<li><strong>Can be turned off:</strong> in the settings the address search can be <strong>disabled</strong> entirely — then nothing is sent to the internet at all, and you type addresses by hand as needed.</li>
+<li><strong>Correctable per photo:</strong> if an address is wrong, adjust it via the <strong>✎</strong> in the photo popup.</li>
+</ul>
+<h3 id="choose-what-gets-written">Choose what gets written</h3>
+<p>In the write section you can specify per run <strong>what goes into the photo</strong>: GPS coordinates (always), <strong>elevation</strong>, <strong>view direction</strong> and <strong>address</strong> — each option individually toggleable. The selection is remembered.</p>
+<h3 id="tap-a-track-point-since-v0-9-163">Tap a track point (since v0.9.163) ⭐</h3>
+<p>Click the <strong>track line</strong> on the map → a small popup shows the <strong>GPS coordinates, elevation and date/time (UTC)</strong> of the nearest track spot. Handy for quickly checking when/where you were at a spot.</p>
+<h3 id="filter-the-overview-since-v0-9-163">Filter the overview (since v0.9.163) ⭐</h3>
+<p>The <strong>&quot;Overview&quot;</strong> in the left panel counts how many photos will be tagged, lie outside the track time, have no usable EXIF time, or already had GPS. Behind each line sits a <strong>&quot;show&quot;</strong> button: a click filters the photo list to exactly this category (e.g. only those outside the time, to check them). <strong>&quot;Reset filter&quot;</strong> brings all photos back.</p>
+<h3 id="filter-by-camera-tag-selectively-since-v0-9-164">Filter by camera + tag selectively (since v0.9.164) ⭐</h3>
+<ul>
+<li><strong>Camera filter:</strong> if you have photos from several cameras, the overview lists each <strong>camera</strong> with a count + a <strong>&quot;show&quot;</strong> button. A click shows only the images from that camera.</li>
+<li><strong>Checkbox per photo:</strong> each photo has a checkbox at the top left — <strong>on by default</strong>. On writing, <strong>only photos that are currently visible (through the active filter) AND checked are tagged</strong>. That way you can, for example, use the camera filter to tag only one camera on purpose, or uncheck individual images that should not be tagged.</li>
+<li><strong>Remove a photo:</strong> a small <strong>✕</strong> at the top right of the photo (when hovering) or <strong>Backspace/Del</strong> on the selected photo takes it out of the list. The file itself stays untouched.</li>
+</ul>
+<h3 id="place-photos-manually-on-the-map-since-v0-9-166">Place photos manually on the map (since v0.9.166) ⭐</h3>
+<p>Some photos <strong>can&#x27;t be assigned by time</strong> — e.g. because they only carry the export date and thus land &quot;outside the track time&quot;. Instead of giving up on them, <strong>just drag them from the photo list onto the map</strong> — where you release, the GPS coordinates are set and written.</p>
+<ul>
+<li><strong>Place freely</strong> (default): the photo lands exactly where you drop it. Works <strong>even without any track</strong> — so you can also geotag photos without a GPX.</li>
+<li><strong>Snap to track:</strong> the <strong>&quot;Snap to track&quot;</strong> switch (the &quot;Place manually&quot; section on the left) instead places the photo on the <strong>nearest track point</strong> (incl. its elevation). <strong>Holding ⌘</strong> while dropping briefly reverses the mode (free ↔ snap).</li>
+<li><strong>Fine-tune:</strong> manually set pins are <strong>blue</strong> and can be <strong>moved directly on the map</strong>. The same snap logic applies while moving (toggle + ⌘).</li>
+<li>A hint bar on the map indicates while dragging whether it&#x27;s currently being set <strong>freely</strong> or <strong>on the track</strong>.</li>
+<li><strong>Take the capture time from the track (since v0.9.281):</strong> the <strong>&quot;Take capture time from track&quot;</strong> switch (directly under &quot;Snap to track&quot;) additionally writes, on tagging, the <strong>time of the track point</strong> as the capture time (<code>DateTimeOriginal</code>) into the photo for <strong>snapped</strong> photos. Perfect for <strong>WhatsApp photos from friends</strong> that only have a wrong forwarding time — so after tagging they sort correctly among your own photos. Applies <strong>only</strong> to snapped photos; time-matched photos keep their original time. The track time (UTC) is converted to your local time zone — correct if you were traveling in your home time zone.</li>
+</ul>
+<blockquote>Note: manual placements apply to the running session. If you switch modules and come back, you may have to set them anew.</blockquote>
+<h3 id="speed">Speed</h3>
+<p>ExifTool runs as a daemon in the background — RAW processing is ~8× faster than a naive <code>subprocess</code> call. Tagging 200 photos takes ~15 seconds.</p>
+<hr>
+<h2 id="7-module-gpx-inspector-repair-a-track-since-v0-9-233">7 · Module: GPX Inspector — repair a track 🔍 (since v0.9.233)</h2>
+<h3 id="what-it-does">What it does</h3>
+<p>Shows <strong>every single point</strong> of your track on the map (the full raw track, not the smoothed preview downsample) and lets you repair broken spots: smooth GPS outliers, fill gaps, move or delete individual points. Needs <strong>no</strong> Mapbox token (works in OSM mode too). Saves as a new file <code>&lt;name&gt;_geheilt.gpx</code> — your original stays untouched. Opens <strong>all importable formats</strong> (GPX, FIT, KML/KMZ, TCX, GeoJSON, NMEA/<code>.LOG</code>) — foreign formats are converted to GPX automatically (since v0.9.296).</p>
+<blockquote><strong>❤️ FIT/TCX sensors are preserved (since v0.9.334):</strong> If you edit a track with sensor data (heart rate, temperature, cadence …), the healed GPX keeps these values. Unchanged and smoothed points carry their real readings on, newly inserted gap points are interpolated. So you can use the healed track afterwards as normal in the Animator with a sensor overlay.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>💾 &quot;Save as…&quot; + format (since v0.9.335):</strong> On saving, a file dialog opens — the default folder is that of your original file (no longer a hidden system folder). Choose <strong>GPX</strong> (sensors sit in the file directly via <code>gpxtpx</code>) or <strong>TCX</strong> (Garmin format with heart rate/cadence). That keeps the file portable and it doesn&#x27;t lose standard sensors even outside Reisezoom.</blockquote>
+<h3 id="tools">Tools</h3>
+<p><strong>Heal (smooth a jump)</strong> — for GPS zigzags: a point sits briefly far off (a tunnel, an urban canyon). Click <strong>anchor A</strong> (green, before the jump) and <strong>anchor B</strong> (red, after it), then <strong>🩹 Heal</strong>. The points in between are laid onto the direct line — <strong>position and elevation interpolated, the timestamps stay unchanged</strong>. That way the speed corrects itself (previously e.g. &quot;180 km/h on foot&quot;).</p>
+<p><strong>Fill a gap (straight line)</strong> — when <em>points are missing</em> between A and B: inserts new points on the straight line (position, elevation and time interpolated). The spacing is adjustable via &quot;Spacing when filling&quot;.</p>
+<p><strong>Draw &amp; fill a path</strong> — like &quot;Fill a gap&quot;, but you draw the path yourself: choose anchors A+B → <strong>✏️ Draw &amp; fill a path</strong> → click on the map (the cursor becomes a crosshair) → <strong>✓ Apply path</strong>. The gap is filled along the line you drew.</p>
+<p><strong>Individual points:</strong> click a point (anchor A only) → <strong>🗑 Delete this point</strong> or simply <strong>Del/Backspace</strong>. Or <strong>move the green point with the mouse</strong> — e.g. drag it onto the real path without deleting it (time + elevation stay, speed still fits).</p>
+<p><strong>Trim the start or end (since v0.9.320):</strong> click a point (anchor A only) → <strong>⏮ Trim everything before</strong> (the point becomes the new <strong>start</strong>) or <strong>⏭ Trim everything after</strong> (the point becomes the new <strong>end</strong>). Just the thing when at the end of a tour you <strong>forgot to stop the recording</strong> and the track has a pointless tail (the drive home / standing still) — or when the approach at the start should go. ⌘Z undoes it.</p>
+<p><strong>Point info / timestamp (since v0.9.263):</strong> As soon as you click a point (anchor A), the selection line shows its <strong>index, the time (local) and the elevation</strong>. If you set A <strong>and</strong> B, it additionally shows the <strong>duration</strong> between the two points — handy for seeing how much time lies on a segment.</p>
+<p><strong>🛣 Match to road/path (map matching, since v0.9.263):</strong> Lays a noisy GPS trace cleanly onto the <strong>path network</strong> (smooths drift along paths/roads). Choose a profile (<strong>On foot / Bicycle / Car</strong>), then:</p>
+<ul>
+<li><strong>Route A→B (follow the road)</strong> — finds the real <strong>road/path route</strong> between anchor A and B (Directions). A and B are snapped to the nearest road, and the section in between is routed → <strong>robust against any GPS drift, no 50-m limit</strong>. Ideal for a section that follows a path. The found route is <strong>densified to the typical point density of your track</strong> and re-timed with the <strong>average speed of the section</strong> (instead of being squeezed into the old A→B time) — that way the healed spot <strong>doesn&#x27;t run too fast in the Animator</strong>, and the following timestamps shift consistently with it (since v0.9.268).</li>
+<li><strong>Snap the whole track</strong> — the complete trace via map matching onto nearby paths (follows the shape of the trace). Adjustable via a <strong>snap radius</strong> (5–50 m).</li>
+</ul>
+<p>With the <strong>search radius</strong> (5–50 m, slider) you set how far a point may be from the path to still be snapped: small = only very close to the path, large = catches more GPS drift, but can rather jump onto a <strong>parallel</strong> road. The position is snapped, <strong>time and elevation are distributed over the new length</strong>, everything is <strong>undoable</strong> (⌘Z). Long tracks are automatically split into pieces (Mapbox limit). If the app finds <strong>no</strong> path within the radius, nothing happens and you get a clear message. <strong>Important:</strong> only sensible if the track actually follows paths/roads — for <strong>cross-country hikes</strong> it can distort the trace. Needs <strong>internet + a Mapbox token</strong>.</p>
+<h3 id="auto-heal-outliers-gaps-since-v0-9-295">🩹 Auto-heal: outliers + gaps (since v0.9.295)</h3>
+<p>Instead of searching by hand: <strong>🩹 Auto-heal</strong> scans the whole track and shows as a <strong>preview on the map</strong> what it would do — before anything is changed:</p>
+<ul>
+<li><strong>🟠 Outliers</strong> (orange) — GPS jumps that fly off <em>and come back again</em>. Are smoothed on healing.</li>
+<li><strong>🟣 Gaps</strong> (magenta, dashed line + faint ghost points) — larger dropouts/outages without points in between. Are filled on healing with interpolated points (position, elevation and time).</li>
+</ul>
+<p>With <strong>‹ / Next ›</strong> you jump through the outliers, <strong>🩹 Heal all</strong> applies both at once. The <strong>sensitivity slider</strong> (1–10) sets how strictly it searches (low = only glaring jumps/large gaps, high = also small ones), the <strong>fill spacing</strong> determines how densely gaps are filled — both update the preview live. Everything can be undone with <strong>⌘Z</strong>.</p>
+<p><strong>Fill gaps as</strong> (profile): <strong>Straight line</strong> = a straight connection (safe, touches only the gap). <strong>Hiking/Bicycle/Car</strong> = finds the real route on the path network (Mapbox). ⚠️ <strong>Protection since v0.9.315:</strong> If the road route results in a big <strong>detour/loop</strong> (at junctions Mapbox sometimes routes via an exit + roundabout back), it&#x27;s <strong>automatically discarded and the gap filled straight</strong> — so a clean trace is no longer bent. The toast then says &quot;… detours discarded&quot;.</p>
+<p><strong>Cut out a loop/detour:</strong> if you have a spot in the track that runs out and back (e.g. an old healing detour or a real turnaround you don&#x27;t want in the video): under <strong>&quot;Edit manually (A→B)&quot;</strong> set <strong>anchor A</strong> before and <strong>anchor B</strong> after the spot, then <strong>✂️ Cut out the points between A→B</strong>. A and B remain, the line connects them directly. (⌘Z undoes it.)</p>
+<p><strong>&quot;Snap the whole track to the path network&quot;</strong> lays the <strong>complete</strong> track onto Mapbox roads and <strong>overwrites your points</strong> — this can create detours/loops at junctions. Hence, since v0.9.315, with a <strong>warning + 2-click confirmation</strong>. For just gaps/outliers, rather use the normal <strong>Heal</strong>.</p>
+<h3 id="correct-elevation-map-instead-of-gps-since-v0-9-292">⛰ Correct elevation (map instead of GPS) — since v0.9.292</h3>
+<p>GPS elevation values are often noisy — especially with poor reception the elevation jumps a few meters back and forth, and in the end there are far too many <strong>elevation meters</strong> in the stats (e.g. 1800 instead of 1400). Here you can blend the <strong>smooth terrain elevation from the Mapbox map</strong> (digital elevation model) with your GPS elevation — and see <strong>exactly what happens</strong>:</p>
+<ol>
+<li><strong>🗺 Load the elevation profile from the map</strong> — the app briefly runs over the whole track once (loading the elevation tiles) and reads the map elevation for each point.</li>
+<li><strong>Below the map</strong> an <strong>elevation profile</strong> appears with three lines on top of each other: <strong>GPS (orange, thin)</strong> = your original, <strong>Map/Mapbox (blue, thin)</strong> = the smooth terrain, and the <strong>bold green result line</strong> = what would come out.</li>
+<li>With the <strong>GPS ⟷ Map</strong> slider you blend live: far right (100 %) = pure map elevation (very smooth), far left (0 %) = unchanged GPS, default <strong>70 %</strong>. The green line and the elevation-meter readout (GPS / Map / Result) move along immediately.</li>
+<li>Does it fit? <strong>⛰ Apply this elevation</strong> writes the green line into the track. Then <strong>💾 save</strong> — the corrected elevation lands in the GPX and takes effect everywhere (Animator, Tour-Map, Elevation Animator).</li>
+</ol>
+<blockquote>Needs a <strong>Mapbox token</strong> (settings) and internet — without a token the &quot;Load&quot; button is grayed out. Applying can be undone with <strong>⌘Z</strong>. If you change points afterwards (delete/insert), the profile discards itself automatically — just reload it.</blockquote>
+<p><strong>Zoom sync &amp; clickable points (since v0.9.293):</strong> the map and the elevation profile are linked — <strong>zoom/pan the map</strong> and the profile automatically shows only the visible section; the <strong>mouse wheel over the profile</strong> zooms, <strong>dragging</strong> pans, and the map moves along each time. <strong>Cursor linked (since v0.9.294):</strong> if you move the mouse over the <strong>map</strong>, a <strong>vertical bar in the elevation profile</strong> shows where you currently are; if you move over the <strong>profile</strong>, a <strong>white ring appears on the track</strong>. That way you find spots in a flash, without clicking.</p>
+<p><strong>A single click on a point</strong> (map or profile) shows a <strong>small info field right at the point</strong> (without dimming the background) with all data (position, elevation GPS + map, time, distance, speed, gradient) and &quot;As anchor A/B&quot; buttons. Click another point and the field moves there. A <strong>double-click</strong> sets the anchor directly — the fast way to heal.</p>
+<h3 id="undo">Undo</h3>
+<p><strong>⌘Z</strong> undoes every edit, <strong>⌘⇧Z</strong> redoes it (or the ↩︎/↪︎ buttons). When you load a new track, the history starts fresh.</p>
+<h3 id="saving">Saving</h3>
+<p><strong>💾 Save healed GPX</strong> writes <code>&lt;name&gt;_geheilt.gpx</code> and loads it directly as the active track — all modules use the clean version from then on.</p>
+<hr>
+<h2 id="8-general-features">8 · General Features</h2>
+<h3 id="clear-the-workspace">Clear the workspace ✕</h3>
+<p>At the top of the module header, <strong>right next to the GPX name</strong>, sits a <strong>red ✕</strong> (tooltip &quot;Clear workspace&quot;). Click → a brief safety prompt → <strong>all loaded data gone, in all modules at once</strong>: GPX track, photos, markers, preview, match data — and the GPX name at the top disappears too. Handy when you edit several different tours one after another.</p>
+<blockquote>Since v0.9.155 there&#x27;s <strong>just this one central ✕ instead of three separate &quot;↺ Clear workspace&quot; buttons</strong> per module. Before, the GPX name remained after clearing — that&#x27;s now fixed.</blockquote>
+<p><strong>What stays:</strong> the Mapbox token, all settings (style, pitch, color, etc.), the last used save folder.</p>
+<h3 id="save-dialog-before-the-render">Save dialog before the render</h3>
+<p>The Animator and Tour-Map ask <strong>before the render</strong> where the output should land. A default name is suggested:</p>
+<ul>
+<li>Animator: <code>&lt;GPX stem&gt;_&lt;WxH&gt;_&lt;codec&gt;.mp4</code> e.g. <code>Oderlandweg_1920x1080_h264.mp4</code></li>
+<li>Tour-Map: <code>&lt;GPX stem&gt;_&lt;WxH&gt;.png</code> e.g. <code>Oderlandweg_1920x1080.png</code></li>
+</ul>
+<p>On the next render the dialog lands in the same folder again. <strong>Cancel</strong> → no render runs (saves 5-15 min with the Animator).</p>
+<h3 id="drag-drop-everywhere">Drag &amp; drop everywhere</h3>
+<p>You can:</p>
+<ul>
+<li>drag GPX files into any module window</li>
+<li>drag whole folders of photos into the Geotagger (recursive)</li>
+<li>drag individual photos into the Geotagger</li>
+</ul>
+<h3 id="app-logo-stats-in-the-header">App logo + stats in the header</h3>
+<p>Top left: the app icon + name. In the middle (when a GPX is loaded): stats pills (distance, time, ascent, descent). Top right: <strong>?</strong> (help) and <strong>⚙</strong> (settings).</p>
+<hr>
+<h2 id="9-help-feedback-bug-reports">9 · Help, Feedback &amp; Bug Reports</h2>
+<h3 id="help-menu">Help menu</h3>
+<p>Clicking <strong>?</strong> at the top right (or the macOS <strong>Help</strong> menu) opens a modal with five actions:</p>
+<ol>
+<li><strong>📖 User Manual</strong> — opens the HTML version of these docs in the browser</li>
+<li><strong>🔑 Set up a Mapbox token</strong> — the step-by-step guide</li>
+<li><strong>📧 Feedback / bug report to Marc</strong> — see below</li>
+<li><strong>📋 Open log file</strong> — for technical diagnosis on errors</li>
+<li><strong>ℹ About the app</strong> — version, paths, credits</li>
+</ol>
+<h3 id="send-bug-reports-to-marc">Send bug reports to Marc</h3>
+<p>Clicking <strong>📧 Feedback / bug report to Marc</strong> (or on a render error) opens a modal with:</p>
+<ul>
+<li><strong>Recipient</strong>: <code>marc@reisezoom.com</code> with a copy button</li>
+<li><strong>Subject</strong> (pre-filled with the app version + a short error) with a copy button</li>
+<li><strong>Message</strong> (pre-filled with the app version, OS, Python version and a log excerpt) with a copy button</li>
+</ul>
+<p><strong>What you need to do:</strong></p>
+<ol>
+<li>Copy the recipient address (📋)</li>
+<li>Switch to your webmail (Gmail / Outlook / iCloud in the browser) or mail program, start a new mail, paste the recipient</li>
+<li>Copy + paste the subject</li>
+<li>Copy + paste the message</li>
+<li>In the message text, replace the placeholder <code>[insert your text here]</code> with a short description — what you did, what didn&#x27;t work</li>
+<li>Send</li>
+</ol>
+<p><strong>If you have a local mail program</strong> (Mac Mail.app, Outlook Desktop, Thunderbird): the <strong>&quot;📧 Open local mail program&quot;</strong> button at the bottom left — then everything is pre-filled automatically.</p>
+<h3 id="log-file">Log file</h3>
+<p>On render errors an error modal opens automatically with an expandable log excerpt + &quot;Show in Finder&quot;, &quot;Open log&quot;, &quot;📧 Send to Marc&quot; buttons. You can find the full log file at any time at:</p>
+<ul>
+<li>macOS: <code>~/Library/Application Support/Reisezoom GPS Studio/logs/app.log</code></li>
+<li>Windows: <code>%APPDATA%\Reisezoom GPS Studio\logs\app.log</code></li>
+<li>Linux: <code>~/.local/share/Reisezoom GPS Studio/logs/app.log</code></li>
+</ul>
+<hr>
+<h2 id="10-faq">10 · FAQ</h2>
+<h3 id="how-do-i-get-new-versions-since-v0-9-280">How do I get new versions? (since v0.9.280)</h3>
+<p>On startup the app checks in the background whether a newer version is available on GitHub. If so, a subtle banner appears at the top, <strong>&quot;New version vX.Y.Z is available&quot;</strong>, with a <strong>Download</strong> button (opens the matching Mac/Windows download in the browser). With the <strong>✕</strong> you dismiss the notice for this version. You can also click <strong>&quot;Check for updates&quot;</strong> at any time manually in the <strong>About dialog</strong> (Help → About). You install downloaded updates like the first setup (DMG/installer) — the app doesn&#x27;t replace itself, for security reasons.</p>
+<h3 id="can-t-be-opened-because-it-is-from-an-unidentified-developer-macos">&quot;Can&#x27;t be opened because it is from an unidentified developer&quot; (macOS)</h3>
+<p>The app is not signed with a $99/year Apple Developer cert. Solution: <strong>right-click → Open</strong> instead of double-clicking (see Installation).</p>
+<h3 id="windows-defender-protected-your-pc-windows">&quot;Windows Defender protected your PC&quot; (Windows)</h3>
+<p>The same problem on Windows. <strong>&quot;More info&quot; → &quot;Run anyway&quot;</strong>.</p>
+<h3 id="the-first-animator-render-takes-a-long-time">The first Animator render takes a long time</h3>
+<p>On the very first render the app downloads Chromium once for the map render pipeline (~150 MB). A modal appears with a progress indicator. After that, every further render starts right away.</p>
+<h3 id="mapbox-token-missing-on-the-render">&quot;Mapbox token missing&quot; on the render</h3>
+<p>Animator + Tour-Map need a Mapbox token (the Geotagger doesn&#x27;t). Enter it in the ⚙ modal. If you want to try without one first: OSM mode (the standard map without satellite), but Animator rendering stays disabled.</p>
+<h3 id="my-raw-format-isn-t-recognized">My RAW format isn&#x27;t recognized</h3>
+<p>Currently supported: CR3, CR2, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW, HEIC, HEIF. If your format is missing: mail Marc, probably easy to add.</p>
+<p><strong>HEIC special:</strong> iPhone photos (HEIC) work <strong>out of the box</strong> since v0.9.57 — the necessary decoder plugin (<code>pillow-heif</code> with libheif) is in the app bundle, you need no separately installed tool. For the other RAW formats you still need <strong>ExifTool</strong> on the system (on macOS via <code>brew install exiftool</code>, on Windows the official standalone builds). If ExifTool is missing, the Geotagger sees this on photo import and skips the RAW files.</p>
+<h3 id="the-render-eats-hours-seems-to-hang">The render eats hours / seems to hang</h3>
+<p>An Animator render at 4K with 30 fps × 17 sec = 510 frames. Per frame ~3-5 seconds with terrain enabled = ~30 min realistic for a 17-sec video.</p>
+<p>Since v0.9.286, at <strong>4K</strong> there&#x27;s additionally <strong>supersampling (anti-shimmer)</strong>: the image is computed larger internally and cleanly downscaled so that fine satellite detail doesn&#x27;t shimmer during the pan. This makes 4K renders <strong>a bit slower</strong>, but noticeably calmer. 1080p is not affected — if you need speed and can do without the last polish, render in 1080p.</p>
+<p>At the end, ffmpeg&#x27;s <code>+faststart</code> phase takes another 2-3 min (the file size stays constant — <strong>this is not a hang</strong>, it&#x27;s the Mapbox encoder finalizing).</p>
+<h3 id="does-the-app-remember-my-settings-can-i-set-defaults">Does the app remember my settings? Can I set defaults?</h3>
+<p>Yes, in two tiers:</p>
+<ul>
+<li><strong>Per track:</strong> every route remembers its <strong>own</strong> settings (style, color, pitch, overlays, keyframes, photos, &quot;Smooth map&quot; …). Open the same track again later and everything is as it was last. The track is recognized by its <strong>content</strong> (not by the filename).</li>
+<li><strong>For new tracks:</strong> a <strong>new</strong> track normally starts with the factory settings. If you always want the same look, go to <strong>Settings</strong> → <strong>&quot;Save current settings as default&quot;</strong>. From then on every new track adopts your look. With <strong>&quot;Reset to factory settings&quot;</strong> you go back to the shipped state. Existing tracks stay untouched in doing so. Track-specific things (keyframes, trim, photo selection) are deliberately not adopted as defaults.</li>
+</ul>
+<h3 id="my-4k-video-shimmers-slightly-like-the-wrong-shutter-speed">My 4K video shimmers slightly (&quot;like the wrong shutter speed&quot;)</h3>
+<p>This was a known issue up to v0.9.286 and is now fixed (tile cross-fading turned off + supersampling + a slight map blur against the texture shimmer). If you still have an old video: just re-render it with the current version.</p>
+<p>You control the strength via the <strong>&quot;Smooth map&quot;</strong> slider in the <strong>video settings</strong> (Animator). The default is a subtle value that removes the shimmer without making the map mushy. If the map is too soft for you → slider down (0 = off, sharpest map). If there&#x27;s still shimmer → slider up. Takes effect only on 4K renders; statistics, numbers and the track line always stay sharp.</p>
+<h3 id="the-track-is-positioned-wrong-on-the-map">The track is positioned wrong on the map</h3>
+<p>Probably a time-zone problem: the photo capture time doesn&#x27;t match the GPX track time. Solution in the Geotagger:</p>
+<ul>
+<li>move the offset slider until the markers land where they belong</li>
+<li>choose the <strong>camera time zone</strong> in the offset dialog (✎) — when the images are off by exactly whole hours (typical for foreign trips with cameras that lack a time-zone tag, e.g. Olympus/OM)</li>
+<li>or set a reference photo (see the Geotagger workflow)</li>
+</ul>
+<h3 id="at-the-top-appears-source-file-not-found-is-the-drive-mounted-since-v0-9-305">At the top appears &quot;Source file not found — is the drive mounted?&quot; (since v0.9.305)</h3>
+<p>Your most recently loaded GPX file is currently not readable — usually because the <strong>external drive was unplugged</strong> or the file was moved/deleted. Reconnect the drive (the banner disappears on the next load) or click <strong>&quot;Choose file again&quot;</strong> and pick the GPX anew. As long as the banner is up, the Tour-Map, Elevation Animator and Geotagger can&#x27;t build the track.</p>
+<h3 id="how-do-i-report-a-bug">How do I report a bug?</h3>
+<p><strong>Help → 📧 Feedback / bug report to Marc</strong> — everything pre-filled (see section 7).</p>
+<hr>
+<h2 id="11-keyboard-shortcuts-macos">11 · Keyboard Shortcuts (macOS)</h2>
+<h3 id="general">General</h3>
+<table><thead><tr><th>Shortcut</th><th>Action</th></tr></thead><tbody><tr><td><code>Cmd + ,</code></td><td>Open settings</td></tr><tr><td><code>Cmd + Q</code></td><td>Quit the app</td></tr><tr><td><code>Cmd + M</code></td><td>Minimize the window</td></tr><tr><td><code>Cmd + W</code></td><td>Close the window (the app keeps running in the background)</td></tr></tbody></table>
+<h3 id="undo-redo-since-v0-9-66-67">Undo / Redo (since v0.9.66/67) ⭐</h3>
+<table><thead><tr><th>Shortcut</th><th>Action</th></tr></thead><tbody><tr><td><code>Cmd + Z</code></td><td>Undo the last action</td></tr><tr><td><code>Cmd + Shift + Z</code></td><td>Redo</td></tr></tbody></table>
+<p>Each module has its <strong>own undo stack with 50 steps</strong>:</p>
+<ul>
+<li><strong>Animator:</strong> set/delete/move keyframes, trim handles, intro/animation/hold values, keyframe-editor toggle.</li>
+<li><strong>Tour-Map:</strong> all sidebar settings (line color, width, glow, stats-box position, pin size, map style…).</li>
+<li><strong>Geotagger:</strong> the photo offset slider, the reference point, &quot;Include subfolders&quot;. <strong>Not</strong> undoable: GPS tags already written into photos — no worry, though, since since v0.9.372 it always writes into copies and the originals stay untouched (unless you deliberately choose the original folder + confirm overwriting).</li>
+</ul>
+<p>When switching between projects, the undo stack of the affected module is cleared (there&#x27;s no &quot;undo&quot; across project boundaries).</p>
+<p>During a continuous drag (dragging a slider, moving a trim), <strong>one</strong> undo snapshot is stored per &quot;edit session&quot; (throttle 800 ms). Discrete actions like a KF snapshot or a checkbox click push immediately.</p>
+<h3 id="animator-timeline">Animator timeline</h3>
+<table><thead><tr><th>Shortcut</th><th>Action</th></tr></thead><tbody><tr><td><code>←</code> / <code>→</code></td><td>1 GPS point forward/back</td></tr><tr><td><code>Shift + ← / →</code></td><td>10 GPS points forward/back</td></tr><tr><td><code>Home</code> / <code>End</code></td><td>track start / end</td></tr><tr><td><code>Space</code></td><td>test run start/stop</td></tr></tbody></table>
+<p>On Windows/Linux, <code>Ctrl + …</code> instead of <code>Cmd + …</code> accordingly, and <code>Ctrl + Y</code> additionally for redo.</p>
+<hr>
+<h2 id="12-known-limitations-beta-v0-3-x">12 · Known Limitations (Beta v0.3.x)</h2>
+<ul>
+<li><strong>macOS</strong>: Apple Silicon only (M1/M2/M3/M4) — no Intel Mac</li>
+<li><strong>The app is not code-signed</strong> → a first-launch hurdle via right-click → Open</li>
+<li><strong>Multi-track</strong>: one GPX per render — multi-track comparison is coming later</li>
+<li><strong>Video overlay</strong> (live stats over an existing MP4): not yet implemented</li>
+<li><strong>High-resolution geocoding</strong> (a photo exactly on the trail curve): not implemented; points are snapped to the nearest track point</li>
+<li><strong>Custom fonts/logos in the overlay</strong>: not possible</li>
+</ul>
+<p>The full roadmap is in the repo under <code>docs/IDEAS.md</code>.</p>
+<hr>
+<h2 id="13-support-contact">13 · Support &amp; Contact</h2>
+<ul>
+<li><strong>Bug reports &amp; feedback</strong>: Help → 📧 (see section 7) or directly <code>marc@reisezoom.com</code></li>
+<li><strong>Blog &amp; updates</strong>: <a href="https://reisezoom.com" target="_blank" rel="noopener">reisezoom.com</a></li>
+<li><strong>YouTube channel</strong>: <a href="https://www.youtube.com/@reisezoom" target="_blank" rel="noopener">@reisezoom</a></li>
+</ul>
+<p>Have fun rendering! 🚀</p>
+  <div class="footer">
+    Reisezoom GPS Studio · diese Doku wurde aus <code>docs/USER_GUIDE.md</code> generiert.
+  </div>
+</div>
+</body>
+</html>

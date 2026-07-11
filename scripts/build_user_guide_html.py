@@ -215,7 +215,7 @@ def md_to_html(md: str) -> str:
 # ── Schicke HTML-Wrapper-Vorlage ───────────────────────────────────────────
 
 HTML_TEMPLATE = """<!DOCTYPE html>
-<html lang="de">
+<html lang="{lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -382,6 +382,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <div class="header-title">Reisezoom GPS Studio</div>
       <div class="header-sub">{title}</div>
     </div>
+    <div class="langswitch" style="margin-left:auto;display:flex;gap:5px">{langswitch}</div>
   </div>
   {content}
   <div class="footer">
@@ -393,21 +394,56 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 
-def build() -> Path:
-    if not SRC.exists():
-        sys.stderr.write(f"❌ {SRC} fehlt\n")
-        sys.exit(1)
-    md = SRC.read_text(encoding="utf-8")
-    # Erste Heading-Zeile als Titel ziehen
+# ── Mehrsprachig: DE (Quelle) + EN/ES (übersetzte USER_GUIDE.<lang>.md) ───────
+# Deployte Dateinamen (reisezoom.com/downloads/gps-studio/latest/): user-guide[.<lang>].html
+LANGS = [
+    ("de", ROOT / "docs" / "USER_GUIDE.md",    ROOT / "docs" / "USER_GUIDE.html",    "user-guide.html"),
+    ("en", ROOT / "docs" / "USER_GUIDE.en.md", ROOT / "docs" / "USER_GUIDE.en.html", "user-guide.en.html"),
+    ("es", ROOT / "docs" / "USER_GUIDE.es.md", ROOT / "docs" / "USER_GUIDE.es.html", "user-guide.es.html"),
+]
+LANG_NAMES = {"de": "DE", "en": "EN", "es": "ES"}
+
+
+def _langswitch(current: str) -> str:
+    """Sprach-Pillen im Header — nur für tatsächlich vorhandene Übersetzungen,
+    verlinkt auf die deployten Nachbar-Dateien (gleicher Ordner auf dem Server)."""
+    out = []
+    for code, src, _dst, deployed in LANGS:
+        if not src.exists():
+            continue
+        active = code == current
+        style = "background:#c46a3a;color:#fff" if active else "background:rgba(255,255,255,.08);color:#cbb89a"
+        out.append('<a href="%s" style="%s;font:700 12px/1 system-ui,sans-serif;'
+                   'padding:5px 9px;border-radius:999px;text-decoration:none">%s</a>'
+                   % (_html.escape(deployed), style, LANG_NAMES[code]))
+    return "".join(out)
+
+
+def build_one(lang: str, src: Path, dst: Path) -> Path:
+    md = src.read_text(encoding="utf-8")
     title = "Benutzerhandbuch"
     m = re.match(r"^\s*#\s+(.+)\s*$", md.split("\n")[0])
     if m:
         title = m.group(1).strip()
     content = md_to_html(md)
-    html = HTML_TEMPLATE.format(title=_html.escape(title), content=content)
-    DST.write_text(html, encoding="utf-8")
-    print(f"✅ {DST.relative_to(ROOT)} ({len(html) // 1024} KB)")
-    return DST
+    html = HTML_TEMPLATE.format(lang=lang, title=_html.escape(title),
+                                content=content, langswitch=_langswitch(lang))
+    dst.write_text(html, encoding="utf-8")
+    print(f"✅ {dst.relative_to(ROOT)} ({len(html) // 1024} KB)")
+    return dst
+
+
+def build() -> Path:
+    if not LANGS[0][1].exists():
+        sys.stderr.write(f"❌ {LANGS[0][1]} fehlt\n")
+        sys.exit(1)
+    built = []
+    for lang, src, dst, _deployed in LANGS:
+        if src.exists():
+            built.append(build_one(lang, src, dst))
+        else:
+            print(f"⏭  {src.name} fehlt — {lang} übersprungen")
+    return built[0]
 
 
 if __name__ == "__main__":
