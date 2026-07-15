@@ -321,6 +321,17 @@ class AnimatorConfig:
     ghost_track_enabled: bool = False
     ghost_track_opacity: float = 0.30
     ghost_track_color: str = "#ff6b35"   # v0.9.170 — eigene Farbe (Default = Track-Farbe)
+    # v0.9.435 — Mehrfarbiger Track (Marc-Idee): der Track kann ab bestimmten
+    # Distanzen (km) die Farbe wechseln. `track_color_stops` ist eine nach km
+    # aufsteigend sortierte Liste [{"km": float, "color": "#rrggbb"}]; `km` ist
+    # die Distanz entlang des Tracks (aus km-Eingabe, aktueller Marker-Position
+    # oder projizierten GPX-Wegpunkten). `track_colors_mode` = "hard" (harter
+    # Wechsel) oder "gradient" (kontinuierlicher Verlauf zwischen benachbarten
+    # Stops). Umgesetzt als Mapbox-line-gradient/-step relativ zur gezeichneten
+    # Distanz. `track_colors_enabled` = Master-Toggle. Nur Single-Track.
+    track_colors_enabled: bool = False
+    track_colors_mode: str = "hard"
+    track_color_stops: list = field(default_factory=list)
     # v0.9.210/211 (Reiseroute) — zusätzlicher Ghost = geladenes Wander-GPX
     # (andere Linie als die animierte Route). [[lon,lat],…]; leer = aus.
     ghost_gpx_coords: list = field(default_factory=list)
@@ -954,6 +965,53 @@ def _sign_draw_js() -> str:
     return _SIGN_DRAW_JS_CACHE
 
 
+# v0.9.435 — Mehrfarbiger Track: gemeinsamer JS-Helper, der aus (cum_dist [m],
+# gezeichneter Spanne, Farb-Stops [km]) einen Mapbox-`line-gradient`/-`step`-
+# Ausdruck baut. Farbe pro Punkt nach absoluter Distanz. `mode`='gradient' →
+# kontinuierlicher Verlauf (interpolate); 'hard' → harter Wechsel (step, crisp).
+# line-progress ist über die DISTANZ der gezeichneten Spanne normiert, deshalb pro
+# Frame neu (die km-Grenzen wandern im progress-Raum, während die Linie wächst).
+# Wird IDENTISCH in der Vorschau gespiegelt (modules/animator/ui/module.js →
+# __rzColorGradient). Bei Änderung BEIDE pflegen.
+_COLOR_GRADIENT_JS = r"""
+window.__rzHex2rgb = function(h){ h=(h||'#000').replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]; };
+window.__rzRgb2hex = function(r,g,b){ function c(x){ x=Math.max(0,Math.min(255,Math.round(x))); var s=x.toString(16); return s.length<2?'0'+s:s; } return '#'+c(r)+c(g)+c(b); };
+window.__rzLerpHex = function(a,b,f){ var x=window.__rzHex2rgb(a), y=window.__rzHex2rgb(b);
+  return window.__rzRgb2hex(x[0]+(y[0]-x[0])*f, x[1]+(y[1]-x[1])*f, x[2]+(y[2]-x[2])*f); };
+// CD: kumulierte Distanz [m] pro Punkt. i0..i1 = gezeichnete Spanne. stopsKm/stopsCol:
+// nach km aufsteigend sortierte Farb-Stops. mode='hard'|'gradient'. Rückgabe: Mapbox-
+// Ausdruck für 'line-gradient', oder null.
+window.__rzColorGradient = function(CD, i0, i1, stopsKm, stopsCol, mode){
+  if(!CD || i1<=i0 || !stopsKm || !stopsKm.length) return null;
+  var d0=CD[i0], dT=CD[i1]-d0; if(!(dT>0)) return null;
+  var n=stopsKm.length;
+  function colAtKm(km){
+    if(km<=stopsKm[0]) return stopsCol[0];
+    if(km>=stopsKm[n-1]) return stopsCol[n-1];
+    var i=0; while(i<n-1 && stopsKm[i+1]<=km) i++;
+    if(mode!=='gradient') return stopsCol[i];
+    var span=stopsKm[i+1]-stopsKm[i]; var f=span>0?(km-stopsKm[i])/span:0;
+    return window.__rzLerpHex(stopsCol[i], stopsCol[i+1], f);
+  }
+  var pToKm=function(p){ return (d0 + p*dT)/1000; };
+  if(mode==='gradient'){
+    var expr=['interpolate',['linear'],['line-progress']], N=60;
+    for(var k=0;k<=N;k++){ var p=k/N; expr.push(p, colAtKm(pToKm(p))); }
+    return expr;
+  }
+  // HARD: step-Funktion mit crispen Kanten an jeder Stop-Progress-Position.
+  var e=['step',['line-progress'], colAtKm(pToKm(0))], lastP=-1;
+  for(var s=0;s<n;s++){
+    var p2=(stopsKm[s]*1000 - d0)/dT;
+    if(p2<=0 || p2>=1) continue;
+    if(p2<=lastP) p2=lastP+1e-5;
+    lastP=p2; e.push(p2, stopsCol[s]);
+  }
+  return e.length>3 ? e : null;
+};
+"""
+
+
 def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[float],
                cum_time: list[float], total_stats: dict,
                bbox: tuple[float, float, float, float],
@@ -1102,6 +1160,18 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     elevations_json = json.dumps(eles)
     cum_dist_json = json.dumps(cum_dist)
     cum_time_json = json.dumps(cum_time)
+    # v0.9.435 — Mehrfarbiger Track: Helper + Konstanten fürs Render-Template.
+    # Stops nach km sortieren; km 0 mit line_color seed'en, falls kein Stop bei 0.
+    _stops = [s for s in (cfg.track_color_stops or []) if isinstance(s, dict) and "km" in s and "color" in s]
+    _stops = sorted(_stops, key=lambda s: float(s.get("km", 0)))
+    if _stops and float(_stops[0]["km"]) > 0.0001:
+        _stops = [{"km": 0.0, "color": cfg.line_color}] + _stops
+    _colors_on = bool(cfg.track_colors_enabled) and len(_stops) >= 1
+    color_gradient_js = _COLOR_GRADIENT_JS if _colors_on else "// track colors disabled"
+    colors_on_js = "true" if _colors_on else "false"
+    color_stops_km_json = json.dumps([float(s["km"]) for s in _stops])
+    color_stops_col_json = json.dumps([str(s["color"]) for s in _stops])
+    color_mode_json = json.dumps("gradient" if str(cfg.track_colors_mode) == "gradient" else "hard")
     ele_min = min(eles)
     ele_max = max(eles)
     min_lon, min_lat, max_lon, max_lat = bbox
@@ -1696,7 +1766,7 @@ map.on('style.load', () => {{
   }} catch (_) {{}}
   {hide_labels_block}
   {terrain_block}
-  map.addSource('track', {{type:'geojson', data:{{type:'Feature',geometry:{{type:'LineString',coordinates:[]}}}}}});
+  map.addSource('track', {{type:'geojson',{' lineMetrics:true,' if _colors_on else ''} data:{{type:'Feature',geometry:{{type:'LineString',coordinates:[]}}}}}});
   // v0.9.169 — Ghost-Track: die GANZE Route schwach/transparent als unterste
   // Track-Linie (eigene Source mit ALLEN Punkten, wird NIE animiert). Der
   // animierte Track (Source 'track') zeichnet voll deckend darüber. Zuerst
@@ -1734,12 +1804,12 @@ map.on('style.load', () => {{
     # ≈ 2.85 (= Backward-Compat zur alten festen 2.85), bei gs=10 → 4.10×
     # → spürbar breiterer Halo.
     f"paint:{{'line-color':'{cfg.line_color}','line-width':{cfg.line_width * (2.0 + 0.21 * cfg.glow_strength):.2f},'line-opacity':0.35,'line-blur':{cfg.glow_strength:.1f}"
-    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else "")
+    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) and not _colors_on else "")
     + (",'line-z-offset':150" if cfg.enable_terrain else "")
     + "}});") if cfg.glow_enabled and cfg.glow_strength > 0 else "// glow disabled"}
   map.addLayer({{id:'track-line',type:'line',source:'track',
     layout:{{'line-cap':'round','line-join':'round'}},
-    paint:{{'line-color':'{cfg.line_color}','line-width':{cfg.line_width:.2f},'line-opacity':0.95{f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else ""}{',\'line-z-offset\':150' if cfg.enable_terrain else ''}}}}});
+    paint:{{'line-color':'{cfg.line_color}','line-width':{cfg.line_width:.2f},'line-opacity':0.95{f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) and not _colors_on else ""}{',\'line-z-offset\':150' if cfg.enable_terrain else ''}}}}});
   {("map.addLayer({id:'track-highlight',type:'line',source:'track',"
     "layout:{'line-cap':'round','line-join':'round'},"
     f"paint:{{'line-color':'#ffffff','line-width':{cfg.line_width * 0.35:.2f},'line-opacity':0.55,'line-blur':0.6"
@@ -1853,6 +1923,12 @@ window.__camFaithful = (t) => {{
   fc.orientation = window.__nlerpQuat(A.ori, B.ori, u);
   map.setFreeCameraOptions(fc);
 }};
+{color_gradient_js}
+// v0.9.435 — Mehrfarbiger Track: Konstanten (aus AnimatorConfig).
+const COLORS_ON = {colors_on_js};
+const COLOR_STOPS_KM = {color_stops_km_json};
+const COLOR_STOPS_COL = {color_stops_col_json};
+const COLOR_MODE = {color_mode_json};
 window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
   const safe = Math.max(0, Math.min(idx, totalPoints-1));
   // v0.9.55: optional Pre-Trim-Portion (coords[0..TRIM_START_IDX-1]) ausblenden.
@@ -1864,6 +1940,11 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
   const coords = allCoords.slice(sliceStart, sliceEnd);
   if (coords.length >= 2) {{
     map.getSource('track').setData({{type:'Feature',geometry:{{type:'LineString',coordinates:coords}}}});
+    // v0.9.435 — Mehrfarbiger Track: line-gradient nach Distanz setzen.
+    if (COLORS_ON) {{
+      const g = window.__rzColorGradient(cumDistM, sliceStart, sliceEnd-1, COLOR_STOPS_KM, COLOR_STOPS_COL, COLOR_MODE);
+      if (g) {{ try {{ map.setPaintProperty('track-line','line-gradient',g); if (map.getLayer('track-glow')) map.setPaintProperty('track-glow','line-gradient',g); }} catch(e) {{}} }}
+    }}
   }}
   const head = allCoords[safe] || allCoords[0];
   map.getSource('dot').setData({{type:'Feature',geometry:{{type:'Point',coordinates:head}}}});

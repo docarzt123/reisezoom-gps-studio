@@ -13,6 +13,12 @@ Bei jeder neuen Version:
 ---
 
 ## [Unreleased]
+### Hinzugefügt
+- **Animator: mehrfarbiger Track (Farbwechsel ab km / Marker / Wegpunkt)** — die Track-Linie kann jetzt ab bestimmten Distanzen die Farbe wechseln. Neue Sektion **„Mehrere Track-Farben"** in der Track-Einstellung: Farb-Stops setzt du **ab km** (Zahl eingeben), **an der aktuellen Marker-Position** (Scrubber-Position übernehmen) oder **an allen GPX-Wegpunkten** (automatisch projiziert). Pro Stop km + Farbe, 🗑 zum Entfernen. Ein globaler Schalter **„Übergang: hart / Verlauf"** — harter Wechsel (Mapbox-`step`, crisp) oder weicher Farbverlauf (`interpolate`) zwischen benachbarten Farben. Umgesetzt als distanzbasierter Mapbox-`line-gradient`, gemeinsamer Helper `__rzColorGradient` in Render (`core/animator.py`) **und** Vorschau/Probelauf (`modules/animator/ui/module.js`) → WYSIWYG. Wegpunkt-km-Projektion über `animator_load_gpx`. Aktuell Einzeltrack-Animator. i18n de/en/es. *(Ersetzt die zuvor unveröffentlichte zeitbasierte „Track-Alterung".)*
+
+### Behoben
+- **Animator-Karte blieb schwarz (TDZ-Crash beim Modul-Start)** — durch die neue Farb-Sektion wurde `_trackColorStops` erst nach dem Bindings-Block deklariert, aber `loadColorStops()` griff beim Mount schon darauf zu → `ReferenceError: Cannot access '_trackColorStops' before initialization`. Der Fehler brach die komplette Animator-Initialisierung ab (schwarze Karte, „Track-Punkte — / —", Probelauf reagierte nicht). Deklaration vor den Bindings-Block gezogen.
+- **„Übergang"-Selektor blitzte sichtbar auf, wenn „Mehrere Track-Farben" aus war** — die `.field`-Klasse (`display:flex`) überschrieb das UA-`[hidden]`. Defensive CSS-Regel (`#anim-colors-mode-field[hidden]{display:none!important}`) macht `[hidden]` wieder autoritativ.
 
 ## [0.9.433] – 2026-07-11
 ### Behoben

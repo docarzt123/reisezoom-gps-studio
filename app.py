@@ -132,7 +132,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.433"
+APP_VERSION = "0.9.435"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1685,6 +1685,21 @@ class Api:
             for f in stats.sensor_fields:
                 k = f["key"]
                 sensor_series[k] = [p.extra.get(k) for p in ds]
+            # v0.9.435 — GPX-<wpt>-Wegpunkte auf den Track projizieren (km-Position),
+            # für den Mehrfarben-Editor ("Farben an Wegpunkten"). Nächster ds-Punkt
+            # per euklidischer Distanz (grob, reicht für die km-Grenze).
+            wp_out = []
+            try:
+                for w in (cgpx.parse_waypoints(path) or []):
+                    wlon, wlat = float(w["lon"]), float(w["lat"])
+                    best_i, best_d2 = 0, None
+                    for i, p in enumerate(ds):
+                        d2 = (p.lon - wlon) ** 2 + (p.lat - wlat) ** 2
+                        if best_d2 is None or d2 < best_d2:
+                            best_d2, best_i = d2, i
+                    wp_out.append({"name": w.get("name") or "", "km": round(cum_dist[best_i] / 1000.0, 3)})
+            except Exception:
+                wp_out = []
             series = {
                 "cumDistM": cum_dist,
                 "cumTimeS": cum_time,
@@ -1696,6 +1711,7 @@ class Api:
                 "total_time_s": stats.duration_s,
                 "has_time": has_time,
                 "has_ele": has_ele,
+                "waypoints": wp_out,
             }
             return {
                 "ok": True,
@@ -1979,6 +1995,10 @@ class Api:
             ghost_track_enabled=bool(params.get("ghost_track_enabled", False)),
             ghost_track_opacity=float(params.get("ghost_track_opacity", 0.30)),
             ghost_track_color=str(params.get("ghost_track_color", "#ff6b35")),
+            # v0.9.435 — Mehrfarbiger Track (Farbwechsel ab km/Marker/Wegpunkt)
+            track_colors_enabled=bool(params.get("track_colors_enabled", False)),
+            track_colors_mode=str(params.get("track_colors_mode", "hard")),
+            track_color_stops=list(params.get("track_color_stops") or []),
             ghost_gpx_coords=(params.get("ghost_gpx_coords") or []),
             ghost_gpx_color=str(params.get("ghost_gpx_color", "#7fa8ff")),
             ghost_gpx_opacity=float(params.get("ghost_gpx_opacity", 0.60)),
@@ -2230,6 +2250,10 @@ class Api:
             ghost_track_enabled=bool(params.get("ghost_track_enabled", False)),
             ghost_track_opacity=float(params.get("ghost_track_opacity", 0.30)),
             ghost_track_color=str(params.get("ghost_track_color", "#ff6b35")),
+            # v0.9.435 — Mehrfarbiger Track (Farbwechsel ab km/Marker/Wegpunkt)
+            track_colors_enabled=bool(params.get("track_colors_enabled", False)),
+            track_colors_mode=str(params.get("track_colors_mode", "hard")),
+            track_color_stops=list(params.get("track_color_stops") or []),
             ghost_gpx_coords=(params.get("ghost_gpx_coords") or []),
             ghost_gpx_color=str(params.get("ghost_gpx_color", "#7fa8ff")),
             ghost_gpx_opacity=float(params.get("ghost_gpx_opacity", 0.60)),

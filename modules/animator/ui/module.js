@@ -301,6 +301,29 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.ghost_opacity", "Deckkraft Ghost-Track")} <span class="label-val" id="anim-ghost-opacity-v">30 %</span></label>
             <input type="range" id="anim-ghost-opacity" min="5" max="80" step="5" value="30">
           </div>
+          <!-- v0.9.435 — Mehrfarbiger Track (Marc): der Track wechselt ab
+               bestimmten Distanzen (km / Marker-Position / GPX-Wegpunkt) die
+               Farbe — hart oder als Verlauf. -->
+          <label class="checkbox-row" title="${t("animator.colors.tooltip", "Lässt den Track ab bestimmten Stellen die Farbe wechseln — die Grenzen setzt du per km, an der aktuellen Marker-Position oder an GPX-Wegpunkten. Der Wechsel läuft hart oder als weicher Verlauf.")}">
+            <input type="checkbox" id="anim-colors-enabled">
+            <span>${t("animator.toggle.track_colors", "Mehrere Track-Farben")}</span>
+          </label>
+          <div class="field" id="anim-colors-mode-field" hidden>
+            <label class="field-label" for="anim-colors-mode">${t("animator.field.colors_mode", "Übergang")}</label>
+            <select id="anim-colors-mode">
+              <option value="hard">${t("animator.colors.mode_hard", "hart (auf einen Schlag)")}</option>
+              <option value="gradient">${t("animator.colors.mode_gradient", "Verlauf")}</option>
+            </select>
+          </div>
+          <div id="anim-colors-list-field" hidden>
+            <div id="anim-colors-list" style="margin-top:4px;"></div>
+            <div class="anim-colors-btns" id="anim-colors-btns" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+              <button type="button" class="btn btn-small" id="anim-color-add-km">＋ ${t("animator.colors.add_km", "ab km")}</button>
+              <button type="button" class="btn btn-small" id="anim-color-add-marker">＋ ${t("animator.colors.add_marker", "an Marker-Position")}</button>
+              <button type="button" class="btn btn-small" id="anim-color-add-wpt">＋ ${t("animator.colors.add_wpt", "an Wegpunkten")}</button>
+            </div>
+            <div class="muted" id="anim-colors-hint" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")}</div>
+          </div>
           <div class="field">
             <label class="field-label">${t("animator.field.point_count")}
               <span class="label-val" id="anim-pointcount-v">— / —</span>
@@ -1412,6 +1435,81 @@ function mountAnimator(body, headerActions, opts) {
     cb.addEventListener("change", apply);
     apply();
   })();
+  // v0.9.435 — Mehrfarbiger Track: Stops-Editor (Grenzen ab km / Marker / Wegpunkt).
+  // Deklaration MUSS vor loadColorStops()/dem Mount stehen (sonst TDZ-Crash beim
+  // Modul-Start → schwarze Karte). [{km:Number, color:'#rrggbb'}] — von der UI gepflegt.
+  let _trackColorStops = [];
+  bindSetting("anim-colors-enabled", _MODKEY, "track_colors_enabled", { type: "bool",
+    onChange: () => { syncColorsUi(); refreshPreviewTrackData(); } });
+  bindSetting("anim-colors-mode", _MODKEY, "track_colors_mode", {
+    onChange: () => refreshPreviewTrackData() });
+  const _COL_PALETTE = ["#ff6b35", "#2e86de", "#27ae60", "#e0322c", "#9b59b6", "#f39c12"];
+  function loadColorStops() {
+    try {
+      const proj = (typeof _activeProject !== "undefined" && _activeProject && _activeProject[_MODKEY]) ? _activeProject[_MODKEY] : null;
+      const glob = (typeof _settingsCache !== "undefined" && _settingsCache && _settingsCache[_MODKEY]) ? _settingsCache[_MODKEY] : {};
+      const v = (proj && "track_color_stops" in proj) ? proj.track_color_stops : glob.track_color_stops;
+      _trackColorStops = Array.isArray(v) ? v.map(s => ({ km: +s.km || 0, color: s.color || currentLineColor() })) : [];
+    } catch (_) { _trackColorStops = []; }
+  }
+  function persistColorStops() { try { saveProjectSettings(_MODKEY, { track_color_stops: _trackColorStops }); } catch (_) {} }
+  function renderColorStops() {
+    const box = document.getElementById("anim-colors-list"); if (!box) return;
+    if (!_trackColorStops.length) { box.innerHTML = ""; return; }
+    box.innerHTML = _trackColorStops.map((s, i) => `
+      <div class="anim-color-row" data-idx="${i}" style="display:flex; gap:6px; align-items:center; margin-bottom:5px;">
+        <span class="muted" style="font-size:11px; min-width:34px;">${t("animator.colors.from_km", "ab km")}</span>
+        <input type="number" class="anim-color-km" data-idx="${i}" min="0" step="0.1" value="${(+s.km).toFixed(1)}" style="width:64px;">
+        <input type="color" class="anim-color-col" data-idx="${i}" value="${s.color}" style="width:34px; height:26px; padding:1px;">
+        <button type="button" class="anim-color-del" data-idx="${i}" title="${_animEscapeHtml(t("animator.colors.delete", "Entfernen"))}" style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px; margin-left:auto;">🗑</button>
+      </div>`).join("");
+  }
+  function addColorStop(km) {
+    _trackColorStops.push({ km: Math.max(0, +km || 0), color: _COL_PALETTE[_trackColorStops.length % _COL_PALETTE.length] });
+    persistColorStops(); renderColorStops(); refreshPreviewTrackData();
+  }
+  function currentMarkerKm() {
+    try {
+      if (!_ovSeries || !_ovSeries.cumDistM) return 0;
+      const anchor = _tlBar ? _tlBar.getScrubber() : 0;
+      const idx = trackIdxFromTimelineAnchor(anchor);
+      return (_ovSeries.cumDistM[Math.max(0, Math.min(idx, _ovSeries.cumDistM.length - 1))] || 0) / 1000;
+    } catch (_) { return 0; }
+  }
+  document.getElementById("anim-color-add-km")?.addEventListener("click", () => addColorStop(0));
+  document.getElementById("anim-color-add-marker")?.addEventListener("click", () => addColorStop(currentMarkerKm()));
+  document.getElementById("anim-color-add-wpt")?.addEventListener("click", () => {
+    const wps = (_ovSeries && _ovSeries.waypoints) || [];
+    if (!wps.length) { toast(t("animator.colors.no_wpt", "Diese GPX hat keine Wegpunkte."), "info"); return; }
+    wps.forEach((w, i) => _trackColorStops.push({ km: Math.max(0, +w.km || 0), color: _COL_PALETTE[(_trackColorStops.length + i) % _COL_PALETTE.length] }));
+    persistColorStops(); renderColorStops(); refreshPreviewTrackData();
+  });
+  (function wireColorStopList() {
+    const box = document.getElementById("anim-colors-list"); if (!box) return;
+    const idxOf = (e) => parseInt(e.target.getAttribute("data-idx"), 10);
+    box.addEventListener("input", (e) => {
+      const i = idxOf(e); if (!(i >= 0) || !_trackColorStops[i]) return;
+      if (e.target.classList.contains("anim-color-km")) { _trackColorStops[i].km = Math.max(0, parseFloat(e.target.value) || 0); persistColorStops(); refreshPreviewTrackData(); }
+      else if (e.target.classList.contains("anim-color-col")) { _trackColorStops[i].color = e.target.value; persistColorStops(); refreshPreviewTrackData(); }
+    });
+    box.addEventListener("click", (e) => {
+      const btn = e.target.closest(".anim-color-del"); if (!btn) return;
+      const i = parseInt(btn.getAttribute("data-idx"), 10);
+      if (!(i >= 0) || !_trackColorStops[i]) return;
+      _trackColorStops.splice(i, 1); persistColorStops(); renderColorStops(); refreshPreviewTrackData();
+    });
+  })();
+  function syncColorsUi() {
+    const cb = document.getElementById("anim-colors-enabled");
+    const fields = ["anim-colors-mode-field", "anim-colors-list-field"].map(id => document.getElementById(id)).filter(Boolean);
+    const hide = !cb || !cb.checked;
+    fields.forEach(f => { f.hidden = hide; f.style.display = hide ? "none" : ""; });
+  }
+  loadColorStops(); renderColorStops(); syncColorsUi();
+  // Bei GPX-/Projekt-Wechsel die Stops neu laden + Liste neu zeichnen.
+  if (typeof onSessionChanged === "function") {
+    try { onSessionChanged(() => { loadColorStops(); renderColorStops(); syncColorsUi(); }); } catch (_) {}
+  }
   // v0.9.211 (Reiseroute) — GPX-Ghost-Config (Elemente existieren nur hier).
   if (_isReiseroute) {
     bindSetting("route-ghost-show", _MODKEY, "ghost_gpx_show", { type: "bool",
@@ -1967,6 +2065,9 @@ function mountAnimator(body, headerActions, opts) {
     if (!map.getSource("preview-track")) {
       map.addSource("preview-track", {
         type: "geojson",
+        // v0.9.434 — lineMetrics für die Track-Alterung (line-gradient). Immer an,
+        // damit ein Laufzeit-Toggle die Source nicht neu aufbauen muss (harmlos).
+        lineMetrics: true,
         data: { type: "Feature", geometry: { type: "LineString", coordinates: currentCoords || [] } },
       });
     } else if (currentCoords) {
@@ -2228,6 +2329,69 @@ function mountAnimator(body, headerActions, opts) {
     const spacing = Math.max(0.1, parseFloat(document.getElementById("anim-line-spacing")?.value) || 1);
     const base = { dashed: [3, 2], dotted: [0.1, 2], dashdot: [3, 1.5, 0.1, 1.5] }[style];
     return base ? base.map(v => v * spacing) : null;
+  }
+
+  // v0.9.435 — Mehrfarbiger Track (Marc): Farb-Stops nach Distanz. Accessoren + Helper.
+  // (Deklaration von _trackColorStops steht weiter oben vor dem Bindings-Block,
+  //  sonst TDZ-Crash beim Mount, weil loadColorStops() dort schon darauf zugreift.)
+  function currentColorsEnabled() { return !!document.getElementById("anim-colors-enabled")?.checked; }
+  function currentColorsMode() { return document.getElementById("anim-colors-mode")?.value === "gradient" ? "gradient" : "hard"; }
+  // Stops nach km sortiert; km 0 mit Track-Farbe geseedet, falls kein Stop bei 0.
+  function sortedColorStops() {
+    const s = (_trackColorStops || []).filter(x => x && isFinite(x.km) && x.color)
+      .map(x => ({ km: Math.max(0, +x.km), color: x.color }));
+    s.sort((a, b) => a.km - b.km);
+    if (!s.length || s[0].km > 0.0001) s.unshift({ km: 0, color: currentLineColor() });
+    return s;
+  }
+
+  // Gemeinsamer Gradient-Helper — SYNCHRON zu core/animator.py `__rzColorGradient`.
+  // Bei Änderung BEIDE pflegen. mode 'hard' → step (crisp), 'gradient' → interpolate.
+  function __rzHex2rgb(h){ h=(h||"#000").replace("#",""); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]; }
+  function __rzRgb2hex(r,g,b){ function c(x){ x=Math.max(0,Math.min(255,Math.round(x))); const s=x.toString(16); return s.length<2?"0"+s:s; } return "#"+c(r)+c(g)+c(b); }
+  function __rzLerpHex(a,b,f){ const x=__rzHex2rgb(a), y=__rzHex2rgb(b); return __rzRgb2hex(x[0]+(y[0]-x[0])*f, x[1]+(y[1]-x[1])*f, x[2]+(y[2]-x[2])*f); }
+  function colorGradientExpr(CD, i0, i1, stopsKm, stopsCol, mode){
+    if(!CD || i1<=i0 || !stopsKm || !stopsKm.length) return null;
+    const d0=CD[i0], dT=CD[i1]-d0; if(!(dT>0)) return null;
+    const n=stopsKm.length;
+    const colAtKm=(km)=>{ if(km<=stopsKm[0]) return stopsCol[0]; if(km>=stopsKm[n-1]) return stopsCol[n-1];
+      let i=0; while(i<n-1 && stopsKm[i+1]<=km) i++;
+      if(mode!=="gradient") return stopsCol[i];
+      const span=stopsKm[i+1]-stopsKm[i], f=span>0?(km-stopsKm[i])/span:0; return __rzLerpHex(stopsCol[i], stopsCol[i+1], f); };
+    const pToKm=(p)=>(d0+p*dT)/1000;
+    if(mode==="gradient"){ const expr=["interpolate",["linear"],["line-progress"]], N=60;
+      for(let k=0;k<=N;k++){ const p=k/N; expr.push(p, colAtKm(pToKm(p))); } return expr; }
+    const e=["step",["line-progress"], colAtKm(pToKm(0))]; let lastP=-1;
+    for(let s=0;s<n;s++){ let p2=(stopsKm[s]*1000-d0)/dT; if(p2<=0||p2>=1) continue; if(p2<=lastP) p2=lastP+1e-5; lastP=p2; e.push(p2, stopsCol[s]); }
+    return e.length>3 ? e : null;
+  }
+
+  // Wendet den Distanz-Farbverlauf auf preview-line/preview-glow an — oder entfernt
+  // ihn wieder. i0..i1 = gezeichnete Spanne. Braucht _ovSeries.cumDistM.
+  let _colorsPrevOn = false;
+  function applyPreviewColorGradient(i0, i1) {
+    if (!map) return;
+    const on = currentColorsEnabled() && _ovSeries && _ovSeries.cumDistM;
+    if (!on) {
+      if (_colorsPrevOn) {
+        for (const id of ["preview-line", "preview-glow"]) {
+          if (!map.getLayer(id)) continue;
+          try { map.setPaintProperty(id, "line-gradient", null); map.setPaintProperty(id, "line-dasharray", currentDasharray() || null); } catch (_) {}
+        }
+        _colorsPrevOn = false;
+      }
+      return;
+    }
+    const st = sortedColorStops();
+    const g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.km), st.map(s => s.color), currentColorsMode());
+    for (const id of ["preview-line", "preview-glow"]) {
+      if (!map.getLayer(id)) continue;
+      try {
+        map.setPaintProperty(id, "line-gradient", g || null);
+        if (g) map.setPaintProperty(id, "line-dasharray", null);   // Dash + Gradient exkl.
+      } catch (_) {}
+    }
+    _colorsPrevOn = !!g;
   }
 
   function applyLineStyle() {
@@ -2523,6 +2687,10 @@ function mountAnimator(body, headerActions, opts) {
         type: "Feature",
         geometry: { type: "LineString", coordinates: coords },
       });
+      // v0.9.434 — Track-Alterung: Gradient relativ zum Marker (coordIdx) setzen.
+      const ai0 = previewFullTrack() ? 0 : startIdx;
+      const ai1 = previewFullTrack() ? (currentCoords.length - 1) : coordIdx;
+      applyPreviewColorGradient(ai0, ai1);
     } catch (_) {}
   }
 
@@ -3754,6 +3922,10 @@ function mountAnimator(body, headerActions, opts) {
           type: "Feature",
           geometry: { type: "LineString", coordinates: coords },
         });
+        // v0.9.434 — Track-Alterung: Gradient relativ zum Marker (coordIdx).
+        const ai0 = previewFullTrack() ? 0 : startIdx;
+        const ai1 = previewFullTrack() ? (currentCoords.length - 1) : coordIdx;
+        applyPreviewColorGradient(ai0, ai1);
       }
     } catch (_) {}
     // v0.9.79 — Foto-Pins: Filter auf aktuelle Marker-Position. Foto erscheint
@@ -4573,6 +4745,10 @@ function mountAnimator(body, headerActions, opts) {
             type: "Feature",
             geometry: { type: "LineString", coordinates: lineCoords },
           });
+          // v0.9.435 — Mehrfarbiger Track: Farbverlauf im Probelauf mitführen.
+          const _ci0 = fullToggle ? 0 : startCoordIdx;
+          const _ci1 = fullToggle ? (currentCoords.length - 1) : coordIdx;
+          applyPreviewColorGradient(_ci0, _ci1);
         }
       } catch (_) {}
       // v0.9.79 — Foto-Pins live mit Marker mit-laufen lassen.
@@ -9164,6 +9340,10 @@ function mountAnimator(body, headerActions, opts) {
       ghost_track_enabled: currentGhostEnabled(),
       ghost_track_opacity: currentGhostOpacity(),
       ghost_track_color: currentGhostColor(),   // v0.9.170 — eigene Ghost-Farbe
+      // v0.9.434 — Track-Alterung ("Dauer Trackfarbe"): Hold/Fade in Sekunden.
+      track_colors_enabled: currentColorsEnabled(),
+      track_colors_mode: currentColorsMode(),
+      track_color_stops: sortedColorStops(),
       // v0.9.210/211 (Reiseroute) — das geladene Wander-GPX als zusätzlicher
       // Ghost (andere Linie als die animierte Route) auch im gerenderten Video,
       // mit konfigurierbarer Farbe/Deckkraft/Breite/Strichelung.

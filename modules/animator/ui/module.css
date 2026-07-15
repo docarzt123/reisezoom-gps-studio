@@ -794,3 +794,10 @@
 
 /* v0.9.208 — Route-Detailgrad-Slider Endpunkt-Labels (fein → grob) */
 .route-coarse-ends { display: flex; justify-content: space-between; font-size: 10px; margin-top: 2px; opacity: 0.7; }
+
+/* v0.9.435 — Mehrfarbiger Track: das mode-Feld trägt die Klasse .field
+   (display:flex), die das UA-[hidden] überschreiben würde. Deshalb hier
+   [hidden] wieder autoritativ machen, sonst blitzt der Übergang-Selektor
+   sichtbar auf, obwohl die Funktion aus ist. */
+#anim-colors-mode-field[hidden],
+#anim-colors-list-field[hidden] { display: none !important; }
