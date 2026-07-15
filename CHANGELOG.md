@@ -13,6 +13,8 @@ Bei jeder neuen Version:
 ---
 
 ## [Unreleased]
+
+## [0.9.435] – 2026-07-15
 ### Hinzugefügt
 - **Animator: mehrfarbiger Track (Farbwechsel ab km / Marker / Wegpunkt)** — die Track-Linie kann jetzt ab bestimmten Distanzen die Farbe wechseln. Neue Sektion **„Mehrere Track-Farben"** in der Track-Einstellung: Farb-Stops setzt du **ab km** (Zahl eingeben), **an der aktuellen Marker-Position** (Scrubber-Position übernehmen) oder **an allen GPX-Wegpunkten** (automatisch projiziert). Pro Stop km + Farbe, 🗑 zum Entfernen. Ein globaler Schalter **„Übergang: hart / Verlauf"** — harter Wechsel (Mapbox-`step`, crisp) oder weicher Farbverlauf (`interpolate`) zwischen benachbarten Farben. Umgesetzt als distanzbasierter Mapbox-`line-gradient`, gemeinsamer Helper `__rzColorGradient` in Render (`core/animator.py`) **und** Vorschau/Probelauf (`modules/animator/ui/module.js`) → WYSIWYG. Wegpunkt-km-Projektion über `animator_load_gpx`. Aktuell Einzeltrack-Animator. i18n de/en/es. *(Ersetzt die zuvor unveröffentlichte zeitbasierte „Track-Alterung".)*
 
