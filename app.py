@@ -132,7 +132,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.435"
+APP_VERSION = "0.9.436"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1998,6 +1998,7 @@ class Api:
             # v0.9.435 — Mehrfarbiger Track (Farbwechsel ab km/Marker/Wegpunkt)
             track_colors_enabled=bool(params.get("track_colors_enabled", False)),
             track_colors_mode=str(params.get("track_colors_mode", "hard")),
+            track_colors_source=str(params.get("track_colors_source", "distance")),
             track_color_stops=list(params.get("track_color_stops") or []),
             ghost_gpx_coords=(params.get("ghost_gpx_coords") or []),
             ghost_gpx_color=str(params.get("ghost_gpx_color", "#7fa8ff")),
@@ -2253,6 +2254,7 @@ class Api:
             # v0.9.435 — Mehrfarbiger Track (Farbwechsel ab km/Marker/Wegpunkt)
             track_colors_enabled=bool(params.get("track_colors_enabled", False)),
             track_colors_mode=str(params.get("track_colors_mode", "hard")),
+            track_colors_source=str(params.get("track_colors_source", "distance")),
             track_color_stops=list(params.get("track_color_stops") or []),
             ghost_gpx_coords=(params.get("ghost_gpx_coords") or []),
             ghost_gpx_color=str(params.get("ghost_gpx_color", "#7fa8ff")),

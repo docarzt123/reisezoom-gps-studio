@@ -301,13 +301,21 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.ghost_opacity", "Deckkraft Ghost-Track")} <span class="label-val" id="anim-ghost-opacity-v">30 %</span></label>
             <input type="range" id="anim-ghost-opacity" min="5" max="80" step="5" value="30">
           </div>
-          <!-- v0.9.435 — Mehrfarbiger Track (Marc): der Track wechselt ab
-               bestimmten Distanzen (km / Marker-Position / GPX-Wegpunkt) die
-               Farbe — hart oder als Verlauf. -->
-          <label class="checkbox-row" title="${t("animator.colors.tooltip", "Lässt den Track ab bestimmten Stellen die Farbe wechseln — die Grenzen setzt du per km, an der aktuellen Marker-Position oder an GPX-Wegpunkten. Der Wechsel läuft hart oder als weicher Verlauf.")}">
+          <!-- v0.9.435/436 — Mehrfarbiger Track (Marc): der Track wechselt die Farbe
+               nach Distanz (km / Marker / Wegpunkt), Höhe oder Geschwindigkeit —
+               hart (Bänder) oder als Verlauf. -->
+          <label class="checkbox-row" title="${t("animator.colors.tooltip", "Lässt den Track die Farbe wechseln — nach Distanz (km / Marker / Wegpunkt), nach Höhe oder nach Geschwindigkeit. Der Wechsel läuft hart oder als weicher Verlauf.")}">
             <input type="checkbox" id="anim-colors-enabled">
             <span>${t("animator.toggle.track_colors", "Mehrere Track-Farben")}</span>
           </label>
+          <div class="field" id="anim-colors-source-field" hidden>
+            <label class="field-label" for="anim-colors-source">${t("animator.field.colors_source", "Einfärben nach")}</label>
+            <select id="anim-colors-source">
+              <option value="distance">${t("animator.colors.src_distance", "Distanz (km)")}</option>
+              <option value="elevation">${t("animator.colors.src_elevation", "Höhe")}</option>
+              <option value="speed">${t("animator.colors.src_speed", "Geschwindigkeit")}</option>
+            </select>
+          </div>
           <div class="field" id="anim-colors-mode-field" hidden>
             <label class="field-label" for="anim-colors-mode">${t("animator.field.colors_mode", "Übergang")}</label>
             <select id="anim-colors-mode">
@@ -317,10 +325,14 @@ function mountAnimator(body, headerActions, opts) {
           </div>
           <div id="anim-colors-list-field" hidden>
             <div id="anim-colors-list" style="margin-top:4px;"></div>
-            <div class="anim-colors-btns" id="anim-colors-btns" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+            <div class="anim-colors-btns" id="anim-color-btns-distance" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
               <button type="button" class="btn btn-small" id="anim-color-add-km">＋ ${t("animator.colors.add_km", "ab km")}</button>
               <button type="button" class="btn btn-small" id="anim-color-add-marker">＋ ${t("animator.colors.add_marker", "an Marker-Position")}</button>
               <button type="button" class="btn btn-small" id="anim-color-add-wpt">＋ ${t("animator.colors.add_wpt", "an Wegpunkten")}</button>
+            </div>
+            <div class="anim-colors-btns" id="anim-color-btns-metric" style="display:none; flex-wrap:wrap; gap:6px; margin-top:6px;">
+              <button type="button" class="btn btn-small" id="anim-color-add-val">＋ <span id="anim-color-add-val-lbl">${t("animator.colors.add_ele", "ab Höhe (hier)")}</span></button>
+              <button type="button" class="btn btn-small" id="anim-color-auto">${t("animator.colors.auto", "Auto (min → max)")}</button>
             </div>
             <div class="muted" id="anim-colors-hint" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")}</div>
           </div>
@@ -1435,37 +1447,54 @@ function mountAnimator(body, headerActions, opts) {
     cb.addEventListener("change", apply);
     apply();
   })();
-  // v0.9.435 — Mehrfarbiger Track: Stops-Editor (Grenzen ab km / Marker / Wegpunkt).
-  // Deklaration MUSS vor loadColorStops()/dem Mount stehen (sonst TDZ-Crash beim
-  // Modul-Start → schwarze Karte). [{km:Number, color:'#rrggbb'}] — von der UI gepflegt.
+  // v0.9.435/436 — Mehrfarbiger Track: Stops-Editor. Einfärben nach Distanz (km /
+  // Marker / Wegpunkt), Höhe (m) oder Geschwindigkeit (km/h). Stop = {v, color} mit
+  // v im Einheiten-Raum der Quelle. Deklaration MUSS vor loadColorStops()/dem Mount
+  // stehen (sonst TDZ-Crash beim Modul-Start → schwarze Karte).
   let _trackColorStops = [];
+  let _prevColorSource = null;
   bindSetting("anim-colors-enabled", _MODKEY, "track_colors_enabled", { type: "bool",
     onChange: () => { syncColorsUi(); refreshPreviewTrackData(); } });
   bindSetting("anim-colors-mode", _MODKEY, "track_colors_mode", {
     onChange: () => refreshPreviewTrackData() });
+  bindSetting("anim-colors-source", _MODKEY, "track_colors_source", {
+    onChange: () => onColorSourceChange() });
   const _COL_PALETTE = ["#ff6b35", "#2e86de", "#27ae60", "#e0322c", "#9b59b6", "#f39c12"];
+  // Perzeptuelle Rampe kühl→warm (blau→rot) — wie klassische Höhen-/Tempo-Skalen.
+  const _METRIC_RAMP = ["#2b83ba", "#66c2a5", "#ffffbf", "#fdae61", "#d7191c"];
   function loadColorStops() {
     try {
       const proj = (typeof _activeProject !== "undefined" && _activeProject && _activeProject[_MODKEY]) ? _activeProject[_MODKEY] : null;
       const glob = (typeof _settingsCache !== "undefined" && _settingsCache && _settingsCache[_MODKEY]) ? _settingsCache[_MODKEY] : {};
       const v = (proj && "track_color_stops" in proj) ? proj.track_color_stops : glob.track_color_stops;
-      _trackColorStops = Array.isArray(v) ? v.map(s => ({ km: +s.km || 0, color: s.color || currentLineColor() })) : [];
+      // Legacy-Migration: {km} → {v}.
+      _trackColorStops = Array.isArray(v) ? v.map(s => ({ v: +(s.v != null ? s.v : s.km) || 0, color: s.color || currentLineColor() })) : [];
     } catch (_) { _trackColorStops = []; }
+    _prevColorSource = currentColorsSource();
   }
   function persistColorStops() { try { saveProjectSettings(_MODKEY, { track_color_stops: _trackColorStops }); } catch (_) {} }
+  // Label/Einheit/Schrittweite der Wert-Eingabe je Quelle.
+  function colorUnitInfo() {
+    const s = currentColorsSource();
+    if (s === "elevation") return { label: t("animator.colors.from_ele", "ab"), unit: t("animator.colors.unit_m", "m"), step: "10", dec: 0 };
+    if (s === "speed") return { label: t("animator.colors.from_spd", "ab"), unit: t("animator.colors.unit_kmh", "km/h"), step: "1", dec: 0 };
+    return { label: t("animator.colors.from_km", "ab km"), unit: "", step: "0.1", dec: 1 };
+  }
   function renderColorStops() {
     const box = document.getElementById("anim-colors-list"); if (!box) return;
     if (!_trackColorStops.length) { box.innerHTML = ""; return; }
+    const ui = colorUnitInfo();
     box.innerHTML = _trackColorStops.map((s, i) => `
       <div class="anim-color-row" data-idx="${i}" style="display:flex; gap:6px; align-items:center; margin-bottom:5px;">
-        <span class="muted" style="font-size:11px; min-width:34px;">${t("animator.colors.from_km", "ab km")}</span>
-        <input type="number" class="anim-color-km" data-idx="${i}" min="0" step="0.1" value="${(+s.km).toFixed(1)}" style="width:64px;">
-        <input type="color" class="anim-color-col" data-idx="${i}" value="${s.color}" style="width:34px; height:26px; padding:1px;">
-        <button type="button" class="anim-color-del" data-idx="${i}" title="${_animEscapeHtml(t("animator.colors.delete", "Entfernen"))}" style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px; margin-left:auto;">🗑</button>
+        <span class="muted" style="font-size:11px; min-width:34px;">${_animEscapeHtml(ui.label)}</span>
+        <input type="number" class="anim-color-km" data-idx="${i}" min="0" step="${ui.step}" value="${(+s.v).toFixed(ui.dec)}" style="width:60px;">
+        ${ui.unit ? `<span class="muted" style="font-size:11px;">${_animEscapeHtml(ui.unit)}</span>` : ""}
+        <input type="color" class="anim-color-col" data-idx="${i}" value="${s.color}" style="width:34px; height:26px; padding:1px; margin-left:auto;">
+        <button type="button" class="anim-color-del" data-idx="${i}" title="${_animEscapeHtml(t("animator.colors.delete", "Entfernen"))}" style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px;">🗑</button>
       </div>`).join("");
   }
-  function addColorStop(km) {
-    _trackColorStops.push({ km: Math.max(0, +km || 0), color: _COL_PALETTE[_trackColorStops.length % _COL_PALETTE.length] });
+  function addColorStop(val) {
+    _trackColorStops.push({ v: Math.max(0, +val || 0), color: _COL_PALETTE[_trackColorStops.length % _COL_PALETTE.length] });
     persistColorStops(); renderColorStops(); refreshPreviewTrackData();
   }
   function currentMarkerKm() {
@@ -1476,20 +1505,60 @@ function mountAnimator(body, headerActions, opts) {
       return (_ovSeries.cumDistM[Math.max(0, Math.min(idx, _ovSeries.cumDistM.length - 1))] || 0) / 1000;
     } catch (_) { return 0; }
   }
+  // Pro-Punkt-Metrik-Array der aktuellen Quelle (Höhe/Tempo) — null bei Distanz.
+  function currentMetricArr() {
+    const s = currentColorsSource();
+    if (s === "elevation") return (_ovSeries && _ovSeries.ele) || null;
+    if (s === "speed") return (_ovSeries && _ovSeries.speedKmh) || null;
+    return null;
+  }
+  // Metrik-Wert an der aktuellen Marker-Position (für „＋ hier").
+  function currentMarkerMetric() {
+    try {
+      const arr = currentMetricArr(); if (!arr || !arr.length) return 0;
+      const anchor = _tlBar ? _tlBar.getScrubber() : 0;
+      const idx = trackIdxFromTimelineAnchor(anchor);
+      return +arr[Math.max(0, Math.min(idx, arr.length - 1))] || 0;
+    } catch (_) { return 0; }
+  }
+  // „Auto": Min→Max der Metrik in 5 gleichmäßige Stops (blau→rot-Rampe).
+  function autoSeedMetric() {
+    const arr = currentMetricArr();
+    if (!arr || !arr.length) { toast(t("animator.colors.no_metric", "Für diese Quelle liegen keine Daten vor."), "info"); return; }
+    let lo = Infinity, hi = -Infinity;
+    for (const x of arr) { if (isFinite(x)) { if (x < lo) lo = x; if (x > hi) hi = x; } }
+    if (!(hi > lo)) { toast(t("animator.colors.no_metric", "Für diese Quelle liegen keine Daten vor."), "info"); return; }
+    const N = _METRIC_RAMP.length;
+    _trackColorStops = _METRIC_RAMP.map((c, i) => ({ v: Math.round((lo + (hi - lo) * i / (N - 1)) * 10) / 10, color: c }));
+    persistColorStops(); renderColorStops(); refreshPreviewTrackData();
+  }
+  // Quelle gewechselt → sinnvolle Defaults setzen (Distanz: leeren; Metrik: Auto-
+  // Rampe), sonst wären die alten km-Werte als Höhe/Tempo unsinnig.
+  function onColorSourceChange() {
+    const s = currentColorsSource();
+    if (s !== _prevColorSource) {
+      _prevColorSource = s;
+      if (s === "distance") { _trackColorStops = []; persistColorStops(); renderColorStops(); }
+      else { autoSeedMetric(); }
+    }
+    syncColorsUi(); refreshPreviewTrackData();
+  }
   document.getElementById("anim-color-add-km")?.addEventListener("click", () => addColorStop(0));
   document.getElementById("anim-color-add-marker")?.addEventListener("click", () => addColorStop(currentMarkerKm()));
   document.getElementById("anim-color-add-wpt")?.addEventListener("click", () => {
     const wps = (_ovSeries && _ovSeries.waypoints) || [];
     if (!wps.length) { toast(t("animator.colors.no_wpt", "Diese GPX hat keine Wegpunkte."), "info"); return; }
-    wps.forEach((w, i) => _trackColorStops.push({ km: Math.max(0, +w.km || 0), color: _COL_PALETTE[(_trackColorStops.length + i) % _COL_PALETTE.length] }));
+    wps.forEach((w, i) => _trackColorStops.push({ v: Math.max(0, +w.km || 0), color: _COL_PALETTE[(_trackColorStops.length + i) % _COL_PALETTE.length] }));
     persistColorStops(); renderColorStops(); refreshPreviewTrackData();
   });
+  document.getElementById("anim-color-add-val")?.addEventListener("click", () => addColorStop(currentMarkerMetric()));
+  document.getElementById("anim-color-auto")?.addEventListener("click", () => autoSeedMetric());
   (function wireColorStopList() {
     const box = document.getElementById("anim-colors-list"); if (!box) return;
     const idxOf = (e) => parseInt(e.target.getAttribute("data-idx"), 10);
     box.addEventListener("input", (e) => {
       const i = idxOf(e); if (!(i >= 0) || !_trackColorStops[i]) return;
-      if (e.target.classList.contains("anim-color-km")) { _trackColorStops[i].km = Math.max(0, parseFloat(e.target.value) || 0); persistColorStops(); refreshPreviewTrackData(); }
+      if (e.target.classList.contains("anim-color-km")) { _trackColorStops[i].v = Math.max(0, parseFloat(e.target.value) || 0); persistColorStops(); refreshPreviewTrackData(); }
       else if (e.target.classList.contains("anim-color-col")) { _trackColorStops[i].color = e.target.value; persistColorStops(); refreshPreviewTrackData(); }
     });
     box.addEventListener("click", (e) => {
@@ -1501,9 +1570,22 @@ function mountAnimator(body, headerActions, opts) {
   })();
   function syncColorsUi() {
     const cb = document.getElementById("anim-colors-enabled");
-    const fields = ["anim-colors-mode-field", "anim-colors-list-field"].map(id => document.getElementById(id)).filter(Boolean);
     const hide = !cb || !cb.checked;
-    fields.forEach(f => { f.hidden = hide; f.style.display = hide ? "none" : ""; });
+    ["anim-colors-source-field", "anim-colors-mode-field", "anim-colors-list-field"].forEach(id => {
+      const f = document.getElementById(id); if (!f) return;
+      f.hidden = hide; f.style.display = hide ? "none" : "";
+    });
+    const s = currentColorsSource();
+    const gDist = document.getElementById("anim-color-btns-distance");
+    const gMet = document.getElementById("anim-color-btns-metric");
+    if (gDist) gDist.style.display = (!hide && s === "distance") ? "flex" : "none";
+    if (gMet) gMet.style.display = (!hide && s !== "distance") ? "flex" : "none";
+    const lbl = document.getElementById("anim-color-add-val-lbl");
+    if (lbl) lbl.textContent = (s === "speed") ? t("animator.colors.add_spd", "ab Tempo (hier)") : t("animator.colors.add_ele", "ab Höhe (hier)");
+    const hint = document.getElementById("anim-colors-hint");
+    if (hint) hint.textContent = (s === "distance")
+      ? t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")
+      : t("animator.colors.hint_metric", "Jeder Eintrag setzt ab seinem Wert eine neue Farbe. „Auto\" füllt Min→Max. „hart\" = Bänder, „Verlauf\" = weicher Übergang.");
   }
   loadColorStops(); renderColorStops(); syncColorsUi();
   // Bei GPX-/Projekt-Wechsel die Stops neu laden + Liste neu zeichnen.
@@ -2336,42 +2418,73 @@ function mountAnimator(body, headerActions, opts) {
   //  sonst TDZ-Crash beim Mount, weil loadColorStops() dort schon darauf zugreift.)
   function currentColorsEnabled() { return !!document.getElementById("anim-colors-enabled")?.checked; }
   function currentColorsMode() { return document.getElementById("anim-colors-mode")?.value === "gradient" ? "gradient" : "hard"; }
-  // Stops nach km sortiert; km 0 mit Track-Farbe geseedet, falls kein Stop bei 0.
+  function currentColorsSource() { const v = document.getElementById("anim-colors-source")?.value; return (v === "elevation" || v === "speed") ? v : "distance"; }
+  // Stops nach Wert sortiert. Bei Distanz Wert 0 mit Track-Farbe seed'en (falls kein
+  // Stop bei 0); bei Metrik (Höhe/Tempo) NICHT seed'en (clamped unter/über Min/Max).
   function sortedColorStops() {
-    const s = (_trackColorStops || []).filter(x => x && isFinite(x.km) && x.color)
-      .map(x => ({ km: Math.max(0, +x.km), color: x.color }));
-    s.sort((a, b) => a.km - b.km);
-    if (!s.length || s[0].km > 0.0001) s.unshift({ km: 0, color: currentLineColor() });
+    const s = (_trackColorStops || []).filter(x => x && isFinite(x.v) && x.color)
+      .map(x => ({ v: Math.max(0, +x.v), color: x.color }));
+    s.sort((a, b) => a.v - b.v);
+    if (currentColorsSource() === "distance" && (!s.length || s[0].v > 0.0001)) s.unshift({ v: 0, color: currentLineColor() });
     return s;
   }
 
   // Gemeinsamer Gradient-Helper — SYNCHRON zu core/animator.py `__rzColorGradient`.
-  // Bei Änderung BEIDE pflegen. mode 'hard' → step (crisp), 'gradient' → interpolate.
+  // Bei Änderung BEIDE pflegen. mode 'hard' → step (crisp/Bänder), 'gradient' →
+  // interpolate. metricArr (optional): Pro-Punkt-Metrik (Höhe/Tempo); fehlt sie →
+  // Distanz-Modus (Wert=km, linear in progress).
   function __rzHex2rgb(h){ h=(h||"#000").replace("#",""); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]; }
   function __rzRgb2hex(r,g,b){ function c(x){ x=Math.max(0,Math.min(255,Math.round(x))); const s=x.toString(16); return s.length<2?"0"+s:s; } return "#"+c(r)+c(g)+c(b); }
   function __rzLerpHex(a,b,f){ const x=__rzHex2rgb(a), y=__rzHex2rgb(b); return __rzRgb2hex(x[0]+(y[0]-x[0])*f, x[1]+(y[1]-x[1])*f, x[2]+(y[2]-x[2])*f); }
-  function colorGradientExpr(CD, i0, i1, stopsKm, stopsCol, mode){
-    if(!CD || i1<=i0 || !stopsKm || !stopsKm.length) return null;
+  function colorGradientExpr(CD, i0, i1, stopsVal, stopsCol, mode, metricArr){
+    if(!CD || i1<=i0 || !stopsVal || !stopsVal.length) return null;
     const d0=CD[i0], dT=CD[i1]-d0; if(!(dT>0)) return null;
-    const n=stopsKm.length;
-    const colAtKm=(km)=>{ if(km<=stopsKm[0]) return stopsCol[0]; if(km>=stopsKm[n-1]) return stopsCol[n-1];
-      let i=0; while(i<n-1 && stopsKm[i+1]<=km) i++;
+    const n=stopsVal.length;
+    const colAtVal=(v)=>{ if(v<=stopsVal[0]) return stopsCol[0]; if(v>=stopsVal[n-1]) return stopsCol[n-1];
+      let i=0; while(i<n-1 && stopsVal[i+1]<=v) i++;
       if(mode!=="gradient") return stopsCol[i];
-      const span=stopsKm[i+1]-stopsKm[i], f=span>0?(km-stopsKm[i])/span:0; return __rzLerpHex(stopsCol[i], stopsCol[i+1], f); };
-    const pToKm=(p)=>(d0+p*dT)/1000;
-    if(mode==="gradient"){ const expr=["interpolate",["linear"],["line-progress"]], N=60;
-      for(let k=0;k<=N;k++){ const p=k/N; expr.push(p, colAtKm(pToKm(p))); } return expr; }
-    const e=["step",["line-progress"], colAtKm(pToKm(0))]; let lastP=-1;
-    for(let s=0;s<n;s++){ let p2=(stopsKm[s]*1000-d0)/dT; if(p2<=0||p2>=1) continue; if(p2<=lastP) p2=lastP+1e-5; lastP=p2; e.push(p2, stopsCol[s]); }
-    return e.length>3 ? e : null;
+      const span=stopsVal[i+1]-stopsVal[i], f=span>0?(v-stopsVal[i])/span:0; return __rzLerpHex(stopsCol[i], stopsCol[i+1], f); };
+    const bandAtVal=(v)=>{ if(v<=stopsVal[0]) return 0; if(v>=stopsVal[n-1]) return n-1; let i=0; while(i<n-1 && stopsVal[i+1]<=v) i++; return i; };
+    // DISTANZ-Modus: Wert = km, linear in progress; harte Kanten exakt an den Stops.
+    if(!metricArr){
+      const pToKm=(p)=>(d0+p*dT)/1000;
+      if(mode==="gradient"){ const expr=["interpolate",["linear"],["line-progress"]], N=60;
+        for(let k=0;k<=N;k++){ const p=k/N; expr.push(p, colAtVal(pToKm(p))); } return expr; }
+      const e=["step",["line-progress"], colAtVal(pToKm(0))]; let lastP=-1;
+      for(let s=0;s<n;s++){ let p2=(stopsVal[s]*1000-d0)/dT; if(p2<=0||p2>=1) continue; if(p2<=lastP) p2=lastP+1e-5; lastP=p2; e.push(p2, stopsCol[s]); }
+      return e.length>3 ? e : null;
+    }
+    // METRIK-Modus (Höhe/Tempo): nicht-monoton → Metrik am Punkt bei progress p abtasten.
+    let cur=i0;
+    const metricAtDist=(td)=>{ while(cur<i1 && CD[cur+1]<td) cur++;
+      let a=cur<i0?i0:(cur>i1-1?i1-1:cur), b=a+1;
+      const seg=CD[b]-CD[a]; let f=seg>0?(td-CD[a])/seg:0; if(f<0)f=0; else if(f>1)f=1;
+      return metricArr[a] + (metricArr[b]-metricArr[a])*f; };
+    if(mode==="gradient"){ const g=["interpolate",["linear"],["line-progress"]], NG=80; cur=i0;
+      for(let q=0;q<=NG;q++){ const pp=q/NG; g.push(pp, colAtVal(metricAtDist(d0+pp*dT))); } return g; }
+    const NF=240; cur=i0;
+    const st=["step",["line-progress"], colAtVal(metricAtDist(d0))]; let prevBand=bandAtVal(metricAtDist(d0)), lp=0;
+    for(let m=1;m<=NF;m++){ let pm=m/NF; const vb=bandAtVal(metricAtDist(d0+pm*dT));
+      if(vb!==prevBand){ if(pm<=lp) pm=lp+1e-5; lp=pm; st.push(pm, stopsCol[vb]); prevBand=vb; } }
+    return st.length>3 ? st : null;
   }
 
-  // Wendet den Distanz-Farbverlauf auf preview-line/preview-glow an — oder entfernt
-  // ihn wieder. i0..i1 = gezeichnete Spanne. Braucht _ovSeries.cumDistM.
+  // Pro-Punkt-Metrik-Array (Höhe/Tempo) der aktuellen Quelle — null bei Distanz.
+  function previewMetricArr() {
+    const s = currentColorsSource();
+    if (s === "elevation") return (_ovSeries && _ovSeries.ele) || null;
+    if (s === "speed") return (_ovSeries && _ovSeries.speedKmh) || null;
+    return null;
+  }
+
+  // Wendet den Farbverlauf (Distanz/Höhe/Tempo) auf preview-line/preview-glow an —
+  // oder entfernt ihn wieder. i0..i1 = gezeichnete Spanne. Braucht _ovSeries.cumDistM.
   let _colorsPrevOn = false;
   function applyPreviewColorGradient(i0, i1) {
     if (!map) return;
-    const on = currentColorsEnabled() && _ovSeries && _ovSeries.cumDistM;
+    const metric = previewMetricArr();
+    const on = currentColorsEnabled() && _ovSeries && _ovSeries.cumDistM
+      && (currentColorsSource() === "distance" || (metric && metric.length));
     if (!on) {
       if (_colorsPrevOn) {
         for (const id of ["preview-line", "preview-glow"]) {
@@ -2383,7 +2496,7 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
     const st = sortedColorStops();
-    const g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.km), st.map(s => s.color), currentColorsMode());
+    const g = colorGradientExpr(_ovSeries.cumDistM, i0, i1, st.map(s => s.v), st.map(s => s.color), currentColorsMode(), metric);
     for (const id of ["preview-line", "preview-glow"]) {
       if (!map.getLayer(id)) continue;
       try {
@@ -9343,6 +9456,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.434 — Track-Alterung ("Dauer Trackfarbe"): Hold/Fade in Sekunden.
       track_colors_enabled: currentColorsEnabled(),
       track_colors_mode: currentColorsMode(),
+      track_colors_source: currentColorsSource(),
       track_color_stops: sortedColorStops(),
       // v0.9.210/211 (Reiseroute) — das geladene Wander-GPX als zusätzlicher
       // Ghost (andere Linie als die animierte Route) auch im gerenderten Video,

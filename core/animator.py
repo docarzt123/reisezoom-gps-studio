@@ -321,16 +321,22 @@ class AnimatorConfig:
     ghost_track_enabled: bool = False
     ghost_track_opacity: float = 0.30
     ghost_track_color: str = "#ff6b35"   # v0.9.170 — eigene Farbe (Default = Track-Farbe)
-    # v0.9.435 — Mehrfarbiger Track (Marc-Idee): der Track kann ab bestimmten
-    # Distanzen (km) die Farbe wechseln. `track_color_stops` ist eine nach km
-    # aufsteigend sortierte Liste [{"km": float, "color": "#rrggbb"}]; `km` ist
-    # die Distanz entlang des Tracks (aus km-Eingabe, aktueller Marker-Position
-    # oder projizierten GPX-Wegpunkten). `track_colors_mode` = "hard" (harter
-    # Wechsel) oder "gradient" (kontinuierlicher Verlauf zwischen benachbarten
-    # Stops). Umgesetzt als Mapbox-line-gradient/-step relativ zur gezeichneten
-    # Distanz. `track_colors_enabled` = Master-Toggle. Nur Single-Track.
+    # v0.9.435 — Mehrfarbiger Track (Marc-Idee): der Track kann die Farbe wechseln.
+    # `track_colors_source` bestimmt WONACH eingefärbt wird:
+    #   "distance"  → nach Distanz (Stop-Wert = km; aus km-Eingabe, Marker-Position
+    #                 oder projizierten GPX-Wegpunkten)
+    #   "elevation" → nach Höhe   (Stop-Wert = Meter)   — wie die Höhen-Farbzonen im Höhenprofil
+    #   "speed"     → nach Tempo  (Stop-Wert = km/h)
+    # `track_color_stops` ist eine Liste [{"v": float, "color": "#rrggbb"}] (Legacy:
+    # "km" statt "v" wird weiter gelesen). `track_colors_mode` = "hard" (harter
+    # Wechsel / Bänder) oder "gradient" (kontinuierlicher Verlauf). Umgesetzt als
+    # Mapbox-line-gradient/-step. Bei distance ist der Wert linear in der gezeichneten
+    # Distanz; bei elevation/speed wird pro Punkt die Metrik→Farbe gemappt (nicht-
+    # monoton, deshalb feine Abtastung). `track_colors_enabled` = Master-Toggle.
+    # Nur Single-Track.
     track_colors_enabled: bool = False
     track_colors_mode: str = "hard"
+    track_colors_source: str = "distance"
     track_color_stops: list = field(default_factory=list)
     # v0.9.210/211 (Reiseroute) — zusätzlicher Ghost = geladenes Wander-GPX
     # (andere Linie als die animierte Route). [[lon,lat],…]; leer = aus.
@@ -978,36 +984,68 @@ window.__rzHex2rgb = function(h){ h=(h||'#000').replace('#',''); if(h.length===3
 window.__rzRgb2hex = function(r,g,b){ function c(x){ x=Math.max(0,Math.min(255,Math.round(x))); var s=x.toString(16); return s.length<2?'0'+s:s; } return '#'+c(r)+c(g)+c(b); };
 window.__rzLerpHex = function(a,b,f){ var x=window.__rzHex2rgb(a), y=window.__rzHex2rgb(b);
   return window.__rzRgb2hex(x[0]+(y[0]-x[0])*f, x[1]+(y[1]-x[1])*f, x[2]+(y[2]-x[2])*f); };
-// CD: kumulierte Distanz [m] pro Punkt. i0..i1 = gezeichnete Spanne. stopsKm/stopsCol:
-// nach km aufsteigend sortierte Farb-Stops. mode='hard'|'gradient'. Rückgabe: Mapbox-
-// Ausdruck für 'line-gradient', oder null.
-window.__rzColorGradient = function(CD, i0, i1, stopsKm, stopsCol, mode){
-  if(!CD || i1<=i0 || !stopsKm || !stopsKm.length) return null;
+// CD: kumulierte Distanz [m] pro Punkt. i0..i1 = gezeichnete Spanne. stopsVal/stopsCol:
+// nach Wert aufsteigend sortierte Farb-Stops. mode='hard'|'gradient'. metricArr (optional):
+// Pro-Punkt-Metrik (Höhe [m] oder Tempo [km/h]); FEHLT sie → Distanz-Modus (Wert=km, linear
+// in progress). Rückgabe: Mapbox-Ausdruck für 'line-gradient', oder null.
+window.__rzColorGradient = function(CD, i0, i1, stopsVal, stopsCol, mode, metricArr){
+  if(!CD || i1<=i0 || !stopsVal || !stopsVal.length) return null;
   var d0=CD[i0], dT=CD[i1]-d0; if(!(dT>0)) return null;
-  var n=stopsKm.length;
-  function colAtKm(km){
-    if(km<=stopsKm[0]) return stopsCol[0];
-    if(km>=stopsKm[n-1]) return stopsCol[n-1];
-    var i=0; while(i<n-1 && stopsKm[i+1]<=km) i++;
+  var n=stopsVal.length;
+  function colAtVal(v){
+    if(v<=stopsVal[0]) return stopsCol[0];
+    if(v>=stopsVal[n-1]) return stopsCol[n-1];
+    var i=0; while(i<n-1 && stopsVal[i+1]<=v) i++;
     if(mode!=='gradient') return stopsCol[i];
-    var span=stopsKm[i+1]-stopsKm[i]; var f=span>0?(km-stopsKm[i])/span:0;
+    var span=stopsVal[i+1]-stopsVal[i]; var f=span>0?(v-stopsVal[i])/span:0;
     return window.__rzLerpHex(stopsCol[i], stopsCol[i+1], f);
   }
-  var pToKm=function(p){ return (d0 + p*dT)/1000; };
+  function bandAtVal(v){
+    if(v<=stopsVal[0]) return 0;
+    if(v>=stopsVal[n-1]) return n-1;
+    var i=0; while(i<n-1 && stopsVal[i+1]<=v) i++; return i;
+  }
+  // --- DISTANZ-Modus: Wert = km, linear in progress; harte Kanten exakt an den Stops. ---
+  if(!metricArr){
+    var pToKm=function(p){ return (d0 + p*dT)/1000; };
+    if(mode==='gradient'){
+      var expr=['interpolate',['linear'],['line-progress']], N=60;
+      for(var k=0;k<=N;k++){ var p=k/N; expr.push(p, colAtVal(pToKm(p))); }
+      return expr;
+    }
+    var e=['step',['line-progress'], colAtVal(pToKm(0))], lastP=-1;
+    for(var s=0;s<n;s++){
+      var p2=(stopsVal[s]*1000 - d0)/dT;
+      if(p2<=0 || p2>=1) continue;
+      if(p2<=lastP) p2=lastP+1e-5;
+      lastP=p2; e.push(p2, stopsCol[s]);
+    }
+    return e.length>3 ? e : null;
+  }
+  // --- METRIK-Modus (Höhe/Tempo): nicht-monoton → Metrik am Punkt bei progress p
+  //     abtasten (line-progress ≈ Distanz-Anteil), dann Wert→Farbe mappen. ---
+  var cur=i0;
+  function metricAtDist(td){
+    while(cur<i1 && CD[cur+1]<td) cur++;
+    var a=cur<i0?i0:(cur>i1-1?i1-1:cur), b=a+1;
+    var seg=CD[b]-CD[a]; var f=seg>0?(td-CD[a])/seg:0;
+    if(f<0)f=0; else if(f>1)f=1;
+    return metricArr[a] + (metricArr[b]-metricArr[a])*f;
+  }
   if(mode==='gradient'){
-    var expr=['interpolate',['linear'],['line-progress']], N=60;
-    for(var k=0;k<=N;k++){ var p=k/N; expr.push(p, colAtKm(pToKm(p))); }
-    return expr;
+    var g=['interpolate',['linear'],['line-progress']], NG=80; cur=i0;
+    for(var q=0;q<=NG;q++){ var pp=q/NG; g.push(pp, colAtVal(metricAtDist(d0+pp*dT))); }
+    return g;
   }
-  // HARD: step-Funktion mit crispen Kanten an jeder Stop-Progress-Position.
-  var e=['step',['line-progress'], colAtKm(pToKm(0))], lastP=-1;
-  for(var s=0;s<n;s++){
-    var p2=(stopsKm[s]*1000 - d0)/dT;
-    if(p2<=0 || p2>=1) continue;
-    if(p2<=lastP) p2=lastP+1e-5;
-    lastP=p2; e.push(p2, stopsCol[s]);
+  // HARD: feine Abtastung, Band-Wechsel als step-Grenzen (crispe Bänder wie im Höhenprofil).
+  var NF=240; cur=i0;
+  var st=['step',['line-progress'], colAtVal(metricAtDist(d0))];
+  var prevBand=bandAtVal(metricAtDist(d0)), lp=0;
+  for(var m=1;m<=NF;m++){
+    var pm=m/NF; var vb=bandAtVal(metricAtDist(d0+pm*dT));
+    if(vb!==prevBand){ if(pm<=lp) pm=lp+1e-5; lp=pm; st.push(pm, stopsCol[vb]); prevBand=vb; }
   }
-  return e.length>3 ? e : null;
+  return st.length>3 ? st : null;
 };
 """
 
@@ -1161,17 +1199,30 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     cum_dist_json = json.dumps(cum_dist)
     cum_time_json = json.dumps(cum_time)
     # v0.9.435 — Mehrfarbiger Track: Helper + Konstanten fürs Render-Template.
-    # Stops nach km sortieren; km 0 mit line_color seed'en, falls kein Stop bei 0.
-    _stops = [s for s in (cfg.track_color_stops or []) if isinstance(s, dict) and "km" in s and "color" in s]
-    _stops = sorted(_stops, key=lambda s: float(s.get("km", 0)))
-    if _stops and float(_stops[0]["km"]) > 0.0001:
-        _stops = [{"km": 0.0, "color": cfg.line_color}] + _stops
+    # Quelle bestimmt, wonach eingefärbt wird (Distanz/Höhe/Tempo). Stop-Wert unter
+    # "v" (Legacy: "km"). Stops nach Wert sortieren; bei Distanz Wert 0 mit line_color
+    # seed'en (falls kein Stop bei 0). Metrik-Array-Name (elevations/speedKmh) wird als
+    # 7. Arg an __rzColorGradient übergeben; bei Distanz → null.
+    _csrc = str(getattr(cfg, "track_colors_source", "distance") or "distance")
+    if _csrc not in ("distance", "elevation", "speed"):
+        _csrc = "distance"
+
+    def _stopv(s):
+        return float(s.get("v", s.get("km", 0)) or 0)
+    _stops = [s for s in (cfg.track_color_stops or [])
+              if isinstance(s, dict) and ("v" in s or "km" in s) and "color" in s]
+    _stops = sorted(_stops, key=_stopv)
+    if _csrc == "distance" and _stops and _stopv(_stops[0]) > 0.0001:
+        _stops = [{"v": 0.0, "color": cfg.line_color}] + _stops
     _colors_on = bool(cfg.track_colors_enabled) and len(_stops) >= 1
     color_gradient_js = _COLOR_GRADIENT_JS if _colors_on else "// track colors disabled"
     colors_on_js = "true" if _colors_on else "false"
-    color_stops_km_json = json.dumps([float(s["km"]) for s in _stops])
+    color_source_json = json.dumps(_csrc)
+    color_stops_km_json = json.dumps([_stopv(s) for s in _stops])
     color_stops_col_json = json.dumps([str(s["color"]) for s in _stops])
     color_mode_json = json.dumps("gradient" if str(cfg.track_colors_mode) == "gradient" else "hard")
+    # Metrik-JS-Konstante (schon im Template definiert): elevations / speedKmh / null.
+    color_metric_js = {"elevation": "elevations", "speed": "speedKmh"}.get(_csrc, "null")
     ele_min = min(eles)
     ele_max = max(eles)
     min_lon, min_lat, max_lon, max_lat = bbox
@@ -1926,9 +1977,11 @@ window.__camFaithful = (t) => {{
 {color_gradient_js}
 // v0.9.435 — Mehrfarbiger Track: Konstanten (aus AnimatorConfig).
 const COLORS_ON = {colors_on_js};
-const COLOR_STOPS_KM = {color_stops_km_json};
+const COLOR_SOURCE = {color_source_json};
+const COLOR_STOPS_VAL = {color_stops_km_json};
 const COLOR_STOPS_COL = {color_stops_col_json};
 const COLOR_MODE = {color_mode_json};
+const COLOR_METRIC = {color_metric_js};   // elevations | speedKmh | null (Distanz)
 window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
   const safe = Math.max(0, Math.min(idx, totalPoints-1));
   // v0.9.55: optional Pre-Trim-Portion (coords[0..TRIM_START_IDX-1]) ausblenden.
@@ -1942,7 +1995,7 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
     map.getSource('track').setData({{type:'Feature',geometry:{{type:'LineString',coordinates:coords}}}});
     // v0.9.435 — Mehrfarbiger Track: line-gradient nach Distanz setzen.
     if (COLORS_ON) {{
-      const g = window.__rzColorGradient(cumDistM, sliceStart, sliceEnd-1, COLOR_STOPS_KM, COLOR_STOPS_COL, COLOR_MODE);
+      const g = window.__rzColorGradient(cumDistM, sliceStart, sliceEnd-1, COLOR_STOPS_VAL, COLOR_STOPS_COL, COLOR_MODE, COLOR_METRIC);
       if (g) {{ try {{ map.setPaintProperty('track-line','line-gradient',g); if (map.getLayer('track-glow')) map.setPaintProperty('track-glow','line-gradient',g); }} catch(e) {{}} }}
     }}
   }}
