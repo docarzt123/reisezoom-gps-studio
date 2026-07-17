@@ -2445,28 +2445,56 @@ function mountAnimator(body, headerActions, opts) {
       if(mode!=="gradient") return stopsCol[i];
       const span=stopsVal[i+1]-stopsVal[i], f=span>0?(v-stopsVal[i])/span:0; return __rzLerpHex(stopsCol[i], stopsCol[i+1], f); };
     const bandAtVal=(v)=>{ if(v<=stopsVal[0]) return 0; if(v>=stopsVal[n-1]) return n-1; let i=0; while(i<n-1 && stopsVal[i+1]<=v) i++; return i; };
-    // DISTANZ-Modus: Wert = km, linear in progress; harte Kanten exakt an den Stops.
+    // v0.9.439 — Eine Farbe über die ganze Linie statt null (null würde den
+    // Verlauf entfernen → Spur springt auf die Basisfarbe).
+    const flat=(c)=>["interpolate",["linear"],["line-progress"], 0, c, 1, c];
+    // DISTANZ-Modus: Wert = km, linear in progress; Kanten exakt an den Stops.
     if(!metricArr){
-      const pToKm=(p)=>(d0+p*dT)/1000;
-      if(mode==="gradient"){ const expr=["interpolate",["linear"],["line-progress"]], N=60;
-        for(let k=0;k<=N;k++){ const p=k/N; expr.push(p, colAtVal(pToKm(p))); } return expr; }
-      const e=["step",["line-progress"], colAtVal(pToKm(0))]; let lastP=-1;
-      for(let s=0;s<n;s++){ let p2=(stopsVal[s]*1000-d0)/dT; if(p2<=0||p2>=1) continue; if(p2<=lastP) p2=lastP+1e-5; lastP=p2; e.push(p2, stopsCol[s]); }
-      return e.length>3 ? e : null;
+      const pOfKm=(km)=>(km*1000-d0)/dT;
+      if(mode==="gradient"){
+        // v0.9.439 — Stützstellen EXAKT an den Farb-Stops (feste Kilometer)
+        // statt an einem Raster über die gezeichnete Länge. Vorher wanderte das
+        // Raster pro Frame über den Track → Farben schimmerten (Flacker-Bug).
+        const expr=["interpolate",["linear"],["line-progress"], 0, colAtVal(d0/1000)];
+        let lastG=0;
+        for(let s=0;s<n;s++){ const p=pOfKm(stopsVal[s]);
+          if(!(p>lastG) || p>=1) continue; lastG=p; expr.push(p, stopsCol[s]); }
+        expr.push(1, colAtVal((d0+dT)/1000));
+        return expr;
+      }
+      const e=["step",["line-progress"], colAtVal(d0/1000)]; let lastP=-1, anyS=false;
+      for(let s=0;s<n;s++){ let p2=pOfKm(stopsVal[s]);
+        if(!(p2>0)||p2>=1) continue; if(p2<=lastP) p2=lastP+1e-6;
+        lastP=p2; e.push(p2, stopsCol[s]); anyS=true; }
+      return anyS ? e : flat(colAtVal(d0/1000));
     }
-    // METRIK-Modus (Höhe/Tempo): nicht-monoton → Metrik am Punkt bei progress p abtasten.
-    let cur=i0;
-    const metricAtDist=(td)=>{ while(cur<i1 && CD[cur+1]<td) cur++;
-      let a=cur<i0?i0:(cur>i1-1?i1-1:cur), b=a+1;
-      const seg=CD[b]-CD[a]; let f=seg>0?(td-CD[a])/seg:0; if(f<0)f=0; else if(f>1)f=1;
-      return metricArr[a] + (metricArr[b]-metricArr[a])*f; };
-    if(mode==="gradient"){ const g=["interpolate",["linear"],["line-progress"]], NG=80; cur=i0;
-      for(let q=0;q<=NG;q++){ const pp=q/NG; g.push(pp, colAtVal(metricAtDist(d0+pp*dT))); } return g; }
-    const NF=240; cur=i0;
-    const st=["step",["line-progress"], colAtVal(metricAtDist(d0))]; let prevBand=bandAtVal(metricAtDist(d0)), lp=0;
-    for(let m=1;m<=NF;m++){ let pm=m/NF; const vb=bandAtVal(metricAtDist(d0+pm*dT));
-      if(vb!==prevBand){ if(pm<=lp) pm=lp+1e-5; lp=pm; st.push(pm, stopsCol[vb]); prevBand=vb; } }
-    return st.length>3 ? st : null;
+    // METRIK-Modus (Höhe/Tempo): Stützstellen an TRACK-PUNKTEN = feste absolute
+    // Distanzen. Dadurch kürzt sich dT im Interpolations-Anteil weg und die Farbe
+    // an einer Stelle bleibt konstant, egal wie weit die Linie gezeichnet ist.
+    if(mode==="gradient"){
+      const NG=80, stride=Math.max(1, Math.ceil((CD.length-1)/NG));
+      const g=["interpolate",["linear"],["line-progress"], 0, colAtVal(metricArr[i0])];
+      let lastp=0;
+      for(let i=i0+stride;i<i1;i+=stride){ const pi=(CD[i]-d0)/dT;
+        if(!(pi>lastp) || pi>=1) continue; lastp=pi; g.push(pi, colAtVal(metricArr[i])); }
+      g.push(1, colAtVal(metricArr[i1]));
+      return g;
+    }
+    // HART: Grenzen exakt am Band-Wechsel (Track-Punkt) statt abgetastet.
+    const st=["step",["line-progress"], colAtVal(metricArr[i0])];
+    let prevBand=bandAtVal(metricArr[i0]), lastB=-1, anyB=false;
+    for(let j=i0+1;j<=i1;j++){
+      const vb=bandAtVal(metricArr[j]);
+      if(vb===prevBand) continue;
+      let p3=(CD[j]-d0)/dT;
+      if(!(p3>0) || p3>=1){ prevBand=vb; continue; }
+      // Verrauschte Daten: Grenzen unter 10 m Abstand zusammenfassen (absolut,
+      // damit die Entscheidung nicht von der gezeichneten Länge abhängt).
+      if(lastB>=0 && (p3-lastB)*dT < 10){ prevBand=vb; continue; }
+      if(p3<=lastB) p3=lastB+1e-6;
+      lastB=p3; st.push(p3, stopsCol[vb]); prevBand=vb; anyB=true;
+    }
+    return anyB ? st : flat(colAtVal(metricArr[i0]));
   }
 
   // Pro-Punkt-Metrik-Array (Höhe/Tempo) der aktuellen Quelle — null bei Distanz.

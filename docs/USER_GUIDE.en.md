@@ -200,7 +200,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 ### Settings
 
-> **↩︎ Undo for everything (since v0.9.322):** Every settings change can be undone with **⌘Z** (Mac) / **Ctrl+Z** (Windows) — in **Animator, Tour-Map, Geotagger and Elevation Animator**: colors, font, line width, glow, overlay fields, keyframes, trim, time offset, etc. **Redo** with **⌘⇧Z** / **Ctrl+Y**. (One slider drag = one step.)
+> **↩︎ Undo for everything (since v0.9.322):** Every settings change can be undone with **⌘Z** (Mac) / **Ctrl+Z** (Windows) — in **Animator, Tour-Map, Geotagger and Data Animator**: colors, font, line width, glow, overlay fields, keyframes, trim, time offset, etc. **Redo** with **⌘⇧Z** / **Ctrl+Y**. (One slider drag = one step.)
 
 **Map:**
 - **Style**: 6 Mapbox styles (Satellite 3D, Satellite+Streets, Outdoors, Streets, Light, Dark)
@@ -525,16 +525,35 @@ In the export area you choose **where the embedded map loads Leaflet from**:
 
 ---
 
-## 5b · Module: Elevation Animator — the elevation profile as a video ⛰
+## 5b · Module: Data Animator — measurements as a video 📊
+
+> **New in v0.9.437:** This module used to be called the **Elevation Animator** and could only do elevation. It now animates **any data series from your track** — hence the new name. Your existing projects keep working unchanged and still start with elevation.
 
 ### What it does
-Builds a **video from your track in which the elevation-profile curve builds up live** — a moving marker shows elevation, gradient and distance. Ideal as an overlay in the edit (also with a **transparent background** via ProRes 4444 alpha).
+Builds a **video from your track in which a measurement curve builds up live** — a moving marker shows the current value and the distance. Ideal as an overlay in the edit (also with a **transparent background** via ProRes 4444 alpha).
+
+### Choosing the data series (since v0.9.437) ⭐
+At the very top of the sidebar you'll find **“Data series”**. That's where you pick what gets animated:
+- **Always available:** **Elevation**, **Speed** and **Gradient** — the app derives these from the track itself.
+- **From FIT/TCX files** (e.g. Garmin, Wahoo, Suunto): **heart rate**, **cadence**, **power**, **temperature** and other sensor values.
+
+The list only offers **what your track actually contains**. Load a plain GPX file without sensor data and you're left with elevation/speed/gradient. The axis labels, marker and info bar adopt the name and unit automatically — with heart rate it reads “139 bpm” instead of “1240 m”.
+
+Two displays are elevation-specific and only appear for the **Elevation** series: the mountain icon ⛰ and everything around **ascent/descent and gradient**. They'd be meaningless for heart rate or power, so they stay hidden.
+
+### Two series at once (since v0.9.438) ⭐
+Right below the first picker sits **“Second data series (right axis)”**. Pick something there and **two curves run at once** — the classic being **elevation on the left, heart rate on the right**.
+
+The second series gets **its own axis on the right edge**, auto-scaled to its own value range. It's labelled in the second curve's line colour so it's obvious which axis belongs to which curve — colour and line width are set right next to it. The marker box shows both values stacked.
+
+Separate axes are deliberate: elevation (m) and heart rate (bpm) share no common value range — on one axis, one of the two curves would collapse into a flat line. The second curve is drawn as a **line only** (no area or colour zones), because two filled areas on top of each other would be unreadable. With no second series, everything stays as before.
 
 ### Workflow
-1. Load a GPX (the global GPX bar at the top). The preview plays immediately.
-2. Set the look, info bar and points (see below). Everything runs **WYSIWYG** in the preview.
-3. Use the **trim handles** under the curve to limit the animated range (optional).
-4. **▶ Render video** — choose codec/alpha, progress runs along.
+1. Load a GPX/FIT/TCX (the global GPX bar at the top). The preview plays immediately.
+2. Pick the **data series** (default: elevation).
+3. Set the look, info bar and points (see below). Everything runs **WYSIWYG** in the preview.
+4. Use the **trim handles** under the curve to limit the animated range (optional).
+5. **▶ Render video** — choose codec/alpha, progress runs along.
 
 ### Factual info bar (since v0.9.394) ⭐
 Above the profile you show a **value bar** — toggle it on/off in the **"Info bar"** section and select it per field: **distance, elevation gain ↑/↓, Ø gradient, max. gradient (↑/↓), elevation (max/min/Ø)**. In addition, the **marker callout** shows the **current gradient** (e.g. "↗ +6.2 %" / "↘ −4.7 %") next to elevation and distance — can be turned off via "Show gradient % at the marker".
@@ -565,7 +584,7 @@ Below that you can create **color zones by elevation:** with "**Add elevation**"
 
 **Configure the marker (since v0.9.396):** The dedicated **"Marker"** section makes the moving point and its info box fully customizable: **point color + size**; for the box **background color + opacity, border color + border thickness, font size**; and which values it contains — **⛰ symbol, elevation, gradient (%), distance** each individually toggleable (the box adjusts its size automatically).
 
-**Undo:** **⌘Z / Ctrl+Z** undoes **everything** in the Elevation Animator — look, colors, info-bar fields, waypoints and source switches (one press per step).
+**Undo:** **⌘Z / Ctrl+Z** undoes **everything** in the Data Animator — look, colors, info-bar fields, waypoints and source switches (one press per step).
 
 **Export as HTML (blog/web, since v0.9.397):** Below the video render button sits **"Export as HTML"**. This produces a **self-running `.html` file** — the same animation as in the video, but it runs **completely in the browser** (pure HTML, no video), with an auto-loop and a **"↻" replay button**. Ideal for a blog post. After the export a **window opens in the center of the screen** with these options:
 - **▶ Open in browser** — shows the finished animation immediately in the default browser. *(Double-clicking the file in Finder only starts an editor on some systems — then you only see source code; so use this button.)*
@@ -751,7 +770,7 @@ GPS elevation values are often noisy — especially with poor reception the elev
 1. **🗺 Load the elevation profile from the map** — the app briefly runs over the whole track once (loading the elevation tiles) and reads the map elevation for each point.
 2. **Below the map** an **elevation profile** appears with three lines on top of each other: **GPS (orange, thin)** = your original, **Map/Mapbox (blue, thin)** = the smooth terrain, and the **bold green result line** = what would come out.
 3. With the **GPS ⟷ Map** slider you blend live: far right (100 %) = pure map elevation (very smooth), far left (0 %) = unchanged GPS, default **70 %**. The green line and the elevation-meter readout (GPS / Map / Result) move along immediately.
-4. Does it fit? **⛰ Apply this elevation** writes the green line into the track. Then **💾 save** — the corrected elevation lands in the GPX and takes effect everywhere (Animator, Tour-Map, Elevation Animator).
+4. Does it fit? **⛰ Apply this elevation** writes the green line into the track. Then **💾 save** — the corrected elevation lands in the GPX and takes effect everywhere (Animator, Tour-Map, Data Animator).
 
 > Needs a **Mapbox token** (settings) and internet — without a token the "Load" button is grayed out. Applying can be undone with **⌘Z**. If you change points afterwards (delete/insert), the profile discards itself automatically — just reload it.
 
@@ -877,7 +896,7 @@ Probably a time-zone problem: the photo capture time doesn't match the GPX track
 - or set a reference photo (see the Geotagger workflow)
 
 ### At the top appears "Source file not found — is the drive mounted?" (since v0.9.305)
-Your most recently loaded GPX file is currently not readable — usually because the **external drive was unplugged** or the file was moved/deleted. Reconnect the drive (the banner disappears on the next load) or click **"Choose file again"** and pick the GPX anew. As long as the banner is up, the Tour-Map, Elevation Animator and Geotagger can't build the track.
+Your most recently loaded GPX file is currently not readable — usually because the **external drive was unplugged** or the file was moved/deleted. Reconnect the drive (the banner disappears on the next load) or click **"Choose file again"** and pick the GPX anew. As long as the banner is up, the Tour-Map, Data Animator and Geotagger can't build the track.
 
 ### How do I report a bug?
 **Help → 📧 Feedback / bug report to Marc** — everything pre-filled (see section 7).

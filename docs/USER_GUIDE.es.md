@@ -200,7 +200,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 ### Ajustes
 
-> **↩︎ Deshacer para todo (desde v0.9.322):** cualquier cambio de ajuste se puede deshacer con **⌘Z** (Mac) / **Ctrl+Z** (Windows) — en **Animator, Tour-Map, Geotagger y Animator de altitud**: colores, tipografía, grosor de línea, glow, campos de overlay, keyframes, trim, offset de tiempo, etc. **Rehacer** con **⌘⇧Z** / **Ctrl+Y**. (Un arrastre de slider = un paso.)
+> **↩︎ Deshacer para todo (desde v0.9.322):** cualquier cambio de ajuste se puede deshacer con **⌘Z** (Mac) / **Ctrl+Z** (Windows) — en **Animator, Tour-Map, Geotagger y Animador de datos**: colores, tipografía, grosor de línea, glow, campos de overlay, keyframes, trim, offset de tiempo, etc. **Rehacer** con **⌘⇧Z** / **Ctrl+Y**. (Un arrastre de slider = un paso.)
 
 **Mapa:**
 - **Estilo**: 6 estilos de Mapbox (Satellite 3D, Satellite+Streets, Outdoors, Streets, Claro, Oscuro)
@@ -525,16 +525,35 @@ En la zona de exportación eliges **de dónde carga Leaflet el mapa incrustado**
 
 ---
 
-## 5b · Módulo: Animator de altitud — el perfil de altitud como vídeo ⛰
+## 5b · Módulo: Animador de datos — mediciones como vídeo 📊
+
+> **Novedad en v0.9.437:** este módulo se llamaba antes **Animator de altitud** y solo podía con la altitud. Ahora anima **cualquier serie de datos de tu track** — de ahí el nuevo nombre. Tus proyectos existentes siguen funcionando igual y arrancan con la altitud, como siempre.
 
 ### Qué hace
-Construye a partir de tu track un **vídeo en el que la curva del perfil de altitud se va formando en directo** — un marcador que corre muestra altitud, pendiente y distancia. Ideal como rótulo en el montaje (también con **fondo transparente** vía ProRes-4444-alfa).
+Construye a partir de tu track un **vídeo en el que una curva de medición se va formando en directo** — un marcador que corre muestra el valor actual y la distancia. Ideal como rótulo en el montaje (también con **fondo transparente** vía ProRes-4444-alfa).
+
+### Elegir la serie de datos (desde v0.9.437) ⭐
+Arriba del todo en la barra lateral está **«Serie de datos»**. Ahí eliges qué se anima:
+- **Siempre disponibles:** **altitud**, **velocidad** y **pendiente** — la app las deduce del propio track.
+- **De archivos FIT/TCX** (p. ej. Garmin, Wahoo, Suunto): **frecuencia cardíaca**, **cadencia**, **potencia**, **temperatura** y otros valores de sensor.
+
+La lista solo ofrece **lo que tu track realmente contiene**. Si cargas un GPX sencillo sin datos de sensor, quedan altitud/velocidad/pendiente. Las etiquetas del eje, el marcador y la barra de información adoptan el nombre y la unidad automáticamente — con el pulso pone «139 bpm» en vez de «1240 m».
+
+Dos indicaciones son propias de la altitud y solo aparecen en la serie **Altitud**: el icono de montaña ⛰ y todo lo relativo al **desnivel y la pendiente**. En pulso o potencia no tendrían sentido, así que se ocultan.
+
+### Dos series a la vez (desde v0.9.438) ⭐
+Justo bajo el primer selector está **«Segunda serie de datos (eje derecho)»**. Si eliges algo ahí, corren **dos curvas a la vez** — lo clásico: **altitud a la izquierda, pulso a la derecha**.
+
+La segunda serie recibe **su propio eje en el borde derecho**, autoescalado a su rango de valores. Va rotulado en el color de línea de la segunda curva, para que quede claro qué eje corresponde a qué curva — el color y el grosor se ajustan al lado. El marcador muestra ambos valores.
+
+Los ejes separados son intencionados: la altitud (m) y el pulso (bpm) no comparten rango — en un solo eje, una de las dos curvas quedaría como una línea plana. La segunda curva se dibuja **solo como línea** (sin área ni zonas de color), porque dos áreas rellenas superpuestas serían ilegibles. Sin segunda serie, todo queda como antes.
 
 ### Flujo de trabajo
-1. Cargar GPX (barra GPX global arriba). La vista previa se reproduce de inmediato.
-2. Ajustar aspecto, barra de información y puntos (ver más abajo). Todo funciona **WYSIWYG** en la vista previa.
-3. Con los **tiradores de trim** bajo la curva, delimita la zona animada (opcional).
-4. **▶ Renderizar vídeo** — elige códec/alfa, el progreso corre a la par.
+1. Cargar GPX/FIT/TCX (barra GPX global arriba). La vista previa se reproduce de inmediato.
+2. Elegir la **serie de datos** (por defecto: altitud).
+3. Ajustar aspecto, barra de información y puntos (ver más abajo). Todo funciona **WYSIWYG** en la vista previa.
+4. Con los **tiradores de trim** bajo la curva, delimita la zona animada (opcional).
+5. **▶ Renderizar vídeo** — elige códec/alfa, el progreso corre a la par.
 
 ### Barra de información objetiva (desde v0.9.394) ⭐
 Sobre el perfil muestras una **barra de valores** — en la sección **«Barra de información»** activable/desactivable y seleccionable por campo: **distancia, metros de desnivel ↑/↓, Ø pendiente, pendiente máx. (↑/↓), altitud (máx/mín/Ø)**. Además, el **callout del marcador** muestra la **pendiente actual** (p. ej. «↗ +6.2 %» / «↘ −4.7 %») junto a altitud y distancia — desactivable con «Mostrar pendiente % en el marcador».
@@ -565,7 +584,7 @@ Debajo puedes crear **zonas de color por altitud**: con «**Añadir altitud**» 
 
 **Configurar el marcador (desde v0.9.396):** la sección propia **«Marcador»** hace el punto en movimiento y su caja de información completamente personalizables: **color + tamaño del punto**; para la caja, **color de fondo + opacidad, color y grosor del borde, tamaño de fuente**; y qué valores figuran dentro — **símbolo ⛰, altitud, pendiente (%), distancia** activables/desactivables individualmente (la caja adapta su tamaño automáticamente).
 
-**Deshacer:** **⌘Z / Ctrl+Z** revierte **todo** en el Animator de altitud — aspecto, colores, campos de la barra de información, waypoints e interruptores de fuente (una pulsación por paso).
+**Deshacer:** **⌘Z / Ctrl+Z** revierte **todo** en el Animador de datos — aspecto, colores, campos de la barra de información, waypoints e interruptores de fuente (una pulsación por paso).
 
 **Exportar como HTML (blog/web, desde v0.9.397):** bajo el botón de render de vídeo está **«Exportar como HTML»**. Eso genera un archivo **`.html` que se ejecuta por sí solo** — la misma animación que en el vídeo, pero corre **completamente en el navegador** (HTML puro, sin vídeo), con auto-loop y un botón de repetición **«↻»**. Ideal para una entrada de blog. Tras la exportación se abre una **ventana en el centro de la pantalla** con estas opciones:
 - **▶ Abrir en el navegador** — muestra la animación terminada de inmediato en el navegador estándar. *(Un doble clic en el archivo en el Finder inicia, según el sistema, solo un editor — entonces solo ves código fuente; por eso usa este botón.)*
@@ -751,7 +770,7 @@ Los valores de altitud del GPS suelen ser ruidosos — sobre todo con poca cober
 1. **🗺 Cargar el perfil de altitud del mapa** — la app recorre una vez brevemente todo el track (carga las teselas de altitud) y lee para cada punto la altitud del mapa.
 2. **Bajo el mapa** aparece un **perfil de altitud** con tres líneas superpuestas: **GPS (naranja, fina)** = tu original, **mapa/Mapbox (azul, fina)** = el terreno liso, y la **gruesa línea de resultado verde** = lo que saldría.
 3. Con el regulador **GPS ⟷ mapa** mezclas en directo: a la derecha del todo (100 %) = altitud pura del mapa (muy lisa), a la izquierda del todo (0 %) = GPS sin cambios, por defecto **70 %**. La línea verde y la indicación de metros de desnivel (GPS / mapa / resultado) se desplazan de inmediato con ello.
-4. ¿Cuadra? **⛰ Adoptar esta altitud** escribe la línea verde en el track. Después **💾 guardar** — la altitud corregida aterriza en el GPX y actúa en todas partes (Animator, Tour-Map, Animator de altitud).
+4. ¿Cuadra? **⛰ Adoptar esta altitud** escribe la línea verde en el track. Después **💾 guardar** — la altitud corregida aterriza en el GPX y actúa en todas partes (Animator, Tour-Map, Animador de datos).
 
 > Necesita un **token de Mapbox** (ajustes) e internet — sin token, el botón «Cargar» está atenuado. La adopción se puede deshacer con **⌘Z**. Si después cambias puntos (eliminas/insertas), el perfil se descarta automáticamente — simplemente vuelve a cargar.
 
@@ -877,7 +896,7 @@ Probablemente un problema de zona horaria: la hora de captura de la foto no cuad
 - O fijar una foto de referencia (ver el flujo de trabajo del Geotagger)
 
 ### Arriba aparece «Archivo de origen no encontrado — ¿unidad montada?» (desde v0.9.305)
-Tu último archivo GPX cargado no es legible en este momento — normalmente porque el **disco duro externo se ha desconectado** o el archivo se ha movido/eliminado. Vuelve a conectar el disco (el banner desaparece en la siguiente carga) o haz clic en **«Volver a elegir archivo»** y busca de nuevo el GPX. Mientras el banner esté ahí, el Tour-Map, el Animator de altitud y el Geotagger no pueden construir el track.
+Tu último archivo GPX cargado no es legible en este momento — normalmente porque el **disco duro externo se ha desconectado** o el archivo se ha movido/eliminado. Vuelve a conectar el disco (el banner desaparece en la siguiente carga) o haz clic en **«Volver a elegir archivo»** y busca de nuevo el GPX. Mientras el banner esté ahí, el Tour-Map, el Animador de datos y el Geotagger no pueden construir el track.
 
 ### ¿Cómo reporto un bug?
 **Ayuda → 📧 Feedback / reporte de bug a Marc** — todo prellenado (ver la sección 7).

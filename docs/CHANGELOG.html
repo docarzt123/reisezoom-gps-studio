@@ -113,9 +113,93 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.442</span>
+    <span class="version-date">17. Juli 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Daten-Animator: Feinschliff nach dem großen Umbau.</p>
+
+  <div class="highlight">
+    <strong>🔎 Nachkontrolle</strong> — ein kompletter Durchgang durch den neuen Daten-Animator hat die letzten Höhen-Reste beseitigt: die Einheit neben der Farbschwelle zeigt jetzt bpm/km/h statt fix „m“, die Schrittweite des Schwellen-Felds passt zur Reihe (±1 statt ±50 bei Puls), und „⛰-Symbol“ und „Steigung %“ verschwinden aus den Marker-Optionen, wenn sie zur gewählten Reihe nicht passen.
+  </div>
+
+  <p>Außerdem haben Farbe und Dicke der zweiten Datenreihe jetzt richtige Beschriftungen im Stil der übrigen Felder, und der Hinweis bei leeren Farbzonen stimmt nun auch für Hintergrund- und Linien-Zonen.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.441</span>
+    <span class="version-date">17. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Daten-Animator: aufgeräumte Seitenleiste und passende Beschriftungen.</p>
+
+  <div class="highlight">
+    <strong>🧹 Aufgeräumt</strong> — im Daten-Animator sind die langen Erklärtexte in der Seitenleiste zu kleinen <strong>„?“-Symbolen</strong> geworden: Erklärung nur noch beim Zeigen darauf, die Seitenleiste bleibt kurz. Die Info-Leiste bietet außerdem nur noch an, was zur gewählten Reihe passt — Auf-/Abstieg und Steigung tauchen bei Puls oder Tempo gar nicht mehr auf.
+  </div>
+
+  <p>Dazu ein paar Feinschliffe: der doppelte „++“ am Farbschwellen-Button ist weg, Werte in der Info-Leiste tragen die richtige Einheit (bpm/km/h statt fix „m“), und Beschriftungen wie „Wert zeigen“ oder „nach Wert einfärben“ sind nicht mehr auf Höhe gemünzt.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.440</span>
+    <span class="version-date">17. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Daten-Animator: klarere Beschriftungen und Achsen.</p>
+
+  <div class="highlight">
+    <strong>🏷️ Klarere Beschriftung</strong> — im Daten-Animator hießen die Farbzonen noch überall „Höhe“, obwohl sich das Modul längst um jede Messreihe kümmert. Jetzt heißt es neutral <strong>„+ Farbschwelle“</strong> und <strong>„Farbzonen“</strong>, und der Wert trägt die passende Einheit (m, bpm, km/h …).
+  </div>
+
+  <p>Und bei zwei Kurven ist jetzt klar, was wohin gehört: die erste Auswahl heißt „Datenreihe · linke Achse“, und ein Hinweis erklärt, dass Farbe, Fläche, Farbzonen, Info-Leiste und Punkte zur linken Achse gehören — rechts gibt es nur die zweite Linie.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.439</span>
+    <span class="version-date">17. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Die Farben der mehrfarbigen Spur flackern nicht mehr.</p>
+
+  <div class="highlight">
+    <strong>🎨 Ruhige Farben</strong> — bei der mehrfarbigen Spur flackerten die Farben während der Animation, besonders beim Einfärben nach Höhe oder Tempo mit „Verlauf“: praktisch jedes Bild zeigte einen leicht anderen Farbton. Der Grund war ein Raster, das mit der wachsenden Linie über den Track wanderte. Jetzt sind die Farben an <strong>feste Positionen im Track</strong> gebunden — dieselbe Stelle behält ihre Farbe, egal wie weit die Animation gerade ist.
+  </div>
+
+  <p>Nebenbei: harte Farbwechsel nach Höhe/Tempo sitzen jetzt exakt am Übergang statt leicht daneben, und die Spur springt am Anfang nicht mehr kurz auf die Grundfarbe.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.438</span>
+    <span class="version-date">17. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Zwei Messreihen gleichzeitig: Höhe links, Puls rechts.</p>
+
+  <div class="highlight">
+    <strong>📈 Zweite Achse</strong> — der Daten-Animator kann jetzt <strong>zwei Messreihen gleichzeitig</strong> zeigen. Unter der ersten Auswahl steht <strong>„Zweite Datenreihe (rechte Achse)“</strong>: die zweite Kurve bekommt eine eigene, automatisch skalierte Achse am rechten Rand — beschriftet in ihrer Linienfarbe, damit klar ist, welche Achse zu welcher Kurve gehört. Farbe und Linienbreite wählst du selbst, und die Marker-Box zeigt beide Werte übereinander.
+  </div>
+
+  <p>Ohne zweite Reihe bleibt alles wie gewohnt. Die zweite Kurve wird bewusst nur als Linie gezeichnet — zwei gefüllte Flächen übereinander wären nicht mehr lesbar.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.437</span>
+    <span class="version-date">17. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Aus dem Höhen-Animator wird der Daten-Animator: jetzt auch Puls, Leistung &amp; Co.</p>
+
+  <div class="highlight">
+    <strong>📊 Jede Messreihe als Video</strong> — der frühere „Höhen-Animator" heißt jetzt <strong>Daten-Animator</strong> und animiert nicht mehr nur die Höhe, sondern <strong>alles, was dein Track hergibt</strong>: Herzfrequenz, Trittfrequenz, Leistung oder Temperatur aus FIT-/TCX-Dateien, dazu Höhe, Tempo und Steigung. Ganz oben in der Seitenleiste wählst du unter <strong>„Datenreihe"</strong> aus — die Liste zeigt nur, was wirklich im Track steckt. Achse, Marker und Info-Leiste übernehmen Name und Einheit automatisch (z. B. „Herzfrequenz max — 139 bpm").
+  </div>
+
+  <p>Zwei Kleinigkeiten am Rande: Berg-Symbol, Auf-/Abstieg und Steigung erscheinen nur noch bei der Reihe „Höhe" — bei Puls oder Leistung wären sie sinnlos. Und breitere Beschriftungen wie „139 bpm" werden am linken Rand nicht mehr abgeschnitten.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.436</span>
     <span class="version-date">15. Juli 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <p class="version-tagline">Animator: Track jetzt auch nach Höhe oder Geschwindigkeit einfärben.</p>
 

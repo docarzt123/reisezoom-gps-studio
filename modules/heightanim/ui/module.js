@@ -11,8 +11,8 @@
 (window.RZGPS_MODULES = window.RZGPS_MODULES || {}).heightanim = {
   manifest: {
     slug: "heightanim",
-    name: "Höhen-Animator",
-    description: "Höhenprofil als Video",
+    name: "Daten-Animator",
+    description: "Messwerte als Video",
     icon: "⛰",
     sort_order: 30,  // Reihenfolge: Animator(10) Reiseroute(20) Höhen(30) Tour-Map(40) Geotagger(50) Inspektor(60)
   },
@@ -25,15 +25,41 @@ function mountHeightAnim(body, headerActions) {
   // — Wrapper-Divs wie .anim-layout würden das Grid zerschießen.
   body.innerHTML = `
     <aside class="panel" id="height-panel">
+        <!-- v0.9.437 (Daten-Animator) — Serien-Auswahl ganz oben: WAS wird
+             animiert? Wird aus dem geladenen Track gefüllt (Höhe/Tempo/Steigung
+             + Sensoren wie Puls/Leistung). Ohne Track/nur eine Reihe: disabled. -->
+        <div class="field" id="ha-series-field" style="padding:12px 14px 4px;">
+          <div style="display:flex; align-items:center;">
+            <label class="field-label" for="ha-series-a" style="margin:0;">${t("heightanim.field.series_a", "Datenreihe")}</label>
+            ${_help("heightanim.series.hint", "Was animiert wird. Puls, Trittfrequenz & Co. erscheinen automatisch, wenn dein Track (z. B. FIT) sie enthält.")}
+          </div>
+          <select id="ha-series-a"></select>
+        </div>
+        <!-- v0.9.438 — optionale zweite Reihe auf eigener rechter Achse -->
+        <div class="field" id="ha-series-b-field" style="padding:4px 14px 12px;">
+          <div style="display:flex; align-items:center;">
+            <label class="field-label" for="ha-series-b" style="margin:0;">${t("heightanim.field.series_b", "Zweite Datenreihe (rechte Achse)")}</label>
+            <span class="rz-help" tabindex="0" role="img" title="${_haEsc(t("heightanim.series_b.hint", "Optional: eine zweite Kurve mit eigener Achse rechts — z. B. Höhe links, Puls rechts.") + "\n\n" + t("heightanim.series_b.applies_hint", "Farbe, Fläche, Farbzonen, Info-Leiste und Punkte gelten für die linke Achse (erste Datenreihe)."))}">?</span>
+          </div>
+          <select id="ha-series-b"></select>
+          <!-- v0.9.442 — gleiches Feld-Muster wie überall (Label + Wert in px) -->
+          <div class="row-2" id="ha-series-b-style" style="margin-top:6px;">
+            <div class="field">
+              <label class="field-label">${t("heightanim.field.line_color", "Linienfarbe")}</label>
+              <input type="color" id="ha-line-color-b" value="#2e86de">
+            </div>
+            <div class="field">
+              <label class="field-label">${t("heightanim.field.line_width", "Liniendicke")} <span class="label-val" id="ha-line-width-b-val">3 px</span></label>
+              <input type="range" id="ha-line-width-b" min="1" max="10" step="0.5" value="3">
+            </div>
+          </div>
+        </div>
         <section class="section" data-accordion-section="general">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.general", "Allgemein")}</span>
+            <span>${t("heightanim.section.general", "Allgemein")}</span>${_help("heightanim.intro", "Erstellt ein Video, das die Messkurve deines Tracks live aufbaut.")}
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
-            <div class="muted" style="font-size:12px; line-height:1.45; margin-bottom:10px;">
-              ${t("heightanim.intro", "Erstellt ein Video das die Höhenprofil-Kurve deines Tracks live aufbaut. Aktuell ist die Vorschau live verfügbar — der Video-Render kommt in einer der nächsten Versionen.")}
-            </div>
             <div class="row-3">
               <div class="field">
                 <label class="field-label">${t("animator.field.duration")} <span class="label-val" id="height-dur-v">12 s</span></label>
@@ -109,7 +135,7 @@ function mountHeightAnim(body, headerActions) {
 
         <section class="section" data-accordion-section="fill">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.fill", "Fläche unter der Linie")}</span>
+            <span>${t("heightanim.section.fill", "Fläche unter der Linie")}</span>${_help("heightanim.fill.hint", "Ab jeder eingestellten Schwelle wechselt die Füllfarbe. Ohne Zonen gilt die Füllfarbe für die ganze Fläche.")}
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
@@ -127,7 +153,7 @@ function mountHeightAnim(body, headerActions) {
                 <input type="range" id="height-area-op" min="0" max="100" step="1" value="18">
               </div>
             </div>
-            <div class="section-subhead" style="margin:12px 0 4px; font-size:12px; opacity:0.7;">${t("heightanim.fill.zones", "Farbzonen nach Höhe")}</div>
+            <div class="section-subhead" style="margin:12px 0 4px; font-size:12px; opacity:0.7;">${t("heightanim.fill.zones", "Farbzonen")}</div>
             <div class="field">
               <label class="field-label">${t("heightanim.fill.mode", "Farbübergang")}</label>
               <select id="height-area-mode">
@@ -144,23 +170,17 @@ function mountHeightAnim(body, headerActions) {
             </div>
             <div id="height-fill-stops" class="height-wp-list"></div>
             <button type="button" class="btn btn-secondary btn-block" id="height-area-add-stop" style="margin:8px 0 0;">
-              + ${t("heightanim.fill.add", "Höhe hinzufügen")}
+              + ${t("heightanim.fill.add", "Farbschwelle")}
             </button>
-            <p class="muted" style="font-size:11px; margin:6px 0 0;">
-              ${t("heightanim.fill.hint", "Ab jeder eingestellten Höhe wechselt die Füllfarbe. Ohne Zonen gilt die Füllfarbe für die ganze Fläche.")}
-            </p>
           </div>
         </section>
 
         <section class="section" data-accordion-section="bgzones">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.bgzones", "Hintergrund-Höhenstufen")}</span>
+            <span>${t("heightanim.section.bgzones", "Hintergrund-Farbzonen")}</span>${_help("heightanim.bg.intro", "Färbt den Hintergrund nach Wert ein.")}
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
-            <p class="muted" style="font-size:11px; margin:0 0 8px;">
-              ${t("heightanim.bg.intro", "Färbt den Hintergrund nach Höhe ein. Basisfarbe ist die „Hintergrund\"-Farbe aus der Optik-Sektion.")}
-            </p>
             <label class="checkbox-row">
               <input type="checkbox" id="height-bg-clip">
               <span>${t("heightanim.bg.clip", "Nur im Diagramm-Bereich (innerhalb der Achsen)")}</span>
@@ -181,20 +201,17 @@ function mountHeightAnim(body, headerActions) {
             </div>
             <div id="height-bg-stops" class="height-wp-list"></div>
             <button type="button" class="btn btn-secondary btn-block" id="height-bg-add-stop" style="margin:8px 0 0;">
-              + ${t("heightanim.fill.add", "Höhe hinzufügen")}
+              + ${t("heightanim.fill.add", "Farbschwelle")}
             </button>
           </div>
         </section>
 
         <section class="section" data-accordion-section="linezones">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.linezones", "Linien-Höhenstufen")}</span>
+            <span>${t("heightanim.section.linezones", "Linien-Farbzonen")}</span>${_help("heightanim.line.intro", "Färbt die Linie nach Wert ein.")}
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
-            <p class="muted" style="font-size:11px; margin:0 0 8px;">
-              ${t("heightanim.line.intro", "Färbt die Höhenlinie nach Höhe ein. Basisfarbe ist die „Linienfarbe\" aus der Optik-Sektion.")}
-            </p>
             <div class="field">
               <label class="field-label">${t("heightanim.fill.mode", "Farbübergang")}</label>
               <select id="height-line-mode">
@@ -211,7 +228,7 @@ function mountHeightAnim(body, headerActions) {
             </div>
             <div id="height-line-stops" class="height-wp-list"></div>
             <button type="button" class="btn btn-secondary btn-block" id="height-line-add-stop" style="margin:8px 0 0;">
-              + ${t("heightanim.fill.add", "Höhe hinzufügen")}
+              + ${t("heightanim.fill.add", "Farbschwelle")}
             </button>
           </div>
         </section>
@@ -224,7 +241,7 @@ function mountHeightAnim(body, headerActions) {
           <div class="section-collapse-body" hidden>
             <label class="checkbox-row">
               <input type="checkbox" id="height-marker-dot" checked>
-              <span>${t("heightanim.marker.show_dot", "Punkt zeigen (zeichnet die Linie)")}</span>
+              <span>${t("heightanim.marker.show_dot", "Laufpunkt zeigen")}</span>
             </label>
             <div class="row-2">
               <div class="field">
@@ -242,15 +259,17 @@ function mountHeightAnim(body, headerActions) {
               <span>${t("heightanim.marker.show", "Info-Box zeigen")}</span>
             </label>
             <div class="section-subhead" style="margin:10px 0 4px; font-size:12px; opacity:0.7;">${t("heightanim.marker.callout", "Info-Box am Marker")}</div>
-            <label class="checkbox-row">
+            <!-- v0.9.442 — ⛰ + Steigung sind höhen-only: Zeilen werden bei
+                 anderen Reihen komplett ausgeblendet (syncEleOnlyRows) -->
+            <label class="checkbox-row" data-ele-only="1">
               <input type="checkbox" id="height-marker-icon" checked>
               <span>${t("heightanim.marker.icon", "⛰-Symbol zeigen")}</span>
             </label>
             <label class="checkbox-row">
               <input type="checkbox" id="height-marker-ele" checked>
-              <span>${t("heightanim.marker.ele", "Höhe zeigen")}</span>
+              <span>${t("heightanim.marker.ele", "Wert zeigen")}</span>
             </label>
-            <label class="checkbox-row">
+            <label class="checkbox-row" data-ele-only="1">
               <input type="checkbox" id="height-gradient" checked>
               <span>${t("heightanim.marker.gradient", "Steigung % zeigen")}</span>
             </label>
@@ -387,7 +406,7 @@ function mountHeightAnim(body, headerActions) {
       <div class="height-viewport" id="height-viewport">
         <svg id="height-svg" style="display:block; width:100%; height:100%;"></svg>
         <div class="height-empty-hint" id="height-empty-hint">
-          ${t("heightanim.empty_hint", "Lade einen GPX-Track um das Höhenprofil zu sehen.")}
+          ${t("heightanim.empty_hint", "Lade einen GPX-Track, um die Kurve zu sehen.")}
         </div>
       </div>
       <div class="height-anim-bar" id="height-anim-bar">
@@ -431,6 +450,121 @@ function mountHeightAnim(body, headerActions) {
   let _showHeader = true;
   let _showGradient = true;
   let _statsFields = ["distance", "updown", "avg_grad", "max_grad", "ele_max"];
+  // v0.9.437 (Daten-Animator) — welche Messreihe geplottet wird. `_seriesA` ist
+  // die ID (ele/speed/grade/hr/power/…); die Werte landen in
+  // `_currentData.elevations`, damit Vorschau/Marker/Zonen unverändert darauf
+  // rechnen (genau wie im Backend, wo `elevations` ebenfalls generisch ist).
+  // SYNCHRON zu core/heightanim.py (_series_decimals / series_meta / S_IS_ELE).
+  let _seriesA = "ele";
+  function _haSeriesList() { return (_currentData && Array.isArray(_currentData.series)) ? _currentData.series : []; }
+  function _haSeries(id) { return _haSeriesList().find(s => s.id === (id || _seriesA)) || null; }
+  function _haIsEle() { return _seriesA === "ele"; }
+  function _haDec() { return ["speed", "grade", "temperature", "core_temp"].indexOf(_seriesA) >= 0 ? 1 : 0; }
+  function _haUnit() { const s = _haSeries(); return s ? (s.unit || "") : "m"; }
+  function _haLabel() { const s = _haSeries(); return s ? s.label : t("heightanim.series.ele", "Höhe"); }
+  function _haFmt(v) { const u = _haUnit(); return v.toFixed(_haDec()) + (u ? " " + u : ""); }
+  // ── Zweite Reihe (v0.9.438) ────────────────────────────────────────────────
+  // Anders als A wird B NICHT in `_currentData.elevations` geschoben, sondern
+  // separat gehalten — beide müssen ja gleichzeitig gezeichnet werden.
+  let _seriesB = "";
+  let _lineColorB = "#2e86de";
+  let _lineWidthB = 3;
+  function _haSeriesB() { return _seriesB ? (_haSeriesList().find(s => s.id === _seriesB) || null) : null; }
+  // Werte der zweiten Reihe — null, wenn keine gewählt/vorhanden oder wenn sie
+  // dieselbe wie A ist (zwei identische Kurven ergeben keine zweite Achse).
+  function _haValuesB() {
+    if (!_seriesB || _seriesB === _seriesA) return null;
+    const s = _haSeriesB();
+    if (!s || !Array.isArray(s.values) || !s.values.length) return null;
+    return _rzSmooth(s.values, _smoothingVal());
+  }
+  function _haDecB() { return ["speed", "grade", "temperature", "core_temp"].indexOf(_seriesB) >= 0 ? 1 : 0; }
+  function _haUnitB() { const s = _haSeriesB(); return s ? (s.unit || "") : ""; }
+  function _haFmtB(v) { const u = _haUnitB(); return v.toFixed(_haDecB()) + (u ? " " + u : ""); }
+  // Serie anwenden: Werte in `_currentData.elevations` schieben — dadurch
+  // rechnen Kurve, Y-Skala, Marker, Farbzonen und Min/Max/Ø unverändert weiter.
+  // Fällt auf die erste verfügbare Reihe zurück, wenn die gewünschte fehlt
+  // (gleiche Semantik wie resolve_series() im Backend).
+  function applySeries(id, opts) {
+    const list = _haSeriesList();
+    if (!list.length) return;
+    let hit = list.find(s => s.id === id) || list.find(s => s.id === "ele") || list[0];
+    _seriesA = hit.id;
+    if (_currentData) _currentData.elevations = hit.values.slice();
+    const sel = document.getElementById("ha-series-a");
+    if (sel && sel.value !== _seriesA) sel.value = _seriesA;
+    // v0.9.441 — Info-Leiste-Feldauswahl + B-Dropdown an die neue Reihe anpassen
+    // (höhen-only Felder verschwinden bei Puls, Farbzonen-Tooltip-Einheit etc.).
+    try { renderHeaderFields(); } catch (_) {}
+    try { renderSeriesSelectB(); } catch (_) {}
+    // v0.9.442 — höhen-only Marker-Zeilen (⛰, Steigung %) ein-/ausblenden und
+    // die Farbzonen-Listen neu bauen (Schrittweite + Einheit hängen an der Reihe).
+    try { syncEleOnlyRows(); } catch (_) {}
+    try { ["fill", "bg", "line"].forEach(k => renderZoneStops(k)); } catch (_) {}
+    if (!opts || opts.redraw !== false) { try { drawElevationSvg(); } catch (_) {} }
+    if (!opts || opts.persist !== false) {
+      try { saveProjectSettings(_MODKEY, { series_a: _seriesA }); } catch (_) {}
+    }
+  }
+  // Dropdown aus den Serien des geladenen Tracks bauen (nur was da ist).
+  function renderSeriesSelect() {
+    const sel = document.getElementById("ha-series-a");
+    if (!sel) return;
+    const list = _haSeriesList();
+    sel.innerHTML = list.map(s => `<option value="${s.id}">${_haEsc(s.label)}${s.unit ? " (" + _haEsc(s.unit) + ")" : ""}</option>`).join("");
+    sel.disabled = list.length < 2;
+    if (list.length) sel.value = _seriesA;
+    renderSeriesSelectB();
+  }
+  // v0.9.438 — B-Dropdown: „—" (aus) plus alles außer der aktuell gewählten A.
+  function renderSeriesSelectB() {
+    const sel = document.getElementById("ha-series-b");
+    if (!sel) return;
+    const list = _haSeriesList().filter(s => s.id !== _seriesA);
+    const off = `<option value="">${_haEsc(t("heightanim.series_b.off", "— keine —"))}</option>`;
+    sel.innerHTML = off + list.map(s =>
+      `<option value="${s.id}">${_haEsc(s.label)}${s.unit ? " (" + _haEsc(s.unit) + ")" : ""}</option>`).join("");
+    // Wurde A auf die Reihe gestellt, die B belegt, fällt B weg.
+    if (_seriesB && !list.some(s => s.id === _seriesB)) _seriesB = "";
+    sel.value = _seriesB;
+    sel.disabled = !list.length;
+    // Farbe/Breite gehören zu B — ohne B gibt es nichts einzustellen.
+    const style = document.getElementById("ha-series-b-style");
+    if (style) style.style.display = _seriesB ? "" : "none";
+    const c = document.getElementById("ha-line-color-b");
+    if (c) c.value = _lineColorB;
+    const w = document.getElementById("ha-line-width-b");
+    if (w) w.value = String(_lineWidthB);
+    const wv = document.getElementById("ha-line-width-b-val");
+    if (wv) wv.textContent = _lineWidthB + " px";
+    // v0.9.439 — Achsen-Klarheit: sobald eine zweite Reihe (rechte Achse) aktiv
+    // ist, bekommt die erste Auswahl den Zusatz „· linke Achse" und der Hinweis
+    // erklärt, dass alle übrigen Einstellungen zur linken Achse gehören. Ohne
+    // zweite Reihe gibt es nur eine Achse → schlicht „Datenreihe".
+    const aLbl = document.querySelector('label[for="ha-series-a"]');
+    if (aLbl) {
+      aLbl.textContent = _seriesB
+        ? t("heightanim.field.series_a_left", "Datenreihe · linke Achse")
+        : t("heightanim.field.series_a", "Datenreihe");
+    }
+  }
+  function _haEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  // v0.9.442 — Marker-Zeilen, die nur bei der Reihe „Höhe" Sinn ergeben
+  // (⛰-Symbol, Steigung %), bei anderen Reihen komplett ausblenden — „nur
+  // zeigen, was wir haben". Markiert per data-ele-only im Panel-HTML.
+  function syncEleOnlyRows() {
+    const show = _haIsEle();
+    document.querySelectorAll('#height-panel [data-ele-only]').forEach(el => {
+      el.style.display = show ? "" : "none";
+    });
+  }
+  // v0.9.441 — „?"-Hilfe-Badge statt Dauer-Erklärtext in der Sidebar. Native
+  // title-Tooltip (Hover/Fokus); hält die Seitenleiste kurz. Function-Declaration
+  // → gehoisted, im Panel-Template nutzbar.
+  function _help(key, fallback) {
+    const e = _haEsc(t(key, fallback));
+    return `<span class="rz-help" tabindex="0" role="img" title="${e}" aria-label="${e}">?</span>`;
+  }
   let _wpSources = { photos: true, gpx: true, auto: false };
   let _manualWps = [];       // [{id, dist_frac, label, color}]
   let _autoMarkers = [];     // aus load_gpx (dist_m, ele, kind, grad)
@@ -452,6 +586,54 @@ function mountHeightAnim(body, headerActions) {
   // und wir rufen dieselbe Funktion mit refreshUi erneut → dann greifen die Farben.
   // (Marc-Bug: „merkt sich die Farben nicht" — der Restore lief nur EINMAL, zu früh.)
   reloadProjectStateFromActive({ refreshUi: false });
+
+  // v0.9.437 (Daten-Animator) — Serien-Auswahl verdrahten. Das Dropdown selbst
+  // wird erst beim GPX-Load befüllt (renderSeriesSelect), der Listener kann
+  // aber schon jetzt hängen. Gemerkte Serie aus dem Projekt vorladen.
+  try {
+    const _sv = (_activeProject && _activeProject[_MODKEY] && _activeProject[_MODKEY].series_a)
+      || (typeof _settingsCache !== "undefined" && _settingsCache && _settingsCache[_MODKEY] && _settingsCache[_MODKEY].series_a);
+    if (_sv) _seriesA = String(_sv);
+  } catch (_) {}
+  document.getElementById("ha-series-a")?.addEventListener("change", (e) => {
+    applySeries(e.target.value);
+  });
+  // v0.9.438 — zweite Reihe. Sie wandert NICHT in _currentData.elevations
+  // (dort liegt A), sondern wird beim Zeichnen separat geholt → neu zeichnen
+  // reicht.
+  try {
+    const _b = (_activeProject && _activeProject[_MODKEY] && _activeProject[_MODKEY].series_b)
+      || (_settingsCache && _settingsCache.series_b);
+    if (_b) _seriesB = String(_b);
+    const _bc = (_activeProject && _activeProject[_MODKEY] && _activeProject[_MODKEY].line_color_b)
+      || (_settingsCache && _settingsCache.line_color_b);
+    if (_bc) _lineColorB = String(_bc);
+    const _bw = (_activeProject && _activeProject[_MODKEY] && _activeProject[_MODKEY].line_width_b)
+      || (_settingsCache && _settingsCache.line_width_b);
+    if (_bw) _lineWidthB = +_bw || 3;
+  } catch (_) {}
+  function _persistSeriesB() {
+    try {
+      saveProjectSettings(_MODKEY, {
+        series_b: _seriesB, line_color_b: _lineColorB, line_width_b: _lineWidthB,
+      });
+    } catch (_) {}
+  }
+  document.getElementById("ha-series-b")?.addEventListener("change", (e) => {
+    _seriesB = String(e.target.value || "");
+    renderSeriesSelectB();
+    _persistSeriesB();
+    drawElevationSvg();
+  });
+  document.getElementById("ha-line-color-b")?.addEventListener("input", (e) => {
+    _lineColorB = e.target.value; _persistSeriesB(); drawElevationSvg();
+  });
+  document.getElementById("ha-line-width-b")?.addEventListener("input", (e) => {
+    _lineWidthB = +e.target.value || 3;
+    const v = document.getElementById("ha-line-width-b-val");
+    if (v) v.textContent = _lineWidthB + " px";
+    _persistSeriesB(); drawElevationSvg();
+  });
 
   // v0.9.399 — alle DOM-Controls (#height-panel) als {id: value/checked} lesen.
   function _readHeightControls() {
@@ -665,6 +847,16 @@ function mountHeightAnim(body, headerActions) {
     return { distM: Math.max(0, ds[i1] - ds[i0]), eleMin: eCnt ? eMin : 0, eleMax: eCnt ? eMax : 0, eleAvg: eCnt ? eSum / eCnt : 0, ascent: asc, descent: desc, gradAvgUp: gUpW ? gUpSum / gUpW : 0, gradAvgDown: gDnW ? gDnSum / gDnW : 0, gradMaxUp: gUpMax, gradMaxDown: gDnMax };
   }
   function _rzFieldLabel(id) {
+    // Bei Nicht-Höhen-Serien tragen die Min/Max/Ø-Felder deren Namen
+    // („Herzfrequenz max" statt „Höhe max") — SYNCHRON zu rzFieldLabel() in
+    // core/heightanim.py.
+    if (!_haIsEle()) {
+      const L = _haLabel();
+      if (id === "ele_max") return L + " max";
+      if (id === "ele_min") return L + " min";
+      if (id === "ele_minmax") return L + " min / max";
+      if (id === "ele_avg") return "Ø " + L;
+    }
     return t("heightanim.statfield." + id, {
       distance: "Distanz", updown: "Höhe ↑ / ↓", avg_grad: "Ø-Steigung",
       max_grad: "Max. Steigung", ele_max: "Höhe max", ele_min: "Höhe min",
@@ -675,13 +867,16 @@ function mountHeightAnim(body, headerActions) {
     const r = Math.round;
     switch (id) {
       case "distance":   return (st.distM / 1000).toFixed(2) + " km";
-      case "updown":     return "↑" + r(st.ascent) + " / ↓" + r(st.descent) + " m";
-      case "avg_grad":   return "+" + st.gradAvgUp.toFixed(1) + " / −" + st.gradAvgDown.toFixed(1) + " %";
-      case "max_grad":   return "+" + r(st.gradMaxUp) + " / −" + r(st.gradMaxDown) + " %";
-      case "ele_max":    return r(st.eleMax) + " m";
-      case "ele_min":    return r(st.eleMin) + " m";
-      case "ele_minmax": return r(st.eleMin) + " / " + r(st.eleMax) + " m";
-      case "ele_avg":    return r(st.eleAvg) + " m";
+      // Auf/Ab + Steigung sind höhen-semantisch → bei Puls/Tempo/… leer, die
+      // Anzeige filtert leere Werte raus (wie im Backend rzFieldValue).
+      case "updown":     return _haIsEle() ? ("↑" + r(st.ascent) + " / ↓" + r(st.descent) + " m") : "";
+      case "avg_grad":   return _haIsEle() ? ("+" + st.gradAvgUp.toFixed(1) + " / −" + st.gradAvgDown.toFixed(1) + " %") : "";
+      case "max_grad":   return _haIsEle() ? ("+" + r(st.gradMaxUp) + " / −" + r(st.gradMaxDown) + " %") : "";
+      case "ele_max":    return _haFmt(st.eleMax);
+      case "ele_min":    return _haFmt(st.eleMin);
+      // v0.9.441 — Einheit der Reihe (bpm/km/h/…), nicht mehr fix „m".
+      case "ele_minmax": return _haFmt(st.eleMin) + " / " + _haFmt(st.eleMax);
+      case "ele_avg":    return _haFmt(st.eleAvg);
       default:           return "";
     }
   }
@@ -831,7 +1026,15 @@ function mountHeightAnim(body, headerActions) {
     // Padding (etwas mehr Boden weil unter dem Plot die Anim-Bar liegt).
     // v0.9.394 — Header-Band oben + Platz für Wegpunkt-Labels.
     const headH = _showHeader ? 48 : 0;
-    const padL = 60, padR = 30, padT = headH + 34, padB = showAxes ? 50 : 20;
+    // v0.9.437 — linker Rand wächst mit der Einheit (synchron zu PAD_L in
+    // core/heightanim.py): „139 bpm" / „24.5 km/h" brauchen mehr Platz als
+    // „1234 m". Bei „m" bleibt es bei 60 → Höhen-Vorschau unverändert.
+    const padL = 60 + Math.max(0, (_haUnit() || "").length - 1) * 7;
+    // v0.9.438 — zweite Reihe: rechter Rand macht Platz für ihre Achse.
+    const valsB = _haValuesB();
+    const hasB = !!valsB;
+    const padR = hasB ? (66 + Math.max(0, (_haUnitB() || "").length - 1) * 7) : 30;
+    const padT = headH + 34, padB = showAxes ? 50 : 20;
     const plotW = Math.max(20, w - padL - padR);
     const plotH = Math.max(20, h - padT - padB);
 
@@ -888,6 +1091,24 @@ function mountHeightAnim(body, headerActions) {
     // X-Achse: Trim-relativ — links/rechts verschwindet beim Trim-Ziehen.
     function px(distM) { return padL + ((distM - dTrimStart) / dTrimSpan) * plotW; }
     function py(ele)   { return padT + (1 - (ele - eleLo) / eleSpan) * plotH; }
+
+    // ── Zweite Reihe (v0.9.438) — synchron zu core/heightanim.py ─────────────
+    // Eigene Skala, weil Puls (bpm) und Höhe (m) keinen gemeinsamen Bereich
+    // haben. Bei Änderung BEIDE Seiten pflegen (Render + Vorschau).
+    let bLo = 0, bSpan = 1;
+    if (hasB) {
+      const _bAt = (d) => _eleAtDistArr(dists, valsB, d);
+      let bMin = Math.min(_bAt(dTrimStart), _bAt(dTrimEnd));
+      let bMax = Math.max(_bAt(dTrimStart), _bAt(dTrimEnd));
+      for (let i = _i0; i <= _i1; i++) {
+        if (valsB[i] < bMin) bMin = valsB[i];
+        if (valsB[i] > bMax) bMax = valsB[i];
+      }
+      const bRange = Math.max(1e-6, bMax - bMin);
+      bSpan = (1 + topPadFrac) * bRange / Math.max(0.001, 1 - bottomPadFrac);
+      bLo = bMin - bottomPadFrac * bSpan;
+    }
+    function pyB(v) { return padT + (1 - (v - bLo) / bSpan) * plotH; }
 
     // v0.9.403 — Zonen-Gradient (Fläche/Hintergrund/Linie): baut eine vertikale
     // <linearGradient> nach Höhe und gibt die url zurück (oder null bei keinen Zonen).
@@ -973,8 +1194,23 @@ function mountHeightAnim(body, headerActions) {
         txt.setAttribute("fill", lblColor);
         txt.setAttribute("font-size", "13"); txt.setAttribute("text-anchor", "end");
         txt.setAttribute("font-family", "-apple-system, sans-serif");
-        txt.textContent = `${ele.toFixed(0)} m`;
+        txt.textContent = _haFmt(ele);
         svg.appendChild(txt);
+      }
+      // v0.9.438 — rechte Achse für Reihe B, in ihrer Linienfarbe (synchron zu
+      // core/heightanim.py).
+      if (hasB) {
+        for (let i = 0; i <= 5; i++) {
+          const y = padT + (i / 5) * plotH;
+          const v = (bLo + bSpan) - (i / 5) * bSpan;
+          const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          txt.setAttribute("x", padL + plotW + 8); txt.setAttribute("y", y + 4);
+          txt.setAttribute("fill", _lineColorB);
+          txt.setAttribute("font-size", "13"); txt.setAttribute("text-anchor", "start");
+          txt.setAttribute("font-family", "-apple-system, sans-serif");
+          txt.textContent = _haFmtB(v);
+          svg.appendChild(txt);
+        }
       }
     }
 
@@ -1025,6 +1261,33 @@ function mountHeightAnim(body, headerActions) {
       linePath.setAttribute("stroke-linejoin", "round");
       linePath.setAttribute("stroke-linecap", "round");
       svg.appendChild(linePath);
+    }
+
+    // v0.9.438 — zweite Kurve auf der rechten Skala. Wie im Render bewusst nur
+    // Linie (keine Fläche, keine Farbzonen) — synchron zu core/heightanim.py.
+    let curB = null;
+    if (hasB && _progress > 0) {
+      let bD = "";
+      for (let i = _i0; i <= Math.max(_i0, endIdx - 1); i++) {
+        bD += (i === _i0 ? "M" : " L") + px(dists[i]).toFixed(1) + " " + pyB(valsB[i]).toFixed(1);
+      }
+      if (endIdx <= _i0) {
+        curB = valsB[_i0];
+      } else {
+        const d0 = dists[endIdx - 1], d1 = dists[endIdx];
+        const seg = d1 > d0 ? (dCurrent - d0) / (d1 - d0) : 0;
+        curB = valsB[endIdx - 1] + (valsB[endIdx] - valsB[endIdx - 1]) * seg;
+      }
+      if (!bD) bD = `M${px(dists[_i0]).toFixed(1)} ${pyB(valsB[_i0]).toFixed(1)}`;
+      bD += ` L${endX.toFixed(1)} ${pyB(curB).toFixed(1)}`;
+      const bPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      bPath.setAttribute("d", bD);
+      bPath.setAttribute("fill", "none");
+      bPath.setAttribute("stroke", _lineColorB);
+      bPath.setAttribute("stroke-width", String(_lineWidthB));
+      bPath.setAttribute("stroke-linejoin", "round");
+      bPath.setAttribute("stroke-linecap", "round");
+      svg.appendChild(bPath);
     }
 
     // Hex→rgba mit Deckkraft (für die Marker-Box)
@@ -1109,12 +1372,20 @@ function mountHeightAnim(body, headerActions) {
 
     // ── Marker-Callout: konfigurierbar (Felder + Farben + Schriftgröße) ──────
     if (showMarker && _progress > 0) {
-      const grad = _showGradient ? _rzGradAtDist(dists, elevs, dCurrent, 60) : null;
+      // synchron zu core/heightanim.py — Steigung ist höhen-semantisch und
+      // fliegt bei Puls/Tempo/… aus der Marker-Box.
+      const grad = (_showGradient && _haIsEle()) ? _rzGradAtDist(dists, elevs, dCurrent, 60) : null;
       const curDistKm = (dCurrent - dTrimStart) / 1000;
       const lines = [];
-      // Zeile 1: ⛰-Symbol + Höhe
-      const l1 = (mkShowIcon ? "⛰" : "") + (mkShowEle ? (mkShowIcon ? " " : "") + `${curEle2.toFixed(0)} m` : "");
+      // Zeile 1: ⛰-Symbol (nur bei Höhe) + Wert der Serie
+      const _ic = (mkShowIcon && _haIsEle()) ? "⛰" : "";
+      const l1 = _ic + (mkShowEle ? (_ic ? " " : "") + _haFmt(curEle2) : "");
       if (l1) lines.push({ text: l1, size: mkFs, fill: labelColor, weight: "500" });
+      // v0.9.438 — zweite Reihe darunter, in ihrer Linienfarbe (synchron zu
+      // core/heightanim.py).
+      if (hasB && curB != null && mkShowEle) {
+        lines.push({ text: _haFmtB(curB), size: mkFs * 0.82, fill: _lineColorB, weight: "500" });
+      }
       // Zeile 2: Steigung + Distanz
       const p2 = [];
       if (grad != null) p2.push(`${grad >= 0 ? "↗ +" : "↘ −"}${Math.abs(grad).toFixed(1)} %`);
@@ -1251,6 +1522,12 @@ function mountHeightAnim(body, headerActions) {
         _currentData = res;
         _autoMarkers = Array.isArray(res.auto_markers) ? res.auto_markers : [];
         _gpxWaypoints = Array.isArray(res.gpx_waypoints) ? res.gpx_waypoints : [];
+        // v0.9.437 — Serien-Auswahl aus dem neuen Track bauen und die zuletzt
+        // gewählte Reihe wieder anwenden (fällt zurück, wenn dieser Track sie
+        // nicht hat — z.B. GPX ohne Puls nach einem FIT mit Puls).
+        renderSeriesSelect();
+        applySeries(_seriesA, { redraw: false, persist: false });
+        renderSeriesSelect();
         _progress = 0;
         setProgressUi(0);
         // v0.9.401 — Projekt-State JETZT (erneut) anwenden: beim Kaltstart war
@@ -1365,11 +1642,16 @@ function mountHeightAnim(body, headerActions) {
 
   // ── v0.9.394 — Info-Leiste + Wegpunkt-Editor ──────────────────────────────
   const ALL_STAT_FIELDS = ["distance", "updown", "avg_grad", "max_grad", "ele_max", "ele_min", "ele_minmax", "ele_avg"];
+  // v0.9.441 — höhen-semantische Felder (Auf/Ab, Ø-/Max-Steigung) ergeben nur
+  // bei der Reihe „Höhe" Sinn. Bei Puls/Tempo/… gar nicht erst zur Auswahl
+  // anbieten — „nur zeigen, was wir haben".
+  const ELE_ONLY_FIELDS = ["updown", "avg_grad", "max_grad"];
   function renderHeaderFields() {
     const host = document.getElementById("height-header-fields");
     if (!host) return;
     host.innerHTML = "";
-    for (const id of ALL_STAT_FIELDS) {
+    const fields = _haIsEle() ? ALL_STAT_FIELDS : ALL_STAT_FIELDS.filter(id => !ELE_ONLY_FIELDS.includes(id));
+    for (const id of fields) {
       const row = document.createElement("label");
       row.className = "checkbox-row";
       row.style.cssText = "font-size:12px; padding:2px 0;";
@@ -1395,7 +1677,7 @@ function mountHeightAnim(body, headerActions) {
     if (!host) return;
     host.innerHTML = "";
     if (!arr.length) {
-      host.innerHTML = `<p class="muted" style="font-size:11px; margin:4px 0;">${t("heightanim.fill.empty", "Keine Farbzonen — die Basisfarbe gilt für die ganze Fläche.")}</p>`;
+      host.innerHTML = `<p class="muted" style="font-size:11px; margin:4px 0;">${t("heightanim.fill.empty", "Keine Farbzonen — die Basisfarbe gilt überall.")}</p>`;
       return;
     }
     // Anzeige nach Höhe absteigend (oben = hohe Lagen)
@@ -1404,21 +1686,27 @@ function mountHeightAnim(body, headerActions) {
       const row = document.createElement("div");
       row.className = "height-wp-row";
       const num = document.createElement("input");
-      num.type = "number"; num.step = "50";
+      // v0.9.442 — Schrittweite passend zur Reihe: 50 ist auf Höhenmeter
+      // geeicht; bei Puls/Tempo/… würde der Spinner absurd springen (120→170).
+      num.type = "number"; num.step = _haIsEle() ? "50" : "1";
       num.value = (s.ele != null ? s.ele : 0);
       num.className = "height-fill-ele";
       num.style.cssText = "width:74px; margin-right:4px;";
-      num.title = t("heightanim.fill.ele_tip", "Ab dieser Höhe (m) gilt die Farbe");
+      // v0.9.439 — generisch: Schwelle in der Einheit der linken Reihe (m / bpm /
+      // km/h …), nicht mehr fix „(m)".
+      const _thU = _haUnit();
+      num.title = t("heightanim.fill.threshold_tip", "Ab diesem Wert gilt die neue Farbe") + (_thU ? " (" + _thU + ")" : "");
       let _numPushed = false;
       num.addEventListener("pointerdown", () => { _numPushed = false; });
       num.addEventListener("input", () => {
-        if (!_numPushed) { _haPushUndo("Farbzone-Höhe geändert"); _numPushed = true; }
+        if (!_numPushed) { _haPushUndo("Farbschwelle geändert"); _numPushed = true; }
         s.ele = parseFloat(num.value) || 0;
         persistHeightWaypoints(); drawElevationSvg();
       });
       num.addEventListener("change", () => { _numPushed = false; renderZoneStops(key); });
       const unit = document.createElement("span");
-      unit.textContent = "m"; unit.style.cssText = "opacity:0.6; margin-right:8px; font-size:12px;";
+      // v0.9.442 — Einheit der geplotteten Reihe (m/bpm/km/h), nicht fix „m".
+      unit.textContent = _haUnit(); unit.style.cssText = "opacity:0.6; margin-right:8px; font-size:12px;";
       const cpick = document.createElement("input");
       cpick.type = "color"; cpick.value = s.color || "#88cc66"; cpick.className = "height-wp-color";
       let _colPushed = false;
@@ -1472,7 +1760,7 @@ function mountHeightAnim(body, headerActions) {
     let mn = Infinity, mx = -Infinity;
     for (const e of es) { if (e == null) continue; if (e < mn) mn = e; if (e > mx) mx = e; }
     if (!isFinite(mn) || !isFinite(mx) || mx <= mn) return;
-    _haPushUndo("Höhenstufen erzeugt");
+    _haPushUndo("Farbzonen erzeugt");
     const range = mx - mn;
     const stops = [];
     for (let k = 0; k < n; k++) {
@@ -1879,7 +2167,7 @@ function mountHeightAnim(body, headerActions) {
       const openBtn = document.getElementById("height-open-folder");
       if (openBtn) openBtn.onclick = () => window.pywebview.api.reveal_in_finder(s.output);
       if (typeof toast === "function") {
-        toast(t("heightanim.toast.done", "Höhen-Video fertig") + ": " + (s.output || "").split("/").pop(), "success", 6000);
+        toast(t("heightanim.toast.done", "Video fertig") + ": " + (s.output || "").split("/").pop(), "success", 6000);
       }
       return;
     }
@@ -1901,6 +2189,16 @@ function mountHeightAnim(body, headerActions) {
       codec: alpha ? "prores" : codec,
       transparent_background: alpha,
       background_color: document.getElementById("height-bg")?.value || "#1a1a1a",
+      // v0.9.437 (Daten-Animator) — welche Reihe gerendert wird + ihre
+      // lokalisierten Label/Einheit (damit die Achse im Video zur App-Sprache
+      // passt; das Backend hat nur DE-Defaults).
+      series_a: _seriesA,
+      // v0.9.438 — zweite Reihe (leer = einreihig wie bisher)
+      series_b: _seriesB,
+      line_color_b: _lineColorB,
+      line_width_b: _lineWidthB,
+      series_labels: (() => { const o = {}; _haSeriesList().forEach(s => { o[s.id] = s.label; }); return o; })(),
+      series_units: (() => { const o = {}; _haSeriesList().forEach(s => { o[s.id] = s.unit || ""; }); return o; })(),
       line_color: document.getElementById("height-color")?.value || "#ff6b35",
       line_width: parseFloat(document.getElementById("height-lw")?.value || "4"),
       grid_enabled: document.getElementById("height-grid")?.checked !== false,

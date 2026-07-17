@@ -30,6 +30,8 @@ import subprocess
 import threading
 import time
 
+from core import sensors as _sensors
+
 # v0.9.274 (Nutzer-Bug) — Windows: ffmpeg ohne sichtbares Konsolenfenster starten.
 _WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
 
@@ -78,7 +80,20 @@ class HeightConfig:
     codec: str = "h264"            # "h264" | "h265" | "prores"
     crf: int = 20
     transparent_background: bool = False  # → ProRes 4444 mit Alpha-Plane
-    # Visuelles
+    # v0.9.437 (Daten-Animator) — welche Messreihen geplottet werden.
+    #   series_a = linke Y-Achse (Pflicht, Default Höhe)
+    #   series_b = rechte Y-Achse (optional, "" = aus) — z.B. Puls neben Höhe
+    # IDs kommen aus available_series(): abgeleitet (ele/speed/grade) oder ein
+    # Sensor-Key (hr/power/cadence/…). Jede Achse skaliert eigenständig (auto).
+    # `series_labels`/`series_units` reicht die UI lokalisiert durch (wie
+    # stats_labels), damit die Achsen-Beschriftung im Video zur App-Sprache passt.
+    series_a: str = "ele"
+    series_b: str = ""
+    line_color_b: str = "#2e86de"
+    line_width_b: float = 3.0
+    series_labels: dict = field(default_factory=dict)   # {series_id: Label}
+    series_units: dict = field(default_factory=dict)    # {series_id: Einheit}
+    # Visuelles (line_color/line_width = Serie A)
     background_color: str = "#1a1a1a"
     line_color: str = "#ff6b35"
     line_width: float = 4.0
@@ -134,21 +149,54 @@ class HeightConfig:
 # ── HTML-Generator ──────────────────────────────────────────────────────────
 
 
-def _make_html(cfg: HeightConfig, distances_m: list[float], elevations: list[float]) -> str:
+def _make_html(cfg: HeightConfig, distances_m: list[float], elevations: list[float],
+               values_b: list[float] | None = None) -> str:
     """Erzeugt die HTML-Seite die im Headless-Browser geladen wird.
 
-    Die Seite zeichnet das Höhenprofil als SVG. Eine globale Funktion
-    `window.advanceFrame(progress)` setzt den fortschritt 0..1 und löst
-    ein synchrones Re-Render aus. Pro Frame: advanceFrame(p) → wait →
-    screenshot.
+    Die Seite zeichnet EINE Messreihe (cfg.series_a) als SVG über die Distanz.
+    `elevations` ist deshalb generisch zu lesen: es sind die Werte der
+    gewählten Serie (Höhe, Puls, Tempo, …) — Kurve, Y-Skala, Farbzonen und
+    Min/Max/Ø rechnen alle darauf. Nur die höhen-semantischen Extras
+    (Auf-/Abstieg, Steigung, ⛰) gelten weiter nur für series_a == "ele".
+
+    Eine globale Funktion `window.advanceFrame(progress)` setzt den Fortschritt
+    0..1 und löst ein synchrones Re-Render aus. Pro Frame: advanceFrame(p) →
+    wait → screenshot.
     """
+    # v0.9.438 — series_b ist optional. Nur wenn eine zweite Reihe gewählt IST
+    # und Werte mitkommen, zeichnen wir sie; sonst bleibt alles wie bei einer
+    # Reihe (kein rechter Rand, keine zweite Achse).
+    _sid_b = (getattr(cfg, "series_b", "") or "").strip()
+    _has_b = bool(_sid_b) and bool(values_b) and len(values_b or []) == len(elevations)
     data_json = json.dumps({
         "distances_m": distances_m,
         "elevations": elevations,
+        "values_b": list(values_b) if _has_b else [],
     })
     bg = cfg.background_color if not cfg.transparent_background else "transparent"
     grid_color = cfg.grid_color or "#3a3a3a"
     label_color = cfg.label_color or "#cccccc"
+    # v0.9.437 (Daten-Animator) — Meta der geplotteten Serie fürs Template.
+    _sid = getattr(cfg, "series_a", "ele") or "ele"
+    _s_label, _s_unit = series_meta(_sid, getattr(cfg, "series_labels", None),
+                                    getattr(cfg, "series_units", None))
+    series_id_json = json.dumps(_sid)
+    series_label_json = json.dumps(_s_label)
+    series_unit_json = json.dumps(_s_unit)
+    series_dec_json = json.dumps(_series_decimals(_sid))
+    series_is_ele_js = "true" if _sid == "ele" else "false"
+    # Meta der zweiten Reihe (rechte Achse).
+    if _has_b:
+        _b_label, _b_unit = series_meta(_sid_b, getattr(cfg, "series_labels", None),
+                                        getattr(cfg, "series_units", None))
+    else:
+        _b_label, _b_unit = "", ""
+    has_b_js = "true" if _has_b else "false"
+    series_b_label_json = json.dumps(_b_label)
+    series_b_unit_json = json.dumps(_b_unit)
+    series_b_dec_json = json.dumps(_series_decimals(_sid_b) if _has_b else 0)
+    line_color_b_json = json.dumps(getattr(cfg, "line_color_b", "#2e86de"))
+    line_width_b_json = json.dumps(float(getattr(cfg, "line_width_b", 3.0) or 3.0))
 
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>height-render</title>
@@ -192,6 +240,24 @@ const MK_FS = {float(cfg.marker_font_size)};
 const MK_SHOW_ICON = {str(cfg.marker_show_icon).lower()};
 const MK_SHOW_ELE = {str(cfg.marker_show_ele).lower()};
 const MK_SHOW_DIST = {str(cfg.marker_show_dist).lower()};
+// v0.9.437 (Daten-Animator) — Meta der geplotteten Serie. `elevs` trägt die
+// Werte DIESER Serie; S_IS_ELE schaltet die höhen-only-Teile (⛰, Steigung,
+// Auf-/Abstieg) zu, die bei Puls/Tempo/… keinen Sinn ergeben.
+const S_ID = {series_id_json};
+const S_LABEL = {series_label_json};
+const S_UNIT = {series_unit_json};
+const S_DEC = {series_dec_json};
+const S_IS_ELE = {series_is_ele_js};
+// Wert + Einheit der Serie einheitlich formatieren.
+function sFmt(v) {{ return v.toFixed(S_DEC) + (S_UNIT ? " " + S_UNIT : ""); }}
+// v0.9.438 — optionale zweite Reihe auf eigener rechter Achse.
+const HAS_B = {has_b_js};
+const B_LABEL = {series_b_label_json};
+const B_UNIT = {series_b_unit_json};
+const B_DEC = {series_b_dec_json};
+const LC_B = {line_color_b_json};
+const LW_B = {line_width_b_json};
+function bFmt(v) {{ return v.toFixed(B_DEC) + (B_UNIT ? " " + B_UNIT : ""); }}
 function _rzRgba(hex, a) {{
   const m = /^#?([0-9a-f]{{6}})$/i.exec(hex || "");
   if (!m) return "rgba(0,0,0," + a + ")";
@@ -201,8 +267,16 @@ function _rzRgba(hex, a) {{
 
 // Padding skaliert mit Höhe (für 4K-Render werden Achsenlabels größer)
 const SCALE = H / 1080;
-const PAD_L = Math.round(80 * SCALE);
-const PAD_R = Math.round(40 * SCALE);
+// v0.9.437 — Platz für die Y-Beschriftung wächst mit der Einheit: „139 bpm" /
+// „24.5 km/h" sind breiter als „1234 m" und würden sonst links abgeschnitten.
+// Bei S_UNIT="m" bleibt es exakt bei 80 → keine Änderung an Höhen-Renders.
+const PAD_L = Math.round((80 + Math.max(0, (S_UNIT || "").length - 1) * 9) * SCALE);
+// v0.9.438 — rechter Rand macht Platz für die zweite Achse, sonst wie bisher.
+// Mit zweiter Achse braucht rechts denselben Platz wie links (12px Abstand +
+// Textbreite), sonst wird „142 bpm" am Bildrand abgeschnitten.
+const PAD_R = HAS_B
+  ? Math.round((88 + Math.max(0, (B_UNIT || "").length - 1) * 9) * SCALE)
+  : Math.round(40 * SCALE);
 // Header braucht oben eine Bandbreite; Wegpunkt-Labels ragen auch nach oben.
 const HEAD_H = SHOW_HEADER ? Math.round(58 * SCALE) : 0;
 const PAD_T = Math.round((WAYPOINTS.length ? 42 : 30) * SCALE) + HEAD_H + Math.round(30 * SCALE);
@@ -310,6 +384,34 @@ function py(ele) {{
   return PAD_T + (1 - (ele - eLo) / eSpan) * PLOT_H;
 }}
 
+// ── Zweite Reihe (v0.9.438): eigene Werte, eigene Skala, eigene Achse ────────
+// Bewusst getrennt von A: Puls (bpm) und Höhe (m) haben keinen gemeinsamen
+// Wertebereich — nur so sind beide Kurven gleichzeitig lesbar.
+const elevsB = HAS_B ? _rzSmooth(DATA.values_b, SMOOTHING) : [];
+let bLo = 0, bSpanV = 1;
+if (HAS_B) {{
+  function bAtDist(d) {{
+    const idx = findIdxAtDist(d);
+    if (idx <= 0) return elevsB[0];
+    const d0 = dists[idx - 1], d1 = dists[idx];
+    const seg = d1 > d0 ? (d - d0) / (d1 - d0) : 0;
+    return elevsB[idx - 1] + (elevsB[idx] - elevsB[idx - 1]) * seg;
+  }}
+  let _bMin = Math.min(bAtDist(dTrimStart), bAtDist(dTrimEnd));
+  let _bMax = Math.max(bAtDist(dTrimStart), bAtDist(dTrimEnd));
+  for (let i = i0; i <= i1; i++) {{
+    if (elevsB[i] < _bMin) _bMin = elevsB[i];
+    if (elevsB[i] > _bMax) _bMax = elevsB[i];
+  }}
+  const bRange = Math.max(1e-6, _bMax - _bMin);
+  // gleiche Luft oben/unten wie bei A, damit beide Kurven optisch gleich sitzen
+  bSpanV = (1 + topPadFrac) * bRange / Math.max(0.001, 1 - bottomPadFrac);
+  bLo = _bMin - bottomPadFrac * bSpanV;
+}}
+function pyB(v) {{
+  return PAD_T + (1 - (v - bLo) / bSpanV) * PLOT_H;
+}}
+
 const svg = document.getElementById("svg");
 
 function svgNS(tag, attrs, text) {{
@@ -404,19 +506,33 @@ const RZ_FIELD_LABELS_DE = {{
   ele_minmax: "Höhe min / max", ele_avg: "Ø-Höhe",
 }};
 function rzFieldLabel(id) {{
+  // Bei einer Nicht-Höhen-Serie tragen die Min/Max/Ø-Felder deren Namen
+  // („Herzfrequenz max" statt „Höhe max"). Die von der UI gelieferten
+  // STATS_LABELS sagen für diese IDs „Höhe" — deshalb hier vorher abbiegen.
+  if (!S_IS_ELE) {{
+    switch (id) {{
+      case "ele_max":    return S_LABEL + " max";
+      case "ele_min":    return S_LABEL + " min";
+      case "ele_minmax": return S_LABEL + " min / max";
+      case "ele_avg":    return "Ø " + S_LABEL;
+    }}
+  }}
   return (STATS_LABELS && STATS_LABELS[id]) || RZ_FIELD_LABELS_DE[id] || id;
 }}
 function rzFieldValue(id, st) {{
   const r = Math.round;
   switch (id) {{
     case "distance":   return (st.distM / 1000).toFixed(2) + " km";
-    case "updown":     return "↑" + r(st.ascent) + " / ↓" + r(st.descent) + " m";
-    case "avg_grad":   return "+" + st.gradAvgUp.toFixed(1) + " / −" + st.gradAvgDown.toFixed(1) + " %";
-    case "max_grad":   return "+" + r(st.gradMaxUp) + " / −" + r(st.gradMaxDown) + " %";
-    case "ele_max":    return r(st.eleMax) + " m";
-    case "ele_min":    return r(st.eleMin) + " m";
-    case "ele_minmax": return r(st.eleMin) + " / " + r(st.eleMax) + " m";
-    case "ele_avg":    return r(st.eleAvg) + " m";
+    // Auf-/Abstieg + Steigung sind höhen-semantisch — bei Puls/Tempo/… leer
+    // (rzStatsFields() filtert sie ohnehin raus, das hier ist der Gürtel).
+    case "updown":     return S_IS_ELE ? ("↑" + r(st.ascent) + " / ↓" + r(st.descent) + " m") : "";
+    case "avg_grad":   return S_IS_ELE ? ("+" + st.gradAvgUp.toFixed(1) + " / −" + st.gradAvgDown.toFixed(1) + " %") : "";
+    case "max_grad":   return S_IS_ELE ? ("+" + r(st.gradMaxUp) + " / −" + r(st.gradMaxDown) + " %") : "";
+    // Min/Max/Ø rechnen auf der geplotteten Serie → generisch mit ihrer Einheit.
+    case "ele_max":    return sFmt(st.eleMax);
+    case "ele_min":    return sFmt(st.eleMin);
+    case "ele_minmax": return sFmt(st.eleMin) + " / " + sFmt(st.eleMax);
+    case "ele_avg":    return sFmt(st.eleAvg);
     default:           return "";
   }}
 }}
@@ -480,8 +596,21 @@ function draw(progress) {{
         x: PAD_L - Math.round(12 * SCALE), y: y + Math.round(6 * SCALE),
         fill: LBL_COLOR, "font-size": FONT_SIZE,
         "text-anchor": "end", "font-family": "-apple-system, sans-serif",
-      }}, ele.toFixed(0) + " m");
+      }}, sFmt(ele));
       svg.appendChild(t);
+    }}
+    // v0.9.438 — rechte Achse für Reihe B, in deren Linienfarbe damit klar ist
+    // welche Achse zu welcher Kurve gehört.
+    if (HAS_B) {{
+      for (let i = 0; i <= 5; i++) {{
+        const y = PAD_T + (i / 5) * PLOT_H;
+        const v = (bLo + bSpanV) - (i / 5) * bSpanV;
+        svg.appendChild(svgNS("text", {{
+          x: PAD_L + PLOT_W + Math.round(12 * SCALE), y: y + Math.round(6 * SCALE),
+          fill: LC_B, "font-size": FONT_SIZE,
+          "text-anchor": "start", "font-family": "-apple-system, sans-serif",
+        }}, bFmt(v)));
+      }}
     }}
   }}
 
@@ -526,6 +655,32 @@ function draw(progress) {{
     svg.appendChild(svgNS("path", {{
       d: partialD, fill: "none", stroke: lineStroke,
       "stroke-width": LW * SCALE,
+      "stroke-linejoin": "round", "stroke-linecap": "round",
+    }}));
+  }}
+
+  // v0.9.438 — zweite Kurve auf der rechten Skala. Bewusst nur Linie (keine
+  // Fläche, keine Farbzonen): zwei gefüllte Flächen übereinander wären nicht
+  // mehr lesbar. Läuft synchron zur ersten bis dCurrent.
+  let curB = null;
+  if (HAS_B && progress > 0) {{
+    let bD = "";
+    for (let i = i0; i <= Math.max(i0, endIdx - 1); i++) {{
+      bD += (i === i0 ? "M" : " L") + px(dists[i]).toFixed(1) + " " + pyB(elevsB[i]).toFixed(1);
+    }}
+    // Endpunkt exakt auf dCurrent interpolieren, damit A und B gleich weit sind
+    if (endIdx <= i0) {{
+      curB = elevsB[i0];
+    }} else {{
+      const d0 = dists[endIdx - 1], d1 = dists[endIdx];
+      const seg = d1 > d0 ? (dCurrent - d0) / (d1 - d0) : 0;
+      curB = elevsB[endIdx - 1] + (elevsB[endIdx] - elevsB[endIdx - 1]) * seg;
+    }}
+    if (!bD) bD = "M" + px(dists[i0]).toFixed(1) + " " + pyB(elevsB[i0]).toFixed(1);
+    bD += " L" + endX.toFixed(1) + " " + pyB(curB).toFixed(1);
+    svg.appendChild(svgNS("path", {{
+      d: bD, fill: "none", stroke: LC_B,
+      "stroke-width": LW_B * SCALE,
       "stroke-linejoin": "round", "stroke-linecap": "round",
     }}));
   }}
@@ -617,12 +772,20 @@ function draw(progress) {{
 
   // ── Marker-Callout: konfigurierbar (Felder + Farben + Schriftgröße) ───────
   if (SHOW_MARKER && progress > 0) {{
-    const grad = SHOW_GRAD ? rzGradAtDist(dists, elevs, dCurrent, 60) : null;
+    // Steigung ist höhen-semantisch — bei Puls/Tempo/… ergibt „↗ 5 %" keinen
+    // Sinn, also aus der Marker-Box raus.
+    const grad = (SHOW_GRAD && S_IS_ELE) ? rzGradAtDist(dists, elevs, dCurrent, 60) : null;
     const curDistKm = (dCurrent - dTrimStart) / 1000;
     const fs = MK_FS * SCALE;
     const lines = [];
-    const l1 = (MK_SHOW_ICON ? "⛰" : "") + (MK_SHOW_ELE ? ((MK_SHOW_ICON ? " " : "") + curEle.toFixed(0) + " m") : "");
+    const _icon = (MK_SHOW_ICON && S_IS_ELE) ? "⛰" : "";
+    const l1 = _icon + (MK_SHOW_ELE ? ((_icon ? " " : "") + sFmt(curEle)) : "");
     if (l1) lines.push({{ text: l1, size: fs, fill: LBL_COLOR, weight: "500" }});
+    // v0.9.438 — zweite Reihe direkt darunter, in ihrer Linienfarbe (kein
+    // eigener Schalter: wer B wählt, will B auch am Marker sehen).
+    if (HAS_B && curB != null && MK_SHOW_ELE) {{
+      lines.push({{ text: bFmt(curB), size: fs * 0.82, fill: LC_B, weight: "500" }});
+    }}
     const p2 = [];
     if (grad != null) p2.push((grad >= 0 ? "↗ +" : "↘ −") + Math.abs(grad).toFixed(1) + " %");
     if (MK_SHOW_DIST) p2.push(curDistKm.toFixed(2) + " km");
@@ -715,9 +878,26 @@ async def render(cfg: HeightConfig,
     # Downsample auf ~1000 für Render — Browser-Side SVG ist sonst zäh
     ds = cgpx.downsample(pts, 1000)
     distances_m = [p.dist_m for p in ds]
-    elevations  = [(p.ele if p.ele is not None else 0.0) for p in ds]
+    # v0.9.437 (Daten-Animator) — geplottet wird die gewählte Serie (Höhe/Puls/
+    # Tempo/…), nicht mehr fix die Höhe. Fehlt sie im Track, greift der Rückfall
+    # — dann MUSS auch cfg.series_a mitziehen, damit die Achse nicht „Leistung"
+    # an eine Höhenkurve schreibt.
+    cfg.series_a, elevations = resolve_series(ds, getattr(cfg, "series_a", "ele"))
+    # v0.9.438 — optionale zweite Reihe. Anders als bei A gibt es hier KEINEN
+    # Rückfall: ist die gewünschte Reihe im Track nicht da, lassen wir B weg,
+    # statt ersatzweise irgendeine andere Kurve zu zeigen.
+    values_b = None
+    _sid_b = (getattr(cfg, "series_b", "") or "").strip()
+    if _sid_b and _sid_b != cfg.series_a:
+        _hit_b = series_by_id(available_series(ds), _sid_b)
+        if _hit_b is not None:
+            values_b = list(_hit_b["values"])
+        else:
+            cfg.series_b = ""
+    elif _sid_b:
+        cfg.series_b = ""  # B == A ergibt keine zweite Achse
 
-    html = _make_html(cfg, distances_m, elevations)
+    html = _make_html(cfg, distances_m, elevations, values_b)
 
     # Frames
     anim_frames = max(1, cfg.duration_s * cfg.fps)
@@ -971,7 +1151,155 @@ def _windowed_gradient(dists: list, elevs: list, i: int, window_m: float = 60.0)
     return (e_hi - e_lo) / dd * 100.0
 
 
+# ── Serien-Katalog (Daten-Animator) ─────────────────────────────────────────
+# Der Daten-Animator plottet EINE beliebige Messreihe pro Achse. Zwei Quellen:
+#   • abgeleitet — aus der Geometrie gerechnet (siehe core/sensors.py: Distanz/
+#     Tempo/Steigung gehören bewusst NICHT in die Sensor-Registry)
+#   • Sensoren  — TrackPoint.extra[key] (FIT/GPX-Extensions), Label+Einheit aus
+#     sensors.FIELD_META (inkl. Projekt-Overrides via field_meta_ov)
+# `available_series()` liefert nur, was der geladene Track WIRKLICH hergibt —
+# die UI graut alles andere aus.
+DERIVED_SERIES: dict[str, tuple[str, str]] = {
+    "ele":   ("Höhe",     "m"),
+    "speed": ("Tempo",    "km/h"),
+    "grade": ("Steigung", "%"),
+}
+
+
+def _series_speed(points: list) -> list[float]:
+    """Tempo [km/h] pro Punkt aus Distanz/Zeit, ±1 geglättet (ruhige Kurve)."""
+    n = len(points)
+    out = [0.0] * n
+    for i in range(n):
+        a = max(0, i - 1)
+        b = min(n - 1, i + 1)
+        dt = points[b].elapsed_s - points[a].elapsed_s
+        dd = points[b].dist_m - points[a].dist_m
+        out[i] = (dd / dt * 3.6) if dt > 0 else 0.0
+    return out
+
+
+def _series_grade(points: list) -> list[float]:
+    """Steigung [%] pro Punkt über ein ±60-m-Fenster (rausch-robust)."""
+    dists = [p.dist_m for p in points]
+    elevs = [p.ele for p in points]
+    return [_windowed_gradient(dists, elevs, i) for i in range(len(points))]
+
+
+def _fill_gaps(vals: list) -> list[float]:
+    """Lücken (None) mit dem letzten gültigen Wert füllen; führende mit dem
+    ersten gültigen. Sensoren liefern nicht an jedem Punkt einen Wert."""
+    out: list[float] = []
+    last = None
+    for v in vals:
+        if isinstance(v, (int, float)):
+            last = float(v)
+        out.append(last if last is not None else 0.0)
+    first = next((x for x in out if x != 0.0), None)
+    if first is not None:
+        for i, v in enumerate(out):
+            if v == 0.0 and (vals[i] is None or not isinstance(vals[i], (int, float))):
+                out[i] = first
+            else:
+                break
+    return out
+
+
+def available_series(points: list, overrides: dict | None = None) -> list[dict]:
+    """Alle im Track nutzbaren Messreihen für den Daten-Animator.
+
+    Rückgabe: [{"id","label","unit","values"}] — abgeleitet zuerst (Höhe,
+    Tempo, Steigung), danach die Sensorfelder in stabiler Reihenfolge.
+    """
+    out: list[dict] = []
+    if not points:
+        return out
+
+    has_ele = any(p.ele is not None for p in points)
+    has_time = any(getattr(p, "time", None) for p in points) and points[-1].elapsed_s > 0
+
+    if has_ele:
+        lbl, unit = DERIVED_SERIES["ele"]
+        out.append({"id": "ele", "label": lbl, "unit": unit,
+                    "values": [(p.ele if p.ele is not None else 0.0) for p in points]})
+    if has_time:
+        lbl, unit = DERIVED_SERIES["speed"]
+        out.append({"id": "speed", "label": lbl, "unit": unit,
+                    "values": [round(v, 2) for v in _series_speed(points)]})
+    if has_ele:
+        lbl, unit = DERIVED_SERIES["grade"]
+        out.append({"id": "grade", "label": lbl, "unit": unit,
+                    "values": [round(v, 2) for v in _series_grade(points)]})
+
+    # Sensorfelder: nur numerische, die mindestens einmal vorkommen. Bekannte
+    # Felder (in FIELD_META) zuerst, danach unbekannte Hersteller-/Developer-
+    # Felder (label == key) — sonst stehen „unknown_61" & Co. mitten zwischen
+    # Puls und Temperatur. Innerhalb der Gruppen alphabetisch nach Label.
+    keys: set[str] = set()
+    for p in points:
+        try:
+            keys.update(getattr(p, "extra", None) or {})
+        except Exception:
+            pass
+    sensors: list[dict] = []
+    for k in keys:
+        raw = [(p.extra or {}).get(k) for p in points]
+        if not any(isinstance(v, (int, float)) for v in raw):
+            continue
+        label, unit = _sensors.field_meta_ov(k, overrides)
+        sensors.append({"id": k, "label": label, "unit": unit,
+                        "values": [round(v, 2) for v in _fill_gaps(raw)]})
+    sensors.sort(key=lambda s: (s["id"] not in _sensors.FIELD_META, s["label"].lower()))
+    out.extend(sensors)
+    return out
+
+
+def series_by_id(series: list, sid: str) -> dict | None:
+    """Serie aus available_series()-Liste holen (oder None)."""
+    for s in series or []:
+        if s.get("id") == sid:
+            return s
+    return None
+
+
+def resolve_series(points: list, sid: str, overrides: dict | None = None) -> tuple[str, list[float]]:
+    """(effektive_id, werte) der Serie `sid` — mit Rückfall auf Höhe bzw. die
+    erste verfügbare Reihe, damit ein Track ohne die gewünschte Serie (z.B.
+    kein Puls aufgezeichnet) den Render nicht kippt.
+
+    Gibt bewusst die EFFEKTIVE ID mit zurück: Wer beschriftet, muss sie nutzen —
+    sonst steht „Leistung / W" an einer Höhenkurve.
+    """
+    ser = available_series(points, overrides)
+    hit = series_by_id(ser, sid or "ele") or series_by_id(ser, "ele") or (ser[0] if ser else None)
+    if hit is None:
+        return (sid or "ele"), [0.0] * len(points)
+    return hit["id"], list(hit["values"])
+
+
+def _series_decimals(sid: str) -> int:
+    """Sinnvolle Nachkommastellen je Serie — Puls/Höhe/Leistung ganzzahlig,
+    Tempo/Steigung/Temperatur eine Stelle (sonst zappelt die Anzeige)."""
+    return 1 if sid in ("speed", "grade", "temperature", "core_temp") else 0
+
+
+def series_meta(sid: str, labels: dict | None = None, units: dict | None = None) -> tuple[str, str]:
+    """(Label, Einheit) einer Serie. Reihenfolge: von der UI durchgereichte
+    (lokalisierte) Werte → abgeleiteter Default → Sensor-Registry."""
+    lbl = (labels or {}).get(sid)
+    unit = (units or {}).get(sid)
+    if lbl is None or unit is None:
+        if sid in DERIVED_SERIES:
+            d_lbl, d_unit = DERIVED_SERIES[sid]
+        else:
+            d_lbl, d_unit = _sensors.field_meta(sid)
+        lbl = d_lbl if lbl is None else lbl
+        unit = d_unit if unit is None else unit
+    return lbl, unit
+
+
 def make_standalone_html(cfg: "HeightConfig", distances_m: list, elevations: list,
+                         values_b: list | None = None,
                          *, replay_label: str = "↻ Neu", loop: bool = True) -> str:
     """v0.9.397 — In sich geschlossene, selbst-laufende HTML-Seite fürs Web/Blog.
 
@@ -985,7 +1313,7 @@ def make_standalone_html(cfg: "HeightConfig", distances_m: list, elevations: lis
     Reines HTML5 + Vanilla-JS, keine externen Abhängigkeiten.
     """
     import re as _re, html as _h
-    page = _make_html(cfg, distances_m, elevations)
+    page = _make_html(cfg, distances_m, elevations, values_b)
     bg = cfg.background_color if not cfg.transparent_background else "transparent"
     new_style = (
         "<style>"
@@ -1001,7 +1329,7 @@ def make_standalone_html(cfg: "HeightConfig", distances_m: list, elevations: lis
     )
     page = _re.sub(r"<style>.*?</style>", lambda m: new_style, page, count=1, flags=_re.S)
     page = page.replace('preserveAspectRatio="none"', 'preserveAspectRatio="xMidYMid meet"', 1)
-    page = page.replace("<title>height-render</title>", "<title>Höhenprofil</title>", 1)
+    page = page.replace("<title>height-render</title>", "<title>Datenprofil</title>", 1)
     dur_ms = max(100.0, float(cfg.duration_s) * 1000.0)
     hold_ms = max(0.0, float(cfg.hold_s) * 1000.0)
     end_behaviour = ("if(HOLD>0){held=ts;}else{t0=ts;}" if loop
@@ -1032,7 +1360,7 @@ def make_embed_snippet(standalone_html: str, cfg: "HeightConfig") -> str:
     import html as _h
     w, h = int(cfg.width), int(cfg.height)
     esc = _h.escape(standalone_html, quote=True)
-    return ('<iframe title="Höhenprofil" loading="lazy" '
+    return ('<iframe title="Datenprofil" loading="lazy" '
             'style="width:100%;max-width:' + str(w) + 'px;aspect-ratio:' + str(w) + '/' + str(h)
             + ';border:0;display:block;margin:1rem auto" '
             'srcdoc="' + esc + '"></iframe>')

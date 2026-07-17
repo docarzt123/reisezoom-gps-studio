@@ -316,7 +316,7 @@ python app.py</code></pre>
 </ol>
 <blockquote><strong>Anreise/Route animieren?</strong> Dafür gibt es seit v0.9.205 ein eigenes Modul <strong>🛣 Reiseroute</strong> (Start/Ziel → berechnete Strecke). Siehe Kapitel 4.</blockquote>
 <h3 id="einstellungen">Einstellungen</h3>
-<blockquote><strong>↩︎ Rückgängig für alles (seit v0.9.322):</strong> Jede Einstellungsänderung lässt sich mit <strong>⌘Z</strong> (Mac) / <strong>Strg+Z</strong> (Windows) rückgängig machen — in <strong>Animator, Tour-Map, Geotagger und Höhen-Animator</strong>: Farben, Schrift, Linienbreite, Glow, Overlay-Felder, Keyframes, Trim, Zeit-Offset usw. <strong>Wiederherstellen</strong> mit <strong>⌘⇧Z</strong> / <strong>Strg+Y</strong>. (Ein Slider-Zug = ein Schritt.)</blockquote>
+<blockquote><strong>↩︎ Rückgängig für alles (seit v0.9.322):</strong> Jede Einstellungsänderung lässt sich mit <strong>⌘Z</strong> (Mac) / <strong>Strg+Z</strong> (Windows) rückgängig machen — in <strong>Animator, Tour-Map, Geotagger und Daten-Animator</strong>: Farben, Schrift, Linienbreite, Glow, Overlay-Felder, Keyframes, Trim, Zeit-Offset usw. <strong>Wiederherstellen</strong> mit <strong>⌘⇧Z</strong> / <strong>Strg+Y</strong>. (Ein Slider-Zug = ein Schritt.)</blockquote>
 <p><strong>Karte:</strong></p>
 <ul>
 <li><strong>Stil</strong>: 6 Mapbox-Stile (Satellite 3D, Satellite+Streets, Outdoors, Streets, Hell, Dunkel)</li>
@@ -603,12 +603,26 @@ python app.py</code></pre>
 </ul>
 <p><strong>Bewusst minimal:</strong> nur Track + Text-Beschriftungen. Keine Fotos, keine Schilder-Grafiken, kein 3D/Overlay — das ist der leichte „Blog-Karten&quot;-Export.</p>
 <hr>
-<h2 id="5b-modul-h-hen-animator-h-henprofil-als-video">5b · Modul: Höhen-Animator — Höhenprofil als Video ⛰</h2>
+<h2 id="5b-modul-daten-animator-messwerte-als-video">5b · Modul: Daten-Animator — Messwerte als Video 📊</h2>
+<blockquote><strong>Neu ab v0.9.437:</strong> Das Modul hieß früher <strong>Höhen-Animator</strong> und konnte nur die Höhe. Jetzt animiert es <strong>jede Messreihe aus deinem Track</strong> — deshalb der neue Name. Deine bestehenden Projekte funktionieren unverändert weiter und starten wie gewohnt mit der Höhe.</blockquote>
 <h3 id="was-es-macht">Was es macht</h3>
-<p>Baut aus deinem Track ein <strong>Video, in dem sich die Höhenprofil-Kurve live aufbaut</strong> — ein mitlaufender Marker zeigt Höhe, Steigung und Distanz. Ideal als Einblendung im Schnitt (auch mit <strong>transparentem Hintergrund</strong> via ProRes-4444-Alpha).</p>
+<p>Baut aus deinem Track ein <strong>Video, in dem sich eine Messkurve live aufbaut</strong> — ein mitlaufender Marker zeigt den aktuellen Wert und die Distanz. Ideal als Einblendung im Schnitt (auch mit <strong>transparentem Hintergrund</strong> via ProRes-4444-Alpha).</p>
+<h3 id="datenreihe-w-hlen-seit-v0-9-437">Datenreihe wählen (seit v0.9.437) ⭐</h3>
+<p>Ganz oben in der Seitenleiste steht <strong>„Datenreihe&quot;</strong>. Dort wählst du, was animiert wird:</p>
+<ul>
+<li><strong>Immer verfügbar:</strong> <strong>Höhe</strong>, <strong>Tempo</strong> und <strong>Steigung</strong> — die rechnet die App aus dem Track aus.</li>
+<li><strong>Aus FIT-/TCX-Dateien</strong> (z. B. von Garmin, Wahoo, Suunto): <strong>Herzfrequenz</strong>, <strong>Trittfrequenz</strong>, <strong>Leistung</strong>, <strong>Temperatur</strong> und weitere Sensorwerte.</li>
+</ul>
+<p>Die Liste zeigt <strong>nur, was dein Track wirklich enthält</strong>. Lädst du eine schlichte GPX-Datei ohne Sensordaten, bleiben Höhe/Tempo/Steigung übrig. Achsen-Beschriftung, Marker und Info-Leiste übernehmen Name und Einheit automatisch — bei Puls steht dann „139 bpm&quot; statt „1240 m&quot;.</p>
+<p>Zwei Anzeigen sind höhen-spezifisch und erscheinen nur bei der Reihe <strong>Höhe</strong>: das Berg-Symbol ⛰ und alles rund um <strong>Auf-/Abstieg und Steigung</strong>. Bei Puls oder Leistung wären sie sinnlos und bleiben aus.</p>
+<h3 id="zwei-reihen-gleichzeitig-seit-v0-9-438">Zwei Reihen gleichzeitig (seit v0.9.438) ⭐</h3>
+<p>Direkt unter der ersten Auswahl steht <strong>„Zweite Datenreihe (rechte Achse)&quot;</strong>. Wählst du dort etwas aus, laufen <strong>zwei Kurven gleichzeitig</strong> — klassisch: <strong>Höhe links, Puls rechts</strong>.</p>
+<p>Die zweite Reihe bekommt eine <strong>eigene Achse am rechten Rand</strong>, die sich automatisch auf ihren Wertebereich einstellt. Sie ist in der Linienfarbe der zweiten Kurve beschriftet, damit klar ist, welche Achse zu welcher Kurve gehört — Farbe und Linienbreite stellst du daneben ein. Die Marker-Box zeigt beide Werte übereinander.</p>
+<p>Getrennte Achsen sind Absicht: Höhe (m) und Puls (bpm) haben keinen gemeinsamen Wertebereich — auf einer gemeinsamen Achse wäre eine der beiden Kurven ein flacher Strich. Die zweite Kurve wird bewusst <strong>nur als Linie</strong> gezeichnet (ohne Fläche/Farbzonen), weil zwei gefüllte Flächen übereinander unlesbar wären. Ohne zweite Reihe bleibt alles wie gewohnt.</p>
 <h3 id="workflow">Workflow</h3>
 <ol>
-<li>GPX laden (globale GPX-Leiste oben). Die Vorschau spielt sofort.</li>
+<li>GPX/FIT/TCX laden (globale GPX-Leiste oben). Die Vorschau spielt sofort.</li>
+<li><strong>Datenreihe</strong> wählen (Standard: Höhe).</li>
 <li>Optik, Info-Leiste und Punkte einstellen (siehe unten). Alles läuft <strong>WYSIWYG</strong> in der Vorschau.</li>
 <li>Mit den <strong>Trim-Handles</strong> unter der Kurve den animierten Bereich eingrenzen (optional).</li>
 <li><strong>▶ Video rendern</strong> — Codec/Alpha wählen, Fortschritt läuft mit.</li>
@@ -632,7 +646,7 @@ python app.py</code></pre>
 <p><strong>Punkt &amp; Info-Box getrennt (seit v0.9.405):</strong> In der Sektion „Marker&quot; gibt es zwei unabhängige Schalter: <strong>„Punkt zeigen (zeichnet die Linie)&quot;</strong> steuert den laufenden Punkt an der Spitze der Animation, <strong>„Info-Box zeigen&quot;</strong> steuert die Info-Box daneben. Damit kannst du z. B. die Info-Box komplett ausschalten und trotzdem den Punkt behalten (oder umgekehrt). Punktfarbe und Punktgröße darüber gelten für den Punkt.</p>
 <p><strong>Hintergrund nur im Diagramm (seit v0.9.404):</strong> In der Sektion „Hintergrund-Höhenstufen&quot; gibt es die Checkbox <strong>„Nur im Diagramm-Bereich (innerhalb der Achsen)&quot;</strong>. Ist sie aktiv, wird der Höhen-Farbverlauf des Hintergrunds nur <strong>innerhalb des Achsen-Rahmens</strong> gezeichnet (genau dort, wo die Höhenlinie und die Fläche liegen) — der Rand rundherum behält die normale Hintergrundfarbe. Ohne Häkchen färbt der Verlauf wie bisher das ganze Bild.</p>
 <p><strong>Marker konfigurieren (seit v0.9.396):</strong> Die eigene Sektion <strong>„Marker&quot;</strong> macht den laufenden Punkt und seine Info-Box komplett gestaltbar: <strong>Punktfarbe + -größe</strong>; für die Box <strong>Hintergrundfarbe + Deckkraft, Randfarbe + Randdicke, Schriftgröße</strong>; und welche Werte drinstehen — <strong>⛰-Symbol, Höhe, Steigung (%), Distanz</strong> je einzeln an-/abschaltbar (die Box passt ihre Größe automatisch an).</p>
-<p><strong>Rückgängig:</strong> <strong>⌘Z / Strg+Z</strong> nimmt im Höhen-Animator <strong>alles</strong> zurück — Optik, Farben, Info-Leiste-Felder, Wegpunkte und Quellen-Schalter (ein Druck pro Schritt).</p>
+<p><strong>Rückgängig:</strong> <strong>⌘Z / Strg+Z</strong> nimmt im Daten-Animator <strong>alles</strong> zurück — Optik, Farben, Info-Leiste-Felder, Wegpunkte und Quellen-Schalter (ein Druck pro Schritt).</p>
 <p><strong>Als HTML exportieren (Blog/Web, seit v0.9.397):</strong> Unter dem Video-Render-Button liegt <strong>„Als HTML exportieren&quot;</strong>. Das erzeugt eine **selbst-laufende <code>.html</code>-Datei<strong> — dieselbe Animation wie im Video, aber sie läuft </strong>komplett im Browser<strong> (reines HTML, kein Video), mit Auto-Loop und </strong>„↻&quot;-Replay-Button<strong>. Ideal für einen Blogpost. Nach dem Export öffnet sich ein </strong>Fenster in der Bildschirmmitte** mit diesen Optionen:</p>
 <ul>
 <li><strong>▶ Im Browser öffnen</strong> — zeigt die fertige Animation sofort im Standard-Browser. <em>(Ein Doppelklick auf die Datei im Finder startet je nach System nur einen Editor — dann siehst du nur Quelltext; darum diesen Button nutzen.)</em></li>
@@ -797,7 +811,7 @@ python app.py</code></pre>
 <li><strong>🗺 Höhenprofil aus Karte laden</strong> — die App fährt einmal kurz auf den ganzen Track (lädt die Höhen-Kacheln) und liest für jeden Punkt die Karten-Höhe aus.</li>
 <li><strong>Unter der Karte</strong> erscheint ein <strong>Höhenprofil</strong> mit drei Linien übereinander: <strong>GPS (orange, dünn)</strong> = dein Original, <strong>Karte/Mapbox (blau, dünn)</strong> = das glatte Gelände, und die <strong>fette grüne Ergebnis-Linie</strong> = das, was rauskäme.</li>
 <li>Mit dem Regler <strong>GPS ⟷ Karte</strong> mischst du live: ganz rechts (100 %) = reine Karten-Höhe (sehr glatt), ganz links (0 %) = unverändertes GPS, Standard <strong>70 %</strong>. Die grüne Linie und die Höhenmeter-Anzeige (GPS / Karte / Ergebnis) wandern sofort mit.</li>
-<li>Passt es? <strong>⛰ Diese Höhe übernehmen</strong> schreibt die grüne Linie in den Track. Danach <strong>💾 speichern</strong> — die korrigierte Höhe landet im GPX und greift überall (Animator, Tour-Map, Höhen-Animator).</li>
+<li>Passt es? <strong>⛰ Diese Höhe übernehmen</strong> schreibt die grüne Linie in den Track. Danach <strong>💾 speichern</strong> — die korrigierte Höhe landet im GPX und greift überall (Animator, Tour-Map, Daten-Animator).</li>
 </ol>
 <blockquote>Braucht einen <strong>Mapbox-Token</strong> (Einstellungen) und Internet — ohne Token ist der „Laden&quot;-Button ausgegraut. Das Übernehmen lässt sich mit <strong>⌘Z</strong> rückgängig machen. Wenn du danach Punkte änderst (löschst/einfügst), verwirft sich das Profil automatisch — einfach neu laden.</blockquote>
 <p><strong>Zoom-Sync &amp; klickbare Punkte (seit v0.9.293):</strong> Karte und Höhenprofil hängen zusammen — <strong>zoomst/verschiebst du die Karte</strong>, zeigt das Profil automatisch nur den sichtbaren Abschnitt; <strong>Mausrad über dem Profil</strong> zoomt, <strong>Ziehen</strong> verschiebt, und die Karte zieht jeweils mit. <strong>Mauszeiger verknüpft (seit v0.9.294):</strong> Fährst du mit der Maus über die <strong>Karte</strong>, zeigt ein <strong>senkrechter Balken im Höhenprofil</strong>, wo du gerade bist; fährst du über das <strong>Profil</strong>, erscheint ein <strong>weißer Ring auf dem Track</strong>. So findest du Stellen blitzschnell, ohne zu klicken.</p>
@@ -899,7 +913,7 @@ python app.py</code></pre>
 <li>Oder Referenz-Foto setzen (siehe Geotagger-Workflow)</li>
 </ul>
 <h3 id="oben-erscheint-quelldatei-nicht-gefunden-laufwerk-gemountet-seit-v0-9-305">Oben erscheint „Quelldatei nicht gefunden — Laufwerk gemountet?&quot; (seit v0.9.305)</h3>
-<p>Deine zuletzt geladene GPX-Datei ist gerade nicht lesbar — meistens weil die <strong>externe Festplatte abgesteckt</strong> wurde oder die Datei verschoben/gelöscht ist. Schließ die Platte wieder an (das Banner verschwindet beim nächsten Laden) oder klick <strong>„Datei neu wählen&quot;</strong> und such die GPX neu aus. Solange das Banner steht, können Tour-Map, Höhen-Animator und Geotagger den Track nicht aufbauen.</p>
+<p>Deine zuletzt geladene GPX-Datei ist gerade nicht lesbar — meistens weil die <strong>externe Festplatte abgesteckt</strong> wurde oder die Datei verschoben/gelöscht ist. Schließ die Platte wieder an (das Banner verschwindet beim nächsten Laden) oder klick <strong>„Datei neu wählen&quot;</strong> und such die GPX neu aus. Solange das Banner steht, können Tour-Map, Daten-Animator und Geotagger den Track nicht aufbauen.</p>
 <h3 id="wie-melde-ich-einen-bug">Wie melde ich einen Bug?</h3>
 <p><strong>Hilfe → 📧 Feedback / Bug-Report an Marc</strong> — alles vorbefüllt (siehe Sektion 7).</p>
 <hr>

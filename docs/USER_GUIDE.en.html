@@ -316,7 +316,7 @@ python app.py</code></pre>
 </ol>
 <blockquote><strong>Animate the journey / a route?</strong> Since v0.9.205 there&#x27;s a dedicated <strong>🛣 Travel Route</strong> module for that (start/destination → calculated route). See chapter 4.</blockquote>
 <h3 id="settings">Settings</h3>
-<blockquote><strong>↩︎ Undo for everything (since v0.9.322):</strong> Every settings change can be undone with <strong>⌘Z</strong> (Mac) / <strong>Ctrl+Z</strong> (Windows) — in <strong>Animator, Tour-Map, Geotagger and Elevation Animator</strong>: colors, font, line width, glow, overlay fields, keyframes, trim, time offset, etc. <strong>Redo</strong> with <strong>⌘⇧Z</strong> / <strong>Ctrl+Y</strong>. (One slider drag = one step.)</blockquote>
+<blockquote><strong>↩︎ Undo for everything (since v0.9.322):</strong> Every settings change can be undone with <strong>⌘Z</strong> (Mac) / <strong>Ctrl+Z</strong> (Windows) — in <strong>Animator, Tour-Map, Geotagger and Data Animator</strong>: colors, font, line width, glow, overlay fields, keyframes, trim, time offset, etc. <strong>Redo</strong> with <strong>⌘⇧Z</strong> / <strong>Ctrl+Y</strong>. (One slider drag = one step.)</blockquote>
 <p><strong>Map:</strong></p>
 <ul>
 <li><strong>Style</strong>: 6 Mapbox styles (Satellite 3D, Satellite+Streets, Outdoors, Streets, Light, Dark)</li>
@@ -597,12 +597,26 @@ python app.py</code></pre>
 </ul>
 <p><strong>Deliberately minimal:</strong> only track + text labels. No photos, no sign graphics, no 3D/overlay — this is the light &quot;blog map&quot; export.</p>
 <hr>
-<h2 id="5b-module-elevation-animator-the-elevation-profile-as-a-video">5b · Module: Elevation Animator — the elevation profile as a video ⛰</h2>
+<h2 id="5b-module-data-animator-measurements-as-a-video">5b · Module: Data Animator — measurements as a video 📊</h2>
+<blockquote><strong>New in v0.9.437:</strong> This module used to be called the <strong>Elevation Animator</strong> and could only do elevation. It now animates <strong>any data series from your track</strong> — hence the new name. Your existing projects keep working unchanged and still start with elevation.</blockquote>
 <h3 id="what-it-does">What it does</h3>
-<p>Builds a <strong>video from your track in which the elevation-profile curve builds up live</strong> — a moving marker shows elevation, gradient and distance. Ideal as an overlay in the edit (also with a <strong>transparent background</strong> via ProRes 4444 alpha).</p>
+<p>Builds a <strong>video from your track in which a measurement curve builds up live</strong> — a moving marker shows the current value and the distance. Ideal as an overlay in the edit (also with a <strong>transparent background</strong> via ProRes 4444 alpha).</p>
+<h3 id="choosing-the-data-series-since-v0-9-437">Choosing the data series (since v0.9.437) ⭐</h3>
+<p>At the very top of the sidebar you&#x27;ll find <strong>“Data series”</strong>. That&#x27;s where you pick what gets animated:</p>
+<ul>
+<li><strong>Always available:</strong> <strong>Elevation</strong>, <strong>Speed</strong> and <strong>Gradient</strong> — the app derives these from the track itself.</li>
+<li><strong>From FIT/TCX files</strong> (e.g. Garmin, Wahoo, Suunto): <strong>heart rate</strong>, <strong>cadence</strong>, <strong>power</strong>, <strong>temperature</strong> and other sensor values.</li>
+</ul>
+<p>The list only offers <strong>what your track actually contains</strong>. Load a plain GPX file without sensor data and you&#x27;re left with elevation/speed/gradient. The axis labels, marker and info bar adopt the name and unit automatically — with heart rate it reads “139 bpm” instead of “1240 m”.</p>
+<p>Two displays are elevation-specific and only appear for the <strong>Elevation</strong> series: the mountain icon ⛰ and everything around <strong>ascent/descent and gradient</strong>. They&#x27;d be meaningless for heart rate or power, so they stay hidden.</p>
+<h3 id="two-series-at-once-since-v0-9-438">Two series at once (since v0.9.438) ⭐</h3>
+<p>Right below the first picker sits <strong>“Second data series (right axis)”</strong>. Pick something there and <strong>two curves run at once</strong> — the classic being <strong>elevation on the left, heart rate on the right</strong>.</p>
+<p>The second series gets <strong>its own axis on the right edge</strong>, auto-scaled to its own value range. It&#x27;s labelled in the second curve&#x27;s line colour so it&#x27;s obvious which axis belongs to which curve — colour and line width are set right next to it. The marker box shows both values stacked.</p>
+<p>Separate axes are deliberate: elevation (m) and heart rate (bpm) share no common value range — on one axis, one of the two curves would collapse into a flat line. The second curve is drawn as a <strong>line only</strong> (no area or colour zones), because two filled areas on top of each other would be unreadable. With no second series, everything stays as before.</p>
 <h3 id="workflow">Workflow</h3>
 <ol>
-<li>Load a GPX (the global GPX bar at the top). The preview plays immediately.</li>
+<li>Load a GPX/FIT/TCX (the global GPX bar at the top). The preview plays immediately.</li>
+<li>Pick the <strong>data series</strong> (default: elevation).</li>
 <li>Set the look, info bar and points (see below). Everything runs <strong>WYSIWYG</strong> in the preview.</li>
 <li>Use the <strong>trim handles</strong> under the curve to limit the animated range (optional).</li>
 <li><strong>▶ Render video</strong> — choose codec/alpha, progress runs along.</li>
@@ -626,7 +640,7 @@ python app.py</code></pre>
 <p><strong>Point &amp; info box separated (since v0.9.405):</strong> In the &quot;Marker&quot; section there are two independent switches: <strong>&quot;Show point (draws the line)&quot;</strong> controls the moving point at the tip of the animation, <strong>&quot;Show info box&quot;</strong> controls the info box beside it. That way you can, for example, turn the info box off entirely and still keep the point (or vice versa). The point color and point size above apply to the point.</p>
 <p><strong>Background only in the chart (since v0.9.404):</strong> In the &quot;Background elevation steps&quot; section there&#x27;s the <strong>&quot;Only in the chart area (inside the axes)&quot;</strong> checkbox. When active, the elevation color gradient of the background is drawn only <strong>inside the axis frame</strong> (exactly where the elevation line and the area sit) — the border all around keeps the normal background color. Without the checkmark, the gradient colors the whole image as before.</p>
 <p><strong>Configure the marker (since v0.9.396):</strong> The dedicated <strong>&quot;Marker&quot;</strong> section makes the moving point and its info box fully customizable: <strong>point color + size</strong>; for the box <strong>background color + opacity, border color + border thickness, font size</strong>; and which values it contains — <strong>⛰ symbol, elevation, gradient (%), distance</strong> each individually toggleable (the box adjusts its size automatically).</p>
-<p><strong>Undo:</strong> <strong>⌘Z / Ctrl+Z</strong> undoes <strong>everything</strong> in the Elevation Animator — look, colors, info-bar fields, waypoints and source switches (one press per step).</p>
+<p><strong>Undo:</strong> <strong>⌘Z / Ctrl+Z</strong> undoes <strong>everything</strong> in the Data Animator — look, colors, info-bar fields, waypoints and source switches (one press per step).</p>
 <p><strong>Export as HTML (blog/web, since v0.9.397):</strong> Below the video render button sits <strong>&quot;Export as HTML&quot;</strong>. This produces a **self-running <code>.html</code> file<strong> — the same animation as in the video, but it runs </strong>completely in the browser<strong> (pure HTML, no video), with an auto-loop and a </strong>&quot;↻&quot; replay button<strong>. Ideal for a blog post. After the export a </strong>window opens in the center of the screen** with these options:</p>
 <ul>
 <li><strong>▶ Open in browser</strong> — shows the finished animation immediately in the default browser. <em>(Double-clicking the file in Finder only starts an editor on some systems — then you only see source code; so use this button.)</em></li>
@@ -791,7 +805,7 @@ python app.py</code></pre>
 <li><strong>🗺 Load the elevation profile from the map</strong> — the app briefly runs over the whole track once (loading the elevation tiles) and reads the map elevation for each point.</li>
 <li><strong>Below the map</strong> an <strong>elevation profile</strong> appears with three lines on top of each other: <strong>GPS (orange, thin)</strong> = your original, <strong>Map/Mapbox (blue, thin)</strong> = the smooth terrain, and the <strong>bold green result line</strong> = what would come out.</li>
 <li>With the <strong>GPS ⟷ Map</strong> slider you blend live: far right (100 %) = pure map elevation (very smooth), far left (0 %) = unchanged GPS, default <strong>70 %</strong>. The green line and the elevation-meter readout (GPS / Map / Result) move along immediately.</li>
-<li>Does it fit? <strong>⛰ Apply this elevation</strong> writes the green line into the track. Then <strong>💾 save</strong> — the corrected elevation lands in the GPX and takes effect everywhere (Animator, Tour-Map, Elevation Animator).</li>
+<li>Does it fit? <strong>⛰ Apply this elevation</strong> writes the green line into the track. Then <strong>💾 save</strong> — the corrected elevation lands in the GPX and takes effect everywhere (Animator, Tour-Map, Data Animator).</li>
 </ol>
 <blockquote>Needs a <strong>Mapbox token</strong> (settings) and internet — without a token the &quot;Load&quot; button is grayed out. Applying can be undone with <strong>⌘Z</strong>. If you change points afterwards (delete/insert), the profile discards itself automatically — just reload it.</blockquote>
 <p><strong>Zoom sync &amp; clickable points (since v0.9.293):</strong> the map and the elevation profile are linked — <strong>zoom/pan the map</strong> and the profile automatically shows only the visible section; the <strong>mouse wheel over the profile</strong> zooms, <strong>dragging</strong> pans, and the map moves along each time. <strong>Cursor linked (since v0.9.294):</strong> if you move the mouse over the <strong>map</strong>, a <strong>vertical bar in the elevation profile</strong> shows where you currently are; if you move over the <strong>profile</strong>, a <strong>white ring appears on the track</strong>. That way you find spots in a flash, without clicking.</p>
@@ -893,7 +907,7 @@ python app.py</code></pre>
 <li>or set a reference photo (see the Geotagger workflow)</li>
 </ul>
 <h3 id="at-the-top-appears-source-file-not-found-is-the-drive-mounted-since-v0-9-305">At the top appears &quot;Source file not found — is the drive mounted?&quot; (since v0.9.305)</h3>
-<p>Your most recently loaded GPX file is currently not readable — usually because the <strong>external drive was unplugged</strong> or the file was moved/deleted. Reconnect the drive (the banner disappears on the next load) or click <strong>&quot;Choose file again&quot;</strong> and pick the GPX anew. As long as the banner is up, the Tour-Map, Elevation Animator and Geotagger can&#x27;t build the track.</p>
+<p>Your most recently loaded GPX file is currently not readable — usually because the <strong>external drive was unplugged</strong> or the file was moved/deleted. Reconnect the drive (the banner disappears on the next load) or click <strong>&quot;Choose file again&quot;</strong> and pick the GPX anew. As long as the banner is up, the Tour-Map, Data Animator and Geotagger can&#x27;t build the track.</p>
 <h3 id="how-do-i-report-a-bug">How do I report a bug?</h3>
 <p><strong>Help → 📧 Feedback / bug report to Marc</strong> — everything pre-filled (see section 7).</p>
 <hr>

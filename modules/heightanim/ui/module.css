@@ -241,3 +241,15 @@
   cursor: pointer; font-size: 12px; line-height: 1;
 }
 .height-wp-del:hover { background: rgba(255,255,255,0.08); }
+
+/* v0.9.441 — „?"-Hilfe-Badge: ersetzt die dauerhaft sichtbaren Erklärtexte in
+   der Sidebar durch ein kleines „?" mit Tooltip (native title). Hält die
+   Seitenleiste kurz; Erklärung nur auf Hover/Fokus. */
+.rz-help {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; min-width: 15px; border-radius: 50%;
+  border: 1px solid currentColor; font-size: 10px; font-weight: 600;
+  line-height: 1; opacity: 0.45; cursor: help; margin-left: 6px;
+  vertical-align: middle; user-select: none;
+}
+.rz-help:hover, .rz-help:focus { opacity: 0.85; outline: none; }

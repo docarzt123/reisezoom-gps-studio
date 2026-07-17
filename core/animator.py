@@ -1005,47 +1005,78 @@ window.__rzColorGradient = function(CD, i0, i1, stopsVal, stopsCol, mode, metric
     if(v>=stopsVal[n-1]) return n-1;
     var i=0; while(i<n-1 && stopsVal[i+1]<=v) i++; return i;
   }
-  // --- DISTANZ-Modus: Wert = km, linear in progress; harte Kanten exakt an den Stops. ---
+  // v0.9.439 — Eine Farbe über die ganze Linie. Rückgabe statt null: null würde
+  // in der Vorschau den Verlauf ENTFERNEN (Spur springt auf die Basisfarbe) und
+  // im Render den Verlauf des VORFRAMES stehen lassen (falsche Farben).
+  function flat(c){ return ['interpolate',['linear'],['line-progress'], 0, c, 1, c]; }
+  // --- DISTANZ-Modus: Wert = km, linear in progress; Kanten exakt an den Stops. ---
   if(!metricArr){
-    var pToKm=function(p){ return (d0 + p*dT)/1000; };
+    var pOfKm=function(km){ return (km*1000 - d0)/dT; };
     if(mode==='gradient'){
-      var expr=['interpolate',['linear'],['line-progress']], N=60;
-      for(var k=0;k<=N;k++){ var p=k/N; expr.push(p, colAtVal(pToKm(p))); }
+      // v0.9.439 — Stützstellen EXAKT an den Farb-Stops statt an einem Raster
+      // über die gezeichnete Länge. Die Farbe ist stückweise linear in km, also
+      // ist das nicht nur exakt, sondern auch frame-stabil: die Stops liegen bei
+      // festen Kilometern, ihr Interpolations-Anteil hängt nicht mehr davon ab,
+      // wie lang die Linie gerade ist. (Vorher: 60 Stützstellen bei k/60 der
+      // gezeichneten Linie → das Raster wanderte pro Frame über den Track und
+      // die Farben schimmerten — als „Farben flackern" gemeldet.)
+      var expr=['interpolate',['linear'],['line-progress'], 0, colAtVal(d0/1000)];
+      var lastG=0;
+      for(var s=0;s<n;s++){
+        var p=pOfKm(stopsVal[s]);
+        if(!(p>lastG) || p>=1) continue;
+        lastG=p; expr.push(p, stopsCol[s]);
+      }
+      expr.push(1, colAtVal((d0+dT)/1000));
       return expr;
     }
-    var e=['step',['line-progress'], colAtVal(pToKm(0))], lastP=-1;
-    for(var s=0;s<n;s++){
-      var p2=(stopsVal[s]*1000 - d0)/dT;
-      if(p2<=0 || p2>=1) continue;
-      if(p2<=lastP) p2=lastP+1e-5;
-      lastP=p2; e.push(p2, stopsCol[s]);
+    var e=['step',['line-progress'], colAtVal(d0/1000)], lastP=-1, anyS=false;
+    for(var s2=0;s2<n;s2++){
+      var p2=pOfKm(stopsVal[s2]);
+      if(!(p2>0) || p2>=1) continue;
+      if(p2<=lastP) p2=lastP+1e-6;
+      lastP=p2; e.push(p2, stopsCol[s2]); anyS=true;
     }
-    return e.length>3 ? e : null;
+    return anyS ? e : flat(colAtVal(d0/1000));
   }
-  // --- METRIK-Modus (Höhe/Tempo): nicht-monoton → Metrik am Punkt bei progress p
-  //     abtasten (line-progress ≈ Distanz-Anteil), dann Wert→Farbe mappen. ---
-  var cur=i0;
-  function metricAtDist(td){
-    while(cur<i1 && CD[cur+1]<td) cur++;
-    var a=cur<i0?i0:(cur>i1-1?i1-1:cur), b=a+1;
-    var seg=CD[b]-CD[a]; var f=seg>0?(td-CD[a])/seg:0;
-    if(f<0)f=0; else if(f>1)f=1;
-    return metricArr[a] + (metricArr[b]-metricArr[a])*f;
-  }
+  // --- METRIK-Modus (Höhe/Tempo): nicht-monoton. Stützstellen an TRACK-PUNKTEN,
+  //     also an festen absoluten Distanzen. Entscheidend gegen das Flackern: der
+  //     Interpolations-Anteil zwischen zwei Stützstellen kürzt dT weg
+  //     ((x-CD[a])/(CD[b]-CD[a])) → die Farbe an einer Stelle bleibt konstant,
+  //     egal wie weit die Linie schon gezeichnet ist. ---
   if(mode==='gradient'){
-    var g=['interpolate',['linear'],['line-progress']], NG=80; cur=i0;
-    for(var q=0;q<=NG;q++){ var pp=q/NG; g.push(pp, colAtVal(metricAtDist(d0+pp*dT))); }
+    // Schrittweite aus der GESAMT-Punktzahl → über alle Frames dieselbe.
+    var NG=80, stride=Math.max(1, Math.ceil((CD.length-1)/NG));
+    var g=['interpolate',['linear'],['line-progress'], 0, colAtVal(metricArr[i0])];
+    var lastp=0;
+    for(var i=i0+stride;i<i1;i+=stride){
+      var pi=(CD[i]-d0)/dT;
+      if(!(pi>lastp) || pi>=1) continue;
+      lastp=pi; g.push(pi, colAtVal(metricArr[i]));
+    }
+    // Kopf: eigene Stützstelle. Nur im letzten Teilstück (< eine Schrittweite)
+    // wandert die Farbe noch minimal mit dem Kopf — dort liegen die Werte aber
+    // dicht beieinander, das fällt nicht auf.
+    g.push(1, colAtVal(metricArr[i1]));
     return g;
   }
-  // HARD: feine Abtastung, Band-Wechsel als step-Grenzen (crispe Bänder wie im Höhenprofil).
-  var NF=240; cur=i0;
-  var st=['step',['line-progress'], colAtVal(metricAtDist(d0))];
-  var prevBand=bandAtVal(metricAtDist(d0)), lp=0;
-  for(var m=1;m<=NF;m++){
-    var pm=m/NF; var vb=bandAtVal(metricAtDist(d0+pm*dT));
-    if(vb!==prevBand){ if(pm<=lp) pm=lp+1e-5; lp=pm; st.push(pm, stopsCol[vb]); prevBand=vb; }
+  // HART: Grenzen exakt dort, wo die Metrik das Band wechselt (am Track-Punkt) —
+  // exakt statt abgetastet und ebenfalls an fester Distanz verankert.
+  var st=['step',['line-progress'], colAtVal(metricArr[i0])];
+  var prevBand=bandAtVal(metricArr[i0]), lastB=-1, anyB=false;
+  for(var j=i0+1;j<=i1;j++){
+    var vb=bandAtVal(metricArr[j]);
+    if(vb===prevBand) continue;
+    var p3=(CD[j]-d0)/dT;
+    if(!(p3>0) || p3>=1){ prevBand=vb; continue; }
+    // Verrauschte Daten (Tempo!) können um eine Bandgrenze zappeln. Grenzen unter
+    // 10 m Abstand zusammenfassen — absolut gemessen, damit die Entscheidung nicht
+    // wieder von der gezeichneten Länge abhängt.
+    if(lastB>=0 && (p3-lastB)*dT < 10){ prevBand=vb; continue; }
+    if(p3<=lastB) p3=lastB+1e-6;
+    lastB=p3; st.push(p3, stopsCol[vb]); prevBand=vb; anyB=true;
   }
-  return st.length>3 ? st : null;
+  return anyB ? st : flat(colAtVal(metricArr[i0]));
 };
 """
 

@@ -113,9 +113,93 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.442</span>
+    <span class="version-date">17 de julio de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Animador de datos: pulido tras la gran remodelación.</p>
+
+  <div class="highlight">
+    <strong>🔎 Repaso completo</strong> — una revisión del nuevo Animador de datos eliminó los últimos restos de «altitud»: la unidad junto al umbral de color muestra ahora bpm/km/h en vez de una «m» fija, el paso del campo de umbral se ajusta a la serie (±1 en vez de ±50 con el pulso), y «icono ⛰» y «pendiente %» desaparecen de las opciones del marcador cuando no aplican a la serie elegida.
+  </div>
+
+  <p>Además, el color y el grosor de la segunda serie tienen ahora etiquetas correctas al estilo del resto de campos, y el aviso de zonas vacías también es correcto para las zonas de fondo y línea.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.441</span>
+    <span class="version-date">17 de julio de 2026</span>
+  </div>
+  <p class="version-tagline">Animador de datos: barra lateral más limpia y etiquetas acordes.</p>
+
+  <div class="highlight">
+    <strong>🧹 Más ordenado</strong> — en el Animador de datos los textos de ayuda largos de la barra lateral se han convertido en pequeños <strong>iconos «?»</strong>: la explicación solo aparece al pasar por encima, y la barra queda corta. Además, la barra de información solo ofrece lo que encaja con la serie elegida — desnivel y pendiente ya no aparecen con pulso o velocidad.
+  </div>
+
+  <p>Y algún retoque: el «++» duplicado del botón de umbral de color desaparece, los valores de la barra llevan la unidad correcta (bpm/km/h en vez de un «m» fijo), y etiquetas como «Mostrar valor» o «colorear por valor» ya no son específicas de la altitud.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.440</span>
+    <span class="version-date">17 de julio de 2026</span>
+  </div>
+  <p class="version-tagline">Animador de datos: etiquetas y ejes más claros.</p>
+
+  <div class="highlight">
+    <strong>🏷️ Etiquetas más claras</strong> — en el Animador de datos las zonas de color aún decían «altitud» por todas partes, aunque el módulo ya maneja cualquier medición. Ahora pone de forma neutral <strong>«+ Umbral de color»</strong> y <strong>«Zonas de color»</strong>, y el valor lleva la unidad correspondiente (m, bpm, km/h …).
+  </div>
+
+  <p>Y con dos curvas ya queda claro qué es qué: el primer selector dice «Serie de datos · eje izquierdo», y una nota explica que color, relleno, zonas de color, barra de información y puntos pertenecen al eje izquierdo — a la derecha solo está la segunda línea.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.439</span>
+    <span class="version-date">17 de julio de 2026</span>
+  </div>
+  <p class="version-tagline">El track multicolor ya no parpadea.</p>
+
+  <div class="highlight">
+    <strong>🎨 Colores estables</strong> — los colores del track multicolor parpadeaban durante la animación, sobre todo al colorear por altitud o velocidad con «degradado»: prácticamente cada fotograma mostraba un tono algo distinto. La causa era una rejilla de muestreo que recorría el track a medida que la línea crecía. Ahora los colores están anclados a <strong>posiciones fijas del track</strong> — un punto conserva su color, avance lo que avance la animación.
+  </div>
+
+  <p>Además: los cambios de color duros por altitud/velocidad quedan justo en la transición, y el track ya no muestra brevemente el color base al empezar.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.438</span>
+    <span class="version-date">17 de julio de 2026</span>
+  </div>
+  <p class="version-tagline">Dos mediciones a la vez: altitud a la izquierda, pulso a la derecha.</p>
+
+  <div class="highlight">
+    <strong>📈 Un segundo eje</strong> — el Animador de datos ya puede mostrar <strong>dos series a la vez</strong>. Bajo el primer selector está <strong>«Segunda serie de datos (eje derecho)»</strong>: la segunda curva recibe su propio eje autoescalado a la derecha, rotulado en su color de línea para que quede claro qué eje corresponde a qué curva. Eliges color y grosor, y el marcador muestra ambos valores.
+  </div>
+
+  <p>Sin segunda serie todo queda como antes. La segunda curva se dibuja a propósito solo como línea — dos áreas rellenas superpuestas serían ilegibles.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.437</span>
+    <span class="version-date">17 de julio de 2026</span>
+  </div>
+  <p class="version-tagline">El Animador de altitud pasa a ser el Animador de datos: ahora también pulso, potencia y más.</p>
+
+  <div class="highlight">
+    <strong>📊 Cualquier medición como vídeo</strong> — lo que antes era el «Animador de altitud» ahora es el <strong>Animador de datos</strong>, y ya no anima solo la altitud sino <strong>todo lo que contenga tu track</strong>: frecuencia cardíaca, cadencia, potencia o temperatura de archivos FIT/TCX, además de altitud, velocidad y pendiente. Elige la serie en <strong>«Serie de datos»</strong>, arriba en la barra lateral — la lista solo muestra lo que el track realmente contiene. El eje, el marcador y la barra de información adoptan el nombre y la unidad automáticamente (p. ej. «Frecuencia cardíaca máx — 139 bpm»).
+  </div>
+
+  <p>Dos detalles menores: el icono de montaña, el desnivel y la pendiente solo aparecen en la serie «Altitud» — en pulso o potencia no tendrían sentido. Y las etiquetas más anchas, como «139 bpm», ya no se cortan en el borde izquierdo.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.436</span>
     <span class="version-date">15 de julio de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">Animator: colorea el track también por altitud o velocidad.</p>
 

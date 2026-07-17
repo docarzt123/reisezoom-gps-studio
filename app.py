@@ -132,7 +132,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.436"
+APP_VERSION = "0.9.442"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -761,6 +761,15 @@ def _height_visual_cfg_kwargs(params: dict) -> dict:
         fps=int(params.get("fps", 30)),
         width=int(params.get("width", 1920)),
         height=int(params.get("height", 1080)),
+        # v0.9.437 (Daten-Animator) — welche Messreihe(n) geplottet werden.
+        # series_a = linke Achse (Default Höhe → verhält sich wie bisher),
+        # series_b = rechte Achse ("" = aus).
+        series_a=str(params.get("series_a", "ele") or "ele"),
+        series_b=str(params.get("series_b", "") or ""),
+        line_color_b=params.get("line_color_b", "#2e86de"),
+        line_width_b=float(params.get("line_width_b", 3.0)),
+        series_labels=params.get("series_labels", {}) or {},
+        series_units=params.get("series_units", {}) or {},
         background_color=params.get("background_color", "#1a1a1a"),
         line_color=params.get("line_color", "#ff6b35"),
         line_width=float(params.get("line_width", 4.0)),
@@ -2389,11 +2398,19 @@ class Api:
                 gpx_waypoints = cheight.project_points_onto_track(raw_wpts, pts)
             except Exception as e:
                 log.warning("gpx_waypoints fehlgeschlagen: %s", e); gpx_waypoints = []
+            # v0.9.437 (Daten-Animator) — alle im Track nutzbaren Messreihen
+            # (Höhe/Tempo/Steigung + Sensoren wie Puls/Leistung/…). Die UI baut
+            # daraus die Serien-Auswahl und graut aus, was der Track nicht hat.
+            try:
+                series = cheight.available_series(ds)
+            except Exception as e:
+                log.warning("available_series fehlgeschlagen: %s", e); series = []
             return {
                 "ok": True,
                 "elevations": elevations,
                 "distances_m": distances_m,
                 "latlon": latlon,
+                "series": series,
                 "auto_markers": auto_markers,
                 "gpx_waypoints": gpx_waypoints,
                 "stats": {
@@ -2550,7 +2567,6 @@ class Api:
                 return {"ok": False, "error": "GPX hat zu wenig Punkte (< 2)"}
             ds = cgpx.downsample(pts, 1000)
             distances_m = [p.dist_m for p in ds]
-            elevations = [(p.ele if p.ele is not None else 0.0) for p in ds]
 
             out_name = params.get("output_name") or (Path(gpx_path).stem + "_hoehenprofil.html")
             if not out_name.lower().endswith(".html"):
@@ -2561,9 +2577,25 @@ class Api:
                 gpx_path=gpx_path, output_path=out_path,
                 **_height_visual_cfg_kwargs(params),
             )
+            # v0.9.437 (Daten-Animator) — dieselbe Serie wie im Video plotten,
+            # sonst driften Web-Export und Render auseinander. Effektive ID
+            # zurückschreiben, damit die Achse korrekt beschriftet wird.
+            cfg.series_a, elevations = cheight.resolve_series(ds, cfg.series_a)
+            # v0.9.438 — zweite Reihe wie im Render: ohne Rückfall, fehlt sie,
+            # bleibt der Export einreihig.
+            values_b = None
+            _sid_b = (cfg.series_b or "").strip()
+            if _sid_b and _sid_b != cfg.series_a:
+                _hit_b = cheight.series_by_id(cheight.available_series(ds), _sid_b)
+                if _hit_b is not None:
+                    values_b = list(_hit_b["values"])
+                else:
+                    cfg.series_b = ""
+            elif _sid_b:
+                cfg.series_b = ""
             replay = params.get("replay_label") or "↻ Neu starten"
             html_doc = cheight.make_standalone_html(
-                cfg, distances_m, elevations, replay_label=replay, loop=True)
+                cfg, distances_m, elevations, values_b, replay_label=replay, loop=True)
             Path(out_path).write_text(html_doc, encoding="utf-8")
             snippet = cheight.make_embed_snippet(html_doc, cfg)
             snip_path = os.path.splitext(out_path)[0] + "_iframe-snippet.txt"

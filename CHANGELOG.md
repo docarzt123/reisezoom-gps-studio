@@ -14,6 +14,119 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.442] – 2026-07-17
+### Behoben
+- **Daten-Animator: die Einheit neben der Farbschwelle war fix „m"** — bei Puls
+  stand dort „120 m" statt „120 bpm". Jetzt zeigt sie die Einheit der gewählten
+  Reihe.
+- **Die Schrittweite des Schwellen-Felds war auf Höhenmeter geeicht** (±50 pro
+  Klick). Bei Puls oder Tempo sprang der Wert dadurch absurd (120 → 170). Jetzt
+  ±50 nur bei Höhe, sonst ±1.
+- Der Hinweis „Keine Farbzonen …" sprach in allen drei Zonen-Sektionen von der
+  „Füllfarbe für die ganze Fläche" — bei Hintergrund- und Linien-Zonen war das
+  falsch. Jetzt neutral: „die Basisfarbe gilt überall".
+
+### Geändert
+- **Marker-Optionen zeigen nur noch, was zur Reihe passt:** „⛰-Symbol zeigen"
+  und „Steigung % zeigen" verschwinden bei Puls, Tempo & Co. aus der Auswahl
+  (sie waren dort ohnehin wirkungslos).
+- **Farbe und Dicke der zweiten Datenreihe** haben jetzt richtige Beschriftungen
+  („Linienfarbe" / „Liniendicke 3 px") im selben Stil wie alle anderen Felder —
+  vorher standen dort nur ein unbeschriftetes Farbfeld und eine nackte Zahl.
+- Die Marker-Option „Punkt zeigen (zeichnet die Linie)" heißt jetzt schlicht
+  **„Laufpunkt zeigen"** — gemeint ist der Punkt, der an der Spitze der Kurve
+  mitläuft.
+
+## [0.9.441] – 2026-07-17
+### Behoben
+- **Daten-Animator: „++ Farbschwelle"** — der Button zeigte durch doppeltes Plus
+  zwei „+". Jetzt nur noch eins.
+- **Info-Leiste zeigte Werte mit falscher Einheit** bei anderen Reihen als Höhe:
+  „Wert min/max" und „Ø-Wert" standen fix in „m" statt in bpm/km/h. Jetzt tragen
+  auch sie die Einheit der gewählten Reihe (Vorschau war betroffen; der Render war
+  schon korrekt — beide sind wieder synchron).
+
+### Geändert
+- **Info-Leiste bietet nur noch an, was zur Reihe passt.** Auf-/Abstieg und die
+  Steigungs-Werte sind höhen-spezifisch — bei Puls, Tempo & Co. tauchen sie gar
+  nicht mehr in der Feld-Auswahl auf.
+- **Erklärtexte in der Seitenleiste sind zu „?"-Symbolen mit Tooltip geworden.**
+  Die Seitenleiste ist dadurch deutlich kürzer; die Erklärung erscheint beim
+  Zeigen auf das „?".
+- **Durchgängig datenreihen-neutral formuliert.** Der Modul-Name („Daten-Animator"),
+  die Marker-Option („Wert zeigen" statt „Höhe zeigen"), die Farbzonen-Erklärungen
+  („nach Wert" statt „nach Höhe") und der Export-Titel sind nicht mehr auf Höhe
+  gemünzt. Bei der Reihe „Höhe" bleibt alles wie gewohnt.
+
+## [0.9.440] – 2026-07-17
+### Geändert
+- **Daten-Animator: Farbzonen-Beschriftung ist jetzt datenreihen-neutral.** Die
+  Steuerung stammte noch aus der reinen Höhen-Zeit und sprach überall von „Höhe" —
+  bei Puls oder Tempo war das falsch. Neu: „**+ Farbschwelle**" statt „Höhe
+  hinzufügen", „**Farbzonen**" / „**Linien-Farbzonen**" / „**Hintergrund-Farbzonen**"
+  statt „…-Höhenstufen", und der Wert-Tooltip nennt die **Einheit der gewählten
+  Reihe** (m / bpm / km/h …) statt fix „(m)".
+- **Klarer, was zur linken und was zur rechten Achse gehört.** Sobald eine zweite
+  Datenreihe (rechte Achse) aktiv ist, heißt die erste Auswahl „**Datenreihe · linke
+  Achse**", und ein Hinweis stellt klar: Farbe, Fläche, Farbzonen, Info-Leiste und
+  Punkte gelten alle für die **linke Achse**; rechts gibt es nur die zweite Linie mit
+  eigener Farbe.
+
+## [0.9.439] – 2026-07-17
+### Behoben
+- **Animator: die Farben der mehrfarbigen Spur flackerten** (Beta-Tester-Meldung).
+  Betroffen war jede Einfärbung mit „Verlauf" — am stärksten nach Höhe/Tempo, wo
+  praktisch jedes Bild einen leicht anderen Farbton zeigte. **Ursache:** Der
+  Verlauf wird pro Bild neu gebaut (nötig, weil Mapbox ihn über die *gezeichnete*
+  Länge normiert), die Stützstellen lagen dabei aber an festen Anteilen dieser
+  wachsenden Linie. Das Raster wanderte damit bei jedem Bild über den Track und
+  traf dieselbe Stelle jedes Mal anders. Jetzt hängen die Stützstellen an
+  **festen absoluten Positionen** (Farb-Stops bzw. Track-Punkte) — die Farbe an
+  einer Stelle bleibt konstant, egal wie weit die Animation ist.
+- Harte Farbwechsel nach Höhe/Tempo sitzen jetzt **exakt** am Band-Übergang statt
+  auf dem nächsten Abtastpunkt — die Kanten wandern nicht mehr.
+- Lag im gezeichneten Stück (noch) kein Farbwechsel, sprang die Spur kurz auf die
+  Basisfarbe (Vorschau) bzw. behielt die Farben des Vorbilds (Export). Jetzt wird
+  in dem Fall sauber durchgefärbt.
+
+## [0.9.438] – 2026-07-17
+### Hinzugefügt
+- **Daten-Animator: zweite Datenreihe mit eigener Achse.** Unter der ersten
+  Auswahl steht jetzt **„Zweite Datenreihe (rechte Achse)"** — damit lassen sich
+  zwei Messreihen gleichzeitig animieren, z. B. **Höhe links und Puls rechts**.
+- Die zweite Reihe bekommt eine **eigene, automatisch skalierte Achse am rechten
+  Rand** — beschriftet in ihrer Linienfarbe, damit klar ist, welche Achse zu
+  welcher Kurve gehört. Farbe und Linienbreite sind frei wählbar.
+- Die Marker-Box zeigt beide Werte übereinander (z. B. „⛰ 2366 m" und „135 bpm").
+
+### Geändert
+- Ohne zweite Reihe bleibt alles exakt wie bisher — kein zusätzlicher Rand,
+  keine zweite Achse.
+- Die zweite Reihe wird bewusst **nur als Linie** gezeichnet (keine Fläche, keine
+  Farbzonen): zwei gefüllte Flächen übereinander wären nicht mehr lesbar.
+- Enthält der Track die gewählte zweite Reihe nicht, fällt die Anzeige still auf
+  eine Reihe zurück, statt ersatzweise eine andere Kurve zu zeigen.
+
+## [0.9.437] – 2026-07-17
+### Hinzugefügt
+- **Daten-Animator** (vormals „Höhen-Animator"): Das Modul animiert jetzt nicht
+  mehr nur die Höhe, sondern **jede Messreihe aus dem Track** — Herzfrequenz,
+  Trittfrequenz, Leistung, Temperatur usw. aus FIT/TCX-Dateien, dazu die
+  abgeleiteten Reihen Höhe, Tempo und Steigung.
+- Neue Auswahl **„Datenreihe"** ganz oben in der Seitenleiste. Sie listet nur,
+  was der geladene Track wirklich enthält; bei einer reinen GPX-Datei ohne
+  Sensordaten bleibt es bei Höhe/Tempo/Steigung.
+- Achsen-Beschriftung, Marker-Box und Info-Leiste übernehmen Name und Einheit
+  der gewählten Reihe automatisch (z. B. „Herzfrequenz max — 139 bpm").
+
+### Geändert
+- Höhen-spezifische Anzeigen erscheinen nur noch bei der Reihe „Höhe": das
+  Berg-Symbol ⛰, Auf-/Abstieg sowie die Steigungs-Angaben. Bei Puls oder
+  Leistung wären sie sinnlos und werden ausgeblendet.
+- Der linke Rand des Diagramms wächst mit der Einheit mit, damit breitere
+  Beschriftungen wie „139 bpm" oder „24.5 km/h" vollständig lesbar bleiben.
+  Bei Höhe (`m`) bleibt die Darstellung unverändert.
+
 ## [0.9.436] – 2026-07-15
 ### Hinzugefügt
 - **Animator: Track einfärben nach Höhe oder Geschwindigkeit** — die „Mehrere Track-Farben"-Sektion hat jetzt einen Selektor **„Einfärben nach"**: **Distanz** (wie bisher: Stops ab km / Marker / Wegpunkt), **Höhe** (Stops ab Metern) oder **Geschwindigkeit** (Stops ab km/h). Bei Höhe/Tempo setzt du Farb-Stops nach Wert (wie die Höhen-Farbzonen im Höhenprofil) — „＋ ab Höhe/Tempo (hier)" übernimmt den Wert an der Marker-Position, **„Auto (min → max)"** füllt automatisch eine Blau→Rot-Rampe über die Spannweite. „Übergang: hart" = crispe Bänder, „Verlauf" = weicher Farbverlauf. Umgesetzt im gemeinsamen `__rzColorGradient`-Helper (Render `core/animator.py` + Vorschau `modules/animator/ui/module.js`): bei Distanz linear in progress, bei Höhe/Tempo wird pro Punkt die Metrik→Farbe gemappt (nicht-monoton → feine Abtastung, harte Kanten als step-Bänder). Neue Felder `track_colors_source` + generisches Stop-Format `{v,color}` (Legacy `{km}` wird weiter gelesen). `series.ele`/`series.speedKmh` schon vorhanden. i18n de/en/es. **Verifiziert:** headless echte Mapbox — Teide-Track blau→rot nach Höhe (2061–3746 m), rote Spitze deckt sich mit dem Höhenprofil-Peak; Höhe hart+Verlauf + Tempo je 0 Fehler.

@@ -200,7 +200,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 ### Einstellungen
 
-> **↩︎ Rückgängig für alles (seit v0.9.322):** Jede Einstellungsänderung lässt sich mit **⌘Z** (Mac) / **Strg+Z** (Windows) rückgängig machen — in **Animator, Tour-Map, Geotagger und Höhen-Animator**: Farben, Schrift, Linienbreite, Glow, Overlay-Felder, Keyframes, Trim, Zeit-Offset usw. **Wiederherstellen** mit **⌘⇧Z** / **Strg+Y**. (Ein Slider-Zug = ein Schritt.)
+> **↩︎ Rückgängig für alles (seit v0.9.322):** Jede Einstellungsänderung lässt sich mit **⌘Z** (Mac) / **Strg+Z** (Windows) rückgängig machen — in **Animator, Tour-Map, Geotagger und Daten-Animator**: Farben, Schrift, Linienbreite, Glow, Overlay-Felder, Keyframes, Trim, Zeit-Offset usw. **Wiederherstellen** mit **⌘⇧Z** / **Strg+Y**. (Ein Slider-Zug = ein Schritt.)
 
 **Karte:**
 - **Stil**: 6 Mapbox-Stile (Satellite 3D, Satellite+Streets, Outdoors, Streets, Hell, Dunkel)
@@ -530,16 +530,35 @@ Im Export-Bereich wählst du, **woher die eingebettete Karte Leaflet lädt**:
 
 ---
 
-## 5b · Modul: Höhen-Animator — Höhenprofil als Video ⛰
+## 5b · Modul: Daten-Animator — Messwerte als Video 📊
+
+> **Neu ab v0.9.437:** Das Modul hieß früher **Höhen-Animator** und konnte nur die Höhe. Jetzt animiert es **jede Messreihe aus deinem Track** — deshalb der neue Name. Deine bestehenden Projekte funktionieren unverändert weiter und starten wie gewohnt mit der Höhe.
 
 ### Was es macht
-Baut aus deinem Track ein **Video, in dem sich die Höhenprofil-Kurve live aufbaut** — ein mitlaufender Marker zeigt Höhe, Steigung und Distanz. Ideal als Einblendung im Schnitt (auch mit **transparentem Hintergrund** via ProRes-4444-Alpha).
+Baut aus deinem Track ein **Video, in dem sich eine Messkurve live aufbaut** — ein mitlaufender Marker zeigt den aktuellen Wert und die Distanz. Ideal als Einblendung im Schnitt (auch mit **transparentem Hintergrund** via ProRes-4444-Alpha).
+
+### Datenreihe wählen (seit v0.9.437) ⭐
+Ganz oben in der Seitenleiste steht **„Datenreihe"**. Dort wählst du, was animiert wird:
+- **Immer verfügbar:** **Höhe**, **Tempo** und **Steigung** — die rechnet die App aus dem Track aus.
+- **Aus FIT-/TCX-Dateien** (z. B. von Garmin, Wahoo, Suunto): **Herzfrequenz**, **Trittfrequenz**, **Leistung**, **Temperatur** und weitere Sensorwerte.
+
+Die Liste zeigt **nur, was dein Track wirklich enthält**. Lädst du eine schlichte GPX-Datei ohne Sensordaten, bleiben Höhe/Tempo/Steigung übrig. Achsen-Beschriftung, Marker und Info-Leiste übernehmen Name und Einheit automatisch — bei Puls steht dann „139 bpm" statt „1240 m".
+
+Zwei Anzeigen sind höhen-spezifisch und erscheinen nur bei der Reihe **Höhe**: das Berg-Symbol ⛰ und alles rund um **Auf-/Abstieg und Steigung**. Bei Puls oder Leistung wären sie sinnlos und bleiben aus.
+
+### Zwei Reihen gleichzeitig (seit v0.9.438) ⭐
+Direkt unter der ersten Auswahl steht **„Zweite Datenreihe (rechte Achse)"**. Wählst du dort etwas aus, laufen **zwei Kurven gleichzeitig** — klassisch: **Höhe links, Puls rechts**.
+
+Die zweite Reihe bekommt eine **eigene Achse am rechten Rand**, die sich automatisch auf ihren Wertebereich einstellt. Sie ist in der Linienfarbe der zweiten Kurve beschriftet, damit klar ist, welche Achse zu welcher Kurve gehört — Farbe und Linienbreite stellst du daneben ein. Die Marker-Box zeigt beide Werte übereinander.
+
+Getrennte Achsen sind Absicht: Höhe (m) und Puls (bpm) haben keinen gemeinsamen Wertebereich — auf einer gemeinsamen Achse wäre eine der beiden Kurven ein flacher Strich. Die zweite Kurve wird bewusst **nur als Linie** gezeichnet (ohne Fläche/Farbzonen), weil zwei gefüllte Flächen übereinander unlesbar wären. Ohne zweite Reihe bleibt alles wie gewohnt.
 
 ### Workflow
-1. GPX laden (globale GPX-Leiste oben). Die Vorschau spielt sofort.
-2. Optik, Info-Leiste und Punkte einstellen (siehe unten). Alles läuft **WYSIWYG** in der Vorschau.
-3. Mit den **Trim-Handles** unter der Kurve den animierten Bereich eingrenzen (optional).
-4. **▶ Video rendern** — Codec/Alpha wählen, Fortschritt läuft mit.
+1. GPX/FIT/TCX laden (globale GPX-Leiste oben). Die Vorschau spielt sofort.
+2. **Datenreihe** wählen (Standard: Höhe).
+3. Optik, Info-Leiste und Punkte einstellen (siehe unten). Alles läuft **WYSIWYG** in der Vorschau.
+4. Mit den **Trim-Handles** unter der Kurve den animierten Bereich eingrenzen (optional).
+5. **▶ Video rendern** — Codec/Alpha wählen, Fortschritt läuft mit.
 
 ### Sachliche Info-Leiste (seit v0.9.394) ⭐
 Über dem Profil blendest du eine **Werte-Leiste** ein — in der Sektion **„Info-Leiste"** an-/abschaltbar und pro Feld wählbar: **Distanz, Höhenmeter ↑/↓, Ø-Steigung, max. Steigung (↑/↓), Höhe (max/min/Ø)**. Zusätzlich zeigt der **Marker-Callout** die **aktuelle Steigung** (z. B. „↗ +6.2 %" / „↘ −4.7 %") neben Höhe und Distanz — abschaltbar über „Steigung % am Marker zeigen".
@@ -570,7 +589,7 @@ Darunter kannst du **Farbzonen nach Höhe** anlegen: Mit „**Höhe hinzufügen*
 
 **Marker konfigurieren (seit v0.9.396):** Die eigene Sektion **„Marker"** macht den laufenden Punkt und seine Info-Box komplett gestaltbar: **Punktfarbe + -größe**; für die Box **Hintergrundfarbe + Deckkraft, Randfarbe + Randdicke, Schriftgröße**; und welche Werte drinstehen — **⛰-Symbol, Höhe, Steigung (%), Distanz** je einzeln an-/abschaltbar (die Box passt ihre Größe automatisch an).
 
-**Rückgängig:** **⌘Z / Strg+Z** nimmt im Höhen-Animator **alles** zurück — Optik, Farben, Info-Leiste-Felder, Wegpunkte und Quellen-Schalter (ein Druck pro Schritt).
+**Rückgängig:** **⌘Z / Strg+Z** nimmt im Daten-Animator **alles** zurück — Optik, Farben, Info-Leiste-Felder, Wegpunkte und Quellen-Schalter (ein Druck pro Schritt).
 
 **Als HTML exportieren (Blog/Web, seit v0.9.397):** Unter dem Video-Render-Button liegt **„Als HTML exportieren"**. Das erzeugt eine **selbst-laufende `.html`-Datei** — dieselbe Animation wie im Video, aber sie läuft **komplett im Browser** (reines HTML, kein Video), mit Auto-Loop und **„↻"-Replay-Button**. Ideal für einen Blogpost. Nach dem Export öffnet sich ein **Fenster in der Bildschirmmitte** mit diesen Optionen:
 - **▶ Im Browser öffnen** — zeigt die fertige Animation sofort im Standard-Browser. *(Ein Doppelklick auf die Datei im Finder startet je nach System nur einen Editor — dann siehst du nur Quelltext; darum diesen Button nutzen.)*
@@ -756,7 +775,7 @@ GPS-Höhenwerte sind oft verrauscht — gerade bei wenig Empfang springt die Hö
 1. **🗺 Höhenprofil aus Karte laden** — die App fährt einmal kurz auf den ganzen Track (lädt die Höhen-Kacheln) und liest für jeden Punkt die Karten-Höhe aus.
 2. **Unter der Karte** erscheint ein **Höhenprofil** mit drei Linien übereinander: **GPS (orange, dünn)** = dein Original, **Karte/Mapbox (blau, dünn)** = das glatte Gelände, und die **fette grüne Ergebnis-Linie** = das, was rauskäme.
 3. Mit dem Regler **GPS ⟷ Karte** mischst du live: ganz rechts (100 %) = reine Karten-Höhe (sehr glatt), ganz links (0 %) = unverändertes GPS, Standard **70 %**. Die grüne Linie und die Höhenmeter-Anzeige (GPS / Karte / Ergebnis) wandern sofort mit.
-4. Passt es? **⛰ Diese Höhe übernehmen** schreibt die grüne Linie in den Track. Danach **💾 speichern** — die korrigierte Höhe landet im GPX und greift überall (Animator, Tour-Map, Höhen-Animator).
+4. Passt es? **⛰ Diese Höhe übernehmen** schreibt die grüne Linie in den Track. Danach **💾 speichern** — die korrigierte Höhe landet im GPX und greift überall (Animator, Tour-Map, Daten-Animator).
 
 > Braucht einen **Mapbox-Token** (Einstellungen) und Internet — ohne Token ist der „Laden"-Button ausgegraut. Das Übernehmen lässt sich mit **⌘Z** rückgängig machen. Wenn du danach Punkte änderst (löschst/einfügst), verwirft sich das Profil automatisch — einfach neu laden.
 
@@ -882,7 +901,7 @@ Wahrscheinlich Zeitzonen-Problem: Foto-Aufnahmezeit passt nicht zur GPX-Track-Ze
 - Oder Referenz-Foto setzen (siehe Geotagger-Workflow)
 
 ### Oben erscheint „Quelldatei nicht gefunden — Laufwerk gemountet?" (seit v0.9.305)
-Deine zuletzt geladene GPX-Datei ist gerade nicht lesbar — meistens weil die **externe Festplatte abgesteckt** wurde oder die Datei verschoben/gelöscht ist. Schließ die Platte wieder an (das Banner verschwindet beim nächsten Laden) oder klick **„Datei neu wählen"** und such die GPX neu aus. Solange das Banner steht, können Tour-Map, Höhen-Animator und Geotagger den Track nicht aufbauen.
+Deine zuletzt geladene GPX-Datei ist gerade nicht lesbar — meistens weil die **externe Festplatte abgesteckt** wurde oder die Datei verschoben/gelöscht ist. Schließ die Platte wieder an (das Banner verschwindet beim nächsten Laden) oder klick **„Datei neu wählen"** und such die GPX neu aus. Solange das Banner steht, können Tour-Map, Daten-Animator und Geotagger den Track nicht aufbauen.
 
 ### Wie melde ich einen Bug?
 **Hilfe → 📧 Feedback / Bug-Report an Marc** — alles vorbefüllt (siehe Sektion 7).

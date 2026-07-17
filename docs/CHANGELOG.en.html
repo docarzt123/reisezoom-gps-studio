@@ -113,9 +113,93 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.442</span>
+    <span class="version-date">17 July 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">Data Animator: polish after the big rebuild.</p>
+
+  <div class="highlight">
+    <strong>🔎 Follow-up pass</strong> — a full review of the new Data Animator removed the last elevation leftovers: the unit next to the colour threshold now shows bpm/km/h instead of a fixed “m”, the threshold field's step size matches the series (±1 instead of ±50 for heart rate), and “⛰ icon” and “gradient %” disappear from the marker options when they don't apply to the chosen series.
+  </div>
+
+  <p>The second data series' colour and width also got proper labels in the style of all other fields, and the empty-zones hint is now correct for background and line zones too.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.441</span>
+    <span class="version-date">17 July 2026</span>
+  </div>
+  <p class="version-tagline">Data Animator: tidier sidebar and fitting labels.</p>
+
+  <div class="highlight">
+    <strong>🧹 Tidied up</strong> — in the Data Animator the long help texts in the sidebar have become small <strong>“?” icons</strong>: the explanation only shows on hover, keeping the sidebar short. The info bar also only offers what fits the chosen series — ascent/descent and gradient no longer appear for heart rate or speed.
+  </div>
+
+  <p>Plus some polish: the doubled “++” on the colour-threshold button is gone, values in the info bar carry the right unit (bpm/km/h instead of a fixed “m”), and labels like “Show value” or “colour by value” are no longer elevation-specific.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.440</span>
+    <span class="version-date">17 July 2026</span>
+  </div>
+  <p class="version-tagline">Data Animator: clearer labels and axes.</p>
+
+  <div class="highlight">
+    <strong>🏷️ Clearer labels</strong> — in the Data Animator the colour zones still said “elevation” everywhere, even though the module now handles any measurement. It now reads neutrally <strong>“+ Color threshold”</strong> and <strong>“Color zones”</strong>, and the value carries the matching unit (m, bpm, km/h …).
+  </div>
+
+  <p>And with two curves it's now obvious what belongs where: the first picker reads “Data series · left axis”, and a note explains that colour, fill, colour zones, info bar and points all belong to the left axis — the right side is just the second line.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.439</span>
+    <span class="version-date">17 July 2026</span>
+  </div>
+  <p class="version-tagline">The multi-colour track no longer flickers.</p>
+
+  <div class="highlight">
+    <strong>🎨 Steady colours</strong> — the multi-colour track flickered during the animation, most noticeably when colouring by elevation or speed with “gradient”: practically every frame showed a slightly different shade. The cause was a sampling grid that travelled across the track as the line grew. The colours are now pinned to <strong>fixed positions along the track</strong> — a given spot keeps its colour no matter how far the animation has run.
+  </div>
+
+  <p>Alongside that: hard colour changes by elevation/speed now sit exactly on the transition rather than slightly off, and the track no longer flashes its base colour at the start.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.438</span>
+    <span class="version-date">17 July 2026</span>
+  </div>
+  <p class="version-tagline">Two measurements at once: elevation on the left, heart rate on the right.</p>
+
+  <div class="highlight">
+    <strong>📈 A second axis</strong> — the Data Animator can now show <strong>two data series at once</strong>. Below the first picker you'll find <strong>“Second data series (right axis)”</strong>: the second curve gets its own auto-scaled axis on the right, labelled in its line colour so it's obvious which axis belongs to which curve. You choose the colour and line width, and the marker box shows both values stacked.
+  </div>
+
+  <p>With no second series everything stays as before. The second curve is deliberately drawn as a line only — two filled areas on top of each other would be unreadable.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.437</span>
+    <span class="version-date">17 July 2026</span>
+  </div>
+  <p class="version-tagline">The Elevation Animator becomes the Data Animator — now with heart rate, power &amp; more.</p>
+
+  <div class="highlight">
+    <strong>📊 Any measurement as a video</strong> — what used to be the “Elevation Animator” is now the <strong>Data Animator</strong>, and it no longer animates just elevation but <strong>anything your track carries</strong>: heart rate, cadence, power or temperature from FIT/TCX files, plus elevation, speed and gradient. Pick one under <strong>“Data series”</strong> at the top of the sidebar — the list only offers what the loaded track actually contains. The axis, marker and info bar adopt the name and unit automatically (e.g. “Heart rate max — 139 bpm”).
+  </div>
+
+  <p>Two smaller things: the mountain icon, ascent/descent and gradient now only appear for the “Elevation” series — they'd be meaningless for heart rate or power. And wider labels such as “139 bpm” are no longer clipped at the left edge.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.436</span>
     <span class="version-date">15 July 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <p class="version-tagline">Animator: colour the track by elevation or speed too.</p>
 
