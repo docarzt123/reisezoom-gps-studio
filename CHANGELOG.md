@@ -14,6 +14,30 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.449] – 2026-07-21
+### Geändert
+- **Aufgeräumte Seitenleiste (Phase 1).** Die Animator-Sidebar zeigte ~70 Regler
+  gleichrangig untereinander — Track-Farbe neben Punkt-Muster-Abstand. Jetzt
+  gibt es **zwei Ebenen**: Jede Sektion (Karte, Track, Kamera, Video) zeigt nur
+  noch die Kern-Regler; alles Übrige steckt in einem **„⚙ Fein-Tuning"**-
+  Aufklapper am Sektionsende. **Keine Funktion wurde entfernt** — nur
+  einsortiert. Der Aufklapp-Zustand wird pro Sektion gemerkt.
+  - *Karte:* sichtbar Stil + 3D-Terrain → Fein-Tuning: Überhöhung, Beleuchtung,
+    Beschriftungen.
+  - *Track:* sichtbar Farbe, Dicke, Linien-Stil, Mehrfarben-Schalter →
+    Fein-Tuning: Schlagschatten, Glow, Ghost-Track, Punkt-Reduktion.
+  - *Kamera:* sichtbar Keyframe-Schalter, Neigung, Zoom, Track-Folgen,
+    Welt-Buttons → Fein-Tuning: Rotation, Trägheit, Ruhige Kamera,
+    Cineastischer Flug.
+  - *Video:* sichtbar Animation/Hold + Auflösung → Fein-Tuning: Intro, FPS,
+    Karte glätten.
+- **Karten-Beschriftungen als Chips.** Die fünf Checkbox-Zeilen (Ortsnamen,
+  Straßen, Sehenswürdigkeiten, ÖPNV, Grenzen) sind jetzt eine kompakte
+  Chip-Zeile — antippen = an/aus, die Langbeschreibung erscheint beim
+  Draufzeigen. Aus ~200 px Sidebar-Höhe werden ~60 px.
+- Die Tour-Map übernimmt das Layout automatisch (gleiche Seitenleiste);
+  Aufklapper, die im Standbild-Modus leer wären, sind dort ausgeblendet.
+
 ## [0.9.448] – 2026-07-21
 ### Hinzugefügt
 - **Track-Einfärbung nach jeder Datenreihe.** Bisher konnte der Track nur nach

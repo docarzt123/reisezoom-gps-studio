@@ -196,6 +196,8 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 6. Render läuft — Live-Vorschau zeigt jedes Frame
 7. Fertig → Result-View zeigt MP4 + „Im Finder zeigen"-Button
 
+> **⚙ Fein-Tuning (seit v0.9.449):** Die Seitenleiste zeigt pro Sektion nur noch die wichtigsten Regler. Alles Speziellere — Überhöhung, Beleuchtung, Schlagschatten, Glow, Ghost-Track, Rotation, Kamera-Trägheit, Intro, FPS … — steckt in einem dezenten **„⚙ Fein-Tuning"**-Aufklapper am Ende der jeweiligen Sektion. **Es ist nichts weggefallen**, nur einsortiert; der Aufklapp-Zustand wird gemerkt. Die Karten-Beschriftungen (Orte, Straßen, POIs, ÖPNV, Grenzen) sind jetzt eine kompakte **Chip-Zeile** — antippen schaltet um, die Erklärung erscheint beim Draufzeigen.
+
 > **Anreise/Route animieren?** Dafür gibt es seit v0.9.205 ein eigenes Modul **🛣 Reiseroute** (Start/Ziel → berechnete Strecke). Siehe Kapitel 4.
 
 ### Einstellungen

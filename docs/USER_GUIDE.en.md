@@ -196,6 +196,8 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 6. The render runs — the live preview shows every frame
 7. Done → the result view shows the MP4 + a "Show in Finder" button
 
+> **⚙ Fine-tuning (since v0.9.449):** each sidebar section now shows only its essential controls. Everything more specialised — exaggeration, lighting, drop shadow, glow, ghost track, rotation, camera inertia, intro, FPS … — sits in a discreet **"⚙ Fine-tuning"** expander at the end of the section. **Nothing has been removed**, only sorted; the expander remembers its state. The map labels (places, roads, POIs, transit, borders) are now a compact **chip row** — tap to toggle, hover for the full description.
+
 > **Animate the journey / a route?** Since v0.9.205 there's a dedicated **🛣 Travel Route** module for that (start/destination → calculated route). See chapter 4.
 
 ### Settings
