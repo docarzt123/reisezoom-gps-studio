@@ -196,6 +196,8 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 6. The render runs — the live preview shows every frame
 7. Done → the result view shows the MP4 + a "Show in Finder" button
 
+> **Overlays: controls only for boxes that are on (since v0.9.452):** position, time window and field list only appear when the box is actually **enabled** — a disabled box doesn't show up in the video, so its position has no effect. Enabled boxes show **all** their controls directly, nothing to expand. Disabled ones shrink to their title row with the switch.
+
 > **Map labels as chips (since v0.9.451):** places, roads, points of interest, transit and borders are a compact **chip row** — tap to toggle, hover for the full description.
 
 > **Animate the journey / a route?** Since v0.9.205 there's a dedicated **🛣 Travel Route** module for that (start/destination → calculated route). See chapter 4.

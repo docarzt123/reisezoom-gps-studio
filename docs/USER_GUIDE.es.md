@@ -196,6 +196,8 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 6. El render se ejecuta — la vista previa en directo muestra cada fotograma
 7. Listo → la vista de resultado muestra el MP4 + el botón «Mostrar en el Finder»
 
+> **Superposiciones: controles solo si la caja está activada (desde v0.9.452):** la posición, la ventana de tiempo y la lista de campos solo aparecen cuando la caja está **activada**: una caja desactivada no sale en el vídeo, así que su posición no tendría efecto. Las cajas activadas muestran **todos** sus controles directamente, sin desplegar. Las desactivadas se reducen a su fila de título con el interruptor.
+
 > **Etiquetas del mapa como chips (desde v0.9.451):** lugares, calles, puntos de interés, transporte y fronteras son una fila compacta de **chips**: tocar cambia el estado y al pasar el cursor aparece la descripción completa.
 
 > **¿Animar la llegada/ruta?** Para eso existe desde v0.9.205 un módulo propio **🛣 Ruta de viaje** (origen/destino → trayecto calculado). Consulta el capítulo 4.

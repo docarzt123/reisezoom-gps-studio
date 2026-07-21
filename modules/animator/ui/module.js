@@ -638,6 +638,7 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="checkbox" id="anim-ov-totals" checked>
                 <span>${t("animator.overlay.totals")}</span>
               </label>
+              <div class="ov-group-details">
               <select id="anim-ov-totals-pos" class="pos-select" title="${t("animator.overlay.position")}">
                 <option value="tl">${t("animator.pos.tl")}</option>
                 <option value="tc">${t("animator.pos.tc")}</option>
@@ -657,12 +658,14 @@ function mountAnimator(body, headerActions, opts) {
                 <span class="ov-timing-unit">s</span>
               </div>
               <div class="ov-fieldeditor" id="anim-ov-totals-fields" data-ovbox="totals"></div>
+              </div>
             </div>
             <div class="overlay-group" id="anim-overlay-live-group">
               <label class="checkbox-row inline">
                 <input type="checkbox" id="anim-ov-live" checked>
                 <span>${t("animator.overlay.live")}</span>
               </label>
+              <div class="ov-group-details">
               <select id="anim-ov-live-pos" class="pos-select" title="${t("animator.overlay.position")}">
                 <option value="tl">${t("animator.pos.tl")}</option>
                 <option value="tc">${t("animator.pos.tc")}</option>
@@ -682,12 +685,14 @@ function mountAnimator(body, headerActions, opts) {
                 <span class="ov-timing-unit">s</span>
               </div>
               <div class="ov-fieldeditor" id="anim-ov-live-fields" data-ovbox="live"></div>
+              </div>
             </div>
             <div class="overlay-group" id="anim-overlay-elevation-group">
               <label class="checkbox-row inline">
                 <input type="checkbox" id="anim-ov-ele" checked>
                 <span>${t("animator.overlay.elevation")}</span>
               </label>
+              <div class="ov-group-details">
               <select id="anim-ov-ele-pos" class="pos-select" title="${t("animator.overlay.position")}">
                 <option value="bc">${t("animator.pos.bc")}</option>
                 <option value="bcw">${t("animator.pos.bcw")}</option>
@@ -704,6 +709,7 @@ function mountAnimator(body, headerActions, opts) {
                 <span class="ov-timing-dash">–</span>
                 <input type="number" id="anim-ov-ele-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
                 <span class="ov-timing-unit">s</span>
+              </div>
               </div>
             </div>
             <!-- v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich) -->
@@ -1166,6 +1172,10 @@ function mountAnimator(body, headerActions, opts) {
 
   // Sektion-Akkordeons (v0.6.0): alle data-accordion-section-Elemente
   // klickbar machen + State persistieren.
+  try { _ovSyncGroups(); } catch (_) {}
+  if (typeof onSessionChanged === "function") {
+    try { onSessionChanged(() => { try { _ovSyncGroups(); } catch (_) {} }); } catch (_) {}
+  }
   if (window.setupSectionAccordions) {
     window.setupSectionAccordions(_MODKEY, document.getElementById("anim-panel"));
   }
@@ -1766,12 +1776,41 @@ function mountAnimator(body, headerActions, opts) {
     fld.style.display = hide ? "none" : "";
   }
   syncLineSpacingVisibility();
+  // v0.9.452 (Hebel 2) — Overlay-Gruppen als Karten: Position, Zeitfenster und
+  // Feldliste erscheinen nur, wenn das Overlay auch AN ist. Ein ausgeschaltetes
+  // Overlay hat nichts zu konfigurieren — das ist kein Verstecken, sondern das
+  // Weglassen von Reglern für etwas, das im Video gar nicht vorkommt. Aktive
+  // Overlays zeigen unverändert alles direkt (kein Aufklappen).
+  const _OV_GROUPS = [
+    { cb: "anim-ov-totals", group: "anim-overlay-totals-group" },
+    { cb: "anim-ov-live",   group: "anim-overlay-live-group" },
+    { cb: "anim-ov-ele",    group: "anim-overlay-elevation-group" },
+  ];
+  function _ovSyncGroups() {
+    const master = document.getElementById("anim-overlays");
+    const masterOn = !master || master.checked;
+    for (const g of _OV_GROUPS) {
+      const cb = document.getElementById(g.cb);
+      const box = document.getElementById(g.group);
+      if (!cb || !box) continue;
+      const on = masterOn && cb.checked;
+      box.classList.toggle("ov-group--on", on);
+      const det = box.querySelector(".ov-group-details");
+      if (det) det.hidden = !on;
+    }
+    // Master aus: die gesamte Overlay-Konfiguration wird bereits von
+    // syncOverlayConfigVisibility() ausgeblendet (#anim-overlay-groups.hidden) —
+    // hier ist nichts weiter zu tun.
+  }
+  window.__animSyncOverlayGroups = _ovSyncGroups;
+  document.getElementById("anim-overlays")?.addEventListener("change", _ovSyncGroups);
+
   // Overlay-Toggles + Positionen
-  bindSetting("anim-ov-totals", _MODKEY, "overlay_totals_enabled", { type: "bool" });
+  bindSetting("anim-ov-totals", _MODKEY, "overlay_totals_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
   bindSetting("anim-ov-totals-pos", _MODKEY, "overlay_totals_position");
-  bindSetting("anim-ov-live", _MODKEY, "overlay_live_enabled", { type: "bool" });
+  bindSetting("anim-ov-live", _MODKEY, "overlay_live_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
   bindSetting("anim-ov-live-pos", _MODKEY, "overlay_live_position");
-  bindSetting("anim-ov-ele", _MODKEY, "overlay_elevation_enabled", { type: "bool" });
+  bindSetting("anim-ov-ele", _MODKEY, "overlay_elevation_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
   bindSetting("anim-ov-ele-pos", _MODKEY, "overlay_elevation_position");
   // v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y"). 0 = ab Start /
   // bis Ende. number-Bind speichert/restored projekt-bewusst.

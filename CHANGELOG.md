@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.452] – 2026-07-21
+### Geändert
+- **Overlays zeigen ihre Einstellungen nur noch, wenn sie an sind.** Position,
+  Zeitfenster und die Feldliste standen bisher auch dann in der Seitenleiste,
+  wenn die Box gar nicht im Video erscheint — bei drei Boxen waren das gut
+  zwei Bildschirmhöhen an Reglern für Dinge, die nichts bewirken. Jetzt wird
+  ein **eingeschaltetes** Overlay zur Karte und zeigt **alle** Regler direkt
+  (nichts zum Aufklappen), ein **ausgeschaltetes** schrumpft auf seine
+  Titelzeile mit dem Schalter.
+- Diagramme und das Aussehen der Stats-Boxen bleiben unverändert erreichbar,
+  auch wenn alle drei Boxen aus sind.
+
 ## [0.9.451] – 2026-07-21
 ### Geändert
 - **Kamera steht jetzt vor den Overlays.** Die Seitenleiste folgt dem

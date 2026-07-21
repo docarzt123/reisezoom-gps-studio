@@ -196,6 +196,8 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 6. Render läuft — Live-Vorschau zeigt jedes Frame
 7. Fertig → Result-View zeigt MP4 + „Im Finder zeigen"-Button
 
+> **Overlays: Regler nur bei eingeschalteter Box (seit v0.9.452):** Position, Zeitfenster und Feldliste erscheinen nur, wenn die jeweilige Box auch **an** ist — eine ausgeschaltete Box erscheint ja nicht im Video, ihre Position wäre folgenlos. Eingeschaltete Boxen zeigen **alle** Regler direkt, ohne Aufklappen. Ausgeschaltete schrumpfen auf ihre Titelzeile mit dem Schalter.
+
 > **Karten-Beschriftungen als Chips (seit v0.9.451):** Ortsnamen, Straßen, Sehenswürdigkeiten, ÖPNV und Grenzen sind eine kompakte **Chip-Zeile** — antippen schaltet um, die Erklärung erscheint beim Draufzeigen.
 
 > **Anreise/Route animieren?** Dafür gibt es seit v0.9.205 ein eigenes Modul **🛣 Reiseroute** (Start/Ziel → berechnete Strecke). Siehe Kapitel 4.

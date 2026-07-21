@@ -867,3 +867,26 @@ label.chip-toggle input:checked + span {
   border-color: var(--accent);
   color: #fff;
 }
+
+/* ── v0.9.452 (Hebel 2) — Overlay-Gruppen als Karten ──────────────────────
+   Ist ein Overlay AN, wird seine Gruppe zur Karte und zeigt alle Regler
+   direkt (nichts eingeklappt). Ist es AUS, bleibt nur die Titelzeile mit
+   dem Schalter — Position/Zeitfenster/Feldliste wären ohne Wirkung. */
+.overlay-group {
+  border-radius: 8px;
+  transition: background 0.12s, border-color 0.12s;
+}
+.overlay-group.ov-group--on {
+  background: var(--bg-elev, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+.overlay-group:not(.ov-group--on) {
+  border: 1px solid transparent;
+  padding: 2px 0;
+  margin-bottom: 2px;
+}
+.overlay-group:not(.ov-group--on) .checkbox-row span { color: var(--text-muted); }
+.ov-group-details { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ov-group-details[hidden] { display: none; }
