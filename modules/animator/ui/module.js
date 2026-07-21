@@ -1934,6 +1934,27 @@ function mountAnimator(body, headerActions, opts) {
   // Map vorbereiten
   let map = null;
   let currentGpx = null;
+
+  // v0.9.458 — Style-Lade-Guard: Regler wirken auf die Karte, während ein
+  // Kartenstil noch lädt (z. B. direkt nach dem Stil-Wechsel). Mapbox wirft
+  // dann „Style is not done loading" und der Klick verpufft still — die
+  // Checkbox zeigt AN, die Karte macht was anderes. Statt den Fehler nur zu
+  // schlucken, holen wir die Aktion nach, sobald der Style da ist. Ein
+  // Pending-Set verhindert, dass sich bei Klick-Salven Dutzende Nachhol-
+  // Aufrufe stapeln (der letzte Zustand wird eh aus den Controls gelesen).
+  const _styleDeferred = new Set();
+  function _whenStyleReady(name, fn) {
+    if (!map) return false;
+    if (!map.isStyleLoaded || map.isStyleLoaded()) return true;
+    if (!_styleDeferred.has(name)) {
+      _styleDeferred.add(name);
+      try {
+        map.once("idle", () => { _styleDeferred.delete(name); try { fn(); } catch (_) {} });
+      } catch (_) { _styleDeferred.delete(name); }
+    }
+    return false;
+  }
+
   // v0.9.156 — Multi-Track: zusätzliche Touren NACH der ersten (= globale GPX
   // in der Bar). Jede: { gpx_path, line_color, name }. Render schickt nur dann
   // ein `tracks`-Array (≥2 Einträge) wenn hier ≥1 Extra-Tour liegt.
@@ -2329,6 +2350,7 @@ function mountAnimator(body, headerActions, opts) {
 
   function rebuildPreviewLayers() {
     if (!map) return;
+    if (!_whenStyleReady("rebuildPreview", rebuildPreviewLayers)) return;
     const color = currentLineColor();
     const lw = currentLineWidth();
     if (!map.getSource("preview-track")) {
@@ -2466,6 +2488,12 @@ function mountAnimator(body, headerActions, opts) {
     // (Haken „ganzen Track zeigen" + Scrubber-Position), sonst zeigt die Vorschau
     // beim Style-Load/Neustart den ganzen Track, obwohl der Haken aus ist.
     try { refreshPreviewTrackData(); } catch (_) {}
+  
+    // v0.9.458 — Extra-Touren-Linien gehören zum Preview-Layer-Satz: nach
+    // App-Start und nach jedem Stil-Wechsel wurden sie nie nachgezeichnet
+    // (die Draw-Funktion bricht bei ladendem Style still ab). Hier läuft der
+    // Style garantiert — also immer mit nachziehen.
+    try { _animDrawExtraToursPreview(); } catch (_) {}
   }
 
   // v0.9.390 — WYSIWYG zum Render: im Mapbox-Standard-Style (standard/
@@ -2739,6 +2767,7 @@ function mountAnimator(body, headerActions, opts) {
 
   function applyLineStyle() {
     if (!map) return;
+    if (!_whenStyleReady("lineStyle", applyLineStyle)) return;
     // v0.8.14 — Mapbox-GL 3.x baked das line-dasharray-SDF nur EINMAL beim
     // Layer-Anlegen. setPaintProperty mit anderen Werten wird zwar intern
     // gesetzt, aber das Render-SDF bleibt. Robuster Fix: Layer komplett
@@ -5333,6 +5362,7 @@ function mountAnimator(body, headerActions, opts) {
     // Function-Name behalten wir wegen vieler Aufruf-Stellen — intern
     // macht sie jetzt mehr.
     if (!map) return;
+    if (!_whenStyleReady("hideLabels", applyHideLabels)) return;
     const c = getMapConfig();
     // 1) Standard-Style Config (No-Op auf klassischen Styles)
     try { map.setConfigProperty("basemap", "lightPreset", c.lightPreset); } catch (_) {}
@@ -5344,7 +5374,8 @@ function mountAnimator(body, headerActions, opts) {
     // ergänzt. Bei älteren Style-Versionen ist das ein No-Op (try/catch).
     try { map.setConfigProperty("basemap", "showAdminBoundaries", c.showAdmin); } catch (_) {}
     // 2) Klassische Styles: Layer-ID-Heuristik
-    const style = map.getStyle && map.getStyle();
+    let style = null;
+    try { style = map.getStyle && map.getStyle(); } catch (_) {}
     if (!style || !style.layers) return;
     style.layers.forEach(l => {
       if (l.type !== "symbol" && l.type !== "line") return;

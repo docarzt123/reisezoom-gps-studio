@@ -1,5 +1,13 @@
 /* Reisezoom GPS Studio — Dark Modern UI */
 
+/* v0.9.458 — [hidden] gewinnt IMMER. Das HTML-hidden-Attribut hat nur
+   UA-Stylesheet-Spezifität; jede eigene display:flex/grid-Regel überstimmt
+   es sonst stillschweigend. Genau das hat drei sichtbare Bugs erzeugt
+   (GPX-Inspektor-Werkzeugleiste ohne Track, Kinoflug-Regler ohne 2. Tour,
+   Zeichnen-Box ohne Zeichenmodus) — und bei 180+ display-Regeln im Projekt
+   wären es nicht die letzten gewesen. */
+[hidden] { display: none !important; }
+
 :root {
   --bg-0: #0a0d12;
   --bg-1: #0e1116;
@@ -650,6 +658,11 @@ input[type="color"] {
   flex-direction: column;
   gap: 6px;
 }
+/* v0.9.458 — display:flex schlägt das [hidden]-Attribut: jedes per JS
+   verstecktes .field (z. B. Kinoflug-Dauer ohne zweite Tour) blieb sichtbar.
+   v0.8.19 hatte das an EINER Stelle per Inline-Style umgangen — das hier
+   fixt die ganze Klasse. */
+.field[hidden] { display: none; }
 .field-label {
   font-size: 12px;
   color: var(--text-dim);

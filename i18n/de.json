@@ -1444,5 +1444,8 @@
   "heightanim.series_b.hint": "Optional: eine zweite Kurve mit eigener Achse rechts — z. B. Höhe links, Puls rechts.",
   "heightanim.fill.threshold_tip": "Ab diesem Wert gilt die neue Farbe",
   "heightanim.field.series_a_left": "Datenreihe · linke Achse",
-  "heightanim.series_b.applies_hint": "Farbe, Fläche, Farbzonen, Info-Leiste und Punkte gelten für die linke Achse (erste Datenreihe)."
+  "heightanim.series_b.applies_hint": "Farbe, Fläche, Farbzonen, Info-Leiste und Punkte gelten für die linke Achse (erste Datenreihe).",
+  "export.done": "Exportiert",
+  "export.error": "Export fehlgeschlagen.",
+  "export.no_track": "Kein Track geladen."
 }

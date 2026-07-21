@@ -1444,5 +1444,8 @@
   "heightanim.series_b.hint": "Opcional: una segunda curva con su propio eje a la derecha — p. ej. altitud a la izquierda, pulso a la derecha.",
   "heightanim.fill.threshold_tip": "El nuevo color se aplica a partir de este valor",
   "heightanim.field.series_a_left": "Serie de datos · eje izquierdo",
-  "heightanim.series_b.applies_hint": "Color, relleno, zonas de color, barra de información y puntos se aplican al eje izquierdo (primera serie)."
+  "heightanim.series_b.applies_hint": "Color, relleno, zonas de color, barra de información y puntos se aplican al eje izquierdo (primera serie).",
+  "export.done": "Exportado",
+  "export.error": "Error al exportar.",
+  "export.no_track": "No hay trazado cargado."
 }

@@ -1444,5 +1444,8 @@
   "heightanim.series_b.hint": "Optional: a second curve with its own axis on the right — e.g. elevation left, heart rate right.",
   "heightanim.fill.threshold_tip": "The new color applies from this value",
   "heightanim.field.series_a_left": "Data series · left axis",
-  "heightanim.series_b.applies_hint": "Color, fill, color zones, info bar and points apply to the left axis (first data series)."
+  "heightanim.series_b.applies_hint": "Color, fill, color zones, info bar and points apply to the left axis (first data series).",
+  "export.done": "Exported",
+  "export.error": "Export failed.",
+  "export.no_track": "No track loaded."
 }

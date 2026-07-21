@@ -961,8 +961,10 @@ async def render(cfg: HeightConfig,
     html = _make_html(cfg, distances_m, elevations, values_b)
 
     # Frames
-    anim_frames = max(1, cfg.duration_s * cfg.fps)
-    hold_frames = max(0, cfg.hold_s * cfg.fps)
+    # v0.9.458 — int erzwingen: Dauer/Hold sind freie Zahlenfelder; bei „7.5"
+    # käme ein float in range(total_frames) → TypeError mitten im Render.
+    anim_frames = max(1, int(round(cfg.duration_s * cfg.fps)))
+    hold_frames = max(0, int(round(cfg.hold_s * cfg.fps)))
     total_frames = anim_frames + hold_frames
 
     emit(0.02, "Browser laden …")

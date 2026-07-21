@@ -3388,9 +3388,14 @@ async def render(
     # v0.9.53 (Marc-Klärung): Trim-Range = welcher Abschnitt des REALEN Tracks
     # gerendert wird. Render-Output-Länge IMMER fix = intro + dur + hold Sekunden.
     # v0.9.59: intro_s erlaubt einen Hold am ANFANG (Marker steht am trim_start).
+    # v0.9.458 — Frame-Zahlen MÜSSEN int sein (landen in range()): Dauer/Hold
+    # sind freie Zahlenfelder in der UI — tippt jemand „7.5" oder „2,5", kam
+    # hier ein float an und der Render starb mit „'float' object cannot be
+    # interpreted as an integer". Ganze Zahlen (der Normalfall) kommen aus JS
+    # als int an, deshalb blieb das lange unsichtbar.
     intro_frames = max(0, int(getattr(cfg, "intro_s", 0))) * cfg.fps
-    anim_frames = cfg.duration_s * cfg.fps
-    hold_frames = cfg.hold_s * cfg.fps
+    anim_frames = max(1, int(round(cfg.duration_s * cfg.fps)))
+    hold_frames = int(round(cfg.hold_s * cfg.fps))
     total_frames = intro_frames + anim_frames + hold_frames
     _trim_start = max(0.0, min(1.0, float(cfg.render_start_anchor)))
     _trim_end   = max(0.0, min(1.0, float(cfg.render_end_anchor)))

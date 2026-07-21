@@ -14,6 +14,33 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.458] – 2026-07-21
+### Behoben
+- **Render brach bei halben Sekunden ab.** Dauer und Hold sind freie
+  Zahlenfelder — wer dort „7.5" oder „2,5" eintrug, bekam einen Abbruch
+  mitten im Render („float object cannot be interpreted as an integer").
+  Betroffen waren alle drei Renderer: Animator (Video), Multi-Track und
+  Daten-Animator. Ganze Zahlen waren nie betroffen, deshalb blieb der
+  Fehler so lange unentdeckt.
+- **Versteckte Bedienelemente waren sichtbar.** Das HTML-hidden-Attribut
+  wurde von den eigenen Layout-Regeln überstimmt — sichtbar wurde das an
+  drei Stellen: die Inspektor-Werkzeugleiste stand auch ohne geladenen
+  Track da, der Kinoflug-Regler ohne zweite Tour, die Zeichnen-Box ohne
+  aktiven Zeichenmodus. Eine globale Regel schließt jetzt alle Fälle,
+  auch künftige.
+- **Regler verpufften, während ein Kartenstil lud.** Wer direkt nach einem
+  Stil-Wechsel die Beschriftungs-Chips, das Licht-Preset oder den
+  Linien-Stil anfasste, dessen Klick ging verloren (interner Mapbox-Fehler
+  „Style is not done loading") — die Checkbox zeigte dann etwas anderes
+  als die Karte. Solche Aktionen werden jetzt nachgeholt, sobald der Stil
+  fertig ist.
+- **Extra-Touren-Linien fehlten nach App-Start und Stil-Wechsel** in der
+  Vorschau. Sie werden jetzt zusammen mit den übrigen Track-Ebenen neu
+  aufgebaut.
+- **Export-Meldungen zeigten interne Platzhalter.** Beim KML/GeoJSON/CSV-
+  Export aus dem Menü stand im Toast „export.done" statt „Exportiert" —
+  die Übersetzungen fehlten in allen Sprachen.
+
 ## [0.9.457] – 2026-07-21
 ### Hinzugefügt
 - **„🧭 Mehrere Touren" ist wieder da.** Im Animator lassen sich weitere Touren
