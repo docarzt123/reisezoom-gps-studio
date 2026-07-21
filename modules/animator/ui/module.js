@@ -5165,7 +5165,10 @@ function mountAnimator(body, headerActions, opts) {
     const base = phase
       ? `${pointLbl} ${idx + 1} / ${currentCoords.length} · ${pct}% · ⏸ ${phase}`
       : `${pointLbl} ${idx + 1} / ${currentCoords.length} · ${pct}%`;
-    // Modus-Suffix
+    // Modus-Suffix — nur im Keyframe-Modus. v0.9.454: ohne aktiven Editor gibt
+    // es weder Keyframes noch ein „📍 = neuer Keyframe", der Hinweis wäre also
+    // eine Anleitung für etwas, das gerade gar nicht geht.
+    if (!keyframesEnabled()) return base;
     const kfIdx = findKeyframeAtAnchor(anchor);
     let suffix;
     if (kfIdx != null) {

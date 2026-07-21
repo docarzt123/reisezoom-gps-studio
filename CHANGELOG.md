@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.454] – 2026-07-21
+### Geändert
+- **„KF-Pins" und der Keyframe-Hinweis unter der Timeline erscheinen nur noch
+  mit aktivem Keyframe-Editor.** Ohne Editor gibt es weder Keyframes noch
+  Pins — die Checkbox hätte nichts zu schalten, und der Hinweis
+  „📍 = neuer Keyframe" war eine Anleitung für etwas, das im Classic-Modus gar
+  nicht geht. Die Positionsanzeige (Punkt N / Total · %) bleibt unverändert.
+
 ## [0.9.453] – 2026-07-21
 ### Geändert
 - **Track-Punkte stehen jetzt ganz oben** in der Track-Sektion — der Regler

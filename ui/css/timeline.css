@@ -618,6 +618,10 @@
 .anim-timeline-host--kf-off .timeline-lanes,
 .anim-timeline-host--kf-off .timeline-btn-snap,
 .anim-timeline-host--kf-off .timeline-btn-clear,
+/* v0.9.454 — „KF-Pins" schaltet die gelben Keyframe-Dots auf der Karte.
+   Ohne Keyframe-Editor gibt es keine Keyframes und damit keine Pins →
+   die Checkbox hätte nichts zu schalten. */
+.anim-timeline-host--kf-off #tl-toggle-kfpins,
 .anim-timeline-host--kf-off .timeline-hint,
 .anim-timeline-host--kf-off .timeline-anim-end,
 .anim-timeline-host--kf-off .timeline-hold-region,
