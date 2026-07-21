@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.450] – 2026-07-21
+### Geändert
+- **Kamera steht jetzt vor den Overlays.** Die Reihenfolge in der Seitenleiste
+  folgt jetzt dem Arbeitsablauf: erst das Bild bauen (**Karte → Track →
+  Kamera**), dann was darauf liegt (**Overlays → Schilder**), dann **Video**.
+  Vorher stand die Kamera hinter dem sehr langen Overlay-Block und wirkte wie
+  ein Teil davon.
+
 ## [0.9.449] – 2026-07-21
 ### Geändert
 - **Aufgeräumte Seitenleiste (Phase 1).** Die Animator-Sidebar zeigte ~70 Regler

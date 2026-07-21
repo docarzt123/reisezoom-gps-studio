@@ -379,149 +379,6 @@ function mountAnimator(body, headerActions, opts) {
       </section>
 
 
-      <!-- Overlays (Akkordeon) — Stats-Boxen + Höhenprofil -->
-      <section class="section" data-accordion-section="overlays">
-        <button class="section-collapse-header" type="button">
-          <span>${t("animator.section.overlays")}</span>
-          <span class="collapse-arrow">▸</span>
-        </button>
-        <div class="section-collapse-body" hidden>
-          <label class="checkbox-row">
-            <input type="checkbox" id="anim-overlays" checked>
-            <span><strong>${t("animator.toggle.overlays")}</strong></span>
-          </label>
-          <div class="overlay-groups" id="anim-overlay-groups">
-            <div class="overlay-group" id="anim-overlay-totals-group">
-              <label class="checkbox-row inline">
-                <input type="checkbox" id="anim-ov-totals" checked>
-                <span>${t("animator.overlay.totals")}</span>
-              </label>
-              <select id="anim-ov-totals-pos" class="pos-select" title="${t("animator.overlay.position")}">
-                <option value="tl">${t("animator.pos.tl")}</option>
-                <option value="tc">${t("animator.pos.tc")}</option>
-                <option value="tr">${t("animator.pos.tr")}</option>
-                <option value="ml">${t("animator.pos.ml")}</option>
-                <option value="cc">${t("animator.pos.cc")}</option>
-                <option value="mr">${t("animator.pos.mr")}</option>
-                <option value="bl">${t("animator.pos.bl")}</option>
-                <option value="bc">${t("animator.pos.bc")}</option>
-                <option value="br">${t("animator.pos.br")}</option>
-              </select>
-              <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
-                <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
-                <input type="number" id="anim-ov-totals-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
-                <span class="ov-timing-dash">–</span>
-                <input type="number" id="anim-ov-totals-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
-                <span class="ov-timing-unit">s</span>
-              </div>
-              <div class="ov-fieldeditor" id="anim-ov-totals-fields" data-ovbox="totals"></div>
-            </div>
-            <div class="overlay-group" id="anim-overlay-live-group">
-              <label class="checkbox-row inline">
-                <input type="checkbox" id="anim-ov-live" checked>
-                <span>${t("animator.overlay.live")}</span>
-              </label>
-              <select id="anim-ov-live-pos" class="pos-select" title="${t("animator.overlay.position")}">
-                <option value="tl">${t("animator.pos.tl")}</option>
-                <option value="tc">${t("animator.pos.tc")}</option>
-                <option value="tr">${t("animator.pos.tr")}</option>
-                <option value="ml">${t("animator.pos.ml")}</option>
-                <option value="cc">${t("animator.pos.cc")}</option>
-                <option value="mr">${t("animator.pos.mr")}</option>
-                <option value="bl">${t("animator.pos.bl")}</option>
-                <option value="bc">${t("animator.pos.bc")}</option>
-                <option value="br">${t("animator.pos.br")}</option>
-              </select>
-              <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
-                <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
-                <input type="number" id="anim-ov-live-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
-                <span class="ov-timing-dash">–</span>
-                <input type="number" id="anim-ov-live-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
-                <span class="ov-timing-unit">s</span>
-              </div>
-              <div class="ov-fieldeditor" id="anim-ov-live-fields" data-ovbox="live"></div>
-            </div>
-            <div class="overlay-group" id="anim-overlay-elevation-group">
-              <label class="checkbox-row inline">
-                <input type="checkbox" id="anim-ov-ele" checked>
-                <span>${t("animator.overlay.elevation")}</span>
-              </label>
-              <select id="anim-ov-ele-pos" class="pos-select" title="${t("animator.overlay.position")}">
-                <option value="bc">${t("animator.pos.bc")}</option>
-                <option value="bcw">${t("animator.pos.bcw")}</option>
-                <option value="tc">${t("animator.pos.tc")}</option>
-                <option value="tcw">${t("animator.pos.tcw")}</option>
-                <option value="tl">${t("animator.pos.tl")}</option>
-                <option value="tr">${t("animator.pos.tr")}</option>
-                <option value="bl">${t("animator.pos.bl")}</option>
-                <option value="br">${t("animator.pos.br")}</option>
-              </select>
-              <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
-                <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
-                <input type="number" id="anim-ov-ele-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
-                <span class="ov-timing-dash">–</span>
-                <input type="number" id="anim-ov-ele-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
-                <span class="ov-timing-unit">s</span>
-              </div>
-            </div>
-            <!-- v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich) -->
-            <div class="overlay-group" id="anim-charts-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
-              <div class="ov-style-title" style="display:flex; align-items:center; gap:6px;">
-                <span>📊 ${t("animator.charts.title", "Diagramme")}</span>
-                <span class="ov-help" title="${t("animator.charts.help", "Blende voll gestaltete Daten-Diagramme (Höhe, Puls, Tempo …) ins Video ein. Gestalte den Look im Daten-Animator und übernimm ihn hier. Läuft synchron zum Punkt auf der Karte.")}">?</span>
-              </div>
-              <div id="anim-charts-list" class="charts-list"></div>
-              <button type="button" id="anim-chart-add" class="ghost-btn" style="width:100%; margin-top:6px;">＋ ${t("animator.charts.add", "Diagramm hinzufügen")}</button>
-              <div id="anim-charts-empty" class="charts-empty muted-note" style="margin-top:6px;"></div>
-            </div>
-            <!-- v0.9.321 — Stats-Editor: globales Styling aller Stats-Boxen -->
-            <div class="ov-style" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
-              <div class="ov-style-title">🎨 ${t("animator.overlay.style", "Aussehen der Stats-Boxen")}</div>
-              <div class="ov-style-row">
-                <label for="anim-ov-font">${t("animator.overlay.font", "Schrift")}</label>
-                <select id="anim-ov-font" class="pos-select">
-                  <option value="system">${t("animator.overlay.font_system", "System (Standard)")}</option>
-                  <option value="nunito">Nunito</option>
-                  <option value="quicksand">Quicksand</option>
-                  <option value="fredoka">Fredoka</option>
-                  <option value="oswald">Oswald</option>
-                  <option value="bebas">Bebas Neue</option>
-                </select>
-              </div>
-              <div class="ov-style-row">
-                <label for="anim-ov-textcolor">${t("animator.overlay.text_color", "Textfarbe")}</label>
-                <input type="color" id="anim-ov-textcolor" value="#ffffff">
-              </div>
-              <div class="ov-style-row">
-                <label for="anim-ov-bgcolor">${t("animator.overlay.bg_color", "Hintergrund")}</label>
-                <input type="color" id="anim-ov-bgcolor" value="#000000">
-              </div>
-              <div class="ov-style-row">
-                <label for="anim-ov-bgopacity">${t("animator.overlay.bg_opacity", "Deckkraft Hintergrund")}</label>
-                <input type="range" id="anim-ov-bgopacity" min="0" max="100" step="5" value="55">
-                <span class="ov-style-val" id="anim-ov-bgopacity-val">55 %</span>
-              </div>
-            </div>
-            <!-- v0.9.41 — Stats-Quelle bei aktivem Trim:
-                 Trim-Werte (Default, Marc-Spec) vs. Gesamt-Track-Werte. -->
-            <div style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
-              <label class="checkbox-row inline"
-                     title="${t("animator.overlay.stats_use_trim_tip")}">
-                <input type="checkbox" id="anim-stats-use-trim" checked>
-                <span>${t("animator.overlay.stats_use_trim")}</span>
-              </label>
-              <!-- v0.9.55 (Marc) — Track-Linie VOR Trim-Start im Render zeigen? -->
-              <label class="checkbox-row inline"
-                     style="margin-top:6px;"
-                     title="${t("animator.overlay.show_pretrim_tip")}">
-                <input type="checkbox" id="anim-show-pretrim" checked>
-                <span>${t("animator.overlay.show_pretrim")}</span>
-              </label>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- Kamera (Akkordeon) — v0.8.16 Marc-Refactor:
            Body wechselt zwischen Classic-Modus (Pitch + Rotation, statisch
            über das ganze Video) und Keyframe-Modus (Anchor + Pitch + Bearing
@@ -776,6 +633,150 @@ function mountAnimator(body, headerActions, opts) {
 
         </div>
       </section>
+
+      <!-- Overlays (Akkordeon) — Stats-Boxen + Höhenprofil -->
+      <section class="section" data-accordion-section="overlays">
+        <button class="section-collapse-header" type="button">
+          <span>${t("animator.section.overlays")}</span>
+          <span class="collapse-arrow">▸</span>
+        </button>
+        <div class="section-collapse-body" hidden>
+          <label class="checkbox-row">
+            <input type="checkbox" id="anim-overlays" checked>
+            <span><strong>${t("animator.toggle.overlays")}</strong></span>
+          </label>
+          <div class="overlay-groups" id="anim-overlay-groups">
+            <div class="overlay-group" id="anim-overlay-totals-group">
+              <label class="checkbox-row inline">
+                <input type="checkbox" id="anim-ov-totals" checked>
+                <span>${t("animator.overlay.totals")}</span>
+              </label>
+              <select id="anim-ov-totals-pos" class="pos-select" title="${t("animator.overlay.position")}">
+                <option value="tl">${t("animator.pos.tl")}</option>
+                <option value="tc">${t("animator.pos.tc")}</option>
+                <option value="tr">${t("animator.pos.tr")}</option>
+                <option value="ml">${t("animator.pos.ml")}</option>
+                <option value="cc">${t("animator.pos.cc")}</option>
+                <option value="mr">${t("animator.pos.mr")}</option>
+                <option value="bl">${t("animator.pos.bl")}</option>
+                <option value="bc">${t("animator.pos.bc")}</option>
+                <option value="br">${t("animator.pos.br")}</option>
+              </select>
+              <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
+                <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
+                <input type="number" id="anim-ov-totals-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
+                <span class="ov-timing-dash">–</span>
+                <input type="number" id="anim-ov-totals-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
+                <span class="ov-timing-unit">s</span>
+              </div>
+              <div class="ov-fieldeditor" id="anim-ov-totals-fields" data-ovbox="totals"></div>
+            </div>
+            <div class="overlay-group" id="anim-overlay-live-group">
+              <label class="checkbox-row inline">
+                <input type="checkbox" id="anim-ov-live" checked>
+                <span>${t("animator.overlay.live")}</span>
+              </label>
+              <select id="anim-ov-live-pos" class="pos-select" title="${t("animator.overlay.position")}">
+                <option value="tl">${t("animator.pos.tl")}</option>
+                <option value="tc">${t("animator.pos.tc")}</option>
+                <option value="tr">${t("animator.pos.tr")}</option>
+                <option value="ml">${t("animator.pos.ml")}</option>
+                <option value="cc">${t("animator.pos.cc")}</option>
+                <option value="mr">${t("animator.pos.mr")}</option>
+                <option value="bl">${t("animator.pos.bl")}</option>
+                <option value="bc">${t("animator.pos.bc")}</option>
+                <option value="br">${t("animator.pos.br")}</option>
+              </select>
+              <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
+                <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
+                <input type="number" id="anim-ov-live-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
+                <span class="ov-timing-dash">–</span>
+                <input type="number" id="anim-ov-live-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
+                <span class="ov-timing-unit">s</span>
+              </div>
+              <div class="ov-fieldeditor" id="anim-ov-live-fields" data-ovbox="live"></div>
+            </div>
+            <div class="overlay-group" id="anim-overlay-elevation-group">
+              <label class="checkbox-row inline">
+                <input type="checkbox" id="anim-ov-ele" checked>
+                <span>${t("animator.overlay.elevation")}</span>
+              </label>
+              <select id="anim-ov-ele-pos" class="pos-select" title="${t("animator.overlay.position")}">
+                <option value="bc">${t("animator.pos.bc")}</option>
+                <option value="bcw">${t("animator.pos.bcw")}</option>
+                <option value="tc">${t("animator.pos.tc")}</option>
+                <option value="tcw">${t("animator.pos.tcw")}</option>
+                <option value="tl">${t("animator.pos.tl")}</option>
+                <option value="tr">${t("animator.pos.tr")}</option>
+                <option value="bl">${t("animator.pos.bl")}</option>
+                <option value="br">${t("animator.pos.br")}</option>
+              </select>
+              <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
+                <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
+                <input type="number" id="anim-ov-ele-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
+                <span class="ov-timing-dash">–</span>
+                <input type="number" id="anim-ov-ele-to" class="ov-time-in" min="0" step="0.5" placeholder="${t("animator.overlay.timing_end")}">
+                <span class="ov-timing-unit">s</span>
+              </div>
+            </div>
+            <!-- v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich) -->
+            <div class="overlay-group" id="anim-charts-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
+              <div class="ov-style-title" style="display:flex; align-items:center; gap:6px;">
+                <span>📊 ${t("animator.charts.title", "Diagramme")}</span>
+                <span class="ov-help" title="${t("animator.charts.help", "Blende voll gestaltete Daten-Diagramme (Höhe, Puls, Tempo …) ins Video ein. Gestalte den Look im Daten-Animator und übernimm ihn hier. Läuft synchron zum Punkt auf der Karte.")}">?</span>
+              </div>
+              <div id="anim-charts-list" class="charts-list"></div>
+              <button type="button" id="anim-chart-add" class="ghost-btn" style="width:100%; margin-top:6px;">＋ ${t("animator.charts.add", "Diagramm hinzufügen")}</button>
+              <div id="anim-charts-empty" class="charts-empty muted-note" style="margin-top:6px;"></div>
+            </div>
+            <!-- v0.9.321 — Stats-Editor: globales Styling aller Stats-Boxen -->
+            <div class="ov-style" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
+              <div class="ov-style-title">🎨 ${t("animator.overlay.style", "Aussehen der Stats-Boxen")}</div>
+              <div class="ov-style-row">
+                <label for="anim-ov-font">${t("animator.overlay.font", "Schrift")}</label>
+                <select id="anim-ov-font" class="pos-select">
+                  <option value="system">${t("animator.overlay.font_system", "System (Standard)")}</option>
+                  <option value="nunito">Nunito</option>
+                  <option value="quicksand">Quicksand</option>
+                  <option value="fredoka">Fredoka</option>
+                  <option value="oswald">Oswald</option>
+                  <option value="bebas">Bebas Neue</option>
+                </select>
+              </div>
+              <div class="ov-style-row">
+                <label for="anim-ov-textcolor">${t("animator.overlay.text_color", "Textfarbe")}</label>
+                <input type="color" id="anim-ov-textcolor" value="#ffffff">
+              </div>
+              <div class="ov-style-row">
+                <label for="anim-ov-bgcolor">${t("animator.overlay.bg_color", "Hintergrund")}</label>
+                <input type="color" id="anim-ov-bgcolor" value="#000000">
+              </div>
+              <div class="ov-style-row">
+                <label for="anim-ov-bgopacity">${t("animator.overlay.bg_opacity", "Deckkraft Hintergrund")}</label>
+                <input type="range" id="anim-ov-bgopacity" min="0" max="100" step="5" value="55">
+                <span class="ov-style-val" id="anim-ov-bgopacity-val">55 %</span>
+              </div>
+            </div>
+            <!-- v0.9.41 — Stats-Quelle bei aktivem Trim:
+                 Trim-Werte (Default, Marc-Spec) vs. Gesamt-Track-Werte. -->
+            <div style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
+              <label class="checkbox-row inline"
+                     title="${t("animator.overlay.stats_use_trim_tip")}">
+                <input type="checkbox" id="anim-stats-use-trim" checked>
+                <span>${t("animator.overlay.stats_use_trim")}</span>
+              </label>
+              <!-- v0.9.55 (Marc) — Track-Linie VOR Trim-Start im Render zeigen? -->
+              <label class="checkbox-row inline"
+                     style="margin-top:6px;"
+                     title="${t("animator.overlay.show_pretrim_tip")}">
+                <input type="checkbox" id="anim-show-pretrim" checked>
+                <span>${t("animator.overlay.show_pretrim")}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
 
       <!-- v0.9.198 — Schilder UND Fotos vereint. Ein Foto = Schild mit Bild. -->
       <section class="section" data-accordion-section="signs" id="anim-signs-section">
