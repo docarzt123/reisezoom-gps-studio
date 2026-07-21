@@ -750,6 +750,17 @@ ExifTool läuft als Daemon im Hintergrund — RAW-Verarbeitung ist ~8× schnelle
 
 ---
 
+### 🧭 Mehrere Touren in einem Video — seit v0.9.457
+Mehrere Touren nacheinander zeigen — etwa alle Etappen einer Reise oder deine Läufe eines Monats. Die geladene GPX ist **Tour 1**; unter **„🧭 Mehrere Touren"** kommen weitere dazu:
+
+- **Tour hinzufügen** wählt eine weitere Datei (GPX, FIT, TCX, KML …). Sie bekommt automatisch eine eigene Farbe, die du per Klick änderst.
+- **↑ ↓** ändern die Reihenfolge, **✕** entfernt eine Tour.
+- **Kinoflug-Dauer** legt fest, wie lange die Kamera von einer Tour zur nächsten fliegt (erscheint, sobald eine zweite Tour da ist).
+
+Im Video wird eine Tour nach der anderen gezeichnet, dazwischen fliegt die Kamera im Kino-Stil weiter — auch über große Distanzen. **Die Statistik zählt alle Touren zusammen**, die Sprünge dazwischen aber nicht: drei Touren mit 16 + 39 + 27 km ergeben 82 km, nicht die Luftlinie obendrauf.
+
+Die Liste gehört zum Projekt und ist beim nächsten Öffnen wieder da.
+
 ## 7 · Modul: GPX-Inspektor — Track reparieren 🔍 (seit v0.9.233)
 
 ### Was es macht

@@ -2713,19 +2713,24 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
         cfg.photos = _saved_photos
 
     # ── 3. Frame-Budget + Segment-Liste ───────────────────────────────────
+    # v0.9.457 — Frame-Zahlen MÜSSEN int sein: sie landen in `range(seg_n)`.
+    # `hold_s`/`duration_s` sind Sekunden als float, `hold_s * fps` also z. B.
+    # 24.0 → der Render brach mitten im Lauf mit „'float' object cannot be
+    # interpreted as an integer" ab. Im Single-Track-Pfad fiel das nie auf,
+    # weil der `_render_multi` gar nicht benutzt.
     intro_frames = max(0, int(getattr(cfg, "intro_s", 0))) * cfg.fps
-    hold_frames = cfg.hold_s * cfg.fps
+    hold_frames = int(round(cfg.hold_s * cfg.fps))
     fly_frames = max(1, int(round(float(cfg.fly_duration_s) * cfg.fps)))
-    anim_total = max(N, cfg.duration_s * cfg.fps)  # Gesamt-„Geh"-Budget
+    anim_total = int(max(N, round(cfg.duration_s * cfg.fps)))  # Gesamt-„Geh"-Budget
 
     total_pts = sum(t["n"] for t in tours) or 1
     walk_frames: list[int] = []
     assigned = 0
     for i, t in enumerate(tours):
         if i == N - 1:
-            wf = max(1, anim_total - assigned)
+            wf = int(max(1, anim_total - assigned))
         else:
-            wf = max(1, int(round(anim_total * t["n"] / total_pts)))
+            wf = int(max(1, round(anim_total * t["n"] / total_pts)))
         walk_frames.append(wf)
         assigned += wf
 

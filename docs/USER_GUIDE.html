@@ -811,6 +811,15 @@ python app.py</code></pre>
 <h3 id="geschwindigkeit">Geschwindigkeit</h3>
 <p>ExifTool läuft als Daemon im Hintergrund — RAW-Verarbeitung ist ~8× schneller als bei naivem <code>subprocess</code>-Aufruf. 200 Fotos taggen dauert ~15 Sekunden.</p>
 <hr>
+<h3 id="mehrere-touren-in-einem-video-seit-v0-9-457">🧭 Mehrere Touren in einem Video — seit v0.9.457</h3>
+<p>Mehrere Touren nacheinander zeigen — etwa alle Etappen einer Reise oder deine Läufe eines Monats. Die geladene GPX ist <strong>Tour 1</strong>; unter <strong>„🧭 Mehrere Touren&quot;</strong> kommen weitere dazu:</p>
+<ul>
+<li><strong>Tour hinzufügen</strong> wählt eine weitere Datei (GPX, FIT, TCX, KML …). Sie bekommt automatisch eine eigene Farbe, die du per Klick änderst.</li>
+<li><strong>↑ ↓</strong> ändern die Reihenfolge, <strong>✕</strong> entfernt eine Tour.</li>
+<li><strong>Kinoflug-Dauer</strong> legt fest, wie lange die Kamera von einer Tour zur nächsten fliegt (erscheint, sobald eine zweite Tour da ist).</li>
+</ul>
+<p>Im Video wird eine Tour nach der anderen gezeichnet, dazwischen fliegt die Kamera im Kino-Stil weiter — auch über große Distanzen. <strong>Die Statistik zählt alle Touren zusammen</strong>, die Sprünge dazwischen aber nicht: drei Touren mit 16 + 39 + 27 km ergeben 82 km, nicht die Luftlinie obendrauf.</p>
+<p>Die Liste gehört zum Projekt und ist beim nächsten Öffnen wieder da.</p>
 <h2 id="7-modul-gpx-inspektor-track-reparieren-seit-v0-9-233">7 · Modul: GPX-Inspektor — Track reparieren 🔍 (seit v0.9.233)</h2>
 <h3 id="was-es-macht">Was es macht</h3>
 <p>Zeigt <strong>jeden einzelnen Punkt</strong> deines Tracks auf der Karte (den vollen Roh-Track, nicht das geglättete Vorschau-Downsample) und lässt dich kaputte Stellen reparieren: GPS-Ausreißer glätten, Lücken füllen, einzelne Punkte verschieben oder löschen. Braucht <strong>keinen</strong> Mapbox-Token (geht auch im OSM-Modus). Speichert als neue Datei <code>&lt;name&gt;_geheilt.gpx</code> — dein Original bleibt unangetastet. Öffnet <strong>alle importierbaren Formate</strong> (GPX, FIT, KML/KMZ, TCX, GeoJSON, NMEA/<code>.LOG</code>) — Fremdformate werden automatisch nach GPX konvertiert (seit v0.9.296).</p>

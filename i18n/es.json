@@ -433,6 +433,7 @@
   "animator.section.tours": "🧭 Varias rutas",
   "animator.tours.hint": "Las rutas adicionales se animan después de la primera — la cámara vuela de forma cinematográfica de una a la siguiente.",
   "animator.tours.add": "Añadir ruta",
+  "animator.tours.missing": "No se han encontrado algunas rutas guardadas.",
   "animator.tours.color": "Color de esta ruta",
   "animator.tours.up": "subir",
   "animator.tours.down": "bajar",

@@ -347,11 +347,11 @@ function mountAnimator(body, headerActions, opts) {
            hintereinander animieren, Kamera fliegt im Kino-Stil dazwischen.
            Die geladene GPX (oben in der Bar) ist immer „Tour 1"; hier kommen
            weitere Touren mit eigener Farbe dazu.
-           v0.9.162 — VORERST AUSGEBLENDET (display:none): Multi-Track ist noch
-           nicht fertig (Marc-Entscheidung). Code bleibt drin, nur unsichtbar;
-           _extraTours bleibt leer, daher nutzt der Render nie den Multi-Track-
-           Pfad. Zum Reaktivieren das style=display:none unten entfernen. -->
-      <section class="section" data-accordion-section="tours" style="display:none">
+           v0.9.162 hatte die Sektion ausgeblendet („noch nicht fertig"). Die
+           Ursache war ein Typfehler im Render (Frame-Budget als float → Abbruch
+           mitten im Lauf, siehe _render_multi in animator.py); seit v0.9.457 ist
+           er behoben und die Sektion wieder sichtbar. -->
+      <section class="section" data-accordion-section="tours">
         <button class="section-collapse-header" type="button">
           <span>${t("animator.section.tours", "🧭 Mehrere Touren")}</span>
           <span class="collapse-arrow">▸</span>
@@ -9685,19 +9685,20 @@ function mountAnimator(body, headerActions, opts) {
         </span>`;
       row.querySelector(".anim-tour-color").addEventListener("input", (e) => {
         _extraTours[i].line_color = e.target.value;
+        _animPersistTours();
         try {
           if (map && map.getLayer("mtour-prev-line-" + i))
             map.setPaintProperty("mtour-prev-line-" + i, "line-color", e.target.value);
         } catch (_) {}
       });
       row.querySelector('[data-act="up"]').addEventListener("click", () => {
-        if (i > 0) { const tmp = _extraTours[i - 1]; _extraTours[i - 1] = _extraTours[i]; _extraTours[i] = tmp; _animRenderToursList(); _animDrawExtraToursPreview(); }
+        if (i > 0) { const tmp = _extraTours[i - 1]; _extraTours[i - 1] = _extraTours[i]; _extraTours[i] = tmp; _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); }
       });
       row.querySelector('[data-act="down"]').addEventListener("click", () => {
-        if (i < _extraTours.length - 1) { const tmp = _extraTours[i + 1]; _extraTours[i + 1] = _extraTours[i]; _extraTours[i] = tmp; _animRenderToursList(); _animDrawExtraToursPreview(); }
+        if (i < _extraTours.length - 1) { const tmp = _extraTours[i + 1]; _extraTours[i + 1] = _extraTours[i]; _extraTours[i] = tmp; _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); }
       });
       row.querySelector('[data-act="del"]').addEventListener("click", () => {
-        _extraTours.splice(i, 1); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
+        _extraTours.splice(i, 1); _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
       });
       host.appendChild(row);
     });
@@ -9786,17 +9787,71 @@ function mountAnimator(body, headerActions, opts) {
     const color = _TOUR_PALETTE[_extraTours.length % _TOUR_PALETTE.length];
     const name = (path.split("/").pop() || "Tour").replace(/\.[^.]+$/i, "");
     _extraTours.push({ gpx_path: path, line_color: color, name, coords });
+    _animPersistTours();
     _animRenderToursList();
     _animDrawExtraToursPreview();
     _animFitAllTours();
   }
+
+  // v0.9.457 — Touren sind projekt-eigener State. Ohne Persistenz wäre die
+  // Liste nach jedem App-Start leer und der Nutzer müsste sie neu zusammen-
+  // klicken. `coords` bleibt draußen (kann bei langen Tracks Megabytes sein)
+  // und wird beim Laden aus der GPX nachgezogen.
+  function _animPersistTours() {
+    try {
+      saveProjectSettings(_MODKEY, {
+        extra_tours: _extraTours.map(t => ({
+          gpx_path: t.gpx_path, line_color: t.line_color, name: t.name })),
+        fly_duration_s: parseFloat(document.getElementById("anim-fly")?.value || "3"),
+      });
+    } catch (_) {}
+  }
+
+  async function _animLoadTours() {
+    let saved = [];
+    let fly = 3;
+    try {
+      const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      const a = proj?.[_MODKEY] || {};
+      saved = Array.isArray(a.extra_tours) ? a.extra_tours : [];
+      if (typeof a.fly_duration_s === "number") fly = a.fly_duration_s;
+    } catch (_) {}
+    const flyEl = document.getElementById("anim-fly");
+    if (flyEl) { flyEl.value = fly; const l = document.getElementById("anim-fly-v"); if (l) l.textContent = fly.toFixed(1) + " s"; }
+
+    _extraTours = [];
+    for (const t of saved) {
+      if (!t || !t.gpx_path) continue;
+      // Die Datei kann inzwischen weg/verschoben sein — dann still überspringen,
+      // statt mit einer Tour ohne Koordinaten weiterzumachen.
+      try {
+        const res = await api().animator_load_gpx(t.gpx_path);
+        if (res && res.ok) {
+          _extraTours.push({ gpx_path: res.gpx_path || t.gpx_path,
+                             line_color: t.line_color || "#35a7ff",
+                             name: t.name || "Tour", coords: res.coords });
+        }
+      } catch (_) {}
+    }
+    if (_extraTours.length !== saved.length) {
+      try { toast(t("animator.tours.missing", "Manche gespeicherten Touren wurden nicht gefunden."), "warn", 5000); } catch (_) {}
+      _animPersistTours();
+    }
+    try { _animRenderToursList(); } catch (_) {}
+    try { _animDrawExtraToursPreview(); } catch (_) {}
+  }
+  window.__animLoadTours = _animLoadTours;
 
   document.getElementById("anim-tours-add")?.addEventListener("click", _animAddTour);
   document.getElementById("anim-fly")?.addEventListener("input", (e) => {
     const lbl = document.getElementById("anim-fly-v");
     if (lbl) lbl.textContent = `${parseFloat(e.target.value).toFixed(1)} s`;
   });
-  _animRenderToursList();
+  document.getElementById("anim-fly")?.addEventListener("change", _animPersistTours);
+  try { _animLoadTours(); } catch (_) {}
+  if (typeof onSessionChanged === "function") {
+    try { onSessionChanged(() => { try { _animLoadTours(); } catch (_) {} }); } catch (_) {}
+  }
 
   // ── v0.9.412 — Snapshot (aktueller Vorschau-Frame als Bild) + „Als Tour-Map
   // öffnen" (Kamera-Übernahme). _snapshotRequest wird vom Snapshot-Button gesetzt

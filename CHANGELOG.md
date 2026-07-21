@@ -14,6 +14,25 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.457] – 2026-07-21
+### Hinzugefügt
+- **„🧭 Mehrere Touren" ist wieder da.** Im Animator lassen sich weitere Touren
+  an die geladene anhängen — jede in eigener Farbe, sortierbar, mit
+  Kinoflug-Dauer für die Übergänge. Die Kamera animiert eine Tour nach der
+  anderen und fliegt im Kino-Stil dazwischen.
+- **Die Tourenliste bleibt erhalten.** Sie wird pro Projekt gespeichert und
+  beim Öffnen wieder geladen (Dateien, die inzwischen weg sind, werden mit
+  Hinweis übersprungen statt als leere Tour mitgeschleppt).
+
+### Behoben
+- **Multi-Track-Render brach mitten im Lauf ab.** Das Frame-Budget wurde als
+  Kommazahl gerechnet (`hold_s * fps` → z. B. `24.0`) und landete so in einer
+  Zählschleife, die nur ganze Zahlen akzeptiert — der Render starb bei rund
+  zwei Dritteln mit „'float' object cannot be interpreted as an integer".
+  Genau deshalb war die Funktion seit v0.9.162 als „noch nicht fertig"
+  ausgeblendet; im Einzeltrack-Betrieb fiel es nie auf, weil der diesen
+  Code-Pfad gar nicht benutzt.
+
 ## [0.9.456] – 2026-07-21
 ### Hinzugefügt
 - **Tracks verbinden im GPX-Inspektor.** Eine weitere Aufzeichnung lässt sich an

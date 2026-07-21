@@ -433,6 +433,7 @@
   "animator.section.tours": "🧭 Mehrere Touren",
   "animator.tours.hint": "Weitere Touren werden nach der ersten animiert — die Kamera fliegt im Kino-Stil von einer zur nächsten.",
   "animator.tours.add": "Tour hinzufügen",
+  "animator.tours.missing": "Manche gespeicherten Touren wurden nicht gefunden.",
   "animator.tours.color": "Farbe dieser Tour",
   "animator.tours.up": "nach oben",
   "animator.tours.down": "nach unten",
