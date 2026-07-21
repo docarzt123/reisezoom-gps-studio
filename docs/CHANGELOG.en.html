@@ -113,9 +113,77 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.448</span>
+    <span class="version-date">21 July 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">Colour the track by heart rate, power, gradient — by whatever the track offers.</p>
+
+  <div class="highlight">
+    <strong>🎨 Colour by measurement</strong> — the trail could previously only change colour by <em>distance, elevation or speed</em>. Now “Colour by” offers <strong>everything the Data Animator can plot</strong>: gradient, heart rate, power, cadence, temperature and every other sensor value from FIT and TCX files. The list only shows what your file actually contains.
+  </div>
+
+  <p>Colour thresholds are set in the unit of the chosen series (“from 145 bpm”), and “Auto” lays a blue→red ramp across the whole range. Negative values work too — which matters for gradient (descents) and temperature (frost).</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.447</span>
+    <span class="version-date">21 July 2026</span>
+  </div>
+  <p class="version-tagline">Chart axes: readable, and freely configurable.</p>
+
+  <div class="highlight">
+    <strong>🔠 Readable at last</strong> — chart labels scaled with the size of the chart box, so a small overlay produced <strong>5-pixel text</strong> nobody could read. Type and geometry are now separate: labels follow the <strong>video resolution</strong> and stay crisp at 1080p and 4K alike.
+  </div>
+
+  <p>On top of that the axes are fully configurable: X axis, left and right Y axis can be toggled individually, font size 8–60 px, and you decide how many values each axis labels. Switch an axis off and the curve gets its space. In the Animator, every chart card also has its own axis and font-size controls.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.446</span>
+    <span class="version-date">21 July 2026</span>
+  </div>
+  <p class="version-tagline">Starts without an internet connection — and speaks up when something goes wrong.</p>
+
+  <div class="highlight">
+    <strong>🛜 Offline start</strong> — the app fetched its map libraries from the internet on every launch. With no connection, or a filter in the way, all you got was a <strong>white window</strong>. Those libraries now ship with the app: launching makes no network request at all.
+  </div>
+
+  <p>And if something does go wrong, you get a <strong>readable error screen</strong> instead of a white window — with the path to the log file and a button that opens the folder. The log also records your Mac model, chip and memory, which saves a round of questions when you report an issue.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.445</span>
+    <span class="version-date">21 July 2026</span>
+  </div>
+  <p class="version-tagline">Charts: the map really does show through now.</p>
+
+  <div class="highlight">
+    <strong>👻 Real transparency</strong> — setting a chart's background opacity to 0 % still left a <strong>white box</strong> in the preview instead of the map. The finished video was right, the preview was not. Now the preview looks exactly like the video.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.444</span>
+    <span class="version-date">21 July 2026</span>
+  </div>
+  <p class="version-tagline">Charts: foreground and background opacity are separate.</p>
+
+  <div class="highlight">
+    <strong>🎚️ Two sliders instead of one</strong> — <strong>“Chart opacity”</strong> controls the curve and the labels, <strong>“Background opacity”</strong> the box behind it. That lets the data line float over the map without a box blocking the view.
+  </div>
+
+  <p>A freshly added chart now also looks exactly like one from the Data Animator — the defaults match everywhere.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.443</span>
     <span class="version-date">17 July 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <p class="version-tagline">Charts in the video: elevation, heart rate, speed &amp; more as an overlay.</p>
 

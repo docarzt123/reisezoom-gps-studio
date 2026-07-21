@@ -113,9 +113,77 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.448</span>
+    <span class="version-date">21. Juli 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Track einfärben nach Puls, Leistung, Steigung — nach allem, was der Track hergibt.</p>
+
+  <div class="highlight">
+    <strong>🎨 Farbe nach Messwert</strong> — die Spur konnte bisher nur nach <em>Distanz, Höhe oder Tempo</em> die Farbe wechseln. Jetzt steht unter „Einfärben nach“ <strong>alles zur Auswahl, was auch der Daten-Animator kann</strong>: zusätzlich Steigung, Puls, Leistung, Trittfrequenz, Temperatur und jeder weitere Sensorwert aus FIT- und TCX-Dateien. Die Liste zeigt nur, was deine Datei wirklich enthält.
+  </div>
+
+  <p>Die Farbschwellen stellst du in der Einheit der gewählten Reihe ein („ab 145 bpm“), „Auto“ legt eine Blau→Rot-Rampe über den ganzen Wertebereich. Negative Werte gehen jetzt auch — wichtig bei Steigung (Abfahrten) und Temperatur (Frost).</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.447</span>
+    <span class="version-date">21. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Diagramm-Achsen: lesbar und frei konfigurierbar.</p>
+
+  <div class="highlight">
+    <strong>🔠 Endlich lesbar</strong> — die Beschriftung der Diagramme richtete sich nach der Größe der Diagramm-Box: ein kleines Overlay ergab <strong>5-Pixel-Text</strong>, den niemand entziffern konnte. Schrift und Geometrie sind jetzt getrennt — die Beschriftung folgt der <strong>Video-Auflösung</strong> und ist bei 1080p wie bei 4K sauber lesbar.
+  </div>
+
+  <p>Dazu sind die Achsen frei konfigurierbar: X-Achse, linke und rechte Y-Achse einzeln an- und ausschaltbar, Schriftgröße 8–60 px, und du bestimmst, wie viele Werte je Achse beschriftet werden. Ist eine Achse aus, bekommt die Kurve deren Platz. Im Animator hat jede Diagramm-Karte zusätzlich eigene Schalter für Achsen und Schriftgröße.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.446</span>
+    <span class="version-date">21. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Startet jetzt auch ohne Internet — und sagt Bescheid, wenn etwas klemmt.</p>
+
+  <div class="highlight">
+    <strong>🛜 Start ohne Netz</strong> — die App lud die Karten-Bibliotheken bei jedem Start aus dem Netz nach. War die Verbindung weg oder ein Filter dazwischen, blieb nur ein <strong>weißes Fenster</strong> übrig. Die Bibliotheken sind jetzt mit installiert: beim Start geht keine einzige Anfrage mehr raus.
+  </div>
+
+  <p>Falls doch einmal etwas schiefgeht, zeigt die App statt eines weißen Fensters einen <strong>lesbaren Fehler-Bildschirm</strong> mit dem Pfad zur Log-Datei und einem Knopf, der den Ordner direkt öffnet. Ins Log schreibt sie außerdem Mac-Modell, Chip und Arbeitsspeicher — das erspart bei Rückfragen einiges Hin und Her.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.445</span>
+    <span class="version-date">21. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Diagramme: die Karte scheint jetzt wirklich durch.</p>
+
+  <div class="highlight">
+    <strong>👻 Echte Transparenz</strong> — stellte man die Hintergrund-Deckkraft eines Diagramms auf 0 %, zeigte die Vorschau trotzdem einen <strong>weißen Kasten</strong> statt der Karte. Im fertigen Video stimmte es, in der Vorschau nicht. Jetzt sieht die Vorschau exakt so aus wie das Video.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.444</span>
+    <span class="version-date">21. Juli 2026</span>
+  </div>
+  <p class="version-tagline">Diagramme: Vordergrund und Hintergrund getrennt regelbar.</p>
+
+  <div class="highlight">
+    <strong>🎚️ Zwei Regler statt einem</strong> — <strong>„Deckkraft Diagramm“</strong> steuert Kurve und Beschriftung, <strong>„Deckkraft Hintergrund“</strong> die Box dahinter. So schwebt die Datenlinie über der Karte, ohne dass ein Kasten den Blick verstellt.
+  </div>
+
+  <p>Außerdem sieht ein frisch angelegtes Diagramm jetzt genauso aus wie eines aus dem Daten-Animator — die Standardwerte sind überall dieselben.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.443</span>
     <span class="version-date">17. Juli 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <p class="version-tagline">Diagramme im Video: Höhe, Puls, Tempo &amp; Co. als Overlay.</p>
 

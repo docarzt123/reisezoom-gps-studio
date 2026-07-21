@@ -113,9 +113,77 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.448</span>
+    <span class="version-date">21 de julio de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Colorea la pista por pulso, potencia o pendiente: por lo que la pista ofrezca.</p>
+
+  <div class="highlight">
+    <strong>🎨 Color según la medición</strong> — hasta ahora la traza solo podía cambiar de color por <em>distancia, altitud o velocidad</em>. Ahora «Colorear según» ofrece <strong>todo lo que el Animador de datos puede representar</strong>: pendiente, pulso, potencia, cadencia, temperatura y cualquier otro valor de sensor de archivos FIT y TCX. La lista solo muestra lo que tu archivo contiene realmente.
+  </div>
+
+  <p>Los umbrales de color se definen en la unidad de la serie elegida («desde 145 bpm») y «Auto» aplica una rampa azul→rojo sobre todo el rango. También se admiten valores negativos, algo importante en pendiente (bajadas) y temperatura (heladas).</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.447</span>
+    <span class="version-date">21 de julio de 2026</span>
+  </div>
+  <p class="version-tagline">Ejes de los gráficos: legibles y totalmente configurables.</p>
+
+  <div class="highlight">
+    <strong>🔠 Por fin legible</strong> — las etiquetas de los gráficos se escalaban con el tamaño de la caja del gráfico, así que una superposición pequeña producía <strong>texto de 5 píxeles</strong> imposible de leer. Tipografía y geometría ya están separadas: las etiquetas siguen la <strong>resolución del vídeo</strong> y se leen bien tanto en 1080p como en 4K.
+  </div>
+
+  <p>Además los ejes son totalmente configurables: eje X, eje Y izquierdo y derecho se activan por separado, tamaño de fuente de 8 a 60 px, y tú decides cuántos valores se etiquetan por eje. Si apagas un eje, la curva gana ese espacio. En el Animador, cada tarjeta de gráfico tiene sus propios controles de ejes y tamaño de fuente.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.446</span>
+    <span class="version-date">21 de julio de 2026</span>
+  </div>
+  <p class="version-tagline">Arranca sin conexión a internet y avisa cuando algo falla.</p>
+
+  <div class="highlight">
+    <strong>🛜 Arranque sin red</strong> — la aplicación descargaba las bibliotecas de mapas de internet en cada inicio. Sin conexión, o con un filtro de por medio, solo quedaba una <strong>ventana en blanco</strong>. Esas bibliotecas ahora se instalan con la aplicación: al arrancar no sale ni una sola petición a la red.
+  </div>
+
+  <p>Y si algo falla, aparece una <strong>pantalla de error legible</strong> en lugar de una ventana en blanco, con la ruta del archivo de registro y un botón que abre la carpeta. El registro anota además el modelo de Mac, el chip y la memoria, lo que ahorra preguntas al informar de un problema.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.445</span>
+    <span class="version-date">21 de julio de 2026</span>
+  </div>
+  <p class="version-tagline">Gráficos: ahora el mapa se transparenta de verdad.</p>
+
+  <div class="highlight">
+    <strong>👻 Transparencia real</strong> — al poner la opacidad de fondo de un gráfico al 0 %, la vista previa seguía mostrando una <strong>caja blanca</strong> en lugar del mapa. El vídeo final estaba bien; la vista previa, no. Ahora la vista previa se ve exactamente como el vídeo.
+  </div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.444</span>
+    <span class="version-date">21 de julio de 2026</span>
+  </div>
+  <p class="version-tagline">Gráficos: opacidad de primer plano y de fondo por separado.</p>
+
+  <div class="highlight">
+    <strong>🎚️ Dos controles en lugar de uno</strong> — <strong>«Opacidad del gráfico»</strong> controla la curva y las etiquetas, y <strong>«Opacidad del fondo»</strong> la caja que hay detrás. Así la línea de datos flota sobre el mapa sin que una caja tape la vista.
+  </div>
+
+  <p>Además, un gráfico recién añadido se ve igual que uno del Animador de datos: los valores predeterminados coinciden en todas partes.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.443</span>
     <span class="version-date">17 de julio de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">Gráficos en el vídeo: altitud, pulso, velocidad y más como superposición.</p>
 
