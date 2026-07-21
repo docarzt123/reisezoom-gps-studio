@@ -558,11 +558,19 @@ def _sensor_dom_id(key: str) -> str:
     return "live-sensor-" + key
 
 
-def _overlay_sensor_series_json(ds_points, field_ids) -> str:
+def _overlay_sensor_series_json(ds_points, field_ids, extra_keys=None) -> str:
     """JSON `{key: [wert_pro_ds_punkt]}` für die im Overlay aktiven Sensor-Felder
-    (`sensor:<key>`). Liest direkt aus `TrackPoint.extra` der ds-Punkte."""
+    (`sensor:<key>`). Liest direkt aus `TrackPoint.extra` der ds-Punkte.
+
+    v0.9.448 — `extra_keys`: Reihen, die zwar in keinem Overlay-Feld stecken, aber
+    trotzdem gebraucht werden (z.B. die Reihe, nach der der Track eingefärbt wird).
+    Ohne das wäre `sensorSeries` leer und die Puls-Einfärbung stumm wirkungslos.
+    """
     keys = [fid.split(":", 1)[1] for fid in (field_ids or [])
             if isinstance(fid, str) and fid.startswith("sensor:")]
+    for k in (extra_keys or []):
+        if isinstance(k, str) and k and k not in keys:
+            keys.append(k)
     if not keys:
         return "{}"
     out = {}
@@ -889,6 +897,24 @@ def _overlay_timing_js(cfg: "AnimatorConfig") -> str:
     )
 
 
+def _chart_axis_over(ch: dict) -> dict:
+    """v0.9.447 — Pro-Diagramm-Übersteuerungen der Achsen (Karte im Animator).
+
+    Nur Keys die die Karte tatsächlich gesetzt hat; alles andere kommt weiter aus
+    dem Daten-Animator-Stil. Wird von `resolve_overlay_chart(style_over=…)` über
+    den Stil gelegt.
+    """
+    out: dict = {}
+    if ch.get("show_axes") is not None:
+        out["show_axes"] = bool(ch.get("show_axes"))
+    if ch.get("axis_font_size") is not None:
+        try:
+            out["axis_font_size"] = max(6.0, min(80.0, float(ch.get("axis_font_size"))))
+        except (TypeError, ValueError):
+            pass
+    return out
+
+
 def _charts_html(cfg: "AnimatorConfig", ds_points, cum_dist) -> str:
     """v0.9.443 — HTML-Block der Daten-Diagramm-Overlays.
 
@@ -927,7 +953,12 @@ def _charts_html(cfg: "AnimatorConfig", ds_points, cum_dist) -> str:
                 ds_points, cum_dist, style,
                 series_a=series_a, series_b=series_b,
                 width=cw, height=chh,
-                fg_opacity=fg_op, bg_opacity=bg_op, overrides=ov)
+                fg_opacity=fg_op, bg_opacity=bg_op, overrides=ov,
+                # v0.9.447 — Schriftskala an die VIDEO-Auflösung koppeln, nicht an
+                # die (kleine) Diagramm-Box. Sonst ergibt ein 270-px-Overlay eine
+                # 5-px-Beschriftung, die niemand lesen kann.
+                text_scale=s,
+                style_over=_chart_axis_over(ch))
         except Exception as e:  # ein kaputtes Diagramm darf den Render nicht kippen
             _log.warning("Chart-Overlay %d konnte nicht gebaut werden: %s", i, e)
             continue
@@ -1341,9 +1372,12 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # "v" (Legacy: "km"). Stops nach Wert sortieren; bei Distanz Wert 0 mit line_color
     # seed'en (falls kein Stop bei 0). Metrik-Array-Name (elevations/speedKmh) wird als
     # 7. Arg an __rzColorGradient übergeben; bei Distanz → null.
+    # v0.9.448 — Quelle ist JEDE Datenreihe des Tracks, nicht mehr nur Höhe/Tempo:
+    # abgeleitet (ele/speed/grade) oder Sensor-Key (heart_rate, power, cadence, …).
+    # "elevation" bleibt als Legacy-Alias lesbar (Projekte bis v0.9.447).
     _csrc = str(getattr(cfg, "track_colors_source", "distance") or "distance")
-    if _csrc not in ("distance", "elevation", "speed"):
-        _csrc = "distance"
+    if _csrc == "elevation":
+        _csrc = "ele"
 
     def _stopv(s):
         return float(s.get("v", s.get("km", 0)) or 0)
@@ -1359,8 +1393,16 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     color_stops_km_json = json.dumps([_stopv(s) for s in _stops])
     color_stops_col_json = json.dumps([str(s["color"]) for s in _stops])
     color_mode_json = json.dumps("gradient" if str(cfg.track_colors_mode) == "gradient" else "hard")
-    # Metrik-JS-Konstante (schon im Template definiert): elevations / speedKmh / null.
-    color_metric_js = {"elevation": "elevations", "speed": "speedKmh"}.get(_csrc, "null")
+    # Metrik-JS-Ausdruck. Die abgeleiteten Reihen sind eigene Template-Konstanten,
+    # alle übrigen liegen in `sensorSeries` (key → [werte], Lücken mit null). Für
+    # Sensoren die Lücken hier im JS füllen — sonst reißt der Verlauf ab
+    # (identisch zu `heightanim._fill_gaps` und `metricArrFor` in der Vorschau).
+    if _csrc == "distance":
+        color_metric_js = "null"
+    elif _csrc in ("ele", "speed", "grade"):
+        color_metric_js = {"ele": "elevations", "speed": "speedKmh", "grade": "gradePct"}[_csrc]
+    else:
+        color_metric_js = f"__rzFillGaps(sensorSeries[{json.dumps(_csrc)}])"
     ele_min = min(eles)
     ele_max = max(eles)
     min_lon, min_lat, max_lon, max_lat = bbox
@@ -1393,7 +1435,11 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     speed_kmh, grade_pct, _moving_s, _max_kmh = _overlay_compute_speed_grade(ds_points, cum_dist, cum_time, eles, has_time, has_ele)
     speed_json = json.dumps([round(x, 2) for x in speed_kmh])
     grade_json = json.dumps([round(x, 2) for x in grade_pct])
-    sensor_series_json = _overlay_sensor_series_json(ds_points, getattr(cfg, "overlay_live_fields", None))
+    # v0.9.448 — die Reihe, nach der eingefärbt wird, MUSS in `sensorSeries` landen,
+    # auch wenn sie in keinem Overlay-Feld vorkommt (siehe _csrc oben).
+    _color_extra = [_csrc] if _csrc not in ("distance", "ele", "speed", "grade") else []
+    sensor_series_json = _overlay_sensor_series_json(
+        ds_points, getattr(cfg, "overlay_live_fields", None), extra_keys=_color_extra)
     total_stats = dict(total_stats)
     # v0.9.324 — Max-Tempo + Fahrzeit kommen aus den VOLL aufgelösten Track-Stats
     # (TrackStats.max_speed_kmh/moving_time_s). Die ds_points-Werte sind nur
@@ -2133,7 +2179,24 @@ const COLOR_SOURCE = {color_source_json};
 const COLOR_STOPS_VAL = {color_stops_km_json};
 const COLOR_STOPS_COL = {color_stops_col_json};
 const COLOR_MODE = {color_mode_json};
-const COLOR_METRIC = {color_metric_js};   // elevations | speedKmh | null (Distanz)
+// v0.9.448 — Sensorreihen haben Lücken (null). Mit dem letzten gültigen Wert
+// füllen, führende mit dem ersten — sonst reißt der Farbverlauf ab. SYNCHRON zu
+// `metricArrFor` (modules/animator/ui/module.js) und `heightanim._fill_gaps`.
+function __rzFillGaps(arr) {{
+  if (!arr || !arr.length) return null;
+  const out = new Array(arr.length);
+  let last = null;
+  for (let i = 0; i < arr.length; i++) {{
+    const v = arr[i];
+    if (typeof v === "number" && isFinite(v)) last = v;
+    out[i] = last;
+  }}
+  const first = out.find(v => v != null);
+  if (first == null) return null;
+  for (let i = 0; i < out.length && out[i] == null; i++) out[i] = first;
+  return out;
+}}
+const COLOR_METRIC = {color_metric_js};   // elevations | speedKmh | gradePct | Sensorreihe | null (Distanz)
 window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
   const safe = Math.max(0, Math.min(idx, totalPoints-1));
   // v0.9.55: optional Pre-Trim-Portion (coords[0..TRIM_START_IDX-1]) ausblenden.
@@ -2145,8 +2208,12 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
   const coords = allCoords.slice(sliceStart, sliceEnd);
   if (coords.length >= 2) {{
     map.getSource('track').setData({{type:'Feature',geometry:{{type:'LineString',coordinates:coords}}}});
-    // v0.9.435 — Mehrfarbiger Track: line-gradient nach Distanz setzen.
-    if (COLORS_ON) {{
+    // v0.9.435 — Mehrfarbiger Track: line-gradient setzen.
+    // v0.9.448 — Quelle ist eine Messreihe, die dieser Track nicht hergibt
+    // (z.B. Puls-Einfärbung + GPX ohne Puls) → gar keinen Verlauf setzen. Sonst
+    // würden die Stop-Werte als Kilometer missdeutet und der Track bekäme
+    // willkürliche Farben statt sauber einfarbig zu bleiben.
+    if (COLORS_ON && !(COLOR_SOURCE !== 'distance' && !COLOR_METRIC)) {{
       const g = window.__rzColorGradient(cumDistM, sliceStart, sliceEnd-1, COLOR_STOPS_VAL, COLOR_STOPS_COL, COLOR_MODE, COLOR_METRIC);
       if (g) {{ try {{ map.setPaintProperty('track-line','line-gradient',g); if (map.getLayer('track-glow')) map.setPaintProperty('track-glow','line-gradient',g); }} catch(e) {{}} }}
     }}

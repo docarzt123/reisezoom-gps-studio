@@ -224,10 +224,11 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
     Das funktioniert in Vorschau und fertigem Video identisch. (Bei **Foto-Karten** passiert das automatisch über die Aufnahme-Zeit des Fotos.)
   - **Vorschau-Hilfe:** Checkbox **„In der Vorschau ALLE Schilder zeigen"** — zeigt beim Platzieren alle Schilder gleichzeitig (nur Vorschau; im Video gilt weiter das Timing).
 - **Ghost-Track (seit v0.9.169)** — zeigt die **komplette Route** schon halbtransparent im Hintergrund, während nur der animierte Teil voll deckend darüber gezeichnet wird. So sieht man von Anfang an, wo es noch hingeht. Einstellbar: **eigene Ghost-Track-Farbe** (eigener Color-Picker, unabhängig von der Track-Farbe — z.B. dezentes Grau, seit v0.9.170) und **Deckkraft** (Slider 5–80 %, Default 30 %). Wirkt in Vorschau und Render inkl. Alpha/Transparent-Modus. Standard aus.
-- **Mehrere Track-Farben (seit v0.9.435, erweitert v0.9.436)** — die Track-Linie kann die **Farbe wechseln**. Mit dem Selektor **„Einfärben nach"** wählst du, wonach:
+- **Mehrere Track-Farben (seit v0.9.435, erweitert v0.9.448)** — die Track-Linie kann die **Farbe wechseln**. Mit dem Selektor **„Einfärben nach"** wählst du, wonach:
   - **Distanz (km)** — Farb-Stops **ab km** (Zahl), **an der aktuellen Marker-Position** (übernimmt die Scrubber-Position) oder **an allen GPX-Wegpunkten** (automatisch). Die erste Farbe gilt ab km 0 (= Track-Farbe).
-  - **Höhe** — Farb-Stops **ab Metern**, wie die Höhen-Farbzonen im Höhenprofil (z. B. blau im Tal → rot am Gipfel). **„＋ ab Höhe (hier)"** übernimmt die Höhe an der Marker-Position; **„Auto (min → max)"** füllt automatisch eine Blau→Rot-Rampe über die Höhen-Spannweite des Tracks.
-  - **Geschwindigkeit** — analog nach **km/h** (langsam → schnell).
+  - **Jede Datenreihe des Tracks** — seit v0.9.448 steht hier **alles zur Auswahl, was auch der Daten-Animator plotten kann**: Höhe, Tempo, Steigung und sämtliche Sensorwerte aus FIT/TCX-Dateien (**Puls, Leistung, Trittfrequenz, Temperatur** …). Die Liste zeigt **nur, was der geladene Track wirklich enthält**; die Einheit steht in Klammern dahinter.
+
+    Farb-Stops setzt du dann **im Wertebereich der Reihe** (z. B. „ab 145 bpm", „ab 8 %", „ab 2400 m"). **„＋ ab &lt;Reihe&gt; (hier)"** übernimmt den Wert an der Marker-Position, **„Auto (min → max)"** legt automatisch eine Blau→Rot-Rampe über die Spannweite. Negative Werte sind erlaubt — wichtig bei **Steigung** (Abfahrten) und **Temperatur** (Frost).
 
   Pro Stop stellst du **Wert + Farbe** ein, 🗑 entfernt ihn. Der Schalter **„Übergang"** legt fest, ob die Farbe **hart** (crispe Bänder) oder als weicher **Verlauf** wechselt. Wirkt WYSIWYG in Vorschau, Probelauf und Render. Standard aus. *(Aktuell nur Einzeltrack-Animator.)*
 - **Karte ohne Beschriftungen** (seit v0.4.4) — blendet Ortsnamen, Straßennamen und POI-Icons auf der Karte aus. Macht die Karte zum reinen Hintergrund — guter Look wenn du den Track als visuellen Hauptdarsteller haben willst statt einer Google-Maps-mäßigen Übersicht. Funktioniert mit allen Karten-Stilen und auch im Tour-Map-Modul.
@@ -258,6 +259,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 - **„＋ Diagramm hinzufügen"** legt eine Karte an. Pro Diagramm wählst du die **Datenreihe**, die **Position** (9 Ecken/Mitten), **Breite** und **Höhe** sowie ein **Zeitfenster** (ab/bis Video-Sekunde).
 - **Vorder- und Hintergrund-Deckkraft getrennt (seit v0.9.445):** Mit **„Deckkraft Diagramm"** steuerst du die Kurve und Beschriftung, mit **„Deckkraft Hintergrund"** die Box dahinter. Ziehst du den **Hintergrund auf 0 %**, scheint die Karte vollständig durch und nur die Datenlinie schwebt über dem Video. Die Vorschau zeigt das jetzt **WYSIWYG** (echte Transparenz statt eines weißen Kastens).
+- **Achsen pro Diagramm (seit v0.9.447):** Jede Diagramm-Karte hat eigene Schalter **„Achsen"** und **„Schrift Achsen"** (8–60 px). Sie überstimmen den Stil aus dem Daten-Animator — so kann ein kleines Overlay große Beschriftung tragen oder ganz ohne Achsen auskommen. Wichtig: Die Schriftgröße bezieht sich auf die **Video-Auflösung**, nicht auf die Diagramm-Box. Bis v0.9.446 schrumpfte die Beschriftung mit der Box (ein 270-px-Diagramm ergab 5-px-Text) — das ist behoben.
 
 ![Die Diagramm-Karte in der Seitenleiste: Datenreihe, Position, Breite/Höhe, getrennte Deckkraft für Diagramm (Vordergrund) und Hintergrund sowie „Aus Daten-Animator übernehmen".](img/diagramme-sidebar.png)
 
@@ -585,6 +587,8 @@ In der Sektion **„Punkte auf der Strecke"** setzt du beschriftete Marker ins P
 - **Auto-Marker:** höchster/tiefster Punkt sowie steilster An- und Abstieg werden automatisch erkannt und beschriftet.
 
 Jeder Punkt **taucht animiert auf, sobald die Linie ihn erreicht**. Einzelne Punkte aus einer Quelle kannst du in der Liste per 👁 aus-/einblenden. Deine manuellen Punkte + alle Einstellungen werden **pro Projekt** gespeichert.
+
+**Achsen komplett konfigurierbar (seit v0.9.447):** Unter dem Schalter „Achsen-Beschriftung zeigen" liegt jetzt ein Detail-Block. Dort schaltest du **X-Achse**, **linke Y-Achse** und **rechte Y-Achse** (zweite Datenreihe) einzeln an und aus, wählst die **Schriftgröße** (8–60 px) und legst fest, **wie viele Werte** je Achse beschriftet werden (1–12). Ist eine Achse aus, fällt ihr Rand auf ein Minimum — die Kurve bekommt den freien Platz. Der Haupt-Schalter darüber schaltet weiterhin alles auf einmal ab.
 
 **Farben (seit v0.9.395):** In der „Optik"-Sektion wählst du neben Hintergrund und Linienfarbe jetzt auch **Gitterfarbe** (Hilfsgitter) und **Beschriftungsfarbe** (Achsen, Info-Leiste, Marker-Callout).
 

@@ -102,7 +102,21 @@ class HeightConfig:
     line_color: str = "#ff6b35"
     line_width: float = 4.0
     grid_enabled: bool = True
-    show_axes: bool = True
+    show_axes: bool = True               # Haupt-Schalter: aus = gar keine Achsen-Beschriftung
+    # v0.9.447 — Achsen einzeln steuerbar. Vorher war alles an EINEM Schalter und
+    # die Anzahl der Werte fest verdrahtet (7 auf X, 6 auf Y). Bei kleinen Overlay-
+    # Diagrammen ist genau das der Grund, warum die Beschriftung unlesbar wird.
+    axis_x_labels: bool = True           # X-Achse (Distanz)
+    axis_y_labels: bool = True           # Y-Achse links (Reihe A)
+    axis_y2_labels: bool = True          # Y-Achse rechts (Reihe B, nur wenn vorhanden)
+    axis_x_ticks: int = 6                # Intervalle auf X → 7 Beschriftungen
+    axis_y_ticks: int = 5                # Intervalle auf Y → 6 Beschriftungen
+    axis_font_size: float = 20.0         # Basis-Schriftgröße bei 1080 Referenz-Höhe
+    # Textskala getrennt von der Geometrie: 0 = automatisch (= Diagramm-Höhe/1080,
+    # wie bisher, richtig für das Vollbild-Video). >0 = explizit — die Overlay-Charts
+    # setzen hier die Skala der VIDEO-Auflösung ein, sonst schrumpft die Schrift mit
+    # der kleinen Box mit und wird unleserlich (Marc-Bug 2026-07-21).
+    text_scale: float = 0.0
     show_marker: bool = True
     marker_show_dot: bool = True         # v0.9.405 — laufender Punkt (zeichnet die Linie), unabhängig von der Info-Box
     grid_color: str = "#3a3a3a"          # v0.9.394 — Gitterfarbe (frei wählbar)
@@ -244,6 +258,14 @@ const LC = {json.dumps(cfg.line_color)};
 const LW = {float(cfg.line_width)};
 const SHOW_GRID = {str(cfg.grid_enabled).lower()};
 const SHOW_AXES = {str(cfg.show_axes).lower()};
+// v0.9.447 — Achsen einzeln + Schriftgröße + entkoppelte Textskala
+const AXIS_X_LABELS = {str(getattr(cfg, "axis_x_labels", True)).lower()};
+const AXIS_Y_LABELS = {str(getattr(cfg, "axis_y_labels", True)).lower()};
+const AXIS_Y2_LABELS = {str(getattr(cfg, "axis_y2_labels", True)).lower()};
+const AXIS_X_TICKS = {max(1, int(getattr(cfg, "axis_x_ticks", 6) or 6))};
+const AXIS_Y_TICKS = {max(1, int(getattr(cfg, "axis_y_ticks", 5) or 5))};
+const AXIS_FONT_SIZE = {float(getattr(cfg, "axis_font_size", 20.0) or 20.0)};
+const TEXT_SCALE_CFG = {float(getattr(cfg, "text_scale", 0.0) or 0.0)};
 const SHOW_MARKER = {str(cfg.show_marker).lower()};
 const MK_SHOW_DOT = {str(bool(cfg.marker_show_dot)).lower()};
 const TRIM_S = {float(cfg.trim_start)};
@@ -294,25 +316,38 @@ function _rzRgba(hex, a) {{
 
 // Padding skaliert mit Höhe (für 4K-Render werden Achsenlabels größer)
 const SCALE = H / 1080;
-// v0.9.437 — Platz für die Y-Beschriftung wächst mit der Einheit: „139 bpm" /
-// „24.5 km/h" sind breiter als „1234 m" und würden sonst links abgeschnitten.
-// Bei S_UNIT="m" bleibt es exakt bei 80 → keine Änderung an Höhen-Renders.
-const PAD_L = Math.round((80 + Math.max(0, (S_UNIT || "").length - 1) * 9) * SCALE);
-// v0.9.438 — rechter Rand macht Platz für die zweite Achse, sonst wie bisher.
-// Mit zweiter Achse braucht rechts denselben Platz wie links (12px Abstand +
-// Textbreite), sonst wird „142 bpm" am Bildrand abgeschnitten.
-const PAD_R = HAS_B
-  ? Math.round((88 + Math.max(0, (B_UNIT || "").length - 1) * 9) * SCALE)
-  : Math.round(40 * SCALE);
+// v0.9.447 — TEXT_SCALE ist von SCALE getrennt. SCALE beschreibt die GEOMETRIE
+// (Ränder, Linienstärken, Marker) und darf mit der Box schrumpfen. Die SCHRIFT
+// darf das nicht: ein Overlay-Diagramm von 270 px Höhe ergab SCALE 0.25 und damit
+// 5-px-Text — unlesbar. Bei text_scale=0 bleibt alles exakt wie früher (Vollbild-
+// Video), die Overlays setzen dort die Skala der Video-Auflösung ein.
+const TEXT_SCALE = TEXT_SCALE_CFG > 0 ? TEXT_SCALE_CFG : SCALE;
+const FONT_SIZE = Math.max(5, Math.round(AXIS_FONT_SIZE * TEXT_SCALE));
+// Welche Achsen zeichnen wir überhaupt? SHOW_AXES bleibt der Hauptschalter.
+const AX_X  = SHOW_AXES && AXIS_X_LABELS;
+const AX_Y  = SHOW_AXES && AXIS_Y_LABELS;
+const AX_Y2 = SHOW_AXES && AXIS_Y2_LABELS && HAS_B;
+// Ränder richten sich nach der TATSÄCHLICHEN Textgröße (nicht mehr nach SCALE),
+// sonst wird größere Schrift abgeschnitten. Ist eine Achse aus, fällt ihr Rand
+// auf ein Minimum — die Kurve bekommt den Platz.
+const AX_GAP = Math.round(FONT_SIZE * 0.6);
+function _labelRoom(unit) {{
+  // Breite grob aus Zeichenzahl: „3946 m" ≈ 6, „24.5 km/h" ≈ 9 Zeichen.
+  const chars = 5 + Math.max(0, (unit || "").length);
+  return Math.round(chars * FONT_SIZE * 0.58) + AX_GAP;
+}}
+const PAD_L = AX_Y ? _labelRoom(S_UNIT) : Math.round(12 * SCALE);
+const PAD_R = AX_Y2 ? _labelRoom(B_UNIT) : Math.round(40 * SCALE);
 // Header braucht oben eine Bandbreite; Wegpunkt-Labels ragen auch nach oben.
-const HEAD_H = SHOW_HEADER ? Math.round(58 * SCALE) : 0;
+// Der Kopf ist reiner TEXT → mit TEXT_SCALE, sonst wird er im kleinen Overlay
+// genauso unlesbar wie früher die Achsen.
+const HEAD_H = SHOW_HEADER ? Math.round(58 * TEXT_SCALE) : 0;
 const PAD_T = Math.round((WAYPOINTS.length ? 42 : 30) * SCALE) + HEAD_H + Math.round(30 * SCALE);
-const PAD_B = Math.round((SHOW_AXES ? 80 : 30) * SCALE);
+const PAD_B = AX_X ? Math.round(FONT_SIZE * 1.6) + AX_GAP : Math.round(14 * SCALE);
 const PLOT_W = Math.max(20, W - PAD_L - PAD_R);
 const PLOT_H = Math.max(20, H - PAD_T - PAD_B);
-const FONT_SIZE = Math.round(20 * SCALE);
 const AXES_FONT = `${{FONT_SIZE}}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-const STATS_FONT = `${{Math.round(22 * SCALE)}}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+const STATS_FONT = `${{Math.round(22 * TEXT_SCALE)}}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
 
 // v0.9.400 — Glättung: gleitender Mittelwert über die Höhen (Radius r Punkte
 // je Seite). SYNCHRON zu modules/heightanim/ui/module.js (_rzSmooth).
@@ -584,18 +619,19 @@ function draw(progress) {{
     }}
   }}
 
-  // Hilfsgitter
+  // Hilfsgitter — folgt der eingestellten Achsen-Teilung, damit Linien und
+  // Beschriftungen auf derselben Höhe sitzen (v0.9.447).
   if (SHOW_GRID) {{
-    for (let i = 0; i <= 5; i++) {{
-      const y = PAD_T + (i / 5) * PLOT_H;
+    for (let i = 0; i <= AXIS_Y_TICKS; i++) {{
+      const y = PAD_T + (i / AXIS_Y_TICKS) * PLOT_H;
       svg.appendChild(svgNS("line", {{
         x1: PAD_L, x2: PAD_L + PLOT_W, y1: y, y2: y,
         stroke: GRID_COLOR, "stroke-width": Math.max(1, Math.round(SCALE)),
         opacity: 0.4,
       }}));
     }}
-    for (let i = 0; i <= 6; i++) {{
-      const x = PAD_L + (i / 6) * PLOT_W;
+    for (let i = 0; i <= AXIS_X_TICKS; i++) {{
+      const x = PAD_L + (i / AXIS_X_TICKS) * PLOT_W;
       svg.appendChild(svgNS("line", {{
         x1: x, x2: x, y1: PAD_T, y2: PAD_T + PLOT_H,
         stroke: GRID_COLOR, "stroke-width": Math.max(1, Math.round(SCALE)),
@@ -604,40 +640,42 @@ function draw(progress) {{
     }}
   }}
 
-  // Achsen
-  if (SHOW_AXES) {{
-    for (let i = 0; i <= 6; i++) {{
-      const x = PAD_L + (i / 6) * PLOT_W;
-      const distKm = (i / 6) * (dTrimSpan / 1000);
-      const t = svgNS("text", {{
-        x, y: H - PAD_B + Math.round(28 * SCALE),
+  // Achsen — v0.9.447: jede Achse einzeln schaltbar, Anzahl der Werte einstellbar.
+  // Ränder/Abstände hängen jetzt an FONT_SIZE statt an SCALE, damit größere
+  // Schrift nicht abgeschnitten wird.
+  if (AX_X) {{
+    for (let i = 0; i <= AXIS_X_TICKS; i++) {{
+      const x = PAD_L + (i / AXIS_X_TICKS) * PLOT_W;
+      const distKm = (i / AXIS_X_TICKS) * (dTrimSpan / 1000);
+      svg.appendChild(svgNS("text", {{
+        x, y: H - PAD_B + Math.round(FONT_SIZE * 1.35),
         fill: LBL_COLOR, "font-size": FONT_SIZE,
         "text-anchor": "middle", "font-family": "-apple-system, sans-serif",
-      }}, distKm.toFixed(1) + " km");
-      svg.appendChild(t);
+      }}, distKm.toFixed(1) + " km"));
     }}
-    for (let i = 0; i <= 5; i++) {{
-      const y = PAD_T + (i / 5) * PLOT_H;
-      const ele = eHi - (i / 5) * eSpan;
-      const t = svgNS("text", {{
-        x: PAD_L - Math.round(12 * SCALE), y: y + Math.round(6 * SCALE),
+  }}
+  if (AX_Y) {{
+    for (let i = 0; i <= AXIS_Y_TICKS; i++) {{
+      const y = PAD_T + (i / AXIS_Y_TICKS) * PLOT_H;
+      const ele = eHi - (i / AXIS_Y_TICKS) * eSpan;
+      svg.appendChild(svgNS("text", {{
+        x: PAD_L - AX_GAP, y: y + Math.round(FONT_SIZE * 0.34),
         fill: LBL_COLOR, "font-size": FONT_SIZE,
         "text-anchor": "end", "font-family": "-apple-system, sans-serif",
-      }}, sFmt(ele));
-      svg.appendChild(t);
+      }}, sFmt(ele)));
     }}
-    // v0.9.438 — rechte Achse für Reihe B, in deren Linienfarbe damit klar ist
-    // welche Achse zu welcher Kurve gehört.
-    if (HAS_B) {{
-      for (let i = 0; i <= 5; i++) {{
-        const y = PAD_T + (i / 5) * PLOT_H;
-        const v = (bLo + bSpanV) - (i / 5) * bSpanV;
-        svg.appendChild(svgNS("text", {{
-          x: PAD_L + PLOT_W + Math.round(12 * SCALE), y: y + Math.round(6 * SCALE),
-          fill: LC_B, "font-size": FONT_SIZE,
-          "text-anchor": "start", "font-family": "-apple-system, sans-serif",
-        }}, bFmt(v)));
-      }}
+  }}
+  // v0.9.438 — rechte Achse für Reihe B, in deren Linienfarbe damit klar ist
+  // welche Achse zu welcher Kurve gehört.
+  if (AX_Y2) {{
+    for (let i = 0; i <= AXIS_Y_TICKS; i++) {{
+      const y = PAD_T + (i / AXIS_Y_TICKS) * PLOT_H;
+      const v = (bLo + bSpanV) - (i / AXIS_Y_TICKS) * bSpanV;
+      svg.appendChild(svgNS("text", {{
+        x: PAD_L + PLOT_W + AX_GAP, y: y + Math.round(FONT_SIZE * 0.34),
+        fill: LC_B, "font-size": FONT_SIZE,
+        "text-anchor": "start", "font-family": "-apple-system, sans-serif",
+      }}, bFmt(v)));
     }}
   }}
 
@@ -748,19 +786,21 @@ function draw(progress) {{
       }}));
       const label = (wp.label || "").toString();
       if (label) {{
-        const fs = Math.round(13 * SCALE);
-        const tw = Math.round(label.length * fs * 0.62 + 16 * SCALE);
+        // v0.9.447 — Wegpunkt-Fahne ist Text → TEXT_SCALE (Stiel/Punkt bleiben
+        // Geometrie und hängen weiter an SCALE).
+        const fs = Math.round(13 * TEXT_SCALE);
+        const tw = Math.round(label.length * fs * 0.62 + 16 * TEXT_SCALE);
         let bx = wx - tw / 2;
         bx = Math.max(PAD_L, Math.min(W - PAD_R - tw, bx));
-        let by = stemTop - Math.round(18 * SCALE);
-        by = Math.max(HEAD_H + Math.round(8 * SCALE), by);
+        let by = stemTop - Math.round(18 * TEXT_SCALE);
+        by = Math.max(HEAD_H + Math.round(8 * TEXT_SCALE), by);
         svg.appendChild(svgNS("rect", {{
-          x: bx, y: by, width: tw, height: Math.round(18 * SCALE),
-          rx: Math.round(4 * SCALE), fill: "#2a2a2a",
+          x: bx, y: by, width: tw, height: Math.round(18 * TEXT_SCALE),
+          rx: Math.round(4 * TEXT_SCALE), fill: "#2a2a2a",
           stroke: col, "stroke-width": Math.max(1, Math.round(SCALE)),
         }}));
         svg.appendChild(svgNS("text", {{
-          x: bx + tw / 2, y: by + Math.round(13 * SCALE),
+          x: bx + tw / 2, y: by + Math.round(13 * TEXT_SCALE),
           fill: "#fff", "font-size": fs, "text-anchor": "middle",
           "font-family": "-apple-system, sans-serif",
         }}, label));
@@ -773,24 +813,25 @@ function draw(progress) {{
     const _st = rzHeaderStats(dists, elevs, i0, i1);
     const fields = (STATS_FIELDS || []).filter(f => rzFieldValue(f, _st) !== "");
     const n = Math.max(1, fields.length);
-    const labFs = Math.round(13 * SCALE), valFs = Math.round(19 * SCALE);
-    const bandTop = Math.round(14 * SCALE);
+    // v0.9.447 — Kopfleiste hängt an TEXT_SCALE (siehe HEAD_H).
+    const labFs = Math.round(13 * TEXT_SCALE), valFs = Math.round(19 * TEXT_SCALE);
+    const bandTop = Math.round(14 * TEXT_SCALE);
     const step = PLOT_W / n;
     for (let k = 0; k < fields.length; k++) {{
       const fx = PAD_L + k * step;
       if (k > 0) {{
         svg.appendChild(svgNS("line", {{
-          x1: fx - Math.round(12 * SCALE), x2: fx - Math.round(12 * SCALE),
-          y1: bandTop, y2: bandTop + Math.round(44 * SCALE),
+          x1: fx - Math.round(12 * TEXT_SCALE), x2: fx - Math.round(12 * TEXT_SCALE),
+          y1: bandTop, y2: bandTop + Math.round(44 * TEXT_SCALE),
           stroke: GRID_COLOR, "stroke-width": Math.max(1, Math.round(SCALE)),
         }}));
       }}
       svg.appendChild(svgNS("text", {{
-        x: fx, y: bandTop + labFs + Math.round(2 * SCALE),
+        x: fx, y: bandTop + labFs + Math.round(2 * TEXT_SCALE),
         fill: LBL_COLOR, opacity: 0.6, "font-size": labFs, "font-family": "-apple-system, sans-serif",
       }}, rzFieldLabel(fields[k])));
       svg.appendChild(svgNS("text", {{
-        x: fx, y: bandTop + labFs + valFs + Math.round(8 * SCALE),
+        x: fx, y: bandTop + labFs + valFs + Math.round(8 * TEXT_SCALE),
         fill: LBL_COLOR, "font-size": valFs, "font-weight": "500",
         "font-family": "-apple-system, sans-serif",
       }}, rzFieldValue(fields[k], _st)));
@@ -803,7 +844,8 @@ function draw(progress) {{
     // Sinn, also aus der Marker-Box raus.
     const grad = (SHOW_GRAD && S_IS_ELE) ? rzGradAtDist(dists, elevs, dCurrent, 60) : null;
     const curDistKm = (dCurrent - dTrimStart) / 1000;
-    const fs = MK_FS * SCALE;
+    // v0.9.447 — Marker-Callout ist Text → TEXT_SCALE.
+    const fs = MK_FS * TEXT_SCALE;
     const lines = [];
     const _icon = (MK_SHOW_ICON && S_IS_ELE) ? "⛰" : "";
     const l1 = _icon + (MK_SHOW_ELE ? ((_icon ? " " : "") + sFmt(curEle)) : "");
@@ -830,7 +872,7 @@ function draw(progress) {{
       let boxY = endY - boxH - Math.round(10 * SCALE);
       if (boxY < HEAD_H + Math.round(8 * SCALE)) boxY = endY + Math.round(14 * SCALE);
       const _boxAttrs = {{
-        x: boxX, y: boxY, width: boxW, height: boxH, rx: Math.round(8 * SCALE),
+        x: boxX, y: boxY, width: boxW, height: boxH, rx: Math.round(8 * TEXT_SCALE),
         fill: _rzRgba(MK_BG, MK_BG_OP),
       }};
       if (MK_BW > 0) {{ _boxAttrs.stroke = MK_BORDER; _boxAttrs["stroke-width"] = Math.max(1, MK_BW * SCALE); }}
@@ -1340,7 +1382,8 @@ def _hex_rgb(hexs: str, fallback=(26, 26, 26)):
 def _overlay_heightcfg(style: dict, *, sid_a: str, sid_b: str,
                        width: int, height: int, transparent: bool,
                        bg_override: str | None = None,
-                       fg_opacity: float = 1.0) -> "HeightConfig":
+                       fg_opacity: float = 1.0,
+                       text_scale: float = 0.0) -> "HeightConfig":
     """Baut aus einem Style-Snapshot (Daten-Animator-Params) eine HeightConfig
     für ein Overlay-Chart. Tolerant gegen fehlende Keys; series_a/series_b werden
     von den aufgelösten (effektiven) IDs überschrieben. `bg_override` (z.B. eine
@@ -1362,6 +1405,16 @@ def _overlay_heightcfg(style: dict, *, sid_a: str, sid_b: str,
         line_width=float(g("line_width", 4.0) or 4.0),
         grid_enabled=bool(g("grid_enabled", True)),
         show_axes=bool(g("show_axes", True)),
+        # v0.9.447 — Achsen einzeln + Schriftgröße. `text_scale` kommt vom Aufrufer:
+        # bei Overlays die Skala der VIDEO-Auflösung, damit die Beschriftung nicht
+        # mit der kleinen Box mitschrumpft.
+        axis_x_labels=bool(g("axis_x_labels", True)),
+        axis_y_labels=bool(g("axis_y_labels", True)),
+        axis_y2_labels=bool(g("axis_y2_labels", True)),
+        axis_x_ticks=int(g("axis_x_ticks", 6) or 6),
+        axis_y_ticks=int(g("axis_y_ticks", 5) or 5),
+        axis_font_size=float(g("axis_font_size", 20.0) or 20.0),
+        text_scale=float(text_scale or 0.0),
         show_marker=bool(g("show_marker", True)),
         marker_show_dot=bool(g("marker_show_dot", True)),
         grid_color=g("grid_color", "#3a3a3a"),
@@ -1404,7 +1457,9 @@ def resolve_overlay_chart(points: list, cum_dist: list[float], style: dict,
                           transparent: bool = True,
                           fg_opacity: float = 1.0, bg_opacity: float = 1.0,
                           overrides: dict | None = None,
-                          inline_id: str = "") -> str:
+                          inline_id: str = "",
+                          text_scale: float = 0.0,
+                          style_over: dict | None = None) -> str:
     """Fertige Chart-HTML für EIN Animator-Diagramm-Overlay.
 
     Löst die gewünschten Serien aus `points` auf (mit Rückfall), baut die
@@ -1417,6 +1472,11 @@ def resolve_overlay_chart(points: list, cum_dist: list[float], style: dict,
     zeigt in WKWebView eine weiße iframe-Basis). Vorder- und Hintergrund-Deckkraft
     getrennt: bg → Alpha der Hintergrundfarbe, fg → SVG-Opacity (foreground_opacity).
     """
+    # v0.9.447 — `style_over` sind Pro-Diagramm-Übersteuerungen (z.B. Achsen an/aus,
+    # Schriftgröße) die der Karte im Animator gehören, nicht dem Daten-Animator-Stil.
+    if style_over:
+        style = dict(style or {})
+        style.update({k: v for k, v in style_over.items() if v is not None})
     sid_a, vals_a = resolve_series(points, series_a or "ele", overrides)
     sid_b, vals_b = "", None
     if (series_b or "").strip():
@@ -1433,13 +1493,14 @@ def resolve_overlay_chart(points: list, cum_dist: list[float], style: dict,
         # und die Karte scheint bei bg-Alpha < 1 direkt durch (DOM-Compositing).
         cfg = _overlay_heightcfg(style, sid_a=sid_a, sid_b=(sid_b if vals_b else ""),
                                  width=width, height=height, transparent=True,
-                                 fg_opacity=_fo)
+                                 fg_opacity=_fo, text_scale=text_scale)
     else:
         # Render/iframe: Hintergrund als rgba IN das Dokument backen (Chromium
         # komponiert transparente iframes korrekt → Karte scheint durch).
         cfg = _overlay_heightcfg(style, sid_a=sid_a, sid_b=(sid_b if vals_b else ""),
                                  width=width, height=height, transparent=False,
-                                 bg_override=bg_rgba, fg_opacity=_fo)
+                                 bg_override=bg_rgba, fg_opacity=_fo,
+                                 text_scale=text_scale)
     return _make_html(cfg, list(cum_dist), list(vals_a),
                       list(vals_b) if vals_b else None, inline_id=inline_id)
 

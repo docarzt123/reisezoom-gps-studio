@@ -130,6 +130,38 @@ function mountHeightAnim(body, headerActions) {
               <input type="checkbox" id="height-axes" checked>
               <span>${t("heightanim.field.axes", "Achsen-Beschriftung zeigen")}</span>
             </label>
+            <!-- v0.9.447 — Achsen einzeln steuerbar. Vorher gab es nur den Schalter
+                 darüber und fest verdrahtete Werte-Anzahlen; als kleines Overlay auf
+                 der Karte wurde die Beschriftung dadurch unlesbar klein. -->
+            <div id="height-axis-detail" style="margin-left:20px">
+              <label class="checkbox-row">
+                <input type="checkbox" id="height-axis-x" checked>
+                <span>${t("heightanim.field.axis_x", "X-Achse (Distanz)")}</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" id="height-axis-y" checked>
+                <span>${t("heightanim.field.axis_y", "Y-Achse links")}</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" id="height-axis-y2" checked>
+                <span>${t("heightanim.field.axis_y2", "Y-Achse rechts (2. Reihe)")}</span>
+              </label>
+              <div class="field">
+                <label class="field-label">${t("heightanim.field.axis_font", "Schriftgröße")}
+                  <span class="label-val" id="height-axis-font-v">20 px</span></label>
+                <input type="range" id="height-axis-font" min="8" max="60" step="1" value="20">
+              </div>
+              <div class="field">
+                <label class="field-label">${t("heightanim.field.axis_x_ticks", "Werte auf X")}
+                  <span class="label-val" id="height-axis-xt-v">6</span></label>
+                <input type="range" id="height-axis-xt" min="1" max="12" step="1" value="6">
+              </div>
+              <div class="field">
+                <label class="field-label">${t("heightanim.field.axis_y_ticks", "Werte auf Y")}
+                  <span class="label-val" id="height-axis-yt-v">5</span></label>
+                <input type="range" id="height-axis-yt" min="1" max="12" step="1" value="5">
+              </div>
+            </div>
           </div>
         </section>
 
@@ -500,6 +532,7 @@ function mountHeightAnim(body, headerActions) {
     // v0.9.442 — höhen-only Marker-Zeilen (⛰, Steigung %) ein-/ausblenden und
     // die Farbzonen-Listen neu bauen (Schrittweite + Einheit hängen an der Reihe).
     try { syncEleOnlyRows(); } catch (_) {}
+    try { syncAxisDetail(); } catch (_) {}
     try { ["fill", "bg", "line"].forEach(k => renderZoneStops(k)); } catch (_) {}
     if (!opts || opts.redraw !== false) { try { drawElevationSvg(); } catch (_) {} }
     if (!opts || opts.persist !== false) {
@@ -547,6 +580,14 @@ function mountHeightAnim(body, headerActions) {
         ? t("heightanim.field.series_a_left", "Datenreihe · linke Achse")
         : t("heightanim.field.series_a", "Datenreihe");
     }
+  }
+  // v0.9.447 — Detail-Block der Achsen ausgrauen, wenn der Haupt-Schalter aus ist.
+  function syncAxisDetail() {
+    const on = document.getElementById("height-axes")?.checked !== false;
+    const box = document.getElementById("height-axis-detail");
+    if (!box) return;
+    box.style.opacity = on ? "" : ".4";
+    box.style.pointerEvents = on ? "" : "none";
   }
   function _haEsc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
   // v0.9.442 — Marker-Zeilen, die nur bei der Reihe „Höhe" Sinn ergeben
@@ -659,6 +700,10 @@ function mountHeightAnim(body, headerActions) {
     set("height-smoothing", "height-smoothing-v", v => v, "");
     set("height-area-op", "height-area-op-v", v => v, " %");
     set("height-marker-dot-size", "height-marker-dot-size-v", v => v, " px");
+    // v0.9.447 — Achsen-Detailsteuerung
+    set("height-axis-font", "height-axis-font-v", v => v, " px");
+    set("height-axis-xt", "height-axis-xt-v", v => v, "");
+    set("height-axis-yt", "height-axis-yt-v", v => v, "");
     set("height-marker-bg-op", "height-marker-bg-op-v", v => v, " %");
     set("height-marker-bw", "height-marker-bw-v", v => parseFloat(v).toFixed(1), " px");
     set("height-marker-fs", "height-marker-fs-v", v => v, " px");
@@ -711,6 +756,13 @@ function mountHeightAnim(body, headerActions) {
       const _fs = _mapZone(ha.fill_stops); if (_fs) _fillStops = _fs;
       const _bs = _mapZone(ha.bg_stops);   if (_bs) _bgStops = _bs;
       const _ls = _mapZone(ha.line_stops); if (_ls) _lineStops = _ls;
+      // v0.9.448 — Zweite Datenreihe. Bisher wurde sie NUR beim Modul-Mount aus
+      // dem Projekt gelesen; da ist `_activeProject` beim Kaltstart aber noch
+      // null. Der Selektor zeigte danach zwar „Tempo", die JS-Variable blieb
+      // aber leer → weder zweite Kurve noch rechte Achse wurden gezeichnet.
+      if (typeof ha.series_b === "string") _seriesB = ha.series_b;
+      if (typeof ha.line_color_b === "string") _lineColorB = ha.line_color_b;
+      if (ha.line_width_b != null) _lineWidthB = +ha.line_width_b || 3;
     } catch (_) {}
     // Control-Werte (Farben/Größen/Auflösung/Marker/Glättung) in die DOM-Inputs.
     try { restoreHeightControls(); } catch (_) {}
@@ -719,6 +771,9 @@ function mountHeightAnim(body, headerActions) {
       try { renderWaypointList(); } catch (_) {}
       try { renderAllZones(); } catch (_) {}
       try { updateTrimVisual(); } catch (_) {}
+      // v0.9.448 — Selektor + Farbe/Dicke der zweiten Reihe an den soeben
+      // geladenen Projekt-Stand angleichen (siehe series_b oben).
+      try { renderSeriesSelectB(); } catch (_) {}
     }
   }
   // Speichert IMMER das KOMPLETTE heightanim-Objekt (Root-Patch macht Shallow-
@@ -736,6 +791,11 @@ function mountHeightAnim(body, headerActions) {
             fill_stops: _fillStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
             bg_stops: _bgStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
             line_stops: _lineStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
+            // v0.9.448 — Serien-Auswahl MUSS hier mit rein: dieser Patch ersetzt
+            // `heightanim` komplett, vorher fiel die zweite Reihe bei jeder
+            // Trim-/Wegpunkt-/Zonen-Änderung wieder aus dem Projekt heraus.
+            series_a: _seriesA, series_b: _seriesB,
+            line_color_b: _lineColorB, line_width_b: _lineWidthB,
             controls: _readHeightControls(),
             // v0.9.443 — fertiger Stil-Snapshot, den der Animator als Diagramm-
             // Overlay „übernehmen" kann (WYSIWYG: gleiche collectHeightParams-
@@ -999,6 +1059,14 @@ function mountHeightAnim(body, headerActions) {
     const lw = parseFloat(document.getElementById("height-lw")?.value) || 4;
     const showGrid = document.getElementById("height-grid")?.checked !== false;
     const showAxes = document.getElementById("height-axes")?.checked !== false;
+    // v0.9.447 — Achsen einzeln + Schriftgröße + Werte-Anzahl (Spiegelung zu
+    // core/heightanim.py; Schrift skaliert relativ zur 1080-Referenz wie im Render)
+    const axX  = showAxes && document.getElementById("height-axis-x")?.checked !== false;
+    const axY  = showAxes && document.getElementById("height-axis-y")?.checked !== false;
+    const axY2raw = document.getElementById("height-axis-y2")?.checked !== false;
+    const axFontBase = parseFloat(document.getElementById("height-axis-font")?.value || "20");
+    const axXT = Math.max(1, parseInt(document.getElementById("height-axis-xt")?.value || "6", 10));
+    const axYT = Math.max(1, parseInt(document.getElementById("height-axis-yt")?.value || "5", 10));
     const showMarker = document.getElementById("height-marker")?.checked !== false;
     // v0.9.405 — laufender Punkt (zeichnet die Linie) unabhängig von der Info-Box schaltbar
     const showDot = document.getElementById("height-marker-dot")?.checked !== false;
@@ -1034,12 +1102,19 @@ function mountHeightAnim(body, headerActions) {
     // v0.9.437 — linker Rand wächst mit der Einheit (synchron zu PAD_L in
     // core/heightanim.py): „139 bpm" / „24.5 km/h" brauchen mehr Platz als
     // „1234 m". Bei „m" bleibt es bei 60 → Höhen-Vorschau unverändert.
-    const padL = 60 + Math.max(0, (_haUnit() || "").length - 1) * 7;
     // v0.9.438 — zweite Reihe: rechter Rand macht Platz für ihre Achse.
     const valsB = _haValuesB();
     const hasB = !!valsB;
-    const padR = hasB ? (66 + Math.max(0, (_haUnitB() || "").length - 1) * 7) : 30;
-    const padT = headH + 34, padB = showAxes ? 50 : 20;
+    // v0.9.447 — Ränder richten sich nach der tatsächlichen Schriftgröße (nicht
+    // mehr nach festen Pixeln) und fallen auf ein Minimum, wenn die jeweilige
+    // Achse aus ist → die Kurve bekommt den Platz. Spiegelt core/heightanim.py.
+    const axFont = Math.max(5, Math.round(axFontBase * (h / 1080)));
+    const axGap = Math.round(axFont * 0.6);
+    const _room = (unit) => Math.round((5 + Math.max(0, (unit || "").length)) * axFont * 0.58) + axGap;
+    const axY2 = hasB && showAxes && axY2raw;
+    const padL = axY ? _room(_haUnit()) : 12;
+    const padR = axY2 ? _room(_haUnitB()) : 30;
+    const padT = headH + 34, padB = axX ? Math.round(axFont * 1.6) + axGap : 20;
     const plotW = Math.max(20, w - padL - padR);
     const plotH = Math.max(20, h - padT - padB);
 
@@ -1157,8 +1232,8 @@ function mountHeightAnim(body, headerActions) {
 
     // Hilfsgitter
     if (showGrid) {
-      for (let i = 0; i <= 5; i++) {
-        const y = padT + (i / 5) * plotH;
+      for (let i = 0; i <= axYT; i++) {
+        const y = padT + (i / axYT) * plotH;
         const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
         ln.setAttribute("x1", padL); ln.setAttribute("x2", padL + plotW);
         ln.setAttribute("y1", y); ln.setAttribute("y2", y);
@@ -1166,8 +1241,8 @@ function mountHeightAnim(body, headerActions) {
         ln.setAttribute("opacity", "0.4");
         svg.appendChild(ln);
       }
-      for (let i = 0; i <= 6; i++) {
-        const x = padL + (i / 6) * plotW;
+      for (let i = 0; i <= axXT; i++) {
+        const x = padL + (i / axXT) * plotW;
         const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
         ln.setAttribute("x1", x); ln.setAttribute("x2", x);
         ln.setAttribute("y1", padT); ln.setAttribute("y2", padT + plotH);
@@ -1178,40 +1253,41 @@ function mountHeightAnim(body, headerActions) {
     }
 
     // Achsen-Beschriftungen
-    if (showAxes) {
+    {
       const lblColor = labelColor;
-      for (let i = 0; i <= 6; i++) {
-        const x = padL + (i / 6) * plotW;
-        const distKm = (i / 6) * (dTrimSpan / 1000);
+      if (axX) for (let i = 0; i <= axXT; i++) {
+        const x = padL + (i / axXT) * plotW;
+        const distKm = (i / axXT) * (dTrimSpan / 1000);
         const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        txt.setAttribute("x", x); txt.setAttribute("y", h - padB + 22);
+        txt.setAttribute("x", x); txt.setAttribute("y", h - padB + Math.round(axFont * 1.35));
         txt.setAttribute("fill", lblColor);
-        txt.setAttribute("font-size", "13"); txt.setAttribute("text-anchor", "middle");
+        txt.setAttribute("font-size", axFont); txt.setAttribute("text-anchor", "middle");
         txt.setAttribute("font-family", "-apple-system, sans-serif");
         txt.textContent = `${distKm.toFixed(1)} km`;
         svg.appendChild(txt);
       }
-      for (let i = 0; i <= 5; i++) {
-        const y = padT + (i / 5) * plotH;
-        const ele = eleHi - (i / 5) * eleSpan;
+      if (axY) for (let i = 0; i <= axYT; i++) {
+        const y = padT + (i / axYT) * plotH;
+        const ele = eleHi - (i / axYT) * eleSpan;
         const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        txt.setAttribute("x", padL - 8); txt.setAttribute("y", y + 4);
+        txt.setAttribute("x", padL - axGap); txt.setAttribute("y", y + Math.round(axFont * 0.34));
         txt.setAttribute("fill", lblColor);
-        txt.setAttribute("font-size", "13"); txt.setAttribute("text-anchor", "end");
+        txt.setAttribute("font-size", axFont); txt.setAttribute("text-anchor", "end");
         txt.setAttribute("font-family", "-apple-system, sans-serif");
         txt.textContent = _haFmt(ele);
         svg.appendChild(txt);
       }
       // v0.9.438 — rechte Achse für Reihe B, in ihrer Linienfarbe (synchron zu
       // core/heightanim.py).
-      if (hasB) {
-        for (let i = 0; i <= 5; i++) {
-          const y = padT + (i / 5) * plotH;
-          const v = (bLo + bSpan) - (i / 5) * bSpan;
+      if (axY2) {
+        for (let i = 0; i <= axYT; i++) {
+          const y = padT + (i / axYT) * plotH;
+          const v = (bLo + bSpan) - (i / axYT) * bSpan;
           const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          txt.setAttribute("x", padL + plotW + 8); txt.setAttribute("y", y + 4);
+          txt.setAttribute("x", padL + plotW + axGap);
+          txt.setAttribute("y", y + Math.round(axFont * 0.34));
           txt.setAttribute("fill", _lineColorB);
-          txt.setAttribute("font-size", "13"); txt.setAttribute("text-anchor", "start");
+          txt.setAttribute("font-size", axFont); txt.setAttribute("text-anchor", "start");
           txt.setAttribute("font-family", "-apple-system, sans-serif");
           txt.textContent = _haFmtB(v);
           svg.appendChild(txt);
@@ -1633,6 +1709,9 @@ function mountHeightAnim(body, headerActions) {
   // Optik-Inputs re-drawen den aktuellen Frame
   ["height-bg", "height-color", "height-lw", "height-smoothing", "height-grid", "height-axes", "height-marker",
    "height-grid-color", "height-label-color",
+   // v0.9.447 — Achsen-Detailsteuerung
+   "height-axis-x", "height-axis-y", "height-axis-y2",
+   "height-axis-font", "height-axis-xt", "height-axis-yt",
    "height-area-fill", "height-area-color", "height-area-op", "height-area-mode",
    "height-bg-mode", "height-bg-clip", "height-line-mode",
    "height-marker-dot", "height-marker-dot-color", "height-marker-dot-size", "height-marker-bg", "height-marker-bg-op",
@@ -1644,6 +1723,9 @@ function mountHeightAnim(body, headerActions) {
       el.addEventListener("input", drawElevationSvg);
       el.addEventListener("change", drawElevationSvg);
     });
+  // Detail-Block folgt dem Haupt-Schalter.
+  document.getElementById("height-axes")?.addEventListener("change", syncAxisDetail);
+  try { syncAxisDetail(); } catch (_) {}
 
   // ── v0.9.394 — Info-Leiste + Wegpunkt-Editor ──────────────────────────────
   const ALL_STAT_FIELDS = ["distance", "updown", "avg_grad", "max_grad", "ele_max", "ele_min", "ele_minmax", "ele_avg"];
@@ -1922,6 +2004,15 @@ function mountHeightAnim(body, headerActions) {
   document.getElementById("height-bg-gen")?.addEventListener("click", () => genZoneStops("bg"));
   document.getElementById("height-line-add-stop")?.addEventListener("click", () => addZoneStop("line"));
   document.getElementById("height-line-gen")?.addEventListener("click", () => genZoneStops("line"));
+  // Achsen-Slider-Labels (v0.9.448) — `_refreshHeightSliderLabels()` läuft nur
+  // nach dem Restore; ohne diese Listener bleibt die Wertanzeige beim Ziehen auf
+  // dem alten Stand stehen (im Live-Test aufgefallen).
+  document.getElementById("height-axis-font")?.addEventListener("input", e =>
+    updateLabel("height-axis-font-v", e.target.value, " px"));
+  document.getElementById("height-axis-xt")?.addEventListener("input", e =>
+    updateLabel("height-axis-xt-v", e.target.value, ""));
+  document.getElementById("height-axis-yt")?.addEventListener("input", e =>
+    updateLabel("height-axis-yt-v", e.target.value, ""));
   // Marker-Slider-Labels (v0.9.396)
   document.getElementById("height-marker-dot-size")?.addEventListener("input", e =>
     updateLabel("height-marker-dot-size-v", e.target.value, " px"));
@@ -2208,6 +2299,13 @@ function mountHeightAnim(body, headerActions) {
       line_width: parseFloat(document.getElementById("height-lw")?.value || "4"),
       grid_enabled: document.getElementById("height-grid")?.checked !== false,
       show_axes: document.getElementById("height-axes")?.checked !== false,
+      // v0.9.447 — Achsen einzeln + Schriftgröße + Werte-Anzahl
+      axis_x_labels: document.getElementById("height-axis-x")?.checked !== false,
+      axis_y_labels: document.getElementById("height-axis-y")?.checked !== false,
+      axis_y2_labels: document.getElementById("height-axis-y2")?.checked !== false,
+      axis_font_size: parseFloat(document.getElementById("height-axis-font")?.value || "20"),
+      axis_x_ticks: parseInt(document.getElementById("height-axis-xt")?.value || "6", 10),
+      axis_y_ticks: parseInt(document.getElementById("height-axis-yt")?.value || "5", 10),
       show_marker: document.getElementById("height-marker")?.checked !== false,
       marker_show_dot: document.getElementById("height-marker-dot")?.checked !== false,
       grid_color: document.getElementById("height-grid-color")?.value || "#3a3a3a",

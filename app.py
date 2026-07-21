@@ -132,7 +132,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.446"
+APP_VERSION = "0.9.448"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1785,7 +1785,12 @@ class Api:
                 fg_opacity=float(payload.get("fg_opacity", 1.0) or 0.0),
                 bg_opacity=float(payload.get("bg_opacity", 1.0) or 0.0),
                 overrides=(payload.get("overlay_field_overrides") or None),
-                inline_id=inline_id)
+                inline_id=inline_id,
+                # v0.9.447 — dieselbe Textskala wie im Render (Video-Auflösung
+                # statt Diagramm-Box) → Vorschau bleibt WYSIWYG.
+                text_scale=float(payload.get("text_scale", 0.0) or 0.0),
+                # Pro-Diagramm-Achsen (Karte im Animator) über den Stil legen.
+                style_over=canim._chart_axis_over(payload))
             return {"ok": True, "html": html}
         except Exception as e:
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}

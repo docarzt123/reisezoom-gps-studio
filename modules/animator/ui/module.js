@@ -302,18 +302,23 @@ function mountAnimator(body, headerActions, opts) {
             <input type="range" id="anim-ghost-opacity" min="5" max="80" step="5" value="30">
           </div>
           <!-- v0.9.435/436 — Mehrfarbiger Track (Marc): der Track wechselt die Farbe
-               nach Distanz (km / Marker / Wegpunkt), Höhe oder Geschwindigkeit —
-               hart (Bänder) oder als Verlauf. -->
-          <label class="checkbox-row" title="${t("animator.colors.tooltip", "Lässt den Track die Farbe wechseln — nach Distanz (km / Marker / Wegpunkt), nach Höhe oder nach Geschwindigkeit. Der Wechsel läuft hart oder als weicher Verlauf.")}">
+               nach Distanz (km / Marker / Wegpunkt) oder nach einer Messreihe —
+               hart (Bänder) oder als Verlauf.
+               v0.9.448 — Messreihe = JEDE, die auch der Daten-Animator plotten kann
+               (Höhe, Tempo, Steigung, Puls, Leistung, Trittfrequenz, Temperatur …). -->
+          <label class="checkbox-row" title="${t("animator.colors.tooltip", "Lässt den Track die Farbe wechseln — nach Distanz oder nach jeder Datenreihe, die der Track hergibt (Höhe, Tempo, Steigung, Puls, Leistung, Trittfrequenz, Temperatur …). Der Wechsel läuft hart oder als weicher Verlauf.")}">
             <input type="checkbox" id="anim-colors-enabled">
             <span>${t("animator.toggle.track_colors", "Mehrere Track-Farben")}</span>
           </label>
           <div class="field" id="anim-colors-source-field" hidden>
             <label class="field-label" for="anim-colors-source">${t("animator.field.colors_source", "Einfärben nach")}</label>
+            <!-- v0.9.448 — Optionen werden aus dem geladenen Track befüllt
+                 (rebuildColorSourceOptions): Distanz + JEDE Datenreihe, die auch
+                 der Daten-Animator kennt (Höhe, Tempo, Steigung, Puls, Leistung,
+                 Trittfrequenz, Temperatur, …). Hier nur die Distanz als Fallback,
+                 damit vor dem ersten GPX nichts leer ist. -->
             <select id="anim-colors-source">
               <option value="distance">${t("animator.colors.src_distance", "Distanz (km)")}</option>
-              <option value="elevation">${t("animator.colors.src_elevation", "Höhe")}</option>
-              <option value="speed">${t("animator.colors.src_speed", "Geschwindigkeit")}</option>
             </select>
           </div>
           <div class="field" id="anim-colors-mode-field" hidden>
@@ -1493,11 +1498,28 @@ function mountAnimator(body, headerActions, opts) {
   }
   function persistColorStops() { try { saveProjectSettings(_MODKEY, { track_color_stops: _trackColorStops }); } catch (_) {} }
   // Label/Einheit/Schrittweite der Wert-Eingabe je Quelle.
+  // v0.9.448 — generisch: Einheit kommt aus dem Serien-Katalog, Schrittweite und
+  // Nachkommastellen aus der Größenordnung der Reihe (10er-Schritte bei Höhe,
+  // 1er bei Puls, 0.1 bei Steigung/Temperatur).
   function colorUnitInfo() {
     const s = currentColorsSource();
-    if (s === "elevation") return { label: t("animator.colors.from_ele", "ab"), unit: t("animator.colors.unit_m", "m"), step: "10", dec: 0 };
-    if (s === "speed") return { label: t("animator.colors.from_spd", "ab"), unit: t("animator.colors.unit_kmh", "km/h"), step: "1", dec: 0 };
-    return { label: t("animator.colors.from_km", "ab km"), unit: "", step: "0.1", dec: 1 };
+    if (s === "distance") return { label: t("animator.colors.from_km", "ab km"), unit: "", step: "0.1", dec: 1, min0: true };
+    const meta = colorSourceMeta(s);
+    const arr = currentMetricArr();
+    let span = 0;
+    if (arr && arr.length) {
+      let lo = Infinity, hi = -Infinity;
+      for (const x of arr) { if (isFinite(x)) { if (x < lo) lo = x; if (x > hi) hi = x; } }
+      if (isFinite(lo) && isFinite(hi)) span = hi - lo;
+    }
+    const fine = span > 0 && span < 20;          // Steigung %, Temperatur …
+    return {
+      label: t("animator.colors.from_val", "ab"),
+      unit: meta.unit || "",
+      step: fine ? "0.1" : (span > 500 ? "10" : "1"),
+      dec: fine ? 1 : 0,
+      min0: false,   // Steigung/Temperatur dürfen negativ sein
+    };
   }
   function renderColorStops() {
     const box = document.getElementById("anim-colors-list"); if (!box) return;
@@ -1506,14 +1528,15 @@ function mountAnimator(body, headerActions, opts) {
     box.innerHTML = _trackColorStops.map((s, i) => `
       <div class="anim-color-row" data-idx="${i}" style="display:flex; gap:6px; align-items:center; margin-bottom:5px;">
         <span class="muted" style="font-size:11px; min-width:34px;">${_animEscapeHtml(ui.label)}</span>
-        <input type="number" class="anim-color-km" data-idx="${i}" min="0" step="${ui.step}" value="${(+s.v).toFixed(ui.dec)}" style="width:60px;">
+        <input type="number" class="anim-color-km" data-idx="${i}"${ui.min0 ? ' min="0"' : ""} step="${ui.step}" value="${(+s.v).toFixed(ui.dec)}" style="width:60px;">
         ${ui.unit ? `<span class="muted" style="font-size:11px;">${_animEscapeHtml(ui.unit)}</span>` : ""}
         <input type="color" class="anim-color-col" data-idx="${i}" value="${s.color}" style="width:34px; height:26px; padding:1px; margin-left:auto;">
         <button type="button" class="anim-color-del" data-idx="${i}" title="${_animEscapeHtml(t("animator.colors.delete", "Entfernen"))}" style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px;">🗑</button>
       </div>`).join("");
   }
   function addColorStop(val) {
-    _trackColorStops.push({ v: Math.max(0, +val || 0), color: _COL_PALETTE[_trackColorStops.length % _COL_PALETTE.length] });
+    const _v = +val || 0;
+    _trackColorStops.push({ v: currentColorsSource() === "distance" ? Math.max(0, _v) : _v, color: _COL_PALETTE[_trackColorStops.length % _COL_PALETTE.length] });
     persistColorStops(); renderColorStops(); refreshPreviewTrackData();
   }
   function currentMarkerKm() {
@@ -1524,12 +1547,94 @@ function mountAnimator(body, headerActions, opts) {
       return (_ovSeries.cumDistM[Math.max(0, Math.min(idx, _ovSeries.cumDistM.length - 1))] || 0) / 1000;
     } catch (_) { return 0; }
   }
-  // Pro-Punkt-Metrik-Array der aktuellen Quelle (Höhe/Tempo) — null bei Distanz.
-  function currentMetricArr() {
-    const s = currentColorsSource();
-    if (s === "elevation") return (_ovSeries && _ovSeries.ele) || null;
-    if (s === "speed") return (_ovSeries && _ovSeries.speedKmh) || null;
-    return null;
+  // v0.9.448 — Pro-Punkt-Werte EINER beliebigen Datenreihe; null bei Distanz oder
+  // wenn der Track die Reihe nicht hergibt. Sensorreihen haben Lücken (null) →
+  // hier wie im Daten-Animator (`heightanim._fill_gaps`) mit dem letzten gültigen
+  // Wert auffüllen, sonst reißt der Farbverlauf ab.
+  // `_ovSeries`/`_ovSensorFields` sind `let`-Deklarationen WEIT UNTEN in dieser
+  // Datei — beim Modul-Mount laufen die Farb-Helfer aber schon. Direkter Zugriff
+  // wirft dann einen TDZ-ReferenceError und die ganze App startet nicht (v0.9.448
+  // beim ersten Live-Test genau so passiert). Deshalb IMMER über diese beiden
+  // Getter gehen, nie direkt.
+  function _colorSeriesSafe() { try { return _ovSeries || null; } catch (_) { return null; } }
+  function _colorSensorFieldsSafe() { try { return _ovSensorFields || []; } catch (_) { return []; } }
+  function metricArrFor(src) {
+    const s = _colorSrcCanon(src);
+    const ser = _colorSeriesSafe();
+    if (s === "distance" || !ser) return null;
+    let raw = null;
+    if (s === "ele") raw = ser.ele;
+    else if (s === "speed") raw = ser.speedKmh;
+    else if (s === "grade") raw = ser.gradePct;
+    else raw = ser.sensors ? ser.sensors[s] : null;
+    if (!raw || !raw.length) return null;
+    if (raw.every(v => typeof v === "number" && isFinite(v))) return raw;
+    const out = new Array(raw.length);
+    let last = null;
+    for (let i = 0; i < raw.length; i++) {
+      const v = raw[i];
+      if (typeof v === "number" && isFinite(v)) last = v;
+      out[i] = last;
+    }
+    const first = out.find(v => v != null);
+    if (first == null) return null;
+    for (let i = 0; i < out.length && out[i] == null; i++) out[i] = first;
+    return out;
+  }
+  function currentMetricArr() { return metricArrFor(currentColorsSource()); }
+  // Alle Reihen, nach denen der geladene Track eingefärbt werden kann —
+  // dieselbe Auswahl wie im Daten-Animator. [{id,label,unit}]
+  function colorSourceCatalog() {
+    const out = [{ id: "distance", label: t("animator.colors.src_distance", "Distanz (km)"), unit: "km" }];
+    const ser = _colorSeriesSafe();
+    if (!ser) return out;
+    if (ser.ele && ser.ele.length && ser.has_ele !== false) {
+      out.push({ id: "ele", label: t("animator.colors.src_elevation", "Höhe"), unit: "m" });
+    }
+    if (ser.speedKmh && ser.speedKmh.length && ser.has_time !== false) {
+      out.push({ id: "speed", label: t("animator.colors.src_speed", "Geschwindigkeit"), unit: "km/h" });
+    }
+    if (ser.gradePct && ser.gradePct.length && ser.has_ele !== false) {
+      out.push({ id: "grade", label: t("animator.colors.src_grade", "Steigung"), unit: "%" });
+    }
+    for (const f of _colorSensorFieldsSafe()) {
+      const arr = ser.sensors ? ser.sensors[f.key] : null;
+      if (!arr || !arr.some(v => typeof v === "number" && isFinite(v))) continue;
+      out.push({ id: f.key, label: f.label || f.key, unit: f.unit || "" });
+    }
+    return out;
+  }
+  function colorSourceMeta(src) {
+    const s = _colorSrcCanon(src);
+    return colorSourceCatalog().find(x => x.id === s) || { id: s, label: s, unit: "" };
+  }
+  // Dropdown aus dem Katalog neu bauen. Die gespeicherte Quelle bleibt erhalten,
+  // solange der Track sie hergibt — sonst zurück auf Distanz (kein stiller
+  // Fehlfarben-Track, wenn eine GPX ohne Puls geladen wird).
+  // Gespeicherte Quelle direkt aus dem Projekt lesen. Nötig, weil ein <select>
+  // einen Wert ohne passende <option> verwirft: beim Mount steht in der Liste nur
+  // „Distanz", `bindSetting` kann „hr" also noch gar nicht setzen. Ohne diesen
+  // Umweg stand die Auswahl zwar später richtig da, die Stop-Liste war aber schon
+  // mit „ab km" statt „ab … bpm" gerendert (im Live-Test aufgefallen).
+  function _storedColorSource() {
+    try {
+      const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      const a = (proj && proj[_MODKEY]) || null;
+      if (a && a.track_colors_source) return _colorSrcCanon(a.track_colors_source);
+      const g = (typeof _settingsCache !== "undefined" && _settingsCache && _settingsCache[_MODKEY]) || null;
+      if (g && g.track_colors_source) return _colorSrcCanon(g.track_colors_source);
+    } catch (_) {}
+    return "";
+  }
+  function rebuildColorSourceOptions() {
+    const sel = document.getElementById("anim-colors-source");
+    if (!sel) return;
+    const cur = _colorSrcCanon(sel.value);
+    const want = (cur && cur !== "distance") ? cur : (_storedColorSource() || cur);
+    const cat = colorSourceCatalog();
+    sel.innerHTML = cat.map(c =>
+      `<option value="${_animEscapeHtml(c.id)}">${_animEscapeHtml(c.label)}${c.unit && c.id !== "distance" ? " (" + _animEscapeHtml(c.unit) + ")" : ""}</option>`).join("");
+    sel.value = cat.some(c => c.id === want) ? want : "distance";
   }
   // Metrik-Wert an der aktuellen Marker-Position (für „＋ hier").
   function currentMarkerMetric() {
@@ -1577,7 +1682,11 @@ function mountAnimator(body, headerActions, opts) {
     const idxOf = (e) => parseInt(e.target.getAttribute("data-idx"), 10);
     box.addEventListener("input", (e) => {
       const i = idxOf(e); if (!(i >= 0) || !_trackColorStops[i]) return;
-      if (e.target.classList.contains("anim-color-km")) { _trackColorStops[i].v = Math.max(0, parseFloat(e.target.value) || 0); persistColorStops(); refreshPreviewTrackData(); }
+      if (e.target.classList.contains("anim-color-km")) {
+        const raw = parseFloat(e.target.value) || 0;
+        _trackColorStops[i].v = currentColorsSource() === "distance" ? Math.max(0, raw) : raw;
+        persistColorStops(); refreshPreviewTrackData();
+      }
       else if (e.target.classList.contains("anim-color-col")) { _trackColorStops[i].color = e.target.value; persistColorStops(); refreshPreviewTrackData(); }
     });
     box.addEventListener("click", (e) => {
@@ -1599,17 +1708,35 @@ function mountAnimator(body, headerActions, opts) {
     const gMet = document.getElementById("anim-color-btns-metric");
     if (gDist) gDist.style.display = (!hide && s === "distance") ? "flex" : "none";
     if (gMet) gMet.style.display = (!hide && s !== "distance") ? "flex" : "none";
+    // v0.9.448 — Button-Text nennt die gewählte Reihe beim Namen („ab Puls (hier)").
     const lbl = document.getElementById("anim-color-add-val-lbl");
-    if (lbl) lbl.textContent = (s === "speed") ? t("animator.colors.add_spd", "ab Tempo (hier)") : t("animator.colors.add_ele", "ab Höhe (hier)");
+    if (lbl && s !== "distance") {
+      lbl.textContent = t("animator.colors.add_here", "ab {x} (hier)").replace("{x}", colorSourceMeta(s).label);
+    }
     const hint = document.getElementById("anim-colors-hint");
     if (hint) hint.textContent = (s === "distance")
       ? t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")
       : t("animator.colors.hint_metric", "Jeder Eintrag setzt ab seinem Wert eine neue Farbe. „Auto\" füllt Min→Max. „hart\" = Bänder, „Verlauf\" = weicher Übergang.");
   }
-  loadColorStops(); renderColorStops(); syncColorsUi();
+  rebuildColorSourceOptions(); loadColorStops(); renderColorStops(); syncColorsUi();
+  // v0.9.448 — nach GPX-Load die Quellen-Liste aus dem neuen Track neu aufbauen.
+  // Hoisted auf window, weil applyGlobalGpxToAnimator weiter unten liegt.
+  window.__animRebuildColorSources = function () {
+    try {
+      rebuildColorSourceOptions();
+      // Quelle nicht mehr im Track vorhanden → Auswahl fiel auf Distanz zurück;
+      // dann auch die (jetzt unsinnigen) Metrik-Stops verwerfen.
+      const s = currentColorsSource();
+      if (s !== _prevColorSource) {
+        _prevColorSource = s;
+        if (s === "distance") { _trackColorStops = []; persistColorStops(); }
+      }
+      renderColorStops(); syncColorsUi();
+    } catch (_) {}
+  };
   // Bei GPX-/Projekt-Wechsel die Stops neu laden + Liste neu zeichnen.
   if (typeof onSessionChanged === "function") {
-    try { onSessionChanged(() => { loadColorStops(); renderColorStops(); syncColorsUi(); }); } catch (_) {}
+    try { onSessionChanged(() => { rebuildColorSourceOptions(); loadColorStops(); renderColorStops(); syncColorsUi(); }); } catch (_) {}
     // v0.9.444 — Diagramme sind projekt-eigener State: bei Projekt-Wechsel/-Neuanlage
     // aus dem NEUEN Projekt neu laden (sonst bleibt das alte Diagramm stehen).
     try { onSessionChanged(() => { try { _chartsLoad(); _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {} }); } catch (_) {}
@@ -2457,12 +2584,26 @@ function mountAnimator(body, headerActions, opts) {
   //  sonst TDZ-Crash beim Mount, weil loadColorStops() dort schon darauf zugreift.)
   function currentColorsEnabled() { return !!document.getElementById("anim-colors-enabled")?.checked; }
   function currentColorsMode() { return document.getElementById("anim-colors-mode")?.value === "gradient" ? "gradient" : "hard"; }
-  function currentColorsSource() { const v = document.getElementById("anim-colors-source")?.value; return (v === "elevation" || v === "speed") ? v : "distance"; }
+  // v0.9.448 — Quelle ist jetzt JEDE Datenreihe des Tracks, nicht mehr nur
+  // Höhe/Tempo. Kanonische IDs: "distance" | "ele" | "speed" | "grade" | <sensor-key>.
+  // Legacy "elevation" (bis v0.9.447) wird auf "ele" gemappt.
+  function _colorSrcCanon(v) {
+    if (!v || v === "distance") return "distance";
+    if (v === "elevation") return "ele";
+    return String(v);
+  }
+  function currentColorsSource() {
+    return _colorSrcCanon(document.getElementById("anim-colors-source")?.value);
+  }
   // Stops nach Wert sortiert. Bei Distanz Wert 0 mit Track-Farbe seed'en (falls kein
   // Stop bei 0); bei Metrik (Höhe/Tempo) NICHT seed'en (clamped unter/über Min/Max).
   function sortedColorStops() {
+    // v0.9.448 — nur Distanz-Stops müssen >= 0 sein. Steigung und Temperatur
+    // werden negativ; ein Clamp auf 0 hätte alle Abfahrts-/Frost-Zonen auf
+    // denselben Wert geworfen.
+    const clamp = currentColorsSource() === "distance";
     const s = (_trackColorStops || []).filter(x => x && isFinite(x.v) && x.color)
-      .map(x => ({ v: Math.max(0, +x.v), color: x.color }));
+      .map(x => ({ v: clamp ? Math.max(0, +x.v) : +x.v, color: x.color }));
     s.sort((a, b) => a.v - b.v);
     if (currentColorsSource() === "distance" && (!s.length || s[0].v > 0.0001)) s.unshift({ v: 0, color: currentLineColor() });
     return s;
@@ -2536,13 +2677,9 @@ function mountAnimator(body, headerActions, opts) {
     return anyB ? st : flat(colAtVal(metricArr[i0]));
   }
 
-  // Pro-Punkt-Metrik-Array (Höhe/Tempo) der aktuellen Quelle — null bei Distanz.
-  function previewMetricArr() {
-    const s = currentColorsSource();
-    if (s === "elevation") return (_ovSeries && _ovSeries.ele) || null;
-    if (s === "speed") return (_ovSeries && _ovSeries.speedKmh) || null;
-    return null;
-  }
+  // Pro-Punkt-Werte der aktuellen Quelle — null bei Distanz. (v0.9.448: generisch,
+  // siehe metricArrFor.)
+  function previewMetricArr() { return metricArrFor(currentColorsSource()); }
 
   // Wendet den Farbverlauf (Distanz/Höhe/Tempo) auf preview-line/preview-glow an —
   // oder entfernt ihn wieder. i0..i1 = gezeichnete Spanne. Braucht _ovSeries.cumDistM.
@@ -8268,6 +8405,9 @@ function mountAnimator(body, headerActions, opts) {
       series_b: "",
       position: "br", width: 640, height: 300,
       fg_opacity: 100, bg_opacity: 100,
+      // v0.9.447 — Achsen pro Diagramm: an/aus + Schriftgröße (in Video-Pixeln
+      // bei 1080p; skaliert mit der Render-Auflösung).
+      show_axes: true, axis_font_size: 20,
       from_s: 0, to_s: 0, style: null,
     };
   }
@@ -8307,6 +8447,8 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.444 — Vordergrund/Hintergrund getrennt; altes `opacity` → Vordergrund.
       fg_opacity: _chartClampOp(c.fg_opacity != null ? c.fg_opacity : (c.opacity != null ? c.opacity : 100), 100),
       bg_opacity: _chartClampOp(c.bg_opacity, 100),
+      show_axes: c.show_axes !== false,
+      axis_font_size: Math.max(6, Math.min(80, parseInt(c.axis_font_size, 10) || 20)),
       from_s: parseFloat(c.from_s) || 0,
       to_s: parseFloat(c.to_s) || 0,
       style: c.style || null,
@@ -8349,6 +8491,16 @@ function mountAnimator(body, headerActions, opts) {
         <input type="range" data-act="bgop" min="0" max="100" step="5" value="${ch.bg_opacity}">
         <span class="chart-val" data-val="bgop">${ch.bg_opacity}%</span>
       </div>
+      <div class="chart-row">
+        <label>${t("animator.charts.axes", "Achsen")}</label>
+        <input type="checkbox" data-act="axes"${ch.show_axes ? " checked" : ""}>
+        <span class="chart-val"></span>
+      </div>
+      <div class="chart-row"${ch.show_axes ? "" : ' style="opacity:.4"'}>
+        <label>${t("animator.charts.axis_font", "Schrift Achsen")}</label>
+        <input type="range" data-act="axfont" min="8" max="60" step="1" value="${ch.axis_font_size}"${ch.show_axes ? "" : " disabled"}>
+        <span class="chart-val" data-val="axfont">${ch.axis_font_size} px</span>
+      </div>
       <div class="ov-timing" title="${_chartEsc(t("animator.overlay.timing_tip"))}">
         <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
         <input type="number" class="ov-time-in" data-act="from" min="0" step="0.5" placeholder="0" value="${ch.from_s || ""}">
@@ -8390,6 +8542,13 @@ function mountAnimator(body, headerActions, opts) {
       // sie hergibt (sonst bleibt die Karten-Serie).
       if (style.series_a && _chartSeries.some((s) => s.id === style.series_a)) ch.series = style.series_a;
       ch.series_b = (style.series_b && _chartSeries.some((s) => s.id === style.series_b)) ? style.series_b : "";
+      // v0.9.447 — die Karten-Achsenwerte mitziehen, sonst überstimmen die alten
+      // Karten-Werte (style_over) den gerade übernommenen Stil und es sieht
+      // kaputt aus.
+      if (style.show_axes !== undefined) ch.show_axes = style.show_axes !== false;
+      if (style.axis_font_size !== undefined) {
+        ch.axis_font_size = Math.max(6, Math.min(80, parseInt(style.axis_font_size, 10) || 20));
+      }
       if (typeof toast === "function") toast(t("animator.charts.adopt_ok", "Stil aus dem Daten-Animator übernommen."), "ok", 2500);
     } else {
       // v0.9.444 — nichts im Daten-Animator eingestellt: sauber auf den STANDARD-
@@ -8432,6 +8591,20 @@ function mountAnimator(body, headerActions, opts) {
         else if (act === "h") { ch.height = parseInt(e.target.value, 10) || 300; card.querySelector('[data-val="h"]').textContent = ch.height; sigChange = true; }
         else if (act === "fgop") { ch.fg_opacity = _chartClampOp(e.target.value, 100); card.querySelector('[data-val="fgop"]').textContent = ch.fg_opacity + "%"; }
         else if (act === "bgop") { ch.bg_opacity = _chartClampOp(e.target.value, 100); card.querySelector('[data-val="bgop"]').textContent = ch.bg_opacity + "%"; }
+        // v0.9.447 — Achsen pro Diagramm.
+        else if (act === "axes") {
+          ch.show_axes = !!e.target.checked;
+          const row = card.querySelector('[data-act="axfont"]')?.closest(".chart-row");
+          const sl = card.querySelector('[data-act="axfont"]');
+          if (sl) sl.disabled = !ch.show_axes;
+          if (row) row.style.opacity = ch.show_axes ? "" : ".4";
+          sigChange = true;
+        }
+        else if (act === "axfont") {
+          ch.axis_font_size = Math.max(6, Math.min(80, parseInt(e.target.value, 10) || 20));
+          card.querySelector('[data-val="axfont"]').textContent = ch.axis_font_size + " px";
+          sigChange = true;
+        }
         else if (act === "from") { ch.from_s = parseFloat(e.target.value) || 0; }
         else if (act === "to") { ch.to_s = parseFloat(e.target.value) || 0; }
         else return;
@@ -8561,7 +8734,8 @@ function mountAnimator(body, headerActions, opts) {
       // Inline-SVG nur neu holen wenn sich Serie/Stil/Größe/fg geändert hat
       // (bg steckt NICHT mehr im SVG → nicht Teil der Fetch-Signatur).
       const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
-      const sig = JSON.stringify([ch.series, ch.series_b, ch.style, w, h, fgOpN, gpxPath]);
+      const sig = JSON.stringify([ch.series, ch.series_b, ch.style, w, h, fgOpN, gpxPath,
+        ch.show_axes, ch.axis_font_size]);
       if (fetchNew || _chartPreviewSig[ch.id] !== sig) {
         _chartPreviewSig[ch.id] = sig;
         const cid = ch.id;
@@ -8571,6 +8745,10 @@ function mountAnimator(body, headerActions, opts) {
             style: ch.style || {}, width: w, height: h,
             fg_opacity: fgOpN, bg_opacity: bgOpN, inline_id: inlineId,
             overlay_field_overrides: (typeof _ovOverrides === "function") ? _ovOverrides() : {},
+            // v0.9.447 — Achsen pro Diagramm + Textskala der Vorschau-Box, damit
+            // die Beschriftung genauso groß wirkt wie später im Video.
+            show_axes: ch.show_axes, axis_font_size: ch.axis_font_size,
+            text_scale: psc,
           }).then((res) => {
             // Stale-Guard: beim schnellen Ziehen laufen mehrere Fetches; nur die
             // noch aktuelle Antwort einbetten (kein Zurückspringen).
@@ -8775,6 +8953,8 @@ function mountAnimator(body, headerActions, opts) {
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
     _chartSeries = res.chart_series || [];       // v0.9.443 — Diagramm-Serien-Auswahl
     try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
+    // v0.9.448 — Track-Einfärbung: Quellen-Liste aus dem neuen Track neu aufbauen.
+    try { window.__animRebuildColorSources && window.__animRebuildColorSources(); } catch (_) {}
     try { _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {}
     // Stats-Bar umschalten: Empty-Hint aus, Karten an
     document.getElementById("anim-stats-empty").hidden = true;
@@ -9107,6 +9287,8 @@ function mountAnimator(body, headerActions, opts) {
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
     _chartSeries = res.chart_series || [];       // v0.9.443 — Diagramm-Serien-Auswahl
     try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
+    // v0.9.448 — Track-Einfärbung: Quellen-Liste aus dem neuen Track neu aufbauen.
+    try { window.__animRebuildColorSources && window.__animRebuildColorSources(); } catch (_) {}
     try { _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {}
     try {
       document.getElementById("anim-stats-empty").hidden = true;

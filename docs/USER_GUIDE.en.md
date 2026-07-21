@@ -224,7 +224,13 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
     This works identically in the preview and the finished video. (For **photo cards** this happens automatically via the photo's capture time.)
   - **Preview help:** the **"Show ALL signs in the preview"** checkbox — shows all signs at once while placing (preview only; in the video the timing still applies).
 - **Ghost track (since v0.9.169)** — shows the **entire route** semi-transparently in the background while only the animated part is drawn fully opaque on top. That way you can see from the start where things are still headed. Adjustable: **its own ghost-track color** (its own color picker, independent of the track color — e.g. a subtle gray, since v0.9.170) and **opacity** (slider 5–80 %, default 30 %). Works in preview and render including the alpha/transparent mode. Off by default.
-- **Multiple track colours (since v0.9.435)** — the track line can **change colour** from certain distances on. In the **"Multiple track colours"** section you add colour stops **at km** (number), **at the current marker position** (adopts the scrubber position) or **at all GPX waypoints** (automatic). Each stop has **km + colour**, 🗑 removes it. The **"Transition"** switch sets whether the colour changes **hard** (instant) or as a soft **gradient**. The first colour applies from km 0 (= track colour). Works WYSIWYG in preview, probe run and render. Off by default. *(Single-track animator only for now.)*
+- **Multiple track colours (since v0.9.435, extended v0.9.448)** — the track line can **change colour**. The **"Colour by"** picker decides what drives it:
+  - **Distance (km)** — colour stops **at km** (number), **at the current marker position** (adopts the scrubber position) or **at all GPX waypoints** (automatic). The first colour applies from km 0 (= track colour).
+  - **Any data series of the track** — since v0.9.448 this offers **everything the Data Animator can plot**: elevation, speed, gradient and every sensor value from FIT/TCX files (**heart rate, power, cadence, temperature** …). The list only shows **what the loaded track actually contains**; the unit is in brackets.
+
+    Colour stops are then set **in the value range of that series** (e.g. "from 145 bpm", "from 8 %", "from 2400 m"). **"＋ from &lt;series&gt; (here)"** adopts the value at the marker position, **"Auto (min → max)"** lays a blue→red ramp across the range. Negative values are allowed — which matters for **gradient** (descents) and **temperature** (frost).
+
+  Each stop has **value + colour**, 🗑 removes it. The **"Transition"** switch sets whether the colour changes **hard** (crisp bands) or as a soft **gradient**. Works WYSIWYG in preview, probe run and render. Off by default. *(Single-track animator only for now.)*
 - **Map without labels** (since v0.4.4) — hides place names, street names and POI icons on the map. Turns the map into a pure background — a good look when you want the track as the visual lead actor instead of a Google-Maps-style overview. Works with all map styles and also in the Tour-Map module.
 
 **Overlays** (all individually toggleable, freely placeable):
@@ -253,6 +259,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 - **"＋ Add chart"** creates a card. Per chart you pick the **data series**, the **position** (9 corners/centers), **width** and **height**, plus a **time window** (from/to video second).
 - **Separate foreground and background opacity (since v0.9.445):** **"Chart opacity"** controls the curve and labels, **"Background opacity"** the box behind it. Pull the **background down to 0 %** and the map shows fully through, with only the data line floating over the video. The preview now shows this **WYSIWYG** (real transparency instead of a white box).
+- **Per-chart axes (since v0.9.447):** every chart card has its own **"Axes"** and **"Axis font size"** (8–60 px) controls. They override the style adopted from the Data Animator — so a small overlay can carry large labels, or do without axes entirely. Note: the font size refers to the **video resolution**, not to the chart box. Up to v0.9.446 the labels shrank with the box (a 270 px chart produced 5 px text) — that is fixed.
 
 ![The chart card in the sidebar: data series, position, width/height, separate opacity for chart (foreground) and background, plus "Adopt from Data Animator".](img/diagramme-sidebar.png)
 
@@ -580,6 +587,8 @@ In the **"Points along the route"** section you place labeled markers into the p
 - **Auto markers:** the highest/lowest point as well as the steepest ascent and descent are detected and labeled automatically.
 
 Each point **appears animated as soon as the line reaches it**. You can hide/show individual points from a source in the list via 👁. Your manual points + all settings are stored **per project**.
+
+**Fully configurable axes (since v0.9.447):** Below the "Show axis labels" switch there is now a detail block. It lets you toggle the **X axis**, the **left Y axis** and the **right Y axis** (second data series) individually, pick the **font size** (8–60 px) and set **how many values** each axis labels (1–12). When an axis is off its margin drops to a minimum — the curve gets the free space. The main switch above still turns everything off at once.
 
 **Colors (since v0.9.395):** In the "Look" section, alongside background and line color you now also choose the **grid color** (helper grid) and **label color** (axes, info bar, marker callout).
 

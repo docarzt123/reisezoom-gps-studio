@@ -14,6 +14,65 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.448] – 2026-07-21
+### Hinzugefügt
+- **Track-Einfärbung nach jeder Datenreihe.** Bisher konnte der Track nur nach
+  **Distanz, Höhe oder Tempo** die Farbe wechseln. Jetzt steht unter „Einfärben
+  nach" **alles zur Auswahl, was auch der Daten-Animator kann** — also zusätzlich
+  **Steigung, Puls, Leistung, Trittfrequenz, Temperatur** und jede weitere Reihe,
+  die der geladene Track mitbringt (FIT/TCX-Sensoren inklusive). Die Liste zeigt
+  nur, was wirklich vorhanden ist; die Einheit steht dahinter.
+- Wert-Eingabe und „Auto (min → max)" arbeiten in der **Einheit der gewählten
+  Reihe** (z. B. „ab 145 bpm"), der „＋ hier"-Knopf nennt sie beim Namen.
+
+### Behoben
+- **Negative Werte waren nicht einstellbar.** Farb-Stops wurden hart auf ≥ 0
+  geklemmt — bei **Steigung** und **Temperatur** landeten damit alle Abfahrts-
+  bzw. Frostzonen auf demselben Wert. Der Klemm gilt jetzt nur noch für Distanz.
+- **Lücken in Sensordaten** (nicht jeder Trackpunkt hat einen Messwert) rissen
+  den Farbverlauf auf; sie werden jetzt wie im Daten-Animator mit dem letzten
+  gültigen Wert gefüllt.
+- Ist die gewählte Reihe im Track **nicht enthalten** (z. B. Puls-Einfärbung bei
+  einer GPX ohne Puls), bleibt der Track sauber einfarbig, statt die Werte als
+  Kilometer zu deuten und willkürliche Farben zu zeigen.
+- **Zweite Datenreihe ging verloren.** Die im Daten-Animator gewählte zweite
+  Reihe (rechte Achse) wurde beim Speichern von Trim, Wegpunkten oder Farbzonen
+  aus dem Projekt gelöscht und nach einem Neustart nicht mehr angewendet — die
+  Kurve und die rechte Achse fehlten dann, obwohl das Auswahlfeld noch die Reihe
+  anzeigte.
+- Die Wertanzeige der neuen Achsen-Regler (Schriftgröße, Werte je Achse) blieb
+  beim Ziehen auf dem alten Stand stehen.
+- Beim Start stand die Einfärbungs-Liste kurz auf „Distanz", wodurch die
+  Farb-Stops mit „ab km" statt mit der richtigen Einheit beschriftet wurden.
+
+### Geändert
+- Die alte Download-Adresse der Version 0.2.1 zeigt jetzt eine **Hinweisseite**
+  mit Link auf die aktuelle Version, statt einer veralteten Datei.
+- `ui/vendor/NOTICE.md` dokumentiert die mitgelieferten Karten-Bibliotheken
+  (Mapbox GL JS 3.12.0, MapLibre GL JS 5.4.0, Leaflet 1.9.4) samt Lizenzen.
+
+## [0.9.447] – 2026-07-21
+### Hinzugefügt
+- **Achsen im Daten-Animator komplett konfigurierbar.** Neben dem bisherigen
+  Haupt-Schalter „Achsen-Beschriftung zeigen" lassen sich jetzt X-Achse,
+  linke Y-Achse und rechte Y-Achse (2. Datenreihe) **einzeln** ein- und
+  ausschalten, die **Schriftgröße** frei wählen (8–60 px) und festlegen,
+  **wie viele Werte** je Achse beschriftet werden (1–12).
+- **Achsen pro Diagramm im Animator.** Jede Diagramm-Karte im Animator hat
+  jetzt eigene Schalter für „Achsen" und „Schrift Achsen" — unabhängig vom
+  Stil aus dem Daten-Animator.
+
+### Behoben
+- **Diagramm-Beschriftung im Video war unlesbar klein.** Die Schriftgröße hing
+  an der Höhe der Diagramm-Box: ein 270 px hohes Overlay ergab **5-px-Text**.
+  Schrift und Geometrie sind jetzt getrennt — die Beschriftung (Achsen,
+  Info-Leiste, Marker-Box, Wegpunkt-Fahnen) skaliert mit der **Video-Auflösung**
+  statt mit der Box. Ergebnis: 20 px bei 1080p, 40 px bei 4K. Vollbild-Videos
+  aus dem Daten-Animator sehen unverändert aus.
+- Ränder des Diagramms richten sich jetzt nach der tatsächlichen Schriftgröße
+  und fallen auf ein Minimum, wenn eine Achse ausgeschaltet ist — die Kurve
+  bekommt den freien Platz.
+
 ## [0.9.446] – 2026-07-20
 ### Behoben
 - **App startet jetzt auch ohne Internet.** Die Karten-Bibliotheken (Mapbox GL JS,

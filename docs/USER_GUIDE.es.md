@@ -224,7 +224,13 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
     Esto funciona igual en la vista previa y en el vídeo final. (En las **tarjetas de foto** ocurre automáticamente a partir de la hora de captura de la foto.)
   - **Ayuda de vista previa:** casilla **«Mostrar TODOS los carteles en la vista previa»** — muestra todos los carteles a la vez al colocarlos (solo vista previa; en el vídeo sigue rigiendo el timing).
 - **Ghost-Track (desde v0.9.169)** — muestra la **ruta completa** ya semitransparente en el fondo, mientras que solo la parte animada se dibuja encima con opacidad total. Así se ve desde el principio hacia dónde va el recorrido. Ajustable: **color propio del ghost-track** (selector de color propio, independiente del color del track — p. ej. un gris discreto, desde v0.9.170) y **opacidad** (slider 5–80 %, por defecto 30 %). Funciona en la vista previa y en el render, incluido el modo alfa/transparente. Desactivado por defecto.
-- **Varios colores de track (desde v0.9.435)** — la línea del track puede **cambiar de color** a partir de ciertas distancias. En la sección **«Varios colores de track»** añades paradas de color **en km** (número), **en la posición actual del marcador** (adopta la posición del scrubber) o **en todos los waypoints del GPX** (automático). Cada parada tiene **km + color**, 🗑 la quita. El interruptor **«Transición»** define si el color cambia **brusco** (de golpe) o como un **degradado** suave. El primer color se aplica desde el km 0 (= color del track). Funciona WYSIWYG en la vista previa, la prueba y el render. Desactivado por defecto. *(De momento solo animador de un track.)*
+- **Varios colores de track (desde v0.9.435, ampliado en v0.9.448)** — la línea del track puede **cambiar de color**. El selector **«Colorear según»** decide en función de qué:
+  - **Distancia (km)** — paradas de color **en km** (número), **en la posición actual del marcador** (adopta la posición del scrubber) o **en todos los waypoints del GPX** (automático). El primer color se aplica desde el km 0 (= color del track).
+  - **Cualquier serie de datos de la pista** — desde la v0.9.448 aquí está **todo lo que el Animador de datos puede representar**: altitud, velocidad, pendiente y cualquier valor de sensor de archivos FIT/TCX (**pulso, potencia, cadencia, temperatura**…). La lista solo muestra **lo que la pista cargada contiene realmente**; la unidad aparece entre paréntesis.
+
+    Las paradas de color se definen entonces **en el rango de valores de esa serie** (p. ej. «desde 145 bpm», «desde 8 %», «desde 2400 m»). **«＋ desde &lt;serie&gt; (aquí)»** adopta el valor en la posición del marcador y **«Auto (mín → máx)»** aplica una rampa azul→rojo sobre todo el rango. Se admiten valores negativos, algo importante en **pendiente** (bajadas) y **temperatura** (heladas).
+
+  Cada parada tiene **valor + color**, 🗑 la quita. El interruptor **«Transición»** define si el color cambia **brusco** (bandas nítidas) o como un **degradado** suave. Funciona WYSIWYG en la vista previa, la prueba y el render. Desactivado por defecto. *(De momento solo animador de un track.)*
 - **Mapa sin etiquetas** (desde v0.4.4) — oculta nombres de lugares, nombres de calles e iconos de POI en el mapa. Convierte el mapa en un fondo puro — un buen look si quieres que el track sea el protagonista visual en vez de una vista tipo Google Maps. Funciona con todos los estilos de mapa y también en el módulo Tour-Map.
 
 **Overlays** (todos activables por separado, libremente colocables):
@@ -253,6 +259,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 - **«＋ Añadir gráfico»** crea una tarjeta. Por cada gráfico eliges la **serie de datos**, la **posición** (9 esquinas/centros), el **ancho** y el **alto**, además de una **ventana temporal** (desde/hasta el segundo del vídeo).
 - **Opacidad de primer plano y de fondo por separado (desde v0.9.445):** con **«Opacidad del gráfico»** controlas la curva y las etiquetas, y con **«Opacidad del fondo»** la caja que hay detrás. Si bajas el **fondo a 0 %**, el mapa se transparenta por completo y solo la línea de datos flota sobre el vídeo. La vista previa lo muestra ahora **WYSIWYG** (transparencia real en lugar de una caja blanca).
+- **Ejes por gráfico (desde v0.9.447):** cada tarjeta de gráfico tiene sus propios controles **«Ejes»** y **«Fuente de ejes»** (8–60 px). Prevalecen sobre el estilo adoptado del Animador de datos, de modo que una superposición pequeña puede llevar etiquetas grandes o prescindir por completo de los ejes. Importante: el tamaño de fuente se refiere a la **resolución del vídeo**, no a la caja del gráfico. Hasta la v0.9.446 las etiquetas se encogían con la caja (un gráfico de 270 px daba texto de 5 px); eso está corregido.
 
 ![La tarjeta de gráfico en la barra lateral: serie de datos, posición, ancho/alto, opacidad separada para el gráfico (primer plano) y el fondo, y «Adoptar del Animador de Datos».](img/diagramme-sidebar.png)
 
@@ -580,6 +587,8 @@ En la sección **«Puntos en el recorrido»** colocas marcadores etiquetados en 
 - **Marcadores automáticos:** el punto más alto/más bajo, así como el ascenso y el descenso más empinados, se detectan y etiquetan automáticamente.
 
 Cada punto **aparece animado en cuanto la línea lo alcanza**. Puedes ocultar/mostrar puntos individuales de una fuente en la lista con 👁. Tus puntos manuales + todos los ajustes se guardan **por proyecto**.
+
+**Ejes totalmente configurables (desde v0.9.447):** debajo del interruptor «Mostrar etiquetas de ejes» hay ahora un bloque de detalle. Allí activas o desactivas por separado el **eje X**, el **eje Y izquierdo** y el **eje Y derecho** (segunda serie de datos), eliges el **tamaño de fuente** (8–60 px) y defines **cuántos valores** se etiquetan por eje (1–12). Si un eje está desactivado, su margen se reduce al mínimo y la curva gana ese espacio. El interruptor principal de arriba sigue apagándolo todo de una vez.
 
 **Colores (desde v0.9.395):** en la sección «Aspecto» eliges ahora, además del fondo y el color de línea, también el **color de la cuadrícula** (rejilla auxiliar) y el **color de las etiquetas** (ejes, barra de información, callout del marcador).
 
