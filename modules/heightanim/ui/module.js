@@ -56,7 +56,7 @@ function mountHeightAnim(body, headerActions) {
         </div>
         <section class="section" data-accordion-section="general">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.general", "Allgemein")}</span>${_help("heightanim.intro", "Erstellt ein Video, das die Messkurve deines Tracks live aufbaut.")}
+            <span>${t("heightanim.section.general", "⚙️ Allgemein")}</span>${_help("heightanim.intro", "Erstellt ein Video, das die Messkurve deines Tracks live aufbaut.")}
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
@@ -92,7 +92,7 @@ function mountHeightAnim(body, headerActions) {
 
         <section class="section" data-accordion-section="style">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.style", "Optik")}</span>
+            <span>${t("heightanim.section.style", "🎨 Optik")}</span>
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
@@ -167,7 +167,7 @@ function mountHeightAnim(body, headerActions) {
 
         <section class="section" data-accordion-section="fill">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.fill", "Fläche unter der Linie")}</span>${_help("heightanim.fill.hint", "Ab jeder eingestellten Schwelle wechselt die Füllfarbe. Ohne Zonen gilt die Füllfarbe für die ganze Fläche.")}
+            <span>${t("heightanim.section.fill", "🪣 Fläche unter der Linie")}</span>${_help("heightanim.fill.hint", "Ab jeder eingestellten Schwelle wechselt die Füllfarbe. Ohne Zonen gilt die Füllfarbe für die ganze Fläche.")}
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
@@ -209,7 +209,7 @@ function mountHeightAnim(body, headerActions) {
 
         <section class="section" data-accordion-section="bgzones">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.bgzones", "Hintergrund-Farbzonen")}</span>${_help("heightanim.bg.intro", "Färbt den Hintergrund nach Wert ein.")}
+            <span>${t("heightanim.section.bgzones", "🖼️ Hintergrund-Farbzonen")}</span>${_help("heightanim.bg.intro", "Färbt den Hintergrund nach Wert ein.")}
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
@@ -240,7 +240,7 @@ function mountHeightAnim(body, headerActions) {
 
         <section class="section" data-accordion-section="linezones">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.linezones", "Linien-Farbzonen")}</span>${_help("heightanim.line.intro", "Färbt die Linie nach Wert ein.")}
+            <span>${t("heightanim.section.linezones", "🌈 Linien-Farbzonen")}</span>${_help("heightanim.line.intro", "Färbt die Linie nach Wert ein.")}
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
@@ -267,7 +267,7 @@ function mountHeightAnim(body, headerActions) {
 
         <section class="section" data-accordion-section="marker">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.marker", "Marker")}</span>
+            <span>${t("heightanim.section.marker", "📍 Marker")}</span>
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
@@ -338,7 +338,7 @@ function mountHeightAnim(body, headerActions) {
 
         <section class="section" data-accordion-section="header">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.header", "Info-Leiste")}</span>
+            <span>${t("heightanim.section.header", "ℹ️ Info-Leiste")}</span>
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
@@ -355,7 +355,7 @@ function mountHeightAnim(body, headerActions) {
 
         <section class="section" data-accordion-section="points">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.points", "Punkte auf der Strecke")}</span>
+            <span>${t("heightanim.section.points", "🚩 Punkte auf der Strecke")}</span>
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>
@@ -383,7 +383,7 @@ function mountHeightAnim(body, headerActions) {
 
         <section class="section" data-accordion-section="render">
           <button class="section-collapse-header" type="button">
-            <span>${t("heightanim.section.render", "Rendern")}</span>
+            <span>${t("heightanim.section.render", "🎬 Rendern")}</span>
             <span class="collapse-arrow">▸</span>
           </button>
           <div class="section-collapse-body" hidden>

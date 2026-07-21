@@ -882,7 +882,7 @@ function mountAnimator(body, headerActions, opts) {
       ${(_isStaticFrame && !(opts && opts.hideHtmlExport)) ? `
       <section class="section" data-accordion-section="tourmap-html" id="tourmap-html-section">
         <button class="section-collapse-header" type="button">
-          <span>🌐 ${t("tourmap.html.section", "Interaktive Karte (HTML)")}</span>
+          <span>${t("tourmap.html.section", "🌐 Interaktive Karte (HTML)")}</span>
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
@@ -1168,7 +1168,7 @@ function mountAnimator(body, headerActions, opts) {
     //   (enthält im Standbild-Modus nur noch die Auflösung).
     try {
       const vh = document.querySelector('[data-accordion-section="video"] .section-collapse-header > span:first-child');
-      if (vh) vh.textContent = t("tourmap.section.image_settings", "Bild-Einstellungen");
+      if (vh) vh.textContent = t("tourmap.section.image_settings", "🖼️ Bild-Einstellungen");
     } catch (_) {}
   }
 

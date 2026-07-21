@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.455] – 2026-07-21
+### Geändert
+- **Jede Sektion in der Seitenleiste hat jetzt ein Symbol.** Bisher hatten nur
+  die später dazugekommenen Sektionen eins (🚩 Schilder und Fotos, 🧭 Mehrere
+  Touren, 🛫 Route); die Kern-Sektionen waren nackt. Jetzt durchgängig:
+  🗺️ Karte, 〰️ Track, 🎥 Kamera, 📊 Overlays, 🎬 Video-Einstellungen — und im
+  Daten-Animator ⚙️ Allgemein, 🎨 Optik, 🪣 Fläche, 🖼️ Hintergrund-Farbzonen,
+  🌈 Linien-Farbzonen, 📍 Marker, ℹ️ Info-Leiste, 🚩 Punkte, 🎬 Rendern.
+  Beim Scrollen durch eine lange Seitenleiste findet man die gesuchte Sektion
+  am Symbol schneller als am Text.
+
 ## [0.9.454] – 2026-07-21
 ### Geändert
 - **„KF-Pins" und der Keyframe-Hinweis unter der Timeline erscheinen nur noch
