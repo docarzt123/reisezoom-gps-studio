@@ -14,37 +14,22 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.450] – 2026-07-21
+## [0.9.451] – 2026-07-21
 ### Geändert
-- **Kamera steht jetzt vor den Overlays.** Die Reihenfolge in der Seitenleiste
-  folgt jetzt dem Arbeitsablauf: erst das Bild bauen (**Karte → Track →
-  Kamera**), dann was darauf liegt (**Overlays → Schilder**), dann **Video**.
-  Vorher stand die Kamera hinter dem sehr langen Overlay-Block und wirkte wie
-  ein Teil davon.
+- **Kamera steht jetzt vor den Overlays.** Die Seitenleiste folgt dem
+  Arbeitsablauf: erst das Bild bauen (**Karte → Track → Kamera**), dann was
+  darauf liegt (**Overlays → Schilder**), dann **Video**. Vorher stand die
+  Kamera hinter dem sehr langen Overlay-Block und wirkte wie ein Teil davon.
+- **Karten-Beschriftungen als Chips.** Ortsnamen, Straßen, Sehenswürdigkeiten,
+  ÖPNV und Grenzen sind jetzt eine kompakte Chip-Zeile statt fünf
+  Checkbox-Zeilen — antippen schaltet um, die Erklärung erscheint beim
+  Draufzeigen. Spart rund 140 Pixel in der Seitenleiste.
 
-## [0.9.449] – 2026-07-21
-### Geändert
-- **Aufgeräumte Seitenleiste (Phase 1).** Die Animator-Sidebar zeigte ~70 Regler
-  gleichrangig untereinander — Track-Farbe neben Punkt-Muster-Abstand. Jetzt
-  gibt es **zwei Ebenen**: Jede Sektion (Karte, Track, Kamera, Video) zeigt nur
-  noch die Kern-Regler; alles Übrige steckt in einem **„⚙ Fein-Tuning"**-
-  Aufklapper am Sektionsende. **Keine Funktion wurde entfernt** — nur
-  einsortiert. Der Aufklapp-Zustand wird pro Sektion gemerkt.
-  - *Karte:* sichtbar Stil + 3D-Terrain → Fein-Tuning: Überhöhung, Beleuchtung,
-    Beschriftungen.
-  - *Track:* sichtbar Farbe, Dicke, Linien-Stil, Mehrfarben-Schalter →
-    Fein-Tuning: Schlagschatten, Glow, Ghost-Track, Punkt-Reduktion.
-  - *Kamera:* sichtbar Keyframe-Schalter, Neigung, Zoom, Track-Folgen,
-    Welt-Buttons → Fein-Tuning: Rotation, Trägheit, Ruhige Kamera,
-    Cineastischer Flug.
-  - *Video:* sichtbar Animation/Hold + Auflösung → Fein-Tuning: Intro, FPS,
-    Karte glätten.
-- **Karten-Beschriftungen als Chips.** Die fünf Checkbox-Zeilen (Ortsnamen,
-  Straßen, Sehenswürdigkeiten, ÖPNV, Grenzen) sind jetzt eine kompakte
-  Chip-Zeile — antippen = an/aus, die Langbeschreibung erscheint beim
-  Draufzeigen. Aus ~200 px Sidebar-Höhe werden ~60 px.
-- Die Tour-Map übernimmt das Layout automatisch (gleiche Seitenleiste);
-  Aufklapper, die im Standbild-Modus leer wären, sind dort ausgeblendet.
+### Entfernt
+- Der in v0.9.449 eingeführte **„⚙ Fein-Tuning"-Aufklapper** ist wieder
+  raus. Alle Regler stehen wieder direkt sichtbar in ihrer Sektion — ein
+  zusätzlicher Klick pro Regler war der falsche Preis für eine kürzere
+  Seitenleiste.
 
 ## [0.9.448] – 2026-07-21
 ### Hinzugefügt

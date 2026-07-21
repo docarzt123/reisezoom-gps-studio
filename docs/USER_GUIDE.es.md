@@ -196,7 +196,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 6. El render se ejecuta — la vista previa en directo muestra cada fotograma
 7. Listo → la vista de resultado muestra el MP4 + el botón «Mostrar en el Finder»
 
-> **⚙ Ajuste fino (desde v0.9.449):** cada sección de la barra lateral muestra ahora solo sus controles esenciales. Todo lo más específico — exageración, iluminación, sombra, brillo, pista fantasma, rotación, inercia de cámara, intro, FPS … — está en un discreto desplegable **«⚙ Ajuste fino»** al final de la sección. **No se ha eliminado nada**, solo se ha ordenado; el desplegable recuerda su estado. Las etiquetas del mapa (lugares, calles, POIs, transporte, fronteras) son ahora una fila compacta de **chips**: tocar cambia el estado y al pasar el cursor aparece la descripción completa.
+> **Etiquetas del mapa como chips (desde v0.9.451):** lugares, calles, puntos de interés, transporte y fronteras son una fila compacta de **chips**: tocar cambia el estado y al pasar el cursor aparece la descripción completa.
 
 > **¿Animar la llegada/ruta?** Para eso existe desde v0.9.205 un módulo propio **🛣 Ruta de viaje** (origen/destino → trayecto calculado). Consulta el capítulo 4.
 

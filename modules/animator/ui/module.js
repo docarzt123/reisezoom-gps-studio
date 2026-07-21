@@ -199,9 +199,6 @@ function mountAnimator(body, headerActions, opts) {
             <input type="checkbox" id="anim-terrain" checked>
             <span>${t("animator.toggle.terrain")}</span>
           </label>
-          <details class="fine-tune" data-ft="map">
-            <summary>⚙ ${t("animator.fine_tuning", "Fein-Tuning")}</summary>
-            <div class="fine-tune-body">
           <div class="field">
             <label class="field-label">${t("animator.field.exaggeration")} <span class="label-val" id="anim-ex-v">1.5×</span></label>
             <input type="range" id="anim-ex" min="0" max="4" step="0.1" value="1.5">
@@ -217,6 +214,9 @@ function mountAnimator(body, headerActions, opts) {
           </div>
           <div class="field">
             <div class="sub-group-label">${t("map_config.elements")}</div>
+            <!-- v0.9.451 — Chip-Zeile statt fünf Checkbox-Reihen: dieselben
+                 Checkbox-IDs (bindSetting/Undo unverändert), nur kompakter.
+                 Die Langbeschreibung steckt im title-Tooltip. -->
             <div class="chip-row">
               <label class="chip-toggle" title="${t("map_config.elements.places")}"><input type="checkbox" id="anim-mc-places" checked><span>${t("map_config.chip.places", "Orte")}</span></label>
               <label class="chip-toggle" title="${t("map_config.elements.roads")}"><input type="checkbox" id="anim-mc-roads" checked><span>${t("map_config.chip.roads", "Straßen")}</span></label>
@@ -229,8 +229,6 @@ function mountAnimator(body, headerActions, opts) {
               <button type="button" class="btn btn-subtle" id="anim-mc-all-on">${t("map_config.all_on")}</button>
             </div>
           </div>
-            </div>
-          </details>
         </div>
       </section>
 
@@ -264,7 +262,29 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.line_style_spacing")} <span class="label-val" id="anim-line-spacing-v">1.0×</span></label>
             <input type="range" id="anim-line-spacing" min="0.5" max="5" step="0.25" value="1">
           </div>
+          <!-- v0.9.309 — Checkbox raus (Marc): der Stärke-Slider IST der Schalter.
+               0 px = aus, hochziehen = Schatten/Glow an. -->
+          <div class="field" id="anim-shadow-strength-field" title="${t("animator.shadow.tooltip")}">
+            <label class="field-label">${t("animator.toggle.shadow")} <span class="label-val" id="anim-shadow-strength-v">0 px</span></label>
+            <input type="range" id="anim-shadow-strength" min="0" max="10" step="0.5" value="0">
+          </div>
+          <div class="field" id="anim-glow-strength-field" title="${t("animator.glow.tooltip")}">
+            <label class="field-label">${t("animator.toggle.glow")} <span class="label-val" id="anim-glow-strength-v">0 px</span></label>
+            <input type="range" id="anim-glow-strength" min="0" max="10" step="0.5" value="0">
+          </div>
           <!-- v0.9.169 — Ghost-Track: ganze Route schwach vorgezeichnet -->
+          <label class="checkbox-row" title="${t("animator.ghost.tooltip", "Zeigt die ganze Route schon schwach/transparent im Hintergrund; nur der animierte Teil wird voll gezeichnet.")}">
+            <input type="checkbox" id="anim-ghost-enabled">
+            <span>${t("animator.toggle.ghost_track", "Ghost-Track (ganze Route schwach)")}</span>
+          </label>
+          <div class="field" id="anim-ghost-color-field" hidden>
+            <label class="field-label">${t("animator.field.ghost_color", "Ghost-Track-Farbe")} <span class="label-val" id="anim-ghost-color-v">#ff6b35</span></label>
+            <input type="color" id="anim-ghost-color" value="#ff6b35">
+          </div>
+          <div class="field" id="anim-ghost-opacity-field" hidden>
+            <label class="field-label">${t("animator.field.ghost_opacity", "Deckkraft Ghost-Track")} <span class="label-val" id="anim-ghost-opacity-v">30 %</span></label>
+            <input type="range" id="anim-ghost-opacity" min="5" max="80" step="5" value="30">
+          </div>
           <!-- v0.9.435/436 — Mehrfarbiger Track (Marc): der Track wechselt die Farbe
                nach Distanz (km / Marker / Wegpunkt) oder nach einer Messreihe —
                hart (Bänder) oder als Verlauf.
@@ -305,31 +325,6 @@ function mountAnimator(body, headerActions, opts) {
             </div>
             <div class="muted" id="anim-colors-hint" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")}</div>
           </div>
-          <details class="fine-tune" data-ft="track">
-            <summary>⚙ ${t("animator.fine_tuning", "Fein-Tuning")}</summary>
-            <div class="fine-tune-body">
-          <!-- v0.9.309 — Checkbox raus (Marc): der Stärke-Slider IST der Schalter.
-               0 px = aus, hochziehen = Schatten/Glow an. -->
-          <div class="field" id="anim-shadow-strength-field" title="${t("animator.shadow.tooltip")}">
-            <label class="field-label">${t("animator.toggle.shadow")} <span class="label-val" id="anim-shadow-strength-v">0 px</span></label>
-            <input type="range" id="anim-shadow-strength" min="0" max="10" step="0.5" value="0">
-          </div>
-          <div class="field" id="anim-glow-strength-field" title="${t("animator.glow.tooltip")}">
-            <label class="field-label">${t("animator.toggle.glow")} <span class="label-val" id="anim-glow-strength-v">0 px</span></label>
-            <input type="range" id="anim-glow-strength" min="0" max="10" step="0.5" value="0">
-          </div>
-          <label class="checkbox-row" title="${t("animator.ghost.tooltip", "Zeigt die ganze Route schon schwach/transparent im Hintergrund; nur der animierte Teil wird voll gezeichnet.")}">
-            <input type="checkbox" id="anim-ghost-enabled">
-            <span>${t("animator.toggle.ghost_track", "Ghost-Track (ganze Route schwach)")}</span>
-          </label>
-          <div class="field" id="anim-ghost-color-field" hidden>
-            <label class="field-label">${t("animator.field.ghost_color", "Ghost-Track-Farbe")} <span class="label-val" id="anim-ghost-color-v">#ff6b35</span></label>
-            <input type="color" id="anim-ghost-color" value="#ff6b35">
-          </div>
-          <div class="field" id="anim-ghost-opacity-field" hidden>
-            <label class="field-label">${t("animator.field.ghost_opacity", "Deckkraft Ghost-Track")} <span class="label-val" id="anim-ghost-opacity-v">30 %</span></label>
-            <input type="range" id="anim-ghost-opacity" min="5" max="80" step="5" value="30">
-          </div>
           <div class="field">
             <label class="field-label">${t("animator.field.point_count")}
               <span class="label-val" id="anim-pointcount-v">— / —</span>
@@ -344,9 +339,6 @@ function mountAnimator(body, headerActions, opts) {
               ${t("animator.point_count.hint")}
             </div>
           </div>
-            </div>
-          </details>
-
         </div>
       </section>
 
@@ -398,6 +390,17 @@ function mountAnimator(body, headerActions, opts) {
             <span>🎥 ${t("animator.kf.enable_label")}</span>
           </label>
 
+          <!-- v0.9.318 (Marc) — Ruhige Kamera (entkoppelte FreeCamera): gegen das
+               Hoch-Runter-Hüpfen über bergigem 3D-Terrain. Kamera reitet nicht mehr
+               aufs Gelände, sondern fliegt entkoppelt durch den 3D-Raum (framing-treu
+               an den Keyframes). Default AUS = alter, gut getesteter Modus. Gilt für
+               ALLE Kamera-Modi → steht über der Classic/KF-Umschaltung. -->
+          <label class="checkbox-row" id="anim-smooth-camera-row" style="margin-bottom:10px;"
+                 title="${t("animator.field.smooth_camera_tip", "Gegen das Hoch-Runter-Hüpfen der Kamera über bergigem 3D-Terrain. Aus = klassisch (Standard). An = ruhige, entkoppelte Kamera.")}">
+            <input type="checkbox" id="anim-smooth-camera">
+            <span>🎥 ${t("animator.field.smooth_camera", "Ruhige Kamera (3D-Terrain)")}</span>
+          </label>
+
           <!-- Classic-Modus (KF aus): statischer Pitch + lineare Rotation über das ganze Video.
                v0.8.17: zusätzlich Zoom-Stufe (absoluter Mapbox-Zoom; setzt direkt die Map)
                und Track-folgen-Toggle (Backend-Field camera_follow_track). -->
@@ -405,6 +408,10 @@ function mountAnimator(body, headerActions, opts) {
             <div class="field">
               <label class="field-label">${t("animator.field.pitch")} <span class="label-val" id="anim-pitch-v">40°</span></label>
               <input type="range" id="anim-pitch" min="0" max="80" step="1" value="40">
+            </div>
+            <div class="field">
+              <label class="field-label">${t("animator.field.rotation")} <span class="label-val" id="anim-rot-v">20°</span></label>
+              <input type="range" id="anim-rot" min="0" max="60" step="1" value="20">
             </div>
             <!-- v0.9.107 — Spin als Velocity-Slider raus. Drehung wird
                  deklarativ über KF center.lng-Werte (Welt-Drehung) gesteuert.
@@ -418,6 +425,14 @@ function mountAnimator(body, headerActions, opts) {
               <input type="checkbox" id="anim-camera-follow">
               <span>🚶 ${t("animator.field.camera_follow_track")}</span>
             </label>
+            <!-- v0.9.275 (Nutzer) — Trägheit: weiches Nachziehen statt hartem Kleben am Punkt.
+                 Nur sinnvoll wenn „Kamera folgt Track" an ist. -->
+            <div class="field" id="anim-follow-inertia-row">
+              <label class="field-label">${t("animator.field.follow_inertia", "Kamera-Trägheit")} <span class="label-val" id="anim-follow-inertia-v">0%</span></label>
+              <input type="range" id="anim-follow-inertia" min="0" max="100" step="5" value="0"
+                     title="${t("animator.field.follow_inertia_tip", "0 = hart am Punkt (kann wackeln), höher = die Kamera zieht weicher nach")}">
+            </div>
+
             <!-- v0.9.310 — Standbild-Modus (Tour-Map): feste Kamera-Regler.
                  Per Default hidden, wird nur im staticFrame-Modus eingeblendet
                  (siehe _isStaticFrame-Block). Steuert Ausrichtung (bearing),
@@ -567,6 +582,13 @@ function mountAnimator(body, headerActions, opts) {
               </div>
             </div>
           </div>
+          <!-- v0.9.88 — Cinematic-Flyto-Toggle: nur sichtbar im KF-Modus, weil
+               im Classic-Modus die impliziten Default-KFs identischen Zoom haben
+               (Δzoom=0 → van-Wijk wird nie aktiv → Toggle wäre nutzlos). -->
+          <label class="checkbox-row" id="anim-cinematic-flyto-row" hidden style="margin-top:8px;" title="${t("animator.field.cinematic_flyto_tooltip", "Bei großen Zoom-Sprüngen (Globe→Detail) macht die Kamera einen leicht ausgreifenden Bogen — wie Mapbox' flyTo. Schöner Cinematic-Effekt, kann aber 'zu weit raus zoomen' wirken. Ausschalten = strikte lineare Interpolation.")}">
+            <input type="checkbox" id="anim-cinematic-flyto" checked>
+            <span>🎬 ${t("animator.field.cinematic_flyto", "Cineastischer Flug")}</span>
+          </label>
           <!-- v0.9.130 — Welt zentrieren als zwei Buttons nebeneinander:
                (1) auf Track-Startpunkt → Erde bleibt beim Reinzoom fixiert
                    auf dem Anfang, ideal für „Erde → Track-Start"-Choreo
@@ -586,41 +608,6 @@ function mountAnimator(body, headerActions, opts) {
               🌍⌖ <span>${t("animator.kf.world_center_bbox", "Welt-Mitte")}</span>
             </button>
           </div>
-          <details class="fine-tune" data-ft="camera">
-            <summary>⚙ ${t("animator.fine_tuning", "Fein-Tuning")}</summary>
-            <div class="fine-tune-body">
-          <div id="anim-camera-fine-classic">
-            <div class="field">
-              <label class="field-label">${t("animator.field.rotation")} <span class="label-val" id="anim-rot-v">20°</span></label>
-              <input type="range" id="anim-rot" min="0" max="60" step="1" value="20"></div>
-            <!-- v0.9.275 (Nutzer) — Trägheit: weiches Nachziehen statt hartem Kleben am Punkt.
-                 Nur sinnvoll wenn „Kamera folgt Track" an ist. -->
-            <div class="field" id="anim-follow-inertia-row">
-              <label class="field-label">${t("animator.field.follow_inertia", "Kamera-Trägheit")} <span class="label-val" id="anim-follow-inertia-v">0%</span></label>
-              <input type="range" id="anim-follow-inertia" min="0" max="100" step="5" value="0"
-                     title="${t("animator.field.follow_inertia_tip", "0 = hart am Punkt (kann wackeln), höher = die Kamera zieht weicher nach")}">
-            </div>
-          </div>
-          <!-- v0.9.318 (Marc) — Ruhige Kamera (entkoppelte FreeCamera): gegen das
-               Hoch-Runter-Hüpfen über bergigem 3D-Terrain. Kamera reitet nicht mehr
-               aufs Gelände, sondern fliegt entkoppelt durch den 3D-Raum (framing-treu
-               an den Keyframes). Default AUS = alter, gut getesteter Modus. Gilt für
-               ALLE Kamera-Modi → steht über der Classic/KF-Umschaltung. -->
-          <label class="checkbox-row" id="anim-smooth-camera-row" style="margin-bottom:10px;"
-                 title="${t("animator.field.smooth_camera_tip", "Gegen das Hoch-Runter-Hüpfen der Kamera über bergigem 3D-Terrain. Aus = klassisch (Standard). An = ruhige, entkoppelte Kamera.")}">
-            <input type="checkbox" id="anim-smooth-camera">
-            <span>🎥 ${t("animator.field.smooth_camera", "Ruhige Kamera (3D-Terrain)")}</span>
-          </label>
-          <!-- v0.9.88 — Cinematic-Flyto-Toggle: nur sichtbar im KF-Modus, weil
-               im Classic-Modus die impliziten Default-KFs identischen Zoom haben
-               (Δzoom=0 → van-Wijk wird nie aktiv → Toggle wäre nutzlos). -->
-          <label class="checkbox-row" id="anim-cinematic-flyto-row" hidden style="margin-top:8px;" title="${t("animator.field.cinematic_flyto_tooltip", "Bei großen Zoom-Sprüngen (Globe→Detail) macht die Kamera einen leicht ausgreifenden Bogen — wie Mapbox' flyTo. Schöner Cinematic-Effekt, kann aber 'zu weit raus zoomen' wirken. Ausschalten = strikte lineare Interpolation.")}">
-            <input type="checkbox" id="anim-cinematic-flyto" checked>
-            <span>🎬 ${t("animator.field.cinematic_flyto", "Cineastischer Flug")}</span>
-          </label>
-            </div>
-          </details>
-
           <!-- v0.9.103 — XY-Slider zum visuellen Verschieben der Welt
                im Viewport. Bei Globe-Projektion ist center-Setzen =
                sphärische Rotation (dreht nur die Erde), nicht visuelle
@@ -829,7 +816,11 @@ function mountAnimator(body, headerActions, opts) {
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
-          <div class="row-2">
+          <div class="row-3">
+            <div class="field">
+              <label class="field-label">${t("animator.field.intro")}</label>
+              <input type="number" id="anim-intro" min="0" max="20" value="0">
+            </div>
             <div class="field">
               <label class="field-label">${t("animator.field.duration")}</label>
               <input type="number" id="anim-dur" min="3" max="60" value="12">
@@ -852,32 +843,23 @@ function mountAnimator(body, headerActions, opts) {
               <input type="number" id="anim-h" min="360" max="7680" step="2" value="2160" placeholder="${t("animator.field.height")}">
             </div>
           </div>
-          
-          
-          <details class="fine-tune" data-ft="video">
-            <summary>⚙ ${t("animator.fine_tuning", "Fein-Tuning")}</summary>
-            <div class="fine-tune-body">
-          <div class="field">
-            <label class="field-label">${t("animator.field.intro")}</label>
-            <input type="number" id="anim-intro" min="0" max="20" value="0">
-          </div>
-          <div class="field">
-            <label class="field-label" for="anim-fps">${t("animator.field.fps")}</label>
-            <select id="anim-fps">
-              <option value="24">24 (Kino)</option>
-              <option value="25">25 (PAL)</option>
-              <option value="30" selected>30</option>
-              <option value="50">50 (PAL HFR)</option>
-              <option value="60">60</option>
-            </select>
+          <div class="row-2">
+            <div class="field">
+              <label class="field-label">${t("animator.field.fps")}</label>
+              <select id="anim-fps">
+                <option value="24">24 (Kino)</option>
+                <option value="25">25 (PAL)</option>
+                <option value="30" selected>30</option>
+                <option value="50">50 (PAL HFR)</option>
+                <option value="60">60</option>
+              </select>
+            </div>
           </div>
           <div class="field">
             <label class="field-label">${t("animator.field.map_smoothing")} <span class="label-val" id="anim-map-smoothing-v">1.3 px</span></label>
             <input type="range" id="anim-map-smoothing" min="0" max="3" step="0.1" value="1.3">
             <div class="muted" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.field.map_smoothing_hint")}</div>
           </div>
-            </div>
-          </details>
         </div>
       </section>
 
@@ -1146,15 +1128,17 @@ function mountAnimator(body, headerActions, opts) {
     const _hideSel = (sel) => { try { const el = document.querySelector(sel); if (el) el.style.display = "none"; } catch (_) {} };
     const _hideClosest = (id, sel) => { try { const c = document.getElementById(id)?.closest(sel); if (c) c.style.display = "none"; } catch (_) {} };
     // — Video-Sektion: Animations-Felder raus, Auflösung BLEIBT.
-    //   v0.9.449 — Intro/FPS/Glätten stecken jetzt im Fein-Tuning-Aufklapper →
-    //   den ganzen Aufklapper verstecken (sonst bliebe ein leerer ⚙-Header).
-    _hideClosest("anim-dur", ".row-2");                              // Animation/Hold
-    _hideSel('#anim-panel details[data-ft="video"]');                // Intro/FPS/Glätten
+    _hideClosest("anim-intro", ".row-3");          // Intro/Dauer/Hold
+    _hideClosest("anim-fps", ".row-2");            // FPS
+    _hideClosest("anim-map-smoothing", ".field");  // Karte glätten (4K-Anti-Flimmer)
     // — Kamera: alles Animations-Bezogene raus, nur Neigung (pitch) bleibt.
     _hideSel("#anim-panel #anim-camera-body-keyframe");   // Keyframe-Editor
     _hideClosest("anim-kf-enabled", ".checkbox-row");     // KF-Modus-Toggle
+    _hideClosest("anim-rot", ".field");                   // Rotation (Schwenk über die Anim)
     _hideClosest("anim-camera-follow", ".checkbox-row");  // Kamera folgt Track
-    _hideSel('#anim-panel details[data-ft="camera"]');    // Rotation/Trägheit/Ruhige Kamera/Cinematic
+    _hideSel("#anim-follow-inertia-row");                 // Kamera-Trägheit
+    _hideSel("#anim-smooth-camera-row");                  // Ruhige Kamera (3D)
+    _hideSel("#anim-cinematic-flyto-row");                // Cinematic-Flug
     // — v0.9.310: Standbild-Kamera-Regler (Ausrichtung/Randabstand/Pins) ZEIGEN.
     try { const sc = document.getElementById("anim-static-camera"); if (sc) sc.hidden = false; } catch (_) {}
     // — Overlays: Live-Stats (zeit-animiert) raus; Trim-Stats-Optionen raus
@@ -1182,15 +1166,6 @@ function mountAnimator(body, headerActions, opts) {
 
   // Sektion-Akkordeons (v0.6.0): alle data-accordion-section-Elemente
   // klickbar machen + State persistieren.
-  // v0.9.449 — Fein-Tuning-Aufklapper: Zustand pro Sektion merken (reine
-  // UI-Präferenz → localStorage reicht; try/catch, falls die WebView keins hat).
-  document.querySelectorAll("#anim-panel details.fine-tune").forEach((d) => {
-    const key = "rz_finetune_" + _MODKEY + "_" + (d.getAttribute("data-ft") || "x");
-    try { if (localStorage.getItem(key) === "1") d.open = true; } catch (_) {}
-    d.addEventListener("toggle", () => {
-      try { localStorage.setItem(key, d.open ? "1" : "0"); } catch (_) {}
-    });
-  });
   if (window.setupSectionAccordions) {
     window.setupSectionAccordions(_MODKEY, document.getElementById("anim-panel"));
   }
@@ -3049,10 +3024,6 @@ function mountAnimator(body, headerActions, opts) {
     const kfBody = document.getElementById("anim-camera-body-keyframe");
     if (classic) classic.hidden = enabled;
     if (kfBody)  kfBody.hidden = !enabled;
-    // v0.9.449 — Rotation/Trägheit leben im Fein-Tuning, gelten aber nur für
-    // den Classic-Modus → zusammen mit body-classic ein-/ausblenden.
-    const fineClassic = document.getElementById("anim-camera-fine-classic");
-    if (fineClassic) fineClassic.hidden = enabled;
     // v0.9.88 — Cineastischer-Flug-Toggle nur sichtbar wenn KF-Editor an.
     // Im Classic-Modus haben die impliziten Default-KFs identischen Zoom →
     // van-Wijk wird nie aktiv → Toggle wäre nutzlos.

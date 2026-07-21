@@ -399,7 +399,6 @@
   "animator.section.source": "Source",
   "animator.btn.pick_gpx": "📁 Choose track file …",
   "animator.section.map": "Map",
-  "animator.fine_tuning": "Fine-tuning",
   "map_config.chip.places": "Places",
   "map_config.chip.roads": "Roads",
   "map_config.chip.poi": "POIs",

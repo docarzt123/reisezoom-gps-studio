@@ -844,39 +844,7 @@
 .ghost-btn:hover { background: rgba(255,255,255,0.05); }
 .muted-note { font-size: 11px; opacity: 0.65; }
 
-/* ── v0.9.449 — Fein-Tuning-Aufklapper (Zwei-Ebenen-Sidebar) ──────────────
-   Standard-Regler bleiben sichtbar, selten Gebrauchtes steckt pro Sektion in
-   diesem <details>. Synchron zu animator/tourmap — beide nutzen das Template. */
-details.fine-tune {
-  margin-top: 12px;
-  border-top: 1px dashed var(--border);
-  padding-top: 2px;
-}
-details.fine-tune > summary {
-  cursor: pointer;
-  list-style: none;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  padding: 7px 0 5px;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-details.fine-tune > summary::-webkit-details-marker { display: none; }
-details.fine-tune > summary::after {
-  content: "▸";
-  font-size: 10px;
-  transition: transform 0.15s ease;
-}
-details.fine-tune[open] > summary::after { transform: rotate(90deg); }
-details.fine-tune > summary:hover { color: var(--text); }
-details.fine-tune > .fine-tune-body { padding-top: 4px; }
-
-/* Karten-Beschriftungen als Chips statt 5 Checkbox-Zeilen (v0.9.449).
+/* Karten-Beschriftungen als Chips statt 5 Checkbox-Zeilen (v0.9.451).
    Gleiche Checkbox-IDs — nur die Optik ist kompakt. */
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 label.chip-toggle { position: relative; margin: 0; }
