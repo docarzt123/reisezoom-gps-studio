@@ -240,6 +240,20 @@ function mountAnimator(body, headerActions, opts) {
         </button>
         <div class="section-collapse-body" hidden>
           <div class="field">
+            <label class="field-label">${t("animator.field.point_count")}
+              <span class="label-val" id="anim-pointcount-v">— / —</span>
+              <!-- v0.8.19 — Hint als klick-Tooltip statt Dauer-Text:
+                   liest man einmal, dann nicht mehr. -->
+              <button type="button" class="field-help" data-help="point_count"
+                      title="${t("animator.help.show")}">?</button>
+            </label>
+            <input type="range" id="anim-pointcount" min="10" max="100" step="1" value="100" disabled>
+            <div class="muted field-help-content" data-help-content="point_count" hidden
+                 style="font-size:11px; margin-top:6px; line-height:1.45;">
+              ${t("animator.point_count.hint")}
+            </div>
+          </div>
+          <div class="field">
             <label class="field-label">${t("animator.field.color")} <span class="label-val" id="anim-color-v">#ff6b35</span></label>
             <input type="color" id="anim-color" value="#ff6b35">
           </div>
@@ -325,20 +339,7 @@ function mountAnimator(body, headerActions, opts) {
             </div>
             <div class="muted" id="anim-colors-hint" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")}</div>
           </div>
-          <div class="field">
-            <label class="field-label">${t("animator.field.point_count")}
-              <span class="label-val" id="anim-pointcount-v">— / —</span>
-              <!-- v0.8.19 — Hint als klick-Tooltip statt Dauer-Text:
-                   liest man einmal, dann nicht mehr. -->
-              <button type="button" class="field-help" data-help="point_count"
-                      title="${t("animator.help.show")}">?</button>
-            </label>
-            <input type="range" id="anim-pointcount" min="10" max="100" step="1" value="100" disabled>
-            <div class="muted field-help-content" data-help-content="point_count" hidden
-                 style="font-size:11px; margin-top:6px; line-height:1.45;">
-              ${t("animator.point_count.hint")}
-            </div>
-          </div>
+          
         </div>
       </section>
 
@@ -712,16 +713,7 @@ function mountAnimator(body, headerActions, opts) {
               </div>
               </div>
             </div>
-            <!-- v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich) -->
-            <div class="overlay-group" id="anim-charts-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
-              <div class="ov-style-title" style="display:flex; align-items:center; gap:6px;">
-                <span>📊 ${t("animator.charts.title", "Diagramme")}</span>
-                <span class="ov-help" title="${t("animator.charts.help", "Blende voll gestaltete Daten-Diagramme (Höhe, Puls, Tempo …) ins Video ein. Gestalte den Look im Daten-Animator und übernimm ihn hier. Läuft synchron zum Punkt auf der Karte.")}">?</span>
-              </div>
-              <div id="anim-charts-list" class="charts-list"></div>
-              <button type="button" id="anim-chart-add" class="ghost-btn" style="width:100%; margin-top:6px;">＋ ${t("animator.charts.add", "Diagramm hinzufügen")}</button>
-              <div id="anim-charts-empty" class="charts-empty muted-note" style="margin-top:6px;"></div>
-            </div>
+            
             <!-- v0.9.321 — Stats-Editor: globales Styling aller Stats-Boxen -->
             <div class="ov-style" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
               <div class="ov-style-title">🎨 ${t("animator.overlay.style", "Aussehen der Stats-Boxen")}</div>
@@ -765,6 +757,16 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="checkbox" id="anim-show-pretrim" checked>
                 <span>${t("animator.overlay.show_pretrim")}</span>
               </label>
+            </div>
+            <!-- v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich) -->
+            <div class="overlay-group" id="anim-charts-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
+              <div class="ov-style-title" style="display:flex; align-items:center; gap:6px;">
+                <span>📊 ${t("animator.charts.title", "Diagramme")}</span>
+                <span class="ov-help" title="${t("animator.charts.help", "Blende voll gestaltete Daten-Diagramme (Höhe, Puls, Tempo …) ins Video ein. Gestalte den Look im Daten-Animator und übernimm ihn hier. Läuft synchron zum Punkt auf der Karte.")}">?</span>
+              </div>
+              <div id="anim-charts-list" class="charts-list"></div>
+              <button type="button" id="anim-chart-add" class="ghost-btn" style="width:100%; margin-top:6px;">＋ ${t("animator.charts.add", "Diagramm hinzufügen")}</button>
+              <div id="anim-charts-empty" class="charts-empty muted-note" style="margin-top:6px;"></div>
             </div>
           </div>
         </div>

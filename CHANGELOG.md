@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.453] – 2026-07-21
+### Geändert
+- **Track-Punkte stehen jetzt ganz oben** in der Track-Sektion — der Regler
+  bestimmt, wie fein die Linie überhaupt aufgelöst wird, und gehört damit vor
+  Farbe und Stil statt ans Ende.
+- **Diagramme stehen jetzt ganz unten** in den Overlays, hinter den
+  Stats-Boxen und deren Aussehen.
+
 ## [0.9.452] – 2026-07-21
 ### Geändert
 - **Overlays zeigen ihre Einstellungen nur noch, wenn sie an sind.** Position,
