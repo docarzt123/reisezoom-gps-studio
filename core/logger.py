@@ -108,9 +108,48 @@ def setup_logging(app_support_dir: Path, level: int = logging.INFO) -> Path:
     log.info("─" * 60)
     log.info("Reisezoom GPS Studio gestartet — Logdatei: %s", log_path)
     log.info("OS: %s", get_os_label())
+    log.info("Gerät: %s", get_hardware_label())
     log.info("Python %s · pid=%s", sys.version.split()[0], _safe_pid())
 
     return log_path
+
+
+def get_hardware_label() -> str:
+    """Hardware-Kurzinfo fürs Log — ersetzt das „Über diesen Mac"-Nachfragen
+    beim Support. Beispiel:
+      iMac21,1 · Apple M1 · 16 GB
+      MacBookPro16,1 · Intel(R) Core(TM) i7-9750H · 16 GB · unter Rosetta
+
+    Bewusst fehlertolerant: schlägt etwas fehl, steht da eben weniger — das
+    Logging darf daran niemals scheitern.
+    """
+    import platform
+    if platform.system() != "Darwin":
+        return "%s (%s)" % (platform.machine() or "?", platform.system() or "?")
+
+    def _sysctl(key: str) -> str:
+        try:
+            import subprocess
+            out = subprocess.run(["/usr/sbin/sysctl", "-n", key],
+                                 capture_output=True, text=True, timeout=5)
+            return (out.stdout or "").strip()
+        except Exception:
+            return ""
+
+    parts = []
+    model = _sysctl("hw.model")                     # z.B. iMac21,1 / Mac14,7
+    if model:
+        parts.append(model)
+    chip = _sysctl("machdep.cpu.brand_string")      # z.B. "Apple M1"
+    if chip:
+        parts.append(chip)
+    mem = _sysctl("hw.memsize")
+    if mem.isdigit():
+        parts.append("%d GB" % round(int(mem) / (1024 ** 3)))
+    # Läuft ein arm64-Build unter Rosetta? (1 = ja) — erklärt seltsames Verhalten
+    if _sysctl("sysctl.proc_translated") == "1":
+        parts.append("unter Rosetta")
+    return " · ".join(parts) if parts else (platform.machine() or "?")
 
 
 def get_os_label() -> str:

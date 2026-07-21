@@ -95,6 +95,10 @@ class HeightConfig:
     series_units: dict = field(default_factory=dict)    # {series_id: Einheit}
     # Visuelles (line_color/line_width = Serie A)
     background_color: str = "#1a1a1a"
+    # v0.9.444 — Deckkraft des Vordergrunds (Kurve/Fläche/Text/Marker) als
+    # SVG-Opacity. 1.0 = wie bisher. Für Overlays getrennt vom Hintergrund
+    # steuerbar (der Hintergrund steckt in background_color als rgba).
+    foreground_opacity: float = 1.0
     line_color: str = "#ff6b35"
     line_width: float = 4.0
     grid_enabled: bool = True
@@ -150,7 +154,7 @@ class HeightConfig:
 
 
 def _make_html(cfg: HeightConfig, distances_m: list[float], elevations: list[float],
-               values_b: list[float] | None = None) -> str:
+               values_b: list[float] | None = None, inline_id: str = "") -> str:
     """Erzeugt die HTML-Seite die im Headless-Browser geladen wird.
 
     Die Seite zeichnet EINE Messreihe (cfg.series_a) als SVG über die Distanz.
@@ -198,17 +202,40 @@ def _make_html(cfg: HeightConfig, distances_m: list[float], elevations: list[flo
     line_color_b_json = json.dumps(getattr(cfg, "line_color_b", "#2e86de"))
     line_width_b_json = json.dumps(float(getattr(cfg, "line_width_b", 3.0) or 3.0))
 
+    # v0.9.444 — Inline-Modus: das SVG wird DIREKT ins Vorschau-DOM eingebettet
+    # (kein iframe → macOS/WKWebView lässt die Karte durchscheinen). Dafür müssen
+    # SVG-ID, Gradient-Def-IDs und die advanceFrame-Registrierung pro Instanz
+    # eindeutig sein, und der Script-Block wird in eine IIFE gewickelt. inline_id=""
+    # = klassischer Voll-Seiten-Output (Render/Daten-Animator) → 100% unverändert.
+    _inline = bool(inline_id)
+    _svgid = ("rzc-" + inline_id) if _inline else "svg"
+    _gsuf = ("-" + inline_id) if _inline else ""
+    _fgop = max(0.0, min(1.0, float(getattr(cfg, "foreground_opacity", 1.0) or 1.0)))
+    _svg_extra = (f' style="width:100%;height:100%;display:block;opacity:{_fgop}"'
+                  if _inline else "")
+    _iife_open = "(function(){" if _inline else ""
+    if _inline:
+        _script_end = ("(window.__rzInlineCharts=window.__rzInlineCharts||{})["
+                       + json.dumps(inline_id) + "]=function(progress){draw(progress);};"
+                       + "draw(0);})();")
+    else:
+        _script_end = ("window.advanceFrame = function(progress) { draw(progress); };"
+                       "window.isReady = function() { return true; };"
+                       "window.waitForRender = function() { return new Promise(r => setTimeout(r, 0)); };"
+                       "draw(0); window._ready = true;")
+
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>height-render</title>
 <style>
   html, body {{ margin: 0; padding: 0; background: {bg}; overflow: hidden; }}
   body {{ width: {cfg.width}px; height: {cfg.height}px; }}
-  #svg {{ width: 100%; height: 100%; display: block; }}
+  #{_svgid} {{ width: 100%; height: 100%; display: block; opacity: {_fgop}; }}
 </style></head>
 <body>
-<svg id="svg" width="{cfg.width}" height="{cfg.height}" viewBox="0 0 {cfg.width} {cfg.height}"
+<svg id="{_svgid}"{_svg_extra} width="{cfg.width}" height="{cfg.height}" viewBox="0 0 {cfg.width} {cfg.height}"
      preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"></svg>
 <script>
+{_iife_open}
 const DATA = {data_json};
 const W = {cfg.width}, H = {cfg.height};
 const BG = {json.dumps(bg)};
@@ -412,7 +439,7 @@ function pyB(v) {{
   return PAD_T + (1 - (v - bLo) / bSpanV) * PLOT_H;
 }}
 
-const svg = document.getElementById("svg");
+const svg = document.getElementById("{_svgid}");
 
 function svgNS(tag, attrs, text) {{
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -548,7 +575,7 @@ function draw(progress) {{
   // v0.9.403 — optionale Höhen-Farbzonen als Hintergrund-Gradient.
   // v0.9.404 — BG_CLIP: Verlauf nur im Diagramm-Bereich (flache Basis füllt den Rest).
   if (!TRANSPARENT) {{
-    const _bgUrl = _rzZoneGrad("rzBgGrad", BG_STOPS, BG, BG_BANDS);
+    const _bgUrl = _rzZoneGrad("rzBgGrad{_gsuf}", BG_STOPS, BG, BG_BANDS);
     if (_bgUrl && BG_CLIP) {{
       svg.appendChild(svgNS("rect", {{ x: 0, y: 0, width: W, height: H, fill: BG }}));
       svg.appendChild(svgNS("rect", {{ x: PAD_L, y: PAD_T, width: PLOT_W, height: PLOT_H, fill: _bgUrl }}));
@@ -644,14 +671,14 @@ function draw(progress) {{
     const baseline = PAD_T + PLOT_H;
     const fillD = partialD + " L" + endX.toFixed(1) + " " + baseline.toFixed(1)
                 + " L" + px(dists[i0]).toFixed(1) + " " + baseline.toFixed(1) + " Z";
-    const fillVal = _rzZoneGrad("rzFillGrad", FILL_STOPS, AREA_COLOR, AREA_BANDS) || AREA_COLOR;
+    const fillVal = _rzZoneGrad("rzFillGrad{_gsuf}", FILL_STOPS, AREA_COLOR, AREA_BANDS) || AREA_COLOR;
     svg.appendChild(svgNS("path", {{
       d: fillD, fill: fillVal, opacity: AREA_OP,
     }}));
   }}
   // Linie (v0.9.403 — optionale Höhen-Farbzonen als Stroke-Gradient)
   if (progress > 0) {{
-    const lineStroke = _rzZoneGrad("rzLineGrad", LINE_STOPS, LC, LINE_BANDS) || LC;
+    const lineStroke = _rzZoneGrad("rzLineGrad{_gsuf}", LINE_STOPS, LC, LINE_BANDS) || LC;
     svg.appendChild(svgNS("path", {{
       d: partialD, fill: "none", stroke: lineStroke,
       "stroke-width": LW * SCALE,
@@ -819,15 +846,7 @@ function draw(progress) {{
   }}
 }}
 
-window.advanceFrame = function(progress) {{
-  draw(progress);
-}};
-window.isReady = function() {{ return true; }};
-window.waitForRender = function() {{ return new Promise(r => setTimeout(r, 0)); }};
-
-// Initial frame (progress=0)
-draw(0);
-window._ready = true;
+{_script_end}
 </script></body></html>
 """
 
@@ -1296,6 +1315,133 @@ def series_meta(sid: str, labels: dict | None = None, units: dict | None = None)
         lbl = d_lbl if lbl is None else lbl
         unit = d_unit if unit is None else unit
     return lbl, unit
+
+
+# ── Overlay-Diagramm für den Animator (v0.9.443) ─────────────────────────────
+# Ein Animator-Diagramm-Overlay ist ein voll konfiguriertes Daten-Animator-Chart,
+# das als transparentes <iframe srcdoc=_make_html> in den Video-Render (UND die
+# Live-Vorschau) eingebettet wird. Diese Funktionen sind die EINE gemeinsame
+# Quelle für beide Seiten → Render und Vorschau können nie auseinanderdriften.
+
+
+def _hex_rgb(hexs: str, fallback=(26, 26, 26)):
+    """(r,g,b) aus '#rrggbb'/'#rgb'; robust gegen Müll → fallback."""
+    try:
+        h = (hexs or "").strip().lstrip("#")
+        if len(h) == 3:
+            h = h[0] * 2 + h[1] * 2 + h[2] * 2
+        if len(h) < 6:
+            return fallback
+        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+    except Exception:
+        return fallback
+
+
+def _overlay_heightcfg(style: dict, *, sid_a: str, sid_b: str,
+                       width: int, height: int, transparent: bool,
+                       bg_override: str | None = None,
+                       fg_opacity: float = 1.0) -> "HeightConfig":
+    """Baut aus einem Style-Snapshot (Daten-Animator-Params) eine HeightConfig
+    für ein Overlay-Chart. Tolerant gegen fehlende Keys; series_a/series_b werden
+    von den aufgelösten (effektiven) IDs überschrieben. `bg_override` (z.B. eine
+    rgba-Farbe) ersetzt background_color; `fg_opacity` → foreground_opacity."""
+    g = lambda k, d: style.get(k, d) if isinstance(style, dict) else d
+    return HeightConfig(
+        gpx_path="", output_path="",
+        width=int(width), height=int(height),
+        transparent_background=bool(transparent),
+        foreground_opacity=float(fg_opacity),
+        series_a=sid_a or "ele",
+        series_b=(sid_b or ""),
+        line_color_b=g("line_color_b", "#2e86de"),
+        line_width_b=float(g("line_width_b", 3.0) or 3.0),
+        series_labels=g("series_labels", {}) or {},
+        series_units=g("series_units", {}) or {},
+        background_color=(bg_override if bg_override else g("background_color", "#1a1a1a")),
+        line_color=g("line_color", "#ff6b35"),
+        line_width=float(g("line_width", 4.0) or 4.0),
+        grid_enabled=bool(g("grid_enabled", True)),
+        show_axes=bool(g("show_axes", True)),
+        show_marker=bool(g("show_marker", True)),
+        marker_show_dot=bool(g("marker_show_dot", True)),
+        grid_color=g("grid_color", "#3a3a3a"),
+        label_color=g("label_color", "#cccccc"),
+        smoothing=int(g("smoothing", 0) or 0),
+        area_fill=bool(g("area_fill", True)),
+        area_color=g("area_color", "#ff6b35"),
+        area_opacity=int(g("area_opacity", 18)),
+        area_mode=g("area_mode", "smooth"),
+        fill_stops=g("fill_stops", []) or [],
+        bg_mode=g("bg_mode", "smooth"),
+        bg_clip=bool(g("bg_clip", False)),
+        bg_stops=g("bg_stops", []) or [],
+        line_mode=g("line_mode", "smooth"),
+        line_stops=g("line_stops", []) or [],
+        marker_dot_color=g("marker_dot_color", "#ffffff"),
+        marker_dot_size=float(g("marker_dot_size", 6.0) or 6.0),
+        marker_bg=g("marker_bg", "#000000"),
+        marker_bg_opacity=float(g("marker_bg_opacity", 0.6) or 0.6),
+        marker_border_color=g("marker_border_color", "#ff6b35"),
+        marker_border_width=float(g("marker_border_width", 1.5) or 1.5),
+        marker_font_size=float(g("marker_font_size", 16.0) or 16.0),
+        marker_show_icon=bool(g("marker_show_icon", True)),
+        marker_show_ele=bool(g("marker_show_ele", True)),
+        marker_show_dist=bool(g("marker_show_dist", True)),
+        show_stats_header=bool(g("show_stats_header", True)),
+        stats_fields=list(g("stats_fields", None) or [
+            "distance", "updown", "avg_grad", "max_grad", "ele_max"]),
+        stats_labels=dict(g("stats_labels", None) or {}),
+        show_gradient=bool(g("show_gradient", True)),
+        waypoints=list(g("waypoints", None) or []),
+        trim_start=float(g("trim_start", 0.0) or 0.0),
+        trim_end=float(g("trim_end", 1.0) or 1.0),
+    )
+
+
+def resolve_overlay_chart(points: list, cum_dist: list[float], style: dict,
+                          *, series_a: str, series_b: str = "",
+                          width: int, height: int,
+                          transparent: bool = True,
+                          fg_opacity: float = 1.0, bg_opacity: float = 1.0,
+                          overrides: dict | None = None,
+                          inline_id: str = "") -> str:
+    """Fertige Chart-HTML für EIN Animator-Diagramm-Overlay.
+
+    Löst die gewünschten Serien aus `points` auf (mit Rückfall), baut die
+    HeightConfig aus `style` und ruft `_make_html` mit den Distanzen des
+    Animator-Tracks (`cum_dist`). Wird identisch von Render (core/animator.py)
+    und Live-Vorschau (Bridge in app.py) genutzt.
+
+    Wichtig (WKWebView-tauglich): der Hintergrund wird als **rgba** IN das
+    Chart-Dokument gebacken (nicht transparentes iframe + CSS-Container — das
+    zeigt in WKWebView eine weiße iframe-Basis). Vorder- und Hintergrund-Deckkraft
+    getrennt: bg → Alpha der Hintergrundfarbe, fg → SVG-Opacity (foreground_opacity).
+    """
+    sid_a, vals_a = resolve_series(points, series_a or "ele", overrides)
+    sid_b, vals_b = "", None
+    if (series_b or "").strip():
+        sid_b, vals_b = resolve_series(points, series_b, overrides)
+    _bo = max(0.0, min(1.0, float(bg_opacity)))
+    _fo = max(0.0, min(1.0, float(fg_opacity)))
+    _base = (style or {}).get("background_color", "#1a1a1a") if isinstance(style, dict) else "#1a1a1a"
+    _r, _g, _b = _hex_rgb(_base, (26, 26, 26))
+    bg_rgba = f"rgba({_r},{_g},{_b},{round(_bo, 3)})"
+    if inline_id:
+        # Inline-Vorschau (kein iframe): SVG bleibt transparent — den Hintergrund
+        # legt die Vorschau-JS als eigenes DIV mit `bg_rgba` HINTER das SVG. So
+        # ist Vorder- von Hintergrund-Deckkraft entkoppelt (fg wirkt nur aufs SVG),
+        # und die Karte scheint bei bg-Alpha < 1 direkt durch (DOM-Compositing).
+        cfg = _overlay_heightcfg(style, sid_a=sid_a, sid_b=(sid_b if vals_b else ""),
+                                 width=width, height=height, transparent=True,
+                                 fg_opacity=_fo)
+    else:
+        # Render/iframe: Hintergrund als rgba IN das Dokument backen (Chromium
+        # komponiert transparente iframes korrekt → Karte scheint durch).
+        cfg = _overlay_heightcfg(style, sid_a=sid_a, sid_b=(sid_b if vals_b else ""),
+                                 width=width, height=height, transparent=False,
+                                 bg_override=bg_rgba, fg_opacity=_fo)
+    return _make_html(cfg, list(cum_dist), list(vals_a),
+                      list(vals_b) if vals_b else None, inline_id=inline_id)
 
 
 def make_standalone_html(cfg: "HeightConfig", distances_m: list, elevations: list,

@@ -104,6 +104,7 @@ def find_ffmpeg() -> str:
 from .gpx import parse_gpx as core_parse_gpx, downsample, TrackPoint
 from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
 from . import sensors as _sensors    # v0.9.331: FIT-Sensorfeld-Registry
+from . import heightanim as _cheight  # v0.9.443: Daten-Diagramme als Overlay
 
 
 MAP_STYLES = {
@@ -259,6 +260,16 @@ class AnimatorConfig:
     overlay_text_color: str = "#ffffff"
     overlay_bg_color: str = "#000000"
     overlay_bg_opacity: float = 0.55    # 0..1
+    # v0.9.443 — Daten-Diagramme als Overlay. Jedes Diagramm ist ein voll
+    # konfiguriertes Daten-Animator-Chart (Höhe, Puls, Tempo, Farbzonen, 2.
+    # Achse …), eingebettet als transparentes <iframe srcdoc=_make_html>. Es
+    # wird pro Frame über die Distanz-Fraktion synchron zum Karten-Punkt
+    # getrieben (siehe advanceFrame). Mehrere gleichzeitig möglich. Das simple
+    # overlay_elevation_* bleibt davon UNBERÜHRT (additiv). Schema pro Eintrag:
+    #   {"series": str, "position": str (pos-Slot), "width": int, "height": int,
+    #    "opacity": int(0..100), "from_s": float, "to_s": float,
+    #    "style": {…HeightConfig-Style-Felder aus dem Daten-Animator-Snapshot…}}
+    charts: list = field(default_factory=list)
     codec: str = "h264"                 # "h264" oder "h265" (HEVC, kleinere Files)
     crf: int = 20                       # Qualität: niedriger = besser, 18-22 typisch
     # v0.9.245 — Frame-Erfassung: JPEG ist ~16× schneller zu encoden+übertragen
@@ -831,7 +842,7 @@ def _overlay_scale(render_height: int, dsf: float = 1.0) -> float:
 
 def _overlay_windows(cfg: "AnimatorConfig") -> dict:
     """Zeitfenster (in Video-Sekunden) pro Overlay-Box-ID. to<=0 = bis Ende."""
-    return {
+    wins = {
         "overlay-totals": [float(getattr(cfg, "overlay_totals_from_s", 0) or 0),
                            float(getattr(cfg, "overlay_totals_to_s", 0) or 0)],
         "overlay-live":   [float(getattr(cfg, "overlay_live_from_s", 0) or 0),
@@ -839,6 +850,20 @@ def _overlay_windows(cfg: "AnimatorConfig") -> dict:
         "overlay-bottom": [float(getattr(cfg, "overlay_elevation_from_s", 0) or 0),
                            float(getattr(cfg, "overlay_elevation_to_s", 0) or 0)],
     }
+    # v0.9.443 — Zeitfenster der Daten-Diagramm-Overlays (dieselbe ID-Konvention
+    # wie im HTML: overlay-chart-<i>). Robust gegen nicht-numerische Werte aus
+    # alt/manuell editiertem Projekt-JSON (dürfen den Render-Build nicht kippen).
+    def _sec(v):
+        try:
+            return float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+    for i, ch in enumerate(getattr(cfg, "charts", None) or []):
+        if not isinstance(ch, dict):
+            continue
+        wins[f"overlay-chart-{i}"] = [_sec(ch.get("from_s", 0)),
+                                      _sec(ch.get("to_s", 0))]
+    return wins
 
 
 def _overlay_has_timing(cfg: "AnimatorConfig") -> bool:
@@ -861,6 +886,83 @@ def _overlay_timing_js(cfg: "AnimatorConfig") -> str:
         ";for(var id in W){var el=document.getElementById(id);if(!el)continue;"
         "var w=W[id];var vis=(t>=w[0])&&(w[1]<=0||t<=w[1]);"
         "el.style.visibility=vis?'':'hidden';}};</script>"
+    )
+
+
+def _charts_html(cfg: "AnimatorConfig", ds_points, cum_dist) -> str:
+    """v0.9.443 — HTML-Block der Daten-Diagramm-Overlays.
+
+    Jedes Diagramm ist ein voll konfiguriertes, TRANSPARENTES Daten-Animator-
+    Chart (heightanim._make_html), eingebettet als <iframe srcdoc=…>. Positioniert
+    per pos-Slot-Klasse (wie die anderen Overlays), Größe/Deckkraft per Inline-
+    Style. Getrieben wird pro Frame über window.__advanceCharts (siehe
+    updateOverlays). Die iframe-Innenauflösung == CSS-Boxgröße → der Browser
+    rastert das iframe am Seiten-DSF (scharf, verzerrungsfrei; im PoC verifiziert).
+    """
+    charts = getattr(cfg, "charts", None) or []
+    if not charts or not ds_points:
+        return ""
+    import html as _htmlmod
+    s = _overlay_scale(cfg.height, _render_dsf(cfg.width, cfg.height))
+    ov = getattr(cfg, "overlay_field_overrides", None)
+    out = []
+    for i, ch in enumerate(charts):
+        if not isinstance(ch, dict) or not ch.get("enabled", True):
+            continue
+        style = ch.get("style") or {}
+        series_a = ch.get("series") or style.get("series_a") or "ele"
+        series_b = ch.get("series_b") or style.get("series_b") or ""
+        cw = max(120, int(round(int(ch.get("width", 640) or 640) * s)))
+        chh = max(80, int(round(int(ch.get("height", 300) or 300) * s)))
+        # v0.9.444 — Vorder-/Hintergrund-Deckkraft getrennt, BEIDE ins Chart-Dokument
+        # gebacken (bg = rgba, fg = SVG-Opacity). Kein transparentes iframe + CSS-
+        # Container → keine weiße iframe-Basis in WKWebView. Rückfall: altes `opacity`.
+        _old_op = ch.get("opacity", None)
+        fg = ch.get("fg_opacity", _old_op if _old_op is not None else 100)
+        bg = ch.get("bg_opacity", 100)
+        fg_op = max(0, min(100, int(fg or 0))) / 100.0
+        bg_op = max(0, min(100, int(bg or 0))) / 100.0
+        try:
+            chart_html = _cheight.resolve_overlay_chart(
+                ds_points, cum_dist, style,
+                series_a=series_a, series_b=series_b,
+                width=cw, height=chh,
+                fg_opacity=fg_op, bg_opacity=bg_op, overrides=ov)
+        except Exception as e:  # ein kaputtes Diagramm darf den Render nicht kippen
+            _log.warning("Chart-Overlay %d konnte nicht gebaut werden: %s", i, e)
+            continue
+        srcdoc = _htmlmod.escape(chart_html, quote=True)
+        pos = str(ch.get("position", "br") or "br")
+        _br, _bg2, _bb = _hex_to_rgb(style.get("background_color", "#1a1a1a"), (26, 26, 26))
+        bg_css = f"rgba({_br},{_bg2},{_bb},{bg_op:.3f})"  # Fallback hinter dem iframe
+        out.append(
+            f'<div id="overlay-chart-{i}" class="chart-ov pos-{pos}" '
+            f'style="width:{cw}px;height:{chh}px;background:{bg_css};">'
+            f'<iframe class="chart-ov-frame" scrolling="no" frameborder="0" '
+            f'srcdoc="{srcdoc}"></iframe></div>')
+    return "".join(out)
+
+
+def _chart_driver_js(cfg: "AnimatorConfig") -> str:
+    """<script> das die Chart-iframes pro Frame synchron treibt. Definiert
+    window.__advanceCharts(distFrac) und window.__chartsReady(). Nur ausgegeben,
+    wenn überhaupt Diagramme aktiv sind."""
+    n = len([c for c in (getattr(cfg, "charts", None) or [])
+             if isinstance(c, dict) and c.get("enabled", True)])
+    if n <= 0:
+        return ""
+    return (
+        "<script>"
+        "window.__chartFrames=function(){return Array.prototype.slice.call("
+        "document.querySelectorAll('.chart-ov-frame'));};"
+        "window.__advanceCharts=function(f){var fr=window.__chartFrames();"
+        "for(var i=0;i<fr.length;i++){try{var w=fr[i].contentWindow;"
+        "if(w&&typeof w.advanceFrame==='function')w.advanceFrame(f);}catch(e){}}};"
+        "window.__chartsReady=function(){var fr=window.__chartFrames();"
+        "for(var i=0;i<fr.length;i++){try{if(!(fr[i].contentWindow&&"
+        "fr[i].contentWindow._ready===true))return false;}catch(e){return false;}}"
+        "return true;};"
+        "</script>"
     )
 
 
@@ -942,6 +1044,11 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
   .ele-minmax {{ font-size: {px(12)}; opacity: 0.8; font-variant-numeric: tabular-nums; }}
   .ele-minmax .sep {{ margin: 0 {px(10)}; opacity: 0.4; }}
   #elevation-svg {{ flex: 1; width: 100%; display: block; }}
+  /* v0.9.443 — Daten-Diagramm-Overlays: positionierter Container + randloses,
+     transparentes iframe (das Chart bringt seinen eigenen Hintergrund mit). */
+  .chart-ov {{ position: absolute; overflow: hidden; pointer-events: none; }}
+  .chart-ov-frame {{ width: 100%; height: 100%; border: 0; display: block;
+    background: transparent; }}
 """
 
 
@@ -1337,7 +1444,9 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     <circle id="ele-dot" r="4.5" fill="#ffffff" stroke="{cfg.line_color}" stroke-width="2"/>
   </svg>
 </div>"""
-    overlays_block = totals_html + live_html + ele_html + _overlay_timing_js(cfg)
+    charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
+    overlays_block = (totals_html + live_html + ele_html + charts_html
+                      + _overlay_timing_js(cfg) + _chart_driver_js(cfg))
     # JS-Block für Karten-Feinabstimmung. Wird im `style.load`-Callback
     # ausgespielt. Zwei Mechanismen parallel:
     #
@@ -1806,6 +1915,18 @@ if (SHOW_OVERLAYS && HAS_ELE) {{
 }}
 function updateOverlays(idx) {{
   if (!SHOW_OVERLAYS) return;
+  // v0.9.443 — Daten-Diagramm-Overlays synchron treiben. distFrac = Distanz-
+  // Anteil des aktuellen Punkts → Chart-Marker landet exakt unter dem Karten-
+  // Punkt (korrekte km-Labels + Wert), unabhängig von der Punktdichte.
+  if (window.__advanceCharts) {{
+    const __cn = totalPoints;
+    const __ci = Math.max(0, Math.min(idx, __cn - 1));
+    const __csp = (typeof cumDistM !== 'undefined' && cumDistM.length === __cn)
+                  ? (cumDistM[__cn - 1] - cumDistM[0]) : 0;
+    const __cdf = __csp > 0 ? (cumDistM[__ci] - cumDistM[0]) / __csp
+                            : (__cn > 1 ? __ci / (__cn - 1) : 0);
+    window.__advanceCharts(__cdf);
+  }}
 {live_update_js}
   if (HAS_ELE) {{
     const pts = [], pairs = [];
@@ -1950,7 +2071,7 @@ map.on('idle', () => {{
     window._initialZoom = map.getZoom();
   }}
 }});
-window.isReady = () => window._mapReady === true;
+window.isReady = () => window._mapReady === true && (typeof window.__chartsReady !== 'function' || window.__chartsReady());
 window.getInitialView = () => ({{
   center: window._initialCenter || [{(min_lon+max_lon)/2}, {(min_lat+max_lat)/2}],
   zoom: window._initialZoom || 12
@@ -2251,7 +2372,9 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     <circle id="ele-dot" r="4.5" fill="#ffffff" stroke="{cfg.line_color}" stroke-width="2"/>
   </svg>
 </div>"""
-    overlays_block = totals_html + live_html + ele_html + _overlay_timing_js(cfg)
+    charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
+    overlays_block = (totals_html + live_html + ele_html + charts_html
+                      + _overlay_timing_js(cfg) + _chart_driver_js(cfg))
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 {_overlay_font_link(cfg)}
@@ -2351,6 +2474,18 @@ if (SHOW_OVERLAYS && HAS_ELE) {{
 }}
 function updateOverlays(idx) {{
   if (!SHOW_OVERLAYS) return;
+  // v0.9.443 — Daten-Diagramm-Overlays synchron treiben. distFrac = Distanz-
+  // Anteil des aktuellen Punkts → Chart-Marker landet exakt unter dem Karten-
+  // Punkt (korrekte km-Labels + Wert), unabhängig von der Punktdichte.
+  if (window.__advanceCharts) {{
+    const __cn = totalPoints;
+    const __ci = Math.max(0, Math.min(idx, __cn - 1));
+    const __csp = (typeof cumDistM !== 'undefined' && cumDistM.length === __cn)
+                  ? (cumDistM[__cn - 1] - cumDistM[0]) : 0;
+    const __cdf = __csp > 0 ? (cumDistM[__ci] - cumDistM[0]) / __csp
+                            : (__cn > 1 ? __ci / (__cn - 1) : 0);
+    window.__advanceCharts(__cdf);
+  }}
   // v0.9.325 — katalog-getriebene Live-Felder (identisch zu _make_html). VORHER
   // setzte der Alpha-Render noch die alten IDs live-dist/-time/-ele → seit dem
   // Stats-Editor (v0.9.321) blieben die Live-Stats im transparenten Video eingefroren.
@@ -2379,7 +2514,7 @@ function updateOverlays(idx) {{
   }}
 }}
 window._ready = false;
-window.isReady = () => window._ready === true;
+window.isReady = () => window._ready === true && (typeof window.__chartsReady !== 'function' || window.__chartsReady());
 window.getInitialView = () => ({{ center: [0, 0], zoom: 0 }});  // dummy fürs render-loop
 window.advanceFrame = (idx, brg, lon, lat, zm, pt) => {{
   const safe = Math.max(0, Math.min(idx, totalPoints-1));

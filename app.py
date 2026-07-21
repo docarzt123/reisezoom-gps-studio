@@ -132,7 +132,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.442"
+APP_VERSION = "0.9.446"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1747,9 +1747,64 @@ class Api:
                 "series": series,
                 # v0.9.331 — vorhandene Sensorfelder [{key,label,unit}] fürs UI.
                 "sensor_fields": stats.sensor_fields,
+                # v0.9.443 — wählbare Messreihen für die Diagramm-Overlays
+                # (id/label/unit, OHNE Werte → kleiner Payload). Identische Quelle
+                # wie der Daten-Animator, damit die Serien-Dropdowns übereinstimmen.
+                "chart_series": [{"id": s["id"], "label": s["label"], "unit": s["unit"]}
+                                 for s in cheight.available_series(ds)],
             }
         except Exception as e:
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
+
+    # ── v0.9.443: Diagramm-Overlays (Live-Vorschau-HTML) ──────────────────────
+    def animator_chart_preview_html(self, payload: dict) -> dict:
+        """Transparente Chart-HTML für EIN Diagramm-Overlay in der Live-Vorschau.
+
+        Nutzt exakt dieselbe Quelle wie der Video-Render (heightanim.
+        resolve_overlay_chart) → WYSIWYG. Mit `inline_id` liefert die Quelle
+        ein transparentes Inline-SVG (kein iframe): das UI bettet es direkt ins
+        Vorschau-DOM ein, legt den Hintergrund als eigenes DIV dahinter und
+        treibt es beim Scrubben/Probelauf über window.__rzInlineCharts[id].
+        """
+        try:
+            gpx_path = payload.get("gpx_path") or ""
+            if not gpx_path or not os.path.exists(gpx_path):
+                return {"ok": False, "error": "no_gpx"}
+            pts = self._chart_preview_points(gpx_path)
+            if not pts:
+                return {"ok": False, "error": "empty_track"}
+            cum = [0.0] + [pts[i].dist_m for i in range(1, len(pts))]
+            style = payload.get("style") or {}
+            inline_id = str(payload.get("inline_id") or "")
+            html = cheight.resolve_overlay_chart(
+                pts, cum, style,
+                series_a=(payload.get("series") or style.get("series_a") or "ele"),
+                series_b=(payload.get("series_b") or style.get("series_b") or ""),
+                width=int(payload.get("width", 640) or 640),
+                height=int(payload.get("height", 300) or 300),
+                fg_opacity=float(payload.get("fg_opacity", 1.0) or 0.0),
+                bg_opacity=float(payload.get("bg_opacity", 1.0) or 0.0),
+                overrides=(payload.get("overlay_field_overrides") or None),
+                inline_id=inline_id)
+            return {"ok": True, "html": html}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
+
+    def _chart_preview_points(self, gpx_path: str):
+        """Downsampled Track-Punkte für die Chart-Vorschau, mit 1-Eintrag-Cache
+        (parst nicht bei jedem Slider-Zug neu)."""
+        try:
+            mt = os.path.getmtime(gpx_path)
+        except OSError:
+            mt = 0
+        key = (gpx_path, mt)
+        cache = getattr(self, "_chart_pts_cache", None)
+        if cache and cache[0] == key:
+            return cache[1]
+        pts, _ = cgpx.parse_gpx(gpx_path)
+        ds = cgpx.downsample(pts, 250)
+        self._chart_pts_cache = (key, ds)
+        return ds
 
     # ── v0.9.205: Anreise/Flug-Route ──────────────────────────────────────────
     def route_geocode(self, query: str, limit: int = 5) -> dict:
@@ -1986,6 +2041,8 @@ class Api:
             overlay_live_to_s=float(params.get("overlay_live_to_s", 0) or 0),
             overlay_elevation_from_s=float(params.get("overlay_elevation_from_s", 0) or 0),
             overlay_elevation_to_s=float(params.get("overlay_elevation_to_s", 0) or 0),
+            # v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich).
+            charts=list(params.get("charts") or []),
             codec=codec,
             crf=_g_crf,
             frame_format=_g_frame_format,

@@ -801,3 +801,45 @@
    sichtbar auf, obwohl die Funktion aus ist. */
 #anim-colors-mode-field[hidden],
 #anim-colors-list-field[hidden] { display: none !important; }
+
+/* ── v0.9.443 — Daten-Diagramm-Overlays ─────────────────────────────────── */
+/* Vorschau-Layer über der Karte, WYSIWYG. v0.9.445: Inline-SVG statt iframe —
+   WKWebView lässt so die Karte bei transparentem Hintergrund durchscheinen. */
+#anim-charts-preview { z-index: 6; }
+.chart-ov-prev { position: absolute; overflow: hidden; pointer-events: none; }
+.chart-ov-prev-bg { position: absolute; inset: 0; }       /* rgba(farbe, bg-Deckkraft) hinter dem SVG */
+.chart-ov-prev-host { position: absolute; inset: 0; }     /* trägt das transparente Inline-SVG */
+.chart-ov-prev-host svg { width: 100%; height: 100%; display: block; }
+
+/* Sidebar: Diagramm-Verwaltung */
+.charts-list { display: flex; flex-direction: column; gap: 8px; }
+.chart-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--bg-elev, rgba(255,255,255,0.02));
+}
+.chart-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.chart-card-title { font-weight: 600; font-size: 12px; }
+.chart-del {
+  border: 0; background: transparent; color: var(--muted, #999);
+  cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 6px; border-radius: 6px;
+}
+.chart-del:hover { color: var(--danger, #e05555); background: rgba(224,85,85,0.12); }
+.chart-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.chart-row > label { flex: 0 0 78px; font-size: 11px; opacity: 0.85; }
+.chart-row > select, .chart-row > input[type="range"] { flex: 1 1 auto; min-width: 0; }
+.chart-val { flex: 0 0 44px; text-align: right; font-variant-numeric: tabular-nums; font-size: 11px; opacity: 0.85; }
+.chart-style-note { margin-top: 4px; font-size: 10.5px; opacity: 0.7; }
+.ov-help {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; border-radius: 50%;
+  border: 1px solid var(--border); font-size: 10px; opacity: 0.7; cursor: help;
+}
+/* generische Helfer (falls global nicht vorhanden) */
+.ghost-btn {
+  border: 1px dashed var(--border); background: transparent; color: inherit;
+  border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 12px;
+}
+.ghost-btn:hover { background: rgba(255,255,255,0.05); }
+.muted-note { font-size: 11px; opacity: 0.65; }

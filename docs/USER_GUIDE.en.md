@@ -247,6 +247,20 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 **Positions (since v0.9.284):** stats boxes in a **3×3 grid** — four corners plus **top (↥)**, **bottom (↧)**, **left (⇤)**, **right (⇥)** centered and **center (✛)** (e.g. for a title/opening overlay). The **elevation profile** is narrower and additionally offers **top wide / bottom wide** (across the full width).
 
+**📊 Charts in the video (since v0.9.443):** in the Overlays section, below the simple elevation profile, there's the **📊 Charts** area. With it you overlay **as many** fully styled data-series charts as you like directly onto the map video — elevation, heart rate, speed, power and any other series your track provides, including **color zones** and a **second Y axis**.
+
+![Two charts in the finished video: the elevation profile along the full width at the bottom and the speed curve next to it on the right — both run in sync with the position on the map.](img/diagramme-im-video.jpg)
+
+- **"＋ Add chart"** creates a card. Per chart you pick the **data series**, the **position** (9 corners/centers), **width** and **height**, plus a **time window** (from/to video second).
+- **Separate foreground and background opacity (since v0.9.445):** **"Chart opacity"** controls the curve and labels, **"Background opacity"** the box behind it. Pull the **background down to 0 %** and the map shows fully through, with only the data line floating over the video. The preview now shows this **WYSIWYG** (real transparency instead of a white box).
+
+![The chart card in the sidebar: data series, position, width/height, separate opacity for chart (foreground) and background, plus "Adopt from Data Animator".](img/diagramme-sidebar.png)
+
+- **You design the look in the Data Animator** (line color, area, color zones, info bar, marker, second series …) and then click **"🎨 Adopt from Data Animator"** on the chart — after that the chart looks exactly the same. So you can, for example, set up an elaborate heart-rate chart, adopt it, and place a second one for elevation next to it.
+- Every chart **stays in sync with the point on the map**: the marker sits exactly above the current position — you see this already in the preview while scrubbing and in the dry run.
+- Works in the **alpha export** too (transparent ProRes 4444 .mov): the charts then sit as their own overlay layer above your video in Premiere / Final Cut / DaVinci.
+- The **existing simple elevation profile** stays unchanged — the charts are an additional tool, not a replacement.
+
 **⏱ Time window per box** (since v0.9.228): Under each overlay box you can
 set **from which and up to which video second** it's shown — e.g. show the
 Live box only from second 2, or hide the Totals box again after

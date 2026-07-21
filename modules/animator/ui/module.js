@@ -467,6 +467,16 @@ function mountAnimator(body, headerActions, opts) {
                 <span class="ov-timing-unit">s</span>
               </div>
             </div>
+            <!-- v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich) -->
+            <div class="overlay-group" id="anim-charts-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
+              <div class="ov-style-title" style="display:flex; align-items:center; gap:6px;">
+                <span>📊 ${t("animator.charts.title", "Diagramme")}</span>
+                <span class="ov-help" title="${t("animator.charts.help", "Blende voll gestaltete Daten-Diagramme (Höhe, Puls, Tempo …) ins Video ein. Gestalte den Look im Daten-Animator und übernimm ihn hier. Läuft synchron zum Punkt auf der Karte.")}">?</span>
+              </div>
+              <div id="anim-charts-list" class="charts-list"></div>
+              <button type="button" id="anim-chart-add" class="ghost-btn" style="width:100%; margin-top:6px;">＋ ${t("animator.charts.add", "Diagramm hinzufügen")}</button>
+              <div id="anim-charts-empty" class="charts-empty muted-note" style="margin-top:6px;"></div>
+            </div>
             <!-- v0.9.321 — Stats-Editor: globales Styling aller Stats-Boxen -->
             <div class="ov-style" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
               <div class="ov-style-title">🎨 ${t("animator.overlay.style", "Aussehen der Stats-Boxen")}</div>
@@ -907,6 +917,10 @@ function mountAnimator(body, headerActions, opts) {
         <!-- Overlay-Vorschau (Stats-Boxen, Höhenprofil) liegt absolut über der Karte.
              Wird von renderOverlayPreview() in JS gefüllt. -->
         <div class="overlay-preview-layer" id="anim-overlay-preview" aria-hidden="true"></div>
+        <!-- v0.9.443 — Diagramm-Overlays (iframes). EIGENER Layer, damit
+             renderOverlayPreview() (setzt oben innerHTML) die iframes nicht
+             bei jedem Aufruf neu lädt. Diff-Update via _chartsPreviewRender(). -->
+        <div class="overlay-preview-layer" id="anim-charts-preview" aria-hidden="true"></div>
       </div>
       <!-- Resolution-Badge zeigt aktuelles Format permanent (synchron zu Tour-Map) -->
       <div class="anim-resolution-badge" id="anim-res-badge"></div>
@@ -1207,7 +1221,12 @@ function mountAnimator(body, headerActions, opts) {
         if (sl && typeof op === "number") { sl.value = String(Math.round(op * 100)); if (lb) lb.textContent = sl.value + " %"; }
       } catch (_) {}
       try { _ovRebuildEditors(); } catch (_) {}
+      // v0.9.444 — Diagramme sind eigener In-Memory-State; nach dem Settings-
+      // Restore neu laden + Liste/Vorschau neu zeichnen (sonst zeigt Undo den
+      // wiederhergestellten Settings-Block, aber die alten Diagramme).
+      try { _chartsLoad(); _chartsRenderList(); } catch (_) {}
       try { renderOverlayPreview(); } catch (_) {}
+      try { _chartsPreviewRender(true); } catch (_) {}
       // 4) Keyframe-/Trim-/Timeline-spezifische Wiederherstellung (wie bisher).
       const masterCb = document.getElementById("anim-kf-enabled");
       if (masterCb) masterCb.checked = !!snap.keyframes_enabled;
@@ -1591,6 +1610,9 @@ function mountAnimator(body, headerActions, opts) {
   // Bei GPX-/Projekt-Wechsel die Stops neu laden + Liste neu zeichnen.
   if (typeof onSessionChanged === "function") {
     try { onSessionChanged(() => { loadColorStops(); renderColorStops(); syncColorsUi(); }); } catch (_) {}
+    // v0.9.444 — Diagramme sind projekt-eigener State: bei Projekt-Wechsel/-Neuanlage
+    // aus dem NEUEN Projekt neu laden (sonst bleibt das alte Diagramm stehen).
+    try { onSessionChanged(() => { try { _chartsLoad(); _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {} }); } catch (_) {}
   }
   // v0.9.211 (Reiseroute) — GPX-Ghost-Config (Elemente existieren nur hier).
   if (_isReiseroute) {
@@ -1954,6 +1976,18 @@ function mountAnimator(body, headerActions, opts) {
       // Synchron zum Backend in core/animator.py._overlay_scale().
       const overlayScale = Math.max(0.5, rh / 1080);
       layer.style.setProperty("--overlay-scale", overlayScale);
+      // v0.9.443 — der Diagramm-Layer wird EXAKT wie der Overlay-Layer
+      // dimensioniert (Render-Pixel-Raum + transform-scale auf Letterbox),
+      // sonst bleibt er 0×0 und `overflow:hidden` schneidet die iframes weg.
+      const clayer = document.getElementById("anim-charts-preview");
+      if (clayer) {
+        clayer.style.width  = rw + "px";
+        clayer.style.height = rh + "px";
+        clayer.style.transform = `scale(${scale})`;
+        clayer.style.transformOrigin = "top left";
+        clayer.style.setProperty("--overlay-scale", overlayScale);
+        try { _chartsPreviewRender(false); } catch (_) {}
+      }
     }
 
     if (badge) {
@@ -2274,6 +2308,11 @@ function mountAnimator(body, headerActions, opts) {
     try { updateStaticPinsPreview(); } catch (_) {}
     // v0.9.390: Track/Overlays über die Karten-Beschriftungen heben (analog Render).
     try { _rzRaiseOverlayLayers(); } catch (_) {}
+    // v0.9.444 — der Source oben ist mit dem VOLLEN Track befüllt (nötig fürs
+    // lineMetrics-Setup). Danach sofort auf den korrekten Zustand zuschneiden
+    // (Haken „ganzen Track zeigen" + Scrubber-Position), sonst zeigt die Vorschau
+    // beim Style-Load/Neustart den ganzen Track, obwohl der Haken aus ist.
+    try { refreshPreviewTrackData(); } catch (_) {}
   }
 
   // v0.9.390 — WYSIWYG zum Render: im Mapbox-Standard-Style (standard/
@@ -7603,6 +7642,7 @@ function mountAnimator(body, headerActions, opts) {
     // Initial-Bind nach Mount (Buttons existieren schon im DOM)
     _animPhotosBindUi();
     _animSignsBindUi();
+    try { _chartsInit(); } catch (_) {}   // v0.9.443 — Diagramm-Overlays laden + Liste/Vorschau
     if (_isReiseroute) _routeBindUi();  // v0.9.205/208 — Route nur im Reiseroute-Modul
     // v0.9.222 — _routeRestore/_routeRestoreGpx leben in DIESEM whenApiReady-
     // Closure. Der onGpxLoaded-Handler (mountAnimator-Scope, eine Ebene höher)
@@ -8158,6 +8198,8 @@ function mountAnimator(body, headerActions, opts) {
       });
     }
     _ovUpdateEleProfileAt(frac);
+    // v0.9.443 — Diagramm-Overlays synchron mittreiben (Distanz-Fraktion, wie im Render).
+    try { _chartsPreviewAdvance(frac); } catch (_) {}
   }
 
   // Höhenprofil progressiv bis zum Marker füllen (wie ele-active-line im Render).
@@ -8186,12 +8228,409 @@ function mountAnimator(body, headerActions, opts) {
       dot.setAttribute("cy", pairs[pairs.length - 1][1].toFixed(1));
     }
   }
+  // ════════════════════════════════════════════════════════════════════════
+  // v0.9.443 — Daten-Diagramme als Overlay
+  // Jedes Diagramm ist ein voll gestaltetes Daten-Animator-Chart, im Render als
+  // transparentes <iframe srcdoc=_make_html> eingebettet und synchron über die
+  // Distanz-Fraktion getrieben. Hier: Sidebar-Verwaltung + Live-Vorschau (eigener
+  // iframe-Layer, damit renderOverlayPreview()'s innerHTML sie nicht neu lädt).
+  // ════════════════════════════════════════════════════════════════════════
+  let _charts = [];                 // [{id,series,series_b,position,width,height,opacity,from_s,to_s,style}]
+  let _chartSeries = [];            // [{id,label,unit}] aus dem geladenen Track
+  const _chartPreviewSig = {};      // id → letzte srcdoc-Signatur (Refetch nur bei Änderung)
+  let _chartLastFrac = 1;           // letzter Scrub-Fortschritt (Ruhezustand = Ende)
+  const _CHART_POS = ["tl", "tc", "tr", "ml", "cc", "mr", "bl", "bc", "br"];
+
+  function _chartEsc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function _chartNewId() {
+    return "chart_" + Math.floor(_animRand() * 1e9).toString(36) + _charts.length;
+  }
+  // deterministischer-genug: Math.random ist im App-Runtime erlaubt.
+  function _animRand() { try { return Math.random(); } catch (_) { return 0.5; } }
+  // Deckkraft 0..100 robust parsen (0 bleibt 0, nicht Default).
+  function _chartClampOp(v, def) {
+    const n = parseInt(v, 10);
+    return Math.max(0, Math.min(100, isNaN(n) ? def : n));
+  }
+  function _chartHex2rgb(h) {
+    h = (h || "#1a1a1a").replace("#", "");
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return [parseInt(h.slice(0, 2), 16) || 0, parseInt(h.slice(2, 4), 16) || 0, parseInt(h.slice(4, 6), 16) || 0];
+  }
+
+  function _chartDefault() {
+    return {
+      id: _chartNewId(),
+      series: (_chartSeries[0] && _chartSeries[0].id) || "ele",
+      series_b: "",
+      position: "br", width: 640, height: 300,
+      fg_opacity: 100, bg_opacity: 100,
+      from_s: 0, to_s: 0, style: null,
+    };
+  }
+
+  function _chartSeriesOptions(sel) {
+    if (!_chartSeries.length) {
+      return `<option value="${_chartEsc(sel || "ele")}">${_chartEsc(sel || "ele")}</option>`;
+    }
+    return _chartSeries.map((s) =>
+      `<option value="${_chartEsc(s.id)}"${s.id === sel ? " selected" : ""}>${_chartEsc(s.label)}${s.unit ? " (" + _chartEsc(s.unit) + ")" : ""}</option>`).join("");
+  }
+  function _chartPosOptions(sel) {
+    return _CHART_POS.map((p) =>
+      `<option value="${p}"${p === sel ? " selected" : ""}>${_chartEsc(t("animator.pos." + p))}</option>`).join("");
+  }
+
+  function _chartsPersist() {
+    try {
+      if (typeof saveProjectSettings === "function") {
+        saveProjectSettings(_MODKEY, { charts: _charts.map((c) => Object.assign({}, c)) });
+      }
+    } catch (_) {}
+  }
+
+  function _chartsLoad() {
+    let a = null;
+    try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
+    if (!a && typeof _settingsCache !== "undefined") a = (_settingsCache && _settingsCache[_MODKEY]) || {};
+    const list = (a && Array.isArray(a.charts)) ? a.charts : [];
+    _charts = list.map((c) => ({
+      id: c.id || _chartNewId(),
+      series: c.series || "ele",
+      series_b: c.series_b || "",
+      position: _CHART_POS.includes(c.position) ? c.position : "br",
+      width: Math.max(300, Math.min(1600, parseInt(c.width, 10) || 640)),
+      height: Math.max(160, Math.min(900, parseInt(c.height, 10) || 300)),
+      // v0.9.444 — Vordergrund/Hintergrund getrennt; altes `opacity` → Vordergrund.
+      fg_opacity: _chartClampOp(c.fg_opacity != null ? c.fg_opacity : (c.opacity != null ? c.opacity : 100), 100),
+      bg_opacity: _chartClampOp(c.bg_opacity, 100),
+      from_s: parseFloat(c.from_s) || 0,
+      to_s: parseFloat(c.to_s) || 0,
+      style: c.style || null,
+    }));
+  }
+
+  function _chartCardHtml(ch, i) {
+    const hasStyle = !!(ch.style && typeof ch.style === "object");
+    return `
+    <div class="chart-card" data-chart-id="${ch.id}">
+      <div class="chart-card-head">
+        <span class="chart-card-title">📊 ${t("animator.charts.item", "Diagramm")} ${i + 1}</span>
+        <button type="button" class="chart-del" data-act="del" title="${_chartEsc(t("animator.charts.remove", "Entfernen"))}">✕</button>
+      </div>
+      <div class="chart-row">
+        <label>${t("animator.charts.series", "Datenreihe")}</label>
+        <select class="pos-select" data-act="series">${_chartSeriesOptions(ch.series)}</select>
+      </div>
+      <div class="chart-row">
+        <label>${t("animator.charts.position", "Position")}</label>
+        <select class="pos-select" data-act="pos">${_chartPosOptions(ch.position)}</select>
+      </div>
+      <div class="chart-row">
+        <label>${t("animator.charts.width", "Breite")}</label>
+        <input type="range" data-act="w" min="300" max="1600" step="20" value="${ch.width}">
+        <span class="chart-val" data-val="w">${ch.width}</span>
+      </div>
+      <div class="chart-row">
+        <label>${t("animator.charts.height", "Höhe")}</label>
+        <input type="range" data-act="h" min="160" max="900" step="10" value="${ch.height}">
+        <span class="chart-val" data-val="h">${ch.height}</span>
+      </div>
+      <div class="chart-row">
+        <label>${t("animator.charts.fg_opacity", "Deckkraft Diagramm")}</label>
+        <input type="range" data-act="fgop" min="0" max="100" step="5" value="${ch.fg_opacity}">
+        <span class="chart-val" data-val="fgop">${ch.fg_opacity}%</span>
+      </div>
+      <div class="chart-row">
+        <label>${t("animator.charts.bg_opacity", "Deckkraft Hintergrund")}</label>
+        <input type="range" data-act="bgop" min="0" max="100" step="5" value="${ch.bg_opacity}">
+        <span class="chart-val" data-val="bgop">${ch.bg_opacity}%</span>
+      </div>
+      <div class="ov-timing" title="${_chartEsc(t("animator.overlay.timing_tip"))}">
+        <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
+        <input type="number" class="ov-time-in" data-act="from" min="0" step="0.5" placeholder="0" value="${ch.from_s || ""}">
+        <span class="ov-timing-dash">–</span>
+        <input type="number" class="ov-time-in" data-act="to" min="0" step="0.5" placeholder="${_chartEsc(t("animator.overlay.timing_end"))}" value="${ch.to_s || ""}">
+        <span class="ov-timing-unit">s</span>
+      </div>
+      <button type="button" class="ghost-btn chart-adopt" data-act="adopt" style="width:100%; margin-top:4px;">🎨 ${t("animator.charts.adopt", "Aus Daten-Animator übernehmen")}</button>
+      <div class="chart-style-note muted-note">${hasStyle ? t("animator.charts.style_custom", "Eigener Stil übernommen") : t("animator.charts.style_default", "Standard-Stil")}</div>
+    </div>`;
+  }
+
+  function _chartsRenderList() {
+    const list = document.getElementById("anim-charts-list");
+    const empty = document.getElementById("anim-charts-empty");
+    if (!list) return;
+    list.innerHTML = _charts.map((c, i) => _chartCardHtml(c, i)).join("");
+    if (empty) {
+      empty.textContent = _charts.length ? "" :
+        (_chartSeries.length ? t("animator.charts.empty", "Noch keine Diagramme hinzugefuegt.")
+                             : t("animator.charts.empty_nogpx", "Erst einen Track laden, dann Diagramme hinzufuegen."));
+    }
+  }
+
+  function _chartById(id) { return _charts.find((c) => c.id === id) || null; }
+
+  function _chartAdopt(id) {
+    const ch = _chartById(id);
+    if (!ch) return;
+    _animPushUndo("Diagramm-Stil übernommen", { force: true });
+    let style = null;
+    try {
+      const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      style = proj && proj.heightanim && proj.heightanim.chart_style;
+    } catch (_) {}
+    if (style && typeof style === "object") {
+      ch.style = JSON.parse(JSON.stringify(style));
+      // v0.9.443 — die im Daten-Animator gewählte Serie mitnehmen, wenn der Track
+      // sie hergibt (sonst bleibt die Karten-Serie).
+      if (style.series_a && _chartSeries.some((s) => s.id === style.series_a)) ch.series = style.series_a;
+      ch.series_b = (style.series_b && _chartSeries.some((s) => s.id === style.series_b)) ? style.series_b : "";
+      if (typeof toast === "function") toast(t("animator.charts.adopt_ok", "Stil aus dem Daten-Animator übernommen."), "ok", 2500);
+    } else {
+      // v0.9.444 — nichts im Daten-Animator eingestellt: sauber auf den STANDARD-
+      // Stil zurücksetzen (identisch zum Aussehen eines frischen Diagramms und zum
+      // Daten-Animator-Default) statt eine Warnung zu zeigen.
+      ch.style = null;
+      if (typeof toast === "function") toast(t("animator.charts.adopt_default", "Standard-Stil übernommen (im Daten-Animator ist noch nichts eingestellt)."), "info", 3000);
+    }
+    _chartsPersist();
+    _chartsRenderList();
+    _chartsPreviewRender(true);
+  }
+
+  function _chartsBindUi() {
+    const list = document.getElementById("anim-charts-list");
+    const addBtn = document.getElementById("anim-chart-add");
+    if (addBtn && !addBtn._bound) {
+      addBtn._bound = true;
+      addBtn.addEventListener("click", () => {
+        _animPushUndo("Diagramm hinzugefügt", { force: true });
+        _charts.push(_chartDefault());
+        _chartsPersist(); _chartsRenderList(); _chartsPreviewRender(true);
+      });
+    }
+    if (list && !list._bound) {
+      list._bound = true;
+      const onEdit = (e) => {
+        const card = e.target.closest("[data-chart-id]");
+        if (!card) return;
+        const ch = _chartById(card.getAttribute("data-chart-id"));
+        if (!ch) return;
+        const act = e.target.getAttribute("data-act");
+        if (!act) return;
+        // Undo VOR der Mutation (throttled → ein Slider-Zug = ein Schritt).
+        _animPushUndo("Diagramm angepasst");
+        let sigChange = false;
+        if (act === "series") { ch.series = e.target.value; sigChange = true; }
+        else if (act === "pos") { ch.position = e.target.value; }
+        else if (act === "w") { ch.width = parseInt(e.target.value, 10) || 640; card.querySelector('[data-val="w"]').textContent = ch.width; sigChange = true; }
+        else if (act === "h") { ch.height = parseInt(e.target.value, 10) || 300; card.querySelector('[data-val="h"]').textContent = ch.height; sigChange = true; }
+        else if (act === "fgop") { ch.fg_opacity = _chartClampOp(e.target.value, 100); card.querySelector('[data-val="fgop"]').textContent = ch.fg_opacity + "%"; }
+        else if (act === "bgop") { ch.bg_opacity = _chartClampOp(e.target.value, 100); card.querySelector('[data-val="bgop"]').textContent = ch.bg_opacity + "%"; }
+        else if (act === "from") { ch.from_s = parseFloat(e.target.value) || 0; }
+        else if (act === "to") { ch.to_s = parseFloat(e.target.value) || 0; }
+        else return;
+        _chartsPersist();
+        _chartsPreviewRender(sigChange);
+      };
+      list.addEventListener("change", onEdit);
+      list.addEventListener("input", onEdit);
+      list.addEventListener("click", (e) => {
+        const card = e.target.closest("[data-chart-id]");
+        if (!card) return;
+        const act = e.target.getAttribute("data-act");
+        const id = card.getAttribute("data-chart-id");
+        if (act === "del") {
+          _animPushUndo("Diagramm entfernt", { force: true });
+          _charts = _charts.filter((c) => c.id !== id);
+          delete _chartPreviewSig[id];
+          _chartsPersist(); _chartsRenderList(); _chartsPreviewRender(true);
+        } else if (act === "adopt") {
+          _chartAdopt(id);
+        }
+      });
+    }
+  }
+
+  // ── Live-Vorschau ─────────────────────────────────────────────────────────
+  function _chartPosStyle(pos, m) {
+    switch (pos) {
+      case "tl": return `top:${m}px;left:${m}px;`;
+      case "tc": return `top:${m}px;left:50%;transform:translateX(-50%);`;
+      case "tr": return `top:${m}px;right:${m}px;`;
+      case "ml": return `top:50%;left:${m}px;transform:translateY(-50%);`;
+      case "cc": return `top:50%;left:50%;transform:translate(-50%,-50%);`;
+      case "mr": return `top:50%;right:${m}px;transform:translateY(-50%);`;
+      case "bl": return `bottom:${m}px;left:${m}px;`;
+      case "bc": return `bottom:${m}px;left:50%;transform:translateX(-50%);`;
+      case "br": default: return `bottom:${m}px;right:${m}px;`;
+    }
+  }
+
+  function _chartFracToDist(frac) {
+    frac = Math.max(0, Math.min(1, frac || 0));
+    const sr = _ovSeries;
+    if (sr && sr.cumDistM && sr.cumDistM.length > 1) {
+      const n = sr.cumDistM.length;
+      const i = Math.round(frac * (n - 1));
+      const span = (sr.cumDistM[n - 1] - sr.cumDistM[0]) || 1;
+      return (sr.cumDistM[i] - sr.cumDistM[0]) / span;
+    }
+    return frac;
+  }
+
+  // v0.9.445 — Inline-SVG-Vorschau (KEIN iframe). WKWebView (macOS) rendert
+  // transparente iframe-Bereiche weiß; ein direkt ins DOM eingebettetes SVG
+  // dagegen komponiert korrekt über die Karte. Pro Diagramm:
+  //   box  (positioniert, w×h, overflow hidden)
+  //    ├─ bg-DIV  (rgba(farbe, bgDeckkraft) → Karte scheint bei <1 durch)
+  //    └─ host    (das transparente Inline-SVG + sein <script>)
+  // fg-Deckkraft steckt als opacity direkt im SVG (nur Kurve/Text), entkoppelt
+  // vom Hintergrund. Getrieben wird über window.__rzInlineCharts[inlineId](df).
+  function _chartInlineId(chId) {
+    return "p" + String(chId || "").replace(/[^A-Za-z0-9_]/g, "");
+  }
+  function _chartInjectInline(host, html, inlineId) {
+    // SVG + Script aus dem gelieferten Voll-HTML extrahieren und live einbetten.
+    try {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const svgEl = doc.getElementById("rzc-" + inlineId) || doc.querySelector("svg");
+      const scrEl = doc.querySelector("script");
+      host.innerHTML = "";
+      if (svgEl) host.innerHTML = svgEl.outerHTML;   // HTML-Parser → korrekter SVG-Namespace
+      if (scrEl) {
+        const s = document.createElement("script");
+        s.textContent = scrEl.textContent || "";
+        host.appendChild(s);                         // führt IIFE aus → registriert advance-fn, draw(0)
+      }
+    } catch (_) { host.innerHTML = ""; }
+  }
+
+  // Diagramm-Boxen im eigenen Layer diffen (nicht neu bauen → kein Flackern).
+  // fetchNew=true erzwingt Neu-Holen des Inline-SVGs (Serie/Stil/Größe geändert).
+  function _chartsPreviewRender(fetchNew) {
+    const layer = document.getElementById("anim-charts-preview");
+    if (!layer) return;
+    const _gpxNow = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+    if (_isReiseroute || !_charts.length || !_gpxNow) { layer.innerHTML = ""; return; }
+    // Der Layer wird (wie #anim-overlay-preview) im RENDER-Pixel-Raum
+    // dimensioniert + per transform:scale auf die Letterbox verkleinert.
+    // Boxen also in Render-px positionieren, Skala = --overlay-scale (= rh/1080),
+    // identisch zu core/animator.py._overlay_scale → WYSIWYG zum Render.
+    const psc = parseFloat(getComputedStyle(layer).getPropertyValue("--overlay-scale")) || 1;
+    const m = Math.round(40 * psc);
+    const master = document.getElementById("anim-overlays")?.checked ?? true;
+    if (!master) { layer.innerHTML = ""; return; }
+    const seen = {};
+    _charts.forEach((ch) => {
+      seen[ch.id] = true;
+      const inlineId = _chartInlineId(ch.id);
+      let box = layer.querySelector(`.chart-ov-prev[data-chart-id="${ch.id}"]`);
+      if (!box) {
+        box = document.createElement("div");
+        box.className = "chart-ov-prev";
+        box.setAttribute("data-chart-id", ch.id);
+        box.setAttribute("data-inline-id", inlineId);
+        const bg = document.createElement("div");
+        bg.className = "chart-ov-prev-bg";
+        const host = document.createElement("div");
+        host.className = "chart-ov-prev-host";
+        box.appendChild(bg);
+        box.appendChild(host);
+        layer.appendChild(box);
+      }
+      const w = Math.round(ch.width * psc), h = Math.round(ch.height * psc);
+      const fgOpN = _chartClampOp(ch.fg_opacity, 100) / 100;   // → im SVG gebacken
+      const bgOpN = _chartClampOp(ch.bg_opacity, 100) / 100;   // → hier als bg-DIV
+      // Hintergrund als eigenes DIV: rgba(farbe, bgDeckkraft) über der Karte.
+      // Bei 0 vollständig transparent → Karte scheint durch (echtes WYSIWYG).
+      const bgc = _chartHex2rgb((ch.style && ch.style.background_color) || "#1a1a1a");
+      const _bgCss = `rgba(${bgc[0]},${bgc[1]},${bgc[2]},${bgOpN.toFixed(3)})`;
+      box.style.cssText = `position:absolute;overflow:hidden;pointer-events:none;`
+        + `width:${w}px;height:${h}px;`
+        + _chartPosStyle(ch.position, m);
+      const bgDiv = box.querySelector(".chart-ov-prev-bg");
+      if (bgDiv) bgDiv.style.cssText = `position:absolute;inset:0;background:${_bgCss};`;
+      const host = box.querySelector(".chart-ov-prev-host");
+      if (host) host.style.cssText = `position:absolute;inset:0;`;
+      // Inline-SVG nur neu holen wenn sich Serie/Stil/Größe/fg geändert hat
+      // (bg steckt NICHT mehr im SVG → nicht Teil der Fetch-Signatur).
+      const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+      const sig = JSON.stringify([ch.series, ch.series_b, ch.style, w, h, fgOpN, gpxPath]);
+      if (fetchNew || _chartPreviewSig[ch.id] !== sig) {
+        _chartPreviewSig[ch.id] = sig;
+        const cid = ch.id;
+        if (gpxPath && host) {
+          api().animator_chart_preview_html({
+            gpx_path: gpxPath, series: ch.series, series_b: ch.series_b,
+            style: ch.style || {}, width: w, height: h,
+            fg_opacity: fgOpN, bg_opacity: bgOpN, inline_id: inlineId,
+            overlay_field_overrides: (typeof _ovOverrides === "function") ? _ovOverrides() : {},
+          }).then((res) => {
+            // Stale-Guard: beim schnellen Ziehen laufen mehrere Fetches; nur die
+            // noch aktuelle Antwort einbetten (kein Zurückspringen).
+            if (res && res.ok && res.html && _chartPreviewSig[cid] === sig) {
+              _chartInjectInline(host, res.html, inlineId);
+              // direkt auf den aktuellen Scrub-Fortschritt setzen
+              try {
+                const fn = window.__rzInlineCharts && window.__rzInlineCharts[inlineId];
+                if (fn) fn(_chartFracToDist(_chartLastFrac));
+              } catch (_) {}
+            }
+          }).catch(() => {});
+        }
+      }
+    });
+    // verwaiste Boxen entfernen (+ Registrierung freigeben)
+    Array.prototype.slice.call(layer.querySelectorAll(".chart-ov-prev")).forEach((b) => {
+      if (!seen[b.getAttribute("data-chart-id")]) {
+        try {
+          const iid = b.getAttribute("data-inline-id");
+          if (iid && window.__rzInlineCharts) delete window.__rzInlineCharts[iid];
+        } catch (_) {}
+        b.remove();
+      }
+    });
+  }
+
+  function _chartsPreviewAdvance(frac) {
+    _chartLastFrac = Math.max(0, Math.min(1, frac || 0));
+    const layer = document.getElementById("anim-charts-preview");
+    if (!layer) return;
+    const df = _chartFracToDist(_chartLastFrac);
+    const reg = window.__rzInlineCharts || {};
+    Array.prototype.slice.call(layer.querySelectorAll(".chart-ov-prev")).forEach((b) => {
+      try {
+        const iid = b.getAttribute("data-inline-id");
+        if (iid && typeof reg[iid] === "function") reg[iid](df);
+      } catch (_) {}
+    });
+  }
+
+  function _chartsInit() {
+    _chartsLoad();
+    _chartsRenderList();
+    _chartsBindUi();
+    _chartsPreviewRender(true);
+  }
+  // global erreichbar für Debug / Teardown
+  window.__rzChartsPreviewRender = _chartsPreviewRender;
+
   // Initialer Editor-Aufbau — hier sind Katalog-Consts + _gpxStats sicher initialisiert.
   _ovRebuildEditors();
 
   /** Spiegelt die Render-Overlays als HTML-Layer auf der Preview-Karte.
    *  Wird gerufen bei Mount, GPX-Load, Color-/Toggle-/Position-Change. */
   function renderOverlayPreview() {
+    // v0.9.443 — Diagramm-Overlays im eigenen Layer aktuell halten (Position/
+    // Größe/Deckkraft; kein srcdoc-Refetch wenn unverändert). Läuft VOR den
+    // Early-Returns, damit auch das Leeren bei Reiseroute/Master-Aus greift.
+    try { _chartsPreviewRender(false); } catch (_) {}
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer) return;
     // v0.9.215 — Reiseroute hat keine Stats-Overlays (Sektion entfernt). Ohne
@@ -8334,7 +8773,9 @@ function mountAnimator(body, headerActions, opts) {
     _ovSeries = res.series || null;
     _ovSensorFields = res.sensor_fields || [];   // v0.9.330 — FIT-Sensorfelder für den Live-Katalog
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
+    _chartSeries = res.chart_series || [];       // v0.9.443 — Diagramm-Serien-Auswahl
     try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
+    try { _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {}
     // Stats-Bar umschalten: Empty-Hint aus, Karten an
     document.getElementById("anim-stats-empty").hidden = true;
     document.getElementById("anim-stats-cards").hidden = false;
@@ -8664,7 +9105,9 @@ function mountAnimator(body, headerActions, opts) {
     _ovSeries = res.series || null;
     _ovSensorFields = res.sensor_fields || [];   // v0.9.330 — FIT-Sensorfelder für den Live-Katalog
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
+    _chartSeries = res.chart_series || [];       // v0.9.443 — Diagramm-Serien-Auswahl
     try { _ovRebuildEditors(); } catch (_) {}   // v0.9.321 — Feld-Verfügbarkeit aktualisieren
+    try { _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {}
     try {
       document.getElementById("anim-stats-empty").hidden = true;
       document.getElementById("anim-stats-cards").hidden = false;
@@ -9441,6 +9884,8 @@ function mountAnimator(body, headerActions, opts) {
       overlay_totals_fields: _ovGetFields("totals"),
       overlay_live_fields: _ovGetFields("live"),
       overlay_field_overrides: _ovOverrides(),   // v0.9.334 — Umbenennung/Einheit
+      // v0.9.443 — Daten-Diagramme als Overlay (mehrere möglich)
+      charts: (typeof _charts !== "undefined") ? _charts.map((c) => Object.assign({}, c)) : [],
       overlay_font: document.getElementById("anim-ov-font")?.value || "system",
       overlay_text_color: document.getElementById("anim-ov-textcolor")?.value || "#ffffff",
       overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",

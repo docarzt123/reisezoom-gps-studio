@@ -14,6 +14,93 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.446] – 2026-07-20
+### Behoben
+- **App startet jetzt auch ohne Internet.** Die Karten-Bibliotheken (Mapbox GL JS,
+  MapLibre GL JS, Leaflet) wurden bisher bei jedem Start aus dem Netz nachgeladen
+  (`api.mapbox.com`, `unpkg.com`). Ohne Internet, hinter einer Firewall oder mit
+  einem DNS-/Werbe-Filter blockierte das den Start komplett — die App zeigte nur ein
+  **weißes Fenster** mit stehengebliebener Platzhalter-Version „v0.2". Die
+  Bibliotheken liegen jetzt **im Programm selbst**; beim Start geht keine
+  Internet-Anfrage mehr raus (gut für Offline-Nutzung und Datenschutz).
+### Hinzugefügt
+- **Verständlicher Fehler-Bildschirm statt weißem Fenster.** Kann die Oberfläche
+  nicht geladen werden, erscheint jetzt eine lesbare Meldung mit der konkreten
+  Ursache, dem **Pfad zur Logdatei**, einem Knopf **„Log-Ordner öffnen"** und einer
+  Anleitung, was zu schicken ist. Der Fehler wird zusätzlich automatisch ins
+  `app.log` geschrieben. Greift bei JavaScript-Fehlern, fehlenden Programmdateien,
+  fehlgeschlagener Initialisierung und als Zeitüberschreitung nach 25 Sekunden.
+- **Geräte-Infos landen automatisch im Log.** Beim Start schreibt die App jetzt
+  Mac-Modell, Chip und Arbeitsspeicher mit (z. B. `iMac21,1 · Apple M1 · 16 GB`),
+  dazu einen Hinweis, falls sie unter Rosetta läuft. Im Support-Fall entfällt damit
+  das Nachfragen nach „Über diesen Mac" — die Logdatei reicht. Das passiert noch
+  bevor die Oberfläche geladen wird, also auch dann, wenn der Start scheitert.
+### Geändert
+- Credits: **MapLibre GL JS** (BSD-3-Clause) ergänzt; Mapbox GL JS, MapLibre und
+  Leaflet sind jetzt als „gebündelt" gekennzeichnet.
+
+## [0.9.445] – 2026-07-17
+### Dokumentation
+- **Benutzerhandbuch mit Screenshots (DE/EN/ES).** Der Abschnitt „📊 Diagramme
+  im Video" hat jetzt zwei Bilder — ein fertiges Video mit zwei Diagrammen und
+  die Diagramm-Karte in der Seitenleiste — und beschreibt die getrennte Vorder-/
+  Hintergrund-Deckkraft. Der HTML-Generator (`scripts/build_user_guide_html.py`)
+  unterstützt jetzt Markdown-Bilder und bettet lokale Screenshots als base64-Data-
+  URIs ein, damit die in-App-Hilfe eigenständig bleibt (keine Extra-Bilddateien).
+### Behoben
+- **Diagramm-Hintergrund in der Vorschau jetzt echt transparent.** Steht die
+  Hintergrund-Deckkraft eines Diagramms unter 100 %, scheint in der Vorschau nun
+  wirklich die Karte durch (vorher zeigte macOS/WKWebView bei transparentem
+  iframe-Bereich einen weißen Kasten). Die Diagramm-Vorschau wird dafür ohne
+  iframe direkt als SVG in die Seite eingebettet — Vorder- und Hintergrund-
+  Deckkraft wirken jetzt sauber getrennt (Hintergrund als eigene Ebene hinter dem
+  Diagramm, Vordergrund über die SVG-Deckkraft). Der exportierte Video-Render war
+  bereits korrekt und bleibt unverändert.
+
+## [0.9.444] – 2026-07-17
+### Hinzugefügt
+- **Diagramm-Overlays: Hintergrundfarbe + getrennte Deckkraft.** Die im
+  Daten-Animator gewählte **Hintergrundfarbe** wird jetzt ins Overlay übernommen
+  (lag vorher immer transparent). Vordergrund (Diagramm-Inhalt) und Hintergrund
+  haben je einen eigenen **Deckkraft-Regler** — so lässt sich z. B. eine dezent
+  getönte Box unter der Kurve legen, ohne die Karte ganz zu verdecken.
+### Behoben
+- Diagramm-Overlays waren in der **Vorschau nicht sichtbar** — der Diagramm-Layer
+  wurde nicht auf die Kartengröße dimensioniert und dadurch weggeschnitten. Jetzt
+  identisch zur Stats-Overlay-Vorschau positioniert.
+- Beim **Anlegen/Wechseln eines Projekts** blieb das Diagramm des vorherigen
+  Projekts stehen. Diagramme werden jetzt (wie die übrigen Projekt-Einstellungen)
+  beim Projektwechsel aus dem neuen Projekt neu geladen.
+- **Rückgängig (⌘Z/Strg+Z)** wirkt jetzt auch auf die Diagramme — Hinzufügen,
+  Entfernen, „Übernehmen" und alle Regler (Reihe, Position, Größe, Deckkraft,
+  Zeitfenster) lassen sich rückgängig machen und wiederherstellen.
+- Nach einem **App-Neustart** zeigte die Animator-Vorschau den ganzen Track,
+  obwohl „ganzen Track zeigen" aus war. Die Vorschau wird jetzt direkt nach dem
+  Karten-Aufbau korrekt auf die Scrubber-Position zugeschnitten.
+- Der **Hintergrund eines Diagramms war in der Vorschau weiß** (WKWebView zeigte
+  eine weiße iframe-Basis statt der Hintergrundfarbe). Das Diagramm bekommt seine
+  Hintergrundfarbe jetzt direkt — Standard ist das dunkle Daten-Animator-Aussehen.
+- „Aus Daten-Animator übernehmen" zeigte eine Warnung, wenn dort nichts
+  eingestellt war. Es übernimmt jetzt sauber den **Standard-Stil** (identisch zu
+  einem frischen Diagramm und zum Daten-Animator-Default).
+
+## [0.9.443] – 2026-07-17
+### Hinzugefügt
+- **Daten-Diagramme als Overlay im Animator.** Man kann jetzt beliebig viele
+  voll gestaltete Datenreihen-Diagramme (Höhe, Puls, Tempo, Leistung …, inkl.
+  Farbzonen und zweiter Y-Achse) direkt ins Karten-Video einblenden. Neue
+  Sidebar-Sektion **📊 Diagramme**: „Diagramm hinzufügen" legt eine Karte an mit
+  Datenreihen-Auswahl, Position (9 Ecken/Mitten), Breite/Höhe, Deckkraft und
+  Zeitfenster. Der Look wird im **Daten-Animator** gestaltet und per **„Aus
+  Daten-Animator übernehmen"** in das Diagramm übernommen — WYSIWYG, weil Render
+  und Vorschau dieselbe Zeichen-Quelle nutzen.
+- Jedes Diagramm läuft **synchron zum Punkt auf der Karte**: der Marker sitzt
+  exakt über der aktuellen Position (distanz-genau, unabhängig von der
+  Punktdichte des Tracks). Funktioniert auch im Alpha-Export (transparenter
+  ProRes-4444-Overlay-Layer für Premiere/Final Cut/DaVinci).
+- Das bisherige einfache **Höhenprofil-Overlay** bleibt unverändert erhalten —
+  die Diagramme sind additiv, kein bestehendes Projekt ändert sich.
+
 ## [0.9.442] – 2026-07-17
 ### Behoben
 - **Daten-Animator: die Einheit neben der Farbschwelle war fix „m"** — bei Puls

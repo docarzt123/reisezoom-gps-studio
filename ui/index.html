@@ -3,6 +3,139 @@
 <head>
 <meta charset="utf-8">
 <title>Reisezoom GPS Studio</title>
+
+<!-- ══ v0.9.446 — START-DIAGNOSE ══════════════════════════════════════════
+     MUSS als ERSTES Script laufen und ist bewusst reines ES5 (kein let/const,
+     keine Arrow-Functions, kein optional chaining). Grund: wenn eine spätere
+     Datei gar nicht lädt ODER moderne Syntax auf einer alten WebKit-Version
+     nicht geparst werden kann, ist dieses Script die letzte Instanz, die dem
+     Nutzer noch etwas Lesbares zeigen kann — statt eines weißen Fensters.
+     Es meldet den Fehler zusätzlich ins app.log (über die pywebview-Bridge). -->
+<script>
+(function () {
+  var shown = false;
+  window.__rzBooted = false;
+  window.__rzStartErrors = [];
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function logPath() {
+    var p = (navigator.platform || '') + ' ' + (navigator.userAgent || '');
+    if (/Win/i.test(p)) return '%APPDATA%\\Reisezoom GPS Studio\\logs\\app.log';
+    if (/Mac|iPhone|iPad/i.test(p)) return '~/Library/Application Support/Reisezoom GPS Studio/logs/app.log';
+    return '~/.local/share/Reisezoom GPS Studio/logs/app.log';
+  }
+  function toBackend(msg) {
+    try {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.log_js) {
+        window.pywebview.api.log_js('error', 'STARTFEHLER: ' + msg);
+      }
+    } catch (e) {}
+  }
+
+  window.__rzShowStartError = function (title, detail) {
+    window.__rzStartErrors.push(title + ' | ' + detail);
+    toBackend(title + ' | ' + detail);
+    if (shown) return;
+    shown = true;
+
+    var BTN = 'font:600 13px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;' +
+      'border:0;border-radius:8px;padding:9px 15px;cursor:pointer;margin-right:8px;';
+    var lp = logPath();
+    var box = document.createElement('div');
+    box.id = 'rz-start-error';
+    box.setAttribute('style',
+      'position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483647;' +
+      'background:#0e1117;color:#c9d1d9;overflow:auto;padding:30px 22px;' +
+      'font:14px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif');
+    box.innerHTML =
+      '<div style="max-width:640px;margin:0 auto">' +
+        '<div style="font-size:21px;font-weight:700;color:#fff;margin-bottom:6px">' +
+          'Reisezoom GPS Studio konnte nicht starten</div>' +
+        '<div style="color:#8b949e;margin-bottom:20px">' +
+          'Die Programmoberfläche konnte nicht geladen werden.</div>' +
+        '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px;margin-bottom:22px">' +
+          '<div style="color:#ff6b35;font-weight:600;margin-bottom:4px">' + esc(title) + '</div>' +
+          '<div style="color:#8b949e;font-size:12.5px;word-break:break-word">' + esc(detail) + '</div>' +
+        '</div>' +
+        '<div style="font-weight:600;color:#fff;margin-bottom:6px">Bitte schick uns die Logdatei</div>' +
+        '<div style="margin-bottom:10px">Darin steht genau, was schiefgelaufen ist:</div>' +
+        '<div style="background:#0a0d12;border:1px solid #30363d;border-radius:8px;padding:11px 13px;' +
+          'font:12.5px ui-monospace,SF Mono,Menlo,Monaco,monospace;color:#ffb38a;word-break:break-all;' +
+          'user-select:text;-webkit-user-select:text;margin-bottom:16px">' + esc(lp) + '</div>' +
+        '<div style="margin-bottom:20px">' +
+          '<button id="rz-open-log" style="' + BTN + 'background:#ff6b35;color:#fff">📂 Log-Ordner öffnen</button>' +
+          '<button id="rz-copy-log" style="' + BTN + 'background:#21262d;color:#c9d1d9">Pfad kopieren</button>' +
+        '</div>' +
+        '<div style="color:#8b949e;font-size:12.5px;border-top:1px solid #30363d;padding-top:14px">' +
+          'Falls der Button nicht geht: im Finder <b>„Gehe zu" → „Gehe zum Ordner…"</b> öffnen ' +
+          '(Tastenkürzel <b>⇧⌘G</b>) und den Pfad oben einfügen.<br>' +
+          'Schick die Datei <b>app.log</b> bitte zusammen mit einem Screenshot von ' +
+          '<b>Apple-Menü → „Über diesen Mac"</b> an Marc — damit ist das Problem meist sofort klar.' +
+        '</div>' +
+      '</div>';
+    (document.body || document.documentElement).appendChild(box);
+
+    var ob = document.getElementById('rz-open-log');
+    if (ob) ob.onclick = function () {
+      try { window.pywebview.api.open_log(); }
+      catch (e) { alert('Bitte den Pfad manuell im Finder öffnen:\n\n' + lp); }
+    };
+    var cb = document.getElementById('rz-copy-log');
+    if (cb) cb.onclick = function () {
+      try {
+        var t = document.createElement('textarea');
+        t.value = lp; document.body.appendChild(t); t.select();
+        document.execCommand('copy'); document.body.removeChild(t);
+        cb.textContent = '✓ Kopiert';
+      } catch (e) { alert(lp); }
+    };
+  };
+
+  // WICHTIG: Der Fehler-Bildschirm erscheint NUR solange die Oberfläche noch nicht
+  // steht (__rzBooted). Sonst würde ein harmloser später Fehler die laufende App
+  // zudecken. Ins app.log wandert der Fehler aber IMMER.
+  function fail(title, detail) {
+    if (window.__rzBooted) { toBackend(title + ' | ' + detail); return; }
+    window.__rzShowStartError(title, detail);
+  }
+
+  // 1) Klassische JS-Fehler (inkl. Syntaxfehler in nachgeladenen Dateien)
+  window.onerror = function (msg, src, line) {
+    fail('JavaScript-Fehler beim Start',
+      msg + (src ? ('  —  ' + String(src).split('/').pop() + ':' + line) : ''));
+    return false;
+  };
+  // 2) Datei konnte gar nicht geladen werden (<script>/<link> 404 o. ä.).
+  //    Resource-Fehler steigen nicht zu window.onerror auf → Capture-Phase.
+  window.addEventListener('error', function (e) {
+    var el = e && e.target;
+    if (el && (el.tagName === 'SCRIPT' || el.tagName === 'LINK')) {
+      fail('Programmdatei fehlt oder ist beschädigt',
+        'Nicht ladbar: ' + (el.src || el.href || '?') +
+        '  —  Bitte die App neu aus dem Original-Download installieren.');
+    }
+  }, true);
+  // 3) Abgelehnte Promises — der Start läuft async, ein Fehler darin landet
+  //    NICHT bei window.onerror. Häufigster echter Startfehler.
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    fail('Fehler beim Initialisieren',
+      (r && (r.message || r)) ? String(r.message || r) : 'Unbekannter Fehler');
+  });
+  // 4) Watchdog: nichts abgestürzt, aber die Oberfläche kommt trotzdem nicht hoch
+  //    (z. B. hängende Netzwerk-Anfrage) → nach 25 s trotzdem etwas Lesbares zeigen.
+  setTimeout(function () {
+    if (!window.__rzBooted) {
+      window.__rzShowStartError('Zeitüberschreitung beim Laden',
+        'Die Oberfläche hat sich nach 25 Sekunden nicht gemeldet.');
+    }
+  }, 25000);
+})();
+</script>
+
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/timeline.css">
 <!-- Modul-CSS (Cache-Buster patcht hier den ?v=... an) -->
@@ -10,14 +143,16 @@
 <link rel="stylesheet" href="../modules/geotagger/ui/module.css">
 <link rel="stylesheet" href="../modules/heightanim/ui/module.css">
 <link rel="stylesheet" href="../modules/gpxinspect/ui/module.css">
-<!-- Karten-Engines: Mapbox GL JS für Token-User, MapLibre GL JS als Fallback ohne Token (OSM-Tiles). MapLibre erbt das gleiche `mapboxgl`-Globale-Pattern, wir wrappen das in util.js. -->
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css" rel="stylesheet">
-<script src="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.js"></script>
-<link href="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.css" rel="stylesheet">
+<!-- Karten-Engines: Mapbox GL JS für Token-User, MapLibre GL JS als Fallback ohne Token (OSM-Tiles). MapLibre erbt das gleiche `mapboxgl`-Globale-Pattern, wir wrappen das in util.js.
+     v0.9.446 — LOKAL gebündelt (vorher CDN api.mapbox.com/unpkg.com). Ohne Internet
+     oder hinter einer Firewall blockierte das den Start komplett (weißes Fenster). -->
+<script src="vendor/mapbox-gl.js"></script>
+<link href="vendor/mapbox-gl.css" rel="stylesheet">
+<script src="vendor/maplibre-gl.js"></script>
+<link href="vendor/maplibre-gl.css" rel="stylesheet">
 <!-- v0.9.418 — Leaflet (leicht) NUR für den Tour-Map „HTML (Blog)"-Modus (Spar-Editor). -->
-<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="vendor/leaflet/leaflet.css" rel="stylesheet">
+<script src="vendor/leaflet/leaflet.js"></script>
 </head>
 <body>
 

@@ -585,7 +585,11 @@ async function openAboutModal() {
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://www.mapbox.com/legal/tos">Mapbox GL JS</a>
-            — Mapbox Terms of Service
+            — Mapbox Terms of Service (gebündelt)
+          </li>
+          <li>
+            <a href="#" class="md-about-link" data-url="https://maplibre.org/">MapLibre GL JS</a>
+            — BSD-3-Clause (Karten ohne Mapbox-Token, gebündelt)
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://leafletjs.com/">Leaflet</a>
@@ -858,6 +862,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   activeMod = available.includes(wanted) ? wanted : (available[0] || null);
   renderTabs();
   renderMod();
+
+  // v0.9.446 — Entwarnung an den Start-Watchdog in index.html: die Oberfläche
+  // steht (Tabs + Modul gerendert). Ohne dieses Signal blendet der Watchdog nach
+  // 25 s den Start-Fehler-Bildschirm mit dem Log-Pfad ein.
+  window.__rzBooted = true;
 
   // v0.9.27 (Nutzer-Feedback): letztes GPX automatisch wieder laden,
   // damit ein App-Restart nicht den Track verliert. Async, blockiert

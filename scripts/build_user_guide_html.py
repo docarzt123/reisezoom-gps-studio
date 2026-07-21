@@ -13,7 +13,9 @@ Aufruf manuell oder über build.sh:
 """
 from __future__ import annotations
 
+import base64
 import html as _html
+import mimetypes
 import re
 import sys
 from pathlib import Path
@@ -33,8 +35,35 @@ DST = ROOT / "docs" / "USER_GUIDE.html"
 
 
 # ── Minimal-Markdown-Parser ────────────────────────────────────────────────
-# Reicht für USER_GUIDE.md: Headings, Paragraphs, Code, Listen, Links.
+# Reicht für USER_GUIDE.md: Headings, Paragraphs, Code, Listen, Links, Bilder.
 # Wenn wir später eine richtige `markdown`-Library wollen: hier austauschen.
+
+IMG_BASE = ROOT / "docs"   # relative Bild-Pfade (z.B. img/foo.png) liegen unter docs/
+_IMG_CACHE: dict[str, str] = {}
+
+
+def _img_data_tag(alt_html: str, src: str) -> str:
+    """`<img>` für ein Bild. Lokale Pfade werden als base64-Data-URI eingebettet,
+    damit die HTML-Datei komplett eigenständig bleibt (WKWebView / Deploy / Bundle
+    brauchen keine Extra-Bilddateien). `alt_html` ist bereits HTML-escaped."""
+    src = src.strip()
+    data_src = src
+    if "://" not in src and not src.startswith("data:"):
+        if src in _IMG_CACHE:
+            data_src = _IMG_CACHE[src]
+        else:
+            p = (IMG_BASE / src).resolve()
+            try:
+                raw = p.read_bytes()
+                mime = mimetypes.guess_type(str(p))[0] or "image/png"
+                b64 = base64.b64encode(raw).decode("ascii")
+                data_src = f"data:{mime};base64,{b64}"
+                _IMG_CACHE[src] = data_src
+            except OSError:
+                sys.stderr.write(f"⚠️  Bild fehlt, bleibe bei Pfad: {src}\n")
+                data_src = src  # Fallback: relativer Pfad
+    return (f'<img class="doc-img" src="{data_src}" alt="{alt_html}" loading="lazy">')
+
 
 def _inline(s: str) -> str:
     """Inline-Markdown in einem Zeilen-Schnipsel zu HTML."""
@@ -59,6 +88,10 @@ def _inline_no_code(s: str) -> str:
     s = (s.replace("&lt;br&gt;", "<br>")
           .replace("&lt;br/&gt;", "<br>")
           .replace("&lt;br /&gt;", "<br>"))
+    # Bilder: ![alt](src) — MUSS vor den Links laufen (sonst frisst die Link-Regex
+    # das [alt](src) und lässt ein einsames "!" stehen). alt ist bereits escaped.
+    s = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)",
+               lambda m: _img_data_tag(m.group(1), m.group(2)), s)
     # Links: [text](url)
     s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)",
                lambda m: f'<a href="{m.group(2)}" target="_blank" rel="noopener">{m.group(1)}</a>', s)
@@ -128,6 +161,18 @@ def md_to_html(md: str) -> str:
         if re.match(r"^---+\s*$", line) or re.match(r"^___+\s*$", line):
             close_list()
             out.append("<hr>")
+            i += 1
+            continue
+
+        # Eigenständige Bild-Zeile → <figure> mit Bildunterschrift (alt-Text)
+        img_line = re.match(r"^!\[([^\]]*)\]\(([^)]+)\)\s*$", line)
+        if img_line:
+            close_list()
+            alt_raw, src = img_line.group(1), img_line.group(2)
+            tag = _img_data_tag(_html.escape(alt_raw), src)
+            cap = (f"<figcaption>{_inline(alt_raw)}</figcaption>"
+                   if alt_raw.strip() else "")
+            out.append(f"<figure>{tag}{cap}</figure>")
             i += 1
             continue
 
@@ -341,6 +386,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     border: none;
     border-top: 1px solid var(--border);
     margin: 2em 0;
+  }}
+
+  /* Screenshots / Bilder */
+  .doc-img {{
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+  }}
+  figure {{ margin: 1.6em 0; text-align: center; }}
+  figcaption {{
+    color: var(--text-muted);
+    font-size: 12.5px;
+    margin-top: 9px;
+    font-style: italic;
   }}
 
   table {{

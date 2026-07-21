@@ -252,6 +252,20 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 **Positionen (seit v0.9.284):** Stats-Boxen in einem **3×3-Raster** — vier Ecken plus **oben (↥)**, **unten (↧)**, **links (⇤)**, **rechts (⇥)** mittig und **Mitte (✛)** (z.B. für eine Titel-/Eröffnungs-Einblendung). Das **Höhenprofil** ist schmaler und bietet zusätzlich **oben breit / unten breit** (über die volle Breite).
 
+**📊 Diagramme im Video (seit v0.9.443):** In der Overlays-Sektion gibt es unter dem einfachen Höhenprofil den Abschnitt **📊 Diagramme**. Damit blendest du **beliebig viele** voll gestaltete Datenreihen-Diagramme direkt ins Karten-Video ein — Höhe, Puls, Tempo, Leistung und jede andere Reihe, die dein Track hergibt, inklusive **Farbzonen** und **zweiter Y-Achse**.
+
+![Zwei Diagramme im fertigen Video: das Höhenprofil unten über die volle Breite, die Tempo-Kurve rechts daneben — beide laufen synchron zur Position auf der Karte.](img/diagramme-im-video.jpg)
+
+- **„＋ Diagramm hinzufügen"** legt eine Karte an. Pro Diagramm wählst du die **Datenreihe**, die **Position** (9 Ecken/Mitten), **Breite** und **Höhe** sowie ein **Zeitfenster** (ab/bis Video-Sekunde).
+- **Vorder- und Hintergrund-Deckkraft getrennt (seit v0.9.445):** Mit **„Deckkraft Diagramm"** steuerst du die Kurve und Beschriftung, mit **„Deckkraft Hintergrund"** die Box dahinter. Ziehst du den **Hintergrund auf 0 %**, scheint die Karte vollständig durch und nur die Datenlinie schwebt über dem Video. Die Vorschau zeigt das jetzt **WYSIWYG** (echte Transparenz statt eines weißen Kastens).
+
+![Die Diagramm-Karte in der Seitenleiste: Datenreihe, Position, Breite/Höhe, getrennte Deckkraft für Diagramm (Vordergrund) und Hintergrund sowie „Aus Daten-Animator übernehmen".](img/diagramme-sidebar.png)
+
+- **Den Look gestaltest du im Daten-Animator** (Linienfarbe, Fläche, Farbzonen, Info-Leiste, Marker, zweite Reihe …) und klickst dann im Diagramm auf **„🎨 Aus Daten-Animator übernehmen"** — das Diagramm sieht danach genau so aus. So kannst du z.B. ein aufwendiges Puls-Diagramm einstellen, übernehmen und daneben ein zweites für die Höhe legen.
+- Jedes Diagramm **läuft synchron zum Punkt auf der Karte**: der Marker sitzt exakt über der aktuellen Position — das siehst du schon in der Vorschau beim Scrubben und im Probelauf.
+- Funktioniert auch im **Alpha-Export** (transparente ProRes-4444-.mov): die Diagramme liegen dann als eigener Overlay-Layer über deinem Video in Premiere / Final Cut / DaVinci.
+- Das **bisherige einfache Höhenprofil** bleibt unverändert — die Diagramme sind ein zusätzliches Werkzeug, kein Ersatz.
+
 **⏱ Zeitfenster pro Box** (seit v0.9.228): Unter jeder Overlay-Box kannst du
 einstellen, **ab welcher und bis zu welcher Video-Sekunde** sie eingeblendet
 wird — z.B. die Live-Box erst ab Sekunde 2 zeigen, oder die Totals-Box nach

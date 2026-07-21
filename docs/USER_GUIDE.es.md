@@ -247,6 +247,20 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 **Posiciones (desde v0.9.284):** las cajas de estadísticas en una **cuadrícula de 3×3** — las cuatro esquinas más **arriba (↥)**, **abajo (↧)**, **izquierda (⇤)**, **derecha (⇥)** centradas y **centro (✛)** (p. ej. para un rótulo de título/apertura). El **perfil de altitud** es más estrecho y ofrece además **arriba ancho / abajo ancho** (a lo largo de todo el ancho).
 
+**📊 Gráficos en el vídeo (desde v0.9.443):** en la sección de overlays, debajo del perfil de altitud sencillo, está el apartado **📊 Gráficos**. Con él superpones **tantos** gráficos de series de datos totalmente diseñados como quieras directamente sobre el vídeo del mapa — altitud, pulso, velocidad, potencia y cualquier otra serie que ofrezca tu track, incluyendo **zonas de color** y un **segundo eje Y**.
+
+![Dos gráficos en el vídeo final: el perfil de altitud a lo ancho abajo y la curva de velocidad a su derecha — ambos van sincronizados con la posición en el mapa.](img/diagramme-im-video.jpg)
+
+- **«＋ Añadir gráfico»** crea una tarjeta. Por cada gráfico eliges la **serie de datos**, la **posición** (9 esquinas/centros), el **ancho** y el **alto**, además de una **ventana temporal** (desde/hasta el segundo del vídeo).
+- **Opacidad de primer plano y de fondo por separado (desde v0.9.445):** con **«Opacidad del gráfico»** controlas la curva y las etiquetas, y con **«Opacidad del fondo»** la caja que hay detrás. Si bajas el **fondo a 0 %**, el mapa se transparenta por completo y solo la línea de datos flota sobre el vídeo. La vista previa lo muestra ahora **WYSIWYG** (transparencia real en lugar de una caja blanca).
+
+![La tarjeta de gráfico en la barra lateral: serie de datos, posición, ancho/alto, opacidad separada para el gráfico (primer plano) y el fondo, y «Adoptar del Animador de Datos».](img/diagramme-sidebar.png)
+
+- **El aspecto lo diseñas en el Animador de Datos** (color de línea, área, zonas de color, barra de información, marcador, segunda serie …) y luego pulsas **«🎨 Adoptar del Animador de Datos»** en el gráfico — después el gráfico se ve exactamente igual. Así puedes, por ejemplo, configurar un gráfico de pulso elaborado, adoptarlo y colocar un segundo para la altitud al lado.
+- Cada gráfico **va sincronizado con el punto del mapa**: el marcador se sitúa justo sobre la posición actual — ya lo ves en la vista previa al arrastrar el scrubber y en el ensayo.
+- Funciona también en la **exportación alfa** (ProRes 4444 .mov transparente): los gráficos quedan entonces como una capa de overlay propia sobre tu vídeo en Premiere / Final Cut / DaVinci.
+- El **perfil de altitud sencillo de siempre** permanece sin cambios — los gráficos son una herramienta adicional, no un sustituto.
+
 **⏱ Ventana temporal por caja** (desde v0.9.228): bajo cada caja de overlay puedes
 ajustar **a partir de qué segundo y hasta qué segundo del vídeo** se muestra
 — p. ej. mostrar la caja en directo solo a partir del segundo 2, u ocultar la caja de totales

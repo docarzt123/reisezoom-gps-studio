@@ -737,6 +737,11 @@ function mountHeightAnim(body, headerActions) {
             bg_stops: _bgStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
             line_stops: _lineStops.map(s => ({ id: s.id, ele: s.ele, color: s.color })),
             controls: _readHeightControls(),
+            // v0.9.443 — fertiger Stil-Snapshot, den der Animator als Diagramm-
+            // Overlay „übernehmen" kann (WYSIWYG: gleiche collectHeightParams-
+            // Quelle wie der Daten-Animator-Render). Projektweit lesbar, DOM-
+            // unabhängig (der Animator hat kein height-*-DOM wenn er aktiv ist).
+            chart_style: (function () { try { return collectHeightParams(); } catch (_) { return null; } })(),
           }
         }, { persistOnly: true });
       }
