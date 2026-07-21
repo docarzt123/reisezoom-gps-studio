@@ -21,6 +21,11 @@ function mountGpxInspect(body, headerActions) {
   let isUnmounted = false;
   let _points = [];        // editierbare Kopie: [{lat,lon,ele,time}]
   let _srcPath = null;     // konvertierte/gecachte GPX (für Sensor-Reparse)
+  // v0.9.456 — alle Quelldateien des aktuellen Tracks. Nach „Track anhängen"
+  // stammen die Punkte aus mehreren Dateien; jeder Punkt merkt sich per `si`
+  // seinen Index hierin, damit das Backend beim Speichern die Sensorwerte aus
+  // der RICHTIGEN Datei liest statt sie über die Naht zu interpolieren.
+  let _sources = [];
   let _origPath = null;    // v0.9.335 — Original-Datei des Nutzers (für Default-Speicherort)
   let _hasTime = false, _hasEle = false, _hasSensors = false;
   let _selA = null, _selB = null;   // Anker-Indizes (a <= b)
@@ -49,10 +54,15 @@ function mountGpxInspect(body, headerActions) {
   // Snapshot/Restore auf der kompletten _points-Liste. Vor jeder Operation
   // wird der Stand gepusht (force, kein Throttle — jede Aktion ist diskret).
   const _undo = (typeof window.createUndoController === "function") ? window.createUndoController({
-    snapshot: () => ({ points: JSON.parse(JSON.stringify(_points)), dirty: _dirty }),
+    // v0.9.456: `sources` gehört mit in den Snapshot — sonst bliebe nach dem
+    // Rückgängigmachen eines „Track anhängen" die Quelldatei in der Liste und
+    // die si-Indizes zeigten ins Leere.
+    snapshot: () => ({ points: JSON.parse(JSON.stringify(_points)), dirty: _dirty,
+                       sources: _sources.slice() }),
     apply: (snap) => {
       _points = JSON.parse(JSON.stringify((snap && snap.points) || []));
       _dirty = !!(snap && snap.dirty);
+      if (snap && Array.isArray(snap.sources)) _sources = snap.sources.slice();
       // A/B-Auswahl ist UI-Zustand (keine Daten) → nach Undo/Redo behalten, solange die
       // Anker-Indizes noch im Track liegen. Nur ungültige (out of range) verwerfen.
       const _n = _points.length;
@@ -141,6 +151,26 @@ function mountGpxInspect(body, headerActions) {
               ✂️ ${t("gpxinspect.delete", "Punkte zwischen A→B rausschneiden")}</button>
             <button class="btn gpxi-clear" id="gpxi-clearsel" disabled>${t("gpxinspect.clear_sel", "Auswahl aufheben")}</button>
           </details>
+          <hr class="gpxi-hr">
+          <!-- v0.9.456 — Mehrere Aufzeichnungen zu EINEM Track verbinden.
+               Der Sprung an der Nahtstelle wird bewusst NICHT automatisch
+               überbrückt: eine gerade Linie dort wäre eine erfundene Strecke.
+               Stattdessen beziffern wir die Lücke und verweisen aufs Heilen. -->
+          <div class="gpxi-mm-title">🔗 ${t("gpxinspect.join_title", "Tracks verbinden")}<span class="gpxi-q" data-tip="${t("gpxinspect.join_help", "Hängt eine weitere Aufzeichnung an diesen Track — z. B. wenn die Uhr mittendrin gestoppt hat oder eine Mehrtagestour als eine Datei pro Tag vorliegt. Sensordaten (Puls, Leistung …) bleiben pro Abschnitt erhalten.")}">?</span></div>
+          <div class="gpxi-fillrow">
+            <label>${t("gpxinspect.join_where", "Einfügen")}</label>
+            <select id="gpxi-join-mode">
+              <option value="append" selected>${t("gpxinspect.join_append", "am Ende")}</option>
+              <option value="prepend">${t("gpxinspect.join_prepend", "am Anfang")}</option>
+              <option value="time">${t("gpxinspect.join_time", "nach Uhrzeit")}</option>
+            </select>
+          </div>
+          <div class="gpxi-fillrow">
+            <label>${t("gpxinspect.join_pause", "Pause dazwischen")}</label>
+            <input type="number" id="gpxi-join-pause" min="0" max="86400" step="30" value="0"> s
+          </div>
+          <button class="btn gpxi-act" id="gpxi-join" disabled>➕ ${t("gpxinspect.join_run", "Weiteren Track anhängen …")}</button>
+          <div class="gpxi-note muted" id="gpxi-join-note"></div>
           <hr class="gpxi-hr">
           <div class="gpxi-mm-title">⛰ ${t("gpxinspect.ele_title", "Höhe korrigieren")}<span class="gpxi-q" data-tip="${t("gpxinspect.ele_help", "GPS-Höhe ist verrauscht. Lädt das Höhenprofil aus der Karte; darunter mischst du GPS und Karte mit dem Regler. Braucht Mapbox-Token + Internet.")}">?</span></div>
           <button class="btn gpxi-act" id="gpxi-ele-load">🗺 ${t("gpxinspect.ele_load", "Höhenprofil aus Karte laden")}</button>
@@ -310,8 +340,9 @@ function mountGpxInspect(body, headerActions) {
     // oi = Original-Index → beim Speichern behalten geheilte/unveränderte Punkte ihre
     // FIT/TCX-Sensorwerte (Herzfrequenz, Temperatur …). Eingefügte Punkte haben kein oi
     // (undefined) → Backend interpoliert deren Sensoren. v0.9.334 (Nutzer-Feedback).
-    _points = (res.points || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.i }));
+    _points = (res.points || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.i, si: 0 }));
     _srcPath = res.src || path;   // v0.9.295 — konvertierter GPX-Pfad (Fremdformate), sonst Original
+    _sources = [_srcPath];        // v0.9.456 — Quelle 0; „Track anhängen" hängt weitere an
     _origPath = path;             // v0.9.335 — Original-Datei (für Default-Speicherort beim „Speichern unter…")
     _hasTime = !!res.has_time; _hasEle = !!res.has_ele; _hasSensors = !!res.has_sensors;
     _selA = _selB = null; _dirty = false;
@@ -326,7 +357,7 @@ function mountGpxInspect(body, headerActions) {
   }
 
   function clearTrack() {
-    _points = []; _srcPath = null; _selA = _selB = null; _dirty = false;
+    _points = []; _srcPath = null; _sources = []; _selA = _selB = null; _dirty = false;
     try { if (map && map.getSource("gpxi-line")) map.getSource("gpxi-line").setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] } }); } catch (_) {}
     try { if (map && map.getSource("gpxi-pts")) map.getSource("gpxi-pts").setData({ type: "FeatureCollection", features: [] }); } catch (_) {}
     _eleInvalidate();
@@ -1624,9 +1655,12 @@ function mountGpxInspect(body, headerActions) {
     } catch (_) { dest = ""; }
     if (!dest) return;   // abgebrochen
     const fmt = String(dest).toLowerCase().endsWith(".tcx") ? "tcx" : "gpx";
-    const payload = _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi }));
+    const payload = _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi, si: p.si || 0 }));
     let res;
-    try { res = await api().gpxinspect_save(payload, _srcPath, dest, fmt); } catch (e) { res = { ok: false, error: String(e) }; }
+    try {
+      res = await api().gpxinspect_save(payload, _srcPath, dest, fmt,
+                                        _sources.length > 1 ? _sources : null);
+    } catch (e) { res = { ok: false, error: String(e) }; }
     if (isUnmounted) return;
     if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
     _dirty = false; updateUI();
@@ -1696,6 +1730,7 @@ function mountGpxInspect(body, headerActions) {
     setDisabled("gpxi-redo", _drawMode || !(_undo && _undo.canRedo()));
     // Auto-Despike: Button frei wenn Punkte da & nicht im Zeichnen-Modus.
     setDisabled("gpxi-heal-run", _drawMode || _mmBusy || !_points.length);
+    setDisabled("gpxi-join", _drawMode || _mmBusy || !_points.length);
     const spikeBox = document.getElementById("gpxi-spikebox");
     const nSpk = _spikes.length, nGap = _gaps.length;
     if (spikeBox) spikeBox.hidden = (nSpk === 0 && nGap === 0) || _drawMode;
@@ -1784,6 +1819,70 @@ function mountGpxInspect(body, headerActions) {
   { const sp = document.getElementById("gpxi-spacing");
     if (sp) sp.addEventListener("input", () => { if (_gaps.length) renderGaps(); }); }
   // v0.9.292 — Höhe korrigieren: Profil laden, live mischen, übernehmen
+  // ── Tracks verbinden (v0.9.456) ─────────────────────────────────────────
+  async function joinTrack() {
+    if (!_points.length) return;
+    const note = document.getElementById("gpxi-join-note");
+    let files;
+    try {
+      files = await api().pick_file("open", window.TRACK_PICK_FILTER || [], false);
+    } catch (_) { files = null; }
+    const path = files && files.length ? files[0] : null;
+    if (!path) return;   // abgebrochen
+
+    const mode = (document.getElementById("gpxi-join-mode") || {}).value || "append";
+    const pause = Number((document.getElementById("gpxi-join-pause") || {}).value) || 0;
+    const btn = document.getElementById("gpxi-join");
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ " + t("gpxinspect.join_working", "Hänge an …"); }
+    let res;
+    try {
+      res = await api().gpxinspect_append_track(
+        _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi, si: p.si || 0 })),
+        path, mode, pause, _sources.length);
+    } catch (e) { res = { ok: false, error: String(e) }; }
+    if (btn) { btn.disabled = false; btn.textContent = "➕ " + t("gpxinspect.join_run", "Weiteren Track anhängen …"); }
+    if (isUnmounted) return;
+    if (!res || !res.ok) {
+      const msg = (res && res.error) || t("gpxinspect.join_failed", "Anhängen fehlgeschlagen");
+      if (note) note.textContent = msg;
+      toast(msg, "error", 6000);
+      return;
+    }
+
+    _pushUndo(t("gpxinspect.join_undo", "Track anhängen"));
+    _sources.push(res.src);
+    _points = (res.points || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele,
+                                             time: p.time, oi: p.oi, si: p.si || 0 }));
+    _hasTime = _points.some(p => !!p.time);
+    _hasSensors = true;   // konservativ: die neue Quelle kann welche mitbringen
+    _selA = _selB = null; _dirty = true;
+    clearSpikes(); _eleInvalidate();
+    renderAll(); updateUI();
+    try { fitTrack(null); } catch (_) {}
+
+    // Die Naht ehrlich benennen statt sie zu kaschieren. Der Nutzer entscheidet,
+    // ob die Lücke bleibt (echte Pause) oder per Heilen geschlossen wird.
+    const m = res.meta || {};
+    const parts = [t("gpxinspect.join_added", "Angehängt:") + " " + (res.name || "") +
+                   " (+" + (m.count_b || 0) + " " + t("gpxinspect.points", "Punkte") + ")"];
+    if (m.gap_m != null) {
+      // Nahtstellen sind oft nur ein paar Meter — _fmtKm würde daraus „0.0 km"
+      // machen. Und _fmtDur rechnet in Millisekunden, gap_s kommt in Sekunden.
+      const gapTxt = m.gap_m < 1000 ? Math.round(m.gap_m) + " m" : _fmtKm(m.gap_m);
+      parts.push(t("gpxinspect.join_gap", "Lücke an der Naht:") + " " + gapTxt
+                 + (m.gap_s != null ? " / " + _fmtDur(m.gap_s * 1000) : ""));
+    }
+    if (m.time_mode === "shifted") {
+      parts.push(t("gpxinspect.join_shifted", "Zeiten des angehängten Tracks nach hinten verschoben (er überlappte)."));
+    } else if (m.time_mode === "none") {
+      parts.push(t("gpxinspect.join_notime", "Ohne Zeitstempel — Reihenfolge wie gewählt."));
+    }
+    parts.push(t('gpxinspect.join_hint', 'Die Lücke schließt du mit „Heilen → Lücken mit Punkten füllen“.'));
+    if (note) note.textContent = parts.join(" · ");
+    toast(parts[0], "success", 5000);
+  }
+  _on("gpxi-join", joinTrack);
+
   _on("gpxi-ele-load", loadEleProfile);
   _on("gpxi-ele-apply", applyEleBlend);
   { const ew = document.getElementById("gpxi-ele-weight"), ewl = document.getElementById("gpxi-ele-weight-val");

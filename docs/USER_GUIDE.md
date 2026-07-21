@@ -7,7 +7,7 @@ Module:
 - **Reiseroute** — Anreise als Video: Start/Ziel → berechnete Strecke animiert, das geladene GPX als Ghost
 - **Tour-Map** — GPX-Track als statisches PNG (z.B. für YouTube-Thumbnails)
 - **Geotagger** — GPS-Koordinaten aus GPX in JPG / RAW / Video-EXIF schreiben
-- **GPX-Inspektor** — Track Punkt-für-Punkt reparieren: Ausreißer heilen, Lücken füllen, Punkte verschieben, Anfang/Ende abschneiden
+- **GPX-Inspektor** — Track Punkt-für-Punkt reparieren: Ausreißer heilen, Lücken füllen, Punkte verschieben, Anfang/Ende abschneiden, mehrere Aufzeichnungen zu einem Track verbinden
 
 ---
 
@@ -790,6 +790,23 @@ Mit **‹ / Nächster ›** springst du durch die Ausreißer, **🩹 Alle heilen
 **Schleife/Abstecher rausschneiden:** Hast du im Track eine Stelle, die hin- und zurückläuft (z. B. ein alter Heil-Abstecher oder eine echte Wende, die du nicht im Video willst): unter **„Manuell bearbeiten (A→B)"** **Anker A** vor und **Anker B** nach der Stelle setzen, dann **✂️ Punkte zwischen A→B rausschneiden**. A und B bleiben, die Linie verbindet sie direkt. (⌘Z macht's rückgängig.)
 
 **„Ganzen Track auf Wegenetz snappen"** legt den **kompletten** Track auf Mapbox-Straßen und **überschreibt deine Punkte** — das kann an Kreuzungen Umwege/Schleifen erzeugen. Daher seit v0.9.315 mit **Warnung + 2-Klick-Bestätigung**. Für nur Lücken/Ausreißer lieber das normale **Heilen** nehmen.
+
+### 🔗 Tracks verbinden — seit v0.9.456
+Zwei Aufzeichnungen, die eigentlich **eine Tour** sind? Typisch, wenn die Uhr mittendrin gestoppt hat, der Akku leer war oder eine Mehrtagestour als **eine Datei pro Tag** vorliegt. Unter **„🔗 Tracks verbinden"** hängst du eine weitere Datei an den geladenen Track:
+
+1. **Einfügen** wählen: *am Ende* (Normalfall), *am Anfang*, oder *nach Uhrzeit* — dann entscheidet der Zeitstempel, was zuerst kommt.
+2. **Weiteren Track anhängen …** klicken und die Datei wählen (jedes unterstützte Format: GPX, FIT, TCX, KML …).
+
+Danach ist es **ein** Track: heilen, beschneiden, Höhe korrigieren, speichern — alles wie gewohnt. Auch in Animator, Tour-Map und Daten-Animator läuft er als Einheit.
+
+**Was mit den Uhrzeiten passiert:**
+- Liegt der angehängte Track **zeitlich nach** dem ersten, bleiben alle Zeitstempel **unverändert**. Die echte Pause dazwischen ist Teil deiner Tour und wird nicht wegretuschiert.
+- **Überlappen** sich beide (oder liegt der neue davor), wird er nach hinten verschoben — sonst liefe die Zeitachse rückwärts und Tempo, Dauer und Diagramme wären Unsinn. Mit **Pause dazwischen** legst du fest, wie viele Sekunden Abstand dabei entstehen.
+- **Ohne Zeitstempel** wird nichts verschoben, es zählt allein die gewählte Reihenfolge.
+
+**Die Lücke an der Nahtstelle** wird dir angezeigt (Entfernung und Zeit) — aber **nicht automatisch überbrückt**. Eine gerade Linie von A nach B wäre eine Strecke, die du nie gegangen bist. Willst du sie schließen, nimm danach **🩹 Heilen → „Lücken mit Punkten füllen"**: das routet entlang echter Wege.
+
+**Sensordaten** (Puls, Leistung, Trittfrequenz, Temperatur) bleiben pro Abschnitt bei ihrer eigenen Aufzeichnung — der Puls aus Track 1 wird nicht in Track 2 hineingerechnet.
 
 ### ⛰ Höhe korrigieren (Karte statt GPS) — seit v0.9.292
 GPS-Höhenwerte sind oft verrauscht — gerade bei wenig Empfang springt die Höhe um ein paar Meter hin und her, und am Ende stehen viel zu viele **Höhenmeter** in den Stats (z. B. 1800 statt 1400). Hier kannst du die **glatte Gelände-Höhe aus der Mapbox-Karte** (digitales Höhenmodell) mit deiner GPS-Höhe mischen — und siehst dabei **genau, was passiert**:

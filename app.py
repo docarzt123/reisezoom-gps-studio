@@ -91,6 +91,7 @@ from core import tourmap_html as ctourhtml  # v0.9.406: Tour-Map → interaktive
 from core import tourmap_leaflet as ctmleaflet  # v0.9.418: leichter Leaflet-Blog-Export (HTML-Modus)
 from core import sign_raster as csignraster  # v0.9.418: serverseitige Schild-Rasterung (WYSIWYG)
 from core import gpxedit as cgpxedit  # v0.9.233: GPX-Inspektor (Track heilen/füllen)
+from core import gpxmerge as cgpxmerge  # v0.9.456: mehrere Tracks zu einem verschmelzen
 from core import trackio as ctrackio  # v0.9.297: Track→GPX/CSV-String (geteilt mit Web)
 
 
@@ -132,7 +133,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.455"
+APP_VERSION = "0.9.456"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -3688,17 +3689,54 @@ class Api:
             log.error("gpxinspect_map_match: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
 
+    def gpxinspect_append_track(self, points: list, path: str,
+                                mode: str = "append", pause_s: float = 0.0,
+                                source_index: int = 1) -> dict:
+        """v0.9.456 — einen weiteren Track an den Track im Editor hängen.
+
+        `points` = aktueller Editor-Stand, `path` = anzuhängende Datei (jedes
+        unterstützte Format). `source_index` ist die Nummer, die die neuen Punkte
+        als `si` bekommen — das Frontend führt die Liste der Quelldateien und gibt
+        sie beim Speichern an `gpxinspect_save` zurück, damit die Sensorwerte
+        jedes Abschnitts aus der richtigen Datei kommen.
+
+        Returns {ok, points, meta, src, name} — `src` ist der (ggf. konvertierte)
+        GPX-Pfad der angehängten Datei.
+        """
+        try:
+            gpx_path = self._ensure_gpx(path)
+            loaded = cgpxedit.load_points(gpx_path)
+            if not loaded.get("ok"):
+                return loaded
+            res = cgpxmerge.merge(points or [], loaded.get("points") or [],
+                                  mode=mode, pause_s=float(pause_s or 0.0),
+                                  b_source_index=int(source_index))
+            if not res.get("ok"):
+                return res
+            res["src"] = gpx_path
+            res["name"] = Path(gpx_path).stem
+            m = res["meta"]
+            log.info("gpxinspect_append_track: +%d Punkte (%s), Zeit=%s, Lücke %.0f m / %s s",
+                     m["count_b"], m["mode"], m["time_mode"], m["gap_m"], m["gap_s"])
+            return res
+        except Exception as e:
+            log.error("gpxinspect_append_track: %s\n%s", e, traceback.format_exc())
+            return {"ok": False, "error": str(e)}
+
     def gpxinspect_save(self, points: list, src_path: str,
-                        out_path: str = "", fmt: str = "gpx") -> dict:
+                        out_path: str = "", fmt: str = "gpx",
+                        sources: list = None) -> dict:
         """Editierten Track speichern. `out_path` = vom „Speichern unter…"-Dialog
         gewählter Pfad (leer → Default `<name>_geheilt.gpx` neben der Quelle).
         `fmt` ∈ {gpx, tcx}; Sensoren werden eingebettet (v0.9.335). Original bleibt
-        unberührt."""
+        unberührt. `sources` (v0.9.456) = alle Quelldateien, wenn der Track aus
+        mehreren zusammengesetzt ist — Punkte verweisen über ihr `si` darauf."""
         try:
             out = out_path or cgpxedit.healed_output_path(src_path or "track.gpx")
             base = os.path.splitext(os.path.basename(out))[0]
             res = cgpxedit.save_points(points or [], out, name=base,
-                                       src_path=src_path, fmt=fmt)
+                                       src_path=src_path, fmt=fmt,
+                                       sources=list(sources) if sources else None)
             if res.get("ok"):
                 log.info("gpxinspect_save[%s]: %d Punkte → %s (Sensoren: %s)",
                          res.get("fmt"), res.get("count", 0), out, res.get("sensors_kept"))

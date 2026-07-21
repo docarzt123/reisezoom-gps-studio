@@ -194,7 +194,7 @@
 <li><strong>Reiseroute</strong> — Anreise als Video: Start/Ziel → berechnete Strecke animiert, das geladene GPX als Ghost</li>
 <li><strong>Tour-Map</strong> — GPX-Track als statisches PNG (z.B. für YouTube-Thumbnails)</li>
 <li><strong>Geotagger</strong> — GPS-Koordinaten aus GPX in JPG / RAW / Video-EXIF schreiben</li>
-<li><strong>GPX-Inspektor</strong> — Track Punkt-für-Punkt reparieren: Ausreißer heilen, Lücken füllen, Punkte verschieben, Anfang/Ende abschneiden</li>
+<li><strong>GPX-Inspektor</strong> — Track Punkt-für-Punkt reparieren: Ausreißer heilen, Lücken füllen, Punkte verschieben, Anfang/Ende abschneiden, mehrere Aufzeichnungen zu einem Track verbinden</li>
 </ul>
 <hr>
 <h2 id="1-installation">1 · Installation</h2>
@@ -840,6 +840,21 @@ python app.py</code></pre>
 <p><strong>Lücken füllen als</strong> (Profil): <strong>Luftlinie</strong> = gerade Verbindung (sicher, fasst nur die Lücke an). <strong>Wandern/Fahrrad/Auto</strong> = sucht die echte Route auf dem Wegenetz (Mapbox). ⚠️ <strong>Schutz seit v0.9.315:</strong> Falls die Straßen-Route einen großen <strong>Umweg/eine Schleife</strong> ergibt (Mapbox routet an Kreuzungen manchmal über Ausfahrt + Kreisel zurück), wird sie <strong>automatisch verworfen und die Lücke gerade gefüllt</strong> — so wird eine saubere Spur nicht mehr verbogen. Im Toast steht dann „… Umwege verworfen&quot;.</p>
 <p><strong>Schleife/Abstecher rausschneiden:</strong> Hast du im Track eine Stelle, die hin- und zurückläuft (z. B. ein alter Heil-Abstecher oder eine echte Wende, die du nicht im Video willst): unter <strong>„Manuell bearbeiten (A→B)&quot;</strong> <strong>Anker A</strong> vor und <strong>Anker B</strong> nach der Stelle setzen, dann <strong>✂️ Punkte zwischen A→B rausschneiden</strong>. A und B bleiben, die Linie verbindet sie direkt. (⌘Z macht&#x27;s rückgängig.)</p>
 <p><strong>„Ganzen Track auf Wegenetz snappen&quot;</strong> legt den <strong>kompletten</strong> Track auf Mapbox-Straßen und <strong>überschreibt deine Punkte</strong> — das kann an Kreuzungen Umwege/Schleifen erzeugen. Daher seit v0.9.315 mit <strong>Warnung + 2-Klick-Bestätigung</strong>. Für nur Lücken/Ausreißer lieber das normale <strong>Heilen</strong> nehmen.</p>
+<h3 id="tracks-verbinden-seit-v0-9-456">🔗 Tracks verbinden — seit v0.9.456</h3>
+<p>Zwei Aufzeichnungen, die eigentlich <strong>eine Tour</strong> sind? Typisch, wenn die Uhr mittendrin gestoppt hat, der Akku leer war oder eine Mehrtagestour als <strong>eine Datei pro Tag</strong> vorliegt. Unter <strong>„🔗 Tracks verbinden&quot;</strong> hängst du eine weitere Datei an den geladenen Track:</p>
+<ol>
+<li><strong>Einfügen</strong> wählen: <em>am Ende</em> (Normalfall), <em>am Anfang</em>, oder <em>nach Uhrzeit</em> — dann entscheidet der Zeitstempel, was zuerst kommt.</li>
+<li><strong>Weiteren Track anhängen …</strong> klicken und die Datei wählen (jedes unterstützte Format: GPX, FIT, TCX, KML …).</li>
+</ol>
+<p>Danach ist es <strong>ein</strong> Track: heilen, beschneiden, Höhe korrigieren, speichern — alles wie gewohnt. Auch in Animator, Tour-Map und Daten-Animator läuft er als Einheit.</p>
+<p><strong>Was mit den Uhrzeiten passiert:</strong></p>
+<ul>
+<li>Liegt der angehängte Track <strong>zeitlich nach</strong> dem ersten, bleiben alle Zeitstempel <strong>unverändert</strong>. Die echte Pause dazwischen ist Teil deiner Tour und wird nicht wegretuschiert.</li>
+<li><strong>Überlappen</strong> sich beide (oder liegt der neue davor), wird er nach hinten verschoben — sonst liefe die Zeitachse rückwärts und Tempo, Dauer und Diagramme wären Unsinn. Mit <strong>Pause dazwischen</strong> legst du fest, wie viele Sekunden Abstand dabei entstehen.</li>
+<li><strong>Ohne Zeitstempel</strong> wird nichts verschoben, es zählt allein die gewählte Reihenfolge.</li>
+</ul>
+<p><strong>Die Lücke an der Nahtstelle</strong> wird dir angezeigt (Entfernung und Zeit) — aber <strong>nicht automatisch überbrückt</strong>. Eine gerade Linie von A nach B wäre eine Strecke, die du nie gegangen bist. Willst du sie schließen, nimm danach <strong>🩹 Heilen → „Lücken mit Punkten füllen&quot;</strong>: das routet entlang echter Wege.</p>
+<p><strong>Sensordaten</strong> (Puls, Leistung, Trittfrequenz, Temperatur) bleiben pro Abschnitt bei ihrer eigenen Aufzeichnung — der Puls aus Track 1 wird nicht in Track 2 hineingerechnet.</p>
 <h3 id="h-he-korrigieren-karte-statt-gps-seit-v0-9-292">⛰ Höhe korrigieren (Karte statt GPS) — seit v0.9.292</h3>
 <p>GPS-Höhenwerte sind oft verrauscht — gerade bei wenig Empfang springt die Höhe um ein paar Meter hin und her, und am Ende stehen viel zu viele <strong>Höhenmeter</strong> in den Stats (z. B. 1800 statt 1400). Hier kannst du die <strong>glatte Gelände-Höhe aus der Mapbox-Karte</strong> (digitales Höhenmodell) mit deiner GPS-Höhe mischen — und siehst dabei <strong>genau, was passiert</strong>:</p>
 <ol>

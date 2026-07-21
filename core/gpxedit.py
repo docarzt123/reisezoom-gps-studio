@@ -72,6 +72,7 @@ def _parse_iso(s: Optional[str]) -> Optional[datetime]:
 def save_points(
     points: List[dict], out_path: str, *, name: str = "Geheilt",
     src_path: Optional[str] = None, fmt: str = "gpx",
+    sources: Optional[List[str]] = None,
 ) -> dict:
     """Editierten Track schreiben — als GPX **oder TCX**, mit eingebetteten Sensoren.
 
@@ -98,6 +99,7 @@ def save_points(
 
     pts: List[dict] = []
     oi_list: List[Optional[int]] = []   # Original-Index (oder None) je gültigem Punkt
+    si_list: List[int] = []             # v0.9.456: Nummer der Quelldatei je Punkt
     for p in points:
         try:
             lat = float(p["lat"]); lon = float(p["lon"])
@@ -113,11 +115,13 @@ def save_points(
         pts.append({"lat": lat, "lon": lon, "ele": ele_f, "time": p.get("time"), "extra": {}})
         oi = p.get("oi")
         oi_list.append(oi if isinstance(oi, int) else None)
+        si = p.get("si")
+        si_list.append(si if isinstance(si, int) and si >= 0 else 0)
     if len(pts) < 2:
         return {"ok": False, "error": "Zu wenige gültige Punkte"}
 
     # Sensoren re-indizieren und an die Punkte hängen (für den eingebetteten Export).
-    out_extra = _reindex_extra(oi_list, src_path)
+    out_extra = _reindex_extra(oi_list, src_path, si_list=si_list, sources=sources)
     has_sensors = bool(out_extra) and any(out_extra)
     if has_sensors:
         for pt, ex in zip(pts, out_extra):
@@ -143,26 +147,54 @@ def save_points(
 
 
 def _reindex_extra(
-    oi_list: List[Optional[int]], src_path: Optional[str]
+    oi_list: List[Optional[int]], src_path: Optional[str],
+    si_list: Optional[List[int]] = None, sources: Optional[List[str]] = None,
 ) -> List[Optional[dict]]:
-    """Sensorwerte des Quell-Tracks index-gleich auf den editierten Track mappen.
+    """Sensorwerte der Quell-Tracks index-gleich auf den editierten Track mappen.
     Unveränderte/geheilte Punkte (oi gesetzt) behalten ihren Wert, eingefügte
-    (oi=None) werden interpoliert. Leere Liste, wenn die Quelle keine Sensoren hat."""
-    if not src_path:
+    (oi=None) werden interpoliert. Leere Liste, wenn keine Quelle Sensoren hat.
+
+    v0.9.456 — mehrere Quellen: Seit dem Track-Merger können die Punkte aus
+    verschiedenen Dateien stammen. `si_list` sagt pro Punkt, aus welcher
+    (Index in `sources`, 0 = `src_path`). Die Interpolation läuft dann **pro
+    Quelle getrennt**: sonst würde `_interp_none_runs` den letzten Sensorwert
+    von Track A über die gesamte Länge von Track B fortschreiben und damit eine
+    Herzfrequenz erfinden, die nie gemessen wurde.
+    """
+    paths: List[str] = list(sources) if sources else ([src_path] if src_path else [])
+    if not paths:
         return []
-    try:
-        src_pts, _ = cgpx.parse_gpx(src_path)   # extra ist aus dem Quell-Sidecar gemergt
-    except Exception:
+    n = len(oi_list)
+    si_list = si_list or [0] * n
+
+    # Quelldateien einmal laden (extra ist aus dem jeweiligen Sidecar gemergt).
+    loaded: List[Optional[list]] = []
+    for p in paths:
+        try:
+            sp, _ = cgpx.parse_gpx(p)
+        except Exception:
+            sp = None
+        loaded.append(sp if sp and any(getattr(x, "extra", None) for x in sp) else None)
+    if not any(loaded):
         return []
-    if not src_pts or not any(getattr(sp, "extra", None) for sp in src_pts):
-        return []
-    nsrc = len(src_pts)
-    out_extra: List[Optional[dict]] = [None] * len(oi_list)
+
+    out_extra: List[Optional[dict]] = [None] * n
     for i, oi in enumerate(oi_list):
-        if oi is not None and 0 <= oi < nsrc:
+        si = si_list[i] if i < len(si_list) else 0
+        src_pts = loaded[si] if 0 <= si < len(loaded) else None
+        if src_pts and oi is not None and 0 <= oi < len(src_pts):
             ex = getattr(src_pts[oi], "extra", None)
             out_extra[i] = dict(ex) if ex else {}
-    _interp_none_runs(out_extra)   # eingefügte Punkte (oi=None) interpolieren
+
+    # Interpolation je zusammenhängendem Abschnitt derselben Quelle — über die
+    # Naht zwischen zwei Tracks hinweg wird NICHT interpoliert.
+    start = 0
+    for i in range(1, n + 1):
+        if i == n or (si_list[i] if i < len(si_list) else 0) != (si_list[start] if start < len(si_list) else 0):
+            seg = out_extra[start:i]
+            _interp_none_runs(seg)
+            out_extra[start:i] = seg
+            start = i
     return out_extra
 
 

@@ -14,6 +14,30 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.456] – 2026-07-21
+### Hinzugefügt
+- **Tracks verbinden im GPX-Inspektor.** Eine weitere Aufzeichnung lässt sich an
+  den geladenen Track anhängen — am Ende, am Anfang oder automatisch nach
+  Uhrzeit. Gedacht für den Fall, dass die Uhr mittendrin gestoppt hat oder eine
+  Mehrtagestour als eine Datei pro Tag vorliegt. Danach stehen alle gewohnten
+  Werkzeuge zur Verfügung (Heilen, Beschneiden, Speichern als GPX/TCX).
+  - **Zeiten bleiben ehrlich:** Liegt der angehängte Track zeitlich nach dem
+    ersten, bleiben alle Zeitstempel unverändert — die echte Pause dazwischen
+    wird nicht wegretuschiert. Nur bei Überlappung wird er nach hinten
+    verschoben (mit einstellbarer Pause), damit die Zeitachse nicht rückwärts
+    läuft und Tempo/Dauer auswertbar bleiben.
+  - **Die Lücke an der Naht wird beziffert**, nicht automatisch überbrückt: eine
+    gerade Linie dorthin wäre eine erfundene Strecke. Wer sie schließen will,
+    nutzt „Heilen → Lücken mit Punkten füllen“ und routet entlang echter Wege.
+  - **Sensordaten bleiben pro Abschnitt korrekt.** Jeder Punkt merkt sich seine
+    Herkunftsdatei, sodass Puls, Leistung und Temperatur des einen Tracks nicht
+    in den anderen hineingerechnet werden.
+
+### Behoben
+- **GPX-Inspektor: Werkzeugleiste war ohne geladenen Track sichtbar.** Das CSS
+  (`display: flex`) hat das `hidden`-Attribut überstimmt, das die Leiste
+  ausblenden sollte — es standen also Knöpfe da, die auf nichts wirken konnten.
+
 ## [0.9.455] – 2026-07-21
 ### Geändert
 - **Jede Sektion in der Seitenleiste hat jetzt ein Symbol.** Bisher hatten nur
