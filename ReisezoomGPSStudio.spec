@@ -37,7 +37,9 @@ for top in ("ui", "modules", "i18n"):
 # außen vor — Endnutzer sollen die schöne Version sehen.
 # DEVELOPER.md + IDEAS.md + CHANGELOG.md sind Entwickler-Material und
 # kommen NICHT mit ins Bundle.
-for doc in ("docs/USER_GUIDE.html",):
+# Alle drei Sprachfassungen müssen dabei sein, sonst laufen die DE/EN/ES-
+# Pillen im Handbuch ins Leere (der Sprachwechsel öffnet die Nachbardatei).
+for doc in ("docs/USER_GUIDE.html", "docs/USER_GUIDE.en.html", "docs/USER_GUIDE.es.html"):
     if os.path.isfile(doc):
         dst_dir = os.path.dirname(doc) or "."
         data_files.append((doc, dst_dir))

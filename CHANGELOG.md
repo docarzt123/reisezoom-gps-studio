@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.462] – 2026-07-21
+### Behoben
+- **Sprachwechsel im Handbuch** (DE/EN/ES-Pillen) tat nichts: (1) im App-Bundle
+  war nur die deutsche `USER_GUIDE.html` enthalten, en/es fehlten komplett
+  (`ReisezoomGPSStudio.spec` bündelt jetzt alle drei), und (2) die Pillen
+  verlinkten auf die **Deploy-Dateinamen** (`user-guide.en.html`), die lokal
+  bzw. im Bundle gar nicht existieren. Die Pillen leiten das Ziel jetzt zur
+  Laufzeit aus dem aktuellen Dateinamen ab — funktioniert lokal
+  (`USER_GUIDE.en.html`) wie auf dem Server (`user-guide.en.html`).
+
 ## [0.9.461] – 2026-07-21
 ### Hinzugefügt
 - **Klebendes Inhaltsverzeichnis im Handbuch.** Das HTML-Benutzerhandbuch

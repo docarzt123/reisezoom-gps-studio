@@ -618,6 +618,22 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   window.addEventListener("resize", spy);
   spy();
 }})();
+
+// Sprach-Pillen: Ziel-Dateinamen zur Laufzeit aus dem AKTUELLEN Dateinamen
+// ableiten — dann stimmt der Wechsel lokal (USER_GUIDE.en.html) wie auch auf
+// dem Server (user-guide.en.html), egal welche Sprache gerade offen ist.
+(function () {{
+  var pills = document.querySelectorAll(".langswitch a[data-lang]");
+  if (!pills.length) return;
+  var file = (location.pathname.split("/").pop() || "USER_GUIDE.html");
+  file = decodeURIComponent(file);
+  var base = file.replace(/\\.(en|es)\\.html$/i, "").replace(/\\.html$/i, "");
+  if (!base) base = "USER_GUIDE";
+  pills.forEach(function (a) {{
+    var L = a.getAttribute("data-lang");
+    a.setAttribute("href", base + (L === "de" ? "" : "." + L) + ".html" + location.hash);
+  }});
+}})();
 </script>
 </body>
 </html>
@@ -655,17 +671,21 @@ def _build_toc(content_html: str, lang: str) -> str:
 
 
 def _langswitch(current: str) -> str:
-    """Sprach-Pillen im Header — nur für tatsächlich vorhandene Übersetzungen,
-    verlinkt auf die deployten Nachbar-Dateien (gleicher Ordner auf dem Server)."""
+    """Sprach-Pillen im Header — nur für tatsächlich vorhandene Übersetzungen.
+    Der `href` zeigt standardmäßig auf die **lokale** Nachbardatei
+    (`USER_GUIDE.en.html`), damit der Wechsel in der App / lokal funktioniert.
+    Ein kleines Script im Template rechnet den Namen zur Laufzeit relativ zur
+    aktuellen Datei um — so greift es auch auf dem Server (`user-guide.en.html`),
+    egal ob DE/EN/ES gerade offen ist. `data-lang` markiert die Zielsprache."""
     out = []
-    for code, src, _dst, deployed in LANGS:
+    for code, src, dst, _deployed in LANGS:
         if not src.exists():
             continue
         active = code == current
         style = "background:#c46a3a;color:#fff" if active else "background:rgba(255,255,255,.08);color:#cbb89a"
-        out.append('<a href="%s" style="%s;font:700 12px/1 system-ui,sans-serif;'
+        out.append('<a data-lang="%s" href="%s" style="%s;font:700 12px/1 system-ui,sans-serif;'
                    'padding:5px 9px;border-radius:999px;text-decoration:none">%s</a>'
-                   % (_html.escape(deployed), style, LANG_NAMES[code]))
+                   % (code, _html.escape(dst.name), style, LANG_NAMES[code]))
     return "".join(out)
 
 

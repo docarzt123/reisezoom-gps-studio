@@ -245,7 +245,7 @@
       <div class="header-title">Reisezoom GPS Studio</div>
       <div class="header-sub">Reisezoom GPS Studio — Manual de usuario</div>
     </div>
-    <div class="langswitch" style="margin-left:auto;display:flex;gap:5px"><a href="user-guide.html" style="background:rgba(255,255,255,.08);color:#cbb89a;font:700 12px/1 system-ui,sans-serif;padding:5px 9px;border-radius:999px;text-decoration:none">DE</a><a href="user-guide.en.html" style="background:rgba(255,255,255,.08);color:#cbb89a;font:700 12px/1 system-ui,sans-serif;padding:5px 9px;border-radius:999px;text-decoration:none">EN</a><a href="user-guide.es.html" style="background:#c46a3a;color:#fff;font:700 12px/1 system-ui,sans-serif;padding:5px 9px;border-radius:999px;text-decoration:none">ES</a></div>
+    <div class="langswitch" style="margin-left:auto;display:flex;gap:5px"><a data-lang="de" href="USER_GUIDE.html" style="background:rgba(255,255,255,.08);color:#cbb89a;font:700 12px/1 system-ui,sans-serif;padding:5px 9px;border-radius:999px;text-decoration:none">DE</a><a data-lang="en" href="USER_GUIDE.en.html" style="background:rgba(255,255,255,.08);color:#cbb89a;font:700 12px/1 system-ui,sans-serif;padding:5px 9px;border-radius:999px;text-decoration:none">EN</a><a data-lang="es" href="USER_GUIDE.es.html" style="background:#c46a3a;color:#fff;font:700 12px/1 system-ui,sans-serif;padding:5px 9px;border-radius:999px;text-decoration:none">ES</a></div>
   </div>
   <div class="doc-shell">
     <aside class="toc" id="toc"><div class="toc-head">Contenido</div><nav><ul><li><a href="#1-instalaci-n" data-anchor="1-instalaci-n">1 · Instalación</a></li>
@@ -1102,6 +1102,22 @@ python app.py</code></pre>
   window.addEventListener("scroll", spy, { passive: true });
   window.addEventListener("resize", spy);
   spy();
+})();
+
+// Sprach-Pillen: Ziel-Dateinamen zur Laufzeit aus dem AKTUELLEN Dateinamen
+// ableiten — dann stimmt der Wechsel lokal (USER_GUIDE.en.html) wie auch auf
+// dem Server (user-guide.en.html), egal welche Sprache gerade offen ist.
+(function () {
+  var pills = document.querySelectorAll(".langswitch a[data-lang]");
+  if (!pills.length) return;
+  var file = (location.pathname.split("/").pop() || "USER_GUIDE.html");
+  file = decodeURIComponent(file);
+  var base = file.replace(/\.(en|es)\.html$/i, "").replace(/\.html$/i, "");
+  if (!base) base = "USER_GUIDE";
+  pills.forEach(function (a) {
+    var L = a.getAttribute("data-lang");
+    a.setAttribute("href", base + (L === "de" ? "" : "." + L) + ".html" + location.hash);
+  });
 })();
 </script>
 </body>
