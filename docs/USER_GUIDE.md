@@ -2,6 +2,8 @@
 
 Cross-Plattform-Suite für GPS-Workflows (macOS · Windows · Linux). **v0.3.3** — Beta.
 
+> **🚀 Neu hier?** Jedes Modul hat einen eigenen **Schnell-Einstieg** — über **Hilfe → Erste Schritte** (oder das Hilfe-Fenster) bekommst du 3 Schritte mit Screenshot für genau das Modul, in dem du gerade bist.
+
 Module:
 - **Animator** — GPX-Track als animiertes 3D-Karten-Video (MP4)
 - **Reiseroute** — Anreise als Video: Start/Ziel → berechnete Strecke animiert, das geladene GPX als Ghost

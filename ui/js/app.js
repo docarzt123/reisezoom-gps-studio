@@ -59,6 +59,9 @@ function renderTabs() {
   }
 }
 
+// v0.9.460 — aktives Modul nach außen geben (Schnell-Einstieg ist kontextuell).
+window.getActiveMod = () => activeMod;
+
 function switchMod(slug) {
   if (slug === activeMod) return;
   const reg = window.RZGPS_MODULES || {};
@@ -445,6 +448,13 @@ function openHelpModal() {
         ${t("help.intro")}
       </p>
       <div class="help-links">
+        <a class="help-link" href="#" id="help-quickstart">
+          <span class="help-link-icon">🚀</span>
+          <span class="help-link-text">
+            <strong>${t("help.quickstart.title", "Erste Schritte (dieses Modul)")}</strong>
+            <span class="muted">${t("help.quickstart.body", "In 3 Schritten zum Ergebnis — mit Screenshot.")}</span>
+          </span>
+        </a>
         <a class="help-link" href="#" id="help-user-guide">
           <span class="help-link-icon">📖</span>
           <span class="help-link-text">
@@ -484,6 +494,11 @@ function openHelpModal() {
     `,
     footer: `<button class="btn btn-primary" id="md-help-ok">${t("common.ok")}</button>`,
   });
+  document.getElementById("help-quickstart").onclick = (e) => {
+    e.preventDefault();
+    try { openModal({}).close(); } catch (_) {}
+    if (typeof window.openQuickstart === "function") window.openQuickstart();
+  };
   document.getElementById("help-user-guide").onclick = (e) => { e.preventDefault(); api().open_user_guide(); };
   document.getElementById("help-mapbox").onclick     = (e) => { e.preventDefault(); openMapboxHelpModal(); };
   document.getElementById("help-feedback").onclick   = (e) => {

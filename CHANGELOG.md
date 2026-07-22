@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.460] – 2026-07-21
+### Hinzugefügt
+- **🚀 Erste Schritte — Schnell-Einstieg pro Modul.** Jedes Modul (Animator,
+  Reiseroute, Daten-Animator, Tour-Map, Web Karte, Geotagger, GPX-Inspektor)
+  hat jetzt einen eigenen 3-Schritte-Guide mit echtem Screenshot. Erreichbar
+  über **Hilfe → Erste Schritte** (im Menü und im Hilfe-Fenster) — und
+  **kontextuell**: es erscheint der Guide für das Modul, in dem du gerade
+  stehst. „Ganzes Handbuch" führt weiter zum ausführlichen Benutzerhandbuch.
+
 ## [0.9.459] – 2026-07-21
 ### Behoben
 - **Fehlende Übersetzungen zeigen jetzt den deutschen Text statt des rohen

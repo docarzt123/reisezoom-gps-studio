@@ -2643,3 +2643,26 @@ body.is-rendering .modal-overlay * {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ── Schnell-Einstieg (Erste Schritte pro Modul, v0.9.460) ──────────────── */
+.qs-wrap { display: flex; flex-direction: column; gap: 12px; max-width: 640px; }
+.qs-intro { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text); }
+.qs-shot {
+  width: 100%; height: auto; border-radius: 8px;
+  border: 1px solid var(--border); display: block;
+  background: var(--bg-1);
+}
+.qs-steps { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.qs-step { display: flex; gap: 10px; align-items: flex-start; }
+.qs-step-n {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; margin-top: 1px;
+}
+.qs-step-t { font-size: 12.5px; line-height: 1.45; color: var(--text); }
+.qs-step-t b { color: var(--text); }
+.qs-tip {
+  margin: 4px 0 0; padding: 8px 10px; font-size: 12px; line-height: 1.45;
+  color: var(--text-dim); background: var(--accent-soft);
+  border-radius: 7px; border: 1px solid var(--border);
+}

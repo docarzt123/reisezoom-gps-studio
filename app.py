@@ -133,7 +133,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.459"
+APP_VERSION = "0.9.460"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -5581,6 +5581,7 @@ def main() -> None:
             except Exception:
                 pass
 
+        def _open_quickstart_from_menu(): _trigger_js("window.openQuickstart && window.openQuickstart()")
         def _open_user_guide_from_menu(): _trigger_js("window.pywebview && window.pywebview.api.open_user_guide()")
         def _open_log_from_menu():        _trigger_js("window.pywebview && window.pywebview.api.open_log()")
         def _open_about_from_menu():      _trigger_js("window.openAboutModal && window.openAboutModal()")
@@ -5612,6 +5613,7 @@ def main() -> None:
         _menu_open_track = _strings.get("menu.open_track", "Track öffnen…")
         _menu_settings   = _strings.get("menu.settings", "Settings…")
         _menu_help       = _strings.get("menu.help", "Help")
+        _menu_quickstart = _strings.get("menu.quickstart", "Erste Schritte")
         _menu_user_guide = _strings.get("menu.user_guide", "User Guide")
         _menu_log        = _strings.get("menu.open_log", "Open Log File")
         _menu_about      = _strings.get("menu.about", "About Reisezoom GPS Studio")
@@ -5642,6 +5644,7 @@ def main() -> None:
                 MenuAction(_menu_settings, _open_settings_from_menu),
             ]),
             Menu(_menu_help, [
+                MenuAction(_menu_quickstart, _open_quickstart_from_menu),
                 MenuAction(_menu_user_guide, _open_user_guide_from_menu),
                 MenuAction(_menu_mapbox, _open_mapbox_help_from_menu),
                 MenuAction(_menu_feedback, _open_feedback_from_menu),
