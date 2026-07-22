@@ -265,7 +265,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 - **„＋ Diagramm hinzufügen"** legt eine Karte an. Pro Diagramm wählst du die **Datenreihe**, die **Position** (9 Ecken/Mitten), **Breite** und **Höhe** sowie ein **Zeitfenster** (ab/bis Video-Sekunde).
 - **Vorder- und Hintergrund-Deckkraft getrennt (seit v0.9.445):** Mit **„Deckkraft Diagramm"** steuerst du die Kurve und Beschriftung, mit **„Deckkraft Hintergrund"** die Box dahinter. Ziehst du den **Hintergrund auf 0 %**, scheint die Karte vollständig durch und nur die Datenlinie schwebt über dem Video. Die Vorschau zeigt das jetzt **WYSIWYG** (echte Transparenz statt eines weißen Kastens).
-- **Achsen pro Diagramm (seit v0.9.447):** Jede Diagramm-Karte hat eigene Schalter **„Achsen"** und **„Schrift Achsen"** (8–60 px). Sie überstimmen den Stil aus dem Daten-Animator — so kann ein kleines Overlay große Beschriftung tragen oder ganz ohne Achsen auskommen. Wichtig: Die Schriftgröße bezieht sich auf die **Video-Auflösung**, nicht auf die Diagramm-Box. Bis v0.9.446 schrumpfte die Beschriftung mit der Box (ein 270-px-Diagramm ergab 5-px-Text) — das ist behoben.
+- **Achsen pro Diagramm (seit v0.9.447):** Jede Diagramm-Karte hat eigene Schalter **„Achsen"** und **„Schrift Achsen"** (8–60 px). Sie überstimmen den Stil aus dem Daten-Animator — so kann ein kleines Overlay große Beschriftung tragen oder ganz ohne Achsen auskommen. Wichtig: Die Schriftgröße bezieht sich auf die **Video-Auflösung**, nicht auf die Diagramm-Box.
 
 ![Die Diagramm-Karte in der Seitenleiste: Datenreihe, Position, Breite/Höhe, getrennte Deckkraft für Diagramm (Vordergrund) und Hintergrund sowie „Aus Daten-Animator übernehmen".](img/diagramme-sidebar.png)
 
@@ -369,7 +369,7 @@ Funktioniert nur wenn kein Slider/Input gerade Fokus hat. Wenn du gerade einen S
 
 Damit klappt z.B. **„am Ende auf die ganze Route rauszoomen"**: Keyframe am Anfang zoomt auf den Start-Punkt, Keyframe am Track-Ende zoomt zurück auf normal, Keyframe ganz hinten in der Hold-Phase zoomt raus auf die ganze Route → cinematischer Outro.
 
-**Fallback auf klassisches Verhalten:** Wenn keine Keyframes gesetzt sind, läuft alles wie vor v0.7 — statischer Pitch (aus dem Sidebar-Slider) + linearer Bearing-Sweep (aus dem Rotation-Slider). Sobald du den ersten Keyframe setzt, kriegen die zwei Sidebar-Slider einen gelben Hinweis „⏱ Wird durch Timeline-Keyframes gesteuert" und werden visuell sekundär. „🗑 Alle weg" macht sie wieder zur Primärsteuerung.
+**Fallback auf klassisches Verhalten:** Wenn keine Keyframes gesetzt sind, läuft alles klassisch — statischer Pitch (aus dem Sidebar-Slider) + linearer Bearing-Sweep (aus dem Rotation-Slider). Sobald du den ersten Keyframe setzt, kriegen die zwei Sidebar-Slider einen gelben Hinweis „⏱ Wird durch Timeline-Keyframes gesteuert" und werden visuell sekundär. „🗑 Alle weg" macht sie wieder zur Primärsteuerung.
 
 ### Welt-Drehung — Erde dreht sich auf dem Weg zum Track (seit v0.9.136) ⭐
 

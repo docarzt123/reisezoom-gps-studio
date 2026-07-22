@@ -14,6 +14,25 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.461] – 2026-07-21
+### Hinzugefügt
+- **Klebendes Inhaltsverzeichnis im Handbuch.** Das HTML-Benutzerhandbuch
+  (Hilfe → Ganzes Handbuch, macOS-Menü, Web-Deploy) hat jetzt eine links
+  stehenbleibende Kapitel-Navigation mit Scroll-Spy — der aktuell sichtbare
+  Abschnitt wird hervorgehoben. Auf schmalen Fenstern klappt sie als Karte
+  oben ein. DE/EN/ES.
+### Geändert
+- **Keine Versionsnummern mehr im Handbuch.** „(seit vX)"-Notizen werden beim
+  Bauen automatisch entfernt (`scripts/build_user_guide_html.py`) — das
+  Handbuch beschreibt immer die aktuelle Version. Gilt für alle drei Sprachen.
+### Behoben
+- **„Ganzes Handbuch"-Button im Schnell-Einstieg** öffnete das Handbuch nicht
+  (rief das nicht existierende `window.api()` statt `api()` auf; der Klick
+  verpuffte still). Öffnet jetzt zuverlässig.
+- **Erste-Schritte-Screenshots** passen jetzt alle zum jeweiligen Guide-Text
+  (Daten-Animator zeigt das echte Teide-Profil, Web Karte den Track auf OSM,
+  GPX-Inspektor die Punktliste + Heilen-Werkzeuge).
+
 ## [0.9.460] – 2026-07-21
 ### Hinzugefügt
 - **🚀 Erste Schritte — Schnell-Einstieg pro Modul.** Jedes Modul (Animator,

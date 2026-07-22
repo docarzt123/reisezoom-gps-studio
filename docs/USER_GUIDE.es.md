@@ -263,7 +263,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 - **«＋ Añadir gráfico»** crea una tarjeta. Por cada gráfico eliges la **serie de datos**, la **posición** (9 esquinas/centros), el **ancho** y el **alto**, además de una **ventana temporal** (desde/hasta el segundo del vídeo).
 - **Opacidad de primer plano y de fondo por separado (desde v0.9.445):** con **«Opacidad del gráfico»** controlas la curva y las etiquetas, y con **«Opacidad del fondo»** la caja que hay detrás. Si bajas el **fondo a 0 %**, el mapa se transparenta por completo y solo la línea de datos flota sobre el vídeo. La vista previa lo muestra ahora **WYSIWYG** (transparencia real en lugar de una caja blanca).
-- **Ejes por gráfico (desde v0.9.447):** cada tarjeta de gráfico tiene sus propios controles **«Ejes»** y **«Fuente de ejes»** (8–60 px). Prevalecen sobre el estilo adoptado del Animador de datos, de modo que una superposición pequeña puede llevar etiquetas grandes o prescindir por completo de los ejes. Importante: el tamaño de fuente se refiere a la **resolución del vídeo**, no a la caja del gráfico. Hasta la v0.9.446 las etiquetas se encogían con la caja (un gráfico de 270 px daba texto de 5 px); eso está corregido.
+- **Ejes por gráfico (desde v0.9.447):** cada tarjeta de gráfico tiene sus propios controles **«Ejes»** y **«Fuente de ejes»** (8–60 px). Prevalecen sobre el estilo adoptado del Animador de datos, de modo que una superposición pequeña puede llevar etiquetas grandes o prescindir por completo de los ejes. Importante: el tamaño de fuente se refiere a la **resolución del vídeo**, no a la caja del gráfico.
 
 ![La tarjeta de gráfico en la barra lateral: serie de datos, posición, ancho/alto, opacidad separada para el gráfico (primer plano) y el fondo, y «Adoptar del Animador de Datos».](img/diagramme-sidebar.png)
 
@@ -367,7 +367,7 @@ Solo funciona si ningún slider/campo tiene el foco en ese momento. Si acabas de
 
 Con eso funciona, p. ej., **«al final alejar el zoom hasta toda la ruta»**: un keyframe al inicio hace zoom sobre el punto de partida, un keyframe al final del track vuelve al zoom normal, un keyframe al final del todo en la fase de hold aleja el zoom hasta toda la ruta → un outro cinematográfico.
 
-**Vuelta al comportamiento clásico:** si no hay keyframes fijados, todo funciona como antes de v0.7 — pitch estático (del slider de la barra lateral) + barrido lineal de bearing (del slider de rotación). En cuanto fijas el primer keyframe, los dos sliders de la barra lateral reciben un aviso amarillo «⏱ Controlado por los keyframes de la línea de tiempo» y pasan a segundo plano visualmente. «🗑 Eliminar todos» los devuelve al control principal.
+**Vuelta al comportamiento clásico:** si no hay keyframes fijados, todo funciona en modo clásico — pitch estático (del slider de la barra lateral) + barrido lineal de bearing (del slider de rotación). En cuanto fijas el primer keyframe, los dos sliders de la barra lateral reciben un aviso amarillo «⏱ Controlado por los keyframes de la línea de tiempo» y pasan a segundo plano visualmente. «🗑 Eliminar todos» los devuelve al control principal.
 
 ### Rotación del mundo — la Tierra gira de camino al track (desde v0.9.136) ⭐
 

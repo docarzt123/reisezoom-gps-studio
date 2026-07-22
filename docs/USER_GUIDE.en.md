@@ -263,7 +263,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 - **"＋ Add chart"** creates a card. Per chart you pick the **data series**, the **position** (9 corners/centers), **width** and **height**, plus a **time window** (from/to video second).
 - **Separate foreground and background opacity (since v0.9.445):** **"Chart opacity"** controls the curve and labels, **"Background opacity"** the box behind it. Pull the **background down to 0 %** and the map shows fully through, with only the data line floating over the video. The preview now shows this **WYSIWYG** (real transparency instead of a white box).
-- **Per-chart axes (since v0.9.447):** every chart card has its own **"Axes"** and **"Axis font size"** (8–60 px) controls. They override the style adopted from the Data Animator — so a small overlay can carry large labels, or do without axes entirely. Note: the font size refers to the **video resolution**, not to the chart box. Up to v0.9.446 the labels shrank with the box (a 270 px chart produced 5 px text) — that is fixed.
+- **Per-chart axes (since v0.9.447):** every chart card has its own **"Axes"** and **"Axis font size"** (8–60 px) controls. They override the style adopted from the Data Animator — so a small overlay can carry large labels, or do without axes entirely. Note: the font size refers to the **video resolution**, not to the chart box.
 
 ![The chart card in the sidebar: data series, position, width/height, separate opacity for chart (foreground) and background, plus "Adopt from Data Animator".](img/diagramme-sidebar.png)
 
@@ -367,7 +367,7 @@ Works only when no slider/input currently has focus. If you've just adjusted a s
 
 That's how "zoom out to the whole route at the end" works, for instance: a keyframe at the start zooms to the starting point, a keyframe at the track end zooms back to normal, a keyframe far back in the hold phase zooms out to the whole route → a cinematic outro.
 
-**Fallback to classic behavior:** If no keyframes are set, everything runs as before v0.7 — static pitch (from the sidebar slider) + a linear bearing sweep (from the rotation slider). As soon as you set the first keyframe, the two sidebar sliders get a yellow note "⏱ Controlled by timeline keyframes" and become visually secondary. "🗑 Clear all" makes them the primary control again.
+**Fallback to classic behavior:** If no keyframes are set, everything runs in classic mode — static pitch (from the sidebar slider) + a linear bearing sweep (from the rotation slider). As soon as you set the first keyframe, the two sidebar sliders get a yellow note "⏱ Controlled by timeline keyframes" and become visually secondary. "🗑 Clear all" makes them the primary control again.
 
 ### World rotation — the Earth spins on the way to the track (since v0.9.136) ⭐
 

@@ -146,7 +146,13 @@
     const ok = document.getElementById("qs-ok");
     if (ok) ok.onclick = () => { try { window.openModal({}).close(); } catch (_) {} };
     const gd = document.getElementById("qs-guide");
-    if (gd) gd.onclick = () => { try { window.api().open_user_guide(); } catch (_) {} };
+    // `api` ist ein Top-Level-`const` aus util.js (NICHT window.api) — direkt
+    // per Namen ansprechen, sonst ist window.api() undefined und der Klick
+    // verpuffte still im catch. (Fix: „Ganzes Handbuch"-Button ging nicht.)
+    if (gd) gd.onclick = () => {
+      try { api().open_user_guide(); }
+      catch (e) { if (window.rzSwallow) rzSwallow(e, "quickstart:open_user_guide"); }
+    };
   };
 
   window.RZ_QUICKSTART = QS;   // für Tests / evtl. Gesamtübersicht

@@ -104,6 +104,75 @@ def _inline_no_code(s: str) -> str:
     return s
 
 
+# ── Versions-Hinweise ausstreichen ─────────────────────────────────────────
+# Marc-Regel: „Versionsnummern müssen generell nicht im Handbuch stehen (also
+# „(seit Version xxx)") — das Handbuch bezieht sich immer auf die neueste
+# Version." Diese Policy wird beim BUILD durchgesetzt, damit niemand daran
+# denken muss beim Schreiben: neue „(seit vX)"-Notizen in der Quelle werden
+# automatisch entfernt. Der Roh-Markdown behält die Provenienz für Entwickler.
+_V = r"[vV]\d+(?:\.\d+){0,3}(?:\.x)?"               # v0 · v0.8 · v0.9.457 · v1.0.0 · v0.3.x
+# Einleitungswörter für eine Versions-Notiz, in allen drei Sprachen. Optionaler
+# Artikel (la/the/der …) zwischen Einleitung und Versionsnummer wird geschluckt.
+_INTRO = (r"(?:seit(?:\s+Version)?|ab|bis|vor|in|since|from|up\s+to|until|as\s+of|before|after|in"
+          r"|desde(?:\s+la\s+versión)?|hasta|antes\s+de|en)")
+_ART = r"(?:\s+(?:la|el|der|die|das|the))?"        # optionaler Artikel
+
+
+def _strip_versions(md: str) -> str:
+    lines = md.split("\n")
+    out: list[str] = []
+    in_code = False
+    for ln in lines:
+        if ln.lstrip().startswith("```"):
+            in_code = not in_code
+            out.append(ln)
+            continue
+        if in_code:
+            out.append(ln)                          # Code-Blöcke unangetastet
+            continue
+
+        note = rf"(?:{_INTRO}){_ART}\s+{_V}"        # eine komplette Versions-Notiz
+
+        # 1) Parenthese, die MIT einer Versions-Einleitung beginnt → ganz weg.
+        #    Fängt auch verschachtelte Fälle: „(seit v0.8.10, im … seit v0.8.12)".
+        ln = re.sub(rf"\s*\({note}[^)]*\)", "", ln, flags=re.I)
+        # 2) Versions-Klausel als Anhängsel in einer größeren Parenthese:
+        #    „(Snapshot, seit v0.9.412)" → „(Snapshot)".
+        ln = re.sub(rf",\s*{note}", "", ln, flags=re.I)
+        # 3) Fett-Label „**Neu ab v0.9.437:**" → „**Neu:**" bzw. „**Seit v0.9.204:**"
+        #    → ganz weg. Zwei Fälle: Label ist NUR die Versionsnotiz, oder Wort davor.
+        ln = re.sub(rf"\*\*{note}\s*:\*\*\s*", "", ln, flags=re.I)         # nur Notiz
+        ln = re.sub(rf"(\*\*[^*]*?)\s+{note}(\s*:?\*\*)", r"\1\2", ln, flags=re.I)  # Wort + Notiz
+        # 4) Satz-Anfang (Zeilenstart, nach „**" oder nach „> **"): „Seit vX Wort…"
+        #    → Version raus, Folgewort groß. „Seit v0.9.286 läuft…" → „Läuft…".
+        def _lead(m):
+            w = m.group("w")
+            return m.group("pre") + (w[:1].upper() + w[1:] if w else "")
+        ln = re.sub(rf"(?P<pre>^|\*\*|>\s+\*\*){note}[,:]?\s+(?P<w>\wäöüÄÖÜß*|\w+)",
+                    _lead, ln, flags=re.I)
+        # 5) Inline-Notiz mit führendem Leerzeichen: „… seit v0.9.205 …" → „… …".
+        #    Version-gated (nur mit Einleitungswort + vNr.) → frisst kein „from home".
+        ln = re.sub(rf"\s+{note}", "", ln, flags=re.I)
+        # 6) Freistehende Versionsnummer in Fett mit Trenner: „**v0.3.3** — Beta."
+        #    → „Beta." (auch mitten in der Zeile).
+        ln = re.sub(rf"\*\*{_V}\*\*\s*[—–-]\s*", "", ln)
+        # 7) Nackte Versionsnummer direkt vor schließender Klammer: „(Beta v0.3.x)"
+        #    → „(Beta)". Auch „(v0.9.446)" → „()" (danach weg-geräumt).
+        ln = re.sub(rf"\s+{_V}(?=\s*\))", "", ln)
+        ln = re.sub(rf"\(\s*{_V}\s*\)", "", ln)
+
+        # Aufräumen der entstandenen Lücken (konservativ, nur offensichtliche Fälle).
+        ln = re.sub(r"\(\s*\)", "", ln)             # leere Parenthese
+        ln = re.sub(r"\s+([,;:.](?:\*\*)?)", r"\1", ln)   # Leerzeichen vor Satzzeichen
+        ln = re.sub(r"\(\s+", "(", ln)              # „( wort" → „(wort"
+        ln = re.sub(r"\s+\)", ")", ln)              # „wort )" → „wort)"
+        ln = re.sub(r"[ \t]{2,}", " ", ln)          # Doppel-Spaces
+        ln = re.sub(r"\s+[—–-]\s*$", "", ln)        # baumelnder Gedankenstrich am Zeilenende
+        ln = ln.rstrip()
+        out.append(ln)
+    return "\n".join(out)
+
+
 def md_to_html(md: str) -> str:
     """Konvertiert Markdown-Text zu HTML-Body. Einfacher Block-Parser."""
     out: list[str] = []
@@ -289,9 +358,70 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     text-rendering: optimizeLegibility;
   }}
   .layout {{
-    max-width: 880px;
+    max-width: 1180px;
     margin: 0 auto;
     padding: 32px 36px 80px;
+  }}
+
+  /* Zwei-Spalten-Shell: klebendes Inhaltsverzeichnis links, Text rechts */
+  .doc-shell {{ display: flex; align-items: flex-start; gap: 40px; }}
+  .doc-main {{ flex: 1 1 auto; min-width: 0; max-width: 820px; }}
+  .toc {{
+    position: sticky;
+    top: 22px;
+    flex: 0 0 236px;
+    width: 236px;
+    max-height: calc(100vh - 44px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 2px 12px 10px 0;
+    border-right: 1px solid var(--border);
+    font-size: 13px;
+    line-height: 1.4;
+  }}
+  .toc-head {{
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin: 2px 0 10px;
+  }}
+  .toc ul {{ list-style: none; margin: 0; padding: 0; }}
+  .toc li {{ margin: 0; }}
+  .toc a {{
+    display: block;
+    padding: 5px 10px;
+    color: var(--text-dim);
+    border-left: 2px solid transparent;
+    border-radius: 0 5px 5px 0;
+    text-decoration: none;
+    transition: color .12s, background .12s, border-color .12s;
+  }}
+  .toc a:hover {{ color: var(--text); background: rgba(255,255,255,.04); text-decoration: none; }}
+  .toc a.active {{
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(255,107,53,.09);
+    font-weight: 600;
+  }}
+  .toc::-webkit-scrollbar {{ width: 8px; }}
+  .toc::-webkit-scrollbar-thumb {{ background: var(--border); border-radius: 4px; }}
+  .toc::-webkit-scrollbar-track {{ background: transparent; }}
+  @media (max-width: 900px) {{
+    .doc-shell {{ display: block; }}
+    .toc {{
+      position: static;
+      width: auto;
+      flex: none;
+      max-height: 44vh;
+      margin: 0 0 26px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-2);
+    }}
+    .toc-head {{ position: sticky; top: 0; background: var(--bg-2); padding-bottom: 6px; }}
   }}
   .header {{
     display: flex;
@@ -447,11 +577,48 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </div>
     <div class="langswitch" style="margin-left:auto;display:flex;gap:5px">{langswitch}</div>
   </div>
-  {content}
-  <div class="footer">
-    Reisezoom GPS Studio · diese Doku wurde aus <code>docs/USER_GUIDE.md</code> generiert.
+  <div class="doc-shell">
+    {toc}
+    <main class="doc-main">
+      {content}
+      <div class="footer">
+        Reisezoom GPS Studio · diese Doku wurde aus <code>docs/USER_GUIDE.md</code> generiert.
+      </div>
+    </main>
   </div>
 </div>
+<script>
+// Scroll-Spy: hebt im Inhaltsverzeichnis das aktuell sichtbare Kapitel hervor.
+(function () {{
+  var links = [].slice.call(document.querySelectorAll(".toc a"));
+  if (!links.length) return;
+  var map = {{}};
+  links.forEach(function (a) {{ map[a.getAttribute("data-anchor")] = a; }});
+  var heads = links
+    .map(function (a) {{ return document.getElementById(a.getAttribute("data-anchor")); }})
+    .filter(Boolean);
+  var toc = document.getElementById("toc");
+  var cur = null;
+  function spy() {{
+    var y = window.scrollY + 130, active = heads[0];
+    for (var i = 0; i < heads.length; i++) {{ if (heads[i].offsetTop <= y) active = heads[i]; }}
+    if (!active || active === cur) return;
+    cur = active;
+    links.forEach(function (a) {{ a.classList.remove("active"); }});
+    var a = map[active.id];
+    if (a) {{
+      a.classList.add("active");
+      // aktiven Eintrag im (evtl. scrollbaren) TOC in Sicht halten
+      if (toc && a.offsetTop < toc.scrollTop) toc.scrollTop = a.offsetTop - 8;
+      else if (toc && a.offsetTop + a.offsetHeight > toc.scrollTop + toc.clientHeight)
+        toc.scrollTop = a.offsetTop + a.offsetHeight - toc.clientHeight + 8;
+    }}
+  }}
+  window.addEventListener("scroll", spy, {{ passive: true }});
+  window.addEventListener("resize", spy);
+  spy();
+}})();
+</script>
 </body>
 </html>
 """
@@ -465,6 +632,26 @@ LANGS = [
     ("es", ROOT / "docs" / "USER_GUIDE.es.md", ROOT / "docs" / "USER_GUIDE.es.html", "user-guide.es.html"),
 ]
 LANG_NAMES = {"de": "DE", "en": "EN", "es": "ES"}
+TOC_TITLE = {"de": "Inhalt", "en": "Contents", "es": "Contenido"}
+
+
+def _build_toc(content_html: str, lang: str) -> str:
+    """Baut das seitliche Inhaltsverzeichnis aus den H2-Kapiteln (die 16
+    Hauptabschnitte). H3-Unterpunkte lassen wir bewusst weg — sonst wird die
+    Leiste eine Wand aus ~90 Einträgen. Scroll-Spy (im Template) hebt hervor."""
+    items = []
+    for m in re.finditer(r'<h2 id="([^"]+)">(.*?)</h2>', content_html, re.S):
+        anchor, inner = m.group(1), m.group(2)
+        label = re.sub(r"<[^>]+>", "", inner).strip()   # HTML-Tags raus, Text/Emoji bleibt
+        if not label:
+            continue
+        items.append(f'<li><a href="#{anchor}" data-anchor="{anchor}">{label}</a></li>')
+    if not items:
+        return ""
+    lis = "\n".join(items)
+    return (f'<aside class="toc" id="toc">'
+            f'<div class="toc-head">{_html.escape(TOC_TITLE.get(lang, "Inhalt"))}</div>'
+            f'<nav><ul>{lis}</ul></nav></aside>')
 
 
 def _langswitch(current: str) -> str:
@@ -488,9 +675,11 @@ def build_one(lang: str, src: Path, dst: Path) -> Path:
     m = re.match(r"^\s*#\s+(.+)\s*$", md.split("\n")[0])
     if m:
         title = m.group(1).strip()
+    md = _strip_versions(md)                    # „(seit vX)"-Notizen policy-mäßig raus
     content = md_to_html(md)
+    toc = _build_toc(content, lang)
     html = HTML_TEMPLATE.format(lang=lang, title=_html.escape(title),
-                                content=content, langswitch=_langswitch(lang))
+                                content=content, toc=toc, langswitch=_langswitch(lang))
     dst.write_text(html, encoding="utf-8")
     print(f"✅ {dst.relative_to(ROOT)} ({len(html) // 1024} KB)")
     return dst
