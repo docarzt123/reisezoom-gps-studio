@@ -13,6 +13,47 @@ Bei jeder neuen Version:
 ---
 
 ## [Unreleased]
+### Hinzugefügt
+- **Test-Protokoll vor jedem Release** (`docs/TESTING.md` + `scripts/release_check.sh`).
+  Ein Kommando läuft alle automatischen Gates (JS-/Python-Syntax, i18n-Konsistenz,
+  Fix-Invarianten, UI-Smoke, UI-Tiefentest, Track-Sichtbarkeit; `--full` = echte
+  Renders) und blockiert bei Fehler. Ergänzt um eine **Pflicht-Sichtprüfung** (Teil B),
+  weil der v0.9.469-Track-Bug nur ein Mensch am Bildschirm gefangen hätte.
+- Regressions-Test `scripts/selftest_track_visible.py` (Guard gegen unsichtbaren
+  Track wie in v0.9.469; selbst-kalibrierend, SKIPt wenn Vorschau headless nicht
+  befüllbar).
+- **Test-Protokoll verdrahtet:** `build.sh` fährt die schnellen statischen Gates
+  (`release_check.sh --fast`) bei jedem Build; `deploy_release.sh` erzwingt das
+  volle Protokoll als harten Gate vor jedem Live-Deploy (Override nur via
+  `RZ_SKIP_RELEASE_CHECK=1` im Notfall).
+
+## [0.9.470] – 2026-07-22
+### Behoben
+- **Probe-Lauf im Animator startete nicht bei wiederhergestellter Session**
+  (Marc: „der statet einfach nicht"). In einer frisch geladenen/wiederhergestellten
+  Session war die Fit-Zoom-Referenz (`_fitZoomBase`) noch `null`, weil der
+  zugehörige `moveend` bereits vor dem Modul-Mount gefeuert (und verpasst) worden
+  war. `runTimelinePreview` deferrte dann bedingungslos auf das nächste `moveend` —
+  das bei stillstehender Karte **nie** kam → der Probe-Lauf hing ohne jede
+  Reaktion. Fix: nur noch deferren, wenn die Karte tatsächlich animiert
+  (`isMoving/isZooming/isRotating/isEasing`); steht sie still, wird sofort der
+  aktuelle Zoom als Fit-Base übernommen und der Lauf startet normal. Beide Pfade
+  loggen jetzt nach `app.log` (vorher war der stille Hänger unsichtbar). Per
+  Live-Test in der echten App gefunden und verifiziert.
+
+## [0.9.469] – 2026-07-22
+### Behoben
+- **Track wurde nicht gezeichnet (Animator & Tour-Map)** — schwer zu findender
+  Bug (per Live-Logging in Marcs `app.log` eingekreist): der Track lud korrekt
+  (800 Punkte), Layer + Kamera-Fit + Farbe stimmten, aber die `preview-track`-
+  Quelle hatte nur **1 Koordinate** → eine Linie mit einem Punkt rendert
+  unsichtbar. Ursache: bei **„Ganzer Track sichtbar" AUS** (`preview_full_track:
+  false`, Marcs Projekt-Einstellung) trimmt `refreshPreviewTrackData` die Linie
+  auf die Scrubber-Position — steht der Scrubber ganz am Anfang, ergibt
+  `slice(0,1)` = 1 Punkt. Jetzt: bei degenerierter Auswahl (< 2 Punkte) wird im
+  Ruhezustand der **ganze Track** gezeigt statt zu verschwinden; der Probelauf
+  wächst die Linie unverändert über einen eigenen Pfad. Tour-Map (Standbild,
+  kein Scrubber) zeigt jetzt IMMER den ganzen Track.
 
 ## [0.9.464] – 2026-07-22
 ### Geändert

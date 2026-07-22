@@ -3001,6 +3001,10 @@ function mountAnimator(body, headerActions, opts) {
   // in `animator.preview_full_track`. Wird vom Timeline-Bar-Checkbox gepflegt
   // und in scrubPreview gelesen. Affects only Preview, nicht Render.
   function previewFullTrack() {
+    // v0.9.469 — Tour-Map (Standbild) hat keinen Scrubber/Timeline → IMMER den
+    // ganzen Track zeigen. Sonst trimmt refreshPreviewTrackData auf die (nicht
+    // vorhandene) Scrubber-Position 0 = 1 Punkt = unsichtbare Linie.
+    if (_isStaticFrame) return true;
     const a = _activeProject?.[_MODKEY];
     if (a && "preview_full_track" in a) return !!a.preview_full_track;
     return !!(_settingsCache?.[_MODKEY]?.preview_full_track);
@@ -3056,16 +3060,27 @@ function mountAnimator(body, headerActions, opts) {
       const scrubAnchor = _tlBar ? _tlBar.getScrubber() : 0;
       const coordIdx = trackIdxFromTimelineAnchor(scrubAnchor);
       const startIdx = lineStartCoordIdx();
-      const coords = previewFullTrack()
-        ? currentCoords
-        : currentCoords.slice(startIdx, coordIdx + 1);
+      let coords, ai0, ai1;
+      if (previewFullTrack()) {
+        coords = currentCoords; ai0 = 0; ai1 = currentCoords.length - 1;
+      } else {
+        coords = currentCoords.slice(startIdx, coordIdx + 1);
+        ai0 = startIdx; ai1 = coordIdx;
+        // v0.9.469 (Marc-Bug: „Track wird nicht gezeichnet") — bei
+        // „Ganzer Track" AUS und Scrubber ganz am Anfang ist die getrimmte
+        // Auswahl nur 1 Punkt → die Linie rendert UNSICHTBAR (LineString
+        // braucht ≥2 Punkte). Im Ruhezustand dann den GANZEN Track zeigen,
+        // statt ihn verschwinden zu lassen. Der Probelauf wächst die Linie
+        // über einen EIGENEN setData-Pfad (step()) und ist unberührt.
+        if (!coords || coords.length < 2) {
+          coords = currentCoords; ai0 = 0; ai1 = currentCoords.length - 1;
+        }
+      }
       src.setData({
         type: "Feature",
         geometry: { type: "LineString", coordinates: coords },
       });
       // v0.9.434 — Track-Alterung: Gradient relativ zum Marker (coordIdx) setzen.
-      const ai0 = previewFullTrack() ? 0 : startIdx;
-      const ai1 = previewFullTrack() ? (currentCoords.length - 1) : coordIdx;
       applyPreviewColorGradient(ai0, ai1);
     } catch (_) {}
   }
@@ -4874,16 +4889,32 @@ function mountAnimator(body, headerActions, opts) {
     // van-Wijk pro Frame mit anderer Base = sichtbar falsche Interpolation.
     // Wenn fitZoomBase noch null ist (Re-Mount nach Reload, moveend noch
     // ausstehend) → defer via map.once("moveend") und retry.
-    const _previewFitBase = effectiveFitZoomBase();
+    let _previewFitBase = effectiveFitZoomBase();
     if (_previewFitBase == null) {
+      // v0.9.470 (Marc-Bug „Probe-Lauf statet einfach nicht"): _fitZoomBase ist
+      // null. Bisher wurde IMMER auf `moveend` deferred + returned. Das ist nur
+      // korrekt, wenn gerade eine fitBounds-Animation läuft (dann setzt deren
+      // moveend gleich _fitZoomBase). Bei einer wiederhergestellten Session steht
+      // die Karte aber STILL (der Fit-moveend feuerte vor dem Mount / wurde
+      // verpasst) → es kommt NIE ein moveend → der Probe-Lauf hängt ewig ohne
+      // sichtbare Reaktion. Fix: nur deferren, wenn die Karte wirklich noch
+      // animiert; sonst JETZT den aktuellen Zoom als Fit-Base nehmen (die Karte
+      // sitzt bereits auf dem Fit) und normal weiterlaufen.
+      let _mapMoving = false;
+      try { _mapMoving = !!(map && (map.isMoving() || map.isZooming() || map.isRotating() || map.isEasing())); } catch (_) {}
+      if (_mapMoving) {
+        try { map.once("moveend", () => { try { runTimelinePreview(true); } catch (_) {} }); } catch (_) {}
+        try { applog && applog("info", "[runTimelinePreview] fitBase null + Karte bewegt → defer auf moveend"); } catch (_) {}
+        return;
+      }
       try {
         if (map) {
-          map.once("moveend", () => {
-            try { runTimelinePreview(true); } catch (_) {}
-          });
+          _fitZoomBase = map.getZoom();
+          _previewFitBase = _fitZoomBase;
+          applog && applog("info", "[runTimelinePreview] fitBase null + Karte still → Zoom als Base übernommen (" + _fitZoomBase.toFixed(2) + ")");
         }
       } catch (_) {}
-      return;
+      if (_previewFitBase == null) return;  // ohne Map wirklich nichts zu tun
     }
     _previewT0 = performance.now() - (_startAnchor * totalMs);
     _previewAnimMs = animMs;
