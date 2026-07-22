@@ -1959,6 +1959,7 @@ function mountAnimator(body, headerActions, opts) {
   // in der Bar). Jede: { gpx_path, line_color, name }. Render schickt nur dann
   // ein `tracks`-Array (≥2 Einträge) wenn hier ≥1 Extra-Tour liegt.
   let _extraTours = [];
+  let _toursPreviewActive = false;   // v0.9.463 — läuft die Multi-Track-Kinofortsetzung im Probe-Lauf?
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
   let currentBbox   = null;
   // v0.9.210 (Reiseroute Phase 2) — das geladene GPX (Wanderung) wird hier als
@@ -4177,6 +4178,9 @@ function mountAnimator(body, headerActions, opts) {
   // nahe an einem Keyframe landet, wird dieser ausgewählt; sonst Editor weg.
   function scrubPreview(anchor, opts) {
     if (!map || !currentCoords || currentCoords.length < 2) return;
+    // v0.9.463 — manuelles Scrubben unterbricht die Multi-Track-Kinofortsetzung
+    // (sonst kämpfen fitBounds-Flug und Scrub-Kamera gegeneinander).
+    if (_toursPreviewActive) { try { _animCancelToursPreview(true); } catch (_) {} }
     // v0.9.3 — opts.skipSelectionSync: wenn true, KEIN syncScrubberSelection.
     // Wird von selectEvent() benutzt — sonst löscht der sync sofort wieder
     // die gerade gesetzte Per-Property-Selektion.
@@ -4823,6 +4827,10 @@ function mountAnimator(body, headerActions, opts) {
     }
     if (!currentCoords || currentCoords.length < 2) return;
     if (_previewRaf && forceStart !== true) {
+      // v0.9.463 — Läuft gerade die Multi-Track-Kinofortsetzung? → sauber
+      // abbrechen (Linien wieder voll) statt in die einspurige Stopp-Logik zu
+      // fallen, sonst laufen anhängige moveend/Timeout-Callbacks weiter.
+      if (_toursPreviewActive) { _animCancelToursPreview(true); _previewSpeed = 1; return; }
       // Aktuell läuft was → stoppen
       cancelAnimationFrame(_previewRaf);
       _previewRaf = null;
@@ -4881,6 +4889,9 @@ function mountAnimator(body, headerActions, opts) {
       } catch (_) {}
       return;
     }
+    // v0.9.463 — eine evtl. noch laufende Multi-Track-Kinofortsetzung eines
+    // vorherigen Laufs beenden (ohne Voll-Restore — der neue Lauf zeichnet neu).
+    _animCancelToursPreview(false);
     _previewT0 = performance.now() - (_startAnchor * totalMs);
     _previewAnimMs = animMs;
     _previewHoldMs = holdMs;
@@ -5165,6 +5176,11 @@ function mountAnimator(body, headerActions, opts) {
           const sg = window.__rzAnimSigns;   // v0.9.171
           if (sg && sg.updateAtAnchor) sg.updateAtAnchor(a);
         } catch (e) { console.warn("[anim-photos] post-preview filter update failed:", e); }
+        // v0.9.463 — Multi-Track: nach dem ersten Track im Kino-Stil zu jeder
+        // weiteren Tour fliegen und sie nachzeichnen (statt einfach zu stoppen).
+        try {
+          if (_extraTours && _extraTours.length > 0) _animPreviewToursCinematic();
+        } catch (e) { rzSwallow(e, "toursCinematic@previewEnd"); }
       }
     };
     if (_previewRaf) cancelAnimationFrame(_previewRaf);
@@ -9675,6 +9691,7 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) {}
     _fullPreviewCoords = [];
     // v0.9.156 — Multi-Track-Liste + Preview-Layer mit zurücksetzen.
+    _toursPreviewActive = false;   // v0.9.463 — evtl. laufende Kinofortsetzung stoppen
     _extraTours = [];
     try { _animClearExtraPreview(); } catch (_) {}
     try { _animRenderToursList(); } catch (_) {}
@@ -9783,6 +9800,86 @@ function mountAnimator(body, headerActions, opts) {
         pitch: (typeof currentPitch === "function") ? currentPitch() : 0,
       });
     } catch (_) {}
+  }
+
+  // ── v0.9.463 — Multi-Track-Kinofortsetzung im Probe-Lauf ─────────────────
+  // Marc: „ich kann den track hinzufügen, aber er fliegt nicht hin, wenn der
+  // 1. fertig ist." Der einspurige Probe-Lauf ignorierte die Extra-Touren.
+  // Diese Fortsetzung läuft NACH dem Ende des primären Probe-Laufs: sie fliegt
+  // im Kino-Stil zu jeder weiteren Tour und zeichnet deren Linie nach — spiegelt
+  // den Render (`_render_multi`: walk → fly → walk). Bewusst als eigenständige
+  // rAF-Kette gebaut (nicht in die stark getunte primäre step()-Schleife
+  // verwoben), damit Keyframe-/van-Wijk-/Trim-Logik unangetastet bleibt.
+  function _animCancelToursPreview(restore) {
+    if (!_toursPreviewActive) return;
+    _toursPreviewActive = false;
+    try { if (_previewRaf) { cancelAnimationFrame(_previewRaf); _previewRaf = null; } } catch (_) {}
+    try { if (_tlBar) _tlBar.setPlaying(false); } catch (_) {}
+    // Linien wieder voll zeichnen (die Kinofortsetzung hatte sie wachsen lassen).
+    if (restore !== false) { try { _animDrawExtraToursPreview(); } catch (_) {} }
+  }
+
+  function _animPreviewToursCinematic() {
+    if (!map || _toursPreviewActive) return;
+    const tours = _extraTours.filter(t => t && Array.isArray(t.coords) && t.coords.length >= 2);
+    if (!tours.length) return;
+    _toursPreviewActive = true;
+    try { if (_tlBar) _tlBar.setPlaying(true); } catch (_) {}
+    const flyMs = Math.max(300, parseNum(document.getElementById("anim-fly")?.value, 3) * 1000);
+    const durSec = parseNum(document.getElementById("anim-dur")?.value, 12);
+    // Geh-Zeit pro Extra-Tour: Gesamt-Animationsdauer / (Touren inkl. der ersten).
+    const walkMs = Math.max(700, (durSec * 1000) / (tours.length + 1));
+    const pitch = (typeof currentPitch === "function") ? currentPitch() : 0;
+
+    // Eine Tour Punkt für Punkt „nachzeichnen" (Linie wächst wie beim Haupttrack).
+    const walkOne = (tr, done) => {
+      const i = _extraTours.indexOf(tr);
+      const src = map.getSource("mtour-prev-" + i);
+      const coords = tr.coords, n = coords.length;
+      const t0 = performance.now();
+      const stepW = (now) => {
+        if (!_toursPreviewActive) return;
+        const p = Math.min(1, (now - t0) / walkMs);
+        const cut = Math.max(2, Math.round(p * n));
+        if (src && src.setData) {
+          try { src.setData({ type: "Feature", geometry: { type: "LineString", coordinates: coords.slice(0, cut) } }); } catch (_) {}
+        }
+        if (p < 1) { _previewRaf = requestAnimationFrame(stepW); }
+        else {
+          if (src && src.setData) { try { src.setData({ type: "Feature", geometry: { type: "LineString", coordinates: coords } }); } catch (_) {} }
+          done();
+        }
+      };
+      _previewRaf = requestAnimationFrame(stepW);
+    };
+
+    // Zur Tour fliegen (van-Wijk-Ease via fitBounds-duration), dann nachzeichnen.
+    const flyThenWalk = (tr, done) => {
+      if (!_toursPreviewActive) return;
+      // Diese Tour-Linie während des Anflugs leeren, damit sie beim Ankommen
+      // frisch wächst (kein „voll → leer → wächst"-Flackern).
+      const _i = _extraTours.indexOf(tr);
+      const _s = map.getSource("mtour-prev-" + _i);
+      if (_s && _s.setData) { try { _s.setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] } }); } catch (_) {} }
+      let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+      for (const pt of tr.coords) { if (pt[0] < a) a = pt[0]; if (pt[0] > c) c = pt[0]; if (pt[1] < b) b = pt[1]; if (pt[1] > d) d = pt[1]; }
+      let started = false;
+      const go = () => { if (started || !_toursPreviewActive) return; started = true; walkOne(tr, done); };
+      try {
+        map.once("moveend", go);
+        map.fitBounds([[a, b], [c, d]], { padding: 70, duration: flyMs, pitch, bearing: 0 });
+        // Sicherheitsnetz: falls `moveend` nicht feuert (z. B. Kamera schon dort).
+        setTimeout(go, flyMs + 500);
+      } catch (_) { go(); }
+    };
+
+    let k = 0;
+    const next = () => {
+      if (!_toursPreviewActive) return;
+      if (k >= tours.length) { _animCancelToursPreview(true); try { _animFitAllTours(); } catch (_) {} return; }
+      flyThenWalk(tours[k++], next);
+    };
+    next();
   }
 
   async function _animAddTour() {

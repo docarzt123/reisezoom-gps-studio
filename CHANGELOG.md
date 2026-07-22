@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.463] – 2026-07-22
+### Behoben
+- **Multi-Track im Animator-Probe-Lauf** flog nicht zu den weiteren Touren.
+  Der einspurige Probe-Lauf ignorierte die Extra-Touren komplett — nur das
+  fertige Video machte den Kino-Flug von Tour zu Tour (Marc: „ich kann den
+  track hinzufügen, aber er fliegt nicht hin, wenn der 1. fertig ist"). Jetzt
+  hängt sich nach dem ersten Track eine Kinofortsetzung an: die Kamera fliegt
+  zu jeder weiteren Tour und zeichnet sie nach (Flugdauer = „Flug"-Slider,
+  Geh-Zeit = Animationsdauer geteilt durch die Tourenzahl) — spiegelt den
+  Render. Als eigenständige rAF-Kette gebaut, damit die getunte Keyframe-/
+  van-Wijk-/Trim-Logik des Haupttracks unangetastet bleibt; sauber abbrechbar
+  bei erneutem Probe-Lauf, Scrubben oder Track-Wechsel.
+
 ## [0.9.462] – 2026-07-21
 ### Behoben
 - **Sprachwechsel im Handbuch** (DE/EN/ES-Pillen) tat nichts: (1) im App-Bundle
