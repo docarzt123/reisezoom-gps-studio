@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.464] – 2026-07-22
+### Geändert
+- **„🧭 Mehrere Touren" im Animator vorerst wieder ausgeblendet** (Marc: läuft
+  in der Vorschau noch nicht rund). Die Kino-Fortsetzung aus v0.9.463 wieder
+  zurückgebaut — kein weiterer Ausbau vorerst. Render-Pfad und Datenmodell
+  (`_extraTours`, `_render_multi`) bleiben unangetastet; zum Reaktivieren nur
+  das `hidden`-Attribut an der Sektion entfernen. Rest des Animators unverändert
+  (headless verifiziert: alle Regler, Akkordeons, Undo/Redo, Modulwechsel ohne
+  Fehler).
+
 ## [0.9.463] – 2026-07-22
 ### Behoben
 - **Multi-Track im Animator-Probe-Lauf** flog nicht zu den weiteren Touren.
