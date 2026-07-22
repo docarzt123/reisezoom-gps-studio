@@ -1544,6 +1544,18 @@ würde auf alter WebKit selbst am Parser scheitern, also genau dort versagen, wo
 gebraucht wird. `app.js` meldet nach `renderMod()` per `window.__rzBooted = true`
 Entwarnung; ohne dieses Signal schlägt der Watchdog zu.
 
+**App Translocation (seit v0.9.472):** Startet der Nutzer die App direkt aus dem
+DMG/„Downloads" (Quarantäne), führt macOS sie aus einem gesperrten
+`…/AppTranslocation/…`-Ordner aus → Ressourcen nicht auffindbar → „beschädigt". Der
+Start-Fehler-Screen erkennt das (Regex auf den Fehler-Pfad **und** Backend-Bridge
+`startup_env()` → `_detect_startup_env()` in `app.py`) und zeigt statt des kryptischen
+Fehlers eine 3-Schritte-„in den Programme-Ordner ziehen"-Anleitung. Der Log-Knopf im
+Fehler-Screen ist jetzt **„📄 Log auf den Schreibtisch legen"** (`save_log_to_desktop`),
+„Pfad kopieren" ist raus (war die DAU-Falle: Tester schickten nur den Pfad). Der
+tatsächliche Fix ist immer prozedural (App nach /Applications ziehen) — ein
+automatisches Self-Move ist auf macOS nicht robust, weil der translozierte Mount
+read-only ist.
+
 **Screenshots im Benutzerhandbuch:** Bilder als `![Bildunterschrift](img/<name>.png)`
 in `docs/USER_GUIDE*.md` einbetten (Dateien unter `docs/img/`). `scripts/build_user_guide_html.py`
 bettet lokale Bilder beim Bauen als **base64-Data-URI** ein → die generierte

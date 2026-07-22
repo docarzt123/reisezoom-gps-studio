@@ -14,6 +14,23 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.472] – 2026-07-22
+### Behoben / Verbessert
+- **„App ist beschädigt / konnte nicht starten" verständlich gemacht (macOS App
+  Translocation).** Startet ein Nutzer die App direkt aus dem DMG oder aus
+  „Downloads" (Quarantäne-Flag dran), führt macOS sie aus einem gesperrten
+  Zufalls-Ordner aus → die App findet ihre Ressourcen nicht → kryptisches
+  „beschädigt". Der Start-Fehler-Screen erkennt diesen Fall jetzt (Pfad enthält
+  `/AppTranslocation/`, zusätzlich Backend-Check `startup_env`) und zeigt statt
+  des Kauderwelschs eine klare **„in den Programme-Ordner ziehen"-Anleitung** in
+  3 Schritten. Neue Bridge `startup_env()` + `_detect_startup_env()` loggt den
+  Zustand klar ins app.log (Bug-Reports sofort erkennbar). Beta-Tester-Fall.
+- **DAU-sicherer Log-Versand auch im Start-Fehler-Screen.** Dieser zeigte bisher
+  nur „Log-Ordner öffnen" + **„Pfad kopieren"** — Letzteres war genau die Falle,
+  durch die ein Tester nur den *Pfad* statt des Logs schickte. „Pfad kopieren"
+  ist raus; stattdessen **„📄 Log auf den Schreibtisch legen"** (legt den ganzen
+  Log als Datei ab, die man in die Mail zieht) als Primär-Knopf.
+
 ## [0.9.471] – 2026-07-22
 ### Hinzugefügt
 - **DAU-sicherer Log-Versand** im „Feedback / Fehler melden…"-Modal. Zwei neue

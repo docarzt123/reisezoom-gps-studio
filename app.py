@@ -133,7 +133,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.471"
+APP_VERSION = "0.9.472"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -244,6 +244,40 @@ log = clog.get_logger("app")
 # das mitgelieferte Chromium nutzt statt einen Download anzustoßen.
 try:
     log.info("Playwright-Browser: %s (gebündelt=%s)", os.environ.get("PLAYWRIGHT_BROWSERS_PATH"), _pw_bundled)
+except Exception:
+    pass
+
+# v0.9.472 — macOS App Translocation erkennen. Startet der Nutzer die App direkt aus
+# dem DMG oder aus „Downloads" (Quarantäne-Flag noch dran), führt macOS sie aus einem
+# gesperrten Zufalls-Ordner (…/AppTranslocation/…) aus → die App findet ihre eigenen
+# Ressourcen nicht → „beschädigt"-Fehler beim Beta-Tester. Fix ist IMMER: App in den
+# Programme-Ordner ziehen und von dort öffnen. Wir merken den Zustand für die Bridge
+# (`startup_env`, wird vom Start-Fehler-Screen abgefragt) + loggen ihn klar, damit der
+# Fall in Bug-Reports sofort erkennbar ist.
+def _detect_startup_env() -> dict:
+    info = {"translocated": False, "in_applications": False, "app_dir": "", "exe": "", "frozen": bool(getattr(sys, "_MEIPASS", None))}
+    try:
+        exe = str(getattr(sys, "executable", "") or "")
+        root = str(ROOT)
+        info["exe"] = exe
+        info["app_dir"] = root
+        blob = (exe + " " + root)
+        info["translocated"] = "/AppTranslocation/" in blob
+        info["in_applications"] = "/applications/" in exe.lower()
+    except Exception:
+        pass
+    return info
+
+STARTUP_ENV = _detect_startup_env()
+try:
+    if sys.platform == "darwin" and STARTUP_ENV.get("frozen"):
+        if STARTUP_ENV["translocated"]:
+            log.warning(
+                "APP TRANSLOCATION erkannt — App läuft aus gesperrtem Ordner (%s). "
+                "Fix: App in den Programme-Ordner ziehen und von dort öffnen.", STARTUP_ENV["exe"])
+        else:
+            log.info("Installations-Ort: %s (in /Applications=%s)",
+                     STARTUP_ENV["exe"], STARTUP_ENV["in_applications"])
 except Exception:
     pass
 
@@ -3261,6 +3295,17 @@ class Api:
             else:
                 log.info("[JS] %s", msg)
             return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def startup_env(self) -> dict:
+        """v0.9.472 — Start-Umgebung fürs Frontend. Wichtigstes Feld: `translocated`
+        — ob macOS die App aus einem gesperrten Ordner ausführt (App Translocation),
+        weil sie direkt aus dem DMG/Downloads gestartet wurde statt aus /Programme.
+        Der Start-Fehler-Screen (ui/index.html) fragt das ab und zeigt dann eine klare
+        „in den Programme-Ordner ziehen"-Anleitung statt des kryptischen „beschädigt"."""
+        try:
+            return {"ok": True, **STARTUP_ENV}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 

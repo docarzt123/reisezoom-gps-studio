@@ -35,6 +35,21 @@
     } catch (e) {}
   }
 
+  // v0.9.472 — Anleitung, wenn macOS die App aus einem gesperrten Ordner ausführt
+  // (App Translocation: App wurde direkt aus DMG/Downloads gestartet statt aus
+  // /Programme). Das ist der häufigste „beschädigt"-Fall beim Beta-Tester.
+  function transloBanner() {
+    return '<div style="background:#3a2a10;border:1px solid #ff6b35;border-radius:8px;padding:14px 16px;margin-bottom:22px">' +
+      '<div style="font-size:16px;font-weight:700;color:#ffb38a;margin-bottom:8px">⚠️ Die App muss noch richtig installiert werden</div>' +
+      '<div style="color:#e6c9b3;font-size:13px;margin-bottom:10px">macOS führt die App gerade aus einem geschützten Ordner aus, weil sie direkt aus dem Download-Fenster gestartet wurde — deshalb meldet sie „beschädigt". So läuft sie wieder:</div>' +
+      '<ol style="color:#e6c9b3;font-size:13px;margin:0;padding-left:18px;line-height:1.75">' +
+        '<li>Dieses Fenster schließen.</li>' +
+        '<li>Das Download-Fenster mit dem <b>Reisezoom-Symbol</b> öffnen und das Symbol <b>in den Ordner „Programme" ziehen</b> — nicht doppelklicken, sondern rüberziehen.</li>' +
+        '<li>Die App danach aus dem <b>Programme-Ordner</b> (oder Launchpad) starten. Beim ersten Mal ggf. <b>Rechtsklick → „Öffnen"</b>.</li>' +
+      '</ol>' +
+    '</div>';
+  }
+
   window.__rzShowStartError = function (title, detail) {
     window.__rzStartErrors.push(title + ' | ' + detail);
     toBackend(title + ' | ' + detail);
@@ -42,8 +57,13 @@
     shown = true;
 
     var BTN = 'font:600 13px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;' +
-      'border:0;border-radius:8px;padding:9px 15px;cursor:pointer;margin-right:8px;';
+      'border:0;border-radius:8px;padding:9px 15px;cursor:pointer;margin-right:8px;margin-bottom:8px;';
     var lp = logPath();
+    // Translocation erkennen: der fehlgeschlagene Datei-Pfad im Fehlertext enthält
+    // dann „/AppTranslocation/". (Zusätzlich fragen wir unten das Backend, falls der
+    // Fehler ohne Pfad kam — z. B. Zeitüberschreitung.)
+    var isTranslo = /AppTranslocation/i.test(String(detail || ''));
+
     var box = document.createElement('div');
     box.id = 'rz-start-error';
     box.setAttribute('style',
@@ -54,44 +74,67 @@
       '<div style="max-width:640px;margin:0 auto">' +
         '<div style="font-size:21px;font-weight:700;color:#fff;margin-bottom:6px">' +
           'Reisezoom GPS Studio konnte nicht starten</div>' +
-        '<div style="color:#8b949e;margin-bottom:20px">' +
-          'Die Programmoberfläche konnte nicht geladen werden.</div>' +
+        '<div style="color:#8b949e;margin-bottom:20px" id="rz-se-sub">' +
+          (isTranslo ? 'Fast geschafft — es fehlt nur der letzte Installations-Schritt.'
+                     : 'Die Programmoberfläche konnte nicht geladen werden.') + '</div>' +
+        '<div id="rz-translo">' + (isTranslo ? transloBanner() : '') + '</div>' +
         '<div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px;margin-bottom:22px">' +
           '<div style="color:#ff6b35;font-weight:600;margin-bottom:4px">' + esc(title) + '</div>' +
           '<div style="color:#8b949e;font-size:12.5px;word-break:break-word">' + esc(detail) + '</div>' +
         '</div>' +
-        '<div style="font-weight:600;color:#fff;margin-bottom:6px">Bitte schick uns die Logdatei</div>' +
-        '<div style="margin-bottom:10px">Darin steht genau, was schiefgelaufen ist:</div>' +
-        '<div style="background:#0a0d12;border:1px solid #30363d;border-radius:8px;padding:11px 13px;' +
-          'font:12.5px ui-monospace,SF Mono,Menlo,Monaco,monospace;color:#ffb38a;word-break:break-all;' +
-          'user-select:text;-webkit-user-select:text;margin-bottom:16px">' + esc(lp) + '</div>' +
-        '<div style="margin-bottom:20px">' +
-          '<button id="rz-open-log" style="' + BTN + 'background:#ff6b35;color:#fff">📂 Log-Ordner öffnen</button>' +
-          '<button id="rz-copy-log" style="' + BTN + 'background:#21262d;color:#c9d1d9">Pfad kopieren</button>' +
+        '<div style="font-weight:600;color:#fff;margin-bottom:6px" id="rz-se-loghead">Klappt es trotzdem nicht? Schick uns den Log</div>' +
+        '<div style="margin-bottom:12px">Der Log zeigt genau, was schiefgelaufen ist — am einfachsten so:</div>' +
+        '<div style="margin-bottom:12px">' +
+          '<button id="rz-desktop-log" style="' + BTN + 'background:#ff6b35;color:#fff">📄 Log auf den Schreibtisch legen</button>' +
+          '<button id="rz-open-log" style="' + BTN + 'background:#21262d;color:#c9d1d9">📂 Log-Ordner öffnen</button>' +
         '</div>' +
         '<div style="color:#8b949e;font-size:12.5px;border-top:1px solid #30363d;padding-top:14px">' +
-          'Falls der Button nicht geht: im Finder <b>„Gehe zu" → „Gehe zum Ordner…"</b> öffnen ' +
-          '(Tastenkürzel <b>⇧⌘G</b>) und den Pfad oben einfügen.<br>' +
-          'Schick die Datei <b>app.log</b> bitte zusammen mit einem Screenshot von ' +
-          '<b>Apple-Menü → „Über diesen Mac"</b> an Marc — damit ist das Problem meist sofort klar.' +
+          'Der Schreibtisch-Knopf legt eine Datei <b>Reisezoom-GPS-Studio-Log….txt</b> auf deinen Schreibtisch — ' +
+          'die kannst du einfach in die Mail an Marc ziehen. Bitte zusammen mit einem Screenshot von ' +
+          '<b>Apple-Menü → „Über diesen Mac"</b> — damit ist das Problem meist sofort klar.' +
         '</div>' +
       '</div>';
     (document.body || document.documentElement).appendChild(box);
 
+    // v0.9.472 — DAU-sicher: kompletten Log als Datei auf den Schreibtisch legen.
+    var db = document.getElementById('rz-desktop-log');
+    if (db) db.onclick = function () {
+      db.disabled = true;
+      function failMsg() { db.disabled = false; alert('Konnte den Log nicht ablegen. Bitte „📂 Log-Ordner öffnen" nutzen und die Datei app.log von Hand anhängen.'); }
+      try {
+        var pr = window.pywebview.api.save_log_to_desktop();
+        if (pr && pr.then) {
+          pr.then(function (res) {
+            if (res && res.ok) { db.textContent = '✓ Liegt auf dem Schreibtisch — in die Mail ziehen'; }
+            else { failMsg(); }
+          }).catch(failMsg);
+        } else { db.textContent = '✓ Liegt auf dem Schreibtisch — in die Mail ziehen'; }
+      } catch (e) { failMsg(); }
+    };
     var ob = document.getElementById('rz-open-log');
     if (ob) ob.onclick = function () {
       try { window.pywebview.api.open_log(); }
       catch (e) { alert('Bitte den Pfad manuell im Finder öffnen:\n\n' + lp); }
     };
-    var cb = document.getElementById('rz-copy-log');
-    if (cb) cb.onclick = function () {
+
+    // v0.9.472 — kam der Fehler ohne AppTranslocation-Pfad im Text (z. B.
+    // Zeitüberschreitung), trotzdem das Backend fragen und die Anleitung nachziehen.
+    if (!isTranslo) {
       try {
-        var t = document.createElement('textarea');
-        t.value = lp; document.body.appendChild(t); t.select();
-        document.execCommand('copy'); document.body.removeChild(t);
-        cb.textContent = '✓ Kopiert';
-      } catch (e) { alert(lp); }
-    };
+        var api = window.pywebview && window.pywebview.api;
+        if (api && api.startup_env) {
+          var q = api.startup_env();
+          if (q && q.then) q.then(function (env) {
+            if (env && env.translocated) {
+              var slot = document.getElementById('rz-translo');
+              if (slot && !slot.innerHTML) slot.innerHTML = transloBanner();
+              var sub = document.getElementById('rz-se-sub');
+              if (sub) sub.textContent = 'Fast geschafft — es fehlt nur der letzte Installations-Schritt.';
+            }
+          }).catch(function () {});
+        }
+      } catch (e) {}
+    }
   };
 
   // WICHTIG: Der Fehler-Bildschirm erscheint NUR solange die Oberfläche noch nicht
