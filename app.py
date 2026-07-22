@@ -133,7 +133,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.470"
+APP_VERSION = "0.9.471"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -3299,6 +3299,78 @@ class Api:
         try:
             return self.reveal_in_finder(str(LOG_PATH))
         except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _full_log_export_text(self, max_bytes: int = 2_000_000) -> str:
+        """Baut den kompletten Log-Export-Text: kleiner Kopf (Version/OS/Python)
+        + der VOLLE Log (nicht nur die letzten 3 KB wie im Bug-Report-Modal).
+        Bei extrem großen Logs wird auf die letzten `max_bytes` gekürzt, damit
+        Zwischenablage/Datei nicht explodieren."""
+        try:
+            os_label = clog.get_os_label()
+        except Exception:
+            os_label = sys.platform
+        header = (
+            f"Reisezoom GPS Studio — Log-Export\n"
+            f"App-Version: {APP_VERSION}\n"
+            f"OS: {os_label}\n"
+            f"Python: {sys.version.split()[0]}\n"
+            f"Erstellt: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
+            f"{'-' * 60}\n\n"
+        )
+        body = "(kein Log vorhanden)"
+        try:
+            if LOG_PATH.exists():
+                sz = LOG_PATH.stat().st_size
+                with open(LOG_PATH, "rb") as fh:
+                    if sz > max_bytes:
+                        fh.seek(sz - max_bytes)
+                        raw = fh.read()
+                        nl = raw.find(b"\n")
+                        if nl >= 0:
+                            raw = raw[nl + 1:]
+                        body = "…(Anfang gekürzt — Log war sehr groß)…\n" + raw.decode("utf-8", errors="replace")
+                    else:
+                        body = fh.read().decode("utf-8", errors="replace")
+        except Exception as e:
+            body = f"(Log konnte nicht gelesen werden: {e})"
+        return header + body
+
+    def get_full_log(self) -> dict:
+        """v0.9.471 — Liefert den KOMPLETTEN Log (Kopf + voller Inhalt) als Text,
+        damit das UI ihn mit einem Klick komplett in die Zwischenablage legen
+        kann. DAU-sicherer als „letzte 3 KB kopieren"."""
+        try:
+            return {"ok": True, "text": self._full_log_export_text()}
+        except Exception as e:
+            log.error("get_full_log failed: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def save_log_to_desktop(self) -> dict:
+        """v0.9.471 — DAU-sicherer Log-Versand: legt den kompletten Log als
+        Textdatei auf den Schreibtisch und zeigt sie im Datei-Manager. Der Nutzer
+        muss die Datei dann nur noch in seine Mail ziehen (Schreibtisch + Draggen
+        kann jeder — im Gegensatz zu „Log-Datei im Library-Ordner finden und
+        anhängen"). Behebt den Beta-Tester-Stolperstein, bei dem nur der Log-PFAD
+        statt des Logs verschickt wurde."""
+        try:
+            desktop = Path.home() / "Desktop"
+            if not desktop.exists():
+                # Fallback: Home-Verzeichnis, falls kein Desktop existiert.
+                desktop = Path.home()
+            stamp = datetime.now().strftime("%Y%m%d-%H%M")
+            # Zeitstempel im Namen → alte Exporte werden nie überschrieben.
+            out = desktop / f"Reisezoom-GPS-Studio-Log_{stamp}.txt"
+            out.write_text(self._full_log_export_text(), encoding="utf-8")
+            log.info("save_log_to_desktop: %s", out)
+            # Im Datei-Manager hervorheben, damit der Nutzer sie sofort sieht.
+            try:
+                self.reveal_in_finder(str(out))
+            except Exception:
+                pass
+            return {"ok": True, "path": str(out), "name": out.name}
+        except Exception as e:
+            log.error("save_log_to_desktop failed: %s", e)
             return {"ok": False, "error": str(e)}
 
     # ── Doku / Hilfe / Über ───────────────────────────────────────────────────

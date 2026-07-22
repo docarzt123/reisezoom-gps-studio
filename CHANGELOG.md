@@ -13,6 +13,19 @@ Bei jeder neuen Version:
 ---
 
 ## [Unreleased]
+
+## [0.9.471] – 2026-07-22
+### Hinzugefügt
+- **DAU-sicherer Log-Versand** im „Feedback / Fehler melden…"-Modal. Zwei neue
+  Knöpfe: **„📄 Log auf den Schreibtisch legen"** schreibt den kompletten Log als
+  `Reisezoom-GPS-Studio-Log_<Zeitstempel>.txt` auf den Schreibtisch und zeigt ihn
+  im Finder — der Nutzer zieht die Datei einfach in die Mail. **„📋 Ganzen Log
+  kopieren"** legt den VOLLEN Log (nicht nur die letzten 3 KB) in die Zwischenablage.
+  Behebt den Beta-Tester-Fall, bei dem statt des Logs nur der Log-**Pfad** verschickt
+  wurde (der „📧 Mail öffnen"-mailto-Weg kürzt bei großen Logs auf den Pfad). Neue
+  Bridges `save_log_to_desktop()` + `get_full_log()`, i18n DE/EN/ES.
+
+## [0.9.470] – 2026-07-22
 ### Hinzugefügt
 - **Test-Protokoll vor jedem Release** (`docs/TESTING.md` + `scripts/release_check.sh`).
   Ein Kommando läuft alle automatischen Gates (JS-/Python-Syntax, i18n-Konsistenz,
@@ -27,7 +40,6 @@ Bei jeder neuen Version:
   volle Protokoll als harten Gate vor jedem Live-Deploy (Override nur via
   `RZ_SKIP_RELEASE_CHECK=1` im Notfall).
 
-## [0.9.470] – 2026-07-22
 ### Behoben
 - **Probe-Lauf im Animator startete nicht bei wiederhergestellter Session**
   (Marc: „der statet einfach nicht"). In einer frisch geladenen/wiederhergestellten

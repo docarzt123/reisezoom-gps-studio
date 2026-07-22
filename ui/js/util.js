@@ -480,6 +480,17 @@ async function openBugReportModal(context = "") {
         >${escapeHtml(r.body)}</textarea>
       </div>
 
+      <div style="margin-top:14px; padding:12px 14px; background:rgba(255,138,0,0.08);
+                  border:1px solid var(--accent); border-radius:8px;">
+        <div style="font-size:12px; line-height:1.5; margin-bottom:10px;">
+          ${t("bugreport.dau.hint")}
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-primary" id="br-desktop">📄 ${t("bugreport.btn.desktop")}</button>
+          <button class="btn" id="br-copyfull">📋 ${t("bugreport.btn.copyfull")}</button>
+        </div>
+      </div>
+
       <p class="muted" style="margin:14px 0 0 0; font-size:11px; line-height:1.5;">
         ${t("bugreport.hint")}
       </p>
@@ -512,6 +523,42 @@ async function openBugReportModal(context = "") {
   document.getElementById("md-br-mailto").onclick = () => {
     api().open_url(r.mailto);
   };
+
+  // v0.9.471 — DAU-sicherer Log-Versand: kompletten Log auf den Schreibtisch
+  // legen (Nutzer zieht die Datei in die Mail). Behebt den Fall, dass nur der
+  // Log-PFAD statt des Logs verschickt wurde.
+  const brDesktop = document.getElementById("br-desktop");
+  if (brDesktop) brDesktop.onclick = async () => {
+    brDesktop.disabled = true;
+    try {
+      const res = await api().save_log_to_desktop();
+      if (res && res.ok) {
+        toast(t("bugreport.desktop_ok").replace("{name}", res.name || "Log.txt"), "success", 6000);
+      } else {
+        toast((res && res.error) ? res.error : t("bugreport.desktop_fail"), "error", 4000);
+      }
+    } catch (e) {
+      toast(t("bugreport.desktop_fail"), "error", 4000);
+    } finally {
+      brDesktop.disabled = false;
+    }
+  };
+
+  // v0.9.471 — kompletten Log (nicht nur 3 KB) in die Zwischenablage.
+  const brCopyFull = document.getElementById("br-copyfull");
+  if (brCopyFull) brCopyFull.onclick = async () => {
+    try {
+      const res = await api().get_full_log();
+      if (!res || !res.ok || !res.text) { toast(t("bugreport.copy_failed"), "error", 3000); return; }
+      await navigator.clipboard.writeText(res.text);
+      const old = brCopyFull.innerHTML;
+      brCopyFull.innerHTML = "✓ " + t("bugreport.copied");
+      setTimeout(() => { brCopyFull.innerHTML = old; }, 1500);
+    } catch (e) {
+      toast(t("bugreport.copy_failed"), "error", 3000);
+    }
+  };
+
   document.getElementById("md-br-ok").onclick = () => openModal({}).close();
 }
 window.openBugReportModal = openBugReportModal;
