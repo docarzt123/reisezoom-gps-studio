@@ -1831,7 +1831,7 @@ function mountGpxInspect(body, headerActions) {
     if (!path) return;   // abgebrochen
 
     const mode = (document.getElementById("gpxi-join-mode") || {}).value || "append";
-    const pause = Number((document.getElementById("gpxi-join-pause") || {}).value) || 0;
+    const pause = parseNum((document.getElementById("gpxi-join-pause") || {}).value, 0);
     const btn = document.getElementById("gpxi-join");
     if (btn) { btn.disabled = true; btn.textContent = "⏳ " + t("gpxinspect.join_working", "Hänge an …"); }
     let res;

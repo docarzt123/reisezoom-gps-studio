@@ -373,9 +373,32 @@ async function loadI18n() {
   }
 }
 
-/** Übersetzungs-Lookup. Mit `{name}`-Platzhaltern. */
-function t(key, params) {
-  let s = (_i18nStrings && _i18nStrings[key]) || key;
+/**
+ * Übersetzungs-Lookup mit `{name}`-Platzhaltern.
+ *
+ * v0.9.459 — zweites Argument darf jetzt ein **Fallback-Text** sein:
+ *   t("some.key", "Deutscher Text")   → zeigt den Text, wenn der Key fehlt
+ *   t("some.key", { name: x })        → Platzhalter (Alt-Signatur, unverändert)
+ *   t("some.key", "Hallo {name}", { name: x }) → Fallback MIT Platzhaltern
+ *
+ * Der gesamte Code schrieb schon immer `t("key", "Text")` in der Annahme,
+ * das zweite Argument sei ein Fallback — war es aber nie: der Text wurde als
+ * (unbenutztes) Platzhalter-Objekt behandelt und bei fehlendem Key stand der
+ * rohe Key in der UI. Diese Signatur schaltet ~780 vorhandene Fallbacks
+ * scharf, ohne die 11 Platzhalter-Aufrufe zu brechen.
+ */
+function t(key, fallbackOrParams, maybeParams) {
+  const store = _i18nStrings || {};
+  const hasKey = Object.prototype.hasOwnProperty.call(store, key)
+    && store[key] != null && store[key] !== "";
+  let s, params;
+  if (typeof fallbackOrParams === "string") {
+    s = hasKey ? store[key] : fallbackOrParams;   // 2. Arg = Fallback-Text
+    params = maybeParams;                          // 3. Arg (optional) = Platzhalter
+  } else {
+    s = hasKey ? store[key] : key;
+    params = fallbackOrParams;                     // 2. Arg = Platzhalter (Alt-Signatur)
+  }
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       s = s.split("{" + k + "}").join(String(v));
@@ -385,6 +408,25 @@ function t(key, params) {
 }
 
 function i18nMeta() { return _i18nMeta; }
+
+/**
+ * Zahl aus Nutzereingabe robust parsen (v0.9.459).
+ *
+ * Deutsche Tastaturen tippen das Dezimalkomma: `parseFloat("2,5")` liefert in
+ * JS aber **2** (es stoppt am Komma) — der Nutzer wollte 2,5 und bekam
+ * kommentarlos 2. `<input type="number">` filtert je nach macOS-Locale das
+ * Komma unterschiedlich, deshalb kann es bis hierher durchrutschen. Wir
+ * ersetzen das erste Komma durch einen Punkt und fallen bei Unparsbarem auf
+ * `fallback` zurück (statt NaN, das sich stumm weiterfrisst).
+ */
+function parseNum(value, fallback = 0) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
+  if (value == null) return fallback;
+  // Nur das ERSTE Komma ist Dezimaltrenner; Tausenderpunkte gibt es in den
+  // Feldern nicht (kleine Zahlen wie 2,5 / 45 / 1920).
+  const n = parseFloat(String(value).trim().replace(",", "."));
+  return Number.isFinite(n) ? n : fallback;
+}
 
 /**
  * Öffnet das Bug-Report-Modal: zeigt Marc's Mail-Adresse + Subject + Body
@@ -787,6 +829,29 @@ function applog(level, msg) {
     }
   } catch (_) {}
 }
+
+/**
+ * Einen gefangenen Fehler NICHT stumm schlucken (v0.9.459).
+ *
+ * Der Code hat hunderte `catch (_) {}` — bewusst, weil einzelne Map-/Render-
+ * Aussetzer die App nicht kippen sollen. Der Preis: wenn wirklich mal etwas
+ * schiefläuft (fehlende Tour-Linien, verlorene Klicks), gibt es keine Spur.
+ *
+ * `rzSwallow` ist der explizite Ersatz für `catch (_) {}` an DIAGNOSE-relevanten
+ * Stellen: standardmäßig genauso still, aber mit gesetztem Debug-Flag landet der
+ * Fehler samt Kontext im app.log. Marc kann das ohne Rebuild einschalten:
+ *   localStorage.setItem("rz_debug", "1")   (in der WebView-Konsole)
+ * oder zur Laufzeit `window.__rzDebug = true`.
+ *
+ *   } catch (e) { rzSwallow(e, "applyLineStyle"); }
+ */
+function rzSwallow(err, context) {
+  try {
+    const on = window.__rzDebug
+      || (window.localStorage && window.localStorage.getItem("rz_debug") === "1");
+    if (on) applog("warn", `[swallow${context ? " " + context : ""}] ${err && err.message || err}`);
+  } catch (_) {}
+}
 // Optional: globale Error-Capture
 window.addEventListener("error", (e) => {
   applog("error", `[window.onerror] ${e.message} @ ${e.filename}:${e.lineno}`);
@@ -1016,7 +1081,7 @@ function bindSetting(elementId, section, key, opts = {}) {
   el.addEventListener(evName, () => {
     let val;
     if (type === "bool") val = el.checked;
-    else if (type === "number") val = parseFloat(el.value);
+    else if (type === "number") val = parseNum(el.value, NaN);  // v0.9.459: Komma-Dezimal
     else val = el.value;
     if (isColor) {
       // Undo: ein Schritt pro Pick-Geste (Throttle, wie Slider).

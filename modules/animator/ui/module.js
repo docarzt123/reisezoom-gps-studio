@@ -1949,7 +1949,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!_styleDeferred.has(name)) {
       _styleDeferred.add(name);
       try {
-        map.once("idle", () => { _styleDeferred.delete(name); try { fn(); } catch (_) {} });
+        map.once("idle", () => { _styleDeferred.delete(name); try { fn(); } catch (e) { rzSwallow(e, "whenStyleReady:" + name); } });
       } catch (_) { _styleDeferred.delete(name); }
     }
     return false;
@@ -2276,16 +2276,16 @@ function mountAnimator(body, headerActions, opts) {
   function trackFraction() {
     // v0.9.59: tf bezeichnet die Position auf der Timeline wo die Anim-Phase
     // ENDET. Bei intro_s > 0: tf = (intro + dur) / total. Sonst klassisch.
-    const intro = parseFloat(document.getElementById("anim-intro")?.value) || 0;
-    const dur = parseFloat(document.getElementById("anim-dur")?.value) || 12;
-    const hold = parseFloat(document.getElementById("anim-hold")?.value) || 0;
+    const intro = parseNum(document.getElementById("anim-intro")?.value, 0);
+    const dur = parseNum(document.getElementById("anim-dur")?.value, 12);
+    const hold = parseNum(document.getElementById("anim-hold")?.value, 0);
     return (intro + dur) / Math.max(0.001, intro + dur + hold);
   }
   // v0.9.59: Intro-Bruchteil — Position wo die Anim-Phase BEGINNT (= Intro endet).
   function introFraction() {
-    const intro = parseFloat(document.getElementById("anim-intro")?.value) || 0;
-    const dur = parseFloat(document.getElementById("anim-dur")?.value) || 12;
-    const hold = parseFloat(document.getElementById("anim-hold")?.value) || 0;
+    const intro = parseNum(document.getElementById("anim-intro")?.value, 0);
+    const dur = parseNum(document.getElementById("anim-dur")?.value, 12);
+    const hold = parseNum(document.getElementById("anim-hold")?.value, 0);
     return intro / Math.max(0.001, intro + dur + hold);
   }
   // Hilfsfunktion: Timeline-Anchor → Track-Index (0..n-1).
@@ -2493,7 +2493,7 @@ function mountAnimator(body, headerActions, opts) {
     // App-Start und nach jedem Stil-Wechsel wurden sie nie nachgezeichnet
     // (die Draw-Funktion bricht bei ladendem Style still ab). Hier läuft der
     // Style garantiert — also immer mit nachziehen.
-    try { _animDrawExtraToursPreview(); } catch (_) {}
+    try { _animDrawExtraToursPreview(); } catch (e) { rzSwallow(e, "drawExtraTours@rebuild"); }
   }
 
   // v0.9.390 — WYSIWYG zum Render: im Mapbox-Standard-Style (standard/
@@ -4849,9 +4849,9 @@ function mountAnimator(body, headerActions, opts) {
     // v0.7.1: Probe-Lauf nutzt die eingestellte Animations-Dauer statt fix 5 s.
     // Hold-Phase wird auch berücksichtigt — der Render hat ja auch den Hold am
     // Ende mit Bearing-Sweep. Wir simulieren das durch eine kleine End-Hold-Zeit.
-    const introSec = parseFloat(document.getElementById("anim-intro")?.value) || 0;
-    const durSec = parseFloat(document.getElementById("anim-dur")?.value) || 12;
-    const holdSec = parseFloat(document.getElementById("anim-hold")?.value) || 0;
+    const introSec = parseNum(document.getElementById("anim-intro")?.value, 0);
+    const durSec = parseNum(document.getElementById("anim-dur")?.value, 12);
+    const holdSec = parseNum(document.getElementById("anim-hold")?.value, 0);
     const introMs = Math.max(0, introSec * 1000);
     const animMs = Math.max(500, durSec * 1000);
     const holdMs = Math.max(0, holdSec * 1000);
@@ -4980,9 +4980,9 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.228 — Overlay-Zeitfenster im Probelauf spiegeln (WYSIWYG zum Render).
       // Video-Sekunde = Fortschritt × Gesamtdauer (intro+anim+hold).
       try {
-        const _ovTotalSec = (parseFloat(document.getElementById("anim-intro")?.value) || 0)
-          + (parseFloat(document.getElementById("anim-dur")?.value) || 0)
-          + (parseFloat(document.getElementById("anim-hold")?.value) || 0);
+        const _ovTotalSec = (parseNum(document.getElementById("anim-intro")?.value, 0))
+          + (parseNum(document.getElementById("anim-dur")?.value, 0))
+          + (parseNum(document.getElementById("anim-hold")?.value, 0));
         _animOverlayTimingPreview(timelineProgress * _ovTotalSec);
       } catch (_) {}
       const ti = introFraction();
@@ -6521,8 +6521,8 @@ function mountAnimator(body, headerActions, opts) {
       const base = _animPhotosMarkerAnchor(timelineAnchor);
       const ti = (typeof introFraction === "function") ? introFraction() : 0;
       if (ti <= 0 || timelineAnchor >= ti) return base;  // kein Intro / außerhalb
-      const introSec = parseFloat(document.getElementById("anim-intro")?.value) || 0;
-      const animSec  = parseFloat(document.getElementById("anim-dur")?.value) || 12;
+      const introSec = parseNum(document.getElementById("anim-intro")?.value, 0);
+      const animSec  = parseNum(document.getElementById("anim-dur")?.value, 12);
       if (introSec <= 0 || animSec <= 0) return base;
       const introProgress = Math.max(0, Math.min(1, timelineAnchor / Math.max(0.0001, ti)));
       // base = trimA-Anker (Marker am Track-Start). Im Intro nach unten ziehen:
@@ -9833,7 +9833,7 @@ function mountAnimator(body, headerActions, opts) {
       saveProjectSettings(_MODKEY, {
         extra_tours: _extraTours.map(t => ({
           gpx_path: t.gpx_path, line_color: t.line_color, name: t.name })),
-        fly_duration_s: parseFloat(document.getElementById("anim-fly")?.value || "3"),
+        fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
       });
     } catch (_) {}
   }
@@ -9869,7 +9869,7 @@ function mountAnimator(body, headerActions, opts) {
       _animPersistTours();
     }
     try { _animRenderToursList(); } catch (_) {}
-    try { _animDrawExtraToursPreview(); } catch (_) {}
+    try { _animDrawExtraToursPreview(); } catch (e) { rzSwallow(e, "drawExtraTours@rebuild"); }
   }
   window.__animLoadTours = _animLoadTours;
 
@@ -9902,9 +9902,9 @@ function mountAnimator(body, headerActions, opts) {
   // Scrubber (Timeline-Progress 0..1) → Marker-Anker auf dem Track (0..1):
   // Intro = Start, Anim = linear, Hold = Ende. Plus Video-Sekunde für Overlay-Timing.
   function _snapshotAnchorAndTime() {
-    const dur = parseFloat(document.getElementById("anim-dur")?.value) || 12;
-    const intro = parseFloat(document.getElementById("anim-intro")?.value) || 0;
-    const hold = parseFloat(document.getElementById("anim-hold")?.value) || 0;
+    const dur = parseNum(document.getElementById("anim-dur")?.value, 12);
+    const intro = parseNum(document.getElementById("anim-intro")?.value, 0);
+    const hold = parseNum(document.getElementById("anim-hold")?.value, 0);
     const total = Math.max(0.001, intro + dur + hold);
     const prog = (_tlBar && typeof _tlBar.getScrubber === "function")
       ? Math.max(0, Math.min(1, _tlBar.getScrubber() || 0)) : 0;
@@ -10106,7 +10106,7 @@ function mountAnimator(body, headerActions, opts) {
         })));
         return {
           tracks,
-          fly_duration_s: parseFloat(document.getElementById("anim-fly")?.value || "3"),
+          fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
         };
       })(),
       output_path: savePath,
@@ -10171,12 +10171,12 @@ function mountAnimator(body, headerActions, opts) {
       overlay_elevation_position: document.getElementById("anim-ov-ele-pos")?.value || "bottom-right",
       // v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y"). Leeres
       // Feld / 0 = ab Start bzw. bis Ende.
-      overlay_totals_from_s: parseFloat(document.getElementById("anim-ov-totals-from")?.value) || 0,
-      overlay_totals_to_s: parseFloat(document.getElementById("anim-ov-totals-to")?.value) || 0,
-      overlay_live_from_s: parseFloat(document.getElementById("anim-ov-live-from")?.value) || 0,
-      overlay_live_to_s: parseFloat(document.getElementById("anim-ov-live-to")?.value) || 0,
-      overlay_elevation_from_s: parseFloat(document.getElementById("anim-ov-ele-from")?.value) || 0,
-      overlay_elevation_to_s: parseFloat(document.getElementById("anim-ov-ele-to")?.value) || 0,
+      overlay_totals_from_s: parseNum(document.getElementById("anim-ov-totals-from")?.value, 0),
+      overlay_totals_to_s: parseNum(document.getElementById("anim-ov-totals-to")?.value, 0),
+      overlay_live_from_s: parseNum(document.getElementById("anim-ov-live-from")?.value, 0),
+      overlay_live_to_s: parseNum(document.getElementById("anim-ov-live-to")?.value, 0),
+      overlay_elevation_from_s: parseNum(document.getElementById("anim-ov-ele-from")?.value, 0),
+      overlay_elevation_to_s: parseNum(document.getElementById("anim-ov-ele-to")?.value, 0),
       // v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
       overlay_totals_fields: _ovGetFields("totals"),
       overlay_live_fields: _ovGetFields("live"),

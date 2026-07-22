@@ -23,6 +23,12 @@ APPNAME="Reisezoom GPS Studio.app"
 pkill -f ReisezoomGPSStudio 2>/dev/null || true
 sleep 1
 
+# v0.9.459 — i18n-Konsistenz prüfen (Warn-Gate, bricht den Build NICHT ab).
+# Fängt fehlende Keys (roher Key in der UI) + Sprachen-Drift, bevor ausgeliefert
+# wird. Kein harter Stopp, damit ein vergessener String kein Release blockiert.
+echo "🌍  Prüfe i18n-Konsistenz …"
+python3 scripts/check_i18n.py || echo "⚠️  i18n-Warnung (siehe oben) — Build läuft weiter."
+
 # User-Guide-HTML aus Markdown generieren (für Hilfe-Menü)
 echo "📖  Baue USER_GUIDE.html …"
 python3 scripts/build_user_guide_html.py

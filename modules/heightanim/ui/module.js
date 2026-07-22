@@ -1498,8 +1498,8 @@ function mountHeightAnim(body, headerActions) {
 
   // ── Animation-Loop ─────────────────────────────────────────────────────
   function getDurations() {
-    const dur = parseFloat(document.getElementById("height-dur")?.value) || 12;
-    const hold = parseFloat(document.getElementById("height-hold")?.value) || 2;
+    const dur = parseNum(document.getElementById("height-dur")?.value, 12);
+    const hold = parseNum(document.getElementById("height-hold")?.value, 2);
     return { dur, hold };
   }
 

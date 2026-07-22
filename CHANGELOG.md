@@ -14,6 +14,29 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.459] – 2026-07-21
+### Behoben
+- **Fehlende Übersetzungen zeigen jetzt den deutschen Text statt des rohen
+  Keys.** Der gesamte Code schrieb schon immer `t("key", "Deutscher Text")` in
+  der Annahme, das sei ein Fallback — war es aber nie. Jetzt ist es einer:
+  fehlt ein Übersetzungs-Key, erscheint der mitgelieferte Text (~780 Stellen
+  auf einen Schlag abgesichert) statt eines internen Schlüssels wie
+  „export.done".
+- **Dezimalkomma bei Zahleneingaben.** Wer „2,5" in Dauer, Hold oder ein
+  anderes Zahlenfeld tippte, bekam kommentarlos „2" (JavaScript stoppt am
+  Komma). Ein zentraler Parser nimmt jetzt Komma **und** Punkt und behebt
+  nebenbei einen alten Fall, in dem eine gültige 0 auf den Default zurückfiel.
+
+### Intern (Qualitätssicherung)
+- **`scripts/selftest_deep.py`** — härterer UI-Selbsttest: fährt in jedem Modul
+  jeden Regler an und prüft, dass kein `[hidden]`-Element sichtbar ist. Hätte
+  die drei UI-Bugs aus v0.9.458 automatisch gefangen.
+- **`scripts/check_i18n.py`** — prüft benutzte Keys gegen de/en/es und meldet
+  Lücken/Drift; läuft als Warn-Gate im Build.
+- **`rzSwallow(e, kontext)`** — expliziter Ersatz für stille `catch (_) {}` an
+  Diagnose-relevanten Render-/Karten-Stellen: normal still, mit
+  `localStorage.rz_debug = "1"` schreiben gefangene Fehler ins app.log.
+
 ## [0.9.458] – 2026-07-21
 ### Behoben
 - **Render brach bei halben Sekunden ab.** Dauer und Hold sind freie
