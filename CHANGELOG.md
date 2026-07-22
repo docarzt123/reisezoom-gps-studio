@@ -23,6 +23,9 @@ Bei jeder neuen Version:
   das `hidden`-Attribut an der Sektion entfernen. Rest des Animators unverändert
   (headless verifiziert: alle Regler, Akkordeons, Undo/Redo, Modulwechsel ohne
   Fehler).
+- **Handbuch:** den Abschnitt „🧭 Mehrere Touren in einem Video" aus dem
+  USER_GUIDE entfernt (beschrieb die jetzt versteckte Funktion). IDEAS.md-
+  Roadmap auf „🟡 UI ausgeblendet, Preview offen" gesetzt.
 
 ## [0.9.463] – 2026-07-22
 ### Behoben
