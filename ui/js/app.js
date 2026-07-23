@@ -820,9 +820,15 @@ window.exportCurrentCsv = () => exportCurrent("csv");
 
 window.addEventListener("DOMContentLoaded", async () => {
   await whenApiReady();
+  // v0.9.472 — Boot-Schritt-Logging: zeigt in Bug-Report-Logs GENAU, bis wohin der
+  // Start kam. Fehlt eine der Zeilen, hängt es an genau diesem await (Beta-Tester-
+  // Diagnose ohne Rätselraten). applog geht erst NACH whenApiReady zuverlässig durch.
+  applog && applog("info", "[boot] api-ready");
   await loadSettings();
+  applog && applog("info", "[boot] settings geladen");
   await loadI18n();
   applyI18nToModuleManifests();
+  applog && applog("info", "[boot] i18n geladen");
 
   document.getElementById("topbar-settings").addEventListener("click", openSettingsModal);
   // v0.9.288 — Topbar aufgeräumt (Marc): Hilfe/Feedback/YouTube/Blog sind aus der
@@ -865,8 +871,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (_settingsCache) { _settingsCache.onboarding_done = true; _settingsCache.force_osm = true; }
   } else {
     const onboardingDone = !!(_settingsCache && _settingsCache.onboarding_done);
+    applog && applog("info", `[boot] onboarding_done=${onboardingDone}`);
     if (!onboardingDone) {
-      await openFirstRunMapboxModal();
+      // v0.9.472 — Start-Watchdog aussetzen, solange der Dialog auf den Nutzer wartet.
+      // Sonst legt sich nach 25 s der „konnte nicht starten"-Screen über den Dialog
+      // (Beta-Tester: DAU überlegte >25 s → Endlos-„Zeitüberschreitung").
+      window.__rzOnboarding = true;
+      try { await openFirstRunMapboxModal(); }
+      finally { window.__rzOnboarding = false; }
+      applog && applog("info", "[boot] onboarding-Dialog geschlossen");
     }
   }
   // Aktiven Map-Token für die Factory laden (auch wenn kein Token → OSM-Mode)

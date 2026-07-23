@@ -15,6 +15,10 @@
 (function () {
   var shown = false;
   window.__rzBooted = false;
+  // v0.9.472 — true, solange der First-Run-Dialog (Mapbox-Token) berechtigt auf den
+  // Nutzer wartet. Der Watchdog wertet DAS NICHT als „hängt" (sonst legt sich der
+  // „konnte nicht starten"-Screen über den Dialog, wenn ein DAU >25 s überlegt).
+  window.__rzOnboarding = false;
   window.__rzStartErrors = [];
 
   function esc(s) {
@@ -170,12 +174,19 @@
   });
   // 4) Watchdog: nichts abgestürzt, aber die Oberfläche kommt trotzdem nicht hoch
   //    (z. B. hängende Netzwerk-Anfrage) → nach 25 s trotzdem etwas Lesbares zeigen.
-  setTimeout(function () {
-    if (!window.__rzBooted) {
+  //    v0.9.472 — ABER: der First-Run-Dialog (Mapbox-Token) wartet BERECHTIGT auf den
+  //    Nutzer. Solange der offen ist (__rzOnboarding), NICHT als „hängt" werten, sonst
+  //    knallt sich der Fehlerscreen über den Dialog (DAU überlegt >25 s → „konnte nicht
+  //    starten", Beta-Tester-Bug). Ist der Dialog offen, warten wir weitere 25 s — die
+  //    Uhr für den Rest-Boot läuft erst weiter, wenn der Nutzer entschieden hat.
+  (function watchdog() {
+    setTimeout(function () {
+      if (window.__rzBooted) return;
+      if (window.__rzOnboarding) { watchdog(); return; }
       window.__rzShowStartError('Zeitüberschreitung beim Laden',
         'Die Oberfläche hat sich nach 25 Sekunden nicht gemeldet.');
-    }
-  }, 25000);
+    }, 25000);
+  })();
 })();
 </script>
 

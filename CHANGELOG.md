@@ -16,6 +16,17 @@ Bei jeder neuen Version:
 
 ## [0.9.472] – 2026-07-22
 ### Behoben / Verbessert
+- **Start-Endlosschleife „Zeitüberschreitung beim Laden" bei Erst-Nutzern behoben**
+  (Beta-Tester, per app.log diagnostiziert). Der First-Run-Mapbox-Dialog
+  wartet berechtigt auf den Nutzer, aber `__rzBooted` wurde erst DANACH gesetzt —
+  überlegte ein DAU länger als 25 Sek, feuerte der Start-Watchdog seinen „konnte
+  nicht starten"-Screen ÜBER den Dialog, das Onboarding wurde nie abgeschlossen
+  (`onboarding_done` blieb false) → jeder Neustart dasselbe. Fix: neues Flag
+  `__rzOnboarding` setzt den Watchdog aus, solange der Dialog offen ist (die 25-Sek-
+  Uhr für den Rest-Boot läuft erst weiter, wenn der Nutzer entschieden hat) — für
+  echte Hänger bleibt der Watchdog scharf. Zusätzlich **Boot-Schritt-Logging**
+  (`[boot] api-ready / settings / i18n / onboarding_done`), damit Startprobleme in
+  Bug-Report-Logs sofort lokalisierbar sind.
 - **„App ist beschädigt / konnte nicht starten" verständlich gemacht (macOS App
   Translocation).** Startet ein Nutzer die App direkt aus dem DMG oder aus
   „Downloads" (Quarantäne-Flag dran), führt macOS sie aus einem gesperrten

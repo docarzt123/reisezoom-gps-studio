@@ -1544,6 +1544,17 @@ würde auf alter WebKit selbst am Parser scheitern, also genau dort versagen, wo
 gebraucht wird. `app.js` meldet nach `renderMod()` per `window.__rzBooted = true`
 Entwarnung; ohne dieses Signal schlägt der Watchdog zu.
 
+**Watchdog vs. First-Run-Dialog (seit v0.9.472):** Der First-Run-Mapbox-Dialog
+wartet berechtigt auf den Nutzer, `__rzBooted` kommt aber erst danach. Ein DAU, der
+>25 s überlegt, bekam sonst den „konnte nicht starten"-Screen über den Dialog geknallt
+(Beta-Tester: Endlosschleife, weil `onboarding_done` nie gespeichert wurde).
+Fix: `window.__rzOnboarding` (in index.html initialisiert, in `app.js` um
+`openFirstRunMapboxModal()` gesetzt) setzt den Watchdog aus, solange der Dialog offen
+ist — er re-scheduled sich dann selbst um 25 s. Für echte Hänger bleibt er scharf.
+Zusätzlich schreibt der Boot jetzt Schritt-Marker ins app.log
+(`[boot] api-ready / settings / i18n / onboarding_done`), damit Startprobleme in
+Bug-Report-Logs ohne Rätselraten lokalisierbar sind.
+
 **App Translocation (seit v0.9.472):** Startet der Nutzer die App direkt aus dem
 DMG/„Downloads" (Quarantäne), führt macOS sie aus einem gesperrten
 `…/AppTranslocation/…`-Ordner aus → Ressourcen nicht auffindbar → „beschädigt". Der
