@@ -1463,5 +1463,6 @@
   "osm_block.osm_hint": "You’re in OSM mode. Without a token you can start right away:",
   "osm_block.osm_list": "📷 geotag photos · 🗺️ tour map as image · 🧭 clean up tracks · 📈 elevation-profile videos",
   "osm_block.cta_token": "Set up a free token",
-  "osm_block.cta_tourmap": "Go to tour map →"
+  "osm_block.cta_tourmap": "Go to tour map →",
+  "signs.move_hint": "↔ To move a sign, just drag it on the map to where you want it."
 }

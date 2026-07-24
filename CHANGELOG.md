@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.476] – 2026-07-24
+### Geändert / Verbessert
+- **Schilder per Drag & Drop verschieben** (Nutzer-Feedback: das frühere „↔ Verschieben →
+  Klick auf die Karte" war unintuitiv). Im Schild-Editor sind die Schild-Marker jetzt
+  direkt ziehbar — man packt das Schild an und legt es genau dort ab, wo es hin soll.
+  Beim Loslassen übernimmt das Schild die neue Position als **freie Platzierung** und
+  verwirft den Zeit-Anker (Timing richtet sich neu nach dem Ort). Der „↔ Verschieben"-
+  Button entfällt; an seiner Stelle steht ein kurzer Hinweis. `_animSignsAttachDOM` in
+  `modules/animator/ui/module.js` (Marker `draggable:true` + `dragend`); `_animSignDragging`
+  unterdrückt das Klick-Öffnen des Editors direkt nach dem Ziehen. Gilt für Animator und
+  Tour-Karte (gemeinsame Engine). Neue Schilder setzt man weiterhin über „📍 Auf Track" /
+  „📌 Frei platzieren".
+
 ## [0.9.475] – 2026-07-24
 ### Behoben
 - **Schild-Schlagschatten bei „Hintergrund: Keine": zu schwach + Buchstaben „zappelten"**

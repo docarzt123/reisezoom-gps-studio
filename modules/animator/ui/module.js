@@ -6110,6 +6110,7 @@ function mountAnimator(body, headerActions, opts) {
     // wird in _animSignsOpenEditor (→DOM) / _animSignsCloseEditor + beginPreview (→GPU).
     let _animSignEditMode = false;
     let _animSignMoveIdx = -1;   // >=0 = bestehendes Schild verschieben statt neues setzen
+    let _animSignDragging = false;   // v0.9.476 — true während/kurz nach Marker-Drag (Klick unterdrücken)
     function _animSignsSizePx() {
       const a = _activeProject?.[_MODKEY];
       if (a && typeof a.signs_size_px === "number") return a.signs_size_px;
@@ -6365,12 +6366,40 @@ function mountAnimator(body, headerActions, opts) {
         try { wrap = window.__rzSignDomBuild(); window.__rzSignDomStyle(wrap, sn, { imageUrl }); } catch (_) { return; }
         wrap.addEventListener("click", (ev) => {
           if (_animSignPlaceMode) return;
+          if (_animSignDragging) return;   // v0.9.476 — nach dem Ziehen KEINEN Editor öffnen
           try { ev.stopPropagation(); } catch (_) {}
           _animSignsOpenEditor(fi);
         });
+        try { wrap.style.cursor = "grab"; } catch (_) {}
         let marker;
         const _mkAnchor = _signMarkerAnchor(sn);   // v0.9.408 — Sprechblasen-Richtung
-        try { marker = new MarkerCls({ element: wrap, anchor: _mkAnchor }).setLngLat([Number(sn.lon), Number(sn.lat)]).addTo(map); } catch (_) { return; }
+        // v0.9.476 — Schilder per Drag & Drop verschieben (Nutzer-Feedback: das frühere
+        // „Verschieben → Klick auf die Karte" war unintuitiv). Der DOM-Marker ist jetzt
+        // draggable; beim Loslassen übernimmt das Schild die neue Position als FREIE
+        // Platzierung und verwirft den Zeit-Anker (Timing richtet sich wieder nach dem Ort).
+        // Nur im Editier-Modus (DOM-Marker); im Probelauf sind es GPU-Icons.
+        try { marker = new MarkerCls({ element: wrap, anchor: _mkAnchor, draggable: true }).setLngLat([Number(sn.lon), Number(sn.lat)]).addTo(map); } catch (_) { return; }
+        try {
+          marker.on("dragstart", () => { _animSignDragging = true; try { wrap.style.cursor = "grabbing"; } catch (_) {} });
+          marker.on("dragend", () => {
+            let ll = null; try { ll = marker.getLngLat(); } catch (_) {}
+            try { wrap.style.cursor = "grab"; } catch (_) {}
+            if (ll) {
+              const l2 = _animSignsList().slice();
+              if (fi < l2.length) {
+                const _moved = { ...l2[fi], lat: ll.lat, lon: ll.lng, anchorMode: "free" };
+                delete _moved.timeAnchor;
+                l2[fi] = _moved;
+                _animSignsSave(l2); _animSignsAttachToMap(); _animSignsRenderList();
+                if (_animSignEditorIdx === fi && _animSignEditorEl) {
+                  try { _animSignsPositionEditor(_animSignEditorEl, ll.lng, ll.lat); } catch (_) {}
+                }
+              }
+            }
+            // Das Klick-Event, das direkt nach dem Drag feuert, noch verschlucken.
+            setTimeout(() => { _animSignDragging = false; }, 60);
+          });
+        } catch (_) {}
         // v0.9.256 — jetzt im DOM → Box-Höhe ist messbar → einmal nach-stylen, damit die
         // Banner-/Wegweiser-Pfosten proportional zur echten Box-Höhe sitzen.
         try { window.__rzSignDomStyle(wrap, sn, { imageUrl }); } catch (_) {}
@@ -6921,7 +6950,7 @@ function mountAnimator(body, headerActions, opts) {
         <div class="sign-editor-foot" style="flex-wrap:wrap; gap:6px;">
           <button type="button" class="btn btn-small" id="se-apply-all" style="flex-basis:100%;" title="${t("signs.apply_all_hint", "Aussehen (Form/Farben/Schrift/Schatten/Größe) auf alle anderen übertragen")}">${t("signs.apply_all", "🎨 Stil auf alle übertragen")}</button>
           <button type="button" class="btn btn-danger-subtle btn-small" id="se-del">${t("signs.delete", "🗑")}</button>
-          <button type="button" class="btn btn-small" id="se-move">${t("signs.move", "↔ Verschieben")}</button>
+          <div class="se-move-hint" style="flex-basis:100%; font-size:11px; color:var(--text-muted,#93a1b0); text-align:center; margin-top:2px;">${t("signs.move_hint", "↔ Zum Verschieben das Schild direkt auf der Karte an die gewünschte Stelle ziehen.")}</div>
         </div>`;
       document.body.appendChild(panel);   // v0.9.180 — an body → über die Karte hinaus ziehbar
       _animSignEditorEl = panel;
@@ -7076,7 +7105,8 @@ function mountAnimator(body, headerActions, opts) {
       };
       $("#se-close").onclick = () => _animSignsCloseEditor();
       $("#se-del").onclick = () => { _animSignsCloseEditor(); _animSignsDelete(idx); };
-      $("#se-move").onclick = () => { _animSignsCloseEditor(); _animSignsStartMove(idx); };
+      // v0.9.476 — „Verschieben"-Button entfällt: Schilder werden jetzt direkt per
+      // Drag & Drop auf der Karte verschoben (siehe Marker-`dragend` in _animSignsAttachDOM).
       // v0.9.198/199 — „Stil + Verhalten auf alle übertragen": Aussehen UND
       // Verhalten (Timing/Einblendung/Zoom/„ganze Zeit zeigen") dieses Schilds auf
       // ALLE anderen kopieren. Text/Bild/Position/Sichtbar-Häkchen bleiben pro Schild.
