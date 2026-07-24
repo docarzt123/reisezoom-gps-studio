@@ -194,23 +194,40 @@
     card.style.alignItems = (align === "left") ? "flex-start" : (align === "right" ? "flex-end" : "center");
 
     // Schatten. Box vorhanden → box-shadow um die Box. Box transparent (Text bzw. Bild
-    // ohne Rahmen) → box-shadow hätte nichts zum Werfen (nur ein leeres Rechteck), deshalb
-    // drop-shadow-Filter: der folgt der KONTUR von Text/Bild. v0.9.473 (Nutzer-Feedback:
-    // „Schlagschatten keine Wirkung wenn nur Text ohne Hintergrund").
+    // ohne Rahmen) → der Schatten muss der KONTUR von Text/Bild folgen.
+    // v0.9.475 (Beta-Tester-Feedback): NICHT mehr `filter: drop-shadow` auf der Box —
+    // ein Filter promotet die Box zu einer Bitmap-Ebene, und weil der Preview-Layer per
+    // `transform: scale()` skaliert wird (module.js), wird der Text als Bild mitskaliert
+    // → die Buchstaben „zappeln". Stattdessen: TEXT bekommt `text-shadow` (vektor, folgt
+    // den Glyphen, kein Layer-Promotion, kräftiger), BILD bekommt den drop-shadow-Filter
+    // nur auf sich selbst (Bitmap → kein Zappeln). Der Render (sign_draw.js, Canvas)
+    // zeichnet denselben Text-/Bild-Konturschatten → WYSIWYG.
     if (o.shadow) {
       var sBlur = (o.shadowBlur != null ? Number(o.shadowBlur) : 8);
       var sStr = (o.shadowStrength != null ? Math.max(0.05, Math.min(1, Number(o.shadowStrength))) : 0.55);
       var sC = o.shadowColor || "#000000";
       if (boxTransparent) {
         card.style.boxShadow = "none";
-        card.style.filter = "drop-shadow(0 " + px(Math.max(1, sBlur * 0.35)) + " " + px(Math.max(2, sBlur * 0.6)) + " " + rgba(sC, sStr) + ")";
+        card.style.filter = "";
+        // Text: zwei Ebenen (weicher Halo + enge dunkle Kante), kräftiger als der alte
+        // Filter, weil ein Schatten auf dünnen Glyphen-Kanten schwächer wirkt als hinter
+        // einer Fläche → Deckkraft angehoben.
+        cap.style.textShadow =
+          "0 " + px(Math.max(1, sBlur * 0.30)) + " " + px(Math.max(1, sBlur * 0.55)) + " " + rgba(sC, Math.min(1, sStr + 0.28)) +
+          ", 0 " + px(Math.max(1, sBlur * 0.12)) + " " + px(Math.max(1, sBlur * 0.24)) + " " + rgba(sC, Math.min(1, sStr + 0.22));
+        // Bild: drop-shadow nur aufs Bild (bereits Bitmap → skaliert sauber mit, kein Text-Zappeln).
+        img.style.filter = "drop-shadow(0 " + px(Math.max(1, sBlur * 0.35)) + " " + px(Math.max(2, sBlur * 0.7)) + " " + rgba(sC, Math.min(1, sStr + 0.1)) + ")";
       } else {
         card.style.filter = "";
+        cap.style.textShadow = "none";
+        img.style.filter = "";
         card.style.boxShadow = "0 " + px(Math.max(2, sBlur * 0.35)) + " " + px(sBlur) + " " + rgba(sC, sStr);
       }
     } else {
       card.style.boxShadow = "none";
       card.style.filter = "";
+      cap.style.textShadow = "none";
+      img.style.filter = "";
     }
 
     // Bild

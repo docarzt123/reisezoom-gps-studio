@@ -14,6 +14,22 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.475] – 2026-07-24
+### Behoben
+- **Schild-Schlagschatten bei „Hintergrund: Keine": zu schwach + Buchstaben „zappelten"**
+  (Beta-Tester-Feedback nach v0.9.474). Zwei Ursachen, beide behoben:
+  - **Zappeln (nur Vorschau):** v0.9.473 legte für Text-Schilder einen `filter: drop-shadow`
+    auf die Box. Ein Filter promotet das Element zu einer Bitmap-Ebene — und weil der
+    Overlay-Preview-Layer per `transform: scale()` skaliert wird (`modules/animator/ui/module.js`),
+    wurde der Text als **Bild** mitskaliert → Glyphen flimmerten beim Zoom. Fix (`ui/js/sign_dom.js`):
+    Text bekommt jetzt `text-shadow` direkt (vektorbasiert, kein Layer-Promotion → scharf beim
+    Zoom), das Bild bekommt den `drop-shadow`-Filter nur auf sich selbst (bereits Bitmap).
+  - **Zu schwach:** Ein Schatten auf dünnen Glyphen-Kanten wirkt schwächer als hinter einer
+    Fläche. Jetzt **zwei Schatten-Ebenen** (weicher Halo + enge dunkle Kante, Deckkraft
+    angehoben) — in Vorschau (`sign_dom.js`, doppelter `text-shadow`) UND Render
+    (`ui/js/sign_draw.js`, zwei Canvas-Schatten-Pässe + scharfe Glyphen obendrauf) → WYSIWYG.
+  - Schilder **mit** Hintergrund unverändert (Box wirft den Schatten).
+
 ## [0.9.474] – 2026-07-24
 ### Geändert / Verbessert
 - **Onboarding für Einsteiger entschärft** (Beta-Tester-Feedback: „Was ist token?" +

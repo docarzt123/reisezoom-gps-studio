@@ -324,9 +324,6 @@
 
     // ── Text (= Bildunterschrift wenn ein Bild da ist) ──────────────────
     if (hasText) {
-      // v0.9.473 — bei transparenter Box wirft der Text selbst den Schatten (Kontur der
-      // Glyphen). Mit Box übernimmt das die Box, dann Text OHNE Eigenschatten (kein Matsch).
-      setShadow(boxTransparent && shadow);
       ctx.globalAlpha = 1;
       ctx.fillStyle = textColor;
       ctx.font = FONT;
@@ -337,8 +334,26 @@
       else if (align === "right") { ctx.textAlign = "right"; tx = bx + pad + contentDX + textAreaW; anchorAlign = "right"; }
       else { ctx.textAlign = "center"; tx = bx + pad + contentDX + textAreaW / 2; anchorAlign = "center"; }
       var ty0 = by + pad + (hasImg ? imgH + imgGap : 0) + lineH / 2;
-      for (var k = 0; k < lines.length; k++) {
-        ctx.fillText(lines[k], tx, ty0 + k * lineH);
+      var drawLines = function () {
+        for (var k = 0; k < lines.length; k++) ctx.fillText(lines[k], tx, ty0 + k * lineH);
+      };
+      // v0.9.475 — bei transparenter Box wirft der Text selbst den Schatten (Kontur der
+      // Glyphen). Kräftiger als v0.9.473 (Beta-Tester: „Schatten zu schwach"): zwei Schatten-
+      // Pässe (weicher Halo + enge dunkle Kante, Deckkraft angehoben), dann die scharfen
+      // Glyphen OHNE Schatten obendrauf — ein Schatten auf dünnen Kanten wirkt sonst zu
+      // schwach. Mit Box übernimmt die Box den Schatten, Text dann ohne Eigenschatten.
+      if (boxTransparent && shadow) {
+        var _ts = function (blur, off, a) {
+          ctx.shadowColor = rgba(shadowC, Math.min(1, a)); ctx.shadowBlur = blur;
+          ctx.shadowOffsetX = 0; ctx.shadowOffsetY = off;
+        };
+        _ts(shadowBlur, shOffY, shadowStrength + 0.28); drawLines();
+        _ts(Math.max(1 * dpr, shadowBlur * 0.4), Math.round(shOffY * 0.5), shadowStrength + 0.22); drawLines();
+        setShadow(false);
+        drawLines();
+      } else {
+        setShadow(false);
+        drawLines();
       }
     }
 
