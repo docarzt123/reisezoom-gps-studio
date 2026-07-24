@@ -6111,6 +6111,7 @@ function mountAnimator(body, headerActions, opts) {
     let _animSignEditMode = false;
     let _animSignMoveIdx = -1;   // >=0 = bestehendes Schild verschieben statt neues setzen
     let _animSignDragging = false;   // v0.9.476 — true während/kurz nach Marker-Drag (Klick unterdrücken)
+    let _animSignMoveArmed = -1;     // v0.9.477 — idx des Schilds, das per „↔ Verschieben" zum Ziehen scharf ist (sonst NICHT ziehbar)
     function _animSignsSizePx() {
       const a = _activeProject?.[_MODKEY];
       if (a && typeof a.signs_size_px === "number") return a.signs_size_px;
@@ -6370,20 +6371,22 @@ function mountAnimator(body, headerActions, opts) {
           try { ev.stopPropagation(); } catch (_) {}
           _animSignsOpenEditor(fi);
         });
-        try { wrap.style.cursor = "grab"; } catch (_) {}
         let marker;
         const _mkAnchor = _signMarkerAnchor(sn);   // v0.9.408 — Sprechblasen-Richtung
-        // v0.9.476 — Schilder per Drag & Drop verschieben (Nutzer-Feedback: das frühere
-        // „Verschieben → Klick auf die Karte" war unintuitiv). Der DOM-Marker ist jetzt
-        // draggable; beim Loslassen übernimmt das Schild die neue Position als FREIE
-        // Platzierung und verwirft den Zeit-Anker (Timing richtet sich wieder nach dem Ort).
-        // Nur im Editier-Modus (DOM-Marker); im Probelauf sind es GPU-Icons.
-        try { marker = new MarkerCls({ element: wrap, anchor: _mkAnchor, draggable: true }).setLngLat([Number(sn.lon), Number(sn.lat)]).addTo(map); } catch (_) { return; }
+        // v0.9.476/477 — Schilder per Drag & Drop verschieben. Aber (Nutzer-Feedback):
+        // NICHT jederzeit ziehbar — erst wenn im Editor „↔ Verschieben" geklickt wurde,
+        // wird GENAU dieses Schild ziehbar (_animSignMoveArmed). Sonst = Klick öffnet nur
+        // den Editor. Beim Loslassen übernimmt das Schild die neue Position als FREIE
+        // Platzierung, verwirft den Zeit-Anker und wird wieder entschärft. Nur im Editier-
+        // Modus (DOM-Marker); im Probelauf sind es GPU-Icons.
+        const _armed = (fi === _animSignMoveArmed);
+        try { wrap.style.cursor = _armed ? "grab" : "pointer"; } catch (_) {}
+        try { marker = new MarkerCls({ element: wrap, anchor: _mkAnchor, draggable: _armed }).setLngLat([Number(sn.lon), Number(sn.lat)]).addTo(map); } catch (_) { return; }
         try {
           marker.on("dragstart", () => { _animSignDragging = true; try { wrap.style.cursor = "grabbing"; } catch (_) {} });
           marker.on("dragend", () => {
             let ll = null; try { ll = marker.getLngLat(); } catch (_) {}
-            try { wrap.style.cursor = "grab"; } catch (_) {}
+            _animSignMoveArmed = -1;   // Ziehen wieder entschärfen
             if (ll) {
               const l2 = _animSignsList().slice();
               if (fi < l2.length) {
@@ -6391,9 +6394,8 @@ function mountAnimator(body, headerActions, opts) {
                 delete _moved.timeAnchor;
                 l2[fi] = _moved;
                 _animSignsSave(l2); _animSignsAttachToMap(); _animSignsRenderList();
-                if (_animSignEditorIdx === fi && _animSignEditorEl) {
-                  try { _animSignsPositionEditor(_animSignEditorEl, ll.lng, ll.lat); } catch (_) {}
-                }
+                // WICHTIG: das Editor-Fenster NICHT mitbewegen — es bleibt, wo der Nutzer
+                // es hingelegt hat (Marc-Feedback: „das soll da bleiben wo man es hinsetzt").
               }
             }
             // Das Klick-Event, das direkt nach dem Drag feuert, noch verschlucken.
@@ -6806,6 +6808,7 @@ function mountAnimator(body, headerActions, opts) {
         return;
       }
       _animSignsCloseEditor();
+      _animSignMoveArmed = -1;   // v0.9.477 — beim Öffnen eines (anderen) Schilds Verschieben-Modus entschärfen
       const list = _animSignsList();
       if (idx < 0 || idx >= list.length || !map || !map.getContainer) return;
       // v0.9.256 — Editor auf → in den DOM-Marker-Modus wechseln (flackerfreies
@@ -6950,7 +6953,7 @@ function mountAnimator(body, headerActions, opts) {
         <div class="sign-editor-foot" style="flex-wrap:wrap; gap:6px;">
           <button type="button" class="btn btn-small" id="se-apply-all" style="flex-basis:100%;" title="${t("signs.apply_all_hint", "Aussehen (Form/Farben/Schrift/Schatten/Größe) auf alle anderen übertragen")}">${t("signs.apply_all", "🎨 Stil auf alle übertragen")}</button>
           <button type="button" class="btn btn-danger-subtle btn-small" id="se-del">${t("signs.delete", "🗑")}</button>
-          <div class="se-move-hint" style="flex-basis:100%; font-size:11px; color:var(--text-muted,#93a1b0); text-align:center; margin-top:2px;">${t("signs.move_hint", "↔ Zum Verschieben das Schild direkt auf der Karte an die gewünschte Stelle ziehen.")}</div>
+          <button type="button" class="btn btn-small" id="se-move" title="${t("signs.move_hint", "Danach das Schild direkt auf der Karte an die gewünschte Stelle ziehen.")}">${t("signs.move", "↔ Verschieben")}</button>
         </div>`;
       document.body.appendChild(panel);   // v0.9.180 — an body → über die Karte hinaus ziehbar
       _animSignEditorEl = panel;
@@ -7105,8 +7108,19 @@ function mountAnimator(body, headerActions, opts) {
       };
       $("#se-close").onclick = () => _animSignsCloseEditor();
       $("#se-del").onclick = () => { _animSignsCloseEditor(); _animSignsDelete(idx); };
-      // v0.9.476 — „Verschieben"-Button entfällt: Schilder werden jetzt direkt per
-      // Drag & Drop auf der Karte verschoben (siehe Marker-`dragend` in _animSignsAttachDOM).
+      // v0.9.477 — „↔ Verschieben" schaltet das Schild scharf zum Ziehen (Nutzer-Feedback:
+      // Schild soll NUR nach Button-Klick ziehbar sein, nicht ständig). Danach zieht man
+      // das Schild direkt auf der Karte an die Zielstelle (Marker-`dragend` in
+      // _animSignsAttachDOM übernimmt die neue Position + entschärft wieder).
+      {
+        const mvBtn = $("#se-move");
+        if (mvBtn) mvBtn.onclick = () => {
+          _animSignMoveArmed = idx;
+          try { _animSignsAttachToMap(); } catch (_) {}   // dieses Schild wird jetzt draggable
+          try { mvBtn.classList.add("btn-primary"); } catch (_) {}
+          try { toast(t("signs.move_armed", "↔ Zieh das Schild jetzt auf der Karte an die gewünschte Stelle."), "info", 4000); } catch (_) {}
+        };
+      }
       // v0.9.198/199 — „Stil + Verhalten auf alle übertragen": Aussehen UND
       // Verhalten (Timing/Einblendung/Zoom/„ganze Zeit zeigen") dieses Schilds auf
       // ALLE anderen kopieren. Text/Bild/Position/Sichtbar-Häkchen bleiben pro Schild.

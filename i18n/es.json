@@ -1464,5 +1464,6 @@
   "osm_block.osm_list": "📷 geolocalizar fotos · 🗺️ mapa del recorrido como imagen · 🧭 limpiar tracks · 📈 vídeos de perfil de altitud",
   "osm_block.cta_token": "Configurar un token gratuito",
   "osm_block.cta_tourmap": "Ir al mapa del recorrido →",
-  "signs.move_hint": "↔ Para mover un cartel, arrástralo directamente en el mapa hasta el lugar deseado."
+  "signs.move_hint": "↔ Para mover un cartel, arrástralo directamente en el mapa hasta el lugar deseado.",
+  "signs.move_armed": "↔ Ahora arrastra el cartel en el mapa hasta el lugar deseado."
 }

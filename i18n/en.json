@@ -1464,5 +1464,6 @@
   "osm_block.osm_list": "📷 geotag photos · 🗺️ tour map as image · 🧭 clean up tracks · 📈 elevation-profile videos",
   "osm_block.cta_token": "Set up a free token",
   "osm_block.cta_tourmap": "Go to tour map →",
-  "signs.move_hint": "↔ To move a sign, just drag it on the map to where you want it."
+  "signs.move_hint": "↔ To move a sign, just drag it on the map to where you want it.",
+  "signs.move_armed": "↔ Now drag the sign on the map to where you want it."
 }

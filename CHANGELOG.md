@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.477] – 2026-07-24
+### Geändert
+- **Schild-Verschieben: Button-gesteuertes Drag & Drop** (Nutzer-Feedback zu v0.9.476).
+  Zwei Korrekturen:
+  - Das Editor-Fenster **springt beim Verschieben nicht mehr mit** — es bleibt, wo man es
+    hingelegt hat (die automatische „ans Schild kleben"-Positionierung im `dragend` ist raus).
+  - Schilder sind **nicht mehr jederzeit ziehbar**. Der **„↔ Verschieben"-Button** ist zurück:
+    erst nach Klick darauf wird **genau dieses Schild** ziehbar (`_animSignMoveArmed`), dann
+    zieht man es auf der Karte an die Zielstelle und lässt los. Nach dem Ablegen ist es wieder
+    entschärft; beim Öffnen eines anderen Schilds ebenfalls. Ein kurzer Toast weist beim Aktivieren
+    auf das Ziehen hin. `_animSignsAttachDOM` + Editor-`se-move`-Handler in `modules/animator/ui/module.js`.
+
 ## [0.9.476] – 2026-07-24
 ### Geändert / Verbessert
 - **Schilder per Drag & Drop verschieben** (Nutzer-Feedback: das frühere „↔ Verschieben →

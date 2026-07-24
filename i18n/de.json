@@ -1464,5 +1464,6 @@
   "osm_block.osm_list": "📷 Fotos verorten · 🗺️ Tour-Karte als Bild · 🧭 Tracks aufräumen · 📈 Höhenprofil-Videos",
   "osm_block.cta_token": "Kostenlosen Token einrichten",
   "osm_block.cta_tourmap": "Zur Tour-Karte →",
-  "signs.move_hint": "↔ Zum Verschieben das Schild direkt auf der Karte an die gewünschte Stelle ziehen."
+  "signs.move_hint": "↔ Zum Verschieben das Schild direkt auf der Karte an die gewünschte Stelle ziehen.",
+  "signs.move_armed": "↔ Zieh das Schild jetzt auf der Karte an die gewünschte Stelle."
 }
