@@ -296,9 +296,19 @@
 
     // ── Bild (oben in der Box, cover-fit, abgerundet) ───────────────────
     if (hasImg) {
-      setShadow(false);
       var ix = bx + pad + contentDX, iy = by + pad;
       var iwd = boxW - arrowW - pad * 2, ihd = imgH;
+      // v0.9.473 — bei transparenter Box (Bild ohne Rahmen) wirft das Bild selbst einen
+      // Schatten entlang seiner Kontur: Schatten-Caster hinter dem cover-fit-Bild zeichnen
+      // (das opake Bild deckt den Caster ab, sichtbar bleibt nur der Schatten am Rand).
+      if (boxTransparent && shadow) {
+        setShadow(true);
+        rr(ix, iy, iwd, ihd, Math.max(0, radius - pad * 0.5));
+        ctx.fillStyle = "#000"; ctx.fill();
+        setShadow(false);
+      } else {
+        setShadow(false);
+      }
       ctx.save();
       rr(ix, iy, iwd, ihd, Math.max(0, radius - pad * 0.5));
       ctx.clip();
@@ -314,7 +324,9 @@
 
     // ── Text (= Bildunterschrift wenn ein Bild da ist) ──────────────────
     if (hasText) {
-      setShadow(false);
+      // v0.9.473 — bei transparenter Box wirft der Text selbst den Schatten (Kontur der
+      // Glyphen). Mit Box übernimmt das die Box, dann Text OHNE Eigenschatten (kein Matsch).
+      setShadow(boxTransparent && shadow);
       ctx.globalAlpha = 1;
       ctx.fillStyle = textColor;
       ctx.font = FONT;

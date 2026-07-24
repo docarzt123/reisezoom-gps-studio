@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.473] – 2026-07-23
+### Behoben
+- **Schild-Schlagschatten wirkte nicht bei „Hintergrund: Keine"** (Beta-Tester-Feedback:
+  „Schlagschatten keine Wirkung wenn nur Text ohne Hintergrund"). Der Schatten wurde als
+  `box-shadow`/Box-Canvas-Schatten um die Box gezeichnet — ohne Box (transparentes
+  Text-/Bild-Schild) hatte er nichts zu werfen und wurde bewusst ausgelassen. Jetzt folgt
+  der Schatten bei transparenter Box der **Kontur von Text und Bild**: Vorschau
+  (`sign_dom.js`) via `filter: drop-shadow(…)`, Render (`sign_draw.js`) via Canvas-Schatten
+  auf Text (`fillText`) bzw. einen Schatten-Caster hinter dem Bild. Schilder mit Box
+  bleiben unverändert (Box wirft den Schatten, Text ohne Eigenschatten). Vorschau = Video.
+
 ## [0.9.472] – 2026-07-22
 ### Behoben / Verbessert
 - **Start-Endlosschleife „Zeitüberschreitung beim Laden" bei Erst-Nutzern behoben**

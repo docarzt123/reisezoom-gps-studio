@@ -193,14 +193,24 @@
     card.style.textAlign = align;
     card.style.alignItems = (align === "left") ? "flex-start" : (align === "right" ? "flex-end" : "center");
 
-    // Schatten (bei transparenter Box kein Box-Schatten — nichts, was ihn werfen könnte)
-    if (o.shadow && !boxTransparent) {
+    // Schatten. Box vorhanden → box-shadow um die Box. Box transparent (Text bzw. Bild
+    // ohne Rahmen) → box-shadow hätte nichts zum Werfen (nur ein leeres Rechteck), deshalb
+    // drop-shadow-Filter: der folgt der KONTUR von Text/Bild. v0.9.473 (Nutzer-Feedback:
+    // „Schlagschatten keine Wirkung wenn nur Text ohne Hintergrund").
+    if (o.shadow) {
       var sBlur = (o.shadowBlur != null ? Number(o.shadowBlur) : 8);
       var sStr = (o.shadowStrength != null ? Math.max(0.05, Math.min(1, Number(o.shadowStrength))) : 0.55);
       var sC = o.shadowColor || "#000000";
-      card.style.boxShadow = "0 " + px(Math.max(2, sBlur * 0.35)) + " " + px(sBlur) + " " + rgba(sC, sStr);
+      if (boxTransparent) {
+        card.style.boxShadow = "none";
+        card.style.filter = "drop-shadow(0 " + px(Math.max(1, sBlur * 0.35)) + " " + px(Math.max(2, sBlur * 0.6)) + " " + rgba(sC, sStr) + ")";
+      } else {
+        card.style.filter = "";
+        card.style.boxShadow = "0 " + px(Math.max(2, sBlur * 0.35)) + " " + px(sBlur) + " " + rgba(sC, sStr);
+      }
     } else {
       card.style.boxShadow = "none";
+      card.style.filter = "";
     }
 
     // Bild
