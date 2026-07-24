@@ -1146,7 +1146,7 @@
   "settings.force_osm.help": "Lässt die App laufen, als hätte sie keinen Mapbox-Token — Standard-OSM-Karte, kein Satellit/3D, Video-Render deaktiviert. Dein Token bleibt gespeichert, wird nur nicht genutzt. Nur zum Testen.",
   "settings.force_osm.saved": "Karten-Engine umgestellt — App lädt neu …",
   "osm_block.title": "Nur mit Mapbox-Token",
-  "osm_block.body": "Dieses Modul braucht einen Mapbox-Token (für Satellit, 3D und den Render). Im OSM-Modus sind Vorschau und Export hier deaktiviert.",
+  "osm_block.body": "Für Satellit, 3D und die bewegte Karten-Animation brauchst du einen (kostenlosen) Mapbox-Token.",
   "osm_block.cta": "Einstellungen öffnen",
   "gpxinspect.routing": "Suche Route zwischen A und B …",
   "gpxinspect.route_failed": "Route konnte nicht berechnet werden: ",
@@ -1457,5 +1457,11 @@
   "heightanim.series_b.applies_hint": "Farbe, Fläche, Farbzonen, Info-Leiste und Punkte gelten für die linke Achse (erste Datenreihe).",
   "export.done": "Exportiert",
   "export.error": "Export fehlgeschlagen.",
-  "export.no_track": "Kein Track geladen."
+  "export.no_track": "Kein Track geladen.",
+  "first_run.token_what": "Ein „Token“ ist ein kostenloser Zugangsschlüssel für die Premium-Karten (Satellit, 3D). Optional — du kannst ihn auch später in den Einstellungen eintragen.",
+  "first_run.opt_osm_can": "Sofort ohne Token nutzbar: 📷 Fotos verorten · 🗺️ Tour-Karte als Bild · 🧭 Tracks aufräumen · 📈 Höhenprofil-Videos.",
+  "osm_block.osm_hint": "Du bist im OSM-Modus. Ohne Token kannst du sofort loslegen:",
+  "osm_block.osm_list": "📷 Fotos verorten · 🗺️ Tour-Karte als Bild · 🧭 Tracks aufräumen · 📈 Höhenprofil-Videos",
+  "osm_block.cta_token": "Kostenlosen Token einrichten",
+  "osm_block.cta_tourmap": "Zur Tour-Karte →"
 }

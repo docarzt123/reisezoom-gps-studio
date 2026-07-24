@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.474] – 2026-07-24
+### Geändert / Verbessert
+- **Onboarding für Einsteiger entschärft** (Beta-Tester-Feedback: „Was ist token?" +
+  Nutzer stand ratlos auf dem „Nur mit Mapbox-Token"-Screen). Zwei Stellen:
+  - **First-Run-Dialog**: erklärt jetzt in einem Satz, was ein „Token" überhaupt ist
+    (kostenloser Zugangsschlüssel für Satellit/3D, optional, später nachtragbar), und
+    listet beim OSM-Weg **positiv auf, was ohne Token sofort geht** (Fotos verorten,
+    Tour-Karte, Tracks aufräumen, Höhenprofile) — vorher stand dort nur, was NICHT geht.
+  - **„Nur mit Mapbox-Token"-Sperrschirm** (Animator im OSM-Modus): keine Sackgasse mehr.
+    Er nennt konkret, wofür der Token nötig ist, zeigt was ohne Token läuft, und bietet
+    einen Direkt-Button **„Zur Tour-Karte →"** (läuft ohne Token) neben „Kostenlosen Token
+    einrichten". `osmBlockOverlay` in `ui/js/util.js`.
+
 ## [0.9.473] – 2026-07-23
 ### Behoben
 - **Schild-Schlagschatten wirkte nicht bei „Hintergrund: Keine"** (Beta-Tester-Feedback:

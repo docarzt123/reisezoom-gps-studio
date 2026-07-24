@@ -2514,10 +2514,22 @@ body.is-rendering .modal-overlay * {
   text-align: center;
   background: var(--bg-1, #11151c);
 }
-.osm-block-card { max-width: 360px; }
+.osm-block-card { max-width: 400px; }
 .osm-block-icon { font-size: 40px; line-height: 1; margin-bottom: 12px; opacity: 0.85; }
 .osm-block-title { font-size: 16px; font-weight: 700; color: var(--text, #e8edf2); margin-bottom: 8px; }
-.osm-block-body { font-size: 13px; line-height: 1.55; color: var(--text-muted, #93a1b0); margin-bottom: 18px; }
+.osm-block-body { font-size: 13px; line-height: 1.55; color: var(--text-muted, #93a1b0); margin-bottom: 16px; }
+/* v0.9.474 — positiver „was geht ohne Token"-Block statt reiner Sackgasse */
+.osm-block-osm {
+  text-align: left;
+  background: var(--bg-3, #1a2029);
+  border: 1px solid var(--border, #2a323d);
+  border-radius: 8px;
+  padding: 11px 13px;
+  margin-bottom: 16px;
+}
+.osm-block-osm-hd { font-size: 12px; font-weight: 600; color: var(--text, #e8edf2); margin-bottom: 5px; }
+.osm-block-osm-list { font-size: 12px; line-height: 1.6; color: var(--text-muted, #93a1b0); }
+.osm-block-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .osm-block-overlay .osm-block-cta { min-width: 180px; }
 
 /* v0.9.280 (Nutzer-Wunsch) — Update-Hinweis-Banner unter der Topbar.

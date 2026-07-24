@@ -1146,7 +1146,7 @@
   "settings.force_osm.help": "Runs the app as if it had no Mapbox token — standard OSM map, no satellite/3D, video render disabled. Your token stays saved, just unused. For testing only.",
   "settings.force_osm.saved": "Map engine switched — reloading …",
   "osm_block.title": "Mapbox token required",
-  "osm_block.body": "This module needs a Mapbox token (for satellite, 3D and rendering). In OSM mode, preview and export are disabled here.",
+  "osm_block.body": "For satellite, 3D and the animated map fly-over you need a (free) Mapbox token.",
   "osm_block.cta": "Open settings",
   "gpxinspect.routing": "Finding a route between A and B …",
   "gpxinspect.route_failed": "Could not compute route: ",
@@ -1457,5 +1457,11 @@
   "heightanim.series_b.applies_hint": "Color, fill, color zones, info bar and points apply to the left axis (first data series).",
   "export.done": "Exported",
   "export.error": "Export failed.",
-  "export.no_track": "No track loaded."
+  "export.no_track": "No track loaded.",
+  "first_run.token_what": "A “token” is a free access key for the premium maps (satellite, 3D). Optional — you can also add it later in Settings.",
+  "first_run.opt_osm_can": "Ready without a token: 📷 geotag photos · 🗺️ tour map as image · 🧭 clean up tracks · 📈 elevation-profile videos.",
+  "osm_block.osm_hint": "You’re in OSM mode. Without a token you can start right away:",
+  "osm_block.osm_list": "📷 geotag photos · 🗺️ tour map as image · 🧭 clean up tracks · 📈 elevation-profile videos",
+  "osm_block.cta_token": "Set up a free token",
+  "osm_block.cta_tourmap": "Go to tour map →"
 }

@@ -94,11 +94,13 @@ in HEIC ebenfalls.
 ## 2 · Erste Schritte
 
 ### Mapbox-Token einrichten 🗺️
-Animator + Tour-Map brauchen einen **kostenlosen Mapbox-Token** für die 3D-Karten. **Geotagger funktioniert auch ohne**.
+Ein Mapbox-Token ist ein **kostenloser Zugangsschlüssel** für Satellit-, 3D- und Premium-Karten. Der **Animator** (bewegte Karten-Animation) braucht ihn. **Vieles geht aber auch ohne Token:** 📷 Fotos verorten (Geotagger) · 🗺️ Tour-Karte als Bild/Export · 🧭 Tracks ansehen & aufräumen (Inspektor) · 📈 Höhenprofil-/Daten-Videos.
 
 Beim ersten App-Start öffnet sich automatisch ein Onboarding-Modal mit zwei Optionen:
-- **Mit Mapbox-Token** (empfohlen) — volle Features, kostenlos in 2 Minuten
-- **Ohne Token (OSM)** — funktioniert sofort, aber nur Standard-Karte (kein Satellite, kein 3D)
+- **Mit Mapbox-Token** (empfohlen) — volle Features inkl. Animator, kostenlos in 2 Minuten
+- **Ohne Token (OSM)** — funktioniert sofort; Standard-Karte statt Satellit/3D, kein Animator-Render. Du kannst den Token jederzeit später nachtragen.
+
+> Landest du ohne Token im Animator, zeigt der Hinweisschirm, was ohne Token geht und bringt dich per Klick direkt zur **Tour-Karte** (läuft ohne Token).
 
 **So bekommst du einen kostenlosen Mapbox-Token:**
 1. Konto bei [account.mapbox.com](https://account.mapbox.com/auth/signup) anlegen

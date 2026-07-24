@@ -1146,7 +1146,7 @@
   "settings.force_osm.help": "Ejecuta la app como si no tuviera token de Mapbox — mapa OSM estándar, sin satélite/3D, render de vídeo desactivado. Tu token se mantiene guardado, solo no se usa. Solo para pruebas.",
   "settings.force_osm.saved": "Motor de mapas cambiado — recargando …",
   "osm_block.title": "Requiere token de Mapbox",
-  "osm_block.body": "Este módulo necesita un token de Mapbox (para satélite, 3D y renderizado). En modo OSM, la vista previa y la exportación están desactivadas aquí.",
+  "osm_block.body": "Para satélite, 3D y la animación del mapa necesitas un token de Mapbox (gratuito).",
   "osm_block.cta": "Abrir ajustes",
   "gpxinspect.routing": "Buscando una ruta entre A y B …",
   "gpxinspect.route_failed": "No se pudo calcular la ruta: ",
@@ -1457,5 +1457,11 @@
   "heightanim.series_b.applies_hint": "Color, relleno, zonas de color, barra de información y puntos se aplican al eje izquierdo (primera serie).",
   "export.done": "Exportado",
   "export.error": "Error al exportar.",
-  "export.no_track": "No hay trazado cargado."
+  "export.no_track": "No hay trazado cargado.",
+  "first_run.token_what": "Un «token» es una clave de acceso gratuita para los mapas premium (satélite, 3D). Opcional — también puedes añadirlo después en Ajustes.",
+  "first_run.opt_osm_can": "Listo sin token: 📷 geolocalizar fotos · 🗺️ mapa del recorrido como imagen · 🧭 limpiar tracks · 📈 vídeos de perfil de altitud.",
+  "osm_block.osm_hint": "Estás en modo OSM. Sin token puedes empezar ya mismo:",
+  "osm_block.osm_list": "📷 geolocalizar fotos · 🗺️ mapa del recorrido como imagen · 🧭 limpiar tracks · 📈 vídeos de perfil de altitud",
+  "osm_block.cta_token": "Configurar un token gratuito",
+  "osm_block.cta_tourmap": "Ir al mapa del recorrido →"
 }

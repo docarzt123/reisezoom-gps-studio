@@ -687,6 +687,7 @@ async function openFirstRunMapboxModal() {
       title: t("first_run.title"),
       body: `
         <p>${t("first_run.intro")}</p>
+        <p class="muted" style="font-size:12px; margin-top:4px;">${t("first_run.token_what", "Ein „Token“ ist ein kostenloser Zugangsschlüssel für die Premium-Karten (Satellit, 3D). Optional — du kannst ihn auch später in den Einstellungen eintragen.")}</p>
 
         <div style="margin-top:14px; padding:12px 14px; background:var(--bg-3); border-radius:8px;">
           <p style="font-weight:600; margin-bottom:6px;">${t("first_run.opt_token_title")}</p>
@@ -707,6 +708,7 @@ async function openFirstRunMapboxModal() {
         <div style="margin-top:10px; padding:12px 14px; border:1px dashed var(--border); border-radius:8px;">
           <p style="font-weight:600; margin-bottom:4px;">${t("first_run.opt_osm_title")}</p>
           <p class="muted" style="font-size:12px;">${t("first_run.opt_osm_desc")}</p>
+          <p style="font-size:12px; margin-top:6px; color:var(--text);">${t("first_run.opt_osm_can", "Sofort ohne Token nutzbar: 📷 Fotos verorten · 🗺️ Tour-Karte als Bild · 🧭 Tracks aufräumen · 📈 Höhenprofil-Videos.")}</p>
         </div>
 
         <p class="muted" style="margin-top:10px; font-size:11px;">${t("first_run.change_later_hint")}</p>

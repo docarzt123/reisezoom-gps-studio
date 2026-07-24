@@ -200,15 +200,30 @@ function osmBlockOverlay(targetEl) {
   if (targetEl.querySelector(":scope > .osm-block-overlay")) return true;  // schon da
   const ov = document.createElement("div");
   ov.className = "osm-block-overlay";
+  // v0.9.474 — kein Dead-End mehr (Beta-Tester-Feedback: der reine „braucht
+  // Token"-Screen wirkte wie „geht gar nichts"). Der Screen erklärt jetzt WARUM dieses
+  // eine Modul einen Token braucht, zeigt POSITIV was ohne Token sofort geht, und bietet
+  // einen Direkt-Sprung zur Tour-Karte (läuft ohne Token) statt nur „Einstellungen".
+  const hasTourmap = (typeof getModules === "function") &&
+    getModules().some(m => m && m.manifest && m.manifest.slug === "tourmap");
   ov.innerHTML =
     '<div class="osm-block-card">' +
       '<div class="osm-block-icon">🛰️</div>' +
       '<div class="osm-block-title">' + t("osm_block.title", "Nur mit Mapbox-Token") + '</div>' +
-      '<div class="osm-block-body">' + t("osm_block.body", "Dieses Modul braucht einen Mapbox-Token (für Satellit &amp; 3D). Im OSM-Modus ist Vorschau und Export hier deaktiviert.") + '</div>' +
-      '<button class="btn btn-primary osm-block-cta">' + t("osm_block.cta", "Einstellungen öffnen") + '</button>' +
+      '<div class="osm-block-body">' + t("osm_block.body", "Für Satellit, 3D und die bewegte Karten-Animation brauchst du einen (kostenlosen) Mapbox-Token.") + '</div>' +
+      '<div class="osm-block-osm">' +
+        '<div class="osm-block-osm-hd">' + t("osm_block.osm_hint", "Du bist im OSM-Modus. Ohne Token kannst du sofort loslegen:") + '</div>' +
+        '<div class="osm-block-osm-list">' + t("osm_block.osm_list", "📷 Fotos verorten · 🗺️ Tour-Karte als Bild · 🧭 Tracks aufräumen · 📈 Höhenprofil-Videos") + '</div>' +
+      '</div>' +
+      '<div class="osm-block-btns">' +
+        (hasTourmap ? '<button class="btn osm-block-tourmap">' + t("osm_block.cta_tourmap", "Zur Tour-Karte →") + '</button>' : '') +
+        '<button class="btn btn-primary osm-block-cta">' + t("osm_block.cta_token", "Kostenlosen Token einrichten") + '</button>' +
+      '</div>' +
     '</div>';
   const cta = ov.querySelector(".osm-block-cta");
   if (cta) cta.addEventListener("click", () => { try { window.openSettingsModal && window.openSettingsModal(); } catch (_) {} });
+  const tm = ov.querySelector(".osm-block-tourmap");
+  if (tm) tm.addEventListener("click", () => { try { window.switchMod && window.switchMod("tourmap"); } catch (_) {} });
   targetEl.appendChild(ov);
   return true;
 }
