@@ -98,5 +98,16 @@
 <script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.js"></script>
 <script src="app.js"></script>
+<!-- Reisezoom-Statistik: diese Seite mitzählen -->
+<script>
+(function () {
+  var LABEL = "GPS Studio Web-Tagger";
+  try {
+    var url = "https://reisezoom.com/wp-json/rz-stats/v1/page?key=" + encodeURIComponent(LABEL);
+    if (navigator.sendBeacon) { navigator.sendBeacon(url); }
+    else { fetch(url, { method: "POST", keepalive: true }); }
+  } catch (e) {}
+})();
+</script>
 </body>
 </html>
