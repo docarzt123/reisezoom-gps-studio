@@ -82,13 +82,18 @@
     var opacity = (o.opacity != null ? Math.max(0, Math.min(1, Number(o.opacity))) : 1);
     var shadow = !!o.shadow;
     var shadowC = o.shadowColor || "#000000";
-    var shadowBlur = (o.shadowBlur != null ? Number(o.shadowBlur) : 8) * dpr;
+    var shadowBlurRaw = (o.shadowBlur != null ? Number(o.shadowBlur) : 8);
+    var shadowBlur = shadowBlurRaw * dpr;
     var shadowStrength = (o.shadowStrength != null ? Math.max(0.05, Math.min(1, Number(o.shadowStrength))) : 0.55);
-    // v0.9.254 (Nutzer-Bug #4) — etwas größerer vertikaler Schatten-Offset, damit der
-    // Schatten auch bei geringer Weichheit (Blur) unter der Box hervorlugt. Vorher klebte
-    // er bei 2px Offset hinter der opaken Box → die Stärke (Deckkraft) war unsichtbar,
-    // bis man die Weichheit hochzog.
-    var shOffY = Math.round(4 * dpr);
+    // v0.9.478 — Schatten-Versatz: RICHTUNG global (`o.shadowDir`, Grad, Bildschirm-
+    // Koordinaten: 0°=rechts, 90°=unten). ABSTAND entkoppelt von der Weichheit — eigener
+    // kräftiger Wert (Beta-Tester: „Weichheit 0 + Stärke 100% keine Wirkung", weil der Versatz
+    // früher an die Weichheit gekoppelt war und bei Blur 0 quasi 0 wurde). Jetzt steht der
+    // Schatten auch ohne Blur klar ab und die „Stärke" (Deckkraft) greift sichtbar.
+    var shDistPx = (4 + shadowBlurRaw * 0.2) * dpr;
+    var shRad = (isFinite(Number(o.shadowDir)) ? Number(o.shadowDir) : 45) * Math.PI / 180;
+    var shOffX = Math.round(shDistPx * Math.cos(shRad));
+    var shOffY = Math.round(shDistPx * Math.sin(shRad));
 
     // Stil-Defaults für Box-Füllung + auf welcher Fläche der Text sitzt.
     var boxFill, textSurface, decoration;
@@ -160,10 +165,14 @@
 
     // Schatten-Rand (damit der Blur nicht abgeschnitten wird) — unten knapp,
     // damit die Anker-Spitze möglichst am Bildrand bleibt.
-    var shPad = shadow ? Math.ceil(shadowBlur + 3 * dpr) : 0;
-    // v0.9.254 — untere Marge muss den (größeren) Offset + halben Blur fassen, sonst
-    // wird der nach unten versetzte Schatten am Canvas-Rand abgeschnitten.
-    var ml = shPad, mt = shPad, mr = shPad, mb = shadow ? Math.ceil(shadowBlur * 0.5 + shOffY) : 0;
+    // v0.9.478 — Schatten kann jetzt in JEDE Richtung fallen (globaler Winkel). Seiten-/
+    // Oberrand großzügig (Blur + max. Versatz), damit nichts abschneidet — das VERSCHIEBT
+    // das Schild NICHT, weil der Marker per icon-anchor am UNTEREN Rand sitzt (nur `mb`
+    // bestimmt die vertikale Lage). `mb` bleibt daher klein und fasst nur den nach UNTEN
+    // gerichteten Versatz-Anteil (max(0, shOffY)) + halben Blur — wie bisher.
+    var shReach = shadow ? Math.ceil(shadowBlur + Math.max(Math.abs(shOffX), Math.abs(shOffY)) + 3 * dpr) : 0;
+    var ml = shReach, mt = shReach, mr = shReach;
+    var mb = shadow ? Math.ceil(Math.max(0, shOffY) + shadowBlur * 0.5 + 3 * dpr) : 0;
 
     var contentW = Math.max(boxW, pinR * 2);
     var W = contentW + ml + mr + tExtraLeft + tExtraRight;
@@ -196,7 +205,7 @@
       if (on && shadow) {
         ctx.shadowColor = rgba(shadowC, shadowStrength);
         ctx.shadowBlur = shadowBlur;
-        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetX = shOffX;   // v0.9.478 — globaler Richtungs-Versatz (X)
         ctx.shadowOffsetY = shOffY;
       } else {
         ctx.shadowColor = "rgba(0,0,0,0)";
@@ -296,6 +305,7 @@
 
     // ── Bild (oben in der Box, cover-fit, abgerundet) ───────────────────
     if (hasImg) {
+      ctx.globalAlpha = 1;   // v0.9.478 — „Deckkraft" fadet nur den Hintergrund, NICHT Bild/Text
       var ix = bx + pad + contentDX, iy = by + pad;
       var iwd = boxW - arrowW - pad * 2, ihd = imgH;
       // v0.9.473 — bei transparenter Box (Bild ohne Rahmen) wirft das Bild selbst einen

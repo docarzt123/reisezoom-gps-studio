@@ -14,6 +14,25 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.478] – 2026-07-25
+### Hinzugefügt
+- **Globale Schatten-Richtung (Lichtquelle)** für Track **und** alle Schilder.
+  Neuer Slider **„Schatten-Richtung"** in der Track-Sektion (0–360°, 0° = rechts,
+  90° = unten, 180° = links, 270° = oben). Er steuert die Richtung des Schlagschattens
+  einheitlich für die Track-Linie und jedes Schild — wie eine gemeinsame Sonne.
+  Backend: `AnimatorConfig.shadow_dir` + Helper `_shadow_dxdy()` (Track-`line-translate`
+  und SVG-`feDropShadow` richten sich danach), im Canvas-Renderer (`sign_draw.js`) und
+  in der DOM-Vorschau (`sign_dom.js`).
+### Behoben
+- **Schild-Schatten war zu schwach und ohne Wirkung** (Nutzer-Feedback zu v0.9.475/476).
+  Der Schatten-Versatz war fälschlich an die Weichzeichnung gekoppelt — bei Weichheit 0
+  war der Versatz ~1 px und damit unsichtbar. Versatz ist jetzt **entkoppelt**
+  (`4 + Weichheit·0,2`) und die **Richtung** kommt aus dem globalen Winkel. Die
+  Schatten-Weichheit lässt sich jetzt bis **0** herunterregeln (harter Schatten).
+- **Deckkraft-Regler dimmte auch den Text.** „Deckkraft" heißt jetzt
+  **„Deckkraft Hintergrund"** und blendet **nur den Hintergrund** aus — der Text bleibt
+  voll deckend (Canvas + DOM-Vorschau).
+
 ## [0.9.477] – 2026-07-24
 ### Geändert
 - **Schild-Verschieben: Button-gesteuertes Drag & Drop** (Nutzer-Feedback zu v0.9.476).

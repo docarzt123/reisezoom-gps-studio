@@ -177,14 +177,18 @@
     var _torg = (calloutDir === "top") ? "top center" : (calloutDir === "left") ? "left center"
               : (calloutDir === "right") ? "right center" : "bottom center";
     card.style.transformOrigin = _torg;
-    card.style.setProperty("--rz-box", boxTransparent ? "transparent" : boxFill);
+    // v0.9.478 — „Deckkraft" wirkt nur auf den HINTERGRUND (Box + Sprechblasen-/Pin-Deko
+    // via --rz-box), NICHT auf den Text (Beta-Tester: „Hintergrund-Deckkraft reduzieren senkt
+    // auch den Text"). Deshalb Alpha in die Box-Farbe (rgba) statt auf das ganze Element.
+    var boxBg = boxTransparent ? "transparent" : rgba(boxFill, opacity);
+    card.style.setProperty("--rz-box", boxBg);
     card.style.setProperty("--rz-accent", accent);
-    card.style.background = boxTransparent ? "transparent" : boxFill;
+    card.style.background = boxBg;
     card.style.color = textColor;
     card.style.borderRadius = px(radius);
     card.style.padding = px(pad);
     card.style.border = (borderW > 0 && borderC) ? (px(borderW) + " solid " + borderC) : "none";
-    card.style.opacity = String(opacity);
+    card.style.opacity = "1";
     card.style.fontFamily = fontStack(o.font);
     card.style.fontWeight = String(Number(o.weight) || 700);
     card.style.fontStyle = o.italic ? "italic" : "normal";
@@ -206,22 +210,27 @@
       var sBlur = (o.shadowBlur != null ? Number(o.shadowBlur) : 8);
       var sStr = (o.shadowStrength != null ? Math.max(0.05, Math.min(1, Number(o.shadowStrength))) : 0.55);
       var sC = o.shadowColor || "#000000";
+      // v0.9.478 — Schatten-Versatz: RICHTUNG global (`o.shadowDir`, Grad; 0°=rechts,
+      // 90°=unten), ABSTAND entkoppelt von der Weichheit (steht auch bei Weichheit 0 klar
+      // ab → Beta-Tester „zu schwach"). WYSIWYG zum Canvas-Render (sign_draw.js): gleiche Formel.
+      var _sr = (isFinite(Number(o.shadowDir)) ? Number(o.shadowDir) : 45) * Math.PI / 180;
+      var _sd = 4 + sBlur * 0.2;
+      var _sox = _sd * Math.cos(_sr), _soy = _sd * Math.sin(_sr);
       if (boxTransparent) {
         card.style.boxShadow = "none";
         card.style.filter = "";
-        // Text: zwei Ebenen (weicher Halo + enge dunkle Kante), kräftiger als der alte
-        // Filter, weil ein Schatten auf dünnen Glyphen-Kanten schwächer wirkt als hinter
-        // einer Fläche → Deckkraft angehoben.
+        // Text: zwei Ebenen (weicher Halo + enge dunkle Kante), kräftiger, weil ein
+        // Schatten auf dünnen Glyphen-Kanten schwächer wirkt als hinter einer Fläche.
         cap.style.textShadow =
-          "0 " + px(Math.max(1, sBlur * 0.30)) + " " + px(Math.max(1, sBlur * 0.55)) + " " + rgba(sC, Math.min(1, sStr + 0.28)) +
-          ", 0 " + px(Math.max(1, sBlur * 0.12)) + " " + px(Math.max(1, sBlur * 0.24)) + " " + rgba(sC, Math.min(1, sStr + 0.22));
-        // Bild: drop-shadow nur aufs Bild (bereits Bitmap → skaliert sauber mit, kein Text-Zappeln).
-        img.style.filter = "drop-shadow(0 " + px(Math.max(1, sBlur * 0.35)) + " " + px(Math.max(2, sBlur * 0.7)) + " " + rgba(sC, Math.min(1, sStr + 0.1)) + ")";
+          px(_sox) + " " + px(_soy) + " " + px(Math.max(0, sBlur * 0.5)) + " " + rgba(sC, Math.min(1, sStr + 0.28)) +
+          ", " + px(_sox) + " " + px(_soy) + " " + px(Math.max(0, sBlur * 0.18)) + " " + rgba(sC, Math.min(1, sStr + 0.22));
+        // Bild: drop-shadow nur aufs Bild (bereits Bitmap → kein Text-Zappeln).
+        img.style.filter = "drop-shadow(" + px(_sox) + " " + px(_soy) + " " + px(Math.max(0, sBlur * 0.6)) + " " + rgba(sC, Math.min(1, sStr + 0.1)) + ")";
       } else {
         card.style.filter = "";
         cap.style.textShadow = "none";
         img.style.filter = "";
-        card.style.boxShadow = "0 " + px(Math.max(2, sBlur * 0.35)) + " " + px(sBlur) + " " + rgba(sC, sStr);
+        card.style.boxShadow = px(_sox) + " " + px(_soy) + " " + px(sBlur) + " " + rgba(sC, sStr);
       }
     } else {
       card.style.boxShadow = "none";

@@ -282,6 +282,11 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.toggle.shadow")} <span class="label-val" id="anim-shadow-strength-v">0 px</span></label>
             <input type="range" id="anim-shadow-strength" min="0" max="10" step="0.5" value="0">
           </div>
+          <!-- v0.9.478 — globale Schatten-Richtung (Lichtquelle) für Track UND Schilder -->
+          <div class="field" id="anim-shadow-dir-field" title="${t("animator.shadow.dir_tooltip", "In welche Richtung alle Schlagschatten fallen (Track + Schilder). 45° = unten-rechts.")}">
+            <label class="field-label">${t("animator.shadow.dir", "Schatten-Richtung")} <span class="label-val" id="anim-shadow-dir-v">45°</span></label>
+            <input type="range" id="anim-shadow-dir" min="0" max="360" step="15" value="45">
+          </div>
           <div class="field" id="anim-glow-strength-field" title="${t("animator.glow.tooltip")}">
             <label class="field-label">${t("animator.toggle.glow")} <span class="label-val" id="anim-glow-strength-v">0 px</span></label>
             <input type="range" id="anim-glow-strength" min="0" max="10" step="0.5" value="0">
@@ -984,6 +989,7 @@ function mountAnimator(body, headerActions, opts) {
   bindLabel("anim-ex", "anim-ex-v", "×");
   bindLabel("anim-lw", "anim-lw-v", " px");
   bindLabel("anim-shadow-strength", "anim-shadow-strength-v", " px");
+  bindLabel("anim-shadow-dir", "anim-shadow-dir-v", "°");   // v0.9.478
   bindLabel("anim-glow-strength", "anim-glow-strength-v", " px");
   bindLabel("anim-map-smoothing", "anim-map-smoothing-v", " px");
   // v0.9.310 — Standbild-Kamera-Slider (existieren im DOM unabhängig vom Modus)
@@ -1435,6 +1441,13 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-shadow-strength", _MODKEY, "shadow_strength", { type: "number",
     onLoad: v => updateLabel("anim-shadow-strength-v", parseFloat(v).toFixed(1), " px"),
     onChange: v => updateLabel("anim-shadow-strength-v", parseFloat(v).toFixed(1), " px") });
+  // v0.9.478 — globale Schatten-Richtung; onChange muss auch die Schild-Marker neu zeichnen
+  // (die lesen shadowDir global), daher _animSignsAttachToMap im Editier-Modus.
+  bindSetting("anim-shadow-dir", _MODKEY, "shadow_dir", { type: "number",
+    onLoad: v => updateLabel("anim-shadow-dir-v", Math.round(parseFloat(v)) + "", "°"),
+    onChange: v => { updateLabel("anim-shadow-dir-v", Math.round(parseFloat(v)) + "", "°");
+      try { applyShadowToLayers(); } catch (_) {}
+      try { if (_animSignEditMode) _animSignsAttachToMap(); } catch (_) {} } });
   bindSetting("anim-glow-strength", _MODKEY, "glow_strength", { type: "number",
     onLoad: v => updateLabel("anim-glow-strength-v", parseFloat(v).toFixed(1), " px"),
     onChange: v => {
@@ -2325,6 +2338,10 @@ function mountAnimator(body, headerActions, opts) {
   function currentShadowStrength() {
     return parseFloat(document.getElementById("anim-shadow-strength")?.value) || 0;
   }
+  function currentShadowDir() {   // v0.9.478 — globale Schatten-Richtung (Grad)
+    var v = parseFloat(document.getElementById("anim-shadow-dir")?.value);
+    return isFinite(v) ? v : 45;
+  }
   // v0.9.309 — kein Toggle mehr: „an" = Stärke > 0.
   function currentShadowEnabled() {
     return currentShadowStrength() > 0;
@@ -2432,13 +2449,14 @@ function mountAnimator(body, headerActions, opts) {
     }
     if (!map.getLayer("preview-shadow")) {
       const st = currentShadowStrength();
+      const _sr = currentShadowDir() * Math.PI / 180;   // v0.9.478 — globale Richtung
       map.addLayer({ id: "preview-shadow", type: "line", source: "preview-track",
         layout: trackLayout,
         paint: {
           "line-color": "rgba(0,0,0,0.7)",
           "line-width": lw * 2.2,
           "line-blur": st,
-          "line-translate": [st, st],
+          "line-translate": [st * Math.cos(_sr), st * Math.sin(_sr)],
           ...dashPaint,
           // KEIN z-offset — Shadow soll am Boden bleiben (siehe Render-Code).
         }
@@ -2812,13 +2830,15 @@ function mountAnimator(body, headerActions, opts) {
     const st = currentShadowStrength();
     const lw = currentLineWidth();
     const visible = enabled && st > 0;
+    const _sr = currentShadowDir() * Math.PI / 180;   // v0.9.478 — globale Richtung
+    const _tr = [st * Math.cos(_sr), st * Math.sin(_sr)];
     try {
       if (map.getLayer("preview-shadow")) {
         map.setLayoutProperty("preview-shadow", "visibility", visible ? "visible" : "none");
         if (visible) {
           map.setPaintProperty("preview-shadow", "line-width", lw * 2.2);
           map.setPaintProperty("preview-shadow", "line-blur", st);
-          map.setPaintProperty("preview-shadow", "line-translate", [st, st]);
+          map.setPaintProperty("preview-shadow", "line-translate", _tr);
         }
       }
     } catch (_) {}
@@ -6171,6 +6191,11 @@ function mountAnimator(body, headerActions, opts) {
       o.shadowBlur = Number(o.shadowBlur);
       o.shadowStrength = (o.shadowStrength == null || isNaN(Number(o.shadowStrength)))
         ? 0.55 : Math.max(0.05, Math.min(1, Number(o.shadowStrength)));
+      // v0.9.478 — Schatten-RICHTUNG ist GLOBAL (Lichtquelle, wie beim Track), nicht pro
+      // Schild. Aus dem aktiven Projekt (shadow_dir) ans Schild-Objekt reichen → sign_dom/
+      // sign_draw versetzen den Schatten entsprechend. Fallback 45° (unten-rechts).
+      var _sp = _activeProject && _activeProject[_MODKEY];
+      o.shadowDir = (_sp && isFinite(Number(_sp.shadow_dir))) ? Number(_sp.shadow_dir) : 45;
       o.before = Number(o.before) || 0; o.after = Number(o.after) || 0;
       o.italic = !!o.italic; o.shadow = !!o.shadow; o.zoomScale = !!o.zoomScale;
       o.alwaysVisible = !!o.alwaysVisible;
@@ -6861,7 +6886,7 @@ function mountAnimator(body, headerActions, opts) {
             <span class="se-inline"><input type="color" id="se-bg" value="${_animEscapeHtml(bgResolved)}" data-none="${noneBg ? "1" : "0"}"><button type="button" class="se-auto-btn${noneBg ? " on" : ""}" id="se-bg-none" title="${t("signs.bg_none_hint", "Kein Hintergrund (transparent) — z.B. Bild ohne farbigen Rahmen")}">${t("signs.bg_none", "Keine")}</button></span>
             <label>${t("signs.radius", "Ecken")}</label>
             <input type="range" id="se-radius" min="0" max="28" step="1" value="${c.radius}">
-            <label>${t("signs.opacity", "Deckkraft")}</label>
+            <label>${t("signs.opacity", "Deckkraft Hintergrund")}</label>
             <input type="range" id="se-opacity" min="20" max="100" step="5" value="${Math.round(c.opacity*100)}">
             <label>${t("signs.border", "Rahmen")}</label>
             <span class="se-inline"><input type="range" id="se-bw" min="0" max="10" step="1" value="${c.borderWidth}"><input type="color" id="se-bc" value="${_animEscapeHtml(c.borderColor !== "none" ? c.borderColor : "#ffffff")}"></span>
@@ -6918,10 +6943,11 @@ function mountAnimator(body, headerActions, opts) {
             <label>${t("signs.shadow", "Schatten")}</label>
             <span class="se-inline"><input type="checkbox" id="se-shadow"${chk(c.shadow)}><input type="color" id="se-sc" value="${_animEscapeHtml(c.shadowColor)}"></span>
             <label>${t("signs.shadowBlur", "Weichheit")}</label>
-            <input type="range" id="se-sb" min="2" max="60" step="1" value="${c.shadowBlur}">
+            <input type="range" id="se-sb" min="0" max="60" step="1" value="${c.shadowBlur}">
             <label>${t("signs.shadowStrength", "Stärke")}</label>
             <input type="range" id="se-ss" min="10" max="100" step="5" value="${Math.round(c.shadowStrength*100)}">
           </div>
+          <div class="se-hint" style="font-size:11px;color:var(--text-muted,#93a1b0);margin:2px 2px 0;">${t("signs.shadow_dir_hint", "↘ Schatten-Richtung ist global — regelst du unter Track → „Schatten-Richtung“ (gilt für Track + alle Schilder).")}</div>
 
           <div class="se-group-title">${t("signs.grp.behavior", "Verhalten & Timing")}</div>
           <div class="se-grid">
@@ -10293,6 +10319,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.4/v0.9.309: Schlagschatten — Slider IST der Schalter (Stärke 0 = aus).
       shadow_enabled: currentShadowEnabled(),
       shadow_strength: currentShadowStrength(),
+      shadow_dir: currentShadowDir(),   // v0.9.478 — globale Schatten-Richtung
       // v0.6.8/v0.9.309: Glow — Slider IST der Schalter (Stärke 0 = aus).
       glow_enabled: currentGlowEnabled(),
       glow_strength: currentGlowStrength(),

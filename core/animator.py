@@ -311,6 +311,11 @@ class AnimatorConfig:
     # (Default), 10 = sehr stark.
     shadow_enabled: bool = True
     shadow_strength: float = 4.0
+    # v0.9.478 — globale Schatten-RICHTUNG (Lichtquelle) in Grad, Bildschirm-Koordinaten
+    # (0°=rechts, 90°=unten, 180°=links, 270°=oben). Gilt für Track-Schatten UND
+    # Schild-Schatten → alle Schlagschatten fallen in dieselbe Richtung („eine Sonne").
+    # Default 45° = unten-rechts (wie bisher hartcodiert `[strength, strength]`).
+    shadow_dir: float = 45.0
     # Glow um die Track-Linie (v0.6.8, Marc-Frage „wo regle ich den Glow?").
     # `glow_enabled` = Master-Toggle (False → Glow-Layer wird nicht gerendert).
     # `glow_strength` = relative Stärke 0–10 (Default 4 = bisheriger Hardcoded-
@@ -440,6 +445,16 @@ class AnimatorConfig:
     # Zeit wächst keine Linie, der Marker ist ausgeblendet, die Kamera fliegt
     # von der einen Tour zur anderen.
     fly_duration_s: float = 3.0
+
+
+def _shadow_dxdy(cfg) -> tuple:
+    """v0.9.478 — Schatten-Versatz (dx, dy) in px aus globaler Richtung + Abstand.
+    Bildschirm-Koordinaten (y nach unten). Default-Richtung 45° = unten-rechts
+    (entspricht dem früheren hartcodierten `[strength, strength]` bis auf ~30 %
+    kürzere Diagonale — visuell praktisch identisch)."""
+    d = float(getattr(cfg, "shadow_strength", 4.0) or 0.0)
+    a = math.radians(float(getattr(cfg, "shadow_dir", 45.0) or 0.0))
+    return (d * math.cos(a), d * math.sin(a))
 
 
 def _format_km(m: float) -> str:
@@ -1310,7 +1325,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                 "layout:{'line-cap':'round','line-join':'round'},"
                 "paint:{'line-color':'rgba(0,0,0,0.7)',"
                 f"'line-width':{cfg.line_width * 2.2:.2f},'line-blur':{cfg.shadow_strength:.1f},"
-                f"'line-translate':[{cfg.shadow_strength:.1f}, {cfg.shadow_strength:.1f}]{_dash_frag}}}}});")
+                f"'line-translate':[{_shadow_dxdy(cfg)[0]:.1f}, {_shadow_dxdy(cfg)[1]:.1f}]{_dash_frag}}}}});")
         if cfg.glow_enabled and cfg.glow_strength > 0:
             _layers.append(
                 "  map.addLayer({id:'mtrack'+i+'-glow',type:'line',source:'mtrack'+i,"
@@ -1776,6 +1791,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "shadowColor": _sg(s, "shadowColor", "#000000"),
             "shadowBlur": float(_sg(s, "shadowBlur", 8)),
             "shadowStrength": float(_sg(s, "shadowStrength", 0.55)),
+            "shadowDir": float(cfg.shadow_dir),   # v0.9.478 — globale Lichtquelle (Richtung)
             # Verhalten
             "zoomScale": bool(_sg(s, "zoomScale", True)),
             "alwaysVisible": bool(_sg(s, "alwaysVisible", False)),
@@ -2038,7 +2054,7 @@ map.on('style.load', () => {{
     "paint:{'line-color':'rgba(0,0,0,0.7)',"
     f"'line-width':{cfg.line_width * 2.2:.2f},"
     f"'line-blur':{cfg.shadow_strength:.1f},"
-    f"'line-translate':[{cfg.shadow_strength:.1f}, {cfg.shadow_strength:.1f}]"
+    f"'line-translate':[{_shadow_dxdy(cfg)[0]:.1f}, {_shadow_dxdy(cfg)[1]:.1f}]"
     + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else "")
     + "}});") if cfg.shadow_enabled and cfg.shadow_strength > 0 else "// shadow disabled"}
   // Track-Layer: line-cap/line-join `round` für saubere Track-Endungen
@@ -2464,7 +2480,7 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
          den Alpha-Kanal des Inputs und schreibt halbtransparente Pixel,
          die im NLE-Composit korrekt mitziehen. -->
     <filter id="trk-shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="{cfg.shadow_strength:.1f}" dy="{cfg.shadow_strength:.1f}"
+      <feDropShadow dx="{_shadow_dxdy(cfg)[0]:.1f}" dy="{_shadow_dxdy(cfg)[1]:.1f}"
         stdDeviation="{cfg.shadow_strength * 0.6:.1f}"
         flood-color="#000000" flood-opacity="0.7"/>
     </filter>

@@ -133,7 +133,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.477"
+APP_VERSION = "0.9.478"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2095,6 +2095,7 @@ class Api:
             transparent_background=alpha,
             shadow_enabled=bool(params.get("shadow_enabled", True)),
             shadow_strength=float(params.get("shadow_strength", 4.0)),
+            shadow_dir=float(params.get("shadow_dir", 45.0) or 45.0),   # v0.9.478 — globale Lichtquelle
             glow_enabled=bool(params.get("glow_enabled", True)),
             glow_strength=float(params.get("glow_strength", 4.0)),
             map_smoothing=float(params.get("map_smoothing", 1.3)),
@@ -2351,6 +2352,7 @@ class Api:
             line_style=_be_line_style,
             line_style_spacing=float(params.get("line_style_spacing", 1.0)),
             track_style=_be_track_style,
+            shadow_dir=float(params.get("shadow_dir", 45.0) or 45.0),   # v0.9.478 — globale Lichtquelle
             glow_enabled=bool(params.get("glow_enabled", True)),
             glow_strength=float(params.get("glow_strength", 4.0)),
             map_smoothing=float(params.get("map_smoothing", 1.3)),
@@ -2783,6 +2785,7 @@ class Api:
                 line_style=_be_line_style,
                 line_style_spacing=float(params.get("line_style_spacing", 1.0) or 1.0),
                 track_style=_be_track_style,
+                shadow_dir=float(params.get("shadow_dir", 45.0) or 45.0),   # v0.9.478 — globale Lichtquelle
                 glow_enabled=bool(params.get("glow_enabled", True)),
                 glow_strength=float(params.get("glow_strength", 4.0) or 4.0),
                 # Overlays (Stats-Box) 1:1 wie in der Vorschau — WYSIWYG.
