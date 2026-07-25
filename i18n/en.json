@@ -1468,5 +1468,10 @@
   "osm_block.cta_token": "Set up a free token",
   "osm_block.cta_tourmap": "Go to tour map →",
   "signs.move_hint": "↔ To move a sign, just drag it on the map to where you want it.",
-  "signs.move_armed": "↔ Now drag the sign on the map to where you want it."
+  "signs.move_armed": "↔ Now drag the sign on the map to where you want it.",
+  "signs.minWidth": "Width",
+  "signs.minWidth_auto": "Auto",
+  "signs.minWidth_hint": "0 = fits the text. Above 0 gives the sign a fixed minimum width — only then do left/center/right visibly move the text.",
+  "animator.overlay.entry": "Entrance",
+  "animator.overlay.entry_hint": "How the stats boxes appear in the video. Only visible in the rendered video / probe run."
 }

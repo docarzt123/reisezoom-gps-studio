@@ -14,6 +14,24 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.479] – 2026-07-25
+### Hinzugefügt
+- **Schilder: feste Mindestbreite** (Beta-Tester-Feedback „Text-Ausrichtung ohne Funktion").
+  Neuer Regler **„Breite"** im Schild-Editor (0 = an den Text angepasst, sonst px). Erst mit
+  einer Breite > 0 verschiebt **Links/Mitte/Rechts** den Text bei einzeiligem Text sichtbar —
+  vorher zog sich die Box exakt auf die Textbreite zusammen, daher wirkte der Ausrichtungs-Regler
+  wirkungslos. Vorschau (`sign_dom.js`) + Render (`sign_draw.js`) + Backend (`core/animator.py`).
+- **Echtes „Aufpoppen" für Schilder** (Beta-Tester: „die 3 Animationen sind alle gleich").
+  Die Einblendung **Einblenden / Aufpoppen / Ein-+Aufpoppen** unterscheidet sich jetzt wirklich:
+  *Einblenden* = nur Deckkraft, *Aufpoppen* = Skalier-Effekt (wächst mit leichtem Überschwinger),
+  *beides* = zusammen. Umgesetzt über einen per-Schild-`popScale`, der im Zoom-Ausdruck der
+  `icon-size` steckt und pro Frame per `setData` gefahren wird (im Video-Render + Probe-Lauf).
+- **Stats-Boxen: Einblende-Animation** — neuer Selektor **„Einblendung"** (Hart / Einblenden /
+  Aufpoppen / Ein-+Aufpoppen) in den Overlay-Einstellungen. Wirkt im gerenderten Video / Probe-Lauf.
+- **Stats-Boxen: Schatten folgt der globalen Lichtquelle** (Beta-Tester „Stats auch Schatten").
+  Der Box-Schatten ist jetzt richtungsabhängig (gleicher „Schatten-Richtung"-Regler wie Track +
+  Schilder) und kräftiger — Vorschau (`module.css` + `renderOverlayPreview`) + Render (`_overlay_css`).
+
 ## [0.9.478] – 2026-07-25
 ### Hinzugefügt
 - **Globale Schatten-Richtung (Lichtquelle)** für Track **und** alle Schilder.

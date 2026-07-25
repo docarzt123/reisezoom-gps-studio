@@ -133,7 +133,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.478"
+APP_VERSION = "0.9.479"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2074,6 +2074,7 @@ class Api:
             overlay_text_color=params.get("overlay_text_color", "#ffffff"),
             overlay_bg_color=params.get("overlay_bg_color", "#000000"),
             overlay_bg_opacity=float(params.get("overlay_bg_opacity", 0.55) or 0.55),
+            overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
             # v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y")
             overlay_totals_from_s=float(params.get("overlay_totals_from_s", 0) or 0),
             overlay_totals_to_s=float(params.get("overlay_totals_to_s", 0) or 0),
@@ -2383,6 +2384,7 @@ class Api:
             overlay_text_color=params.get("overlay_text_color", "#ffffff"),
             overlay_bg_color=params.get("overlay_bg_color", "#000000"),
             overlay_bg_opacity=float(params.get("overlay_bg_opacity", 0.55) or 0.55),
+            overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
             show_pins=bool(params.get("show_pins", True)),
             # v0.9.74 — Foto-Pins (nummerierte Kreise im Standbild-Render)
             photos=list(params.get("photos") or []),
@@ -2803,6 +2805,7 @@ class Api:
                 overlay_text_color=params.get("overlay_text_color", "#ffffff"),
                 overlay_bg_color=params.get("overlay_bg_color", "#000000"),
                 overlay_bg_opacity=float(params.get("overlay_bg_opacity", 0.55) or 0.55),
+                overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
                 show_pins=bool(params.get("show_pins", True)),
                 photos=list(params.get("photos") or []),
                 photos_size_px=int(params.get("photos_size_px", 48) or 48),

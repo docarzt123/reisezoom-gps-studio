@@ -138,7 +138,11 @@
     // v0.9.387 — Wegweiser-Richtung: Pfeil zeigt nach links oder rechts.
     var signDir = (style === "signpost" && o.direction === "left") ? "left" : "right";
     var contentDX = (signDir === "left") ? arrowW : 0;      // Inhalt nach rechts rücken, wenn Pfeil links
-    var innerW = Math.max(maxw, imgW);
+    // v0.9.479 — feste Mindestbreite (o.minWidth in CSS-px, 0 = auto). Erweitert die
+    // Inhaltsfläche, sodass Links/Mitte/Rechts (unten, textAreaW) den Text sichtbar
+    // verschieben — auch bei einzeiligem Text. WYSIWYG zu sign_dom.js.
+    var minWpx = Math.max(0, Number(o.minWidth) || 0) * dpr;
+    var innerW = Math.max(maxw, imgW, minWpx - pad * 2 - arrowW);
     var boxW = innerW + pad * 2 + arrowW;
     var boxH = (hasImg ? imgH + imgGap : 0) + textH + pad * 2;
     // v0.9.408 — Sprechblasen-Pfeilrichtung (nur callout/tail): unten|oben|links|rechts.
@@ -376,17 +380,45 @@
   // metas[i] = { a_show, a_hide, fade, pop } (alles in Anchor-Einheiten 0..1).
   // M = aktuelle Marker-Position auf dem Track (0..1).
   // Sichtbarkeit via setFilter (Fenster), Fade/Pop via feature-state (op/scale).
+  // v0.9.479 — Aufpopp-Kurve: easeOutBack (wächst von 0, überschwingt leicht auf ~1.1,
+  // pendelt sich auf 1 ein). t in [0..1].
+  function rzPopScale(t) {
+    if (t >= 1) return 1;
+    if (t <= 0) return 0;
+    var c1 = 1.70158, c3 = c1 + 1, p = t - 1;
+    return 1 + c3 * p * p * p + c1 * p * p;
+  }
+
   function rzSignApplyFrame(map, lyr, src, metas, M) {
     if (!map || !map.getLayer || !map.getLayer(lyr)) return;
     try {
       map.setFilter(lyr, ["all", ["<=", ["get", "a_show"], M], [">=", ["get", "a_hide"], M]]);
     } catch (_) {}
     if (!Array.isArray(metas)) return;
+    // Pop (icon-size · popScale) über setData ins Feature — nur wenn sich ein Wert
+    // spürbar ändert (kein setData-Sturm). Danach op-States wieder setzen, weil
+    // setData den feature-state resetten kann.
+    var fc = map.__rzSignFC;
+    var popDirty = false;
+    if (fc && fc.features) {
+      if (!map.__rzSignPopLast) map.__rzSignPopLast = [];
+      for (var k = 0; k < metas.length; k++) {
+        var mk = metas[k] || {};
+        var ps = 1;
+        if (mk.pop > 0) ps = rzPopScale((M - mk.a_show) / mk.pop);
+        var prev = map.__rzSignPopLast[k];
+        if (prev == null || Math.abs(prev - ps) > 0.004) {
+          popDirty = true;
+          map.__rzSignPopLast[k] = ps;
+          if (fc.features[k] && fc.features[k].properties) fc.features[k].properties.popScale = ps;
+        }
+      }
+      if (popDirty) { try { map.getSource(src).setData(fc); } catch (_) {} }
+    }
     for (var i = 0; i < metas.length; i++) {
       var m = metas[i] || {};
       var op = 1;
       // Fade (Ein-/Ausblenden) über icon-opacity = PAINT-Property → feature-state erlaubt.
-      // (icon-size ist LAYOUT → dort ist feature-state NICHT erlaubt, daher kein Scale-Pop.)
       if (m.fade > 0) {
         op = Math.min((M - m.a_show) / m.fade, (m.a_hide - M) / m.fade, 1);
         op = Math.max(0, Math.min(1, op));
@@ -418,12 +450,15 @@
     // (kein Intro-Auftritt). Hold-Seite bleibt unangetastet (aHide-Default 2.0).
     var aShow = A - before;
     var aHide = after > 0 ? (A + rzSignSecToAnchor(after, durationSec)) : 2.0;
-    // Fade nutzt icon-opacity (paint, feature-state-fähig). „pop"/„both" werden
-    // aktuell als Fade umgesetzt (Scale-Pop bräuchte feature-state auf icon-size
-    // = LAYOUT, was Mapbox nicht erlaubt).
-    var fadeSpan = (entry === "fade" || entry === "pop" || entry === "both")
-      ? rzSignSecToAnchor(0.6, durationSec) : 0;
-    return { a_show: aShow, a_hide: aHide, fade: fadeSpan, pop: 0 };
+    // v0.9.479 — Einblendung differenziert (Beta-Tester: „die 3 Animationen sind gleich"):
+    //   fade  → nur Deckkraft-Einblendung (icon-opacity via feature-state, PAINT).
+    //   pop   → nur Skalier-Aufpoppen (icon-size · popScale via setData, LAYOUT-Trick).
+    //   both  → beides gleichzeitig.
+    // Scale-Pop geht NICHT über feature-state (icon-size = LAYOUT), daher fährt
+    // rzSignApplyFrame den popScale per setData ins Feature (nur im kurzen Fenster).
+    var fadeSpan = (entry === "fade" || entry === "both") ? rzSignSecToAnchor(0.6, durationSec) : 0;
+    var popSpan  = (entry === "pop"  || entry === "both") ? rzSignSecToAnchor(0.5, durationSec) : 0;
+    return { a_show: aShow, a_hide: aHide, fade: fadeSpan, pop: popSpan };
   }
 
   if (typeof window !== "undefined") {

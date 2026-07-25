@@ -196,6 +196,11 @@
     var align = o.align || "center";
     card.style.textAlign = align;
     card.style.alignItems = (align === "left") ? "flex-start" : (align === "right" ? "flex-end" : "center");
+    // v0.9.479 — feste Mindestbreite (px, 0 = auto). Erst damit hat Links/Mitte/Rechts
+    // bei einzeiligem Text Platz zum Verschieben (sonst zieht sich die Box auf die
+    // Textbreite zusammen und die Ausrichtung wirkt „ohne Funktion"). WYSIWYG zu sign_draw.js.
+    var minW = Math.max(0, Number(o.minWidth) || 0);
+    card.style.minWidth = minW > 0 ? px(minW) : "";
 
     // Schatten. Box vorhanden → box-shadow um die Box. Box transparent (Text bzw. Bild
     // ohne Rahmen) → der Schatten muss der KONTUR von Text/Bild folgen.

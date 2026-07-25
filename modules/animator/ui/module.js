@@ -750,6 +750,15 @@ function mountAnimator(body, headerActions, opts) {
                 <input type="range" id="anim-ov-bgopacity" min="0" max="100" step="5" value="55">
                 <span class="ov-style-val" id="anim-ov-bgopacity-val">55 %</span>
               </div>
+              <div class="ov-style-row">
+                <label for="anim-ov-entry" title="${t("animator.overlay.entry_hint", "Wie die Stats-Boxen im Video erscheinen. Nur im gerenderten Video/Probe-Lauf sichtbar.")}">${t("animator.overlay.entry", "Einblendung")}</label>
+                <select id="anim-ov-entry" class="pos-select">
+                  <option value="none">${t("signs.entry.none", "Hart (sofort)")}</option>
+                  <option value="fade">${t("signs.entry.fade", "Einblenden")}</option>
+                  <option value="pop">${t("signs.entry.pop", "Aufpoppen")}</option>
+                  <option value="both">${t("signs.entry.both", "Ein- + Aufpoppen")}</option>
+                </select>
+              </div>
             </div>
             <!-- v0.9.41 — Stats-Quelle bei aktivem Trim:
                  Trim-Werte (Default, Marc-Spec) vs. Gesamt-Track-Werte. -->
@@ -1447,7 +1456,8 @@ function mountAnimator(body, headerActions, opts) {
     onLoad: v => updateLabel("anim-shadow-dir-v", Math.round(parseFloat(v)) + "", "°"),
     onChange: v => { updateLabel("anim-shadow-dir-v", Math.round(parseFloat(v)) + "", "°");
       try { applyShadowToLayers(); } catch (_) {}
-      try { if (_animSignEditMode) _animSignsAttachToMap(); } catch (_) {} } });
+      try { if (_animSignEditMode) _animSignsAttachToMap(); } catch (_) {}
+      try { renderOverlayPreview(); } catch (_) {} } });   // v0.9.479 — Stats-Schatten folgt der Richtung
   bindSetting("anim-glow-strength", _MODKEY, "glow_strength", { type: "number",
     onLoad: v => updateLabel("anim-glow-strength-v", parseFloat(v).toFixed(1), " px"),
     onChange: v => {
@@ -1843,6 +1853,7 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-ov-font", _MODKEY, "overlay_font", { onChange: renderOverlayPreview });
   bindSetting("anim-ov-textcolor", _MODKEY, "overlay_text_color", { onChange: renderOverlayPreview });
   bindSetting("anim-ov-bgcolor", _MODKEY, "overlay_bg_color", { onChange: renderOverlayPreview });
+  bindSetting("anim-ov-entry", _MODKEY, "overlay_entry");   // v0.9.479 — Stats-Einblende-Animation (nur Render/Probe-Lauf)
   // BG-Opacity: gespeichert als 0..1, UI-Slider 0..100 → eigene Anbindung.
   (function bindOvOpacity() {
     const sl = document.getElementById("anim-ov-bgopacity");
@@ -6157,6 +6168,7 @@ function mountAnimator(body, headerActions, opts) {
     const _SIGN_DEFAULTS = {
       style: "callout", color: "#ff6b35", size: 40,
       bg: "auto", textColor: "auto", font: "system", weight: 700, italic: false, align: "center",
+      minWidth: 0,           // v0.9.479 — feste Mindestbreite (px, 0 = auto/an Text angepasst); macht Links/Mitte/Rechts sichtbar
       radius: 9, padding: 7, opacity: 1,
       borderColor: "none", borderWidth: 0,
       decoScale: 0.5,        // v0.9.256 — Länge der Stangen (Banner/Wegweiser) als Faktor der Box-Höhe
@@ -6479,20 +6491,26 @@ function mountAnimator(body, headerActions, opts) {
         const trackAnchor = (typeof sn.timeAnchor === "number") ? sn.timeAnchor : _animSignAnchorForLngLat(Number(sn.lon), Number(sn.lat));
         const meta = window.__rzSignMeta ? window.__rzSignMeta({ ...sn, track_anchor: trackAnchor }, dur) : { a_show: trackAnchor, a_hide: 2, fade: 0, pop: 0 };
         _animSignMetas[fi] = meta;
-        features.push({ type: "Feature", id: fi, properties: { imgId: id, signIdx: fi, zoomScale: !!sn.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: _signMarkerAnchor(sn) }, geometry: { type: "Point", coordinates: [Number(sn.lon), Number(sn.lat)] } });
+        features.push({ type: "Feature", id: fi, properties: { imgId: id, signIdx: fi, zoomScale: !!sn.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: _signMarkerAnchor(sn), popScale: 1 }, geometry: { type: "Point", coordinates: [Number(sn.lon), Number(sn.lat)] } });
       });
       try {
-        map.addSource(_ANIM_SIGNS_SRC, { type: "geojson", data: { type: "FeatureCollection", features } });
+        // v0.9.479 — FeatureCollection auf der Karte cachen, damit rzSignApplyFrame den
+        // popScale (Aufpoppen) per setData reinschieben kann. popScale-Multiplikator steht
+        // INNERHALB der Zoom-Stops (['zoom'] bleibt top-level → Layer wird nicht verworfen).
+        const _signFC = { type: "FeatureCollection", features };
+        map.__rzSignFC = _signFC; map.__rzSignPopLast = null;
+        const _pop = ["coalesce", ["get", "popScale"], 1];
+        map.addSource(_ANIM_SIGNS_SRC, { type: "geojson", data: _signFC });
         map.addLayer({
           id: _ANIM_SIGNS_LYR, type: "symbol", source: _ANIM_SIGNS_SRC,
           filter: ["all", ["<=", ["get", "a_show"], -1], [">=", ["get", "a_hide"], -1]],
           layout: {
             "icon-image": ["get", "imgId"],
             "icon-size": ["interpolate", ["linear"], ["zoom"],
-              8, ["case", ["==", ["get", "zoomScale"], true], 0.5, 1.0],
-              12, ["case", ["==", ["get", "zoomScale"], true], 0.8, 1.0],
-              16, ["case", ["==", ["get", "zoomScale"], true], 1.5, 1.0],
-              20, ["case", ["==", ["get", "zoomScale"], true], 2.4, 1.0]],
+              8, ["*", ["case", ["==", ["get", "zoomScale"], true], 0.5, 1.0], _pop],
+              12, ["*", ["case", ["==", ["get", "zoomScale"], true], 0.8, 1.0], _pop],
+              16, ["*", ["case", ["==", ["get", "zoomScale"], true], 1.5, 1.0], _pop],
+              20, ["*", ["case", ["==", ["get", "zoomScale"], true], 2.4, 1.0], _pop]],
             "icon-anchor": ["coalesce", ["get", "iconAnchor"], "bottom"],  // v0.9.408 — Sprechblasen-Richtung pro Schild
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,
@@ -6932,6 +6950,8 @@ function mountAnimator(body, headerActions, opts) {
               <option value="center"${sel("center", c.align)}>${t("signs.align.center", "Mitte")}</option>
               <option value="right"${sel("right", c.align)}>${t("signs.align.right", "Rechts")}</option>
             </select>
+            <label title="${t("signs.minWidth_hint", "0 = an den Text angepasst. Größer 0 gibt dem Schild eine feste Mindestbreite — erst dann verschiebt Links/Mitte/Rechts den Text sichtbar.")}">${t("signs.minWidth", "Breite")} <span class="label-val" id="se-mw-v">${(c.minWidth || 0) > 0 ? (c.minWidth + " px") : t("signs.minWidth_auto", "Auto")}</span></label>
+            <input type="range" id="se-mw" min="0" max="500" step="10" value="${c.minWidth || 0}">
             <label>${t("signs.textColor", "Textfarbe")}</label>
             <span class="se-inline"><input type="color" id="se-tc" value="${_animEscapeHtml(customTc ? c.textColor : "#ffffff")}" data-auto="${customTc ? "0" : "1"}"><button type="button" class="se-auto-btn" id="se-tc-auto" title="${t("signs.tc_auto_hint", "Automatischer Kontrast zum Hintergrund")}">${t("signs.auto", "Auto")}</button></span>
             <label>${t("signs.italic", "Kursiv")}</label>
@@ -7017,6 +7037,7 @@ function mountAnimator(body, headerActions, opts) {
           size: parseInt($("#se-size").value, 10) || 40,
           weight: parseInt($("#se-weight").value, 10) || 700,
           align: $("#se-align").value,
+          minWidth: parseInt($("#se-mw").value, 10) || 0,   // v0.9.479 — feste Mindestbreite (px, 0=auto)
           textColor: $("#se-tc").dataset.auto === "1" ? "auto" : $("#se-tc").value,
           italic: $("#se-italic").checked,
           shadow: $("#se-shadow").checked,
@@ -7074,6 +7095,13 @@ function mountAnimator(body, headerActions, opts) {
                     || elm.type === "number" || elm.type === "text") ? "input" : "change";
         elm.addEventListener(ev, apply);
       });
+      // v0.9.479 — Live-Label für den Breite-Slider (0 = „Auto", sonst „NNN px").
+      { const _mw = $("#se-mw"), _mwv = $("#se-mw-v");
+        if (_mw && _mwv) _mw.addEventListener("input", () => {
+          const v = parseInt(_mw.value, 10) || 0;
+          _mwv.textContent = v > 0 ? (v + " px") : t("signs.minWidth_auto", "Auto");
+        });
+      }
       // v0.9.257 — „Stangen-Länge" nur bei Zielbanner / Wegweiser zeigen (nur die haben
       // Stangen). Beim Form-Wechsel ein-/ausblenden.
       { const _seStyle = $("#se-style");
@@ -8976,6 +9004,15 @@ function mountAnimator(body, headerActions, opts) {
     try { _chartsPreviewRender(false); } catch (_) {}
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer) return;
+    // v0.9.479 — Stats-Box-Schatten folgt der GLOBALEN Lichtquelle (wie Track + Schilder),
+    // immer sichtbar (Beta-Tester-Wunsch „Stats auch Schatten"). Richtung aus dem Track-Schatten-
+    // Richtungsregler; fester Versatz, damit der Schatten unabhängig vom Track-Schatten wirkt.
+    // WYSIWYG zum Render (core/animator.py::_overlay_css).
+    try {
+      const _sr = currentShadowDir() * Math.PI / 180;
+      layer.style.setProperty("--rz-ov-shx", (9 * Math.cos(_sr)).toFixed(2));
+      layer.style.setProperty("--rz-ov-shy", (9 * Math.sin(_sr)).toFixed(2));
+    } catch (_) {}
     // v0.9.215 — Reiseroute hat keine Stats-Overlays (Sektion entfernt). Ohne
     // diesen Guard liefert `?.checked ?? true` für die fehlenden Checkboxen
     // `true` → Overlays würden fälschlich angezeigt.
@@ -10292,6 +10329,7 @@ function mountAnimator(body, headerActions, opts) {
       overlay_text_color: document.getElementById("anim-ov-textcolor")?.value || "#ffffff",
       overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",
       overlay_bg_opacity: (() => { const v = parseFloat(document.getElementById("anim-ov-bgopacity")?.value); return (isNaN(v) ? 55 : v) / 100; })(),  // v0.9.409 — Falsy-Zero-Fix (0 % war 55 %)
+      overlay_entry: document.getElementById("anim-ov-entry")?.value || "none",  // v0.9.479 — Stats-Einblende-Animation
       // codec/crf/frame_format kommen jetzt server-seitig aus den globalen
       // Render-Settings (Dialog „Qualität & Export"), nicht mehr aus der Sidebar.
       // v0.9.157 — override_* abgeschafft (Classic = 2 hidden KFs, s.o.).
@@ -10715,6 +10753,7 @@ function mountAnimator(body, headerActions, opts) {
         overlay_text_color: document.getElementById("anim-ov-textcolor")?.value || "#ffffff",
         overlay_bg_color: document.getElementById("anim-ov-bgcolor")?.value || "#000000",
         overlay_bg_opacity: (() => { const v = parseFloat(document.getElementById("anim-ov-bgopacity")?.value); return (isNaN(v) ? 55 : v) / 100; })(),
+        overlay_entry: document.getElementById("anim-ov-entry")?.value || "none",  // v0.9.479 — Stats-Einblende-Animation
         // Schilder + Foto-Pins ROH (werden im Browser via __rzDrawSign gezeichnet).
         signs: signs,
         signs_show: (typeof a.signs_show === "boolean") ? a.signs_show : true,

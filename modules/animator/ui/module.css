@@ -390,7 +390,12 @@
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   color: #fff;
-  box-shadow: 0 calc(6px * var(--overlay-scale)) calc(24px * var(--overlay-scale)) rgba(0, 0, 0, 0.35);
+  /* v0.9.479 — richtungsabhängiger Schatten (globale Lichtquelle). --rz-ov-shx/shy
+     kommen aus renderOverlayPreview() (px @ overlay-scale 1); Fallback = alter Look. */
+  box-shadow:
+    calc(var(--rz-ov-shx, 0) * var(--overlay-scale) * 1px)
+    calc(var(--rz-ov-shy, 6) * var(--overlay-scale) * 1px)
+    calc(22px * var(--overlay-scale)) rgba(0, 0, 0, 0.45);
   border-radius: calc(12px * var(--overlay-scale));
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
 }

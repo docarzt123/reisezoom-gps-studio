@@ -260,6 +260,8 @@ class AnimatorConfig:
     overlay_text_color: str = "#ffffff"
     overlay_bg_color: str = "#000000"
     overlay_bg_opacity: float = 0.55    # 0..1
+    # v0.9.479 — Einblende-Animation der Stats-Boxen: none|fade|pop|both (Beta-Tester-Wunsch).
+    overlay_entry: str = "none"
     # v0.9.443 — Daten-Diagramme als Overlay. Jedes Diagramm ist ein voll
     # konfiguriertes Daten-Animator-Chart (Höhe, Puls, Tempo, Farbzonen, 2.
     # Achse …), eingebettet als transparentes <iframe srcdoc=_make_html>. Es
@@ -892,6 +894,10 @@ def _overlay_windows(cfg: "AnimatorConfig") -> dict:
 def _overlay_has_timing(cfg: "AnimatorConfig") -> bool:
     """True wenn irgendeine Box ein nicht-triviales Zeitfenster hat (from>0 oder
     to>0). Nur dann ruft der Render-Loop window.__overlayTiming pro Frame."""
+    # v0.9.479 — auch bei aktiver Einblende-Animation (fade/pop) pro Frame nötig,
+    # selbst wenn kein Zeitfenster gesetzt ist (Boxen poppen dann bei t=0 auf).
+    if str(getattr(cfg, "overlay_entry", "none") or "none") != "none":
+        return True
     for frm, to in _overlay_windows(cfg).values():
         if frm > 0 or to > 0:
             return True
@@ -903,12 +909,24 @@ def _overlay_timing_js(cfg: "AnimatorConfig") -> str:
     (Nutzer-Wunsch). Render-Loop ruft window.__overlayTiming(tSekunde) pro
     Frame. to<=0 = bis Ende; Default 0/0 = immer sichtbar (kein Eingriff)."""
     wins = _overlay_windows(cfg)
+    _entry = str(getattr(cfg, "overlay_entry", "none") or "none")
+    _do_fade = "true" if _entry in ("fade", "both") else "false"
+    _do_pop = "true" if _entry in ("pop", "both") else "false"
+    # v0.9.479 — Einblende-Animation der Stats-Boxen. Fade = Deckkraft 0→1, Pop = Skala
+    # (easeOutBack) via --rz-ov-pop (steckt im Positions-transform, s. _overlay_css).
+    # ENTRY „none" → altes Verhalten (harter visibility-Schnitt).
     return (
         "<script>window.__overlayTiming=function(t){var W="
         + json.dumps(wins) +
-        ";for(var id in W){var el=document.getElementById(id);if(!el)continue;"
+        ";var FADE=" + _do_fade + ",POP=" + _do_pop + ",DUR=0.5;"
+        "function eb(x){if(x>=1)return 1;if(x<=0)return 0;var c1=1.70158,c3=c1+1,p=x-1;return 1+c3*p*p*p+c1*p*p;}"
+        "for(var id in W){var el=document.getElementById(id);if(!el)continue;"
         "var w=W[id];var vis=(t>=w[0])&&(w[1]<=0||t<=w[1]);"
-        "el.style.visibility=vis?'':'hidden';}};</script>"
+        "if(!vis){el.style.visibility='hidden';continue;}el.style.visibility='';"
+        "if(!FADE&&!POP){el.style.opacity='';el.style.setProperty('--rz-ov-pop','1');continue;}"
+        "var p=Math.max(0,Math.min(1,(t-w[0])/DUR));"
+        "el.style.opacity=FADE?String(p):'';"
+        "el.style.setProperty('--rz-ov-pop',POP?eb(p).toFixed(3):'1');}};</script>"
     )
 
 
@@ -1035,7 +1053,13 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
     if alpha_mode:
         _bg_a = min(1.0, _bg_a + 0.07)   # auf NLE-Composite etwas kräftiger
     bg_css = f"rgba({_bgr},{_bgg},{_bgb},{round(_bg_a, 3)})"
-    sh_op = 0.45 if alpha_mode else 0.35
+    sh_op = 0.5 if alpha_mode else 0.45
+    # v0.9.479 — Stats-Box-Schatten folgt der GLOBALEN Lichtquelle (wie Track + Schilder),
+    # fester Versatz (9 CSS-px) damit er unabhängig vom Track-Schatten immer sichtbar ist.
+    # WYSIWYG zur Vorschau (module.css .ov-box + renderOverlayPreview()).
+    _ov_sr = math.radians(float(getattr(cfg, "shadow_dir", 45.0) or 45.0))
+    _ov_shx, _ov_shy = 9.0 * math.cos(_ov_sr), 9.0 * math.sin(_ov_sr)
+    box_shadow = f"box-shadow: {px(_ov_shx)} {px(_ov_shy)} {px(22)} rgba(0,0,0,{sh_op});"
     _txt = getattr(cfg, "overlay_text_color", "#ffffff") or "#ffffff"
     _font = _overlay_font_family(cfg)
     return f"""
@@ -1044,25 +1068,30 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
     -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
     border-radius: {px(12)}; padding: {px(18)} {px(22)}; color: {_txt};
     font-family: {_font};
-    min-width: {px(260)}; box-shadow: 0 {px(6)} {px(24)} rgba(0,0,0,{sh_op});
+    min-width: {px(260)}; {box_shadow}
   }}
   /* Universal-Position-Slots (auch für #overlay-bottom). Margin in CSS-Pixel
      wird ebenfalls skaliert, damit der Abstand zum Frame-Rand relativ gleich
      bleibt — sonst kleben Boxen bei 4K am Rand. */
-  .pos-tl {{ top: {px(40)}; left: {px(40)}; }}
-  .pos-tr {{ top: {px(40)}; right: {px(40)}; text-align: right; }}
-  .pos-bl {{ bottom: {px(40)}; left: {px(40)}; }}
-  .pos-br {{ bottom: {px(40)}; right: {px(40)}; text-align: right; }}
+  /* v0.9.479 — Aufpopp-/Einblende-Animation: --rz-ov-pop (Skala) + --rz-ov-op (Deckkraft)
+     werden von __overlayTiming pro Frame gesetzt. Der Scale-Faktor steckt IN jedem
+     Positions-transform (sonst würde er das Zentrier-translate überschreiben). transform-
+     origin je nach Ecke, damit die Box beim Aufpoppen an ihrer Kante „klebt". Default 1/1
+     → kein Eingriff. */
+  .pos-tl {{ top: {px(40)}; left: {px(40)}; transform: scale(var(--rz-ov-pop,1)); transform-origin: top left; }}
+  .pos-tr {{ top: {px(40)}; right: {px(40)}; text-align: right; transform: scale(var(--rz-ov-pop,1)); transform-origin: top right; }}
+  .pos-bl {{ bottom: {px(40)}; left: {px(40)}; transform: scale(var(--rz-ov-pop,1)); transform-origin: bottom left; }}
+  .pos-br {{ bottom: {px(40)}; right: {px(40)}; text-align: right; transform: scale(var(--rz-ov-pop,1)); transform-origin: bottom right; }}
   /* v0.9.283/284 (Nutzer-Wunsch) — mittige Positionen. Kompakte, zentrierte Boxen
      (nicht über volle Breite gestreckt), Inhalt zentriert:
        tc = oben mittig · bc = unten mittig · cc = Bildschirm-Mitte
        ml = links mittig · mr = rechts mittig (vertikal zentriert am Seitenrand)
      Volle Breite NUR fürs Höhenprofil (tcw/bcw = oben/unten breit). */
-  .pos-tc {{ top: {px(40)}; left: 50%; transform: translateX(-50%); text-align: center; }}
-  .pos-bc {{ bottom: {px(40)}; left: 50%; transform: translateX(-50%); text-align: center; }}
-  .pos-cc {{ top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }}
-  .pos-ml {{ top: 50%; left: {px(40)}; transform: translateY(-50%); }}
-  .pos-mr {{ top: 50%; right: {px(40)}; transform: translateY(-50%); text-align: right; }}
+  .pos-tc {{ top: {px(40)}; left: 50%; transform: translateX(-50%) scale(var(--rz-ov-pop,1)); transform-origin: top center; text-align: center; }}
+  .pos-bc {{ bottom: {px(40)}; left: 50%; transform: translateX(-50%) scale(var(--rz-ov-pop,1)); transform-origin: bottom center; text-align: center; }}
+  .pos-cc {{ top: 50%; left: 50%; transform: translate(-50%, -50%) scale(var(--rz-ov-pop,1)); transform-origin: center; text-align: center; }}
+  .pos-ml {{ top: 50%; left: {px(40)}; transform: translateY(-50%) scale(var(--rz-ov-pop,1)); transform-origin: left center; }}
+  .pos-mr {{ top: 50%; right: {px(40)}; transform: translateY(-50%) scale(var(--rz-ov-pop,1)); transform-origin: right center; text-align: right; }}
   .pos-tcw {{ top: {px(40)}; left: 10%; right: 10%; }}
   .pos-bcw {{ bottom: {px(40)}; left: 10%; right: 10%; }}
   .stat-row {{ display: flex; justify-content: space-between; align-items: baseline; gap: {px(28)}; padding: {px(4)} 0; }}
@@ -1076,7 +1105,7 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
     height: {px(170)}; background: {bg_css}; font-family: {_font};
     -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
     border-radius: {px(12)}; padding: {px(14)} {px(22)} {px(10)};
-    box-shadow: 0 {px(6)} {px(24)} rgba(0,0,0,{sh_op});
+    {box_shadow}
     display: flex; flex-direction: column;
   }}
   /* Wenn das Höhenprofil in einer Ecke landet, kompaktere Breite (skaliert). */
@@ -1802,6 +1831,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "imageSrc": str(_sg(s, "imageSrc", "") or ""),
             "thumb": _sign_thumb(s),
             "imageSize": float(_sg(s, "imageSize", 60)),  # v0.9.190 — Bildbreite separat
+            "minWidth": float(_sg(s, "minWidth", 0) or 0),  # v0.9.479 — feste Mindestbreite (px, 0=auto) → Text-Ausrichtung sichtbar
             "decoScale": float(_sg(s, "decoScale", 0.5)),  # v0.9.262 — Stangen-Länge (Banner/Wegweiser); fehlte → Render nahm immer 0.5
             "direction": ("left" if _sg(s, "direction", "right") == "left" else "right"),  # v0.9.387 — Wegweiser-Pfeilrichtung
             # v0.9.408 — Sprechblasen-Pfeilrichtung: bottom|top|left|right (Default bottom).
@@ -1809,12 +1839,17 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         } for s in _signs_input]
         # v0.9.224/225 — render_scale in die icon-size-Stützwerte gerechnet (s.u.).
         _ss = float(getattr(cfg, "render_scale", 1.0) or 1.0)
+        # v0.9.479 — Aufpoppen: jeder Zoom-Stützwert wird mit dem per-Feature-`popScale`
+        # multipliziert (Default 1). WICHTIG: der Multiplikator steht INNERHALB der
+        # Interpolate-Stops, damit ['zoom'] top-level bleibt (sonst verwirft Mapbox den
+        # Layer → gar kein Schild). rzSignApplyFrame schiebt popScale per setData rein.
+        _pop = "['coalesce',['get','popScale'],1]"
+
+        def _sz(v):
+            return f"['*',['case',['==',['get','zoomScale'],true],{v * _ss:.4f},{1.0 * _ss:.4f}],{_pop}]"
         _sign_icon_size = (
             "['interpolate',['linear'],['zoom'], "
-            f"8,['case',['==',['get','zoomScale'],true],{0.5*_ss:.4f},{1.0*_ss:.4f}], "
-            f"12,['case',['==',['get','zoomScale'],true],{0.8*_ss:.4f},{1.0*_ss:.4f}], "
-            f"16,['case',['==',['get','zoomScale'],true],{1.5*_ss:.4f},{1.0*_ss:.4f}], "
-            f"20,['case',['==',['get','zoomScale'],true],{2.4*_ss:.4f},{1.0*_ss:.4f}]]"
+            f"8,{_sz(0.5)}, 12,{_sz(0.8)}, 16,{_sz(1.5)}, 20,{_sz(2.4)}]"
         )
         signs_block = (
             "const __signs = " + json.dumps(signs_for_render) + ";\n"
@@ -1835,10 +1870,11 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "    let __anchor='bottom';\n"  # v0.9.408 — Sprechblasen-Richtung → icon-anchor pro Schild
             "    try { const o = Object.assign({}, s); if (__imgs[i]) o.image = __imgs[i]; const im = window.__rzDrawSign(o); if (im && im.anchor) __anchor = im.anchor; if (!map.hasImage(id)) map.addImage(id, im.data, {pixelRatio: im.dpr}); } catch(_){}\n"
             "    const meta = __signMetas[i];\n"
-            "    return { type:'Feature', id:i, properties:{ imgId:id, zoomScale: !!s.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: __anchor },\n"
+            "    return { type:'Feature', id:i, properties:{ imgId:id, zoomScale: !!s.zoomScale, a_show: meta.a_show, a_hide: meta.a_hide, iconAnchor: __anchor, popScale: 1 },\n"
             "             geometry:{ type:'Point', coordinates:[s.lon, s.lat] } };\n"
             "  });\n"
-            "  if (!map.getSource('anim-signs-src')) map.addSource('anim-signs-src', {type:'geojson', data:{type:'FeatureCollection', features:__feats}});\n"
+            "  window.__signFC = {type:'FeatureCollection', features:__feats}; map.__rzSignFC = window.__signFC;\n"  # v0.9.479 — Pop-Scale via setData
+            "  if (!map.getSource('anim-signs-src')) map.addSource('anim-signs-src', {type:'geojson', data:window.__signFC});\n"
             "  if (!map.getLayer('anim-signs-lyr')) map.addLayer({ id:'anim-signs-lyr', type:'symbol', source:'anim-signs-src',\n"
             "    filter: ['all', ['<=',['get','a_show'], -1], ['>=',['get','a_hide'], -1]],\n"
             "    layout:{ 'icon-image':['get','imgId'],\n"

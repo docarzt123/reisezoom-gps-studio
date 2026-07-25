@@ -1468,5 +1468,10 @@
   "osm_block.cta_token": "Kostenlosen Token einrichten",
   "osm_block.cta_tourmap": "Zur Tour-Karte →",
   "signs.move_hint": "↔ Zum Verschieben das Schild direkt auf der Karte an die gewünschte Stelle ziehen.",
-  "signs.move_armed": "↔ Zieh das Schild jetzt auf der Karte an die gewünschte Stelle."
+  "signs.move_armed": "↔ Zieh das Schild jetzt auf der Karte an die gewünschte Stelle.",
+  "signs.minWidth": "Breite",
+  "signs.minWidth_auto": "Auto",
+  "signs.minWidth_hint": "0 = an den Text angepasst. Größer 0 gibt dem Schild eine feste Mindestbreite — erst dann verschiebt Links/Mitte/Rechts den Text sichtbar.",
+  "animator.overlay.entry": "Einblendung",
+  "animator.overlay.entry_hint": "Wie die Stats-Boxen im Video erscheinen. Nur im gerenderten Video/Probe-Lauf sichtbar."
 }

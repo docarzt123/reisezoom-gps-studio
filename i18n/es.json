@@ -1468,5 +1468,10 @@
   "osm_block.cta_token": "Configurar un token gratuito",
   "osm_block.cta_tourmap": "Ir al mapa del recorrido →",
   "signs.move_hint": "↔ Para mover un cartel, arrástralo directamente en el mapa hasta el lugar deseado.",
-  "signs.move_armed": "↔ Ahora arrastra el cartel en el mapa hasta el lugar deseado."
+  "signs.move_armed": "↔ Ahora arrastra el cartel en el mapa hasta el lugar deseado.",
+  "signs.minWidth": "Ancho",
+  "signs.minWidth_auto": "Auto",
+  "signs.minWidth_hint": "0 = se ajusta al texto. Por encima de 0 el cartel tiene un ancho mínimo fijo — solo entonces izquierda/centro/derecha mueven el texto de forma visible.",
+  "animator.overlay.entry": "Aparición",
+  "animator.overlay.entry_hint": "Cómo aparecen las cajas de stats en el vídeo. Solo visible en el vídeo renderizado / ensayo."
 }
