@@ -6499,7 +6499,14 @@ function mountAnimator(body, headerActions, opts) {
         // INNERHALB der Zoom-Stops (['zoom'] bleibt top-level → Layer wird nicht verworfen).
         const _signFC = { type: "FeatureCollection", features };
         map.__rzSignFC = _signFC; map.__rzSignPopLast = null;
-        const _pop = ["coalesce", ["get", "popScale"], 1];
+        // v0.9.479b — der datengetriebene (popScale-abhängige) icon-size-Ausdruck lässt
+        // Mapbox das Symbol beim Zoomen minimal anders rastern → „die Buchstaben tanzen".
+        // Deshalb NUR wenn wirklich ein Schild „Aufpoppen" nutzt; sonst der reine Zoom-
+        // Ausdruck wie vor v0.9.479 (scharf).
+        const _anyPop = _animSignMetas.some(m => m && m.pop > 0);
+        const _sz = (v) => _anyPop
+          ? ["*", ["case", ["==", ["get", "zoomScale"], true], v, 1.0], ["coalesce", ["get", "popScale"], 1]]
+          : ["case", ["==", ["get", "zoomScale"], true], v, 1.0];
         map.addSource(_ANIM_SIGNS_SRC, { type: "geojson", data: _signFC });
         map.addLayer({
           id: _ANIM_SIGNS_LYR, type: "symbol", source: _ANIM_SIGNS_SRC,
@@ -6507,10 +6514,7 @@ function mountAnimator(body, headerActions, opts) {
           layout: {
             "icon-image": ["get", "imgId"],
             "icon-size": ["interpolate", ["linear"], ["zoom"],
-              8, ["*", ["case", ["==", ["get", "zoomScale"], true], 0.5, 1.0], _pop],
-              12, ["*", ["case", ["==", ["get", "zoomScale"], true], 0.8, 1.0], _pop],
-              16, ["*", ["case", ["==", ["get", "zoomScale"], true], 1.5, 1.0], _pop],
-              20, ["*", ["case", ["==", ["get", "zoomScale"], true], 2.4, 1.0], _pop]],
+              8, _sz(0.5), 12, _sz(0.8), 16, _sz(1.5), 20, _sz(2.4)],
             "icon-anchor": ["coalesce", ["get", "iconAnchor"], "bottom"],  // v0.9.408 — Sprechblasen-Richtung pro Schild
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,

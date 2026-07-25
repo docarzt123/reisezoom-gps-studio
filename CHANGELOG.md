@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.480] – 2026-07-25
+### Behoben
+- **Schild-Buchstaben „tanzten" wieder** (Beta-Tester-Feedback zu v0.9.479). Für das
+  Aufpoppen war die `icon-size` **aller** Schilder auf einen datengetriebenen Ausdruck
+  (`popScale`) umgestellt — das ließ Mapbox das Symbol beim Zoomen minimal anders rastern,
+  die Schrift zitterte. Jetzt greift der datengetriebene Ausdruck **nur noch, wenn wirklich
+  ein Schild „Aufpoppen" nutzt**; sonst der reine Zoom-Ausdruck wie vor v0.9.479 → scharf,
+  kein Zittern. Auch der Pop-`setData`-Pfad wird bei Schildern ohne Aufpoppen komplett
+  übersprungen. `core/animator.py`, `modules/animator/ui/module.js`, `ui/js/sign_draw.js`.
+
 ## [0.9.479] – 2026-07-25
 ### Hinzugefügt
 - **Schilder: feste Mindestbreite** (Beta-Tester-Feedback „Text-Ausrichtung ohne Funktion").

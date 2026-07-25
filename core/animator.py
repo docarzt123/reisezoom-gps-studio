@@ -1839,14 +1839,23 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         } for s in _signs_input]
         # v0.9.224/225 — render_scale in die icon-size-Stützwerte gerechnet (s.u.).
         _ss = float(getattr(cfg, "render_scale", 1.0) or 1.0)
-        # v0.9.479 — Aufpoppen: jeder Zoom-Stützwert wird mit dem per-Feature-`popScale`
+        # v0.9.479b — Aufpoppen: jeder Zoom-Stützwert wird mit dem per-Feature-`popScale`
         # multipliziert (Default 1). WICHTIG: der Multiplikator steht INNERHALB der
         # Interpolate-Stops, damit ['zoom'] top-level bleibt (sonst verwirft Mapbox den
         # Layer → gar kein Schild). rzSignApplyFrame schiebt popScale per setData rein.
-        _pop = "['coalesce',['get','popScale'],1]"
+        # ABER: der datengetriebene (property-abhängige) icon-size-Ausdruck lässt Mapbox
+        # das Symbol beim Zoomen minimal anders rastern → „die Buchstaben tanzen" (Beta-
+        # Tester). Deshalb NUR wenn wirklich ein Schild „Aufpoppen" nutzt; sonst der reine
+        # Zoom-Ausdruck wie vor v0.9.479 (scharf, kein Zittern).
+        _any_pop = any(str(s.get("entry", "none")) in ("pop", "both") for s in signs_for_render)
+        if _any_pop:
+            _pop = "['coalesce',['get','popScale'],1]"
 
-        def _sz(v):
-            return f"['*',['case',['==',['get','zoomScale'],true],{v * _ss:.4f},{1.0 * _ss:.4f}],{_pop}]"
+            def _sz(v):
+                return f"['*',['case',['==',['get','zoomScale'],true],{v * _ss:.4f},{1.0 * _ss:.4f}],{_pop}]"
+        else:
+            def _sz(v):
+                return f"['case',['==',['get','zoomScale'],true],{v * _ss:.4f},{1.0 * _ss:.4f}]"
         _sign_icon_size = (
             "['interpolate',['linear'],['zoom'], "
             f"8,{_sz(0.5)}, 12,{_sz(0.8)}, 16,{_sz(1.5)}, 20,{_sz(2.4)}]"

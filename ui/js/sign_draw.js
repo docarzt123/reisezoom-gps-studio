@@ -400,7 +400,11 @@
     // setData den feature-state resetten kann.
     var fc = map.__rzSignFC;
     var popDirty = false;
-    if (fc && fc.features) {
+    // v0.9.479b — nur anfassen, wenn wirklich ein Schild Aufpoppen nutzt. Sonst KEIN
+    // setData/popScale (die icon-size ist dann der reine Zoom-Ausdruck → scharf, kein Zittern).
+    var anyPop = false;
+    for (var j = 0; j < metas.length; j++) { if (metas[j] && metas[j].pop > 0) { anyPop = true; break; } }
+    if (anyPop && fc && fc.features) {
       if (!map.__rzSignPopLast) map.__rzSignPopLast = [];
       for (var k = 0; k < metas.length; k++) {
         var mk = metas[k] || {};
