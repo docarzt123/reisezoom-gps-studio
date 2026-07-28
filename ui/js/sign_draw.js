@@ -147,6 +147,11 @@
     var boxH = (hasImg ? imgH + imgGap : 0) + textH + pad * 2;
     // v0.9.408 — Sprechblasen-Pfeilrichtung (nur callout/tail): unten|oben|links|rechts.
     // Eigenes Feld `calloutDir` (NICHT `direction`, das gehört dem Wegweiser/signpost).
+    // v0.9.481 — Zeiger (Sprechblasen-Spitze / Stecknadel) hat jetzt eine EIGENE
+    // Farbe und eine wählbare Position an der Kante. Vorher erbte er die Boxfarbe
+    // und verschwand mit „Kein Hintergrund"; mittig saß er oft genau auf der Spur.
+    // `accent: "auto"` = altes Verhalten.
+    var tailPos = (o.tailPos === "left" || o.tailPos === "right") ? o.tailPos : "center";
     var calloutDir = "bottom";
     if (decoration === "tail") {
       var _cd = o.calloutDir;
@@ -264,8 +269,11 @@
       rr(bx, by, boxW, boxH, radius); if (!boxTransparent) ctx.fill();
       setShadow(false);
       if (borderW > 0 && borderC) { ctx.lineWidth = borderW; ctx.strokeStyle = borderC; rr(bx + borderW / 2, by + borderW / 2, boxW - borderW, boxH - borderW, radius); ctx.stroke(); }
-      // Tropfen unten (Akzent)
-      var cx = ml + contentW / 2;
+      // Tropfen unten — Position links/mittig/rechts, damit er die Spur nicht verdeckt
+      var pinInset = pinR + 6 * dpr;
+      var cx = tailPos === "left" ? (ml + pinInset)
+             : tailPos === "right" ? (ml + contentW - pinInset)
+             : (ml + contentW / 2);
       var cyc = by + boxH + pinGap + pinR;
       var tipY = H - mb;
       setShadow(true);
@@ -275,10 +283,11 @@
       ctx.arc(cx, cyc, pinR, Math.PI, 0, false);
       ctx.quadraticCurveTo(cx + pinR * 1.25, cyc + pinR * 0.35, cx, tipY);
       ctx.closePath();
-      // v0.9.270 — Tropfen folgt dem Hintergrund (boxFill), nicht mehr einer separaten
-      // „Akzentfarbe". Bei transparenter Box ein dezentes Dunkel als Fallback, damit der
-      // Tropfen sichtbar bleibt.
-      ctx.fillStyle = boxTransparent ? "#15171c" : boxFill; ctx.fill();
+      // v0.9.481 — eigene Zeigerfarbe schlägt alles; ohne sie wie bisher: Tropfen
+      // folgt dem Hintergrund, bei transparenter Box dezentes Dunkel als Fallback.
+      ctx.fillStyle = (o.accent && o.accent !== "auto") ? o.accent
+                    : (boxTransparent ? "#15171c" : boxFill);
+      ctx.fill();
       setShadow(false);
       ctx.lineWidth = 2 * dpr; ctx.strokeStyle = "#fff"; ctx.stroke();
       ctx.beginPath(); ctx.arc(cx, cyc, pinR * 0.42, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
@@ -286,12 +295,17 @@
       rr(bx, by, boxW, boxH, radius); if (!boxTransparent) ctx.fill();
       setShadow(false);
       if (borderW > 0 && borderC) { ctx.lineWidth = borderW; ctx.strokeStyle = borderC; rr(bx + borderW / 2, by + borderW / 2, boxW - borderW, boxH - borderW, radius); ctx.stroke(); }
-      if (decoration === "tail" && !boxTransparent) {
+      var tailCol = (o.accent && o.accent !== "auto") ? o.accent : boxFill;
+      if (decoration === "tail" && (!boxTransparent || (o.accent && o.accent !== "auto"))) {
         // v0.9.408 — Sprechblasen-Spitze in gewählter Richtung. Die Spitze sitzt
         // an der Box-Kante der jeweiligen Seite und ragt um tailH nach außen; ihr
         // äußerster Punkt fällt (per icon-anchor unten/oben/links/rechts) auf den Geo-Punkt.
         var half = 7 * dpr;
-        var cxT = bx + boxW / 2, cyT = by + boxH / 2;
+        var tIns = half + 9 * dpr;                       // Abstand zur Ecke
+        var cxT = tailPos === "left" ? (bx + tIns)
+                : tailPos === "right" ? (bx + boxW - tIns) : (bx + boxW / 2);
+        var cyT = tailPos === "left" ? (by + tIns)
+                : tailPos === "right" ? (by + boxH - tIns) : (by + boxH / 2);
         ctx.beginPath();
         if (calloutDir === "top") {
           ctx.moveTo(cxT - half, by + 0.5); ctx.lineTo(cxT + half, by + 0.5); ctx.lineTo(cxT, by - tailH);
@@ -303,7 +317,7 @@
           ctx.moveTo(cxT - half, by + boxH - 0.5); ctx.lineTo(cxT + half, by + boxH - 0.5); ctx.lineTo(cxT, by + boxH + tailH);
         }
         ctx.closePath();
-        ctx.fillStyle = boxFill; ctx.fill();
+        ctx.fillStyle = tailCol; ctx.fill();
       }
     }
 

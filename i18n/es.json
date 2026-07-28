@@ -1473,5 +1473,13 @@
   "signs.minWidth_auto": "Auto",
   "signs.minWidth_hint": "0 = se ajusta al texto. Por encima de 0 el cartel tiene un ancho mínimo fijo — solo entonces izquierda/centro/derecha mueven el texto de forma visible.",
   "animator.overlay.entry": "Aparición",
-  "animator.overlay.entry_hint": "Cómo aparecen las cajas de stats en el vídeo. Solo visible en el vídeo renderizado / ensayo."
+  "animator.overlay.entry_hint": "Cómo aparecen las cajas de stats en el vídeo. Solo visible en el vídeo renderizado / ensayo.",
+  "signs.accent": "Color del puntero",
+  "signs.accent_hint": "Color de la punta del bocadillo o de la chincheta, independiente del fondo. «Auto» mantiene el comportamiento anterior.",
+  "signs.accent_auto_hint": "El puntero sigue al fondo (comportamiento anterior)",
+  "signs.tailpos": "Posición del puntero",
+  "signs.tailpos_hint": "Dónde se sitúa el puntero en el borde. Moverlo ayuda cuando la punta taparía el track.",
+  "signs.tailpos.left": "◀ Izquierda",
+  "signs.tailpos.center": "◆ Centro",
+  "signs.tailpos.right": "Derecha ▶"
 }

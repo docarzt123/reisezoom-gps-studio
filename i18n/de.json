@@ -1473,5 +1473,13 @@
   "signs.minWidth_auto": "Auto",
   "signs.minWidth_hint": "0 = an den Text angepasst. Größer 0 gibt dem Schild eine feste Mindestbreite — erst dann verschiebt Links/Mitte/Rechts den Text sichtbar.",
   "animator.overlay.entry": "Einblendung",
-  "animator.overlay.entry_hint": "Wie die Stats-Boxen im Video erscheinen. Nur im gerenderten Video/Probe-Lauf sichtbar."
+  "animator.overlay.entry_hint": "Wie die Stats-Boxen im Video erscheinen. Nur im gerenderten Video/Probe-Lauf sichtbar.",
+  "signs.accent": "Zeiger-Farbe",
+  "signs.accent_hint": "Farbe von Sprechblasen-Spitze bzw. Stecknadel — unabhängig vom Hintergrund. „Auto“ = wie bisher.",
+  "signs.accent_auto_hint": "Zeiger folgt dem Hintergrund (bisheriges Verhalten)",
+  "signs.tailpos": "Zeiger-Position",
+  "signs.tailpos_hint": "Wo der Zeiger an der Kante sitzt. Verschieben hilft, wenn die Spitze sonst genau auf der Spur liegt.",
+  "signs.tailpos.left": "◀ Links",
+  "signs.tailpos.center": "◆ Mittig",
+  "signs.tailpos.right": "Rechts ▶"
 }

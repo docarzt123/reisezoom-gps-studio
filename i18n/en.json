@@ -1473,5 +1473,13 @@
   "signs.minWidth_auto": "Auto",
   "signs.minWidth_hint": "0 = fits the text. Above 0 gives the sign a fixed minimum width — only then do left/center/right visibly move the text.",
   "animator.overlay.entry": "Entrance",
-  "animator.overlay.entry_hint": "How the stats boxes appear in the video. Only visible in the rendered video / probe run."
+  "animator.overlay.entry_hint": "How the stats boxes appear in the video. Only visible in the rendered video / probe run.",
+  "signs.accent": "Pointer colour",
+  "signs.accent_hint": "Colour of the speech-bubble tip or pin — independent of the background. “Auto” keeps the old behaviour.",
+  "signs.accent_auto_hint": "Pointer follows the background (previous behaviour)",
+  "signs.tailpos": "Pointer position",
+  "signs.tailpos_hint": "Where the pointer sits along the edge. Moving it helps when the tip would cover the track.",
+  "signs.tailpos.left": "◀ Left",
+  "signs.tailpos.center": "◆ Centre",
+  "signs.tailpos.right": "Right ▶"
 }

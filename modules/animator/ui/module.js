@@ -6167,7 +6167,8 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.179 — Schild voll customizable. Defaults für alle Eigenschaften.
     const _SIGN_DEFAULTS = {
       style: "callout", color: "#ff6b35", size: 40,
-      bg: "auto", textColor: "auto", font: "system", weight: 700, italic: false, align: "center",
+      bg: "auto", accent: "auto", tailPos: "center",
+      textColor: "auto", font: "system", weight: 700, italic: false, align: "center",
       minWidth: 0,           // v0.9.479 — feste Mindestbreite (px, 0 = auto/an Text angepasst); macht Links/Mitte/Rechts sichtbar
       radius: 9, padding: 7, opacity: 1,
       borderColor: "none", borderWidth: 0,
@@ -6873,6 +6874,10 @@ function mountAnimator(body, headerActions, opts) {
       const bgResolved = (c.bg && c.bg !== "auto" && c.bg !== "none")
         ? c.bg
         : ((c.style === "banner" || c.style === "signpost" || c.style === "plain") ? (c.color || "#ff6b35") : "#15171c");
+      // v0.9.481 — Zeiger (Spitze/Nadel) hat eine eigene Farbe. „Auto" = wie bisher:
+      // folgt dem Hintergrund. Der Picker zeigt immer die wirksame Farbe.
+      const acAuto = !(c.accent && c.accent !== "auto");
+      const acResolved = acAuto ? bgResolved : c.accent;
       const customTc = c.textColor && c.textColor !== "auto";
       const panel = el("div", { class: "sign-editor sign-editor-full" });
       panel.innerHTML = `
@@ -6925,6 +6930,17 @@ function mountAnimator(body, headerActions, opts) {
               <option value="top"${c.calloutDir === "top" ? " selected" : ""}>${t("signs.callout_dir.top", "▲ Oben")}</option>
               <option value="left"${c.calloutDir === "left" ? " selected" : ""}>${t("signs.callout_dir.left", "◀ Links")}</option>
               <option value="right"${c.calloutDir === "right" ? " selected" : ""}>${t("signs.callout_dir.right", "▶ Rechts")}</option>
+            </select>
+            <label id="se-ac-label" title="${t("signs.accent_hint", "Farbe von Sprechblasen-Spitze bzw. Stecknadel — unabhängig vom Hintergrund. „Auto“ = wie bisher.")}" style="${_animTailStyles(c.style) ? "" : "display:none;"}">${t("signs.accent", "Zeiger-Farbe")}</label>
+            <span class="se-inline" id="se-ac-wrap" style="${_animTailStyles(c.style) ? "" : "display:none;"}">
+              <input type="color" id="se-ac" value="${_animEscapeHtml(acResolved)}" data-auto="${acAuto ? "1" : "0"}">
+              <button type="button" class="se-auto-btn${acAuto ? " on" : ""}" id="se-ac-auto" title="${t("signs.accent_auto_hint", "Zeiger folgt dem Hintergrund (bisheriges Verhalten)")}">${t("signs.auto", "Auto")}</button>
+            </span>
+            <label id="se-tp-label" title="${t("signs.tailpos_hint", "Wo der Zeiger an der Kante sitzt. Verschieben hilft, wenn die Spitze sonst genau auf der Spur liegt.")}" style="${_animTailStyles(c.style) ? "" : "display:none;"}">${t("signs.tailpos", "Zeiger-Position")}</label>
+            <select id="se-tp" style="${_animTailStyles(c.style) ? "" : "display:none;"}">
+              <option value="left"${c.tailPos === "left" ? " selected" : ""}>${t("signs.tailpos.left", "◀ Links")}</option>
+              <option value="center"${(c.tailPos !== "left" && c.tailPos !== "right") ? " selected" : ""}>${t("signs.tailpos.center", "◆ Mittig")}</option>
+              <option value="right"${c.tailPos === "right" ? " selected" : ""}>${t("signs.tailpos.right", "Rechts ▶")}</option>
             </select>
           </div>
 
@@ -7030,6 +7046,9 @@ function mountAnimator(body, headerActions, opts) {
           text: $("#se-text").value || "",
           style: $("#se-style").value,
           bg: $("#se-bg").dataset.none === "1" ? "none" : $("#se-bg").value,
+          accent: ($("#se-ac") && $("#se-ac").dataset.auto === "1") ? "auto"
+                : (($("#se-ac") || {}).value || "auto"),
+          tailPos: (($("#se-tp") || {}).value) || "center",
           radius: parseInt($("#se-radius").value, 10),
           opacity: (parseInt($("#se-opacity").value, 10) || 100) / 100,
           borderWidth: parseInt($("#se-bw").value, 10) || 0,
@@ -7094,6 +7113,14 @@ function mountAnimator(body, headerActions, opts) {
         });
         if (bgCol && noneBtn) bgCol.addEventListener("input", () => { bgCol.dataset.none = "0"; noneBtn.classList.remove("on"); });
       }
+      // Zeigerfarbe: „Auto" heißt weiterhin „folgt dem Hintergrund". Sobald am
+      // Farbfeld gedreht wird, gilt die eigene Farbe.
+      { const acCol = $("#se-ac"), acBtn = $("#se-ac-auto");
+        if (acBtn && acCol) acBtn.addEventListener("click", () => {
+          acCol.dataset.auto = "1"; acBtn.classList.add("on"); apply();
+        });
+        if (acCol && acBtn) acCol.addEventListener("input", () => { acCol.dataset.auto = "0"; acBtn.classList.remove("on"); });
+      }
       panel.querySelectorAll("input, select, textarea").forEach(elm => {
         const ev = (elm.type === "color" || elm.type === "range" || elm.tagName === "TEXTAREA"
                     || elm.type === "number" || elm.type === "text") ? "input" : "change";
@@ -7116,6 +7143,10 @@ function mountAnimator(body, headerActions, opts) {
           if (inp) inp.style.display = showDeco ? "" : "none";
           // v0.9.387 — Pfeilrichtung nur beim Wegweiser (signpost) zeigen.
           const showDir = (_seStyle.value === "signpost");
+          { const tail = _animTailStyles(_seStyle.value);
+            ["se-ac-label", "se-ac-wrap", "se-tp-label", "se-tp"].forEach((id) => {
+              const e = $("#" + id); if (e) e.style.display = tail ? "" : "none";
+            }); }
           const dl = $("#se-dir-label"), di = $("#se-dir");
           if (dl) dl.style.display = showDir ? "" : "none";
           if (di) di.style.display = showDir ? "" : "none";
@@ -9837,6 +9868,10 @@ function mountAnimator(body, headerActions, opts) {
   // Modal-Funktionen definiert → ReferenceError „Can't find variable: escapeHtml"
   // beim Hinzufügen einer weiteren Tour. Function-Declaration = gehoistet, also
   // überall im Modul-Closure verfügbar (die lokalen consts shadowen sie lokal).
+  // Welche Schild-Stile haben überhaupt einen Zeiger (Spitze/Nadel)? Nur dort
+  // ergeben Zeiger-Farbe und -Position Sinn.
+  function _animTailStyles(st) { return st === "callout" || st === "pin"; }
+
   function _animEscapeHtml(s) {
     return String(s ?? "").replace(/[&<>"']/g, c => (
       {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]

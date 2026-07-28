@@ -14,6 +14,21 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.481] – 2026-07-28
+### Hinzugefügt
+- **Schilder: Zeiger-Farbe unabhängig vom Hintergrund** (Beta-Tester-Wunsch). Im Schild-Editor
+  gibt es bei **Sprechblase** und **Stecknadel** den neuen Picker **„Zeiger-Farbe"** mit
+  **„Auto"**-Knopf. Auto = wie bisher (Zeiger folgt dem Hintergrund). Mit eigener Farbe geht
+  jetzt auch: **Hintergrund „Keine" (transparent) + farbige Stecknadel** — vorher verschwand
+  bei transparentem Hintergrund auch der Zeiger.
+- **Schilder: Zeiger-Position Links / Mitte / Rechts.** Neuer Selektor **„Zeiger-Position"**
+  im Schild-Editor. Hilft, wenn die Spitze bzw. die Nadel sonst genau auf der Spur liegt und
+  den Track verdeckt — Schild stehen lassen, Zeiger zur Seite schieben.
+  Vorschau (`ui/js/sign_dom.js`), Video-Render (`ui/js/sign_draw.js`) und Backend
+  (`core/animator.py`) ziehen gleich; gilt für Animator, Reiseroute und Tour-Map.
+- **Regressionstest `scripts/selftest_signs.py`** — fährt den Schild-Editor headless durch
+  (Werte laden, Auto-Umschalten, Ein-/Ausblenden je Stil, Renderer-Durchstich).
+
 ## [0.9.480] – 2026-07-25
 ### Behoben
 - **Schild-Buchstaben „tanzten" wieder** (Beta-Tester-Feedback zu v0.9.479). Für das

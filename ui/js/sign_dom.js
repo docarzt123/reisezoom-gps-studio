@@ -59,28 +59,28 @@
 .rz-sign--callout::after { content: ""; position: absolute; width: 0; height: 0; }
 .rz-sign--callout.rz-sign--tail-bottom::after,
 .rz-sign--callout:not(.rz-sign--tail-top):not(.rz-sign--tail-left):not(.rz-sign--tail-right)::after {
-  left: 50%; bottom: -7px; transform: translateX(-50%);
+  left: var(--rz-tailx, 50%); bottom: -7px; transform: translateX(-50%);
   border-left: 7px solid transparent; border-right: 7px solid transparent;
-  border-top: 8px solid var(--rz-box, #15171c);
+  border-top: 8px solid var(--rz-tail, var(--rz-box, #15171c));
 }
 .rz-sign--callout.rz-sign--tail-top::after {
-  left: 50%; top: -7px; transform: translateX(-50%);
+  left: var(--rz-tailx, 50%); top: -7px; transform: translateX(-50%);
   border-left: 7px solid transparent; border-right: 7px solid transparent;
-  border-bottom: 8px solid var(--rz-box, #15171c);
+  border-bottom: 8px solid var(--rz-tail, var(--rz-box, #15171c));
 }
 .rz-sign--callout.rz-sign--tail-left::after {
-  top: 50%; left: -7px; transform: translateY(-50%);
+  top: var(--rz-taily, 50%); left: -7px; transform: translateY(-50%);
   border-top: 7px solid transparent; border-bottom: 7px solid transparent;
-  border-right: 8px solid var(--rz-box, #15171c);
+  border-right: 8px solid var(--rz-tail, var(--rz-box, #15171c));
 }
 .rz-sign--callout.rz-sign--tail-right::after {
-  top: 50%; right: -7px; transform: translateY(-50%);
+  top: var(--rz-taily, 50%); right: -7px; transform: translateY(-50%);
   border-top: 7px solid transparent; border-bottom: 7px solid transparent;
-  border-left: 8px solid var(--rz-box, #15171c);
+  border-left: 8px solid var(--rz-tail, var(--rz-box, #15171c));
 }
 /* Stecknadel: Tropfen (Akzent) unter der Box */
 .rz-sign--pin .rz-sign__pin {
-  position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
+  position: absolute; left: var(--rz-tailx, 50%); top: 100%; transform: translateX(-50%);
   width: var(--rz-pin, 22px); height: calc(var(--rz-pin, 22px) * 1.5); margin-top: 6px;
 }
 .rz-sign--pin .rz-sign__pin svg { display: block; width: 100%; height: 100%; }
@@ -183,6 +183,21 @@
     var boxBg = boxTransparent ? "transparent" : rgba(boxFill, opacity);
     card.style.setProperty("--rz-box", boxBg);
     card.style.setProperty("--rz-accent", accent);
+    // Zeiger (Sprechblasen-Pfeil / Stecknadel) mit EIGENER Farbe — sonst
+    // verschwindet er mit „Kein Hintergrund", weil er die Boxfarbe erbte.
+    // `auto` = altes Verhalten: Pfeil folgt der Box, Nadel dem Akzent.
+    var tailCol = (o.accent && o.accent !== "auto") ? o.accent
+                : (styleName === "callout" ? (boxTransparent ? accent : boxFill) : accent);
+    card.style.setProperty("--rz-tail", tailCol);
+    card.style.setProperty("--rz-accent", tailCol);
+    // Zeiger-Position an der Kante: links / mittig / rechts. Hilft, wenn die
+    // Spitze sonst genau auf der Spur liegt und sie verdeckt.
+    var tp = (o.tailPos === "left" || o.tailPos === "right") ? o.tailPos : "center";
+    var tailInset = "16px";
+    var tailX = tp === "left" ? tailInset : tp === "right" ? ("calc(100% - " + tailInset + ")") : "50%";
+    card.style.setProperty("--rz-tailx", tailX);
+    card.style.setProperty("--rz-taily", tp === "left" ? tailInset
+                                       : tp === "right" ? ("calc(100% - " + tailInset + ")") : "50%");
     card.style.background = boxBg;
     card.style.color = textColor;
     card.style.borderRadius = px(radius);

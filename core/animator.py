@@ -1836,6 +1836,13 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "direction": ("left" if _sg(s, "direction", "right") == "left" else "right"),  # v0.9.387 — Wegweiser-Pfeilrichtung
             # v0.9.408 — Sprechblasen-Pfeilrichtung: bottom|top|left|right (Default bottom).
             "calloutDir": (_sg(s, "calloutDir", "bottom") if _sg(s, "calloutDir", "bottom") in ("top", "left", "right") else "bottom"),
+            # v0.9.481 — Zeiger (Sprechblasen-Spitze / Stecknadel) getrennt vom
+            # Hintergrund: eigene Farbe (`auto` = folgt der Box wie bisher) und
+            # Position an der Kante. Beides gebeten von einem Beta-Tester, weil
+            # der Zeiger bei „Kein Hintergrund" verschwand und mittig oft genau
+            # auf der Spur saß.
+            "accent": (str(_sg(s, "accent", "auto") or "auto")),
+            "tailPos": (_sg(s, "tailPos", "center") if _sg(s, "tailPos", "center") in ("left", "right") else "center"),
         } for s in _signs_input]
         # v0.9.224/225 — render_scale in die icon-size-Stützwerte gerechnet (s.u.).
         _ss = float(getattr(cfg, "render_scale", 1.0) or 1.0)
