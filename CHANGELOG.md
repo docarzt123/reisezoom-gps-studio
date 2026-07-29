@@ -15,33 +15,27 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ## [0.9.485] – 2026-07-29
-### Behoben
-- **„Die Buchstaben tanzen" — diesmal gemessen statt vermutet.** Nach der dritten Meldung
-  desselben Beta-Testers habe ich das Zappeln erstmals **objektiv gemessen** (neuer Test
-  `scripts/selftest_sign_zoom.py`: Zoomfahrt bei festem Schild, normierte Bildvergleiche
-  pro Schritt). Ergebnis:
-
-  | Zustand | Zappeln pro Zoomschritt |
-  |---|---|
-  | „Mit Zoom wachsen" **aus** | **0,0018** |
-  | „Mit Zoom wachsen" **ein** | 0,0904 (~50×) |
-  | Aufpoppen ein vs. aus | **identisch** |
-
-  Die Ursache ist also **allein das Mitwachsen**: Ein Schild, das beim Zoomen größer wird,
-  zeigt seine Schrift laufend in einer anderen Größe, und dabei rastet der Text in jedem
-  Bild neu ein. Das Aufpoppen und der viel beschuldigte `icon-size`-Ausdruck haben damit
-  **nichts** zu tun — die Nachbesserungen in v0.9.479, v0.9.480 und v0.9.484 haben an der
-  falschen Stelle angesetzt. Auch der naheliegende Gegenversuch, das Schild bei jeder
-  Zoomstufe neu zu zeichnen, half nicht (gemessen sogar minimal schlechter).
-
-  **Jetzt:** „Mit Zoom wachsen" ist **standardmäßig aus**, und bestehende Schilder werden
-  **einmalig** umgestellt — sie standen alle auf „ein", weil das bisher der Standard war.
-  Damit stehen die Buchstaben still. Wer das Mitwachsen bewusst möchte, hakt es wieder an
-  und behält die Einstellung; ein Hinweis am Schalter nennt jetzt den Preis.
-
 ### Hinzugefügt
-- `scripts/selftest_sign_zoom.py` — misst das Zappeln in Zahlen, damit diese Frage nie
-  wieder durch Vermuten beantwortet wird.
+- **`scripts/selftest_sign_zoom.py`** — misst in Zahlen, wie stark ein Schild während einer
+  Zoomfahrt zappelt („die Buchstaben tanzen"). Damit ist diese Frage künftig in einem
+  Kommando beantwortet, statt geraten zu werden.
+- Hinweis am Schild-Schalter **„Mit Zoom wachsen"**: er nennt jetzt die Abwägung — ein
+  mitwachsendes Schild zeigt seine Schrift laufend in einer anderen Größe, und dabei
+  zittern die Buchstaben sichtbar. (DE/EN/ES)
+
+### Richtigstellung
+- Der Changelog-Eintrag zu **v0.9.484** nennt eine falsche Ursache. Die Messung zeigt:
+  das Zittern hängt **allein am Mitwachsen** (`zoomScale`), nicht am Aufpoppen und nicht
+  am datengetriebenen `icon-size`-Ausdruck — mit und ohne Aufpoppen ist der Messwert
+  identisch (0,0904 vs. 0,0904; ohne Mitwachsen 0,0018). Die Umbauten in v0.9.479,
+  v0.9.480 und v0.9.484 haben an der falschen Stelle angesetzt. Sie sind harmlos und
+  bleiben drin (der Aufpopp-Ausdruck liegt jetzt nur noch kurz an, was ohnehin sauberer
+  ist), aber sie waren nicht die Lösung.
+- Die Voreinstellung von „Mit Zoom wachsen" bleibt **unverändert (ein)**. Kurzzeitig war
+  geplant, sie abzuschalten und bestehende Schilder umzustellen; nachdem der Beta-Tester
+  seine Meldung zurückgezogen hat („tanzen nicht mehr"), wäre das eine Änderung am
+  Aussehen ohne Anlass gewesen. Wer das Zittern stört, schaltet den Schalter selbst aus —
+  der neue Hinweis sagt, warum das hilft.
 
 ## [0.9.484] – 2026-07-29
 ### Behoben

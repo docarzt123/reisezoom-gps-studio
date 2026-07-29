@@ -6176,11 +6176,7 @@ function mountAnimator(body, headerActions, opts) {
       direction: "right",    // v0.9.387 — Wegweiser-Pfeilrichtung: "right" | "left"
       calloutDir: "bottom",  // v0.9.408 — Sprechblasen-Pfeilrichtung: "bottom" | "top" | "left" | "right"
       shadow: false, shadowColor: "#000000", shadowBlur: 8, shadowStrength: 0.55,
-      // v0.9.485 — Standard AUS. Ein Schild, das beim Zoomen mitwächst, muss seine
-      // Schrift laufend in einer anderen Größe darstellen; dabei rasten die Buchstaben
-      // jedes Bild neu ein und „tanzen". Gemessen: mit Mitwachsen zappelt das Schild
-      // rund 100× stärker als ohne. Das ist der Grund, nicht das Aufpoppen.
-      zoomScale: false, zsMigrated: true, before: 0, after: 0, entry: "none",
+      zoomScale: true, before: 0, after: 0, entry: "none",
       alwaysVisible: false,  // v0.9.188 — ganze Zeit sichtbar (kein Timing-Fenster)
       anchorMode: "track",   // track = Anker rastet, free = freie Position
       imageSrc: "",          // v0.9.189 — optionales Bild; Schild MIT Bild = Foto-Karte (Text = Bildunterschrift)
@@ -6215,11 +6211,6 @@ function mountAnimator(body, headerActions, opts) {
       o.shadowDir = (_sp && isFinite(Number(_sp.shadow_dir))) ? Number(_sp.shadow_dir) : 45;
       o.before = Number(o.before) || 0; o.after = Number(o.after) || 0;
       o.italic = !!o.italic; o.shadow = !!o.shadow; o.zoomScale = !!o.zoomScale;
-      // v0.9.485 — Bestehende Schilder stehen alle auf „Mit Zoom wachsen", weil das
-      // bis hierher der Standard war. Genau das lässt die Buchstaben tanzen, und es
-      // war nie als Abwägung erkennbar. Deshalb EINMALIG abschalten und das am Schild
-      // vermerken — wer das Mitwachsen bewusst will, hakt es wieder an und behält es.
-      if (!o.zsMigrated) { o.zoomScale = false; o.zsMigrated = true; }
       o.alwaysVisible = !!o.alwaysVisible;
       o.imageSrc = String(o.imageSrc || "");
       o.imageSize = Number(o.imageSize) || 60;

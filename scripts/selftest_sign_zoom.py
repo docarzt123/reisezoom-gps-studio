@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regressionstest: „die Buchstaben tanzen".
+"""Messwerkzeug + Regressionstest: „die Buchstaben tanzen".
 
 Misst objektiv, wie stark ein Schild waehrend einer Zoomfahrt zappelt. Die Karte
 steht auf dem Schild-Punkt, nur der Zoom laeuft — das Schild haengt also immer am
@@ -12,6 +12,10 @@ Erkenntnis aus v0.9.485 (gemessen, nicht vermutet): Ursache ist AUSSCHLIESSLICH 
 Mitwachsen (`zoomScale`) — weder das Aufpoppen noch der datengetriebene icon-size-
 Ausdruck. Auch Neu-Rastern bei jeder Zoomstufe half nicht (es war sogar minimal
 schlechter), weil Text bei jeder neuen Groesse neu einrastet.
+
+Die Voreinstellung bleibt „mitwachsen EIN" — das ist eine Design-Entscheidung, kein
+Fehler. Dieser Test prueft deshalb NICHT die Voreinstellung, sondern nur, dass ein
+Schild mit konstanter Groesse ruhig bleibt (sonst ist wirklich etwas kaputt).
 """
 from __future__ import annotations
 import asyncio, io, math, sys
@@ -98,7 +102,7 @@ async def main() -> int:
         tmp = Path(td)
         aus = await _zappeln(False, tmp, zs)
         ein = await _zappeln(True, tmp, zs)
-    print(f"   Mitwachsen AUS (Standard): {aus:.4f}   {'✅' if aus < GRENZE else '❌'}")
+    print(f"   Mitwachsen AUS: {aus:.4f}   {'✅' if aus < GRENZE else '❌'}")
     print(f"   Mitwachsen EIN:            {ein:.4f}   (Preis der Funktion, kein Fehler)")
     if aus >= GRENZE:
         fails.append("Schild zappelt auch OHNE Mitwachsen — da ist etwas Neues kaputt")
