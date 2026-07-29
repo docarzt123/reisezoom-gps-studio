@@ -185,11 +185,17 @@
     card.style.setProperty("--rz-accent", accent);
     // Zeiger (Sprechblasen-Pfeil / Stecknadel) mit EIGENER Farbe — sonst
     // verschwindet er mit „Kein Hintergrund", weil er die Boxfarbe erbte.
-    // `auto` = altes Verhalten: Pfeil folgt der Box, Nadel dem Akzent.
-    var tailCol = (o.accent && o.accent !== "auto") ? o.accent
-                : (styleName === "callout" ? (boxTransparent ? accent : boxFill) : accent);
+    // `auto` = altes Verhalten: Zeiger folgt der Box.
+    // v0.9.482 — Die folgenden drei Zeilen sind die 1:1-Entsprechung zu
+    // sign_draw.js (Canvas → Video). Sie MÜSSEN zusammen gepflegt werden, sonst
+    // zeigt die Vorschau etwas anderes als das gerenderte Video.
+    var ownAccent = !!(o.accent && o.accent !== "auto");
+    var tailCol = ownAccent ? o.accent : boxFill;
+    // Bei transparenter Box ohne eigene Farbe zeichnet der Canvas GAR KEINE
+    // Spitze — die Vorschau tat es trotzdem. Transparent = unsichtbar, ohne
+    // dass die vier ::after-Regeln davon wissen müssen.
+    if (boxTransparent && !ownAccent) tailCol = "transparent";
     card.style.setProperty("--rz-tail", tailCol);
-    card.style.setProperty("--rz-accent", tailCol);
     // Zeiger-Position an der Kante: links / mittig / rechts. Hilft, wenn die
     // Spitze sonst genau auf der Spur liegt und sie verdeckt.
     var tp = (o.tailPos === "left" || o.tailPos === "right") ? o.tailPos : "center";
@@ -310,9 +316,17 @@
     if (styleName === "pin") {
       if (!pin) {
         pin = document.createElement("div"); pin.className = "rz-sign__pin";
-        pin.innerHTML = '<svg viewBox="0 0 24 36"><path d="M12 36 C4 22 0 16 0 11 A12 12 0 0 1 24 11 C24 16 20 22 12 36 Z" fill="var(--rz-box, #15171c)" stroke="#fff" stroke-width="2"/><circle cx="12" cy="11" r="5" fill="#fff"/></svg>';
+        pin.innerHTML = '<svg viewBox="0 0 24 36"><path d="M12 36 C4 22 0 16 0 11 A12 12 0 0 1 24 11 C24 16 20 22 12 36 Z" stroke="#fff" stroke-width="2"/><circle cx="12" cy="11" r="5" fill="#fff"/></svg>';
         card.appendChild(pin);
       }
+      // v0.9.482 — Füllung bei JEDEM style()-Lauf setzen, nicht nur beim Anlegen.
+      // Vorher steckte sie fest im innerHTML und hing an der BOX-Farbe; das Element
+      // wird aber nur einmal erzeugt → eine geänderte Zeiger-Farbe blieb in der
+      // Editor-Vorschau unsichtbar und schlug erst beim Verlassen des Editors
+      // durch (dann übernimmt der Canvas-Pfad). Beta-Tester-Meldung zu v0.9.481.
+      // Ausdruck 1:1 wie sign_draw.js — bei Änderung beide pflegen.
+      var pinPath = pin.querySelector("path");
+      if (pinPath) pinPath.setAttribute("fill", ownAccent ? o.accent : (boxTransparent ? "#15171c" : boxFill));
       card.style.setProperty("--rz-pin", pinW + "px");
       if (poles) poles.remove();
       below = pinGap + pinH;

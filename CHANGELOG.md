@@ -14,6 +14,24 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.482] – 2026-07-28
+### Behoben
+- **Stecknadel übernahm die Zeiger-Farbe erst beim Schließen des Editors**
+  (Beta-Tester-Meldung zu v0.9.481: „mit der Stecknadel passt es mit der Echtzeit
+  noch nicht"). Die Nadel-Grafik hing an der **Hintergrund**-Farbe und wurde nur
+  beim Anlegen des Elements befüllt — im offenen Editor blieb eine geänderte
+  Zeiger-Farbe deshalb unsichtbar und tauchte erst auf, wenn die Vorschau auf den
+  Render-Pfad zurückfiel. Die Füllung wird jetzt bei jedem Vorschau-Update neu
+  gesetzt. `ui/js/sign_dom.js`.
+- **Vorschau zeigte eine Sprechblasen-Spitze, die im Video fehlte.** Bei
+  Hintergrund „Keine" + Zeiger-Farbe „Auto" zeichnet der Video-Render bewusst
+  keine Spitze; die Vorschau malte trotzdem eine in der Track-Farbe. Beide Wege
+  verhalten sich jetzt gleich — Vorschau und fertiges Video stimmen überein.
+  `ui/js/sign_dom.js`.
+- Der Regressionstest `scripts/selftest_signs.py` deckt beides ab: Änderungen am
+  *bestehenden* Schild (statt am frisch gebauten) und ein Pixel-Abgleich der
+  Vorschau gegen das gerenderte Bild.
+
 ## [0.9.481] – 2026-07-28
 ### Hinzugefügt
 - **Schilder: Zeiger-Farbe unabhängig vom Hintergrund** (Beta-Tester-Wunsch). Im Schild-Editor

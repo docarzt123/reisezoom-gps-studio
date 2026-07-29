@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Editor-UI-Test für die neuen Zeiger-Optionen (v0.9.481).
+"""Tests für die Zeiger-Optionen der Schilder (Farbe + Position, v0.9.481/482).
 
-Lädt ui/index.html mit dem Mock aus selftest_ui.py, seedet zwei Schilder ins
-aktive Projekt, öffnet den Schild-Editor über die ✎-Zeile und prüft:
+Teil 1 — Editor-UI: lädt ui/index.html mit dem Mock aus selftest_ui.py, seedet
+zwei Schilder ins aktive Projekt, öffnet den Schild-Editor über die ✎-Zeile:
   * Zeiger-Farbe + Zeiger-Position sind da und zeigen die richtigen Werte
   * „Auto" schaltet um und der Picker folgt der Hintergrundfarbe
   * Stilwechsel (callout/pin ↔ banner) blendet die Felder ein/aus
   * Übernehmen schreibt accent + tailPos ins Schild
+
+Teil 2 — Echtzeit + WYSIWYG (v0.9.482, nach Beta-Tester-Meldung): stylt EINE
+bestehende Karte mehrfach um, so wie es der offene Editor tut, und prüft, dass
+die Stecknadel sofort mitzieht statt erst beim Schließen des Editors. Danach
+Pixel-Abgleich gegen den Canvas-Pfad, der ins Video geht — Vorschau und Video
+müssen dieselbe Farbe zeigen.
 """
 from __future__ import annotations
 
@@ -174,6 +180,73 @@ async def main() -> int:
         print("   Renderer mit Editor-Werten:", prev)
         ok(prev["tail"] == "#00cc44", f"Zeiger-Farbe kommt an (ist: {prev['tail']})")
         ok("100%" in prev["tailx"], f"Position rechts kommt an (ist: {prev['tailx']})")
+
+        # ── Teil 2: Echtzeit an EINER bestehenden Karte + Abgleich mit dem Video
+        print("\n   ── Echtzeit + WYSIWYG (v0.9.482)")
+        await pg.evaluate("""() => {
+          window.__pinCard = window.__rzSignDomBuild();
+          document.body.appendChild(window.__pinCard);
+          window.__restyle = (o) => {
+            window.__rzSignDomStyle(window.__pinCard, o);
+            const p = window.__pinCard.querySelector('.rz-sign__pin path');
+            const c = window.__pinCard.querySelector('.rz-sign') || window.__pinCard.firstElementChild;
+            return {
+              pinFill: p ? p.getAttribute('fill') : null,
+              tail: c ? c.style.getPropertyValue('--rz-tail') : null,
+              tailx: c ? c.style.getPropertyValue('--rz-tailx') : null,
+            };
+          };
+          window.__canvasColors = (o) => {
+            const r = window.__rzDrawSign(Object.assign({ text: 'X', size: 40 }, o));
+            const d = r.data.data, n = {};
+            for (let i = 0; i < d.length; i += 4) {
+              if (d[i + 3] < 200) continue;
+              const k = d[i] + ',' + d[i + 1] + ',' + d[i + 2];
+              n[k] = (n[k] || 0) + 1;
+            }
+            return n;
+          };
+        }""")
+        base = {"text": "Nadel", "style": "pin", "bg": "none",
+                "accent": "auto", "tailPos": "center"}
+
+        r0 = await pg.evaluate("o => window.__restyle(o)", base)
+        ok(r0["pinFill"] == "#15171c",
+           f"Nadel: Auto + transparent → dezentes Dunkel (ist: {r0['pinFill']})")
+        # Genau der Beta-Tester-Fall: Farbe im OFFENEN Editor ändern.
+        r1 = await pg.evaluate("o => window.__restyle(o)", {**base, "accent": "#ff0000"})
+        ok(r1["pinFill"] == "#ff0000",
+           f"Nadel übernimmt neue Farbe sofort, ohne Neuaufbau (ist: {r1['pinFill']})")
+        r2 = await pg.evaluate("o => window.__restyle(o)",
+                               {**base, "accent": "#ff0000", "tailPos": "right"})
+        ok("100%" in (r2["tailx"] or ""), f"Nadel rechts kommt an (ist: {r2['tailx']})")
+        r3 = await pg.evaluate("o => window.__restyle(o)", base)
+        ok(r3["pinFill"] == "#15171c",
+           f"zurück auf Auto greift wieder (ist: {r3['pinFill']})")
+
+        for label, o in [
+            ("eigene Farbe + transparent", {**base, "accent": "#ff0000"}),
+            ("eigene Farbe + Box-Hintergrund", {**base, "bg": "#123456", "accent": "#00cc44"}),
+            ("Auto + Box-Hintergrund", {**base, "bg": "#123456"}),
+            ("Auto + transparent", base),
+        ]:
+            dom = await pg.evaluate("o => window.__restyle(o)", o)
+            counts = await pg.evaluate("o => window.__canvasColors(o)", o)
+            h = dom["pinFill"].lstrip("#")
+            want = f"{int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)}"
+            ok(counts.get(want, 0) > 50,
+               f"{label}: Vorschau {dom['pinFill']} steckt auch im Video-Bild")
+
+        # Sprechblase: bei transparent + Auto zeichnet der Canvas keine Spitze —
+        # die Vorschau muss sie ebenfalls weglassen.
+        cal = {"text": "Blase", "style": "callout", "bg": "none",
+               "accent": "auto", "tailPos": "center"}
+        rc = await pg.evaluate("o => window.__restyle(o)", cal)
+        ok(rc["tail"] == "transparent",
+           f"Spitze bei transparent+Auto auch in der Vorschau weg (ist: {rc['tail']})")
+        rc2 = await pg.evaluate("o => window.__restyle(o)", {**cal, "accent": "#ff0000"})
+        ok(rc2["tail"] == "#ff0000",
+           f"mit eigener Farbe ist die Spitze wieder da (ist: {rc2['tail']})")
 
         await br.close()
 
