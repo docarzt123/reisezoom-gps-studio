@@ -113,9 +113,25 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.483</span>
+    <span class="version-date">29 de julio de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Por fin se calculan bien las rutas por etapas.</p>
+
+  <div class="highlight">
+    <strong>🥾 Varias etapas en un archivo.</strong> Cuando un GPX contiene varias etapas —seis días de marcha en un solo archivo— antes se encadenaban todos los puntos. Una vuelta de 250 km salía como <strong>490 km</strong> y con una duración de <strong>12 947 horas</strong>: las líneas rectas entre etapas contaban como distancia recorrida y las noches como tiempo de marcha.
+  </div>
+
+  <p><strong>Ahora:</strong> distancia, tiempo y desnivel se calculan por etapa y se suman. Se acabaron las líneas rectas cruzando el mapa. Las rutas normales de un solo track muestran exactamente los mismos valores que antes.</p>
+
+  <p class="muted">Detectado al insertar un mapa de ruta en un artículo de senderismo.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.482</span>
     <span class="version-date">28 de julio de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">Corrección: la chincheta ya cambia de color al instante.</p>
 

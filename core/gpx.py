@@ -24,9 +24,15 @@ class TrackPoint:
     lon: float
     ele: Optional[float]
     time: Optional[str]  # ISO-8601 UTC, None wenn nicht im GPX
+    # v0.9.483 — Etappen-Nummer. Eine GPX kann mehrere <trkseg>/<trk> enthalten: sechs an
+    # verschiedenen Tagen gelaufene Etappen sind EIN File. Über eine Segmentgrenze darf
+    # NICHT gerechnet werden — die Luftlinie zwischen Etappenende und nächstem Start ist
+    # keine gelaufene Strecke, und die Nacht dazwischen keine Gehzeit.
+    seg: int = 0
     # kumulative Felder, von compute_cumulative() befüllt
     dist_m: float = 0.0      # kumulierte Distanz in Metern bis hier
-    elapsed_s: float = 0.0   # kumulierte Zeit in Sekunden seit Track-Start
+    elapsed_s: float = 0.0   # kumulierte Zeit seit Track-Start; bei mehreren Etappen die
+                             # SUMME der Etappen-Zeiten (Pausen dazwischen zählen nicht)
     # v0.9.330 — Sensor-Zusatzwerte pro Punkt (FIT-HR/Power/Temp/…, GPX-Extensions).
     # Geometrie/abgeleitete Werte (Distanz/Tempo/Steigung) gehören NICHT hier rein.
     extra: dict = field(default_factory=dict)
@@ -47,6 +53,8 @@ class TrackStats:
     max_speed_kmh: float = 0.0   # Spitzentempo in km/h (Spike-gekappt)
     # v0.9.330 — vorhandene Sensorfelder [{key,label,unit}] (FIT/GPX-Extensions).
     sensor_fields: list = field(default_factory=list)
+    # v0.9.483 — Anzahl Etappen (<trkseg>/<trk>). 1 = normale Einzeltour.
+    n_segments: int = 1
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -263,10 +271,13 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
 
     pts: List[TrackPoint] = []
     name = None
+    seg_no = -1          # v0.9.483 — läuft über ALLE Tracks/Segmente hinweg weiter
     for track in gpx.tracks:
         if not name and track.name:
             name = track.name
         for seg in track.segments:
+            if seg.points:
+                seg_no += 1      # leere Segmente erzeugen keine Lücke
             for p in seg.points:
                 t_iso = None
                 if p.time is not None:
@@ -278,6 +289,7 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
                         lon=p.longitude,
                         ele=p.elevation,
                         time=t_iso,
+                        seg=max(0, seg_no),
                         extra=_read_point_extensions(p),  # gpxtpx/gpxpx (Strava/Garmin)
                     )
                 )
@@ -297,19 +309,22 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
     ele_min = min(eles_raw) if eles_raw else None
     ele_max = max(eles_raw) if eles_raw else None
 
-    # Distanz + Zeit kumulieren
-    t0 = None
-    if pts[0].time:
-        t0 = datetime.fromisoformat(pts[0].time)
-
+    # Distanz + Zeit kumulieren.
+    # v0.9.483 — an einer Etappengrenze wird WEDER Distanz NOCH Zeit addiert. Vorher war
+    # `elapsed_s` schlicht „jetzt minus erster Zeitstempel"; bei einer Sechs-Etappen-Tour
+    # steckten darin alle Nächte dazwischen (gemeldet: 12947 h statt der Gehzeit), und die
+    # Luftlinien zwischen den Etappen blähten die Strecke auf (490 km statt 250 km).
     pts[0].dist_m = 0.0
     pts[0].elapsed_s = 0.0
     prev = pts[0]
     for cur in pts[1:]:
-        d = _haversine_m(prev.lat, prev.lon, cur.lat, cur.lon)
-        cur.dist_m = prev.dist_m + d
-        if cur.time and t0:
-            cur.elapsed_s = (datetime.fromisoformat(cur.time) - t0).total_seconds()
+        same_seg = (cur.seg == prev.seg)
+        cur.dist_m = prev.dist_m + (
+            _haversine_m(prev.lat, prev.lon, cur.lat, cur.lon) if same_seg else 0.0
+        )
+        if same_seg and cur.time and prev.time:
+            dt = (datetime.fromisoformat(cur.time) - datetime.fromisoformat(prev.time)).total_seconds()
+            cur.elapsed_s = prev.elapsed_s + max(0.0, dt)
         else:
             cur.elapsed_s = prev.elapsed_s
         prev = cur
@@ -322,11 +337,20 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
     #      Wechsel — erst dann wird die akkumulierte Differenz übernommen.
     # Liefert Werte die deutlich besser zu Strava/Komoot passen.
     # Marc-Spec 2026-05-24: „Bergauf/bergab in den gesamtstats stimmt nicht".
-    ascent, descent = _compute_ascent_descent(
-        [p.ele for p in pts],
-        smooth_window=5,
-        threshold_m=3.0,
-    )
+    # v0.9.483 — je Etappe getrennt: der Höhenunterschied zwischen dem Ende einer Etappe
+    # und dem Start der nächsten (anderer Ort, oft anderes Tal) ist kein Anstieg.
+    ascent = descent = 0.0
+    _seg_start = 0
+    for _i in range(1, len(pts) + 1):
+        if _i == len(pts) or pts[_i].seg != pts[_seg_start].seg:
+            _a, _d = _compute_ascent_descent(
+                [p.ele for p in pts[_seg_start:_i]],
+                smooth_window=5,
+                threshold_m=3.0,
+            )
+            ascent += _a
+            descent += _d
+            _seg_start = _i
 
     # Bewegungszeit + Spitzentempo auf voller Auflösung (siehe Helper-Docstring).
     moving_time_s, max_speed_kmh = compute_moving_and_max(pts)
@@ -341,6 +365,7 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
         ele_max=ele_max,
         moving_time_s=moving_time_s,
         max_speed_kmh=max_speed_kmh,
+        n_segments=(pts[-1].seg + 1),
         bbox={
             "min_lat": min(p.lat for p in pts),
             "max_lat": max(p.lat for p in pts),

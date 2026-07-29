@@ -14,6 +14,24 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.483] – 2026-07-29
+### Behoben
+- **Touren aus mehreren Etappen wurden falsch berechnet** (gemeldet beim Einbau eines
+  Widgets in einen Wanderartikel). Eine GPX kann mehrere `<trkseg>`/`<trk>` enthalten —
+  sechs an verschiedenen Tagen gelaufene Etappen sind **eine** Datei. Bisher wurden alle
+  Punkte einfach aneinandergehängt. Folge bei einem 250-km-Rundweg aus 6 Etappen:
+  - **Distanz 490 km statt 250 km** — die Luftlinien zwischen Etappenende und nächstem
+    Start zählten als gelaufene Strecke
+  - **Dauer 12947 Stunden** (≈ 1,5 Jahre) — gemessen wurde letzter minus erster
+    Zeitstempel über alle Tage hinweg, inklusive aller Nächte
+  - auf der Karte gerade Linien quer durchs Land, die wie GPS-Fehler aussahen
+
+  Jetzt trägt jeder Trackpunkt seine **Etappen-Nummer**; über eine Etappengrenze wird
+  weder Strecke noch Zeit noch Höhenmeter gerechnet. `duration_s` ist damit die Summe der
+  Etappen-Dauern, `distance_m` die Summe der Etappen-Strecken. **Einzeltouren rechnen
+  exakt wie vorher** (an drei Fixtures gegen den alten Code geprüft: bitgleich).
+  `core/gpx.py`; neues Feld `TrackStats.n_segments`.
+
 ## [0.9.482] – 2026-07-28
 ### Behoben
 - **Stecknadel übernahm die Zeiger-Farbe erst beim Schließen des Editors**
