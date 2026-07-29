@@ -248,6 +248,46 @@ async def main() -> int:
         ok(rc2["tail"] == "#ff0000",
            f"mit eigener Farbe ist die Spitze wieder da (ist: {rc2['tail']})")
 
+        # ── Teil 3 — icon-size: tanzende Buchstaben (v0.9.484) ────────────
+        # Der datengetriebene icon-size-Ausdruck (popScale) lässt Mapbox das
+        # Symbol beim Zoomen anders rastern → die Schrift zappelt. Er darf
+        # deshalb NUR während eines laufenden Aufpoppens am Layer hängen.
+        print("\n   ── icon-size / tanzende Buchstaben (v0.9.484)")
+        iz = await pg.evaluate("""() => {
+          const meta = window.__rzSignMeta, frame = window.__rzSignFrame;
+          const dur = 12;
+          const metas = [ meta({track_anchor: 0.30, entry: 'pop',  before: 0, after: 0}, dur),
+                          meta({track_anchor: 0.70, entry: 'none', before: 0, after: 0}, dur) ];
+          let expr = null;
+          const map = {
+            __rzSignSizeScale: 1, __rzSignPopMode: false,
+            __rzSignFC: {type: 'FeatureCollection', features: metas.map(() => ({properties: {popScale: 1}}))},
+            getLayer: () => true, setFilter() {}, setFeatureState() {},
+            setLayoutProperty: (l, k, v) => { if (k === 'icon-size') expr = v; },
+            getSource: () => ({ setData() {} }),
+          };
+          const at = (M) => { frame(map, 'lyr', 'src', metas, M); return map.__rzSignPopMode; };
+          const w = metas[0].pop, a = metas[0].a_show;
+          const out = { start: at(0), vor: at(a - 0.01), mitte: at(a + w * 0.3),
+                        spaet: at(a + w * 0.9), nach: at(a + w + 0.01), ende: at(1) };
+          out.letzterAusdruckHatPop = !!(expr && JSON.stringify(expr).includes('popScale'));
+          const e = window.__rzSignIconSize(true, 2);
+          out.zoomTopLevel = (e[0] === 'interpolate' && e[2][0] === 'zoom');
+          out.ohnePopSauber = !JSON.stringify(window.__rzSignIconSize(false, 2)).includes('popScale');
+          out.skaliert = window.__rzSignIconSize(false, 2)[4][2] === 1.0;
+          return out;
+        }""")
+        print("   ", iz)
+        ok(iz["start"] is False and iz["vor"] is False,
+           "vor dem Aufpoppen reiner Zoom-Ausdruck (scharf)")
+        ok(iz["mitte"] is True and iz["spaet"] is True,
+           "während des Aufpoppens datengetrieben (es poppt wirklich)")
+        ok(iz["nach"] is False and iz["ende"] is False and not iz["letzterAusdruckHatPop"],
+           "danach sofort zurück auf den reinen Zoom-Ausdruck")
+        ok(iz["zoomTopLevel"], "['zoom'] bleibt top-level (sonst verwirft Mapbox den Layer)")
+        ok(iz["ohnePopSauber"], "Normal-Ausdruck enthält kein popScale")
+        ok(iz["skaliert"], "Render-Scale steckt in den Stützwerten")
+
         await br.close()
 
     print(f"\n   pageerrors: {len(errs)}")

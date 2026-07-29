@@ -1852,17 +1852,13 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         # Layer → gar kein Schild). rzSignApplyFrame schiebt popScale per setData rein.
         # ABER: der datengetriebene (property-abhängige) icon-size-Ausdruck lässt Mapbox
         # das Symbol beim Zoomen minimal anders rastern → „die Buchstaben tanzen" (Beta-
-        # Tester). Deshalb NUR wenn wirklich ein Schild „Aufpoppen" nutzt; sonst der reine
-        # Zoom-Ausdruck wie vor v0.9.479 (scharf, kein Zittern).
-        _any_pop = any(str(s.get("entry", "none")) in ("pop", "both") for s in signs_for_render)
-        if _any_pop:
-            _pop = "['coalesce',['get','popScale'],1]"
+        # Tester, mehrfach gemeldet). v0.9.484: der Layer startet deshalb IMMER mit dem
+        # reinen Zoom-Ausdruck; rzSignApplyFrame (in sign_draw.js, unten mit eingebettet)
+        # legt den popScale-Faktor nur für die Dauer eines laufenden Aufpoppens drauf und
+        # nimmt ihn danach sofort wieder weg. Dafür braucht die Engine den Render-Scale.
 
-            def _sz(v):
-                return f"['*',['case',['==',['get','zoomScale'],true],{v * _ss:.4f},{1.0 * _ss:.4f}],{_pop}]"
-        else:
-            def _sz(v):
-                return f"['case',['==',['get','zoomScale'],true],{v * _ss:.4f},{1.0 * _ss:.4f}]"
+        def _sz(v):
+            return f"['case',['==',['get','zoomScale'],true],{v * _ss:.4f},{1.0 * _ss:.4f}]"
         _sign_icon_size = (
             "['interpolate',['linear'],['zoom'], "
             f"8,{_sz(0.5)}, 12,{_sz(0.8)}, 16,{_sz(1.5)}, 20,{_sz(2.4)}]"
@@ -1890,6 +1886,9 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "             geometry:{ type:'Point', coordinates:[s.lon, s.lat] } };\n"
             "  });\n"
             "  window.__signFC = {type:'FeatureCollection', features:__feats}; map.__rzSignFC = window.__signFC;\n"  # v0.9.479 — Pop-Scale via setData
+            # v0.9.484 — Render-Scale für den Aufpopp-Umschalter (sonst schrumpfen die
+            # Schilder im 4K-Render in dem Moment, in dem der popScale-Ausdruck greift).
+            f"  map.__rzSignSizeScale = {_ss:.4f}; map.__rzSignPopMode = false;\n"
             "  if (!map.getSource('anim-signs-src')) map.addSource('anim-signs-src', {type:'geojson', data:window.__signFC});\n"
             "  if (!map.getLayer('anim-signs-lyr')) map.addLayer({ id:'anim-signs-lyr', type:'symbol', source:'anim-signs-src',\n"
             "    filter: ['all', ['<=',['get','a_show'], -1], ['>=',['get','a_hide'], -1]],\n"

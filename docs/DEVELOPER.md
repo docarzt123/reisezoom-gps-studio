@@ -599,6 +599,17 @@ Flow: **`loadEleProfile()`** (Button `gpxi-ele-load`) fährt `fitBounds(_trackBo
 
 **Mapbox-Expression-Falle (v0.9.240, schon bei Schildern aufgetreten):** ein zoom-`interpolate` darf NICHT in einem `case` verschachtelt sein (sonst wirft `addLayer` → still verschluckt → Layer/Punkte unsichtbar). Lösung: `interpolate` oben, der Feature-`case` ist der Output-Wert pro Zoom-Stop.
 
+**Schild-`icon-size` — „die Buchstaben tanzen" (v0.9.479 → 480 → 484):** Ein **datengetriebener** `icon-size`-Ausdruck (einer, der eine Feature-Property liest) lässt Mapbox das Symbol beim Zoomen minimal anders rastern — der Text wirkt unruhig. Gebraucht wird er nur fürs Aufpoppen (`popScale` pro Feature). Seit v0.9.484 gilt deshalb:
+
+- Gebaut wird der Ausdruck an **einer** Stelle: `window.__rzSignIconSize(withPop, scale)` in `ui/js/sign_draw.js` (die Datei wird sowohl von der UI geladen als auch von `core/animator.py::_sign_draw_js()` ins Render-HTML eingebettet).
+- Der Layer wird **immer** mit `withPop=false` angelegt — Vorschau (`modules/animator/ui/module.js`) wie Render (`_sign_icon_size` in `core/animator.py`).
+- `rzSignApplyFrame` schaltet per `setLayoutProperty` auf `withPop=true`, **solange ein Schild in seinem Aufpopp-Fenster steht** (`M ∈ [a_show, a_show+pop)`), und sofort danach zurück. Zustand: `map.__rzSignPopMode`.
+- Umschaltkriterium ist das **Fenster**, nicht „popScale ≠ 1": `rzPopScale` ist easeOutBack, überschwingt über 1 und läuft durch die 1 hindurch — ein Wert-Vergleich würde mitten im Aufpoppen zurückschalten (sichtbarer Sprung).
+- Der Render-Scale (SSAA/4K) muss der Engine bekannt sein, sonst schrumpfen die Schilder in dem Moment, in dem umgeschaltet wird: `core/animator.py` setzt `map.__rzSignSizeScale = _ss` im Sign-Block.
+- Regressionstest: `scripts/selftest_signs.py`, Teil 3.
+
+Die zweite bekannte Ursache fürs Tanzen liegt in der **DOM-Vorschau** (v0.9.473/475): alles, was die Schild-Box zu einer eigenen Bitmap-Ebene promotet (`filter`, `will-change`, `backdrop-filter`, `opacity` auf dem Container, 3D-`transform`), lässt den Text als Bild mitskalieren, weil der Overlay-Preview-Layer per `transform: scale()` skaliert wird. Deshalb Textschatten per `text-shadow`, Bildschatten nur auf `img` — **nie** einen `filter` auf die Box. Bei jeder Schild-Änderung beide Ursachen prüfen.
+
 ### `core/animator.py`
 
 **Klassen + Funktionen:**

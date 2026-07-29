@@ -403,6 +403,25 @@
     return 1 + c3 * p * p * p + c1 * p * p;
   }
 
+  // v0.9.484 — icon-size-Ausdruck an EINER Stelle. `withPop=true` hängt den
+  // datengetriebenen popScale-Faktor an jeden Zoom-Stützwert. Wichtig: der
+  // Multiplikator steht INNERHALB der Stops, damit ['zoom'] top-level bleibt —
+  // sonst verwirft Mapbox den Layer und es erscheint gar kein Schild.
+  //
+  // Warum umschaltbar: der datengetriebene Ausdruck lässt Mapbox das Symbol beim
+  // Zoomen minimal anders rastern → „die Buchstaben tanzen" (Beta-Tester, mehrfach).
+  // Deshalb ist der Layer im Normalfall rein zoom-abhängig (scharf) und bekommt den
+  // popScale-Faktor nur für die paar Zehntelsekunden, in denen ein Schild wirklich
+  // aufpoppt. rzSignApplyFrame schaltet unten hin und zurück.
+  function rzSignIconSize(withPop, scale) {
+    var s = Number(scale) || 1;
+    function sz(v) {
+      var base = ["case", ["==", ["get", "zoomScale"], true], v * s, 1 * s];
+      return withPop ? ["*", base, ["coalesce", ["get", "popScale"], 1]] : base;
+    }
+    return ["interpolate", ["linear"], ["zoom"], 8, sz(0.5), 12, sz(0.8), 16, sz(1.5), 20, sz(2.4)];
+  }
+
   function rzSignApplyFrame(map, lyr, src, metas, M) {
     if (!map || !map.getLayer || !map.getLayer(lyr)) return;
     try {
@@ -418,12 +437,22 @@
     // setData/popScale (die icon-size ist dann der reine Zoom-Ausdruck → scharf, kein Zittern).
     var anyPop = false;
     for (var j = 0; j < metas.length; j++) { if (metas[j] && metas[j].pop > 0) { anyPop = true; break; } }
+    var popRunning = false;   // poppt in DIESEM Frame gerade etwas auf?
     if (anyPop && fc && fc.features) {
       if (!map.__rzSignPopLast) map.__rzSignPopLast = [];
       for (var k = 0; k < metas.length; k++) {
         var mk = metas[k] || {};
         var ps = 1;
-        if (mk.pop > 0) ps = rzPopScale((M - mk.a_show) / mk.pop);
+        // Nur INNERHALB des Aufpopp-Fensters skalieren. Davor (Schild noch
+        // ausgefiltert) und danach bleibt der Wert 1 — sonst stünde der
+        // datengetriebene Ausdruck die halbe Animation lang unnötig an.
+        if (mk.pop > 0 && M >= mk.a_show && M < mk.a_show + mk.pop) {
+          ps = rzPopScale((M - mk.a_show) / mk.pop);
+          // Ganzes Fenster, nicht „ps ≠ 1": easeOutBack schwingt kurz über 1 hinaus und
+          // läuft durch die 1 hindurch. Am Fenster festzumachen verhindert, dass mitten
+          // im Aufpoppen zurückgeschaltet wird (sichtbarer Sprung).
+          popRunning = true;
+        }
         var prev = map.__rzSignPopLast[k];
         if (prev == null || Math.abs(prev - ps) > 0.004) {
           popDirty = true;
@@ -432,6 +461,15 @@
         }
       }
       if (popDirty) { try { map.getSource(src).setData(fc); } catch (_) {} }
+    }
+    // v0.9.484 — den datengetriebenen icon-size-Ausdruck NUR während des laufenden
+    // Aufpoppens anlegen und sofort danach wieder abnehmen. Ergebnis: es poppt auf
+    // UND die Schrift bleibt beim Zoomen scharf (kein „Buchstabentanzen").
+    if (map.__rzSignPopMode !== popRunning) {
+      map.__rzSignPopMode = popRunning;
+      try {
+        map.setLayoutProperty(lyr, "icon-size", rzSignIconSize(popRunning, map.__rzSignSizeScale));
+      } catch (_) {}
     }
     for (var i = 0; i < metas.length; i++) {
       var m = metas[i] || {};
@@ -483,10 +521,12 @@
     window.__rzDrawSign = rzDrawSign;
     window.__rzSignFrame = rzSignApplyFrame;
     window.__rzSignMeta = rzSignMeta;
+    window.__rzSignIconSize = rzSignIconSize;
   }
   if (typeof globalThis !== "undefined") {
     globalThis.__rzDrawSign = rzDrawSign;
     globalThis.__rzSignFrame = rzSignApplyFrame;
     globalThis.__rzSignMeta = rzSignMeta;
+    globalThis.__rzSignIconSize = rzSignIconSize;
   }
 })();

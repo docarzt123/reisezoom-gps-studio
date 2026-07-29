@@ -6500,22 +6500,25 @@ function mountAnimator(body, headerActions, opts) {
         // INNERHALB der Zoom-Stops (['zoom'] bleibt top-level → Layer wird nicht verworfen).
         const _signFC = { type: "FeatureCollection", features };
         map.__rzSignFC = _signFC; map.__rzSignPopLast = null;
-        // v0.9.479b — der datengetriebene (popScale-abhängige) icon-size-Ausdruck lässt
+        // v0.9.484 — der datengetriebene (popScale-abhängige) icon-size-Ausdruck lässt
         // Mapbox das Symbol beim Zoomen minimal anders rastern → „die Buchstaben tanzen".
-        // Deshalb NUR wenn wirklich ein Schild „Aufpoppen" nutzt; sonst der reine Zoom-
-        // Ausdruck wie vor v0.9.479 (scharf).
-        const _anyPop = _animSignMetas.some(m => m && m.pop > 0);
-        const _sz = (v) => _anyPop
-          ? ["*", ["case", ["==", ["get", "zoomScale"], true], v, 1.0], ["coalesce", ["get", "popScale"], 1]]
-          : ["case", ["==", ["get", "zoomScale"], true], v, 1.0];
+        // Der Layer startet deshalb IMMER mit dem reinen Zoom-Ausdruck (scharf);
+        // rzSignApplyFrame schaltet den popScale-Faktor nur für die Dauer eines
+        // laufenden Aufpoppens zu und nimmt ihn direkt danach wieder weg.
+        map.__rzSignSizeScale = 1; map.__rzSignPopMode = false;
         map.addSource(_ANIM_SIGNS_SRC, { type: "geojson", data: _signFC });
         map.addLayer({
           id: _ANIM_SIGNS_LYR, type: "symbol", source: _ANIM_SIGNS_SRC,
           filter: ["all", ["<=", ["get", "a_show"], -1], [">=", ["get", "a_hide"], -1]],
           layout: {
             "icon-image": ["get", "imgId"],
-            "icon-size": ["interpolate", ["linear"], ["zoom"],
-              8, _sz(0.5), 12, _sz(0.8), 16, _sz(1.5), 20, _sz(2.4)],
+            "icon-size": window.__rzSignIconSize
+              ? window.__rzSignIconSize(false, 1)
+              : ["interpolate", ["linear"], ["zoom"],
+                 8, ["case", ["==", ["get", "zoomScale"], true], 0.5, 1.0],
+                 12, ["case", ["==", ["get", "zoomScale"], true], 0.8, 1.0],
+                 16, ["case", ["==", ["get", "zoomScale"], true], 1.5, 1.0],
+                 20, ["case", ["==", ["get", "zoomScale"], true], 2.4, 1.0]],
             "icon-anchor": ["coalesce", ["get", "iconAnchor"], "bottom"],  // v0.9.408 — Sprechblasen-Richtung pro Schild
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,

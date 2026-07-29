@@ -14,6 +14,26 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.484] – 2026-07-29
+### Behoben
+- **„Die Buchstaben tanzen" bei Schildern mit Aufpoppen** (Beta-Tester, zum zweiten Mal
+  gemeldet). Die Ursache war nie ganz weg: Fürs Aufpopp-Wachsen hängt am Schild-Layer ein
+  **datengetriebener** `icon-size`-Ausdruck. Solange der anliegt, rastert Mapbox die
+  Schild-Grafik beim Zoomen minimal anders — die Schrift zappelt. v0.9.480 hatte ihn nur
+  auf die Nutzer von „Aufpoppen" / „Ein- + Aufpoppen" eingegrenzt; wer diese Einblendung
+  benutzte, sah das Zittern weiterhin über die ganze Animation.
+
+  Jetzt liegt der datengetriebene Ausdruck **nur während des laufenden Aufpoppens** an
+  (die knappe halbe Sekunde beim Erscheinen) und wird direkt danach wieder abgenommen.
+  Das Schild poppt also weiterhin auf **und** die Schrift bleibt beim Zoomen scharf —
+  in der Vorschau wie im gerenderten Video.
+
+### Geändert
+- Der `icon-size`-Ausdruck wird nur noch an **einer** Stelle gebaut
+  (`__rzSignIconSize` in `ui/js/sign_draw.js`) statt getrennt in Vorschau und
+  Render-Backend. `scripts/selftest_signs.py` prüft neu, dass er ohne laufendes
+  Aufpoppen rein zoom-abhängig bleibt.
+
 ## [0.9.483] – 2026-07-29
 ### Behoben
 - **Touren aus mehreren Etappen wurden falsch berechnet** (gemeldet beim Einbau eines
