@@ -1481,5 +1481,6 @@
   "signs.tailpos_hint": "Where the pointer sits along the edge. Moving it helps when the tip would cover the track.",
   "signs.tailpos.left": "◀ Left",
   "signs.tailpos.center": "◆ Centre",
-  "signs.tailpos.right": "Right ▶"
+  "signs.tailpos.right": "Right ▶",
+  "signs.zoomScale_hint": "If the sign grows while you zoom, its text is drawn at a slightly different size every frame — that makes the letters visibly shimmer. Off = calm, crisp text."
 }

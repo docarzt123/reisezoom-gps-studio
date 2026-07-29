@@ -1481,5 +1481,6 @@
   "signs.tailpos_hint": "Dónde se sitúa el puntero en el borde. Moverlo ayuda cuando la punta taparía el track.",
   "signs.tailpos.left": "◀ Izquierda",
   "signs.tailpos.center": "◆ Centro",
-  "signs.tailpos.right": "Derecha ▶"
+  "signs.tailpos.right": "Derecha ▶",
+  "signs.zoomScale_hint": "Si el cartel crece al hacer zoom, su texto se dibuja a un tamaño distinto en cada fotograma y las letras tiemblan de forma visible. Desactivado = texto nítido y estable."
 }

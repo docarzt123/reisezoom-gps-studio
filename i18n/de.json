@@ -1481,5 +1481,6 @@
   "signs.tailpos_hint": "Wo der Zeiger an der Kante sitzt. Verschieben hilft, wenn die Spitze sonst genau auf der Spur liegt.",
   "signs.tailpos.left": "◀ Links",
   "signs.tailpos.center": "◆ Mittig",
-  "signs.tailpos.right": "Rechts ▶"
+  "signs.tailpos.right": "Rechts ▶",
+  "signs.zoomScale_hint": "Wächst das Schild beim Zoomen mit, erscheint seine Schrift laufend in einer anderen Größe — dabei zittern die Buchstaben sichtbar. Aus = ruhige, scharfe Schrift."
 }
