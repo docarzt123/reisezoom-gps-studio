@@ -188,6 +188,24 @@ la izquierda → elige la carpeta donde están tus tracks. La app la lee de inme
 archivos tardan unos 20 segundos.** Las subcarpetas se incluyen. Puedes vigilar tantas
 carpetas como quieras.
 
+**Tres vistas**, conmutables a la derecha de la barra (la app recuerda tu elección):
+**▦ Tarjetas** para explorar, **☰ Lista** para comparar muchas rutas de un vistazo y
+**🌍 Mapa**: todas las rutas filtradas en un mapamundi; al hacer clic en una línea se
+selecciona. Las rutas lejanas se dibujan como puntos y solo se convierten en líneas al
+acercar; de lo contrario serían invisibles.
+
+**Vistas previas más bonitas — mapa en lugar de línea:** por defecto cada tarjeta muestra
+solo la línea, lo cual es inmediato y gratuito. Si lo quieres más bonito, abre
+**«Carpetas y lectura»** y pulsa **«Descargar imágenes de mapa»**: la app descarga una vez
+de Mapbox una imagen de mapa real para cada ruta y **la guarda de forma permanente en tu
+equipo**. A partir de ahí la vista funciona sin conexión, es inmediata y no consume más
+cuota. Unos 5 minutos para 700 rutas; el proceso se puede detener y reanudar. Sin token de
+Mapbox se mantiene el dibujo de línea.
+
+**Imagen propia para una ruta:** en la columna derecha, **«Elegir imagen propia»**, por
+ejemplo la mejor foto de esa ruta. Sustituye la vista previa en todas las vistas. La app
+guarda una copia reducida; tu original queda intacto y se puede mover.
+
 **Volver a encontrar una ruta:**
 
 - **Campo de búsqueda** — busca en el nombre, el archivo, las etiquetas y las notas. Los

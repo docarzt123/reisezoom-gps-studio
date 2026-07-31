@@ -127,13 +127,22 @@ CREATE TABLE IF NOT EXISTS tracks (
     region        TEXT DEFAULT '',
 
     thumb         TEXT DEFAULT '',
+    -- v0.9.487: vereinfachter Streckenverlauf als JSON [[lon,lat],…] (max 80
+    -- Punkte, 5 Nachkommastellen). Reicht für die Übersichtskarte über alle
+    -- Touren und fürs Karten-Vorschaubild — die volle Datei dafür zu öffnen
+    -- wäre bei 700 Touren undenkbar.
+    geom          TEXT DEFAULT '',
+    -- v0.9.487: gecachtes Karten-Vorschaubild (Mapbox Static Images, einmal
+    -- geladen, danach lokal) und ein selbst gewähltes Bild.
+    map_thumb     TEXT DEFAULT '',
     indexed_at    TEXT,
     error         TEXT DEFAULT '',
 
     -- Nutzer-Eingaben. Werden beim Neu-Einlesen NICHT überschrieben.
     fav           INTEGER DEFAULT 0,
     tags          TEXT DEFAULT '',
-    note          TEXT DEFAULT ''
+    note          TEXT DEFAULT '',
+    cover         TEXT DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_tracks_started ON tracks(started_at);
@@ -152,7 +161,15 @@ _TECH_COLS = [
     "max_speed_kmh", "avg_speed_kmh", "n_points", "n_segments", "has_time",
     "has_ele", "sensors", "min_lat", "max_lat", "min_lon", "max_lon",
     "center_lat", "center_lon", "activity", "source", "source_url", "planned",
-    "thumb", "indexed_at", "error",
+    "thumb", "geom", "indexed_at", "error",
+]
+
+# Spalten, die eine ältere Datenbank noch nicht hat. Beim Öffnen nachgezogen —
+# eine bestehende Sammlung soll nicht neu aufgebaut werden müssen.
+_ADD_COLS = [
+    ("geom", "TEXT DEFAULT ''"),
+    ("map_thumb", "TEXT DEFAULT ''"),
+    ("cover", "TEXT DEFAULT ''"),
 ]
 
 
@@ -163,6 +180,11 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(_SCHEMA)
+    have = {r["name"] for r in conn.execute("PRAGMA table_info(tracks)").fetchall()}
+    for col, decl in _ADD_COLS:
+        if col not in have:
+            conn.execute(f"ALTER TABLE tracks ADD COLUMN {col} {decl}")
+            log.info("library: Spalte %s nachgetragen", col)
     conn.execute(
         "INSERT INTO meta(key, value) VALUES('schema', ?) "
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -305,6 +327,27 @@ def _guess_activity(name: str, distance_m: float, moving_s: float) -> str:
     return "auto"
 
 
+GEOM_MAX_POINTS = 80
+
+
+def _simplify(coords: list, target: int = GEOM_MAX_POINTS) -> list:
+    """Gleichmäßig ausgedünnter Streckenverlauf, gerundet auf ~1 m.
+
+    Bewusst simpel (jeden n-ten Punkt) statt Douglas-Peucker: für eine
+    Übersichtskarte über hunderte Touren zählt die grobe Form, und der
+    Rechenaufwand liegt bei 700 Dateien im Einlesen, nicht in der Genauigkeit.
+    """
+    if not coords:
+        return []
+    if len(coords) <= target:
+        pts = list(coords)
+    else:
+        step = len(coords) / float(target)
+        pts = [coords[min(len(coords) - 1, int(i * step))] for i in range(target)]
+        pts.append(coords[-1])
+    return [[round(float(c[0]), 5), round(float(c[1]), 5)] for c in pts]
+
+
 def _make_thumb(coords: list, out_path: Path) -> bool:
     """Kleines Vorschaubild des Streckenverlaufs — ohne Karte, ohne Netz.
 
@@ -419,6 +462,7 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         "source_url": src_url,
         # Komoot hängt „(Completed)" an gefahrene Touren; alles andere ist geplant.
         "planned": 0 if (src != "komoot" or "(completed)" in name.lower()) else 1,
+        "geom": json.dumps(_simplify(coords), separators=(",", ":")),
     })
 
     thumb = thumbs_dir / f"{row['geo_hash']}.png"
@@ -457,9 +501,12 @@ def scan(
         for p in _iter_files(folder, rec.get(folder, True)):
             files.append((p, folder))
 
+    # `geom` fehlt bei Einträgen aus einer älteren Version. Solche Zeilen werden
+    # neu gelesen, auch wenn die Datei unverändert ist — sonst bliebe die
+    # Übersichtskarte für die halbe Sammlung leer.
     known = {
-        r["path"]: (r["mtime"], r["size"])
-        for r in conn.execute("SELECT path, mtime, size FROM tracks").fetchall()
+        r["path"]: (r["mtime"], r["size"], bool(r["geom"]))
+        for r in conn.execute("SELECT path, mtime, size, geom FROM tracks").fetchall()
     }
     seen = set()
     added = updated = skipped = failed = 0
@@ -473,7 +520,8 @@ def scan(
         try:
             st = p.stat()
             old = known.get(sp)
-            if old and not force and abs(old[0] - st.st_mtime) < 1 and old[1] == st.st_size:
+            if (old and old[2] and not force
+                    and abs(old[0] - st.st_mtime) < 1 and old[1] == st.st_size):
                 skipped += 1
             else:
                 row = _row_from_file(p, folder, thumbs_dir, import_cache)
@@ -562,6 +610,7 @@ def query(
     limit: int = 500,
     offset: int = 0,
     include_errors: bool = False,
+    with_geom: bool = False,
 ) -> dict:
     """Gefilterte Trefferliste + Gesamtzahl (für „x von y").
 
@@ -615,11 +664,27 @@ def query(
 
     total = len(rows)
     page = rows[offset:offset + limit] if limit else rows
-    return {"total": total, "items": [_to_dict(r) for r in page]}
+    return {"total": total, "items": [_to_dict(r, with_geom=with_geom) for r in page]}
 
 
-def _to_dict(r: sqlite3.Row) -> dict:
+def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     d = dict(r)
+    # Der Streckenverlauf ist nur für die Kartenansicht nötig. Bei 700 Touren
+    # sind das sonst 700 × 80 Koordinaten, die durch die Brücke müssen, ohne
+    # dass sie jemand anschaut.
+    if with_geom:
+        try:
+            d["geom"] = json.loads(d.get("geom") or "[]")
+        except (TypeError, ValueError):
+            d["geom"] = []
+    else:
+        d.pop("geom", None)
+    # Welches Bild die Kachel zeigt: eigenes Titelbild schlägt Kartenbild,
+    # Kartenbild schlägt die reine Linienzeichnung.
+    d["image"] = d.get("cover") or d.get("map_thumb") or d.get("thumb") or ""
+    d["image_kind"] = ("cover" if d.get("cover")
+                       else "map" if d.get("map_thumb")
+                       else "line" if d.get("thumb") else "")
     try:
         d["sensors"] = json.loads(d.get("sensors") or "[]")
     except (TypeError, ValueError):
@@ -707,6 +772,166 @@ def duplicates(conn: sqlite3.Connection) -> list:
         out.append({"geo_hash": r["geo_hash"], "n": r["n"],
                     "items": [_to_dict(x) for x in items]})
     return out
+
+
+# ── Karten-Vorschaubilder (Mapbox Static Images, einmal laden → lokal) ───────
+
+def _encode_polyline(points: list, precision: int = 5) -> str:
+    """Google-Polyline-Kodierung (lat,lon) — das Format, das Mapbox' Static-API
+    für Linien-Overlays erwartet. Selbst geschrieben statt Bibliothek: 20 Zeilen
+    gegen eine weitere Abhängigkeit im Bundle."""
+    factor = 10 ** precision
+    out = []
+    prev_lat = prev_lon = 0
+    for lon, lat in points:
+        ilat = int(round(float(lat) * factor))
+        ilon = int(round(float(lon) * factor))
+        for delta in (ilat - prev_lat, ilon - prev_lon):
+            v = ~(delta << 1) if delta < 0 else (delta << 1)
+            while v >= 0x20:
+                out.append(chr((0x20 | (v & 0x1F)) + 63))
+                v >>= 5
+            out.append(chr(v + 63))
+        prev_lat, prev_lon = ilat, ilon
+    return "".join(out)
+
+
+def map_thumb_fetch(
+    conn: sqlite3.Connection,
+    row: dict,
+    thumbs_dir: Path,
+    token: str,
+    style: str = "outdoors-v12",
+    line_color: str = "ff6b35",
+    width: int = 360,
+    height: int = 200,
+    timeout: float = 20.0,
+) -> str:
+    """Lädt EIN Karten-Vorschaubild und legt es dauerhaft ab.
+
+    Das Bild wird genau einmal geholt; danach liegt es lokal und die Ansicht
+    kostet weder Wartezeit noch Kontingent. Ohne Token oder ohne Streckenverlauf
+    passiert nichts — dann bleibt es bei der reinen Linienzeichnung.
+    """
+    import urllib.parse
+    import urllib.request
+
+    if not token or not token.startswith("pk."):
+        return ""
+    try:
+        pts = json.loads(row.get("geom") or "[]")
+    except (TypeError, ValueError):
+        pts = []
+    if len(pts) < 2:
+        return ""
+
+    thumbs_dir = Path(thumbs_dir)
+    thumbs_dir.mkdir(parents=True, exist_ok=True)
+    out = thumbs_dir / f"{row.get('geo_hash') or row.get('track_hash')}.png"
+    if out.exists() and out.stat().st_size > 0:
+        return str(out)
+
+    # Der Pfad steckt als kodierte Polylinie in der URL; `auto` lässt Mapbox
+    # Ausschnitt und Zoom aus der Linie selbst bestimmen.
+    poly = urllib.parse.quote(_encode_polyline(pts), safe="")
+    url = (f"https://api.mapbox.com/styles/v1/mapbox/{style}/static/"
+           f"path-4+{line_color}-1({poly})/auto/{width}x{height}@2x"
+           f"?access_token={urllib.parse.quote(token)}&attribution=false&logo=false")
+    req = urllib.request.Request(url, headers={"User-Agent": "ReisezoomGPSStudio"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = resp.read()
+    if not data:
+        return ""
+    out.write_bytes(data)
+    conn.execute("UPDATE tracks SET map_thumb = ? WHERE path = ?", (str(out), row["path"]))
+    conn.commit()
+    return str(out)
+
+
+def map_thumbs_pending(conn: sqlite3.Connection) -> list:
+    """Touren mit Streckenverlauf, aber ohne gecachtes Karten-Vorschaubild."""
+    rows = conn.execute(
+        "SELECT * FROM tracks WHERE error = '' AND geom != '' AND map_thumb = '' "
+        "ORDER BY started_at DESC"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def map_thumbs_fetch_all(
+    conn: sqlite3.Connection,
+    thumbs_dir: Path,
+    token: str,
+    style: str = "outdoors-v12",
+    progress: Optional[Callable[[dict], None]] = None,
+    should_stop: Optional[Callable[[], bool]] = None,
+    limit: int = 0,
+) -> dict:
+    """Holt die fehlenden Karten-Vorschaubilder der Reihe nach.
+
+    Ein Fehler bei einer Tour (Netz weg, Kontingent voll) beendet den Lauf —
+    weiterzumachen würde nur eine Fehlerlawine erzeugen. Was schon geladen ist,
+    bleibt liegen; ein zweiter Anlauf setzt genau dort fort.
+    """
+    todo = map_thumbs_pending(conn)
+    if limit:
+        todo = todo[:limit]
+    done = failed = 0
+    err = ""
+    for i, row in enumerate(todo):
+        if should_stop and should_stop():
+            break
+        try:
+            if map_thumb_fetch(conn, row, thumbs_dir, token, style=style):
+                done += 1
+        except Exception as e:
+            failed += 1
+            err = str(e)
+            log.warning("library: Karten-Vorschaubild fehlgeschlagen (%s): %s",
+                        row.get("filename"), e)
+            break
+        if progress:
+            progress({"done": i + 1, "total": len(todo), "ok": done,
+                      "failed": failed, "current": row.get("name") or ""})
+    return {"total": len(todo), "ok": done, "failed": failed, "error": err}
+
+
+# ── Eigenes Titelbild ────────────────────────────────────────────────────────
+
+def set_cover(conn: sqlite3.Connection, path: str, image_path: str,
+              covers_dir: Path, max_w: int = 720) -> str:
+    """Legt ein eigenes Bild als Titelbild einer Tour ab (verkleinerte Kopie).
+
+    Kopie statt Verweis: das Original darf verschoben oder gelöscht werden,
+    ohne dass im Archiv eine Lücke entsteht — und ein 45-MP-Foto muss nicht bei
+    jedem Aufbau der Kachelansicht durch die Brücke.
+    """
+    from PIL import Image
+
+    row = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?", (path,)).fetchone()
+    if not row:
+        return ""
+    covers_dir = Path(covers_dir)
+    covers_dir.mkdir(parents=True, exist_ok=True)
+    out = covers_dir / f"{row['geo_hash']}.jpg"
+    img = Image.open(image_path)
+    img = img.convert("RGB")
+    if img.width > max_w:
+        img = img.resize((max_w, max(1, round(img.height * max_w / img.width))))
+    img.save(out, "JPEG", quality=85)
+    conn.execute("UPDATE tracks SET cover = ? WHERE path = ?", (str(out), path))
+    conn.commit()
+    return str(out)
+
+
+def clear_cover(conn: sqlite3.Connection, path: str) -> None:
+    row = conn.execute("SELECT cover FROM tracks WHERE path = ?", (path,)).fetchone()
+    if row and row["cover"]:
+        try:
+            Path(row["cover"]).unlink()
+        except OSError:
+            pass
+    conn.execute("UPDATE tracks SET cover = '' WHERE path = ?", (path,))
+    conn.commit()
 
 
 def errors(conn: sqlite3.Connection) -> list:

@@ -399,8 +399,8 @@ python app.py</code></pre>
 <hr>
 <h2 id="2c-modul-archiv-alle-touren-an-einem-ort">2c · Modul: Archiv 📚 — alle Touren an einem Ort ⭐</h2>
 <p>Wer über Jahre Touren sammelt, hat irgendwann hunderte GPX-Dateien in irgendwelchen Ordnern liegen — und findet die richtige nicht wieder. Das <strong>Archiv</strong> ist dafür da: Es liest deine Track-Ordner ein und zeigt dir alle Touren mit Bild, Datum und Zahlen.</p>
-<p><strong>Einrichten (einmal):</strong> Reiter <strong>📚 Archiv</strong> öffnen → links <strong>„+ Ordner hinzufügen&quot;</strong> → den Ordner wählen, in dem deine Tracks liegen. Die App liest ihn sofort ein; <strong>700 Dateien dauern gut 20 Sekunden.</strong> Unterordner werden mitgenommen. Du kannst beliebig viele Ordner beobachten lassen.</p>
-<p><strong>Wiederfinden:</strong></p>
+<p><strong>Einrichten (einmal):</strong> Reiter <strong>📚 Archiv</strong> öffnen → <strong>„Ordner &amp; Einlesen&quot;</strong> (rechts in der Filterleiste) → <strong>„+ Ordner hinzufügen&quot;</strong> → den Ordner wählen, in dem deine Tracks liegen. Die App liest ihn sofort ein; <strong>700 Dateien dauern gut 20 Sekunden.</strong> Unterordner werden mitgenommen. Du kannst beliebig viele Ordner beobachten lassen.</p>
+<p><strong>Wiederfinden</strong> — alles in der Leiste über den Touren:</p>
 <ul>
 <li><strong>Suchfeld</strong> — sucht in Name, Dateiname, Schlagwörtern und Notizen. Akzente sind egal</li>
 </ul>
@@ -410,21 +410,23 @@ python app.py</code></pre>
 </ul>
 <p> meiste Höhenmeter …).</p>
 <ul>
-<li><strong>Nur Favoriten</strong> und <strong>Nur aufgezeichnete</strong> — letzteres blendet geplante Touren aus, die</li>
+<li><strong>Nur Favoriten</strong> und <strong>Nur gefahrene</strong> — letzteres blendet geplante Touren aus, die du</li>
 </ul>
-<p> du nie gefahren bist.</p>
+<p> nie gefahren bist.</p>
+<p><strong>Drei Ansichten</strong>, rechts in der Leiste umschaltbar (die App merkt sich deine Wahl):</p>
+<table><thead><tr><th>Symbol</th><th>Ansicht</th><th>Wofür</th></tr></thead><tbody><tr><td>▦</td><td><strong>Kacheln</strong></td><td>Stöbern — Bild groß, Form der Tour sofort erkennbar</td></tr><tr><td>☰</td><td><strong>Liste</strong></td><td>Vergleichen — viele Touren mit Zahlen auf einen Blick</td></tr><tr><td>🌍</td><td><strong>Karte</strong></td><td>„Wo war ich überall?&quot; — alle gefilterten Touren auf einer Weltkarte, Klick auf eine Linie wählt sie aus</td></tr></tbody></table>
+<p>Auf der Karte werden weit entfernte Touren als <strong>Punkte</strong> gezeichnet und erst beim Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar.</p>
 <p><strong>Weiterarbeiten:</strong> Tour anklicken, dann rechts <strong>„Im Animator öffnen&quot;</strong> (oder Tour-Karte, Daten-Animator, Geotagger, Inspektor). Ein <strong>Doppelklick</strong> auf die Kachel schickt sie direkt in den Animator. Das ist genau dasselbe, als hättest du die Datei über „Track wählen&quot; geöffnet — nur mit Bild und Suche davor. Über den <strong>📚-Knopf</strong> in der Track-Leiste kommst du aus jedem Modul ins Archiv.</p>
 <p><strong>Ordnen:</strong> In der rechten Spalte vergibst du <strong>Favorit ★</strong>, <strong>Schlagwörter</strong> (z. B. <code>Mallorca, Testfahrt</code>) und eine <strong>Notiz</strong>. Das bleibt erhalten, auch wenn du neu einliest.</p>
 <p><strong>Was die Kacheln verraten:</strong></p>
 <table><thead><tr><th>Zeichen</th><th>Bedeutung</th></tr></thead><tbody><tr><td>★</td><td>Favorit</td></tr><tr><td>„geplant&quot;</td><td>Tour war nur geplant, nicht aufgezeichnet</td></tr><tr><td>● (orange)</td><td>Für diese Tour gibt es schon gespeicherte Projekte</td></tr></tbody></table>
-<p><strong>Doppelte finden:</strong> Der Knopf oben rechts gruppiert Dateien mit <strong>identischem Streckenverlauf</strong> — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.</p>
-<p><strong>Neue Dateien:</strong> Nach jedem größeren Export einmal <strong>„Neu einlesen&quot;</strong> drücken. Bereits bekannte Dateien werden übersprungen, das geht in Sekunden.</p>
+<p><strong>Doppelte finden:</strong> Der Knopf ganz oben rechts gruppiert Dateien mit <strong>identischem Streckenverlauf</strong> — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.</p>
+<p><strong>Neue Dateien:</strong> Nach jedem größeren Export einmal <strong>„Ordner &amp; Einlesen&quot; → „Neu einlesen&quot;</strong> drücken. Bereits bekannte Dateien werden übersprungen, das geht in Sekunden.</p>
+<p><strong>Schönere Vorschaubilder — Karte statt Linie:</strong> Standardmäßig zeigt jede Kachel nur den Linienzug ohne Karte. Das geht sofort und kostet nichts. Wenn du es hübscher willst, öffne <strong>„Ordner &amp; Einlesen&quot;</strong> und drücke <strong>„Kartenbilder holen&quot;</strong> — dann holt die App zu jeder Tour einmal ein echtes Kartenbild von Mapbox und <strong>legt es dauerhaft auf deinem Rechner ab</strong>. Danach ist die Ansicht offline, sofort da und kostet kein weiteres Kontingent. Rund 5 Minuten für 700 Touren; der Lauf lässt sich anhalten und später fortsetzen. Ohne Mapbox-Token bleibt es bei der Linienzeichnung.</p>
+<p><strong>Eigenes Bild für eine Tour:</strong> In der rechten Spalte <strong>„Eigenes Bild wählen&quot;</strong> — zum Beispiel das schönste Foto der Tour. Es ersetzt das Vorschaubild in allen Ansichten. Die App legt eine verkleinerte Kopie an; dein Original bleibt unberührt und darf verschoben werden.</p>
 <blockquote><strong>Deine Dateien bleiben, wo sie sind.</strong> Das Archiv verschiebt, kopiert und löscht nichts</blockquote>
 <blockquote>es merkt sich nur, was wo liegt. <strong>„Aus Archiv nehmen&quot;</strong> entfernt eine Tour aus der</blockquote>
 <blockquote>Übersicht, die Datei selbst bleibt unangetastet.</blockquote>
-<blockquote></blockquote>
-<blockquote>Die Vorschaubilder sind reine Linienzeichnungen ohne Karte. Das ist Absicht: So entstehen</blockquote>
-<blockquote>sie sofort, funktionieren ohne Internet und kosten kein Karten-Kontingent.</blockquote>
 <hr>
 <h2 id="3-modul-animator-gpx-als-video-rendern">3 · Modul: Animator — GPX als Video rendern</h2>
 <h3 id="was-es-macht">Was es macht</h3>

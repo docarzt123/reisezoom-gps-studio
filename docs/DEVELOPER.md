@@ -1206,6 +1206,33 @@ zweite Suchtabelle (gemessen: **12 ms** über 709 Touren).
 Aufzeichnung „Fahrradtour 10.06.2020"), sonst am Durchschnittstempo. Widerspricht der
 Name dem Tempo deutlich (Fußwort bei > 12 km/h), gewinnt das Tempo.
 
+
+**v0.9.487 — Streckenverlauf, Karten-Vorschaubilder, Titelbild:**
+
+- Spalte `geom`: der beim Einlesen ausgedünnte Verlauf (`_simplify`, max. 80 Punkte,
+  5 Nachkommastellen ≈ 1 m) als JSON. Grundlage für die Übersichtskarte **und** für die
+  Karten-Vorschaubilder — die vollen Dateien dafür zu öffnen wäre bei hunderten Touren
+  nicht machbar. `query(..., with_geom=True)` liefert ihn; ohne das Flag fliegt er aus der
+  Antwort, sonst gingen 700 × 80 Koordinaten durch die Brücke, die niemand anschaut.
+- Zeilen **ohne** `geom` werden beim Scan neu gelesen, auch wenn die Datei unverändert ist
+  (`known[path][2]`) — so füllt ein bestehendes Archiv die Spalte beim nächsten Einlesen
+  von selbst nach, ohne `force`.
+- `map_thumb_fetch()` holt EIN Bild von der **Mapbox Static Images API** und legt es
+  dauerhaft ab; `_encode_polyline()` ist die Google-Polyline-Kodierung (selbst geschrieben,
+  ~20 Zeilen, gegen eine weitere Abhängigkeit im Bundle geprüft). Gemessen: **0,4 s je
+  Bild, 709 Bilder in 290 s, 0 Fehler.** `map_thumbs_fetch_all()` bricht beim ersten
+  Fehler ab (Netz weg / Kontingent voll → sonst Fehlerlawine) und ist fortsetzbar, weil
+  bereits geladene Bilder übersprungen werden.
+- `set_cover()` legt ein selbst gewähltes Bild als **verkleinerte Kopie** ab (max. 720 px):
+  das Original darf verschoben werden, und ein 45-MP-Foto muss nicht bei jedem Aufbau der
+  Kachelansicht durch die Brücke.
+- Anzeige-Reihenfolge in `_to_dict`: `cover` → `map_thumb` → `thumb` (Feld `image`).
+
+⚠️ **Karten-Container nicht per `position:absolute; inset:0` aufziehen.** Mapbox setzt der
+Container-Klasse `.mapboxgl-map` selbst `position: relative`, und `mapbox-gl.css` wird in
+`ui/index.html` **nach** dem Modul-CSS geladen — die Fläche hatte damit Höhe 0 und die Karte
+blieb schwarz. Im Archiv läuft es über Flex + `height: 100%`.
+
 ---
 
 ## 4 · pywebview-Bridge-API
@@ -1239,6 +1266,11 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `library_query(params)` | `{ok, total, items[]}` | Filtern/Suchen/Sortieren. `with_thumbs` hängt die Vorschaubilder als data-URL an (~3 KB je Kachel) und setzt `has_session` aus `sessions.json` |
 | `library_stats()` | `{ok, n_tracks, total_km, total_ascent_m, total_hours, years[], activities[], tags[], n_failed}` | Kopfzeilen-Zahlen |
 | `library_set_fields(path, fav?, tags?, note?)` | `{ok, track}` | Favorit/Schlagwörter/Notiz |
+| `library_map_thumbs_start(style?)` | `{ok}` / `{ok:false,error:"no_token"}` | Fehlende Karten-Vorschaubilder im Hintergrund holen |
+| `library_map_thumbs_status()` | `{running, done, total, current, ok, failed, pending, result?}` | Fortschritt + wie viele noch fehlen |
+| `library_map_thumbs_stop()` | `{ok}` | Abbrechen (fortsetzbar) |
+| `library_set_cover(path, image_path="")` | `{ok, track, thumb_url}` | Eigenes Titelbild; ohne `image_path` öffnet der Bild-Dialog |
+| `library_clear_cover(path)` | `{ok, track, thumb_url}` | Titelbild entfernen |
 | `library_errors()` | `{ok, items[]}` | Nicht lesbare Dateien (stehen bewusst nicht in `library_query`) |
 | `library_duplicates()` | `{ok, groups[]}` | Gruppen mit identischem `geo_hash` |
 | `library_forget(path)` | `{ok}` | Aus dem Index nehmen — die Datei bleibt liegen |
