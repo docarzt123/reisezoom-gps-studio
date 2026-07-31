@@ -256,6 +256,12 @@
 }
 .lib-detail-empty { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
 
+/* Die Spalte ist eine Flex-Spalte, deren Inhalt länger ist als das Fenster.
+   Ohne `flex: none` schrumpft WebKit ALLE Kinder mit eigener Höhe zusammen:
+   die Gemacht/Geplant-Umschaltung stand als 1-px-Strich da, das Notizfeld als
+   eine Zeile. Gescrollt wird ohnehin, gequetscht werden soll nichts. */
+.lib-detail > * { flex: none; }
+
 /* `flex: none` ist Pflicht: in einer Flex-Spalte (das Panel ist eine) hat ein
    Element, dessen Höhe nur aus `aspect-ratio` kommt, die Basisgröße 0 und wird
    in WebKit auf einen Strich zusammengedrückt — das Vorschaubild war weg. */

@@ -1638,5 +1638,7 @@
   "library.trash_note": "La ruta desaparece del archivo. Puedes recuperarla de la papelera mientras no la vacíes.",
   "library.trash_do": "Mover a la papelera",
   "library.trash_done": "Movido a la papelera.",
-  "library.cancel": "Cancelar"
+  "library.cancel": "Cancelar",
+  "library.scope_fav": "Favoritas",
+  "library.col_animator_fail": "El animador no estaba listo — inténtalo de nuevo."
 }

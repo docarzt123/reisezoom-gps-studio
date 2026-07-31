@@ -43,7 +43,7 @@ function mountLibrary(body, headerActions) {
 
   const PAGE = 200;
 
-  let _items = [], _total = 0, _sel = null, _stats = null, _folders = [], _collections = [];
+  let _items = [], _total = 0, _sel = null, _stats = null, _base = null, _folders = [], _collections = [];
   let _scanTimer = null, _mapsTimer = null, _unmounted = false;
   let _map = null, _mapReady = false, _mapPopup = null, _mapLib = null;
 
@@ -171,6 +171,18 @@ function mountLibrary(body, headerActions) {
     return p;
   }
 
+  /** Filter der Leiste OHNE Bereich und Sammlung — die Bestandszahlen neben
+   *  den Bereichen dürfen sich nicht selbst wegfiltern („Geplante 0", während
+   *  man im Bereich „Gemachte" steht). */
+  function baseParams() {
+    const p = Object.assign({}, state);
+    delete p.collection_id;
+    if (!p.year) delete p.year;
+    if (!p.activity) delete p.activity;
+    if (!p.search) delete p.search;
+    return p;
+  }
+
   // ── Laden ─────────────────────────────────────────────────────────────
   async function reload() {
     const res = await api().library_query(queryParams({
@@ -182,15 +194,23 @@ function mountLibrary(body, headerActions) {
     if (!res.ok) { toast(res.error || "Archiv-Abfrage fehlgeschlagen", "error"); return; }
     _items = res.items || [];
     _total = res.total || 0;
+    // Wer den Bereich wechselt, soll rechts nicht die Tour von vorhin sehen —
+    // die steht dann in keiner Liste mehr und wirkt wie ein Geist.
+    if (_sel && !_items.some(i => i.path === _sel.path)) _sel = null;
     await reloadStats();
     renderHead();
     renderView();
+    renderDetail();
   }
 
   async function reloadStats() {
-    const s = await api().library_stats(queryParams());
+    const [s, base] = await Promise.all([
+      api().library_stats(queryParams()),
+      api().library_stats(baseParams()),
+    ]);
     if (_unmounted) return;
     _stats = s;
+    _base = base || s;
     fillYearOptions();
     fillActivityOptions();
     renderScopes();
@@ -217,22 +237,23 @@ function mountLibrary(body, headerActions) {
 
   // ── Seitenleiste ──────────────────────────────────────────────────────
   function renderScopes() {
-    const s = _stats || {};
+    const b = _base || _stats || {};
     const items = [
       ["all", "📚", T("library.scope_all", "Alle Touren")],
       ["done", "✅", T("library.scope_done", "Gemachte")],
       ["planned", "📝", T("library.scope_planned", "Geplante")],
-      ["fav", "★", T("library.fav_only", "Favoriten")],
+      ["fav", "★", T("library.scope_fav", "Favoriten")],
     ];
-    if ((s.n_hidden || 0) > 0) items.push(["hidden", "🚫", T("library.scope_hidden", "Ausgeblendete")]);
-    // Zahlen: für den aktiven Bereich die Gesamtzahl, für „Gemachte"/„Geplante"
-    // die Aufteilung aus derselben Statistik — mehr wäre eine zweite Abfrage
-    // ohne echten Mehrwert.
+    if ((b.n_hidden || 0) > 0) items.push(["hidden", "🚫", T("library.scope_hidden", "Ausgeblendete")]);
+    // Die Zahlen sind Bestände, keine Trefferzahlen: sie kommen aus der
+    // Statistik OHNE Bereichs-Filter und ändern sich deshalb nur, wenn oben
+    // ein Jahr, eine Art oder eine Suche eingegrenzt wird.
     const count = (k) => {
-      if (scope === k) return s.n_tracks != null ? s.n_tracks : "";
-      if (k === "done" && s.done) return s.done.n;
-      if (k === "planned" && s.planned) return s.planned.n;
-      if (k === "hidden") return s.n_hidden || "";
+      if (k === "all") return b.n_tracks != null ? b.n_tracks : "";
+      if (k === "done") return b.done ? b.done.n : "";
+      if (k === "planned") return b.planned ? b.planned.n : "";
+      if (k === "fav") return b.n_fav || "";
+      if (k === "hidden") return b.n_hidden || "";
       return "";
     };
     $("lib-scopes").innerHTML = items.map(([k, ico, label]) => `
@@ -278,7 +299,7 @@ function mountLibrary(body, headerActions) {
     if (col) return col.name;
     return scope === "done" ? T("library.scope_done", "Gemachte")
       : scope === "planned" ? T("library.scope_planned", "Geplante")
-      : scope === "fav" ? T("library.fav_only", "Favoriten")
+      : scope === "fav" ? T("library.scope_fav", "Favoriten")
       : scope === "hidden" ? T("library.scope_hidden", "Ausgeblendete")
       : T("library.scope_all", "Alle Touren");
   }
@@ -433,7 +454,11 @@ function mountLibrary(body, headerActions) {
       [T("library.stat_avg", "Ø je Tour"), num(s.avg_km), "km"],
       [T("library.stat_longest", "Längste"), num(s.longest_km), "km"],
     ];
-    const total = (s.done ? s.done.n : 0) + (s.planned ? s.planned.n : 0);
+    // Der Balken beantwortet „wie viel davon bin ich wirklich gefahren?" —
+    // im Bereich „Gemachte" oder „Geplante" ist die Antwort schon bekannt und
+    // ein einfarbiger Balken mit „0 geplant" nur Lärm.
+    const mixed = s.done && s.planned && s.done.n > 0 && s.planned.n > 0;
+    const total = mixed ? s.done.n + s.planned.n : 0;
     box.innerHTML = `
       <div class="lib-stats-inner">
         <div class="lib-stats-head">
@@ -491,7 +516,7 @@ function mountLibrary(body, headerActions) {
                 <button class="lib-top-row" data-top="${i}" type="button">
                   <span class="lib-top-n">${i + 1}</span>
                   <span class="lib-top-name">${esc(it.name)}</span>
-                  <span class="lib-top-km">${it.distance_km} km</span>
+                  <span class="lib-top-km">${fmtKmVal(it.distance_m || (it.distance_km || 0) * 1000)}</span>
                   <span class="lib-top-date">${fmtDate(it.started_at)}</span>
                 </button>`).join("")}
             </div>
@@ -700,7 +725,12 @@ function mountLibrary(body, headerActions) {
       [T("library.file", "Datei"), it.filename],
     ];
     box.innerHTML = `
-      <div class="lib-detail-thumb">${it.thumb_url ? `<img src="${it.thumb_url}" alt="">` : ""}</div>
+      <div class="lib-detail-thumb">${it.thumb_url
+        ? `<img src="${it.thumb_url}" alt="">`
+        // In der Kartenansicht werden die Vorschaubilder nicht mitgeladen (700
+        // data-URLs neben einer Karte wären Unsinn). Ohne Platzhalter stünde
+        // hier ein leerer heller Kasten.
+        : `<div class="lib-card-nothumb">🗺️</div>`}</div>
       <div class="lib-cover-row">
         <button class="btn btn-ghost btn-sm" id="lib-d-cover">${T("library.set_cover", "Eigenes Bild wählen")}</button>
         ${it.cover ? `<button class="btn btn-ghost btn-sm" id="lib-d-uncover">${T("library.clear_cover", "Bild entfernen")}</button>` : ""}
@@ -978,13 +1008,14 @@ function mountLibrary(body, headerActions) {
     const res = await api().library_collection_items(cid);
     const items = (res && res.items) || [];
     if (!items.length) { toast(T("library.col_empty", "Diese Sammlung ist leer."), "warn"); return; }
+    // Die weiteren Etappen werden NICHT von hier aus hinzugefügt: der Animator
+    // lädt beim Mounten seinen Projekt-State und würde sie sofort wieder
+    // überschreiben. Er holt sie sich selbst ab, sobald er fertig ist.
+    window.__rzPendingTours = items.slice(1).map(i => i.path);
     const ok = await window.loadGlobalGpx(items[0].path);
-    if (ok === false) return;
+    if (ok === false) { window.__rzPendingTours = null; return; }
     if (typeof switchMod === "function") switchMod("animator");
-    if (items.length > 1 && typeof window._animAddTourByPath === "function") {
-      for (const it of items.slice(1)) {
-        try { await window._animAddTourByPath(it.path); } catch (_) {}
-      }
+    if (items.length > 1) {
       toast(`${items.length} ${T("library.col_loaded", "Touren geladen.")}`, "info");
     }
   }

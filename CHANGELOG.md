@@ -14,6 +14,40 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.492] – 2026-07-31
+### Behoben
+- **Die Detailspalte drückte ihre Inhalte zusammen** — die Umschaltung
+  „Gemacht · Geplant · Automatisch" war auf einen Strich geschrumpft, das
+  Notizfeld auf eine Zeile. Ursache: eine Flex-Spalte, deren Inhalt länger ist
+  als das Fenster, staucht alle Kinder mit eigener Höhe.
+- **Die Zahlen in der Seitenleiste zeigten die aktuelle Auswahl statt der
+  Bestände** — im Bereich „Gemachte" stand neben „Geplante" eine 0. Sie kommen
+  jetzt aus einer Abfrage ohne Bereichs-Filter und berücksichtigen nur, was
+  oben in der Leiste eingegrenzt wurde (Suche, Jahr, Fortbewegung).
+- **Die Kopfzeile ignorierte die Suche** — bei zwei Treffern standen dort die
+  16.314 km des ganzen Archivs. Die Freitextsuche läuft jetzt im selben
+  SQL-Filter wie alles andere (akzent-unempfindlich über eine eigene
+  SQLite-Funktion), Liste und Zahlen meinen damit zwingend dasselbe.
+- **Zwei gleichzeitige Archiv-Abfragen konnten sich gegenseitig zerlegen** —
+  die Datenbankverbindung ist nicht nebenläufig benutzbar; eine Monats-Abfrage
+  bekam mitten im Lauf leere Werte. Alle Archiv-Zugriffe laufen jetzt
+  serialisiert.
+- **„Alle im Animator" übergab nur die erste Etappe.** Der Animator lädt beim
+  Öffnen seinen Projekt-Stand und überschrieb die eben übergebenen Touren
+  sofort wieder. Jetzt holt er sie sich selbst ab, wenn er fertig ist — und die
+  Liste „Mehrere Touren" blendet sich ein, sobald wirklich weitere Touren
+  geladen sind (sonst bleibt sie wie gehabt versteckt). Eine Tour, die während
+  des Kartenaufbaus dazukam, blieb außerdem unsichtbar; das Zeichnen wird jetzt
+  nachgeholt, sobald die Karte steht.
+- Wer den Bereich wechselt, sieht rechts nicht mehr die Tour von vorhin, die in
+  der neuen Liste gar nicht vorkommt.
+- In der Kartenansicht steht im Vorschaufeld der Detailspalte ein Platzhalter
+  statt eines leeren Kastens (dort werden die Bilder bewusst nicht geladen).
+- Kleinigkeiten: „Nur Favoriten" heißt in der Seitenleiste „Favoriten"; die
+  fünf längsten Touren stehen mit einer Nachkommastelle statt zweien; der
+  Balken „gemacht gegen geplant" erscheint nur, wenn die Auswahl beides
+  enthält.
+
 ## [0.9.491] – 2026-07-31
 ### Hinzugefügt
 - **Seitenleiste im Archiv — gemachte und geplante Touren liegen nicht mehr durcheinander.**

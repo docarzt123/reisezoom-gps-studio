@@ -5727,6 +5727,22 @@ function mountAnimator(body, headerActions, opts) {
           }, 1000);
         }
       } catch (_) {}
+
+      // v0.9.492 — Etappen aus dem Archiv („Alle im Animator"). Das Archiv legt
+      // die Pfade hier ab, statt sie selbst hinzuzufügen: direkt nach
+      // `switchMod` ist der Animator zwar gemountet, aber sein Projekt-State
+      // wird noch geladen — der Restore überschrieb `_extraTours` gleich wieder,
+      // und alle Etappen außer der ersten waren still verloren.
+      const pending = window.__rzPendingTours;
+      if (Array.isArray(pending) && pending.length) {
+        window.__rzPendingTours = null;
+        setTimeout(async () => {
+          for (const p of pending) {
+            try { await _animAddTourPath(p); } catch (e) { console.warn("pending tour:", e); }
+          }
+          applog("info", `[Animator] ${pending.length} Etappe(n) aus dem Archiv übernommen`);
+        }, 1200);
+      }
     });
     // Overlay-Vorschau einmal initial — auch ohne GPX zeigen wir Platzhalter-
     // Boxen, damit der User sieht WO die Stats-Boxen landen werden.
@@ -9889,6 +9905,22 @@ function mountAnimator(body, headerActions, opts) {
     const host = document.getElementById("anim-tours-list");
     const flyField = document.getElementById("anim-fly-field");
     if (!host) return;
+    // v0.9.492 — Die Sektion ist seit v0.9.464 ausgeblendet (Kinoflug in der
+    // Vorschau noch nicht sauber). Sobald aber tatsächlich weitere Touren
+    // geladen sind — etwa über „Alle im Animator" aus dem Archiv —, MUSS die
+    // Liste sichtbar sein: sonst sieht man eine Tour und weiß nicht, wo die
+    // anderen geblieben sind. Ohne weitere Touren bleibt sie versteckt.
+    const toursSec = document.querySelector('[data-accordion-section="tours"]');
+    if (toursSec) {
+      const show = _extraTours.length > 0;
+      toursSec.hidden = !show;
+      if (show) {
+        const body = toursSec.querySelector(".section-collapse-body");
+        if (body) body.hidden = false;
+        const arrow = toursSec.querySelector(".collapse-arrow");
+        if (arrow) arrow.textContent = "▾";
+      }
+    }
     host.innerHTML = "";
     _extraTours.forEach((tr, i) => {
       const row = document.createElement("div");
@@ -9937,7 +9969,15 @@ function mountAnimator(body, headerActions, opts) {
 
   // Zeichnet pro Extra-Tour eine farbige Linie auf die Vorschau-Karte (WYSIWYG).
   function _animDrawExtraToursPreview() {
-    if (!map || (map.isStyleLoaded && !map.isStyleLoaded())) return;
+    if (!map) return;
+    // v0.9.492 — Früher hieß es hier nur „Style noch nicht fertig → raus".
+    // Damit blieb eine Tour, die während des Kartenaufbaus dazukam (Archiv:
+    // „Alle im Animator"), dauerhaft unsichtbar, obwohl sie in der Liste stand.
+    // Jetzt wird der Versuch nachgeholt, sobald die Karte still ist.
+    if (map.isStyleLoaded && !map.isStyleLoaded()) {
+      try { map.once("idle", () => { _animDrawExtraToursPreview(); _animFitAllTours(); }); } catch (_) {}
+      return;
+    }
     _animClearExtraPreview();
     const lw = parseFloat(document.getElementById("anim-lw")?.value || "3.5");
     _extraTours.forEach((tr, i) => {

@@ -1638,5 +1638,7 @@
   "library.trash_note": "The tour disappears from the archive. You can restore it from the trash as long as it has not been emptied.",
   "library.trash_do": "Move to trash",
   "library.trash_done": "Moved to the trash.",
-  "library.cancel": "Cancel"
+  "library.cancel": "Cancel",
+  "library.scope_fav": "Favourites",
+  "library.col_animator_fail": "The animator was not ready — please try again."
 }
