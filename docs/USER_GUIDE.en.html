@@ -251,6 +251,7 @@
     <aside class="toc" id="toc"><div class="toc-head">Contents</div><nav><ul><li><a href="#1-installation" data-anchor="1-installation">1 · Installation</a></li>
 <li><a href="#2-getting-started" data-anchor="2-getting-started">2 · Getting Started</a></li>
 <li><a href="#2b-opening-track-files-many-formats" data-anchor="2b-opening-track-files-many-formats">2b · Opening track files — many formats ⭐</a></li>
+<li><a href="#2c-module-library-every-tour-in-one-place" data-anchor="2c-module-library-every-tour-in-one-place">2c · Module: Library 📚 — every tour in one place ⭐</a></li>
 <li><a href="#3-module-animator-render-a-gpx-as-a-video" data-anchor="3-module-animator-render-a-gpx-as-a-video">3 · Module: Animator — render a GPX as a video</a></li>
 <li><a href="#4-module-travel-route-the-journey-there-as-a-video" data-anchor="4-module-travel-route-the-journey-there-as-a-video">4 · Module: Travel Route — the journey there as a video 🛣️</a></li>
 <li><a href="#5-module-tour-map-static-map-png" data-anchor="5-module-tour-map-static-map-png">5 · Module: Tour-Map — static map PNG</a></li>
@@ -393,6 +394,35 @@ python app.py</code></pre>
 <p><strong>Export as GPX:</strong> Via the menu <strong>Reisezoom → &quot;Export as GPX…&quot;</strong> you save the currently loaded track as a real <code>.gpx</code> file — even if it came from another format. Handy when, for example, you need a clean GPX out of a camera <code>.log</code>.</p>
 <p><strong>Export as CSV:</strong> Via <strong>Reisezoom → &quot;Export as CSV…&quot;</strong> you get the same track as a table (<code>index,lat,lon,ele,time</code>, time as ISO-UTC). Ideal for spreadsheets, your own analyses, or importing into other tools.</p>
 <blockquote>Note: A <code>.json</code> is only recognized if it looks like a GeoJSON track; a <code>.txt</code> only if it contains real NMEA sentences (<code>$GP…</code>).</blockquote>
+<hr>
+<h2 id="2c-module-library-every-tour-in-one-place">2c · Module: Library 📚 — every tour in one place ⭐</h2>
+<p>Collect tours for a few years and you end up with hundreds of GPX files scattered across folders — and you can never find the right one again. That is what the <strong>Library</strong> is for: it reads your track folders and shows every tour with a picture, a date and the numbers.</p>
+<p><strong>Set up (once):</strong> open the <strong>📚 Library</strong> tab → <strong>“+ Add folder”</strong> on the left → pick the folder your tracks live in. The app reads it straight away; <strong>700 files take a good 20 seconds.</strong> Sub-folders are included. You can watch as many folders as you like.</p>
+<p><strong>Finding a tour again:</strong></p>
+<ul>
+<li><strong>Search box</strong> — searches name, file name, tags and notes. Accents don’t matter</li>
+</ul>
+<p> (“muritz” finds “Müritz”).</p>
+<ul>
+<li><strong>Year</strong>, <strong>Activity</strong> (hiking, cycling, running …), <strong>Sort by</strong> (newest, longest, most</li>
+</ul>
+<p> ascent …).</p>
+<ul>
+<li><strong>Favourites only</strong> and <strong>Recorded only</strong> — the latter hides tours you planned but never</li>
+</ul>
+<p> actually did.</p>
+<p><strong>Carrying on:</strong> click a tour, then <strong>“Open in Animator”</strong> on the right (or tour map, data animator, geotagger, inspector). <strong>Double-clicking</strong> a card sends it straight to the Animator. This is exactly the same as opening the file via “Choose track” — just with a picture and a search in front of it. The <strong>📚 button</strong> in the track bar takes you to the library from any module.</p>
+<p><strong>Keeping order:</strong> in the right-hand column you set a <strong>favourite ★</strong>, <strong>tags</strong> (e.g. <code>Mallorca, test ride</code>) and a <strong>note</strong>. All of it survives a rescan.</p>
+<p><strong>What the cards tell you:</strong></p>
+<table><thead><tr><th>Mark</th><th>Meaning</th></tr></thead><tbody><tr><td>★</td><td>favourite</td></tr><tr><td>“planned”</td><td>the tour was only planned, never recorded</td></tr><tr><td>● (orange)</td><td>there are already saved projects for this tour</td></tr></tbody></table>
+<p><strong>Find duplicates:</strong> the button in the top right groups files with an <strong>identical route</strong> handy after a bulk export that downloaded the same tour several times. Nothing is deleted; you only get to see what is doubled up.</p>
+<p><strong>New files:</strong> press <strong>“Rescan”</strong> once after a bigger export. Files already known are skipped, so it takes seconds.</p>
+<blockquote><strong>Your files stay where they are.</strong> The library never moves, copies or deletes anything</blockquote>
+<blockquote>it only remembers what sits where. <strong>“Remove from library”</strong> takes a tour out of the</blockquote>
+<blockquote>overview and leaves the file untouched.</blockquote>
+<blockquote></blockquote>
+<blockquote>The preview pictures are plain line drawings without a map. That is deliberate: they</blockquote>
+<blockquote>appear instantly, work without internet and cost no map quota.</blockquote>
 <hr>
 <h2 id="3-module-animator-render-a-gpx-as-a-video">3 · Module: Animator — render a GPX as a video</h2>
 <h3 id="what-it-does">What it does</h3>

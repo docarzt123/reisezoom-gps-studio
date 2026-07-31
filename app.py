@@ -87,6 +87,7 @@ from core import logger as clog
 from core import photos as cphotos  # v0.9.74: Foto-Pins für Animator + Tour-Map
 from core import route as croute  # v0.9.205: Anreise/Flug-Route (Directions/Arc)
 from core import heightanim as cheight  # v0.9.92: Höhen-Animator-Modul (Phase 1, Skelett)
+from core import library as clib  # v0.9.486: Tour-Archiv (durchsuchbarer Track-Katalog)
 from core import tourmap_html as ctourhtml  # v0.9.406: Tour-Map → interaktiver Leaflet-HTML-Export
 from core import tourmap_leaflet as ctmleaflet  # v0.9.418: leichter Leaflet-Blog-Export (HTML-Modus)
 from core import sign_raster as csignraster  # v0.9.418: serverseitige Schild-Rasterung (WYSIWYG)
@@ -133,7 +134,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.485"
+APP_VERSION = "0.9.486"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -223,6 +224,9 @@ SESSIONS_FILE = APP_SUPPORT / "sessions.json"
 SESSIONS_GPX_DIR = APP_SUPPORT / "sessions"
 # v0.9.282: gecachte GPX-Konvertate fremder Track-Formate (FIT/NMEA/KML/…)
 IMPORTS_DIR = APP_SUPPORT / "_imports"
+# v0.9.486: Tour-Archiv — Index aller Touren aus den beobachteten Ordnern
+LIBRARY_DB = APP_SUPPORT / "library.db"
+LIBRARY_THUMBS = APP_SUPPORT / "library_thumbs"
 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
 BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
 DROPS_DIR.mkdir(parents=True, exist_ok=True)
@@ -1462,6 +1466,174 @@ class Api:
         if not res:
             return []
         return list(res) if isinstance(res, (list, tuple)) else [res]
+
+    # ── Tour-Archiv (v0.9.486) ───────────────────────────────────────────────
+    #
+    # Der Index liegt in einer SQLite-Datei; die Verbindung wird beim ersten
+    # Zugriff geöffnet und offen gehalten (`check_same_thread=False`, weil das
+    # Einlesen in einem eigenen Thread läuft). Geschrieben wird immer nur aus
+    # einem Thread gleichzeitig — dafür sorgt `_lib_scan_running`.
+
+    def _lib(self):
+        if getattr(self, "_lib_conn", None) is None:
+            self._lib_conn = clib.open_db(LIBRARY_DB)
+        return self._lib_conn
+
+    def library_folders(self) -> dict:
+        try:
+            return {"ok": True, "folders": clib.get_folders(self._lib())}
+        except Exception as e:
+            log.exception("library_folders")
+            return {"ok": False, "error": str(e), "folders": []}
+
+    def library_add_folder(self, path: str = "") -> dict:
+        """Ordner beobachten. Ohne `path` öffnet sich der Ordner-Dialog."""
+        try:
+            if not path:
+                picked = self.pick_file("folder")
+                if not picked:
+                    return {"ok": False, "cancelled": True}
+                path = picked[0]
+            if not clib.add_folder(self._lib(), path):
+                return {"ok": False, "error": "Kein Ordner"}
+            return {"ok": True, "path": str(Path(path).expanduser().resolve()),
+                    "folders": clib.get_folders(self._lib())}
+        except Exception as e:
+            log.exception("library_add_folder")
+            return {"ok": False, "error": str(e)}
+
+    def library_remove_folder(self, path: str, drop_tracks: bool = True) -> dict:
+        try:
+            clib.remove_folder(self._lib(), path, drop_tracks)
+            return {"ok": True, "folders": clib.get_folders(self._lib())}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_scan_start(self, force: bool = False) -> dict:
+        """Startet das Einlesen im Hintergrund. Fortschritt via
+        `library_scan_status()` — dasselbe Muster wie beim Render."""
+        if getattr(self, "_lib_scan_running", False):
+            return {"ok": False, "error": "läuft bereits"}
+        self._lib_scan_running = True
+        self._lib_scan_stop = False
+        self._lib_scan_state = {"done": 0, "total": 0, "current": "", "running": True}
+
+        def worker():
+            try:
+                res = clib.scan(
+                    self._lib(), LIBRARY_THUMBS, IMPORTS_DIR, force=force,
+                    progress=lambda p: self._lib_scan_state.update(p),
+                    should_stop=lambda: self._lib_scan_stop,
+                )
+                self._lib_scan_state.update(res)
+                self._lib_scan_state["result"] = res
+            except Exception as e:
+                log.exception("library_scan")
+                self._lib_scan_state["error"] = str(e)
+            finally:
+                self._lib_scan_state["running"] = False
+                self._lib_scan_running = False
+
+        threading.Thread(target=worker, daemon=True, name="library-scan").start()
+        return {"ok": True}
+
+    def library_scan_status(self) -> dict:
+        return dict(getattr(self, "_lib_scan_state", {"running": False}))
+
+    def library_scan_stop(self) -> dict:
+        self._lib_scan_stop = True
+        return {"ok": True}
+
+    def library_query(self, params: dict = None) -> dict:
+        """Gefilterte Trefferliste. `with_thumbs` hängt die Vorschaubilder als
+        data-URL an — nur für die angezeigte Seite, sonst wird die Antwort groß."""
+        p = dict(params or {})
+        with_thumbs = p.pop("with_thumbs", True)
+        try:
+            res = clib.query(self._lib(), **p)
+            if with_thumbs:
+                for it in res["items"]:
+                    it["thumb_url"] = self._lib_thumb_url(it.get("thumb"))
+            # Welche Touren haben schon gespeicherte Projekte? Das ist der
+            # Brückenschlag zum Session-System (gleicher Hash).
+            try:
+                data = _sessions.load_sessions(SESSIONS_FILE)
+                known = set((data.get("sessions") or {}).keys())
+                for it in res["items"]:
+                    it["has_session"] = it.get("track_hash") in known
+            except Exception:
+                pass
+            res["ok"] = True
+            return res
+        except Exception as e:
+            log.exception("library_query")
+            return {"ok": False, "error": str(e), "items": [], "total": 0}
+
+    @staticmethod
+    def _lib_thumb_url(thumb_path: str) -> str:
+        if not thumb_path:
+            return ""
+        try:
+            data = Path(thumb_path).read_bytes()
+            return "data:image/png;base64," + base64.b64encode(data).decode("ascii")
+        except OSError:
+            return ""
+
+    def library_stats(self) -> dict:
+        try:
+            s = clib.stats(self._lib())
+            s["ok"] = True
+            return s
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_set_fields(self, path: str, fav=None, tags=None, note=None) -> dict:
+        try:
+            clib.set_user_fields(self._lib(), path, fav=fav, tags=tags, note=note)
+            return {"ok": True, "track": clib.get_track(self._lib(), path)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_errors(self) -> dict:
+        """Dateien, die beim Einlesen nicht gelesen werden konnten. Sie stehen
+        bewusst nicht in der normalen Liste (leere Kacheln), verschwinden aber
+        auch nicht stillschweigend."""
+        try:
+            return {"ok": True, "items": clib.errors(self._lib())}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "items": []}
+
+    def library_duplicates(self) -> dict:
+        try:
+            return {"ok": True, "groups": clib.duplicates(self._lib())}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "groups": []}
+
+    def library_forget(self, path: str) -> dict:
+        """Nimmt eine Tour aus dem Archiv. Die Datei selbst bleibt liegen —
+        Löschen von Nutzerdaten macht die App grundsätzlich nicht."""
+        try:
+            clib.forget(self._lib(), path)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_reveal(self, path: str) -> dict:
+        """Zeigt die Datei im Finder/Explorer."""
+        try:
+            import subprocess
+            p = Path(path)
+            if not p.exists():
+                return {"ok": False, "error": "Datei nicht gefunden"}
+            if sys.platform == "darwin":
+                subprocess.run(["open", "-R", str(p)], check=False)
+            elif sys.platform.startswith("win"):
+                subprocess.run(["explorer", "/select,", str(p)], check=False)
+            else:
+                subprocess.run(["xdg-open", str(p.parent)], check=False)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     # ── Schilder mit Bild (v0.9.189) ─────────────────────────────────────────
 

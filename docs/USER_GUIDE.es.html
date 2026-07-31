@@ -251,6 +251,7 @@
     <aside class="toc" id="toc"><div class="toc-head">Contenido</div><nav><ul><li><a href="#1-instalaci-n" data-anchor="1-instalaci-n">1 · Instalación</a></li>
 <li><a href="#2-primeros-pasos" data-anchor="2-primeros-pasos">2 · Primeros pasos</a></li>
 <li><a href="#2b-abrir-archivos-de-track-muchos-formatos" data-anchor="2b-abrir-archivos-de-track-muchos-formatos">2b · Abrir archivos de track — muchos formatos ⭐</a></li>
+<li><a href="#2c-m-dulo-archivo-todas-las-rutas-en-un-solo-sitio" data-anchor="2c-m-dulo-archivo-todas-las-rutas-en-un-solo-sitio">2c · Módulo: Archivo 📚 — todas las rutas en un solo sitio ⭐</a></li>
 <li><a href="#3-m-dulo-animator-renderizar-el-gpx-como-v-deo" data-anchor="3-m-dulo-animator-renderizar-el-gpx-como-v-deo">3 · Módulo: Animator — renderizar el GPX como vídeo</a></li>
 <li><a href="#4-m-dulo-ruta-de-viaje-la-llegada-como-v-deo" data-anchor="4-m-dulo-ruta-de-viaje-la-llegada-como-v-deo">4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️</a></li>
 <li><a href="#5-m-dulo-tour-map-png-de-mapa-est-tico" data-anchor="5-m-dulo-tour-map-png-de-mapa-est-tico">5 · Módulo: Tour-Map — PNG de mapa estático</a></li>
@@ -393,6 +394,35 @@ python app.py</code></pre>
 <p><strong>Exportar como GPX:</strong> a través del menú <strong>Reisezoom → «Exportar como GPX…»</strong> guardas el track cargado actualmente como un archivo <code>.gpx</code> real — aunque provenga de otro formato. Práctico cuando, p. ej., necesitas un GPX limpio a partir de un <code>.log</code> de cámara.</p>
 <p><strong>Exportar como CSV:</strong> a través de <strong>Reisezoom → «Exportar como CSV…»</strong> obtienes el mismo track como tabla (<code>index,lat,lon,ele,time</code>, tiempo en ISO-UTC). Ideal para hojas de cálculo, análisis propios o la importación en otras herramientas.</p>
 <blockquote>Nota: un <code>.json</code> solo se reconoce si tiene aspecto de track GeoJSON; un <code>.txt</code> solo si contiene sentencias NMEA reales (<code>$GP…</code>).</blockquote>
+<hr>
+<h2 id="2c-m-dulo-archivo-todas-las-rutas-en-un-solo-sitio">2c · Módulo: Archivo 📚 — todas las rutas en un solo sitio ⭐</h2>
+<p>Quien acumula rutas durante años acaba con cientos de archivos GPX repartidos por carpetas —y ya no encuentra el que busca—. Para eso está el <strong>Archivo</strong>: lee tus carpetas de tracks y te muestra todas las rutas con imagen, fecha y cifras.</p>
+<p><strong>Configuración (una sola vez):</strong> abre la pestaña <strong>📚 Archivo</strong> → <strong>«+ Añadir carpeta»</strong> a la izquierda → elige la carpeta donde están tus tracks. La app la lee de inmediato; <strong>700 archivos tardan unos 20 segundos.</strong> Las subcarpetas se incluyen. Puedes vigilar tantas carpetas como quieras.</p>
+<p><strong>Volver a encontrar una ruta:</strong></p>
+<ul>
+<li><strong>Campo de búsqueda</strong> — busca en el nombre, el archivo, las etiquetas y las notas. Los</li>
+</ul>
+<p> acentos dan igual («muritz» encuentra «Müritz»).</p>
+<ul>
+<li><strong>Año</strong>, <strong>Actividad</strong> (senderismo, ciclismo, correr …), <strong>Orden</strong> (más recientes, más</li>
+</ul>
+<p> largas, mayor desnivel …).</p>
+<ul>
+<li><strong>Solo favoritas</strong> y <strong>Solo grabadas</strong> — esto último oculta las rutas que planificaste</li>
+</ul>
+<p> pero nunca hiciste.</p>
+<p><strong>Seguir trabajando:</strong> haz clic en una ruta y luego, a la derecha, en <strong>«Abrir en el animador»</strong> (o mapa de ruta, animador de datos, geolocalizador, inspector). Un <strong>doble clic</strong> en la tarjeta la envía directamente al animador. Es exactamente lo mismo que abrir el archivo con «Elegir track», solo que con imagen y búsqueda por delante. El <strong>botón 📚</strong> de la barra de track te lleva al archivo desde cualquier módulo.</p>
+<p><strong>Ordenar:</strong> en la columna derecha asignas <strong>favorita ★</strong>, <strong>etiquetas</strong> (p. ej. <code>Mallorca, prueba</code>) y una <strong>nota</strong>. Todo ello sobrevive a cualquier relectura.</p>
+<p><strong>Qué indican las tarjetas:</strong></p>
+<table><thead><tr><th>Señal</th><th>Significado</th></tr></thead><tbody><tr><td>★</td><td>favorita</td></tr><tr><td>«planificada»</td><td>la ruta solo se planificó, no se grabó</td></tr><tr><td>● (naranja)</td><td>ya hay proyectos guardados para esta ruta</td></tr></tbody></table>
+<p><strong>Buscar duplicadas:</strong> el botón de arriba a la derecha agrupa los archivos con un <strong>recorrido idéntico</strong>, útil tras una exportación masiva que descargó la misma ruta varias veces. No se borra nada: solo ves qué está duplicado.</p>
+<p><strong>Archivos nuevos:</strong> pulsa <strong>«Volver a leer»</strong> después de cada exportación grande. Los archivos ya conocidos se omiten, así que tarda segundos.</p>
+<blockquote><strong>Tus archivos se quedan donde están.</strong> El archivo no mueve, copia ni borra nada: solo</blockquote>
+<blockquote>recuerda qué hay dónde. <strong>«Quitar del archivo»</strong> saca una ruta de la vista general y deja</blockquote>
+<blockquote>el archivo intacto.</blockquote>
+<blockquote></blockquote>
+<blockquote>Las imágenes de vista previa son simples dibujos de línea sin mapa. Es intencionado: así</blockquote>
+<blockquote>aparecen al instante, funcionan sin internet y no consumen cuota de mapas.</blockquote>
 <hr>
 <h2 id="3-m-dulo-animator-renderizar-el-gpx-como-v-deo">3 · Módulo: Animator — renderizar el GPX como vídeo</h2>
 <h3 id="qu-hace">Qué hace</h3>

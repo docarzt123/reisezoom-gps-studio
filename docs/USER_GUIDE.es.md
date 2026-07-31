@@ -177,6 +177,59 @@ Las altitudes y las marcas de tiempo se conservan — siempre que estén present
 
 ---
 
+## 2c · Módulo: Archivo 📚 — todas las rutas en un solo sitio (desde v0.9.486) ⭐
+
+Quien acumula rutas durante años acaba con cientos de archivos GPX repartidos por carpetas
+—y ya no encuentra el que busca—. Para eso está el **Archivo**: lee tus carpetas de tracks
+y te muestra todas las rutas con imagen, fecha y cifras.
+
+**Configuración (una sola vez):** abre la pestaña **📚 Archivo** → **«+ Añadir carpeta»** a
+la izquierda → elige la carpeta donde están tus tracks. La app la lee de inmediato; **700
+archivos tardan unos 20 segundos.** Las subcarpetas se incluyen. Puedes vigilar tantas
+carpetas como quieras.
+
+**Volver a encontrar una ruta:**
+
+- **Campo de búsqueda** — busca en el nombre, el archivo, las etiquetas y las notas. Los
+  acentos dan igual («muritz» encuentra «Müritz»).
+- **Año**, **Actividad** (senderismo, ciclismo, correr …), **Orden** (más recientes, más
+  largas, mayor desnivel …).
+- **Solo favoritas** y **Solo grabadas** — esto último oculta las rutas que planificaste
+  pero nunca hiciste.
+
+**Seguir trabajando:** haz clic en una ruta y luego, a la derecha, en **«Abrir en el
+animador»** (o mapa de ruta, animador de datos, geolocalizador, inspector). Un **doble
+clic** en la tarjeta la envía directamente al animador. Es exactamente lo mismo que abrir
+el archivo con «Elegir track», solo que con imagen y búsqueda por delante. El **botón 📚**
+de la barra de track te lleva al archivo desde cualquier módulo.
+
+**Ordenar:** en la columna derecha asignas **favorita ★**, **etiquetas** (p. ej.
+`Mallorca, prueba`) y una **nota**. Todo ello sobrevive a cualquier relectura.
+
+**Qué indican las tarjetas:**
+
+| Señal | Significado |
+|---|---|
+| ★ | favorita |
+| «planificada» | la ruta solo se planificó, no se grabó |
+| ● (naranja) | ya hay proyectos guardados para esta ruta |
+
+**Buscar duplicadas:** el botón de arriba a la derecha agrupa los archivos con un
+**recorrido idéntico**, útil tras una exportación masiva que descargó la misma ruta varias
+veces. No se borra nada: solo ves qué está duplicado.
+
+**Archivos nuevos:** pulsa **«Volver a leer»** después de cada exportación grande. Los
+archivos ya conocidos se omiten, así que tarda segundos.
+
+> **Tus archivos se quedan donde están.** El archivo no mueve, copia ni borra nada: solo
+> recuerda qué hay dónde. **«Quitar del archivo»** saca una ruta de la vista general y deja
+> el archivo intacto.
+>
+> Las imágenes de vista previa son simples dibujos de línea sin mapa. Es intencionado: así
+> aparecen al instante, funcionan sin internet y no consumen cuota de mapas.
+
+---
+
 ## 3 · Módulo: Animator — renderizar el GPX como vídeo
 
 ### Qué hace

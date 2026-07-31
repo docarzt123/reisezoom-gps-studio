@@ -177,6 +177,58 @@ Elevations and timestamps are carried over — as far as the format contains the
 
 ---
 
+## 2c · Module: Library 📚 — every tour in one place (since v0.9.486) ⭐
+
+Collect tours for a few years and you end up with hundreds of GPX files scattered across
+folders — and you can never find the right one again. That is what the **Library** is for:
+it reads your track folders and shows every tour with a picture, a date and the numbers.
+
+**Set up (once):** open the **📚 Library** tab → **“+ Add folder”** on the left → pick the
+folder your tracks live in. The app reads it straight away; **700 files take a good 20
+seconds.** Sub-folders are included. You can watch as many folders as you like.
+
+**Finding a tour again:**
+
+- **Search box** — searches name, file name, tags and notes. Accents don’t matter
+  (“muritz” finds “Müritz”).
+- **Year**, **Activity** (hiking, cycling, running …), **Sort by** (newest, longest, most
+  ascent …).
+- **Favourites only** and **Recorded only** — the latter hides tours you planned but never
+  actually did.
+
+**Carrying on:** click a tour, then **“Open in Animator”** on the right (or tour map, data
+animator, geotagger, inspector). **Double-clicking** a card sends it straight to the
+Animator. This is exactly the same as opening the file via “Choose track” — just with a
+picture and a search in front of it. The **📚 button** in the track bar takes you to the
+library from any module.
+
+**Keeping order:** in the right-hand column you set a **favourite ★**, **tags** (e.g.
+`Mallorca, test ride`) and a **note**. All of it survives a rescan.
+
+**What the cards tell you:**
+
+| Mark | Meaning |
+|---|---|
+| ★ | favourite |
+| “planned” | the tour was only planned, never recorded |
+| ● (orange) | there are already saved projects for this tour |
+
+**Find duplicates:** the button in the top right groups files with an **identical route** —
+handy after a bulk export that downloaded the same tour several times. Nothing is deleted;
+you only get to see what is doubled up.
+
+**New files:** press **“Rescan”** once after a bigger export. Files already known are
+skipped, so it takes seconds.
+
+> **Your files stay where they are.** The library never moves, copies or deletes anything —
+> it only remembers what sits where. **“Remove from library”** takes a tour out of the
+> overview and leaves the file untouched.
+>
+> The preview pictures are plain line drawings without a map. That is deliberate: they
+> appear instantly, work without internet and cost no map quota.
+
+---
+
 ## 3 · Module: Animator — render a GPX as a video
 
 ### What it does

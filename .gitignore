@@ -67,6 +67,11 @@ client_secret*.json
 sessions.json
 sessions/
 
+# v0.9.486 — Tour-Archiv: Index + Vorschaubilder (Dev-Modus schreibt neben app.py)
+library.db
+library.db-journal
+library_thumbs/
+
 
 # v0.9.61 — exiftool-Binary (~54 MB, via scripts/setup_vendor_exiftool.sh laden)
 vendor/exiftool/
