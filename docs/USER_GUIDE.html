@@ -249,6 +249,7 @@
   </div>
   <div class="doc-shell">
     <aside class="toc" id="toc"><div class="toc-head">Inhalt</div><nav><ul><li><a href="#1-installation" data-anchor="1-installation">1 · Installation</a></li>
+<li><a href="#1b-anf-ngerleitfaden-vom-download-zum-ersten-video" data-anchor="1b-anf-ngerleitfaden-vom-download-zum-ersten-video">1b · Anfängerleitfaden: vom Download zum ersten Video 🚀</a></li>
 <li><a href="#2-erste-schritte" data-anchor="2-erste-schritte">2 · Erste Schritte</a></li>
 <li><a href="#2b-track-dateien-ffnen-viele-formate" data-anchor="2b-track-dateien-ffnen-viele-formate">2b · Track-Dateien öffnen — viele Formate ⭐</a></li>
 <li><a href="#2c-modul-archiv-alle-touren-an-einem-ort" data-anchor="2c-modul-archiv-alle-touren-an-einem-ort">2c · Modul: Archiv 📚 — alle Touren an einem Ort ⭐</a></li>
@@ -327,6 +328,120 @@ python app.py</code></pre>
 <p>Beim ersten Render lädt die App einmalig Chromium nach (~150 MB).</p>
 <p>Ohne ExifTool funktionieren JPEG-, TIFF- und HEIC-Fotos trotzdem (via piexif + pillow-heif, beides eingebaut). Nur RAW-Dateien (CR3, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW) und Video-Metadaten brauchen exiftool, und GPS-Schreiben in HEIC ebenfalls.</p>
 <hr>
+<hr>
+<h2 id="1b-anf-ngerleitfaden-vom-download-zum-ersten-video">1b · Anfängerleitfaden: vom Download zum ersten Video 🚀</h2>
+<p>Dieses Kapitel ist für den allerersten Tag gedacht. Es geht einmal geradeaus durch installieren, Track laden, erstes Bild, erstes Video. Alles andere in diesem Handbuch ist Nachschlagewerk; hier steht nur, was Sie wirklich brauchen.</p>
+<p>Entstanden ist der Leitfaden aus echten Fragen von Einsteigern. Wenn Sie an einer Stelle hängen, merken Sie sich die <strong>Schrittnummer</strong> — damit lässt sich am schnellsten helfen.</p>
+<h3 id="schritt-1-programm-installieren-und-ffnen">Schritt 1 — Programm installieren und öffnen</h3>
+<p>Der Download liegt unter <a href="https://reisezoom.com/downloads/gps-studio/latest/" target="_blank" rel="noopener">reisezoom.com/downloads/gps-studio/latest</a>, die ausführliche Anleitung steht in Kapitel 1.</p>
+<ul>
+<li><strong>macOS:</strong> DMG öffnen, App in den Programme-Ordner ziehen, doppelklicken. Beim ersten Start</li>
+</ul>
+<p> fragt macOS einmal „Möchtest du sie wirklich öffnen?&quot; → <strong>Öffnen</strong>. Das kommt bei jeder aus  dem Netz geladenen App und nur beim ersten Mal.</p>
+<ul>
+<li><strong>Windows:</strong> Setup starten, SmartScreen mit **„Weitere Informationen&quot; → „Trotzdem</li>
+</ul>
+<p> ausführen&quot;** bestätigen, durchklicken.</p>
+<p>Beim ersten Start werden Sie gefragt, ob Sie mit oder ohne Mapbox-Zugang arbeiten wollen.</p>
+<h3 id="schritt-2-die-frage-nach-dem-mapbox-token">Schritt 2 — Die Frage nach dem Mapbox-Token</h3>
+<p>Das ist die einzige Hürde am Anfang, und sie entscheidet, was Sie machen können:</p>
+<table><thead><tr><th></th><th>ohne Token</th><th>mit Token (kostenlos)</th></tr></thead><tbody><tr><td>Tracks ansehen, reparieren, verbinden</td><td>✅</td><td>✅</td></tr><tr><td>Fotos verorten</td><td>✅</td><td>✅</td></tr><tr><td>Tour-Karte als Bild</td><td>✅ (Standard-Karte)</td><td>✅ (auch Satellit &amp; 3D)</td></tr><tr><td><strong>Video mit dem Animator</strong></td><td>❌</td><td>✅</td></tr></tbody></table>
+<p><strong>Wenn Sie ein Video wollen, brauchen Sie den Token.</strong> Er ist kostenlos, dauert zwei Minuten und die Anleitung steht in Kapitel 2. Ohne ihn meldet sich der Animator später mit „Render braucht Mapbox-Token&quot; — das ist keine Fehlfunktion, sondern genau diese fehlende Angabe.</p>
+<p>Nachtragen können Sie ihn jederzeit: <strong>⚙ oben rechts</strong> (macOS auch über Menü → Einstellungen).</p>
+<h3 id="schritt-3-track-laden">Schritt 3 — Track laden</h3>
+<p>Oben sitzt die Track-Leiste. Zwei Wege:</p>
+<ol>
+<li>Auf <strong>„📁 Track-Datei auswählen …&quot;</strong> klicken und Ihre Datei wählen, <strong>oder</strong></li>
+<li>die Datei einfach in das Fenster ziehen.</li>
+</ol>
+<p>Es müssen keine GPX-Dateien sein — FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON und NMEA werden ebenso gelesen und im Hintergrund umgewandelt.</p>
+<p>Danach steht oben der Name der Tour mit Strecke, Dauer und Höhenmetern. <strong>Der geladene Track gilt für alle Module</strong> — Sie laden ihn einmal und wechseln dann frei zwischen den Werkzeugen.</p>
+<blockquote><strong>Viele Dateien statt einer?</strong> Wenn Sie eine Reise als Tagesdateien vorliegen haben, machen</blockquote>
+<blockquote>Sie zuerst Schritt 7 — daraus wird eine einzige Tour.</blockquote>
+<h3 id="schritt-4-welches-modul-ist-das-richtige">Schritt 4 — Welches Modul ist das richtige?</h3>
+<p>Oben in der Leiste stehen die Werkzeuge. Was Sie vorhaben, entscheidet:</p>
+<table><thead><tr><th>Sie wollen …</th><th>Modul</th></tr></thead><tbody><tr><td>ein <strong>Bild</strong> der Tour für Blog, Fotobuch oder Ausdruck</td><td><strong>Tour-Map</strong></td></tr><tr><td>ein <strong>Video</strong>, in dem die Strecke nachgezeichnet wird</td><td><strong>Animator</strong></td></tr><tr><td><strong>Fotos</strong> mit den Koordinaten der Tour versehen</td><td><strong>Geotagger</strong></td></tr><tr><td>einen Track <strong>reparieren</strong> oder mehrere <strong>verbinden</strong></td><td><strong>GPX-Inspektor</strong></td></tr><tr><td>einen Überblick über <strong>alle</strong> Ihre Touren</td><td><strong>Archiv</strong></td></tr><tr><td>Puls, Höhe, Tempo als <strong>Diagramm-Video</strong></td><td><strong>Daten-Animator</strong></td></tr></tbody></table>
+<p>Fangen Sie mit der <strong>Tour-Map</strong> an. Sie ist in zwei Minuten fertig, und Sie sehen sofort, ob Ihr Track vollständig ist.</p>
+<h3 id="schritt-5-erstes-ergebnis-die-tour-karte">Schritt 5 — Erstes Ergebnis: die Tour-Karte</h3>
+<ol>
+<li>Oben auf <strong>„Tour-Map&quot;</strong> klicken.</li>
+<li>Kurz warten, bis die Karte aufgebaut ist — Ihre Strecke liegt darauf.</li>
+<li>Links <strong>„🗺️ Karte&quot;</strong> → <strong>„Stil&quot;</strong>: Satellit sieht in Bergen gut aus, die Standard-Karte</li>
+</ol>
+<p> ist bei Städten besser lesbar.</p>
+<ol>
+<li>Unten links auf <strong>„🗺 Karte als PNG rendern&quot;</strong>, Speicherort und Namen wählen.</li>
+<li>Nach ein paar Sekunden liegt das PNG bereit — <strong>„Im Finder zeigen&quot;</strong> führt Sie hin.</li>
+</ol>
+<p>Sind alle Tage Ihrer Reise auf dem Bild? Dann stimmt der Track, und Sie können weiter zum Video.</p>
+<h3 id="schritt-6-das-erste-video-mit-dem-animator">Schritt 6 — Das erste Video mit dem Animator</h3>
+<p>Vier Schritte, mehr braucht es beim ersten Mal nicht.</p>
+<ol>
+<li>Oben auf <strong>„Animator&quot;</strong> klicken und warten, bis die Karte steht.</li>
+<li>Links unter <strong>„🎬 Video-Einstellungen&quot;</strong> bei <strong>„Animation (s)&quot;</strong> eintragen, wie lang das</li>
+</ol>
+<p> Video werden soll. Für eine Tagestour reichen 20 Sekunden, für eine Zwei-Wochen-Reise  nehmen Sie <strong>40 bis 60</strong> — sonst rast die Linie durchs Bild.</p>
+<ol>
+<li><strong>„Auflösung&quot;</strong> auf <strong>1920 × 1080</strong> stehen lassen. Das reicht für YouTube, Fernseher und</li>
+</ol>
+<p> Fotobuch-Video; 4K sieht kaum besser aus und dauert beim Berechnen ein Vielfaches.</p>
+<ol>
+<li>Unter der Karte auf <strong>„▶ Probe-Lauf&quot;</strong>. Das Programm fliegt die Strecke einmal ab, so wie</li>
+</ol>
+<p> es später im Video aussieht — <strong>ohne</strong> dass etwas berechnet wird. Passt das Tempo nicht,  ändern Sie die Zahl aus Schritt 2 und lassen es noch einmal laufen. Das kostet nichts.</p>
+<ol>
+<li>Erst wenn es gefällt: <strong>„▶ Video rendern&quot;</strong> (ganz unten in derselben Sektion), Speicherort</li>
+</ol>
+<p> und Namen wählen.</p>
+<ol>
+<li>Jetzt rechnet das Programm, der Fortschritt läuft mit. Das dauert <strong>einige Minuten</strong> — Sie</li>
+</ol>
+<p> können den Rechner weiter benutzen, nur die App sollte offen bleiben.</p>
+<ol>
+<li>Am Ende erscheinen <strong>„▶ Abspielen&quot;</strong> und <strong>„Im Finder zeigen&quot;</strong>.</li>
+</ol>
+<p>Alles andere — Kartenstil, Neigung, Track-Farbe, die eingeblendeten Zahlen, Schilder, Keyframes — ist Feinschliff für später. Kapitel 3 erklärt es in Ruhe.</p>
+<blockquote><strong>Faustregel:</strong> Erst Probe-Lauf, dann rendern. Der Probe-Lauf zeigt in Sekunden, was das</blockquote>
+<blockquote>Rendern in Minuten produziert.</blockquote>
+<h3 id="schritt-7-mehrere-tagesdateien-zu-einer-tour-verbinden">Schritt 7 — Mehrere Tagesdateien zu einer Tour verbinden</h3>
+<p>Der häufigste Fall bei Reisen: pro Tag eine Aufzeichnung, gewünscht ist die Gesamttour.</p>
+<ol>
+<li>Modul <strong>„GPX-Inspektor&quot;</strong> öffnen.</li>
+<li>Oben die <strong>erste</strong> Tagesdatei laden.</li>
+<li>In der linken Spalte nach unten scrollen bis <strong>„Tracks verbinden&quot;</strong>.</li>
+<li>Bei <strong>„Einfügen&quot;</strong> die Option <strong>„nach Uhrzeit&quot;</strong> wählen. Dann ist die Reihenfolge egal</li>
+</ol>
+<p> das Programm sortiert die Tage anhand der Zeitstempel selbst.</p>
+<ol>
+<li><strong>„Pause dazwischen&quot;</strong> auf 0 lassen.</li>
+<li>Auf <strong>„Weiteren Track anhängen …&quot;</strong> klicken und die zweite Tagesdatei wählen. Für jeden</li>
+</ol>
+<p> weiteren Tag wiederholen; nach jedem Anhängen wächst die Tour auf der Karte.</p>
+<ol>
+<li>Unten auf <strong>„Geheilten Track speichern …&quot;</strong> und die Gesamttour als neue Datei ablegen,</li>
+</ol>
+<p> z. B. <code>Suedschweden-2026-gesamt.gpx</code>.</p>
+<p>Diese Gesamtdatei laden Sie dann oben in der Leiste — und machen mit Schritt 4 weiter.</p>
+<blockquote><strong>Zu den Lücken zwischen den Tagen:</strong> Sie haben nachts nicht aufgezeichnet, also fehlt dort</blockquote>
+<blockquote>ein Stück. Das Programm zieht dort <strong>bewusst keine Linie</strong> und rechnet die Lücke auch nicht</blockquote>
+<blockquote>als gefahrene Strecke mit. Ihre Gesamtkilometer stimmen also, und es gibt keine falschen</blockquote>
+<blockquote>geraden Striche quer über die Karte. Im Video springt die Kamera an diesen Stellen weiter</blockquote>
+<blockquote>das wirkt wie ein Szenenwechsel und ist so gewollt.</blockquote>
+<h3 id="schritt-8-wenn-etwas-klemmt">Schritt 8 — Wenn etwas klemmt</h3>
+<ul>
+<li><strong>„Render braucht Mapbox-Token&quot;</strong> → Schritt 2, der Token fehlt.</li>
+<li><strong>Karte bleibt schwarz oder leer</strong> → einen Moment warten; beim allerersten Render lädt die</li>
+</ul>
+<p> App unter Windows einmalig Chromium nach (~150 MB).</p>
+<ul>
+<li><strong>Video ist zu schnell</strong> → „Animation (s)&quot; erhöhen, Probe-Lauf wiederholen.</li>
+<li><strong>Ein Tag fehlt in der Gesamttour</strong> → in Schritt 7 wurde eine Datei nicht angehängt; im</li>
+</ul>
+<p> Inspektor sehen Sie in der Punkteliste, wo die Tour endet.</p>
+<ul>
+<li><strong>Sonst:</strong> <strong>Hilfe → Fehler melden</strong> in der App. Dort können Sie das Protokoll mit einem</li>
+</ul>
+<p> Klick auf den Schreibtisch legen und mitschicken — das erspart viel Rätselraten.</p>
 <h2 id="2-erste-schritte">2 · Erste Schritte</h2>
 <h3 id="mapbox-token-einrichten">Mapbox-Token einrichten 🗺️</h3>
 <p>Ein Mapbox-Token ist ein <strong>kostenloser Zugangsschlüssel</strong> für Satellit-, 3D- und Premium-Karten. Der <strong>Animator</strong> (bewegte Karten-Animation) braucht ihn. <strong>Vieles geht aber auch ohne Token:</strong> 📷 Fotos verorten (Geotagger) · 🗺️ Tour-Karte als Bild/Export · 🧭 Tracks ansehen &amp; aufräumen (Inspektor) · 📈 Höhenprofil-/Daten-Videos.</p>
@@ -1087,8 +1202,8 @@ python app.py</code></pre>
 <h2 id="10-faq">10 · FAQ</h2>
 <h3 id="wie-bekomme-ich-neue-versionen">Wie bekomme ich neue Versionen?</h3>
 <p>Die App prüft beim Start im Hintergrund, ob auf GitHub eine neuere Version vorliegt. Falls ja, erscheint oben ein dezentes Banner <strong>„Neue Version vX.Y.Z ist verfügbar&quot;</strong> mit <strong>Herunterladen</strong>-Button (öffnet den passenden Mac-/Windows-Download im Browser). Mit dem <strong>✕</strong> blendest du den Hinweis für diese Version aus. Du kannst auch jederzeit manuell im <strong>Über-Dialog</strong> (Hilfe → Über) auf <strong>„Nach Updates suchen&quot;</strong> klicken. Heruntergeladene Updates installierst du wie beim Erst-Setup (DMG/Installer) — die App ersetzt sich aus Sicherheitsgründen nicht selbst.</p>
-<h3 id="kann-nicht-ge-ffnet-werden-weil-sie-von-einem-nicht-verifizierten-entwickler-stammt-macos">„Kann nicht geöffnet werden, weil sie von einem nicht verifizierten Entwickler stammt&quot; (macOS)</h3>
-<p>Die App ist nicht mit einem $99/Jahr Apple-Developer-Cert signiert. Lösung: <strong>Rechtsklick → Öffnen</strong> statt Doppelklick (siehe Installation).</p>
+<h3 id="wirklich-ffnen-beim-ersten-start-macos">„Wirklich öffnen?&quot; beim ersten Start (macOS)</h3>
+<p>Diese Rückfrage zeigt macOS bei <strong>jeder</strong> aus dem Netz geladenen App, auch bei signierten — einmal bestätigen, danach nie wieder. Die App istx <strong>von Apple signiert und notarisiert</strong>; die alte Blockade „nicht verifizierter Entwickler&quot; mit dem Rechtsklick-Trick gibt es nicht mehr. Kommt sie trotzdem, ist die Datei unvollständig geladen — dann noch einmal herunterladen.</p>
 <h3 id="der-computer-wurde-durch-windows-defender-gesch-tzt-windows">„Der Computer wurde durch Windows Defender geschützt&quot; (Windows)</h3>
 <p>Selbes Problem auf Windows. <strong>„Weitere Informationen&quot; → „Trotzdem ausführen&quot;</strong>.</p>
 <h3 id="beim-ersten-animator-render-dauert-s-lange">Beim ersten Animator-Render dauert&#x27;s lange</h3>
@@ -1143,7 +1258,7 @@ python app.py</code></pre>
 <h2 id="12-bekannte-einschr-nkungen-beta">12 · Bekannte Einschränkungen (Beta)</h2>
 <ul>
 <li><strong>macOS</strong>: nur Apple Silicon (M1/M2/M3/M4) — kein Intel-Mac</li>
-<li><strong>App ist nicht codesigniert</strong> → Erststart-Klimmzug per Rechtsklick → Öffnen</li>
+<li><strong>Windows-Build ist nicht signiert</strong> → SmartScreen meldet sich einmalig (macOS ist signiert + notarisiert)</li>
 <li><strong>Multi-Track</strong>: ein GPX pro Render — Multi-Track-Vergleich kommt später</li>
 <li><strong>Video-Overlay</strong> (live-stats über bestehendes MP4): noch nicht implementiert</li>
 <li><strong>Hochauflösendes Geocoding</strong> (Foto exakt auf Trail-Kurve): nicht implementiert; Punkte werden auf den nächstgelegenen Track-Punkt gesnapped</li>
