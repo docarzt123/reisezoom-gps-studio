@@ -249,6 +249,7 @@
   </div>
   <div class="doc-shell">
     <aside class="toc" id="toc"><div class="toc-head">Contenido</div><nav><ul><li><a href="#1-instalaci-n" data-anchor="1-instalaci-n">1 · Instalación</a></li>
+<li><a href="#1b-gu-a-para-principiantes-de-la-descarga-al-primer-v-deo" data-anchor="1b-gu-a-para-principiantes-de-la-descarga-al-primer-v-deo">1b · Guía para principiantes: de la descarga al primer vídeo 🚀</a></li>
 <li><a href="#2-primeros-pasos" data-anchor="2-primeros-pasos">2 · Primeros pasos</a></li>
 <li><a href="#2b-abrir-archivos-de-track-muchos-formatos" data-anchor="2b-abrir-archivos-de-track-muchos-formatos">2b · Abrir archivos de track — muchos formatos ⭐</a></li>
 <li><a href="#2c-m-dulo-archivo-todas-las-rutas-en-un-solo-sitio" data-anchor="2c-m-dulo-archivo-todas-las-rutas-en-un-solo-sitio">2c · Módulo: Archivo 📚 — todas las rutas en un solo sitio ⭐</a></li>
@@ -326,6 +327,119 @@ python app.py</code></pre>
 <p>En el primer render, la app descarga Chromium una sola vez (~150 MB).</p>
 <p>Sin ExifTool, las fotos JPEG, TIFF y HEIC funcionan igualmente (mediante piexif + pillow-heif, ambos integrados). Solo los archivos RAW (CR3, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW) y los metadatos de vídeo necesitan exiftool, y también la escritura de GPS en HEIC.</p>
 <hr>
+<hr>
+<h2 id="1b-gu-a-para-principiantes-de-la-descarga-al-primer-v-deo">1b · Guía para principiantes: de la descarga al primer vídeo 🚀</h2>
+<p>Este capítulo es para el primer día. Va en línea recta — instalar, cargar un track, primera imagen, primer vídeo. Todo lo demás en este manual es material de consulta; aquí está solo lo que realmente necesitas.</p>
+<p>Nació de preguntas reales de principiantes. Si te atascas, apunta el <strong>número del paso</strong> — es la forma más rápida de recibir ayuda.</p>
+<h3 id="paso-1-instalar-y-abrir">Paso 1 — Instalar y abrir</h3>
+<p>La descarga está en <a href="https://reisezoom.com/downloads/gps-studio/latest/" target="_blank" rel="noopener">reisezoom.com/downloads/gps-studio/latest</a>; las instrucciones detalladas, en el capítulo 1.</p>
+<ul>
+<li><strong>macOS:</strong> abre el DMG, arrastra la app a Aplicaciones y haz doble clic. En el primer inicio</li>
+</ul>
+<p> macOS pregunta una vez «¿Seguro que quieres abrirla?» → <strong>Abrir</strong>. Ocurre con cualquier app  descargada de internet y solo la primera vez.</p>
+<ul>
+<li><strong>Windows:</strong> ejecuta el instalador, confirma SmartScreen con **«Más información» → «Ejecutar</li>
+</ul>
+<p> de todas formas»** y sigue los pasos.</p>
+<p>En el primer inicio se te pregunta si quieres trabajar con o sin token de Mapbox.</p>
+<h3 id="paso-2-la-cuesti-n-del-token-de-mapbox">Paso 2 — La cuestión del token de Mapbox</h3>
+<p>Es el único obstáculo al principio, y decide qué puedes hacer:</p>
+<table><thead><tr><th></th><th>sin token</th><th>con token (gratis)</th></tr></thead><tbody><tr><td>Ver, reparar y unir tracks</td><td>✅</td><td>✅</td></tr><tr><td>Geolocalizar fotos</td><td>✅</td><td>✅</td></tr><tr><td>Mapa de la ruta como imagen</td><td>✅ (mapa estándar)</td><td>✅ (también satélite y 3D)</td></tr><tr><td><strong>Vídeo con el animador</strong></td><td>❌</td><td>✅</td></tr></tbody></table>
+<p><strong>Si quieres un vídeo, necesitas el token.</strong> Es gratuito, se consigue en dos minutos y el capítulo 2 lo explica. Sin él, el animador dirá más tarde «El renderizado necesita un token de Mapbox» — no es un fallo, es exactamente ese dato que falta.</p>
+<p>Puedes añadirlo cuando quieras: <strong>⚙ arriba a la derecha</strong> (en macOS también por menú → Ajustes).</p>
+<h3 id="paso-3-cargar-un-track">Paso 3 — Cargar un track</h3>
+<p>La barra de track está arriba. Dos caminos:</p>
+<ol>
+<li>Pulsa <strong>«📁 Elegir archivo de track …»</strong> y selecciona tu archivo, <strong>o</strong></li>
+<li>arrastra el archivo a la ventana.</li>
+</ol>
+<p>No tienen que ser archivos GPX — también se leen FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON y NMEA, y se convierten en segundo plano.</p>
+<p>Después aparece arriba el nombre de la ruta con distancia, duración y desnivel. <strong>El track cargado vale para todos los módulos</strong> — lo cargas una vez y cambias de herramienta libremente.</p>
+<blockquote><strong>¿Muchos archivos en vez de uno?</strong> Si tu viaje está en archivos por día, haz primero el</blockquote>
+<blockquote>paso 7 — se convertirán en una sola ruta.</blockquote>
+<h3 id="paso-4-qu-m-dulo-necesitas">Paso 4 — ¿Qué módulo necesitas?</h3>
+<p>Las herramientas están en la barra superior. Lo que quieras hacer decide:</p>
+<table><thead><tr><th>Quieres …</th><th>Módulo</th></tr></thead><tbody><tr><td>una <strong>imagen</strong> de la ruta para blog, fotolibro o imprimir</td><td><strong>Mapa de ruta</strong></td></tr><tr><td>un <strong>vídeo</strong> que dibuje el recorrido</td><td><strong>Animador</strong></td></tr><tr><td><strong>fotos</strong> con las coordenadas de la ruta</td><td><strong>Geolocalizador</strong></td></tr><tr><td><strong>reparar</strong> un track o <strong>unir</strong> varios</td><td><strong>Inspector GPX</strong></td></tr><tr><td>una visión de <strong>todas</strong> tus rutas</td><td><strong>Archivo</strong></td></tr><tr><td>pulso, altitud o velocidad como <strong>vídeo de gráficos</strong></td><td><strong>Animador de datos</strong></td></tr></tbody></table>
+<p>Empieza por el <strong>mapa de ruta</strong>. Está listo en dos minutos y ves enseguida si tu track está completo.</p>
+<h3 id="paso-5-primer-resultado-el-mapa-de-ruta">Paso 5 — Primer resultado: el mapa de ruta</h3>
+<ol>
+<li>Pulsa <strong>«Mapa de ruta»</strong> arriba.</li>
+<li>Espera un momento a que se construya el mapa — tu recorrido está encima.</li>
+<li>A la izquierda, en <strong>«🗺️ Mapa»</strong> → <strong>«Estilo»</strong>: el satélite luce en la montaña, el mapa</li>
+</ol>
+<p> estándar se lee mejor en ciudad.</p>
+<ol>
+<li>Abajo a la izquierda, <strong>«🗺 Renderizar mapa como PNG»</strong>; elige carpeta y nombre.</li>
+<li>En unos segundos el PNG está listo — <strong>«Mostrar en Finder»</strong> te lleva hasta él.</li>
+</ol>
+<p>¿Están todos los días de tu viaje en la imagen? Entonces el track es correcto y puedes pasar al vídeo.</p>
+<h3 id="paso-6-tu-primer-v-deo-con-el-animador">Paso 6 — Tu primer vídeo con el animador</h3>
+<p>Cuatro pasos, no hace falta más la primera vez.</p>
+<ol>
+<li>Pulsa <strong>«Animador»</strong> arriba y espera al mapa.</li>
+<li>A la izquierda, en <strong>«🎬 Ajustes de vídeo»</strong>, indica en <strong>«Animación (s)»</strong> cuánto debe durar</li>
+</ol>
+<p> el vídeo. Para una salida de un día bastan 20 segundos; para un viaje de dos semanas pon  <strong>40 a 60</strong>, si no la línea cruza la pantalla a toda velocidad.</p>
+<ol>
+<li>Deja <strong>«Resolución»</strong> en <strong>1920 × 1080</strong>. Es suficiente para YouTube, televisión y fotolibro;</li>
+</ol>
+<p> 4K apenas se ve mejor y tarda varias veces más en calcularse.</p>
+<ol>
+<li>Debajo del mapa, pulsa <strong>«▶ Prueba»</strong>. El programa recorre la ruta una vez, tal como se verá</li>
+</ol>
+<p> en el vídeo — <strong>sin</strong> calcular nada. Si el ritmo no encaja, cambia el número del paso 2 y  repite. No cuesta nada.</p>
+<ol>
+<li>Solo cuando te guste: <strong>«▶ Renderizar vídeo»</strong> (al final de la misma sección), elige carpeta</li>
+</ol>
+<p> y nombre.</p>
+<ol>
+<li>Ahora calcula, con el progreso a la vista. Tarda <strong>unos minutos</strong> — puedes seguir usando el</li>
+</ol>
+<p> ordenador, solo deja la app abierta.</p>
+<ol>
+<li>Al final aparecen <strong>«▶ Reproducir»</strong> y <strong>«Mostrar en Finder»</strong>.</li>
+</ol>
+<p>Todo lo demás — estilo de mapa, inclinación, color del track, las cifras superpuestas, carteles, fotogramas clave — es afinado para más adelante. El capítulo 3 lo explica con calma.</p>
+<blockquote><strong>Regla práctica:</strong> primero la prueba, luego el renderizado. La prueba muestra en segundos lo</blockquote>
+<blockquote>que el renderizado produce en minutos.</blockquote>
+<h3 id="paso-7-unir-archivos-diarios-en-una-sola-ruta">Paso 7 — Unir archivos diarios en una sola ruta</h3>
+<p>El caso más frecuente en un viaje: una grabación por día, pero quieres el recorrido completo.</p>
+<ol>
+<li>Abre el módulo <strong>«Inspector GPX»</strong>.</li>
+<li>Carga arriba el <strong>primer</strong> archivo diario.</li>
+<li>Baja por la columna izquierda hasta <strong>«🔗 Unir trazados»</strong>.</li>
+<li>En <strong>«Insertar»</strong> elige <strong>«por hora»</strong>. Así el orden da igual — el programa ordena los días</li>
+</ol>
+<p> por sus marcas de tiempo.</p>
+<ol>
+<li>Deja <strong>«Pausa intermedia»</strong> en 0.</li>
+<li>Pulsa <strong>«Añadir otro trazado …»</strong> y elige el segundo archivo diario. Repite con cada día; la</li>
+</ol>
+<p> ruta crece en el mapa con cada uno.</p>
+<ol>
+<li>Abajo, <strong>«Guardar pista corregida …»</strong> y guarda la ruta completa como archivo nuevo, p. ej.</li>
+</ol>
+<p> <code>suecia-2026-completo.gpx</code>.</p>
+<p>Después carga ese archivo en la barra de arriba — y sigue con el paso 4.</p>
+<blockquote><strong>Sobre los huecos entre días:</strong> de noche no grabaste, así que falta un tramo. El programa</blockquote>
+<blockquote><strong>no traza ninguna línea</strong> ahí a propósito y tampoco cuenta el hueco como distancia recorrida.</blockquote>
+<blockquote>Tus kilómetros totales son correctos y no hay líneas rectas falsas cruzando el mapa. En el</blockquote>
+<blockquote>vídeo la cámara salta en esos puntos — parece un cambio de escena y es intencionado.</blockquote>
+<h3 id="paso-8-si-algo-se-atasca">Paso 8 — Si algo se atasca</h3>
+<ul>
+<li><strong>«El renderizado necesita un token de Mapbox»</strong> → paso 2, falta el token.</li>
+<li><strong>El mapa se queda negro o vacío</strong> → espera un momento; en Windows la app descarga Chromium</li>
+</ul>
+<p> una vez (~150 MB) antes del primer renderizado.</p>
+<ul>
+<li><strong>El vídeo va demasiado rápido</strong> → sube «Animación (s)» y repite la prueba.</li>
+<li><strong>Falta un día en la ruta completa</strong> → en el paso 7 no se añadió un archivo; la lista de</li>
+</ul>
+<p> puntos del inspector muestra dónde termina la ruta.</p>
+<ul>
+<li><strong>Si no:</strong> <strong>Ayuda → Informar de un problema</strong> en la app. Allí puedes dejar el registro en el</li>
+</ul>
+<p> escritorio con un clic y enviarlo — ahorra muchas conjeturas.</p>
 <h2 id="2-primeros-pasos">2 · Primeros pasos</h2>
 <h3 id="configurar-el-token-de-mapbox">Configurar el token de Mapbox 🗺️</h3>
 <p>Animator + Tour-Map necesitan un <strong>token gratuito de Mapbox</strong> para los mapas 3D. <strong>El Geotagger también funciona sin él</strong>.</p>

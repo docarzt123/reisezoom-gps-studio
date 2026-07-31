@@ -88,6 +88,150 @@ DNG, PEF, RWL, SRW) and video metadata need exiftool, as does writing GPS
 into HEIC.
 
 ---
+---
+
+## 1b · Beginner's guide: from download to your first video 🚀
+
+This chapter is for your very first day. It runs straight through — install, load a track,
+first picture, first video. Everything else in this manual is reference material; here is only
+what you actually need.
+
+It grew out of real questions from beginners. If you get stuck, remember the **step number** —
+that is the fastest way to get help.
+
+### Step 1 — Install and open
+
+The download lives at [reisezoom.com/downloads/gps-studio/latest](https://reisezoom.com/downloads/gps-studio/latest/);
+the detailed instructions are in chapter 1.
+
+- **macOS:** open the DMG, drag the app into Applications, double-click it. On first launch
+  macOS asks once “Are you sure you want to open it?” → **Open**. That happens with every app
+  downloaded from the internet, and only the first time.
+- **Windows:** run the setup, confirm SmartScreen with **“More info” → “Run anyway”**, click
+  through.
+
+On first launch you are asked whether you want to work with or without a Mapbox token.
+
+### Step 2 — The question about the Mapbox token
+
+This is the only hurdle at the start, and it decides what you can do:
+
+| | without token | with token (free) |
+|---|---|---|
+| View, repair and join tracks | ✅ | ✅ |
+| Geotag photos | ✅ | ✅ |
+| Tour map as a picture | ✅ (standard map) | ✅ (satellite & 3D too) |
+| **Video with the Animator** | ❌ | ✅ |
+
+**If you want a video, you need the token.** It is free, takes two minutes, and chapter 2 walks
+you through it. Without it the Animator later says “Render needs a Mapbox token” — that is not
+a malfunction, it is exactly this missing detail.
+
+You can add it any time: **⚙ top right** (on macOS also via menu → Settings).
+
+### Step 3 — Load a track
+
+The track bar sits at the top. Two ways:
+
+1. Click **“📁 Choose track file …”** and pick your file, **or**
+2. simply drag the file onto the window.
+
+They do not have to be GPX files — FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON and NMEA are read
+as well and converted in the background.
+
+After that the tour name appears at the top with distance, duration and ascent. **The loaded
+track applies to every module** — load it once, then switch between the tools freely.
+
+> **Many files instead of one?** If your trip exists as one file per day, do step 7 first — it
+> turns them into a single tour.
+
+### Step 4 — Which module do you need?
+
+The tools sit in the top bar. What you are after decides:
+
+| You want … | Module |
+|---|---|
+| a **picture** of the tour for a blog, photo book or print | **Tour map** |
+| a **video** that draws the route | **Animator** |
+| **photos** stamped with the coordinates of the tour | **Geotagger** |
+| to **repair** a track or **join** several | **GPX Inspector** |
+| an overview of **all** your tours | **Library** |
+| heart rate, elevation or speed as a **chart video** | **Data Animator** |
+
+Start with the **tour map**. It is done in two minutes and shows you straight away whether your
+track is complete.
+
+### Step 5 — First result: the tour map
+
+1. Click **“Tour map”** at the top.
+2. Wait a moment for the map to build — your route is on it.
+3. On the left under **“🗺️ Map”** → **“Style”**: satellite looks great in the mountains, the
+   standard map is easier to read in cities.
+4. Bottom left, click **“🗺 Render map as PNG”**, choose a location and a name.
+5. A few seconds later the PNG is ready — **“Show in Finder”** takes you to it.
+
+Are all the days of your trip on the picture? Then the track is right and you can move on to
+the video.
+
+### Step 6 — Your first video with the Animator
+
+Four steps, no more than that the first time round.
+
+1. Click **“Animator”** at the top and wait for the map.
+2. On the left under **“🎬 Video settings”**, set **“Animation (s)”** — how long the video
+   should be. Twenty seconds is plenty for a day trip; for a two-week journey take **40 to 60**,
+   otherwise the line races across the screen.
+3. Leave **“Resolution”** at **1920 × 1080**. That is enough for YouTube, television and photo
+   books; 4K barely looks better and takes several times as long to compute.
+4. Below the map, hit **“▶ Preview run”**. The program flies the route once, exactly as the video
+   will look — **without** computing anything. If the pace is off, change the number from step 2
+   and run it again. It costs nothing.
+5. Only when you like it: **“▶ Render video”** (at the bottom of the same section), then choose
+   a location and a name.
+6. Now it computes, with the progress shown as it goes. This takes **a few minutes** — you can
+   keep using the computer, just leave the app open.
+7. At the end **“▶ Play”** and **“Show in Finder”** appear.
+
+Everything else — map style, tilt, track colour, the on-screen numbers, signs, keyframes — is
+fine-tuning for later. Chapter 3 explains it at leisure.
+
+> **Rule of thumb:** preview run first, render second. The preview run shows in seconds what the
+> render produces in minutes.
+
+### Step 7 — Joining daily files into one tour
+
+The most common case on a trip: one recording per day, but you want the whole journey.
+
+1. Open the **“GPX Inspector”** module.
+2. Load the **first** daily file at the top.
+3. Scroll down the left column to **“Join tracks”**.
+4. Under **“Insert”** choose **“by time of day”**. Then the order does not matter — the program sorts
+   the days by their timestamps itself.
+5. Leave **“Pause in between”** at 0.
+6. Click **“Append another track …”** and pick the second daily file. Repeat for every further
+   day; the tour grows on the map with each one.
+7. At the bottom click **“Save healed track …”** and store the whole tour as a new file, e.g.
+   `sweden-2026-complete.gpx`.
+
+Then load that file in the bar at the top — and carry on with step 4.
+
+> **About the gaps between days:** you were not recording overnight, so a piece is missing. The
+> program deliberately draws **no line** there and does not count the gap as distance travelled.
+> Your total kilometres are therefore correct and there are no false straight lines across the
+> map. In the video the camera jumps at those points — that looks like a scene change and is
+> intended.
+
+### Step 8 — When something gets stuck
+
+- **“Render needs a Mapbox token”** → step 2, the token is missing.
+- **Map stays black or empty** → wait a moment; on Windows the app downloads Chromium once
+  (~150 MB) before the first render.
+- **Video is too fast** → increase “Animation (s)”, run the trial again.
+- **A day is missing from the whole tour** → in step 7 one file was not appended; the point list
+  in the GPX Inspector shows where the tour ends.
+- **Otherwise:** **Help → Report a problem** in the app. There you can drop the log onto your
+  desktop with one click and send it along — that saves a lot of guesswork.
+
 
 ## 2 · Getting Started
 

@@ -90,6 +90,151 @@ DNG, PEF, RWL, SRW) und Video-Metadaten brauchen exiftool, und GPS-Schreiben
 in HEIC ebenfalls.
 
 ---
+---
+
+## 1b · Anfängerleitfaden: vom Download zum ersten Video 🚀
+
+Dieses Kapitel ist für den allerersten Tag gedacht. Es geht einmal geradeaus durch —
+installieren, Track laden, erstes Bild, erstes Video. Alles andere in diesem Handbuch ist
+Nachschlagewerk; hier steht nur, was Sie wirklich brauchen.
+
+Entstanden ist der Leitfaden aus echten Fragen von Einsteigern. Wenn Sie an einer Stelle
+hängen, merken Sie sich die **Schrittnummer** — damit lässt sich am schnellsten helfen.
+
+### Schritt 1 — Programm installieren und öffnen
+
+Der Download liegt unter [reisezoom.com/downloads/gps-studio/latest](https://reisezoom.com/downloads/gps-studio/latest/),
+die ausführliche Anleitung steht in Kapitel 1.
+
+- **macOS:** DMG öffnen, App in den Programme-Ordner ziehen, doppelklicken. Beim ersten Start
+  fragt macOS einmal „Möchtest du sie wirklich öffnen?" → **Öffnen**. Das kommt bei jeder aus
+  dem Netz geladenen App und nur beim ersten Mal.
+- **Windows:** Setup starten, SmartScreen mit **„Weitere Informationen" → „Trotzdem
+  ausführen"** bestätigen, durchklicken.
+
+Beim ersten Start werden Sie gefragt, ob Sie mit oder ohne Mapbox-Zugang arbeiten wollen.
+
+### Schritt 2 — Die Frage nach dem Mapbox-Token
+
+Das ist die einzige Hürde am Anfang, und sie entscheidet, was Sie machen können:
+
+| | ohne Token | mit Token (kostenlos) |
+|---|---|---|
+| Tracks ansehen, reparieren, verbinden | ✅ | ✅ |
+| Fotos verorten | ✅ | ✅ |
+| Tour-Karte als Bild | ✅ (Standard-Karte) | ✅ (auch Satellit & 3D) |
+| **Video mit dem Animator** | ❌ | ✅ |
+
+**Wenn Sie ein Video wollen, brauchen Sie den Token.** Er ist kostenlos, dauert zwei Minuten
+und die Anleitung steht in Kapitel 2. Ohne ihn meldet sich der Animator später mit
+„Render braucht Mapbox-Token" — das ist keine Fehlfunktion, sondern genau diese fehlende
+Angabe.
+
+Nachtragen können Sie ihn jederzeit: **⚙ oben rechts** (macOS auch über Menü → Einstellungen).
+
+### Schritt 3 — Track laden
+
+Oben sitzt die Track-Leiste. Zwei Wege:
+
+1. Auf **„📁 Track-Datei auswählen …"** klicken und Ihre Datei wählen, **oder**
+2. die Datei einfach in das Fenster ziehen.
+
+Es müssen keine GPX-Dateien sein — FIT (Garmin, Wahoo), TCX, KML/KMZ, GeoJSON und NMEA werden
+ebenso gelesen und im Hintergrund umgewandelt.
+
+Danach steht oben der Name der Tour mit Strecke, Dauer und Höhenmetern. **Der geladene Track
+gilt für alle Module** — Sie laden ihn einmal und wechseln dann frei zwischen den Werkzeugen.
+
+> **Viele Dateien statt einer?** Wenn Sie eine Reise als Tagesdateien vorliegen haben, machen
+> Sie zuerst Schritt 7 — daraus wird eine einzige Tour.
+
+### Schritt 4 — Welches Modul ist das richtige?
+
+Oben in der Leiste stehen die Werkzeuge. Was Sie vorhaben, entscheidet:
+
+| Sie wollen … | Modul |
+|---|---|
+| ein **Bild** der Tour für Blog, Fotobuch oder Ausdruck | **Tour-Map** |
+| ein **Video**, in dem die Strecke nachgezeichnet wird | **Animator** |
+| **Fotos** mit den Koordinaten der Tour versehen | **Geotagger** |
+| einen Track **reparieren** oder mehrere **verbinden** | **GPX-Inspektor** |
+| einen Überblick über **alle** Ihre Touren | **Archiv** |
+| Puls, Höhe, Tempo als **Diagramm-Video** | **Daten-Animator** |
+
+Fangen Sie mit der **Tour-Map** an. Sie ist in zwei Minuten fertig, und Sie sehen sofort, ob
+Ihr Track vollständig ist.
+
+### Schritt 5 — Erstes Ergebnis: die Tour-Karte
+
+1. Oben auf **„Tour-Map"** klicken.
+2. Kurz warten, bis die Karte aufgebaut ist — Ihre Strecke liegt darauf.
+3. Links **„🗺️ Karte"** → **„Stil"**: Satellit sieht in Bergen gut aus, die Standard-Karte
+   ist bei Städten besser lesbar.
+4. Unten links auf **„🗺 Karte als PNG rendern"**, Speicherort und Namen wählen.
+5. Nach ein paar Sekunden liegt das PNG bereit — **„Im Finder zeigen"** führt Sie hin.
+
+Sind alle Tage Ihrer Reise auf dem Bild? Dann stimmt der Track, und Sie können weiter zum
+Video.
+
+### Schritt 6 — Das erste Video mit dem Animator
+
+Vier Schritte, mehr braucht es beim ersten Mal nicht.
+
+1. Oben auf **„Animator"** klicken und warten, bis die Karte steht.
+2. Links unter **„🎬 Video-Einstellungen"** bei **„Animation (s)"** eintragen, wie lang das
+   Video werden soll. Für eine Tagestour reichen 20 Sekunden, für eine Zwei-Wochen-Reise
+   nehmen Sie **40 bis 60** — sonst rast die Linie durchs Bild.
+3. **„Auflösung"** auf **1920 × 1080** stehen lassen. Das reicht für YouTube, Fernseher und
+   Fotobuch-Video; 4K sieht kaum besser aus und dauert beim Berechnen ein Vielfaches.
+4. Unter der Karte auf **„▶ Probe-Lauf"**. Das Programm fliegt die Strecke einmal ab, so wie
+   es später im Video aussieht — **ohne** dass etwas berechnet wird. Passt das Tempo nicht,
+   ändern Sie die Zahl aus Schritt 2 und lassen es noch einmal laufen. Das kostet nichts.
+5. Erst wenn es gefällt: **„▶ Video rendern"** (ganz unten in derselben Sektion), Speicherort
+   und Namen wählen.
+6. Jetzt rechnet das Programm, der Fortschritt läuft mit. Das dauert **einige Minuten** — Sie
+   können den Rechner weiter benutzen, nur die App sollte offen bleiben.
+7. Am Ende erscheinen **„▶ Abspielen"** und **„Im Finder zeigen"**.
+
+Alles andere — Kartenstil, Neigung, Track-Farbe, die eingeblendeten Zahlen, Schilder,
+Keyframes — ist Feinschliff für später. Kapitel 3 erklärt es in Ruhe.
+
+> **Faustregel:** Erst Probe-Lauf, dann rendern. Der Probe-Lauf zeigt in Sekunden, was das
+> Rendern in Minuten produziert.
+
+### Schritt 7 — Mehrere Tagesdateien zu einer Tour verbinden
+
+Der häufigste Fall bei Reisen: pro Tag eine Aufzeichnung, gewünscht ist die Gesamttour.
+
+1. Modul **„GPX-Inspektor"** öffnen.
+2. Oben die **erste** Tagesdatei laden.
+3. In der linken Spalte nach unten scrollen bis **„Tracks verbinden"**.
+4. Bei **„Einfügen"** die Option **„nach Uhrzeit"** wählen. Dann ist die Reihenfolge egal —
+   das Programm sortiert die Tage anhand der Zeitstempel selbst.
+5. **„Pause dazwischen"** auf 0 lassen.
+6. Auf **„Weiteren Track anhängen …"** klicken und die zweite Tagesdatei wählen. Für jeden
+   weiteren Tag wiederholen; nach jedem Anhängen wächst die Tour auf der Karte.
+7. Unten auf **„Geheilten Track speichern …"** und die Gesamttour als neue Datei ablegen,
+   z. B. `Suedschweden-2026-gesamt.gpx`.
+
+Diese Gesamtdatei laden Sie dann oben in der Leiste — und machen mit Schritt 4 weiter.
+
+> **Zu den Lücken zwischen den Tagen:** Sie haben nachts nicht aufgezeichnet, also fehlt dort
+> ein Stück. Das Programm zieht dort **bewusst keine Linie** und rechnet die Lücke auch nicht
+> als gefahrene Strecke mit. Ihre Gesamtkilometer stimmen also, und es gibt keine falschen
+> geraden Striche quer über die Karte. Im Video springt die Kamera an diesen Stellen weiter —
+> das wirkt wie ein Szenenwechsel und ist so gewollt.
+
+### Schritt 8 — Wenn etwas klemmt
+
+- **„Render braucht Mapbox-Token"** → Schritt 2, der Token fehlt.
+- **Karte bleibt schwarz oder leer** → einen Moment warten; beim allerersten Render lädt die
+  App unter Windows einmalig Chromium nach (~150 MB).
+- **Video ist zu schnell** → „Animation (s)" erhöhen, Probe-Lauf wiederholen.
+- **Ein Tag fehlt in der Gesamttour** → in Schritt 7 wurde eine Datei nicht angehängt; im
+  Inspektor sehen Sie in der Punkteliste, wo die Tour endet.
+- **Sonst:** **Hilfe → Fehler melden** in der App. Dort können Sie das Protokoll mit einem
+  Klick auf den Schreibtisch legen und mitschicken — das erspart viel Rätselraten.
+
 
 ## 2 · Erste Schritte
 

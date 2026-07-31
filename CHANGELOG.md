@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Hinzugefügt
+- **Anfängerleitfaden im Handbuch** (Kapitel 1b, DE/EN/ES): ein durchgehender Weg
+  vom Download zum ersten Video — installieren, die Token-Frage, Track laden,
+  welches Modul wofür, erstes Bild mit der Tour-Karte, erstes Video mit dem
+  Animator, mehrere Tagesdateien zu einer Tour verbinden, und was tun, wenn es
+  klemmt. Entstanden aus echten Einsteiger-Fragen; alle Knopf-Beschriftungen sind
+  gegen die App geprüft.
+
 ### Behoben
 - **Widersprüchliche Angaben zur Signatur** (Website-Audit): README und zwei Stellen im
   Handbuch behaupteten noch, die App sei nicht signiert und brauche den
