@@ -73,6 +73,11 @@ SKIP_DIR_NAMES = {
 
 THUMB_W, THUMB_H = 360, 200
 
+# Wie lange eine Tour im Archiv bleibt, deren Datei nicht auffindbar ist.
+# Gedacht für die externe Platte im Schrank: sie bleibt sichtbar, zählt in der
+# Statistik mit und ist als „gerade nicht erreichbar" gekennzeichnet.
+MISSING_DROP_DAYS = 90
+
 
 # ── Datenbank ────────────────────────────────────────────────────────────────
 
@@ -132,6 +137,11 @@ CREATE TABLE IF NOT EXISTS tracks (
     region        TEXT DEFAULT '',
 
     thumb         TEXT DEFAULT '',
+    -- v0.9.494: Datei gerade nicht auffindbar (externe Platte abgezogen, Ordner
+    -- umgezogen). Statt die Tour sofort zu vergessen, wird sie markiert — sie
+    -- bleibt sichtbar, zählt weiter mit und verschwindet erst nach
+    -- MISSING_DROP_DAYS. Leer = alles in Ordnung.
+    missing_since TEXT DEFAULT '',
     -- v0.9.487: vereinfachter Streckenverlauf als JSON [[lon,lat],…] (max 80
     -- Punkte, 5 Nachkommastellen). Reicht für die Übersichtskarte über alle
     -- Touren und fürs Karten-Vorschaubild — die volle Datei dafür zu öffnen
@@ -238,6 +248,8 @@ _ADD_COLS = [
     ("recorded_user", "INTEGER DEFAULT NULL"),
     ("display_name", "TEXT DEFAULT ''"),
     ("hidden", "INTEGER DEFAULT 0"),
+    # v0.9.494: seit wann die Datei nicht auffindbar ist (leer = alles gut).
+    ("missing_since", "TEXT DEFAULT ''"),
 ]
 
 
@@ -395,6 +407,17 @@ def remove_folder(conn: sqlite3.Connection, path: str, drop_tracks: bool = True)
 
 
 # ── Einlesen ─────────────────────────────────────────────────────────────────
+
+def _days_since(iso: str) -> float:
+    """Tage seit einem ISO-Zeitstempel; bei Unfug sehr groß (= alt)."""
+    try:
+        dt = datetime.fromisoformat(iso)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds() / 86400.0
+    except (TypeError, ValueError):
+        return 1e9
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -795,18 +818,35 @@ def scan(
         if i % 50 == 0:
             conn.commit()
 
-    # Dateien, die es nicht mehr gibt, fliegen raus — aber nur aus den
-    # Ordnern, die gerade tatsächlich durchsucht wurden.
-    removed = 0
+    # Dateien, die gerade nicht auffindbar sind, werden NICHT sofort vergessen:
+    # eine externe Platte ist abgezogen, ein Ordner umgezogen, ein Netzlaufwerk
+    # nicht verbunden. Die Tour bleibt sichtbar und als „gerade nicht
+    # erreichbar" markiert; erst nach MISSING_DROP_DAYS fliegt der Eintrag raus.
+    # (Was der Nutzer zu ihr gesagt hat, überlebt in `track_meta` ohnehin.)
+    removed = missing = back = 0
+    now = _now_iso()
     for folder in watch:
-        for r in conn.execute("SELECT path FROM tracks WHERE folder = ?", (folder,)).fetchall():
-            if r["path"] not in seen and not Path(r["path"]).exists():
+        for r in conn.execute(
+                "SELECT path, missing_since FROM tracks WHERE folder = ?", (folder,)).fetchall():
+            there = r["path"] in seen or Path(r["path"]).exists()
+            if there:
+                if r["missing_since"]:
+                    conn.execute("UPDATE tracks SET missing_since = '' WHERE path = ?", (r["path"],))
+                    back += 1
+                continue
+            since = r["missing_since"] or ""
+            if not since:
+                conn.execute("UPDATE tracks SET missing_since = ? WHERE path = ?", (now, r["path"]))
+                missing += 1
+            elif _days_since(since) > MISSING_DROP_DAYS:
                 conn.execute("DELETE FROM tracks WHERE path = ?", (r["path"],))
                 removed += 1
+            else:
+                missing += 1
     conn.commit()
 
     res = {"total": total, "added": added, "updated": updated, "skipped": skipped,
-           "failed": failed, "removed": removed}
+           "failed": failed, "removed": removed, "missing": missing, "back": back}
     log.info("library.scan: %s", res)
     return res
 
@@ -920,7 +960,7 @@ _SEARCH_HAY = ("COALESCE(display_name,'') || ' ' || COALESCE(name,'') || ' ' || 
 def _build_where(search="", year=None, activity="", fav_only=False, planned=None,
                  tags=None, min_km=None, max_km=None, bbox=None, collection_id=None,
                  include_errors=False, include_hidden=False, hidden_only=False,
-                 **_ignored) -> tuple:
+                 missing_only=False, **_ignored) -> tuple:
     """Baut die WHERE-Klausel EINMAL — Liste und Statistik müssen zwingend
     dieselbe Auswahl meinen, sonst zählt die Statistik etwas anderes als das,
     was der Nutzer gerade sieht."""
@@ -932,6 +972,8 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
         where.append("hidden = 1")
     elif not include_hidden:
         where.append("hidden = 0")
+    if missing_only:
+        where.append("missing_since != ''")
     if year:
         where.append("year = ?"); args.append(int(year))
     if activity:
@@ -984,6 +1026,7 @@ def query(
     include_errors: bool = False,
     include_hidden: bool = False,
     hidden_only: bool = False,
+    missing_only: bool = False,
     with_geom: bool = False,
     collection_id: Optional[int] = None,
 ) -> dict:
@@ -997,7 +1040,8 @@ def query(
         search=search, year=year, activity=activity, fav_only=fav_only, planned=planned,
         tags=tags, min_km=min_km, max_km=max_km, bbox=bbox,
         collection_id=collection_id, include_errors=include_errors,
-        include_hidden=include_hidden, hidden_only=hidden_only)
+        include_hidden=include_hidden, hidden_only=hidden_only,
+        missing_only=missing_only)
     order = _SORTS.get(sort, _SORTS["date_desc"])
     if collection_id and sort == "collection":
         # Eigene Reihenfolge der Sammlung (Etappe 1, 2, 3 …).
@@ -1049,6 +1093,8 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     d["planned"] = 0 if d["recorded_eff"] else 1
     d["distance_km"] = round((d.get("distance_m") or 0) / 1000.0, 2)
     d["exists"] = Path(d["path"]).exists()
+    d["missing_since"] = d.get("missing_since") or ""
+    d["missing_days"] = round(_days_since(d["missing_since"])) if d["missing_since"] else 0
     return d
 
 
@@ -1150,6 +1196,10 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
         "n_fav": conn.execute(
             f"SELECT COUNT(*) FROM tracks WHERE {sql_where} AND fav = 1", args).fetchone()[0],
         "n_hidden": conn.execute(*_count_hidden(filters)).fetchone()[0],
+        # Wie viele Touren liegen gerade auf einer Platte, die nicht da ist?
+        "n_missing": conn.execute(
+            f"SELECT COUNT(*) FROM tracks WHERE {sql_where} AND missing_since != ''",
+            args).fetchone()[0],
         "n_failed": conn.execute("SELECT COUNT(*) FROM tracks WHERE error != ''").fetchone()[0],
         "search_note": search,
     }

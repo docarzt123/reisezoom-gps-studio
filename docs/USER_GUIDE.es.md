@@ -274,6 +274,12 @@ veces. No se borra nada: solo ves qué está duplicado.
 **Archivos nuevos:** pulsa **«Volver a leer»** después de cada exportación grande. Los
 archivos ya conocidos se omiten, así que tarda segundos.
 
+**¿Disco no conectado?** Entonces la app no encuentra esos archivos al leer — pero **no**
+descarta las rutas. Siguen en la lista, cuentan en las estadísticas y llevan un 🔌 en la
+tarjeta; a la izquierda aparece la sección **«No accesible»**. Vuelve a conectar el disco y la
+siguiente lectura lo deja todo como estaba. Solo tras 90 días sin aparecer desaparece la
+entrada — y lo que anotaste sobre ella se conserva igualmente.
+
 **Lo que dices sobre una ruta permanece — en la ruta, no en el archivo.** Favorita,
 etiquetas, nota, nombre propio, oculta, la corrección realizada/planificada, tu imagen de
 portada y las colecciones cuelgan del recorrido en sí. Por eso:

@@ -1641,5 +1641,8 @@
   "library.cancel": "Cancel",
   "library.scope_fav": "Favourites",
   "library.col_animator_fail": "The animator was not ready — please try again.",
-  "library.map_thumbs_auto": "Fetching map pictures"
+  "library.map_thumbs_auto": "Fetching map pictures",
+  "library.scope_missing": "Not reachable",
+  "library.missing_hint": "The file cannot be found right now — drive not connected?",
+  "library.missing_long": "This file cannot be found right now — most likely it sits on a drive that is not connected. The tour stays in the library; as soon as the file is back, everything carries on. After 90 days without a sighting the entry disappears (what you noted about it stays regardless)."
 }

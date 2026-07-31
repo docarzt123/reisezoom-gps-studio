@@ -1641,5 +1641,8 @@
   "library.cancel": "Abbrechen",
   "library.scope_fav": "Favoriten",
   "library.col_animator_fail": "Der Animator war nicht bereit — bitte noch einmal versuchen.",
-  "library.map_thumbs_auto": "Kartenbilder werden geladen"
+  "library.map_thumbs_auto": "Kartenbilder werden geladen",
+  "library.scope_missing": "Nicht erreichbar",
+  "library.missing_hint": "Die Datei ist gerade nicht auffindbar — Platte nicht angeschlossen?",
+  "library.missing_long": "Diese Datei ist gerade nicht auffindbar — vermutlich liegt sie auf einer Platte, die nicht angeschlossen ist. Die Tour bleibt im Archiv; sobald die Datei wieder da ist, geht alles weiter. Nach 90 Tagen ohne Wiedersehen verschwindet der Eintrag (deine Angaben dazu bleiben trotzdem erhalten)."
 }

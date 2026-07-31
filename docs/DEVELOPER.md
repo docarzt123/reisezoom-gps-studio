@@ -1324,6 +1324,19 @@ blieb schwarz. Im Archiv läuft es über Flex + `height: 100%`.
 - UI: `watchAutoThumbs()` im Archiv pollt alle 5 s den Status, zeigt ihn in der Kopfzeile
   (`.lib-head-auto`) und lädt die Liste alle 20 s nach, damit die Bilder sichtbar eintröpfeln.
 
+**v0.9.494 — „gerade nicht erreichbar" statt sofort vergessen:**
+
+- Spalte `missing_since` (leer = alles gut). `scan()` löscht eine Zeile nicht mehr, sobald die
+  Datei fehlt, sondern stempelt sie; taucht sie wieder auf, wird der Stempel gelöscht
+  (`back`-Zähler im Ergebnis). Erst nach `MISSING_DROP_DAYS` (90) fliegt sie raus.
+  Der Rückgabewert von `scan()` hat dafür `missing` und `back` dazubekommen.
+- `_build_where(..., missing_only=True)` für den Bereich in der Seitenleiste, `stats()` liefert
+  `n_missing`, `_to_dict()` zusätzlich `missing_days`.
+- Bewusst KEIN Lightroom-Katalog: es gibt keinen Offline-Modus, keine „Ordner neu
+  verknüpfen"-Werkzeuge und keine zweite Wahrheit über die Dateien. Die Tour ist einfach
+  90 Tage lang geduldig — das deckt die externe Platte im Schrank ab, ohne dass das Archiv
+  zur Bibliotheksverwaltung wird.
+
 ⚠️ **In der Detailspalte des Archivs brauchen alle Kinder `flex: none`** (`.lib-detail > *`).
 Die Spalte ist eine Flex-Spalte mit Überlauf; ohne das staucht WebKit jedes Kind mit eigener
 Höhe — die Gemacht/Geplant-Umschaltung war ein 1-px-Strich, das Notizfeld eine Zeile.

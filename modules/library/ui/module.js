@@ -162,6 +162,7 @@ function mountLibrary(body, headerActions) {
     else if (scope === "planned") f.planned = true;
     else if (scope === "fav") f.fav_only = true;
     else if (scope === "hidden") f.hidden_only = true;
+    else if (scope === "missing") f.missing_only = true;
     return f;
   }
 
@@ -248,6 +249,9 @@ function mountLibrary(body, headerActions) {
       ["fav", "★", T("library.scope_fav", "Favoriten")],
     ];
     if ((b.n_hidden || 0) > 0) items.push(["hidden", "🚫", T("library.scope_hidden", "Ausgeblendete")]);
+    // Nur zeigen, wenn es tatsächlich unerreichbare Touren gibt — sonst wäre es
+    // ein Bereich, den niemand versteht, weil er immer leer ist.
+    if ((b.n_missing || 0) > 0) items.push(["missing", "🔌", T("library.scope_missing", "Nicht erreichbar")]);
     // Die Zahlen sind Bestände, keine Trefferzahlen: sie kommen aus der
     // Statistik OHNE Bereichs-Filter und ändern sich deshalb nur, wenn oben
     // ein Jahr, eine Art oder eine Suche eingegrenzt wird.
@@ -257,6 +261,7 @@ function mountLibrary(body, headerActions) {
       if (k === "planned") return b.planned ? b.planned.n : "";
       if (k === "fav") return b.n_fav || "";
       if (k === "hidden") return b.n_hidden || "";
+      if (k === "missing") return b.n_missing || "";
       return "";
     };
     $("lib-scopes").innerHTML = items.map(([k, ico, label]) => `
@@ -304,6 +309,7 @@ function mountLibrary(body, headerActions) {
       : scope === "planned" ? T("library.scope_planned", "Geplante")
       : scope === "fav" ? T("library.scope_fav", "Favoriten")
       : scope === "hidden" ? T("library.scope_hidden", "Ausgeblendete")
+      : scope === "missing" ? T("library.scope_missing", "Nicht erreichbar")
       : T("library.scope_all", "Alle Touren");
   }
 
@@ -380,6 +386,7 @@ function mountLibrary(body, headerActions) {
       ${it.fav ? `<span class="lib-badge lib-badge-fav">★</span>` : ""}
       ${it.recorded_eff ? "" : `<span class="lib-badge lib-badge-plan">${T("library.planned", "geplant")}</span>`}
       ${it.hidden ? `<span class="lib-badge lib-badge-hidden">${T("library.hidden_short", "aus")}</span>` : ""}
+        ${it.missing_since ? `<span class="lib-badge lib-badge-missing" title="${esc(T("library.missing_hint", "Die Datei ist gerade nicht auffindbar — Platte nicht angeschlossen?"))}">🔌</span>` : ""}
       ${it.has_session ? `<span class="lib-badge lib-badge-proj" title="${esc(T("library.has_project", "Für diese Tour gibt es gespeicherte Projekte"))}">●</span>` : ""}`;
   }
 
@@ -744,7 +751,9 @@ function mountLibrary(body, headerActions) {
              title="${esc(T("library.rename_hint", "Eigener Name — leer lassen setzt den Namen aus der Datei zurück."))}">
       ${it.renamed ? `<div class="lib-hint">${T("library.renamed_from", "Datei-Name")}: ${esc(it.file_name)}</div>` : ""}
       ${it.error ? `<div class="lib-warn">${T("library.file_error", "Diese Datei konnte nicht gelesen werden")}: ${esc(it.error)}</div>` : ""}
-      ${!it.exists ? `<div class="lib-warn">${T("library.file_gone", "Die Datei liegt nicht mehr an diesem Ort.")}</div>` : ""}
+      ${!it.exists ? `<div class="lib-warn">${it.missing_since
+          ? T("library.missing_long", "Diese Datei ist gerade nicht auffindbar — vermutlich liegt sie auf einer Platte, die nicht angeschlossen ist. Die Tour bleibt im Archiv; sobald die Datei wieder da ist, geht alles weiter. Nach 90 Tagen ohne Wiedersehen verschwindet der Eintrag (deine Angaben dazu bleiben trotzdem erhalten).")
+          : T("library.file_gone", "Die Datei liegt nicht mehr an diesem Ort.")}</div>` : ""}
 
       <div class="lib-actions">
         <button class="btn btn-primary btn-sm" data-open="animator">${T("library.open_animator", "Im Animator öffnen")}</button>
