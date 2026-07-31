@@ -14,6 +14,62 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.489] – 2026-07-31
+### Hinzugefügt
+- **Sammlungen** — mehrere Touren als eine Einheit: die sechs Etappen einer Mehrtagestour,
+  alle Touren einer Reise, eine Themenserie. Anlegen aus der Detailspalte („+ Zu Sammlung")
+  oder in einem Rutsch aus dem aktuellen Filter („Alle 5 Treffer in eine Sammlung"). Die
+  Filterleiste hat eine Auswahl dafür; innerhalb einer Sammlung gilt **ihre eigene
+  Reihenfolge** (Etappe 1, 2, 3 …), die sich nach Datum sortiert. Eine Tour darf in
+  beliebig vielen Sammlungen liegen.
+- **„Alle im Animator"** — eine ganze Sammlung geht mit einem Klick in den Animator: erste
+  Etappe als Haupt-Track, der Rest als zusätzliche Touren. Genau dafür hat eine Sammlung
+  eine Reihenfolge. (Neuer Einstieg `window._animAddTourByPath()` im Animator.)
+- **Angeklickte Tour wird auf der Weltkarte hervorgehoben** — weiße Kontur, kräftige Linie,
+  liegt über allen anderen; die übrigen Touren treten zurück. Ohne das fand man die eben
+  angeklickte Linie im Gewirr nicht wieder.
+
+### Geändert
+- **„Nur gefahrene" heißt jetzt „Nur gemachte"** — bei Wandertouren war „gefahren" schlicht
+  falsch.
+- **Gemacht oder geplant wird generisch erkannt, nicht mehr an Komoots „(Completed)".**
+  Herangezogen werden: aufgezeichnete Sensordaten (Puls, Trittfrequenz — das ist ein Beweis),
+  ausdrückliche Kennzeichnungen im Namen, fehlende Zeitstempel (dann kann es keine
+  Aufzeichnung sein) und sonst der **Rhythmus der Aufzeichnung**: eine echte Aufzeichnung
+  hat unregelmäßige Zeitabstände und schwankendes Tempo, eine geplante Route läuft mit
+  Modellgeschwindigkeit gleichmäßig durch. An Marcs 709 Touren gemessen: Zeitabstands-
+  Streuung im Median **2,75 (gemacht) gegen 1,03 (geplant)**, Trefferquote der Regel rund
+  **87 %** allein, **95 %** zusammen mit den eindeutigen Signalen.
+- Weil eine Schätzung eben eine Schätzung ist: **pro Tour umschaltbar** (Gemacht · Geplant ·
+  Automatisch), und darunter steht, **woran** die App es erkannt hat. Die Hand-Korrektur
+  überlebt jedes Neu-Einlesen.
+
+### Behoben
+- Karten-Vorschaubilder: bei zwei Dateien mit identischem Streckenverlauf (Dublette) blieb
+  die zweite Zeile für immer „offen", weil sich beide dasselbe Bild teilen und nur die erste
+  vermerkt wurde.
+- Detailspalte: Das Vorschaubild war zu einem Strich zusammengedrückt — in einer Flex-Spalte
+  hat ein Element, dessen Höhe nur aus `aspect-ratio` kommt, die Basisgröße 0. Jetzt `flex: none`.
+- Ordnerpfad im Einlese-Fenster stand als „Users/…/tracks/" da (der führende Schrägstrich
+  war ans Ende gerutscht) — der RTL-Kürzungstrick ist raus.
+
+## [0.9.488] – 2026-07-31
+### Behoben
+- **Die Seite war zu breit — jetzt wirklich behoben, und zwar app-weit.** Der Rahmen der App
+  ist ein Raster ohne ausdrückliche Spaltenangabe; eine solche Spalte ist so breit wie ihr
+  breitester Inhalt. Ein langer Dateiname in der Track-Leiste plus ein Knopf rechts im
+  Modul-Kopf ergaben **im laufenden Fenster gemessene 1533 px bei 1512 px Fensterbreite** —
+  alles rechts davon war abgeschnitten, bis hin zur Versionsnummer und den Werten in der
+  Detailspalte des Archivs. Behoben mit `grid-template-columns: minmax(0, 1fr)` am `body`
+  (plus `min-width: 0` an `.main`): zu breite Inhalte clippen sauber, statt die Seite
+  aufzublasen. Betrifft **alle Module**, nicht nur das Archiv — mit einem langen Tracknamen
+  war der Effekt überall da, nur unauffälliger.
+
+### Geändert
+- Archiv: **„Doppelte finden" sitzt jetzt in der Filterleiste** statt im Modul-Kopf — dort war
+  es der Knopf, der die Kopfzeile über die Fensterbreite drückte. Ansichts-Umschalter,
+  „Ordner & Einlesen" und „Doppelte finden" bleiben beim Umbrechen als Gruppe zusammen.
+
 ## [0.9.487] – 2026-07-31
 ### Geändert
 - **Archiv: Filter jetzt über den Touren** statt in einer eigenen Spalte links (Marc-Feedback).

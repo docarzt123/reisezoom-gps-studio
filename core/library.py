@@ -39,12 +39,14 @@ import logging
 import os
 import re
 import sqlite3
+import statistics
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from . import gpx as cgpx
+from .gpx import _haversine_m
 from . import imports as cimports
 from . import sessions as csessions
 
@@ -138,12 +140,37 @@ CREATE TABLE IF NOT EXISTS tracks (
     indexed_at    TEXT,
     error         TEXT DEFAULT '',
 
+    -- v0.9.489: gemacht (aufgezeichnet) oder nur geplant — generisch erkannt,
+    -- `recorded_src` sagt woran. `recorded_user` ist die Hand-Korrektur des
+    -- Nutzers (NULL = automatisch) und zählt zu den Nutzer-Eingaben.
+    recorded      INTEGER DEFAULT 1,
+    recorded_src  TEXT DEFAULT '',
+
     -- Nutzer-Eingaben. Werden beim Neu-Einlesen NICHT überschrieben.
     fav           INTEGER DEFAULT 0,
     tags          TEXT DEFAULT '',
     note          TEXT DEFAULT '',
-    cover         TEXT DEFAULT ''
+    cover         TEXT DEFAULT '',
+    recorded_user INTEGER DEFAULT NULL
 );
+
+-- v0.9.489: Sammlungen — mehrere Touren als eine Einheit (Mehrtagestour,
+-- Reise, Themenserie). Eine Tour darf in beliebig vielen Sammlungen liegen.
+CREATE TABLE IF NOT EXISTS collections (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL,
+    note       TEXT DEFAULT '',
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS collection_items (
+    collection_id INTEGER NOT NULL,
+    path          TEXT NOT NULL,
+    sort_index    INTEGER DEFAULT 0,
+    PRIMARY KEY (collection_id, path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_colitems_col ON collection_items(collection_id);
 
 CREATE INDEX IF NOT EXISTS idx_tracks_started ON tracks(started_at);
 CREATE INDEX IF NOT EXISTS idx_tracks_dist    ON tracks(distance_m);
@@ -161,7 +188,7 @@ _TECH_COLS = [
     "max_speed_kmh", "avg_speed_kmh", "n_points", "n_segments", "has_time",
     "has_ele", "sensors", "min_lat", "max_lat", "min_lon", "max_lon",
     "center_lat", "center_lon", "activity", "source", "source_url", "planned",
-    "thumb", "geom", "indexed_at", "error",
+    "recorded", "recorded_src", "thumb", "geom", "indexed_at", "error",
 ]
 
 # Spalten, die eine ältere Datenbank noch nicht hat. Beim Öffnen nachgezogen —
@@ -170,6 +197,9 @@ _ADD_COLS = [
     ("geom", "TEXT DEFAULT ''"),
     ("map_thumb", "TEXT DEFAULT ''"),
     ("cover", "TEXT DEFAULT ''"),
+    ("recorded", "INTEGER DEFAULT 1"),
+    ("recorded_src", "TEXT DEFAULT ''"),
+    ("recorded_user", "INTEGER DEFAULT NULL"),
 ]
 
 
@@ -327,6 +357,73 @@ def _guess_activity(name: str, distance_m: float, moving_s: float) -> str:
     return "auto"
 
 
+# ── Gemacht oder nur geplant? ────────────────────────────────────────────────
+#
+# Anfangs hing das allein an Komoots „(Completed)" im Tour-Namen — das ist für
+# jede andere Quelle wertlos. Diese Erkennung kommt ohne aus und stützt sich
+# darauf, wie eine Aufzeichnung tatsächlich aussieht:
+#
+#   * Sensoren (Puls, Trittfrequenz, Leistung, Temperatur) gibt es nur beim
+#     Mitschneiden — das ist ein Beweis, keine Schätzung.
+#   * Eine Aufzeichnung hat **unregelmäßige Zeitabstände** (Pausen, Ampeln,
+#     GPS-Aussetzer) und **schwankendes Tempo**. Eine geplante Route bekommt
+#     ihre Zeiten aus einer Modellgeschwindigkeit — sie läuft gleichmäßig durch.
+#   * Ohne Zeitstempel kann es keine Aufzeichnung sein.
+#
+# Die Schwellen sind an Marcs 709 Komoot-Touren gemessen (Stichprobe 160,
+# je zur Hälfte gemacht/geplant): Zeitabstands-Streuung im Median 2,75 (gemacht)
+# gegen 1,03 (geplant), Tempo-Streuung 0,37 gegen 0,13. Die Regel unten trifft
+# damit rund **87 %** — gut genug als Voreinstellung, aber eben eine Schätzung.
+# Deshalb kann sie pro Tour von Hand überschrieben werden (`recorded_user`), und
+# die Quelle steht in `recorded_src`, damit man sieht, worauf sie beruht.
+
+RECORDED_DT_CV = 1.6      # Streuung der Zeitabstände
+RECORDED_SPEED_CV = 0.30  # Streuung der Geschwindigkeit
+
+
+def _recorded_guess(pts: list, stats, name: str) -> tuple:
+    """(gemacht: bool, quelle: str)"""
+    if getattr(stats, "sensor_fields", None):
+        return True, "sensors"
+
+    low = _norm(name)
+    # Ausdrückliche Kennzeichnungen verschiedener Anbieter.
+    if any(w in low for w in ("(completed)", "completed", "aufgezeichnet",
+                              "recorded", "activity", "aktivitat")):
+        return True, "name"
+    if any(w in low for w in ("geplant", "planned", "route planung", "planung")):
+        return False, "name"
+
+    times = [p.time for p in pts if p.time]
+    if len(times) < 10:
+        return False, "notime"
+
+    from datetime import datetime
+    try:
+        T = [datetime.fromisoformat(t.replace("Z", "+00:00")).timestamp() for t in times]
+    except ValueError:
+        return False, "notime"
+
+    tp = [p for p in pts if p.time]
+    dts, sp = [], []
+    for a, ta, b, tb in zip(tp, T, tp[1:], T[1:]):
+        dt = tb - ta
+        if dt <= 0:
+            continue
+        dts.append(dt)
+        sp.append(_haversine_m(a.lat, a.lon, b.lat, b.lon) / dt)
+    if len(dts) < 5:
+        return False, "notime"
+
+    mean_dt = sum(dts) / len(dts)
+    mean_sp = sum(sp) / len(sp)
+    dt_cv = (statistics.pstdev(dts) / mean_dt) if mean_dt else 0.0
+    sp_cv = (statistics.pstdev(sp) / mean_sp) if mean_sp else 0.0
+    if dt_cv >= RECORDED_DT_CV or sp_cv >= RECORDED_SPEED_CV:
+        return True, "rhythm"
+    return False, "rhythm"
+
+
 GEOM_MAX_POINTS = 80
 
 
@@ -426,6 +523,7 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     dist = float(stats.distance_m or 0.0)
     src, src_url = _peek_source(path)
     name = (stats.name or path.stem).strip()
+    _rec, _rec_src = _recorded_guess(pts, stats, name)
 
     row.update({
         # Der Session-Hash MUSS genauso gebildet werden wie beim Öffnen eines
@@ -460,8 +558,9 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         "activity": _guess_activity(name, dist, moving),
         "source": src,
         "source_url": src_url,
-        # Komoot hängt „(Completed)" an gefahrene Touren; alles andere ist geplant.
-        "planned": 0 if (src != "komoot" or "(completed)" in name.lower()) else 1,
+        "planned": 0 if _rec else 1,     # Altfeld, bleibt der Kehrwert
+        "recorded": 1 if _rec else 0,
+        "recorded_src": _rec_src,
         "geom": json.dumps(_simplify(coords), separators=(",", ":")),
     })
 
@@ -501,12 +600,14 @@ def scan(
         for p in _iter_files(folder, rec.get(folder, True)):
             files.append((p, folder))
 
-    # `geom` fehlt bei Einträgen aus einer älteren Version. Solche Zeilen werden
-    # neu gelesen, auch wenn die Datei unverändert ist — sonst bliebe die
-    # Übersichtskarte für die halbe Sammlung leer.
+    # `geom` und die Gemacht/Geplant-Bewertung fehlen bei Einträgen aus einer
+    # älteren Version. Solche Zeilen werden neu gelesen, auch wenn die Datei
+    # unverändert ist — sonst bliebe die Übersichtskarte für die halbe Sammlung
+    # leer und der Filter „Nur gemachte" liefe auf Voreinstellungen.
     known = {
-        r["path"]: (r["mtime"], r["size"], bool(r["geom"]))
-        for r in conn.execute("SELECT path, mtime, size, geom FROM tracks").fetchall()
+        r["path"]: (r["mtime"], r["size"], bool(r["geom"]) and bool(r["recorded_src"]))
+        for r in conn.execute(
+            "SELECT path, mtime, size, geom, recorded_src FROM tracks").fetchall()
     }
     seen = set()
     added = updated = skipped = failed = 0
@@ -586,6 +687,8 @@ _SORTS = {
     "dur_desc": "duration_s DESC",
     "name_asc": "name COLLATE NOCASE ASC",
     "added_desc": "indexed_at DESC",
+    # Nur innerhalb einer Sammlung sinnvoll — siehe query().
+    "collection": "started_at ASC",
 }
 
 
@@ -611,6 +714,7 @@ def query(
     offset: int = 0,
     include_errors: bool = False,
     with_geom: bool = False,
+    collection_id: Optional[int] = None,
 ) -> dict:
     """Gefilterte Trefferliste + Gesamtzahl (für „x von y").
 
@@ -628,7 +732,12 @@ def query(
     if fav_only:
         where.append("fav = 1")
     if planned is not None:
-        where.append("planned = ?"); args.append(1 if planned else 0)
+        # Effektiv heißt: die Hand-Korrektur schlägt die Schätzung.
+        where.append("COALESCE(recorded_user, recorded) = ?")
+        args.append(0 if planned else 1)
+    if collection_id:
+        where.append("path IN (SELECT path FROM collection_items WHERE collection_id = ?)")
+        args.append(int(collection_id))
     if min_km is not None:
         where.append("distance_m >= ?"); args.append(float(min_km) * 1000)
     if max_km is not None:
@@ -644,6 +753,10 @@ def query(
 
     sql_where = " AND ".join(where)
     order = _SORTS.get(sort, _SORTS["date_desc"])
+    if collection_id and sort == "collection":
+        # Eigene Reihenfolge der Sammlung (Etappe 1, 2, 3 …).
+        order = ("(SELECT sort_index FROM collection_items ci "
+                 f"WHERE ci.path = tracks.path AND ci.collection_id = {int(collection_id)})")
     rows = conn.execute(
         f"SELECT * FROM tracks WHERE {sql_where} ORDER BY {order}", args
     ).fetchall()
@@ -690,6 +803,11 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     except (TypeError, ValueError):
         d["sensors"] = []
     d["tag_list"] = [t for t in (d.get("tags") or "").split(",") if t.strip()]
+    # „gemacht" ist die effektive Bewertung: Hand-Korrektur schlägt Schätzung.
+    eff = d.get("recorded_user")
+    d["recorded_eff"] = int(eff if eff is not None else (d.get("recorded") or 0))
+    d["recorded_manual"] = eff is not None
+    d["planned"] = 0 if d["recorded_eff"] else 1
     d["distance_km"] = round((d.get("distance_m") or 0) / 1000.0, 2)
     d["exists"] = Path(d["path"]).exists()
     return d
@@ -756,6 +874,13 @@ def set_user_fields(conn: sqlite3.Connection, path: str, fav=None, tags=None, no
     conn.execute(f"UPDATE tracks SET {', '.join(sets)} WHERE path = ?", args)
     conn.commit()
     return True
+
+
+def set_recorded(conn: sqlite3.Connection, path: str, value) -> None:
+    """Hand-Korrektur: True = gemacht, False = geplant, None = wieder schätzen."""
+    conn.execute("UPDATE tracks SET recorded_user = ? WHERE path = ?",
+                 (None if value is None else (1 if value else 0), path))
+    conn.commit()
 
 
 def duplicates(conn: sqlite3.Connection) -> list:
@@ -829,6 +954,11 @@ def map_thumb_fetch(
     thumbs_dir.mkdir(parents=True, exist_ok=True)
     out = thumbs_dir / f"{row.get('geo_hash') or row.get('track_hash')}.png"
     if out.exists() and out.stat().st_size > 0:
+        # Zwei Dateien mit identischem Verlauf teilen sich EIN Bild (der
+        # Dateiname ist der Geo-Hash). Ohne dieses Update behielte die zweite
+        # Zeile ihr leeres `map_thumb` — sie wäre für immer „offen".
+        conn.execute("UPDATE tracks SET map_thumb = ? WHERE path = ?", (str(out), row["path"]))
+        conn.commit()
         return str(out)
 
     # Der Pfad steckt als kodierte Polylinie in der URL; `auto` lässt Mapbox
@@ -932,6 +1062,99 @@ def clear_cover(conn: sqlite3.Connection, path: str) -> None:
             pass
     conn.execute("UPDATE tracks SET cover = '' WHERE path = ?", (path,))
     conn.commit()
+
+
+# ── Sammlungen ──────────────────────────────────────────────────────────────
+#
+# Eine Sammlung fasst Touren zu einer Einheit zusammen: die sechs Etappen einer
+# Mehrtagestour, alle Touren einer Reise, eine Themenserie. Bewusst als eigene
+# Tabelle und nicht als Schlagwort — eine Sammlung hat eine **Reihenfolge**
+# (Etappe 1, 2, 3 …), und genau die braucht der Animator, wenn er sie am Stück
+# abfliegt.
+
+def collections(conn: sqlite3.Connection) -> list:
+    """Alle Sammlungen mit Anzahl + Summen."""
+    rows = conn.execute("SELECT * FROM collections ORDER BY name COLLATE NOCASE").fetchall()
+    out = []
+    for r in rows:
+        agg = conn.execute(
+            "SELECT COUNT(*) n, COALESCE(SUM(t.distance_m),0) d, COALESCE(SUM(t.ascent_m),0) a "
+            "FROM collection_items ci JOIN tracks t ON t.path = ci.path "
+            "WHERE ci.collection_id = ?", (r["id"],)
+        ).fetchone()
+        out.append({"id": r["id"], "name": r["name"], "note": r["note"] or "",
+                    "created_at": r["created_at"] or "", "n": agg["n"],
+                    "total_km": round(agg["d"] / 1000.0, 1),
+                    "total_ascent_m": round(agg["a"])})
+    return out
+
+
+def collection_create(conn: sqlite3.Connection, name: str, paths: Optional[list] = None) -> int:
+    cur = conn.execute("INSERT INTO collections(name, created_at) VALUES(?,?)",
+                       (name.strip() or "Sammlung", _now_iso()))
+    cid = cur.lastrowid
+    if paths:
+        collection_add(conn, cid, paths)
+    conn.commit()
+    return cid
+
+
+def collection_rename(conn: sqlite3.Connection, cid: int, name: str) -> None:
+    conn.execute("UPDATE collections SET name = ? WHERE id = ?", (name.strip(), cid))
+    conn.commit()
+
+
+def collection_delete(conn: sqlite3.Connection, cid: int) -> None:
+    """Löscht die Sammlung — die Touren selbst bleiben natürlich im Archiv."""
+    conn.execute("DELETE FROM collection_items WHERE collection_id = ?", (cid,))
+    conn.execute("DELETE FROM collections WHERE id = ?", (cid,))
+    conn.commit()
+
+
+def collection_add(conn: sqlite3.Connection, cid: int, paths: list) -> int:
+    """Touren anhängen. Reihenfolge = Reihenfolge des Hinzufügens."""
+    start = conn.execute(
+        "SELECT COALESCE(MAX(sort_index), -1) + 1 FROM collection_items WHERE collection_id = ?",
+        (cid,)).fetchone()[0]
+    added = 0
+    for i, p in enumerate(paths):
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO collection_items(collection_id, path, sort_index) VALUES(?,?,?)",
+            (cid, p, start + i))
+        added += cur.rowcount
+    conn.commit()
+    return added
+
+
+def collection_remove(conn: sqlite3.Connection, cid: int, paths: list) -> None:
+    for p in paths:
+        conn.execute("DELETE FROM collection_items WHERE collection_id = ? AND path = ?", (cid, p))
+    conn.commit()
+
+
+def collection_sort_by_date(conn: sqlite3.Connection, cid: int) -> None:
+    """Nach Datum ordnen — bei Mehrtagestouren fast immer die richtige Folge."""
+    rows = conn.execute(
+        "SELECT ci.path FROM collection_items ci JOIN tracks t ON t.path = ci.path "
+        "WHERE ci.collection_id = ? ORDER BY t.started_at, t.mtime", (cid,)).fetchall()
+    for i, r in enumerate(rows):
+        conn.execute("UPDATE collection_items SET sort_index = ? WHERE collection_id = ? AND path = ?",
+                     (i, cid, r["path"]))
+    conn.commit()
+
+
+def collection_items(conn: sqlite3.Connection, cid: int) -> list:
+    rows = conn.execute(
+        "SELECT t.* FROM collection_items ci JOIN tracks t ON t.path = ci.path "
+        "WHERE ci.collection_id = ? ORDER BY ci.sort_index", (cid,)).fetchall()
+    return [_to_dict(r) for r in rows]
+
+
+def collections_of(conn: sqlite3.Connection, path: str) -> list:
+    rows = conn.execute(
+        "SELECT c.id, c.name FROM collection_items ci JOIN collections c ON c.id = ci.collection_id "
+        "WHERE ci.path = ? ORDER BY c.name COLLATE NOCASE", (path,)).fetchall()
+    return [{"id": r["id"], "name": r["name"]} for r in rows]
 
 
 def errors(conn: sqlite3.Connection) -> list:

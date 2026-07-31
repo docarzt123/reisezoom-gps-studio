@@ -8082,7 +8082,10 @@ function mountAnimator(body, headerActions, opts) {
     // v0.8.0: Hook für Projekt-Wechsel-Updates (wird von projects.js gerufen).
     // Setzt Animator-spezifischen UI-State neu, der nicht über bindSetting
     // abgedeckt ist (Keyframe-Pins, Timeline-Bar, Editor-Selection).
-    window._animOnProjectChanged = function() {
+    // v0.9.489 — vom Archiv aufgerufen: „Alle Etappen im Animator öffnen".
+  window._animAddTourByPath = (p) => _animAddTourPath(p);
+
+  window._animOnProjectChanged = function() {
       _selectedKfIdx = null;
       _selectedEvent = null;
       // v0.9.66: Undo-Historie pro Projekt — beim Wechsel komplett leeren.
@@ -9980,6 +9983,12 @@ function mountAnimator(body, headerActions, opts) {
     }
     if (!files || !files.length) return;
     let path = files[0];
+    return _animAddTourPath(path);
+  }
+
+  /** Wie _animAddTour(), aber ohne Dialog — das Archiv übergibt ganze
+   *  Sammlungen (Etappe 2, 3, 4 …) programmatisch. */
+  async function _animAddTourPath(path) {
     if (path === currentGpx || _extraTours.some(t => t.gpx_path === path)) {
       toast(t("animator.tours.dup", "Diese Tour ist schon geladen."), "info");
       return;

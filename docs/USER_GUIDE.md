@@ -198,8 +198,37 @@ beobachten lassen.
   („muritz" findet „Müritz").
 - **Jahr**, **Fortbewegung** (Wandern, Rad, Laufen …), **Sortierung** (neueste, längste,
   meiste Höhenmeter …).
-- **Nur Favoriten** und **Nur gefahrene** — letzteres blendet geplante Touren aus, die du
-  nie gefahren bist.
+- **Nur Favoriten** und **Nur gemachte** — letzteres blendet Touren aus, die du nur geplant
+  und nie gemacht hast.
+
+**Gemacht oder nur geplant?** Die App erkennt das selbst — und zwar unabhängig davon, aus
+welcher App der Track kommt:
+
+| Merkmal | Bedeutung |
+|---|---|
+| Sensordaten (Puls, Trittfrequenz …) | sicher **gemacht** — so etwas entsteht nur beim Mitschneiden |
+| „(Completed)", „Aufgezeichnet", „Geplant" im Namen | wird direkt übernommen |
+| keine Zeitstempel | kann keine Aufzeichnung sein → **geplant** |
+| sonst: der **Rhythmus** | eine Aufzeichnung hat Pausen und schwankendes Tempo, eine geplante Route läuft gleichmäßig durch |
+
+Der letzte Punkt ist eine Schätzung — sie liegt bei rund 9 von 10 Touren richtig. Deshalb
+kannst du in der rechten Spalte pro Tour auf **Gemacht**, **Geplant** oder **Automatisch**
+stellen; darunter steht, woran die App es erkannt hat. Deine Entscheidung bleibt auch nach
+einem Neu-Einlesen erhalten.
+
+**Sammlungen — mehrere Touren als eine Einheit.** Eine Mehrtagestour besteht aus sechs
+GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:
+
+- **Anlegen:** Tour auswählen → rechts **„+ Zu Sammlung"** → bestehende wählen oder neue
+  anlegen. Schneller geht es über den Filter: nach „Märkischer Landweg" suchen und im
+  Sammlungs-Menü **„Alle 5 Treffer in eine Sammlung"** nehmen.
+- **Anzeigen:** In der Filterleiste die Sammlung auswählen — dann siehst du nur ihre Touren,
+  und zwar in **ihrer eigenen Reihenfolge** (Etappe 1, 2, 3 …), sortiert nach Datum.
+- **Weiterverarbeiten:** **„Alle im Animator"** übergibt die ganze Sammlung an den Animator —
+  erste Etappe als Haupt-Track, alle weiteren als zusätzliche Touren. Aus sechs Etappen wird
+  so ein Video.
+- Eine Tour darf in beliebig vielen Sammlungen liegen; Löschen einer Sammlung löscht **keine**
+  Touren.
 
 **Drei Ansichten**, rechts in der Leiste umschaltbar (die App merkt sich deine Wahl):
 
@@ -210,7 +239,8 @@ beobachten lassen.
 | 🌍 | **Karte** | „Wo war ich überall?" — alle gefilterten Touren auf einer Weltkarte, Klick auf eine Linie wählt sie aus |
 
 Auf der Karte werden weit entfernte Touren als **Punkte** gezeichnet und erst beim
-Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar.
+Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar. Die **angeklickte
+Tour wird hervorgehoben** (weiße Kontur, kräftige Linie), die übrigen treten zurück.
 
 **Weiterarbeiten:** Tour anklicken, dann rechts **„Im Animator öffnen"** (oder Tour-Karte,
 Daten-Animator, Geotagger, Inspektor). Ein **Doppelklick** auf die Kachel schickt sie direkt

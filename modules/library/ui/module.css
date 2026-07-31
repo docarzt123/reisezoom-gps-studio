@@ -28,6 +28,9 @@
   background: var(--bg-2);
 }
 .lib-bar-spacer { flex: 1 1 auto; }
+/* Ansichts-Umschalter + die beiden Knöpfe bleiben zusammen, wenn die Leiste
+   umbricht — sonst steht „Ordner & Einlesen" allein in einer zweiten Zeile. */
+.lib-bar-right { display: flex; align-items: center; gap: 6px; }
 
 .lib-search {
   flex: 1 1 220px; min-width: 160px; max-width: 340px;
@@ -195,7 +198,11 @@
 }
 .lib-detail-empty { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
 
+/* `flex: none` ist Pflicht: in einer Flex-Spalte (das Panel ist eine) hat ein
+   Element, dessen Höhe nur aus `aspect-ratio` kommt, die Basisgröße 0 und wird
+   in WebKit auf einen Strich zusammengedrückt — das Vorschaubild war weg. */
 .lib-detail-thumb {
+  flex: none;
   aspect-ratio: 16 / 9; background: var(--bg-1);
   border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
 }
@@ -228,7 +235,9 @@
   padding: 5px 8px; font-size: 12px;
 }
 .lib-folder.is-missing { border-color: var(--danger); }
-.lib-folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+/* Kein `direction: rtl` — der Trick schneidet zwar vorne ab, verschiebt aber
+   den führenden Schrägstrich ans Ende („Users/…/tracks/" statt „/Users/…"). */
+.lib-folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-folder-n { color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .lib-folder-x {
   background: none; border: none; color: var(--text-muted);
@@ -255,3 +264,33 @@
 }
 .lib-dupe-head { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
 .lib-dupe-item { font-size: 12px; padding: 2px 0; overflow-wrap: anywhere; }
+
+/* ── Gemacht/geplant + Sammlungen (v0.9.489) ─────────────────────────── */
+
+.lib-seg { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.lib-seg button {
+  flex: 1; background: var(--bg-1); border: none; color: var(--text-dim);
+  padding: 5px 4px; font: inherit; font-size: 11.5px; cursor: pointer; white-space: nowrap;
+}
+.lib-seg button + button { border-left: 1px solid var(--border); }
+.lib-seg button:hover { color: var(--text); }
+.lib-seg button.is-on { background: var(--accent-soft); color: var(--accent); }
+
+.lib-colchips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.lib-colchip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--bg-1); border: 1px solid var(--border); border-radius: 999px;
+  padding: 3px 6px 3px 10px; font-size: 11.5px;
+}
+.lib-colchip button {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 11px; line-height: 1; padding: 2px;
+}
+.lib-colchip button:hover { color: var(--danger); }
+
+.lib-colrow {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 6px 0; border-bottom: 1px solid var(--border);
+}
+.lib-colrow .lib-colname { flex: 1 1 160px; min-width: 120px; }
+.lib-colmeta { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }

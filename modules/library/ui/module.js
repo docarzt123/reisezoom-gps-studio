@@ -39,8 +39,9 @@ function mountLibrary(body, headerActions) {
   const PAGE = 200;
   const state = {
     search: "", year: 0, activity: "", fav_only: false, planned: null,
-    sort: "date_desc", offset: 0,
+    sort: "date_desc", offset: 0, collection_id: 0,
   };
+  let _collections = [];
   // Ansicht merken wir uns über Modulwechsel hinweg — sonst landet man nach
   // jedem Ausflug in den Animator wieder in den Kacheln.
   let view = (function () {
@@ -79,17 +80,21 @@ function mountLibrary(body, headerActions) {
           <option value="name_asc">${T("library.sort.name_asc", "Name A–Z")}</option>
         </select>
         <button class="lib-chip" id="lib-fav" type="button">★ ${T("library.fav_only", "Nur Favoriten")}</button>
-        <button class="lib-chip" id="lib-recorded" type="button">${T("library.recorded_short", "Nur gefahrene")}</button>
+        <button class="lib-chip" id="lib-recorded" type="button">${T("library.recorded_short2", "Nur gemachte")}</button>
+        <select id="lib-col" class="lib-select"></select>
         <button class="lib-chip lib-chip-ghost" id="lib-reset" type="button">${T("library.reset", "Filter zurücksetzen")}</button>
 
         <span class="lib-bar-spacer"></span>
 
-        <div class="lib-views" role="group">
-          <button class="lib-view" data-view="cards" type="button" title="${T("library.view_cards", "Kacheln")}">▦</button>
-          <button class="lib-view" data-view="list" type="button" title="${T("library.view_list", "Liste")}">☰</button>
-          <button class="lib-view" data-view="map" type="button" title="${T("library.view_map", "Karte")}">🌍</button>
+        <div class="lib-bar-right">
+          <div class="lib-views" role="group">
+            <button class="lib-view" data-view="cards" type="button" title="${T("library.view_cards", "Kacheln")}">▦</button>
+            <button class="lib-view" data-view="list" type="button" title="${T("library.view_list", "Liste")}">☰</button>
+            <button class="lib-view" data-view="map" type="button" title="${T("library.view_map", "Karte")}">🌍</button>
+          </div>
+          <button class="lib-chip lib-chip-ghost" id="lib-folders-btn" type="button">${T("library.folders_btn", "Ordner & Einlesen")}</button>
+          <button class="lib-chip lib-chip-ghost" id="lib-dupes" type="button">${T("library.duplicates", "Doppelte finden")}</button>
         </div>
-        <button class="lib-chip lib-chip-ghost" id="lib-folders-btn" type="button">${T("library.folders_btn", "Ordner & Einlesen")}</button>
       </div>
 
       <div class="lib-head" id="lib-head"></div>
@@ -143,6 +148,7 @@ function mountLibrary(body, headerActions) {
     if (!params.year) delete params.year;
     if (params.planned === null) delete params.planned;
     if (!params.activity) delete params.activity;
+    if (!params.collection_id) delete params.collection_id;
     const res = await api().library_query(params);
     if (_unmounted) return;
     if (!res.ok) { toast(res.error || "Archiv-Abfrage fehlgeschlagen", "error"); return; }
@@ -158,6 +164,23 @@ function mountLibrary(body, headerActions) {
     fillYearOptions();
     fillActivityOptions();
     renderHead();
+  }
+
+  async function reloadCollections() {
+    const res = await api().library_collections();
+    if (_unmounted) return;
+    _collections = (res && res.collections) || [];
+    fillCollectionOptions();
+  }
+
+  function fillCollectionOptions() {
+    const sel = $("lib-col");
+    if (!sel) return;
+    sel.innerHTML =
+      `<option value="0">${T("library.all_collections", "Alle Sammlungen")}</option>` +
+      _collections.map(c =>
+        `<option value="${c.id}"${state.collection_id === c.id ? " selected" : ""}>${esc(c.name)} (${c.n})</option>`).join("") +
+      `<option value="-1">${T("library.manage_collections", "Sammlungen verwalten …")}</option>`;
   }
 
   async function reloadFolders() {
@@ -207,7 +230,7 @@ function mountLibrary(body, headerActions) {
     $("lib-mapwrap").hidden = view !== "map";
     if (view === "cards") renderGrid();
     else if (view === "list") renderList();
-    else renderMap();
+    else { renderMap(); applyMapSelection(); }
   }
 
   function emptyHtml() {
@@ -316,6 +339,9 @@ function mountLibrary(body, headerActions) {
       common: { center: [10, 51], zoom: 3, attributionControl: true },
     });
     _map = created.map;
+    // Für die automatischen Tests greifbar (wie in den anderen Modulen üblich):
+    // nur so lässt sich die Hervorhebung der Auswahl prüfen, ohne Pixel zu raten.
+    window.__libMap = _map;
     _map.addControl(new created.lib.NavigationControl({ showCompass: false }), "top-right");
     _map.on("load", () => {
       _mapReady = true;
@@ -341,6 +367,21 @@ function mountLibrary(body, headerActions) {
           "line-opacity": 0.8,
         },
       });
+      // Ausgewählte Tour: liegt ÜBER allen anderen, dicker und in Weiß mit
+      // orangem Kern — sonst findet man die angeklickte Linie im Gewirr nicht
+      // wieder (Marc: „müssen hervorgehoben werden").
+      _map.addLayer({
+        id: "lib-tracks-sel-halo", type: "line", source: "lib-tracks",
+        filter: ["==", ["get", "path"], ""],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#ffffff", "line-width": 7, "line-opacity": 0.9 },
+      });
+      _map.addLayer({
+        id: "lib-tracks-sel", type: "line", source: "lib-tracks",
+        filter: ["==", ["get", "path"], ""],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#ff3d00", "line-width": 3.5 },
+      });
       _map.addLayer({
         id: "lib-tracks-hit", type: "line", source: "lib-tracks",
         paint: { "line-color": "#000", "line-width": 12, "line-opacity": 0 },
@@ -349,12 +390,28 @@ function mountLibrary(body, headerActions) {
         const f = e.features && e.features[0];
         if (!f) return;
         const it = _items.find(x => x.path === f.properties.path);
-        if (it) select(it);
+        if (it) select(it, { fly: false });
       });
       _map.on("mouseenter", "lib-tracks-hit", () => { _map.getCanvas().style.cursor = "pointer"; });
       _map.on("mouseleave", "lib-tracks-hit", () => { _map.getCanvas().style.cursor = ""; });
       fitAll(data);
+      applyMapSelection();
     });
+  }
+
+  /** Hebt die ausgewählte Tour auf der Karte hervor. */
+  function applyMapSelection(fly) {
+    if (!_map || !_mapReady) return;
+    const path = _sel ? _sel.path : "";
+    for (const id of ["lib-tracks-sel-halo", "lib-tracks-sel"]) {
+      if (_map.getLayer(id)) _map.setFilter(id, ["==", ["get", "path"], path]);
+    }
+    // Alles andere zurücknehmen, damit die Auswahl wirklich heraussticht.
+    if (_map.getLayer("lib-tracks-line")) {
+      _map.setPaintProperty("lib-tracks-line", "line-opacity", path ? 0.35 : 0.8);
+    }
+    if (!fly || !_sel || !_sel.geom || _sel.geom.length < 2) return;
+    fitAll({ features: [{ geometry: { coordinates: _sel.geom } }] });
   }
 
   function applyMapData(data) {
@@ -379,10 +436,11 @@ function mountLibrary(body, headerActions) {
     } catch (_) { /* leere/entartete Bounds — dann bleibt der Ausschnitt wie er ist */ }
   }
 
-  function select(it) {
+  function select(it, opts) {
     _sel = it;
     if (view === "cards") renderGrid();
     else if (view === "list") renderList();
+    else applyMapSelection(opts && opts.fly);
     renderDetail();
   }
 
@@ -433,6 +491,17 @@ function mountLibrary(body, headerActions) {
         <span>${T("library.favorite", "Favorit")}</span>
       </label>
 
+      <div class="field-label" style="margin-top:10px;">${T("library.recorded_label", "Gemacht oder geplant?")}</div>
+      <div class="lib-seg" id="lib-d-rec">
+        <button type="button" data-rec="1"${it.recorded_eff ? " class='is-on'" : ""}>${T("library.recorded_yes", "Gemacht")}</button>
+        <button type="button" data-rec="0"${!it.recorded_eff ? " class='is-on'" : ""}>${T("library.recorded_no", "Geplant")}</button>
+        <button type="button" data-rec="auto"${it.recorded_manual ? "" : " class='is-on'"}>${T("library.recorded_auto", "Automatisch")}</button>
+      </div>
+      <div class="lib-hint">${recSrcText(it)}</div>
+
+      <div class="field-label" style="margin-top:10px;">${T("library.collections", "Sammlungen")}</div>
+      <div id="lib-d-cols" class="lib-colchips"></div>
+
       <label class="field-label" for="lib-d-tags" style="margin-top:8px;">${T("library.tags", "Schlagwörter")}</label>
       <input type="text" id="lib-d-tags" class="lib-input" value="${esc((it.tag_list || []).join(", "))}"
              placeholder="${T("library.tags_ph", "z. B. Mallorca, Testfahrt")}">
@@ -464,6 +533,17 @@ function mountLibrary(body, headerActions) {
       it.note = $("lib-d-note").value;
     }, 500);
     $("lib-d-note").oninput = saveNote;
+    $("lib-d-rec").querySelectorAll("[data-rec]").forEach(b => {
+      b.onclick = async () => {
+        const v = b.dataset.rec === "auto" ? null : b.dataset.rec === "1";
+        const res = await api().library_set_recorded(it.path, v);
+        if (res && res.ok && res.track) {
+          Object.assign(it, res.track);
+          renderDetail(); renderView(); reloadStats();
+        }
+      };
+    });
+    renderTrackCollections(it);
     $("lib-d-reveal").onclick = () => api().library_reveal(it.path);
     const srcBtn = $("lib-d-src");
     if (srcBtn) srcBtn.onclick = () => api().open_url(it.source_url);
@@ -487,6 +567,78 @@ function mountLibrary(body, headerActions) {
       await api().library_forget(it.path);
       _sel = null;
       await reload(); await reloadStats(); renderDetail();
+    };
+  }
+
+  /** Woran erkannt? — damit die Schätzung nachvollziehbar bleibt. */
+  function recSrcText(it) {
+    if (it.recorded_manual) return T("library.rec_src.user", "Von dir festgelegt.");
+    const m = {
+      sensors: T("library.rec_src.sensors", "Erkannt an aufgezeichneten Sensordaten (Puls, Trittfrequenz …) — sicher gemacht."),
+      name: T("library.rec_src.name", "Erkannt am Namen der Tour."),
+      notime: T("library.rec_src.notime", "Ohne Zeitstempel — das kann keine Aufzeichnung sein."),
+      rhythm: T("library.rec_src.rhythm", "Geschätzt am Rhythmus der Aufzeichnung (Pausen, schwankendes Tempo). Stimmt meistens, aber nicht immer — hier korrigierbar."),
+    };
+    return m[it.recorded_src] || "";
+  }
+
+  async function renderTrackCollections(it) {
+    const box = $("lib-d-cols");
+    if (!box) return;
+    const res = await api().library_collections_of(it.path);
+    const mine = (res && res.collections) || [];
+    box.innerHTML =
+      mine.map(c => `<span class="lib-colchip">${esc(c.name)}<button data-rm="${c.id}" title="${esc(T("library.col_remove", "Aus der Sammlung nehmen"))}">✕</button></span>`).join("") +
+      `<button class="lib-chip lib-chip-ghost" id="lib-d-addcol">+ ${T("library.col_add", "Zu Sammlung")}</button>`;
+    box.querySelectorAll("[data-rm]").forEach(b => {
+      b.onclick = async () => {
+        await api().library_collection_remove(parseInt(b.dataset.rm, 10), [it.path]);
+        await reloadCollections(); renderTrackCollections(it);
+        if (state.collection_id) reload();
+      };
+    });
+    const add = $("lib-d-addcol");
+    if (add) add.onclick = () => addToCollectionDialog([it.path]);
+  }
+
+  /** Touren einer Sammlung zuordnen — bestehende wählen oder neue anlegen. */
+  function addToCollectionDialog(paths) {
+    const list = _collections.map(c =>
+      `<button class="btn btn-sm lib-colpick" data-col="${c.id}">${esc(c.name)} <i>(${c.n})</i></button>`).join("");
+    const m = openModal({
+      title: paths.length > 1
+        ? `${paths.length} ${T("library.col_add_many", "Touren zu einer Sammlung")}`
+        : T("library.col_add", "Zu Sammlung"),
+      body: `
+        <div class="lib-fmodal">
+          <div class="lib-actions">${list || `<span class="lib-hint">${T("library.col_none", "Noch keine Sammlung angelegt.")}</span>`}</div>
+          <hr class="lib-hr">
+          <label class="field-label" for="lib-newcol">${T("library.col_new", "Neue Sammlung")}</label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="lib-newcol" class="lib-input" placeholder="${T("library.col_new_ph", "z. B. Märkischer Landweg")}">
+            <button class="btn btn-primary btn-sm" id="lib-newcol-go">${T("library.col_create", "Anlegen")}</button>
+          </div>
+        </div>`,
+    });
+    document.querySelectorAll("#modal-body .lib-colpick").forEach(b => {
+      b.onclick = async () => {
+        await api().library_collection_add(parseInt(b.dataset.col, 10), paths);
+        await api().library_collection_sort_by_date(parseInt(b.dataset.col, 10));
+        m.close(); await reloadCollections();
+        if (_sel) renderTrackCollections(_sel);
+        if (state.collection_id) reload();
+        toast(T("library.col_added", "Zur Sammlung hinzugefügt."), "info");
+      };
+    });
+    const go = document.getElementById("lib-newcol-go");
+    if (go) go.onclick = async () => {
+      const name = (document.getElementById("lib-newcol") || {}).value || "";
+      if (!name.trim()) return;
+      const res = await api().library_collection_create(name.trim(), paths);
+      if (res && res.ok) await api().library_collection_sort_by_date(res.id);
+      m.close(); await reloadCollections();
+      if (_sel) renderTrackCollections(_sel);
+      toast(T("library.col_created", "Sammlung angelegt."), "info");
     };
   }
 
@@ -642,12 +794,103 @@ function mountLibrary(body, headerActions) {
           const r = st.result || st;
           info.innerHTML = st.error
             ? `<div class="lib-warn">${esc(st.error)}</div>`
-            : `<div class="lib-scan-done">${r.ok || 0} ${T("library.map_thumbs_done", "Kartenbilder geladen")}` +
+            : `<div class="lib-scan-done">${T("library.map_thumbs_done2", "Kartenbilder geladen:")} ${r.ok || 0}` +
               `${st.pending ? ` · ${st.pending} ${T("library.map_thumbs_left", "offen")}` : ""}</div>`;
         }
         await reload();
       }
     }, 500);
+  }
+
+  /** Sammlungen verwalten: umbenennen, löschen, alle Etappen übernehmen. */
+  async function openCollectionsModal() {
+    await reloadCollections();
+    const m = openModal({
+      title: T("library.collections", "Sammlungen"),
+      body: collectionsModalHtml(),
+    });
+    bindCollectionsModal(m);
+  }
+
+  function collectionsModalHtml() {
+    if (!_collections.length) {
+      return `<div class="lib-fmodal"><div class="lib-hint">${T("library.col_none_hint",
+        "Noch keine Sammlung. Wähle eine Tour aus und lege über „+ Zu Sammlung“ die erste an — oder filtere (z. B. nach einem Namen) und nimm alle Treffer auf einmal.")}</div>
+        ${collectionsAddAllHtml()}</div>`;
+    }
+    return `<div class="lib-fmodal">
+      ${_collections.map(c => `
+        <div class="lib-colrow" data-col="${c.id}">
+          <input type="text" class="lib-input lib-colname" value="${esc(c.name)}" data-id="${c.id}">
+          <span class="lib-colmeta">${c.n} · ${c.total_km} km · ↑ ${c.total_ascent_m} m</span>
+          <button class="btn btn-sm" data-open="${c.id}">${T("library.col_open", "Anzeigen")}</button>
+          <button class="btn btn-sm" data-anim="${c.id}">${T("library.col_animator", "Alle im Animator")}</button>
+          <button class="btn btn-ghost btn-sm" data-del="${c.id}">${T("library.col_delete", "Löschen")}</button>
+        </div>`).join("")}
+      ${collectionsAddAllHtml()}
+    </div>`;
+  }
+
+  function collectionsAddAllHtml() {
+    if (!_total || _total > 60) return "";
+    return `<hr class="lib-hr">
+      <button class="btn btn-sm" id="lib-col-addall">
+        ${T("library.col_add_filtered", "Alle")} ${_total} ${T("library.col_add_filtered2", "Treffer in eine Sammlung")}
+      </button>
+      <div class="lib-hint">${T("library.col_add_filtered_hint", "Nimmt genau das, was gerade gefiltert angezeigt wird.")}</div>`;
+  }
+
+  function bindCollectionsModal(m) {
+    const root = document.getElementById("modal-body");
+    if (!root) return;
+    root.querySelectorAll(".lib-colname").forEach(inp => {
+      inp.onchange = async () => {
+        await api().library_collection_rename(parseInt(inp.dataset.id, 10), inp.value);
+        await reloadCollections();
+      };
+    });
+    root.querySelectorAll("[data-del]").forEach(b => {
+      b.onclick = async () => {
+        await api().library_collection_delete(parseInt(b.dataset.del, 10));
+        if (state.collection_id === parseInt(b.dataset.del, 10)) {
+          state.collection_id = 0; state.sort = "date_desc"; reload();
+        }
+        await reloadCollections();
+        m.update({ body: collectionsModalHtml() }); bindCollectionsModal(m);
+      };
+    });
+    root.querySelectorAll("[data-open]").forEach(b => {
+      b.onclick = () => {
+        state.collection_id = parseInt(b.dataset.open, 10);
+        state.sort = "collection";
+        fillCollectionOptions();
+        m.close(); reload();
+      };
+    });
+    root.querySelectorAll("[data-anim]").forEach(b => {
+      b.onclick = () => { m.close(); openCollectionInAnimator(parseInt(b.dataset.anim, 10)); };
+    });
+    const all = document.getElementById("lib-col-addall");
+    if (all) all.onclick = () => { m.close(); addToCollectionDialog(_items.map(i => i.path)); };
+  }
+
+  /** Ganze Sammlung an den Animator übergeben — erste Tour als Haupt-Track,
+   *  der Rest als zusätzliche Touren (Multi-Track kann der Animator seit
+   *  v0.9.156). Genau dafür hat eine Sammlung ihre Reihenfolge. */
+  async function openCollectionInAnimator(cid) {
+    const res = await api().library_collection_items(cid);
+    const items = (res && res.items) || [];
+    if (!items.length) { toast(T("library.col_empty", "Diese Sammlung ist leer."), "warn"); return; }
+    const ok = await window.loadGlobalGpx(items[0].path);
+    if (ok === false) return;
+    if (typeof switchMod === "function") switchMod("animator");
+    if (items.length > 1 && typeof window._animAddTourByPath === "function") {
+      // Nacheinander, damit jede Tour ihre Vorschau-Koordinaten bekommt.
+      for (const it of items.slice(1)) {
+        try { await window._animAddTourByPath(it.path); } catch (_) {}
+      }
+      toast(`${items.length} ${T("library.col_loaded", "Touren geladen.")}`, "info");
+    }
   }
 
   async function showErrors() {
@@ -693,11 +936,22 @@ function mountLibrary(body, headerActions) {
     reload();
   };
   $("lib-reset").onclick = () => {
-    state.search = ""; state.year = 0; state.activity = ""; state.fav_only = false; state.planned = null;
+    state.search = ""; state.year = 0; state.activity = ""; state.fav_only = false;
+    state.planned = null; state.collection_id = 0; state.sort = "date_desc";
     $("lib-search").value = "";
+    fillCollectionOptions();
     $("lib-fav").classList.remove("is-on");
     $("lib-recorded").classList.remove("is-on");
     fillYearOptions(); fillActivityOptions();
+    reload();
+  };
+  $("lib-col").onchange = () => {
+    const v = parseInt($("lib-col").value, 10);
+    if (v === -1) { fillCollectionOptions(); openCollectionsModal(); return; }
+    state.collection_id = v || 0;
+    // Innerhalb einer Sammlung ist ihre eigene Reihenfolge die sinnvolle
+    // Sortierung (Etappe 1, 2, 3 …) — außerhalb wieder das Datum.
+    state.sort = state.collection_id ? "collection" : "date_desc";
     reload();
   };
   $("lib-folders-btn").onclick = openFoldersModal;
@@ -712,15 +966,16 @@ function mountLibrary(body, headerActions) {
     };
   });
 
-  if (headerActions) {
-    headerActions.innerHTML = `<button class="btn btn-ghost btn-sm" id="lib-dupes">${T("library.duplicates", "Doppelte finden")}</button>`;
-    const db = document.getElementById("lib-dupes");
-    if (db) db.onclick = showDuplicates;
-  }
+  // „Doppelte finden" sitzt bewusst in der Filterleiste und NICHT im
+  // Modul-Kopf: dort machte der Knopf zusammen mit einem langen Dateinamen
+  // die Seite breiter als das Fenster (siehe .main { min-width: 0 }).
+  $("lib-dupes").onclick = showDuplicates;
+  if (headerActions) headerActions.innerHTML = "";
 
   // ── Start ─────────────────────────────────────────────────────────────
   (async () => {
     await reloadFolders();
+    await reloadCollections();
     await reloadStats();
     await reload();
     renderDetail();
@@ -731,6 +986,7 @@ function mountLibrary(body, headerActions) {
     clearTimeout(_scanTimer);
     clearTimeout(_mapsTimer);
     if (_map) { try { _map.remove(); } catch (_) {} _map = null; _mapReady = false; }
+    try { delete window.__libMap; } catch (_) { window.__libMap = null; }
     body.classList.remove("lib-mode");
   };
 }
