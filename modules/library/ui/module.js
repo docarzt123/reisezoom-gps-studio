@@ -35,6 +35,15 @@ function mountLibrary(body, headerActions) {
   let _unmounted = false;
   let _map = null;            // Kartenansicht (nur solange sie sichtbar ist)
   let _mapReady = false;
+  let _mapPopup = null;       // Info-Karte an der angeklickten Tour
+  let _mapLib = null;         // mapboxgl oder maplibregl (für Popup-Konstruktor)
+
+  // Farben der Übersichtskarte. Magenta statt Orange, weil die Karte selbst
+  // orange Straßen und beige Flächen hat — darauf verschwand der Track. Magenta
+  // kommt auf einer Outdoor-Karte praktisch nicht vor.
+  const TRACK_COLOR = "#e5007d";
+  const FAV_COLOR = "#ffb300";
+  const SEL_COLOR = "#ff6b35";   // Auswahl in der Hausfarbe, mit weißer Kontur
 
   const PAGE = 200;
   const state = {
@@ -230,7 +239,15 @@ function mountLibrary(body, headerActions) {
     $("lib-mapwrap").hidden = view !== "map";
     if (view === "cards") renderGrid();
     else if (view === "list") renderList();
-    else { renderMap(); applyMapSelection(); }
+    else {
+      renderMap();
+      applyMapSelection();
+      // Wer in Liste/Kacheln etwas ausgewählt hatte, sieht es hier gleich wieder.
+      if (_sel && _sel.geom && _sel.geom.length && _mapReady) {
+        const mid = _sel.geom[Math.floor(_sel.geom.length / 2)];
+        showMapPopup(_sel, { lng: mid[0], lat: mid[1] });
+      }
+    }
   }
 
   function emptyHtml() {
@@ -325,6 +342,7 @@ function mountLibrary(body, headerActions) {
 
     const data = { type: "FeatureCollection", features: feats };
     if (_map && _mapReady) {
+      if (_sel && !feats.some(f => f.properties.path === _sel.path)) closeMapPopup();
       // Beim Ansichtswechsel war die Karte ausgeblendet — Mapbox merkt die neue
       // Größe erst, wenn man es ihm sagt.
       try { _map.resize(); } catch (_) {}
@@ -339,6 +357,7 @@ function mountLibrary(body, headerActions) {
       common: { center: [10, 51], zoom: 3, attributionControl: true },
     });
     _map = created.map;
+    _mapLib = created.lib;
     // Für die automatischen Tests greifbar (wie in den anderen Modulen üblich):
     // nur so lässt sich die Hervorhebung der Auswahl prüfen, ohne Pixel zu raten.
     window.__libMap = _map;
@@ -352,19 +371,30 @@ function mountLibrary(body, headerActions) {
       _map.addLayer({
         id: "lib-tracks-dot", type: "circle", source: "lib-tracks",
         paint: {
-          "circle-color": ["case", ["==", ["get", "fav"], 1], "#fbbf24", "#ff6b35"],
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1.6, 6, 2.4, 9, 0],
-          "circle-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.8, 9, 0],
-          "circle-blur": 0.3,
+          "circle-color": ["case", ["==", ["get", "fav"], 1], FAV_COLOR, TRACK_COLOR],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1.8, 6, 2.6, 9, 0],
+          "circle-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.9, 9, 0],
+          "circle-blur": 0.25,
+        },
+      });
+      // Dunkle Kontur unter jeder Linie: auf hellen Feldern und Straßen war der
+      // dünne Strich sonst kaum zu sehen (Marc: „sieht man kaum").
+      _map.addLayer({
+        id: "lib-tracks-casing", type: "line", source: "lib-tracks",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#0b0f14",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 4, 2.6, 8, 3.6, 12, 5.4, 16, 7.5],
+          "line-opacity": 0.35,
         },
       });
       _map.addLayer({
         id: "lib-tracks-line", type: "line", source: "lib-tracks",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": ["case", ["==", ["get", "fav"], 1], "#fbbf24", "#ff6b35"],
-          "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1, 8, 1.8, 12, 3, 16, 4.5],
-          "line-opacity": 0.8,
+          "line-color": ["case", ["==", ["get", "fav"], 1], FAV_COLOR, TRACK_COLOR],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.4, 8, 2.2, 12, 3.4, 16, 5],
+          "line-opacity": 0.95,
         },
       });
       // Ausgewählte Tour: liegt ÜBER allen anderen, dicker und in Weiß mit
@@ -374,13 +404,13 @@ function mountLibrary(body, headerActions) {
         id: "lib-tracks-sel-halo", type: "line", source: "lib-tracks",
         filter: ["==", ["get", "path"], ""],
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#ffffff", "line-width": 7, "line-opacity": 0.9 },
+        paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.95 },
       });
       _map.addLayer({
         id: "lib-tracks-sel", type: "line", source: "lib-tracks",
         filter: ["==", ["get", "path"], ""],
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#ff3d00", "line-width": 3.5 },
+        paint: { "line-color": SEL_COLOR, "line-width": 4 },
       });
       _map.addLayer({
         id: "lib-tracks-hit", type: "line", source: "lib-tracks",
@@ -390,7 +420,14 @@ function mountLibrary(body, headerActions) {
         const f = e.features && e.features[0];
         if (!f) return;
         const it = _items.find(x => x.path === f.properties.path);
-        if (it) select(it, { fly: false });
+        if (!it) return;
+        select(it, { fly: false });
+        showMapPopup(it, e.lngLat);
+      });
+      // Klick ins Leere schließt die Info-Karte und hebt die Hervorhebung auf.
+      _map.on("click", (e) => {
+        const hits = _map.queryRenderedFeatures(e.point, { layers: ["lib-tracks-hit"] });
+        if (!hits.length) { closeMapPopup(); _sel = null; applyMapSelection(); renderDetail(); }
       });
       _map.on("mouseenter", "lib-tracks-hit", () => { _map.getCanvas().style.cursor = "pointer"; });
       _map.on("mouseleave", "lib-tracks-hit", () => { _map.getCanvas().style.cursor = ""; });
@@ -408,10 +445,56 @@ function mountLibrary(body, headerActions) {
     }
     // Alles andere zurücknehmen, damit die Auswahl wirklich heraussticht.
     if (_map.getLayer("lib-tracks-line")) {
-      _map.setPaintProperty("lib-tracks-line", "line-opacity", path ? 0.35 : 0.8);
+      // Nicht zu stark zurücknehmen: die anderen Touren sollen weiter erkennbar
+      // bleiben (Marc: „sieht man kaum") — es reicht, dass die Auswahl vorne liegt.
+      _map.setPaintProperty("lib-tracks-line", "line-opacity", path ? 0.55 : 0.95);
+    }
+    if (_map.getLayer("lib-tracks-casing")) {
+      _map.setPaintProperty("lib-tracks-casing", "line-opacity", path ? 0.2 : 0.35);
     }
     if (!fly || !_sel || !_sel.geom || _sel.geom.length < 2) return;
     fitAll({ features: [{ geometry: { coordinates: _sel.geom } }] });
+  }
+
+  /** Info-Karte direkt auf der Karte: Name, die wichtigsten Zahlen und die
+   *  zwei Dinge, die man dort tun will — öffnen oder einer Sammlung zuordnen.
+   *  Ohne das müsste man für jede angeklickte Linie nach rechts schauen. */
+  function showMapPopup(it, lngLat) {
+    if (!_map || !_mapLib) return;
+    closeMapPopup();
+    const rows = [
+      [T("library.distance", "Strecke"), fmtKmVal(it.distance_m || 0)],
+      [T("library.ascent", "Höhenmeter"), "↑ " + Math.round(it.ascent_m || 0) + " m"],
+      [T("library.duration", "Dauer"), it.duration_s ? fmtDurVal(it.duration_s) : "—"],
+    ];
+    const html = `
+      <div class="lib-pop">
+        <div class="lib-pop-title">${esc(it.name || it.filename)}</div>
+        <div class="lib-pop-sub">${fmtDate(it.started_at)}
+          ${it.activity ? " · " + esc(ACT_LABELS[it.activity] || it.activity) : ""}
+          ${it.recorded_eff ? "" : " · " + T("library.planned", "geplant")}</div>
+        <div class="lib-pop-stats">
+          ${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}
+        </div>
+        <div class="lib-pop-btns">
+          <button class="btn btn-primary btn-sm" data-pop="open">${T("library.open_animator", "Im Animator öffnen")}</button>
+          <button class="btn btn-sm" data-pop="col">+ ${T("library.col_add", "Zu Sammlung")}</button>
+        </div>
+      </div>`;
+    _mapPopup = new _mapLib.Popup({
+      closeButton: true, closeOnClick: false, maxWidth: "300px", offset: 12,
+      className: "lib-popup",
+    }).setLngLat(lngLat).setHTML(html).addTo(_map);
+    const el = _mapPopup.getElement();
+    if (!el) return;
+    const open = el.querySelector('[data-pop="open"]');
+    if (open) open.onclick = () => openIn("animator");
+    const col = el.querySelector('[data-pop="col"]');
+    if (col) col.onclick = () => addToCollectionDialog([it.path]);
+  }
+
+  function closeMapPopup() {
+    if (_mapPopup) { try { _mapPopup.remove(); } catch (_) {} _mapPopup = null; }
   }
 
   function applyMapData(data) {
@@ -985,6 +1068,7 @@ function mountLibrary(body, headerActions) {
     _unmounted = true;
     clearTimeout(_scanTimer);
     clearTimeout(_mapsTimer);
+    closeMapPopup();
     if (_map) { try { _map.remove(); } catch (_) {} _map = null; _mapReady = false; }
     try { delete window.__libMap; } catch (_) { window.__libMap = null; }
     body.classList.remove("lib-mode");

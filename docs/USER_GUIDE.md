@@ -239,8 +239,14 @@ GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:
 | 🌍 | **Karte** | „Wo war ich überall?" — alle gefilterten Touren auf einer Weltkarte, Klick auf eine Linie wählt sie aus |
 
 Auf der Karte werden weit entfernte Touren als **Punkte** gezeichnet und erst beim
-Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar. Die **angeklickte
-Tour wird hervorgehoben** (weiße Kontur, kräftige Linie), die übrigen treten zurück.
+Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar. Gezeichnet wird in
+**Magenta mit dunkler Kontur**: Die Karte selbst hat orange Straßen und beige Flächen, darauf
+verschwand ein orangefarbener Track. Favoriten sind bernsteinfarben.
+
+**Klick auf eine Tour** hebt sie hervor (weiße Kontur, orange Linie, liegt vorn) und öffnet
+direkt auf der Karte eine kleine **Info-Karte**: Name, Datum, Art, Strecke, Höhenmeter, Dauer
+— und die beiden Knöpfe **„Im Animator öffnen"** und **„+ Zu Sammlung"**. Ein Klick ins Leere
+schließt sie wieder.
 
 **Weiterarbeiten:** Tour anklicken, dann rechts **„Im Animator öffnen"** (oder Tour-Karte,
 Daten-Animator, Geotagger, Inspektor). Ein **Doppelklick** auf die Kachel schickt sie direkt

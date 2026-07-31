@@ -14,6 +14,25 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.490] – 2026-07-31
+### Geändert
+- **Die Touren auf der Übersichtskarte sind endlich gut zu sehen** (Marc: „sieht man kaum").
+  Sie waren orange — genau wie die Straßen und Flächen der Outdoor-Karte darunter. Jetzt
+  **Magenta**, eine Farbe, die auf so einer Karte praktisch nicht vorkommt, dazu eine **dunkle
+  Kontur** unter jeder Linie (auf hellen Feldern verschwand der dünne Strich sonst) und etwas
+  mehr Breite. Favoriten bleiben bernsteinfarben, die **ausgewählte** Tour ist orange mit
+  weißer Kontur und liegt vorn.
+- Beim Auswählen treten die übrigen Touren nur noch auf 55 % zurück statt auf 30 % — sie
+  sollen ja weiter erkennbar bleiben.
+
+### Hinzugefügt
+- **Info-Karte direkt auf der Karte.** Ein Klick auf eine Tour zeigt an Ort und Stelle Name,
+  Datum, Fortbewegungsart, ob sie nur geplant war — und die drei Kennzahlen **Strecke,
+  Höhenmeter, Dauer**. Dazu die zwei Dinge, die man dort tun will: **„Im Animator öffnen"**
+  und **„+ Zu Sammlung"**. Ein Klick ins Leere schließt sie wieder und hebt die Auswahl auf.
+- Wer in Kacheln oder Liste etwas ausgewählt hat und dann auf die Karte wechselt, sieht die
+  Info-Karte gleich an der richtigen Stelle.
+
 ## [0.9.489] – 2026-07-31
 ### Hinzugefügt
 - **Sammlungen** — mehrere Touren als eine Einheit: die sechs Etappen einer Mehrtagestour,
