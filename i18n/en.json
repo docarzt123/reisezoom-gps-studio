@@ -1560,5 +1560,22 @@
   "library.act.auto": "Car",
   "library.act.boot": "Boat",
   "library.act.ski": "Ski",
-  "library.no_errors": "All files could be read."
+  "library.no_errors": "All files could be read.",
+  "library.recorded_short": "Recorded only",
+  "library.view_cards": "Cards",
+  "library.view_list": "List",
+  "library.view_map": "Map",
+  "library.folders_btn": "Folders & scanning",
+  "library.name": "Name",
+  "library.on_map": "tours on the map",
+  "library.map_no_geom": "No route shape stored for these tours yet — one rescan is enough.",
+  "library.set_cover": "Choose your own picture",
+  "library.clear_cover": "Remove picture",
+  "library.map_thumbs": "Preview pictures with a map",
+  "library.map_thumbs_hint": "A real map behind every tour instead of a bare line. Each picture is fetched from Mapbox once and then lives on your machine — so the view stays offline and free. Around 5 minutes for 700 tours.",
+  "library.map_thumbs_start": "Fetch map pictures",
+  "library.map_thumbs_done": "map pictures fetched",
+  "library.map_thumbs_left": "left",
+  "library.map_thumbs_no_token": "This needs a Mapbox token — without one the line drawing stays.",
+  "library.stop": "Stop"
 }

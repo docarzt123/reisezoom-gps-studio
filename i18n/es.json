@@ -1560,5 +1560,22 @@
   "library.act.auto": "Coche",
   "library.act.boot": "Barco",
   "library.act.ski": "Esquí",
-  "library.no_errors": "Todos los archivos se pudieron leer."
+  "library.no_errors": "Todos los archivos se pudieron leer.",
+  "library.recorded_short": "Solo grabadas",
+  "library.view_cards": "Tarjetas",
+  "library.view_list": "Lista",
+  "library.view_map": "Mapa",
+  "library.folders_btn": "Carpetas y lectura",
+  "library.name": "Nombre",
+  "library.on_map": "rutas en el mapa",
+  "library.map_no_geom": "Todavía no hay recorrido guardado para estas rutas: basta con volver a leer una vez.",
+  "library.set_cover": "Elegir imagen propia",
+  "library.clear_cover": "Quitar imagen",
+  "library.map_thumbs": "Vistas previas con mapa",
+  "library.map_thumbs_hint": "Un mapa real detrás de cada ruta en lugar de una línea suelta. Cada imagen se descarga una vez de Mapbox y luego queda en tu equipo, así que la vista funciona sin conexión y sin coste. Unos 5 minutos para 700 rutas.",
+  "library.map_thumbs_start": "Descargar imágenes de mapa",
+  "library.map_thumbs_done": "imágenes de mapa descargadas",
+  "library.map_thumbs_left": "pendientes",
+  "library.map_thumbs_no_token": "Esto necesita un token de Mapbox; sin él se mantiene el dibujo de línea.",
+  "library.stop": "Detener"
 }

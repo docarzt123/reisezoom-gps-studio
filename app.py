@@ -134,7 +134,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.486"
+APP_VERSION = "0.9.487"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -227,6 +227,10 @@ IMPORTS_DIR = APP_SUPPORT / "_imports"
 # v0.9.486: Tour-Archiv — Index aller Touren aus den beobachteten Ordnern
 LIBRARY_DB = APP_SUPPORT / "library.db"
 LIBRARY_THUMBS = APP_SUPPORT / "library_thumbs"
+# v0.9.487: gecachte Karten-Vorschaubilder (einmal von Mapbox geladen)
+# und selbst gewählte Titelbilder.
+LIBRARY_MAP_THUMBS = APP_SUPPORT / "library_mapthumbs"
+LIBRARY_COVERS = APP_SUPPORT / "library_covers"
 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
 BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
 DROPS_DIR.mkdir(parents=True, exist_ok=True)
@@ -1553,7 +1557,7 @@ class Api:
             res = clib.query(self._lib(), **p)
             if with_thumbs:
                 for it in res["items"]:
-                    it["thumb_url"] = self._lib_thumb_url(it.get("thumb"))
+                    it["thumb_url"] = self._lib_thumb_url(it.get("image"))
             # Welche Touren haben schon gespeicherte Projekte? Das ist der
             # Brückenschlag zum Session-System (gleicher Hash).
             try:
@@ -1575,9 +1579,80 @@ class Api:
             return ""
         try:
             data = Path(thumb_path).read_bytes()
-            return "data:image/png;base64," + base64.b64encode(data).decode("ascii")
+            mime = "image/jpeg" if str(thumb_path).lower().endswith((".jpg", ".jpeg")) else "image/png"
+            return f"data:{mime};base64," + base64.b64encode(data).decode("ascii")
         except OSError:
             return ""
+
+    # ── Karten-Vorschaubilder: einmal von Mapbox holen, dann liegen sie lokal ──
+
+    def library_map_thumbs_start(self, style: str = "outdoors-v12") -> dict:
+        if getattr(self, "_lib_maps_running", False):
+            return {"ok": False, "error": "läuft bereits"}
+        token = (_load_settings() or {}).get("mapbox_token") or ""
+        if not token.startswith("pk."):
+            return {"ok": False, "error": "no_token"}
+        self._lib_maps_running = True
+        self._lib_maps_stop = False
+        self._lib_maps_state = {"running": True, "done": 0, "total": 0, "current": ""}
+
+        def worker():
+            try:
+                res = clib.map_thumbs_fetch_all(
+                    self._lib(), LIBRARY_MAP_THUMBS, token, style=style,
+                    progress=lambda p: self._lib_maps_state.update(p),
+                    should_stop=lambda: self._lib_maps_stop,
+                )
+                self._lib_maps_state.update(res)
+                self._lib_maps_state["result"] = res
+            except Exception as e:
+                log.exception("library_map_thumbs")
+                self._lib_maps_state["error"] = str(e)
+            finally:
+                self._lib_maps_state["running"] = False
+                self._lib_maps_running = False
+
+        threading.Thread(target=worker, daemon=True, name="library-map-thumbs").start()
+        return {"ok": True}
+
+    def library_map_thumbs_status(self) -> dict:
+        st = dict(getattr(self, "_lib_maps_state", {"running": False}))
+        try:
+            st["pending"] = len(clib.map_thumbs_pending(self._lib()))
+        except Exception:
+            pass
+        return st
+
+    def library_map_thumbs_stop(self) -> dict:
+        self._lib_maps_stop = True
+        return {"ok": True}
+
+    # ── Eigenes Titelbild pro Tour ───────────────────────────────────────────
+
+    def library_set_cover(self, path: str, image_path: str = "") -> dict:
+        """Ohne `image_path` öffnet sich der Bild-Dialog."""
+        try:
+            if not image_path:
+                picked = self.pick_file("open", ("Bilder (*.jpg;*.jpeg;*.png;*.heic;*.tif;*.tiff)",), False)
+                if not picked:
+                    return {"ok": False, "cancelled": True}
+                image_path = picked[0]
+            clib.set_cover(self._lib(), path, image_path, LIBRARY_COVERS)
+            track = clib.get_track(self._lib(), path)
+            return {"ok": True, "track": track,
+                    "thumb_url": self._lib_thumb_url(track.get("image") if track else "")}
+        except Exception as e:
+            log.exception("library_set_cover")
+            return {"ok": False, "error": str(e)}
+
+    def library_clear_cover(self, path: str) -> dict:
+        try:
+            clib.clear_cover(self._lib(), path)
+            track = clib.get_track(self._lib(), path)
+            return {"ok": True, "track": track,
+                    "thumb_url": self._lib_thumb_url(track.get("image") if track else "")}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def library_stats(self) -> dict:
         try:

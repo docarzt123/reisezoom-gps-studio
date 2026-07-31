@@ -187,6 +187,22 @@ it reads your track folders and shows every tour with a picture, a date and the 
 folder your tracks live in. The app reads it straight away; **700 files take a good 20
 seconds.** Sub-folders are included. You can watch as many folders as you like.
 
+**Three views**, switchable on the right of the bar (the app remembers your choice):
+**▦ Cards** for browsing, **☰ List** for comparing many tours at a glance, and **🌍 Map** —
+every filtered tour on one world map, clicking a line selects it. Far-away tours are drawn
+as dots and only turn into lines as you zoom in; otherwise they would be invisible.
+
+**Nicer preview pictures — a map instead of a line:** by default a card shows the bare line,
+which is instant and free. For something prettier open **“Folders & scanning”** and press
+**“Fetch map pictures”** — the app then fetches a real map picture per tour from Mapbox once
+and **stores it on your machine for good**. After that the view is offline, instant and costs
+no further quota. Around 5 minutes for 700 tours; the run can be stopped and resumed. Without
+a Mapbox token the line drawing stays.
+
+**Your own picture for a tour:** in the right-hand column, **“Choose your own picture”** — the
+nicest photo of that tour, say. It replaces the preview everywhere. The app stores a scaled
+copy; your original stays untouched and may be moved.
+
 **Finding a tour again:**
 
 - **Search box** — searches name, file name, tags and notes. Accents don’t matter

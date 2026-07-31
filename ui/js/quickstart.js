@@ -102,11 +102,11 @@
       img: "img/quickstart/library.jpg",
       intro: "Liest deine Track-Ordner ein und zeigt jede Tour mit Bild, Datum und Zahlen. Statt Dateinamen zu raten, suchst und filterst du — und schickst die Tour mit einem Klick weiter.",
       steps: [
-        "<b>Ordner hinzufügen:</b> Links „+ Ordner hinzufügen“ und den Ordner wählen, in dem deine Tracks liegen. Unterordner kommen mit; 700 Dateien dauern rund 20 Sekunden.",
-        "<b>Wiederfinden:</b> Suchfeld, Jahr, Fortbewegung, Sortierung — oder „Nur aufgezeichnete“, um geplante Touren auszublenden.",
+        "<b>Ordner hinzufügen:</b> Oben rechts „Ordner & Einlesen“ → „+ Ordner hinzufügen“ und den Ordner wählen, in dem deine Tracks liegen. Unterordner kommen mit; 700 Dateien dauern rund 20 Sekunden.",
+        "<b>Wiederfinden:</b> Suchfeld, Jahr, Fortbewegung, Sortierung in der Leiste über den Touren — und drei Ansichten: Kacheln, Liste oder Karte mit allen Touren gleichzeitig.",
         "<b>Weiterarbeiten:</b> Tour anklicken und rechts an Animator, Tour-Karte, Geotagger & Co. übergeben. Ein Doppelklick schickt sie direkt in den Animator.",
       ],
-      tip: "Der 📚-Knopf in der Track-Leiste bringt dich aus jedem Modul ins Archiv. Deine Dateien werden nie verschoben oder gelöscht — das Archiv merkt sich nur, was wo liegt.",
+      tip: "Unter „Ordner & Einlesen“ holst du dir mit „Kartenbilder holen“ echte Karten hinter jede Tour — einmal geladen, danach offline. Deine Dateien werden nie verschoben oder gelöscht.",
     },
   };
 

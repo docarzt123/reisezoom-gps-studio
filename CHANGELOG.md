@@ -14,6 +14,40 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.487] – 2026-07-31
+### Geändert
+- **Archiv: Filter jetzt über den Touren** statt in einer eigenen Spalte links (Marc-Feedback).
+  Suche, Jahr, Fortbewegung, Sortierung und die beiden Schalter „Nur Favoriten" / „Nur
+  gefahrene" sitzen in einer Leiste über dem Inhalt; die Ordner-Verwaltung ist in ein Modal
+  „Ordner & Einlesen" gewandert, weil man sie einmal einrichtet und danach nie wieder braucht.
+  Das Raster hat dadurch die volle Breite.
+- **Die Seite ist nicht mehr zu breit.** Die Inhaltsspalte war als `1fr` gesetzt und konnte
+  damit nicht unter ihren eigenen Inhalt schrumpfen — ein langer Tourname schob die ganze
+  Seite über den Fensterrand. Jetzt `minmax(0, 1fr)`, gemessen: 0 px Überbreite.
+
+### Hinzugefügt
+- **Drei Ansichten** im Archiv, oben rechts umschaltbar und über Sitzungen hinweg gemerkt:
+  **Kacheln** (wie bisher), **Liste** (dichte Tabelle mit Name, Datum, Strecke, Höhenmetern,
+  Dauer, Art) und **Karte** — alle gefilterten Touren gleichzeitig auf einer Weltkarte,
+  Klick auf eine Linie wählt die Tour aus. Weit draußen werden Touren als Punkte gezeichnet,
+  sonst wären sie unsichtbar; beim Hineinzoomen blenden die Linien auf.
+- **Vorschaubilder mit echter Karte** (Marc: „die karten von mapbox cachen"). Auf Knopfdruck
+  holt die App zu jeder Tour ein Kartenbild von Mapbox und legt es **dauerhaft lokal** ab —
+  danach ist die Ansicht offline, sofort da und kostet kein weiteres Kontingent. Gemessen:
+  0,4 s je Bild, rund 5 Minuten für 700 Touren. Ohne Mapbox-Token bleibt es bei der
+  Linienzeichnung.
+- **Eigenes Titelbild pro Tour** — ein Foto der Tour statt der Karte. Wird als verkleinerte
+  Kopie abgelegt, das Original bleibt unberührt und darf verschoben werden.
+- Beim Einlesen wird der **Streckenverlauf ausgedünnt mitgespeichert** (max. 80 Punkte je
+  Tour). Das ist die Grundlage für Kartenansicht und Kartenbilder — die vollen Dateien dafür
+  zu öffnen wäre bei hunderten Touren nicht machbar. Bestehende Archive füllen das beim
+  nächsten „Neu einlesen" von selbst nach.
+
+### Behoben
+- Die Karte im Archiv blieb schwarz: Mapbox setzt der Container-Klasse `.mapboxgl-map` selbst
+  `position: relative`, und sein Stylesheet wird nach dem Modul-CSS geladen — die per
+  `position: absolute; inset: 0` aufgezogene Fläche hatte damit die Höhe 0. Jetzt über Flex.
+
 ## [0.9.486] – 2026-07-31
 ### Hinzugefügt
 - **Tour-Archiv** — ein neuer Reiter, der alle Touren auf dem Rechner durchsuchbar macht.

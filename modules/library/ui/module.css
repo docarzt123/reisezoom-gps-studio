@@ -1,108 +1,106 @@
-/* Tour-Archiv (v0.9.486) — Filterspalte · Kachelraster · Detailspalte.
-   Die Detailspalte klappt bei schmalen Fenstern weg, damit das Raster
-   nicht auf zwei Kacheln zusammenschrumpft. */
+/* Tour-Archiv (v0.9.487) — Filterleiste über den Touren, darunter die
+   gewählte Ansicht (Kacheln · Liste · Karte), rechts die Detailspalte. */
 
 .module-body.lib-mode {
-  grid-template-columns: 300px 1fr 320px;
+  /* minmax(0, …) ist Pflicht: eine reine 1fr-Spalte schrumpft nicht unter
+     ihren Inhalt, und schon eine lange Zeile in der Liste hätte die ganze
+     Seite breiter gemacht als das Fenster (Marc: „minimal zu breit"). */
+  grid-template-columns: minmax(0, 1fr) 320px;
+  overflow: hidden;
 }
 
-@media (max-width: 1250px) {
-  .module-body.lib-mode { grid-template-columns: 260px 1fr; }
+@media (max-width: 1150px) {
+  .module-body.lib-mode { grid-template-columns: minmax(0, 1fr); }
   .module-body.lib-mode .lib-detail { display: none; }
 }
 
-.lib-side { padding: 16px 18px; gap: 16px; }
+.lib-main {
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: 0; overflow: hidden;
+  background: var(--bg-1);
+}
 
+/* ── Filterleiste ────────────────────────────────────────────────────── */
+
+.lib-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+}
+.lib-bar-spacer { flex: 1 1 auto; }
+
+.lib-search {
+  flex: 1 1 220px; min-width: 160px; max-width: 340px;
+}
 .lib-search,
 .lib-select,
 .lib-input {
-  width: 100%;
   background: var(--bg-1);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
-  padding: 7px 9px;
+  padding: 6px 9px;
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
+  max-width: 100%;
 }
+.lib-select { min-width: 0; }
 .lib-search:focus,
 .lib-select:focus,
 .lib-input:focus { outline: none; border-color: var(--accent); }
-.lib-input { resize: vertical; }
+.lib-input { width: 100%; resize: vertical; }
 
-/* ── Ordner ──────────────────────────────────────────────────────────── */
-
-.lib-folders { display: flex; flex-direction: column; gap: 4px; }
-
-.lib-folder {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--bg-1);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: 12px;
+.lib-chip {
+  background: var(--bg-1); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text-dim); padding: 5px 11px; font: inherit; font-size: 12px;
+  cursor: pointer; white-space: nowrap;
 }
-.lib-folder.is-missing { border-color: var(--danger); }
-.lib-folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lib-folder-n { color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.lib-folder-x {
-  background: none; border: none; color: var(--text-muted);
-  cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px;
+.lib-chip:hover { border-color: var(--border-strong); color: var(--text); }
+.lib-chip.is-on {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--text);
 }
-.lib-folder-x:hover { color: var(--danger); }
+.lib-chip-ghost { border-style: dashed; }
 
-.lib-empty-hint,
-.lib-scan-info { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
-.lib-scan-info { margin-top: 8px; }
-.lib-scan-done { color: var(--success); }
-
-.lib-progress {
-  height: 4px; background: var(--bg-3); border-radius: 2px; overflow: hidden;
+.lib-views { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.lib-view {
+  background: var(--bg-1); border: none; color: var(--text-dim);
+  padding: 5px 10px; font-size: 13px; cursor: pointer;
 }
-.lib-progress > i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
-.lib-progress-txt {
-  margin-top: 4px; font-size: 11px; color: var(--text-muted);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.lib-view + .lib-view { border-left: 1px solid var(--border); }
+.lib-view:hover { color: var(--text); }
+.lib-view.is-on { background: var(--accent-soft); color: var(--accent); }
 
-.lib-warn {
-  margin-top: 8px; font-size: 11.5px; line-height: 1.5;
-  color: var(--warn);
-}
-
-/* ── Gesamt-Zahlen ───────────────────────────────────────────────────── */
-
-.lib-sum { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.lib-sum > div {
-  background: var(--bg-1); border: 1px solid var(--border); border-radius: 6px;
-  padding: 8px; text-align: center;
-}
-.lib-sum b { display: block; font-size: 16px; font-variant-numeric: tabular-nums; }
-.lib-sum span { font-size: 10.5px; color: var(--text-muted); }
-
-/* ── Raster ──────────────────────────────────────────────────────────── */
-
-.lib-main { display: flex; flex-direction: column; min-height: 0; background: var(--bg-1); }
+/* ── Kopfzeile mit den Summen ────────────────────────────────────────── */
 
 .lib-head {
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  padding: 8px 16px; border-bottom: 1px solid var(--border);
 }
-.lib-head-count { font-size: 14px; font-weight: 600; }
-.lib-head-sub { font-size: 12px; color: var(--text-muted); }
+.lib-head-count { font-size: 13.5px; font-weight: 600; }
+.lib-head-sub { font-size: 11.5px; color: var(--text-muted); }
+.lib-head-warn {
+  background: none; border: none; padding: 0; font: inherit; font-size: 11.5px;
+  color: var(--warn); cursor: pointer; text-decoration: underline;
+  text-underline-offset: 2px; margin-left: auto;
+}
+
+/* ── Inhalt ──────────────────────────────────────────────────────────── */
+
+.lib-body { flex: 1; min-height: 0; min-width: 0; display: flex; }
+.lib-body > * { flex: 1; min-width: 0; }
+.lib-body > [hidden] { display: none; }
 
 .lib-grid {
-  flex: 1; min-height: 0; overflow-y: auto;
-  display: grid; gap: 12px; padding: 16px 18px;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  overflow-y: auto; overflow-x: hidden;
+  display: grid; gap: 12px; padding: 14px 16px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   align-content: start;
 }
 
 .lib-card {
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
   background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px;
-  padding: 8px; text-align: left; cursor: pointer; color: var(--text);
-  font: inherit;
+  padding: 8px; text-align: left; cursor: pointer; color: var(--text); font: inherit;
 }
 .lib-card:hover { border-color: var(--border-strong); }
 .lib-card.is-sel { border-color: var(--accent); background: var(--accent-soft); }
@@ -111,7 +109,7 @@
   position: relative; display: block;
   aspect-ratio: 16 / 9; background: var(--bg-1); border-radius: 5px; overflow: hidden;
 }
-.lib-card-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.lib-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lib-card-nothumb {
   display: flex; align-items: center; justify-content: center;
   width: 100%; height: 100%; color: var(--text-muted);
@@ -119,38 +117,92 @@
 
 .lib-badge {
   position: absolute; top: 4px; font-size: 9.5px; line-height: 1;
-  padding: 3px 5px; border-radius: 4px; background: rgba(0, 0, 0, .6);
+  padding: 3px 5px; border-radius: 4px; background: rgba(0, 0, 0, .62);
 }
 .lib-badge-fav { left: 4px; color: var(--warn); }
-.lib-badge-plan { right: 4px; color: var(--text-dim); }
+.lib-badge-plan { right: 4px; color: #e8ecf3; }
 .lib-badge-proj { right: 4px; bottom: 4px; top: auto; color: var(--accent); }
 
 .lib-card-name {
-  font-size: 12px; font-weight: 500; line-height: 1.35;
+  font-size: 12px; font-weight: 500; line-height: 1.35; min-width: 0;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow: hidden; overflow-wrap: anywhere;
 }
 .lib-card-meta {
   display: flex; gap: 8px; font-size: 10.5px; color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums; min-width: 0;
 }
+
+/* ── Liste ───────────────────────────────────────────────────────────── */
+
+.lib-list { overflow-y: auto; overflow-x: hidden; padding: 8px 16px 16px; }
+
+.lib-row {
+  display: grid; align-items: center; gap: 10px; width: 100%;
+  grid-template-columns: 56px minmax(0, 1fr) 92px 84px 84px 84px 104px;
+  background: none; border: none; border-bottom: 1px solid var(--border);
+  color: var(--text); font: inherit; font-size: 12px; text-align: left;
+  padding: 5px 6px; cursor: pointer;
+}
+.lib-row:hover { background: var(--bg-2); }
+.lib-row.is-sel { background: var(--accent-soft); }
+.lib-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-row-head {
+  position: sticky; top: 0; z-index: 1; cursor: default;
+  background: var(--bg-1); color: var(--text-muted); font-size: 11px;
+}
+.lib-row-head:hover { background: var(--bg-1); }
+.lib-row-thumb {
+  width: 56px; height: 32px; border-radius: 4px; overflow: hidden; background: var(--bg-2);
+}
+.lib-row-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lib-row-name { font-weight: 500; }
+.lib-row-tag {
+  font-style: normal; font-size: 9.5px; color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 4px; padding: 1px 4px; margin-left: 5px;
+}
+.lib-row-tag-proj { color: var(--accent); border-color: var(--accent); }
+
+/* ── Karte ───────────────────────────────────────────────────────────── */
+
+/* Der Karten-Container darf NICHT über `position:absolute; inset:0` aufgezogen
+   werden: Mapbox setzt der Container-Klasse `.mapboxgl-map` selbst
+   `position:relative`, und dessen Stylesheet wird nach dem Modul-CSS geladen —
+   die Höhe fiel damit auf 0 und die Karte blieb schwarz. Über Flex+100 %
+   funktioniert es unabhängig davon. */
+.lib-mapwrap { position: relative; min-height: 0; display: flex; }
+.lib-map { flex: 1 1 auto; min-width: 0; height: 100%; }
+.lib-map-hint {
+  position: absolute; left: 12px; bottom: 12px; z-index: 2;
+  background: rgba(14, 17, 22, .82); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 9px; font-size: 11.5px; color: var(--text-dim);
+  max-width: 60%;
+}
+
+/* ── Leerer Zustand ──────────────────────────────────────────────────── */
 
 .lib-empty { grid-column: 1 / -1; padding: 48px 16px; text-align: center; }
 .lib-empty-title { font-size: 15px; margin-bottom: 6px; }
 .lib-empty-text { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
+.lib-empty-hint,
+.lib-hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.55; }
 
 /* ── Detailspalte ────────────────────────────────────────────────────── */
 
-.lib-detail { border-right: none; border-left: 1px solid var(--border); padding: 16px 18px; gap: 10px; }
+.lib-detail {
+  border-right: none; border-left: 1px solid var(--border);
+  padding: 14px 16px; gap: 10px; min-width: 0;
+}
 .lib-detail-empty { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
 
 .lib-detail-thumb {
   aspect-ratio: 16 / 9; background: var(--bg-1);
   border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
 }
-.lib-detail-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.lib-detail-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-.lib-detail-title { font-size: 14px; font-weight: 600; line-height: 1.35; }
+.lib-cover-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.lib-detail-title { font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
 
 .lib-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -160,9 +212,41 @@
   font-size: 12px; padding: 3px 0; border-bottom: 1px solid var(--border);
 }
 .lib-detail-rows span { color: var(--text-muted); }
-.lib-detail-rows b { font-weight: 500; text-align: right; word-break: break-word; }
+.lib-detail-rows b { font-weight: 500; text-align: right; overflow-wrap: anywhere; }
 
-/* ── Doppelte ────────────────────────────────────────────────────────── */
+.lib-warn { margin-top: 8px; font-size: 11.5px; line-height: 1.5; color: var(--warn); }
+
+/* ── Ordner-Modal ────────────────────────────────────────────────────── */
+
+.lib-fmodal { min-width: 380px; max-width: 560px; }
+.lib-hr { border: none; border-top: 1px solid var(--border); margin: 14px 0 10px; }
+
+.lib-folders { display: flex; flex-direction: column; gap: 4px; }
+.lib-folder {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-1); border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 8px; font-size: 12px;
+}
+.lib-folder.is-missing { border-color: var(--danger); }
+.lib-folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.lib-folder-n { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.lib-folder-x {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px;
+}
+.lib-folder-x:hover { color: var(--danger); }
+
+.lib-scan-info { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; margin-top: 8px; }
+.lib-scan-done { color: var(--success); }
+
+.lib-progress { height: 4px; background: var(--bg-3); border-radius: 2px; overflow: hidden; }
+.lib-progress > i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.lib-progress-txt {
+  margin-top: 4px; font-size: 11px; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Doppelte / Fehlerliste ──────────────────────────────────────────── */
 
 .lib-dupes { max-height: 60vh; overflow-y: auto; }
 .lib-dupe-group {
@@ -170,10 +254,4 @@
   padding: 8px 10px; margin-bottom: 8px;
 }
 .lib-dupe-head { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-.lib-dupe-item { font-size: 12px; padding: 2px 0; }
-
-.lib-warn-btn {
-  display: block; width: 100%; text-align: left;
-  background: none; border: none; padding: 0; font: inherit; cursor: pointer;
-  text-decoration: underline; text-underline-offset: 2px;
-}
+.lib-dupe-item { font-size: 12px; padding: 2px 0; overflow-wrap: anywhere; }

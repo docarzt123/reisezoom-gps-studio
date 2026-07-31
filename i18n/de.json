@@ -1560,5 +1560,22 @@
   "library.act.auto": "Auto",
   "library.act.boot": "Boot",
   "library.act.ski": "Ski",
-  "library.no_errors": "Alle Dateien konnten gelesen werden."
+  "library.no_errors": "Alle Dateien konnten gelesen werden.",
+  "library.recorded_short": "Nur gefahrene",
+  "library.view_cards": "Kacheln",
+  "library.view_list": "Liste",
+  "library.view_map": "Karte",
+  "library.folders_btn": "Ordner & Einlesen",
+  "library.name": "Name",
+  "library.on_map": "Touren auf der Karte",
+  "library.map_no_geom": "Für diese Touren ist noch kein Streckenverlauf gespeichert — einmal „Neu einlesen“ genügt.",
+  "library.set_cover": "Eigenes Bild wählen",
+  "library.clear_cover": "Bild entfernen",
+  "library.map_thumbs": "Vorschaubilder mit Karte",
+  "library.map_thumbs_hint": "Statt der reinen Linie eine echte Karte hinter jeder Tour. Jedes Bild wird einmal von Mapbox geholt und liegt danach auf dem Rechner — die Ansicht bleibt also offline und kostenlos. Rund 5 Minuten für 700 Touren.",
+  "library.map_thumbs_start": "Kartenbilder holen",
+  "library.map_thumbs_done": "Kartenbilder geladen",
+  "library.map_thumbs_left": "offen",
+  "library.map_thumbs_no_token": "Dafür braucht es einen Mapbox-Token — ohne bleibt es bei der Linienzeichnung.",
+  "library.stop": "Anhalten"
 }

@@ -187,19 +187,30 @@ Wer über Jahre Touren sammelt, hat irgendwann hunderte GPX-Dateien in irgendwel
 liegen — und findet die richtige nicht wieder. Das **Archiv** ist dafür da: Es liest deine
 Track-Ordner ein und zeigt dir alle Touren mit Bild, Datum und Zahlen.
 
-**Einrichten (einmal):** Reiter **📚 Archiv** öffnen → links **„+ Ordner hinzufügen"** →
+**Einrichten (einmal):** Reiter **📚 Archiv** öffnen → **„Ordner & Einlesen"** (rechts in der Filterleiste) → **„+ Ordner hinzufügen"** →
 den Ordner wählen, in dem deine Tracks liegen. Die App liest ihn sofort ein; **700 Dateien
 dauern gut 20 Sekunden.** Unterordner werden mitgenommen. Du kannst beliebig viele Ordner
 beobachten lassen.
 
-**Wiederfinden:**
+**Wiederfinden** — alles in der Leiste über den Touren:
 
 - **Suchfeld** — sucht in Name, Dateiname, Schlagwörtern und Notizen. Akzente sind egal
   („muritz" findet „Müritz").
 - **Jahr**, **Fortbewegung** (Wandern, Rad, Laufen …), **Sortierung** (neueste, längste,
   meiste Höhenmeter …).
-- **Nur Favoriten** und **Nur aufgezeichnete** — letzteres blendet geplante Touren aus, die
-  du nie gefahren bist.
+- **Nur Favoriten** und **Nur gefahrene** — letzteres blendet geplante Touren aus, die du
+  nie gefahren bist.
+
+**Drei Ansichten**, rechts in der Leiste umschaltbar (die App merkt sich deine Wahl):
+
+| Symbol | Ansicht | Wofür |
+|---|---|---|
+| ▦ | **Kacheln** | Stöbern — Bild groß, Form der Tour sofort erkennbar |
+| ☰ | **Liste** | Vergleichen — viele Touren mit Zahlen auf einen Blick |
+| 🌍 | **Karte** | „Wo war ich überall?" — alle gefilterten Touren auf einer Weltkarte, Klick auf eine Linie wählt sie aus |
+
+Auf der Karte werden weit entfernte Touren als **Punkte** gezeichnet und erst beim
+Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar.
 
 **Weiterarbeiten:** Tour anklicken, dann rechts **„Im Animator öffnen"** (oder Tour-Karte,
 Daten-Animator, Geotagger, Inspektor). Ein **Doppelklick** auf die Kachel schickt sie direkt
@@ -218,19 +229,28 @@ aus jedem Modul ins Archiv.
 | „geplant" | Tour war nur geplant, nicht aufgezeichnet |
 | ● (orange) | Für diese Tour gibt es schon gespeicherte Projekte |
 
-**Doppelte finden:** Der Knopf oben rechts gruppiert Dateien mit **identischem
+**Doppelte finden:** Der Knopf ganz oben rechts gruppiert Dateien mit **identischem
 Streckenverlauf** — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach
 heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.
 
-**Neue Dateien:** Nach jedem größeren Export einmal **„Neu einlesen"** drücken. Bereits
+**Neue Dateien:** Nach jedem größeren Export einmal **„Ordner & Einlesen" → „Neu einlesen"** drücken. Bereits
 bekannte Dateien werden übersprungen, das geht in Sekunden.
+
+**Schönere Vorschaubilder — Karte statt Linie:** Standardmäßig zeigt jede Kachel nur den
+Linienzug ohne Karte. Das geht sofort und kostet nichts. Wenn du es hübscher willst, öffne
+**„Ordner & Einlesen"** und drücke **„Kartenbilder holen"** — dann holt die App zu jeder Tour
+einmal ein echtes Kartenbild von Mapbox und **legt es dauerhaft auf deinem Rechner ab**.
+Danach ist die Ansicht offline, sofort da und kostet kein weiteres Kontingent. Rund
+5 Minuten für 700 Touren; der Lauf lässt sich anhalten und später fortsetzen. Ohne
+Mapbox-Token bleibt es bei der Linienzeichnung.
+
+**Eigenes Bild für eine Tour:** In der rechten Spalte **„Eigenes Bild wählen"** — zum
+Beispiel das schönste Foto der Tour. Es ersetzt das Vorschaubild in allen Ansichten. Die App
+legt eine verkleinerte Kopie an; dein Original bleibt unberührt und darf verschoben werden.
 
 > **Deine Dateien bleiben, wo sie sind.** Das Archiv verschiebt, kopiert und löscht nichts —
 > es merkt sich nur, was wo liegt. **„Aus Archiv nehmen"** entfernt eine Tour aus der
 > Übersicht, die Datei selbst bleibt unangetastet.
->
-> Die Vorschaubilder sind reine Linienzeichnungen ohne Karte. Das ist Absicht: So entstehen
-> sie sofort, funktionieren ohne Internet und kosten kein Karten-Kontingent.
 
 ---
 
