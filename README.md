@@ -20,7 +20,9 @@ Immer die neueste Version:
 | **Windows** | https://s.reisezoom.com/gps-studio-win |
 | **Linux** | aus dem Quellcode bauen → siehe [🐧 Linux](#-linux-aus-quellcode) |
 
-> Die App ist nicht über ein Apple-/Microsoft-Entwicklerzertifikat signiert. macOS: beim ersten Start **Rechtsklick → Öffnen**.
+> Die macOS-App ist **von Apple signiert und notarisiert** — Doppelklick genügt. Die einmalige
+> „Wirklich öffnen?"-Rückfrage zeigt macOS bei jeder geladenen App, auch bei signierten.
+> Die Windows-Version ist (noch) **nicht** signiert; dort meldet sich SmartScreen einmalig.
 
 ## ✨ Was es kann
 

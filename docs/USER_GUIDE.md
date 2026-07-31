@@ -1071,8 +1071,11 @@ Bei Render-Fehlern öffnet sich automatisch ein Fehler-Modal mit ausklappbarem L
 ### Wie bekomme ich neue Versionen? (seit v0.9.280)
 Die App prüft beim Start im Hintergrund, ob auf GitHub eine neuere Version vorliegt. Falls ja, erscheint oben ein dezentes Banner **„Neue Version vX.Y.Z ist verfügbar"** mit **Herunterladen**-Button (öffnet den passenden Mac-/Windows-Download im Browser). Mit dem **✕** blendest du den Hinweis für diese Version aus. Du kannst auch jederzeit manuell im **Über-Dialog** (Hilfe → Über) auf **„Nach Updates suchen"** klicken. Heruntergeladene Updates installierst du wie beim Erst-Setup (DMG/Installer) — die App ersetzt sich aus Sicherheitsgründen nicht selbst.
 
-### „Kann nicht geöffnet werden, weil sie von einem nicht verifizierten Entwickler stammt" (macOS)
-Die App ist nicht mit einem $99/Jahr Apple-Developer-Cert signiert. Lösung: **Rechtsklick → Öffnen** statt Doppelklick (siehe Installation).
+### „Wirklich öffnen?" beim ersten Start (macOS)
+Diese Rückfrage zeigt macOS bei **jeder** aus dem Netz geladenen App, auch bei signierten — einmal
+bestätigen, danach nie wieder. Die App ist seit v0.9.4x **von Apple signiert und notarisiert**;
+die alte Blockade „nicht verifizierter Entwickler" mit dem Rechtsklick-Trick gibt es nicht mehr.
+Kommt sie trotzdem, ist die Datei unvollständig geladen — dann noch einmal herunterladen.
 
 ### „Der Computer wurde durch Windows Defender geschützt" (Windows)
 Selbes Problem auf Windows. **„Weitere Informationen" → „Trotzdem ausführen"**.
@@ -1164,7 +1167,7 @@ Auf Windows/Linux entsprechend `Strg + …` statt `Cmd + …` und `Strg + Y` zus
 ## 12 · Bekannte Einschränkungen (Beta v0.3.x)
 
 - **macOS**: nur Apple Silicon (M1/M2/M3/M4) — kein Intel-Mac
-- **App ist nicht codesigniert** → Erststart-Klimmzug per Rechtsklick → Öffnen
+- **Windows-Build ist nicht signiert** → SmartScreen meldet sich einmalig (macOS ist signiert + notarisiert)
 - **Multi-Track**: ein GPX pro Render — Multi-Track-Vergleich kommt später
 - **Video-Overlay** (live-stats über bestehendes MP4): noch nicht implementiert
 - **Hochauflösendes Geocoding** (Foto exakt auf Trail-Kurve): nicht implementiert; Punkte werden auf den nächstgelegenen Track-Punkt gesnapped

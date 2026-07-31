@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Behoben
+- **Widersprüchliche Angaben zur Signatur** (Website-Audit): README und zwei Stellen im
+  Handbuch behaupteten noch, die App sei nicht signiert und brauche den
+  Rechtsklick-Trick. Die macOS-App ist seit v0.9.4x von Apple signiert und
+  notarisiert — überall korrigiert, Windows bleibt ausdrücklich unsigniert.
+- **`/downloads/gps-studio/latest/` lieferte 403.** Der Ordner hatte keine
+  `index.html`, das Verzeichnis-Listing ist aus — wer den Pfad direkt aufrief,
+  landete auf einer Fehlerseite statt beim Download. Es gibt jetzt eine schlichte
+  Download-Seite (`docs/DOWNLOAD_INDEX.html`), die `deploy_release.sh` bei jedem
+  Release mit hochlädt.
+
 ## [0.9.494] – 2026-07-31
 ### Hinzugefügt
 - **Touren auf einer abgezogenen Platte verschwinden nicht mehr.** Findet die App
