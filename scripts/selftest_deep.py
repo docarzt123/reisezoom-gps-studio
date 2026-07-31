@@ -34,7 +34,7 @@ MOCK_API_JS = _st.MOCK_API_JS
 
 from playwright.async_api import async_playwright  # noqa: E402
 
-MODULES = ("animator", "tourmap", "heightanim", "geotagger", "gpxinspect")
+MODULES = ("animator", "tourmap", "heightanim", "geotagger", "gpxinspect", "library")
 
 # Erwartbare Console-Errors (Mock-Token → Mapbox 401 etc.) — kein echter Fehler.
 IGNORE = ("mapbox access token", "401", "failed to load resource",

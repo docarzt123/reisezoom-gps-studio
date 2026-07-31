@@ -186,6 +186,11 @@
           <span class="gpxbar-icon">📂</span>
           <span>Track wählen …</span>
         </button>
+        <button class="gpxbar-pick-btn" type="button" data-gpxbar="library"
+                title="${escapeAttr((typeof t === "function" ? t("library.open", "Archiv öffnen") : "Archiv öffnen"))}">
+          <span class="gpxbar-icon">📚</span>
+          <span>${(typeof t === "function" ? t("library.from_archive", "Aus dem Archiv …") : "Aus dem Archiv …")}</span>
+        </button>
         <span class="gpxbar-hint">… oder Track (GPX/FIT/KML…) hierher ziehen.</span>
       </div>
     `;
@@ -200,6 +205,11 @@
         <button class="gpxbar-pick-btn gpxbar-pick-btn-compact" type="button"
                 data-gpxbar="pick" title="Anderen Track wählen">
           <span class="gpxbar-icon">📂</span>
+        </button>
+        <button class="gpxbar-pick-btn gpxbar-pick-btn-compact" type="button"
+                data-gpxbar="library"
+                title="${escapeAttr((typeof t === "function" ? t("library.open", "Archiv öffnen") : "Archiv öffnen"))}">
+          <span class="gpxbar-icon">📚</span>
         </button>
         <span class="gpxbar-filename" title="${escapeAttr(fullPath)}">${escapeHtml(name)}</span>
         <span class="gpxbar-sep">·</span>
@@ -244,6 +254,11 @@
       el.onclick = (e) => {
         e.preventDefault();
         if (action === "pick-empty" || action === "pick") pickGpx();
+        // v0.9.486 — das Archiv ist die komfortablere Track-Auswahl: statt eines
+        // Datei-Dialogs der Katalog mit Vorschau, Suche und Filtern.
+        else if (action === "library") {
+          if (typeof switchMod === "function") switchMod("library");
+        }
         else if (action === "clearws") window.clearWorkspaceGlobal();
         else if (action === "clear") window.clearGlobalGpx();   // Legacy-Fallback
       };

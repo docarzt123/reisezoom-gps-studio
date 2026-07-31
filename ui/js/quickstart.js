@@ -96,6 +96,18 @@
       ],
       tip: "Mit „Tracks verbinden“ hängst du eine zweite Aufzeichnung an — praktisch, wenn die Uhr mittendrin gestoppt hat.",
     },
+    library: {
+      emoji: "📚",
+      title: "Archiv — alle Touren an einem Ort",
+      img: "img/quickstart/library.jpg",
+      intro: "Liest deine Track-Ordner ein und zeigt jede Tour mit Bild, Datum und Zahlen. Statt Dateinamen zu raten, suchst und filterst du — und schickst die Tour mit einem Klick weiter.",
+      steps: [
+        "<b>Ordner hinzufügen:</b> Links „+ Ordner hinzufügen“ und den Ordner wählen, in dem deine Tracks liegen. Unterordner kommen mit; 700 Dateien dauern rund 20 Sekunden.",
+        "<b>Wiederfinden:</b> Suchfeld, Jahr, Fortbewegung, Sortierung — oder „Nur aufgezeichnete“, um geplante Touren auszublenden.",
+        "<b>Weiterarbeiten:</b> Tour anklicken und rechts an Animator, Tour-Karte, Geotagger & Co. übergeben. Ein Doppelklick schickt sie direkt in den Animator.",
+      ],
+      tip: "Der 📚-Knopf in der Track-Leiste bringt dich aus jedem Modul ins Archiv. Deine Dateien werden nie verschoben oder gelöscht — das Archiv merkt sich nur, was wo liegt.",
+    },
   };
 
   // Manche Module teilen sich Registrierung/Slug — sicherstellen, dass jeder

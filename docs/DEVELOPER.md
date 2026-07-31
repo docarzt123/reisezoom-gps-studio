@@ -55,7 +55,8 @@ Reisezoom-GPS-Studio/
 │   ├── backup.py            # ZIP-Snapshots mit Retention
 │   ├── animator.py          # Mapbox-+-Playwright-+-ffmpeg Pipeline
 │   │                        #   (Video via render() + Standbild via render_frame() — auch für Tour-Map)
-│   └── timeline.py          # Camera-Keyframe-Interpolation (v0.7.0)
+│   ├── timeline.py          # Camera-Keyframe-Interpolation (v0.7.0)
+│   └── library.py           # Tour-Archiv: SQLite-Index über alle Track-Dateien (v0.9.486)
 ├── modules/                 # Self-contained Module (UI + zukünftig Backend)
 │   ├── animator/
 │   │   ├── manifest.json    # {slug, name, icon, description, sort_order, status}
@@ -1160,6 +1161,51 @@ Gerufen werden sie aus `applyGlobalGpx` (nach `sessionActivate` →
 (Projekt-Wechsel via Topbar).
 Bei Backend-Änderung an einer Stelle die andere mit-pflegen.
 
+### `core/library.py` (v0.9.486) — Tour-Archiv
+
+Durchsuchbarer Index aller Track-Dateien aus den beobachteten Ordnern.
+Speicher: **SQLite** unter `<app-support>/library.db`, Vorschaubilder als PNG
+unter `<app-support>/library_thumbs/<geo_hash>.png`.
+
+**Warum SQLite und nicht JSON:** die Tabelle wächst mit der Sammlung (700 heute,
+5000 später) und wird bei jedem Filterklick abgefragt. JSON müsste dafür komplett
+gelesen und im Speicher durchsucht werden. `sqlite3` ist in der Standardbibliothek
+(keine neue Abhängigkeit, kein PyInstaller-Hook) und übersteht einen Absturz
+mitten im Schreiben.
+
+**Zwei Hashes pro Tour — beide werden gebraucht:**
+
+| Feld | Berechnung | Wofür |
+|---|---|---|
+| `track_hash` | `sessions.compute_track_hash(coords, name=Dateiname)` | Brücke zum Session-System — das Archiv zeigt „hierfür gibt es Projekte" |
+| `geo_hash` | `sessions.compute_track_hash(coords)` (ohne Namen) | Dubletten-Erkennung + Dateiname des Vorschaubilds |
+
+⚠️ **Der `track_hash` muss exakt so gebildet werden wie beim Öffnen eines Tracks
+in `app.py`** (Basename fließt ein). Ändert sich das dort, ändert es sich hier mit,
+sonst findet das Archiv die bestehenden Projekte nicht mehr.
+
+**Einlesen (`scan`)** ist inkrementell: eine Datei wird nur neu geparst, wenn
+Änderungszeit oder Größe abweichen. Messung an Marcs Komoot-Export:
+**710 Dateien = ~20 s** inkl. aller Vorschaubilder, Datenbank 868 KB.
+Fremdformate (FIT/KML/TCX/…) laufen über `imports.ensure_gpx()`. Ein Parse-Fehler
+landet in der Spalte `error` und bricht den Durchlauf nicht ab.
+
+**Nutzer-Eingaben** (`fav`, `tags`, `note`) stehen in derselben Zeile, werden vom
+Upsert aber **nicht** überschrieben (`_TECH_COLS` listet nur die technischen Spalten)
+— ein Neu-Einlesen darf keine Schlagwörter fressen.
+
+**Vorschaubilder** entstehen mit PIL rein aus den Koordinaten (kein Kartenhintergrund,
+kein Netz, kein Mapbox-Kontingent), Längengrade mit `cos(lat)` skaliert, sonst wäre
+jede Tour nord-süd gestaucht.
+
+**Freitextsuche** läuft in Python, nicht in SQL: SQLite kann von Haus aus kein
+akzent-unempfindliches `LIKE`. Bei wenigen tausend Zeilen ist das billiger als eine
+zweite Suchtabelle (gemessen: **12 ms** über 709 Touren).
+
+**Fortbewegungsart** wird geschätzt — erst am Namen (`_ACT_WORDS`; Komoot nennt eine
+Aufzeichnung „Fahrradtour 10.06.2020"), sonst am Durchschnittstempo. Widerspricht der
+Name dem Tempo deutlich (Fußwort bei > 12 km/h), gewinnt das Tempo.
+
 ---
 
 ## 4 · pywebview-Bridge-API
@@ -1179,6 +1225,28 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `prepare_bug_report(context)` | `{ok, to, subject, body, mailto}` | Baut einen vorbefüllten Bug-Report (App-Version + OS + Log-Auszug). UI zeigt das Modal mit Copy-Buttons — funktioniert für Webmail-User OHNE lokales Mail-Programm. mailto-URL als optionaler Bequemlichkeits-Pfad. |
 | `playwright_check()` | `{ok, browser_present, browsers_path, version?, executable?, error?}` | Prüft ob Chromium-Headless-Shell für Animator/Tour-Map verfügbar ist |
 | `playwright_install_chromium()` | `{ok, log?, error?}` | Lädt Chromium über den gebundelten Playwright-Driver — wird vom UI nach `playwright_browser_missing`-Error angeboten |
+
+### Tour-Archiv (v0.9.486)
+
+| Methode | Returns | Zweck |
+|---------|---------|-------|
+| `library_folders()` | `{ok, folders[]}` | Beobachtete Ordner + Trefferzahl + ob es sie noch gibt |
+| `library_add_folder(path="")` | `{ok, path, folders[]}` | Ordner aufnehmen; ohne `path` öffnet der Ordner-Dialog |
+| `library_remove_folder(path, drop_tracks=True)` | `{ok, folders[]}` | Ordner nicht mehr beobachten |
+| `library_scan_start(force=False)` | `{ok}` | Einlesen im Hintergrund-Thread (Muster wie beim Render) |
+| `library_scan_status()` | `{running, done, total, current, added, updated, failed, result?}` | Fortschritt fürs Polling |
+| `library_scan_stop()` | `{ok}` | Abbrechen |
+| `library_query(params)` | `{ok, total, items[]}` | Filtern/Suchen/Sortieren. `with_thumbs` hängt die Vorschaubilder als data-URL an (~3 KB je Kachel) und setzt `has_session` aus `sessions.json` |
+| `library_stats()` | `{ok, n_tracks, total_km, total_ascent_m, total_hours, years[], activities[], tags[], n_failed}` | Kopfzeilen-Zahlen |
+| `library_set_fields(path, fav?, tags?, note?)` | `{ok, track}` | Favorit/Schlagwörter/Notiz |
+| `library_errors()` | `{ok, items[]}` | Nicht lesbare Dateien (stehen bewusst nicht in `library_query`) |
+| `library_duplicates()` | `{ok, groups[]}` | Gruppen mit identischem `geo_hash` |
+| `library_forget(path)` | `{ok}` | Aus dem Index nehmen — die Datei bleibt liegen |
+| `library_reveal(path)` | `{ok}` | Im Finder/Explorer zeigen |
+
+Die SQLite-Verbindung hängt als `self._lib_conn` an der `Api`-Instanz
+(`check_same_thread=False`, weil der Scan in einem eigenen Thread läuft);
+gleichzeitig schreibt immer nur ein Thread, dafür sorgt `_lib_scan_running`.
 
 ### Logging
 

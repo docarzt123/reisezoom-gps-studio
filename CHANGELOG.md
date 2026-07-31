@@ -14,6 +14,29 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.486] – 2026-07-31
+### Hinzugefügt
+- **Tour-Archiv** — ein neuer Reiter, der alle Touren auf dem Rechner durchsuchbar macht.
+  Du sagst einmal, welche Ordner beobachtet werden; die App liest sie ein und kennt danach
+  zu jeder Tour Datum, Strecke, Dauer, Höhenmeter, Fortbewegungsart und ein Vorschaubild.
+  Filtern nach Jahr, Art, Länge, Favoriten und „nur wirklich gefahrene"; Suche über Name,
+  Schlagwörter und Notizen. Ein Klick übergibt die Tour an den Animator, die Tour-Karte,
+  den Daten-Animator, den Geotagger oder den Inspektor — genau wie „Datei wählen", nur mit
+  Bild und Suche davor. **710 Dateien werden in gut 20 Sekunden eingelesen.**
+- **📚-Knopf in der Track-Leiste** — das Archiv ist damit aus jedem Modul heraus erreichbar,
+  ohne den Reiter zu wechseln.
+- Vorschaubilder entstehen **ohne Karte und ohne Internet** (nur der Linienzug, Start grün,
+  Ziel rot) — sie kosten daher weder Wartezeit noch Mapbox-Kontingent.
+- **Doppelte finden** — Dateien mit identischem Streckenverlauf werden gruppiert angezeigt.
+  Praktisch nach einem Sammel-Export, bei dem dieselbe Tour mehrfach heruntergeladen wurde.
+- **Favoriten, Schlagwörter und Notizen** pro Tour. Sie überleben jedes Neu-Einlesen.
+- Touren, für die es **gespeicherte Projekte** gibt, sind in der Übersicht markiert —
+  Archiv und Projekt-Verwaltung erkennen denselben Track (gleicher Track-Fingerabdruck).
+- Nicht lesbare Dateien werden **beim Namen genannt** statt still zu verschwinden.
+
+### Geändert
+- `scripts/selftest_ui.py` und `scripts/selftest_deep.py` prüfen das neue Modul mit.
+
 ## [0.9.485] – 2026-07-29
 ### Hinzugefügt
 - **`scripts/selftest_sign_zoom.py`** — misst in Zahlen, wie stark ein Schild während einer

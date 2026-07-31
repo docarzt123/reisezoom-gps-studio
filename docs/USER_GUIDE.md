@@ -181,6 +181,59 @@ Höhen und Zeitstempel werden — soweit im Format vorhanden — übernommen (wi
 
 ---
 
+## 2c · Modul: Archiv 📚 — alle Touren an einem Ort (seit v0.9.486) ⭐
+
+Wer über Jahre Touren sammelt, hat irgendwann hunderte GPX-Dateien in irgendwelchen Ordnern
+liegen — und findet die richtige nicht wieder. Das **Archiv** ist dafür da: Es liest deine
+Track-Ordner ein und zeigt dir alle Touren mit Bild, Datum und Zahlen.
+
+**Einrichten (einmal):** Reiter **📚 Archiv** öffnen → links **„+ Ordner hinzufügen"** →
+den Ordner wählen, in dem deine Tracks liegen. Die App liest ihn sofort ein; **700 Dateien
+dauern gut 20 Sekunden.** Unterordner werden mitgenommen. Du kannst beliebig viele Ordner
+beobachten lassen.
+
+**Wiederfinden:**
+
+- **Suchfeld** — sucht in Name, Dateiname, Schlagwörtern und Notizen. Akzente sind egal
+  („muritz" findet „Müritz").
+- **Jahr**, **Fortbewegung** (Wandern, Rad, Laufen …), **Sortierung** (neueste, längste,
+  meiste Höhenmeter …).
+- **Nur Favoriten** und **Nur aufgezeichnete** — letzteres blendet geplante Touren aus, die
+  du nie gefahren bist.
+
+**Weiterarbeiten:** Tour anklicken, dann rechts **„Im Animator öffnen"** (oder Tour-Karte,
+Daten-Animator, Geotagger, Inspektor). Ein **Doppelklick** auf die Kachel schickt sie direkt
+in den Animator. Das ist genau dasselbe, als hättest du die Datei über „Track wählen"
+geöffnet — nur mit Bild und Suche davor. Über den **📚-Knopf** in der Track-Leiste kommst du
+aus jedem Modul ins Archiv.
+
+**Ordnen:** In der rechten Spalte vergibst du **Favorit ★**, **Schlagwörter** (z. B.
+`Mallorca, Testfahrt`) und eine **Notiz**. Das bleibt erhalten, auch wenn du neu einliest.
+
+**Was die Kacheln verraten:**
+
+| Zeichen | Bedeutung |
+|---|---|
+| ★ | Favorit |
+| „geplant" | Tour war nur geplant, nicht aufgezeichnet |
+| ● (orange) | Für diese Tour gibt es schon gespeicherte Projekte |
+
+**Doppelte finden:** Der Knopf oben rechts gruppiert Dateien mit **identischem
+Streckenverlauf** — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach
+heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.
+
+**Neue Dateien:** Nach jedem größeren Export einmal **„Neu einlesen"** drücken. Bereits
+bekannte Dateien werden übersprungen, das geht in Sekunden.
+
+> **Deine Dateien bleiben, wo sie sind.** Das Archiv verschiebt, kopiert und löscht nichts —
+> es merkt sich nur, was wo liegt. **„Aus Archiv nehmen"** entfernt eine Tour aus der
+> Übersicht, die Datei selbst bleibt unangetastet.
+>
+> Die Vorschaubilder sind reine Linienzeichnungen ohne Karte. Das ist Absicht: So entstehen
+> sie sofort, funktionieren ohne Internet und kosten kein Karten-Kontingent.
+
+---
+
 ## 3 · Modul: Animator — GPX als Video rendern
 
 ### Was es macht
