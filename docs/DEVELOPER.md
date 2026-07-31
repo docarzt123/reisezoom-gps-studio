@@ -285,6 +285,22 @@ Zusatz-Messwerte pro Trackpunkt (FIT-HR/Power/Temp/E-Bike, GPX-Extensions). **Va
   - `i18nMeta()` — Metadaten für UI (z.B. aktive Sprache anzeigen)
 - **Settings**: `language` (`"auto" | "de" | "en" | "es"`)
 - **Sprachwechsel zur Laufzeit**: Settings speichern → `loadI18n()` neu → `renderTabs()` + `renderMod()` neu rendern — kein Restart nötig
+
+**⚠️ Sprachdateien NIE neu schreiben — nur gezielt ergänzen.** Neue Keys gehören per
+punktgenauem Edit an die thematisch passende Stelle, **in allen drei Dateien an dieselbe**.
+Verboten ist, die JSON per `json.dump(...)` neu zu erzeugen — erst recht mit
+`sort_keys=True`:
+
+- Die Reihenfolge in `de.json` ist **nach Themen gruppiert, nicht alphabetisch**. Ein
+  Neuschreiben sortiert alles um.
+- Der Schaden ist der Diff: Am 2026-07-31 wurden für **fünf** neue Übersetzungen je Sprache
+  über **8000 Zeilen** Diff erzeugt (2763 pro Datei). Jeder Review und jedes `git diff`
+  sind damit wertlos, und echte Fehler verstecken sich im Rauschen.
+- **`scripts/check_i18n.py` prüft das jetzt mechanisch** (Schritt 0: gleiche
+  Schlüssel-Reihenfolge in allen Sprachen) und bricht mit Exit ≠ 0 ab. Der Check läuft in
+  `build.sh` und in `release_check.sh`, ein Umsortieren kommt also nicht mehr durch.
+- Historie: `es.json` war bereits abgedriftet (26 Positionen ab `animator.timeline.free_mode`)
+  — beim Einbau des Wächters mit unveränderten Werten geradegezogen.
 - **Module-Manifests** werden auch aus i18n überschrieben (`modules.<slug>.name`/`desc`)
 - **Was übersetzt ist (v0.1.x)**: Modul-Tabs, Section-Titel, Buttons, Checkboxes,
   Tooltips, Empty-State, Drop-Hints, Banner, wichtigste Toasts, Modal-Titel

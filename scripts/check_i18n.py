@@ -72,6 +72,28 @@ def main(strict: bool) -> int:
 
     problems = 0
 
+    # 0) Schlüssel-REIHENFOLGE muss in allen Sprachen gleich sein.
+    #
+    # Warum das geprüft wird: Wer die JSONs mit `json.dump(..., sort_keys=True)`
+    # neu schreibt, sortiert sie komplett um. Für fünf neue Übersetzungen entstehen
+    # dann über 8000 geänderte Zeilen — jedes `git diff` und jeder Review sind damit
+    # unbrauchbar, und echte Fehler verstecken sich im Rauschen. Passiert am
+    # 2026-07-31 genau so (siehe docs/IDEE_ECHTZEIT_ZEITRAFFER.md).
+    #
+    # Die Reihenfolge in de.json ist die maßgebliche: nach Themen gruppiert, NICHT
+    # alphabetisch. Neue Keys gehören per gezieltem Edit an die passende Stelle —
+    # in allen drei Dateien an dieselbe.
+    de_order = list(langs["de"].keys())
+    for lg in LANGS[1:]:
+        lg_order = list(langs[lg].keys())
+        if set(lg_order) == set(de_order) and lg_order != de_order:
+            ab = next((i for i, (a, b) in enumerate(zip(de_order, lg_order)) if a != b), 0)
+            print(f"❌ {lg}.json hat eine andere Schlüssel-Reihenfolge als de.json "
+                  f"(ab Position {ab}: de={de_order[ab]!r} vs {lg}={lg_order[ab]!r}).")
+            print("   Vermutlich mit sort_keys=True neu geschrieben. Neue Keys gezielt "
+                  "einfügen, nicht die Datei neu erzeugen.")
+            problems += 1
+
     # 1) Benutzt, aber in de.json nicht vorhanden.
     used = used_keys()
     missing = sorted(k for k in used
