@@ -49,6 +49,15 @@ html, body {
 body {
   display: grid;
   grid-template-rows: 56px 1fr;     /* Top-Bar + Inhalt */
+  /* v0.9.488 — die EINE Spalte muss ausdrücklich `minmax(0, 1fr)` sein
+     (Marc: „die seite ist minimal zu breit"). Ohne Angabe legt das Grid eine
+     implizite `auto`-Spalte an, und die ist so breit wie ihr breitester Inhalt:
+     ein langer Dateiname in der Track-Leiste plus ein Knopf rechts im Modul-Kopf
+     ergaben im laufenden Fenster gemessene 1533 px bei 1512 px Fensterbreite —
+     die ganze Seite war 21 px zu breit, rechts abgeschnitten bis hin zur
+     Versionsnummer. `minmax(0, 1fr)` bindet die Spalte ans Fenster; zu breite
+     Inhalte clippen dann sauber, statt die Seite aufzublasen. */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 button {
@@ -488,6 +497,14 @@ input[type="color"] {
      unter dem Bildschirmrand und `body { overflow: hidden }` blockt das
      Scrollen. `min-height: 0` lässt das Grid-Cell sauber clippen. */
   min-height: 0;
+  /* v0.9.488 — dasselbe in der Breite (Marc: „die seite ist minimal zu breit").
+     Ohne `min-width: 0` behält dieser Grid-Slot seine automatische
+     Mindestbreite = die Mindestbreite seines Inhalts. Ein langer Dateiname in
+     der Track-Leiste plus ein Knopf rechts im Modul-Kopf ergaben im laufenden
+     Fenster gemessene 1533 px bei 1512 px Fensterbreite — die ganze Seite war
+     21 px zu breit und rechts abgeschnitten (auch die Versionsnummer). Mit
+     `min-width: 0` clippt der Slot sauber, statt die Seite aufzublasen. */
+  min-width: 0;
 }
 
 /* v0.8.2: module-header zeigt links den globalen GPX-Picker (gpx-bar.js)

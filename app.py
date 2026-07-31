@@ -134,7 +134,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.487"
+APP_VERSION = "0.9.489"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1668,6 +1668,79 @@ class Api:
             return {"ok": True, "track": clib.get_track(self._lib(), path)}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    def library_set_recorded(self, path: str, value=None) -> dict:
+        """Hand-Korrektur „gemacht/geplant". `value`: True | False | None (=schätzen)."""
+        try:
+            clib.set_recorded(self._lib(), path, value)
+            return {"ok": True, "track": clib.get_track(self._lib(), path)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Sammlungen (v0.9.489) ────────────────────────────────────────────────
+
+    def library_collections(self) -> dict:
+        try:
+            return {"ok": True, "collections": clib.collections(self._lib())}
+        except Exception as e:
+            log.exception("library_collections")
+            return {"ok": False, "error": str(e), "collections": []}
+
+    def library_collection_create(self, name: str, paths: list = None) -> dict:
+        try:
+            cid = clib.collection_create(self._lib(), name, paths or [])
+            return {"ok": True, "id": cid, "collections": clib.collections(self._lib())}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_collection_rename(self, cid: int, name: str) -> dict:
+        try:
+            clib.collection_rename(self._lib(), int(cid), name)
+            return {"ok": True, "collections": clib.collections(self._lib())}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_collection_delete(self, cid: int) -> dict:
+        try:
+            clib.collection_delete(self._lib(), int(cid))
+            return {"ok": True, "collections": clib.collections(self._lib())}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_collection_add(self, cid: int, paths: list) -> dict:
+        try:
+            n = clib.collection_add(self._lib(), int(cid), paths or [])
+            return {"ok": True, "added": n, "collections": clib.collections(self._lib())}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_collection_remove(self, cid: int, paths: list) -> dict:
+        try:
+            clib.collection_remove(self._lib(), int(cid), paths or [])
+            return {"ok": True, "collections": clib.collections(self._lib())}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_collection_sort_by_date(self, cid: int) -> dict:
+        try:
+            clib.collection_sort_by_date(self._lib(), int(cid))
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_collection_items(self, cid: int) -> dict:
+        """Touren einer Sammlung in ihrer Reihenfolge — z. B. für die Übergabe
+        aller Etappen an den Animator."""
+        try:
+            return {"ok": True, "items": clib.collection_items(self._lib(), int(cid))}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "items": []}
+
+    def library_collections_of(self, path: str) -> dict:
+        try:
+            return {"ok": True, "collections": clib.collections_of(self._lib(), path)}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "collections": []}
 
     def library_errors(self) -> dict:
         """Dateien, die beim Einlesen nicht gelesen werden konnten. Sie stehen

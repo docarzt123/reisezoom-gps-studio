@@ -410,12 +410,32 @@ python app.py</code></pre>
 </ul>
 <p> meiste Höhenmeter …).</p>
 <ul>
-<li><strong>Nur Favoriten</strong> und <strong>Nur gefahrene</strong> — letzteres blendet geplante Touren aus, die du</li>
+<li><strong>Nur Favoriten</strong> und <strong>Nur gemachte</strong> — letzteres blendet Touren aus, die du nur geplant</li>
 </ul>
-<p> nie gefahren bist.</p>
+<p> und nie gemacht hast.</p>
+<p><strong>Gemacht oder nur geplant?</strong> Die App erkennt das selbst — und zwar unabhängig davon, aus welcher App der Track kommt:</p>
+<table><thead><tr><th>Merkmal</th><th>Bedeutung</th></tr></thead><tbody><tr><td>Sensordaten (Puls, Trittfrequenz …)</td><td>sicher <strong>gemacht</strong> — so etwas entsteht nur beim Mitschneiden</td></tr><tr><td>„(Completed)&quot;, „Aufgezeichnet&quot;, „Geplant&quot; im Namen</td><td>wird direkt übernommen</td></tr><tr><td>keine Zeitstempel</td><td>kann keine Aufzeichnung sein → <strong>geplant</strong></td></tr><tr><td>sonst: der <strong>Rhythmus</strong></td><td>eine Aufzeichnung hat Pausen und schwankendes Tempo, eine geplante Route läuft gleichmäßig durch</td></tr></tbody></table>
+<p>Der letzte Punkt ist eine Schätzung — sie liegt bei rund 9 von 10 Touren richtig. Deshalb kannst du in der rechten Spalte pro Tour auf <strong>Gemacht</strong>, <strong>Geplant</strong> oder <strong>Automatisch</strong> stellen; darunter steht, woran die App es erkannt hat. Deine Entscheidung bleibt auch nach einem Neu-Einlesen erhalten.</p>
+<p><strong>Sammlungen — mehrere Touren als eine Einheit.</strong> Eine Mehrtagestour besteht aus sechs GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:</p>
+<ul>
+<li><strong>Anlegen:</strong> Tour auswählen → rechts <strong>„+ Zu Sammlung&quot;</strong> → bestehende wählen oder neue</li>
+</ul>
+<p> anlegen. Schneller geht es über den Filter: nach „Märkischer Landweg&quot; suchen und im  Sammlungs-Menü <strong>„Alle 5 Treffer in eine Sammlung&quot;</strong> nehmen.</p>
+<ul>
+<li><strong>Anzeigen:</strong> In der Filterleiste die Sammlung auswählen — dann siehst du nur ihre Touren,</li>
+</ul>
+<p> und zwar in <strong>ihrer eigenen Reihenfolge</strong> (Etappe 1, 2, 3 …), sortiert nach Datum.</p>
+<ul>
+<li><strong>Weiterverarbeiten:</strong> <strong>„Alle im Animator&quot;</strong> übergibt die ganze Sammlung an den Animator</li>
+</ul>
+<p> erste Etappe als Haupt-Track, alle weiteren als zusätzliche Touren. Aus sechs Etappen wird  so ein Video.</p>
+<ul>
+<li>Eine Tour darf in beliebig vielen Sammlungen liegen; Löschen einer Sammlung löscht <strong>keine</strong></li>
+</ul>
+<p> Touren.</p>
 <p><strong>Drei Ansichten</strong>, rechts in der Leiste umschaltbar (die App merkt sich deine Wahl):</p>
 <table><thead><tr><th>Symbol</th><th>Ansicht</th><th>Wofür</th></tr></thead><tbody><tr><td>▦</td><td><strong>Kacheln</strong></td><td>Stöbern — Bild groß, Form der Tour sofort erkennbar</td></tr><tr><td>☰</td><td><strong>Liste</strong></td><td>Vergleichen — viele Touren mit Zahlen auf einen Blick</td></tr><tr><td>🌍</td><td><strong>Karte</strong></td><td>„Wo war ich überall?&quot; — alle gefilterten Touren auf einer Weltkarte, Klick auf eine Linie wählt sie aus</td></tr></tbody></table>
-<p>Auf der Karte werden weit entfernte Touren als <strong>Punkte</strong> gezeichnet und erst beim Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar.</p>
+<p>Auf der Karte werden weit entfernte Touren als <strong>Punkte</strong> gezeichnet und erst beim Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar. Die <strong>angeklickte Tour wird hervorgehoben</strong> (weiße Kontur, kräftige Linie), die übrigen treten zurück.</p>
 <p><strong>Weiterarbeiten:</strong> Tour anklicken, dann rechts <strong>„Im Animator öffnen&quot;</strong> (oder Tour-Karte, Daten-Animator, Geotagger, Inspektor). Ein <strong>Doppelklick</strong> auf die Kachel schickt sie direkt in den Animator. Das ist genau dasselbe, als hättest du die Datei über „Track wählen&quot; geöffnet — nur mit Bild und Suche davor. Über den <strong>📚-Knopf</strong> in der Track-Leiste kommst du aus jedem Modul ins Archiv.</p>
 <p><strong>Ordnen:</strong> In der rechten Spalte vergibst du <strong>Favorit ★</strong>, <strong>Schlagwörter</strong> (z. B. <code>Mallorca, Testfahrt</code>) und eine <strong>Notiz</strong>. Das bleibt erhalten, auch wenn du neu einliest.</p>
 <p><strong>Was die Kacheln verraten:</strong></p>

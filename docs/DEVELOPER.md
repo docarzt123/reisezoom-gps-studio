@@ -1233,6 +1233,27 @@ Container-Klasse `.mapboxgl-map` selbst `position: relative`, und `mapbox-gl.css
 `ui/index.html` **nach** dem Modul-CSS geladen — die Fläche hatte damit Höhe 0 und die Karte
 blieb schwarz. Im Archiv läuft es über Flex + `height: 100%`.
 
+
+**v0.9.489 — gemacht/geplant generisch + Sammlungen:**
+
+- `_recorded_guess(pts, stats, name)` liefert `(gemacht, quelle)`. Reihenfolge: Sensordaten
+  (Beweis) → ausdrückliche Namens-Kennzeichnung → keine Zeitstempel → **Rhythmus**
+  (Variationskoeffizient der Zeitabstände ≥ `RECORDED_DT_CV` 1.6 **oder** der Geschwindigkeit
+  ≥ `RECORDED_SPEED_CV` 0.30). An 709 echten Touren gemessen: dt-CV Median 2,75 (gemacht) vs.
+  1,03 (geplant); die Rhythmus-Regel allein trifft ~87 %, zusammen mit den eindeutigen
+  Signalen ~95 %. Ergebnis in `recorded` + `recorded_src`, die Hand-Korrektur in
+  `recorded_user` (NULL = automatisch, zählt zu den Nutzer-Eingaben). `planned` bleibt als
+  Kehrwert erhalten; gefiltert wird über `COALESCE(recorded_user, recorded)`.
+- Zeilen ohne `recorded_src` (oder ohne `geom`) werden beim Scan neu gelesen, auch wenn die
+  Datei unverändert ist — bestehende Archive heilen sich beim nächsten Einlesen selbst.
+- **Sammlungen**: `collections` + `collection_items(collection_id, path, sort_index)`.
+  Bewusst eigene Tabellen und kein Schlagwort — eine Sammlung hat eine **Reihenfolge**, und
+  genau die braucht `openCollectionInAnimator()` beim Übergeben der Etappen. `query(...,
+  collection_id=…)` filtert per `IN (SELECT …)`, `sort="collection"` ordnet nach
+  `sort_index`.
+- Der Animator exportiert dafür `window._animAddTourByPath(path)` (dialogloser Zwilling von
+  `_animAddTour()`).
+
 ---
 
 ## 4 · pywebview-Bridge-API
@@ -1271,6 +1292,14 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `library_map_thumbs_stop()` | `{ok}` | Abbrechen (fortsetzbar) |
 | `library_set_cover(path, image_path="")` | `{ok, track, thumb_url}` | Eigenes Titelbild; ohne `image_path` öffnet der Bild-Dialog |
 | `library_clear_cover(path)` | `{ok, track, thumb_url}` | Titelbild entfernen |
+| `library_set_recorded(path, value)` | `{ok, track}` | Hand-Korrektur gemacht/geplant (`true`/`false`/`null`) |
+| `library_collections()` | `{ok, collections[]}` | Alle Sammlungen mit Anzahl + Summen |
+| `library_collection_create(name, paths?)` | `{ok, id, collections[]}` | Anlegen, optional gleich befüllen |
+| `library_collection_add/remove(cid, paths)` | `{ok, …}` | Touren zuordnen/entfernen |
+| `library_collection_rename/delete(cid, …)` | `{ok, collections[]}` | Umbenennen/Löschen (Touren bleiben) |
+| `library_collection_sort_by_date(cid)` | `{ok}` | Reihenfolge nach Datum setzen |
+| `library_collection_items(cid)` | `{ok, items[]}` | Touren in ihrer Reihenfolge (für den Animator) |
+| `library_collections_of(path)` | `{ok, collections[]}` | In welchen Sammlungen liegt diese Tour |
 | `library_errors()` | `{ok, items[]}` | Nicht lesbare Dateien (stehen bewusst nicht in `library_query`) |
 | `library_duplicates()` | `{ok, groups[]}` | Gruppen mit identischem `geo_hash` |
 | `library_forget(path)` | `{ok}` | Aus dem Index nehmen — die Datei bleibt liegen |
