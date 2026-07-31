@@ -134,7 +134,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.490"
+APP_VERSION = "0.9.491"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1654,12 +1654,44 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def library_stats(self) -> dict:
+    def library_stats(self, params: dict = None) -> dict:
+        """Zahlen zur aktuellen Auswahl — dieselben Filter wie `library_query`,
+        damit die Statistik zu dem passt, was gerade angezeigt wird."""
         try:
-            s = clib.stats(self._lib())
+            p = dict(params or {})
+            for k in ("limit", "offset", "sort", "with_thumbs", "with_geom"):
+                p.pop(k, None)
+            s = clib.stats(self._lib(), **p)
             s["ok"] = True
             return s
         except Exception as e:
+            log.exception("library_stats")
+            return {"ok": False, "error": str(e)}
+
+    def library_set_name(self, path: str, name: str = "") -> dict:
+        """Eigener Name für eine Tour. Leer = wieder der Name aus der Datei."""
+        try:
+            clib.set_display_name(self._lib(), path, name)
+            return {"ok": True, "track": clib.get_track(self._lib(), path)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_set_hidden(self, path: str, hidden: bool = True) -> dict:
+        try:
+            clib.set_hidden(self._lib(), path, hidden)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_trash(self, path: str) -> dict:
+        """Datei in den Papierkorb legen und aus dem Archiv nehmen.
+        Bewusst Papierkorb statt endgültig — ein Fehlgriff bleibt rückholbar."""
+        try:
+            res = clib.trash_file(self._lib(), path)
+            log.info("library_trash: %s → %s", path, res.get("moved_to", "?"))
+            return res
+        except Exception as e:
+            log.exception("library_trash")
             return {"ok": False, "error": str(e)}
 
     def library_set_fields(self, path: str, fav=None, tags=None, note=None) -> dict:

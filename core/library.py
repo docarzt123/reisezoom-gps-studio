@@ -151,7 +151,12 @@ CREATE TABLE IF NOT EXISTS tracks (
     tags          TEXT DEFAULT '',
     note          TEXT DEFAULT '',
     cover         TEXT DEFAULT '',
-    recorded_user INTEGER DEFAULT NULL
+    recorded_user INTEGER DEFAULT NULL,
+    -- v0.9.491: eigener Name (leer = Name aus der Datei) und „ausgeblendet".
+    -- Ausblenden statt löschen ist der schonende Weg für Touren, die man nicht
+    -- mehr sehen will, aber auch nicht verlieren möchte.
+    display_name  TEXT DEFAULT '',
+    hidden        INTEGER DEFAULT 0
 );
 
 -- v0.9.489: Sammlungen — mehrere Touren als eine Einheit (Mehrtagestour,
@@ -200,6 +205,8 @@ _ADD_COLS = [
     ("recorded", "INTEGER DEFAULT 1"),
     ("recorded_src", "TEXT DEFAULT ''"),
     ("recorded_user", "INTEGER DEFAULT NULL"),
+    ("display_name", "TEXT DEFAULT ''"),
+    ("hidden", "INTEGER DEFAULT 0"),
 ]
 
 
@@ -698,33 +705,22 @@ def _norm(s: str) -> str:
     return "".join(c for c in s if not unicodedata.combining(c))
 
 
-def query(
-    conn: sqlite3.Connection,
-    search: str = "",
-    year: Optional[int] = None,
-    activity: str = "",
-    fav_only: bool = False,
-    planned: Optional[bool] = None,
-    tags: Optional[list] = None,
-    min_km: Optional[float] = None,
-    max_km: Optional[float] = None,
-    bbox: Optional[dict] = None,
-    sort: str = "date_desc",
-    limit: int = 500,
-    offset: int = 0,
-    include_errors: bool = False,
-    with_geom: bool = False,
-    collection_id: Optional[int] = None,
-) -> dict:
-    """Gefilterte Trefferliste + Gesamtzahl (für „x von y").
 
-    Unlesbare Dateien bleiben standardmäßig draußen — als Kachel wären sie
-    leer und ohne Werte. Sie sind über `errors()` erreichbar, damit sie nicht
-    stillschweigend verschwinden.
-    """
+def _build_where(year=None, activity="", fav_only=False, planned=None, tags=None,
+                 min_km=None, max_km=None, bbox=None, collection_id=None,
+                 include_errors=False, include_hidden=False, hidden_only=False,
+                 **_ignored) -> tuple:
+    """Baut die WHERE-Klausel EINMAL — Liste und Statistik müssen zwingend
+    dieselbe Auswahl meinen, sonst zählt die Statistik etwas anderes als das,
+    was der Nutzer gerade sieht."""
     where, args = ["1=1"], []
     if not include_errors:
         where.append("error = ''")
+    if hidden_only:
+        # Der Bereich „Ausgeblendete" zeigt genau diese — nicht sie zusätzlich.
+        where.append("hidden = 1")
+    elif not include_hidden:
+        where.append("hidden = 0")
     if year:
         where.append("year = ?"); args.append(int(year))
     if activity:
@@ -750,8 +746,40 @@ def query(
     for t in (tags or []):
         where.append("(',' || lower(tags) || ',') LIKE ?")
         args.append(f"%,{t.strip().lower()},%")
+    return " AND ".join(where), args
 
-    sql_where = " AND ".join(where)
+
+def query(
+    conn: sqlite3.Connection,
+    search: str = "",
+    year: Optional[int] = None,
+    activity: str = "",
+    fav_only: bool = False,
+    planned: Optional[bool] = None,
+    tags: Optional[list] = None,
+    min_km: Optional[float] = None,
+    max_km: Optional[float] = None,
+    bbox: Optional[dict] = None,
+    sort: str = "date_desc",
+    limit: int = 500,
+    offset: int = 0,
+    include_errors: bool = False,
+    include_hidden: bool = False,
+    hidden_only: bool = False,
+    with_geom: bool = False,
+    collection_id: Optional[int] = None,
+) -> dict:
+    """Gefilterte Trefferliste + Gesamtzahl (für „x von y").
+
+    Unlesbare Dateien bleiben standardmäßig draußen — als Kachel wären sie
+    leer und ohne Werte. Sie sind über `errors()` erreichbar, damit sie nicht
+    stillschweigend verschwinden.
+    """
+    sql_where, args = _build_where(
+        year=year, activity=activity, fav_only=fav_only, planned=planned,
+        tags=tags, min_km=min_km, max_km=max_km, bbox=bbox,
+        collection_id=collection_id, include_errors=include_errors,
+        include_hidden=include_hidden, hidden_only=hidden_only)
     order = _SORTS.get(sort, _SORTS["date_desc"])
     if collection_id and sort == "collection":
         # Eigene Reihenfolge der Sammlung (Etappe 1, 2, 3 …).
@@ -768,7 +796,7 @@ def query(
         needles = [_norm(w) for w in search.split() if w.strip()]
         def hit(r):
             hay = _norm(" ".join([
-                r["name"] or "", r["filename"] or "", r["tags"] or "",
+                r["display_name"] or "", r["name"] or "", r["filename"] or "", r["tags"] or "",
                 r["note"] or "", r["place"] or "", r["country"] or "",
                 r["region"] or "",
             ]))
@@ -803,6 +831,11 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     except (TypeError, ValueError):
         d["sensors"] = []
     d["tag_list"] = [t for t in (d.get("tags") or "").split(",") if t.strip()]
+    # Der eigene Name gewinnt; der Datei-Name bleibt daneben sichtbar.
+    d["file_name"] = d.get("name") or ""
+    d["name"] = (d.get("display_name") or "").strip() or d.get("name") or d.get("filename") or ""
+    d["renamed"] = bool((d.get("display_name") or "").strip())
+    d["hidden"] = int(d.get("hidden") or 0)
     # „gemacht" ist die effektive Bewertung: Hand-Korrektur schlägt Schätzung.
     eff = d.get("recorded_user")
     d["recorded_eff"] = int(eff if eff is not None else (d.get("recorded") or 0))
@@ -818,44 +851,82 @@ def get_track(conn: sqlite3.Connection, path: str) -> Optional[dict]:
     return _to_dict(r) if r else None
 
 
-def stats(conn: sqlite3.Connection) -> dict:
-    """Summen für die Kopfzeile des Archivs."""
+def stats(conn: sqlite3.Connection, **filters) -> dict:
+    """Zahlen zur aktuellen Auswahl — dieselben Filter wie `query()`.
+
+    Ohne Filter also das ganze Archiv, mit `collection_id` genau eine Sammlung,
+    mit `planned=False` nur die gemachten Touren. So passt die Statistik immer
+    zu dem, was gerade auf dem Schirm ist.
+    """
+    sql_where, args = _build_where(**filters)
+    search = (filters.get("search") or "").strip()
+
+    def rows(sql, extra=()):
+        return conn.execute(sql, args + list(extra)).fetchall()
+
     r = conn.execute(
-        "SELECT COUNT(*) n, COALESCE(SUM(distance_m),0) d, COALESCE(SUM(ascent_m),0) a, "
-        "COALESCE(SUM(moving_time_s),0) t, MIN(NULLIF(year,0)) y0, MAX(year) y1 "
-        "FROM tracks WHERE error = ''"
-    ).fetchone()
-    years = [
-        {"year": x["year"], "n": x["n"], "km": round(x["d"] / 1000.0, 1)}
-        for x in conn.execute(
-            "SELECT year, COUNT(*) n, SUM(distance_m) d FROM tracks "
-            "WHERE year > 0 AND error = '' GROUP BY year ORDER BY year"
-        ).fetchall()
-    ]
-    acts = [
-        {"activity": x["activity"] or "", "n": x["n"]}
-        for x in conn.execute(
-            "SELECT activity, COUNT(*) n FROM tracks WHERE error = '' "
-            "GROUP BY activity ORDER BY n DESC"
-        ).fetchall()
-    ]
+        f"SELECT COUNT(*) n, COALESCE(SUM(distance_m),0) d, COALESCE(SUM(ascent_m),0) a, "
+        f"COALESCE(SUM(descent_m),0) de, COALESCE(SUM(moving_time_s),0) t, "
+        f"COALESCE(MAX(distance_m),0) dmax, COALESCE(MAX(ascent_m),0) amax, "
+        f"MIN(NULLIF(year,0)) y0, MAX(year) y1 "
+        f"FROM tracks WHERE {sql_where}", args).fetchone()
+
+    years = [{"year": x["year"], "n": x["n"], "km": round(x["d"] / 1000.0, 1),
+              "ascent_m": round(x["a"] or 0), "hours": round((x["t"] or 0) / 3600.0, 1)}
+             for x in rows(f"SELECT year, COUNT(*) n, SUM(distance_m) d, SUM(ascent_m) a, "
+                           f"SUM(moving_time_s) t FROM tracks WHERE {sql_where} AND year > 0 "
+                           f"GROUP BY year ORDER BY year")]
+
+    # Monate: „01"…„12" quer über alle Jahre — zeigt die Saison.
+    months = [{"month": int(x["m"]), "n": x["n"], "km": round((x["d"] or 0) / 1000.0, 1)}
+              for x in rows(f"SELECT CAST(substr(started_at, 6, 2) AS INTEGER) m, COUNT(*) n, "
+                            f"SUM(distance_m) d FROM tracks WHERE {sql_where} "
+                            f"AND length(started_at) >= 7 GROUP BY m ORDER BY m")]
+
+    acts = [{"activity": x["activity"] or "", "n": x["n"], "km": round((x["d"] or 0) / 1000.0, 1)}
+            for x in rows(f"SELECT activity, COUNT(*) n, SUM(distance_m) d FROM tracks "
+                          f"WHERE {sql_where} GROUP BY activity ORDER BY n DESC")]
+
+    longest = [_to_dict(x) for x in rows(
+        f"SELECT * FROM tracks WHERE {sql_where} ORDER BY distance_m DESC LIMIT 5")]
+
     tags: dict = {}
-    for x in conn.execute("SELECT tags FROM tracks WHERE tags != ''").fetchall():
+    for x in rows(f"SELECT tags FROM tracks WHERE {sql_where} AND tags != ''"):
         for t in (x["tags"] or "").split(","):
             t = t.strip()
             if t:
                 tags[t] = tags.get(t, 0) + 1
+
+    # Gemacht/geplant getrennt — der Punkt, der Marc gestört hat.
+    split = conn.execute(
+        f"SELECT COALESCE(recorded_user, recorded) rec, COUNT(*) n, "
+        f"COALESCE(SUM(distance_m),0) d FROM tracks WHERE {sql_where} GROUP BY rec", args).fetchall()
+    done = next((x for x in split if x["rec"] == 1), None)
+    plan = next((x for x in split if x["rec"] == 0), None)
+
     return {
         "n_tracks": r["n"],
         "total_km": round(r["d"] / 1000.0, 1),
-        "total_ascent_m": round(r["a"]),
-        "total_hours": round(r["t"] / 3600.0, 1),
+        "total_ascent_m": round(r["a"] or 0),
+        "total_descent_m": round(r["de"] or 0),
+        "total_hours": round((r["t"] or 0) / 3600.0, 1),
+        "longest_km": round((r["dmax"] or 0) / 1000.0, 1),
+        "max_ascent_m": round(r["amax"] or 0),
+        "avg_km": round((r["d"] / 1000.0 / r["n"]), 1) if r["n"] else 0,
         "year_min": r["y0"] or 0,
         "year_max": r["y1"] or 0,
         "years": years,
+        "months": months,
         "activities": acts,
+        "longest": longest,
         "tags": sorted(tags.items(), key=lambda kv: -kv[1]),
+        "done": {"n": done["n"] if done else 0,
+                 "km": round((done["d"] if done else 0) / 1000.0, 1)},
+        "planned": {"n": plan["n"] if plan else 0,
+                    "km": round((plan["d"] if plan else 0) / 1000.0, 1)},
+        "n_hidden": conn.execute("SELECT COUNT(*) FROM tracks WHERE hidden = 1").fetchone()[0],
         "n_failed": conn.execute("SELECT COUNT(*) FROM tracks WHERE error != ''").fetchone()[0],
+        "search_note": search,
     }
 
 
@@ -881,6 +952,55 @@ def set_recorded(conn: sqlite3.Connection, path: str, value) -> None:
     conn.execute("UPDATE tracks SET recorded_user = ? WHERE path = ?",
                  (None if value is None else (1 if value else 0), path))
     conn.commit()
+
+
+def set_display_name(conn: sqlite3.Connection, path: str, name: str) -> None:
+    """Eigener Name. Leer = wieder der Name aus der Datei."""
+    conn.execute("UPDATE tracks SET display_name = ? WHERE path = ?", ((name or "").strip(), path))
+    conn.commit()
+
+
+def set_hidden(conn: sqlite3.Connection, path: str, hidden: bool) -> None:
+    conn.execute("UPDATE tracks SET hidden = ? WHERE path = ?", (1 if hidden else 0, path))
+    conn.commit()
+
+
+def trash_file(conn: sqlite3.Connection, path: str) -> dict:
+    """Legt die Datei in den Papierkorb und nimmt sie aus dem Archiv.
+
+    Bewusst **Papierkorb statt Löschen**: Das Archiv fasst fremde Dateien an —
+    ein Versehen muss rückholbar bleiben. Auf macOS geht das über den Finder
+    (dort landet sie im echten Papierkorb, inklusive „Zurücklegen"), sonst über
+    den plattformüblichen Papierkorb-Ordner.
+    """
+    import shutil
+    import subprocess
+    import sys as _sys
+
+    p = Path(path)
+    if not p.exists():
+        forget(conn, path)
+        return {"ok": True, "missing": True}
+
+    moved_to = ""
+    if _sys.platform == "darwin":
+        script = ('tell application "Finder" to delete POSIX file "%s"' % str(p).replace('"', '\\"'))
+        r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise OSError(r.stderr.strip() or "Papierkorb nicht erreichbar")
+        moved_to = "Papierkorb"
+    else:
+        trash = Path.home() / (".local/share/Trash/files" if _sys.platform.startswith("linux") else "Trash")
+        trash.mkdir(parents=True, exist_ok=True)
+        target = trash / p.name
+        i = 1
+        while target.exists():
+            target = trash / f"{p.stem} ({i}){p.suffix}"
+            i += 1
+        shutil.move(str(p), str(target))
+        moved_to = str(target)
+    forget(conn, path)
+    return {"ok": True, "moved_to": moved_to}
 
 
 def duplicates(conn: sqlite3.Connection) -> list:

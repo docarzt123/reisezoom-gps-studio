@@ -399,8 +399,11 @@ python app.py</code></pre>
 <hr>
 <h2 id="2c-modul-archiv-alle-touren-an-einem-ort">2c · Modul: Archiv 📚 — alle Touren an einem Ort ⭐</h2>
 <p>Wer über Jahre Touren sammelt, hat irgendwann hunderte GPX-Dateien in irgendwelchen Ordnern liegen — und findet die richtige nicht wieder. Das <strong>Archiv</strong> ist dafür da: Es liest deine Track-Ordner ein und zeigt dir alle Touren mit Bild, Datum und Zahlen.</p>
-<p><strong>Einrichten (einmal):</strong> Reiter <strong>📚 Archiv</strong> öffnen → <strong>„Ordner &amp; Einlesen&quot;</strong> (rechts in der Filterleiste) → <strong>„+ Ordner hinzufügen&quot;</strong> → den Ordner wählen, in dem deine Tracks liegen. Die App liest ihn sofort ein; <strong>700 Dateien dauern gut 20 Sekunden.</strong> Unterordner werden mitgenommen. Du kannst beliebig viele Ordner beobachten lassen.</p>
-<p><strong>Wiederfinden</strong> — alles in der Leiste über den Touren:</p>
+<p><strong>Einrichten (einmal):</strong> Reiter <strong>📚 Archiv</strong> öffnen → unten links <strong>„📂 Ordner &amp; Einlesen&quot;</strong> → <strong>„+ Ordner hinzufügen&quot;</strong> → den Ordner wählen, in dem deine Tracks liegen. Die App liest ihn sofort ein; <strong>700 Dateien dauern gut 20 Sekunden.</strong> Unterordner werden mitgenommen. Du kannst beliebig viele Ordner beobachten lassen. (Solange kein Ordner da ist, steht auf der leeren Fläche ein großer <strong>„+ Ordner hinzufügen&quot;</strong>-Knopf.)</p>
+<p><strong>Die Seitenleiste links entscheidet, welche Touren du überhaupt siehst:</strong></p>
+<table><thead><tr><th>Bereich</th><th>Zeigt</th></tr></thead><tbody><tr><td>📚 <strong>Alle Touren</strong></td><td>alles, gemacht und geplant gemischt</td></tr><tr><td>✅ <strong>Gemachte</strong></td><td>nur, was du wirklich gefahren/gelaufen bist</td></tr><tr><td>📝 <strong>Geplante</strong></td><td>nur die Routen, die noch anstehen</td></tr><tr><td>★ <strong>Favoriten</strong></td><td>deine markierten Touren</td></tr><tr><td>🚫 <strong>Ausgeblendete</strong></td><td>was du beiseitegelegt hast (erscheint nur, wenn es welche gibt)</td></tr></tbody></table>
+<p>Darunter stehen deine <strong>Sammlungen</strong>: ein Klick zeigt <strong>nur diese eine</strong>, ein zweiter Klick hebt es wieder auf. Die App merkt sich den zuletzt gewählten Bereich.</p>
+<p><strong>Weiter filtern</strong> — in der Leiste über den Touren:</p>
 <ul>
 <li><strong>Suchfeld</strong> — sucht in Name, Dateiname, Schlagwörtern und Notizen. Akzente sind egal</li>
 </ul>
@@ -408,11 +411,7 @@ python app.py</code></pre>
 <ul>
 <li><strong>Jahr</strong>, <strong>Fortbewegung</strong> (Wandern, Rad, Laufen …), <strong>Sortierung</strong> (neueste, längste,</li>
 </ul>
-<p> meiste Höhenmeter …).</p>
-<ul>
-<li><strong>Nur Favoriten</strong> und <strong>Nur gemachte</strong> — letzteres blendet Touren aus, die du nur geplant</li>
-</ul>
-<p> und nie gemacht hast.</p>
+<p> meiste Höhenmeter …) und <strong>Zurücksetzen</strong>.</p>
 <p><strong>Gemacht oder nur geplant?</strong> Die App erkennt das selbst — und zwar unabhängig davon, aus welcher App der Track kommt:</p>
 <table><thead><tr><th>Merkmal</th><th>Bedeutung</th></tr></thead><tbody><tr><td>Sensordaten (Puls, Trittfrequenz …)</td><td>sicher <strong>gemacht</strong> — so etwas entsteht nur beim Mitschneiden</td></tr><tr><td>„(Completed)&quot;, „Aufgezeichnet&quot;, „Geplant&quot; im Namen</td><td>wird direkt übernommen</td></tr><tr><td>keine Zeitstempel</td><td>kann keine Aufzeichnung sein → <strong>geplant</strong></td></tr><tr><td>sonst: der <strong>Rhythmus</strong></td><td>eine Aufzeichnung hat Pausen und schwankendes Tempo, eine geplante Route läuft gleichmäßig durch</td></tr></tbody></table>
 <p>Der letzte Punkt ist eine Schätzung — sie liegt bei rund 9 von 10 Touren richtig. Deshalb kannst du in der rechten Spalte pro Tour auf <strong>Gemacht</strong>, <strong>Geplant</strong> oder <strong>Automatisch</strong> stellen; darunter steht, woran die App es erkannt hat. Deine Entscheidung bleibt auch nach einem Neu-Einlesen erhalten.</p>
@@ -420,11 +419,15 @@ python app.py</code></pre>
 <ul>
 <li><strong>Anlegen:</strong> Tour auswählen → rechts <strong>„+ Zu Sammlung&quot;</strong> → bestehende wählen oder neue</li>
 </ul>
-<p> anlegen. Schneller geht es über den Filter: nach „Märkischer Landweg&quot; suchen und im  Sammlungs-Menü <strong>„Alle 5 Treffer in eine Sammlung&quot;</strong> nehmen.</p>
+<p> anlegen. Oder links unter den Sammlungen <strong>„+ Neue Sammlung&quot;</strong>. Schneller geht es über den  Filter: nach „Märkischer Landweg&quot; suchen und <strong>„Alle 5 Treffer in eine Sammlung&quot;</strong> nehmen.</p>
 <ul>
-<li><strong>Anzeigen:</strong> In der Filterleiste die Sammlung auswählen — dann siehst du nur ihre Touren,</li>
+<li><strong>Anzeigen:</strong> Links auf die Sammlung klicken — dann siehst du nur ihre Touren, und zwar in</li>
 </ul>
-<p> und zwar in <strong>ihrer eigenen Reihenfolge</strong> (Etappe 1, 2, 3 …), sortiert nach Datum.</p>
+<p> <strong>ihrer eigenen Reihenfolge</strong> (Etappe 1, 2, 3 …), sortiert nach Datum.</p>
+<ul>
+<li><strong>Verwalten:</strong> <strong>Rechtsklick</strong> auf eine Sammlung öffnet umbenennen, anzeigen, „Alle im</li>
+</ul>
+<p> Animator&quot; und löschen.</p>
 <ul>
 <li><strong>Weiterverarbeiten:</strong> <strong>„Alle im Animator&quot;</strong> übergibt die ganze Sammlung an den Animator</li>
 </ul>
@@ -433,21 +436,25 @@ python app.py</code></pre>
 <li>Eine Tour darf in beliebig vielen Sammlungen liegen; Löschen einer Sammlung löscht <strong>keine</strong></li>
 </ul>
 <p> Touren.</p>
-<p><strong>Drei Ansichten</strong>, rechts in der Leiste umschaltbar (die App merkt sich deine Wahl):</p>
-<table><thead><tr><th>Symbol</th><th>Ansicht</th><th>Wofür</th></tr></thead><tbody><tr><td>▦</td><td><strong>Kacheln</strong></td><td>Stöbern — Bild groß, Form der Tour sofort erkennbar</td></tr><tr><td>☰</td><td><strong>Liste</strong></td><td>Vergleichen — viele Touren mit Zahlen auf einen Blick</td></tr><tr><td>🌍</td><td><strong>Karte</strong></td><td>„Wo war ich überall?&quot; — alle gefilterten Touren auf einer Weltkarte, Klick auf eine Linie wählt sie aus</td></tr></tbody></table>
+<p><strong>Vier Ansichten</strong>, rechts in der Leiste umschaltbar (die App merkt sich deine Wahl):</p>
+<table><thead><tr><th>Symbol</th><th>Ansicht</th><th>Wofür</th></tr></thead><tbody><tr><td>▦</td><td><strong>Kacheln</strong></td><td>Stöbern — Bild groß, Form der Tour sofort erkennbar</td></tr><tr><td>☰</td><td><strong>Liste</strong></td><td>Vergleichen — viele Touren mit Zahlen auf einen Blick</td></tr><tr><td>🌍</td><td><strong>Karte</strong></td><td>„Wo war ich überall?&quot; — alle gefilterten Touren auf einer Weltkarte, Klick auf eine Linie wählt sie aus</td></tr><tr><td>📊</td><td><strong>Statistik</strong></td><td>„Was habe ich eigentlich zusammen?&quot; — Zahlen zur aktuellen Auswahl</td></tr></tbody></table>
+<p><strong>Die Statistik</strong> rechnet immer genau das zusammen, was gerade gewählt ist — also auch „nur diese Sammlung&quot;, „nur die gemachten Touren&quot; oder „nur 2024&quot;. Sie zeigt Touren, Kilometer, Höhenmeter, Stunden, Ø je Tour und die längste Tour, darunter die Aufteilung <strong>gemacht gegen geplant</strong>, <strong>Kilometer je Jahr</strong>, <strong>Touren je Monat</strong> (deine Saison über alle Jahre), die Verteilung <strong>nach Fortbewegung</strong> und die <strong>fünf längsten Touren</strong> — ein Klick darauf springt zur Tour.</p>
 <p>Auf der Karte werden weit entfernte Touren als <strong>Punkte</strong> gezeichnet und erst beim Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar. Gezeichnet wird in <strong>Magenta mit dunkler Kontur</strong>: Die Karte selbst hat orange Straßen und beige Flächen, darauf verschwand ein orangefarbener Track. Favoriten sind bernsteinfarben.</p>
 <p><strong>Klick auf eine Tour</strong> hebt sie hervor (weiße Kontur, orange Linie, liegt vorn) und öffnet direkt auf der Karte eine kleine <strong>Info-Karte</strong>: Name, Datum, Art, Strecke, Höhenmeter, Dauer — und die beiden Knöpfe <strong>„Im Animator öffnen&quot;</strong> und <strong>„+ Zu Sammlung&quot;</strong>. Ein Klick ins Leere schließt sie wieder.</p>
 <p><strong>Weiterarbeiten:</strong> Tour anklicken, dann rechts <strong>„Im Animator öffnen&quot;</strong> (oder Tour-Karte, Daten-Animator, Geotagger, Inspektor). Ein <strong>Doppelklick</strong> auf die Kachel schickt sie direkt in den Animator. Das ist genau dasselbe, als hättest du die Datei über „Track wählen&quot; geöffnet — nur mit Bild und Suche davor. Über den <strong>📚-Knopf</strong> in der Track-Leiste kommst du aus jedem Modul ins Archiv.</p>
 <p><strong>Ordnen:</strong> In der rechten Spalte vergibst du <strong>Favorit ★</strong>, <strong>Schlagwörter</strong> (z. B. <code>Mallorca, Testfahrt</code>) und eine <strong>Notiz</strong>. Das bleibt erhalten, auch wenn du neu einliest.</p>
+<p><strong>Umbenennen:</strong> Der Titel oben in der rechten Spalte ist ein Eingabefeld — einfach überschreiben. Der Datei-Name steht darunter weiter da; löschst du deinen Namen wieder, gilt er erneut. Die Datei auf der Festplatte wird <strong>nicht</strong> umbenannt.</p>
+<p><strong>Aufräumen</strong> — drei Stufen, ganz unten in der rechten Spalte:</p>
+<table><thead><tr><th>Knopf</th><th>Was passiert</th></tr></thead><tbody><tr><td><strong>Ausblenden</strong></td><td>Tour verschwindet aus allen Listen, bleibt aber im Bereich „Ausgeblendete&quot; — für Doppelte oder Testfahrten, die du nicht sehen willst</td></tr><tr><td><strong>Aus Archiv nehmen</strong></td><td>Das Archiv vergisst den Eintrag, die Datei bleibt liegen (beim nächsten Einlesen ist sie wieder da)</td></tr><tr><td><strong>In den Papierkorb</strong></td><td>Legt die Datei nach Rückfrage in den Papierkorb des Systems — von dort holst du sie zurück, solange er nicht geleert ist</td></tr></tbody></table>
 <p><strong>Was die Kacheln verraten:</strong></p>
-<table><thead><tr><th>Zeichen</th><th>Bedeutung</th></tr></thead><tbody><tr><td>★</td><td>Favorit</td></tr><tr><td>„geplant&quot;</td><td>Tour war nur geplant, nicht aufgezeichnet</td></tr><tr><td>● (orange)</td><td>Für diese Tour gibt es schon gespeicherte Projekte</td></tr></tbody></table>
-<p><strong>Doppelte finden:</strong> Der Knopf ganz oben rechts gruppiert Dateien mit <strong>identischem Streckenverlauf</strong> — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.</p>
-<p><strong>Neue Dateien:</strong> Nach jedem größeren Export einmal <strong>„Ordner &amp; Einlesen&quot; → „Neu einlesen&quot;</strong> drücken. Bereits bekannte Dateien werden übersprungen, das geht in Sekunden.</p>
+<table><thead><tr><th>Zeichen</th><th>Bedeutung</th></tr></thead><tbody><tr><td>★</td><td>Favorit</td></tr><tr><td>„geplant&quot;</td><td>Tour war nur geplant, nicht aufgezeichnet</td></tr><tr><td>„aus&quot;</td><td>Tour ist ausgeblendet</td></tr><tr><td>● (orange)</td><td>Für diese Tour gibt es schon gespeicherte Projekte</td></tr></tbody></table>
+<p><strong>Doppelte finden:</strong> Der Knopf unten links gruppiert Dateien mit <strong>identischem Streckenverlauf</strong> — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.</p>
+<p><strong>Neue Dateien:</strong> Nach jedem größeren Export einmal unten links <strong>„📂 Ordner &amp; Einlesen&quot; → „Neu einlesen&quot;</strong> drücken. Bereits bekannte Dateien werden übersprungen, das geht in Sekunden.</p>
 <p><strong>Schönere Vorschaubilder — Karte statt Linie:</strong> Standardmäßig zeigt jede Kachel nur den Linienzug ohne Karte. Das geht sofort und kostet nichts. Wenn du es hübscher willst, öffne <strong>„Ordner &amp; Einlesen&quot;</strong> und drücke <strong>„Kartenbilder holen&quot;</strong> — dann holt die App zu jeder Tour einmal ein echtes Kartenbild von Mapbox und <strong>legt es dauerhaft auf deinem Rechner ab</strong>. Danach ist die Ansicht offline, sofort da und kostet kein weiteres Kontingent. Rund 5 Minuten für 700 Touren; der Lauf lässt sich anhalten und später fortsetzen. Ohne Mapbox-Token bleibt es bei der Linienzeichnung.</p>
 <p><strong>Eigenes Bild für eine Tour:</strong> In der rechten Spalte <strong>„Eigenes Bild wählen&quot;</strong> — zum Beispiel das schönste Foto der Tour. Es ersetzt das Vorschaubild in allen Ansichten. Die App legt eine verkleinerte Kopie an; dein Original bleibt unberührt und darf verschoben werden.</p>
-<blockquote><strong>Deine Dateien bleiben, wo sie sind.</strong> Das Archiv verschiebt, kopiert und löscht nichts</blockquote>
-<blockquote>es merkt sich nur, was wo liegt. <strong>„Aus Archiv nehmen&quot;</strong> entfernt eine Tour aus der</blockquote>
-<blockquote>Übersicht, die Datei selbst bleibt unangetastet.</blockquote>
+<blockquote><strong>Deine Dateien bleiben, wo sie sind.</strong> Das Archiv verschiebt und kopiert nichts — es merkt</blockquote>
+<blockquote>sich nur, was wo liegt. Die einzige Ausnahme ist <strong>„In den Papierkorb&quot;</strong>, und die fragt</blockquote>
+<blockquote>vorher nach.</blockquote>
 <hr>
 <h2 id="3-modul-animator-gpx-als-video-rendern">3 · Modul: Animator — GPX als Video rendern</h2>
 <h3 id="was-es-macht">Was es macht</h3>

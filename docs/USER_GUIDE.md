@@ -187,19 +187,31 @@ Wer über Jahre Touren sammelt, hat irgendwann hunderte GPX-Dateien in irgendwel
 liegen — und findet die richtige nicht wieder. Das **Archiv** ist dafür da: Es liest deine
 Track-Ordner ein und zeigt dir alle Touren mit Bild, Datum und Zahlen.
 
-**Einrichten (einmal):** Reiter **📚 Archiv** öffnen → **„Ordner & Einlesen"** (rechts in der Filterleiste) → **„+ Ordner hinzufügen"** →
-den Ordner wählen, in dem deine Tracks liegen. Die App liest ihn sofort ein; **700 Dateien
-dauern gut 20 Sekunden.** Unterordner werden mitgenommen. Du kannst beliebig viele Ordner
-beobachten lassen.
+**Einrichten (einmal):** Reiter **📚 Archiv** öffnen → unten links **„📂 Ordner & Einlesen"**
+→ **„+ Ordner hinzufügen"** → den Ordner wählen, in dem deine Tracks liegen. Die App liest
+ihn sofort ein; **700 Dateien dauern gut 20 Sekunden.** Unterordner werden mitgenommen. Du
+kannst beliebig viele Ordner beobachten lassen. (Solange kein Ordner da ist, steht auf der
+leeren Fläche ein großer **„+ Ordner hinzufügen"**-Knopf.)
 
-**Wiederfinden** — alles in der Leiste über den Touren:
+**Die Seitenleiste links entscheidet, welche Touren du überhaupt siehst:**
+
+| Bereich | Zeigt |
+|---|---|
+| 📚 **Alle Touren** | alles, gemacht und geplant gemischt |
+| ✅ **Gemachte** | nur, was du wirklich gefahren/gelaufen bist |
+| 📝 **Geplante** | nur die Routen, die noch anstehen |
+| ★ **Favoriten** | deine markierten Touren |
+| 🚫 **Ausgeblendete** | was du beiseitegelegt hast (erscheint nur, wenn es welche gibt) |
+
+Darunter stehen deine **Sammlungen**: ein Klick zeigt **nur diese eine**, ein zweiter Klick
+hebt es wieder auf. Die App merkt sich den zuletzt gewählten Bereich.
+
+**Weiter filtern** — in der Leiste über den Touren:
 
 - **Suchfeld** — sucht in Name, Dateiname, Schlagwörtern und Notizen. Akzente sind egal
   („muritz" findet „Müritz").
 - **Jahr**, **Fortbewegung** (Wandern, Rad, Laufen …), **Sortierung** (neueste, längste,
-  meiste Höhenmeter …).
-- **Nur Favoriten** und **Nur gemachte** — letzteres blendet Touren aus, die du nur geplant
-  und nie gemacht hast.
+  meiste Höhenmeter …) und **Zurücksetzen**.
 
 **Gemacht oder nur geplant?** Die App erkennt das selbst — und zwar unabhängig davon, aus
 welcher App der Track kommt:
@@ -220,23 +232,33 @@ einem Neu-Einlesen erhalten.
 GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:
 
 - **Anlegen:** Tour auswählen → rechts **„+ Zu Sammlung"** → bestehende wählen oder neue
-  anlegen. Schneller geht es über den Filter: nach „Märkischer Landweg" suchen und im
-  Sammlungs-Menü **„Alle 5 Treffer in eine Sammlung"** nehmen.
-- **Anzeigen:** In der Filterleiste die Sammlung auswählen — dann siehst du nur ihre Touren,
-  und zwar in **ihrer eigenen Reihenfolge** (Etappe 1, 2, 3 …), sortiert nach Datum.
+  anlegen. Oder links unter den Sammlungen **„+ Neue Sammlung"**. Schneller geht es über den
+  Filter: nach „Märkischer Landweg" suchen und **„Alle 5 Treffer in eine Sammlung"** nehmen.
+- **Anzeigen:** Links auf die Sammlung klicken — dann siehst du nur ihre Touren, und zwar in
+  **ihrer eigenen Reihenfolge** (Etappe 1, 2, 3 …), sortiert nach Datum.
+- **Verwalten:** **Rechtsklick** auf eine Sammlung öffnet umbenennen, anzeigen, „Alle im
+  Animator" und löschen.
 - **Weiterverarbeiten:** **„Alle im Animator"** übergibt die ganze Sammlung an den Animator —
   erste Etappe als Haupt-Track, alle weiteren als zusätzliche Touren. Aus sechs Etappen wird
   so ein Video.
 - Eine Tour darf in beliebig vielen Sammlungen liegen; Löschen einer Sammlung löscht **keine**
   Touren.
 
-**Drei Ansichten**, rechts in der Leiste umschaltbar (die App merkt sich deine Wahl):
+**Vier Ansichten**, rechts in der Leiste umschaltbar (die App merkt sich deine Wahl):
 
 | Symbol | Ansicht | Wofür |
 |---|---|---|
 | ▦ | **Kacheln** | Stöbern — Bild groß, Form der Tour sofort erkennbar |
 | ☰ | **Liste** | Vergleichen — viele Touren mit Zahlen auf einen Blick |
 | 🌍 | **Karte** | „Wo war ich überall?" — alle gefilterten Touren auf einer Weltkarte, Klick auf eine Linie wählt sie aus |
+| 📊 | **Statistik** | „Was habe ich eigentlich zusammen?" — Zahlen zur aktuellen Auswahl |
+
+**Die Statistik** rechnet immer genau das zusammen, was gerade gewählt ist — also auch „nur
+diese Sammlung", „nur die gemachten Touren" oder „nur 2024". Sie zeigt Touren, Kilometer,
+Höhenmeter, Stunden, Ø je Tour und die längste Tour, darunter die Aufteilung **gemacht gegen
+geplant**, **Kilometer je Jahr**, **Touren je Monat** (deine Saison über alle Jahre), die
+Verteilung **nach Fortbewegung** und die **fünf längsten Touren** — ein Klick darauf springt
+zur Tour.
 
 Auf der Karte werden weit entfernte Touren als **Punkte** gezeichnet und erst beim
 Hineinzoomen zu Linien — sonst wären sie in der Weltansicht unsichtbar. Gezeichnet wird in
@@ -257,19 +279,32 @@ aus jedem Modul ins Archiv.
 **Ordnen:** In der rechten Spalte vergibst du **Favorit ★**, **Schlagwörter** (z. B.
 `Mallorca, Testfahrt`) und eine **Notiz**. Das bleibt erhalten, auch wenn du neu einliest.
 
+**Umbenennen:** Der Titel oben in der rechten Spalte ist ein Eingabefeld — einfach
+überschreiben. Der Datei-Name steht darunter weiter da; löschst du deinen Namen wieder, gilt
+er erneut. Die Datei auf der Festplatte wird **nicht** umbenannt.
+
+**Aufräumen** — drei Stufen, ganz unten in der rechten Spalte:
+
+| Knopf | Was passiert |
+|---|---|
+| **Ausblenden** | Tour verschwindet aus allen Listen, bleibt aber im Bereich „Ausgeblendete" — für Doppelte oder Testfahrten, die du nicht sehen willst |
+| **Aus Archiv nehmen** | Das Archiv vergisst den Eintrag, die Datei bleibt liegen (beim nächsten Einlesen ist sie wieder da) |
+| **In den Papierkorb** | Legt die Datei nach Rückfrage in den Papierkorb des Systems — von dort holst du sie zurück, solange er nicht geleert ist |
+
 **Was die Kacheln verraten:**
 
 | Zeichen | Bedeutung |
 |---|---|
 | ★ | Favorit |
 | „geplant" | Tour war nur geplant, nicht aufgezeichnet |
+| „aus" | Tour ist ausgeblendet |
 | ● (orange) | Für diese Tour gibt es schon gespeicherte Projekte |
 
-**Doppelte finden:** Der Knopf ganz oben rechts gruppiert Dateien mit **identischem
+**Doppelte finden:** Der Knopf unten links gruppiert Dateien mit **identischem
 Streckenverlauf** — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach
 heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.
 
-**Neue Dateien:** Nach jedem größeren Export einmal **„Ordner & Einlesen" → „Neu einlesen"** drücken. Bereits
+**Neue Dateien:** Nach jedem größeren Export einmal unten links **„📂 Ordner & Einlesen" → „Neu einlesen"** drücken. Bereits
 bekannte Dateien werden übersprungen, das geht in Sekunden.
 
 **Schönere Vorschaubilder — Karte statt Linie:** Standardmäßig zeigt jede Kachel nur den
@@ -284,9 +319,9 @@ Mapbox-Token bleibt es bei der Linienzeichnung.
 Beispiel das schönste Foto der Tour. Es ersetzt das Vorschaubild in allen Ansichten. Die App
 legt eine verkleinerte Kopie an; dein Original bleibt unberührt und darf verschoben werden.
 
-> **Deine Dateien bleiben, wo sie sind.** Das Archiv verschiebt, kopiert und löscht nichts —
-> es merkt sich nur, was wo liegt. **„Aus Archiv nehmen"** entfernt eine Tour aus der
-> Übersicht, die Datei selbst bleibt unangetastet.
+> **Deine Dateien bleiben, wo sie sind.** Das Archiv verschiebt und kopiert nichts — es merkt
+> sich nur, was wo liegt. Die einzige Ausnahme ist **„In den Papierkorb"**, und die fragt
+> vorher nach.
 
 ---
 

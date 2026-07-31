@@ -14,6 +14,34 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.491] – 2026-07-31
+### Hinzugefügt
+- **Seitenleiste im Archiv — gemachte und geplante Touren liegen nicht mehr durcheinander.**
+  Links stehen jetzt die Bereiche **Alle Touren · Gemachte · Geplante · Favoriten ·
+  Ausgeblendete**, darunter die **Sammlungen**. Ein Klick auf eine Sammlung zeigt **nur
+  diese** (zweiter Klick hebt es wieder auf), ein Rechtsklick öffnet ihre Verwaltung
+  (umbenennen, anzeigen, alle im Animator, löschen). Der gewählte Bereich bleibt über
+  App-Neustarts erhalten.
+- **„📂 Ordner & Einlesen" steht fest unten in der Seitenleiste** (Marc: „wo lade ich
+  überhaupt den Ordner?") — mit den eingelesenen Ordnern darunter. Ist noch keiner da, zeigt
+  die leere Fläche einen großen **„+ Ordner hinzufügen"**-Knopf statt nur eines Hinweistextes.
+- **Statistik-Ansicht** (vierter Knopf oben rechts): Touren, Kilometer, Höhenmeter, Stunden,
+  Ø je Tour und längste Tour als Kacheln, ein Balken **gemacht gegen geplant**, **Kilometer
+  je Jahr**, **Touren je Monat** (die Saison über alle Jahre), die Aufteilung **nach
+  Fortbewegung** und die **fünf längsten Touren** zum Direktanspringen. Die Statistik meint
+  immer genau die aktuelle Auswahl — also auch „nur diese Sammlung" oder „nur die gemachten
+  Touren aus 2024".
+- **Touren umbenennen, ausblenden, wegräumen.** Der Titel in der Detailspalte ist direkt
+  beschreibbar; der Datei-Name bleibt daneben sichtbar, ein leeres Feld stellt ihn wieder her.
+  **Ausblenden** nimmt eine Tour aus allen Listen, ohne etwas zu löschen (eigener Bereich
+  links). **In den Papierkorb** legt die Datei nach Rückfrage in den Papierkorb des Systems —
+  rückholbar, solange er nicht geleert ist. „Aus Archiv nehmen" vergisst weiterhin nur den
+  Eintrag.
+
+### Behoben
+- Die Filterleiste im Archiv konnte sich über die halbe Fläche hochziehen; sie ist jetzt
+  ausdrücklich nur so hoch wie ihr Inhalt.
+
 ## [0.9.490] – 2026-07-31
 ### Geändert
 - **Die Touren auf der Übersichtskarte sind endlich gut zu sehen** (Marc: „sieht man kaum").

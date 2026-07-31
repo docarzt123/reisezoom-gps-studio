@@ -1,17 +1,63 @@
-/* Tour-Archiv (v0.9.487) — Filterleiste über den Touren, darunter die
-   gewählte Ansicht (Kacheln · Liste · Karte), rechts die Detailspalte. */
+/* Tour-Archiv (v0.9.491) — links die Bereiche (Alle · Gemachte · Geplante ·
+   Favoriten · Sammlungen), in der Mitte Filterleiste plus die gewählte Ansicht
+   (Kacheln · Liste · Karte · Statistik), rechts die Detailspalte. */
 
 .module-body.lib-mode {
   /* minmax(0, …) ist Pflicht: eine reine 1fr-Spalte schrumpft nicht unter
      ihren Inhalt, und schon eine lange Zeile in der Liste hätte die ganze
      Seite breiter gemacht als das Fenster (Marc: „minimal zu breit"). */
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: 208px minmax(0, 1fr) 320px;
   overflow: hidden;
 }
 
-@media (max-width: 1150px) {
-  .module-body.lib-mode { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1250px) {
+  .module-body.lib-mode { grid-template-columns: 178px minmax(0, 1fr) 300px; }
+}
+@media (max-width: 1050px) {
+  .module-body.lib-mode { grid-template-columns: 178px minmax(0, 1fr); }
   .module-body.lib-mode .lib-detail { display: none; }
+}
+
+/* ── Seitenleiste ────────────────────────────────────────────────────── */
+
+.lib-nav {
+  border-right: 1px solid var(--border); border-left: none;
+  padding: 12px 10px; gap: 2px; min-width: 0;
+}
+.lib-nav-title {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-muted); padding: 0 6px 5px;
+}
+.lib-scopes, .lib-cols { display: flex; flex-direction: column; gap: 1px; }
+/* Die Sammlungsliste darf wachsen, aber nicht den Ordner-Knopf verdrängen. */
+.lib-cols { max-height: 32vh; overflow-y: auto; }
+
+.lib-nav-item {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  background: none; border: none; border-radius: 6px;
+  color: var(--text-dim); font: inherit; font-size: 12.5px;
+  padding: 6px 8px; text-align: left; cursor: pointer;
+}
+.lib-nav-item:hover { background: var(--bg-2); color: var(--text); }
+.lib-nav-item.is-on { background: var(--accent-soft); color: var(--text); }
+.lib-nav-ico { flex: none; width: 15px; text-align: center; font-size: 12px; }
+.lib-nav-lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-nav-n { flex: none; font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.lib-nav-empty, .lib-nav-hint { font-size: 10.5px; color: var(--text-muted); line-height: 1.5; padding: 2px 8px; }
+.lib-nav-hint > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-nav-warn { color: var(--warn); }
+.lib-nav-add {
+  background: none; border: none; color: var(--text-muted);
+  font: inherit; font-size: 11.5px; text-align: left;
+  padding: 4px 8px; cursor: pointer; border-radius: 6px;
+}
+.lib-nav-add:hover { background: var(--bg-2); color: var(--text); }
+
+/* „Wo lade ich überhaupt den Ordner?" — deshalb unten fest verankert und als
+   einziger Knopf in der Seitenleiste farbig. */
+.lib-nav-foot {
+  margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 5px;
 }
 
 .lib-main {
@@ -23,6 +69,11 @@
 /* ── Filterleiste ────────────────────────────────────────────────────── */
 
 .lib-bar {
+  /* `flex: none` ausdrücklich: in der Flex-Spalte der Hauptfläche darf die
+     Leiste nur so hoch sein wie ihr Inhalt — wächst sie mit, verteilt
+     `align-content` die überschüssige Höhe zwischen die Zeilen und die Leiste
+     reißt ein Loch bis zur Trefferliste. */
+  flex: none;
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   padding: 10px 16px; border-bottom: 1px solid var(--border);
   background: var(--bg-2);
@@ -33,7 +84,7 @@
 .lib-bar-right { display: flex; align-items: center; gap: 6px; }
 
 .lib-search {
-  flex: 1 1 220px; min-width: 160px; max-width: 340px;
+  flex: 1 1 180px; min-width: 140px; max-width: 260px;
 }
 .lib-search,
 .lib-select,
@@ -80,7 +131,9 @@
   padding: 8px 16px; border-bottom: 1px solid var(--border);
 }
 .lib-head-count { font-size: 13.5px; font-weight: 600; }
+.lib-head-title { font-size: 12.5px; color: var(--text-dim); }
 .lib-head-sub { font-size: 11.5px; color: var(--text-muted); }
+.lib-head-mix { font-size: 11px; color: var(--text-muted); }
 .lib-head-warn {
   background: none; border: none; padding: 0; font: inherit; font-size: 11.5px;
   color: var(--warn); cursor: pointer; text-decoration: underline;
@@ -124,6 +177,7 @@
 }
 .lib-badge-fav { left: 4px; color: var(--warn); }
 .lib-badge-plan { right: 4px; color: #e8ecf3; }
+.lib-badge-hidden { left: 4px; bottom: 4px; top: auto; color: var(--text-muted); }
 .lib-badge-proj { right: 4px; bottom: 4px; top: auto; color: var(--accent); }
 
 .lib-card-name {
@@ -185,8 +239,12 @@
 /* ── Leerer Zustand ──────────────────────────────────────────────────── */
 
 .lib-empty { grid-column: 1 / -1; padding: 48px 16px; text-align: center; }
+.lib-empty-big { font-size: 40px; line-height: 1; margin-bottom: 10px; }
 .lib-empty-title { font-size: 15px; margin-bottom: 6px; }
-.lib-empty-text { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
+.lib-empty-text {
+  font-size: 12.5px; color: var(--text-muted); line-height: 1.6;
+  max-width: 420px; margin: 0 auto 14px;
+}
 .lib-empty-hint,
 .lib-hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.55; }
 
@@ -320,3 +378,108 @@
 .lib-pop-stats span { font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
 .lib-pop-stats b { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .lib-pop-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ── Statistik (v0.9.491) ────────────────────────────────────────────── */
+
+.lib-stats { overflow-y: auto; overflow-x: hidden; }
+.lib-stats-inner { padding: 16px; max-width: 900px; }
+.lib-stats-head {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.lib-stats-head b { font-size: 15px; }
+.lib-stats-head span { font-size: 11.5px; color: var(--text-muted); }
+
+.lib-tiles {
+  display: grid; gap: 8px; margin-bottom: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+}
+.lib-tile {
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; min-width: 0;
+}
+.lib-tile b {
+  display: block; font-size: 20px; font-weight: 600; line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.lib-tile b i { font-style: normal; font-size: 11px; color: var(--text-muted); margin-left: 3px; }
+.lib-tile span { font-size: 11px; color: var(--text-muted); }
+
+/* Gemacht/geplant als ein Balken — die Frage „wie viel davon bin ich
+   wirklich gefahren?" ist der Grund, warum es das Archiv gibt. */
+.lib-split { margin-bottom: 18px; }
+.lib-split-bar {
+  display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--bg-3);
+}
+.lib-split-bar > i { display: block; height: 100%; }
+.lib-split-bar .is-done { background: var(--success); }
+.lib-split-bar .is-plan { background: var(--text-muted); opacity: .55; }
+.lib-split-lbl {
+  display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px;
+  font-size: 11.5px; color: var(--text-muted);
+}
+.lib-split-lbl b { color: var(--text); font-weight: 600; }
+
+.lib-chart { margin-bottom: 20px; }
+.lib-chart-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+
+.lib-bars {
+  display: flex; align-items: flex-end; gap: 4px;
+  overflow-x: auto; padding-bottom: 2px;
+}
+/* `max-width` verhindert, dass bei zwei Jahren zwei riesige Klötze entstehen —
+   die Balken sollen mitwachsen, aber nicht ins Absurde. */
+.lib-cbar { flex: 1 1 0; min-width: 30px; max-width: 84px; text-align: center; }
+.lib-cbar-track {
+  height: 96px; display: flex; align-items: flex-end;
+  background: var(--bg-2); border-radius: 4px; overflow: hidden;
+}
+.lib-cbar-track > i {
+  display: block; width: 100%; background: var(--accent); border-radius: 4px 4px 0 0;
+}
+.lib-cbar-val { font-size: 10.5px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.lib-cbar-lbl { font-size: 10px; color: var(--text-muted); }
+.lib-cbar-sub { font-size: 9px; color: var(--text-muted); opacity: .8; }
+
+.lib-acts { display: flex; flex-direction: column; gap: 5px; }
+.lib-act-row {
+  display: grid; align-items: center; gap: 8px;
+  grid-template-columns: 108px minmax(0, 1fr) 40px 72px;
+  font-size: 11.5px;
+}
+.lib-act-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-act-bar { height: 8px; background: var(--bg-2); border-radius: 4px; overflow: hidden; }
+.lib-act-bar > i { display: block; height: 100%; background: var(--accent); }
+.lib-act-row b { text-align: right; font-variant-numeric: tabular-nums; }
+.lib-act-km { color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
+
+.lib-top { display: flex; flex-direction: column; }
+.lib-top-row {
+  display: grid; align-items: center; gap: 10px; width: 100%;
+  grid-template-columns: 20px minmax(0, 1fr) 76px 84px;
+  background: none; border: none; border-bottom: 1px solid var(--border);
+  color: var(--text); font: inherit; font-size: 12px; text-align: left;
+  padding: 6px 4px; cursor: pointer;
+}
+.lib-top-row:hover { background: var(--bg-2); }
+.lib-top-n { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.lib-top-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-top-km { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lib-top-date { text-align: right; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* ── Umbenennen / Löschen (v0.9.491) ─────────────────────────────────── */
+
+/* Der Titel IST das Eingabefeld — Umbenennen ohne vorherigen Klick auf einen
+   Stift-Knopf, der sonst nur gesucht werden müsste. */
+.lib-title-input {
+  font-size: 14px; font-weight: 600; padding: 5px 7px;
+  background: transparent; border-color: transparent;
+}
+.lib-title-input:hover { border-color: var(--border); }
+.lib-title-input:focus { background: var(--bg-1); border-color: var(--accent); }
+
+.lib-danger { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
+.lib-btn-danger { color: var(--danger); }
+.lib-btn-danger:hover { border-color: var(--danger); }
+
+.lib-colpick { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.lib-colpick i { font-style: normal; color: var(--text-muted); }

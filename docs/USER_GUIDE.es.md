@@ -183,16 +183,38 @@ Quien acumula rutas durante años acaba con cientos de archivos GPX repartidos p
 —y ya no encuentra el que busca—. Para eso está el **Archivo**: lee tus carpetas de tracks
 y te muestra todas las rutas con imagen, fecha y cifras.
 
-**Configuración (una sola vez):** abre la pestaña **📚 Archivo** → **«+ Añadir carpeta»** a
-la izquierda → elige la carpeta donde están tus tracks. La app la lee de inmediato; **700
-archivos tardan unos 20 segundos.** Las subcarpetas se incluyen. Puedes vigilar tantas
-carpetas como quieras.
+**Configuración (una sola vez):** abre la pestaña **📚 Archivo** → abajo a la izquierda
+**«📂 Carpetas y lectura»** → **«+ Añadir carpeta»** → elige la carpeta donde están tus
+tracks. La app la lee de inmediato; **700 archivos tardan unos 20 segundos.** Las subcarpetas
+se incluyen. Puedes vigilar tantas carpetas como quieras. (Mientras no haya ninguna carpeta,
+el área vacía muestra un gran botón **«+ Añadir carpeta»**.)
 
-**Tres vistas**, conmutables a la derecha de la barra (la app recuerda tu elección):
-**▦ Tarjetas** para explorar, **☰ Lista** para comparar muchas rutas de un vistazo y
-**🌍 Mapa**: todas las rutas filtradas en un mapamundi; al hacer clic en una línea se
-selecciona. Las rutas lejanas se dibujan como puntos y solo se convierten en líneas al
-acercar; de lo contrario serían invisibles.
+**La barra lateral izquierda decide qué rutas ves siquiera:**
+
+| Sección | Muestra |
+|---|---|
+| 📚 **Todas las rutas** | todo, realizadas y planificadas mezcladas |
+| ✅ **Realizadas** | solo lo que de verdad hiciste |
+| 📝 **Planificadas** | solo las rutas que aún tienes pendientes |
+| ★ **Favoritas** | tus rutas marcadas |
+| 🚫 **Ocultas** | lo que apartaste (solo aparece si hay algo) |
+
+Debajo están tus **colecciones**: un clic muestra **solo esa**, un segundo clic lo deshace y
+un **clic derecho** abre renombrar, mostrar, «Todas en el animador» y borrar. La app recuerda
+la última sección elegida.
+
+**Cuatro vistas**, conmutables a la derecha de la barra (la app recuerda tu elección):
+**▦ Tarjetas** para explorar, **☰ Lista** para comparar muchas rutas de un vistazo,
+**🌍 Mapa** —todas las rutas filtradas en un mapamundi; al hacer clic en una línea se
+selecciona— y **📊 Estadísticas**. Las rutas lejanas se dibujan como puntos y solo se
+convierten en líneas al acercar; de lo contrario serían invisibles.
+
+**Las estadísticas** suman siempre exactamente lo que está seleccionado: también «solo esta
+colección», «solo las realizadas» o «solo 2024». Muestran rutas, kilómetros, desnivel, horas,
+media por ruta y la ruta más larga, y debajo el reparto **realizadas frente a planificadas**,
+**kilómetros por año**, **rutas por mes** (tu temporada a lo largo de los años), la
+distribución **por actividad** y **las cinco rutas más largas**, con un clic para saltar a
+cada una.
 
 **Vistas previas más bonitas — mapa en lugar de línea:** por defecto cada tarjeta muestra
 solo la línea, lo cual es inmediato y gratuito. Si lo quieres más bonito, abre
@@ -212,8 +234,7 @@ guarda una copia reducida; tu original queda intacto y se puede mover.
   acentos dan igual («muritz» encuentra «Müritz»).
 - **Año**, **Actividad** (senderismo, ciclismo, correr …), **Orden** (más recientes, más
   largas, mayor desnivel …).
-- **Solo favoritas** y **Solo grabadas** — esto último oculta las rutas que planificaste
-  pero nunca hiciste.
+- **Restablecer** deshace los filtros; la sección de la izquierda se mantiene.
 
 **Seguir trabajando:** haz clic en una ruta y luego, a la derecha, en **«Abrir en el
 animador»** (o mapa de ruta, animador de datos, geolocalizador, inspector). Un **doble
@@ -224,24 +245,36 @@ de la barra de track te lleva al archivo desde cualquier módulo.
 **Ordenar:** en la columna derecha asignas **favorita ★**, **etiquetas** (p. ej.
 `Mallorca, prueba`) y una **nota**. Todo ello sobrevive a cualquier relectura.
 
+**Renombrar:** el título en la parte superior de la columna derecha es un campo de texto:
+simplemente escribe encima. El nombre del archivo sigue visible debajo; si borras el tuyo,
+vuelve a aplicarse. El archivo del disco **no** se renombra.
+
+**Poner orden** — tres niveles, al final de la columna derecha:
+
+| Botón | Qué ocurre |
+|---|---|
+| **Ocultar** | la ruta desaparece de todas las listas pero queda en la sección «Ocultas» — para duplicados o pruebas que no quieres ver |
+| **Quitar del archivo** | el archivo olvida la entrada, el fichero se queda donde está (la próxima lectura vuelve a incluirlo) |
+| **Mover a la papelera** | tras una confirmación el fichero va a la papelera del sistema; puedes recuperarlo mientras no la vacíes |
+
 **Qué indican las tarjetas:**
 
 | Señal | Significado |
 |---|---|
 | ★ | favorita |
 | «planificada» | la ruta solo se planificó, no se grabó |
+| «off» | la ruta está oculta |
 | ● (naranja) | ya hay proyectos guardados para esta ruta |
 
-**Buscar duplicadas:** el botón de arriba a la derecha agrupa los archivos con un
+**Buscar duplicadas:** el botón de abajo a la izquierda agrupa los archivos con un
 **recorrido idéntico**, útil tras una exportación masiva que descargó la misma ruta varias
 veces. No se borra nada: solo ves qué está duplicado.
 
 **Archivos nuevos:** pulsa **«Volver a leer»** después de cada exportación grande. Los
 archivos ya conocidos se omiten, así que tarda segundos.
 
-> **Tus archivos se quedan donde están.** El archivo no mueve, copia ni borra nada: solo
-> recuerda qué hay dónde. **«Quitar del archivo»** saca una ruta de la vista general y deja
-> el archivo intacto.
+> **Tus archivos se quedan donde están.** El archivo no mueve ni copia nada: solo recuerda
+> qué hay dónde. La única excepción es **«Mover a la papelera»**, y esa pregunta antes.
 >
 > Las imágenes de vista previa son simples dibujos de línea sin mapa. Es intencionado: así
 > aparecen al instante, funcionan sin internet y no consumen cuota de mapas.
