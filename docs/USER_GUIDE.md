@@ -320,6 +320,12 @@ dann bleibt es bei der Linienzeichnung. Wer nicht warten will, drückt in
 Beispiel das schönste Foto der Tour. Es ersetzt das Vorschaubild in allen Ansichten. Die App
 legt eine verkleinerte Kopie an; dein Original bleibt unberührt und darf verschoben werden.
 
+**Platte nicht angeschlossen?** Dann findet die App die Dateien beim Einlesen nicht — sie
+wirft die Touren aber **nicht weg**. Sie bleiben in der Liste, zählen in der Statistik mit und
+bekommen ein 🔌 auf die Kachel; links erscheint der Bereich **„Nicht erreichbar"**. Steckst du
+die Platte wieder an, ist beim nächsten Einlesen alles wie vorher. Erst nach 90 Tagen ohne
+Wiedersehen verschwindet der Eintrag — deine Angaben dazu bleiben trotzdem erhalten.
+
 **Was du zu einer Tour sagst, bleibt — an der Tour, nicht an der Datei.** Favorit,
 Schlagwörter, Notiz, eigener Name, ausgeblendet, die Korrektur gemacht/geplant, dein
 Titelbild und die Sammlungen hängen am Streckenverlauf. Deshalb gilt:

@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.494] – 2026-07-31
+### Hinzugefügt
+- **Touren auf einer abgezogenen Platte verschwinden nicht mehr.** Findet die App
+  eine Datei beim Einlesen nicht, wird die Tour als **„gerade nicht erreichbar"**
+  gekennzeichnet statt gelöscht: Sie bleibt in der Liste, zählt in der Statistik
+  weiter mit und trägt auf der Kachel ein 🔌. Steckst du die Platte wieder an,
+  ist beim nächsten Einlesen alles wie vorher. Erst nach **90 Tagen** ohne
+  Wiedersehen fliegt der Eintrag raus — und selbst dann bleiben deine Angaben
+  dazu erhalten, falls die Tour je zurückkommt.
+- Ein eigener Bereich **„🔌 Nicht erreichbar"** in der Seitenleiste zeigt genau
+  diese Touren — er erscheint nur, wenn es welche gibt.
+
 ## [0.9.493] – 2026-07-31
 ### Geändert
 - **Alles, was du zu einer Tour sagst, hängt jetzt an der Tour — nicht an der

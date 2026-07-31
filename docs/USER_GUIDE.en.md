@@ -272,6 +272,12 @@ you only get to see what is doubled up.
 **New files:** press **“Rescan”** once after a bigger export. Files already known are
 skipped, so it takes seconds.
 
+**Drive not connected?** Then the app cannot find those files while scanning — but it does
+**not** throw the tours away. They stay in the list, keep counting in the statistics and get a
+🔌 on the card; a **“Not reachable”** section appears on the left. Plug the drive back in and
+the next scan puts everything back. Only after 90 days without a sighting does the entry go —
+and what you noted about it stays regardless.
+
 **What you say about a tour sticks — to the tour, not to the file.** Favourite, tags, note,
 your own name, hidden, the done/planned correction, your cover picture and the collections all
 hang off the route itself. So:

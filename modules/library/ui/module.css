@@ -492,3 +492,5 @@
 
 /* Hinweis auf den Hintergrundlauf „Kartenbilder holen" (v0.9.493) */
 .lib-head-auto { font-size: 11.5px; color: var(--text-muted); }
+/* „Datei gerade nicht auffindbar" (v0.9.494) */
+.lib-badge-missing { right: 4px; bottom: 4px; top: auto; color: #ffd27d; }

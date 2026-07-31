@@ -1641,5 +1641,8 @@
   "library.cancel": "Cancelar",
   "library.scope_fav": "Favoritas",
   "library.col_animator_fail": "El animador no estaba listo — inténtalo de nuevo.",
-  "library.map_thumbs_auto": "Descargando imágenes de mapa"
+  "library.map_thumbs_auto": "Descargando imágenes de mapa",
+  "library.scope_missing": "No accesible",
+  "library.missing_hint": "El archivo no se encuentra ahora mismo — ¿disco no conectado?",
+  "library.missing_long": "Este archivo no se encuentra ahora mismo — probablemente está en un disco que no está conectado. La ruta permanece en el archivo; en cuanto vuelva el fichero, todo sigue igual. Tras 90 días sin aparecer, la entrada desaparece (lo que anotaste sobre ella se conserva igualmente)."
 }
