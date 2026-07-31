@@ -108,3 +108,7 @@ docs/BLOGPOST_UPDATE.md
 /scripts/selftest_ui.py
 /scripts/make_icon.py
 /docs/DISTRIBUTION.md
+
+# Interne Notiz + Patch aus einem anderen Chat (nicht ins öffentliche Repo)
+/docs/IDEE_ECHTZEIT_ZEITRAFFER.md
+/docs/patches/
