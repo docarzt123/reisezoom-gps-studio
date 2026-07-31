@@ -1276,6 +1276,32 @@ blieb schwarz. Im Archiv läuft es über Flex + `height: 100%`.
   in `localStorage`) plus `state.collection_id`; `scopeFilters()` übersetzt beides in die
   Abfrage-Parameter. Vierte Ansicht `stats`.
 
+**v0.9.492 — Konsistenz und Nebenläufigkeit:**
+
+- **Freitextsuche im SQL statt in Python.** `open_db()` registriert `_norm` als
+  SQLite-Funktion `rz_norm` (`conn.create_function(..., deterministic=True)`), `_build_where`
+  hängt je Suchwort ein `rz_norm(<Felder>) LIKE ?` an. Vorher filterte `query()` die Zeilen
+  nachträglich in Python — `stats()` sah davon nichts und zeigte bei zwei Treffern die Summen
+  des ganzen Archivs. Gemessen: 709 Zeilen, Suche + Statistik zusammen 0,07 s.
+- **`_DB_LOCK` + `@_locked`.** Die Verbindung ist mit `check_same_thread=False` geöffnet, aber
+  nicht nebenläufig benutzbar. Zwei parallele `library_stats`-Aufrufe (Liste + Seitenleiste)
+  lieferten vermischte Zeilen — sichtbar als `TypeError: int() … NoneType` aus der
+  Monats-Abfrage. Alle öffentlichen DB-Funktionen sind jetzt serialisiert; Regressionstest:
+  6 Threads × 15 Runden, 0 Fehler.
+- `stats()` liefert zusätzlich `n_fav`; `n_fav`/`n_hidden` werden mit denselben Filtern, aber
+  eigener Klausel gezählt (`_count_hidden`) — sie sind die Bestandszahlen der Bereiche.
+- **Übergabe ganzer Sammlungen an den Animator** läuft über `window.__rzPendingTours`: Das
+  Archiv legt die Pfade ab, der Animator arbeitet sie in seinem `onMapReady`-Callback ab.
+  Direktes Aufrufen von `_animAddTourByPath()` nach `switchMod` funktionierte NICHT — der
+  Projekt-Restore des Animators überschreibt `_extraTours` kurz danach.
+- `_animDrawExtraToursPreview()` hängt sich bei noch nicht geladenem Style an `map.once("idle")`
+  statt kommentarlos auszusteigen; sonst bleibt eine während des Kartenaufbaus hinzugefügte
+  Tour dauerhaft unsichtbar.
+
+⚠️ **In der Detailspalte des Archivs brauchen alle Kinder `flex: none`** (`.lib-detail > *`).
+Die Spalte ist eine Flex-Spalte mit Überlauf; ohne das staucht WebKit jedes Kind mit eigener
+Höhe — die Gemacht/Geplant-Umschaltung war ein 1-px-Strich, das Notizfeld eine Zeile.
+
 ⚠️ **Klassennamen im Archiv-CSS auf Kollisionen prüfen.** Die Statistik-Balken hießen zuerst
 `.lib-bar` — genau wie die Filterleiste. Deren `flex: 1 1 0` zog die Leiste über die halbe
 Fläche und `align-content: stretch` verteilte die Lücke zwischen ihre Zeilen. Balken heißen

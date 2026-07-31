@@ -34,12 +34,14 @@ Zwei Hashes pro Tour, das ist Absicht:
 """
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import os
 import re
 import sqlite3
 import statistics
+import threading
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
@@ -210,12 +212,39 @@ _ADD_COLS = [
 ]
 
 
+# Die Verbindung wird mit `check_same_thread=False` geöffnet (das Einlesen
+# läuft in einem eigenen Thread) — sie ist damit aber NICHT nebenläufig
+# benutzbar. Zwei gleichzeitige Abfragen über dieselbe Verbindung liefern
+# vermischte Zeilen: in v0.9.492 kam aus einer Monats-Abfrage plötzlich NULL
+# zurück, weil die Seitenleiste ihre Statistik parallel zur Trefferliste holte.
+# Ein Modul-Lock reicht — die App hat genau ein Archiv, und die Abfragen sind
+# Millisekunden-Sache.
+_DB_LOCK = threading.RLock()
+
+
+def _locked(fn):
+    """Serialisiert jeden Zugriff auf die Archiv-Datenbank."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with _DB_LOCK:
+            return fn(*args, **kwargs)
+    return wrapper
+
+
 def open_db(db_path: Path) -> sqlite3.Connection:
     """Öffnet (und erstellt) die Archiv-Datenbank."""
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    # Die Freitextsuche gehört ins SQL, nicht hinterher in Python: sonst filtert
+    # die Liste anders als `stats()` zählt („2 Touren … 16.314 km"). SQLite kann
+    # kein akzent-unempfindliches LIKE, also reichen wir `_norm` als Funktion
+    # hinein — bei ein paar tausend Zeilen kostet das nichts.
+    try:
+        conn.create_function("rz_norm", 1, _norm, deterministic=True)
+    except TypeError:  # ältere SQLite-Bindings kennen `deterministic` nicht
+        conn.create_function("rz_norm", 1, _norm)
     conn.executescript(_SCHEMA)
     have = {r["name"] for r in conn.execute("PRAGMA table_info(tracks)").fetchall()}
     for col, decl in _ADD_COLS:
@@ -233,6 +262,7 @@ def open_db(db_path: Path) -> sqlite3.Connection:
 
 # ── Beobachtete Ordner ───────────────────────────────────────────────────────
 
+@_locked
 def get_folders(conn: sqlite3.Connection) -> list:
     rows = conn.execute(
         "SELECT path, added_at, recursive FROM folders ORDER BY path"
@@ -252,6 +282,7 @@ def get_folders(conn: sqlite3.Connection) -> list:
     return out
 
 
+@_locked
 def add_folder(conn: sqlite3.Connection, path: str, recursive: bool = True) -> bool:
     p = str(Path(path).expanduser().resolve())
     if not Path(p).is_dir():
@@ -265,6 +296,7 @@ def add_folder(conn: sqlite3.Connection, path: str, recursive: bool = True) -> b
     return True
 
 
+@_locked
 def remove_folder(conn: sqlite3.Connection, path: str, drop_tracks: bool = True) -> None:
     p = str(Path(path).expanduser().resolve())
     conn.execute("DELETE FROM folders WHERE path = ?", (p,))
@@ -581,6 +613,7 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     return row
 
 
+@_locked
 def scan(
     conn: sqlite3.Connection,
     thumbs_dir: Path,
@@ -706,8 +739,14 @@ def _norm(s: str) -> str:
 
 
 
-def _build_where(year=None, activity="", fav_only=False, planned=None, tags=None,
-                 min_km=None, max_km=None, bbox=None, collection_id=None,
+_SEARCH_HAY = ("COALESCE(display_name,'') || ' ' || COALESCE(name,'') || ' ' || "
+               "COALESCE(filename,'') || ' ' || COALESCE(tags,'') || ' ' || "
+               "COALESCE(note,'') || ' ' || COALESCE(place,'') || ' ' || "
+               "COALESCE(country,'') || ' ' || COALESCE(region,'')")
+
+
+def _build_where(search="", year=None, activity="", fav_only=False, planned=None,
+                 tags=None, min_km=None, max_km=None, bbox=None, collection_id=None,
                  include_errors=False, include_hidden=False, hidden_only=False,
                  **_ignored) -> tuple:
     """Baut die WHERE-Klausel EINMAL — Liste und Statistik müssen zwingend
@@ -746,9 +785,16 @@ def _build_where(year=None, activity="", fav_only=False, planned=None, tags=None
     for t in (tags or []):
         where.append("(',' || lower(tags) || ',') LIKE ?")
         args.append(f"%,{t.strip().lower()},%")
+    # Jedes Suchwort muss vorkommen — akzent-unempfindlich über `rz_norm`.
+    for w in (search or "").split():
+        n = _norm(w)
+        if n:
+            where.append(f"rz_norm({_SEARCH_HAY}) LIKE ?")
+            args.append(f"%{n}%")
     return " AND ".join(where), args
 
 
+@_locked
 def query(
     conn: sqlite3.Connection,
     search: str = "",
@@ -776,7 +822,7 @@ def query(
     stillschweigend verschwinden.
     """
     sql_where, args = _build_where(
-        year=year, activity=activity, fav_only=fav_only, planned=planned,
+        search=search, year=year, activity=activity, fav_only=fav_only, planned=planned,
         tags=tags, min_km=min_km, max_km=max_km, bbox=bbox,
         collection_id=collection_id, include_errors=include_errors,
         include_hidden=include_hidden, hidden_only=hidden_only)
@@ -789,20 +835,8 @@ def query(
         f"SELECT * FROM tracks WHERE {sql_where} ORDER BY {order}", args
     ).fetchall()
 
-    # Freitext wird in Python gefiltert: SQLite kann von Haus aus kein
-    # akzent-unempfindliches LIKE, und bei ein paar tausend Zeilen ist das
-    # schneller getippt als eine zweite Suchtabelle gepflegt.
-    if search.strip():
-        needles = [_norm(w) for w in search.split() if w.strip()]
-        def hit(r):
-            hay = _norm(" ".join([
-                r["display_name"] or "", r["name"] or "", r["filename"] or "", r["tags"] or "",
-                r["note"] or "", r["place"] or "", r["country"] or "",
-                r["region"] or "",
-            ]))
-            return all(n in hay for n in needles)
-        rows = [r for r in rows if hit(r)]
-
+    # Der Freitext steckt seit v0.9.492 in `_build_where` (via `rz_norm`) —
+    # dadurch zählt `stats()` genau die Zeilen, die hier auch angezeigt werden.
     total = len(rows)
     page = rows[offset:offset + limit] if limit else rows
     return {"total": total, "items": [_to_dict(r, with_geom=with_geom) for r in page]}
@@ -846,11 +880,23 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     return d
 
 
+@_locked
 def get_track(conn: sqlite3.Connection, path: str) -> Optional[dict]:
     r = conn.execute("SELECT * FROM tracks WHERE path = ?", (path,)).fetchone()
     return _to_dict(r) if r else None
 
 
+def _count_hidden(filters: dict) -> tuple:
+    """SQL + Argumente für „wie viele ausgeblendete passen zu diesen Filtern"."""
+    f = dict(filters)
+    f.pop("fav_only", None)
+    f.pop("planned", None)
+    f["hidden_only"] = True
+    w, a = _build_where(**f)
+    return (f"SELECT COUNT(*) FROM tracks WHERE {w}", a)
+
+
+@_locked
 def stats(conn: sqlite3.Connection, **filters) -> dict:
     """Zahlen zur aktuellen Auswahl — dieselben Filter wie `query()`.
 
@@ -878,7 +924,7 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
                            f"GROUP BY year ORDER BY year")]
 
     # Monate: „01"…„12" quer über alle Jahre — zeigt die Saison.
-    months = [{"month": int(x["m"]), "n": x["n"], "km": round((x["d"] or 0) / 1000.0, 1)}
+    months = [{"month": int(x["m"] or 0), "n": x["n"], "km": round((x["d"] or 0) / 1000.0, 1)}
               for x in rows(f"SELECT CAST(substr(started_at, 6, 2) AS INTEGER) m, COUNT(*) n, "
                             f"SUM(distance_m) d FROM tracks WHERE {sql_where} "
                             f"AND length(started_at) >= 7 GROUP BY m ORDER BY m")]
@@ -924,12 +970,20 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
                  "km": round((done["d"] if done else 0) / 1000.0, 1)},
         "planned": {"n": plan["n"] if plan else 0,
                     "km": round((plan["d"] if plan else 0) / 1000.0, 1)},
-        "n_hidden": conn.execute("SELECT COUNT(*) FROM tracks WHERE hidden = 1").fetchone()[0],
+        # Favoriten + Ausgeblendete: dieselben Filter, aber jeweils mit der
+        # eigenen Klausel statt der aus `filters` — das sind die Zahlen neben
+        # den Bereichen in der Seitenleiste. Bei „Ausgeblendete" muss die
+        # `hidden = 0`-Klausel des Standard-WHERE ersetzt werden, sonst käme
+        # dort immer 0 heraus.
+        "n_fav": conn.execute(
+            f"SELECT COUNT(*) FROM tracks WHERE {sql_where} AND fav = 1", args).fetchone()[0],
+        "n_hidden": conn.execute(*_count_hidden(filters)).fetchone()[0],
         "n_failed": conn.execute("SELECT COUNT(*) FROM tracks WHERE error != ''").fetchone()[0],
         "search_note": search,
     }
 
 
+@_locked
 def set_user_fields(conn: sqlite3.Connection, path: str, fav=None, tags=None, note=None) -> bool:
     sets, args = [], []
     if fav is not None:
@@ -947,6 +1001,7 @@ def set_user_fields(conn: sqlite3.Connection, path: str, fav=None, tags=None, no
     return True
 
 
+@_locked
 def set_recorded(conn: sqlite3.Connection, path: str, value) -> None:
     """Hand-Korrektur: True = gemacht, False = geplant, None = wieder schätzen."""
     conn.execute("UPDATE tracks SET recorded_user = ? WHERE path = ?",
@@ -954,17 +1009,20 @@ def set_recorded(conn: sqlite3.Connection, path: str, value) -> None:
     conn.commit()
 
 
+@_locked
 def set_display_name(conn: sqlite3.Connection, path: str, name: str) -> None:
     """Eigener Name. Leer = wieder der Name aus der Datei."""
     conn.execute("UPDATE tracks SET display_name = ? WHERE path = ?", ((name or "").strip(), path))
     conn.commit()
 
 
+@_locked
 def set_hidden(conn: sqlite3.Connection, path: str, hidden: bool) -> None:
     conn.execute("UPDATE tracks SET hidden = ? WHERE path = ?", (1 if hidden else 0, path))
     conn.commit()
 
 
+@_locked
 def trash_file(conn: sqlite3.Connection, path: str) -> dict:
     """Legt die Datei in den Papierkorb und nimmt sie aus dem Archiv.
 
@@ -1003,6 +1061,7 @@ def trash_file(conn: sqlite3.Connection, path: str) -> dict:
     return {"ok": True, "moved_to": moved_to}
 
 
+@_locked
 def duplicates(conn: sqlite3.Connection) -> list:
     """Gruppen von Dateien mit identischem Streckenverlauf."""
     rows = conn.execute(
@@ -1098,6 +1157,7 @@ def map_thumb_fetch(
     return str(out)
 
 
+@_locked
 def map_thumbs_pending(conn: sqlite3.Connection) -> list:
     """Touren mit Streckenverlauf, aber ohne gecachtes Karten-Vorschaubild."""
     rows = conn.execute(
@@ -1147,6 +1207,7 @@ def map_thumbs_fetch_all(
 
 # ── Eigenes Titelbild ────────────────────────────────────────────────────────
 
+@_locked
 def set_cover(conn: sqlite3.Connection, path: str, image_path: str,
               covers_dir: Path, max_w: int = 720) -> str:
     """Legt ein eigenes Bild als Titelbild einer Tour ab (verkleinerte Kopie).
@@ -1173,6 +1234,7 @@ def set_cover(conn: sqlite3.Connection, path: str, image_path: str,
     return str(out)
 
 
+@_locked
 def clear_cover(conn: sqlite3.Connection, path: str) -> None:
     row = conn.execute("SELECT cover FROM tracks WHERE path = ?", (path,)).fetchone()
     if row and row["cover"]:
@@ -1192,6 +1254,7 @@ def clear_cover(conn: sqlite3.Connection, path: str) -> None:
 # (Etappe 1, 2, 3 …), und genau die braucht der Animator, wenn er sie am Stück
 # abfliegt.
 
+@_locked
 def collections(conn: sqlite3.Connection) -> list:
     """Alle Sammlungen mit Anzahl + Summen."""
     rows = conn.execute("SELECT * FROM collections ORDER BY name COLLATE NOCASE").fetchall()
@@ -1209,6 +1272,7 @@ def collections(conn: sqlite3.Connection) -> list:
     return out
 
 
+@_locked
 def collection_create(conn: sqlite3.Connection, name: str, paths: Optional[list] = None) -> int:
     cur = conn.execute("INSERT INTO collections(name, created_at) VALUES(?,?)",
                        (name.strip() or "Sammlung", _now_iso()))
@@ -1219,11 +1283,13 @@ def collection_create(conn: sqlite3.Connection, name: str, paths: Optional[list]
     return cid
 
 
+@_locked
 def collection_rename(conn: sqlite3.Connection, cid: int, name: str) -> None:
     conn.execute("UPDATE collections SET name = ? WHERE id = ?", (name.strip(), cid))
     conn.commit()
 
 
+@_locked
 def collection_delete(conn: sqlite3.Connection, cid: int) -> None:
     """Löscht die Sammlung — die Touren selbst bleiben natürlich im Archiv."""
     conn.execute("DELETE FROM collection_items WHERE collection_id = ?", (cid,))
@@ -1231,6 +1297,7 @@ def collection_delete(conn: sqlite3.Connection, cid: int) -> None:
     conn.commit()
 
 
+@_locked
 def collection_add(conn: sqlite3.Connection, cid: int, paths: list) -> int:
     """Touren anhängen. Reihenfolge = Reihenfolge des Hinzufügens."""
     start = conn.execute(
@@ -1246,12 +1313,14 @@ def collection_add(conn: sqlite3.Connection, cid: int, paths: list) -> int:
     return added
 
 
+@_locked
 def collection_remove(conn: sqlite3.Connection, cid: int, paths: list) -> None:
     for p in paths:
         conn.execute("DELETE FROM collection_items WHERE collection_id = ? AND path = ?", (cid, p))
     conn.commit()
 
 
+@_locked
 def collection_sort_by_date(conn: sqlite3.Connection, cid: int) -> None:
     """Nach Datum ordnen — bei Mehrtagestouren fast immer die richtige Folge."""
     rows = conn.execute(
@@ -1263,6 +1332,7 @@ def collection_sort_by_date(conn: sqlite3.Connection, cid: int) -> None:
     conn.commit()
 
 
+@_locked
 def collection_items(conn: sqlite3.Connection, cid: int) -> list:
     rows = conn.execute(
         "SELECT t.* FROM collection_items ci JOIN tracks t ON t.path = ci.path "
@@ -1270,6 +1340,7 @@ def collection_items(conn: sqlite3.Connection, cid: int) -> list:
     return [_to_dict(r) for r in rows]
 
 
+@_locked
 def collections_of(conn: sqlite3.Connection, path: str) -> list:
     rows = conn.execute(
         "SELECT c.id, c.name FROM collection_items ci JOIN collections c ON c.id = ci.collection_id "
@@ -1277,6 +1348,7 @@ def collections_of(conn: sqlite3.Connection, path: str) -> list:
     return [{"id": r["id"], "name": r["name"]} for r in rows]
 
 
+@_locked
 def errors(conn: sqlite3.Connection) -> list:
     """Dateien, die beim Einlesen nicht gelesen werden konnten."""
     rows = conn.execute(
@@ -1285,6 +1357,7 @@ def errors(conn: sqlite3.Connection) -> list:
     return [_to_dict(r) for r in rows]
 
 
+@_locked
 def forget(conn: sqlite3.Connection, path: str) -> None:
     """Nimmt eine Tour aus dem Archiv — die Datei selbst bleibt liegen."""
     conn.execute("DELETE FROM tracks WHERE path = ?", (path,))
