@@ -216,13 +216,14 @@ media por ruta y la ruta más larga, y debajo el reparto **realizadas frente a p
 distribución **por actividad** y **las cinco rutas más largas**, con un clic para saltar a
 cada una.
 
-**Vistas previas más bonitas — mapa en lugar de línea:** por defecto cada tarjeta muestra
-solo la línea, lo cual es inmediato y gratuito. Si lo quieres más bonito, abre
-**«Carpetas y lectura»** y pulsa **«Descargar imágenes de mapa»**: la app descarga una vez
-de Mapbox una imagen de mapa real para cada ruta y **la guarda de forma permanente en tu
-equipo**. A partir de ahí la vista funciona sin conexión, es inmediata y no consume más
-cuota. Unos 5 minutos para 700 rutas; el proceso se puede detener y reanudar. Sin token de
-Mapbox se mantiene el dibujo de línea.
+**La app descarga las imágenes de mapa por su cuenta.** Tras cada lectura y en cada inicio
+corre en segundo plano un proceso pausado que descarga de Mapbox una imagen real por ruta —
+más o menos una cada segundo y medio. Mientras tanto, la cabecera muestra «Descargando
+imágenes de mapa 42/709», las tarjetas se van llenando y tú puedes seguir trabajando. Cada
+imagen se **guarda de forma permanente en tu equipo**: después la vista funciona sin conexión,
+es inmediata y no consume más cuota. Sin token de Mapbox no ocurre nada y se mantiene el dibujo
+de línea. Si no quieres esperar, pulsa **«Descargar imágenes de mapa»** en
+**«📂 Carpetas y lectura»** para hacerlo todo de golpe.
 
 **Imagen propia para una ruta:** en la columna derecha, **«Elegir imagen propia»**, por
 ejemplo la mejor foto de esa ruta. Sustituye la vista previa en todas las vistas. La app
@@ -272,6 +273,19 @@ veces. No se borra nada: solo ves qué está duplicado.
 
 **Archivos nuevos:** pulsa **«Volver a leer»** después de cada exportación grande. Los
 archivos ya conocidos se omiten, así que tarda segundos.
+
+**Lo que dices sobre una ruta permanece — en la ruta, no en el archivo.** Favorita,
+etiquetas, nota, nombre propio, oculta, la corrección realizada/planificada, tu imagen de
+portada y las colecciones cuelgan del recorrido en sí. Por eso:
+
+- Quitas una carpeta y la vuelves a añadir → todo regresa, imágenes de mapa incluidas (no se
+  vuelven a descargar).
+- La misma ruta está en otra carpeta → hereda todo automáticamente.
+- Archivo renombrado o movido → tus datos vuelven a encontrarlo.
+
+La limpieza es deliberadamente prudente: las vistas previas de rutas que llevan más de un año
+sin aparecer en ninguna de tus carpetas y sobre las que nunca dijiste nada acaban borrándose.
+Todo lo demás —sobre todo tus imágenes de portada— se queda.
 
 > **Tus archivos se quedan donde están.** El archivo no mueve ni copia nada: solo recuerda
 > qué hay dónde. La única excepción es **«Mover a la papelera»**, y esa pregunta antes.

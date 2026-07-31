@@ -44,6 +44,9 @@ function mountLibrary(body, headerActions) {
   const PAGE = 200;
 
   let _items = [], _total = 0, _sel = null, _stats = null, _base = null, _folders = [], _collections = [];
+  // Hintergrundlauf „Kartenbilder holen": läuft ohne Zutun, die Kacheln sollen
+  // die eintröpfelnden Bilder von selbst zeigen.
+  let _autoThumbs = null, _autoWatch = null, _autoTick = 0;
   let _scanTimer = null, _mapsTimer = null, _unmounted = false;
   let _map = null, _mapReady = false, _mapPopup = null, _mapLib = null;
 
@@ -311,6 +314,7 @@ function mountLibrary(body, headerActions) {
       <span class="lib-head-title">${esc(scopeTitle())}</span>
       ${s.total_km ? `<span class="lib-head-sub">${num(s.total_km)} km · ${num(s.total_ascent_m)} ${T("library.ascent", "Höhenmeter")} · ${num(s.total_hours)} ${T("library.hours", "Stunden")}</span>` : ""}
       ${(scope === "all" && s.planned && s.planned.n) ? `<span class="lib-head-mix">${s.done.n} ${T("library.done_short", "gemacht")} · ${s.planned.n} ${T("library.planned", "geplant")}</span>` : ""}
+      ${_autoThumbs ? `<span class="lib-head-auto">🗺️ ${T("library.map_thumbs_auto", "Kartenbilder werden geladen")} ${_autoThumbs.done || 0}/${_autoThumbs.total || "?"}</span>` : ""}
       ${s.n_failed ? `<button class="lib-head-warn" id="lib-show-errors">${s.n_failed} ${T("library.unreadable", "Datei(en) nicht lesbar")}</button>` : ""}
     `;
     const eb = $("lib-show-errors");
@@ -1237,10 +1241,31 @@ function mountLibrary(body, headerActions) {
     renderDetail();
   })();
 
+  /** Beobachtet den Hintergrundlauf und zieht die Ansicht nach, während die
+   *  Bilder eintröpfeln — sonst müsste man das Modul neu öffnen, um etwas zu
+   *  sehen. Bewusst selten (alle 5 s Status, alle 20 s die Liste). */
+  async function watchAutoThumbs() {
+    let st = null;
+    try { st = await api().library_map_thumbs_status(); } catch (_) { return; }
+    if (_unmounted) return;
+    const wasRunning = !!_autoThumbs;
+    _autoThumbs = (st && st.running) ? st : null;
+    if (_autoThumbs) {
+      renderHead();
+      if (++_autoTick % 4 === 0) reload();
+    } else if (wasRunning) {
+      _autoTick = 0;
+      reload();
+    }
+  }
+  _autoWatch = setInterval(watchAutoThumbs, 5000);
+  watchAutoThumbs();
+
   return function cleanup() {
     _unmounted = true;
     clearTimeout(_scanTimer);
     clearTimeout(_mapsTimer);
+    clearInterval(_autoWatch);
     closeMapPopup();
     if (_map) { try { _map.remove(); } catch (_) {} _map = null; _mapReady = false; }
     try { delete window.__libMap; } catch (_) { window.__libMap = null; }

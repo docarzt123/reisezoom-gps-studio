@@ -1298,6 +1298,32 @@ blieb schwarz. Im Archiv läuft es über Flex + `height: 100%`.
   statt kommentarlos auszusteigen; sonst bleibt eine während des Kartenaufbaus hinzugefügte
   Tour dauerhaft unsichtbar.
 
+**v0.9.493 — Dauerhafte Tour-Daten, Bild-Cache, Hintergrundläufe:**
+
+- **`track_meta` (PK `geo_hash`)** hält alle Nutzer-Eingaben. `tracks` bleibt der
+  flüchtige Datei-Index; seine Spalten `fav/tags/note/cover/recorded_user/display_name/hidden`
+  sind nur noch **Anzeige-Cache** (danach wird gefiltert und sortiert — ein JOIN in jeder
+  Abfrage wäre teurer). `_apply_meta()` spiegelt beim Einlesen zurück, `_set_meta()` schreibt
+  und zieht alle Datei-Zeilen desselben Hashes nach. `remove_folder()` fasst `track_meta`
+  nicht an — genau darin liegt der Sinn.
+- `collection_items` referenziert seit v0.9.493 `geo_hash` statt `path`
+  (`_migrate_collection_items()` baut die Tabelle einmalig um). Eine Sammlung überlebt damit
+  Umbenennen, Verschieben und das Abmelden eines Ordners.
+- **Bild-Cache**: `library_thumbs/<geo_hash>.png` (Linienzeichnung) und
+  `library_mapthumbs/<geo_hash>.png` (Mapbox). `_row_from_file()` prüft beim Einlesen auf
+  Existenz und setzt `map_thumb` direkt — deshalb kostet ein Ordner-Neuaufbau **keinen**
+  einzigen Mapbox-Abruf. `map_thumb_fetch()` schreibt das Ergebnis auf **alle** Zeilen mit
+  demselben `geo_hash`.
+- **Hintergrundläufe** (`Api._lib_startup_jobs`, beim ersten `_lib()`-Zugriff): erst
+  `housekeeping()`, dann `library_map_thumbs_start(auto=True)`. `auto=True` heißt:
+  still aussteigen, wenn nichts zu tun ist oder kein Token da ist, und `pause_s=1.5`
+  zwischen den Bildern. Nach jedem Scan läuft derselbe Auto-Start.
+- `housekeeping(conn, …, keep_days=CACHE_KEEP_DAYS)` löscht nur Bilder, die (a) zu keiner
+  Tour, (b) zu keiner Meta-Zeile mit echter Eingabe und (c) zu keiner Sammlung gehören und
+  älter als 400 Tage sind. Titelbilder in `library_covers/` werden nie automatisch gelöscht.
+- UI: `watchAutoThumbs()` im Archiv pollt alle 5 s den Status, zeigt ihn in der Kopfzeile
+  (`.lib-head-auto`) und lädt die Liste alle 20 s nach, damit die Bilder sichtbar eintröpfeln.
+
 ⚠️ **In der Detailspalte des Archivs brauchen alle Kinder `flex: none`** (`.lib-detail > *`).
 Die Spalte ist eine Flex-Spalte mit Überlauf; ohne das staucht WebKit jedes Kind mit eigener
 Höhe — die Gemacht/Geplant-Umschaltung war ein 1-px-Strich, das Notizfeld eine Zeile.

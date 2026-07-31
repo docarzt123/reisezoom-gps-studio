@@ -42,6 +42,7 @@ import re
 import sqlite3
 import statistics
 import threading
+import time
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
@@ -170,14 +171,38 @@ CREATE TABLE IF NOT EXISTS collections (
     created_at TEXT
 );
 
+-- v0.9.493: Zugehörigkeit hängt am Streckenverlauf, nicht am Dateipfad —
+-- sonst ist die Mehrtagestour weg, sobald der Ordner einmal abgemeldet oder
+-- die Datei umbenannt wurde.
 CREATE TABLE IF NOT EXISTS collection_items (
     collection_id INTEGER NOT NULL,
-    path          TEXT NOT NULL,
+    geo_hash      TEXT NOT NULL,
     sort_index    INTEGER DEFAULT 0,
-    PRIMARY KEY (collection_id, path)
+    PRIMARY KEY (collection_id, geo_hash)
 );
 
 CREATE INDEX IF NOT EXISTS idx_colitems_col ON collection_items(collection_id);
+
+-- v0.9.493: Alles, was der NUTZER zu einer Tour gesagt hat, hängt nicht mehr
+-- am Dateipfad, sondern am Streckenverlauf (`geo_hash`). Grund: der Datei-Index
+-- ist flüchtig — ein Ordner wird abgemeldet, eine Datei umbenannt, verschoben,
+-- doppelt exportiert. Die Bewertung „das ist meine Lieblingsrunde" darf davon
+-- nicht abhängen. Diese Tabelle wird beim Entfernen eines Ordners NICHT
+-- angefasst und überlebt jedes Neu-Einlesen; sie ist winzig (ein paar hundert
+-- Byte je Tour).
+CREATE TABLE IF NOT EXISTS track_meta (
+    geo_hash      TEXT PRIMARY KEY,
+    fav           INTEGER DEFAULT 0,
+    tags          TEXT DEFAULT '',
+    note          TEXT DEFAULT '',
+    cover         TEXT DEFAULT '',
+    recorded_user INTEGER DEFAULT NULL,
+    display_name  TEXT DEFAULT '',
+    hidden        INTEGER DEFAULT 0,
+    last_name     TEXT DEFAULT '',
+    first_seen    TEXT,
+    last_seen     TEXT
+);
 
 CREATE INDEX IF NOT EXISTS idx_tracks_started ON tracks(started_at);
 CREATE INDEX IF NOT EXISTS idx_tracks_dist    ON tracks(distance_m);
@@ -196,6 +221,10 @@ _TECH_COLS = [
     "has_ele", "sensors", "min_lat", "max_lat", "min_lon", "max_lon",
     "center_lat", "center_lon", "activity", "source", "source_url", "planned",
     "recorded", "recorded_src", "thumb", "geom", "indexed_at", "error",
+    # v0.9.493: das gecachte Kartenbild gehört zum technischen Teil — es hängt
+    # am Geo-Hash und wird beim Einlesen aus dem Cache wiederhergestellt.
+    # `cover` NICHT hier: das ist eine Nutzer-Eingabe und kommt aus track_meta.
+    "map_thumb",
 ]
 
 # Spalten, die eine ältere Datenbank noch nicht hat. Beim Öffnen nachgezogen —
@@ -256,8 +285,68 @@ def open_db(db_path: Path) -> sqlite3.Connection:
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
         (str(SCHEMA_VERSION),),
     )
+    _migrate_meta(conn)
+    _migrate_collection_items(conn)
     conn.commit()
     return conn
+
+
+def _migrate_collection_items(conn: sqlite3.Connection) -> None:
+    """Sammlungs-Zuordnung von `path` auf `geo_hash` umstellen (v0.9.493)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(collection_items)").fetchall()}
+    if "path" not in cols:
+        return
+    log.info("library: collection_items → geo_hash migrieren")
+    conn.execute("ALTER TABLE collection_items RENAME TO collection_items_old")
+    conn.execute("""
+        CREATE TABLE collection_items (
+            collection_id INTEGER NOT NULL,
+            geo_hash      TEXT NOT NULL,
+            sort_index    INTEGER DEFAULT 0,
+            PRIMARY KEY (collection_id, geo_hash)
+        )""")
+    conn.execute(
+        "INSERT OR IGNORE INTO collection_items(collection_id, geo_hash, sort_index) "
+        "SELECT ci.collection_id, t.geo_hash, ci.sort_index FROM collection_items_old ci "
+        "JOIN tracks t ON t.path = ci.path WHERE t.geo_hash IS NOT NULL AND t.geo_hash != ''")
+    conn.execute("DROP TABLE collection_items_old")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_colitems_col ON collection_items(collection_id)")
+
+
+def _migrate_meta(conn: sqlite3.Connection) -> None:
+    """Bestehende Nutzer-Eingaben einmalig in `track_meta` heben.
+
+    Bis v0.9.492 standen Favorit, Schlagwörter, Notiz, Titelbild, Hand-Korrektur,
+    eigener Name und „ausgeblendet" in der `tracks`-Zeile — also am Dateipfad.
+    Wer einen Ordner abmeldete, verlor sie. Hier werden sie einmalig an den
+    `geo_hash` gehängt; danach lebt beides parallel (die Spalten in `tracks`
+    bleiben als Anzeige-Cache erhalten und werden aus `track_meta` gefüllt).
+    """
+    done = conn.execute("SELECT value FROM meta WHERE key = 'meta_migrated'").fetchone()
+    if done and done["value"] == "1":
+        return
+    n = 0
+    rows = conn.execute(
+        "SELECT geo_hash, name, fav, tags, note, cover, recorded_user, display_name, hidden "
+        "FROM tracks WHERE geo_hash IS NOT NULL AND geo_hash != ''").fetchall()
+    for r in rows:
+        has_input = (r["fav"] or (r["tags"] or "").strip() or (r["note"] or "").strip()
+                     or (r["cover"] or "").strip() or r["recorded_user"] is not None
+                     or (r["display_name"] or "").strip() or r["hidden"])
+        if not has_input:
+            continue
+        conn.execute(
+            "INSERT INTO track_meta(geo_hash, fav, tags, note, cover, recorded_user, "
+            "display_name, hidden, last_name, first_seen, last_seen) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(geo_hash) DO NOTHING",
+            (r["geo_hash"], r["fav"] or 0, r["tags"] or "", r["note"] or "",
+             r["cover"] or "", r["recorded_user"], r["display_name"] or "",
+             r["hidden"] or 0, r["name"] or "", _now_iso(), _now_iso()))
+        n += 1
+    conn.execute("INSERT INTO meta(key, value) VALUES('meta_migrated','1') "
+                 "ON CONFLICT(key) DO UPDATE SET value='1'")
+    if n:
+        log.info("library: %d Nutzer-Einträge nach track_meta übernommen", n)
 
 
 # ── Beobachtete Ordner ───────────────────────────────────────────────────────
@@ -537,7 +626,8 @@ def _make_thumb(coords: list, out_path: Path) -> bool:
     return True
 
 
-def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path) -> dict:
+def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path,
+                   map_thumbs_dir: Optional[Path] = None, covers_dir: Optional[Path] = None) -> dict:
     """Liest eine Track-Datei und baut die Datenbank-Zeile."""
     st = path.stat()
     row = {
@@ -610,6 +700,19 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         except Exception as e:      # ein kaputtes Bild darf den Index nicht kippen
             log.warning("library: Vorschaubild fehlgeschlagen für %s: %s", path.name, e)
     row["thumb"] = str(thumb) if thumb.exists() else ""
+
+    # v0.9.493 — Bilder liegen unter ihrem Geo-Hash und bleiben liegen. Wer
+    # einen Ordner abmeldet und wieder hinzufügt (oder dieselbe Tour aus einem
+    # anderen Ordner einliest), bekommt das Kartenbild aus dem Cache statt
+    # eines neuen Mapbox-Abrufs.
+    if map_thumbs_dir:
+        mt = Path(map_thumbs_dir) / f"{row['geo_hash']}.png"
+        if mt.exists() and mt.stat().st_size > 0:
+            row["map_thumb"] = str(mt)
+    if covers_dir:
+        cv = Path(covers_dir) / f"{row['geo_hash']}.jpg"
+        if cv.exists() and cv.stat().st_size > 0:
+            row["cover"] = str(cv)
     return row
 
 
@@ -620,6 +723,8 @@ def scan(
     import_cache: Path,
     folders: Optional[list] = None,
     force: bool = False,
+    map_thumbs_dir: Optional[Path] = None,
+    covers_dir: Optional[Path] = None,
     progress: Optional[Callable[[dict], None]] = None,
     should_stop: Optional[Callable[[], bool]] = None,
 ) -> dict:
@@ -665,7 +770,8 @@ def scan(
                     and abs(old[0] - st.st_mtime) < 1 and old[1] == st.st_size):
                 skipped += 1
             else:
-                row = _row_from_file(p, folder, thumbs_dir, import_cache)
+                row = _row_from_file(p, folder, thumbs_dir, import_cache,
+                                     map_thumbs_dir, covers_dir)
                 _upsert(conn, row)
                 if old:
                     updated += 1
@@ -705,6 +811,70 @@ def scan(
     return res
 
 
+_META_COLS = ["fav", "tags", "note", "cover", "recorded_user", "display_name", "hidden"]
+
+
+def _geo_of(conn: sqlite3.Connection, path: str) -> str:
+    """Fingerabdruck einer Datei — der Schlüssel für alles Dauerhafte."""
+    r = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?", (path,)).fetchone()
+    return (r["geo_hash"] if r else "") or ""
+
+
+def _apply_meta(conn: sqlite3.Connection, geo_hash: str, name: str = "",
+                cover_hint: str = "") -> None:
+    """Nutzer-Eingaben aus `track_meta` in die Datei-Zeile spiegeln.
+
+    Die `tracks`-Spalten sind seit v0.9.493 nur noch Anzeige-Cache: gefiltert und
+    sortiert wird weiter auf ihnen (ein JOIN in jeder Abfrage wäre teurer und
+    unübersichtlicher), die Wahrheit steht in `track_meta`. Deshalb wird nach
+    jedem Einlesen von dort zurückgeschrieben — so bekommt eine neu eingelesene
+    Datei sofort wieder Favorit, Schlagwörter und Namen von früher.
+    """
+    if not geo_hash:
+        return
+    m = conn.execute("SELECT * FROM track_meta WHERE geo_hash = ?", (geo_hash,)).fetchone()
+    now = _now_iso()
+    if m is None:
+        # `cover_hint`: eine Titelbild-Datei zu diesem Hash liegt noch im Cache,
+        # die Meta-Zeile fehlt aber (frisches Archiv, alte Bilder). Übernehmen.
+        conn.execute("INSERT INTO track_meta(geo_hash, cover, last_name, first_seen, last_seen) "
+                     "VALUES(?,?,?,?,?) ON CONFLICT(geo_hash) DO NOTHING",
+                     (geo_hash, cover_hint or "", name or "", now, now))
+        if cover_hint:
+            conn.execute("UPDATE tracks SET cover = ? WHERE geo_hash = ?", (cover_hint, geo_hash))
+        return
+    conn.execute(
+        f"UPDATE tracks SET {', '.join(c + ' = ?' for c in _META_COLS)} WHERE geo_hash = ?",
+        [m[c] for c in _META_COLS] + [geo_hash])
+    conn.execute("UPDATE track_meta SET last_seen = ?, last_name = ? WHERE geo_hash = ?",
+                 (now, name or m["last_name"] or "", geo_hash))
+
+
+def _set_meta(conn: sqlite3.Connection, path: str, **fields) -> bool:
+    """Nutzer-Eingabe speichern: an den `geo_hash`, nicht an den Pfad.
+
+    Wirkt damit automatisch auf ALLE Dateien mit identischem Streckenverlauf —
+    dieselbe Tour zweimal exportiert heißt nicht, dass man sie zweimal
+    bewerten muss.
+    """
+    r = conn.execute("SELECT geo_hash, name FROM tracks WHERE path = ?", (path,)).fetchone()
+    if not r or not r["geo_hash"]:
+        return False
+    gh = r["geo_hash"]
+    now = _now_iso()
+    conn.execute("INSERT INTO track_meta(geo_hash, last_name, first_seen, last_seen) "
+                 "VALUES(?,?,?,?) ON CONFLICT(geo_hash) DO NOTHING",
+                 (gh, r["name"] or "", now, now))
+    sets = ", ".join(f"{k} = ?" for k in fields)
+    conn.execute(f"UPDATE track_meta SET {sets}, last_seen = ? WHERE geo_hash = ?",
+                 list(fields.values()) + [now, gh])
+    # Anzeige-Cache in allen Datei-Zeilen derselben Tour nachziehen.
+    conn.execute(f"UPDATE tracks SET {sets} WHERE geo_hash = ?",
+                 list(fields.values()) + [gh])
+    conn.commit()
+    return True
+
+
 def _upsert(conn: sqlite3.Connection, row: dict) -> None:
     cols = ["path"] + [c for c in _TECH_COLS if c in row]
     vals = [row.get(c) for c in cols]
@@ -714,6 +884,8 @@ def _upsert(conn: sqlite3.Connection, row: dict) -> None:
         f"ON CONFLICT(path) DO UPDATE SET {sets}",
         vals,
     )
+    _apply_meta(conn, row.get("geo_hash") or "", row.get("name") or "",
+                row.get("cover") or "")
 
 
 # ── Abfragen ─────────────────────────────────────────────────────────────────
@@ -771,7 +943,7 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
         where.append("COALESCE(recorded_user, recorded) = ?")
         args.append(0 if planned else 1)
     if collection_id:
-        where.append("path IN (SELECT path FROM collection_items WHERE collection_id = ?)")
+        where.append("geo_hash IN (SELECT geo_hash FROM collection_items WHERE collection_id = ?)")
         args.append(int(collection_id))
     if min_km is not None:
         where.append("distance_m >= ?"); args.append(float(min_km) * 1000)
@@ -830,7 +1002,7 @@ def query(
     if collection_id and sort == "collection":
         # Eigene Reihenfolge der Sammlung (Etappe 1, 2, 3 …).
         order = ("(SELECT sort_index FROM collection_items ci "
-                 f"WHERE ci.path = tracks.path AND ci.collection_id = {int(collection_id)})")
+                 f"WHERE ci.geo_hash = tracks.geo_hash AND ci.collection_id = {int(collection_id)})")
     rows = conn.execute(
         f"SELECT * FROM tracks WHERE {sql_where} ORDER BY {order}", args
     ).fetchall()
@@ -985,41 +1157,33 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
 
 @_locked
 def set_user_fields(conn: sqlite3.Connection, path: str, fav=None, tags=None, note=None) -> bool:
-    sets, args = [], []
+    fields = {}
     if fav is not None:
-        sets.append("fav = ?"); args.append(1 if fav else 0)
+        fields["fav"] = 1 if fav else 0
     if tags is not None:
-        clean = ",".join(sorted({t.strip() for t in tags if t.strip()}))
-        sets.append("tags = ?"); args.append(clean)
+        fields["tags"] = ",".join(sorted({t.strip() for t in tags if t.strip()}))
     if note is not None:
-        sets.append("note = ?"); args.append(str(note))
-    if not sets:
+        fields["note"] = str(note)
+    if not fields:
         return False
-    args.append(path)
-    conn.execute(f"UPDATE tracks SET {', '.join(sets)} WHERE path = ?", args)
-    conn.commit()
-    return True
+    return _set_meta(conn, path, **fields)
 
 
 @_locked
 def set_recorded(conn: sqlite3.Connection, path: str, value) -> None:
     """Hand-Korrektur: True = gemacht, False = geplant, None = wieder schätzen."""
-    conn.execute("UPDATE tracks SET recorded_user = ? WHERE path = ?",
-                 (None if value is None else (1 if value else 0), path))
-    conn.commit()
+    _set_meta(conn, path, recorded_user=(None if value is None else (1 if value else 0)))
 
 
 @_locked
 def set_display_name(conn: sqlite3.Connection, path: str, name: str) -> None:
     """Eigener Name. Leer = wieder der Name aus der Datei."""
-    conn.execute("UPDATE tracks SET display_name = ? WHERE path = ?", ((name or "").strip(), path))
-    conn.commit()
+    _set_meta(conn, path, display_name=(name or "").strip())
 
 
 @_locked
 def set_hidden(conn: sqlite3.Connection, path: str, hidden: bool) -> None:
-    conn.execute("UPDATE tracks SET hidden = ? WHERE path = ?", (1 if hidden else 0, path))
-    conn.commit()
+    _set_meta(conn, path, hidden=1 if hidden else 0)
 
 
 @_locked
@@ -1136,7 +1300,8 @@ def map_thumb_fetch(
         # Zwei Dateien mit identischem Verlauf teilen sich EIN Bild (der
         # Dateiname ist der Geo-Hash). Ohne dieses Update behielte die zweite
         # Zeile ihr leeres `map_thumb` — sie wäre für immer „offen".
-        conn.execute("UPDATE tracks SET map_thumb = ? WHERE path = ?", (str(out), row["path"]))
+        conn.execute("UPDATE tracks SET map_thumb = ? WHERE geo_hash = ?",
+                     (str(out), row.get("geo_hash") or ""))
         conn.commit()
         return str(out)
 
@@ -1152,7 +1317,8 @@ def map_thumb_fetch(
     if not data:
         return ""
     out.write_bytes(data)
-    conn.execute("UPDATE tracks SET map_thumb = ? WHERE path = ?", (str(out), row["path"]))
+    conn.execute("UPDATE tracks SET map_thumb = ? WHERE geo_hash = ?",
+                 (str(out), row.get("geo_hash") or ""))
     conn.commit()
     return str(out)
 
@@ -1175,6 +1341,7 @@ def map_thumbs_fetch_all(
     progress: Optional[Callable[[dict], None]] = None,
     should_stop: Optional[Callable[[], bool]] = None,
     limit: int = 0,
+    pause_s: float = 0.0,
 ) -> dict:
     """Holt die fehlenden Karten-Vorschaubilder der Reihe nach.
 
@@ -1202,6 +1369,14 @@ def map_thumbs_fetch_all(
         if progress:
             progress({"done": i + 1, "total": len(todo), "ok": done,
                       "failed": failed, "current": row.get("name") or ""})
+        # `pause_s` bremst den Hintergrundlauf bewusst aus: die Bilder sollen
+        # nebenbei eintröpfeln, nicht die Mapbox-Quota in einem Rutsch fressen.
+        if pause_s and i < len(todo) - 1:
+            end = time.monotonic() + pause_s
+            while time.monotonic() < end:
+                if should_stop and should_stop():
+                    break
+                time.sleep(min(0.25, max(0.0, end - time.monotonic())))
     return {"total": len(todo), "ok": done, "failed": failed, "error": err}
 
 
@@ -1229,8 +1404,7 @@ def set_cover(conn: sqlite3.Connection, path: str, image_path: str,
     if img.width > max_w:
         img = img.resize((max_w, max(1, round(img.height * max_w / img.width))))
     img.save(out, "JPEG", quality=85)
-    conn.execute("UPDATE tracks SET cover = ? WHERE path = ?", (str(out), path))
-    conn.commit()
+    _set_meta(conn, path, cover=str(out))
     return str(out)
 
 
@@ -1242,8 +1416,7 @@ def clear_cover(conn: sqlite3.Connection, path: str) -> None:
             Path(row["cover"]).unlink()
         except OSError:
             pass
-    conn.execute("UPDATE tracks SET cover = '' WHERE path = ?", (path,))
-    conn.commit()
+    _set_meta(conn, path, cover="")
 
 
 # ── Sammlungen ──────────────────────────────────────────────────────────────
@@ -1262,7 +1435,7 @@ def collections(conn: sqlite3.Connection) -> list:
     for r in rows:
         agg = conn.execute(
             "SELECT COUNT(*) n, COALESCE(SUM(t.distance_m),0) d, COALESCE(SUM(t.ascent_m),0) a "
-            "FROM collection_items ci JOIN tracks t ON t.path = ci.path "
+            "FROM collection_items ci JOIN tracks t ON t.geo_hash = ci.geo_hash "
             "WHERE ci.collection_id = ?", (r["id"],)
         ).fetchone()
         out.append({"id": r["id"], "name": r["name"], "note": r["note"] or "",
@@ -1305,9 +1478,12 @@ def collection_add(conn: sqlite3.Connection, cid: int, paths: list) -> int:
         (cid,)).fetchone()[0]
     added = 0
     for i, p in enumerate(paths):
+        gh = _geo_of(conn, p)
+        if not gh:
+            continue
         cur = conn.execute(
-            "INSERT OR IGNORE INTO collection_items(collection_id, path, sort_index) VALUES(?,?,?)",
-            (cid, p, start + i))
+            "INSERT OR IGNORE INTO collection_items(collection_id, geo_hash, sort_index) "
+            "VALUES(?,?,?)", (cid, gh, start + i))
         added += cur.rowcount
     conn.commit()
     return added
@@ -1316,7 +1492,10 @@ def collection_add(conn: sqlite3.Connection, cid: int, paths: list) -> int:
 @_locked
 def collection_remove(conn: sqlite3.Connection, cid: int, paths: list) -> None:
     for p in paths:
-        conn.execute("DELETE FROM collection_items WHERE collection_id = ? AND path = ?", (cid, p))
+        gh = _geo_of(conn, p)
+        if gh:
+            conn.execute("DELETE FROM collection_items WHERE collection_id = ? AND geo_hash = ?",
+                         (cid, gh))
     conn.commit()
 
 
@@ -1324,19 +1503,22 @@ def collection_remove(conn: sqlite3.Connection, cid: int, paths: list) -> None:
 def collection_sort_by_date(conn: sqlite3.Connection, cid: int) -> None:
     """Nach Datum ordnen — bei Mehrtagestouren fast immer die richtige Folge."""
     rows = conn.execute(
-        "SELECT ci.path FROM collection_items ci JOIN tracks t ON t.path = ci.path "
-        "WHERE ci.collection_id = ? ORDER BY t.started_at, t.mtime", (cid,)).fetchall()
+        "SELECT ci.geo_hash, MIN(t.started_at) s, MIN(t.mtime) m FROM collection_items ci "
+        "JOIN tracks t ON t.geo_hash = ci.geo_hash WHERE ci.collection_id = ? "
+        "GROUP BY ci.geo_hash ORDER BY s, m", (cid,)).fetchall()
     for i, r in enumerate(rows):
-        conn.execute("UPDATE collection_items SET sort_index = ? WHERE collection_id = ? AND path = ?",
-                     (i, cid, r["path"]))
+        conn.execute("UPDATE collection_items SET sort_index = ? "
+                     "WHERE collection_id = ? AND geo_hash = ?", (i, cid, r["geo_hash"]))
     conn.commit()
 
 
 @_locked
 def collection_items(conn: sqlite3.Connection, cid: int) -> list:
+    # Bei doppelt vorliegenden Dateien (gleicher Verlauf) genügt eine davon.
     rows = conn.execute(
-        "SELECT t.* FROM collection_items ci JOIN tracks t ON t.path = ci.path "
-        "WHERE ci.collection_id = ? ORDER BY ci.sort_index", (cid,)).fetchall()
+        "SELECT t.* FROM collection_items ci JOIN tracks t ON t.geo_hash = ci.geo_hash "
+        "WHERE ci.collection_id = ? GROUP BY ci.geo_hash ORDER BY ci.sort_index",
+        (cid,)).fetchall()
     return [_to_dict(r) for r in rows]
 
 
@@ -1344,7 +1526,7 @@ def collection_items(conn: sqlite3.Connection, cid: int) -> list:
 def collections_of(conn: sqlite3.Connection, path: str) -> list:
     rows = conn.execute(
         "SELECT c.id, c.name FROM collection_items ci JOIN collections c ON c.id = ci.collection_id "
-        "WHERE ci.path = ? ORDER BY c.name COLLATE NOCASE", (path,)).fetchall()
+        "WHERE ci.geo_hash = ? ORDER BY c.name COLLATE NOCASE", (_geo_of(conn, path),)).fetchall()
     return [{"id": r["id"], "name": r["name"]} for r in rows]
 
 
@@ -1362,3 +1544,54 @@ def forget(conn: sqlite3.Connection, path: str) -> None:
     """Nimmt eine Tour aus dem Archiv — die Datei selbst bleibt liegen."""
     conn.execute("DELETE FROM tracks WHERE path = ?", (path,))
     conn.commit()
+
+
+# ── Aufräumen (sehr langsam) ────────────────────────────────────────────────
+
+# Wie lange Bilder und Notizen zu einer Tour aufgehoben werden, die nirgends
+# mehr im Archiv liegt. Bewusst großzügig: eine externe Platte ist mal ein Jahr
+# nicht angesteckt, und ein Kartenbild kostet 30 KB. Selbst gewählte Titelbilder
+# und Meta-Zeilen mit echten Eingaben werden NIE automatisch gelöscht — die sind
+# unersetzlich, die Bilder nicht.
+CACHE_KEEP_DAYS = 400
+
+
+@_locked
+def housekeeping(conn: sqlite3.Connection, thumbs_dir: Path, map_thumbs_dir: Path,
+                 covers_dir: Path, keep_days: int = CACHE_KEEP_DAYS) -> dict:
+    """Verwaiste Vorschaubilder aufräumen — sehr zurückhaltend.
+
+    Gelöscht wird nur, was (a) zu keiner Tour im Archiv gehört, (b) zu keiner
+    Meta-Zeile mit echter Nutzer-Eingabe gehört und (c) älter als `keep_days`
+    ist. Titelbilder (`covers`) bleiben immer.
+    """
+    alive = {r["geo_hash"] for r in conn.execute(
+        "SELECT DISTINCT geo_hash FROM tracks WHERE geo_hash IS NOT NULL AND geo_hash != ''")}
+    alive |= {r["geo_hash"] for r in conn.execute(
+        "SELECT geo_hash FROM track_meta WHERE fav = 1 OR tags != '' OR note != '' "
+        "OR cover != '' OR recorded_user IS NOT NULL OR display_name != '' OR hidden = 1")}
+    alive |= {r["geo_hash"] for r in conn.execute("SELECT DISTINCT geo_hash FROM collection_items")}
+
+    cutoff = time.time() - keep_days * 86400
+    removed = freed = 0
+    for d, ext in ((Path(thumbs_dir), ".png"), (Path(map_thumbs_dir), ".png")):
+        if not d.is_dir():
+            continue
+        for f in d.glob("*" + ext):
+            if f.stem in alive:
+                continue
+            try:
+                st = f.stat()
+                if st.st_mtime > cutoff:
+                    continue
+                size = st.st_size
+                f.unlink()
+                removed += 1
+                freed += size
+            except OSError:
+                pass
+    if removed:
+        log.info("library.housekeeping: %d verwaiste Bilder gelöscht (%.1f MB)",
+                 removed, freed / 1e6)
+    return {"removed": removed, "freed_mb": round(freed / 1e6, 1),
+            "keep_days": keep_days, "known": len(alive)}

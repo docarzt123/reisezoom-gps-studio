@@ -403,7 +403,7 @@ python app.py</code></pre>
 <p>Below that sit your <strong>collections</strong>: one click shows <strong>only that one</strong>, a second click undoes it, a <strong>right-click</strong> opens rename, show, “All in Animator” and delete. The app remembers the section you were last in.</p>
 <p><strong>Four views</strong>, switchable on the right of the bar (the app remembers your choice): <strong>▦ Cards</strong> for browsing, <strong>☰ List</strong> for comparing many tours at a glance, <strong>🌍 Map</strong> every filtered tour on one world map, clicking a line selects it — and <strong>📊 Statistics</strong>. Far-away tours are drawn as dots on the map and only turn into lines as you zoom in; otherwise they would be invisible.</p>
 <p><strong>The statistics</strong> always add up exactly what is selected right now — so “this collection only”, “done tours only” or “2024 only” work as well. They show tours, kilometres, ascent, hours, average per tour and the longest tour, then the split <strong>done against planned</strong>, <strong>kilometres per year</strong>, <strong>tours per month</strong> (your season across all years), the breakdown <strong>by activity</strong> and the <strong>five longest tours</strong> — a click jumps to the tour.</p>
-<p><strong>Nicer preview pictures — a map instead of a line:</strong> by default a card shows the bare line, which is instant and free. For something prettier open <strong>“Folders &amp; scanning”</strong> and press <strong>“Fetch map pictures”</strong> — the app then fetches a real map picture per tour from Mapbox once and <strong>stores it on your machine for good</strong>. After that the view is offline, instant and costs no further quota. Around 5 minutes for 700 tours; the run can be stopped and resumed. Without a Mapbox token the line drawing stays.</p>
+<p><strong>The app fetches map pictures on its own.</strong> After a scan and on every start a leisurely background run fetches a real map picture per tour from Mapbox — roughly one every one and a half seconds. The header shows “Fetching map pictures 42/709” while it runs, the cards fill up one by one, and you can keep working. Every picture is <strong>stored on your machine for good</strong>: after that the view is offline, instant and costs no further quota. Without a Mapbox token nothing happens and the line drawing stays. If you don’t want to wait, press <strong>“Fetch map pictures”</strong> in <strong>“📂 Folders &amp; scanning”</strong> to do it all at once.</p>
 <p><strong>Your own picture for a tour:</strong> in the right-hand column, <strong>“Choose your own picture”</strong> — the nicest photo of that tour, say. It replaces the preview everywhere. The app stores a scaled copy; your original stays untouched and may be moved.</p>
 <p><strong>Finding a tour again:</strong></p>
 <ul>
@@ -426,6 +426,16 @@ python app.py</code></pre>
 <table><thead><tr><th>Mark</th><th>Meaning</th></tr></thead><tbody><tr><td>★</td><td>favourite</td></tr><tr><td>“planned”</td><td>the tour was only planned, never recorded</td></tr><tr><td>“off”</td><td>the tour is hidden</td></tr><tr><td>● (orange)</td><td>there are already saved projects for this tour</td></tr></tbody></table>
 <p><strong>Find duplicates:</strong> the button at the bottom left groups files with an <strong>identical route</strong> handy after a bulk export that downloaded the same tour several times. Nothing is deleted; you only get to see what is doubled up.</p>
 <p><strong>New files:</strong> press <strong>“Rescan”</strong> once after a bigger export. Files already known are skipped, so it takes seconds.</p>
+<p><strong>What you say about a tour sticks — to the tour, not to the file.</strong> Favourite, tags, note, your own name, hidden, the done/planned correction, your cover picture and the collections all hang off the route itself. So:</p>
+<ul>
+<li>Remove a folder and add it back later → everything returns, map pictures included (they are</li>
+</ul>
+<p> <strong>not</strong> fetched again).</p>
+<ul>
+<li>The same tour sits in a second folder → it inherits all of it automatically.</li>
+<li>File renamed or moved → your entries find their way back to it.</li>
+</ul>
+<p>Cleaning up is deliberately timid: preview pictures of tours that have not been in any of your folders for over a year, and that you never said anything about, eventually get deleted. Everything else — your own cover pictures above all — stays.</p>
 <blockquote><strong>Your files stay where they are.</strong> The library never moves or copies anything — it only</blockquote>
 <blockquote>remembers what sits where. The one exception is <strong>“Move to trash”</strong>, and that asks first.</blockquote>
 <blockquote></blockquote>
