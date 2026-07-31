@@ -183,14 +183,37 @@ Collect tours for a few years and you end up with hundreds of GPX files scattere
 folders — and you can never find the right one again. That is what the **Library** is for:
 it reads your track folders and shows every tour with a picture, a date and the numbers.
 
-**Set up (once):** open the **📚 Library** tab → **“+ Add folder”** on the left → pick the
-folder your tracks live in. The app reads it straight away; **700 files take a good 20
-seconds.** Sub-folders are included. You can watch as many folders as you like.
+**Set up (once):** open the **📚 Library** tab → **“📂 Folders & scanning”** at the bottom
+left → **“+ Add folder”** → pick the folder your tracks live in. The app reads it straight
+away; **700 files take a good 20 seconds.** Sub-folders are included. You can watch as many
+folders as you like. (While there is no folder, the empty area shows a big **“+ Add folder”**
+button.)
 
-**Three views**, switchable on the right of the bar (the app remembers your choice):
-**▦ Cards** for browsing, **☰ List** for comparing many tours at a glance, and **🌍 Map** —
-every filtered tour on one world map, clicking a line selects it. Far-away tours are drawn
-as dots and only turn into lines as you zoom in; otherwise they would be invisible.
+**The sidebar on the left decides which tours you see at all:**
+
+| Section | Shows |
+|---|---|
+| 📚 **All tours** | everything, done and planned mixed |
+| ✅ **Done** | only what you actually rode or walked |
+| 📝 **Planned** | only the routes still ahead of you |
+| ★ **Favourites** | your marked tours |
+| 🚫 **Hidden** | what you put aside (only appears when there is something) |
+
+Below that sit your **collections**: one click shows **only that one**, a second click undoes
+it, a **right-click** opens rename, show, “All in Animator” and delete. The app remembers the
+section you were last in.
+
+**Four views**, switchable on the right of the bar (the app remembers your choice):
+**▦ Cards** for browsing, **☰ List** for comparing many tours at a glance, **🌍 Map** —
+every filtered tour on one world map, clicking a line selects it — and **📊 Statistics**.
+Far-away tours are drawn as dots on the map and only turn into lines as you zoom in;
+otherwise they would be invisible.
+
+**The statistics** always add up exactly what is selected right now — so “this collection
+only”, “done tours only” or “2024 only” work as well. They show tours, kilometres, ascent,
+hours, average per tour and the longest tour, then the split **done against planned**,
+**kilometres per year**, **tours per month** (your season across all years), the breakdown
+**by activity** and the **five longest tours** — a click jumps to the tour.
 
 **Nicer preview pictures — a map instead of a line:** by default a card shows the bare line,
 which is instant and free. For something prettier open **“Folders & scanning”** and press
@@ -209,8 +232,7 @@ copy; your original stays untouched and may be moved.
   (“muritz” finds “Müritz”).
 - **Year**, **Activity** (hiking, cycling, running …), **Sort by** (newest, longest, most
   ascent …).
-- **Favourites only** and **Recorded only** — the latter hides tours you planned but never
-  actually did.
+- **Reset** puts the filters back; the section on the left stays as it is.
 
 **Carrying on:** click a tour, then **“Open in Animator”** on the right (or tour map, data
 animator, geotagger, inspector). **Double-clicking** a card sends it straight to the
@@ -221,24 +243,36 @@ library from any module.
 **Keeping order:** in the right-hand column you set a **favourite ★**, **tags** (e.g.
 `Mallorca, test ride`) and a **note**. All of it survives a rescan.
 
+**Renaming:** the title at the top of the right-hand column is an input field — just type over
+it. The file name stays visible underneath; clear your name and it applies again. The file on
+disk is **not** renamed.
+
+**Tidying up** — three levels at the bottom of the right-hand column:
+
+| Button | What happens |
+|---|---|
+| **Hide** | the tour disappears from every list but stays in the “Hidden” section — for duplicates or test rides you don’t want to see |
+| **Remove from library** | the library forgets the entry, the file stays put (the next scan picks it up again) |
+| **Move to trash** | after a confirmation the file goes to the system trash — you can restore it from there as long as it has not been emptied |
+
 **What the cards tell you:**
 
 | Mark | Meaning |
 |---|---|
 | ★ | favourite |
 | “planned” | the tour was only planned, never recorded |
+| “off” | the tour is hidden |
 | ● (orange) | there are already saved projects for this tour |
 
-**Find duplicates:** the button in the top right groups files with an **identical route** —
+**Find duplicates:** the button at the bottom left groups files with an **identical route** —
 handy after a bulk export that downloaded the same tour several times. Nothing is deleted;
 you only get to see what is doubled up.
 
 **New files:** press **“Rescan”** once after a bigger export. Files already known are
 skipped, so it takes seconds.
 
-> **Your files stay where they are.** The library never moves, copies or deletes anything —
-> it only remembers what sits where. **“Remove from library”** takes a tour out of the
-> overview and leaves the file untouched.
+> **Your files stay where they are.** The library never moves or copies anything — it only
+> remembers what sits where. The one exception is **“Move to trash”**, and that asks first.
 >
 > The preview pictures are plain line drawings without a map. That is deliberate: they
 > appear instantly, work without internet and cost no map quota.

@@ -1254,6 +1254,33 @@ blieb schwarz. Im Archiv läuft es über Flex + `height: 100%`.
 - Der Animator exportiert dafür `window._animAddTourByPath(path)` (dialogloser Zwilling von
   `_animAddTour()`).
 
+
+**v0.9.491 — Bereiche, Statistik, Umbenennen/Ausblenden/Papierkorb:**
+
+- `_build_where(...)` ist die **einzige** Stelle, die Filter zu SQL macht — `query()` und
+  `stats()` rufen sie beide auf. Das ist keine Kosmetik: sonst zählt die Statistik etwas
+  anderes als die Liste zeigt, und niemand merkt es. Neuer Parameter `hidden_only` (Bereich
+  „Ausgeblendete"); `include_hidden` bleibt additiv.
+- `stats(conn, **filters)` liefert zusätzlich `months[]` (Saison über alle Jahre, aus
+  `substr(started_at,6,2)`), `longest[5]`, `avg_km`, `longest_km`, `done`/`planned` (Aufteilung
+  über `COALESCE(recorded_user, recorded)`) sowie `n_hidden`/`n_failed`. Die Diagramme im UI
+  sind reines CSS (`.lib-cbar`) — für zwölf Monatsbalken lohnt keine Chart-Bibliothek im
+  Bundle.
+- Neue Nutzer-Spalten: `display_name` (eigener Name; leer = Datei-Name, `_to_dict` legt den
+  Datei-Namen als `file_name` daneben und setzt `renamed`) und `hidden`. Beide stehen wie
+  `fav`/`tags`/`note` **nicht** in `_TECH_COLS` und überleben jedes Neu-Einlesen.
+- `trash_file(conn, path)`: auf macOS über `osascript`/Finder (echter Papierkorb inkl.
+  „Zurücklegen"), sonst Verschieben nach `~/.local/share/Trash/files` bzw. `~/Trash`. Bewusst
+  kein `unlink` — das Archiv fasst fremde Dateien sonst nirgends an.
+- UI: `modules/library/ui/module.js` hat den Zustand `scope` (`all|done|planned|fav|hidden`,
+  in `localStorage`) plus `state.collection_id`; `scopeFilters()` übersetzt beides in die
+  Abfrage-Parameter. Vierte Ansicht `stats`.
+
+⚠️ **Klassennamen im Archiv-CSS auf Kollisionen prüfen.** Die Statistik-Balken hießen zuerst
+`.lib-bar` — genau wie die Filterleiste. Deren `flex: 1 1 0` zog die Leiste über die halbe
+Fläche und `align-content: stretch` verteilte die Lücke zwischen ihre Zeilen. Balken heißen
+jetzt `.lib-cbar`, die Leiste hat ausdrücklich `flex: none`.
+
 ---
 
 ## 4 · pywebview-Bridge-API
@@ -1285,7 +1312,7 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `library_scan_status()` | `{running, done, total, current, added, updated, failed, result?}` | Fortschritt fürs Polling |
 | `library_scan_stop()` | `{ok}` | Abbrechen |
 | `library_query(params)` | `{ok, total, items[]}` | Filtern/Suchen/Sortieren. `with_thumbs` hängt die Vorschaubilder als data-URL an (~3 KB je Kachel) und setzt `has_session` aus `sessions.json` |
-| `library_stats()` | `{ok, n_tracks, total_km, total_ascent_m, total_hours, years[], activities[], tags[], n_failed}` | Kopfzeilen-Zahlen |
+| `library_stats(params)` | `{ok, n_tracks, total_km, total_ascent_m, total_hours, avg_km, longest_km, years[], months[], activities[], longest[5], done{n,km}, planned{n,km}, tags[], n_hidden, n_failed}` | Zahlen zur **aktuellen Auswahl** — nimmt dieselben Filter wie `library_query` (v0.9.491) |
 | `library_set_fields(path, fav?, tags?, note?)` | `{ok, track}` | Favorit/Schlagwörter/Notiz |
 | `library_map_thumbs_start(style?)` | `{ok}` / `{ok:false,error:"no_token"}` | Fehlende Karten-Vorschaubilder im Hintergrund holen |
 | `library_map_thumbs_status()` | `{running, done, total, current, ok, failed, pending, result?}` | Fortschritt + wie viele noch fehlen |
@@ -1302,6 +1329,9 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `library_collections_of(path)` | `{ok, collections[]}` | In welchen Sammlungen liegt diese Tour |
 | `library_errors()` | `{ok, items[]}` | Nicht lesbare Dateien (stehen bewusst nicht in `library_query`) |
 | `library_duplicates()` | `{ok, groups[]}` | Gruppen mit identischem `geo_hash` |
+| `library_set_name(path, name="")` | `{ok, track}` | Eigener Name; leer = wieder der Name aus der Datei (v0.9.491) |
+| `library_set_hidden(path, hidden=True)` | `{ok}` | Tour aus allen Listen nehmen, ohne zu löschen (v0.9.491) |
+| `library_trash(path)` | `{ok, moved_to}` | Datei in den Papierkorb des Systems legen + aus dem Index nehmen (v0.9.491) |
 | `library_forget(path)` | `{ok}` | Aus dem Index nehmen — die Datei bleibt liegen |
 | `library_reveal(path)` | `{ok}` | Im Finder/Explorer zeigen |
 
