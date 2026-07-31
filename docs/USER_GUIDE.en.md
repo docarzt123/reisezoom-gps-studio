@@ -215,12 +215,13 @@ hours, average per tour and the longest tour, then the split **done against plan
 **kilometres per year**, **tours per month** (your season across all years), the breakdown
 **by activity** and the **five longest tours** — a click jumps to the tour.
 
-**Nicer preview pictures — a map instead of a line:** by default a card shows the bare line,
-which is instant and free. For something prettier open **“Folders & scanning”** and press
-**“Fetch map pictures”** — the app then fetches a real map picture per tour from Mapbox once
-and **stores it on your machine for good**. After that the view is offline, instant and costs
-no further quota. Around 5 minutes for 700 tours; the run can be stopped and resumed. Without
-a Mapbox token the line drawing stays.
+**The app fetches map pictures on its own.** After a scan and on every start a leisurely
+background run fetches a real map picture per tour from Mapbox — roughly one every one and a
+half seconds. The header shows “Fetching map pictures 42/709” while it runs, the cards fill up
+one by one, and you can keep working. Every picture is **stored on your machine for good**:
+after that the view is offline, instant and costs no further quota. Without a Mapbox token
+nothing happens and the line drawing stays. If you don’t want to wait, press **“Fetch map
+pictures”** in **“📂 Folders & scanning”** to do it all at once.
 
 **Your own picture for a tour:** in the right-hand column, **“Choose your own picture”** — the
 nicest photo of that tour, say. It replaces the preview everywhere. The app stores a scaled
@@ -270,6 +271,19 @@ you only get to see what is doubled up.
 
 **New files:** press **“Rescan”** once after a bigger export. Files already known are
 skipped, so it takes seconds.
+
+**What you say about a tour sticks — to the tour, not to the file.** Favourite, tags, note,
+your own name, hidden, the done/planned correction, your cover picture and the collections all
+hang off the route itself. So:
+
+- Remove a folder and add it back later → everything returns, map pictures included (they are
+  **not** fetched again).
+- The same tour sits in a second folder → it inherits all of it automatically.
+- File renamed or moved → your entries find their way back to it.
+
+Cleaning up is deliberately timid: preview pictures of tours that have not been in any of your
+folders for over a year, and that you never said anything about, eventually get deleted.
+Everything else — your own cover pictures above all — stays.
 
 > **Your files stay where they are.** The library never moves or copies anything — it only
 > remembers what sits where. The one exception is **“Move to trash”**, and that asks first.

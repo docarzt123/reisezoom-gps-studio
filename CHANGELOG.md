@@ -14,6 +14,33 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.493] – 2026-07-31
+### Geändert
+- **Alles, was du zu einer Tour sagst, hängt jetzt an der Tour — nicht an der
+  Datei.** Favorit, Schlagwörter, Notiz, eigener Name, „ausgeblendet", die
+  Korrektur gemacht/geplant, das eigene Titelbild und die Zugehörigkeit zu
+  Sammlungen werden am **Streckenverlauf** gespeichert (eigene Tabelle
+  `track_meta`). Folge: Wer einen Ordner abmeldet und später wieder hinzufügt,
+  bekommt alles zurück. Dieselbe Tour aus einem zweiten Ordner erbt es
+  automatisch. Und ein Neu-Einlesen kann nichts mehr davon verlieren.
+- **Vorschaubilder werden wiederverwendet.** Linienbilder und Kartenbilder
+  liegen unter dem Fingerabdruck der Tour im App-Ordner. Beim Einlesen wird
+  geprüft, ob es sie schon gibt — 709 Kartenbilder waren im Test sofort wieder
+  da, ohne einen einzigen neuen Mapbox-Abruf.
+
+### Hinzugefügt
+- **Kartenbilder holt die App von selbst.** Nach dem Einlesen und bei jedem
+  Start läuft im Hintergrund ein gedrosselter Lauf (rund ein Bild alle
+  1,5 Sekunden), der die fehlenden nachzieht — ohne Nachfrage, ohne Dialog. In
+  der Kopfzeile steht dabei „Kartenbilder werden geladen 42/709", und die
+  Kacheln füllen sich nach und nach. Ohne Mapbox-Zugang passiert schlicht
+  nichts. Der Knopf „Kartenbilder holen" bleibt für den ungeduldigen Fall.
+- **Sehr langsames Aufräumen.** Einmal je Sitzung im Hintergrund: Vorschaubilder,
+  die zu keiner Tour im Archiv und zu keiner deiner Eingaben mehr gehören und
+  älter als **400 Tage** sind, werden gelöscht. Selbst gewählte Titelbilder und
+  alles, wozu du etwas gesagt hast, bleiben unangetastet — eine externe Platte
+  darf ruhig ein Jahr im Schrank liegen.
+
 ## [0.9.492] – 2026-07-31
 ### Behoben
 - **Die Detailspalte drückte ihre Inhalte zusammen** — die Umschaltung

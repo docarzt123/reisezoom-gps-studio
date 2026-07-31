@@ -1640,5 +1640,6 @@
   "library.trash_done": "In den Papierkorb gelegt.",
   "library.cancel": "Abbrechen",
   "library.scope_fav": "Favoriten",
-  "library.col_animator_fail": "Der Animator war nicht bereit — bitte noch einmal versuchen."
+  "library.col_animator_fail": "Der Animator war nicht bereit — bitte noch einmal versuchen.",
+  "library.map_thumbs_auto": "Kartenbilder werden geladen"
 }

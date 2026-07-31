@@ -1640,5 +1640,6 @@
   "library.trash_done": "Moved to the trash.",
   "library.cancel": "Cancel",
   "library.scope_fav": "Favourites",
-  "library.col_animator_fail": "The animator was not ready — please try again."
+  "library.col_animator_fail": "The animator was not ready — please try again.",
+  "library.map_thumbs_auto": "Fetching map pictures"
 }

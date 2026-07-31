@@ -134,7 +134,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.492"
+APP_VERSION = "0.9.493"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1481,7 +1481,30 @@ class Api:
     def _lib(self):
         if getattr(self, "_lib_conn", None) is None:
             self._lib_conn = clib.open_db(LIBRARY_DB)
+            self._lib_startup_jobs()
         return self._lib_conn
+
+    def _lib_startup_jobs(self) -> None:
+        """Einmal je Sitzung: aufräumen und fehlende Kartenbilder nachziehen.
+
+        Beides läuft im Hintergrund und ohne Rückfrage. Das Aufräumen ist
+        bewusst zahnlos — es fasst nur Bilder an, die zu keiner Tour und zu
+        keiner Nutzer-Eingabe mehr gehören und älter als gut ein Jahr sind.
+        """
+        def worker():
+            try:
+                res = clib.housekeeping(self._lib_conn, LIBRARY_THUMBS,
+                                        LIBRARY_MAP_THUMBS, LIBRARY_COVERS)
+                if res.get("removed"):
+                    log.info("library: Aufräumen — %s", res)
+            except Exception:
+                log.exception("library housekeeping")
+            try:
+                self.library_map_thumbs_start(auto=True)
+            except Exception:
+                log.exception("library auto map thumbs")
+
+        threading.Thread(target=worker, daemon=True, name="library-startup").start()
 
     def library_folders(self) -> dict:
         try:
@@ -1526,11 +1549,16 @@ class Api:
             try:
                 res = clib.scan(
                     self._lib(), LIBRARY_THUMBS, IMPORTS_DIR, force=force,
+                    map_thumbs_dir=LIBRARY_MAP_THUMBS, covers_dir=LIBRARY_COVERS,
                     progress=lambda p: self._lib_scan_state.update(p),
                     should_stop=lambda: self._lib_scan_stop,
                 )
                 self._lib_scan_state.update(res)
                 self._lib_scan_state["result"] = res
+                # Fehlende Kartenbilder danach von selbst nachladen — ohne
+                # Rückfrage, gedrosselt, im Hintergrund (Marc: „mach das einfach,
+                # so dass die Stück für Stück reintröpfeln").
+                self.library_map_thumbs_start(auto=True)
             except Exception as e:
                 log.exception("library_scan")
                 self._lib_scan_state["error"] = str(e)
@@ -1586,15 +1614,29 @@ class Api:
 
     # ── Karten-Vorschaubilder: einmal von Mapbox holen, dann liegen sie lokal ──
 
-    def library_map_thumbs_start(self, style: str = "outdoors-v12") -> dict:
+    def library_map_thumbs_start(self, style: str = "outdoors-v12", auto: bool = False) -> dict:
+        """Fehlende Karten-Vorschaubilder holen.
+
+        `auto=True` ist der Hintergrundlauf: er tröpfelt (Pause zwischen den
+        Bildern), damit er weder die Mapbox-Quota in einem Rutsch verbraucht
+        noch die Oberfläche ausbremst — und er sagt nichts, wenn nichts zu tun
+        ist oder kein Token hinterlegt wurde.
+        """
         if getattr(self, "_lib_maps_running", False):
             return {"ok": False, "error": "läuft bereits"}
         token = (_load_settings() or {}).get("mapbox_token") or ""
         if not token.startswith("pk."):
             return {"ok": False, "error": "no_token"}
+        if auto:
+            try:
+                if not clib.map_thumbs_pending(self._lib()):
+                    return {"ok": True, "nothing_to_do": True}
+            except Exception:
+                return {"ok": False, "error": "pending-check"}
         self._lib_maps_running = True
         self._lib_maps_stop = False
-        self._lib_maps_state = {"running": True, "done": 0, "total": 0, "current": ""}
+        self._lib_maps_state = {"running": True, "done": 0, "total": 0, "current": "",
+                                "auto": bool(auto)}
 
         def worker():
             try:
@@ -1602,6 +1644,7 @@ class Api:
                     self._lib(), LIBRARY_MAP_THUMBS, token, style=style,
                     progress=lambda p: self._lib_maps_state.update(p),
                     should_stop=lambda: self._lib_maps_stop,
+                    pause_s=1.5 if auto else 0.0,
                 )
                 self._lib_maps_state.update(res)
                 self._lib_maps_state["result"] = res

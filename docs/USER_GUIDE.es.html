@@ -403,7 +403,7 @@ python app.py</code></pre>
 <p>Debajo están tus <strong>colecciones</strong>: un clic muestra <strong>solo esa</strong>, un segundo clic lo deshace y un <strong>clic derecho</strong> abre renombrar, mostrar, «Todas en el animador» y borrar. La app recuerda la última sección elegida.</p>
 <p><strong>Cuatro vistas</strong>, conmutables a la derecha de la barra (la app recuerda tu elección): <strong>▦ Tarjetas</strong> para explorar, <strong>☰ Lista</strong> para comparar muchas rutas de un vistazo, <strong>🌍 Mapa</strong> —todas las rutas filtradas en un mapamundi; al hacer clic en una línea se selecciona— y <strong>📊 Estadísticas</strong>. Las rutas lejanas se dibujan como puntos y solo se convierten en líneas al acercar; de lo contrario serían invisibles.</p>
 <p><strong>Las estadísticas</strong> suman siempre exactamente lo que está seleccionado: también «solo esta colección», «solo las realizadas» o «solo 2024». Muestran rutas, kilómetros, desnivel, horas, media por ruta y la ruta más larga, y debajo el reparto <strong>realizadas frente a planificadas</strong>, <strong>kilómetros por año</strong>, <strong>rutas por mes</strong> (tu temporada a lo largo de los años), la distribución <strong>por actividad</strong> y <strong>las cinco rutas más largas</strong>, con un clic para saltar a cada una.</p>
-<p><strong>Vistas previas más bonitas — mapa en lugar de línea:</strong> por defecto cada tarjeta muestra solo la línea, lo cual es inmediato y gratuito. Si lo quieres más bonito, abre <strong>«Carpetas y lectura»</strong> y pulsa <strong>«Descargar imágenes de mapa»</strong>: la app descarga una vez de Mapbox una imagen de mapa real para cada ruta y <strong>la guarda de forma permanente en tu equipo</strong>. A partir de ahí la vista funciona sin conexión, es inmediata y no consume más cuota. Unos 5 minutos para 700 rutas; el proceso se puede detener y reanudar. Sin token de Mapbox se mantiene el dibujo de línea.</p>
+<p><strong>La app descarga las imágenes de mapa por su cuenta.</strong> Tras cada lectura y en cada inicio corre en segundo plano un proceso pausado que descarga de Mapbox una imagen real por ruta más o menos una cada segundo y medio. Mientras tanto, la cabecera muestra «Descargando imágenes de mapa 42/709», las tarjetas se van llenando y tú puedes seguir trabajando. Cada imagen se <strong>guarda de forma permanente en tu equipo</strong>: después la vista funciona sin conexión, es inmediata y no consume más cuota. Sin token de Mapbox no ocurre nada y se mantiene el dibujo de línea. Si no quieres esperar, pulsa <strong>«Descargar imágenes de mapa»</strong> en <strong>«📂 Carpetas y lectura»</strong> para hacerlo todo de golpe.</p>
 <p><strong>Imagen propia para una ruta:</strong> en la columna derecha, <strong>«Elegir imagen propia»</strong>, por ejemplo la mejor foto de esa ruta. Sustituye la vista previa en todas las vistas. La app guarda una copia reducida; tu original queda intacto y se puede mover.</p>
 <p><strong>Volver a encontrar una ruta:</strong></p>
 <ul>
@@ -426,6 +426,16 @@ python app.py</code></pre>
 <table><thead><tr><th>Señal</th><th>Significado</th></tr></thead><tbody><tr><td>★</td><td>favorita</td></tr><tr><td>«planificada»</td><td>la ruta solo se planificó, no se grabó</td></tr><tr><td>«off»</td><td>la ruta está oculta</td></tr><tr><td>● (naranja)</td><td>ya hay proyectos guardados para esta ruta</td></tr></tbody></table>
 <p><strong>Buscar duplicadas:</strong> el botón de abajo a la izquierda agrupa los archivos con un <strong>recorrido idéntico</strong>, útil tras una exportación masiva que descargó la misma ruta varias veces. No se borra nada: solo ves qué está duplicado.</p>
 <p><strong>Archivos nuevos:</strong> pulsa <strong>«Volver a leer»</strong> después de cada exportación grande. Los archivos ya conocidos se omiten, así que tarda segundos.</p>
+<p><strong>Lo que dices sobre una ruta permanece — en la ruta, no en el archivo.</strong> Favorita, etiquetas, nota, nombre propio, oculta, la corrección realizada/planificada, tu imagen de portada y las colecciones cuelgan del recorrido en sí. Por eso:</p>
+<ul>
+<li>Quitas una carpeta y la vuelves a añadir → todo regresa, imágenes de mapa incluidas (no se</li>
+</ul>
+<p> vuelven a descargar).</p>
+<ul>
+<li>La misma ruta está en otra carpeta → hereda todo automáticamente.</li>
+<li>Archivo renombrado o movido → tus datos vuelven a encontrarlo.</li>
+</ul>
+<p>La limpieza es deliberadamente prudente: las vistas previas de rutas que llevan más de un año sin aparecer en ninguna de tus carpetas y sobre las que nunca dijiste nada acaban borrándose. Todo lo demás —sobre todo tus imágenes de portada— se queda.</p>
 <blockquote><strong>Tus archivos se quedan donde están.</strong> El archivo no mueve ni copia nada: solo recuerda</blockquote>
 <blockquote>qué hay dónde. La única excepción es <strong>«Mover a la papelera»</strong>, y esa pregunta antes.</blockquote>
 <blockquote></blockquote>

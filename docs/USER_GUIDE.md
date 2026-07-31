@@ -307,17 +307,31 @@ heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.
 **Neue Dateien:** Nach jedem größeren Export einmal unten links **„📂 Ordner & Einlesen" → „Neu einlesen"** drücken. Bereits
 bekannte Dateien werden übersprungen, das geht in Sekunden.
 
-**Schönere Vorschaubilder — Karte statt Linie:** Standardmäßig zeigt jede Kachel nur den
-Linienzug ohne Karte. Das geht sofort und kostet nichts. Wenn du es hübscher willst, öffne
-**„Ordner & Einlesen"** und drücke **„Kartenbilder holen"** — dann holt die App zu jeder Tour
-einmal ein echtes Kartenbild von Mapbox und **legt es dauerhaft auf deinem Rechner ab**.
-Danach ist die Ansicht offline, sofort da und kostet kein weiteres Kontingent. Rund
-5 Minuten für 700 Touren; der Lauf lässt sich anhalten und später fortsetzen. Ohne
-Mapbox-Token bleibt es bei der Linienzeichnung.
+**Kartenbilder holt die App von selbst.** Nach dem Einlesen und bei jedem Start läuft im
+Hintergrund ein gemächlicher Lauf, der zu jeder Tour ein echtes Kartenbild von Mapbox holt —
+ungefähr eines alle anderthalb Sekunden. In der Kopfzeile steht dabei „Kartenbilder werden
+geladen 42/709", die Kacheln füllen sich nach und nach, und du kannst normal weiterarbeiten.
+Jedes Bild wird **dauerhaft auf deinem Rechner abgelegt**: danach ist die Ansicht offline,
+sofort da und kostet kein weiteres Kontingent. Ohne Mapbox-Zugang passiert einfach nichts,
+dann bleibt es bei der Linienzeichnung. Wer nicht warten will, drückt in
+**„📂 Ordner & Einlesen"** auf **„Kartenbilder holen"** — das holt alles am Stück.
 
 **Eigenes Bild für eine Tour:** In der rechten Spalte **„Eigenes Bild wählen"** — zum
 Beispiel das schönste Foto der Tour. Es ersetzt das Vorschaubild in allen Ansichten. Die App
 legt eine verkleinerte Kopie an; dein Original bleibt unberührt und darf verschoben werden.
+
+**Was du zu einer Tour sagst, bleibt — an der Tour, nicht an der Datei.** Favorit,
+Schlagwörter, Notiz, eigener Name, ausgeblendet, die Korrektur gemacht/geplant, dein
+Titelbild und die Sammlungen hängen am Streckenverlauf. Deshalb gilt:
+
+- Ordner abmelden und später wieder hinzufügen → alles ist wieder da, inklusive der
+  Kartenbilder (die werden **nicht** neu geladen).
+- Dieselbe Tour liegt in einem zweiten Ordner → sie erbt automatisch dasselbe.
+- Datei umbenannt oder verschoben → deine Angaben finden wieder zu ihr zurück.
+
+Aufgeräumt wird nur sehr zurückhaltend: Vorschaubilder von Touren, die seit über einem Jahr
+in keinem deiner Ordner mehr liegen und zu denen du nichts gesagt hast, werden irgendwann
+gelöscht. Alles andere — besonders deine eigenen Titelbilder — bleibt.
 
 > **Deine Dateien bleiben, wo sie sind.** Das Archiv verschiebt und kopiert nichts — es merkt
 > sich nur, was wo liegt. Die einzige Ausnahme ist **„In den Papierkorb"**, und die fragt
