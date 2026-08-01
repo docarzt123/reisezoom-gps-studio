@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.495] – 2026-08-01
+
 ### Hinzugefügt
 - **Download-Seite mit allen Angaben, die man vor einem Download sehen will**:
   Version, Datum, Betriebssystem, Architektur, Dateigröße, Signierstatus und
