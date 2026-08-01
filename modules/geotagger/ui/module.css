@@ -543,3 +543,16 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
   border-radius: 5px; padding: 0 5px; letter-spacing: .2px;
 }
 .gt-fchip.active .gt-camoff { color: #fff; background: rgba(0,0,0,.22); }
+
+/* Adress-Abfrage fehlgeschlagen — die Meldung muss auffallen, sonst liest sie
+   niemand und der Nutzer probiert stattdessen alle drei Dienste durch
+   (Bug-Report Martin W., v0.9.495). */
+.gt-geo-fehler {
+  color: #ff9a76;
+  background: rgba(255, 107, 53, .10);
+  border: 1px solid rgba(255, 107, 53, .45);
+  border-radius: 8px;
+  padding: 8px 11px;
+  line-height: 1.5;
+  display: block;
+}

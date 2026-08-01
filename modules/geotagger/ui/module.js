@@ -3040,7 +3040,21 @@ function mountGeotagger(body, headerActions) {
       else {
         _gtGeoPolling = false;
         if (btn) btn.disabled = false;
-        if (statusEl) statusEl.textContent = t("geotagger.geocode.done", { n: _gtAddr.size });
+        // Kam nichts zurück UND der Kern kennt einen Grund, dann sagen wir ihn.
+        // Vorher stand hier nur „0 Adressen" — ein Fehlschlag, der wie ein
+        // Erfolg aussah (Bug-Report Martin W., v0.9.495).
+        if (statusEl) {
+          if (_gtAddr.size === 0 && st.fehler_art) {
+            statusEl.textContent = t("geotagger.geocode.fehler." + st.fehler_art,
+                                     t("geotagger.geocode.fehler.unbekannt"));
+            statusEl.classList.add("gt-geo-fehler");
+            applog("error", "[Geotagger] Adressen fehlgeschlagen: " +
+                            st.fehler_art + " — " + (st.fehler_text || ""));
+          } else {
+            statusEl.classList.remove("gt-geo-fehler");
+            statusEl.textContent = t("geotagger.geocode.done", { n: _gtAddr.size });
+          }
+        }
       }
     };
     poll();

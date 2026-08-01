@@ -1644,5 +1644,11 @@
   "library.map_thumbs_auto": "Descargando imágenes de mapa",
   "library.scope_missing": "No accesible",
   "library.missing_hint": "El archivo no se encuentra ahora mismo — ¿disco no conectado?",
-  "library.missing_long": "Este archivo no se encuentra ahora mismo — probablemente está en un disco que no está conectado. La ruta permanece en el archivo; en cuanto vuelva el fichero, todo sigue igual. Tras 90 días sin aparecer, la entrada desaparece (lo que anotaste sobre ella se conserva igualmente)."
+  "library.missing_long": "Este archivo no se encuentra ahora mismo — probablemente está en un disco que no está conectado. La ruta permanece en el archivo; en cuanto vuelva el fichero, todo sigue igual. Tras 90 días sin aparecer, la entrada desaparece (lo que anotaste sobre ella se conserva igualmente).",
+  "geotagger.geocode.fehler.zertifikat": "No se pudieron cargar las direcciones: la aplicación no encuentra certificados de seguridad válidos en este equipo. Actualiza a la última versión — ahí está corregido.",
+  "geotagger.geocode.fehler.offline": "No se pudieron cargar las direcciones: sin conexión a internet.",
+  "geotagger.geocode.fehler.langsam": "No se pudieron cargar las direcciones: el servicio tardó demasiado. Inténtalo más tarde.",
+  "geotagger.geocode.fehler.zugang": "No se pudieron cargar las direcciones: el servicio denegó el acceso (con Mapbox: comprueba tu token).",
+  "geotagger.geocode.fehler.gedrosselt": "No se pudieron cargar las direcciones: demasiadas peticiones en poco tiempo. Espera unos minutos.",
+  "geotagger.geocode.fehler.unbekannt": "No se pudieron cargar las direcciones. Los detalles están en el registro (Ajustes → Ver registro)."
 }

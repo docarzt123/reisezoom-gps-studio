@@ -34,6 +34,7 @@ import urllib.parse
 import urllib.request
 from typing import List, Optional
 
+from . import net
 from .gpxsimplify import haversine_m
 
 __all__ = ["fill_elevation", "lookup_elevations", "DATASETS"]
@@ -57,7 +58,9 @@ def lookup_elevations(coords: List[tuple], dataset: str = "eudem25m",
         locs = "|".join(f"{lat:.6f},{lon:.6f}" for lat, lon in chunk)
         url = f"{base_url}/{dataset}?" + urllib.parse.urlencode({"locations": locs})
         req = urllib.request.Request(url, headers={"User-Agent": "reisezoom-gps-studio"})
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        # TLS-Kontext siehe core/net.py — ohne ihn scheitert der Aufruf im
+        # gebauten Programm an fehlenden Zertifikaten.
+        with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as r:
             data = json.loads(r.read().decode("utf-8"))
         if str(data.get("status", "")).upper() != "OK":
             raise RuntimeError(data.get("error") or "DEM-Dienst meldet einen Fehler")

@@ -82,6 +82,43 @@ def cluster(points: list[tuple], cell_m: float) -> dict[tuple, dict]:
 
 # ── Öffentliche Reverse-Funktion ─────────────────────────────────────────────
 
+# ── Letzter Fehlgrund, damit die Oberfläche etwas sagen kann ────────────────
+_LETZTER_FEHLER: dict = {"art": "", "text": ""}
+
+
+def merke_fehler(e: BaseException) -> None:
+    """Einen Fehlschlag in eine Ursache übersetzen, die man anzeigen kann."""
+    t = f"{e.__class__.__name__}: {e}"
+    if "CERTIFICATE_VERIFY_FAILED" in t:
+        art = "zertifikat"
+    elif "Name or service not known" in t or "nodename nor servname" in t \
+            or "Temporary failure in name resolution" in t:
+        art = "offline"
+    elif "timed out" in t.lower() or "timeout" in t.lower():
+        art = "langsam"
+    elif "HTTP Error 401" in t or "HTTP Error 403" in t:
+        art = "zugang"
+    elif "HTTP Error 429" in t:
+        art = "gedrosselt"
+    else:
+        art = "unbekannt"
+    with _LOCK:
+        _LETZTER_FEHLER["art"] = art
+        _LETZTER_FEHLER["text"] = t[:200]
+
+
+def letzter_fehler() -> dict:
+    """Was zuletzt schiefging — leer, wenn nichts schiefging."""
+    with _LOCK:
+        return dict(_LETZTER_FEHLER)
+
+
+def fehler_zuruecksetzen() -> None:
+    with _LOCK:
+        _LETZTER_FEHLER["art"] = ""
+        _LETZTER_FEHLER["text"] = ""
+
+
 def reverse(lat: float, lon: float, *, provider: str = "nominatim",
             mapbox_token: str = "", lang: str = "de", zoom: int = 18,
             timeout: float = 8.0) -> Optional[dict]:
@@ -110,6 +147,11 @@ def reverse(lat: float, lon: float, *, provider: str = "nominatim",
             addr = _nominatim(lat, lon, lang, zoom, timeout)
     except Exception as e:
         log.warning("reverse(%s) fehlgeschlagen %.5f,%.5f: %s", prov, lat, lon, e)
+        # Den Grund merken. Vorher wurde der Fehler nur ins Log geschrieben, und
+        # die Oberfläche meldete am Ende „fertig, 0 Adressen" — ein Fehlschlag,
+        # der wie ein Erfolg aussieht. Genau daran hat sich Martin W. (v0.9.495)
+        # aufgerieben: alle drei Dienste durchprobiert, keiner sagte warum.
+        merke_fehler(e)
         addr = None
 
     with _LOCK:
@@ -118,8 +160,13 @@ def reverse(lat: float, lon: float, *, provider: str = "nominatim",
 
 
 def _fetch_json(url: str, timeout: float) -> dict:
+    # v0.9.496 (Nutzer-Bug Martin W.): OHNE eigenen TLS-Kontext findet Pythons
+    # OpenSSL im PyInstaller-Bundle keine Zertifikate — jede Adressabfrage starb
+    # mit CERTIFICATE_VERIFY_FAILED, und der Geotagger meldete stumm
+    # „0 Adressen". Siehe core/net.py.
+    from . import net
     req = urllib.request.Request(url, headers={"User-Agent": _UA})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
