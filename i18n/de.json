@@ -1487,7 +1487,7 @@
   "modules.library.desc": "Alle Touren",
   "library.open": "Archiv öffnen",
   "library.from_archive": "Aus dem Archiv …",
-  "library.search_ph": "Suchen — Name, Ort, Schlagwort …",
+  "library.search_ph": "Suchen — Name, Gegend, Schlagwort, Notiz …",
   "library.year": "Jahr",
   "library.activity": "Fortbewegung",
   "library.sort": "Sortierung",
@@ -1660,5 +1660,8 @@
   "library.act_auto": "Automatisch erkannt",
   "library.act_none": "keine",
   "library.act_manual": "Von dir gesetzt — gilt für alle Kopien dieser Tour.",
-  "library.act_guessed": "Geschätzt aus Name und Tempo. Einmal ändern genügt, es bleibt."
+  "library.act_guessed": "Geschätzt aus Name und Tempo. Einmal ändern genügt, es bleibt.",
+  "library.places_auto": "Gegenden werden benannt",
+  "library.found_area": "Gegend",
+  "library.tours_here": "Touren hier"
 }

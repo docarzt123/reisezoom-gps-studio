@@ -1487,7 +1487,7 @@
   "modules.library.desc": "Todas las rutas",
   "library.open": "Abrir archivo",
   "library.from_archive": "Desde el archivo …",
-  "library.search_ph": "Buscar — nombre, lugar, etiqueta …",
+  "library.search_ph": "Buscar — nombre, zona, etiqueta, nota …",
   "library.year": "Año",
   "library.activity": "Actividad",
   "library.sort": "Orden",
@@ -1660,5 +1660,8 @@
   "library.act_auto": "Detectado automáticamente",
   "library.act_none": "ninguna",
   "library.act_manual": "Elegido por ti — vale para todas las copias de esta ruta.",
-  "library.act_guessed": "Estimado por nombre y ritmo. Cámbialo una vez y se queda."
+  "library.act_guessed": "Estimado por nombre y ritmo. Cámbialo una vez y se queda.",
+  "library.places_auto": "Nombrando las zonas",
+  "library.found_area": "Zona",
+  "library.tours_here": "rutas aquí"
 }

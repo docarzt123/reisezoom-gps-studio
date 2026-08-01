@@ -1033,6 +1033,8 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
         where.append("(',' || lower(tags) || ',') LIKE ?")
         args.append(f"%,{t.strip().lower()},%")
     # Jedes Suchwort muss vorkommen — akzent-unempfindlich über `rz_norm`.
+    # Findet der Text nichts, schlägt die Oberfläche den Begriff als ORT nach
+    # und sucht über die Koordinaten weiter (siehe `library_search_place`).
     for w in (search or "").split():
         n = _norm(w)
         if n:
@@ -1724,3 +1726,94 @@ def housekeeping(conn: sqlite3.Connection, thumbs_dir: Path, map_thumbs_dir: Pat
                  removed, freed / 1e6)
     return {"removed": removed, "freed_mb": round(freed / 1e6, 1),
             "keep_days": keep_days, "known": len(alive)}
+
+
+# ── Gegenden benennen (damit die Suche „Teneriffa" findet) ──────────────────
+#
+# Die Spalten `place`, `country` und `region` gab es von Anfang an, und die Suche
+# durchsucht sie — **gefüllt hat sie nie jemand.** Ergebnis: Wer „Teneriffa"
+# eingab, fand nichts, obwohl 163 Touren dort liegen. Das Archiv wusste, WO die
+# Tour ist, nur nicht, wie die Gegend heißt.
+#
+# Warum mehrere Punkte je Tour: Eine Fahrt von Berlin nach Teneriffa hat ihren
+# Mittelpunkt irgendwo im Atlantik. Ein einziger Abruf würde also weder „Berlin"
+# noch „Teneriffa" liefern, sondern nichts Brauchbares. Deshalb werden Start,
+# Ziel und einige Punkte dazwischen abgefragt und die **Menge** der Gegenden
+# gespeichert — die Tour ist dann unter beiden Namen zu finden.
+#
+# Warum das nicht teuer ist: Die Punkte werden vorher auf ein grobes Raster
+# gerundet, und `geocode.reverse` cacht ohnehin. Eine Tour, die in einer Gegend
+# bleibt, kostet damit einen einzigen echten Abruf; erst eine Tour über Länder
+# hinweg kostet mehrere.
+
+_ORT_ANKER_MAX = 6          # höchstens so viele Abfragen je Tour
+_ORT_RASTER = 0.25          # ~25 km — feiner lohnt sich für eine Ortssuche nicht
+
+
+def _ort_anker(geom: list) -> list:
+    """Start, Ziel und einige Punkte dazwischen — auf grobem Raster entdoppelt."""
+    if not geom:
+        return []
+    n = len(geom)
+    idx = {0, n - 1}
+    for k in range(1, _ORT_ANKER_MAX - 1):
+        idx.add(int(round(k * (n - 1) / (_ORT_ANKER_MAX - 1))))
+    roh = [geom[i] for i in sorted(idx) if 0 <= i < n]
+    gesehen, out = set(), []
+    for p in roh:
+        try:
+            lon, lat = float(p[0]), float(p[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        schluessel = (round(lat / _ORT_RASTER), round(lon / _ORT_RASTER))
+        if schluessel in gesehen:
+            continue
+        gesehen.add(schluessel)
+        out.append((lat, lon))
+    return out
+
+
+def _ort_zusammenfassen(treffer: list) -> dict:
+    """Aus mehreren Adressen die drei Suchfelder bauen — Reihenfolge bleibt."""
+    def sammeln(feld: str) -> str:
+        out = []
+        for a in treffer:
+            v = ((a or {}).get(feld) or "").strip()
+            if v and v not in out:
+                out.append(v)
+        return " · ".join(out[:6])
+    # `county` (Provinz/Insel/Landkreis) wandert mit in die Region: bei
+    # Teneriffa steht dort „Santa Cruz de Tenerife", und ohne das findet die
+    # Suche die Insel überhaupt nicht — `state` sagt nur „Kanarische Inseln".
+    region = " · ".join(x for x in (sammeln("county"), sammeln("state")) if x)
+    return {"place": sammeln("city"), "region": region,
+            "country": sammeln("country")}
+
+
+@_locked
+def orte_fehlen(conn: sqlite3.Connection, limit: int = 0) -> list:
+    """Touren ohne Ortsangabe (die noch abzufragen sind)."""
+    sql = ("SELECT path, geom FROM tracks WHERE COALESCE(place,'') = '' "
+           "AND COALESCE(country,'') = '' AND COALESCE(geom,'') != '' AND error = ''")
+    if limit:
+        sql += f" LIMIT {int(limit)}"
+    return [{"path": r["path"], "geom": r["geom"]} for r in conn.execute(sql).fetchall()]
+
+
+@_locked
+def ort_speichern(conn: sqlite3.Connection, path: str, felder: dict) -> None:
+    """Gefundene Gegend an der Datei UND am Streckenverlauf hinterlegen.
+
+    Am `geo_hash`, damit dieselbe Tour in einem anderen Ordner nicht noch einmal
+    abgefragt wird — und damit die Angabe ein Neu-Einlesen überlebt.
+    """
+    conn.execute("UPDATE tracks SET place = ?, region = ?, country = ? WHERE path = ?",
+                 (felder.get("place", ""), felder.get("region", ""),
+                  felder.get("country", ""), path))
+    geo = _geo_of(conn, path)
+    if geo:
+        conn.execute("UPDATE tracks SET place = ?, region = ?, country = ? "
+                     "WHERE geo_hash = ? AND COALESCE(place,'') = ''",
+                     (felder.get("place", ""), felder.get("region", ""),
+                      felder.get("country", ""), geo))
+    conn.commit()
