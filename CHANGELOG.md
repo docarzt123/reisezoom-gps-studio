@@ -15,6 +15,12 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Hinzugefügt
+- **Download-Seite mit allen Angaben, die man vor einem Download sehen will**:
+  Version, Datum, Betriebssystem, Architektur, Dateigröße, Signierstatus und
+  **SHA-256-Prüfsumme** je Build — plus den Befehlen zum Nachprüfen. Sie wird von
+  `scripts/make_download_page.py` **aus den echten Dateien** erzeugt und liegt als
+  `manifest.json` daneben; `deploy_release.sh` baut sie bei jedem Release neu.
+  Was nicht als Datei existiert, kann damit gar nicht mehr verlinkt werden.
 - **Anfängerleitfaden im Handbuch** (Kapitel 1b, DE/EN/ES): ein durchgehender Weg
   vom Download zum ersten Video — installieren, die Token-Frage, Track laden,
   welches Modul wofür, erstes Bild mit der Tour-Karte, erstes Video mit dem
@@ -23,6 +29,11 @@ Bei jeder neuen Version:
   gegen die App geprüft.
 
 ### Behoben
+- **Zwei tote Links auf der Download-Seite** (Website-Audit): Der Windows-Link
+  zeigte auf `…-windows.zip`, die Datei heißt `…-windows-setup.exe`; dazu wurde
+  ein Linux-`tar.gz` angeboten, das es nie gab — während README und Artikel
+  korrekt sagen, dass Linux aus dem Quellcode läuft. Beides korrigiert, Linux ist
+  jetzt ein Hinweis mit Link auf die Anleitung.
 - **Widersprüchliche Angaben zur Signatur** (Website-Audit): README und zwei Stellen im
   Handbuch behaupteten noch, die App sei nicht signiert und brauche den
   Rechtsklick-Trick. Die macOS-App ist seit v0.9.4x von Apple signiert und

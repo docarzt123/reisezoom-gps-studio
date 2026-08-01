@@ -1,0 +1,28 @@
+{
+  "version": "0.9.484",
+  "released": "2026-07-29",
+  "downloads": {
+    "macos-arm64": {
+      "file": "ReisezoomGPSStudio-macos.dmg",
+      "size": 188257433,
+      "sha256": "afefaf774c646b1f85953a4315fa58696213f3664da194843a38c7e013b1ac16",
+      "signed": true,
+      "notarized": true,
+      "min_os": "macOS 13",
+      "arch": "Apple Silicon (arm64)"
+    },
+    "windows-x64": {
+      "file": "ReisezoomGPSStudio-windows-setup.exe",
+      "size": 160662715,
+      "sha256": "0acf461482bfaaf3b9a5fb2cab883976b104ef0b742a2cb7b7c6dfb2f75e204f",
+      "signed": false,
+      "notarized": false,
+      "min_os": "Windows 10",
+      "arch": "x64"
+    }
+  },
+  "linux": {
+    "packaged": false,
+    "docs": "https://github.com/docarzt123/reisezoom-gps-studio#-linux-aus-quellcode"
+  }
+}
