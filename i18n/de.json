@@ -1656,5 +1656,9 @@
   "library.dupe_first": "älteste Datei",
   "library.dupe_trash": "Angehakte in den Papierkorb",
   "library.dupe_done": "{n} in den Papierkorb gelegt",
-  "library.dupe_done_err": "{n} weggeräumt, {f} nicht"
+  "library.dupe_done_err": "{n} weggeräumt, {f} nicht",
+  "library.act_auto": "Automatisch erkannt",
+  "library.act_none": "keine",
+  "library.act_manual": "Von dir gesetzt — gilt für alle Kopien dieser Tour.",
+  "library.act_guessed": "Geschätzt aus Name und Tempo. Einmal ändern genügt, es bleibt."
 }

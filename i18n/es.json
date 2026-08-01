@@ -1656,5 +1656,9 @@
   "library.dupe_first": "archivo más antiguo",
   "library.dupe_trash": "Marcados a la papelera",
   "library.dupe_done": "{n} en la papelera",
-  "library.dupe_done_err": "{n} movidos, {f} con error"
+  "library.dupe_done_err": "{n} movidos, {f} con error",
+  "library.act_auto": "Detectado automáticamente",
+  "library.act_none": "ninguna",
+  "library.act_manual": "Elegido por ti — vale para todas las copias de esta ruta.",
+  "library.act_guessed": "Estimado por nombre y ritmo. Cámbialo una vez y se queda."
 }
