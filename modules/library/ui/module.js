@@ -106,6 +106,7 @@ function mountLibrary(body, headerActions) {
           <option value="asc_desc">${T("library.sort.asc_desc", "Meiste Höhenmeter")}</option>
           <option value="dur_desc">${T("library.sort.dur_desc", "Längste Dauer")}</option>
           <option value="name_asc">${T("library.sort.name_asc", "Name A–Z")}</option>
+          <option value="act_asc">${T("library.sort.act_asc", "Nach Fortbewegung")}</option>
         </select>
         <button class="lib-chip lib-chip-ghost" id="lib-reset" type="button">${T("library.reset", "Zurücksetzen")}</button>
         <span class="lib-bar-spacer"></span>
@@ -1205,17 +1206,78 @@ function mountLibrary(body, headerActions) {
     });
   }
 
+  // Doppelte finden UND gleich wegräumen (Wunsch Beta-Tester: „Doppelte finden
+  // ist schön, gleich löschen noch schöner"). Bewusst mit Auswahl statt einem
+  // „alle weg"-Knopf: welche der drei gleichen Dateien bleiben soll, weiß nur
+  // der Nutzer. Vorbelegt ist die **erste** jeder Gruppe zum Behalten — das ist
+  // die zuerst eingelesene. Und es geht in den **Papierkorb**, nicht ins Nichts.
   async function showDuplicates() {
     const res = await api().library_duplicates();
     const groups = (res && res.groups) || [];
+    if (!groups.length) {
+      openModal({ title: T("library.duplicates", "Doppelte finden"),
+        body: `<p>${T("library.no_duplicates", "Keine doppelten Touren gefunden.")}</p>` });
+      return;
+    }
+    const zeile = (i, gi, ii) => `
+      <label class="lib-dupe-item lib-dupe-pick">
+        <input type="checkbox" class="lib-dupe-cb" data-path="${esc(i.path)}"
+               ${ii === 0 ? "" : "checked"}>
+        <span class="lib-dupe-name">${esc(i.filename)}</span>
+        ${ii === 0 ? `<span class="lib-dupe-keep">${T("library.dupe_first", "älteste Datei")}</span>` : ""}
+      </label>`;
     openModal({
       title: T("library.duplicates", "Doppelte finden"),
-      body: `<div class="lib-dupes">${groups.length
-        ? groups.map(g => `<div class="lib-dupe-group">
+      body: `<div class="lib-dupes">
+        <p class="lib-dupe-intro">${T("library.dupe_intro",
+          "Angehakt wird weggeräumt — in den Papierkorb, nicht endgültig gelöscht. Vorbelegt ist die älteste Datei jeder Gruppe zum Behalten.")}</p>
+        ${groups.map((g, gi) => `<div class="lib-dupe-group">
             <div class="lib-dupe-head">${g.n} ${T("library.same_route", "Dateien mit identischem Verlauf")}</div>
-            ${g.items.map(i => `<div class="lib-dupe-item">${esc(i.filename)}</div>`).join("")}</div>`).join("")
-        : `<p>${T("library.no_duplicates", "Keine doppelten Touren gefunden.")}</p>`}</div>`,
+            ${g.items.map((i, ii) => zeile(i, gi, ii)).join("")}</div>`).join("")}
+        <div class="lib-dupe-actions">
+          <button class="btn btn-danger" id="lib-dupe-go" type="button">
+            ${T("library.dupe_trash", "Angehakte in den Papierkorb")}
+            <span id="lib-dupe-n"></span>
+          </button>
+          <span id="lib-dupe-status" class="lib-dupe-status"></span>
+        </div>
+      </div>`,
     });
+
+    const boxen = () => Array.from(document.querySelectorAll(".lib-dupe-cb"));
+    const zaehlen = () => {
+      const n = boxen().filter(b => b.checked).length;
+      const el = document.getElementById("lib-dupe-n");
+      const btn = document.getElementById("lib-dupe-go");
+      if (el) el.textContent = n ? `(${n})` : "";
+      if (btn) btn.disabled = n === 0;
+    };
+    boxen().forEach(b => b.addEventListener("change", zaehlen));
+    zaehlen();
+
+    const go = document.getElementById("lib-dupe-go");
+    if (go) go.onclick = async () => {
+      const pfade = boxen().filter(b => b.checked).map(b => b.dataset.path);
+      if (!pfade.length) return;
+      go.disabled = true;
+      const status = document.getElementById("lib-dupe-status");
+      let weg = 0, fehler = 0;
+      for (const pfad of pfade) {
+        if (status) status.textContent = `${weg + fehler + 1} / ${pfade.length}`;
+        try {
+          const r = await api().library_trash(pfad);
+          if (r && r.ok) { weg++; } else { fehler++; }
+        } catch (_) { fehler++; }
+      }
+      if (status) {
+        status.textContent = fehler
+          ? T("library.dupe_done_err", "{n} weggeräumt, {f} nicht")
+              .replace("{n}", weg).replace("{f}", fehler)
+          : T("library.dupe_done", "{n} in den Papierkorb gelegt").replace("{n}", weg);
+      }
+      applog("info", `[Archiv] Doppelte weggeräumt: ${weg} ok, ${fehler} Fehler`);
+      reload();
+    };
   }
 
   // ── Ereignisse ────────────────────────────────────────────────────────

@@ -939,6 +939,11 @@ _SORTS = {
     "dur_desc": "duration_s DESC",
     "name_asc": "name COLLATE NOCASE ASC",
     "added_desc": "indexed_at DESC",
+    # Nach Fortbewegungsart gruppiert (Wunsch Beta-Tester): erst alle Radtouren,
+    # dann alle Wanderungen … innerhalb jeder Art die neuesten zuerst. Touren
+    # ohne erkannte Art landen am Ende, nicht mittendrin.
+    "act_asc": "CASE WHEN activity = '' OR activity IS NULL THEN 1 ELSE 0 END, "
+               "activity COLLATE NOCASE ASC, started_at DESC",
     # Nur innerhalb einer Sammlung sinnvoll — siehe query().
     "collection": "started_at ASC",
 }

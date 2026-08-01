@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Hinzugefügt
+- **Archiv: Sortierung nach Fortbewegung** (Wunsch Beta-Tester). Erst alle
+  Radtouren, dann alle Wanderungen — innerhalb jeder Art die neuesten zuerst.
+  Touren ohne erkannte Art stehen am Ende, nicht mittendrin.
+- **Doppelte gleich wegräumen** statt sie nur zu finden (Wunsch Beta-Tester).
+  Der Dialog zeigt jede Gruppe mit Auswahlkästchen; die **älteste** Datei ist
+  zum Behalten vorbelegt, der Rest angehakt. Bewusst kein „alles weg"-Knopf:
+  welche von drei gleichen Dateien bleiben soll, weiß nur der Nutzer. Und es
+  geht in den **Papierkorb**, nicht ins Nichts.
+
 ### Behoben
 - **Im Geotagger wurden keine Adressen gefunden — an keinem der drei Dienste.**
   (Bug-Report Martin Winkler.) Ursache war nicht der Dienst, sondern das
