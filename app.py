@@ -1768,7 +1768,7 @@ class Api:
         threading.Thread(target=worker, daemon=True, name="library-places").start()
         return {"ok": True, "total": len(offen)}
 
-    def library_search_place(self, query: str, **filter_kw) -> dict:
+    def library_search_place(self, query: str, params: dict = None) -> dict:
         """Die Suche andersherum: Begriff als ORT nachschlagen, dann alles
         zeigen, was in dieser Gegend liegt.
 
@@ -1781,10 +1781,12 @@ class Api:
             ort = cgeocode.forward(query, lang="de")
             if not ort:
                 return {"ok": True, "found": False}
-            kw = {k: v for k, v in (filter_kw or {}).items()
+            # Die Brücke reicht genau ein Objekt durch (wie `library_query`) —
+            # mit `**kwargs` kam „takes 2 positional arguments but 3 were given".
+            kw = {k: v for k, v in (params or {}).items()
                   if k in ("year", "activity", "fav_only", "planned", "min_km",
                            "max_km", "sort", "limit", "offset", "include_hidden",
-                           "collection_id", "with_geom")}
+                           "collection_id", "with_geom", "with_thumbs")}
             kw["bbox"] = ort["bbox"]
             res = self.library_query(kw)     # gleiche Aufbereitung wie sonst
             res.update({"ok": True, "found": True, "place": ort["name"],
