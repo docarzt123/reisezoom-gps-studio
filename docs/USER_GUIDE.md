@@ -254,7 +254,7 @@ Beim ersten App-Start öffnet sich automatisch ein Onboarding-Modal mit zwei Opt
 4. „Default public token" kopieren — beginnt mit `pk.eyJ…`
 5. In der App ins Token-Feld einfügen → Speichern
 
-> ⚠️ **Kreditkarte erforderlich**: Mapbox verlangt seit Mitte 2026 bei der Registrierung eine Kreditkarte — **auch fürs kostenlose Konto**. Klingt erstmal komisch, ist aber bei vielen Cloud-Diensten so geworden. **Es wird nichts abgebucht** solange du im Free-Tier bleibst.
+> ⚠️ **Zahlungsdaten**: Das Anmeldeformular selbst fragt **keine** Kreditkarte ab — dort stehen Name, E-Mail, Benutzername und Passwort (nachgesehen am 01.08.2026). Mapbox kann im weiteren Verlauf oder ab einer gewissen Nutzung nach einer Karte fragen. **Abgebucht wird nichts**, solange du im Free-Tier bleibst.
 >
 > 💡 **Free-Tier: 50.000 Karten-Loads pro Monat — kostenlos.** Das reicht in der Praxis für sehr viele Renders. Bei normaler Hobby-Nutzung wirst du nie eine Rechnung sehen — du müsstest schon richtig intensiv produzieren, um an die Grenze zu kommen.
 

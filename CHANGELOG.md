@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Behoben
+- **Die Einstellungen schickten Einsteiger in die Irre.** Beim Mapbox-Token stand
+  „Leer lassen für Standard-Token" — einen mitgelieferten Standard-Token gibt es
+  aber seit Längerem nicht mehr (`DEFAULT_MAPBOX_TOKEN = ""`). Wer dem Satz folgte,
+  ließ das Feld leer und hatte danach weder Satellit noch 3D noch Animator, ohne zu
+  verstehen warum. Dazu meldete die Statuszeile in genau diesem Fall auch noch
+  „Standard-Token aktiv". Beides in DE/EN/ES korrigiert: Der Hinweis sagt jetzt, was
+  ohne eigenen Token gesperrt bleibt, und die Statuszeile heißt „Kein Token — Karten
+  eingeschränkt". Aufgefallen an einer Rückfrage eines Beta-Testers, der genau an
+  dieser Stelle stand.
+
+
 ## [0.9.495] – 2026-08-01
 
 ### Hinzugefügt

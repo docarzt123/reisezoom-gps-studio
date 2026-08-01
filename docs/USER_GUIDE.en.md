@@ -249,7 +249,7 @@ On the first app launch an onboarding modal opens automatically with two options
 4. Copy the "Default public token" — it starts with `pk.eyJ…`
 5. Paste it into the token field in the app → Save
 
-> ⚠️ **Credit card required**: since mid-2026 Mapbox requires a credit card at sign-up — **even for the free account**. It sounds odd at first, but it has become common with many cloud services. **Nothing is charged** as long as you stay in the free tier.
+> ⚠️ **Payment details**: the sign-up form itself asks for **no** credit card — it wants your name, e-mail, username and password (checked 1 August 2026). Mapbox may ask for a card later on or above a certain usage. **Nothing is charged** as long as you stay in the free tier.
 >
 > 💡 **Free tier: 50,000 map loads per month — free.** In practice that's enough for a great many renders. With normal hobby use you'll never see a bill — you'd have to produce really intensively to hit the limit.
 
