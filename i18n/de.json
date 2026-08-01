@@ -1650,5 +1650,11 @@
   "geotagger.geocode.fehler.langsam": "Adressen konnten nicht geladen werden: der Dienst hat zu lange gebraucht. Später noch einmal versuchen.",
   "geotagger.geocode.fehler.zugang": "Adressen konnten nicht geladen werden: der Dienst hat den Zugang abgelehnt (bei Mapbox: Token prüfen).",
   "geotagger.geocode.fehler.gedrosselt": "Adressen konnten nicht geladen werden: zu viele Anfragen in kurzer Zeit. Ein paar Minuten warten.",
-  "geotagger.geocode.fehler.unbekannt": "Adressen konnten nicht geladen werden. Einzelheiten stehen im Log (Einstellungen → Log anzeigen)."
+  "geotagger.geocode.fehler.unbekannt": "Adressen konnten nicht geladen werden. Einzelheiten stehen im Log (Einstellungen → Log anzeigen).",
+  "library.sort.act_asc": "Nach Fortbewegung",
+  "library.dupe_intro": "Angehakt wird weggeräumt — in den Papierkorb, nicht endgültig gelöscht. Vorbelegt ist die älteste Datei jeder Gruppe zum Behalten.",
+  "library.dupe_first": "älteste Datei",
+  "library.dupe_trash": "Angehakte in den Papierkorb",
+  "library.dupe_done": "{n} in den Papierkorb gelegt",
+  "library.dupe_done_err": "{n} weggeräumt, {f} nicht"
 }

@@ -1650,5 +1650,11 @@
   "geotagger.geocode.fehler.langsam": "No se pudieron cargar las direcciones: el servicio tardó demasiado. Inténtalo más tarde.",
   "geotagger.geocode.fehler.zugang": "No se pudieron cargar las direcciones: el servicio denegó el acceso (con Mapbox: comprueba tu token).",
   "geotagger.geocode.fehler.gedrosselt": "No se pudieron cargar las direcciones: demasiadas peticiones en poco tiempo. Espera unos minutos.",
-  "geotagger.geocode.fehler.unbekannt": "No se pudieron cargar las direcciones. Los detalles están en el registro (Ajustes → Ver registro)."
+  "geotagger.geocode.fehler.unbekannt": "No se pudieron cargar las direcciones. Los detalles están en el registro (Ajustes → Ver registro).",
+  "library.sort.act_asc": "Por actividad",
+  "library.dupe_intro": "Lo marcado va a la papelera, no se borra definitivamente. El archivo más antiguo de cada grupo se conserva por defecto.",
+  "library.dupe_first": "archivo más antiguo",
+  "library.dupe_trash": "Marcados a la papelera",
+  "library.dupe_done": "{n} en la papelera",
+  "library.dupe_done_err": "{n} movidos, {f} con error"
 }

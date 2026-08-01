@@ -1650,5 +1650,11 @@
   "geotagger.geocode.fehler.langsam": "Addresses could not be loaded: the service took too long. Please try again later.",
   "geotagger.geocode.fehler.zugang": "Addresses could not be loaded: the service refused access (with Mapbox: check your token).",
   "geotagger.geocode.fehler.gedrosselt": "Addresses could not be loaded: too many requests in a short time. Wait a few minutes.",
-  "geotagger.geocode.fehler.unbekannt": "Addresses could not be loaded. Details are in the log (Settings → Show log)."
+  "geotagger.geocode.fehler.unbekannt": "Addresses could not be loaded. Details are in the log (Settings → Show log).",
+  "library.sort.act_asc": "By activity",
+  "library.dupe_intro": "Ticked files are moved to the trash, not deleted for good. The oldest file in each group is pre-selected to keep.",
+  "library.dupe_first": "oldest file",
+  "library.dupe_trash": "Move ticked to trash",
+  "library.dupe_done": "{n} moved to the trash",
+  "library.dupe_done_err": "{n} moved, {f} failed"
 }
