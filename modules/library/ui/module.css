@@ -509,3 +509,17 @@
 .lib-dupe-actions { display: flex; align-items: center; gap: 12px; margin-top: 16px;
                     padding-top: 14px; border-top: 1px solid var(--border); }
 .lib-dupe-status { font-size: 12.5px; color: var(--text-muted); }
+
+/* „Gegend: Teneriffa — 163 Touren hier": der Hinweis, dass die Suche den
+   Begriff als Ort gedeutet hat statt als Text. Muss auffallen, sonst wundert
+   man sich über Treffer, in denen das Suchwort nirgends steht. */
+.lib-head-ort {
+  background: rgba(90, 170, 255, .12);
+  border: 1px solid rgba(90, 170, 255, .45);
+  color: #a8cfff;
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.lib-head-ort b { color: #d8e9ff; }

@@ -18,6 +18,20 @@ Bei jeder neuen Version:
 - **Archiv: Sortierung nach Fortbewegung** (Wunsch Beta-Tester). Erst alle
   Radtouren, dann alle Wanderungen — innerhalb jeder Art die neuesten zuerst.
   Touren ohne erkannte Art stehen am Ende, nicht mittendrin.
+- **Archiv: nach Gegenden suchen — auch nach Namen, die in keiner Datei stehen.**
+  „Teneriffa" fand bisher nichts, obwohl 163 Touren dort liegen: Die Suche kann
+  nur finden, was jemand hingeschrieben hat, und die Touren wissen bloß, **wo**
+  sie sind. Jetzt wird der Suchbegriff selbst nachgeschlagen — findet sich dazu
+  ein Ort, zeigt das Archiv alles, was in dieser Gegend liegt, mit dem Hinweis
+  „Gegend: Teneriffa — 163 Touren hier". Das greift nur, wenn die Textsuche
+  nichts findet, und funktioniert für jeden Ortsnamen in jeder Sprache, ohne
+  gepflegte Namensliste. (Idee von Marc — die zuerst gebaute Liste deutscher
+  Inselnamen ist damit hinfällig und wieder raus.)
+- **Zusätzlich benennt das Archiv im Hintergrund die Gegend jeder Tour**
+  (Ort · Provinz/Insel · Region · Land) und legt sie dauerhaft ab, sodass auch
+  die normale Textsuche sie findet. Läuft tröpfelnd wie die Kartenbilder. Bei
+  einer Tour über Ländergrenzen werden Start, Ziel und Punkte dazwischen
+  abgefragt — eine Fahrt Berlin–Teneriffa steht dann unter beiden Namen.
 - **Archiv: Fortbewegungsart je Tour selbst wählen** (Wunsch Beta-Tester). In der
   Detailspalte steht jetzt eine Auswahl; „Automatisch erkannt" zeigt daneben, was
   die Schätzung sagt. Die Wahl hängt am **Streckenverlauf**, nicht am Dateipfad:

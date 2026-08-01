@@ -47,6 +47,8 @@ function mountLibrary(body, headerActions) {
   // Hintergrundlauf „Kartenbilder holen": läuft ohne Zutun, die Kacheln sollen
   // die eintröpfelnden Bilder von selbst zeigen.
   let _autoThumbs = null, _autoWatch = null, _autoTick = 0;
+  let _autoPlaces = null;   // läuft der Ortslauf gerade?
+  let _ortTreffer = null;   // Suche hat den Begriff als Gegend gedeutet
   let _scanTimer = null, _mapsTimer = null, _unmounted = false;
   let _map = null, _mapReady = false, _mapPopup = null, _mapLib = null;
 
@@ -199,6 +201,25 @@ function mountLibrary(body, headerActions) {
     if (!res.ok) { toast(res.error || "Archiv-Abfrage fehlgeschlagen", "error"); return; }
     _items = res.items || [];
     _total = res.total || 0;
+    _ortTreffer = null;
+
+    // Die Suche andersherum: Findet der Text nichts, wird der Begriff als ORT
+    // nachgeschlagen und alles gezeigt, was in dieser Gegend liegt. „Teneriffa"
+    // steht in keiner Datei — die Touren wissen nur, wo sie sind.
+    if (_total === 0 && (state.search || "").trim().length >= 3) {
+      const ort = await api().library_search_place(state.search.trim(), queryParams({
+        limit: (view === "map" || view === "stats") ? 0 : PAGE,
+        with_thumbs: view === "cards" || view === "list",
+        with_geom: view === "map",
+        search: "",          // beim Ortstreffer zählt die Gegend, nicht der Text
+      }));
+      if (_unmounted) return;
+      if (ort && ort.ok && ort.found && (ort.total || 0) > 0) {
+        _items = ort.items || [];
+        _total = ort.total || 0;
+        _ortTreffer = { name: ort.place, total: ort.total };
+      }
+    }
     // Wer den Bereich wechselt, soll rechts nicht die Tour von vorhin sehen —
     // die steht dann in keiner Liste mehr und wirkt wie ein Geist.
     if (_sel && !_items.some(i => i.path === _sel.path)) _sel = null;
@@ -322,6 +343,8 @@ function mountLibrary(body, headerActions) {
       ${s.total_km ? `<span class="lib-head-sub">${num(s.total_km)} km · ${num(s.total_ascent_m)} ${T("library.ascent", "Höhenmeter")} · ${num(s.total_hours)} ${T("library.hours", "Stunden")}</span>` : ""}
       ${(scope === "all" && s.planned && s.planned.n) ? `<span class="lib-head-mix">${s.done.n} ${T("library.done_short", "gemacht")} · ${s.planned.n} ${T("library.planned", "geplant")}</span>` : ""}
       ${_autoThumbs ? `<span class="lib-head-auto">🗺️ ${T("library.map_thumbs_auto", "Kartenbilder werden geladen")} ${_autoThumbs.done || 0}/${_autoThumbs.total || "?"}</span>` : ""}
+      ${_ortTreffer ? `<span class="lib-head-ort">📍 ${T("library.found_area", "Gegend")}: <b>${esc(_ortTreffer.name.split(",")[0])}</b> — ${_ortTreffer.total} ${T("library.tours_here", "Touren hier")}</span>` : ""}
+      ${_autoPlaces ? `<span class="lib-head-auto">📍 ${T("library.places_auto", "Gegenden werden benannt")} ${_autoPlaces.done || 0}/${_autoPlaces.total || "?"}</span>` : ""}
       ${s.n_failed ? `<button class="lib-head-warn" id="lib-show-errors">${s.n_failed} ${T("library.unreadable", "Datei(en) nicht lesbar")}</button>` : ""}
     `;
     const eb = $("lib-show-errors");
@@ -1351,12 +1374,14 @@ function mountLibrary(body, headerActions) {
    *  Bilder eintröpfeln — sonst müsste man das Modul neu öffnen, um etwas zu
    *  sehen. Bewusst selten (alle 5 s Status, alle 20 s die Liste). */
   async function watchAutoThumbs() {
-    let st = null;
+    let st = null, ort = null;
     try { st = await api().library_map_thumbs_status(); } catch (_) { return; }
+    try { ort = await api().library_places_status(); } catch (_) {}
     if (_unmounted) return;
-    const wasRunning = !!_autoThumbs;
+    const wasRunning = !!_autoThumbs || !!_autoPlaces;
     _autoThumbs = (st && st.running) ? st : null;
-    if (_autoThumbs) {
+    _autoPlaces = (ort && ort.running) ? ort : null;
+    if (_autoThumbs || _autoPlaces) {
       renderHead();
       if (++_autoTick % 4 === 0) reload();
     } else if (wasRunning) {

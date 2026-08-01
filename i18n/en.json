@@ -1487,7 +1487,7 @@
   "modules.library.desc": "All tours",
   "library.open": "Open library",
   "library.from_archive": "From library …",
-  "library.search_ph": "Search — name, place, tag …",
+  "library.search_ph": "Search — name, area, tag, note …",
   "library.year": "Year",
   "library.activity": "Activity",
   "library.sort": "Sort by",
@@ -1660,5 +1660,8 @@
   "library.act_auto": "Detected automatically",
   "library.act_none": "none",
   "library.act_manual": "Set by you — applies to every copy of this tour.",
-  "library.act_guessed": "Guessed from name and pace. Change it once and it sticks."
+  "library.act_guessed": "Guessed from name and pace. Change it once and it sticks.",
+  "library.places_auto": "Naming the areas",
+  "library.found_area": "Area",
+  "library.tours_here": "tours here"
 }

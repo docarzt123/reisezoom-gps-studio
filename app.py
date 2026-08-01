@@ -1530,6 +1530,13 @@ class Api:
                 self.library_map_thumbs_start(auto=True)
             except Exception:
                 log.exception("library auto map thumbs")
+            # Gegenden benennen — damit die Suche „Teneriffa" findet und nicht
+            # nur, was zufällig im Dateinamen steht. Läuft NACH den Bildern,
+            # damit nicht zwei Hintergrundläufe gleichzeitig am Netz hängen.
+            try:
+                self.library_places_start(auto=True)
+            except Exception:
+                log.exception("library auto places")
 
         threading.Thread(target=worker, daemon=True, name="library-startup").start()
 
@@ -1695,6 +1702,108 @@ class Api:
 
     def library_map_thumbs_stop(self) -> dict:
         self._lib_maps_stop = True
+        return {"ok": True}
+
+    # ── Gegenden benennen (Ortssuche im Archiv) ──────────────────────────────
+
+    def library_places_start(self, auto: bool = False) -> dict:
+        """Für Touren ohne Ortsangabe die Gegend nachschlagen.
+
+        Warum es das braucht: Die Suche durchsucht `place`/`region`/`country`
+        seit jeher — nur hat die nie jemand gefüllt. „Teneriffa" fand deshalb
+        keine der 163 Touren, die dort liegen.
+
+        Läuft wie der Bilder-Lauf im Hintergrund und tröpfelt: Nominatim erlaubt
+        rund eine Anfrage je Sekunde, und das ist ein fremder, kostenloser
+        Dienst — den fragen wir freundlich, nicht im Sturm.
+        """
+        if getattr(self, "_lib_places_running", False):
+            return {"ok": False, "error": "läuft bereits"}
+        try:
+            offen = clib.orte_fehlen(self._lib())
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        if not offen:
+            return {"ok": True, "nothing_to_do": True}
+        self._lib_places_running = True
+        self._lib_places_stop = False
+        self._lib_places_state = {"running": True, "done": 0, "total": len(offen),
+                                  "current": "", "auto": bool(auto), "benannt": 0}
+
+        def worker():
+            benannt = 0
+            try:
+                for i, t in enumerate(offen, 1):
+                    if self._lib_places_stop:
+                        break
+                    self._lib_places_state.update(
+                        {"done": i, "current": os.path.basename(t["path"])})
+                    try:
+                        geom = json.loads(t["geom"] or "[]")
+                    except (TypeError, ValueError):
+                        continue
+                    treffer = []
+                    for lat, lon in clib._ort_anker(geom):
+                        if self._lib_places_stop:
+                            break
+                        # zoom=10 = Ort/Gemeinde. Feiner brauchen wir es nicht:
+                        # gesucht wird nach Gegend, nicht nach Hausnummer.
+                        a = cgeocode.reverse(lat, lon, provider="nominatim",
+                                             lang="de", zoom=10, timeout=12.0)
+                        if a:
+                            treffer.append(a)
+                    felder = clib._ort_zusammenfassen(treffer)
+                    if any(felder.values()):
+                        clib.ort_speichern(self._lib(), t["path"], felder)
+                        benannt += 1
+                        self._lib_places_state["benannt"] = benannt
+            except Exception as e:
+                log.exception("library_places")
+                self._lib_places_state["error"] = str(e)
+            finally:
+                self._lib_places_state["running"] = False
+                self._lib_places_running = False
+                log.info("library_places: %d von %d Touren benannt", benannt, len(offen))
+
+        threading.Thread(target=worker, daemon=True, name="library-places").start()
+        return {"ok": True, "total": len(offen)}
+
+    def library_search_place(self, query: str, **filter_kw) -> dict:
+        """Die Suche andersherum: Begriff als ORT nachschlagen, dann alles
+        zeigen, was in dieser Gegend liegt.
+
+        Die Textsuche findet nur, was jemand hingeschrieben hat — „Teneriffa"
+        steht in keiner Datei, die Touren wissen bloß, wo sie liegen. Hier wird
+        deshalb der Suchbegriff selbst nachgeschlagen; der Dienst liefert ein
+        Rechteck, und das Archiv zeigt, was darin liegt.
+        """
+        try:
+            ort = cgeocode.forward(query, lang="de")
+            if not ort:
+                return {"ok": True, "found": False}
+            kw = {k: v for k, v in (filter_kw or {}).items()
+                  if k in ("year", "activity", "fav_only", "planned", "min_km",
+                           "max_km", "sort", "limit", "offset", "include_hidden",
+                           "collection_id", "with_geom")}
+            kw["bbox"] = ort["bbox"]
+            res = self.library_query(kw)     # gleiche Aufbereitung wie sonst
+            res.update({"ok": True, "found": True, "place": ort["name"],
+                        "bbox": ort["bbox"], "lat": ort["lat"], "lon": ort["lon"]})
+            return res
+        except Exception as e:
+            log.exception("library_search_place")
+            return {"ok": False, "error": str(e)}
+
+    def library_places_status(self) -> dict:
+        st = dict(getattr(self, "_lib_places_state", {"running": False}))
+        try:
+            st["pending"] = len(clib.orte_fehlen(self._lib()))
+        except Exception:
+            pass
+        return st
+
+    def library_places_stop(self) -> dict:
+        self._lib_places_stop = True
         return {"ok": True}
 
     # ── Eigenes Titelbild pro Tour ───────────────────────────────────────────

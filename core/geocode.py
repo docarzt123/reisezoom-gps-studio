@@ -189,6 +189,7 @@ def _nominatim(lat: float, lon: float, lang: str, zoom: int, timeout: float) -> 
         display=data.get("display_name", ""),
         street=(f"{street} {house}".strip() if street else (a.get("suburb") or "")),
         city=city, state=a.get("state") or a.get("state_district") or "",
+        county=a.get("province") or a.get("county") or a.get("island") or "",
         country=a.get("country") or "", country_code=(a.get("country_code") or ""),
         postcode=a.get("postcode") or "",
     )
@@ -245,12 +246,18 @@ def _mapbox(lat: float, lon: float, token: str, lang: str, timeout: float) -> Op
     )
 
 
-def _norm(*, display, street, city, state, country, country_code, postcode) -> dict:
+def _norm(*, display, street, city, state, country, country_code, postcode,
+          county="") -> dict:
     return {
         "display": (display or "").strip(),
         "street": (street or "").strip(),
         "city": (city or "").strip(),
         "state": (state or "").strip(),
+        # Bei Inseln und Landkreisen steht hier der Name, der die Gegend
+        # wirklich benennt — „Santa Cruz de Tenerife", während `state` nur
+        # „Kanarische Inseln" sagt. Für die Ortssuche ist das der Unterschied
+        # zwischen „findet die Insel" und „findet sie nicht".
+        "county": (county or "").strip(),
         "country": (country or "").strip(),
         "country_code": (country_code or "").strip().upper(),
         "postcode": (postcode or "").strip(),
@@ -260,3 +267,65 @@ def _norm(*, display, street, city, state, country, country_code, postcode) -> d
 def cache_size() -> int:
     with _LOCK:
         return len(_CACHE)
+
+
+# ── Ortsname → Koordinaten (die Suche andersherum) ──────────────────────────
+#
+# Die Textsuche im Archiv findet nur, was jemand hingeschrieben hat. „Teneriffa"
+# steht aber in keiner Datei — die Touren wissen bloß, WO sie liegen. Also wird
+# der Suchbegriff selbst nachgeschlagen: Nominatim liefert zu „Teneriffa" ein
+# Rechteck, und das Archiv zeigt alles, was darin liegt. Damit braucht es keine
+# handgepflegte Liste von Inselnamen — es funktioniert für jeden Ort, in jeder
+# Sprache, auch für Namen, die in keiner Tour vorkommen.
+
+_FWD_CACHE: dict = {}
+
+
+def forward(query: str, *, lang: str = "de", timeout: float = 10.0) -> Optional[dict]:
+    """Ortsname → {name, lat, lon, bbox}. None, wenn nichts gefunden wurde.
+
+    Das Rechteck kommt vom Dienst und ist die eigentliche Nutzlast: für eine
+    Insel ist es die Insel, für eine Stadt die Stadt. Genau danach filtert das
+    Archiv anschließend.
+    """
+    q = (query or "").strip()
+    if len(q) < 3:
+        return None
+    key = (q.lower(), lang)
+    with _LOCK:
+        if key in _FWD_CACHE:
+            return _FWD_CACHE[key]
+
+    interval = _MIN_INTERVAL.get("nominatim", 1.0)
+    with _LOCK:
+        wait = interval - (time.monotonic() - _last_call.get("nominatim", 0.0))
+        if wait > 0:
+            time.sleep(wait)
+        _last_call["nominatim"] = time.monotonic()
+
+    out = None
+    try:
+        params = urllib.parse.urlencode({
+            "format": "jsonv2", "q": q, "limit": "1",
+            "accept-language": lang, "addressdetails": "1",
+        })
+        data = _fetch_json(f"https://nominatim.openstreetmap.org/search?{params}", timeout)
+        if data:
+            d = data[0]
+            bb = d.get("boundingbox") or []
+            if len(bb) == 4:
+                out = {
+                    "name": d.get("display_name", "") or q,
+                    "lat": float(d.get("lat") or 0.0),
+                    "lon": float(d.get("lon") or 0.0),
+                    "typ": d.get("type", ""),
+                    "bbox": {"min_lat": float(bb[0]), "max_lat": float(bb[1]),
+                             "min_lon": float(bb[2]), "max_lon": float(bb[3])},
+                }
+    except Exception as e:
+        log.warning("forward(%r) fehlgeschlagen: %s", q, e)
+        merke_fehler(e)
+
+    with _LOCK:
+        _FWD_CACHE[key] = out
+    return out
