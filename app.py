@@ -1746,6 +1746,34 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def library_set_activity(self, path: str, activity: str = "") -> dict:
+        """Fortbewegungsart von Hand setzen. Leer = zurück zur Schätzung.
+
+        Der Wert hängt am Streckenverlauf, nicht am Dateipfad — eine Korrektur
+        gilt für alle Kopien derselben Tour und überlebt jedes Neu-Einlesen.
+        """
+        try:
+            clib.set_activity(self._lib(), path, activity)
+            return {"ok": True, "track": clib.get_track(self._lib(), path),
+                    "choices": list(clib.ACTIVITIES)}
+        except ValueError as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:
+            log.exception("library_set_activity")
+            return {"ok": False, "error": str(e)}
+
+    def library_get_track(self, path: str) -> dict:
+        """Eine einzelne Tour mit allen Feldern — inklusive `activity_user`,
+        das in der Trefferliste bewusst nicht mitkommt."""
+        try:
+            return {"ok": True, "track": clib.get_track(self._lib(), path)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_activities(self) -> dict:
+        """Die wählbaren Fortbewegungsarten (für die Auswahlliste)."""
+        return {"ok": True, "choices": list(clib.ACTIVITIES)}
+
     def library_set_hidden(self, path: str, hidden: bool = True) -> dict:
         try:
             clib.set_hidden(self._lib(), path, hidden)

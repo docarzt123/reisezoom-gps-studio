@@ -18,6 +18,11 @@ Bei jeder neuen Version:
 - **Archiv: Sortierung nach Fortbewegung** (Wunsch Beta-Tester). Erst alle
   Radtouren, dann alle Wanderungen — innerhalb jeder Art die neuesten zuerst.
   Touren ohne erkannte Art stehen am Ende, nicht mittendrin.
+- **Archiv: Fortbewegungsart je Tour selbst wählen** (Wunsch Beta-Tester). In der
+  Detailspalte steht jetzt eine Auswahl; „Automatisch erkannt" zeigt daneben, was
+  die Schätzung sagt. Die Wahl hängt am **Streckenverlauf**, nicht am Dateipfad:
+  sie überlebt Neu-Einlesen, Umbenennen und Verschieben und gilt sofort für alle
+  Kopien derselben Tour. Zurück auf „Automatisch" stellt die Schätzung wieder her.
 - **Doppelte gleich wegräumen** statt sie nur zu finden (Wunsch Beta-Tester).
   Der Dialog zeigt jede Gruppe mit Auswahlkästchen; die **älteste** Datei ist
   zum Behalten vorbelegt, der Rest angehakt. Bewusst kein „alles weg"-Knopf:

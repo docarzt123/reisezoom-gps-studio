@@ -781,6 +781,17 @@ function mountLibrary(body, headerActions) {
       </div>
       <div class="lib-hint">${recSrcText(it)}</div>
 
+      <div class="field-label" style="margin-top:10px;">${T("library.activity", "Fortbewegung")}</div>
+      <select id="lib-d-act" class="lib-select lib-d-act">
+        <option value="">${T("library.act_auto", "Automatisch erkannt")}${
+          it.activity_user ? "" : ` — ${ACT_LABELS[it.activity] || it.activity || T("library.act_none", "keine")}`}</option>
+        ${Object.keys(ACT_LABELS).map(k =>
+          `<option value="${k}"${it.activity_user === k ? " selected" : ""}>${esc(ACT_LABELS[k])}</option>`).join("")}
+      </select>
+      <div class="lib-hint">${it.activity_user
+        ? T("library.act_manual", "Von dir gesetzt — gilt für alle Kopien dieser Tour.")
+        : T("library.act_guessed", "Geschätzt aus Name und Tempo. Einmal ändern genügt, es bleibt.")}</div>
+
       <div class="field-label" style="margin-top:10px;">${T("library.collections", "Sammlungen")}</div>
       <div id="lib-d-cols" class="lib-colchips"></div>
 
@@ -811,6 +822,30 @@ function mountLibrary(body, headerActions) {
       if (res && res.ok && res.track) { Object.assign(it, res.track); renderView(); }
     }, 600);
     nameInput.oninput = saveName;
+
+    // Die Listendaten kennen `activity_user` nicht (das steht in track_meta und
+    // wird nur je Tour nachgeschlagen). Einmal nachladen, damit die Auswahl den
+    // richtigen Zustand zeigt.
+    if (it.activity_user === undefined) {
+      api().library_get_track(it.path).then(r => {
+        if (r && r.ok && r.track && r.track.activity_user !== undefined) {
+          it.activity_user = r.track.activity_user;
+          if (_sel && _sel.path === it.path) renderDetail();
+        }
+      }).catch(() => {});
+    }
+
+    $("lib-d-act").onchange = async (e) => {
+      const res = await api().library_set_activity(it.path, e.target.value);
+      if (res && res.ok && res.track) {
+        Object.assign(it, res.track);
+        renderDetail();
+        // Der Filter „Fortbewegung" und die Statistik zählen jetzt anders.
+        if (state.activity) reload(); else { renderView(); reloadStats(); }
+      } else if (res && res.error) {
+        toast(res.error, "error");
+      }
+    };
 
     $("lib-d-fav").onchange = async (e) => {
       await api().library_set_fields(it.path, e.target.checked, null, null);

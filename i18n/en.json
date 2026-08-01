@@ -1656,5 +1656,9 @@
   "library.dupe_first": "oldest file",
   "library.dupe_trash": "Move ticked to trash",
   "library.dupe_done": "{n} moved to the trash",
-  "library.dupe_done_err": "{n} moved, {f} failed"
+  "library.dupe_done_err": "{n} moved, {f} failed",
+  "library.act_auto": "Detected automatically",
+  "library.act_none": "none",
+  "library.act_manual": "Set by you — applies to every copy of this tour.",
+  "library.act_guessed": "Guessed from name and pace. Change it once and it sticks."
 }

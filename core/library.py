@@ -209,6 +209,11 @@ CREATE TABLE IF NOT EXISTS track_meta (
     recorded_user INTEGER DEFAULT NULL,
     display_name  TEXT DEFAULT '',
     hidden        INTEGER DEFAULT 0,
+    -- Vom Nutzer gewählte Fortbewegungsart. Leer = die Schätzung aus Name und
+    -- Tempo gilt (_guess_activity). Wer einmal korrigiert, korrigiert für immer:
+    -- der Wert hängt am geo_hash und überlebt Neu-Einlesen, Umbenennen und
+    -- Verschieben. Wunsch eines Beta-Testers, v0.9.496.
+    activity_user TEXT DEFAULT '',
     last_name     TEXT DEFAULT '',
     first_seen    TEXT,
     last_seen     TEXT
@@ -297,10 +302,20 @@ def open_db(db_path: Path) -> sqlite3.Connection:
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
         (str(SCHEMA_VERSION),),
     )
+    _migrate_meta_spalten(conn)
     _migrate_meta(conn)
     _migrate_collection_items(conn)
     conn.commit()
     return conn
+
+
+def _migrate_meta_spalten(conn: sqlite3.Connection) -> None:
+    """Fehlende Spalten in `track_meta` nachziehen (bestehende Archive)."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(track_meta)").fetchall()}
+    for name, typ in (("activity_user", "TEXT DEFAULT ''"),):
+        if name not in cols:
+            log.info("library: track_meta.%s wird ergänzt", name)
+            conn.execute(f"ALTER TABLE track_meta ADD COLUMN {name} {typ}")
 
 
 def _migrate_collection_items(conn: sqlite3.Connection) -> None:
@@ -475,6 +490,10 @@ _ACT_WORDS = [
     ("boot",        ("kajak", "kanu", "paddel", "boot", "kayak", "sup ", "segeln")),
     ("ski",         ("ski", "langlauf", "skitour", "schneeschuh", "snowboard")),
 ]
+
+# Die Arten, die von Hand wählbar sind — dieselbe Liste, die auch geschätzt wird.
+# `set_activity` prüft dagegen, damit kein Tippfehler in der Datenbank landet.
+ACTIVITIES = tuple(k for k, _ in _ACT_WORDS)
 
 
 def _guess_activity(name: str, distance_m: float, moving_s: float) -> str:
@@ -852,6 +871,9 @@ def scan(
 
 
 _META_COLS = ["fav", "tags", "note", "cover", "recorded_user", "display_name", "hidden"]
+# Sonderfall: in `track_meta` heißt die Spalte `activity_user` (leer = Schätzung
+# gilt), in `tracks` schlicht `activity`. Deshalb wird sie getrennt gespiegelt.
+
 
 
 def _geo_of(conn: sqlite3.Connection, path: str) -> str:
@@ -886,6 +908,12 @@ def _apply_meta(conn: sqlite3.Connection, geo_hash: str, name: str = "",
     conn.execute(
         f"UPDATE tracks SET {', '.join(c + ' = ?' for c in _META_COLS)} WHERE geo_hash = ?",
         [m[c] for c in _META_COLS] + [geo_hash])
+    # Hat der Nutzer die Fortbewegungsart selbst gesetzt, gewinnt sie — sonst
+    # bleibt die Schätzung aus Name und Tempo stehen (leerer Wert = kein Eingriff).
+    gewaehlt = (m["activity_user"] if "activity_user" in m.keys() else "") or ""
+    if gewaehlt:
+        conn.execute("UPDATE tracks SET activity = ? WHERE geo_hash = ?",
+                     (gewaehlt, geo_hash))
     conn.execute("UPDATE track_meta SET last_seen = ?, last_name = ? WHERE geo_hash = ?",
                  (now, name or m["last_name"] or "", geo_hash))
 
@@ -1106,7 +1134,18 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
 @_locked
 def get_track(conn: sqlite3.Connection, path: str) -> Optional[dict]:
     r = conn.execute("SELECT * FROM tracks WHERE path = ?", (path,)).fetchone()
-    return _to_dict(r) if r else None
+    if not r:
+        return None
+    d = _to_dict(r)
+    # `activity_user` steht in `track_meta` und sagt der Oberfläche, ob die Art
+    # geschätzt oder von Hand gesetzt ist. Bewusst hier nachgeschlagen statt per
+    # JOIN in `query()`: die Bedingungen dort sind ohne Tabellen-Präfix
+    # geschrieben, ein JOIN machte `geo_hash` mehrdeutig — und gebraucht wird
+    # der Wert nur in der Detailspalte, also für genau eine Tour.
+    m = conn.execute("SELECT activity_user FROM track_meta WHERE geo_hash = ?",
+                     (d.get("geo_hash") or "",)).fetchone()
+    d["activity_user"] = (m["activity_user"] if m else "") or ""
+    return d
 
 
 def _count_hidden(filters: dict) -> tuple:
@@ -1222,6 +1261,39 @@ def set_user_fields(conn: sqlite3.Connection, path: str, fav=None, tags=None, no
     if not fields:
         return False
     return _set_meta(conn, path, **fields)
+
+
+@_locked
+def set_activity(conn: sqlite3.Connection, path: str, activity: str) -> bool:
+    """Fortbewegungsart von Hand setzen — leerer Wert stellt die Schätzung her.
+
+    Der Wert hängt am `geo_hash`, nicht am Pfad: eine Korrektur überlebt
+    Neu-Einlesen, Umbenennen und Verschieben, und sie gilt sofort für alle
+    Kopien derselben Tour.
+    """
+    wert = (activity or "").strip().lower()
+    if wert and wert not in ACTIVITIES:
+        raise ValueError(f"Unbekannte Fortbewegungsart: {activity!r}")
+    geo = _geo_of(conn, path)
+    if not geo:
+        return False
+    now = _now_iso()
+    conn.execute("INSERT INTO track_meta(geo_hash, activity_user, first_seen, last_seen) "
+                 "VALUES(?,?,?,?) ON CONFLICT(geo_hash) DO UPDATE SET "
+                 "activity_user = excluded.activity_user, last_seen = excluded.last_seen",
+                 (geo, wert, now, now))
+    if wert:
+        conn.execute("UPDATE tracks SET activity = ? WHERE geo_hash = ?", (wert, geo))
+    else:
+        # Zurück auf die Schätzung — pro Datei neu, weil sie von Name, Distanz
+        # und Fahrzeit abhängt und die je Kopie abweichen können.
+        for r in conn.execute("SELECT path, name, distance_m, moving_time_s FROM tracks "
+                              "WHERE geo_hash = ?", (geo,)).fetchall():
+            conn.execute("UPDATE tracks SET activity = ? WHERE path = ?",
+                         (_guess_activity(r["name"] or "", r["distance_m"] or 0.0,
+                                          r["moving_time_s"] or 0.0), r["path"]))
+    conn.commit()
+    return True
 
 
 @_locked
