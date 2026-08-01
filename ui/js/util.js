@@ -845,12 +845,26 @@ function _resetActiveSession() {
  *  Nutzung:
  *    onMapReady(map, () => { rebuildPreviewLayers(); applyGlobalGpx(...); });
  */
+// Lebt diese Karte noch? Nach `map.remove()` ist `map.style` weg — ruft dann
+// noch jemand eine Karten-Methode auf, wirft Mapbox intern
+// „undefined is not an object (evaluating 'this.style.getOwnLayer')". Genau das
+// stand im Bug-Report von Martin W. (v0.9.495) mehrfach im Log. Beim Wechsel
+// zwischen Modulen wird die alte Karte abgebaut, während ein `load`-Rückruf noch
+// aussteht — der darf dann nicht mehr feuern.
+function _mapLebt(map) {
+  try { return !!(map && map.style && !map._removed); } catch (_) { return false; }
+}
+
 function onMapReady(map, cb) {
-  if (!map) return;
+  if (!_mapLebt(map)) return;
   const styleReady = map.isStyleLoaded();
   applog("info", `[onMapReady] styleLoaded=${styleReady}`);
   if (styleReady) { try { cb(); } catch (err) { console.warn("onMapReady cb:", err); applog("error", "[onMapReady cb-sync] " + err); } return; }
   map.once("load", () => {
+    if (!_mapLebt(map)) {
+      applog("info", "[onMapReady] Karte war beim load-Event schon abgebaut — Rückruf übersprungen");
+      return;
+    }
     applog("info", "[onMapReady] load event fired, calling cb");
     try { cb(); } catch (err) { console.warn("onMapReady cb:", err); applog("error", "[onMapReady cb-load] " + err); }
   });

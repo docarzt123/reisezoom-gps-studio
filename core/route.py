@@ -38,15 +38,16 @@ _HTTP_TIMEOUT = 20  # Sekunden
 # Directions) starb mit „CERTIFICATE_VERIFY_FAILED: unable to get local issuer
 # certificate". `certifi` ist über `requests` mitgebündelt; sein cacert.pem liegt im
 # Bundle und wird hier explizit als CA-Quelle gesetzt. Fallback = System-Default.
+# Seit v0.9.496 steht die Logik in core/net.py — sie wurde vorher an drei
+# Stellen einzeln gepflegt und fehlte an dreien.
+from . import net
+
+
 def _make_ssl_context() -> "ssl.SSLContext":
-    try:
-        import certifi  # über requests verfügbar + via PyInstaller-Hook gebündelt
-        return ssl.create_default_context(cafile=certifi.where())
-    except Exception:  # noqa: BLE001
-        return ssl.create_default_context()
+    return net.ssl_context()
 
 
-_SSL_CTX = _make_ssl_context()
+_SSL_CTX = net.ssl_context()
 
 # Profil-Mapping UI → Mapbox-Directions-Profil
 _PROFILES = {

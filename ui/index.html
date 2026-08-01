@@ -31,10 +31,16 @@
     if (/Mac|iPhone|iPad/i.test(p)) return '~/Library/Application Support/Reisezoom GPS Studio/logs/app.log';
     return '~/.local/share/Reisezoom GPS Studio/logs/app.log';
   }
-  function toBackend(msg) {
+  // v0.9.496 — Die Meldung hieß IMMER „STARTFEHLER", auch wenn der Fehler eine
+  // halbe Stunde nach dem Start auftrat. Im Bug-Report von Martin W. standen
+  // deshalb „STARTFEHLER"-Zeilen mitten in einer laufenden Sitzung, und die
+  // Fehlersuche lief erst einmal in die falsche Richtung. Jetzt sagt die Zeile,
+  // wann es passiert ist.
+  function toBackend(msg, nachStart) {
     try {
       if (window.pywebview && window.pywebview.api && window.pywebview.api.log_js) {
-        window.pywebview.api.log_js('error', 'STARTFEHLER: ' + msg);
+        window.pywebview.api.log_js('error',
+          (nachStart ? 'JS-FEHLER (im Betrieb): ' : 'STARTFEHLER: ') + msg);
       }
     } catch (e) {}
   }
@@ -145,7 +151,7 @@
   // steht (__rzBooted). Sonst würde ein harmloser später Fehler die laufende App
   // zudecken. Ins app.log wandert der Fehler aber IMMER.
   function fail(title, detail) {
-    if (window.__rzBooted) { toBackend(title + ' | ' + detail); return; }
+    if (window.__rzBooted) { toBackend(title + ' | ' + detail, true); return; }
     window.__rzShowStartError(title, detail);
   }
 

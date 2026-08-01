@@ -24,6 +24,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+# Zertifikate für ausgehende HTTPS-Aufrufe — MUSS vor dem ersten TLS-Aufbau
+# stehen. Im gebauten Programm findet Pythons OpenSSL die System-Zertifikate
+# nicht; ohne diesen Riegel scheitert jeder Aufruf mit
+# CERTIFICATE_VERIFY_FAILED. Der Kern gibt zwar überall `context=` mit (siehe
+# core/net.py), aber fremder Code tut das nicht — `SSL_CERT_FILE` erwischt auch
+# den. Dreimal einzeln repariert, jetzt an einer Stelle.
+try:
+    from core import net as _rz_net
+    _rz_net.install_default_ca()
+except Exception:  # noqa: BLE001 — ohne Zertifikatsdatei bleibt der Systemspeicher
+    pass
+
 # Playwright sucht Chromium-Browser per Default neben seinem Driver
 # (`.../driver/package/.local-browsers/`). Im PyInstaller-Bundle landet
 # der Driver dort, die Browser aber NICHT — Playwright bricht dann mit
@@ -246,6 +258,21 @@ _drop_state_lock = threading.Lock()
 # Import hier noch landen würden.
 LOG_PATH = clog.setup_logging(APP_SUPPORT)
 log = clog.get_logger("app")
+
+# v0.9.496 — sichtbar machen, welchen Zertifikatsspeicher die App gefunden hat.
+# Ohne den scheitert JEDER HTTPS-Aufruf (Adressen, Höhen, Kartenbilder,
+# Update-Prüfung) mit CERTIFICATE_VERIFY_FAILED — dreimal von Nutzern gemeldet,
+# jedes Mal dauerte die Diagnose zu lange. Steht die Zeile im Log, ist die Frage
+# beim nächsten Bug-Report in fünf Sekunden beantwortet.
+try:
+    _ca = os.environ.get("SSL_CERT_FILE")
+    if _ca and os.path.exists(_ca):
+        log.info("Zertifikatsspeicher: %s", _ca)
+    else:
+        log.warning("Zertifikatsspeicher: keiner gefunden (SSL_CERT_FILE=%s) — "
+                    "HTTPS-Aufrufe können an der Zertifikatsprüfung scheitern", _ca)
+except Exception:  # noqa: BLE001
+    pass
 
 # v0.9.229 — sichtbar machen, welcher Chromium-Pfad greift (gebündelt vs.
 # User-Cache-Fallback). So lässt sich verifizieren, dass der Render out-of-box
@@ -5127,6 +5154,7 @@ class Api:
 
         def _run():
             results: dict = {}
+            cgeocode.fehler_zuruecksetzen()
             try:
                 # Stufe 0 — Land/Region (1 Call auf den Schwerpunkt aller Fotos)
                 clat = sum(p[1] for p in pts) / len(pts)
@@ -5153,11 +5181,22 @@ class Api:
             except Exception:
                 log.exception("reverse_geocode-Pyramide fehlgeschlagen")
             finally:
+                # Wenn nichts herauskam, den Grund mitliefern — „0 Adressen"
+                # ohne Erklärung hat einen Nutzer eine Stunde gekostet
+                # (Bug-Report Martin W., v0.9.495: Zertifikatsfehler, alle drei
+                # Dienste durchprobiert, keiner sagte warum).
+                grund = cgeocode.letzter_fehler() if not results else {"art": "", "text": ""}
                 with self._geo_lock:
                     if not _superseded():
                         self._geo_state["running"] = False
                         self._geo_state["completed"] = True
-                log.info("reverse_geocode (%s): fertig, %d Adressen", provider, len(results))
+                        self._geo_state["fehler_art"] = grund.get("art", "")
+                        self._geo_state["fehler_text"] = grund.get("text", "")
+                if grund.get("art"):
+                    log.warning("reverse_geocode (%s): fertig, 0 Adressen — Grund: %s (%s)",
+                                provider, grund["art"], grund["text"])
+                else:
+                    log.info("reverse_geocode (%s): fertig, %d Adressen", provider, len(results))
 
         self._geo_worker = threading.Thread(target=_run, daemon=True)
         self._geo_worker.start()

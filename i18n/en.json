@@ -1644,5 +1644,11 @@
   "library.map_thumbs_auto": "Fetching map pictures",
   "library.scope_missing": "Not reachable",
   "library.missing_hint": "The file cannot be found right now — drive not connected?",
-  "library.missing_long": "This file cannot be found right now — most likely it sits on a drive that is not connected. The tour stays in the library; as soon as the file is back, everything carries on. After 90 days without a sighting the entry disappears (what you noted about it stays regardless)."
+  "library.missing_long": "This file cannot be found right now — most likely it sits on a drive that is not connected. The tour stays in the library; as soon as the file is back, everything carries on. After 90 days without a sighting the entry disappears (what you noted about it stays regardless).",
+  "geotagger.geocode.fehler.zertifikat": "Addresses could not be loaded: the app finds no valid security certificates on this computer. Please update to the latest version — it is fixed there.",
+  "geotagger.geocode.fehler.offline": "Addresses could not be loaded: no internet connection.",
+  "geotagger.geocode.fehler.langsam": "Addresses could not be loaded: the service took too long. Please try again later.",
+  "geotagger.geocode.fehler.zugang": "Addresses could not be loaded: the service refused access (with Mapbox: check your token).",
+  "geotagger.geocode.fehler.gedrosselt": "Addresses could not be loaded: too many requests in a short time. Wait a few minutes.",
+  "geotagger.geocode.fehler.unbekannt": "Addresses could not be loaded. Details are in the log (Settings → Show log)."
 }

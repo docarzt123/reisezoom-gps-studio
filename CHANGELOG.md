@@ -15,6 +15,31 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Behoben
+- **Im Geotagger wurden keine Adressen gefunden — an keinem der drei Dienste.**
+  (Bug-Report Martin Winkler.) Ursache war nicht der Dienst, sondern das
+  Programm selbst: In der gebauten App findet Pythons Verschlüsselung die
+  Sicherheits-Zertifikate des Systems nicht, und **jede** Abfrage starb an der
+  Zertifikatsprüfung. Für die Reiseroute (v0.9.261) und die Update-Prüfung
+  (v0.9.316) war dieselbe Ursache schon einmal repariert worden — jeweils nur an
+  der einen Stelle. Jetzt steht die Lösung **einmal** in `core/net.py`, alle
+  ausgehenden Verbindungen benutzen sie, und beim Start wird zusätzlich
+  `SSL_CERT_FILE` gesetzt, damit auch fremder Code sie findet.
+  **Mitbetroffen und ebenfalls behoben, ohne dass es jemand gemeldet hatte:**
+  Höhen aus dem Geländemodell und die Kartenbilder im Tour-Archiv.
+  Ein Test (`tests/test_https_certificates.py`) stellt den Fehler nach und
+  scheitert, wenn jemand künftig einen Aufruf ohne Zertifikatsprüfung ergänzt.
+- **„Fertig, 0 Adressen" war ein Fehlschlag, der wie ein Erfolg aussah.** Wenn
+  die Abfrage scheiterte, stand der Grund nur im Log — der Nutzer probierte
+  daraufhin alle drei Dienste durch, ohne dass einer ihm sagte, woran es lag.
+  Jetzt nennt die Anzeige den Grund in Klartext: keine Verbindung, Zertifikate,
+  Zeitüberschreitung, Zugang abgelehnt oder zu viele Anfragen — in DE/EN/ES.
+- **Karten-Rückrufe nach dem Modulwechsel** konnten auf eine bereits abgebaute
+  Karte treffen; Mapbox warf dann `undefined is not an object (evaluating
+  'this.style.getOwnLayer')`. `onMapReady` prüft jetzt vor dem Rückruf, ob die
+  Karte überhaupt noch lebt.
+- **Jeder Programmfehler hieß im Log „STARTFEHLER"** — auch einer, der eine
+  Stunde nach dem Start auftrat. Das führt bei der Fehlersuche in die falsche
+  Richtung. Fehler im laufenden Betrieb heißen jetzt „JS-FEHLER (im Betrieb)".
 - **Die Einstellungen schickten Einsteiger in die Irre.** Beim Mapbox-Token stand
   „Leer lassen für Standard-Token" — einen mitgelieferten Standard-Token gibt es
   aber seit Längerem nicht mehr (`DEFAULT_MAPBOX_TOKEN = ""`). Wer dem Satz folgte,

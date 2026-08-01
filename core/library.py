@@ -1362,7 +1362,9 @@ def map_thumb_fetch(
            f"path-4+{line_color}-1({poly})/auto/{width}x{height}@2x"
            f"?access_token={urllib.parse.quote(token)}&attribution=false&logo=false")
     req = urllib.request.Request(url, headers={"User-Agent": "ReisezoomGPSStudio"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    # TLS-Kontext siehe core/net.py.
+    from . import net
+    with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as resp:
         data = resp.read()
     if not data:
         return ""
