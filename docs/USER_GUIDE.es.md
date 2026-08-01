@@ -249,7 +249,7 @@ En el primer arranque de la app se abre automáticamente un modal de onboarding 
 4. Copia el «Default public token» — empieza por `pk.eyJ…`
 5. Pégalo en la app en el campo del token → Guardar
 
-> ⚠️ **Se requiere tarjeta de crédito**: desde mediados de 2026, Mapbox exige una tarjeta de crédito al registrarse — **también para la cuenta gratuita**. Suena raro al principio, pero se ha vuelto habitual en muchos servicios en la nube. **No se cobra nada** mientras te mantengas en el nivel gratuito.
+> ⚠️ **Datos de pago**: el formulario de registro **no** pide tarjeta de crédito — pide nombre, correo, nombre de usuario y contraseña (comprobado el 01.08.2026). Mapbox puede pedir una tarjeta más adelante o a partir de cierto uso. **No se cobra nada** mientras te mantengas en el plan gratuito.
 >
 > 💡 **Nivel gratuito: 50 000 cargas de mapa al mes — gratis.** En la práctica alcanza para muchísimos renders. Con un uso normal de aficionado nunca verás una factura — tendrías que producir de forma realmente intensiva para llegar al límite.
 
