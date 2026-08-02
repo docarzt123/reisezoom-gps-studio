@@ -57,6 +57,11 @@ Bei jeder neuen Version:
   geht in den **Papierkorb**, nicht ins Nichts.
 
 ### Behoben
+- **Bei der Gegend-Suche widersprachen sich Liste und Zahlen.** Die Kacheln
+  zeigten 89 Touren, Seitenleiste und Statistik behaupteten 4 — samt Kilometern
+  und Höhenmetern, die zu den 4 gehörten. Grund: Die Liste lief über das Rechteck
+  der Gegend, die Statistik weiter über den eingetippten Text. Beide nehmen jetzt
+  denselben Filter; mit gleicher Auswahl kommen auch gleiche Zahlen heraus.
 - **Im Geotagger wurden keine Adressen gefunden — an keinem der drei Dienste.**
   (Bug-Report Martin Winkler.) Ursache war nicht der Dienst, sondern das
   Programm selbst: In der gebauten App findet Pythons Verschlüsselung die

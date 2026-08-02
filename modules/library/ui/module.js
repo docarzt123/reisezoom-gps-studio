@@ -230,7 +230,8 @@ function mountLibrary(body, headerActions) {
       // Nur übernehmen, wenn die Gegend MEHR liefert als der Text — sonst zeigt
       // „wanderung" die eine Tour bei einem Ort, der wirklich Wanderung heißt.
       if (ort && ort.ok && ort.found && (ort.total || 0) > _total) {
-        _ortAktiv = { name: ort.place, total: ort.total, textTreffer: _total };
+        _ortAktiv = { name: ort.place, total: ort.total, textTreffer: _total,
+                      bbox: ort.bbox };
         _items = ort.items || [];
         _total = ort.total || 0;
       }
@@ -245,9 +246,15 @@ function mountLibrary(body, headerActions) {
   }
 
   async function reloadStats() {
+    // ⚠️ Zeigt die Liste eine Gegend, muss die Statistik dieselbe Gegend meinen.
+    // Erste Fassung ließ sie auf der Textsuche stehen: die Kacheln zeigten 89
+    // Touren, die Seitenleiste behauptete 4, und die Kilometer daneben gehörten
+    // zu den 4. Gemeldet mit Bildschirmfoto — und es sah aus wie ein Zählfehler,
+    // war aber schlicht eine zweite, andere Abfrage.
+    const ortFilter = _ortAktiv ? { search: "", bbox: _ortAktiv.bbox } : {};
     const [s, base] = await Promise.all([
-      api().library_stats(queryParams()),
-      api().library_stats(baseParams()),
+      api().library_stats(queryParams(ortFilter)),
+      api().library_stats(Object.assign(baseParams(), ortFilter)),
     ]);
     if (_unmounted) return;
     _stats = s;
