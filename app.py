@@ -147,7 +147,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.497"
+APP_VERSION = "0.9.498"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1809,6 +1809,21 @@ class Api:
         """
         if getattr(self, "_lib_places_running", False):
             return {"ok": False, "error": "läuft bereits"}
+        # Der Schalter „Adress-Suche" gilt auch hier. Vorher wurde er NUR im
+        # Geotagger geprüft — dieser Lauf startet aber von selbst beim ersten
+        # Blick ins Archiv und macht bis zu sechs Abfragen je Tour. Bei 710
+        # Touren also bis zu ~4200 Anfragen an einen fremden Gratisdienst, bei
+        # jemandem, der Netzabfragen bewusst ausgeschaltet hat.
+        _s = _load_settings()
+        if not _s.get("geocode_enabled", True):
+            return {"ok": False, "disabled": True,
+                    "error": "Adress-Suche ist in den Einstellungen deaktiviert"}
+        # Und den gewählten Anbieter beachten, statt hart Nominatim zu nehmen:
+        # Wer Mapbox eingestellt hat, wartete sonst die 1,1-Sekunden-Zwangspause
+        # von Nominatim ab, obwohl sein Anbieter zehnmal schneller darf.
+        _token = (_s.get("mapbox_token") or "").strip()
+        _prov = cgeocode.resolve_provider(_s.get("geocode_provider", "auto"), _token) \
+            or "nominatim"
         try:
             offen = clib.orte_fehlen(self._lib())
         except Exception as e:
@@ -1838,7 +1853,8 @@ class Api:
                             break
                         # zoom=10 = Ort/Gemeinde. Feiner brauchen wir es nicht:
                         # gesucht wird nach Gegend, nicht nach Hausnummer.
-                        a = cgeocode.reverse(lat, lon, provider="nominatim",
+                        a = cgeocode.reverse(lat, lon, provider=_prov,
+                                             mapbox_token=_token,
                                              lang="de", zoom=10, timeout=12.0)
                         if a:
                             treffer.append(a)
@@ -1868,6 +1884,10 @@ class Api:
         Rechteck, und das Archiv zeigt, was darin liegt.
         """
         try:
+            # Auch hier gilt der Schalter „Adress-Suche": Ohne ihn tippt der
+            # Nutzer im Archiv und löst dabei ungefragt Netzabfragen aus.
+            if not _load_settings().get("geocode_enabled", True):
+                return {"ok": True, "found": False, "disabled": True}
             ort = cgeocode.forward(query, lang="de")
             if not ort:
                 return {"ok": True, "found": False}

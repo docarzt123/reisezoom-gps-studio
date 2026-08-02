@@ -75,6 +75,12 @@ else
   # 7d) Zertifikate im Bundle — braucht Netz, überspringt sich sonst selbst.
   run "HTTPS-Zertifikate (test_https_certificates)" python3 tests/test_https_certificates.py
 
+  # 7e) Dialoge übereinander + sichtbarer Tastatur-Fokus.
+  run "Dialoge + Fokus (selftest_dialoge)" python3 scripts/selftest_dialoge.py
+
+  # 7f) Am Ziel-Pfad darf nie ein halbes Video liegen.
+  run "Render-Teildatei (test_render_teildatei)" python3 tests/test_render_teildatei.py
+
   # 8) Optional: echte Video-Renders (nur mit --full; braucht Token + Fixtures)
   if [[ $FULL == 1 ]]; then
     run "Echte Renders (selftest_renders)" python3 scripts/selftest_renders.py

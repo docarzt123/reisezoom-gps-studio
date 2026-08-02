@@ -283,12 +283,62 @@ async function initMapToken() {
  * Liefert ein Update-Objekt zurück mit `.update({title, body, footer})`
  * und `.close()`.
  */
+/* Ein Dialog über dem anderen — mit Rückweg.
+ *
+ * Es gibt genau EIN Overlay im HTML. Bisher überschrieb jeder neue Dialog
+ * dessen Inhalt, und beim Schließen war alles zu. Das traf einen ganz normalen
+ * Weg: Einstellungen öffnen → Sprache und Qualität ändern → „Wie bekomme ich
+ * einen Token?" anklicken → lesen → „OK" — und der **komplette
+ * Einstellungsdialog war weg**, alle Änderungen verloren, ohne jede Meldung.
+ * Ebenso über das Hilfe-Menü und den Über-Dialog.
+ *
+ * Jetzt merkt sich `_modalStack`, was vorher zu sehen war. Schließt der obere
+ * Dialog, kommt der darunter zurück. Wer dabei seine Knöpfe wieder verdrahten
+ * muss, gibt beim Öffnen des oberen Dialogs `restorePrevious` mit.
+ */
+const _modalStack = [];
+
 function openModal(options = {}) {
   const overlay = document.getElementById("modal-overlay");
   const titleEl = document.getElementById("modal-title");
   const bodyEl  = document.getElementById("modal-body");
   const footEl  = document.getElementById("modal-footer");
   const closeEl = document.getElementById("modal-close");
+
+  // Steht schon ein Dialog offen? Dann beiseitelegen statt überschreiben.
+  if (!overlay.hidden) {
+    // Was der Nutzer eingetippt oder angehakt hat, steht NUR in der
+    // Eigenschaft, nicht im Markup — `innerHTML` würde es verlieren. Also
+    // vorher ins Attribut spiegeln. Ohne das käme der Einstellungsdialog zwar
+    // zurück, aber mit den Werten von vor der Bearbeitung: derselbe Verlust,
+    // nur unauffälliger.
+    try {
+      bodyEl.querySelectorAll("input, textarea, select").forEach(el => {
+        if (el.type === "checkbox" || el.type === "radio") {
+          if (el.checked) el.setAttribute("checked", "");
+          else el.removeAttribute("checked");
+        } else if (el.tagName === "SELECT") {
+          Array.from(el.options).forEach(o => {
+            if (o.selected) o.setAttribute("selected", "");
+            else o.removeAttribute("selected");
+          });
+        } else if (el.tagName === "TEXTAREA") {
+          el.textContent = el.value;
+        } else {
+          el.setAttribute("value", el.value);
+        }
+      });
+    } catch (e) { console.warn("Modal-Zustand sichern:", e); }
+
+    _modalStack.push({
+      title: titleEl.textContent,
+      body: bodyEl.innerHTML,
+      footer: footEl.innerHTML,
+      closable: closeEl.style.visibility !== "hidden",
+      restore: typeof options.restorePrevious === "function"
+        ? options.restorePrevious : null,
+    });
+  }
 
   let onClose = options.onClose;
   let closable = options.closable !== false;
@@ -308,6 +358,26 @@ function openModal(options = {}) {
   overlay.hidden = false;
 
   function close() {
+    const darunter = _modalStack.pop();
+    if (darunter) {
+      // Den vorherigen Dialog zurückholen statt alles zuzumachen.
+      titleEl.textContent = darunter.title;
+      bodyEl.innerHTML = darunter.body;
+      footEl.innerHTML = darunter.footer;
+      closeEl.style.visibility = darunter.closable ? "" : "hidden";
+      closable = darunter.closable;
+      overlay.hidden = false;
+      if (typeof onClose === "function") {
+        const fn = onClose; onClose = null;
+        fn();
+      }
+      // Der Inhalt allein nützt nichts, wenn danach kein Knopf mehr reagiert:
+      // `innerHTML` bringt die Ereignis-Handler nicht zurück.
+      if (typeof darunter.restore === "function") {
+        try { darunter.restore(); } catch (e) { console.warn("Modal-Restore:", e); }
+      }
+      return;
+    }
     overlay.hidden = true;
     bodyEl.innerHTML = "";
     footEl.innerHTML = "";
@@ -324,6 +394,26 @@ function openModal(options = {}) {
   overlay.onclick = (e) => { if (e.target === overlay && closable) close(); };
 
   return { update: render, close };
+}
+
+/** Alles zumachen — auch die darunterliegenden Dialoge. Für Abläufe, die
+ *  wirklich beim Nullpunkt landen sollen.
+ *
+ *  Nicht über `openModal({}).close()`: Solange ein Dialog offen ist, legt
+ *  `openModal` den aktuellen Zustand auf den Stapel — und `close()` holte ihn
+ *  sofort wieder hervor. Das Fenster blieb offen. Also direkt aufräumen. */
+function closeAllModals() {
+  _modalStack.length = 0;
+  const overlay = document.getElementById("modal-overlay");
+  if (!overlay) return;
+  const bodyEl = document.getElementById("modal-body");
+  const footEl = document.getElementById("modal-footer");
+  const closeEl = document.getElementById("modal-close");
+  overlay.hidden = true;
+  if (bodyEl) bodyEl.innerHTML = "";
+  if (footEl) footEl.innerHTML = "";
+  if (closeEl) { closeEl.style.visibility = ""; closeEl.onclick = null; }
+  overlay.onclick = null;
 }
 
 function toast(msg, type = "info", durationMs = 3200) {

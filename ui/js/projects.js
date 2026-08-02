@@ -225,12 +225,24 @@
       if (!overlay) return resolve(false);
       titleEl.textContent = title;
       bodyEl.innerHTML = `<p style="color:var(--text-dim); font-size:13px;">${escapeHtml(message)}</p>`;
-      const dangerClass = danger ? "btn-danger" : "btn-primary";
-      const dangerStyle = danger ? "background:#dc4a4a; color:#fff;" : "";
+      const dangerClass = danger ? "btn-danger-solid" : "btn-primary";
+      // Farbe über die Klasse, nicht per Inline-Stil: Vorher war das der
+      // EINZIGE gefüllte Gefahr-Knopf der App (alle anderen sind Umriss-
+      // Knöpfe) und trug einen sechsten Rotton. Ausgerechnet beim Löschen
+      // sollte man wiedererkennen, was man vor sich hat.
+      const dangerStyle = "";
       footerEl.innerHTML = `<button class="btn" id="confirm-cancel">${tT("common.cancel","Abbrechen")}</button>
                             <button class="btn ${dangerClass}" id="confirm-ok" style="${dangerStyle}">${escapeHtml(confirmLabel)}</button>`;
       overlay.hidden = false;
+      // Escape und Klick daneben brechen ab. Vorher ging beides nicht — in
+      // jedem anderen Dialog der App schon, und ausgerechnet beim Löschen fehlte
+      // der Rückweg über die Tastatur ganz.
+      const escHandler = (ev) => { if (ev.key === "Escape") cleanup(false); };
+      document.addEventListener("keydown", escHandler);
+      overlay.onclick = (ev) => { if (ev.target === overlay) cleanup(false); };
       const cleanup = (val) => {
+        document.removeEventListener("keydown", escHandler);
+        overlay.onclick = null;
         overlay.hidden = true;
         resolve(val);
       };

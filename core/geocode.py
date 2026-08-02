@@ -36,6 +36,10 @@ _MIN_INTERVAL = {"nominatim": 1.1, "photon": 0.4, "mapbox": 0.12}
 _CACHE: dict[tuple, Optional[dict]] = {}
 _LOCK = threading.Lock()
 _last_call: dict[str, float] = {}
+# Je Anbieter ein eigener Drossel-Lock. Nominatim darf eine Anfrage je Sekunde,
+# Mapbox rund zehn — mit einem gemeinsamen Lock hätte der langsame Anbieter den
+# schnellen ausgebremst, und zwar über die gesamte Wartezeit (siehe `reverse`).
+_THROTTLE_LOCKS: dict[str, threading.Lock] = {}
 
 
 # ── Anbieterwahl ─────────────────────────────────────────────────────────────
@@ -130,9 +134,19 @@ def reverse(lat: float, lon: float, *, provider: str = "nominatim",
         if key in _CACHE:
             return _CACHE[key]
 
-    # Drossel pro Anbieter
+    # Drossel pro Anbieter — mit einem EIGENEN Lock je Anbieter.
+    #
+    # Vorher lief das Warten unter `_LOCK`, und der schützt zugleich den
+    # Zwischenspeicher. Effekt: Solange der Archiv-Ortslauf im Hintergrund
+    # tickte (Nominatim, 1,1 s Zwangspause), wartete JEDE andere Abfrage auf
+    # denselben Lock — auch eine Mapbox-Anfrage, die 0,12 s dürfte, und auch
+    # jeder Tastendruck im Archiv-Suchfeld. Aus 48 Sekunden Geotagger-Arbeit
+    # wurden so bis zu acht Minuten. Die Drossel ist absichtlich pro Anbieter;
+    # ein gemeinsamer Lock machte sie faktisch global.
     interval = _MIN_INTERVAL.get(prov, 1.0)
     with _LOCK:
+        drossel = _THROTTLE_LOCKS.setdefault(prov, threading.Lock())
+    with drossel:
         wait = interval - (time.monotonic() - _last_call.get(prov, 0.0))
         if wait > 0:
             time.sleep(wait)
