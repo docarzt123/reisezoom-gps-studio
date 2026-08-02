@@ -70,6 +70,23 @@ EXTRA_MOCK = r"""
       const n = window.__nurOhneStrecke ? 2 : 3;
       return Object.assign(s, { n_failed: n, n_nogps: window.__nurOhneStrecke ? 2 : 2 });
     },
+    // Seitenweises Nachladen: 450 künstliche Touren, ausgeliefert nach
+    // limit/offset — genau wie das echte Backend (core/library.py query()).
+    library_query: async (params) => {
+      const p = params || {};
+      window.__rufe.push(["library_query", p.limit, p.offset || 0]);
+      if (!window.__viele) return echt.library_query(p);
+      const TOTAL = 450;
+      const limit = p.limit || 0, off = p.offset || 0;
+      const n = limit ? Math.min(limit, Math.max(0, TOTAL - off)) : TOTAL;
+      const items = Array.from({ length: n }, (_, k) => ({
+        path: `/m/tour${off + k}.gpx`, name: `Tour ${off + k}`,
+        filename: `tour${off + k}.gpx`, started_at: "2026-01-01T10:00:00",
+        distance_m: 10000, ascent_m: 100, duration_s: 3600, activity: "rad",
+        fav: 0, recorded_eff: 1, has_session: false, thumb_url: "",
+      }));
+      return { ok: true, total: TOTAL, items };
+    },
   };
   window.pywebview = { api: new Proxy(echt, {
     get(t, p) { return (p in patch) ? patch[p] : t[p]; },
@@ -193,6 +210,62 @@ async def main() -> int:
             sagen(letzte is True, "die Liste wird mit „auch weggeräumte“ neu geholt", str(letzte))
         else:
             sagen(False, "das Kästchen „Auch weggeräumte zeigen“ ist da")
+
+        # ── 5) Nachladen beim Scrollen (Beta-Tester: 4787 Touren, 200 Kacheln) ─
+        print("\n[5] Nachladen beim Scrollen")
+        # Fehler-Dialog schließen, falls noch offen, dann auf „viele Touren".
+        await page.evaluate("""() => {
+          const x = document.getElementById('modal-close');
+          if (x) x.click();
+          const o = document.getElementById('modal-overlay');
+          if (o) o.classList.remove('open'), o.style.display = 'none';
+        }""")
+        await page.evaluate("() => { window.__viele = true; }")
+        await zu("animator")
+        await zu("library")
+        await page.wait_for_timeout(900)
+
+        n1 = await page.evaluate("() => document.querySelectorAll('#lib-grid .lib-card').length")
+        sagen(n1 == 200, "erste Seite: 200 Kacheln", f"→ {n1}")
+        kopf = await page.evaluate(
+            "() => (document.getElementById('lib-head') || {}).textContent || ''")
+        sagen("450" in kopf, "die Kopfzeile nennt die echte Gesamtzahl", f"→ {kopf.strip()[:40]!r}")
+
+        # Ans Ende scrollen → nächste Seite muss dazukommen.
+        await page.evaluate(
+            "() => { const g = document.getElementById('lib-grid'); g.scrollTop = g.scrollHeight; }")
+        await page.wait_for_timeout(900)
+        n2 = await page.evaluate("() => document.querySelectorAll('#lib-grid .lib-card').length")
+        sagen(n2 == 400, "nach dem Scrollen: 400 Kacheln", f"→ {n2}")
+
+        await page.evaluate(
+            "() => { const g = document.getElementById('lib-grid'); g.scrollTop = g.scrollHeight; }")
+        await page.wait_for_timeout(900)
+        n3 = await page.evaluate("() => document.querySelectorAll('#lib-grid .lib-card').length")
+        sagen(n3 == 450, "dritte Seite: alle 450, kein Überschuss", f"→ {n3}")
+
+        # Am Ende angekommen darf keine weitere Abfrage mehr rausgehen.
+        vor = await page.evaluate(
+            "() => (window.__rufe || []).filter(x => x[0] === 'library_query').length")
+        await page.evaluate(
+            "() => { const g = document.getElementById('lib-grid'); g.scrollTop = 0; g.scrollTop = g.scrollHeight; }")
+        await page.wait_for_timeout(900)
+        nach = await page.evaluate(
+            "() => (window.__rufe || []).filter(x => x[0] === 'library_query').length")
+        sagen(nach == vor, "am Ende: kein weiteres Nachladen mehr", f"→ {vor} → {nach}")
+
+        # Die nachgeladenen Kacheln müssen anklickbar sein (data-i stimmt):
+        # Nach dem Klick auf die letzte Kachel muss GENAU die Kachel „Tour 449"
+        # als gewählt markiert sein — nicht irgendeine frühere.
+        await page.evaluate("""() => {
+          const cards = document.querySelectorAll('#lib-grid .lib-card');
+          cards[cards.length - 1].click(); }""")
+        await page.wait_for_timeout(500)
+        gewaehlt = await page.evaluate("""() => {
+          const c = document.querySelector('#lib-grid .lib-card.is-sel .lib-card-name');
+          return c ? c.textContent.trim() : ''; }""")
+        sagen(gewaehlt == "Tour 449",
+              "die letzte nachgeladene Kachel wählt die richtige Tour", f"→ {gewaehlt!r}")
 
         sagen(not seiten_fehler, "keine JS-Fehler unterwegs",
               "; ".join(seiten_fehler[:2]))
