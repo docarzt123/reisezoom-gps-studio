@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.497] – 2026-08-02
+
 ### Geändert
 - **Dateien ohne GPS gelten nicht mehr als Fehler** (Bug-Report Beta-Tester).
   Nach dem Einlesen einer FIT-Sammlung stand „61 Dateien nicht lesbar" da —
@@ -24,6 +26,12 @@ Bei jeder neuen Version:
   entsprechend: Sind alle nur ohne GPS, steht dort „Dateien ohne Strecke".
   Bestehende Archive werden beim ersten Öffnen einmalig nachsortiert — ohne
   neues Einlesen.
+- **Solche Dateien werden nicht mehr bei jedem Einlesen erneut geöffnet.** Eine
+  Datei ohne Koordinaten hat auch beim zwanzigsten Hinsehen keine; bisher wurde
+  sie trotzdem jedes Mal komplett geparst, weil eine Zeile ohne Streckenverlauf
+  dem Einlese-Lauf als „unfertig" galt. Jetzt merkt sich das Archiv Zeit und
+  Größe auch für Fehler-Zeilen und überspringt sie, solange sich an der Datei
+  nichts ändert. Wird sie ersetzt, kommt sie von selbst wieder dran.
 
 ### Hinzugefügt
 - **Die Fehlerliste lässt sich aufräumen** (Bug-Report Beta-Tester: „man kann

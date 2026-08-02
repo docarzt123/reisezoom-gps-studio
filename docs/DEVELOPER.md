@@ -1278,10 +1278,24 @@ die Wahrheit. `errors(include_dismissed=True)` holt sie zurück.
 zuerst: Ist die Datei **defekt** oder nur **ohne Strecke**? Landet Harmloses in
 `broken`, steht wieder eine Warnung über heilen Dateien.
 
+**Fehler-Zeilen werden beim Einlesen übersprungen.** `known[path]` trägt seit
+v0.9.497 einen vierten Wert („ist eine Fehler-Zeile"), und die Fehler-Zeile
+speichert **echte** `mtime`/`size` statt 0/0. Vorher galt jede Zeile ohne
+`geom` als unfertig — 61 Hallen-Dateien wurden also bei **jedem** Durchlauf
+erneut geparst, ohne dass je etwas anderes herauskam. Sie zählen weiter in
+`failed`, weil die Kopfzeile den Zustand meint und nicht die Ereignisse dieses
+Laufs; ein Neu-Einlesen mit „0 Fehler" neben unverändert 61 im Kopf wäre
+verwirrend. Ändert sich Zeit oder Größe, wird die Datei wieder gelesen —
+eine reparierte Datei heilt sich also von selbst.
+
 Bestehende Archive werden in `_migrate_error_kind()` einmalig nachsortiert (am
-festen Fehlertext aus `imports.py`) — sonst müsste jeder erst neu einlesen.
+festen Fehlertext aus `imports.py`) — sonst müsste jeder erst neu einlesen. Alte
+Fehler-Zeilen mit `mtime = 0` werden beim nächsten Lauf genau einmal gelesen und
+haben danach ihre echten Werte.
+
 Geprüft in `tests/test_library_errors.py`: Klassifizierung, Wegräumen, Überleben
-eines `scan(force=True)`, Migration.
+eines `scan(force=True)`, das Überspringen, das Wieder-Lesen nach einer Änderung,
+und die Migration.
 
 #### Die Filterleiste des Archivs überlebt den Modulwechsel (v0.9.497)
 

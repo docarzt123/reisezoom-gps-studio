@@ -113,9 +113,36 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.497</span>
+    <span class="version-date">2 August 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">Files without GPS are not errors — and the list can finally be cleared.</p>
+
+  <div class="highlight">
+    <strong>🏋️ “61 files unreadable” — yet not one was broken.</strong> Scan a FIT collection and you get everything recorded without GPS along with your tours: indoor trainer, gym, pool swimming. A watch writes a file for those too, just without coordinates. All of it used to land in the same pot labelled “unreadable” — and you went looking for a fault on your side.
+  </div>
+
+  <p><strong>The library now keeps the two apart:</strong> <em>no route data</em> (perfectly fine, simply no coordinates) and <em>unreadable</em> (interrupted transfer, unknown format, damaged). If it is only recordings without GPS, the header says “files without a route” instead of raising a warning. Existing libraries are sorted out once at the next start — nothing to rescan.</p>
+
+  <div class="highlight">
+    <strong>🧹 The list can be cleared.</strong> Tick, press “Take off the list”, done. <strong>Nothing is deleted:</strong> neither the file on your disk nor the entry. Only the message goes away, and it stays away after the next scan. “Also show dismissed” brings everything back.
+  </div>
+
+  <p><strong>And they no longer slow the scan down.</strong> A file without coordinates still has none on the twentieth look — yet it was fully reopened on every run. Now it is skipped for as long as nothing about it changes.</p>
+
+  <div class="highlight">
+    <strong>🔀 The library remembers how you sorted.</strong> Sort by “Longest first”, look at a tour in the animator, come back — and you were on “Newest first” again. Sort order, year and activity now stay, across a restart too. The search text deliberately does not, so a half-empty library doesn't greet you the next day.
+  </div>
+
+  <p class="muted">Both points came from beta testers.</p>
+</article>
+
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.496</span>
     <span class="version-date">1 August 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <p class="version-tagline">Place names work again — and the library can do a great deal more.</p>
 

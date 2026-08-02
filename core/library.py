@@ -826,10 +826,17 @@ def scan(
     # älteren Version. Solche Zeilen werden neu gelesen, auch wenn die Datei
     # unverändert ist — sonst bliebe die Übersichtskarte für die halbe Sammlung
     # leer und der Filter „Nur gemachte" liefe auf Voreinstellungen.
+    #
+    # Vierter Wert: Die Zeile ist eine bekannte Fehler-Zeile. Auch die gilt als
+    # fertig — eine Datei ohne Koordinaten hat beim zweiten Hinsehen genauso
+    # wenig welche. Ohne das öffnete jeder Durchlauf die 61 Hallen-Einheiten
+    # eines Nutzers erneut, für immer.
     known = {
-        r["path"]: (r["mtime"], r["size"], bool(r["geom"]) and bool(r["recorded_src"]))
+        r["path"]: (r["mtime"], r["size"],
+                    bool(r["geom"]) and bool(r["recorded_src"]),
+                    bool(r["error"]))
         for r in conn.execute(
-            "SELECT path, mtime, size, geom, recorded_src FROM tracks").fetchall()
+            "SELECT path, mtime, size, geom, recorded_src, error FROM tracks").fetchall()
     }
     seen = set()
     added = updated = skipped = failed = 0
@@ -843,8 +850,17 @@ def scan(
         try:
             st = p.stat()
             old = known.get(sp)
-            if (old and old[2] and not force
-                    and abs(old[0] - st.st_mtime) < 1 and old[1] == st.st_size):
+            unveraendert = bool(old) and not force \
+                and abs(old[0] - st.st_mtime) < 1 and old[1] == st.st_size
+            if unveraendert and old[3]:
+                # Bekannte Fehler-Zeile, Datei unverändert → gar nicht erst
+                # öffnen. Weiter als „Fehler" gezählt, weil die Kopfzeile den
+                # Zustand meint und nicht die Ereignisse dieses Durchlaufs;
+                # sonst meldete ein Neu-Einlesen „0 Fehler", während oben
+                # unverändert 61 stehen. Wird die Datei ersetzt, ändern sich
+                # Zeit oder Größe und sie kommt von selbst wieder dran.
+                failed += 1
+            elif unveraendert and old[2]:
                 skipped += 1
             else:
                 row = _row_from_file(p, folder, thumbs_dir, import_cache,
@@ -866,9 +882,19 @@ def scan(
             else:
                 log.warning("library: %s konnte nicht gelesen werden: %s", p.name, e)
             try:
+                # Zeit und Größe werden mitgeschrieben (früher 0/0). Nur damit
+                # erkennt der nächste Durchlauf, dass sich an dieser Datei nichts
+                # geändert hat, und lässt sie zu — und bemerkt umgekehrt, wenn
+                # jemand sie ersetzt hat. Schlägt schon `stat()` fehl, bleibt es
+                # bei 0/0, dann wird eben weiter jedes Mal nachgesehen.
+                try:
+                    _st = p.stat()
+                    _mt, _sz = _st.st_mtime, _st.st_size
+                except OSError:
+                    _mt, _sz = 0, 0
                 _upsert(conn, {
                     "path": sp, "folder": folder, "filename": p.name,
-                    "mtime": 0, "size": 0, "indexed_at": _now_iso(),
+                    "mtime": _mt, "size": _sz, "indexed_at": _now_iso(),
                     "error": str(e)[:300], "error_kind": kind, "name": p.stem,
                 })
             except Exception:
