@@ -1050,6 +1050,35 @@ Wenn doch nicht (z.B. weil die Kamera-Uhr falsch stand):
   4. Filter wieder auf **„Alle"** — beide Kameras behalten ihren eigenen Offset.
   Der Knopf jeder Kamera zeigt ihren gesetzten Offset als kleines Badge (z.B. `📷 OM-3 +1h`). Ohne Kamera-Filter („Alle") stellst du den **globalen Standard** ein, der für alle Kameras ohne eigenen Offset gilt. Die Pro-Kamera-Offsets bleiben gespeichert und greifen auch bei der optionalen Aufnahmezeit-Korrektur.
 
+### Wenn die Position unsicher ist (seit v0.9.499)
+
+Hat dein Track eine **Aufzeichnungslücke** und ein Foto fällt hinein, bekommt es den
+zeitlich nächstgelegenen Punkt. Das ist meistens genau richtig: Gehst du ins Wirtshaus,
+verlierst du drinnen den Empfang — der letzte Punkt liegt am Eingang, und dort war das
+Foto ja auch.
+
+Falsch wird es nur, wenn während der Lücke **weitergegangen** wurde: Die Uhr geht mit
+leerem Akku aus und du wanderst zwei Stunden weiter. Oder du pausierst die Aufzeichnung
+und fährst mit der Seilbahn hoch. Dann liegt der zugeordnete Punkt kilometerweit weg.
+
+Solche Fotos erkennst du jetzt sofort:
+
+- **Gelbes ⚠︎ auf der Kachel** statt des orangen Punkts
+- **Ein Hinweis mit den echten Zahlen** — „12 min Lücke, 2,0 km weiter"
+- **Eine Zeile in der Übersicht** („3 mit unsicherer Position")
+- **Ein eigener Filter**, um sie sich zusammen anzusehen
+
+**Verortet werden sie trotzdem, ganz normal.** Sie bekommen dieselbe Position wie vorher
+und werden genauso geschrieben — sie sind nur ehrlich beschriftet. Eine ungefähre
+Position ist in aller Regel besser als gar keine.
+
+Willst du eine davon genauer haben, nimm das **Referenz-Foto**: Foto anklicken, dann auf
+der Karte die tatsächliche Stelle anklicken.
+
+> **Warum die Strecke und nicht die Dauer zählt:** Beim Wirtshaus liegen der Punkt vor und
+> der nach der Lücke fast übereinander — auch nach zwei Stunden. Bei der Seilbahn trennen
+> sie Kilometer, schon nach zehn Minuten. Ab **150 m** gilt die Position als geraten.
+
 ### Optionen
 - **Kein Backup nötig** (seit v0.9.372) — die Originale werden nie angefasst (getaggte Kopien landen im gewählten Zielordner), deshalb gibt es keine Backup-Checkbox mehr.
 - **Wenn ein Foto schon Daten hat** (seit v0.9.339) — drei Modi:

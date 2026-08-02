@@ -1000,6 +1000,35 @@ Si aun así no (p. ej. porque el reloj de la cámara estaba mal):
   4. Vuelve a poner el filtro en **«Todas»** — ambas cámaras conservan su propio offset.
   El botón de cada cámara muestra su offset fijado como una pequeña insignia (p. ej. `📷 OM-3 +1h`). Sin filtro de cámara («Todas») ajustas el **estándar global**, que vale para todas las cámaras sin offset propio. Los offsets por cámara quedan guardados y actúan también en la corrección opcional de la hora de captura.
 
+### Cuando la posición es incierta (desde v0.9.499)
+
+Si tu track tiene un **hueco de grabación** y una foto cae dentro, recibe el punto más
+cercano en el tiempo. Eso suele ser exactamente correcto: al entrar en un restaurante
+pierdes la cobertura — el último punto queda en la puerta, y ahí es donde se hizo la foto.
+
+Solo falla cuando durante el hueco **se siguió avanzando**: el reloj se queda sin batería
+y caminas dos horas más. O pausas la grabación y subes en teleférico. Entonces el punto
+asignado está a kilómetros.
+
+Esas fotos se reconocen enseguida:
+
+- **Un ⚠︎ ámbar en la miniatura** en lugar del punto naranja
+- **Un aviso con las cifras reales**: «hueco de 12 min, 2,0 km más allá»
+- **Una línea en el resumen** («3 con posición incierta»)
+- **Un filtro propio** para revisarlas juntas
+
+**Se geolocalizan igualmente, como siempre.** Reciben la misma posición que antes y se
+escriben igual: solo están etiquetadas con honestidad. Una posición aproximada casi
+siempre es mejor que ninguna.
+
+Si quieres precisar alguna, usa la **foto de referencia**: pulsa la foto y luego el punto
+real en el mapa.
+
+> **Por qué cuenta la distancia y no la duración:** en el restaurante el punto anterior y
+> el posterior al hueco quedan casi encima — incluso tras dos horas. Con el teleférico los
+> separan kilómetros a los diez minutos. A partir de **150 m** la posición se considera una
+> suposición.
+
 ### Opciones
 - **No hace falta backup** (desde v0.9.372) — los originales nunca se tocan (las copias etiquetadas aterrizan en la carpeta de destino elegida), por eso ya no hay una casilla de backup.
 - **Cuando una foto ya tiene datos** (desde v0.9.339) — tres modos:

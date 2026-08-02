@@ -113,9 +113,44 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.497</span>
+    <span class="version-num">v0.9.499</span>
     <span class="version-date">2. August 2026</span>
     <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Ein Durchgang durch den ganzen Code — und Fotos sagen jetzt, wenn ihre Position geraten ist.</p>
+
+  <div class="highlight">
+    <strong>📍 „Unsichere Position“ beim Verorten.</strong> Fällt ein Foto in eine Lücke im Track, bekommt es den nächstgelegenen Punkt — und das ist meistens genau richtig: Wer ins Wirtshaus geht, verliert drinnen den Empfang, und der letzte Punkt liegt am Eingang. Genau dort war das Foto ja auch. Falsch wird es nur, wenn in der Lücke <em>weitergegangen</em> wurde: Uhr mit leerem Akku aus, zwei Stunden weiter — oder Aufzeichnung pausiert und mit der Seilbahn hoch.
+  </div>
+
+  <p><strong>Solche Fotos sind jetzt gekennzeichnet</strong> — gelbes Zeichen auf der Kachel, ein Hinweis mit den echten Zahlen („12 min Lücke, 2,0 km weiter“) und ein eigener Filter, um sie sich zusammen anzusehen. <strong>An der Verortung ändert sich nichts:</strong> Sie bekommen dieselbe Position wie bisher und werden ganz normal geschrieben. Sie sind nur ehrlich beschriftet. Unterschieden wird an der Strecke, nicht an der Dauer — das Wirtshaus bleibt also sicher, auch nach zwei Stunden.</p>
+
+  <div class="highlight">
+    <strong>📚 Das Archiv lädt beim Scrollen nach.</strong> Wer viele tausend Touren eingelesen hatte, sah nur die ersten 200 Kacheln und kam an den Rest nur über Suche und Filter heran. Jetzt kommt die nächste Seite, sobald du ans Ende scrollst.
+  </div>
+
+  <p><strong>Und ein Durchgang durch den gesamten Programmcode.</strong> Was dabei herauskam und was du davon merkst:</p>
+  <ul>
+    <li><strong>Einstellungen und Projekte konnten still verloren gehen.</strong> Ein einziger Regler löst mehrere Speichervorgänge gleichzeitig aus; zwei davon konnten sich gegenseitig überschreiben. Im schlimmsten Fall wurde die Datei unlesbar und beim nächsten Start kommentarlos verworfen — mit <em>allen</em> Projekten, Keyframes, Schildern und Foto-Pins. Nachgestellt: Von zwölf gleichzeitigen Änderungen kam genau eine an.</li>
+    <li><strong>Deckkraft 0 % und Lichtrichtung 0° kamen im Video nicht an.</strong> Die Vorschau zeigte eine durchsichtige Box, gerendert wurden 55 % Schwarz.</li>
+    <li><strong>Beim Rendern liegt nie mehr ein halbes Video am Zielort.</strong> Wer die App währenddessen schloss, fand dort ein abgeschnittenes Video — und ein älteres am selben Platz war schon überschrieben. Jetzt entsteht der Film daneben und wandert erst fertig an seinen Platz.</li>
+    <li><strong>Ein Dialog über dem anderen verliert nichts mehr.</strong> Einstellungen ändern → „Wie bekomme ich einen Token?“ → schließen, und der ganze Einstellungsdialog war weg, samt Änderungen.</li>
+    <li><strong>Der Render-Fortschritt kommt zurück.</strong> Wer während eines Videos kurz ins Archiv sah, fand danach einen eingefrorenen Balken und erfuhr nie, dass das Video fertig war.</li>
+    <li><strong>Schlagwörter mit Umlaut sind auffindbar</strong> („Ötztal“ fand vorher nichts), und „100 %“ liefert nicht mehr die ganze Sammlung.</li>
+    <li><strong>Der „Ausreißer entfernen“-Knopf konnte einen Track vernichten</strong>, wenn der erste Punkt weit daneben lag — der klassische Kaltstart. Von 61 Punkten blieben zwei übrig.</li>
+    <li><strong>Ein Foto-Sicherungsarchiv konnte Originale verlieren</strong>, wenn zwei Karten dieselben Dateinamen enthielten — und das ist die Kopie, die <em>vor</em> dem Schreiben angelegt wird.</li>
+    <li><strong>Die Adress-Suche im Archiv fragt nicht mehr ungefragt ins Netz</strong> und beachtet den Schalter in den Einstellungen.</li>
+    <li><strong>Tastaturbedienung ist sichtbar</strong> — vorher gab es in der ganzen Oberfläche keinen einzigen Fokus-Rahmen.</li>
+  </ul>
+
+  <p class="muted">Die App ist dabei 9 MB kleiner geworden. Dazu wurden drei interne Prüfungen repariert, die grün meldeten, ohne wirklich zu prüfen — darunter die einzige automatische Prüfung der Render-Kette.</p>
+</article>
+
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.497</span>
+    <span class="version-date">2. August 2026</span>
   </div>
   <p class="version-tagline">Dateien ohne GPS sind keine Fehler — und die Liste lässt sich endlich aufräumen.</p>
 

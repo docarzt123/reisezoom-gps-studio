@@ -995,6 +995,34 @@ If it doesn't after all (e.g. because the camera clock was wrong):
   4. Set the filter back to **"All"** — both cameras keep their own offset.
   Each camera's button shows its set offset as a small badge (e.g. `📷 OM-3 +1h`). Without a camera filter ("All") you set the **global default**, which applies to all cameras without their own offset. The per-camera offsets stay saved and also take effect in the optional capture-time correction.
 
+### When the position is uncertain (since v0.9.499)
+
+If your track has a **recording gap** and a photo falls into it, the photo gets the
+nearest point in time. That is usually exactly right: step into a pub and you lose
+reception inside — the last point sits at the door, and that is where the photo was taken.
+
+It only goes wrong when the journey **continued** during the gap: the watch dies and you
+walk on for two hours. Or you pause recording and take the cable car up. Then the assigned
+point is kilometres away.
+
+Those photos are now easy to spot:
+
+- **An amber ⚠︎ on the tile** instead of the orange dot
+- **A note with the real figures** — “12 min gap, 2.0 km further on”
+- **A line in the summary** (“3 with an uncertain position”)
+- **A filter of their own**, so you can review them together
+
+**They are still geotagged, exactly as before.** They get the same position and are
+written the same way — they are simply labelled honestly. An approximate position is
+almost always better than none.
+
+If you want one of them to be precise, use the **reference photo**: click the photo, then
+click the actual spot on the map.
+
+> **Why distance counts, not duration:** at the pub the point before and the point after
+> the gap sit almost on top of each other — even after two hours. With the cable car they
+> are kilometres apart after ten minutes. Above **150 m** the position counts as a guess.
+
 ### Options
 - **No backup needed** (since v0.9.372) — the originals are never touched (the tagged copies land in the chosen target folder), so there's no backup checkbox anymore.
 - **When a photo already has data** (since v0.9.339) — three modes:

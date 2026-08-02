@@ -113,9 +113,44 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.497</span>
+    <span class="version-num">v0.9.499</span>
     <span class="version-date">2 August 2026</span>
     <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">A pass over the whole codebase — and photos now say when their position is a guess.</p>
+
+  <div class="highlight">
+    <strong>📍 “Uncertain position” when geotagging.</strong> If a photo falls into a gap in the track it gets the nearest point — and that is usually exactly right: step into a pub and you lose reception inside, while the last point sits at the door. That is where the photo was taken. It only goes wrong when the journey <em>continued</em> during the gap: a watch dying and two more hours of walking, or recording paused and up by cable car.
+  </div>
+
+  <p><strong>Those photos are now marked</strong> — an amber badge on the tile, a note with the real figures (“12 min gap, 2.0 km further on”) and a filter of their own so you can review them together. <strong>Nothing about the geotagging changes:</strong> they get the same position as before and are written as before. They are simply labelled honestly. The test is distance, not duration — so the pub stays certain, even after two hours.</p>
+
+  <div class="highlight">
+    <strong>📚 The library loads further pages while scrolling.</strong> With several thousand tours you only ever saw the first 200 tiles and could reach the rest only through search and filters. Now the next page arrives as you scroll to the end.
+  </div>
+
+  <p><strong>And a pass over the entire codebase.</strong> What came out of it, and what you notice:</p>
+  <ul>
+    <li><strong>Settings and projects could be lost silently.</strong> A single slider triggers several saves at once, and two of them could overwrite each other. At worst the file became unreadable and was discarded without a word on the next start — along with <em>every</em> project, keyframe, sign and photo pin. Reproduced: one of twelve concurrent changes survived.</li>
+    <li><strong>Opacity 0 % and light direction 0° never reached the video.</strong> The preview showed a transparent box while 55 % black was rendered.</li>
+    <li><strong>No more half a video at the destination.</strong> Closing the app mid-render left a truncated file there — and an older video at the same path had already been overwritten. Now the film is built alongside and only moved into place when finished.</li>
+    <li><strong>One dialog on top of another no longer loses anything.</strong> Change settings → “How do I get a token?” → close, and the whole settings dialog was gone, changes included.</li>
+    <li><strong>Render progress comes back.</strong> Glance at the library during a render and you returned to a frozen bar, never learning the video had finished.</li>
+    <li><strong>Tags with umlauts can be found</strong> (“Ötztal” used to find nothing), and “100 %” no longer returns the entire collection.</li>
+    <li><strong>The “remove outliers” button could destroy a track</strong> when the first point was far off — the classic cold start. Sixty-one points came out as two.</li>
+    <li><strong>A photo backup archive could lose originals</strong> when two cards held the same filenames — and that is the copy made <em>before</em> anything is written.</li>
+    <li><strong>The library no longer goes online unasked</strong> for place names and honours the switch in the settings.</li>
+    <li><strong>Keyboard use is visible</strong> — there was not a single focus ring anywhere in the interface before.</li>
+  </ul>
+
+  <p class="muted">The app also lost 9 MB. Three internal checks that reported green without actually checking were repaired — among them the only automatic check of the render chain.</p>
+</article>
+
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.497</span>
+    <span class="version-date">2 August 2026</span>
   </div>
   <p class="version-tagline">Files without GPS are not errors — and the list can finally be cleared.</p>
 
