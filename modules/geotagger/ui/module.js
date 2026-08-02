@@ -235,7 +235,7 @@ function mountGeotagger(body, headerActions) {
   let currentGpxPath = null;
   // v0.9.163 — Track-Klick-Info-Popup + Übersicht-Filter
   let _gtTrackPopup = null;   // mapLib().Popup für Track-Punkt-Klick
-  let _gtFilter = null;       // null | "tagged" | "oor" | "notime" | "hasgps"
+  let _gtFilter = null;       // null | "tagged" | "unsicher" | "oor" | "notime" | "hasgps"
   // v0.9.164 — Kamera-Filter + Tag-Auswahl (Checkbox je Foto, default an)
   let _gtCamFilter = null;    // null oder Kamera-String
   const _gtUnchecked = new Set();  // Pfade die NICHT getaggt werden (Häkchen aus)
@@ -1958,9 +1958,31 @@ function mountGeotagger(body, headerActions) {
     const cb = document.getElementById("gt-wf-direction");
     return cb ? cb.checked : true;
   }
+  /** „vor 1:20 h“ / „4,2 km“ — kurz und lesbar, für den Unsicher-Hinweis. */
+  function _gtLueckeText(m) {
+    const s = Math.round(m.gap_seconds || 0);
+    const std = Math.floor(s / 3600), min = Math.round((s % 3600) / 60);
+    const zeit = std ? `${std}:${String(min).padStart(2, "0")} h` : `${min} min`;
+    const mtr = m.gap_meters || 0;
+    const weg = mtr >= 1000 ? `${(mtr / 1000).toFixed(1)} km` : `${Math.round(mtr)} m`;
+    return { zeit, weg };
+  }
+
   function gtChipsHtml(m) {
     if (!m || m.lat == null || !m.in_range) return "";
     const c = [];
+    // Zuerst: Ist die Position überhaupt verlässlich? Das Foto wird verortet
+    // wie bisher — der Hinweis sagt nur, dass in der Aufzeichnungslücke, in
+    // die es fällt, weitergegangen wurde. (Wirtshaus = kein Hinweis, man stand
+    // am selben Fleck. Seilbahn = Hinweis.)
+    if (m.unsicher) {
+      const l = _gtLueckeText(m);
+      c.push(`<span class="gt-chip unsicher" title="${_gtEsc(t("geotagger.unsicher.tip",
+        "In dieser Zeit hat der Track nicht aufgezeichnet, es ging aber weiter. Die Position ist die letzte bekannte — sie kann daneben liegen."))}">⚠︎ ${
+        _gtEsc(t("geotagger.unsicher.chip", "unsichere Position"))} <span class="dim">(${
+        _gtEsc(t("geotagger.unsicher.detail", "{zeit} Lücke, {weg} weiter")
+          .replace("{zeit}", l.zeit).replace("{weg}", l.weg))})</span></span>`);
+    }
     if (m.light_phase) c.push(`<span class="gt-chip sun">${_GT_SUN_EMOJI[m.light_phase] || "☀️"} ${t("geotagger.light." + m.light_phase, m.light_phase)}</span>`);
     if (m.dir != null && _gtWriteDirection()) { const _ds = m.dir_src === "exif" ? "cam" : (m.dir_src === "logged" ? "logged" : (m.dir_src === "manual" ? "manual" : "move")); c.push(`<span class="gt-chip">🧭 ${gtCompass(m.dir)} ${Math.round(m.dir)}° <span class="dim">(${t("geotagger.dir." + _ds, m.dir_src)})</span></span>`); }
     if (m.light_vs_dir) c.push(`<span class="gt-chip${m.light_vs_dir === "back" ? " back" : ""}">${_GT_LVD_EMOJI[m.light_vs_dir] || "☀️"} ${t("geotagger.lvd." + m.light_vs_dir, m.light_vs_dir)}</span>`);
@@ -2737,6 +2759,13 @@ function mountGeotagger(body, headerActions) {
         b.classList.add("existing"); b.textContent = "✓";
         b.title = t("geotagger.badge.existing", "Hat bereits GPS-Daten");
         if (note) note.textContent = t("geotagger.note.existing", "Hat schon GPS");
+      } else if (m.lat != null && m.in_range && m.unsicher) {
+        // Wird ganz normal geschrieben — das Zeichen sagt nur, dass die
+        // Position aus einer Lücke stammt, in der es weiterging.
+        b.classList.add("unsicher"); b.textContent = "⚠︎";
+        b.title = t("geotagger.badge.unsicher",
+          "Wird getaggt, aber die Position ist unsicher: In dieser Zeit hat der Track nicht aufgezeichnet, es ging aber weiter.");
+        if (note) note.textContent = t("geotagger.note.unsicher", "Position unsicher");
       } else if (m.lat != null && m.in_range) {
         b.classList.add("tagged"); b.textContent = "●";
         b.title = t("geotagger.badge.tagged", "Wird getaggt");
@@ -2757,6 +2786,10 @@ function mountGeotagger(body, headerActions) {
     const oor = matches.filter(m => m.lat != null && !m.in_range).length;
     const skip = matches.filter(m => m.lat == null).length;
     const existing = matches.filter(m => m.existing_gps).length;
+    // Verortet, aber die Position stammt aus einer Lücke, in der es weiterging.
+    // Zählt bewusst NICHT von `ok` ab: Diese Fotos werden ganz normal
+    // geschrieben — sie sind nur einen zweiten Blick wert.
+    const unsicher = matches.filter(m => m.lat != null && m.in_range && m.unsicher).length;
     const sum = document.getElementById("gt-summary");
     if (sum) {
       sum.style.display = "block";
@@ -2765,6 +2798,7 @@ function mountGeotagger(body, headerActions) {
       sum.innerHTML = `
         <strong>${t("geotagger.summary.title", "Übersicht:")}</strong><br>
         <span class="gt-sum-line"><span class="ok">●</span> ${t("geotagger.summary.tagged", { n: ok })}</span><br>
+        ${unsicher ? `<span class="gt-sum-line gt-sum-unsicher"><span class="warn">⚠︎</span> ${t("geotagger.summary.unsicher", { n: unsicher })}</span><br>` : ""}
         ${oor ? `<span class="gt-sum-line"><span class="warn">!</span> ${t("geotagger.summary.out_of_range", { n: oor })}</span><br>` : ""}
         ${skip ? `<span class="gt-sum-line"><span class="err">?</span> ${t("geotagger.summary.no_exif_time", { n: skip })}</span><br>` : ""}
         ${existing ? `<span class="gt-sum-line" style="color:var(--text-muted)">⌃ ${t("geotagger.summary.existing", { n: existing })}</span>` : ""}
@@ -2783,6 +2817,10 @@ function mountGeotagger(body, headerActions) {
     const oor = matches.filter(m => m.lat != null && !m.in_range).length;
     const skip = matches.filter(m => m.lat == null).length;
     const existing = matches.filter(m => m.existing_gps).length;
+    // Teilmenge von `ok` — deshalb wird dort nichts abgezogen: Diese Fotos SIND
+    // im Track und werden geschrieben, ihre Position stammt nur aus einer Lücke,
+    // in der es weiterging.
+    const unsicherN = matches.filter(m => m.lat != null && m.in_range && m.unsicher).length;
     const camCounts = new Map();
     for (const p of photos) {
       if (!p || !p.path) continue;
@@ -2795,6 +2833,7 @@ function mountGeotagger(body, headerActions) {
       + (n != null ? ` <span class="n">${n}</span>` : "") + `</button>`;
     let html = chip(!anyFilter, 'data-gtfilter="reset"', t("geotagger.filter.all", "Alle"), photos.length);
     if (ok)       html += chip(_gtFilter === "tagged", 'data-gtfilter="tagged"', t("geotagger.filter.tagged", "Im Track"), ok);
+    if (unsicherN) html += chip(_gtFilter === "unsicher", 'data-gtfilter="unsicher"', t("geotagger.filter.unsicher", "Unsichere Position"), unsicherN);
     if (oor)      html += chip(_gtFilter === "oor", 'data-gtfilter="oor"', t("geotagger.filter.oor", "Außerhalb Trackzeit"), oor);
     if (skip)     html += chip(_gtFilter === "notime", 'data-gtfilter="notime"', t("geotagger.filter.notime", "Ohne Zeit"), skip);
     if (existing) html += chip(_gtFilter === "hasgps", 'data-gtfilter="hasgps"', t("geotagger.filter.hasgps", "Mit GPS"), existing);
@@ -2828,6 +2867,7 @@ function mountGeotagger(body, headerActions) {
     if (_gtFilter) {
       switch (_gtFilter) {
         case "tagged": return m.lat != null && m.in_range;
+        case "unsicher": return m.lat != null && m.in_range && !!m.unsicher;
         case "oor":    return m.lat != null && !m.in_range;
         case "notime": return m.lat == null;
         case "hasgps": return !!m.existing_gps;
@@ -2855,6 +2895,7 @@ function mountGeotagger(body, headerActions) {
       if (!m) return false;
       switch (_gtFilter) {
         case "tagged": return m.lat != null && m.in_range;
+        case "unsicher": return m.lat != null && m.in_range && !!m.unsicher;
         case "oor":    return m.lat != null && !m.in_range;
         case "notime": return m.lat == null;
         case "hasgps": return !!m.existing_gps;

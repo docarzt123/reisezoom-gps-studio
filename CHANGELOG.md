@@ -14,6 +14,25 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Hinzugefügt
+- **Fotos aus Aufzeichnungslücken werden als „unsichere Position" gekennzeichnet.**
+  Fällt ein Foto in eine Lücke im Track, bekommt es den nächstgelegenen Punkt —
+  und das ist meistens genau richtig: Wer ins Wirtshaus geht, verliert drinnen
+  den Empfang, der letzte Punkt liegt am Eingang, und dort war das Foto ja auch.
+  Falsch wird es nur, wenn in der Lücke **weitergegangen** wurde: Uhr mit leerem
+  Akku aus und zwei Stunden weiter, oder Aufzeichnung pausiert und mit der
+  Seilbahn hoch. Dann lag der zugeordnete Punkt kilometerweit weg — und das Foto
+  galt trotzdem als sauber verortet.
+  Unterschieden wird das an der **Strecke**, nicht an der Dauer: Wirtshaus =
+  fast null, auch nach zwei Stunden; Seilbahn = Kilometer, auch nach zehn
+  Minuten. Ab 150 m gilt die Position als geraten.
+  **An der Verortung ändert sich nichts** — die Fotos bekommen dieselbe Position
+  wie bisher und werden ganz normal geschrieben. Sie sind nur ehrlich
+  beschriftet: gelbes Zeichen auf der Kachel, ein Hinweis mit Dauer und Strecke
+  der Lücke („1:20 h Lücke, 4,2 km weiter"), eine Zeile in der Übersicht und ein
+  eigener Filter, um sie sich zusammen anzusehen und bei Bedarf über den
+  Referenz-Modus von Hand zu korrigieren.
+
 ## [0.9.498] – 2026-08-02
 
 ### Hinzugefügt
