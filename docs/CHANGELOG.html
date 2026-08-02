@@ -113,9 +113,41 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.495</span>
+    <span class="version-num">v0.9.496</span>
     <span class="version-date">1. August 2026</span>
     <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Adressen gehen wieder — und das Archiv kann eine ganze Menge mehr.</p>
+
+  <div class="highlight">
+    <strong>🔐 Wichtige Korrektur: Adressen im Geotagger.</strong> Bei manchen Nutzern fand die Ortssuche <em>gar nichts</em> — an keinem der drei Dienste. Der Grund lag nicht bei den Diensten, sondern in der App: Sie fand die Sicherheits-Zertifikate des Systems nicht, und damit starb jede Anfrage ins Internet still. <strong>Ebenfalls betroffen und mitrepariert:</strong> die Höhen aus dem Geländemodell und die Kartenbilder im Tour-Archiv.
+  </div>
+
+  <p>Und wenn eine Abfrage doch mal scheitert, steht jetzt <strong>der Grund im Klartext</strong> da — keine Verbindung, Zeitüberschreitung, zu viele Anfragen — statt eines „Fertig, 0 Adressen“, das wie ein Erfolg aussieht.</p>
+
+  <div class="highlight">
+    <strong>🌍 Nach Gegenden suchen — auch nach Namen, die in keiner Datei stehen.</strong> „Teneriffa“ fand bisher nichts, obwohl 163 Touren dort liegen: Deine Touren wissen, <em>wo</em> sie sind, aber nicht, wie die Gegend heißt. Jetzt wird der Suchbegriff selbst nachgeschlagen und alles angezeigt, was in dieser Gegend liegt. Funktioniert für jeden Ortsnamen in jeder Sprache.
+  </div>
+
+  <p><strong>Weiter im Tour-Archiv:</strong></p>
+  <ul>
+    <li><strong>Mehrere Touren auf einmal bearbeiten</strong> — ⌘/Strg-Klick wählt einzeln dazu, Umschalt-Klick einen ganzen Bereich. Sammlungen, Fortbewegungsart, Schlagwörter, Favorit, ausblenden: für alle gewählten in einem Rutsch.</li>
+    <li><strong>Jede Tour in eigener Farbe auf der Übersichtskarte</strong> — bei 700 Touren lag bisher alles in derselben Farbe übereinander. Eine eigene <strong>Track-Farbe je Tour</strong> lässt sich auch von Hand wählen.</li>
+    <li><strong>Übersichtskarte als PNG sichern</strong> — genau der Ausschnitt und die Farben, die gerade zu sehen sind. Der Knopf liegt oben links auf der Karte.</li>
+    <li><strong>Fortbewegungsart je Tour selbst wählen</strong> — und danach sortieren. Die Wahl hängt am Streckenverlauf, überlebt also Umbenennen, Verschieben und Neu-Einlesen.</li>
+    <li><strong>Doppelte gleich wegräumen</strong> statt sie nur zu finden — die älteste Datei ist zum Behalten vorbelegt, und es geht in den <strong>Papierkorb</strong>, nicht ins Nichts.</li>
+  </ul>
+
+  <p><strong>In den Einstellungen stand beim Mapbox-Token „Leer lassen für Standard-Token“</strong> — einen solchen gibt es aber seit Längerem nicht mehr. Wer dem Satz folgte, hatte danach weder Satellit noch 3D noch Animator und verstand nicht warum. Der Hinweis sagt jetzt, was ohne eigenen Token gesperrt bleibt.</p>
+
+  <p class="muted">Dazu behoben: ein Absturz der Karte beim schnellen Modulwechsel, und widersprüchliche Zahlen zwischen Trefferliste und Statistik bei der Gegend-Suche.</p>
+</article>
+
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.495</span>
+    <span class="version-date">1. August 2026</span>
   </div>
   <p class="version-tagline">Neu: das Tour-Archiv — alle deine Touren an einem Ort.</p>
 
