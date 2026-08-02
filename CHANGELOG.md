@@ -14,6 +14,95 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Hinzugefügt
+- **Das Archiv lädt beim Scrollen nach** (Bug-Report Beta-Tester: 4787 Touren
+  eingelesen, 200 Kacheln sichtbar). Kacheln und Liste holten fest die ersten
+  200 Treffer, und es gab keinen Weg zum Rest — die Kopfzeile nannte die
+  richtige Gesamtzahl, erreichbar war sie nur über Suche und Filter. Jetzt
+  kommt die nächste Seite, sobald die Bildlaufleiste sich dem Ende nähert; das
+  gilt auch bei einer aktiven Gegend-Suche. Karte und Statistik laden weiterhin
+  alles auf einmal, die kennen keine Seiten.
+
+### Behoben
+Ein Durchgang über den gesamten Code (sechs parallele Prüfläufe über Kern,
+Archiv, Oberfläche, Render-Kette und Bauprozess). Was Nutzer davon merken:
+
+- **Einstellungen und Projekte konnten still verloren gehen.** Jeder Aufruf aus
+  der Oberfläche läuft in einem eigenen Vorgang, und ein einziger Regler schickt
+  mehrere davon gleichzeitig los. Bisher lasen zwei davon dieselbe Datei,
+  änderten je ihren Teil und schrieben nacheinander — die Änderung des ersten
+  war weg. Schlimmer: Beide schrieben in **dieselbe** Zwischendatei; das
+  Ergebnis war unlesbar, wurde beim nächsten Start kommentarlos verworfen und
+  danach festgeschrieben. Weg waren **alle** Projekte, Keyframes, Schilder und
+  Foto-Pins. Nachgestellt: Ohne Absicherung kamen von zwölf gleichzeitigen
+  Änderungen ganze **eine** an. Jetzt sind die Zugriffe geordnet, jede
+  Zwischendatei hat einen eigenen Namen, und ein unlesbarer Stand wird zur Seite
+  gelegt statt überschrieben.
+- **Deckkraft 0 % und Lichtrichtung 0° kamen im Video nicht an.** Die Vorschau
+  zeigte eine durchsichtige Box, gerendert wurden 55 % Schwarz; die Lichtquelle
+  sprang von 0° auf 45°. Genau dieser Fehler war für die Vorschau schon einmal
+  behoben worden (v0.9.409) — im Render-Pfad lebte er weiter, und damit war die
+  Zusage „was du siehst, bekommst du" an dieser Stelle gebrochen.
+- **Schlagwörter mit Umlaut waren nicht auffindbar.** Ein Schlagwort „Ötztal"
+  traf über den Filter nie, während die Freitextsuche daneben es fand — der
+  Filter verglich mit einer Kleinschreibung, die nur englische Buchstaben kennt.
+- **`%` und `_` in der Suche waren Platzhalter statt Zeichen.** „100%" lieferte
+  die gesamte Sammlung, „Tour_2024" auch „Tour 2024".
+- **Bei einer Gegend-Suche in „Ausgeblendete" oder „Nicht erreichbar" liefen
+  Liste und Zahlen auseinander** — dieselbe Ursache wie beim gemeldeten „89
+  Kacheln, Statistik sagt 4", nur für zwei weitere Bereiche.
+- **Der „Ausreißer entfernen"-Knopf konnte einen ganzen Track vernichten.** Lag
+  der **erste** Punkt weit daneben — der klassische Kaltstart, bei dem die Uhr
+  noch die Position von vorgestern hält —, wurde alles daran gemessen und
+  verworfen: Von 61 Punkten blieben zwei übrig. Jetzt rückt der Bezugspunkt nach.
+- **Ein Foto-Sicherungsarchiv konnte Originale verlieren.** Zwei Fotos dürfen
+  gleich heißen (bei Canon und Nikon springt der Zähler nach 9999 zurück). Im
+  ZIP landeten dann zwei Einträge desselben Namens, beim Entpacken blieb einer —
+  und das ist der Stand **vor** dem EXIF-Schreiben.
+- **Nach einem kurzen Netzaussetzer blieben Adressen dauerhaft leer.** Der
+  Fehler wurde wie ein Ergebnis gemerkt; beim zweiten Anlauf meldete die Anzeige
+  wieder „fertig, 0 Adressen" — diesmal sogar ohne Grund.
+- **Der Render-Fortschritt kam nach einem Modulwechsel nie zurück.** Wer
+  während eines Videos kurz ins Archiv sah, fand danach einen eingefrorenen
+  Balken, bekam kein „Video fertig", keinen Player und keine freigegebene
+  Oberfläche — die Datei lag fertig da, ohne dass es jemand erfuhr. Jetzt wird
+  ein laufender Render beim Betreten wieder aufgenommen.
+- **Vier Dinge liefen nach einem Modulwechsel unsichtbar weiter:** die
+  Tastatursteuerung der Zeitleiste (nach drei Wechseln setzte „K" drei
+  Keyframes und die Leertaste startete drei Probe-Läufe), eine Warteschleife im
+  Geotagger (zehnmal pro Sekunde, bis zum Programmende), die Bild-für-Bild-
+  Schleife des Daten-Animators (60-mal pro Sekunde) und drei Abfrageschleifen,
+  die auf längst entfernte Bedienelemente zugriffen.
+- **Sicherheit: Dateinamen und Adressen landeten ungeprüft im Seitenaufbau.**
+  In Dateinamen sind Zeichen wie `<` erlaubt; an dieser Oberfläche hängt die
+  komplette Programmbrücke (Dateien, Papierkorb). Drei Stellen im Geotagger
+  entschärfen ihre Eingaben jetzt — der Rest des Moduls tat es längst.
+- **Kartenbilder konnten als halbe Datei im Zwischenspeicher landen** und galten
+  dann dauerhaft als gültig; die Tour zeigte für immer ein kaputtes Vorschaubild.
+- **Beim Beenden liefen Einlesen, Kartenbilder und Ortssuche weiter** — mit
+  voller Netzlast und mitten im Schreiben auf die Datenbank.
+- **Reste im Zwischenspeicher-Ordner** (auf dieser Maschine 28 Dateien) werden
+  beim Start aufgeräumt.
+
+### Geändert
+- Die App ist **9 MB kleiner**: `numpy` lag im Bundle, ohne dass irgendein Teil
+  des Programms es benutzt — es kam allein über ein Testskript mit.
+- **Drei Prüfer meldeten grün, ohne zu prüfen** — und genau daran waren die
+  letzten drei Fehlerklassen vorbeigekommen:
+  * Der Render-Test konnte gar nicht fehlschlagen (er gab kein Ergebnis zurück,
+    und die Prüfkette bewertet nur genau das). Er ist die einzige automatische
+    Prüfung der Render-Kette.
+  * Die Download-Seite sagte fest zu „signiert und notarisiert" — die Angabe
+    stand als Konstante im Code. Läuft ein Zertifikat ab, meldet die Signier-
+    Kette trotzdem Erfolg, und die Seite hätte weiter etwas versprochen, das
+    das Programm nicht einhält. Jetzt wird die geladene Datei geöffnet und
+    nachgesehen; der Hinweistext richtet sich nach dem Ergebnis.
+  * Der Übersetzungs-Prüfer übersah acht Schlüssel mit Großbuchstaben
+    (`signs.textColor` und Geschwister) — dort wäre eine fehlende Übersetzung
+    still durchgerutscht.
+- Neue Prüfungen in der Kette: Archiv-Suche, gleichzeitige Schreiber auf
+  Einstellungen und Projekten, Zertifikate.
+
 ## [0.9.497] – 2026-08-02
 
 ### Geändert

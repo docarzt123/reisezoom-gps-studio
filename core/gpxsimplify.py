@@ -134,6 +134,7 @@ def clean_outliers(points: List[dict], max_speed_kmh: float = 250.0) -> dict:
     out = [points[0]]
     last_i = 0
     removed = 0
+    letzter_wurf = -2      # Index des zuletzt verworfenen Punktes
     for i in range(1, n):
         p, q = points[last_i], points[i]
         d = haversine_m(float(p["lat"]), float(p["lon"]),
@@ -150,6 +151,22 @@ def clean_outliers(points: List[dict], max_speed_kmh: float = 250.0) -> dict:
             drop = True
         # Der letzte Punkt bleibt immer stehen (sonst endet der Track im Nichts).
         if drop and i < n - 1:
+            # Der Bezugspunkt darf nicht ewig stehen bleiben. Ist der ALLERERSTE
+            # Punkt der Ausreißer — der klassische Kaltstart, bei dem die Uhr
+            # noch die letzte bekannte Position von vorgestern hält —, dann liegt
+            # jeder Folgepunkt zu weit von ihm weg und flöge raus. Aus einem
+            # 200-Punkt-Track blieben zwei übrig: der falsche Startpunkt und das
+            # Ziel. Der „Ausreißer entfernen"-Knopf hätte die Tour vernichtet.
+            #
+            # Zwei Verwerfungen hintereinander gegen denselben Bezugspunkt
+            # heißen deshalb: der BEZUGSPUNKT ist der Ausreißer. Dann rückt er
+            # nach, und ab hier wird wieder normal geprüft.
+            if letzter_wurf == i - 1:
+                letzter_wurf = i
+                out.append(q)
+                last_i = i
+                continue
+            letzter_wurf = i
             removed += 1
             continue
         out.append(q)

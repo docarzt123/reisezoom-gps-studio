@@ -469,6 +469,12 @@ function mountHeightAnim(body, headerActions) {
   let _progress = 0;         // 0..1 — Position in der Animation
   let _playing = false;
   let _rafId = null;
+  // Modul verlassen? Alles, was nach einem `await` oder aus einem Timer
+  // weiterläuft, prüft das. Ohne diesen Merker setzte eine noch fliegende
+  // Antwort von `heightanim_load_gpx` nach dem Cleanup `_playing` wieder auf
+  // true — und `rafTick` lief danach mit 60 Bildern pro Sekunde bis zum
+  // Programmende weiter, mit allen Serien-Daten im Schlepptau.
+  let _haUnmounted = false;
   let _lastFrameTime = 0;
   let _holdingUntil = 0;     // wenn > 0: Hold-Phase aktiv (Zeitstempel ms wann sie endet)
   // Trim: welcher Track-Bereich wird animiert (0..1)
@@ -1504,6 +1510,7 @@ function mountHeightAnim(body, headerActions) {
   }
 
   function rafTick(ts) {
+    if (_haUnmounted) { _playing = false; return; }
     if (!_playing) return;
     if (!_lastFrameTime) _lastFrameTime = ts;
     const dt = (ts - _lastFrameTime) / 1000;  // Sekunden
@@ -1595,6 +1602,7 @@ function mountHeightAnim(body, headerActions) {
     }
     try {
       const res = await window.pywebview.api.heightanim_load_gpx(path);
+      if (_haUnmounted) return;   // Modul ist weg — nichts mehr anfassen
       if (window.applog) {
         window.applog("info", `[heightanim] load result ok=${res?.ok} n_elev=${res?.elevations?.length || 0}`);
       }
@@ -2267,6 +2275,7 @@ function mountHeightAnim(body, headerActions) {
       }
       return;
     }
+    if (_haUnmounted) return;   // sonst setzt sich der Poll NACH dem Cleanup neu
     _renderPollTimer = setTimeout(pollHeightRender, 350);
   }
 
@@ -2463,7 +2472,13 @@ function mountHeightAnim(body, headerActions) {
 
   // Cleanup: ResizeObserver disconnecten + Animation stoppen + Poll-Timer
   return function cleanup() {
+    // ZUERST das Flag setzen: eine noch fliegende Antwort von
+    // `heightanim_load_gpx` rief sonst NACH diesem Aufräumen `startPlay()` und
+    // setzte `_playing` wieder auf true — danach lief `rafTick` mit 60 Bildern
+    // pro Sekunde bis zum Programmende gegen entferntes DOM weiter.
+    _haUnmounted = true;
     pausePlay();
+    if (_rafId) { try { cancelAnimationFrame(_rafId); } catch (_) {} _rafId = null; }
     // v0.9.389 — GPX-Listener abmelden. Sonst lädt die verwaiste Closure bei jedem
     // GPX-Laden den Track nach + startet startPlay() → rafTick läuft ewig im Hintergrund.
     try { if (window.__rzGpxUnsub_height) { window.__rzGpxUnsub_height(); window.__rzGpxUnsub_height = null; } } catch (_) {}

@@ -42,7 +42,11 @@ DYNAMIC_PREFIXES = (
 # Kurzform an. Ohne das große T war ein ganzes Modul unsichtbar — das Archiv mit
 # über 200 Keys wurde von diesem Prüfer nie angefasst, und ein fehlender Key
 # wäre dort still durchgerutscht.
-T_CALL = re.compile(r"""(?<![A-Za-z0-9_.$])[tT]\(\s*["']([a-z][a-z0-9_.]*[a-z0-9])["']""")
+# Die Schlüssel dürfen Großbuchstaben enthalten (`signs.textColor`,
+# `signs.zoomScale` …). Vorher erlaubte das Muster nur `[a-z0-9_.]` — acht
+# Schlüssel des Schilder-Moduls waren damit unsichtbar, und ein fehlender
+# hätte dort still den rohen Namen auf den Bildschirm gebracht.
+T_CALL = re.compile(r"""(?<![A-Za-z0-9_.$])[tT]\(\s*["']([a-z][A-Za-z0-9_.]*[A-Za-z0-9])["']""")
 # Kommentare vorher entfernen — sonst zählen JSDoc-Beispiele wie
 # `t("some.key", ...)` als echte (fehlende) Aufrufe.
 _BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)

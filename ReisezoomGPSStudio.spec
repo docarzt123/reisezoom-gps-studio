@@ -163,7 +163,11 @@ if not _IS_GEO:
 # Müll der die App aufbläht
 _excludes = [
     "tkinter", "PyQt5", "PyQt6", "PySide2", "PySide6",
-    "matplotlib", "scipy", "numpy.tests",
+    # `numpy` ganz, nicht nur `numpy.tests`: Weder app.py noch core/ noch die
+    # Module importieren es, und `pip show numpy` nennt kein Paket, das es
+    # bräuchte. Es kam allein über `scripts/selftest_sign_zoom.py` mit — ein
+    # Testskript, das im Bundle nichts verloren hat. Spart 7 MB.
+    "matplotlib", "scipy", "numpy",
     "test", "tests", "unittest",
 ]
 # v0.9.331 — Solo-Geotagger rendert nichts. animator.py/heightanim.py importieren

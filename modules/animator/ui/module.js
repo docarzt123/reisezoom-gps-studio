@@ -1195,7 +1195,7 @@ function mountAnimator(body, headerActions, opts) {
   // klickbar machen + State persistieren.
   try { _ovSyncGroups(); } catch (_) {}
   if (typeof onSessionChanged === "function") {
-    try { onSessionChanged(() => { try { _ovSyncGroups(); } catch (_) {} }); } catch (_) {}
+    try { _animSessionUnsubs.push(onSessionChanged(() => { try { _ovSyncGroups(); } catch (_) {} })); } catch (_) {}
   }
   if (window.setupSectionAccordions) {
     window.setupSectionAccordions(_MODKEY, document.getElementById("anim-panel"));
@@ -1278,6 +1278,13 @@ function mountAnimator(body, headerActions, opts) {
   let _kfEditorBound = false;
   let _previewRaf = null;
   let _fitZoomBase = null;
+  // Modul verlassen? Alles, was nach einem `await` oder aus einem Timer
+  // weiterläuft, prüft das — sonst greift es auf entferntes DOM und eine
+  // abgebaute Karte zu.
+  let _animUnmounted = false;
+  let _animPendingToursTimer = null;
+  // Abmelde-Funktionen der Projekt-Abos; im Cleanup abgearbeitet.
+  const _animSessionUnsubs = [];
 
   /**
    * v0.9.39 (Marc-Bug-Report): liefert den TRACK-AUTO-FIT-Zoom als Basis
@@ -1760,10 +1767,10 @@ function mountAnimator(body, headerActions, opts) {
   };
   // Bei GPX-/Projekt-Wechsel die Stops neu laden + Liste neu zeichnen.
   if (typeof onSessionChanged === "function") {
-    try { onSessionChanged(() => { rebuildColorSourceOptions(); loadColorStops(); renderColorStops(); syncColorsUi(); }); } catch (_) {}
+    try { _animSessionUnsubs.push(onSessionChanged(() => { rebuildColorSourceOptions(); loadColorStops(); renderColorStops(); syncColorsUi(); })); } catch (_) {}
     // v0.9.444 — Diagramme sind projekt-eigener State: bei Projekt-Wechsel/-Neuanlage
     // aus dem NEUEN Projekt neu laden (sonst bleibt das alte Diagramm stehen).
-    try { onSessionChanged(() => { try { _chartsLoad(); _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {} }); } catch (_) {}
+    try { _animSessionUnsubs.push(onSessionChanged(() => { try { _chartsLoad(); _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {} })); } catch (_) {}
   }
   // v0.9.211 (Reiseroute) — GPX-Ghost-Config (Elemente existieren nur hier).
   if (_isReiseroute) {
@@ -5285,9 +5292,20 @@ function mountAnimator(body, headerActions, opts) {
   // Space           — Probe-Lauf toggle
   // Nur wenn Animator-Modul aktiv ist UND kein Input/Textarea fokussiert.
   function bindTimelineKeyNav() {
-    if (bindTimelineKeyNav._bound) return;
-    bindTimelineKeyNav._bound = true;
-    window.addEventListener("keydown", (e) => {
+    // Der Merker MUSS global liegen. `bindTimelineKeyNav` ist eine innere
+    // Funktion von `mountAnimator` — bei jedem Betreten des Moduls entsteht ein
+    // neues Funktionsobjekt, `._bound` war also stets undefined und der Schutz
+    // griff nie. Nach drei Modulwechseln lagen drei Tastatur-Handler auf dem
+    // Fenster, jeder mit eigenen, längst toten Verweisen: „K" setzte drei
+    // Keyframes, die Leertaste startete drei Probe-Läufe, Rücktaste löschte
+    // dreifach. Der sichtbare Selbstschutz (`#anim-panel` da?) half nicht — das
+    // Panel gibt es im neuen Mount ja wieder.
+    // Gleiche Lösung wie bei den Esc-Handlern weiter unten: Handle global
+    // halten und den alten vor dem neuen abmelden.
+    if (window.__rzAnimKeyNav) {
+      try { window.removeEventListener("keydown", window.__rzAnimKeyNav); } catch (_) {}
+    }
+    const _keyNav = (e) => {
       // Nur reagieren wenn der Animator gerade sichtbar ist
       const panel = document.getElementById("anim-panel");
       if (!panel || !panel.offsetParent) return;
@@ -5343,7 +5361,9 @@ function mountAnimator(body, headerActions, opts) {
         e.preventDefault();
         e.stopPropagation();
       }
-    });
+    };
+    window.__rzAnimKeyNav = _keyNav;
+    window.addEventListener("keydown", _keyNav);
   }
 
   function jumpTrackPoints(delta) {
@@ -5736,8 +5756,14 @@ function mountAnimator(body, headerActions, opts) {
       const pending = window.__rzPendingTours;
       if (Array.isArray(pending) && pending.length) {
         window.__rzPendingTours = null;
-        setTimeout(async () => {
+        _animPendingToursTimer = setTimeout(async () => {
+          // Wer nach dem Sprung aus dem Archiv binnen 1,2 s weiterklickt, darf
+          // keine Etappen mehr in ein totes Modul schreiben — `_animPersistTours`
+          // am Ende von `_animAddTourPath` würde sonst den Projekt-Stand
+          // überschreiben, den das nächste Modul schon anders gesetzt hat.
+          if (_animUnmounted) return;
           for (const p of pending) {
+            if (_animUnmounted) return;
             try { await _animAddTourPath(p); } catch (e) { console.warn("pending tour:", e); }
           }
           applog("info", `[Animator] ${pending.length} Etappe(n) aus dem Archiv übernommen`);
@@ -10115,7 +10141,7 @@ function mountAnimator(body, headerActions, opts) {
   document.getElementById("anim-fly")?.addEventListener("change", _animPersistTours);
   try { _animLoadTours(); } catch (_) {}
   if (typeof onSessionChanged === "function") {
-    try { onSessionChanged(() => { try { _animLoadTours(); } catch (_) {} }); } catch (_) {}
+    try { _animSessionUnsubs.push(onSessionChanged(() => { try { _animLoadTours(); } catch (_) {} })); } catch (_) {}
   }
 
   // ── v0.9.412 — Snapshot (aktueller Vorschau-Frame als Bild) + „Als Tour-Map
@@ -10581,12 +10607,52 @@ function mountAnimator(body, headerActions, opts) {
 
   let pollTimer = null;
   let _lastPreviewB64 = "";
+
+  /* Läuft beim Betreten des Moduls noch ein Render? Dann dranbleiben.
+   *
+   * Der Fortschritt wurde bisher NUR beim Klick auf „Rendern" verfolgt. Wer
+   * währenddessen kurz ins Archiv schaute und zurückkam, sah einen
+   * eingefrorenen Balken, bekam kein „Video fertig", keinen Player und keine
+   * freigegebene Oberfläche — das Video lag fertig auf der Platte, ohne dass es
+   * jemand erfuhr. Und ein neuer Klick antwortete nur „Render läuft bereits".
+   *
+   * Verschärft dadurch, dass Animator, Reiseroute und Tour-Map denselben
+   * Render-Zustand im Hintergrund teilen: Ein Video aus dem Animator blockierte
+   * so auch den PNG-Export der Tour-Map, ohne erreichbaren Abbrechen-Knopf.
+   */
+  (async () => {
+    try {
+      const s = await api().animator_status();
+      if (_animUnmounted || !s || !s.running) return;
+      setRenderingState(true);
+      applog("info", "[Animator] laufenden Render wieder aufgenommen");
+      pollStatus();
+    } catch (_) { /* kein Render, kein Problem */ }
+  })();
+
   async function pollStatus() {
     // v0.9.25 — kein Bridge-Call mehr wenn Window am Schließen
     if (window.__rzgpsShuttingDown) { clearTimeout(pollTimer); return; }
-    const s = await api().animator_status();
+    // Modul verlassen? Still aussteigen. Vorher lief die Schleife weiter und
+    // fasste entfernte Elemente an; der TypeError riss sie mitten drin ab und
+    // die Seitenleiste blieb für immer im Zustand „rendert gerade".
+    if (_animUnmounted) { clearTimeout(pollTimer); return; }
+    let s;
+    try {
+      s = await api().animator_status();
+    } catch (e) {
+      // Ein einzelner fehlgeschlagener Aufruf darf die Schleife nicht beenden —
+      // sonst kommt der Fortschritt nie wieder und der Nutzer sitzt vor einer
+      // gesperrten Oberfläche. Melden, kurz warten, weiterfragen.
+      console.warn("animator_status:", e);
+      if (!_animUnmounted) pollTimer = setTimeout(pollStatus, 800);
+      return;
+    }
+    if (_animUnmounted) return;
+    const _pctEl = document.getElementById("anim-pct");
+    if (!_pctEl) { clearTimeout(pollTimer); return; }
     const pct = Math.round((s.progress || 0) * 100);
-    document.getElementById("anim-pct").textContent = pct + "%";
+    _pctEl.textContent = pct + "%";
     document.getElementById("anim-fill").style.width = pct + "%";
     document.getElementById("anim-status").textContent = s.status || "";
 
@@ -10932,10 +10998,24 @@ function mountAnimator(body, headerActions, opts) {
   })();
 
   return () => {
+    _animUnmounted = true;
     clearTimeout(pollTimer);
+    clearTimeout(_animPendingToursTimer);
+    if (_previewRaf) { try { cancelAnimationFrame(_previewRaf); } catch (_) {} _previewRaf = null; }
     // v0.9.389 — GPX-Listener abmelden, sonst feuern beim nächsten GPX-Laden die
     // (nach Tab-Wechsel toten) Callbacks aller früheren Mounts auf entfernten Maps.
     try { if (window.__rzGpxUnsub_anim) { window.__rzGpxUnsub_anim(); window.__rzGpxUnsub_anim = null; } } catch (_) {}
+    // Tastatur-Steuerung der Timeline abmelden (siehe bindTimelineKeyNav).
+    if (window.__rzAnimKeyNav) {
+      try { window.removeEventListener("keydown", window.__rzAnimKeyNav); } catch (_) {}
+      window.__rzAnimKeyNav = null;
+    }
+    // Die vier Projekt-Abos geben je eine Abmelde-Funktion zurück; ohne die
+    // liefen bei jedem Projektwechsel der Farb-, Diagramm- und Touren-Aufbau
+    // aller früheren Mounts erneut — gegen entferntes DOM.
+    for (const ab of _animSessionUnsubs.splice(0)) {
+      try { ab(); } catch (_) {}
+    }
     try { _animSignsCloseEditor(); } catch (_) {}   // v0.9.180 — body-Panel aufräumen
     if (_animViewportObserver) {
       try { _animViewportObserver.disconnect(); } catch (_) {}

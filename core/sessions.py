@@ -26,12 +26,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import os
 import shutil
+import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
+
+_log = logging.getLogger("core.sessions")
 
 
 # ── Schemata ─────────────────────────────────────────────────────────────────
@@ -110,27 +115,70 @@ def _now_iso() -> str:
 
 
 def load_sessions(sessions_file: Path) -> dict:
-    """Lädt sessions.json. Failsafe: bei Korruption leere Struktur."""
+    """Lädt sessions.json. Failsafe: bei Korruption leere Struktur.
+
+    ⚠️ Der Failsafe ist **still**: eine kaputte Datei liefert eine leere
+    Struktur, und der nächste Speichervorgang schreibt sie fest. Damit das
+    nicht durch einen halb geschriebenen Zwischenstand ausgelöst werden kann,
+    schreibt `save_sessions` unter einem eindeutigen Namen — siehe dort. Eine
+    Datei, die trotzdem unlesbar ist, wird zur Seite gelegt statt überschrieben.
+    """
     if not sessions_file.exists():
         return {"schema": SCHEMA_VERSION, "sessions": {}}
     try:
         data = json.loads(sessions_file.read_text(encoding="utf-8"))
         if not isinstance(data, dict) or "sessions" not in data:
-            return {"schema": SCHEMA_VERSION, "sessions": {}}
+            raise ValueError("unerwartete Struktur")
         # Forward-Migrate falls Schema sich erweitert (v0.8.0: nichts zu tun)
         data.setdefault("schema", SCHEMA_VERSION)
         data.setdefault("sessions", {})
         return data
-    except Exception:
+    except Exception as e:
+        # Nicht kommentarlos verwerfen: Hier hängen alle Projekte, Keyframes,
+        # Schilder und Foto-Pins des Nutzers dran. Eine Kopie zur Seite legen,
+        # damit sich das im Zweifel von Hand retten lässt.
+        try:
+            kaputt = sessions_file.with_suffix(".kaputt")
+            if not kaputt.exists():
+                kaputt.write_bytes(sessions_file.read_bytes())
+            _log.error("sessions.json unlesbar (%s) — Kopie liegt unter %s", e, kaputt)
+        except Exception:
+            _log.error("sessions.json unlesbar (%s) und ließ sich nicht sichern", e)
         return {"schema": SCHEMA_VERSION, "sessions": {}}
 
 
+# Alle Lese-Ändere-Schreibe-Folgen auf sessions.json laufen unter diesem Lock.
+# Grund: pywebview startet für JEDEN Bridge-Aufruf einen eigenen Thread
+# (`webview/util.py`, `Thread(target=_call)`). Die Oberfläche schickt aus einem
+# einzigen Debounce-Tick mehrere `session_update_project_settings`-Aufrufe los —
+# einen je Modul. Ohne Lock laden zwei Threads dieselbe Datei, ändern je ihren
+# Teil und schreiben nacheinander: die Änderung des ersten ist weg.
+LOCK = threading.RLock()
+
+
 def save_sessions(sessions_file: Path, data: dict) -> None:
-    """Atomar schreiben (temp + rename)."""
+    """Atomar schreiben (temp + rename) — auch bei mehreren Schreibern.
+
+    Der Temp-Name enthält Prozess-ID und einen Zufallsteil. Vorher schrieben
+    zwei gleichzeitige Aufrufe in **dieselbe** `sessions.tmp`; das Ergebnis war
+    verschränkter JSON, den `load_sessions` still als „kaputt" verwarf — und mit
+    ihm alle Projekte des Nutzers.
+    """
     sessions_file.parent.mkdir(parents=True, exist_ok=True)
-    tmp = sessions_file.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(sessions_file)
+    tmp = sessions_file.with_name(
+        f"{sessions_file.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, ensure_ascii=False)
+            fh.flush()
+            os.fsync(fh.fileno())   # sonst überlebt der Inhalt kein hartes Aus
+        os.replace(tmp, sessions_file)
+    finally:
+        try:
+            if tmp.exists():
+                tmp.unlink()
+        except OSError:
+            pass
 
 
 # ── Session-Lookup + Anlegen ─────────────────────────────────────────────────
