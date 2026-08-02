@@ -443,6 +443,55 @@ Todo lo demás —sobre todo tus imágenes de portada— se queda.
 > Las imágenes de vista previa son simples dibujos de línea sin mapa. Es intencionado: así
 > aparecen al instante, funcionan sin internet y no consumen cuota de mapas.
 
+### Editar varias rutas a la vez (desde v0.9.496)
+
+**⌘-clic** (Windows: Ctrl-clic) añade una ruta a la selección, **Mayús-clic** toma un rango
+entero. Con dos o más seleccionadas, la columna derecha se convierte en un panel colectivo:
+
+- **Asignar colecciones** — tantas como quieras; una ruta puede estar en varias.
+- Fijar la **actividad** para todas, **añadir etiquetas** (las existentes se mantienen),
+  marcar **hecha/planificada**, poner o quitar favorita, **ocultar**, **mover a la papelera**.
+
+Abrir una herramienta no es posible con varias seleccionadas: el animador tendría que adivinar
+cuál. **«Quitar selección»** o un clic simple en una ruta termina la selección múltiple.
+
+### Elegir tú la actividad (desde v0.9.496)
+
+El archivo estima la actividad por el nombre y el ritmo — casi siempre acierta, a veces no.
+Por eso la columna de detalle tiene un selector; **«Detectado automáticamente»** muestra al
+lado lo que dice la estimación. Tu elección se guarda junto al recorrido, sobrevive a cada
+nueva lectura y vale para todas las copias de la misma ruta. Volver a automático restaura la
+estimación.
+
+### Buscar por zonas (desde v0.9.496)
+
+Si escribes **«Tenerife»**, no obtienes solo las rutas que llevan esa palabra en el nombre,
+sino **todas las que están allí** — aunque «Tenerife» no aparezca en ningún archivo. Encima de
+la lista se explica qué ha pasado:
+
+> 📍 Zona: Tenerife — 163 rutas aquí · 8 por nombre ✕
+
+La ✕ vuelve a la búsqueda de texto. Funciona con cualquier topónimo en cualquier idioma —
+isla, ciudad, comarca, país. Necesita internet; sin él sigues buscando por nombre, etiquetas
+y notas.
+
+Además la aplicación nombra en segundo plano la zona de cada ruta (localidad, provincia,
+región, país) y la recuerda. Mientras tanto arriba pone **«Nombrando las zonas 47/493»**. Va
+despacio y no molesta; al siguiente arranque continúa donde lo dejó.
+
+### El mapa general (botón del globo)
+
+Cada ruta recibe **su propio color**, derivado de su recorrido — con setecientas rutas todas
+las líneas serían iguales y no se podría seguir ninguna. El color se mantiene entre sesiones.
+Las favoritas conservan su color de señal.
+
+Si alguno no te gusta, pon el tuyo en **«Color del track en el mapa»** en la columna de
+detalle; **«Automático»** restaura el derivado. Este color vale **solo en el archivo** — el
+animador y el mapa de ruta tienen su propio color por proyecto.
+
+Arriba a la izquierda del mapa está **🖼 PNG**: guarda el mapa exactamente como se ve ahora —
+mismo encuadre, mismo zoom, mismos colores.
+
 ---
 
 ## 3 · Módulo: Animator — renderizar el GPX como vídeo

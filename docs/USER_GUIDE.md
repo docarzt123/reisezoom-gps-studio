@@ -488,6 +488,55 @@ gelöscht. Alles andere — besonders deine eigenen Titelbilder — bleibt.
 > sich nur, was wo liegt. Die einzige Ausnahme ist **„In den Papierkorb"**, und die fragt
 > vorher nach.
 
+### Mehrere Touren auf einmal bearbeiten (seit v0.9.496)
+
+**⌘-Klick** (Windows: Strg-Klick) nimmt eine Tour zur Auswahl dazu, **Umschalt-Klick** einen
+ganzen Bereich. Ab zwei gewählten Touren wird die rechte Spalte zum Sammel-Panel:
+
+- **Sammlungen zuweisen** — beliebig viele; eine Tour darf in mehreren Sammlungen liegen.
+- **Fortbewegung** für alle setzen, **Schlagwörter ergänzen** (vorhandene bleiben),
+  **gemacht/geplant**, Favorit setzen oder wegnehmen, **ausblenden**, **in den Papierkorb**.
+
+Ein Werkzeug öffnen geht bei Mehrfachauswahl nicht — der Animator müsste sonst raten, welche
+Tour gemeint ist. **„Auswahl aufheben"** oder ein einfacher Klick auf eine Tour beendet die
+Mehrfachauswahl.
+
+### Fortbewegungsart selbst festlegen (seit v0.9.496)
+
+Das Archiv schätzt die Art aus Namen und Tempo — meistens richtig, manchmal nicht. In der
+Detailspalte steht deshalb eine Auswahl; **„Automatisch erkannt"** zeigt daneben, was die
+Schätzung sagt. Deine Wahl hängt am Streckenverlauf, überlebt jedes Neu-Einlesen und gilt
+sofort für alle Kopien derselben Tour. Zurück auf „Automatisch" stellt die Schätzung wieder her.
+
+### Nach Gegenden suchen (seit v0.9.496)
+
+Tippst du **„Teneriffa"** ein, bekommst du nicht nur die Touren, in deren Namen das Wort
+steht, sondern **alle Touren, die dort liegen** — auch wenn „Teneriffa" in keiner Datei
+vorkommt. Über der Liste steht dann, was passiert ist:
+
+> 📍 Gegend: Teneriffa — 163 Touren hier · 8 über den Namen ✕
+
+Das ✕ schaltet zurück auf reine Textsuche. Es funktioniert mit jedem Ortsnamen in jeder
+Sprache — Insel, Stadt, Landkreis, Land. Voraussetzung ist Internet; ohne findest du weiter
+über Namen, Schlagwörter und Notiz.
+
+Zusätzlich benennt die App im Hintergrund die Gegend jeder Tour (Ort, Provinz, Region, Land)
+und merkt sie sich. Oben steht währenddessen **„Gegenden werden benannt 47/493"**. Das läuft
+gemächlich und stört nicht; beim nächsten Start macht es weiter, wo es aufgehört hat.
+
+### Die Übersichtskarte (Weltkugel-Knopf)
+
+Jede Tour bekommt eine **eigene Farbe**, abgeleitet aus ihrem Streckenverlauf — bei
+siebenhundert Touren wären sonst alle Linien gleich und keine mehr zu verfolgen. Die Farbe
+bleibt über Sitzungen hinweg dieselbe. Favoriten behalten ihre Signalfarbe.
+
+Gefällt dir eine Farbe nicht, setzt du in der Detailspalte unter **„Track-Farbe auf der
+Karte"** deine eigene; **„Automatisch"** stellt die abgeleitete wieder her. Diese Farbe gilt
+**nur im Archiv** — Animator und Tour-Karte haben ihre eigene Farbwahl je Projekt.
+
+Oben links auf der Karte liegt **🖼 PNG**: Damit sicherst du die Karte genau so, wie sie
+gerade zu sehen ist — selber Ausschnitt, selbe Zoomstufe, selbe Farben.
+
 ---
 
 ## 3 · Modul: Animator — GPX als Video rendern

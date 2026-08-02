@@ -42,7 +42,7 @@ except Exception:  # noqa: BLE001 — ohne Zertifikatsdatei bleibt der Systemspe
 # „Executable doesn't exist" ab. Muss VOR dem ersten Playwright-Import
 # gesetzt werden, da Playwright diesen Pfad beim Driver-Init resolved.
 #
-# v0.9.229 (Windows-Bug-Report Peter Straka): Chromium ist jetzt MIT-GEBÜNDELT
+# v0.9.229 (Windows-Bug-Report eines Nutzers): Chromium ist jetzt MIT-GEBÜNDELT
 # (siehe .spec `pw-browsers/`). Auflösung:
 #   1) Gebündelt im Bundle (sys._MEIPASS/pw-browsers) → out-of-box, kein Download.
 #   2) Sonst: User-Cache (Dev-Builds + Download-on-first-render-Fallback).
@@ -5362,7 +5362,7 @@ class Api:
             finally:
                 # Wenn nichts herauskam, den Grund mitliefern — „0 Adressen"
                 # ohne Erklärung hat einen Nutzer eine Stunde gekostet
-                # (Bug-Report Martin W., v0.9.495: Zertifikatsfehler, alle drei
+                # (Nutzer-Bug-Report zu v0.9.495: Zertifikatsfehler, alle drei
                 # Dienste durchprobiert, keiner sagte warum).
                 grund = cgeocode.letzter_fehler() if not results else {"art": "", "text": ""}
                 with self._geo_lock:
@@ -6097,7 +6097,7 @@ def main() -> None:
         create_kwargs["x"] = _win_x
         create_kwargs["y"] = _win_y
 
-    # v0.9.230 (Windows-Bug-Report Peter Straka): Datei-Drag&Drop auf Windows
+    # v0.9.230 (Windows-Bug-Report eines Nutzers): Datei-Drag&Drop auf Windows
     # abschalten. Hintergrund: WebView2 (Edge) fängt einen Datei-Drop auf
     # CONTROL-Ebene ab (Property `AllowExternalDrop`, Default true) — VOR unserem
     # DOM-drop-Handler. Da `.gpx` keine Web-Zuordnung hat, wirft Windows die

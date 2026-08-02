@@ -149,7 +149,7 @@ def reverse(lat: float, lon: float, *, provider: str = "nominatim",
         log.warning("reverse(%s) fehlgeschlagen %.5f,%.5f: %s", prov, lat, lon, e)
         # Den Grund merken. Vorher wurde der Fehler nur ins Log geschrieben, und
         # die Oberfläche meldete am Ende „fertig, 0 Adressen" — ein Fehlschlag,
-        # der wie ein Erfolg aussieht. Genau daran hat sich Martin W. (v0.9.495)
+        # der wie ein Erfolg aussieht. Genau daran hat sich ein Nutzer (v0.9.495)
         # aufgerieben: alle drei Dienste durchprobiert, keiner sagte warum.
         merke_fehler(e)
         addr = None
@@ -160,7 +160,7 @@ def reverse(lat: float, lon: float, *, provider: str = "nominatim",
 
 
 def _fetch_json(url: str, timeout: float) -> dict:
-    # v0.9.496 (Nutzer-Bug Martin W.): OHNE eigenen TLS-Kontext findet Pythons
+    # v0.9.496 (Nutzer-Bug-Report): OHNE eigenen TLS-Kontext findet Pythons
     # OpenSSL im PyInstaller-Bundle keine Zertifikate — jede Adressabfrage starb
     # mit CERTIFICATE_VERIFY_FAILED, und der Geotagger meldete stumm
     # „0 Adressen". Siehe core/net.py.

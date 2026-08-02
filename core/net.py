@@ -12,7 +12,7 @@ Das ist bisher **dreimal** aufgefallen und **dreimal einzeln** repariert worden:
 
 * v0.9.261 — Reiseroute (`core/route.py`), Nutzer-Bug
 * v0.9.316 — Update-Prüfung (`app.py`), Nutzer-Bug „keine Verbindung"
-* v0.9.496 — Adressen im Geotagger (`core/geocode.py`), Nutzer-Bug Martin W.
+* v0.9.496 — Adressen im Geotagger (`core/geocode.py`), Nutzer-Bug-Report
 
 Beim dritten Mal fiel auf, dass dieselbe Wurzel noch zwei weitere Stellen
 betrifft, die nur noch niemand gemeldet hatte: `core/elevation.py` (Höhen aus

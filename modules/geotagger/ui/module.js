@@ -3042,7 +3042,7 @@ function mountGeotagger(body, headerActions) {
         if (btn) btn.disabled = false;
         // Kam nichts zurück UND der Kern kennt einen Grund, dann sagen wir ihn.
         // Vorher stand hier nur „0 Adressen" — ein Fehlschlag, der wie ein
-        // Erfolg aussah (Bug-Report Martin W., v0.9.495).
+        // Erfolg aussah (Nutzer-Bug-Report zu v0.9.495).
         if (statusEl) {
           if (_gtAddr.size === 0 && st.fehler_art) {
             statusEl.textContent = t("geotagger.geocode.fehler." + st.fehler_art,

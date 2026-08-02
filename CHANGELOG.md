@@ -77,7 +77,7 @@ Bei jeder neuen Version:
   der Gegend, die Statistik weiter über den eingetippten Text. Beide nehmen jetzt
   denselben Filter; mit gleicher Auswahl kommen auch gleiche Zahlen heraus.
 - **Im Geotagger wurden keine Adressen gefunden — an keinem der drei Dienste.**
-  (Bug-Report Martin Winkler.) Ursache war nicht der Dienst, sondern das
+  (Nutzer-Bug-Report.) Ursache war nicht der Dienst, sondern das
   Programm selbst: In der gebauten App findet Pythons Verschlüsselung die
   Sicherheits-Zertifikate des Systems nicht, und **jede** Abfrage starb an der
   Zertifikatsprüfung. Für die Reiseroute (v0.9.261) und die Update-Prüfung
@@ -2873,7 +2873,7 @@ Bei jeder neuen Version:
 
 ## [0.9.230] – 2026-06-10
 
-### Behoben (Windows — GPX-Drag löste „Öffnen mit…"-Shell-Dialog aus, Bug-Report Peter Straka)
+### Behoben (Windows — GPX-Drag löste „Öffnen mit…"-Shell-Dialog aus, Nutzer-Bug-Report)
 
 - **Datei-Drag&Drop auf Windows abgeschaltet.** Ursache: WebView2 (Edge) fängt
   einen Datei-Drop auf Control-Ebene ab (`AllowExternalDrop`, Default true) —
@@ -2887,7 +2887,7 @@ Bei jeder neuen Version:
 
 ## [0.9.229] – 2026-06-10
 
-### Behoben / Geändert (Windows-Bug-Report Peter Straka v0.9.162)
+### Behoben / Geändert (Windows-Bug-Report eines Nutzers v0.9.162)
 
 - **Render-Engine (Chromium) wird jetzt MIT-GEBÜNDELT** (macOS + Windows) — kein
   Download mehr beim 1. Render, läuft out-of-box. Vorher musste Chromium beim

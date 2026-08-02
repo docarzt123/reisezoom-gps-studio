@@ -109,7 +109,7 @@ Reisezoom-GPS-Studio/
   - `_backups_photos/` — ZIP-Snapshots vor EXIF-Write
 
 **Render-Engine (Chromium) — gebündelt seit v0.9.229** (Windows-Bug-Report Peter
-Straka). Animator/Tour-Map/Höhen-Render brauchen Playwright-Chromium. Statt
+eines Nutzers). Animator/Tour-Map/Höhen-Render brauchen Playwright-Chromium. Statt
 Download-on-first-render ist `chromium-headless-shell` jetzt im Bundle:
 - **Build:** `build.sh` (lokal) + `release.yml` (CI, mac/win/linux) füllen
   `pw-browsers/` via `PLAYWRIGHT_BROWSERS_PATH=<repo>/pw-browsers playwright
@@ -1161,6 +1161,22 @@ Gerufen werden sie aus `applyGlobalGpx` (nach `sessionActivate` →
 (Projekt-Wechsel via Topbar).
 Bei Backend-Änderung an einer Stelle die andere mit-pflegen.
 
+### `core/net.py` (v0.9.496) — ausgehende HTTPS-Verbindungen
+
+Eine Quelle für den TLS-Kontext. Im PyInstaller-Bundle findet Pythons OpenSSL die
+System-Zertifikate **nicht**; jeder Aufruf stirbt dann mit
+`CERTIFICATE_VERIFY_FAILED`. Das ist dreimal von Nutzern gemeldet und dreimal
+einzeln repariert worden (Reiseroute v0.9.261, Update-Prüfung v0.9.316, Adressen
+v0.9.496) — beim dritten Mal fiel auf, dass zwei weitere Stellen betroffen waren,
+die nur niemand gemeldet hatte.
+
+⚠️ **Jeder neue `urlopen` im Kern nimmt `context=net.ssl_context()` mit.**
+`tests/test_https_certificates.py` stellt den Fehler nach (leerer
+Zertifikatsspeicher über `SSL_CERT_FILE`) und schlägt an, wenn ein Aufruf ohne
+geprüften Kontext dazukommt. Zusätzlich setzt `app.py` beim Start
+`net.install_default_ca()` — das erwischt auch fremden Code, der diese Datei
+nicht kennt.
+
 ### `core/library.py` (v0.9.486) — Tour-Archiv
 
 Durchsuchbarer Index aller Track-Dateien aus den beobachteten Ordnern.
@@ -1183,6 +1199,56 @@ mitten im Schreiben.
 ⚠️ **Der `track_hash` muss exakt so gebildet werden wie beim Öffnen eines Tracks
 in `app.py`** (Basename fließt ein). Ändert sich das dort, ändert es sich hier mit,
 sonst findet das Archiv die bestehenden Projekte nicht mehr.
+
+#### Was dauerhaft ist, hängt am `geo_hash` (v0.9.493 ff.)
+
+`track_meta` ist die Wahrheit für alles, was der Nutzer sagt: `fav`, `tags`,
+`note`, `cover`, `recorded_user`, `display_name`, `hidden`, seit v0.9.496 dazu
+`activity_user` und `color`. Die gleichnamigen Spalten in `tracks` sind nur
+**Anzeige-Cache** — gefiltert und sortiert wird auf ihnen (ein JOIN in jeder
+Abfrage wäre teurer), gefüllt werden sie nach jedem Einlesen aus `track_meta`
+(`_apply_meta`).
+
+⚠️ **Wer ein neues Nutzerfeld ergänzt, trägt es an DREI Stellen ein:** Spalte im
+`track_meta`-Schema, Nachzieh-Migration in `_migrate_meta_spalten` (bestehende
+Archive!) und `_META_COLS` für die Rückspiegelung. Fehlt eines, ist das Feld nach
+dem nächsten Einlesen weg.
+
+Sonderfall `activity_user`: In `tracks` heißt die Spalte `activity` und enthält
+die **Schätzung**, in `track_meta` steht die **Wahl des Nutzers** (leer = keine).
+`_apply_meta` überschreibt die Schätzung nur, wenn eine Wahl vorliegt.
+
+#### Ortssuche (v0.9.496)
+
+Zwei getrennte Wege, beide über Nominatim (`core/geocode.py`):
+
+* **rückwärts** (`reverse`) — Hintergrundlauf `library_places_start` benennt zu
+  jeder Tour die Gegend und legt sie in `place` / `region` / `country` ab, damit
+  die normale Textsuche sie findet. Abgefragt werden Start, Ziel und einige
+  Punkte dazwischen (`_ort_anker`), damit eine Tour über Ländergrenzen unter
+  allen beteiligten Namen auffindbar ist; `_ort_zusammenfassen` baut daraus die
+  drei Felder. `county`/`province`/`island` wandert mit in `region` — ohne das
+  fehlt bei Inseln der Name, unter dem gesucht wird („Santa Cruz de Tenerife",
+  während `state` nur „Kanarische Inseln" sagt).
+* **vorwärts** (`forward`) — der Suchbegriff selbst wird nachgeschlagen; das
+  gelieferte Rechteck geht als `bbox` in `query()`. Damit findet „Teneriffa" die
+  163 Touren der Insel, obwohl das Wort in keiner Datei steht.
+
+⚠️ **Liste und Statistik müssen denselben Filter bekommen.** Zeigt die Liste eine
+Gegend, muss `library_stats` dieselbe `bbox` sehen — sonst stehen 89 Kacheln neben
+der Behauptung „4 Touren" (so gemeldet am 01.08.2026).
+
+#### Farben auf der Übersichtskarte (v0.9.496)
+
+Ohne Variation liegen bei 700 Touren alle Linien in derselben Farbe übereinander.
+Die Farbe wird im Frontend aus dem `geo_hash` abgeleitet (`autoColor`, zwölf
+Farben, an 709 Touren nachgezählt gleichmäßig verteilt) — stabil über Sitzungen,
+ohne Pflegeaufwand. Eine gesetzte `color` schlägt sie, Favoriten behalten
+`FAV_COLOR`.
+
+Der PNG-Export der Karte braucht `preserveDrawingBuffer: true` beim Erzeugen der
+Karte; ohne das liefert `getCanvas().toDataURL()` ein schwarzes Bild. Vor dem
+Auslesen wird auf `idle` gewartet, sonst fehlen noch ladende Kacheln.
 
 **Einlesen (`scan`)** ist inkrementell: eine Datei wird nur neu geparst, wenn
 Änderungszeit oder Größe abweichen. Messung an Marcs Komoot-Export:
