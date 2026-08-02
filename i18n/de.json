@@ -1542,7 +1542,7 @@
   "library.open_inspect": "Inspektor",
   "library.favorite": "Favorit",
   "library.tags": "Schlagwörter",
-  "library.tags_ph": "z. B. Mallorca, Testfahrt",
+  "library.tags_ph": "z. B. urlaub, familie",
   "library.note": "Notiz",
   "library.reveal": "Im Finder zeigen",
   "library.open_source": "Bei Komoot ansehen",
@@ -1665,5 +1665,16 @@
   "library.found_area": "Gegend",
   "library.tours_here": "Touren hier",
   "library.area_off": "Nur Treffer im Text zeigen",
-  "library.by_name": "über den Namen"
+  "library.by_name": "über den Namen",
+  "library.selected": "Touren gewählt",
+  "library.clear_sel": "Auswahl aufheben",
+  "library.keep": "unverändert lassen",
+  "library.add": "Hinzufügen",
+  "library.added": "hinzugefügt",
+  "library.fav_on": "Als Favorit",
+  "library.fav_off": "Favorit weg",
+  "library.recorded": "Gemacht oder geplant",
+  "library.new_collection": "Neue Sammlung",
+  "library.trash_many_q": "{n} Touren in den Papierkorb legen?",
+  "library.multi_hint": "Mehrere wählen: ⌘/Strg-Klick einzeln, Umschalt-Klick für einen Bereich."
 }

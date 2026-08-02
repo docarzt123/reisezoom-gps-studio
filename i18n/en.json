@@ -1542,7 +1542,7 @@
   "library.open_inspect": "Inspector",
   "library.favorite": "Favourite",
   "library.tags": "Tags",
-  "library.tags_ph": "e.g. Mallorca, test ride",
+  "library.tags_ph": "e.g. holiday, family",
   "library.note": "Note",
   "library.reveal": "Show in file manager",
   "library.open_source": "View on Komoot",
@@ -1665,5 +1665,16 @@
   "library.found_area": "Area",
   "library.tours_here": "tours here",
   "library.area_off": "Show text matches only",
-  "library.by_name": "by name"
+  "library.by_name": "by name",
+  "library.selected": "tours selected",
+  "library.clear_sel": "Clear selection",
+  "library.keep": "leave unchanged",
+  "library.add": "Add",
+  "library.added": "added",
+  "library.fav_on": "Mark favourite",
+  "library.fav_off": "Remove favourite",
+  "library.recorded": "Done or planned",
+  "library.new_collection": "New collection",
+  "library.trash_many_q": "Move {n} tours to the trash?",
+  "library.multi_hint": "Select several: ⌘/Ctrl-click one by one, Shift-click for a range."
 }

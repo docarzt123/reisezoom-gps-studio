@@ -1542,7 +1542,7 @@
   "library.open_inspect": "Inspector",
   "library.favorite": "Favorita",
   "library.tags": "Etiquetas",
-  "library.tags_ph": "p. ej. Mallorca, prueba",
+  "library.tags_ph": "p. ej. vacaciones, familia",
   "library.note": "Nota",
   "library.reveal": "Mostrar en el explorador",
   "library.open_source": "Ver en Komoot",
@@ -1665,5 +1665,16 @@
   "library.found_area": "Zona",
   "library.tours_here": "rutas aquí",
   "library.area_off": "Mostrar solo coincidencias de texto",
-  "library.by_name": "por nombre"
+  "library.by_name": "por nombre",
+  "library.selected": "rutas seleccionadas",
+  "library.clear_sel": "Quitar selección",
+  "library.keep": "dejar sin cambios",
+  "library.add": "Añadir",
+  "library.added": "añadidas",
+  "library.fav_on": "Marcar favorita",
+  "library.fav_off": "Quitar favorita",
+  "library.recorded": "Hecha o planificada",
+  "library.new_collection": "Nueva colección",
+  "library.trash_many_q": "¿Mover {n} rutas a la papelera?",
+  "library.multi_hint": "Seleccionar varias: ⌘/Ctrl-clic una a una, Mayús-clic para un rango."
 }
