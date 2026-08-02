@@ -152,7 +152,15 @@ def reverse(lat: float, lon: float, *, provider: str = "nominatim",
         # der wie ein Erfolg aussieht. Genau daran hat sich ein Nutzer (v0.9.495)
         # aufgerieben: alle drei Dienste durchprobiert, keiner sagte warum.
         merke_fehler(e)
-        addr = None
+        # Und NICHT merken: Ein Netzfehler ist keine Aussage über diesen Ort.
+        # Vorher landete er im selben Zwischenspeicher wie ein echtes „hier gibt
+        # es nichts". Fiel das WLAN während eines Laufs kurz aus, waren die
+        # betroffenen Punkte damit dauerhaft abgehakt — beim zweiten Anlauf
+        # antwortete der Speicher, es entstand gar kein Fehler mehr, und die
+        # Anzeige meldete erneut „fertig, 0 Adressen", diesmal sogar ohne Grund.
+        # Genau der Fehlschlag-der-wie-Erfolg-aussieht, den v0.9.496 abstellen
+        # sollte — nur eben beim zweiten Versuch.
+        return None
 
     with _LOCK:
         _CACHE[key] = addr

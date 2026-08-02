@@ -1052,6 +1052,16 @@ def _norm(s: str) -> str:
     return "".join(c for c in s if not unicodedata.combining(c))
 
 
+def _like_escape(s: str) -> str:
+    """`%`, `_` und `\\` für ein LIKE-Muster entschärfen.
+
+    Ohne das sind es Platzhalter statt Zeichen: „100%" fand die gesamte
+    Sammlung, „Tour_2024" auch „Tour 2024". Gehört immer mit `ESCAPE '\\'`
+    zusammen — sonst kennt SQLite den Backslash nicht als Fluchtzeichen.
+    """
+    return (s or "").replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 
 _SEARCH_HAY = ("COALESCE(display_name,'') || ' ' || COALESCE(name,'') || ' ' || "
                "COALESCE(filename,'') || ' ' || COALESCE(tags,'') || ' ' || "
@@ -1099,16 +1109,24 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
         where.append("max_lat >= ? AND min_lat <= ? AND max_lon >= ? AND min_lon <= ?")
         args += [bbox["min_lat"], bbox["max_lat"], bbox["min_lon"], bbox["max_lon"]]
     for t in (tags or []):
-        where.append("(',' || lower(tags) || ',') LIKE ?")
-        args.append(f"%,{t.strip().lower()},%")
+        # `rz_norm`, nicht SQLites `lower()`: dessen Kleinschreibung kennt nur
+        # ASCII (`lower('Ötztal')` bleibt 'Ötztal'), während Python die ganze
+        # Unicode-Tabelle anwendet. Ein Schlagwort mit Umlaut war über diesen
+        # Filter deshalb nie zu finden — während die Freitextsuche daneben es
+        # fand, weil die schon immer über `rz_norm` lief.
+        where.append("(',' || rz_norm(tags) || ',') LIKE ? ESCAPE '\\'")
+        args.append(f"%,{_like_escape(_norm(t.strip()))},%")
     # Jedes Suchwort muss vorkommen — akzent-unempfindlich über `rz_norm`.
     # Findet der Text nichts, schlägt die Oberfläche den Begriff als ORT nach
     # und sucht über die Koordinaten weiter (siehe `library_search_place`).
     for w in (search or "").split():
         n = _norm(w)
         if n:
-            where.append(f"rz_norm({_SEARCH_HAY}) LIKE ?")
-            args.append(f"%{n}%")
+            # `%` und `_` sind in LIKE Platzhalter. Ohne Maskierung lieferte die
+            # Suche nach „100%" die gesamte Sammlung und „Tour_2024" auch
+            # „Tour 2024" — Treffer, die den Begriff gar nicht enthalten.
+            where.append(f"rz_norm({_SEARCH_HAY}) LIKE ? ESCAPE '\\'")
+            args.append(f"%{_like_escape(n)}%")
     return " AND ".join(where), args
 
 
@@ -1335,6 +1353,12 @@ def set_user_fields(conn: sqlite3.Connection, path: str, fav=None, tags=None, no
     if fav is not None:
         fields["fav"] = 1 if fav else 0
     if tags is not None:
+        # Die Oberfläche schickt eine Liste. Kommt trotzdem ein String an (etwa
+        # aus einem Skript oder einem Test), würde `for t in tags` über die
+        # ZEICHEN laufen: aus „Ötztal,Bergtour" würde „,,B,a,e,g,l,…" — lautlos,
+        # und das Schlagwort wäre danach unauffindbar.
+        if isinstance(tags, str):
+            tags = tags.split(",")
         fields["tags"] = ",".join(sorted({t.strip() for t in tags if t.strip()}))
     if note is not None:
         fields["note"] = str(note)
@@ -1548,10 +1572,28 @@ def map_thumb_fetch(
         data = resp.read()
     if not data:
         return ""
-    out.write_bytes(data)
-    conn.execute("UPDATE tracks SET map_thumb = ? WHERE geo_hash = ?",
-                 (str(out), row.get("geo_hash") or ""))
-    conn.commit()
+    # Erst vollständig daneben schreiben, dann umbenennen. Ein hartes Aus der
+    # App (`os._exit`) zwischen Schreiben und Eintragen hinterließ sonst ein
+    # halbes PNG — und weil die Prüfung beim nächsten Start nur „Datei da und
+    # größer als 0" lautet, galt das kaputte Bild dauerhaft als gültiger Cache.
+    tmp = out.with_name(out.name + f".{os.getpid()}.tmp")
+    try:
+        tmp.write_bytes(data)
+        os.replace(tmp, out)
+    finally:
+        try:
+            if tmp.exists():
+                tmp.unlink()
+        except OSError:
+            pass
+    # ⚠️ Diese Funktion läuft im Hintergrund-Thread und teilt sich die
+    # Verbindung mit den Abfragen der Oberfläche. Ohne den Modul-Lock schreibt
+    # sie im Sekundentakt mitten in eine laufende Abfragefolge — genau der Fall,
+    # den der Kommentar am Modulkopf beschreibt.
+    with _DB_LOCK:
+        conn.execute("UPDATE tracks SET map_thumb = ? WHERE geo_hash = ?",
+                     (str(out), row.get("geo_hash") or ""))
+        conn.commit()
     return str(out)
 
 

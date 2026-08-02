@@ -385,11 +385,13 @@ function mountGeotagger(body, headerActions) {
     };
 
     const poll = async () => {
+      if (isUnmounted) return;
       let s; try { s = await api().geotagger_autotag_status(); } catch (_) { return; }
       const pct = s.total > 0 ? (s.done / s.total) * 100 : 0;
       const f = document.getElementById("at-fill"); if (f) f.style.width = pct.toFixed(1) + "%";
       const c = document.getElementById("at-cnt"); if (c) c.textContent = `${s.done} / ${s.total}`;
       const pe = document.getElementById("at-pct"); if (pe) pe.textContent = `${pct.toFixed(0)}%`;
+      if (isUnmounted) return;
       if (!s.running && s.completed) { _gtAutotagApply(s, canceled); return; }
       setTimeout(poll, 200);
     };
@@ -440,6 +442,11 @@ function mountGeotagger(body, headerActions) {
   // „undefined is not an object (evaluating 'e.getCanvasContainer().appendChild')"
   // beim Tab-Wechsel während Thumbs noch laden.
   let isUnmounted = false;
+  // Alles, was den Modulwechsel überleben könnte, bekommt hier ein Handle —
+  // der Cleanup unten räumt es ab. Ohne das liefen Warteschleifen, Tastatur-
+  // Handler und angestoßene Adress-Läufe gegen ein längst entferntes Modul.
+  let _gtMapWait = null;              // wartet auf die Mapbox-Karte
+  let _gtDeleteKeyHandler = null;     // Backspace/Entf entfernt ein Foto
 
   // updateMatches MUSS vor den Listener-Bindings definiert sein,
   // sonst TDZ-ReferenceError → ganze mount-Funktion bricht ab.
@@ -1042,9 +1049,16 @@ function mountGeotagger(body, headerActions) {
     // existiert (sollte nur beim allerersten Mount passieren), warten
     // wir via setInterval.
     if (!map) {
-      const wait = setInterval(() => {
+      // Ohne Abbruchbedingung lief das ewig: Der Cleanup setzt `map = null`,
+      // die Bedingung wurde also nie wahr — 10 Aufrufe pro Sekunde bis zum
+      // Programmende, mit dem kompletten Koordinatensatz im Schlepptau. Trat
+      // immer dann auf, wenn Mapbox beim Betreten noch lud (kalter Start, kein
+      // Token, offline) und der Nutzer gleich weiterklickte.
+      _gtMapWait = setInterval(() => {
+        if (isUnmounted) { clearInterval(_gtMapWait); _gtMapWait = null; return; }
         if (map) {
-          clearInterval(wait);
+          clearInterval(_gtMapWait);
+          _gtMapWait = null;
           if (typeof onMapReady === "function") onMapReady(map, () => showTrack(res));
           else showTrack(res);
         }
@@ -1555,7 +1569,12 @@ function mountGeotagger(body, headerActions) {
     if (!panel || !img || !nameEl || !metaEl) return;
 
     img.src = ph.thumb || "";
-    nameEl.innerHTML = ph.name +
+    // Dateinamen NIE roh ins innerHTML: `<` und `"` sind in Dateinamen erlaubt,
+    // und an dieser Oberfläche hängt die komplette pywebview-Brücke (Dateien,
+    // Papierkorb). Ein Foto namens `<img src=x onerror=…>.jpg` hätte beim
+    // Anklicken der Kachel Code ausgeführt. Der Helfer war längst da — in der
+    // EXIF-Tabelle daneben steht er überall, nur hier fehlte er.
+    nameEl.innerHTML = _gtEsc(ph.name) +
       (m.path === referencePath ? ' <span class="ref-pin">🎯 Referenz</span>' : '');
 
     const bits = [];
@@ -1571,7 +1590,9 @@ function mountGeotagger(body, headerActions) {
       if (addr) {
         const line = [addr.street, addr.postcode ? `${addr.postcode} ${addr.city}` : addr.city, addr.country]
           .filter(Boolean).join(", ");
-        bits.push(`<span class="gt-addr">📍 ${line || t("geotagger.addr.empty", "(leer)")} ${editIco}</span>`);
+        // Die Adresse kommt aus einer fremden Netz-Antwort (Nominatim/Mapbox) —
+        // also Fremdtext, der nichts im Markup zu suchen hat.
+        bits.push(`<span class="gt-addr">📍 ${_gtEsc(line) || t("geotagger.addr.empty", "(leer)")} ${editIco}</span>`);
       } else {
         bits.push(`<span class="gt-addr gt-addr-add">${editIco}<span class="gt-addr-add-lbl">${t("geotagger.addr.add", "Adresse hinzufügen")}</span></span>`);
       }
@@ -1957,7 +1978,12 @@ function mountGeotagger(body, headerActions) {
     banner.classList.toggle("show", refMode);
     if (refMode && selectedPath) {
       const ph = photos.find(p => p.path === selectedPath);
-      banner.innerHTML = t("geotagger.banner.ref_mode", { name: ph ? ph.name : "" });
+      // Der Übersetzungstext trägt bewusst ein <strong> und muss deshalb ins
+      // innerHTML. `t()` setzt Platzhalter per reiner Textersetzung ein und
+      // entschärft nichts — der Dateiname wird also vorher entschärft. (Die
+      // Vorlage selbst ist unsere eigene Datei, der Dateiname nicht.)
+      banner.innerHTML = t("geotagger.banner.ref_mode",
+                           { name: _gtEsc(ph ? ph.name : "") });
     } else {
       banner.textContent = t("geotagger.banner.ref_mode_generic");
     }
@@ -1986,7 +2012,10 @@ function mountGeotagger(body, headerActions) {
 
   // v0.9.164 — Backspace/Delete entfernt das gerade selektierte Foto aus der
   // Liste (wenn der Fokus NICHT in einem Eingabefeld liegt).
-  document.addEventListener("keydown", (ev) => {
+  // Als benannte Funktion, damit der Cleanup sie wieder abmelden kann — sonst
+  // hängt pro Modulbesuch ein weiterer toter Handler an `document`, der die
+  // ganze Foto-Liste samt Vorschaubildern im Speicher festhält.
+  _gtDeleteKeyHandler = (ev) => {
     if (isUnmounted) return;
     if (ev.key !== "Backspace" && ev.key !== "Delete") return;
     if (!selectedPath) return;
@@ -1995,7 +2024,8 @@ function mountGeotagger(body, headerActions) {
     if (tag === "input" || tag === "textarea" || (ae && ae.isContentEditable)) return;
     ev.preventDefault();
     _gtRemovePhoto(selectedPath);
-  });
+  };
+  document.addEventListener("keydown", _gtDeleteKeyHandler);
 
   async function onMapClick(e) {
     // v0.9.347 — offene Pin-Auffächerung mit einem Leer-Klick wieder einklappen
@@ -3031,7 +3061,9 @@ function mountGeotagger(body, headerActions) {
     if (_gtGeoPolling) return;   // ein Poller genügt, neue Calls hängen sich dran
     _gtGeoPolling = true;
     const poll = async () => {
+      if (isUnmounted) { _gtGeoPolling = false; return; }
       const st = await api().geotagger_reverse_geocode_status();
+      if (isUnmounted) { _gtGeoPolling = false; return; }
       Object.entries(st.results || {}).forEach(([p, a]) => _gtAddr.set(p, a));
       if (statusEl) statusEl.textContent = t("geotagger.geocode.progress", { done: st.done, total: st.total });
       const sel = matches.find(x => x.path === selectedPath);
@@ -3069,7 +3101,10 @@ function mountGeotagger(body, headerActions) {
     if (!fresh) return;
     matches.forEach(m => { if (m.lat != null && m.in_range) _gtGeoSeen.add(m.path); });
     clearTimeout(_gtAutoGeoTimer);
-    _gtAutoGeoTimer = setTimeout(() => _gtRunGeocode({ auto: true }), 1200);
+    _gtAutoGeoTimer = setTimeout(() => {
+      if (isUnmounted) return;
+      _gtRunGeocode({ auto: true });
+    }, 1200);
   }
 
   const geocodeBtn = document.getElementById("gt-geocode");
@@ -3633,6 +3668,14 @@ function mountGeotagger(body, headerActions) {
       window.removeEventListener("keydown", _gtMetaKeyHandler, true);
       window.removeEventListener("keyup", _gtMetaKeyHandler, true);
     } catch (_) {}
+    // Warteschleife auf die Karte, Backspace-Handler und der angestoßene
+    // Adress-Lauf — alles, was den Modulwechsel sonst überlebt hätte.
+    if (_gtMapWait) { clearInterval(_gtMapWait); _gtMapWait = null; }
+    if (_gtDeleteKeyHandler) {
+      try { document.removeEventListener("keydown", _gtDeleteKeyHandler); } catch (_) {}
+      _gtDeleteKeyHandler = null;
+    }
+    clearTimeout(_gtAutoGeoTimer);
     // v0.9.28 (Marc-Feedback): nur Foto-Selection in den Cache. Die Map-Pose
     // wird NICHT mehr gecacht — beim Restore kam's nach dem fitTrackPreview
     // hinterher und hat unintendiert reingezoomt (v0.9.29 Bug-Report).

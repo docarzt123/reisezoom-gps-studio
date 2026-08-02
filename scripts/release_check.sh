@@ -66,6 +66,14 @@ else
   #     die Filterleiste beim Modulwechsel, und Dateien ohne GPS.
   run "Archiv-Zustand (selftest_library_state)" python3 scripts/selftest_library_state.py
   run "Archiv-Fehlerliste (test_library_errors)" python3 tests/test_library_errors.py
+  run "Archiv-Suche (test_library_search)" python3 tests/test_library_search.py
+
+  # 7c) Stiller Datenverlust: gleichzeitige Schreiber auf settings/sessions.
+  run "Einstellungen + Projekte (test_settings_sessions_race)" \
+      python3 tests/test_settings_sessions_race.py
+
+  # 7d) Zertifikate im Bundle — braucht Netz, überspringt sich sonst selbst.
+  run "HTTPS-Zertifikate (test_https_certificates)" python3 tests/test_https_certificates.py
 
   # 8) Optional: echte Video-Renders (nur mit --full; braucht Token + Fixtures)
   if [[ $FULL == 1 ]]; then

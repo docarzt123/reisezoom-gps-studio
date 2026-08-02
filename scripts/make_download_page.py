@@ -21,7 +21,9 @@ import datetime
 import hashlib
 import json
 import os
+import subprocess
 import sys
+import tempfile
 
 LINUX_DOCS = "https://github.com/docarzt123/reisezoom-gps-studio#-linux-aus-quellcode"
 
@@ -38,13 +40,70 @@ def mb(n: int) -> str:
     return f"{n / 1_048_576:.0f} MB"
 
 
+def mac_signatur_pruefen(dmg: str) -> tuple:
+    """Ist die App im DMG wirklich signiert und notarisiert? — nachsehen.
+
+    Vorher standen `signed` und `notarized` als feste `True` im Code, während
+    die Seite dem Nutzer wörtlich zusicherte: „Mit Apple Developer ID signiert
+    und von Apple notarisiert — Doppelklick genügt." Die Kette dahinter kann
+    aber still durchfallen: Fehlt ein Signier-Geheimnis, signiert
+    `macos_sign.sh` ad-hoc und endet mit Code 0; fehlen die Apple-Zugänge,
+    überspringt `macos_notarize.sh` die Notarisierung und endet mit Code 0.
+    Beim nächsten abgelaufenen Zertifikat hätte die Seite eine Zusage gegeben,
+    die das Programm nicht einhält — der Nutzer bekäme „kann nicht auf
+    Schadsoftware überprüft werden" auf einer Seite, die das Gegenteil behauptet.
+
+    Rückgabe: `(signiert, notarisiert)`. Lässt es sich nicht feststellen (kein
+    macOS, kein `spctl`), wird **nichts behauptet** — beides False.
+    """
+    if sys.platform != "darwin" or not os.path.exists(dmg):
+        return (False, False)
+    mnt = tempfile.mkdtemp(prefix="rz-dmg-")
+    try:
+        r = subprocess.run(["hdiutil", "attach", "-nobrowse", "-quiet",
+                            dmg, "-mountpoint", mnt],
+                           capture_output=True, timeout=300)
+        if r.returncode != 0:
+            return (False, False)
+        try:
+            apps = [p for p in os.listdir(mnt) if p.endswith(".app")]
+            if not apps:
+                return (False, False)
+            app = os.path.join(mnt, apps[0])
+            # `codesign` sagt, WER signiert hat — eine Developer-ID-Signatur
+            # nennt die ausstellende Stelle, eine Ad-hoc-Signatur nicht.
+            cs = subprocess.run(["codesign", "-dv", "--verbose=2", app],
+                                capture_output=True, text=True, timeout=180)
+            signiert = "Authority=Developer ID Application" in (cs.stderr + cs.stdout)
+            # `spctl` sagt, ob Apple die App kennt — das ist die Notarisierung.
+            sp = subprocess.run(["spctl", "-a", "-vvv", app],
+                                capture_output=True, text=True, timeout=300)
+            notarisiert = "source=Notarized Developer ID" in (sp.stderr + sp.stdout)
+            return (signiert, notarisiert)
+        finally:
+            subprocess.run(["hdiutil", "detach", mnt, "-quiet"],
+                           capture_output=True, timeout=180)
+    except Exception as e:      # noqa: BLE001 — im Zweifel nichts behaupten
+        print(f"⚠️  Signaturprüfung nicht möglich: {e}", file=sys.stderr)
+        return (False, False)
+    finally:
+        try:
+            os.rmdir(mnt)
+        except OSError:
+            pass
+
+
 def build(version: str, mac: str, win: str, released: str) -> dict:
     out: dict = {"version": version, "released": released, "downloads": {},
                  "linux": {"packaged": False, "docs": LINUX_DOCS}}
     if mac and os.path.exists(mac):
+        signiert, notarisiert = mac_signatur_pruefen(mac)
+        if not (signiert and notarisiert):
+            print(f"⚠️  macOS-Build: signiert={signiert}, notarisiert={notarisiert} "
+                  f"— die Seite sagt es jetzt genauso.", file=sys.stderr)
         out["downloads"]["macos-arm64"] = {
             "file": os.path.basename(mac), "size": os.path.getsize(mac),
-            "sha256": sha256(mac), "signed": True, "notarized": True,
+            "sha256": sha256(mac), "signed": signiert, "notarized": notarisiert,
             "min_os": "macOS 13", "arch": "Apple Silicon (arm64)",
         }
     if win and os.path.exists(win):
@@ -62,11 +121,27 @@ def render(m: dict) -> str:
     cards = []
     if "macos-arm64" in d:
         x = d["macos-arm64"]
+        # Der Hinweis richtet sich nach der Messung, nicht nach der Hoffnung.
+        # Ein unsignierter Build braucht eine andere Anleitung — und wer sie
+        # nicht bekommt, steht vor „kann nicht auf Schadsoftware überprüft
+        # werden" und hält die Seite für gelogen.
+        if x["signed"] and x["notarized"]:
+            hinweis = ("Mit Apple Developer ID signiert und von Apple notarisiert — "
+                       "Doppelklick genügt. Die einmalige Rückfrage beim ersten Start "
+                       "zeigt macOS bei jeder geladenen App.")
+        elif x["signed"]:
+            hinweis = ("Mit Apple Developer ID signiert, aber <b>nicht</b> notarisiert. "
+                       "Beim ersten Start: Rechtsklick auf die App → „Öffnen“ → im "
+                       "Dialog nochmal „Öffnen“.")
+        else:
+            hinweis = ("Dieser Build ist <b>nicht</b> signiert. Beim ersten Start: "
+                       "Rechtsklick auf die App → „Öffnen“ → im Dialog nochmal "
+                       "„Öffnen“. Erscheint die Meldung „ist beschädigt“, hilft "
+                       "<code>xattr -dr com.apple.quarantine</code> auf der App.")
         cards.append(f'''  <a class="dl" href="{x["file"]}">
     <b>⬇ macOS</b>
     <span class="meta">{x["min_os"]} oder neuer · {x["arch"]} · DMG · {mb(x["size"])}</span>
-    <div class="note">Mit Apple Developer ID signiert und von Apple notarisiert — Doppelklick genügt.
-      Die einmalige Rückfrage beim ersten Start zeigt macOS bei jeder geladenen App.</div>
+    <div class="note">{hinweis}</div>
     <span class="hash">SHA-256: {x["sha256"]}</span>
   </a>''')
     if "windows-x64" in d:

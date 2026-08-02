@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import functools
 import io
 import hashlib
 import json
@@ -580,16 +581,93 @@ def _load_settings() -> dict:
         if "animator" in result and isinstance(result["animator"], dict):
             result["animator"].pop("timeline_events", None)
         return _migrate_settings(result)
-    except Exception:
+    except Exception as e:
+        # Nicht stumm auf Werkseinstellungen zurückfallen: Hier hängen Token,
+        # Sprache und alle Modul-Einstellungen dran, und der nächste Speicher-
+        # vorgang schreibt die Defaults fest. Eine Kopie bleibt liegen.
+        try:
+            kaputt = SETTINGS_FILE.with_suffix(".kaputt")
+            if not kaputt.exists():
+                kaputt.write_bytes(SETTINGS_FILE.read_bytes())
+            log.error("settings.json unlesbar (%s) — Kopie liegt unter %s", e, kaputt)
+        except Exception:
+            log.error("settings.json unlesbar (%s) und ließ sich nicht sichern", e)
         return json.loads(json.dumps(DEFAULT_SETTINGS))
 
 
+def _zahl(wert, vorgabe: float) -> float:
+    """Zahl aus der Oberfläche — **0 ist ein gültiger Wert**.
+
+    Das übliche `float(params.get(k, d) or d)` macht aus einer echten 0 heimlich
+    die Vorgabe. Für die Vorschau war das schon einmal ein Nutzer-Bug (v0.9.409:
+    „Deckkraft auf 0 % … machte daraus heimlich 55 %"), im Render-Pfad lebte es
+    weiter. Beides sind Regler, die 0 ausdrücklich zulassen: Deckkraft 0 % =
+    durchsichtige Box, Lichtrichtung 0° = Licht von Norden. Vorschau und
+    fertiges Video liefen damit auseinander — genau das, was die App verspricht,
+    nicht zu tun.
+
+    Nur `None` und Unbrauchbares fallen auf die Vorgabe zurück.
+    """
+    if wert is None or wert == "":
+        return float(vorgabe)
+    try:
+        return float(wert)
+    except (TypeError, ValueError):
+        return float(vorgabe)
+
+
+def _mit_sessions_lock(fn):
+    """Die Bridge lädt sessions.json, ändert daran und speichert zurück.
+
+    Ohne Klammer läuft das auseinander: pywebview gibt jedem Bridge-Aufruf einen
+    eigenen Thread, und die Oberfläche schickt aus **einem** Debounce-Tick je
+    Modul einen eigenen `session_update_project_settings`. Zwei Threads laden
+    dann dieselbe Datei, ändern je ihren Teil und schreiben nacheinander — die
+    Änderung des ersten ist weg (Foto-Pin verschoben, Regler bewegt: einer von
+    beiden verfällt). Im schlimmeren Fall schreiben beide gleichzeitig in die
+    Temp-Datei, der JSON wird verschränkt, und `load_sessions` verwirft still
+    **alle** Projekte.
+    """
+    @functools.wraps(fn)
+    def wrapper(*a, **kw):
+        with _sessions.LOCK:
+            return fn(*a, **kw)
+    return wrapper
+
+
+# Jede Lese-Ändere-Schreibe-Folge auf settings.json läuft unter diesem Lock.
+# pywebview gibt JEDEM Bridge-Aufruf einen eigenen Thread, und die Oberfläche
+# schickt aus einem einzigen Debounce-Tick mehrere Speicheraufrufe los. Ohne
+# Lock laden zwei Threads dieselbe Datei, ändern je ihren Teil und schreiben
+# nacheinander — die Änderung des ersten ist dann weg.
+_SETTINGS_LOCK = threading.RLock()
+
+
 def _save_settings(data: dict) -> None:
-    """Atomisch schreiben (temp + rename), damit ein Crash nicht die Datei korruptert."""
-    tmp = SETTINGS_FILE.with_suffix(".tmp")
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=2, ensure_ascii=False)
-    tmp.replace(SETTINGS_FILE)
+    """Atomisch schreiben (temp + rename), damit ein Crash nicht die Datei korruptert.
+
+    Der Temp-Name ist prozess- und aufruf-eindeutig. Vorher schrieben zwei
+    gleichzeitige Speichervorgänge in **dieselbe** `settings.tmp` — pywebview
+    gibt jedem Bridge-Aufruf einen eigenen Thread, und ein Regler-Debounce, der
+    mit dem Speichern der Fenstergröße beim Schließen zusammenfällt, reicht
+    dafür. Das Ergebnis war verschränkter JSON; `_load_settings` verwarf ihn
+    still und der Nutzer stand ohne Mapbox-Token und ohne seine Einstellungen da.
+    """
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = SETTINGS_FILE.with_name(
+        f"{SETTINGS_FILE.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, ensure_ascii=False)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, SETTINGS_FILE)
+    finally:
+        try:
+            if tmp.exists():
+                tmp.unlink()
+        except OSError:
+            pass
 
 
 # ── Native macOS NSOpenPanel-Helper ──────────────────────────────────────────
@@ -1060,9 +1138,10 @@ class Api:
         """Merkt sich, dass der User diese Version weggeklickt hat — Banner kommt
         für genau diese Version nicht wieder (für die nächste schon)."""
         try:
-            s = _load_settings()
-            s["update_dismissed_version"] = str(version or "")
-            _save_settings(s)
+            with _SETTINGS_LOCK:
+                s = _load_settings()
+                s["update_dismissed_version"] = str(version or "")
+                _save_settings(s)
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1104,16 +1183,17 @@ class Api:
         v0.8.0: `animator.timeline_events` landet jetzt im Projekt-Layer
         (sessions.json). Falls trotzdem hier reinkommt → rausfiltern."""
         try:
-            current = _load_settings()
-            for k, v in patch.items():
-                if k in current and isinstance(current[k], dict) and isinstance(v, dict):
-                    current[k].update(v)
-                else:
-                    current[k] = v
-            # timeline_events nicht in settings.json — gehört ins Projekt
-            if "animator" in current and isinstance(current["animator"], dict):
-                current["animator"].pop("timeline_events", None)
-            _save_settings(current)
+            with _SETTINGS_LOCK:
+                current = _load_settings()
+                for k, v in patch.items():
+                    if k in current and isinstance(current[k], dict) and isinstance(v, dict):
+                        current[k].update(v)
+                    else:
+                        current[k] = v
+                # timeline_events nicht in settings.json — gehört ins Projekt
+                if "animator" in current and isinstance(current["animator"], dict):
+                    current["animator"].pop("timeline_events", None)
+                _save_settings(current)
             return {"ok": True, "settings": current}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1124,10 +1204,11 @@ class Api:
         try:
             if module_slug not in DEFAULT_SETTINGS:
                 return {"ok": False, "error": f"Unbekanntes Modul: {module_slug}"}
-            current = _load_settings()
-            # Deep-copy der Defaults damit ein nachträglicher Edit Defaults nicht verändert
-            current[module_slug] = json.loads(json.dumps(DEFAULT_SETTINGS[module_slug]))
-            _save_settings(current)
+            with _SETTINGS_LOCK:
+                current = _load_settings()
+                # Deep-copy der Defaults damit ein nachträglicher Edit Defaults nicht verändert
+                current[module_slug] = json.loads(json.dumps(DEFAULT_SETTINGS[module_slug]))
+                _save_settings(current)
             log.info("settings_reset_module: %s zurückgesetzt", module_slug)
             return {"ok": True, "settings": current}
         except Exception as e:
@@ -1207,12 +1288,13 @@ class Api:
                           if k in src_mod and k not in bl}
                 if picked:
                     ud[mod] = picked
-            raw = {}
-            if SETTINGS_FILE.exists():
-                with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
-                    raw = json.load(fh)
-            raw["user_defaults"] = ud
-            _save_settings(raw)
+            with _SETTINGS_LOCK:
+                raw = {}
+                if SETTINGS_FILE.exists():
+                    with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
+                        raw = json.load(fh)
+                raw["user_defaults"] = ud
+                _save_settings(raw)
             return {"ok": True, "modules": list(ud.keys())}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1221,12 +1303,13 @@ class Api:
         """Entfernt die eigenen Standardwerte → neue Tracks starten wieder mit
         den Werkseinstellungen. Bestehende Projekte bleiben unberührt."""
         try:
-            raw = {}
-            if SETTINGS_FILE.exists():
-                with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
-                    raw = json.load(fh)
-            had = bool(raw.pop("user_defaults", None))
-            _save_settings(raw)
+            with _SETTINGS_LOCK:
+                raw = {}
+                if SETTINGS_FILE.exists():
+                    with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
+                        raw = json.load(fh)
+                had = bool(raw.pop("user_defaults", None))
+                _save_settings(raw)
             return {"ok": True, "had_custom": had}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1243,6 +1326,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "has_custom": False}
 
+    @_mit_sessions_lock
     def session_open_for_track(self, coords: list, gpx_path: str = "") -> dict:
         """Aktiviert (oder erstellt) eine Session für die gegebenen
         Track-Koordinaten. Returns das aktive Projekt + Liste der Projekte.
@@ -1318,6 +1402,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @_mit_sessions_lock
     def session_set_active_project(self, track_hash: str, project_id: str) -> dict:
         try:
             data = _sessions.load_sessions(SESSIONS_FILE)
@@ -1338,6 +1423,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @_mit_sessions_lock
     def session_create_project(self, track_hash: str, name: str,
                                 copy_from_id: str = "") -> dict:
         """Legt ein neues Projekt an. `copy_from_id` leer → Defaults aus
@@ -1364,6 +1450,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @_mit_sessions_lock
     def session_rename_project(self, track_hash: str, project_id: str,
                                 new_name: str) -> dict:
         try:
@@ -1378,6 +1465,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @_mit_sessions_lock
     def session_delete_project(self, track_hash: str, project_id: str) -> dict:
         try:
             data = _sessions.load_sessions(SESSIONS_FILE)
@@ -1397,6 +1485,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @_mit_sessions_lock
     def session_update_project_settings(self, track_hash: str, project_id: str,
                                          module: str, patch: dict) -> dict:
         """Patcht Settings des Projekts im angegebenen Modul. Modul ist
@@ -1423,6 +1512,7 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @_mit_sessions_lock
     def session_update_project_root(self, track_hash: str, project_id: str,
                                      patch: dict) -> dict:
         """v0.9.74: Patcht Felder auf Projekt-Root-Ebene (NICHT in einem
@@ -1783,9 +1873,16 @@ class Api:
                 return {"ok": True, "found": False}
             # Die Brücke reicht genau ein Objekt durch (wie `library_query`) —
             # mit `**kwargs` kam „takes 2 positional arguments but 3 were given".
+            # ⚠️ Diese Liste muss ALLE Filter enthalten, die die Oberfläche auch
+            # an `library_stats` schickt — sonst zeigt die Trefferliste etwas
+            # anderes, als die Zahlen daneben behaupten. Genau so entstand „89
+            # Kacheln, Statistik sagt 4": `hidden_only` und `missing_only`
+            # fehlten hier, die Bereiche „Ausgeblendete" und „Nicht erreichbar"
+            # liefen bei einer Gegend-Suche also über den ganzen Bestand.
             kw = {k: v for k, v in (params or {}).items()
                   if k in ("year", "activity", "fav_only", "planned", "min_km",
                            "max_km", "sort", "limit", "offset", "include_hidden",
+                           "hidden_only", "missing_only", "tags", "include_errors",
                            "collection_id", "with_geom", "with_thumbs")}
             kw["bbox"] = ort["bbox"]
             res = self.library_query(kw)     # gleiche Aufbereitung wie sonst
@@ -2688,7 +2785,7 @@ class Api:
             overlay_font=params.get("overlay_font", "system"),
             overlay_text_color=params.get("overlay_text_color", "#ffffff"),
             overlay_bg_color=params.get("overlay_bg_color", "#000000"),
-            overlay_bg_opacity=float(params.get("overlay_bg_opacity", 0.55) or 0.55),
+            overlay_bg_opacity=_zahl(params.get("overlay_bg_opacity"), 0.55),
             overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
             # v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y")
             overlay_totals_from_s=float(params.get("overlay_totals_from_s", 0) or 0),
@@ -2711,7 +2808,7 @@ class Api:
             transparent_background=alpha,
             shadow_enabled=bool(params.get("shadow_enabled", True)),
             shadow_strength=float(params.get("shadow_strength", 4.0)),
-            shadow_dir=float(params.get("shadow_dir", 45.0) or 45.0),   # v0.9.478 — globale Lichtquelle
+            shadow_dir=_zahl(params.get("shadow_dir"), 45.0),   # v0.9.478 — globale Lichtquelle
             glow_enabled=bool(params.get("glow_enabled", True)),
             glow_strength=float(params.get("glow_strength", 4.0)),
             map_smoothing=float(params.get("map_smoothing", 1.3)),
@@ -2968,7 +3065,7 @@ class Api:
             line_style=_be_line_style,
             line_style_spacing=float(params.get("line_style_spacing", 1.0)),
             track_style=_be_track_style,
-            shadow_dir=float(params.get("shadow_dir", 45.0) or 45.0),   # v0.9.478 — globale Lichtquelle
+            shadow_dir=_zahl(params.get("shadow_dir"), 45.0),   # v0.9.478 — globale Lichtquelle
             glow_enabled=bool(params.get("glow_enabled", True)),
             glow_strength=float(params.get("glow_strength", 4.0)),
             map_smoothing=float(params.get("map_smoothing", 1.3)),
@@ -2998,7 +3095,7 @@ class Api:
             overlay_font=params.get("overlay_font", "system"),
             overlay_text_color=params.get("overlay_text_color", "#ffffff"),
             overlay_bg_color=params.get("overlay_bg_color", "#000000"),
-            overlay_bg_opacity=float(params.get("overlay_bg_opacity", 0.55) or 0.55),
+            overlay_bg_opacity=_zahl(params.get("overlay_bg_opacity"), 0.55),
             overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
             show_pins=bool(params.get("show_pins", True)),
             # v0.9.74 — Foto-Pins (nummerierte Kreise im Standbild-Render)
@@ -3402,7 +3499,7 @@ class Api:
                 line_style=_be_line_style,
                 line_style_spacing=float(params.get("line_style_spacing", 1.0) or 1.0),
                 track_style=_be_track_style,
-                shadow_dir=float(params.get("shadow_dir", 45.0) or 45.0),   # v0.9.478 — globale Lichtquelle
+                shadow_dir=_zahl(params.get("shadow_dir"), 45.0),   # v0.9.478 — globale Lichtquelle
                 glow_enabled=bool(params.get("glow_enabled", True)),
                 glow_strength=float(params.get("glow_strength", 4.0) or 4.0),
                 # Overlays (Stats-Box) 1:1 wie in der Vorschau — WYSIWYG.
@@ -3419,7 +3516,7 @@ class Api:
                 overlay_font=params.get("overlay_font", "system"),
                 overlay_text_color=params.get("overlay_text_color", "#ffffff"),
                 overlay_bg_color=params.get("overlay_bg_color", "#000000"),
-                overlay_bg_opacity=float(params.get("overlay_bg_opacity", 0.55) or 0.55),
+                overlay_bg_opacity=_zahl(params.get("overlay_bg_opacity"), 0.55),
                 overlay_entry=str(params.get("overlay_entry", "none") or "none"),  # v0.9.479 — Stats-Einblende-Animation
                 show_pins=bool(params.get("show_pins", True)),
                 photos=list(params.get("photos") or []),
@@ -6074,6 +6171,22 @@ def _prepare_html_with_cache_busting() -> str:
         patch_url, html, flags=re.IGNORECASE,
     )
 
+    # Reste früherer Starts wegräumen. Das Aufräumen am Ende von `main()` wird
+    # nie erreicht, weil das Schließen über `os._exit(0)` geht — auf dieser
+    # Maschine lagen dadurch 28 dieser Dateien herum. Statt den Ausstieg
+    # umzubauen (der hat einen guten Grund, siehe `_on_closing`) räumen wir
+    # beim Start auf: Was älter als ein Tag ist, kann niemand mehr brauchen.
+    try:
+        jetzt = time.time()
+        for alt in Path(tempfile.gettempdir()).glob("reisezoom_gps_*.html"):
+            try:
+                if jetzt - alt.stat().st_mtime > 86400:
+                    alt.unlink()
+            except OSError:
+                pass
+    except Exception:       # noqa: BLE001 — Aufräumen darf den Start nie kippen
+        pass
+
     tmp = tempfile.NamedTemporaryFile(
         prefix="reisezoom_gps_", suffix=".html",
         delete=False, mode="w", encoding="utf-8",
@@ -6277,6 +6390,22 @@ def main() -> None:
                 api._tourmap_state["cancel_requested"] = True
             except Exception:
                 pass
+            # Die drei Archiv-Läufe. Ohne sie liefen Einlesen, Kartenbilder und
+            # Ortssuche bis zum `os._exit(0)` weiter — also mit voller Netzlast
+            # und mitten in einem Schreibvorgang auf die Datenbank.
+            for _flag in ("_lib_scan_state", "_lib_maps_state", "_lib_places_state"):
+                try:
+                    st = getattr(api, _flag, None)
+                    if isinstance(st, dict):
+                        st["running"] = False
+                        st["stop"] = True
+                except Exception:
+                    pass
+            for _stopper in ("_lib_scan_stop", "_lib_maps_stop", "_lib_places_stop"):
+                try:
+                    setattr(api, _stopper, True)
+                except Exception:
+                    pass
             # exiftool-Daemon herunterfahren — sonst kann ein laufender
             # _send_and_read_text()-Call im Thumb-Worker im read1() hängen
             # während pywebview den Prozess abbaut.

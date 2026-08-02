@@ -48,6 +48,23 @@ def make_photo_backup(
     paths = [Path(p) for p in photo_paths]
     total = len(paths)
 
+    # Schon vergebene Namen im Archiv. Zwei Fotos dürfen gleich heißen: Bei
+    # Canon und Nikon springt der Zähler nach 9999 zurück, und wer zwei
+    # Kartenordner zusammen verarbeitet, hat garantiert zweimal `DSC_0142.JPG`.
+    # Vorher bekam das ZIP zwei Einträge desselben Namens, beim Entpacken blieb
+    # einer übrig — und das hier ist der Stand VOR dem EXIF-Schreiben. Das
+    # verlorene Original wäre unwiederbringlich gewesen.
+    _vergeben: dict = {}
+
+    def _eindeutig(name: str) -> str:
+        if name not in _vergeben:
+            _vergeben[name] = 1
+            return name
+        _vergeben[name] += 1
+        stamm, punkt, endung = name.rpartition(".")
+        n = _vergeben[name]
+        return f"{stamm}_{n}{punkt}{endung}" if punkt else f"{name}_{n}"
+
     try:
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zf:
             for i, pth in enumerate(paths):
@@ -60,8 +77,8 @@ def make_photo_backup(
                         on_progress(i, total, pth.name)
                     except Exception:
                         pass
-                # arcname: nur Dateiname (keine Ordnerstruktur)
-                with zf.open(pth.name, "w") as dst, open(pth, "rb") as src:
+                # arcname: nur Dateiname (keine Ordnerstruktur), aber eindeutig
+                with zf.open(_eindeutig(pth.name), "w") as dst, open(pth, "rb") as src:
                     while True:
                         if should_cancel is not None and should_cancel():
                             raise BackupCancelled()
