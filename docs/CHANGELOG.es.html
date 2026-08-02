@@ -113,9 +113,36 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.497</span>
+    <span class="version-date">2 de agosto de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Los archivos sin GPS no son errores — y la lista por fin se puede limpiar.</p>
+
+  <div class="highlight">
+    <strong>🏋️ «61 archivos no legibles» — y ninguno estaba roto.</strong> Al leer una colección de archivos FIT entra también todo lo grabado sin GPS: rodillo, gimnasio, natación en piscina. El reloj escribe un archivo para eso igualmente, solo que sin coordenadas. Hasta ahora todo caía en el mismo saco con el aviso «no legible» — y uno buscaba el fallo en su propio equipo.
+  </div>
+
+  <p><strong>Ahora el archivo separa las dos cosas:</strong> <em>sin datos de recorrido</em> (perfectamente bien, simplemente sin coordenadas) y <em>no legible</em> (transferencia interrumpida, formato desconocido, dañado). Si solo hay grabaciones sin GPS, la cabecera dice «archivos sin recorrido» en vez de lanzar una advertencia. Los archivos existentes se reordenan una sola vez al arrancar — no hay que volver a leer nada.</p>
+
+  <div class="highlight">
+    <strong>🧹 La lista se puede limpiar.</strong> Marcar, pulsar «Quitar de la lista», listo. <strong>No se borra nada:</strong> ni el archivo de tu disco ni la entrada. Solo desaparece el aviso, y sigue desaparecido tras la siguiente lectura. Con «Mostrar también los retirados» vuelve todo.
+  </div>
+
+  <p><strong>Y ya no frenan la lectura.</strong> Un archivo sin coordenadas sigue sin tenerlas a la vigésima mirada — y aun así se volvía a abrir entero en cada pasada. Ahora se omite mientras nada cambie en él.</p>
+
+  <div class="highlight">
+    <strong>🔀 El archivo recuerda cómo ordenaste.</strong> Ordenabas por «Más largas primero», mirabas una ruta en el animador, volvías — y estabas otra vez en «Más recientes primero». El orden, el año y el tipo de actividad ahora se mantienen, también al reiniciar. El texto de búsqueda no, a propósito, para que al día siguiente no te reciba un archivo medio vacío.
+  </div>
+
+  <p class="muted">Ambos puntos vienen de probadores beta.</p>
+</article>
+
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.496</span>
     <span class="version-date">1 de agosto de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">Las direcciones vuelven a funcionar — y el archivo hace bastante más.</p>
 
