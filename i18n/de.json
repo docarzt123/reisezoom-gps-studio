@@ -1685,5 +1685,6 @@
   "library.map_png_wait": "Karte wird fertig gezeichnet …",
   "library.map_png_done": "Karte gesichert.",
   "library.map_png_fail": "Konnte die Karte nicht sichern.",
-  "library.all_tours": "Alle Touren"
+  "library.all_tours": "Alle Touren",
+  "library.map_png_short": "PNG"
 }

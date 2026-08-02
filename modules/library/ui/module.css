@@ -554,7 +554,16 @@
   width: 44px; height: 30px; padding: 2px; cursor: pointer;
   border: 1px solid var(--border); border-radius: 8px; background: none;
 }
-.lib-map-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 8px 2px 0;
+/* Der PNG-Knopf liegt AUF der Karte, oben links — rechts sitzen schon die
+   Zoom-Bedienelemente von Mapbox. Ein Balken unter der Karte hatte ihr Höhe
+   weggenommen, und die Karte ist in dieser Ansicht die Hauptsache. */
+.lib-map-png {
+  position: absolute; left: 12px; top: 12px; z-index: 3;
+  display: inline-flex; align-items: center; gap: 6px;
+  appearance: none; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600;
+  padding: 6px 10px; min-height: 30px;
+  color: var(--text); background: rgba(14, 17, 22, .82);
+  border: 1px solid var(--border); border-radius: 8px;
 }
+.lib-map-png:hover { background: rgba(14, 17, 22, .95); border-color: var(--accent); }
+.lib-map-png[disabled] { opacity: .6; cursor: default; }

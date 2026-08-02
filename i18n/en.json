@@ -1685,5 +1685,6 @@
   "library.map_png_wait": "Finishing the map …",
   "library.map_png_done": "Map saved.",
   "library.map_png_fail": "Could not save the map.",
-  "library.all_tours": "All tours"
+  "library.all_tours": "All tours",
+  "library.map_png_short": "PNG"
 }
