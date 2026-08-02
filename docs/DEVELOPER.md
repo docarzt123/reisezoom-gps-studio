@@ -261,6 +261,53 @@ Zusatz-Messwerte pro Trackpunkt (FIT-HR/Power/Temp/E-Bike, GPX-Extensions). **Va
 - Haversine-Formel für Distanz (R = 6371000 m)
 - Bei GPX **ohne Zeit-Tags** wird `elapsed_s` aus dem vorherigen Wert übernommen (i.d.R. 0)
 
+### `core/geotag.py` — Zuordnung Foto → Trackpunkt
+
+`match_photos()` sucht zu jeder EXIF-Aufnahmezeit den zeitlich nächsten Trackpunkt
+(`bisect` über die Punkte mit echter Zeit). Zeitzonen und Pro-Kamera-Versatz werden
+vorher verrechnet — siehe Docstring.
+
+#### „Unsichere Position" bei Aufzeichnungslücken (v0.9.499)
+
+Fällt ein Foto in eine **Lücke** im Track, bekommt es weiterhin den nächstgelegenen
+Punkt — und das ist meistens richtig. Der Denkfehler, der hier fast eingebaut worden
+wäre: über die **Dauer** der Lücke zu urteilen. Marc hat ihn aufgedeckt:
+
+> „Wenn ich ins Wirtshaus gehe und da drin ein Foto mache und der dann mit dem letzten
+> Trackpunkt, der wahrscheinlich am Eingang des Wirtshauses liegt, verortet wird, passt
+> das doch."
+
+Genau so ist es. Beim Wirtshaus ist die Zuordnung **richtig**, egal wie lang die Pause
+war. Falsch wird sie nur, wenn während der Lücke **Strecke gemacht** wurde: leerer Akku
+und zwei Stunden weitergewandert, oder Aufzeichnung pausiert und mit der Seilbahn hoch.
+
+Deshalb entscheidet die **Luftlinie zwischen dem Punkt vor und dem nach der Lücke**,
+nicht deren Dauer:
+
+| Größe | Bedeutung |
+|---|---|
+| `GAP_MIN_SECONDS` (60 s) | Ab wann eine Zeitspanne überhaupt als Lücke gilt — darunter ist es normaler Aufzeichnungstakt |
+| `GAP_MAX_METERS` (150 m) | Bis hierher gilt Stillstand (Wirtshaus, Parkplatz, Gipfelrast). Darüber war man unterwegs → Position geraten |
+| `PhotoMatch.unsicher` | Ergebnis dieser Prüfung |
+| `.gap_seconds` / `.gap_meters` | Für die Anzeige — „12 min Lücke, 2,0 km weiter" |
+
+⚠️ **Die Zuordnung selbst ändert sich dadurch nicht.** Das Foto bekommt dieselben
+Koordinaten wie vorher und wird ganz normal geschrieben; `unsicher` ist reine
+Zusatzinformation. Wer das zu einem Schreib-Ausschluss macht, nimmt dem Nutzer eine
+Position weg, die in den meisten Fällen brauchbar ist — und nachfragen scheidet aus, bei
+200 Fotos wäre das ein Dialog-Trommelfeuer.
+
+In der Brücke (`app.py`) fällt `unsicher` weg, wenn das Foto **eigenes GPS** mitbringt
+(`pos_src == "exif"`) — dann kommt die Position gar nicht aus dem Track.
+
+Oberfläche: gelbes Zeichen auf der Kachel (`.badge.unsicher`), ein Chip mit den Zahlen,
+eine Zeile in der Übersicht und ein eigener Filter (`_gtFilter === "unsicher"`). Die
+Zahl ist eine **Teilmenge** von „Im Track" und wird dort nicht abgezogen.
+
+Geprüft in `tests/test_geotag_luecken.py`: Wirtshaus, Seilbahn, leerer Akku, normale
+Aufzeichnung, beide Seiten der Schwelle, kurze Aussetzer — und dass der zugeordnete
+Punkt derselbe bleibt.
+
 ### App-Icon
 - Source-Image: `assets/icon_1024.png` (von `scripts/make_icon.py` generiert)
 - macOS-Format: `assets/icon.icns` (per `iconutil` aus 10-stufigem `.iconset`)
@@ -1865,16 +1912,79 @@ Aktuell: **ad-hoc signiert** (`codesign --force --sign -`) — Gatekeeper warnt 
 
 ---
 
+### Dialoge stapeln sich (v0.9.499)
+
+`openModal()` in `ui/js/util.js` bedient **ein** Overlay im HTML. Bis v0.9.498
+überschrieb jeder neue Dialog dessen Inhalt, und `close()` machte alles zu. Das traf
+einen alltäglichen Weg mit drei Klicks: Einstellungen öffnen → etwas ändern → „Wie
+bekomme ich einen Token?" → „OK" — und der Einstellungsdialog war weg, samt Änderungen.
+
+`_modalStack` legt den vorherigen Zustand beiseite. Zwei Dinge, die dabei leicht
+übersehen werden:
+
+1. **Eingetippte Werte stehen nicht im Markup.** `innerHTML` bringt `<input value="…">`
+   aus dem *Attribut* zurück, nicht aus der Eigenschaft. Vor dem Wegsichern werden
+   deshalb alle Felder ins Attribut gespiegelt — sonst käme der Dialog zwar zurück, aber
+   mit den Werten von vor der Bearbeitung. Derselbe Verlust, nur unauffälliger.
+2. **Ereignis-Handler kommen nicht zurück.** Wer einen Dialog über einem anderen öffnet,
+   gibt `restorePrevious` mit — eine Funktion, die die Knöpfe des unteren Dialogs neu
+   verdrahtet. Für die Einstellungen ist das `_bindSettingsModalHandlers()`, das genau
+   deshalb aus `openSettingsModal()` herausgelöst wurde.
+
+`closeAllModals()` räumt den ganzen Stapel. **Nicht** über `openModal({}).close()`: Bei
+offenem Dialog legt `openModal` den aktuellen Zustand auf den Stapel, und `close()` holte
+ihn sofort wieder hervor — das Fenster blieb offen. (Dieser Fehler steckte in meiner
+ersten Fassung und fiel erst durch `scripts/selftest_dialoge.py` auf.)
+
+### Render schreibt nie direkt an den Zielort (v0.9.499)
+
+ffmpeg schrieb ab dem ersten Bild an den Pfad aus dem Speichern-Dialog. Drei Wege
+führten dort zu einer Ruine:
+
+* **App schließen während des Renders.** Das Abbruch-Signal wird nur ZWISCHEN zwei
+  Bildern geprüft; ein 4K-Bild dauert Sekunden, die 0,8 s bis zum `os._exit(0)` reichen
+  praktisch nie. ffmpeg schrieb sein Fragment zu Ende — abspielbar, aber abgeschnitten.
+* **Fehler mitten im Lauf.** Aufgeräumt hat nur der `RenderCancelled`-Zweig, nicht der
+  allgemeine Fehlerpfad; dort blieb zusätzlich ffmpeg unabgeholt stehen.
+* **Ein älteres Video am selben Platz** war ab dem ersten Bild überschrieben, auch wenn
+  der neue Lauf danach scheiterte.
+
+Jetzt schreibt ffmpeg in `<ziel>.rzpart` (`_teildatei()`), und erst der fertige Film
+wandert mit `os.replace` an seinen Platz (`_fertigstellen()`). Gleicher Ordner, damit das
+in einem Zug geschieht. `_teil_wegraeumen()` räumt in beiden Fehlerzweigen auf und fasst
+das **Ziel** dabei nie an.
+
+⚠️ Gilt für **beide** Render-Wege (`render()` und der Multi-Track-Pfad) — geprüft in
+`tests/test_render_teildatei.py`, inklusive einer Prüfung am Quelltext, dass kein Aufruf
+mehr direkt auf `cfg.output_path` zeigt.
+
 ## 7 · Tests
 
 ### Tests laufen lassen
 ```bash
-source .venv/bin/activate
-python tests/test_core.py
-python tests/test_geotagger_e2e.py
-python tests/test_app_start.py
-python tests/test_animator_render.py    # ~30 s (echter Render!)
+.venv/bin/python scripts/run_tests.py            # alles, was laufen kann (~15 s)
+.venv/bin/python scripts/run_tests.py --list     # nur auflisten
+.venv/bin/python scripts/run_tests.py --alle     # auch die bedingten (echte Renders)
+.venv/bin/python scripts/run_tests.py test_core  # gezielt, Teilname genügt
 ```
+
+`run_tests.py` findet die Dateien selbst. **Kein pytest** — jeder Test ist ein
+eigenständiges Skript, das mit `sys.exit(0|1)` endet, und genau das wird ausgewertet.
+Läuft ein Test gerade nicht (kein Netz, kein Token, echter Render), wird er
+**mit Grund** übersprungen und am Ende aufgeführt.
+
+⚠️ **Warum es diesen Runner gibt:** `release_check.sh` rief lange genau EINE Datei aus
+`tests/` auf. Die übrigen siebzehn startete kein Skript — sie liefen also auch lokal
+nie, und niemand bemerkte, dass zwei davon längst rot waren. Darunter die
+End-to-End-Tests für den Geotagger, also für den einzigen Programmteil, der fremde
+Dateien unwiderruflich überschreibt.
+
+**Regel:** Ein neuer Test kommt nach `tests/` und läuft damit automatisch mit. Braucht er
+etwas Besonderes, gehört er in `BEDINGT`. Ein Test, der die Wirklichkeit nicht mehr
+abbildet, wird **nachgezogen, nicht abgeschaltet** — und wenn man ihn nachzieht, so, dass
+er weiterhin den echten Weg prüft (siehe `test_app_start.py`: der arbeitet jetzt mit
+frischen Kopien, damit der Vorschaubild-Worker wirklich arbeiten muss, statt aus dem
+Zwischenspeicher bedient zu werden).
 
 ### Test-Fixtures regenerieren
 ```bash

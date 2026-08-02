@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.499] – 2026-08-02
+
 ### Hinzugefügt
 - **Fotos aus Aufzeichnungslücken werden als „unsichere Position" gekennzeichnet.**
   Fällt ein Foto in eine Lücke im Track, bekommt es den nächstgelegenen Punkt —
@@ -33,7 +35,6 @@ Bei jeder neuen Version:
   eigener Filter, um sie sich zusammen anzusehen und bei Bedarf über den
   Referenz-Modus von Hand zu korrigieren.
 
-## [0.9.498] – 2026-08-02
 
 ### Hinzugefügt
 - **Das Archiv lädt beim Scrollen nach** (Bug-Report Beta-Tester: 4787 Touren

@@ -113,9 +113,44 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.497</span>
+    <span class="version-num">v0.9.499</span>
     <span class="version-date">2 de agosto de 2026</span>
     <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Una revisión de todo el código — y las fotos avisan cuando su posición es una suposición.</p>
+
+  <div class="highlight">
+    <strong>📍 «Posición incierta» al geolocalizar.</strong> Si una foto cae en un hueco del track recibe el punto más cercano, y eso suele ser exactamente lo correcto: al entrar en un restaurante se pierde la cobertura y el último punto queda en la puerta. Ahí es donde se hizo la foto. Solo falla cuando durante el hueco <em>se siguió avanzando</em>: el reloj se queda sin batería y se caminan dos horas más, o se pausa la grabación y se sube en teleférico.
+  </div>
+
+  <p><strong>Esas fotos ahora van marcadas</strong>: distintivo ámbar en la miniatura, un aviso con las cifras reales («hueco de 12 min, 2,0 km más allá») y un filtro propio para revisarlas juntas. <strong>La geolocalización no cambia:</strong> reciben la misma posición que antes y se escriben igual. Solo están etiquetadas con honestidad. Lo que decide es la distancia, no la duración — así que el restaurante sigue siendo seguro, incluso tras dos horas.</p>
+
+  <div class="highlight">
+    <strong>📚 El archivo carga más al desplazarte.</strong> Con varios miles de rutas solo se veían las primeras 200 miniaturas y al resto se llegaba únicamente con búsquedas y filtros. Ahora la siguiente página llega al desplazarte hasta el final.
+  </div>
+
+  <p><strong>Y una revisión de todo el código.</strong> Lo que salió de ahí y lo que se nota:</p>
+  <ul>
+    <li><strong>Los ajustes y los proyectos podían perderse en silencio.</strong> Un solo control desencadena varios guardados a la vez, y dos podían pisarse. En el peor caso el archivo quedaba ilegible y se descartaba sin avisar al arrancar — con <em>todos</em> los proyectos, fotogramas clave, carteles y chinchetas. Reproducido: de doce cambios simultáneos llegó uno.</li>
+    <li><strong>Opacidad 0 % y dirección de luz 0° no llegaban al vídeo.</strong> La vista previa mostraba una caja transparente y se renderizaba un 55 % de negro.</li>
+    <li><strong>Ya no queda medio vídeo en el destino.</strong> Cerrar la app durante el renderizado dejaba allí un archivo cortado, y un vídeo anterior en la misma ruta ya estaba sobrescrito. Ahora la película se crea al lado y solo se mueve a su sitio cuando está lista.</li>
+    <li><strong>Un diálogo sobre otro ya no pierde nada.</strong> Cambiar ajustes → «¿Cómo consigo un token?» → cerrar, y todo el diálogo de ajustes desaparecía con los cambios.</li>
+    <li><strong>El progreso del renderizado vuelve.</strong> Si mirabas el archivo durante un renderizado, volvías a una barra congelada y nunca sabías que el vídeo estaba listo.</li>
+    <li><strong>Las etiquetas con diéresis se encuentran</strong> («Ötztal» antes no daba nada) y «100 %» ya no devuelve toda la colección.</li>
+    <li><strong>El botón «quitar valores atípicos» podía destruir un track</strong> si el primer punto estaba muy desviado — el típico arranque en frío. De 61 puntos quedaban dos.</li>
+    <li><strong>Una copia de seguridad de fotos podía perder originales</strong> si dos tarjetas tenían los mismos nombres — y esa es la copia que se hace <em>antes</em> de escribir nada.</li>
+    <li><strong>El archivo ya no consulta la red sin permiso</strong> para los nombres de lugar y respeta el interruptor de los ajustes.</li>
+    <li><strong>El uso con teclado es visible</strong>: antes no había ni un solo marco de foco en toda la interfaz.</li>
+  </ul>
+
+  <p class="muted">La aplicación también ha adelgazado 9 MB. Se repararon tres comprobaciones internas que daban verde sin comprobar nada — entre ellas la única comprobación automática de la cadena de renderizado.</p>
+</article>
+
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.497</span>
+    <span class="version-date">2 de agosto de 2026</span>
   </div>
   <p class="version-tagline">Los archivos sin GPS no son errores — y la lista por fin se puede limpiar.</p>
 

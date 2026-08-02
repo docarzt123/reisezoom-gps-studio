@@ -1004,6 +1004,21 @@ python app.py</code></pre>
 <li>Set the filter back to <strong>&quot;All&quot;</strong> — both cameras keep their own offset.</li>
 </ol>
 <p> Each camera&#x27;s button shows its set offset as a small badge (e.g. <code>📷 OM-3 +1h</code>). Without a camera filter (&quot;All&quot;) you set the <strong>global default</strong>, which applies to all cameras without their own offset. The per-camera offsets stay saved and also take effect in the optional capture-time correction.</p>
+<h3 id="when-the-position-is-uncertain">When the position is uncertain</h3>
+<p>If your track has a <strong>recording gap</strong> and a photo falls into it, the photo gets the nearest point in time. That is usually exactly right: step into a pub and you lose reception inside — the last point sits at the door, and that is where the photo was taken.</p>
+<p>It only goes wrong when the journey <strong>continued</strong> during the gap: the watch dies and you walk on for two hours. Or you pause recording and take the cable car up. Then the assigned point is kilometres away.</p>
+<p>Those photos are now easy to spot:</p>
+<ul>
+<li><strong>An amber ⚠︎ on the tile</strong> instead of the orange dot</li>
+<li><strong>A note with the real figures</strong> — “12 min gap, 2.0 km further on”</li>
+<li><strong>A line in the summary</strong> (“3 with an uncertain position”)</li>
+<li><strong>A filter of their own</strong>, so you can review them together</li>
+</ul>
+<p><strong>They are still geotagged, exactly as before.</strong> They get the same position and are written the same way — they are simply labelled honestly. An approximate position is almost always better than none.</p>
+<p>If you want one of them to be precise, use the <strong>reference photo</strong>: click the photo, then click the actual spot on the map.</p>
+<blockquote><strong>Why distance counts, not duration:</strong> at the pub the point before and the point after</blockquote>
+<blockquote>the gap sit almost on top of each other — even after two hours. With the cable car they</blockquote>
+<blockquote>are kilometres apart after ten minutes. Above <strong>150 m</strong> the position counts as a guess.</blockquote>
 <h3 id="options">Options</h3>
 <ul>
 <li><strong>No backup needed</strong> — the originals are never touched (the tagged copies land in the chosen target folder), so there&#x27;s no backup checkbox anymore.</li>
