@@ -25,7 +25,33 @@
   --success: #4ade80;
   --warn: #fbbf24;
   --danger: #f87171;
+  --danger-strong: #dc4a4a;      /* gefüllter Gefahr-Knopf (Löschen) */
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+
+  /* Diese beiden wurden in timeline.css als var(--panel-bg) / var(--muted)
+     benutzt, ohne je definiert zu sein — es griff immer der Ersatzwert, und der
+     passte nicht zum Rest (#1a1a1a neben --bg-2: #161a22). Jetzt sind es echte
+     Namen und sie ziehen mit, wenn jemand am Farbsatz dreht. */
+  --panel-bg: var(--bg-2);
+  --muted: var(--text-muted);
+}
+
+/* Tastaturbedienung sichtbar machen.
+ *
+ * Vorher stand in dieser Datei `outline: none` auf allen Eingabefeldern, und
+ * kein einziger Knopf hatte einen Fokus-Stil — weder `.btn` noch die
+ * Modul-Umschalter noch das Zahnrad noch das Schließkreuz. Wer die App per
+ * Tabulator bedient, sah nicht, wo er gerade steht.
+ *
+ * `:focus-visible` statt `:focus`: Der Ring erscheint bei Tastaturbedienung,
+ * nicht bei jedem Mausklick — sonst blitzt er ständig auf und wirkt wie ein
+ * Fehler. `:where(...)` hält die Gewichtung bei null, damit jede Modul-Regel
+ * das weiterhin überschreiben kann. */
+:where(button, [role="button"], a, input, select, textarea, summary,
+       .btn, .lib-card, .lib-row, .mod-btn):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -803,6 +829,20 @@ input[type="color"] {
 }
 .btn-danger:hover:not(:disabled) {
   background: rgba(248, 113, 113, 0.1);
+}
+/* Gefüllte Variante für den einen Fall, der Nachdruck verträgt: die
+   Bestätigung im Lösch-Dialog. Dort hing vorher ein Inline-Stil mit einem
+   eigenen Rotton — der gefährlichste Knopf der App sah damit anders aus als
+   jeder andere gefährliche Knopf. */
+.btn-danger-solid {
+  background: var(--danger-strong);
+  border-color: var(--danger-strong);
+  color: #fff;
+}
+.btn-danger-solid:hover:not(:disabled) {
+  background: #c93f3f;
+  border-color: #c93f3f;
+  color: #fff;
 }
 .btn-block { width: 100%; }
 .btn-small { padding: 7px 11px; font-size: 12.5px; }
@@ -2082,7 +2122,7 @@ body.is-rendering .modal-overlay * {
 .photos-list-check input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  accent-color: #ff6b35;
+  accent-color: var(--accent);
   cursor: pointer;
   margin: 0;
 }
@@ -2090,7 +2130,7 @@ body.is-rendering .modal-overlay * {
 .btn-link-sm {
   background: transparent;
   border: none;
-  color: #ff6b35;
+  color: var(--accent);
   padding: 2px 6px;
   font-size: 11px;
   cursor: pointer;
@@ -2172,7 +2212,7 @@ body.is-rendering .modal-overlay * {
 /* Drop-Zone-Highlight: box-shadow inset statt outline, sonst minimaler
    Layout-Push wenn der outline irgendwo einen Repaint triggert. */
 .section.photos-dropping {
-  box-shadow: inset 0 0 0 2px #ff6b35;
+  box-shadow: inset 0 0 0 2px var(--accent);
   background: rgba(255, 107, 53, 0.04);
   border-radius: 6px;
 }
@@ -2223,7 +2263,7 @@ body.is-rendering .modal-overlay * {
 }
 .photo-pick-modal .photo-pick-btn:hover {
   background: #2a2a2a;
-  border-color: #ff6b35;
+  border-color: var(--accent);
 }
 .photo-pick-modal .photo-pick-btn-icon {
   font-size: 22px;

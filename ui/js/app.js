@@ -253,6 +253,14 @@ async function openSettingsModal() {
     `,
   });
 
+  // Die Verdrahtung liegt in einer eigenen Funktion, weil der Dialog auch
+  // ZURÜCKGEHOLT werden kann: Wer von hier aus die Token-Hilfe oder den
+  // Über-Dialog öffnet, bekommt beim Schließen diesen Dialog wieder — der
+  // Inhalt kommt aus dem Dialog-Stapel, die Ereignis-Handler nicht.
+  _bindSettingsModalHandlers();
+}
+
+function _bindSettingsModalHandlers() {
   // v0.9.287 — Eigene Standardwerte für neue Tracks (Marc-Wunsch). Wirkt sofort
   // (unabhängig von Speichern/Abbrechen des Dialogs), da es ein eigener Vorgang ist.
   {
@@ -285,7 +293,9 @@ async function openSettingsModal() {
 
   document.getElementById("md-mapbox-help-link").onclick = (e) => {
     e.preventDefault();
-    openMapboxHelpModal();
+    // Ohne den Rückweg war nach „OK" der ganze Einstellungsdialog zu und alle
+    // Änderungen verloren — reproduzierbar mit drei Klicks.
+    openMapboxHelpModal(_bindSettingsModalHandlers);
   };
   // v0.8.0: Direkt-Link zum Mapbox-Usage-Dashboard. Öffnet im externen
   // Browser via pywebview-Bridge (Marc kann dort seinen Verbrauch sehen).
@@ -399,8 +409,12 @@ async function openSettingsModal() {
   };
 }
 
-function openMapboxHelpModal() {
+function openMapboxHelpModal(zurueck) {
   openModal({
+    // Wird dieser Dialog ÜBER einem anderen geöffnet (aus den Einstellungen
+    // oder dem Hilfe-Menü), kommt der darunter beim Schließen zurück — und
+    // `zurueck` verdrahtet dessen Knöpfe neu.
+    restorePrevious: zurueck,
     title: t("mapbox_help.title"),
     body: `
       <p>${t("mapbox_help.intro")}</p>

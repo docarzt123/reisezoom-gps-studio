@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.498] – 2026-08-02
+
 ### Hinzugefügt
 - **Das Archiv lädt beim Scrollen nach** (Bug-Report Beta-Tester: 4787 Touren
   eingelesen, 200 Kacheln sichtbar). Kacheln und Liste holten fest die ersten
@@ -85,6 +87,32 @@ Archiv, Oberfläche, Render-Kette und Bauprozess). Was Nutzer davon merken:
   beim Start aufgeräumt.
 
 ### Geändert
+- **Ein Dialog über dem anderen verliert nichts mehr.** Wer in den
+  Einstellungen etwas änderte, dann „Wie bekomme ich einen Token?" anklickte
+  und den Hilfetext schloss, stand vor einem **geschlossenen**
+  Einstellungsdialog — alle Änderungen weg, ohne jede Meldung. Drei Klicks, und
+  es gab kein Zurück. Jetzt kommt der Dialog darunter zurück, samt allem, was
+  bereits eingetippt war.
+- **Beim Rendern liegt nie mehr ein halbes Video am Zielort.** Bisher schrieb
+  die App ab der ersten Sekunde direkt dorthin, wo der Film hinsollte. Wer die
+  App während des Renderns schloss, fand dort ein abspielbares, aber
+  abgeschnittenes Video — und ein älteres Video am selben Platz war bereits
+  überschrieben, auch wenn der neue Lauf danach scheiterte. Jetzt entsteht der
+  Film daneben und wandert erst fertig an seinen Platz.
+- **Die Adress-Suche im Archiv fragt nicht mehr ungefragt ins Netz.** Der
+  Schalter „Adress-Suche" in den Einstellungen wurde nur im Geotagger beachtet;
+  das Archiv startete seinen Ortslauf beim ersten Öffnen von selbst — bei 710
+  Touren bis zu ~4200 Anfragen an einen fremden Gratisdienst, auch bei
+  jemandem, der Netzabfragen bewusst abgeschaltet hatte. Außerdem wird jetzt
+  der **eingestellte Anbieter** benutzt statt immer der langsamste.
+- **Die Suche im Archiv wird nicht mehr vom Hintergrundlauf ausgebremst.** Beide
+  teilten sich eine Wartesperre: Solange die Ortssuche im Hintergrund tickte,
+  wartete jeder Tastendruck im Suchfeld bis zu 1,1 Sekunden mit.
+- **Tastaturbedienung ist sichtbar.** In der ganzen Oberfläche gab es keinen
+  einzigen Fokus-Rahmen — wer mit der Tabulatortaste arbeitet, sah nicht, wo er
+  steht. Dazu: Der Löschen-Knopf trug seine Farbe als Sonderfall und sah damit
+  anders aus als jeder andere Gefahr-Knopf, und der Lösch-Dialog ließ sich
+  weder mit Escape noch per Klick daneben abbrechen — als einziger Dialog der App.
 - Die App ist **9 MB kleiner**: `numpy` lag im Bundle, ohne dass irgendein Teil
   des Programms es benutzt — es kam allein über ein Testskript mit.
 - **Drei Prüfer meldeten grün, ohne zu prüfen** — und genau daran waren die

@@ -23,6 +23,38 @@ import time
 # v0.9.274 (Nutzer-Bug) — Windows: ffmpeg ohne sichtbares Konsolenfenster starten.
 _WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
 
+# ffmpeg schreibt WÄHREND des Renderns in eine Nachbardatei, nicht an den vom
+# Nutzer gewählten Platz. Erst der fertige Film wird dorthin geschoben.
+#
+# Vorher lag am Zielort ab der ersten Sekunde ein wachsender Torso. Wer die App
+# währenddessen schloss, fand dort ein abspielbares, aber abgeschnittenes Video:
+# Das Abbruch-Signal wird nur ZWISCHEN zwei Bildern geprüft, ein 4K-Bild dauert
+# aber Sekunden — in den 0,8 s bis zum harten Aus kam es praktisch nie an, und
+# ffmpeg schrieb sein Fragment noch zu Ende. Dasselbe bei jedem Fehler mitten im
+# Lauf: Der Abbruch-Zweig räumte auf, der Fehler-Zweig nicht.
+_TEIL = ".rzpart"
+
+
+def _teildatei(ziel: str) -> str:
+    """Arbeitsname neben dem Ziel — gleicher Ordner, damit das Umbenennen auf
+    derselben Platte bleibt und damit in einem Rutsch geschieht."""
+    return f"{ziel}{_TEIL}"
+
+
+def _fertigstellen(ziel: str) -> None:
+    """Die fertige Teildatei an ihren endgültigen Platz schieben."""
+    teil = _teildatei(ziel)
+    if os.path.exists(teil):
+        os.replace(teil, ziel)
+
+
+def _teil_wegraeumen(ziel: str) -> None:
+    """Angefangene Datei entfernen. Ist keine da, ist auch gut."""
+    try:
+        Path(_teildatei(ziel)).unlink(missing_ok=True)
+    except Exception:       # noqa: BLE001 — Aufräumen darf den echten Fehler nie verdecken
+        pass
+
 
 def _drain_stderr(pipe):
     """v0.9.388 — liest den stderr-Pipe eines Subprozesses (ffmpeg) fortlaufend in
@@ -2926,7 +2958,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
             ]
             if vcodec == "libx265":
                 ffmpeg_cmd += ["-tag:v", "hvc1"]
-        ffmpeg_cmd.append(cfg.output_path)
+        ffmpeg_cmd.append(_teildatei(cfg.output_path))
         _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
@@ -3007,8 +3039,22 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
             except Exception:
                 try: ff.kill()
                 except Exception: pass
-            try: Path(cfg.output_path).unlink(missing_ok=True)
+            _teil_wegraeumen(cfg.output_path)
+            try: await browser.close()
             except Exception: pass
+            raise
+        except Exception:
+            # Jeder ANDERE Fehler: bisher blieb ffmpeg unabgeholt stehen und die
+            # angefangene Datei liegen — aufgeräumt hat nur der Abbruch-Zweig.
+            try: ff.stdin.close()
+            except Exception: pass
+            try:
+                ff.terminate()
+                ff.wait(timeout=3)
+            except Exception:
+                try: ff.kill()
+                except Exception: pass
+            _teil_wegraeumen(cfg.output_path)
             try: await browser.close()
             except Exception: pass
             raise
@@ -3023,6 +3069,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
         if ff.returncode != 0:
             err = bytes(_ff_err_buf).decode(errors="replace")
             _log.error("ffmpeg returncode=%s — stderr:\n%s", ff.returncode, err)
+            _teil_wegraeumen(cfg.output_path)
             raise RuntimeError(f"ffmpeg fehlgeschlagen (returncode={ff.returncode}): {err.strip()[:500]}")
         else:
             try:
@@ -3031,6 +3078,9 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
                     _log.info("ffmpeg stderr (info-level): %s", err[:1500])
             except Exception:
                 pass
+
+        # Erst jetzt an den gewählten Platz (siehe `_teildatei`).
+        _fertigstellen(cfg.output_path)
 
         try:
             sz = Path(cfg.output_path).stat().st_size
@@ -3750,7 +3800,7 @@ async def render(
             # hvc1-Tag für H.265 (sonst spielt QuickTime/Safari .mp4 nicht ab).
             if vcodec == "libx265":
                 ffmpeg_cmd += ["-tag:v", "hvc1"]
-        ffmpeg_cmd.append(cfg.output_path)
+        ffmpeg_cmd.append(_teildatei(cfg.output_path))
         _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
@@ -4118,11 +4168,31 @@ async def render(
                     ff.kill()
                 except Exception:
                     pass
-            # Halb-fertige Datei aufräumen
+            # Angefangene Teildatei wegräumen. Das ENDGÜLTIGE Ziel bleibt
+            # unangetastet — dort könnte ein älteres Video des Nutzers liegen.
+            _teil_wegraeumen(cfg.output_path)
             try:
-                Path(cfg.output_path).unlink(missing_ok=True)  # type: ignore[arg-type]
+                await browser.close()
             except Exception:
                 pass
+            raise
+        except Exception:
+            # Jeder ANDERE Fehler: bisher blieb hier ffmpeg unabgeholt stehen
+            # und die angefangene Datei liegen. Nur der Abbruch-Zweig darüber
+            # hat je aufgeräumt.
+            try:
+                ff.stdin.close()
+            except Exception:
+                pass
+            try:
+                ff.terminate()
+                ff.wait(timeout=3)
+            except Exception:
+                try:
+                    ff.kill()
+                except Exception:
+                    pass
+            _teil_wegraeumen(cfg.output_path)
             try:
                 await browser.close()
             except Exception:
@@ -4141,6 +4211,7 @@ async def render(
         if ff.returncode != 0:
             err = bytes(_ff_err_buf).decode(errors="replace")
             _log.error("ffmpeg returncode=%s — stderr:\n%s", ff.returncode, err)
+            _teil_wegraeumen(cfg.output_path)
             raise RuntimeError(f"ffmpeg fehlgeschlagen (returncode={ff.returncode}): {err.strip()[:500]}")
         else:
             # Auch im Erfolgsfall stderr loggen falls Warnungen drin sind
@@ -4150,6 +4221,11 @@ async def render(
                     _log.info("ffmpeg stderr (info-level): %s", err[:1500])
             except Exception:
                 pass
+
+        # Erst JETZT an den vom Nutzer gewählten Platz. Bis hierher lag dort
+        # nichts Halbes — und ein dort schon vorhandenes älteres Video wird in
+        # einem Zug ersetzt statt stückweise überschrieben.
+        _fertigstellen(cfg.output_path)
 
         # Output-Datei verifizieren
         try:

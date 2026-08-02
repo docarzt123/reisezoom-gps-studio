@@ -55,7 +55,10 @@
   pointer-events: none;
 }
 
-.btn-block { width: 100%; }
+/* `.btn-block` stand hier als ungescopte, globale Regel — ein exaktes
+   Duplikat aus ui/css/app.css. Weil diese Datei SPÄTER geladen wird,
+   hätte sie jede künftige Änderung dort still überschrieben, für alle
+   Module. Die Regel gehört nach app.css und steht dort bereits. */
 
 /* v0.9.128 — Animations-Leiste sitzt jetzt am UNTEREN Rand des Canvas-Hosts
    (in dem padding-bottom-Bereich), nicht mehr IM Viewport. Damit ist der
