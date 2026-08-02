@@ -2359,7 +2359,7 @@ function mountHeightAnim(body, headerActions) {
         setRenderingState(false);
         // v0.9.229 — gemeinsamer Render-Engine-Guard (ui/js/util.js): bei
         // fehlendem Browser dasselbe Download-Modal wie Animator/Tour-Map
-        // statt nur ein Toast (Windows-Bug-Report Peter Straka).
+        // statt nur ein Toast (Windows-Bug-Report eines Nutzers).
         if (res && res.error_code === "playwright_browser_missing" && typeof showRenderEngineMissingModal === "function") {
           showRenderEngineMissingModal(res.browsers_path, async () => {
             setRenderingState(true);

@@ -848,7 +848,7 @@ function _resetActiveSession() {
 // Lebt diese Karte noch? Nach `map.remove()` ist `map.style` weg — ruft dann
 // noch jemand eine Karten-Methode auf, wirft Mapbox intern
 // „undefined is not an object (evaluating 'this.style.getOwnLayer')". Genau das
-// stand im Bug-Report von Martin W. (v0.9.495) mehrfach im Log. Beim Wechsel
+// stand im einem Nutzer-Bug-Report zu v0.9.495 mehrfach im Log. Beim Wechsel
 // zwischen Modulen wird die alte Karte abgebaut, während ein `load`-Rückruf noch
 // aussteht — der darf dann nicht mehr feuern.
 function _mapLebt(map) {
@@ -1970,7 +1970,7 @@ document.addEventListener("dblclick", (e) => {
   e.preventDefault();
 });
 
-// ── v0.9.229 — Shared Render-Engine-Guard (Windows-Bug-Report Peter Straka) ──
+// ── v0.9.229 — Shared Render-Engine-Guard (Windows-Bug-Report eines Nutzers) ──
 // Render (Animator / Tour-Map / Höhen-Animator) braucht Playwright-Chromium.
 // Seit v0.9.229 ist der Browser MIT-GEBÜNDELT → dieser Fall tritt für normale
 // User praktisch nicht mehr auf. Bleibt als Sicherheitsnetz (korruptes/fehlendes

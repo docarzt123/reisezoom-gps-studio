@@ -441,6 +441,54 @@ Everything else — your own cover pictures above all — stays.
 > The preview pictures are plain line drawings without a map. That is deliberate: they
 > appear instantly, work without internet and cost no map quota.
 
+### Editing several tours at once (since v0.9.496)
+
+**Cmd-click** (Windows: Ctrl-click) adds a tour to the selection, **Shift-click** takes a
+whole range. With two or more selected, the right column turns into a bulk panel:
+
+- **Assign collections** — as many as you like; a tour may sit in several.
+- Set the **activity** for all of them, **add tags** (existing ones stay), mark
+  **done/planned**, set or clear the favourite, **hide**, **move to trash**.
+
+Opening a tool is not available while several are selected — the animator would have to guess
+which tour you mean. **“Clear selection”** or a plain click on one tour ends it.
+
+### Choosing the activity yourself (since v0.9.496)
+
+The library guesses the activity from the name and the pace — usually right, sometimes not.
+The detail column therefore has a picker; **“Detected automatically”** shows the guess next
+to it. Your choice is stored against the route, survives every rescan and applies to every
+copy of the same tour at once. Switching back to automatic restores the guess.
+
+### Searching by area (since v0.9.496)
+
+Type **“Tenerife”** and you get not only the tours with that word in their name but **every
+tour that lies there** — even if “Tenerife” appears in no file at all. A line above the list
+says what happened:
+
+> 📍 Area: Tenerife — 163 tours here · 8 by name ✕
+
+The ✕ switches back to plain text search. It works with any place name in any language —
+island, town, county, country. It needs internet; without one you can still search names,
+tags and notes.
+
+The app also names the area of every tour in the background (town, province, region, country)
+and remembers it. While it runs, the header shows **“Naming the areas 47/493”**. It takes its
+time and does not get in the way; the next start continues where it left off.
+
+### The overview map (globe button)
+
+Every tour gets **its own colour**, derived from its route — with seven hundred tours all
+lines would otherwise look the same and none could be followed. The colour stays the same
+across sessions. Favourites keep their signal colour.
+
+If you dislike one, set your own under **“Track colour on the map”** in the detail column;
+**“Automatic”** restores the derived one. This colour applies **to the library only** — the
+animator and the tour map keep their own per-project colour.
+
+Top left on the map sits **🖼 PNG**: it saves the map exactly as it looks right now — same
+section, same zoom, same colours.
+
 ---
 
 ## 3 · Module: Animator — render a GPX as a video
