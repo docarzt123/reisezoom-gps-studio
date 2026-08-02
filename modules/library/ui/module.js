@@ -48,7 +48,8 @@ function mountLibrary(body, headerActions) {
   // die eintröpfelnden Bilder von selbst zeigen.
   let _autoThumbs = null, _autoWatch = null, _autoTick = 0;
   let _autoPlaces = null;   // läuft der Ortslauf gerade?
-  let _ortTreffer = null;   // Suche hat den Begriff als Gegend gedeutet
+  let _ortAngebot = null;   // gefundene Gegend zum Umschalten
+  let _ortModus = null;     // aktiv: Liste kommt aus dem Rechteck der Gegend
   let _scanTimer = null, _mapsTimer = null, _unmounted = false;
   let _map = null, _mapReady = false, _mapPopup = null, _mapLib = null;
 
@@ -192,32 +193,36 @@ function mountLibrary(body, headerActions) {
 
   // ── Laden ─────────────────────────────────────────────────────────────
   async function reload() {
-    const res = await api().library_query(queryParams({
+    // Im Ortsmodus zählt die Gegend, nicht der eingetippte Text.
+    const res = await api().library_query(queryParams(Object.assign({
       limit: (view === "map" || view === "stats") ? 0 : PAGE,
       with_thumbs: view === "cards" || view === "list",
       with_geom: view === "map",
-    }));
+    }, _ortModus ? { search: "", bbox: _ortModus.bbox } : {})));
     if (_unmounted) return;
     if (!res.ok) { toast(res.error || "Archiv-Abfrage fehlgeschlagen", "error"); return; }
     _items = res.items || [];
     _total = res.total || 0;
-    _ortTreffer = null;
+    _ortAngebot = null;
 
-    // Die Suche andersherum: Findet der Text nichts, wird der Begriff als ORT
-    // nachgeschlagen und alles gezeigt, was in dieser Gegend liegt. „Teneriffa"
-    // steht in keiner Datei — die Touren wissen nur, wo sie sind.
-    if (_total === 0 && (state.search || "").trim().length >= 3) {
+    // Die Suche andersherum: Der Begriff wird zusätzlich als ORT nachgeschlagen.
+    //
+    // ⚠️ Erste Fassung sprang nur an, wenn die Textsuche LEER blieb — und genau
+    // das war falsch: „Teneriffa" findet über den Dateinamen 8 Touren, also
+    // blieben die 163 auf der Insel unsichtbar, ohne dass jemand ahnte, dass es
+    // sie gibt. Deshalb wird jetzt IMMER nachgeschlagen; die Textreffer bleiben
+    // stehen, und der Fund wird als Angebot daneben gestellt. Was angezeigt
+    // wird, entscheidet der Nutzer — nicht wir.
+    if (!_ortModus && (state.search || "").trim().length >= 3) {
       const ort = await api().library_search_place(state.search.trim(), queryParams({
-        limit: (view === "map" || view === "stats") ? 0 : PAGE,
-        with_thumbs: view === "cards" || view === "list",
-        with_geom: view === "map",
-        search: "",          // beim Ortstreffer zählt die Gegend, nicht der Text
+        limit: 0, with_thumbs: false, with_geom: false, search: "",
       }));
       if (_unmounted) return;
-      if (ort && ort.ok && ort.found && (ort.total || 0) > 0) {
-        _items = ort.items || [];
-        _total = ort.total || 0;
-        _ortTreffer = { name: ort.place, total: ort.total };
+      // Nur anbieten, wenn die Gegend MEHR liefert als der Text. Sonst kommt bei
+      // „wanderung" das Angebot „auch 1 Tour in der Gegend Wanderung" — es gibt
+      // wirklich einen Ort dieses Namens, und das ist nur Lärm.
+      if (ort && ort.ok && ort.found && (ort.total || 0) > _total) {
+        _ortAngebot = { name: ort.place, total: ort.total, bbox: ort.bbox };
       }
     }
     // Wer den Bereich wechselt, soll rechts nicht die Tour von vorhin sehen —
@@ -343,12 +348,17 @@ function mountLibrary(body, headerActions) {
       ${s.total_km ? `<span class="lib-head-sub">${num(s.total_km)} km · ${num(s.total_ascent_m)} ${T("library.ascent", "Höhenmeter")} · ${num(s.total_hours)} ${T("library.hours", "Stunden")}</span>` : ""}
       ${(scope === "all" && s.planned && s.planned.n) ? `<span class="lib-head-mix">${s.done.n} ${T("library.done_short", "gemacht")} · ${s.planned.n} ${T("library.planned", "geplant")}</span>` : ""}
       ${_autoThumbs ? `<span class="lib-head-auto">🗺️ ${T("library.map_thumbs_auto", "Kartenbilder werden geladen")} ${_autoThumbs.done || 0}/${_autoThumbs.total || "?"}</span>` : ""}
-      ${_ortTreffer ? `<span class="lib-head-ort">📍 ${T("library.found_area", "Gegend")}: <b>${esc(_ortTreffer.name.split(",")[0])}</b> — ${_ortTreffer.total} ${T("library.tours_here", "Touren hier")}</span>` : ""}
+      ${_ortModus ? `<button class="lib-head-ort is-on" id="lib-ort-aus" type="button">📍 ${T("library.found_area", "Gegend")}: <b>${esc(_ortModus.name.split(",")[0])}</b> — ${_total} ${T("library.tours_here", "Touren hier")} ✕</button>` : ""}
+      ${(!_ortModus && _ortAngebot) ? `<button class="lib-head-ort" id="lib-ort-an" type="button">📍 ${T("library.also_area", "Auch")} ${_ortAngebot.total} ${T("library.in_area", "Touren in der Gegend")} <b>${esc(_ortAngebot.name.split(",")[0])}</b></button>` : ""}
       ${_autoPlaces ? `<span class="lib-head-auto">📍 ${T("library.places_auto", "Gegenden werden benannt")} ${_autoPlaces.done || 0}/${_autoPlaces.total || "?"}</span>` : ""}
       ${s.n_failed ? `<button class="lib-head-warn" id="lib-show-errors">${s.n_failed} ${T("library.unreadable", "Datei(en) nicht lesbar")}</button>` : ""}
     `;
     const eb = $("lib-show-errors");
     if (eb) eb.onclick = showErrors;
+    const an = $("lib-ort-an");
+    if (an) an.onclick = () => { _ortModus = _ortAngebot; _ortAngebot = null; reload(); };
+    const aus = $("lib-ort-aus");
+    if (aus) aus.onclick = () => { _ortModus = null; reload(); };
   }
 
   function fillYearOptions() {
@@ -1339,12 +1349,17 @@ function mountLibrary(body, headerActions) {
   }
 
   // ── Ereignisse ────────────────────────────────────────────────────────
-  $("lib-search").oninput = debounce(() => { state.search = $("lib-search").value; reload(); }, 250);
+  $("lib-search").oninput = debounce(() => {
+    state.search = $("lib-search").value;
+    _ortModus = null;          // neue Eingabe → wieder Textsuche
+    reload();
+  }, 400);
   $("lib-year").onchange = () => { state.year = parseInt($("lib-year").value, 10) || 0; reload(); };
   $("lib-act").onchange = () => { state.activity = $("lib-act").value; reload(); };
   $("lib-sort").onchange = () => { state.sort = $("lib-sort").value; reload(); };
   $("lib-reset").onclick = () => {
     state.search = ""; state.year = 0; state.activity = ""; state.sort = "date_desc";
+    _ortModus = null; _ortAngebot = null;
     $("lib-search").value = "";
     reload();
   };

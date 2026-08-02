@@ -514,6 +514,9 @@
    Begriff als Ort gedeutet hat statt als Text. Muss auffallen, sonst wundert
    man sich über Treffer, in denen das Suchwort nirgends steht. */
 .lib-head-ort {
+  cursor: pointer;
+  appearance: none;
+  font: inherit;
   background: rgba(90, 170, 255, .12);
   border: 1px solid rgba(90, 170, 255, .45);
   color: #a8cfff;
@@ -523,3 +526,7 @@
   white-space: nowrap;
 }
 .lib-head-ort b { color: #d8e9ff; }
+
+.lib-head-ort:hover { background: rgba(90, 170, 255, .22); }
+/* Aktiv: die Liste kommt gerade aus dem Rechteck der Gegend. */
+.lib-head-ort.is-on { background: rgba(90, 170, 255, .28); color: #eaf4ff; }
