@@ -1664,6 +1664,6 @@
   "library.places_auto": "Gegenden werden benannt",
   "library.found_area": "Gegend",
   "library.tours_here": "Touren hier",
-  "library.also_area": "Auch",
-  "library.in_area": "Touren in der Gegend"
+  "library.area_off": "Nur Treffer im Text zeigen",
+  "library.by_name": "über den Namen"
 }

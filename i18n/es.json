@@ -1664,6 +1664,6 @@
   "library.places_auto": "Nombrando las zonas",
   "library.found_area": "Zona",
   "library.tours_here": "rutas aquí",
-  "library.also_area": "También",
-  "library.in_area": "rutas en la zona"
+  "library.area_off": "Mostrar solo coincidencias de texto",
+  "library.by_name": "por nombre"
 }

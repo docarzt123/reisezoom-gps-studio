@@ -48,8 +48,8 @@ function mountLibrary(body, headerActions) {
   // die eintröpfelnden Bilder von selbst zeigen.
   let _autoThumbs = null, _autoWatch = null, _autoTick = 0;
   let _autoPlaces = null;   // läuft der Ortslauf gerade?
-  let _ortAngebot = null;   // gefundene Gegend zum Umschalten
-  let _ortModus = null;     // aktiv: Liste kommt aus dem Rechteck der Gegend
+  let _ortAktiv = null;     // Liste zeigt gerade eine Gegend statt Textreffer
+  let _ortAus = false;      // Nutzer will für diese Eingabe nur Textreffer
   let _scanTimer = null, _mapsTimer = null, _unmounted = false;
   let _map = null, _mapReady = false, _mapPopup = null, _mapLib = null;
 
@@ -193,36 +193,41 @@ function mountLibrary(body, headerActions) {
 
   // ── Laden ─────────────────────────────────────────────────────────────
   async function reload() {
-    // Im Ortsmodus zählt die Gegend, nicht der eingetippte Text.
-    const res = await api().library_query(queryParams(Object.assign({
+    const res = await api().library_query(queryParams({
       limit: (view === "map" || view === "stats") ? 0 : PAGE,
       with_thumbs: view === "cards" || view === "list",
       with_geom: view === "map",
-    }, _ortModus ? { search: "", bbox: _ortModus.bbox } : {})));
+    }));
     if (_unmounted) return;
     if (!res.ok) { toast(res.error || "Archiv-Abfrage fehlgeschlagen", "error"); return; }
     _items = res.items || [];
     _total = res.total || 0;
-    _ortAngebot = null;
+    _ortAktiv = null;
 
-    // Die Suche andersherum: Der Begriff wird zusätzlich als ORT nachgeschlagen.
+    // Die Suche andersherum: Der Begriff wird zusätzlich als ORT nachgeschlagen,
+    // und was in der Gegend liegt, wird **direkt gezeigt**.
     //
-    // ⚠️ Erste Fassung sprang nur an, wenn die Textsuche LEER blieb — und genau
-    // das war falsch: „Teneriffa" findet über den Dateinamen 8 Touren, also
-    // blieben die 163 auf der Insel unsichtbar, ohne dass jemand ahnte, dass es
-    // sie gibt. Deshalb wird jetzt IMMER nachgeschlagen; die Textreffer bleiben
-    // stehen, und der Fund wird als Angebot daneben gestellt. Was angezeigt
-    // wird, entscheidet der Nutzer — nicht wir.
-    if (!_ortModus && (state.search || "").trim().length >= 3) {
+    // Zwei Anläufe waren nötig. Erst sprang die Ortssuche nur an, wenn die
+    // Textsuche leer blieb — falsch, denn „Teneriffa" trifft über den Dateinamen
+    // 8 Touren, und die 163 auf der Insel blieben unsichtbar. Dann stand sie als
+    // Angebot daneben, das man erst anklicken musste — auch falsch: wer
+    // „Teneriffa" eintippt, will die Touren von Teneriffa sehen, nicht ein
+    // Angebot. Jetzt zeigt die Liste die Gegend; der Hinweis oben sagt, dass es
+    // die Gegend ist, und schaltet auf Wunsch zurück auf reine Textsuche.
+    if (!_ortAus && (state.search || "").trim().length >= 3) {
       const ort = await api().library_search_place(state.search.trim(), queryParams({
-        limit: 0, with_thumbs: false, with_geom: false, search: "",
+        limit: (view === "map" || view === "stats") ? 0 : PAGE,
+        with_thumbs: view === "cards" || view === "list",
+        with_geom: view === "map",
+        search: "",
       }));
       if (_unmounted) return;
-      // Nur anbieten, wenn die Gegend MEHR liefert als der Text. Sonst kommt bei
-      // „wanderung" das Angebot „auch 1 Tour in der Gegend Wanderung" — es gibt
-      // wirklich einen Ort dieses Namens, und das ist nur Lärm.
+      // Nur übernehmen, wenn die Gegend MEHR liefert als der Text — sonst zeigt
+      // „wanderung" die eine Tour bei einem Ort, der wirklich Wanderung heißt.
       if (ort && ort.ok && ort.found && (ort.total || 0) > _total) {
-        _ortAngebot = { name: ort.place, total: ort.total, bbox: ort.bbox };
+        _ortAktiv = { name: ort.place, total: ort.total, textTreffer: _total };
+        _items = ort.items || [];
+        _total = ort.total || 0;
       }
     }
     // Wer den Bereich wechselt, soll rechts nicht die Tour von vorhin sehen —
@@ -348,17 +353,14 @@ function mountLibrary(body, headerActions) {
       ${s.total_km ? `<span class="lib-head-sub">${num(s.total_km)} km · ${num(s.total_ascent_m)} ${T("library.ascent", "Höhenmeter")} · ${num(s.total_hours)} ${T("library.hours", "Stunden")}</span>` : ""}
       ${(scope === "all" && s.planned && s.planned.n) ? `<span class="lib-head-mix">${s.done.n} ${T("library.done_short", "gemacht")} · ${s.planned.n} ${T("library.planned", "geplant")}</span>` : ""}
       ${_autoThumbs ? `<span class="lib-head-auto">🗺️ ${T("library.map_thumbs_auto", "Kartenbilder werden geladen")} ${_autoThumbs.done || 0}/${_autoThumbs.total || "?"}</span>` : ""}
-      ${_ortModus ? `<button class="lib-head-ort is-on" id="lib-ort-aus" type="button">📍 ${T("library.found_area", "Gegend")}: <b>${esc(_ortModus.name.split(",")[0])}</b> — ${_total} ${T("library.tours_here", "Touren hier")} ✕</button>` : ""}
-      ${(!_ortModus && _ortAngebot) ? `<button class="lib-head-ort" id="lib-ort-an" type="button">📍 ${T("library.also_area", "Auch")} ${_ortAngebot.total} ${T("library.in_area", "Touren in der Gegend")} <b>${esc(_ortAngebot.name.split(",")[0])}</b></button>` : ""}
+      ${_ortAktiv ? `<button class="lib-head-ort is-on" id="lib-ort-aus" type="button" title="${T("library.area_off", "Nur Treffer im Text zeigen")}">📍 ${T("library.found_area", "Gegend")}: <b>${esc(_ortAktiv.name.split(",")[0])}</b> — ${_total} ${T("library.tours_here", "Touren hier")}${_ortAktiv.textTreffer ? ` · ${_ortAktiv.textTreffer} ${T("library.by_name", "über den Namen")}` : ""} ✕</button>` : ""}
       ${_autoPlaces ? `<span class="lib-head-auto">📍 ${T("library.places_auto", "Gegenden werden benannt")} ${_autoPlaces.done || 0}/${_autoPlaces.total || "?"}</span>` : ""}
       ${s.n_failed ? `<button class="lib-head-warn" id="lib-show-errors">${s.n_failed} ${T("library.unreadable", "Datei(en) nicht lesbar")}</button>` : ""}
     `;
     const eb = $("lib-show-errors");
     if (eb) eb.onclick = showErrors;
-    const an = $("lib-ort-an");
-    if (an) an.onclick = () => { _ortModus = _ortAngebot; _ortAngebot = null; reload(); };
     const aus = $("lib-ort-aus");
-    if (aus) aus.onclick = () => { _ortModus = null; reload(); };
+    if (aus) aus.onclick = () => { _ortAus = true; reload(); };
   }
 
   function fillYearOptions() {
@@ -1351,7 +1353,7 @@ function mountLibrary(body, headerActions) {
   // ── Ereignisse ────────────────────────────────────────────────────────
   $("lib-search").oninput = debounce(() => {
     state.search = $("lib-search").value;
-    _ortModus = null;          // neue Eingabe → wieder Textsuche
+    _ortAus = false;           // neue Eingabe → Gegend wieder erlauben
     reload();
   }, 400);
   $("lib-year").onchange = () => { state.year = parseInt($("lib-year").value, 10) || 0; reload(); };
@@ -1359,7 +1361,7 @@ function mountLibrary(body, headerActions) {
   $("lib-sort").onchange = () => { state.sort = $("lib-sort").value; reload(); };
   $("lib-reset").onclick = () => {
     state.search = ""; state.year = 0; state.activity = ""; state.sort = "date_desc";
-    _ortModus = null; _ortAngebot = null;
+    _ortAus = false; _ortAktiv = null;
     $("lib-search").value = "";
     reload();
   };

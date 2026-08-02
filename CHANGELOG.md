@@ -23,14 +23,16 @@ Bei jeder neuen Version:
   nur finden, was jemand hingeschrieben hat, und die Touren wissen bloß, **wo**
   sie sind. Jetzt wird der Suchbegriff selbst nachgeschlagen — findet sich dazu
   ein Ort, zeigt das Archiv alles, was in dieser Gegend liegt, mit dem Hinweis
-  „Auch 163 Touren in der Gegend Teneriffa" — ein Klick schaltet um, ein zweiter
-  zurück. Funktioniert für jeden Ortsnamen in jeder Sprache, ohne gepflegte
-  Namensliste. (Idee von Marc — die zuerst gebaute Liste deutscher Inselnamen ist
-  damit hinfällig und wieder raus.)
-  Die Gegend wird **immer** mitgesucht, nicht nur bei leerer Trefferliste: „Teneriffa"
-  findet über den Dateinamen 8 Touren, und genau deshalb wären die 163 auf der Insel
-  sonst unsichtbar geblieben. Angeboten wird nur, was **mehr** liefert als der Text —
-  sonst käme bei „wanderung" das Angebot „auch 1 Tour in der Gegend Wanderung".
+  **alle 163 direkt** — mit dem Hinweis „Gegend: Teneriffa — 163 Touren hier · 8
+  über den Namen". Ein Klick darauf schaltet zurück auf reine Textsuche.
+  Funktioniert für jeden Ortsnamen in jeder Sprache, ohne gepflegte Namensliste.
+  (Idee von Marc — die zuerst gebaute Liste deutscher Inselnamen ist hinfällig
+  und wieder raus.)
+  Die Gegend wird **immer** mitgesucht, nicht erst bei leerer Trefferliste:
+  „Teneriffa" trifft über den Dateinamen 8 Touren, und genau deshalb wären die
+  163 auf der Insel sonst unsichtbar geblieben. Übernommen wird nur, was **mehr**
+  liefert als der Text — sonst zeigte „wanderung" die eine Tour bei einem Ort,
+  der wirklich Wanderung heißt.
 - **Zusätzlich benennt das Archiv im Hintergrund die Gegend jeder Tour**
   (Ort · Provinz/Insel · Region · Land) und legt sie dauerhaft ab, sodass auch
   die normale Textsuche sie findet. Läuft tröpfelnd wie die Kartenbilder. Bei
