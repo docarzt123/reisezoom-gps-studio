@@ -5319,6 +5319,14 @@ class Api:
                     "track_index": m.track_index,
                     "time_delta_s": m.time_delta_s,
                     "in_range": m.in_range,
+                    # Position aus einer Aufzeichnungslücke, in der weitergegangen
+                    # wurde — siehe core/geotag.py. Ein Foto aus dem Wirtshaus ist
+                    # NICHT unsicher (man stand am selben Fleck), eines aus der
+                    # Seilbahn schon. Trägt das Foto sein eigenes GPS, ist die
+                    # Frage hinfällig: dann kommt die Position aus dem Bild.
+                    "unsicher": bool(m.unsicher) and pos_src != "exif",
+                    "gap_seconds": m.gap_seconds,
+                    "gap_meters": m.gap_meters,
                     # Bei „GPS ignorieren" so behandeln, als hätte das Foto kein eigenes
                     # GPS → Track-Koordinaten werden auch tatsächlich geschrieben.
                     "existing_gps": None if ignore else p["existing_gps"],

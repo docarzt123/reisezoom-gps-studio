@@ -23,6 +23,35 @@ class PhotoMatch:
     track_index: Optional[int]  # Index in der Trackpunkt-Liste
     time_delta_s: Optional[float]  # Abstand zum nächsten Trackpunkt in Sekunden
     in_range: bool  # liegt innerhalb des Track-Zeitfensters?
+    # ── Wie verlässlich ist diese Position? (v0.9.499) ─────────────────────
+    # Fällt ein Foto in eine Aufzeichnungslücke, bekommt es trotzdem den
+    # nächstgelegenen Punkt — und das ist meistens richtig: Wer ins Wirtshaus
+    # geht, verliert drinnen den Empfang, und der letzte Punkt liegt am
+    # Eingang. Genau dort war das Foto ja auch.
+    #
+    # Falsch wird es, wenn während der Lücke WEITERGEGANGEN wurde: Uhr mit
+    # leerem Akku aus, zwei Stunden weiter, Uhr wieder an — oder Aufzeichnung
+    # pausiert und mit der Seilbahn hoch. Dann liegt der zugeordnete Punkt
+    # kilometerweit weg, und das Foto galt bisher trotzdem als sauber verortet.
+    #
+    # Unterschieden wird das nicht über die DAUER der Lücke, sondern über die
+    # STRECKE zwischen dem Punkt davor und dem danach: Wirtshaus = fast null,
+    # auch nach zwei Stunden. Seilbahn = Kilometer, auch nach zehn Minuten.
+    unsicher: bool = False          # Position stammt aus einer Lücke mit Bewegung
+    gap_seconds: float = 0.0        # Dauer der Lücke, in der das Foto liegt
+    gap_meters: float = 0.0         # Luftlinie über diese Lücke hinweg
+
+
+# Ab wann eine Zeitspanne zwischen zwei Punkten überhaupt als „Lücke" gilt.
+# Ein Aufzeichnungstakt liegt bei 1–10 Sekunden; eine Minute Abstand ist schon
+# ungewöhnlich. Darunter lohnt das Nachrechnen nicht.
+GAP_MIN_SECONDS = 60.0
+
+# Wie weit man sich in der Lücke bewegt haben darf, damit die Zuordnung noch
+# als sicher gilt. 150 m sind ein Wirtshaus, ein Parkplatz, eine Gipfelrast —
+# alles, wo man stehen bleibt und dort wieder herauskommt, wo man hineinging.
+# Wer weiter kommt, war unterwegs — dann ist der nächstgelegene Punkt geraten.
+GAP_MAX_METERS = 150.0
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -138,10 +167,29 @@ def match_photos(
         track_idx = sorted_indices[best]
         tp = track[track_idx]
         in_range = (t_min - timedelta(seconds=max_gap_seconds)) <= cmp_time <= (t_max + timedelta(seconds=max_gap_seconds))
+
+        # Liegt das Foto ZWISCHEN zwei Aufzeichnungspunkten — also in einer
+        # Lücke? Dann nachsehen, wie weit man in dieser Lücke gekommen ist.
+        gap_s = 0.0
+        gap_m = 0.0
+        unsicher = False
+        if in_range and pos > 0 and pos < len(sorted_times):
+            vor_i, nach_i = sorted_indices[pos - 1], sorted_indices[pos]
+            gap_s = (sorted_times[pos] - sorted_times[pos - 1]).total_seconds()
+            if gap_s > GAP_MIN_SECONDS:
+                a, b = track[vor_i], track[nach_i]
+                gap_m = _haversine_m(a.lat, a.lon, b.lat, b.lon)
+                # Kurze Strecke = Standzeit (Wirtshaus, Pause, Gipfelrast) →
+                # der nächstgelegene Punkt ist die richtige Antwort.
+                # Weite Strecke = es ging weiter → die Position ist geraten.
+                unsicher = gap_m > GAP_MAX_METERS
+
         matches.append(PhotoMatch(
             path=path, photo_time_local=ptime, matched_time_utc=cmp_time,
             lat=tp.lat, lon=tp.lon, alt=tp.ele,
             track_index=track_idx, time_delta_s=delta, in_range=in_range,
+            unsicher=unsicher, gap_seconds=gap_s if unsicher else 0.0,
+            gap_meters=gap_m if unsicher else 0.0,
         ))
     return matches
 

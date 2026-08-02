@@ -1374,6 +1374,10 @@ input[type="color"] {
 .photo-tile .badge.tagged   { background: var(--accent);  color: #fff; border-color: var(--bg-1); }
 .photo-tile .badge.existing { background: var(--success); color: #fff; border-color: var(--bg-1); }
 .photo-tile .badge.error    { background: var(--danger);  color: #fff; border-color: var(--bg-1); }
+/* Wird geschrieben, aber die Position stammt aus einer Aufzeichnungslücke, in
+   der es weiterging. Bewusst Warn-Gelb, nicht Gefahr-Rot: Das Foto ist in
+   Ordnung und wird getaggt — es ist nur einen zweiten Blick wert. */
+.photo-tile .badge.unsicher { background: var(--warn);    color: #1a1508; border-color: var(--bg-1); }
 
 .photo-tile .ph-name {
   padding: 5px 8px;
