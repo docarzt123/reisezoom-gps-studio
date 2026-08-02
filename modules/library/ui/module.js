@@ -243,6 +243,15 @@ function mountLibrary(body, headerActions) {
   }
 
   // ── Laden ─────────────────────────────────────────────────────────────
+
+  /* Nachladen beim Scrollen (Wunsch Beta-Tester, 4787 Touren):
+   * Kacheln und Liste holen die erste Seite (PAGE) und hängen beim Scrollen
+   * weitere an — vorher war nach 200 einfach Schluss, ohne Hinweis, und an den
+   * Rest kam man nur über Filter. Karte und Statistik laden weiter alles auf
+   * einmal, die haben keine Seiten. */
+  let _hatMehr = false;      // es gibt noch nicht geladene Treffer
+  let _laedtMehr = false;    // eine Nachlade-Abfrage läuft gerade
+
   async function reload() {
     const res = await api().library_query(queryParams({
       limit: (view === "map" || view === "stats") ? 0 : PAGE,
@@ -285,10 +294,49 @@ function mountLibrary(body, headerActions) {
     // Wer den Bereich wechselt, soll rechts nicht die Tour von vorhin sehen —
     // die steht dann in keiner Liste mehr und wirkt wie ein Geist.
     if (_sel && !_items.some(i => i.path === _sel.path)) _sel = null;
+    // Nach dem Gegend-Zweig rechnen, nicht davor — der tauscht _items/_total aus.
+    _hatMehr = (view === "cards" || view === "list") && _items.length < _total;
+    _laedtMehr = false;
     await reloadStats();
     renderHead();
     renderView();
     renderDetail();
+  }
+
+  /** Die nächste Seite holen und ANHÄNGEN — mit denselben Filtern wie die
+   *  Liste, einschließlich einer aktiven Gegend-Suche (bbox statt Text). */
+  async function nachladen() {
+    if (!_hatMehr || _laedtMehr || _unmounted) return;
+    if (view !== "cards" && view !== "list") return;
+    _laedtMehr = true;
+    const ort = _ortAktiv ? { search: "", bbox: _ortAktiv.bbox } : {};
+    const res = await api().library_query(queryParams(Object.assign({
+      limit: PAGE, offset: _items.length, with_thumbs: true,
+    }, ort)));
+    _laedtMehr = false;
+    if (_unmounted || !res || !res.ok) return;
+    const neu = res.items || [];
+    if (!neu.length) { _hatMehr = false; return; }
+    const start = _items.length;
+    _items = _items.concat(neu);
+    _hatMehr = _items.length < (res.total || _total);
+    // Nur die neuen anhängen — ein voller Neuaufbau würde bei ein paar tausend
+    // Kacheln mit jedem Nachladen teurer und ließe laufende Bild-Ladevorgänge
+    // neu beginnen.
+    if (view === "cards") {
+      grid.insertAdjacentHTML("beforeend",
+        neu.map((it, k) => cardHtml(it, start + k)).join(""));
+      bindItemClicks(grid);
+    } else {
+      $("lib-list").insertAdjacentHTML("beforeend",
+        neu.map((it, k) => rowHtml(it, start + k)).join(""));
+      bindItemClicks($("lib-list"));
+    }
+  }
+
+  /** Kurz vor dem Ende der Scrollbahn die nächste Seite anstoßen. */
+  function scrollNachladen(el) {
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 600) nachladen();
   }
 
   async function reloadStats() {
@@ -494,9 +542,10 @@ function mountLibrary(body, headerActions) {
       ${it.has_session ? `<span class="lib-badge lib-badge-proj" title="${esc(T("library.has_project", "Für diese Tour gibt es gespeicherte Projekte"))}">●</span>` : ""}`;
   }
 
-  function renderGrid() {
-    if (!_items.length) { grid.innerHTML = emptyHtml(); bindEmpty(); return; }
-    grid.innerHTML = _items.map((it, i) => `
+  // Karten- und Zeilen-HTML als Helfer: Voll-Render und Nachladen (Anhängen)
+  // müssen exakt dasselbe erzeugen, sonst sehen nachgeladene Kacheln anders aus.
+  function cardHtml(it, i) {
+    return `
       <button class="lib-card${_multi.has(it.path) ? " is-multi" : (_sel && _sel.path === it.path ? " is-sel" : "")}" data-i="${i}" type="button">
         <span class="lib-card-thumb">
           ${it.thumb_url ? `<img src="${it.thumb_url}" alt="" loading="lazy">` : `<span class="lib-card-nothumb">?</span>`}
@@ -506,7 +555,27 @@ function mountLibrary(body, headerActions) {
         <span class="lib-card-meta">
           <span>${fmtDate(it.started_at)}</span><span>${fmtKmVal(it.distance_m || 0)}</span><span>↑ ${num(it.ascent_m)} m</span>
         </span>
-      </button>`).join("");
+      </button>`;
+  }
+
+  function rowHtml(it, i) {
+    return `
+        <button class="lib-row${_multi.has(it.path) ? " is-multi" : (_sel && _sel.path === it.path ? " is-sel" : "")}" data-i="${i}" type="button">
+          <span class="lib-row-thumb">${it.thumb_url ? `<img src="${it.thumb_url}" alt="" loading="lazy">` : ""}</span>
+          <span class="lib-row-name">${it.fav ? "★ " : ""}${esc(it.name)}
+            ${it.recorded_eff ? "" : `<i class="lib-row-tag">${T("library.planned", "geplant")}</i>`}
+            ${it.has_session ? `<i class="lib-row-tag lib-row-tag-proj">●</i>` : ""}</span>
+          <span>${fmtDate(it.started_at)}</span>
+          <span>${fmtKmVal(it.distance_m || 0)}</span>
+          <span>↑ ${num(it.ascent_m)} m</span>
+          <span>${it.duration_s ? fmtDurVal(it.duration_s) : "—"}</span>
+          <span>${esc(ACT_LABELS[it.activity] || it.activity || "—")}</span>
+        </button>`;
+  }
+
+  function renderGrid() {
+    if (!_items.length) { grid.innerHTML = emptyHtml(); bindEmpty(); return; }
+    grid.innerHTML = _items.map((it, i) => cardHtml(it, i)).join("");
     bindItemClicks(grid);
   }
 
@@ -519,18 +588,7 @@ function mountLibrary(body, headerActions) {
         <span>${T("library.distance", "Strecke")}</span><span>${T("library.ascent", "Höhenmeter")}</span>
         <span>${T("library.duration", "Dauer")}</span><span>${T("library.activity", "Fortbewegung")}</span>
       </div>
-      ${_items.map((it, i) => `
-        <button class="lib-row${_multi.has(it.path) ? " is-multi" : (_sel && _sel.path === it.path ? " is-sel" : "")}" data-i="${i}" type="button">
-          <span class="lib-row-thumb">${it.thumb_url ? `<img src="${it.thumb_url}" alt="" loading="lazy">` : ""}</span>
-          <span class="lib-row-name">${it.fav ? "★ " : ""}${esc(it.name)}
-            ${it.recorded_eff ? "" : `<i class="lib-row-tag">${T("library.planned", "geplant")}</i>`}
-            ${it.has_session ? `<i class="lib-row-tag lib-row-tag-proj">●</i>` : ""}</span>
-          <span>${fmtDate(it.started_at)}</span>
-          <span>${fmtKmVal(it.distance_m || 0)}</span>
-          <span>↑ ${num(it.ascent_m)} m</span>
-          <span>${it.duration_s ? fmtDurVal(it.duration_s) : "—"}</span>
-          <span>${esc(ACT_LABELS[it.activity] || it.activity || "—")}</span>
-        </button>`).join("")}`;
+      ${_items.map((it, i) => rowHtml(it, i)).join("")}`;
     bindItemClicks(box);
   }
 
@@ -1779,6 +1837,11 @@ function mountLibrary(body, headerActions) {
     $("lib-sort").value = "date_desc";
     reload();
   };
+  // Nachladen beim Scrollen — die Container leben über alle Re-Renders hinweg
+  // (innerHTML tauscht nur die Kinder), einmal registrieren reicht. Beide
+  // hängen am Modul-DOM und verschwinden mit ihm beim Unmount von selbst.
+  grid.addEventListener("scroll", () => scrollNachladen(grid), { passive: true });
+  $("lib-list").addEventListener("scroll", () => scrollNachladen($("lib-list")), { passive: true });
   $("lib-map-png").onclick = saveMapPng;
   $("lib-folders-btn").onclick = openFoldersModal;
   $("lib-dupes").onclick = showDuplicates;
