@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.496] – 2026-08-01
+
 ### Hinzugefügt
 - **Übersichtskarte: jede Tour in eigener Farbe** (Wunsch Beta-Tester). Bei 700
   Touren lagen bisher alle Linien in derselben Farbe übereinander und man konnte

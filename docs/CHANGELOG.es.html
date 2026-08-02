@@ -113,9 +113,41 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.495</span>
+    <span class="version-num">v0.9.496</span>
     <span class="version-date">1 de agosto de 2026</span>
     <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Las direcciones vuelven a funcionar — y el archivo hace bastante más.</p>
+
+  <div class="highlight">
+    <strong>🔐 Corrección importante: las direcciones en el geoetiquetador.</strong> A algunos usuarios la búsqueda de lugares no les encontraba <em>nada</em>, con ninguno de los tres servicios. La causa no estaba en los servicios sino en la aplicación: no encontraba los certificados de seguridad del sistema, así que toda petición a internet moría en silencio. <strong>También afectados y reparados a la vez:</strong> las altitudes del modelo del terreno y las imágenes de mapa del archivo de rutas.
+  </div>
+
+  <p>Y si una consulta falla, ahora <strong>se indica el motivo en palabras claras</strong> — sin conexión, tiempo agotado, demasiadas peticiones — en lugar de un «listo, 0 direcciones» que parece un éxito.</p>
+
+  <div class="highlight">
+    <strong>🌍 Buscar por zonas — incluso por nombres que no aparecen en ningún archivo.</strong> «Tenerife» no encontraba nada aunque allí haya 163 rutas: tus rutas saben <em>dónde</em> están, pero no cómo se llama la zona. Ahora se consulta el propio término de búsqueda y se muestra todo lo que está en esa zona. Funciona con cualquier topónimo en cualquier idioma.
+  </div>
+
+  <p><strong>Más en el archivo de rutas:</strong></p>
+  <ul>
+    <li><strong>Editar varias rutas a la vez</strong> — ⌘/Ctrl+clic añade una, Mayús+clic un rango entero. Colecciones, tipo de actividad, etiquetas, favorito, ocultar: para toda la selección de una vez.</li>
+    <li><strong>Un color por ruta en el mapa general</strong> — con 700 rutas todo quedaba superpuesto en el mismo color. También puedes elegir a mano un <strong>color de track por ruta</strong>.</li>
+    <li><strong>Guardar el mapa general como PNG</strong> — exactamente el encuadre y los colores que ves. El botón está arriba a la izquierda sobre el mapa.</li>
+    <li><strong>Elegir tú mismo el tipo de actividad por ruta</strong> — y ordenar por él. La elección pertenece al recorrido, así que sobrevive a renombrar, mover y volver a leer.</li>
+    <li><strong>Quitar los duplicados directamente</strong> en vez de solo encontrarlos — el archivo más antiguo viene preseleccionado para conservarlo, y van a la <strong>papelera</strong>, no a la nada.</li>
+  </ul>
+
+  <p><strong>En los ajustes ponía «déjalo vacío para el token estándar»</strong> junto al token de Mapbox, pero ese token ya no existe desde hace tiempo. Quien seguía esa frase se quedaba sin satélite, sin 3D y sin animador, sin entender por qué. Ahora el aviso dice qué queda bloqueado sin un token propio.</p>
+
+  <p class="muted">También corregido: un fallo del mapa al cambiar de módulo rápidamente y cifras contradictorias entre la lista de resultados y las estadísticas al buscar por zona.</p>
+</article>
+
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.495</span>
+    <span class="version-date">1 de agosto de 2026</span>
   </div>
   <p class="version-tagline">Novedad: el archivo de rutas — todas tus rutas en un sitio.</p>
 

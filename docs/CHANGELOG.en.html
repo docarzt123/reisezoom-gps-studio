@@ -113,9 +113,41 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.495</span>
+    <span class="version-num">v0.9.496</span>
     <span class="version-date">1 August 2026</span>
     <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">Place names work again — and the library can do a great deal more.</p>
+
+  <div class="highlight">
+    <strong>🔐 Important fix: place names in the geotagger.</strong> For some users the address lookup found <em>nothing at all</em> — with none of the three services. The cause wasn't the services, it was the app: it couldn't find the system's security certificates, so every request to the internet died silently. <strong>Also affected and fixed along with it:</strong> elevations from the terrain model and the map images in the tour library.
+  </div>
+
+  <p>And if a lookup does fail, the <strong>reason is now stated in plain words</strong> — no connection, timeout, too many requests — instead of a “done, 0 addresses” that looks like success.</p>
+
+  <div class="highlight">
+    <strong>🌍 Search by area — even for names that appear in no file.</strong> “Tenerife” used to find nothing although 163 tours are there: your tours know <em>where</em> they are, but not what the area is called. Now the search term itself is looked up and everything in that area is shown. Works for any place name in any language.
+  </div>
+
+  <p><strong>More in the tour library:</strong></p>
+  <ul>
+    <li><strong>Edit several tours at once</strong> — ⌘/Ctrl-click adds one, Shift-click a whole range. Collections, activity, tags, favourite, hide: for everything selected in one go.</li>
+    <li><strong>A colour per tour on the overview map</strong> — with 700 tours everything used to lie on top of each other in one colour. A <strong>track colour per tour</strong> can also be picked by hand.</li>
+    <li><strong>Save the overview map as a PNG</strong> — exactly the section and the colours you see right now. The button sits at the top left on the map.</li>
+    <li><strong>Choose the activity per tour yourself</strong> — and sort by it. The choice belongs to the route, so it survives renaming, moving and rescanning.</li>
+    <li><strong>Clear duplicates out right away</strong> instead of only finding them — the oldest file is preselected to keep, and they go to the <strong>trash</strong>, not into nothing.</li>
+  </ul>
+
+  <p><strong>The settings said “leave empty for the default token”</strong> next to the Mapbox token — but there hasn't been one for a long time. Anyone who followed that sentence ended up without satellite, without 3D and without the animator, and couldn't tell why. The note now says what stays locked without your own token.</p>
+
+  <p class="muted">Also fixed: a map crash when switching modules quickly, and contradictory numbers between the result list and the statistics during an area search.</p>
+</article>
+
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.495</span>
+    <span class="version-date">1 August 2026</span>
   </div>
   <p class="version-tagline">New: the tour library — all your tours in one place.</p>
 
