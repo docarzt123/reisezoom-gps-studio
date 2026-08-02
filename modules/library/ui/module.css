@@ -548,3 +548,13 @@
 .lib-multi-tags { display: flex; gap: 8px; align-items: center; }
 .lib-multi-tags .lib-input { flex: 1; min-width: 0; }
 .lib-colchip-new { border-style: dashed; }
+
+.lib-colorrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lib-colorrow input[type=color] {
+  width: 44px; height: 30px; padding: 2px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 8px; background: none;
+}
+.lib-map-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 8px 2px 0;
+}

@@ -1676,5 +1676,14 @@
   "library.recorded": "Hecha o planificada",
   "library.new_collection": "Nueva colección",
   "library.trash_many_q": "¿Mover {n} rutas a la papelera?",
-  "library.multi_hint": "Seleccionar varias: ⌘/Ctrl-clic una a una, Mayús-clic para un rango."
+  "library.multi_hint": "Seleccionar varias: ⌘/Ctrl-clic una a una, Mayús-clic para un rango.",
+  "library.track_color": "Color del track en el mapa",
+  "library.color_auto": "Automático",
+  "library.color_manual": "elegido por ti",
+  "library.color_derived": "derivado del recorrido",
+  "library.map_png": "Guardar mapa como PNG",
+  "library.map_png_wait": "Terminando el mapa …",
+  "library.map_png_done": "Mapa guardado.",
+  "library.map_png_fail": "No se pudo guardar el mapa.",
+  "library.all_tours": "Todas las rutas"
 }

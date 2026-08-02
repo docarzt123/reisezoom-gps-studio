@@ -1676,5 +1676,14 @@
   "library.recorded": "Gemacht oder geplant",
   "library.new_collection": "Neue Sammlung",
   "library.trash_many_q": "{n} Touren in den Papierkorb legen?",
-  "library.multi_hint": "Mehrere wählen: ⌘/Strg-Klick einzeln, Umschalt-Klick für einen Bereich."
+  "library.multi_hint": "Mehrere wählen: ⌘/Strg-Klick einzeln, Umschalt-Klick für einen Bereich.",
+  "library.track_color": "Track-Farbe auf der Karte",
+  "library.color_auto": "Automatisch",
+  "library.color_manual": "von dir gewählt",
+  "library.color_derived": "aus dem Streckenverlauf abgeleitet",
+  "library.map_png": "Karte als PNG sichern",
+  "library.map_png_wait": "Karte wird fertig gezeichnet …",
+  "library.map_png_done": "Karte gesichert.",
+  "library.map_png_fail": "Konnte die Karte nicht sichern.",
+  "library.all_tours": "Alle Touren"
 }

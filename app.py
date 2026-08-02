@@ -1881,6 +1881,46 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def library_set_color(self, path: str, color: str = "") -> dict:
+        """Track-Farbe für die Übersichtskarte. Leer = wieder automatisch."""
+        try:
+            clib.set_color(self._lib(), path, color)
+            return {"ok": True, "track": clib.get_track(self._lib(), path)}
+        except ValueError as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:
+            log.exception("library_set_color")
+            return {"ok": False, "error": str(e)}
+
+    def library_save_map_png(self, data_url: str, name: str = "") -> dict:
+        """Das Bild der Übersichtskarte speichern (genau das, was man sieht).
+
+        Der Browser liefert die Leinwand als data-URL; hier landet sie als
+        PNG-Datei. Dateiname mit Zeitstempel, damit ein zweiter Export den
+        ersten nicht überschreibt.
+        """
+        try:
+            import base64
+            if "," in data_url:
+                data_url = data_url.split(",", 1)[1]
+            roh = base64.b64decode(data_url)
+            if len(roh) < 1024:
+                return {"ok": False, "error": "Die Karte war noch leer."}
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            vorschlag = f"{(name or 'Archiv-Karte').strip()}_{stamp}.png"
+            pfad = self.pick_save_path(vorschlag, "", ["PNG-Bild (*.png)"])
+            if not pfad:
+                return {"ok": False, "cancelled": True}
+            if not str(pfad).lower().endswith(".png"):
+                pfad = str(pfad) + ".png"
+            with open(pfad, "wb") as f:
+                f.write(roh)
+            log.info("library_save_map_png: %s (%d KB)", pfad, len(roh) // 1024)
+            return {"ok": True, "path": str(pfad)}
+        except Exception as e:
+            log.exception("library_save_map_png")
+            return {"ok": False, "error": str(e)}
+
     def library_activities(self) -> dict:
         """Die wählbaren Fortbewegungsarten (für die Auswahlliste)."""
         return {"ok": True, "choices": list(clib.ACTIVITIES)}

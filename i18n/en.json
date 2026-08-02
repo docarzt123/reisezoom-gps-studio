@@ -1676,5 +1676,14 @@
   "library.recorded": "Done or planned",
   "library.new_collection": "New collection",
   "library.trash_many_q": "Move {n} tours to the trash?",
-  "library.multi_hint": "Select several: ⌘/Ctrl-click one by one, Shift-click for a range."
+  "library.multi_hint": "Select several: ⌘/Ctrl-click one by one, Shift-click for a range.",
+  "library.track_color": "Track colour on the map",
+  "library.color_auto": "Automatic",
+  "library.color_manual": "chosen by you",
+  "library.color_derived": "derived from the route",
+  "library.map_png": "Save map as PNG",
+  "library.map_png_wait": "Finishing the map …",
+  "library.map_png_done": "Map saved.",
+  "library.map_png_fail": "Could not save the map.",
+  "library.all_tours": "All tours"
 }

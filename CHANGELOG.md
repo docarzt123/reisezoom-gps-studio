@@ -15,6 +15,18 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Hinzugefügt
+- **Übersichtskarte: jede Tour in eigener Farbe** (Wunsch Beta-Tester). Bei 700
+  Touren lagen bisher alle Linien in derselben Farbe übereinander und man konnte
+  keine einzelne mehr verfolgen. Die Farbe wird aus dem Streckenverlauf
+  abgeleitet — gleichbleibend über Sitzungen hinweg, gleichmäßig über zwölf
+  Farben verteilt (an 709 Touren nachgezählt: 51–66 je Farbe). Favoriten behalten
+  ihre Signalfarbe.
+- **Eigene Track-Farbe je Tour**, wählbar in der Detailspalte, „Automatisch"
+  stellt die abgeleitete wieder her. Gilt **nur im Archiv** — Animator und
+  Tour-Map haben ihre eigene Farbwahl je Projekt. Hängt am Streckenverlauf und
+  überlebt Neu-Einlesen.
+- **Übersichtskarte als PNG sichern** — genau der Ausschnitt, die Zoomstufe und
+  die Farben, die gerade zu sehen sind.
 - **Archiv: mehrere Touren auf einmal bearbeiten** (Wunsch Beta-Tester).
   ⌘/Strg-Klick wählt einzeln dazu, Umschalt-Klick einen ganzen Bereich. Die
   rechte Spalte zeigt dann ein Sammel-Panel: **Sammlungen zuweisen**
