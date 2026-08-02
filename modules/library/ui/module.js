@@ -133,7 +133,11 @@ function mountLibrary(body, headerActions) {
         <div class="lib-list" id="lib-list" hidden></div>
         <div class="lib-mapwrap" id="lib-mapwrap" hidden>
           <div class="lib-map" id="lib-map"></div>
-          <div class="lib-map-hint" id="lib-map-hint"></div>
+          <div class="lib-map-bar">
+            <span class="lib-map-hint" id="lib-map-hint"></span>
+            <button class="btn btn-ghost btn-sm" id="lib-map-png" type="button">
+              🖼 ${T("library.map_png", "Karte als PNG sichern")}</button>
+          </div>
         </div>
         <div class="lib-stats" id="lib-stats" hidden></div>
       </div>
@@ -616,11 +620,67 @@ function mountLibrary(body, headerActions) {
   }
 
   // ── Karte ─────────────────────────────────────────────────────────────
+  // Farben für die Übersichtskarte. Ohne Variation liegen bei 700 Touren alle
+  // Linien in derselben Farbe übereinander und man erkennt keine einzelne mehr.
+  // Die Farbe wird aus dem Streckenhash abgeleitet: gleich bleibend über
+  // Sitzungen hinweg (keine springenden Farben beim Neuladen) und ohne dass
+  // jemand sie pflegen muss. Eine eigene Farbe an der Tour schlägt sie.
+  const MAP_PALETTE = [
+    "#ff8a3d", "#4ea8ff", "#57d18a", "#ffd166", "#c792ea",
+    "#ff6b9d", "#4fd6d2", "#f4845f", "#9ccc65", "#7aa2f7",
+    "#ef9fbc", "#5bc8af",
+  ];
+  function autoColor(it) {
+    const q = String(it.geo_hash || it.path || "");
+    let h = 0;
+    for (let i = 0; i < q.length; i++) h = (h * 31 + q.charCodeAt(i)) >>> 0;
+    return MAP_PALETTE[h % MAP_PALETTE.length];
+  }
+  function trackColor(it) {
+    return (it.color && /^#[0-9a-f]{6}$/i.test(it.color)) ? it.color : autoColor(it);
+  }
+
+  /** Die Karte als Bild sichern — WYSIWYG, also genau der Ausschnitt, die
+   *  Zoomstufe und die Farben, die gerade zu sehen sind.
+   *
+   *  Damit `toDataURL()` überhaupt etwas liefert, muss die Karte mit
+   *  `preserveDrawingBuffer` erzeugt worden sein: WebGL wirft den Puffer sonst
+   *  nach jedem Bild weg, und man bekommt eine schwarze Fläche. Deshalb wird
+   *  vorher noch einmal gezeichnet und auf `idle` gewartet — sonst fehlen
+   *  Kacheln, die gerade noch laden. */
+  async function saveMapPng() {
+    const btn = $("lib-map-png");
+    if (!_map || !_mapReady) return;
+    const alt = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ " + T("library.map_png_wait", "Karte wird fertig gezeichnet …"); }
+    try {
+      await new Promise(res => {
+        if (_map.loaded() && !_map.isMoving()) { _map.once("idle", res); _map.triggerRepaint(); }
+        else _map.once("idle", res);
+        setTimeout(res, 4000);          // nicht ewig warten
+      });
+      _map.triggerRepaint();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const url = _map.getCanvas().toDataURL("image/png");
+      const name = _ortAktiv ? _ortAktiv.name.split(",")[0]
+                 : (state.search || T("library.all_tours", "Alle Touren"));
+      const r = await api().library_save_map_png(url, name);
+      if (r && r.ok) toast(T("library.map_png_done", "Karte gesichert."), "info");
+      else if (r && !r.cancelled) toast((r && r.error) || T("library.map_png_fail", "Konnte die Karte nicht sichern."), "error");
+    } catch (e) {
+      applog("error", "[Archiv] Karten-PNG: " + e);
+      toast(T("library.map_png_fail", "Konnte die Karte nicht sichern."), "error");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = alt; }
+    }
+  }
+
   function renderMap() {
     const hint = $("lib-map-hint");
     const feats = _items.filter(it => it.geom && it.geom.length > 1).map((it, i) => ({
       type: "Feature",
-      properties: { i, path: it.path, name: it.name, fav: it.fav ? 1 : 0 },
+      properties: { i, path: it.path, name: it.name, fav: it.fav ? 1 : 0,
+                    color: trackColor(it) },
       geometry: { type: "LineString", coordinates: it.geom },
     }));
     hint.textContent = feats.length
@@ -641,7 +701,11 @@ function mountLibrary(body, headerActions) {
     const created = createMap({
       container: "lib-map",
       mapboxStyle: "mapbox://styles/mapbox/outdoors-v12",
-      common: { center: [10, 51], zoom: 3, attributionControl: true },
+      // `preserveDrawingBuffer`: ohne das liefert `toDataURL()` eine schwarze
+      // Fläche — WebGL verwirft den Puffer nach jedem Bild. Kostet etwas
+      // Zeichenleistung, aber ohne wäre der PNG-Export nicht möglich.
+      common: { center: [10, 51], zoom: 3, attributionControl: true,
+                preserveDrawingBuffer: true },
     });
     _map = created.map; _mapLib = created.lib;
     // Für die automatischen Tests greifbar (wie in den anderen Modulen üblich).
@@ -655,7 +719,7 @@ function mountLibrary(body, headerActions) {
       _map.addLayer({
         id: "lib-tracks-dot", type: "circle", source: "lib-tracks",
         paint: {
-          "circle-color": ["case", ["==", ["get", "fav"], 1], FAV_COLOR, TRACK_COLOR],
+          "circle-color": ["get", "color"],
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1.8, 6, 2.6, 9, 0],
           "circle-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.9, 9, 0],
           "circle-blur": 0.25,
@@ -676,7 +740,8 @@ function mountLibrary(body, headerActions) {
         id: "lib-tracks-line", type: "line", source: "lib-tracks",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": ["case", ["==", ["get", "fav"], 1], FAV_COLOR, TRACK_COLOR],
+          // Favoriten behalten ihre Signalfarbe — sie sollen auffallen.
+          "line-color": ["case", ["==", ["get", "fav"], 1], FAV_COLOR, ["get", "color"]],
           "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.4, 8, 2.2, 12, 3.4, 16, 5],
           "line-opacity": 0.95,
         },
@@ -1003,6 +1068,14 @@ function mountLibrary(body, headerActions) {
         ? T("library.act_manual", "Von dir gesetzt — gilt für alle Kopien dieser Tour.")
         : T("library.act_guessed", "Geschätzt aus Name und Tempo. Einmal ändern genügt, es bleibt.")}</div>
 
+      <div class="field-label" style="margin-top:10px;">${T("library.track_color", "Track-Farbe auf der Karte")}</div>
+      <div class="lib-colorrow">
+        <input type="color" id="lib-d-color" value="${it.color && /^#[0-9a-f]{6}$/i.test(it.color) ? it.color : trackColor(it)}">
+        <button class="btn btn-ghost btn-sm" id="lib-d-color-auto">${T("library.color_auto", "Automatisch")}</button>
+        <span class="lib-hint">${it.color ? T("library.color_manual", "von dir gewählt")
+                                          : T("library.color_derived", "aus dem Streckenverlauf abgeleitet")}</span>
+      </div>
+
       <div class="field-label" style="margin-top:10px;">${T("library.collections", "Sammlungen")}</div>
       <div id="lib-d-cols" class="lib-colchips"></div>
 
@@ -1045,6 +1118,17 @@ function mountLibrary(body, headerActions) {
         }
       }).catch(() => {});
     }
+
+    const farbeSetzen = async (wert) => {
+      const res = await api().library_set_color(it.path, wert);
+      if (res && res.ok && res.track) {
+        Object.assign(it, res.track);
+        renderDetail();
+        if (view === "map") renderMap();
+      } else if (res && res.error) toast(res.error, "error");
+    };
+    $("lib-d-color").onchange = (e) => farbeSetzen(e.target.value);
+    $("lib-d-color-auto").onclick = () => farbeSetzen("");
 
     $("lib-d-act").onchange = async (e) => {
       const res = await api().library_set_activity(it.path, e.target.value);
@@ -1541,6 +1625,7 @@ function mountLibrary(body, headerActions) {
     $("lib-search").value = "";
     reload();
   };
+  $("lib-map-png").onclick = saveMapPng;
   $("lib-folders-btn").onclick = openFoldersModal;
   $("lib-dupes").onclick = showDuplicates;
   $("lib-col-new").onclick = () => addToCollectionDialog([]);

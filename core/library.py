@@ -214,6 +214,11 @@ CREATE TABLE IF NOT EXISTS track_meta (
     -- der Wert hängt am geo_hash und überlebt Neu-Einlesen, Umbenennen und
     -- Verschieben. Wunsch eines Beta-Testers, v0.9.496.
     activity_user TEXT DEFAULT '',
+    -- Eigene Track-Farbe für die Übersichtskarte im Archiv (#rrggbb). Leer =
+    -- automatisch aus dem Streckenverlauf abgeleitet, damit benachbarte Touren
+    -- nicht alle gleich aussehen. Gilt NUR im Archiv — Animator und Tour-Map
+    -- haben ihre eigene Farbwahl je Projekt.
+    color         TEXT DEFAULT '',
     last_name     TEXT DEFAULT '',
     first_seen    TEXT,
     last_seen     TEXT
@@ -246,6 +251,7 @@ _TECH_COLS = [
 # eine bestehende Sammlung soll nicht neu aufgebaut werden müssen.
 _ADD_COLS = [
     ("geom", "TEXT DEFAULT ''"),
+    ("color", "TEXT DEFAULT ''"),
     ("map_thumb", "TEXT DEFAULT ''"),
     ("cover", "TEXT DEFAULT ''"),
     ("recorded", "INTEGER DEFAULT 1"),
@@ -312,7 +318,7 @@ def open_db(db_path: Path) -> sqlite3.Connection:
 def _migrate_meta_spalten(conn: sqlite3.Connection) -> None:
     """Fehlende Spalten in `track_meta` nachziehen (bestehende Archive)."""
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(track_meta)").fetchall()}
-    for name, typ in (("activity_user", "TEXT DEFAULT ''"),):
+    for name, typ in (("activity_user", "TEXT DEFAULT ''"), ("color", "TEXT DEFAULT ''")):
         if name not in cols:
             log.info("library: track_meta.%s wird ergänzt", name)
             conn.execute(f"ALTER TABLE track_meta ADD COLUMN {name} {typ}")
@@ -870,7 +876,7 @@ def scan(
     return res
 
 
-_META_COLS = ["fav", "tags", "note", "cover", "recorded_user", "display_name", "hidden"]
+_META_COLS = ["fav", "tags", "note", "cover", "recorded_user", "display_name", "hidden", "color"]
 # Sonderfall: in `track_meta` heißt die Spalte `activity_user` (leer = Schätzung
 # gilt), in `tracks` schlicht `activity`. Deshalb wird sie getrennt gespiegelt.
 
@@ -1294,6 +1300,29 @@ def set_activity(conn: sqlite3.Connection, path: str, activity: str) -> bool:
             conn.execute("UPDATE tracks SET activity = ? WHERE path = ?",
                          (_guess_activity(r["name"] or "", r["distance_m"] or 0.0,
                                           r["moving_time_s"] or 0.0), r["path"]))
+    conn.commit()
+    return True
+
+
+@_locked
+def set_color(conn: sqlite3.Connection, path: str, color: str) -> bool:
+    """Eigene Track-Farbe für die Übersichtskarte. Leer = wieder automatisch.
+
+    Hängt am `geo_hash` wie alles Dauerhafte: überlebt Neu-Einlesen und gilt
+    für alle Kopien derselben Tour.
+    """
+    wert = (color or "").strip().lower()
+    if wert and not re.fullmatch(r"#[0-9a-f]{6}", wert):
+        raise ValueError(f"Keine Farbe im Format #rrggbb: {color!r}")
+    geo = _geo_of(conn, path)
+    if not geo:
+        return False
+    now = _now_iso()
+    conn.execute("INSERT INTO track_meta(geo_hash, color, first_seen, last_seen) "
+                 "VALUES(?,?,?,?) ON CONFLICT(geo_hash) DO UPDATE SET "
+                 "color = excluded.color, last_seen = excluded.last_seen",
+                 (geo, wert, now, now))
+    conn.execute("UPDATE tracks SET color = ? WHERE geo_hash = ?", (wert, geo))
     conn.commit()
     return True
 
