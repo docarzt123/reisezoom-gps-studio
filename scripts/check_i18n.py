@@ -38,7 +38,11 @@ DYNAMIC_PREFIXES = (
 )
 
 # Nur ein echtes t("...")-Literal zählt — nicht get(...), getContext(...) usw.
-T_CALL = re.compile(r"""(?<![A-Za-z0-9_.$])t\(\s*["']([a-z][a-z0-9_.]*[a-z0-9])["']""")
+# `T(` gehört mit dazu: mehrere Module legen sich ein `const T = … ? t : …` als
+# Kurzform an. Ohne das große T war ein ganzes Modul unsichtbar — das Archiv mit
+# über 200 Keys wurde von diesem Prüfer nie angefasst, und ein fehlender Key
+# wäre dort still durchgerutscht.
+T_CALL = re.compile(r"""(?<![A-Za-z0-9_.$])[tT]\(\s*["']([a-z][a-z0-9_.]*[a-z0-9])["']""")
 # Kommentare vorher entfernen — sonst zählen JSDoc-Beispiele wie
 # `t("some.key", ...)` als echte (fehlende) Aufrufe.
 _BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)

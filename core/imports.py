@@ -51,6 +51,20 @@ class TrackImportError(Exception):
     """Konvertierung fehlgeschlagen (unbekanntes/leeres/kaputtes Format)."""
 
 
+class NoTrackPoints(TrackImportError):
+    """Die Datei ist in Ordnung — sie enthält nur keine Positionen.
+
+    Der Regelfall bei FIT: Rollentraining, Krafttraining, Bahnschwimmen. Die Uhr
+    schreibt für jede Aktivität eine Datei, auch wenn nie ein Satellit im Spiel
+    war — Puls und Dauer stehen drin, Koordinaten nicht.
+
+    Das ist **kein** Fehler, und es darf im Archiv auch nicht wie einer aussehen:
+    Ein Nutzer mit 61 Hallen-Einheiten bekam „61 Dateien nicht lesbar" zu sehen
+    und suchte den Fehler bei sich. Aufrufer, die zwischen „kaputt" und „ohne
+    Strecke" unterscheiden wollen, fangen diese Klasse getrennt ab.
+    """
+
+
 # Endung → Parser-Schlüssel. .txt/.json sind mehrdeutig → Content-Sniffing.
 _DISPATCH = {
     ".fit": "fit",
@@ -440,7 +454,8 @@ def _parse_rows(path: str) -> List[tuple]:
     }[key]
     rows = parser(path)
     if not rows:
-        raise TrackImportError("Keine Track-Punkte in der Datei gefunden.")
+        # Gelesen werden konnte die Datei — sie hat nur keine Positionen.
+        raise NoTrackPoints("Keine Track-Punkte in der Datei gefunden.")
     return rows
 
 
@@ -553,7 +568,7 @@ def ensure_gpx(path: str, cache_dir) -> str:
     # v0.9.330 — Geometrie atomisch als GPX + Sensoren als Sidecar (Variante B).
     pts, extras = parse_track(path)
     if not pts:
-        raise TrackImportError("Keine Track-Punkte in der Datei gefunden.")
+        raise NoTrackPoints("Keine Track-Punkte in der Datei gefunden.")
     name = os.path.splitext(os.path.basename(path))[0]
     tmp = out + ".tmp"
     write_gpx(pts, tmp, name=name)

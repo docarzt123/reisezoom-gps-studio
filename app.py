@@ -146,7 +146,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.496"
+APP_VERSION = "0.9.497"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2023,14 +2023,28 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "collections": []}
 
-    def library_errors(self) -> dict:
-        """Dateien, die beim Einlesen nicht gelesen werden konnten. Sie stehen
-        bewusst nicht in der normalen Liste (leere Kacheln), verschwinden aber
-        auch nicht stillschweigend."""
+    def library_errors(self, include_dismissed: bool = False) -> dict:
+        """Dateien, aus denen keine Tour wurde. Sie stehen bewusst nicht in der
+        normalen Liste (leere Kacheln), verschwinden aber auch nicht
+        stillschweigend. `error_kind` sagt, ob die Datei kaputt ist oder nur
+        keine Koordinaten enthält (FIT von der Rolle, aus der Halle …)."""
         try:
-            return {"ok": True, "items": clib.errors(self._lib())}
+            return {"ok": True,
+                    "items": clib.errors(self._lib(), bool(include_dismissed))}
         except Exception as e:
             return {"ok": False, "error": str(e), "items": []}
+
+    def library_dismiss_errors(self, paths: list, weg: bool = True) -> dict:
+        """Fehler-Zeilen wegräumen oder zurückholen — ohne etwas zu löschen.
+
+        (Beta-Tester: „Die werden mir auch angezeigt, man kann sie aber nicht
+        löschen." Genau das hier ist gemeint — die Meldung soll weggehen, die
+        Dateien sollen bleiben.)"""
+        try:
+            n = clib.dismiss_errors(self._lib(), list(paths or []), bool(weg))
+            return {"ok": True, "n": n}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def library_duplicates(self) -> dict:
         try:
