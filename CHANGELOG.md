@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Behoben
+- **Der Solo-Geotagger wurde seit dem 29. Juni nicht mehr ausgeliefert.** Er
+  wurde bei jedem Release ordentlich gebaut und lag auch im GitHub-Release —
+  nur schob ihn das Deploy-Skript nie mit auf `reisezoom.com`. Wer sich die
+  Solo-App von dort holte, bekam über einen Monat lang eine alte Fassung: ohne
+  den Zertifikats-Fix (der genau dort die Adress-Suche lahmlegte, v0.9.496) und
+  ohne alles Spätere. Der Code war die ganze Zeit richtig, nur die Auslieferung
+  nicht. `deploy_release.sh` lädt jetzt beide Editionen hoch, prüft beide auf
+  Vollständigkeit und nimmt beide in den Abschluss-Test auf.
+
 ## [0.9.499] – 2026-08-02
 
 ### Hinzugefügt
