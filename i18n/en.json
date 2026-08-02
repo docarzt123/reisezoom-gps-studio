@@ -1663,5 +1663,7 @@
   "library.act_guessed": "Guessed from name and pace. Change it once and it sticks.",
   "library.places_auto": "Naming the areas",
   "library.found_area": "Area",
-  "library.tours_here": "tours here"
+  "library.tours_here": "tours here",
+  "library.also_area": "Also",
+  "library.in_area": "tours in the area"
 }
