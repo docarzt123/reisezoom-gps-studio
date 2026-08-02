@@ -133,11 +133,12 @@ function mountLibrary(body, headerActions) {
         <div class="lib-list" id="lib-list" hidden></div>
         <div class="lib-mapwrap" id="lib-mapwrap" hidden>
           <div class="lib-map" id="lib-map"></div>
-          <div class="lib-map-bar">
-            <span class="lib-map-hint" id="lib-map-hint"></span>
-            <button class="btn btn-ghost btn-sm" id="lib-map-png" type="button">
-              🖼 ${T("library.map_png", "Karte als PNG sichern")}</button>
-          </div>
+          <!-- Beides liegt AUF der Karte, nicht darunter: ein Balken darunter
+               nimmt der Karte Höhe weg, und die ist hier das Wichtigste. -->
+          <div class="lib-map-hint" id="lib-map-hint"></div>
+          <button class="lib-map-png" id="lib-map-png" type="button"
+                  title="${T("library.map_png", "Karte als PNG sichern")}">
+            🖼 <span>${T("library.map_png_short", "PNG")}</span></button>
         </div>
         <div class="lib-stats" id="lib-stats" hidden></div>
       </div>
@@ -651,8 +652,9 @@ function mountLibrary(body, headerActions) {
   async function saveMapPng() {
     const btn = $("lib-map-png");
     if (!_map || !_mapReady) return;
-    const alt = btn ? btn.textContent : "";
-    if (btn) { btn.disabled = true; btn.textContent = "⏳ " + T("library.map_png_wait", "Karte wird fertig gezeichnet …"); }
+    const beschriftung = btn ? btn.querySelector("span") : null;
+    const alt = beschriftung ? beschriftung.textContent : "";
+    if (btn) { btn.disabled = true; if (beschriftung) beschriftung.textContent = "…"; }
     try {
       await new Promise(res => {
         if (_map.loaded() && !_map.isMoving()) { _map.once("idle", res); _map.triggerRepaint(); }
@@ -671,7 +673,7 @@ function mountLibrary(body, headerActions) {
       applog("error", "[Archiv] Karten-PNG: " + e);
       toast(T("library.map_png_fail", "Konnte die Karte nicht sichern."), "error");
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = alt; }
+      if (btn) { btn.disabled = false; if (beschriftung) beschriftung.textContent = alt; }
     }
   }
 

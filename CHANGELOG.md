@@ -26,7 +26,9 @@ Bei jeder neuen Version:
   Tour-Map haben ihre eigene Farbwahl je Projekt. Hängt am Streckenverlauf und
   überlebt Neu-Einlesen.
 - **Übersichtskarte als PNG sichern** — genau der Ausschnitt, die Zoomstufe und
-  die Farben, die gerade zu sehen sind.
+  die Farben, die gerade zu sehen sind. Der Knopf liegt oben links **auf** der
+  Karte (rechts sitzen die Zoom-Bedienelemente); ein Balken darunter hatte der
+  Karte Höhe weggenommen, und die ist in dieser Ansicht die Hauptsache.
 - **Archiv: mehrere Touren auf einmal bearbeiten** (Wunsch Beta-Tester).
   ⌘/Strg-Klick wählt einzeln dazu, Umschalt-Klick einen ganzen Bereich. Die
   rechte Spalte zeigt dann ein Sammel-Panel: **Sammlungen zuweisen**

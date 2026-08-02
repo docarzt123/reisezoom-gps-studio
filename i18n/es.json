@@ -1685,5 +1685,6 @@
   "library.map_png_wait": "Terminando el mapa …",
   "library.map_png_done": "Mapa guardado.",
   "library.map_png_fail": "No se pudo guardar el mapa.",
-  "library.all_tours": "Todas las rutas"
+  "library.all_tours": "Todas las rutas",
+  "library.map_png_short": "PNG"
 }
