@@ -65,21 +65,15 @@ else
   # 7b) Archiv — beides kam als Bug-Report herein und darf nicht zurückfallen:
   #     die Filterleiste beim Modulwechsel, und Dateien ohne GPS.
   run "Archiv-Zustand (selftest_library_state)" python3 scripts/selftest_library_state.py
-  run "Archiv-Fehlerliste (test_library_errors)" python3 tests/test_library_errors.py
-  run "Archiv-Suche (test_library_search)" python3 tests/test_library_search.py
+  # 7c) ALLE Tests aus tests/ — nicht mehr eine handverlesene Auswahl.
+  #     Vorher rief dieses Skript genau EINEN davon auf; die übrigen 17 startete
+  #     niemand, also fiel auch nicht auf, dass zwei davon längst rot waren.
+  #     `run_tests.py` findet sie selbst und überspringt begründet, was gerade
+  #     nicht laufen kann (kein Netz, kein Token, echte Renders).
+  run "Alle Tests (run_tests)" python3 scripts/run_tests.py
 
-  # 7c) Stiller Datenverlust: gleichzeitige Schreiber auf settings/sessions.
-  run "Einstellungen + Projekte (test_settings_sessions_race)" \
-      python3 tests/test_settings_sessions_race.py
-
-  # 7d) Zertifikate im Bundle — braucht Netz, überspringt sich sonst selbst.
-  run "HTTPS-Zertifikate (test_https_certificates)" python3 tests/test_https_certificates.py
-
-  # 7e) Dialoge übereinander + sichtbarer Tastatur-Fokus.
+  # 7d) Dialoge übereinander + sichtbarer Tastatur-Fokus.
   run "Dialoge + Fokus (selftest_dialoge)" python3 scripts/selftest_dialoge.py
-
-  # 7f) Am Ziel-Pfad darf nie ein halbes Video liegen.
-  run "Render-Teildatei (test_render_teildatei)" python3 tests/test_render_teildatei.py
 
   # 8) Optional: echte Video-Renders (nur mit --full; braucht Token + Fixtures)
   if [[ $FULL == 1 ]]; then
