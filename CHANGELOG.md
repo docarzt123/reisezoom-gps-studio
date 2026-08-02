@@ -15,6 +15,13 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Hinzugefügt
+- **Archiv: mehrere Touren auf einmal bearbeiten** (Wunsch Beta-Tester).
+  ⌘/Strg-Klick wählt einzeln dazu, Umschalt-Klick einen ganzen Bereich. Die
+  rechte Spalte zeigt dann ein Sammel-Panel: **Sammlungen zuweisen**
+  (beliebig viele — eine Tour darf in mehreren sein), **Fortbewegungsart**,
+  **Schlagwörter ergänzen**, **gemacht/geplant**, Favorit setzen oder wegnehmen,
+  ausblenden, in den Papierkorb. Werkzeuge öffnen geht bei Mehrfachauswahl
+  bewusst nicht — der Animator müsste sonst raten, welche Tour gemeint ist.
 - **Archiv: Sortierung nach Fortbewegung** (Wunsch Beta-Tester). Erst alle
   Radtouren, dann alle Wanderungen — innerhalb jeder Art die neuesten zuerst.
   Touren ohne erkannte Art stehen am Ende, nicht mittendrin.

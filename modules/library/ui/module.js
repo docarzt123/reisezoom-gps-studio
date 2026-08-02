@@ -48,6 +48,11 @@ function mountLibrary(body, headerActions) {
   // die eintröpfelnden Bilder von selbst zeigen.
   let _autoThumbs = null, _autoWatch = null, _autoTick = 0;
   let _autoPlaces = null;   // läuft der Ortslauf gerade?
+  // Mehrfachauswahl: Menge der gewählten Pfade. Ist mehr als eine Tour gewählt,
+  // zeigt die rechte Spalte das Sammel-Panel statt der Einzel-Ansicht — Werkzeuge
+  // öffnen geht dann nicht (welche Tour denn?), Eigenschaften setzen sehr wohl.
+  let _multi = new Set();
+  let _ankerIdx = -1;       // für Umschalt-Klick (Bereich wählen)
   let _ortAktiv = null;     // Liste zeigt gerade eine Gegend statt Textreffer
   let _ortAus = false;      // Nutzer will für diese Eingabe nur Textreffer
   let _scanTimer = null, _mapsTimer = null, _unmounted = false;
@@ -429,7 +434,7 @@ function mountLibrary(body, headerActions) {
   function renderGrid() {
     if (!_items.length) { grid.innerHTML = emptyHtml(); bindEmpty(); return; }
     grid.innerHTML = _items.map((it, i) => `
-      <button class="lib-card${_sel && _sel.path === it.path ? " is-sel" : ""}" data-i="${i}" type="button">
+      <button class="lib-card${_multi.has(it.path) ? " is-multi" : (_sel && _sel.path === it.path ? " is-sel" : "")}" data-i="${i}" type="button">
         <span class="lib-card-thumb">
           ${it.thumb_url ? `<img src="${it.thumb_url}" alt="" loading="lazy">` : `<span class="lib-card-nothumb">?</span>`}
           ${badges(it)}
@@ -452,7 +457,7 @@ function mountLibrary(body, headerActions) {
         <span>${T("library.duration", "Dauer")}</span><span>${T("library.activity", "Fortbewegung")}</span>
       </div>
       ${_items.map((it, i) => `
-        <button class="lib-row${_sel && _sel.path === it.path ? " is-sel" : ""}" data-i="${i}" type="button">
+        <button class="lib-row${_multi.has(it.path) ? " is-multi" : (_sel && _sel.path === it.path ? " is-sel" : "")}" data-i="${i}" type="button">
           <span class="lib-row-thumb">${it.thumb_url ? `<img src="${it.thumb_url}" alt="" loading="lazy">` : ""}</span>
           <span class="lib-row-name">${it.fav ? "★ " : ""}${esc(it.name)}
             ${it.recorded_eff ? "" : `<i class="lib-row-tag">${T("library.planned", "geplant")}</i>`}
@@ -468,9 +473,35 @@ function mountLibrary(body, headerActions) {
 
   function bindItemClicks(root) {
     root.querySelectorAll("[data-i]").forEach(btn => {
-      btn.onclick = () => select(_items[parseInt(btn.dataset.i, 10)]);
-      btn.ondblclick = () => openIn("animator");
+      btn.onclick = (e) => {
+        const i = parseInt(btn.dataset.i, 10);
+        const it = _items[i];
+        if (!it) return;
+        if (e.metaKey || e.ctrlKey) {
+          // Einzeln dazu oder weg
+          if (_multi.has(it.path)) _multi.delete(it.path); else _multi.add(it.path);
+          if (_multi.size) _sel = it;
+          _ankerIdx = i;
+        } else if (e.shiftKey && _ankerIdx >= 0) {
+          // Bereich vom Anker bis hier
+          const [a2, b2] = _ankerIdx < i ? [_ankerIdx, i] : [i, _ankerIdx];
+          for (let k = a2; k <= b2; k++) if (_items[k]) _multi.add(_items[k].path);
+          _sel = it;
+        } else {
+          _multi.clear();
+          _ankerIdx = i;
+          select(it);
+          return;
+        }
+        renderView();
+        renderDetail();
+      };
+      btn.ondblclick = () => { if (_multi.size <= 1) openIn("animator"); };
     });
+  }
+
+  function multiItems() {
+    return _items.filter(i => _multi.has(i.path));
   }
 
   // ── Statistik ─────────────────────────────────────────────────────────
@@ -754,10 +785,148 @@ function mountLibrary(body, headerActions) {
   }
 
   // ── Detailspalte ──────────────────────────────────────────────────────
+  /** Sammel-Panel: mehrere Touren gewählt. Werkzeuge öffnen geht hier nicht —
+   *  welche Tour sollte der Animator laden? — Eigenschaften setzen dafür für
+   *  alle auf einmal. */
+  function renderMulti() {
+    const box = $("lib-detail");
+    const n = _multi.size;
+    box.innerHTML = `
+      <div class="lib-multi-head">
+        <b>${n}</b> ${T("library.selected", "Touren gewählt")}
+        <button class="btn btn-ghost btn-sm" id="lib-m-clear" type="button">${T("library.clear_sel", "Auswahl aufheben")}</button>
+      </div>
+
+      <div class="field-label">${T("library.collections", "Sammlungen")}</div>
+      <div class="lib-multi-cols" id="lib-m-cols"></div>
+
+      <div class="field-label" style="margin-top:14px;">${T("library.activity", "Fortbewegung")}</div>
+      <select id="lib-m-act" class="lib-select">
+        <option value="">${T("library.keep", "unverändert lassen")}</option>
+        <option value="__auto">${T("library.act_auto", "Automatisch erkannt")}</option>
+        ${Object.keys(ACT_LABELS).map(k => `<option value="${k}">${esc(ACT_LABELS[k])}</option>`).join("")}
+      </select>
+
+      <div class="field-label" style="margin-top:14px;">${T("library.tags", "Schlagwörter")}</div>
+      <div class="lib-multi-tags">
+        <input type="text" id="lib-m-tags" class="lib-input" placeholder="${T("library.tags_ph", "z. B. urlaub, familie")}">
+        <button class="btn btn-ghost btn-sm" id="lib-m-tags-add" type="button">${T("library.add", "Hinzufügen")}</button>
+      </div>
+
+      <div class="field-label" style="margin-top:14px;">${T("library.recorded", "Gemacht oder geplant")}</div>
+      <div class="lib-seg" id="lib-m-rec">
+        <button type="button" data-rec="1">${T("library.recorded_yes", "Gemacht")}</button>
+        <button type="button" data-rec="0">${T("library.recorded_no", "Geplant")}</button>
+        <button type="button" data-rec="auto">${T("library.recorded_auto", "Automatisch")}</button>
+      </div>
+
+      <div class="lib-actions" style="margin-top:16px;">
+        <button class="btn btn-ghost btn-sm" id="lib-m-fav">★ ${T("library.fav_on", "Als Favorit")}</button>
+        <button class="btn btn-ghost btn-sm" id="lib-m-unfav">${T("library.fav_off", "Favorit weg")}</button>
+      </div>
+      <div class="lib-actions lib-danger">
+        <button class="btn btn-ghost btn-sm" id="lib-m-hide">${T("library.hide", "Ausblenden")}</button>
+        <button class="btn btn-ghost btn-sm lib-btn-danger" id="lib-m-trash">${T("library.trash", "In den Papierkorb")}</button>
+      </div>
+      <div class="lib-hint" id="lib-m-status"></div>`;
+
+    const pfade = () => multiItems().map(i => i.path);
+    const status = (txt) => { const e = $("lib-m-status"); if (e) e.textContent = txt; };
+
+    // Sammlungen als Knöpfe: hinzufügen zu jeder, N:N erlaubt beliebig viele.
+    const cols = $("lib-m-cols");
+    cols.innerHTML = _collections.length
+      ? _collections.map(c => `<button class="lib-colchip" data-cid="${c.id}" type="button">+ ${esc(c.name)}</button>`).join("")
+        + `<button class="lib-colchip lib-colchip-new" id="lib-m-col-new" type="button">+ ${T("library.new_collection", "Neue Sammlung")}</button>`
+      : `<button class="lib-colchip lib-colchip-new" id="lib-m-col-new" type="button">+ ${T("library.new_collection", "Neue Sammlung")}</button>`;
+    cols.querySelectorAll("[data-cid]").forEach(b => {
+      b.onclick = async () => {
+        const r = await api().library_collection_add(parseInt(b.dataset.cid, 10), pfade());
+        status(r && r.ok ? `${r.added || 0} ${T("library.added", "hinzugefügt")}` : (r && r.error) || "");
+        reloadCollections();
+      };
+    });
+    const neu = $("lib-m-col-new");
+    if (neu) neu.onclick = () => addToCollectionDialog(pfade());
+
+    $("lib-m-clear").onclick = () => { _multi.clear(); renderView(); renderDetail(); };
+
+    $("lib-m-act").onchange = async (e) => {
+      const v = e.target.value;
+      if (!v) return;
+      const wert = v === "__auto" ? "" : v;
+      let ok = 0;
+      for (const p of pfade()) {
+        const r = await api().library_set_activity(p, wert);
+        if (r && r.ok) ok++;
+        status(`${ok} / ${_multi.size}`);
+      }
+      e.target.value = "";
+      reload();
+    };
+
+    $("lib-m-tags-add").onclick = async () => {
+      const roh = ($("lib-m-tags").value || "").split(",").map(x => x.trim()).filter(Boolean);
+      if (!roh.length) return;
+      let ok = 0;
+      for (const it of multiItems()) {
+        const vorhanden = (it.tags || "").split(",").map(x => x.trim()).filter(Boolean);
+        const neu2 = Array.from(new Set(vorhanden.concat(roh)));
+        const r = await api().library_set_fields(it.path, null, neu2, null);
+        if (r !== false) ok++;
+        status(`${ok} / ${_multi.size}`);
+      }
+      $("lib-m-tags").value = "";
+      reload();
+    };
+
+    $("lib-m-rec").querySelectorAll("[data-rec]").forEach(b => {
+      b.onclick = async () => {
+        const v = b.dataset.rec === "auto" ? null : b.dataset.rec === "1";
+        let ok = 0;
+        for (const p of pfade()) {
+          const r = await api().library_set_recorded(p, v);
+          if (r && r.ok) ok++;
+          status(`${ok} / ${_multi.size}`);
+        }
+        reload();
+      };
+    });
+
+    const favSetzen = async (an) => {
+      let ok = 0;
+      for (const p of pfade()) {
+        await api().library_set_fields(p, an, null, null);
+        status(`${++ok} / ${_multi.size}`);
+      }
+      reload();
+    };
+    $("lib-m-fav").onclick = () => favSetzen(true);
+    $("lib-m-unfav").onclick = () => favSetzen(false);
+
+    $("lib-m-hide").onclick = async () => {
+      for (const p of pfade()) await api().library_set_hidden(p, true);
+      _multi.clear(); reload();
+    };
+    $("lib-m-trash").onclick = async () => {
+      if (!confirm(T("library.trash_many_q", "{n} Touren in den Papierkorb legen?")
+                   .replace("{n}", _multi.size))) return;
+      let ok = 0;
+      for (const p of pfade()) {
+        const r = await api().library_trash(p);
+        if (r && r.ok) ok++;
+        status(`${ok} / ${_multi.size}`);
+      }
+      _multi.clear(); reload();
+    };
+  }
+
   function renderDetail() {
     const box = $("lib-detail");
+    if (_multi.size > 1) { renderMulti(); return; }
     if (!_sel) {
-      box.innerHTML = `<div class="lib-detail-empty">${T("library.pick_hint", "Tour auswählen — dann kannst du sie hier direkt in ein Werkzeug übernehmen.")}</div>`;
+      box.innerHTML = `<div class="lib-detail-empty">${T("library.pick_hint", "Tour auswählen — dann kannst du sie hier direkt in ein Werkzeug übernehmen.")}
+        <div class="lib-hint" style="margin-top:10px">${T("library.multi_hint", "Mehrere wählen: ⌘/Strg-Klick einzeln, Umschalt-Klick für einen Bereich.")}</div></div>`;
       return;
     }
     const it = _sel;
