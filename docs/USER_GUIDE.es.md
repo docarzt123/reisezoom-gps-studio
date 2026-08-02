@@ -418,6 +418,27 @@ veces. No se borra nada: solo ves qué está duplicado.
 **Archivos nuevos:** pulsa **«Volver a leer»** después de cada exportación grande. Los
 archivos ya conocidos se omiten, así que tarda segundos.
 
+**Archivos que no llegan a ser una ruta.** Si en la cabecera aparece un aviso como
+**«12 archivos sin recorrido»** o **«3 archivos no legibles»**, púlsalo. El diálogo separa
+dos cosas que se confunden con facilidad:
+
+* **Sin datos de recorrido** — el archivo está perfectamente bien, simplemente no contiene
+  coordenadas. En FIT es lo normal para todo lo que va sin GPS: rodillo, gimnasio, natación
+  en piscina. Un reloj deportivo también escribe un archivo para eso. No se puede construir
+  una ruta con ellos, pero tampoco hay nada roto.
+* **No legibles** — aquí sí ha fallado algo: una transferencia interrumpida, un formato
+  desconocido, un archivo dañado.
+
+Marca lo que no quieras seguir viendo y pulsa **«Quitar de la lista»**. No se borra nada:
+ni el archivo del disco ni la entrada; solo desaparece el aviso, y sigue desaparecido tras
+la siguiente lectura. Con **«Mostrar también los retirados»** vuelve todo y puedes
+recuperarlo.
+
+**La barra de filtros recuerda tus ajustes.** El orden, el año y el tipo de actividad se
+mantienen si miras una ruta en el animador y vuelves — y también al reiniciar. El **texto
+de búsqueda** no se recuerda a propósito, para que al día siguiente no te reciba un archivo
+medio vacío. **«Restablecer»** lo limpia todo.
+
 **¿Disco no conectado?** Entonces la app no encuentra esos archivos al leer — pero **no**
 descarta las rutas. Siguen en la lista, cuentan en las estadísticas y llevan un 🔌 en la
 tarjeta; a la izquierda aparece la sección **«No accesible»**. Vuelve a conectar el disco y la

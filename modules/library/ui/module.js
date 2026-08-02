@@ -66,7 +66,48 @@ function mountLibrary(body, headerActions) {
   // „Bereich" ist die grobe Trennung links; die Filterleiste verfeinert nur noch.
   let scope = store.get("scope", "all");
   let view = store.get("view", "cards");
-  const state = { search: "", year: 0, activity: "", sort: "date_desc", collection_id: 0 };
+
+  /* Die Filterleiste überlebt den Modulwechsel (Beta-Tester: „Wenn man nach
+   * Längste zuerst filtert, eine Datei im Animator anschaut und dann zurück
+   * geht, springt er auf Neueste zuerst").
+   *
+   * Das Archiv wird bei jedem Betreten neu aufgebaut, `state` war also jedes Mal
+   * wieder die Voreinstellung. Bereich und Ansicht lagen längst im Speicher, die
+   * Filterleiste nicht — jetzt beides.
+   *
+   * NICHT gemerkt wird der Suchtext: Wer die App am nächsten Tag öffnet und ein
+   * halbleeres Archiv sieht, sucht den Fehler im Archiv, nicht im Suchfeld. Und
+   * eine gemerkte Eingabe würde beim Start eine Gegend-Abfrage auslösen.
+   * `collection` ist kein echter Sortierwert, sondern die Reihenfolge INNERHALB
+   * einer Sammlung — der darf hier nicht landen.
+   */
+  const SORTS_OK = ["date_desc", "date_asc", "dist_desc", "dist_asc",
+                    "asc_desc", "dur_desc", "name_asc", "act_asc"];
+  const gespeicherterSort = store.get("sort", "date_desc");
+  const state = {
+    search: "",
+    year: parseInt(store.get("year", "0"), 10) || 0,
+    activity: store.get("activity", ""),
+    sort: SORTS_OK.includes(gespeicherterSort) ? gespeicherterSort : "date_desc",
+    collection_id: 0,
+  };
+
+  /** Filterwert setzen und merken. */
+  function setFilter(k, v) {
+    state[k] = v;
+    if (k === "sort" && !SORTS_OK.includes(v)) return;   // „collection" nicht merken
+    store.set(k, String(v == null ? "" : v));
+  }
+  /** Die zuletzt gewählte echte Sortierung (ohne „collection"). */
+  function gemerkterSort() {
+    const s = store.get("sort", "date_desc");
+    return SORTS_OK.includes(s) ? s : "date_desc";
+  }
+  /** Das Auswahlfeld auf den Zustand nachziehen. */
+  function sortAnzeigen() {
+    const sel = document.getElementById("lib-sort");
+    if (sel && SORTS_OK.includes(state.sort)) sel.value = state.sort;
+  }
 
   const ACT_LABELS = {
     wandern: T("library.act.wandern", "Wandern"),
@@ -343,7 +384,10 @@ function mountLibrary(body, headerActions) {
       b.onclick = () => {
         // Zweiter Klick auf dieselbe Sammlung hebt die Auswahl wieder auf.
         state.collection_id = state.collection_id === id ? 0 : id;
-        state.sort = state.collection_id ? "collection" : "date_desc";
+        // Beim Verlassen einer Sammlung zurück auf die gemerkte Sortierung,
+        // nicht stumpf auf „Neueste zuerst".
+        state.sort = state.collection_id ? "collection" : gemerkterSort();
+        sortAnzeigen();
         renderCollections(); reload();
       };
       b.oncontextmenu = (e) => { e.preventDefault(); openCollectionMenu(id); };
@@ -372,10 +416,17 @@ function mountLibrary(body, headerActions) {
       ${_autoThumbs ? `<span class="lib-head-auto">🗺️ ${T("library.map_thumbs_auto", "Kartenbilder werden geladen")} ${_autoThumbs.done || 0}/${_autoThumbs.total || "?"}</span>` : ""}
       ${_ortAktiv ? `<button class="lib-head-ort is-on" id="lib-ort-aus" type="button" title="${T("library.area_off", "Nur Treffer im Text zeigen")}">📍 ${T("library.found_area", "Gegend")}: <b>${esc(_ortAktiv.name.split(",")[0])}</b> — ${_total} ${T("library.tours_here", "Touren hier")}${_ortAktiv.textTreffer ? ` · ${_ortAktiv.textTreffer} ${T("library.by_name", "über den Namen")}` : ""} ✕</button>` : ""}
       ${_autoPlaces ? `<span class="lib-head-auto">📍 ${T("library.places_auto", "Gegenden werden benannt")} ${_autoPlaces.done || 0}/${_autoPlaces.total || "?"}</span>` : ""}
-      ${s.n_failed ? `<button class="lib-head-warn" id="lib-show-errors">${s.n_failed} ${T("library.unreadable", "Datei(en) nicht lesbar")}</button>` : ""}
+      ${s.n_failed ? `<button class="lib-head-warn${s.n_nogps === s.n_failed ? " is-calm" : ""}" id="lib-show-errors">${s.n_failed} ${
+        // Ist ALLES nur „ohne Koordinaten" (Rolle, Halle, Kraftraum), dann ist
+        // nichts kaputt — dann darf hier auch nicht „nicht lesbar" stehen.
+        s.n_nogps === s.n_failed
+          ? T("library.no_track_n", "Datei(en) ohne Strecke")
+          : T("library.unreadable", "Datei(en) nicht lesbar")}</button>` : ""}
     `;
     const eb = $("lib-show-errors");
-    if (eb) eb.onclick = showErrors;
+    // Nicht `= showErrors`: dann käme das Klick-Ereignis als erstes Argument an
+    // und wäre als „auch weggeräumte zeigen" wahr.
+    if (eb) eb.onclick = () => showErrors(false);
     const aus = $("lib-ort-aus");
     if (aus) aus.onclick = () => { _ortAus = true; reload(); };
   }
@@ -1343,7 +1394,11 @@ function mountLibrary(body, headerActions) {
     const del = document.getElementById("lib-cm-del");
     if (del) del.onclick = async () => {
       await api().library_collection_delete(cid);
-      if (state.collection_id === cid) { state.collection_id = 0; state.sort = "date_desc"; }
+      if (state.collection_id === cid) {
+        state.collection_id = 0;
+        state.sort = gemerkterSort();
+        sortAnzeigen();
+      }
       m.close(); await reloadCollections(); reload();
     };
   }
@@ -1525,17 +1580,112 @@ function mountLibrary(body, headerActions) {
   }
 
   // ── Listen für Fehler + Doppelte ──────────────────────────────────────
-  async function showErrors() {
-    const res = await api().library_errors();
+
+  /* Dateien, aus denen keine Tour wurde.
+   *
+   * Zwei Dinge waren hier falsch (Beta-Tester, 61 FIT-Dateien):
+   *   1. Alles hieß „nicht lesbar" — dabei waren es Hallen-Einheiten ohne GPS.
+   *      Die Uhr schreibt für Rolle, Kraftraum und Bahnschwimmen ebenfalls eine
+   *      FIT-Datei, nur eben ohne Koordinaten. Nichts daran ist kaputt.
+   *   2. Man kam aus der Liste nicht wieder heraus: „man kann sie aber nicht
+   *      löschen". Jetzt gibt es „Aus der Liste nehmen" — die Datei bleibt
+   *      liegen, nur die Meldung verschwindet, und zwar dauerhaft.
+   */
+  async function showErrors(zeigeWeg) {
+    const res = await api().library_errors(!!zeigeWeg);
     const items = (res && res.items) || [];
+    const ohne = items.filter(i => i.error_kind === "no_points");
+    const kaputt = items.filter(i => i.error_kind !== "no_points");
+
+    const zeile = (i) => `
+      <label class="lib-dupe-item lib-dupe-pick">
+        <input type="checkbox" class="lib-err-cb" data-path="${esc(i.path)}">
+        <span class="lib-dupe-name">${esc(i.filename)}</span>
+        ${i.hidden ? `<span class="lib-dupe-keep">${T("library.err_dismissed", "weggeräumt")}</span>` : ""}
+      </label>`;
+    const gruppe = (titel, hinweis, liste) => !liste.length ? "" : `
+      <div class="lib-dupe-group">
+        <div class="lib-dupe-head">${liste.length} · ${titel}</div>
+        <p class="lib-dupe-intro">${hinweis}</p>
+        ${liste.map(zeile).join("")}
+      </div>`;
+
     openModal({
-      title: T("library.unreadable", "Datei(en) nicht lesbar"),
-      body: `<div class="lib-dupes">${items.length
-        ? items.map(i => `<div class="lib-dupe-group">
-             <div class="lib-dupe-item">${esc(i.filename)}</div>
-             <div class="lib-dupe-head">${esc(i.error || "")}</div></div>`).join("")
+      title: kaputt.length
+        ? T("library.unreadable", "Datei(en) nicht lesbar")
+        : T("library.no_track_n", "Datei(en) ohne Strecke"),
+      body: `<div class="lib-dupes">${items.length ? `
+        ${gruppe(T("library.err_no_track", "ohne Streckendaten"),
+                 T("library.err_no_track_hint",
+                   "Diese Dateien sind in Ordnung — sie enthalten nur keine Koordinaten. "
+                   + "Typisch für Aufzeichnungen ohne GPS: Rolle, Kraftraum, Bahnschwimmen. "
+                   + "Eine Tour lässt sich daraus nicht bauen."),
+                 ohne)}
+        ${gruppe(T("library.err_broken", "nicht lesbar"),
+                 T("library.err_broken_hint",
+                   "Diese Dateien konnten nicht gelesen werden — abgebrochene Übertragung, "
+                   + "unbekanntes Format oder beschädigt."),
+                 kaputt)}
+        <div class="lib-dupe-actions">
+          <button class="btn btn-ghost btn-sm" id="lib-err-all" type="button">
+            ${T("library.err_all", "Alle auswählen")}</button>
+          <button class="btn btn-primary" id="lib-err-go" type="button" disabled>
+            ${zeigeWeg ? T("library.err_restore", "Wieder anzeigen")
+                       : T("library.err_dismiss", "Aus der Liste nehmen")}
+            <span id="lib-err-n"></span>
+          </button>
+          <span id="lib-err-status" class="lib-dupe-status"></span>
+        </div>
+        <p class="lib-dupe-intro">${zeigeWeg
+          ? T("library.err_restore_hint", "Weggeräumte Meldungen kommen wieder zum Vorschein.")
+          : T("library.err_dismiss_hint",
+              "Es wird nichts gelöscht — weder die Datei noch der Eintrag. Nur die Meldung "
+              + "verschwindet, auch nach dem nächsten Einlesen.")}</p>
+        <label class="lib-dupe-pick" style="margin-top:10px">
+          <input type="checkbox" id="lib-err-showall" ${zeigeWeg ? "checked" : ""}>
+          <span>${T("library.err_show_dismissed", "Auch weggeräumte zeigen")}</span>
+        </label>`
         : `<p>${T("library.no_errors", "Alle Dateien konnten gelesen werden.")}</p>`}</div>`,
     });
+
+    if (!items.length) return;
+
+    const boxen = () => Array.from(document.querySelectorAll(".lib-err-cb"));
+    const zaehlen = () => {
+      const n = boxen().filter(b => b.checked).length;
+      const el = document.getElementById("lib-err-n");
+      const btn = document.getElementById("lib-err-go");
+      if (el) el.textContent = n ? `(${n})` : "";
+      if (btn) btn.disabled = n === 0;
+    };
+    boxen().forEach(b => b.addEventListener("change", zaehlen));
+    zaehlen();
+
+    const alle = document.getElementById("lib-err-all");
+    if (alle) alle.onclick = () => {
+      const an = boxen().some(b => !b.checked);
+      boxen().forEach(b => { b.checked = an; });
+      zaehlen();
+    };
+
+    const showall = document.getElementById("lib-err-showall");
+    if (showall) showall.onchange = () => showErrors(showall.checked);
+
+    const go = document.getElementById("lib-err-go");
+    if (go) go.onclick = async () => {
+      const pfade = boxen().filter(b => b.checked).map(b => b.dataset.path);
+      if (!pfade.length) return;
+      go.disabled = true;
+      const r = await api().library_dismiss_errors(pfade, !zeigeWeg);
+      const status = document.getElementById("lib-err-status");
+      if (r && r.ok) {
+        await reload();
+        showErrors(zeigeWeg);
+      } else if (status) {
+        status.textContent = (r && r.error) || T("library.err_failed", "hat nicht geklappt");
+        go.disabled = false;
+      }
+    };
   }
 
   // Doppelte finden UND gleich wegräumen (Wunsch Beta-Tester: „Doppelte finden
@@ -1618,13 +1768,15 @@ function mountLibrary(body, headerActions) {
     _ortAus = false;           // neue Eingabe → Gegend wieder erlauben
     reload();
   }, 400);
-  $("lib-year").onchange = () => { state.year = parseInt($("lib-year").value, 10) || 0; reload(); };
-  $("lib-act").onchange = () => { state.activity = $("lib-act").value; reload(); };
-  $("lib-sort").onchange = () => { state.sort = $("lib-sort").value; reload(); };
+  $("lib-year").onchange = () => { setFilter("year", parseInt($("lib-year").value, 10) || 0); reload(); };
+  $("lib-act").onchange = () => { setFilter("activity", $("lib-act").value); reload(); };
+  $("lib-sort").onchange = () => { setFilter("sort", $("lib-sort").value); reload(); };
   $("lib-reset").onclick = () => {
-    state.search = ""; state.year = 0; state.activity = ""; state.sort = "date_desc";
+    state.search = "";
+    setFilter("year", 0); setFilter("activity", ""); setFilter("sort", "date_desc");
     _ortAus = false; _ortAktiv = null;
     $("lib-search").value = "";
+    $("lib-sort").value = "date_desc";
     reload();
   };
   $("lib-map-png").onclick = saveMapPng;
@@ -1643,6 +1795,12 @@ function mountLibrary(body, headerActions) {
   if (headerActions) headerActions.innerHTML = "";
 
   // ── Start ─────────────────────────────────────────────────────────────
+  // Jahr und Art bauen ihre Auswahl aus den Bestandszahlen und setzen `selected`
+  // dabei selbst; die Sortierung steht fest im HTML und muss hier nachgezogen
+  // werden — sonst zeigte das Feld „Neueste zuerst", während nach Länge
+  // sortiert wird.
+  sortAnzeigen();
+
   (async () => {
     await reloadFolders();
     await reloadCollections();

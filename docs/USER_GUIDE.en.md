@@ -416,6 +416,25 @@ you only get to see what is doubled up.
 **New files:** press **“Rescan”** once after a bigger export. Files already known are
 skipped, so it takes seconds.
 
+**Files that don't become a tour.** If the header shows a note like **“12 files without a
+route”** or **“3 files unreadable”**, click it. The dialog separates two things that are
+easily confused:
+
+* **No route data** — the file is perfectly fine, it simply contains no coordinates. With
+  FIT that is the normal case for anything without GPS: indoor trainer, gym, pool swimming.
+  A sports watch writes a file for those too. No tour can be built from them — but nothing
+  is broken either.
+* **Unreadable** — here something really did go wrong: an interrupted transfer, an unknown
+  format, a damaged file.
+
+Tick what you no longer want to see and press **“Take off the list”**. Nothing is deleted —
+neither the file on disk nor the entry; only the message goes away, and it stays away after
+the next scan. **“Also show dismissed”** brings everything back so you can restore it.
+
+**The filter bar remembers your settings.** Sort order, year and activity survive a trip to
+the animator and back — and a restart. The **search text** deliberately does not, so a
+half-empty library doesn't greet you the next day. **“Reset”** clears everything.
+
 **Drive not connected?** Then the app cannot find those files while scanning — but it does
 **not** throw the tours away. They stay in the list, keep counting in the statistics and get a
 🔌 on the card; a **“Not reachable”** section appears on the left. Plug the drive back in and

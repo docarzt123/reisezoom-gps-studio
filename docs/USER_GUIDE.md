@@ -452,6 +452,28 @@ heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.
 **Neue Dateien:** Nach jedem größeren Export einmal unten links **„📂 Ordner & Einlesen" → „Neu einlesen"** drücken. Bereits
 bekannte Dateien werden übersprungen, das geht in Sekunden.
 
+**Dateien, aus denen keine Tour wird.** Steht in der Kopfzeile ein Hinweis wie
+**„12 Dateien ohne Strecke"** oder **„3 Dateien nicht lesbar"**, klick ihn an. Der Dialog
+trennt zwei Dinge, die leicht verwechselt werden:
+
+* **Ohne Streckendaten** — die Datei ist völlig in Ordnung, sie enthält nur keine
+  Koordinaten. Bei FIT ist das der Regelfall für alles ohne GPS: Rolle, Kraftraum,
+  Bahnschwimmen. Eine Sportuhr schreibt dafür genauso eine Datei. Eine Tour lässt sich
+  daraus nicht bauen — kaputt ist trotzdem nichts.
+* **Nicht lesbar** — hier ist wirklich etwas schiefgegangen: abgebrochene Übertragung,
+  unbekanntes Format, beschädigte Datei.
+
+Was du nicht mehr sehen willst, hakst du an und drückst **„Aus der Liste nehmen"**. Dabei
+wird **nichts gelöscht** — weder die Datei auf der Platte noch der Eintrag; nur die Meldung
+verschwindet, und sie bleibt auch nach dem nächsten Einlesen weg. Über **„Auch weggeräumte
+zeigen"** kommt alles wieder zum Vorschein und lässt sich zurückholen.
+
+**Die Filterleiste merkt sich, was du eingestellt hast.** Sortierung, Jahr und
+Fortbewegungsart bleiben, wenn du eine Tour im Animator ansiehst und ins Archiv
+zurückkommst — und auch über einen Neustart hinweg. Der **Suchtext** wird bewusst nicht
+gemerkt, damit dich am nächsten Tag kein halbleeres Archiv empfängt. **„Zurücksetzen"**
+räumt alles wieder ab.
+
 **Kartenbilder holt die App von selbst.** Nach dem Einlesen und bei jedem Start läuft im
 Hintergrund ein gemächlicher Lauf, der zu jeder Tour ein echtes Kartenbild von Mapbox holt —
 ungefähr eines alle anderthalb Sekunden. In der Kopfzeile steht dabei „Kartenbilder werden

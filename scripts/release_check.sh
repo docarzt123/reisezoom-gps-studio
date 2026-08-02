@@ -62,6 +62,11 @@ else
   # 7) Track-Sichtbarkeit (best effort; SKIPt wenn Vorschau headless nicht füllbar)
   run "Track-Sichtbarkeit (selftest_track_visible)" python3 scripts/selftest_track_visible.py
 
+  # 7b) Archiv — beides kam als Bug-Report herein und darf nicht zurückfallen:
+  #     die Filterleiste beim Modulwechsel, und Dateien ohne GPS.
+  run "Archiv-Zustand (selftest_library_state)" python3 scripts/selftest_library_state.py
+  run "Archiv-Fehlerliste (test_library_errors)" python3 tests/test_library_errors.py
+
   # 8) Optional: echte Video-Renders (nur mit --full; braucht Token + Fixtures)
   if [[ $FULL == 1 ]]; then
     run "Echte Renders (selftest_renders)" python3 scripts/selftest_renders.py

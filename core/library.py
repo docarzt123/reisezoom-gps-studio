@@ -152,6 +152,11 @@ CREATE TABLE IF NOT EXISTS tracks (
     map_thumb     TEXT DEFAULT '',
     indexed_at    TEXT,
     error         TEXT DEFAULT '',
+    -- v0.9.497: WARUM die Datei nicht gelesen werden konnte. `no_points` heißt
+    -- „gelesen, aber ohne Koordinaten" — bei FIT der Regelfall für Rolle, Kraft
+    -- und Bahnschwimmen. Das ist kein Defekt und wird getrennt gezeigt.
+    -- `broken` ist alles andere. Leer = kein Fehler.
+    error_kind    TEXT DEFAULT '',
 
     -- v0.9.489: gemacht (aufgezeichnet) oder nur geplant — generisch erkannt,
     -- `recorded_src` sagt woran. `recorded_user` ist die Hand-Korrektur des
@@ -241,6 +246,7 @@ _TECH_COLS = [
     "has_ele", "sensors", "min_lat", "max_lat", "min_lon", "max_lon",
     "center_lat", "center_lon", "activity", "source", "source_url", "planned",
     "recorded", "recorded_src", "thumb", "geom", "indexed_at", "error",
+    "error_kind",
     # v0.9.493: das gecachte Kartenbild gehört zum technischen Teil — es hängt
     # am Geo-Hash und wird beim Einlesen aus dem Cache wiederhergestellt.
     # `cover` NICHT hier: das ist eine Nutzer-Eingabe und kommt aus track_meta.
@@ -261,6 +267,8 @@ _ADD_COLS = [
     ("hidden", "INTEGER DEFAULT 0"),
     # v0.9.494: seit wann die Datei nicht auffindbar ist (leer = alles gut).
     ("missing_since", "TEXT DEFAULT ''"),
+    # v0.9.497: „ohne Strecke" vs. „kaputt" — siehe Schema.
+    ("error_kind", "TEXT DEFAULT ''"),
 ]
 
 
@@ -311,8 +319,28 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     _migrate_meta_spalten(conn)
     _migrate_meta(conn)
     _migrate_collection_items(conn)
+    _migrate_error_kind(conn)
     conn.commit()
     return conn
+
+
+def _migrate_error_kind(conn: sqlite3.Connection) -> None:
+    """Bestehende Fehler-Zeilen einmalig einsortieren (v0.9.497).
+
+    Ohne das stünde bei jedem, der schon eingelesen hat, weiter „nicht lesbar" —
+    bis er von sich aus neu einliest. Die Meldung ist ein fester Satz aus
+    `core/imports.py`, das Zuordnen also eindeutig.
+    """
+    cur = conn.execute(
+        "UPDATE tracks SET error_kind = 'no_points' "
+        "WHERE error != '' AND COALESCE(error_kind,'') = '' "
+        "AND error LIKE '%Keine Track-Punkte%'")
+    n = cur.rowcount or 0
+    rest = conn.execute(
+        "UPDATE tracks SET error_kind = 'broken' "
+        "WHERE error != '' AND COALESCE(error_kind,'') = ''").rowcount or 0
+    if n or rest:
+        log.info("library: Fehler-Zeilen einsortiert — %d ohne Strecke, %d kaputt", n, rest)
 
 
 def _migrate_meta_spalten(conn: sqlite3.Connection) -> None:
@@ -686,6 +714,7 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         "size": st.st_size,
         "indexed_at": _now_iso(),
         "error": "",
+        "error_kind": "",
     }
     gpx_path = str(path)
     if path.suffix.lower() != ".gpx":
@@ -827,12 +856,20 @@ def scan(
                     added += 1
         except Exception as e:
             failed += 1
-            log.warning("library: %s konnte nicht gelesen werden: %s", p.name, e)
+            # „Ohne Koordinaten" ist kein Defekt: Rollentraining, Krafttraining,
+            # Bahnschwimmen — die Uhr schreibt auch dafür eine FIT-Datei. Das
+            # gehört nicht in denselben Topf wie eine kaputte Datei, sonst steht
+            # bei jemandem mit 61 Hallen-Einheiten „61 Dateien nicht lesbar".
+            kind = "no_points" if isinstance(e, cimports.NoTrackPoints) else "broken"
+            if kind == "no_points":
+                log.info("library: %s enthält keine Koordinaten (kein Fehler)", p.name)
+            else:
+                log.warning("library: %s konnte nicht gelesen werden: %s", p.name, e)
             try:
                 _upsert(conn, {
                     "path": sp, "folder": folder, "filename": p.name,
                     "mtime": 0, "size": 0, "indexed_at": _now_iso(),
-                    "error": str(e)[:300], "name": p.stem,
+                    "error": str(e)[:300], "error_kind": kind, "name": p.stem,
                 })
             except Exception:
                 pass
@@ -1252,7 +1289,16 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
         "n_missing": conn.execute(
             f"SELECT COUNT(*) FROM tracks WHERE {sql_where} AND missing_since != ''",
             args).fetchone()[0],
-        "n_failed": conn.execute("SELECT COUNT(*) FROM tracks WHERE error != ''").fetchone()[0],
+        # Zwei Zahlen, weil zwei Dinge gemeint sind: `n_failed` sind alle nicht
+        # weggeräumten Fehler-Zeilen, `n_nogps` davon die ohne Koordinaten. Sind
+        # beide gleich groß, ist gar nichts kaputt — dann darf die Oberfläche
+        # auch nicht „nicht lesbar" sagen.
+        "n_failed": conn.execute(
+            "SELECT COUNT(*) FROM tracks WHERE error != '' AND COALESCE(hidden,0) = 0"
+        ).fetchone()[0],
+        "n_nogps": conn.execute(
+            "SELECT COUNT(*) FROM tracks WHERE error != '' AND COALESCE(hidden,0) = 0 "
+            "AND error_kind = 'no_points'").fetchone()[0],
         "search_note": search,
     }
 
@@ -1691,12 +1737,39 @@ def collections_of(conn: sqlite3.Connection, path: str) -> list:
 
 
 @_locked
-def errors(conn: sqlite3.Connection) -> list:
-    """Dateien, die beim Einlesen nicht gelesen werden konnten."""
+def errors(conn: sqlite3.Connection, include_dismissed: bool = False) -> list:
+    """Dateien, aus denen keine Tour wurde — sortiert: erst die kaputten.
+
+    `error_kind` trennt „gelesen, aber ohne Koordinaten" (`no_points`) von
+    „wirklich kaputt" (`broken`). Weggeräumte stehen nur auf Wunsch dabei.
+    """
+    wo = "error != ''" if include_dismissed else "error != '' AND COALESCE(hidden,0) = 0"
     rows = conn.execute(
-        "SELECT * FROM tracks WHERE error != '' ORDER BY filename"
+        f"SELECT * FROM tracks WHERE {wo} "
+        "ORDER BY CASE WHEN error_kind = 'no_points' THEN 1 ELSE 0 END, "
+        "filename COLLATE NOCASE"
     ).fetchall()
     return [_to_dict(r) for r in rows]
+
+
+@_locked
+def dismiss_errors(conn: sqlite3.Connection, paths: list, weg: bool = True) -> int:
+    """Fehler-Zeilen aus der Liste nehmen (oder zurückholen).
+
+    Gelöscht wird **nichts** — weder die Datei noch der Eintrag. Die Zeile
+    bekommt nur `hidden`, und weil `hidden` nicht zu den technischen Spalten
+    gehört, überlebt das jedes Neu-Einlesen. Ohne diesen Weg blieben 61
+    Hallen-Einheiten für immer als Warnung stehen: der Nutzer kann die Dateien
+    nicht ändern, und wegwerfen will er sie auch nicht.
+    """
+    if not paths:
+        return 0
+    q = ",".join("?" * len(paths))
+    cur = conn.execute(
+        f"UPDATE tracks SET hidden = ? WHERE path IN ({q}) AND error != ''",
+        [1 if weg else 0] + list(paths))
+    conn.commit()
+    return cur.rowcount or 0
 
 
 @_locked

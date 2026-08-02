@@ -1256,6 +1256,57 @@ Auslesen wird auf `idle` gewartet, sonst fehlen noch ladende Kacheln.
 Fremdformate (FIT/KML/TCX/…) laufen über `imports.ensure_gpx()`. Ein Parse-Fehler
 landet in der Spalte `error` und bricht den Durchlauf nicht ab.
 
+#### Dateien ohne Strecke ≠ kaputte Dateien (v0.9.497)
+
+`imports.NoTrackPoints` (Unterklasse von `TrackImportError`) meint: **gelesen, aber
+ohne Koordinaten**. Bei FIT ist das kein Sonderfall, sondern der Regelfall für
+alles ohne GPS — Rolle, Kraftraum, Bahnschwimmen; die Uhr schreibt trotzdem eine
+Datei. `scan()` schreibt daraufhin `error_kind = 'no_points'` statt `'broken'`.
+
+Warum das mehr ist als Kosmetik: Ein Nutzer las seine FIT-Sammlung ein und bekam
+**„61 Dateien nicht lesbar"** zu sehen. Defekt war keine einzige. Die Oberfläche
+beschriftet den Hinweis deshalb nach `stats()["n_nogps"] == stats()["n_failed"]` —
+ist alles nur ohne GPS, steht dort „Dateien ohne Strecke".
+
+**Wegräumen ohne zu löschen:** `dismiss_errors()` setzt `tracks.hidden = 1` auf der
+Fehler-Zeile. Das hält, weil `hidden` **nicht** in `_TECH_COLS` steht — der Upsert
+beim nächsten Einlesen fasst es nicht an. Fehler-Zeilen haben keinen `geo_hash`,
+laufen also bewusst **nicht** über `track_meta`; für sie ist die `tracks`-Spalte
+die Wahrheit. `errors(include_dismissed=True)` holt sie zurück.
+
+⚠️ Wer einen neuen Grund ergänzt, aus dem eine Datei durchfällt, entscheidet
+zuerst: Ist die Datei **defekt** oder nur **ohne Strecke**? Landet Harmloses in
+`broken`, steht wieder eine Warnung über heilen Dateien.
+
+Bestehende Archive werden in `_migrate_error_kind()` einmalig nachsortiert (am
+festen Fehlertext aus `imports.py`) — sonst müsste jeder erst neu einlesen.
+Geprüft in `tests/test_library_errors.py`: Klassifizierung, Wegräumen, Überleben
+eines `scan(force=True)`, Migration.
+
+#### Die Filterleiste des Archivs überlebt den Modulwechsel (v0.9.497)
+
+Das Archiv wird bei **jedem** Betreten neu gemountet, `state` war deshalb jedes Mal
+wieder die Voreinstellung — wer nach Länge sortierte, eine Tour im Animator ansah
+und zurückkam, stand wieder bei „Neueste zuerst". `scope` und `view` lagen längst
+im `localStorage`, die Filterleiste nicht. Jetzt gehen `sort`, `year` und
+`activity` über `setFilter()` mit in den Speicher.
+
+Drei Fallen, die dabei aufgefallen sind:
+
+* `sort = "collection"` ist **kein** Sortierwert, sondern die Reihenfolge innerhalb
+  einer Sammlung. `SORTS_OK` hält ihn aus dem Speicher heraus, sonst startet das
+  Archiv in einem Zustand ohne Sammlung.
+* Jahr und Art bauen ihre `<option>`-Liste aus den Bestandszahlen und setzen
+  `selected` selbst; **die Sortierung steht fest im HTML** und muss über
+  `sortAnzeigen()` nachgezogen werden — sonst zeigt das Feld „Neueste zuerst",
+  während nach Länge sortiert wird.
+* Der **Suchtext** wird bewusst nicht gemerkt: ein halbleeres Archiv am nächsten
+  Tag sucht der Nutzer im Archiv, nicht im Suchfeld — und eine gemerkte Eingabe
+  würde beim Start eine Nominatim-Abfrage auslösen.
+
+Geprüft in `scripts/selftest_library_state.py` — über den echten Weg (Modul
+wechseln und zurück), nicht über den Zustand im Speicher.
+
 **Nutzer-Eingaben** (`fav`, `tags`, `note`) stehen in derselben Zeile, werden vom
 Upsert aber **nicht** überschrieben (`_TECH_COLS` listet nur die technischen Spalten)
 — ein Neu-Einlesen darf keine Schlagwörter fressen.

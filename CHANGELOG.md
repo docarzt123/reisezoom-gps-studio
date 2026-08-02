@@ -14,6 +14,39 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Geändert
+- **Dateien ohne GPS gelten nicht mehr als Fehler** (Bug-Report Beta-Tester).
+  Nach dem Einlesen einer FIT-Sammlung stand „61 Dateien nicht lesbar" da —
+  kaputt war keine einzige: Eine Sportuhr schreibt auch für Rollentraining,
+  Kraftraum und Bahnschwimmen eine FIT-Datei, nur eben ohne Koordinaten. Das
+  Archiv unterscheidet jetzt „gelesen, aber ohne Strecke" von „wirklich kaputt"
+  (`tracks.error_kind`), zeigt beide getrennt und beschriftet den Hinweis
+  entsprechend: Sind alle nur ohne GPS, steht dort „Dateien ohne Strecke".
+  Bestehende Archive werden beim ersten Öffnen einmalig nachsortiert — ohne
+  neues Einlesen.
+
+### Hinzugefügt
+- **Die Fehlerliste lässt sich aufräumen** (Bug-Report Beta-Tester: „man kann
+  sie aber nicht löschen"). Auswahlkästchen je Datei, „Alle auswählen", **„Aus
+  der Liste nehmen"**. Gelöscht wird dabei **nichts** — weder die Datei noch der
+  Eintrag; nur die Meldung verschwindet, und zwar dauerhaft: Sie bleibt auch
+  nach dem nächsten Einlesen weg. Über „Auch weggeräumte zeigen" kommt alles
+  wieder zum Vorschein und lässt sich zurückholen.
+- **Die Filterleiste im Archiv überlebt den Modulwechsel** (Wunsch Beta-Tester).
+  Wer nach „Längste zuerst" sortierte, eine Tour im Animator ansah und
+  zurückkam, stand wieder bei „Neueste zuerst" — das Archiv wird bei jedem
+  Betreten neu aufgebaut, und nur Bereich und Ansicht wurden gemerkt. Jetzt
+  auch Sortierung, Jahr und Fortbewegungsart. Der **Suchtext** bleibt bewusst
+  außen vor: Ein halbleeres Archiv am nächsten Tag sucht man im Archiv, nicht
+  im Suchfeld.
+
+### Behoben
+- **Der i18n-Prüfer sah ein ganzes Modul nicht.** `check_i18n.py` erkannte nur
+  `t("key")`, nicht die in mehreren Modulen übliche Kurzform `T("key")` — damit
+  war das komplette Archiv (über 200 Schlüssel) von der Prüfung ausgenommen, und
+  eine fehlende Übersetzung wäre dort still durchgerutscht. Der Prüfer sieht
+  jetzt beides: 1045 → 1284 geprüfte Schlüssel.
+
 ## [0.9.496] – 2026-08-01
 
 ### Hinzugefügt
