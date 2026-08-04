@@ -84,6 +84,7 @@ function mountGpxInspect(body, headerActions) {
         <div class="gpxi-empty" id="gpxi-empty">${t("gpxinspect.empty", "Lade ein GPX über die Leiste oben — dann erscheint hier jeder einzelne Track-Punkt.")}</div>
         <div class="gpxi-panel" id="gpxi-panel" hidden>
           <div class="gpxi-stat" id="gpxi-stat"></div>
+          <div class="gpxi-stat-help">${t("gpxinspect.points_help_short", "Was sind Punkte?")}<span class="gpxi-q" data-tip="${t("gpxinspect.points_help", "Ein Track besteht aus vielen einzelnen Messpunkten — jedes Mal, wenn dein Gerät die Position aufgezeichnet hat. Ein Punkt alle 1–10 Sekunden ist üblich; bei einer langen Tour kommen so schnell mehrere tausend zusammen. Auf der Karte ist jeder Punkt ein kleiner Kreis, den du anklicken kannst. Mehr Punkte heißt nicht besser: Beim Heilen werden Ausreißer entfernt und Lücken aufgefüllt, dabei ändert sich die Zahl.")}">?</span></div>
           <div class="gpxi-mm-title">🩹 ${t("gpxinspect.heal_title", "Heilen (automatisch)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_help", "Findet automatisch GPS-Ausreißer und Lücken und behebt sie. Bereich und Aktionen wählen, dann Heilen. Rückgängig jederzeit.")}">?</span></div>
           <div class="gpxi-segrow" role="radiogroup">
             <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-track" value="track" checked> ${t("gpxinspect.scope_track", "Ganzer Track")}</label>

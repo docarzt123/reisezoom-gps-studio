@@ -294,6 +294,16 @@ function mountLibrary(body, headerActions) {
     // Wer den Bereich wechselt, soll rechts nicht die Tour von vorhin sehen —
     // die steht dann in keiner Liste mehr und wirkt wie ein Geist.
     if (_sel && !_items.some(i => i.path === _sel.path)) _sel = null;
+    // Beim Betreten des Moduls die zuletzt gewählte Tour zurückholen — aber nur,
+    // wenn sie in der aktuellen Liste auch wirklich steht. Sonst zeigte die
+    // Detailspalte eine Tour, zu der es keine sichtbare Kachel gibt.
+    if (!_sel && !_multi.size) {
+      const gemerkt = store.get("sel", "");
+      if (gemerkt) {
+        const treffer = _items.find(i => i.path === gemerkt);
+        if (treffer) _sel = treffer;
+      }
+    }
     // Nach dem Gegend-Zweig rechnen, nicht davor — der tauscht _items/_total aus.
     _hatMehr = (view === "cards" || view === "list") && _items.length < _total;
     _laedtMehr = false;
@@ -884,7 +894,7 @@ function mountLibrary(body, headerActions) {
       // Klick ins Leere schließt die Info-Karte und hebt die Hervorhebung auf.
       _map.on("click", (e) => {
         const hits = _map.queryRenderedFeatures(e.point, { layers: ["lib-tracks-hit"] });
-        if (!hits.length) { closeMapPopup(); _sel = null; applyMapSelection(); renderDetail(); }
+        if (!hits.length) { closeMapPopup(); _sel = null; store.set("sel", ""); applyMapSelection(); renderDetail(); }
       });
       _map.on("mouseenter", "lib-tracks-hit", () => { _map.getCanvas().style.cursor = "pointer"; });
       _map.on("mouseleave", "lib-tracks-hit", () => { _map.getCanvas().style.cursor = ""; });
@@ -961,6 +971,11 @@ function mountLibrary(body, headerActions) {
 
   function select(it, opts) {
     _sel = it;
+    // Die Auswahl merken (Wunsch Beta-Tester): Wer eine Tour markiert, ins
+    // Werkzeug wechselt und zurückkommt, stand vorher wieder vor einer leeren
+    // Detailspalte und musste die Tour erneut suchen. Der Pfad reicht — beim
+    // nächsten Betreten wird die Tour daran wiedergefunden.
+    store.set("sel", (it && it.path) || "");
     if (view === "cards") renderGrid();
     else if (view === "list") renderList();
     else if (view === "map") applyMapSelection(opts && opts.fly);
@@ -1307,11 +1322,11 @@ function mountLibrary(body, headerActions) {
 
     $("lib-d-hide").onclick = async () => {
       await api().library_set_hidden(it.path, !it.hidden);
-      _sel = null; renderDetail(); reload();
+      _sel = null; store.set("sel", ""); renderDetail(); reload();
     };
     $("lib-d-forget").onclick = async () => {
       await api().library_forget(it.path);
-      _sel = null; renderDetail(); reload();
+      _sel = null; store.set("sel", ""); renderDetail(); reload();
     };
     $("lib-d-trash").onclick = () => confirmTrash(it);
   }
@@ -1339,7 +1354,7 @@ function mountLibrary(body, headerActions) {
       m.close();
       if (!res.ok) { toast(res.error || "Nicht möglich", "error"); return; }
       toast(T("library.trash_done", "In den Papierkorb gelegt."), "info");
-      _sel = null; renderDetail(); reload();
+      _sel = null; store.set("sel", ""); renderDetail(); reload();
     };
   }
 

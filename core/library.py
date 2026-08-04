@@ -61,6 +61,18 @@ SCHEMA_VERSION = 1
 # Import-Schicht (FIT/NMEA/KML/KMZ/TCX/GeoJSON → GPX im Cache).
 INDEX_EXTS = {".gpx"} | set(cimports.IMPORT_EXTS)
 
+# Endungen, die NICHTS über den Inhalt aussagen. `.json` liegt in jedem
+# Programmordner, `.log` und `.txt` sowieso überall. Wer beim Einlesen einen
+# größeren Ordner auswählt, holt sich davon Zehntausende ins Archiv — ein
+# Nutzer meldete **4835 Touren und 98692 nicht lesbare Dateien**. Jede davon
+# wurde geöffnet, angelesen, als Fehlerzeile gespeichert und machte die
+# Datenbank träge.
+#
+# Für diese drei entscheidet deshalb der INHALT, nicht die Endung: ein kurzer
+# Blick in die ersten Kilobytes (`_sieht_nach_track_aus`). Das kostet fast
+# nichts und hält alles draußen, was offensichtlich kein Track ist.
+MEHRDEUTIGE_EXTS = {".json", ".txt", ".log"}
+
 # Ordner, die beim Einlesen übersprungen werden — dort liegen App-interne
 # Kopien, die sonst als Dubletten der echten Touren auftauchen.
 SKIP_DIR_NAMES = {
@@ -472,6 +484,28 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _sieht_nach_track_aus(p: Path) -> bool:
+    """Bei mehrdeutiger Endung: kurz hineinsehen, ob überhaupt ein Track drin ist.
+
+    `.json`, `.txt` und `.log` sagen über den Inhalt nichts aus. Ohne diese
+    Prüfung wandert jede Einstellungsdatei, jedes Protokoll und jede Notiz aus
+    dem gewählten Ordner als „nicht lesbar" ins Archiv — bei einem Nutzer
+    98692 Stück neben 4835 echten Touren.
+
+    Gelesen werden nur die ersten Kilobytes; die Prüfungen sind dieselben, die
+    der Import ohnehin benutzt.
+    """
+    ext = p.suffix.lower()
+    if ext not in MEHRDEUTIGE_EXTS:
+        return True
+    try:
+        if ext == ".json":
+            return cimports._looks_like_geojson(str(p))
+        return cimports._looks_like_nmea(str(p))
+    except Exception:       # noqa: BLE001 — im Zweifel draußen lassen
+        return False
+
+
 def _iter_files(folder: str, recursive: bool) -> Iterable[Path]:
     base = Path(folder)
     if not base.is_dir():
@@ -481,11 +515,14 @@ def _iter_files(folder: str, recursive: bool) -> Iterable[Path]:
             dirs[:] = [d for d in dirs if d not in SKIP_DIR_NAMES and not d.startswith(".")]
             for f in files:
                 if Path(f).suffix.lower() in INDEX_EXTS and not f.startswith("."):
-                    yield Path(root) / f
+                    voll = Path(root) / f
+                    if _sieht_nach_track_aus(voll):
+                        yield voll
     else:
         for f in sorted(base.iterdir()):
             if f.is_file() and f.suffix.lower() in INDEX_EXTS and not f.name.startswith("."):
-                yield f
+                if _sieht_nach_track_aus(f):
+                    yield f
 
 
 _KOMOOT_RE = re.compile(r"komoot\.[a-z]{2,3}/tour/(\d+)", re.I)
@@ -915,7 +952,20 @@ def scan(
     now = _now_iso()
     for folder in watch:
         for r in conn.execute(
-                "SELECT path, missing_since FROM tracks WHERE folder = ?", (folder,)).fetchall():
+                "SELECT path, missing_since, error FROM tracks WHERE folder = ?",
+                (folder,)).fetchall():
+            # Altlast aufräumen: Fehler-Zeilen mit mehrdeutiger Endung, die der
+            # Scanner heute gar nicht mehr aufsammelt (`.json`/`.txt`/`.log`
+            # ohne Track-Inhalt). Die Datei liegt weiter auf der Platte, sie
+            # gilt nur nicht mehr als Tour. Ohne das blieben sie für immer in
+            # der Datenbank stehen — bei einem Nutzer 98692 Stück, die jede
+            # Abfrage ausbremsten. An einer Fehler-Zeile hängt keine
+            # Nutzereingabe, sie darf also ersatzlos weg.
+            if (r["error"] and r["path"] not in seen
+                    and Path(r["path"]).suffix.lower() in MEHRDEUTIGE_EXTS):
+                conn.execute("DELETE FROM tracks WHERE path = ?", (r["path"],))
+                removed += 1
+                continue
             there = r["path"] in seen or Path(r["path"]).exists()
             if there:
                 if r["missing_since"]:

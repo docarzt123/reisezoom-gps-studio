@@ -50,6 +50,8 @@
   "gpxinspect.sel_ab": "A→B: ",
   "gpxinspect.between": "Punkte dazwischen",
   "gpxinspect.points": "Punkte",
+  "gpxinspect.points_help_short": "Was sind Punkte?",
+  "gpxinspect.points_help": "Ein Track besteht aus vielen einzelnen Messpunkten — jedes Mal, wenn dein Gerät die Position aufgezeichnet hat. Ein Punkt alle 1–10 Sekunden ist üblich; bei einer langen Tour kommen so schnell mehrere tausend zusammen. Auf der Karte ist jeder Punkt ein kleiner Kreis, den du anklicken kannst. Mehr Punkte heißt nicht besser: Beim Heilen werden Ausreißer entfernt und Lücken aufgefüllt, dabei ändert sich die Zahl.",
   "gpxinspect.no_time": "ohne Zeit",
   "gpxinspect.unsaved": "ungespeichert",
   "gpxinspect.heal": "Sprung glätten (A→B gerade)",
