@@ -15,6 +15,25 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Behoben
+- **Das Archiv sammelte alles ein, was `.json`, `.txt` oder `.log` heißt**
+  (Bug-Report Beta-Tester: **4835 Touren und 98692 nicht lesbare Dateien**).
+  Diese drei Endungen sagen über den Inhalt nichts — `.json` liegt in jedem
+  Programmordner, `.log` und `.txt` sowieso überall. Jede davon wurde geöffnet,
+  angelesen, als Fehlerzeile gespeichert und machte danach jede Abfrage
+  langsamer. Bei diesen drei entscheidet jetzt der **Inhalt**: ein Blick in die
+  ersten Kilobytes. Echte GeoJSON- und NMEA-Dateien kommen weiterhin herein, sie
+  sind ja gültige Track-Formate. **Altlasten werden beim nächsten Einlesen
+  entfernt** — an einer Fehlerzeile hängt keine Eingabe, sie darf ersatzlos weg.
+- **Die markierte Tour überlebt den Modulwechsel** (Wunsch Beta-Tester). Wer eine
+  Tour markierte, sie im Animator ansah und zurückkam, stand wieder vor einer
+  leeren Detailspalte und musste sie erneut suchen. Die Markierung bleibt jetzt,
+  bis man sie abwählt — auch über einen Neustart hinweg.
+
+### Hinzugefügt
+- **Im Inspektor steht jetzt, was „Punkte" bedeutet** (Frage eines Beta-Testers).
+  Ein Hilfe-Punkt unter der Statistik erklärt es: die einzelnen Messpunkte des
+  Geräts, üblicherweise einer alle 1–10 Sekunden — und dass mehr nicht besser ist.
+
 - **Der Solo-Geotagger wurde seit dem 29. Juni nicht mehr ausgeliefert.** Er
   wurde bei jedem Release ordentlich gebaut und lag auch im GitHub-Release —
   nur schob ihn das Deploy-Skript nie mit auf `reisezoom.com`. Wer sich die

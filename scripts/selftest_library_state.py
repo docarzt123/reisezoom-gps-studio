@@ -267,6 +267,47 @@ async def main() -> int:
         sagen(gewaehlt == "Tour 449",
               "die letzte nachgeladene Kachel wählt die richtige Tour", f"→ {gewaehlt!r}")
 
+        # ── 6) Die markierte Tour überlebt den Modulwechsel ──────────────
+        print("\n[6] Die Markierung bleibt")
+        await page.evaluate("() => { window.__viele = true; }")
+        await zu("animator")
+        await zu("library")
+        await page.wait_for_timeout(900)
+
+        # Eine Kachel anklicken …
+        await page.evaluate(
+            "() => { const c = document.querySelectorAll('#lib-grid .lib-card');"
+            " if (c[3]) c[3].click(); }")
+        await page.wait_for_timeout(500)
+        vorher = await page.evaluate(
+            "() => { const c = document.querySelector("
+            "'#lib-grid .lib-card.is-sel .lib-card-name');"
+            " return c ? c.textContent.trim() : ''; }")
+        sagen(bool(vorher), "eine Tour ist markiert", vorher)
+
+        # … Modul wechseln und zurückkommen.
+        await zu("animator")
+        await zu("library")
+        await page.wait_for_timeout(900)
+        nachher = await page.evaluate(
+            "() => { const c = document.querySelector("
+            "'#lib-grid .lib-card.is-sel .lib-card-name');"
+            " return c ? c.textContent.trim() : ''; }")
+        sagen(nachher == vorher,
+              "nach dem Modulwechsel ist dieselbe Tour noch markiert",
+              f"vorher {vorher!r} / nachher {nachher!r}")
+        # Der Name steht in der Detailspalte in einem EINGABEFELD (umbenennbar) —
+        # `textContent` sieht Feldinhalte nicht, deshalb die Werte mitnehmen.
+        detail = await page.evaluate(
+            "() => { const d = document.getElementById('lib-detail');"
+            " if (!d) return '';"
+            " const felder = Array.from(d.querySelectorAll('input, textarea'))"
+            "   .map(e => e.value).join(' ');"
+            " return (d.textContent || '') + ' ' + felder; }")
+        sagen(bool(vorher) and vorher in detail,
+              "und die Detailspalte zeigt sie auch",
+              detail.strip()[:60])
+
         sagen(not seiten_fehler, "keine JS-Fehler unterwegs",
               "; ".join(seiten_fehler[:2]))
 

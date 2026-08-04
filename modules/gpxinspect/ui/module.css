@@ -126,6 +126,17 @@
 .gpxi-stat {
   font-size: 12px;
   color: var(--text-muted);
+}
+/* Kleine Zeile unter der Statistik: „Was sind Punkte?" mit Hilfe-Punkt.
+   Der Trennstrich wandert hierher, damit beides zusammen einen Block bildet. */
+.gpxi-stat-help {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: .75;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
   padding-bottom: 10px;
   border-bottom: 1px dashed var(--border);
 }
