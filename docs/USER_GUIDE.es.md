@@ -418,6 +418,23 @@ veces. No se borra nada: solo ves qué está duplicado.
 **Archivos nuevos:** pulsa **«Volver a leer»** después de cada exportación grande. Los
 archivos ya conocidos se omiten, así que tarda segundos.
 
+**Filtrar por longitud.** Junto al año y la actividad hay dos campos pequeños
+**«desde km»** y **«hasta km»**. Juntos, los tres filtros responden a preguntas como
+*«todas las excursiones de más de 20 km en 2025»*: actividad en senderismo, año en
+2025, «desde km» en 20 — listo.
+
+**Qué compara la estadística.** Debajo de las barras hay una tabla **«Actividades
+comparadas»**: una fila por año (o mes), una columna por actividad. Arriba a la
+derecha cambias entre **años y meses** y entre **kilómetros, horas y cantidad**. La
+actividad más fuerte de cada periodo aparece resaltada, así ves de un vistazo si un
+año fue más de bici o de senderismo. Debajo están tus **puntos de inicio más usados**;
+se llenan en cuanto el archivo haya nombrado las zonas en segundo plano.
+
+**Distinguir las bicicletas.** Además de *Bici*, *Bici de montaña* y *Bici de
+carretera* ahora hay **Bici eléctrica** y **Gravel/trekking**. Se reconocen por el
+nombre de la ruta; donde eso no baste, defines la actividad tú mismo en la columna
+derecha — la elección pertenece a la ruta y sobrevive a cada nueva lectura.
+
 **Archivos que no llegan a ser una ruta.** Si en la cabecera aparece un aviso como
 **«12 archivos sin recorrido»** o **«3 archivos no legibles»**, púlsalo. El diálogo separa
 dos cosas que se confunden con facilidad:

@@ -452,6 +452,24 @@ heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.
 **Neue Dateien:** Nach jedem größeren Export einmal unten links **„📂 Ordner & Einlesen" → „Neu einlesen"** drücken. Bereits
 bekannte Dateien werden übersprungen, das geht in Sekunden.
 
+**Nach Länge filtern.** Neben Jahr und Fortbewegung stehen zwei kleine Felder
+**„ab km"** und **„bis km"**. Zusammen beantworten die drei Filter Fragen wie
+*„alle Wanderungen über 20 km in 2025"*: Fortbewegung auf Wandern, Jahr auf 2025,
+„ab km" auf 20 — fertig.
+
+**Was die Statistik vergleicht.** Unter den Balken steht eine Tabelle
+**„Fortbewegung im Vergleich"**: eine Zeile je Jahr (oder Monat), eine Spalte je
+Fortbewegungsart. Oben rechts schaltest du zwischen **Jahren und Monaten** um und
+zwischen **Kilometern, Stunden und Anzahl**. Die stärkste Art jedes Zeitraums ist
+hervorgehoben — so siehst du auf einen Blick, ob ein Jahr eher ein Rad- oder ein
+Wanderjahr war. Darunter stehen deine **häufigsten Startpunkte**; die füllen sich,
+sobald das Archiv im Hintergrund die Gegenden benannt hat.
+
+**Fahrräder auseinanderhalten.** Neben *Rad*, *Mountainbike* und *Rennrad* gibt es
+**E-Bike** und **Gravel/Trekking**. Erkannt wird das am Tour-Namen; wo das nicht
+reicht, stellst du die Art in der rechten Spalte selbst ein — die Wahl hängt an der
+Tour und überlebt jedes Neu-Einlesen.
+
 **Dateien, aus denen keine Tour wird.** Steht in der Kopfzeile ein Hinweis wie
 **„12 Dateien ohne Strecke"** oder **„3 Dateien nicht lesbar"**, klick ihn an. Der Dialog
 trennt zwei Dinge, die leicht verwechselt werden:

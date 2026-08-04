@@ -113,9 +113,36 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.500</span>
+    <span class="version-date">3 de agosto de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">El archivo se vuelve rápido — y por fin responde con qué saliste y cuándo.</p>
+
+  <div class="highlight">
+    <strong>📊 Actividades comparadas.</strong> La estadística muestra ahora una tabla: una fila por año — o por mes — y una columna por actividad. Conmutable entre <em>kilómetros, horas y cantidad</em>. La actividad más fuerte de cada periodo aparece resaltada, así ves de un vistazo si un año fue más de bici o de senderismo. Debajo: tus puntos de inicio más usados.
+  </div>
+
+  <div class="highlight">
+    <strong>🚴 Distinguir tres bicicletas.</strong> Además de bici, bici de montaña y bici de carretera ahora hay <strong>bici eléctrica</strong> y <strong>gravel/trekking</strong>. Por fin se puede ver cuánto has rodado con cada una.
+  </div>
+
+  <p><strong>Y la búsqueda responde a preguntas completas.</strong> Junto al año y la actividad hay dos campos nuevos, «desde km» y «hasta km». <em>Todas las excursiones de más de 20 km en 2025</em> está a tres clics. La vista de lista gana además tres columnas: velocidad media, punto de inicio y etiquetas.</p>
+
+  <div class="highlight">
+    <strong>⚡ El archivo es bastante más rápido.</strong> Quien tenga varios miles de rutas conoce la lentitud de la primera carga. Medido con 5000 rutas: miniaturas y lista <strong>49 → 9 ms</strong>, el indicador de progreso de las imágenes de mapa <strong>131 → 2 ms</strong>. Antes, cada pulsación en el buscador releía hasta 200 miniaturas del disco: unos 8 MB. Justo eso era el «la primera vez tarda, después va más ágil».
+  </div>
+
+  <p><strong>También corregido:</strong> el archivo indexaba todo lo que se llamara <code>.json</code>, <code>.txt</code> o <code>.log</code> — a un usuario le salieron <strong>98692 archivos no legibles</strong> junto a 4835 rutas reales. Esas extensiones no dicen nada del contenido; ahora decide el contenido, y los restos desaparecen en la siguiente lectura. Además: la <strong>ruta marcada sigue marcada</strong> al cambiar de herramienta y volver, y el inspector explica ahora qué son los «puntos».</p>
+
+  <p class="muted">Casi todo esto viene de comentarios de probadores beta.</p>
+</article>
+
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.499</span>
     <span class="version-date">2 de agosto de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">Una revisión de todo el código — y las fotos avisan cuando su posición es una suposición.</p>
 

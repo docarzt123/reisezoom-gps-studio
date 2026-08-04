@@ -196,7 +196,10 @@
 
 .lib-row {
   display: grid; align-items: center; gap: 10px; width: 100%;
-  grid-template-columns: 56px minmax(0, 1fr) 92px 84px 84px 84px 104px;
+  /* Vorschau · Name · Datum · Strecke · Höhe · Dauer · Schnitt ·
+     Fortbewegung · Startpunkt · Schlagwörter (die letzten drei auf Wunsch
+     eines Beta-Testers). Name und Startpunkt teilen sich den flexiblen Rest. */
+  grid-template-columns: 56px minmax(0, 1.4fr) 92px 78px 78px 78px 78px 104px minmax(0, 1fr) minmax(0, 0.9fr);
   background: none; border: none; border-bottom: 1px solid var(--border);
   color: var(--text); font: inherit; font-size: 12px; text-align: left;
   padding: 5px 6px; cursor: pointer;
@@ -426,7 +429,12 @@
 .lib-split-lbl b { color: var(--text); font-weight: 600; }
 
 .lib-chart { margin-bottom: 20px; }
-.lib-chart-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+/* Flex, damit die Umschalter der Vergleichstabelle rechts andocken können —
+   ohne das säßen sie unter der Überschrift und rissen die Reihe auseinander. */
+.lib-chart-title {
+  font-size: 12px; font-weight: 600; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
 
 .lib-bars {
   display: flex; align-items: flex-end; gap: 4px;
@@ -567,3 +575,76 @@
 }
 .lib-map-png:hover { background: rgba(14, 17, 22, .95); border-color: var(--accent); }
 .lib-map-png[disabled] { opacity: .6; cursor: default; }
+
+/* Startpunkt und Schlagwörter in der Listenansicht — beide dürfen umbrechen
+   statt die Zeile zu sprengen. */
+.lib-row-ort {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-dim);
+}
+.lib-row-tags {
+  display: flex; gap: 4px; flex-wrap: wrap; overflow: hidden; max-height: 34px;
+}
+.lib-row-tags .lib-row-tag { margin: 0; }
+
+/* Längen-Filter in der Filterleiste: zwei schmale Zahlenfelder mit Gedankenstrich.
+   Bewusst klein — sie stehen neben Jahr und Fortbewegung und sollen die Leiste
+   nicht dominieren. */
+.lib-km { display: inline-flex; align-items: center; gap: 3px; }
+.lib-km-dash { color: var(--text-muted); font-size: 12px; }
+.lib-kmfield {
+  width: 62px; padding: 6px 7px; font-size: 12px;
+  background: var(--bg-3); color: var(--text);
+  border: 1px solid var(--border); border-radius: 7px;
+}
+.lib-kmfield::placeholder { color: var(--text-muted); font-size: 11px; }
+/* Die Pfeilchen des Zahlenfelds kosten hier nur Platz. */
+.lib-kmfield::-webkit-outer-spin-button,
+.lib-kmfield::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ── Vergleichstabelle Fortbewegung × Zeitraum ──────────────────────────────
+   Eine Tabelle, keine Balken: Beim Vergleichen liest man Zahlen ab und rechnet
+   im Kopf nach. Die stärkste Zelle je Zeile ist hervorgehoben, damit der
+   Verlauf trotzdem auf einen Blick sichtbar ist. */
+.lib-vgl-schalter {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: auto;
+  flex-wrap: wrap;
+}
+.lib-vgl-sep { width: 1px; height: 14px; background: var(--border); margin: 0 3px; }
+.lib-vgl-btn {
+  background: var(--bg-3); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 3px 9px; font-size: 11px; font-weight: 600; cursor: pointer;
+}
+.lib-vgl-btn:hover { color: var(--text); border-color: var(--border-strong); }
+.lib-vgl-btn.is-on {
+  background: var(--accent-soft); color: var(--accent);
+  border-color: var(--accent);
+}
+/* Bei vielen Arten wird die Tabelle breiter als die Spalte — dann darf sie
+   waagerecht rollen, aber NUR sie, nicht die ganze Seite. */
+.lib-vgl-scroll { overflow-x: auto; }
+.lib-vgl {
+  border-collapse: collapse; width: 100%; font-size: 12px;
+  font-variant-numeric: tabular-nums;   /* Zahlen untereinander bündig */
+}
+.lib-vgl th, .lib-vgl td {
+  padding: 5px 9px; text-align: right; white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+.lib-vgl thead th {
+  color: var(--text-dim); font-weight: 600; font-size: 11px;
+  text-transform: uppercase; letter-spacing: .3px;
+}
+.lib-vgl tbody th, .lib-vgl tfoot th { text-align: left; color: var(--text); font-weight: 600; }
+.lib-vgl thead th:first-child, .lib-vgl tbody th { text-align: left; }
+.lib-vgl td.is-top { color: var(--accent); font-weight: 700; }
+.lib-vgl td.is-leer { color: var(--text-muted); opacity: .5; }
+.lib-vgl .lib-vgl-sum { color: var(--text-dim); border-left: 1px solid var(--border); }
+.lib-vgl tfoot td, .lib-vgl tfoot th {
+  border-bottom: none; border-top: 2px solid var(--border-strong);
+  font-weight: 700; color: var(--text);
+}
+.lib-chart-hint {
+  font-size: 11px; color: var(--text-muted); margin-top: 6px;
+}

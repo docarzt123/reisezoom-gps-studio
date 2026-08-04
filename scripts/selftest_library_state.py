@@ -68,7 +68,30 @@ EXTRA_MOCK = r"""
     library_stats: async (...a) => {
       const s = await echt.library_stats(...a);
       const n = window.__nurOhneStrecke ? 2 : 3;
-      return Object.assign(s, { n_failed: n, n_nogps: window.__nurOhneStrecke ? 2 : 2 });
+      // Zahlen für die Vergleichstabelle: drei Jahre × drei Arten, dazu
+      // Startpunkte. Bewusst ungleich verteilt, damit die Hervorhebung der
+      // stärksten Zelle je Zeile überhaupt etwas zu tun hat.
+      const jahre = [
+        { year: 2023, activity: "wandern", n: 20, km: 300, hours: 90 },
+        { year: 2023, activity: "rad",     n: 10, km: 500, hours: 40 },
+        { year: 2023, activity: "ebike",   n:  5, km: 200, hours: 15 },
+        { year: 2024, activity: "wandern", n: 25, km: 380, hours: 110 },
+        { year: 2024, activity: "rad",     n: 30, km: 1200, hours: 95 },
+        { year: 2024, activity: "ebike",   n: 12, km: 460, hours: 33 },
+        { year: 2025, activity: "wandern", n: 18, km: 260, hours: 80 },
+        { year: 2025, activity: "rad",     n: 22, km: 900, hours: 70 },
+      ];
+      const monate = [
+        { month: "2025-05", activity: "wandern", n: 4, km: 60, hours: 18 },
+        { month: "2025-05", activity: "rad",     n: 6, km: 240, hours: 19 },
+        { month: "2025-06", activity: "rad",     n: 8, km: 330, hours: 26 },
+      ];
+      return Object.assign(s, {
+        n_failed: n, n_nogps: window.__nurOhneStrecke ? 2 : 2,
+        act_by_year: jahre, act_by_month: monate,
+        startorte: [{ ort: "Zuhause", n: 42, km: 980 },
+                    { ort: "Bahnhof", n: 11, km: 240 }],
+      });
     },
     // Seitenweises Nachladen: 450 künstliche Touren, ausgeliefert nach
     // limit/offset — genau wie das echte Backend (core/library.py query()).
@@ -307,6 +330,106 @@ async def main() -> int:
         sagen(bool(vorher) and vorher in detail,
               "und die Detailspalte zeigt sie auch",
               detail.strip()[:60])
+
+        # ── 7) Vergleichstabelle in der Statistik ────────────────────────
+        print("\n[7] Fortbewegung im Vergleich")
+        await page.evaluate(
+            "() => { const b = document.querySelector('.lib-view[data-view=\"stats\"]');"
+            " if (b) b.click(); }")
+        await page.wait_for_timeout(900)
+
+        kopf = await page.evaluate(
+            "() => Array.from(document.querySelectorAll('.lib-vgl thead th'))"
+            ".map(e => e.textContent.trim())")
+        sagen("Jahr" in kopf, "die Tabelle steht, mit Jahres-Spalte", str(kopf))
+        for art in ("Wandern", "Rad", "E-Bike"):
+            sagen(art in kopf, f"Spalte für {art} ist da")
+
+        zeilen = await page.evaluate(
+            "() => Array.from(document.querySelectorAll('.lib-vgl tbody tr'))"
+            ".map(r => r.querySelector('th').textContent.trim())")
+        sagen(zeilen == ["2023", "2024", "2025"],
+              "drei Jahre als Zeilen", str(zeilen))
+
+        # In 2024 ist Rad mit 1200 km die stärkste Art — genau die muss die
+        # Hervorhebung bekommen.
+        top2024 = await page.evaluate(
+            "() => { const r = Array.from(document.querySelectorAll('.lib-vgl tbody tr'))"
+            "  .find(x => x.querySelector('th').textContent.trim() === '2024');"
+            " if (!r) return null;"
+            " const zellen = Array.from(r.querySelectorAll('td'));"
+            " const i = zellen.findIndex(c => c.classList.contains('is-top'));"
+            " const kopf = Array.from(document.querySelectorAll('.lib-vgl thead th'));"
+            " return i < 0 ? null : { art: kopf[i + 1].textContent.trim(),"
+            "   wert: zellen[i].textContent.trim() }; }")
+        sagen(top2024 and top2024["art"] == "Rad",
+              "2024 ist Rad hervorgehoben — die stärkste Art des Jahres",
+              str(top2024))
+        # Das Tausender-Trennzeichen hängt an der Sprache (1.200 / 1,200) — hier
+        # zählt der Wert, nicht die Schreibweise.
+        sagen(top2024 and top2024["wert"].replace(".", "").replace(",", "") == "1200",
+              "und zwar mit dem richtigen Wert in km", str(top2024))
+
+        # Und die Schreibweise folgt der OBERFLÄCHE, nicht dem System: Sonst
+        # steht in der deutschen Oberfläche „1,200 km", weil macOS englisch
+        # läuft. (Derselbe Fund wie seinerzeit beim Datum.)
+        schreibweisen = await page.evaluate("""() => {
+          const echt = window.i18nMeta;
+          const mach = (code) => {
+            window.i18nMeta = () => ({ active: code });
+            const n = (v) => Math.round(v).toLocaleString(code);
+            return n(1200);
+          };
+          const de = mach('de'), en = mach('en');
+          window.i18nMeta = echt;
+          return { de, en };
+        }""")
+        sagen(schreibweisen["de"] == "1.200" and schreibweisen["en"] == "1,200",
+              "die Zahlen-Schreibweise folgt der eingestellten Sprache",
+              str(schreibweisen))
+
+        # Auf Stunden umschalten: Dann führt 2024 Wandern (110 h gegen 95 h).
+        await page.evaluate(
+            "() => { const b = document.querySelector('[data-vgl-mass=\"hours\"]');"
+            " if (b) b.click(); }")
+        await page.wait_for_timeout(500)
+        top_std = await page.evaluate(
+            "() => { const r = Array.from(document.querySelectorAll('.lib-vgl tbody tr'))"
+            "  .find(x => x.querySelector('th').textContent.trim() === '2024');"
+            " if (!r) return null;"
+            " const zellen = Array.from(r.querySelectorAll('td'));"
+            " const i = zellen.findIndex(c => c.classList.contains('is-top'));"
+            " const kopf = Array.from(document.querySelectorAll('.lib-vgl thead th'));"
+            " return i < 0 ? null : kopf[i + 1].textContent.trim(); }")
+        sagen(top_std == "Wandern",
+              "nach Stunden gerechnet führt 2024 das Wandern — nicht mehr das Rad",
+              str(top_std))
+
+        # Auf Monate umschalten.
+        await page.evaluate(
+            "() => { const b = document.querySelector('[data-vgl-ebene=\"month\"]');"
+            " if (b) b.click(); }")
+        await page.wait_for_timeout(500)
+        mzeilen = await page.evaluate(
+            "() => Array.from(document.querySelectorAll('.lib-vgl tbody tr'))"
+            ".map(r => r.querySelector('th').textContent.trim())")
+        sagen(len(mzeilen) == 2 and "Mai" in mzeilen[0],
+              "Monatsansicht zeigt Monatsnamen", str(mzeilen))
+
+        # Die Wahl muss den Modulwechsel überleben.
+        await zu("animator")
+        await zu("library")
+        await page.wait_for_timeout(900)
+        gemerkt = await page.evaluate(
+            "() => { const b = document.querySelector('[data-vgl-ebene=\"month\"]');"
+            " return b ? b.classList.contains('is-on') : null; }")
+        sagen(gemerkt is True, "die Wahl „Monate“ ist noch gesetzt", str(gemerkt))
+
+        print("\n[8] Häufigste Startpunkte")
+        orte = await page.evaluate(
+            "() => Array.from(document.querySelectorAll('.lib-acts'))"
+            ".map(e => e.textContent).join(' ')")
+        sagen("Zuhause" in orte, "die Startpunkte stehen da", "Zuhause" in orte)
 
         sagen(not seiten_fehler, "keine JS-Fehler unterwegs",
               "; ".join(seiten_fehler[:2]))

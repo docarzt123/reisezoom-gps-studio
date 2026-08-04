@@ -1958,6 +1958,44 @@ das **Ziel** dabei nie an.
 `tests/test_render_teildatei.py`, inklusive einer Prüfung am Quelltext, dass kein Aufruf
 mehr direkt auf `cfg.output_path` zeigt.
 
+#### Geschwindigkeit des Archivs (v0.9.500)
+
+Ein Nutzer mit 4835 Touren meldete, dass Kacheln, Liste, Karte und Statistik
+beim ersten Aufruf lange brauchen. `scripts/bench_library.py` misst das
+nachvollziehbar (Voreinstellung 5000 Touren mit echtem Streckenverlauf) —
+**vor** jeder Änderung messen, sonst repariert man das Falsche.
+
+| Wo die Zeit hinging | vorher | nachher |
+|---|---|---|
+| Kacheln / Liste (200 sichtbar) | 49 ms | 9 ms |
+| Fortschritt Kartenbilder (alle 5 s!) | 131 ms | 2 ms |
+| Vorschaubilder je Abfrage | 78 ms + 8 MB | 0 (zwischengespeichert) |
+
+Die vier Ursachen, alle derselben Art — es wurde mehr geholt als gebraucht:
+
+1. **`query()` lud alles und schnitt in Python.** Für 200 Kacheln wanderten
+   5000 Zeilen durch den Speicher. Jetzt `COUNT(*)` plus `LIMIT/OFFSET`.
+2. **`geom` kam immer mit**, obwohl `_to_dict` es ohne `with_geom` sofort
+   verwarf — ~1,6 KB je Zeile. Die Spaltenliste ohne `geom` baut
+   `_spalten_ohne_geom()` einmalig aus `PRAGMA table_info`, damit eine neue
+   Spalte nicht vergessen werden kann.
+3. **`map_thumbs_pending()` / `orte_fehlen()` bauten volle Zeilen, nur um
+   `len()` zu bilden** — im 5-Sekunden-Takt, dauerhaft, und die ganze Zeit lag
+   dabei `_DB_LOCK` auf allem anderen. Dafür gibt es jetzt `…_count()`.
+4. **`_to_dict` machte einen `stat()` je Zeile** (`d["exists"]`). Bei einer
+   abgezogenen Platte — genau dem Fall, für den `missing_since` erfunden wurde —
+   heißt das sekundenlanges Warten bei **jedem** Tastendruck. `missing_since`
+   weiß dasselbe und steht schon in der Zeile.
+
+Dazu in `app.py`: `_lib_thumb_url` legt die kodierten Bilder in einen gedeckelten
+Zwischenspeicher (Schlüssel mit Änderungszeit, damit ein neu geholtes Kartenbild
+sofort sichtbar wird), und `_session_hashes()` liest `sessions.json` nur noch neu,
+wenn sie sich geändert hat.
+
+⚠️ **Regel:** Wer eine neue Abfrage einbaut, misst sie mit `bench_library.py`
+gegen 5000 Touren. Was die Oberfläche im Sekundentakt aufruft, darf nichts
+holen, was sie nicht anzeigt.
+
 ## 7 · Tests
 
 ### Tests laufen lassen
