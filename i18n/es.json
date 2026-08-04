@@ -50,7 +50,7 @@
   "gpxinspect.sel_ab": "A→B: ",
   "gpxinspect.between": "puntos intermedios",
   "gpxinspect.points": "puntos",
-  "gpxinspect.points_help_short": "¿Qué son los puntos?",
+  "gpxinspect.points_help_short": "Qué es un punto",
   "gpxinspect.points_help": "Un track se compone de muchas mediciones individuales: una por cada vez que tu dispositivo registró la posición. Un punto cada 1–10 segundos es lo habitual, así que en una ruta larga se juntan varios miles enseguida. En el mapa cada punto es un pequeño círculo en el que puedes pulsar. Más puntos no es mejor: al sanear se quitan valores atípicos y se rellenan huecos, y con ello cambia la cifra.",
   "gpxinspect.no_time": "sin hora",
   "gpxinspect.unsaved": "sin guardar",

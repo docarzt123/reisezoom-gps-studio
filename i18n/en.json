@@ -50,7 +50,7 @@
   "gpxinspect.sel_ab": "A→B: ",
   "gpxinspect.between": "points in between",
   "gpxinspect.points": "points",
-  "gpxinspect.points_help_short": "What are points?",
+  "gpxinspect.points_help_short": "What a point is",
   "gpxinspect.points_help": "A track is made up of many individual measurements — one for every time your device recorded its position. One point every 1–10 seconds is normal, so a long tour quickly adds up to several thousand. On the map each point is a small circle you can click. More points is not better: healing removes outliers and fills gaps, which changes the number.",
   "gpxinspect.no_time": "no time",
   "gpxinspect.unsaved": "unsaved",
