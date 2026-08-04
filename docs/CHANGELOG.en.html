@@ -113,9 +113,36 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.500</span>
+    <span class="version-date">3 August 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">The library gets fast — and finally answers what you were out on, and when.</p>
+
+  <div class="highlight">
+    <strong>📊 Activities compared.</strong> The statistics now show a table: one row per year — or per month — and one column per activity. Switchable between <em>kilometres, hours and count</em>. The strongest activity of each period is highlighted, so you can see at a glance whether a year leaned towards cycling or hiking. Below it: your most used starting points.
+  </div>
+
+  <div class="highlight">
+    <strong>🚴 Telling three bikes apart.</strong> Besides bike, mountain bike and road bike there are now <strong>e-bike</strong> and <strong>gravel/trekking</strong>. So you can finally see how much you rode on which one.
+  </div>
+
+  <p><strong>And search answers whole questions.</strong> Next to year and activity sit two new fields, “from km” and “to km”. <em>All hikes over 20 km in 2025</em> is now three clicks away. The list view also gained three columns: average speed, starting point and tags.</p>
+
+  <div class="highlight">
+    <strong>⚡ The library is considerably faster.</strong> Anyone with several thousand tours knows the sluggish first load. Measured against 5000 tours: tiles and list <strong>49 → 9 ms</strong>, the map-image progress readout <strong>131 → 2 ms</strong>. Previously every keystroke in the search box re-read up to 200 preview images from disk — around 8 MB. That was exactly the “slow the first time, quicker after”.
+  </div>
+
+  <p><strong>Also fixed:</strong> the library indexed anything called <code>.json</code>, <code>.txt</code> or <code>.log</code> — for one user <strong>98692 unreadable files</strong> alongside 4835 real tours. Those extensions say nothing about content; now the content decides, and the leftovers disappear on the next scan. Plus: the <strong>selected tour stays selected</strong> when you switch to a tool and back, and the inspector now explains what “points” actually are.</p>
+
+  <p class="muted">Nearly all of this came from beta tester feedback.</p>
+</article>
+
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.499</span>
     <span class="version-date">2 August 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <p class="version-tagline">A pass over the whole codebase — and photos now say when their position is a guess.</p>
 

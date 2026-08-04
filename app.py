@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import collections
 import functools
 import io
 import hashlib
@@ -147,7 +148,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.499"
+APP_VERSION = "0.9.500"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -593,6 +594,44 @@ def _load_settings() -> dict:
         except Exception:
             log.error("settings.json unlesbar (%s) und ließ sich nicht sichern", e)
         return json.loads(json.dumps(DEFAULT_SETTINGS))
+
+
+def _session_hashes() -> set:
+    """Welche Touren haben gespeicherte Projekte? — ohne die Datei jedes Mal zu lesen.
+
+    Das Archiv braucht diese Menge bei JEDER Trefferliste, nur um den kleinen
+    Punkt „hierfür gibt es Projekte" zu setzen. Vorher wurde `sessions.json`
+    dafür jedes Mal frisch von der Platte geparst — bei jedem Tastendruck im
+    Suchfeld. Jetzt nur noch, wenn sich die Datei wirklich geändert hat.
+    """
+    global _SESSION_HASHES, _SESSION_HASHES_STAMP
+    try:
+        st = SESSIONS_FILE.stat()
+        stempel = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        return set()
+    with _SESSION_HASHES_LOCK:
+        if stempel == _SESSION_HASHES_STAMP and _SESSION_HASHES is not None:
+            return _SESSION_HASHES
+    daten = _sessions.load_sessions(SESSIONS_FILE)
+    menge = set((daten.get("sessions") or {}).keys())
+    with _SESSION_HASHES_LOCK:
+        _SESSION_HASHES = menge
+        _SESSION_HASHES_STAMP = stempel
+    return menge
+
+
+_SESSION_HASHES: Optional[set] = None
+_SESSION_HASHES_STAMP: tuple = ()
+_SESSION_HASHES_LOCK = threading.Lock()
+
+
+# Zwischenspeicher für die kodierten Vorschaubilder (siehe `_lib_thumb_url`).
+# Eine geordnete Abbildung, damit sich der am längsten ungenutzte Eintrag
+# einfach vorne herausnehmen lässt.
+_THUMB_CACHE: "collections.OrderedDict[tuple, str]" = collections.OrderedDict()
+_THUMB_CACHE_LOCK = threading.Lock()
+_THUMB_CACHE_MAX = 400
 
 
 def _zahl(wert, vorgabe: float) -> float:
@@ -1713,8 +1752,7 @@ class Api:
             # Welche Touren haben schon gespeicherte Projekte? Das ist der
             # Brückenschlag zum Session-System (gleicher Hash).
             try:
-                data = _sessions.load_sessions(SESSIONS_FILE)
-                known = set((data.get("sessions") or {}).keys())
+                known = _session_hashes()
                 for it in res["items"]:
                     it["has_session"] = it.get("track_hash") in known
             except Exception:
@@ -1727,14 +1765,43 @@ class Api:
 
     @staticmethod
     def _lib_thumb_url(thumb_path: str) -> str:
+        """Vorschaubild als Daten-Adresse — mit Zwischenspeicher.
+
+        Ohne den wurde bei JEDER Archiv-Abfrage jede sichtbare Kachel neu von
+        der Platte gelesen und kodiert: bei 200 Kacheln rund 78 ms und **8 MB**,
+        die durch die Brücke wandern — bei jedem Tastendruck im Suchfeld, bei
+        jedem Filterwechsel, bei jedem Sortieren. Genau das war die Beobachtung
+        eines Nutzers, „beim ersten Aufruf dauert es lange, danach geht es
+        flotter": Beim zweiten Mal half der Datei-Zwischenspeicher des Systems.
+
+        Der Schlüssel enthält die Änderungszeit — ein neu geholtes Kartenbild
+        wird also sofort sichtbar, ohne dass jemand etwas leeren muss.
+        """
         if not thumb_path:
             return ""
         try:
-            data = Path(thumb_path).read_bytes()
-            mime = "image/jpeg" if str(thumb_path).lower().endswith((".jpg", ".jpeg")) else "image/png"
-            return f"data:{mime};base64," + base64.b64encode(data).decode("ascii")
+            st = os.stat(thumb_path)
+            schluessel = (str(thumb_path), st.st_mtime_ns, st.st_size)
         except OSError:
             return ""
+        with _THUMB_CACHE_LOCK:
+            treffer = _THUMB_CACHE.get(schluessel)
+            if treffer is not None:
+                _THUMB_CACHE.move_to_end(schluessel)   # zuletzt gebraucht
+                return treffer
+        try:
+            data = Path(thumb_path).read_bytes()
+        except OSError:
+            return ""
+        mime = "image/jpeg" if str(thumb_path).lower().endswith((".jpg", ".jpeg")) else "image/png"
+        url = f"data:{mime};base64," + base64.b64encode(data).decode("ascii")
+        with _THUMB_CACHE_LOCK:
+            _THUMB_CACHE[schluessel] = url
+            # Deckel: Zwei Seiten à 200 Kacheln reichen fürs Blättern. Alles
+            # zwischenzuspeichern wären bei 5000 Touren einige hundert MB.
+            while len(_THUMB_CACHE) > _THUMB_CACHE_MAX:
+                _THUMB_CACHE.popitem(last=False)
+        return url
 
     # ── Karten-Vorschaubilder: einmal von Mapbox holen, dann liegen sie lokal ──
 
@@ -1785,7 +1852,7 @@ class Api:
     def library_map_thumbs_status(self) -> dict:
         st = dict(getattr(self, "_lib_maps_state", {"running": False}))
         try:
-            st["pending"] = len(clib.map_thumbs_pending(self._lib()))
+            st["pending"] = clib.map_thumbs_pending_count(self._lib())
         except Exception:
             pass
         return st
@@ -1916,7 +1983,7 @@ class Api:
     def library_places_status(self) -> dict:
         st = dict(getattr(self, "_lib_places_state", {"running": False}))
         try:
-            st["pending"] = len(clib.orte_fehlen(self._lib()))
+            st["pending"] = clib.orte_fehlen_count(self._lib())
         except Exception:
             pass
         return st

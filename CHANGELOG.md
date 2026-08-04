@@ -14,6 +14,47 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.500] – 2026-08-03
+
+### Hinzugefügt
+- **Fortbewegungsarten im Vergleich** (Wunsch Beta-Tester). Die Statistik zeigt
+  eine Tabelle Jahr für Jahr oder Monat für Monat, eine Spalte je Art —
+  umschaltbar zwischen **Kilometern, Stunden und Anzahl**. Die stärkste Art
+  jedes Zeitraums ist hervorgehoben, damit man den Verlauf sieht, ohne jede Zahl
+  zu lesen. Bewusst eine Tabelle und keine Balken: Beim Vergleichen liest man
+  Zahlen ab und rechnet im Kopf nach.
+- **Drei Fahrradarten statt einer** (Wunsch Beta-Tester: „Ich habe 3 Fahrräder
+  unterteilt in Rennrad, Gravel/Trekking und E-Bike"). Neu sind **E-Bike** und
+  **Gravel/Trekking** — erkannt am Namen und von Hand wählbar wie die anderen.
+- **Häufigste Startpunkte** (Wunsch Beta-Tester). Wo eine Tour losging, weiß das
+  Archiv aus dem Ortslauf; die Statistik zählt es jetzt aus.
+- **Längen-Filter in der Filterleiste** (Wunsch Beta-Tester: „Zeige mir alle
+  Wanderungen über 20 km in 2025"). Zwei kleine Felder „ab km" und „bis km" —
+  zusammen mit Jahr und Fortbewegung ist die Frage in drei Handgriffen gestellt.
+  Das Backend konnte das längst, es gab nur kein Feld dafür.
+- **Die Listenansicht zeigt drei Spalten mehr** (Wunsch Beta-Tester):
+  Durchschnittsgeschwindigkeit, Startpunkt und Schlagwörter.
+
+### Geändert
+- **Das Archiv ist deutlich schneller.** Gemessen an 5000 Touren:
+  * Kacheln und Liste: **49 → 9 ms**. Vorher wurde für 200 sichtbare Kacheln die
+    *gesamte* Treffermenge geladen und erst danach geschnitten — samt aller
+    Streckenverläufe, die dabei niemand ansieht. Gezählt und geblättert wird
+    jetzt in der Datenbank.
+  * Die Fortschrittsanzeige der Kartenbilder fragte alle fünf Sekunden **alle**
+    Zeilen ab, nur um sie zu zählen: **131 → 2 ms**.
+  * Vorschaubilder werden zwischengespeichert. Vorher wanderten bei jeder
+    Abfrage bis zu 200 Bilder frisch von der Platte durch die Brücke — rund
+    **8 MB pro Tastendruck** im Suchfeld. Genau das war die Beobachtung „beim
+    ersten Aufruf dauert es lange, danach geht es flotter": Beim zweiten Mal half
+    der Zwischenspeicher des Systems.
+  * Für jede Zeile wurde geprüft, ob ihre Datei noch da ist — bei einer
+    abgezogenen Platte hieß das sekundenlanges Warten bei **jedem** Tastendruck.
+    Die Antwort stand die ganze Zeit schon in der Zeile.
+- **Zahlen folgen der Sprache der Oberfläche**, nicht der des Betriebssystems.
+  Sonst stand in der deutschen Oberfläche „1,200 km", weil macOS auf Englisch
+  läuft. (Derselbe Fund wie seinerzeit beim Datum.)
+
 ### Behoben
 - **Das Archiv sammelte alles ein, was `.json`, `.txt` oder `.log` heißt**
   (Bug-Report Beta-Tester: **4835 Touren und 98692 nicht lesbare Dateien**).

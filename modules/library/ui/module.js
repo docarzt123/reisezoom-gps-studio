@@ -88,6 +88,8 @@ function mountLibrary(body, headerActions) {
     search: "",
     year: parseInt(store.get("year", "0"), 10) || 0,
     activity: store.get("activity", ""),
+    min_km: parseFloat(store.get("min_km", "")) || null,
+    max_km: parseFloat(store.get("max_km", "")) || null,
     sort: SORTS_OK.includes(gespeicherterSort) ? gespeicherterSort : "date_desc",
     collection_id: 0,
   };
@@ -116,6 +118,8 @@ function mountLibrary(body, headerActions) {
     rad: T("library.act.rad", "Rad"),
     mtb: T("library.act.mtb", "Mountainbike"),
     rennrad: T("library.act.rennrad", "Rennrad"),
+    ebike: T("library.act.ebike", "E-Bike"),
+    gravel: T("library.act.gravel", "Gravel / Trekking"),
     motorrad: T("library.act.motorrad", "Motorrad"),
     auto: T("library.act.auto", "Auto"),
     boot: T("library.act.boot", "Boot"),
@@ -147,6 +151,17 @@ function mountLibrary(body, headerActions) {
                placeholder="${T("library.search_ph", "Suchen — Name, Ort, Schlagwort …")}">
         <select id="lib-year" class="lib-select"></select>
         <select id="lib-act" class="lib-select"></select>
+        <!-- Längen-Filter (Wunsch Beta-Tester: „Zeige mir alle Wanderungen über
+             20 km in 2025"). Das Backend konnte das längst — es gab nur kein
+             Feld dafür. Zusammen mit Art und Jahr ist die Frage jetzt in drei
+             Handgriffen gestellt. -->
+        <span class="lib-km" title="${T("library.km_range_tip", "Nur Touren in diesem Längenbereich")}">
+          <input type="number" id="lib-kmmin" class="lib-kmfield" min="0" step="1"
+                 placeholder="${T("library.km_from", "ab km")}">
+          <span class="lib-km-dash">–</span>
+          <input type="number" id="lib-kmmax" class="lib-kmfield" min="0" step="1"
+                 placeholder="${T("library.km_to", "bis km")}">
+        </span>
         <select id="lib-sort" class="lib-select">
           <option value="date_desc">${T("library.sort.date_desc", "Neueste zuerst")}</option>
           <option value="date_asc">${T("library.sort.date_asc", "Älteste zuerst")}</option>
@@ -208,7 +223,16 @@ function mountLibrary(body, headerActions) {
   }
   const fmtKmVal = (m) => (typeof fmtKm === "function") ? fmtKm(m) : ((m / 1000).toFixed(1) + " km");
   const fmtDurVal = (s) => (typeof fmtDur === "function") ? fmtDur(s) : Math.round(s / 60) + " min";
-  const num = (n) => Math.round(n || 0).toLocaleString();
+  // Zahlen in der Sprache der OBERFLÄCHE, nicht in der des Systems. Genau das
+  // war bei `fmtDate` schon einmal ein Fund: Sonst steht in der deutschen
+  // Oberfläche „1,200 km" (englische Schreibweise), weil macOS auf Englisch
+  // läuft — oder umgekehrt „1.200" in der englischen.
+  const num = (n) => {
+    let loc;
+    try { loc = (typeof i18nMeta === "function") ? i18nMeta().active : null; }
+    catch (_) { loc = null; }
+    return Math.round(n || 0).toLocaleString(loc || undefined);
+  };
 
   /** Der Bereich links entscheidet, WELCHE Touren überhaupt gemeint sind. */
   function scopeFilters() {
@@ -225,6 +249,8 @@ function mountLibrary(body, headerActions) {
     const p = Object.assign({}, state, scopeFilters(), extra || {});
     if (!p.year) delete p.year;
     if (!p.activity) delete p.activity;
+    if (p.min_km == null) delete p.min_km;
+    if (p.max_km == null) delete p.max_km;
     if (!p.collection_id) delete p.collection_id;
     if (!p.search) delete p.search;
     return p;
@@ -238,6 +264,8 @@ function mountLibrary(body, headerActions) {
     delete p.collection_id;
     if (!p.year) delete p.year;
     if (!p.activity) delete p.activity;
+    if (p.min_km == null) delete p.min_km;
+    if (p.max_km == null) delete p.max_km;
     if (!p.search) delete p.search;
     return p;
   }
@@ -579,7 +607,12 @@ function mountLibrary(body, headerActions) {
           <span>${fmtKmVal(it.distance_m || 0)}</span>
           <span>↑ ${num(it.ascent_m)} m</span>
           <span>${it.duration_s ? fmtDurVal(it.duration_s) : "—"}</span>
+          <span>${it.avg_speed_kmh ? it.avg_speed_kmh.toFixed(1) + " km/h" : "—"}</span>
           <span>${esc(ACT_LABELS[it.activity] || it.activity || "—")}</span>
+          <span class="lib-row-ort" title="${esc(it.startort_lang || "")}">${esc(it.startort || "—")}</span>
+          <span class="lib-row-tags">${(it.tag_list || []).length
+            ? (it.tag_list || []).map(x => `<i class="lib-row-tag">${esc(x)}</i>`).join("")
+            : "—"}</span>
         </button>`;
   }
 
@@ -596,7 +629,10 @@ function mountLibrary(body, headerActions) {
       <div class="lib-row lib-row-head">
         <span></span><span>${T("library.name", "Name")}</span><span>${T("library.date", "Datum")}</span>
         <span>${T("library.distance", "Strecke")}</span><span>${T("library.ascent", "Höhenmeter")}</span>
-        <span>${T("library.duration", "Dauer")}</span><span>${T("library.activity", "Fortbewegung")}</span>
+        <span>${T("library.duration", "Dauer")}</span><span>${T("library.speed", "Schnitt")}</span>
+        <span>${T("library.activity", "Fortbewegung")}</span>
+        <span>${T("library.startpoint", "Startpunkt")}</span>
+        <span>${T("library.tags", "Schlagwörter")}</span>
       </div>
       ${_items.map((it, i) => rowHtml(it, i)).join("")}`;
     bindItemClicks(box);
@@ -649,6 +685,127 @@ function mountLibrary(body, headerActions) {
         ${sub ? `<div class="lib-cbar-sub">${esc(sub(r))}</div>` : ""}
       </div>`;
     }).join("")}</div>`;
+  }
+
+  /* Vergleich der Fortbewegungsarten über Jahre oder Monate (Wunsch
+   * Beta-Tester: „Vergleichen von Fortbewegungsarten Monat mit Monat und Jahr
+   * mit Jahr — wie viel km und/oder Zeit ich gewandert, gelaufen und Fahrrad
+   * gefahren bin").
+   *
+   * Eine Tabelle, keine Balken: Beim Vergleichen liest man Zahlen ab und
+   * rechnet im Kopf nach — dafür sind Balken das falsche Werkzeug. Die stärkste
+   * Zelle je Zeitraum ist hervorgehoben, damit man den Verlauf trotzdem sieht,
+   * ohne jede Zahl zu lesen.
+   */
+  let _vglEbene = store.get("vgl_ebene", "year");   // "year" | "month"
+  let _vglMass  = store.get("vgl_mass", "km");      // "km" | "hours" | "n"
+
+  function vergleichHtml(s) {
+    const roh = _vglEbene === "year" ? (s.act_by_year || []) : (s.act_by_month || []);
+    if (!roh.length) return "";
+
+    // Zeiträume und Arten einsammeln — beides in der Reihenfolge, in der es
+    // auftritt bzw. nach Gesamtgröße.
+    const zeitraeume = [];
+    const proArt = new Map();
+    const zellen = new Map();      // "zeitraum|art" → Wert
+    for (const r of roh) {
+      if (!r.activity) continue;   // ohne erkannte Art hilft der Vergleich nicht
+      const z = _vglEbene === "year" ? String(r.year) : r.month;
+      if (!zeitraeume.includes(z)) zeitraeume.push(z);
+      const wert = r[_vglMass] || 0;
+      zellen.set(z + "|" + r.activity, wert);
+      proArt.set(r.activity, (proArt.get(r.activity) || 0) + wert);
+    }
+    if (!zeitraeume.length) return "";
+
+    // Nur Arten zeigen, die überhaupt vorkommen — die stärksten zuerst.
+    const arten = [...proArt.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+    // Bei Monaten wird die Tabelle sonst endlos: die letzten zwei Jahre reichen.
+    const sichtbar = _vglEbene === "month" ? zeitraeume.slice(-24) : zeitraeume;
+
+    const einheit = _vglMass === "km" ? "km" : (_vglMass === "hours" ? "h" : "×");
+    const zeige = (v) => !v ? "·" : (_vglMass === "n" ? num(v) : num(Math.round(v)));
+    const label = (z) => _vglEbene === "year" ? z
+      : `${MONTHS[parseInt(z.slice(5, 7), 10) - 1]} ${z.slice(2, 4)}`;
+
+    // Je Zeitraum die stärkste Art hervorheben.
+    const spitze = new Map();
+    for (const z of sichtbar) {
+      let best = 0, wer = "";
+      for (const a of arten) {
+        const v = zellen.get(z + "|" + a) || 0;
+        if (v > best) { best = v; wer = a; }
+      }
+      if (wer) spitze.set(z, wer);
+    }
+
+    const summe = (a) => sichtbar.reduce((n, z) => n + (zellen.get(z + "|" + a) || 0), 0);
+
+    return `
+      <div class="lib-chart">
+        <div class="lib-chart-title">
+          ${T("library.stat_compare", "Fortbewegung im Vergleich")}
+          <span class="lib-vgl-schalter">
+            <button type="button" class="lib-vgl-btn${_vglEbene === "year" ? " is-on" : ""}" data-vgl-ebene="year">${T("library.stat_by_year", "Jahre")}</button>
+            <button type="button" class="lib-vgl-btn${_vglEbene === "month" ? " is-on" : ""}" data-vgl-ebene="month">${T("library.stat_by_month", "Monate")}</button>
+            <span class="lib-vgl-sep"></span>
+            <button type="button" class="lib-vgl-btn${_vglMass === "km" ? " is-on" : ""}" data-vgl-mass="km">km</button>
+            <button type="button" class="lib-vgl-btn${_vglMass === "hours" ? " is-on" : ""}" data-vgl-mass="hours">${T("library.stat_hours_short", "Std.")}</button>
+            <button type="button" class="lib-vgl-btn${_vglMass === "n" ? " is-on" : ""}" data-vgl-mass="n">${T("library.stat_count_short", "Anzahl")}</button>
+          </span>
+        </div>
+        <div class="lib-vgl-scroll">
+          <table class="lib-vgl">
+            <thead><tr>
+              <th>${_vglEbene === "year" ? T("library.year", "Jahr") : T("library.month", "Monat")}</th>
+              ${arten.map(a => `<th>${esc(ACT_LABELS[a] || a)}</th>`).join("")}
+              <th class="lib-vgl-sum">${T("library.total", "Gesamt")}</th>
+            </tr></thead>
+            <tbody>
+              ${sichtbar.map(z => {
+                const zeilenSumme = arten.reduce((n, a) => n + (zellen.get(z + "|" + a) || 0), 0);
+                return `<tr>
+                  <th>${esc(label(z))}</th>
+                  ${arten.map(a => {
+                    const v = zellen.get(z + "|" + a) || 0;
+                    return `<td class="${spitze.get(z) === a ? "is-top" : ""}${v ? "" : " is-leer"}">${zeige(v)}</td>`;
+                  }).join("")}
+                  <td class="lib-vgl-sum">${zeige(zeilenSumme)}</td>
+                </tr>`;
+              }).join("")}
+            </tbody>
+            <tfoot><tr>
+              <th>${T("library.total", "Gesamt")}</th>
+              ${arten.map(a => `<td>${zeige(summe(a))}</td>`).join("")}
+              <td class="lib-vgl-sum">${zeige(arten.reduce((n, a) => n + summe(a), 0))}</td>
+            </tr></tfoot>
+          </table>
+        </div>
+        <div class="lib-chart-hint">${T("library.stat_compare_hint", "Alle Zahlen in")} ${einheit}${
+          _vglEbene === "month" && zeitraeume.length > 24
+            ? " · " + T("library.stat_last_24", "letzte 24 Monate") : ""}</div>
+      </div>`;
+  }
+
+  /** Die häufigsten Startpunkte (Wunsch Beta-Tester). Braucht den Ortslauf —
+   *  ohne ihn steht in `place` nichts, und die Tabelle bliebe leer. */
+  function startorteHtml(s) {
+    const liste = s.startorte || [];
+    if (!liste.length) return "";
+    const max = liste[0].n || 1;
+    return `
+      <div class="lib-chart">
+        <div class="lib-chart-title">${T("library.stat_startpoints", "Häufigste Startpunkte")}</div>
+        <div class="lib-acts">
+          ${liste.slice(0, 12).map(o => `
+            <div class="lib-act-row">
+              <span>${esc(o.ort)}</span>
+              <div class="lib-act-bar"><i style="width:${(o.n / max) * 100}%"></i></div>
+              <b>${o.n}</b><span class="lib-act-km">${num(o.km)} km</span>
+            </div>`).join("")}
+        </div>
+      </div>`;
   }
 
   function renderStats() {
@@ -717,6 +874,10 @@ function mountLibrary(body, headerActions) {
             </div>
           </div>` : ""}
 
+        ${vergleichHtml(s)}
+
+        ${startorteHtml(s)}
+
         ${s.longest && s.longest.length ? `
           <div class="lib-chart">
             <div class="lib-chart-title">${T("library.stat_top", "Die längsten Touren")}</div>
@@ -731,6 +892,22 @@ function mountLibrary(body, headerActions) {
             </div>
           </div>` : ""}
       </div>`;
+    // Umschalter der Vergleichs-Tabelle. Die Wahl wird gemerkt — wer nach
+    // Stunden vergleicht, will das beim nächsten Öffnen meist wieder.
+    box.querySelectorAll("[data-vgl-ebene]").forEach(b => {
+      b.onclick = () => {
+        _vglEbene = b.dataset.vglEbene;
+        store.set("vgl_ebene", _vglEbene);
+        renderStats();
+      };
+    });
+    box.querySelectorAll("[data-vgl-mass]").forEach(b => {
+      b.onclick = () => {
+        _vglMass = b.dataset.vglMass;
+        store.set("vgl_mass", _vglMass);
+        renderStats();
+      };
+    });
     box.querySelectorAll("[data-top]").forEach(b => {
       b.onclick = () => {
         const it = (s.longest || [])[parseInt(b.dataset.top, 10)];
@@ -1844,12 +2021,25 @@ function mountLibrary(body, headerActions) {
   $("lib-year").onchange = () => { setFilter("year", parseInt($("lib-year").value, 10) || 0); reload(); };
   $("lib-act").onchange = () => { setFilter("activity", $("lib-act").value); reload(); };
   $("lib-sort").onchange = () => { setFilter("sort", $("lib-sort").value); reload(); };
+  const kmLesen = (id) => {
+    const v = parseFloat($(id).value);
+    return (isFinite(v) && v > 0) ? v : null;
+  };
+  const kmGesetzt = debounce(() => {
+    setFilter("min_km", kmLesen("lib-kmmin"));
+    setFilter("max_km", kmLesen("lib-kmmax"));
+    reload();
+  }, 500);
+  $("lib-kmmin").oninput = kmGesetzt;
+  $("lib-kmmax").oninput = kmGesetzt;
   $("lib-reset").onclick = () => {
     state.search = "";
     setFilter("year", 0); setFilter("activity", ""); setFilter("sort", "date_desc");
+    setFilter("min_km", null); setFilter("max_km", null);
     _ortAus = false; _ortAktiv = null;
     $("lib-search").value = "";
     $("lib-sort").value = "date_desc";
+    $("lib-kmmin").value = ""; $("lib-kmmax").value = "";
     reload();
   };
   // Nachladen beim Scrollen — die Container leben über alle Re-Renders hinweg
@@ -1878,6 +2068,8 @@ function mountLibrary(body, headerActions) {
   // werden — sonst zeigte das Feld „Neueste zuerst", während nach Länge
   // sortiert wird.
   sortAnzeigen();
+  if (state.min_km) $("lib-kmmin").value = state.min_km;
+  if (state.max_km) $("lib-kmmax").value = state.max_km;
 
   (async () => {
     await reloadFolders();

@@ -547,11 +547,22 @@ def _peek_source(path: Path) -> tuple:
 # nennt eine mitgeschnittene Radtour schlicht „Fahrradtour 10.06.2020". Das ist
 # die weit verlässlichere Quelle als das Durchschnittstempo, denn eine gemütliche
 # Radtour mit Pausen liegt bei 10 km/h und wäre sonst „Laufen".
+# ⚠️ Die Reihenfolge entscheidet: Der erste Treffer gewinnt. Die genaueren
+# Rad-Arten müssen deshalb VOR dem allgemeinen „rad" stehen — sonst schluckt
+# „radtour" schon alles, und „E-Bike Radtour" landete nie bei `ebike`.
 _ACT_WORDS = [
     ("mtb",         ("mountainbike", "mountain bike", "mtb", "trail ride")),
-    ("rennrad",     ("rennrad", "road cycling", "road bike")),
+    ("rennrad",     ("rennrad", "road cycling", "road bike", "rennradtour")),
+    # Wunsch Beta-Tester: „Ich habe 3 Fahrräder unterteilt in Rennrad,
+    # Gravel/Trekking und E-Bike." Ohne eigene Arten landete alles in einem Topf,
+    # und eine Auswertung „wie viel bin ich mit dem E-Bike gefahren" war nicht
+    # möglich.
+    ("ebike",       ("e-bike", "ebike", "e bike", "pedelec", "s-pedelec",
+                     "e-mtb", "emtb")),
+    ("gravel",      ("gravel", "schotter", "trekkingrad", "trekking bike",
+                     "crossrad", "querfeldein")),
     ("rad",         ("fahrrad", "radtour", "radfahren", "bike ride", "cycling",
-                     "e-bike", "ebike", "bicicleta", "ciclismo")),
+                     "bicicleta", "ciclismo")),
     ("laufen",      ("laufen", "joggen", "running", "run ", "lauf ", "correr")),
     ("wandern",     ("wanderung", "wandern", "hike", "hiking", "senderismo",
                      "bergtour", "trekking")),
@@ -1096,6 +1107,22 @@ _SORTS = {
 }
 
 
+# Alle Spalten AUSSER `geom`. Der Streckenverlauf ist mit Abstand die dickste
+# Spalte (~1,6 KB je Tour) und wird nur von der Kartenansicht gebraucht — in
+# `_to_dict` flog er bisher sofort wieder weg, nachdem SQLite ihn eingelesen
+# hatte. Wird beim ersten Zugriff aus der Tabelle selbst gebildet, damit eine
+# neue Spalte nicht vergessen werden kann.
+_SPALTEN_OHNE_GEOM_CACHE: Optional[str] = None
+
+
+def _spalten_ohne_geom(conn: sqlite3.Connection) -> str:
+    global _SPALTEN_OHNE_GEOM_CACHE
+    if _SPALTEN_OHNE_GEOM_CACHE is None:
+        namen = [r["name"] for r in conn.execute("PRAGMA table_info(tracks)").fetchall()]
+        _SPALTEN_OHNE_GEOM_CACHE = ", ".join(n for n in namen if n != "geom")
+    return _SPALTEN_OHNE_GEOM_CACHE
+
+
 def _norm(s: str) -> str:
     """Kleinschreibung ohne Akzente — damit „Müritz" auch „muritz" findet."""
     s = unicodedata.normalize("NFKD", (s or "").lower())
@@ -1219,15 +1246,23 @@ def query(
         # Eigene Reihenfolge der Sammlung (Etappe 1, 2, 3 …).
         order = ("(SELECT sort_index FROM collection_items ci "
                  f"WHERE ci.geo_hash = tracks.geo_hash AND ci.collection_id = {int(collection_id)})")
-    rows = conn.execute(
-        f"SELECT * FROM tracks WHERE {sql_where} ORDER BY {order}", args
-    ).fetchall()
-
     # Der Freitext steckt seit v0.9.492 in `_build_where` (via `rz_norm`) —
     # dadurch zählt `stats()` genau die Zeilen, die hier auch angezeigt werden.
-    total = len(rows)
-    page = rows[offset:offset + limit] if limit else rows
-    return {"total": total, "items": [_to_dict(r, with_geom=with_geom) for r in page]}
+    #
+    # Gezählt und geblättert wird in SQL, nicht in Python. Vorher wurde die
+    # GESAMTE Treffermenge geladen und erst danach geschnitten: Für 200
+    # sichtbare Kacheln wanderten bei 5000 Touren alle 5000 Zeilen samt
+    # Streckenverlauf (je ~1,6 KB) durch den Speicher. Und `geom` wird nur von
+    # der Kartenansicht gebraucht — sonst gar nicht erst mitlesen.
+    total = conn.execute(
+        f"SELECT COUNT(*) FROM tracks WHERE {sql_where}", args).fetchone()[0]
+
+    spalten = "*" if with_geom else _spalten_ohne_geom(conn)
+    sql = f"SELECT {spalten} FROM tracks WHERE {sql_where} ORDER BY {order}"
+    if limit:
+        sql += f" LIMIT {int(limit)} OFFSET {int(offset)}"
+    rows = conn.execute(sql, args).fetchall()
+    return {"total": total, "items": [_to_dict(r, with_geom=with_geom) for r in rows]}
 
 
 def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
@@ -1253,6 +1288,14 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     except (TypeError, ValueError):
         d["sensors"] = []
     d["tag_list"] = [t for t in (d.get("tags") or "").split(",") if t.strip()]
+    # Startpunkt für die Listenansicht (Wunsch Beta-Tester). `place` ist der Ort,
+    # `region` die Gegend darum — beides füllt der Ortslauf im Hintergrund. Kurz
+    # für die Spalte, lang für den Tooltip.
+    _ort = (d.get("place") or "").strip()
+    _reg = (d.get("region") or "").strip()
+    _land = (d.get("country") or "").strip()
+    d["startort"] = _ort or _reg.split(" · ")[0] or _land
+    d["startort_lang"] = " · ".join(x for x in (_ort, _reg, _land) if x)
     # Der eigene Name gewinnt; der Datei-Name bleibt daneben sichtbar.
     d["file_name"] = d.get("name") or ""
     d["name"] = (d.get("display_name") or "").strip() or d.get("name") or d.get("filename") or ""
@@ -1264,8 +1307,14 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     d["recorded_manual"] = eff is not None
     d["planned"] = 0 if d["recorded_eff"] else 1
     d["distance_km"] = round((d.get("distance_m") or 0) / 1000.0, 2)
-    d["exists"] = Path(d["path"]).exists()
     d["missing_since"] = d.get("missing_since") or ""
+    # KEIN Zugriff auf die Platte je Zeile. Das kostete bei 5000 Touren allein
+    # 34 ms — und zwar bei JEDER Abfrage. Schlimmer: Genau die Datenträger, für
+    # die `missing_since` erfunden wurde (abgezogene Platte, Netzlaufwerk),
+    # antworten auf so eine Nachfrage sekundenlang oder gar nicht; das Archiv
+    # stand dann bei jedem Tastendruck. `missing_since` weiß dasselbe, und es
+    # steht schon in der Zeile.
+    d["exists"] = not d["missing_since"]
     d["missing_days"] = round(_days_since(d["missing_since"])) if d["missing_since"] else 0
     return d
 
@@ -1334,6 +1383,41 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
             for x in rows(f"SELECT activity, COUNT(*) n, SUM(distance_m) d FROM tracks "
                           f"WHERE {sql_where} GROUP BY activity ORDER BY n DESC")]
 
+    # Fortbewegungsart je Jahr und je Monat (Wunsch Beta-Tester: „Vergleichen von
+    # Fortbewegungsarten Monat mit Monat und Jahr mit Jahr — wie viel km und/oder
+    # Zeit ich gewandert, gelaufen und Fahrrad gefahren bin").
+    #
+    # Beides in EINER Abfrage je Ebene statt einer pro Art: Bei einem Dutzend
+    # Arten und acht Jahren wären das sonst hundert Durchläufe über die Tabelle.
+    # Die Oberfläche bekommt flache Zeilen und gruppiert selbst.
+    act_jahr = [{"year": x["y"], "activity": x["activity"] or "", "n": x["n"],
+                 "km": round((x["d"] or 0) / 1000.0, 1),
+                 "hours": round((x["t"] or 0) / 3600.0, 1)}
+                for x in rows(
+                    f"SELECT year y, activity, COUNT(*) n, SUM(distance_m) d, "
+                    f"SUM(COALESCE(moving_time_s, duration_s)) t FROM tracks "
+                    f"WHERE {sql_where} AND year > 0 "
+                    f"GROUP BY y, activity ORDER BY y, n DESC")]
+
+    act_monat = [{"month": x["m"], "activity": x["activity"] or "", "n": x["n"],
+                  "km": round((x["d"] or 0) / 1000.0, 1),
+                  "hours": round((x["t"] or 0) / 3600.0, 1)}
+                 for x in rows(
+                     f"SELECT substr(started_at, 1, 7) m, activity, COUNT(*) n, "
+                     f"SUM(distance_m) d, SUM(COALESCE(moving_time_s, duration_s)) t "
+                     f"FROM tracks WHERE {sql_where} AND length(started_at) >= 7 "
+                     f"GROUP BY m, activity ORDER BY m, n DESC")]
+
+    # Häufigste Startpunkte (Wunsch Beta-Tester: „Auswerten von genutzten
+    # Startpunkten"). Der Ortslauf füllt `place`; ohne ihn bleibt die Liste leer,
+    # und die Oberfläche sagt das dann auch.
+    startorte = [{"ort": x["place"], "n": x["n"],
+                  "km": round((x["d"] or 0) / 1000.0, 1)}
+                 for x in rows(
+                     f"SELECT place, COUNT(*) n, SUM(distance_m) d FROM tracks "
+                     f"WHERE {sql_where} AND COALESCE(place,'') != '' "
+                     f"GROUP BY place ORDER BY n DESC, place LIMIT 25")]
+
     longest = [_to_dict(x) for x in rows(
         f"SELECT * FROM tracks WHERE {sql_where} ORDER BY distance_m DESC LIMIT 5")]
 
@@ -1365,6 +1449,9 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
         "years": years,
         "months": months,
         "activities": acts,
+        "act_by_year": act_jahr,
+        "act_by_month": act_monat,
+        "startorte": startorte,
         "longest": longest,
         "tags": sorted(tags.items(), key=lambda kv: -kv[1]),
         "done": {"n": done["n"] if done else 0,
@@ -1647,12 +1734,34 @@ def map_thumb_fetch(
     return str(out)
 
 
+# Die Bedingung „hat Streckenverlauf, aber noch kein Kartenbild" — einmal
+# hingeschrieben, damit Liste und Zählung nicht auseinanderlaufen können.
+_MAP_PENDING_WHERE = "error = '' AND geom != '' AND map_thumb = ''"
+
+
+@_locked
+def map_thumbs_pending_count(conn: sqlite3.Connection) -> int:
+    """Nur die ANZAHL offener Kartenbilder.
+
+    Die Oberfläche fragt den Fortschritt alle fünf Sekunden ab und brauchte
+    davon immer nur die Zahl — holte sich aber über `map_thumbs_pending()` die
+    kompletten Zeilen samt Streckenverlauf. Bei 5000 Touren waren das rund
+    130 ms und einige MB Python-Objekte, 24-mal pro Minute, dauerhaft. Und die
+    ganze Zeit lag dabei die Datenbanksperre auf allem anderen.
+    """
+    return conn.execute(
+        f"SELECT COUNT(*) FROM tracks WHERE {_MAP_PENDING_WHERE}").fetchone()[0]
+
+
 @_locked
 def map_thumbs_pending(conn: sqlite3.Connection) -> list:
-    """Touren mit Streckenverlauf, aber ohne gecachtes Karten-Vorschaubild."""
+    """Touren mit Streckenverlauf, aber ohne gecachtes Karten-Vorschaubild.
+
+    Wer nur zählen will, nimmt `map_thumbs_pending_count()` — das ist um
+    Größenordnungen billiger.
+    """
     rows = conn.execute(
-        "SELECT * FROM tracks WHERE error = '' AND geom != '' AND map_thumb = '' "
-        "ORDER BY started_at DESC"
+        f"SELECT * FROM tracks WHERE {_MAP_PENDING_WHERE} ORDER BY started_at DESC"
     ).fetchall()
     return [dict(r) for r in rows]
 
@@ -2010,11 +2119,22 @@ def _ort_zusammenfassen(treffer: list) -> dict:
             "country": sammeln("country")}
 
 
+_ORTE_FEHLEN_WHERE = ("COALESCE(place,'') = '' AND COALESCE(country,'') = '' "
+                      "AND COALESCE(geom,'') != '' AND error = ''")
+
+
+@_locked
+def orte_fehlen_count(conn: sqlite3.Connection) -> int:
+    """Nur die ANZAHL der Touren ohne Ortsangabe — siehe
+    `map_thumbs_pending_count()` für die Begründung."""
+    return conn.execute(
+        f"SELECT COUNT(*) FROM tracks WHERE {_ORTE_FEHLEN_WHERE}").fetchone()[0]
+
+
 @_locked
 def orte_fehlen(conn: sqlite3.Connection, limit: int = 0) -> list:
     """Touren ohne Ortsangabe (die noch abzufragen sind)."""
-    sql = ("SELECT path, geom FROM tracks WHERE COALESCE(place,'') = '' "
-           "AND COALESCE(country,'') = '' AND COALESCE(geom,'') != '' AND error = ''")
+    sql = f"SELECT path, geom FROM tracks WHERE {_ORTE_FEHLEN_WHERE}"
     if limit:
         sql += f" LIMIT {int(limit)}"
     return [{"path": r["path"], "geom": r["geom"]} for r in conn.execute(sql).fetchall()]

@@ -416,6 +416,22 @@ you only get to see what is doubled up.
 **New files:** press **“Rescan”** once after a bigger export. Files already known are
 skipped, so it takes seconds.
 
+**Filter by length.** Next to year and activity sit two small fields **“from km”**
+and **“to km”**. Together the three filters answer questions like *“all hikes over
+20 km in 2025”*: activity to hiking, year to 2025, “from km” to 20 — done.
+
+**What the statistics compare.** Below the bars is a table **“Activities compared”**:
+one row per year (or month), one column per activity. Top right you switch between
+**years and months** and between **kilometres, hours and count**. The strongest
+activity of each period is highlighted, so you can see at a glance whether a year
+leaned towards cycling or hiking. Below that are your **most used starting points**;
+they fill in once the library has named the areas in the background.
+
+**Telling bikes apart.** Besides *Bike*, *Mountain bike* and *Road bike* there are
+now **E-bike** and **Gravel/trekking**. They are recognised from the tour name;
+where that is not enough you set the activity yourself in the right-hand column —
+the choice belongs to the tour and survives every rescan.
+
 **Files that don't become a tour.** If the header shows a note like **“12 files without a
 route”** or **“3 files unreadable”**, click it. The dialog separates two things that are
 easily confused:
