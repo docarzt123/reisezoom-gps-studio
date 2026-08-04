@@ -75,6 +75,11 @@ else
   # 7d) Dialoge übereinander + sichtbarer Tastatur-Fokus.
   run "Dialoge + Fokus (selftest_dialoge)" python3 scripts/selftest_dialoge.py
 
+  # 7e) Vollständigkeit der Prüfer selbst: Jedes Modul, das es gibt, muss auch
+  #     im Smoke-Test stehen. `gpxinspect` und `webkarte` fehlten dort lange —
+  #     ein Aufbaufehler wäre erst beim Nutzer aufgefallen.
+  run "Module vollzählig geprüft" python3 scripts/check_module_coverage.py
+
   # 8) Optional: echte Video-Renders (nur mit --full; braucht Token + Fixtures)
   if [[ $FULL == 1 ]]; then
     run "Echte Renders (selftest_renders)" python3 scripts/selftest_renders.py

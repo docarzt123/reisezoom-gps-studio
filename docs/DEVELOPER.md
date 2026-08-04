@@ -1992,6 +1992,11 @@ Zwischenspeicher (Schlüssel mit Änderungszeit, damit ein neu geholtes Kartenbi
 sofort sichtbar wird), und `_session_hashes()` liest `sessions.json` nur noch neu,
 wenn sie sich geändert hat.
 
+**Belegt statt nur gemessen:** `tests/test_library_umbau.py` prüft die
+Gleichwertigkeit (gleiche Reihenfolge beim Blättern, keine verlorene Spalte,
+`…_count()` == `len(…)`, `exists` ohne Plattenzugriff). Eine Optimierung ohne
+diesen Nachweis ist eine unbelegte Wette — und die fällt still aus.
+
 ⚠️ **Regel:** Wer eine neue Abfrage einbaut, misst sie mit `bench_library.py`
 gegen 5000 Touren. Was die Oberfläche im Sekundentakt aufruft, darf nichts
 holen, was sie nicht anzeigt.
@@ -2017,7 +2022,11 @@ nie, und niemand bemerkte, dass zwei davon längst rot waren. Darunter die
 End-to-End-Tests für den Geotagger, also für den einzigen Programmteil, der fremde
 Dateien unwiderruflich überschreibt.
 
-**Regel:** Ein neuer Test kommt nach `tests/` und läuft damit automatisch mit. Braucht er
+**Regel:** Ein neuer Test kommt nach `tests/` und läuft damit automatisch mit.
+Ein neues **Modul** dagegen muss in `scripts/selftest_ui.py` eingetragen werden
+(`MODULES_TO_TEST` **und** die `panel_id`-Abbildung) — `check_module_coverage.py`
+erzwingt das, seit auffiel, dass `gpxinspect` und `webkarte` dort nie standen und
+folglich von keinem Test je geladen wurden. Braucht er
 etwas Besonderes, gehört er in `BEDINGT`. Ein Test, der die Wirklichkeit nicht mehr
 abbildet, wird **nachgezogen, nicht abgeschaltet** — und wenn man ihn nachzieht, so, dass
 er weiterhin den echten Weg prüft (siehe `test_app_start.py`: der arbeitet jetzt mit

@@ -14,6 +14,25 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Behoben
+- **Im Inspektor stand „Was sind Punkte??"** — der Hinweistext endete auf ein
+  Fragezeichen und das Hilfe-Symbol daneben ist auch eines. Jetzt „Was ein Punkt
+  ist ?".
+
+### Geändert
+- **Die Prüfkette prüft sich jetzt selbst auf Vollständigkeit.** Der Smoke-Test
+  führte eine von Hand gepflegte Modulliste — **`gpxinspect` und `webkarte`
+  standen dort nie**. Beide wurden also von keinem Test je geladen; ein Aufbau-
+  oder Syntaxfehler wäre erst beim Nutzer aufgefallen. Beide sind jetzt drin, und
+  `scripts/check_module_coverage.py` vergleicht bei jedem Lauf die Ordner unter
+  `modules/` mit der Liste — ein neues Modul kann nicht mehr still durchrutschen.
+- **Die Geschwindigkeits-Umbauten aus v0.9.500 sind jetzt belegt**, nicht nur
+  gemessen: `tests/test_library_umbau.py` prüft in 40 Punkten, dass sie dasselbe
+  liefern wie vorher — gleiche Reihenfolge beim Blättern, keine verlorene Spalte,
+  `…_count()` gleich `len(…)`, `exists` ohne Plattenzugriff, und dass Liste und
+  Statistik weiterhin dieselbe Zahl nennen. Dazu Längen-Filter, Radart-Erkennung
+  und die neuen Listenspalten im Oberflächen-Test.
+
 ## [0.9.500] – 2026-08-03
 
 ### Hinzugefügt

@@ -431,6 +431,74 @@ async def main() -> int:
             ".map(e => e.textContent).join(' ')")
         sagen("Zuhause" in orte, "die Startpunkte stehen da", "Zuhause" in orte)
 
+        # ── 9) Längen-Filter: kommt er beim Backend an? ──────────────────
+        print("\n[9] Längen-Filter „ab km“ / „bis km“")
+        await page.evaluate(
+            "() => { const b = document.querySelector('.lib-view[data-view=\"cards\"]');"
+            " if (b) b.click(); }")
+        await page.wait_for_timeout(600)
+
+        sagen(await page.evaluate("() => !!document.getElementById('lib-kmmin')"),
+              "die beiden Felder stehen in der Filterleiste")
+
+        await page.fill("#lib-kmmin", "20")
+        await page.wait_for_timeout(900)
+        letzte = await page.evaluate("""() => {
+          const r = (window.__rufe || []).filter(x => x[0] === 'library_query');
+          return r.length ? r[r.length - 1] : null; }""")
+        # Der Mitschnitt hält nur limit/offset — deshalb den Zustand im Modul
+        # prüfen, den die Abfrage benutzt.
+        gesetzt = await page.evaluate(
+            "() => { try { return JSON.parse(localStorage.getItem('rz.library.min_km')"
+            "  || 'null'); } catch (_) { return localStorage.getItem('rz.library.min_km'); } }")
+        sagen(str(gesetzt) == "20", "„ab 20 km“ ist gemerkt", str(gesetzt))
+
+        await page.fill("#lib-kmmax", "40")
+        await page.wait_for_timeout(900)
+        bis = await page.evaluate("() => localStorage.getItem('rz.library.max_km')")
+        sagen(str(bis) == "40", "„bis 40 km“ ebenso", str(bis))
+
+        # Und beides muss den Modulwechsel überleben — wie die übrigen Filter.
+        await zu("animator")
+        await zu("library")
+        await page.wait_for_timeout(900)
+        felder = await page.evaluate(
+            "() => ({ min: (document.getElementById('lib-kmmin') || {}).value,"
+            "         max: (document.getElementById('lib-kmmax') || {}).value })")
+        sagen(felder["min"] == "20" and felder["max"] == "40",
+              "nach dem Modulwechsel stehen beide Werte noch da", str(felder))
+
+        # „Zurücksetzen“ muss sie auch wirklich leeren.
+        await page.click("#lib-reset")
+        await page.wait_for_timeout(700)
+        leer = await page.evaluate(
+            "() => ({ min: (document.getElementById('lib-kmmin') || {}).value,"
+            "         max: (document.getElementById('lib-kmmax') || {}).value })")
+        sagen(leer["min"] == "" and leer["max"] == "",
+              "„Zurücksetzen“ leert beide Felder", str(leer))
+
+        # ── 10) Die neuen Listenspalten ──────────────────────────────────
+        print("\n[10] Neue Spalten in der Listenansicht")
+        await page.evaluate(
+            "() => { const b = document.querySelector('.lib-view[data-view=\"list\"]');"
+            " if (b) b.click(); }")
+        await page.wait_for_timeout(900)
+        kopf = await page.evaluate(
+            "() => Array.from(document.querySelectorAll('#lib-list .lib-row-head span'))"
+            ".map(e => e.textContent.trim()).filter(Boolean)")
+        for spalte in ("Schnitt", "Startpunkt", "Schlagwörter"):
+            sagen(spalte in kopf, f"Spalte „{spalte}“ ist da", str(kopf))
+
+        # Und die Zeilen müssen genauso viele Zellen haben wie die Kopfzeile,
+        # sonst verrutscht das Raster.
+        raster = await page.evaluate("""() => {
+          const kopf = document.querySelector('#lib-list .lib-row-head');
+          const zeile = document.querySelector('#lib-list .lib-row:not(.lib-row-head)');
+          if (!kopf || !zeile) return null;
+          return { kopf: kopf.children.length, zeile: zeile.children.length }; }""")
+        sagen(raster and raster["kopf"] == raster["zeile"],
+              "Kopfzeile und Datenzeile haben gleich viele Spalten", str(raster))
+
         sagen(not seiten_fehler, "keine JS-Fehler unterwegs",
               "; ".join(seiten_fehler[:2]))
 
