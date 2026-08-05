@@ -470,6 +470,35 @@ sobald das Archiv im Hintergrund die Gegenden benannt hat.
 reicht, stellst du die Art in der rechten Spalte selbst ein — die Wahl hängt an der
 Tour und überlebt jedes Neu-Einlesen.
 
+**Werte aus der Aufzeichnung.** Wer mit Uhr oder Radcomputer aufzeichnet, hat in
+der **FIT-Datei** weit mehr als die Strecke. Das Archiv liest das mit und zeigt es in
+der Detailspalte unter **„Aus der Aufzeichnung"**: Durchschnitts-, Höchst- und
+Tiefstpuls, Trittfrequenz, Leistung, Kalorien, Temperatur, Atemfrequenz, dazu das
+Gerät und — falls die Uhr eine Vorhersage gezogen hat — das Wetter zur Aufnahmezeit.
+
+**Die Fortbewegungsart kommt aus der Datei.** Ein Garmin schreibt selbst hinein, ob
+es eine Rennrad-, Gravel-, Mountainbike- oder E-Bike-Fahrt war — zuverlässiger als
+aus dem Dateinamen zu raten. Wer mehrere Räder am Gerät getrennt führt, bekommt sie
+im Archiv automatisch getrennt. Die Reihenfolge: **geraten** aus Name und Tempo →
+**aus der Datei**, wenn sie es hergibt → **von dir gesetzt**, was beides schlägt und
+jedes Neu-Einlesen überlebt. Auch der **Profilname** wandert mit: wer sein Rad am
+Gerät „Gravel" genannt hat, findet die Touren über die normale Suche wieder.
+
+> **Was NICHT gelesen wird:** Ruhepuls, Alter, Geschlecht, Größe und Gewicht stehen
+> ebenfalls in FIT-Dateien. Sie beschreiben dich, nicht deine Tour, und werden beim
+> Einlesen verworfen — ebenso Trainingswerte wie Pulszonen oder Trainingseffekt.
+> Dafür ist Garmin Connect da; hier geht es um die Tour.
+
+**Bestehendes Archiv?** Beim ersten Start nach dem Update werden vorhandene
+FIT-Touren einmalig neu eingelesen. Das dauert je nach Menge einen Moment, passiert
+aber nur ein einziges Mal.
+
+**Sortieren per Kopfzeile.** In der Listenansicht ist jede Spaltenüberschrift
+anklickbar: einmal klicken sortiert danach, noch einmal dreht die Richtung um, ein
+kleiner Pfeil zeigt an, wonach gerade sortiert wird. Leere Werte stehen immer am
+Ende — sonst begänne „Startpunkt A–Z" mit einer Bildschirmseite leerer Zellen.
+Dasselbe gilt in der Statistik für die Tabelle „Fortbewegung im Vergleich".
+
 **Dateien, aus denen keine Tour wird.** Steht in der Kopfzeile ein Hinweis wie
 **„12 Dateien ohne Strecke"** oder **„3 Dateien nicht lesbar"**, klick ihn an. Der Dialog
 trennt zwei Dinge, die leicht verwechselt werden:

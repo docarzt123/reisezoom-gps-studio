@@ -305,8 +305,18 @@ function openModal(options = {}) {
   const footEl  = document.getElementById("modal-footer");
   const closeEl = document.getElementById("modal-close");
 
+  // `openModal({})` ist im ganzen Code das etablierte Idiom für „mach den
+  // aktuellen Dialog zu" — es steht an 43 Stellen hinter OK- und
+  // Abbrechen-Knöpfen. Ein Aufruf OHNE Inhalt ist also kein neuer Dialog und
+  // darf nichts stapeln: Sonst legt er den offenen Dialog beiseite, und das
+  // folgende `.close()` holt ihn sofort wieder hervor — das Fenster bleibt
+  // offen, der Knopf wirkt tot. Genau so gemeldet („Über Reisezoom GPS Studio
+  // hat der OK Button keine Funktion"), und es traf JEDEN dieser Knöpfe.
+  const _hatInhalt = options.title !== undefined || options.body !== undefined
+    || options.footer !== undefined;
+
   // Steht schon ein Dialog offen? Dann beiseitelegen statt überschreiben.
-  if (!overlay.hidden) {
+  if (!overlay.hidden && _hatInhalt) {
     // Was der Nutzer eingetippt oder angehakt hat, steht NUR in der
     // Eigenschaft, nicht im Markup — `innerHTML` würde es verlieren. Also
     // vorher ins Attribut spiegeln. Ohne das käme der Einstellungsdialog zwar

@@ -55,6 +55,9 @@ class TrackStats:
     sensor_fields: list = field(default_factory=list)
     # v0.9.483 — Anzahl Etappen (<trkseg>/<trk>). 1 = normale Einzeltour.
     n_segments: int = 1
+    # v0.9.501 — Tour-Ebene aus FIT (session/sport/device_info/weather), roh.
+    # Leer bei GPX ohne Sidecar — kein Format außer FIT liefert so etwas.
+    tour_meta: dict = field(default_factory=dict)
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -242,12 +245,15 @@ def _sidecar_path(gpx_path: str) -> str:
     return base + ".sensors.json"
 
 
-def _load_sidecar_into(pts: List[TrackPoint], gpx_path: str) -> None:
+def _load_sidecar_into(pts: List[TrackPoint], gpx_path: str) -> dict:
     """Lädt `<gpx>.sensors.json` (Variante B) und mergt index-gleich in extra.
-    Fehlt die Datei (Track ohne Sensoren / alter Cache) → still no-op."""
+    Fehlt die Datei (Track ohne Sensoren / alter Cache) → still no-op.
+
+    Rückgabe: die Tour-Ebene aus der Sidecar (v0.9.501) oder `{}`.
+    """
     sc = _sidecar_path(gpx_path)
     if not os.path.exists(sc):
-        return
+        return {}
     try:
         with open(sc, "r", encoding="utf-8") as fh:
             data = json.load(fh)
@@ -260,8 +266,10 @@ def _load_sidecar_into(pts: List[TrackPoint], gpx_path: str) -> None:
                 v = arr[i]
                 if v is not None:
                     pts[i].extra[key] = v
+        tour = data.get("tour")
+        return tour if isinstance(tour, dict) else {}
     except Exception:
-        pass  # defekte Sidecar darf den Track-Load NICHT kippen
+        return {}  # defekte Sidecar darf den Track-Load NICHT kippen
 
 
 def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
@@ -298,7 +306,7 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
         raise ValueError("GPX enthält keine Trackpunkte")
 
     # v0.9.330 — Sensor-Sidecar (Variante B): index-gleiche Zusatzreihen mergen.
-    _load_sidecar_into(pts, path)
+    _tour_meta = _load_sidecar_into(pts, path)
     _seen_fields = set()
     for _p in pts:
         _seen_fields.update(_p.extra.keys())
@@ -374,6 +382,7 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
         },
         name=name,
         sensor_fields=sensor_fields,
+        tour_meta=_tour_meta,
     )
     return pts, stats
 

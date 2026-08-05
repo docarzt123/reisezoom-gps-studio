@@ -14,6 +14,65 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.501] – 2026-08-05
+
+### Hinzugefügt
+- **Werte aus der Aufzeichnung selbst.** FIT-Dateien enthalten weit mehr als
+  Koordinaten; bisher las das Tool ausschließlich die Werte an den einzelnen
+  Punkten und warf alles weg, was die **Tour als Ganzes** beschreibt. Jetzt
+  kommen Durchschnitts-, Höchst- und Tiefstpuls, Kalorien, Trittfrequenz,
+  Leistung, Temperatur, Atemfrequenz, das aufzeichnende Gerät und — sofern die
+  Uhr eine Vorhersage gezogen hat — das Wetter mit. In der Detailspalte des
+  Archivs steht dafür ein eigener Abschnitt „Aus der Aufzeichnung".
+- **Die Fortbewegungsart kommt aus der Datei statt aus dem Dateinamen.** Ein
+  Garmin schreibt selbst hinein, ob es eine Rennrad-, Gravel-, Mountainbike-
+  oder E-Bike-Fahrt war. Genau danach hatte ein Beta-Tester gefragt („Ich habe 3
+  Fahrräder unterteilt in Rennrad, Gravel/Trekking und E Bike"). Die Rangfolge
+  ist jetzt **Raten → Datei → von Hand**: die Datei weiß es besser als der Name,
+  und eine eigene Korrektur schlägt beides und überlebt jedes Neu-Einlesen.
+- **Der Profilname des Geräts wird mitgeführt und ist durchsuchbar.** Wer seine
+  Räder am Gerät „Gravel" oder „Rennrad" genannt hat, findet sie im Archiv über
+  die normale Suche wieder.
+- **Sortieren per Kopfzeile — in Liste und Statistik.** In der Tourenliste ist
+  jede der neun Spalten anklickbar, ein zweiter Klick dreht die Richtung um, ein
+  Pfeil zeigt an, wonach gerade sortiert wird (Wunsch Beta-Tester). Dasselbe in
+  der Vergleichstabelle der Statistik.
+- **Bestehende Archive holen die neuen Werte von selbst nach.** Beim ersten
+  Start nach dem Update werden vorhandene FIT-Touren einmalig neu eingelesen —
+  ohne das bliebe alles Neue für ein bestehendes Archiv dauerhaft leer, weil
+  unveränderte Dateien beim Einlesen übersprungen werden.
+
+### Behoben
+- **Der OK-Knopf über „Über Reisezoom GPS Studio" hatte keine Funktion**
+  (gemeldet). Er traf jeden OK- und Abbrechen-Knopf der App: seit dem Stapeln
+  von Dialogen legte ein Aufruf ohne Inhalt den offenen Dialog beiseite, und das
+  unmittelbar folgende Schließen holte ihn sofort wieder hervor — das Fenster
+  blieb offen, der Knopf wirkte tot.
+- **„Dateien nicht lesbar" ließ die App einfrieren.** Bei einem Beta-Tester mit
+  98692 solchen Dateien baute der Dialog eine Zeile mit Auswahlkästchen je Datei
+  („man kann das Programm auch nicht mehr bedienen. Nach einer Zeit öffnet sich
+  doch ein Fenster"). Jetzt kommt die Gesamtzahl aus einer Zählabfrage, angezeigt
+  werden die ersten 300, und zwei Knöpfe räumen ganze Gruppen auf einmal weg —
+  gemessen von 2,7 Sekunden auf 27 Millisekunden. Der Dialog beantwortet dabei
+  auch die Frage, die dahinterstand: diese Dateien zählen **nicht** in Kilometer,
+  Zeit oder Fortbewegung.
+- **Die Monatsansicht der Vergleichstabelle endete nach zwei Jahren**
+  (gemeldet: „Bei Monat werden die Monate für 2 Jahre angezeigt"). Jetzt sind
+  alle Jahre drin, die Tabelle scrollt und die Kopfzeile bleibt dabei stehen.
+- **Höhenmeter und Dauer ließen sich nur absteigend sortieren**, Schnitt,
+  Startpunkt und Schlagwort gar nicht — das Auswahlfeld kannte sie schlicht
+  nicht („Die Filtereinstellung ist auch nicht vollständig"). Jetzt gibt es jede
+  Spalte in beiden Richtungen; leere Werte stehen dabei immer am Ende.
+
+### Sicherheit
+- **Gesundheits- und Personendaten werden bewusst nicht gelesen.** FIT-Dateien
+  enthalten auch Ruhepuls, Alter, Geschlecht, Größe und Gewicht sowie die
+  Seriennummer des Geräts. Diese Angaben beschreiben den Menschen, nicht die
+  Tour — sie werden beim Einlesen verworfen und gelangen nie in die Datenbank.
+  Ebenfalls draußen bleiben Trainingslehre-Werte (Pulszonen, Trainingseffekt,
+  Normalized Power, HRV): dafür gibt es Garmin Connect.
+
+
 ### Behoben
 - **Im Inspektor stand „Was sind Punkte??"** — der Hinweistext endete auf ein
   Fragezeichen und das Hilfe-Symbol daneben ist auch eines. Jetzt „Was ein Punkt

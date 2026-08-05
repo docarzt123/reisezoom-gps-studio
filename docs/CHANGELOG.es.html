@@ -113,9 +113,41 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.501</span>
+    <span class="version-date">5 de agosto de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Tu reloj sabe más de tu ruta de lo que llegaba hasta ahora.</p>
+
+  <div class="highlight">
+    <strong>❤️ Valores de la grabación.</strong> Los archivos FIT contienen mucho más que el recorrido. El archivo muestra ahora <strong>pulso medio, máximo y mínimo</strong>, cadencia, potencia, calorías, temperatura y frecuencia respiratoria — además del dispositivo y, si el reloj descargó una previsión, el tiempo del momento.
+  </div>
+
+  <div class="highlight">
+    <strong>🚴 La actividad viene del archivo.</strong> Un Garmin anota si fue una salida de carretera, gravel, montaña o bici eléctrica. Quien mantiene varias bicicletas separadas en el dispositivo las verá separadas también aquí — más fiable que deducirlo del nombre del archivo. Tu propia corrección sigue ganando a todo y se mantiene.
+  </div>
+
+  <div class="highlight">
+    <strong>↕️ Ordenar por encabezado.</strong> Cada columna de la lista de rutas es pulsable y un segundo clic invierte el sentido. Nuevo: <strong>velocidad media, punto de inicio y etiqueta</strong>, que antes no se podían ordenar. Lo mismo en la tabla comparativa de la estadística.
+  </div>
+
+  <h4>Corregido</h4>
+  <ul>
+    <li><strong>El botón OK de la ventana «Acerca de» no hacía nada.</strong> Afectaba a todos los botones OK y Cancelar de la aplicación — corregido.</li>
+    <li><strong>«Archivos no legibles» congelaba la aplicación</strong> cuando eran muchos: el diálogo creaba una fila por archivo. Con casi 99.000 archivos eso tardaba segundos y parecía que la aplicación se había colgado. Ahora se abre al instante, indica el total real y limpia grupos enteros con un botón.</li>
+    <li><strong>La vista mensual de la comparación terminaba tras dos años.</strong> Ahora están todos los años y el encabezado se mantiene visible al desplazarse.</li>
+    <li><strong>El desnivel y la duración</strong> solo podían ordenarse «de más a menos» — ahora en ambos sentidos.</li>
+  </ul>
+
+  <p class="version-note"><strong>Sobre tu privacidad:</strong> los archivos FIT también contienen el pulso en reposo, la edad, el sexo, la altura y el peso, así como el número de serie del dispositivo. Eso te describe a ti, no a tu ruta — se descarta al importar y nunca llega a la base de datos.</p>
+
+  <p class="version-note">¿Ya tienes un archivo? En el primer arranque, las rutas FIT existentes se vuelven a leer una vez para que los nuevos valores lleguen también allí.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.500</span>
     <span class="version-date">3 de agosto de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">El archivo se vuelve rápido — y por fin responde con qué saliste y cuándo.</p>
 
