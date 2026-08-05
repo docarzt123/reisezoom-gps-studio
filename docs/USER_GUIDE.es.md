@@ -435,6 +435,36 @@ carretera* ahora hay **Bici eléctrica** y **Gravel/trekking**. Se reconocen por
 nombre de la ruta; donde eso no baste, defines la actividad tú mismo en la columna
 derecha — la elección pertenece a la ruta y sobrevive a cada nueva lectura.
 
+**Valores de la grabación.** Quien graba con reloj o ciclocomputador tiene en el
+**archivo FIT** mucho más que el recorrido. El archivo lo lee ahora y lo muestra en la
+columna de detalle bajo **«De la grabación»**: pulso medio, máximo y mínimo, cadencia,
+potencia, calorías, temperatura, frecuencia respiratoria, además del dispositivo y —
+si el reloj descargó una previsión — el tiempo del momento.
+
+**La actividad viene del archivo.** Un Garmin anota si fue una salida de carretera,
+gravel, montaña o bici eléctrica, lo cual es más fiable que deducirlo del nombre del
+archivo. Quien mantiene varias bicicletas separadas en el dispositivo las verá
+separadas también aquí. El orden es: **deducida** del nombre y la velocidad → **del
+archivo**, cuando lo indica → **establecida por ti**, que gana a ambas y sobrevive a
+cada nueva lectura. El **nombre del perfil** también viaja: si llamaste «Gravel» a tu
+bici en el dispositivo, encontrarás esas rutas con la búsqueda normal.
+
+> **Lo que NO se lee:** el pulso en reposo, la edad, el sexo, la altura y el peso
+> también están en los archivos FIT. Describen a la persona, no a la ruta, y se
+> descartan al importar — igual que los valores de entrenamiento como las zonas de
+> pulso o el efecto del entrenamiento. Para eso está Garmin Connect; aquí se trata
+> de la ruta.
+
+**¿Ya tienes un archivo?** En el primer arranque tras la actualización, las rutas FIT
+existentes se vuelven a leer una vez. Según la cantidad tarda un momento, pero
+ocurre una sola vez.
+
+**Ordenar por encabezado.** En la vista de lista, cada encabezado de columna es
+pulsable: un clic ordena por él, otro invierte el sentido y una pequeña flecha indica
+por qué se está ordenando. Los valores vacíos van siempre al final; si no, «Punto de
+inicio A–Z» empezaría con una pantalla de celdas vacías. Lo mismo vale en la
+estadística para la tabla «Actividades comparadas».
+
 **Archivos que no llegan a ser una ruta.** Si en la cabecera aparece un aviso como
 **«12 archivos sin recorrido»** o **«3 archivos no legibles»**, púlsalo. El diálogo separa
 dos cosas que se confunden con facilidad:

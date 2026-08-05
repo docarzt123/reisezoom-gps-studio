@@ -648,3 +648,34 @@
 .lib-chart-hint {
   font-size: 11px; color: var(--text-muted); margin-top: 6px;
 }
+
+/* Kopfbereich im Fehler-Dialog: Gesamtzahl, Einordnung und die beiden
+   Sammel-Knöpfe. Bei knapp 99000 Meldungen ist Anhaken keine Bedienung mehr. */
+.lib-err-kopf {
+  padding-bottom: 10px; margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+}
+.lib-err-kopf .btn { width: auto; }
+.lib-err-gekuerzt { color: var(--text-muted); font-size: 11.5px; }
+
+/* Sortierbare Kopfzeile der Vergleichstabelle. */
+.lib-vgl-th { cursor: pointer; user-select: none; white-space: nowrap; }
+.lib-vgl-th:hover { color: var(--text); }
+.lib-vgl-th.is-sort { color: var(--accent); }
+.lib-vgl-pfeil { font-size: 9px; opacity: .8; }
+/* Alle Monate statt nur zwei Jahre — die Tabelle scrollt jetzt auch senkrecht,
+   mit stehender Kopfzeile, damit man bei 200 Zeilen die Spalten noch zuordnet. */
+.lib-vgl-scroll { max-height: 460px; overflow: auto; }
+.lib-vgl thead th { position: sticky; top: 0; z-index: 1; background: var(--bg-1); }
+
+/* Werte aus der Aufzeichnung selbst (FIT: session/sport/device_info/Wetter).
+   Abgesetzt von den berechneten Kennzahlen darüber, weil es eine andere Quelle
+   ist: die stehen so in der Datei, wir haben sie nicht ausgerechnet. */
+.lib-fit { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+/* Anklickbare Kopfzeile der Tourenliste. */
+.lib-row-head .lib-th { cursor: pointer; user-select: none; }
+.lib-row-head .lib-th:hover { color: var(--text); }
+.lib-row-head .lib-th.is-sort { color: var(--accent); }
+.lib-th-pfeil { font-size: 9px; font-style: normal; opacity: .8; }

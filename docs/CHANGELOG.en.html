@@ -113,9 +113,41 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.501</span>
+    <span class="version-date">5 August 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">Your watch knows more about your tour than used to arrive.</p>
+
+  <div class="highlight">
+    <strong>❤️ Values from the recording.</strong> FIT files hold far more than the route. The library now shows <strong>average, maximum and minimum heart rate</strong>, cadence, power, calories, temperature and respiration rate — plus the device and, if the watch pulled a forecast, the weather at the time.
+  </div>
+
+  <div class="highlight">
+    <strong>🚴 The activity now comes from the file.</strong> A Garmin records whether it was a road, gravel, mountain bike or e-bike ride. If you keep several bikes apart on the device, the library keeps them apart too — more reliable than guessing from the file name. Your own correction still beats everything and stays put.
+  </div>
+
+  <div class="highlight">
+    <strong>↕️ Sort by column heading.</strong> Every column in the tour list is clickable, a second click reverses the direction. New: <strong>average speed, start point and tag</strong> — those could not be sorted at all before. The same in the comparison table in the statistics.
+  </div>
+
+  <h4>Fixed</h4>
+  <ul>
+    <li><strong>The OK button in the About window did nothing.</strong> This affected every OK and Cancel button in the app — fixed.</li>
+    <li><strong>“Files could not be read” froze the app</strong> when there were many: the dialog built one row per file. With almost 99,000 files that took seconds and made the app look crashed. It now opens instantly, states the real total and clears whole groups with one button.</li>
+    <li><strong>The monthly comparison stopped after two years.</strong> All years are included now, and the header stays put while scrolling.</li>
+    <li><strong>Ascent and duration</strong> could only be sorted “most first” — now both ways.</li>
+  </ul>
+
+  <p class="version-note"><strong>About your privacy:</strong> FIT files also contain resting heart rate, age, gender, height and weight, as well as your device serial number. That describes you, not your tour — it is discarded on import and never reaches the database.</p>
+
+  <p class="version-note">Already have a library? On first start, existing FIT tours are re-read once so the new values arrive there too.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.500</span>
     <span class="version-date">3 August 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <p class="version-tagline">The library gets fast — and finally answers what you were out on, and when.</p>
 

@@ -432,6 +432,34 @@ now **E-bike** and **Gravel/trekking**. They are recognised from the tour name;
 where that is not enough you set the activity yourself in the right-hand column —
 the choice belongs to the tour and survives every rescan.
 
+**Values from the recording.** If you record with a watch or bike computer, the
+**FIT file** holds far more than the route. The library now reads it and shows it in
+the detail column under **“From the recording”**: average, maximum and minimum heart
+rate, cadence, power, calories, temperature, respiration rate, plus the device and —
+if the watch pulled a forecast — the weather at the time.
+
+**The activity now comes from the file.** A Garmin records whether it was a road,
+gravel, mountain bike or e-bike ride — more reliable than guessing from the file
+name. If you keep several bikes apart on the device, the library keeps them apart
+too. The order is: **guessed** from name and speed → **from the file**, where it says
+so → **set by you**, which beats both and survives every rescan. The **profile name**
+comes along as well: if you named your bike “Gravel” on the device, you will find
+those tours through the normal search.
+
+> **What is NOT read:** resting heart rate, age, gender, height and weight are also
+> in FIT files. They describe you, not your tour, and are discarded on import — as
+> are training metrics such as heart rate zones or training effect. That is what
+> Garmin Connect is for; this is about the tour.
+
+**Existing library?** On the first start after the update, existing FIT tours are
+re-read once. Depending on the number this takes a moment, but it happens only once.
+
+**Sort by column heading.** In the list view every column heading is clickable: one
+click sorts by it, another reverses the direction, a small arrow shows what is
+currently sorted. Empty values always go last — otherwise “Start point A–Z” would
+begin with a screenful of empty cells. The same applies to the “Activities compared”
+table in the statistics.
+
 **Files that don't become a tour.** If the header shows a note like **“12 files without a
 route”** or **“3 files unreadable”**, click it. The dialog separates two things that are
 easily confused:

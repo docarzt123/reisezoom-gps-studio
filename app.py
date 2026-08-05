@@ -148,7 +148,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.500"
+APP_VERSION = "0.9.501"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2206,6 +2206,24 @@ class Api:
             return {"ok": True, "collections": clib.collections_of(self._lib(), path)}
         except Exception as e:
             return {"ok": False, "error": str(e), "collections": []}
+
+    def library_errors_count(self, include_dismissed: bool = False) -> dict:
+        """Nur die Zahlen — die Liste selbst kann Zehntausende Zeilen haben."""
+        try:
+            return {"ok": True, **clib.errors_count(self._lib(), bool(include_dismissed))}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "gesamt": 0}
+
+    def library_dismiss_all_errors(self, nur_art: str = "") -> dict:
+        """Alle Meldungen einer Art wegräumen, ohne sie einzeln anzuhaken.
+
+        Bei knapp 99000 Zeilen ist Anhaken keine Bedienung mehr — so gemeldet.
+        """
+        try:
+            n = clib.dismiss_all_errors(self._lib(), str(nur_art or ""))
+            return {"ok": True, "n": n}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def library_errors(self, include_dismissed: bool = False) -> dict:
         """Dateien, aus denen keine Tour wurde. Sie stehen bewusst nicht in der

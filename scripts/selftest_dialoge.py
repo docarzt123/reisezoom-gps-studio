@@ -145,6 +145,35 @@ async def main() -> int:
         sagen(await page.evaluate("() => document.getElementById('modal-overlay').hidden"),
               "auf einen Schlag zu")
 
+        # ── 4b) Das ETABLIERTE Schließ-Idiom muss weiter funktionieren ───
+        # `openModal({}).close()` steht an 43 Stellen hinter OK- und
+        # Abbrechen-Knöpfen. Nach dem Umbau auf den Stapel legte es den offenen
+        # Dialog beiseite und holte ihn sofort zurück — jeder dieser Knöpfe war
+        # tot. Gemeldet als „Über Reisezoom GPS Studio hat der OK Button keine
+        # Funktion". Der Test davor hat es NICHT gefangen, weil er nur die neue
+        # Funktion prüfte und nie die bestehende Nutzung.
+        print("\n[4b] „openModal({}).close()“ schließt wirklich")
+        zu1 = await page.evaluate("""() => {
+          openModal({ title: 'Über …', body: '<p>Text</p>',
+                      footer: '<button id="ok">OK</button>' });
+          openModal({}).close();
+          return document.getElementById('modal-overlay').hidden; }""")
+        sagen(zu1 is True, "ein einzelner Dialog geht damit zu")
+
+        # Und bei gestapelten Dialogen darf es genau EINE Ebene schließen.
+        zu2 = await page.evaluate("""() => {
+          openModal({ title: 'A', body: '<p id="sa">A</p>' });
+          openModal({ title: 'B', body: '<p id="sb">B</p>' });
+          openModal({}).close();
+          return { offen: !document.getElementById('modal-overlay').hidden,
+                   aDa: !!document.getElementById('sa'),
+                   bDa: !!document.getElementById('sb') }; }""")
+        sagen(zu2["offen"] and zu2["aDa"] and not zu2["bDa"],
+              "bei zwei Ebenen schließt es die obere und legt die untere frei",
+              str(zu2))
+        await page.evaluate("() => closeAllModals()")
+        await page.wait_for_timeout(200)
+
         # ── 5) Fokus ist sichtbar ────────────────────────────────────────
         print("\n[5] Tastaturbedienung ist sichtbar")
         # Echter Tastatur-Fokus: Der Ring muss sich am berechneten Stil

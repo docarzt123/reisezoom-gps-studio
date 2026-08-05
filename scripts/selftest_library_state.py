@@ -341,7 +341,16 @@ async def main() -> int:
         kopf = await page.evaluate(
             "() => Array.from(document.querySelectorAll('.lib-vgl thead th'))"
             ".map(e => e.textContent.trim())")
-        sagen("Jahr" in kopf, "die Tabelle steht, mit Jahres-Spalte", str(kopf))
+        # Seit v0.9.501 trägt die aktive Spalte einen Sortier-Pfeil im Text
+        # („Jahr ▼"), die Kopfzeile ist anklickbar. Deshalb auf den Anfang
+        # prüfen statt auf Gleichheit.
+        sagen(any(t.startswith("Jahr") for t in kopf),
+              "die Tabelle steht, mit Jahres-Spalte", str(kopf))
+        sortierbar = await page.evaluate(
+            "() => document.querySelectorAll('.lib-vgl thead th[data-vgl-sort]').length")
+        sagen(sortierbar == len(kopf),
+              "jede Spalte der Vergleichstabelle ist sortierbar",
+              f"{sortierbar} von {len(kopf)}")
         for art in ("Wandern", "Rad", "E-Bike"):
             sagen(art in kopf, f"Spalte für {art} ist da")
 

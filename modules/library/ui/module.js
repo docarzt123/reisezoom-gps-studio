@@ -81,7 +81,14 @@ function mountLibrary(body, headerActions) {
    * `collection` ist kein echter Sortierwert, sondern die Reihenfolge INNERHALB
    * einer Sammlung — der darf hier nicht landen.
    */
-  const SORTS_OK = ["date_desc", "date_asc", "dist_desc", "dist_asc",
+  // Jede Spalte der Listenansicht in beiden Richtungen — die Kopfzeile ist
+  // anklickbar (Wunsch Beta-Tester: „Wenn man in der Liste auf die einzelnen
+  // Überschriften Name, Datum usw. klickt"). Muss deckungsgleich mit
+  // `core/library._SORTS` bleiben, sonst fällt die Abfrage still auf
+  // „Neueste zuerst" zurück und der Pfeil zeigt etwas anderes als die Liste.
+  const SORTS_OK = ["name_desc", "asc_asc", "dur_asc", "speed_desc", "speed_asc",
+                    "place_asc", "place_desc", "tags_asc", "tags_desc", "act_desc",
+                    "date_desc", "date_asc", "dist_desc", "dist_asc",
                     "asc_desc", "dur_desc", "name_asc", "act_asc"];
   const gespeicherterSort = store.get("sort", "date_desc");
   const state = {
@@ -170,6 +177,13 @@ function mountLibrary(body, headerActions) {
           <option value="asc_desc">${T("library.sort.asc_desc", "Meiste Höhenmeter")}</option>
           <option value="dur_desc">${T("library.sort.dur_desc", "Längste Dauer")}</option>
           <option value="name_asc">${T("library.sort.name_asc", "Name A–Z")}</option>
+          <option value="name_desc">${T("library.sort.name_desc", "Name Z–A")}</option>
+          <option value="dur_asc">${T("library.sort.dur_asc", "Kürzeste Dauer")}</option>
+          <option value="asc_asc">${T("library.sort.asc_asc", "Wenigste Höhenmeter")}</option>
+          <option value="speed_desc">${T("library.sort.speed_desc", "Schnellste zuerst")}</option>
+          <option value="speed_asc">${T("library.sort.speed_asc", "Langsamste zuerst")}</option>
+          <option value="place_asc">${T("library.sort.place_asc", "Startpunkt A–Z")}</option>
+          <option value="tags_asc">${T("library.sort.tags_asc", "Schlagwort A–Z")}</option>
           <option value="act_asc">${T("library.sort.act_asc", "Nach Fortbewegung")}</option>
         </select>
         <button class="lib-chip lib-chip-ghost" id="lib-reset" type="button">${T("library.reset", "Zurücksetzen")}</button>
@@ -596,6 +610,44 @@ function mountLibrary(body, headerActions) {
       </button>`;
   }
 
+  /* Die Spalten der Listenansicht. `sort` ist das Grundwort der Sortierung,
+   * `ab` die Richtung des ERSTEN Klicks — bei Zahlen „viel zuerst", bei Text
+   * A–Z. Ein zweiter Klick dreht um. */
+  const LIST_COLS = [
+    { key: "",      label: () => "" },                       // Vorschaubild
+    { key: "name",  label: () => T("library.name", "Name"),           sort: "name",  ab: false },
+    { key: "date",  label: () => T("library.date", "Datum"),          sort: "date",  ab: true },
+    { key: "dist",  label: () => T("library.distance", "Strecke"),    sort: "dist",  ab: true },
+    { key: "asc",   label: () => T("library.ascent", "Höhenmeter"),   sort: "asc",   ab: true },
+    { key: "dur",   label: () => T("library.duration", "Dauer"),      sort: "dur",   ab: true },
+    { key: "speed", label: () => T("library.speed", "Schnitt"),       sort: "speed", ab: true },
+    { key: "act",   label: () => T("library.activity", "Fortbewegung"), sort: "act", ab: false },
+    { key: "place", label: () => T("library.startpoint", "Startpunkt"), sort: "place", ab: false },
+    { key: "tags",  label: () => T("library.tags", "Schlagwörter"),   sort: "tags",  ab: false },
+  ];
+
+  /** Welche Sortierung ein Klick auf diese Spalte ergibt.
+   *
+   * ⚠️ Erst prüfen, ob die Spalte ÜBERHAUPT die aktive ist — und nur dann
+   * umdrehen. Eine Abfrage bloß auf „_desc" reichte nicht: bei den Textspalten
+   * (Name, Startpunkt, Schlagwort) ist der erste Klick aufsteigend, ein zweiter
+   * traf die Bedingung dann nie und die Spalte ließ sich nicht umdrehen.
+   */
+  function naechsteSortierung(spalte) {
+    if (!spalte.sort) return null;
+    const jetzt = state.sort || "";
+    if (jetzt === spalte.sort + "_asc") return spalte.sort + "_desc";
+    if (jetzt === spalte.sort + "_desc") return spalte.sort + "_asc";
+    return spalte.sort + "_" + (spalte.ab ? "desc" : "asc");
+  }
+
+  function sortPfeil(spalte) {
+    if (!spalte.sort) return "";
+    if (state.sort === spalte.sort + "_desc") return " ▼";
+    if (state.sort === spalte.sort + "_asc") return " ▲";
+    return "";
+  }
+
   function rowHtml(it, i) {
     return `
         <button class="lib-row${_multi.has(it.path) ? " is-multi" : (_sel && _sel.path === it.path ? " is-sel" : "")}" data-i="${i}" type="button">
@@ -625,16 +677,38 @@ function mountLibrary(body, headerActions) {
   function renderList() {
     const box = $("lib-list");
     if (!_items.length) { box.innerHTML = emptyHtml(); bindEmpty(); return; }
+    // In einer Sammlung gilt die von Hand gelegte Reihenfolge — dort wäre eine
+    // anklickbare Kopfzeile eine Falle: der erste Klick würfe die Anordnung um,
+    // die jemand gerade mühsam gelegt hat.
+    const sortierbar = !state.collection_id;
     box.innerHTML = `
       <div class="lib-row lib-row-head">
-        <span></span><span>${T("library.name", "Name")}</span><span>${T("library.date", "Datum")}</span>
-        <span>${T("library.distance", "Strecke")}</span><span>${T("library.ascent", "Höhenmeter")}</span>
-        <span>${T("library.duration", "Dauer")}</span><span>${T("library.speed", "Schnitt")}</span>
-        <span>${T("library.activity", "Fortbewegung")}</span>
-        <span>${T("library.startpoint", "Startpunkt")}</span>
-        <span>${T("library.tags", "Schlagwörter")}</span>
+        ${LIST_COLS.map(c => {
+          if (!sortierbar || !c.sort) return `<span>${esc(c.label())}</span>`;
+          const an = sortPfeil(c);
+          return `<span class="lib-th${an ? " is-sort" : ""}" data-col="${c.key}"
+            role="button" tabindex="0"
+            title="${esc(T("library.sort_by_head", "Nach dieser Spalte sortieren"))}"
+            >${esc(c.label())}<i class="lib-th-pfeil">${an}</i></span>`;
+        }).join("")}
       </div>
       ${_items.map((it, i) => rowHtml(it, i)).join("")}`;
+    box.querySelectorAll("[data-col]").forEach(th => {
+      const spalte = LIST_COLS.find(c => c.key === th.dataset.col);
+      const um = () => {
+        const neu = naechsteSortierung(spalte);
+        if (!neu) return;
+        state.sort = neu;
+        store.set("sort", neu);
+        const sel = document.getElementById("lib-sort");
+        if (sel) sel.value = neu;      // Auswahlfeld und Kopfzeile bleiben einig
+        reload();
+      };
+      th.onclick = um;
+      th.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); um(); }
+      };
+    });
     bindItemClicks(box);
   }
 
@@ -699,6 +773,19 @@ function mountLibrary(body, headerActions) {
    */
   let _vglEbene = store.get("vgl_ebene", "year");   // "year" | "month"
   let _vglMass  = store.get("vgl_mass", "km");      // "km" | "hours" | "n"
+  // Sortierung der Vergleichstabelle. Spalte "" = Zeitraum (chronologisch),
+  // sonst der Schlüssel einer Fortbewegungsart oder "sum".
+  let _vglSort  = store.get("vgl_sort", { spalte: "", ab: false });
+
+  /** Eine klickbare Kopfzelle der Vergleichstabelle. */
+  function vglKopf(spalte, text, extra) {
+    const an = _vglSort.spalte === spalte;
+    const pfeil = an ? (_vglSort.ab ? " ▲" : " ▼") : "";
+    return `<th class="lib-vgl-th${an ? " is-sort" : ""}${extra ? " " + extra : ""}"
+      data-vgl-sort="${esc(spalte)}" role="button" tabindex="0"
+      title="${esc(T("library.stat_sort_hint", "Kopfzeile anklicken zum Sortieren"))}"
+      >${esc(text)}<span class="lib-vgl-pfeil">${pfeil}</span></th>`;
+  }
 
   function vergleichHtml(s) {
     const roh = _vglEbene === "year" ? (s.act_by_year || []) : (s.act_by_month || []);
@@ -721,8 +808,17 @@ function mountLibrary(body, headerActions) {
 
     // Nur Arten zeigen, die überhaupt vorkommen — die stärksten zuerst.
     const arten = [...proArt.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
-    // Bei Monaten wird die Tabelle sonst endlos: die letzten zwei Jahre reichen.
-    const sichtbar = _vglEbene === "month" ? zeitraeume.slice(-24) : zeitraeume;
+    // Früher endeten die Monate nach zwei Jahren („Bei Monat werden die Monate
+    // für 2 Jahre angezeigt. Auch hier wäre es schön, wenn alle Jahre
+    // berücksichtigt werden."). Jetzt sind alle drin; die Tabelle scrollt.
+    const sichtbar = zeitraeume.slice();
+    const wertVon = (z) => _vglSort.spalte === "sum"
+      ? arten.reduce((n, a) => n + (zellen.get(z + "|" + a) || 0), 0)
+      : (zellen.get(z + "|" + _vglSort.spalte) || 0);
+    if (_vglSort.spalte) {
+      sichtbar.sort((a, b) => wertVon(b) - wertVon(a));
+    }
+    if (_vglSort.ab) sichtbar.reverse();
 
     const einheit = _vglMass === "km" ? "km" : (_vglMass === "hours" ? "h" : "×");
     const zeige = (v) => !v ? "·" : (_vglMass === "n" ? num(v) : num(Math.round(v)));
@@ -758,9 +854,9 @@ function mountLibrary(body, headerActions) {
         <div class="lib-vgl-scroll">
           <table class="lib-vgl">
             <thead><tr>
-              <th>${_vglEbene === "year" ? T("library.year", "Jahr") : T("library.month", "Monat")}</th>
-              ${arten.map(a => `<th>${esc(ACT_LABELS[a] || a)}</th>`).join("")}
-              <th class="lib-vgl-sum">${T("library.total", "Gesamt")}</th>
+              ${vglKopf("", _vglEbene === "year" ? T("library.year", "Jahr") : T("library.month", "Monat"))}
+              ${arten.map(a => vglKopf(a, ACT_LABELS[a] || a)).join("")}
+              ${vglKopf("sum", T("library.total", "Gesamt"), "lib-vgl-sum")}
             </tr></thead>
             <tbody>
               ${sichtbar.map(z => {
@@ -782,9 +878,8 @@ function mountLibrary(body, headerActions) {
             </tr></tfoot>
           </table>
         </div>
-        <div class="lib-chart-hint">${T("library.stat_compare_hint", "Alle Zahlen in")} ${einheit}${
-          _vglEbene === "month" && zeitraeume.length > 24
-            ? " · " + T("library.stat_last_24", "letzte 24 Monate") : ""}</div>
+        <div class="lib-chart-hint">${T("library.stat_compare_hint", "Alle Zahlen in")} ${einheit} · ${
+          T("library.stat_sort_hint", "Kopfzeile anklicken zum Sortieren")}</div>
       </div>`;
   }
 
@@ -906,6 +1001,21 @@ function mountLibrary(body, headerActions) {
         _vglMass = b.dataset.vglMass;
         store.set("vgl_mass", _vglMass);
         renderStats();
+      };
+    });
+    // Sortieren per Kopfzeile: erst Klick = diese Spalte, nochmal = umdrehen.
+    box.querySelectorAll("[data-vgl-sort]").forEach(th => {
+      const um = () => {
+        const sp = th.dataset.vglSort;
+        _vglSort = (_vglSort.spalte === sp)
+          ? { spalte: sp, ab: !_vglSort.ab }
+          : { spalte: sp, ab: false };
+        store.set("vgl_sort", _vglSort);
+        renderStats();
+      };
+      th.onclick = um;
+      th.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); um(); }
       };
     });
     box.querySelectorAll("[data-top]").forEach(b => {
@@ -1296,6 +1406,45 @@ function mountLibrary(body, headerActions) {
     };
   }
 
+  /* Werte, die nur die Aufzeichnung selbst kennt - Durchschnitts-/Maximalpuls,
+   * Kalorien, Trittfrequenz, Geraet, Wetter. Sie stammen aus den `session`/
+   * `sport`/`device_info`-Teilen einer FIT-Datei, die bis v0.9.500 komplett
+   * verworfen wurden.
+   *
+   * Gezeigt wird ein kuratierter Auszug (`core/fitmeta.py` -> ANZEIGE); in der
+   * Datenbank liegt mehr. Das ist Absicht: erweitern kostet dann nur eine Zeile
+   * im UI und KEINEN Neu-Import - bei ein paar tausend Touren ist genau das der
+   * teure Teil.
+   */
+  function fitBlockHtml(it) {
+    const felder = it.fit_fields || [];
+    if (!felder.length) return "";
+    const mehr = (it.fit_raw_n || 0) - felder.length;
+    // Kennwerte aus der Datei („cycling", „gravel_cycling") sind keine
+    // Anzeigetexte. Übersetzen, mit dem Rohwert als Rückfall — die FIT-Norm
+    // kennt 69 Sportarten und 89 Unterarten, wir benennen die gängigen.
+    // Ohne Eintrag in der Sprachdatei wenigstens lesbar machen: die FIT-Norm
+    // schreibt Kennwerte klein und mit Unterstrichen („garmin",
+    // „wahoo_fitness") — so gehören sie nicht in eine Oberfläche.
+    const lesbar = (v) => String(v).split("_")
+      .map(w => w ? w[0].toUpperCase() + w.slice(1) : w).join(" ");
+    const wertText = (f) => f.code
+      ? T("library.fitval." + f.value, lesbar(f.value))
+      : String(f.value);
+    const zeile = (f) => `<div><span>${esc(T("library.fit." + f.key, f.label))}</span>`
+      + `<b>${esc(wertText(f))}${f.unit ? " " + esc(f.unit) : ""}</b></div>`;
+    const hinweis = mehr > 0
+      ? `<div class="lib-hint">${T("library.fit_more",
+          "{n} weitere Werte stehen in der Datenbank und lassen sich ohne Neu-Einlesen freischalten.")
+          .replace("{n}", num(mehr))}</div>`
+      : "";
+    return `<div class="lib-fit">
+        <div class="field-label">${T("library.fit_title", "Aus der Aufzeichnung")}</div>
+        <div class="lib-detail-rows">${felder.map(zeile).join("")}</div>
+        ${hinweis}
+      </div>`;
+  }
+
   function renderDetail() {
     const box = $("lib-detail");
     if (_multi.size > 1) { renderMulti(); return; }
@@ -1346,6 +1495,7 @@ function mountLibrary(body, headerActions) {
       <div class="lib-detail-rows">
         ${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}
       </div>
+      ${fitBlockHtml(it)}
 
       <label class="check-row" style="margin-top:12px;">
         <input type="checkbox" id="lib-d-fav"${it.fav ? " checked" : ""}>
@@ -1410,13 +1560,16 @@ function mountLibrary(body, headerActions) {
     }, 600);
     nameInput.oninput = saveName;
 
-    // Die Listendaten kennen `activity_user` nicht (das steht in track_meta und
-    // wird nur je Tour nachgeschlagen). Einmal nachladen, damit die Auswahl den
-    // richtigen Zustand zeigt.
+    // Die Listendaten kennen weder `activity_user` (steht in track_meta) noch
+    // die FIT-Werte (`fitmeta` ist aus der Listen-Abfrage bewusst ausgeschlossen,
+    // ~1,2 KB je Tour). Beides haengt an DEMSELBEN Aufruf - eine zweite Runde
+    // zum Backend waere reine Verschwendung.
     if (it.activity_user === undefined) {
       api().library_get_track(it.path).then(r => {
         if (r && r.ok && r.track && r.track.activity_user !== undefined) {
           it.activity_user = r.track.activity_user;
+          it.fit_fields = r.track.fit_fields || [];
+          it.fit_raw_n = r.track.fit_raw_n || 0;
           if (_sel && _sel.path === it.path) renderDetail();
         }
       }).catch(() => {});
@@ -1842,10 +1995,18 @@ function mountLibrary(body, headerActions) {
    *      liegen, nur die Meldung verschwindet, und zwar dauerhaft.
    */
   async function showErrors(zeigeWeg) {
+    // ⚠️ Erst zählen, dann laden. Ein Nutzer hatte 98692 Fehler-Zeilen; die
+    // wurden vorher ALLE geholt und zu ebenso vielen Zeilen mit
+    // Auswahlkästchen aufgebaut — die App fror ein („man kann das Programm auch
+    // nicht mehr bedienen. Nach einer Zeit öffnet sich doch ein Fenster").
+    // Jetzt kommt die Gesamtzahl aus einer Zählabfrage und die Liste gedeckelt.
+    const zahlen = await api().library_errors_count(!!zeigeWeg);
     const res = await api().library_errors(!!zeigeWeg);
     const items = (res && res.items) || [];
     const ohne = items.filter(i => i.error_kind === "no_points");
     const kaputt = items.filter(i => i.error_kind !== "no_points");
+    const gesamt = (zahlen && zahlen.gesamt) || items.length;
+    const gekuerzt = gesamt > items.length;
 
     const zeile = (i) => `
       <label class="lib-dupe-item lib-dupe-pick">
@@ -1865,6 +2026,30 @@ function mountLibrary(body, headerActions) {
         ? T("library.unreadable", "Datei(en) nicht lesbar")
         : T("library.no_track_n", "Datei(en) ohne Strecke"),
       body: `<div class="lib-dupes">${items.length ? `
+        <div class="lib-err-kopf">
+          <p class="lib-dupe-intro"><b>${num(gesamt)}</b> ${
+            gesamt === 1
+              ? T("library.err_total_one", "Datei konnte nicht als Tour gelesen werden.")
+              : T("library.err_total", "Dateien konnten nicht als Tour gelesen werden.")}
+            ${gekuerzt ? `<br><span class="lib-err-gekuerzt">${
+              T("library.err_shown", "Angezeigt sind die ersten {n} — bei dieser Menge hilft Anhaken nicht weiter, dafür sind die Knöpfe unten da.")
+                .replace("{n}", num(items.length))}</span>` : ""}
+          </p>
+          <p class="lib-dupe-intro">${T("library.err_counts_note",
+            "Diese Dateien zählen <b>nicht</b> in Kilometer, Zeit oder Fortbewegung — sie liefern ja keine Strecke. Für die Auswertungen ändert sich also nichts, wenn du sie wegräumst.")}</p>
+          ${(zahlen && zahlen.ohne_strecke) ? `
+            <button class="btn btn-sm" id="lib-err-all-nogps">
+              ${zahlen.ohne_strecke === 1
+                ? T("library.err_dismiss_one_nogps", "Die Datei ohne Strecke aus der Liste nehmen")
+                : T("library.err_dismiss_all_nogps", "Alle {n} ohne Strecke aus der Liste nehmen")
+                  .replace("{n}", num(zahlen.ohne_strecke))}</button>` : ""}
+          ${(zahlen && zahlen.kaputt) ? `
+            <button class="btn btn-sm" id="lib-err-all-broken">
+              ${zahlen.kaputt === 1
+                ? T("library.err_dismiss_one_broken", "Die nicht lesbare Datei aus der Liste nehmen")
+                : T("library.err_dismiss_all_broken", "Alle {n} nicht lesbaren aus der Liste nehmen")
+                  .replace("{n}", num(zahlen.kaputt))}</button>` : ""}
+        </div>
         ${gruppe(T("library.err_no_track", "ohne Streckendaten"),
                  T("library.err_no_track_hint",
                    "Diese Dateien sind in Ordnung — sie enthalten nur keine Koordinaten. "
@@ -1910,6 +2095,30 @@ function mountLibrary(body, headerActions) {
     };
     boxen().forEach(b => b.addEventListener("change", zaehlen));
     zaehlen();
+
+    // „Alle wegräumen" — ohne den Umweg über 99000 Kästchen.
+    const sammelWeg = async (art, knopf) => {
+      if (!knopf) return;
+      knopf.onclick = async () => {
+        knopf.disabled = true;
+        const r = await api().library_dismiss_all_errors(art);
+        if (r && r.ok) {
+          applog("info", `[Archiv] ${r.n} Fehler-Meldungen weggeräumt (${art || "alle"})`);
+          await reload();
+          // ⚠️ Erst den offenen Dialog schließen. `showErrors` ruft `openModal`
+          // mit Inhalt — und das LEGT einen Dialog auf den vorhandenen, statt
+          // ihn zu ersetzen. Ohne das Schließen stünde der Nutzer nach dem
+          // Wegräumen vor zwei gestapelten Fenstern und müsste zweimal
+          // schließen, wobei das untere den veralteten Stand zeigte.
+          openModal({}).close();
+          showErrors(zeigeWeg);
+        } else {
+          knopf.disabled = false;
+        }
+      };
+    };
+    await sammelWeg("no_points", document.getElementById("lib-err-all-nogps"));
+    await sammelWeg("broken", document.getElementById("lib-err-all-broken"));
 
     const alle = document.getElementById("lib-err-all");
     if (alle) alle.onclick = () => {

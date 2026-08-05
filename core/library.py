@@ -51,11 +51,14 @@ from typing import Callable, Iterable, Optional
 from . import gpx as cgpx
 from .gpx import _haversine_m
 from . import imports as cimports
+from . import fitmeta as _fitmeta
 from . import sessions as csessions
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 1
+# 2 (v0.9.501): FIT-Tour-Ebene. Der Sprung von 1 loest ein einmaliges
+# Neu-Einlesen aller FIT-Dateien aus - siehe `_migrate_fit_neu_lesen`.
+SCHEMA_VERSION = 2
 
 # Welche Dateien eingelesen werden. GPX direkt, der Rest über die
 # Import-Schicht (FIT/NMEA/KML/KMZ/TCX/GeoJSON → GPX im Cache).
@@ -263,6 +266,9 @@ _TECH_COLS = [
     # am Geo-Hash und wird beim Einlesen aus dem Cache wiederhergestellt.
     # `cover` NICHT hier: das ist eine Nutzer-Eingabe und kommt aus track_meta.
     "map_thumb",
+    # v0.9.501: FIT-Tour-Ebene. Technisch, weil beides direkt aus der Datei
+    # kommt und bei jedem Einlesen neu entsteht — keine Nutzer-Eingabe.
+    "fitmeta", "fit_profile",
 ]
 
 # Spalten, die eine ältere Datenbank noch nicht hat. Beim Öffnen nachgezogen —
@@ -281,6 +287,15 @@ _ADD_COLS = [
     ("missing_since", "TEXT DEFAULT ''"),
     # v0.9.497: „ohne Strecke" vs. „kaputt" — siehe Schema.
     ("error_kind", "TEXT DEFAULT ''"),
+    # v0.9.501: die Tour-Ebene aus FIT, roh und gefiltert (JSON). Roh, weil der
+    # Neu-Import der teure Teil ist — 4835 Dateien noch einmal einzulesen, nur
+    # weil uns später ein Feld einfällt, will niemand. Gezeigt wird nur der
+    # kuratierte Auszug (`core.fitmeta.ANZEIGE`).
+    ("fitmeta", "TEXT DEFAULT ''"),
+    # Der frei vergebene Profilname des Geräts („Gravel", „Rennrad", „Commute").
+    # Eigene Spalte statt in `tags`: `tags` gehört dem Nutzer, und ein Neu-Scan
+    # darf dessen Eingaben nicht überschreiben.
+    ("fit_profile", "TEXT DEFAULT ''"),
 ]
 
 
@@ -318,6 +333,13 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     except TypeError:  # ältere SQLite-Bindings kennen `deterministic` nicht
         conn.create_function("rz_norm", 1, _norm)
     conn.executescript(_SCHEMA)
+    # Der bisherige Schema-Stand muss VOR dem Überschreiben gelesen werden —
+    # sonst steht dort schon die neue Nummer und keine Migration liefe je an.
+    _alt = conn.execute("SELECT value FROM meta WHERE key = 'schema'").fetchone()
+    try:
+        schema_alt = int(_alt["value"]) if _alt else 0
+    except (TypeError, ValueError):
+        schema_alt = 0
     have = {r["name"] for r in conn.execute("PRAGMA table_info(tracks)").fetchall()}
     for col, decl in _ADD_COLS:
         if col not in have:
@@ -332,8 +354,35 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     _migrate_meta(conn)
     _migrate_collection_items(conn)
     _migrate_error_kind(conn)
+    _migrate_fit_neu_lesen(conn, schema_alt)
     conn.commit()
     return conn
+
+
+def _migrate_fit_neu_lesen(conn: sqlite3.Connection, schema_alt: int) -> None:
+    """Einmalig: bestehende FIT-Zeilen zum erneuten Einlesen vormerken (v0.9.501).
+
+    Der Scan überspringt Dateien, deren Zeit und Größe unverändert sind — er
+    öffnet sie gar nicht erst. Für ein bestehendes Archiv hieße das: die neue
+    Tour-Ebene (Ø-Puls, Sportart aus der Datei, Gerät) bliebe für immer leer,
+    und die Fortbewegungsart käme weiter aus dem Dateinamen. Ein Nutzer mit 4835
+    Touren müsste alles von Hand neu einlesen, um an Daten zu kommen, die längst
+    in seinen Dateien stehen.
+
+    Deshalb wird bei genau diesem Schema-Sprung die gemerkte Änderungszeit der
+    FIT-Zeilen auf 0 gesetzt. Beim nächsten Einlesen sehen sie „verändert" aus
+    und werden einmal neu gelesen — danach greift der Cache wieder normal.
+
+    Nur FIT: alle anderen Formate haben keine Tour-Ebene, die müssten umsonst
+    durch die Mühle.
+    """
+    if schema_alt <= 0 or schema_alt >= 2:
+        return      # frische Datenbank oder schon migriert
+    cur = conn.execute(
+        "UPDATE tracks SET mtime = 0 WHERE lower(filename) LIKE '%.fit'")
+    if cur.rowcount:
+        log.info("library: %d FIT-Touren zum Neu-Einlesen vorgemerkt "
+                 "(Tour-Ebene, v0.9.501)", cur.rowcount)
 
 
 def _migrate_error_kind(conn: sqlite3.Connection) -> None:
@@ -809,7 +858,16 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         "max_lon": (stats.bbox or {}).get("max_lon"),
         "center_lat": sum(p.lat for p in pts) / len(pts) if pts else None,
         "center_lon": sum(p.lon for p in pts) / len(pts) if pts else None,
-        "activity": _guess_activity(name, dist, moving),
+        # Rangfolge der Fortbewegungsart: Raten → FIT → von Hand.
+        # Die Datei weiß es besser als der Dateiname: ein Garmin schreibt
+        # `sub_sport = gravel_cycling`, wo wir aus „Tour_2024.fit" gar nichts
+        # lesen können. Die Hand-Korrektur kommt später in `_apply_meta` obendrauf
+        # und schlägt beide — sonst überschriebe jeder Neu-Scan die Korrektur.
+        "activity": _fitmeta.aktivitaet(getattr(stats, "tour_meta", None))
+                    or _guess_activity(name, dist, moving),
+        "fitmeta": (json.dumps(stats.tour_meta, separators=(",", ":"))
+                    if getattr(stats, "tour_meta", None) else ""),
+        "fit_profile": _fitmeta.profilname(getattr(stats, "tour_meta", None)),
         "source": src,
         "source_url": src_url,
         "planned": 0 if _rec else 1,     # Altfeld, bleibt der Kehrwert
@@ -1094,9 +1152,34 @@ _SORTS = {
     "dist_desc": "distance_m DESC",
     "dist_asc": "distance_m ASC",
     "asc_desc": "ascent_m DESC",
+    "asc_asc": "ascent_m ASC",
     "dur_desc": "duration_s DESC",
+    "dur_asc": "duration_s ASC",
     "name_asc": "name COLLATE NOCASE ASC",
+    "name_desc": "name COLLATE NOCASE DESC",
     "added_desc": "indexed_at DESC",
+    # v0.9.501 — jede Spalte der Listenansicht ist anklickbar, also braucht
+    # jede beide Richtungen. Vorher gab es zu Höhenmetern und Dauer nur „viel
+    # zuerst": ein Klick auf die Kopfzeile hätte sich nicht umdrehen lassen.
+    #
+    # Schnitt, Startpunkt und Schlagwort fehlten ganz (Wunsch Beta-Tester:
+    # „Ergänzung Durchschnittsgeschwindigkeit, Schlagwort, Startpunkt").
+    "speed_desc": "avg_speed_kmh DESC",
+    "speed_asc": "CASE WHEN avg_speed_kmh IS NULL OR avg_speed_kmh = 0 "
+                 "THEN 1 ELSE 0 END, avg_speed_kmh ASC",
+    # Leere Werte gehören in BEIDEN Richtungen ans Ende. Sonst beginnt
+    # „Startpunkt A–Z" mit einer Bildschirmseite leerer Zellen — der Ortslauf
+    # läuft im Hintergrund und ist bei einem frischen Archiv noch nicht durch.
+    "place_asc": "CASE WHEN place = '' OR place IS NULL THEN 1 ELSE 0 END, "
+                 "place COLLATE NOCASE ASC, started_at DESC",
+    "place_desc": "CASE WHEN place = '' OR place IS NULL THEN 1 ELSE 0 END, "
+                  "place COLLATE NOCASE DESC, started_at DESC",
+    "tags_asc": "CASE WHEN tags = '' OR tags IS NULL THEN 1 ELSE 0 END, "
+                "tags COLLATE NOCASE ASC, started_at DESC",
+    "tags_desc": "CASE WHEN tags = '' OR tags IS NULL THEN 1 ELSE 0 END, "
+                 "tags COLLATE NOCASE DESC, started_at DESC",
+    "act_desc": "CASE WHEN activity = '' OR activity IS NULL THEN 1 ELSE 0 END, "
+                "activity COLLATE NOCASE DESC, started_at DESC",
     # Nach Fortbewegungsart gruppiert (Wunsch Beta-Tester): erst alle Radtouren,
     # dann alle Wanderungen … innerhalb jeder Art die neuesten zuerst. Touren
     # ohne erkannte Art landen am Ende, nicht mittendrin.
@@ -1115,11 +1198,18 @@ _SORTS = {
 _SPALTEN_OHNE_GEOM_CACHE: Optional[str] = None
 
 
+# Spalten, die in einer Trefferliste nichts verloren haben: `geom` ist der
+# vereinfachte Streckenverlauf, `fitmeta` der FIT-Rohblock (~1,2 KB je Tour).
+# Bei 200 Kacheln je Nachladung wären das ein Viertel Megabyte, das niemand
+# ansieht — beide werden erst beim Öffnen einer Tour einzeln nachgeladen.
+_GROSSE_SPALTEN = ("geom", "fitmeta")
+
+
 def _spalten_ohne_geom(conn: sqlite3.Connection) -> str:
     global _SPALTEN_OHNE_GEOM_CACHE
     if _SPALTEN_OHNE_GEOM_CACHE is None:
         namen = [r["name"] for r in conn.execute("PRAGMA table_info(tracks)").fetchall()]
-        _SPALTEN_OHNE_GEOM_CACHE = ", ".join(n for n in namen if n != "geom")
+        _SPALTEN_OHNE_GEOM_CACHE = ", ".join(n for n in namen if n not in _GROSSE_SPALTEN)
     return _SPALTEN_OHNE_GEOM_CACHE
 
 
@@ -1143,7 +1233,8 @@ def _like_escape(s: str) -> str:
 _SEARCH_HAY = ("COALESCE(display_name,'') || ' ' || COALESCE(name,'') || ' ' || "
                "COALESCE(filename,'') || ' ' || COALESCE(tags,'') || ' ' || "
                "COALESCE(note,'') || ' ' || COALESCE(place,'') || ' ' || "
-               "COALESCE(country,'') || ' ' || COALESCE(region,'')")
+               "COALESCE(country,'') || ' ' || COALESCE(region,'') || ' ' || "
+               "COALESCE(fit_profile,'')")
 
 
 def _build_where(search="", year=None, activity="", fav_only=False, planned=None,
@@ -1257,7 +1348,11 @@ def query(
     total = conn.execute(
         f"SELECT COUNT(*) FROM tracks WHERE {sql_where}", args).fetchone()[0]
 
-    spalten = "*" if with_geom else _spalten_ohne_geom(conn)
+    # `with_geom` will den Streckenverlauf für die Karte — NICHT den
+    # FIT-Rohblock. Ein `SELECT *` schleppte den bei jeder Kartenansicht mit,
+    # obwohl ihn dort nichts anfasst. Nur `get_track` (eine Tour) liest ihn.
+    spalten = (_spalten_ohne_geom(conn) + ", geom") if with_geom \
+        else _spalten_ohne_geom(conn)
     sql = f"SELECT {spalten} FROM tracks WHERE {sql_where} ORDER BY {order}"
     if limit:
         sql += f" LIMIT {int(limit)} OFFSET {int(offset)}"
@@ -1288,6 +1383,17 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     except (TypeError, ValueError):
         d["sensors"] = []
     d["tag_list"] = [t for t in (d.get("tags") or "").split(",") if t.strip()]
+    # v0.9.501 — der FIT-Rohblock bleibt in der Datenbank; nach draußen geht nur
+    # der kuratierte Auszug. `fitmeta` steckt nur in `get_track` (Detailansicht),
+    # in Listen ist die Spalte gar nicht erst mitgelesen.
+    if "fitmeta" in d:
+        try:
+            roh = json.loads(d.get("fitmeta") or "{}")
+        except (TypeError, ValueError):
+            roh = {}
+        d["fit_fields"] = _fitmeta.anzeige_paare(roh)
+        d["fit_raw_n"] = sum(len(v) for v in roh.values() if isinstance(v, dict))
+        d.pop("fitmeta", None)
     # Startpunkt für die Listenansicht (Wunsch Beta-Tester). `place` ist der Ort,
     # `region` die Gegend darum — beides füllt der Ortslauf im Hintergrund. Kurz
     # für die Spalte, lang für den Tooltip.
@@ -1963,20 +2069,70 @@ def collections_of(conn: sqlite3.Connection, path: str) -> list:
     return [{"id": r["id"], "name": r["name"]} for r in rows]
 
 
+def _fehler_wo(include_dismissed: bool) -> str:
+    return "error != ''" if include_dismissed else \
+        "error != '' AND COALESCE(hidden,0) = 0"
+
+
 @_locked
-def errors(conn: sqlite3.Connection, include_dismissed: bool = False) -> list:
+def errors_count(conn: sqlite3.Connection, include_dismissed: bool = False) -> dict:
+    """Wie viele Dateien fielen durch — getrennt nach Grund.
+
+    Nur Zahlen: Bei einem Nutzer standen **98692** Fehler-Zeilen in der
+    Datenbank; die alle zu laden, um sie zu zeigen, legte die Oberfläche für
+    Minuten lahm.
+    """
+    wo = _fehler_wo(include_dismissed)
+    r = conn.execute(
+        f"SELECT COUNT(*) n, "
+        f"SUM(CASE WHEN error_kind = 'no_points' THEN 1 ELSE 0 END) ohne "
+        f"FROM tracks WHERE {wo}").fetchone()
+    gesamt = r["n"] or 0
+    ohne = r["ohne"] or 0
+    return {"gesamt": gesamt, "ohne_strecke": ohne, "kaputt": gesamt - ohne}
+
+
+@_locked
+def errors(conn: sqlite3.Connection, include_dismissed: bool = False,
+           limit: int = 300) -> list:
     """Dateien, aus denen keine Tour wurde — sortiert: erst die kaputten.
 
     `error_kind` trennt „gelesen, aber ohne Koordinaten" (`no_points`) von
     „wirklich kaputt" (`broken`). Weggeräumte stehen nur auf Wunsch dabei.
+
+    ⚠️ **Mit Deckel.** Ein Nutzer hatte 98692 Fehler-Zeilen; die Oberfläche
+    baute daraus 98692 Zeilen mit Auswahlkästchen und fror ein („man kann das
+    Programm auch nicht mehr bedienen"). Die Gesamtzahl kommt aus
+    `errors_count()`, angezeigt wird ein Ausschnitt. Wer alle wegräumen will,
+    braucht die Liste ohnehin nicht — dafür gibt es `dismiss_all_errors()`.
     """
-    wo = "error != ''" if include_dismissed else "error != '' AND COALESCE(hidden,0) = 0"
-    rows = conn.execute(
-        f"SELECT * FROM tracks WHERE {wo} "
-        "ORDER BY CASE WHEN error_kind = 'no_points' THEN 1 ELSE 0 END, "
-        "filename COLLATE NOCASE"
-    ).fetchall()
-    return [_to_dict(r) for r in rows]
+    wo = _fehler_wo(include_dismissed)
+    sql = (f"SELECT * FROM tracks WHERE {wo} "
+           "ORDER BY CASE WHEN error_kind = 'no_points' THEN 1 ELSE 0 END, "
+           "filename COLLATE NOCASE")
+    if limit:
+        sql += f" LIMIT {int(limit)}"
+    return [_to_dict(r) for r in conn.execute(sql).fetchall()]
+
+
+@_locked
+def dismiss_all_errors(conn: sqlite3.Connection, nur_art: str = "") -> int:
+    """ALLE Fehler-Meldungen wegräumen, ohne sie einzeln anzuhaken.
+
+    Bei 98692 Zeilen ist Anhaken keine Bedienung mehr. `nur_art` schränkt auf
+    `no_points` oder `broken` ein — meist will man die harmlosen „ohne Strecke"
+    loswerden und die echten Defekte behalten.
+
+    Gelöscht wird auch hier nichts: nur `hidden`, wie beim einzelnen Wegräumen.
+    """
+    wo = "error != '' AND COALESCE(hidden,0) = 0"
+    args: list = []
+    if nur_art in ("no_points", "broken"):
+        wo += " AND error_kind = ?"
+        args.append(nur_art)
+    cur = conn.execute(f"UPDATE tracks SET hidden = 1 WHERE {wo}", args)
+    conn.commit()
+    return cur.rowcount or 0
 
 
 @_locked

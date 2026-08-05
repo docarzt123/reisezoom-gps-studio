@@ -38,6 +38,7 @@ import gpxpy
 import gpxpy.gpx
 
 from . import sensors as _sensors
+from . import fitmeta as _fitmeta
 
 _log = logging.getLogger("core.imports")
 
@@ -130,7 +131,7 @@ def _fit_extra(frame) -> dict:
     return out
 
 
-def _parse_fit(path: str) -> List[tuple]:
+def _parse_fit(path: str, meta_out: Optional[dict] = None) -> List[tuple]:
     try:
         import fitdecode  # type: ignore
     except Exception as e:  # pragma: no cover
@@ -144,6 +145,12 @@ def _parse_fit(path: str) -> List[tuple]:
             if not isinstance(frame, fitdecode.FitDataMessage):
                 continue
             if frame.name != "record":
+                # v0.9.501 — Tour-Ebene (session/sport/device_info/weather)
+                # im SELBEN Durchlauf einsammeln. Ein zweiter Lesevorgang
+                # würde bei großen Dateien (23000 Punkte) die Importzeit
+                # verdoppeln, ohne einen einzigen Wert mehr zu liefern.
+                if meta_out is not None:
+                    _fitmeta.sammle(frame, meta_out)
                 continue
             try:
                 lat_raw = frame.get_value("position_lat", fallback=None)
@@ -431,8 +438,12 @@ def _norm_iso(s: Optional[str]) -> Optional[str]:
 
 # ── Dispatch ──────────────────────────────────────────────────────────────────
 
-def _parse_rows(path: str) -> List[tuple]:
-    """Dispatch auf den Format-Parser → rohe Rows (4- ODER 5-Tupel mit extra)."""
+def _parse_rows(path: str, meta_out: Optional[dict] = None) -> List[tuple]:
+    """Dispatch auf den Format-Parser → rohe Rows (4- ODER 5-Tupel mit extra).
+
+    `meta_out` (optional) nimmt die Tour-Ebene auf. Nur FIT füllt sie; die
+    anderen Formate kennen nichts Vergleichbares.
+    """
     ext = os.path.splitext(path)[1].lower()
     key = _DISPATCH.get(ext)
     if key is None:
@@ -452,7 +463,7 @@ def _parse_rows(path: str) -> List[tuple]:
         "fit": _parse_fit, "nmea": _parse_nmea, "kml": _parse_kml,
         "kmz": _parse_kmz, "tcx": _parse_tcx, "geojson": _parse_geojson,
     }[key]
-    rows = parser(path)
+    rows = parser(path, meta_out) if key == "fit" else parser(path)
     if not rows:
         # Gelesen werden konnte die Datei — sie hat nur keine Positionen.
         raise NoTrackPoints("Keine Track-Punkte in der Datei gefunden.")
@@ -474,9 +485,12 @@ def parse_points(path: str) -> List[Point]:
     return _split_rows(_parse_rows(path))[0]
 
 
-def parse_track(path: str) -> tuple[List[Point], List[dict]]:
-    """Geometrie + Sensor-extras pro Punkt (für die Sidecar-Erzeugung)."""
-    return _split_rows(_parse_rows(path))
+def parse_track(path: str, meta_out: Optional[dict] = None) -> tuple[List[Point], List[dict]]:
+    """Geometrie + Sensor-extras pro Punkt (für die Sidecar-Erzeugung).
+
+    `meta_out` wird — falls übergeben — mit der Tour-Ebene gefüllt (nur FIT).
+    """
+    return _split_rows(_parse_rows(path, meta_out))
 
 
 # ── GPX schreiben ─────────────────────────────────────────────────────────────
@@ -509,17 +523,32 @@ def _sidecar_for(gpx_path: str) -> str:
     return base + ".sensors.json"
 
 
-def write_sidecar(extras: List[dict], gpx_path: str) -> Optional[str]:
+def write_sidecar(extras: List[dict], gpx_path: str,
+                  tour: Optional[dict] = None) -> Optional[str]:
     """Schreibt `<gpx>.sensors.json` (Variante B) mit index-gleichen Sensor-
-    Reihen. Tut nichts (gibt None zurück), wenn keine Sensoren vorkommen."""
+    Reihen. Tut nichts (gibt None zurück), wenn weder Sensoren noch Tour-Ebene
+    vorkommen.
+
+    v0.9.501 — `tour` ist die Tour-Ebene aus FIT (session/sport/device_info/
+    weather). Sie gehört in dieselbe Datei, weil sie dasselbe Problem hat: die
+    Umwandlung nach GPX wirft sie sonst weg, und GPX hat für „Ø-Puls dieser
+    Tour" keinen Platz.
+    """
     keys = set()
     for e in extras:
         keys.update(e.keys())
-    if not keys:
+    if not keys and tour is None:
         return None
     n = len(extras)
     values = {k: [extras[i].get(k) for i in range(n)] for k in keys}
     data = {"fields": _sensors.describe_fields(keys), "values": values}
+    if tour is not None:
+        # Auch ein LEERER Tour-Block wird geschrieben: der Schlüssel selbst ist
+        # die Auskunft „diese Sidecar stammt aus einer Version, die die
+        # Tour-Ebene kennt". Ohne ihn wüsste `ensure_gpx` nicht, ob eine Datei
+        # nichts hergibt oder nur alt gecacht ist — und würde sie bei jedem
+        # Einlesen erneut umwandeln.
+        data["tour"] = tour
     sc = _sidecar_for(gpx_path)
     with open(sc, "w", encoding="utf-8") as fh:
         json.dump(data, fh)
@@ -549,6 +578,30 @@ def _cache_name(path: str) -> str:
     return f"{stem}-{h}.gpx"
 
 
+def _cache_veraltet(gpx_out: str, ext: str) -> bool:
+    """Stammt der GPX-Cache aus der Zeit vor der Tour-Ebene (v0.9.501)?
+
+    Betrifft nur FIT. Wer sein Archiv vorher eingelesen hat, hat einen gültigen
+    GPX-Cache — und der würde ohne diese Prüfung nie wieder angefasst. Die
+    Tour-Ebene (Ø-Puls, Sportart, Gerät) bliebe für ein bestehendes Archiv
+    dauerhaft leer, und die Fortbewegungsart käme weiter aus dem Dateinamen.
+
+    Erkennungsmerkmal ist der `tour`-Schlüssel in der Sidecar, den seit v0.9.501
+    JEDE aus FIT erzeugte Sidecar trägt — auch wenn er leer ist. Fehlt er, ist
+    der Cache alt und wird einmalig neu gebaut; danach greift er wieder normal.
+    """
+    if ext != ".fit":
+        return False
+    sc = _sidecar_for(gpx_out)
+    if not os.path.exists(sc):
+        return True
+    try:
+        with open(sc, "r", encoding="utf-8") as fh:
+            return "tour" not in json.load(fh)
+    except Exception:
+        return True     # unlesbar → lieber neu bauen als raten
+
+
 def ensure_gpx(path: str, cache_dir) -> str:
     """`.gpx` → unverändert zurück. Andere Formate → nach GPX konvertieren,
     im `cache_dir` cachen (Schlüssel = Pfad+mtime+size) und den GPX-Pfad
@@ -559,20 +612,24 @@ def ensure_gpx(path: str, cache_dir) -> str:
     cache_dir = str(cache_dir)
     os.makedirs(cache_dir, exist_ok=True)
     out = os.path.join(cache_dir, _cache_name(path))
-    if os.path.exists(out):
+    if os.path.exists(out) and not _cache_veraltet(out, ext):
         try:
             if os.path.getmtime(out) >= os.path.getmtime(path):
                 return out
         except OSError:
             pass
     # v0.9.330 — Geometrie atomisch als GPX + Sensoren als Sidecar (Variante B).
-    pts, extras = parse_track(path)
+    # v0.9.501 — dazu die Tour-Ebene, aber nur FIT liefert so etwas. Bei allen
+    # anderen Formaten bleibt `tour` None, damit kein leerer Block entsteht,
+    # der `_cache_veraltet` durcheinanderbrächte.
+    tour: Optional[dict] = {} if ext == ".fit" else None
+    pts, extras = parse_track(path, tour)
     if not pts:
         raise NoTrackPoints("Keine Track-Punkte in der Datei gefunden.")
     name = os.path.splitext(os.path.basename(path))[0]
     tmp = out + ".tmp"
     write_gpx(pts, tmp, name=name)
     os.replace(tmp, out)
-    sc = write_sidecar(extras, out)
+    sc = write_sidecar(extras, out, tour)
     _log.info("ensure_gpx: %s → %s%s", path, out, " (+sensors)" if sc else "")
     return out

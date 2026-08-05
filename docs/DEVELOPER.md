@@ -245,6 +245,59 @@ Zusatz-Messwerte pro Trackpunkt (FIT-HR/Power/Temp/E-Bike, GPX-Extensions). **Va
 - **Spiegelung:** Tour-Map (`modules/tourmap`) bekommt KEINE Sensor-Felder — Sensorwerte sind zeit-animiert (Live-Box), die Tour-Map ist ein Standbild. Analog zur bestehenden Live-Box-Ausnahme der Spiegelungs-Regel.
 - **OFFEN:** Phase 2b (Diagramme/Aggregate pro Feld — Ø/Max-HF als Totals, HF-Zonen-Track-Färbung, Gauges), Phase 3 (Auto-Schilder §15.3).
 
+### `core/fitmeta.py` — Tour-Ebene aus FIT (seit v0.9.501)
+
+`core/sensors.py` deckt Werte **je Trackpunkt** ab. Alles, was die **Tour als
+Ganzes** beschreibt, fiel bis v0.9.500 weg: `_parse_fit` sprang über jeden
+Frame, der nicht `record` hieß.
+
+- **Gelesen** (`TOUR_FRAMES`): `session` (Ø/Max/Min-Puls, Kalorien, Trittfrequenz,
+  Leistung, Temperatur, Atemfrequenz, SpO₂), `sport` (Sportart, Unterart, frei
+  vergebener Profilname), `device_info` (Hersteller, Produktname),
+  `weather_conditions` (Temperatur, gefühlt, Wind, Bewölkung, Luftfeuchte).
+- **Bewusst NICHT gelesen:** `user_profile` (Ruhepuls, Alter, Geschlecht, Größe,
+  Gewicht — beschreibt den Menschen, nicht die Tour), Trainingslehre
+  (`_TRAININGSLEHRE`: Zonen, Trainingseffekt, Normalized Power, TSS, HRV,
+  Pedal-Analytik) und Seriennummern (`_PERSONENBEZUG`). `lap` ist noch offen.
+- **Roh + kuratiert:** der gefilterte Rohblock geht als JSON in `tracks.fitmeta`;
+  nach draußen geht nur `ANZEIGE` (Key → Label/Einheit) über `anzeige_paare()`.
+  Grund: der Neu-Import ist der teure Teil — ein Feld später freizuschalten darf
+  kein erneutes Einlesen tausender Dateien auslösen. Gemessen an vier echten
+  Garmin-Dateien: 23–50 belegte Felder, ~1,2 KB je Tour.
+- **Sportart → Fortbewegung:** `aktivitaet(meta)`; `_SUB_SPORT` schlägt `_SPORT`,
+  `e_biking` schlägt beides. ⚠️ **Jeder Zielwert MUSS in `library.ACTIVITIES`
+  stehen** — sonst lehnt `set_activity` ihn ab. `tests/test_fit_tourmeta.py`
+  prüft genau das.
+- **Kennwerte im UI:** Einträge mit `code: True` (Sportart, Unterart, Hersteller,
+  Wetterlage) tragen ein FIT-Kennwort, keinen Anzeigetext. Die Oberfläche
+  übersetzt über `library.fitval.<wert>` und macht Unbekanntes wenigstens lesbar
+  (`wahoo_fitness` → „Wahoo Fitness"). ⚠️ Jede Art in `_SPORT`/`_SUB_SPORT`
+  braucht die drei Sprachschlüssel, sonst steht ein englisches Kennwort im UI.
+
+**Weg durch die Schichten:**
+`imports._parse_fit(path, meta_out)` sammelt in **derselben** Frame-Schleife
+(ein zweiter Lesevorgang verdoppelte bei 23000 Punkten die Importzeit) →
+`parse_track(path, meta_out)` → `ensure_gpx` schreibt es als `"tour"` in die
+vorhandene `<cache>.sensors.json` → `gpx._load_sidecar_into` gibt es zurück →
+`TrackStats.tour_meta` → `library._row_from_file` füllt `fitmeta`,
+`fit_profile` und `activity`.
+
+**Gotchas:**
+- **Alter Cache.** `imports._cache_veraltet(gpx_out, ext)` erkennt eine Sidecar
+  ohne `tour`-Schlüssel und baut sie einmalig neu. Deshalb schreibt
+  `write_sidecar` für FIT den Block **auch wenn er leer ist** — der Schlüssel
+  selbst ist die Auskunft „stammt aus einer Version, die die Tour-Ebene kennt".
+- **Bestehende Archive.** Der Scan überspringt unveränderte Dateien und öffnet
+  sie gar nicht. `library._migrate_fit_neu_lesen` (Schema 1 → 2) setzt deshalb
+  einmalig `mtime = 0` für alle FIT-Zeilen; danach greift der Cache wieder
+  normal. Der alte Schema-Stand wird in `open_db` **vor** dem Überschreiben
+  gelesen — sonst liefe nie eine Migration.
+- **`fitmeta` ist eine große Spalte** (`_GROSSE_SPALTEN`) und wird von `query()`
+  NIE mitgelesen — auch nicht mit `with_geom`. Nur `get_track` holt sie, und
+  `_to_dict` ersetzt sie durch `fit_fields` + `fit_raw_n`.
+- **Rangfolge der Fortbewegung:** Raten → FIT → von Hand. Die Hand-Korrektur
+  kommt in `_apply_meta` obendrauf und überlebt jeden Neu-Scan.
+
 ### `core/gpx.py`
 
 **Hauptfunktionen:**
