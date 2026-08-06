@@ -245,6 +245,64 @@ Zusatz-Messwerte pro Trackpunkt (FIT-HR/Power/Temp/E-Bike, GPX-Extensions). **Va
 - **Spiegelung:** Tour-Map (`modules/tourmap`) bekommt KEINE Sensor-Felder — Sensorwerte sind zeit-animiert (Live-Box), die Tour-Map ist ein Standbild. Analog zur bestehenden Live-Box-Ausnahme der Spiegelungs-Regel.
 - **OFFEN:** Phase 2b (Diagramme/Aggregate pro Feld — Ø/Max-HF als Totals, HF-Zonen-Track-Färbung, Gauges), Phase 3 (Auto-Schilder §15.3).
 
+### ⚠️ Render-Ausgabe: Teildatei braucht ein ausdrückliches Format (v0.9.503)
+
+**Der teuerste Fehler des Projekts bisher — vier Releases lang war jeder Render
+kaputt.** Seit v0.9.499 schreibt der Render nach `_teildatei(cfg.output_path)`,
+also `<name>.mp4.rzpart`. ffmpeg leitet das Ausgabeformat aus der Endung ab und
+kennt `.rzpart` nicht:
+
+    Unable to choose an output format for 'x.mp4.rzpart';
+    use a standard extension for the filename or specify the format manually.
+
+ffmpeg beendet sich damit **sofort**. Weil der Pipe-Puffer die ersten Frames
+schluckt, kommt der Abbruch verzögert und als `BrokenPipeError` — ohne Bezug zur
+Ursache. `_muxer_fuer(ziel)` rechnet deshalb auf dem **echten** Ziel (`.mp4`,
+`.mov`, …) und beide `ffmpeg_cmd` übergeben `-f <muxer>` vor dem Dateinamen.
+
+⚠️ **Wer die Teildatei-Mechanik anfasst, prüft beides:** dass `-f` gesetzt bleibt
+und dass `_muxer_fuer` auf `cfg.output_path` rechnet, nicht auf der Teildatei.
+`tests/test_render_muxer.py` fragt dazu das echte ffmpeg — inklusive der Probe,
+dass es **ohne** `-f` weiterhin scheitert (sonst wäre der Schutz überflüssig
+geworden und man merkte es nicht).
+
+**`_ffmpeg_gestorben(...)`** — bei `BrokenPipeError` wird jetzt der
+stderr-Puffer ausgelesen und geloggt, statt die Ausnahme durchzureichen. Vorher
+lag ffmpegs Begründung im Puffer und wurde weggeworfen: ein Nutzer schickte
+sechs Berichte mit immer demselben nackten „Broken pipe". Genau deshalb blieb
+der Totalausfall oben so lange unentdeckt.
+
+**Lehre für die Prüfkette:** `tests/test_animator_render.py` hätte es beim
+ersten Lauf gefunden — er rendert wirklich. Er ist als „langsam" aus der
+Standardreihe ausgenommen und lief bei keinem der vier Releases. Wo ein
+schneller Ersatz möglich ist (hier: ffmpeg direkt befragen), gehört er in die
+Standardreihe.
+
+### `_mapbox_gl_head()` — Kartenbibliothek aus dem Bundle (v0.9.503)
+
+Der Render holte `mapbox-gl.js` bei **jedem** Lauf von `api.mapbox.com`, obwohl
+`ui/vendor/mapbox-gl.js` (1,5 MB, identische Fassung 3.12.0) mitgeliefert wird
+und die App-Oberfläche sie längst von dort nimmt. Hinter einer Firewall:
+`ERR_NETWORK_ACCESS_DENIED` → `mapboxgl is not defined` → Abbruch.
+
+Eingebettet statt verlinkt, weil die Render-Seite über `page.set_content()`
+entsteht und damit keine Basis-Adresse für einen `file://`-Verweis hat. Fällt
+auf die CDN zurück, wenn die Dateien fehlen. Die Kartenkacheln kommen weiterhin
+von Mapbox — das hier spart nur den Bibliotheks-Download.
+
+### Einstellungen: `_settingsStand()` als einzige Quelle (v0.9.503)
+
+`openSettingsModal()` baut das Formular, `_bindSettingsModalHandlers()` wertet
+es aus. Beim Aufteilen blieben **acht** Werte in der ersten Funktion liegen,
+während die zweite darauf zugriff → `ReferenceError` beim Klick auf „Speichern",
+und es wurde gar nichts gespeichert.
+
+⚠️ JavaScript meldet das erst beim Ausführen — kein Linter, kein Syntaxcheck und
+kein Seitenaufbau findet es. `tests/test_settings_scope.py` prüft deshalb die
+**Regel**: kein in `openSettingsModal` deklarierter Name darf im Handler
+vorkommen. Wer ein Feld ergänzt, ergänzt es in `_settingsStand()` — dann haben
+beide Seiten es.
+
 ### `core/drops.py` — Aufräumen der Drag-&-Drop-Ablage (v0.9.502)
 
 ⚠️ **Ein Leck, das drei Monate lief.** Die Oberfläche kommt beim Ziehen nicht an

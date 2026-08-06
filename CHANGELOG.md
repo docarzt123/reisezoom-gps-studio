@@ -14,6 +14,44 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.503] – 2026-08-06
+
+> **⚠️ Dringendes Update.** In v0.9.499 bis v0.9.502 schlug **jeder
+> Video-Render** fehl. Wer eine dieser Versionen hat, sollte sie ersetzen.
+
+### Behoben
+- **⚠️ Der Video-Export war vier Versionen lang komplett kaputt.** Seit v0.9.499
+  schreibt der Render zuerst in eine Teildatei `<name>.mp4.rzpart`, damit keine
+  halbfertigen Videos herumliegen. Nur kann ffmpeg aus der Endung `.rzpart`
+  **kein Ausgabeformat ableiten** („Unable to choose an output format … use a
+  standard extension or specify the format manually"). ffmpeg beendete sich
+  sofort; weil der Pipe-Puffer die ersten Frames schluckt, fiel es erst nach
+  einer Weile auf, und heraus kam ein nacktes `Broken pipe` ohne Ursache. Das
+  Format wird jetzt ausdrücklich mitgegeben (`-f mp4` bzw. `-f mov`).
+- **⚠️ Die Einstellungen ließen sich gar nicht speichern.** Ein Klick auf
+  „Speichern" warf `ReferenceError` — **acht** Werte lagen in einer anderen
+  Funktion als der, die sie beim Speichern brauchte. Weder Sprache noch
+  Mapbox-Token noch Renderqualität kamen an. Beide Seiten lesen jetzt aus
+  derselben Quelle (`_settingsStand()`).
+- **Bricht der Video-Export ab, steht jetzt drin, warum.** ffmpegs eigene
+  Fehlermeldung lag bereits im Puffer, wurde aber bei einem Pipe-Bruch
+  verworfen — im Bericht stand nur „Broken pipe". Genau daran war der obige
+  Totalausfall so lange unsichtbar.
+
+### Geändert
+- **Der Render lädt Mapbox nicht mehr aus dem Netz.** `mapbox-gl.js` (1,5 MB)
+  liegt mitgeliefert bei und wird eingebettet statt bei jedem Lauf von der CDN
+  geholt. Wem eine Firewall den Zugriff verbietet, bekam bisher
+  `mapboxgl is not defined` und einen Abbruch — ohne dass an Track oder
+  Einstellungen etwas falsch war.
+- **Zwei neue Wächter in der Prüfkette.** `tests/test_render_muxer.py` befragt
+  das echte ffmpeg, ob es in eine `.rzpart`-Datei schreiben kann — der Test, der
+  den Totalausfall in zwei Sekunden gefunden hätte. Es gab ihn im Grunde schon
+  (`test_animator_render.py` rendert wirklich), er war nur als „langsam"
+  ausgenommen und lief bei keinem der vier Releases mit.
+  `tests/test_settings_scope.py` prüft die Regel hinter dem zweiten Fehler:
+  keine Variable aus dem Dialog-Bauer im Speichern-Handler.
+
 ## [0.9.502] – 2026-08-05
 
 ### Behoben

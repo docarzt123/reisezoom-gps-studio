@@ -107,10 +107,43 @@ function renderMod() {
 
 // ── Settings-Modal ──────────────────────────────────────────────────────────
 
+/**
+ * Der gespeicherte Stand der Einstellungen, so wie der Dialog ihn braucht.
+ *
+ * ⚠️ Von **beiden** Funktionen benutzt — `openSettingsModal()` baut damit das
+ * Formular, `_bindSettingsModalHandlers()` vergleicht damit beim Speichern.
+ * Vorher standen diese Werte nur als lokale Konstanten in `openSettingsModal()`,
+ * der Speichern-Handler griff aber trotzdem darauf zu, obwohl er eine eigene
+ * Funktion ist. Ergebnis: `ReferenceError` beim Klick auf „Speichern" —
+ * gleich **acht** Namen waren betroffen (current, forceOsm, rqFmt, rqJq,
+ * rqCodec, rqCrf, rqPreset, geoEnabled, geoProvider). Gespeichert wurde damit
+ * GAR NICHTS: weder Sprache noch Mapbox-Token noch Renderqualität. Aufgefallen
+ * im Log eines Nutzers, dem deshalb auch die Notlösung „ohne Mapbox rendern"
+ * verwehrt blieb.
+ *
+ * Wer hier ein Feld ergänzt, ergänzt es für beide Seiten gleichzeitig — genau
+ * das verhindert, dass die Fehlerklasse beim nächsten Umbau zurückkommt.
+ */
+function _settingsStand() {
+  const c = _settingsCache || {};
+  const rq = c.render || {};
+  return {
+    current: c.language || "auto",
+    forceOsm: !!c.force_osm,
+    rqFmt: rq.frame_format || "jpeg",
+    rqJq: (rq.jpeg_quality != null) ? rq.jpeg_quality : 92,
+    rqCodec: rq.codec || "h264",
+    rqCrf: (rq.crf != null) ? rq.crf : 20,
+    rqPreset: rq.encoder_preset || "fast",
+    geoEnabled: c.geocode_enabled !== false,
+    geoProvider: c.geocode_provider || "auto",
+  };
+}
+
 async function openSettingsModal() {
   const meta = i18nMeta();
   const available = meta.available || [];
-  const current = (_settingsCache && _settingsCache.language) || "auto";
+  const { current } = _settingsStand();
 
   const langOptions = [
     `<option value="auto"${current === "auto" ? " selected" : ""}>${t("settings.language.auto")} (${meta.system_locale})</option>`,
@@ -126,20 +159,13 @@ async function openSettingsModal() {
     ? `<span style="color:var(--success)">●</span> ${t("settings.mapbox.user_active")}`
     : `<span style="color:var(--text-muted)">●</span> ${t("settings.mapbox.default_active")}`;
 
-  // v0.9.245 — Globale Render-/Export-Qualität
-  const rq = (_settingsCache && _settingsCache.render) || {};
-  const rqFmt = rq.frame_format || "jpeg";
-  const rqJq = (rq.jpeg_quality != null) ? rq.jpeg_quality : 92;
-  const rqCodec = rq.codec || "h264";
-  const rqCrf = (rq.crf != null) ? rq.crf : 20;
-  const rqPreset = rq.encoder_preset || "fast";
+  // Renderqualität (v0.9.245), OSM-Zwang (v0.9.247) und Adress-Suche (v0.9.338)
+  // kommen aus `_settingsStand()` — derselben Quelle, aus der auch der
+  // Speichern-Handler liest.
+  const { rqFmt, rqJq, rqCodec, rqCrf, rqPreset, forceOsm, geoEnabled, geoProvider }
+    = _settingsStand();
   const _sel = (a, b) => (a === b ? " selected" : "");
-  // v0.9.247 — OSM-Modus erzwingen (Test)
-  const forceOsm = !!(_settingsCache && _settingsCache.force_osm);
   const hasTok = !!(currentTok && currentTok.startsWith("pk."));
-  // v0.9.338 — Adress-Suche (Geotagger Reverse-Geocoding)
-  const geoEnabled = !(_settingsCache && _settingsCache.geocode_enabled === false);
-  const geoProvider = (_settingsCache && _settingsCache.geocode_provider) || "auto";
   // v0.9.287 — Eigene Standardwerte für neue Tracks (Marc-Wunsch)
   const udInfo = await api().get_user_defaults_info().catch(() => ({ has_custom: false }));
 
@@ -346,15 +372,21 @@ function _bindSettingsModalHandlers() {
       return;
     }
 
+    // ⚠️ NICHT auf die Konstanten aus `openSettingsModal()` zugreifen — das ist
+    // eine andere Funktion. Genau das warf `ReferenceError` und ließ den
+    // Speichern-Knopf wirkungslos. Den Stand hier neu holen; das ist ohnehin
+    // richtiger, weil es den Zustand beim SPEICHERN meint, nicht beim Öffnen.
+    const alt = _settingsStand();
+
     // Beide Settings in EINEM synchronen Bridge-Call schreiben — keine
     // Race-Condition mit nachfolgendem loadI18n().
     const patch = {};
-    if (newLang !== current) patch.language = newLang;
+    if (newLang !== alt.current) patch.language = newLang;
     if (newTok !== oldTok)   patch.mapbox_token = newTok;
 
     // v0.9.247 — OSM-Modus erzwingen (Test)
     const newForceOsm = !!document.getElementById("md-force-osm")?.checked;
-    if (newForceOsm !== forceOsm) patch.force_osm = newForceOsm;
+    if (newForceOsm !== alt.forceOsm) patch.force_osm = newForceOsm;
 
     // v0.9.245 — Render-/Export-Qualität
     const newRender = {
@@ -365,15 +397,15 @@ function _bindSettingsModalHandlers() {
       encoder_preset: document.getElementById("md-rq-preset").value,
     };
     const renderChanged = JSON.stringify(newRender) !== JSON.stringify({
-      frame_format: rqFmt, jpeg_quality: rqJq, codec: rqCodec, crf: rqCrf, encoder_preset: rqPreset,
+      frame_format: alt.rqFmt, jpeg_quality: alt.rqJq, codec: alt.rqCodec, crf: alt.rqCrf, encoder_preset: alt.rqPreset,
     });
     if (renderChanged) patch.render = newRender;
 
     // v0.9.338 — Adress-Suche
     const newGeoEnabled = !!document.getElementById("md-geo-enabled")?.checked;
     const newGeoProvider = document.getElementById("md-geo-provider")?.value || "auto";
-    if (newGeoEnabled !== geoEnabled) patch.geocode_enabled = newGeoEnabled;
-    if (newGeoProvider !== geoProvider) patch.geocode_provider = newGeoProvider;
+    if (newGeoEnabled !== alt.geoEnabled) patch.geocode_enabled = newGeoEnabled;
+    if (newGeoProvider !== alt.geoProvider) patch.geocode_provider = newGeoProvider;
 
     if (Object.keys(patch).length === 0) {
       openModal({}).close();
