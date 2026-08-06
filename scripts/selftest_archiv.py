@@ -260,6 +260,41 @@ async def main() -> int:
             sagen("Wahoo Fitness" in txt,
                   "unbenannte Kennwerte werden wenigstens lesbar gemacht", txt[:200])
 
+        # ── 5b) Erklärblasen an den drei heiklen Knöpfen ─────────────────
+        print("\n[5b] „?“-Erklärblasen in der Detailspalte")
+        blasen = await page.eval_on_selector_all(
+            "#lib-detail .lib-act-paar .rz-q",
+            "els => els.map(e => e.getAttribute('data-tip') || '')")
+        sagen(len(blasen) == 3, "drei Knöpfe haben eine Erklärung", str(len(blasen)))
+        text = " ".join(blasen)
+        sagen("bleibt im Archiv" in text, "Ausblenden erklärt, dass nichts verloren geht")
+        sagen("Datei bleibt" in text and "Einlesen" in text,
+              "„Aus Archiv nehmen“ sagt, dass die Datei liegen bleibt")
+        sagen("Papierkorb leerst" in text,
+              "„In den Papierkorb“ beantwortet „wann ist es endgültig weg?“")
+
+        # Die Blase muss beim Klick auch wirklich erscheinen — ohne den
+        # gemeinsamen Helfer aus util.js bliebe das Symbol stumm.
+        await page.click("#lib-detail .lib-act-paar .rz-q")
+        await page.wait_for_timeout(300)
+        sichtbar = await page.evaluate("""() => {
+          const t = document.getElementById("rz-tip");
+          return !!t && t.style.display === "block" && t.textContent.length > 20;
+        }""")
+        sagen(sichtbar, "ein Klick auf „?“ zeigt die Blase")
+
+        # ── 5c) Papierkorb-Rückfrage erklärt sich ────────────────────────
+        print("\n[5c] Die Papierkorb-Rückfrage")
+        await page.click("#lib-d-trash")
+        await page.wait_for_timeout(500)
+        einzeln = await page.eval_on_selector("#modal-overlay", "e => e.innerText")
+        sagen("zurückholen" in einzeln,
+              "der Hinweis zum Zurückholen steht drin", einzeln[:120])
+        await page.click("#lib-trash-cancel")
+        await page.wait_for_timeout(400)
+        sagen(await page.eval_on_selector("#modal-overlay", "e => e.hidden"),
+              "Abbrechen schließt die Rückfrage")
+
         # ── 6) Fehler-Dialog mit 98692 Meldungen ─────────────────────────
         print("\n[6] Fehler-Dialog bei 98692 Meldungen")
         await page.evaluate("window.__ruf = []")

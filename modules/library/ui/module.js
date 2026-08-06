@@ -1394,8 +1394,7 @@ function mountLibrary(body, headerActions) {
       _multi.clear(); reload();
     };
     $("lib-m-trash").onclick = async () => {
-      if (!confirm(T("library.trash_many_q", "{n} Touren in den Papierkorb legen?")
-                   .replace("{n}", _multi.size))) return;
+      if (!await frageTrash(_multi.size)) return;
       let ok = 0;
       for (const p of pfade()) {
         const r = await api().library_trash(p);
@@ -1544,12 +1543,22 @@ function mountLibrary(body, headerActions) {
         ${it.source_url ? `<button class="btn btn-ghost btn-sm" id="lib-d-src">${T("library.open_source", "Bei Komoot ansehen")}</button>` : ""}
       </div>
       <div class="lib-actions lib-danger">
-        <button class="btn btn-ghost btn-sm" id="lib-d-hide">${it.hidden ? T("library.unhide", "Wieder einblenden") : T("library.hide", "Ausblenden")}</button>
-        <button class="btn btn-ghost btn-sm" id="lib-d-forget">${T("library.forget", "Aus Archiv nehmen")}</button>
-        <button class="btn btn-ghost btn-sm lib-btn-danger" id="lib-d-trash">${T("library.trash", "In den Papierkorb")}</button>
+        <span class="lib-act-paar">
+          <button class="btn btn-ghost btn-sm" id="lib-d-hide">${it.hidden ? T("library.unhide", "Wieder einblenden") : T("library.hide", "Ausblenden")}</button>
+          ${helpTip(T("library.hide_help", "Blendet die Tour nur aus der Liste aus. Sie bleibt im Archiv und liegt unter „Ausgeblendete“ — von dort holst du sie jederzeit zurück. An der Datei ändert sich nichts."))}
+        </span>
+        <span class="lib-act-paar">
+          <button class="btn btn-ghost btn-sm" id="lib-d-forget">${T("library.forget", "Aus Archiv nehmen")}</button>
+          ${helpTip(T("library.forget_help", "Entfernt nur den Eintrag aus dem Archiv — deine Datei bleibt unangetastet dort liegen, wo sie ist. Beim nächsten Einlesen taucht sie wieder auf, solange der Ordner noch beobachtet wird. Soll sie dauerhaft aus dem Archiv verschwinden, nimm den Ordner unter „Ordner & Einlesen“ heraus."))}
+        </span>
+        <span class="lib-act-paar">
+          <button class="btn btn-ghost btn-sm lib-btn-danger" id="lib-d-trash">${T("library.trash", "In den Papierkorb")}</button>
+          ${helpTip(T("library.trash_help", "Verschiebt die Datei wirklich — in den Papierkorb deines Systems, genau wie beim Löschen im Finder oder Explorer. Endgültig weg ist sie erst, wenn du den Papierkorb leerst; bis dahin kannst du sie dort zurückholen. GPS Studio löscht nie selbst etwas endgültig."))}
+        </span>
       </div>`;
 
     box.querySelectorAll("[data-open]").forEach(b => { b.onclick = () => openIn(b.dataset.open); });
+    initHelpTips(box);   // „?"-Erklärblasen der Detailspalte
 
     const nameInput = $("lib-d-name");
     const saveName = debounce(async () => {
@@ -1663,29 +1672,48 @@ function mountLibrary(body, headerActions) {
 
   /** Endgültig wirkende Aktionen fragen nach — hier geht es um eine fremde
    *  Datei, nicht um App-Daten. */
-  function confirmTrash(it) {
-    const m = openModal({
-      title: T("library.trash", "In den Papierkorb"),
-      body: `<div class="lib-fmodal">
-        <p>${T("library.trash_q", "Diese Datei in den Papierkorb legen?")}</p>
-        <p class="lib-hint">${esc(it.path)}</p>
-        <p class="lib-hint">${T("library.trash_note", "Die Tour verschwindet aus dem Archiv. Aus dem Papierkorb kannst du sie zurückholen, solange er nicht geleert ist.")}</p>
-        <div class="lib-actions" style="margin-top:12px;">
-          <button class="btn btn-sm" id="lib-trash-cancel">${T("library.cancel", "Abbrechen")}</button>
-          <button class="btn btn-sm lib-btn-danger" id="lib-trash-ok">${T("library.trash_do", "In den Papierkorb")}</button>
-        </div>
-      </div>`,
+  /** Rückfrage vors Verschieben in den Papierkorb — für eine Tour wie für
+   *  hundert. Liefert true, wenn der Nutzer zustimmt. */
+  function frageTrash(n, pfad) {
+    return new Promise((fertig) => {
+      let beantwortet = false;
+      const m = openModal({
+        title: T("library.trash", "In den Papierkorb"),
+        body: `<div class="lib-fmodal">
+          <p>${n === 1
+            ? T("library.trash_q", "Diese Datei in den Papierkorb legen?")
+            : T("library.trash_many_q", "{n} Touren in den Papierkorb legen?")
+                .replace("{n}", num(n))}</p>
+          ${pfad ? `<p class="lib-hint">${esc(pfad)}</p>` : ""}
+          <p class="lib-hint">${T("library.trash_note", "Die Tour verschwindet aus dem Archiv. Aus dem Papierkorb kannst du sie zurückholen, solange er nicht geleert ist.")}</p>
+          <div class="lib-actions" style="margin-top:12px;">
+            <button class="btn btn-sm" id="lib-trash-cancel">${T("library.cancel", "Abbrechen")}</button>
+            <button class="btn btn-sm lib-btn-danger" id="lib-trash-ok">${T("library.trash_do", "In den Papierkorb")}</button>
+          </div>
+        </div>`,
+        // Auch das ✕ oben und die Esc-Taste sind eine Antwort — sonst bliebe
+        // das Versprechen offen und der Aufrufer hinge für immer.
+        onClose: () => { if (!beantwortet) { beantwortet = true; fertig(false); } },
+      });
+      const ende = (wert) => {
+        if (beantwortet) return;
+        beantwortet = true;
+        m.close();
+        fertig(wert);
+      };
+      const cancel = document.getElementById("lib-trash-cancel");
+      if (cancel) cancel.onclick = () => ende(false);
+      const ok = document.getElementById("lib-trash-ok");
+      if (ok) ok.onclick = () => ende(true);
     });
-    const cancel = document.getElementById("lib-trash-cancel");
-    if (cancel) cancel.onclick = () => m.close();
-    const ok = document.getElementById("lib-trash-ok");
-    if (ok) ok.onclick = async () => {
-      const res = await api().library_trash(it.path);
-      m.close();
-      if (!res.ok) { toast(res.error || "Nicht möglich", "error"); return; }
-      toast(T("library.trash_done", "In den Papierkorb gelegt."), "info");
-      _sel = null; store.set("sel", ""); renderDetail(); reload();
-    };
+  }
+
+  async function confirmTrash(it) {
+    if (!await frageTrash(1, it.path)) return;
+    const res = await api().library_trash(it.path);
+    if (!res.ok) { toast(res.error || "Nicht möglich", "error"); return; }
+    toast(T("library.trash_done", "In den Papierkorb gelegt."), "info");
+    _sel = null; store.set("sel", ""); renderDetail(); reload();
   }
 
   /** Woran erkannt? — damit die Schätzung nachvollziehbar bleibt. */

@@ -92,6 +92,7 @@ from core import sun as csun  # v0.9.333 — Sonnenstand + Blickrichtung (Lichts
 from core import geocode as cgeocode  # v0.9.337 — Reverse-Geocoding (Adresse) via OSM
 from core import autotag as cautotag  # v0.9.349 — Bilderkennung (Apple Vision, nur macOS)
 from core import backup as cbak
+from core import drops as cdrops
 from core import animator as canim
 from core import sessions as _sessions  # v0.8.0: Sessions + Projekte
 # v0.9.310 — core/tourmap.py entfernt: Tour-Map rendert jetzt über
@@ -148,7 +149,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.501"
+APP_VERSION = "0.9.502"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1655,6 +1656,19 @@ class Api:
                     log.info("library: Aufräumen — %s", res)
             except Exception:
                 log.exception("library housekeeping")
+            # v0.9.502 — verwaiste Drag-&-Drop-Kopien wegräumen. Jede per
+            # Ziehen geöffnete Datei wurde unter `_drops/<id>/` abgelegt und
+            # NIE wieder entfernt; auf einem Testrechner lagen so nach drei
+            # Monaten 110 Ordner mit 392 GB bei 94 % voller Platte. Läuft
+            # bewusst beim Start (kein Ziehen im Gange) und rührt nichts an,
+            # worauf eine Sitzung noch verweist.
+            try:
+                res = cdrops.aufraeumen(DROPS_DIR, SESSIONS_FILE)
+                if res.get("geloescht"):
+                    log.info("drops: %d verwaiste Ordner entfernt, %.1f GB frei",
+                             res["geloescht"], res.get("bytes", 0) / 2**30)
+            except Exception:
+                log.exception("drops aufraeumen")
             try:
                 self.library_map_thumbs_start(auto=True)
             except Exception:

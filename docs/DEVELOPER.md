@@ -245,6 +245,70 @@ Zusatz-Messwerte pro Trackpunkt (FIT-HR/Power/Temp/E-Bike, GPX-Extensions). **Va
 - **Spiegelung:** Tour-Map (`modules/tourmap`) bekommt KEINE Sensor-Felder — Sensorwerte sind zeit-animiert (Live-Box), die Tour-Map ist ein Standbild. Analog zur bestehenden Live-Box-Ausnahme der Spiegelungs-Regel.
 - **OFFEN:** Phase 2b (Diagramme/Aggregate pro Feld — Ø/Max-HF als Totals, HF-Zonen-Track-Färbung, Gauges), Phase 3 (Auto-Schilder §15.3).
 
+### `core/drops.py` — Aufräumen der Drag-&-Drop-Ablage (v0.9.502)
+
+⚠️ **Ein Leck, das drei Monate lief.** Die Oberfläche kommt beim Ziehen nicht an
+den echten Dateipfad, liest also den Inhalt und schickt ihn als base64 ans
+Backend, das ihn unter `_drops/<id>/` ablegt (`app.py`, `DROPS_DIR`). Diese Kopie
+wurde **nie** entfernt — es gab im gesamten Code keine Stelle, die das getan
+hätte. Auf dem Entwicklerrechner: 110 Ordner, 392 GB, Platte zu 94 % voll.
+
+`aufraeumen(drops_dir, sessions_datei)` läuft beim Start im
+`library-startup`-Thread. Gelöscht wird nur, was **beide** Bedingungen erfüllt:
+
+1. **Keine Sitzung verweist darauf.** Ein Projekt kann eine gezogene Datei
+   dauerhaft benutzen — dann ist die Kopie unter `_drops/` die einzige, die es
+   noch gibt. ⚠️ Der Ordnername ist **NICHT** die Sitzungs-ID (10 gegen 16
+   Zeichen); ein Namensvergleich hätte auf dem Testrechner alle 110 Ordner als
+   verwaist eingestuft, auch die drei in Benutzung. Die Verweise kommen deshalb
+   per Regex `_VERWEIS` aus dem **Rohtext** von `sessions.json` — bewusst nicht
+   über die Struktur, damit ein neues Feld mit einem Drop-Pfad nicht still
+   übersehen wird.
+2. **Älter als `KARENZ_TAGE` (2).** Zwischen dem Anlegen des Ordners und dem
+   Speichern der Sitzung liegen Sekunden; ohne Frist könnte ein Lauf genau
+   dazwischen treffen. Das Alter zählt nach dem **jüngsten** Eintrag im Ordner,
+   nicht nach dem Ordnerdatum — sonst gilt ein aktiv befüllter Ordner als alt.
+
+Ist `sessions.json` unlesbar, wird **gar nichts** gelöscht (`ok: False`,
+`grund: sessions_unlesbar`) — lieber Speicher verschwenden als Daten verlieren.
+Gelöscht wird endgültig, nicht in den Papierkorb: es sind Arbeitskopien, und
+300 GB in den Papierkorb zu schieben gäbe den Platz gerade nicht frei.
+
+`analysiere()` liefert dasselbe als Vorschau, ohne etwas anzufassen — für Tests
+und für einen möglichen Knopf im UI. `tests/test_drops_aufraeumen.py` deckt vor
+allem ab, was **nicht** wegdarf.
+
+### Papierkorb + „?"-Erklärblasen (v0.9.502)
+
+**`library._in_den_papierkorb(p)`** — ⚠️ Bis v0.9.501 stand auf dem Knopf „In den
+Papierkorb", aber der Code verschob die Datei nur auf macOS wirklich dorthin
+(Finder via `osascript`). Auf Windows landete sie in `Path.home()/"Trash"`, also
+`C:\Users\<Name>\Trash` — ein selbst angelegter Ordner, NICHT der Papierkorb.
+Sie tauchte dort nie auf, war nicht wiederherstellbar und wurde nie geleert.
+
+Reihenfolge jetzt: `send2trash` (alle drei Systeme, Windows über die Shell-API,
+Linux mit `.trashinfo` also inklusive Zurücklegen) → macOS-Finder als Rückfall →
+Ordner verschieben als letzter Rückfall. Der Rückgabewert trägt
+`echter_papierkorb: bool`, damit die Oberfläche nichts verspricht, was nicht
+stimmt.
+
+⚠️ `send2trash` steht in `requirements.txt` **und** als `hiddenimport` in der
+Spec. Ohne den Spec-Eintrag fehlt es im Bundle, der Import scheitert still und
+Windows fällt auf genau den Weg zurück, der repariert werden sollte.
+`tests/test_papierkorb.py` prüft beides.
+
+**`util.initHelpTips(scope)` / `util.helpTip(text)`** — die „?"-Erklärblasen. Lagen
+bis v0.9.501 nur im GPX-Inspektor; seit v0.9.502 in `ui/js/util.js`, benutzt von
+Archiv und Inspektor. Native `title`-Tooltips sind in einer WebView unzuverlässig,
+deshalb ein eigenes Popup mit `position: fixed` (darf aus scrollbaren Panels
+herausragen). Der Helfer hört per Delegation auf `.rz-q` **und** `.gpxi-q` — die
+zweite Klasse nur, weil das Inspektor-Markup sie an sieben Stellen benutzt. Neuer
+Code nimmt `.rz-q` bzw. gleich `helpTip()`. CSS in `ui/css/app.css`.
+
+⚠️ `initHelpTips` muss je Modul-Mount einmal auf dem Wurzelelement laufen, sonst
+bleiben die Symbole stumm. Im Archiv steckt der Aufruf in `renderDetail`, weil
+die Knöpfe bei jedem Auswahlwechsel neu entstehen.
+
 ### `core/fitmeta.py` — Tour-Ebene aus FIT (seit v0.9.501)
 
 `core/sensors.py` deckt Werte **je Trackpunkt** ab. Alles, was die **Tour als

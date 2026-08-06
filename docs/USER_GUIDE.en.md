@@ -460,6 +460,22 @@ currently sorted. Empty values always go last — otherwise “Start point A–Z
 begin with a screenful of empty cells. The same applies to the “Activities compared”
 table in the statistics.
 
+**Hide, remove from library, trash — what is the difference?** The three buttons
+at the bottom of the detail column look similar but do very different things.
+Next to each is a **“?”** that explains it; for reference:
+
+* **Hide** — the tour only disappears from the list and sits under “Hidden”. The
+  file itself is untouched.
+* **Remove from library** — removes only the entry. **Your file stays exactly
+  where it is.** It reappears on the next scan as long as the folder is still
+  watched. To keep it out for good, remove the folder under “Folders & scanning”.
+* **Move to trash** — actually moves the file, into your system's trash. Just
+  like deleting it in Finder or Explorer.
+
+**When is a file gone for good?** Only once you empty your trash. GPS Studio
+never permanently deletes anything by itself; until then you can restore the file
+from there. This also applies when you trash several tours at once.
+
 **Files that don't become a tour.** If the header shows a note like **“12 files without a
 route”** or **“3 files unreadable”**, click it. The dialog separates two things that are
 easily confused:

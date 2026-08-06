@@ -113,9 +113,36 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.501</span>
+    <span class="version-num">v0.9.502</span>
     <span class="version-date">5 August 2026</span>
     <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">When is a file actually gone for good? Now it says so — and on Windows it is finally true.</p>
+
+  <div class="highlight">
+    <strong>🗑️ Windows: “Move to trash” did not mean the Recycle Bin.</strong> The file ended up in a self-made folder instead — not findable there, not restorable, never emptied. It now goes through the system's Recycle Bin, just like deleting in Explorer. On the Mac it always was the real Trash.
+  </div>
+
+  <div class="highlight">
+    <strong>❓ The risky buttons explain themselves.</strong> Next to <em>Hide</em>, <em>Remove from library</em> and <em>Move to trash</em> there is now a “?”. The difference between the middle two was impossible to guess: “Remove from library” leaves your file untouched and it reappears on the next scan — only “Move to trash” actually moves it.
+  </div>
+
+  <div class="highlight">
+    <strong>💾 The app was quietly eating disk space.</strong> Every file you dragged into the window was copied internally — and never cleaned up. On the test machine that came to <strong>392 GB</strong> in three months. GPS Studio now clears those copies on startup; it only touches what belongs to no project any more and is older than two days.
+  </div>
+
+  <h4>Fixed</h4>
+  <ul>
+    <li><strong>Deleting several tours at once</strong> did not mention that it can be undone from the trash — exactly where the worry is greatest. One tour and a hundred now get the same dialog.</li>
+  </ul>
+
+  <p class="version-note">GPS Studio never permanently deletes anything by itself. A file is gone for good only once you empty your trash — until then you can restore it from there.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.501</span>
+    <span class="version-date">5 August 2026</span>
   </div>
   <p class="version-tagline">Your watch knows more about your tour than used to arrive.</p>
 

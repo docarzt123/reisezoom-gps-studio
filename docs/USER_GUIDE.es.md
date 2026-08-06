@@ -465,6 +465,23 @@ por qué se está ordenando. Los valores vacíos van siempre al final; si no, «
 inicio A–Z» empezaría con una pantalla de celdas vacías. Lo mismo vale en la
 estadística para la tabla «Actividades comparadas».
 
+**Ocultar, quitar del archivo, papelera: ¿cuál es la diferencia?** Los tres
+botones al final de la columna de detalle se parecen, pero hacen cosas muy
+distintas. Junto a cada uno hay un **«?»** que lo explica; para consultarlo:
+
+* **Ocultar**: la ruta solo desaparece de la lista y queda en «Ocultas». El
+  fichero no se toca.
+* **Quitar del archivo**: elimina únicamente la entrada. **Tu fichero se queda
+  exactamente donde está.** Reaparecerá en la siguiente lectura mientras la
+  carpeta siga vigilada. Para que no vuelva, quita la carpeta en «Carpetas y
+  lectura».
+* **A la papelera**: mueve el fichero de verdad, a la papelera de tu sistema.
+  Igual que al borrarlo en Finder o en el Explorador.
+
+**¿Cuándo desaparece un archivo del todo?** Solo cuando vacías la papelera. GPS
+Studio nunca borra nada de forma definitiva por su cuenta; hasta entonces puedes
+recuperarlo desde allí. Esto vale también si envías varias rutas a la vez.
+
 **Archivos que no llegan a ser una ruta.** Si en la cabecera aparece un aviso como
 **«12 archivos sin recorrido»** o **«3 archivos no legibles»**, púlsalo. El diálogo separa
 dos cosas que se confunden con facilidad:
