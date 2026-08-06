@@ -33,14 +33,12 @@ Platz gerade NICHT frei, was der ganze Zweck ist.
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
 import shutil
 import time
 from pathlib import Path
-from typing import Optional
 
 log = logging.getLogger("rzgps.drops")
 
