@@ -626,6 +626,21 @@ _ACT_WORDS = [
 # `set_activity` prüft dagegen, damit kein Tippfehler in der Datenbank landet.
 ACTIVITIES = tuple(k for k, _ in _ACT_WORDS)
 
+# Sammelposten für den Filter (Wunsch Beta-Tester): „Bei 3 verschiedenen
+# Fahrrädern wäre es schön, wenn man alle Fahrräder, alles zu Fuß zusammenfasst."
+# Wer seine Räder getrennt führt, will trotzdem manchmal nur wissen: wie viel
+# war ich überhaupt mit dem Rad unterwegs?
+#
+# ⚠️ Die Werte MÜSSEN in ACTIVITIES existieren — sonst filtert der Sammelposten
+# stillschweigend an einer Art vorbei. `tests/test_activity_groups.py` prüft das.
+ACT_GROUPS = {
+    "rad":  ("rad", "rennrad", "gravel", "mtb", "ebike"),
+    "fuss": ("wandern", "spaziergang", "laufen"),
+}
+# Im Filter kommen sie als `grp:rad` / `grp:fuss` an — ein eigenes Präfix, damit
+# sie sich nie mit einer echten Art verwechseln lassen (es GIBT eine Art „rad").
+GROUP_PREFIX = "grp:"
+
 
 def _guess_activity(name: str, distance_m: float, moving_s: float) -> str:
     """Einordnung der Fortbewegungsart: erst am Namen, sonst am Tempo.
@@ -1257,7 +1272,19 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
     if year:
         where.append("year = ?"); args.append(int(year))
     if activity:
-        where.append("activity = ?"); args.append(activity)
+        # Sammelposten (`grp:rad`) fassen mehrere Arten zusammen; alles andere
+        # ist eine einzelne Art. Bewusst hier und nicht in der Oberfläche:
+        # Liste, Karte und Statistik gehen alle durch `_build_where`, damit
+        # zählt die Statistik garantiert dasselbe, was die Liste zeigt.
+        if activity.startswith(GROUP_PREFIX):
+            arten = ACT_GROUPS.get(activity[len(GROUP_PREFIX):], ())
+            if arten:
+                where.append(f"activity IN ({','.join('?' * len(arten))})")
+                args.extend(arten)
+            else:
+                where.append("1=0")      # unbekannte Gruppe → nichts, nicht alles
+        else:
+            where.append("activity = ?"); args.append(activity)
     if fav_only:
         where.append("fav = 1")
     if planned is not None:

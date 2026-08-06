@@ -44,8 +44,15 @@ TESTS = REPO / "tests"
 #   "langsam"  — dauert Minuten (echte Renders)
 BEDINGT = {
     "test_https_certificates.py": ("netz",),
-    "test_animator_render.py": ("token", "langsam"),
-    "test_animator_alpha.py": ("token", "langsam"),
+    # ⚠️ Beide standen bis v0.9.503 auf „langsam" und liefen damit bei KEINEM
+    # Release mit. Genau deshalb blieb der Render-Totalausfall vier Versionen
+    # lang unentdeckt — `test_animator_render.py` hätte ihn beim ersten Lauf
+    # gefunden. Jetzt laufen sie, sobald ihre Voraussetzungen da sind:
+    #   · der MP4-Test braucht Karte und Token (~17 s)
+    #   · der Alpha-Test rendert ohne Karte, braucht also gar nichts (~4 s)
+    # Das kostet die Reihe etwa 20 Sekunden. Der Fehler kostete vier Releases.
+    "test_animator_render.py": ("token", "netz"),
+    "test_animator_alpha.py": (),
     "test_geotagger_e2e.py": ("fixtures",),
     "test_raw_geotagging.py": ("fixtures",),
     "test_video_geotagging.py": ("fixtures",),

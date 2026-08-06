@@ -245,6 +245,30 @@ Zusatz-Messwerte pro Trackpunkt (FIT-HR/Power/Temp/E-Bike, GPX-Extensions). **Va
 - **Spiegelung:** Tour-Map (`modules/tourmap`) bekommt KEINE Sensor-Felder — Sensorwerte sind zeit-animiert (Live-Box), die Tour-Map ist ein Standbild. Analog zur bestehenden Live-Box-Ausnahme der Spiegelungs-Regel.
 - **OFFEN:** Phase 2b (Diagramme/Aggregate pro Feld — Ø/Max-HF als Totals, HF-Zonen-Track-Färbung, Gauges), Phase 3 (Auto-Schilder §15.3).
 
+### Sammelposten im Fortbewegungs-Filter (v0.9.504)
+
+`library.ACT_GROUPS` fasst Arten zusammen (`rad`: rad/rennrad/gravel/mtb/ebike,
+`fuss`: wandern/spaziergang/laufen). Im Filter kommen sie als `grp:rad` an —
+eigenes Präfix, weil es eine echte Art namens `rad` **gibt** und beide sich sonst
+verwechseln ließen.
+
+Aufgelöst wird in `_build_where()`, nicht in der Oberfläche: Liste, Karte und
+Statistik gehen alle da durch, damit die Statistik garantiert dasselbe zählt,
+was die Liste zeigt. Eine unbekannte Gruppe ergibt `1=0` — **nichts**, nicht
+alles; sonst zeigte ein Tippfehler stillschweigend das ganze Archiv.
+
+⚠️ Die Aufteilung steht **zweimal**: einmal hier, einmal in
+`modules/library/ui/module.js` (die Vergleichstabelle gruppiert im Browser, weil
+sie ohnehin fertige Jahreszeilen bekommt). `tests/test_activity_groups.py` liest
+beide und vergleicht sie — und prüft, dass jede genannte Art in `ACTIVITIES`
+existiert. Fehlt eine, filtert der Sammelposten still daran vorbei: die Summe
+ist zu klein und es gibt keinen Fehler.
+
+⚠️ **Beim Schreiben von Archiv-Tests:** Nutzer-Eingaben hängen am `geo_hash`,
+nicht am Pfad. Zehn Dateien mit identischer Geometrie sind **eine** Tour, und
+`set_activity` setzt alle gleichzeitig. Testdateien brauchen je eigene
+Koordinaten — darauf ist der Gruppen-Test beim ersten Schreiben hereingefallen.
+
 ### ⚠️ Render-Ausgabe: Teildatei braucht ein ausdrückliches Format (v0.9.503)
 
 **Der teuerste Fehler des Projekts bisher — vier Releases lang war jeder Render
