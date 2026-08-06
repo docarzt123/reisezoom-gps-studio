@@ -113,9 +113,33 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.503</span>
+    <span class="version-date">6 de agosto de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Actualización urgente: en las últimas cuatro versiones fallaba toda exportación de vídeo.</p>
+
+  <div class="highlight">
+    <strong>🎬 La exportación de vídeo vuelve a funcionar.</strong> En las versiones v0.9.499 a v0.9.502 todo renderizado se interrumpía con «Broken pipe». La culpa era del archivo temporal en el que se escribe primero desde la v0.9.499: ffmpeg no podía deducir de su extensión qué formato de vídeo debía crear y abandonaba de inmediato. Si tienes una de esas versiones, instala esta.
+  </div>
+
+  <div class="highlight">
+    <strong>⚙️ Los ajustes no se podían guardar.</strong> Pulsar «Guardar» no hacía nada: ni el idioma, ni el token de Mapbox, ni la calidad de renderizado llegaban a guardarse. También corregido.
+  </div>
+
+  <h4>Corregido</h4>
+  <ul>
+    <li><strong>Si una exportación falla, ahora se indica por qué.</strong> Antes el programa solo decía «Broken pipe» y ocultaba el motivo que ya conocía; justo por eso el fallo anterior pasó tanto tiempo inadvertido.</li>
+    <li><strong>El renderizado ya no necesita internet para la biblioteca de mapas.</strong> Viene incluida. Detrás de un cortafuegos antes no había manera.</li>
+  </ul>
+
+  <p class="version-note">Gracias al usuario que envió su archivo de registro: sin él los tres fallos seguirían ahí.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.502</span>
     <span class="version-date">5 de agosto de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">¿Cuándo desaparece un archivo de verdad? Ahora lo pone — y en Windows por fin es cierto.</p>
 

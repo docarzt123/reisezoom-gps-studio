@@ -113,9 +113,33 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.503</span>
+    <span class="version-date">6. August 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Dringendes Update: In den letzten vier Versionen schlug jeder Video-Export fehl.</p>
+
+  <div class="highlight">
+    <strong>🎬 Der Video-Export geht wieder.</strong> In v0.9.499 bis v0.9.502 brach jeder Render mit „Broken pipe" ab — schuld war die Zwischendatei, in die seit v0.9.499 zuerst geschrieben wird: ffmpeg konnte an ihrer Endung nicht erkennen, welches Videoformat es erzeugen soll, und gab sofort auf. Wenn du eine dieser Versionen hast, lade bitte diese hier.
+  </div>
+
+  <div class="highlight">
+    <strong>⚙️ Die Einstellungen ließen sich nicht speichern.</strong> Ein Klick auf „Speichern" tat nichts — weder Sprache noch Mapbox-Token noch Renderqualität kamen an. Auch das ist behoben.
+  </div>
+
+  <h4>Behoben</h4>
+  <ul>
+    <li><strong>Bricht ein Export doch einmal ab, steht jetzt drin, warum.</strong> Vorher meldete das Programm nur „Broken pipe" und verschwieg die Begründung, die es bereits hatte — genau deshalb blieb der Fehler oben so lange unentdeckt.</li>
+    <li><strong>Der Render braucht das Internet nicht mehr für die Kartenbibliothek.</strong> Sie wird mitgeliefert. Wer hinter einer Firewall arbeitet, kam vorher nicht durch.</li>
+  </ul>
+
+  <p class="version-note">Danke an den Nutzer, der seine Protokolldatei geschickt hat — ohne sie wären alle drei Fehler noch drin.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.502</span>
     <span class="version-date">5. August 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <p class="version-tagline">Wann ist eine Datei eigentlich endgültig weg? Jetzt steht es dran — und auf Windows stimmt es endlich.</p>
 

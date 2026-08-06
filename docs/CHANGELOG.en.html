@@ -113,9 +113,33 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.503</span>
+    <span class="version-date">6 August 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">Urgent update: every video export failed in the last four versions.</p>
+
+  <div class="highlight">
+    <strong>🎬 Video export works again.</strong> In v0.9.499 to v0.9.502 every render stopped with “Broken pipe”. The cause was the temporary file it writes to first since v0.9.499: ffmpeg could not tell from its extension which video format to produce, and gave up immediately. If you have one of those versions, please install this one.
+  </div>
+
+  <div class="highlight">
+    <strong>⚙️ Settings could not be saved.</strong> Clicking “Save” did nothing — neither the language nor the Mapbox token nor the render quality got through. Fixed as well.
+  </div>
+
+  <h4>Fixed</h4>
+  <ul>
+    <li><strong>If an export does fail, it now says why.</strong> Before, the program only reported “Broken pipe” and withheld the reason it already had — which is exactly why the bug above went unnoticed for so long.</li>
+    <li><strong>The render no longer needs the internet for the map library.</strong> It ships with the app. Behind a firewall it previously could not get through.</li>
+  </ul>
+
+  <p class="version-note">Thanks to the user who sent in his log file — without it all three bugs would still be in there.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.502</span>
     <span class="version-date">5 August 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <p class="version-tagline">When is a file actually gone for good? Now it says so — and on Windows it is finally true.</p>
 

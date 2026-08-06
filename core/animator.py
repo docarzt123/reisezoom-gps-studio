@@ -35,6 +35,25 @@ _WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" e
 _TEIL = ".rzpart"
 
 
+# Endung → ffmpeg-Muxer. ⚠️ Ohne das ist der Render seit v0.9.499 KOMPLETT
+# kaputt: die Teildatei heißt `<name>.mp4.rzpart`, und aus `.rzpart` kann ffmpeg
+# kein Ausgabeformat ableiten — „Unable to choose an output format … use a
+# standard extension for the filename or specify the format manually".
+# ffmpeg beendet sich sofort, der Pipe-Puffer schluckt die ersten Frames, und
+# heraus kam ein nacktes „Broken pipe" ohne jeden Hinweis auf die Ursache.
+_MUXER = {".mp4": "mp4", ".mov": "mov", ".webm": "webm", ".mkv": "matroska",
+          ".m4v": "mp4", ".avi": "avi"}
+
+
+def _muxer_fuer(ziel: str) -> str:
+    """Das Ausgabeformat, das ffmpeg sonst aus der Endung raten würde.
+
+    Gerechnet wird auf dem ECHTEN Ziel (`…mp4`), nicht auf der Teildatei —
+    genau daran ist es gescheitert.
+    """
+    return _MUXER.get(Path(ziel).suffix.lower(), "mp4")
+
+
 def _teildatei(ziel: str) -> str:
     """Arbeitsname neben dem Ziel — gleicher Ordner, damit das Umbenennen auf
     derselben Platte bleibt und damit in einem Rutsch geschieht."""
@@ -80,6 +99,42 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from PIL import Image
+
+
+def _ffmpeg_gestorben(ff, err_th, err_buf, frame: int, total: int, out_path: str):
+    """ffmpeg ist mitten im Schreiben verschwunden — seine Begründung retten.
+
+    ⚠️ Ohne das ist der Fehlerbericht wertlos. `ff.stdin.write(frame)` wirft
+    `BrokenPipeError`, sobald ffmpeg weg ist; die Ausnahme flog bisher an der
+    Auswertung am Funktionsende vorbei, und damit landete ffmpegs eigene
+    Fehlermeldung — die längst im Puffer lag — nie im Log. Ein Nutzer schickte
+    sechs Berichte mit immer demselben nackten „Broken pipe"; warum sein Render
+    abbrach, ließ sich daraus nicht sagen.
+
+    Typisch ist: ffmpeg beendet sich SOFORT (Ausgabedatei nicht anlegbar), und
+    weil der Pipe-Puffer die ersten ~64 KB schluckt, fällt es erst nach ein paar
+    Frames auf. Genau deshalb steht die Ausgabedatei mit in der Meldung.
+    """
+    try:
+        err_th.join(timeout=2)
+    except Exception:
+        pass
+    err = bytes(err_buf).decode(errors="replace").strip()
+    rc = ff.poll()
+    _log.error("ffmpeg starb bei Frame %d/%d (returncode=%s), Ziel: %s\n"
+               "ffmpeg-Ausgabe:\n%s", frame, total, rc, out_path,
+               err or "(keine — vermutlich von außen beendet)")
+    if err:
+        return RuntimeError(f"ffmpeg brach ab (Frame {frame}/{total}): "
+                            f"{err.splitlines()[-1][:300]}")
+    # Kein Wort von ffmpeg = es wurde von außen abgeschossen oder kam nie an
+    # die Ausgabedatei. Beides ist nichts, was der Nutzer im Programm findet.
+    return RuntimeError(
+        f"ffmpeg brach bei Frame {frame}/{total} ohne Meldung ab. Häufigste "
+        f"Ursachen: ein Virenscanner blockiert das Schreiben, das Ziel liegt "
+        f"auf einem Netz-/Wechsellaufwerk oder die Platte ist voll. "
+        f"Ziel war: {out_path}")
+
 
 
 class RenderCancelled(Exception):
@@ -1175,6 +1230,48 @@ def _read_sign_draw_js() -> str:
     return p.read_text(encoding="utf-8")
 
 
+_MAPBOX_GL_CACHE: Optional[str] = None
+
+
+def _mapbox_gl_head() -> str:
+    """`<script>`/`<style>` für mapbox-gl — aus dem Bundle statt aus dem Netz.
+
+    ⚠️ Der Render lud die Bibliothek bisher bei JEDEM Lauf von
+    `api.mapbox.com` nach, obwohl `ui/vendor/mapbox-gl.js` (1,5 MB, exakt
+    dieselbe Fassung 3.12.0) mitgeliefert wird und die App-Oberfläche sie längst
+    von dort nimmt. Wem eine Firewall oder ein Virenscanner den Netzzugriff
+    verbietet, bekam `ERR_NETWORK_ACCESS_DENIED`, danach
+    `mapboxgl is not defined` und einen Abbruch nach wenigen Sekunden — ohne
+    dass am Track oder an den Einstellungen irgendetwas falsch war.
+
+    Eingebettet statt verlinkt, weil die Render-Seite über `page.set_content()`
+    entsteht und damit keine Basis-Adresse hat, an der ein `file://`-Verweis
+    hängen könnte.
+
+    Fällt auf die CDN zurück, wenn die Dateien fehlen — dann läuft es wie vorher
+    statt gar nicht. Die Kartenkacheln kommen weiterhin von Mapbox; das hier
+    spart den Download der Bibliothek und macht den Start unabhängig davon.
+    """
+    global _MAPBOX_GL_CACHE
+    if _MAPBOX_GL_CACHE is None:
+        try:
+            base = Path(getattr(sys, "_MEIPASS", None)
+                        or Path(__file__).resolve().parent.parent)
+            js = (base / "ui" / "vendor" / "mapbox-gl.js").read_text(encoding="utf-8")
+            css = (base / "ui" / "vendor" / "mapbox-gl.css").read_text(encoding="utf-8")
+            _MAPBOX_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>"
+            _log.info("mapbox-gl aus dem Bundle eingebettet (%.1f MB) — kein CDN-Abruf",
+                      len(js) / 2**20)
+        except Exception as e:
+            _log.warning("mapbox-gl nicht im Bundle gefunden (%s) — falle auf die CDN "
+                         "zurück; ohne Netz schlägt der Render fehl", e)
+            _MAPBOX_GL_CACHE = (
+                '<script src="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js"></script>\n'
+                '<link href="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css" rel="stylesheet">'
+            )
+    return _MAPBOX_GL_CACHE
+
+
 _SIGN_DRAW_JS_CACHE: Optional[str] = None
 
 
@@ -1349,10 +1446,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         )
         gl_token_js = "window.mapboxgl = maplibregl;"
     else:
-        gl_head = (
-            '<script src="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js"></script>\n'
-            '<link href="https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css" rel="stylesheet">'
-        )
+        gl_head = _mapbox_gl_head()
         gl_token_js = f"mapboxgl.accessToken = '{cfg.mapbox_token}';"
     # v0.9.156 — Multi-Track: `tours` = Liste von {"coords":[[lon,lat]..],"color":"#.."}.
     # Wenn ≥2 vorhanden, werden N eigene Track-Sources/Layer (`mtrack{i}`) plus
@@ -2958,7 +3052,9 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
             ]
             if vcodec == "libx265":
                 ffmpeg_cmd += ["-tag:v", "hvc1"]
-        ffmpeg_cmd.append(_teildatei(cfg.output_path))
+        # ⚠️ Format explizit — aus `.rzpart` kann ffmpeg keins ableiten.
+        ffmpeg_cmd += ["-f", _muxer_fuer(cfg.output_path),
+                       _teildatei(cfg.output_path)]
         _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
@@ -3023,7 +3119,12 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
                         except Exception: pass
 
                     shot = await _grab_frame(page, cfg)
-                    ff.stdin.write(shot)
+                    try:
+                        ff.stdin.write(shot)
+                    except BrokenPipeError:
+                        raise _ffmpeg_gestorben(ff, _ff_err_th, _ff_err_buf,
+                                                gframe + 1, total_frames,
+                                                _teildatei(cfg.output_path)) from None
                     if gframe % preview_every == 0:
                         push_preview(shot)
                     emit(0.05 + 0.87 * (gframe + 1) / total_frames,
@@ -3800,7 +3901,9 @@ async def render(
             # hvc1-Tag für H.265 (sonst spielt QuickTime/Safari .mp4 nicht ab).
             if vcodec == "libx265":
                 ffmpeg_cmd += ["-tag:v", "hvc1"]
-        ffmpeg_cmd.append(_teildatei(cfg.output_path))
+        # ⚠️ Format explizit — aus `.rzpart` kann ffmpeg keins ableiten.
+        ffmpeg_cmd += ["-f", _muxer_fuer(cfg.output_path),
+                       _teildatei(cfg.output_path)]
         _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
@@ -4127,7 +4230,12 @@ async def render(
                         shot = await _grab_frame(page, cfg)
                 if _rt:
                     _now = time.perf_counter(); _rt_acc["shot"] += _now - _rt_t; _rt_t = _now
-                ff.stdin.write(shot)
+                try:
+                    ff.stdin.write(shot)
+                except BrokenPipeError:
+                    raise _ffmpeg_gestorben(ff, _ff_err_th, _ff_err_buf,
+                                            frame + 1, total_frames,
+                                            _teildatei(cfg.output_path)) from None
                 if _rt:
                     _now = time.perf_counter(); _rt_acc["write"] += _now - _rt_t
                     _rt_frames += 1
