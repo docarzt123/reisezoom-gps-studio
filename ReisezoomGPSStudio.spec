@@ -112,6 +112,10 @@ hidden = [
     # v0.9.282 — FIT-Import (Garmin/Wahoo). Lazy import in core/imports.py → muss
     # explizit als hidden-import rein, sonst fehlt's im PyInstaller-Bundle.
     "fitdecode",
+    # v0.9.501 — echter Papierkorb. Lazy import in core/library.py, deshalb
+    # explizit: ohne den Eintrag fehlt es im Bundle und Windows fällt still auf
+    # den alten Ordner-Weg zurück — genau den Fehler, der behoben werden sollte.
+    "send2trash",
     # v0.9.57 — pillow-heif für HEIC/HEIF-Support (Nutzer-Bug: iPhone-Fotos)
     "pillow_heif",
     "_pillow_heif_cffi",

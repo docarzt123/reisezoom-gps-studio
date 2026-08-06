@@ -525,6 +525,58 @@ function t(key, fallbackOrParams, maybeParams) {
 function i18nMeta() { return _i18nMeta; }
 
 /**
+ * „?"-Erklärblasen (v0.9.501, aus dem GPX-Inspektor herausgelöst).
+ *
+ * Native `title`-Tooltips sind in einer WebView unzuverlässig — sie erscheinen
+ * spät, mal gar nicht, und ihr Aussehen lässt sich nicht steuern. Deshalb ein
+ * eigenes Popup mit `position: fixed`, das auch aus einem scrollbaren Panel
+ * herausragen darf.
+ *
+ * Aufruf einmal je Modul-Mount mit dem Wurzelelement. Alles mit der Klasse
+ * `rz-q` (oder `gpxi-q`, historisch) und einem `data-tip` bekommt die Blase.
+ * Klick schaltet um, damit es auch ohne Maus (Touch) erreichbar bleibt.
+ */
+function initHelpTips(scope) {
+  if (!scope) return;
+  let tip = document.getElementById("rz-tip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "rz-tip";
+    tip.className = "rz-tip";
+    document.body.appendChild(tip);
+  }
+  const treffer = (e) => e.target.closest && e.target.closest(".rz-q, .gpxi-q");
+  function show(el) {
+    const txt = el.getAttribute("data-tip");
+    if (!txt) return;
+    tip.textContent = txt;
+    tip.style.display = "block";
+    const r = el.getBoundingClientRect();
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let left = r.left + r.width / 2 - tw / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+    let top = r.top - th - 8;
+    if (top < 8) top = r.bottom + 8;   // oben kein Platz → drunter
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+  }
+  const hide = () => { tip.style.display = "none"; };
+  scope.addEventListener("mouseover", (e) => { const q = treffer(e); if (q) show(q); });
+  scope.addEventListener("mouseout", (e) => { if (treffer(e)) hide(); });
+  scope.addEventListener("click", (e) => {
+    const q = treffer(e);
+    if (q) { e.preventDefault(); tip.style.display === "block" ? hide() : show(q); }
+  });
+}
+
+/** Ein „?"-Symbol mit Erklärblase. `text` wird als Attribut gesetzt, also escapen. */
+function helpTip(text) {
+  const sicher = String(text).replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return `<span class="rz-q" data-tip="${sicher}" role="button" tabindex="0">?</span>`;
+}
+
+/**
  * Zahl aus Nutzereingabe robust parsen (v0.9.459).
  *
  * Deutsche Tastaturen tippen das Dezimalkomma: `parseFloat("2,5")` liefert in

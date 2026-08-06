@@ -1791,28 +1791,9 @@ function mountGpxInspect(body, headerActions) {
   _on("gpxi-undo", () => { if (_undo) _undo.undo(); });
   _on("gpxi-redo", () => { if (_undo) _undo.redo(); });
   _on("gpxi-heal-run", runHeal);
-  // ?-Tooltip: native title-Tooltips rendern in der WebView nicht → eigenes Popup,
-  // das per position:fixed auch aus dem scrollbaren Panel herausragen darf.
-  (function () {
-    let tip = document.getElementById("gpxi-tip");
-    if (!tip) { tip = document.createElement("div"); tip.id = "gpxi-tip"; tip.className = "gpxi-tip"; document.body.appendChild(tip); }
-    const scope = document.getElementById("gpxi-panel") || body;
-    function show(el) {
-      const txt = el.getAttribute("data-tip"); if (!txt) return;
-      tip.textContent = txt; tip.style.display = "block";
-      const r = el.getBoundingClientRect();
-      const tw = tip.offsetWidth, th = tip.offsetHeight;
-      let left = r.left + r.width / 2 - tw / 2;
-      left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
-      let top = r.top - th - 8;
-      if (top < 8) top = r.bottom + 8;
-      tip.style.left = left + "px"; tip.style.top = top + "px";
-    }
-    function hide() { tip.style.display = "none"; }
-    scope.addEventListener("mouseover", (e) => { const q = e.target.closest && e.target.closest(".gpxi-q"); if (q) show(q); });
-    scope.addEventListener("mouseout", (e) => { const q = e.target.closest && e.target.closest(".gpxi-q"); if (q) hide(); });
-    scope.addEventListener("click", (e) => { const q = e.target.closest && e.target.closest(".gpxi-q"); if (q) { e.preventDefault(); (tip.style.display === "block" ? hide() : show(q)); } });
-  })();
+  // ?-Erklärblasen. Seit v0.9.501 liegt der Helfer in ui/js/util.js, damit
+  // Archiv und Inspektor dieselbe Blase benutzen — vorher gab es ihn nur hier.
+  initHelpTips(document.getElementById("gpxi-panel") || body);
   // Empfindlichkeits-Slider: nur Label live.
   { const sl = document.getElementById("gpxi-sens"), lbl = document.getElementById("gpxi-sens-val");
     if (sl) sl.addEventListener("input", () => { if (lbl) lbl.textContent = sl.value; }); }

@@ -14,6 +14,40 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.502] – 2026-08-05
+
+### Behoben
+- **⚠️ Die App belegte unbegrenzt Speicherplatz.** Jede per Ziehen geöffnete
+  Datei wurde nach `Application Support/…/_drops/<id>/` kopiert — und **nie
+  wieder entfernt**; eine Aufräum-Routine gab es im Code schlicht nicht. Auf
+  einem Testrechner lagen so nach knapp drei Monaten **110 Ordner mit 392 GB**
+  bei einer zu 94 % vollen Platte. Beim Start räumt die App jetzt verwaiste
+  Kopien weg. Angefasst wird nur, was **beides** erfüllt: keine Sitzung verweist
+  darauf (aus `sessions.json` gelesen, nicht am Ordnernamen geraten), und es ist
+  älter als zwei Tage.
+- **⚠️ „In den Papierkorb" tat auf Windows etwas anderes, als draufsteht.** Die
+  Datei wanderte nicht in den Papierkorb, sondern in einen selbst angelegten
+  Ordner `C:\Users\<Name>\Trash`. Dort tauchte sie nie im Papierkorb auf, ließ
+  sich nicht über „Wiederherstellen" zurückholen und wurde nie geleert — auf die
+  Frage „wann ist die Datei endgültig weg?" wäre die ehrliche Antwort „nie"
+  gewesen. Jetzt geht es über die Papierkorb-Schnittstelle des Systems, auf allen
+  drei Systemen. Auf Linux entsteht dabei auch der Eintrag, den der Desktop zum
+  Zurücklegen braucht.
+
+### Geändert
+- **Die drei heiklen Knöpfe erklären sich jetzt selbst.** Neben „Ausblenden",
+  „Aus Archiv nehmen" und „In den Papierkorb" steht ein „?", das den Unterschied
+  benennt — besonders zwischen den beiden mittleren: das eine entfernt nur den
+  Eintrag und lässt die Datei liegen, das andere verschiebt sie wirklich. Ein
+  Nutzer musste danach fragen, weil nirgends stand, was wovon betroffen ist.
+- **Beim Löschen mehrerer Touren fehlte die Beruhigung.** Wer eine Tour löschte,
+  bekam den Hinweis „aus dem Papierkorb kannst du sie zurückholen"; wer zwölf
+  markierte, nur ein nacktes „12 Touren in den Papierkorb legen?". Genau
+  andersherum wäre es sinnvoll. Beide Wege benutzen jetzt denselben Dialog.
+- **Die „?"-Erklärblasen liegen jetzt an einer Stelle** (`ui/js/util.js`) statt
+  nur im GPX-Inspektor. Archiv und Inspektor benutzen dieselbe Blase; wer sie
+  ändert, ändert sie überall.
+
 ## [0.9.501] – 2026-08-05
 
 ### Hinzugefügt

@@ -679,3 +679,6 @@
 .lib-row-head .lib-th:hover { color: var(--text); }
 .lib-row-head .lib-th.is-sort { color: var(--accent); }
 .lib-th-pfeil { font-size: 9px; font-style: normal; opacity: .8; }
+
+/* Knopf + „?"-Erklärblase bleiben beim Umbrechen zusammen. */
+.lib-act-paar { display: inline-flex; align-items: center; }

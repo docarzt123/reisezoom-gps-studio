@@ -1684,42 +1684,75 @@ def set_hidden(conn: sqlite3.Connection, path: str, hidden: bool) -> None:
 
 
 @_locked
-def trash_file(conn: sqlite3.Connection, path: str) -> dict:
-    """Legt die Datei in den Papierkorb und nimmt sie aus dem Archiv.
+def _in_den_papierkorb(p: Path) -> str:
+    """Datei in den **echten** Papierkorb des Systems legen.
 
-    Bewusst **Papierkorb statt Löschen**: Das Archiv fasst fremde Dateien an —
-    ein Versehen muss rückholbar bleiben. Auf macOS geht das über den Finder
-    (dort landet sie im echten Papierkorb, inklusive „Zurücklegen"), sonst über
-    den plattformüblichen Papierkorb-Ordner.
+    ⚠️ Bis v0.9.501 stand auf dem Knopf „In den Papierkorb", aber auf Windows
+    verschob der Code die Datei nach `C:\\Users\\<Name>\\Trash` — ein selbst
+    angelegter Ordner, NICHT der Papierkorb. Sie tauchte dort also nie auf, ließ
+    sich nicht über „Wiederherstellen" zurückholen und wurde nie geleert. Ein
+    Nutzer fragte deshalb zu Recht: „Wann ist die Datei endgültig weg?" — die
+    ehrliche Antwort wäre „nie" gewesen.
+
+    Reihenfolge:
+      1. `send2trash` — die einzige Umsetzung, die auf allen drei Systemen im
+         echten Papierkorb landet (Windows: Shell-API, Linux: freedesktop-Trash
+         MIT `.trashinfo`, also inklusive „Zurücklegen").
+      2. macOS-Rückfall über den Finder, falls das Paket im Bundle fehlt.
+      3. Letzter Rückfall: in einen Ordner verschieben. Kein echter Papierkorb,
+         aber immer noch besser, als die Datei zu löschen — und der Rückgabewert
+         nennt dann den vollen Pfad, damit die Oberfläche nichts Falsches
+         verspricht.
     """
     import shutil
     import subprocess
     import sys as _sys
 
+    try:
+        from send2trash import send2trash  # type: ignore
+        send2trash(str(p))
+        return "Papierkorb"
+    except ImportError:
+        pass
+    except Exception as e:
+        log.warning("library: send2trash fehlgeschlagen (%s) — Rückfall", e)
+
+    if _sys.platform == "darwin":
+        script = ('tell application "Finder" to delete POSIX file "%s"'
+                  % str(p).replace('"', '\\"'))
+        r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise OSError(r.stderr.strip() or "Papierkorb nicht erreichbar")
+        return "Papierkorb"
+
+    ordner = Path.home() / (".local/share/Trash/files"
+                            if _sys.platform.startswith("linux") else "Trash")
+    ordner.mkdir(parents=True, exist_ok=True)
+    ziel = ordner / p.name
+    i = 1
+    while ziel.exists():
+        ziel = ordner / f"{p.stem} ({i}){p.suffix}"
+        i += 1
+    shutil.move(str(p), str(ziel))
+    return str(ziel)
+
+
+def trash_file(conn: sqlite3.Connection, path: str) -> dict:
+    """Legt die Datei in den Papierkorb und nimmt sie aus dem Archiv.
+
+    Bewusst **Papierkorb statt Löschen**: Das Archiv fasst fremde Dateien an —
+    ein Versehen muss rückholbar bleiben. Endgültig entscheidet der Nutzer,
+    wenn er seinen Papierkorb leert.
+    """
     p = Path(path)
     if not p.exists():
         forget(conn, path)
         return {"ok": True, "missing": True}
-
-    moved_to = ""
-    if _sys.platform == "darwin":
-        script = ('tell application "Finder" to delete POSIX file "%s"' % str(p).replace('"', '\\"'))
-        r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
-        if r.returncode != 0:
-            raise OSError(r.stderr.strip() or "Papierkorb nicht erreichbar")
-        moved_to = "Papierkorb"
-    else:
-        trash = Path.home() / (".local/share/Trash/files" if _sys.platform.startswith("linux") else "Trash")
-        trash.mkdir(parents=True, exist_ok=True)
-        target = trash / p.name
-        i = 1
-        while target.exists():
-            target = trash / f"{p.stem} ({i}){p.suffix}"
-            i += 1
-        shutil.move(str(p), str(target))
-        moved_to = str(target)
+    moved_to = _in_den_papierkorb(p)
     forget(conn, path)
-    return {"ok": True, "moved_to": moved_to}
+    return {"ok": True, "moved_to": moved_to,
+            # Sagt der Oberfläche, ob sie „liegt im Papierkorb" versprechen darf.
+            "echter_papierkorb": moved_to == "Papierkorb"}
 
 
 @_locked

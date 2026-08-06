@@ -499,6 +499,24 @@ kleiner Pfeil zeigt an, wonach gerade sortiert wird. Leere Werte stehen immer am
 Ende — sonst begänne „Startpunkt A–Z" mit einer Bildschirmseite leerer Zellen.
 Dasselbe gilt in der Statistik für die Tabelle „Fortbewegung im Vergleich".
 
+**Ausblenden, aus dem Archiv nehmen, Papierkorb — was ist der Unterschied?** Die
+drei Knöpfe unten in der Detailspalte sehen ähnlich aus, tun aber sehr
+Verschiedenes. Neben jedem steht ein **„?“**, das es erklärt; hier zum Nachlesen:
+
+* **Ausblenden** — die Tour verschwindet nur aus der Liste und liegt unter
+  „Ausgeblendete“. An der Datei ändert sich nichts.
+* **Aus Archiv nehmen** — entfernt nur den Eintrag. **Deine Datei bleibt
+  unangetastet dort liegen, wo sie ist.** Beim nächsten Einlesen taucht sie wieder
+  auf, solange der Ordner noch beobachtet wird. Soll sie dauerhaft draußen
+  bleiben, nimm den Ordner unter „Ordner & Einlesen“ heraus.
+* **In den Papierkorb** — verschiebt die Datei wirklich, in den Papierkorb deines
+  Systems. Genau wie beim Löschen im Finder oder Explorer.
+
+**Wann ist eine Datei endgültig weg?** Erst, wenn du deinen Papierkorb leerst.
+GPS Studio löscht nie selbst etwas endgültig; bis dahin kannst du die Datei dort
+jederzeit zurückholen. Das gilt auch, wenn du mehrere Touren auf einmal in den
+Papierkorb legst.
+
 **Dateien, aus denen keine Tour wird.** Steht in der Kopfzeile ein Hinweis wie
 **„12 Dateien ohne Strecke"** oder **„3 Dateien nicht lesbar"**, klick ihn an. Der Dialog
 trennt zwei Dinge, die leicht verwechselt werden:
