@@ -132,6 +132,28 @@ function mountLibrary(body, headerActions) {
     boot: T("library.act.boot", "Boot"),
     ski: T("library.act.ski", "Ski"),
   };
+  // Sammelposten — dieselbe Aufteilung wie in `core/library.ACT_GROUPS`.
+  // ⚠️ Bei Änderungen BEIDE Seiten pflegen; der Filter rechnet im Backend,
+  // die Vergleichstabelle hier.
+  const ACT_GROUPS = {
+    rad:  ["rad", "rennrad", "gravel", "mtb", "ebike"],
+    fuss: ["wandern", "spaziergang", "laufen"],
+  };
+  const GROUP_LABELS = {
+    rad:  T("library.act_group.rad", "Alles mit dem Rad"),
+    fuss: T("library.act_group.fuss", "Alles zu Fuß"),
+  };
+  /** Zu welcher Gruppe gehört eine Art — oder sie selbst, wenn zu keiner. */
+  const gruppeVon = (art) => {
+    for (const [g, arten] of Object.entries(ACT_GROUPS)) {
+      if (arten.includes(art)) return "grp:" + g;
+    }
+    return art;
+  };
+  const gruppenLabel = (schluessel) => schluessel.startsWith("grp:")
+    ? GROUP_LABELS[schluessel.slice(4)] || schluessel
+    : (ACT_LABELS[schluessel] || schluessel);
+
   const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
   body.classList.add("lib-mode");
@@ -542,6 +564,17 @@ function mountLibrary(body, headerActions) {
     const sel = $("lib-act");
     const acts = ((_stats && _stats.activities) || []).filter(a => a.activity);
     sel.innerHTML = `<option value="">${T("library.all_activities", "Alle Arten")}</option>` +
+      // Sammelposten zuerst, und nur wenn mindestens zwei Arten der Gruppe
+      // wirklich vorkommen — bei jemandem mit nur einem Rad wäre „Alles mit dem
+      // Rad" eine Zeile, die nichts zusätzlich beantwortet.
+      Object.entries(ACT_GROUPS).map(([g, arten]) => {
+        const treffer = acts.filter(a => arten.includes(a.activity));
+        if (treffer.length < 2) return "";
+        const n = treffer.reduce((x, a) => x + (a.n || 0), 0);
+        const wert = "grp:" + g;
+        return `<option value="${wert}"${state.activity === wert ? " selected" : ""}>${
+          esc(GROUP_LABELS[g])} (${n})</option>`;
+      }).join("") +
       acts.map(a => `<option value="${esc(a.activity)}"${state.activity === a.activity ? " selected" : ""}>${esc(ACT_LABELS[a.activity] || a.activity)} (${a.n})</option>`).join("");
   }
 
@@ -776,6 +809,10 @@ function mountLibrary(body, headerActions) {
   // Sortierung der Vergleichstabelle. Spalte "" = Zeitraum (chronologisch),
   // sonst der Schlüssel einer Fortbewegungsart oder "sum".
   let _vglSort  = store.get("vgl_sort", { spalte: "", ab: false });
+  // Spalten zusammenfassen (Wunsch Beta-Tester). Wer drei Räder getrennt führt,
+  // hat sonst fünf schmale Rad-Spalten, wo eine breite die Frage beantwortet:
+  // wie viel war ich überhaupt mit dem Rad unterwegs?
+  let _vglGrp   = store.get("vgl_grp", false);
 
   /** Eine klickbare Kopfzelle der Vergleichstabelle. */
   function vglKopf(spalte, text, extra) {
@@ -801,8 +838,13 @@ function mountLibrary(body, headerActions) {
       const z = _vglEbene === "year" ? String(r.year) : r.month;
       if (!zeitraeume.includes(z)) zeitraeume.push(z);
       const wert = r[_vglMass] || 0;
-      zellen.set(z + "|" + r.activity, wert);
-      proArt.set(r.activity, (proArt.get(r.activity) || 0) + wert);
+      // Beim Zusammenfassen fallen mehrere Zeilen auf dieselbe Zelle — deshalb
+      // addieren statt setzen. Ohne das gewänne die zuletzt gelesene Radart und
+      // der Rest verschwände lautlos.
+      const spalte = _vglGrp ? gruppeVon(r.activity) : r.activity;
+      const schluessel = z + "|" + spalte;
+      zellen.set(schluessel, (zellen.get(schluessel) || 0) + wert);
+      proArt.set(spalte, (proArt.get(spalte) || 0) + wert);
     }
     if (!zeitraeume.length) return "";
 
@@ -849,13 +891,18 @@ function mountLibrary(body, headerActions) {
             <button type="button" class="lib-vgl-btn${_vglMass === "km" ? " is-on" : ""}" data-vgl-mass="km">km</button>
             <button type="button" class="lib-vgl-btn${_vglMass === "hours" ? " is-on" : ""}" data-vgl-mass="hours">${T("library.stat_hours_short", "Std.")}</button>
             <button type="button" class="lib-vgl-btn${_vglMass === "n" ? " is-on" : ""}" data-vgl-mass="n">${T("library.stat_count_short", "Anzahl")}</button>
+            <span class="lib-vgl-sep"></span>
+            <button type="button" class="lib-vgl-btn${_vglGrp ? " is-on" : ""}"
+              id="lib-vgl-grp"
+              title="${esc(T("library.stat_group_help", "Fasst alle Rad-Arten zu einer Spalte zusammen und alles zu Fuß zu einer zweiten."))}"
+              >${T("library.stat_group", "Zusammenfassen")}</button>
           </span>
         </div>
         <div class="lib-vgl-scroll">
           <table class="lib-vgl">
             <thead><tr>
               ${vglKopf("", _vglEbene === "year" ? T("library.year", "Jahr") : T("library.month", "Monat"))}
-              ${arten.map(a => vglKopf(a, ACT_LABELS[a] || a)).join("")}
+              ${arten.map(a => vglKopf(a, gruppenLabel(a))).join("")}
               ${vglKopf("sum", T("library.total", "Gesamt"), "lib-vgl-sum")}
             </tr></thead>
             <tbody>
@@ -996,6 +1043,21 @@ function mountLibrary(body, headerActions) {
         renderStats();
       };
     });
+    {
+      const g = document.getElementById("lib-vgl-grp");
+      if (g) g.onclick = () => {
+        _vglGrp = !_vglGrp;
+        store.set("vgl_grp", _vglGrp);
+        // Die Sortierung zeigte womöglich auf eine Spalte, die es jetzt nicht
+        // mehr gibt („Rennrad" nach dem Zusammenfassen) — dann zurück auf
+        // chronologisch, statt still nach etwas Verschwundenem zu sortieren.
+        if (_vglSort.spalte && _vglSort.spalte !== "sum") {
+          _vglSort = { spalte: "", ab: false };
+          store.set("vgl_sort", _vglSort);
+        }
+        renderStats();
+      };
+    }
     box.querySelectorAll("[data-vgl-mass]").forEach(b => {
       b.onclick = () => {
         _vglMass = b.dataset.vglMass;

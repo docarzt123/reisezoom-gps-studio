@@ -459,6 +459,16 @@ bici en el dispositivo, encontrarás esas rutas con la búsqueda normal.
 existentes se vuelven a leer una vez. Según la cantidad tarda un momento, pero
 ocurre una sola vez.
 
+**Todas las bicis o todo a pie de una vez.** El filtro de actividad empieza con dos
+entradas colectivas: **Todo en bici** (bici, carretera, gravel, montaña, eléctrica) y
+**Todo a pie** (senderismo, paseo, correr). Si mantienes tus bicicletas separadas, así
+puedes verlas juntas: la lista, el mapa y la estadística se ajustan a la vez. Solo
+aparecen cuando en tu archivo hay al menos dos tipos del grupo.
+
+Lo mismo existe en la estadística: el botón **«Agrupar»**, encima de la tabla
+«Actividades comparadas», convierte cinco columnas estrechas de bici en una ancha. La
+fila Total se queda fija mientras te desplazas.
+
 **Ordenar por encabezado.** En la vista de lista, cada encabezado de columna es
 pulsable: un clic ordena por él, otro invierte el sentido y una pequeña flecha indica
 por qué se está ordenando. Los valores vacíos van siempre al final; si no, «Punto de

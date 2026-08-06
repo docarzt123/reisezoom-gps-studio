@@ -682,3 +682,13 @@
 
 /* Knopf + „?"-Erklärblase bleiben beim Umbrechen zusammen. */
 .lib-act-paar { display: inline-flex; align-items: center; }
+
+
+/* Die Gesamt-Zeile bleibt beim Scrollen stehen (Wunsch Beta-Tester: „Die Zeile
+   Gesamt fixieren"). Bei über 200 Monatszeilen scrollt man sonst an der einen
+   Zahl vorbei, wegen der man die Tabelle überhaupt aufgemacht hat.
+   `bottom: -1px` schließt die Lücke, die sonst beim Scrollen kurz aufblitzt. */
+.lib-vgl tfoot th, .lib-vgl tfoot td {
+  position: sticky; bottom: -1px; z-index: 2; background: var(--bg-1);
+  box-shadow: 0 -1px 0 var(--border);
+}

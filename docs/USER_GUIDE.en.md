@@ -454,6 +454,16 @@ those tours through the normal search.
 **Existing library?** On the first start after the update, existing FIT tours are
 re-read once. Depending on the number this takes a moment, but it happens only once.
 
+**All bikes or everything on foot at once.** The activity filter starts with two
+collective entries: **Everything by bike** (bike, road, gravel, mountain, e-bike) and
+**Everything on foot** (hiking, walking, running). If you keep your bikes apart, this
+lets you view them together — the list, the map and the statistics all follow. They
+only appear when at least two types of the group actually occur in your library.
+
+The same exists in the statistics: the **“Group”** switch above the “Activities
+compared” table turns five narrow cycling columns into one wide one. The total row
+stays put while you scroll.
+
 **Sort by column heading.** In the list view every column heading is clickable: one
 click sorts by it, another reverses the direction, a small arrow shows what is
 currently sorted. Empty values always go last — otherwise “Start point A–Z” would

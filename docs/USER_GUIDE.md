@@ -493,6 +493,17 @@ Gerät „Gravel" genannt hat, findet die Touren über die normale Suche wieder.
 FIT-Touren einmalig neu eingelesen. Das dauert je nach Menge einen Moment, passiert
 aber nur ein einziges Mal.
 
+**Alle Räder oder alles zu Fuß auf einmal.** Ganz oben im Fortbewegungs-Filter
+stehen zwei Sammelposten: **Alles mit dem Rad** (Rad, Rennrad, Gravel, Mountainbike,
+E-Bike) und **Alles zu Fuß** (Wandern, Spaziergang, Laufen). Wer seine Räder getrennt
+führt, kann sie damit trotzdem zusammen ansehen — Liste, Karte und Statistik ziehen
+gleichzeitig mit. Sie erscheinen nur, wenn mindestens zwei Arten der Gruppe bei dir
+vorkommen.
+
+Dasselbe gibt es in der Statistik: Der Schalter **„Zusammenfassen"** über der Tabelle
+„Fortbewegung im Vergleich" macht aus fünf schmalen Rad-Spalten eine breite. Die
+Gesamt-Zeile bleibt dabei beim Scrollen stehen.
+
 **Sortieren per Kopfzeile.** In der Listenansicht ist jede Spaltenüberschrift
 anklickbar: einmal klicken sortiert danach, noch einmal dreht die Richtung um, ein
 kleiner Pfeil zeigt an, wonach gerade sortiert wird. Leere Werte stehen immer am

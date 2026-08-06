@@ -14,6 +14,39 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.504] – 2026-08-06
+
+### Hinzugefügt
+- **Alle Räder oder alles zu Fuß auf einmal** (Wunsch Beta-Tester: „Bei 3
+  verschiedenen Fahrrädern wäre es schön, wenn man alle Fahrräder, alles zu Fuß
+  zusammenfasst"). Im Fortbewegungs-Filter stehen jetzt zwei Sammelposten ganz
+  oben — **Alles mit dem Rad** (Rad, Rennrad, Gravel, Mountainbike, E-Bike) und
+  **Alles zu Fuß** (Wandern, Spaziergang, Laufen). Sie erscheinen nur, wenn
+  mindestens zwei Arten der Gruppe wirklich vorkommen, und wirken auf Liste,
+  Karte und Statistik gleichermaßen.
+- **Spalten in der Vergleichstabelle zusammenfassen.** Der neue Schalter
+  „Zusammenfassen" macht aus fünf schmalen Rad-Spalten eine breite — und
+  beantwortet damit die eigentliche Frage: wie viel war ich überhaupt mit dem
+  Rad unterwegs? Wer nach einer Spalte sortiert hatte, die es danach nicht mehr
+  gibt, landet wieder auf chronologisch statt auf etwas Verschwundenem.
+- **Die Gesamt-Zeile bleibt beim Scrollen stehen** (Wunsch Beta-Tester). Bei
+  über 200 Monatszeilen scrollte man sonst an der einen Zahl vorbei, wegen der
+  man die Tabelle aufgemacht hat.
+
+### Behoben
+- **Der Alpha-Render-Test lief seit Monaten gar nicht mehr.** Er übergab
+  `point_density` — ein Feld, das es längst nicht mehr gibt — und scheiterte
+  schon beim Anlegen der Konfiguration. Aufgefallen erst, als v0.9.503 ihn
+  brauchte.
+
+### Geändert
+- **Beide echten Render-Tests laufen jetzt bei jedem Durchlauf mit.** Sie waren
+  als „langsam" ausgenommen und liefen bei keinem Release — genau deshalb blieb
+  der Render-Totalausfall aus v0.9.503 vier Versionen lang unentdeckt. Der
+  Alpha-Test braucht weder Karte noch Zugang und dauert vier Sekunden, der
+  MP4-Test läuft, sobald ein Token da ist. Kostet rund 20 Sekunden; der Fehler
+  kostete vier Releases.
+
 ## [0.9.503] – 2026-08-06
 
 > **⚠️ Dringendes Update.** In v0.9.499 bis v0.9.502 schlug **jeder
