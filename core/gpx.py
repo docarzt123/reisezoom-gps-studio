@@ -427,6 +427,211 @@ def downsample(pts: List[TrackPoint], target: int = 500) -> List[TrackPoint]:
     return [pts[i] for i in idx]
 
 
+# ── Verteilung der Frames über den Track (v0.9.506) ─────────────────────────
+# Bis hierher galt: Frame k zeigt Punkt k aus `downsample()` — also jeden n-ten
+# AUFGEZEICHNETEN Punkt. Wie das aussieht, entscheidet damit allein das Gerät:
+# löst es nach Strecke aus, wirkt die Animation gleichmäßig; löst es nach Zeit
+# aus, zeigt sie das echte Tempo. Gemessen an echtem Material liegt dazwischen
+# alles — eine Komoot-Datei hatte im Mittel 10,7 m je Punkt und einen einzelnen
+# Sprung von 1121 m. Deshalb wird die Achse jetzt gewählt statt geerbt.
+
+#: Bewegungsschwelle — dieselbe wie in `compute_moving_and_max()`. ⚠️ Die beiden
+#: MÜSSEN übereinstimmen: sonst meldet die Statistik „2:00 h Stillstand" und der
+#: Animator kürzt eine andere Zeit weg, und niemand kann sich die Differenz
+#: erklären.
+PAUSE_FLOOR_MS = 0.6 / 3.6
+PAUSE_FENSTER_S = 60.0
+
+
+def finde_pausen(pts: List[TrackPoint], min_dauer_s: float = 120.0) -> List[dict]:
+    """Zusammenhängende Abschnitte ohne echte Fortbewegung.
+
+    Pausen treten in **zwei Gestalten** auf und beide müssen erwischt werden:
+    als eine große Zeitlücke zwischen zwei nah beieinander liegenden Punkten
+    (die Auto-Pause des Geräts — gemessen bis 1898 s), und als viele Punkte, die
+    sich am selben Fleck drängeln. Über die Zeitachse gerechnet fallen beide
+    unter dieselbe Regel.
+
+    Gibt Abschnitte `{"von_s", "bis_s", "dauer_s"}` auf der `elapsed_s`-Achse
+    zurück, nur solche ab `min_dauer_s`.
+    """
+    n = len(pts)
+    if n < 2 or not pts[-1].elapsed_s:
+        return []
+    cum_time = [p.elapsed_s for p in pts]
+
+    steht = [False] * n          # steht[i] = Abschnitt i-1 → i ist Stillstand
+    for i in range(1, n):
+        if cum_time[i] - cum_time[i - 1] <= 0:
+            continue
+        mid = 0.5 * (cum_time[i] + cum_time[i - 1])
+        aa = max(0, min(bisect.bisect_left(cum_time, mid - PAUSE_FENSTER_S), i - 1))
+        bb = min(n - 1, max(bisect.bisect_right(cum_time, mid + PAUSE_FENSTER_S) - 1, i))
+        wdt = cum_time[bb] - cum_time[aa]
+        if wdt <= 0:
+            continue
+        net = _haversine_m(pts[aa].lat, pts[aa].lon, pts[bb].lat, pts[bb].lon)
+        steht[i] = (net / wdt) < PAUSE_FLOOR_MS
+
+    pausen: List[dict] = []
+    i = 1
+    while i < n:
+        if not steht[i]:
+            i += 1
+            continue
+        start = i - 1
+        while i < n and steht[i]:
+            i += 1
+        von, bis = cum_time[start], cum_time[i - 1]
+        if bis - von >= min_dauer_s:
+            pausen.append({"von_s": von, "bis_s": bis, "dauer_s": bis - von})
+    return pausen
+
+
+def pausen_bericht(pts: List[TrackPoint], min_dauer_s: float = 120.0) -> dict:
+    """Was der Nutzer wissen muss, bevor er den Schwellwert einstellt.
+
+    Ohne diese Zahlen neben dem Regler stellt sie niemand richtig ein — deshalb
+    liefert dieselbe Rechnung, die später kürzt, auch die Anzeige.
+    """
+    pausen = finde_pausen(pts, min_dauer_s)
+    gesamt_s = pts[-1].elapsed_s if pts else 0.0
+    steh_s = sum(p["dauer_s"] for p in pausen)
+    return {
+        "gesamt_s": gesamt_s,
+        "pausen": len(pausen),
+        "stillstand_s": steh_s,
+        "laengste_s": max((p["dauer_s"] for p in pausen), default=0.0),
+        "anteil": (steh_s / gesamt_s) if gesamt_s > 0 else 0.0,
+        "hat_zeit": bool(gesamt_s),
+    }
+
+
+def _zeitachse_ohne_pausen(pts: List[TrackPoint], pausen: List[dict],
+                           kappen_auf_s: float) -> List[float]:
+    """Zeitachse, in der jede Pause nur noch `kappen_auf_s` Sekunden lang ist.
+
+    Der Trick: die Pausen-Behandlung ist damit **kein Sonderfall im Renderer**,
+    sondern steckt in der Achse. Wer danach gleichmäßig abtastet, bekommt die
+    gekürzten Pausen automatisch — `kappen_auf_s = 0` ergibt „überspringen".
+    """
+    achse: List[float] = []
+    versatz = 0.0
+    j = 0
+    for p in pts:
+        t = p.elapsed_s
+        # Alle Pausen, die vor diesem Punkt komplett abgeschlossen sind,
+        # verkürzen alles Folgende um ihren gesparten Anteil.
+        while j < len(pausen) and pausen[j]["bis_s"] <= t:
+            versatz += max(0.0, pausen[j]["dauer_s"] - kappen_auf_s)
+            j += 1
+        # Steckt der Punkt MITTEN in einer Pause, wird innerhalb der Pause
+        # anteilig gestaucht — sonst spränge die Achse an der Pausengrenze.
+        if j < len(pausen) and pausen[j]["von_s"] < t < pausen[j]["bis_s"]:
+            pa = pausen[j]
+            anteil = (t - pa["von_s"]) / max(1e-9, pa["dauer_s"])
+            achse.append(pa["von_s"] - versatz + anteil * kappen_auf_s)
+        else:
+            achse.append(t - versatz)
+    return achse
+
+
+def _interpoliere(a: TrackPoint, b: TrackPoint, f: float) -> TrackPoint:
+    """Ein Zwischenpunkt zwischen zwei Messpunkten.
+
+    ⚠️ Sensorwerte (Puls, Trittfrequenz, Leistung) müssen **mit**: sonst springt
+    die Live-Anzeige im Video, während sich die Position sanft bewegt. Zahlen
+    werden interpoliert, alles andere vom näheren Punkt übernommen.
+    """
+    if f <= 0:
+        return a
+    if f >= 1:
+        return b
+    def misch(x, y):
+        if x is None or y is None:
+            return x if f < 0.5 else y
+        return x + (y - x) * f
+    extra = dict(a.extra or {})
+    for k, v in (b.extra or {}).items():
+        av = (a.extra or {}).get(k)
+        if isinstance(av, (int, float)) and isinstance(v, (int, float)):
+            extra[k] = av + (v - av) * f
+        elif k not in extra or f >= 0.5:
+            extra[k] = v
+    return TrackPoint(
+        lat=a.lat + (b.lat - a.lat) * f,
+        lon=a.lon + (b.lon - a.lon) * f,
+        ele=misch(a.ele, b.ele),
+        time=a.time if f < 0.5 else b.time,
+        seg=a.seg if f < 0.5 else b.seg,
+        dist_m=a.dist_m + (b.dist_m - a.dist_m) * f,
+        elapsed_s=a.elapsed_s + (b.elapsed_s - a.elapsed_s) * f,
+        extra=extra,
+    )
+
+
+def resample(pts: List[TrackPoint], target: int, achse: str = "raw",
+             pausen: str = "trim", pause_ab_s: float = 120.0,
+             pause_auf_s: float = 5.0) -> List[TrackPoint]:
+    """Verteilt `target` Punkte gleichmäßig entlang der gewählten Achse.
+
+    * `achse="raw"`   — jeder n-te aufgezeichnete Punkt (Verhalten bis v0.9.505)
+    * `achse="dist"`  — gleichmäßig über die Strecke → sichtbar gleichbleibendes Tempo
+    * `achse="time"`  — gleichmäßig über die Zeit → sichtbar das echte Tempo
+
+    Bei `achse="time"` regelt `pausen`, was mit Standzeiten passiert:
+    `"show"` (voll), `"trim"` (auf `pause_auf_s` gekürzt) oder `"skip"` (raus).
+
+    `target` darf **größer** sein als die Zahl der Messpunkte: dann entstehen
+    Zwischenwerte, und ein grob aufgezeichneter Track bewegt sich flüssig statt
+    zu ruckeln. `downsample()` konnte das nie (es reduziert nur) — im Animator
+    fällt das nicht auf, weil dort nie mehr Punkte verlangt werden als vorhanden.
+
+    ⚠️ Ohne Zeitstempel gibt es keine Zeitachse — dann fällt die Funktion
+    stillschweigend auf `"dist"` zurück. Die Oberfläche sperrt die Auswahl schon
+    vorher, aber der Kern darf deshalb nicht abstürzen (geplante Routen ohne
+    Zeit sind häufig: bei einem Archiv mit 709 Touren 304 Stück).
+    """
+    if len(pts) < 2 or target < 2:
+        return pts[:target] if target >= 1 else pts
+    if achse == "raw":
+        return downsample(pts, target)
+
+    hat_zeit = bool(pts[-1].elapsed_s)
+    if achse == "time" and not hat_zeit:
+        achse = "dist"
+
+    if achse == "time":
+        pa = finde_pausen(pts, pause_ab_s) if pausen in ("trim", "skip") else []
+        werte = _zeitachse_ohne_pausen(
+            pts, pa, 0.0 if pausen == "skip" else pause_auf_s)
+    else:
+        werte = [p.dist_m for p in pts]
+
+    spanne = werte[-1] - werte[0]
+    if spanne <= 0:
+        return downsample(pts, target)
+
+    out: List[TrackPoint] = []
+    j = 0
+    for k in range(target):
+        ziel = werte[0] + spanne * (k / (target - 1))
+        # ⚠️ `<=` statt `<`: bei „überspringen" fallen alle Punkte einer Pause auf
+        # denselben Achsenwert. Mit `<` bliebe der Abtaster am ersten davon
+        # hängen und mehrere Frames zeigten denselben Ort — also genau das
+        # Stehenbleiben, das dieser Modus verhindern soll (gemessen: 6 von 200
+        # Frames). Mit `<=` läuft er über das Plateau hinweg.
+        while j < len(werte) - 2 and werte[j + 1] <= ziel:
+            j += 1
+        d = werte[j + 1] - werte[j]
+        f = 0.0 if d <= 0 else (ziel - werte[j]) / d
+        out.append(_interpoliere(pts[j], pts[j + 1], max(0.0, min(1.0, f))))
+    # Anfang und Ende bleiben echte Messpunkte — sonst beginnt die Animation
+    # sichtbar neben dem Startpunkt.
+    out[0], out[-1] = pts[0], pts[-1]
+    return out
+
+
 def to_json(pts: List[TrackPoint], stats: TrackStats) -> dict:
     """Serialisierbar fürs UI."""
     return {

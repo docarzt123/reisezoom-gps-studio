@@ -895,3 +895,20 @@ label.chip-toggle input:checked + span {
 .overlay-group:not(.ov-group--on) .checkbox-row span { color: var(--text-muted); }
 .ov-group-details { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .ov-group-details[hidden] { display: none; }
+
+/* Pausen-Behandlung (v0.9.506) — zwei kleine Zahlenfelder nebeneinander unter
+   der Auswahl. Sie gehören sichtbar zusammen, dürfen aber die schmale Spalte
+   nicht sprengen, deshalb umbrechend statt fest zweispaltig. */
+.anim-pause-row {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px;
+}
+.anim-pause-num {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text-dim);
+}
+.anim-pause-num input {
+  width: 58px; padding: 4px 6px; font-size: 12px;
+  background: var(--bg-1); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text);
+}
+.anim-pause-num input:focus { border-color: var(--border-strong); outline: none; }

@@ -727,6 +727,31 @@ python app.py</code></pre>
 <li><strong>FPS</strong>: 24 (cine) · 25 (PAL/TV europea) · 30 (estándar) · 50 (PAL HFR) · 60</li>
 <li><strong>Códec</strong>: H.264 (universalmente compatible) o H.265 (HEVC, ~30 % más pequeño)</li>
 </ul>
+<p><strong>Cómo se mueve el punto por la ruta:</strong></p>
+<p>Arriba del todo en <em>Track</em> está <strong>«Reparto a lo largo de la ruta»</strong>. No decide cuánto dura el vídeo (eso lo marca la duración), sino <strong>dónde está el punto en cada momento</strong>:</p>
+<ul>
+<li><strong>Uniforme</strong> — el punto avanza a un ritmo constante por la ruta. Se ve</li>
+</ul>
+<p> tranquilo, funciona siempre y viene predeterminado en los proyectos nuevos.</p>
+<ul>
+<li><strong>Ritmo real</strong> — el punto va rápido donde tú ibas rápido: se lanza en la</li>
+</ul>
+<p> bajada y se arrastra en la subida. Para eso el archivo necesita <strong>marcas de  tiempo</strong>; las rutas planificadas no las tienen y ahí la opción está bloqueada.</p>
+<ul>
+<li><strong>Tal como se grabó</strong> — sigue el ritmo de tu dispositivo. Es impredecible (en</li>
+</ul>
+<p> un archivo medido había 1121 metros entre dos puntos) y solo está para que los  proyectos antiguos se vean como antes.</p>
+<p><strong>Paradas</strong> (solo con «Ritmo real»): media hora de descanso sería media hora de imagen congelada; en una ruta de montaña medida con 27 paradas habrían sido 63 de 232 segundos. Por eso puedes elegir:</p>
+<ul>
+<li><strong>Acortar</strong> (por defecto) — cada parada por encima del umbral dura solo unos</li>
+</ul>
+<p> segundos en el vídeo. Se nota <em>que</em> hubo una parada sin que la imagen se  duerma.</p>
+<ul>
+<li><strong>Omitir</strong> — las paradas desaparecen; queda movimiento puro.</li>
+<li><strong>Mostrar enteras</strong> — honesto, pero solo queda bien en rutas cortas con pocas</li>
+</ul>
+<p> paradas.</p>
+<p>Debajo verás siempre qué significa eso <strong>para tu ruta</strong>: tiempo total, tiempo parado, número de paradas y cuántos segundos quedan en el vídeo.</p>
 <p><strong>Rendimiento y salida:</strong></p>
 <ul>
 <li><strong>Suavidad del track (densidad de puntos)</strong> — lo fino que se dibuja el track:</li>

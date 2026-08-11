@@ -239,6 +239,52 @@ function mountAnimator(body, headerActions, opts) {
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
+          <!-- v0.9.506 — Verteilung der Frames über den Track. Beschriftet nach
+               dem ERGEBNIS, nicht nach dem Rechenweg: wer „zeitbasiert" liest,
+               erwartet das Gegenteil von dem, was er sieht (nach Zeit abgetastet
+               = wechselndes Tempo im Bild). -->
+          <div class="field">
+            <label class="field-label">${t("animator.field.pace_mode")}
+              <button type="button" class="field-help" data-help="pace_mode"
+                      title="${t("animator.help.show")}">?</button>
+            </label>
+            <select id="anim-pace" class="select">
+              <option value="even">${t("animator.pace.even")}</option>
+              <option value="real">${t("animator.pace.real")}</option>
+              <option value="raw">${t("animator.pace.raw")}</option>
+            </select>
+            <div class="muted" id="anim-pace-desc" style="font-size:11px; margin-top:5px; line-height:1.45;"></div>
+            <div class="muted field-help-content" data-help-content="pace_mode" hidden
+                 style="font-size:11px; margin-top:6px; line-height:1.45;">
+              ${t("animator.pace_mode.hint")}
+            </div>
+          </div>
+
+          <!-- Pausen — nur bei „Echtes Tempo" sichtbar. Ohne Behandlung wäre der
+               ehrlichste Modus der langweiligste: eine gemessene Bergtour hätte
+               63 von 232 Sekunden Standbild gehabt, in 27 Einfrierern. -->
+          <div class="field" id="anim-pause-box" hidden>
+            <label class="field-label">${t("animator.field.pause_mode")}</label>
+            <select id="anim-pause-mode" class="select">
+              <option value="trim">${t("animator.pause.trim")}</option>
+              <option value="skip">${t("animator.pause.skip")}</option>
+              <option value="show">${t("animator.pause.show")}</option>
+            </select>
+            <div class="anim-pause-row" id="anim-pause-nums">
+              <label class="anim-pause-num">
+                <span>${t("animator.pause.min")}</span>
+                <input type="number" id="anim-pause-min" min="0.5" max="60" step="0.5" value="2">
+                <span class="muted">${t("animator.unit.min")}</span>
+              </label>
+              <label class="anim-pause-num" id="anim-pause-trim-box">
+                <span>${t("animator.pause.trim_to")}</span>
+                <input type="number" id="anim-pause-trim" min="0" max="60" step="1" value="5">
+                <span class="muted">${t("animator.unit.sec")}</span>
+              </label>
+            </div>
+            <div class="muted" id="anim-pause-info" style="font-size:11px; margin-top:6px; line-height:1.5;"></div>
+          </div>
+
           <div class="field">
             <label class="field-label">${t("animator.field.point_count")}
               <span class="label-val" id="anim-pointcount-v">— / —</span>
@@ -8422,6 +8468,142 @@ function mountAnimator(body, headerActions, opts) {
       saveSettings({ animator: { point_count: toSave } });
     }
   });
+  // ── Verteilung der Frames (v0.9.506) ─────────────────────────────────────
+  /** Hat der geladene Track überhaupt Zeitstempel?
+   *  ⚠️ Ohne sie gibt es kein „echtes Tempo" — und das ist kein Sonderfall:
+   *  geplante Routen haben nie welche (in einem Archiv mit 709 Touren waren es
+   *  304 Stück). Sperren statt still etwas anderes rendern. */
+  /** Ein Projekt gilt als neu, wenn im Animator-Block noch nichts steht, das
+   *  auf frühere Arbeit hindeutet. Nur dann darf die Vorgabe „gleichmäßig"
+   *  greifen — sonst ändert sich ein bestehender Film beim bloßen Öffnen. */
+  function _istNeuesProjekt(a) {
+    return !a || Object.keys(a).length === 0;
+  }
+
+  function _hatZeit() {
+    // ⚠️ Drei Zustände, nicht zwei: solange kein Track geladen ist, wissen wir
+    // es schlicht nicht. Dann NICHT sperren — sonst stünde „keine Zeitstempel"
+    // an einer Auswahl, obwohl noch gar keine Datei offen ist, und das ist
+    // schlicht gelogen.
+    if (!_gpxStats) return null;
+    return _gpxStats.duration_s > 0;
+  }
+
+  function _paceModus() {
+    const el = document.getElementById("anim-pace");
+    return (el && el.value) || "raw";
+  }
+
+  /** Erklärsatz + Sperre + Pausen-Block. Eine Funktion, die den ganzen Zustand
+   *  herstellt — sonst weicht die Anzeige irgendwann von der Wahl ab. */
+  function paceAnzeigen() {
+    const sel = document.getElementById("anim-pace");
+    const desc = document.getElementById("anim-pace-desc");
+    const box = document.getElementById("anim-pause-box");
+    if (!sel) return;
+    const zeit = _hatZeit();
+    const gesperrt = (zeit === false);   // null = noch kein Track → offen lassen
+
+    const optReal = sel.querySelector('option[value="real"]');
+    if (optReal) {
+      optReal.disabled = gesperrt;
+      optReal.textContent = t("animator.pace.real", "Echtes Tempo")
+        + (gesperrt ? " — " + t("animator.pace.no_time", "keine Zeitstempel") : "");
+    }
+    // Steht die Wahl auf einem gesperrten Modus (Projekt geladen, Track ohne
+    // Zeit), zurückfallen statt heimlich etwas anderes zu rendern.
+    if (gesperrt && sel.value === "real") sel.value = "even";
+
+    if (desc) {
+      desc.textContent =
+        sel.value === "even" ? t("animator.pace.even_desc", "Der Punkt läuft mit gleichbleibendem Tempo über die Strecke.")
+        : sel.value === "real" ? t("animator.pace.real_desc", "Der Punkt ist da schnell, wo du schnell warst.")
+        : t("animator.pace.raw_desc", "Folgt dem Rhythmus deines Geräts (wie bisher).");
+    }
+    if (box) box.hidden = (sel.value !== "real");
+    const trimBox = document.getElementById("anim-pause-trim-box");
+    if (trimBox) {
+      trimBox.hidden = (document.getElementById("anim-pause-mode")?.value !== "trim");
+    }
+    if (sel.value === "real") pauseInfoLaden();
+  }
+
+  /** Die Zahlen für DIESE Tour — gerechnet von derselben Funktion, die später
+   *  auch kürzt. Eine zweite Schätzung wäre eine zweite Wahrheit. */
+  let _pauseInfoLauf = 0;
+  async function pauseInfoLaden() {
+    const ziel = document.getElementById("anim-pause-info");
+    if (!ziel || !currentGpx) return;
+    const lauf = ++_pauseInfoLauf;
+    const abS = (parseFloat(document.getElementById("anim-pause-min")?.value) || 2) * 60;
+    const aufS = parseFloat(document.getElementById("anim-pause-trim")?.value);
+    ziel.textContent = t("animator.pause.calc", "einen Moment …");
+    let r;
+    try {
+      r = await api("animator_pause_info", {
+        gpx_path: currentGpx, pause_min_s: abS,
+        pause_trim_s: isNaN(aufS) ? 5 : aufS,
+      });
+    } catch (e) { r = null; }
+    if (lauf !== _pauseInfoLauf) return;            // veraltete Antwort
+    if (!r || !r.ok) { ziel.textContent = ""; return; }
+
+    const modus = document.getElementById("anim-pause-mode")?.value || "trim";
+    const dauerS = (parseFloat(document.getElementById("anim-dur")?.value) || 12);
+    const anteil = modus === "show" ? (r.stillstand_s / Math.max(1, r.gesamt_s))
+                 : modus === "skip" ? 0
+                 : Math.max(0, (r.pausen * (isNaN(aufS) ? 5 : aufS)) / Math.max(1, r.gesamt_s));
+    const stehSek = Math.round(dauerS * anteil);
+
+    if (!r.pausen) {
+      ziel.textContent = t("animator.pause.none", "Auf dieser Tour keine Pausen über der Schwelle gefunden.");
+      return;
+    }
+    // Format: erst die Tour, dann was die Einstellung daraus macht — im Geist
+    // der Dauer-Anzeige („6 h 04 ÷ 100 = 3 min 39").
+    ziel.textContent = t("animator.pause.info", "Deine Tour: {gesamt}, davon {steh} Stillstand in {n} Pausen.")
+        .replace("{gesamt}", _ovFmtDur(r.gesamt_s))
+        .replace("{steh}", _ovFmtDur(r.stillstand_s))
+        .replace("{n}", r.pausen)
+      + " " + t("animator.pause.result", "Im Video stehen davon rund {sek} s still.")
+        .replace("{sek}", stehSek);
+  }
+
+  // ⚠️ Einmal beim Aufbau: ohne diesen Aufruf steht unter der Auswahl gar
+  // nichts, bis der Nutzer sie zum ersten Mal anfasst.
+  //
+  // Und ⚠️ nicht direkt: an dieser Stelle ist `_gpxStats` noch nicht deklariert
+  // (die Deklaration steht weiter unten in derselben Funktion), ein direkter
+  // Aufruf stirbt an der temporalen Todeszone — und das `try` schluckt es
+  // lautlos. Deshalb erst, wenn das Modul fertig aufgebaut ist.
+  setTimeout(() => { try { paceAnzeigen(); } catch (_) {} }, 0);
+
+  document.getElementById("anim-pace")?.addEventListener("change", () => {
+    paceAnzeigen();
+    if (typeof saveProjectSettings === "function") {
+      saveProjectSettings(_MODKEY, { pace_mode: _paceModus() });
+    } else if (typeof saveSettings === "function") {
+      saveSettings({ animator: { pace_mode: _paceModus() } });
+    }
+  });
+  document.getElementById("anim-pause-mode")?.addEventListener("change", () => {
+    paceAnzeigen();
+    const v = document.getElementById("anim-pause-mode").value;
+    if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, { pause_mode: v });
+    else if (typeof saveSettings === "function") saveSettings({ animator: { pause_mode: v } });
+  });
+  ["anim-pause-min", "anim-pause-trim"].forEach(id => {
+    document.getElementById(id)?.addEventListener("input", () => pauseInfoLaden());
+    document.getElementById(id)?.addEventListener("change", () => {
+      const patch = {
+        pause_min_s: (parseFloat(document.getElementById("anim-pause-min").value) || 2) * 60,
+        pause_trim_s: parseFloat(document.getElementById("anim-pause-trim").value) || 0,
+      };
+      if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, patch);
+      else if (typeof saveSettings === "function") saveSettings({ animator: patch });
+    });
+  });
+
   // Overlay-Settings live spiegeln
   ["anim-overlays",
    "anim-ov-totals", "anim-ov-totals-pos",
@@ -9377,6 +9559,7 @@ function mountAnimator(body, headerActions, opts) {
     // Max-Wert = volle Punkte-Anzahl des Tracks (aus stats.n_points).
     // Initial: voll rechts (alle Punkte). User kann reduzieren.
     configurePointCountSlider(res.stats.n_points);
+    try { paceAnzeigen(); } catch (_) {}
 
     toast("GPX geladen: " + res.name, "success", 2500);
   }
@@ -9410,6 +9593,23 @@ function mountAnimator(body, headerActions, opts) {
     // immer auf max zu setzen. Convention: 0 = „alle Punkte" (Default).
     // Marc-Spec 2026-05-24: „trackpunkte also wenn man reduziert, das wird
     // nicht im projekt/in der session gespeichert".
+    // v0.9.506 — Verteilung aus dem Projekt herstellen. ⚠️ Fehlt die Angabe,
+    // ist es ein Projekt von vor v0.9.506 → „wie aufgezeichnet", sonst sähe
+    // jede gespeicherte Animation plötzlich anders aus. Neue Projekte legt
+    // `_paceVorgabe()` auf „gleichmäßig".
+    (function () {
+      const a = _activeProject?.[_MODKEY] || _settingsCache?.[_MODKEY] || {};
+      const sel = document.getElementById("anim-pace");
+      if (sel) sel.value = a.pace_mode || (_istNeuesProjekt(a) ? "even" : "raw");
+      const pm = document.getElementById("anim-pause-mode");
+      if (pm) pm.value = a.pause_mode || "trim";
+      const mn = document.getElementById("anim-pause-min");
+      if (mn && a.pause_min_s) mn.value = (a.pause_min_s / 60);
+      const tr = document.getElementById("anim-pause-trim");
+      if (tr && a.pause_trim_s != null) tr.value = a.pause_trim_s;
+      paceAnzeigen();
+    })();
+
     const stored = (_activeProject?.[_MODKEY] && "point_count" in _activeProject[_MODKEY])
       ? _activeProject[_MODKEY].point_count
       : (_settingsCache?.[_MODKEY]?.point_count ?? 0);
@@ -9773,6 +9973,7 @@ function mountAnimator(body, headerActions, opts) {
     else applog("warn", "[applyGlobalGpx] map is null — skipping drawPreview");
     renderOverlayPreview();
     configurePointCountSlider(res.stats.n_points);
+    try { paceAnzeigen(); } catch (_) {}
   }
 
   function drawPreview(res) {
@@ -10643,6 +10844,14 @@ function mountAnimator(body, headerActions, opts) {
         const max = parseInt(sl.max);
         // Wenn voller Wert: 0 senden, sonst exakte Punkte-Zahl
         return (v >= max) ? 0 : v;
+      })(),
+      // v0.9.506 — Verteilung + Pausen.
+      pace_mode: (document.getElementById("anim-pace")?.value) || "raw",
+      pause_mode: (document.getElementById("anim-pause-mode")?.value) || "trim",
+      pause_min_s: (parseFloat(document.getElementById("anim-pause-min")?.value) || 2) * 60,
+      pause_trim_s: (function () {
+        const v = parseFloat(document.getElementById("anim-pause-trim")?.value);
+        return isNaN(v) ? 5 : v;
       })(),
       transparent_background: document.getElementById("anim-style").value === "alpha",
       // v0.4/v0.9.309: Schlagschatten — Slider IST der Schalter (Stärke 0 = aus).

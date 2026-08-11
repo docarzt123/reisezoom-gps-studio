@@ -286,6 +286,52 @@ klaut das Werkzeug dem Nutzer das normale Text-Kopieren.
 `scripts/selftest_keyframes.py` prüft genau das im echten Browser, inklusive der
 Probe, dass ⌘C im Eingabefeld NICHT bei uns landet.
 
+### Verteilung der Frames über den Track (v0.9.506)
+
+Die Frame-Schleife läuft über die Punkt-REIHENFOLGE
+(`coords_per_frame = n / anim_frames`). Verteilt man die Punkte gleichmäßig
+entlang einer Achse, folgt die Animation dieser Achse — **der ganze Umbau steckt
+deshalb in einer Funktion**, `_punkte_verteilen(cfg, raw_points)` in
+`core/animator.py`. Alles dahinter (Overlays, Sensorreihen, Einfärbung,
+Kamerafahrt) bleibt unverändert.
+
+Gerechnet wird in `core/gpx.py`:
+
+* `resample(pts, target, achse=...)` — tastet entlang `dist_m` („even"),
+  entlang einer bereinigten Zeitachse („real") oder gibt `downsample()` zurück
+  („raw", das Verhalten bis v0.9.505).
+* `finde_pausen()` / `pausen_bericht()` — Standzeiten auf der `elapsed_s`-Achse.
+* `_zeitachse_ohne_pausen()` — der Kniff: die Pausen werden **in der Achse**
+  gekürzt. Damit ist die Pausen-Behandlung kein Sonderfall im Renderer;
+  `kappen_auf_s = 0` ergibt „überspringen".
+
+⚠️ **Dieselbe Bewegungsregel wie die Statistik.** `PAUSE_FLOOR_MS` und
+`PAUSE_FENSTER_S` sind die Werte aus `compute_moving_and_max()` (60-s-Fenster,
+0,6 km/h Netto). Weichen sie ab, meldet die Statistik „2:00 h Stillstand",
+während der Animator etwas anderes wegkürzt — eine Differenz, die niemand
+erklären kann.
+
+⚠️ **Interpolierte Punkte sind neu.** Vor v0.9.506 waren die gerenderten Punkte
+immer echte Messpunkte. `_interpoliere()` mischt deshalb auch die
+`extra`-Sensorwerte (Puls, Trittfrequenz), sonst springt die Live-Anzeige,
+während sich die Position sanft bewegt. `tests/test_render_pace.py` rendert
+jede Verteilung wirklich **und vergleicht ein Bild aus der Mitte** — ohne diese
+Probe wäre der Test auch grün, wenn die Wahl gar nichts bewirkt.
+
+⚠️ **Etappen.** Der Zeit-Abtaster benutzt `elapsed_s`, und dort sind die Nächte
+zwischen Etappen seit v0.9.483 schon draußen. Wer stattdessen auf
+Zeitstempel-Differenzen rechnet, lässt den Punkt bei einer Sechs-Tage-Tour fünf
+Sechstel der Animation stillstehen.
+
+⚠️ **Vorgabe ist `"raw"`.** Ein bestehendes Projekt kennt das Feld nicht — mit
+einer anderen Vorgabe sähe jede gespeicherte Animation beim bloßen Öffnen anders
+aus. Die Oberfläche setzt „even" nur bei einem leeren Animator-Block
+(`_istNeuesProjekt`).
+
+⚠️ **`resample()` kann hochinterpolieren**, `downsample()` nicht (das reduziert
+nur). Im Animator fällt das nicht auf, weil dort nie mehr Punkte verlangt werden
+als vorhanden — wer die Funktion woanders benutzt, sollte es wissen.
+
 ### Doppelte Keyframes: Heilung beim Laden (v0.9.505)
 
 Bis v0.9.504 konnte ein Keyframe auf einen belegten Punkt gezogen werden; dann

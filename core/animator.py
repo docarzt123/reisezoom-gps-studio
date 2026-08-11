@@ -188,7 +188,7 @@ def find_ffmpeg() -> str:
         "https://ffmpeg.org/download.html (Windows), `apt install ffmpeg` (Linux)."
     )
 
-from .gpx import parse_gpx as core_parse_gpx, downsample, TrackPoint
+from .gpx import parse_gpx as core_parse_gpx, downsample, TrackPoint, resample, pausen_bericht
 from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
 from . import sensors as _sensors    # v0.9.331: FIT-Sensorfeld-Registry
 from . import heightanim as _cheight  # v0.9.443: Daten-Diagramme als Overlay
@@ -387,6 +387,22 @@ class AnimatorConfig:
     # = alle Punkte. Marc kann nur reduzieren, nicht „erhöhen" (es gibt ja
     # keine Punkte „dazu zu erfinden").
     point_count: int = 0
+    # v0.9.506 — Wie die Frames über den Track verteilt werden. Bis v0.9.505
+    # zeigte Frame k schlicht Punkt k der Aufzeichnung; wie das aussah, entschied
+    # damit allein das Gerät. Jetzt ist es eine Wahl:
+    #   "even" — gleichmäßig über die STRECKE → sichtbar gleichbleibendes Tempo
+    #   "real" — gleichmäßig über die ZEIT    → sichtbar das echte Tempo
+    #   "raw"  — jeder n-te aufgezeichnete Punkt (Verhalten bis v0.9.505)
+    # ⚠️ Vorgabe bleibt "raw": bestehende Projekte müssen aussehen wie bisher.
+    # Neue Projekte setzt die Oberfläche auf "even".
+    pace_mode: str = "raw"
+    # Nur bei "real": was mit Standzeiten passiert. "show" (voll ausspielen),
+    # "trim" (auf `pause_trim_s` kürzen) oder "skip" (ganz raus). Ohne
+    # Behandlung wäre der ehrlichste Modus der langweiligste — bei einer
+    # gemessenen Bergtour wären 63 von 232 Sekunden Standbild gewesen.
+    pause_mode: str = "trim"
+    pause_min_s: float = 120.0    # ab wann etwas als Pause gilt
+    pause_trim_s: float = 5.0     # worauf sie gekürzt wird
     # Alpha-Channel-Modus: kein Karten-Background, nur Track + Punkt + Overlays
     # auf transparentem Hintergrund. Output ist dann eine ProRes-4444-.mov,
     # die in Premiere/Final Cut/DaVinci/Resolve direkt als Overlay-Layer
@@ -2812,6 +2828,36 @@ def _smoothstep(t: float) -> float:
     return t * t * (3.0 - 2.0 * t)
 
 
+def _punkte_verteilen(cfg, raw_points):
+    """Punkte für den Render — Anzahl wie bisher, Verteilung nach Wahl.
+
+    Die Frame-Schleife läuft über die Punkt-REIHENFOLGE
+    (`coords_per_frame = n / anim_frames`). Verteilt man die Punkte also
+    gleichmäßig entlang einer Achse, folgt die Animation dieser Achse — der
+    ganze Umbau steckt in dieser einen Funktion, alles dahinter bleibt gleich.
+
+    ⚠️ Auch bei „alle Punkte" (`point_count <= 0`) muss neu verteilt werden:
+    die Rohpunkte stehen in Geräte-Reihenfolge, das IST der „raw"-Modus. Die
+    Anzahl bleibt dabei gleich, nur die Verteilung ändert sich.
+    """
+    modus = getattr(cfg, "pace_mode", "raw") or "raw"
+    if cfg.point_count <= 0 or cfg.point_count >= len(raw_points):
+        ziel = len(raw_points)
+    else:
+        ziel = max(2, cfg.point_count)
+
+    if modus == "raw":
+        return raw_points if ziel >= len(raw_points) else downsample(raw_points, ziel)
+
+    return resample(
+        raw_points, ziel,
+        achse="time" if modus == "real" else "dist",
+        pausen=getattr(cfg, "pause_mode", "trim") or "trim",
+        pause_ab_s=float(getattr(cfg, "pause_min_s", 120.0) or 120.0),
+        pause_auf_s=float(getattr(cfg, "pause_trim_s", 5.0) or 5.0),
+    )
+
+
 async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -> str:
     """v0.9.156 — Isolierter Multi-Track-Renderpfad (Marc-Wunsch 2026-06-01).
 
@@ -2841,10 +2887,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
     for ti, tc in enumerate(tours_cfg):
         gpx_path = tc["gpx_path"]
         raw_pts, st = core_parse_gpx(gpx_path)
-        if cfg.point_count <= 0 or cfg.point_count >= len(raw_pts):
-            pts = raw_pts
-        else:
-            pts = downsample(raw_pts, max(2, cfg.point_count))
+        pts = _punkte_verteilen(cfg, raw_pts)
         if len(pts) < 2:
             _log.warning("Tour %d (%s) hat <2 Punkte — übersprungen.", ti, gpx_path)
             continue
@@ -3295,10 +3338,7 @@ async def render_frame(
         _log.warning("Mapbox-Token fehlt/ungültig — Standbild-Render wird fehlschlagen.")
 
     raw_points, total_stats = core_parse_gpx(cfg.gpx_path)
-    if cfg.point_count <= 0 or cfg.point_count >= len(raw_points):
-        points = raw_points
-    else:
-        points = downsample(raw_points, max(2, cfg.point_count))
+    points = _punkte_verteilen(cfg, raw_points)
     if len(points) < 2:
         raise ValueError("GPX hat zu wenige Punkte für ein Standbild.")
 
@@ -3508,12 +3548,8 @@ async def render(
     #   point_count == 0 oder >= n_raw  → alle Original-Punkte
     #   point_count <  2               → Minimum 2 (Linie braucht 2 Punkte)
     #   sonst                          → downsample auf exakt point_count
-    if cfg.point_count <= 0 or cfg.point_count >= len(raw_points):
-        target = len(raw_points)
-        points = raw_points
-    else:
-        target = max(2, cfg.point_count)
-        points = downsample(raw_points, target)
+    points = _punkte_verteilen(cfg, raw_points)
+    target = len(points)
     _log.info("GPX geparst: %d Punkte → %d Punkte (point_count=%s), %.1f km, %ds, %.0f m↑ / %.0f m↓",
               len(raw_points), len(points), cfg.point_count or "all",
               total_stats.distance_m / 1000.0, total_stats.duration_s,
