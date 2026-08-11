@@ -14,6 +14,32 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.506] – 2026-08-11
+
+### Hinzugefügt
+- **Verteilung über den Track** im Animator (Wunsch Marc: „nicht mehr
+  zeitbasiert, sondern geschwindigkeitsbasiert — man muss wählen können").
+  Bisher zeigte Frame k schlicht Punkt k der Aufzeichnung; wie die Animation
+  aussah, entschied damit allein das Gerät. Jetzt gibt es drei Möglichkeiten,
+  benannt nach dem, was man **sieht**:
+  * **Gleichmäßig** — der Punkt läuft mit gleichbleibendem Tempo über die
+    Strecke. Sieht ruhig aus und funktioniert immer.
+  * **Echtes Tempo** — der Punkt ist da schnell, wo du schnell warst. Braucht
+    Zeitstempel; geplante Routen haben keine und die Auswahl ist dann gesperrt.
+  * **Wie aufgezeichnet** — folgt dem Rhythmus des Geräts. Nur dafür da, dass
+    ältere Projekte aussehen wie bisher.
+- **Pausen-Behandlung** bei „Echtes Tempo" (Marc: „Pausen müssen irgendwie
+  behandelt werden können"). Ohne sie wäre der ehrlichste Modus der
+  langweiligste: bei einer gemessenen Tour mit 27 Rasten hätten **63 von 232
+  Sekunden** Standbild im Video gestanden. Wählbar: **voll zeigen**, **kürzen**
+  (Vorgabe: auf 5 Sekunden) oder **überspringen**. Daneben steht live, was das
+  für die eigene Tour bedeutet — Gesamtzeit, Stillstand, Zahl der Pausen und
+  wie viele Sekunden davon im Video übrig bleiben.
+
+### Geändert
+- Bestehende Projekte öffnen mit **„Wie aufgezeichnet"** und sehen damit
+  unverändert aus. Neue Projekte starten mit „Gleichmäßig".
+
 ## [0.9.505] – 2026-08-11
 
 ### Hinzugefügt

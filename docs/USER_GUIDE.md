@@ -772,6 +772,34 @@ renderst.
 - **FPS**: 24 (Kino) · 25 (PAL/Europa-TV) · 30 (Standard) · 50 (PAL HFR) · 60
 - **Codec**: H.264 (universell kompatibel) oder H.265 (HEVC, ~30% kleiner)
 
+**Wie sich der Punkt über die Strecke bewegt (seit v0.9.506):**
+
+Unter *Track* steht ganz oben **„Verteilung über den Track"**. Sie bestimmt
+nicht, wie lang das Video wird (das macht die Dauer), sondern **wo der Punkt
+wann ist**:
+
+- **Gleichmäßig** — der Punkt läuft mit gleichbleibendem Tempo über die Strecke.
+  Sieht ruhig aus, funktioniert immer, und ist bei neuen Projekten voreingestellt.
+- **Echtes Tempo** — der Punkt ist da schnell, wo du schnell warst: er zieht auf
+  der Abfahrt davon und quält sich den Anstieg hoch. Dafür braucht die Datei
+  **Zeitstempel**; geplante Routen haben keine, dort ist die Auswahl gesperrt.
+- **Wie aufgezeichnet** — folgt dem Rhythmus deines Geräts. Das ist
+  unberechenbar (in einer gemessenen Datei lagen zwischen zwei Punkten einmal
+  1121 Meter) und nur dafür da, dass ältere Projekte aussehen wie bisher.
+
+**Pausen** (nur bei „Echtes Tempo"): Wer eine halbe Stunde Rast macht, hätte
+sonst eine halbe Stunde Standbild im Video — bei einer gemessenen Bergtour mit
+27 Rasten wären das 63 von 232 Sekunden gewesen. Deshalb kannst du wählen:
+
+- **Kürzen** (Vorgabe) — jede Rast über der Schwelle dauert im Video nur noch
+  ein paar Sekunden. Man sieht, *dass* eine Pause war, ohne dass das Bild
+  einschläft.
+- **Überspringen** — Pausen fallen ganz raus, das Ergebnis ist reine Bewegung.
+- **Voll zeigen** — ehrlich, aber nur bei kurzen Touren mit wenig Stopps schön.
+
+Darunter steht immer, was das **für deine Tour** bedeutet: Gesamtzeit,
+Stillstand, Zahl der Pausen und wie viele Sekunden davon im Video übrig bleiben.
+
 **Performance & Output (seit v0.4):**
 - **Track-Glätte (Punkte-Dichte)** — wie fein der Track gezeichnet wird:
   - **Niedrig** (100 Punkte) — schnellster Render, gut für Vorschau

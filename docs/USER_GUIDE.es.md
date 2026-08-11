@@ -720,6 +720,35 @@ renderizar.
 - **FPS**: 24 (cine) · 25 (PAL/TV europea) · 30 (estándar) · 50 (PAL HFR) · 60
 - **Códec**: H.264 (universalmente compatible) o H.265 (HEVC, ~30 % más pequeño)
 
+**Cómo se mueve el punto por la ruta (desde v0.9.506):**
+
+Arriba del todo en *Track* está **«Reparto a lo largo de la ruta»**. No decide
+cuánto dura el vídeo (eso lo marca la duración), sino **dónde está el punto en
+cada momento**:
+
+- **Uniforme** — el punto avanza a un ritmo constante por la ruta. Se ve
+  tranquilo, funciona siempre y viene predeterminado en los proyectos nuevos.
+- **Ritmo real** — el punto va rápido donde tú ibas rápido: se lanza en la
+  bajada y se arrastra en la subida. Para eso el archivo necesita **marcas de
+  tiempo**; las rutas planificadas no las tienen y ahí la opción está bloqueada.
+- **Tal como se grabó** — sigue el ritmo de tu dispositivo. Es impredecible (en
+  un archivo medido había 1121 metros entre dos puntos) y solo está para que los
+  proyectos antiguos se vean como antes.
+
+**Paradas** (solo con «Ritmo real»): media hora de descanso sería media hora de
+imagen congelada; en una ruta de montaña medida con 27 paradas habrían sido 63
+de 232 segundos. Por eso puedes elegir:
+
+- **Acortar** (por defecto) — cada parada por encima del umbral dura solo unos
+  segundos en el vídeo. Se nota *que* hubo una parada sin que la imagen se
+  duerma.
+- **Omitir** — las paradas desaparecen; queda movimiento puro.
+- **Mostrar enteras** — honesto, pero solo queda bien en rutas cortas con pocas
+  paradas.
+
+Debajo verás siempre qué significa eso **para tu ruta**: tiempo total, tiempo
+parado, número de paradas y cuántos segundos quedan en el vídeo.
+
 **Rendimiento y salida (desde v0.4):**
 - **Suavidad del track (densidad de puntos)** — lo fino que se dibuja el track:
   - **Baja** (100 puntos) — render más rápido, bueno para vista previa

@@ -727,6 +727,30 @@ python app.py</code></pre>
 <li><strong>FPS</strong>: 24 (cinema) · 25 (PAL/Europe TV) · 30 (standard) · 50 (PAL HFR) · 60</li>
 <li><strong>Codec</strong>: H.264 (universally compatible) or H.265 (HEVC, ~30% smaller)</li>
 </ul>
+<p><strong>How the dot travels along the route:</strong></p>
+<p>At the top of <em>Track</em> sits <strong>“Spread along the track”</strong>. It does not decide how long the video runs (the duration does) — it decides <strong>where the dot is when</strong>:</p>
+<ul>
+<li><strong>Even</strong> — the dot moves at a steady pace along the route. Calm, always works,</li>
+</ul>
+<p> and it is the default for new projects.</p>
+<ul>
+<li><strong>Real pace</strong> — the dot is fast where you were fast: it races down the descent</li>
+</ul>
+<p> and crawls up the climb. The file needs <strong>timestamps</strong> for this; planned routes  have none, so the option is greyed out there.</p>
+<ul>
+<li><strong>As recorded</strong> — follows your device&#x27;s own rhythm. That is unpredictable (one</li>
+</ul>
+<p> measured file had 1121 metres between two points) and it is only there so older  projects still look the way they did.</p>
+<p><strong>Stops</strong> (only with “Real pace”): half an hour of rest would otherwise be half an hour of frozen picture — on a measured mountain tour with 27 breaks that would have been 63 of 232 seconds. So you can choose:</p>
+<ul>
+<li><strong>Shorten</strong> (default) — every stop above the threshold lasts just a few seconds</li>
+</ul>
+<p> in the video. You still see <em>that</em> there was a break, without the picture  falling asleep.</p>
+<ul>
+<li><strong>Skip</strong> — stops drop out entirely; what is left is pure movement.</li>
+<li><strong>Show in full</strong> — honest, but only pleasant on short tours with few stops.</li>
+</ul>
+<p>Underneath you always see what this means <strong>for your tour</strong>: total time, time standing still, the number of stops, and how many seconds of that remain in the video.</p>
 <p><strong>Performance &amp; output:</strong></p>
 <ul>
 <li><strong>Track smoothness (point density)</strong> — how finely the track is drawn:</li>

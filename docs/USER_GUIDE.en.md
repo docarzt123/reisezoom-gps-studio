@@ -710,6 +710,34 @@ render.
 - **FPS**: 24 (cinema) · 25 (PAL/Europe TV) · 30 (standard) · 50 (PAL HFR) · 60
 - **Codec**: H.264 (universally compatible) or H.265 (HEVC, ~30% smaller)
 
+**How the dot travels along the route (since v0.9.506):**
+
+At the top of *Track* sits **“Spread along the track”**. It does not decide how
+long the video runs (the duration does) — it decides **where the dot is when**:
+
+- **Even** — the dot moves at a steady pace along the route. Calm, always works,
+  and it is the default for new projects.
+- **Real pace** — the dot is fast where you were fast: it races down the descent
+  and crawls up the climb. The file needs **timestamps** for this; planned routes
+  have none, so the option is greyed out there.
+- **As recorded** — follows your device's own rhythm. That is unpredictable (one
+  measured file had 1121 metres between two points) and it is only there so older
+  projects still look the way they did.
+
+**Stops** (only with “Real pace”): half an hour of rest would otherwise be half
+an hour of frozen picture — on a measured mountain tour with 27 breaks that would
+have been 63 of 232 seconds. So you can choose:
+
+- **Shorten** (default) — every stop above the threshold lasts just a few seconds
+  in the video. You still see *that* there was a break, without the picture
+  falling asleep.
+- **Skip** — stops drop out entirely; what is left is pure movement.
+- **Show in full** — honest, but only pleasant on short tours with few stops.
+
+Underneath you always see what this means **for your tour**: total time, time
+standing still, the number of stops, and how many seconds of that remain in the
+video.
+
 **Performance & output (since v0.4):**
 - **Track smoothness (point density)** — how finely the track is drawn:
   - **Low** (100 points) — fastest render, good for preview

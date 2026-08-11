@@ -149,7 +149,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.505"
+APP_VERSION = "0.9.506"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2762,6 +2762,36 @@ class Api:
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
 
+    def animator_pause_info(self, payload: dict) -> dict:
+        """Was die gewählte Verteilung für DIESE Tour bedeutet.
+
+        Ohne diese Zahlen neben dem Regler stellt niemand den Schwellwert
+        richtig ein — im Geist der Dauer-Anzeige („6 h 04 ÷ 100 = 3 min 39").
+        Gerechnet wird mit derselben Funktion, die später auch kürzt; eine
+        zweite Schätzung wäre eine zweite Wahrheit.
+        """
+        try:
+            pfad = (payload or {}).get("gpx_path") or ""
+            if not pfad or not os.path.exists(pfad):
+                return {"ok": False, "error": "GPX nicht gefunden"}
+            ab_s = float((payload or {}).get("pause_min_s", 120) or 120)
+            auf_s = float((payload or {}).get("pause_trim_s", 5) or 5)
+            pts, _st = cgpx.parse_gpx(pfad)
+            b = cgpx.pausen_bericht(pts, ab_s)
+            # Wie lang die Animation mit dieser Einstellung real dauert, hängt
+            # nicht von der Frame-Zahl ab (die ist fix), sondern davon, wie viel
+            # ANIMATIONSZEIT auf die Pausen entfällt. Genau das ist die Zahl,
+            # die den Nutzer interessiert.
+            gesamt = b["gesamt_s"] or 0.0
+            gespart = max(0.0, b["stillstand_s"] - b["pausen"] * auf_s)
+            b["anteil_gekuerzt"] = (gespart / gesamt) if gesamt > 0 else 0.0
+            b["anteil_uebersprungen"] = (b["stillstand_s"] / gesamt) if gesamt > 0 else 0.0
+            b["ok"] = True
+            return b
+        except Exception as e:
+            log.exception("animator_pause_info")
+            return {"ok": False, "error": str(e)}
+
     def animator_start_render(self, params: dict) -> dict:
         """Startet Render im Hintergrund-Thread. Status pollen via animator_status()."""
         if self._render_state["running"]:
@@ -2932,6 +2962,13 @@ class Api:
             override_zoom=float(params["override_zoom"]) if params.get("override_zoom") is not None else None,
             zoom_correction=float(params.get("zoom_correction", 0.0) or 0.0),  # v0.9.157 WYSIWYG-Zoom
             point_count=int(params.get("point_count", 0)),
+            # v0.9.506 — Verteilung der Frames über den Track. Vorgabe "raw",
+            # damit ein Projekt ohne die Angabe (also jedes bestehende) aussieht
+            # wie bisher.
+            pace_mode=str(params.get("pace_mode", "raw") or "raw"),
+            pause_mode=str(params.get("pause_mode", "trim") or "trim"),
+            pause_min_s=float(params.get("pause_min_s", 120) or 120),
+            pause_trim_s=float(params.get("pause_trim_s", 5) or 5),
             transparent_background=alpha,
             shadow_enabled=bool(params.get("shadow_enabled", True)),
             shadow_strength=float(params.get("shadow_strength", 4.0)),
