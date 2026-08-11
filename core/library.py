@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import functools
 import json
+from datetime import date as _date
 import logging
 import os
 import re
@@ -1255,7 +1256,7 @@ _SEARCH_HAY = ("COALESCE(display_name,'') || ' ' || COALESCE(name,'') || ' ' || 
 def _build_where(search="", year=None, activity="", fav_only=False, planned=None,
                  tags=None, min_km=None, max_km=None, bbox=None, collection_id=None,
                  include_errors=False, include_hidden=False, hidden_only=False,
-                 missing_only=False, **_ignored) -> tuple:
+                 missing_only=False, von=None, bis=None, **_ignored) -> tuple:
     """Baut die WHERE-Klausel EINMAL — Liste und Statistik müssen zwingend
     dieselbe Auswahl meinen, sonst zählt die Statistik etwas anderes als das,
     was der Nutzer gerade sieht."""
@@ -1271,6 +1272,16 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
         where.append("missing_since != ''")
     if year:
         where.append("year = ?"); args.append(int(year))
+    # v0.9.505 — freier Zeitraum (Marc: „kann man nicht einfach einen
+    # Datumsbereich einstellen"). `started_at` ist ISO-Text, deshalb reicht ein
+    # Zeichenketten-Vergleich — „2025-03-14T…" liegt zwischen „2025-01-01" und
+    # „2025-12-31z". Das `z` am Ende von `bis` schließt den letzten Tag MIT ein:
+    # ohne das fiele „2025-12-31T09:00" aus dem Bereich, weil „2025-12-31T…"
+    # größer ist als „2025-12-31".
+    if von:
+        where.append("started_at >= ?"); args.append(str(von)[:10])
+    if bis:
+        where.append("started_at <= ?"); args.append(str(bis)[:10] + "z")
     if activity:
         # Sammelposten (`grp:rad`) fassen mehrere Arten zusammen; alles andere
         # ist eine einzelne Art. Bewusst hier und nicht in der Oberfläche:
@@ -1346,6 +1357,8 @@ def query(
     missing_only: bool = False,
     with_geom: bool = False,
     collection_id: Optional[int] = None,
+    von: Optional[str] = None,
+    bis: Optional[str] = None,
 ) -> dict:
     """Gefilterte Trefferliste + Gesamtzahl (für „x von y").
 
@@ -1358,7 +1371,7 @@ def query(
         tags=tags, min_km=min_km, max_km=max_km, bbox=bbox,
         collection_id=collection_id, include_errors=include_errors,
         include_hidden=include_hidden, hidden_only=hidden_only,
-        missing_only=missing_only)
+        missing_only=missing_only, von=von, bis=bis)
     order = _SORTS.get(sort, _SORTS["date_desc"])
     if collection_id and sort == "collection":
         # Eigene Reihenfolge der Sammlung (Etappe 1, 2, 3 …).
@@ -1541,6 +1554,30 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
                      f"FROM tracks WHERE {sql_where} AND length(started_at) >= 7 "
                      f"GROUP BY m, activity ORDER BY m, n DESC")]
 
+    # ISO-Kalenderwochen (v0.9.505). ⚠️ SQLite kann das nicht: `strftime('%W')`
+    # zählt ab dem ersten Sonntag und weicht an Jahreswechseln von ISO ab — der
+    # 1. Januar 2027 liegt nach ISO in Woche 53 des Vorjahres, nach SQLite in
+    # Woche 0 des neuen. Garmin und Komoot rechnen nach ISO, also wir auch.
+    # Deshalb hier gruppieren statt in SQL: eine Abfrage, Zuordnung in Python.
+    _wochen: dict = {}
+    for x in rows(f"SELECT started_at, activity, distance_m d, "
+                  f"COALESCE(moving_time_s, duration_s) t FROM tracks "
+                  f"WHERE {sql_where} AND length(started_at) >= 10"):
+        try:
+            d = _date.fromisoformat(str(x["started_at"])[:10])
+        except ValueError:
+            continue
+        iso = d.isocalendar()
+        schluessel = (f"{iso[0]}-W{iso[1]:02d}", x["activity"] or "")
+        e = _wochen.setdefault(schluessel, {"n": 0, "m": 0.0, "s": 0.0})
+        e["n"] += 1
+        e["m"] += x["d"] or 0
+        e["s"] += x["t"] or 0
+    act_woche = [{"week": w, "activity": a, "n": v["n"],
+                  "km": round(v["m"] / 1000.0, 1),
+                  "hours": round(v["s"] / 3600.0, 1)}
+                 for (w, a), v in sorted(_wochen.items())]
+
     # Häufigste Startpunkte (Wunsch Beta-Tester: „Auswerten von genutzten
     # Startpunkten"). Der Ortslauf füllt `place`; ohne ihn bleibt die Liste leer,
     # und die Oberfläche sagt das dann auch.
@@ -1584,6 +1621,7 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
         "activities": acts,
         "act_by_year": act_jahr,
         "act_by_month": act_monat,
+        "act_by_week": act_woche,
         "startorte": startorte,
         "longest": longest,
         "tags": sorted(tags.items(), key=lambda kv: -kv[1]),

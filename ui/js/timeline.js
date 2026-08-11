@@ -9,6 +9,9 @@
  *     getEvents: () => _settingsCache?.animator?.timeline_events || [],
  *     onScrub: (anchor) => { ... },         // Live-Preview-Update
  *     onAnchorChange: (idx, anchor) => { }, // User dragged Marker
+ *     onEventCopy: (ev, zielAnker) => { },  // Alt+Ziehen = duplizieren
+ *     onEventClipboardCopy: (ev) => { },     // ⌘C
+ *     onEventClipboardPaste: (anker) => { }, // ⌘V an der Abspielposition
  *     onSelect: (idx) => { ... },           // User clicked Marker
  *     onDelete: (idx) => { ... },           // Rechtsklick auf Marker
  *     onSnapshot: () => { ... },            // 📍 Hier Keyframe gedrückt
@@ -648,7 +651,12 @@ function mountTimelineBar(opts) {
     _selectedEvent = { kind, anchor };
     if (cb.onSelect) cb.onSelect({ kind, anchor });
     refresh();
-    _dragging = { type: "marker", kind, anchor, moved: false };
+    // v0.9.505 — Alt/Option beim Anfassen = duplizieren statt verschieben
+    // (das Idiom aus Premiere, Final Cut, After Effects). `startAnchor` bleibt
+    // dabei stehen: `anchor` wandert während des Ziehens mit, wir brauchen aber
+    // am Ende noch die Stelle, VON der kopiert wird.
+    _dragging = { type: "marker", kind, anchor, startAnchor: anchor,
+                  moved: false, kopieren: !!e.altKey };
   }, true);
 
   // v0.9.8 — Doppelklick auf eine LEERE Stelle einer Lane → nur ein
@@ -701,7 +709,10 @@ function mountTimelineBar(opts) {
       // v0.9.3: nur DIESEN einen Event bewegen (kind+oldAnchor identifiziert ihn).
       // v0.9.4: bei kind="__cluster" bewegt der Caller (module.js) alle 4
       //         Properties am Anker zusammen.
-      if (cb.onAnchorChange) {
+      // v0.9.505: beim Duplizieren bleibt das Original, wo es ist — hier wird
+      // also NICHTS gespeichert. Der Marker wandert nur als Vorschau mit; beim
+      // Loslassen stellt `refresh()` ihn zurück und die Kopie entsteht.
+      if (!_dragging.kopieren && cb.onAnchorChange) {
         cb.onAnchorChange({ kind: _dragging.kind, anchor: _dragging.anchor }, anchor);
       }
       // Marker visuell verschieben + dataset.anchor für den nächsten
@@ -717,9 +728,12 @@ function mountTimelineBar(opts) {
       els.forEach(m => {
         m.style.left = _anchorToPct(anchor) + "%";
         m.dataset.anchor = String(anchor);
+        if (_dragging.kopieren) m.classList.add("is-copying");
       });
       _dragging.anchor = anchor;
-      _selectedEvent = { kind: _dragging.kind, anchor };
+      // Beim Duplizieren die Auswahl NICHT mitziehen — sie gehört noch dem
+      // Original, bis die Kopie wirklich existiert.
+      if (!_dragging.kopieren) _selectedEvent = { kind: _dragging.kind, anchor };
     }
   });
   window.addEventListener("mouseup", () => {
@@ -728,8 +742,14 @@ function mountTimelineBar(opts) {
       // konsistent sind. Bei Scrubber-Drag-Ende informieren wir den Caller,
       // damit der die volle Track-Linie wiederherstellen kann.
       const wasScrubber = _dragging.type === "scrubber";
+      const kopie = (_dragging.type === "marker" && _dragging.kopieren
+                     && _dragging.moved) ? _dragging : null;
       _dragging = null;
-      refresh();
+      refresh();   // stellt das Original zurück — es wurde nie bewegt
+      if (kopie && cb.onEventCopy) {
+        cb.onEventCopy({ kind: kopie.kind, anchor: kopie.startAnchor },
+                       kopie.anchor);
+      }
       if (wasScrubber && cb.onScrubEnd) cb.onScrubEnd(_scrubAnchor);
     }
   });
@@ -965,6 +985,36 @@ function mountTimelineBar(opts) {
       if (_sbDrag) { _sbDrag = null; document.body.style.cursor = ""; }
     });
   }
+
+  // v0.9.505 — ⌘C / ⌘V für Keyframes. Für weite Wege auf der Zeitleiste, wo
+  // Ziehen unpraktisch ist: Marker auswählen, kopieren, Abspielkopf setzen,
+  // einfügen.
+  //
+  // ⚠️ Nur zugreifen, wenn die Zeitleiste wirklich aktiv ist UND der Fokus
+  // nicht in einem Eingabefeld steht — sonst klaut das Werkzeug dem Nutzer das
+  // normale Kopieren von Text. Aus demselben Grund `capture: false`: Felder
+  // dürfen zuerst.
+  window.addEventListener("keydown", (e) => {
+    if (!_enabled) return;
+    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+    const k = (e.key || "").toLowerCase();
+    if (k !== "c" && k !== "v") return;
+    const a = document.activeElement;
+    if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA"
+              || a.isContentEditable)) return;
+    // Nur reagieren, wenn die Zeitleiste sichtbar ist — der Nutzer könnte in
+    // einem ganz anderen Modul sein, während der Animator im Hintergrund lebt.
+    if (!host || !host.offsetParent) return;
+    if (k === "c") {
+      if (!_selectedEvent || !cb.onEventClipboardCopy) return;
+      e.preventDefault();
+      cb.onEventClipboardCopy(_selectedEvent);
+    } else {
+      if (!cb.onEventClipboardPaste) return;
+      e.preventDefault();
+      cb.onEventClipboardPaste(_scrubAnchor);
+    }
+  });
 
   // v0.9.127 — Mausrad/Touchpad-Handler
   //   Ctrl/Cmd + Wheel        = Zoom in/out, zentriert auf Maus

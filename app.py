@@ -149,7 +149,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.504"
+APP_VERSION = "0.9.505"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2041,6 +2041,14 @@ class Api:
             for k in ("limit", "offset", "sort", "with_thumbs", "with_geom"):
                 p.pop(k, None)
             s = clib.stats(self._lib(), **p)
+            # ⚠️ Die „längsten Touren" sind anklickbar und landen dann in der
+            # Detailspalte — dort fehlte bisher das Vorschaubild. `query()`
+            # hängt `thumb_url` an, `stats()` tat es nicht, und wer eine Tour
+            # anklickte, die gerade nicht auf der geladenen Seite lag, sah statt
+            # seines Bildes den Platzhalter. Gemeldet von einem Nutzer, der es
+            # für ein kaputtes Bild hielt.
+            for it in (s.get("longest") or []):
+                it["thumb_url"] = self._lib_thumb_url(it.get("image"))
             s["ok"] = True
             return s
         except Exception as e:

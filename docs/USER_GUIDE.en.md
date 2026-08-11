@@ -416,13 +416,24 @@ you only get to see what is doubled up.
 **New files:** press **“Rescan”** once after a bigger export. Files already known are
 skipped, so it takes seconds.
 
+**Choosing a period.** At the far left of the filter bar is a selector with
+**“This year”**, **“Last 12 months”**, **“Last 12 weeks”** and **“Custom period …”**.
+The custom option shows two date fields for *from* and *to*; both days are included.
+The period applies to everything at once — list, map and statistics all show the
+same slice. While a period is set, the year field is greyed out: both mean the same
+thing, and the period is the more precise of the two.
+
 **Filter by length.** Next to year and activity sit two small fields **“from km”**
 and **“to km”**. Together the three filters answer questions like *“all hikes over
 20 km in 2025”*: activity to hiking, year to 2025, “from km” to 20 — done.
 
 **What the statistics compare.** Below the bars is a table **“Activities compared”**:
 one row per year (or month), one column per activity. Top right you switch between
-**years and months** and between **kilometres, hours and count**. The strongest
+**years, months and weeks** and between **kilometres, hours and count**. The weeks
+are **ISO calendar weeks** — the same counting Garmin and Komoot use, so the numbers
+match what you see there. Across the whole library, weeks quickly become hundreds of
+rows; set a period above and the table stays readable. A note under the table
+reminds you of that. The strongest
 activity of each period is highlighted, so you can see at a glance whether a year
 leaned towards cycling or hiking. Below that are your **most used starting points**;
 they fill in once the library has named the areas in the background.
@@ -860,6 +871,28 @@ Photos with GPS EXIF appear as small thumbnails at their capture position. Perfe
 **In the render:** photo pins appear **as soon as the animated marker reaches their position** (since v0.9.187 — before that they were accidentally visible from the first frame), and then stay until the end. The position is exactly the EXIF GPS position (even if it's not on the track, e.g. a summit photo next to the hiking trail).
 
 ---
+
+### Copying keyframes (since v0.9.505)
+
+Once a camera setting is the way you want it, you do not have to build it again:
+
+* **Hold Alt/Option and drag** — the original stays where it is and a copy
+  appears where you let go. While dragging, the marker has a dashed outline, so
+  you can see it is copying rather than moving.
+* **⌘C, then ⌘V** — click the keyframe, copy it, put the playhead where you want
+  it and paste. Easier when you want to move it across half the timeline.
+
+Drag the **large** marker and the whole keyframe comes along: pitch, bearing,
+zoom and centre. Drag one of the **small** markers below it and only that single
+property is copied — handy when only the zoom should match at a second spot.
+
+If a keyframe with the same property is already at the target, it is replaced.
+Two different values at the same spot are something the program could not play
+back.
+
+> **Not possible:** carrying keyframes over into a **different project**. They
+> are tied to the track and to the position within it — on another route with a
+> different length and shape that position simply does not exist.
 
 ## 4 · Module: Travel Route — the journey there as a video 🛣️ (since v0.9.205)
 

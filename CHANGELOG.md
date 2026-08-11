@@ -14,6 +14,51 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.505] – 2026-08-11
+
+### Hinzugefügt
+- **Zeitraum im Archiv** (Wunsch Beta-Tester: „die Woche mit einbauen“ — daraus
+  wurde: erst den Ausschnitt wählen, dann die Auflösung). Eine Auswahl in der
+  Filterleiste mit den Voreinstellungen *Dieses Jahr*, *Letzte 12 Monate*,
+  *Letzte 12 Wochen* sowie einem eigenen Von–Bis. Der Zeitraum wirkt auf alles:
+  Liste, Karte und Statistik. Solange einer eingestellt ist, ruht das
+  Jahres-Feld — sonst filtern zwei Dinge dasselbe gegeneinander.
+- **Wochen in der Vergleichstabelle** — neben *Jahre* und *Monate* jetzt auch
+  *Wochen*, nach **ISO-Kalenderwochen** (wie Garmin und Komoot). Ohne
+  eingestellten Zeitraum weist ein Hinweis darauf hin, dass ein Ausschnitt die
+  Tabelle lesbar macht.
+- **Keyframes kopieren** (Wunsch Nutzer: „einen kompletten Keyframe kopieren, um
+  ihn an eine andere Position der Zeitleiste zu verschieben — und auch nur ein
+  einzelnes Element, zum Beispiel den Zoom"). Zwei Wege:
+  * **Alt/Option beim Ziehen** — das Original bleibt liegen, an der Zielstelle
+    entsteht eine Kopie. Der gezogene Marker zeigt gestrichelt an, dass kopiert
+    und nicht verschoben wird. Das Idiom aus Premiere, Final Cut und After
+    Effects.
+  * **⌘C / ⌘V** — Marker auswählen, kopieren, Abspielkopf setzen, einfügen. Für
+    weite Wege, wo Ziehen unpraktisch ist.
+  Am Cluster-Marker wird das **ganze Bündel** kopiert (Neigung, Blickrichtung,
+  Zoom, Mittelpunkt), an einem einzelnen Marker **nur diese eine Eigenschaft**.
+
+### Geändert
+- **Schrift in der Statistik etwas größer** (Wunsch Beta-Tester) — Tabellen 13 px,
+  Kopfzeilen 12 px, Diagrammtitel 13 px.
+
+### Behoben
+- **Beim Anklicken einer der längsten Touren erschien ein „kaputtes Bild“.** Das
+  war das Ersatz-Symbol 🗺️: die Statistik lieferte zu diesen Touren keinen
+  Vorschaubild-Pfad mit, obwohl es eins gab. Der Pfad kommt jetzt mit, und das
+  Ersatz-Symbol sieht auch dann ordentlich aus, wenn wirklich keins existiert.
+- **Alte Projekte mit doppelten Keyframes werden beim Öffnen bereinigt.** Neu
+  entstehen konnten sie schon nicht mehr — in bestehenden Projekten lagen sie
+  aber noch drin und machten die Kamerafahrt unberechenbar. Beim Laden bleibt
+  je Eigenschaft und Stelle der zuletzt gesetzte Wert stehen, der Rest fällt
+  weg. Läuft einmal je Projekt.
+- **Ein Keyframe auf einen belegten Punkt zu ziehen erzeugte Dubletten.** Danach
+  lagen zwei Werte derselben Eigenschaft an derselben Stelle; die Interpolation
+  nimmt dann willkürlich einen davon, und die Kamerafahrt sah aus wie nie
+  gebaut — ohne dass irgendwo ein Fehler auftauchte. Verschieben **und** Kopieren
+  räumen jetzt vorher weg, was im Weg liegt.
+
 ## [0.9.504] – 2026-08-06
 
 ### Hinzugefügt
