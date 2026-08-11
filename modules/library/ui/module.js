@@ -95,6 +95,8 @@ function mountLibrary(body, headerActions) {
     search: "",
     year: parseInt(store.get("year", "0"), 10) || 0,
     activity: store.get("activity", ""),
+    von: store.get("von", "") || null,
+    bis: store.get("bis", "") || null,
     min_km: parseFloat(store.get("min_km", "")) || null,
     max_km: parseFloat(store.get("max_km", "")) || null,
     sort: SORTS_OK.includes(gespeicherterSort) ? gespeicherterSort : "date_desc",
@@ -154,6 +156,38 @@ function mountLibrary(body, headerActions) {
     ? GROUP_LABELS[schluessel.slice(4)] || schluessel
     : (ACT_LABELS[schluessel] || schluessel);
 
+  /* Zeitraum-Voreinstellungen (v0.9.505). Marc: „kann man nicht einfach einen
+   * Datumsbereich einstellen, und innerhalb dem die Auflösung angeben?" — genau
+   * dafür. Ohne Voreinstellungen wird ein Datumsbereich schnell lästig, weil
+   * man für jede Frage zweimal ein Datum tippt.
+   *
+   * ⚠️ Die Rechnung läuft über die LOKALE Zeit, nicht über UTC: „dieses Jahr"
+   * muss dasselbe meinen wie der Kalender an der Wand.
+   */
+  const _iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    + `-${String(d.getDate()).padStart(2, "0")}`;
+  const ZEITRAEUME = [
+    { id: "", label: () => T("library.range.all", "Alle Zeiträume"), bereich: () => [null, null] },
+    { id: "jahr", label: () => T("library.range.year", "Dieses Jahr"),
+      bereich: () => {
+        const h = new Date();
+        return [_iso(new Date(h.getFullYear(), 0, 1)), _iso(h)];
+      } },
+    { id: "m12", label: () => T("library.range.m12", "Letzte 12 Monate"),
+      bereich: () => {
+        const h = new Date(), v = new Date(h);
+        v.setMonth(v.getMonth() - 12);
+        return [_iso(v), _iso(h)];
+      } },
+    { id: "w12", label: () => T("library.range.w12", "Letzte 12 Wochen"),
+      bereich: () => {
+        const h = new Date(), v = new Date(h);
+        v.setDate(v.getDate() - 7 * 12);
+        return [_iso(v), _iso(h)];
+      } },
+    { id: "eigen", label: () => T("library.range.custom", "Eigener Zeitraum …"), bereich: null },
+  ];
+
   const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
   body.classList.add("lib-mode");
@@ -184,6 +218,21 @@ function mountLibrary(body, headerActions) {
              20 km in 2025"). Das Backend konnte das längst — es gab nur kein
              Feld dafür. Zusammen mit Art und Jahr ist die Frage jetzt in drei
              Handgriffen gestellt. -->
+        <!-- Zeitraum (v0.9.505). Voreinstellungen decken die häufigen Fälle ab;
+             „Eigener Zeitraum" blendet die beiden Datumsfelder ein. Der Bereich
+             wirkt auf ALLES — Liste, Karte und Statistik — weil er in
+             _build_where aufgelöst wird. -->
+        <select id="lib-range" class="lib-select"
+                title="${T("library.range_tip", "Nur Touren aus diesem Zeitraum")}">
+          ${ZEITRAEUME.map(z => `<option value="${z.id}">${esc(z.label())}</option>`).join("")}
+        </select>
+        <span class="lib-km" id="lib-range-fields" hidden>
+          <input type="date" id="lib-von" class="lib-datefield"
+                 title="${T("library.range_from", "von")}">
+          <span class="lib-km-dash">–</span>
+          <input type="date" id="lib-bis" class="lib-datefield"
+                 title="${T("library.range_to", "bis")}">
+        </span>
         <span class="lib-km" title="${T("library.km_range_tip", "Nur Touren in diesem Längenbereich")}">
           <input type="number" id="lib-kmmin" class="lib-kmfield" min="0" step="1"
                  placeholder="${T("library.km_from", "ab km")}">
@@ -285,6 +334,8 @@ function mountLibrary(body, headerActions) {
     const p = Object.assign({}, state, scopeFilters(), extra || {});
     if (!p.year) delete p.year;
     if (!p.activity) delete p.activity;
+    if (!p.von) delete p.von;
+    if (!p.bis) delete p.bis;
     if (p.min_km == null) delete p.min_km;
     if (p.max_km == null) delete p.max_km;
     if (!p.collection_id) delete p.collection_id;
@@ -300,6 +351,8 @@ function mountLibrary(body, headerActions) {
     delete p.collection_id;
     if (!p.year) delete p.year;
     if (!p.activity) delete p.activity;
+    if (!p.von) delete p.von;
+    if (!p.bis) delete p.bis;
     if (p.min_km == null) delete p.min_km;
     if (p.max_km == null) delete p.max_km;
     if (!p.search) delete p.search;
@@ -825,7 +878,9 @@ function mountLibrary(body, headerActions) {
   }
 
   function vergleichHtml(s) {
-    const roh = _vglEbene === "year" ? (s.act_by_year || []) : (s.act_by_month || []);
+    const roh = _vglEbene === "year" ? (s.act_by_year || [])
+      : _vglEbene === "week" ? (s.act_by_week || [])
+      : (s.act_by_month || []);
     if (!roh.length) return "";
 
     // Zeiträume und Arten einsammeln — beides in der Reihenfolge, in der es
@@ -835,7 +890,8 @@ function mountLibrary(body, headerActions) {
     const zellen = new Map();      // "zeitraum|art" → Wert
     for (const r of roh) {
       if (!r.activity) continue;   // ohne erkannte Art hilft der Vergleich nicht
-      const z = _vglEbene === "year" ? String(r.year) : r.month;
+      const z = _vglEbene === "year" ? String(r.year)
+        : _vglEbene === "week" ? r.week : r.month;
       if (!zeitraeume.includes(z)) zeitraeume.push(z);
       const wert = r[_vglMass] || 0;
       // Beim Zusammenfassen fallen mehrere Zeilen auf dieselbe Zelle — deshalb
@@ -864,8 +920,12 @@ function mountLibrary(body, headerActions) {
 
     const einheit = _vglMass === "km" ? "km" : (_vglMass === "hours" ? "h" : "×");
     const zeige = (v) => !v ? "·" : (_vglMass === "n" ? num(v) : num(Math.round(v)));
-    const label = (z) => _vglEbene === "year" ? z
-      : `${MONTHS[parseInt(z.slice(5, 7), 10) - 1]} ${z.slice(2, 4)}`;
+    const label = (z) => {
+      if (_vglEbene === "year") return z;
+      // ISO-Woche kommt als „2025-W23" — daraus wird „KW 23 '25".
+      if (_vglEbene === "week") return `KW ${z.slice(6)} '${z.slice(2, 4)}`;
+      return `${MONTHS[parseInt(z.slice(5, 7), 10) - 1]} ${z.slice(2, 4)}`;
+    };
 
     // Je Zeitraum die stärkste Art hervorheben.
     const spitze = new Map();
@@ -887,6 +947,9 @@ function mountLibrary(body, headerActions) {
           <span class="lib-vgl-schalter">
             <button type="button" class="lib-vgl-btn${_vglEbene === "year" ? " is-on" : ""}" data-vgl-ebene="year">${T("library.stat_by_year", "Jahre")}</button>
             <button type="button" class="lib-vgl-btn${_vglEbene === "month" ? " is-on" : ""}" data-vgl-ebene="month">${T("library.stat_by_month", "Monate")}</button>
+            <button type="button" class="lib-vgl-btn${_vglEbene === "week" ? " is-on" : ""}" data-vgl-ebene="week"
+              title="${esc(T("library.stat_by_week_tip", "Nach ISO-Kalenderwochen. Am sinnvollsten zusammen mit einem eingestellten Zeitraum — sonst werden es sehr viele Zeilen."))}"
+              >${T("library.stat_by_week", "Wochen")}</button>
             <span class="lib-vgl-sep"></span>
             <button type="button" class="lib-vgl-btn${_vglMass === "km" ? " is-on" : ""}" data-vgl-mass="km">km</button>
             <button type="button" class="lib-vgl-btn${_vglMass === "hours" ? " is-on" : ""}" data-vgl-mass="hours">${T("library.stat_hours_short", "Std.")}</button>
@@ -901,7 +964,9 @@ function mountLibrary(body, headerActions) {
         <div class="lib-vgl-scroll">
           <table class="lib-vgl">
             <thead><tr>
-              ${vglKopf("", _vglEbene === "year" ? T("library.year", "Jahr") : T("library.month", "Monat"))}
+              ${vglKopf("", _vglEbene === "year" ? T("library.year", "Jahr")
+                : _vglEbene === "week" ? T("library.week", "Woche")
+                : T("library.month", "Monat"))}
               ${arten.map(a => vglKopf(a, gruppenLabel(a))).join("")}
               ${vglKopf("sum", T("library.total", "Gesamt"), "lib-vgl-sum")}
             </tr></thead>
@@ -926,7 +991,14 @@ function mountLibrary(body, headerActions) {
           </table>
         </div>
         <div class="lib-chart-hint">${T("library.stat_compare_hint", "Alle Zahlen in")} ${einheit} · ${
-          T("library.stat_sort_hint", "Kopfzeile anklicken zum Sortieren")}</div>
+          T("library.stat_sort_hint", "Kopfzeile anklicken zum Sortieren")}${
+          // Wochen über Jahre hinweg sind hunderte Zeilen. Statt sie zu
+          // deckeln (und damit still etwas wegzulassen) sagen wir, was hilft.
+          (_vglEbene === "week" && sichtbar.length > 60 && !state.von && !state.bis)
+            ? " · " + T("library.stat_week_hint",
+                "{n} Wochen — mit einem Zeitraum oben wird die Tabelle lesbar.")
+                .replace("{n}", num(sichtbar.length))
+            : ""}</div>
       </div>`;
   }
 
@@ -1083,7 +1155,15 @@ function mountLibrary(body, headerActions) {
     box.querySelectorAll("[data-top]").forEach(b => {
       b.onclick = () => {
         const it = (s.longest || [])[parseInt(b.dataset.top, 10)];
-        if (it) select(_items.find(x => x.path === it.path) || it);
+        if (!it) return;
+        // ⚠️ Das Objekt aus der geladenen Liste ist das richtige (an ihm hängen
+        // Auswahl und spätere Änderungen), aber in Karten- und Statistikansicht
+        // wird OHNE Vorschaubilder geladen — es hat dort kein `thumb_url`. Die
+        // Statistik liefert eins mit; ohne diese Übergabe stünde im Detail der
+        // Platzhalter 🗺️, den ein Nutzer zu Recht für ein kaputtes Bild hielt.
+        const treffer = _items.find(x => x.path === it.path);
+        if (treffer && !treffer.thumb_url && it.thumb_url) treffer.thumb_url = it.thumb_url;
+        select(treffer || it);
       };
     });
   }
@@ -2331,9 +2411,57 @@ function mountLibrary(body, headerActions) {
   }, 500);
   $("lib-kmmin").oninput = kmGesetzt;
   $("lib-kmmax").oninput = kmGesetzt;
+
+  // ── Zeitraum (v0.9.505) ──────────────────────────────────────────────────
+  function zeitraumAnzeigen() {
+    const eigen = $("lib-range").value === "eigen";
+    $("lib-range-fields").hidden = !eigen;
+    $("lib-von").value = state.von || "";
+    $("lib-bis").value = state.bis || "";
+    // Jahr und Zeitraum meinen dasselbe — beide gleichzeitig wäre ein
+    // Widerspruch, den niemand auflösen kann. Der Zeitraum gewinnt, das
+    // Jahres-Feld wird solange gesperrt und sichtbar geleert.
+    const aktiv = !!(state.von || state.bis);
+    const jahr = $("lib-year");
+    if (jahr) {
+      jahr.disabled = aktiv;
+      jahr.title = aktiv
+        ? T("library.range_year_off", "Ein Zeitraum ist eingestellt — das Jahr richtet sich danach.")
+        : "";
+    }
+  }
+
+  function zeitraumSetzen(von, bis) {
+    setFilter("von", von || null);
+    setFilter("bis", bis || null);
+    if (von || bis) setFilter("year", 0);   // sonst filtern zwei Dinge dasselbe
+    zeitraumAnzeigen();
+    reload();
+  }
+
+  $("lib-range").onchange = () => {
+    const gewaehlt = ZEITRAEUME.find(z => z.id === $("lib-range").value);
+    if (!gewaehlt) return;
+    if (!gewaehlt.bereich) { zeitraumAnzeigen(); return; }   // „eigener“
+    const [v, b] = gewaehlt.bereich();
+    zeitraumSetzen(v, b);
+  };
+  const datumGesetzt = debounce(() => {
+    zeitraumSetzen($("lib-von").value || null, $("lib-bis").value || null);
+  }, 500);
+  $("lib-von").oninput = datumGesetzt;
+  $("lib-bis").oninput = datumGesetzt;
+  // Beim Öffnen den gespeicherten Stand zeigen.
+  if (state.von || state.bis) $("lib-range").value = "eigen";
+  zeitraumAnzeigen();
   $("lib-reset").onclick = () => {
     state.search = "";
     setFilter("year", 0); setFilter("activity", ""); setFilter("sort", "date_desc");
+    setFilter("von", null); setFilter("bis", null);
+    // ⚠️ Nicht nur den Wert zurücksetzen, sondern auch die Anzeige: sonst
+    // bleiben die beiden Datumsfelder mit den alten Daten stehen, obwohl sie
+    // nichts mehr filtern — und das Jahres-Feld bliebe gesperrt.
+    if ($("lib-range")) { $("lib-range").value = ""; zeitraumAnzeigen(); }
     setFilter("min_km", null); setFilter("max_km", null);
     _ortAus = false; _ortAktiv = null;
     $("lib-search").value = "";

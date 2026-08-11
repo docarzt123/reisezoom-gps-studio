@@ -113,9 +113,46 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.505</span>
+    <span class="version-date">11 August 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">A date range and weeks in the Library — and keyframes can finally be copied.</p>
+
+  <div class="highlight">
+    <strong>📅 Pick a date range.</strong> The Library now has a range selector at the top — <em>This year</em>, <em>Last 12 months</em>, <em>Last 12 weeks</em> or your own from–to. It applies to everything at once: list, map and statistics.
+  </div>
+
+  <div class="highlight">
+    <strong>📊 Weeks in the comparison.</strong> The comparison table can now break things down by <em>week</em> as well as by year and month — by ISO calendar weeks, the way Garmin and Komoot count. It works best together with a date range.
+  </div>
+
+  <div class="highlight">
+    <strong>⌥ Alt-drag duplicates.</strong> Hold <em>Alt/Option</em> while dragging a keyframe along the timeline: the original stays where it is and a copy appears at the new spot. Just like in Premiere or Final Cut. The marker shows a dashed outline so you can see it is copying, not moving.
+  </div>
+
+  <div class="highlight">
+    <strong>⌘C / ⌘V for longer distances.</strong> Click a keyframe, copy it, put the playhead where you want it, paste. Handy when dragging across half the timeline would be fiddly.
+  </div>
+
+  <p class="version-note">Drag the large marker and the <strong>whole</strong> keyframe comes along — pitch, bearing, zoom and centre. Drag a single small marker and only that one property is copied.</p>
+
+  <p class="version-note">The statistics text is also a little larger now.</p>
+
+  <h4>Fixed</h4>
+  <ul>
+    <li><strong>A “broken image” on the longest tours</strong> — the preview was missing even though one existed.</li>
+    <li><strong>Older projects with duplicate keyframes</strong> are cleaned up once when opened — the value you set last is the one that stays.</li>
+    <li><strong>Two keyframes at the same spot</strong> could cancel each other out: the camera move picked one of the two values at random and looked like something you never built. Moving and copying now clear the way first.</li>
+  </ul>
+
+  <p class="version-note">The range and weeks came from a beta tester, the copying from a user — thank you both.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.504</span>
     <span class="version-date">6 August 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <p class="version-tagline">Several bikes? You can now group them — or keep them apart.</p>
 

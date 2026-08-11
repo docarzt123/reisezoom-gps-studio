@@ -418,6 +418,14 @@ veces. No se borra nada: solo ves qué está duplicado.
 **Archivos nuevos:** pulsa **«Volver a leer»** después de cada exportación grande. Los
 archivos ya conocidos se omiten, así que tarda segundos.
 
+**Elegir un periodo.** En el extremo izquierdo de la barra de filtros hay un
+selector con **«Este año»**, **«Últimos 12 meses»**, **«Últimas 12 semanas»** y
+**«Periodo personalizado …»**. Con el periodo propio aparecen dos campos de fecha,
+*desde* y *hasta*; ambos días cuentan. El periodo se aplica a todo a la vez: lista,
+mapa y estadísticas muestran el mismo tramo. Mientras haya un periodo definido, el
+campo del año queda atenuado: ambos significan lo mismo y el periodo es el más
+preciso de los dos.
+
 **Filtrar por longitud.** Junto al año y la actividad hay dos campos pequeños
 **«desde km»** y **«hasta km»**. Juntos, los tres filtros responden a preguntas como
 *«todas las excursiones de más de 20 km en 2025»*: actividad en senderismo, año en
@@ -425,7 +433,11 @@ archivos ya conocidos se omiten, así que tarda segundos.
 
 **Qué compara la estadística.** Debajo de las barras hay una tabla **«Actividades
 comparadas»**: una fila por año (o mes), una columna por actividad. Arriba a la
-derecha cambias entre **años y meses** y entre **kilómetros, horas y cantidad**. La
+derecha cambias entre **años, meses y semanas** y entre **kilómetros, horas y
+cantidad**. Las semanas son **semanas ISO**, la misma cuenta que usan Garmin y
+Komoot, así que los números coinciden con lo que ves allí. Sobre todo el archivo,
+las semanas se convierten enseguida en cientos de filas; define un periodo arriba y
+la tabla seguirá siendo legible. Un aviso bajo la tabla te lo recuerda. La
 actividad más fuerte de cada periodo aparece resaltada, así ves de un vistazo si un
 año fue más de bici o de senderismo. Debajo están tus **puntos de inicio más usados**;
 se llenan en cuanto el archivo haya nombrado las zonas en segundo plano.
@@ -869,6 +881,29 @@ Las fotos con EXIF GPS aparecen como pequeñas miniaturas en su posición de cap
 **En el render:** los pines de foto aparecen **en cuanto el marcador animado alcanza su posición** (desde v0.9.187 — antes eran visibles por error desde el primer fotograma) y permanecen luego hasta el final. La posición es exactamente la posición EXIF GPS (aunque no esté sobre el track, p. ej. una foto de cumbre junto al sendero).
 
 ---
+
+### Copiar keyframes (desde la v0.9.505)
+
+Cuando un ajuste de cámara ya está como quieres, no hace falta volver a crearlo:
+
+* **Mantén Alt/Opción y arrastra**: el original se queda donde está y aparece una
+  copia donde sueltes. Mientras arrastras, el marcador se muestra con borde
+  discontinuo, así ves que estás copiando y no moviendo.
+* **⌘C y luego ⌘V**: pulsa el keyframe, cópialo, coloca el cabezal de
+  reproducción donde lo quieras y pégalo. Más cómodo si quieres llevarlo a la
+  otra mitad de la línea de tiempo.
+
+Si arrastras el marcador **grande**, viene el keyframe entero: inclinación,
+orientación, zoom y centro. Si arrastras uno de los marcadores **pequeños** de
+debajo, solo se copia esa propiedad — útil cuando únicamente el zoom debe
+coincidir en un segundo punto.
+
+Si en el destino ya hay un keyframe con la misma propiedad, se sustituye. Dos
+valores distintos en el mismo punto no podrían reproducirse.
+
+> **No es posible:** llevar keyframes a **otro proyecto**. Están ligados al track
+> y a la posición dentro de él; en otra ruta con distinta longitud y trazado esa
+> posición sencillamente no existe.
 
 ## 4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️ (desde v0.9.205)
 

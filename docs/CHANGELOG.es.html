@@ -113,9 +113,46 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.505</span>
+    <span class="version-date">11 de agosto de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Un periodo de fechas y semanas en el Archivo, y por fin se pueden copiar los keyframes.</p>
+
+  <div class="highlight">
+    <strong>📅 Elige un periodo.</strong> El Archivo tiene ahora un selector de periodo arriba: <em>Este año</em>, <em>Últimos 12 meses</em>, <em>Últimas 12 semanas</em> o un desde–hasta propio. Se aplica a todo a la vez: lista, mapa y estadísticas.
+  </div>
+
+  <div class="highlight">
+    <strong>📊 Semanas en la comparación.</strong> La tabla comparativa ya puede desglosar por <em>semanas</em>, además de por años y meses, según las semanas ISO, tal como cuentan Garmin y Komoot. Funciona mejor junto con un periodo definido.
+  </div>
+
+  <div class="highlight">
+    <strong>⌥ Arrastrar con Alt duplica.</strong> Mantén pulsado <em>Alt/Opción</em> mientras arrastras un keyframe por la línea de tiempo: el original se queda donde está y aparece una copia en el nuevo punto. Igual que en Premiere o Final Cut. El marcador se muestra con borde discontinuo para que veas que estás copiando, no moviendo.
+  </div>
+
+  <div class="highlight">
+    <strong>⌘C / ⌘V para distancias largas.</strong> Pulsa un keyframe, cópialo, coloca el cabezal donde quieras y pégalo. Útil cuando arrastrar por media línea de tiempo resultaría incómodo.
+  </div>
+
+  <p class="version-note">Si arrastras el marcador grande viene el keyframe <strong>completo</strong>: inclinación, orientación, zoom y centro. Si arrastras un marcador pequeño, solo se copia esa propiedad.</p>
+
+  <p class="version-note">Además, el texto de las estadísticas es algo más grande.</p>
+
+  <h4>Corregido</h4>
+  <ul>
+    <li><strong>Una “imagen rota” en las rutas más largas</strong>: faltaba la miniatura aunque existía.</li>
+    <li><strong>Los proyectos antiguos con keyframes duplicados</strong> se limpian una vez al abrirlos: se conserva el valor definido en último lugar.</li>
+    <li><strong>Dos keyframes en el mismo punto</strong> podían anularse entre sí: el movimiento de cámara tomaba uno de los dos valores al azar y quedaba como algo que nunca habías creado. Al mover y al copiar ahora se despeja antes.</li>
+  </ul>
+
+  <p class="version-note">El periodo y las semanas vienen de un beta tester, y la copia de un usuario. ¡Gracias a ambos!</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.504</span>
     <span class="version-date">6 de agosto de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">¿Varias bicis? Ahora puedes agruparlas, o mantenerlas separadas.</p>
 

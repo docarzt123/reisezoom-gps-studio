@@ -452,6 +452,14 @@ heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.
 **Neue Dateien:** Nach jedem größeren Export einmal unten links **„📂 Ordner & Einlesen" → „Neu einlesen"** drücken. Bereits
 bekannte Dateien werden übersprungen, das geht in Sekunden.
 
+**Einen Zeitraum wählen.** Ganz links in der Filterleiste steht eine Auswahl mit
+**„Dieses Jahr"**, **„Letzte 12 Monate"**, **„Letzte 12 Wochen"** und
+**„Eigener Zeitraum …"**. Beim eigenen Zeitraum erscheinen zwei Datumsfelder für
+*von* und *bis*; beide Tage zählen mit. Der Zeitraum wirkt auf alles gleichzeitig —
+Liste, Karte und Statistik zeigen danach denselben Ausschnitt. Solange ein Zeitraum
+eingestellt ist, ist das Jahres-Feld ausgegraut: beide meinen dasselbe, und der
+Zeitraum ist der genauere von beiden.
+
 **Nach Länge filtern.** Neben Jahr und Fortbewegung stehen zwei kleine Felder
 **„ab km"** und **„bis km"**. Zusammen beantworten die drei Filter Fragen wie
 *„alle Wanderungen über 20 km in 2025"*: Fortbewegung auf Wandern, Jahr auf 2025,
@@ -459,8 +467,12 @@ bekannte Dateien werden übersprungen, das geht in Sekunden.
 
 **Was die Statistik vergleicht.** Unter den Balken steht eine Tabelle
 **„Fortbewegung im Vergleich"**: eine Zeile je Jahr (oder Monat), eine Spalte je
-Fortbewegungsart. Oben rechts schaltest du zwischen **Jahren und Monaten** um und
-zwischen **Kilometern, Stunden und Anzahl**. Die stärkste Art jedes Zeitraums ist
+Fortbewegungsart. Oben rechts schaltest du zwischen **Jahren, Monaten und Wochen**
+um und zwischen **Kilometern, Stunden und Anzahl**. Die Wochen sind
+**ISO-Kalenderwochen** — dieselbe Zählung wie bei Garmin und Komoot, deshalb passen
+die Zahlen zu dem, was du dort siehst. Über das ganze Archiv werden Wochen schnell
+zu hunderten Zeilen; stell dazu oben einen Zeitraum ein, dann bleibt die Tabelle
+lesbar. Ein Hinweis unter der Tabelle erinnert dich daran. Die stärkste Art jedes Zeitraums ist
 hervorgehoben — so siehst du auf einen Blick, ob ein Jahr eher ein Rad- oder ein
 Wanderjahr war. Darunter stehen deine **häufigsten Startpunkte**; die füllen sich,
 sobald das Archiv im Hintergrund die Gegenden benannt hat.
@@ -921,6 +933,30 @@ Fotos mit GPS-EXIF erscheinen als kleine Thumbnails an ihrer Aufnahme-Position. 
 **Im Render:** Foto-Pins erscheinen, **sobald der animierte Marker ihre Position erreicht** (seit v0.9.187 — vorher waren sie versehentlich ab dem ersten Frame sichtbar), und bleiben dann bis zum Ende stehen. Position ist exakt die EXIF-GPS-Position (auch wenn die nicht auf dem Track liegt, z.B. Gipfel-Foto neben dem Wanderweg).
 
 ---
+
+### Keyframes kopieren (seit v0.9.505)
+
+Hast du eine Kameraeinstellung einmal so, wie du sie haben willst, musst du sie
+nicht noch einmal bauen:
+
+* **Alt/Option gedrückt halten und ziehen** — das Original bleibt liegen, an der
+  Stelle, wo du loslässt, entsteht eine Kopie. Solange du ziehst, ist der Marker
+  gestrichelt umrandet; daran erkennst du, dass kopiert und nicht verschoben wird.
+* **⌘C, dann ⌘V** — Keyframe anklicken, kopieren, den Abspielkopf an die Stelle
+  setzen, wo er hin soll, einfügen. Bequemer, wenn du ihn über die halbe
+  Zeitleiste bewegen willst.
+
+Ziehst du den **großen** Marker, kommt der ganze Keyframe mit: Neigung,
+Blickrichtung, Zoom und Mittelpunkt. Ziehst du einen der **kleinen** Marker
+darunter, wird nur diese eine Eigenschaft kopiert — praktisch, wenn nur der Zoom
+an einer zweiten Stelle derselbe sein soll.
+
+Liegt am Ziel schon ein Keyframe mit derselben Eigenschaft, wird er ersetzt. Zwei
+verschiedene Werte an derselben Stelle könnte das Programm nicht abspielen.
+
+> **Nicht möglich:** Keyframes in ein **anderes Projekt** übernehmen. Sie hängen
+> am Track und an der Position darin — bei einer anderen Route mit anderer Länge
+> und anderem Verlauf gibt es diese Stelle schlicht nicht.
 
 ## 4 · Modul: Reiseroute — Anreise als Video 🛣️ (seit v0.9.205)
 

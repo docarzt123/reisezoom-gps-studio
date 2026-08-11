@@ -432,7 +432,7 @@
 /* Flex, damit die Umschalter der Vergleichstabelle rechts andocken können —
    ohne das säßen sie unter der Überschrift und rissen die Reihe auseinander. */
 .lib-chart-title {
-  font-size: 12px; font-weight: 600; margin-bottom: 8px;
+  font-size: 13px; font-weight: 600; margin-bottom: 8px;
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
 
@@ -458,7 +458,7 @@
 .lib-act-row {
   display: grid; align-items: center; gap: 8px;
   grid-template-columns: 108px minmax(0, 1fr) 40px 72px;
-  font-size: 11.5px;
+  font-size: 12.5px;
 }
 .lib-act-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-act-bar { height: 8px; background: var(--bg-2); border-radius: 4px; overflow: hidden; }
@@ -625,7 +625,9 @@
    waagerecht rollen, aber NUR sie, nicht die ganze Seite. */
 .lib-vgl-scroll { overflow-x: auto; }
 .lib-vgl {
-  border-collapse: collapse; width: 100%; font-size: 12px;
+  /* v0.9.505 — Nutzerwunsch „Schrift ein wenig größer". Die Tabelle ist
+     der Ort, an dem wirklich Zahlen gelesen werden. */
+  border-collapse: collapse; width: 100%; font-size: 13px;
   font-variant-numeric: tabular-nums;   /* Zahlen untereinander bündig */
 }
 .lib-vgl th, .lib-vgl td {
@@ -633,7 +635,7 @@
   border-bottom: 1px solid var(--border);
 }
 .lib-vgl thead th {
-  color: var(--text-dim); font-weight: 600; font-size: 11px;
+  color: var(--text-dim); font-weight: 600; font-size: 12px;
   text-transform: uppercase; letter-spacing: .3px;
 }
 .lib-vgl tbody th, .lib-vgl tfoot th { text-align: left; color: var(--text); font-weight: 600; }
@@ -646,7 +648,7 @@
   font-weight: 700; color: var(--text);
 }
 .lib-chart-hint {
-  font-size: 11px; color: var(--text-muted); margin-top: 6px;
+  font-size: 12px; color: var(--text-muted); margin-top: 6px;
 }
 
 /* Kopfbereich im Fehler-Dialog: Gesamtzahl, Einordnung und die beiden
@@ -691,4 +693,29 @@
 .lib-vgl tfoot th, .lib-vgl tfoot td {
   position: sticky; bottom: -1px; z-index: 2; background: var(--bg-1);
   box-shadow: 0 -1px 0 var(--border);
+}
+
+/* Der Platzhalter „kein Vorschaubild" saß auch im großen Kasten der
+   Detailspalte in Kachelgröße — ein winziges Emoji mitten in schwarzer Fläche,
+   das ein Nutzer für ein defektes Bild hielt. Im Detailbereich darf er die
+   Fläche ausfüllen. */
+.lib-detail-thumb .lib-card-nothumb { font-size: 34px; opacity: .5; }
+
+
+/* Datumsfelder des Zeitraum-Filters (v0.9.505) — gleiche Anmutung wie die
+   km-Felder daneben, damit die Leiste nicht auseinanderfällt. */
+.lib-datefield {
+  background: var(--bg-1); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); padding: 5px 7px; font: inherit; font-size: 12px;
+  width: 130px;
+}
+.lib-datefield:focus { border-color: var(--border-strong); outline: none; }
+
+
+/* Gesperrte Auswahl sichtbar machen (v0.9.505). Das Jahres-Feld ruht, solange
+   ein Zeitraum eingestellt ist — sah man ihm vorher nicht an: man klickte,
+   nichts passierte, und niemand wusste warum. */
+.lib-select:disabled {
+  opacity: .4;
+  cursor: not-allowed;
 }

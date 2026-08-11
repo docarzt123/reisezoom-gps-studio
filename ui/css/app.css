@@ -2760,3 +2760,12 @@ body.is-rendering .modal-overlay * {
   box-shadow: 0 8px 24px rgba(0, 0, 0, .45); pointer-events: none;
   white-space: normal; text-align: left;
 }
+
+/* Keyframe wird gerade dupliziert (Alt+Ziehen, v0.9.505). Der Marker ist nur
+   eine Vorschau — das Original bleibt liegen, bis losgelassen wird. */
+.timeline-marker.is-copying {
+  opacity: .65;
+  outline: 1px dashed var(--accent);
+  outline-offset: 1px;
+  cursor: copy;
+}

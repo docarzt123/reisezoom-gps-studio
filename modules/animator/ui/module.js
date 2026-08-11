@@ -3526,6 +3526,110 @@ function mountAnimator(body, headerActions, opts) {
     renderKeyframeEditor();
   }
 
+  /* ── Keyframes kopieren (v0.9.505) ─────────────────────────────────────
+   *
+   * Wunsch eines Nutzers: „einen kompletten Keyframe kopieren, um ihn an eine
+   * andere Position der Zeitleiste zu verschieben — und auch nur ein einzelnes
+   * Element (zum Beispiel den Zoom)."
+   *
+   * Was der Nutzer „Keyframe" nennt, ist hier ein **Bündel**: mehrere Events
+   * (`pitch`, `bearing`, `zoom`, `center`, `position`) am selben Anker. Deshalb
+   * kopiert `__cluster` alle davon, ein einzelner Marker nur seinen eigenen.
+   *
+   * ⚠️ **Kollisionen.** Liegt am Ziel schon ein Event derselben Art, wird es
+   * ERSETZT. Zwei Werte derselben Art an einem Punkt kann die Interpolation
+   * nicht abbilden — sie nähme willkürlich einen davon, und der Nutzer sähe
+   * eine Kamerafahrt, die er nicht gebaut hat. (Beim Verschieben besteht
+   * dieselbe Gefahr; deshalb geht `moveEvent` seit v0.9.505 durch dieselbe
+   * Bereinigung.)
+   */
+  const KF_TOLERANZ = 0.001;   // so nah = „derselbe Anker"
+
+  /** Events am Anker, die zu `kind` passen ("__cluster" = alle Lanes). */
+  function _eventsAmAnker(events, kind, anker) {
+    return events.filter(e => e && Math.abs((e.anchor || 0) - anker) < KF_TOLERANZ
+      && (kind === "__cluster" ? KF_LANES.includes(e.kind) : e.kind === kind));
+  }
+
+  /** Alles wegräumen, was am Zielanker mit den neuen Arten kollidiert. */
+  function _kollisionenRaeumen(events, arten, zielAnker) {
+    return events.filter(e => !(e && arten.includes(e.kind)
+      && Math.abs((e.anchor || 0) - zielAnker) < KF_TOLERANZ));
+  }
+
+  /**
+   * Kopiert einen Keyframe (oder ein einzelnes Element) an eine andere Stelle.
+   * Gibt die Anzahl der angelegten Events zurück (0 = nichts passiert).
+   */
+  function duplicateEvent(ev, zielAnker) {
+    if (!ev || !ev.kind) return 0;
+    const ziel = Math.max(0, Math.min(1, zielAnker));
+    // Auf sich selbst kopieren ergäbe „Original durch Original ersetzen" —
+    // sichtbar passiert nichts, aber es landete ein Undo-Schritt im Verlauf.
+    if (Math.abs(ziel - (ev.anchor || 0)) < KF_TOLERANZ) return 0;
+
+    const events = getRawTimelineEvents().slice();
+    const quelle = _eventsAmAnker(events, ev.kind, ev.anchor || 0);
+    if (!quelle.length) return 0;
+
+    _animPushUndo("Keyframe kopiert", { force: true });
+
+    const arten = quelle.map(e => e.kind);
+    const bereinigt = _kollisionenRaeumen(events, arten, ziel);
+    // Tiefe Kopie: `center` ist ein Array — flach kopiert teilten sich Original
+    // und Kopie dieselbe Position, und ein Verschieben der einen bewegte die andere.
+    for (const e of quelle) {
+      const neu = JSON.parse(JSON.stringify(e));
+      neu.anchor = ziel;
+      bereinigt.push(neu);
+    }
+    bereinigt.sort((a, b) => (a.anchor || 0) - (b.anchor || 0));
+    setTimelineEvents(bereinigt);
+
+    // Die KOPIE auswählen — man will sie meist gleich anpassen.
+    _selectedEvent = { kind: ev.kind, anchor: ziel };
+    if (ev.kind === "__cluster") {
+      const idx = clusterAnchors().findIndex(a => Math.abs(a - ziel) < KF_TOLERANZ);
+      if (idx >= 0) _selectedKfIdx = idx;
+    }
+    if (_tlBar) { _tlBar.setSelected(_selectedEvent); _tlBar.setScrubber(ziel); }
+    scrubPreview(ziel, { skipSelectionSync: true });
+    return quelle.length;
+  }
+
+  // Zwischenablage für ⌘C/⌘V. Bewusst nur im Speicher und nur fürs laufende
+  // Projekt: Keyframes hängen am Track und an der Position darin — was in einem
+  // anderen Projekt „dieselbe Stelle" wäre, ist nicht beantwortbar.
+  let _kfClipboard = null;   // { kind, events: [...] }
+
+  function copyEventToClipboard(ev) {
+    if (!ev || !ev.kind) return;
+    const quelle = _eventsAmAnker(getRawTimelineEvents(), ev.kind, ev.anchor || 0);
+    if (!quelle.length) return;
+    _kfClipboard = { kind: ev.kind, events: JSON.parse(JSON.stringify(quelle)) };
+    toast(t("animator.kf.copied", "Keyframe kopiert — mit ⌘V an der Abspielposition einfügen"),
+          "info", 2600);
+  }
+
+  function pasteEventFromClipboard(zielAnker) {
+    if (!_kfClipboard || !_kfClipboard.events.length) return;
+    const ziel = Math.max(0, Math.min(1, zielAnker));
+    _animPushUndo("Keyframe eingefügt", { force: true });
+    const arten = _kfClipboard.events.map(e => e.kind);
+    const events = _kollisionenRaeumen(getRawTimelineEvents().slice(), arten, ziel);
+    for (const e of _kfClipboard.events) {
+      const neu = JSON.parse(JSON.stringify(e));
+      neu.anchor = ziel;
+      events.push(neu);
+    }
+    events.sort((a, b) => (a.anchor || 0) - (b.anchor || 0));
+    setTimelineEvents(events);
+    _selectedEvent = { kind: _kfClipboard.kind, anchor: ziel };
+    if (_tlBar) { _tlBar.setSelected(_selectedEvent); _tlBar.setScrubber(ziel); }
+    scrubPreview(ziel, { skipSelectionSync: true });
+    toast(t("animator.kf.pasted", "Keyframe eingefügt"), "success", 1800);
+  }
+
   function moveEvent(ev, newAnchor) {
     _animPushUndo("Keyframe verschoben");  // throttled — pusht nur den 1. Drag-State
     if (!ev || !ev.kind) return;
@@ -3533,13 +3637,14 @@ function mountAnimator(body, headerActions, opts) {
 
     // v0.9.4 — Cluster-Drag: alle Events am Anker zusammen verschieben.
     if (ev.kind === "__cluster") {
-      const events = getRawTimelineEvents().slice();
-      for (const e of events) {
-        if (e && KF_LANES.includes(e.kind)
-            && Math.abs((e.anchor || 0) - ev.anchor) < 0.001) {
-          e.anchor = clamped;
-        }
-      }
+      let events = getRawTimelineEvents().slice();
+      const gruppe = events.filter(e => e && KF_LANES.includes(e.kind)
+        && Math.abs((e.anchor || 0) - ev.anchor) < 0.001);
+      const arten = gruppe.map(e => e.kind);
+      // Am Ziel im Weg liegende Events derselben Art weg (siehe unten).
+      events = events.filter(e => gruppe.includes(e) || !(e && arten.includes(e.kind)
+        && Math.abs((e.anchor || 0) - clamped) < 0.001));
+      for (const e of gruppe) e.anchor = clamped;
       events.sort((a, b) => (a.anchor || 0) - (b.anchor || 0));
       setTimelineEvents(events);
       // Selection mitziehen
@@ -3557,12 +3662,17 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
 
-    const events = getRawTimelineEvents().slice();
-    for (const e of events) {
-      if (e && e.kind === ev.kind && Math.abs((e.anchor || 0) - ev.anchor) < 0.001) {
-        e.anchor = clamped;
-        break;
-      }
+    // ⚠️ v0.9.505 — erst wegräumen, was am Ziel im Weg liegt. Vorher konnte man
+    // einen Zoom-Marker auf einen Anker ziehen, an dem schon einer lag, und
+    // hatte danach ZWEI Zoom-Werte an derselben Stelle. Die Interpolation nimmt
+    // dann willkürlich einen — die Kamerafahrt sah aus wie nie gebaut.
+    let events = getRawTimelineEvents().slice();
+    const bewegt = events.find(e => e && e.kind === ev.kind
+      && Math.abs((e.anchor || 0) - ev.anchor) < 0.001);
+    if (bewegt) {
+      events = events.filter(e => e === bewegt || !(e && e.kind === ev.kind
+        && Math.abs((e.anchor || 0) - clamped) < 0.001));
+      bewegt.anchor = clamped;
     }
     events.sort((a, b) => (a.anchor || 0) - (b.anchor || 0));
     setTimelineEvents(events);
@@ -5839,6 +5949,13 @@ function mountAnimator(body, headerActions, opts) {
         // v0.9.3: timeline.js callbacks geben jetzt {kind, anchor} statt cluster-idx.
         onSelect:       (ev) => selectEvent(ev),
         onAnchorChange: (ev, newAnchor) => moveEvent(ev, newAnchor),
+        // v0.9.505 — Alt+Ziehen dupliziert, ⌘C/⌘V für weite Wege.
+        onEventCopy: (ev, zielAnker) => {
+          const n = duplicateEvent(ev, zielAnker);
+          if (n) toast(t("animator.kf.duplicated", "Keyframe dupliziert"), "success", 1600);
+        },
+        onEventClipboardCopy: (ev) => copyEventToClipboard(ev),
+        onEventClipboardPaste: (anker) => pasteEventFromClipboard(anker),
         onDelete:       (ev) => deleteEventOne(ev),
         onSnapshot:     (anchor) => snapshotKeyframe(anchor),
         onClearAll:     () => clearAllKeyframes(),
@@ -8139,6 +8256,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.8.11 — Beim Projekt-Wechsel: alte Anker ggf. von Track→Timeline
       // umrechnen (idempotent via Flag).
       migrateTimelineAnchorsIfNeeded();
+      heileDoppelteKeyframes();
       // v0.8.12 — Wenn das Projekt noch track_style=tube hatte, ins
       // line_style mergen.
       migrateTrackStyleToLineStyleIfNeeded();
@@ -9553,6 +9671,60 @@ function mountAnimator(body, headerActions, opts) {
     }
   }
 
+  /**
+   * v0.9.505 — Altlast heilen: doppelte Keyframes an derselben Stelle.
+   *
+   * Bis v0.9.504 konnte man einen Keyframe auf einen bereits belegten Punkt
+   * ziehen; dann lagen zwei Werte derselben Eigenschaft am selben Anker. Die
+   * Interpolation nimmt dann willkürlich einen davon — die Kamerafahrt sieht
+   * aus wie nie gebaut, ohne dass irgendwo ein Fehler auftaucht. Neu entstehen
+   * kann das nicht mehr (Verschieben und Kopieren räumen vorher weg), aber in
+   * bestehenden Projekten liegt es noch drin.
+   *
+   * Der jüngste Eintrag gewinnt — das ist der, den der Nutzer zuletzt dorthin
+   * gezogen hat und den er auch im Editor sah. Einmalig je Projekt, gemerkt
+   * über `timeline_dedupe_v`.
+   */
+  function heileDoppelteKeyframes() {
+    const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    const anim = (proj && proj[_MODKEY]) || _settingsCache?.[_MODKEY];
+    if (!anim) return;
+    if (anim.timeline_dedupe_v === 1) return;
+    const events = Array.isArray(anim.timeline_events) ? anim.timeline_events : [];
+    if (events.length === 0) { anim.timeline_dedupe_v = 1; return; }
+
+    // Von hinten durchgehen und je (Art, Anker) nur den ersten Treffer behalten
+    // — von hinten heißt: den zuletzt angelegten.
+    const gesehen = new Set();
+    const behalten = [];
+    for (let i = events.length - 1; i >= 0; i--) {
+      const ev = events[i];
+      if (!ev || !ev.kind) continue;
+      // Auf die Anker-Toleranz runden, sonst gelten 0.30001 und 0.30002 als
+      // verschieden — die Interpolation sieht sie aber als denselben Punkt.
+      const stufe = Math.round((ev.anchor || 0) / KF_TOLERANZ);
+      const schluessel = ev.kind + "@" + stufe;
+      if (gesehen.has(schluessel)) continue;
+      gesehen.add(schluessel);
+      behalten.push(ev);
+    }
+    behalten.reverse();
+    if (behalten.length === events.length) { anim.timeline_dedupe_v = 1; return; }
+
+    applog("info", `[migrate] doppelte Keyframes entfernt: ${events.length - behalten.length}`);
+    anim.timeline_events = behalten;
+    anim.timeline_dedupe_v = 1;
+    try {
+      if (typeof saveProjectSettings === "function" && typeof getActiveSession === "function" && getActiveSession()) {
+        saveProjectSettings(_MODKEY, { timeline_events: behalten, timeline_dedupe_v: 1 });
+      } else if (typeof saveSettings === "function") {
+        saveSettings({ animator: { timeline_events: behalten, timeline_dedupe_v: 1 } });
+      }
+    } catch (e) {
+      applog("warn", `[migrate] dedupe save failed: ${e}`);
+    }
+  }
+
   function applyGlobalGpx(path, res) {
     applog("info", `[applyGlobalGpx] path=${path} n_coords=${res?.coords?.length} mapReady=${map?.isStyleLoaded?.()} mapLoaded=${map?.loaded?.()}`);
     // v0.9.210 (Reiseroute Phase 2) — das geladene GPX wird hier NICHT der
@@ -9652,6 +9824,7 @@ function mountAnimator(body, headerActions, opts) {
     const _applySessionState = () => {
       if (typeof rebindAllSettings === "function") rebindAllSettings();
       migrateTimelineAnchorsIfNeeded();
+      heileDoppelteKeyframes();
       migrateTrackStyleToLineStyleIfNeeded();
       migrateCameraToPropertyEventsIfNeeded();
       migrateKeyframesEnabledIfNeeded();

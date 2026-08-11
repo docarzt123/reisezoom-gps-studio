@@ -245,6 +245,94 @@ Zusatz-Messwerte pro Trackpunkt (FIT-HR/Power/Temp/E-Bike, GPX-Extensions). **Va
 - **Spiegelung:** Tour-Map (`modules/tourmap`) bekommt KEINE Sensor-Felder — Sensorwerte sind zeit-animiert (Live-Box), die Tour-Map ist ein Standbild. Analog zur bestehenden Live-Box-Ausnahme der Spiegelungs-Regel.
 - **OFFEN:** Phase 2b (Diagramme/Aggregate pro Feld — Ø/Max-HF als Totals, HF-Zonen-Track-Färbung, Gauges), Phase 3 (Auto-Schilder §15.3).
 
+### Keyframes kopieren (v0.9.505)
+
+**Was der Nutzer „Keyframe" nennt, ist ein Bündel.** `timeline_events` ist eine
+flache Liste; ein Eintrag hat `kind` ∈ `KF_LANES` (`pitch`, `bearing`, `zoom`,
+`center`, `position`) und einen `anchor` (0–1). Alle Einträge mit demselben
+Anker bilden zusammen den sichtbaren Keyframe — daher `__cluster` in der
+Oberfläche.
+
+`duplicateEvent(ev, zielAnker)` in `modules/animator/ui/module.js`:
+`__cluster` kopiert **alle** Events am Anker, ein einzelnes `kind` nur seines.
+Rückgabe = Anzahl angelegter Events (0 = nichts passiert).
+
+⚠️ **Kollisionen sind der eigentliche Knackpunkt.** Liegt am Ziel schon ein
+Event derselben Art, wird es **ersetzt** (`_kollisionenRaeumen`). Zwei Werte
+derselben Eigenschaft an einem Anker sind für `core/timeline.interpolate_camera`
+mehrdeutig — sie nimmt willkürlich einen und der andere verschwindet lautlos.
+`tests/test_keyframe_kopieren.py` belegt das an der echten Funktion. **Auch
+`moveEvent` räumt seit v0.9.505 auf**; vorher konnte man sich die Dublette
+einfach durch Ziehen bauen.
+
+⚠️ **Tief kopieren, nicht flach.** `center` ist ein Array — flach kopiert
+teilten Original und Kopie dieselbe Position, und ein Verschieben der einen
+bewegte die andere heimlich mit. Deshalb `JSON.parse(JSON.stringify(e))`.
+
+**Oberfläche** (`ui/js/timeline.js`), zwei Wege:
+* **Alt/Option beim Anfassen** → `_dragging.kopieren`. Während des Ziehens wird
+  `onAnchorChange` **nicht** gerufen (das Original darf sich nicht bewegen); der
+  Marker wandert nur optisch mit und trägt `.is-copying`. Beim Loslassen stellt
+  `refresh()` ihn zurück und `onEventCopy(quelle, ziel)` legt die Kopie an.
+  `startAnchor` hält die Ausgangsposition fest, weil `anchor` mitwandert.
+* **⌘C/⌘V** → `onEventClipboardCopy` / `onEventClipboardPaste` (Ziel = Position
+  des Abspielkopfs). Die Zwischenablage `_kfClipboard` lebt nur im Speicher und
+  nur fürs laufende Projekt: Keyframes hängen am Track und an der Position darin
+  — was in einem anderen Projekt „dieselbe Stelle" wäre, ist nicht beantwortbar.
+
+⚠️ Der Tastatur-Weg greift nur, wenn die Zeitleiste sichtbar (`host.offsetParent`)
+und `_enabled` ist und der Fokus **nicht** in einem Eingabefeld steht — sonst
+klaut das Werkzeug dem Nutzer das normale Text-Kopieren.
+`scripts/selftest_keyframes.py` prüft genau das im echten Browser, inklusive der
+Probe, dass ⌘C im Eingabefeld NICHT bei uns landet.
+
+### Doppelte Keyframes: Heilung beim Laden (v0.9.505)
+
+Bis v0.9.504 konnte ein Keyframe auf einen belegten Punkt gezogen werden; dann
+lagen zwei Werte derselben Eigenschaft am selben Anker und die Interpolation
+nahm willkürlich einen. Neu entstehen kann das nicht mehr — in bestehenden
+Projekten liegt es aber noch drin.
+
+`heileDoppelteKeyframes()` in `modules/animator/ui/module.js` räumt das beim
+Laden auf: von hinten durch die Liste, je (Art, gerundeter Anker) bleibt der
+erste Treffer — also der zuletzt angelegte, den der Nutzer im Editor sah.
+Gerundet wird auf `KF_TOLERANZ`, sonst gälten 0.30001 und 0.30002 als
+verschieden, während die Interpolation sie als denselben Punkt behandelt.
+
+⚠️ **Reihenfolge:** direkt NACH `migrateTimelineAnchorsIfNeeded()` — die
+skaliert Anker und kann dadurch erst zwei Werte auf denselben Punkt legen. Beide
+Aufrufstellen müssen paarweise bleiben; `tests/test_keyframe_kopieren.py`
+prüft das.
+
+Idempotent über `timeline_dedupe_v: 1` im Animator-Block des Projekts.
+
+### Zeitraum und ISO-Wochen im Archiv (v0.9.505)
+
+Der Zeitraum kommt als `von`/`bis` (Datum als `JJJJ-MM-TT`) an und wird in
+`_build_where()` aufgelöst — also an derselben einen Stelle wie alle anderen
+Filter, damit `query()` und `stats()` nicht auseinanderlaufen. `query()` führt
+beide zusätzlich in der Signatur; ohne das fallen sie stillschweigend in
+`**_ignored`, und die Liste zeigt weiter alles, während die Statistik schneidet.
+
+⚠️ **Der letzte Tag.** `started_at` ist ISO-Text **mit Uhrzeit**. Ein Vergleich
+gegen ein blankes `2025-12-31` schlösse jede Tour dieses Tages aus, weil
+`2025-12-31T09:00` größer ist. Deshalb wird an `bis` ein `z` angehängt — es
+sortiert hinter jede Uhrzeit und schließt den Tag mit ein.
+
+⚠️ **ISO-Wochen gehen nicht in SQLite.** `strftime('%W')` zählt ab dem ersten
+Sonntag und weicht am Jahreswechsel ab (1. Januar 2027 = ISO-Woche 53 von 2026).
+Garmin und Komoot rechnen nach ISO, also wir auch: `stats()` holt die Zeilen roh
+und gruppiert sie in Python über `date.isocalendar()` zu `act_by_week`
+(`{"week": "2025-W23", activity, n, km, hours}`). Eine Abfrage, Zuordnung im
+Code — nicht in SQL.
+
+In der Oberfläche gilt: der Zeitraum **ersetzt** das Jahres-Feld, solange er
+gesetzt ist (`zeitraumAnzeigen()` sperrt es). Zwei Filter auf dieselbe Größe
+ergeben sonst ein Ergebnis, das niemand mehr erklären kann.
+
+`tests/test_zeitraum_wochen.py` prüft beide Ränder und die Wochenzuordnung gegen
+`isocalendar()`.
+
 ### Sammelposten im Fortbewegungs-Filter (v0.9.504)
 
 `library.ACT_GROUPS` fasst Arten zusammen (`rad`: rad/rennrad/gravel/mtb/ebike,
