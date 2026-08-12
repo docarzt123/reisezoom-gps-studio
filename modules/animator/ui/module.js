@@ -2378,6 +2378,75 @@ function mountAnimator(body, headerActions, opts) {
   //   anchor in [0, ti]:  marker = trim_start            (Intro = Stillstand)
   //   anchor in [ti, tf]: marker walkt trim_start → end (Anim-Phase)
   //   anchor in [tf, 1]:  marker = trim_end             (Hold = Stillstand)
+  /* ── Verteilung in der Vorschau (v0.9.506) ────────────────────────────────
+   * Die Vorschau läuft über die ROHKOORDINATEN und wüsste von sich aus nichts
+   * von der gewählten Verteilung — sie zeigte immer „wie aufgezeichnet",
+   * während das gerenderte Video etwas anderes tut. Genau dafür ist die
+   * Vorschau aber da.
+   *
+   * Deshalb holt sie sich vom Backend eine Tabelle „Fortschritt → Punkt",
+   * gerechnet von derselben Funktion, die auch den Render verteilt. Eine
+   * eigene Rechnung hier wäre eine zweite Wahrheit.
+   */
+  let _paceMap = null;         // Array von Bruchteil-Indizes oder null (= „raw")
+  let _paceMapLauf = 0;
+
+  /** Das Bild an der aktuellen Scrubber-Stelle neu setzen, damit eine geänderte
+   *  Verteilung sofort sichtbar wird statt erst beim nächsten Probe-Lauf. */
+  function vorschauNeuZeichnen() {
+    try {
+      const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
+      scrubPreview(a, { skipSelectionSync: true });
+      // ⚠️ Auch die Beschriftung unter der Zeitleiste („Punkt 529 / 800"):
+      // `scrubPreview` rührt sie nicht an, sie hängt an der Zeitleiste selbst.
+      // Ohne diesen Aufruf zeigt die Karte die neue Verteilung, die Zahl
+      // darunter aber die alte — und man glaubt, es habe nicht gewirkt.
+      if (_tlBar && _tlBar.updateStatusLabel) _tlBar.updateStatusLabel();
+    } catch (_) {}
+  }
+
+  async function paceMapLaden() {
+    const modus = _paceModus();
+    const lauf = ++_paceMapLauf;
+    // ⚠️ Auch hier neu zeichnen: beim Zurückschalten auf „wie aufgezeichnet"
+    // blieb der Marker sonst an der Stelle der alten Verteilung stehen
+    // („Punkt 538/800" statt 373), bis man ihn selbst anfasste.
+    if (!currentGpx || modus === "raw") { _paceMap = null; vorschauNeuZeichnen(); return; }
+    try {
+      const r = await api().animator_pace_map({
+        gpx_path: currentGpx, pace_mode: modus,
+        pause_mode: document.getElementById("anim-pause-mode")?.value || "trim",
+        pause_min_s: (parseFloat(document.getElementById("anim-pause-min")?.value) || 2) * 60,
+        pause_trim_s: (function () {
+          const v = parseFloat(document.getElementById("anim-pause-trim")?.value);
+          return isNaN(v) ? 5 : v;
+        })(),
+        n: 600,
+      });
+      if (lauf !== _paceMapLauf) return;             // veraltete Antwort
+      _paceMap = (r && r.ok && Array.isArray(r.map)) ? r.map : null;
+    } catch (_) { _paceMap = null; }
+    vorschauNeuZeichnen();
+  }
+
+  /** Fortschritt (0..1) → Index in `currentCoords`, mit der gewählten
+   *  Verteilung. Ohne Tabelle die bisherige gerade Zuordnung. */
+  function idxAusFortschritt(p, n) {
+    const anteil = Math.max(0, Math.min(1, p));
+    if (!_paceMap || _paceMap.length < 2) {
+      return Math.max(0, Math.min(n - 1, Math.round(anteil * (n - 1))));
+    }
+    // Zwischen den Stützstellen linear — sonst ruckelt die Vorschau sichtbar.
+    const x = anteil * (_paceMap.length - 1);
+    const i = Math.min(_paceMap.length - 2, Math.floor(x));
+    const f = x - i;
+    // ⚠️ Die Tabelle enthält ANTEILE (0..1), keine Punkt-Indizes: die Vorschau
+    // arbeitet mit einer reduzierten Koordinatenliste (800 statt 2951 Punkte),
+    // rohe Indizes klemmten dort ab einem Viertel am Ende fest.
+    const anteilImTrack = _paceMap[i] + (_paceMap[i + 1] - _paceMap[i]) * f;
+    return Math.max(0, Math.min(n - 1, Math.round(anteilImTrack * (n - 1))));
+  }
+
   function trackIdxFromTimelineAnchor(anchor) {
     const n = currentCoords ? currentCoords.length : 0;
     if (n < 2) return 0;
@@ -2396,7 +2465,7 @@ function mountAnimator(body, headerActions, opts) {
     } else {
       markerReal = trimB;
     }
-    return Math.max(0, Math.min(n - 1, Math.round(markerReal * (n - 1))));
+    return idxAusFortschritt(markerReal, n);
   }
 
   function currentShadowStrength() {
@@ -5251,7 +5320,7 @@ function mountAnimator(body, headerActions, opts) {
         scrubberVis = trimEndVis + holdProgress * (1 - trimEndVis);
         signAnchor = trimB + (holdProgress * holdSec) / Math.max(0.001, durSec);
       }
-      const coordIdx = Math.max(0, Math.min(tn - 1, Math.round(markerReal * (tn - 1))));
+      const coordIdx = idxAusFortschritt(markerReal, tn);
       // v0.9.56: Track-Linien-Start respektiert show_pretrim_track-Setting:
       // wenn an → von Track-Anfang (0), sonst vom Trim-Start.
       const startCoordIdx = showPretrimTrack()
@@ -8303,6 +8372,8 @@ function mountAnimator(body, headerActions, opts) {
       // umrechnen (idempotent via Flag).
       migrateTimelineAnchorsIfNeeded();
       heileDoppelteKeyframes();
+      // v0.9.506 — auch die Verteilung gehört zum Projekt.
+      try { paceAusProjekt(); } catch (_) {}
       // v0.8.12 — Wenn das Projekt noch track_style=tube hatte, ins
       // line_style mergen.
       migrateTrackStyleToLineStyleIfNeeded();
@@ -8473,11 +8544,36 @@ function mountAnimator(body, headerActions, opts) {
    *  ⚠️ Ohne sie gibt es kein „echtes Tempo" — und das ist kein Sonderfall:
    *  geplante Routen haben nie welche (in einem Archiv mit 709 Touren waren es
    *  304 Stück). Sperren statt still etwas anderes rendern. */
-  /** Ein Projekt gilt als neu, wenn im Animator-Block noch nichts steht, das
-   *  auf frühere Arbeit hindeutet. Nur dann darf die Vorgabe „gleichmäßig"
-   *  greifen — sonst ändert sich ein bestehender Film beim bloßen Öffnen. */
-  function _istNeuesProjekt(a) {
-    return !a || Object.keys(a).length === 0;
+  /** Verteilung + Pausen aus dem aktiven Projekt in die Bedienelemente.
+   *
+   *  ⚠️ Muss BEIDES bedienen: das Laden eines Tracks **und** den Wechsel des
+   *  Projekts über das Menü. Beim ersten Anlauf hing das nur am GPX-Pfad —
+   *  dann legt man ein neues Projekt an, „gleichmäßig" steht in der Datei, und
+   *  die Oberfläche zeigt trotzdem weiter den Wert des vorigen Projekts.
+   *
+   *  ⚠️ Fehlt die Angabe ganz, ist es ein Projekt von VOR v0.9.506 → „wie
+   *  aufgezeichnet", sonst sähe eine gespeicherte Animation beim bloßen Öffnen
+   *  anders aus. Neue Projekte bekommen „even" schon beim Anlegen mit (siehe
+   *  `_project_from_defaults` in core/sessions.py).
+   */
+  function paceAusProjekt() {
+
+      const a = _activeProject?.[_MODKEY] || _settingsCache?.[_MODKEY] || {};
+      const sel = document.getElementById("anim-pace");
+      // ⚠️ Fehlt die Angabe, ist es ein Projekt von VOR v0.9.506 → „wie
+      // aufgezeichnet", sonst sähe eine gespeicherte Animation beim bloßen
+      // Öffnen anders aus. Neue Projekte bekommen „even" schon beim Anlegen
+      // mit (siehe `_project_from_defaults` in core/sessions.py) — an dieser
+      // Stelle ließe sich neu und alt nicht mehr unterscheiden, weil ein
+      // frisches Projekt sofort rund 50 Standardwerte trägt.
+      if (sel) sel.value = a.pace_mode || "raw";
+      const pm = document.getElementById("anim-pause-mode");
+      if (pm) pm.value = a.pause_mode || "trim";
+      const mn = document.getElementById("anim-pause-min");
+      if (mn && a.pause_min_s) mn.value = (a.pause_min_s / 60);
+      const tr = document.getElementById("anim-pause-trim");
+      if (tr && a.pause_trim_s != null) tr.value = a.pause_trim_s;
+      paceAnzeigen();
   }
 
   function _hatZeit() {
@@ -8526,6 +8622,7 @@ function mountAnimator(body, headerActions, opts) {
       trimBox.hidden = (document.getElementById("anim-pause-mode")?.value !== "trim");
     }
     if (sel.value === "real") pauseInfoLaden();
+    paceMapLaden();          // die Vorschau muss dasselbe zeigen wie der Render
   }
 
   /** Die Zahlen für DIESE Tour — gerechnet von derselben Funktion, die später
@@ -8540,7 +8637,11 @@ function mountAnimator(body, headerActions, opts) {
     ziel.textContent = t("animator.pause.calc", "einen Moment …");
     let r;
     try {
-      r = await api("animator_pause_info", {
+      // ⚠️ `api` ist eine FUNKTION, die das Brücken-Objekt liefert — der Aufruf
+      // heißt `api().methode(...)`. Schreibt man `api("methode", …)`, kommt
+      // stillschweigend das Objekt selbst zurück, `r.ok` ist undefined und die
+      // Zeile bleibt einfach leer. Kein Fehler, keine Meldung, nichts.
+      r = await api().animator_pause_info({
         gpx_path: currentGpx, pause_min_s: abS,
         pause_trim_s: isNaN(aufS) ? 5 : aufS,
       });
@@ -8548,25 +8649,38 @@ function mountAnimator(body, headerActions, opts) {
     if (lauf !== _pauseInfoLauf) return;            // veraltete Antwort
     if (!r || !r.ok) { ziel.textContent = ""; return; }
 
-    const modus = document.getElementById("anim-pause-mode")?.value || "trim";
-    const dauerS = (parseFloat(document.getElementById("anim-dur")?.value) || 12);
-    const anteil = modus === "show" ? (r.stillstand_s / Math.max(1, r.gesamt_s))
-                 : modus === "skip" ? 0
-                 : Math.max(0, (r.pausen * (isNaN(aufS) ? 5 : aufS)) / Math.max(1, r.gesamt_s));
-    const stehSek = Math.round(dauerS * anteil);
-
     if (!r.pausen) {
       ziel.textContent = t("animator.pause.none", "Auf dieser Tour keine Pausen über der Schwelle gefunden.");
       return;
     }
-    // Format: erst die Tour, dann was die Einstellung daraus macht — im Geist
-    // der Dauer-Anzeige („6 h 04 ÷ 100 = 3 min 39").
-    ziel.textContent = t("animator.pause.info", "Deine Tour: {gesamt}, davon {steh} Stillstand in {n} Pausen.")
+
+    const modus = document.getElementById("anim-pause-mode")?.value || "trim";
+    const dauerS = (parseFloat(document.getElementById("anim-dur")?.value) || 12);
+    // ⚠️ Die nackte Zahl „im Video stehen 0 s still" ist wertlos — sie ist bei
+    // kurzer Videodauer fast immer 0 und sieht dann aus wie ein Fehler. Was der
+    // Nutzer wissen will, ist der UNTERSCHIED: wie viel Standbild die Pausen
+    // ohne Behandlung kosten würden und was seine Einstellung daraus macht.
+    const sek = (anteil) => {
+      const w = dauerS * anteil;
+      return w < 1 ? t("animator.pause.under1s", "unter 1 Sekunde")
+                   : `${Math.round(w)} s`;
+    };
+    const anteilVoll = r.stillstand_s / Math.max(1, r.gesamt_s);
+    const anteilJetzt = modus === "show" ? anteilVoll
+                      : modus === "skip" ? 0
+                      : Math.max(0, (r.pausen * (isNaN(aufS) ? 5 : aufS)) / Math.max(1, r.gesamt_s));
+
+    const kopf = t("animator.pause.info", "Deine Tour: {gesamt}, davon {steh} Stillstand in {n} Pausen.")
         .replace("{gesamt}", _ovFmtDur(r.gesamt_s))
         .replace("{steh}", _ovFmtDur(r.stillstand_s))
-        .replace("{n}", r.pausen)
-      + " " + t("animator.pause.result", "Im Video stehen davon rund {sek} s still.")
-        .replace("{sek}", stehSek);
+        .replace("{n}", r.pausen);
+    const folge = (modus === "show")
+      ? t("animator.pause.result_show", "Im Video steht davon rund {voll} still.")
+          .replace("{voll}", sek(anteilVoll))
+      : t("animator.pause.result_trim", "Ohne Behandlung stünde das Video rund {voll} still, mit dieser Einstellung {jetzt}.")
+          .replace("{voll}", sek(anteilVoll))
+          .replace("{jetzt}", sek(anteilJetzt));
+    ziel.textContent = kopf + " " + folge;
   }
 
   // ⚠️ Einmal beim Aufbau: ohne diesen Aufruf steht unter der Auswahl gar
@@ -8592,8 +8706,18 @@ function mountAnimator(body, headerActions, opts) {
     if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, { pause_mode: v });
     else if (typeof saveSettings === "function") saveSettings({ animator: { pause_mode: v } });
   });
+  // ⚠️ Die Zeile rechnet mit der Video-Dauer („ohne Behandlung stünde das Video
+  // rund 2 s still"). Ändert man die Dauer, muss sie mitwandern — sonst steht
+  // dort eine Zahl, die zur eingestellten Länge nicht mehr passt.
+  document.getElementById("anim-dur")?.addEventListener("input", () => {
+    if (document.getElementById("anim-pause-box")?.hidden === false) pauseInfoLaden();
+  });
+
   ["anim-pause-min", "anim-pause-trim"].forEach(id => {
-    document.getElementById(id)?.addEventListener("input", () => pauseInfoLaden());
+    document.getElementById(id)?.addEventListener("input", () => {
+      pauseInfoLaden();
+      paceMapLaden();      // die Schwelle ändert auch die Verteilung selbst
+    });
     document.getElementById(id)?.addEventListener("change", () => {
       const patch = {
         pause_min_s: (parseFloat(document.getElementById("anim-pause-min").value) || 2) * 60,
@@ -9593,22 +9717,8 @@ function mountAnimator(body, headerActions, opts) {
     // immer auf max zu setzen. Convention: 0 = „alle Punkte" (Default).
     // Marc-Spec 2026-05-24: „trackpunkte also wenn man reduziert, das wird
     // nicht im projekt/in der session gespeichert".
-    // v0.9.506 — Verteilung aus dem Projekt herstellen. ⚠️ Fehlt die Angabe,
-    // ist es ein Projekt von vor v0.9.506 → „wie aufgezeichnet", sonst sähe
-    // jede gespeicherte Animation plötzlich anders aus. Neue Projekte legt
-    // `_paceVorgabe()` auf „gleichmäßig".
-    (function () {
-      const a = _activeProject?.[_MODKEY] || _settingsCache?.[_MODKEY] || {};
-      const sel = document.getElementById("anim-pace");
-      if (sel) sel.value = a.pace_mode || (_istNeuesProjekt(a) ? "even" : "raw");
-      const pm = document.getElementById("anim-pause-mode");
-      if (pm) pm.value = a.pause_mode || "trim";
-      const mn = document.getElementById("anim-pause-min");
-      if (mn && a.pause_min_s) mn.value = (a.pause_min_s / 60);
-      const tr = document.getElementById("anim-pause-trim");
-      if (tr && a.pause_trim_s != null) tr.value = a.pause_trim_s;
-      paceAnzeigen();
-    })();
+    // v0.9.506 — Verteilung aus dem Projekt herstellen.
+    paceAusProjekt();
 
     const stored = (_activeProject?.[_MODKEY] && "point_count" in _activeProject[_MODKEY])
       ? _activeProject[_MODKEY].point_count
@@ -10026,6 +10136,8 @@ function mountAnimator(body, headerActions, opts) {
       if (typeof rebindAllSettings === "function") rebindAllSettings();
       migrateTimelineAnchorsIfNeeded();
       heileDoppelteKeyframes();
+      // v0.9.506 — auch die Verteilung gehört zum Projekt.
+      try { paceAusProjekt(); } catch (_) {}
       migrateTrackStyleToLineStyleIfNeeded();
       migrateCameraToPropertyEventsIfNeeded();
       migrateKeyframesEnabledIfNeeded();

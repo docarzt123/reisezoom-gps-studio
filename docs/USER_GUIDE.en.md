@@ -724,6 +724,9 @@ long the video runs (the duration does) — it decides **where the dot is when**
   measured file had 1121 metres between two points) and it is only there so older
   projects still look the way they did.
 
+The **preview run already shows the chosen spread** — what you see in the
+preview is what comes out of the render.
+
 **Stops** (only with “Real pace”): half an hour of rest would otherwise be half
 an hour of frozen picture — on a measured mountain tour with 27 breaks that would
 have been 63 of 232 seconds. So you can choose:

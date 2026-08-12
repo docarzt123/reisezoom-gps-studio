@@ -318,6 +318,24 @@ während sich die Position sanft bewegt. `tests/test_render_pace.py` rendert
 jede Verteilung wirklich **und vergleicht ein Bild aus der Mitte** — ohne diese
 Probe wäre der Test auch grün, wenn die Wahl gar nichts bewirkt.
 
+⚠️ **Die Vorschau muss mit.** Der Probe-Lauf läuft im Browser über die
+Rohkoordinaten und wüsste von sich aus nichts von der Verteilung — er zeigte
+sonst immer „wie aufgezeichnet", während das Video etwas anderes tut. Er holt
+sich deshalb über `animator_pace_map` eine Tabelle „Fortschritt → Punkt",
+gerechnet von **derselben** Funktion wie der Render (`_stuetzstellen`). Die
+Tabelle enthält **Anteile (0–1), keine Punkt-Indizes**: die Vorschau arbeitet
+mit einer reduzierten Koordinatenliste (800 statt 2951), rohe Indizes klemmten
+dort ab einem Viertel am Ende fest. Nach jeder Änderung wird zusätzlich
+`_tlBar.updateStatusLabel()` gerufen — `scrubPreview()` rührt die Beschriftung
+unter der Zeitleiste nicht an, und ohne den Aufruf zeigt die Karte die neue
+Verteilung, die Zahl darunter aber die alte.
+
+⚠️ **Die Vorgabe für neue Projekte steht in `core/sessions.py`**, nicht in der
+Oberfläche: ein frisch angelegtes Projekt trägt sofort rund 50 Standardwerte,
+später ist „neu" am Inhalt nicht mehr erkennbar. `_project_from_defaults()`
+setzt `pace_mode="even"`; fehlt das Feld ganz, ist es ein Projekt von vor
+v0.9.506 und bekommt „raw".
+
 ⚠️ **Etappen.** Der Zeit-Abtaster benutzt `elapsed_s`, und dort sind die Nächte
 zwischen Etappen seit v0.9.483 schon draußen. Wer stattdessen auf
 Zeitstempel-Differenzen rechnet, lässt den Punkt bei einer Sechs-Tage-Tour fünf

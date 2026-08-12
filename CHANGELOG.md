@@ -39,6 +39,9 @@ Bei jeder neuen Version:
 ### Geändert
 - Bestehende Projekte öffnen mit **„Wie aufgezeichnet"** und sehen damit
   unverändert aus. Neue Projekte starten mit „Gleichmäßig".
+- **Der Probe-Lauf zeigt die gewählte Verteilung mit.** Er lief bisher immer
+  über die aufgezeichneten Punkte — die Vorschau hätte also etwas anderes
+  gezeigt als das fertige Video. Beides kommt jetzt aus derselben Rechnung.
 
 ## [0.9.505] – 2026-08-11
 
