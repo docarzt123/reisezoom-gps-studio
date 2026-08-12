@@ -37,6 +37,10 @@ Bei jeder neuen Version:
   wie viele Sekunden davon im Video übrig bleiben.
 
 ### Geändert
+- **Ruff läuft jetzt in der lokalen Testreihe mit.** Die CI prüft den Stil
+  ohnehin, die Suite auf dem Rechner tat es nicht — zwei liegengebliebene Reste
+  aus dem Umbau fielen deshalb erst nach dem Taggen auf. Dieselbe Lehre wie bei
+  den Render-Tests: eine Prüfung, die niemand aufruft, ist keine Prüfung.
 - Bestehende Projekte öffnen mit **„Wie aufgezeichnet"** und sehen damit
   unverändert aus. Neue Projekte starten mit „Gleichmäßig".
 - **Der Probe-Lauf zeigt die gewählte Verteilung mit.** Er lief bisher immer
