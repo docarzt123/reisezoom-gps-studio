@@ -188,7 +188,7 @@ def find_ffmpeg() -> str:
         "https://ffmpeg.org/download.html (Windows), `apt install ffmpeg` (Linux)."
     )
 
-from .gpx import parse_gpx as core_parse_gpx, downsample, TrackPoint, resample, pausen_bericht
+from .gpx import parse_gpx as core_parse_gpx, downsample, TrackPoint, resample
 from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
 from . import sensors as _sensors    # v0.9.331: FIT-Sensorfeld-Registry
 from . import heightanim as _cheight  # v0.9.443: Daten-Diagramme als Overlay
@@ -3549,7 +3549,6 @@ async def render(
     #   point_count <  2               → Minimum 2 (Linie braucht 2 Punkte)
     #   sonst                          → downsample auf exakt point_count
     points = _punkte_verteilen(cfg, raw_points)
-    target = len(points)
     _log.info("GPX geparst: %d Punkte → %d Punkte (point_count=%s), %.1f km, %ds, %.0f m↑ / %.0f m↓",
               len(raw_points), len(points), cfg.point_count or "all",
               total_stats.distance_m / 1000.0, total_stats.duration_s,
