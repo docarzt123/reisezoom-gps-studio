@@ -735,6 +735,9 @@ cada momento**:
   un archivo medido había 1121 metros entre dos puntos) y solo está para que los
   proyectos antiguos se vean como antes.
 
+La **reproducción de prueba ya muestra el reparto elegido**: lo que ves en la
+vista previa es lo que sale del render.
+
 **Paradas** (solo con «Ritmo real»): media hora de descanso sería media hora de
 imagen congelada; en una ruta de montaña medida con 27 paradas habrían sido 63
 de 232 segundos. Por eso puedes elegir:

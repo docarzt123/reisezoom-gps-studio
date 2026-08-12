@@ -197,12 +197,25 @@ def _project_from_defaults(name: str, defaults: dict) -> dict:
     `tourmap`, `geotagger` Sub-Dicts).
     """
     now = _now_iso()
+    # v0.9.506 — Die Verteilung über den Track wird HIER festgelegt, nicht in
+    # der Oberfläche. Grund: ein frisch angelegtes Projekt bekommt sofort rund
+    # 50 Standardwerte mit, also lässt sich später nicht mehr am Inhalt
+    # erkennen, ob es neu ist oder von vor v0.9.506 stammt. An dieser Stelle
+    # weiß man es sicher — hier entsteht das Projekt gerade.
+    #
+    # Neue Projekte starten mit „gleichmäßig": das sieht ruhig aus und ist
+    # vorhersagbar. „Wie aufgezeichnet" folgt dem Rhythmus des Aufnahmegeräts
+    # und ist damit Zufall (in einer gemessenen Datei lagen zwischen zwei
+    # Punkten 1121 Meter) — als Vorgabe taugt das nicht, nur als Rückfalloption
+    # für bestehende Projekte, die genau so aussehen sollen wie bisher.
+    anim = dict(defaults.get("animator", {}))
+    anim.setdefault("pace_mode", "even")
     return {
         "id": _new_project_id(),
         "name": name,
         "created_at": now,
         "modified_at": now,
-        "animator": dict(defaults.get("animator", {})),
+        "animator": anim,
         "tourmap": dict(defaults.get("tourmap", {})),
         "geotagger": {
             k: v for k, v in (defaults.get("geotagger", {}) or {}).items()

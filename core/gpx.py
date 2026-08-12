@@ -570,6 +570,66 @@ def _interpoliere(a: TrackPoint, b: TrackPoint, f: float) -> TrackPoint:
     )
 
 
+def achsenwerte(pts: List[TrackPoint], achse: str, pausen: str = "trim",
+                pause_ab_s: float = 120.0, pause_auf_s: float = 5.0) -> List[float]:
+    """Die Achse, entlang der verteilt wird — Strecke oder bereinigte Zeit."""
+    if achse == "time":
+        pa = finde_pausen(pts, pause_ab_s) if pausen in ("trim", "skip") else []
+        return _zeitachse_ohne_pausen(pts, pa, 0.0 if pausen == "skip" else pause_auf_s)
+    return [p.dist_m for p in pts]
+
+
+def _stuetzstellen(werte: List[float], target: int):
+    """Für jede der `target` Stützstellen: (Index davor, Anteil bis zum nächsten).
+
+    Geteilt von `resample()` (baut daraus Punkte) und `pace_index_map()` (baut
+    daraus die Tabelle für die Vorschau). ⚠️ Beide MÜSSEN dieselbe Rechnung
+    benutzen, sonst zeigt die Vorschau etwas anderes als das fertige Video —
+    und genau dafür ist die Vorschau da.
+    """
+    spanne = werte[-1] - werte[0]
+    j = 0
+    for k in range(target):
+        ziel = werte[0] + spanne * (k / max(1, target - 1))
+        # ⚠️ `<=` statt `<`: bei „überspringen" fallen alle Punkte einer Pause
+        # auf denselben Achsenwert. Mit `<` bliebe der Abtaster am ersten davon
+        # hängen und mehrere Frames zeigten denselben Ort — also genau das
+        # Stehenbleiben, das dieser Modus verhindern soll (gemessen: 6 von 200
+        # Frames). Mit `<=` läuft er über das Plateau hinweg.
+        while j < len(werte) - 2 and werte[j + 1] <= ziel:
+            j += 1
+        d = werte[j + 1] - werte[j]
+        f = 0.0 if d <= 0 else (ziel - werte[j]) / d
+        yield j, max(0.0, min(1.0, f))
+
+
+def pace_index_map(pts: List[TrackPoint], n: int, achse: str = "raw",
+                   pausen: str = "trim", pause_ab_s: float = 120.0,
+                   pause_auf_s: float = 5.0) -> List[float]:
+    """Tabelle „Fortschritt → Punkt-Index" mit `n` Stützstellen.
+
+    Dafür da, dass die **Vorschau** in der App dieselbe Verteilung zeigt wie der
+    spätere Render. Die Vorschau läuft im Browser über die Rohkoordinaten und
+    wüsste sonst nichts von der gewählten Achse — sie zeigte immer „wie
+    aufgezeichnet", während das Video etwas anderes tut.
+
+    Zurück kommen Bruchteil-Indizes (12.4 = zwischen Punkt 12 und 13), damit die
+    Vorschau weich läuft statt zu springen.
+    """
+    letzter = len(pts) - 1
+    gerade = lambda: [letzter * (k / (n - 1)) for k in range(n)]
+    if len(pts) < 2 or n < 2:
+        return [0.0] * max(1, n)
+    if achse == "time" and not pts[-1].elapsed_s:
+        achse = "dist"              # ohne Zeitstempel gibt es keine Zeitachse
+    if achse == "raw":
+        return gerade()
+    werte = achsenwerte(pts, achse, pausen, pause_ab_s, pause_auf_s)
+    if werte[-1] - werte[0] <= 0:
+        return gerade()
+    return [j + f for j, f in _stuetzstellen(werte, n)]
+
+
 def resample(pts: List[TrackPoint], target: int, achse: str = "raw",
              pausen: str = "trim", pause_ab_s: float = 120.0,
              pause_auf_s: float = 5.0) -> List[TrackPoint]:
@@ -601,33 +661,14 @@ def resample(pts: List[TrackPoint], target: int, achse: str = "raw",
     if achse == "time" and not hat_zeit:
         achse = "dist"
 
-    if achse == "time":
-        pa = finde_pausen(pts, pause_ab_s) if pausen in ("trim", "skip") else []
-        werte = _zeitachse_ohne_pausen(
-            pts, pa, 0.0 if pausen == "skip" else pause_auf_s)
-    else:
-        werte = [p.dist_m for p in pts]
-
-    spanne = werte[-1] - werte[0]
-    if spanne <= 0:
+    werte = achsenwerte(pts, achse, pausen, pause_ab_s, pause_auf_s)
+    if werte[-1] - werte[0] <= 0:
         return downsample(pts, target)
 
-    out: List[TrackPoint] = []
-    j = 0
-    for k in range(target):
-        ziel = werte[0] + spanne * (k / (target - 1))
-        # ⚠️ `<=` statt `<`: bei „überspringen" fallen alle Punkte einer Pause auf
-        # denselben Achsenwert. Mit `<` bliebe der Abtaster am ersten davon
-        # hängen und mehrere Frames zeigten denselben Ort — also genau das
-        # Stehenbleiben, das dieser Modus verhindern soll (gemessen: 6 von 200
-        # Frames). Mit `<=` läuft er über das Plateau hinweg.
-        while j < len(werte) - 2 and werte[j + 1] <= ziel:
-            j += 1
-        d = werte[j + 1] - werte[j]
-        f = 0.0 if d <= 0 else (ziel - werte[j]) / d
-        out.append(_interpoliere(pts[j], pts[j + 1], max(0.0, min(1.0, f))))
-    # Anfang und Ende bleiben echte Messpunkte — sonst beginnt die Animation
-    # sichtbar neben dem Startpunkt.
+    out: List[TrackPoint] = [
+        _interpoliere(pts[j], pts[j + 1], f)
+        for j, f in _stuetzstellen(werte, target)
+    ]
     out[0], out[-1] = pts[0], pts[-1]
     return out
 

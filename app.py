@@ -2792,6 +2792,44 @@ class Api:
             log.exception("animator_pause_info")
             return {"ok": False, "error": str(e)}
 
+    def animator_pace_map(self, payload: dict) -> dict:
+        """Tabelle „Fortschritt → Punkt" für die Vorschau.
+
+        ⚠️ Die Vorschau läuft im Browser über die Rohkoordinaten und wüsste
+        sonst nichts von der gewählten Verteilung — sie zeigte immer „wie
+        aufgezeichnet", während das gerenderte Video etwas anderes tut. Genau
+        dafür ist die Vorschau aber da.
+
+        Gerechnet wird von derselben Funktion, die auch den Render verteilt
+        (`_stuetzstellen` in core/gpx.py). Eine eigene Rechnung im Browser wäre
+        eine zweite Wahrheit, die früher oder später abweicht.
+        """
+        try:
+            pfad = (payload or {}).get("gpx_path") or ""
+            if not pfad or not os.path.exists(pfad):
+                return {"ok": False, "error": "GPX nicht gefunden"}
+            modus = str((payload or {}).get("pace_mode", "raw") or "raw")
+            if modus == "raw":
+                return {"ok": True, "map": None}      # Vorschau bleibt wie sie ist
+            pts, _st = cgpx.parse_gpx(pfad)
+            tab = cgpx.pace_index_map(
+                pts, int((payload or {}).get("n", 600) or 600),
+                achse="time" if modus == "real" else "dist",
+                pausen=str((payload or {}).get("pause_mode", "trim") or "trim"),
+                pause_ab_s=float((payload or {}).get("pause_min_s", 120) or 120),
+                pause_auf_s=float((payload or {}).get("pause_trim_s", 5) or 5),
+            )
+            # ⚠️ NORMIERT (0..1) zurückgeben, nicht als Punkt-Index: die
+            # Vorschau arbeitet mit einer REDUZIERTEN Koordinatenliste (800
+            # statt 2951). Rohe Indizes klemmen dort ab einem Viertel am Ende
+            # fest — der Marker stand still und die Anzeige sagte „Punkt
+            # 800/800" bei 47 %. Als Anteil passt es auf jede Länge.
+            letzter = max(1, len(pts) - 1)
+            return {"ok": True, "map": [round(x / letzter, 5) for x in tab]}
+        except Exception as e:
+            log.exception("animator_pace_map")
+            return {"ok": False, "error": str(e)}
+
     def animator_start_render(self, params: dict) -> dict:
         """Startet Render im Hintergrund-Thread. Status pollen via animator_status()."""
         if self._render_state["running"]:

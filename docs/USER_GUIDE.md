@@ -787,6 +787,9 @@ wann ist**:
   unberechenbar (in einer gemessenen Datei lagen zwischen zwei Punkten einmal
   1121 Meter) und nur dafür da, dass ältere Projekte aussehen wie bisher.
 
+Der **Probe-Lauf zeigt die gewählte Verteilung gleich mit** — was du in der
+Vorschau siehst, kommt so auch aus dem Render.
+
 **Pausen** (nur bei „Echtes Tempo"): Wer eine halbe Stunde Rast macht, hätte
 sonst eine halbe Stunde Standbild im Video — bei einer gemessenen Bergtour mit
 27 Rasten wären das 63 von 232 Sekunden gewesen. Deshalb kannst du wählen:
