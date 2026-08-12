@@ -14,7 +14,7 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.506] – 2026-08-11
+## [0.9.506] – 2026-08-12
 
 ### Hinzugefügt
 - **Verteilung über den Track** im Animator (Wunsch Marc: „nicht mehr
