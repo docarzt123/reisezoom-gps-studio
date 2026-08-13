@@ -88,7 +88,8 @@ from core import gpx as cgpx
 from core import imports as cimports  # v0.9.282: universelle Track-Import-Schicht
 from core import exif as cexif
 from core import geotag as cgeo
-from core import sun as csun  # v0.9.333 — Sonnenstand + Blickrichtung (Lichtstempel)
+from core import sun as csun
+from core import sensors as csens  # v0.9.507 — übersetzte Sensor-Labels  # v0.9.333 — Sonnenstand + Blickrichtung (Lichtstempel)
 from core import geocode as cgeocode  # v0.9.337 — Reverse-Geocoding (Adresse) via OSM
 from core import autotag as cautotag  # v0.9.349 — Bilderkennung (Apple Vision, nur macOS)
 from core import backup as cbak
@@ -149,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.506"
+APP_VERSION = "0.9.507"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -816,6 +817,26 @@ def _macos_save_panel(default_name: str, default_dir: str,
 # eigenen vom User an (First-Run-Modal). Settings-Key `mapbox_token` enthält
 # den Public-Token, leer = nicht konfiguriert.
 DEFAULT_MAPBOX_TOKEN = ""
+
+
+def _ui_sprache() -> str:
+    """Die aktive App-Sprache — für alles, was das Backend beschriftet.
+
+    v0.9.507: Videos, Standbilder, Web-Exporte und Fortschrittsmeldungen müssen
+    der App-Sprache folgen. Bis dahin waren die Render-Beschriftungen deutsch
+    einprogrammiert; ein spanischer Nutzer bekam Videos mit „ZURÜCKGELEGT" und
+    „HÖHENPROFIL", während die Vorschau korrekt Spanisch zeigte."""
+    try:
+        return ci18n.resolve(_load_settings().get("language", "auto") or "auto")
+    except Exception:
+        return "de"
+
+
+def _ui_t():
+    """t(key, fallback) in der aktiven App-Sprache — für Backend-Antworten,
+    deren Texte im UI oder in Exporten landen (Sensor-Kataloge, Serien-Listen)."""
+    return ci18n.uebersetzer(_ui_sprache())
+
 
 
 def _active_mapbox_token() -> str:
@@ -2596,6 +2617,7 @@ class Api:
                 "has_ele": has_ele,
                 "waypoints": wp_out,
             }
+            _t_ui = _ui_t()   # v0.9.507 — Katalog-Labels in der App-Sprache
             return {
                 "ok": True,
                 "name": stats.name or Path(path).stem,
@@ -2620,12 +2642,15 @@ class Api:
                 },
                 "series": series,
                 # v0.9.331 — vorhandene Sensorfelder [{key,label,unit}] fürs UI.
-                "sensor_fields": stats.sensor_fields,
+                "sensor_fields": [
+                    dict(f, label=csens.field_meta(f["key"], _t_ui)[0])
+                    for f in stats.sensor_fields
+                ],
                 # v0.9.443 — wählbare Messreihen für die Diagramm-Overlays
                 # (id/label/unit, OHNE Werte → kleiner Payload). Identische Quelle
                 # wie der Daten-Animator, damit die Serien-Dropdowns übereinstimmen.
                 "chart_series": [{"id": s["id"], "label": s["label"], "unit": s["unit"]}
-                                 for s in cheight.available_series(ds)],
+                                 for s in cheight.available_series(ds, t=_t_ui)],
             }
         except Exception as e:
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
@@ -2931,6 +2956,7 @@ class Api:
             _be_line_style = _ui_line_style
             _be_track_style = params.get("track_style", "flat")
         cfg = canim.AnimatorConfig(
+            ui_lang=_ui_sprache(),
             gpx_path=gpx_path,
             output_path=out_path,
             mapbox_token=_active_mapbox_token(),
@@ -3243,6 +3269,7 @@ class Api:
         # still_frame=True und rendern über canim.render_frame() → EINE
         # Render-Pipeline, kein Doppel-Code mehr. Felder 1:1 wie früher.
         cfg = canim.AnimatorConfig(
+            ui_lang=_ui_sprache(),
             gpx_path=gpx_path,
             output_path=out_path,
             mapbox_token=token,
@@ -3417,7 +3444,7 @@ class Api:
             # (Höhe/Tempo/Steigung + Sensoren wie Puls/Leistung/…). Die UI baut
             # daraus die Serien-Auswahl und graut aus, was der Track nicht hat.
             try:
-                series = cheight.available_series(ds)
+                series = cheight.available_series(ds, t=_ui_t())
             except Exception as e:
                 log.warning("available_series fehlgeschlagen: %s", e); series = []
             return {
@@ -3481,6 +3508,7 @@ class Api:
             out_path = out_stem2 + target_ext
 
         cfg = cheight.HeightConfig(
+            ui_lang=_ui_sprache(),
             gpx_path=gpx_path,
             output_path=out_path,
             codec=codec,
@@ -3589,6 +3617,7 @@ class Api:
             out_path = params.get("output_path") or str(RENDERS_DIR / out_name)
 
             cfg = cheight.HeightConfig(
+            ui_lang=_ui_sprache(),
                 gpx_path=gpx_path, output_path=out_path,
                 **_height_visual_cfg_kwargs(params),
             )
@@ -3658,6 +3687,10 @@ class Api:
             # Gewählter tokenfreier OSM-Kachelstil (Mapbox-Styles → OSM-Standard).
             style_key = params.get("tile_style") or params.get("map_style") or "osm"
             st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm")
+            # v0.9.507 — Attribution: außerhalb von Deutsch die kanonische
+            # englische OSM-Form („© OpenStreetMap contributors").
+            if _ui_sprache() != "de" and st.get("attr"):
+                st = dict(st, attr=str(st["attr"]).replace("</a>-Mitwirkende", "</a> contributors"))
 
             # Kamera aus der Live-Vorschau (snapshot_* = map.getCenter/Zoom/Bearing/
             # Pitch, ROH — gleiche Engine, keine correctedZoom/dsf-Korrektur nötig).
@@ -3683,6 +3716,7 @@ class Api:
             h = int(params.get("height", 640) or 640)
 
             cfg = canim.AnimatorConfig(
+            ui_lang=_ui_sprache(),
                 gpx_path=gpx_path,
                 output_path="",           # kein Playwright/Screenshot → ungenutzt
                 mapbox_token="",          # OSM ist tokenfrei
@@ -3810,6 +3844,10 @@ class Api:
 
             style_key = params.get("tile_style") or "osm"
             st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm")
+            # v0.9.507 — Attribution: außerhalb von Deutsch die kanonische
+            # englische OSM-Form („© OpenStreetMap contributors").
+            if _ui_sprache() != "de" and st.get("attr"):
+                st = dict(st, attr=str(st["attr"]).replace("</a>-Mitwirkende", "</a> contributors"))
             rsigns = csignraster.rasterize_signs(
                 list(params.get("signs") or []),
                 signs_show=bool(params.get("signs_show", True)))
@@ -3823,8 +3861,8 @@ class Api:
                 "tile": st,
                 "signs": rsigns,
                 "show_pins": bool(params.get("show_pins", True)),
-                "start_label": params.get("start_label", "Start"),
-                "end_label": params.get("end_label", "Ziel"),
+                "start_label": params.get("start_label") or _ui_t()("webkarte.start", "Start"),
+                "end_label": params.get("end_label") or _ui_t()("webkarte.ziel", "Ziel"),
                 "view_center": params.get("view_center"),
                 "view_zoom": params.get("view_zoom"),
                 "title": params.get("title") or (Path(gpx_path).stem + " — Tour-Karte"),
@@ -3969,6 +4007,10 @@ class Api:
 
             style_key = params.get("tile_style") or "osm"
             st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm")
+            # v0.9.507 — Attribution: außerhalb von Deutsch die kanonische
+            # englische OSM-Form („© OpenStreetMap contributors").
+            if _ui_sprache() != "de" and st.get("attr"):
+                st = dict(st, attr=str(st["attr"]).replace("</a>-Mitwirkende", "</a> contributors"))
 
             w = int(params.get("width", 1120) or 1120)
             h = int(params.get("height", 640) or 640)
@@ -4000,8 +4042,8 @@ class Api:
                 "tile": st,
                 "labels": list(params.get("labels") or []),
                 "show_pins": bool(params.get("show_pins", True)),
-                "start_label": params.get("start_label", "Start"),
-                "end_label": params.get("end_label", "Ziel"),
+                "start_label": params.get("start_label") or _ui_t()("webkarte.start", "Start"),
+                "end_label": params.get("end_label") or _ui_t()("webkarte.ziel", "Ziel"),
                 "view_center": params.get("view_center"),
                 "view_zoom": params.get("view_zoom"),
                 "title": params.get("title") or (Path(gpx_path).stem + " — Karte"),

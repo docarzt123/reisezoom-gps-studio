@@ -189,6 +189,7 @@ def find_ffmpeg() -> str:
     )
 
 from .gpx import parse_gpx as core_parse_gpx, downsample, TrackPoint, resample
+from . import i18n as _i18n
 from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
 from . import sensors as _sensors    # v0.9.331: FIT-Sensorfeld-Registry
 from . import heightanim as _cheight  # v0.9.443: Daten-Diagramme als Overlay
@@ -403,6 +404,12 @@ class AnimatorConfig:
     pause_mode: str = "trim"
     pause_min_s: float = 120.0    # ab wann etwas als Pause gilt
     pause_trim_s: float = 5.0     # worauf sie gekürzt wird
+    # v0.9.507 — Sprache der Beschriftungen IM RENDER (Overlay-Felder,
+    # Höhenprofil-Titel, Fortschrittsmeldungen). Bis v0.9.506 waren sie deutsch
+    # einprogrammiert: ein spanischer Nutzer bekam Videos mit „ZURÜCKGELEGT"
+    # und „HÖHENPROFIL", während die Vorschau korrekt Spanisch zeigte.
+    # Leer = Deutsch (die einprogrammierten Fallbacks).
+    ui_lang: str = ""
     # Alpha-Channel-Modus: kein Karten-Background, nur Track + Punkt + Overlays
     # auf transparentem Hintergrund. Output ist dann eine ProRes-4444-.mov,
     # die in Premiere/Final Cut/DaVinci/Resolve direkt als Overlay-Layer
@@ -648,18 +655,31 @@ def _overlay_field_available(requires: str, has_time: bool, has_ele: bool) -> bo
     return True
 
 
-def _overlay_label_ov(fid, default_label, overrides):
+def _esc(text) -> str:
+    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _overlay_label_ov(fid, default_label, overrides, t=None):
     """v0.9.393 — projekt-eigene Umbenennung auch für STANDARD-Overlay-Felder
-    (nicht nur Sensorfelder). Override-Key = Feld-id (z.B. "moving_time"). Der
-    User-Text wird escaped; das Katalog-Default-Label enthält bereits HTML-
-    Entities (&uuml; …) und bleibt daher unangetastet."""
+    (nicht nur Sensorfelder). Override-Key = Feld-id (z.B. "moving_time").
+
+    v0.9.507 — Reihenfolge: Umbenennung des Nutzers > Übersetzung in der
+    App-Sprache > einprogrammiertes deutsches Fallback. Die Übersetzung kommt
+    aus DENSELBEN Schlüsseln wie die Vorschau (`animator.statsfield.<id>`) —
+    Vorschau und Render müssen wortgleich sein. Der User-Text und die
+    Übersetzung werden escaped; das Katalog-Default enthält bereits HTML-
+    Entities (&uuml; …) und bleibt unangetastet."""
     o = (overrides or {}).get(fid)
     if isinstance(o, dict) and o.get("label"):
-        return str(o["label"]).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        return _esc(o["label"])
+    if t is not None:
+        uebersetzt = t("animator.statsfield." + str(fid), "")
+        if uebersetzt:
+            return _esc(uebersetzt)
     return default_label
 
 
-def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, overrides=None) -> str:
+def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, overrides=None, t=None) -> str:
     rows = []
     for fid in (field_ids or DEFAULT_TOTAL_FIELDS):
         f = _OVERLAY_TOTAL_BY_ID.get(fid)
@@ -669,7 +689,7 @@ def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, 
             val = f["py"](total_stats)
         except Exception:
             continue
-        lbl = _overlay_label_ov(fid, f["label"], overrides)
+        lbl = _overlay_label_ov(fid, f["label"], overrides, t)
         rows.append(f'<div class="stat-row"><span class="label">{lbl}</span><span class="value">{val}</span></div>')
     return "\n".join(rows)
 
@@ -700,14 +720,14 @@ def _overlay_sensor_series_json(ds_points, field_ids, extra_keys=None) -> str:
     return json.dumps(out)
 
 
-def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None) -> str:
+def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None, t=None) -> str:
     rows = []
     for fid in (field_ids or DEFAULT_LIVE_FIELDS):
         # v0.9.331 — FIT-Sensorfeld (sensor:<key>) → Label aus der Registry.
         # v0.9.334 — projekt-eigene Umbenennung/Einheit (overrides) hat Vorrang.
         if isinstance(fid, str) and fid.startswith("sensor:"):
             key = fid.split(":", 1)[1]
-            lbl, _u = _sensors.field_meta_ov(key, overrides)
+            lbl, _u = _sensors.field_meta_ov(key, overrides, t)
             rows.append(f'<div class="stat-row"><span class="label">{lbl}</span>'
                         f'<span class="value" id="{_sensor_dom_id(key)}">&mdash;</span></div>')
             continue
@@ -715,7 +735,7 @@ def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None)
         if not f or not _overlay_field_available(f["requires"], has_time, has_ele):
             continue
         accent = " accent" if f.get("accent") else ""
-        lbl = _overlay_label_ov(fid, f["label"], overrides)  # v0.9.393 — Standard-Feld-Umbenennung
+        lbl = _overlay_label_ov(fid, f["label"], overrides, t)  # v0.9.393/507 — Umbenennung > Übersetzung
         rows.append(f'<div class="stat-row"><span class="label">{lbl}</span><span class="value{accent}" id="live-{fid}">&mdash;</span></div>')
     return "\n".join(rows)
 
@@ -1639,17 +1659,18 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     else:
         total_stats["max_speed_kmh"] = 0.0
         total_stats["moving_time_s"] = 0.0
+    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
     live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
-            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
+            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t)
             if _trows:
                 totals_html = f"""
 <div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
   {_trows}
 </div>"""
         if cfg.overlay_live_enabled:
-            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
+            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t)
             if _lrows:
                 live_html = f"""
 <div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">
@@ -1660,8 +1681,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             ele_html = f"""
 <div id="overlay-bottom" class="pos-{cfg.overlay_elevation_position}">
   <div class="ele-header">
-    <span class="ele-title">H&ouml;henprofil</span>
-    <span class="ele-minmax">Min {ele_min:.0f} m<span class="sep">&bull;</span>Max {ele_max:.0f} m</span>
+    <span class="ele-title">{_esc(_t("animator.overlay.elevation_title", "Höhenprofil"))}</span>
+    <span class="ele-minmax">{_esc(_t("animator.overlay.ele_min", "Min"))} {ele_min:.0f} m<span class="sep">&bull;</span>{_esc(_t("animator.overlay.ele_max", "Max"))} {ele_max:.0f} m</span>
   </div>
   <svg id="elevation-svg" viewBox="0 0 1000 120" preserveAspectRatio="none">
     <defs>
@@ -2611,17 +2632,18 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     else:
         total_stats["max_speed_kmh"] = 0.0
         total_stats["moving_time_s"] = 0.0
+    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
     live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
-            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
+            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t)
             if _trows:
                 totals_html = f"""
 <div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
   {_trows}
 </div>"""
         if cfg.overlay_live_enabled:
-            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
+            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t)
             if _lrows:
                 live_html = f"""
 <div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">
@@ -2632,8 +2654,8 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
             ele_html = f"""
 <div id="overlay-bottom" class="pos-{cfg.overlay_elevation_position}">
   <div class="ele-header">
-    <span class="ele-title">H&ouml;henprofil</span>
-    <span class="ele-minmax">Min {ele_min:.0f} m<span class="sep">&bull;</span>Max {ele_max:.0f} m</span>
+    <span class="ele-title">{_esc(_t("animator.overlay.elevation_title", "Höhenprofil"))}</span>
+    <span class="ele-minmax">{_esc(_t("animator.overlay.ele_min", "Min"))} {ele_min:.0f} m<span class="sep">&bull;</span>{_esc(_t("animator.overlay.ele_max", "Max"))} {ele_max:.0f} m</span>
   </div>
   <svg id="elevation-svg" viewBox="0 0 1000 120" preserveAspectRatio="none">
     <defs>
@@ -2873,7 +2895,8 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
       4. Segment-Maschine: intro → walk(0) → fly(0→1) → walk(1) → … → hold.
          Touren-Übergänge = van-Wijk-Kinoflug (Zoom-Out → Pan → Zoom-In).
     """
-    emit(0.0, "Lade Touren …")
+    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
+    emit(0.0, _t("animator.progress.load_tours", "Lade Touren …"))
     tours_cfg = list(cfg.tracks)
     _log.info("Multi-Track-Render: %d Touren · fly=%.1fs", len(tours_cfg), cfg.fly_duration_s)
 
@@ -2984,7 +3007,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
     _log.info("Multi-Track-Budget: total=%d frames (intro=%d, walks=%s, fly=%d×%d, hold=%d)",
               total_frames, intro_frames, walk_frames, N - 1, fly_frames, hold_frames)
 
-    emit(0.02, f"Karte laden ({cfg.map_style}) …")
+    emit(0.02, _t("animator.progress.load_map", "Karte laden") + f" ({cfg.map_style}) …")
 
     from playwright.async_api import async_playwright
 
@@ -3057,7 +3080,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
                 tour_views.append(([_ctr[0], _ctr[1]], _zm))
         _log.info("Tour-Views: %s", [(round(c[0], 3), round(c[1], 3), round(z, 1)) for c, z in tour_views])
 
-        emit(0.05, "Karte bereit, rendere Frames …")
+        emit(0.05, _t("animator.progress.map_ready", "Karte bereit, rendere Frames …"))
 
         # ── ffmpeg-Cmd (identisch zum Single-Track-Builder) ────────────────
         ffmpeg_bin = find_ffmpeg()
@@ -3206,7 +3229,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
             try: ff.stdin.close()
             except Exception: pass
 
-        emit(0.92, "ffmpeg finalisiert (+faststart, kann etwas dauern) …")
+        emit(0.92, _t("animator.progress.ffmpeg", "ffmpeg finalisiert (+faststart, kann etwas dauern) …"))
         ff.wait()
         try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
         except Exception: pass
@@ -3234,7 +3257,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
 
         await browser.close()
 
-    emit(1.0, "Fertig.")
+    emit(1.0, _t("animator.progress.done", "Fertig."))
     return cfg.output_path
 
 
@@ -3327,12 +3350,14 @@ async def render_frame(
         if on_progress:
             try: on_progress(p, msg)
             except Exception: pass
+    # v0.9.507 — Fortschritt + Overlay-Beschriftungen in der App-Sprache.
+    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
 
     def check_cancel() -> None:
         if is_cancelled and is_cancelled():
             raise RenderCancelled("Vom User abgebrochen")
 
-    emit(0.0, "Lade GPX-Datei …")
+    emit(0.0, _t("animator.progress.load_gpx", "Lade GPX-Datei …"))
     _log.info("render_frame() start · GPX=%s · output=%s", cfg.gpx_path, cfg.output_path)
     if not cfg.transparent_background and not getattr(cfg, "use_osm", False) and (not cfg.mapbox_token or not cfg.mapbox_token.startswith("pk.")):
         _log.warning("Mapbox-Token fehlt/ungültig — Standbild-Render wird fehlschlagen.")
@@ -3359,7 +3384,7 @@ async def render_frame(
 
     html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
 
-    emit(0.1, "Karte rendern …")
+    emit(0.1, _t("animator.progress.render_map", "Karte rendern …"))
     from playwright.async_api import async_playwright
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -3468,7 +3493,7 @@ async def render_frame(
             with open(cfg.output_path, "wb") as f:
                 f.write(shot)
             _log.info("render_frame() fertig → %s (%d bytes)", cfg.output_path, len(shot))
-            emit(1.0, "Fertig")
+            emit(1.0, _t("animator.progress.done", "Fertig"))
             return cfg.output_path
         finally:
             try: await browser.close()
@@ -3508,6 +3533,8 @@ async def render(
                 on_progress(p, msg)
             except Exception:
                 pass
+    # v0.9.507 — Fortschritt + Overlay-Beschriftungen in der App-Sprache.
+    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
 
     def check_cancel() -> None:
         if is_cancelled and is_cancelled():
@@ -3533,7 +3560,7 @@ async def render(
         except Exception as e:
             _log.debug("preview encode failed: %s", e)
 
-    emit(0.0, "Lade GPX-Datei …")
+    emit(0.0, _t("animator.progress.load_gpx", "Lade GPX-Datei …"))
     _log.info("render() start · GPX=%s · output=%s", cfg.gpx_path, cfg.output_path)
     if not cfg.transparent_background:
         # Token nur im Mapbox-Modus relevant. Im Alpha-Modus rendern wir ohne Karte.
@@ -3700,7 +3727,7 @@ async def render(
         idx_tp = max(0, min(n - 1, round(marker_real * (n - 1))))
         return [points[idx_tp].lon, points[idx_tp].lat]
 
-    emit(0.02, f"Karte laden ({cfg.map_style}) …")
+    emit(0.02, _t("animator.progress.load_map", "Karte laden") + f" ({cfg.map_style}) …")
 
     from playwright.async_api import async_playwright
 
@@ -3865,7 +3892,7 @@ async def render(
             prewarm_samples.append([pw_bearing, pw_lon, pw_lat, pw_zoom, pw_pitch])
         if prewarm_samples:
             import json as _json
-            emit(0.04, f"Tile-Cache vorwärmen ({PREWARM_N} Stützstellen) …")
+            emit(0.04, _t("animator.progress.prewarm", "Tile-Cache vorwärmen") + f" ({PREWARM_N}) …")
             try:
                 await page.evaluate(
                     f"window.prewarmTiles({_json.dumps(prewarm_samples)})"
@@ -3875,7 +3902,7 @@ async def render(
                 # Frame-Loop weitermachen (alte Geschwindigkeit, kein Render-Stop).
                 _log.warning("Tile-Cache-Prewarm fehlgeschlagen, fahre fort: %s", e)
 
-        emit(0.05, "Karte bereit, rendere Frames …")
+        emit(0.05, _t("animator.progress.map_ready", "Karte bereit, rendere Frames …"))
 
         ffmpeg_bin = find_ffmpeg()
         _log.info("ffmpeg: %s", ffmpeg_bin)
@@ -4347,7 +4374,7 @@ async def render(
             except Exception:
                 pass
 
-        emit(0.92, "ffmpeg finalisiert (+faststart, kann etwas dauern) …")
+        emit(0.92, _t("animator.progress.ffmpeg", "ffmpeg finalisiert (+faststart, kann etwas dauern) …"))
         ff.wait()
         try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
         except Exception: pass
@@ -4379,5 +4406,5 @@ async def render(
 
         await browser.close()
 
-    emit(1.0, "Fertig.")
+    emit(1.0, _t("animator.progress.done", "Fertig."))
     return cfg.output_path

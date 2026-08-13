@@ -9586,7 +9586,7 @@ function mountAnimator(body, headerActions, opts) {
       eleSvg = `
         <div class="ov-ele-header">
           <span class="ov-ele-title">${t("animator.overlay.elevation_title")}</span>
-          <span class="ov-ele-minmax">Min ${Math.round(eMin)} m · Max ${Math.round(eMax)} m</span>
+          <span class="ov-ele-minmax">${t("animator.overlay.ele_min", "Min")} ${Math.round(eMin)} m · ${t("animator.overlay.ele_max", "Max")} ${Math.round(eMax)} m</span>
         </div>
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="ov-ele-svg">
           <defs>
