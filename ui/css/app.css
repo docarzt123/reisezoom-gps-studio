@@ -194,9 +194,19 @@ input[type="color"] {
 .module-tabs {
   display: flex;
   gap: 4px;
-  flex: 1;
+  flex: 1 1 auto;
   align-items: center;
+  /* ⚠️ Beides nötig (v0.9.508): `min-width: 0` erlaubt dem Flex-Kind
+     überhaupt zu schrumpfen — ohne das wächst die Leiste über das Fenster
+     hinaus und schiebt die Knöpfe rechts (Einstellungen!) hinaus. Mit
+     längeren Übersetzungen passiert genau das. `overflow-x: auto` macht die
+     Modulliste dann scrollbar, statt sie abzuschneiden. */
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.module-tabs::-webkit-scrollbar { display: none; }
+.mod-btn { flex: 0 0 auto; }
 
 .mod-btn {
   display: flex;
@@ -238,14 +248,37 @@ input[type="color"] {
   font-size: 11px;
   color: var(--text-dim);
 }
-.mod-label { display: flex; flex-direction: column; line-height: 1.15; }
-.mod-name { font-size: 12px; font-weight: 600; }
-.mod-desc { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+/* ⚠️ Einzeilig (v0.9.508): die Kopfleiste ist auf 56 px festgelegt. Sobald ein
+   Modulname umbricht — und spanische/englische Namen sind länger als die
+   deutschen („Reiseroute" → „Ruta de viaje") — schiebt die zweite Zeile den
+   Namen aus der Leiste heraus: sichtbar blieb nur „de viaje". Deshalb bricht
+   hier nichts mehr um; zu lange Beschreibungen enden mit „…". */
+.mod-label { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.mod-name {
+  font-size: 12px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mod-desc {
+  font-size: 10px; color: var(--text-muted); margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 15ch;
+}
+/* Wird es eng, verschwindet zuerst die Unterzeile, dann werden die Namen
+   gekürzt — gesteuert von `passeTabsAnBreiteAn()` in app.js, das misst statt zu
+   raten (Viewport-Breite ist in der WebView nicht die Fensterbreite, und
+   übersetzte Namen sind unterschiedlich lang). */
+.module-tabs.kompakt .mod-desc { display: none; }
+.module-tabs.kompakt .mod-btn { padding-left: 9px; padding-right: 10px; gap: 7px; }
+.module-tabs.sehr-kompakt .mod-name { max-width: 10ch; }
+.module-tabs.sehr-kompakt .mod-ico { display: none; }
 
 .topbar-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  /* Die Aktionen rechts (Einstellungen, Version) dürfen NIE weichen — sie
+     sind der einzige Weg zu Sprache und Token. */
+  flex: 0 0 auto;
 }
 
 /* ── v0.8.2: GPX-Bar im Modul-Header (globale GPX-Quelle) ───────────── */
@@ -373,7 +406,11 @@ input[type="color"] {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 240px;
+  /* ⚠️ In `ch` statt Pixeln und deutlich knapper (v0.9.508): der Sitzungsname
+     ist beliebig lang („2026-04-28_2916538328_66 See …") und drückte die
+     Modulleiste zusammen, bis das letzte Modul nicht mehr sichtbar war. Der
+     volle Name steht ohnehin im Menü darunter. */
+  max-width: 22ch;
 }
 .topbar-project-arrow {
   font-size: 10px;

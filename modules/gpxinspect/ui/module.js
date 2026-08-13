@@ -334,7 +334,7 @@ function mountGpxInspect(body, headerActions) {
     if (isUnmounted) return;
     if (!res || !res.ok) {
       if (window.isMissingFileError && window.isMissingFileError(res && res.error)) window.showSourceMissingBanner(path);
-      else toast((res && res.error) || "GPX-Fehler", "error", 5000);
+      else toast((res && res.error) || t("error.gpx_generic", "GPX-Fehler"), "error", 5000);
       return;
     }
     if (window.hideSourceMissingBanner) window.hideSourceMissingBanner();

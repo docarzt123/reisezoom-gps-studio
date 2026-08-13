@@ -1464,13 +1464,14 @@ function mountAnimator(body, headerActions, opts) {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener("input", () => _animPushUndo(
-      id === "anim-intro" ? "Intro geändert" :
-      id === "anim-hold"  ? "Hold geändert"  : "Dauer geändert"
+      id === "anim-intro" ? t("undo.intro_geaendert", "Intro geändert") :
+      id === "anim-hold"  ? t("undo.hold_geaendert", "Hold geändert")
+                          : t("undo.dauer_geaendert", "Dauer geändert")
     ));
   });
   // Master-Toggle ist discrete: force-push damit's nicht weggeschluckt wird
   document.getElementById("anim-kf-enabled")?.addEventListener("change", () => {
-    _animPushUndo("Keyframe-Editor umgeschaltet", { force: true });
+    _animPushUndo(t("undo.keyframe_editor_umgeschaltet", "Keyframe-Editor umgeschaltet"), { force: true });
   });
   // v0.9.59 (Nutzer-Wunsch): Intro-Hold analog zum Outro-Hold
   bindSetting("anim-intro", _MODKEY, "intro_s", { type: "number" });
@@ -3466,7 +3467,7 @@ function mountAnimator(body, headerActions, opts) {
   function snapshotKeyframe(anchor, options) {
     if (!map) return;
     options = options || {};
-    _animPushUndo("Keyframe gesetzt", { force: true });
+    _animPushUndo(t("undo.keyframe_gesetzt", "Keyframe gesetzt"), { force: true });
     if (anchor == null) anchor = _tlBar ? _tlBar.getScrubber() : 0;
     anchor = Math.max(0, Math.min(1, anchor));
     const pitch = +map.getPitch().toFixed(2);
@@ -3544,7 +3545,7 @@ function mountAnimator(body, headerActions, opts) {
   // (alle 4 Properties).
   function createSingleProperty(kind, anchor) {
     if (!map) return;
-    _animPushUndo("Property-Keyframe gesetzt", { force: true });
+    _animPushUndo(t("undo.property_keyframe_gesetzt", "Property-Keyframe gesetzt"), { force: true });
     if (kind === "__cluster") {
       snapshotKeyframe(anchor);
       return;
@@ -3593,7 +3594,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function deleteKeyframe(idx) {
-    _animPushUndo("Keyframe gelöscht", { force: true });
+    _animPushUndo(t("undo.keyframe_geloescht", "Keyframe gelöscht"), { force: true });
     const anchors = clusterAnchors();
     if (idx == null || idx < 0 || idx >= anchors.length) return;
     const anchor = anchors[idx];
@@ -3605,7 +3606,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function clearAllKeyframes() {
-    _animPushUndo("Alle Keyframes gelöscht", { force: true });
+    _animPushUndo(t("undo.alle_keyframes_geloescht", "Alle Keyframes gelöscht"), { force: true });
     // Alle Property-Events (camera-lanes) löschen; marker/photo bleiben für später.
     const events = getRawTimelineEvents().filter(e => e && !KF_LANES.includes(e.kind));
     setTimelineEvents(events);
@@ -3687,7 +3688,7 @@ function mountAnimator(body, headerActions, opts) {
     const quelle = _eventsAmAnker(events, ev.kind, ev.anchor || 0);
     if (!quelle.length) return 0;
 
-    _animPushUndo("Keyframe kopiert", { force: true });
+    _animPushUndo(t("undo.keyframe_kopiert", "Keyframe kopiert"), { force: true });
 
     const arten = quelle.map(e => e.kind);
     const bereinigt = _kollisionenRaeumen(events, arten, ziel);
@@ -3729,7 +3730,7 @@ function mountAnimator(body, headerActions, opts) {
   function pasteEventFromClipboard(zielAnker) {
     if (!_kfClipboard || !_kfClipboard.events.length) return;
     const ziel = Math.max(0, Math.min(1, zielAnker));
-    _animPushUndo("Keyframe eingefügt", { force: true });
+    _animPushUndo(t("undo.keyframe_eingefuegt", "Keyframe eingefügt"), { force: true });
     const arten = _kfClipboard.events.map(e => e.kind);
     const events = _kollisionenRaeumen(getRawTimelineEvents().slice(), arten, ziel);
     for (const e of _kfClipboard.events) {
@@ -3746,7 +3747,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function moveEvent(ev, newAnchor) {
-    _animPushUndo("Keyframe verschoben");  // throttled — pusht nur den 1. Drag-State
+    _animPushUndo(t("undo.keyframe_verschoben", "Keyframe verschoben"));  // throttled — pusht nur den 1. Drag-State
     if (!ev || !ev.kind) return;
     const clamped = Math.max(0, Math.min(1, newAnchor));
 
@@ -3803,7 +3804,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function deleteEventOne(ev) {
-    _animPushUndo("Property gelöscht", { force: true });
+    _animPushUndo(t("undo.property_geloescht", "Property gelöscht"), { force: true });
     if (!ev || !ev.kind) return;
 
     // v0.9.4 — Rechtsklick auf Cluster-Marker → ganzen Cluster löschen
@@ -3838,7 +3839,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function updateKeyframeAnchor(idx, anchor) {
-    _animPushUndo("Anchor geändert");  // throttled
+    _animPushUndo(t("undo.anchor_geaendert", "Anchor geändert"));  // throttled
     const anchors = clusterAnchors();
     if (idx == null || idx < 0 || idx >= anchors.length) return;
     const oldAnchor = anchors[idx];
@@ -3863,7 +3864,7 @@ function mountAnimator(body, headerActions, opts) {
   // dem gleichen Event (kind=zoom + anchor), als `value_offset` (legacy)
   // und `value_absolute` (reload-stabil).
   function updateKeyframeFields(idx, patch) {
-    _animPushUndo("Keyframe-Werte geändert");  // throttled — Map-Drag, Slider-Move etc.
+    _animPushUndo(t("undo.keyframe_werte_geaendert", "Keyframe-Werte geändert"));  // throttled — Map-Drag, Slider-Move etc.
     const anchors = clusterAnchors();
     if (idx == null || idx < 0 || idx >= anchors.length) return;
     const anchor = anchors[idx];
@@ -6102,7 +6103,7 @@ function mountAnimator(body, headerActions, opts) {
             }
           }
           if (changed > 0) {
-            _animPushUndo("Easing geändert");
+            _animPushUndo(t("undo.easing_geaendert", "Easing geändert"));
             saveProjectSettings(_MODKEY, { timeline_events: events });
             if (_tlBar && _tlBar.refresh) _tlBar.refresh();
             // Sofort scrubPreview damit man die neue Kurve im Live-Preview sieht
@@ -6112,7 +6113,7 @@ function mountAnimator(body, headerActions, opts) {
         onTrimChange: (start, end, committed) => {
           // v0.9.66: Undo-Snapshot vor der ersten Mutation in der Drag-Sequenz
           // (Throttle schluckt die restlichen Frames).
-          _animPushUndo("Trim verschoben");
+          _animPushUndo(t("undo.trim_verschoben", "Trim verschoben"));
           if (committed) {
             saveProjectSettings(_MODKEY, {
               render_start_anchor: +start.toFixed(4),
@@ -9231,7 +9232,7 @@ function mountAnimator(body, headerActions, opts) {
   function _chartAdopt(id) {
     const ch = _chartById(id);
     if (!ch) return;
-    _animPushUndo("Diagramm-Stil übernommen", { force: true });
+    _animPushUndo(t("undo.diagramm_stil_uebernommen", "Diagramm-Stil übernommen"), { force: true });
     let style = null;
     try {
       const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
@@ -9269,7 +9270,7 @@ function mountAnimator(body, headerActions, opts) {
     if (addBtn && !addBtn._bound) {
       addBtn._bound = true;
       addBtn.addEventListener("click", () => {
-        _animPushUndo("Diagramm hinzugefügt", { force: true });
+        _animPushUndo(t("undo.diagramm_hinzugefuegt", "Diagramm hinzugefügt"), { force: true });
         _charts.push(_chartDefault());
         _chartsPersist(); _chartsRenderList(); _chartsPreviewRender(true);
       });
@@ -9284,7 +9285,7 @@ function mountAnimator(body, headerActions, opts) {
         const act = e.target.getAttribute("data-act");
         if (!act) return;
         // Undo VOR der Mutation (throttled → ein Slider-Zug = ein Schritt).
-        _animPushUndo("Diagramm angepasst");
+        _animPushUndo(t("undo.diagramm_angepasst", "Diagramm angepasst"));
         let sigChange = false;
         if (act === "series") { ch.series = e.target.value; sigChange = true; }
         else if (act === "pos") { ch.position = e.target.value; }
@@ -9320,7 +9321,7 @@ function mountAnimator(body, headerActions, opts) {
         const act = e.target.getAttribute("data-act");
         const id = card.getAttribute("data-chart-id");
         if (act === "del") {
-          _animPushUndo("Diagramm entfernt", { force: true });
+          _animPushUndo(t("undo.diagramm_entfernt", "Diagramm entfernt"), { force: true });
           _charts = _charts.filter((c) => c.id !== id);
           delete _chartPreviewSig[id];
           _chartsPersist(); _chartsRenderList(); _chartsPreviewRender(true);

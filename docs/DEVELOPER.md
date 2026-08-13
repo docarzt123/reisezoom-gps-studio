@@ -311,10 +311,33 @@ Bausteine:
 * Der Erste-Schritte-Guide (`ui/js/quickstart.js`) übersetzt beim Öffnen über
   `quickstart.<modul>.<feld>`; die deutschen Texte im File sind nur Fallbacks.
 
-⚠️ **Noch offen (inventarisiert, v0.9.508-Kandidat):** ~40 Undo-Balken-Labels
-(„Keyframe gelöscht" …), 4 JS-Fehler-Toasts, ~44 deutsche Fehlertexte aus
-app.py-Handlern (landen in Toasts), Dateifilter-Namen der Picker („Track
-Dateien"), Zeitzonen-Hinweise im Geotagger („US-Westküste"). Siehe HANDOVER.
+**Seit v0.9.508 vollständig** — Undo-Labels, Backend-Fehlertexte,
+Picker-Dateifilter und die Zeitzonen-Ortsbeispiele sind übersetzt (107
+Schlüssel). Zwei Prüfungen halten das:
+
+* `tests/test_keine_hartkodierte_sprache.py` — zählt die bekannten Muster
+  (Undo-Label ohne `t()`, deutscher Klartext in `"error"`, untersetzte
+  `emit()`-Meldung) und bricht, sobald eines wieder auftaucht.
+* `tests/test_sprache_ui.py` → `scripts/selftest_sprache.py` — lädt die
+  **komplette Oberfläche auf Spanisch** im echten Browser, klickt jedes Modul
+  durch und sucht im sichtbaren Text nach deutschen Wörtern. ⚠️ Das ist der
+  Unterschied zu `check_i18n.py`: dort wird geprüft, ob Schlüssel EXISTIEREN,
+  hier, ob sie BENUTZT werden. Genau dazwischen lag der gemeldete Fehler.
+
+⚠️ **Konstanten, die beim Laden gebaut werden, können nicht übersetzt sein.**
+`window.TRACK_PICK_FILTER` war ein fertiges Array — gebaut, bevor die
+Sprachdatei über die Brücke da war, also für immer deutsch. Jetzt ein Getter,
+der beim Öffnen des Dialogs übersetzt. Bei allem, was auf Modulebene steht und
+Text enthält, dieselbe Frage stellen.
+
+⚠️ **Die Beschreibung im Datei-Dialog darf nur Buchstaben und Leerzeichen
+enthalten** — pywebviews Windows-Backend prüft sie mit `[\w ]+` und stürzt
+sonst ab (Nutzer-Bug v0.9.285). Der Wächter-Test prüft das für alle drei
+Sprachen mit.
+
+Bewusst NICHT übersetzt: `log.*`/`applog`-Ausgaben (Support-Logs für Marc),
+technische Fehlercodes wie `no_token` (die wertet das Frontend aus), Einheiten
+(bpm, W, km/h) und „UTC+2".
 
 ### Verteilung der Frames über den Track (v0.9.506)
 

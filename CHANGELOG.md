@@ -14,6 +14,40 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.508] – 2026-08-13
+
+### Geändert
+- **Der Rest der hartkodierten deutschen Texte ist weg.** v0.9.507 hat die
+  gerenderten Videos übersetzt, diese Version die letzten Ecken: die rund 40
+  Beschriftungen im Rückgängig-Balken („Keyframe gelöscht"), die Fehlermeldungen
+  aus dem Programmkern (sie erscheinen als Hinweis-Blase), die Beschreibungen
+  in den Datei-Dialogen („Track Dateien", „Bilder", „Alle Dateien") und die
+  Ortsbeispiele in der Zeitzonen-Liste des Geotaggers („US-Westküste" →
+  „Costa oeste de EE. UU."). Insgesamt 107 neue Beschriftungen in drei Sprachen.
+- **Ein Wächter hält das jetzt so.** `tests/test_keine_hartkodierte_sprache.py`
+  bricht, sobald wieder ein angezeigter Text ohne Übersetzung dazukommt — und
+  ein zweiter Test lädt die komplette Oberfläche auf Spanisch und sucht im
+  fertigen Bildschirminhalt nach deutschen Wörtern. Der Unterschied zur
+  bisherigen Prüfung: die sagte nur, ob die Vokabeln EXISTIEREN, nicht ob sie
+  BENUTZT werden. Genau dazwischen lag der gemeldete Fehler.
+
+### Behoben
+- **Die Kopfleiste verkraftet lange Modulnamen.** Auf Spanisch stand dort
+  „de viaje" statt „Ruta de viaje": der Name brach auf zwei Zeilen um und
+  rutschte aus der 56 Pixel hohen Leiste. Namen bleiben jetzt einzeilig; wird
+  es eng, fallen zuerst die Unterzeilen weg und dann werden die Namen gekürzt —
+  gemessen statt geraten, weil übersetzte Namen unterschiedlich lang sind.
+- **Die Knöpfe oben rechts konnten aus dem Fenster geschoben werden.** Mit den
+  breiteren Namen verdrängte die Modulleiste Einstellungen und Versionsnummer —
+  also ausgerechnet den Weg zur Sprachauswahl. Sie bleiben jetzt immer stehen.
+- **Der Rückgängig-Balken zeigte technische Kennungen** („gt-ignore-gps
+  geändert"). Er nimmt jetzt die sichtbare Beschriftung des Bedienelements —
+  übersetzt und verständlich („Foto-eigenes GPS ignorieren geändert").
+- **Die Beschreibung im Datei-Dialog blieb deutsch, auch bei anderer Sprache.**
+  Sie wurde beim Programmstart einmal zusammengebaut — da sind die
+  Übersetzungen noch gar nicht geladen. Jetzt wird sie beim Öffnen des Dialogs
+  gebildet. (Beim Test in spanischer Oberfläche aufgefallen.)
+
 ## [0.9.507] – 2026-08-13
 
 ### Behoben
