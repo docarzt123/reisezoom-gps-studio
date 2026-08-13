@@ -14,6 +14,33 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.507] – 2026-08-13
+
+### Behoben
+- **Gerenderte Videos waren immer deutsch beschriftet** (gemeldet von einem
+  spanischen Nutzer mit Screenshots: die Vorschau zeigte „DISTANCIA / ASCENSO",
+  das Video „STRECKE / BERGAUF"). Die Overlay-Beschriftungen — Stats-Felder,
+  Sensor-Namen, Höhenprofil-Titel, Min/Max — waren im Renderer einprogrammiert;
+  die Vorschau übersetzte, der Renderer nicht. Jetzt beziehen **beide dieselben
+  Schlüssel** aus den Sprachdateien: Video, Standbild, Daten-Animator und
+  Web-Exporte folgen der App-Sprache. Umbenennungen des Nutzers schlagen die
+  Übersetzung weiterhin.
+- **Fortschrittsmeldungen beim Rendern** („Lade GPX-Datei …", „Fertig.") sind
+  jetzt ebenfalls übersetzt.
+- **Start/Ziel-Beschriftung der Web-Karte** und die OpenStreetMap-Attribution
+  folgen der App-Sprache (außerhalb von Deutsch die kanonische englische Form
+  „© OpenStreetMap contributors").
+
+### Geändert
+- **Der Erste-Schritte-Guide ist jetzt dreisprachig.** Er war bewusst nur
+  deutsch (Entscheidung v0.9.460, „Zielgruppe ist deutschsprachig") — das ist
+  mit internationalen Nutzern überholt. Grundsatz seit dieser Version: nirgends
+  darf hartkodiert eine Sprache stehen, die angezeigt wird.
+- **Monatskürzel in der Archiv-Statistik** kommen aus der Sprachdatei
+  („Mär/Okt/Dez" → „Ene/Abr/Ago/Dic" im Spanischen).
+- **Sensor-Namen im Katalog** (Herzfrequenz, Trittfrequenz, Leistung …) sind
+  übersetzt — in der Feldauswahl wie im gerenderten Video.
+
 ## [0.9.506] – 2026-08-12
 
 ### Hinzugefügt

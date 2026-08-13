@@ -286,6 +286,36 @@ klaut das Werkzeug dem Nutzer das normale Text-Kopieren.
 `scripts/selftest_keyframes.py` prüft genau das im echten Browser, inklusive der
 Probe, dass ⌘C im Eingabefeld NICHT bei uns landet.
 
+### Sprache im Backend: nichts Angezeigtes ist hartkodiert (v0.9.507)
+
+**Grundsatz (Marc, 2026-08-13): nirgends darf hartkodiert eine Sprache stehen,
+die irgendwo angezeigt wird.** Auslöser war ein spanischer Nutzer, dessen
+Videos deutsch beschriftet waren („STRECKE / BERGAUF"), während die Vorschau
+korrekt Spanisch zeigte — die Overlay-Labels waren im Renderer einprogrammiert.
+
+Bausteine:
+
+* `core/i18n.py → uebersetzer(lang)` liefert ein `t(key, fallback)` für die
+  Backend-Seite. **Dieselben Schlüssel wie die Oberfläche** benutzen
+  (`animator.statsfield.<id>`, `sensors.field.<key>`, `heightanim.series.<id>`)
+  — Vorschau und Render müssen wortgleich sein.
+* `AnimatorConfig.ui_lang` / `HeightConfig.ui_lang` — app.py setzt sie an
+  JEDEM Config-Bau über `_ui_sprache()`. Eine neue Render-Config ohne
+  `ui_lang=` fällt auf Deutsch zurück; `tests/test_render_i18n.py` zählt die
+  Zuweisungen.
+* Reihenfolge überall: **Nutzer-Umbenennung > Übersetzung > deutsches
+  Fallback.** Die deutschen Katalog-Labels bleiben als Fallback im Code stehen
+  (sie enthalten teils HTML-Entities; Übersetzungen werden escaped).
+* Fortschrittsmeldungen (`emit(...)`) laufen ebenfalls über `_t` — sie stehen
+  im Render-Dialog. Die `log.*`-Zeilen bleiben bewusst deutsch (Support-Logs).
+* Der Erste-Schritte-Guide (`ui/js/quickstart.js`) übersetzt beim Öffnen über
+  `quickstart.<modul>.<feld>`; die deutschen Texte im File sind nur Fallbacks.
+
+⚠️ **Noch offen (inventarisiert, v0.9.508-Kandidat):** ~40 Undo-Balken-Labels
+(„Keyframe gelöscht" …), 4 JS-Fehler-Toasts, ~44 deutsche Fehlertexte aus
+app.py-Handlern (landen in Toasts), Dateifilter-Namen der Picker („Track
+Dateien"), Zeitzonen-Hinweise im Geotagger („US-Westküste"). Siehe HANDOVER.
+
 ### Verteilung der Frames über den Track (v0.9.506)
 
 Die Frame-Schleife läuft über die Punkt-REIHENFOLGE

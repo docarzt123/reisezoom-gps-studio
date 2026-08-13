@@ -31,6 +31,7 @@ import threading
 import time
 
 from core import sensors as _sensors
+from core import i18n as _i18n
 
 # v0.9.274 (Nutzer-Bug) — Windows: ffmpeg ohne sichtbares Konsolenfenster starten.
 _WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
@@ -156,6 +157,10 @@ class HeightConfig:
     # Lokalisierte Labels für die Kopf-Leiste {field_id: label}. Aus der UI
     # (t()) durchgereicht damit das Video zur App-Sprache passt. Fallback DE.
     stats_labels: dict = field(default_factory=dict)
+    # v0.9.507 — Sprache für alles, was ins VIDEO gerendert wird und wofür die
+    # UI keine lokalisierten Labels mitgeschickt hat (alte Projekte ohne
+    # gespeicherte series_labels/stats_labels). Leer = deutsche Fallbacks.
+    ui_lang: str = ""
     # Wegpunkte auf der Strecke: [{dist_m, ele, label, icon, color}]. Bereits
     # auf dist_m aufgelöst (Projektion/Anchor passiert in der Bridge/UI).
     waypoints: list = field(default_factory=list)
@@ -196,8 +201,9 @@ def _make_html(cfg: HeightConfig, distances_m: list[float], elevations: list[flo
     label_color = cfg.label_color or "#cccccc"
     # v0.9.437 (Daten-Animator) — Meta der geplotteten Serie fürs Template.
     _sid = getattr(cfg, "series_a", "ele") or "ele"
+    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
     _s_label, _s_unit = series_meta(_sid, getattr(cfg, "series_labels", None),
-                                    getattr(cfg, "series_units", None))
+                                    getattr(cfg, "series_units", None), t=_t)
     series_id_json = json.dumps(_sid)
     series_label_json = json.dumps(_s_label)
     series_unit_json = json.dumps(_s_unit)
@@ -206,7 +212,7 @@ def _make_html(cfg: HeightConfig, distances_m: list[float], elevations: list[flo
     # Meta der zweiten Reihe (rechte Achse).
     if _has_b:
         _b_label, _b_unit = series_meta(_sid_b, getattr(cfg, "series_labels", None),
-                                        getattr(cfg, "series_units", None))
+                                        getattr(cfg, "series_units", None), t=_t)
     else:
         _b_label, _b_unit = "", ""
     has_b_js = "true" if _has_b else "false"
@@ -930,7 +936,8 @@ async def render(cfg: HeightConfig,
         except Exception as e:
             _log.debug("preview encode failed: %s", e)
 
-    emit(0.0, "Lade GPX-Datei …")
+    _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
+    emit(0.0, _t("animator.progress.load_gpx", "Lade GPX-Datei …"))
     _log.info("heightanim.render() start · GPX=%s · output=%s", cfg.gpx_path, cfg.output_path)
 
     pts, stats = cgpx.parse_gpx(cfg.gpx_path)
@@ -967,7 +974,7 @@ async def render(cfg: HeightConfig,
     hold_frames = max(0, int(round(cfg.hold_s * cfg.fps)))
     total_frames = anim_frames + hold_frames
 
-    emit(0.02, "Browser laden …")
+    emit(0.02, _t("heightanim.progress.browser", "Browser laden …"))
 
     from playwright.async_api import async_playwright
 
@@ -1012,7 +1019,7 @@ async def render(cfg: HeightConfig,
                 break
             await asyncio.sleep(0.1)
 
-        emit(0.05, f"Rendere {total_frames} Frames …")
+        emit(0.05, _t("heightanim.progress.frames", "Rendere Frames") + f" ({total_frames}) …")
 
         # ── ffmpeg starten ─────────────────────────────────────────────
         ffmpeg_bin = find_ffmpeg()
@@ -1102,7 +1109,7 @@ async def render(cfg: HeightConfig,
             try: ff.stdin.close()
             except Exception: pass
 
-        emit(0.92, "ffmpeg finalisiert …")
+        emit(0.92, _t("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
         ff.wait()
         try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
         except Exception: pass
@@ -1126,7 +1133,7 @@ async def render(cfg: HeightConfig,
 
         await browser.close()
 
-    emit(1.0, "Fertig.")
+    emit(1.0, _t("animator.progress.done", "Fertig."))
     return cfg.output_path
 
 
@@ -1268,7 +1275,7 @@ def _fill_gaps(vals: list) -> list[float]:
     return out
 
 
-def available_series(points: list, overrides: dict | None = None) -> list[dict]:
+def available_series(points: list, overrides: dict | None = None, t=None) -> list[dict]:
     """Alle im Track nutzbaren Messreihen für den Daten-Animator.
 
     Rückgabe: [{"id","label","unit","values"}] — abgeleitet zuerst (Höhe,
@@ -1283,14 +1290,20 @@ def available_series(points: list, overrides: dict | None = None) -> list[dict]:
 
     if has_ele:
         lbl, unit = DERIVED_SERIES["ele"]
+        if t is not None:
+            lbl = t("heightanim.series.ele", lbl)
         out.append({"id": "ele", "label": lbl, "unit": unit,
                     "values": [(p.ele if p.ele is not None else 0.0) for p in points]})
     if has_time:
         lbl, unit = DERIVED_SERIES["speed"]
+        if t is not None:
+            lbl = t("heightanim.series.speed", lbl)
         out.append({"id": "speed", "label": lbl, "unit": unit,
                     "values": [round(v, 2) for v in _series_speed(points)]})
     if has_ele:
         lbl, unit = DERIVED_SERIES["grade"]
+        if t is not None:
+            lbl = t("heightanim.series.grade", lbl)
         out.append({"id": "grade", "label": lbl, "unit": unit,
                     "values": [round(v, 2) for v in _series_grade(points)]})
 
@@ -1309,7 +1322,7 @@ def available_series(points: list, overrides: dict | None = None) -> list[dict]:
         raw = [(p.extra or {}).get(k) for p in points]
         if not any(isinstance(v, (int, float)) for v in raw):
             continue
-        label, unit = _sensors.field_meta_ov(k, overrides)
+        label, unit = _sensors.field_meta_ov(k, overrides, t)
         sensors.append({"id": k, "label": label, "unit": unit,
                         "values": [round(v, 2) for v in _fill_gaps(raw)]})
     sensors.sort(key=lambda s: (s["id"] not in _sensors.FIELD_META, s["label"].lower()))
@@ -1346,16 +1359,20 @@ def _series_decimals(sid: str) -> int:
     return 1 if sid in ("speed", "grade", "temperature", "core_temp") else 0
 
 
-def series_meta(sid: str, labels: dict | None = None, units: dict | None = None) -> tuple[str, str]:
+def series_meta(sid: str, labels: dict | None = None, units: dict | None = None,
+                t=None) -> tuple[str, str]:
     """(Label, Einheit) einer Serie. Reihenfolge: von der UI durchgereichte
-    (lokalisierte) Werte → abgeleiteter Default → Sensor-Registry."""
+    (lokalisierte) Werte → Übersetzung in der App-Sprache (v0.9.507, für alte
+    Projekte ohne gespeicherte Labels) → deutscher Default → Sensor-Registry."""
     lbl = (labels or {}).get(sid)
     unit = (units or {}).get(sid)
     if lbl is None or unit is None:
         if sid in DERIVED_SERIES:
             d_lbl, d_unit = DERIVED_SERIES[sid]
+            if t is not None:
+                d_lbl = t("heightanim.series." + sid, d_lbl)
         else:
-            d_lbl, d_unit = _sensors.field_meta(sid)
+            d_lbl, d_unit = _sensors.field_meta(sid, t)
         lbl = d_lbl if lbl is None else lbl
         unit = d_unit if unit is None else unit
     return lbl, unit

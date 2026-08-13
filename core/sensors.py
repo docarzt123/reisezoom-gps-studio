@@ -124,16 +124,27 @@ RZ_READ: dict[str, str] = {
 RZ_NS = "https://reisezoom.com/gpx/logger/1"
 
 
-def field_meta(key: str) -> tuple[str, str]:
-    """(Label, Einheit) für einen Key; Fallback: (Key, "") für Unbekanntes."""
-    return FIELD_META.get(key, (key, ""))
+def field_meta(key: str, t=None) -> tuple[str, str]:
+    """(Label, Einheit) für einen Key; Fallback: (Key, "") für Unbekanntes.
+
+    v0.9.507 — `t` ist der Übersetzer aus `core.i18n.uebersetzer()`: die Labels
+    hier sind deutsche Fallbacks, angezeigt werden sie aber im UI-Katalog UND
+    in gerenderten Videos — beides muss der App-Sprache folgen. Schlüssel:
+    `sensors.field.<key>`. Einheiten werden nie übersetzt (bpm, W, °C …)."""
+    lbl, unit = FIELD_META.get(key, (key, ""))
+    if t is not None and key in FIELD_META:
+        uebersetzt = t("sensors.field." + key, "")
+        if uebersetzt:
+            lbl = uebersetzt
+    return lbl, unit
 
 
-def field_meta_ov(key: str, overrides=None) -> tuple[str, str]:
+def field_meta_ov(key: str, overrides=None, t=None) -> tuple[str, str]:
     """Wie field_meta, aber projekt-eigene Overrides haben Vorrang. `overrides`
     ist ein dict `{key: {"label": str, "unit": str}}` (v0.9.334, Nutzer-Wunsch:
-    GRD_PCT→„Steigung", Trittfrequenz→„Schrittfrequenz/spm", Knoten beim Segeln …)."""
-    lbl, unit = field_meta(key)
+    GRD_PCT→„Steigung", Trittfrequenz→„Schrittfrequenz/spm", Knoten beim Segeln …).
+    Reihenfolge (v0.9.507): Override des Nutzers > Übersetzung > deutsches Fallback."""
+    lbl, unit = field_meta(key, t)
     if overrides:
         o = overrides.get(key)
         if isinstance(o, dict):
@@ -144,14 +155,14 @@ def field_meta_ov(key: str, overrides=None) -> tuple[str, str]:
     return lbl, unit
 
 
-def describe_fields(keys) -> list[dict]:
+def describe_fields(keys, t=None) -> list[dict]:
     """Liste [{key,label,unit}] für eine Menge vorhandener Keys (sortiert:
     bekannte zuerst in Registry-Reihenfolge, dann unbekannte alphabetisch)."""
     keys = set(keys)
     out = []
     for k in FIELD_META:
         if k in keys:
-            lbl, unit = FIELD_META[k]
+            lbl, unit = field_meta(k, t)
             out.append({"key": k, "label": lbl, "unit": unit})
             keys.discard(k)
     for k in sorted(keys):

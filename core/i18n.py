@@ -116,6 +116,26 @@ def load(code: str) -> dict:
         return {}
 
 
+def uebersetzer(code: str):
+    """t(key, fallback) für die Backend-Renderer (v0.9.507).
+
+    Videos, Standbilder und Web-Exporte müssen in der App-Sprache beschriftet
+    sein — bis v0.9.506 waren die Overlay-Beschriftungen deutsch einprogrammiert,
+    und ein spanischer Nutzer bekam Videos mit „ZURÜCKGELEGT" und „HÖHENPROFIL",
+    während die Vorschau korrekt Spanisch zeigte.
+
+    ⚠️ Bewusst dieselben Schlüssel wie die Oberfläche (z. B.
+    `animator.statsfield.dist_done`): Vorschau und Render müssen wortgleich
+    sein, sonst sieht der Render „falsch" aus, obwohl er nur anders übersetzt.
+    """
+    strings = get_strings(resolve(code or "auto"))
+
+    def t(key: str, fallback: str = "") -> str:
+        v = strings.get(key)
+        return v if isinstance(v, str) and v else fallback
+    return t
+
+
 def resolve(code: str) -> str:
     """Übersetzt 'auto' zur tatsächlichen System-Sprache."""
     if code == "auto" or not code:

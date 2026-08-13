@@ -188,7 +188,10 @@ function mountLibrary(body, headerActions) {
     { id: "eigen", label: () => T("library.range.custom", "Eigener Zeitraum …"), bereich: null },
   ];
 
-  const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+  // v0.9.507 — Monatskürzel aus der Sprachdatei: „Mär/Okt/Dez" sind deutsch,
+  // im Spanischen heißt es „Ene/Abr/Ago/Dic". Ein Schlüssel als Kommaliste,
+  // damit nicht zwölf einzelne gepflegt werden müssen.
+  const MONTHS = T("library.months_short", "Jan,Feb,Mär,Apr,Mai,Jun,Jul,Aug,Sep,Okt,Nov,Dez").split(",");
 
   body.classList.add("lib-mode");
 

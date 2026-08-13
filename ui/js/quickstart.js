@@ -4,10 +4,12 @@
  * Einstieg ist KONTEXTUELL: „🚀 Erste Schritte" im Hilfe-Menü zeigt den Guide
  * für das Modul, in dem man gerade steht (nicht eine lange Gesamtseite).
  *
- * Die Guide-Texte stehen bewusst als deutsche Klartext-Daten hier (nicht über
- * t()): es ist zusammenhängende Prosa, die App-Zielgruppe ist deutschsprachig,
- * und so bläht es die i18n-Bundles nicht mit ~100 Sätzen auf. Das Modal-
- * Drumherum (Titel, Buttons) ist normal lokalisiert.
+ * v0.9.507 — Die deutschen Texte hier sind nur noch die FALLBACKS: übersetzt
+ * wird beim Öffnen über `quickstart.<modul>.<feld>`-Schlüssel (title, intro,
+ * step1..3, tip). Die ursprüngliche Entscheidung „Zielgruppe ist deutschsprachig"
+ * (v0.9.460) ist überholt — das Programm wird international genutzt, und ein
+ * spanischer Nutzer bekam einen deutschen Einstieg. Grundsatz seitdem: nirgends
+ * hartkodiert eine Sprache, die angezeigt wird.
  */
 (() => {
   // Modul-Key (= RZGPS_MODULES-Slug) → Guide. `img` liegt unter ui/img/quickstart/.
@@ -131,25 +133,30 @@
       || "animator";
     const g = guideFor(active);
     const T = (typeof window.t === "function") ? window.t : (k, f) => f || k;
+    // Übersetzung pro Feld — der Schlüssel hängt am Guide, der wirklich gezeigt
+    // wird (Fallback-Slug „animator"), nicht am angefragten Modul.
+    const slug = QS[active] ? active : "animator";
+    const tr = (feld, fb) => T("quickstart." + slug + "." + feld, fb);
+    const titel = tr("title", g.title);
 
     const stepsHtml = g.steps.map((s, i) =>
-      `<li class="qs-step"><span class="qs-step-n">${i + 1}</span><span class="qs-step-t">${s}</span></li>`
+      `<li class="qs-step"><span class="qs-step-n">${i + 1}</span><span class="qs-step-t">${tr("step" + (i + 1), s)}</span></li>`
     ).join("");
 
     const tipHtml = g.tip
-      ? `<p class="qs-tip">💡 ${esc(g.tip)}</p>` : "";
+      ? `<p class="qs-tip">💡 ${esc(tr("tip", g.tip))}</p>` : "";
 
     const body = `
       <div class="qs-wrap">
-        <p class="qs-intro">${esc(g.intro)}</p>
-        <img class="qs-shot" src="${g.img}" alt="${esc(g.title)}"
+        <p class="qs-intro">${esc(tr("intro", g.intro))}</p>
+        <img class="qs-shot" src="${g.img}" alt="${esc(titel)}"
              onerror="this.style.display='none'">
         <ol class="qs-steps">${stepsHtml}</ol>
         ${tipHtml}
       </div>`;
 
     window.openModal({
-      title: `${g.emoji} ${T("quickstart.title", "Erste Schritte")} — ${esc(g.title.split(" — ")[0])}`,
+      title: `${g.emoji} ${T("quickstart.title", "Erste Schritte")} — ${esc(titel.split(" — ")[0])}`,
       body,
       footer: `
         <button class="btn" id="qs-guide">${T("quickstart.full_guide", "Ganzes Handbuch")}</button>
