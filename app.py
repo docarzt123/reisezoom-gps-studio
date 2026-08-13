@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.507"
+APP_VERSION = "0.9.508"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1406,7 +1406,7 @@ class Api:
         """
         try:
             if not coords or len(coords) < 2:
-                return {"ok": False, "error": "Track zu kurz für Session-Hash"}
+                return {"ok": False, "error": _ui_t()("error.track_zu_kurz_fuer_session", "Track zu kurz für Session-Hash")}
             # v0.9.382 — Name-im-Hash (v0.9.380) ZURÜCKGENOMMEN: `session_open_for_track`
             # wird pro Load mehrfach aufgerufen, teils MIT gpx_path, teils ohne (z.B.
             # Geotagger-Drop). Mit Name im Hash ergab das ZWEI Sessions für denselben
@@ -1454,7 +1454,7 @@ class Api:
             data = _sessions.load_sessions(SESSIONS_FILE)
             sess = (data.get("sessions") or {}).get(track_hash)
             if not sess:
-                return {"ok": False, "error": "Session nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
             return {
                 "ok": True,
                 "projects": _sessions.list_projects(sess),
@@ -1469,9 +1469,9 @@ class Api:
             data = _sessions.load_sessions(SESSIONS_FILE)
             sess = (data.get("sessions") or {}).get(track_hash)
             if not sess:
-                return {"ok": False, "error": "Session nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
             if not _sessions.set_active_project(sess, project_id):
-                return {"ok": False, "error": "Projekt nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             _sessions.save_sessions(SESSIONS_FILE, data)
             active_proj = sess["projects"][project_id]
             log.info("session_set_active_project: hash=%s project=%r",
@@ -1494,7 +1494,7 @@ class Api:
             data = _sessions.load_sessions(SESSIONS_FILE)
             sess = (data.get("sessions") or {}).get(track_hash)
             if not sess:
-                return {"ok": False, "error": "Session nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
             defaults = self._session_get_global_defaults()
             proj = _sessions.create_project(
                 sess, name or _sessions.DEFAULT_PROJECT_NAME, defaults,
@@ -1518,9 +1518,9 @@ class Api:
             data = _sessions.load_sessions(SESSIONS_FILE)
             sess = (data.get("sessions") or {}).get(track_hash)
             if not sess:
-                return {"ok": False, "error": "Session nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
             if not _sessions.rename_project(sess, project_id, new_name or "?"):
-                return {"ok": False, "error": "Projekt nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             _sessions.save_sessions(SESSIONS_FILE, data)
             return {"ok": True, "projects": _sessions.list_projects(sess)}
         except Exception as e:
@@ -1532,7 +1532,7 @@ class Api:
             data = _sessions.load_sessions(SESSIONS_FILE)
             sess = (data.get("sessions") or {}).get(track_hash)
             if not sess:
-                return {"ok": False, "error": "Session nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
             defaults = self._session_get_global_defaults()
             new_active = _sessions.delete_project(sess, project_id, defaults)
             _sessions.save_sessions(SESSIONS_FILE, data)
@@ -1559,7 +1559,7 @@ class Api:
             data = _sessions.load_sessions(SESSIONS_FILE)
             sess = (data.get("sessions") or {}).get(track_hash)
             if not sess:
-                return {"ok": False, "error": "Session nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
             # Geotagger: photo-Refs filtern
             if module == "geotagger" and isinstance(patch, dict):
                 patch = {k: v for k, v in patch.items()
@@ -1567,7 +1567,7 @@ class Api:
             # Auch animator: timeline_events landet aber jetzt im Projekt,
             # das ist OK (track-gebunden, ergibt Sinn)
             if not _sessions.update_project_settings(sess, project_id, module, patch):
-                return {"ok": False, "error": "Projekt nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             _sessions.save_sessions(SESSIONS_FILE, data)
             return {"ok": True}
         except Exception as e:
@@ -1584,9 +1584,9 @@ class Api:
             data = _sessions.load_sessions(SESSIONS_FILE)
             sess = (data.get("sessions") or {}).get(track_hash)
             if not sess:
-                return {"ok": False, "error": "Session nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
             if not _sessions.update_project_settings(sess, project_id, None, patch):
-                return {"ok": False, "error": "Projekt nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             _sessions.save_sessions(SESSIONS_FILE, data)
             return {"ok": True}
         except Exception as e:
@@ -1720,7 +1720,7 @@ class Api:
                     return {"ok": False, "cancelled": True}
                 path = picked[0]
             if not clib.add_folder(self._lib(), path):
-                return {"ok": False, "error": "Kein Ordner"}
+                return {"ok": False, "error": _ui_t()("error.kein_ordner", "Kein Ordner")}
             return {"ok": True, "path": str(Path(path).expanduser().resolve()),
                     "folders": clib.get_folders(self._lib())}
         except Exception as e:
@@ -1919,7 +1919,7 @@ class Api:
         _s = _load_settings()
         if not _s.get("geocode_enabled", True):
             return {"ok": False, "disabled": True,
-                    "error": "Adress-Suche ist in den Einstellungen deaktiviert"}
+                    "error": _ui_t()("error.adress_suche_ist_in_den", "Adress-Suche ist in den Einstellungen deaktiviert")}
         # Und den gewählten Anbieter beachten, statt hart Nominatim zu nehmen:
         # Wer Mapbox eingestellt hat, wartete sonst die 1,1-Sekunden-Zwangspause
         # von Nominatim ab, obwohl sein Anbieter zehnmal schneller darf.
@@ -2132,7 +2132,7 @@ class Api:
                 data_url = data_url.split(",", 1)[1]
             roh = base64.b64decode(data_url)
             if len(roh) < 1024:
-                return {"ok": False, "error": "Die Karte war noch leer."}
+                return {"ok": False, "error": _ui_t()("error.die_karte_war_noch_leer", "Die Karte war noch leer.")}
             stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             vorschlag = f"{(name or 'Archiv-Karte').strip()}_{stamp}.png"
             pfad = self.pick_save_path(vorschlag, "", ["PNG-Bild (*.png)"])
@@ -2312,7 +2312,7 @@ class Api:
             import subprocess
             p = Path(path)
             if not p.exists():
-                return {"ok": False, "error": "Datei nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.datei_nicht_gefunden", "Datei nicht gefunden")}
             if sys.platform == "darwin":
                 subprocess.run(["open", "-R", str(p)], check=False)
             elif sys.platform.startswith("win"):
@@ -2336,7 +2336,7 @@ class Api:
             path = res[0]
             thumb = self._photo_thumbnail_data_url(path, 600)
             if not thumb:
-                return {"ok": False, "error": "Bild konnte nicht gelesen werden."}
+                return {"ok": False, "error": _ui_t()("error.bild_konnte_nicht_gelesen_werden", "Bild konnte nicht gelesen werden.")}
             return {"ok": True, "path": path, "thumb": thumb}
         except Exception as e:
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
@@ -2481,7 +2481,7 @@ class Api:
             s = _load_settings()
             src = str(s.get("last_gpx_path", "") or "")
             if not src or not os.path.exists(src):
-                return {"ok": False, "error": "Kein Track geladen."}
+                return {"ok": False, "error": _ui_t()("error.kein_track_geladen", "Kein Track geladen.")}
             gpx_path = self._ensure_gpx(src)   # .gpx bleibt, Fremdformat → Cache-GPX
             default_name = os.path.splitext(os.path.basename(src))[0] + ".gpx"
             dest = self.pick_save_path(default_name, str(Path.home()),
@@ -2506,7 +2506,7 @@ class Api:
             s = _load_settings()
             src = str(s.get("last_gpx_path", "") or "")
             if not src or not os.path.exists(src):
-                return {"ok": False, "error": "Kein Track geladen."}
+                return {"ok": False, "error": _ui_t()("error.kein_track_geladen", "Kein Track geladen.")}
             gpx_path = self._ensure_gpx(src)
             pts, _ = cgpx.parse_gpx(gpx_path)
             text = ctrackio.to_csv_string(pts)
@@ -2537,7 +2537,7 @@ class Api:
             s = _load_settings()
             src = str(s.get("last_gpx_path", "") or "")
             if not src or not os.path.exists(src):
-                return {"ok": False, "error": "Kein Track geladen."}
+                return {"ok": False, "error": _ui_t()("error.kein_track_geladen", "Kein Track geladen.")}
             gpx_path = self._ensure_gpx(src)
             pts, st = cgpx.parse_gpx(gpx_path)
             name = (getattr(st, "name", None) or os.path.splitext(os.path.basename(src))[0])
@@ -2798,7 +2798,7 @@ class Api:
         try:
             pfad = (payload or {}).get("gpx_path") or ""
             if not pfad or not os.path.exists(pfad):
-                return {"ok": False, "error": "GPX nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.gpx_nicht_gefunden", "GPX nicht gefunden")}
             ab_s = float((payload or {}).get("pause_min_s", 120) or 120)
             auf_s = float((payload or {}).get("pause_trim_s", 5) or 5)
             pts, _st = cgpx.parse_gpx(pfad)
@@ -2832,7 +2832,7 @@ class Api:
         try:
             pfad = (payload or {}).get("gpx_path") or ""
             if not pfad or not os.path.exists(pfad):
-                return {"ok": False, "error": "GPX nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("error.gpx_nicht_gefunden", "GPX nicht gefunden")}
             modus = str((payload or {}).get("pace_mode", "raw") or "raw")
             if modus == "raw":
                 return {"ok": True, "map": None}      # Vorschau bleibt wie sie ist
@@ -2858,7 +2858,7 @@ class Api:
     def animator_start_render(self, params: dict) -> dict:
         """Startet Render im Hintergrund-Thread. Status pollen via animator_status()."""
         if self._render_state["running"]:
-            return {"ok": False, "error": "Render läuft bereits"}
+            return {"ok": False, "error": _ui_t()("error.render_laeuft_bereits", "Render läuft bereits")}
 
         # v0.9.156 — Multi-Track: UI kann `tracks` (Liste von
         # {gpx_path, line_color, name}) senden. ≥2 Einträge → Multi-Track-
@@ -2877,7 +2877,7 @@ class Api:
         # wir die erste Tour als Basis für Output-Namen etc.
         gpx_path = params.get("gpx_path", "") or (tracks[0]["gpx_path"] if tracks else "")
         if not gpx_path or not Path(gpx_path).exists():
-            return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+            return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
         # Multi-Track erst ab 2 Touren — sonst Single-Track-Pfad (tracks leeren).
         if len(tracks) < 2:
             tracks = []
@@ -3203,7 +3203,7 @@ class Api:
         vor jedem Frame und wirft `RenderCancelled` → ffmpeg wird beendet
         und die halb-fertige Datei aufgeräumt."""
         if not self._render_state.get("running"):
-            return {"ok": False, "error": "Kein Render läuft"}
+            return {"ok": False, "error": _ui_t()("error.kein_render_laeuft", "Kein Render läuft")}
         self._render_state["cancel_requested"] = True
         log.info("animator_cancel angefordert")
         return {"ok": True}
@@ -3219,11 +3219,11 @@ class Api:
         """Rendert eine statische Tour-Karte als PNG. Async im Thread, gleiches
         Polling-Pattern wie der Animator."""
         if self._tourmap_state.get("running"):
-            return {"ok": False, "error": "Tour-Karten-Render läuft bereits"}
+            return {"ok": False, "error": _ui_t()("error.tour_karten_render_laeuft_bereits", "Tour-Karten-Render läuft bereits")}
 
         gpx_path = params.get("gpx_path", "")
         if not gpx_path or not Path(gpx_path).exists():
-            return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+            return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
 
         # Mapbox-Token-Check (Static-Map braucht zwingend Mapbox)
         token = _active_mapbox_token()
@@ -3231,7 +3231,7 @@ class Api:
             return {
                 "ok": False,
                 "error_code": "mapbox_token_missing",
-                "error": "Tour-Karten brauchen einen Mapbox-Token (Settings → Mapbox-Token).",
+                "error": _ui_t()("error.tour_karten_brauchen_einen_mapbox", "Tour-Karten brauchen einen Mapbox-Token (Settings → Mapbox-Token)."),
             }
 
         # Pre-Flight: Chromium für Playwright vorhanden?
@@ -3402,7 +3402,7 @@ class Api:
 
     def tourmap_cancel(self) -> dict:
         if not self._tourmap_state.get("running"):
-            return {"ok": False, "error": "Kein Render läuft"}
+            return {"ok": False, "error": _ui_t()("error.kein_render_laeuft", "Kein Render läuft")}
         self._tourmap_state["cancel_requested"] = True
         log.info("tourmap_cancel angefordert")
         return {"ok": True}
@@ -3473,11 +3473,11 @@ class Api:
         """Startet Höhen-Animator-Render im Background-Thread.
         Status pollen via heightanim_status(); Abbruch via heightanim_cancel()."""
         if self._height_render_state.get("running"):
-            return {"ok": False, "error": "Render läuft bereits"}
+            return {"ok": False, "error": _ui_t()("error.render_laeuft_bereits", "Render läuft bereits")}
 
         gpx_path = params.get("gpx_path", "")
         if not gpx_path or not Path(gpx_path).exists():
-            return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+            return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
 
         # Pre-Flight: Playwright-Browser vorhanden?
         pw = self.playwright_check()
@@ -3590,7 +3590,7 @@ class Api:
 
     def heightanim_cancel(self) -> dict:
         if not self._height_render_state.get("running"):
-            return {"ok": False, "error": "Kein Render läuft"}
+            return {"ok": False, "error": _ui_t()("error.kein_render_laeuft", "Kein Render läuft")}
         self._height_render_state["cancel_requested"] = True
         log.info("heightanim_cancel angefordert")
         return {"ok": True}
@@ -3603,11 +3603,11 @@ class Api:
         try:
             gpx_path = params.get("gpx_path", "")
             if not gpx_path or not Path(gpx_path).exists():
-                return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+                return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
             gpx_path = self._ensure_gpx(gpx_path)
             pts, _stats = cgpx.parse_gpx(gpx_path)
             if len(pts) < 2:
-                return {"ok": False, "error": "GPX hat zu wenig Punkte (< 2)"}
+                return {"ok": False, "error": _ui_t()("error.gpx_hat_zu_wenig_punkte", "GPX hat zu wenig Punkte (< 2)")}
             ds = cgpx.downsample(pts, 1000)
             distances_m = [p.dist_m for p in ds]
 
@@ -3663,7 +3663,7 @@ class Api:
         try:
             p = Path(path)
             if not p.exists():
-                return {"ok": False, "error": "Datei existiert nicht"}
+                return {"ok": False, "error": _ui_t()("error.datei_existiert_nicht", "Datei existiert nicht")}
             webbrowser.open(p.as_uri(), new=2)
             return {"ok": True}
         except Exception as e:
@@ -3681,7 +3681,7 @@ class Api:
         try:
             gpx_path = params.get("gpx_path", "")
             if not gpx_path or not Path(gpx_path).exists():
-                return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+                return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
             gpx_path = self._ensure_gpx(gpx_path)
 
             # Gewählter tokenfreier OSM-Kachelstil (Mapbox-Styles → OSM-Standard).
@@ -3833,11 +3833,11 @@ class Api:
         try:
             gpx_path = params.get("gpx_path", "")
             if not gpx_path or not Path(gpx_path).exists():
-                return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+                return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
             gpx_path = self._ensure_gpx(gpx_path)
             pts, _stats = cgpx.parse_gpx(gpx_path)
             if len(pts) < 2:
-                return {"ok": False, "error": "GPX hat zu wenig Punkte (< 2)"}
+                return {"ok": False, "error": _ui_t()("error.gpx_hat_zu_wenig_punkte", "GPX hat zu wenig Punkte (< 2)")}
             ds = cgpx.downsample(pts, 1500)
             track = [[p.lat, p.lon] for p in ds
                      if p.lat is not None and p.lon is not None]
@@ -3947,7 +3947,7 @@ class Api:
                         "track": (out[0]["coords"] if out else [])}
             gpx_path = params.get("gpx_path", "")
             if not gpx_path or not Path(gpx_path).exists():
-                return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+                return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
             gpx_path = self._ensure_gpx(gpx_path)
             pts, _stats = cgpx.parse_gpx(gpx_path)
             ds = cgpx.downsample(pts, 1500)
@@ -3964,11 +3964,11 @@ class Api:
         try:
             gpx_path = params.get("gpx_path", "")
             if not gpx_path or not Path(gpx_path).exists():
-                return {"ok": False, "error": "GPX-Datei fehlt oder existiert nicht"}
+                return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
             gpx_path = self._ensure_gpx(gpx_path)
             pts, _stats = cgpx.parse_gpx(gpx_path)
             if len(pts) < 2:
-                return {"ok": False, "error": "GPX hat zu wenig Punkte (< 2)"}
+                return {"ok": False, "error": _ui_t()("error.gpx_hat_zu_wenig_punkte", "GPX hat zu wenig Punkte (< 2)")}
             ds = cgpx.downsample(pts, 1500)
             track = [[p.lat, p.lon] for p in ds
                      if p.lat is not None and p.lon is not None]
@@ -4155,7 +4155,7 @@ class Api:
         """Speichert eine einzelne droppe Datei in `_drops/<session>/`."""
         try:
             if not session_id or "/" in session_id or "\\" in session_id:
-                return {"ok": False, "error": "Ungültige session_id"}
+                return {"ok": False, "error": _ui_t()("error.ungueltige_session_id", "Ungültige session_id")}
             # Namensbereinigung — keine Subpath-Tricks
             safe_name = os.path.basename(name) or f"unnamed_{uuid.uuid4().hex[:8]}"
             d = DROPS_DIR / session_id
@@ -4173,7 +4173,7 @@ class Api:
         """Speichert eine text-Drop-Datei (z.B. GPX) ohne base64-Overhead."""
         try:
             if not session_id or "/" in session_id or "\\" in session_id:
-                return {"ok": False, "error": "Ungültige session_id"}
+                return {"ok": False, "error": _ui_t()("error.ungueltige_session_id", "Ungültige session_id")}
             safe_name = os.path.basename(name) or f"unnamed_{uuid.uuid4().hex[:8]}.txt"
             d = DROPS_DIR / session_id
             d.mkdir(parents=True, exist_ok=True)
@@ -4204,7 +4204,7 @@ class Api:
         """Hilfsfunktion: gibt alle unterstützten Foto-Dateien (JPG + RAW) in einem Ordner zurück."""
         try:
             if not os.path.isdir(folder):
-                return {"ok": False, "error": "Kein Ordner"}
+                return {"ok": False, "error": _ui_t()("error.kein_ordner", "Kein Ordner")}
             files = []
             for entry in sorted(os.listdir(folder)):
                 full = os.path.join(folder, entry)
@@ -4449,7 +4449,7 @@ class Api:
         formatierte Doku mit Anchor-Navigation."""
         p = self._resolve_bundled_doc("USER_GUIDE.html")
         if not p:
-            return {"ok": False, "error": "USER_GUIDE.html nicht gefunden — `python3 scripts/build_user_guide_html.py` ausführen."}
+            return {"ok": False, "error": _ui_t()("error.user_guide_html_nicht_gefunden", "USER_GUIDE.html nicht gefunden — `python3 scripts/build_user_guide_html.py` ausführen.")}
         log.info("open_user_guide: %s", p)
         return self._open_path_native(p)
 
@@ -4876,7 +4876,7 @@ class Api:
             # damit der eingerastete Pin exakt auf der sichtbaren Linie sitzt.
             track = getattr(self, "_gtg_display", None) or getattr(self, "_gtg_track", None)
             if not track:
-                return {"ok": False, "error": "Kein Track geladen"}
+                return {"ok": False, "error": _ui_t()("error.kein_track_geladen", "Kein Track geladen")}
             flat, flon = float(lat), float(lon)
             clat = math.cos(math.radians(flat))  # Längengrad-Stauchung (equirect.)
             px, py = flon * clat, flat
@@ -4919,7 +4919,7 @@ class Api:
                 best = (d2, foot_lat, foot_lon, ele, tm)
 
             if best is None:
-                return {"ok": False, "error": "Track leer"}
+                return {"ok": False, "error": _ui_t()("error.track_leer", "Track leer")}
             dist_m = math.sqrt(best[0]) * 111320.0  # grob: 1° ≈ 111.32 km
             return {
                 "ok": True,
@@ -5374,7 +5374,7 @@ class Api:
         try:
             base = Path(folder)
             if not base.exists() or not base.is_dir():
-                return {"ok": False, "error": "Kein gültiger Ordner"}
+                return {"ok": False, "error": _ui_t()("error.kein_gueltiger_ordner", "Kein gültiger Ordner")}
 
             seen: set[str] = set()
             results: list[dict] = []
@@ -5499,7 +5499,7 @@ class Api:
         Olympus ohne TZ) korrekt."""
         try:
             if not self._gtg_track or not self._gtg_photos:
-                return {"ok": False, "error": "Track oder Fotos noch nicht geladen"}
+                return {"ok": False, "error": _ui_t()("error.track_oder_fotos_noch_nicht", "Track oder Fotos noch nicht geladen")}
             phs = [(p["path"],
                     datetime.fromisoformat(p["photo_time"]) if p["photo_time"] else None)
                    for p in self._gtg_photos]
@@ -5620,10 +5620,10 @@ class Api:
         → Offset berechnen, der angewendet werden muss."""
         try:
             if not self._gtg_track:
-                return {"ok": False, "error": "Track noch nicht geladen"}
+                return {"ok": False, "error": _ui_t()("error.track_noch_nicht_geladen", "Track noch nicht geladen")}
             ph = next((p for p in self._gtg_photos if p["path"] == photo_path), None)
             if not ph or not ph["photo_time"]:
-                return {"ok": False, "error": "Foto hat keine EXIF-Zeit"}
+                return {"ok": False, "error": _ui_t()("error.foto_hat_keine_exif_zeit", "Foto hat keine EXIF-Zeit")}
             pt = datetime.fromisoformat(ph["photo_time"])
             off = cgeo.derive_offset_from_reference(pt, ref_lat, ref_lon, self._gtg_track)
             return {"ok": True, "offset_seconds": off,
@@ -5643,20 +5643,20 @@ class Api:
         die Straße tröpfelt nach. Anbieter/an-aus kommen aus den Settings."""
         s = _load_settings()
         if not s.get("geocode_enabled", True):
-            return {"ok": False, "error": "Adress-Suche ist in den Einstellungen deaktiviert",
+            return {"ok": False, "error": _ui_t()("error.adress_suche_ist_in_den", "Adress-Suche ist in den Einstellungen deaktiviert"),
                     "disabled": True}
         raw_token = (s.get("mapbox_token") or "").strip()  # bewusst unabhängig von force_osm (= nur Karten-Tiles)
         provider = cgeocode.resolve_provider(s.get("geocode_provider", "auto"), raw_token)
         if not provider:
-            return {"ok": False, "error": "Kein Adress-Anbieter aktiv", "disabled": True}
+            return {"ok": False, "error": _ui_t()("error.kein_adress_anbieter_aktiv", "Kein Adress-Anbieter aktiv"), "disabled": True}
 
         with self._geo_lock:
             if self._geo_state.get("running"):
-                return {"ok": False, "error": "Adress-Lookup läuft bereits"}
+                return {"ok": False, "error": _ui_t()("error.adress_lookup_laeuft_bereits", "Adress-Lookup läuft bereits")}
             todo = [it for it in (items or [])
                     if it.get("lat") is not None and it.get("lon") is not None and it.get("path")]
             if not todo:
-                return {"ok": False, "error": "Keine Fotos mit Koordinaten"}
+                return {"ok": False, "error": _ui_t()("error.keine_fotos_mit_koordinaten", "Keine Fotos mit Koordinaten")}
             gen = self._geo_gen = self._geo_gen + 1 if hasattr(self, "_geo_gen") else 1
             # Call-Plan vorab zählen für die Fortschrittsanzeige
             pts = [(i, float(it["lat"]), float(it["lon"])) for i, it in enumerate(todo)]
@@ -5775,13 +5775,13 @@ class Api:
         Ergebnisse (path → [keyword,…]) werden per `geotagger_autotag_status`
         abgeholt. Nur macOS — sonst {ok:False}."""
         if not self.autotag_available():
-            return {"ok": False, "error": "Bilderkennung nur auf macOS verfügbar"}
+            return {"ok": False, "error": _ui_t()("error.bilderkennung_nur_auf_macos_verfuegbar", "Bilderkennung nur auf macOS verfügbar")}
         with self._autotag_lock:
             if self._autotag_state.get("running"):
-                return {"ok": False, "error": "Bilderkennung läuft bereits"}
+                return {"ok": False, "error": _ui_t()("error.bilderkennung_laeuft_bereits", "Bilderkennung läuft bereits")}
         items = [p for p in (paths or []) if p]
         if not items:
-            return {"ok": False, "error": "Keine Fotos"}
+            return {"ok": False, "error": _ui_t()("error.keine_fotos", "Keine Fotos")}
         with self._autotag_lock:
             self._autotag_state = {"running": True, "total": len(items), "done": 0,
                                    "completed": False, "cancel": False,
@@ -5893,7 +5893,7 @@ class Api:
         with self._write_lock:
             if self._write_state.get("running"):
                 log.warning("geotagger_start_write: ABBRUCH — Schreibvorgang läuft bereits")
-                return {"ok": False, "error": "Schreibvorgang läuft bereits"}
+                return {"ok": False, "error": _ui_t()("error.schreibvorgang_laeuft_bereits", "Schreibvorgang läuft bereits")}
 
         # v0.9.339 — Schreib-Modus auflösen
         mode = (write_mode or "").strip().lower()
@@ -5937,7 +5937,7 @@ class Api:
         if not to_write and not ee_paths:
             log.warning("geotagger_start_write: ABBRUCH — keine Fotos zum Schreiben (skipped_existing=%d skipped_no_coords=%d)",
                         skipped_existing, skipped_no_coords)
-            return {"ok": False, "error": "Keine Fotos zum Schreiben",
+            return {"ok": False, "error": _ui_t()("error.keine_fotos_zum_schreiben", "Keine Fotos zum Schreiben"),
                     "skipped_existing": skipped_existing}
 
         # Backup-Pfade = Vereinigung aus GPS-Fotos + EXIF-editierten Fotos
@@ -6270,7 +6270,7 @@ class Api:
             if self._write_state.get("running"):
                 self._write_state["cancel"] = True
                 return {"ok": True}
-            return {"ok": False, "error": "Kein laufender Vorgang"}
+            return {"ok": False, "error": _ui_t()("error.kein_laufender_vorgang", "Kein laufender Vorgang")}
 
     def geotagger_export_tagged(self, items: list[dict], dest_folder: str) -> dict:
         """v0.9.152: Kopiert getaggte Drag&Drop-Fotos in einen Zielordner.
@@ -6286,7 +6286,7 @@ class Api:
         import shutil
         try:
             if not dest_folder or not os.path.isdir(dest_folder):
-                return {"ok": False, "error": "Kein gültiger Zielordner"}
+                return {"ok": False, "error": _ui_t()("error.kein_gueltiger_zielordner", "Kein gültiger Zielordner")}
             exported = 0
             skipped = 0
             errors: list[str] = []

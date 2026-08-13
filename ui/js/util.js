@@ -104,14 +104,14 @@ function parseTimeOffset(input) {
 window.addEventListener("error", (ev) => {
   console.error("[JS-Fehler]", ev.error || ev.message, ev);
   try {
-    toast("JS-Fehler: " + (ev.message || (ev.error && ev.error.message) || "unbekannt"), "error", 7000);
+    toast(t("error.js", "JS-Fehler") + ": " + (ev.message || (ev.error && ev.error.message) || t("error.unknown", "unbekannt")), "error", 7000);
   } catch (_) {}
 });
 window.addEventListener("unhandledrejection", (ev) => {
   console.error("[Unhandled Promise]", ev.reason);
   try {
     const msg = (ev.reason && (ev.reason.message || ev.reason.toString())) || "unbekannt";
-    toast("Promise-Fehler: " + msg, "error", 7000);
+    toast(t("error.promise", "Promise-Fehler") + ": " + msg, "error", 7000);
   } catch (_) {}
 });
 
@@ -606,7 +606,7 @@ function parseNum(value, fallback = 0) {
 async function openBugReportModal(context = "") {
   const r = await api().prepare_bug_report(context || "");
   if (!r || !r.ok) {
-    toast("Bug-Report konnte nicht vorbereitet werden", "error", 4000);
+    toast(t("error.bugreport", "Bug-Report konnte nicht vorbereitet werden"), "error", 4000);
     return;
   }
   const escapeHtml = (s) => String(s ?? "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
@@ -1681,7 +1681,7 @@ function setupDropZone(opts) {
     }
 
     if (!collected.length) {
-      toast("Drop enthielt keine Dateien (WKWebView-Bug?). Versuch File-Picker.", "warn", 6000);
+      toast(t("error.drop_empty", "Drop enthielt keine Dateien (WKWebView-Bug?). Versuch File-Picker."), "warn", 6000);
       return;
     }
     const filtered = collected.filter(c => matches(c.relPath));
@@ -1695,7 +1695,7 @@ function setupDropZone(opts) {
       await opts.onDrop(filtered, e);
     } catch (err) {
       console.error(err);
-      toast("Drop-Fehler: " + (err.message || err), "error");
+      toast(t("error.drop", "Drop-Fehler") + ": " + (err.message || err), "error");
     }
   });
 }
@@ -1810,26 +1810,26 @@ window.createUndoController = function(opts) {
   }
   function undo() {
     if (undoStack.length === 0) {
-      if (opts.toast) opts.toast("Nichts zum Rückgängig");
+      if (opts.toast) opts.toast(t("undo.nothing_undo", "Nichts zum Rückgängig"));
       return false;
     }
     const current = opts.snapshot ? opts.snapshot() : null;
     const prev = undoStack.pop();
     if (current != null) redoStack.push({ label: prev.label, state: current });
     _runApply(prev.state);
-    if (opts.toast) opts.toast("↶ " + (prev.label || "Rückgängig"));
+    if (opts.toast) opts.toast("↶ " + (prev.label || t("undo.undo", "Rückgängig")));
     return true;
   }
   function redo() {
     if (redoStack.length === 0) {
-      if (opts.toast) opts.toast("Nichts zum Wiederherstellen");
+      if (opts.toast) opts.toast(t("undo.nothing_redo", "Nichts zum Wiederherstellen"));
       return false;
     }
     const current = opts.snapshot ? opts.snapshot() : null;
     const next = redoStack.pop();
     if (current != null) undoStack.push({ label: next.label, state: current });
     _runApply(next.state);
-    if (opts.toast) opts.toast("↷ " + (next.label || "Wiederherstellen"));
+    if (opts.toast) opts.toast("↷ " + (next.label || t("undo.redo", "Wiederherstellen")));
     return true;
   }
   function reset() {
@@ -1905,6 +1905,47 @@ window.rzMakePanelUndoController = function (panelId, opts) {
     toast: opts.toast,
     throttleMs: opts.throttleMs,
   });
+  /** Beschriftung für den Rückgängig-Balken zu einem Bedienelement.
+   *
+   *  ⚠️ Zweierlei war hier falsch (v0.9.508, beim Test in spanischer
+   *  Oberfläche aufgefallen): der Text war fest deutsch („… geändert"), und er
+   *  zeigte die technische Element-Kennung statt eines Namens — im Balken stand
+   *  „gt-ignore-gps geändert". Jetzt wird die sichtbare Beschriftung des
+   *  Elements gesucht; sie ist ohnehin schon übersetzt.
+   */
+  function _undoNameFuer(el) {
+    const putzen = (x) => String(x || "").replace(/\s+/g, " ").trim().replace(/[:：]$/, "");
+    // ⚠️ Beschriftungen enthalten oft einen Hilfe-Knopf („?") und den aktuellen
+    // Wert („40°") — beides gehört nicht in den Rückgängig-Balken. Deshalb an
+    // einer Kopie arbeiten und diese Teile vorher entfernen.
+    const textOhneBeiwerk = (node) => {
+      if (!node) return "";
+      const klon = node.cloneNode(true);
+      // ⚠️ `[class*="help"]` statt einer Liste einzelner Klassen: die
+      // Hilfe-Marker heißen je Modul anders (`field-help`, `gt-help`,
+      // `ov-help`, `rz-help`, `gpxi-stat-help`) — eine Aufzählung wäre schon
+      // beim nächsten Modul unvollständig.
+      klon.querySelectorAll('button, [class*="help"], .label-val, input, select, textarea')
+          .forEach(x => x.remove());
+      return putzen(klon.textContent);
+    };
+    let name = "";
+    if (el) {
+      const eigen = el.getAttribute && (el.getAttribute("aria-label") || el.getAttribute("title"));
+      const zuId = el.id && document.querySelector(`label[for="${el.id}"]`);
+      const umhuellt = el.closest && el.closest("label");
+      const feld = el.closest && el.closest(".field");
+      name = putzen(eigen)
+          || textOhneBeiwerk(zuId)
+          || textOhneBeiwerk(umhuellt)
+          || textOhneBeiwerk(feld && feld.querySelector(".field-label"));
+      // Bei umschließenden Labels klebt oft der Wert mit dran („Neigung 40°").
+      if (name.length > 34) name = name.slice(0, 33).trimEnd() + "…";
+    }
+    if (!name) name = t("undo.wert", "Wert");
+    return t("undo.x_geaendert", "{name} geändert").replace("{name}", name);
+  }
+
   // Pre-Change-Erfassung: Beim input/change-Event ist der Wert SCHON geändert.
   // Deshalb erfassen wir den Zustand VOR der Änderung bei pointerdown/focusin/keydown
   // und pushen ihn beim input/change. `_prev` = letzter committeter Stand.
@@ -1914,7 +1955,7 @@ window.rzMakePanelUndoController = function (panelId, opts) {
     const tgt = ev.target;
     if (!tgt || !tgt.id || tgt.closest("#" + panelId) == null) return;
     const force = discrete || (window.__rzLastUndoEl !== tgt.id);
-    ctrl.push((tgt.id || "Wert") + " geändert", { force, state: _prev });
+    ctrl.push(_undoNameFuer(tgt), { force, state: _prev });
     window.__rzLastUndoEl = tgt.id;
     _prev = fullSnap();  // ab jetzt ist DAS der „Vorher"-Stand für die nächste Änderung
   };

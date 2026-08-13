@@ -402,7 +402,7 @@ function mountGeotagger(body, headerActions) {
   function _gtAutotagApply(s, canceled) {
     const results = (s && s.results) || {};
     let n = 0;
-    if (Object.keys(results).length) _gtgPushUndo("Auto-Tags übernommen", { force: true });   // v0.9.359 — undoable
+    if (Object.keys(results).length) _gtgPushUndo(t("undo.auto_tags_uebernommen", "Auto-Tags übernommen"), { force: true });   // v0.9.359 — undoable
     Object.keys(results).forEach(path => {
       const kws = results[path] || [];
       if (!kws.length) return;
@@ -589,17 +589,17 @@ function mountGeotagger(body, headerActions) {
   function getTzOffsetMinutes() { return tzOffsetMin; }
   // Übliche Zeitzonen (Minuten-Offset → Label mit Reise-Beispielen)
   const TZ_OPTIONS = [
-    [-720, "UTC−12"], [-660, "UTC−11"], [-600, "UTC−10 (Hawaii)"],
-    [-540, "UTC−9"],  [-480, "UTC−8 (US-Westküste)"], [-420, "UTC−7"],
-    [-360, "UTC−6"],  [-300, "UTC−5 (US-Ostküste)"], [-240, "UTC−4"],
+    [-720, "UTC−12"], [-660, "UTC−11"], [-600, "UTC−10 (" + t("geotagger.tz.hawaii", "Hawaii") + ")"],
+    [-540, "UTC−9"],  [-480, "UTC−8 (" + t("geotagger.tz.us_west", "US-Westküste") + ")"], [-420, "UTC−7"],
+    [-360, "UTC−6"],  [-300, "UTC−5 (" + t("geotagger.tz.us_east", "US-Ostküste") + ")"], [-240, "UTC−4"],
     [-210, "UTC−3:30"], [-180, "UTC−3"], [-120, "UTC−2"], [-60, "UTC−1"],
-    [0,    "UTC±0 (keine Korrektur / Track-Zeit)"],
-    [60,   "UTC+1 (Mitteleuropa Winter)"], [120, "UTC+2 (Mitteleuropa Sommer)"],
-    [180,  "UTC+3"], [210, "UTC+3:30 (Iran)"], [240, "UTC+4"], [270, "UTC+4:30"],
-    [300,  "UTC+5"], [330, "UTC+5:30 (Indien)"], [345, "UTC+5:45 (Nepal)"],
-    [360,  "UTC+6"], [390, "UTC+6:30 (Myanmar)"], [420, "UTC+7 (Thailand, Vietnam)"],
-    [480,  "UTC+8 (China)"], [540, "UTC+9 (Japan)"], [570, "UTC+9:30"],
-    [600,  "UTC+10 (Ostaustralien)"], [660, "UTC+11"], [720, "UTC+12 (Neuseeland)"],
+    [0,    "UTC±0 (" + t("geotagger.tz.keine_korrektur", "keine Korrektur / Track-Zeit") + ")"],
+    [60,   "UTC+1 (" + t("geotagger.tz.mez_winter", "Mitteleuropa Winter") + ")"], [120, "UTC+2 (" + t("geotagger.tz.mez_sommer", "Mitteleuropa Sommer") + ")"],
+    [180,  "UTC+3"], [210, "UTC+3:30 (" + t("geotagger.tz.iran", "Iran") + ")"], [240, "UTC+4"], [270, "UTC+4:30"],
+    [300,  "UTC+5"], [330, "UTC+5:30 (" + t("geotagger.tz.indien", "Indien") + ")"], [345, "UTC+5:45 (" + t("geotagger.tz.nepal", "Nepal") + ")"],
+    [360,  "UTC+6"], [390, "UTC+6:30 (" + t("geotagger.tz.myanmar", "Myanmar") + ")"], [420, "UTC+7 (" + t("geotagger.tz.thailand", "Thailand, Vietnam") + ")"],
+    [480,  "UTC+8 (" + t("geotagger.tz.china", "China") + ")"], [540, "UTC+9 (" + t("geotagger.tz.japan", "Japan") + ")"], [570, "UTC+9:30"],
+    [600,  "UTC+10 (" + t("geotagger.tz.ostaustralien", "Ostaustralien") + ")"], [660, "UTC+11"], [720, "UTC+12 (" + t("geotagger.tz.neuseeland", "Neuseeland") + ")"],
     [780,  "UTC+13"], [840, "UTC+14"],
   ];
   function tzLabel(min) {
@@ -742,7 +742,7 @@ function mountGeotagger(body, headerActions) {
     _gtIgnoreGpsCb.checked = _gtContextIgnoreGps();
     _gtSyncIgnoreGpsToContext();
     _gtIgnoreGpsCb.addEventListener("change", () => {
-      _gtgPushUndo("Foto-GPS-Modus geändert", { force: true });   // undo-bar (v0.9.359-System)
+      _gtgPushUndo(t("undo.foto_gps_modus_geaendert", "Foto-GPS-Modus geändert"), { force: true });   // undo-bar (v0.9.359-System)
       _gtSetContextIgnoreGps(_gtIgnoreGpsCb.checked, true);
       _gtSyncIgnoreGpsToContext();
       updateMatches();
@@ -757,7 +757,7 @@ function mountGeotagger(body, headerActions) {
     _gtSetTimeCb.checked = _gtContextSetTime();
     _gtSyncSetTimeToContext();
     _gtSetTimeCb.addEventListener("change", () => {
-      _gtgPushUndo("Aufnahmezeit-aus-Track geändert", { force: true });
+      _gtgPushUndo(t("undo.aufnahmezeit_aus_track_geaendert", "Aufnahmezeit-aus-Track geändert"), { force: true });
       _gtSetContextSetTime(_gtSetTimeCb.checked, true);
       _gtSyncSetTimeToContext();
     });
@@ -807,8 +807,8 @@ function mountGeotagger(body, headerActions) {
         <p class="muted" style="margin-top:12px; font-size:11px;">${t("geotagger.offset.modal_range_hint")}</p>
       `,
       footer: `
-        <button class="btn" id="md-cancel-off">Abbrechen</button>
-        <button class="btn btn-primary" id="md-ok-off">Übernehmen</button>
+        <button class="btn" id="md-cancel-off">${t("common.cancel", "Abbrechen")}</button>
+        <button class="btn btn-primary" id="md-ok-off">${t("common.apply", "Übernehmen")}</button>
       `,
     });
     const inputEl = document.getElementById("md-offset-input");
@@ -1810,7 +1810,7 @@ function mountGeotagger(body, headerActions) {
       let tag = (sel.value === "__custom__" ? (customInp.value || "") : sel.value).trim();
       tag = tag.replace(/[^A-Za-z0-9:_-]/g, "");   // nur gültige Tag-Zeichen
       if (!tag) { if (customInp) customInp.focus(); return; }
-      _gtgPushUndo("EXIF-Feld hinzugefügt", { force: true });   // v0.9.359 — undoable
+      _gtgPushUndo(t("undo.exif_feld_hinzugefuegt", "EXIF-Feld hinzugefügt"), { force: true });   // v0.9.359 — undoable
       let m = _gtExifEdits.get(path);
       if (!m) { m = new Map(); _gtExifEdits.set(path, m); }
       m.set(tag, valInp.value);
@@ -1879,7 +1879,7 @@ function mountGeotagger(body, headerActions) {
       const val = inp.value;
       let m = _gtExifEdits.get(path);
       const isNoop = (val === disk) ? !(m && m.has(tag)) : (m && m.get(tag) === val);
-      if (!isNoop) _gtgPushUndo("EXIF-Wert geändert", { force: true });   // v0.9.359 — undoable
+      if (!isNoop) _gtgPushUndo(t("undo.exif_wert_geaendert", "EXIF-Wert geändert"), { force: true });   // v0.9.359 — undoable
       if (val === disk) {
         // zurück auf Original → keine ausstehende Änderung
         if (m) { m.delete(tag); if (!m.size) _gtExifEdits.delete(path); }
@@ -1935,7 +1935,7 @@ function mountGeotagger(body, headerActions) {
       edited.display = [edited.street, edited.postcode ? `${edited.postcode} ${city}` : city, country]
         .filter(s => s && s.trim()).join(", ");
       const empty = !edited.street && !edited.postcode && !edited.city && !edited.state && !edited.country;
-      _gtgPushUndo("Adresse bearbeitet", { force: true });   // v0.9.359 — undoable
+      _gtgPushUndo(t("undo.adresse_bearbeitet", "Adresse bearbeitet"), { force: true });   // v0.9.359 — undoable
       if (empty) _gtAddr.delete(path); else _gtAddr.set(path, edited);
       openModal({}).close();
       const mm = matches.find(x => x.path === path);
@@ -2058,7 +2058,7 @@ function mountGeotagger(body, headerActions) {
       const { lng, lat } = e.lngLat;
       const res = await api().geotagger_compute_offset_from_reference(selectedPath, lat, lng);
       if (!res.ok) { toast(res.error, "error"); return; }
-      _gtgPushUndo("Referenz-Offset gesetzt", { force: true });   // v0.9.359 — undoable
+      _gtgPushUndo(t("undo.referenz_offset_gesetzt", "Referenz-Offset gesetzt"), { force: true });   // v0.9.359 — undoable
       setOffsetFromSeconds(res.offset_seconds);   // v0.9.354 — wirkt auf den aktuellen Kamera-Kontext
       referencePath = selectedPath;     // dieses Foto bleibt markiert als Referenz
       refMode = false;
@@ -2224,7 +2224,7 @@ function mountGeotagger(body, headerActions) {
         mk._path = m.path;
         // v0.9.359 — ALLE Pins ziehbar; beim Loslassen wird genau dieses Foto
         // repositioniert (⌘/Toggle entscheidet über Track-Einrasten).
-        mk.on("dragstart", () => { _gtgPushUndo("Foto verschoben"); });
+        mk.on("dragstart", () => { _gtgPushUndo(t("undo.foto_verschoben", "Foto verschoben")); });
         mk.on("dragend", () => _gtOnMarkerDragEnd(m.path, mk));
         markers.push(mk);
       } catch (err) {
@@ -2434,7 +2434,7 @@ function mountGeotagger(body, headerActions) {
       paint(tmpDir);
     }
     function commit() {
-      _gtgPushUndo("Blickrichtung gesetzt", { force: true });   // v0.9.359 — undoable
+      _gtgPushUndo(t("undo.blickrichtung_gesetzt", "Blickrichtung gesetzt"), { force: true });   // v0.9.359 — undoable
       _gtDir.set(m.path, { dir: tmpDir, src: "manual" });
       m.dir = (tmpDir != null ? tmpDir : null);
       m.dir_src = (tmpDir != null ? "manual" : null);
@@ -2589,7 +2589,7 @@ function mountGeotagger(body, headerActions) {
   async function _gtPlacePhoto(path, lat, lon, snap) {
     const ph = photos.find(p => p.path === path);
     if (!ph) return;
-    _gtgPushUndo("Foto platziert", { force: true });   // v0.9.359 — undoable
+    _gtgPushUndo(t("undo.foto_platziert", "Foto platziert"), { force: true });   // v0.9.359 — undoable
     let alt = null;
     let trackTime = null;
     if (snap && _gtHasTrack()) {
@@ -2909,7 +2909,7 @@ function mountGeotagger(body, headerActions) {
   function _gtPhotoChecked(p) { return !!(p && p.path && !_gtUnchecked.has(p.path)); }
   function _gtToggleChecked(path) {
     if (!path) return;
-    _gtgPushUndo("Häkchen umgeschaltet", { force: true });   // v0.9.359 — undoable
+    _gtgPushUndo(t("undo.haekchen_umgeschaltet", "Häkchen umgeschaltet"), { force: true });   // v0.9.359 — undoable
     if (_gtUnchecked.has(path)) _gtUnchecked.delete(path);
     else _gtUnchecked.add(path);
     updateSummary();
@@ -2941,7 +2941,7 @@ function mountGeotagger(body, headerActions) {
   // zu löschen und neu reinzuholen. Nur für aktuell manuell platzierte Fotos.
   function _gtResyncPhoto(path) {
     if (!path || !_gtManual.has(path)) return;
-    _gtgPushUndo("Platzierung aufgehoben", { force: true });   // v0.9.359 — undoable
+    _gtgPushUndo(t("undo.platzierung_aufgehoben", "Platzierung aufgehoben"), { force: true });   // v0.9.359 — undoable
     _gtManual.delete(path);
     // Sofortiges Feedback bis der debounced Re-Match durch ist:
     const m = matches.find(x => x.path === path);
@@ -3277,7 +3277,7 @@ function mountGeotagger(body, headerActions) {
       title: "Schreibvorgang starten?",
       body: summary,
       footer: `
-        <button class="btn" id="modal-cancel">Abbrechen</button>
+        <button class="btn" id="modal-cancel">${t("common.cancel", "Abbrechen")}</button>
         <button class="btn btn-primary" id="modal-ok">Schreiben starten</button>
       `,
     });
@@ -3305,7 +3305,7 @@ function mountGeotagger(body, headerActions) {
             body: `<p style="line-height:1.5">Das ist der Ordner deiner <b>Originale</b>.
                    Sollen die Originale hier wirklich <b>überschrieben</b> werden?
                    <br><span style="color:var(--warn)">Ohne Backup — das lässt sich nicht rückgängig machen.</span></p>`,
-            footer: `<button class="btn" id="ov-cancel">Abbrechen</button>
+            footer: `<button class="btn" id="ov-cancel">${t("common.cancel", "Abbrechen")}</button>
                      <button class="btn btn-danger" id="ov-ok">Ja, überschreiben</button>`,
           });
           document.getElementById("ov-cancel").onclick = () => { openModal({}).close(); resolve(false); };
@@ -3350,7 +3350,7 @@ function mountGeotagger(body, headerActions) {
         </div>
         ${res.skipped_existing ? `<p class="muted">${res.skipped_existing} Fotos mit bereits vorhandenem GPS werden übersprungen.</p>` : ''}
       `,
-      footer: '<button class="btn btn-danger" id="md-cancel">Abbrechen</button>',
+      footer: `<button class="btn btn-danger" id="md-cancel">${t("common.cancel", "Abbrechen")}</button>`,
       closable: false,
     });
     document.getElementById("md-cancel").onclick = async () => {

@@ -532,8 +532,8 @@
         // file_types: JPEG/HEIC/RAW. Native Dialog ignoriert das auf macOS
         // teilweise, aber gibt einen Filter-Hint im Open-Sheet.
         const fileTypes = [
-          "Bilder (*.jpg;*.jpeg;*.heic;*.heif;*.png;*.tif;*.tiff;*.cr3;*.cr2;*.nef;*.arw;*.raf;*.rw2;*.orf;*.dng)",
-          "Alle Dateien (*.*)",
+          tt("filter.images", "Bilder") + " (*.jpg;*.jpeg;*.heic;*.heif;*.png;*.tif;*.tiff;*.cr3;*.cr2;*.nef;*.arw;*.raf;*.rw2;*.orf;*.dng)",
+          tt("filter.all_files", "Alle Dateien") + " (*.*)",
         ];
         const res = await window.pywebview.api.pick_file("open", fileTypes, true);
         if (res && res.length && typeof opts.onFiles === "function") {

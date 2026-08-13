@@ -26,10 +26,24 @@
   // WICHTIG (Nutzer-Bug v0.9.285): pywebviews Windows-Backend validiert die
   // Filter-Beschreibung mit Regex `[\w ]+` — KEINE Sonderzeichen (Bindestrich!).
   // „Track-Dateien" crashte → daher „Track Dateien" (nur Buchstaben + Leerzeichen).
-  window.TRACK_PICK_FILTER = [
-    "Track Dateien (*.gpx;*.fit;*.nmea;*.log;*.kml;*.kmz;*.tcx;*.geojson;*.json)",
-    "GPX (*.gpx)",
-  ];
+  // v0.9.508 — die Beschreibung ist Sprache, die Endungen sind es nicht.
+  // ⚠️ pywebviews Windows-Backend validiert die Beschreibung mit `[\w ]+`:
+  // KEINE Sonderzeichen, auch keine Bindestriche (Nutzer-Bug v0.9.285). Die
+  // Übersetzungen müssen sich daran halten.
+  // ⚠️ Als GETTER, nicht als fertiges Array: diese Datei lädt, bevor die
+  // Sprachdatei über die Brücke da ist — ein einmal gebautes Array trüge für
+  // immer den deutschen Fallback. So wird erst beim Öffnen des Dialogs
+  // übersetzt. (Beim Test aufgefallen: Oberfläche spanisch, Dateidialog
+  // „Track Dateien".) Die vier Aufrufstellen lesen weiterhin nur den Namen.
+  Object.defineProperty(window, "TRACK_PICK_FILTER", {
+    configurable: true,
+    get() {
+      return [
+        t("filter.track_files", "Track Dateien") + " (*.gpx;*.fit;*.nmea;*.log;*.kml;*.kmz;*.tcx;*.geojson;*.json)",
+        "GPX (*.gpx)",
+      ];
+    },
+  });
   // Drag&Drop: generische .json/.txt bewusst NICHT mitnehmen (zu mehrdeutig).
   window.TRACK_DROP_RE = /\.(gpx|fit|nmea|log|kml|kmz|tcx|geojson)$/i;
 
@@ -94,7 +108,7 @@
       if (!res || !res.ok) {
         if (window.applog) window.applog("error", `[loadGlobalGpx] parse fail: ${res?.error}`);
         if (window.isMissingFileError(res?.error)) window.showSourceMissingBanner(path);
-        else toast(res?.error || "GPX-Fehler", "error");
+        else toast(res?.error || t("error.gpx_generic", "GPX-Fehler"), "error");
         return false;
       }
       window.hideSourceMissingBanner();
@@ -115,7 +129,7 @@
     } catch (err) {
       console.warn("loadGlobalGpx error:", err);
       if (window.isMissingFileError(err)) window.showSourceMissingBanner(path);
-      else toast("GPX konnte nicht geladen werden: " + err, "error");
+      else toast(t("error.gpx_load", "GPX konnte nicht geladen werden") + ": " + err, "error");
       return false;
     }
   };

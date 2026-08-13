@@ -57,7 +57,45 @@ function renderTabs() {
     btn.addEventListener("click", () => switchMod(m.slug));
     wrap.appendChild(btn);
   }
+  passeTabsAnBreiteAn();
+  passeTabsSpaeterNochmalAn();
 }
+
+/**
+ * Macht die Modul-Leiste kompakt, wenn sie sonst nicht ins Fenster passt.
+ *
+ * ⚠️ Warum in JS und nicht per CSS-Breitenregel: übersetzte Modulnamen sind
+ * unterschiedlich lang („Reiseroute" ↔ „Ruta de viaje" ↔ „Travel route"), und
+ * in der WebView ist die Viewport-Breite nicht zuverlässig die Fensterbreite —
+ * eine `@media`-Grenze trifft mal zu früh, mal gar nicht. Gemessen wird
+ * deshalb, was wirklich zählt: ob der Inhalt überläuft.
+ *
+ * Zwei Stufen, in dieser Reihenfolge: erst fallen die Unterzeilen weg, dann
+ * werden die Namen gekürzt. Die Knöpfe rechts (Einstellungen!) bleiben immer
+ * erreichbar — dafür sorgt zusätzlich `flex: 0 0 auto` im CSS.
+ */
+function passeTabsAnBreiteAn() {
+  const wrap = document.getElementById("module-tabs");
+  if (!wrap) return;
+  wrap.classList.remove("kompakt", "sehr-kompakt");
+  // In zwei Schritten prüfen — nach dem Entfernen der Unterzeilen kann es
+  // bereits passen.
+  if (wrap.scrollWidth > wrap.clientWidth + 1) wrap.classList.add("kompakt");
+  if (wrap.scrollWidth > wrap.clientWidth + 1) wrap.classList.add("sehr-kompakt");
+}
+
+// ⚠️ Einmal messen reicht nicht: beim ersten Aufbau stehen Schriften und
+// Nachbar-Elemente (Session-Wähler!) noch nicht endgültig, und die Leiste misst
+// sich zu großzügig — sichtbar daran, dass das letzte Modul angeschnitten blieb.
+// Deshalb nach dem nächsten Frame und nach dem Laden der Schriften erneut.
+function passeTabsSpaeterNochmalAn() {
+  requestAnimationFrame(() => { try { passeTabsAnBreiteAn(); } catch (_) {} });
+  setTimeout(() => { try { passeTabsAnBreiteAn(); } catch (_) {} }, 400);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { try { passeTabsAnBreiteAn(); } catch (_) {} });
+  }
+}
+window.addEventListener("resize", () => { try { passeTabsAnBreiteAn(); } catch (_) {} });
 
 // v0.9.460 — aktives Modul nach außen geben (Schnell-Einstieg ist kontextuell).
 window.getActiveMod = () => activeMod;

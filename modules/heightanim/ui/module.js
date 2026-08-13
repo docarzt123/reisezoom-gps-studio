@@ -1753,7 +1753,7 @@ function mountHeightAnim(body, headerActions) {
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.checked = _statsFields.includes(id);
       cb.addEventListener("change", () => {
-        _haPushUndo("Info-Feld geändert");   // dynamisch (keine id) → manueller Push
+        _haPushUndo(t("undo.info_feld_geaendert", "Info-Feld geändert"));   // dynamisch (keine id) → manueller Push
         if (cb.checked) { if (!_statsFields.includes(id)) _statsFields.push(id); }
         else _statsFields = _statsFields.filter(f => f !== id);
         persistHeightWaypoints(); drawElevationSvg();
@@ -1794,7 +1794,7 @@ function mountHeightAnim(body, headerActions) {
       let _numPushed = false;
       num.addEventListener("pointerdown", () => { _numPushed = false; });
       num.addEventListener("input", () => {
-        if (!_numPushed) { _haPushUndo("Farbschwelle geändert"); _numPushed = true; }
+        if (!_numPushed) { _haPushUndo(t("undo.farbschwelle_geaendert", "Farbschwelle geändert")); _numPushed = true; }
         s.ele = parseFloat(num.value) || 0;
         persistHeightWaypoints(); drawElevationSvg();
       });
@@ -1807,7 +1807,7 @@ function mountHeightAnim(body, headerActions) {
       let _colPushed = false;
       cpick.addEventListener("pointerdown", () => { _colPushed = false; });
       cpick.addEventListener("input", () => {
-        if (!_colPushed) { _haPushUndo("Farbzone-Farbe geändert"); _colPushed = true; }
+        if (!_colPushed) { _haPushUndo(t("undo.farbzone_farbe_geaendert", "Farbzone-Farbe geändert")); _colPushed = true; }
         s.color = cpick.value; persistHeightWaypoints(); drawElevationSvg();
       });
       cpick.addEventListener("change", () => { _colPushed = false; });
@@ -1815,7 +1815,7 @@ function mountHeightAnim(body, headerActions) {
       del.type = "button"; del.className = "height-wp-del"; del.textContent = "✕";
       del.title = t("heightanim.fill.delete", "Farbzone löschen");
       del.addEventListener("click", () => {
-        _haPushUndo("Farbzone gelöscht");
+        _haPushUndo(t("undo.farbzone_geloescht", "Farbzone gelöscht"));
         cfg.get().splice(i, 1);
         persistHeightWaypoints(); renderZoneStops(key); drawElevationSvg();
       });
@@ -1829,7 +1829,7 @@ function mountHeightAnim(body, headerActions) {
   // Eine neue Zone von Hand hinzufügen (Default-Höhe = Mitte des Höhenbereichs)
   function addZoneStop(key) {
     const cfg = _zoneCfg(key);
-    _haPushUndo("Farbzone hinzugefügt");
+    _haPushUndo(t("undo.farbzone_hinzugefuegt", "Farbzone hinzugefügt"));
     let defEle = 1000;
     try {
       const es = _currentData && _currentData.elevations;
@@ -1855,7 +1855,7 @@ function mountHeightAnim(body, headerActions) {
     let mn = Infinity, mx = -Infinity;
     for (const e of es) { if (e == null) continue; if (e < mn) mn = e; if (e > mx) mx = e; }
     if (!isFinite(mn) || !isFinite(mx) || mx <= mn) return;
-    _haPushUndo("Farbzonen erzeugt");
+    _haPushUndo(t("undo.farbzonen_erzeugt", "Farbzonen erzeugt"));
     const range = mx - mn;
     const stops = [];
     for (let k = 0; k < n; k++) {
@@ -1903,7 +1903,7 @@ function mountHeightAnim(body, headerActions) {
         lbl.style.cursor = "pointer";
         lbl.addEventListener("click", () => {
           const nv = window.prompt(t("heightanim.points.rename", "Name des Punkts:"), w.label || "");
-          if (nv != null) { _haPushUndo("Punkt umbenannt"); w.label = nv; persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); }
+          if (nv != null) { _haPushUndo(t("undo.punkt_umbenannt", "Punkt umbenannt")); w.label = nv; persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); }
         });
         const cpick = document.createElement("input");
         cpick.type = "color"; cpick.value = w.color || "#ff6b35"; cpick.className = "height-wp-color";
@@ -1912,14 +1912,14 @@ function mountHeightAnim(body, headerActions) {
         let _colPushed = false;
         cpick.addEventListener("pointerdown", () => { _colPushed = false; });
         cpick.addEventListener("input", () => {
-          if (!_colPushed) { _haPushUndo("Punkt-Farbe geändert"); _colPushed = true; }
+          if (!_colPushed) { _haPushUndo(t("undo.punkt_farbe_geaendert", "Punkt-Farbe geändert")); _colPushed = true; }
           w.color = cpick.value; persistHeightWaypoints(); drawElevationSvg();
         });
         cpick.addEventListener("change", () => { _colPushed = false; });
         const del = document.createElement("button");
         del.type = "button"; del.className = "height-wp-del"; del.textContent = "✕";
         del.title = t("heightanim.points.delete", "Punkt löschen");
-        del.addEventListener("click", () => { _haPushUndo("Punkt gelöscht"); _manualWps.splice(r.i, 1); persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); });
+        del.addEventListener("click", () => { _haPushUndo(t("undo.punkt_geloescht", "Punkt gelöscht")); _manualWps.splice(r.i, 1); persistHeightWaypoints(); renderWaypointList(); drawElevationSvg(); });
         row.appendChild(cpick); row.appendChild(del);
       } else {
         // Quellen-Punkt: nur ein-/ausblenden
@@ -1928,7 +1928,7 @@ function mountHeightAnim(body, headerActions) {
         eye.textContent = r.hidden ? "🚫" : "👁";
         eye.title = t("heightanim.points.toggle", "Ein-/Ausblenden");
         eye.addEventListener("click", () => {
-          _haPushUndo("Punkt ein-/ausgeblendet");
+          _haPushUndo(t("undo.punkt_ein_ausgeblendet", "Punkt ein-/ausgeblendet"));
           if (_wpHidden[r.key]) delete _wpHidden[r.key]; else _wpHidden[r.key] = true;
           persistHeightWaypoints(); renderWaypointList(); drawElevationSvg();
         });
@@ -1977,7 +1977,7 @@ function mountHeightAnim(body, headerActions) {
     const frac = Math.max(0, Math.min(1, distM / maxDist));
     const name = window.prompt(t("heightanim.points.name_new", "Name des Punkts:"), t("heightanim.points.default_name", "Punkt"));
     if (name == null) return;
-    _haPushUndo("Punkt gesetzt");
+    _haPushUndo(t("undo.punkt_gesetzt", "Punkt gesetzt"));
     _manualWps.push({ id: "m" + (_wpSeq++), dist_frac: frac, label: name, color: "#ff6b35" });
     _armAddPoint = false;
     if (_addHint) _addHint.style.display = "none";
