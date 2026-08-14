@@ -655,7 +655,18 @@ def resample(pts: List[TrackPoint], target: int, achse: str = "raw",
     if len(pts) < 2 or target < 2:
         return pts[:target] if target >= 1 else pts
     if achse == "raw":
-        return downsample(pts, target)
+        if target <= len(pts):
+            return downsample(pts, target)
+        # v0.9.510 — „wie aufgezeichnet" HOCHtasten: die Achse ist der
+        # Punkt-INDEX selbst. Damit bleibt der Rhythmus des Geräts exakt
+        # erhalten — es entstehen nur Zwischenpositionen auf den vorhandenen
+        # Wegstücken. (Strecken- oder Zeitachse würde die Verteilung ändern
+        # und aus „raw" heimlich „even"/„real" machen.)
+        werte = [float(i) for i in range(len(pts))]
+        out = [_interpoliere(pts[j], pts[j + 1], f)
+               for j, f in _stuetzstellen(werte, target)]
+        out[0], out[-1] = pts[0], pts[-1]
+        return out
 
     hat_zeit = bool(pts[-1].elapsed_s)
     if achse == "time" and not hat_zeit:

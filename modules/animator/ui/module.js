@@ -239,6 +239,26 @@ function mountAnimator(body, headerActions, opts) {
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
+          <!-- v0.9.509 — Laufpunkt. Bis v0.9.508 war er fest verdrahtet: im
+               Video immer an, in der Vorschau gar nicht sichtbar. -->
+          <div class="field">
+            <label class="checkbox-row">
+              <input type="checkbox" id="anim-dot-show" checked>
+              <span>${t("animator.dot.show", "Laufpunkt zeigen")}</span>
+            </label>
+            <div id="anim-dot-opts" style="margin-top:8px;">
+              <label class="field-label">${t("animator.dot.style", "Form")}</label>
+              <select id="anim-dot-style" class="select">
+                <option value="dot">${t("animator.dot.style_dot", "Kugel")}</option>
+                <option value="arrow">${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>
+              </select>
+              <label class="field-label" style="margin-top:8px;">${t("animator.dot.size", "Größe")}
+                <span class="label-val" id="anim-dot-size-v">1.0×</span>
+              </label>
+              <input type="range" id="anim-dot-size" min="0.5" max="3" step="0.1" value="1">
+            </div>
+          </div>
+
           <!-- v0.9.506 — Verteilung der Frames über den Track. Beschriftet nach
                dem ERGEBNIS, nicht nach dem Rechenweg: wer „zeitbasiert" liest,
                erwartet das Gegenteil von dem, was er sieht (nach Zeit abgetastet
@@ -2430,22 +2450,38 @@ function mountAnimator(body, headerActions, opts) {
     vorschauNeuZeichnen();
   }
 
-  /** Fortschritt (0..1) → Index in `currentCoords`, mit der gewählten
-   *  Verteilung. Ohne Tabelle die bisherige gerade Zuordnung. */
-  function idxAusFortschritt(p, n) {
+  /** Fortschritt (0..1) → BRUCHTEIL-Index in `currentCoords` (12.4 = zwischen
+   *  Punkt 12 und 13), mit der gewählten Verteilung.
+   *
+   *  v0.9.510 — vorher wurde hier gerundet, und ALLES rastete auf ganze
+   *  Trackpunkte: der Scrubber sprang beim Loslaufen auf den nächsten Punkt
+   *  (Marc hat es genau so beschrieben), und bei langer Dauer stand der Punkt
+   *  mehrere Frames still und hüpfte dann weiter. */
+  function fracAusFortschritt(p, n) {
     const anteil = Math.max(0, Math.min(1, p));
-    if (!_paceMap || _paceMap.length < 2) {
-      return Math.max(0, Math.min(n - 1, Math.round(anteil * (n - 1))));
+    let imTrack = anteil;
+    if (_paceMap && _paceMap.length >= 2) {
+      const x = anteil * (_paceMap.length - 1);
+      const i = Math.min(_paceMap.length - 2, Math.floor(x));
+      const f = x - i;
+      // ⚠️ Die Tabelle enthält ANTEILE (0..1), keine Punkt-Indizes: die Vorschau
+      // arbeitet mit einer reduzierten Koordinatenliste (800 statt 2951 Punkte),
+      // rohe Indizes klemmten dort ab einem Viertel am Ende fest.
+      imTrack = _paceMap[i] + (_paceMap[i + 1] - _paceMap[i]) * f;
     }
-    // Zwischen den Stützstellen linear — sonst ruckelt die Vorschau sichtbar.
-    const x = anteil * (_paceMap.length - 1);
-    const i = Math.min(_paceMap.length - 2, Math.floor(x));
-    const f = x - i;
-    // ⚠️ Die Tabelle enthält ANTEILE (0..1), keine Punkt-Indizes: die Vorschau
-    // arbeitet mit einer reduzierten Koordinatenliste (800 statt 2951 Punkte),
-    // rohe Indizes klemmten dort ab einem Viertel am Ende fest.
-    const anteilImTrack = _paceMap[i] + (_paceMap[i + 1] - _paceMap[i]) * f;
-    return Math.max(0, Math.min(n - 1, Math.round(anteilImTrack * (n - 1))));
+    return Math.max(0, Math.min(n - 1, imTrack * (n - 1)));
+  }
+
+  function idxAusFortschritt(p, n) {
+    return Math.max(0, Math.min(n - 1, Math.round(fracAusFortschritt(p, n))));
+  }
+
+  /** Koordinate am Bruchteil-Index — linear zwischen den Nachbarpunkten. */
+  function coordBeiFrac(coords, frac) {
+    const i = Math.max(0, Math.min(coords.length - 2, Math.floor(frac)));
+    const f = Math.max(0, Math.min(1, frac - i));
+    const a = coords[i], b = coords[i + 1] || a;
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
   }
 
   function trackIdxFromTimelineAnchor(anchor) {
@@ -2467,6 +2503,24 @@ function mountAnimator(body, headerActions, opts) {
       markerReal = trimB;
     }
     return idxAusFortschritt(markerReal, n);
+  }
+
+  /** Wie trackIdxFromTimelineAnchor, aber als BRUCHTEIL (v0.9.510) — für den
+   *  gleitenden Laufpunkt und die interpolierte Linienspitze beim Scrubben. */
+  function trackFracFromTimelineAnchor(anchor) {
+    const n = currentCoords ? currentCoords.length : 0;
+    if (n < 2) return 0;
+    const ti = introFraction();
+    const tf = trackFraction();
+    const trim = (_tlBar && typeof _tlBar.getTrim === "function")
+      ? _tlBar.getTrim() : { start: 0, end: 1 };
+    const trimA = Math.max(0, Math.min(1, trim.start ?? 0));
+    const trimB = Math.max(trimA, Math.min(1, trim.end ?? 1));
+    let markerReal;
+    if (anchor <= ti) markerReal = trimA;
+    else if (anchor < tf) markerReal = trimA + ((anchor - ti) / Math.max(0.0001, tf - ti)) * (trimB - trimA);
+    else markerReal = trimB;
+    return fracAusFortschritt(markerReal, n);
   }
 
   function currentShadowStrength() {
@@ -3154,6 +3208,104 @@ function mountAnimator(body, headerActions, opts) {
   // v0.9.11 — Preview-Toggle „Ganzer Track sichtbar". Persistiert pro Projekt
   // in `animator.preview_full_track`. Wird vom Timeline-Bar-Checkbox gepflegt
   // und in scrubPreview gelesen. Affects only Preview, nicht Render.
+  /* ── Laufpunkt in der Vorschau (v0.9.509) ──────────────────────────────────
+   * Bis v0.9.508 gab es ihn NUR im gerenderten Video — in der Vorschau war er
+   * gar nicht vorhanden. Man konnte also erst nach dem Rendern sehen, wie er
+   * aussieht, und Marc suchte in der Oberfläche vergeblich nach einem Schalter.
+   * Die Ebenen heißen hier `anim-dot-*` und sehen aus wie ihre Gegenstücke
+   * `dot-*` im Render (`core/animator.py`) — ⚠️ bei Änderungen beide pflegen.
+   */
+  function dotZeigen()  { return document.getElementById("anim-dot-show")?.checked !== false; }
+  function dotStil()    { return document.getElementById("anim-dot-style")?.value || "dot"; }
+  function dotGroesse() { return parseFloat(document.getElementById("anim-dot-size")?.value) || 1; }
+
+  /** Kurs in Grad am Koordinaten-Index — dieselbe Rechnung wie im Render. */
+  function _kursAn(coords, i) {
+    if (!coords || coords.length < 2) return 0;
+    const a = coords[Math.max(0, i - 1)] || coords[0];
+    const b = coords[Math.min(coords.length - 1, Math.max(1, i))] || coords[1];
+    const rad = Math.PI / 180;
+    const dLon = (b[0] - a[0]) * rad;
+    const y = Math.sin(dLon) * Math.cos(b[1] * rad);
+    const x = Math.cos(a[1] * rad) * Math.sin(b[1] * rad)
+            - Math.sin(a[1] * rad) * Math.cos(b[1] * rad) * Math.cos(dLon);
+    return (Math.atan2(y, x) / rad + 360) % 360;
+  }
+
+  /** Pfeil-Bild — identisch zum Render, nur ohne f-string-Klammern. */
+  function _pfeilBild(farbe) {
+    const d = 2, w = 34 * d, h = 34 * d;
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const g = c.getContext("2d");
+    g.translate(w / 2, h / 2);
+    g.beginPath();
+    g.moveTo(0, -13 * d); g.lineTo(9.5 * d, 11 * d);
+    g.lineTo(0, 6 * d);   g.lineTo(-9.5 * d, 11 * d);
+    g.closePath();
+    g.fillStyle = "#ffffff";
+    g.strokeStyle = farbe || "#ff6b35";
+    g.lineWidth = 3 * d; g.lineJoin = "round";
+    g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = 6 * d;
+    g.fill();
+    g.shadowColor = "transparent";
+    g.stroke();
+    return { width: w, height: h, data: g.getImageData(0, 0, w, h).data };
+  }
+
+  /** Ebenen anlegen/erneuern. Bei Stil- oder Farbwechsel werden sie neu
+   *  gebaut — Mapbox kann `icon-image` nicht nachträglich austauschen, ohne
+   *  dass das Bild schon registriert ist. */
+  function dotEbenenAufbauen() {
+    if (!map || !map.isStyleLoaded || !map.isStyleLoaded()) return;
+    const farbe = document.getElementById("anim-color")?.value || "#ff6b35";
+    const gr = dotGroesse();
+    try {
+      if (!map.getSource("anim-dot")) {
+        map.addSource("anim-dot", { type: "geojson",
+          data: { type: "Feature", properties: { brg: 0 },
+                  geometry: { type: "Point", coordinates: (currentCoords && currentCoords[0]) || [0, 0] } } });
+      }
+      ["anim-dot-arrow", "anim-dot-core", "anim-dot-glow"].forEach(id => {
+        if (map.getLayer(id)) map.removeLayer(id);
+      });
+      if (!dotZeigen() || !currentCoords) return;
+      if (dotStil() === "arrow") {
+        try {
+          if (map.hasImage("anim-arrow")) map.removeImage("anim-arrow");
+          map.addImage("anim-arrow", _pfeilBild(farbe), { pixelRatio: 2 });
+        } catch (_) {}
+        map.addLayer({ id: "anim-dot-arrow", type: "symbol", source: "anim-dot",
+          layout: { "icon-image": "anim-arrow", "icon-size": gr,
+                    "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
+                    "icon-pitch-alignment": "map", "icon-allow-overlap": true,
+                    "icon-ignore-placement": true } });
+      } else {
+        map.addLayer({ id: "anim-dot-glow", type: "circle", source: "anim-dot",
+          paint: { "circle-radius": 10 * gr, "circle-color": "#fff", "circle-opacity": 0.3,
+                   "circle-blur": 0.8, "circle-pitch-alignment": "map" } });
+        map.addLayer({ id: "anim-dot-core", type: "circle", source: "anim-dot",
+          paint: { "circle-radius": 5 * gr, "circle-color": "#fff", "circle-opacity": 0.95,
+                   "circle-stroke-color": farbe, "circle-stroke-width": 2,
+                   "circle-pitch-alignment": "map" } });
+      }
+    } catch (e) { try { applog("warn", "[anim-dot] Aufbau: " + e); } catch (_) {} }
+  }
+
+  /** Position + Fahrtrichtung setzen (jeder Frame bzw. bei jedem Scrubben).
+   *  v0.9.510 — nimmt BRUCHTEILE und interpoliert zwischen den Punkten:
+   *  der Laufpunkt gleitet, statt von Punkt zu Punkt zu hüpfen. */
+  function dotSetzen(frac) {
+    if (!map || !currentCoords) return;
+    try {
+      const src = map.getSource("anim-dot");
+      if (!src) return;
+      const f = Math.max(0, Math.min(currentCoords.length - 1, +frac || 0));
+      src.setData({ type: "Feature",
+                    properties: { brg: _kursAn(currentCoords, Math.ceil(f)) },
+                    geometry: { type: "Point", coordinates: coordBeiFrac(currentCoords, f) } });
+    } catch (_) {}
+  }
+
   function previewFullTrack() {
     // v0.9.469 — Tour-Map (Standbild) hat keinen Scrubber/Timeline → IMMER den
     // ganzen Track zeigen. Sonst trimmt refreshPreviewTrackData auf die (nicht
@@ -4480,7 +4632,8 @@ function mountAnimator(body, headerActions, opts) {
     // Track-idx wird über track_fraction abgeleitet — in der Hold-Phase
     // bleibt er auf len-1 (Track steht still), während die Kamera weiter
     // interpoliert werden kann.
-    const coordIdx = trackIdxFromTimelineAnchor(anchor);
+    const coordFrac = trackFracFromTimelineAnchor(anchor);   // v0.9.510
+    const coordIdx = Math.max(0, Math.min((currentCoords ? currentCoords.length : 1) - 1, Math.round(coordFrac)));
     // v0.9.325 — Live-Stats beim Scrubben mitlaufen lassen (WYSIWYG).
     try { _ovUpdateLiveAt(coordIdx / Math.max(1, currentCoords.length - 1)); } catch (_) {}
     // v0.8.7: wenn Keyframe expliziten center hat → nutze ihn, sonst Track-Punkt
@@ -4570,9 +4723,12 @@ function mountAnimator(body, headerActions, opts) {
       if (src && currentCoords) {
         // v0.9.56: respektiert show_pretrim_track-Setting (= matches Render-Output)
         const startIdx = lineStartCoordIdx();
+        // v0.9.510 — Spitze interpoliert, damit die Linie beim Scrubben
+        // gleitet statt punktweise zu springen.
         const coords = previewFullTrack()
           ? currentCoords
-          : currentCoords.slice(startIdx, coordIdx + 1);
+          : currentCoords.slice(startIdx, Math.floor(coordFrac) + 1)
+              .concat([coordBeiFrac(currentCoords, coordFrac)]);
         src.setData({
           type: "Feature",
           geometry: { type: "LineString", coordinates: coords },
@@ -4583,6 +4739,8 @@ function mountAnimator(body, headerActions, opts) {
         applyPreviewColorGradient(ai0, ai1);
       }
     } catch (_) {}
+    // v0.9.509/510 — Laufpunkt mitführen, gleitend statt gerastet.
+    try { dotSetzen(typeof coordFrac === "number" ? coordFrac : coordIdx); } catch (_) {}
     // v0.9.79 — Foto-Pins: Filter auf aktuelle Marker-Position. Foto erscheint
     // erst wenn Track-Marker es passiert hat.
     // v0.9.81 — via window-Helper (Scope-Fix, sonst ReferenceError silent).
@@ -5321,7 +5479,9 @@ function mountAnimator(body, headerActions, opts) {
         scrubberVis = trimEndVis + holdProgress * (1 - trimEndVis);
         signAnchor = trimB + (holdProgress * holdSec) / Math.max(0.001, durSec);
       }
-      const coordIdx = idxAusFortschritt(markerReal, tn);
+      const coordFrac = fracAusFortschritt(markerReal, tn);
+      const coordIdx = Math.max(0, Math.min(tn - 1, Math.round(coordFrac)));
+      try { dotSetzen(coordFrac); } catch (_) {}   // v0.9.509/510 — gleitender Laufpunkt
       // v0.9.56: Track-Linien-Start respektiert show_pretrim_track-Setting:
       // wenn an → von Track-Anfang (0), sonst vom Trim-Start.
       const startCoordIdx = showPretrimTrack()
@@ -5409,9 +5569,13 @@ function mountAnimator(body, headerActions, opts) {
         const src = map.getSource("preview-track");
         if (src) {
           const fullToggle = previewFullTrack();
+          // v0.9.510 — die Spitze der wachsenden Linie liegt ZWISCHEN den
+          // Punkten (interpoliert), sonst wächst sie ruckweise, während der
+          // Laufpunkt gleitet — die beiden liefen sichtbar auseinander.
           const lineCoords = fullToggle
             ? currentCoords
-            : currentCoords.slice(startCoordIdx, coordIdx + 1);
+            : currentCoords.slice(startCoordIdx, Math.floor(coordFrac) + 1)
+                .concat([coordBeiFrac(currentCoords, coordFrac)]);
           src.setData({
             type: "Feature",
             geometry: { type: "LineString", coordinates: lineCoords },
@@ -8540,6 +8704,38 @@ function mountAnimator(body, headerActions, opts) {
       saveSettings({ animator: { point_count: toSave } });
     }
   });
+  // ── Laufpunkt (v0.9.509) ─────────────────────────────────────────────────
+  function dotAnzeigen() {
+    const opts = document.getElementById("anim-dot-opts");
+    if (opts) opts.hidden = !dotZeigen();
+    const v = document.getElementById("anim-dot-size-v");
+    if (v) v.textContent = dotGroesse().toFixed(1) + "×";
+  }
+
+  function dotGeaendert(speichern) {
+    dotAnzeigen();
+    dotEbenenAufbauen();
+    // An der Scrubber-Stelle bleiben, sonst springt der Punkt beim Umschalten
+    // an den Anfang.
+    try {
+      const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
+      dotSetzen(trackIdxFromTimelineAnchor(a));
+    } catch (_) {}
+    if (!speichern) return;
+    const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(),
+                    marker_dot_size: dotGroesse() };
+    if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, patch);
+    else if (typeof saveSettings === "function") saveSettings({ animator: patch });
+  }
+
+  document.getElementById("anim-dot-show")?.addEventListener("change", () => dotGeaendert(true));
+  document.getElementById("anim-dot-style")?.addEventListener("change", () => dotGeaendert(true));
+  document.getElementById("anim-dot-size")?.addEventListener("input", () => dotGeaendert(false));
+  document.getElementById("anim-dot-size")?.addEventListener("change", () => dotGeaendert(true));
+  // ⚠️ Die Track-Farbe färbt auch den Laufpunkt — beim Wechsel neu bauen,
+  // sonst behält der Pfeil die alte Randfarbe (das Bild ist eingebrannt).
+  document.getElementById("anim-color")?.addEventListener("change", () => dotGeaendert(false));
+
   // ── Verteilung der Frames (v0.9.506) ─────────────────────────────────────
   /** Hat der geladene Track überhaupt Zeitstempel?
    *  ⚠️ Ohne sie gibt es kein „echtes Tempo" — und das ist kein Sonderfall:
@@ -8575,6 +8771,16 @@ function mountAnimator(body, headerActions, opts) {
       const tr = document.getElementById("anim-pause-trim");
       if (tr && a.pause_trim_s != null) tr.value = a.pause_trim_s;
       paceAnzeigen();
+
+      // v0.9.509 — Laufpunkt aus dem Projekt. Fehlt die Angabe (Projekt von
+      // vor v0.9.509), bleibt es beim bisherigen Verhalten: sichtbare Kugel.
+      const zeig = document.getElementById("anim-dot-show");
+      if (zeig) zeig.checked = (a.marker_dot_show !== false);
+      const stil = document.getElementById("anim-dot-style");
+      if (stil) stil.value = a.marker_dot_style || "dot";
+      const gr = document.getElementById("anim-dot-size");
+      if (gr && a.marker_dot_size) gr.value = a.marker_dot_size;
+      dotGeaendert(false);
   }
 
   function _hatZeit() {
@@ -9676,8 +9882,8 @@ function mountAnimator(body, headerActions, opts) {
     document.getElementById("s-desc").textContent = "↓ " + fmtMeter(res.stats.descent_m);
     document.getElementById("anim-render").disabled = false;
 
-    if (map && map.isStyleLoaded()) drawPreview(res);
-    else if (map) map.once("load", () => drawPreview(res));
+    if (map && map.isStyleLoaded()) { drawPreview(res); dotEbenenAufbauen(); dotSetzen(0); }
+    else if (map) map.once("load", () => { drawPreview(res); dotEbenenAufbauen(); dotSetzen(0); });
     renderOverlayPreview();  // jetzt haben wir Stats → echte Werte zeigen
 
     // Punkte-Slider auf den geladenen Track kalibrieren.
@@ -10958,6 +11164,10 @@ function mountAnimator(body, headerActions, opts) {
         // Wenn voller Wert: 0 senden, sonst exakte Punkte-Zahl
         return (v >= max) ? 0 : v;
       })(),
+      // v0.9.509 — Laufpunkt.
+      marker_dot_show: dotZeigen(),
+      marker_dot_style: dotStil(),
+      marker_dot_size: dotGroesse(),
       // v0.9.506 — Verteilung + Pausen.
       pace_mode: (document.getElementById("anim-pace")?.value) || "raw",
       pause_mode: (document.getElementById("anim-pause-mode")?.value) || "trim",

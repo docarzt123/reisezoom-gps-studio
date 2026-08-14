@@ -720,6 +720,12 @@ renderizar.
 - **FPS**: 24 (cine) · 25 (PAL/TV europea) · 30 (estándar) · 50 (PAL HFR) · 60
 - **Códec**: H.264 (universalmente compatible) o H.265 (HEVC, ~30 % más pequeño)
 
+**El punto en sí (desde v0.9.509):** En *Track* está **«Mostrar el punto»**:
+puedes apagarlo, elegir entre la **bola** y una **flecha que apunta en el
+sentido de la marcha**, y ajustar su tamaño. El punto se ve igual en la vista
+previa y en la prueba que en el vídeo final, y se desliza de forma continua —
+también en vídeos largos, donde antes daba tirones.
+
 **Cómo se mueve el punto por la ruta (desde v0.9.506):**
 
 Arriba del todo en *Track* está **«Reparto a lo largo de la ruta»**. No decide

@@ -1200,6 +1200,51 @@ function mountLibrary(body, headerActions) {
    *  nach jedem Bild weg, und man bekommt eine schwarze Fläche. Deshalb wird
    *  vorher noch einmal gezeichnet und auf `idle` gewartet — sonst fehlen
    *  Kacheln, die gerade noch laden. */
+  /**
+   * Karten-Bild samt Quellenangabe.
+   *
+   * ⚠️ `getCanvas().toDataURL()` liefert NUR die WebGL-Fläche — die
+   * Quellenangabe („© Mapbox © OpenStreetMap") ist ein HTML-Element daneben und
+   * fehlte im gesicherten Bild komplett. Das ist kein Schönheitsfehler:
+   * Mapbox verlangt die Nennung vertraglich, OpenStreetMap-Daten stehen unter
+   * einer Lizenz, die sie ebenfalls verlangt.
+   *
+   * Der Text wird aus der Karte selbst gelesen, nicht fest eingetragen — so
+   * stimmt er automatisch, egal ob gerade Mapbox oder der OSM-Rückfall läuft.
+   */
+  async function mitQuellenangabe(karte) {
+    const quelle = karte.getCanvas();
+    const roh = quelle.toDataURL("image/png");
+    let text = "";
+    try {
+      const el = document.querySelector(".mapboxgl-ctrl-attrib-inner, .maplibregl-ctrl-attrib-inner");
+      text = (el ? el.textContent : "").replace(/\s+/g, " ").trim();
+    } catch (_) {}
+    if (!text) return roh;              // nichts gefunden → lieber das Bild als gar nichts
+
+    const bild = await new Promise((ok, fehler) => {
+      const i = new Image();
+      i.onload = () => ok(i); i.onerror = fehler; i.src = roh;
+    });
+    const c = document.createElement("canvas");
+    c.width = bild.width; c.height = bild.height;
+    const g = c.getContext("2d");
+    g.drawImage(bild, 0, 0);
+
+    // Am Bild skalieren, damit die Zeile bei großen Karten nicht winzig wird.
+    const gr = Math.max(11, Math.round(bild.width / 110));
+    g.font = `${gr}px -apple-system, "Segoe UI", Roboto, sans-serif`;
+    const breite = g.measureText(text).width;
+    const pad = Math.round(gr * 0.55), hoehe = Math.round(gr * 1.9);
+    const x = bild.width - breite - pad * 2, y = bild.height - hoehe;
+    g.fillStyle = "rgba(255,255,255,0.75)";
+    g.fillRect(x, y, breite + pad * 2, hoehe);
+    g.fillStyle = "#333";
+    g.textBaseline = "middle";
+    g.fillText(text, x + pad, y + hoehe / 2);
+    return c.toDataURL("image/png");
+  }
+
   async function saveMapPng() {
     const btn = $("lib-map-png");
     if (!_map || !_mapReady) return;
@@ -1214,7 +1259,7 @@ function mountLibrary(body, headerActions) {
       });
       _map.triggerRepaint();
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const url = _map.getCanvas().toDataURL("image/png");
+      const url = await mitQuellenangabe(_map);
       const name = _ortAktiv ? _ortAktiv.name.split(",")[0]
                  : (state.search || T("library.all_tours", "Alle Touren"));
       const r = await api().library_save_map_png(url, name);

@@ -772,6 +772,12 @@ renderst.
 - **FPS**: 24 (Kino) · 25 (PAL/Europa-TV) · 30 (Standard) · 50 (PAL HFR) · 60
 - **Codec**: H.264 (universell kompatibel) oder H.265 (HEVC, ~30% kleiner)
 
+**Der Laufpunkt selbst (seit v0.9.509):** Unter *Track* steht **„Laufpunkt
+zeigen"** — dort schaltest du ihn aus, wählst zwischen **Kugel** und einem
+**Pfeil, der in Fahrtrichtung zeigt**, und stellst die Größe ein. Der Punkt ist
+in Vorschau und Probe-Lauf genauso zu sehen wie im fertigen Video, und er
+gleitet stufenlos — auch bei langen Videos, wo er früher ruckelte.
+
 **Wie sich der Punkt über die Strecke bewegt (seit v0.9.506):**
 
 Unter *Track* steht ganz oben **„Verteilung über den Track"**. Sie bestimmt

@@ -410,6 +410,15 @@ class AnimatorConfig:
     # und „HÖHENPROFIL", während die Vorschau korrekt Spanisch zeigte.
     # Leer = Deutsch (die einprogrammierten Fallbacks).
     ui_lang: str = ""
+    # v0.9.509 — Der Laufpunkt („die Kugel"), der die Strecke abfährt.
+    # ⚠️ Bis v0.9.508 war er fest verdrahtet: im Video immer an, in der Vorschau
+    # gar nicht vorhanden. Man konnte also erst nach dem Rendern sehen, wie er
+    # aussieht. Jetzt: an/aus, Form und Größe — und die Vorschau zeigt dasselbe.
+    #   "dot"   — weiße Kugel mit Rand in Track-Farbe (wie bisher)
+    #   "arrow" — Pfeil, der in Fahrtrichtung zeigt
+    marker_dot_show: bool = True
+    marker_dot_style: str = "dot"
+    marker_dot_size: float = 1.0        # Faktor auf die Grundgröße
     # Alpha-Channel-Modus: kein Karten-Background, nur Track + Punkt + Overlays
     # auf transparentem Hintergrund. Output ist dann eine ProRes-4444-.mov,
     # die in Premiere/Final Cut/DaVinci/Resolve direkt als Overlay-Layer
@@ -2171,6 +2180,51 @@ const SHOW_OVERLAYS = {str(cfg.show_overlays).lower()};
 const SHOW_PRETRIM_TRACK = {str(cfg.show_pretrim_track).lower()};
 const TRIM_START_IDX = Math.max(0, Math.min(totalPoints - 1, Math.floor({float(cfg.render_start_anchor)} * (totalPoints - 1))));
 const SHOW_PINS = {str(bool(cfg.show_pins)).lower()};  // v0.9.307 — Start/End-Pins (Standbild/Tour-Map-Erbe)
+// v0.9.509 — Laufpunkt: sichtbar? welche Form? RENDER_SCALE hält ihn im
+// 4K-Render optisch gleich groß wie in der Vorschau (dasselbe Prinzip wie bei
+// Schildern und Foto-Pins seit v0.9.224).
+const DOT_SHOW = {str(bool(cfg.marker_dot_show)).lower()};
+const DOT_STYLE = {json.dumps(str(cfg.marker_dot_style or 'dot'))};
+const RENDER_SCALE = {float(getattr(cfg, 'render_scale', 1.0) or 1.0)};
+
+/** Kurs (Grad, 0 = Norden) am Punkt `i` — aus dem Wegstück davor, am Anfang
+ *  aus dem danach. Nur der Pfeil braucht das. */
+function __rzKurs(coords, i) {{
+  if (!coords || coords.length < 2) return 0;
+  const a = coords[Math.max(0, i - 1)] || coords[0];
+  const b = coords[Math.min(coords.length - 1, Math.max(1, i))] || coords[1];
+  const rad = Math.PI / 180;
+  const dLon = (b[0] - a[0]) * rad;
+  const y = Math.sin(dLon) * Math.cos(b[1] * rad);
+  const x = Math.cos(a[1] * rad) * Math.sin(b[1] * rad)
+          - Math.sin(a[1] * rad) * Math.cos(b[1] * rad) * Math.cos(dLon);
+  return (Math.atan2(y, x) / rad + 360) % 360;
+}}
+
+/** Pfeil-Grafik als Bild — weiße Spitze mit Rand in Track-Farbe, damit sie auf
+ *  hellen wie dunklen Karten steht. Wird einmal erzeugt und von Mapbox
+ *  gedreht; deshalb zeigt sie hier nach oben (0° = Norden). */
+function __rzPfeilBild(farbe) {{
+  const d = 2, w = 34 * d, h = 34 * d;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.translate(w / 2, h / 2);
+  g.beginPath();
+  g.moveTo(0, -13 * d);            // Spitze
+  g.lineTo(9.5 * d, 11 * d);       // rechts unten
+  g.lineTo(0, 6 * d);              // Kerbe in der Mitte
+  g.lineTo(-9.5 * d, 11 * d);      // links unten
+  g.closePath();
+  g.fillStyle = '#ffffff';
+  g.strokeStyle = farbe || '#ff6b35';
+  g.lineWidth = 3 * d;
+  g.lineJoin = 'round';
+  g.shadowColor = 'rgba(0,0,0,0.35)'; g.shadowBlur = 6 * d;
+  g.fill();
+  g.shadowColor = 'transparent';
+  g.stroke();
+  return {{ width: w, height: h, data: g.getImageData(0, 0, w, h).data }};
+}}
 window.__camStabAmt = {_cam_stab_amt};  // v0.9.314 — Kamera-Höhe halten (0=aus, 1=fest)
 // v0.9.24 — Flags: bei Track ohne Höhe/Zeit fehlen die zugehörigen DOM-Nodes
 // (Höhenprofil-SVG + live-Stats-Zeilen werden conditional erzeugt). Das JS
@@ -2297,11 +2351,25 @@ map.on('style.load', () => {{
     + "}});") if cfg.track_style == "tube" else "// no tube highlight"}
   // v0.9.156 — Multi-Track: N eigene Tour-Sources/Layer (leer wenn Single-Track).
   {multi_track_layers}
-  map.addSource('dot', {{type:'geojson',data:{{type:'Feature',geometry:{{type:'Point',coordinates:allCoords[0]}}}}}});
-  map.addLayer({{id:'dot-glow',type:'circle',source:'dot',
-    paint:{{'circle-radius':10,'circle-color':'#fff','circle-opacity':0.3,'circle-blur':0.8,'circle-pitch-alignment':'map'}}}});
-  map.addLayer({{id:'dot-core',type:'circle',source:'dot',
-    paint:{{'circle-radius':5,'circle-color':'#fff','circle-opacity':0.95,'circle-stroke-color':'{cfg.line_color}','circle-stroke-width':2,'circle-pitch-alignment':'map'}}}});
+  // v0.9.509 — Laufpunkt: Kugel oder Pfeil, Größe wählbar, ein-/ausblendbar.
+  // Die Quelle trägt `brg` (Fahrtrichtung in Grad) mit, damit der Pfeil sich
+  // dreht. ⚠️ `icon-rotation-alignment:'map'` ist Pflicht: sonst dreht sich der
+  // Pfeil mit der Kamera statt mit dem Weg.
+  map.addSource('dot', {{type:'geojson',data:{{type:'Feature',properties:{{brg:0}},geometry:{{type:'Point',coordinates:allCoords[0]}}}}}});
+  if (DOT_SHOW && DOT_STYLE === 'arrow') {{
+    if (!map.hasImage('rz-arrow')) {{
+      try {{ map.addImage('rz-arrow', __rzPfeilBild('{cfg.line_color}'), {{pixelRatio: 2}}); }} catch (e) {{}}
+    }}
+    map.addLayer({{id:'dot-arrow',type:'symbol',source:'dot',
+      layout:{{'icon-image':'rz-arrow','icon-size':{cfg.marker_dot_size} * RENDER_SCALE,
+        'icon-rotate':['get','brg'],'icon-rotation-alignment':'map',
+        'icon-pitch-alignment':'map','icon-allow-overlap':true,'icon-ignore-placement':true}}}});
+  }} else if (DOT_SHOW) {{
+    map.addLayer({{id:'dot-glow',type:'circle',source:'dot',
+      paint:{{'circle-radius':10 * {cfg.marker_dot_size} * RENDER_SCALE,'circle-color':'#fff','circle-opacity':0.3,'circle-blur':0.8,'circle-pitch-alignment':'map'}}}});
+    map.addLayer({{id:'dot-core',type:'circle',source:'dot',
+      paint:{{'circle-radius':5 * {cfg.marker_dot_size} * RENDER_SCALE,'circle-color':'#fff','circle-opacity':0.95,'circle-stroke-color':'{cfg.line_color}','circle-stroke-width':2 * RENDER_SCALE,'circle-pitch-alignment':'map'}}}});
+  }}
   // v0.9.307 — Start/End-Pins (aus der Tour-Map übernommen, Standbild-Modus).
   // Identische Optik wie früher core/tourmap.py: weißer Start, Track-farbiges Ende.
   if (SHOW_PINS && allCoords.length >= 2) {{
@@ -2449,7 +2517,11 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
     }}
   }}
   const head = allCoords[safe] || allCoords[0];
-  map.getSource('dot').setData({{type:'Feature',geometry:{{type:'Point',coordinates:head}}}});
+  // Fahrtrichtung aus dem Wegstück VOR dem Punkt (am Anfang aus dem danach) —
+  // nur der Pfeil braucht sie, die Kugel ignoriert sie.
+  map.getSource('dot').setData({{type:'Feature',
+    properties:{{brg: __rzKurs(allCoords, safe)}},
+    geometry:{{type:'Point',coordinates:head}}}});
   // v0.9.318 — setCam===false: Kamera NICHT hier setzen (entkoppelte FreeCamera
   // übernimmt das via __camFaithful). Linie/Punkt/Overlays laufen trotzdem.
   if (setCam !== false) {{
@@ -2865,11 +2937,27 @@ def _punkte_verteilen(cfg, raw_points):
     modus = getattr(cfg, "pace_mode", "raw") or "raw"
     if cfg.point_count <= 0 or cfg.point_count >= len(raw_points):
         ziel = len(raw_points)
+        # v0.9.510 — Ruckel-Fix (Marc: „wenn ich die länge des clips deutlich
+        # verlängere, ruckelt es"). Der Renderer kennt nur ganze Trackpunkte;
+        # hat die Animation MEHR Frames als der Track Punkte, steht der Punkt
+        # mehrere Frames still und springt dann (gemessen: 629 Punkte × 50 s
+        # × 30 fps = Sprung alle 79 ms — klar sichtbar). Deshalb wird auf
+        # Frame-Anzahl hochgetastet: eine eigene Position je Frame.
+        # ⚠️ NUR bei „alle Punkte": wer die Punktzahl am Regler bewusst
+        # reduziert hat, hat sich gegen Glätte und für Tempo entschieden —
+        # diese Wahl wird nicht heimlich übersteuert. Der Deckel begrenzt
+        # Speicher und setData-Kosten bei sehr langen Videos.
+        frames = int(round(float(getattr(cfg, "duration_s", 0) or 0)
+                           * float(getattr(cfg, "fps", 30) or 30)))
+        if frames > ziel:
+            ziel = min(frames, 10000)
     else:
         ziel = max(2, cfg.point_count)
 
     if modus == "raw":
-        return raw_points if ziel >= len(raw_points) else downsample(raw_points, ziel)
+        if ziel <= len(raw_points):
+            return raw_points if ziel >= len(raw_points) else downsample(raw_points, ziel)
+        return resample(raw_points, ziel, achse="raw")
 
     return resample(
         raw_points, ziel,
