@@ -47,6 +47,9 @@ Bei jeder neuen Version:
   Zeile unter der Leiste dadurch eine zu kleine Prozentzahl und eine zu frühe
   Punktnummer und meldete „frei", obwohl der Scrubber genau auf einem
   Keyframe stand.
+- **Nach einem Modul-Wechsel sprang die Vorschau an eine falsche Stelle** —
+  der gemerkte Scrubber-Stand ist eine Position auf der Zeitleiste, wurde beim
+  Zurückkehren aber als Stelle im Track gelesen.
 - **Keyframe-Marker blieben nach einer Änderung von Intro oder Hold stehen**,
   während Griffe und Scrubber wanderten — sie werden jetzt mitgezeichnet.
 - **Die Keyframe-Punkte auf der Karte wurden unterschiedlich groß.** Mapbox

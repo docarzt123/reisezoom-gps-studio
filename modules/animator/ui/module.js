@@ -6199,7 +6199,13 @@ function mountAnimator(body, headerActions, opts) {
                 // Karte auf den gemerkten KF-Anchor scrubben — nur wenn KFs
                 // aktiv sind, sonst wäre's ein No-Op auf currentCoords.
                 if (keyframesEnabled() && map && currentCoords && currentCoords.length > 1) {
-                  try { scrubPreview(cache.scrubberAnchor, { skipSelectionSync: true }); } catch (_) {}
+                  // ⚠️ v0.9.511 — `cache.scrubberAnchor` ist eine LEISTEN-Position
+                  // (so gespeichert, damit der Scrubber pixelgenau zurückkommt);
+                  // `scrubPreview` will eine Stelle im TRACK.
+                  try {
+                    scrubPreview(_tlBar.barToTrack(cache.scrubberAnchor),
+                                 { skipSelectionSync: true });
+                  } catch (_) {}
                 }
               }
             } catch (_) {}
@@ -6457,19 +6463,22 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.79 — Wandelt Timeline-Anchor (0..1 inkl. intro+hold) in
     // Marker-Position-im-Track (0..1) um. Wiederverwendung der bestehenden
     // trackIdxFromTimelineAnchor + Normalisierung.
-    function _animPhotosMarkerAnchor(timelineAnchor) {
+    /** Track-Anker → auf den Schnitt geklemmter Track-Anker (v0.9.511:
+     *  hieß der Parameter noch `timelineAnchor` und log damit über seine
+     *  Einheit — Foto-Pins filtern nach `track_anchor`, nicht nach Zeit). */
+    function _animPhotosMarkerAnchor(trackAnker) {
       if (!currentCoords || currentCoords.length < 2) return 0;
       const n = currentCoords.length;
       const idx = (typeof trackIdxFromTimelineAnchor === "function")
-        ? trackIdxFromTimelineAnchor(timelineAnchor) : 0;
+        ? trackIdxFromTimelineAnchor(trackAnker) : 0;
       return idx / (n - 1);
     }
     // v0.9.79 — Nur den Filter live setzen (kein voller Re-Attach).
     // Wird von scrubPreview + runTimelinePreview pro Frame gerufen.
-    function _animPhotosUpdateMarkerFilter(timelineAnchor) {
+    function _animPhotosUpdateMarkerFilter(trackAnker) {
       if (!map || typeof PhotoPins === "undefined" || !PhotoPins.setMarkerAnchor) return;
       if (!_animPhotosShow()) return;
-      PhotoPins.setMarkerAnchor(map, _animPhotosMarkerAnchor(timelineAnchor));
+      PhotoPins.setMarkerAnchor(map, _animPhotosMarkerAnchor(trackAnker));
     }
     function _animPhotosRenderList() {
       const host = document.getElementById("anim-photos-list");
@@ -7137,27 +7146,21 @@ function mountAnimator(body, headerActions, opts) {
         }
       });
     }
-    // v0.9.204 — Schild-spezifischer Anker: im Intro NEGATIV unter den
-    // trim_start laufen lassen (statt einzufrieren), damit ein Schild-Vorlauf
-    // (`before`) ins Intro reicht und über die letzte Intro-Sekunde einblendet.
-    // Spiegelt den Render (animator.py _sign_intro_anchor). Fotos nutzen
-    // weiterhin _animPhotosMarkerAnchor (eingefroren) — nur Schilder erweitern.
-    // Rate introSec/animSec = Einheit von rzSignSecToAnchor → before=N s blendet
-    // N s vor Track-Start ein. Hold/Anim bleiben unverändert (= base).
-    function _animSignsAnchorFromTimeline(timelineAnchor) {
-      const base = _animPhotosMarkerAnchor(timelineAnchor);
-      const ti = (typeof introFraction === "function") ? introFraction() : 0;
-      if (ti <= 0 || timelineAnchor >= ti) return base;  // kein Intro / außerhalb
-      const introSec = parseNum(document.getElementById("anim-intro")?.value, 0);
-      const animSec  = parseNum(document.getElementById("anim-dur")?.value, 12);
-      if (introSec <= 0 || animSec <= 0) return base;
-      const introProgress = Math.max(0, Math.min(1, timelineAnchor / Math.max(0.0001, ti)));
-      // base = trimA-Anker (Marker am Track-Start). Im Intro nach unten ziehen:
-      return base - (1 - introProgress) * (introSec / animSec);
-    }
-    // Aufruf aus scrubPreview mit Timeline-Anchor (inkl. intro+hold) → umrechnen.
-    function _animSignsUpdateAtAnchor(timelineAnchor) {
-      _animSignsApplyMarkerAnchor(_animSignsAnchorFromTimeline(timelineAnchor));
+    /** Schilder an einer Scrubber-Position mitführen.
+     *
+     *  ⚠️ v0.9.511 — hier stand eine Sonderrechnung, die aus der INTRO-ZEIT
+     *  einen Anker unterhalb von trim_start hochrechnete (Spiegel von
+     *  `_sign_base_anchor` im Renderer). Die braucht es beim Scrubben nicht
+     *  mehr: seit die Leiste in Track-Ankern spricht, läuft der Anker vor dem
+     *  Schnitt-Anfang von selbst darunter. Nur klemmen darf man ihn dann
+     *  nicht — sonst kann ein Schild mit Vorlauf nie früh erscheinen.
+     *  (Im Probe-Lauf macht das weiterhin `signAnchor` in der Frame-Schleife,
+     *  weil dort auch die Hold-Phase weiterlaufen muss.) */
+    function _animSignsUpdateAtAnchor(trackAnker) {
+      const geklemmt = _animPhotosMarkerAnchor(trackAnker);
+      const a = (typeof trackAnker === "number" && trackAnker < geklemmt)
+        ? trackAnker : geklemmt;
+      _animSignsApplyMarkerAnchor(a);
     }
     let _animSignDragFrom = -1;   // v0.9.198 — Drag-Reorder Quell-Index
     function _animSignsRenderList() {
