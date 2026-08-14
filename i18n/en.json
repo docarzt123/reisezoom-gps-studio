@@ -585,6 +585,7 @@
   "animator.kf.delete_hint": "Quick-delete: right-click the marker in the bar (or the pin on the map) · <kbd>Del</kbd> key when the keyframe is selected.",
   "animator.kf.hint": "Tip: drag, rotate, tilt the map — then click „Update with current map view\" above. Or use the sliders to fine-tune.",
   "animator.timeline.marker.tip": "Click: select + edit · Right-click: delete · Drag: move",
+  "animator.timeline.marker.tip_value": "Option + drag: change value (Shift = fine)",
   "animator.timeline.keynav.delete": "delete selected keyframe",
   "animator.kf.enable_label": "Keyframe editor",
   "animator.kf.enable_tooltip": "Enables the camera-keyframe timeline for cinematic camera moves. Off: classic behaviour with static pitch + linear rotation sweep.",

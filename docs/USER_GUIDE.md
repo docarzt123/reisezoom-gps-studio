@@ -918,6 +918,14 @@ In der Timeline-Bar findest du **zwei Schieber** mit grauem Griff — den linken
 - **Linker Trim-Handle** = wo der Render-Track losläuft
 - **Rechter Trim-Handle** = wo der Render-Track aufhört
 - **Keyframes außerhalb** bleiben sichtbar (blass), wirken als „Anlauf"-Setup: die Kamera-Interpolation läuft durch sie durch, der Track-Marker selbst startet aber erst am linken Handle
+- **Werte direkt am Marker aufziehen** (seit v0.9.512): Klick auf das kleine
+  Symbol einer Eigenschaft (Neigung, Drehung, Zoom, Welt-Position) — sie wird
+  in der Seitenleiste hervorgehoben. Halte dann **Option** und zieh mit der
+  Maus: du änderst den **Wert**, statt den Keyframe zu verschieben. Karte und
+  Seitenleiste ziehen live mit, **Shift** stellt fein.
+  ⚠️ **Option + Ziehen auf dem Cluster-Symbol 🎬 dupliziert** weiterhin den
+  ganzen Keyframe. Die Spur „Karte" lässt sich nicht aufziehen — einen
+  Kartenmittelpunkt verschiebt man auf der Karte.
 - **Keyframes hängen an der Strecke, nicht an der Uhr** (seit v0.9.511): Ein
   Keyframe, den du an einer bestimmten Kurve setzt, löst seine Kamerafahrt
   genau dort aus — auch wenn du danach die Griffe verschiebst oder die Dauer

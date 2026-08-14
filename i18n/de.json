@@ -585,6 +585,7 @@
   "animator.kf.delete_hint": "Schnell-Lösch-Wege: Rechtsklick auf den Marker in der Bar (oder den Pin auf der Karte) · <kbd>Entf</kbd>-Taste wenn der Keyframe ausgewählt ist.",
   "animator.kf.hint": "Tipp: Karte hinziehen, drehen, kippen — dann oben „Mit aktueller Karten-Ansicht aktualisieren\" drücken. Oder direkt mit den Slidern feinjustieren.",
   "animator.timeline.marker.tip": "Klick: auswählen + bearbeiten · Rechtsklick: löschen · Drag: verschieben",
+  "animator.timeline.marker.tip_value": "Option + ziehen: Wert ändern (Shift = fein)",
   "animator.timeline.keynav.delete": "ausgewählten Keyframe löschen",
   "animator.kf.enable_label": "Keyframe-Editor",
   "animator.kf.enable_tooltip": "Aktiviert die Camera-Keyframe-Timeline für cinematische Kamera-Fahrten. Aus: klassisches Verhalten mit statischem Pitch + linearer Drehung.",

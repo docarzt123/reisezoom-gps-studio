@@ -4065,6 +4065,91 @@ function mountAnimator(body, headerActions, opts) {
     setTimelineEvents(events);
   }
 
+  // ── Werte am Marker aufziehen (v0.9.512) ─────────────────────────────────
+  // Marc-Wunsch 2026-08-14: „wenn ich dann option festhalte, will ich durch
+  // verschieben der maus die werte der rotation ändern, statt den keyframe zu
+  // verschieben." Option+Ziehen auf einem Wert-Marker verändert also den Wert
+  // dieser einen Eigenschaft — der Keyframe bleibt, wo er ist.
+  //
+  // ⚠️ Der Startwert wird EINMAL beim Anfassen gemerkt und alles danach daraus
+  // gerechnet (`start + dx · Schritt`). Würde man jeweils vom aktuellen Wert
+  // weiterrechnen, driftet der Wert bei jedem Mausereignis mit — und ein
+  // Anschlag (z. B. Neigung 85°) ließe sich nicht mehr verlassen, weil das
+  // Klemmen den Startpunkt mitwandern lässt.
+  //
+  // Schrittweiten so gewählt, dass der volle Regelbereich in einer bequemen
+  // Armbewegung liegt (~400–700 px). Shift = Feinjustierung (Viertel-Schritt).
+  const WERT_ZIEH = {
+    pitch:    { schritt: 0.2,  min: 0,    max: 85,  einheit: "°" },
+    bearing:  { schritt: 0.5,  min: -180, max: 180, einheit: "°" },
+    zoom:     { schritt: 0.02, min: 0,    max: 22,  einheit: "" },
+    position: { schritt: 0.2,  min: -50,  max: 50,  einheit: " %" },
+  };
+  let _wertZieh = null;
+
+  /** Aktuellen Wert einer Eigenschaft an einem Keyframe lesen. */
+  function _kfWertLesen(kind, anchor) {
+    const ev = (getRawTimelineEvents() || []).find(
+      e => e && e.kind === kind && Math.abs((e.anchor || 0) - anchor) < KF_TOLERANZ);
+    if (!ev) return null;
+    if (kind === "zoom") {
+      if (typeof ev.value_absolute === "number") return ev.value_absolute;
+      const base = effectiveFitZoomBase();
+      return (typeof ev.value_offset === "number" && base != null)
+        ? ev.value_offset + base : null;
+    }
+    if (kind === "position") {
+      const v = ev.value || {};
+      return { x: +v.x || 0, y: +v.y || 0 };
+    }
+    return typeof ev.value === "number" ? ev.value : null;
+  }
+
+  function wertZiehStart({ kind, anchor }) {
+    const regel = WERT_ZIEH[kind];
+    if (!regel) { _wertZieh = null; return; }
+    const start = _kfWertLesen(kind, anchor);
+    if (start == null) { _wertZieh = null; return; }
+    const idx = clusterAnchors().findIndex(a => Math.abs(a - anchor) < KF_TOLERANZ);
+    if (idx < 0) { _wertZieh = null; return; }
+    _wertZieh = { kind, anchor, idx, start };
+    document.body.classList.add("wert-zieht");
+  }
+
+  function wertZiehen({ kind, anchor, dx, dy, fein }) {
+    if (!_wertZieh || _wertZieh.kind !== kind) return;
+    const regel = WERT_ZIEH[kind];
+    const schritt = regel.schritt * (fein ? 0.25 : 1);
+    const klemm = (v) => Math.max(regel.min, Math.min(regel.max, v));
+    let patch = null, anzeige = "";
+    if (kind === "position") {
+      // Zwei Achsen: waagerecht schiebt X, senkrecht Y — wie das Verschieben
+      // der Welt selbst.
+      const x = klemm(_wertZieh.start.x + dx * schritt);
+      const y = klemm(_wertZieh.start.y - dy * schritt);
+      patch = { position: { x: +x.toFixed(1), y: +y.toFixed(1) } };
+      anzeige = `${Math.round(x)} % / ${Math.round(y)} %`;
+    } else {
+      const roh = klemm(_wertZieh.start + dx * schritt);
+      const wert = kind === "zoom" ? +roh.toFixed(2) : +roh.toFixed(1);
+      patch = kind === "zoom" ? { zoom_absolute: wert } : { [kind]: wert };
+      anzeige = `${kind === "zoom" ? wert.toFixed(2) : Math.round(wert)}${regel.einheit}`;
+    }
+    updateKeyframeFields(_wertZieh.idx, patch);
+    // Seitenleiste + Karte sofort nachziehen, damit man beim Ziehen SIEHT,
+    // was passiert — sonst müsste man loslassen, um das Ergebnis zu sehen.
+    try { renderKeyframeEditor(); } catch (_) {}
+    try { scrubPreview(anchor, { skipSelectionSync: true }); } catch (_) {}
+    try { _tlBar && _tlBar.setStatusHint && _tlBar.setStatusHint(anzeige); } catch (_) {}
+  }
+
+  function wertZiehEnde() {
+    _wertZieh = null;
+    document.body.classList.remove("wert-zieht");
+    try { _tlBar && _tlBar.setStatusHint && _tlBar.setStatusHint(null); } catch (_) {}
+    try { renderKeyframeEditor(); } catch (_) {}
+  }
+
   // Detail-Editor in der Sidebar: Section aus-/einblenden, Slider füllen
   function renderKeyframeEditor() {
     // v0.8.16: KF-Editor lebt jetzt INNERHALB der Camera-Section unter
@@ -6315,6 +6400,10 @@ function mountAnimator(body, headerActions, opts) {
         onEventClipboardPaste: (anker) => pasteEventFromClipboard(anker),
         onDelete:       (ev) => deleteEventOne(ev),
         onSnapshot:     (anchor) => snapshotKeyframe(anchor),
+        // v0.9.512 — Option+Ziehen auf einem Wert-Marker
+        onValueDragStart: (e) => wertZiehStart(e),
+        onValueDrag:      (e) => wertZiehen(e),
+        onValueDragEnd:   ()  => wertZiehEnde(),
         onClearAll:     () => clearAllKeyframes(),
         onRunPreview:   () => runTimelinePreview(),
         // v0.9.8 — Doppelklick auf eine Lane = nur dieser Property einen

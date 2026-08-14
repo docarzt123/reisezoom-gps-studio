@@ -867,6 +867,14 @@ En la barra de línea de tiempo encuentras **dos deslizadores** con tirador gris
 - **Tirador de trim izquierdo** = dónde arranca el track del render
 - **Tirador de trim derecho** = dónde termina el track del render
 - Los **keyframes fuera** siguen siendo visibles (atenuados), actúan como configuración de «impulso»: la interpolación de cámara pasa por ellos, pero el propio marcador del track solo arranca en el tirador izquierdo
+- **Ajusta los valores en el propio marcador** (desde v0.9.512): haz clic en
+  el pequeño icono de una propiedad (inclinación, rotación, zoom, posición del
+  mundo) — se resalta en la barra lateral. Mantén entonces **Opción** y
+  arrastra: cambias su **valor** en vez de mover el keyframe. El mapa y la
+  barra lateral se actualizan al instante y **Mayús** afina.
+  ⚠️ **Opción + arrastrar sobre el icono de clúster 🎬 sigue duplicando** el
+  keyframe completo. La pista «mapa» no se puede arrastrar: un centro de mapa
+  se mueve en el mapa.
 - **Los keyframes se pegan a la ruta, no al reloj** (desde v0.9.511): un
   keyframe colocado en una curva concreta activa su movimiento de cámara
   justo ahí, aunque después muevas los tiradores o cambies la duración. Viaja
