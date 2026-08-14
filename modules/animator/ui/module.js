@@ -5452,31 +5452,37 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.59: Drei Phasen — intro/anim/hold. Marker und Scrubber-Position
       // pro Phase berechnet, sodass Scrubber visuell durch die Trim-Handles
       // wandert (linkes Handle bei intro-Ende, rechtes bei anim-Ende).
-      const trimStartVis = ti + trimA * (tf - ti);
-      const trimEndVis   = ti + trimB * (tf - ti);
       let markerReal, scrubberVis;
       // v0.9.253 — eigener Schild-Anker, der in Intro/Hold ÜBER die Track-Grenzen
       // hinausläuft (gleiche Rate wie Anim = 1/durSec pro Sekunde), damit Schild-
       // Timing-Fenster (Einblenden im Intro / Ausblenden im Hold) auch dort greifen.
       // Der Marker selbst bleibt am trim_start/-end eingefroren (markerReal).
       let signAnchor;
+      // v0.9.510 — Der Scrubber läuft auf der ZEITACHSE, exakt wie beim
+      // Parken von Hand. Vorher wurde er hier stückweise auf den Bereich
+      // zwischen den Trim-Griffen umgerechnet (damit er optisch an den
+      // Griffen „andockt") — geparkt wurde aber auf der rohen Zeitachse.
+      // Zwei Achsen auf derselben Leiste: mit gesetztem Trim sprang der
+      // Scrubber beim Start des Probe-Laufs erst ein Stück nach rechts
+      // (Marc: „praktisch gar nicht möglich, irgendwas richtig zu testen").
+      // Ohne Trim waren beide Achsen identisch — deshalb fiel es nie auf.
+      // Die Trim-Griffe bleiben Track-Marken; die Kamera-Keyframes liegen
+      // ohnehin auf der Zeitachse, jetzt passt alles zusammen.
+      scrubberVis = timelineProgress;
       if (timelineProgress < ti) {
-        // INTRO-Phase — Marker am trim_start, Scrubber wandert 0 → trimStartVis
+        // INTRO-Phase — Marker am trim_start eingefroren
         markerReal = trimA;
         const introProgress = timelineProgress / Math.max(0.0001, ti);
-        scrubberVis = introProgress * trimStartVis;
         signAnchor = trimA - (introSec * (1 - introProgress)) / Math.max(0.001, durSec);
       } else if (timelineProgress < tf) {
         // ANIM-Phase
         const animProgress = (timelineProgress - ti) / Math.max(0.0001, tf - ti);
         markerReal = trimA + animProgress * (trimB - trimA);
-        scrubberVis = trimStartVis + animProgress * (trimEndVis - trimStartVis);
         signAnchor = markerReal;
       } else {
-        // HOLD-Phase — Marker am trim_end, Scrubber wandert trimEndVis → 1.0
+        // HOLD-Phase — Marker am trim_end eingefroren
         markerReal = trimB;
         const holdProgress = (timelineProgress - tf) / Math.max(0.0001, 1 - tf);
-        scrubberVis = trimEndVis + holdProgress * (1 - trimEndVis);
         signAnchor = trimB + (holdProgress * holdSec) / Math.max(0.001, durSec);
       }
       const coordFrac = fracAusFortschritt(markerReal, tn);
