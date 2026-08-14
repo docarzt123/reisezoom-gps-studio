@@ -917,7 +917,13 @@ In der Timeline-Bar findest du **zwei Schieber** mit grauem Griff — den linken
 
 - **Linker Trim-Handle** = wo der Render-Track losläuft
 - **Rechter Trim-Handle** = wo der Render-Track aufhört
-- **Keyframes außerhalb** bleiben sichtbar (dezent), wirken als „Anlauf"-Setup: die Kamera-Interpolation läuft durch sie durch, der Track-Marker selbst startet aber erst am linken Handle
+- **Keyframes außerhalb** bleiben sichtbar (blass), wirken als „Anlauf"-Setup: die Kamera-Interpolation läuft durch sie durch, der Track-Marker selbst startet aber erst am linken Handle
+- **Keyframes hängen an der Strecke, nicht an der Uhr** (seit v0.9.511): Ein
+  Keyframe, den du an einer bestimmten Kurve setzt, löst seine Kamerafahrt
+  genau dort aus — auch wenn du danach die Griffe verschiebst oder die Dauer
+  änderst. Er wandert also mit der Landschaft mit, nicht mit der Sekunde.
+  ⚠️ Projekte aus älteren Versionen, in denen geschnitten wurde, zeigen ihre
+  Kamerafahrt dadurch an einer anderen Stelle — dort einmal neu setzen.
 - **Probe-Lauf + Render** spielen nur den getrimmten Bereich ab (Render-Output-Länge bleibt aber gleich, weil Animation-Dauer fest ist)
 
 ### Intro / Animation / Hold (seit v0.9.59) ⭐

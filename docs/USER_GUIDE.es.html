@@ -844,7 +844,11 @@ python app.py</code></pre>
 <ul>
 <li><strong>Tirador de trim izquierdo</strong> = dónde arranca el track del render</li>
 <li><strong>Tirador de trim derecho</strong> = dónde termina el track del render</li>
-<li>Los <strong>keyframes fuera</strong> siguen siendo visibles (discretos), actúan como configuración de «impulso»: la interpolación de cámara pasa por ellos, pero el propio marcador del track solo arranca en el tirador izquierdo</li>
+<li>Los <strong>keyframes fuera</strong> siguen siendo visibles (atenuados), actúan como configuración de «impulso»: la interpolación de cámara pasa por ellos, pero el propio marcador del track solo arranca en el tirador izquierdo</li>
+<li><strong>Los keyframes se pegan a la ruta, no al reloj</strong>: un</li>
+</ul>
+<p> keyframe colocado en una curva concreta activa su movimiento de cámara  justo ahí, aunque después muevas los tiradores o cambies la duración. Viaja  con el paisaje, no con el segundo.  ⚠️ Los proyectos de versiones anteriores que usaban recorte mostrarán su  movimiento de cámara en otro punto: vuelve a colocar esos keyframes.</p>
+<ul>
 <li>El <strong>ensayo + render</strong> reproducen solo la zona recortada (la longitud de la salida del render sigue siendo la misma, porque la duración de la animación es fija)</li>
 </ul>
 <h3 id="intro-animaci-n-hold">Intro / Animación / Hold ⭐</h3>

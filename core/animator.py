@@ -3783,6 +3783,37 @@ async def render(
     # aufzuploppen. Rate 1/anim_frames pro Frame = 1/anim_s pro Sekunde, exakt
     # die Einheit von rzSignSecToAnchor → before=N s blendet N s vor Track-Start
     # ein. Hold-Seite unangetastet (greift gratis via aHide-Default 2.0).
+    # ── Kamera-Keyframes hängen am TRACK, nicht an der Uhr (v0.9.511) ──────
+    # Marc: „der keyframe muss am track kleben". So ist es auch seit jeher in
+    # `render_start_anchor` dokumentiert („daher bleiben gesetzte Keyframes
+    # track-anchor-bezogen wenn der User den Trim verschiebt") — ausgewertet
+    # wurde bisher aber gegen `timeline_progress`, also gegen die Zeit. Ohne
+    # Schnitt ist das dasselbe; mit Schnitt ist die Zeit gestaucht, weil die
+    # Anim-Phase trim_start…trim_end über die volle Dauer verteilt.
+    # In Intro und Hold läuft der Anker mit derselben Rate WEITER (über die
+    # Trim-Grenzen hinaus), damit die Kamera dort anfliegen und nachschwenken
+    # kann, statt einzufrieren.
+    _anker_von = (_start_idx / (len(points) - 1)) if len(points) > 1 else 0.0
+    _anker_bis = (_end_idx / (len(points) - 1)) if len(points) > 1 else 1.0
+    _anker_pro_frame = (_anker_bis - _anker_von) / max(1, anim_frames)
+
+    def _kamera_anker(fr: int) -> float:
+        """Frame → Stelle im Track, über die Trim-Grenzen hinaus fortgesetzt."""
+        if fr < intro_frames:
+            return _anker_von - (intro_frames - fr) * _anker_pro_frame
+        if fr < intro_frames + anim_frames:
+            _rel = int((fr - intro_frames) * coords_per_frame)
+            _i = min(_start_idx + _rel, _end_idx)
+            return (_i / (len(points) - 1)) if len(points) > 1 else 0.0
+        return _anker_bis + (fr - intro_frames - anim_frames) * _anker_pro_frame
+
+    def _frame_bei_anker(a: float) -> int:
+        """Umkehrung — welcher Frame zeigt diese Stelle des Tracks?"""
+        if _anker_pro_frame <= 0:
+            return 0
+        fr = intro_frames + (a - _anker_von) / _anker_pro_frame
+        return int(max(0, min(total_frames - 1, round(fr))))
+
     _sign_base_anchor = (_start_idx / (len(points) - 1)) if len(points) > 1 else 0.0
     # v0.9.253 — analog für die Hold-Phase: Schild-Anker läuft ÜBER das Track-
     # Ende hinaus weiter (gleiche Rate wie Anim), damit ein „Ausblenden nach N s"
@@ -4128,7 +4159,7 @@ async def render(
                         return _end_idx
                     _kf_cam_list = []
                     for _a in _anchors:
-                        _fr = round(_a * (total_frames - 1))
+                        _fr = _frame_bei_anker(_a)   # v0.9.511: Track statt Uhr
                         _pp, _bp, _zop, _kc, _kpos, _kr = _timeline.interpolate_properties(
                             cfg.timeline_events, _a,
                             default_pitch=cfg.pitch, default_rotation=cfg.rotation,
@@ -4181,7 +4212,7 @@ async def render(
                 else:
                     idx = _end_idx
                 pitch_p, bearing_p, zoom_off_p, kf_center, kf_position, kf_rotation = _timeline.interpolate_properties(
-                    cfg.timeline_events, timeline_progress,
+                    cfg.timeline_events, _kamera_anker(frame),   # v0.9.511: Track statt Uhr
                     default_pitch=cfg.pitch,
                     default_rotation=cfg.rotation,
                     fit_zoom_base=zoom,

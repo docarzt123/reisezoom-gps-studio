@@ -113,9 +113,31 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.510</span>
+    <span class="version-num">v0.9.511</span>
     <span class="version-date">14 August 2026</span>
     <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">Keyframes stay where the landscape is.</p>
+
+  <div class="highlight">
+    <strong>📍 Keyframes stick to the track.</strong> Place a camera move at a particular bend and it happens at that bend — even if you later move the start or end of your section. Until now it hung on the clock and slid along.
+  </div>
+
+  <div class="highlight">
+    <strong>🎥 The camera moves again.</strong> When rendering a trimmed section, the camera often stood still for minutes despite keyframes being set — the whole move had been squeezed into a few seconds. In a real project: 51 of 55 seconds without motion.
+  </div>
+
+  <div class="highlight">
+    <strong>🔆 Dimmed now really means "outside".</strong> A dimmed keyframe lies outside the video and only serves as a run-up for the camera. Until now keyframes could look dimmed even though they visibly sat inside the yellow handles.
+  </div>
+
+  <p class="version-note">Note: existing projects with trimming will show their camera move at a different spot than before — set those keyframes once more.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.510</span>
+    <span class="version-date">14 August 2026</span>
   </div>
   <p class="version-tagline">Butter-smooth: long videos no longer stutter.</p>
 

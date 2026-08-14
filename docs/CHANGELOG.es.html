@@ -113,9 +113,31 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.510</span>
+    <span class="version-num">v0.9.511</span>
     <span class="version-date">14 de agosto de 2026</span>
     <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Los keyframes se quedan donde está el paisaje.</p>
+
+  <div class="highlight">
+    <strong>📍 Los keyframes se pegan al track.</strong> Si pones un movimiento de cámara en una curva concreta, ocurre en esa curva, aunque después muevas el principio o el final de tu fragmento. Hasta ahora dependía del reloj y se desplazaba con él.
+  </div>
+
+  <div class="highlight">
+    <strong>🎥 La cámara vuelve a moverse.</strong> Al renderizar un fragmento recortado, la cámara se quedaba quieta durante minutos pese a haber keyframes: todo el movimiento quedaba comprimido en unos segundos. En un proyecto real: 51 de 55 segundos sin movimiento.
+  </div>
+
+  <div class="highlight">
+    <strong>🔆 Atenuado significa ahora de verdad «fuera».</strong> Un keyframe atenuado queda fuera del vídeo y solo sirve de impulso previo para la cámara. Hasta ahora podían verse atenuados aunque estuvieran visiblemente dentro de los tiradores amarillos.
+  </div>
+
+  <p class="version-note">Nota: los proyectos existentes con recorte mostrarán su movimiento de cámara en otro punto — vuelve a colocar esos keyframes una vez.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.510</span>
+    <span class="version-date">14 de agosto de 2026</span>
   </div>
   <p class="version-tagline">Suave como la mantequilla: los vídeos largos ya no dan tirones.</p>
 
