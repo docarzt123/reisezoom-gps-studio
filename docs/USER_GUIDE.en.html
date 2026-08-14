@@ -843,7 +843,11 @@ python app.py</code></pre>
 <ul>
 <li><strong>Left trim handle</strong> = where the render track starts</li>
 <li><strong>Right trim handle</strong> = where the render track stops</li>
-<li><strong>Keyframes outside</strong> stay visible (subtly), acting as a &quot;run-up&quot; setup: the camera interpolation runs through them, but the track marker itself only starts at the left handle</li>
+<li><strong>Keyframes outside</strong> stay visible (dimmed), acting as a &quot;run-up&quot; setup: the camera interpolation runs through them, but the track marker itself only starts at the left handle</li>
+<li><strong>Keyframes stick to the route, not to the clock</strong>: a</li>
+</ul>
+<p> keyframe you place at a particular bend triggers its camera move exactly  there — even if you later move the handles or change the duration. It travels  with the landscape, not with the second.  ⚠️ Projects from older versions that used trimming will show their camera  move at a different spot — set those keyframes once more.</p>
+<ul>
 <li><strong>Test run + render</strong> play only the trimmed range (the render output length stays the same, though, because the animation duration is fixed)</li>
 </ul>
 <h3 id="intro-animation-hold">Intro / Animation / Hold ⭐</h3>

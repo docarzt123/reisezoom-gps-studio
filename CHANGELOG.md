@@ -14,6 +14,33 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.511] – 2026-08-14
+
+### Geändert
+- **Keyframes kleben jetzt am Track statt an der Uhr.** Ein Keyframe bei 40 %
+  der Strecke löst seine Kamerafahrt bei 40 % der Strecke aus — auch wenn
+  danach der Schnitt verschoben wird. Genau so war es in `render_start_anchor`
+  seit v0.9.41 dokumentiert („daher bleiben gesetzte Keyframes
+  track-anchor-bezogen wenn der User den Trim verschiebt"); ausgewertet wurde
+  aber gegen die Zeit. ⚠️ **Bestehende Projekte mit Schnitt zeigen ihre
+  Kamerafahrt dadurch an einer anderen Stelle** — dort die Keyframes einmal
+  neu setzen.
+
+### Behoben
+- **Die Kamera bewegte sich in der Vorschau kaum oder gar nicht**, obwohl
+  Keyframes gesetzt waren. Mit Schnitt ist die Zeit gestaucht (die Anim-Phase
+  verteilt den Ausschnitt über die volle Dauer), sodass Keyframes, die über
+  einen kleinen Abschnitt des Tracks gesetzt waren, zu einem Sekundenzucken
+  irgendwo in der Mitte zusammenfielen — davor und danach stand die Kamera
+  still. In einem realen Projekt: 51 von 55 Sekunden bewegungslos.
+- **Keyframes wurden ausgegraut, obwohl sie sichtbar im Schnittbereich lagen.**
+  Das Ausgrauen verglich auf der Track-Achse, gezeichnet wurde der Pin nach der
+  rohen Zahl — dazwischen lag ein Streifen, in dem beides auseinanderfiel. Auf
+  vergrößerter Zeitleiste besonders auffällig. Jetzt liegt die Grenze exakt am
+  gelben Griff.
+- Aus demselben Grund saßen **Foto-Pins und Schilder** mit Intro oder Hold
+  leicht daneben; sie rechnen jetzt ebenfalls in Track-Ankern.
+
 ## [0.9.510] – 2026-08-14
 
 ### Behoben

@@ -310,6 +310,23 @@ function mountTimelineBar(opts) {
   function _anchorToPct(a) {
     return ((a - _viewOffset) * _viewZoom * 100).toFixed(2);
   }
+  // ⚠️ ZWEI GRÖSSEN, DIE MAN NICHT VERWECHSELN DARF (v0.9.511):
+  //   • Track-Anker  0..1 über die GESAMTE Strecke — so sind Keyframes,
+  //     Trim-Griffe, Schilder und Foto-Pins gespeichert.
+  //   • Leisten-Position 0..1 über die GESAMTE ZEIT (Intro + Anim + Hold).
+  // Die Anim-Region der Leiste läuft von ti bis tf; nur dort bewegt sich der
+  // Track. `setTrimVisual` rechnete das schon immer so — Keyframes wurden
+  // dagegen mit ihrem rohen Anker als Leisten-Position gezeichnet. Ohne Intro
+  // und ohne Hold sind beide Größen gleich, deshalb fiel es nie auf; mit Hold
+  // wanderten die Pins nach rechts weg von ihrer Stelle im Track.
+  function _trackToBar(a) {
+    const tf = _trackFraction || 1.0, ti = _introFraction || 0.0;
+    return ti + Math.max(0, Math.min(1, a)) * Math.max(0.0001, tf - ti);
+  }
+  function _barToTrack(p) {
+    const tf = _trackFraction || 1.0, ti = _introFraction || 0.0;
+    return Math.max(0, Math.min(1, (p - ti) / Math.max(0.0001, tf - ti)));
+  }
   function _clampViewOffset(off) {
     return Math.max(0, Math.min(1 - _viewWindow(), off));
   }
@@ -479,7 +496,7 @@ function mountTimelineBar(opts) {
           && Math.abs((_selectedEvent.anchor || 0) - (c.anchor || 0)) < 0.001;
         m.className = "timeline-marker timeline-marker-cluster"
                     + (isSelected ? " is-selected" : "");
-        m.style.left = _anchorToPct(c.anchor || 0) + "%";
+        m.style.left = _anchorToPct(_trackToBar(c.anchor || 0)) + "%";
         m.dataset.kind = "__cluster";
         m.dataset.anchor = String(c.anchor || 0);
         m.title = `${tlT("animator.lane.cluster", "Cluster")} @ ${((c.anchor || 0) * 100).toFixed(0)}%\n\n`
@@ -503,7 +520,7 @@ function mountTimelineBar(opts) {
         const sym = document.createElement("button");
         sym.type = "button";
         sym.className = "timeline-easing-symbol easing-" + targetEasing;
-        sym.style.left = _anchorToPct(midAnchor) + "%";
+        sym.style.left = _anchorToPct(_trackToBar(midAnchor)) + "%";
         sym.dataset.targetAnchor = String(b.anchor);
         sym.dataset.easing = targetEasing;
         sym.title = `${tlT("animator.timeline.easing.tip", "Übergang")}: ${_easingLabel(targetEasing)}\n${tlT("animator.timeline.easing.click", "Klicken zum Ändern.")}`;
@@ -571,7 +588,7 @@ function mountTimelineBar(opts) {
         );
         m.className = `timeline-marker timeline-marker-${L.kind}`
                     + (isSelected ? " is-selected" : "");
-        m.style.left = _anchorToPct(item.anchor || 0) + "%";
+        m.style.left = _anchorToPct(_trackToBar(item.anchor || 0)) + "%";
         m.dataset.kind = L.kind;
         m.dataset.anchor = String(item.anchor || 0);
         m.title = `${L.label} @ ${((item.anchor || 0) * 100).toFixed(0)}%\n\n`
@@ -682,7 +699,9 @@ function mountTimelineBar(opts) {
     if (kind === "marker" || kind === "photo") return;
     e.preventDefault();
     e.stopPropagation();
-    const anchor = anchorFromClientX(e.clientX);
+    // v0.9.511 — die Maus zeigt auf eine Stelle der LEISTE, gespeichert wird
+    // die Stelle im TRACK.
+    const anchor = _barToTrack(anchorFromClientX(e.clientX));
     if (cb.onCreateSingle) cb.onCreateSingle({ kind, anchor });
   });
 
@@ -700,7 +719,9 @@ function mountTimelineBar(opts) {
   // Globale mouse-move/up für drag
   window.addEventListener("mousemove", (e) => {
     if (!_dragging || !_enabled) return;
-    const anchor = anchorFromClientX(e.clientX);
+    const barPos = anchorFromClientX(e.clientX);
+    // Der Scrubber lebt auf der Leiste, ein Keyframe im Track (v0.9.511).
+    const anchor = _dragging.type === "marker" ? _barToTrack(barPos) : barPos;
     if (_dragging.type === "scrubber") {
       setScrubberVisual(anchor);
       if (cb.onScrub) cb.onScrub(anchor);
@@ -726,7 +747,7 @@ function mountTimelineBar(opts) {
       }
       const els = trackEl.querySelectorAll(sel);
       els.forEach(m => {
-        m.style.left = _anchorToPct(anchor) + "%";
+        m.style.left = _anchorToPct(_trackToBar(anchor)) + "%";
         m.dataset.anchor = String(anchor);
         if (_dragging.kopieren) m.classList.add("is-copying");
       });
@@ -1100,9 +1121,26 @@ function mountTimelineBar(opts) {
     setTrimVisual(start, end);
   }
 
+  // v0.9.511 — Umrechnung nach außen geben. Wer einen Keyframe, ein Schild
+  // oder einen Foto-Pin anfasst, arbeitet mit TRACK-Ankern; wer den Scrubber
+  // oder die Zeit meint, mit LEISTEN-Positionen.
+  // ⚠️ `getScrubber`/`setScrubber` sprechen seit v0.9.511 in TRACK-Ankern —
+  // dieselbe Größe wie Keyframes, Schilder, Foto-Pins und die Trim-Griffe.
+  // Das ist die Größe, die fast jeder Aufrufer meint. Wer wirklich die
+  // Position auf der LEISTE braucht (Zeit, inkl. Intro und Hold), nimmt
+  // ausdrücklich `getScrubberBar`/`setScrubberBar`: das sind der Probe-Lauf,
+  // der Schnappschuss (er braucht die Sekunde) und der Zwischenspeicher
+  // beim Modul-Wechsel.
+  function getScrubberTrack() { return _barToTrack(_scrubAnchor); }
+  function setScrubberTrack(a) { setScrubberVisual(_trackToBar(a)); }
+
   return {
+    trackToBar: _trackToBar,
+    barToTrack: _barToTrack,
+    getScrubberTrack,
+    setScrubberTrack,
     refresh,
-    setScrubber,
+    setScrubber: setScrubberTrack,
     setSelected,
     setEnabled,
     setPlaying,
@@ -1113,7 +1151,9 @@ function mountTimelineBar(opts) {
     setTrim,
     getTrim: () => ({ start: _trimStart, end: _trimEnd }),
     isPlaying: () => _isPlaying,
-    getScrubber: () => _scrubAnchor,
+    getScrubber: getScrubberTrack,
+    getScrubberBar: () => _scrubAnchor,
+    setScrubberBar: setScrubberVisual,
     updateStatusLabel,
   };
 }

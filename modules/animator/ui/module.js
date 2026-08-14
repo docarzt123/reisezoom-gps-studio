@@ -2492,24 +2492,28 @@ function mountAnimator(body, headerActions, opts) {
    *  Bereich ZWISCHEN den Griffen gestaucht; damit lag ein Griff genau auf
    *  dem Scrubber, zeigte aber eine ganz andere Stelle des Tracks.
    *  Außerhalb der Griffe steht der Track still — wie im fertigen Video. */
-  function trackFracFromTimelineAnchor(anchor) {
+  /** TRACK-Anker (0..1 über die ganze Strecke) → Stelle in `currentCoords`.
+   *
+   *  ⚠️ v0.9.511 — hieß früher `…FromTimelineAnchor` und bekam eine Position
+   *  auf der LEISTE. Seit der Scrubber selbst in Track-Ankern spricht, ist das
+   *  die einzige Größe im Umlauf — Keyframes, Schilder, Foto-Pins und
+   *  Trim-Griffe rechnen alle darin. Außerhalb des Schnitts steht der Track
+   *  still, genau wie im fertigen Video. */
+  function trackFracAusAnker(anchor) {
     const n = currentCoords ? currentCoords.length : 0;
     if (n < 2) return 0;
-    const ti = introFraction();
-    const tf = trackFraction();
     const trim = (_tlBar && typeof _tlBar.getTrim === "function")
       ? _tlBar.getTrim() : { start: 0, end: 1 };
     const trimA = Math.max(0, Math.min(1, trim.start ?? 0));
     const trimB = Math.max(trimA, Math.min(1, trim.end ?? 1));
-    const aufDerLeiste = (anchor - ti) / Math.max(0.0001, tf - ti);
-    const markerReal = Math.max(trimA, Math.min(trimB, aufDerLeiste));
+    const markerReal = Math.max(trimA, Math.min(trimB, Math.max(0, Math.min(1, anchor))));
     return fracAusFortschritt(markerReal, n);
   }
 
   function trackIdxFromTimelineAnchor(anchor) {
     const n = currentCoords ? currentCoords.length : 0;
     if (n < 2) return 0;
-    return Math.max(0, Math.min(n - 1, Math.round(trackFracFromTimelineAnchor(anchor))));
+    return Math.max(0, Math.min(n - 1, Math.round(trackFracAusAnker(anchor))));
   }
 
 
@@ -4615,6 +4619,9 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.84: cinematic-Toggle aus Animator-Settings durchreichen
     const _animProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
     const _cinematic = !_animProj?.[_MODKEY] || _animProj[_MODKEY].cinematic_flyto !== false;
+    // v0.9.511 — Keyframes hängen am TRACK, nicht an der Uhr: `anchor` ist
+    // hier bereits der Track-Anker, also genau die Größe, in der die
+    // Keyframes gespeichert sind.
     const interp = interpolateCameraJs(events, anchor, defaultPitch, defaultRotation,
                                         undefined, effectiveFitZoomBase(),
                                         { cinematic: _cinematic });
@@ -4622,7 +4629,11 @@ function mountAnimator(body, headerActions, opts) {
     // Track-idx wird über track_fraction abgeleitet — in der Hold-Phase
     // bleibt er auf len-1 (Track steht still), während die Kamera weiter
     // interpoliert werden kann.
-    const coordFrac = trackFracFromTimelineAnchor(anchor);   // v0.9.510
+    // v0.9.511 — `anchor` ist ein TRACK-Anker (0..1 über die ganze Strecke),
+    // dieselbe Größe wie ein Keyframe, ein Schild oder ein Foto-Pin. Wer von
+    // der Leiste kommt (Scrubber-Drag), rechnet vorher mit `barToTrack` um.
+    // Außerhalb des Schnitts steht der Track still — wie im fertigen Video.
+    const coordFrac = trackFracAusAnker(anchor);
     const coordIdx = Math.max(0, Math.min((currentCoords ? currentCoords.length : 1) - 1, Math.round(coordFrac)));
     // v0.9.325 — Live-Stats beim Scrubben mitlaufen lassen (WYSIWYG).
     try { _ovUpdateLiveAt(coordIdx / Math.max(1, currentCoords.length - 1)); } catch (_) {}
@@ -5299,8 +5310,8 @@ function mountAnimator(body, headerActions, opts) {
     // Anzeige-Rechnung aus der Frame-Schleife, Abschnitt für Abschnitt.
     let _startAnchor = 0;
     {
-      const sPos = (_tlBar && typeof _tlBar.getScrubber === "function")
-        ? Math.max(0, Math.min(1, _tlBar.getScrubber() || 0))
+      const sPos = (_tlBar && typeof _tlBar.getScrubberBar === "function")
+        ? Math.max(0, Math.min(1, _tlBar.getScrubberBar() || 0))
         : 0;
       const _ti = introFraction();
       const _tf = trackFraction();
@@ -5417,11 +5428,9 @@ function mountAnimator(body, headerActions, opts) {
           const _fti = introFraction(), _ftf = trackFraction(), _ftn = currentCoords.length;
           const _ftrim = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
           const _ftA = Math.max(0, Math.min(1, _ftrim.start ?? 0)), _ftB = Math.max(_ftA, Math.min(1, _ftrim.end ?? 1));
-          const _markerAt = (tp) => {
-            if (tp < _fti) return _ftA;
-            if (tp < _ftf) { const p = (tp - _fti) / Math.max(0.0001, _ftf - _fti); return _ftA + p * (_ftB - _ftA); }
-            return _ftB;
-          };
+          // v0.9.511 — die Stützstellen sind TRACK-Anker; wo der Marker dann
+          // steht, ist der auf den Schnitt geklemmte Anker selbst.
+          const _markerAt = (a) => Math.max(_ftA, Math.min(_ftB, a));
           const _savedCam = map.getFreeCameraOptions();
           _faithCams = _anchors.map((a) => {
             const ip = interpolateCameraJs(events, a, defaultPitch, defaultRotation, undefined, _previewFitBase, { cinematic: _fCine });
@@ -5470,7 +5479,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.59: Drei Phasen — intro/anim/hold. Marker und Scrubber-Position
       // pro Phase berechnet, sodass Scrubber visuell durch die Trim-Handles
       // wandert (linkes Handle bei intro-Ende, rechtes bei anim-Ende).
-      let markerReal, scrubberVis;
+      let markerReal, scrubberVis, kamAnker;
       // v0.9.253 — eigener Schild-Anker, der in Intro/Hold ÜBER die Track-Grenzen
       // hinausläuft (gleiche Rate wie Anim = 1/durSec pro Sekunde), damit Schild-
       // Timing-Fenster (Einblenden im Intro / Ausblenden im Hold) auch dort greifen.
@@ -5490,23 +5499,34 @@ function mountAnimator(body, headerActions, opts) {
       // Anzeige daraus auf die TRACK-Achse zurückrechnen.
       const trimStartVis = ti + trimA * (tf - ti);
       const trimEndVis   = ti + trimB * (tf - ti);
+      // v0.9.511 — `kamAnker` ist die Stelle im TRACK, an der die Kamera-
+      // Keyframes ausgewertet werden. In der Anim-Phase ist das der Marker
+      // selbst; in Intro und Hold läuft er mit derselben Rate über die
+      // Trim-Grenzen HINAUS weiter, damit die Kamera anfliegen und
+      // nachschwenken kann statt einzufrieren. Exakt dieselbe Rechnung wie
+      // `_kamera_anker()` im Renderer — sonst laufen Vorschau und Video
+      // auseinander.
+      const spanTrim = trimB - trimA;
       if (timelineProgress < ti) {
         // INTRO-Phase — Marker am trim_start eingefroren
         markerReal = trimA;
         const introProgress = timelineProgress / Math.max(0.0001, ti);
         scrubberVis = introProgress * trimStartVis;
+        kamAnker = trimA - (1 - introProgress) * (introSec / Math.max(0.001, durSec)) * spanTrim;
         signAnchor = trimA - (introSec * (1 - introProgress)) / Math.max(0.001, durSec);
       } else if (timelineProgress < tf) {
         // ANIM-Phase
         const animProgress = (timelineProgress - ti) / Math.max(0.0001, tf - ti);
         markerReal = trimA + animProgress * (trimB - trimA);
         scrubberVis = ti + markerReal * (tf - ti);   // = Griff-Achse
+        kamAnker = markerReal;
         signAnchor = markerReal;
       } else {
         // HOLD-Phase — Marker am trim_end eingefroren
         markerReal = trimB;
         const holdProgress = (timelineProgress - tf) / Math.max(0.0001, 1 - tf);
         scrubberVis = trimEndVis + holdProgress * (1 - trimEndVis);
+        kamAnker = trimB + holdProgress * (holdSec / Math.max(0.001, durSec)) * spanTrim;
         signAnchor = trimB + (holdProgress * holdSec) / Math.max(0.001, durSec);
       }
       const coordFrac = fracAusFortschritt(markerReal, tn);
@@ -5526,7 +5546,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.84: cinematic-Toggle durchreichen
       const _runProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
       const _runCinematic = !_runProj?.[_MODKEY] || _runProj[_MODKEY].cinematic_flyto !== false;
-      const interp = interpolateCameraJs(events, timelineProgress, defaultPitch, defaultRotation,
+      const interp = interpolateCameraJs(events, kamAnker, defaultPitch, defaultRotation,
                                           undefined, _previewFitBase,
                                           { cinematic: _runCinematic });
       // v0.8.7: Keyframe-center hat Vorrang vor Track-Punkt
@@ -5572,7 +5592,7 @@ function mountAnimator(body, headerActions, opts) {
       const _zfStep = Math.max(0, Math.min(1, (8 - _curZoom) / 4));
       if (jumpArgs.center) _seedLngAccum(jumpArgs.center[0]);  // v0.9.136
       // v0.9.318 — entkoppelte FreeCamera (WYSIWYG zum Render) statt setCenter/-Zoom.
-      if (_useFaithful) { _faithSeek(timelineProgress); }
+      if (_useFaithful) { _faithSeek(kamAnker); }
       else { map.jumpTo(jumpArgs); }
       // Padding ebenfalls mit zoomFade gewichten, damit der Welt-Offset
       // genauso sanft ausläuft wie die Drehung.
@@ -5636,7 +5656,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.325 — Live-Stats im Probelauf mitlaufen lassen (WYSIWYG zum Render).
       try { _ovUpdateLiveAt(markerReal); } catch (_) {}
       // Scrubber visuell — siehe Berechnung oben (durch Trim-Handles wandernd).
-      if (_tlBar) _tlBar.setScrubber(scrubberVis);
+      if (_tlBar) _tlBar.setScrubberBar(scrubberVis);
       if (elapsed < totalMs) {
         _previewRaf = requestAnimationFrame(step);
       } else {
@@ -6156,7 +6176,7 @@ function mountAnimator(body, headerActions, opts) {
                 if (typeof renderKeyframeEditor === "function") renderKeyframeEditor();
               }
               if (cache.scrubberAnchor != null && _tlBar && typeof _tlBar.setScrubber === "function") {
-                _tlBar.setScrubber(cache.scrubberAnchor);
+                _tlBar.setScrubberBar(cache.scrubberAnchor);
                 // Karte auf den gemerkten KF-Anchor scrubben — nur wenn KFs
                 // aktiv sind, sonst wäre's ein No-Op auf currentCoords.
                 if (keyframesEnabled() && map && currentCoords && currentCoords.length > 1) {
@@ -6240,7 +6260,9 @@ function mountAnimator(body, headerActions, opts) {
         container: tlHost,
         getEvents: getTimelineEvents,
         getPositionLabel: timelinePositionLabel,
-        onScrub:        (anchor) => scrubPreview(anchor),
+        // Die Zeitleiste meldet eine Stelle auf der LEISTE; die Vorschau will
+        // eine Stelle im TRACK (v0.9.511).
+        onScrub:        (anchor) => scrubPreview(_tlBar ? _tlBar.barToTrack(anchor) : anchor),
         onScrubEnd:     () => {
           // v0.8.9: KEIN Track-Reset mehr nach Scrubbing — Marc will dass
           // der Track bis zur Scrubber-Position getrimmt BLEIBT (Wunsch
@@ -8749,7 +8771,7 @@ function mountAnimator(body, headerActions, opts) {
     // an den Anfang.
     try {
       const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
-      dotSetzen(trackIdxFromTimelineAnchor(a));
+      dotSetzen(trackFracAusAnker(a));
     } catch (_) {}
     if (!speichern) return;
     const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(),
@@ -10889,8 +10911,8 @@ function mountAnimator(body, headerActions, opts) {
     const intro = parseNum(document.getElementById("anim-intro")?.value, 0);
     const hold = parseNum(document.getElementById("anim-hold")?.value, 0);
     const total = Math.max(0.001, intro + dur + hold);
-    const prog = (_tlBar && typeof _tlBar.getScrubber === "function")
-      ? Math.max(0, Math.min(1, _tlBar.getScrubber() || 0)) : 0;
+    const prog = (_tlBar && typeof _tlBar.getScrubberBar === "function")
+      ? Math.max(0, Math.min(1, _tlBar.getScrubberBar() || 0)) : 0;
     const pIntro = intro / total, pAnimEnd = (intro + dur) / total;
     let anchor;
     if (prog <= pIntro) anchor = 0;
@@ -11768,7 +11790,7 @@ function mountAnimator(body, headerActions, opts) {
       cache[_MODKEY] = {
         ts: Date.now(),
         selectedKfIdx: (typeof _selectedKfIdx !== "undefined") ? _selectedKfIdx : null,
-        scrubberAnchor: (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : null,
+        scrubberAnchor: (_tlBar && typeof _tlBar.getScrubberBar === "function") ? _tlBar.getScrubberBar() : null,
       };
     } catch (_) {}
     if (map) map.remove();

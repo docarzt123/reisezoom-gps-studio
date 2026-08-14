@@ -866,7 +866,13 @@ En la barra de línea de tiempo encuentras **dos deslizadores** con tirador gris
 
 - **Tirador de trim izquierdo** = dónde arranca el track del render
 - **Tirador de trim derecho** = dónde termina el track del render
-- Los **keyframes fuera** siguen siendo visibles (discretos), actúan como configuración de «impulso»: la interpolación de cámara pasa por ellos, pero el propio marcador del track solo arranca en el tirador izquierdo
+- Los **keyframes fuera** siguen siendo visibles (atenuados), actúan como configuración de «impulso»: la interpolación de cámara pasa por ellos, pero el propio marcador del track solo arranca en el tirador izquierdo
+- **Los keyframes se pegan a la ruta, no al reloj** (desde v0.9.511): un
+  keyframe colocado en una curva concreta activa su movimiento de cámara
+  justo ahí, aunque después muevas los tiradores o cambies la duración. Viaja
+  con el paisaje, no con el segundo.
+  ⚠️ Los proyectos de versiones anteriores que usaban recorte mostrarán su
+  movimiento de cámara en otro punto: vuelve a colocar esos keyframes.
 - El **ensayo + render** reproducen solo la zona recortada (la longitud de la salida del render sigue siendo la misma, porque la duración de la animación es fija)
 
 ### Intro / Animación / Hold (desde v0.9.59) ⭐

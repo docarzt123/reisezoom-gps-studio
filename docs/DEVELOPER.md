@@ -245,6 +245,37 @@ Zusatz-Messwerte pro Trackpunkt (FIT-HR/Power/Temp/E-Bike, GPX-Extensions). **Va
 - **Spiegelung:** Tour-Map (`modules/tourmap`) bekommt KEINE Sensor-Felder — Sensorwerte sind zeit-animiert (Live-Box), die Tour-Map ist ein Standbild. Analog zur bestehenden Live-Box-Ausnahme der Spiegelungs-Regel.
 - **OFFEN:** Phase 2b (Diagramme/Aggregate pro Feld — Ø/Max-HF als Totals, HF-Zonen-Track-Färbung, Gauges), Phase 3 (Auto-Schilder §15.3).
 
+### ⚠️ Zwei Größen auf der Zeitleiste: Track-Anker vs. Leisten-Position (v0.9.511)
+
+**Das ist die wichtigste Fehlerquelle im Animator.** Auf derselben Leiste
+liegen zwei verschiedene Größen:
+
+| Größe | Bedeutung | Wer rechnet darin |
+|---|---|---|
+| **Track-Anker** | 0..1 über die **gesamte Strecke** | Keyframes, Trim-Griffe, Schilder, Foto-Pins, `render_start/end_anchor` |
+| **Leisten-Position** | 0..1 über die **gesamte Zeit** (Intro + Anim + Hold) | Scrubber-Pixelposition, `timeline_progress`, Frame-Nummer |
+
+Umrechnung (`ui/js/timeline.js`): `_trackToBar(a) = ti + a·(tf−ti)` und
+`_barToTrack(p) = (p−ti)/(tf−ti)`, mit `ti` = Ende des Intros, `tf` = Ende der
+Anim-Phase. **Ohne Intro, ohne Hold und ohne Schnitt sind beide identisch** —
+deshalb bleiben Verwechslungen hier extrem lange unentdeckt. Sobald
+geschnitten wird, ist die Zeit gestaucht: die Anim-Phase verteilt
+`trim_start…trim_end` über die volle Dauer (`coords_per_frame`).
+
+**Regeln:**
+- `_tlBar.getScrubber()` / `setScrubber()` sprechen in **Track-Ankern**. Wer
+  wirklich die Zeit meint, nimmt ausdrücklich `getScrubberBar()` /
+  `setScrubberBar()` — das sind genau drei Stellen (Probe-Lauf-Start,
+  Schnappschuss, Modul-Zwischenspeicher).
+- Kamera-Keyframes werden am **Track-Anker** ausgewertet, in beiden Welten:
+  Vorschau `kamAnker` (in der Frame-Schleife von `startPreview`) und Renderer
+  `_kamera_anker(frame)` in `core/animator.py`. In Intro und Hold läuft der
+  Anker mit derselben Rate über die Trim-Grenzen hinaus weiter, damit die
+  Kamera anfliegen und nachschwenken kann. `_frame_bei_anker()` ist die
+  Umkehrung (für die „Ruhige Kamera").
+- **Wer eine der beiden Formeln ändert, muss die andere mitziehen.**
+  `tests/test_keyframes_am_track.py` rechnet sie gegeneinander und bricht sonst.
+
 ### Keyframes kopieren (v0.9.505)
 
 **Was der Nutzer „Keyframe" nennt, ist ein Bündel.** `timeline_events` ist eine
