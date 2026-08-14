@@ -14,6 +14,41 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.510] – 2026-08-14
+
+### Behoben
+- **Lange Videos ruckelten** (Marc: „wenn ich die länge des clips deutlich
+  verlängere, ruckelt es"). Der Renderer kannte nur ganze Trackpunkte — hatte
+  die Animation mehr Frames als der Track Punkte, stand der Punkt mehrere
+  Frames still und sprang dann weiter (gemessen: 629 Punkte bei 50 s ×
+  30 fps = ein Sprung alle 79 ms). Jetzt wird der Track auf Frame-Anzahl
+  hochgetastet: eine eigene, interpolierte Position je Frame — samt
+  Sensorwerten, damit die Live-Anzeige nicht springt. Wer die Punktzahl am
+  Regler bewusst reduziert hat, wird nicht übersteuert.
+- **Der Scrubber rastete auf ganze Trackpunkte** — beim Loslaufen sprang der
+  Probe-Lauf auf den nächstgelegenen Punkt (Marc hat es exakt so erkannt).
+  Scrubber, Laufpunkt und die Spitze der wachsenden Linie gleiten jetzt
+  zwischen den Punkten.
+
+## [0.9.509] – 2026-08-14
+
+### Hinzugefügt
+- **Der Laufpunkt ist jetzt einstellbar** (Wunsch eines Nutzers aus Spanien:
+  „die Kugel am Anfang durch einen Pfeil ersetzen"). Unter *Track*: ein- und
+  ausblendbar, als **Kugel** (wie bisher) oder als **Pfeil, der in
+  Fahrtrichtung zeigt**, mit Größenregler. Eigene Bilder folgen später.
+- **Der Laufpunkt ist endlich auch in der Vorschau zu sehen.** Bis jetzt gab es
+  ihn nur im gerenderten Video — in der Vorschau fehlte er komplett, man konnte
+  also erst nach dem Rendern sehen, wie er aussieht. Jetzt läuft er im
+  Probe-Lauf und beim Scrubben mit, in derselben Optik wie im Video.
+
+### Behoben
+- **Das Karten-PNG aus dem Archiv hatte keine Quellenangabe.** Der Export
+  fotografierte nur die Kartenfläche — die vertraglich nötige Zeile
+  „© Mapbox © OpenStreetMap" stand daneben und fehlte im Bild. Sie wird jetzt
+  unten rechts eingebrannt; der Text kommt aus der Karte selbst und passt
+  damit automatisch zum jeweiligen Kartenanbieter.
+
 ## [0.9.508] – 2026-08-13
 
 ### Geändert

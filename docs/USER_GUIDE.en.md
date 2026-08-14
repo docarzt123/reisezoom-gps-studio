@@ -710,6 +710,12 @@ render.
 - **FPS**: 24 (cinema) · 25 (PAL/Europe TV) · 30 (standard) · 50 (PAL HFR) · 60
 - **Codec**: H.264 (universally compatible) or H.265 (HEVC, ~30% smaller)
 
+**The moving dot itself (since v0.9.509):** Under *Track* you find **"Show
+moving dot"** — switch it off, choose between the **dot** and an **arrow
+pointing in the direction of travel**, and set its size. The dot looks the same
+in the preview and trial run as in the finished video, and it glides smoothly —
+including in long videos, where it used to stutter.
+
 **How the dot travels along the route (since v0.9.506):**
 
 At the top of *Track* sits **“Spread along the track”**. It does not decide how

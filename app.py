@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.508"
+APP_VERSION = "0.9.510"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -3029,6 +3029,11 @@ class Api:
             # v0.9.506 — Verteilung der Frames über den Track. Vorgabe "raw",
             # damit ein Projekt ohne die Angabe (also jedes bestehende) aussieht
             # wie bisher.
+            # v0.9.509 — Laufpunkt (Form/Größe/sichtbar). Vorgabe: sichtbare
+            # Kugel — das Verhalten bis v0.9.508.
+            marker_dot_show=bool(params.get("marker_dot_show", True)),
+            marker_dot_style=str(params.get("marker_dot_style", "dot") or "dot"),
+            marker_dot_size=float(params.get("marker_dot_size", 1.0) or 1.0),
             pace_mode=str(params.get("pace_mode", "raw") or "raw"),
             pause_mode=str(params.get("pause_mode", "trim") or "trim"),
             pause_min_s=float(params.get("pause_min_s", 120) or 120),
