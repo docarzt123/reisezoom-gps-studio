@@ -29,12 +29,16 @@ Bei jeder neuen Version:
   Probe-Lauf auf den nächstgelegenen Punkt (Marc hat es exakt so erkannt).
   Scrubber, Laufpunkt und die Spitze der wachsenden Linie gleiten jetzt
   zwischen den Punkten.
-- **Mit gesetzten Trim-Griffen sprang der Scrubber beim Start des Probe-Laufs
-  nach rechts.** Beim Parken zählte die Leiste als Zeitachse, beim Abspielen
-  wurde die Anzeige auf den Bereich zwischen den Griffen umgerechnet — zwei
-  Achsen auf derselben Leiste. Ohne Trim waren beide identisch, deshalb fiel
-  es nie auf. Jetzt läuft alles auf der Zeitachse: der Probe-Lauf beginnt
-  exakt an der geparkten Position.
+- **Mit gesetzten Trim-Griffen begann der Probe-Lauf woanders als der
+  Scrubber stand** — man konnte einen zugeschnittenen Ausschnitt praktisch
+  nicht beurteilen. Die Zeitleiste wurde an drei Stellen verschieden gelesen:
+  die gelben Griffe sitzen auf der **Track-Achse** (dort liegt genau diese
+  Stelle der Strecke), der Start des Probe-Laufs las dieselbe Position aber
+  als **Zeit** — und die Zeit ist gestaucht, weil das Video den Ausschnitt
+  über die volle Dauer verteilt. Ohne Schnitt fallen beide Achsen zusammen,
+  deshalb fiel der Widerspruch nie auf. Jetzt gilt überall: wo ein Griff oder
+  der Scrubber sitzt, liegt genau diese Stelle des Tracks — setzt man den
+  Griff auf den Scrubber, beginnt der Lauf exakt dort.
 
 ## [0.9.509] – 2026-08-14
 
