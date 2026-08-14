@@ -5703,9 +5703,17 @@ function mountAnimator(body, headerActions, opts) {
     // v0.8.11: anchor ist Timeline-Anker. Track-idx via track_fraction;
     // wenn wir in der Hold-Phase sind, beschriften wir das explizit damit
     // der User weiß warum der Track-Endpunkt stehen bleibt.
+    // ⚠️ v0.9.511 — `anchor` kommt als LEISTEN-Position (die Zeitleiste kennt
+    // ihre eigene Achse). Punktnummer und Prozentzahl beschreiben aber eine
+    // Stelle im TRACK — sonst zeigte die Zeile mit Hold oder Intro eine zu
+    // kleine Prozentzahl und einen zu frühen Punkt. Die Hold-Erkennung
+    // darunter vergleicht weiter auf der Leiste, denn „Hold" ist eine Phase
+    // der ZEIT.
     const tf = trackFraction();
-    const idx = trackIdxFromTimelineAnchor(anchor);
-    const pct = (anchor * 100).toFixed(1);
+    const trackA = _tlBar && typeof _tlBar.barToTrack === "function"
+      ? _tlBar.barToTrack(anchor) : anchor;
+    const idx = trackIdxFromTimelineAnchor(trackA);
+    const pct = (trackA * 100).toFixed(1);
     const pointLbl = (typeof t === "function" && t("animator.timeline.point") !== "animator.timeline.point")
                      ? t("animator.timeline.point") : "Punkt";
     const phase = anchor > tf + 0.0005
@@ -5719,7 +5727,10 @@ function mountAnimator(body, headerActions, opts) {
     // es weder Keyframes noch ein „📍 = neuer Keyframe", der Hinweis wäre also
     // eine Anleitung für etwas, das gerade gar nicht geht.
     if (!keyframesEnabled()) return base;
-    const kfIdx = findKeyframeAtAnchor(anchor);
+    // ⚠️ Keyframe-Anker sind TRACK-Anker — hier ebenfalls mit `trackA`
+    // vergleichen. Mit der Leisten-Position meldete die Zeile „frei", obwohl
+    // der Scrubber exakt auf einem Keyframe stand.
+    const kfIdx = findKeyframeAtAnchor(trackA);
     let suffix;
     if (kfIdx != null) {
       const onKf = (typeof t === "function" && t("animator.timeline.on_keyframe") !== "animator.timeline.on_keyframe")

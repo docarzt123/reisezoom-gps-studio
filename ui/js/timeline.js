@@ -771,14 +771,19 @@ function mountTimelineBar(opts) {
         cb.onEventCopy({ kind: kopie.kind, anchor: kopie.startAnchor },
                        kopie.anchor);
       }
-      if (wasScrubber && cb.onScrubEnd) cb.onScrubEnd(_scrubAnchor);
+      if (wasScrubber && cb.onScrubEnd) cb.onScrubEnd(_barToTrack(_scrubAnchor));
     }
   });
 
   // Action-Buttons
   btnSnap.addEventListener("click", () => {
     if (!_enabled || !cb.onSnapshot) return;
-    cb.onSnapshot(_scrubAnchor);
+    // ⚠️ v0.9.511 — `_scrubAnchor` ist eine LEISTEN-Position; ein Keyframe
+    // speichert einen TRACK-Anker. Ohne Umrechnung landete der Keyframe um
+    // genau die Hold-Stauchung neben dem Scrubber (Marc: „wenn Du hier
+    // Keyframe klickst, dann erscheint der nicht an der Stelle, wo der
+    // Scrubber steht").
+    cb.onSnapshot(_barToTrack(_scrubAnchor));
   });
   btnPlay.addEventListener("click", () => {
     if (!_enabled || !cb.onRunPreview) return;
@@ -872,6 +877,13 @@ function mountTimelineBar(opts) {
     _renderIntroUi();
     // Bei tf/ti-Änderung müssen die Trim-Handles ihre visuelle Position neu rechnen
     setTrimVisual(_trimStart, _trimEnd);
+    // ⚠️ v0.9.511 — und die Keyframe-Marker ebenso: seit sie über `_trackToBar`
+    // gezeichnet werden, hängt ihre Pixelposition an tf/ti. Vorher saßen sie
+    // auf ihrem rohen Anker und überlebten eine Phasen-Änderung unbeschadet;
+    // ohne dieses `refresh()` blieben sie stehen, während Griffe und Scrubber
+    // wanderten — ein frisch gesetzter Keyframe erschien dann sichtbar neben
+    // dem Scrubber, obwohl sein Anker exakt stimmte (Marc, 2026-08-14).
+    try { refresh(); } catch (_) {}
   }
   function _renderHoldUi() {
     // Hold-Trenner + Region sitzen visuell am rechten Trim-Handle (= ti + trim_end * (tf-ti)).
@@ -1033,7 +1045,7 @@ function mountTimelineBar(opts) {
     } else {
       if (!cb.onEventClipboardPaste) return;
       e.preventDefault();
-      cb.onEventClipboardPaste(_scrubAnchor);
+      cb.onEventClipboardPaste(_barToTrack(_scrubAnchor));   // v0.9.511: Track-Anker
     }
   });
 

@@ -40,6 +40,15 @@ Bei jeder neuen Version:
   gelben Griff.
 - Aus demselben Grund saßen **Foto-Pins und Schilder** mit Intro oder Hold
   leicht daneben; sie rechnen jetzt ebenfalls in Track-Ankern.
+- **„Hier Keyframe" setzte den Keyframe neben den Scrubber.** Der Knopf reichte
+  die Position auf der Zeitleiste durch, gespeichert wird aber eine Stelle im
+  Track — mit Hold-Phase lagen die beiden um deren Stauchung auseinander.
+  Dasselbe betraf das Einfügen aus der Zwischenablage. Außerdem zeigte die
+  Zeile unter der Leiste dadurch eine zu kleine Prozentzahl und eine zu frühe
+  Punktnummer und meldete „frei", obwohl der Scrubber genau auf einem
+  Keyframe stand.
+- **Keyframe-Marker blieben nach einer Änderung von Intro oder Hold stehen**,
+  während Griffe und Scrubber wanderten — sie werden jetzt mitgezeichnet.
 - **Die Keyframe-Punkte auf der Karte wurden unterschiedlich groß.** Mapbox
   skaliert Kreise standardmäßig mit der Perspektive — bei geneigter Kamera
   blähte sich der kameranächste Punkt auf das Doppelte auf. Sie haben jetzt
