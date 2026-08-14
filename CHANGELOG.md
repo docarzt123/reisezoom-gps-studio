@@ -40,6 +40,11 @@ Bei jeder neuen Version:
   gelben Griff.
 - Aus demselben Grund saßen **Foto-Pins und Schilder** mit Intro oder Hold
   leicht daneben; sie rechnen jetzt ebenfalls in Track-Ankern.
+- **Die Keyframe-Punkte auf der Karte wurden unterschiedlich groß.** Mapbox
+  skaliert Kreise standardmäßig mit der Perspektive — bei geneigter Kamera
+  blähte sich der kameranächste Punkt auf das Doppelte auf. Sie haben jetzt
+  eine feste Größe, unabhängig von Neigung und Zoom. (Reine Bedien-Hilfe der
+  Vorschau; im Video kommen sie ohnehin nicht vor.)
 
 ## [0.9.510] – 2026-08-14
 

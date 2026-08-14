@@ -2808,6 +2808,14 @@ function mountAnimator(body, headerActions, opts) {
           "circle-stroke-color": "#fff",
           "circle-stroke-width": 2.5,
           "circle-opacity": 0.95,
+          // ⚠️ v0.9.511 — OHNE das hier bläht Mapbox die Punkte auf: die
+          // Vorgabe für `circle-pitch-scale` ist "map", also wachsen Kreise
+          // mit der Nähe zur Kamera. Bei geneigter Kamera (Marc: 61°, Zoom 16)
+          // wurde der unterste Pin doppelt so groß wie der oberste — es sah
+          // aus, als würde ein Keyframe „plötzlich ganz groß".
+          // Diese Punkte sind reine Bedien-Hilfe in der Vorschau (im Video
+          // kommen sie nicht vor) und sollen deshalb IMMER gleich groß sein.
+          "circle-pitch-scale": "viewport",
         },
       });
       // Click-Handler einmalig binden
