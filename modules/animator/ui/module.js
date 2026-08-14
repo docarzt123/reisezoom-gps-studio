@@ -2484,29 +2484,14 @@ function mountAnimator(body, headerActions, opts) {
     return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
   }
 
-  function trackIdxFromTimelineAnchor(anchor) {
-    const n = currentCoords ? currentCoords.length : 0;
-    if (n < 2) return 0;
-    const ti = introFraction();
-    const tf = trackFraction();
-    const trim = (_tlBar && typeof _tlBar.getTrim === "function")
-      ? _tlBar.getTrim() : { start: 0, end: 1 };
-    const trimA = Math.max(0, Math.min(1, trim.start ?? 0));
-    const trimB = Math.max(trimA, Math.min(1, trim.end ?? 1));
-    let markerReal;
-    if (anchor <= ti) {
-      markerReal = trimA;
-    } else if (anchor < tf) {
-      const animProgress = (anchor - ti) / Math.max(0.0001, tf - ti);
-      markerReal = trimA + animProgress * (trimB - trimA);
-    } else {
-      markerReal = trimB;
-    }
-    return idxAusFortschritt(markerReal, n);
-  }
-
-  /** Wie trackIdxFromTimelineAnchor, aber als BRUCHTEIL (v0.9.510) — für den
-   *  gleitenden Laufpunkt und die interpolierte Linienspitze beim Scrubben. */
+  /** Stelle auf der Leiste → Stelle im Track.
+   *
+   *  ⚠️ Die Leiste ist eine TRACK-Achse (v0.9.510): wo der Scrubber steht,
+   *  liegt genau diese Stelle des Tracks — dieselbe Rechnung, mit der
+   *  `setTrimVisual` die gelben Griffe setzt. Vorher wurde hier auf den
+   *  Bereich ZWISCHEN den Griffen gestaucht; damit lag ein Griff genau auf
+   *  dem Scrubber, zeigte aber eine ganz andere Stelle des Tracks.
+   *  Außerhalb der Griffe steht der Track still — wie im fertigen Video. */
   function trackFracFromTimelineAnchor(anchor) {
     const n = currentCoords ? currentCoords.length : 0;
     if (n < 2) return 0;
@@ -2516,12 +2501,17 @@ function mountAnimator(body, headerActions, opts) {
       ? _tlBar.getTrim() : { start: 0, end: 1 };
     const trimA = Math.max(0, Math.min(1, trim.start ?? 0));
     const trimB = Math.max(trimA, Math.min(1, trim.end ?? 1));
-    let markerReal;
-    if (anchor <= ti) markerReal = trimA;
-    else if (anchor < tf) markerReal = trimA + ((anchor - ti) / Math.max(0.0001, tf - ti)) * (trimB - trimA);
-    else markerReal = trimB;
+    const aufDerLeiste = (anchor - ti) / Math.max(0.0001, tf - ti);
+    const markerReal = Math.max(trimA, Math.min(trimB, aufDerLeiste));
     return fracAusFortschritt(markerReal, n);
   }
+
+  function trackIdxFromTimelineAnchor(anchor) {
+    const n = currentCoords ? currentCoords.length : 0;
+    if (n < 2) return 0;
+    return Math.max(0, Math.min(n - 1, Math.round(trackFracFromTimelineAnchor(anchor))));
+  }
+
 
   function currentShadowStrength() {
     return parseFloat(document.getElementById("anim-shadow-strength")?.value) || 0;
@@ -5298,11 +5288,39 @@ function mountAnimator(body, headerActions, opts) {
     const holdMs = Math.max(0, holdSec * 1000);
     // v0.9.59: Total-Zeit = intro + anim + hold. Drei Phasen.
     const totalMs = introMs + animMs + holdMs;
-    // v0.9.43: Probe-Lauf startet an aktueller Scrubber-Position
-    let _startAnchor = (_tlBar && typeof _tlBar.getScrubber === "function")
-      ? Math.max(0, Math.min(1, _tlBar.getScrubber() || 0))
-      : 0;
-    if (_startAnchor >= 0.98) _startAnchor = 0;
+    // v0.9.43: Probe-Lauf startet an aktueller Scrubber-Position.
+    // ⚠️ v0.9.510 — DER eigentliche Fehler hinter Marcs Beobachtung: die
+    // Scrubber-Position ist eine Stelle auf der TRACK-Achse (dort sitzen auch
+    // die gelben Griffe), der Probe-Lauf braucht aber eine Stelle in der ZEIT.
+    // Beides wurde bisher gleichgesetzt. Ohne Schnitt stimmt das zufällig;
+    // sobald geschnitten ist, ist die Zeit gestaucht (das Video verteilt
+    // trim_start…trim_end über die volle Dauer) — der Lauf startete an einer
+    // ganz anderen Stelle als der Scrubber. Deshalb hier die Umkehrung der
+    // Anzeige-Rechnung aus der Frame-Schleife, Abschnitt für Abschnitt.
+    let _startAnchor = 0;
+    {
+      const sPos = (_tlBar && typeof _tlBar.getScrubber === "function")
+        ? Math.max(0, Math.min(1, _tlBar.getScrubber() || 0))
+        : 0;
+      const _ti = introFraction();
+      const _tf = trackFraction();
+      const _trim = (_tlBar && typeof _tlBar.getTrim === "function")
+        ? _tlBar.getTrim() : { start: 0, end: 1 };
+      const _a = Math.max(0, Math.min(1, _trim.start ?? 0));
+      const _b = Math.max(_a, Math.min(1, _trim.end ?? 1));
+      const _startVis = _ti + _a * (_tf - _ti);
+      const _endVis   = _ti + _b * (_tf - _ti);
+      if (sPos >= Math.min(0.98, _endVis)) {
+        _startAnchor = 0;                       // am Ende geparkt → von vorn
+      } else if (sPos <= _startVis) {
+        // vor dem linken Griff: im Intro, das anteilig übersprungen wird
+        _startAnchor = _startVis > 0 ? (sPos / _startVis) * _ti : 0;
+      } else {
+        const animProgress = (sPos - _startVis) / Math.max(0.0001, _endVis - _startVis);
+        _startAnchor = _ti + animProgress * (_tf - _ti);
+      }
+      _startAnchor = Math.max(0, Math.min(1, _startAnchor));
+    }
     // v0.9.72 (Marc-Bug, „nach Reload Preview falsch"): fitZoomBase EINMAL
     // beim Start cachen + KONSTANT für den ganzen Probe-Lauf benutzen. Vorher
     // wurde pro Frame `effectiveFitZoomBase()` neu abgefragt — wenn der Wert
@@ -5458,31 +5476,37 @@ function mountAnimator(body, headerActions, opts) {
       // Timing-Fenster (Einblenden im Intro / Ausblenden im Hold) auch dort greifen.
       // Der Marker selbst bleibt am trim_start/-end eingefroren (markerReal).
       let signAnchor;
-      // v0.9.510 — Der Scrubber läuft auf der ZEITACHSE, exakt wie beim
-      // Parken von Hand. Vorher wurde er hier stückweise auf den Bereich
-      // zwischen den Trim-Griffen umgerechnet (damit er optisch an den
-      // Griffen „andockt") — geparkt wurde aber auf der rohen Zeitachse.
-      // Zwei Achsen auf derselben Leiste: mit gesetztem Trim sprang der
-      // Scrubber beim Start des Probe-Laufs erst ein Stück nach rechts
-      // (Marc: „praktisch gar nicht möglich, irgendwas richtig zu testen").
-      // Ohne Trim waren beide Achsen identisch — deshalb fiel es nie auf.
-      // Die Trim-Griffe bleiben Track-Marken; die Kamera-Keyframes liegen
-      // ohnehin auf der Zeitachse, jetzt passt alles zusammen.
-      scrubberVis = timelineProgress;
+      // ⚠️ DIE LEISTE IST EINE TRACK-ACHSE, keine Zeitachse (v0.9.510).
+      // Dort, wo ein gelber Griff sitzt, liegt genau diese Stelle des Tracks —
+      // so zeichnet `setTrimVisual` die Griffe (ti + trim · span), und so
+      // erwartet es der Nutzer (Marc: „wenn ich den gelben Griff genau auf den
+      // Punkt setze, wo der Scrubber steht, dann müsste doch der Track auch an
+      // dieser Stelle loslaufen"). Die ZEIT dagegen ist gestaucht: das Video
+      // verteilt trim_start…trim_end über die volle Dauer (siehe
+      // `coords_per_frame` in core/animator.py). Beide Achsen fallen nur
+      // zusammen, wenn nicht geschnitten ist — deshalb fiel der Widerspruch
+      // jahrelang nicht auf.
+      // Hier gilt: Marker aus der ZEIT rechnen (das macht das Video auch),
+      // Anzeige daraus auf die TRACK-Achse zurückrechnen.
+      const trimStartVis = ti + trimA * (tf - ti);
+      const trimEndVis   = ti + trimB * (tf - ti);
       if (timelineProgress < ti) {
         // INTRO-Phase — Marker am trim_start eingefroren
         markerReal = trimA;
         const introProgress = timelineProgress / Math.max(0.0001, ti);
+        scrubberVis = introProgress * trimStartVis;
         signAnchor = trimA - (introSec * (1 - introProgress)) / Math.max(0.001, durSec);
       } else if (timelineProgress < tf) {
         // ANIM-Phase
         const animProgress = (timelineProgress - ti) / Math.max(0.0001, tf - ti);
         markerReal = trimA + animProgress * (trimB - trimA);
+        scrubberVis = ti + markerReal * (tf - ti);   // = Griff-Achse
         signAnchor = markerReal;
       } else {
         // HOLD-Phase — Marker am trim_end eingefroren
         markerReal = trimB;
         const holdProgress = (timelineProgress - tf) / Math.max(0.0001, 1 - tf);
+        scrubberVis = trimEndVis + holdProgress * (1 - trimEndVis);
         signAnchor = trimB + (holdProgress * holdSec) / Math.max(0.001, durSec);
       }
       const coordFrac = fracAusFortschritt(markerReal, tn);
