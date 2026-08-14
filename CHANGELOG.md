@@ -29,6 +29,12 @@ Bei jeder neuen Version:
   Probe-Lauf auf den nächstgelegenen Punkt (Marc hat es exakt so erkannt).
   Scrubber, Laufpunkt und die Spitze der wachsenden Linie gleiten jetzt
   zwischen den Punkten.
+- **Mit gesetzten Trim-Griffen sprang der Scrubber beim Start des Probe-Laufs
+  nach rechts.** Beim Parken zählte die Leiste als Zeitachse, beim Abspielen
+  wurde die Anzeige auf den Bereich zwischen den Griffen umgerechnet — zwei
+  Achsen auf derselben Leiste. Ohne Trim waren beide identisch, deshalb fiel
+  es nie auf. Jetzt läuft alles auf der Zeitachse: der Probe-Lauf beginnt
+  exakt an der geparkten Position.
 
 ## [0.9.509] – 2026-08-14
 
