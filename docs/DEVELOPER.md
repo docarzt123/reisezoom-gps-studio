@@ -276,6 +276,24 @@ geschnitten wird, ist die Zeit gestaucht: die Anim-Phase verteilt
 - **Wer eine der beiden Formeln ändert, muss die andere mitziehen.**
   `tests/test_keyframes_am_track.py` rechnet sie gegeneinander und bricht sonst.
 
+### Werte am Marker aufziehen (v0.9.512)
+
+Option + Ziehen auf einem **Wert-Marker** (`WERT_LANES` in `ui/js/timeline.js`:
+pitch, bearing, zoom, position) ändert den Wert statt der Position. Die
+Zeitleiste meldet nur Pixel-Deltas (`onValueDragStart/​onValueDrag/​onValueDragEnd`);
+gerechnet, geklemmt und geschrieben wird im Animator (`WERT_ZIEH`, `wertZiehen`).
+
+⚠️ **Der Startwert wird EINMAL beim Anfassen gemerkt** und jeder Zwischenschritt
+daraus gerechnet (`start + dx · Schritt`). Vom jeweils aktuellen Wert
+weiterzurechnen driftet — und an einem Anschlag (Neigung 85°) käme man nicht
+mehr zurück, weil das Klemmen den Startpunkt mitzöge.
+
+⚠️ **Konflikt mit v0.9.505** (Option + Ziehen = duplizieren) ist nach BAUTEIL
+aufgelöst, nicht nach Taste: Wert-Marker → Wert ändern, Cluster (🎬) →
+duplizieren. Wer das ändert, muss beide Erwartungen bedienen.
+`center` fehlt bewusst in `WERT_LANES` — ein Kartenmittelpunkt ist kein
+Zahlenwert.
+
 ### Keyframes kopieren (v0.9.505)
 
 **Was der Nutzer „Keyframe" nennt, ist ein Bündel.** `timeline_events` ist eine

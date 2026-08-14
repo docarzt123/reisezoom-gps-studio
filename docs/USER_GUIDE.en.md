@@ -856,6 +856,12 @@ In the timeline bar you'll find **two sliders** with a gray handle — the left 
 - **Left trim handle** = where the render track starts
 - **Right trim handle** = where the render track stops
 - **Keyframes outside** stay visible (dimmed), acting as a "run-up" setup: the camera interpolation runs through them, but the track marker itself only starts at the left handle
+- **Drag values right on the marker** (since v0.9.512): click the small icon
+  of a property (pitch, bearing, zoom, world position) — it gets highlighted in
+  the sidebar. Then hold **Option** and drag: you change its **value** instead
+  of moving the keyframe. Map and sidebar follow live, **Shift** fine-tunes.
+  ⚠️ **Option + drag on the cluster icon 🎬 still duplicates** the whole
+  keyframe. The "map" lane cannot be dragged — a map centre is moved on the map.
 - **Keyframes stick to the route, not to the clock** (since v0.9.511): a
   keyframe you place at a particular bend triggers its camera move exactly
   there — even if you later move the handles or change the duration. It travels

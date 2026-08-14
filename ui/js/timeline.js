@@ -38,6 +38,8 @@ function mountTimelineBar(opts) {
   // v0.9.1 — Multi-Lane: 6 horizontale Spuren (4 Camera-Properties +
   // 2 Reserve-Spuren für Marker und Foto). Jede Spur rendert ihre eigenen
   // Marker. Scrubber + Anim-End-Trenner sind durchgängig.
+  // Lanes, deren Wert sich mit Option+Ziehen verändern lässt (v0.9.512).
+  const WERT_LANES = ["pitch", "bearing", "zoom", "position"];
   const LANES = [
     { kind: "pitch",    label: tlT("animator.lane.pitch",    "Pitch"),     icon: "📐", color: "#5aa9ff" },
     { kind: "bearing",  label: tlT("animator.lane.bearing",  "Drehung"),   icon: "🧭", color: "#6cdd9b" },
@@ -344,8 +346,13 @@ function mountTimelineBar(opts) {
 
   // Status-Label-Provider (Animator setzt das via opts.getPositionLabel).
   // Default-Fallback: nur Prozent zeigen.
+  // v0.9.512 — Während des Wert-Ziehens zeigt die Zeile den laufenden Wert
+  // an, sonst die Scrubber-Position. Ohne das zieht man blind.
+  let _statusHint = null;
+  function setStatusHint(txt) { _statusHint = txt || null; updateStatusLabel(); }
   function updateStatusLabel() {
     if (!statusEl) return;
+    if (_statusHint) { statusEl.textContent = _statusHint; return; }
     if (cb.getPositionLabel) {
       statusEl.textContent = cb.getPositionLabel(_scrubAnchor);
     } else {
@@ -592,7 +599,11 @@ function mountTimelineBar(opts) {
         m.dataset.kind = L.kind;
         m.dataset.anchor = String(item.anchor || 0);
         m.title = `${L.label} @ ${((item.anchor || 0) * 100).toFixed(0)}%\n\n`
-                + tlT("animator.timeline.marker.tip", "Klick: auswählen · Rechtsklick: löschen · Drag: verschieben");
+                + tlT("animator.timeline.marker.tip", "Klick: auswählen · Rechtsklick: löschen · Drag: verschieben")
+                + (WERT_LANES.includes(L.kind)
+                    ? "\n" + tlT("animator.timeline.marker.tip_value",
+                                 "Option + ziehen: Wert ändern (Shift = fein)")
+                    : "");
         m.innerHTML = `<span class="timeline-marker-icon">${L.icon}</span>`;
         el.appendChild(m);
       }
@@ -668,6 +679,20 @@ function mountTimelineBar(opts) {
     _selectedEvent = { kind, anchor };
     if (cb.onSelect) cb.onSelect({ kind, anchor });
     refresh();
+    // v0.9.512 — Alt/Option auf einem WERT-Marker: ziehen ändert den WERT
+    // statt die Position (Marc-Wunsch 2026-08-14: „wenn ich dann option
+    // festhalte, will ich durch verschieben der maus die werte der rotation
+    // ändern, statt den keyframe zu verschieben").
+    // ⚠️ Auf dem CLUSTER bleibt Alt das Duplizieren aus v0.9.505 — dort gibt
+    // es keinen einzelnen Wert, und das Kopieren eines ganzen Keyframes ist
+    // die häufigere Geste. Die „Karte"-Lane fehlt bewusst: ein Kartenmittel-
+    // punkt ist kein Zahlenwert, den man am Pixel aufziehen kann.
+    if (e.altKey && WERT_LANES.includes(kind)) {
+      _dragging = { type: "value", kind, anchor,
+                    startX: e.clientX, startY: e.clientY, moved: false };
+      if (cb.onValueDragStart) cb.onValueDragStart({ kind, anchor });
+      return;
+    }
     // v0.9.505 — Alt/Option beim Anfassen = duplizieren statt verschieben
     // (das Idiom aus Premiere, Final Cut, After Effects). `startAnchor` bleibt
     // dabei stehen: `anchor` wandert während des Ziehens mit, wir brauchen aber
@@ -719,6 +744,19 @@ function mountTimelineBar(opts) {
   // Globale mouse-move/up für drag
   window.addEventListener("mousemove", (e) => {
     if (!_dragging || !_enabled) return;
+    // v0.9.512 — Wert-Ziehen rechnet in PIXELN, nicht in Ankern.
+    if (_dragging.type === "value") {
+      _dragging.moved = true;
+      if (cb.onValueDrag) {
+        cb.onValueDrag({
+          kind: _dragging.kind, anchor: _dragging.anchor,
+          dx: e.clientX - _dragging.startX,
+          dy: _dragging.startY - e.clientY,      // nach oben = mehr
+          fein: !!e.shiftKey,
+        });
+      }
+      return;
+    }
     const barPos = anchorFromClientX(e.clientX);
     // Der Scrubber lebt auf der Leiste, ein Keyframe im Track (v0.9.511).
     const anchor = _dragging.type === "marker" ? _barToTrack(barPos) : barPos;
@@ -765,7 +803,14 @@ function mountTimelineBar(opts) {
       const wasScrubber = _dragging.type === "scrubber";
       const kopie = (_dragging.type === "marker" && _dragging.kopieren
                      && _dragging.moved) ? _dragging : null;
+      const wertZug = _dragging.type === "value" ? _dragging : null;   // v0.9.512
       _dragging = null;
+      if (wertZug) {
+        if (cb.onValueDragEnd) cb.onValueDragEnd({ kind: wertZug.kind, anchor: wertZug.anchor,
+                                                   geaendert: !!wertZug.moved });
+        refresh();
+        return;
+      }
       refresh();   // stellt das Original zurück — es wurde nie bewegt
       if (kopie && cb.onEventCopy) {
         cb.onEventCopy({ kind: kopie.kind, anchor: kopie.startAnchor },
@@ -1150,6 +1195,7 @@ function mountTimelineBar(opts) {
     trackToBar: _trackToBar,
     barToTrack: _barToTrack,
     getScrubberTrack,
+    setStatusHint,
     setScrubberTrack,
     refresh,
     setScrubber: setScrubberTrack,

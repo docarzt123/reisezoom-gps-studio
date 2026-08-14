@@ -761,3 +761,11 @@
 .timeline-marker-cluster.kf-outside-trim:hover {
   opacity: 0.7;   /* beim Hover wieder sichtbarer machen */
 }
+
+/* v0.9.512 — Wert am Marker aufziehen (Option + ziehen).
+   Der Zeiger sagt, dass jetzt ein WERT wandert und nicht der Keyframe. */
+body.wert-zieht,
+body.wert-zieht * { cursor: ew-resize !important; }
+body.wert-zieht .timeline-marker.is-selected {
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.55);
+}

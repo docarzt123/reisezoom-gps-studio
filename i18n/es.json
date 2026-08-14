@@ -585,6 +585,7 @@
   "animator.kf.delete_hint": "Borrado rápido: clic-derecho sobre el marcador en la barra (o el pin del mapa) · tecla <kbd>Supr</kbd> con el keyframe seleccionado.",
   "animator.kf.hint": "Truco: arrastra, rota, inclina el mapa — luego pulsa „Actualizar con la vista actual\" arriba. O ajusta con los sliders.",
   "animator.timeline.marker.tip": "Clic: seleccionar + editar · Clic-derecho: eliminar · Arrastrar: mover",
+  "animator.timeline.marker.tip_value": "Opción + arrastrar: cambiar el valor (Mayús = preciso)",
   "animator.timeline.keynav.delete": "eliminar keyframe seleccionado",
   "animator.kf.enable_label": "Editor de keyframes",
   "animator.kf.enable_tooltip": "Activa la línea de tiempo de keyframes de cámara para movimientos cinematográficos. Apagado: comportamiento clásico con inclinación estática + rotación lineal.",

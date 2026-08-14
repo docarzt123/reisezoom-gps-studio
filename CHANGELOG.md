@@ -14,6 +14,22 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.512] – 2026-08-15
+
+### Neu
+- **Werte direkt am Keyframe aufziehen.** Einen Wert-Marker anklicken (Neigung,
+  Drehung, Zoom, Welt-Position) — die Eigenschaft wird in der Seitenleiste
+  hervorgehoben — dann **Option gedrückt halten und ziehen**: statt den
+  Keyframe zu verschieben, ändert sich sein **Wert**. Seitenleiste und Karte
+  ziehen live mit, die Zeile unter der Leiste zeigt den laufenden Wert,
+  **Shift** stellt fein. Grenzen wie an den Reglern (Neigung 0–85°, Drehung
+  ±180°, Zoom 0–22, Welt-Position ±50 %).
+  ⚠️ **Option + Ziehen auf dem Cluster (🎬) dupliziert weiterhin** den ganzen
+  Keyframe wie seit v0.9.505 — ein Cluster hat keinen einzelnen Wert. ⌘C/⌘V
+  bleibt unverändert.
+  Die „Karte"-Spur lässt sich bewusst nicht aufziehen: ein Kartenmittelpunkt
+  ist kein Zahlenwert — den verschiebt man auf der Karte.
+
 ## [0.9.511] – 2026-08-14
 
 ### Geändert
