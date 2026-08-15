@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.514"
+APP_VERSION = "0.9.515"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -4483,6 +4483,202 @@ class Api:
             return {"ok": False, "error": _ui_t()("error.user_guide_html_nicht_gefunden", "USER_GUIDE.html nicht gefunden — `python3 scripts/build_user_guide_html.py` ausführen.")}
         log.info("open_user_guide: %s", p)
         return self._open_path_native(p)
+
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  Cloud-Archiv (v0.9.515, docs/IDEAS.md §26)
+    #
+    #  ⚠️ ZUSÄTZLICH. Wer nichts einrichtet, merkt davon nichts: Der Import
+    #  steckt in den Methoden, nicht oben — ohne `cryptography`/`keyring`
+    #  startet die App weiterhin, und der lokale Weg fasst nichts davon an.
+    # ══════════════════════════════════════════════════════════════════════
+
+    ARCHIV_KENNUNG = "haupt"          # ein Archiv je Rechner (docs/IDEAS §26)
+
+    def _cloud_teile(self):
+        """Die Cloud-Module holen — oder sagen, warum es nicht geht."""
+        try:
+            from core.cloud import archiv, crypto, keys, sync, transport
+            return {"archiv": archiv, "crypto": crypto, "keys": keys,
+                    "sync": sync, "transport": transport}
+        except ImportError as e:
+            raise RuntimeError(
+                _ui_t()("cloud.fehlt",
+                        "Für die Cloud fehlen Programmteile (cryptography, keyring). "
+                        "Bitte die App neu installieren.") + f" [{e}]") from e
+
+    def _cloud_zugang(self):
+        """Zugang + Datenschlüssel aus dem Schlüsselbund. None, wenn nicht eingerichtet."""
+        teile = self._cloud_teile()
+        keys = teile["keys"]
+        zugang = keys.zugang_holen(self.ARCHIV_KENNUNG, basis=APP_SUPPORT)
+        schluessel = keys.datenschluessel_holen(self.ARCHIV_KENNUNG, basis=APP_SUPPORT)
+        if not zugang or not schluessel:
+            return None
+        return teile, zugang, schluessel
+
+    def cloud_status(self) -> dict:
+        """Wie steht es um die Cloud? Für die Zustandsanzeige und die Einstellungen."""
+        try:
+            teile = self._cloud_teile()
+        except RuntimeError as e:
+            return {"ok": True, "verfuegbar": False, "grund": str(e)}
+        vorhanden = self._cloud_zugang()
+        antwort = {
+            "ok": True, "verfuegbar": True,
+            "eingerichtet": vorhanden is not None,
+            "ablage": teile["keys"].ablage_beschreibung(),
+            "lauf": getattr(self, "_cloud_lauf", None),
+        }
+        if vorhanden:
+            antwort["adresse"] = vorhanden[1].adresse
+        return antwort
+
+    def cloud_pruefen(self, adresse: str) -> dict:
+        """Spricht dort eine Gegenstelle? Ohne etwas zu verändern."""
+        try:
+            teile = self._cloud_teile()
+            g = teile["transport"].Gegenstelle(adresse)
+            info = g.info()
+            return {"ok": True, "eingerichtet": bool(info.get("eingerichtet")),
+                    "format": info.get("format")}
+        except Exception as e:      # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def cloud_einrichten(self, adresse: str) -> dict:
+        """Neues Archiv anlegen. Gibt das Passwort zurück — genau einmal."""
+        try:
+            teile = self._cloud_teile()
+            crypto, keys, transport = teile["crypto"], teile["keys"], teile["transport"]
+            g = transport.Gegenstelle(adresse)
+            if g.info().get("eingerichtet"):
+                return {"ok": False, "error": _ui_t()(
+                    "cloud.schon_da",
+                    "Dort liegt schon ein Archiv. Nimm „Mit vorhandenem Archiv "
+                    "verbinden“ und dein Passwort.")}
+            schluessel, passwort, verpackt = crypto.archiv_anlegen()
+            zugang_schluessel = g.anlegen(verpackt.als_json())
+            keys.zugang_ablegen(self.ARCHIV_KENNUNG,
+                                keys.Zugang(adresse=adresse, schluessel=zugang_schluessel),
+                                basis=APP_SUPPORT)
+            keys.datenschluessel_ablegen(self.ARCHIV_KENNUNG, schluessel, basis=APP_SUPPORT)
+            log.info("Cloud-Archiv eingerichtet: %s", adresse)
+            # ⚠️ Das Passwort wird hier ein einziges Mal ausgegeben. Es liegt
+            # danach nur im Schlüsselbund — wir können es nicht wieder zeigen.
+            return {"ok": True, "passwort": passwort}
+        except Exception as e:      # noqa: BLE001
+            log.exception("Cloud einrichten fehlgeschlagen")
+            return {"ok": False, "error": str(e)}
+
+    def cloud_verbinden(self, adresse: str, zugangsschluessel: str, passwort: str) -> dict:
+        """Mit einem vorhandenen Archiv verbinden — der Weg von Gerät 2."""
+        try:
+            teile = self._cloud_teile()
+            crypto, keys, transport = teile["crypto"], teile["keys"], teile["transport"]
+            g = transport.Gegenstelle(adresse, zugangsschluessel.strip())
+            verpackt = crypto.VerpackterSchluessel.aus_json(g.archiv_schluessel())
+            schluessel = crypto.schluessel_auspacken(verpackt, passwort)
+            keys.zugang_ablegen(self.ARCHIV_KENNUNG,
+                                keys.Zugang(adresse=adresse,
+                                            schluessel=zugangsschluessel.strip()),
+                                basis=APP_SUPPORT)
+            keys.datenschluessel_ablegen(self.ARCHIV_KENNUNG, schluessel, basis=APP_SUPPORT)
+            log.info("Mit vorhandenem Cloud-Archiv verbunden: %s", adresse)
+            return {"ok": True}
+        except Exception as e:      # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def cloud_trennen(self) -> dict:
+        """Abmelden. Löscht NUR die Zugangsdaten hier, nichts auf dem Server."""
+        try:
+            teile = self._cloud_teile()
+            teile["keys"].archiv_vergessen(self.ARCHIV_KENNUNG, basis=APP_SUPPORT)
+            return {"ok": True}
+        except Exception as e:      # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def cloud_plan(self) -> dict:
+        """Was wäre zu tun? Ohne etwas zu übertragen."""
+        vorhanden = self._cloud_zugang()
+        if not vorhanden:
+            return {"ok": False, "error": "nicht eingerichtet"}
+        teile, zugang, schluessel = vorhanden
+        try:
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            bestand = self._cloud_bestand(teile)
+            plan = teile["sync"].Abgleich(g, schluessel).planen(bestand)
+            return {"ok": True, "hoch": len(plan.hoch), "weg": len(plan.weg),
+                    "unveraendert": plan.unveraendert, "text": str(plan)}
+        except Exception as e:      # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def _cloud_bestand(self, teile):
+        """Den lokalen Bestand aufnehmen (Verzeichnis, Sammlungen, Prüfsummen)."""
+        import sqlite3
+        conn = sqlite3.connect(str(LIBRARY_DB))
+        conn.row_factory = sqlite3.Row
+        try:
+            sessions = None
+            try:
+                sessions = json.loads((APP_SUPPORT / "sessions.json").read_text("utf-8"))
+            except Exception:
+                pass
+            return teile["archiv"].bestand_aufnehmen(conn, sessions)
+        finally:
+            conn.close()
+
+    def cloud_abgleichen(self) -> dict:
+        """Alles Ausstehende übertragen. Meldet Fortschritt über `cloud_fortschritt`."""
+        vorhanden = self._cloud_zugang()
+        if not vorhanden:
+            return {"ok": False, "error": "nicht eingerichtet"}
+        teile, zugang, schluessel = vorhanden
+        archiv_m, sync_m, transport_m = teile["archiv"], teile["sync"], teile["transport"]
+        try:
+            import sqlite3
+            g = transport_m.Gegenstelle(zugang.adresse, zugang.schluessel)
+            conn = sqlite3.connect(str(LIBRARY_DB))
+            conn.row_factory = sqlite3.Row
+            try:
+                sessions = None
+                try:
+                    sessions = json.loads((APP_SUPPORT / "sessions.json").read_text("utf-8"))
+                except Exception:
+                    pass
+                bestand = archiv_m.bestand_aufnehmen(conn, sessions)
+                a = sync_m.Abgleich(g, schluessel)
+                plan = a.planen(bestand)
+
+                def inhalt(name):
+                    if name == archiv_m.VERZEICHNIS:
+                        return archiv_m.json_bytes(bestand.verzeichnis)
+                    if name == archiv_m.SAMMLUNGEN:
+                        return archiv_m.json_bytes(bestand.sammlungen)
+                    gh = name.split("/", 1)[1]
+                    return archiv_m.umschlag_bauen(
+                        conn, gh, projekte=archiv_m._projekte_fuer(conn, gh, sessions))
+
+                # ⚠️ Fortschritt wird HINTERLEGT, nicht in die Oberfläche
+                # geschoben: Ein JS-Push aus einem Hintergrund-Thread ist in
+                # pywebview heikel. `cloud_status()` gibt den Stand zurück,
+                # die Oberfläche fragt im Sekundentakt nach.
+                def melden(i, n, name):
+                    self._cloud_lauf = {"i": i, "n": n}
+
+                self._cloud_lauf = {"i": 0, "n": len(plan.hoch)}
+                try:
+                    e = a.hochladen(plan, inhalt, melden)
+                    a.loeschen(plan)
+                finally:
+                    self._cloud_lauf = None
+                return {"ok": True, "uebertragen": e.uebertragen,
+                        "mb": round(e.bytes_hoch / 1024 / 1024, 1),
+                        "fehler": e.fehler[:5]}
+            finally:
+                conn.close()
+        except Exception as e:      # noqa: BLE001
+            log.exception("Cloud-Abgleich fehlgeschlagen")
+            return {"ok": False, "error": str(e)}
 
     def get_app_info(self) -> dict:
         """Über-Dialog-Daten: Version, Python, Paths."""

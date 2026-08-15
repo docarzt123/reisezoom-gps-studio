@@ -37,10 +37,24 @@ import base64
 import json
 import os
 import stat
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
 DIENST = "Reisezoom GPS Studio (Cloud-Archiv)"
+
+# ⚠️ Zeitgrenze für JEDEN Schlüsselbund-Zugriff.
+#
+# Gefunden am 15.08.2026 beim Test in der gebauten App: Wurde ein Eintrag von
+# einem ANDEREN Programm angelegt (hier: der Entwicklungslauf), fragt macOS beim
+# Lesen nach Erlaubnis — und `keyring.get_password` kehrt bis zur Antwort NICHT
+# zurück. Erscheint der Dialog nicht (weil er hinter dem Fenster liegt oder der
+# Aufruf aus einem Hintergrund-Thread kommt), hängt der Aufruf für immer.
+#
+# Ohne diese Grenze fror damit die Zustandsanzeige dauerhaft ein, ohne Fehler,
+# ohne Log — sie blieb einfach leer. Lieber nach ein paar Sekunden ehrlich
+# „nicht erreichbar" sagen als schweigend hängen.
+ZEITGRENZE = 8.0
 
 _ZUGANG = "zugang"
 _DATENSCHLUESSEL = "datenschluessel"
@@ -165,12 +179,38 @@ def _konto(archiv: str, feld: str) -> str:
     return f"{feld}:{archiv}"
 
 
+def _mit_zeitgrenze(fn, *a):
+    """Einen Schlüsselbund-Aufruf ausführen — oder nach `ZEITGRENZE` aufgeben.
+
+    Gibt `(ok, wert)` zurück. `ok=False` heißt: Der Schlüsselbund hat nicht
+    geantwortet (wartet vermutlich auf eine Freigabe, die niemand sieht).
+    """
+    ergebnis = {}
+
+    def lauf():
+        try:
+            ergebnis["wert"] = fn(*a)
+            ergebnis["ok"] = True
+        except Exception as e:      # noqa: BLE001
+            ergebnis["fehler"] = e
+
+    t = threading.Thread(target=lauf, daemon=True)
+    t.start()
+    t.join(ZEITGRENZE)
+    if t.is_alive():
+        return False, None          # ⚠️ Der Thread läuft weiter — wir warten nur nicht mehr.
+    if "fehler" in ergebnis:
+        raise ergebnis["fehler"]
+    return ergebnis.get("ok", False), ergebnis.get("wert")
+
+
 def _ablegen(archiv: str, feld: str, wert: str, basis: Path | None) -> None:
     kr = _schluesselbund()
     if kr is not None:
         try:
-            kr.set_password(DIENST, _konto(archiv, feld), wert)
-            return
+            ok, _ = _mit_zeitgrenze(kr.set_password, DIENST, _konto(archiv, feld), wert)
+            if ok:
+                return
         except Exception as e:
             # Der Schlüsselbund kann zur Laufzeit wegbrechen (gesperrt,
             # abgelehnt). Dann nicht scheitern, sondern zurückfallen — und der
@@ -189,8 +229,8 @@ def _holen(archiv: str, feld: str, basis: Path | None) -> str | None:
     kr = _schluesselbund()
     if kr is not None:
         try:
-            wert = kr.get_password(DIENST, _konto(archiv, feld))
-            if wert:
+            ok, wert = _mit_zeitgrenze(kr.get_password, DIENST, _konto(archiv, feld))
+            if ok and wert:
                 return wert
         except Exception:
             pass
@@ -203,7 +243,7 @@ def _loeschen(archiv: str, feld: str, basis: Path | None) -> None:
     kr = _schluesselbund()
     if kr is not None:
         try:
-            kr.delete_password(DIENST, _konto(archiv, feld))
+            _mit_zeitgrenze(kr.delete_password, DIENST, _konto(archiv, feld))
         except Exception:
             pass          # nicht vorhanden ist auch gelöscht
     if basis is not None:

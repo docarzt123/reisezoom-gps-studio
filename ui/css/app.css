@@ -2806,3 +2806,10 @@ body.is-rendering .modal-overlay * {
   outline-offset: 1px;
   cursor: copy;
 }
+
+/* Cloud-Zustandsanzeige (v0.9.515) — ruhig, klickbar, sonst unsichtbar. */
+.cloud-stand{background:none;border:1px solid var(--border);border-radius:8px;
+  color:var(--text-muted);font-size:13px;padding:4px 9px;cursor:pointer;
+  line-height:1.2}
+.cloud-stand:hover{color:var(--text);border-color:var(--text-muted)}
+.cloud-stand.laeuft{color:var(--accent);border-color:var(--accent)}

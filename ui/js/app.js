@@ -310,6 +310,15 @@ async function openSettingsModal() {
         <p class="muted" id="md-defaults-status" style="font-size:11px; margin-top:8px;">${(udInfo && udInfo.has_custom) ? t("settings.defaults.status_custom") : t("settings.defaults.status_factory")}</p>
       </div>
 
+      <!-- Cloud-Archiv (v0.9.515). Nur ein Knopf hierher — der eigentliche
+           Dialog lebt in ui/js/cloud.js, damit dieses Fenster nicht weiter
+           wächst und die Cloud abtrennbar bleibt. -->
+      <div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+        <p class="muted" style="margin-bottom:6px">${t("cloud.titel", "Cloud-Archiv")}</p>
+        <button class="btn" id="md-cloud">${t("cloud.oeffnen", "Cloud-Archiv einrichten …")}</button>
+        <p class="muted" style="font-size:11px; margin-top:6px;">${t("cloud.optional", "Das ist freiwillig. Ohne Cloud arbeitet die App wie bisher, alles bleibt lokal.")}</p>
+      </div>
+
     `,
     footer: `
       <button class="btn" id="md-cancel-set">${t("common.cancel")}</button>
@@ -392,6 +401,12 @@ function _bindSettingsModalHandlers() {
   const _crfSl = document.getElementById("md-rq-crf");
   if (_crfSl) _crfSl.oninput = () => { const v = document.getElementById("md-rq-crf-val"); if (v) v.textContent = _crfSl.value; };
   // v0.9.338 — Adress-Suche: Provider-Dropdown nur aktiv wenn eingeschaltet
+  // Cloud: Dialog aus ui/js/cloud.js öffnen, dieses Fenster dabei schließen.
+  const _cloudBtn = document.getElementById("md-cloud");
+  if (_cloudBtn) _cloudBtn.onclick = () => {
+    openModal({}).close();
+    if (typeof window.openCloudModal === "function") window.openCloudModal();
+  };
   const _geoEn = document.getElementById("md-geo-enabled");
   if (_geoEn) _geoEn.onchange = () => {
     const sel = document.getElementById("md-geo-provider");

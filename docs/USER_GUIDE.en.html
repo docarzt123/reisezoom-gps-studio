@@ -265,6 +265,7 @@
 <li><a href="#10-faq" data-anchor="10-faq">10 · FAQ</a></li>
 <li><a href="#11-keyboard-shortcuts-macos" data-anchor="11-keyboard-shortcuts-macos">11 · Keyboard Shortcuts (macOS)</a></li>
 <li><a href="#12-known-limitations-beta" data-anchor="12-known-limitations-beta">12 · Known Limitations (Beta)</a></li>
+<li><a href="#cloud-archive-your-archive-on-your-own-server" data-anchor="cloud-archive-your-archive-on-your-own-server">Cloud archive — your archive on your own server</a></li>
 <li><a href="#13-support-contact" data-anchor="13-support-contact">13 · Support &amp; Contact</a></li></ul></nav></aside>
     <main class="doc-main">
       <h1 id="reisezoom-gps-studio-user-manual">Reisezoom GPS Studio — User Manual</h1>
@@ -1352,6 +1353,34 @@ python app.py</code></pre>
 </ul>
 <p>The full roadmap is in the repo under <code>docs/IDEAS.md</code>.</p>
 <hr>
+<h2 id="cloud-archive-your-archive-on-your-own-server">Cloud archive — your archive on your own server</h2>
+<blockquote><strong>This is optional.</strong> Without a cloud the app works exactly as before:</blockquote>
+<blockquote>everything stays on your computer, there is no account and nothing to set up.</blockquote>
+<p>If you want your archive on more than one computer — or want it back exactly as it was after reinstalling — you can put it on <strong>your own web server</strong>. Not ours: you keep your data.</p>
+<h3 id="setting-it-up-once-about-two-minutes">Setting it up (once, about two minutes)</h3>
+<ol>
+<li>Upload the file **<code>rz-cloud.php</code>** into a folder of your web space, for</li>
+</ol>
+<p> example <code>yoursite.com/archive/</code>. That is all the server needs — no database,  no configuration.</p>
+<ol>
+<li>In GPS Studio: <strong>Settings → Set up cloud archive</strong>.</li>
+<li>Enter the <strong>address of that file</strong> (<code>https://yoursite.com/archive/rz-cloud.php</code>).</li>
+</ol>
+<p> The app tells you straight away whether it finds anything there.</p>
+<ol>
+<li><strong>Create a new archive</strong> — and then the important part:</li>
+</ol>
+<blockquote>⚠️ <strong>The app shows you a passphrase once.</strong> It unlocks your data. Save it in</blockquote>
+<blockquote>your password manager immediately. We do not know it and cannot restore it:</blockquote>
+<blockquote><strong>if it is lost, nobody can reach the archive any more — not even us.</strong></blockquote>
+<p>After that everything goes up by itself. A <strong>☁</strong> in the top bar shows the state: quiet when everything is in sync, with a counter while transferring.</p>
+<h3 id="what-goes-up-and-what-does-not">What goes up — and what does not</h3>
+<p><strong>Yes:</strong> tours, all tour data (name, note, tags, collections), the animator and tour-map projects, the geotagger settings, and thumbnails of the photos you placed in a project.</p>
+<p><strong>No:</strong> your original photos, finished videos, map images. Photos stay where they are — an archive is not a photo store.</p>
+<h3 id="a-second-computer">A second computer</h3>
+<p>There, choose <strong>Settings → Cloud archive → Connect to an existing one</strong>, enter the address, the access key and your passphrase. That is all: the archive appears, and tours arrive as you need them.</p>
+<h3 id="what-the-server-sees">What the server sees</h3>
+<p><strong>Nothing usable.</strong> Everything is encrypted on your machine before it leaves. The server holds opaque names, file sizes and timestamps — no tour name, no place, no route. Even someone copying the entire web space gets encrypted blobs.</p>
 <h2 id="13-support-contact">13 · Support &amp; Contact</h2>
 <ul>
 <li><strong>Bug reports &amp; feedback</strong>: Help → 📧 (see section 7) or directly <code>marc@reisezoom.com</code></li>
