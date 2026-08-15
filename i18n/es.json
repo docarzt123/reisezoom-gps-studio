@@ -1585,6 +1585,8 @@
   "webkarte.leaflet_hint_url": "Carga leaflet.css + leaflet.js desde tu URL base (alojas los dos archivos tú mismo).",
   "webkarte.leaflet_hint_inline": "Leaflet se escribe completo en el HTML – sin petición externa (limpio para RGPD, funciona sin conexión), el archivo crece ~160 KB.",
   "webkarte.attribution": "Insertar enlace «creado con Reisezoom GPS Studio»",
+  "credit.made_with": "creado con Reisezoom GPS Studio",
+  "heightanim.attribution": "Insertar el enlace «creado con Reisezoom GPS Studio»",
   "heightanim.field.series_b": "Segunda serie de datos (eje derecho)",
   "heightanim.field.line_color_b": "Color de la segunda serie",
   "heightanim.series_b.off": "— ninguna —",

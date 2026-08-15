@@ -1165,6 +1165,13 @@ Darunter kannst du **Farbzonen nach Höhe** anlegen: Mit „**Höhe hinzufügen*
 
 **Rückgängig:** **⌘Z / Strg+Z** nimmt im Daten-Animator **alles** zurück — Optik, Farben, Info-Leiste-Felder, Wegpunkte und Quellen-Schalter (ein Druck pro Schritt).
 
+**Hinweis-Link (seit v0.9.513):** Über dem Export-Knopf sitzt der Haken
+**„Link ‚erstellt mit Reisezoom GPS Studio' einbetten"** — genau wie in der
+Web-Karte. Ist er an (Voreinstellung), erscheint unten rechts in der Grafik ein
+kleiner Verweis auf die Webversion. Der Text richtet sich nach der
+eingestellten Sprache. Wer den Export ohne Hinweis braucht, nimmt den Haken
+heraus.
+
 **Als HTML exportieren (Blog/Web, seit v0.9.397):** Unter dem Video-Render-Button liegt **„Als HTML exportieren"**. Das erzeugt eine **selbst-laufende `.html`-Datei** — dieselbe Animation wie im Video, aber sie läuft **komplett im Browser** (reines HTML, kein Video), mit Auto-Loop und **„↻"-Replay-Button**. Ideal für einen Blogpost. Nach dem Export öffnet sich ein **Fenster in der Bildschirmmitte** mit diesen Optionen:
 - **▶ Im Browser öffnen** — zeigt die fertige Animation sofort im Standard-Browser. *(Ein Doppelklick auf die Datei im Finder startet je nach System nur einen Editor — dann siehst du nur Quelltext; darum diesen Button nutzen.)*
 - **Snippet kopieren (kein Upload):** Ein fertiges **`<iframe>`-Snippet** — in einen WordPress-**„Custom HTML"-Block** einfügen. Die ganze Animation steckt im Snippet (`srcdoc`), sauber vom Theme abgeschottet.

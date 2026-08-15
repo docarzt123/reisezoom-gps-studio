@@ -1526,7 +1526,8 @@ def resolve_overlay_chart(points: list, cum_dist: list[float], style: dict,
 
 def make_standalone_html(cfg: "HeightConfig", distances_m: list, elevations: list,
                          values_b: list | None = None,
-                         *, replay_label: str = "↻ Neu", loop: bool = True) -> str:
+                         *, replay_label: str = "↻ Neu", loop: bool = True,
+                         credit_text: str = "", credit_url: str = "") -> str:
     """v0.9.397 — In sich geschlossene, selbst-laufende HTML-Seite fürs Web/Blog.
 
     Nutzt EXAKT denselben Zeichen-Code wie der Video-Render (`_make_html`),
@@ -1551,6 +1552,13 @@ def make_standalone_html(cfg: "HeightConfig", distances_m: list, elevations: lis
         "color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.35);"
         "border-radius:8px;padding:7px 13px;cursor:pointer;opacity:.8}"
         "#rz-replay:hover{opacity:1}"
+        # v0.9.513 — „erstellt mit"-Backlink wie in der Web-Karte, nur rechts:
+        # links unten sitzt schon der Neu-starten-Knopf.
+        "#rz-credit{position:absolute;right:14px;bottom:14px;z-index:5;"
+        "font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"
+        "color:#fff;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.35);"
+        "border-radius:6px;padding:5px 9px;text-decoration:none;opacity:.75}"
+        "#rz-credit:hover{opacity:1}"
         "</style>"
     )
     page = _re.sub(r"<style>.*?</style>", lambda m: new_style, page, count=1, flags=_re.S)
@@ -1574,8 +1582,15 @@ def make_standalone_html(cfg: "HeightConfig", distances_m: list, elevations: lis
         "})();\n"
     )
     btn = '<button id="rz-replay" type="button">' + _h.escape(replay_label) + '</button>'
+    # v0.9.513 — derselbe Backlink wie in der Web-Karte (Marc-Wunsch). Nur wenn
+    # Text UND Ziel da sind — abschaltbar über den Haken im Modul.
+    credit = ""
+    if str(credit_text or "").strip() and str(credit_url or "").strip():
+        credit = ('\n<a id="rz-credit" href="' + _h.escape(str(credit_url).strip(), quote=True)
+                  + '" target="_blank" rel="noopener">'
+                  + _h.escape(str(credit_text).strip()) + "</a>")
     page = page.replace("</script></body></html>",
-                        loop_js + "</script>\n" + btn + "\n</body></html>", 1)
+                        loop_js + "</script>\n" + btn + credit + "\n</body></html>", 1)
     return page
 
 

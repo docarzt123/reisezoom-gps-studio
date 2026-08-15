@@ -14,6 +14,21 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.513] – 2026-08-15
+
+### Neu
+- **Der HTML-Export des Daten-Animators trägt denselben „erstellt mit"-Link
+  wie die Web-Karte** — unten rechts, damit er dem Neu-starten-Knopf nicht in
+  die Quere kommt. Abschaltbar über einen Haken, voreingestellt an. Der Link
+  steckt auch im iframe-Schnipsel für WordPress.
+
+### Geändert
+- **Der Credit folgt der eingestellten Sprache** statt fest deutsch zu sein —
+  „created with" / „creado con". Er steht in einer Datei, die weitergegeben
+  wird; ein spanischer Nutzer soll dort nicht „erstellt mit" lesen. Der
+  Produktname bleibt unübersetzt. Gilt für **beide** Exporte, auch die
+  Web-Karte.
+
 ## [0.9.512] – 2026-08-15
 
 ### Neu
