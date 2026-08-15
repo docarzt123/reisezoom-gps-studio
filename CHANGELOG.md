@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.514] – 2026-08-15
+
+### Geändert
+- **Der „erstellt mit"-Verweis führt jetzt auf die Einstiegsseite in der
+  eigenen Sprache** — `/gps/` (Englisch), `/gps/de/`, `/gps/es/`. Möglich
+  geworden, weil `reisezoom.com/gps` seit heute in drei Fassungen ausgeliefert
+  wird; vorher wählte eine einzige Seite ihre Sprache im Browser, und ein
+  sprachabhängiger Verweis wäre ins Leere gelaufen.
+
 ## [0.9.513] – 2026-08-15
 
 ### Neu
