@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Entfernt
+- **Die Solo-App „Reisezoom Geotagger" wird eingestellt.** Sie wird nicht mehr
+  gebaut, ausgeliefert oder verlinkt. Sie existierte, damit man Fotos verorten
+  kann, ohne einen Mapbox-Schlüssel anzulegen — und genau das kann die volle
+  App längst selbst: ohne Schlüssel zeigt sie eine OpenStreetMap-Karte, in
+  allen Modulen, das Verorten eingeschlossen. Wer nur Fotos verorten will,
+  nimmt das Geotagger-Modul oder das Web-Werkzeug unter reisezoom.com/gps.
+  Bereits heruntergeladene Fassungen laufen weiter, bekommen aber keine
+  Neuerungen mehr.
+
 ## [0.9.514] – 2026-08-15
 
 ### Geändert
