@@ -1184,12 +1184,17 @@ Kein WordPress-Plugin nötig; kein Mapbox/CDN — die Datei läuft eigenständig
 
 ## 6 · Modul: Geotagger — Fotos mit GPS taggen
 
-> **Den Geotagger gibt es seit v0.9.331 in drei Varianten:**
+> **Den Geotagger gibt es in zwei Varianten:**
 > 1. **Im GPS Studio** (dieses Modul) — zusammen mit Animator, Tour-Map & Co.
-> 2. **Als eigene Solo-App „Reisezoom Geotagger"** — schlank, nur fürs Foto-Taggen, mit **OpenStreetMap-Karte ohne Mapbox-Token** (kein Kreditkarten-Thema). Ideal, wenn du *nur* Fotos verorten willst.
-> 3. **Als Web-Tool im Browser** — taggt **JPEG**-Fotos komplett lokal (nichts wird hochgeladen), ohne Installation. Für RAW/HEIC/Video brauchst du die Desktop-App.
+>    Du brauchst dafür **keinen Mapbox-Token**: ohne Token zeigt die App eine
+>    OpenStreetMap-Karte, das Verorten funktioniert vollständig.
+> 2. **Als Web-Tool im Browser** — taggt **JPEG**-Fotos komplett lokal (nichts wird hochgeladen), ohne Installation. Für RAW/HEIC/Video brauchst du die Desktop-App.
 >
-> Alle drei nutzen dieselbe Logik. Die folgenden Workflow-Schritte gelten für die Desktop-Varianten (1 + 2).
+> Beide nutzen dieselbe Logik. Die folgenden Workflow-Schritte gelten für die Desktop-Variante.
+>
+> *Die frühere Solo-App „Reisezoom Geotagger" wird seit dem 15.08.2026 nicht
+> mehr gebaut — ihr einziger Vorteil war der Verzicht auf den Mapbox-Token, und
+> den braucht die volle App längst nicht mehr.*
 
 ### Was es macht
 Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den dazu passenden Track-Punkt. Schreibt die GPS-Koordinaten als EXIF-Tag ins Foto. **Funktioniert mit JPG, RAW (CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/RWL/SRW/HEIC) und Video (MP4/MOV/INSV)** (Web-Tool: nur JPG).
@@ -1265,7 +1270,7 @@ Wenn dein GPX-Track mit der **Reisezoom-Logger-App** (Android) aufgezeichnet wur
   - **(geloggt)** — aus dem Reisezoom-Logger übernommen → wird ins Foto geschrieben
   - **(Bewegung)** — grob aus der Bewegungsrichtung geschätzt → wird **nicht** ins Foto geschrieben (nur als Hinweis angezeigt)
 - Du musst nichts einstellen: Liegt eine geloggte Richtung vor, wird sie beim normalen „GPS in Fotos schreiben" automatisch mitgeschrieben.
-- Funktioniert in **Studio und Solo-Geotagger** gleichermaßen.
+- Funktioniert im Geotagger-Modul des Studios.
 
 ### Aufnahmerichtung selbst setzen — Karten-Kompass 🧭 (seit v0.9.337)
 Du kannst die Blickrichtung jedes Fotos **direkt auf der Karte** bestimmen:

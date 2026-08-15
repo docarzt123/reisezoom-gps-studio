@@ -1117,12 +1117,17 @@ No WordPress plugin needed; no Mapbox/CDN — the file runs on its own.
 
 ## 6 · Module: Geotagger — tag photos with GPS
 
-> **Since v0.9.331 the Geotagger comes in three variants:**
+> **The Geotagger comes in two variants:**
 > 1. **In GPS Studio** (this module) — together with Animator, Tour-Map & Co.
-> 2. **As a standalone solo app "Reisezoom Geotagger"** — lean, just for tagging photos, with an **OpenStreetMap map without a Mapbox token** (no credit-card topic). Ideal if you *only* want to locate photos.
-> 3. **As a web tool in the browser** — tags **JPEG** photos entirely locally (nothing is uploaded), no installation. For RAW/HEIC/video you need the desktop app.
+>    You need **no Mapbox token** for it: without a token the app shows an
+>    OpenStreetMap map and geotagging works in full.
+> 2. **As a web tool in the browser** — tags **JPEG** photos entirely locally (nothing is uploaded), no installation. For RAW/HEIC/video you need the desktop app.
 >
-> All three use the same logic. The following workflow steps apply to the desktop variants (1 + 2).
+> Both use the same logic. The following workflow steps apply to the desktop variant.
+>
+> *The former standalone app "Reisezoom Geotagger" has not been built since
+> 15 August 2026 — its only advantage was doing without a Mapbox token, and the
+> full app has not needed one for a long time.*
 
 ### What it does
 Reads the capture time from the EXIF data of each photo and finds the matching track point in the GPX track. Writes the GPS coordinates as an EXIF tag into the photo. **Works with JPG, RAW (CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/RWL/SRW/HEIC) and video (MP4/MOV/INSV)** (web tool: JPG only).
@@ -1197,7 +1202,7 @@ If your GPX track was recorded with the **Reisezoom Logger app** (Android), it c
   - **(logged)** — taken over from the Reisezoom Logger → is written into the photo
   - **(motion)** — roughly estimated from the direction of movement → is **not** written into the photo (only shown as a hint)
 - You don't have to set anything: if a logged direction is present, it's written along automatically during the normal "Write GPS into photos".
-- Works in the **Studio and the solo Geotagger** alike.
+- Works in the Studio's Geotagger module.
 
 ### Set the shooting direction yourself — a map compass 🧭 (since v0.9.337)
 You can set each photo's view direction **directly on the map**:

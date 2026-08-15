@@ -1071,12 +1071,17 @@ python app.py</code></pre>
 <p><strong>Einstellungen bleiben erhalten:</strong> Farben, Marker-Einstellungen, Auflösung, Dauer usw. werden <strong>pro Projekt gespeichert</strong> und beim nächsten Öffnen wiederhergestellt.</p>
 <hr>
 <h2 id="6-modul-geotagger-fotos-mit-gps-taggen">6 · Modul: Geotagger — Fotos mit GPS taggen</h2>
-<blockquote><strong>Den Geotagger gibt es in drei Varianten:</strong></blockquote>
+<blockquote><strong>Den Geotagger gibt es in zwei Varianten:</strong></blockquote>
 <blockquote>1. <strong>Im GPS Studio</strong> (dieses Modul) — zusammen mit Animator, Tour-Map &amp; Co.</blockquote>
-<blockquote>2. <strong>Als eigene Solo-App „Reisezoom Geotagger&quot;</strong> — schlank, nur fürs Foto-Taggen, mit <strong>OpenStreetMap-Karte ohne Mapbox-Token</strong> (kein Kreditkarten-Thema). Ideal, wenn du <em>nur</em> Fotos verorten willst.</blockquote>
-<blockquote>3. <strong>Als Web-Tool im Browser</strong> — taggt <strong>JPEG</strong>-Fotos komplett lokal (nichts wird hochgeladen), ohne Installation. Für RAW/HEIC/Video brauchst du die Desktop-App.</blockquote>
+<blockquote>Du brauchst dafür <strong>keinen Mapbox-Token</strong>: ohne Token zeigt die App eine</blockquote>
+<blockquote>OpenStreetMap-Karte, das Verorten funktioniert vollständig.</blockquote>
+<blockquote>2. <strong>Als Web-Tool im Browser</strong> — taggt <strong>JPEG</strong>-Fotos komplett lokal (nichts wird hochgeladen), ohne Installation. Für RAW/HEIC/Video brauchst du die Desktop-App.</blockquote>
 <blockquote></blockquote>
-<blockquote>Alle drei nutzen dieselbe Logik. Die folgenden Workflow-Schritte gelten für die Desktop-Varianten (1 + 2).</blockquote>
+<blockquote>Beide nutzen dieselbe Logik. Die folgenden Workflow-Schritte gelten für die Desktop-Variante.</blockquote>
+<blockquote></blockquote>
+<blockquote>*Die frühere Solo-App „Reisezoom Geotagger&quot; wird seit dem 15.08.2026 nicht</blockquote>
+<blockquote>mehr gebaut — ihr einziger Vorteil war der Verzicht auf den Mapbox-Token, und</blockquote>
+<blockquote>den braucht die volle App längst nicht mehr.*</blockquote>
 <h3 id="was-es-macht">Was es macht</h3>
 <p>Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den dazu passenden Track-Punkt. Schreibt die GPS-Koordinaten als EXIF-Tag ins Foto. <strong>Funktioniert mit JPG, RAW (CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/RWL/SRW/HEIC) und Video (MP4/MOV/INSV)</strong> (Web-Tool: nur JPG).</p>
 <h3 id="workflow">Workflow</h3>
@@ -1141,7 +1146,7 @@ python app.py</code></pre>
 <li><strong>(geloggt)</strong> — aus dem Reisezoom-Logger übernommen → wird ins Foto geschrieben</li>
 <li><strong>(Bewegung)</strong> — grob aus der Bewegungsrichtung geschätzt → wird <strong>nicht</strong> ins Foto geschrieben (nur als Hinweis angezeigt)</li>
 <li>Du musst nichts einstellen: Liegt eine geloggte Richtung vor, wird sie beim normalen „GPS in Fotos schreiben&quot; automatisch mitgeschrieben.</li>
-<li>Funktioniert in <strong>Studio und Solo-Geotagger</strong> gleichermaßen.</li>
+<li>Funktioniert im Geotagger-Modul des Studios.</li>
 </ul>
 <h3 id="aufnahmerichtung-selbst-setzen-karten-kompass">Aufnahmerichtung selbst setzen — Karten-Kompass 🧭</h3>
 <p>Du kannst die Blickrichtung jedes Fotos <strong>direkt auf der Karte</strong> bestimmen:</p>

@@ -126,7 +126,16 @@ Download-on-first-render ist `chromium-headless-shell` jetzt im Bundle:
   ausgelöst über `error_code === "playwright_browser_missing"`. Greift nur noch
   als Sicherheitsnetz (korruptes/fehlendes Bundle).
 
-### Editionen — Solo-Geotagger aus EINER Codebasis (seit v0.9.331)
+### Editionen — Solo-Geotagger (v0.9.331 bis 15.08.2026, eingestellt)
+
+> ⚠️ **Die Solo-App wird nicht mehr gebaut, ausgeliefert oder verlinkt.**
+> Ihr einziger Vorteil war der Verzicht auf den Mapbox-Token — und den
+> braucht die volle App längst nicht mehr: `createMap()` in
+> `ui/js/util.js` schaltet ohne Token auf MapLibre mit OSM-Karten, für
+> alle Module. Der Edition-Schalter unten ist absichtlich stehen
+> geblieben; zum Zurückholen fehlt nur der Block in
+> `.github/workflows/release.yml`.
+
 
 Dieselbe Codebasis liefert zwei Desktop-Apps; **kein Code-Klon**, nur ein Schalter.
 

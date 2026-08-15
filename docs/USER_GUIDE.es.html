@@ -1045,12 +1045,17 @@ python app.py</code></pre>
 <p><strong>Los ajustes se conservan:</strong> colores, ajustes de marcador, resolución, duración, etc. se guardan <strong>por proyecto</strong> y se restauran en la siguiente apertura.</p>
 <hr>
 <h2 id="6-m-dulo-geotagger-etiquetar-fotos-con-gps">6 · Módulo: Geotagger — etiquetar fotos con GPS</h2>
-<blockquote><strong>El Geotagger existe en tres variantes:</strong></blockquote>
+<blockquote><strong>El Geotagger existe en dos variantes:</strong></blockquote>
 <blockquote>1. <strong>En GPS Studio</strong> (este módulo) — junto con Animator, Tour-Map y compañía.</blockquote>
-<blockquote>2. <strong>Como app en solitario propia «Reisezoom Geotagger»</strong> — ligera, solo para el etiquetado de fotos, con <strong>mapa de OpenStreetMap sin token de Mapbox</strong> (sin el tema de la tarjeta de crédito). Ideal si <em>solo</em> quieres ubicar fotos.</blockquote>
-<blockquote>3. <strong>Como herramienta web en el navegador</strong> — etiqueta fotos <strong>JPEG</strong> de forma completamente local (nada se sube), sin instalación. Para RAW/HEIC/vídeo necesitas la app de escritorio.</blockquote>
+<blockquote>No necesitas <strong>ningún token de Mapbox</strong>: sin token la app muestra un mapa</blockquote>
+<blockquote>de OpenStreetMap y la geolocalización funciona por completo.</blockquote>
+<blockquote>2. <strong>Como herramienta web en el navegador</strong> — etiqueta fotos <strong>JPEG</strong> de forma completamente local (nada se sube), sin instalación. Para RAW/HEIC/vídeo necesitas la app de escritorio.</blockquote>
 <blockquote></blockquote>
-<blockquote>Las tres usan la misma lógica. Los siguientes pasos del flujo de trabajo valen para las variantes de escritorio (1 + 2).</blockquote>
+<blockquote>Ambas usan la misma lógica. Los siguientes pasos del flujo de trabajo valen para la variante de escritorio.</blockquote>
+<blockquote></blockquote>
+<blockquote>*La antigua app en solitario «Reisezoom Geotagger» ya no se compila desde el</blockquote>
+<blockquote>15/08/2026: su única ventaja era prescindir del token de Mapbox, y la app</blockquote>
+<blockquote>completa hace tiempo que no lo necesita.*</blockquote>
 <h3 id="qu-hace">Qué hace</h3>
 <p>Lee la hora de captura de los datos EXIF de cada foto y busca en el track GPX el punto del track que le corresponde. Escribe las coordenadas GPS como tag EXIF en la foto. <strong>Funciona con JPG, RAW (CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/RWL/SRW/HEIC) y vídeo (MP4/MOV/INSV)</strong> (herramienta web: solo JPG).</p>
 <h3 id="flujo-de-trabajo">Flujo de trabajo</h3>
@@ -1116,7 +1121,7 @@ python app.py</code></pre>
 <li><strong>(registrada)</strong> — adoptada del Reisezoom Logger → se escribe en la foto</li>
 <li><strong>(movimiento)</strong> — estimada de forma aproximada a partir de la dirección de movimiento → <strong>no</strong> se escribe en la foto (solo se muestra como indicación)</li>
 <li>No tienes que ajustar nada: si hay una dirección registrada, se escribe automáticamente junto con el «Escribir GPS en las fotos» normal.</li>
-<li>Funciona igual en el <strong>Geotagger del Studio y en el Solo</strong>.</li>
+<li>Funciona en el módulo Geotagger del Studio.</li>
 </ul>
 <h3 id="fijar-t-mismo-la-direcci-n-de-captura-br-jula-del-mapa">Fijar tú mismo la dirección de captura — brújula del mapa 🧭</h3>
 <p>Puedes determinar la orientación de la vista de cada foto <strong>directamente en el mapa</strong>:</p>

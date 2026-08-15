@@ -1131,12 +1131,17 @@ No hace falta plugin de WordPress; sin Mapbox/CDN — el archivo funciona de for
 
 ## 6 · Módulo: Geotagger — etiquetar fotos con GPS
 
-> **El Geotagger existe desde v0.9.331 en tres variantes:**
+> **El Geotagger existe en dos variantes:**
 > 1. **En GPS Studio** (este módulo) — junto con Animator, Tour-Map y compañía.
-> 2. **Como app en solitario propia «Reisezoom Geotagger»** — ligera, solo para el etiquetado de fotos, con **mapa de OpenStreetMap sin token de Mapbox** (sin el tema de la tarjeta de crédito). Ideal si *solo* quieres ubicar fotos.
-> 3. **Como herramienta web en el navegador** — etiqueta fotos **JPEG** de forma completamente local (nada se sube), sin instalación. Para RAW/HEIC/vídeo necesitas la app de escritorio.
+>    No necesitas **ningún token de Mapbox**: sin token la app muestra un mapa
+>    de OpenStreetMap y la geolocalización funciona por completo.
+> 2. **Como herramienta web en el navegador** — etiqueta fotos **JPEG** de forma completamente local (nada se sube), sin instalación. Para RAW/HEIC/vídeo necesitas la app de escritorio.
 >
-> Las tres usan la misma lógica. Los siguientes pasos del flujo de trabajo valen para las variantes de escritorio (1 + 2).
+> Ambas usan la misma lógica. Los siguientes pasos del flujo de trabajo valen para la variante de escritorio.
+>
+> *La antigua app en solitario «Reisezoom Geotagger» ya no se compila desde el
+> 15/08/2026: su única ventaja era prescindir del token de Mapbox, y la app
+> completa hace tiempo que no lo necesita.*
 
 ### Qué hace
 Lee la hora de captura de los datos EXIF de cada foto y busca en el track GPX el punto del track que le corresponde. Escribe las coordenadas GPS como tag EXIF en la foto. **Funciona con JPG, RAW (CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/RWL/SRW/HEIC) y vídeo (MP4/MOV/INSV)** (herramienta web: solo JPG).
@@ -1212,7 +1217,7 @@ Si tu track GPX se grabó con la app **Reisezoom Logger** (Android), contiene po
   - **(registrada)** — adoptada del Reisezoom Logger → se escribe en la foto
   - **(movimiento)** — estimada de forma aproximada a partir de la dirección de movimiento → **no** se escribe en la foto (solo se muestra como indicación)
 - No tienes que ajustar nada: si hay una dirección registrada, se escribe automáticamente junto con el «Escribir GPS en las fotos» normal.
-- Funciona igual en el **Geotagger del Studio y en el Solo**.
+- Funciona en el módulo Geotagger del Studio.
 
 ### Fijar tú mismo la dirección de captura — brújula del mapa 🧭 (desde v0.9.337)
 Puedes determinar la orientación de la vista de cada foto **directamente en el mapa**:
