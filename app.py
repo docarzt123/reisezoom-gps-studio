@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.513"
+APP_VERSION = "0.9.514"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -160,15 +160,24 @@ APP_VERSION = "0.9.513"
 # Nutzer soll dort nicht „erstellt mit" lesen. Der Produktname bleibt
 # unübersetzt, er ist eine Marke. Siehe `credit.made_with` in i18n/.
 WEBKARTE_CREDIT_TEXT_FALLBACK = "erstellt mit Reisezoom GPS Studio"
-# ⚠️ Bewusst EINE URL für alle Sprachen (nachgemessen am 15.08.2026).
-# Die WERKZEUGSEITEN sind dreisprachig live (`/gps/de/fit-to-gpx/` → 200), die
-# EINSTIEGSSEITE aber nicht: `/gps/de/` und `/gps/es/` liefern 403/404, weil es
-# dort kein `index.html` gibt — nur die Unterordner der einzelnen Werkzeuge.
-# `/gps/` ist die einzige Einstiegsseite und führt (noch) keine
-# hreflang-Verweise. Ein sprachabhängiger Link liefe also ins Leere.
-# → Sobald `gps-studio-web` auch die Einstiegsseite in `/de/` und `/es/` baut,
-#   wird hier eine Zuordnung Sprache → URL daraus.
+# Der Verweis zeigt auf die Einstiegsseite in der Sprache des Nutzers.
+# Englisch liegt auf `/gps/` (zugleich x-default), Deutsch und Spanisch in
+# eigenen Ordnern — dieselbe Ordnung wie bei den Werkzeugseiten.
+# ⚠️ Diese Seiten gibt es erst seit dem 15.08.2026 (vorher wählte EINE Seite
+# ihre Sprache im Browser). Wer hier eine Sprache ergänzt, muss vorher prüfen,
+# dass `gps-studio-web` die Einstiegsseite dafür auch wirklich baut und
+# hochlädt — sonst führt der Verweis ins Leere.
 WEBKARTE_CREDIT_URL = "https://reisezoom.com/gps/"
+WEBKARTE_CREDIT_URL_JE_SPRACHE = {
+    "en": "https://reisezoom.com/gps/",
+    "de": "https://reisezoom.com/gps/de/",
+    "es": "https://reisezoom.com/gps/es/",
+}
+
+
+def _credit_url() -> str:
+    """Einstiegsseite in der eingestellten Sprache (Rückfall: Englisch)."""
+    return WEBKARTE_CREDIT_URL_JE_SPRACHE.get(_ui_sprache(), WEBKARTE_CREDIT_URL)
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
 # Dieselbe Codebasis liefert zwei Apps:
@@ -3661,7 +3670,7 @@ class Api:
                 cfg, distances_m, elevations, values_b, replay_label=replay, loop=True,
                 credit_text=(_ui_t()("credit.made_with", WEBKARTE_CREDIT_TEXT_FALLBACK)
                              if _cred_on else ""),
-                credit_url=(WEBKARTE_CREDIT_URL if _cred_on else ""))
+                credit_url=(_credit_url() if _cred_on else ""))
             Path(out_path).write_text(html_doc, encoding="utf-8")
             snippet = cheight.make_embed_snippet(html_doc, cfg)
             snip_path = os.path.splitext(out_path)[0] + "_iframe-snippet.txt"
@@ -4053,7 +4062,7 @@ class Api:
             # v0.9.431 — abschaltbarer „erstellt mit"-Backlink (Default an).
             credit_on = bool(params.get("attribution_enabled", True))
             credit_text = _ui_t()("credit.made_with", WEBKARTE_CREDIT_TEXT_FALLBACK) if credit_on else ""
-            credit_url = WEBKARTE_CREDIT_URL if credit_on else ""
+            credit_url = _credit_url() if credit_on else ""
             credit_html = ctmleaflet.credit_link_html(credit_text, credit_url)
 
             base_cfg = {
