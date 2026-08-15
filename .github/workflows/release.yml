@@ -142,48 +142,6 @@ jobs:
           # Pipeline-Interna, nach 7 Tagen weg.
           retention-days: 1
 
-      # ── v0.9.332 — Solo-Geotagger (gleiche Codebasis, RZ_EDITION=geotagger).
-      # Baut „Reisezoom Geotagger.app" (OSM-Karte, ohne Render-Ballast → ~68 MB).
-      # exiftool ist schon gevendort (oben); Chromium braucht der Tagger nicht.
-      - name: Build Geotagger .app (Solo-Edition)
-        env:
-          RZ_EDITION: geotagger
-        run: |
-          pyinstaller ReisezoomGPSStudio.spec --clean --noconfirm
-          ls -la dist/
-
-      - name: Codesign Geotagger (Developer ID / Ad-hoc-Fallback)
-        run: bash scripts/macos_sign.sh "dist/Reisezoom Geotagger.app"
-
-      - name: Build Geotagger DMG
-        run: |
-          mkdir -p dist/dmg
-          DMG="dist/dmg/ReisezoomGeotagger-macos.dmg"
-          create-dmg \
-            --volname "Reisezoom Geotagger" \
-            --window-pos 200 120 --window-size 720 420 --icon-size 120 \
-            --icon "Reisezoom Geotagger.app" 180 200 \
-            --app-drop-link 540 200 --no-internet-enable \
-            "$DMG" "dist/Reisezoom Geotagger.app" || \
-          hdiutil create -volname "Reisezoom Geotagger" \
-            -srcfolder "dist/Reisezoom Geotagger.app" -ov -format UDZO "$DMG"
-          ls -la dist/dmg/
-
-      - name: Notarisieren + stapeln (Geotagger DMG)
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: bash scripts/macos_notarize.sh "dist/dmg/ReisezoomGeotagger-macos.dmg"
-
-      - name: Upload Geotagger DMG artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ReisezoomGeotagger-macos
-          path: dist/dmg/ReisezoomGeotagger-macos.dmg
-          if-no-files-found: error
-          retention-days: 1
-
   # ────────────────────────────────────────────────────────────────────────
   # Windows — .exe + .zip
   # ────────────────────────────────────────────────────────────────────────
@@ -308,39 +266,6 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      # ── v0.9.332 — Solo-Geotagger (Windows). Gleiche Codebasis, RZ_EDITION=
-      # geotagger → dist\ReisezoomGeotagger\ReisezoomGeotagger.exe. Eigener
-      # Installer über dieselbe .iss mit /D-Overrides (eigener Name/AppId →
-      # parallel zum Studio installierbar).
-      - name: Build Geotagger .exe (Solo-Edition)
-        env:
-          RZ_EDITION: geotagger
-        run: pyinstaller ReisezoomGPSStudio.spec --clean --noconfirm
-        shell: bash
-
-      - name: Build Geotagger installer (Inno Setup)
-        run: |
-          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y }
-          & "$iscc" "/DAppVersion=${{ steps.appver.outputs.version }}" `
-            "/DAppName=Reisezoom Geotagger" `
-            "/DAppExeName=ReisezoomGeotagger.exe" `
-            "/DAppId={{7E3F1A92-4C6B-4D8E-9A2F-0B5C1D7E4A60}" `
-            "/DSourceDirName=ReisezoomGeotagger" `
-            "/DOutputBaseFilename=ReisezoomGeotagger-windows-setup" `
-            "installer\windows_setup.iss"
-          if ($LASTEXITCODE -ne 0) { throw "ISCC (geotagger) failed with exit code $LASTEXITCODE" }
-          Get-ChildItem -Path "dist\*.exe"
-        shell: pwsh
-
-      - name: Upload Geotagger Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ReisezoomGeotagger-windows
-          path: dist/ReisezoomGeotagger-windows-setup.exe
-          if-no-files-found: error
-          retention-days: 1
-
   # ────────────────────────────────────────────────────────────────────────
   # Release: bei Git-Tag alle Artefakte zu einem GitHub Release hochladen
   # ────────────────────────────────────────────────────────────────────────
@@ -368,8 +293,6 @@ jobs:
           files: |
             artifacts/ReisezoomGPSStudio-macos/*.dmg
             artifacts/ReisezoomGPSStudio-windows/*.exe
-            artifacts/ReisezoomGeotagger-macos/*.dmg
-            artifacts/ReisezoomGeotagger-windows/*.exe
           generate_release_notes: true
           draft: false
           prerelease: false

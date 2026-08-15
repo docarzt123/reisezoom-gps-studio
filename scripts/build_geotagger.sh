@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+# STILLGELEGT am 15.08.2026 (Marc: sterben lassen).
+#
+# Der Solo-Geotagger wird nicht mehr gebaut, ausgeliefert oder verlinkt.
+# Grund: Er existierte, damit man ohne Mapbox-Schlüssel Fotos verorten
+# kann — und genau das kann die volle App längst selbst (`createMap()` in
+# ui/js/util.js fällt ohne Schlüssel auf MapLibre mit OSM zurück). Übrig
+# blieb die Dateigröße, gegen den Preis eines zweiten Signier-,
+# Notarisierungs- und Testpfads für eine App, die an einer einzigen Stelle
+# verlinkt war und für die es nie eine Messung gab.
+#
+# Das Skript bleibt liegen: der Edition-Schalter in app.py und
+# ui/js/app.js ist weiterhin da, wer die Solo-App zurückholen will,
+# braucht nur den Block in .github/workflows/release.yml wieder.
 # Reisezoom Geotagger (Solo-Edition) — schlankes App-Bundle bauen + nach /Applications.
 #
 # Gleiche Codebasis wie Reisezoom GPS Studio, aber:
