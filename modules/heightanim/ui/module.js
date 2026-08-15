@@ -422,6 +422,10 @@ function mountHeightAnim(body, headerActions) {
             </div>
 
             <div style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:12px;">
+              <label class="check-row" style="margin-bottom:10px;">
+                <input type="checkbox" id="height-attribution" checked>
+                <span>${t("heightanim.attribution", "Link „erstellt mit Reisezoom GPS Studio“ einbetten")}</span>
+              </label>
               <button type="button" class="btn btn-secondary btn-block" id="height-export-html">
                 ${t("heightanim.btn.export_html", "Als HTML exportieren (Blog/Web)")}
               </button>
@@ -2456,6 +2460,8 @@ function mountHeightAnim(body, headerActions) {
     try {
       const params = collectHeightParams();
       params.replay_label = "↻ " + t("heightanim.html.replay", "Neu starten");
+      // v0.9.513 — „erstellt mit"-Backlink wie in der Web-Karte (Default an).
+      params.attribution_enabled = !!document.getElementById("height-attribution")?.checked;
       const res = await window.pywebview.api.heightanim_export_html(params);
       if (!res || !res.ok) {
         if (typeof toast === "function") toast(t("heightanim.html.failed", "HTML-Export fehlgeschlagen") + ": " + (res?.error || "unknown"), "error", 8000);

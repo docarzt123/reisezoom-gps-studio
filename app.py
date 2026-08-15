@@ -150,12 +150,24 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.512"
+APP_VERSION = "0.9.513"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
 # auf reisezoom.com/gps) hier ändern; alte Exporte fängt ein 301 auf dem Server ab.
-WEBKARTE_CREDIT_TEXT = "erstellt mit Reisezoom GPS Studio"
+# ⚠️ v0.9.513 — der Credit folgt der eingestellten Sprache. Er steht in einer
+# Datei, die der Nutzer weitergibt (Blog, Kunde, Social) — ein spanischer
+# Nutzer soll dort nicht „erstellt mit" lesen. Der Produktname bleibt
+# unübersetzt, er ist eine Marke. Siehe `credit.made_with` in i18n/.
+WEBKARTE_CREDIT_TEXT_FALLBACK = "erstellt mit Reisezoom GPS Studio"
+# ⚠️ Bewusst EINE URL für alle Sprachen (nachgemessen am 15.08.2026).
+# Die WERKZEUGSEITEN sind dreisprachig live (`/gps/de/fit-to-gpx/` → 200), die
+# EINSTIEGSSEITE aber nicht: `/gps/de/` und `/gps/es/` liefern 403/404, weil es
+# dort kein `index.html` gibt — nur die Unterordner der einzelnen Werkzeuge.
+# `/gps/` ist die einzige Einstiegsseite und führt (noch) keine
+# hreflang-Verweise. Ein sprachabhängiger Link liefe also ins Leere.
+# → Sobald `gps-studio-web` auch die Einstiegsseite in `/de/` und `/es/` baut,
+#   wird hier eine Zuordnung Sprache → URL daraus.
 WEBKARTE_CREDIT_URL = "https://reisezoom.com/gps/"
 
 # ── Edition (v0.9.331) ───────────────────────────────────────────────────────
@@ -3643,8 +3655,13 @@ class Api:
             elif _sid_b:
                 cfg.series_b = ""
             replay = params.get("replay_label") or "↻ Neu starten"
+            # v0.9.513 — „erstellt mit"-Backlink wie in der Web-Karte (Default an).
+            _cred_on = bool(params.get("attribution_enabled", True))
             html_doc = cheight.make_standalone_html(
-                cfg, distances_m, elevations, values_b, replay_label=replay, loop=True)
+                cfg, distances_m, elevations, values_b, replay_label=replay, loop=True,
+                credit_text=(_ui_t()("credit.made_with", WEBKARTE_CREDIT_TEXT_FALLBACK)
+                             if _cred_on else ""),
+                credit_url=(WEBKARTE_CREDIT_URL if _cred_on else ""))
             Path(out_path).write_text(html_doc, encoding="utf-8")
             snippet = cheight.make_embed_snippet(html_doc, cfg)
             snip_path = os.path.splitext(out_path)[0] + "_iframe-snippet.txt"
@@ -4035,7 +4052,7 @@ class Api:
 
             # v0.9.431 — abschaltbarer „erstellt mit"-Backlink (Default an).
             credit_on = bool(params.get("attribution_enabled", True))
-            credit_text = WEBKARTE_CREDIT_TEXT if credit_on else ""
+            credit_text = _ui_t()("credit.made_with", WEBKARTE_CREDIT_TEXT_FALLBACK) if credit_on else ""
             credit_url = WEBKARTE_CREDIT_URL if credit_on else ""
             credit_html = ctmleaflet.credit_link_html(credit_text, credit_url)
 

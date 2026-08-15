@@ -1585,6 +1585,8 @@
   "webkarte.leaflet_hint_url": "Lädt leaflet.css + leaflet.js von deiner Basis-URL (du legst die beiden Dateien selbst dort ab).",
   "webkarte.leaflet_hint_inline": "Leaflet wird komplett in die HTML geschrieben – kein externer Abruf (DSGVO-sauber, offline-fähig), die Datei wird ~160 KB größer.",
   "webkarte.attribution": "Link „erstellt mit Reisezoom GPS Studio“ einbetten",
+  "credit.made_with": "erstellt mit Reisezoom GPS Studio",
+  "heightanim.attribution": "Link „erstellt mit Reisezoom GPS Studio“ einbetten",
   "heightanim.field.series_b": "Zweite Datenreihe (rechte Achse)",
   "heightanim.field.line_color_b": "Farbe der zweiten Reihe",
   "heightanim.series_b.off": "— keine —",

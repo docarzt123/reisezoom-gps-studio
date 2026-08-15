@@ -1099,6 +1099,12 @@ Below that you can create **color zones by elevation:** with "**Add elevation**"
 
 **Undo:** **⌘Z / Ctrl+Z** undoes **everything** in the Data Animator — look, colors, info-bar fields, waypoints and source switches (one press per step).
 
+**Attribution link (since v0.9.513):** Above the export button sits the
+checkbox **"Embed 'created with Reisezoom GPS Studio' link"** — just like in
+the web map. When it is on (the default), a small link to the web version
+appears in the bottom right of the graphic. Its wording follows the language
+you have set. Take the tick out if you need the export without it.
+
 **Export as HTML (blog/web, since v0.9.397):** Below the video render button sits **"Export as HTML"**. This produces a **self-running `.html` file** — the same animation as in the video, but it runs **completely in the browser** (pure HTML, no video), with an auto-loop and a **"↻" replay button**. Ideal for a blog post. After the export a **window opens in the center of the screen** with these options:
 - **▶ Open in browser** — shows the finished animation immediately in the default browser. *(Double-clicking the file in Finder only starts an editor on some systems — then you only see source code; so use this button.)*
 - **Copy snippet (no upload):** a ready-made **`<iframe>` snippet** — paste into a WordPress **"Custom HTML" block**. The entire animation is inside the snippet (`srcdoc`), cleanly isolated from the theme.

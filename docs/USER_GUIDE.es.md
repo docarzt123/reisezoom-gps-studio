@@ -1113,6 +1113,12 @@ Debajo puedes crear **zonas de color por altitud**: con «**Añadir altitud**» 
 
 **Deshacer:** **⌘Z / Ctrl+Z** revierte **todo** en el Animador de datos — aspecto, colores, campos de la barra de información, waypoints e interruptores de fuente (una pulsación por paso).
 
+**Enlace de atribución (desde v0.9.513):** encima del botón de exportación
+está la casilla **«Insertar el enlace ‹creado con Reisezoom GPS Studio›»**,
+igual que en el mapa web. Si está activada (por defecto), aparece abajo a la
+derecha del gráfico un pequeño enlace a la versión web. El texto sigue el
+idioma configurado. Quita la marca si necesitas la exportación sin él.
+
 **Exportar como HTML (blog/web, desde v0.9.397):** bajo el botón de render de vídeo está **«Exportar como HTML»**. Eso genera un archivo **`.html` que se ejecuta por sí solo** — la misma animación que en el vídeo, pero corre **completamente en el navegador** (HTML puro, sin vídeo), con auto-loop y un botón de repetición **«↻»**. Ideal para una entrada de blog. Tras la exportación se abre una **ventana en el centro de la pantalla** con estas opciones:
 - **▶ Abrir en el navegador** — muestra la animación terminada de inmediato en el navegador estándar. *(Un doble clic en el archivo en el Finder inicia, según el sistema, solo un editor — entonces solo ves código fuente; por eso usa este botón.)*
 - **Copiar snippet (sin subida):** un **snippet `<iframe>`** listo — insértalo en un **bloque «HTML personalizado»** de WordPress. Toda la animación está en el snippet (`srcdoc`), limpiamente aislada del tema.
