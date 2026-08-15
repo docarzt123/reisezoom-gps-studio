@@ -112,6 +112,24 @@ hidden = [
     # v0.9.282 — FIT-Import (Garmin/Wahoo). Lazy import in core/imports.py → muss
     # explizit als hidden-import rein, sonst fehlt's im PyInstaller-Bundle.
     "fitdecode",
+    # v0.9.515 — Cloud-Archiv. Wird in app.py bewusst LAZY importiert (damit
+    # die App auch ohne diese Pakete startet), landet dadurch aber nicht
+    # automatisch im Bundle. Genau der Fehler, den fitdecode und send2trash
+    # darunter schon einmal hatten: lokal alles gut, in der .app fehlt das Modul.
+    "cryptography",
+    "keyring",
+    "keyring.backends",
+    "keyring.backends.macOS",
+    "keyring.backends.Windows",
+    "keyring.backends.SecretService",
+    "keyring.backends.chainer",
+    "keyring.backends.fail",
+    "core.cloud",
+    "core.cloud.archiv",
+    "core.cloud.crypto",
+    "core.cloud.keys",
+    "core.cloud.sync",
+    "core.cloud.transport",
     # v0.9.501 — echter Papierkorb. Lazy import in core/library.py, deshalb
     # explizit: ohne den Eintrag fehlt es im Bundle und Windows fällt still auf
     # den alten Ordner-Weg zurück — genau den Fehler, der behoben werden sollte.

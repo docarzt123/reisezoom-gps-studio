@@ -14,6 +14,22 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.515] – 2026-08-15
+
+### Neu
+- **Cloud-Archiv: dein Archiv auf deinem eigenen Webserver.** Eine Datei
+  (`rz-cloud.php`) auf den eigenen Webspace laden, in den Einstellungen Adresse
+  eintragen — fertig. Danach wandert alles automatisch hoch: Touren,
+  Tour-Daten, Animator- und Tour-Map-Projekte, Geotagger-Einstellungen und die
+  Vorschaubilder gesetzter Fotos. Ein zweiter Rechner kommt allein mit dem
+  Archiv-Passwort an alles heran.
+  **Alles ist verschlüsselt**, bevor es den Rechner verlässt; der Server sieht
+  nur undurchsichtige Namen, Größen und Zeitpunkte. Das Passwort würfelt die
+  App und zeigt es genau einmal — es gehört in einen Passwortmanager.
+  ⚠️ **Das ist freiwillig.** Wer nichts einrichtet, merkt von der ganzen Sache
+  nichts: alles bleibt lokal, genau wie bisher.
+  Entwurf und Begründungen: `docs/IDEAS.md` §26.
+
 ### Entfernt
 - **Die Solo-App „Reisezoom Geotagger" wird eingestellt.** Sie wird nicht mehr
   gebaut, ausgeliefert oder verlinkt. Sie existierte, damit man Fotos verorten

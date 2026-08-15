@@ -19,7 +19,6 @@ Umschlag.
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -65,32 +64,50 @@ def _ftp():
 
 
 def archiv_leeren(unterordner: str) -> None:
-    """`rz-daten` löschen, damit jeder Lauf bei null anfängt."""
+    """`rz-daten` löschen, damit jeder Lauf bei null anfängt.
+
+    ⚠️ Über EINE FTP-Verbindung. Die erste Fassung startete je Datei einen
+    eigenen curl-Aufruf — bei 710 Umschlägen lief das in eine Zeitüberschreitung,
+    noch bevor der eigentliche Test begann.
+    """
     e = _ftp()
     if not e:
         print("  ⏭  kein FTP-Zugang bekannt — Archiv wird nicht geleert")
         return
-    basis = f"ftp://{e['RZ_FTP_HOST']}/{unterordner}/rz-daten"
-    nutzer = f"{e['RZ_FTP_USER']}:{e['RZ_FTP_PASS']}"
+    # ⚠️ Beide Fehlerarten abfangen: „gibt es nicht“ meldet der Server
+    # mal als 550 (error_perm), mal als 450 (error_temp).
+    from ftplib import FTP_TLS, error_perm, error_temp
+    FTP_FEHLER = (error_perm, error_temp)
+    ftp = FTP_TLS(e["RZ_FTP_HOST"], timeout=60)
+    ftp.login(e["RZ_FTP_USER"], e["RZ_FTP_PASS"])
+    ftp.prot_p()
+    basis = f"/{unterordner}/rz-daten"
 
-    def liste(pfad):
-        r = subprocess.run(["curl", "-s", "--max-time", "40", f"{pfad}/", "--user", nutzer],
-                           capture_output=True, text=True)
-        return [z.split()[-1] for z in r.stdout.splitlines() if z.strip()] if r.returncode == 0 else []
+    def weg(pfad):
+        try:
+            namen = ftp.nlst(pfad)
+        except FTP_FEHLER:
+            return
+        for n in namen:
+            name = n.rsplit("/", 1)[-1]
+            if name in (".", ".."):
+                continue
+            voll = f"{pfad}/{name}"
+            try:
+                ftp.delete(voll)
+            except FTP_FEHLER:
+                weg(voll)          # war ein Ordner
+                try:
+                    ftp.rmd(voll)
+                except FTP_FEHLER:
+                    pass
 
-    for ordner in ("u", "p"):
-        for name in liste(f"{basis}/{ordner}"):
-            subprocess.run(["curl", "-s", "--max-time", "40", f"{basis}/{ordner}/",
-                            "--user", nutzer, "-Q", f"DELE /{unterordner}/rz-daten/{ordner}/{name}"],
-                           capture_output=True)
-    for datei in ("index.json", "index.lock", "archiv.json", "zugang.php", ".htaccess"):
-        subprocess.run(["curl", "-s", "--max-time", "40", f"{basis}/", "--user", nutzer,
-                        "-Q", f"DELE /{unterordner}/rz-daten/{datei}"], capture_output=True)
-    for ordner in ("u", "p", ""):
-        subprocess.run(["curl", "-s", "--max-time", "40",
-                        f"ftp://{e['RZ_FTP_HOST']}/{unterordner}/", "--user", nutzer,
-                        "-Q", f"RMD /{unterordner}/rz-daten/{ordner}".rstrip("/")],
-                       capture_output=True)
+    weg(basis)
+    try:
+        ftp.rmd(basis)
+    except FTP_FEHLER:
+        pass
+    ftp.quit()
 
 
 def main(argv):

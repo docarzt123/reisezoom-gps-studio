@@ -1597,6 +1597,55 @@ Vollständige Roadmap im Repo unter `docs/IDEAS.md`.
 
 ---
 
+## Cloud-Archiv — dein Archiv auf deinem eigenen Server (seit v0.9.515)
+
+> **Das ist freiwillig.** Ohne Cloud arbeitet die App genau wie bisher: alles
+> bleibt auf deinem Rechner, es gibt kein Konto und nichts einzurichten.
+
+Wer sein Archiv auf mehreren Rechnern haben will — oder es nach einem Neuaufsetzen
+1:1 zurückhaben will — kann es auf **den eigenen Webserver** legen. Nicht auf
+unseren: du behältst deine Daten.
+
+### Einrichten (einmal, dauert zwei Minuten)
+
+1. Lade die Datei **`rz-cloud.php`** in einen Ordner deines Webspace, zum
+   Beispiel nach `deineseite.de/archiv/`. Mehr braucht der Server nicht — kein
+   Datenbank, keine Einstellungen.
+2. In GPS Studio: **Einstellungen → Cloud-Archiv einrichten**.
+3. Die **Adresse der Datei** eintragen (`https://deineseite.de/archiv/rz-cloud.php`).
+   Die App sagt sofort, ob sie dort etwas findet.
+4. **Neues Archiv anlegen** — und dann das Wichtigste:
+
+> ⚠️ **Die App zeigt dir einmalig ein Passwort.** Es öffnet deine Daten.
+> Speichere es sofort in deinem Passwortmanager. Wir kennen es nicht und können
+> es nicht wiederherstellen: **Geht es verloren, kommt niemand mehr an das
+> Archiv — auch wir nicht.**
+
+Danach wandert alles von selbst hoch. Oben in der Leiste zeigt ein **☁** den
+Stand: ruhig, wenn alles abgeglichen ist; mit Zähler, während übertragen wird.
+
+### Was hochgeht — und was nicht
+
+**Ja:** Touren, alle Tourdaten (Name, Notiz, Schlagworte, Sammlungen), die
+Animator- und Tour-Map-Projekte, die Geotagger-Einstellungen und
+Vorschaubilder der Fotos, die du in einem Projekt gesetzt hast.
+
+**Nein:** deine Originalfotos, fertige Videos, Kartenbilder. Fotos bleiben, wo
+sie sind — ein Archiv ist kein Fotospeicher.
+
+### Ein zweiter Rechner
+
+Dort **Einstellungen → Cloud-Archiv → Mit vorhandenem verbinden**, Adresse,
+Zugangsschlüssel und dein Passwort eingeben. Mehr nicht: Das Archiv erscheint,
+und die Touren kommen, sobald du sie brauchst.
+
+### Was der Server sieht
+
+**Nichts Verwertbares.** Alles wird auf deinem Rechner verschlüsselt, bevor es
+losgeht. Auf dem Server liegen undurchsichtige Namen, Dateigrößen und
+Zeitpunkte — kein Tourname, kein Ort, keine Strecke. Selbst wer den kompletten
+Webspace kopiert, hat verschlüsselte Klumpen.
+
 ## 13 · Support & Kontakt
 
 - **Bug-Reports & Feedback**: Hilfe → 📧 (siehe Sektion 7) oder direkt `marc@reisezoom.com`

@@ -1524,6 +1524,57 @@ Roadmap completa en el repo bajo `docs/IDEAS.md`.
 
 ---
 
+## Archivo en la nube — tu archivo en tu propio servidor (desde v0.9.515)
+
+> **Es opcional.** Sin nube la app funciona igual que siempre: todo se queda en
+> tu ordenador, no hay cuenta y no hay nada que configurar.
+
+Si quieres tu archivo en varios ordenadores —o recuperarlo tal cual tras
+reinstalar— puedes ponerlo en **tu propio servidor web**. No en el nuestro: tus
+datos siguen siendo tuyos.
+
+### Configuración (una vez, unos dos minutos)
+
+1. Sube el archivo **`rz-cloud.php`** a una carpeta de tu espacio web, por
+   ejemplo `tusitio.com/archivo/`. El servidor no necesita nada más: ni base de
+   datos ni ajustes.
+2. En GPS Studio: **Ajustes → Configurar el archivo en la nube**.
+3. Introduce la **dirección de ese archivo**
+   (`https://tusitio.com/archivo/rz-cloud.php`). La app te dice al momento si
+   encuentra algo ahí.
+4. **Crear un archivo nuevo** — y ahora lo importante:
+
+> ⚠️ **La app te muestra una contraseña una sola vez.** Es la que abre tus
+> datos. Guárdala enseguida en tu gestor de contraseñas. Nosotros no la
+> conocemos y no podemos recuperarla: **si se pierde, nadie podrá acceder al
+> archivo, tampoco nosotros.**
+
+A partir de ahí todo sube solo. Una **☁** en la barra superior muestra el
+estado: tranquila cuando todo está sincronizado, con un contador mientras
+transfiere.
+
+### Qué sube y qué no
+
+**Sí:** rutas, todos sus datos (nombre, nota, etiquetas, colecciones), los
+proyectos del animador y del mapa de ruta, los ajustes del geolocalizador y las
+miniaturas de las fotos que hayas colocado en un proyecto.
+
+**No:** tus fotos originales, los vídeos terminados ni las imágenes de mapa. Las
+fotos se quedan donde están: un archivo no es un almacén de fotos.
+
+### Un segundo ordenador
+
+Allí elige **Ajustes → Archivo en la nube → Conectar con uno existente**, e
+introduce la dirección, la clave de acceso y tu contraseña. Nada más: el archivo
+aparece y las rutas llegan cuando las necesitas.
+
+### Qué ve el servidor
+
+**Nada aprovechable.** Todo se cifra en tu equipo antes de salir. En el servidor
+hay nombres opacos, tamaños y fechas: ningún nombre de ruta, ningún lugar,
+ningún recorrido. Aunque alguien copie todo el espacio web, obtiene bloques
+cifrados.
+
 ## 13 · Soporte y contacto
 
 - **Reportes de bugs y feedback**: Ayuda → 📧 (ver la sección 7) o directamente `marc@reisezoom.com`

@@ -1509,6 +1509,53 @@ The full roadmap is in the repo under `docs/IDEAS.md`.
 
 ---
 
+## Cloud archive — your archive on your own server (since v0.9.515)
+
+> **This is optional.** Without a cloud the app works exactly as before:
+> everything stays on your computer, there is no account and nothing to set up.
+
+If you want your archive on more than one computer — or want it back exactly as
+it was after reinstalling — you can put it on **your own web server**. Not ours:
+you keep your data.
+
+### Setting it up (once, about two minutes)
+
+1. Upload the file **`rz-cloud.php`** into a folder of your web space, for
+   example `yoursite.com/archive/`. That is all the server needs — no database,
+   no configuration.
+2. In GPS Studio: **Settings → Set up cloud archive**.
+3. Enter the **address of that file** (`https://yoursite.com/archive/rz-cloud.php`).
+   The app tells you straight away whether it finds anything there.
+4. **Create a new archive** — and then the important part:
+
+> ⚠️ **The app shows you a passphrase once.** It unlocks your data. Save it in
+> your password manager immediately. We do not know it and cannot restore it:
+> **if it is lost, nobody can reach the archive any more — not even us.**
+
+After that everything goes up by itself. A **☁** in the top bar shows the state:
+quiet when everything is in sync, with a counter while transferring.
+
+### What goes up — and what does not
+
+**Yes:** tours, all tour data (name, note, tags, collections), the animator and
+tour-map projects, the geotagger settings, and thumbnails of the photos you
+placed in a project.
+
+**No:** your original photos, finished videos, map images. Photos stay where they
+are — an archive is not a photo store.
+
+### A second computer
+
+There, choose **Settings → Cloud archive → Connect to an existing one**, enter
+the address, the access key and your passphrase. That is all: the archive
+appears, and tours arrive as you need them.
+
+### What the server sees
+
+**Nothing usable.** Everything is encrypted on your machine before it leaves.
+The server holds opaque names, file sizes and timestamps — no tour name, no
+place, no route. Even someone copying the entire web space gets encrypted blobs.
+
 ## 13 · Support & Contact
 
 - **Bug reports & feedback**: Help → 📧 (see section 7) or directly `marc@reisezoom.com`

@@ -69,6 +69,18 @@ class Bestand:
 #  Verzeichnis
 # ══════════════════════════════════════════════════════════════════════════
 
+def _tabellen(conn) -> set[str]:
+    """Welche Tabellen gibt es hier wirklich?
+
+    ⚠️ Nicht jedes Archiv hat alle: Eine Datenbank aus einer älteren Fassung
+    kennt `track_meta`, `collections` und `collection_items` noch nicht. Ohne
+    diese Prüfung stirbt der Abgleich mit „no such table" — bei genau den
+    Nutzern, die am längsten dabei sind.
+    """
+    return {z[0] for z in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+
+
 def verzeichnis_bauen(conn) -> dict:
     """Alle Touren mit ihren anzeigbaren Daten.
 
@@ -76,17 +88,20 @@ def verzeichnis_bauen(conn) -> dict:
     anderes Gerät etwas an — und wäre dort ohnehin falsch. Der Umschlag bringt
     die Datei mit, der Pfad entsteht auf dem Zielrechner neu.
     """
+    hat = _tabellen(conn)
+    spalten = """t.geo_hash, t.track_hash, t.filename, t.name, t.started_at,
+                 t.ended_at, t.year, t.distance_m, t.duration_s, t.moving_time_s,
+                 t.ascent_m, t.descent_m, t.ele_min, t.ele_max,
+                 t.max_speed_kmh, t.avg_speed_kmh, t.size"""
+    verbund = ""
+    if "track_meta" in hat:
+        spalten += """, m.fav, m.tags, m.note, m.cover, m.display_name, m.hidden,
+                      m.activity_user, m.color, m.recorded_user, m.first_seen, m.last_seen"""
+        verbund = " LEFT JOIN track_meta m ON m.geo_hash = t.geo_hash"
     touren = {}
-    for zeile in conn.execute("""
-            SELECT t.geo_hash, t.track_hash, t.filename, t.name, t.started_at,
-                   t.ended_at, t.year, t.distance_m, t.duration_s, t.moving_time_s,
-                   t.ascent_m, t.descent_m, t.ele_min, t.ele_max,
-                   t.max_speed_kmh, t.avg_speed_kmh, t.size,
-                   m.fav, m.tags, m.note, m.cover, m.display_name, m.hidden,
-                   m.activity_user, m.color, m.recorded_user, m.first_seen, m.last_seen
-              FROM tracks t
-              LEFT JOIN track_meta m ON m.geo_hash = t.geo_hash
-             WHERE t.geo_hash IS NOT NULL AND t.geo_hash <> ''"""):
+    for zeile in conn.execute(
+            f"SELECT {spalten} FROM tracks t{verbund}"
+            " WHERE t.geo_hash IS NOT NULL AND t.geo_hash <> ''"):
         d = {k: zeile[k] for k in zeile.keys()}
         gh = d.pop("geo_hash")
         touren[gh] = {k: v for k, v in d.items() if v is not None}
@@ -95,15 +110,18 @@ def verzeichnis_bauen(conn) -> dict:
 
 def sammlungen_bauen(conn) -> dict:
     """Sammlungen, Zuordnungen und beobachtete Ordner."""
+    hat = _tabellen(conn)
     sammlungen = [dict(z) for z in conn.execute(
-        "SELECT id, name, note, created_at FROM collections ORDER BY id")]
+        "SELECT id, name, note, created_at FROM collections ORDER BY id")] \
+        if "collections" in hat else []
     zuordnung = {}
-    for z in conn.execute(
-            "SELECT collection_id, geo_hash, sort_index FROM collection_items"):
-        zuordnung.setdefault(str(z["collection_id"]), []).append(
-            {"geo_hash": z["geo_hash"], "sort": z["sort_index"]})
+    if "collection_items" in hat:
+        for z in conn.execute(
+                "SELECT collection_id, geo_hash, sort_index FROM collection_items"):
+            zuordnung.setdefault(str(z["collection_id"]), []).append(
+                {"geo_hash": z["geo_hash"], "sort": z["sort_index"]})
     ordner = [dict(z) for z in conn.execute(
-        "SELECT path, added_at, recursive FROM folders")]
+        "SELECT path, added_at, recursive FROM folders")] if "folders" in hat else []
     return {"format": 1, "sammlungen": sammlungen,
             "zuordnung": zuordnung, "ordner": ordner}
 
@@ -138,8 +156,9 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
         "SELECT * FROM tracks WHERE geo_hash = ? LIMIT 1", (geo_hash,)).fetchone()
     if zeile is None:
         raise KeyError(f"Tour {geo_hash} steht nicht im Archiv.")
-    meta = conn.execute(
-        "SELECT * FROM track_meta WHERE geo_hash = ? LIMIT 1", (geo_hash,)).fetchone()
+    meta = (conn.execute("SELECT * FROM track_meta WHERE geo_hash = ? LIMIT 1",
+                         (geo_hash,)).fetchone()
+            if "track_meta" in _tabellen(conn) else None)
 
     puffer = io.BytesIO()
     # ⚠️ Ohne feste Zeitstempel wäre jedes ZIP byteweise anders, obwohl sich

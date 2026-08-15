@@ -285,6 +285,58 @@ geschnitten wird, ist die Zeit gestaucht: die Anim-Phase verteilt
 - **Wer eine der beiden Formeln ändert, muss die andere mitziehen.**
   `tests/test_keyframes_am_track.py` rechnet sie gegeneinander und bricht sonst.
 
+### Cloud-Archiv (v0.9.515) — `core/cloud/` + `server/rz-cloud.php`
+
+Entwurf und Begründungen: `docs/IDEAS.md` §26. Hier nur, was beim Anfassen
+wichtig ist.
+
+> ⚠️ **Alles ist ZUSÄTZLICH.** Nichts außerhalb von `core/cloud/` importiert das
+> Paket, und die Brücken in `app.py` importieren **lazy** — `app.py` startet
+> auch ohne `cryptography` und `keyring`. Wer hier etwas ändert, muss das
+> erhalten: Der lokale Weg darf durch die Cloud nicht langsamer, umständlicher
+> oder zerbrechlicher werden.
+
+**Vier Module, strikt getrennt:**
+
+| Modul | Aufgabe | Fasst NICHT an |
+|---|---|---|
+| `crypto.py` | Umschläge auf und zu, Passwort, Prüfsummen | Netz |
+| `transport.py` | mit dem Server reden | Verschlüsselung |
+| `archiv.py` | aus `library.db` Verzeichnis und Umschläge bauen | Netz, Krypto |
+| `sync.py` | vergleichen und übertragen | — |
+
+Die Trennung von `crypto` und `transport` ist Absicht: Vermischt man sie,
+entsteht früher oder später eine Stelle, an der Klartext über die Leitung geht.
+
+**Fünf Fallen, jede mit einem Test dahinter:**
+
+1. **Prüfsummen über den Klartext, nie über den Umschlag.** Jeder Umschlag
+   bekommt ein neues Nonce — über ihn gerechnet wäre jede Tour immer „geändert"
+   und die App lüde das Archiv endlos neu hoch.
+2. **Feste Zeitstempel im ZIP** (`umschlag_bauen`). Ohne sie entstehen aus
+   gleichen Daten verschiedene Bytes, mit derselben Folge wie oben.
+3. **Umschläge sind an ihren Namen gebunden** (AES-GCM associated data). Sonst
+   könnte ein Server Umschlag A unter Namen B ausliefern, und die
+   Entschlüsselung gelänge anstandslos.
+4. **Ein leerer lokaler Bestand löscht nichts** (`sync.planen`). Auf einem frisch
+   eingerichteten Gerät wäre der erste Abgleich sonst der Befehl, das ganze
+   Archiv auf dem Server zu löschen.
+5. **Zeitgrenze auf jedem Schlüsselbund-Zugriff** (`keys.ZEITGRENZE`). Wurde ein
+   Eintrag von einem anderen Programm angelegt, fragt macOS nach Erlaubnis und
+   `keyring.get_password` kehrt bis zur Antwort nicht zurück — erscheint der
+   Dialog nicht, hängt der Aufruf für immer. Gefunden am 15.08.2026 in der
+   gebauten App: die Zustandsanzeige blieb ohne jeden Fehler dauerhaft leer.
+
+**Neue Abhängigkeiten** (`cryptography`, `keyring`) stehen in
+`ReisezoomGPSStudio.spec` unter `hidden` — sie werden lazy importiert und
+landeten sonst nicht im Bundle. Genau der Fehler, den `fitdecode` und
+`send2trash` dort schon einmal hatten.
+
+**Prüfen:** `tests/test_cloud_*.py` läuft ohne Netz.
+`scripts/selftest_cloud.py <adresse>` spielt das ganze Protokoll gegen einen
+echten Server durch, samt Angriffsfällen — ⚠️ leert dabei das Archiv, deshalb
+besteht es auf „test" in der Adresse.
+
 ### Werte am Marker aufziehen (v0.9.512)
 
 Option + Ziehen auf einem **Wert-Marker** (`WERT_LANES` in `ui/js/timeline.js`:

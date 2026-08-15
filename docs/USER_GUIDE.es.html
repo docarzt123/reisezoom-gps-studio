@@ -265,6 +265,7 @@
 <li><a href="#10-faq" data-anchor="10-faq">10 · FAQ</a></li>
 <li><a href="#11-atajos-de-teclado-macos" data-anchor="11-atajos-de-teclado-macos">11 · Atajos de teclado (macOS)</a></li>
 <li><a href="#12-limitaciones-conocidas-beta" data-anchor="12-limitaciones-conocidas-beta">12 · Limitaciones conocidas (Beta)</a></li>
+<li><a href="#archivo-en-la-nube-tu-archivo-en-tu-propio-servidor" data-anchor="archivo-en-la-nube-tu-archivo-en-tu-propio-servidor">Archivo en la nube — tu archivo en tu propio servidor</a></li>
 <li><a href="#13-soporte-y-contacto" data-anchor="13-soporte-y-contacto">13 · Soporte y contacto</a></li></ul></nav></aside>
     <main class="doc-main">
       <h1 id="reisezoom-gps-studio-manual-de-usuario">Reisezoom GPS Studio — Manual de usuario</h1>
@@ -1354,6 +1355,35 @@ python app.py</code></pre>
 </ul>
 <p>Roadmap completa en el repo bajo <code>docs/IDEAS.md</code>.</p>
 <hr>
+<h2 id="archivo-en-la-nube-tu-archivo-en-tu-propio-servidor">Archivo en la nube — tu archivo en tu propio servidor</h2>
+<blockquote><strong>Es opcional.</strong> Sin nube la app funciona igual que siempre: todo se queda en</blockquote>
+<blockquote>tu ordenador, no hay cuenta y no hay nada que configurar.</blockquote>
+<p>Si quieres tu archivo en varios ordenadores —o recuperarlo tal cual tras reinstalar— puedes ponerlo en <strong>tu propio servidor web</strong>. No en el nuestro: tus datos siguen siendo tuyos.</p>
+<h3 id="configuraci-n-una-vez-unos-dos-minutos">Configuración (una vez, unos dos minutos)</h3>
+<ol>
+<li>Sube el archivo **<code>rz-cloud.php</code>** a una carpeta de tu espacio web, por</li>
+</ol>
+<p> ejemplo <code>tusitio.com/archivo/</code>. El servidor no necesita nada más: ni base de  datos ni ajustes.</p>
+<ol>
+<li>En GPS Studio: <strong>Ajustes → Configurar el archivo en la nube</strong>.</li>
+<li>Introduce la <strong>dirección de ese archivo</strong></li>
+</ol>
+<p> (<code>https://tusitio.com/archivo/rz-cloud.php</code>). La app te dice al momento si  encuentra algo ahí.</p>
+<ol>
+<li><strong>Crear un archivo nuevo</strong> — y ahora lo importante:</li>
+</ol>
+<blockquote>⚠️ <strong>La app te muestra una contraseña una sola vez.</strong> Es la que abre tus</blockquote>
+<blockquote>datos. Guárdala enseguida en tu gestor de contraseñas. Nosotros no la</blockquote>
+<blockquote>conocemos y no podemos recuperarla: **si se pierde, nadie podrá acceder al</blockquote>
+<blockquote>archivo, tampoco nosotros.**</blockquote>
+<p>A partir de ahí todo sube solo. Una <strong>☁</strong> en la barra superior muestra el estado: tranquila cuando todo está sincronizado, con un contador mientras transfiere.</p>
+<h3 id="qu-sube-y-qu-no">Qué sube y qué no</h3>
+<p><strong>Sí:</strong> rutas, todos sus datos (nombre, nota, etiquetas, colecciones), los proyectos del animador y del mapa de ruta, los ajustes del geolocalizador y las miniaturas de las fotos que hayas colocado en un proyecto.</p>
+<p><strong>No:</strong> tus fotos originales, los vídeos terminados ni las imágenes de mapa. Las fotos se quedan donde están: un archivo no es un almacén de fotos.</p>
+<h3 id="un-segundo-ordenador">Un segundo ordenador</h3>
+<p>Allí elige <strong>Ajustes → Archivo en la nube → Conectar con uno existente</strong>, e introduce la dirección, la clave de acceso y tu contraseña. Nada más: el archivo aparece y las rutas llegan cuando las necesitas.</p>
+<h3 id="qu-ve-el-servidor">Qué ve el servidor</h3>
+<p><strong>Nada aprovechable.</strong> Todo se cifra en tu equipo antes de salir. En el servidor hay nombres opacos, tamaños y fechas: ningún nombre de ruta, ningún lugar, ningún recorrido. Aunque alguien copie todo el espacio web, obtiene bloques cifrados.</p>
 <h2 id="13-soporte-y-contacto">13 · Soporte y contacto</h2>
 <ul>
 <li><strong>Reportes de bugs y feedback</strong>: Ayuda → 📧 (ver la sección 7) o directamente <code>marc@reisezoom.com</code></li>

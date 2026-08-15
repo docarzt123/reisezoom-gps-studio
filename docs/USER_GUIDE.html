@@ -265,6 +265,7 @@
 <li><a href="#10-faq" data-anchor="10-faq">10 · FAQ</a></li>
 <li><a href="#11-tastatur-shortcuts-macos" data-anchor="11-tastatur-shortcuts-macos">11 · Tastatur-Shortcuts (macOS)</a></li>
 <li><a href="#12-bekannte-einschr-nkungen-beta" data-anchor="12-bekannte-einschr-nkungen-beta">12 · Bekannte Einschränkungen (Beta)</a></li>
+<li><a href="#cloud-archiv-dein-archiv-auf-deinem-eigenen-server" data-anchor="cloud-archiv-dein-archiv-auf-deinem-eigenen-server">Cloud-Archiv — dein Archiv auf deinem eigenen Server</a></li>
 <li><a href="#13-support-kontakt" data-anchor="13-support-kontakt">13 · Support &amp; Kontakt</a></li></ul></nav></aside>
     <main class="doc-main">
       <h1 id="reisezoom-gps-studio-benutzer-handbuch">Reisezoom GPS Studio — Benutzer-Handbuch</h1>
@@ -1394,6 +1395,35 @@ python app.py</code></pre>
 </ul>
 <p>Vollständige Roadmap im Repo unter <code>docs/IDEAS.md</code>.</p>
 <hr>
+<h2 id="cloud-archiv-dein-archiv-auf-deinem-eigenen-server">Cloud-Archiv — dein Archiv auf deinem eigenen Server</h2>
+<blockquote><strong>Das ist freiwillig.</strong> Ohne Cloud arbeitet die App genau wie bisher: alles</blockquote>
+<blockquote>bleibt auf deinem Rechner, es gibt kein Konto und nichts einzurichten.</blockquote>
+<p>Wer sein Archiv auf mehreren Rechnern haben will — oder es nach einem Neuaufsetzen 1:1 zurückhaben will — kann es auf <strong>den eigenen Webserver</strong> legen. Nicht auf unseren: du behältst deine Daten.</p>
+<h3 id="einrichten-einmal-dauert-zwei-minuten">Einrichten (einmal, dauert zwei Minuten)</h3>
+<ol>
+<li>Lade die Datei **<code>rz-cloud.php</code>** in einen Ordner deines Webspace, zum</li>
+</ol>
+<p> Beispiel nach <code>deineseite.de/archiv/</code>. Mehr braucht der Server nicht — kein  Datenbank, keine Einstellungen.</p>
+<ol>
+<li>In GPS Studio: <strong>Einstellungen → Cloud-Archiv einrichten</strong>.</li>
+<li>Die <strong>Adresse der Datei</strong> eintragen (<code>https://deineseite.de/archiv/rz-cloud.php</code>).</li>
+</ol>
+<p> Die App sagt sofort, ob sie dort etwas findet.</p>
+<ol>
+<li><strong>Neues Archiv anlegen</strong> — und dann das Wichtigste:</li>
+</ol>
+<blockquote>⚠️ <strong>Die App zeigt dir einmalig ein Passwort.</strong> Es öffnet deine Daten.</blockquote>
+<blockquote>Speichere es sofort in deinem Passwortmanager. Wir kennen es nicht und können</blockquote>
+<blockquote>es nicht wiederherstellen: **Geht es verloren, kommt niemand mehr an das</blockquote>
+<blockquote>Archiv — auch wir nicht.**</blockquote>
+<p>Danach wandert alles von selbst hoch. Oben in der Leiste zeigt ein <strong>☁</strong> den Stand: ruhig, wenn alles abgeglichen ist; mit Zähler, während übertragen wird.</p>
+<h3 id="was-hochgeht-und-was-nicht">Was hochgeht — und was nicht</h3>
+<p><strong>Ja:</strong> Touren, alle Tourdaten (Name, Notiz, Schlagworte, Sammlungen), die Animator- und Tour-Map-Projekte, die Geotagger-Einstellungen und Vorschaubilder der Fotos, die du in einem Projekt gesetzt hast.</p>
+<p><strong>Nein:</strong> deine Originalfotos, fertige Videos, Kartenbilder. Fotos bleiben, wo sie sind — ein Archiv ist kein Fotospeicher.</p>
+<h3 id="ein-zweiter-rechner">Ein zweiter Rechner</h3>
+<p>Dort <strong>Einstellungen → Cloud-Archiv → Mit vorhandenem verbinden</strong>, Adresse, Zugangsschlüssel und dein Passwort eingeben. Mehr nicht: Das Archiv erscheint, und die Touren kommen, sobald du sie brauchst.</p>
+<h3 id="was-der-server-sieht">Was der Server sieht</h3>
+<p><strong>Nichts Verwertbares.</strong> Alles wird auf deinem Rechner verschlüsselt, bevor es losgeht. Auf dem Server liegen undurchsichtige Namen, Dateigrößen und Zeitpunkte — kein Tourname, kein Ort, keine Strecke. Selbst wer den kompletten Webspace kopiert, hat verschlüsselte Klumpen.</p>
 <h2 id="13-support-kontakt">13 · Support &amp; Kontakt</h2>
 <ul>
 <li><strong>Bug-Reports &amp; Feedback</strong>: Hilfe → 📧 (siehe Sektion 7) oder direkt <code>marc@reisezoom.com</code></li>
