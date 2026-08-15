@@ -13,6 +13,10 @@ Pillow>=10.0
 pillow-heif>=0.16
 playwright>=1.50
 requests>=2.32
+# Cloud-Archiv (seit v0.9.515, docs/IDEAS.md §26) — nur nötig, wenn jemand die
+# Cloud einrichtet; der lokale Weg kommt ohne beide aus.
+cryptography>=44.0        # AES-GCM für die Umschläge
+keyring>=25.0             # Schlüsselbund: macOS, Windows, Linux/SecretService
 # Liefert ein statisch gelinktes ffmpeg-Binary als Fallback wenn der User
 # kein System-ffmpeg installiert hat. PyInstaller bundelt das Binary
 # automatisch (collect_data_files in der .spec).
