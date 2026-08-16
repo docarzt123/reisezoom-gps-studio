@@ -10512,6 +10512,12 @@ function mountAnimator(body, headerActions, opts) {
       migrateCameraToPropertyEventsIfNeeded();
       migrateKeyframesEnabledIfNeeded();
       applyKeyframesEnabled();
+      // ⚠️ Der Schnitt gehört hierher (16.08.2026). Bisher wurde er nur beim
+      // Aufbau der Leiste angewendet und beim Projektwechsel — nicht, wenn die
+      // Session erst NACH dem Aufbau aktiv wurde. Beim Kaltstart mit gecachtem
+      // Kartenstil war genau das der Fall: Der gespeicherte Schnitt (0,3972)
+      // blieb in der Datei stehen, die Leiste zeigte den ganzen Track.
+      applyTrimFromSettings();
       if (_tlBar) {
         _tlBar.refresh();
         if (_tlBar.updateStatusLabel) _tlBar.updateStatusLabel();
@@ -10604,6 +10610,13 @@ function mountAnimator(body, headerActions, opts) {
   /** Trim aus Projekt-Settings lesen und auf Timeline-Bar + Preview anwenden. */
   function applyTrimFromSettings() {
     const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    // ⚠️ Ohne Projekt NICHTS tun (16.08.2026). Vorher lief die Funktion auch
+    // dann durch, wenn die Session noch gar nicht aktiv war — sie fand kein
+    // `render_start_anchor`, nahm die Vorgabe 0..1 und setzte damit den
+    // gespeicherten Schnitt auf „ganzer Track" zurück. Gesehen beim Kaltstart
+    // mit gecachtem Kartenstil: gespeichert stand 0,3972, die Leiste zeigte 0.
+    // Das ist derselbe Wettlauf wie in v0.9.44, nur eine Stufe früher.
+    if (!proj) return;
     const a = proj?.[_MODKEY] || {};
     const start = typeof a.render_start_anchor === "number" ? a.render_start_anchor : 0.0;
     const end   = typeof a.render_end_anchor   === "number" ? a.render_end_anchor   : 1.0;

@@ -312,12 +312,17 @@ async function openSettingsModal() {
 
       <!-- Cloud-Archiv (v0.9.515). Nur ein Knopf hierher — der eigentliche
            Dialog lebt in ui/js/cloud.js, damit dieses Fenster nicht weiter
-           wächst und die Cloud abtrennbar bleibt. -->
+           wächst und die Cloud abtrennbar bleibt.
+
+           ⚠️ Standardmäßig gar nicht da: window.rzCloudSichtbar kommt aus
+           cloud_status() und ist aus, solange das Archiv nicht fertig ist
+           (Marc, 16.08.2026). Kein halbfertiger Knopf in den Einstellungen. -->
+      ${!window.rzCloudSichtbar ? "" : `
       <div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
         <p class="muted" style="margin-bottom:6px">${t("cloud.titel", "Cloud-Archiv")}</p>
         <button class="btn" id="md-cloud">${t("cloud.oeffnen", "Cloud-Archiv einrichten …")}</button>
         <p class="muted" style="font-size:11px; margin-top:6px;">${t("cloud.optional", "Das ist freiwillig. Ohne Cloud arbeitet die App wie bisher, alles bleibt lokal.")}</p>
-      </div>
+      </div>`}
 
     `,
     footer: `

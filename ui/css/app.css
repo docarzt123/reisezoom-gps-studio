@@ -2391,7 +2391,10 @@ body.is-rendering .modal-overlay * {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  z-index: 5;
+  /* ⚠️ UNTER den Keyframe-Markern (die liegen bei 6). Wo sich beide doch
+     einmal überlappen, gewinnt der Keyframe — er ist das Wichtigere, und
+     ein verdeckter Keyframe war Rafaels Fehlerbericht vom 16.08.2026. */
+  z-index: 4;
   transition: background 0.12s, border-color 0.12s, transform 0.12s;
 }
 .timeline-easing-symbol:hover {
