@@ -52,6 +52,16 @@
     if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.cloud_status) return;
     window.pywebview.api.cloud_status().then(function (s) {
       _stand = s;
+      // ⚠️ Versteckt heißt wirklich versteckt: keine Anzeige, kein Zeitgeber,
+      // und `ui/js/app.js` liest dieses Merkmal, um den Abschnitt in den
+      // Einstellungen wegzulassen. Siehe `_cloud_sichtbar()` in app.py.
+      window.rzCloudSichtbar = !!(s && s.sichtbar);
+      if (!window.rzCloudSichtbar) {
+        var weg = document.getElementById("cloud-stand");
+        if (weg) weg.hidden = true;
+        if (_uhr) { clearInterval(_uhr); _uhr = null; }
+        return;
+      }
       anzeigen(s);
       // ⚠️ Der Zeitgeber läuft NUR, solange etwas überträgt. Sonst fragte die
       // App im Sekundentakt nach, obwohl sich nie etwas ändert.
@@ -127,6 +137,8 @@
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
         '<button class="btn btn--primary" id="cloud-jetzt">' +
           T("cloud.jetzt", "Jetzt abgleichen") + '</button>' +
+        '<button class="btn btn--ghost" id="cloud-daten">' +
+          T("cloud.daten_zeigen", "Zugangsdaten anzeigen") + '</button>' +
         '<button class="btn btn--ghost" id="cloud-weg">' +
           T("cloud.trennen", "Verbindung trennen") + '</button>' +
       '</div>' +
@@ -180,7 +192,14 @@
                '<div>' + T("cloud.passwort_hinweis",
                  "Speichere es jetzt in deinem Passwortmanager. Du brauchst es, um " +
                  "einen zweiten Rechner zu verbinden. Geht es verloren, kommt niemand " +
-                 "mehr an die Daten — auch wir nicht.") + '</div>');
+                 "mehr an die Daten — auch wir nicht.") + '</div>' +
+               // ⚠️ Der Zugangsschlüssel gehört DANEBEN, nicht versteckt: Beides
+               // zusammen ist der Weg zurück ins Archiv. Läge er nur im
+               // Schlüsselbund, käme man nach dessen Verlust selbst mit dem
+               // Passwort nicht mehr an den Server.
+               '<div style="margin-top:12px"><b>' + T("cloud.zugang", "Zugangsschlüssel") + '</b>' +
+               '<div style="font:13px/1.5 ui-monospace,monospace;user-select:all;' +
+               'word-break:break-all">' + (r.zugang || "") + '</div></div>');
         standHolen();
       });
     };
@@ -216,6 +235,19 @@
         window.pywebview.api.cloud_plan().then(function (p) {
           planEl.textContent = p.ok ? p.text : "";
         });
+      });
+    };
+    document.getElementById("cloud-daten").onclick = function () {
+      window.pywebview.api.cloud_zugangsdaten().then(function (r) {
+        if (!r.ok) { melden(r.error, "fehler"); return; }
+        melden('<b>' + T("cloud.zugang", "Zugangsschlüssel") + '</b>' +
+               '<div style="font:13px/1.5 ui-monospace,monospace;user-select:all;' +
+               'word-break:break-all;margin:6px 0">' + r.zugang + '</div>' +
+               '<div>' + T("cloud.daten_hinweis",
+                 "Zusammen mit deinem Archiv-Passwort kommst du damit von jedem " +
+                 "Rechner an dieses Archiv. Das Passwort selbst kann die App " +
+                 "nicht mehr zeigen — es steht nur in deinem Passwortmanager.") +
+               '</div>');
       });
     };
     document.getElementById("cloud-weg").onclick = function () {

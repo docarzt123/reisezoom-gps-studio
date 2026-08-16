@@ -290,6 +290,16 @@ geschnitten wird, ist die Zeit gestaucht: die Anim-Phase verteilt
 Entwurf und Begründungen: `docs/IDEAS.md` §26. Hier nur, was beim Anfassen
 wichtig ist.
 
+> 🔒 **Seit v0.9.516 versteckt.** `Api._cloud_sichtbar()` ist der einzige
+> Schalter. Aus (Vorgabe) heißt: `cloud_status()` antwortet `sichtbar: false`,
+> **`core.cloud` wird nicht importiert und der Schlüsselbund nicht gefragt**,
+> jede weitere Cloud-Brücke lehnt ab, und die Oberfläche baut weder Anzeige
+> noch Abschnitt in den Einstellungen. Anschalten zum Weiterbauen: `RZ_CLOUD=1`
+> oder eine Datei `cloud-freischalten.txt` im App-Daten-Ordner. **Vorher
+> freischalten, sonst wirkt jede Änderung wirkungslos.** Wächter:
+> `tests/test_cloud_versteckt.py`. Weg darf der Schalter erst, wenn
+> selbsttätiger Abgleich, Einzeltour-Holen und Papierkorb da sind.
+
 > ⚠️ **Alles ist ZUSÄTZLICH.** Nichts außerhalb von `core/cloud/` importiert das
 > Paket, und die Brücken in `app.py` importieren **lazy** — `app.py` startet
 > auch ohne `cryptography` und `keyring`. Wer hier etwas ändert, muss das

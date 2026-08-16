@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.515"
+APP_VERSION = "0.9.516"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -4495,6 +4495,44 @@ class Api:
 
     ARCHIV_KENNUNG = "haupt"          # ein Archiv je Rechner (docs/IDEAS §26)
 
+    def _cloud_sichtbar(self) -> bool:
+        """Ist das Cloud-Archiv in dieser Fassung überhaupt zu sehen?
+
+        ⚠️ Standard: NEIN (Marc, 16.08.2026 — „kannst du das verstecken? so
+        lange das noch nicht komplett fertig ist"). Fehlen tun noch der
+        selbsttätige Abgleich, das Holen einzelner Touren auf Gerät 2 und der
+        Papierkorb. Halbfertiges in der Oberfläche kostet Vertrauen: Wer den
+        Knopf sieht, hält das Archiv für fertig — und verlässt sich darauf.
+
+        Ist es aus, wird `core.cloud` **gar nicht erst geladen** und der
+        Schlüsselbund nicht angefasst. Das ist der eigentliche Punkt: Auch der
+        bloße Blick in den Schlüsselbund kann auf einem fremden Rechner einen
+        Freigabedialog auslösen (siehe `core/cloud/keys.py`, ZEITGRENZE).
+
+        Anschalten zum Weiterbauen — eines von beiden genügt:
+          * `RZ_CLOUD=1` in der Umgebung, oder
+          * eine Datei `cloud-freischalten.txt` neben den App-Daten
+            (praktischer, weil die gebaute App keine Umgebung erbt).
+        """
+        if os.environ.get("RZ_CLOUD", "").strip().lower() in ("1", "an", "ja", "on", "true"):
+            return True
+        try:
+            return (APP_SUPPORT / "cloud-freischalten.txt").exists()
+        except Exception:
+            return False
+
+    def _cloud_aus(self) -> dict:
+        """Antwort für jede Cloud-Brücke, solange sie versteckt ist.
+
+        ⚠️ Der Text ist bewusst englisch und technisch: Diese Antwort kann
+        keinen Nutzer erreichen — die Oberfläche baut den Weg dorthin gar nicht.
+        Sie landet nur im Log. Ein deutscher Satz ohne Übersetzung wäre hier
+        falscher Aufwand, und `tests/test_keine_hartkodierte_sprache.py` hat ihn
+        zu Recht angemeckert.
+        """
+        return {"ok": False, "sichtbar": False,
+                "error": "cloud archive hidden in this build (see _cloud_sichtbar)"}
+
     def _cloud_teile(self):
         """Die Cloud-Module holen — oder sagen, warum es nicht geht."""
         try:
@@ -4519,13 +4557,19 @@ class Api:
 
     def cloud_status(self) -> dict:
         """Wie steht es um die Cloud? Für die Zustandsanzeige und die Einstellungen."""
+        # ⚠️ Diese eine Zeile ist der ganze Schalter für die Oberfläche: Kommt
+        # `sichtbar: false` zurück, baut `ui/js/cloud.js` weder Anzeige noch
+        # Knopf, und `ui/js/app.js` lässt den Abschnitt in den Einstellungen
+        # weg. Kein Import, kein Schlüsselbund, kein Zeitgeber.
+        if not self._cloud_sichtbar():
+            return {"ok": True, "sichtbar": False, "verfuegbar": False}
         try:
             teile = self._cloud_teile()
         except RuntimeError as e:
             return {"ok": True, "verfuegbar": False, "grund": str(e)}
         vorhanden = self._cloud_zugang()
         antwort = {
-            "ok": True, "verfuegbar": True,
+            "ok": True, "sichtbar": True, "verfuegbar": True,
             "eingerichtet": vorhanden is not None,
             "ablage": teile["keys"].ablage_beschreibung(),
             "lauf": getattr(self, "_cloud_lauf", None),
@@ -4536,6 +4580,8 @@ class Api:
 
     def cloud_pruefen(self, adresse: str) -> dict:
         """Spricht dort eine Gegenstelle? Ohne etwas zu verändern."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
         try:
             teile = self._cloud_teile()
             g = teile["transport"].Gegenstelle(adresse)
@@ -4547,6 +4593,8 @@ class Api:
 
     def cloud_einrichten(self, adresse: str) -> dict:
         """Neues Archiv anlegen. Gibt das Passwort zurück — genau einmal."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
         try:
             teile = self._cloud_teile()
             crypto, keys, transport = teile["crypto"], teile["keys"], teile["transport"]
@@ -4563,15 +4611,22 @@ class Api:
                                 basis=APP_SUPPORT)
             keys.datenschluessel_ablegen(self.ARCHIV_KENNUNG, schluessel, basis=APP_SUPPORT)
             log.info("Cloud-Archiv eingerichtet: %s", adresse)
-            # ⚠️ Das Passwort wird hier ein einziges Mal ausgegeben. Es liegt
-            # danach nur im Schlüsselbund — wir können es nicht wieder zeigen.
-            return {"ok": True, "passwort": passwort}
+            # ⚠️ Das PASSWORT wird hier ein einziges Mal ausgegeben — es liegt
+            # danach nur im Schlüsselbund und lässt sich nicht wieder herleiten.
+            # Der ZUGANGSSCHLÜSSEL kommt mit, weil beides zusammen gebraucht
+            # wird, um von einem anderen Rechner (oder nach einem verlorenen
+            # Schlüsselbund) wieder an das Archiv zu kommen. Ihn allein kann die
+            # App später erneut zeigen (`cloud_zugangsdaten`), das Passwort nie.
+            return {"ok": True, "passwort": passwort,
+                    "zugang": zugang_schluessel, "adresse": adresse}
         except Exception as e:      # noqa: BLE001
             log.exception("Cloud einrichten fehlgeschlagen")
             return {"ok": False, "error": str(e)}
 
     def cloud_verbinden(self, adresse: str, zugangsschluessel: str, passwort: str) -> dict:
         """Mit einem vorhandenen Archiv verbinden — der Weg von Gerät 2."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
         try:
             teile = self._cloud_teile()
             crypto, keys, transport = teile["crypto"], teile["keys"], teile["transport"]
@@ -4588,8 +4643,27 @@ class Api:
         except Exception as e:      # noqa: BLE001
             return {"ok": False, "error": str(e)}
 
+    def cloud_zugangsdaten(self) -> dict:
+        """Adresse und Zugangsschlüssel erneut zeigen.
+
+        ⚠️ Bewusst OHNE das Archiv-Passwort: Das kennt die App nicht mehr, sie
+        hat nur den daraus gewonnenen Datenschlüssel. Wer sein Passwort verliert,
+        verliert das Archiv — daran ändert auch diese Funktion nichts. Sie hilft
+        gegen den anderen Fall: Zugangsschlüssel notieren, solange man noch
+        herankommt.
+        """
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        vorhanden = self._cloud_zugang()
+        if not vorhanden:
+            return {"ok": False, "error": "nicht eingerichtet"}
+        _, zugang, _ = vorhanden
+        return {"ok": True, "adresse": zugang.adresse, "zugang": zugang.schluessel}
+
     def cloud_trennen(self) -> dict:
         """Abmelden. Löscht NUR die Zugangsdaten hier, nichts auf dem Server."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
         try:
             teile = self._cloud_teile()
             teile["keys"].archiv_vergessen(self.ARCHIV_KENNUNG, basis=APP_SUPPORT)
@@ -4599,6 +4673,8 @@ class Api:
 
     def cloud_plan(self) -> dict:
         """Was wäre zu tun? Ohne etwas zu übertragen."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}
@@ -4629,6 +4705,8 @@ class Api:
 
     def cloud_abgleichen(self) -> dict:
         """Alles Ausstehende übertragen. Meldet Fortschritt über `cloud_fortschritt`."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}

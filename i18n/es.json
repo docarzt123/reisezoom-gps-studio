@@ -332,6 +332,8 @@
   "cloud.neu": "Crear un archivo nuevo",
   "cloud.alt": "Conectar con uno existente",
   "cloud.zugang": "Clave de acceso",
+  "cloud.daten_zeigen": "Mostrar datos de acceso",
+  "cloud.daten_hinweis": "Junto con la contraseña de tu archivo, esto te da acceso desde cualquier ordenador. La contraseña ya no se puede mostrar: solo está en tu gestor de contraseñas.",
   "cloud.passwort": "Contraseña del archivo",
   "cloud.verbinden": "Conectar",
   "cloud.verbinde": "Conectando…",

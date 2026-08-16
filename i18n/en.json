@@ -332,6 +332,8 @@
   "cloud.neu": "Create a new archive",
   "cloud.alt": "Connect to an existing one",
   "cloud.zugang": "Access key",
+  "cloud.daten_zeigen": "Show connection details",
+  "cloud.daten_hinweis": "Together with your archive passphrase this gets you to the archive from any computer. The passphrase itself cannot be shown again — it lives only in your password manager.",
   "cloud.passwort": "Archive passphrase",
   "cloud.verbinden": "Connect",
   "cloud.verbinde": "Connecting …",

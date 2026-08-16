@@ -321,13 +321,23 @@ function mountTimelineBar(opts) {
   // dagegen mit ihrem rohen Anker als Leisten-Position gezeichnet. Ohne Intro
   // und ohne Hold sind beide Größen gleich, deshalb fiel es nie auf; mit Hold
   // wanderten die Pins nach rechts weg von ihrer Stelle im Track.
+  // ⚠️ Bewusst OHNE Klemmen auf 0..1 (Fehler-Bericht Rafael, 16.08.2026:
+  // „Früher konnte ich hier einen Keyframe setzen, in dieser letzten Version
+  // schaffe ich das nicht.")
+  //
+  // Ein Keyframe DARF vor dem Track-Anfang liegen: Das ist der Anlauf im Intro,
+  // mit dem die Kamera schon in Bewegung ist, wenn der Track beginnt — und
+  // hinter dem Ende ebenso, für den Nachschwenk im Hold. Der Renderer rechnet
+  // dort ohnehin mit Ankern außerhalb 0..1 (`_kamera_anker` in
+  // core/animator.py). Mit dem Klemmen landete im Intro jeder Klick bei 0, der
+  // Keyframe sprang an den Track-Anfang, und es sah aus, als ginge es nicht.
   function _trackToBar(a) {
     const tf = _trackFraction || 1.0, ti = _introFraction || 0.0;
-    return ti + Math.max(0, Math.min(1, a)) * Math.max(0.0001, tf - ti);
+    return ti + a * Math.max(0.0001, tf - ti);
   }
   function _barToTrack(p) {
     const tf = _trackFraction || 1.0, ti = _introFraction || 0.0;
-    return Math.max(0, Math.min(1, (p - ti) / Math.max(0.0001, tf - ti)));
+    return (p - ti) / Math.max(0.0001, tf - ti);
   }
   function _clampViewOffset(off) {
     return Math.max(0, Math.min(1 - _viewWindow(), off));
@@ -524,6 +534,16 @@ function mountTimelineBar(opts) {
         const b = clusters[i + 1];
         const targetEasing = (b.events.find(e => e && e.easing) || {}).easing || "linear";
         const midAnchor = (a.anchor + b.anchor) / 2;
+        // ⚠️ Nur zeichnen, wenn dazwischen PLATZ ist (Fehler-Bericht Rafael,
+        // 16.08.2026: „Wenn der Zoom der Zeitleiste auf 1 steht, verdeckt der
+        // Übergangs-Knopf den Keyframe-Knopf."). Symbol und Cluster sind beide
+        // 22 px breit; liegen zwei Keyframes näher beieinander, deckt das
+        // Symbol sie zu — und weil es obendrauf liegt, schluckt es die Klicks.
+        // Ein Knopf, den man nicht treffen kann, ist schlimmer als keiner:
+        // Beim Hineinzoomen taucht er wieder auf.
+        const breitePx = (trackEl.getBoundingClientRect().width || 0) * _viewZoom;
+        const abstandPx = Math.abs(_trackToBar(b.anchor) - _trackToBar(a.anchor)) * breitePx;
+        if (abstandPx < 46) continue;
         const sym = document.createElement("button");
         sym.type = "button";
         sym.className = "timeline-easing-symbol easing-" + targetEasing;

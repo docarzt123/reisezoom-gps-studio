@@ -14,9 +14,34 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.515] – 2026-08-15
+## [0.9.516] – 2026-08-16
 
-### Neu
+### Behoben
+- **Im Anlauf lässt sich wieder ein Keyframe setzen.** Seit dem Umbau auf
+  track-feste Keyframes (v0.9.511) rutschte jeder Klick vor dem Track-Anfang
+  auf Position 0 — der Keyframe landete am Streckenanfang statt dort, wo der
+  Zeiger stand. Ursache war ein Einklemmen auf 0–1; ein Anker davor (Anlauf)
+  oder dahinter (Nachlauf) ist ausdrücklich erlaubt, der Renderer rechnet
+  ohnehin so. Gemeldet von einem Nutzer aus Spanien.
+- **Der Schnitt bleibt nach dem Neustart erhalten.** Ein Projekt mit
+  gekürztem Track („ab 40 % der Strecke") öffnete sich wieder mit dem ganzen
+  Track — gespeichert war der Schnitt noch, angewendet wurde er nicht. Zwei
+  Ursachen: Die Leiste war fertig, bevor die Sitzung stand, und setzte dabei
+  ihre Vorgabe „ganzer Track"; danach holte das Nachladen der Sitzung zwar
+  Keyframes, Farben und Verteilung nach, den Schnitt aber nie. Beides behoben.
+- **Das Übergangs-Symbol verdeckt den Keyframe nicht mehr.** Bei
+  Zeitleisten-Zoom 1× lagen beide auf derselben Stelle, und Klicks landeten
+  auf dem Symbol statt auf dem Keyframe. Jetzt wird das Symbol weggelassen, wo
+  kein Platz ist — und liegt, wo es doch eng wird, unter dem Keyframe.
+
+### Intern (für Nutzer nicht sichtbar)
+- **Das Cloud-Archiv ist gebaut, bleibt aber versteckt**, bis es fertig ist:
+  Es fehlen noch der selbsttätige Abgleich, das Holen einzelner Touren auf dem
+  zweiten Rechner und der Papierkorb. Solange zeigt die App weder Anzeige noch
+  Abschnitt in den Einstellungen, lädt `core.cloud` nicht und fragt den
+  Schlüsselbund nicht. Freischalten zum Weiterbauen: `RZ_CLOUD=1` oder eine
+  Datei `cloud-freischalten.txt` bei den App-Daten. Entwurf: `docs/IDEAS.md` §26.
+  <details><summary>Was es einmal können soll</summary>
 - **Cloud-Archiv: dein Archiv auf deinem eigenen Webserver.** Eine Datei
   (`rz-cloud.php`) auf den eigenen Webspace laden, in den Einstellungen Adresse
   eintragen — fertig. Danach wandert alles automatisch hoch: Touren,
@@ -28,7 +53,7 @@ Bei jeder neuen Version:
   App und zeigt es genau einmal — es gehört in einen Passwortmanager.
   ⚠️ **Das ist freiwillig.** Wer nichts einrichtet, merkt von der ganzen Sache
   nichts: alles bleibt lokal, genau wie bisher.
-  Entwurf und Begründungen: `docs/IDEAS.md` §26.
+  </details>
 
 ### Entfernt
 - **Die Solo-App „Reisezoom Geotagger" wird eingestellt.** Sie wird nicht mehr

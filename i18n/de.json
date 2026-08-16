@@ -332,6 +332,8 @@
   "cloud.neu": "Neues Archiv anlegen",
   "cloud.alt": "Mit vorhandenem verbinden",
   "cloud.zugang": "Zugangsschlüssel",
+  "cloud.daten_zeigen": "Zugangsdaten anzeigen",
+  "cloud.daten_hinweis": "Zusammen mit deinem Archiv-Passwort kommst du damit von jedem Rechner an dieses Archiv. Das Passwort selbst kann die App nicht mehr zeigen — es steht nur in deinem Passwortmanager.",
   "cloud.passwort": "Archiv-Passwort",
   "cloud.verbinden": "Verbinden",
   "cloud.verbinde": "Verbinde …",
