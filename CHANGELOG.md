@@ -35,6 +35,11 @@ Bei jeder neuen Version:
   kein Platz ist — und liegt, wo es doch eng wird, unter dem Keyframe.
 
 ### Intern (für Nutzer nicht sichtbar)
+- **Der Smoke-Test im Deploy lief nie.** `scripts/deploy_release.sh` prüfte die
+  Live-URLs über eine Liste, die nirgends gefüllt wurde — unter `set -u` starb
+  das Skript an dieser Stelle, nach dem Upload und vor jeder Prüfung. Jetzt
+  prüft es, was wirklich hochgeladen wurde, folgt Weiterleitungen und endet mit
+  Fehler, wenn eine Datei nicht erreichbar ist.
 - **Das Cloud-Archiv ist gebaut, bleibt aber versteckt**, bis es fertig ist:
   Es fehlen noch der selbsttätige Abgleich, das Holen einzelner Touren auf dem
   zweiten Rechner und der Papierkorb. Solange zeigt die App weder Anzeige noch
