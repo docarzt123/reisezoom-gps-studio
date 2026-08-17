@@ -14,6 +14,21 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.517] – 2026-08-17
+
+### Behoben
+- **Keyframes im Anlauf — jetzt wirklich.** v0.9.516 hat die falsche von zwei
+  Klemmen gelöst: Die Zeitleiste rechnete richtig (sie zeigte −16,7 % an), aber
+  das Anlegen selbst zwang den Anker anschließend wieder auf 0..1, und der
+  Keyframe sprang an den Streckenanfang. Betroffen waren alle Wege: setzen,
+  duplizieren, einfügen und **auch das Ziehen** eines Keyframes in den Anlauf.
+  Jetzt gilt überall dieselbe Grenze — genau der Bereich, den die Leiste zeigt,
+  Anlauf und Nachlauf eingeschlossen.
+  ⚠️ Warum es beim ersten Mal durchrutschte: Das Projekt, an dem geprüft wurde,
+  hatte **keinen Anlauf**. Ohne Anlauf ist jeder Anker positiv und die Klemme
+  greift nie. Gemeldet (mit Video) von demselben Nutzer, der schon den ersten
+  Bericht geschickt hatte.
+
 ## [0.9.516] – 2026-08-16
 
 ### Behoben
