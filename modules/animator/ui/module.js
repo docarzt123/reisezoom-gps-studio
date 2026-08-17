@@ -3615,6 +3615,29 @@ function mountAnimator(body, headerActions, opts) {
     /* intentionally no-op since v0.9.64 — keine Auto-Selektion mehr */
   }
 
+  /** Einen Keyframe-Anker auf das begrenzen, was die Leiste überhaupt zeigt.
+   *
+   * ⚠️ NICHT auf 0..1 klemmen. 0..1 ist der Track — davor liegt der Anlauf
+   * (Intro), dahinter der Nachlauf (Hold), und dort sollen Keyframes stehen
+   * dürfen; der Renderer wertet negative Anker und solche über 1 längst aus
+   * (`_kamera_anker` in `core/animator.py`).
+   *
+   * Genau daran scheiterte v0.9.516 noch: Die Leiste rechnete richtig, aber
+   * `snapshotKeyframe` klemmte den Anker auf 0 — im Anlauf gesetzte Keyframes
+   * sprangen an den Streckenanfang. Auf einem Projekt ohne Intro fällt das
+   * nicht auf, deshalb blieb es beim Testen unentdeckt (Bericht mit Video,
+   * 17.08.2026).
+   */
+  function ankerBegrenzen(anchor) {
+    const a = Number(anchor) || 0;
+    if (_tlBar && typeof _tlBar.barToTrack === "function") {
+      const min = _tlBar.barToTrack(0);      // linker Rand der Leiste = Anfang des Anlaufs
+      const max = _tlBar.barToTrack(1);      // rechter Rand = Ende des Nachlaufs
+      return Math.max(min, Math.min(max, a));
+    }
+    return Math.max(0, Math.min(1, a));
+  }
+
   // Snapshot-Workflow (v0.9.0): aktuelle Kartenansicht → 4 Property-Events
   // (pitch / bearing / zoom / center) am gleichen Anker. Wenn dort schon ein
   // Cluster ist, werden seine Events upgedated.
@@ -3623,7 +3646,7 @@ function mountAnimator(body, headerActions, opts) {
     options = options || {};
     _animPushUndo(t("undo.keyframe_gesetzt", "Keyframe gesetzt"), { force: true });
     if (anchor == null) anchor = _tlBar ? _tlBar.getScrubber() : 0;
-    anchor = Math.max(0, Math.min(1, anchor));
+    anchor = ankerBegrenzen(anchor);
     const pitch = +map.getPitch().toFixed(2);
     const bearing = +map.getBearing().toFixed(2);
     const curZoom = +map.getZoom().toFixed(3);
@@ -3705,7 +3728,7 @@ function mountAnimator(body, headerActions, opts) {
       return;
     }
     if (!KF_LANES.includes(kind)) return;
-    anchor = Math.max(0, Math.min(1, anchor));
+    anchor = ankerBegrenzen(anchor);
     // Bestehenden Event derselben Property am gleichen Anker entfernen.
     // v0.9.38: Toleranz 0.001 → 0.005 (siehe snapshotKeyframe).
     const events = getRawTimelineEvents().filter(e =>
@@ -3833,7 +3856,7 @@ function mountAnimator(body, headerActions, opts) {
    */
   function duplicateEvent(ev, zielAnker) {
     if (!ev || !ev.kind) return 0;
-    const ziel = Math.max(0, Math.min(1, zielAnker));
+    const ziel = ankerBegrenzen(zielAnker);
     // Auf sich selbst kopieren ergäbe „Original durch Original ersetzen" —
     // sichtbar passiert nichts, aber es landete ein Undo-Schritt im Verlauf.
     if (Math.abs(ziel - (ev.anchor || 0)) < KF_TOLERANZ) return 0;
@@ -3883,7 +3906,7 @@ function mountAnimator(body, headerActions, opts) {
 
   function pasteEventFromClipboard(zielAnker) {
     if (!_kfClipboard || !_kfClipboard.events.length) return;
-    const ziel = Math.max(0, Math.min(1, zielAnker));
+    const ziel = ankerBegrenzen(zielAnker);
     _animPushUndo(t("undo.keyframe_eingefuegt", "Keyframe eingefügt"), { force: true });
     const arten = _kfClipboard.events.map(e => e.kind);
     const events = _kollisionenRaeumen(getRawTimelineEvents().slice(), arten, ziel);
@@ -3903,7 +3926,10 @@ function mountAnimator(body, headerActions, opts) {
   function moveEvent(ev, newAnchor) {
     _animPushUndo(t("undo.keyframe_verschoben", "Keyframe verschoben"));  // throttled — pusht nur den 1. Drag-State
     if (!ev || !ev.kind) return;
-    const clamped = Math.max(0, Math.min(1, newAnchor));
+    // ⚠️ Auch beim Ziehen gilt der ganze Bereich der Leiste, nicht nur der
+    // Track: Ein Keyframe darf in den Anlauf und in den Nachlauf gezogen
+    // werden. Vorher sprang er beim Loslassen an den Streckenanfang zurück.
+    const clamped = ankerBegrenzen(newAnchor);
 
     // v0.9.4 — Cluster-Drag: alle Events am Anker zusammen verschieben.
     if (ev.kind === "__cluster") {
