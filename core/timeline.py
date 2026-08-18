@@ -154,10 +154,13 @@ def interpolate_camera(
       diesen verwenden. Wenn keiner → None (Track-Folgen).
     """
     kfs = keyframes_from_events(events)
-    progress = max(0.0, min(1.0, progress))
 
     if not kfs:
-        bearing = default_bearing_start + progress * default_rotation
+        # ⚠️ NUR hier klemmen: Der Rundum-Schwenk ohne Keyframes ist als
+        # „einmal über den Track" definiert — in Anlauf und Nachlauf soll er
+        # stehen bleiben, nicht weiterdrehen. Wo Keyframes da sind, gilt der
+        # Anker dagegen ungeklemmt (18.08.2026, siehe interpolate_properties).
+        bearing = default_bearing_start + max(0.0, min(1.0, progress)) * default_rotation
         return (default_pitch, bearing, 0.0, None)
 
     if len(kfs) == 1 or progress <= kfs[0].anchor:
@@ -646,7 +649,12 @@ def interpolate_properties(
     (frei ↔ Track-folgen) glatt zwischen freier Position und Track-Punkt pant
     statt einzufrieren und am Follow-KF zu springen (WYSIWYG mit Preview).
     """
-    progress = max(0.0, min(1.0, progress))
+    # ⚠️ Bewusst OHNE Klemmen auf 0..1 (18.08.2026, siehe module.js): In Intro
+    # und Hold läuft der Anker über die Track-Grenzen hinaus weiter (siehe
+    # `_kamera_anker` in `animator.py`), und Keyframes dürfen dort liegen. Wer
+    # hier klemmt, wertet den ganzen Anlauf bei 0 aus — hinter allen Keyframes,
+    # die davor liegen — und der Anflug der Kamera fällt aus. Die Helfer unten
+    # halten außerhalb am ersten bzw. letzten Keyframe.
 
     # Property-Events filtern
     pitch_evs    = _events_by_kind(events, "pitch")
