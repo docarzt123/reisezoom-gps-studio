@@ -5213,7 +5213,14 @@ function mountAnimator(body, headerActions, opts) {
   // bisheriges lineares Verhalten greift.
   function interpolateCameraJs(events, progress, defaultPitch, defaultRotation, defaultBearingStart, fitZoomBase, opts) {
     if (defaultBearingStart == null) defaultBearingStart = -10;
-    progress = Math.max(0, Math.min(1, progress));
+    // ⚠️ NICHT auf 0..1 klemmen (18.08.2026). Anlauf und Nachlauf haben Anker
+    // außerhalb des Tracks, und dort sollen Keyframes wirken. Mit der Klemme
+    // wurde im ganzen Anlauf bei 0 ausgewertet — also HINTER allen Keyframes,
+    // die davor lagen: Die Kamera stand vom ersten Bild an auf dem letzten
+    // Wert, und der gewollte Zoom-Anflug fand nie statt (Bericht mit Video).
+    // Die Helfer darunter halten außerhalb sauber am ersten bzw. letzten
+    // Keyframe (`_interpScalar`), das Klemmen war also nie nötig, sondern
+    // hat die Auswertung schlicht auf den Track beschnitten.
     const evs = Array.isArray(events) ? events : [];
 
     // v0.9.38 (Marc-Bug-Report): De-Dup pro kind + anchor.

@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.518] – 2026-08-18
+
+### Behoben
+- **Keyframes im Anlauf wirken jetzt auch.** Seit v0.9.517 ließen sie sich dort
+  setzen, die Kamera fuhr sie aber nicht an: Wer eine Totale in den Anlauf legte
+  und kurz vor dem Track-Anfang einen nahen Keyframe, sah von der ersten Sekunde
+  an die Nahaufnahme — der Anflug fand nicht statt. Beide Auswerte-Funktionen
+  zwangen den Anker auf 0..1, im Anlauf wurde also durchgehend am Track-Anfang
+  ausgewertet, hinter allen Keyframes, die davor lagen. Betraf **Vorschau und
+  fertiges Video** gleichermaßen. Der Rundum-Schwenk ohne Keyframes bleibt
+  bewusst auf den Track begrenzt.
+  Gemeldet, wieder mit Video, von demselben Nutzer.
+
 ## [0.9.517] – 2026-08-17
 
 ### Behoben
