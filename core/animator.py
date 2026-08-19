@@ -3797,15 +3797,43 @@ async def render(
     _anker_bis = (_end_idx / (len(points) - 1)) if len(points) > 1 else 1.0
     _anker_pro_frame = (_anker_bis - _anker_von) / max(1, anim_frames)
 
+    # ⚠️ Wo der Anlauf anfängt und der Nachlauf aufhört (Marc-Entscheidung
+    # 18.08.2026, „die Leiste hat recht"): am linken bzw. rechten Rand der
+    # Zeitleiste. In Track-Ankern ist der linke Rand −Intro/Animation und der
+    # rechte 1 + Nachlauf/Animation — unabhängig vom Schnitt, genau die Werte,
+    # die `barToTrack(0)` und `barToTrack(1)` in der Oberfläche liefern.
+    # Der Anlauf fährt also den weggeschnittenen Anfang der Strecke ab und
+    # kommt am Schnitt-Anfang an; ohne Schnitt bleibt es der Anflug von
+    # außerhalb, den es vorher schon gab.
+    _anker_links = -(intro_frames / max(1, anim_frames))
+    _anker_rechts = 1.0 + (hold_frames / max(1, anim_frames))
+
+    # ⚠️ Keyframes werden entlang der ZEIT interpoliert, nicht entlang der
+    # Strecke (19.08.2026). Der Anker läuft in den drei Phasen verschieden
+    # schnell — im Anlauf drückt sich der weggeschnittene Anfang in wenige
+    # Sekunden. Wer über den Anker interpoliert, sieht die Kamera genau am
+    # gelben Griff abbremsen (Marc, an seinem Projekt: Faktor 3,3).
+    # `anchor` bleibt unangetastet; Track-folgen-Keyframes schlagen darüber
+    # weiter ihren Punkt nach.
+    _ti_zeit = intro_frames / max(1, total_frames)
+    _tf_zeit = (intro_frames + anim_frames) / max(1, total_frames)
+    _events_zeit = _timeline.mit_zeit(cfg.timeline_events, ti=_ti_zeit, tf=_tf_zeit,
+                                      trim_a=_anker_von, trim_b=_anker_bis)
+
     def _kamera_anker(fr: int) -> float:
-        """Frame → Stelle im Track, über die Trim-Grenzen hinaus fortgesetzt."""
+        """Frame → Stelle im Track. Anlauf und Nachlauf laufen über genau den
+        Bereich, den der Scrubber in der Oberfläche sichtbar abfährt."""
         if fr < intro_frames:
-            return _anker_von - (intro_frames - fr) * _anker_pro_frame
+            _p = fr / max(1, intro_frames)
+            return _anker_links + _p * (_anker_von - _anker_links)
         if fr < intro_frames + anim_frames:
             _rel = int((fr - intro_frames) * coords_per_frame)
             _i = min(_start_idx + _rel, _end_idx)
             return (_i / (len(points) - 1)) if len(points) > 1 else 0.0
-        return _anker_bis + (fr - intro_frames - anim_frames) * _anker_pro_frame
+        if hold_frames <= 0:
+            return _anker_bis
+        _p = (fr - intro_frames - anim_frames) / hold_frames
+        return _anker_bis + _p * (_anker_rechts - _anker_bis)
 
     def _frame_bei_anker(a: float) -> int:
         """Umkehrung — welcher Frame zeigt diese Stelle des Tracks?"""
@@ -4212,7 +4240,7 @@ async def render(
                 else:
                     idx = _end_idx
                 pitch_p, bearing_p, zoom_off_p, kf_center, kf_position, kf_rotation = _timeline.interpolate_properties(
-                    cfg.timeline_events, _kamera_anker(frame),   # v0.9.511: Track statt Uhr
+                    _events_zeit, frame / max(1, total_frames - 1),   # v0.9.520: Zeit, nicht Anker
                     default_pitch=cfg.pitch,
                     default_rotation=cfg.rotation,
                     fit_zoom_base=zoom,

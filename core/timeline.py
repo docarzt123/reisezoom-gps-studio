@@ -248,6 +248,77 @@ def interpolate_camera(
 # Backend nimmt beide Formate entgegen: zuerst Property-Events versuchen,
 # wenn leer → Fallback auf alte camera-Events via interpolate_camera().
 
+# ══════════════════════════════════════════════════════════════════════════
+#  Wo ein Keyframe auf der ZEIT liegt
+# ══════════════════════════════════════════════════════════════════════════
+
+def anker_zu_zeit(anchor: float, *, ti: float, tf: float,
+                  trim_a: float, trim_b: float) -> float:
+    """Track-Anker → Anteil der Gesamtdauer (0..1).
+
+    ⚠️ Warum es das gibt (19.08.2026): Keyframes werden ENTLANG DER ZEIT
+    interpoliert, nicht entlang der Strecke. Vorher lief die Interpolation über
+    den Anker — und der bewegt sich in den drei Phasen verschieden schnell: Im
+    Anlauf drückt sich der ganze weggeschnittene Anfang in wenige Sekunden, in
+    der Animation dehnt sich der Rest über die volle Dauer. Bei Marcs Projekt
+    lief der Anker im Anlauf 3,3× so schnell wie danach; ein Zoom über beide
+    Phasen bremste deshalb genau am gelben Griff sichtbar ab.
+
+    Die drei Abschnitte, jeder für sich gleichmäßig:
+      * Anlauf     `links…trim_a`  →  `0…ti`
+      * Animation  `trim_a…trim_b` →  `ti…tf`
+      * Nachlauf   `trim_b…rechts` →  `tf…1`
+
+    `links` und `rechts` sind die Ränder der Zeitleiste in Anker-Einheiten;
+    sie ergeben sich aus ti/tf selbst (Anlauf- bzw. Nachlauf-Dauer geteilt
+    durch die Animationsdauer).
+    """
+    a = float(anchor)
+    ti = max(0.0, min(1.0, float(ti)))
+    tf = max(ti, min(1.0, float(tf)))
+    spanne = max(1e-9, trim_b - trim_a)
+    anim = max(1e-9, tf - ti)
+    # ⚠️ Die Ränder der Leiste hängen NICHT am Schnitt: Sie sind −Anlauf/Anim
+    # bzw. 1 + Nachlauf/Anim, genau das, was `barToTrack(0)` und
+    # `barToTrack(1)` in der Oberfläche liefern. (Erst falsch gerechnet und
+    # vom Test gefangen: mit einem schnittabhängigen Rand fielen alle
+    # Keyframes weit links auf den Zeitpunkt 0 zusammen.)
+    links = -(ti / anim)
+    rechts = (1.0 - ti) / anim
+    if a <= trim_a:
+        if ti <= 1e-9:
+            return 0.0
+        return max(0.0, ti * (a - links) / max(1e-9, trim_a - links))
+    if a >= trim_b:
+        if tf >= 1.0 - 1e-9:
+            return 1.0
+        return min(1.0, tf + (1.0 - tf) * (a - trim_b) / max(1e-9, rechts - trim_b))
+    return ti + anim * (a - trim_a) / spanne
+
+
+def mit_zeit(events, *, ti: float, tf: float, trim_a: float, trim_b: float) -> list[dict]:
+    """Kopie der Events, jeweils mit `zeit` versehen — der Achse, auf der
+    interpoliert wird. `anchor` bleibt unangetastet, weil er weiterhin die
+    Stelle im Track bezeichnet (Track-folgen-Keyframes schlagen darüber ihren
+    Punkt nach)."""
+    out = []
+    for e in (events or []):
+        if not isinstance(e, dict):
+            continue
+        k = dict(e)
+        k["zeit"] = anker_zu_zeit(float(e.get("anchor", 0)), ti=ti, tf=tf,
+                                  trim_a=trim_a, trim_b=trim_b)
+        out.append(k)
+    return out
+
+
+def _x(e: dict) -> float:
+    """Die Achse, auf der interpoliert wird: `zeit`, wenn vorhanden — sonst der
+    Anker (ältere Aufrufer, Tests, alte Projekte)."""
+    v = e.get("zeit")
+    return float(v) if v is not None else float(e.get("anchor", 0))
+
+
 def _events_by_kind(events: Iterable[dict] | None, kind: str) -> list[dict]:
     """Filtert + sortiert Events nach Anker.
 
@@ -263,10 +334,10 @@ def _events_by_kind(events: Iterable[dict] | None, kind: str) -> list[dict]:
     # De-Dup: anchor (gerundet) → event; späterer Eintrag überschreibt
     by_anchor: dict[str, dict] = {}
     for e in matching:
-        key = f"{float(e.get('anchor', 0)):.4f}"
+        key = f"{_x(e):.4f}"
         by_anchor[key] = e
     result = list(by_anchor.values())
-    result.sort(key=lambda e: float(e.get("anchor", 0)))
+    result.sort(key=lambda e: _x(e))
     return result
 
 
@@ -276,14 +347,14 @@ def _interpolate_scalar(evs: list[dict], progress: float, value_key: str = "valu
     """
     if not evs:
         return None
-    if len(evs) == 1 or progress <= float(evs[0].get("anchor", 0)):
+    if len(evs) == 1 or progress <= _x(evs[0]):
         return float(evs[0].get(value_key, 0))
-    if progress >= float(evs[-1].get("anchor", 0)):
+    if progress >= _x(evs[-1]):
         return float(evs[-1].get(value_key, 0))
     for i in range(len(evs) - 1):
         a, b = evs[i], evs[i + 1]
-        aa = float(a.get("anchor", 0))
-        ba = float(b.get("anchor", 0))
+        aa = _x(a)
+        ba = _x(b)
         if aa <= progress <= ba:
             span = ba - aa
             if span <= 0:
@@ -339,14 +410,14 @@ def _interpolate_zoom_offset(evs: list[dict], progress: float,
     v0.9.157 — `abs_shift` (correctedZoom-Korrektur) durchgereicht."""
     if not evs:
         return None
-    if len(evs) == 1 or progress <= float(evs[0].get("anchor", 0)):
+    if len(evs) == 1 or progress <= _x(evs[0]):
         return _zoom_effective_offset(evs[0], fit_zoom_base, abs_shift)
-    if progress >= float(evs[-1].get("anchor", 0)):
+    if progress >= _x(evs[-1]):
         return _zoom_effective_offset(evs[-1], fit_zoom_base, abs_shift)
     for i in range(len(evs) - 1):
         a, b = evs[i], evs[i + 1]
-        aa = float(a.get("anchor", 0))
-        ba = float(b.get("anchor", 0))
+        aa = _x(a)
+        ba = _x(b)
         if aa <= progress <= ba:
             span = ba - aa
             off_a = _zoom_effective_offset(a, fit_zoom_base, abs_shift)
@@ -363,14 +434,14 @@ def _interpolate_bearing_property(evs: list[dict], progress: float) -> float | N
     """Wie _interpolate_scalar, aber shortest-arc für Winkel."""
     if not evs:
         return None
-    if len(evs) == 1 or progress <= float(evs[0].get("anchor", 0)):
+    if len(evs) == 1 or progress <= _x(evs[0]):
         return float(evs[0].get("value", 0))
-    if progress >= float(evs[-1].get("anchor", 0)):
+    if progress >= _x(evs[-1]):
         return float(evs[-1].get("value", 0))
     for i in range(len(evs) - 1):
         a, b = evs[i], evs[i + 1]
-        aa = float(a.get("anchor", 0))
-        ba = float(b.get("anchor", 0))
+        aa = _x(a)
+        ba = _x(b)
         if aa <= progress <= ba:
             span = ba - aa
             if span <= 0:
@@ -397,16 +468,16 @@ def _interpolate_center_property(evs: list[dict], progress: float,
     evs_with_value = [e for e in evs if e.get("value") is not None]
     if not evs_with_value:
         return None
-    if len(evs) == 1 or progress <= float(evs[0].get("anchor", 0)):
+    if len(evs) == 1 or progress <= _x(evs[0]):
         v = evs[0].get("value")
         return [float(v[0]), float(v[1])] if v is not None else None
-    if progress >= float(evs[-1].get("anchor", 0)):
+    if progress >= _x(evs[-1]):
         v = evs[-1].get("value")
         return [float(v[0]), float(v[1])] if v is not None else None
     for i in range(len(evs) - 1):
         a, b = evs[i], evs[i + 1]
-        aa = float(a.get("anchor", 0))
-        ba = float(b.get("anchor", 0))
+        aa = _x(a)
+        ba = _x(b)
         if aa <= progress <= ba:
             span = ba - aa
             t = (progress - aa) / span if span > 0 else 1.0
@@ -417,9 +488,9 @@ def _interpolate_center_property(evs: list[dict], progress: float,
             if av is None and bv is None:
                 return None
             if av is None and track_point_at is not None:
-                av = track_point_at(aa)
+                av = track_point_at(float(a.get("anchor", 0)))
             if bv is None and track_point_at is not None:
-                bv = track_point_at(ba)
+                bv = track_point_at(float(b.get("anchor", 0)))
             if av is not None and bv is not None:
                 return [_lerp(float(av[0]), float(bv[0]), t),
                         _lerp(float(av[1]), float(bv[1]), t)]
@@ -582,8 +653,10 @@ def _maybe_flyto_interp(zoom_evs: list[dict], center_evs: list[dict],
     # rauszoomen. In Welt-Bruchteilen [0,1] passt u zu w=1/2^z → die Kurve bleibt
     # am weiten Ende oben (Welt-Sicht/Schwenk) und zoomt erst am Ende rein =
     # echter Kino-Flug statt Tiefflug-Geirre. Daher Skip entfernt.
-    seg = float(z_b.get("anchor", 0)) - float(z_a.get("anchor", 0))
-    t = (progress - float(z_a.get("anchor", 0))) / seg if seg > 0 else 1.0
+    # ⚠️ Auch hier die ZEIT-Achse (19.08.2026) — `progress` ist ein Zeitanteil.
+    # Mit den rohen Ankern gerechnet läge `t` in Anlauf und Nachlauf daneben.
+    seg = _x(z_b) - _x(z_a)
+    t = (progress - _x(z_a)) / seg if seg > 0 else 1.0
     # v0.9.136 — Multi-Turn-Winding (Welt-Drehung in der abgewickelten
     # center.lng) VON van-Wijk ENTKOPPELN. Wenn KF0.lng=10 und KF1.lng=370
     # (= 1 volle Drehung + Track), darf van-Wijk NICHT die rohe Differenz

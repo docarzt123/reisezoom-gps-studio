@@ -4927,13 +4927,16 @@ function mountAnimator(body, headerActions, opts) {
     if (kind === "ease_in_out") return t * t * (3.0 - 2.0 * t);
     return t;  // linear
   }
+  /** Die Achse, auf der interpoliert wird: `zeit`, sonst der Anker. */
+  function _xv(e) { return (e && e.zeit != null) ? e.zeit : ((e && e.anchor) || 0); }
+
   function _interpScalar(evs, progress, valueKey) {
     if (!evs.length) return null;
-    if (evs.length === 1 || progress <= (evs[0].anchor || 0)) return evs[0][valueKey] ?? 0;
-    if (progress >= (evs[evs.length - 1].anchor || 1)) return evs[evs.length - 1][valueKey] ?? 0;
+    if (evs.length === 1 || progress <= _xv(evs[0])) return evs[0][valueKey] ?? 0;
+    if (progress >= _xv(evs[evs.length - 1])) return evs[evs.length - 1][valueKey] ?? 0;
     for (let i = 0; i < evs.length - 1; i++) {
       const a = evs[i], b = evs[i + 1];
-      const aa = a.anchor || 0, ba = b.anchor || 0;
+      const aa = _xv(a), ba = _xv(b);
       if (progress >= aa && progress <= ba) {
         const span = ba - aa;
         if (span <= 0) return b[valueKey] ?? 0;
@@ -4960,13 +4963,13 @@ function mountAnimator(body, headerActions, opts) {
   // Lineare Interpolation von Zoom-Offset mit value_absolute-Bevorzugung.
   function _interpZoomOffset(evs, progress, fitBase) {
     if (!evs.length) return null;
-    if (evs.length === 1 || progress <= (evs[0].anchor || 0))
+    if (evs.length === 1 || progress <= _xv(evs[0]))
       return _zoomEffectiveOffset(evs[0], fitBase);
-    if (progress >= (evs[evs.length - 1].anchor || 1))
+    if (progress >= _xv(evs[evs.length - 1]))
       return _zoomEffectiveOffset(evs[evs.length - 1], fitBase);
     for (let i = 0; i < evs.length - 1; i++) {
       const a = evs[i], b = evs[i + 1];
-      const aa = a.anchor || 0, ba = b.anchor || 0;
+      const aa = _xv(a), ba = _xv(b);
       if (progress >= aa && progress <= ba) {
         const span = ba - aa;
         const offA = _zoomEffectiveOffset(a, fitBase);
@@ -4980,11 +4983,11 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _interpBearing(evs, progress) {
     if (!evs.length) return null;
-    if (evs.length === 1 || progress <= (evs[0].anchor || 0)) return evs[0].value ?? 0;
-    if (progress >= (evs[evs.length - 1].anchor || 1)) return evs[evs.length - 1].value ?? 0;
+    if (evs.length === 1 || progress <= _xv(evs[0])) return evs[0].value ?? 0;
+    if (progress >= _xv(evs[evs.length - 1])) return evs[evs.length - 1].value ?? 0;
     for (let i = 0; i < evs.length - 1; i++) {
       const a = evs[i], b = evs[i + 1];
-      const aa = a.anchor || 0, ba = b.anchor || 0;
+      const aa = _xv(a), ba = _xv(b);
       if (progress >= aa && progress <= ba) {
         const span = ba - aa;
         if (span <= 0) return b.value ?? 0;
@@ -5010,15 +5013,15 @@ function mountAnimator(body, headerActions, opts) {
   function _interpCenter(evs, progress) {
     const withVal = evs.filter(e => e.value != null);
     if (!withVal.length) return null;
-    if (evs.length === 1 || progress <= (evs[0].anchor || 0)) {
+    if (evs.length === 1 || progress <= _xv(evs[0])) {
       return evs[0].value || null;
     }
-    if (progress >= (evs[evs.length - 1].anchor || 1)) {
+    if (progress >= _xv(evs[evs.length - 1])) {
       return evs[evs.length - 1].value || null;
     }
     for (let i = 0; i < evs.length - 1; i++) {
       const a = evs[i], b = evs[i + 1];
-      const aa = a.anchor || 0, ba = b.anchor || 0;
+      const aa = _xv(a), ba = _xv(b);
       if (progress >= aa && progress <= ba) {
         const span = ba - aa;
         const rawT = span > 0 ? (progress - aa) / span : 1;
@@ -5029,8 +5032,8 @@ function mountAnimator(body, headerActions, opts) {
         // per-Vertex, unverändertes Verhalten).
         let av = a.value, bv = b.value;
         if (av == null && bv == null) return null;
-        if (av == null) av = _trackPointAtAnchor(aa);
-        if (bv == null) bv = _trackPointAtAnchor(ba);
+        if (av == null) av = _trackPointAtAnchor(a.anchor || 0);
+        if (bv == null) bv = _trackPointAtAnchor(b.anchor || 0);
         if (av && bv) {
           return [av[0] + (bv[0] - av[0]) * t,
                   av[1] + (bv[1] - av[1]) * t];
@@ -5139,14 +5142,14 @@ function mountAnimator(body, headerActions, opts) {
     // Finde zoom-Segment
     let zA = null, zB = null;
     for (let i = 0; i < zoomEvs.length - 1; i++) {
-      const a = zoomEvs[i].anchor || 0, b = zoomEvs[i + 1].anchor || 0;
+      const a = _xv(zoomEvs[i]), b = _xv(zoomEvs[i + 1]);
       if (progress >= a && progress <= b) { zA = zoomEvs[i]; zB = zoomEvs[i + 1]; break; }
     }
     if (!zA || !zB) return null;
     // Finde center-Segment
     let cA = null, cB = null;
     for (let i = 0; i < centerEvs.length - 1; i++) {
-      const a = centerEvs[i].anchor || 0, b = centerEvs[i + 1].anchor || 0;
+      const a = _xv(centerEvs[i]), b = _xv(centerEvs[i + 1]);
       if (progress >= a && progress <= b) { cA = centerEvs[i]; cB = centerEvs[i + 1]; break; }
     }
     if (!cA || !cB) return null;
@@ -5177,8 +5180,9 @@ function mountAnimator(body, headerActions, opts) {
     const absA = offsetA + fitBase;
     const absB = offsetB + fitBase;
     // Lokal-progress im Segment
-    const seg = (zB.anchor || 0) - (zA.anchor || 0);
-    const t = seg > 0 ? (progress - (zA.anchor || 0)) / seg : 1;
+    // ⚠️ Zeit-Achse (19.08.2026) — `progress` ist ein Zeitanteil.
+    const seg = _xv(zB) - _xv(zA);
+    const t = seg > 0 ? (progress - _xv(zA)) / seg : 1;
     // v0.9.136 — Welt-Drehung-Entkopplung (Insta360-Modell, synchron zu
     // core/timeline.py `_maybe_flyto_interp`). center.lng ist *abgewickelt*
     // (kann >±180° = volle Erddrehungen). van-Wijk darf aber NUR die
@@ -5211,6 +5215,41 @@ function mountAnimator(body, headerActions, opts) {
   // v0.9.65: optional `fitZoomBase` für van-Wijk-Interpolation (= absoluter
   // Mapbox-Zoom bei Track-Auto-Fit). Wenn null/undef → van-Wijk wird skipped,
   // bisheriges lineares Verhalten greift.
+  /** Track-Anker → Anteil der Gesamtdauer (0..1).
+   *
+   *  ⚠️ Spiegel zu `anker_zu_zeit()` in `core/timeline.py` — bei Änderungen
+   *  beide pflegen, sonst laufen Vorschau und Video auseinander.
+   *
+   *  Warum (19.08.2026): Keyframes werden entlang der ZEIT interpoliert. Der
+   *  Anker bewegt sich in Anlauf, Animation und Nachlauf verschieden schnell;
+   *  über den Anker interpoliert bremst die Kamera sichtbar am gelben Griff ab.
+   */
+  function ankerZuZeit(anchor, ti, tf, trimA, trimB) {
+    const a = Number(anchor) || 0;
+    const spanne = Math.max(1e-9, trimB - trimA);
+    const anim = Math.max(1e-9, tf - ti);
+    // ⚠️ Die Ränder der Leiste hängen NICHT am Schnitt — siehe timeline.py.
+    const links = -(ti / anim);
+    const rechts = (1 - ti) / anim;
+    if (a <= trimA) {
+      if (ti <= 1e-9) return 0;
+      return Math.max(0, ti * (a - links) / Math.max(1e-9, trimA - links));
+    }
+    if (a >= trimB) {
+      if (tf >= 1 - 1e-9) return 1;
+      return Math.min(1, tf + (1 - tf) * (a - trimB) / Math.max(1e-9, rechts - trimB));
+    }
+    return ti + anim * (a - trimA) / spanne;
+  }
+
+  /** Kopie der Events mit `zeit` — der Achse, auf der interpoliert wird.
+   *  `anchor` bleibt, weil Track-folgen-Keyframes darüber ihren Punkt suchen. */
+  function eventsMitZeit(events, ti, tf, trimA, trimB) {
+    return (events || []).map(e => e && typeof e === "object"
+      ? Object.assign({}, e, { zeit: ankerZuZeit(e.anchor || 0, ti, tf, trimA, trimB) })
+      : e).filter(Boolean);
+  }
+
   function interpolateCameraJs(events, progress, defaultPitch, defaultRotation, defaultBearingStart, fitZoomBase, opts) {
     if (defaultBearingStart == null) defaultBearingStart = -10;
     // ⚠️ NICHT auf 0..1 klemmen (18.08.2026). Anlauf und Nachlauf haben Anker
@@ -5633,12 +5672,28 @@ function mountAnimator(body, headerActions, opts) {
       // `_kamera_anker()` im Renderer — sonst laufen Vorschau und Video
       // auseinander.
       const spanTrim = trimB - trimA;
+      // ⚠️ Anlauf und Nachlauf laufen über GENAU DEN BEREICH, den der Scrubber
+      // sichtbar abfährt (Marc-Entscheidung 18.08.2026, „die Leiste hat recht"):
+      // vom linken Rand der Leiste bis zum Schnitt-Anfang, und vom Schnitt-Ende
+      // bis zum rechten Rand. Der linke Rand ist −Intro/Animation in
+      // Track-Ankern (`barToTrack(0)`), unabhängig vom Schnitt.
+      //
+      // Vorher lief der Anlauf stattdessen einen kurzen Anflug VOR dem Schnitt
+      // ab (trimA − Anflug). Ohne Schnitt ist das dasselbe; MIT Schnitt lagen
+      // beide Achsen weit auseinander: Ein im Anlauf gesetzter Keyframe wurde
+      // bei −9 % gespeichert, die Kamera lief dort aber 0,347…0,397 — sie kam
+      // an ihm nie vorbei und stand die ganze Zeit auf dem letzten Wert
+      // („kurz die Weltkugel, dann springt er näher ran").
+      const ankerAmLinkenRand = (_tlBar && typeof _tlBar.barToTrack === "function")
+        ? _tlBar.barToTrack(0) : -(introSec / Math.max(0.001, durSec - introSec));
+      const ankerAmRechtenRand = (_tlBar && typeof _tlBar.barToTrack === "function")
+        ? _tlBar.barToTrack(1) : 1 + (holdSec / Math.max(0.001, durSec - holdSec));
       if (timelineProgress < ti) {
         // INTRO-Phase — Marker am trim_start eingefroren
         markerReal = trimA;
         const introProgress = timelineProgress / Math.max(0.0001, ti);
         scrubberVis = introProgress * trimStartVis;
-        kamAnker = trimA - (1 - introProgress) * (introSec / Math.max(0.001, durSec)) * spanTrim;
+        kamAnker = ankerAmLinkenRand + introProgress * (trimA - ankerAmLinkenRand);
         signAnchor = trimA - (introSec * (1 - introProgress)) / Math.max(0.001, durSec);
       } else if (timelineProgress < tf) {
         // ANIM-Phase
@@ -5652,7 +5707,7 @@ function mountAnimator(body, headerActions, opts) {
         markerReal = trimB;
         const holdProgress = (timelineProgress - tf) / Math.max(0.0001, 1 - tf);
         scrubberVis = trimEndVis + holdProgress * (1 - trimEndVis);
-        kamAnker = trimB + holdProgress * (holdSec / Math.max(0.001, durSec)) * spanTrim;
+        kamAnker = trimB + holdProgress * (ankerAmRechtenRand - trimB);
         signAnchor = trimB + (holdProgress * holdSec) / Math.max(0.001, durSec);
       }
       const coordFrac = fracAusFortschritt(markerReal, tn);
@@ -5672,7 +5727,12 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.84: cinematic-Toggle durchreichen
       const _runProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
       const _runCinematic = !_runProj?.[_MODKEY] || _runProj[_MODKEY].cinematic_flyto !== false;
-      const interp = interpolateCameraJs(events, kamAnker, defaultPitch, defaultRotation,
+      // ⚠️ Ausgewertet wird auf der ZEIT-Achse (v0.9.520): Die Events bekommen
+      // ihre Zeit, die Abfrage ist der Zeit-Fortschritt. Vorher lief beides über
+      // den Anker — und der ist in Anlauf und Nachlauf schneller unterwegs,
+      // weshalb die Kamera am gelben Griff sichtbar abbremste.
+      const eventsZeit = eventsMitZeit(events, ti, tf, trimA, trimB);
+      const interp = interpolateCameraJs(eventsZeit, timelineProgress, defaultPitch, defaultRotation,
                                           undefined, _previewFitBase,
                                           { cinematic: _runCinematic });
       // v0.8.7: Keyframe-center hat Vorrang vor Track-Punkt
