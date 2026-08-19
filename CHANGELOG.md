@@ -14,6 +14,33 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.520] – 2026-08-19
+
+### Geändert
+- **Die Kamera bewegt sich jetzt gleichmäßig über den ganzen Clip.** Keyframes
+  werden entlang der **Zeit** interpoliert statt entlang der Strecke. Der
+  Unterschied fällt auf, sobald ein Anlauf gesetzt ist: Dort drängt sich der
+  weggeschnittene Anfang der Strecke in wenige Sekunden, in der Animation
+  dehnt sich der Rest über die volle Dauer. An Marcs Projekt lief die Strecke
+  im Anlauf 3,3-mal so schnell — ein Zoom, der über beide Phasen ging, bremste
+  darum genau am gelben Griff sichtbar ab. Jetzt läuft er gleichmäßig durch
+  (nachgemessen: konstant 1,53 Zoomstufen pro Sekunde über den Griff hinweg).
+  Wo ein Keyframe **liegt**, ändert sich nicht — er bleibt an seiner Stelle
+  der Strecke.
+
+### Geändert
+- **Anlauf und Nachlauf fahren jetzt genau den Weg ab, den der Scrubber
+  zeigt.** Bisher lief die Kamera im Anlauf einen kurzen Anflug vor den Schnitt,
+  während der Scrubber sichtbar vom linken Rand bis zum Schnitt-Anfang wanderte.
+  Ohne Schnitt ist das dasselbe — **mit** Schnitt lagen beide weit auseinander:
+  Ein im Anlauf gesetzter Keyframe wurde bei −9 % gespeichert, die Kamera lief
+  dort aber 0,347…0,397 und kam an ihm nie vorbei. Man sah kurz die Weltkugel,
+  dann sprang das Bild näher heran und blieb dort.
+  Jetzt gilt für beide dasselbe: Der Anlauf beginnt am linken Rand der Leiste
+  (−Anlauf/Animation) und endet am Schnitt-Anfang, der Nachlauf beginnt am
+  Schnitt-Ende und läuft bis zum rechten Rand. Klick, Keyframe, Scrubber und
+  Kamera meinen damit überall dieselbe Stelle — in der Vorschau wie im Video.
+
 ## [0.9.518] – 2026-08-18
 
 ### Behoben

@@ -113,9 +113,27 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.520</span>
+    <span class="version-date">19 de agosto de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">La cámara se mueve de forma uniforme.</p>
+
+  <div class="highlight">
+    <strong>🎞 Ya no frena en el tirador amarillo.</strong> Un zoom que empieza en la entrada y sigue dentro de la animación se ralentizaba justo en el tirador, porque los keyframes se calculaban a lo largo del recorrido, y ahí avanza más rápido. Ahora cuenta el tiempo y el movimiento se mantiene uniforme.
+  </div>
+
+  <div class="highlight">
+    <strong>📍 Tus keyframes siguen donde están.</strong> Solo cambia cómo se calculan los valores intermedios.
+  </div>
+
+  <p class="version-note">Se nota sobre todo en proyectos con entrada o salida.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.518</span>
     <span class="version-date">18 de agosto de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">La aproximación de la cámara en la entrada ya funciona.</p>
 
