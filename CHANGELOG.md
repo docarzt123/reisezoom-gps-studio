@@ -33,6 +33,16 @@ Bei jeder neuen Version:
   Beim Testen gefunden, bevor es jemanden traf.
 
 ### Intern
+- **Nachprüfung vor dem Release fand vier Nachzügler des Achsen-Umbaus** —
+  darunter einen, den kein Syntax-Check sieht: eine beim Umbau verlorene
+  Deklaration (`_camKinds`), deren ReferenceError ein stiller `catch`
+  verschluckte — die ruhige Kamera wäre wortlos nie aktiv geworden. Dazu:
+  Scrubben von Hand lief noch auf der Anker-Achse (der am Griff behobene
+  Knick wäre dort wieder aufgetaucht), die Welt-Pos-Spur verlor beim
+  X/Y-Aufspalten ihre Zeit, und der Tile-Prewarm wärmte die falschen
+  Kamerapositionen vor. Alles behoben; der stille `catch` loggt jetzt.
+  Neuer Dauer-Wächter: JS- und Python-Umrechnung werden in 120 Fällen
+  gegeneinander gerechnet (`test_keyframe_im_anlauf.py`, Teil 6).
 - Neuer Test `tests/test_render_anlauf_kamera.py`: rendert den gemeldeten Fall
   wirklich — mit Anlauf, Schnitt und beiden Kamera-Arten — und misst am
   fertigen Bild, ob die Kamera durch den Anlauf fliegt. Diese Fehlerfamilie hat
