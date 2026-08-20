@@ -5242,6 +5242,19 @@ function mountAnimator(body, headerActions, opts) {
     return ti + anim * (a - trimA) / spanne;
   }
 
+  /** Umkehrung zu `ankerZuZeit` — für Stellen, an denen aus einer Zeit wieder
+   *  eine Stelle im Track werden muss (Track-folgen bei der ruhigen Kamera). */
+  function zeitZuAnker(zeit, ti, tf, trimA, trimB) {
+    const z = Math.max(0, Math.min(1, Number(zeit) || 0));
+    const spanne = Math.max(1e-9, trimB - trimA);
+    const anim = Math.max(1e-9, tf - ti);
+    const links = -(ti / anim);
+    const rechts = (1 - ti) / anim;
+    if (z <= ti) return ti <= 1e-9 ? trimA : links + (z / ti) * (trimA - links);
+    if (z >= tf) return tf >= 1 - 1e-9 ? trimB : trimB + ((z - tf) / (1 - tf)) * (rechts - trimB);
+    return trimA + ((z - ti) / anim) * spanne;
+  }
+
   /** Kopie der Events mit `zeit` — der Achse, auf der interpoliert wird.
    *  `anchor` bleibt, weil Track-folgen-Keyframes darüber ihren Punkt suchen. */
   function eventsMitZeit(events, ti, tf, trimA, trimB) {
@@ -5577,12 +5590,27 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.318 — Default AUS: nur an, wenn Checkbox/Setting explizit true.
       const _fSmooth = _fProj?.[_MODKEY]?.smooth_camera_3d === true;
       if (_fSmooth && map && map.getFreeCameraOptions && typeof mapboxgl !== "undefined") {
-        const _camKinds = { center: 1, pitch: 1, zoom: 1, bearing: 1, position: 1, rotation: 1 };
+        // ⚠️ Stützstellen auf der ZEIT-Achse (20.08.2026), und zwar aus zwei
+        // Gründen, die beide der Nutzer gefunden hat:
+        //   1. `a >= 0 && a <= 1` warf jeden Keyframe im Anlauf weg — die
+        //      Kamera hatte dort keine Stützstelle und hielt den Wert bei 0,
+        //      also den des NÄCHSTEN Keyframes. „Der erste Keyframe übernimmt
+        //      die Position des zweiten."
+        //   2. Zoom-Keyframes haben kein `value`, sondern `value_absolute` /
+        //      `value_offset` — die Abfrage übersah sie stillschweigend.
+        // Deshalb fiel es nur beim Probe-Lauf auf: Von Hand scrubben geht
+        // nicht über diesen Pfad, sondern wertet direkt aus.
+        const _fti0 = introFraction(), _ftf0 = trackFraction();
+        const _ftrim0 = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
+        const _ftA0 = Math.max(0, Math.min(1, _ftrim0.start ?? 0));
+        const _ftB0 = Math.max(_ftA0, Math.min(1, _ftrim0.end ?? 1));
+        const _evZeit = eventsMitZeit(events, _fti0, _ftf0, _ftA0, _ftB0);
+        const _hatWert = (e) => e.value != null || e.value_absolute != null || e.value_offset != null;
         const _anchSet = new Set([0, 1]);
-        (events || []).forEach((e) => {
-          if (e && _camKinds[e.kind] && e.value != null) {
-            const a = Math.round((+e.anchor || 0) * 1e6) / 1e6;
-            if (a >= 0 && a <= 1) _anchSet.add(a);
+        _evZeit.forEach((e) => {
+          if (e && _camKinds[e.kind] && _hatWert(e)) {
+            const z = Math.round((+e.zeit || 0) * 1e6) / 1e6;
+            if (z >= 0 && z <= 1) _anchSet.add(z);
           }
         });
         const _anchors = Array.from(_anchSet).sort((x, y) => x - y);
@@ -5597,8 +5625,10 @@ function mountAnimator(body, headerActions, opts) {
           // steht, ist der auf den Schnitt geklemmte Anker selbst.
           const _markerAt = (a) => Math.max(_ftA, Math.min(_ftB, a));
           const _savedCam = map.getFreeCameraOptions();
-          _faithCams = _anchors.map((a) => {
-            const ip = interpolateCameraJs(events, a, defaultPitch, defaultRotation, undefined, _previewFitBase, { cinematic: _fCine });
+          _faithCams = _anchors.map((tz) => {
+            // `tz` ist eine Zeit; `a` die zugehörige Stelle im Track.
+            const a = zeitZuAnker(tz, _fti, _ftf, _ftA, _ftB);
+            const ip = interpolateCameraJs(_evZeit, tz, defaultPitch, defaultRotation, undefined, _previewFitBase, { cinematic: _fCine });
             const zm = _previewFitBase + (ip.zoom_offset || 0);
             let ll;
             if (ip.center) ll = ip.center.slice();
@@ -5608,7 +5638,7 @@ function mountAnimator(body, headerActions, opts) {
             } else ll = _fStatic;
             map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
             const fc = map.getFreeCameraOptions(), o = fc.orientation;
-            return { t: a, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]] };
+            return { t: tz, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]] };
           });
           try { map.setFreeCameraOptions(_savedCam); } catch (_) {}
           _useFaithful = true;
@@ -5778,7 +5808,7 @@ function mountAnimator(body, headerActions, opts) {
       const _zfStep = Math.max(0, Math.min(1, (8 - _curZoom) / 4));
       if (jumpArgs.center) _seedLngAccum(jumpArgs.center[0]);  // v0.9.136
       // v0.9.318 — entkoppelte FreeCamera (WYSIWYG zum Render) statt setCenter/-Zoom.
-      if (_useFaithful) { _faithSeek(kamAnker); }
+      if (_useFaithful) { _faithSeek(timelineProgress); }   // Stützstellen liegen auf der Zeit
       else { map.jumpTo(jumpArgs); }
       // Padding ebenfalls mit zoomFade gewichten, damit der Welt-Offset
       // genauso sanft ausläuft wie die Drehung.

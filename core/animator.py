@@ -3835,12 +3835,6 @@ async def render(
         _p = (fr - intro_frames - anim_frames) / hold_frames
         return _anker_bis + _p * (_anker_rechts - _anker_bis)
 
-    def _frame_bei_anker(a: float) -> int:
-        """Umkehrung — welcher Frame zeigt diese Stelle des Tracks?"""
-        if _anker_pro_frame <= 0:
-            return 0
-        fr = intro_frames + (a - _anker_von) / _anker_pro_frame
-        return int(max(0, min(total_frames - 1, round(fr))))
 
     _sign_base_anchor = (_start_idx / (len(points) - 1)) if len(points) > 1 else 0.0
     # v0.9.253 — analog für die Hold-Phase: Schild-Anker läuft ÜBER das Track-
@@ -4169,14 +4163,32 @@ async def render(
             _use_faithful = False
             if _smooth_cam and total_frames > 2:
                 _cam_kinds = ("center", "pitch", "zoom", "bearing", "position", "rotation")
-                _anchors = {0.0, 1.0}
-                for _ev in (cfg.timeline_events or []):
-                    if _ev.get("kind") in _cam_kinds and _ev.get("value") is not None:
+                # ⚠️ Stützstellen auf der ZEIT-Achse (20.08.2026). Zwei Fehler
+                # steckten hier:
+                #   1. `0.0 <= a <= 1.0` warf jeden Keyframe im Anlauf und im
+                #      Nachlauf weg. Die Kamera hatte dort keine Stützstelle,
+                #      hielt also den Wert der Stelle bei 0 — und das ist der
+                #      Keyframe DANACH. Genau das hat der Nutzer gemeldet:
+                #      „der erste Keyframe übernimmt die Position des zweiten".
+                #   2. Zoom-Keyframes haben gar kein `value`, sondern
+                #      `value_absolute`/`value_offset` — die Abfrage übersah
+                #      sie stillschweigend.
+                # Gesucht wird jetzt in `zeit`, und der Loop unten sucht mit
+                # `timeline_progress` — vorher waren die Stützstellen nach Anker
+                # abgelegt und die Suche lief über die Zeit. Das passte nur
+                # zusammen, solange es weder Anlauf noch Nachlauf noch Schnitt gab.
+                def _hat_wert(_ev):
+                    return any(_ev.get(k) is not None
+                               for k in ("value", "value_absolute", "value_offset"))
+
+                _zeiten = {0.0, 1.0}
+                for _ev in _events_zeit:
+                    if _ev.get("kind") in _cam_kinds and _hat_wert(_ev):
                         try:
-                            _anchors.add(round(float(_ev.get("anchor", 0.0)), 6))
+                            _zeiten.add(round(float(_ev.get("zeit", 0.0)), 6))
                         except Exception:
                             pass
-                _anchors = sorted(a for a in _anchors if 0.0 <= a <= 1.0)
+                _anchors = sorted(t for t in _zeiten if 0.0 <= t <= 1.0)
                 if len(_anchors) >= 2:
                     def _idx_at_frame(_fr):
                         if _fr < intro_frames:
@@ -4186,10 +4198,13 @@ async def render(
                             return min(_start_idx + _rel, _end_idx)
                         return _end_idx
                     _kf_cam_list = []
-                    for _a in _anchors:
-                        _fr = _frame_bei_anker(_a)   # v0.9.511: Track statt Uhr
+                    for _zeitp in _anchors:
+                        # `_a` bleibt der Track-Anker dieser Stelle — für den
+                        # Track-Nachschlag und den Bearing-Vorgabewert.
+                        _fr = int(round(_zeitp * max(1, total_frames - 1)))
+                        _a = _kamera_anker(_fr)
                         _pp, _bp, _zop, _kc, _kpos, _kr = _timeline.interpolate_properties(
-                            cfg.timeline_events, _a,
+                            _events_zeit, _zeitp,
                             default_pitch=cfg.pitch, default_rotation=cfg.rotation,
                             fit_zoom_base=zoom, cinematic_flyto=cfg.cinematic_flyto,
                             track_point_at=_track_point_at, zoom_abs_shift=_zoom_abs_shift,
@@ -4205,7 +4220,7 @@ async def render(
                         else:
                             _lo, _la = center[0], center[1]
                         _kf_cam_list.append({
-                            "t": _a, "lng": _lo, "lat": _la,
+                            "t": _zeitp, "lng": _lo, "lat": _la,
                             "zoom": zoom + _zo, "pitch": _pf, "bearing": _bf,
                         })
                     await page.evaluate("(cams)=>window.__camPrepFaithful(cams)", _kf_cam_list)
