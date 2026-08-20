@@ -751,8 +751,13 @@ def interpolate_properties(
         # v0.9.107 — Position (X/Y in %)
         position = None
         if position_evs:
-            x_evs = [{"anchor": e.get("anchor", 0), "value": (e.get("value") or {}).get("x", 0)} for e in position_evs]
-            y_evs = [{"anchor": e.get("anchor", 0), "value": (e.get("value") or {}).get("y", 0)} for e in position_evs]
+            # ⚠️ `zeit` MUSS mitkommen (20.08.2026, synchron zu module.js):
+            # sonst fällt _interpolate_scalar auf den Anker zurück und die
+            # Welt-Pos-Spur läuft als einzige auf der alten Achse.
+            x_evs = [{"anchor": e.get("anchor", 0), "zeit": e.get("zeit"),
+                      "value": (e.get("value") or {}).get("x", 0)} for e in position_evs]
+            y_evs = [{"anchor": e.get("anchor", 0), "zeit": e.get("zeit"),
+                      "value": (e.get("value") or {}).get("y", 0)} for e in position_evs]
             px = _interpolate_scalar(x_evs, progress, "value")
             py = _interpolate_scalar(y_evs, progress, "value")
             if px is not None or py is not None:

@@ -4004,8 +4004,11 @@ async def render(
         PREWARM_N = 0 if cfg.transparent_background else 12
         for i in range(PREWARM_N):
             tprog = i / max(1, PREWARM_N - 1)
+            # ⚠️ Zeit-Achse wie die Frame-Schleife (20.08.2026) — `tprog` IST eine
+            # Zeit. Mit rohen Events wurden die Prewarm-Kameras an Anker-Stellen
+            # berechnet; die Weltsicht des Anlaufs blieb kalt.
             pitch_p, bearing_p, zoom_off_p, kf_c, _pos_p, _rot_p = _timeline.interpolate_properties(
-                cfg.timeline_events, tprog,
+                _events_zeit, tprog,
                 default_pitch=cfg.pitch, default_rotation=cfg.rotation,
                 fit_zoom_base=zoom,  # v0.9.65: für van-Wijk-Flug-Kurve
                 cinematic_flyto=cfg.cinematic_flyto,  # v0.9.84

@@ -4738,12 +4738,21 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.84: cinematic-Toggle aus Animator-Settings durchreichen
     const _animProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
     const _cinematic = !_animProj?.[_MODKEY] || _animProj[_MODKEY].cinematic_flyto !== false;
-    // v0.9.511 — Keyframes hängen am TRACK, nicht an der Uhr: `anchor` ist
-    // hier bereits der Track-Anker, also genau die Größe, in der die
-    // Keyframes gespeichert sind.
-    const interp = interpolateCameraJs(events, anchor, defaultPitch, defaultRotation,
-                                        undefined, effectiveFitZoomBase(),
-                                        { cinematic: _cinematic });
+    // ⚠️ Dieselbe Achse wie Probe-Lauf und Render (20.08.2026): erst den
+    // Anker auf seine ZEIT abbilden, dann interpolieren. Vorher lief das
+    // Scrubben als einziger Weg noch auf der Anker-Achse — an den Keyframes
+    // gleich, dazwischen anders: Der am gelben Griff behobene Knick wäre
+    // beim Scrubben wieder da gewesen, und „von Hand stimmt es, beim
+    // Abspielen nicht" (der Bericht vom 20.08.) nur umgedreht.
+    const _sTi = introFraction(), _sTf = trackFraction();
+    const _sTrim = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
+    const _sTa = Math.max(0, Math.min(1, _sTrim.start ?? 0));
+    const _sTb = Math.max(_sTa, Math.min(1, _sTrim.end ?? 1));
+    const interp = interpolateCameraJs(
+        eventsMitZeit(events, _sTi, _sTf, _sTa, _sTb),
+        ankerZuZeit(anchor, _sTi, _sTf, _sTa, _sTb),
+        defaultPitch, defaultRotation, undefined, effectiveFitZoomBase(),
+        { cinematic: _cinematic });
     // v0.8.11: anchor ist Timeline-Anker (0..1 von gesamt anim+hold).
     // Track-idx wird über track_fraction abgeleitet — in der Hold-Phase
     // bleibt er auf len-1 (Track steht still), während die Kamera weiter
@@ -5330,8 +5339,11 @@ function mountAnimator(body, headerActions, opts) {
       let posInterp = null;
       if (positionEvs.length > 0) {
         // x und y separat als Scalar interpolieren
-        const posXEvs = positionEvs.map(e => ({ anchor: e.anchor, value: (e.value || {}).x || 0 }));
-        const posYEvs = positionEvs.map(e => ({ anchor: e.anchor, value: (e.value || {}).y || 0 }));
+        // ⚠️ `zeit` MUSS mitkommen (20.08.2026): Ohne sie fällt _interpScalar
+        // auf den Anker zurück, und die Welt-Pos-Spur liefe als einzige auf
+        // der alten Achse — im Anlauf sichtbar daneben.
+        const posXEvs = positionEvs.map(e => ({ anchor: e.anchor, zeit: e.zeit, value: (e.value || {}).x || 0 }));
+        const posYEvs = positionEvs.map(e => ({ anchor: e.anchor, zeit: e.zeit, value: (e.value || {}).y || 0 }));
         const px = _interpScalar(posXEvs, progress, "value");
         const py = _interpScalar(posYEvs, progress, "value");
         if (px != null || py != null) posInterp = { x: px || 0, y: py || 0 };
@@ -5600,6 +5612,7 @@ function mountAnimator(body, headerActions, opts) {
         //      `value_offset` — die Abfrage übersah sie stillschweigend.
         // Deshalb fiel es nur beim Probe-Lauf auf: Von Hand scrubben geht
         // nicht über diesen Pfad, sondern wertet direkt aus.
+        const _camKinds = { center: 1, pitch: 1, zoom: 1, bearing: 1, position: 1, rotation: 1 };
         const _fti0 = introFraction(), _ftf0 = trackFraction();
         const _ftrim0 = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
         const _ftA0 = Math.max(0, Math.min(1, _ftrim0.start ?? 0));
@@ -5644,7 +5657,14 @@ function mountAnimator(body, headerActions, opts) {
           _useFaithful = true;
         }
       }
-    } catch (_) { _useFaithful = false; _faithCams = null; }
+    } catch (e) {
+      // ⚠️ NICHT still schlucken (20.08.2026): Genau hier hat ein stiller
+      // catch einen ReferenceError versteckt, und die ruhige Kamera fiel
+      // wortlos auf den klassischen Pfad zurück. Ein Fehler hier gehört
+      // mindestens ins Log.
+      try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + e); } catch (_) {}
+      _useFaithful = false; _faithCams = null;
+    }
     const step = (now) => {
       const elapsed = (now - _previewT0) * _previewSpeed;
       // v0.9.53: Track-Position-Trim, fixe Render-Zeit (anim + hold).
