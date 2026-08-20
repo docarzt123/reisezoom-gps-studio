@@ -14,6 +14,31 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.521] – 2026-08-20
+
+### Behoben
+- **Die ruhige Kamera (3D-Terrain) übersprang Keyframes im Anlauf.** Von Hand
+  scrubben zoomte richtig, der Probe-Lauf nicht — weil beides durch anderen
+  Code läuft. Die ruhige Kamera rechnet nicht Bild für Bild, sondern legt
+  vorher Stützstellen an, und die wurden zweifach falsch gesammelt: Anker
+  außerhalb 0…1 (also alles im Anlauf und im Nachlauf) fielen weg, und
+  **Zoom-Keyframes wurden komplett übersehen**, weil sie kein `value` tragen,
+  sondern `value_absolute`/`value_offset`. Ohne Stützstelle hielt die Kamera
+  den Wert der Stelle bei 0 — den des Keyframes *danach*. Deshalb sah es aus,
+  als übernehme der erste Keyframe die Ansicht des zweiten.
+  Betraf Vorschau **und** Video; im Renderer lagen die Stützstellen zusätzlich
+  auf einer anderen Achse als die Suche.
+- **Ein Render mit ruhiger Kamera stürzte am Ende ab** („'float' object is not
+  callable"), weil eine Schleifenvariable den Übersetzer überschrieben hatte.
+  Beim Testen gefunden, bevor es jemanden traf.
+
+### Intern
+- Neuer Test `tests/test_render_anlauf_kamera.py`: rendert den gemeldeten Fall
+  wirklich — mit Anlauf, Schnitt und beiden Kamera-Arten — und misst am
+  fertigen Bild, ob die Kamera durch den Anlauf fliegt. Diese Fehlerfamilie hat
+  sich fünfmal an je einer anderen Stelle versteckt; jede Stufe sah für sich
+  richtig aus. Nur das fertige Bild ist ein Beweis.
+
 ## [0.9.520] – 2026-08-19
 
 ### Geändert
