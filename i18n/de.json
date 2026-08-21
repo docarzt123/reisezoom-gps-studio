@@ -353,6 +353,7 @@
   "cloud.passwort_hinweis": "Speichere es jetzt in deinem Passwortmanager. Du brauchst es, um einen zweiten Rechner zu verbinden. Geht es verloren, kommt niemand mehr an die Daten — auch wir nicht.",
   "cloud.schon_da": "Dort liegt schon ein Archiv. Nimm „Mit vorhandenem verbinden“ und dein Passwort.",
   "cloud.fehlt": "Für die Cloud fehlen Programmteile (cryptography, keyring). Bitte die App neu installieren.",
+  "cloud.schluesselbund_zu": "Der Schlüsselbund hat den Zugriff nicht erlaubt. Die Cloud pausiert; jede Cloud-Aktion im Dialog versucht es erneut.",
   "cloud.rueckstau": "Hochladen ausstehend — wird automatisch erneut versucht.",
   "cloud.wartet": "Änderungen erkannt — Hochladen startet gleich.",
   "cloud.auto_aktuell": "Automatischer Abgleich: aktuell",

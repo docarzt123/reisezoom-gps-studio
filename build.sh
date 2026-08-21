@@ -60,8 +60,19 @@ echo "📦  Installiere nach /Applications/ …"
 rm -rf "/Applications/$APPNAME"
 cp -R "dist/$APPNAME" /Applications/
 
-# Ad-hoc Codesign (Gatekeeper-freundlicher als unsigned)
-codesign --force --deep --sign - "/Applications/$APPNAME" 2>/dev/null || true
+# Codesign — mit ECHTER Identität, wenn eine da ist (v0.9.526).
+# Grund (Marc-Report 21.08.2026): Ad-hoc-Signaturen sind bei jedem Build
+# anders. Der macOS-Schlüsselbund bindet „Immer erlauben" an die Signatur —
+# mit Ad-hoc fragte er darum nach JEDEM Build wieder nach dem Passwort.
+# Mit der Developer-ID bleibt die Identität über Builds stabil und die
+# Erlaubnis gilt weiter. Ohne Zertifikat: Ad-hoc wie bisher.
+SIGN_ID=$(security find-identity -v -p codesigning 2>/dev/null           | awk -F'"' '/Developer ID Application/{print $2; exit}')
+if [ -n "$SIGN_ID" ]; then
+  echo "🔏  Signiere mit: $SIGN_ID"
+  codesign --force --deep --sign "$SIGN_ID" "/Applications/$APPNAME" 2>/dev/null     || { echo "⚠️  Identitäts-Signatur fehlgeschlagen — Ad-hoc-Fallback";          codesign --force --deep --sign - "/Applications/$APPNAME" 2>/dev/null || true; }
+else
+  codesign --force --deep --sign - "/Applications/$APPNAME" 2>/dev/null || true
+fi
 # Quarantine-Flag raus (sonst meckert macOS beim ersten Doppelklick)
 xattr -dr com.apple.quarantine "/Applications/$APPNAME" 2>/dev/null || true
 

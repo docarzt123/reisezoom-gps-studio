@@ -15,6 +15,18 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Fixed
+- Cloud stört den App-Start nicht mehr (Marc-Report „Passwort bei jedem Start"):
+  `cloud_status` (☁-Anzeige, 90-s-Puls) liest nur noch die neue unsensible
+  Marker-Datei `cloud_zustand.json` statt des Schlüsselbunds; Schlüsselbund-
+  Zugriffe laufen durch EINEN gecachten, gelockten Pfad (vorher rissen zwei
+  parallele Zugriffe zwei macOS-Dialoge auf — die erste Eingabe wirkte
+  „verschluckt"); ein abgelehnter Zugriff wird für die Sitzung gemerkt statt
+  alle 20 s neu zu fragen (Neuversuch erst bei bewusster Cloud-Aktion).
+- build.sh signiert lokale Builds mit der Developer-ID (falls im Schlüsselbund),
+  statt ad-hoc — dadurch überlebt „Immer erlauben" App-Neubauten.
+  Test: tests/test_cloud_stoert_nicht.py.
+
+### Fixed
 - Kino-Flug (Vuelo cinemático): Render folgt jetzt exakt der Vorschau. Die
   van-Wijk-Segmentsuche verglich den Zeit-Fortschritt noch mit den rohen
   Track-Ankern — mit Anlauf/Nachlauf wurde dadurch das falsche Keyframe-Paar
