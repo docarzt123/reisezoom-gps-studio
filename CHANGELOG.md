@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- UI-Gedächtnis überlebt jetzt den Neustart (beim Rechner-Durchtest gefunden):
+  `private_mode=True` (seit dem ersten Commit, grundlos) ließ WebKit den
+  localStorage bei jedem App-Ende wegwerfen — Archiv-Ansichts-Einstellungen
+  (`rz.library.*`) und die v0.9.523-Schild-Editor-Position vergaßen sich
+  still. Jetzt `private_mode=False`. Zusätzlich überschrieb der Schild-Editor
+  die eben wiederhergestellte Position beim Öffnen gleich wieder
+  (ans-Schild-kleben ohne `_userMoved`-Prüfung). Beides am echten Rechner
+  bewiesen (ziehen → Neustart → Position steht); Wache:
+  tests/test_ui_gedaechtnis.py.
+
 ### Added
 - Cloud für alle nutzbar gemacht (Marc): Die ☁-Wolke ist jetzt auch OHNE
   eingerichtete Cloud sichtbar (grau) und öffnet den Dialog mit einer
