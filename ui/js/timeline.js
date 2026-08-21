@@ -106,13 +106,19 @@ function mountTimelineBar(opts) {
           <div class="timeline-trim-shade timeline-trim-shade-left" id="tl-trim-shade-left"></div>
           <div class="timeline-trim-shade timeline-trim-shade-right" id="tl-trim-shade-right"></div>
           <div class="timeline-trim-region" id="tl-trim-region"></div>
-          <div class="timeline-trim-handle timeline-trim-handle-start" id="tl-trim-handle-start"
-               title="${tlT('animator.timeline.trim_start_tip', 'Render-Start ziehen — bestimmt wo der Render anfängt. KFs links davon werden als Anlauf-Bewegung verwendet.')}">
-            <div class="trim-handle-grip"></div>
+          <!-- v0.9.528 (Nutzer-Idee aus Spanien + Marc): Der Griff-KÖRPER ist nur
+               noch Anzeige (pointer-events:none) — Keyframes exakt auf Start/Ende
+               waren sonst auf der Leiste nicht mehr anfassbar. Gegriffen wird am
+               KOPF, einem Fähnchen UNTER der Leiste (wie der Scrubber-Pfeil):
+               Start-Fahne hängt links der Linie, Ende-Fahne rechts — so bleibt
+               auch das Scrubber-Dreieck dazwischen frei. -->
+          <div class="timeline-trim-handle timeline-trim-handle-start" id="tl-trim-handle-start">
+            <div class="trim-handle-kopf"
+                 title="${tlT('animator.timeline.trim_start_tip', 'Render-Start ziehen — bestimmt wo der Render anfängt. KFs links davon werden als Anlauf-Bewegung verwendet.')}"></div>
           </div>
-          <div class="timeline-trim-handle timeline-trim-handle-end" id="tl-trim-handle-end"
-               title="${tlT('animator.timeline.trim_end_tip', 'Render-Ende ziehen — bestimmt wo der Render aufhört.')}">
-            <div class="trim-handle-grip"></div>
+          <div class="timeline-trim-handle timeline-trim-handle-end" id="tl-trim-handle-end">
+            <div class="trim-handle-kopf"
+                 title="${tlT('animator.timeline.trim_end_tip', 'Render-Ende ziehen — bestimmt wo der Render aufhört.')}"></div>
           </div>
         </div>
         <div class="timeline-ticks">
