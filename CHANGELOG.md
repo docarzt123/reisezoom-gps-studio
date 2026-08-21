@@ -14,6 +14,30 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Animationsdauer wahlweise als „Echtzeit ÷ Faktor" (Nutzer-Idee, IDEAS §22):
+  eine 6-h-Tour ÷ 100 läuft 3:39 min, Rechnung live daneben, Presets
+  50–1000, pro Projekt gespeichert; ohne Zeitstempel gesperrt. Der Faktor
+  schreibt nur `duration_s` — Render/Backend unverändert.
+- Update-Prüfung abschaltbar (IDEAS §23): Schalter in den Einstellungen,
+  aus = die App baut von sich aus keine Verbindung mehr auf (kein stiller
+  Fallback); der manuelle Knopf im Über-Dialog bleibt. ⚠️ Datenschutz-Text
+  auf der Website noch anpassen.
+
+### Changed
+- Keyframe-Spuren benannt nach dem, was sie tun (Nutzerfrage, IDEAS §31):
+  „Karte" → „Erdpunkt" (dreht die Erde unter der Kamera), „Welt-Pos" →
+  „Bildlage" (schiebt das Bild im Ausschnitt); Erklär-Tooltips an Spur und
+  Keyframe-Editor, DE/EN/ES.
+
+### Fixed
+- Laufpunkt („Kugel") NACHTEST (Beta-Tester: „kommt immer noch erst mit dem
+  Regler"): Der Track-Lade-Pfad hängte den Aufbau bei noch ladendem Stil an
+  `map.once("load")` — Mapbox feuert „load" aber nur EINMAL im Leben der
+  Karte; auf langsameren Rechnern verpuffte der Aufbau daher für immer.
+  Jetzt `style.load` (feuert für den ersten Stil UND jeden Wechsel).
+  Wache: tests/test_ideen_runde_530.py.
+
 ## [0.9.529] – 2026-08-21
 
 ### Fixed

@@ -183,7 +183,10 @@ Vier Schritte, mehr braucht es beim ersten Mal nicht.
 1. Oben auf **„Animator"** klicken und warten, bis die Karte steht.
 2. Links unter **„🎬 Video-Einstellungen"** bei **„Animation (s)"** eintragen, wie lang das
    Video werden soll. Für eine Tagestour reichen 20 Sekunden, für eine Zwei-Wochen-Reise
-   nehmen Sie **40 bis 60** — sonst rast die Linie durchs Bild.
+   nehmen Sie **40 bis 60** — sonst rast die Linie durchs Bild. Alternativ stellen Sie
+   darunter auf **„Echtzeit ÷ Faktor"** um: Die Animation bekommt einen echten
+   Zeitbezug — eine 6-Stunden-Tour ÷ 100 läuft 3:39 Minuten, die Rechnung steht
+   live daneben. Braucht Zeitstempel im Track; ohne bleibt der Modus grau.
 3. **„Auflösung"** auf **1920 × 1080** stehen lassen. Das reicht für YouTube, Fernseher und
    Fotobuch-Video; 4K sieht kaum besser aus und dauert beim Berechnen ein Vielfaches.
 4. Unter der Karte auf **„▶ Probe-Lauf"**. Das Programm fliegt die Strecke einmal ab, so wie
@@ -1490,6 +1493,12 @@ Bei Render-Fehlern öffnet sich automatisch ein Fehler-Modal mit ausklappbarem L
 
 ### Wie bekomme ich neue Versionen? (seit v0.9.280)
 Die App prüft beim Start im Hintergrund, ob auf GitHub eine neuere Version vorliegt. Falls ja, erscheint oben ein dezentes Banner **„Neue Version vX.Y.Z ist verfügbar"** mit **Herunterladen**-Button (öffnet den passenden Mac-/Windows-Download im Browser). Mit dem **✕** blendest du den Hinweis für diese Version aus. Du kannst auch jederzeit manuell im **Über-Dialog** (Hilfe → Über) auf **„Nach Updates suchen"** klicken. Heruntergeladene Updates installierst du wie beim Erst-Setup (DMG/Installer) — die App ersetzt sich aus Sicherheitsgründen nicht selbst.
+
+**Die automatische Prüfung lässt sich abschalten** (⚙ Einstellungen → „Beim
+Start nach einer neuen Version suchen"). Aus heißt: Die App baut von sich aus
+keine Verbindung ins Netz auf — Karten holt sie nur, wenn du eine anzeigst,
+und dann mit deinem eigenen Mapbox-Zugang. Der manuelle Knopf im Über-Dialog
+funktioniert weiterhin.
 
 ### „Wirklich öffnen?" beim ersten Start (macOS)
 Diese Rückfrage zeigt macOS bei **jeder** aus dem Netz geladenen App, auch bei signierten — einmal

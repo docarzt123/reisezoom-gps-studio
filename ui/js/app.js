@@ -175,6 +175,9 @@ function _settingsStand() {
     rqPreset: rq.encoder_preset || "fast",
     geoEnabled: c.geocode_enabled !== false,
     geoProvider: c.geocode_provider || "auto",
+    // v0.9.530 (IDEAS §23): Update-Prüfung beim Start abschaltbar — danach
+    // telefoniert die App von sich aus mit niemandem mehr.
+    updateCheck: c.update_check_enabled !== false,
   };
 }
 
@@ -200,8 +203,8 @@ async function openSettingsModal() {
   // Renderqualität (v0.9.245), OSM-Zwang (v0.9.247) und Adress-Suche (v0.9.338)
   // kommen aus `_settingsStand()` — derselben Quelle, aus der auch der
   // Speichern-Handler liest.
-  const { rqFmt, rqJq, rqCodec, rqCrf, rqPreset, forceOsm, geoEnabled, geoProvider }
-    = _settingsStand();
+  const { rqFmt, rqJq, rqCodec, rqCrf, rqPreset, forceOsm, geoEnabled, geoProvider,
+          updateCheck } = _settingsStand();
   const _sel = (a, b) => (a === b ? " selected" : "");
   const hasTok = !!(currentTok && currentTok.startsWith("pk."));
   // v0.9.287 — Eigene Standardwerte für neue Tracks (Marc-Wunsch)
@@ -234,6 +237,14 @@ async function openSettingsModal() {
           <span>${t("settings.force_osm.label")}</span>
         </label>
         <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.force_osm.help")}</p>
+        <!-- v0.9.530 (IDEAS §23) — Update-Prüfung abschaltbar: aus heißt, die
+             App baut von sich aus KEINE Verbindung mehr auf (kein stiller
+             Fallback). Der manuelle Knopf im Über-Dialog nutzt force=true. -->
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" id="md-update-check" ${updateCheck ? "checked" : ""}>
+          <span>${t("settings.update_check.label", "Beim Start nach einer neuen Version suchen")}</span>
+        </label>
+        <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.update_check.help", "Aus heißt: die App baut von sich aus keine Verbindung ins Netz auf.")}</p>
       </div>
 
       <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border);">
@@ -445,6 +456,10 @@ function _bindSettingsModalHandlers() {
     // v0.9.247 — OSM-Modus erzwingen (Test)
     const newForceOsm = !!document.getElementById("md-force-osm")?.checked;
     if (newForceOsm !== alt.forceOsm) patch.force_osm = newForceOsm;
+
+    // v0.9.530 — Update-Prüfung an/aus
+    const newUpdateCheck = !!document.getElementById("md-update-check")?.checked;
+    if (newUpdateCheck !== alt.updateCheck) patch.update_check_enabled = newUpdateCheck;
 
     // v0.9.245 — Render-/Export-Qualität
     const newRender = {

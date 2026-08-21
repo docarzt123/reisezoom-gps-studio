@@ -922,6 +922,27 @@ function mountAnimator(body, headerActions, opts) {
               <input type="number" id="anim-hold" min="0" max="20" value="5">
             </div>
           </div>
+          <!-- v0.9.530 (Nutzer-Idee, IDEAS §22) — Animationsdauer wahlweise als
+               Echtzeit ÷ Faktor: ein 6-h-Track ÷ 100 läuft 3:39 min. Der Faktor
+               rechnet nur die Sekunden aus (duration_s bleibt die Wahrheit für
+               Render + Backend); ohne Zeitstempel ist der Modus gesperrt. -->
+          <div class="row-2" style="margin-top:6px">
+            <div class="field">
+              <select id="anim-dur-modus" style="width:100%">
+                <option value="seconds">${t("animator.dur.modus_s", "Sekunden")}</option>
+                <option value="factor">${t("animator.dur.modus_faktor", "Echtzeit ÷ Faktor")}</option>
+              </select>
+            </div>
+            <div class="field" id="anim-dur-faktor-feld" hidden>
+              <input type="number" id="anim-dur-faktor" min="2" max="100000" step="1" value="100"
+                     list="anim-dur-faktor-presets" title="${t("animator.dur.faktor", "Faktor")}">
+              <datalist id="anim-dur-faktor-presets">
+                <option value="50"><option value="100"><option value="200">
+                <option value="500"><option value="1000">
+              </datalist>
+            </div>
+          </div>
+          <p class="muted" id="anim-dur-live" hidden style="font-size:11px;margin-top:4px"></p>
           <div class="field">
             <label class="field-label">${t("animator.field.resolution")}</label>
             <div class="res-picker">
@@ -1476,6 +1497,56 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-ex", _MODKEY, "exaggeration", { type: "number",
     onLoad: v => updateLabel("anim-ex-v", v, "×") });
   bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number" });
+  // v0.9.530 (IDEAS §22) — Echtzeit ÷ Faktor. Der Faktor SCHREIBT nur die
+  // Sekunden ins Dauer-Feld (und löst dessen change aus → duration_s wird wie
+  // immer gespeichert) — Render, Backend und alle Rechnungen dahinter bleiben
+  // unangetastet. Ohne Zeitstempel wird der Modus gesperrt.
+  bindSetting("anim-dur-modus", _MODKEY, "duration_mode");
+  bindSetting("anim-dur-faktor", _MODKEY, "duration_factor", { type: "number" });
+  function _durFmt(sek) {
+    sek = Math.max(0, Math.round(sek));
+    const h = Math.floor(sek / 3600), m = Math.floor((sek % 3600) / 60), r = sek % 60;
+    if (h) return h + " h " + String(m).padStart(2, "0");
+    if (m) return m + " min " + String(r).padStart(2, "0") + " s";
+    return r + " s";
+  }
+  function _durFaktorAnwenden(schreiben) {
+    const sel = document.getElementById("anim-dur-modus");
+    const fEl = document.getElementById("anim-dur-faktor");
+    const feld = document.getElementById("anim-dur-faktor-feld");
+    const live = document.getElementById("anim-dur-live");
+    const dur = document.getElementById("anim-dur");
+    if (!sel || !fEl || !dur) return;
+    const echt = (_gpxStats && Number(_gpxStats.duration_s)) || 0;
+    const faktorOpt = sel.querySelector('option[value="factor"]');
+    if (echt <= 0) {
+      // Kein Echtzeit-Bezug → Modus sperren und sauber auf Sekunden zurück.
+      if (faktorOpt) faktorOpt.disabled = true;
+      sel.title = t("animator.dur.keine_zeiten", "Dieser Track hat keine Zeitstempel — Echtzeit-Modus nicht möglich.");
+      if (sel.value === "factor") sel.value = "seconds";
+    } else {
+      if (faktorOpt) faktorOpt.disabled = false;
+      sel.title = "";
+    }
+    const aktiv = sel.value === "factor" && echt > 0;
+    if (feld) feld.hidden = !aktiv;
+    if (live) live.hidden = !aktiv;
+    dur.disabled = aktiv;
+    dur.max = aktiv ? 3600 : 60;
+    if (!aktiv) return;
+    const f = Math.max(2, parseInt(fEl.value, 10) || 100);
+    const sek = Math.min(3600, Math.max(3, Math.round(echt / f)));
+    if (live) live.textContent = _durFmt(echt) + " ÷ " + f + " = " + _durFmt(sek);
+    if (schreiben && String(sek) !== String(dur.value)) {
+      dur.value = sek;
+      dur.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+  document.getElementById("anim-dur-modus")?.addEventListener("change", () => _durFaktorAnwenden(true));
+  document.getElementById("anim-dur-faktor")?.addEventListener("change", () => _durFaktorAnwenden(true));
+  document.getElementById("anim-dur-faktor")?.addEventListener("input", () => _durFaktorAnwenden(false));
+  window.__animDurFaktor = _durFaktorAnwenden;   // nach Track-Load erneut anwenden
+  setTimeout(() => _durFaktorAnwenden(false), 0);
   bindSetting("anim-hold", _MODKEY, "hold_s", { type: "number" });
   // v0.9.66: Undo-Snapshot vor dem ersten Slider-Input. Throttle blockiert
   // die restlichen Events während des Drag — beim ersten in der Session
@@ -10244,6 +10315,9 @@ function mountAnimator(body, headerActions, opts) {
     if (!res.ok) { toast(res.error || "GPX-Fehler", "error"); return; }
     currentGpx = path;
     _gpxStats = res.stats;
+    // v0.9.530 — Echtzeit-÷-Faktor-Modus kennt jetzt die echte Dauer (oder
+    // sperrt sich, wenn der neue Track keine Zeiten hat).
+    try { if (window.__animDurFaktor) window.__animDurFaktor(true); } catch (_) {}
     _ovSeries = res.series || null;
     _ovSensorFields = res.sensor_fields || [];   // v0.9.330 — FIT-Sensorfelder für den Live-Katalog
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
@@ -10262,7 +10336,12 @@ function mountAnimator(body, headerActions, opts) {
     document.getElementById("anim-render").disabled = false;
 
     if (map && map.isStyleLoaded()) { drawPreview(res); dotEbenenAufbauen(); dotSetzen(0); }
-    else if (map) map.once("load", () => { drawPreview(res); dotEbenenAufbauen(); dotSetzen(0); });
+    // v0.9.530 (Beta-Tester-Nachtest: „Kugel kommt immer noch erst mit dem
+    // Regler"): Mapbox feuert „load" nur EINMAL im Leben der Karte. Lädt hier
+    // gerade der Projekt-Stil (setStyle), war „load" längst verbraucht — der
+    // Aufbau verpuffte für immer. „style.load" feuert dagegen für den ersten
+    // Stil UND jeden Wechsel: der richtige Haken für „sobald bereit".
+    else if (map) map.once("style.load", () => { drawPreview(res); dotEbenenAufbauen(); dotSetzen(0); });
     renderOverlayPreview();  // jetzt haben wir Stats → echte Werte zeigen
 
     // Punkte-Slider auf den geladenen Track kalibrieren.
@@ -10636,6 +10715,9 @@ function mountAnimator(body, headerActions, opts) {
     }
     currentGpx = path;
     _gpxStats = res.stats;
+    // v0.9.530 — Echtzeit-÷-Faktor-Modus kennt jetzt die echte Dauer (oder
+    // sperrt sich, wenn der neue Track keine Zeiten hat).
+    try { if (window.__animDurFaktor) window.__animDurFaktor(true); } catch (_) {}
     _ovSeries = res.series || null;
     _ovSensorFields = res.sensor_fields || [];   // v0.9.330 — FIT-Sensorfelder für den Live-Katalog
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
