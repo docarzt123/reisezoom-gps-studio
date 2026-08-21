@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.530] – 2026-08-21
+
 ### Added
 - Animationsdauer wahlweise als „Echtzeit ÷ Faktor" (Nutzer-Idee, IDEAS §22):
   eine 6-h-Tour ÷ 100 läuft 3:39 min, Rechnung live daneben, Presets
