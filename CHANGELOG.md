@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Zeitleiste: Die Trim-Griffe (Render-Start/-Ende) werden jetzt an FÄHNCHEN
+  UNTER der Leiste gegriffen (Start-Fahne links der Linie, Ende-Fahne rechts —
+  das Scrubber-Dreieck dazwischen bleibt frei). Der gelbe Balken durch die
+  Spuren ist nur noch Anzeige: Keyframes exakt auf Start/Ende sind damit
+  wieder anklick- und ziehbar (Nutzer-Idee aus Spanien mit Screenshot;
+  Marc kannte das Problem auch). Headless-DOM-Beweis im echten Chromium:
+  tests/test_trim_griff_kopf.py.
+
 ## [0.9.527] – 2026-08-21
 
 ### Fixed

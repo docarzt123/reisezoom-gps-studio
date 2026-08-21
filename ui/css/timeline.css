@@ -21,7 +21,7 @@
    aussehen. Darum NICHT die ganze Timeline ausgrauen (das machte die Trim-Handles
    blass + klick-tot) — nur die Keyframe-Editierung ist über die deaktivierten Buttons
    gesperrt. Trim-Handles bleiben anklickbar. */
-.timeline-bar.is-disabled .timeline-trim-handle,
+.timeline-bar.is-disabled .trim-handle-kopf,
 .timeline-bar.is-disabled .timeline-trim-region,
 .timeline-bar.is-disabled .timeline-trim-shade {
   pointer-events: auto;
@@ -710,9 +710,11 @@
   height: calc(100% - 30px);
   width: 14px;
   transform: translateX(-7px);
-  cursor: ew-resize;
   z-index: 7;             /* über Scrubber (5) und Markers */
-  pointer-events: auto;
+  /* v0.9.528 (Nutzer-Idee aus Spanien): Der KÖRPER ist nur noch Anzeige —
+     Keyframes in den Spuren gewinnen jeden Klick, auch exakt auf Start/Ende.
+     Gegriffen wird am .trim-handle-kopf (Fähnchen unter der Leiste). */
+  pointer-events: none;
   /* Balken-Look: gelbe Borders links+rechts, leicht transparenter Fill */
   background: rgba(255, 209, 102, 0.18);
   border-left:  2px solid rgba(255, 209, 102, 0.95);
@@ -720,38 +722,57 @@
   box-shadow: 0 0 8px rgba(255, 209, 102, 0.4);
   transition: background 0.12s, box-shadow 0.12s;
 }
-.timeline-trim-handle:hover {
+/* Hover am Kopf lässt den ganzen Balken aufleuchten (:has = Safari 15.4+/
+   Chromium 105+, beide Ziel-Engines können das). */
+.timeline-trim-handle:has(.trim-handle-kopf:hover) {
   background: rgba(255, 230, 130, 0.4);
   box-shadow: 0 0 12px rgba(255, 230, 130, 0.7);
 }
-.timeline-trim-handle:active {
+.timeline-trim-handle:has(.trim-handle-kopf:active) {
   background: rgba(255, 230, 130, 0.6);
 }
-/* Grip-Indikator: kleine Pille mit horizontalen Linien in der Mitte */
-.trim-handle-grip {
+/* v0.9.528 — Der Griff-Kopf: Fähnchen UNTER der Leiste (wie das Scrubber-
+   Dreieck, das dort seit v0.9.8 bewusst wohnt — da unten liegen nie
+   Keyframes). Start-Fahne hängt links der Linie, Ende-Fahne rechts; das
+   Scrubber-Dreieck in der Mitte bleibt frei greifbar. */
+.trim-handle-kopf {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 28px;
-  transform: translate(-50%, -50%);
+  bottom: -16px;
+  width: 22px;
+  height: 14px;
+  pointer-events: auto;
+  cursor: ew-resize;
   background: rgba(255, 209, 102, 0.95);
-  border: 1.5px solid rgba(0,0,0,0.55);
-  border-radius: 3px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-  pointer-events: none;
+  border: 1.5px solid rgba(0, 0, 0, 0.55);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: background 0.12s, box-shadow 0.12s;
 }
-.trim-handle-grip::before,
-.trim-handle-grip::after {
+.timeline-trim-handle-start .trim-handle-kopf {
+  right: 50%;
+  margin-right: -2px;              /* schließt an die Linie an */
+  border-radius: 7px 0 2px 7px;    /* Fahne zeigt nach links */
+}
+.timeline-trim-handle-end .trim-handle-kopf {
+  left: 50%;
+  margin-left: -2px;
+  border-radius: 0 7px 7px 2px;    /* Fahne zeigt nach rechts */
+}
+.trim-handle-kopf:hover {
+  background: rgba(255, 230, 130, 1);
+  box-shadow: 0 0 10px rgba(255, 230, 130, 0.8);
+}
+/* Grip-Linien im Kopf */
+.trim-handle-kopf::before,
+.trim-handle-kopf::after {
   content: "";
   position: absolute;
-  left: 2px;
-  right: 2px;
-  height: 1px;
-  background: rgba(0,0,0,0.5);
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  background: rgba(0, 0, 0, 0.5);
 }
-.trim-handle-grip::before { top:  40%; }
-.trim-handle-grip::after  { top:  56%; }
+.trim-handle-kopf::before { left: 40%; }
+.trim-handle-kopf::after  { left: 60%; }
 
 /* KFs/Cluster außerhalb des Trim-Bereichs: gedimmt aber sichtbar
    (= „Anlauf"-Marker). */
