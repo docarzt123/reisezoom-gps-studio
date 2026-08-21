@@ -36,6 +36,13 @@
   function ink(surfaceHex) { return lum(surfaceHex) > 0.62 ? "#15171c" : "#ffffff"; }
 
   function fontStack(key) {
+    // v0.9.523 — installierte System-Schrift („sys:Familienname", Nutzer-Idee
+    // aus Spanien): direkt als Familie verwenden. Anführungszeichen raus,
+    // sonst zerbricht der Canvas-Font-String und der GANZE Font wird ignoriert.
+    if (key && String(key).indexOf("sys:") === 0) {
+      var fam = String(key).slice(4).replace(/["']/g, "");
+      return "'" + fam + "', system-ui, sans-serif";
+    }
     switch (key) {
       // bewusst KEIN Comic Sans/Chalkboard (globale Projektregel) — rundlich-freundlich:
       case "rounded":   return "ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', 'Varela Round', system-ui, sans-serif";
@@ -61,6 +68,25 @@
     var weight = Number(o.weight) || 700;
     var italic = o.italic ? "italic " : "";
     var FONT = italic + weight + " " + fs + "px " + fontStack(o.font);
+    // v0.9.523 — Canvas ERFINDET keinen Fettschnitt: Hat die Familie kein
+    // echtes Fett (Impact, Rundlich — auf Windows fast alle Stacks), sah
+    // „Fett"/„Extra-Fett" exakt aus wie Normal (Nutzer-Report mit Video,
+    // vermessen: Rundlich 700 == 900, Impact 400 == 700 == 900). Erkennung:
+    // Ändert das Gewicht die gemessene Textbreite nicht, gibt es keinen
+    // Schnitt — dann ziehen wir die Glyphen mit einer Kontur in Textfarbe
+    // nach. Wirkt identisch in Vorschau, Video und Web-Export, weil ALLE
+    // durch diese eine Engine laufen.
+    var kunstFett = 0;
+    if (weight >= 600) {
+      var m2 = document.createElement("canvas").getContext("2d");
+      m2.font = "400 32px " + fontStack(o.font);
+      var wNormal = m2.measureText("Mm0Ww").width;
+      m2.font = weight + " 32px " + fontStack(o.font);
+      var wFett = m2.measureText("Mm0Ww").width;
+      if (wFett - wNormal < 0.4) {
+        kunstFett = fs * (weight >= 800 ? 0.045 : 0.028);
+      }
+    }
     var text = String(o.text == null ? "" : o.text);
     var hasText = text.trim().length > 0;
     var lines = text.split("\n");
@@ -363,7 +389,18 @@
       else { ctx.textAlign = "center"; tx = bx + pad + contentDX + textAreaW / 2; anchorAlign = "center"; }
       var ty0 = by + pad + (hasImg ? imgH + imgGap : 0) + lineH / 2;
       var drawLines = function () {
-        for (var k = 0; k < lines.length; k++) ctx.fillText(lines[k], tx, ty0 + k * lineH);
+        for (var k = 0; k < lines.length; k++) {
+          ctx.fillText(lines[k], tx, ty0 + k * lineH);
+          if (kunstFett > 0) {
+            // Kunst-Fett: Kontur in Textfarbe über die Füllung.
+            ctx.save();
+            ctx.strokeStyle = ctx.fillStyle;
+            ctx.lineWidth = kunstFett;
+            ctx.lineJoin = "round";
+            ctx.strokeText(lines[k], tx, ty0 + k * lineH);
+            ctx.restore();
+          }
+        }
       };
       // v0.9.475 — bei transparenter Box wirft der Text selbst den Schatten (Kontur der
       // Glyphen). Kräftiger als v0.9.473 (Beta-Tester: „Schatten zu schwach"): zwei Schatten-
