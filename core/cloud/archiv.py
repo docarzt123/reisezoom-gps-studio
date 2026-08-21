@@ -221,20 +221,20 @@ def bestand_aufnehmen(conn, sessions: dict | None = None) -> Bestand:
 
 
 def _projekte_fuer(conn, geo_hash: str, sessions: dict | None) -> dict | None:
-    """Die Sessions-Einträge dieser Tour.
+    """Die Session (Projekte) dieser Tour.
 
-    ⚠️ Sessions hängen am `track_hash` (dem Koordinaten-Hash der Datei), das
-    Archiv am `geo_hash` (dem Streckenverlauf). Das ist NICHT dasselbe: Zwei
-    Dateien derselben Runde haben denselben `geo_hash`, aber verschiedene
-    `track_hash`. Deshalb der Umweg über die Tabelle.
+    Seit v0.9.529 hängen Sessions am kanonischen `geo_hash` — demselben Hash,
+    unter dem das Archiv die Tour führt und der Umschlag gebunden ist. Der
+    frühere Umweg über `tracks.track_hash` fand NIE etwas: die Spalte enthält
+    den Hash MIT Dateiname, die Sessions waren mit dem Hash der downsampled
+    UI-Koordinaten geschlüsselt — drei verschiedene Werte für dieselbe Tour.
+    Deshalb enthielten alle Umschläge nur track.gpx + tour.json, nie Projekte
+    (entdeckt 21.08.2026 am Rechner-Test). `conn` bleibt in der Signatur, die
+    Aufrufer reichen sie ohnehin durch.
     """
     if not sessions:
         return None
-    zeile = conn.execute(
-        "SELECT track_hash FROM tracks WHERE geo_hash = ? LIMIT 1", (geo_hash,)).fetchone()
-    if zeile is None or not zeile["track_hash"]:
-        return None
-    return (sessions.get("sessions") or {}).get(zeile["track_hash"])
+    return (sessions.get("sessions") or {}).get(geo_hash)
 
 
 def json_bytes(d: dict) -> bytes:

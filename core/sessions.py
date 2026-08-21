@@ -41,7 +41,15 @@ _log = logging.getLogger("core.sessions")
 
 # ── Schemata ─────────────────────────────────────────────────────────────────
 
-SCHEMA_VERSION = 1
+# 2 (v0.9.529): Sessions hängen am kanonischen `geo_hash` (Hash der VOLLEN
+# Koordinaten der Datei, ohne Namen) — derselbe Hash, den das Tour-Archiv als
+# `tracks.geo_hash` führt und an dem die Cloud-Umschläge hängen. Vorher war der
+# Schlüssel der Hash der (je Modul unterschiedlich!) downsampled UI-Koordinaten:
+# Animator fix 800 Punkte, Geotagger 50/km — derselbe Track bekam so bis zu
+# drei verschiedene Hashes, und weder Cloud noch Archiv fanden die Projekte
+# wieder. Migration: `migrate_to_geo_hash` (parst nur die Session-Snapshots,
+# nie die Bibliothek — Nutzer mit 100k+ Dateien bleiben unangetastet).
+SCHEMA_VERSION = 2
 DEFAULT_PROJECT_NAME = "Standard"
 
 
@@ -106,6 +114,27 @@ def compute_track_hash(coords: Iterable, name: str = "") -> str:
             continue
         h.update(f"{round(lon, 5)},{round(lat, 5)};".encode())
     return h.hexdigest()[:16]
+
+
+def find_session_key(sessions_data: dict, ui_hash: str) -> str:
+    """Sucht den Session-Schlüssel zu einem UI-Koordinaten-Hash.
+
+    Seit Schema 2 ist der Schlüssel der kanonische `geo_hash` (volle
+    Koordinaten). Aufrufe OHNE Dateipfad (z.B. der zweite `session_open_
+    for_track`-Aufruf im Animator-Ladefluss) können nur den Hash der
+    downsampled UI-Koordinaten liefern — der steht als Alias in
+    `ui_hashes`, sobald derselbe Track einmal MIT Pfad geöffnet wurde.
+    Returns "" wenn nichts passt.
+    """
+    if not ui_hash:
+        return ""
+    sessions = sessions_data.get("sessions") or {}
+    if ui_hash in sessions:
+        return ui_hash
+    for key, sess in sessions.items():
+        if ui_hash in (sess.get("ui_hashes") or []):
+            return key
+    return ""
 
 
 # ── Storage I/O ──────────────────────────────────────────────────────────────
@@ -239,9 +268,14 @@ def get_or_create_session(
     gpx_path: Optional[str],
     snapshot_dir: Path,
     global_defaults: dict,
+    ui_hash: str = "",
 ) -> tuple[dict, dict]:
     """Liefert die Session + das aktive Projekt für einen Track-Hash.
     Legt neu an wenn nicht vorhanden.
+
+    `ui_hash` (Schema 2): Hash der downsampled UI-Koordinaten dieses Aufrufs.
+    Wird als Alias in `ui_hashes` vermerkt, damit spätere Aufrufe OHNE
+    Dateipfad die Session über `find_session_key` wiederfinden.
 
     Returns: (session_dict, active_project_dict). Beide sind LIVE-References
     in `sessions_data` — Mutationen werden via save_sessions() persistiert.
@@ -281,6 +315,12 @@ def get_or_create_session(
             # Snapshot ggf. erneuern wenn fehlt
             if not sess.get("gpx_snapshot_path") or not (snapshot_dir / Path(sess["gpx_snapshot_path"]).name).exists():
                 sess["gpx_snapshot_path"] = _save_snapshot(gpx_path, track_hash, snapshot_dir)
+
+    # Schema 2 — UI-Hash-Alias vermerken (für pfadlose Wiederfind-Aufrufe)
+    if ui_hash and ui_hash != track_hash:
+        aliase = sess.setdefault("ui_hashes", [])
+        if ui_hash not in aliase:
+            aliase.append(ui_hash)
 
     # Active Project — Failsafe wenn die ID nicht mehr existiert
     active_id = sess.get("active_project_id")
@@ -341,6 +381,101 @@ def _save_snapshot(gpx_path: str, track_hash: str, snapshot_dir: Path) -> str:
         # ohne Snapshot, GPX-Reload erfordert dann Marc's manuelles Öffnen.
         pass
     return f"sessions/{track_hash}.gpx"
+
+
+# ── Migration Schema 1 → 2: kanonischer geo_hash ────────────────────────────
+
+def migrate_to_geo_hash(data: dict, app_support: Path) -> bool:
+    """Schlüsselt Sessions vom UI-Koordinaten-Hash auf den kanonischen
+    `geo_hash` (volle Datei-Koordinaten, ohne Namen) um.
+
+    Parst dafür NUR die Session-Snapshots (`sessions/<hash>.gpx` — Kopien der
+    Originaldateien, wenige Dutzend), niemals die Bibliothek. Sessions ohne
+    lesbaren Snapshot behalten ihren alten Schlüssel (dann hängt an ihnen
+    weiterhin kein Cloud-Umschlag — nicht schlechter als vorher). Der alte
+    Schlüssel wandert in `ui_hashes`, damit pfadlose Aufrufe die Session
+    weiter finden. Treffen zwei Alt-Sessions auf denselben geo_hash (derselbe
+    Track, über Animator UND Geotagger geöffnet), werden sie zusammengelegt:
+    Projekte vereinigt, die zuletzt aktive gewinnt bei Name/aktivem Projekt.
+
+    Returns True wenn sich etwas geändert hat (Caller speichert + legt vorher
+    eine .bak-Kopie an).
+    """
+    if int(data.get("schema") or 1) >= 2:
+        return False
+    sessions = data.get("sessions") or {}
+    geaendert = True          # Schema-Stempel ändert sich immer
+    data["schema"] = SCHEMA_VERSION
+
+    def _geo_von_snapshot(sess: dict) -> str:
+        rel = sess.get("gpx_snapshot_path") or ""
+        if not rel:
+            return ""
+        snap = app_support / rel
+        if not snap.is_file():
+            return ""
+        try:
+            from . import gpx as cgpx          # lazy — Migration läuft einmal
+            pts, _stats = cgpx.parse_gpx(str(snap))
+            if len(pts) < 2:
+                return ""
+            return compute_track_hash([(p.lon, p.lat) for p in pts])
+        except Exception as e:
+            _log.warning("Session-Migration: Snapshot %s nicht lesbar (%s) — "
+                         "Session behält alten Schlüssel", rel, e)
+            return ""
+
+    def _merge(ziel: dict, quelle: dict) -> None:
+        """`quelle` in `ziel` auflösen. Projekte vereinigen (IDs sind uuid-
+        eindeutig); bei allem Einwertigen gewinnt die zuletzt aktive Session."""
+        ziel_proj = ziel.setdefault("projects", {})
+        for pid, p in (quelle.get("projects") or {}).items():
+            if pid not in ziel_proj:
+                ziel_proj[pid] = p
+        for feld in ("gpx_filenames_seen", "ui_hashes"):
+            liste = ziel.setdefault(feld, [])
+            for x in (quelle.get(feld) or []):
+                if x not in liste:
+                    liste.append(x)
+        if (quelle.get("last_active_at") or "") > (ziel.get("last_active_at") or ""):
+            ziel["last_active_at"] = quelle["last_active_at"]
+            ziel["name"] = quelle.get("name") or ziel.get("name")
+            if quelle.get("active_project_id") in ziel_proj:
+                ziel["active_project_id"] = quelle["active_project_id"]
+        if (quelle.get("created_at") or "") < (ziel.get("created_at") or "~"):
+            ziel["created_at"] = quelle.get("created_at")
+
+    neu: dict = {}
+    for alt_key, sess in sessions.items():
+        geo = _geo_von_snapshot(sess)
+        key = geo or alt_key
+        if geo and geo != alt_key:
+            aliase = sess.setdefault("ui_hashes", [])
+            if alt_key not in aliase:
+                aliase.append(alt_key)
+            sess["track_hash"] = geo
+            # Snapshot auf den neuen Schlüsselnamen umziehen
+            alt_snap = app_support / (sess.get("gpx_snapshot_path") or "")
+            neu_snap = alt_snap.parent / f"{geo}.gpx"
+            try:
+                if alt_snap.is_file() and not neu_snap.exists():
+                    alt_snap.rename(neu_snap)
+                if neu_snap.is_file():
+                    sess["gpx_snapshot_path"] = f"sessions/{geo}.gpx"
+            except OSError as e:
+                _log.warning("Session-Migration: Snapshot-Umzug %s → %s "
+                             "fehlgeschlagen (%s)", alt_snap.name, neu_snap.name, e)
+        if key in neu:
+            _log.info("Session-Migration: '%s' und '%s' sind derselbe Track "
+                      "(geo %s) — Projekte werden zusammengelegt",
+                      neu[key].get("name"), sess.get("name"), key)
+            _merge(neu[key], sess)
+        else:
+            neu[key] = sess
+    data["sessions"] = neu
+    _log.info("Session-Migration auf Schema 2: %d Sessions, %d Schlüssel",
+              len(sessions), len(neu))
+    return geaendert
 
 
 # ── Projekt-Aktionen ─────────────────────────────────────────────────────────

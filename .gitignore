@@ -113,3 +113,6 @@ docs/BLOGPOST_UPDATE.md
 # Interne Notiz + Patch aus einem anderen Chat (nicht ins öffentliche Repo)
 /docs/IDEE_ECHTZEIT_ZEITRAFFER.md
 /docs/patches/
+
+# v0.9.529 — Migrations-Sicherungen der Sessions (Schema 1→2)
+sessions.json.bak-*

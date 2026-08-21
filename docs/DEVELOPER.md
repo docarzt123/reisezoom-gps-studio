@@ -336,6 +336,23 @@ wichtig ist.
 Die Trennung von `crypto` und `transport` ist Absicht: Vermischt man sie,
 entsteht früher oder später eine Stelle, an der Klartext über die Leitung geht.
 
+> 🔑 **Kanonischer Tour-Hash = `geo_hash`** (v0.9.529, Pflicht): EINE Tour wird
+> überall durch `sessions.compute_track_hash(volle Datei-Koordinaten)` — ohne
+> Dateinamen, ohne Downsampling — identifiziert: `tracks.geo_hash` im Archiv,
+> Session-Schlüssel in sessions.json (Schema 2), Umschlag-Bindung
+> `track/<geo_hash>`, Vorschaubild-Name. **Niemals** einen Hash aus den
+> UI-Koordinaten (`res.coords` der Load-Brücken) als Identität verwenden — die
+> sind je Modul verschieden downsampled (Animator fix 800, Geotagger 50/km);
+> genau daraus entstanden drei Hashes pro Tour, und die Cloud-Umschläge blieben
+> ohne Projekte (entdeckt 21.08.2026). `tracks.track_hash` (mit Dateiname) ist
+> eine Altspalte, keine Session-Brücke. `session_open_for_track` holt den Hash
+> über `_track_geo_hash(gpx_path)` (mtime/size-Cache, von den Load-Brücken via
+> `_merke_geo_hash` gefüttert — kein Doppel-Parse); pfadlose Aufrufe finden die
+> Session über `ui_hashes`-Aliase (`sessions.find_session_key`). Migration
+> Schema 1→2: `sessions.migrate_to_geo_hash` — parst NUR Session-Snapshots,
+> nie die Bibliothek (Beta-Tester: 103k Dateien). Wächter:
+> `tests/test_cloud_projekte_im_umschlag.py`.
+
 **Fünf Fallen, jede mit einem Test dahinter:**
 
 1. **Prüfsummen über den Klartext, nie über den Umschlag.** Jeder Umschlag

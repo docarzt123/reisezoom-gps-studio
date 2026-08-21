@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.528"
+APP_VERSION = "0.9.529"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1050,6 +1050,14 @@ class Api:
 
     def __init__(self) -> None:
         self._window: Optional[webview.Window] = None
+        # v0.9.529 — Cache Datei → kanonischer geo_hash (mtime+size-Stempel),
+        # damit session_open_for_track die eben in animator_load_gpx /
+        # geotagger_load_gpx geparste Datei nicht ein zweites Mal parsen muss.
+        self._geo_hash_cache: dict = {}
+        # v0.9.529 — Sessions einmalig auf den kanonischen geo_hash
+        # umschlüsseln — BEVOR irgendein Thread (Cloud-Auto-Sync liest
+        # sessions.json roh!) die Datei anfasst.
+        self._sessions_migrieren()
         # v0.9.524 — Cloud-Auto-Sync-Wächter (tut nichts, solange keine Cloud
         # eingerichtet ist; fasst den Schlüsselbund erst bei echter Arbeit an).
         self._cloud_auto_thread = None
@@ -1416,6 +1424,61 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "has_custom": False}
 
+    def _sessions_migrieren(self) -> None:
+        """v0.9.529 — sessions.json einmalig auf Schema 2 heben (kanonischer
+        geo_hash als Schlüssel). Vorher eine .bak-Kopie neben die Datei legen —
+        die Migration schlüsselt um und legt Doppel-Sessions zusammen."""
+        try:
+            with _sessions.LOCK:
+                if not SESSIONS_FILE.exists():
+                    return
+                data = _sessions.load_sessions(SESSIONS_FILE)
+                if int(data.get("schema") or 1) >= 2:
+                    return
+                bak = SESSIONS_FILE.with_name(
+                    "sessions.json.bak-schema1-"
+                    + datetime.now().strftime("%Y%m%d-%H%M%S"))
+                try:
+                    shutil.copy2(SESSIONS_FILE, bak)
+                except OSError:
+                    log.warning("Session-Migration: .bak-Kopie fehlgeschlagen — "
+                                "Migration läuft trotzdem (Snapshots bleiben erhalten)")
+                if _sessions.migrate_to_geo_hash(data, APP_SUPPORT):
+                    _sessions.save_sessions(SESSIONS_FILE, data)
+        except Exception:
+            log.exception("Session-Migration fehlgeschlagen — Sessions bleiben "
+                          "auf Schema 1 (Cloud-Umschläge dann ohne Projekte)")
+
+    def _merke_geo_hash(self, orig_path: str, coords: list) -> str:
+        """Kanonischen geo_hash aus frisch geparsten VOLLEN Koordinaten in den
+        Cache legen (Schlüssel: der Original-Pfad, wie ihn das Frontend später
+        an session_open_for_track weiterreicht)."""
+        try:
+            geo = _sessions.compute_track_hash(coords) if len(coords) >= 2 else ""
+            st = Path(orig_path).stat()
+            self._geo_hash_cache[str(Path(orig_path))] = (
+                (st.st_mtime_ns, st.st_size), geo)
+            return geo
+        except OSError:
+            return ""
+
+    def _track_geo_hash(self, gpx_path: str) -> str:
+        """Kanonischer Hash einer Track-Datei = Hash der VOLLEN Koordinaten,
+        ohne Namen — identisch zu `tracks.geo_hash` im Archiv. Cache über
+        mtime+size; Parse nur bei Cache-Miss. "" wenn die Datei nicht lesbar
+        ist (Caller fällt dann auf den UI-Koordinaten-Hash zurück)."""
+        try:
+            p = Path(gpx_path)
+            st = p.stat()
+            eintrag = self._geo_hash_cache.get(str(p))
+            if eintrag and eintrag[0] == (st.st_mtime_ns, st.st_size):
+                return eintrag[1]
+            pts, _stats = cgpx.parse_gpx(self._ensure_gpx(str(p)))
+            return self._merke_geo_hash(str(p), [(q.lon, q.lat) for q in pts])
+        except Exception as e:
+            log.warning("geo_hash für %s nicht berechenbar: %s", gpx_path, e)
+            return ""
+
     @_mit_sessions_lock
     def session_open_for_track(self, coords: list, gpx_path: str = "") -> dict:
         """Aktiviert (oder erstellt) eine Session für die gegebenen
@@ -1440,15 +1503,23 @@ class Api:
             # wird pro Load mehrfach aufgerufen, teils MIT gpx_path, teils ohne (z.B.
             # Geotagger-Drop). Mit Name im Hash ergab das ZWEI Sessions für denselben
             # Track → Speichern (Tour-Map, Session A) und Rendern (aktives Projekt aus
-            # Session B) drifteten auseinander → „Aus Geotagger" zeigte nichts. Zurück
-            # zum stabilen reinen Koordinaten-Hash. „Umbenennen = neues Projekt" lösen
-            # wir separat + sicher (expliziter Button), nicht über den Hash.
-            track_hash = _sessions.compute_track_hash(coords)
+            # Session B) drifteten auseinander → „Aus Geotagger" zeigte nichts.
+            #
+            # v0.9.529 — Kanonischer Schlüssel ist jetzt der geo_hash der VOLLEN
+            # Datei-Koordinaten (identisch zu tracks.geo_hash im Archiv und zur
+            # Cloud-Umschlag-Bindung). Die hier ankommenden `coords` sind je Modul
+            # unterschiedlich downsampled (Animator fix 800, Geotagger 50/km) und
+            # taugen deshalb NICHT als Identität — ihr Hash dient nur noch als
+            # Alias (`ui_hashes`), damit pfadlose Aufrufe die Session wiederfinden.
+            ui_hash = _sessions.compute_track_hash(coords)
             data = _sessions.load_sessions(SESSIONS_FILE)
+            track_hash = self._track_geo_hash(gpx_path) if gpx_path else ""
+            if not track_hash:
+                track_hash = _sessions.find_session_key(data, ui_hash) or ui_hash
             defaults = self._session_get_global_defaults()
             sess, active_proj = _sessions.get_or_create_session(
                 data, track_hash, coords, gpx_path or None,
-                SESSIONS_GPX_DIR, defaults,
+                SESSIONS_GPX_DIR, defaults, ui_hash=ui_hash,
             )
             _sessions.save_sessions(SESSIONS_FILE, data)
             log.info("session_open_for_track: hash=%s name=%r active=%r",
@@ -1822,11 +1893,14 @@ class Api:
                 for it in res["items"]:
                     it["thumb_url"] = self._lib_thumb_url(it.get("image"))
             # Welche Touren haben schon gespeicherte Projekte? Das ist der
-            # Brückenschlag zum Session-System (gleicher Hash).
+            # Brückenschlag zum Session-System — seit v0.9.529 über den
+            # kanonischen geo_hash (Sessions sind darauf umgeschlüsselt).
+            # track_hash bleibt als Rückfall für unmigrierte Alt-Sessions.
             try:
                 known = _session_hashes()
                 for it in res["items"]:
-                    it["has_session"] = it.get("track_hash") in known
+                    it["has_session"] = (it.get("geo_hash") in known
+                                         or it.get("track_hash") in known)
             except Exception:
                 pass
             res["ok"] = True
@@ -2601,8 +2675,13 @@ class Api:
         """Lädt eine GPX, gibt downsampled GeoJSON + Stats fürs UI zurück.
         Andere Track-Formate werden vorher automatisch nach GPX konvertiert."""
         try:
+            orig_path = path
             path = self._ensure_gpx(path)
             pts, stats = cgpx.parse_gpx(path)
+            # v0.9.529 — kanonischen geo_hash aus den VOLLEN Punkten gleich in
+            # den Cache legen: session_open_for_track (kommt direkt danach mit
+            # demselben Original-Pfad) spart sich so den zweiten Datei-Parse.
+            self._merke_geo_hash(orig_path, [(p.lon, p.lat) for p in pts])
             ds = cgpx.downsample(pts, 800)
             coords = [[p.lon, p.lat] for p in ds]
             # Höhenarray für das Overlay-Preview-Höhenprofil — etwas weiter
@@ -4985,12 +5064,13 @@ class Api:
                                  [meta[k] for k in felder] + [geo_hash])
                     conn.commit()
 
-            # 5. Projekte (Sessions) unter dem Track-Hash der Datei mergen —
+            # 5. Projekte (Sessions) unter dem kanonischen geo_hash mergen —
             #    NUR wenn es dort noch keine Session gibt (lokales gewinnt).
+            #    (v0.9.529: vorher wurde hier tour["track_hash"] benutzt — der
+            #    Hash MIT Dateiname, unter dem nie eine Session lag.)
             projekte = (json.loads(z.read("projekte.json").decode("utf-8"))
                         if "projekte.json" in namen else None)
-            th = tour.get("track_hash")
-            if projekte and th:
+            if projekte:
                 # Foto-Pfade auf die mitgebrachten Vorschauen zeigen lassen.
                 text = json.dumps(projekte)
                 for name in sorted(namen):
@@ -4998,9 +5078,10 @@ class Api:
                         text = text.replace(f'"{name}"',
                                             json.dumps(str(foto_dir / Path(name).name)))
                 projekte = json.loads(text)
+                projekte["track_hash"] = geo_hash
                 daten = _sessions.load_sessions(SESSIONS_FILE)
-                if th not in (daten.get("sessions") or {}):
-                    daten.setdefault("sessions", {})[th] = projekte
+                if geo_hash not in (daten.get("sessions") or {}):
+                    daten.setdefault("sessions", {})[geo_hash] = projekte
                     _sessions.save_sessions(SESSIONS_FILE, daten)
             log.info("cloud_tour_holen: %s → %s", geo_hash, ziel.name)
             return {"ok": True, "datei": str(ziel), "name": ziel.name}
@@ -5688,8 +5769,11 @@ class Api:
     def geotagger_load_gpx(self, path: str) -> dict:
         try:
             import math
+            orig_path = path
             path = self._ensure_gpx(path)   # v0.9.282: FIT/NMEA/KML/… → GPX
             pts, stats = cgpx.parse_gpx(path)
+            # v0.9.529 — geo_hash-Cache füttern (siehe animator_load_gpx)
+            self._merke_geo_hash(orig_path, [(p.lon, p.lat) for p in pts])
             self._gtg_track = pts
             self._gtg_stats = stats
             # v0.9.168 — dynamische Punktdichte statt fix 800: 50 Punkte je km
