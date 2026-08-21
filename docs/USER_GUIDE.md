@@ -1608,10 +1608,15 @@ unseren: du behältst deine Daten.
 
 ### Einrichten (einmal, dauert zwei Minuten)
 
-1. Lade die Datei **`rz-cloud.php`** in einen Ordner deines Webspace, zum
-   Beispiel nach `deineseite.de/archiv/`. Mehr braucht der Server nicht — kein
-   Datenbank, keine Einstellungen.
-2. In GPS Studio: **Einstellungen → Cloud-Archiv einrichten**.
+1. Klick oben in der Leiste auf die graue **☁**-Wolke (oder öffne
+   **Einstellungen → Cloud-Archiv**). Im Dialog steht die Anleitung — und ein
+   Knopf **„rz-cloud.php auf den Schreibtisch legen"** gibt dir die
+   Server-Datei; sie kommt mit der App mit und passt immer zur App-Version.
+2. Lade diese Datei **`rz-cloud.php`** in einen Ordner deines Webspace, zum
+   Beispiel nach `deineseite.de/archiv/` — mit deinem FTP-Programm oder dem
+   Datei-Manager deines Hosters. Der Webspace braucht nur **PHP (ab 7.4) und
+   HTTPS**; das kann praktisch jeder Hoster. Keine Datenbank, keine
+   Einstellungen.
 3. Die **Adresse der Datei** eintragen (`https://deineseite.de/archiv/rz-cloud.php`).
    Die App sagt sofort, ob sie dort etwas findet.
 4. **Neues Archiv anlegen** — und dann das Wichtigste:

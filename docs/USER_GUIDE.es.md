@@ -1535,10 +1535,15 @@ datos siguen siendo tuyos.
 
 ### Configuración (una vez, unos dos minutos)
 
-1. Sube el archivo **`rz-cloud.php`** a una carpeta de tu espacio web, por
-   ejemplo `tusitio.com/archivo/`. El servidor no necesita nada más: ni base de
-   datos ni ajustes.
-2. En GPS Studio: **Ajustes → Configurar el archivo en la nube**.
+1. Pulsa la nube gris **☁** en la barra superior (o abre **Ajustes →
+   Archivo en la nube**). El diálogo contiene la guía — y un botón **«Dejar
+   rz-cloud.php en mi escritorio»** te da el archivo de servidor; viene con la
+   aplicación y siempre corresponde a tu versión.
+2. Sube ese archivo **`rz-cloud.php`** a una carpeta de tu espacio web, por
+   ejemplo `tusitio.com/archivo/` — con tu programa FTP o el gestor de archivos
+   de tu proveedor. El espacio web solo necesita **PHP (7.4 o superior) y
+   HTTPS**; prácticamente cualquier proveedor lo tiene. Ni base de datos ni
+   ajustes.
 3. Introduce la **dirección de ese archivo**
    (`https://tusitio.com/archivo/rz-cloud.php`). La app te dice al momento si
    encuentra algo ahí.

@@ -34,11 +34,20 @@
   function anzeigen(s) {
     var el = anzeigeElement();
     if (!el) return;
-    if (!s || !s.verfuegbar || !s.eingerichtet) { el.hidden = true; return; }
+    if (!s || !s.verfuegbar) { el.hidden = true; return; }
     el.hidden = false;
     var lauf = s.lauf;
     var auto = s.auto || {};
-    el.classList.remove("laeuft", "warnung");
+    el.classList.remove("laeuft", "warnung", "aus");
+    // v0.9.527 (Marc) — auch OHNE eingerichtete Cloud sichtbar (grau):
+    // Klick öffnet den Dialog mit der Schritt-für-Schritt-Anleitung. Vorher
+    // war die Funktion ohne Verbindung praktisch unauffindbar.
+    if (!s.eingerichtet) {
+      el.textContent = "☁";
+      el.title = T("cloud.aus_hinweis", "Cloud-Archiv einrichten — Klick für die Anleitung");
+      el.classList.add("aus");
+      return;
+    }
     if (lauf && lauf.n) {
       el.textContent = "☁ " + lauf.i + "/" + lauf.n;
       el.title = T("cloud.laeuft", "Überträgt gerade …");
@@ -113,16 +122,32 @@
   window.openCloudModal = openCloudModal;
 
   function koerperNeu(s) {
+    // v0.9.527 — Schritt-für-Schritt für Einsteiger: Die App LIEFERT die
+    // Server-Datei (Knopf legt sie auf den Schreibtisch), die Schritte sind
+    // in einfacher Sprache. Voraussetzung beim Nutzer: nur ein eigener
+    // Webspace mit PHP und HTTPS.
     return '' +
       '<p class="muted" style="line-height:1.55">' +
-        T("cloud.intro",
-          "Dein Archiv liegt auf deinem eigenen Webserver — verschlüsselt. " +
-          "Lade dazu die Datei rz-cloud.php in einen Ordner deines Webspace und " +
-          "trag hier die Adresse dieser Datei ein.") +
+        T("cloud.intro2",
+          "Dein Tour-Archiv, verschlüsselt auf deinem eigenen Webspace: Geht dieser Rechner kaputt, ist alles noch da — und ein zweiter Rechner kann sich mit demselben Archiv verbinden.") +
       '</p>' +
-      '<p class="muted" style="font-size:12px;margin-top:8px">' +
+      '<p class="muted" style="font-size:12px;margin-top:6px">' +
         T("cloud.optional", "Das ist freiwillig. Ohne Cloud arbeitet die App wie bisher, alles bleibt lokal.") +
       '</p>' +
+      '<div style="margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:10px">' +
+        '<strong style="font-size:13px">' + T("cloud.anl_titel", "So richtest du es ein (einmalig, ca. 5 Minuten)") + '</strong>' +
+        '<ol class="muted" style="line-height:1.6;font-size:13px;margin:8px 0 0 18px;padding:0">' +
+          '<li>' + T("cloud.anl_s1", "Klick den Knopf unten — die App legt dir die Datei rz-cloud.php auf den Schreibtisch.") + '</li>' +
+          '<li>' + T("cloud.anl_s2", "Lade diese Datei in einen eigenen Ordner deines Webspace hoch (z. B. „archiv“) — mit deinem FTP-Programm oder dem Datei-Manager deines Hosters. Dein Webspace braucht nur PHP und HTTPS; das kann praktisch jeder Hoster.") + '</li>' +
+          '<li>' + T("cloud.anl_s3", "Trag unten die Internet-Adresse dieser Datei ein (https://deineseite.de/archiv/rz-cloud.php) und klick „Neues Archiv anlegen“.") + '</li>' +
+          '<li>' + T("cloud.anl_s4", "Die App zeigt dir dann EINMALIG dein Passwort und deinen Zugangsschlüssel. Speichere beides im Passwortmanager — ohne Passwort kommt niemand mehr an das Archiv, auch wir nicht.") + '</li>' +
+        '</ol>' +
+        '<div style="margin-top:10px">' +
+          '<button class="btn btn--ghost" id="cloud-php">📄 ' +
+            T("cloud.php_knopf", "rz-cloud.php auf den Schreibtisch legen") + '</button>' +
+          '<span id="cloud-php-stand" class="muted" style="font-size:12px;margin-left:8px"></span>' +
+        '</div>' +
+      '</div>' +
       '<label class="muted" style="display:block;margin-top:14px">' +
         T("cloud.adresse", "Adresse der Datei rz-cloud.php") + '</label>' +
       '<input type="text" id="cloud-adresse" style="width:100%" ' +
@@ -278,6 +303,20 @@
   }
 
   function handlerNeu() {
+    // v0.9.527 — Server-Datei bereitlegen (aus dem App-Bundle).
+    var phpBtn = document.getElementById("cloud-php");
+    if (phpBtn) phpBtn.onclick = function () {
+      var stand = document.getElementById("cloud-php-stand");
+      window.pywebview.api.cloud_php_speichern().then(function (r) {
+        if (!stand) return;
+        stand.textContent = r && r.ok
+          ? T("cloud.php_ok", "Liegt auf dem Schreibtisch ✓")
+          : ((r && r.error) || T("cloud.php_fehler", "Hat nicht geklappt — siehe Log."));
+      }).catch(function (e) {
+        if (stand) stand.textContent = String(e);
+      });
+    };
+
     var adr = document.getElementById("cloud-adresse");
     var pruef = document.getElementById("cloud-pruef");
     var warten = null;

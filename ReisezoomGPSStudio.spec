@@ -44,6 +44,12 @@ for doc in ("docs/USER_GUIDE.html", "docs/USER_GUIDE.en.html", "docs/USER_GUIDE.
         dst_dir = os.path.dirname(doc) or "."
         data_files.append((doc, dst_dir))
 
+# v0.9.527 — die Cloud-Server-Datei kommt MIT in die App: Der Cloud-Dialog
+# legt sie dem Nutzer per Knopf auf den Schreibtisch („eigener Webspace"-
+# Anleitung). So passt die Server-Datei immer zur App-Version.
+if os.path.isfile("server/rz-cloud.php"):
+    data_files.append(("server/rz-cloud.php", "server"))
+
 # pywebview-Resources sind manchmal nötig
 data_files += collect_data_files("webview")
 

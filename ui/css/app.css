@@ -2816,3 +2816,8 @@ body.is-rendering .modal-overlay * {
   line-height:1.2}
 .cloud-stand:hover{color:var(--text);border-color:var(--text-muted)}
 .cloud-stand.laeuft{color:var(--accent);border-color:var(--accent)}
+
+/* v0.9.527 — Cloud nicht eingerichtet: Wolke sichtbar, aber zurückhaltend.
+   Klick öffnet den Einrichtungs-Dialog mit Anleitung. */
+.cloud-stand.aus { opacity: 0.45; }
+.cloud-stand.aus:hover { opacity: 0.9; }
