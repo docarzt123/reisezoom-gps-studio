@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.528] – 2026-08-21
+
 ### Fixed
 - Laufpunkt („Kugel") war nach dem App-Start beim ersten Probe-Lauf
   unsichtbar, bis man den Größen-Regler bewegte (Beta-Tester-Report):
