@@ -353,6 +353,7 @@
   "cloud.passwort_hinweis": "Guárdala ahora en tu gestor de contraseñas. La necesitas para conectar un segundo ordenador. Si se pierde, nadie podrá acceder a los datos, tampoco nosotros.",
   "cloud.schon_da": "Ahí ya hay un archivo. Usa «Conectar con uno existente» y tu contraseña.",
   "cloud.fehlt": "Faltan componentes para la nube (cryptography, keyring). Reinstala la aplicación.",
+  "cloud.schluesselbund_zu": "El llavero denegó el acceso. La nube queda en pausa; cualquier acción de nube en el diálogo lo intenta de nuevo.",
   "cloud.rueckstau": "Subida pendiente — se reintentará automáticamente.",
   "cloud.wartet": "Cambios detectados — la subida empieza en breve.",
   "cloud.auto_aktuell": "Sincronización automática: al día",

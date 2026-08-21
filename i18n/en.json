@@ -353,6 +353,7 @@
   "cloud.passwort_hinweis": "Save it in your password manager now. You need it to connect a second computer. If it is lost, nobody can reach the data any more — not even us.",
   "cloud.schon_da": "There is already an archive there. Use “Connect to an existing one” and your passphrase.",
   "cloud.fehlt": "Parts needed for the cloud are missing (cryptography, keyring). Please reinstall the app.",
+  "cloud.schluesselbund_zu": "The keychain denied access. Cloud sync is paused; any cloud action in the dialog will try again.",
   "cloud.rueckstau": "Upload pending — will retry automatically.",
   "cloud.wartet": "Changes detected — upload starts shortly.",
   "cloud.auto_aktuell": "Automatic sync: up to date",

@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.525"
+APP_VERSION = "0.9.526"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -263,6 +263,10 @@ SESSIONS_GPX_DIR = APP_SUPPORT / "sessions"
 IMPORTS_DIR = APP_SUPPORT / "_imports"
 # v0.9.486: Tour-Archiv — Index aller Touren aus den beobachteten Ordnern
 LIBRARY_DB = APP_SUPPORT / "library.db"
+# v0.9.526 — unsensible Cloud-Notiz („eingerichtet" + Adresse), damit die
+# ☁-Statusanzeige den Schlüsselbund nie anfassen muss (Marc-Report:
+# macOS-Passwortdialog bei jedem App-Start). Geheimnisse: NUR Schlüsselbund.
+CLOUD_MARKER = APP_SUPPORT / "cloud_zustand.json"
 LIBRARY_THUMBS = APP_SUPPORT / "library_thumbs"
 # v0.9.487: gecachte Karten-Vorschaubilder (einmal von Mapbox geladen)
 # und selbst gewählte Titelbilder.
@@ -4526,15 +4530,83 @@ class Api:
                         "Für die Cloud fehlen Programmteile (cryptography, keyring). "
                         "Bitte die App neu installieren.") + f" [{e}]") from e
 
+    # ── Schlüsselbund-Disziplin (v0.9.526, Marc-Report „Passwort bei jedem
+    # Start") ─────────────────────────────────────────────────────────────
+    # macOS fragt beim Schlüsselbund-Zugriff nach, wenn die App-Signatur dem
+    # Eintrag fremd ist. Drei Regeln, damit die Cloud den normalen Betrieb NIE
+    # stört:
+    #   1. Der App-START fasst den Schlüsselbund nicht an — `cloud_status`
+    #      (☁-Anzeige, 90-s-Puls, Einstellungen) liest nur die Marker-Datei.
+    #   2. EIN Zugriff pro Sitzung: Erfolg wird gecacht (Lock gegen parallele
+    #      Dialoge — zwei gleichzeitige Prompts schluckten Marcs erste Eingabe).
+    #   3. Ein FEHLSCHLAG (Dialog weggeklickt, Ablage nicht erreichbar) wird
+    #      auch gecacht: Der Wächter fragt dann NICHT alle 20 Sekunden neu.
+    #      Erst eine bewusste Cloud-Aktion des Nutzers (`_cloud_neuversuch`)
+    #      versucht es wieder.
+    _cloud_zugang_cache = None
+    _cloud_zugang_fehler: str | None = None
+    _cloud_zugang_lock = threading.Lock()
+
+    def _cloud_marker(self) -> dict:
+        """Die unsensible Notiz „Cloud ist eingerichtet" (+ Adresse) — damit
+        Statusanzeigen ohne Schlüsselbund auskommen. Geheimnisse liegen NIE
+        hier, nur im Schlüsselbund (siehe core/cloud/keys.py)."""
+        try:
+            with open(CLOUD_MARKER, "r", encoding="utf-8") as f:
+                d = json.load(f)
+            return d if isinstance(d, dict) else {}
+        except Exception:
+            return {}
+
+    def _cloud_marker_schreiben(self, adresse: str) -> None:
+        try:
+            CLOUD_MARKER.parent.mkdir(parents=True, exist_ok=True)
+            with open(CLOUD_MARKER, "w", encoding="utf-8") as f:
+                json.dump({"eingerichtet": True, "adresse": adresse}, f)
+        except Exception:
+            log.exception("Cloud-Marker nicht schreibbar")
+
+    def _cloud_marker_weg(self) -> None:
+        try:
+            CLOUD_MARKER.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    def _cloud_neuversuch(self) -> None:
+        """Bewusste Nutzer-Aktion → gemerkten Schlüsselbund-Fehler verwerfen."""
+        self._cloud_zugang_fehler = None
+
     def _cloud_zugang(self):
-        """Zugang + Datenschlüssel aus dem Schlüsselbund. None, wenn nicht eingerichtet."""
-        teile = self._cloud_teile()
-        keys = teile["keys"]
-        zugang = keys.zugang_holen(self.ARCHIV_KENNUNG, basis=APP_SUPPORT)
-        schluessel = keys.datenschluessel_holen(self.ARCHIV_KENNUNG, basis=APP_SUPPORT)
-        if not zugang or not schluessel:
-            return None
-        return teile, zugang, schluessel
+        """Zugang + Datenschlüssel aus dem Schlüsselbund. None, wenn nicht eingerichtet.
+
+        Cacht Erfolg UND Misserfolg für die Sitzung (Begründung oben). Wirft
+        beim gemerkten Misserfolg denselben Fehler wie beim ersten Mal."""
+        with self._cloud_zugang_lock:
+            if self._cloud_zugang_cache is not None:
+                return self._cloud_zugang_cache
+            if self._cloud_zugang_fehler is not None:
+                raise RuntimeError(self._cloud_zugang_fehler)
+            teile = self._cloud_teile()
+            keys = teile["keys"]
+            try:
+                zugang = keys.zugang_holen(self.ARCHIV_KENNUNG, basis=APP_SUPPORT)
+                schluessel = keys.datenschluessel_holen(self.ARCHIV_KENNUNG, basis=APP_SUPPORT)
+            except Exception as e:
+                self._cloud_zugang_fehler = _ui_t()(
+                    "cloud.schluesselbund_zu",
+                    "Der Schlüsselbund hat den Zugriff nicht erlaubt. Die Cloud "
+                    "pausiert; jede Cloud-Aktion im Dialog versucht es erneut.")
+                log.warning("Schlüsselbund-Zugriff fehlgeschlagen (gemerkt, kein "
+                            "automatischer Neuversuch): %s", e)
+                raise RuntimeError(self._cloud_zugang_fehler) from e
+            if not zugang or not schluessel:
+                return None
+            self._cloud_zugang_cache = (teile, zugang, schluessel)
+            # Selbstheilung: Wer erfolgreich liest, IST eingerichtet — Marker
+            # nachziehen (Bestandsrechner von vor der Marker-Einführung).
+            if not self._cloud_marker().get("eingerichtet"):
+                self._cloud_marker_schreiben(zugang.adresse)
+            return self._cloud_zugang_cache
 
     def cloud_status(self) -> dict:
         """Wie steht es um die Cloud? Für die Zustandsanzeige und die Einstellungen."""
@@ -4548,17 +4620,24 @@ class Api:
             teile = self._cloud_teile()
         except RuntimeError as e:
             return {"ok": True, "verfuegbar": False, "grund": str(e)}
-        vorhanden = self._cloud_zugang()
+        # ⚠️ KEIN Schlüsselbund-Zugriff hier (v0.9.526): Diese Funktion läuft
+        # bei jedem App-Start und alle 90 s für die ☁-Anzeige — ein
+        # Schlüsselbund-Zugriff würde nach jedem Neu-Build den macOS-Dialog
+        # hochreißen (Marc-Report). Eingerichtet-Status kommt aus der
+        # Marker-Datei; die Geheimnisse holt erst die erste echte Cloud-Arbeit.
+        marker = self._cloud_marker()
         antwort = {
             "ok": True, "sichtbar": True, "verfuegbar": True,
-            "eingerichtet": vorhanden is not None,
+            "eingerichtet": bool(marker.get("eingerichtet")),
             "ablage": teile["keys"].ablage_beschreibung(),
             "lauf": getattr(self, "_cloud_lauf", None),
             # v0.9.524 — Zustand des Auto-Syncs für die ☁-Anzeige.
             "auto": dict(self._cloud_auto_zustand),
         }
-        if vorhanden:
-            antwort["adresse"] = vorhanden[1].adresse
+        if marker.get("adresse"):
+            antwort["adresse"] = marker["adresse"]
+        if self._cloud_zugang_fehler:
+            antwort["schluesselbund_fehler"] = self._cloud_zugang_fehler
         return antwort
 
     def cloud_pruefen(self, adresse: str) -> dict:
@@ -4593,6 +4672,10 @@ class Api:
                                 keys.Zugang(adresse=adresse, schluessel=zugang_schluessel),
                                 basis=APP_SUPPORT)
             keys.datenschluessel_ablegen(self.ARCHIV_KENNUNG, schluessel, basis=APP_SUPPORT)
+            zg = keys.Zugang(adresse=adresse, schluessel=zugang_schluessel)
+            self._cloud_zugang_cache = (teile, zg, schluessel)
+            self._cloud_zugang_fehler = None
+            self._cloud_marker_schreiben(adresse)
             log.info("Cloud-Archiv eingerichtet: %s", adresse)
             # ⚠️ Das PASSWORT wird hier ein einziges Mal ausgegeben — es liegt
             # danach nur im Schlüsselbund und lässt sich nicht wieder herleiten.
@@ -4621,6 +4704,12 @@ class Api:
                                             schluessel=zugangsschluessel.strip()),
                                 basis=APP_SUPPORT)
             keys.datenschluessel_ablegen(self.ARCHIV_KENNUNG, schluessel, basis=APP_SUPPORT)
+            self._cloud_zugang_cache = (teile,
+                                        keys.Zugang(adresse=adresse,
+                                                    schluessel=zugangsschluessel.strip()),
+                                        schluessel)
+            self._cloud_zugang_fehler = None
+            self._cloud_marker_schreiben(adresse)
             log.info("Mit vorhandenem Cloud-Archiv verbunden: %s", adresse)
             return {"ok": True}
         except Exception as e:      # noqa: BLE001
@@ -4637,6 +4726,7 @@ class Api:
         """
         if not self._cloud_sichtbar():
             return self._cloud_aus()
+        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}
@@ -4650,6 +4740,9 @@ class Api:
         try:
             teile = self._cloud_teile()
             teile["keys"].archiv_vergessen(self.ARCHIV_KENNUNG, basis=APP_SUPPORT)
+            self._cloud_zugang_cache = None
+            self._cloud_zugang_fehler = None
+            self._cloud_marker_weg()
             return {"ok": True}
         except Exception as e:      # noqa: BLE001
             return {"ok": False, "error": str(e)}
@@ -4658,6 +4751,7 @@ class Api:
         """Was wäre zu tun? Ohne etwas zu übertragen."""
         if not self._cloud_sichtbar():
             return self._cloud_aus()
+        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}
@@ -4691,6 +4785,7 @@ class Api:
         denselben Kern (`_cloud_sync_einmal`)."""
         if not self._cloud_sichtbar():
             return self._cloud_aus()
+        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
         return self._cloud_sync_einmal()
 
     def _cloud_sync_einmal(self) -> dict:
@@ -4752,6 +4847,7 @@ class Api:
         """Was liegt im Archiv, was davon fehlt hier? Für den Cloud-Dialog."""
         if not self._cloud_sichtbar():
             return self._cloud_aus()
+        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}
@@ -4794,6 +4890,7 @@ class Api:
         """
         if not self._cloud_sichtbar():
             return self._cloud_aus()
+        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}
@@ -4906,6 +5003,7 @@ class Api:
         """Papierkorb-Inhalt, mit lokal zurückübersetzten Namen."""
         if not self._cloud_sichtbar():
             return self._cloud_aus()
+        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}
@@ -4930,6 +5028,7 @@ class Api:
         aus dem Namensbuch — ohne ihn können wir die Bindung nicht prüfen."""
         if not self._cloud_sichtbar():
             return self._cloud_aus()
+        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}
@@ -4972,6 +5071,7 @@ class Api:
         """Einen einzelnen Papierkorb-Eintrag endgültig löschen."""
         if not self._cloud_sichtbar():
             return self._cloud_aus()
+        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}
@@ -4985,6 +5085,7 @@ class Api:
     def cloud_papierkorb_leeren(self, tage: int = 30) -> dict:
         if not self._cloud_sichtbar():
             return self._cloud_aus()
+        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}
@@ -5062,13 +5163,26 @@ class Api:
                     continue
                 if jetzt < naechster_versuch or self._cloud_lauf:
                     continue
-                # Eingerichtet? (Erst JETZT den Schlüsselbund anfassen.)
+                # Eingerichtet? Erst die billige Marker-Datei — solange die
+                # Cloud gar nicht eingerichtet ist, wird der Schlüsselbund
+                # NIE angefasst (v0.9.526).
+                if not self._cloud_marker().get("eingerichtet"):
+                    dreckig = False            # keine Cloud → nichts zu tun
+                    self._cloud_auto_zustand = {"status": "aus"}
+                    continue
                 try:
                     if not self._cloud_zugang():
-                        dreckig = False        # keine Cloud → nichts zu tun
+                        dreckig = False
                         self._cloud_auto_zustand = {"status": "aus"}
                         continue
-                except Exception:
+                except Exception as e:
+                    # Schlüsselbund zu (Dialog weggeklickt o.ä.) — der Fehler
+                    # ist in _cloud_zugang GEMERKT, hier kommt er ohne neuen
+                    # macOS-Dialog zurück. Ruhig bleiben, ☁⚠ erklärt es;
+                    # erst eine Cloud-Aktion des Nutzers versucht es erneut.
+                    self._cloud_auto_zustand = {"status": "rueckstau",
+                                                "grund": str(e)[:200]}
+                    dreckig = False
                     continue
                 self._cloud_auto_zustand = {"status": "laeuft"}
                 res = self._cloud_sync_einmal()
