@@ -14,6 +14,35 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.529] – 2026-08-21
+
+### Fixed
+- **Cloud-Umschläge enthalten jetzt wirklich die Projekte** (Animator-,
+  Tour-Map-, Geotagger-Einstellungen). Vorher wanderten nur track.gpx +
+  tour.json in die Cloud — obwohl Anleitung und Changelog v0.9.524 die
+  Projekte versprachen. Wurzel: drei verschiedene Hashes für dieselbe Tour
+  (Sessions hashten die je Modul unterschiedlich ausgedünnten UI-Koordinaten
+  — Animator 800 Punkte, Geotagger 50/km —, die Bibliothek die vollen
+  Koordinaten mit bzw. ohne Dateinamen); die Verknüpfung fand deshalb nie
+  etwas. Gleiche Wurzel, gleicher Fix: der Projekt-Punkt (●) im Tour-Archiv
+  zeigte nie an, dass es zu einer Tour Projekte gibt.
+- Derselbe Track bekam je nach Modul (Animator vs. Geotagger) eine eigene
+  Session — Projekte schienen zu „verschwinden", je nachdem wo man die Tour
+  öffnete. Jetzt identifiziert überall derselbe kanonische Hash (volle
+  Koordinaten der Datei, `geo_hash`) die Tour.
+
+### Changed
+- **Sessions-Schema 2:** sessions.json wird beim ersten Start einmalig auf
+  den kanonischen `geo_hash` umgeschlüsselt; Doppel-Sessions desselben Tracks
+  werden dabei zusammengelegt (kein Projekt geht verloren, die zuletzt aktive
+  bestimmt das aktive Projekt). Vorher legt die App eine Sicherungskopie
+  `sessions.json.bak-schema1-<Zeitstempel>` an. Migriert werden nur die
+  wenigen Session-Schnappschüsse — die Bibliothek (bei Beta-Testern 100k+
+  Dateien) wird nicht neu eingelesen.
+- Nach dem Update lädt der nächste Cloud-Abgleich die Umschläge aller Touren
+  mit Projekten neu hoch (ihre Prüfsummen ändern sich — gewollt, jetzt mit
+  Projekten drin). Beweis-Test: tests/test_cloud_projekte_im_umschlag.py.
+
 ## [0.9.528] – 2026-08-21
 
 ### Fixed

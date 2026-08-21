@@ -15,14 +15,22 @@ in Python eingebaut (keine neue Abhängigkeit, PyInstaller-freundlich) und
 Abgrenzung zu `core/sessions.py`:
   Archiv   = welche Touren gibt es (Datei-Ebene, viele, read-only Metadaten)
   Sessions = woran habe ich gearbeitet (Projekte/Einstellungen pro Track)
-Verbunden sind beide über `track_hash` — exakt derselbe Hash wie in
-`sessions.compute_track_hash(coords, name=Dateiname)`. Dadurch kann das Archiv
-anzeigen „an dieser Tour hast du schon gearbeitet" und direkt dorthin springen.
+Verbunden sind beide über den **`geo_hash`** (v0.9.529) — den kanonischen Hash
+der vollen Koordinaten ohne Dateiname, `sessions.compute_track_hash(coords)`.
+Sessions sind seit Schema 2 direkt darauf geschlüsselt; so kann das Archiv
+anzeigen „an dieser Tour hast du schon gearbeitet", und die Cloud packt die
+Projekte mit in den Umschlag (der ebenfalls am geo_hash hängt).
 
-Zwei Hashes pro Tour, das ist Absicht:
-  track_hash  – mit Dateiname, verbindet zur Session (siehe oben)
-  geo_hash    – nur Koordinaten, findet dieselbe Tour unter anderem Dateinamen
-                (Komoot-Exporte doppeln sich gern) und benennt das Vorschaubild
+Zwei Hashes pro Tour:
+  geo_hash    – nur Koordinaten: kanonische Identität. Verbindet zu Sessions
+                und Cloud, findet dieselbe Tour unter anderem Dateinamen
+                (Komoot-Exporte doppeln sich gern), benennt das Vorschaubild
+  track_hash  – mit Dateiname: Altspalte. War als Session-Brücke gedacht,
+                hat aber NIE gepasst (Sessions hashten downsampled UI-Koords
+                ohne Namen — drei verschiedene Hashes pro Tour, entdeckt
+                21.08.2026). Bleibt befüllt, damit Alt-Bestände (100k+ Zeilen
+                bei Beta-Testern) nicht neu eingelesen werden müssen; neu
+                anbinden sollte sich daran niemand mehr.
 
 Öffentliche API:
   open_db(path)                      – Verbindung + Schema (idempotent)
@@ -845,9 +853,10 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     _rec, _rec_src = _recorded_guess(pts, stats, name)
 
     row.update({
-        # Der Session-Hash MUSS genauso gebildet werden wie beim Öffnen eines
-        # Tracks in app.py (Dateiname fließt ein) — sonst findet das Archiv die
-        # bestehenden Projekte nicht wieder.
+        # geo_hash ist die kanonische Identität (v0.9.529): Sessions und
+        # Cloud-Umschläge hängen an genau diesem Hash. track_hash (mit Name)
+        # ist eine Altspalte — siehe Modul-Docstring; NICHT als Session-
+        # Brücke verwenden.
         "track_hash": csessions.compute_track_hash(coords, name=path.name),
         "geo_hash": csessions.compute_track_hash(coords),
         "name": name,
