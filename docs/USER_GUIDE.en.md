@@ -180,7 +180,10 @@ Four steps, no more than that the first time round.
 1. Click **“Animator”** at the top and wait for the map.
 2. On the left under **“🎬 Video settings”**, set **“Animation (s)”** — how long the video
    should be. Twenty seconds is plenty for a day trip; for a two-week journey take **40 to 60**,
-   otherwise the line races across the screen.
+   otherwise the line races across the screen. Or switch to
+   **“Real time ÷ factor”** below it: the animation gets a real time reference —
+   a 6-hour tour ÷ 100 runs 3:39 minutes, the math is shown live. Needs
+   timestamps in the track; without them the mode stays grey.
 3. Leave **“Resolution”** at **1920 × 1080**. That is enough for YouTube, television and photo
    books; 4K barely looks better and takes several times as long to compute.
 4. Below the map, hit **“▶ Preview run”**. The program flies the route once, exactly as the video
@@ -1405,6 +1408,11 @@ On render errors an error modal opens automatically with an expandable log excer
 
 ### How do I get new versions? (since v0.9.280)
 On startup the app checks in the background whether a newer version is available on GitHub. If so, a subtle banner appears at the top, **"New version vX.Y.Z is available"**, with a **Download** button (opens the matching Mac/Windows download in the browser). With the **✕** you dismiss the notice for this version. You can also click **"Check for updates"** at any time manually in the **About dialog** (Help → About). You install downloaded updates like the first setup (DMG/installer) — the app doesn't replace itself, for security reasons.
+
+**The automatic check can be switched off** (⚙ Settings → “Check for a new
+version at startup”). Off means: the app makes no network connection on its
+own — it only fetches maps when you display one, using your own Mapbox
+account. The manual button in the About dialog keeps working.
 
 ### "Can't be opened because it is from an unidentified developer" (macOS)
 The app is not signed with a $99/year Apple Developer cert. Solution: **right-click → Open** instead of double-clicking (see Installation).

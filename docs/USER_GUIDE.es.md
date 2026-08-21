@@ -181,6 +181,10 @@ Cuatro pasos, no hace falta más la primera vez.
 1. Pulsa **«Animador»** arriba y espera al mapa.
 2. A la izquierda, en **«🎬 Ajustes de vídeo»**, indica en **«Animación (s)»** cuánto debe durar
    el vídeo. Para una salida de un día bastan 20 segundos; para un viaje de dos semanas pon
+   O cambia debajo a **«Tiempo real ÷ factor»**: la animación adquiere una
+   referencia temporal real — una ruta de 6 horas ÷ 100 dura 3:39 minutos, el
+   cálculo se muestra en vivo. Requiere marcas de tiempo en el track; sin
+   ellas el modo queda gris.
    **40 a 60**, si no la línea cruza la pantalla a toda velocidad.
 3. Deja **«Resolución»** en **1920 × 1080**. Es suficiente para YouTube, televisión y fotolibro;
    4K apenas se ve mejor y tarda varias veces más en calcularse.
@@ -1420,6 +1424,12 @@ Ante errores de render se abre automáticamente un modal de error con un extract
 
 ### ¿Cómo obtengo las versiones nuevas? (desde v0.9.280)
 La app comprueba al arrancar, en segundo plano, si hay en GitHub una versión más reciente. Si es así, aparece arriba un banner discreto **«La nueva versión vX.Y.Z está disponible»** con un botón de **Descargar** (abre en el navegador la descarga adecuada para Mac/Windows). Con la **✕** ocultas el aviso para esa versión. También puedes hacer clic en cualquier momento manualmente en el **diálogo Acerca de** (Ayuda → Acerca de) en **«Buscar actualizaciones»**. Las actualizaciones descargadas las instalas como en la configuración inicial (DMG/instalador) — por razones de seguridad, la app no se reemplaza a sí misma.
+
+**La comprobación automática se puede desactivar** (⚙ Ajustes → «Buscar una
+versión nueva al arrancar»). Desactivado significa: la aplicación no establece
+ninguna conexión por sí misma — solo descarga mapas cuando muestras uno, con
+tu propia cuenta de Mapbox. El botón manual del diálogo Acerca de sigue
+funcionando.
 
 ### «No se puede abrir porque proviene de un desarrollador no verificado» (macOS)
 La app no está firmada con un certificado de desarrollador de Apple de 99 $/año. Solución: **clic derecho → Abrir** en lugar de doble clic (ver Instalación).

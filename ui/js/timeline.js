@@ -44,8 +44,14 @@ function mountTimelineBar(opts) {
     { kind: "pitch",    label: tlT("animator.lane.pitch",    "Pitch"),     icon: "📐", color: "#5aa9ff" },
     { kind: "bearing",  label: tlT("animator.lane.bearing",  "Drehung"),   icon: "🧭", color: "#6cdd9b" },
     { kind: "zoom",     label: tlT("animator.lane.zoom",     "Zoom"),      icon: "🔍", color: "#c397ff" },
-    { kind: "center",   label: tlT("animator.lane.center",   "Karte"),     icon: "📍", color: "#ffb24a" },
-    { kind: "position", label: tlT("animator.lane.position", "Welt-Pos"),  icon: "✥",  color: "#4dd4ff" },
+    // v0.9.530 (Nutzerfrage aus Spanien, IDEAS §31): „Karte" und „Welt-Pos"
+    // waren nicht auseinanderzuhalten. Jetzt benannt nach dem, was sie TUN
+    // (Erdpunkt = Erde drehen, Bildlage = Bild im Ausschnitt schieben) + je
+    // ein erklärender Tooltip an der Spur-Beschriftung.
+    { kind: "center",   label: tlT("animator.lane.center",   "Erdpunkt"), icon: "📍", color: "#ffb24a",
+      tip: tlT("animator.lane.center_tip", "Erdpunkt: welcher Punkt der Erde unter der Kamera liegt. Ändern DREHT die Erde unter der Kamera (Werte über ±180° = volle Umdrehungen).") },
+    { kind: "position", label: tlT("animator.lane.position", "Bildlage"), icon: "✥",  color: "#4dd4ff",
+      tip: tlT("animator.lane.position_tip", "Bildlage: verschiebt die Erdansicht im Bildausschnitt (±50%). Die Kamera bleibt — nur das Bild rutscht, z.B. um Platz für Text zu schaffen.") },
     // v0.9.136 — Welt-Drehung-Lane (rotation) abgeschafft (Insta360-Modell).
     // Die Drehung steckt jetzt in der abgewickelten center.lng der „Karte"-
     // Lane. Alte Projekte mit rotation-Events: Lane fehlt → Marker werden
@@ -56,7 +62,7 @@ function mountTimelineBar(opts) {
   ];
   const lanesHtml = LANES.map(L => `
     <div class="timeline-lane" data-kind="${L.kind}" style="--lane-color: ${L.color};">
-      <div class="lane-label" title="${L.label}"><span class="lane-icon">${L.icon}</span><span class="lane-name">${L.label}</span></div>
+      <div class="lane-label" title="${L.tip || L.label}"><span class="lane-icon">${L.icon}</span><span class="lane-name">${L.label}</span></div>
       <div class="lane-track">
         <div class="lane-axis"></div>
         <div class="lane-markers" id="tl-lane-${L.kind}"></div>
