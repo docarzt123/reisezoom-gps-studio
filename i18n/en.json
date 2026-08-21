@@ -1704,6 +1704,7 @@
   "library.remove_folder": "Stop watching this folder",
   "library.no_folders": "No folder yet. Add the folder where your GPX files live.",
   "library.scan": "Rescan",
+  "library.rescan_folder": "Re-scan only this folder",
   "library.scan_done": "Done",
   "library.new": "new",
   "library.updated": "updated",

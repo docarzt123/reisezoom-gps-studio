@@ -1763,19 +1763,27 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def library_scan_start(self, force: bool = False) -> dict:
+    def library_scan_start(self, force: bool = False, folder: str = "") -> dict:
         """Startet das Einlesen im Hintergrund. Fortschritt via
-        `library_scan_status()` — dasselbe Muster wie beim Render."""
+        `library_scan_status()` — dasselbe Muster wie beim Render.
+
+        v0.9.528 (Beta-Tester-Wunsch, per Screenshot): `folder` liest NUR
+        diesen einen beobachteten Ordner neu ein. Sein Fall: ein Ordner mit
+        103.535 Dateien neben einem mit 28 neuen — wer nur die 28 will, soll
+        nicht durch die 103.535 müssen. Die Entfern-Logik in `clib.scan`
+        läuft nur über die übergebenen Ordner, der Rest bleibt unangetastet."""
         if getattr(self, "_lib_scan_running", False):
             return {"ok": False, "error": "läuft bereits"}
         self._lib_scan_running = True
         self._lib_scan_stop = False
         self._lib_scan_state = {"done": 0, "total": 0, "current": "", "running": True}
+        _nur = [folder] if folder else None
 
         def worker():
             try:
                 res = clib.scan(
                     self._lib(), LIBRARY_THUMBS, IMPORTS_DIR, force=force,
+                    folders=_nur,
                     map_thumbs_dir=LIBRARY_MAP_THUMBS, covers_dir=LIBRARY_COVERS,
                     progress=lambda p: self._lib_scan_state.update(p),
                     should_stop=lambda: self._lib_scan_stop,
@@ -4959,8 +4967,11 @@ class Api:
             # 3. Archiv-Quelle registrieren + einlesen (normaler Scan-Weg).
             conn = self._lib()
             clib.add_folder(conn, str(ziel_dir), recursive=False)
+            # ⚠️ `folders` erwartet PFAD-Strings (v0.9.528-Fix): mit dem
+            # früheren Dict wäre _iter_files an Path(dict) gestorben — der
+            # Import der geholten Tour in die Bibliothek wäre gecrasht.
             clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR,
-                      folders=[{"path": str(ziel_dir), "recursive": False}])
+                      folders=[str(ziel_dir)])
 
             # 4. Tour-Daten (track_meta) aus dem Umschlag anwenden.
             meta = tour.get("meta") or {}

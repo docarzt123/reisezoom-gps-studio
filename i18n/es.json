@@ -1704,6 +1704,7 @@
   "library.remove_folder": "Dejar de vigilar esta carpeta",
   "library.no_folders": "Aún no hay carpeta. Añade la carpeta donde están tus archivos GPX.",
   "library.scan": "Volver a leer",
+  "library.rescan_folder": "Releer solo esta carpeta",
   "library.scan_done": "Listo",
   "library.new": "nuevas",
   "library.updated": "actualizadas",

@@ -1704,6 +1704,7 @@
   "library.remove_folder": "Ordner nicht mehr beobachten",
   "library.no_folders": "Noch kein Ordner. Füge den Ordner hinzu, in dem deine GPX-Dateien liegen.",
   "library.scan": "Neu einlesen",
+  "library.rescan_folder": "Nur diesen Ordner neu einlesen",
   "library.scan_done": "Fertig",
   "library.new": "neu",
   "library.updated": "aktualisiert",

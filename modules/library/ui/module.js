@@ -2069,6 +2069,7 @@ function mountLibrary(body, headerActions) {
           <div class="lib-folder${f.exists ? "" : " is-missing"}" title="${esc(f.path)}">
             <span class="lib-folder-name">${esc(f.path)}</span>
             <span class="lib-folder-n">${f.n_tracks}</span>
+            <button class="lib-folder-rescan" data-folder="${esc(f.path)}" title="${esc(T("library.rescan_folder", "Nur diesen Ordner neu einlesen"))}">🔄</button>
             <button class="lib-folder-x" data-folder="${esc(f.path)}" title="${esc(T("library.remove_folder", "Ordner nicht mehr beobachten"))}">✕</button>
           </div>`).join("")
       : `<div class="lib-empty-hint">${T("library.no_folders", "Noch kein Ordner. Füge den Ordner hinzu, in dem deine GPX-Dateien liegen.")}</div>`;
@@ -2104,6 +2105,11 @@ function mountLibrary(body, headerActions) {
     if (add) add.onclick = addFolder;
     const scan = $("lib-scan");
     if (scan) scan.onclick = () => startScan(false);
+    // v0.9.528 (Beta-Tester-Wunsch): nur EINEN Ordner neu einlesen — bei ihm
+    // liegen 103.535 Dateien in einem Ordner und 28 neue in einem anderen.
+    document.querySelectorAll(".lib-folder-rescan").forEach(btn => {
+      btn.onclick = () => startScan(false, btn.dataset.folder);
+    });
     const maps = $("lib-maps");
     if (maps) maps.onclick = startMapThumbs;
     const stop = $("lib-maps-stop");
@@ -2120,8 +2126,8 @@ function mountLibrary(body, headerActions) {
     startScan(false);
   }
 
-  async function startScan(force) {
-    const res = await api().library_scan_start(!!force);
+  async function startScan(force, folder) {
+    const res = await api().library_scan_start(!!force, folder || "");
     if (!res.ok) { toast(res.error || "Einlesen läuft bereits", "warn"); return; }
     const btn = $("lib-scan");
     if (btn) btn.disabled = true;
