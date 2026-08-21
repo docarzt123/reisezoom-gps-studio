@@ -113,9 +113,35 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.521</span>
+    <span class="version-num">v0.9.522</span>
     <span class="version-date">20 August 2026</span>
     <span class="version-badge">Latest</span>
+  </div>
+  <p class="version-tagline">Windows: the geotagger writes everything again.</p>
+
+  <div class="highlight">
+    <strong>⏳ Waiting is visible now.</strong> Buttons with longer work behind them lock and say what is happening — nothing feels like a dead click anymore.
+  </div>
+
+  <div class="highlight">
+    <strong>📚 Huge folders without crashing.</strong> From 2,000 photos on, the geotagger skips previews (with a note) — loading, matching and writing 20,000 photos now runs through reliably.
+  </div>
+
+  <div class="highlight">
+    <strong>🪟 Addresses and EXIF fields fixed on Windows.</strong> When tagging on Windows only the coordinates arrived — addresses and extra fields failed with a socket error, and large folders froze the app. The cause was a Unix mechanism Windows does not support; all systems now share the same path.
+  </div>
+
+  <div class="highlight">
+    <strong>🚪 The write dialog has an escape hatch.</strong> If a photo hangs or the process stops responding, the dialog offers to close itself after 90 seconds — no more ending the app via Task Manager.
+  </div>
+
+  <p class="version-note">Thanks to the Windows user for the detailed report with log and screenshots.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.521</span>
+    <span class="version-date">20 August 2026</span>
   </div>
   <p class="version-tagline">The trial run now shows what you set.</p>
 

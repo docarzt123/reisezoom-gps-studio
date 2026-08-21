@@ -20,7 +20,6 @@ import json
 import logging
 import os
 import re
-import select
 import shutil
 import signal
 import subprocess
@@ -370,6 +369,42 @@ class _ExifToolDaemon:
         self._lock = _threading.Lock()
         self._req_counter = 0
         self._role: Optional[str] = None  # v0.9.369 — für Cache-Invalidierung bei Hänger
+        # v0.9.522 — Lese-Thread statt select() (Windows-Bug, Nutzer-Report):
+        # `select.select()` kann auf Windows nur Sockets, keine Pipes — jeder
+        # Daemon-Aufruf starb dort sofort mit „[WinError 10038] … kein Socket".
+        # Schlimmer: Weil danach niemand mehr stdout las, lief der Pipe-Puffer
+        # voll, exiftool blockierte beim Schreiben, und unser nächstes
+        # stdin.write() blockierte für immer → App-Freeze bei 92/2236 Fotos,
+        # nur noch killbar. Der Thread leert stdout DAUERHAFT (exiftool kann
+        # nie am Puffer ersticken) und ist auf allen Systemen derselbe Pfad —
+        # die macOS-Tests testen damit genau den Code, der auf Windows läuft.
+        self._buf = bytearray()
+        self._buf_cond = _threading.Condition()
+        self._eof = False
+        self._reader = _threading.Thread(
+            target=self._reader_lauf, daemon=True,
+            name=f"exiftool-reader-{self._proc.pid}")
+        self._reader.start()
+
+    def _reader_lauf(self) -> None:
+        """Liest stdout des Daemons, bis der Prozess endet. Läuft als
+        Daemon-Thread; blockierendes os.read() ist hier in Ordnung, weil
+        NUR dieser Thread liest und alle Wartenden über die Condition
+        aufwachen."""
+        assert self._proc.stdout is not None
+        fd = self._proc.stdout.fileno()
+        while True:
+            try:
+                chunk = os.read(fd, 65536)
+            except (OSError, ValueError):
+                chunk = b""
+            with self._buf_cond:
+                if not chunk:
+                    self._eof = True
+                    self._buf_cond.notify_all()
+                    return
+                self._buf += chunk
+                self._buf_cond.notify_all()
 
     def _on_hang(self, timeout: float) -> None:
         """v0.9.369 — Reißt einen hängenden Daemon-Prozess hart ab und nimmt die
@@ -395,39 +430,32 @@ class _ExifToolDaemon:
             pass
 
     def _read_until(self, marker: bytes, timeout: float) -> bytes:
-        """v0.9.369 — Liest stdout via os.read()+select bis `marker` erscheint.
-        Bricht nach `timeout` Sekunden mit ExifToolTimeout ab (statt wie früher
-        mit `read1()` UNENDLICH zu blockieren, wenn exiftool an einer kaputten
-        Datei hängt → App-Freeze). select+os.read statt BufferedReader.read1,
-        damit der Timeout zuverlässig greift und keine Bytes im Python-Puffer
-        „verschwinden". Aufrufer hält self._lock."""
-        assert self._proc.stdout is not None
-        fd = self._proc.stdout.fileno()
-        buf = b""
+        """Wartet, bis der Lese-Thread `marker` in den Puffer gelegt hat.
+        Bricht nach `timeout` Sekunden mit ExifToolTimeout ab (v0.9.369),
+        damit eine kaputte Datei nie die App einfriert. Aufrufer hält
+        self._lock, Anfragen sind also strikt nacheinander — deshalb darf
+        der Puffer nach der Antwort geleert werden (Reste hinter dem Marker
+        sind nur der Zeilenumbruch der aktuellen Antwort, wie früher auch)."""
         deadline = time.monotonic() + timeout
-        while marker not in buf:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                self._on_hang(timeout)
-                raise ExifToolTimeout(
-                    f"exiftool antwortete nicht innerhalb {timeout:.0f}s")
-            r, _, _ = select.select([fd], [], [], min(remaining, 1.0))
-            if not r:
-                continue
-            try:
-                chunk = os.read(fd, 65536)
-            except OSError:
-                chunk = b""
-            if not chunk:
-                break  # EOF → Prozess weg
-            buf += chunk
-        idx = buf.find(marker)
-        if idx < 0:
-            # Kein Marker trotz EOF → Prozess ist gestorben. Als Hänger behandeln,
-            # damit der nächste Call einen frischen Daemon bekommt.
-            self._on_hang(0)
-            raise ExifToolTimeout("exiftool-Prozess endete ohne Marker")
-        return buf[:idx]
+        with self._buf_cond:
+            while True:
+                idx = self._buf.find(marker)
+                if idx >= 0:
+                    out = bytes(self._buf[:idx])
+                    self._buf.clear()
+                    return out
+                if self._eof:
+                    # Prozess weg, Marker kommt nie mehr. Als Hänger behandeln,
+                    # damit der nächste Call einen frischen Daemon bekommt.
+                    self._buf.clear()
+                    self._on_hang(0)
+                    raise ExifToolTimeout("exiftool-Prozess endete ohne Marker")
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    self._on_hang(timeout)
+                    raise ExifToolTimeout(
+                        f"exiftool antwortete nicht innerhalb {timeout:.0f}s")
+                self._buf_cond.wait(min(remaining, 1.0))
 
     def _send_and_read_text(self, args: list[str],
                             timeout: float = _DAEMON_READ_TIMEOUT) -> str:

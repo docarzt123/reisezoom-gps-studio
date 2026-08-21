@@ -113,9 +113,35 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.521</span>
+    <span class="version-num">v0.9.522</span>
     <span class="version-date">20. August 2026</span>
     <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Windows: Geotagger schreibt wieder alles.</p>
+
+  <div class="highlight">
+    <strong>⏳ Warten sieht man jetzt.</strong> Knöpfe mit längerer Arbeit dahinter sperren sich und sagen, was gerade passiert — nichts wirkt mehr wie ein toter Klick.
+  </div>
+
+  <div class="highlight">
+    <strong>📚 Riesige Ordner ohne Absturz.</strong> Ab 2.000 Fotos verzichtet der Geotagger auf Vorschaubilder (mit Hinweis) — 20.000 Fotos laden, verorten und schreiben läuft damit stabil durch.
+  </div>
+
+  <div class="highlight">
+    <strong>🪟 Adressen und EXIF-Felder auf Windows repariert.</strong> Beim Verorten kamen auf Windows nur die Koordinaten an — Adresse und Zusatzfelder scheiterten mit einem Socket-Fehler, und große Ordner ließen die App einfrieren. Ursache war ein Unix-Mechanismus, den Windows nicht kennt; jetzt läuft auf allen Systemen derselbe Weg.
+  </div>
+
+  <div class="highlight">
+    <strong>🚪 Der Schreib-Dialog hat einen Notausgang.</strong> Hängt ein Foto oder meldet sich der Vorgang nicht mehr, bietet der Dialog nach 90 Sekunden das Schließen an — die App muss nie mehr über den Task-Manager beendet werden.
+  </div>
+
+  <p class="version-note">Danke an den Windows-Nutzer für den ausführlichen Bericht mit Log und Screenshots.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.521</span>
+    <span class="version-date">20. August 2026</span>
   </div>
   <p class="version-tagline">Der Probe-Lauf zeigt jetzt, was du gesetzt hast.</p>
 

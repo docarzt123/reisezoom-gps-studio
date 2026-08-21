@@ -113,9 +113,35 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.521</span>
+    <span class="version-num">v0.9.522</span>
     <span class="version-date">20 de agosto de 2026</span>
     <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Windows: el geotagger vuelve a escribirlo todo.</p>
+
+  <div class="highlight">
+    <strong>⏳ La espera ahora se ve.</strong> Los botones con trabajo largo detrás se bloquean y dicen qué está pasando: ningún clic parece muerto.
+  </div>
+
+  <div class="highlight">
+    <strong>📚 Carpetas enormes sin caídas.</strong> A partir de 2.000 fotos el geotagger prescinde de las miniaturas (con aviso): cargar, ubicar y escribir 20.000 fotos funciona de forma estable.
+  </div>
+
+  <div class="highlight">
+    <strong>🪟 Direcciones y campos EXIF arreglados en Windows.</strong> Al etiquetar en Windows solo llegaban las coordenadas: la dirección y los campos extra fallaban con un error de socket, y las carpetas grandes congelaban la aplicación. La causa era un mecanismo de Unix que Windows no conoce; ahora todos los sistemas usan el mismo camino.
+  </div>
+
+  <div class="highlight">
+    <strong>🚪 El diálogo de escritura tiene salida de emergencia.</strong> Si una foto se atasca o el proceso deja de responder, tras 90 segundos el diálogo ofrece cerrarse — nunca más habrá que matar la aplicación.
+  </div>
+
+  <p class="version-note">Gracias al usuario de Windows por el informe detallado con registro y capturas.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.521</span>
+    <span class="version-date">20 de agosto de 2026</span>
   </div>
   <p class="version-tagline">La prueba muestra ya lo que has puesto.</p>
 
