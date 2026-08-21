@@ -284,4 +284,46 @@ if ($was === 'papierkorb') {
     rz_json(['ok' => true, 'geloescht' => $weg, 'tage' => $tage]);
 }
 
+if ($was === 'papierkorb_liste') {
+    // Was liegt im Papierkorb? Nur Hex-Name + Zeitpunkt + Größe — der Server
+    // kennt keine Klarnamen (Zweck der Verschlüsselung). Die App übersetzt
+    // die Namen lokal zurück, soweit sie sie kennt.
+    $aus = [];
+    foreach (glob(rz_pfad('p', '*.bin')) ?: [] as $f) {
+        $b = basename($f, '.bin');
+        // Ablageform: <hexname>.<unixzeit>
+        $punkt = strrpos($b, '.');
+        if ($punkt === false) continue;
+        $aus[] = ['name' => substr($b, 0, $punkt),
+                  'zeit' => (int)substr($b, $punkt + 1),
+                  'groesse' => (int)@filesize($f)];
+    }
+    usort($aus, fn($a, $b2) => $b2['zeit'] <=> $a['zeit']);
+    rz_json(['ok' => true, 'eintraege' => $aus]);
+}
+
+if ($was === 'papierkorb_holen') {
+    // Einen Papierkorb-Eintrag AUSLIEFERN (verschlüsselt, wie er ist).
+    // Wiederherstellen macht die App: holen → entschlüsseln/prüfen → normal
+    // wieder ablegen → Eintrag hier löschen. So braucht der Server nie die
+    // Prüfsumme des Klartexts zu kennen.
+    $name = rz_name_pruefen((string)($_GET['name'] ?? ''));
+    $zeit = (int)($_GET['zeit'] ?? 0);
+    $q = rz_pfad('p', $name . '.' . $zeit . '.bin');
+    if (!is_file($q)) rz_fehler('Nicht im Papierkorb.', 404);
+    header('Content-Type: application/octet-stream');
+    readfile($q);
+    exit;
+}
+
+if ($was === 'papierkorb_weg') {
+    // Einen EINZELNEN Papierkorb-Eintrag endgültig löschen (nach dem
+    // Wiederherstellen, oder gezielt von Hand).
+    $name = rz_name_pruefen((string)($_GET['name'] ?? ''));
+    $zeit = (int)($_GET['zeit'] ?? 0);
+    $q = rz_pfad('p', $name . '.' . $zeit . '.bin');
+    $weg = is_file($q) && @unlink($q);
+    rz_json(['ok' => true, 'geloescht' => $weg ? 1 : 0]);
+}
+
 rz_fehler('Unbekannte Aktion ' . ($was === '' ? '(keine)' : $was) . '.', 404);

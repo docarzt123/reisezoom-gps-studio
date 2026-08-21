@@ -14,6 +14,28 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.524] – 2026-08-21
+
+### Neu
+- **Das Cloud-Archiv ist fertig und regulär sichtbar.** Die drei Lücken, die
+  es seit v0.9.516 versteckt hielten, sind geschlossen:
+  - **Selbsttätiger Abgleich** — der Kern (Marc: „eine zentrale Stelle, wo
+    meine Touren gespeichert sind“). Ein Wächter bemerkt Änderungen an Touren
+    und Projekten und lädt nach 90 Sekunden Ruhe von selbst hoch. Offline
+    heißt stiller Rückstau mit wachsendem Abstand — nie ein Dialog, nie eine
+    Bremse. Die ☁-Anzeige zeigt den Zustand (☁ aktuell · ☁… gleich · ☁⚠
+    ausstehend), und es gibt bewusst keinen Start-Sync ohne echte Änderung.
+  - **Einzeltour-Holen** — der Cloud-Dialog zeigt, welche Touren nur im
+    Archiv liegen; „Holen“ bringt GPX, Tour-Daten, Projekte und
+    Foto-Vorschauen auf diesen Rechner und liest sie normal ins Archiv ein.
+    Lokale Projekte werden dabei nie überschrieben.
+  - **Papierkorb** — Gelöschtes lässt sich ansehen (mit Klarnamen, die nur
+    die App kennt — der Server sieht weiter nur Hashes), wiederherstellen
+    (mit Echtheits-Prüfung beim Entschlüsseln) oder endgültig entfernen.
+- Der Server-Teil (`rz-cloud.php`) kann jetzt Papierkorb-Einträge listen,
+  ausliefern und einzeln löschen; Bestandsarchive brauchen nur die neue Datei,
+  keine Datenänderung.
+
 ## [0.9.523] – 2026-08-21
 
 ### Behoben
