@@ -1576,9 +1576,10 @@ function mountGpxInspect(body, headerActions) {
       const m = t("gpxinspect.ele_need_token", "Braucht einen Mapbox-Token (Einstellungen).");
       if (resEl) resEl.textContent = m; toast(m, "warn"); return;
     }
-    const btn = document.getElementById("gpxi-ele-load");
     _eleBusy = true;
-    if (btn) { btn.disabled = true; btn.textContent = "⏳ " + t("gpxinspect.ele_working", "Hole Höhen aus der Karte …"); }
+    // v0.9.522 — gemeinsames Warte-Muster aus util.js statt Eigenbau.
+    const frei = knopfBeschaeftigt("gpxi-ele-load", "gpxinspect.ele_working", "Hole Höhen aus der Karte …");
+    await malPause();
     try {
       // Track-Bbox anfahren (animate:false), auf 'idle' warten (DEM-Kacheln da), samplen, zurück.
       const cam = { center: map.getCenter(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
@@ -1616,7 +1617,7 @@ function mountGpxInspect(body, headerActions) {
       if (resEl) resEl.textContent = t("gpxinspect.ele_err", "Höhenprofil laden fehlgeschlagen.");
     } finally {
       _eleBusy = false;
-      if (btn) { btn.disabled = false; btn.textContent = "🗺 " + t("gpxinspect.ele_load", "Höhenprofil aus Karte laden"); }
+      if (frei) frei();
     }
   }
   // Aktuelle Mischung in die Punkte schreiben (mit Undo).
@@ -1814,15 +1815,16 @@ function mountGpxInspect(body, headerActions) {
 
     const mode = (document.getElementById("gpxi-join-mode") || {}).value || "append";
     const pause = parseNum((document.getElementById("gpxi-join-pause") || {}).value, 0);
-    const btn = document.getElementById("gpxi-join");
-    if (btn) { btn.disabled = true; btn.textContent = "⏳ " + t("gpxinspect.join_working", "Hänge an …"); }
+    // v0.9.522 — gemeinsames Warte-Muster aus util.js statt Eigenbau.
+    const frei = knopfBeschaeftigt("gpxi-join", "gpxinspect.join_working", "Hänge an …");
+    await malPause();
     let res;
     try {
       res = await api().gpxinspect_append_track(
         _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi, si: p.si || 0 })),
         path, mode, pause, _sources.length);
     } catch (e) { res = { ok: false, error: String(e) }; }
-    if (btn) { btn.disabled = false; btn.textContent = "➕ " + t("gpxinspect.join_run", "Weiteren Track anhängen …"); }
+    if (frei) frei();
     if (isUnmounted) return;
     if (!res || !res.ok) {
       const msg = (res && res.error) || t("gpxinspect.join_failed", "Anhängen fehlgeschlagen");

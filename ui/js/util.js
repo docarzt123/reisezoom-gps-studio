@@ -2284,3 +2284,27 @@ function showRenderEngineMissingModal(browsersPath, onSuccess) {
   window.addEventListener("scroll", hide, true);
   window.addEventListener("resize", hide);
 })();
+
+// ── v0.9.522 — Warte-Zustand sichtbar machen (alle Module) ─────────────────
+// Marc-Regel vom 21.08.2026: JEDER Klick, hinter dem mehr als ein
+// Wimpernschlag Arbeit stecken kann, sperrt seinen Knopf und sagt, was
+// gerade passiert. Entstanden beim 20.000-Fotos-Test: Ordner-Scan und
+// Schreib-Prüfung liefen bis zu einer Minute ohne Feedback, die Knöpfe
+// blieben aktiv, und wiederholtes Klicken erzeugte Doppel-Flows.
+//
+//   const frei = knopfBeschaeftigt("mein-knopf", "modul.busy.x", "Rechne …");
+//   if (!frei) return;              // läuft schon
+//   await malPause();               // gesperrten Zustand malen lassen
+//   try { … } finally { frei(); }
+function knopfBeschaeftigt(id, textKey, textFallback) {
+  const b = document.getElementById(id);
+  if (!b || b.disabled) return null;
+  const alt = b.innerHTML;
+  b.disabled = true;
+  b.innerHTML = "⏳ " + (typeof t === "function" ? t(textKey, textFallback) : textFallback);
+  return () => { try { b.disabled = false; b.innerHTML = alt; } catch (_) {} };
+}
+
+/** Kurz ans DOM abgeben, damit der gesperrte Knopf auch GEMALT wird, bevor
+ *  schwere Arbeit den Thread blockiert. */
+function malPause() { return new Promise(r => setTimeout(r, 30)); }
