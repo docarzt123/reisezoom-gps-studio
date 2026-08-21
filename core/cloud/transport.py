@@ -187,3 +187,24 @@ class Gegenstelle:
     def papierkorb_leeren(self, tage: int = 30) -> int:
         d = self._anfragen("papierkorb", methode="POST", tage=tage)
         return int(d.get("geloescht", 0))
+
+    # ── Papierkorb im Detail (v0.9.524) ──────────────────────────────────
+    # Der Server kennt nur Hex-Namen und Zeitpunkte — Klarnamen übersetzt die
+    # App lokal zurück (server_name ist sha256 über den logischen Namen; wir
+    # kennen alle logischen Namen, die es je gab, aus dem Verzeichnis).
+
+    def papierkorb_liste(self) -> list[dict]:
+        d = self._anfragen("papierkorb_liste")
+        return list(d.get("eintraege") or [])
+
+    def papierkorb_holen(self, hex_name: str, zeit: int) -> bytes:
+        """Einen Eintrag verschlüsselt ausliefern — Wiederherstellen macht die
+        App selbst (entschlüsseln → prüfen → normal wieder ablegen), damit der
+        Server nie die Klartext-Prüfsumme kennen muss."""
+        return self._anfragen("papierkorb_holen", roh=True,
+                              name=hex_name, zeit=zeit)
+
+    def papierkorb_weg(self, hex_name: str, zeit: int) -> bool:
+        d = self._anfragen("papierkorb_weg", methode="POST",
+                           name=hex_name, zeit=zeit)
+        return bool(d.get("geloescht"))

@@ -37,14 +37,25 @@
     if (!s || !s.verfuegbar || !s.eingerichtet) { el.hidden = true; return; }
     el.hidden = false;
     var lauf = s.lauf;
+    var auto = s.auto || {};
+    el.classList.remove("laeuft", "warnung");
     if (lauf && lauf.n) {
       el.textContent = "☁ " + lauf.i + "/" + lauf.n;
       el.title = T("cloud.laeuft", "Überträgt gerade …");
       el.classList.add("laeuft");
+    } else if (auto.status === "rueckstau") {
+      // v0.9.524 — Auto-Sync kam nicht durch (offline?): still, aber sichtbar.
+      el.textContent = "☁⚠";
+      el.title = T("cloud.rueckstau", "Hochladen ausstehend — wird automatisch erneut versucht.") +
+                 (auto.grund ? "\n" + auto.grund : "");
+      el.classList.add("warnung");
+    } else if (auto.status === "wartet") {
+      el.textContent = "☁…";
+      el.title = T("cloud.wartet", "Änderungen erkannt — Hochladen startet gleich.");
     } else {
       el.textContent = "☁";
-      el.title = T("cloud.aktuell", "Archiv ist abgeglichen");
-      el.classList.remove("laeuft");
+      el.title = T("cloud.aktuell", "Archiv ist abgeglichen") +
+                 (auto.zeit ? " (" + auto.zeit.replace("T", " ") + ")" : "");
     }
   }
 
@@ -69,6 +80,12 @@
         if (!_uhr) _uhr = setInterval(standHolen, 900);
       } else if (_uhr) {
         clearInterval(_uhr); _uhr = null;
+      }
+      // v0.9.524 — Auto-Sync lebt im Hintergrund: alle 90 s ein stiller
+      // Blick, damit ☁/☁…/☁⚠ die Wahrheit zeigt, ohne dass etwas pollt,
+      // wenn gar keine Cloud eingerichtet ist.
+      if (s && s.eingerichtet && !window.__cloudPuls) {
+        window.__cloudPuls = setInterval(standHolen, 90000);
       }
     }).catch(function (e) {
       // ⚠️ Ein stiller catch war hier ein Fehler: Als die Brücke einen Fehler
@@ -130,9 +147,18 @@
   }
 
   function koerperVerbunden(s) {
+    var auto = s.auto || {};
+    var autoText =
+      auto.status === "aktuell" ? T("cloud.auto_aktuell", "Automatischer Abgleich: aktuell") +
+        (auto.zeit ? " · " + auto.zeit.replace("T", " ") : "") :
+      auto.status === "laeuft" ? T("cloud.auto_laeuft", "Automatischer Abgleich: überträgt gerade …") :
+      auto.status === "wartet" ? T("cloud.auto_wartet", "Automatischer Abgleich: Änderungen erkannt, startet gleich") :
+      auto.status === "rueckstau" ? T("cloud.auto_rueckstau", "Automatischer Abgleich: ausstehend — wird erneut versucht") :
+      T("cloud.auto_bereit", "Automatischer Abgleich: bereit — lädt nach Änderungen von selbst hoch");
     return '' +
       '<p>' + T("cloud.verbunden_mit", "Verbunden mit") + ':<br>' +
         '<code style="font-size:12px">' + (s.adresse || "") + '</code></p>' +
+      '<p class="muted" style="margin-top:6px">🔄 ' + autoText + '</p>' +
       '<div id="cloud-plan" class="muted" style="margin-top:10px">…</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
         '<button class="btn btn--primary" id="cloud-jetzt">' +
@@ -143,7 +169,106 @@
           T("cloud.trennen", "Verbindung trennen") + '</button>' +
       '</div>' +
       '<div id="cloud-meldung" style="margin-top:12px"></div>' +
+      '<div id="cloud-ferne" style="margin-top:14px"></div>' +
+      '<div id="cloud-korb" style="margin-top:14px"></div>' +
       '<p class="muted" style="font-size:11px;margin-top:14px">' + (s.ablage || "") + '</p>';
+  }
+
+  // ── v0.9.524: Touren, die nur im Archiv liegen (Gerät 2 holt sie hier) ──
+  function ferneLaden() {
+    var box = document.getElementById("cloud-ferne");
+    if (!box) return;
+    box.innerHTML = '<span class="muted">' + T("cloud.ferne_lade", "Schaue ins Archiv …") + '</span>';
+    window.pywebview.api.cloud_uebersicht().then(function (u) {
+      if (!box.isConnected) return;
+      if (!u.ok) { box.innerHTML = '<span class="muted">⚠ ' + u.error + '</span>'; return; }
+      var kopf = '<b>' + T("cloud.ferne_titel", "Touren im Archiv") + ':</b> ' + u.im_archiv +
+                 ' · ' + T("cloud.ferne_lokal", "davon hier") + ': ' + (u.im_archiv - u.nur_cloud.length);
+      if (!u.nur_cloud.length) {
+        box.innerHTML = kopf + ' · <span class="muted">' +
+          T("cloud.ferne_alle_da", "alles auch lokal vorhanden") + '</span>';
+        return;
+      }
+      var zeilen = u.nur_cloud.map(function (t) {
+        var datum = (t.started_at || "").slice(0, 10);
+        var km = t.distance_m ? " · " + (t.distance_m / 1000).toFixed(1) + " km" : "";
+        return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">' +
+          '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+            (t.name || t.geo_hash) + ' <span class="muted">' + datum + km + '</span></span>' +
+          '<button class="btn btn--ghost cloud-holen" data-gh="' + t.geo_hash + '">' +
+            T("cloud.holen", "Holen") + '</button></div>';
+      }).join("");
+      box.innerHTML = kopf + '<div style="max-height:180px;overflow:auto;margin-top:6px">' + zeilen + '</div>';
+      box.querySelectorAll(".cloud-holen").forEach(function (b) {
+        b.onclick = function () {
+          b.disabled = true; b.textContent = "⏳";
+          window.pywebview.api.cloud_tour_holen(b.dataset.gh).then(function (r) {
+            if (r.ok) {
+              b.textContent = "✓";
+              try { toast(T("cloud.geholt", "Tour geholt: ") + r.name, "success", 5000); } catch (_) {}
+            } else {
+              b.disabled = false; b.textContent = T("cloud.holen", "Holen");
+              melden("⚠ " + r.error, "fehler");
+            }
+          });
+        };
+      });
+    });
+  }
+
+  // ── v0.9.524: Papierkorb ───────────────────────────────────────────────
+  function korbLaden() {
+    var box = document.getElementById("cloud-korb");
+    if (!box) return;
+    window.pywebview.api.cloud_papierkorb().then(function (k) {
+      if (!box.isConnected) return;
+      if (!k.ok) { box.innerHTML = ""; return; }
+      var n = (k.eintraege || []).length;
+      if (!n) {
+        box.innerHTML = '<span class="muted">🗑 ' + T("cloud.korb_leer", "Papierkorb ist leer.") + '</span>';
+        return;
+      }
+      var zeilen = k.eintraege.map(function (e) {
+        var wann = e.zeit ? new Date(e.zeit * 1000).toLocaleDateString() : "?";
+        return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">' +
+          '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+            (e.klarname || T("cloud.korb_unbekannt", "(unbekannter Eintrag)")) +
+            ' <span class="muted">' + wann + '</span></span>' +
+          '<button class="btn btn--ghost korb-zurueck" data-n="' + e.name + '" data-z="' + e.zeit + '">' +
+            T("cloud.korb_zurueck", "Wiederherstellen") + '</button>' +
+          '<button class="btn btn--ghost korb-weg" data-n="' + e.name + '" data-z="' + e.zeit + '">✕</button>' +
+          '</div>';
+      }).join("");
+      box.innerHTML = '<b>🗑 ' + T("cloud.korb_titel", "Papierkorb") + ' (' + n + ')</b>' +
+        '<div style="max-height:140px;overflow:auto;margin-top:6px">' + zeilen + '</div>' +
+        '<button class="btn btn--ghost" id="korb-leeren" style="margin-top:6px">' +
+          T("cloud.korb_leeren", "Älteres als 30 Tage endgültig löschen") + '</button>';
+      box.querySelectorAll(".korb-zurueck").forEach(function (b) {
+        b.onclick = function () {
+          b.disabled = true; b.textContent = "⏳";
+          window.pywebview.api.cloud_papierkorb_zurueck(b.dataset.n, parseInt(b.dataset.z, 10))
+            .then(function (r) {
+              if (r.ok) { korbLaden(); ferneLaden(); }
+              else { b.disabled = false; b.textContent = T("cloud.korb_zurueck", "Wiederherstellen"); melden("⚠ " + r.error, "fehler"); }
+            });
+        };
+      });
+      box.querySelectorAll(".korb-weg").forEach(function (b) {
+        b.onclick = function () {
+          b.disabled = true;
+          window.pywebview.api.cloud_papierkorb_eintrag_weg(b.dataset.n, parseInt(b.dataset.z, 10))
+            .then(function () { korbLaden(); });
+        };
+      });
+      var lb = document.getElementById("korb-leeren");
+      if (lb) lb.onclick = function () {
+        lb.disabled = true;
+        window.pywebview.api.cloud_papierkorb_leeren(30).then(function (r) {
+          lb.disabled = false;
+          if (r.ok) { korbLaden(); melden(T("cloud.korb_geleert", "Gelöscht: ") + r.geloescht, ""); }
+        });
+      };
+    });
   }
 
   function melden(html, art) {
@@ -220,6 +345,8 @@
   }
 
   function handlerVerbunden() {
+    ferneLaden();
+    korbLaden();
     var planEl = document.getElementById("cloud-plan");
     window.pywebview.api.cloud_plan().then(function (r) {
       planEl.textContent = r.ok ? r.text : ("✗ " + r.error);

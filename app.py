@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.523"
+APP_VERSION = "0.9.524"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1046,6 +1046,10 @@ class Api:
 
     def __init__(self) -> None:
         self._window: Optional[webview.Window] = None
+        # v0.9.524 — Cloud-Auto-Sync-Wächter (tut nichts, solange keine Cloud
+        # eingerichtet ist; fasst den Schlüsselbund erst bei echter Arbeit an).
+        self._cloud_auto_thread = None
+        self._cloud_auto_start()
         self._render_thread: Optional[threading.Thread] = None
         self._render_state = {"running": False, "progress": 0.0, "status": "", "output": "", "error": ""}
         # Tour-Karten-PNG-Worker (analog Animator, eigener Thread/State)
@@ -4496,42 +4500,19 @@ class Api:
     ARCHIV_KENNUNG = "haupt"          # ein Archiv je Rechner (docs/IDEAS §26)
 
     def _cloud_sichtbar(self) -> bool:
-        """Ist das Cloud-Archiv in dieser Fassung überhaupt zu sehen?
+        """Das Cloud-Archiv ist seit v0.9.524 regulär sichtbar — die drei
+        Bedingungen aus dem Versteck-Beschluss (Marc, 16.08.2026) sind erfüllt:
+        selbsttätiger Abgleich, Einzeltour-Holen, Papierkorb.
 
-        ⚠️ Standard: NEIN (Marc, 16.08.2026 — „kannst du das verstecken? so
-        lange das noch nicht komplett fertig ist"). Fehlen tun noch der
-        selbsttätige Abgleich, das Holen einzelner Touren auf Gerät 2 und der
-        Papierkorb. Halbfertiges in der Oberfläche kostet Vertrauen: Wer den
-        Knopf sieht, hält das Archiv für fertig — und verlässt sich darauf.
-
-        Ist es aus, wird `core.cloud` **gar nicht erst geladen** und der
-        Schlüsselbund nicht angefasst. Das ist der eigentliche Punkt: Auch der
-        bloße Blick in den Schlüsselbund kann auf einem fremden Rechner einen
-        Freigabedialog auslösen (siehe `core/cloud/keys.py`, ZEITGRENZE).
-
-        Anschalten zum Weiterbauen — eines von beiden genügt:
-          * `RZ_CLOUD=1` in der Umgebung, oder
-          * eine Datei `cloud-freischalten.txt` neben den App-Daten
-            (praktischer, weil die gebaute App keine Umgebung erbt).
+        `RZ_CLOUD=0` bleibt als Not-Aus für die Entwicklung: Damit wird
+        `core.cloud` nicht geladen und der Schlüsselbund nicht angefasst.
         """
-        if os.environ.get("RZ_CLOUD", "").strip().lower() in ("1", "an", "ja", "on", "true"):
-            return True
-        try:
-            return (APP_SUPPORT / "cloud-freischalten.txt").exists()
-        except Exception:
-            return False
+        return os.environ.get("RZ_CLOUD", "").strip().lower() not in ("0", "aus", "off")
 
     def _cloud_aus(self) -> dict:
-        """Antwort für jede Cloud-Brücke, solange sie versteckt ist.
-
-        ⚠️ Der Text ist bewusst englisch und technisch: Diese Antwort kann
-        keinen Nutzer erreichen — die Oberfläche baut den Weg dorthin gar nicht.
-        Sie landet nur im Log. Ein deutscher Satz ohne Übersetzung wäre hier
-        falscher Aufwand, und `tests/test_keine_hartkodierte_sprache.py` hat ihn
-        zu Recht angemeckert.
-        """
+        """Antwort für jede Cloud-Brücke, wenn das Not-Aus (RZ_CLOUD=0) gilt."""
         return {"ok": False, "sichtbar": False,
-                "error": "cloud archive hidden in this build (see _cloud_sichtbar)"}
+                "error": "cloud archive disabled via RZ_CLOUD (see _cloud_sichtbar)"}
 
     def _cloud_teile(self):
         """Die Cloud-Module holen — oder sagen, warum es nicht geht."""
@@ -4573,6 +4554,8 @@ class Api:
             "eingerichtet": vorhanden is not None,
             "ablage": teile["keys"].ablage_beschreibung(),
             "lauf": getattr(self, "_cloud_lauf", None),
+            # v0.9.524 — Zustand des Auto-Syncs für die ☁-Anzeige.
+            "auto": dict(self._cloud_auto_zustand),
         }
         if vorhanden:
             antwort["adresse"] = vorhanden[1].adresse
@@ -4704,9 +4687,14 @@ class Api:
             conn.close()
 
     def cloud_abgleichen(self) -> dict:
-        """Alles Ausstehende übertragen. Meldet Fortschritt über `cloud_fortschritt`."""
+        """Alles Ausstehende übertragen — der Knopf. Der Auto-Sync ruft
+        denselben Kern (`_cloud_sync_einmal`)."""
         if not self._cloud_sichtbar():
             return self._cloud_aus()
+        return self._cloud_sync_einmal()
+
+    def _cloud_sync_einmal(self) -> dict:
+        """EIN kompletter Abgleich: Bestand aufnehmen, planen, hochladen."""
         vorhanden = self._cloud_zugang()
         if not vorhanden:
             return {"ok": False, "error": "nicht eingerichtet"}
@@ -4757,6 +4745,357 @@ class Api:
         except Exception as e:      # noqa: BLE001
             log.exception("Cloud-Abgleich fehlgeschlagen")
             return {"ok": False, "error": str(e)}
+
+    # ══ Cloud: Übersicht + Einzeltour-Holen (v0.9.524, „Gerät 2") ═════════
+
+    def cloud_uebersicht(self) -> dict:
+        """Was liegt im Archiv, was davon fehlt hier? Für den Cloud-Dialog."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        vorhanden = self._cloud_zugang()
+        if not vorhanden:
+            return {"ok": False, "error": "nicht eingerichtet"}
+        teile, zugang, schluessel = vorhanden
+        try:
+            import sqlite3
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            a = teile["sync"].Abgleich(g, schluessel)
+            verz = json.loads(a.holen(teile["archiv"].VERZEICHNIS).decode("utf-8"))
+            conn = sqlite3.connect(str(LIBRARY_DB))
+            try:
+                lokal = {z[0] for z in conn.execute(
+                    "SELECT geo_hash FROM tracks WHERE geo_hash IS NOT NULL")}
+            finally:
+                conn.close()
+            nur_cloud = []
+            for gh, t in (verz.get("touren") or {}).items():
+                if gh in lokal:
+                    continue
+                nur_cloud.append({
+                    "geo_hash": gh,
+                    "name": t.get("display_name") or t.get("name") or t.get("filename") or gh,
+                    "started_at": t.get("started_at"),
+                    "distance_m": t.get("distance_m"),
+                })
+            nur_cloud.sort(key=lambda x: x.get("started_at") or "", reverse=True)
+            return {"ok": True, "im_archiv": len(verz.get("touren") or {}),
+                    "lokal": len(lokal), "nur_cloud": nur_cloud}
+        except Exception as e:      # noqa: BLE001
+            log.exception("cloud_uebersicht")
+            return {"ok": False, "error": str(e)}
+
+    def cloud_tour_holen(self, geo_hash: str) -> dict:
+        """Eine Tour aus dem Archiv auf DIESEN Rechner holen.
+
+        Der Umschlag bringt alles mit: die GPX-Datei (landet in einem eigenen
+        Archiv-Ordner, der beim Archiv als Quelle registriert ist), die
+        Tour-Daten (`track_meta`) und die Projekte (Sessions). Foto-Vorschauen
+        landen daneben; die Projekt-Pfade zeigen darauf.
+        """
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        vorhanden = self._cloud_zugang()
+        if not vorhanden:
+            return {"ok": False, "error": "nicht eingerichtet"}
+        teile, zugang, schluessel = vorhanden
+        try:
+            import io as _io
+            import zipfile as _zip
+            archiv_m = teile["archiv"]
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            a = teile["sync"].Abgleich(g, schluessel)
+            roh = a.holen(archiv_m.track_name(geo_hash))
+            z = _zip.ZipFile(_io.BytesIO(roh))
+            namen = set(z.namelist())
+            if "track.gpx" not in namen:
+                return {"ok": False, "error": "Umschlag ohne track.gpx — beschädigt?"}
+            tour = json.loads(z.read("tour.json").decode("utf-8")) if "tour.json" in namen else {}
+
+            # 1. GPX ablegen — Ordner ist beim Archiv als Quelle registriert.
+            ziel_dir = APP_SUPPORT / "cloud_touren"
+            ziel_dir.mkdir(parents=True, exist_ok=True)
+            basis = re.sub(r"[^\w\-. ]+", "_",
+                           str(tour.get("filename") or f"{geo_hash}.gpx"))
+            if not basis.lower().endswith(".gpx"):
+                basis += ".gpx"
+            ziel = ziel_dir / basis
+            n = 1
+            while ziel.exists():
+                n += 1
+                ziel = ziel_dir / f"{ziel_dir and basis[:-4]}_{n}.gpx"
+            ziel.write_bytes(z.read("track.gpx"))
+
+            # 2. Foto-Vorschauen daneben.
+            foto_dir = APP_SUPPORT / "cloud_fotos" / geo_hash
+            for name in sorted(namen):
+                if name.startswith("fotos/"):
+                    foto_dir.mkdir(parents=True, exist_ok=True)
+                    (foto_dir / Path(name).name).write_bytes(z.read(name))
+
+            # 3. Archiv-Quelle registrieren + einlesen (normaler Scan-Weg).
+            conn = self._lib()
+            clib.add_folder(conn, str(ziel_dir), recursive=False)
+            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR,
+                      folders=[{"path": str(ziel_dir), "recursive": False}])
+
+            # 4. Tour-Daten (track_meta) aus dem Umschlag anwenden.
+            meta = tour.get("meta") or {}
+            if meta:
+                felder = [k for k in ("fav", "tags", "note", "cover", "display_name",
+                                       "hidden", "activity_user", "color",
+                                       "recorded_user") if meta.get(k) is not None]
+                if felder:
+                    setzer = ", ".join(f"{k} = ?" for k in felder)
+                    conn.execute(f"UPDATE track_meta SET {setzer} WHERE geo_hash = ?",
+                                 [meta[k] for k in felder] + [geo_hash])
+                    conn.commit()
+
+            # 5. Projekte (Sessions) unter dem Track-Hash der Datei mergen —
+            #    NUR wenn es dort noch keine Session gibt (lokales gewinnt).
+            projekte = (json.loads(z.read("projekte.json").decode("utf-8"))
+                        if "projekte.json" in namen else None)
+            th = tour.get("track_hash")
+            if projekte and th:
+                # Foto-Pfade auf die mitgebrachten Vorschauen zeigen lassen.
+                text = json.dumps(projekte)
+                for name in sorted(namen):
+                    if name.startswith("fotos/"):
+                        text = text.replace(f'"{name}"',
+                                            json.dumps(str(foto_dir / Path(name).name)))
+                projekte = json.loads(text)
+                daten = _sessions.load_sessions(SESSIONS_FILE)
+                if th not in (daten.get("sessions") or {}):
+                    daten.setdefault("sessions", {})[th] = projekte
+                    _sessions.save_sessions(SESSIONS_FILE, daten)
+            log.info("cloud_tour_holen: %s → %s", geo_hash, ziel.name)
+            return {"ok": True, "datei": str(ziel), "name": ziel.name}
+        except teile["transport"].NichtVorhanden:
+            return {"ok": False, "error": _ui_t()(
+                "cloud.tour_fehlt", "Diese Tour liegt nicht (mehr) im Archiv.")}
+        except Exception as e:      # noqa: BLE001
+            log.exception("cloud_tour_holen")
+            return {"ok": False, "error": str(e)}
+
+    # ══ Cloud: Papierkorb (v0.9.524) ══════════════════════════════════════
+
+    def _cloud_namensbuch(self, teile, schluessel, g) -> dict:
+        """Hex-Servername → {logisch, anzeige}. Der Server kennt nur Hashes;
+        wir kennen alle logischen Namen aus dem Verzeichnis + den festen zwei.
+        `logisch` ist die Bindung der Verschlüsselung, `anzeige` der Name fürs
+        Auge — die beiden zu verwechseln hieße: Entschlüsseln schlägt fehl
+        (genau so vom Ende-zu-Ende-Test gefangen, 21.08.2026)."""
+        buch = {}
+        archiv_m, transport_m = teile["archiv"], teile["transport"]
+        for fest in (archiv_m.VERZEICHNIS, archiv_m.SAMMLUNGEN):
+            buch[transport_m.server_name(fest)] = {"logisch": fest, "anzeige": fest}
+        try:
+            a = teile["sync"].Abgleich(g, schluessel)
+            verz = json.loads(a.holen(archiv_m.VERZEICHNIS).decode("utf-8"))
+            for gh, t in (verz.get("touren") or {}).items():
+                logisch = archiv_m.track_name(gh)
+                buch[transport_m.server_name(logisch)] = {
+                    "logisch": logisch,
+                    "anzeige": t.get("display_name") or t.get("name")
+                               or t.get("filename") or gh,
+                }
+        except Exception:
+            pass
+        return buch
+
+    def cloud_papierkorb(self) -> dict:
+        """Papierkorb-Inhalt, mit lokal zurückübersetzten Namen."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        vorhanden = self._cloud_zugang()
+        if not vorhanden:
+            return {"ok": False, "error": "nicht eingerichtet"}
+        teile, zugang, schluessel = vorhanden
+        try:
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            buch = self._cloud_namensbuch(teile, schluessel, g)
+            aus = []
+            for e in g.papierkorb_liste():
+                eintrag = buch.get(e.get("name")) or {}
+                aus.append({"name": e.get("name"), "zeit": e.get("zeit"),
+                            "groesse": e.get("groesse"),
+                            "klarname": eintrag.get("anzeige")})
+            return {"ok": True, "eintraege": aus}
+        except Exception as e:      # noqa: BLE001
+            log.exception("cloud_papierkorb")
+            return {"ok": False, "error": str(e)}
+
+    def cloud_papierkorb_zurueck(self, hex_name: str, zeit: int) -> dict:
+        """Einen Eintrag wiederherstellen: verschlüsselt holen, prüfen, normal
+        wieder ablegen, dann aus dem Papierkorb löschen. Der Klarname kommt
+        aus dem Namensbuch — ohne ihn können wir die Bindung nicht prüfen."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        vorhanden = self._cloud_zugang()
+        if not vorhanden:
+            return {"ok": False, "error": "nicht eingerichtet"}
+        teile, zugang, schluessel = vorhanden
+        try:
+            crypto_m = teile["crypto"]
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            buch = self._cloud_namensbuch(teile, schluessel, g)
+            klar = (buch.get(hex_name) or {}).get("logisch")
+            # Das Namensbuch kennt TOUREN über das Verzeichnis — eine gelöschte
+            # Tour steht dort nicht mehr. Dann den logischen Namen aus der
+            # lokalen Datenbank rekonstruieren:
+            if klar is None:
+                import sqlite3
+                conn = sqlite3.connect(str(LIBRARY_DB))
+                try:
+                    for (gh,) in conn.execute("SELECT geo_hash FROM tracks"):
+                        n = teile["archiv"].track_name(gh)
+                        if teile["transport"].server_name(n) == hex_name:
+                            klar = n
+                            break
+                finally:
+                    conn.close()
+            if klar is None:
+                return {"ok": False, "error": "Zu diesem Eintrag ist der Name "
+                        "nicht mehr bekannt — wiederherstellen geht nur auf dem "
+                        "Rechner, der die Tour kannte."}
+            roh = g.papierkorb_holen(hex_name, int(zeit))
+            # Entschlüsseln prüft zugleich die Bindung an den logischen Namen —
+            # ein vertauschter Umschlag flöge hier auf.
+            inhalt = crypto_m.oeffnen(schluessel, klar, roh)
+            g.legen(klar, roh, crypto_m.inhalts_pruefsumme(inhalt))
+            g.papierkorb_weg(hex_name, int(zeit))
+            return {"ok": True}
+        except Exception as e:      # noqa: BLE001
+            log.exception("cloud_papierkorb_zurueck")
+            return {"ok": False, "error": str(e)}
+
+    def cloud_papierkorb_eintrag_weg(self, hex_name: str, zeit: int) -> dict:
+        """Einen einzelnen Papierkorb-Eintrag endgültig löschen."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        vorhanden = self._cloud_zugang()
+        if not vorhanden:
+            return {"ok": False, "error": "nicht eingerichtet"}
+        teile, zugang, _schluessel = vorhanden
+        try:
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            return {"ok": True, "geloescht": g.papierkorb_weg(hex_name, int(zeit))}
+        except Exception as e:      # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def cloud_papierkorb_leeren(self, tage: int = 30) -> dict:
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        vorhanden = self._cloud_zugang()
+        if not vorhanden:
+            return {"ok": False, "error": "nicht eingerichtet"}
+        teile, zugang, _schluessel = vorhanden
+        try:
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            weg = g.papierkorb_leeren(tage=max(1, int(tage)))
+            return {"ok": True, "geloescht": weg}
+        except Exception as e:      # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    # ══ Cloud-Auto-Sync (v0.9.524) ═══════════════════════════════════════
+    # Marcs Kern-Anforderung (21.08.2026): „Der Sinn ist, dass ich eine
+    # zentrale Stelle habe, wo meine Touren gespeichert sind" — der Server hat
+    # IMMER den aktuellen Stand, ohne dass je ein Knopf gedrückt wird.
+    # Regeln: nach Änderungen entprellt hochladen; offline = stiller Rückstau
+    # mit wachsendem Abstand; niemals ein Dialog, niemals die App bremsen.
+
+    _cloud_auto_zustand: dict = {"status": "aus"}
+
+    def _cloud_fingerabdruck(self):
+        """Billiger Änderungs-Fühler: mtime+Größe der beiden Wahrheitsdateien.
+        Der Sync selbst verändert keine davon — keine Rückkopplung."""
+        fp = []
+        for pfad in (LIBRARY_DB, SESSIONS_FILE):
+            try:
+                st = os.stat(pfad)
+                fp.append((str(pfad), int(st.st_mtime), st.st_size))
+            except OSError:
+                fp.append((str(pfad), 0, 0))
+        return tuple(fp)
+
+    def _cloud_auto_start(self) -> None:
+        if getattr(self, "_cloud_auto_thread", None):
+            return
+        t = threading.Thread(target=self._cloud_auto_lauf, daemon=True,
+                             name="cloud-auto-sync")
+        self._cloud_auto_thread = t
+        t.start()
+
+    def _cloud_auto_lauf(self) -> None:
+        """Der Wächter. Läuft die ganze App-Lebenszeit, tut fast immer nichts.
+
+        ⚠️ Bewusst KEIN Start-Sync beim App-Start: Der Fingerabdruck beginnt
+        mit dem Ist-Zustand, hochgeladen wird erst nach einer ECHTEN Änderung
+        plus Ruhefenster. Sonst würde jeder App-Start die Leitung belegen,
+        obwohl sich nichts getan hat — und der allererste Eindruck der App
+        wäre „warum lädt die was hoch?".
+        """
+        TAKT = 20                  # Sekunden zwischen zwei Blicken
+        RUHE = 90                  # so lange muss Ruhe sein, bevor wir hochladen
+        letzter = None
+        dreckig = False
+        letzte_aenderung = 0.0
+        naechster_versuch = 0.0    # Backoff nach Fehlern
+        rueckstau = 0
+        while True:
+            time.sleep(TAKT)
+            try:
+                if not self._cloud_sichtbar():
+                    continue
+                jetzt = time.time()
+                fp = self._cloud_fingerabdruck()
+                if letzter is None:
+                    letzter = fp
+                    continue
+                if fp != letzter:
+                    letzter = fp
+                    dreckig = True
+                    letzte_aenderung = jetzt
+                    if self._cloud_auto_zustand.get("status") not in ("laeuft",):
+                        self._cloud_auto_zustand = {"status": "wartet"}
+                    continue                   # Ruhefenster neu starten
+                if not dreckig or jetzt - letzte_aenderung < RUHE:
+                    continue
+                if jetzt < naechster_versuch or self._cloud_lauf:
+                    continue
+                # Eingerichtet? (Erst JETZT den Schlüsselbund anfassen.)
+                try:
+                    if not self._cloud_zugang():
+                        dreckig = False        # keine Cloud → nichts zu tun
+                        self._cloud_auto_zustand = {"status": "aus"}
+                        continue
+                except Exception:
+                    continue
+                self._cloud_auto_zustand = {"status": "laeuft"}
+                res = self._cloud_sync_einmal()
+                if res.get("ok") and not res.get("fehler"):
+                    dreckig = False
+                    rueckstau = 0
+                    self._cloud_auto_zustand = {
+                        "status": "aktuell",
+                        "zeit": datetime.now().isoformat(timespec="seconds"),
+                        "uebertragen": res.get("uebertragen", 0),
+                    }
+                    log.info("Cloud-Auto-Sync: %s Umschläge hoch (%.1f MB)",
+                             res.get("uebertragen"), res.get("mb", 0))
+                else:
+                    # Offline oder Serverfehler → stiller Rückstau, wachsender
+                    # Abstand (2 → 4 → … → höchstens 16 Minuten).
+                    rueckstau = min(rueckstau + 1, 4)
+                    naechster_versuch = time.time() + 120 * (2 ** (rueckstau - 1))
+                    self._cloud_auto_zustand = {
+                        "status": "rueckstau",
+                        "grund": str((res.get("fehler") or [res.get("error")])[0])[:200],
+                        "naechster_versuch": int(naechster_versuch),
+                    }
+                    log.warning("Cloud-Auto-Sync verschoben: %s",
+                                self._cloud_auto_zustand.get("grund"))
+            except Exception:
+                log.exception("Cloud-Auto-Sync: unerwarteter Fehler — läuft weiter")
 
     _system_fonts_cache: Optional[list] = None
 

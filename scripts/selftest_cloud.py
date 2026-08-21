@@ -226,9 +226,29 @@ def main(argv):
     g2.loeschen(name)
     check("aus der Liste verschwunden", t.server_name(name) not in g2.liste())
     check("und nicht mehr zu holen", wirft(t.NichtVorhanden, g2.holen, name))
-    # ⚠️ Er soll im Papierkorb liegen, nicht weg sein. Mit 0 Tagen Aufbewahrung
-    # muss genau dieser eine Eintrag verschwinden.
-    weg = g2.papierkorb_leeren(tage=0) if False else g2.papierkorb_leeren(tage=1)
+    # ── 6b. Papierkorb im Detail (v0.9.524) ─────────────────────────────
+    eintraege = g2.papierkorb_liste()
+    check("der Papierkorb LISTET den gelöschten Umschlag", len(eintraege) == 1,
+          f"{len(eintraege)} Einträge")
+    e = eintraege[0]
+    check("mit Hex-Namen (der Server kennt keine Klarnamen)",
+          e["name"] == t.server_name(name), e["name"][:16])
+
+    # Wiederherstellen wie die App: verschlüsselt holen → öffnen (prüft die
+    # Bindung an den Namen!) → normal wieder ablegen → Eintrag löschen.
+    roh = g2.papierkorb_holen(e["name"], e["zeit"])
+    wieder = c.oeffnen(schluessel, name, roh)
+    check("der Papierkorb-Inhalt entschlüsselt sauber", wieder == inhalt + b"!")
+    g2.legen(name, roh, c.inhalts_pruefsumme(wieder))
+    check("wiederhergestellt — die Liste kennt ihn wieder",
+          t.server_name(name) in g2.liste())
+    check("einzelner Papierkorb-Eintrag löschbar",
+          g2.papierkorb_weg(e["name"], e["zeit"]) is True)
+    check("danach ist der Papierkorb leer", g2.papierkorb_liste() == [])
+
+    # Nochmal löschen fürs Leeren-Verhalten:
+    g2.loeschen(name)
+    weg = g2.papierkorb_leeren(tage=1)
     check("der Papierkorb lässt sich leeren (frische Einträge bleiben)",
           weg == 0, f"{weg} gelöscht — erwartet 0, er ist ja gerade erst gelandet")
 
