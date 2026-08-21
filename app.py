@@ -7655,10 +7655,17 @@ def main() -> None:
         menu = None
 
     debug = os.environ.get("REISEZOOM_DEBUG") == "1"
+    # ⚠️ private_mode=False (21.08.2026): Mit True (stand hier seit dem ersten
+    # Commit, ohne dokumentierten Grund) wirft WebKit den localStorage bei
+    # jedem App-Ende weg — die Archiv-Ansichts-Einstellungen (rz.library.*)
+    # und die gemerkte Schild-Editor-Position (rz_signs_editor_pos, v0.9.523)
+    # vergaßen sich deshalb still bei jedem Neustart. Beim Testen aufgefallen:
+    # Position gespeichert, Neustart, weg. Es ist eine lokale Desktop-App —
+    # die WebKit-Daten liegen in ~/Library/WebKit/com.reisezoom.gpsstudio.
     if menu:
-        webview.start(debug=debug, private_mode=True, menu=menu)
+        webview.start(debug=debug, private_mode=False, menu=menu)
     else:
-        webview.start(debug=debug, private_mode=True)
+        webview.start(debug=debug, private_mode=False)
     # Cleanup beim Shutdown
     try:
         os.unlink(html_path)

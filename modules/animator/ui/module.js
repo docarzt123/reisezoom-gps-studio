@@ -7830,7 +7830,11 @@ function mountAnimator(body, headerActions, opts) {
       } catch (_) {}
       _animSignEditorEl = panel;
       _animSignEditorIdx = idx;   // v0.9.194 — offenes Schild merken (Re-Klick ohne Sprung)
-      _animSignsPositionEditor(panel, c.lon, c.lat);
+      // ⚠️ NUR ans Schild kleben, wenn der Nutzer das Panel nie verschoben hat
+      // (21.08.2026): Die eben wiederhergestellte Wunschposition wurde sonst
+      // eine Zeile später gleich wieder überschrieben — beim Test aufgefallen,
+      // das Panel öffnete trotz gemerkter Position stets an der Standardstelle.
+      if (!panel._userMoved) _animSignsPositionEditor(panel, c.lon, c.lat);
       _animSignsMakeDraggable(panel);
       // v0.9.180 — dieses Schild ab jetzt immer sichtbar zeigen + Vorschau refreshen
       _animSignForceIdx = idx;
