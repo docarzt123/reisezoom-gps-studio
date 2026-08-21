@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.521"
+APP_VERSION = "0.9.522"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -5396,6 +5396,15 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # ⚠️ Ab so vielen Fotos gibt es KEINE eingebetteten Vorschaubilder mehr.
+    # Beim 20.000-Fotos-Test (21.08.2026) wuchs die WebView auf 1,2 GB und der
+    # Renderer stürzte ab — weißes Fenster, Sitzung lud neu. Genau das ist auch
+    # der gemeldete „nach ~100 von 2236 Fotos crasht es" auf Windows: echte Fotos haben
+    # größere Thumbs, WebView2 stirbt entsprechend früher. Zeiten, GPS und
+    # Kamera werden weiter gelesen — Matching, Filter und Schreiben können
+    # alles; nur die Kacheln bleiben grau.
+    _THUMB_DECKEL = 2000
+
     def geotagger_register_photos(self, paths: list[str]) -> dict:
         """Phase 1: schneller Scan, Backend startet Background-Thread für Phase 2."""
         try:
@@ -5443,10 +5452,14 @@ class Api:
             ]
 
             with self._thumb_lock:
+                gesamt = len(self._gtg_photos or []) + len(registered)
                 self._thumb_progress = {
                     "total": len(registered),
                     "done": 0,
                     "running": len(registered) > 0,
+                    # v0.9.522 — siehe _THUMB_DECKEL: zu viele Bilder sprengen
+                    # sonst die WebView. Das UI zeigt dazu einen Hinweis.
+                    "thumbs_capped": gesamt > self._THUMB_DECKEL,
                 }
 
             # Worker nur für die NEUEN Pfade starten
@@ -5525,7 +5538,9 @@ class Api:
                 return
         try:
             dt, gps, camera, tz_known, tz_min = self._read_meta_fast(p)
-            thumb = self._photo_thumbnail_data_url(p)
+            with self._thumb_lock:
+                _gedeckelt = bool(self._thumb_progress.get("thumbs_capped"))
+            thumb = None if _gedeckelt else self._photo_thumbnail_data_url(p)
             # v0.9.361 — Original-Kamera-Lokalzeit (Wanduhr) für die Anzeige; photo_time
             # bleibt UTC fürs Track-Matching.
             local_dt = cexif.local_datetime_from_utc(dt, tz_min)

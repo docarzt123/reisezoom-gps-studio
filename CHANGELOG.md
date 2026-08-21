@@ -14,6 +14,43 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.522] – 2026-08-20
+
+### Behoben
+- **Windows: Geotagger konnte weder Adressen noch Zusatzfelder schreiben und
+  fror bei großen Ordnern ein.** Jeder exiftool-Aufruf starb mit „[WinError
+  10038] … kein Socket“: Das Warten auf die exiftool-Antwort lief seit v0.9.369
+  über `select()`, und das kann auf Windows nur Sockets, keine Pipes. Die
+  GPS-Koordinaten selbst kamen noch an (eigener Schreibweg ohne exiftool),
+  Adresse und EXIF-Felder nicht. Folgefehler: Weil niemand mehr exiftools
+  Ausgabe las, lief deren Puffer nach rund 90 Antworten voll und der nächste
+  Aufruf blockierte für immer — ein 2236-Fotos-Lauf stand exakt bei Foto 92,
+  die App war nur noch über den Task-Manager zu beenden. Jetzt leert ein
+  Lese-Thread die Ausgabe dauerhaft — derselbe Weg auf allen Systemen, von der
+  macOS-Testsuite komplett mitgeprüft. Danke an den Nutzer für den Bericht mit Log
+  und Screenshots.
+- **Sehr große Foto-Ordner stürzen die App nicht mehr ab.** Beim Test mit
+  20.000 Fotos wuchs die Bildfläche auf 1,2 GB Speicher und die Anzeige
+  stürzte ab (weißes Fenster) — auf Windows passiert das mit echten Fotos
+  entsprechend früher, beim Nutzer nach rund 100 von 2236. Ab 2.000 Fotos
+  verzichtet der Geotagger jetzt auf eingebettete Vorschaubilder (mit
+  Hinweis); Zeiten, Kameras und GPS werden weiter gelesen, Verorten und
+  Schreiben funktionieren unverändert. Der komplette 20.000er-Durchlauf —
+  laden, verorten, schreiben mit 10 Zusatzfeldern — läuft damit in gut zwei
+  Minuten fehlerfrei durch.
+- **Warten hat jetzt überall ein Gesicht.** Jeder Knopf, hinter dem länger
+  gearbeitet wird, sperrt sich und sagt, was passiert („⏳ Lese Ordner …",
+  „⏳ Prüfe Fotos …") — Fotos/Ordner laden und Schreib-Vorbereitung im
+  Geotagger, „Doppelte finden" im Archiv (hatte vorher gar kein Feedback),
+  dazu ein gemeinsames Muster (`knopfBeschaeftigt` in `ui/js/util.js`) statt
+  Eigenbau je Modul: HTML-Exporte von Tour-Map, Web-Karte und Daten-Animator
+  sowie Höhen-Laden und Track-Anhängen im Inspektor sind darauf umgezogen.
+  Wächter: `tests/test_warte_feedback.py`.
+- **Der Schreib-Dialog kann nie mehr zur Falle werden.** Steht der Fortschritt
+  90 Sekunden still oder antwortet der Schreibvorgang nicht mehr, bietet der
+  Dialog „Fenster schließen“ samt Log-Hinweis an — statt eines
+  Abbrechen-Knopfs, der nichts mehr bewirkt.
+
 ## [0.9.521] – 2026-08-20
 
 ### Behoben

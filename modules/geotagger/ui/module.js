@@ -1164,7 +1164,13 @@ function mountGeotagger(body, headerActions) {
     // v0.9.27 (Nutzer-Feedback): Foto-Pfade persistieren damit Modul-Wechsel
     // + App-Restart sie wiederherstellen kann
     saveSettings({ geotagger: { last_photos_paths: files, last_photos_dir: "" } });
-    await loadPhotos(files);
+    const frei = knopfBeschaeftigt("gt-pick-photos", "geotagger.busy.lese", "Lese Fotos …");
+    const frei2 = knopfBeschaeftigt("gt-pick-folder", "geotagger.busy.lese", "Lese Fotos …");
+    showGridLoader(0, files.length, t("geotagger.busy.lese", "Lese Fotos …"));
+    await malPause();
+    try {
+      await loadPhotos(files);
+    } finally { if (frei) frei(); if (frei2) frei2(); }
   });
 
   document.getElementById("gt-pick-folder").addEventListener("click", async () => {
@@ -1175,7 +1181,16 @@ function mountGeotagger(body, headerActions) {
     // v0.9.27 (Nutzer-Feedback): Ordner + Rekursiv-State persistieren
     saveSettings({ geotagger: { last_photos_dir: folder, last_photos_paths: [], folder_recursive: recursive } });
     stopThumbPolling();
-    const res = await api().geotagger_load_photos_from_folder(folder, recursive);
+    // ⚠️ Der Registrier-Scan über einen großen Ordner braucht Zeit — sofort
+    // zeigen, dass gelesen wird, und die Auslöser sperren.
+    const frei = knopfBeschaeftigt("gt-pick-folder", "geotagger.busy.lese_ordner", "Lese Ordner …");
+    const frei2 = knopfBeschaeftigt("gt-pick-photos", "geotagger.busy.lese_ordner", "Lese Ordner …");
+    showGridLoader(0, 0, t("geotagger.busy.lese_ordner", "Lese Ordner …"));
+    await malPause();
+    let res;
+    try {
+      res = await api().geotagger_load_photos_from_folder(folder, recursive);
+    } finally { if (frei) frei(); if (frei2) frei2(); }
     if (!res.ok) { toast(res.error, "error"); return; }
     photos = _gtMergeRegistered(res.photos);   // v0.9.176 — ergänzen statt ersetzen
     renderPhotoGrid();
@@ -1320,6 +1335,14 @@ function mountGeotagger(body, headerActions) {
       }
       const prog = res.progress || { total: 0, done: 0, running: false };
       showGridLoader(prog.done, prog.total, "Lade Thumbnails");
+      // v0.9.522 — bei sehr vielen Fotos verzichtet das Backend auf eingebettete
+      // Vorschaubilder (WebView-Absturz beim 20.000er-Test). Einmal erklären.
+      if (prog.thumbs_capped && !window.__gtThumbDeckelHinweis) {
+        window.__gtThumbDeckelHinweis = true;
+        try { toast(t("geotagger.thumbs.capped",
+          "Sehr viele Fotos — Vorschaubilder bleiben aus, damit die App stabil läuft. Verorten und Schreiben gehen ganz normal."),
+          "info", 7000); } catch (_) {}
+      }
 
       // Match neu berechnen wenn neue EXIF-Zeiten reingekommen sind
       if (touched > 0 && currentGpxPath) {
@@ -2174,6 +2197,21 @@ function mountGeotagger(body, headerActions) {
     try {
       if (typeof map.getCanvasContainer !== "function" || !map.getCanvasContainer()) return;
     } catch (_) { return; }
+    // ⚠️ v0.9.522 — Foto-Pins sind DOM-Elemente, die Mapbox bei jeder
+    // Kartenbewegung einzeln verschiebt. Beim 20.000-Fotos-Test starb der
+    // Renderer daran (weißes Fenster) — der Thumbnail-Deckel allein hat nicht
+    // gereicht. Ab so vielen sichtbaren Pins bleiben nur Auswahl, Referenz und
+    // manuell platzierte übrig; der Rest ist ohnehin nur Track-Deko.
+    const MARKER_DECKEL = 1500;
+    const _sichtbar = matches.filter(m =>
+      m.lat != null && m.lon != null && (m.in_range || m.manual) && _gtMatchInFilter(m));
+    const _gedeckelt = _sichtbar.length > MARKER_DECKEL;
+    if (_gedeckelt && !window.__gtMarkerDeckelHinweis) {
+      window.__gtMarkerDeckelHinweis = true;
+      try { toast(t("geotagger.markers.capped",
+        "Sehr viele Fotos — die Foto-Pins auf der Karte bleiben aus (nur Auswahl und manuell platzierte). Alles andere geht normal."),
+        "info", 7000); } catch (_) {}
+    }
     matches.forEach(m => {
       if (m.lat == null || m.lon == null) return;
       // v0.9.359 (Marc-Bug): Fotos AUßERHALB der Trackzeit haben zwar eine
@@ -2182,6 +2220,7 @@ function mountGeotagger(body, headerActions) {
       // manuell platzierte Fotos bekommen einen Pin.
       if (!m.in_range && !m.manual) return;
       if (!_gtMatchInFilter(m)) return;          // v0.9.340 — Filter wirkt auch auf die Karte
+      if (_gedeckelt && !m.manual && m.path !== referencePath && m.path !== selectedPath) return;
       const isManual = !!m.manual;               // v0.9.166 — manuell platziert
       const eltMarker = document.createElement("div");
       let cls = "photo-marker";
@@ -3172,6 +3211,12 @@ function mountGeotagger(body, headerActions) {
   }
 
   document.getElementById("gt-write").addEventListener("click", async () => {
+    // ⚠️ Bei 20.000 Fotos dauert allein das Zusammenstellen der Schreibliste
+    // bis zu einer Minute. Ohne Sperre + Text sah das wie ein toter Knopf aus.
+    const _frei = knopfBeschaeftigt("gt-write", "geotagger.busy.pruefe", "Prüfe Fotos …");
+    if (!_frei) return;                          // läuft schon
+    await malPause();
+    try {
     const writable = matches.filter(m => m.lat != null && m.in_range && _gtMatchTaggable(m));
     // v0.9.367 — Gruppen-Schalter: getrennt zusammenbauen, je nach Häkchen mitnehmen.
     const _wf = (id) => { const e = document.getElementById(id); return e ? e.checked : true; };
@@ -3273,6 +3318,7 @@ function mountGeotagger(body, headerActions) {
       return;
     }
 
+    _frei();   // ab hier übernimmt das Modal die Rückmeldung
     openModal({
       title: "Schreibvorgang starten?",
       body: summary,
@@ -3285,6 +3331,12 @@ function mountGeotagger(body, headerActions) {
       openModal({ closable: true }).close();
     };
     document.getElementById("modal-ok").onclick = async () => {
+      // ⚠️ Bis die Ordnerwahl aufgeht, vergehen bei vielen Fotos Sekunden —
+      // der Knopf sagt das, statt still zu verschwinden.
+      knopfBeschaeftigt("modal-ok", "geotagger.busy.ordnerwahl", "Ordnerwahl öffnet …");   // kein frei(): das Modal schließt gleich
+      const cbBtn = document.getElementById("modal-cancel");
+      if (cbBtn) cbBtn.disabled = true;
+      await malPause();
       openModal({}).close();   // Bestätigungs-Modal schließen
       // v0.9.372 — Zielordner wählen: getaggte KOPIEN landen dort, Originale bleiben
       // unangetastet (= das Backup selbst). Kein ZIP, kein „danach exportieren" mehr.
@@ -3316,9 +3368,21 @@ function mountGeotagger(body, headerActions) {
       runWriteWithProgress(writable, backup, writeMode, adjustTime, offsetSec, setTimeFromTrack,
         writeFields, exifEdits, camOffsets, camSetTime, destDir, overwriteOriginals);
     };
+    } finally { _frei(); }
   });
 
+  let _writeFlowLaeuft = false;   // v0.9.522 — genau EIN Schreib-Flow zur Zeit
+
   async function runWriteWithProgress(writable, backup, writeMode, adjustTime, offsetSec, setTimeFromTrack, writeFields, exifEdits, camOffsets, camSetTime, destDir, overwriteOriginals) {
+    // ⚠️ Beim 20.000-Fotos-Test liefen durch ungeduldige Klicks ZWEI Flows
+    // parallel: Der zweite malte nach dem Ende des ersten wieder einen
+    // Fortschritts-Dialog hin — eingefroren, nicht schließbar, exakt die
+    // Falle aus dem Nutzer-Bericht, nur anders erzeugt.
+    if (_writeFlowLaeuft) {
+      try { toast(t("geotagger.write.laeuft_schon", "Es läuft schon ein Schreibvorgang."), "warn", 3000); } catch (_) {}
+      return;
+    }
+    _writeFlowLaeuft = true;
     const res = await api().geotagger_start_write(
       writable, backup, (writeMode === "overwrite"), adjustTime, offsetSec, !!setTimeFromTrack,
       writeFields || { gps: true, altitude: true, direction: true, address: true },
@@ -3330,6 +3394,7 @@ function mountGeotagger(body, headerActions) {
       !!overwriteOriginals // v0.9.372 — Originale bewusst überschreiben (bestätigt)
     );
     if (!res.ok) {
+      _writeFlowLaeuft = false;
       openModal({ title: "Fehler", body: `<p>${res.error}</p>`,
         footer: '<button class="btn btn-primary" id="md-x">OK</button>' });
       document.getElementById("md-x").onclick = () => openModal({}).close();
@@ -3360,9 +3425,61 @@ function mountGeotagger(body, headerActions) {
       document.getElementById("md-cancel").textContent = "Abbrechen …";
     };
 
-    // Polling
+    // Polling.
+    // ⚠️ v0.9.522 (Nutzer-Report der Nutzer): Der Dialog darf NIE zur Falle werden.
+    // Bei ihm hing der Worker in einem blockierten Systemaufruf (Windows-
+    // exiftool-Bug) — der Dialog war `closable:false`, Abbrechen wirkungslos,
+    // die App nur noch killbar. Zwei Auswege jetzt eingebaut:
+    //   1. Steht der Fortschritt >90 s völlig still, erscheint „Fenster
+    //      schließen" (der Vorgang läuft ggf. im Hintergrund weiter; Fehler
+    //      stehen im Log).
+    //   2. Stirbt die Status-Brücke selbst (5 Fehlversuche in Folge), ebenso.
+    let letzterStand = "";
+    let stillSeit = Date.now();
+    let brueckenFehler = 0;
+    // ⚠️ Bedingungslos (v0.9.522, zweite Runde): Der erste Notausgang hing am
+    // Poll-Loop — ein gestrandeter Dialog aus einem ANDEREN Weg (Doppel-Flow,
+    // JS-Fehler im Loop, was auch immer) bekam nie einen Schließen-Knopf.
+    // Dieser Timer gehört dem Dialog selbst: Lebt er nach 90 s noch und ist
+    // der Vorgang nicht fertig, gibt es IMMER einen Ausweg.
+    setTimeout(() => {
+      try {
+        if (document.getElementById("md-cancel") && !document.getElementById("md-force-close")) {
+          notausgang(t("geotagger.write.haengt",
+            "Seit 90 Sekunden kein Fortschritt — vermutlich hängt ein Foto. "
+            + "Du kannst das Fenster schließen; Details stehen im Log."));
+        }
+      } catch (_) {}
+    }, 90000);
+    const notausgang = (grund) => {
+      const cur = document.getElementById("md-current");
+      if (cur) cur.textContent = grund;
+      const fuss = document.getElementById("md-cancel")?.parentElement;
+      if (fuss && !document.getElementById("md-force-close")) {
+        const b = document.createElement("button");
+        b.className = "btn"; b.id = "md-force-close";
+        b.textContent = t("geotagger.write.force_close", "Fenster schließen");
+        b.onclick = () => openModal({}).close();
+        fuss.appendChild(b);
+      }
+    };
     const poll = async () => {
-      const s = await api().geotagger_write_status();
+      let s;
+      try {
+        s = await api().geotagger_write_status();
+        brueckenFehler = 0;
+      } catch (e) {
+        brueckenFehler += 1;
+        try { applog("warn", "[geotagger] write_status nicht abrufbar: " + e); } catch (_) {}
+        if (brueckenFehler >= 5) {
+          _writeFlowLaeuft = false;
+          notausgang(t("geotagger.write.bridge_tot",
+            "Keine Rückmeldung vom Schreibvorgang — Details stehen im Log (Hilfe → Log)."));
+          return;                              // Polling endet, Knopf ist da
+        }
+        setTimeout(poll, 1000);
+        return;
+      }
       const pct = s.total > 0 ? (s.done / s.total) * 100 : 0;
       const cur = document.getElementById("md-current");
       const fill = document.getElementById("md-fill");
@@ -3373,8 +3490,18 @@ function mountGeotagger(body, headerActions) {
       if (cnt) cnt.textContent = `${s.done} / ${s.total}`;
       if (pctEl) pctEl.textContent = `${pct.toFixed(0)}%`;
       if (!s.running && s.completed) {
+        _writeFlowLaeuft = false;
         showWriteResultModal(s, canceled);
         return;
+      }
+      const stand = `${s.done}|${s.current_name || ""}|${s.running}`;
+      if (stand !== letzterStand) { letzterStand = stand; stillSeit = Date.now(); }
+      else if (Date.now() - stillSeit > 90000) {
+        notausgang(t("geotagger.write.haengt",
+          "Seit 90 Sekunden kein Fortschritt — vermutlich hängt ein Foto. "
+          + "Du kannst das Fenster schließen; Details stehen im Log."));
+        // ⚠️ Weiter pollen: Läuft es doch weiter, verschwindet der Dialog
+        // ganz normal über den completed-Zweig.
       }
       setTimeout(poll, 200);
     };

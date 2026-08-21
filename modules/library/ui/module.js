@@ -2371,7 +2371,14 @@ function mountLibrary(body, headerActions) {
   // der Nutzer. Vorbelegt ist die **erste** jeder Gruppe zum Behalten — das ist
   // die zuerst eingelesene. Und es geht in den **Papierkorb**, nicht ins Nichts.
   async function showDuplicates() {
-    const res = await api().library_duplicates();
+    // v0.9.522 — vorher der einzige Knopf im Archiv OHNE Warte-Zustand:
+    // Bei vielen Touren vergehen hier Sekunden, und nichts zeigte das an.
+    const frei = knopfBeschaeftigt("lib-dupes", "library.dupes_working", "Suche Doppelte …");
+    if (!frei) return;
+    await malPause();
+    let res;
+    try { res = await api().library_duplicates(); }
+    finally { frei(); }
     const groups = (res && res.groups) || [];
     if (!groups.length) {
       openModal({ title: T("library.duplicates", "Doppelte finden"),
