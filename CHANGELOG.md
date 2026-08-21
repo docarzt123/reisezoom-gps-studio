@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.527] – 2026-08-21
+
 ### Fixed
 - UI-Gedächtnis überlebt jetzt den Neustart (beim Rechner-Durchtest gefunden):
   `private_mode=True` (seit dem ersten Commit, grundlos) ließ WebKit den
