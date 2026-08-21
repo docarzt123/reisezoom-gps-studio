@@ -285,6 +285,24 @@ geschnitten wird, ist die Zeit gestaucht: die Anim-Phase verteilt
 - **Wer eine der beiden Formeln ändert, muss die andere mitziehen.**
   `tests/test_keyframes_am_track.py` rechnet sie gegeneinander und bricht sonst.
 
+### Warte-Zustände (Pflicht-Muster seit v0.9.522)
+
+Marc-Regel vom 21.08.2026: **Jeder Klick, hinter dem mehr als ein
+Wimpernschlag Arbeit stecken kann, sperrt seinen Knopf und sagt, was
+passiert.** Das eine Muster dafür lebt in `ui/js/util.js`:
+
+```js
+const frei = knopfBeschaeftigt("mein-knopf", "modul.busy.x", "Rechne …");
+if (!frei) return;          // läuft schon (Doppelklick-Schutz gratis)
+await malPause();           // gesperrten Zustand malen lassen
+try { … } finally { frei(); }
+```
+
+Kein Modul baut das mehr von Hand (`disabled = true` + „⏳"-Text) —
+`tests/test_warte_feedback.py` schlägt sonst an. Entstanden beim
+20.000-Fotos-Test: Ordner-Scan und Schreib-Prüfung liefen bis zu einer
+Minute ohne Feedback, und wiederholtes Klicken erzeugte Doppel-Flows.
+
 ### Cloud-Archiv (v0.9.515) — `core/cloud/` + `server/rz-cloud.php`
 
 Entwurf und Begründungen: `docs/IDEAS.md` §26. Hier nur, was beim Anfassen

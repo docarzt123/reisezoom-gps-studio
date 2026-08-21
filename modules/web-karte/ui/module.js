@@ -472,7 +472,10 @@
       // sonst wirkt die App eingefroren.
       const wantsPreview = !!el("wk-consent")?.checked && !!el("wk-consent-preview")?.checked;
       const st = el("wk-status");
-      const old = btn.textContent; btn.disabled = true; btn.textContent = "⏳ " + T("tourmap.html.exporting", "Exportiere HTML …");
+      // v0.9.522 — gemeinsames Warte-Muster aus util.js statt Eigenbau.
+      const frei = knopfBeschaeftigt(btn.id, "tourmap.html.exporting", "Exportiere HTML …");
+      if (!frei) return;
+      await malPause();
       if (st) {
         st.classList.add("wk-working");
         st.textContent = wantsPreview
@@ -488,7 +491,7 @@
       } catch (e) {
         if (typeof toast === "function") toast(T("tourmap.html.failed", "HTML-Export fehlgeschlagen") + ": " + e, "error", 8000);
       } finally {
-        btn.disabled = false; btn.textContent = old;
+        frei();
         if (st) { st.classList.remove("wk-working"); st.textContent = ""; }
       }
     }

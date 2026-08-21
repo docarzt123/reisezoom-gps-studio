@@ -176,14 +176,17 @@
       const btn = el("tmhtml-export");
       const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
       if (!gpxPath) { if (typeof toast === "function") toast(T("tourmap.html2.no_gpx", "Erst eine GPX-Datei laden."), "warn", 3000); return; }
-      const old = btn.textContent; btn.disabled = true; btn.textContent = "⏳ " + T("tourmap.html.exporting", "Exportiere HTML …");
+      // v0.9.522 — gemeinsames Warte-Muster aus util.js statt Eigenbau.
+      const frei = knopfBeschaeftigt(btn.id, "tourmap.html.exporting", "Exportiere HTML …");
+      if (!frei) return;
+      await malPause();
       try {
         const res = await window.pywebview.api.tourmap_export_leaflet(collectExportParams());
         if (!res || !res.ok) { if (typeof toast === "function") toast(T("tourmap.html.failed", "HTML-Export fehlgeschlagen") + ": " + (res?.error || "?"), "error", 8000); return; }
         showExportModal(res);
       } catch (e) {
         if (typeof toast === "function") toast(T("tourmap.html.failed", "HTML-Export fehlgeschlagen") + ": " + e, "error", 8000);
-      } finally { btn.disabled = false; btn.textContent = old; }
+      } finally { frei(); }
     }
 
     function showExportModal(res) {

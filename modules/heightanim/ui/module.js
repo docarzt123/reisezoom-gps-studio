@@ -2401,7 +2401,7 @@ function mountHeightAnim(body, headerActions) {
 
   document.getElementById("height-cancel")?.addEventListener("click", async () => {
     const btn = document.getElementById("height-cancel");
-    if (btn) { btn.disabled = true; btn.textContent = "⏳ " + t("animator.cancel.requesting", "Abbruch …"); }
+    knopfBeschaeftigt(btn && btn.id, "animator.cancel.requesting", "Abbruch …");   // kein frei(): der Dialog verschwindet gleich
     try { await window.pywebview.api.heightanim_cancel(); } catch (_) {}
   });
 
@@ -2454,9 +2454,10 @@ function mountHeightAnim(body, headerActions) {
       if (typeof toast === "function") toast("Bridge heightanim_export_html fehlt", "error", 5000);
       return;
     }
-    const btn = document.getElementById("height-export-html");
-    const oldTxt = btn ? btn.textContent : "";
-    if (btn) { btn.disabled = true; btn.textContent = "⏳ " + t("heightanim.html.exporting", "Exportiere HTML …"); }
+    // v0.9.522 — gemeinsames Warte-Muster aus util.js statt Eigenbau.
+    const frei = knopfBeschaeftigt("height-export-html", "heightanim.html.exporting", "Exportiere HTML …");
+    if (!frei) return;
+    await malPause();
     try {
       const params = collectHeightParams();
       params.replay_label = "↻ " + t("heightanim.html.replay", "Neu starten");
@@ -2472,7 +2473,7 @@ function mountHeightAnim(body, headerActions) {
       console.error("[heightanim] export_html exception", e);
       if (typeof toast === "function") toast(t("heightanim.html.failed", "HTML-Export fehlgeschlagen") + ": " + e, "error", 8000);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = oldTxt; }
+      frei();
     }
   });
 
