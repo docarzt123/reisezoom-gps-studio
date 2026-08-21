@@ -599,20 +599,25 @@ def _maybe_flyto_interp(zoom_evs: list[dict], center_evs: list[dict],
         return None
     if len(zoom_evs) < 2 or len(center_evs) < 2:
         return None
+    # ⚠️ Segmentsuche auf der ZEIT-Achse (21.08.2026, Nutzer-Report aus
+    # Spanien: „Vorschau-Zoom stimmt, im Video haut der Zoom ab"). `progress`
+    # ist seit v0.9.520 ein Zeitanteil; die Suche verglich ihn aber noch mit
+    # den rohen Ankern. Mit Anlauf/Nachlauf liegen Anker und Zeit bis zu
+    # Intro/Gesamtdauer auseinander → falsches Segment → lokales t fällt aus
+    # [0,1] → van Wijk klemmt auf den Segment-ENDPUNKT: die Kamera kampiert
+    # sekundenlang reingezoomt auf einem Keyframe, den die Vorschau erst viel
+    # später erreicht. Die JS-Vorschau (_maybeFlyToInterp) sucht seit jeher
+    # über _xv (= zeit) — jetzt sind beide gleich.
     z_a = z_b = None
     for i in range(len(zoom_evs) - 1):
-        aa = float(zoom_evs[i].get("anchor", 0))
-        ba = float(zoom_evs[i + 1].get("anchor", 0))
-        if aa <= progress <= ba:
+        if _x(zoom_evs[i]) <= progress <= _x(zoom_evs[i + 1]):
             z_a, z_b = zoom_evs[i], zoom_evs[i + 1]
             break
     if not z_a or not z_b:
         return None
     c_a = c_b = None
     for i in range(len(center_evs) - 1):
-        aa = float(center_evs[i].get("anchor", 0))
-        ba = float(center_evs[i + 1].get("anchor", 0))
-        if aa <= progress <= ba:
+        if _x(center_evs[i]) <= progress <= _x(center_evs[i + 1]):
             c_a, c_b = center_evs[i], center_evs[i + 1]
             break
     if not c_a or not c_b:

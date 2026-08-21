@@ -14,6 +14,20 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Kino-Flug (Vuelo cinemático): Render folgt jetzt exakt der Vorschau. Die
+  van-Wijk-Segmentsuche verglich den Zeit-Fortschritt noch mit den rohen
+  Track-Ankern — mit Anlauf/Nachlauf wurde dadurch das falsche Keyframe-Paar
+  gewählt, das lokale t fiel aus [0,1] und die Kamera kampierte sekundenlang
+  reingezoomt auf einem späteren Keyframe (Nutzer-Report per Video: „Vorschau
+  stimmt, im Video haut der Zoom ab"). Beweis: Vorschau-JS und Render-Python
+  laufen jetzt über 401 Stützstellen deckungsgleich (tests/test_flyto_zeitachse.py).
+
+### Dev
+- `RZ_CAMDEBUG=1` loggt im Render pro Frame Soll- und Ist-Kamera (Zoom, Center,
+  Pitch, Höhe, Geländehöhe); `RZ_SLOWNET=dem:8|all:5` verzögert Mapbox-Requests
+  zum Nachstellen langsamer Verbindungen.
+
 ## [0.9.524] – 2026-08-21
 
 ### Neu

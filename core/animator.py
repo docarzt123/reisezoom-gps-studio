@@ -3918,6 +3918,23 @@ async def render(
             device_scale_factor=_dsf * _ss,
         )
 
+        # RZ_SLOWNET — nur Fehlersuche (Rafael 21.08.2026): Mapbox-Requests
+        # künstlich verzögern, um langsame Verbindungen nachzustellen.
+        #   RZ_SLOWNET=dem:8   → nur Terrain-DEM-Kacheln 8 s verzögern
+        #   RZ_SLOWNET=all:5   → alle Mapbox-Requests 5 s verzögern
+        _slow = os.environ.get("RZ_SLOWNET", "")
+        if _slow:
+            _was, _, _sek = _slow.partition(":")
+            _sek_f = float(_sek or 5)
+            async def _bremse(route):
+                url = route.request.url
+                dem = ("terrain-dem" in url) or ("raster-dem" in url)
+                if (_was == "all" and "mapbox" in url) or (_was == "dem" and dem):
+                    await asyncio.sleep(_sek_f)
+                await route.continue_()
+            await page.route("**/*", _bremse)
+            _log.warning("RZ_SLOWNET aktiv: %s → +%.1fs Latenz", _was, _sek_f)
+
         # Console-Logs aus dem Headless-Chromium ins App-Log spiegeln —
         # dort landen z.B. Mapbox-Token-Fehler („Unauthorized") und WebGL-Errors.
         def _on_console(msg):
@@ -4377,6 +4394,24 @@ async def render(
                         f"window.__signsAnchorFilter && window.__signsAnchorFilter({_sign_hold_anchor})"
                     )
                 await page.evaluate("window.waitForRender()")
+                # RZ_CAMDEBUG=1 — Kamera-Fährte pro Frame: befohlener Zoom vs.
+                # das, was Mapbox danach wirklich meldet (inkl. Kamera-Höhe).
+                # Nur für Fehlersuche (Rafael-Report 21.08.2026: „Render-Zoom
+                # weicht von der Vorschau ab"); kostet einen evaluate pro Frame.
+                if os.environ.get("RZ_CAMDEBUG") == "1":
+                    try:
+                        _dbg = await page.evaluate(
+                            "JSON.stringify({z: +map.getZoom().toFixed(3),"
+                            " lat: +map.getCenter().lat.toFixed(5),"
+                            " lng: +map.getCenter().lng.toFixed(5),"
+                            " p: +map.getPitch().toFixed(1),"
+                            " alt: (function(){try{return +map.getFreeCameraOptions().position.z.toExponential(3);}catch(e){return null;}})(),"
+                            " elev: (function(){try{var e=map.queryTerrainElevation(map.getCenter());return e==null?null:+e.toFixed(0);}catch(e){return null;}})()})"
+                        )
+                        _log.info("CAMDEBUG f=%d t=%.4f soll_z=%.3f soll_pitch=%.1f ist=%s",
+                                  frame, timeline_progress, frame_zoom, pitch_f, _dbg)
+                    except Exception as _e:
+                        _log.info("CAMDEBUG f=%d evaluate-Fehler: %s", frame, _e)
                 # v0.9.286 (Marc-Bug: erster Frame teils schwarz) — Frame 0 extra
                 # absichern: direkt nach dem instant `jumpTo` kann `areTilesLoaded()`
                 # spurious `true` liefern (Tile-Requests des Startbilds sind noch
