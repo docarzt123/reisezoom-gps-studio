@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Cloud für alle nutzbar gemacht (Marc): Die ☁-Wolke ist jetzt auch OHNE
+  eingerichtete Cloud sichtbar (grau) und öffnet den Dialog mit einer
+  Schritt-für-Schritt-Anleitung in einfacher Sprache. Die Server-Datei
+  rz-cloud.php wird mit in die App gebacken (.spec) und per Knopf
+  „auf den Schreibtisch legen" herausgegeben (`cloud_php_speichern`) —
+  vorher hatte der Nutzer die Datei gar nicht, die der Dialog verlangte.
+  USER_GUIDE (DE/EN/ES) entsprechend umgebaut; Hoster-Anforderungen:
+  nur PHP ≥ 7.4 + HTTPS.
+
 ### Fixed
 - Cloud stört den App-Start nicht mehr (Marc-Report „Passwort bei jedem Start"):
   `cloud_status` (☁-Anzeige, 90-s-Puls) liest nur noch die neue unsensible

@@ -1520,10 +1520,14 @@ you keep your data.
 
 ### Setting it up (once, about two minutes)
 
-1. Upload the file **`rz-cloud.php`** into a folder of your web space, for
-   example `yoursite.com/archive/`. That is all the server needs — no database,
-   no configuration.
-2. In GPS Studio: **Settings → Set up cloud archive**.
+1. Click the grey **☁** cloud in the top bar (or open **Settings → Cloud
+   archive**). The dialog contains the guide — and a button **“Put
+   rz-cloud.php on my desktop”** gives you the server file; it ships with the
+   app and always matches your app version.
+2. Upload that file **`rz-cloud.php`** into a folder of your web space, for
+   example `yoursite.com/archive/` — with your FTP program or your host’s file
+   manager. The web space only needs **PHP (7.4 or newer) and HTTPS**;
+   virtually every host has that. No database, no configuration.
 3. Enter the **address of that file** (`https://yoursite.com/archive/rz-cloud.php`).
    The app tells you straight away whether it finds anything there.
 4. **Create a new archive** — and then the important part:

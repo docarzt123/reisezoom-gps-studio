@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.526"
+APP_VERSION = "0.9.527"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -4607,6 +4607,33 @@ class Api:
             if not self._cloud_marker().get("eingerichtet"):
                 self._cloud_marker_schreiben(zugang.adresse)
             return self._cloud_zugang_cache
+
+    def cloud_php_speichern(self, ziel_dir: str = "") -> dict:
+        """Die mitgelieferte Server-Datei rz-cloud.php auf den Schreibtisch legen.
+
+        v0.9.527 (Marc): Der Dialog sagt „lade rz-cloud.php hoch" — also muss
+        die App die Datei auch HERGEBEN. Sie liegt im Bundle (siehe .spec) und
+        passt damit immer zur App-Version. ⚠️ Bewusst OHNE Zeitstempel und mit
+        Überschreiben: Der Dateiname auf dem Server MUSS rz-cloud.php heißen,
+        und eine ältere Kopie auf dem Schreibtisch ist schlicht veraltet.
+        """
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        try:
+            quelle = ROOT / "server" / "rz-cloud.php"
+            if not quelle.is_file():
+                return {"ok": False, "error": _ui_t()(
+                    "cloud.php_fehlt", "Die Server-Datei fehlt in dieser Installation.")}
+            ziel_basis = Path(ziel_dir) if ziel_dir else (Path.home() / "Desktop")
+            if not ziel_basis.is_dir():
+                ziel_basis = Path.home()
+            ziel = ziel_basis / "rz-cloud.php"
+            shutil.copyfile(quelle, ziel)
+            log.info("rz-cloud.php bereitgelegt: %s", ziel)
+            return {"ok": True, "pfad": str(ziel)}
+        except Exception as e:      # noqa: BLE001
+            log.exception("rz-cloud.php bereitlegen fehlgeschlagen")
+            return {"ok": False, "error": str(e)}
 
     def cloud_status(self) -> dict:
         """Wie steht es um die Cloud? Für die Zustandsanzeige und die Einstellungen."""
