@@ -7555,6 +7555,37 @@ function mountAnimator(body, headerActions, opts) {
         panel.style.left = x + "px"; panel.style.top = y + "px";
       } catch (_) { panel.style.left = "60px"; panel.style.top = "60px"; }
     }
+    // v0.9.523 — installierte System-Schriften ins Schilder-Dropdown (Nutzer-Idee
+  // aus Spanien). Die Liste kommt EINMAL vom Backend (Browser darf Schriften
+  // nicht aufzählen), danach aus dem Modul-Cache. Ein Fehlschlag ist still —
+  // dann bleiben eben die sechs eingebauten Familien.
+  let _sysFonts = null;
+  async function _seFuelleSystemFonts(sel) {
+    if (!sel) return;
+    try {
+      if (_sysFonts === null) {
+        const r = await api().system_fonts();
+        _sysFonts = (r && r.ok && Array.isArray(r.fonts)) ? r.fonts : [];
+      }
+      if (!_sysFonts.length || sel.querySelector("optgroup")) return;
+      const g = document.createElement("optgroup");
+      g.label = t("signs.font.installed", "Installierte Schriften");
+      const aktuell = sel.value;
+      for (const f of _sysFonts) {
+        const o = document.createElement("option");
+        o.value = "sys:" + f;
+        o.textContent = f;
+        if (o.value === aktuell) o.selected = true;
+        g.appendChild(o);
+      }
+      sel.appendChild(g);
+      // Falls das Schild schon eine sys:-Schrift hat, die als Einzel-Option
+      // oben klebt: durch die Gruppen-Option ersetzen (keine Dubletten).
+      const dublette = [...sel.options].filter(o => o.value === aktuell && o.parentElement !== g);
+      if (dublette.length && aktuell.indexOf("sys:") === 0) dublette.forEach(o => o.remove());
+    } catch (_) {}
+  }
+
     // v0.9.178 — Editor-Panel an der Kopfzeile frei verschiebbar machen.
     function _animSignsMakeDraggable(panel) {
       const head = panel.querySelector(".sign-editor-head");
@@ -7580,6 +7611,14 @@ function mountAnimator(body, headerActions, opts) {
         try { head.releasePointerCapture(e.pointerId); } catch (_) {}
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
+        // v0.9.523 — Wunschposition dauerhaft merken (localStorage reicht:
+        // reine Fenster-Vorliebe, gehört weder ins Projekt noch in die Cloud).
+        try {
+          localStorage.setItem("rz_signs_editor_pos", JSON.stringify({
+            x: parseFloat(panel.style.left) || 0,
+            y: parseFloat(panel.style.top) || 0,
+          }));
+        } catch (_) {}
       };
       head.addEventListener("pointerdown", (e) => {
         // Klick auf den Schließen-Button NICHT als Drag werten
@@ -7702,6 +7741,8 @@ function mountAnimator(body, headerActions, opts) {
               <option value="serif"${sel("serif", c.font)}>${t("signs.font.serif", "Serif")}</option>
               <option value="mono"${sel("mono", c.font)}>${t("signs.font.mono", "Monospace")}</option>
               <option value="impact"${sel("impact", c.font)}>${t("signs.font.impact", "Plakativ")}</option>
+              ${c.font && String(c.font).indexOf("sys:") === 0
+                ? `<option value="${_animEscapeHtml(c.font)}" selected>${_animEscapeHtml(String(c.font).slice(4))}</option>` : ""}
             </select>
             <label>${t("signs.size", "Größe")}</label>
             <input type="range" id="se-size" min="16" max="90" step="2" value="${c.size}">
@@ -7771,6 +7812,22 @@ function mountAnimator(body, headerActions, opts) {
           <button type="button" class="btn btn-small" id="se-move" title="${t("signs.move_hint", "Danach das Schild direkt auf der Karte an die gewünschte Stelle ziehen.")}">${t("signs.move", "↔ Verschieben")}</button>
         </div>`;
       document.body.appendChild(panel);   // v0.9.180 — an body → über die Karte hinaus ziehbar
+      _seFuelleSystemFonts(panel.querySelector("#se-font"));
+      // v0.9.523 — gemerkte Panel-Position (Nutzer-Wunsch aus Spanien: das
+      // Panel öffnete über der Vorschau und verdeckte sie). Hat der Nutzer es
+      // schon einmal verschoben, öffnet es GENAU dort wieder — sonst wie
+      // bisher neben dem Schild.
+      try {
+        const roh = localStorage.getItem("rz_signs_editor_pos");
+        if (roh) {
+          const pos = JSON.parse(roh);
+          const pw = panel.offsetWidth || 286, ph = panel.offsetHeight || 300;
+          const x = Math.max(2, Math.min(window.innerWidth - pw - 2, Number(pos.x) || 0));
+          const y = Math.max(2, Math.min(window.innerHeight - ph - 2, Number(pos.y) || 0));
+          panel.style.left = x + "px"; panel.style.top = y + "px";
+          panel._userMoved = true;         // nicht mehr ans Schild kleben
+        }
+      } catch (_) {}
       _animSignEditorEl = panel;
       _animSignEditorIdx = idx;   // v0.9.194 — offenes Schild merken (Re-Klick ohne Sprung)
       _animSignsPositionEditor(panel, c.lon, c.lat);

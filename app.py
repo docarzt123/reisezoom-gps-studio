@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.522"
+APP_VERSION = "0.9.523"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -4757,6 +4757,69 @@ class Api:
         except Exception as e:      # noqa: BLE001
             log.exception("Cloud-Abgleich fehlgeschlagen")
             return {"ok": False, "error": str(e)}
+
+    _system_fonts_cache: Optional[list] = None
+
+    def system_fonts(self) -> dict:
+        """Installierte Schrift-Familien fürs Schilder-Dropdown (v0.9.523,
+        Nutzer-Idee aus Spanien). Der Browser darf Schriften nicht auflisten
+        (Privacy) — das Backend darf. Der Render-Chromium sieht dieselben
+        System-Schriften, Vorschau = Video bleibt also erhalten.
+
+        ⚠️ Windows liest die Font-REGISTRY: Dort stehen Schnitt-Namen
+        („Arial Bold (TrueType)"), keine sauberen Familien — wir schneiden
+        übliche Schnitt-Suffixe ab. Nicht perfekt, dafür ohne Zusatz-Paket;
+        Korrekturen gern nach Nutzer-Feedback.
+        """
+        if self._system_fonts_cache is not None:
+            return {"ok": True, "fonts": self._system_fonts_cache}
+        fams: set[str] = set()
+        try:
+            if sys.platform == "darwin":
+                from AppKit import NSFontManager
+                for f in NSFontManager.sharedFontManager().availableFontFamilies():
+                    fams.add(str(f))
+            elif os.name == "nt":
+                import winreg
+                for wurzel, pfad in ((winreg.HKEY_LOCAL_MACHINE,
+                                      r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"),
+                                     (winreg.HKEY_CURRENT_USER,
+                                      r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts")):
+                    try:
+                        k = winreg.OpenKey(wurzel, pfad)
+                    except OSError:
+                        continue
+                    try:
+                        i = 0
+                        while True:
+                            try:
+                                name, _wert, _typ = winreg.EnumValue(k, i)
+                            except OSError:
+                                break
+                            i += 1
+                            name = re.sub(r"\s*\((TrueType|OpenType|VFB|All)\)\s*$", "", name)
+                            # Schnitt-Suffixe weg → Familienname
+                            name = re.sub(r"\s+(Bold|Italic|Oblique|Light|Semilight|Semibold"
+                                          r"|Medium|Black|Thin|Condensed|Narrow|Regular)"
+                                          r"(\s+(Bold|Italic|Oblique))*\s*$", "", name)
+                            name = name.strip()
+                            if name and not name.startswith("@"):
+                                fams.add(name)
+                    finally:
+                        k.Close()
+            else:
+                import subprocess
+                out = subprocess.run(["fc-list", ":", "family"],
+                                     capture_output=True, text=True, timeout=10).stdout
+                for zeile in out.splitlines():
+                    fams.add(zeile.split(",")[0].strip())
+        except Exception as e:
+            log.warning("system_fonts: %s", e)
+        # Versteckte/technische Familien raus, stabil sortieren, deckeln.
+        liste = sorted((f for f in fams if f and not f.startswith(".")),
+                       key=str.casefold)[:600]
+        self._system_fonts_cache = liste
+        return {"ok": True, "fonts": liste}
 
     def get_app_info(self) -> dict:
         """Über-Dialog-Daten: Version, Python, Paths."""

@@ -1648,6 +1648,7 @@
   "signs.tailpos.center": "◆ Centre",
   "signs.tailpos.right": "Right ▶",
   "signs.zoomScale_hint": "If the sign grows while you zoom, its text is drawn at a slightly different size every frame — that makes the letters visibly shimmer. Off = calm, crisp text.",
+  "signs.font.installed": "Installed fonts",
   "modules.library.name": "Library",
   "modules.library.desc": "All tours",
   "library.open": "Open library",

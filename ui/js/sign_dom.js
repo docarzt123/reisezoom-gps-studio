@@ -27,8 +27,12 @@
   function rgba(hex, a) { var c = hexToRgb(hex); return "rgba(" + c.r + "," + c.g + "," + c.b + "," + a + ")"; }
   function ink(surfaceHex) { return lum(surfaceHex) > 0.62 ? "#15171c" : "#ffffff"; }
   function fontStack(key) {
+    if (key && String(key).indexOf("sys:") === 0) {
+      return "'" + String(key).slice(4).replace(/["']/g, "") + "', system-ui, sans-serif";
+    }
     switch (key) {
       case "rounded":   return "ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', 'Varela Round', system-ui, sans-serif";
+      // (sys:-Präfix wird VOR dem switch behandelt — siehe unten)
       case "serif":     return "Georgia, 'Iowan Old Style', 'Times New Roman', serif";
       case "mono":      return "ui-monospace, Menlo, 'SF Mono', Consolas, monospace";
       case "condensed": return "'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', system-ui, sans-serif";

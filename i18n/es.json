@@ -1648,6 +1648,7 @@
   "signs.tailpos.center": "◆ Centro",
   "signs.tailpos.right": "Derecha ▶",
   "signs.zoomScale_hint": "Si el cartel crece al hacer zoom, su texto se dibuja a un tamaño distinto en cada fotograma y las letras tiemblan de forma visible. Desactivado = texto nítido y estable.",
+  "signs.font.installed": "Fuentes instaladas",
   "modules.library.name": "Archivo",
   "modules.library.desc": "Todas las rutas",
   "library.open": "Abrir archivo",

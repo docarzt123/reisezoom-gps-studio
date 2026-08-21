@@ -1648,6 +1648,7 @@
   "signs.tailpos.center": "◆ Mittig",
   "signs.tailpos.right": "Rechts ▶",
   "signs.zoomScale_hint": "Wächst das Schild beim Zoomen mit, erscheint seine Schrift laufend in einer anderen Größe — dabei zittern die Buchstaben sichtbar. Aus = ruhige, scharfe Schrift.",
+  "signs.font.installed": "Installierte Schriften",
   "modules.library.name": "Archiv",
   "modules.library.desc": "Alle Touren",
   "library.open": "Archiv öffnen",

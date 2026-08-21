@@ -14,6 +14,29 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.523] – 2026-08-21
+
+### Behoben
+- **Schilder: Fett und Extra-Fett wirken jetzt bei jeder Schrift.**
+  Schilder werden auf einem Canvas gezeichnet, und Canvas erfindet keinen
+  Fettschnitt: Hat die Familie keinen (Plakativ, Rundlich — auf Windows fast
+  alle), sah Fett exakt aus wie Normal. Vermessen: Rundlich lieferte bei 700
+  und 900 dieselbe Tinte, Plakativ bei 400/700/900 dreimal dieselbe. Jetzt
+  erkennen wir das (Gewicht ändert die Textbreite nicht → kein Schnitt) und
+  ziehen die Buchstaben mit einer Kontur nach — identisch in Vorschau, Video
+  und Web-Export, weil alle durch dieselbe Zeichen-Engine laufen. Gemeldet
+  mit Video von unserem Tester aus Spanien.
+
+### Neu
+- **Schilder können jede installierte Schrift benutzen.** Das
+  Schriften-Dropdown listet zusätzlich die auf dem Rechner installierten
+  Familien (auf diesem Mac: 517). Der Browser darf Schriften nicht aufzählen —
+  das Backend darf; und weil der Renderer dieselben System-Schriften sieht,
+  bleibt Vorschau = Video. Seine Idee.
+- **Das Schild-Bearbeiten-Fenster merkt sich seine Position.** Es öffnete
+  bisher immer neben dem Schild — oft mitten über der Vorschau. Einmal
+  beiseite geschoben, öffnet es ab jetzt genau dort wieder. Auch seine Idee.
+
 ## [0.9.522] – 2026-08-20
 
 ### Behoben
