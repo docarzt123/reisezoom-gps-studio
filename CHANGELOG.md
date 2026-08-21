@@ -14,6 +14,24 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Laufpunkt („Kugel") war nach dem App-Start beim ersten Probe-Lauf
+  unsichtbar, bis man den Größen-Regler bewegte (Beta-Tester-Report):
+  `setStyle` (Projekt-Kartenstil beim Start, jeder Stil-Wechsel) wirft alle
+  Layer weg — `rebuildPreviewLayers` baute Track/Schilder/Fotos wieder auf,
+  den Laufpunkt aber nicht. Jetzt wird er mit aufgebaut und an die
+  Scrubber-Stelle gesetzt (gleiche Fehlerfamilie wie v0.9.458 Extra-Touren).
+- `cloud_tour_holen` übergab `folders` als Dict statt Pfad-String — der
+  Bibliotheks-Import einer aus der Cloud geholten Tour wäre gecrasht
+  (beim Bau des gezielten Ordner-Scans gefunden; Vertrag jetzt per Test
+  festgenagelt: tests/test_ordner_neu_einlesen.py).
+
+### Added
+- Archiv → „Ordner & Einlesen": 🔄 pro Ordner-Zeile liest NUR diesen Ordner
+  neu ein (Beta-Tester-Wunsch per Screenshot: 103.535 Dateien im einen,
+  28 neue im anderen Ordner). Entfern-Logik läuft dabei nur über den
+  gescannten Ordner — der Rest der Bibliothek bleibt unangetastet.
+
 ### Changed
 - Zeitleiste: Die Trim-Griffe (Render-Start/-Ende) werden jetzt an FÄHNCHEN
   UNTER der Leiste gegriffen (Start-Fahne links der Linie, Ende-Fahne rechts —

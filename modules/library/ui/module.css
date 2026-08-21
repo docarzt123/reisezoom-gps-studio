@@ -311,6 +311,12 @@
   cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px;
 }
 .lib-folder-x:hover { color: var(--danger); }
+/* v0.9.528 — gezielter Ordner-Scan (Beta-Tester-Wunsch) */
+.lib-folder-rescan {
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; opacity: 0.55; padding: 2px 4px;
+}
+.lib-folder-rescan:hover { opacity: 1; }
 
 .lib-scan-info { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; margin-top: 8px; }
 .lib-scan-done { color: var(--success); }

@@ -2698,6 +2698,17 @@ function mountAnimator(body, headerActions, opts) {
     // (die Draw-Funktion bricht bei ladendem Style still ab). Hier läuft der
     // Style garantiert — also immer mit nachziehen.
     try { _animDrawExtraToursPreview(); } catch (e) { rzSwallow(e, "drawExtraTours@rebuild"); }
+    // v0.9.528 (Beta-Tester-Report: „Kugel bei Größe 1.0 beim ersten Probe-Lauf
+    // unsichtbar — erst eine Slider-Bewegung holt sie zurück"): Der Laufpunkt
+    // gehört ebenfalls zum Preview-Layer-Satz. setStyle wirft alle Layer weg,
+    // und beim App-Start läuft nach dem Track-Laden genau so ein Stil-Wechsel
+    // (Projekt-Kartenstil, v0.9.329) — die Kugel wurde nie nachgebaut.
+    // Gleiche Fehlerfamilie wie die Extra-Touren eine Zeile drüber.
+    try {
+      dotEbenenAufbauen();
+      const _da = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
+      dotSetzen(trackFracAusAnker(_da));
+    } catch (e) { rzSwallow(e, "dot@rebuild"); }
   }
 
   // v0.9.390 — WYSIWYG zum Render: im Mapbox-Standard-Style (standard/
@@ -2710,7 +2721,8 @@ function mountAnimator(body, headerActions, opts) {
     let st;
     try { st = map.getStyle(); } catch (_) { return; }
     if (!st || !st.layers) return;
-    const pre = ["preview-", "gpx-ghost", "anim-signs", "photo-pins", "mtrack"];
+    // v0.9.528 — "anim-dot" gehört mit über die Labels (Render hebt 'dot-' auch).
+    const pre = ["preview-", "gpx-ghost", "anim-signs", "photo-pins", "mtrack", "anim-dot"];
     st.layers.forEach((l) => {
       if (pre.some((p) => l.id.indexOf(p) === 0)) {
         try { if (map.getLayer(l.id)) map.moveLayer(l.id); } catch (_) {}
