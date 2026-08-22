@@ -3350,7 +3350,11 @@ function mountAnimator(body, headerActions, opts) {
     // ein zweiter Versuch. Jetzt holt er sich selbst nach (idle), wie die
     // Track-Layer über _whenStyleReady.
     if (map.isStyleLoaded && !map.isStyleLoaded()) {
+      // Spur im app.log — damit ein Nutzer-Log beweist, ob dieser Pfad bei
+      // ihm überhaupt läuft (auf dem Entwickler-Mac nie).
+      try { applog("info", "[anim-dot] Stil noch nicht fertig — Laufpunkt-Aufbau wartet auf idle"); } catch (_) {}
       _whenStyleReady("anim-dot", () => {
+        try { applog("info", "[anim-dot] Stil bereit — Laufpunkt wird jetzt gebaut"); } catch (_) {}
         dotEbenenAufbauen();
         try {
           const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
