@@ -607,6 +607,8 @@
   "animator.dur.modus_faktor": "Echtzeit ÷ Faktor",
   "animator.dur.faktor": "Faktor",
   "animator.dur.keine_zeiten": "Dieser Track hat keine Zeitstempel — Echtzeit-Modus nicht möglich.",
+  "animator.alpha_multi": "„Ohne Karte (Alpha)“ geht derzeit nur mit einer einzelnen Tour — bitte die weiteren Touren entfernen oder einen Kartenstil wählen.",
+  "animator.karte_fehler": "Die Karte konnte nicht geladen werden (Mapbox-Token oder Stil): ",
   "animator.lane.marker": "Marker",
   "animator.lane.photo": "Foto",
   "animator.lane.cluster": "Cluster",

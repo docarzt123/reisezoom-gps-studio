@@ -3026,6 +3026,14 @@ class Api:
         #   - transparent_background=True → backwards-compat mit altem UI
         map_style = params.get("map_style", "satellite")
         alpha = bool(params.get("transparent_background", False)) or (map_style == "alpha")
+        # 22.08.2026 (Audit): Multi-Track-Render + Alpha ist im Render-Kern nicht
+        # vorhanden (_make_html_alpha kennt advanceFrameMulti nicht) — lieber
+        # klar ablehnen als beim ersten Frame mit „is not a function" sterben.
+        if alpha and len(tracks) >= 2:
+            return {"ok": False, "error": _ui_t()(
+                "animator.alpha_multi",
+                "„Ohne Karte (Alpha)“ geht derzeit nur mit einer einzelnen Tour — "
+                "bitte die weiteren Touren entfernen oder einen Kartenstil wählen.")}
         # v0.9.245 — Encoding-/Frame-Qualität kommt zentral aus den globalen
         # Settings (Dialog „Qualität & Export"), nicht mehr aus der Sidebar.
         _rq = _load_settings().get("render", {}) or {}
@@ -3094,7 +3102,7 @@ class Api:
             show_pins=bool(params.get("show_pins", False)),
             duration_s=int(params.get("duration_s", 12)),
             hold_s=int(params.get("hold_s", 5)),
-            intro_s=int(params.get("intro_s", 0)),  # v0.9.59
+            intro_s=float(params.get("intro_s", 0) or 0),  # v0.9.59; 22.08.2026: float wie duration/hold
             fps=int(params.get("fps", 30)),
             width=int(params.get("width", 1920)),
             height=int(params.get("height", 1080)),
