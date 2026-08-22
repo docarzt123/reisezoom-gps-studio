@@ -17,151 +17,27 @@ import os
 import shutil
 import subprocess
 import sys
-import threading
 import time
 
 # v0.9.274 (Nutzer-Bug) — Windows: ffmpeg ohne sichtbares Konsolenfenster starten.
 _WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
 
-# ffmpeg schreibt WÄHREND des Renderns in eine Nachbardatei, nicht an den vom
-# Nutzer gewählten Platz. Erst der fertige Film wird dorthin geschoben.
-#
-# Vorher lag am Zielort ab der ersten Sekunde ein wachsender Torso. Wer die App
-# währenddessen schloss, fand dort ein abspielbares, aber abgeschnittenes Video:
-# Das Abbruch-Signal wird nur ZWISCHEN zwei Bildern geprüft, ein 4K-Bild dauert
-# aber Sekunden — in den 0,8 s bis zum harten Aus kam es praktisch nie an, und
-# ffmpeg schrieb sein Fragment noch zu Ende. Dasselbe bei jedem Fehler mitten im
-# Lauf: Der Abbruch-Zweig räumte auf, der Fehler-Zweig nicht.
-_TEIL = ".rzpart"
+# ffmpeg-Lebenslauf (Teildatei `.rzpart`, stderr-Drain, Tod-Diagnose, Warten mit
+# Zeitgrenze) lebt seit 22.08.2026 EINMAL in core/frame_driver.py — vorher hier,
+# im Mehrspur-Pfad und im Höhen-Animator je eine Kopie. Die Namen bleiben als
+# Aliasse, weil Tests und Skripte sie kennen.
+from .frame_driver import (TEIL as _TEIL, teildatei as _teildatei,   # noqa: E402, F401
+                           fertigstellen as _fertigstellen, teil_wegraeumen as _teil_wegraeumen,
+                           drain_stderr as _drain_stderr, ffmpeg_gestorben as _ffmpeg_gestorben)
+
+from .frame_driver import muxer_fuer as _muxer_fuer   # noqa: E402
 
 
-# Endung → ffmpeg-Muxer. ⚠️ Ohne das ist der Render seit v0.9.499 KOMPLETT
-# kaputt: die Teildatei heißt `<name>.mp4.rzpart`, und aus `.rzpart` kann ffmpeg
-# kein Ausgabeformat ableiten — „Unable to choose an output format … use a
-# standard extension for the filename or specify the format manually".
-# ffmpeg beendet sich sofort, der Pipe-Puffer schluckt die ersten Frames, und
-# heraus kam ein nacktes „Broken pipe" ohne jeden Hinweis auf die Ursache.
-_MUXER = {".mp4": "mp4", ".mov": "mov", ".webm": "webm", ".mkv": "matroska",
-          ".m4v": "mp4", ".avi": "avi"}
-
-
-def _muxer_fuer(ziel: str) -> str:
-    """Das Ausgabeformat, das ffmpeg sonst aus der Endung raten würde.
-
-    Gerechnet wird auf dem ECHTEN Ziel (`…mp4`), nicht auf der Teildatei —
-    genau daran ist es gescheitert.
-    """
-    return _MUXER.get(Path(ziel).suffix.lower(), "mp4")
-
-
-def _teildatei(ziel: str) -> str:
-    """Arbeitsname neben dem Ziel — gleicher Ordner, damit das Umbenennen auf
-    derselben Platte bleibt und damit in einem Rutsch geschieht."""
-    return f"{ziel}{_TEIL}"
-
-
-def _fertigstellen(ziel: str) -> None:
-    """Die fertige Teildatei an ihren endgültigen Platz schieben."""
-    teil = _teildatei(ziel)
-    if os.path.exists(teil):
-        os.replace(teil, ziel)
-
-
-def _teil_wegraeumen(ziel: str) -> None:
-    """Angefangene Datei entfernen. Ist keine da, ist auch gut."""
-    try:
-        Path(_teildatei(ziel)).unlink(missing_ok=True)
-    except Exception:       # noqa: BLE001 — Aufräumen darf den echten Fehler nie verdecken
-        pass
-
-
-def _ffmpeg_abwarten(ff, cfg, is_cancelled, max_s: int = 600) -> None:
-    """ff.wait() mit Zeitgrenze und Abbruch-Check (22.08.2026, Audit).
-
-    Ein nacktes `ff.wait()` blockierte den Worker-Thread für immer, wenn ffmpeg
-    beim +faststart-Umkopieren hing (Netzlaufwerk, Virenscanner) — und
-    `cancel_requested` wurde nie mehr gelesen. Hier: sekündlich nachsehen,
-    bei Abbruch terminieren und die Teildatei wegräumen.
-    """
-    for _ in range(max_s):
-        try:
-            ff.wait(timeout=1)
-            return
-        except subprocess.TimeoutExpired:
-            if is_cancelled and is_cancelled():
-                try:
-                    ff.terminate()
-                except Exception:
-                    pass
-                _teil_wegraeumen(cfg.output_path)
-                raise RenderCancelled("Vom User abgebrochen") from None
-    try:
-        ff.kill()
-    except Exception:
-        pass
-    _teil_wegraeumen(cfg.output_path)
-    raise RuntimeError(f"ffmpeg hat die Datei nicht fertiggestellt (Zeitgrenze {max_s // 60} min).")
-
-
-def _drain_stderr(pipe):
-    """v0.9.388 — liest den stderr-Pipe eines Subprozesses (ffmpeg) fortlaufend in
-    einem Thread leer. Sonst blockiert ffmpeg, sobald es mehr als ~64 KB auf stderr
-    schreibt (klassisch: Platte voll → 'No space left on device' pro Frame), weil der
-    Pipe-Puffer volläuft → ffmpeg liest stdin nicht mehr → `ff.stdin.write(frame)`
-    hängt für immer (Render „friert" ein, Cancel greift nicht). Gibt (thread, bytearray)
-    zurück; die bytearray füllt sich live und wird nach `ff.wait()` gelesen."""
-    buf = bytearray()
-
-    def _run():
-        try:
-            for chunk in iter(lambda: pipe.read(65536), b""):
-                buf.extend(chunk)
-        except Exception:
-            pass
-
-    th = threading.Thread(target=_run, daemon=True)
-    th.start()
-    return th, buf
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
 from PIL import Image
-
-
-def _ffmpeg_gestorben(ff, err_th, err_buf, frame: int, total: int, out_path: str):
-    """ffmpeg ist mitten im Schreiben verschwunden — seine Begründung retten.
-
-    ⚠️ Ohne das ist der Fehlerbericht wertlos. `ff.stdin.write(frame)` wirft
-    `BrokenPipeError`, sobald ffmpeg weg ist; die Ausnahme flog bisher an der
-    Auswertung am Funktionsende vorbei, und damit landete ffmpegs eigene
-    Fehlermeldung — die längst im Puffer lag — nie im Log. Ein Nutzer schickte
-    sechs Berichte mit immer demselben nackten „Broken pipe"; warum sein Render
-    abbrach, ließ sich daraus nicht sagen.
-
-    Typisch ist: ffmpeg beendet sich SOFORT (Ausgabedatei nicht anlegbar), und
-    weil der Pipe-Puffer die ersten ~64 KB schluckt, fällt es erst nach ein paar
-    Frames auf. Genau deshalb steht die Ausgabedatei mit in der Meldung.
-    """
-    try:
-        err_th.join(timeout=2)
-    except Exception:
-        pass
-    err = bytes(err_buf).decode(errors="replace").strip()
-    rc = ff.poll()
-    _log.error("ffmpeg starb bei Frame %d/%d (returncode=%s), Ziel: %s\n"
-               "ffmpeg-Ausgabe:\n%s", frame, total, rc, out_path,
-               err or "(keine — vermutlich von außen beendet)")
-    if err:
-        return RuntimeError(f"ffmpeg brach ab (Frame {frame}/{total}): "
-                            f"{err.splitlines()[-1][:300]}")
-    # Kein Wort von ffmpeg = es wurde von außen abgeschossen oder kam nie an
-    # die Ausgabedatei. Beides ist nichts, was der Nutzer im Programm findet.
-    return RuntimeError(
-        f"ffmpeg brach bei Frame {frame}/{total} ohne Meldung ab. Häufigste "
-        f"Ursachen: ein Virenscanner blockiert das Schreiben, das Ziel liegt "
-        f"auf einem Netz-/Wechsellaufwerk oder die Platte ist voll. "
-        f"Ziel war: {out_path}")
 
 
 
@@ -221,6 +97,7 @@ from . import i18n as _i18n
 from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
 from . import sensors as _sensors    # v0.9.331: FIT-Sensorfeld-Registry
 from . import heightanim as _cheight  # v0.9.443: Daten-Diagramme als Overlay
+from .frame_driver import FrameMuxer    # 22.08.2026: gemeinsamer ffmpeg-Lebenslauf
 
 
 MAP_STYLES = {
@@ -3255,11 +3132,9 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
         # ⚠️ Format explizit — aus `.rzpart` kann ffmpeg keins ableiten.
         ffmpeg_cmd += ["-f", _muxer_fuer(cfg.output_path),
                        _teildatei(cfg.output_path)]
-        _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
-        ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                              creationflags=_WIN_NO_WINDOW)
-        _ff_err_th, _ff_err_buf = _drain_stderr(ff.stderr)  # v0.9.388 — Pipe-Deadlock verhindern
+        # 22.08.2026 — gemeinsamer Treiber (core/frame_driver.py)
+        mux = FrameMuxer(ffmpeg_cmd, cfg.output_path, total_frames,
+                         log=_log, cancelled_cls=RenderCancelled)
 
         def _bearing_at(gp: float) -> float:
             # Kontinuierlicher Sweep über das gesamte Video (wie Single-Track).
@@ -3320,49 +3195,18 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
                         except Exception: pass
 
                     shot = await _grab_frame(page, cfg)
-                    try:
-                        ff.stdin.write(shot)
-                    except (BrokenPipeError, OSError):   # Windows: EINVAL statt BrokenPipe (22.08.2026)
-                        raise _ffmpeg_gestorben(ff, _ff_err_th, _ff_err_buf,
-                                                gframe + 1, total_frames,
-                                                _teildatei(cfg.output_path)) from None
+                    mux.schreiben(shot, gframe + 1)
                     if gframe % preview_every == 0:
                         push_preview(shot)
                     emit(0.05 + 0.87 * (gframe + 1) / total_frames,
                          f"Frame {gframe + 1} / {total_frames}")
                     gframe += 1
-        except RenderCancelled:
-            _log.info("Multi-Track-Render abgebrochen — ffmpeg beenden + Output löschen.")
-            try: ff.stdin.close()
-            except Exception: pass
-            try:
-                ff.terminate()
-                ff.wait(timeout=3)
-            except Exception:
-                try: ff.kill()
-                except Exception: pass
-            _teil_wegraeumen(cfg.output_path)
+        except BaseException as _fehler:
+            # Abbruch ODER Fehler: ffmpeg beenden, Teildatei weg, Browser zu.
+            mux.abbrechen("Multi-Track abgebrochen" if isinstance(_fehler, RenderCancelled) else "Fehler")
             try: await browser.close()
             except Exception: pass
             raise
-        except Exception:
-            # Jeder ANDERE Fehler: bisher blieb ffmpeg unabgeholt stehen und die
-            # angefangene Datei liegen — aufgeräumt hat nur der Abbruch-Zweig.
-            try: ff.stdin.close()
-            except Exception: pass
-            try:
-                ff.terminate()
-                ff.wait(timeout=3)
-            except Exception:
-                try: ff.kill()
-                except Exception: pass
-            _teil_wegraeumen(cfg.output_path)
-            try: await browser.close()
-            except Exception: pass
-            raise
-        finally:
-            try: ff.stdin.close()
-            except Exception: pass
 
         emit(0.92, _t("animator.progress.ffmpeg", "ffmpeg finalisiert (+faststart, kann etwas dauern) …"))
         def _abgebrochen():
@@ -3371,30 +3215,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
                 return False
             except RenderCancelled:
                 return True
-        _ffmpeg_abwarten(ff, cfg, _abgebrochen)
-        try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
-        except Exception: pass
-        if ff.returncode != 0:
-            err = bytes(_ff_err_buf).decode(errors="replace")
-            _log.error("ffmpeg returncode=%s — stderr:\n%s", ff.returncode, err)
-            _teil_wegraeumen(cfg.output_path)
-            raise RuntimeError(f"ffmpeg fehlgeschlagen (returncode={ff.returncode}): {err.strip()[:500]}")
-        else:
-            try:
-                err = bytes(_ff_err_buf).decode(errors="replace").strip()
-                if err:
-                    _log.info("ffmpeg stderr (info-level): %s", err[:1500])
-            except Exception:
-                pass
-
-        # Erst jetzt an den gewählten Platz (siehe `_teildatei`).
-        _fertigstellen(cfg.output_path)
-
-        try:
-            sz = Path(cfg.output_path).stat().st_size
-            _log.info("Multi-Track-Output OK: %s (%.1f MB)", cfg.output_path, sz / 1_000_000)
-        except Exception as e:
-            _log.warning("Konnte Output-Datei nicht stat()en: %s", e)
+        mux.abschliessen(_abgebrochen)   # warten (Zeitgrenze), prüfen, Teildatei → Ziel
 
         await browser.close()
 
@@ -4212,11 +4033,9 @@ async def render(
         # ⚠️ Format explizit — aus `.rzpart` kann ffmpeg keins ableiten.
         ffmpeg_cmd += ["-f", _muxer_fuer(cfg.output_path),
                        _teildatei(cfg.output_path)]
-        _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
-        ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                              creationflags=_WIN_NO_WINDOW)
-        _ff_err_th, _ff_err_buf = _drain_stderr(ff.stderr)  # v0.9.388 — Pipe-Deadlock verhindern
+        # 22.08.2026 — gemeinsamer Treiber (core/frame_driver.py)
+        mux = FrameMuxer(ffmpeg_cmd, cfg.output_path, total_frames,
+                         log=_log, cancelled_cls=RenderCancelled)
 
         try:
             # Preview alle ~3 Frames pushen — bei 30fps reicht das für eine
@@ -4578,12 +4397,7 @@ async def render(
                         shot = await _grab_frame(page, cfg)
                 if _rt:
                     _now = time.perf_counter(); _rt_acc["shot"] += _now - _rt_t; _rt_t = _now
-                try:
-                    ff.stdin.write(shot)
-                except (BrokenPipeError, OSError):   # Windows: EINVAL statt BrokenPipe (22.08.2026)
-                    raise _ffmpeg_gestorben(ff, _ff_err_th, _ff_err_buf,
-                                            frame + 1, total_frames,
-                                            _teildatei(cfg.output_path)) from None
+                mux.schreiben(shot, frame + 1)
                 if _rt:
                     _now = time.perf_counter(); _rt_acc["write"] += _now - _rt_t
                     _rt_frames += 1
@@ -4610,85 +4424,18 @@ async def render(
                     _lines.append(f"  {_label:<40} {_v:7.1f}s  {_pct:5.1f}%  {_v/_rt_frames*1000:6.0f} ms")
                 _lines.append("══════════════════════════════════════")
                 _log.warning("\n".join(_lines))
-        except RenderCancelled:
-            _log.info("Render abgebrochen — ffmpeg wird beendet und Output-Datei gelöscht.")
-            try:
-                ff.stdin.close()
-            except Exception:
-                pass
-            try:
-                ff.terminate()
-                ff.wait(timeout=3)
-            except Exception:
-                try:
-                    ff.kill()
-                except Exception:
-                    pass
-            # Angefangene Teildatei wegräumen. Das ENDGÜLTIGE Ziel bleibt
-            # unangetastet — dort könnte ein älteres Video des Nutzers liegen.
-            _teil_wegraeumen(cfg.output_path)
+        except BaseException as _fehler:
+            # Abbruch ODER Fehler: ffmpeg beenden, Teildatei weg, Browser zu. Das
+            # ENDGÜLTIGE Ziel bleibt unangetastet — dort könnte ein älteres Video liegen.
+            mux.abbrechen("abgebrochen" if isinstance(_fehler, RenderCancelled) else "Fehler")
             try:
                 await browser.close()
             except Exception:
                 pass
             raise
-        except Exception:
-            # Jeder ANDERE Fehler: bisher blieb hier ffmpeg unabgeholt stehen
-            # und die angefangene Datei liegen. Nur der Abbruch-Zweig darüber
-            # hat je aufgeräumt.
-            try:
-                ff.stdin.close()
-            except Exception:
-                pass
-            try:
-                ff.terminate()
-                ff.wait(timeout=3)
-            except Exception:
-                try:
-                    ff.kill()
-                except Exception:
-                    pass
-            _teil_wegraeumen(cfg.output_path)
-            try:
-                await browser.close()
-            except Exception:
-                pass
-            raise
-        finally:
-            try:
-                ff.stdin.close()
-            except Exception:
-                pass
 
         emit(0.92, _t("animator.progress.ffmpeg", "ffmpeg finalisiert (+faststart, kann etwas dauern) …"))
-        _ffmpeg_abwarten(ff, cfg, is_cancelled)
-        try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
-        except Exception: pass
-        if ff.returncode != 0:
-            err = bytes(_ff_err_buf).decode(errors="replace")
-            _log.error("ffmpeg returncode=%s — stderr:\n%s", ff.returncode, err)
-            _teil_wegraeumen(cfg.output_path)
-            raise RuntimeError(f"ffmpeg fehlgeschlagen (returncode={ff.returncode}): {err.strip()[:500]}")
-        else:
-            # Auch im Erfolgsfall stderr loggen falls Warnungen drin sind
-            try:
-                err = bytes(_ff_err_buf).decode(errors="replace").strip()
-                if err:
-                    _log.info("ffmpeg stderr (info-level): %s", err[:1500])
-            except Exception:
-                pass
-
-        # Erst JETZT an den vom Nutzer gewählten Platz. Bis hierher lag dort
-        # nichts Halbes — und ein dort schon vorhandenes älteres Video wird in
-        # einem Zug ersetzt statt stückweise überschrieben.
-        _fertigstellen(cfg.output_path)
-
-        # Output-Datei verifizieren
-        try:
-            sz = Path(cfg.output_path).stat().st_size
-            _log.info("Output OK: %s (%.1f MB)", cfg.output_path, sz / 1_000_000)
-        except Exception as e:
-            _log.warning("Konnte Output-Datei nicht stat()en: %s", e)
+        mux.abschliessen(is_cancelled)   # warten (Zeitgrenze), prüfen, Teildatei → Ziel
 
         await browser.close()
 
