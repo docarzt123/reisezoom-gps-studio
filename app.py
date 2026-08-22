@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.532"
+APP_VERSION = "0.9.533"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -279,6 +279,7 @@ DROPS_DIR.mkdir(parents=True, exist_ok=True)
 TOURMAPS_DIR.mkdir(parents=True, exist_ok=True)
 SESSIONS_GPX_DIR.mkdir(parents=True, exist_ok=True)
 IMPORTS_DIR.mkdir(parents=True, exist_ok=True)
+cgpx.IMPORT_CACHE_DIR = str(IMPORTS_DIR)    # 22.08.2026: parse_gpx konvertiert Fremdformate selbst
 
 # v0.9.153: schützt den Zugriff auf pywebviews internen Drag&Drop-Pfad-Puffer
 # (webview.dom._dnd_state['paths']) beim Auslesen via consume_drop_paths().

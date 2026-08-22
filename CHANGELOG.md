@@ -14,6 +14,30 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.533] – 2026-08-22
+
+### Fixed
+- **„Ruhige Kamera": Video-Zoom folgt jetzt der Vorschau** (Beta-Tester aus
+  Spanien, zweite Meldung mit Track: „en la previsualización me va bien, pero al
+  renderizarlo se me va el zoom"). Die entkoppelte FreeCamera bekam nur die
+  Kameras AN den Keyframes und zog dazwischen Geraden im Mercator-Raum — kein
+  Kino-Flug-Bogen, keine Easing-Kurve, kein Track-Folgen, Höhe linear statt
+  Zoom-Stufe. Auf seinem Track gemessen: bis zu **2,9 Zoomstufen** daneben.
+  Jetzt wird die Kamera je Bild genau wie beim Scrubben gerechnet, geglättet
+  wird nur noch der Geländeanteil der Kamerahöhe (Berg-Hüpfen bleibt weg).
+  Messung nachher: max 0,13 Zoomstufen. Der Probelauf in der Vorschau nutzt
+  dieselbe dichte Abtastung. Wache: tests/test_ruhige_kamera_zoom.py (echter
+  Render, Soll/Ist je Bild).
+- **Routen-GPX (`<rte>`) werden erkannt** (Beta-Tester-Video: „06a" neben „06"
+  taucht nicht auf). Geplante Etappen aus Planungstools liegen als Route statt
+  Track vor und galten als „keine Trackpunkte" → fehlten im Archiv. Jetzt als
+  Etappe gelesen, ohne Zeitstempel automatisch „geplant". Bekannte Fehler-
+  Zeilen werden nach diesem Leser-Update einmal neu gelesen (`PARSER_VERSION`).
+- **FIT-Dateien im Animator-Tempo-Modus** (Beta-Tester-Log: 412 Tracebacks
+  `UnicodeDecodeError` aus `animator_pace_map`): `parse_gpx` konvertiert
+  Fremdformate jetzt selbst (`IMPORT_CACHE_DIR`) — vorher musste jede der 17
+  Aufrufstellen daran denken, eine hatte es vergessen.
+
 ## [0.9.532] – 2026-08-22
 
 Komplett-Audit aller Module (Cloud, Render-Kern, Animator, Archiv, Geotagger,

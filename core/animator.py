@@ -2353,14 +2353,38 @@ window.__stabCamHeight = (lon, lat) => {{ return; }};
 // Quaternion), zwischen Keyframes Position linear im 3D-Raum + Orientierung per nlerp
 // interpolieren → Kamera reitet NICHT mehr aufs Gelände, framing-treu an den KFs.
 window.__kfCams = null;
-window.__camPrepFaithful = (camList) => {{
-  window.__kfCams = camList.map((k) => {{
+window.__camPrepFaithful = (camList, glattFenster) => {{
+  const roh = camList.map((k) => {{
     map.jumpTo({{ center: [k.lng, k.lat], zoom: k.zoom, pitch: k.pitch, bearing: k.bearing }});
     try {{ if (map._render) map._render(); }} catch (e) {{}}
     const fc = map.getFreeCameraOptions();
     const o = fc.orientation;
-    return {{ t: k.t, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]] }};
+    // Geländeanteil der Kamerahöhe (Mapbox: Höhe = Gelände unter der Bildmitte
+    // + Flughöhe aus dem Zoom). Nur DIESER Anteil wird unten geglättet.
+    let ez = null;
+    try {{
+      const e = map.queryTerrainElevation([k.lng, k.lat]);
+      if (e != null && isFinite(e)) ez = mapboxgl.MercatorCoordinate.fromLngLat([k.lng, k.lat], e).z;
+    }} catch (e) {{}}
+    return {{ t: k.t, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], ez }};
   }});
+  // 22.08.2026 — Die Liste ist jetzt dicht (ein Eintrag je Bild). Das Berg-
+  // Hüpfen steckt im GELÄNDEANTEIL der Kamerahöhe; nur der wird mit einem
+  // gleitenden Mittelwert (~1 s) geglättet. Die Flughöhe aus dem Zoom bleibt
+  // bildgenau wie in der Vorschau — ein Mittelwert über die ganze Höhe hatte
+  // jeden Zoom-Wechsel um ein halbes Fenster verschleppt.
+  const w = Math.max(1, Math.floor((glattFenster || 1) / 2));
+  let letzt = 0;
+  const ezs = roh.map(c => {{ if (c.ez != null) letzt = c.ez; return letzt; }});
+  if (w > 0 && roh.length > 2 * w + 1 && ezs.some(v => v !== 0)) {{
+    for (let i = 0; i < roh.length; i++) {{
+      const lo = Math.max(0, i - w), hi = Math.min(roh.length - 1, i + w);
+      let summe = 0;
+      for (let j = lo; j <= hi; j++) summe += ezs[j];
+      roh[i].pos[2] = roh[i].pos[2] - ezs[i] + summe / (hi - lo + 1);
+    }}
+  }}
+  window.__kfCams = roh;
 }};
 window.__nlerpQuat = (a, b, t) => {{
   const dot = a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
@@ -2378,8 +2402,9 @@ window.__camFaithful = (t) => {{
     fc.position = new mapboxgl.MercatorCoordinate(c.pos[0], c.pos[1], c.pos[2]);
     fc.orientation = c.ori; map.setFreeCameraOptions(fc); return;
   }}
-  let i = 0;
-  while (i < cams.length - 2 && t > cams[i+1].t) i++;
+  let lo = 0, hi = cams.length - 2;
+  while (lo < hi) {{ const m = (lo + hi + 1) >> 1; if (cams[m].t <= t) lo = m; else hi = m - 1; }}
+  const i = lo;
   const A = cams[i], B = cams[i+1];
   const span = (B.t - A.t) || 1e-6;
   const u = Math.max(0, Math.min(1, (t - A.t) / span));
@@ -4105,14 +4130,19 @@ async def render(
                     return any(_ev.get(k) is not None
                                for k in ("value", "value_absolute", "value_offset"))
 
-                _zeiten = {0.0, 1.0}
-                for _ev in _events_zeit:
-                    if _ev.get("kind") in _cam_kinds and _hat_wert(_ev):
-                        try:
-                            _zeiten.add(round(float(_ev.get("zeit", 0.0)), 6))
-                        except Exception:
-                            pass
-                _anchors = sorted(t for t in _zeiten if 0.0 <= t <= 1.0)
+                # 22.08.2026 — DICHT abtasten statt nur an den Keyframe-Zeiten.
+                # Vorher bekam die entkoppelte FreeCamera nur die Kameras AN den
+                # Keyframes und zog dazwischen eine Gerade im Mercator-Raum:
+                # kein Kino-Flug-Bogen, keine Easing-Kurve, kein Track-Folgen
+                # zwischen zwei Keyframes, und die Höhe (z) linear statt der
+                # Zoom-Stufe — „in der Vorschau stimmt der Zoom, im Video haut
+                # er ab" (Nutzer aus Spanien, zweimal gemeldet, mit Video).
+                # Jetzt wird die Kamera für (fast) jedes Bild genau so gerechnet
+                # wie in der Vorschau; das Berg-Hüpfen nimmt ein Tiefpass über
+                # die Kameraposition (siehe __camPrepFaithful) heraus.
+                _n_samp = max(2, min(int(total_frames), 2400))
+                _anchors = [k / (_n_samp - 1) for k in range(_n_samp)]
+                _glatt_fenster = max(1, int(round(_n_samp / max(1.0, total_frames / float(cfg.fps)) * 1.0)))
                 if len(_anchors) >= 2:
                     def _idx_at_frame(_fr):
                         if _fr < intro_frames:
@@ -4147,7 +4177,7 @@ async def render(
                             "t": _zeitp, "lng": _lo, "lat": _la,
                             "zoom": zoom + _zo, "pitch": _pf, "bearing": _bf,
                         })
-                    await page.evaluate("(cams)=>window.__camPrepFaithful(cams)", _kf_cam_list)
+                    await page.evaluate("([cams, w])=>window.__camPrepFaithful(cams, w)", [_kf_cam_list, _glatt_fenster])
                     _use_faithful = True
                     if _rt:
                         _log.info("🎥 entkoppelte FreeCamera aktiv (%d Keyframes)", len(_kf_cam_list))

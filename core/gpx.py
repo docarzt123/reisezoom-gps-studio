@@ -272,8 +272,30 @@ def _load_sidecar_into(pts: List[TrackPoint], gpx_path: str) -> dict:
         return {}  # defekte Sidecar darf den Track-Load NICHT kippen
 
 
+# 22.08.2026 — Fremdformate (FIT/TCX/KML/…) laufen durch dieselbe Tür. Die App
+# setzt beim Start den Cache-Ordner; dann konvertiert `parse_gpx` selbst, statt
+# dass jede der 17 Aufrufstellen in app.py an `_ensure_gpx` denken muss. Ein
+# Beta-Tester-Log zeigte 412 UnicodeDecodeErrors aus `animator_pace_map`, weil
+# dort der rohe .fit-Pfad ankam (Archiv mit 103.000 FIT-Dateien).
+IMPORT_CACHE_DIR: Optional[str] = None
+
+
+def _als_gpx(path: str) -> str:
+    if not path or os.path.splitext(path)[1].lower() == ".gpx" or not IMPORT_CACHE_DIR:
+        return path
+    try:
+        from . import imports as _imp
+        if not _imp.is_convertible(path):
+            return path
+        return _imp.ensure_gpx(path, IMPORT_CACHE_DIR)
+    except Exception:
+        return path      # der eigentliche Parse-Fehler ist dann die bessere Meldung
+
+
 def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
-    """Liest eine GPX-Datei, gibt Trackpunkte (mit kumulierten Werten) + Stats zurück."""
+    """Liest eine GPX-Datei (oder ein konvertierbares Fremdformat, siehe
+    IMPORT_CACHE_DIR), gibt Trackpunkte (mit kumulierten Werten) + Stats zurück."""
+    path = _als_gpx(path)
     with open(path, "r", encoding="utf-8") as fh:
         gpx = gpxpy.parse(fh)
 
@@ -302,6 +324,24 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
                     )
                 )
 
+    if not pts:
+        # 22.08.2026 — Routen (<rte>/<rtept>) als Track lesen. Geplante Etappen
+        # aus Planungstools (BaseCamp, Wikiloc, „Route" statt „Track") kommen so
+        # daher — vorher „GPX enthält keine Trackpunkte" und die Datei fehlte im
+        # Archiv (Nutzer-Video: „06a" neben „06" wird nicht erkannt). Jede Route
+        # ist ihre eigene Etappe; ohne Zeitstempel zählt sie automatisch als geplant.
+        for route in gpx.routes:
+            if not name and route.name:
+                name = route.name
+            if route.points:
+                seg_no += 1
+            for p in route.points:
+                t_iso = None
+                if p.time is not None:
+                    t = p.time if p.time.tzinfo else p.time.replace(tzinfo=timezone.utc)
+                    t_iso = t.astimezone(timezone.utc).isoformat()
+                pts.append(TrackPoint(lat=p.latitude, lon=p.longitude, ele=p.elevation,
+                                      time=t_iso, seg=max(0, seg_no), extra={}))
     if not pts:
         raise ValueError("GPX enthält keine Trackpunkte")
 
