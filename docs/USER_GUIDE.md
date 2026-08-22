@@ -312,8 +312,8 @@ Die Session-Daten liegen unter:
 (Klick auf „Session · Projekt“ oben) oder unter „Datei → Projekt exportieren“
 entsteht eine `.rzproj`-Datei: darin der Track, **alle Projekte** der Session
 (Keyframes, Schilder, Overlays, Einstellungen), die Tour-Daten aus dem Archiv
-(Name, Schlagwörter, Notiz) und **Vorschaubilder** deiner Fotos — nicht die
-Originale, die bleiben bei dir.
+(Name, Schlagwörter, Notiz) und **Vorschaubilder** deiner Fotos sowie die **Bilder deiner Schilder** — die
+Original-Fotos bleiben bei dir.
 
 **Importieren:** „Datei → Projekt importieren“, im Projekt-Menü, oder die
 `.rzproj` einfach auf die App ziehen. Der Track wird ins Archiv aufgenommen
