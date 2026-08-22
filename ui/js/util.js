@@ -101,7 +101,17 @@ function parseTimeOffset(input) {
 }
 
 // Globale Fehler abfangen, damit nichts stillschweigend verschwindet
+// 22.08.2026 — Mapbox-Nachzügler: Eine Kachel wird fertig, nachdem die Karte
+// beim Modulwechsel schon abgebaut wurde (`style` ist dann undefined →
+// „reading 'getOwnLayer'"). Harmlos, nichts zu tun — aber als roter Toast
+// hat es einen Beta-Tester neben einem echten Fehler verunsichert. Nur loggen.
+function _rzMapboxNachzuegler(ev) {
+  const msg = String(ev && (ev.message || (ev.error && ev.error.message)) || "");
+  const datei = String(ev && ev.filename || "");
+  return /getOwnLayer|_getDrapedTiles|terrain\._clearRenderCache/.test(msg) && /mapbox-gl|maplibre-gl/.test(datei);
+}
 window.addEventListener("error", (ev) => {
+  if (_rzMapboxNachzuegler(ev)) { try { applog("warn", "[mapbox] Nachzügler nach Karten-Abbau (ignoriert): " + ev.message); } catch (_) {} ev.preventDefault(); return; }
   console.error("[JS-Fehler]", ev.error || ev.message, ev);
   try {
     toast(t("error.js", "JS-Fehler") + ": " + (ev.message || (ev.error && ev.error.message) || t("error.unknown", "unbekannt")), "error", 7000);
@@ -1082,6 +1092,7 @@ function rzSwallow(err, context) {
 }
 // Optional: globale Error-Capture
 window.addEventListener("error", (e) => {
+  if (_rzMapboxNachzuegler(e)) return;
   applog("error", `[window.onerror] ${e.message} @ ${e.filename}:${e.lineno}`);
 });
 window.addEventListener("unhandledrejection", (e) => {
