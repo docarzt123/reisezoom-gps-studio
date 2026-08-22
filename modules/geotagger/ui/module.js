@@ -3556,6 +3556,11 @@ function mountGeotagger(body, headerActions) {
       : '';
     const canOpen = dir && !canceled && s.done > 0;
 
+    // ⚠️ Erst den Fortschritts-Dialog schließen (22.08.2026, Beta-Tester mit
+    // 5 und 1.478 Fotos): Dialoge liegen seit v0.9.5xx auf einem Stapel —
+    // „Fertig" obendrauf, und OK holte darunter „GPS wird geschrieben … 100 %"
+    // mit totem Abbrechen-Knopf wieder hervor. Der Dialog blieb scheinbar hängen.
+    try { openModal({}).close(); } catch (_) {}
     openModal({
       title: canceled ? "Abgebrochen" : "Fertig",
       body: `
