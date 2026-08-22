@@ -61,6 +61,13 @@ function mountLibrary(body, headerActions) {
   const store = {
     get(k, d) { try { return localStorage.getItem("rz.library." + k) || d; } catch (_) { return d; } },
     set(k, v) { try { localStorage.setItem("rz.library." + k, v); } catch (_) {} },
+    // 22.08.2026 (Audit): bool/Objekt-Werte — `String(false)` war „false" (truthy),
+    // ein Sortier-Objekt wurde zu „[object Object]". Eigener JSON-Kanal.
+    getJson(k, d) {
+      try { const r = localStorage.getItem("rz.library.json." + k); return r == null ? d : JSON.parse(r); }
+      catch (_) { return d; }
+    },
+    setJson(k, v) { try { localStorage.setItem("rz.library.json." + k, JSON.stringify(v)); } catch (_) {} },
   };
 
   // „Bereich" ist die grobe Trennung links; die Filterleiste verfeinert nur noch.
@@ -372,14 +379,29 @@ function mountLibrary(body, headerActions) {
   let _hatMehr = false;      // es gibt noch nicht geladene Treffer
   let _laedtMehr = false;    // eine Nachlade-Abfrage läuft gerade
 
+  // 22.08.2026 (Audit): Sequenznummer — zwei überlappende reload()s (Tippen +
+  // Orts-Geocoding, Auto-Tick) ließen die ÄLTERE Antwort gewinnen.
+  let _reloadSeq = 0;
+  // Karte: Obergrenze für Geometrien über die Brücke (bei 100k Touren wären
+  // das ~160 MB JSON); Statistik braucht gar keine Zeilen.
+  const MAP_CAP = 5000;
+  const _ortCache = new Map();   // Suchtext+Params → Antwort (Session)
+  async function _ortSuche(text, params) {
+    const key = text + "|" + JSON.stringify(params);
+    if (_ortCache.has(key)) return _ortCache.get(key);
+    const r = await api().library_search_place(text, params);
+    if (r && r.ok) _ortCache.set(key, r);
+    return r;
+  }
   async function reload() {
+    const seq = ++_reloadSeq;
     const res = await api().library_query(queryParams({
-      limit: (view === "map" || view === "stats") ? 0 : PAGE,
+      limit: view === "map" ? MAP_CAP : (view === "stats" ? 1 : PAGE),
       with_thumbs: view === "cards" || view === "list",
       with_geom: view === "map",
     }));
-    if (_unmounted) return;
-    if (!res.ok) { toast(res.error || "Archiv-Abfrage fehlgeschlagen", "error"); return; }
+    if (_unmounted || seq !== _reloadSeq) return;
+    if (!res.ok) { toast(res.error || T("library.abfrage_fehler", "Archiv-Abfrage fehlgeschlagen"), "error"); return; }
     _items = res.items || [];
     _total = res.total || 0;
     _ortAktiv = null;
@@ -395,13 +417,13 @@ function mountLibrary(body, headerActions) {
     // Angebot. Jetzt zeigt die Liste die Gegend; der Hinweis oben sagt, dass es
     // die Gegend ist, und schaltet auf Wunsch zurück auf reine Textsuche.
     if (!_ortAus && (state.search || "").trim().length >= 3) {
-      const ort = await api().library_search_place(state.search.trim(), queryParams({
-        limit: (view === "map" || view === "stats") ? 0 : PAGE,
+      const ort = await _ortSuche(state.search.trim(), queryParams({
+        limit: view === "map" ? MAP_CAP : (view === "stats" ? 1 : PAGE),
         with_thumbs: view === "cards" || view === "list",
         with_geom: view === "map",
         search: "",
       }));
-      if (_unmounted) return;
+      if (_unmounted || seq !== _reloadSeq) return;
       // Nur übernehmen, wenn die Gegend MEHR liefert als der Text — sonst zeigt
       // „wanderung" die eine Tour bei einem Ort, der wirklich Wanderung heißt.
       if (ort && ort.ok && ort.found && (ort.total || 0) > _total) {
@@ -428,6 +450,7 @@ function mountLibrary(body, headerActions) {
     _hatMehr = (view === "cards" || view === "list") && _items.length < _total;
     _laedtMehr = false;
     await reloadStats();
+    if (_unmounted || seq !== _reloadSeq) return;
     renderHead();
     renderView();
     renderDetail();
@@ -864,11 +887,11 @@ function mountLibrary(body, headerActions) {
   let _vglMass  = store.get("vgl_mass", "km");      // "km" | "hours" | "n"
   // Sortierung der Vergleichstabelle. Spalte "" = Zeitraum (chronologisch),
   // sonst der Schlüssel einer Fortbewegungsart oder "sum".
-  let _vglSort  = store.get("vgl_sort", { spalte: "", ab: false });
+  let _vglSort  = store.getJson("vgl_sort", { spalte: "", ab: false });
   // Spalten zusammenfassen (Wunsch Beta-Tester). Wer drei Räder getrennt führt,
   // hat sonst fünf schmale Rad-Spalten, wo eine breite die Frage beantwortet:
   // wie viel war ich überhaupt mit dem Rad unterwegs?
-  let _vglGrp   = store.get("vgl_grp", false);
+  let _vglGrp   = store.getJson("vgl_grp", false);
 
   /** Eine klickbare Kopfzelle der Vergleichstabelle. */
   function vglKopf(spalte, text, extra) {
@@ -1122,13 +1145,13 @@ function mountLibrary(body, headerActions) {
       const g = document.getElementById("lib-vgl-grp");
       if (g) g.onclick = () => {
         _vglGrp = !_vglGrp;
-        store.set("vgl_grp", _vglGrp);
+        store.setJson("vgl_grp", _vglGrp);
         // Die Sortierung zeigte womöglich auf eine Spalte, die es jetzt nicht
         // mehr gibt („Rennrad" nach dem Zusammenfassen) — dann zurück auf
         // chronologisch, statt still nach etwas Verschwundenem zu sortieren.
         if (_vglSort.spalte && _vglSort.spalte !== "sum") {
           _vglSort = { spalte: "", ab: false };
-          store.set("vgl_sort", _vglSort);
+          store.setJson("vgl_sort", _vglSort);
         }
         renderStats();
       };
@@ -1147,7 +1170,7 @@ function mountLibrary(body, headerActions) {
         _vglSort = (_vglSort.spalte === sp)
           ? { spalte: sp, ab: !_vglSort.ab }
           : { spalte: sp, ab: false };
-        store.set("vgl_sort", _vglSort);
+        store.setJson("vgl_sort", _vglSort);
         renderStats();
       };
       th.onclick = um;
@@ -2061,6 +2084,15 @@ function mountLibrary(body, headerActions) {
       onClose: () => { _foldersModal = null; },
     });
     bindFoldersModal();
+    // Läuft schon ein Scan (aus einem früheren Besuch)? Dann Fortschritt zeigen.
+    try {
+      const st = await api().library_scan_status();
+      if (st && st.running) {
+        const btn = $("lib-scan"); if (btn) btn.disabled = true;
+        const stop = $("lib-scan-stop"); if (stop) stop.hidden = false;
+        pollScan();
+      }
+    } catch (_) {}
   }
 
   function foldersModalHtml() {
@@ -2079,6 +2111,7 @@ function mountLibrary(body, headerActions) {
         <div class="lib-actions" style="margin-top:10px;">
           <button class="btn btn-primary btn-sm" id="lib-add-folder">📂 ${T("library.add_folder", "+ Ordner hinzufügen")}</button>
           <button class="btn btn-ghost btn-sm" id="lib-scan">${T("library.scan", "Neu einlesen")}</button>
+          <button class="btn btn-ghost btn-sm" id="lib-scan-stop" hidden>${T("library.scan_stop", "Anhalten")}</button>
         </div>
         <div id="lib-scan-info" class="lib-scan-info"></div>
 
@@ -2105,6 +2138,10 @@ function mountLibrary(body, headerActions) {
     if (add) add.onclick = addFolder;
     const scan = $("lib-scan");
     if (scan) scan.onclick = () => startScan(false);
+    // 22.08.2026 (Audit): Die Brücke library_scan_stop gab es, aber keinen Knopf —
+    // ein versehentlich gestarteter 103k-Scan war nur per App-Neustart zu stoppen.
+    const stopScan = $("lib-scan-stop");
+    if (stopScan) stopScan.onclick = () => { stopScan.disabled = true; api().library_scan_stop(); };
     // v0.9.528 (Beta-Tester-Wunsch): nur EINEN Ordner neu einlesen — bei ihm
     // liegen 103.535 Dateien in einem Ordner und 28 neue in einem anderen.
     document.querySelectorAll(".lib-folder-rescan").forEach(btn => {
@@ -2119,18 +2156,22 @@ function mountLibrary(body, headerActions) {
   async function addFolder() {
     const res = await api().library_add_folder("");
     if (res.cancelled) return;
-    if (!res.ok) { toast(res.error || "Ordner konnte nicht hinzugefügt werden", "error"); return; }
+    if (!res.ok) { toast(res.error || T("library.add_folder_fehler", "Ordner konnte nicht hinzugefügt werden"), "error"); return; }
     await reloadFolders();
     if (_foldersModal) { _foldersModal.update({ body: foldersModalHtml() }); bindFoldersModal(); }
     else await openFoldersModal();
-    startScan(false);
+    // 22.08.2026 (Audit): nur den NEUEN Ordner einlesen — vorher lief der
+    // Voll-Scan über alle (beim Tester: 103k Dateien für 28 neue).
+    startScan(false, res.path || res.folder || "");
   }
 
   async function startScan(force, folder) {
     const res = await api().library_scan_start(!!force, folder || "");
-    if (!res.ok) { toast(res.error || "Einlesen läuft bereits", "warn"); return; }
+    if (!res.ok) { toast(res.error || T("library.scan_laeuft", "Einlesen läuft bereits"), "warn"); return; }
     const btn = $("lib-scan");
     if (btn) btn.disabled = true;
+    const stop = $("lib-scan-stop");
+    if (stop) { stop.hidden = false; stop.disabled = false; }
     pollScan();
   }
 
@@ -2142,14 +2183,22 @@ function mountLibrary(body, headerActions) {
       const info = $("lib-scan-info");
       if (st.running) {
         if (info) {
-          const pct = st.total ? Math.round((st.done / st.total) * 100) : 0;
-          info.innerHTML = `<div class="lib-progress"><i style="width:${pct}%"></i></div>
-            <div class="lib-progress-txt">${st.done || 0} / ${st.total || "?"} · ${esc(st.current || "")}</div>`;
+          if (st.phase === "zaehlen") {
+            // 22.08.2026: Zähl-Phase sichtbar machen (stand vorher minutenlang „0 / ?")
+            info.innerHTML = `<div class="lib-progress"><i style="width:0%"></i></div>
+              <div class="lib-progress-txt">${T("library.scan_zaehlt", "Dateien werden gezählt …")} ${num(st.gefunden || 0)}</div>`;
+          } else {
+            const pct = st.total ? Math.round((st.done / st.total) * 100) : 0;
+            info.innerHTML = `<div class="lib-progress"><i style="width:${pct}%"></i></div>
+              <div class="lib-progress-txt">${st.done || 0} / ${st.total || "?"} · ${esc(st.current || "")}</div>`;
+          }
         }
         pollScan();
       } else {
         const btn = $("lib-scan");
         if (btn) btn.disabled = false;
+        const stop = $("lib-scan-stop");
+        if (stop) stop.hidden = true;
         const r = st.result || st;
         if (info) {
           if (st.error) info.innerHTML = `<div class="lib-warn">${esc(st.error)}</div>`;
@@ -2577,12 +2626,18 @@ function mountLibrary(body, headerActions) {
     const wasRunning = !!_autoThumbs || !!_autoPlaces;
     _autoThumbs = (st && st.running) ? st : null;
     _autoPlaces = (ort && ort.running) ? ort : null;
+    // 22.08.2026 (Audit): nie mitten ins Tippen (Notiz/Schlagworte) hinein neu
+    // rendern — der Auto-Tick ersetzte die Textarea und fraß die Eingabe.
+    const tippt = (() => {
+      const a = document.activeElement;
+      return !!(a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT") && body.contains(a));
+    })();
     if (_autoThumbs || _autoPlaces) {
       renderHead();
-      if (++_autoTick % 4 === 0) reload();
+      if (++_autoTick % 4 === 0 && !tippt) reload();
     } else if (wasRunning) {
       _autoTick = 0;
-      reload();
+      if (!tippt) reload();
     }
   }
   _autoWatch = setInterval(watchAutoThumbs, 5000);
