@@ -5711,7 +5711,9 @@ function mountAnimator(body, headerActions, opts) {
         fc.position = new mapboxgl.MercatorCoordinate(c.pos[0], c.pos[1], c.pos[2]);
         fc.orientation = c.ori; map.setFreeCameraOptions(fc); return;
       }
-      let i = 0; while (i < cams.length - 2 && tp > cams[i+1].t) i++;
+      let lo = 0, hi = cams.length - 2;
+      while (lo < hi) { const m = (lo + hi + 1) >> 1; if (cams[m].t <= tp) lo = m; else hi = m - 1; }
+      const i = lo;
       const A = cams[i], B = cams[i+1], span = (B.t - A.t) || 1e-6;
       const u = Math.max(0, Math.min(1, (tp - A.t) / span));
       fc.position = new mapboxgl.MercatorCoordinate(
@@ -5734,21 +5736,20 @@ function mountAnimator(body, headerActions, opts) {
         //      `value_offset` — die Abfrage übersah sie stillschweigend.
         // Deshalb fiel es nur beim Probe-Lauf auf: Von Hand scrubben geht
         // nicht über diesen Pfad, sondern wertet direkt aus.
-        const _camKinds = { center: 1, pitch: 1, zoom: 1, bearing: 1, position: 1, rotation: 1 };
         const _fti0 = introFraction(), _ftf0 = trackFraction();
         const _ftrim0 = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 };
         const _ftA0 = Math.max(0, Math.min(1, _ftrim0.start ?? 0));
         const _ftB0 = Math.max(_ftA0, Math.min(1, _ftrim0.end ?? 1));
         const _evZeit = eventsMitZeit(events, _fti0, _ftf0, _ftA0, _ftB0);
-        const _hatWert = (e) => e.value != null || e.value_absolute != null || e.value_offset != null;
-        const _anchSet = new Set([0, 1]);
-        _evZeit.forEach((e) => {
-          if (e && _camKinds[e.kind] && _hatWert(e)) {
-            const z = Math.round((+e.zeit || 0) * 1e6) / 1e6;
-            if (z >= 0 && z <= 1) _anchSet.add(z);
-          }
-        });
-        const _anchors = Array.from(_anchSet).sort((x, y) => x - y);
+        // 22.08.2026 — DICHT abtasten (synchron zu core/animator.py, Render):
+        // nur an den Keyframe-Zeiten abgetastet und dazwischen gerade im
+        // Mercator-Raum verbunden fehlten Kino-Flug-Bogen, Easing und Track-
+        // Folgen — der Probelauf lief anders als das Scrubben von Hand, und
+        // das Video anders als beide („se me va el zoom"). Das Berg-Hüpfen
+        // nimmt unten ein Tiefpass über den Geländeanteil heraus.
+        const _nSamp = Math.max(2, Math.min(900, Math.round(totalMs / 1000 * 15)));   // 15/s, Deckel 900 — jumpTo je Stützstelle
+        const _anchors = Array.from({ length: _nSamp }, (_, k) => k / (_nSamp - 1));
+        const _glattW = Math.max(1, Math.floor(_nSamp / Math.max(1, totalMs / 1000) / 2));   // ~±0,5 s
         if (_anchors.length >= 2) {
           const _fCine = !_fProj?.[_MODKEY] || _fProj[_MODKEY].cinematic_flyto !== false;
           const _fFollow = !!document.getElementById("anim-camera-follow")?.checked;
@@ -5773,8 +5774,25 @@ function mountAnimator(body, headerActions, opts) {
             } else ll = _fStatic;
             map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
             const fc = map.getFreeCameraOptions(), o = fc.orientation;
-            return { t: tz, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]] };
+            let ez = null;
+            try {
+              const e = map.queryTerrainElevation(ll);
+              if (e != null && isFinite(e)) ez = mapboxgl.MercatorCoordinate.fromLngLat(ll, e).z;
+            } catch (_) {}
+            return { t: tz, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], ez };
           });
+          // Geländeanteil der Kamerahöhe glätten (nur der — die Flughöhe aus dem
+          // Zoom bleibt bildgenau). Synchron zu __camPrepFaithful im Render.
+          let _letzt = 0;
+          const _ezs = _faithCams.map((c) => { if (c.ez != null) _letzt = c.ez; return _letzt; });
+          if (_faithCams.length > 2 * _glattW + 1 && _ezs.some((v) => v !== 0)) {
+            for (let i = 0; i < _faithCams.length; i++) {
+              const lo = Math.max(0, i - _glattW), hi = Math.min(_faithCams.length - 1, i + _glattW);
+              let summe = 0;
+              for (let j = lo; j <= hi; j++) summe += _ezs[j];
+              _faithCams[i].pos[2] = _faithCams[i].pos[2] - _ezs[i] + summe / (hi - lo + 1);
+            }
+          }
           try { map.setFreeCameraOptions(_savedCam); } catch (_) {}
           _useFaithful = true;
         }

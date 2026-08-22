@@ -72,6 +72,9 @@ SCHEMA_VERSION = 2
 # Welche Dateien eingelesen werden. GPX direkt, der Rest über die
 # Import-Schicht (FIT/NMEA/KML/KMZ/TCX/GeoJSON → GPX im Cache).
 INDEX_EXTS = {".gpx"} | set(cimports.IMPORT_EXTS)
+# Hochzählen, wenn der Track-Leser Dateien versteht, die er vorher als Fehler
+# ablegte (dann werden Fehler-Zeilen beim nächsten Scan einmal neu gelesen).
+PARSER_VERSION = 2   # 2 = Routen (<rte>) als Track, 22.08.2026
 
 # Endungen, die NICHTS über den Inhalt aussagen. `.json` liegt in jedem
 # Programmordner, `.log` und `.txt` sowieso überall. Wer beim Einlesen einen
@@ -1047,6 +1050,14 @@ def scan(
                 "(error IS NOT NULL AND error != '') AS fehler FROM tracks").fetchall()
         }
     seen = set()
+    # 22.08.2026 — Fehler-Zeilen werden sonst nie wieder geöffnet (Datei
+    # unverändert → „bleibt kaputt"). Lernt der Leser dazu (z.B. Routen
+    # <rte> als Track), müssen sie EINMAL neu gelesen werden: PARSER_VERSION.
+    with _DB_LOCK:
+        _pv = conn.execute("SELECT value FROM meta WHERE key = 'parser_version'").fetchone()
+    fehler_neu_lesen = (_pv["value"] if _pv else "") != str(PARSER_VERSION)
+    if fehler_neu_lesen:
+        log.info("scan: Leser-Version %s neu → bekannte Fehler-Dateien werden einmal neu gelesen", PARSER_VERSION)
     added = updated = skipped = failed = 0
     ohne_punkte = 0     # FIT ohne Koordinaten — eine Sammelzeile statt 2.858 Logzeilen (Nutzer-Log, 22.08.2026)
     total = len(files)
@@ -1061,7 +1072,7 @@ def scan(
             old = known.get(sp)
             unveraendert = bool(old) and not force \
                 and abs(old[0] - st.st_mtime) < 1 and old[1] == st.st_size
-            if unveraendert and old[3]:
+            if unveraendert and old[3] and not fehler_neu_lesen:
                 # Bekannte Fehler-Zeile, Datei unverändert → gar nicht erst
                 # öffnen. Weiter als „Fehler" gezählt, weil die Kopfzeile den
                 # Zustand meint und nicht die Ereignisse dieses Durchlaufs;
@@ -1167,6 +1178,11 @@ def scan(
     finally:
         _DB_LOCK.release()
 
+    if fehler_neu_lesen and not (should_stop and should_stop()):
+        with _DB_LOCK:
+            conn.execute("INSERT INTO meta(key, value) VALUES('parser_version', ?) "
+                         "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (str(PARSER_VERSION),))
+            conn.commit()
     if ohne_punkte:
         log.info("library: %d Datei(en) ohne Koordinaten übersprungen (Indoor-/Kraft-Einheiten — kein Fehler)", ohne_punkte)
     res = {"total": total, "added": added, "updated": updated, "skipped": skipped,
