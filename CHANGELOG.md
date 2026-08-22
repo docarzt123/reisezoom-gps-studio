@@ -96,6 +96,9 @@ tests/test_{cloud,render,animator,library,geotagger,kleine_module}_audit_22_08.p
 - Schild-Filter/Deckkraft im Animator werden gecacht; Trim-Griffe nur am Kopf
   greifbar; Cloud „Verbindung trennen" mit Rückfrage und Schlüssel-Anzeige.
 - i18n-Runde: restliche deutsche Roh-Texte in Geotagger/Höhen-Animator übersetzt.
+- Archiv-Log: FIT-Dateien ohne Koordinaten (Indoor-/Kraft-Einheiten) erzeugen
+  eine Sammelzeile pro Scan statt einer Zeile pro Datei (Beta-Tester-Log mit
+  2.858 solchen Zeilen). Gefiltert waren sie schon immer — nur das Log war laut.
 
 ## [0.9.531] – 2026-08-22
 
