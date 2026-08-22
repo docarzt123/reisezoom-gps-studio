@@ -1532,9 +1532,15 @@ class Api:
             if not track_hash:
                 track_hash = _sessions.find_session_key(data, ui_hash) or ui_hash
             defaults = self._session_get_global_defaults()
+            snap_src = None
+            if gpx_path and not str(gpx_path).lower().endswith(".gpx"):
+                try:
+                    snap_src = self._ensure_gpx(gpx_path)
+                except Exception:
+                    snap_src = None
             sess, active_proj = _sessions.get_or_create_session(
                 data, track_hash, coords, gpx_path or None,
-                SESSIONS_GPX_DIR, defaults, ui_hash=ui_hash,
+                SESSIONS_GPX_DIR, defaults, ui_hash=ui_hash, snapshot_src=snap_src,
             )
             _sessions.save_sessions(SESSIONS_FILE, data)
             log.info("session_open_for_track: hash=%s name=%r active=%r",

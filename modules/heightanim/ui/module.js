@@ -20,6 +20,10 @@
 };
 
 function mountHeightAnim(body, headerActions) {
+  // 22.08.2026 (Audit): _MODKEY war hier nie definiert — jeder Zugriff lief in
+  // einen ReferenceError, den die try/catch-Blöcke schluckten. Folge: gemerkte
+  // Datenreihe (series_a) wurde weder geladen noch gespeichert.
+  const _MODKEY = "heightanim";
   // Layout-Konvention: .module-body ist ein 360px-1fr-Grid (Sidebar
   // links, Canvas rechts). Wir geben deshalb ZWEI Top-Level-Kinder zurück
   // — Wrapper-Divs wie .anim-layout würden das Grid zerschießen.
@@ -770,6 +774,7 @@ function mountHeightAnim(body, headerActions) {
       // dem Projekt gelesen; da ist `_activeProject` beim Kaltstart aber noch
       // null. Der Selektor zeigte danach zwar „Tempo", die JS-Variable blieb
       // aber leer → weder zweite Kurve noch rechte Achse wurden gezeichnet.
+      if (typeof ha.series_a === "string" && ha.series_a) _seriesA = ha.series_a;   // 22.08.2026
       if (typeof ha.series_b === "string") _seriesB = ha.series_b;
       if (typeof ha.line_color_b === "string") _lineColorB = ha.line_color_b;
       if (ha.line_width_b != null) _lineWidthB = +ha.line_width_b || 3;
@@ -784,6 +789,8 @@ function mountHeightAnim(body, headerActions) {
       // v0.9.448 — Selektor + Farbe/Dicke der zweiten Reihe an den soeben
       // geladenen Projekt-Stand angleichen (siehe series_b oben).
       try { renderSeriesSelectB(); } catch (_) {}
+      // 22.08.2026: Reihe A nachziehen (Daten + Dropdown), ohne erneut zu speichern
+      try { if (_currentData) applySeries(_seriesA, { persist: false }); } catch (_) {}
     }
   }
   // Speichert IMMER das KOMPLETTE heightanim-Objekt (Root-Patch macht Shallow-
@@ -813,7 +820,8 @@ function mountHeightAnim(body, headerActions) {
             // unabhängig (der Animator hat kein height-*-DOM wenn er aktiv ist).
             chart_style: (function () { try { return collectHeightParams(); } catch (_) { return null; } })(),
           }
-        }, { persistOnly: true });
+        });   // 22.08.2026 (Audit): auch im Speicher anwenden — sonst las der Animator
+              // („Diagramm übernehmen") bis zum nächsten Projektwechsel den alten Stil.
       }
     } catch (_) {}
   }
@@ -1643,6 +1651,20 @@ function mountHeightAnim(body, headerActions) {
     }
   }
 
+  // 22.08.2026 (Audit): läuft im Backend noch ein Render (Tab gewechselt und
+  // zurück), Fortschritt wieder anzeigen statt stumm weiterrechnen zu lassen.
+  (async () => {
+    try {
+      await malPause();
+      const s = await window.pywebview.api.heightanim_status();
+      if (!_haUnmounted && s && s.running && !s.cancelled && !s.error) {
+        setRenderingState(true);
+        if (window.applog) window.applog("info", "[heightanim] laufenden Render wieder aufgenommen");
+        _renderPollTimer = setTimeout(pollHeightRender, 250);
+      }
+    } catch (_) {}
+  })();
+
   // Initial laden wenn schon GPX da ist
   if (typeof getGlobalGpxPath === "function") {
     const p = getGlobalGpxPath();
@@ -1652,6 +1674,15 @@ function mountHeightAnim(body, headerActions) {
   // Auf globalen GPX-Wechsel reagieren — Callback bekommt `{path, data}`
   if (typeof onGpxLoaded === "function") {
     window.__rzGpxUnsub_height = onGpxLoaded(applyGlobalGpxToHeightModule);
+  }
+  // 22.08.2026 (Audit): Projektwechsel mit GLEICHEM Track löste kein onGpxLoaded
+  // aus → Trim/Wegpunkte/Zonen blieben vom vorherigen Projekt stehen.
+  let _haSessUnsub = null;
+  if (typeof onSessionChanged === "function") {
+    try { _haSessUnsub = onSessionChanged(() => {
+      if (_haUnmounted) return;
+      try { reloadProjectStateFromActive({ refreshUi: true }); drawElevationSvg(); } catch (_) {}
+    }); } catch (_) {}
   }
 
   // ── v0.9.322 — Undo/Redo (⌘Z) für alle Höhen-Animator-Einstellungen ────────
@@ -2233,8 +2264,12 @@ function mountHeightAnim(body, headerActions) {
     if (codecHintEl) codecHintEl.textContent = codecHints[codecEl.value] || "";
   });
 
+  let _cancelFrei = null;
   function setRenderingState(running) {
     document.getElementById("height-progress").style.display = running ? "block" : "none";
+    // 22.08.2026 (Audit): der Abbrechen-Knopf blieb nach einem Abbruch für den
+    // NÄCHSTEN Render gesperrt („⏳ Abbruch …") — der Dialog wird nur versteckt.
+    if (!running && _cancelFrei) { try { _cancelFrei(); } catch (_) {} _cancelFrei = null; }
     document.getElementById("height-render").disabled = running;
     document.getElementById("height-render").style.opacity = running ? "0.5" : "1";
     if (running) document.getElementById("height-done").style.display = "none";
@@ -2401,7 +2436,7 @@ function mountHeightAnim(body, headerActions) {
 
   document.getElementById("height-cancel")?.addEventListener("click", async () => {
     const btn = document.getElementById("height-cancel");
-    knopfBeschaeftigt(btn && btn.id, "animator.cancel.requesting", "Abbruch …");   // kein frei(): der Dialog verschwindet gleich
+    _cancelFrei = knopfBeschaeftigt(btn && btn.id, "animator.cancel.requesting", "Abbruch …");   // frei() in setRenderingState(false)
     try { await window.pywebview.api.heightanim_cancel(); } catch (_) {}
   });
 
@@ -2489,6 +2524,7 @@ function mountHeightAnim(body, headerActions) {
     // v0.9.389 — GPX-Listener abmelden. Sonst lädt die verwaiste Closure bei jedem
     // GPX-Laden den Track nach + startet startPlay() → rafTick läuft ewig im Hintergrund.
     try { if (window.__rzGpxUnsub_height) { window.__rzGpxUnsub_height(); window.__rzGpxUnsub_height = null; } } catch (_) {}
+    try { if (_haSessUnsub) { _haSessUnsub(); _haSessUnsub = null; } } catch (_) {}
     try { ro.disconnect(); } catch (_) {}
     if (_renderPollTimer) { clearTimeout(_renderPollTimer); _renderPollTimer = null; }
   };

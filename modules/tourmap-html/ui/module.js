@@ -113,7 +113,7 @@
       if (trackLine) { try { map.removeLayer(trackLine); } catch (_) {} trackLine = null; }
       if (startPin) { try { map.removeLayer(startPin); } catch (_) {} startPin = null; }
       if (endPin) { try { map.removeLayer(endPin); } catch (_) {} endPin = null; }
-      if (!track || track.length < 2) return;
+      if (!track || track.length < 2) { drawTrack._sig = ""; return; }
       const color = el("tmhtml-color")?.value || "#ff6b35";
       const width = parseFloat(el("tmhtml-width")?.value) || 4.5;
       trackLine = L.polyline(track, { color, weight: width, opacity: 0.95, lineJoin: "round", lineCap: "round" }).addTo(map);
@@ -121,7 +121,12 @@
         html: '<span style="display:block;width:14px;height:14px;border-radius:50%;background:' + c + ';border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)"></span>' });
       startPin = L.marker(track[0], { icon: pin("#2ecc71") }).addTo(map);
       endPin = L.marker(track[track.length - 1], { icon: pin("#e74c3c") }).addTo(map);
-      try { map.fitBounds(trackLine.getBounds(), { padding: [26, 26] }); } catch (_) {}
+      // 22.08.2026 (Audit): nur bei neuem Track einpassen (synchron zu web-karte).
+      const sig = track.length + "|" + track[0].join(",") + track[track.length - 1].join(",");
+      if (sig !== drawTrack._sig) {
+        drawTrack._sig = sig;
+        try { map.fitBounds(trackLine.getBounds(), { padding: [26, 26] }); } catch (_) {}
+      }
     }
 
     function signsFromProject() {
@@ -136,7 +141,12 @@
     // Track + (server-gerasterte) Schilder vom Backend holen → WYSIWYG-Vorschau.
     async function refreshData() {
       const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
-      if (!gpxPath) { status(T("tourmap.html2.no_gpx", "Erst eine GPX-Datei laden.")); return; }
+      if (!gpxPath) {
+        // 22.08.2026 (Audit): Arbeitsbereich geleert → alten Track von der Karte nehmen
+        if (track && track.length) { track = []; try { drawTrack(); } catch (_) {} }
+        status(T("tourmap.html2.no_gpx", "Erst eine GPX-Datei laden."));
+        return;
+      }
       status(T("tourmap.html2.loading", "Lade Vorschau …"));
       try {
         const res = await window.pywebview.api.tourmap_leaflet_prepare({
