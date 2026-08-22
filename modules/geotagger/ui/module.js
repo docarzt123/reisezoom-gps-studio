@@ -1087,7 +1087,7 @@ function mountGeotagger(body, headerActions) {
       else showTrack(res);
     }
     updateMatches();
-    toast("GPX geladen: " + res.name, "success", 2500);
+    toast(t("geotagger.gpx_geladen", "GPX geladen: ") + res.name, "success", 2500);
   }
 
   // v0.8.1: GPX-Picker ist global in der Sub-Top-Bar.
@@ -3455,7 +3455,7 @@ function mountGeotagger(body, headerActions) {
       canceled = true;
       await api().geotagger_write_cancel();
       document.getElementById("md-cancel").disabled = true;
-      document.getElementById("md-cancel").textContent = "Abbrechen …";
+      document.getElementById("md-cancel").textContent = t("animator.cancel.requesting", "Abbrechen …");
     };
 
     // Polling.
@@ -3630,7 +3630,7 @@ function mountGeotagger(body, headerActions) {
       }));
     }
     if (!items.length) {
-      toast("Keine getaggten Fotos zum Exportieren gefunden", "warn");
+      toast(t("geotagger.export.keine", "Keine getaggten Fotos zum Exportieren gefunden"), "warn");
       return;
     }
     const folders = await api().pick_file("folder");
@@ -3638,11 +3638,11 @@ function mountGeotagger(body, headerActions) {
     const dest = folders[0];
     const res = await api().geotagger_export_tagged(items, dest);
     if (!res || !res.ok) {
-      toast("Export fehlgeschlagen: " + ((res && res.error) || "unbekannt"), "error");
+      toast(t("geotagger.export.fehler", "Export fehlgeschlagen: ") + ((res && res.error) || "?"), "error");
       return;
     }
-    const errTxt = (res.errors && res.errors.length) ? ` (${res.errors.length} Fehler)` : "";
-    toast(`${res.exported} getaggte Fotos gespeichert in ${dest.replace(/.*[\\/]/, "")}${errTxt}`,
+    const errTxt = (res.errors && res.errors.length) ? ` (${res.errors.length} ${t("geotagger.export.fehler_n", "Fehler")})` : "";
+    toast(t("geotagger.export.fertig", "{n} getaggte Fotos gespeichert in {ordner}").replace("{n}", res.exported).replace("{ordner}", dest.replace(/.*[\\/]/, "")) + errTxt,
       res.errors && res.errors.length ? "warn" : "success", 6000);
     // Modal schließen + Zielordner im Finder zeigen
     try { openModal({}).close(); } catch (e) {}
@@ -3663,7 +3663,7 @@ function mountGeotagger(body, headerActions) {
     accept: ["gpx", "fit", "nmea", "log", "kml", "kmz", "tcx", "geojson"],
     async onDrop(files) {
       if (!files.length) return;
-      if (files.length > 1) toast("Nur die erste GPX wird geladen", "warn");
+      if (files.length > 1) toast(t("geotagger.nur_erste_gpx", "Nur die erste GPX wird geladen"), "warn");
       // "binary" statt "text" — FIT/KMZ sind Binärformate (base64 erhält auch GPX-Text).
       const paths = await persistDroppedFiles([files[0]], "binary");
       if (typeof loadGlobalGpx === "function") {
@@ -3699,7 +3699,7 @@ function mountGeotagger(body, headerActions) {
       // GPX-Picker-Indikator in der Sub-Top-Bar ebenfalls aktualisiert wird
       // (sonst hat der User keinen visuellen Hinweis dass ein Track aktiv ist).
       if (gpxFiles.length) {
-        if (gpxFiles.length > 1) toast("Nur die erste GPX wird geladen", "warn");
+        if (gpxFiles.length > 1) toast(t("geotagger.nur_erste_gpx", "Nur die erste GPX wird geladen"), "warn");
         try {
           const paths = await persistDroppedFiles([gpxFiles[0]], "binary");
           if (typeof loadGlobalGpx === "function") {
@@ -3709,7 +3709,7 @@ function mountGeotagger(body, headerActions) {
           }
         } catch (err) {
           console.warn("GPX-Drop fehlgeschlagen:", err);
-          toast("GPX konnte nicht geladen werden: " + (err.message || err), "error");
+          toast(t("geotagger.gpx_fehler", "GPX konnte nicht geladen werden: ") + (err.message || err), "error");
         }
       }
       // Dann Fotos — die nutzen direkt den geladenen Track für updateMatches
@@ -3786,7 +3786,7 @@ function mountGeotagger(body, headerActions) {
     if (needUpload.length) {
       const sessionRes = await api().drop_session_start();
       if (!sessionRes.ok) {
-        toast("Drop-Session fehlgeschlagen", "error");
+        toast(t("geotagger.drop_fehler", "Ablegen fehlgeschlagen"), "error");
         return;
       }
       const sessionId = sessionRes.session_id;
@@ -3823,7 +3823,7 @@ function mountGeotagger(body, headerActions) {
     // Nur die NEUEN (pending) Pfade registrieren; Backend hängt sie an.
     const uploadedPaths = pending.filter(p => p.path).map(p => p.path);
     if (!uploadedPaths.length) {
-      toast("Keine Datei konnte importiert werden", "error");
+      toast(t("geotagger.import_keine", "Keine Datei konnte importiert werden"), "error");
       hideGridLoader();
       return;
     }

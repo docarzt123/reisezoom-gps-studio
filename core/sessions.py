@@ -269,6 +269,7 @@ def get_or_create_session(
     snapshot_dir: Path,
     global_defaults: dict,
     ui_hash: str = "",
+    snapshot_src: Optional[str] = None,
 ) -> tuple[dict, dict]:
     """Liefert die Session + das aktive Projekt für einen Track-Hash.
     Legt neu an wenn nicht vorhanden.
@@ -300,7 +301,9 @@ def get_or_create_session(
         }
         # GPX-Snapshot anlegen
         if gpx_path:
-            sess["gpx_snapshot_path"] = _save_snapshot(gpx_path, track_hash, snapshot_dir)
+            # 22.08.2026 (Audit): bei FIT/TCX/KML wird die konvertierte GPX
+            # (snapshot_src) gesichert, nicht die Rohdatei unter „.gpx"-Namen.
+            sess["gpx_snapshot_path"] = _save_snapshot(snapshot_src or gpx_path, track_hash, snapshot_dir)
             base = Path(gpx_path).name
             if base and base not in sess["gpx_filenames_seen"]:
                 sess["gpx_filenames_seen"].append(base)
@@ -314,7 +317,7 @@ def get_or_create_session(
                 sess.setdefault("gpx_filenames_seen", []).append(base)
             # Snapshot ggf. erneuern wenn fehlt
             if not sess.get("gpx_snapshot_path") or not (snapshot_dir / Path(sess["gpx_snapshot_path"]).name).exists():
-                sess["gpx_snapshot_path"] = _save_snapshot(gpx_path, track_hash, snapshot_dir)
+                sess["gpx_snapshot_path"] = _save_snapshot(snapshot_src or gpx_path, track_hash, snapshot_dir)
 
     # Schema 2 — UI-Hash-Alias vermerken (für pfadlose Wiederfind-Aufrufe)
     if ui_hash and ui_hash != track_hash:

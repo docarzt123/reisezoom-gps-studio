@@ -358,7 +358,7 @@ function mountGpxInspect(body, headerActions) {
   }
 
   function clearTrack() {
-    _points = []; _srcPath = null; _sources = []; _selA = _selB = null; _dirty = false;
+    _points = []; _srcPath = null; _origPath = null; _sources = []; _selA = _selB = null; _dirty = false;
     try { if (map && map.getSource("gpxi-line")) map.getSource("gpxi-line").setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] } }); } catch (_) {}
     try { if (map && map.getSource("gpxi-pts")) map.getSource("gpxi-pts").setData({ type: "FeatureCollection", features: [] }); } catch (_) {}
     _eleInvalidate();
@@ -548,8 +548,19 @@ function mountGpxInspect(body, headerActions) {
     return L > ref * maxRatio;
   }
 
-  function fillGap() {
+  async function fillGap() {
     if (_selA === null || _selB === null || _selB <= _selA) return;
+    // 22.08.2026 (Audit): zwischen A und B liegende Punkte werden ERSETZT —
+    // bei versehentlich weit gesetzten Markern verschwanden ganze Abschnitte
+    // ohne Hinweis. Ab 3 Zwischenpunkten nachfragen.
+    const dazwischen = _selB - _selA - 1;
+    if (dazwischen >= 3 && typeof window.rzConfirm === "function") {
+      const ok = await window.rzConfirm(
+        t("gpxinspect.fill", "Lücke füllen (Luftlinie)"),
+        t("gpxinspect.fill_ersetzt", "Zwischen A und B liegen {n} vorhandene Punkte. Sie werden durch die neue gerade Linie ersetzt. Fortfahren?").replace("{n}", dazwischen),
+        t("gpxinspect.fill", "Lücke füllen (Luftlinie)"), true);
+      if (!ok) return;
+    }
     _pushUndo(t("gpxinspect.fill", "Lücke füllen"));
     const A = _points[_selA], B = _points[_selB];
     let spacing = parseFloat((document.getElementById("gpxi-spacing") || {}).value) || 20;

@@ -400,12 +400,25 @@
           extraLines.push(L.marker(c[c.length - 1], { icon: pin("#e74c3c"), interactive: false }).addTo(map));
         }
       });
-      if (bounds && bounds.isValid && bounds.isValid()) { try { map.fitBounds(bounds, { padding: [30, 30] }); } catch (_) {} }
+      // 22.08.2026 (Audit): nur bei NEUEM Track-Bestand einpassen — vorher warf
+      // jeder Farb-/Breiten-Regler den vom Nutzer gewählten Ausschnitt weg.
+      const sig = (track ? track.length : 0) + "|" + tracks.map(t => (t.coords || []).length).join(",")
+        + "|" + (track && track.length ? track[0].join(",") + track[track.length - 1].join(",") : "");
+      if (bounds && bounds.isValid && bounds.isValid() && sig !== drawTrack._sig) {
+        drawTrack._sig = sig;
+        try { map.fitBounds(bounds, { padding: [30, 30] }); } catch (_) {}
+      }
+      if (!bounds) drawTrack._sig = "";
     }
 
     async function loadTrack() {
       const gpxPath = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
-      if (!gpxPath) { status(T("webkarte.no_gpx", "Erst eine GPX-Datei laden.")); return; }
+      if (!gpxPath) {
+        // 22.08.2026 (Audit): Arbeitsbereich geleert → alten Track von der Karte nehmen
+        if (track && track.length) { track = []; try { drawTrack(); } catch (_) {} }
+        status(T("webkarte.no_gpx", "Erst eine GPX-Datei laden."));
+        return;
+      }
       status(T("webkarte.loading", "Lade Track …"));
       try {
         const res = await window.pywebview.api.webkarte_prepare({ gpx_path: gpxPath });

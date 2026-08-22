@@ -251,6 +251,8 @@
       closeBtn.onclick = () => cleanup(false);
     });
   }
+  // 22.08.2026 (Audit): für Module freigeben (Inspektor „Lücke füllen" u.a.)
+  window.rzConfirm = confirmModal;
 
   function tT(key, fallback) {
     try {
