@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.531] – 2026-08-22
+
 ### Fixed
 - Laufpunkt („Kugel"), DRITTE Schicht (Beta-Tester: „v0.9.530 geht es immer
   noch nicht"): `dotEbenenAufbauen` brach still ab, wenn `isStyleLoaded()`
