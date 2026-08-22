@@ -5188,9 +5188,9 @@ class Api:
         # 2. Foto-Vorschauen daneben.
         foto_dir = APP_SUPPORT / ("cloud_fotos" if quelle == "cloud" else "projekt_fotos") / (geo_hash or ziel.stem)
         for name in sorted(namen):
-            if name.startswith("fotos/"):
-                foto_dir.mkdir(parents=True, exist_ok=True)
-                (foto_dir / Path(name).name).write_bytes(z.read(name))
+            if name.startswith("fotos/") or name.startswith("bilder/"):
+                (foto_dir / Path(name).parent.name).mkdir(parents=True, exist_ok=True)
+                (foto_dir / Path(name).parent.name / Path(name).name).write_bytes(z.read(name))
 
         # 3. Archiv-Quelle registrieren + einlesen (normaler Scan-Weg).
         conn = self._lib()
@@ -5217,17 +5217,21 @@ class Api:
         if projekte and geo_hash:
             text = json.dumps(projekte)
             for name in sorted(namen):
-                if name.startswith("fotos/"):
-                    text = text.replace(f'"{name}"', json.dumps(str(foto_dir / Path(name).name)))
+                if name.startswith("fotos/") or name.startswith("bilder/"):
+                    text = text.replace(f'"{name}"', json.dumps(str(foto_dir / Path(name).parent.name / Path(name).name)))
             projekte = json.loads(text)
             projekte["track_hash"] = geo_hash
-            # Fotos: Original-Pfad gibt es auf diesem Rechner meist nicht →
-            # auf die mitgebrachte Vorschau zeigen (sonst „Bild fehlt" überall).
+            # Fotos/Schild-Bilder: Original-Pfad gibt es auf diesem Rechner meist
+            # nicht → auf die mitgebrachte Kopie zeigen (sonst „Bild fehlt" überall).
+            from core.cloud.archiv import BILD_FELDER
             for proj in (projekte.get("projects") or {}).values():
-                for foto in (proj.get("photos") or []) if isinstance(proj, dict) else []:
-                    if isinstance(foto, dict) and foto.get("vorschau") and not os.path.exists(str(foto.get("path") or "")):
-                        foto["original_path"] = foto.get("path")
-                        foto["path"] = foto["vorschau"]
+                if not isinstance(proj, dict):
+                    continue
+                for liste, feld, _ordner, _kante in BILD_FELDER:
+                    for eintrag in (proj.get(liste) or []):
+                        if isinstance(eintrag, dict) and eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
+                            eintrag["original_" + feld] = eintrag.get(feld)
+                            eintrag[feld] = eintrag["vorschau"]
             with _sessions.LOCK:
                 daten = _sessions.load_sessions(SESSIONS_FILE)
                 sess = (daten.get("sessions") or {}).get(geo_hash)

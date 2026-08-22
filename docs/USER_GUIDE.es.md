@@ -308,8 +308,8 @@ Los datos de sesión se encuentran en:
 (clic en «Sesión · Proyecto» arriba) o en «Archivo → Exportar proyecto» se crea
 un archivo `.rzproj`: la ruta, **todos los proyectos** de la sesión (keyframes,
 carteles, superposiciones, ajustes), los datos de la ruta del archivo (nombre,
-etiquetas, nota) y **miniaturas** de tus fotos — no los originales, esos se
-quedan contigo.
+etiquetas, nota) y **miniaturas** de tus fotos y las **imágenes de tus carteles** — las fotos
+originales se quedan contigo.
 
 **Importar:** «Archivo → Importar proyecto», el menú de proyecto, o arrastra el
 `.rzproj` a la app. La ruta entra en el archivo (carpeta «projekt_importe») y los

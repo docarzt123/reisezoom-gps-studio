@@ -132,7 +132,21 @@ def sammlungen_bauen(conn) -> dict:
 #  Umschlag je Tour
 # ══════════════════════════════════════════════════════════════════════════
 
-def _foto_vorschau(pfad: str) -> bytes | None:
+# Schild-Bilder (22.08.2026, Marc: „mit rein"): größer als Foto-Vorschauen,
+# weil sie im Video stehen — 1600 px reichen auch für 4K-Schilder.
+BILD_KANTE = 1600
+
+# Welche Projektfelder auf Bilddateien zeigen: (Liste im Projekt, Pfadfeld,
+# ZIP-Ordner, Kantenlänge). `vorschau` im Eintrag nennt die Datei im ZIP;
+# der Einspieler (app._umschlag_einspielen) biegt das Pfadfeld darauf um.
+BILD_FELDER = (
+    ("photos", "path", "fotos", FOTO_KANTE),
+    ("signs", "imageSrc", "bilder", BILD_KANTE),
+    ("tourmap_signs", "imageSrc", "bilder", BILD_KANTE),
+)
+
+
+def _foto_vorschau(pfad: str, kante: int = FOTO_KANTE) -> bytes | None:
     """Ein Foto auf Vorschaugröße bringen. None, wenn es das Foto nicht gibt."""
     try:
         from PIL import Image
@@ -141,7 +155,7 @@ def _foto_vorschau(pfad: str) -> bytes | None:
             return None
         with Image.open(p) as im:
             im = im.convert("RGB")
-            im.thumbnail((FOTO_KANTE, FOTO_KANTE))
+            im.thumbnail((kante, kante))
             puffer = io.BytesIO()
             im.save(puffer, "JPEG", quality=FOTO_QUALITAET, optimize=True)
             return puffer.getvalue()
@@ -204,20 +218,28 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
             # Fotos: nur Vorschaubilder, nie Originale. Der Pfad wird durch den
             # Namen im ZIP ersetzt, damit Gerät 2 nichts sucht, was es nicht gibt.
             kopie = json.loads(json.dumps(projekte))
-            nummer = 0
+            nummern: dict = {}
+            schon: dict = {}          # gleiche Datei nur einmal ins ZIP
             for proj in (kopie.get("projects") or {}).values():
-                for fotos in (proj.get("photos"), ):
-                    for foto in (fotos or []):
-                        if not isinstance(foto, dict) or not foto.get("path"):
+                if not isinstance(proj, dict):
+                    continue
+                for liste, feld, ordner, kante in BILD_FELDER:
+                    for eintrag in (proj.get(liste) or []):
+                        if not isinstance(eintrag, dict) or not eintrag.get(feld):
                             continue
-                        bild = _foto_vorschau(foto["path"])
+                        quelle_bild = str(eintrag[feld])
+                        if (ordner, quelle_bild) in schon:
+                            eintrag["vorschau"] = schon[(ordner, quelle_bild)]
+                            continue
+                        bild = _foto_vorschau(quelle_bild, kante)
                         if bild is None:
-                            foto["vorschau_fehlt"] = True
+                            eintrag["vorschau_fehlt"] = True
                             continue
-                        nummer += 1
-                        name = f"fotos/{nummer:04d}.jpg"
+                        nummern[ordner] = nummern.get(ordner, 0) + 1
+                        name = f"{ordner}/{nummern[ordner]:04d}.jpg"
                         schreiben(name, bild)
-                        foto["vorschau"] = name
+                        eintrag["vorschau"] = name
+                        schon[(ordner, quelle_bild)] = name
             schreiben("projekte.json", json.dumps(kopie, ensure_ascii=False,
                                                   sort_keys=True).encode("utf-8"))
     return puffer.getvalue()

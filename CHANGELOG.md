@@ -19,7 +19,8 @@ Bei jeder neuen Version:
 ### Added
 - **Projekt exportieren & importieren (.rzproj)** — Marc: „ein zip, mit allem
   drin“. Eine Datei mit Track, allen Projekten der Session (Keyframes, Schilder,
-  Overlays), Tour-Daten (Name, Schlagwörter, Notiz) und Foto-Vorschauen.
+  Overlays), Tour-Daten (Name, Schlagwörter, Notiz), Foto-Vorschauen **und
+  die Bilder der Schilder** (bis 1600 px, gleiche Datei nur einmal im ZIP).
   Einstiege: Projekt-Menü, „Datei → Projekt exportieren/importieren“, Drag & Drop
   der `.rzproj` auf die App. Import legt den Track ins Archiv
   (`projekt_importe`), Projekte werden an die Session **dazugelegt** (nichts
@@ -31,6 +32,8 @@ Bei jeder neuen Version:
   (RZ_CLOUD=0, frischer App-Support, zwei „Rechner“).
 
 ### Changed
+- Cloud-Umschläge tragen jetzt auch Schild-Bilder — Touren mit Bild-Schildern
+  werden beim nächsten Abgleich einmal neu hochgeladen.
 - Cloud „Holen“ nutzt denselben Einspieler: hat die Session schon Projekte,
   werden die aus der Cloud dazugelegt statt verworfen.
 
