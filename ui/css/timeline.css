@@ -793,3 +793,10 @@ body.wert-zieht * { cursor: ew-resize !important; }
 body.wert-zieht .timeline-marker.is-selected {
   box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.55);
 }
+
+/* 22.08.2026 — Ruhige Kamera je Abschnitt (Häkchen im Übergangs-Modal + Badge am Symbol) */
+.easing-modal-smooth { display: flex; align-items: center; gap: 8px; margin: 10px 4px 2px; font-size: 12px; color: var(--text, #ddd); cursor: pointer; }
+.easing-modal-smooth input { accent-color: var(--accent, #ff6b35); }
+.timeline-easing-symbol { position: relative; }
+.timeline-easing-symbol.is-smooth { box-shadow: 0 0 0 1.5px var(--accent, #ff6b35) inset; }
+.timeline-easing-smooth-badge { position: absolute; right: -6px; top: -7px; font-size: 9px; line-height: 1; pointer-events: none; }

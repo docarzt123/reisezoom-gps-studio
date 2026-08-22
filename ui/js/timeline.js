@@ -273,7 +273,7 @@ function mountTimelineBar(opts) {
   function _closeEasingModal() {
     if (_easingModalEl) { _easingModalEl.remove(); _easingModalEl = null; }
   }
-  function _openEasingModal(targetAnchor, currentEasing) {
+  function _openEasingModal(targetAnchor, currentEasing, currentSmooth) {
     _closeEasingModal();
     const backdrop = document.createElement("div");
     backdrop.className = "timeline-easing-modal-backdrop";
@@ -282,10 +282,20 @@ function mountTimelineBar(opts) {
     modal.innerHTML = `
       <div class="easing-modal-title">${tlT("animator.timeline.easing.title", "Übergang zum nächsten Keyframe")}</div>
       <div class="easing-modal-grid"></div>
+      <label class="easing-modal-smooth" title="${tlT("animator.timeline.smooth.tip", "Glättet in diesem Abschnitt das Auf und Ab der Kamera über dem Gelände. Das Häkchen „Ruhige Kamera“ in der Seitenleiste gilt für das ganze Video.")}">
+        <input type="checkbox" class="easing-modal-smooth-cb" ${currentSmooth ? "checked" : ""}>
+        <span>🎥 ${tlT("animator.timeline.smooth.label", "Ruhige Kamera in diesem Abschnitt")}</span>
+      </label>
       <div class="easing-modal-footer">
         <button type="button" class="easing-modal-cancel">${tlT("animator.timeline.easing.cancel", "Abbrechen")}</button>
       </div>
     `;
+    // 22.08.2026 — Ruhige Kamera je Abschnitt (Marc: „da einstellen, wo man
+    // den Übergang einstellt"). Wirkt sofort, das Modal bleibt offen.
+    const smoothCb = modal.querySelector(".easing-modal-smooth-cb");
+    smoothCb.addEventListener("change", () => {
+      if (cb.onSmoothChange) cb.onSmoothChange(targetAnchor, !!smoothCb.checked);
+    });
     const grid = modal.querySelector(".easing-modal-grid");
     const opts = ["linear", "ease_in", "ease_out", "ease_in_out"];
     for (const o of opts) {
@@ -550,6 +560,7 @@ function mountTimelineBar(opts) {
         const a = clusters[i];
         const b = clusters[i + 1];
         const targetEasing = (b.events.find(e => e && e.easing) || {}).easing || "linear";
+        const targetSmooth = !!(b.events.find(e => e && e.smooth_in) || {}).smooth_in;
         const midAnchor = (a.anchor + b.anchor) / 2;
         // ⚠️ Nur zeichnen, wenn dazwischen PLATZ ist (Fehler-Bericht Rafael,
         // 16.08.2026: „Wenn der Zoom der Zeitleiste auf 1 steht, verdeckt der
@@ -563,12 +574,12 @@ function mountTimelineBar(opts) {
         if (abstandPx < 46) continue;
         const sym = document.createElement("button");
         sym.type = "button";
-        sym.className = "timeline-easing-symbol easing-" + targetEasing;
+        sym.className = "timeline-easing-symbol easing-" + targetEasing + (targetSmooth ? " is-smooth" : "");
         sym.style.left = _anchorToPct(_trackToBar(midAnchor)) + "%";
         sym.dataset.targetAnchor = String(b.anchor);
         sym.dataset.easing = targetEasing;
         sym.title = `${tlT("animator.timeline.easing.tip", "Übergang")}: ${_easingLabel(targetEasing)}\n${tlT("animator.timeline.easing.click", "Klicken zum Ändern.")}`;
-        sym.innerHTML = _easingGlyph(targetEasing);
+        sym.innerHTML = _easingGlyph(targetEasing) + (targetSmooth ? '<span class="timeline-easing-smooth-badge" aria-hidden="true">🎥</span>' : "");
         // Mousedown stoppt Cluster-Drag-Logik, click öffnet Modal.
         const _easeAnchor = b.anchor;
         const _curEase = targetEasing;
@@ -579,7 +590,7 @@ function mountTimelineBar(opts) {
         sym.addEventListener("click", (e) => {
           e.stopPropagation();
           e.preventDefault();
-          _openEasingModal(_easeAnchor, _curEase);
+          _openEasingModal(_easeAnchor, _curEase, targetSmooth);
         });
         clusterMarkersEl.appendChild(sym);
       }

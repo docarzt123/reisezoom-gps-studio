@@ -2366,7 +2366,7 @@ window.__camPrepFaithful = (camList, glattFenster) => {{
       const e = map.queryTerrainElevation([k.lng, k.lat]);
       if (e != null && isFinite(e)) ez = mapboxgl.MercatorCoordinate.fromLngLat([k.lng, k.lat], e).z;
     }} catch (e) {{}}
-    return {{ t: k.t, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], ez }};
+    return {{ t: k.t, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], ez, g: (k.g == null ? 1 : k.g) }};
   }});
   // 22.08.2026 — Die Liste ist jetzt dicht (ein Eintrag je Bild). Das Berg-
   // Hüpfen steckt im GELÄNDEANTEIL der Kamerahöhe; nur der wird mit einem
@@ -2378,10 +2378,11 @@ window.__camPrepFaithful = (camList, glattFenster) => {{
   const ezs = roh.map(c => {{ if (c.ez != null) letzt = c.ez; return letzt; }});
   if (w > 0 && roh.length > 2 * w + 1 && ezs.some(v => v !== 0)) {{
     for (let i = 0; i < roh.length; i++) {{
+      if (!roh[i].g) continue;                       // Abschnitt ohne „ruhig" → unverändert
       const lo = Math.max(0, i - w), hi = Math.min(roh.length - 1, i + w);
       let summe = 0;
       for (let j = lo; j <= hi; j++) summe += ezs[j];
-      roh[i].pos[2] = roh[i].pos[2] - ezs[i] + summe / (hi - lo + 1);
+      roh[i].pos[2] = roh[i].pos[2] + roh[i].g * (summe / (hi - lo + 1) - ezs[i]);
     }}
   }}
   window.__kfCams = roh;
@@ -4108,7 +4109,10 @@ async def render(
             # v0.9.318 — Entkoppelte FreeCamera (gegen Berg-Hüpfen, Sandbox-validiert):
             # pro Keyframe-Anker die exakte 3D-Kamera (Pos+Orientierung) auslesen, im
             # Loop dazwischen interpolieren. Klassik/<2 KFs → unberührt (alter Pfad).
-            _smooth_cam = bool(getattr(cfg, "smooth_camera_3d", False)) and os.environ.get("RZ_NOFAITHFUL") != "1"
+            # 22.08.2026 — auch an, wenn nur einzelne Abschnitte „ruhig" sind (smooth_in am Ziel-Keyframe).
+            _smooth_all = bool(getattr(cfg, "smooth_camera_3d", False))
+            _smooth_seg = any(isinstance(_e, dict) and _e.get("smooth_in") for _e in _events_zeit)
+            _smooth_cam = (_smooth_all or _smooth_seg) and os.environ.get("RZ_NOFAITHFUL") != "1"
             _use_faithful = False
             if _smooth_cam and total_frames > 2:
                 _cam_kinds = ("center", "pitch", "zoom", "bearing", "position", "rotation")
@@ -4177,6 +4181,9 @@ async def render(
                             "t": _zeitp, "lng": _lo, "lat": _la,
                             "zoom": zoom + _zo, "pitch": _pf, "bearing": _bf,
                         })
+                    _gew = ([1.0] * len(_anchors)) if _smooth_all else _timeline.glatt_gewichte(_events_zeit, _anchors, _glatt_fenster)
+                    for _k, _g in zip(_kf_cam_list, _gew):
+                        _k["g"] = _g
                     await page.evaluate("([cams, w])=>window.__camPrepFaithful(cams, w)", [_kf_cam_list, _glatt_fenster])
                     _use_faithful = True
                     if _rt:
