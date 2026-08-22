@@ -408,12 +408,15 @@
       // Glyphen OHNE Schatten obendrauf — ein Schatten auf dünnen Kanten wirkt sonst zu
       // schwach. Mit Box übernimmt die Box den Schatten, Text dann ohne Eigenschatten.
       if (boxTransparent && shadow) {
-        var _ts = function (blur, off, a) {
+        // 22.08.2026 (Audit): X-Versatz mitnehmen — die DOM-Vorschau (sign_dom.js)
+        // nutzt _sox/_soy in voller Richtung, das Video setzte X fix auf 0 →
+        // bei Schatten-Richtung 0°/180° ohne Box: Vorschau mit Versatz, Video ohne.
+        var _ts = function (blur, offX, offY, a) {
           ctx.shadowColor = rgba(shadowC, Math.min(1, a)); ctx.shadowBlur = blur;
-          ctx.shadowOffsetX = 0; ctx.shadowOffsetY = off;
+          ctx.shadowOffsetX = offX; ctx.shadowOffsetY = offY;
         };
-        _ts(shadowBlur, shOffY, shadowStrength + 0.28); drawLines();
-        _ts(Math.max(1 * dpr, shadowBlur * 0.4), Math.round(shOffY * 0.5), shadowStrength + 0.22); drawLines();
+        _ts(shadowBlur, shOffX, shOffY, shadowStrength + 0.28); drawLines();
+        _ts(Math.max(1 * dpr, shadowBlur * 0.4), Math.round(shOffX * 0.5), Math.round(shOffY * 0.5), shadowStrength + 0.22); drawLines();
         setShadow(false);
         drawLines();
       } else {
@@ -461,9 +464,22 @@
 
   function rzSignApplyFrame(map, lyr, src, metas, M) {
     if (!map || !map.getLayer || !map.getLayer(lyr)) return;
-    try {
-      map.setFilter(lyr, ["all", ["<=", ["get", "a_show"], M], [">=", ["get", "a_hide"], M]]);
-    } catch (_) {}
+    // 22.08.2026 (Audit): Filter nur setzen, wenn sich M spürbar bewegt hat —
+    // der Aufruf läuft pro Animationsframe (rAF); bei 700 Foto-Schildern war
+    // jeder Frame ein Filter-Rebuild, auch wenn gar nichts passierte.
+    var Mq = Math.round(M * 100000) / 100000;
+    // Layer/Quelle neu aufgebaut (neue FeatureCollection)? → alle Caches verwerfen,
+    // sonst bliebe der Filter aus und die Feature-States wären nie gesetzt.
+    if (map.__rzSignCacheFC !== map.__rzSignFC) {
+      map.__rzSignCacheFC = map.__rzSignFC;
+      map.__rzSignLastM = null; map.__rzSignOpLast = null;
+    }
+    if (map.__rzSignLastM !== Mq || map.__rzSignLastLyr !== lyr) {
+      map.__rzSignLastM = Mq; map.__rzSignLastLyr = lyr;
+      try {
+        map.setFilter(lyr, ["all", ["<=", ["get", "a_show"], M], [">=", ["get", "a_hide"], M]]);
+      } catch (_) {}
+    }
     if (!Array.isArray(metas)) return;
     // Pop (icon-size · popScale) über setData ins Feature — nur wenn sich ein Wert
     // spürbar ändert (kein setData-Sturm). Danach op-States wieder setzen, weil
@@ -497,7 +513,10 @@
           if (fc.features[k] && fc.features[k].properties) fc.features[k].properties.popScale = ps;
         }
       }
-      if (popDirty) { try { map.getSource(src).setData(fc); } catch (_) {} }
+      if (popDirty) {
+        try { map.getSource(src).setData(fc); } catch (_) {}
+        map.__rzSignOpLast = null;   // setData kann Feature-States zurücksetzen → neu schreiben
+      }
     }
     // v0.9.484 — den datengetriebenen icon-size-Ausdruck NUR während des laufenden
     // Aufpoppens anlegen und sofort danach wieder abnehmen. Ergebnis: es poppt auf
@@ -508,6 +527,11 @@
         map.setLayoutProperty(lyr, "icon-size", rzSignIconSize(popRunning, map.__rzSignSizeScale));
       } catch (_) {}
     }
+    // Deckkraft pro Schild nur schreiben, wenn sie sich geändert hat (sonst
+    // N Feature-State-Writes pro Frame, fast immer mit demselben Wert).
+    if (!map.__rzSignOpLast || map.__rzSignOpLast.length !== metas.length || map.__rzSignOpSrc !== src) {
+      map.__rzSignOpLast = new Array(metas.length); map.__rzSignOpSrc = src;
+    }
     for (var i = 0; i < metas.length; i++) {
       var m = metas[i] || {};
       var op = 1;
@@ -516,6 +540,9 @@
         op = Math.min((M - m.a_show) / m.fade, (m.a_hide - M) / m.fade, 1);
         op = Math.max(0, Math.min(1, op));
       }
+      var opq = Math.round(op * 1000) / 1000;
+      if (map.__rzSignOpLast[i] === opq) continue;
+      map.__rzSignOpLast[i] = opq;
       try { map.setFeatureState({ source: src, id: i }, { op: op }); } catch (_) {}
     }
   }
