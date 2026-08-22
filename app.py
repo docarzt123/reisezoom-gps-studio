@@ -267,6 +267,7 @@ LIBRARY_DB = APP_SUPPORT / "library.db"
 # ☁-Statusanzeige den Schlüsselbund nie anfassen muss (Marc-Report:
 # macOS-Passwortdialog bei jedem App-Start). Geheimnisse: NUR Schlüsselbund.
 CLOUD_MARKER = APP_SUPPORT / "cloud_zustand.json"
+CLOUD_PRUEFSUMMEN = APP_SUPPORT / "cloud_pruefsummen.json"   # 22.08.2026: Stempel → Prüfsumme
 LIBRARY_THUMBS = APP_SUPPORT / "library_thumbs"
 # v0.9.487: gecachte Karten-Vorschaubilder (einmal von Mapbox geladen)
 # und selbst gewählte Titelbilder.
@@ -844,6 +845,9 @@ def _macos_save_panel(default_name: str, default_dir: str,
 DEFAULT_MAPBOX_TOKEN = ""
 
 
+_UI_SPRACHE_CACHE: dict = {}
+
+
 def _ui_sprache() -> str:
     """Die aktive App-Sprache — für alles, was das Backend beschriftet.
 
@@ -852,7 +856,19 @@ def _ui_sprache() -> str:
     einprogrammiert; ein spanischer Nutzer bekam Videos mit „ZURÜCKGELEGT" und
     „HÖHENPROFIL", während die Vorschau korrekt Spanisch zeigte."""
     try:
-        return ci18n.resolve(_load_settings().get("language", "auto") or "auto")
+        # 22.08.2026 — Sprache am Datei-Stempel cachen statt settings.json bei
+        # jedem Aufruf zu lesen (87 _ui_t()-Stellen, teils in Schleifen).
+        try:
+            st = SETTINGS_FILE.stat()
+            stempel = (st.st_mtime_ns, st.st_size)
+        except FileNotFoundError:
+            stempel = None
+        if _UI_SPRACHE_CACHE.get("stempel") == stempel and _UI_SPRACHE_CACHE.get("wert"):
+            return _UI_SPRACHE_CACHE["wert"]
+        wert = ci18n.resolve(_load_settings().get("language", "auto") or "auto")
+        _UI_SPRACHE_CACHE["stempel"] = stempel
+        _UI_SPRACHE_CACHE["wert"] = wert
+        return wert
     except Exception:
         return "de"
 
@@ -1064,6 +1080,11 @@ class Api:
         self._cloud_auto_start()
         self._render_thread: Optional[threading.Thread] = None
         self._render_state = {"running": False, "progress": 0.0, "status": "", "output": "", "error": ""}
+        # 22.08.2026 — EIN Start-Lock für Render/Scan/Karten: „läuft schon?"
+        # prüfen und das Flag setzen passiert atomar. Vorher lagen beim
+        # Animator ~260 Zeilen Validierung zwischen Prüfung und Flag — zwei
+        # schnelle Klicks (oder Klick + Auto-Start) konnten zwei Läufe starten.
+        self._start_lock = threading.Lock()
         # Tour-Karten-PNG-Worker (analog Animator, eigener Thread/State)
         self._tourmap_thread: Optional[threading.Thread] = None
         self._tourmap_state = {"running": False, "progress": 0.0, "status": "", "output": "", "error": ""}
@@ -1864,9 +1885,10 @@ class Api:
         103.535 Dateien neben einem mit 28 neuen — wer nur die 28 will, soll
         nicht durch die 103.535 müssen. Die Entfern-Logik in `clib.scan`
         läuft nur über die übergebenen Ordner, der Rest bleibt unangetastet."""
-        if getattr(self, "_lib_scan_running", False):
-            return {"ok": False, "error": "läuft bereits"}
-        self._lib_scan_running = True
+        with self._start_lock:
+            if getattr(self, "_lib_scan_running", False):
+                return {"ok": False, "error": "läuft bereits"}
+            self._lib_scan_running = True
         self._lib_scan_stop = False
         self._lib_scan_state = {"done": 0, "total": 0, "current": "", "running": True}
         _nur = [folder] if folder else None
@@ -1980,18 +2002,22 @@ class Api:
         noch die Oberfläche ausbremst — und er sagt nichts, wenn nichts zu tun
         ist oder kein Token hinterlegt wurde.
         """
-        if getattr(self, "_lib_maps_running", False):
-            return {"ok": False, "error": "läuft bereits"}
+        with self._start_lock:
+            if getattr(self, "_lib_maps_running", False):
+                return {"ok": False, "error": "läuft bereits"}
+            self._lib_maps_running = True      # sofort belegen, unten ggf. freigeben
         token = (_load_settings() or {}).get("mapbox_token") or ""
         if not token.startswith("pk."):
+            self._lib_maps_running = False
             return {"ok": False, "error": "no_token"}
         if auto:
             try:
                 if clib.map_thumbs_pending_count(self._lib()) == 0:   # 22.08.2026: nur zählen, nicht alle Zeilen laden
+                    self._lib_maps_running = False
                     return {"ok": True, "nothing_to_do": True}
             except Exception:
+                self._lib_maps_running = False
                 return {"ok": False, "error": "pending-check"}
-        self._lib_maps_running = True
         self._lib_maps_stop = False
         self._lib_maps_state = {"running": True, "done": 0, "total": 0, "current": "",
                                 "auto": bool(auto)}
@@ -2994,8 +3020,25 @@ class Api:
 
     def animator_start_render(self, params: dict) -> dict:
         """Startet Render im Hintergrund-Thread. Status pollen via animator_status()."""
-        if self._render_state["running"]:
-            return {"ok": False, "error": _ui_t()("error.render_laeuft_bereits", "Render läuft bereits")}
+        with self._start_lock:
+            if self._render_state.get("running"):
+                return {"ok": False, "error": _ui_t()("error.render_laeuft_bereits", "Render läuft bereits")}
+            # Platz sofort belegen; die eigentliche Prüfung läuft darunter.
+            self._render_state = {"running": True, "progress": 0.0, "status": "Prüfe …",
+                                  "output": "", "error": "", "cancel_requested": False, "cancelled": False}
+        try:
+            res = self._animator_start_render_inner(params)
+        except Exception as e:
+            log.exception("animator_start_render: unerwarteter Fehler in der Vorbereitung")
+            res = {"ok": False, "error": str(e)}
+        if not (isinstance(res, dict) and res.get("ok")):
+            # Thread nie gestartet → Platz wieder freigeben
+            with self._start_lock:
+                if self._render_state.get("status") == "Prüfe …":
+                    self._render_state["running"] = False
+        return res
+
+    def _animator_start_render_inner(self, params: dict) -> dict:
 
         # v0.9.156 — Multi-Track: UI kann `tracks` (Liste von
         # {gpx_path, line_color, name}) senden. ≥2 Einträge → Multi-Track-
@@ -3622,8 +3665,23 @@ class Api:
     def heightanim_start_render(self, params: dict) -> dict:
         """Startet Höhen-Animator-Render im Background-Thread.
         Status pollen via heightanim_status(); Abbruch via heightanim_cancel()."""
-        if self._height_render_state.get("running"):
-            return {"ok": False, "error": _ui_t()("error.render_laeuft_bereits", "Render läuft bereits")}
+        with self._start_lock:
+            if self._height_render_state.get("running"):
+                return {"ok": False, "error": _ui_t()("error.render_laeuft_bereits", "Render läuft bereits")}
+            self._height_render_state = {"running": True, "progress": 0.0, "status": "Prüfe …",
+                                         "output": "", "error": ""}
+        try:
+            res = self._heightanim_start_render_inner(params)
+        except Exception as e:
+            log.exception("heightanim_start_render: unerwarteter Fehler in der Vorbereitung")
+            res = {"ok": False, "error": str(e)}
+        if not (isinstance(res, dict) and res.get("ok")):
+            with self._start_lock:
+                if self._height_render_state.get("status") == "Prüfe …":
+                    self._height_render_state["running"] = False
+        return res
+
+    def _heightanim_start_render_inner(self, params: dict) -> dict:
 
         gpx_path = params.get("gpx_path", "")
         if not gpx_path or not Path(gpx_path).exists():
@@ -4807,6 +4865,9 @@ class Api:
             return {"ok": True, "eingerichtet": bool(info.get("eingerichtet")),
                     "format": info.get("format")}
         except Exception as e:      # noqa: BLE001
+            if type(e).__name__ == "UnsichereAdresse":
+                return {"ok": False, "error": _ui_t()("cloud.nur_https",
+                        "Nur https:// ist erlaubt — über http:// ginge der Zugangsschlüssel unverschlüsselt durchs Netz.")}
             return {"ok": False, "error": str(e)}
 
     def cloud_einrichten(self, adresse: str) -> dict:
@@ -4869,6 +4930,9 @@ class Api:
             log.info("Mit vorhandenem Cloud-Archiv verbunden: %s", adresse)
             return {"ok": True}
         except Exception as e:      # noqa: BLE001
+            if type(e).__name__ == "UnsichereAdresse":
+                return {"ok": False, "error": _ui_t()("cloud.nur_https",
+                        "Nur https:// ist erlaubt — über http:// ginge der Zugangsschlüssel unverschlüsselt durchs Netz.")}
             return {"ok": False, "error": str(e)}
 
     def cloud_zugangsdaten(self) -> dict:
@@ -4905,6 +4969,9 @@ class Api:
             self._cloud_marker_weg()
             return {"ok": True}
         except Exception as e:      # noqa: BLE001
+            if type(e).__name__ == "UnsichereAdresse":
+                return {"ok": False, "error": _ui_t()("cloud.nur_https",
+                        "Nur https:// ist erlaubt — über http:// ginge der Zugangsschlüssel unverschlüsselt durchs Netz.")}
             return {"ok": False, "error": str(e)}
 
     def cloud_plan(self) -> dict:
@@ -4940,7 +5007,7 @@ class Api:
                 sessions = json.loads((APP_SUPPORT / "sessions.json").read_text("utf-8"))
             except Exception:
                 pass
-            return teile["archiv"].bestand_aufnehmen(conn, sessions)
+            return teile["archiv"].bestand_aufnehmen(conn, sessions, cache_pfad=CLOUD_PRUEFSUMMEN)
         finally:
             conn.close()
 
@@ -4974,7 +5041,8 @@ class Api:
                     sessions = json.loads((APP_SUPPORT / "sessions.json").read_text("utf-8"))
                 except Exception:
                     pass
-                bestand = archiv_m.bestand_aufnehmen(conn, sessions)
+                bestand = archiv_m.bestand_aufnehmen(conn, sessions, cache_pfad=CLOUD_PRUEFSUMMEN)
+                log.info("Cloud: Bestand %d Touren, %d Umschläge neu gebaut", len(bestand.touren), bestand.neu_gebaut)
                 a = sync_m.Abgleich(g, schluessel)
                 plan = a.planen(bestand)
 
@@ -5185,6 +5253,46 @@ class Api:
             pass
         return buch
 
+    def cloud_tour_entfernen(self, geo_hash: str) -> dict:
+        """22.08.2026 — Löschen als BEWUSSTE Aktion: eine Tour, die nur noch in
+        der Cloud liegt, aus dem Archiv nehmen. Der Umschlag wandert auf dem
+        Server in den Papierkorb (wiederherstellbar), und der Eintrag verschwindet
+        aus dem Cloud-Verzeichnis, damit andere Geräte sie nicht mehr anbieten.
+        Der Abgleich selbst löscht weiterhin nie etwas."""
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        self._cloud_neuversuch()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+        if not vorhanden:
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
+        teile, zugang, schluessel = vorhanden
+        gh = (geo_hash or "").strip()
+        if not gh:
+            return {"ok": False, "error": "geo_hash fehlt"}
+        try:
+            archiv_m, crypto_m = teile["archiv"], teile["crypto"]
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            a = teile["sync"].Abgleich(g, schluessel)
+            # 1) Umschlag → Server-Papierkorb
+            g.loeschen(archiv_m.track_name(gh))
+            # 2) Verzeichnis ohne diese Tour neu ablegen
+            verz = json.loads(a.holen(archiv_m.VERZEICHNIS).decode("utf-8"))
+            if gh in (verz.get("touren") or {}):
+                del verz["touren"][gh]
+                klartext = archiv_m.json_bytes(verz)
+                g.legen(archiv_m.VERZEICHNIS,
+                        crypto_m.verschliessen(schluessel, archiv_m.VERZEICHNIS, klartext),
+                        crypto_m.inhalts_pruefsumme(klartext))
+            log.info("Cloud: Tour %s bewusst entfernt (Papierkorb)", gh)
+            return {"ok": True}
+        except Exception as e:      # noqa: BLE001
+            log.exception("cloud_tour_entfernen")
+            return {"ok": False, "error": str(e)}
+
     def cloud_papierkorb(self) -> dict:
         """Papierkorb-Inhalt, mit lokal zurückübersetzten Namen."""
         if not self._cloud_sichtbar():
@@ -5206,6 +5314,7 @@ class Api:
                 eintrag = buch.get(e.get("name")) or {}
                 aus.append({"name": e.get("name"), "zeit": e.get("zeit"),
                             "groesse": e.get("groesse"),
+                            "art": e.get("art") or "geloescht",     # 22.08.2026: „version" = älterer Stand
                             "klarname": eintrag.get("anzeige")})
             return {"ok": True, "eintraege": aus}
         except Exception as e:      # noqa: BLE001

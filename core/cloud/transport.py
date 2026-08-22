@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -35,6 +36,10 @@ FORMAT = 1              # das Protokoll, das diese App spricht
 
 class CloudFehler(Exception):
     """Der Server hat nicht mitgespielt."""
+
+
+class UnsichereAdresse(CloudFehler):
+    """http:// statt https:// — Zugangsschlüssel ginge im Klartext (22.08.2026)."""
 
 
 class NichtErreichbar(CloudFehler):
@@ -68,13 +73,34 @@ def server_name(logischer_name: str) -> str:
     return hashlib.sha256(logischer_name.encode("utf-8")).hexdigest()
 
 
+def adresse_pruefen(adresse: str) -> str:
+    """22.08.2026 — HTTPS ist Pflicht. Ohne Schema wird https:// ergänzt;
+    http:// wird abgelehnt, weil der Zugangsschlüssel sonst im Klartext über
+    die Leitung ginge (die Umschläge selbst sind verschlüsselt, der Schlüssel
+    im Header nicht). Ausnahme nur für Tests: localhost/127.0.0.1 oder
+    `RZ_CLOUD_HTTP=1`."""
+    a = (adresse or "").strip()
+    if not a:
+        raise CloudFehler("Keine Adresse angegeben.")
+    if "://" not in a:
+        a = "https://" + a
+    teile = urllib.parse.urlsplit(a)
+    schema = (teile.scheme or "").lower()
+    host = (teile.hostname or "").lower()
+    if schema == "https":
+        return a
+    if schema == "http":
+        if host in ("localhost", "127.0.0.1", "::1") or os.environ.get("RZ_CLOUD_HTTP") == "1":
+            return a
+        raise UnsichereAdresse("Nur https:// ist erlaubt — http:// würde den Zugangsschlüssel unverschlüsselt übertragen.")
+    raise CloudFehler(f"Unbekanntes Adress-Schema: {schema or '?'}")
+
+
 class Gegenstelle:
     """Ein Archiv auf einem Webserver."""
 
     def __init__(self, adresse: str, schluessel: str = "", *, zeitlimit: int = ZEITLIMIT):
-        self.adresse = adresse.strip()
-        if not self.adresse:
-            raise CloudFehler("Keine Adresse angegeben.")
+        self.adresse = adresse_pruefen(adresse)
         self.schluessel = schluessel
         self.zeitlimit = zeitlimit
 

@@ -116,6 +116,9 @@ def load(code: str) -> dict:
         return {}
 
 
+_uebersetzer_cache: dict = {}
+
+
 def uebersetzer(code: str):
     """t(key, fallback) für die Backend-Renderer (v0.9.507).
 
@@ -128,11 +131,18 @@ def uebersetzer(code: str):
     `animator.statsfield.dist_done`): Vorschau und Render müssen wortgleich
     sein, sonst sieht der Render „falsch" aus, obwohl er nur anders übersetzt.
     """
-    strings = get_strings(resolve(code or "auto"))
+    code = resolve(code or "auto")
+    # 22.08.2026 — Übersetzer pro Sprache cachen: get_strings merged sonst bei
+    # jedem _ui_t()-Aufruf ~2.200 Schlüssel neu (87 Aufrufstellen, teils in
+    # Schleifen). Der Cache lebt solange die Sprachdateien selbst gecacht sind.
+    if code in _uebersetzer_cache:
+        return _uebersetzer_cache[code]
+    strings = get_strings(code)
 
     def t(key: str, fallback: str = "") -> str:
         v = strings.get(key)
         return v if isinstance(v, str) and v else fallback
+    _uebersetzer_cache[code] = t
     return t
 
 

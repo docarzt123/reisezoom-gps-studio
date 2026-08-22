@@ -33,6 +33,7 @@ Zweifel von Hand aufmachen und nachsehen kann.
 """
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import zipfile
@@ -63,6 +64,7 @@ class Bestand:
     sammlungen: dict = field(default_factory=dict)
     # geo_hash → Prüfsumme des Umschlag-Klartexts
     touren: dict[str, str] = field(default_factory=dict)
+    neu_gebaut: int = 0     # wie viele Umschläge wirklich gebaut wurden (Diagnose)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -212,22 +214,105 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
 #  Was hat sich geändert?
 # ══════════════════════════════════════════════════════════════════════════
 
-def bestand_aufnehmen(conn, sessions: dict | None = None) -> Bestand:
-    """Prüfsummen von allem, was hochgehört — ohne schon etwas zu übertragen."""
+def _umschlag_stempel(conn, geo_hash: str, projekte: dict | None) -> str | None:
+    """Fingerabdruck der EINGABEN eines Umschlags, ohne ihn zu bauen.
+
+    22.08.2026 — `bestand_aufnehmen` baute für JEDE Tour das komplette ZIP
+    (GPX lesen, deflaten, Foto-Vorschauen rechnen), nur um die Prüfsumme zu
+    kennen — alle 20 s im Wächter, bei 700 Touren Sekunden bis Minuten. Der
+    Stempel fasst zusammen, wovon der Umschlag abhängt: Datei (Pfad, Größe,
+    mtime), Archivzeile + Meta, Projekte (Text) und die Foto-Dateien der
+    Projekte (Pfad, Größe, mtime). Gleicher Stempel ⇒ gleiches ZIP ⇒ gleiche
+    Prüfsumme — das ZIP ist deterministisch (festes Datum). Die Server-
+    Prüfsummen bleiben damit unverändert gültig, nichts wird neu hochgeladen.
+    None, wenn die Datei nicht erreichbar ist (dann auch kein Umschlag)."""
+    zeile = conn.execute(
+        "SELECT * FROM tracks WHERE geo_hash = ? LIMIT 1", (geo_hash,)).fetchone()
+    if zeile is None:
+        return None
+    quelle = Path(zeile["path"])
+    try:
+        st = quelle.stat()
+    except OSError:
+        return None
+    if not quelle.is_file():
+        return None
+    meta = (conn.execute("SELECT * FROM track_meta WHERE geo_hash = ? LIMIT 1",
+                         (geo_hash,)).fetchone()
+            if "track_meta" in _tabellen(conn) else None)
+    teile = [str(quelle), str(st.st_size), str(st.st_mtime_ns),
+             json.dumps({k: zeile[k] for k in zeile.keys()}, sort_keys=True, default=str),
+             json.dumps({k: meta[k] for k in meta.keys()}, sort_keys=True, default=str) if meta is not None else ""]
+    if projekte:
+        teile.append(json.dumps(projekte, sort_keys=True, ensure_ascii=False, default=str))
+        for proj in (projekte.get("projects") or {}).values():
+            for foto in (proj.get("photos") or []):
+                pf = foto.get("path") if isinstance(foto, dict) else None
+                if not pf:
+                    continue
+                try:
+                    fs = Path(pf).stat()
+                    teile.append(f"{pf}|{fs.st_size}|{fs.st_mtime_ns}")
+                except OSError:
+                    teile.append(f"{pf}|fehlt")
+    return hashlib.sha256("\n".join(teile).encode("utf-8")).hexdigest()
+
+
+def pruefsummen_cache_laden(pfad) -> dict:
+    try:
+        d = json.loads(Path(pfad).read_text("utf-8"))
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def pruefsummen_cache_schreiben(pfad, cache: dict) -> None:
+    try:
+        p = Path(pfad)
+        tmp = p.with_suffix(p.suffix + ".tmp")
+        tmp.write_text(json.dumps(cache, separators=(",", ":")), "utf-8")
+        tmp.replace(p)
+    except Exception:
+        pass
+
+
+def bestand_aufnehmen(conn, sessions: dict | None = None,
+                      cache_pfad=None) -> Bestand:
+    """Prüfsummen von allem, was hochgehört — ohne schon etwas zu übertragen.
+
+    `cache_pfad` (22.08.2026): JSON-Datei geo_hash → {stempel, pruef}. Touren,
+    deren Eingaben sich nicht geändert haben, werden nicht mehr als ZIP gebaut
+    (siehe `_umschlag_stempel`)."""
     verzeichnis = verzeichnis_bauen(conn)
     sammlungen = sammlungen_bauen(conn)
     b = Bestand(verzeichnis=verzeichnis, sammlungen=sammlungen)
+    cache = pruefsummen_cache_laden(cache_pfad) if cache_pfad else {}
+    neu_cache: dict = {}
+    gebaut = 0
     for gh in list(verzeichnis["touren"]):
+        projekte = _projekte_fuer(conn, gh, sessions)
+        stempel = _umschlag_stempel(conn, gh, projekte) if cache_pfad else None
+        if stempel is not None:
+            alt = cache.get(gh)
+            if isinstance(alt, dict) and alt.get("stempel") == stempel and alt.get("pruef"):
+                b.touren[gh] = alt["pruef"]
+                neu_cache[gh] = alt
+                continue
         try:
-            inhalt = umschlag_bauen(conn, gh,
-                                    projekte=_projekte_fuer(conn, gh, sessions))
+            inhalt = umschlag_bauen(conn, gh, projekte=projekte)
         except FileNotFoundError:
             # Datei gerade nicht da (externe Platte, Netzlaufwerk): Tour aus
             # dem Bestand lassen → bleibt oben unverändert liegen, statt als
             # leerer Umschlag hochzugehen. Auch NICHT aus dem Verzeichnis
             # werfen — sonst würde sie als „lokal unbekannt" gelten.
             continue
+        gebaut += 1
         b.touren[gh] = crypto.inhalts_pruefsumme(inhalt)
+        if stempel is not None:
+            neu_cache[gh] = {"stempel": stempel, "pruef": b.touren[gh]}
+    if cache_pfad and (gebaut or len(neu_cache) != len(cache)):
+        pruefsummen_cache_schreiben(cache_pfad, neu_cache)
+    b.neu_gebaut = gebaut
     return b
 
 
