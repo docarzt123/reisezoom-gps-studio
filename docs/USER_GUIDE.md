@@ -1660,6 +1660,24 @@ losgeht. Auf dem Server liegen undurchsichtige Namen, Dateigrößen und
 Zeitpunkte — kein Tourname, kein Ort, keine Strecke. Selbst wer den kompletten
 Webspace kopiert, hat verschlüsselte Klumpen.
 
+### Papierkorb, ältere Stände, Entfernen (seit v0.9.532)
+
+**Der Abgleich löscht nie etwas.** Liegt eine Tour nur noch in der Cloud (weil
+du sie hier aus dem Archiv genommen hast), wird sie im Cloud-Dialog unter
+„Touren im Archiv" aufgeführt — mit **Holen** und einem **🗑**-Knopf. Erst der
+zweite Klick auf 🗑 entfernt sie aus der Cloud, und auch dann nur in den
+**Papierkorb auf dem Server**.
+
+**Ältere Stände.** Wird eine Tour in der Cloud überschrieben (neuer Name, neue
+Projekte), bleibt der bisherige Stand als „älterer Stand" im Papierkorb — die
+letzten fünf je Tour. Über **Wiederherstellen** wird er wieder zum aktuellen
+Stand. Der Papierkorb räumt sich nach 30 Tagen selbst auf („Älteres als
+30 Tage endgültig löschen").
+
+**Nur https://.** Die Adresse der `rz-cloud.php` muss mit https beginnen — über
+http ginge dein Zugangsschlüssel unverschlüsselt durchs Netz. Praktisch jeder
+Hoster bietet https, oft über „Let's Encrypt" mit einem Klick.
+
 ## 13 · Support & Kontakt
 
 - **Bug-Reports & Feedback**: Hilfe → 📧 (siehe Sektion 7) oder direkt `marc@reisezoom.com`

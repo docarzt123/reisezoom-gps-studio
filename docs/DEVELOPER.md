@@ -2683,6 +2683,38 @@ in alle drei Sprach-HTMLs eingebettet werden.
 
 ## 9 · Gotchas & Lessons Learned
 
+### Neue Bausteine seit 22.08.2026 (Vorschläge aus dem Audit)
+- **`core/frame_driver.py` — `FrameMuxer`**: der einzige ffmpeg-Lebenslauf
+  (Popen + stderr-Drain, `schreiben(shot, frame)`, `abbrechen()`,
+  `abschliessen(is_cancelled)` mit Zeitgrenze, Rückgabewert-Prüfung und
+  Teildatei → Ziel). Setzt `-f <muxer>` selbst, wenn der Befehl keins trägt.
+  Alle drei Render-Pfade nutzen ihn; `core/animator.py` hält die alten Namen
+  (`_teildatei`, `_fertigstellen`, …) als Aliasse. Wache: tests/test_frame_driver.py
+  (echtes ffmpeg) + tests/test_render_treiber_ende_zu_ende.py (drei echte Renders).
+- **Kamera-Parität** `tests/test_kamera_paritaet.py`: zieht `interpolateCameraJs`
+  samt Helfern per Klammer-Matcher aus module.js, fährt sie in Node über
+  `tests/fixtures/kamera_paritaet.json` und vergleicht mit
+  `timeline.interpolate_properties` (401 Proben, Toleranzen 0.02 Zoom / 2e-4°).
+  Neue Kamera-Funktionen in JS → in `JS_FUNKTIONEN` eintragen.
+- **Archiv-Fenster-Rendering** (`modules/library/ui/module.js`, `_fenster`,
+  `fensterHtml`, `fensterThumbs`): Platzhalter oben/unten halten die Scrollhöhe;
+  `library_thumbs(images)` liefert data-URLs nur fürs Fenster; Vorrat 900.
+  ⚠️ Nie auf ResizeObserver-Höhen reagieren (nur Breite) und nie rekursiv
+  nachmessen — WebKit lieferte sonst Render→Resize→Render endlos (99 % CPU).
+- **FTS5-Trigramm-Index** `tracks_fts(path UNINDEXED, hay)` mit Triggern ohne
+  Python-UDF (`_fts_einrichten`); `_build_where` nutzt ihn für Wörter ≥ 3
+  Zeichen, kürzere weiter über LIKE. `_FTS_OK=False` bei altem SQLite.
+- **Cloud-Prüfsummen-Cache** `cloud_pruefsummen.json` (geo_hash → Stempel aus
+  Datei/Zeile/Meta/Projekte/Fotos + Prüfsumme) in `archiv.bestand_aufnehmen`.
+- **Server-Versionierung** `server/rz-cloud.php`: `legen` verschiebt den alten
+  Stand nach `p/<name>.<zeit>.alt.bin` (max. `RZ_VERSIONEN`=5), Papierkorb-Liste
+  liefert `art` = `version|geloescht`. Client-Brücke `cloud_tour_entfernen`.
+- **Transport**: `adresse_pruefen` erzwingt https (Ausnahme localhost /
+  `RZ_CLOUD_HTTP=1` für Tests); `UnsichereAdresse` → i18n `cloud.nur_https`.
+- **Start-Sperre** `self._start_lock` in app.py: `animator_start_render` /
+  `heightanim_start_render` belegen den Platz vor der Validierung
+  (`_*_inner`), Scan/Karten prüfen+setzen unter demselben Lock.
+
 ### Audit 22.08.2026 — Muster, die sich wiederholt haben
 - **`try { … } catch (_) {}` verschluckt ReferenceErrors.** `_MODKEY` war im
   Höhen-Animator nie definiert; jeder Zugriff flog und wurde still geschluckt —
