@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.536] – 2026-08-22
+
 ### Changed
 - Mapbox-Nachzügler („reading 'getOwnLayer'" — eine Kachel wird fertig, nachdem
   die Karte beim Modulwechsel abgebaut war) erzeugen keinen roten Fehler-Toast
