@@ -75,6 +75,34 @@ def _teil_wegraeumen(ziel: str) -> None:
         pass
 
 
+def _ffmpeg_abwarten(ff, cfg, is_cancelled, max_s: int = 600) -> None:
+    """ff.wait() mit Zeitgrenze und Abbruch-Check (22.08.2026, Audit).
+
+    Ein nacktes `ff.wait()` blockierte den Worker-Thread für immer, wenn ffmpeg
+    beim +faststart-Umkopieren hing (Netzlaufwerk, Virenscanner) — und
+    `cancel_requested` wurde nie mehr gelesen. Hier: sekündlich nachsehen,
+    bei Abbruch terminieren und die Teildatei wegräumen.
+    """
+    for _ in range(max_s):
+        try:
+            ff.wait(timeout=1)
+            return
+        except subprocess.TimeoutExpired:
+            if is_cancelled and is_cancelled():
+                try:
+                    ff.terminate()
+                except Exception:
+                    pass
+                _teil_wegraeumen(cfg.output_path)
+                raise RenderCancelled("Vom User abgebrochen") from None
+    try:
+        ff.kill()
+    except Exception:
+        pass
+    _teil_wegraeumen(cfg.output_path)
+    raise RuntimeError(f"ffmpeg hat die Datei nicht fertiggestellt (Zeitgrenze {max_s // 60} min).")
+
+
 def _drain_stderr(pipe):
     """v0.9.388 — liest den stderr-Pipe eines Subprozesses (ffmpeg) fortlaufend in
     einem Thread leer. Sonst blockiert ffmpeg, sobald es mehr als ~64 KB auf stderr
@@ -220,7 +248,7 @@ class AnimatorConfig:
     # v0.9.59 (Nutzer-Wunsch): Intro-Hold analog zu hold_s, aber AM ANFANG.
     # Marker steht intro_s Sekunden am trim_start bevor die Anim-Phase beginnt.
     # Erlaubt langsame Setup-Shots/Kamera-Aufzüge vor dem Track-Start.
-    intro_s: int = 0
+    intro_s: float = 0.0
     fps: int = 30
     width: int = 1920
     height: int = 1080
@@ -2404,6 +2432,19 @@ map.on('style.load', () => {{
     }});
   }} catch(_){{}}
 }});
+// 22.08.2026 (Audit): Mapbox-Fehler (401/403 Token, Stil nicht ladbar) landeten
+// nur als console-Zeile im Log, und der Render lief nach 30 s „trotzdem weiter"
+// — Ergebnis: ein komplett schwarzes Video mit Status „Fertig". Fehler jetzt
+// sammeln, Python bricht vor der Frame-Schleife hart ab.
+window.__mapErrors = [];
+map.on('error', (e) => {{
+  try {{
+    const err = e && e.error ? e.error : e;
+    const txt = (err && (err.message || err.statusText || String(err))) || "Mapbox-Fehler";
+    const status = err && (err.status || err.statusCode);
+    window.__mapErrors.push({{ msg: txt, status: status || null }});
+  }} catch (_) {{}}
+}});
 map.on('idle', () => {{
   if (!mapReady) {{
     mapReady = true;
@@ -3016,6 +3057,11 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
             "color": tc.get("line_color") or cfg.line_color,
             "name": tc.get("name") or Path(gpx_path).stem,
             "n": len(coords),
+            # 22.08.2026 (Audit): seit v0.9.510 tastet _punkte_verteilen jede
+            # Tour auf die Frame-Zahl hoch → `n` ist für alle kurzen Touren
+            # gleich. Das Zeit-Budget muss nach dem ECHTEN Umfang verteilt
+            # werden, sonst laufen 200 und 800 Rohpunkte gleich lang.
+            "n_raw": max(1, len(raw_pts)),
             "points": pts,
             "stats": st,
         })
@@ -3065,19 +3111,19 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
     # 24.0 → der Render brach mitten im Lauf mit „'float' object cannot be
     # interpreted as an integer" ab. Im Single-Track-Pfad fiel das nie auf,
     # weil der `_render_multi` gar nicht benutzt.
-    intro_frames = max(0, int(getattr(cfg, "intro_s", 0))) * cfg.fps
+    intro_frames = max(0, int(round(float(getattr(cfg, "intro_s", 0) or 0) * cfg.fps)))   # 22.08.2026: 2.5 s blieb 2 s
     hold_frames = int(round(cfg.hold_s * cfg.fps))
     fly_frames = max(1, int(round(float(cfg.fly_duration_s) * cfg.fps)))
     anim_total = int(max(N, round(cfg.duration_s * cfg.fps)))  # Gesamt-„Geh"-Budget
 
-    total_pts = sum(t["n"] for t in tours) or 1
+    total_pts = sum(t["n_raw"] for t in tours) or 1
     walk_frames: list[int] = []
     assigned = 0
     for i, t in enumerate(tours):
         if i == N - 1:
             wf = int(max(1, anim_total - assigned))
         else:
-            wf = int(max(1, round(anim_total * t["n"] / total_pts)))
+            wf = int(max(1, round(anim_total * t["n_raw"] / total_pts)))
         walk_frames.append(wf)
         assigned += wf
 
@@ -3268,6 +3314,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
                         tile_retries += 1
                         _log.warning("Frame %d: Tiles fehlen, Retry %d/3 — warte 2s …",
                                      gframe + 1, tile_retries)
+                        check_cancel()
                         await asyncio.sleep(2.0)
                         try: await page.evaluate("window.waitForRender()")
                         except Exception: pass
@@ -3275,7 +3322,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
                     shot = await _grab_frame(page, cfg)
                     try:
                         ff.stdin.write(shot)
-                    except BrokenPipeError:
+                    except (BrokenPipeError, OSError):   # Windows: EINVAL statt BrokenPipe (22.08.2026)
                         raise _ffmpeg_gestorben(ff, _ff_err_th, _ff_err_buf,
                                                 gframe + 1, total_frames,
                                                 _teildatei(cfg.output_path)) from None
@@ -3318,7 +3365,13 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
             except Exception: pass
 
         emit(0.92, _t("animator.progress.ffmpeg", "ffmpeg finalisiert (+faststart, kann etwas dauern) …"))
-        ff.wait()
+        def _abgebrochen():
+            try:
+                check_cancel()
+                return False
+            except RenderCancelled:
+                return True
+        _ffmpeg_abwarten(ff, cfg, _abgebrochen)
         try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
         except Exception: pass
         if ff.returncode != 0:
@@ -3483,8 +3536,14 @@ async def render_frame(
                   "--no-first-run", "--no-default-browser-check"],
         )
         try:
-            _dsf = _render_dsf(cfg.width, cfg.height)
-            _ss = _render_ss(cfg.width, cfg.height)
+            # 22.08.2026 (Audit): derselbe Alpha-Fall wie v0.9.388 in render() —
+            # _make_html_alpha misst in cfg-Pixeln, mit DSF>1 wurde nur das
+            # linke obere Viertel erfasst (Standbild/Snapshot ≥ 4K beschnitten).
+            if cfg.transparent_background:
+                _dsf, _ss = 1.0, 1.0
+            else:
+                _dsf = _render_dsf(cfg.width, cfg.height)
+                _ss = _render_ss(cfg.width, cfg.height)
             _vp_w = max(1, int(round(cfg.width / _dsf)))
             _vp_h = max(1, int(round(cfg.height / _dsf)))
             page = await browser.new_page(
@@ -3761,7 +3820,7 @@ async def render(
     # hier ein float an und der Render starb mit „'float' object cannot be
     # interpreted as an integer". Ganze Zahlen (der Normalfall) kommen aus JS
     # als int an, deshalb blieb das lange unsichtbar.
-    intro_frames = max(0, int(getattr(cfg, "intro_s", 0))) * cfg.fps
+    intro_frames = max(0, int(round(float(getattr(cfg, "intro_s", 0) or 0) * cfg.fps)))   # 22.08.2026: 2.5 s blieb 2 s
     anim_frames = max(1, int(round(cfg.duration_s * cfg.fps)))
     hold_frames = int(round(cfg.hold_s * cfg.fps))
     total_frames = intro_frames + anim_frames + hold_frames
@@ -3858,13 +3917,15 @@ async def render(
             return None
         if n < 2:
             return [points[0].lon, points[0].lat]
-        if anchor <= _ti_frac:
-            marker_real = _trim_start
-        elif anchor < _tf_frac:
-            ap = (anchor - _ti_frac) / max(1e-4, _tf_frac - _ti_frac)
-            marker_real = _trim_start + ap * (_trim_end - _trim_start)
-        else:
-            marker_real = _trim_end
+        # ⚠️ `anchor` ist ein TRACK-Anker (22.08.2026, Audit): Aufrufer sind
+        # `_interpolate_center_property`/`_maybe_flyto_interp`, die den Anker
+        # des Keyframes übergeben — genau wie die Vorschau
+        # (`_trackPointAtAnchor` → `trackFracAusAnker`: auf den Schnitt
+        # klemmen, Punkt nachschlagen). Vorher wurde der Wert als ZEITANTEIL
+        # gedeutet (Relikt aus der Zeit vor v0.9.511/520) → bei gemischten
+        # „frei ↔ Track-folgen"-Keyframes mit Anlauf oder Schnitt flog das
+        # Video zu einem anderen Punkt als die Vorschau.
+        marker_real = max(_trim_start, min(_trim_end, max(0.0, min(1.0, float(anchor)))))
         idx_tp = max(0, min(n - 1, round(marker_real * (n - 1))))
         return [points[idx_tp].lon, points[idx_tp].lat]
 
@@ -3958,7 +4019,25 @@ async def render(
                 break
             await asyncio.sleep(0.5)
         if not ready:
-            _log.warning("Map wurde innerhalb von 30s nicht ready — render läuft trotzdem weiter.")
+            # 22.08.2026 (Audit): War ein ECHTER Kartenfehler die Ursache
+            # (Token 401/403, Stil nicht ladbar), gibt es nichts zu rendern —
+            # abbrechen statt ein schwarzes Video als „Fertig" zu liefern.
+            # Bloß langsam (Netz) bleibt weiterhin tolerant.
+            try:
+                _merr = await page.evaluate("window.__mapErrors || []")
+            except Exception:
+                _merr = []
+            _hart = [m for m in (_merr or [])
+                     if (m.get("status") in (401, 403, 404))
+                     or any(w in str(m.get("msg", "")).lower()
+                            for w in ("unauthorized", "forbidden", "invalid token",
+                                      "style", "not found"))]
+            if _hart:
+                raise RuntimeError(_t("animator.karte_fehler",
+                                      "Die Karte konnte nicht geladen werden (Mapbox-Token oder Stil): ")
+                                   + "; ".join(str(m.get("msg")) for m in _hart[:3]))
+            _log.warning("Map wurde innerhalb von 30s nicht ready — render läuft trotzdem weiter "
+                         "(Mapbox-Fehler: %s).", _merr[:3] if _merr else "keine")
         else:
             _log.info("Map ready nach ~%.1fs", _i * 0.5)
 
@@ -4055,9 +4134,15 @@ async def render(
             import json as _json
             emit(0.04, _t("animator.progress.prewarm", "Tile-Cache vorwärmen") + f" ({PREWARM_N}) …")
             try:
-                await page.evaluate(
-                    f"window.prewarmTiles({_json.dumps(prewarm_samples)})"
-                )
+                check_cancel()
+                # 22.08.2026 (Audit): Zeitgrenze — ein JS-Hänger im Prewarm hing
+                # den Render ohne Meldung; danach noch einmal Abbruch prüfen.
+                await asyncio.wait_for(
+                    page.evaluate(f"window.prewarmTiles({_json.dumps(prewarm_samples)})"),
+                    timeout=90)
+                check_cancel()
+            except RenderCancelled:
+                raise
             except Exception as e:
                 # Prewarm ist Best-Effort — bei Fehler einfach mit unprewarmer
                 # Frame-Loop weitermachen (alte Geschwindigkeit, kein Render-Stop).
@@ -4230,7 +4315,7 @@ async def render(
                             track_point_at=_track_point_at, zoom_abs_shift=_zoom_abs_shift,
                         )
                         _pf = _pp if _pp is not None else cfg.pitch
-                        _bf = _bp if _bp is not None else (-10.0 + _a * cfg.rotation)
+                        _bf = _bp if _bp is not None else (-10.0 + _zeitp * cfg.rotation)   # Zeit, nicht Anker (22.08.2026)
                         _zo = max(-22.0, min(22.0, _zop if _zop is not None else 0.0))
                         _idx = _idx_at_frame(_fr)
                         if _kc:
@@ -4443,6 +4528,7 @@ async def render(
                     _log.warning(
                         f"Frame {frame + 1}: Tiles fehlen, Retry {tile_retries}/3 — warte 2 s …"
                     )
+                    check_cancel()
                     await asyncio.sleep(2.0)
                     try:
                         await page.evaluate("window.waitForRender()")
@@ -4494,7 +4580,7 @@ async def render(
                     _now = time.perf_counter(); _rt_acc["shot"] += _now - _rt_t; _rt_t = _now
                 try:
                     ff.stdin.write(shot)
-                except BrokenPipeError:
+                except (BrokenPipeError, OSError):   # Windows: EINVAL statt BrokenPipe (22.08.2026)
                     raise _ffmpeg_gestorben(ff, _ff_err_th, _ff_err_buf,
                                             frame + 1, total_frames,
                                             _teildatei(cfg.output_path)) from None
@@ -4575,7 +4661,7 @@ async def render(
                 pass
 
         emit(0.92, _t("animator.progress.ffmpeg", "ffmpeg finalisiert (+faststart, kann etwas dauern) …"))
-        ff.wait()
+        _ffmpeg_abwarten(ff, cfg, is_cancelled)
         try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
         except Exception: pass
         if ff.returncode != 0:

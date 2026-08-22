@@ -607,6 +607,8 @@
   "animator.dur.modus_faktor": "Tiempo real ÷ factor",
   "animator.dur.faktor": "Factor",
   "animator.dur.keine_zeiten": "Este track no tiene marcas de tiempo — el modo de tiempo real no es posible.",
+  "animator.alpha_multi": "«Sin mapa (alfa)» por ahora solo funciona con una sola ruta — quita las rutas adicionales o elige un estilo de mapa.",
+  "animator.karte_fehler": "No se pudo cargar el mapa (token de Mapbox o estilo): ",
   "animator.lane.marker": "Marcador",
   "animator.lane.photo": "Foto",
   "animator.lane.cluster": "Clúster",

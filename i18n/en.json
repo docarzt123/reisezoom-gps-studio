@@ -607,6 +607,8 @@
   "animator.dur.modus_faktor": "Real time ÷ factor",
   "animator.dur.faktor": "Factor",
   "animator.dur.keine_zeiten": "This track has no timestamps — real-time mode not possible.",
+  "animator.alpha_multi": "“No map (alpha)” currently works with a single tour only — please remove the extra tours or pick a map style.",
+  "animator.karte_fehler": "The map could not be loaded (Mapbox token or style): ",
   "animator.lane.marker": "Marker",
   "animator.lane.photo": "Photo",
   "animator.lane.cluster": "Cluster",

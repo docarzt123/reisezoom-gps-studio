@@ -61,6 +61,11 @@ from PIL import Image
 
 from . import gpx as cgpx
 from .animator import find_ffmpeg  # gleiches ffmpeg wie Animator (bundle-aware)
+# 22.08.2026 (Audit): Teildatei-Muster + ffmpeg-Aufräumen aus dem Animator —
+# vorher schrieb ffmpeg mit -y DIREKT auf die Zieldatei (bestehendes Video ab
+# Frame 1 zerstört, auch wenn der Render scheiterte), und bei jedem Fehler
+# außer Abbruch blieb ffmpeg als Zombie stehen.
+from .animator import _teildatei, _fertigstellen, _teil_wegraeumen, _ffmpeg_gestorben
 
 _log = logging.getLogger(__name__)
 
@@ -1058,7 +1063,8 @@ async def render(cfg: HeightConfig,
             if vcodec == "libx265":
                 ffmpeg_cmd += ["-tag:v", "hvc1"]
 
-        ffmpeg_cmd.append(cfg.output_path)
+        _teil_wegraeumen(cfg.output_path)
+        ffmpeg_cmd.append(_teildatei(cfg.output_path))
         _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
         ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
@@ -1067,6 +1073,7 @@ async def render(cfg: HeightConfig,
 
         try:
             preview_every = max(1, cfg.fps // 10)
+            _letzter_shot = None
             for frame in range(total_frames):
                 check_cancel()
 
@@ -1080,18 +1087,33 @@ async def render(cfg: HeightConfig,
 
                 await page.evaluate(f"window.advanceFrame({progress})")
                 await page.evaluate("window.waitForRender()")
-                shot = await page.screenshot(
-                    type="png",
-                    omit_background=cfg.transparent_background,
-                )
-                ff.stdin.write(shot)
+                # Hold-Phase: identische Bilder — den letzten Frame wiederverwenden
+                # statt jedes Mal neu zu screenshotten (22.08.2026, Audit).
+                if frame >= anim_frames and _letzter_shot is not None:
+                    shot = _letzter_shot
+                else:
+                    shot = await page.screenshot(
+                        type="png",
+                        omit_background=cfg.transparent_background,
+                    )
+                    _letzter_shot = shot
+                try:
+                    ff.stdin.write(shot)
+                except (BrokenPipeError, OSError):
+                    raise _ffmpeg_gestorben(ff, _ff_err_th, _ff_err_buf,
+                                            frame + 1, total_frames,
+                                            _teildatei(cfg.output_path)) from None
 
                 if frame % preview_every == 0:
                     push_preview(shot)
                 emit(0.05 + 0.87 * (frame + 1) / total_frames,
                      f"Frame {frame + 1} / {total_frames}")
-        except RenderCancelled:
-            _log.info("Render abgebrochen — ffmpeg wird beendet und Output gelöscht.")
+        except BaseException as _fehler:
+            # Abbruch ODER Fehler: ffmpeg sauber beenden, Teildatei weg, Browser zu.
+            # Vorher galt das nur für RenderCancelled — jeder andere Fehler ließ
+            # ffmpeg als Zombie stehen (22.08.2026, Audit).
+            if isinstance(_fehler, RenderCancelled):
+                _log.info("Render abgebrochen — ffmpeg wird beendet und Teildatei gelöscht.")
             try: ff.stdin.close()
             except Exception: pass
             try:
@@ -1100,8 +1122,7 @@ async def render(cfg: HeightConfig,
             except Exception:
                 try: ff.kill()
                 except Exception: pass
-            try: Path(cfg.output_path).unlink(missing_ok=True)  # type: ignore[arg-type]
-            except Exception: pass
+            _teil_wegraeumen(cfg.output_path)
             try: await browser.close()
             except Exception: pass
             raise
@@ -1110,14 +1131,32 @@ async def render(cfg: HeightConfig,
             except Exception: pass
 
         emit(0.92, _t("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
-        ff.wait()
+        # ff.wait() ohne Grenze blockierte den Worker für immer, wenn ffmpeg beim
+        # +faststart-Umkopieren hängt (Netzlaufwerk); in Schleife mit Abbruch-Check.
+        for _ in range(600):          # max. 10 min
+            try:
+                ff.wait(timeout=1)
+                break
+            except subprocess.TimeoutExpired:
+                if is_cancelled and is_cancelled():
+                    try: ff.terminate()
+                    except Exception: pass
+                    _teil_wegraeumen(cfg.output_path)
+                    raise RenderCancelled("Vom User abgebrochen") from None
+        else:
+            try: ff.kill()
+            except Exception: pass
+            _teil_wegraeumen(cfg.output_path)
+            raise RuntimeError("ffmpeg hat die Datei nicht fertiggestellt (Zeitgrenze 10 min).")
         try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
         except Exception: pass
         if ff.returncode != 0:
             err = bytes(_ff_err_buf).decode(errors="replace")
             _log.error("ffmpeg returncode=%s — stderr:\n%s", ff.returncode, err)
+            _teil_wegraeumen(cfg.output_path)
             raise RuntimeError(f"ffmpeg fehlgeschlagen (returncode={ff.returncode}): {err.strip()[:500]}")
         else:
+            _fertigstellen(cfg.output_path)   # erst jetzt liegt die Datei unter ihrem Namen
             try:
                 err = bytes(_ff_err_buf).decode(errors="replace").strip()
                 if err:
