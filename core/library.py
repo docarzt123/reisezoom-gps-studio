@@ -950,8 +950,15 @@ def scan(
 
     files: list = []
     for folder in watch:
+        n_vorher = len(files)
         for p in _iter_files(folder, rec.get(folder, True)):
             files.append((p, folder))
+        # Diagnose-Spur (Marc, 22.08.2026: „schreib sowas mit ins Log"): Wo
+        # liegen die Ordner, wie voll sind sie? Ein Tester-Log ist unser
+        # einziger Blick auf fremde Rechner — 103.535 Dateien auf einem
+        # Netzlaufwerk erklären langsame Starts, ohne dass man raten muss.
+        lage = "Netzlaufwerk/extern" if str(folder).startswith("/Volumes/") else "lokal"
+        log.info("scan: Ordner %s (%s) → %d Dateien", folder, lage, len(files) - n_vorher)
 
     # `geom` und die Gemacht/Geplant-Bewertung fehlen bei Einträgen aus einer
     # älteren Version. Solche Zeilen werden neu gelesen, auch wenn die Datei
