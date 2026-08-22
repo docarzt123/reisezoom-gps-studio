@@ -4184,6 +4184,10 @@ async def render(
                     _gew = ([1.0] * len(_anchors)) if _smooth_all else _timeline.glatt_gewichte(_events_zeit, _anchors, _glatt_fenster)
                     for _k, _g in zip(_kf_cam_list, _gew):
                         _k["g"] = _g
+                    # Außerhalb markierter Abschnitte (Gewicht 0) läuft der klassische
+                    # Kamera-Pfad — die FreeCamera hat eigene Regeln (z.B. Globus-Anflug),
+                    # und Marcs Projekt zeigte genau das, sobald ein Abschnitt markiert war.
+                    _gew_faithful = _gew
                     await page.evaluate("([cams, w])=>window.__camPrepFaithful(cams, w)", [_kf_cam_list, _glatt_fenster])
                     _use_faithful = True
                     if _rt:
@@ -4301,7 +4305,11 @@ async def render(
                     _last_position_applied = (0, 0)
 
                 _rt_t = time.perf_counter() if _rt else 0.0
-                if _use_faithful:
+                _g_fr = 1.0
+                if _use_faithful and not _smooth_all:
+                    _gi = int(round(timeline_progress * (len(_gew_faithful) - 1)))
+                    _g_fr = _gew_faithful[max(0, min(len(_gew_faithful) - 1, _gi))]
+                if _use_faithful and _g_fr > 0:
                     # Daten (Linie/Punkt/Overlays) ohne Kamera, dann entkoppelte FreeCamera.
                     await page.evaluate(
                         f"window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f}, false)"

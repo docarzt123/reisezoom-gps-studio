@@ -5722,7 +5722,12 @@ function mountAnimator(body, headerActions, opts) {
     // die exakte 3D-Kamera (Position + Orientierung) auslesen, im step dazwischen
     // Position linear + Orientierung per nlerp interpolieren → kein Berg-Hüpfen,
     // framing-treu an den KFs. Spiegel von __camPrepFaithful/__camFaithful im Render.
-    let _faithCams = null, _useFaithful = false;
+    let _faithCams = null, _useFaithful = false, _faithGew = null;
+    const _faithWeightAt = (tp) => {
+      if (!_faithGew || !_faithGew.length) return 1;
+      const i = Math.round(Math.max(0, Math.min(1, tp)) * (_faithGew.length - 1));
+      return _faithGew[i] || 0;
+    };
     const _nlerpQ = (a, b, t) => {
       const dot = a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
       const bb = dot < 0 ? [-b[0], -b[1], -b[2], -b[3]] : b;
@@ -5819,6 +5824,7 @@ function mountAnimator(body, headerActions, opts) {
           // markierten Abschnitten, mit ~0,5 s Überblendung an den Rändern.
           // Synchron zu core/timeline.py `glatt_gewichte`.
           const _gew = _fSmoothAll ? _anchors.map(() => 1) : glattGewichte(_evZeit, _anchors, _glattW);
+          _faithGew = _fSmoothAll ? null : _gew;
           if (_faithCams.length > 2 * _glattW + 1 && _ezs.some((v) => v !== 0)) {
             for (let i = 0; i < _faithCams.length; i++) {
               if (!_gew[i]) continue;
@@ -5838,7 +5844,7 @@ function mountAnimator(body, headerActions, opts) {
       // wortlos auf den klassischen Pfad zurück. Ein Fehler hier gehört
       // mindestens ins Log.
       try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + e); } catch (_) {}
-      _useFaithful = false; _faithCams = null;
+      _useFaithful = false; _faithCams = null; _faithGew = null;
     }
     const step = (now) => {
       const elapsed = (now - _previewT0) * _previewSpeed;
@@ -6003,7 +6009,9 @@ function mountAnimator(body, headerActions, opts) {
       const _zfStep = Math.max(0, Math.min(1, (8 - _curZoom) / 4));
       if (jumpArgs.center) _seedLngAccum(jumpArgs.center[0]);  // v0.9.136
       // v0.9.318 — entkoppelte FreeCamera (WYSIWYG zum Render) statt setCenter/-Zoom.
-      if (_useFaithful) { _faithSeek(timelineProgress); }   // Stützstellen liegen auf der Zeit
+      // 22.08.2026 — nur in markierten Abschnitten (Gewicht > 0) die FreeCamera;
+      // sonst klassisch. Seitenleisten-Häkchen = überall. Synchron zum Render.
+      if (_useFaithful && _faithWeightAt(timelineProgress) > 0) { _faithSeek(timelineProgress); }
       else { map.jumpTo(jumpArgs); }
       // Padding ebenfalls mit zoomFade gewichten, damit der Welt-Offset
       // genauso sanft ausläuft wie die Drehung.
