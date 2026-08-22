@@ -47,7 +47,7 @@ def eslint_bin() -> Path | None:
         return None
     CACHE.mkdir(parents=True, exist_ok=True)
     (CACHE / "package.json").write_text('{"name":"rz-eslint","private":true}', encoding="utf-8")
-    r = subprocess.run(["npm", "install", "eslint@9", "--silent", "--no-audit", "--no-fund"], cwd=CACHE,
+    subprocess.run(["npm", "install", "eslint@9", "--silent", "--no-audit", "--no-fund"], cwd=CACHE,
                        capture_output=True, text=True)
     return b if b.exists() else None
 
