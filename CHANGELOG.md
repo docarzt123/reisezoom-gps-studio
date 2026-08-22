@@ -27,6 +27,11 @@ Bei jeder neuen Version:
   (`timeline.glatt_gewichte` ↔ `glattGewichte`). Wachen:
   tests/test_ruhige_kamera_abschnitt.py (JS=Python), Render-Fall in
   tests/test_ruhige_kamera_zoom.py.
+  Außerhalb markierter Abschnitte läuft exakt der klassische Kamera-Pfad
+  (Marc-Test am eigenen Projekt: das Häkchen schaltete zunächst die FreeCamera
+  für das ganze Video ein, auch den Globus-Anflug — der sieht dort anders aus).
+  Beweis mit seinem Projekt: tests/test_ruhige_kamera_globus_abschnitt.py
+  (zwei echte Renders; außerhalb Δ Zoom 0,00 zum klassischen Pfad).
 
 ## [0.9.533] – 2026-08-22
 
