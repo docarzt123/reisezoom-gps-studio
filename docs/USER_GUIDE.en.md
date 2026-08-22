@@ -1568,6 +1568,23 @@ appears, and tours arrive as you need them.
 The server holds opaque names, file sizes and timestamps — no tour name, no
 place, no route. Even someone copying the entire web space gets encrypted blobs.
 
+### Trash, older versions, removing (since v0.9.532)
+
+**Sync never deletes anything.** If a tour only exists in the cloud (because
+you removed it from the archive here), the cloud dialog lists it under
+“Tours in the archive” — with **Fetch** and a **🗑** button. Only the second
+click on 🗑 removes it from the cloud, and even then only into the
+**trash on the server**.
+
+**Older versions.** When a tour is overwritten in the cloud (new name, new
+projects), the previous version stays in the trash as an “older version” —
+the last five per tour. **Restore** makes it the current version again. The
+trash cleans itself after 30 days (“Permanently delete older than 30 days”).
+
+**https:// only.** The address of `rz-cloud.php` must start with https — over
+http your access key would travel unencrypted. Practically every host offers
+https, often via “Let's Encrypt” with one click.
+
 ## 13 · Support & Contact
 
 - **Bug reports & feedback**: Help → 📧 (see section 7) or directly `marc@reisezoom.com`

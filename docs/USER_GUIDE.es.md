@@ -1590,6 +1590,22 @@ hay nombres opacos, tamaños y fechas: ningún nombre de ruta, ningún lugar,
 ningún recorrido. Aunque alguien copie todo el espacio web, obtiene bloques
 cifrados.
 
+### Papelera, versiones anteriores, quitar (desde v0.9.532)
+
+**La sincronización nunca borra nada.** Si una ruta solo existe en la nube
+(porque la quitaste del archivo aquí), el diálogo de la nube la muestra en
+«Rutas en el archivo» — con **Traer** y un botón **🗑**. Solo el segundo clic
+en 🗑 la quita de la nube, y aun así solo a la **papelera del servidor**.
+
+**Versiones anteriores.** Cuando una ruta se sobrescribe en la nube (nuevo
+nombre, nuevos proyectos), la versión anterior queda en la papelera como
+«versión anterior» — las últimas cinco por ruta. **Restaurar** la convierte de
+nuevo en la versión actual. La papelera se limpia sola a los 30 días.
+
+**Solo https://.** La dirección de `rz-cloud.php` debe empezar por https — por
+http tu clave de acceso viajaría sin cifrar. Casi todos los hostings ofrecen
+https, a menudo con «Let's Encrypt» en un clic.
+
 ## 13 · Soporte y contacto
 
 - **Reportes de bugs y feedback**: Ayuda → 📧 (ver la sección 7) o directamente `marc@reisezoom.com`

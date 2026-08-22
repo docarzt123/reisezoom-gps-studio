@@ -64,6 +64,31 @@ tests/test_{cloud,render,animator,library,geotagger,kleine_module}_audit_22_08.p
 - **Sessions:** Snapshot von FIT/TCX/KML ist die konvertierte GPX, nicht die
   Rohdatei unter `.gpx`-Namen.
 
+### Verbessert (die sieben Audit-Vorschläge, alle umgesetzt)
+- **Archiv:** Kacheln/Liste als Fenster-Rendering — nur der sichtbare Ausschnitt
+  steht im DOM (vorher 10.000 Kacheln mit Bild); Vorschaubilder kommen gezielt
+  für das Fenster (`library_thumbs`), nicht mehr als 8 MB pro Abfrage.
+  Volltext-Suche über FTS5-Trigramm-Index (14 ms → 0,3 ms bei 700 Touren,
+  identische Treffer; Pflege per SQLite-Trigger, Rückfall auf LIKE bei altem
+  SQLite).
+- **Cloud:** Löschen als bewusste Aktion (🗑 mit Rückfrage, Server-Papierkorb);
+  Server-Versionierung — überschriebene Stände bleiben als „älterer Stand" im
+  Papierkorb (5 je Tour), wiederherstellbar über den bekannten Weg;
+  Prüfsummen-Cache statt ZIP-Neubau bei jedem Abgleich (1,46 s → 0,06 s für
+  708 Touren, Prüfsummen unverändert → kein Neu-Upload); **https-Pflicht** für
+  die Archiv-Adresse (http nur localhost/`RZ_CLOUD_HTTP=1`).
+- **Render:** gemeinsamer Bild-Treiber `core/frame_driver.py` (FrameMuxer) für
+  Animator Einzel-/Mehrspur und Höhen-Animator — ffmpeg-Start, Pipe, Abbruch,
+  Zeitgrenze, Teildatei an EINER Stelle. Dabei gefunden: der Höhen-Animator
+  setzte seit dem `.rzpart`-Umbau kein `-f mp4` → jeder Höhen-Render wäre
+  gescheitert; der Treiber setzt das Format jetzt selbst. Neue Wachen:
+  echter Render durch alle drei Pfade, Kamera-Parität Vorschau↔Video
+  (JS-Funktionen werden automatisch aus module.js gezogen und an 401 Stellen
+  mit Python verglichen — Δ < 1e-11).
+- **Kern:** Start-Sperre für Render/Scan/Karten (Prüfen + Belegen atomar —
+  zwei schnelle Klicks konnten zwei Läufe starten); `_ui_t()`/`_ui_sprache`
+  gecacht (kein settings.json-Lesen pro Aufruf, 12 µs statt ~1 ms).
+
 ### Changed
 - Geotagger-Thumbnail-Polling fragt per Laufnummer nur Neues ab (vorher ging
   alle 250 ms die ganze Pfadliste über die Brücke) und rechnet Treffer
