@@ -14,6 +14,64 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.532] – 2026-08-22
+
+Komplett-Audit aller Module (Cloud, Render-Kern, Animator, Archiv, Geotagger,
+Höhen-Animator, Inspektor, Web-Karte, Tour-Map-HTML, Sessions). Wachen:
+tests/test_{cloud,render,animator,library,geotagger,kleine_module}_audit_22_08.py.
+
+### Fixed
+- **Cloud:** Abgleich löscht nie mehr automatisch (Einträge „nur in der Cloud"
+  werden nur gemeldet); Touren ohne GPX-Datei landen nicht mehr als leerer
+  Umschlag im Bestand; kein stiller Klartext-Fallback für Schlüssel, wenn ein
+  Schlüsselbund da ist; Wächter-Absturz (`_cloud_lauf` undefiniert) behoben;
+  alle Cloud-Brücken melden fehlenden Zugang als Fehler statt zu werfen;
+  Sessions-/Archiv-Schreibzugriffe beim Holen laufen unter den richtigen Locks;
+  Update-Prüfung überschreibt keine parallel gespeicherten Einstellungen mehr.
+- **Render-Kern:** Anker-Semantik in `_track_point_at` identisch zum UI
+  (Trim-Grenzen); Karten-Fehler (401/403/Stil) brechen den Render hart ab
+  statt schwarze Bilder zu liefern; Alpha + Multi-Track wird abgelehnt, Alpha
+  rechnet keinen Tiefenschärfe-Faktor; Multi-Track-Budget nach Rohpunkten;
+  Höhen-Animator schreibt in `.rzpart` und räumt bei Abbruch auf; ffmpeg-Warten
+  mit Zeitlimit; Abbruch greift auch in Kachel-Wartezeiten.
+- **Animator:** `moveend` vor `fitBounds` registriert; Schild-Editor-Handle beim
+  Aufräumen; Laden über `_whenStyleReady`; Overlay-Felder projekt-zuerst;
+  Keyframe-Pin-Listener nur einmal; Render-Wiederaufnahme zeigt den Dialog;
+  Anker-Begrenzung im Keyframe-Update; Schatten-Versatz X beim Schildtext;
+  Zeitleiste wird beim Modulwechsel zerstört.
+- **Archiv:** Scan hält den DB-Lock nicht mehr über den ganzen Lauf (Statistik
+  antwortet während des Scans in Millisekunden); veraltete Antworten
+  überholender Abfragen werden verworfen; Karten-Deckel 5.000 Punkte;
+  Fehlende-Phase nach Stop übersprungen; Zähl-Fortschritt; Scan-Stop-Knopf;
+  gezielter Ordner-Scan beim Hinzufügen; Geocode-Cache.
+- **Geotagger:** Thumbnail-Worker arbeiten mit Generationen — ein überholter
+  Worker beendet den neuen Batch nicht mehr (Fotos aus dem zweiten Drop blieben
+  ohne Zeit/Kamera); Deckel-Zählung stimmt (war verdoppelt); nach dem Schreiben
+  kein Voll-Reload aller Fotos mehr (bei 5.000 Bildern minutenlang); HEIC liefert
+  die Zeitzone mit (iPhone-Fotos lagen um die Zeitzone daneben); Zeit-Korrektur
+  für HEIC über exiftool, Videos werden im Protokoll gemeldet statt still
+  übersprungen; GPS-Schreiben behält fremde GPS-Tags (Tempo, DOP …); toter
+  exiftool-Daemon wird sauber neu gestartet statt BrokenPipe zu werfen;
+  Abbruch im Kopier-Modus entfernt die noch ungetaggten Kopien.
+- **Höhen-Animator:** Projektschlüssel war undefiniert → Datenreihe wurde nie
+  gespeichert/geladen; Projektwechsel mit gleichem Track lädt den Zustand neu;
+  Abbrechen-Knopf war beim nächsten Render gesperrt; laufender Render wird beim
+  Zurückwechseln wieder angezeigt; Stil-Snapshot auch im Speicher aktualisiert.
+- **Inspektor:** „Lücke füllen" fragt nach, wenn vorhandene Punkte ersetzt
+  würden; Original-Pfad wird beim Leeren zurückgesetzt.
+- **Web-Karte / Tour-Map-HTML:** Farb-/Breiten-Regler werfen den Ausschnitt nicht
+  mehr weg (Einpassen nur bei neuem Track); Leeren des Arbeitsbereichs räumt die Karte.
+- **Sessions:** Snapshot von FIT/TCX/KML ist die konvertierte GPX, nicht die
+  Rohdatei unter `.gpx`-Namen.
+
+### Changed
+- Geotagger-Thumbnail-Polling fragt per Laufnummer nur Neues ab (vorher ging
+  alle 250 ms die ganze Pfadliste über die Brücke) und rechnet Treffer
+  höchstens alle 1,5 s neu; Pfad-Index statt Linearsuchen (O(n²) → O(n)).
+- Schild-Filter/Deckkraft im Animator werden gecacht; Trim-Griffe nur am Kopf
+  greifbar; Cloud „Verbindung trennen" mit Rückfrage und Schlüssel-Anzeige.
+- i18n-Runde: restliche deutsche Roh-Texte in Geotagger/Höhen-Animator übersetzt.
+
 ## [0.9.531] – 2026-08-22
 
 ### Fixed
