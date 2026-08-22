@@ -1208,9 +1208,15 @@ class Api:
                 tag = str(data.get("tag_name") or "").lstrip("vV").strip()
                 if tag:
                     latest = tag
-                s["update_latest_known"] = latest
-                s["update_last_check"] = datetime.now(timezone.utc).isoformat()
-                _save_settings(s)
+                # ⚠️ NICHT das vor dem Netzaufruf geladene `s` zurückschreiben
+                # (22.08.2026, Audit): In den bis zu 5 s Wartezeit kann der
+                # Nutzer Token/Onboarding gespeichert haben — das wäre damit
+                # überschrieben worden. Frisch laden, nur die zwei Felder patchen.
+                with _SETTINGS_LOCK:
+                    frisch = _load_settings()
+                    frisch["update_latest_known"] = latest
+                    frisch["update_last_check"] = datetime.now(timezone.utc).isoformat()
+                    _save_settings(frisch)
             except Exception as e:
                 log.info("check_for_update: Netzabfrage fehlgeschlagen: %s", e)
                 # Bei Fehler: still bleiben, nur Cache nutzen (kein UI-Fehler).
@@ -4633,6 +4639,9 @@ class Api:
     _cloud_zugang_cache = None
     _cloud_zugang_fehler: str | None = None
     _cloud_zugang_lock = threading.Lock()
+    # 22.08.2026 (Audit): vorher nur in _cloud_sync_einmal gesetzt — der Wächter
+    # las es vor dem ersten manuellen Abgleich → AttributeError → Auto-Sync tot.
+    _cloud_lauf = None
 
     def _cloud_marker(self) -> dict:
         """Die unsensible Notiz „Cloud ist eingerichtet" (+ Adresse) — damit
@@ -4687,6 +4696,16 @@ class Api:
                             "automatischer Neuversuch): %s", e)
                 raise RuntimeError(self._cloud_zugang_fehler) from e
             if not zugang or not schluessel:
+                if self._cloud_marker().get("eingerichtet"):
+                    # Marker sagt „eingerichtet", Schlüsselbund liefert nur die
+                    # Hälfte → das ist ein Fehler, kein „nicht eingerichtet":
+                    # merken (kein Dauer-Nachfragen) und dem Nutzer sagen,
+                    # was zu tun ist.
+                    self._cloud_zugang_fehler = _ui_t()(
+                        "cloud.zugang_unvollstaendig",
+                        "Zugangsdaten im Schlüsselbund unvollständig — bitte im "
+                        "Cloud-Dialog die Verbindung trennen und neu verbinden.")
+                    raise RuntimeError(self._cloud_zugang_fehler)
                 return None
             self._cloud_zugang_cache = (teile, zugang, schluessel)
             # Selbstheilung: Wer erfolgreich liest, IST eingerichtet — Marker
@@ -4841,9 +4860,13 @@ class Api:
         if not self._cloud_sichtbar():
             return self._cloud_aus()
         self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
-        vorhanden = self._cloud_zugang()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
+            return {"ok": False, "error": str(e)}
         if not vorhanden:
-            return {"ok": False, "error": "nicht eingerichtet"}
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
         _, zugang, _ = vorhanden
         return {"ok": True, "adresse": zugang.adresse, "zugang": zugang.schluessel}
 
@@ -4866,9 +4889,13 @@ class Api:
         if not self._cloud_sichtbar():
             return self._cloud_aus()
         self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
-        vorhanden = self._cloud_zugang()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
+            return {"ok": False, "error": str(e)}
         if not vorhanden:
-            return {"ok": False, "error": "nicht eingerichtet"}
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, schluessel = vorhanden
         try:
             g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
@@ -4904,9 +4931,13 @@ class Api:
 
     def _cloud_sync_einmal(self) -> dict:
         """EIN kompletter Abgleich: Bestand aufnehmen, planen, hochladen."""
-        vorhanden = self._cloud_zugang()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
+            return {"ok": False, "error": str(e)}
         if not vorhanden:
-            return {"ok": False, "error": "nicht eingerichtet"}
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, schluessel = vorhanden
         archiv_m, sync_m, transport_m = teile["archiv"], teile["sync"], teile["transport"]
         try:
@@ -4943,7 +4974,10 @@ class Api:
                 self._cloud_lauf = {"i": 0, "n": len(plan.hoch)}
                 try:
                     e = a.hochladen(plan, inhalt, melden)
-                    a.loeschen(plan)
+                    # ⚠️ KEIN a.loeschen(plan) mehr (22.08.2026, Audit): Was oben
+                    # liegt und hier unbekannt ist, gehört meist dem anderen
+                    # Rechner — oder wurde gerade aus dem Papierkorb geholt.
+                    # Löschen ist eine bewusste Nutzer-Aktion, kein Nebeneffekt.
                 finally:
                     self._cloud_lauf = None
                 return {"ok": True, "uebertragen": e.uebertragen,
@@ -4962,9 +4996,13 @@ class Api:
         if not self._cloud_sichtbar():
             return self._cloud_aus()
         self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
-        vorhanden = self._cloud_zugang()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
+            return {"ok": False, "error": str(e)}
         if not vorhanden:
-            return {"ok": False, "error": "nicht eingerichtet"}
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, schluessel = vorhanden
         try:
             import sqlite3
@@ -5005,9 +5043,13 @@ class Api:
         if not self._cloud_sichtbar():
             return self._cloud_aus()
         self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
-        vorhanden = self._cloud_zugang()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
+            return {"ok": False, "error": str(e)}
         if not vorhanden:
-            return {"ok": False, "error": "nicht eingerichtet"}
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, schluessel = vorhanden
         try:
             import io as _io
@@ -5060,9 +5102,10 @@ class Api:
                                        "recorded_user") if meta.get(k) is not None]
                 if felder:
                     setzer = ", ".join(f"{k} = ?" for k in felder)
-                    conn.execute(f"UPDATE track_meta SET {setzer} WHERE geo_hash = ?",
-                                 [meta[k] for k in felder] + [geo_hash])
-                    conn.commit()
+                    with clib._DB_LOCK:      # 22.08.2026: geteilte Verbindung, Scan kann parallel laufen
+                        conn.execute(f"UPDATE track_meta SET {setzer} WHERE geo_hash = ?",
+                                     [meta[k] for k in felder] + [geo_hash])
+                        conn.commit()
 
             # 5. Projekte (Sessions) unter dem kanonischen geo_hash mergen —
             #    NUR wenn es dort noch keine Session gibt (lokales gewinnt).
@@ -5079,10 +5122,11 @@ class Api:
                                             json.dumps(str(foto_dir / Path(name).name)))
                 projekte = json.loads(text)
                 projekte["track_hash"] = geo_hash
-                daten = _sessions.load_sessions(SESSIONS_FILE)
-                if geo_hash not in (daten.get("sessions") or {}):
-                    daten.setdefault("sessions", {})[geo_hash] = projekte
-                    _sessions.save_sessions(SESSIONS_FILE, daten)
+                with _sessions.LOCK:     # 22.08.2026: wie alle anderen Schreiber
+                    daten = _sessions.load_sessions(SESSIONS_FILE)
+                    if geo_hash not in (daten.get("sessions") or {}):
+                        daten.setdefault("sessions", {})[geo_hash] = projekte
+                        _sessions.save_sessions(SESSIONS_FILE, daten)
             log.info("cloud_tour_holen: %s → %s", geo_hash, ziel.name)
             return {"ok": True, "datei": str(ziel), "name": ziel.name}
         except teile["transport"].NichtVorhanden:
@@ -5123,9 +5167,13 @@ class Api:
         if not self._cloud_sichtbar():
             return self._cloud_aus()
         self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
-        vorhanden = self._cloud_zugang()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
+            return {"ok": False, "error": str(e)}
         if not vorhanden:
-            return {"ok": False, "error": "nicht eingerichtet"}
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, schluessel = vorhanden
         try:
             g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
@@ -5148,9 +5196,13 @@ class Api:
         if not self._cloud_sichtbar():
             return self._cloud_aus()
         self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
-        vorhanden = self._cloud_zugang()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
+            return {"ok": False, "error": str(e)}
         if not vorhanden:
-            return {"ok": False, "error": "nicht eingerichtet"}
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, schluessel = vorhanden
         try:
             crypto_m = teile["crypto"]
@@ -5191,9 +5243,13 @@ class Api:
         if not self._cloud_sichtbar():
             return self._cloud_aus()
         self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
-        vorhanden = self._cloud_zugang()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
+            return {"ok": False, "error": str(e)}
         if not vorhanden:
-            return {"ok": False, "error": "nicht eingerichtet"}
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, _schluessel = vorhanden
         try:
             g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
@@ -5205,9 +5261,13 @@ class Api:
         if not self._cloud_sichtbar():
             return self._cloud_aus()
         self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
-        vorhanden = self._cloud_zugang()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
+            return {"ok": False, "error": str(e)}
         if not vorhanden:
-            return {"ok": False, "error": "nicht eingerichtet"}
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, _schluessel = vorhanden
         try:
             g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
@@ -7557,6 +7617,7 @@ def main() -> None:
             # v0.9.28 (Marc-Feedback): Fenster-Geometrie wird IMMER gespeichert.
             # Beim nächsten Start kommt die App in derselben Position+Größe.
             try:
+              with _SETTINGS_LOCK:     # 22.08.2026: sonst verliert ein Debounce-Patch gegen uns
                 _cur_settings = _load_settings()
                 _wcfg = _cur_settings.get("window") or {}
                 w = int(win.width or _win_w)

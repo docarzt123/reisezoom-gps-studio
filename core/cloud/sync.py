@@ -51,8 +51,13 @@ class Plan:
     def __str__(self) -> str:
         if self.leer:
             return f"nichts zu tun ({self.unveraendert} unverändert)"
+        # ⚠️ `weg` wird NICHT mehr automatisch gelöscht (22.08.2026, Audit):
+        # „lokal unbekannt" heißt im Zwei-Geräte-Betrieb meist „vom anderen
+        # Rechner" — ein Auto-Löscher hätte die Geräte gegeneinander
+        # ausgespielt und jede Papierkorb-Wiederherstellung sofort wieder
+        # kassiert. Die Zahl bleibt sichtbar: „nur in der Cloud".
         return (f"{len(self.hoch)} hoch, {len(self.runter)} runter, "
-                f"{len(self.weg)} löschen, {self.unveraendert} unverändert")
+                f"{len(self.weg)} nur in der Cloud, {self.unveraendert} unverändert")
 
 
 @dataclass
@@ -136,7 +141,11 @@ class Abgleich:
         return e
 
     def loeschen(self, plan: Plan) -> int:
-        """Umschläge entfernen, die es lokal nicht mehr gibt."""
+        """Umschläge entfernen, die es lokal nicht mehr gibt.
+
+        ⚠️ Seit 22.08.2026 ruft KEIN Abgleich das mehr automatisch auf (siehe
+        Plan.__str__). Bleibt für eine künftige, bewusste Nutzer-Aktion
+        („Aufräumen: N Touren nur in der Cloud entfernen")."""
         weg = 0
         for sname in plan.weg:
             try:

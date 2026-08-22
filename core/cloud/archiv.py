@@ -96,7 +96,7 @@ def verzeichnis_bauen(conn) -> dict:
     verbund = ""
     if "track_meta" in hat:
         spalten += """, m.fav, m.tags, m.note, m.cover, m.display_name, m.hidden,
-                      m.activity_user, m.color, m.recorded_user, m.first_seen, m.last_seen"""
+                      m.activity_user, m.color, m.recorded_user"""
         verbund = " LEFT JOIN track_meta m ON m.geo_hash = t.geo_hash"
     touren = {}
     for zeile in conn.execute(
@@ -172,8 +172,12 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
             z.writestr(info, daten)
 
         quelle = Path(gpx_pfad or zeile["path"])
-        if quelle.is_file():
-            schreiben("track.gpx", quelle.read_bytes())
+        # ⚠️ Ohne Datei KEIN Umschlag (22.08.2026, Audit): Eine abgesteckte
+        # Platte hätte sonst für alle Touren dort GPX-lose Umschläge gebaut,
+        # deren Prüfsumme abweicht — und die guten Cloud-Kopien überschrieben.
+        if not quelle.is_file():
+            raise FileNotFoundError(f"Tour {geo_hash}: Datei nicht erreichbar ({quelle})")
+        schreiben("track.gpx", quelle.read_bytes())
 
         tour = {k: zeile[k] for k in zeile.keys() if k != "path"}
         if meta is not None:
@@ -213,9 +217,16 @@ def bestand_aufnehmen(conn, sessions: dict | None = None) -> Bestand:
     verzeichnis = verzeichnis_bauen(conn)
     sammlungen = sammlungen_bauen(conn)
     b = Bestand(verzeichnis=verzeichnis, sammlungen=sammlungen)
-    for gh in verzeichnis["touren"]:
-        inhalt = umschlag_bauen(conn, gh,
-                                projekte=_projekte_fuer(conn, gh, sessions))
+    for gh in list(verzeichnis["touren"]):
+        try:
+            inhalt = umschlag_bauen(conn, gh,
+                                    projekte=_projekte_fuer(conn, gh, sessions))
+        except FileNotFoundError:
+            # Datei gerade nicht da (externe Platte, Netzlaufwerk): Tour aus
+            # dem Bestand lassen → bleibt oben unverändert liegen, statt als
+            # leerer Umschlag hochzugehen. Auch NICHT aus dem Verzeichnis
+            # werfen — sonst würde sie als „lokal unbekannt" gelten.
+            continue
         b.touren[gh] = crypto.inhalts_pruefsumme(inhalt)
     return b
 

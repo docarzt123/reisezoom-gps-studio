@@ -207,16 +207,19 @@ def _mit_zeitgrenze(fn, *a):
 def _ablegen(archiv: str, feld: str, wert: str, basis: Path | None) -> None:
     kr = _schluesselbund()
     if kr is not None:
+        # ⚠️ KEIN stiller Klartext-Rückfall (22.08.2026, Audit): Gibt es einen
+        # Schlüsselbund und er lehnt ab oder antwortet nicht, dann scheitern
+        # wir laut — sonst läge der Schlüssel in cloud-zugang.json im
+        # Klartext, während `ablage_beschreibung()` weiter „Schlüsselbund"
+        # sagt. Genau das verbietet der Modul-Docstring.
         try:
             ok, _ = _mit_zeitgrenze(kr.set_password, DIENST, _konto(archiv, feld), wert)
-            if ok:
-                return
         except Exception as e:
-            # Der Schlüsselbund kann zur Laufzeit wegbrechen (gesperrt,
-            # abgelehnt). Dann nicht scheitern, sondern zurückfallen — und der
-            # Nutzer sieht über `ablage_beschreibung()`, woran er ist.
-            if basis is None:
-                raise SchluesselAblageFehler(f"Schlüsselbund lehnt ab: {e}") from e
+            raise SchluesselAblageFehler(f"Schlüsselbund lehnt ab: {e}") from e
+        if not ok:
+            raise SchluesselAblageFehler(
+                "Der Schlüsselbund hat nicht geantwortet (Freigabe-Dialog?).")
+        return
     if basis is None:
         raise SchluesselAblageFehler(
             "Kein Schlüsselbund und kein Ablageort angegeben.")
@@ -228,12 +231,20 @@ def _ablegen(archiv: str, feld: str, wert: str, basis: Path | None) -> None:
 def _holen(archiv: str, feld: str, basis: Path | None) -> str | None:
     kr = _schluesselbund()
     if kr is not None:
+        # Ablehnung oder Zeitgrenze sind FEHLER, kein „nicht vorhanden"
+        # (22.08.2026): Nur so kann der Aufrufer (app._cloud_zugang) den
+        # Fehlschlag merken, statt bei jeder Änderung einen neuen
+        # macOS-Dialog aufzureißen.
         try:
             ok, wert = _mit_zeitgrenze(kr.get_password, DIENST, _konto(archiv, feld))
-            if ok and wert:
-                return wert
-        except Exception:
-            pass
+        except Exception as e:
+            raise SchluesselAblageFehler(f"Schlüsselbund lehnt ab: {e}") from e
+        if not ok:
+            raise SchluesselAblageFehler(
+                "Der Schlüsselbund hat nicht geantwortet (Freigabe-Dialog?).")
+        if wert:
+            return wert
+        # ok, aber leer → wirklich nicht vorhanden; ggf. Datei-Rückfall
     if basis is None:
         return None
     return _rueckfall_lesen(basis).get(_konto(archiv, feld))

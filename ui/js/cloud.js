@@ -204,7 +204,7 @@
     var box = document.getElementById("cloud-ferne");
     if (!box) return;
     box.innerHTML = '<span class="muted">' + T("cloud.ferne_lade", "Schaue ins Archiv …") + '</span>';
-    window.pywebview.api.cloud_uebersicht().then(function (u) {
+    window.pywebview.api.cloud_uebersicht().catch(function (e) { return { ok: false, error: String(e) }; }).then(function (u) {
       if (!box.isConnected) return;
       if (!u.ok) { box.innerHTML = '<span class="muted">⚠ ' + u.error + '</span>'; return; }
       var kopf = '<b>' + T("cloud.ferne_titel", "Touren im Archiv") + ':</b> ' + u.im_archiv +
@@ -245,9 +245,9 @@
   function korbLaden() {
     var box = document.getElementById("cloud-korb");
     if (!box) return;
-    window.pywebview.api.cloud_papierkorb().then(function (k) {
+    window.pywebview.api.cloud_papierkorb().catch(function (e) { return { ok: false, error: String(e) }; }).then(function (k) {
       if (!box.isConnected) return;
-      if (!k.ok) { box.innerHTML = ""; return; }
+      if (!k.ok) { box.innerHTML = k.error ? '<span class="muted">⚠ ' + k.error + '</span>' : ""; return; }
       var n = (k.eintraege || []).length;
       if (!n) {
         box.innerHTML = '<span class="muted">🗑 ' + T("cloud.korb_leer", "Papierkorb ist leer.") + '</span>';
@@ -387,13 +387,13 @@
     ferneLaden();
     korbLaden();
     var planEl = document.getElementById("cloud-plan");
-    window.pywebview.api.cloud_plan().then(function (r) {
+    window.pywebview.api.cloud_plan().catch(function (e) { return { ok: false, error: String(e) }; }).then(function (r) {
       planEl.textContent = r.ok ? r.text : ("✗ " + r.error);
     });
     document.getElementById("cloud-jetzt").onclick = function () {
       melden(T("cloud.laeuft", "Überträgt gerade …"));
       standHolen();
-      window.pywebview.api.cloud_abgleichen().then(function (r) {
+      window.pywebview.api.cloud_abgleichen().catch(function (e) { return { ok: false, error: String(e) }; }).then(function (r) {
         if (!r.ok) { melden(r.error, "fehler"); return; }
         melden(T("cloud.fertig", "Fertig") + ": " + r.uebertragen + " · " + r.mb + " MB" +
                ((r.fehler && r.fehler.length) ? "<br>" + r.fehler.join("<br>") : ""));
@@ -416,9 +416,27 @@
                '</div>');
       });
     };
-    document.getElementById("cloud-weg").onclick = function () {
-      window.pywebview.api.cloud_trennen().then(function () {
-        standHolen(); openModal({}).close();
+    // 22.08.2026 (Audit): Trennen löscht Zugang + Datenschlüssel lokal — wer den
+    // Zugangsschlüssel nie notiert hat, kommt ohne ihn nicht mehr ans Archiv.
+    // Deshalb: erst den Schlüssel zeigen, dann ein zweiter, bewusster Klick.
+    var wegBtn = document.getElementById("cloud-weg");
+    wegBtn.onclick = function () {
+      if (wegBtn.dataset.scharf === "1") {
+        window.pywebview.api.cloud_trennen().catch(function (e) { return { ok: false, error: String(e) }; }).then(function (r) {
+          if (r && r.ok === false) { melden(r.error, "fehler"); return; }
+          standHolen(); openModal({}).close();
+        });
+        return;
+      }
+      window.pywebview.api.cloud_zugangsdaten().catch(function () { return { ok: false }; }).then(function (r) {
+        var key = (r && r.ok && r.zugang) ? ('<div style="font:13px/1.5 ui-monospace,monospace;user-select:all;' +
+                  'word-break:break-all;margin:6px 0">' + r.zugang + '</div>') : "";
+        melden('<b>' + T("cloud.trennen_frage", "Wirklich trennen?") + '</b><br>' +
+               T("cloud.trennen_hinweis", "Dieser Rechner vergisst Zugang und Datenschlüssel. Notiere vorher deinen Zugangsschlüssel — ohne ihn und dein Passwort kommst du nicht wieder an das Archiv:") +
+               key + '<div class="muted" style="font-size:12px">' +
+               T("cloud.trennen_nochmal", "Zum Trennen den Knopf noch einmal klicken.") + '</div>', "fehler");
+        wegBtn.dataset.scharf = "1";
+        wegBtn.textContent = "⚠ " + T("cloud.trennen_jetzt", "Jetzt wirklich trennen");
       });
     };
   }
