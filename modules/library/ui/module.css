@@ -725,3 +725,7 @@
   opacity: .4;
   cursor: not-allowed;
 }
+
+/* 22.08.2026 — Platzhalter des Fenster-Renderings (halten die Scrollhöhe) */
+.lib-platz { width: 100%; flex: none; pointer-events: none; }
+.lib-row-thumb img[data-lazy], .lib-card-thumb img[data-lazy] { opacity: 0; }

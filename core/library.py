@@ -364,8 +364,63 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     _migrate_collection_items(conn)
     _migrate_error_kind(conn)
     _migrate_fit_neu_lesen(conn, schema_alt)
+    _fts_einrichten(conn)
     conn.commit()
     return conn
+
+
+# ── 22.08.2026 — Volltext-Index (FTS5, Trigramm) ─────────────────────────────
+# Die Freitextsuche lief als `rz_norm(<9 Spalten>) LIKE '%…%'` über JEDE Zeile
+# — eine Python-Funktion pro Zeile und Suchwort, bei jedem Tastendruck. Der
+# Index hält denselben Text (vorbereitet wie `_norm`: klein, ohne Akzente) als
+# Trigramme; Teilwort-Treffer bleiben erhalten („ritz" findet „Müritz"). Die
+# Pflege übernehmen Trigger in SQLite selbst, ohne Python-Funktion — so kann
+# auch eine Verbindung ohne `rz_norm` schreiben, ohne den Index zu brechen.
+# Fällt die SQLite-Version (Trigramm + remove_diacritics ab 3.45) zu alt aus,
+# bleibt alles beim LIKE-Weg (`_FTS_OK = False`).
+_FTS_OK = False
+_FTS_HAY_SQL = ("COALESCE(display_name,'') || ' ' || COALESCE(name,'') || ' ' || "
+                "COALESCE(filename,'') || ' ' || COALESCE(tags,'') || ' ' || "
+                "COALESCE(note,'') || ' ' || COALESCE(place,'') || ' ' || "
+                "COALESCE(country,'') || ' ' || COALESCE(region,'') || ' ' || "
+                "COALESCE(fit_profile,'')")
+
+
+def _fts_einrichten(conn: sqlite3.Connection) -> None:
+    global _FTS_OK
+    try:
+        da = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='tracks_fts'").fetchone()
+        if not da:
+            conn.execute("CREATE VIRTUAL TABLE tracks_fts USING fts5("
+                         "path UNINDEXED, hay, tokenize=\"trigram remove_diacritics 1\")")
+            neu_sql = _FTS_HAY_SQL.replace("COALESCE(", "COALESCE(new.")
+            conn.executescript(f"""
+                CREATE TRIGGER IF NOT EXISTS tracks_fts_ai AFTER INSERT ON tracks BEGIN
+                  INSERT INTO tracks_fts(path, hay) VALUES (new.path, {neu_sql});
+                END;
+                CREATE TRIGGER IF NOT EXISTS tracks_fts_ad AFTER DELETE ON tracks BEGIN
+                  DELETE FROM tracks_fts WHERE path = old.path;
+                END;
+                CREATE TRIGGER IF NOT EXISTS tracks_fts_au AFTER UPDATE ON tracks BEGIN
+                  DELETE FROM tracks_fts WHERE path = old.path;
+                  INSERT INTO tracks_fts(path, hay) VALUES (new.path, {neu_sql});
+                END;
+            """)
+            conn.execute(f"INSERT INTO tracks_fts(path, hay) SELECT path, {_FTS_HAY_SQL} FROM tracks")
+            log.info("library: Volltext-Index angelegt (%d Touren)",
+                     conn.execute("SELECT COUNT(*) FROM tracks_fts").fetchone()[0])
+        # Selbsttest: remove_diacritics greift? (sonst lieber LIKE)
+        conn.execute("SELECT 1 FROM tracks_fts WHERE tracks_fts MATCH '\"abc\"' LIMIT 1").fetchall()
+        _FTS_OK = True
+    except sqlite3.Error as e:
+        _FTS_OK = False
+        log.warning("library: Volltext-Index nicht verfügbar (%s) — Suche läuft über LIKE", e)
+
+
+def _fts_anfrage(woerter: list[str]) -> str:
+    """Suchwörter (bereits normalisiert, ≥ 3 Zeichen) → FTS5-MATCH-Ausdruck."""
+    return " AND ".join('"' + w.replace('"', '""') + '"' for w in woerter)
 
 
 def _migrate_fit_neu_lesen(conn: sqlite3.Connection, schema_alt: int) -> None:
@@ -1367,14 +1422,25 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
     # Jedes Suchwort muss vorkommen — akzent-unempfindlich über `rz_norm`.
     # Findet der Text nichts, schlägt die Oberfläche den Begriff als ORT nach
     # und sucht über die Koordinaten weiter (siehe `library_search_place`).
+    fts_woerter = []
     for w in (search or "").split():
         n = _norm(w)
-        if n:
-            # `%` und `_` sind in LIKE Platzhalter. Ohne Maskierung lieferte die
-            # Suche nach „100%" die gesamte Sammlung und „Tour_2024" auch
-            # „Tour 2024" — Treffer, die den Begriff gar nicht enthalten.
-            where.append(f"rz_norm({_SEARCH_HAY}) LIKE ? ESCAPE '\\'")
-            args.append(f"%{_like_escape(n)}%")
+        if not n:
+            continue
+        if _FTS_OK and len(n) >= 3:
+            # 22.08.2026: über den Trigramm-Index (siehe `_fts_einrichten`);
+            # kürzere Wörter als drei Zeichen kann der Index nicht, die gehen
+            # weiter über LIKE.
+            fts_woerter.append(n)
+            continue
+        # `%` und `_` sind in LIKE Platzhalter. Ohne Maskierung lieferte die
+        # Suche nach „100%" die gesamte Sammlung und „Tour_2024" auch
+        # „Tour 2024" — Treffer, die den Begriff gar nicht enthalten.
+        where.append(f"rz_norm({_SEARCH_HAY}) LIKE ? ESCAPE '\\'")
+        args.append(f"%{_like_escape(n)}%")
+    if fts_woerter:
+        where.append("path IN (SELECT path FROM tracks_fts WHERE tracks_fts MATCH ?)")
+        args.append(_fts_anfrage(fts_woerter))
     return " AND ".join(where), args
 
 
