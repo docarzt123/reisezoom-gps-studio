@@ -25,36 +25,15 @@ import base64
 import io
 import json
 import logging
-import os
-import subprocess
-import threading
 import time
 
 from core import sensors as _sensors
 from core import i18n as _i18n
 
 # v0.9.274 (Nutzer-Bug) — Windows: ffmpeg ohne sichtbares Konsolenfenster starten.
-_WIN_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
 
 
-def _drain_stderr(pipe):
-    """v0.9.388 — liest ffmpeg-stderr fortlaufend leer (Thread), sonst blockiert ffmpeg
-    bei viel stderr (Platte voll) im vollen Pipe-Puffer → `ff.stdin.write` hängt ewig.
-    Gibt (thread, bytearray) zurück. Siehe core/animator.py für Details."""
-    buf = bytearray()
-
-    def _run():
-        try:
-            for chunk in iter(lambda: pipe.read(65536), b""):
-                buf.extend(chunk)
-        except Exception:
-            pass
-
-    th = threading.Thread(target=_run, daemon=True)
-    th.start()
-    return th, buf
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Callable, Optional
 
 from PIL import Image
@@ -65,7 +44,7 @@ from .animator import find_ffmpeg  # gleiches ffmpeg wie Animator (bundle-aware)
 # vorher schrieb ffmpeg mit -y DIREKT auf die Zieldatei (bestehendes Video ab
 # Frame 1 zerstört, auch wenn der Render scheiterte), und bei jedem Fehler
 # außer Abbruch blieb ffmpeg als Zombie stehen.
-from .animator import _teildatei, _fertigstellen, _teil_wegraeumen, _ffmpeg_gestorben
+from .frame_driver import FrameMuxer
 
 _log = logging.getLogger(__name__)
 
@@ -1063,13 +1042,10 @@ async def render(cfg: HeightConfig,
             if vcodec == "libx265":
                 ffmpeg_cmd += ["-tag:v", "hvc1"]
 
-        _teil_wegraeumen(cfg.output_path)
-        ffmpeg_cmd.append(_teildatei(cfg.output_path))
-        _log.info("ffmpeg-Cmd: %s", " ".join(ffmpeg_cmd))
-        ff = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                              creationflags=_WIN_NO_WINDOW)
-        _ff_err_th, _ff_err_buf = _drain_stderr(ff.stderr)  # v0.9.388 — Pipe-Deadlock verhindern
+        # 22.08.2026 — gemeinsamer Treiber (core/frame_driver.py): Start, Pipe,
+        # Abbruch-Aufräumen, Warten, Prüfen, Teildatei → Ziel an EINER Stelle.
+        mux = FrameMuxer(ffmpeg_cmd, cfg.output_path, total_frames,
+                         log=_log, cancelled_cls=RenderCancelled)
 
         try:
             preview_every = max(1, cfg.fps // 10)
@@ -1097,12 +1073,7 @@ async def render(cfg: HeightConfig,
                         omit_background=cfg.transparent_background,
                     )
                     _letzter_shot = shot
-                try:
-                    ff.stdin.write(shot)
-                except (BrokenPipeError, OSError):
-                    raise _ffmpeg_gestorben(ff, _ff_err_th, _ff_err_buf,
-                                            frame + 1, total_frames,
-                                            _teildatei(cfg.output_path)) from None
+                mux.schreiben(shot, frame + 1)
 
                 if frame % preview_every == 0:
                     push_preview(shot)
@@ -1110,65 +1081,13 @@ async def render(cfg: HeightConfig,
                      f"Frame {frame + 1} / {total_frames}")
         except BaseException as _fehler:
             # Abbruch ODER Fehler: ffmpeg sauber beenden, Teildatei weg, Browser zu.
-            # Vorher galt das nur für RenderCancelled — jeder andere Fehler ließ
-            # ffmpeg als Zombie stehen (22.08.2026, Audit).
-            if isinstance(_fehler, RenderCancelled):
-                _log.info("Render abgebrochen — ffmpeg wird beendet und Teildatei gelöscht.")
-            try: ff.stdin.close()
-            except Exception: pass
-            try:
-                ff.terminate()
-                ff.wait(timeout=3)
-            except Exception:
-                try: ff.kill()
-                except Exception: pass
-            _teil_wegraeumen(cfg.output_path)
+            mux.abbrechen("abgebrochen" if isinstance(_fehler, RenderCancelled) else "Fehler")
             try: await browser.close()
             except Exception: pass
             raise
-        finally:
-            try: ff.stdin.close()
-            except Exception: pass
 
         emit(0.92, _t("animator.progress.ffmpeg_short", "ffmpeg finalisiert …"))
-        # ff.wait() ohne Grenze blockierte den Worker für immer, wenn ffmpeg beim
-        # +faststart-Umkopieren hängt (Netzlaufwerk); in Schleife mit Abbruch-Check.
-        for _ in range(600):          # max. 10 min
-            try:
-                ff.wait(timeout=1)
-                break
-            except subprocess.TimeoutExpired:
-                if is_cancelled and is_cancelled():
-                    try: ff.terminate()
-                    except Exception: pass
-                    _teil_wegraeumen(cfg.output_path)
-                    raise RenderCancelled("Vom User abgebrochen") from None
-        else:
-            try: ff.kill()
-            except Exception: pass
-            _teil_wegraeumen(cfg.output_path)
-            raise RuntimeError("ffmpeg hat die Datei nicht fertiggestellt (Zeitgrenze 10 min).")
-        try: _ff_err_th.join(timeout=2)   # v0.9.388 — stderr-Drain-Thread abschließen
-        except Exception: pass
-        if ff.returncode != 0:
-            err = bytes(_ff_err_buf).decode(errors="replace")
-            _log.error("ffmpeg returncode=%s — stderr:\n%s", ff.returncode, err)
-            _teil_wegraeumen(cfg.output_path)
-            raise RuntimeError(f"ffmpeg fehlgeschlagen (returncode={ff.returncode}): {err.strip()[:500]}")
-        else:
-            _fertigstellen(cfg.output_path)   # erst jetzt liegt die Datei unter ihrem Namen
-            try:
-                err = bytes(_ff_err_buf).decode(errors="replace").strip()
-                if err:
-                    _log.info("ffmpeg stderr (info-level): %s", err[:1500])
-            except Exception:
-                pass
-
-        try:
-            sz = Path(cfg.output_path).stat().st_size
-            _log.info("Output OK: %s (%.1f MB)", cfg.output_path, sz / 1_000_000)
-        except Exception as e:
-            _log.warning("Konnte Output-Datei nicht stat()en: %s", e)
+        mux.abschliessen(is_cancelled)   # warten (Zeitgrenze), prüfen, Teildatei → Ziel
 
         await browser.close()
 
