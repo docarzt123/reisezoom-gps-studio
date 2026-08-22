@@ -14,6 +14,26 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.535] – 2026-08-22
+
+### Fixed
+- **Geotagger: Schreib-Dialog blieb nach dem Schreiben hängen** (Beta-Tester,
+  zwei Logs: 5 und 1.478 Fotos, Backend jeweils „ENDE — errors=0“, danach
+  „writable is not defined“). Ursache: beim Audit-Umbau (v0.9.532, kein
+  Voll-Reload nach dem Schreiben) wurde eine Variable aus einer anderen
+  Funktion benutzt → ReferenceError → Abschluss blieb stehen. Die Fotos waren
+  korrekt getaggt. Nacharbeit nach dem Schreiben läuft jetzt außerdem
+  abgeschirmt (kann den Dialog nie mehr kippen).
+- Zwei weitere stille Scope-Fehler im Animator (Schilder-Schatten-Richtung im
+  Bearbeiten-Modus, Reiseroute-Wiederherstellung beim Projektwechsel) — liefen
+  in try/catch ins Leere.
+
+### Added
+- **Prüfer für nicht deklarierte Bezeichner** (`scripts/check_js_undef.py`,
+  ESLint `no-undef` über alle UI-Dateien, Browser-Globals und dateiübergreifende
+  Top-Level-Namen erlaubt) — im Release-Gate und in der Suite. `node --check`
+  sieht Scope-Fehler nicht; genau so kam der obige Fehler durch.
+
 ## [0.9.534] – 2026-08-22
 
 ### Added

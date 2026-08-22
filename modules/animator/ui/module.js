@@ -1601,7 +1601,9 @@ function mountAnimator(body, headerActions, opts) {
     onLoad: v => updateLabel("anim-shadow-dir-v", Math.round(parseFloat(v)) + "", "°"),
     onChange: v => { updateLabel("anim-shadow-dir-v", Math.round(parseFloat(v)) + "", "°");
       try { applyShadowToLayers(); } catch (_) {}
-      try { if (_animSignEditMode) _animSignsAttachToMap(); } catch (_) {}
+      // 22.08.2026: über das Handle — `_animSignEditMode`/`_animSignsAttachToMap`
+      // leben in einem anderen Scope; der Aufruf flog vorher still (ReferenceError im catch).
+      try { if (window.__rzAnimSigns && window.__rzAnimSigns.refreshIfEditing) window.__rzAnimSigns.refreshIfEditing(); } catch (_) {}
       try { renderOverlayPreview(); } catch (_) {} } });   // v0.9.479 — Stats-Schatten folgt der Richtung
   bindSetting("anim-glow-strength", _MODKEY, "glow_strength", { type: "number",
     onLoad: v => updateLabel("anim-glow-strength-v", parseFloat(v).toFixed(1), " px"),
@@ -9032,6 +9034,7 @@ function mountAnimator(body, headerActions, opts) {
     if (_isReiseroute) { _rrRouteRestoreFn = _routeRestore; _rrRouteRestoreGpxFn = _routeRestoreGpx; }
     // v0.9.171 — Schilder-Helper für scrubPreview/step + GPX-Load exposen.
     window.__rzAnimSigns = {
+      refreshIfEditing: () => { if (_animSignEditMode) _animSignsAttachToMap(); },   // 22.08.2026 (Schatten-Richtung live)
       updateAtAnchor: _animSignsUpdateAtAnchor,
       applyMarkerAnchor: _animSignsApplyMarkerAnchor,
       attach: _animSignsAttachToMap,
@@ -10964,7 +10967,8 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.219 — Reiseroute: Start/Ziel + Ghost zuverlässig nachziehen
       // (Settings stehen jetzt in der aktiven Hike-Session).
       if (_isReiseroute) {
-        try { _routeRestore(); } catch (_) {}
+        // 22.08.2026: `_routeRestore` lebt im whenApiReady-Scope — hier nur über das Handle erreichbar.
+        try { if (typeof _rrRouteRestoreFn === "function") _rrRouteRestoreFn(); } catch (_) {}
         try { _ghostGpxRestore(); } catch (_) {}
       }
     };
