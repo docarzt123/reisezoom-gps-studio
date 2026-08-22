@@ -81,6 +81,10 @@
       // v0.9.28: Session komplett schließen — clearGlobalGpx leert Track,
       // Session-Aktivierung + persistierten last_gpx_path. App ist dann „leer".
       html += `<div class="topbar-project-menu-sep"></div>`;
+      // 22.08.2026 — Projekt-Datei (.rzproj): Track + alle Projekte + Foto-Vorschauen, ohne Cloud
+      html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="export_project">⇪ ${tT("topbar.project.action_export", "Projekt exportieren (.rzproj)…")}</button>`;
+      html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="import_project">⇩ ${tT("topbar.project.action_import", "Projekt importieren (.rzproj)…")}</button>`;
+      html += `<div class="topbar-project-menu-sep"></div>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="close_session">✕ ${tT("topbar.project.action_close_session", "Session schließen")}</button>`;
       menu.innerHTML = html;
 
@@ -145,6 +149,12 @@
               if (typeof rebindAllSettings === "function") rebindAllSettings();
               if (typeof window._animOnProjectChanged === "function") window._animOnProjectChanged();
             }
+          } else if (action === "export_project") {
+            menu.hidden = true;
+            if (window.exportProject) await window.exportProject();
+          } else if (action === "import_project") {
+            menu.hidden = true;
+            if (window.importProject) await window.importProject();
           } else if (action === "close_session") {
             // v0.9.28/31: Session schließen — räumt:
             //   1. Backend: laufender Thumb-Worker stoppen + _gtg_photos/track leeren

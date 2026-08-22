@@ -306,6 +306,26 @@ Die Session-Daten liegen unter:
 
 ---
 
+### Projekt exportieren & importieren (.rzproj, seit v0.9.537)
+
+**Ein Projekt als eine Datei weitergeben — ganz ohne Cloud.** Im Projekt-Menü
+(Klick auf „Session · Projekt“ oben) oder unter „Datei → Projekt exportieren“
+entsteht eine `.rzproj`-Datei: darin der Track, **alle Projekte** der Session
+(Keyframes, Schilder, Overlays, Einstellungen), die Tour-Daten aus dem Archiv
+(Name, Schlagwörter, Notiz) und **Vorschaubilder** deiner Fotos — nicht die
+Originale, die bleiben bei dir.
+
+**Importieren:** „Datei → Projekt importieren“, im Projekt-Menü, oder die
+`.rzproj` einfach auf die App ziehen. Der Track wird ins Archiv aufgenommen
+(Ordner „projekt_importe“), die Projekte hängen sich an die Session des Tracks.
+Gibt es den Track schon, werden die Projekte **dazugelegt** — nichts wird
+überschrieben, gleichnamige bekommen den Zusatz „(importiert)“. Fehlen die
+Original-Fotos auf dem anderen Rechner, zeigen die Fotos auf die mitgebrachten
+Vorschauen.
+
+Wozu: ein Projekt zur Fehlersuche schicken, auf einen zweiten Rechner umziehen,
+eine Sicherung ohne Cloud.
+
 ## 2b · Track-Dateien öffnen — viele Formate (seit v0.9.282) ⭐
 
 Du musst **keine GPX** haben. Öffne (über die GPX-Leiste oder per Drag & Drop) einfach eines dieser Formate — die App wandelt es beim Laden automatisch in eine GPX um und arbeitet damit weiter:

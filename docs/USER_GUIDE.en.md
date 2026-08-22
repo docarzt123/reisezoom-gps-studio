@@ -301,6 +301,24 @@ The session data lives under:
 
 ---
 
+### Export & import a project (.rzproj, since v0.9.537)
+
+**Hand over a project as one file — no cloud needed.** In the project menu
+(click “Session · Project” at the top) or via “File → Export project” you get a
+`.rzproj` file: the track, **all projects** of the session (keyframes, signs,
+overlays, settings), the tour data from the archive (name, tags, note) and
+**preview images** of your photos — not the originals, those stay with you.
+
+**Import:** “File → Import project”, the project menu, or simply drop the
+`.rzproj` onto the app. The track is added to the archive (folder
+“projekt_importe”), the projects attach to the track's session. If the track
+already exists, the projects are **added** — nothing is overwritten, same-named
+ones get “(imported)”. If the original photos are missing on the other
+computer, the photos point to the bundled previews.
+
+Use it to send a project for troubleshooting, move to a second computer, or
+keep a backup without the cloud.
+
 ## 2b · Opening track files — many formats (since v0.9.282) ⭐
 
 You don't need to have a **GPX**. Just open (via the GPX bar or by drag & drop) any of these formats — the app converts it to a GPX automatically on load and works from there:
