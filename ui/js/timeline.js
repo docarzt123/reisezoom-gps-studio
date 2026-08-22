@@ -33,6 +33,11 @@ function mountTimelineBar(opts) {
     return null;
   }
   const getEvents = cb.getEvents || (() => []);
+  // 22.08.2026 (Audit): Jeder Mount hängte 7 Window-Listener an, kein Abbau —
+  // bei jedem Modulwechsel stapelten sich Closures samt getEvents-Referenzen.
+  // Alle dauerhaften Listener laufen über diesen Registrar; `destroy()` räumt auf.
+  const _winListeners = [];
+  const _win = (ev, fn) => { window.addEventListener(ev, fn); _winListeners.push([ev, fn]); };
 
   // ── HTML ──────────────────────────────────────────────────────────────────
   // v0.9.1 — Multi-Lane: 6 horizontale Spuren (4 Camera-Properties +
@@ -774,7 +779,7 @@ function mountTimelineBar(opts) {
   });
 
   // Globale mouse-move/up für drag
-  window.addEventListener("mousemove", (e) => {
+  _win("mousemove", (e) => {
     if (!_dragging || !_enabled) return;
     // v0.9.512 — Wert-Ziehen rechnet in PIXELN, nicht in Ankern.
     if (_dragging.type === "value") {
@@ -827,7 +832,7 @@ function mountTimelineBar(opts) {
       if (!_dragging.kopieren) _selectedEvent = { kind: _dragging.kind, anchor };
     }
   });
-  window.addEventListener("mouseup", () => {
+  _win("mouseup", () => {
     if (_dragging) {
       // Nach Drag-Ende einmal refresh, damit Marker-Reihenfolge + tooltips
       // konsistent sind. Bei Scrubber-Drag-Ende informieren wir den Caller,
@@ -1081,7 +1086,7 @@ function mountTimelineBar(opts) {
       setTrimVisual(_trimStart, _trimEnd);
       _updateScrollbar();
     });
-    window.addEventListener("mousemove", (e) => {
+    _win("mousemove", (e) => {
       if (!_sbDrag) return;
       const dx = e.clientX - _sbDrag.startX;
       const dxFrac = dx / Math.max(1, _sbDrag.trackWidth);
@@ -1091,7 +1096,7 @@ function mountTimelineBar(opts) {
       setTrimVisual(_trimStart, _trimEnd);
       _updateScrollbar();
     });
-    window.addEventListener("mouseup", () => {
+    _win("mouseup", () => {
       if (_sbDrag) { _sbDrag = null; document.body.style.cursor = ""; }
     });
   }
@@ -1104,7 +1109,7 @@ function mountTimelineBar(opts) {
   // nicht in einem Eingabefeld steht — sonst klaut das Werkzeug dem Nutzer das
   // normale Kopieren von Text. Aus demselben Grund `capture: false`: Felder
   // dürfen zuerst.
-  window.addEventListener("keydown", (e) => {
+  _win("keydown", (e) => {
     if (!_enabled) return;
     if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
     const k = (e.key || "").toLowerCase();
@@ -1177,7 +1182,7 @@ function mountTimelineBar(opts) {
       _panDrag = { startX: e.clientX, startOffset: _viewOffset, width: rect.width };
     });
   }
-  window.addEventListener("mousemove", (e) => {
+  _win("mousemove", (e) => {
     if (!_panDrag) return;
     const dx = e.clientX - _panDrag.startX;
     const dxFrac = dx / Math.max(1, _panDrag.width);
@@ -1187,7 +1192,7 @@ function mountTimelineBar(opts) {
     setTrimVisual(_trimStart, _trimEnd);
     _updateScrollbar();
   });
-  window.addEventListener("mouseup", () => { _panDrag = null; });
+  _win("mouseup", () => { _panDrag = null; });
 
   _updateZoomLabel();
   _updateScrollbar();
@@ -1224,6 +1229,7 @@ function mountTimelineBar(opts) {
   function setScrubberTrack(a) { setScrubberVisual(_trackToBar(a)); }
 
   return {
+    destroy: () => { for (const [ev, fn] of _winListeners.splice(0)) { try { window.removeEventListener(ev, fn); } catch (_) {} } },
     trackToBar: _trackToBar,
     barToTrack: _barToTrack,
     getScrubberTrack,

@@ -2901,15 +2901,21 @@ function mountAnimator(body, headerActions, opts) {
           "circle-pitch-scale": "viewport",
         },
       });
-      // Click-Handler einmalig binden
-      map.on("click", "preview-kf-pins", (e) => {
-        const feat = e.features && e.features[0];
-        if (!feat) return;
-        const idx = feat.properties.idx;
-        selectKeyframe(idx);
-      });
-      map.on("mouseenter", "preview-kf-pins", () => { map.getCanvas().style.cursor = "pointer"; });
-      map.on("mouseleave", "preview-kf-pins", () => { map.getCanvas().style.cursor = ""; });
+      // Click-Handler einmalig binden — WIRKLICH einmalig (22.08.2026, Audit):
+      // Mapbox behält Layer-Listener über removeLayer/setStyle hinweg; vorher
+      // stapelten sie sich bei jedem Pins-Toggle/Stilwechsel (4 Klick-Handler
+      // → 4× easeTo pro Pin-Klick).
+      if (!map.__rzKfPinsGebunden) {
+        map.__rzKfPinsGebunden = true;
+        map.on("click", "preview-kf-pins", (e) => {
+          const feat = e.features && e.features[0];
+          if (!feat) return;
+          const idx = feat.properties.idx;
+          selectKeyframe(idx);
+        });
+        map.on("mouseenter", "preview-kf-pins", () => { map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", "preview-kf-pins", () => { map.getCanvas().style.cursor = ""; });
+      }
     }
   }
 
@@ -4127,7 +4133,10 @@ function mountAnimator(body, headerActions, opts) {
     const anchors = clusterAnchors();
     if (idx == null || idx < 0 || idx >= anchors.length) return;
     const oldAnchor = anchors[idx];
-    const clamped = Math.max(0, Math.min(1, anchor));
+    // 22.08.2026 (Audit): über ankerBegrenzen — Keyframes dürfen seit v0.9.516
+    // im Anlauf/Nachlauf liegen; die harte 0..1-Klemme zog sie beim Ziehen
+    // des Anker-Sliders still auf den Track-Anfang.
+    const clamped = ankerBegrenzen(anchor);
     const events = getRawTimelineEvents().slice();
     for (const ev of events) {
       if (ev && KF_LANES.includes(ev.kind) && Math.abs((ev.anchor || 0) - oldAnchor) < 0.001) {
@@ -4342,6 +4351,15 @@ function mountAnimator(body, headerActions, opts) {
       if (el) el.textContent = val;
     };
     const anchorPct = (props.anchor || 0) * 100;
+    // 22.08.2026 (Audit): Slider-Bereich aus der Leiste ableiten — ein Keyframe
+    // im Anlauf (negativer Anker) wäre sonst vom Slider auf 0 % gezogen worden.
+    try {
+      const sl = document.getElementById("anim-kf-anchor");
+      if (sl && _tlBar && typeof _tlBar.barToTrack === "function") {
+        sl.min = String(Math.min(0, Math.floor(_tlBar.barToTrack(0) * 100)));
+        sl.max = String(Math.max(100, Math.ceil(_tlBar.barToTrack(1) * 100)));
+      }
+    } catch (_) {}
     set("anim-kf-anchor", anchorPct);
     setLbl("anim-kf-anchor-v", anchorPct.toFixed(1) + "%");
     set("anim-kf-pitch", props.pitch ?? 40);
@@ -7625,6 +7643,11 @@ function mountAnimator(body, headerActions, opts) {
     let _animSignEditorEl = null;
     let _animSignEditorIdx = -1;   // v0.9.194 — welches Schild ist im Editor offen
     let _animSignEditorReposition = null;
+    // 22.08.2026 (Audit): Der Cleanup in mountAnimator sah diese Funktion
+    // nicht (innere Closure) → ReferenceError, vom try/catch geschluckt →
+    // das Panel blieb als Geist über dem nächsten Modul stehen. Handle nach
+    // außen reichen.
+    window.__rzAnimSignsCloseEditor = () => { try { _animSignsCloseEditor(); } catch (_) {} };
     function _animSignsCloseEditor() {
       if (_animSignEditorReposition && map) { try { map.off("move", _animSignEditorReposition); } catch (_) {} }
       _animSignEditorReposition = null;
@@ -9470,7 +9493,17 @@ function mountAnimator(body, headerActions, opts) {
   const _ovSensorCatItems = () => (_ovSensorFields || []).map(f => ({ id: "sensor:" + f.key, req: "none" }));
   const _ovCat = (box) => box === "live" ? OVERLAY_FIELD_CATALOG.live.concat(_ovSensorCatItems()) : OVERLAY_FIELD_CATALOG[box];
   // v0.9.334 — projekt-eigene Umbenennung/Einheit (Nutzer-Wunsch): {key:{label,unit}}.
-  const _ovOverrides = () => (_settingsCache && _settingsCache[_MODKEY] && _settingsCache[_MODKEY].overlay_field_overrides) || {};
+  // 22.08.2026 (Audit): projekt-first lesen (wie _ovReadOrder) — gespeichert
+  // wurde ins Projekt, gelesen nur aus dem globalen Cache → nach Neustart
+  // waren Feld-Umbenennungen in Vorschau UND Video weg, und innerhalb der
+  // Sitzung erbte jedes andere Projekt die Umbenennung.
+  const _ovOverrides = () => {
+    const proj = (typeof _activeProject !== "undefined" && _activeProject) ? _activeProject[_MODKEY] : null;
+    if (proj && proj.overlay_field_overrides && typeof proj.overlay_field_overrides === "object") {
+      return proj.overlay_field_overrides;
+    }
+    return (_settingsCache && _settingsCache[_MODKEY] && _settingsCache[_MODKEY].overlay_field_overrides) || {};
+  };
   const _ovResolvedMeta = (key) => {
     const base = _ovSensorMeta(key) || { key: key, label: key, unit: "" };
     const o = _ovOverrides()[key];
@@ -10356,13 +10389,12 @@ function mountAnimator(body, headerActions, opts) {
     document.getElementById("s-desc").textContent = "↓ " + fmtMeter(res.stats.descent_m);
     document.getElementById("anim-render").disabled = false;
 
-    if (map && map.isStyleLoaded()) { drawPreview(res); dotEbenenAufbauen(); dotSetzen(0); }
-    // v0.9.530 (Beta-Tester-Nachtest: „Kugel kommt immer noch erst mit dem
-    // Regler"): Mapbox feuert „load" nur EINMAL im Leben der Karte. Lädt hier
-    // gerade der Projekt-Stil (setStyle), war „load" längst verbraucht — der
-    // Aufbau verpuffte für immer. „style.load" feuert dagegen für den ersten
-    // Stil UND jeden Wechsel: der richtige Haken für „sobald bereit".
-    else if (map) map.once("style.load", () => { drawPreview(res); dotEbenenAufbauen(); dotSetzen(0); });
+    // v0.9.530/22.08.2026 (Audit): EIN Helfer für „sobald die Karte bereit
+    // ist" — _whenStyleReady (idle-basiert). isStyleLoaded() ist auch bei
+    // fertig geladenem Stil oft false (Kacheln/Sprites), und „style.load"
+    // feuert dann nie mehr — der alte Zweig ließ Vorschau + Laufpunkt aus.
+    const _nachLaden = () => { drawPreview(res); dotEbenenAufbauen(); dotSetzen(0); };
+    if (map && _whenStyleReady("loadGpx", _nachLaden)) _nachLaden();
     renderOverlayPreview();  // jetzt haben wir Stats → echte Werte zeigen
 
     // Punkte-Slider auf den geladenen Track kalibrieren.
@@ -11003,19 +11035,16 @@ function mountAnimator(body, headerActions, opts) {
     const _staticBearing = _isStaticFrame ? parseFloat(document.getElementById("anim-static-bearing")?.value) : NaN;
     const endBearing = (!isNaN(_staticBearing)) ? _staticBearing : (startBearing + rot);
     try {
-      map.fitBounds(
-        [[b.min_lon, b.min_lat], [b.max_lon, b.max_lat]],
-        {
-          padding: pxPad,
-          pitch: parseFloat(document.getElementById("anim-pitch").value) || 0,
-          bearing: endBearing,
-          duration: animated ? 500 : 0,
-        }
-      );
       // v0.7.9: _fitZoomBase NACH Animations-Ende setzen, nicht via
       // requestAnimationFrame (das feuert sofort im ersten Frame, wo
       // map.getZoom() noch der Pre-Fit-Zoom ist → bei snapshotKeyframe
       // entsteht ein riesiger zoom_offset → Backend zoomt extrem rein).
+      // ⚠️ 22.08.2026 (Audit): Der Handler MUSS vor fitBounds hängen — bei
+      // duration:0 feuert Mapbox „moveend" SYNCHRON im fitBounds-Aufruf.
+      // Vorher verpasste ihn jeder nicht-animierte Fit (= drawPreview,
+      // ResizeObserver): _fitZoomBase blieb null („Karte noch nicht
+      // stabil"), und der verwaiste once-Handler feuerte beim ersten
+      // Nutzer-Pan mit dem NUTZER-Zoom als Fit-Basis.
       map.once("moveend", () => {
         try {
           _fitZoomBase = map.getZoom();
@@ -11051,6 +11080,15 @@ function mountAnimator(body, headerActions, opts) {
           }
         } catch (_) {}
       });
+      map.fitBounds(
+        [[b.min_lon, b.min_lat], [b.max_lon, b.max_lat]],
+        {
+          padding: pxPad,
+          pitch: parseFloat(document.getElementById("anim-pitch").value) || 0,
+          bearing: endBearing,
+          duration: animated ? 500 : 0,
+        }
+      );
     } catch (e) {
       console.warn("fitTrackPreview failed:", e);
     }
@@ -11825,6 +11863,12 @@ function mountAnimator(body, headerActions, opts) {
       const s = await api().animator_status();
       if (_animUnmounted || !s || !s.running) return;
       setRenderingState(true);
+      // 22.08.2026 (Audit): ohne .show war die Oberfläche gesperrt, aber weder
+      // Fortschritt noch Abbrechen-Knopf sichtbar — genau das sollte hier weg.
+      try {
+        document.getElementById("anim-progress")?.classList.add("show");
+        document.getElementById("anim-done")?.classList.add("hidden");
+      } catch (_) {}
       applog("info", "[Animator] laufenden Render wieder aufgenommen");
       pollStatus();
     } catch (_) { /* kein Render, kein Problem */ }
@@ -12216,11 +12260,13 @@ function mountAnimator(body, headerActions, opts) {
     for (const ab of _animSessionUnsubs.splice(0)) {
       try { ab(); } catch (_) {}
     }
-    try { _animSignsCloseEditor(); } catch (_) {}   // v0.9.180 — body-Panel aufräumen
+    try { if (window.__rzAnimSignsCloseEditor) window.__rzAnimSignsCloseEditor(); } catch (_) {}   // v0.9.180 — body-Panel aufräumen (22.08.2026: über Handle, innere Closure)
     if (_animViewportObserver) {
       try { _animViewportObserver.disconnect(); } catch (_) {}
       _animViewportObserver = null;
     }
+    // 22.08.2026 (Audit): Timeline-Window-Listener abmelden (stapelten sich pro Mount).
+    try { if (_tlBar && typeof _tlBar.destroy === "function") _tlBar.destroy(); } catch (_) {}
     if (_animTimelineObserver) {
       try { _animTimelineObserver.disconnect(); } catch (_) {}
       _animTimelineObserver = null;
