@@ -74,6 +74,7 @@ else
 
   # 7d) Dialoge übereinander + sichtbarer Tastatur-Fokus.
   run "Dialoge + Fokus (selftest_dialoge)" python3 scripts/selftest_dialoge.py
+  run "Ruhige Kamera je Abschnitt (selftest_ruhige_abschnitt)" python3 scripts/selftest_ruhige_abschnitt.py
 
   # 7e) Vollständigkeit der Prüfer selbst: Jedes Modul, das es gibt, muss auch
   #     im Smoke-Test stehen. `gpxinspect` und `webkarte` fehlten dort lange —
