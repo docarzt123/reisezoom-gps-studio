@@ -1048,6 +1048,7 @@ def scan(
         }
     seen = set()
     added = updated = skipped = failed = 0
+    ohne_punkte = 0     # FIT ohne Koordinaten — eine Sammelzeile statt 2.858 Logzeilen (Nutzer-Log, 22.08.2026)
     total = len(files)
 
     for i, (p, folder) in enumerate(files):
@@ -1087,7 +1088,8 @@ def scan(
             # bei jemandem mit 61 Hallen-Einheiten „61 Dateien nicht lesbar".
             kind = "no_points" if isinstance(e, cimports.NoTrackPoints) else "broken"
             if kind == "no_points":
-                log.info("library: %s enthält keine Koordinaten (kein Fehler)", p.name)
+                ohne_punkte += 1
+                log.debug("library: %s enthält keine Koordinaten (kein Fehler)", p.name)
             else:
                 log.warning("library: %s konnte nicht gelesen werden: %s", p.name, e)
             try:
@@ -1165,6 +1167,8 @@ def scan(
     finally:
         _DB_LOCK.release()
 
+    if ohne_punkte:
+        log.info("library: %d Datei(en) ohne Koordinaten übersprungen (Indoor-/Kraft-Einheiten — kein Fehler)", ohne_punkte)
     res = {"total": total, "added": added, "updated": updated, "skipped": skipped,
            "failed": failed, "removed": removed, "missing": missing, "back": back}
     log.info("library.scan: %s", res)
