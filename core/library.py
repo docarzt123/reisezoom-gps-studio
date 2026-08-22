@@ -924,7 +924,6 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     return row
 
 
-@_locked
 def scan(
     conn: sqlite3.Connection,
     thumbs_dir: Path,
@@ -942,6 +941,12 @@ def scan(
     abweichen (`force=True` liest alles neu). Ein Fehler in einer Datei wird in
     der Zeile vermerkt und übersprungen — ein einzelnes kaputtes GPX darf nie
     den ganzen Durchlauf abbrechen.
+
+    ⚠️ Lock-Disziplin (22.08.2026, Audit): Diese Funktion hält `_DB_LOCK`
+    NICHT über den ganzen Lauf — nur um die einzelnen Datenbank-Zugriffe.
+    Vorher blockierte ein Scan mit 103.535 Dateien auf einem Netzlaufwerk
+    für Minuten jede Abfrage (`query`, `stats`, `get_folders` …): das Archiv
+    stand, bis der Scan fertig war. Dateien lesen/parsen läuft ohne Lock.
     """
     thumbs_dir = Path(thumbs_dir)
     import_cache = Path(import_cache)
@@ -953,6 +958,13 @@ def scan(
         n_vorher = len(files)
         for p in _iter_files(folder, rec.get(folder, True)):
             files.append((p, folder))
+            # UX (22.08.2026, Audit): Während des Zählens kam kein Fortschritt —
+            # bei 103k Dateien auf SMB die längste Phase, Anzeige stand auf „0 / ?".
+            if progress and len(files) % 500 == 0:
+                progress({"done": 0, "total": 0, "phase": "zaehlen",
+                          "gefunden": len(files), "current": str(folder)})
+            if should_stop and should_stop() and len(files) % 500 == 0:
+                break
         # Diagnose-Spur (Marc, 22.08.2026: „schreib sowas mit ins Log"): Wo
         # liegen die Ordner, wie voll sind sie? Ein Tester-Log ist unser
         # einziger Blick auf fremde Rechner — 103.535 Dateien auf einem
@@ -969,13 +981,16 @@ def scan(
     # fertig — eine Datei ohne Koordinaten hat beim zweiten Hinsehen genauso
     # wenig welche. Ohne das öffnete jeder Durchlauf die 61 Hallen-Einheiten
     # eines Nutzers erneut, für immer.
-    known = {
-        r["path"]: (r["mtime"], r["size"],
-                    bool(r["geom"]) and bool(r["recorded_src"]),
-                    bool(r["error"]))
-        for r in conn.execute(
-            "SELECT path, mtime, size, geom, recorded_src, error FROM tracks").fetchall()
-    }
+    with _DB_LOCK:
+        known = {
+            r["path"]: (r["mtime"], r["size"], bool(r["voll"]), bool(r["fehler"]))
+            for r in conn.execute(
+                # Nur Wahrheitswerte holen (22.08.2026): `geom` ist ~1,6 KB je Zeile —
+                # bei 100k Touren waren das ~160 MB nur für ein bool().
+                "SELECT path, mtime, size, "
+                "(geom IS NOT NULL AND geom != '' AND recorded_src IS NOT NULL AND recorded_src != '') AS voll, "
+                "(error IS NOT NULL AND error != '') AS fehler FROM tracks").fetchall()
+        }
     seen = set()
     added = updated = skipped = failed = 0
     total = len(files)
@@ -1003,7 +1018,8 @@ def scan(
             else:
                 row = _row_from_file(p, folder, thumbs_dir, import_cache,
                                      map_thumbs_dir, covers_dir)
-                _upsert(conn, row)
+                with _DB_LOCK:
+                    _upsert(conn, row)
                 if old:
                     updated += 1
                 else:
@@ -1030,19 +1046,21 @@ def scan(
                     _mt, _sz = _st.st_mtime, _st.st_size
                 except OSError:
                     _mt, _sz = 0, 0
-                _upsert(conn, {
-                    "path": sp, "folder": folder, "filename": p.name,
-                    "mtime": _mt, "size": _sz, "indexed_at": _now_iso(),
-                    "error": str(e)[:300], "error_kind": kind, "name": p.stem,
-                })
+                with _DB_LOCK:
+                    _upsert(conn, {
+                        "path": sp, "folder": folder, "filename": p.name,
+                        "mtime": _mt, "size": _sz, "indexed_at": _now_iso(),
+                        "error": str(e)[:300], "error_kind": kind, "name": p.stem,
+                    })
             except Exception:
                 pass
         if progress and (i % 10 == 0 or i == total - 1):
             progress({"done": i + 1, "total": total, "added": added,
                       "updated": updated, "skipped": skipped, "failed": failed,
-                      "current": p.name})
+                      "current": p.name, "phase": "lesen"})
         if i % 50 == 0:
-            conn.commit()
+            with _DB_LOCK:
+                conn.commit()
 
     # Dateien, die gerade nicht auffindbar sind, werden NICHT sofort vergessen:
     # eine externe Platte ist abgezogen, ein Ordner umgezogen, ein Netzlaufwerk
@@ -1051,7 +1069,13 @@ def scan(
     # (Was der Nutzer zu ihr gesagt hat, überlebt in `track_meta` ohnehin.)
     removed = missing = back = 0
     now = _now_iso()
-    for folder in watch:
+    abgebrochen = bool(should_stop and should_stop())
+    # 22.08.2026 (Audit): Nach einem Abbruch ist `seen` unvollständig — jede
+    # ungesehene Zeile hätte ein stat() aufs (ggf. abgezogene) Netzlaufwerk
+    # ausgelöst, bei 103k Dateien unter dem Lock. Dann gar nicht erst prüfen.
+    _DB_LOCK.acquire()
+    try:
+      for folder in ([] if abgebrochen else watch):
         for r in conn.execute(
                 "SELECT path, missing_since, error FROM tracks WHERE folder = ?",
                 (folder,)).fetchall():
@@ -1082,7 +1106,9 @@ def scan(
                 removed += 1
             else:
                 missing += 1
-    conn.commit()
+      conn.commit()
+    finally:
+        _DB_LOCK.release()
 
     res = {"total": total, "added": added, "updated": updated, "skipped": skipped,
            "failed": failed, "removed": removed, "missing": missing, "back": back}

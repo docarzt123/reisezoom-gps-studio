@@ -1972,7 +1972,7 @@ class Api:
             return {"ok": False, "error": "no_token"}
         if auto:
             try:
-                if not clib.map_thumbs_pending(self._lib()):
+                if clib.map_thumbs_pending_count(self._lib()) == 0:   # 22.08.2026: nur zählen, nicht alle Zeilen laden
                     return {"ok": True, "nothing_to_do": True}
             except Exception:
                 return {"ok": False, "error": "pending-check"}
