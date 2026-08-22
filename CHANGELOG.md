@@ -24,6 +24,11 @@ Bei jeder neuen Version:
   Funktion benutzt → ReferenceError → Abschluss blieb stehen. Die Fotos waren
   korrekt getaggt. Nacharbeit nach dem Schreiben läuft jetzt außerdem
   abgeschirmt (kann den Dialog nie mehr kippen).
+  Zweite Ursache (am eigenen Rechner nachgestellt): Dialoge liegen auf einem
+  Stapel — „Fertig“ wurde ÜBER dem Fortschritts-Dialog geöffnet, und OK holte
+  „GPS wird geschrieben … 100 %“ mit totem Abbrechen-Knopf wieder hervor.
+  Der Fortschritt wird jetzt vor „Fertig“ geschlossen. Wache:
+  tests/test_schreibdialog_stapel.py (echtes util.js im Chromium).
 - Zwei weitere stille Scope-Fehler im Animator (Schilder-Schatten-Richtung im
   Bearbeiten-Modus, Reiseroute-Wiederherstellung beim Projektwechsel) — liefen
   in try/catch ins Leere.
