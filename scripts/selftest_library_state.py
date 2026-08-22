@@ -248,8 +248,14 @@ async def main() -> int:
         await zu("library")
         await page.wait_for_timeout(900)
 
-        n1 = await page.evaluate("() => document.querySelectorAll('#lib-grid .lib-card').length")
-        sagen(n1 == 200, "erste Seite: 200 Kacheln", f"→ {n1}")
+        # 22.08.2026: Fenster-Rendering — im DOM steht nur der sichtbare
+        # Ausschnitt. Gezählt wird deshalb die höchste gezeigte Nummer.
+        dom = await page.evaluate("() => document.querySelectorAll('#lib-grid .lib-card').length")
+        sagen(0 < dom < 200, "nur das Fenster steht im DOM", f"→ {dom} Kacheln")
+        await page.evaluate("() => { const g = document.getElementById('lib-grid'); g.scrollTop = g.scrollHeight; }")
+        await page.wait_for_timeout(300)
+        n1 = await page.evaluate("() => { const c = [...document.querySelectorAll('#lib-grid .lib-card')]; return c.length ? Math.max(...c.map(x => +x.dataset.i)) + 1 : 0; }")
+        sagen(n1 >= 200, "erste Seite geladen (≥ 200, Nachladen darf schon greifen)", f"→ {n1}")
         kopf = await page.evaluate(
             "() => (document.getElementById('lib-head') || {}).textContent || ''")
         sagen("450" in kopf, "die Kopfzeile nennt die echte Gesamtzahl", f"→ {kopf.strip()[:40]!r}")
@@ -258,13 +264,17 @@ async def main() -> int:
         await page.evaluate(
             "() => { const g = document.getElementById('lib-grid'); g.scrollTop = g.scrollHeight; }")
         await page.wait_for_timeout(900)
-        n2 = await page.evaluate("() => document.querySelectorAll('#lib-grid .lib-card').length")
-        sagen(n2 == 400, "nach dem Scrollen: 400 Kacheln", f"→ {n2}")
+        await page.evaluate("() => { const g = document.getElementById('lib-grid'); g.scrollTop = g.scrollHeight; }")
+        await page.wait_for_timeout(300)
+        n2 = await page.evaluate("() => { const c = [...document.querySelectorAll('#lib-grid .lib-card')]; return c.length ? Math.max(...c.map(x => +x.dataset.i)) + 1 : 0; }")
+        sagen(n1 <= n2 <= 450, "nach dem Scrollen: weitere Seite dazu", f"→ {n2}")
 
         await page.evaluate(
             "() => { const g = document.getElementById('lib-grid'); g.scrollTop = g.scrollHeight; }")
         await page.wait_for_timeout(900)
-        n3 = await page.evaluate("() => document.querySelectorAll('#lib-grid .lib-card').length")
+        await page.evaluate("() => { const g = document.getElementById('lib-grid'); g.scrollTop = g.scrollHeight; }")
+        await page.wait_for_timeout(300)
+        n3 = await page.evaluate("() => { const c = [...document.querySelectorAll('#lib-grid .lib-card')]; return c.length ? Math.max(...c.map(x => +x.dataset.i)) + 1 : 0; }")
         sagen(n3 == 450, "dritte Seite: alle 450, kein Überschuss", f"→ {n3}")
 
         # Am Ende angekommen darf keine weitere Abfrage mehr rausgehen.

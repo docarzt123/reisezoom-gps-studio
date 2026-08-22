@@ -397,7 +397,7 @@ function mountLibrary(body, headerActions) {
     const seq = ++_reloadSeq;
     const res = await api().library_query(queryParams({
       limit: view === "map" ? MAP_CAP : (view === "stats" ? 1 : PAGE),
-      with_thumbs: view === "cards" || view === "list",
+      with_thumbs: false,          // 22.08.2026: Bilder holt das Fenster gezielt (library_thumbs)
       with_geom: view === "map",
     }));
     if (_unmounted || seq !== _reloadSeq) return;
@@ -419,7 +419,7 @@ function mountLibrary(body, headerActions) {
     if (!_ortAus && (state.search || "").trim().length >= 3) {
       const ort = await _ortSuche(state.search.trim(), queryParams({
         limit: view === "map" ? MAP_CAP : (view === "stats" ? 1 : PAGE),
-        with_thumbs: view === "cards" || view === "list",
+        with_thumbs: false,
         with_geom: view === "map",
         search: "",
       }));
@@ -464,7 +464,7 @@ function mountLibrary(body, headerActions) {
     _laedtMehr = true;
     const ort = _ortAktiv ? { search: "", bbox: _ortAktiv.bbox } : {};
     const res = await api().library_query(queryParams(Object.assign({
-      limit: PAGE, offset: _items.length, with_thumbs: true,
+      limit: PAGE, offset: _items.length, with_thumbs: false,
     }, ort)));
     _laedtMehr = false;
     if (_unmounted || !res || !res.ok) return;
@@ -473,18 +473,10 @@ function mountLibrary(body, headerActions) {
     const start = _items.length;
     _items = _items.concat(neu);
     _hatMehr = _items.length < (res.total || _total);
-    // Nur die neuen anhängen — ein voller Neuaufbau würde bei ein paar tausend
-    // Kacheln mit jedem Nachladen teurer und ließe laufende Bild-Ladevorgänge
-    // neu beginnen.
-    if (view === "cards") {
-      grid.insertAdjacentHTML("beforeend",
-        neu.map((it, k) => cardHtml(it, start + k)).join(""));
-      bindItemClicks(grid);
-    } else {
-      $("lib-list").insertAdjacentHTML("beforeend",
-        neu.map((it, k) => rowHtml(it, start + k)).join(""));
-      bindItemClicks($("lib-list"));
-    }
+    // 22.08.2026: Fenster-Rendering — nur der sichtbare Ausschnitt steht im DOM,
+    // ein Neuaufbau ist deshalb billig; der untere Platzhalter wächst mit.
+    void start;
+    if (view === "cards") renderGrid(); else renderList();
   }
 
   /** Kurz vor dem Ende der Scrollbahn die nächste Seite anstoßen. */
@@ -712,7 +704,7 @@ function mountLibrary(body, headerActions) {
     return `
       <button class="lib-card${_multi.has(it.path) ? " is-multi" : (_sel && _sel.path === it.path ? " is-sel" : "")}" data-i="${i}" type="button">
         <span class="lib-card-thumb">
-          ${it.thumb_url ? `<img src="${it.thumb_url}" alt="" loading="lazy">` : `<span class="lib-card-nothumb">?</span>`}
+          ${thumbImg(it, "card")}
           ${badges(it)}
         </span>
         <span class="lib-card-name">${esc(it.name)}</span>
@@ -763,7 +755,7 @@ function mountLibrary(body, headerActions) {
   function rowHtml(it, i) {
     return `
         <button class="lib-row${_multi.has(it.path) ? " is-multi" : (_sel && _sel.path === it.path ? " is-sel" : "")}" data-i="${i}" type="button">
-          <span class="lib-row-thumb">${it.thumb_url ? `<img src="${it.thumb_url}" alt="" loading="lazy">` : ""}</span>
+          <span class="lib-row-thumb">${thumbImg(it, "row")}</span>
           <span class="lib-row-name">${it.fav ? "★ " : ""}${esc(it.name)}
             ${it.recorded_eff ? "" : `<i class="lib-row-tag">${T("library.planned", "geplant")}</i>`}
             ${it.has_session ? `<i class="lib-row-tag lib-row-tag-proj">●</i>` : ""}</span>
@@ -780,10 +772,127 @@ function mountLibrary(body, headerActions) {
         </button>`;
   }
 
+  // ── 22.08.2026 — Fenster-Rendering („virtualisierte Liste") ──────────────
+  // Es stehen nur die sichtbaren Kacheln/Zeilen (± Puffer) im DOM; davor und
+  // dahinter halten zwei Platzhalter die Scrollhöhe. Vorher wuchs das DOM mit
+  // jedem Nachladen (10.000 Touren = 10.000 Kacheln mit Bild), und jede
+  // Auswahl baute alles neu auf. Vorschaubilder kommen jetzt gezielt für das
+  // Fenster (library_thumbs), nicht mehr als Teil jeder Abfrage.
+  const _fenster = { cards: { h: 0, cols: 1 }, list: { h: 0 } };
+  const PUFFER_ZEILEN = 6;
+  let _fensterRaf = 0;
+
+  function fensterMessen(el, art) {
+    const f = _fenster[art];
+    const probe = el.querySelector(art === "cards" ? ".lib-card" : ".lib-row:not(.lib-row-head)");
+    if (probe) f.h = Math.max(1, probe.getBoundingClientRect().height + (art === "cards" ? 12 : 0));
+    if (art === "cards") {
+      try { f.cols = Math.max(1, getComputedStyle(el).gridTemplateColumns.split(" ").length); } catch (_) {}
+    }
+    return f;
+  }
+
+  function fensterBereich(el, art) {
+    const f = _fenster[art];
+    const cols = art === "cards" ? f.cols : 1;
+    const h = f.h || (art === "cards" ? 200 : 34);
+    const kopf = art === "list" ? 26 : 0;
+    const top = Math.max(0, el.scrollTop - kopf);
+    const zeilen = Math.ceil(el.clientHeight / h) + PUFFER_ZEILEN * 2;
+    const ersteZeile = Math.max(0, Math.floor(top / h) - PUFFER_ZEILEN);
+    const gesamtZeilen = Math.ceil(_items.length / cols);
+    const letzteZeile = Math.min(gesamtZeilen, ersteZeile + zeilen);
+    return {
+      start: ersteZeile * cols, end: Math.min(_items.length, letzteZeile * cols),
+      oben: ersteZeile * h, unten: Math.max(0, (gesamtZeilen - letzteZeile) * h),
+    };
+  }
+
+  function fensterHtml(el, art, inhalt) {
+    const b = fensterBereich(el, art);
+    const span = art === "cards" ? "grid-column:1/-1;" : "";
+    const teile = [];
+    for (let i = b.start; i < b.end; i++) teile.push(inhalt(_items[i], i));
+    el._fensterBereich = b;
+    return `<div class="lib-platz" style="${span}height:${b.oben}px"></div>` +
+      teile.join("") + `<div class="lib-platz" style="${span}height:${b.unten}px"></div>`;
+  }
+
+  let _messungLaeuft = false;
+  function fensterNachMessung(el, art) {
+    if (_messungLaeuft) return;          // nie rekursiv nachmessen
+    const vorher = _fenster[art].h, colsVorher = _fenster[art].cols;
+    const f = fensterMessen(el, art);
+    // Nur bei echter Änderung (> 1 px / andere Spaltenzahl) EINMAL neu setzen.
+    // WebKit lieferte beim Umschalten der Scrollleiste minimal andere Höhen —
+    // ohne Schwelle baute sich das Fenster endlos neu (99 % CPU, 4 GB).
+    if (Math.abs(vorher - f.h) > 1 || (art === "cards" && colsVorher !== f.cols)) {
+      _messungLaeuft = true;
+      try { if (art === "cards") renderGrid(); else renderList(); }
+      finally { _messungLaeuft = false; }
+    }
+  }
+
+  /** Beim Scrollen: nur neu bauen, wenn sich das Fenster verschoben hat. */
+  function fensterAktualisieren(el, art) {
+    if (_fensterRaf) return;
+    _fensterRaf = requestAnimationFrame(() => {
+      _fensterRaf = 0;
+      if (_unmounted || !el.isConnected || !_items.length) return;
+      const b = fensterBereich(el, art), alt = el._fensterBereich;
+      if (alt && alt.start === b.start && alt.end === b.end) return;
+      if (art === "cards") renderGrid(); else renderList();
+    });
+  }
+
+  // Vorschaubilder nur fürs Fenster holen; Vorrat begrenzen, damit 10.000
+  // Touren nicht 10.000 data-URLs im Speicher halten.
+  const THUMB_VORRAT = 900;
+  let _thumbAnfrage = 0;
+  async function fensterThumbs(el) {
+    const b = el._fensterBereich; if (!b) return;
+    const fehlt = [];
+    for (let i = b.start; i < b.end; i++) {
+      const it = _items[i];
+      if (it && it.image && !it.thumb_url && it.thumb_url !== "") fehlt.push(it.image);
+    }
+    if (!fehlt.length) return;
+    const meine = ++_thumbAnfrage;
+    const res = await api().library_thumbs(fehlt.slice(0, 400));
+    if (_unmounted || !res || !res.ok) return;
+    for (let i = b.start; i < b.end; i++) {
+      const it = _items[i];
+      if (!it || !it.image || it.thumb_url) continue;
+      if (res.thumbs[it.image] === undefined) continue;
+      it.thumb_url = res.thumbs[it.image] || "";
+      const img = el.querySelector(`[data-i="${i}"] img[data-lazy]`);
+      if (img && it.thumb_url) { img.src = it.thumb_url; img.removeAttribute("data-lazy"); }
+      else if (img && !it.thumb_url) img.remove();
+    }
+    // Vorrat stutzen: weit weg vom Fenster vergessen
+    let vorrat = 0;
+    for (const it of _items) if (it.thumb_url) vorrat++;
+    if (vorrat > THUMB_VORRAT) {
+      for (let i = 0; i < _items.length; i++) {
+        if (i >= b.start - 300 && i < b.end + 300) continue;
+        if (_items[i].thumb_url) { delete _items[i].thumb_url; if (--vorrat <= THUMB_VORRAT) break; }
+      }
+    }
+    if (meine !== _thumbAnfrage) return;
+  }
+
+  function thumbImg(it, klasse) {
+    if (it.thumb_url) return `<img src="${it.thumb_url}" alt="" loading="lazy">`;
+    if (it.thumb_url === "" || !it.image) return klasse === "card" ? `<span class="lib-card-nothumb">?</span>` : "";
+    return `<img data-lazy="1" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">`;
+  }
+
   function renderGrid() {
     if (!_items.length) { grid.innerHTML = emptyHtml(); bindEmpty(); return; }
-    grid.innerHTML = _items.map((it, i) => cardHtml(it, i)).join("");
+    grid.innerHTML = fensterHtml(grid, "cards", (it, i) => cardHtml(it, i));
     bindItemClicks(grid);
+    fensterNachMessung(grid, "cards");
+    fensterThumbs(grid);
   }
 
   function renderList() {
@@ -804,7 +913,7 @@ function mountLibrary(body, headerActions) {
             >${esc(c.label())}<i class="lib-th-pfeil">${an}</i></span>`;
         }).join("")}
       </div>
-      ${_items.map((it, i) => rowHtml(it, i)).join("")}`;
+      ${fensterHtml(box, "list", (it, i) => rowHtml(it, i))}`;
     box.querySelectorAll("[data-col]").forEach(th => {
       const spalte = LIST_COLS.find(c => c.key === th.dataset.col);
       const um = () => {
@@ -822,6 +931,8 @@ function mountLibrary(body, headerActions) {
       };
     });
     bindItemClicks(box);
+    fensterNachMessung(box, "list");
+    fensterThumbs(box);
   }
 
   function bindItemClicks(root) {
@@ -1471,6 +1582,13 @@ function mountLibrary(body, headerActions) {
 
   function select(it, opts) {
     _sel = it;
+    if (it && it.image && !it.thumb_url && it.thumb_url !== "") {
+      api().library_thumbs([it.image]).then(r => {
+        if (_unmounted || !r || !r.ok || _sel !== it) return;
+        it.thumb_url = r.thumbs[it.image] || "";
+        renderDetail();
+      }).catch(() => {});
+    }
     // Die Auswahl merken (Wunsch Beta-Tester): Wer eine Tour markiert, ins
     // Werkzeug wechselt und zurückkommt, stand vorher wieder vor einer leeren
     // Detailspalte und musste die Tour erneut suchen. Der Pfad reicht — beim
@@ -2582,8 +2700,31 @@ function mountLibrary(body, headerActions) {
   // Nachladen beim Scrollen — die Container leben über alle Re-Renders hinweg
   // (innerHTML tauscht nur die Kinder), einmal registrieren reicht. Beide
   // hängen am Modul-DOM und verschwinden mit ihm beim Unmount von selbst.
-  grid.addEventListener("scroll", () => scrollNachladen(grid), { passive: true });
-  $("lib-list").addEventListener("scroll", () => scrollNachladen($("lib-list")), { passive: true });
+  grid.addEventListener("scroll", () => { fensterAktualisieren(grid, "cards"); scrollNachladen(grid); }, { passive: true });
+  $("lib-list").addEventListener("scroll", () => { fensterAktualisieren($("lib-list"), "list"); scrollNachladen($("lib-list")); }, { passive: true });
+  // Fenstergröße ändert Spaltenzahl/Zeilenhöhe → Fenster neu messen
+  try {
+    let _roRaf = 0;
+    const _ro = new ResizeObserver((eintraege) => {
+      if (_unmounted || !_items.length) return;
+      // Nur auf echte Breitenänderungen reagieren (Spaltenzahl) — Höhen
+      // und Scrollleisten ändern sich beim Rendern selbst und würden sonst
+      // eine Endlosschleife Render → Resize → Render auslösen.
+      let breiteNeu = false;
+      for (const e of eintraege) {
+        const w = Math.round(e.contentRect.width);
+        if (e.target._fensterBreite !== undefined && Math.abs(e.target._fensterBreite - w) > 2) breiteNeu = true;
+        e.target._fensterBreite = w;
+      }
+      if (!breiteNeu || _roRaf) return;
+      _roRaf = requestAnimationFrame(() => {
+        _roRaf = 0;
+        if (_unmounted) return;
+        if (view === "cards") renderGrid(); else if (view === "list") renderList();
+      });
+    });
+    _ro.observe(grid); _ro.observe($("lib-list"));
+  } catch (_) {}
   $("lib-map-png").onclick = saveMapPng;
   $("lib-folders-btn").onclick = openFoldersModal;
   $("lib-dupes").onclick = showDuplicates;

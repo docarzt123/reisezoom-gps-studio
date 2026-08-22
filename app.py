@@ -1952,6 +1952,20 @@ class Api:
             log.exception("library_query")
             return {"ok": False, "error": str(e), "items": [], "total": 0}
 
+    def library_thumbs(self, images: list[str] | None = None) -> dict:
+        """22.08.2026 — Vorschaubilder nur für das sichtbare Fenster der Liste
+        (siehe Fenster-Rendering im Archiv-Modul). `images` sind die
+        `image`-Pfade der Treffer; Antwort: Pfad → data-URL ("" wenn keins)."""
+        out = {}
+        for pth in (images or [])[:500]:
+            if not isinstance(pth, str) or not pth:
+                continue
+            try:
+                out[pth] = self._lib_thumb_url(pth)
+            except Exception:
+                out[pth] = ""
+        return {"ok": True, "thumbs": out}
+
     @staticmethod
     def _lib_thumb_url(thumb_path: str) -> str:
         """Vorschaubild als Daten-Adresse — mit Zwischenspeicher.
