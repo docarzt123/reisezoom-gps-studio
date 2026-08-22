@@ -229,6 +229,25 @@ function mountGeotagger(body, headerActions) {
   let _compassMarker = null;  // v0.9.337 — interaktiver Aufnahmerichtungs-Kompass (selektiertes Foto)
   let photos = [];            // pyState: loaded photos
   let matches = [];           // latest match result
+  // 22.08.2026 (Audit): Pfad-Index statt `matches.find(...)` in Schleifen —
+  // updateBadges/updateMatches waren O(n²) (bei 5.000 Fotos 25 Mio. Vergleiche
+  // pro Thumb-Tick). Index baut sich neu, sobald Array-Identität oder Länge
+  // sich ändert; pfad-ändernde Einzel-Mutationen gibt es nicht.
+  const _idxCache = { mArr: null, mLen: -1, mMap: null, pArr: null, pLen: -1, pMap: null };
+  function _mByPath(path) {
+    if (_idxCache.mArr !== matches || _idxCache.mLen !== matches.length) {
+      _idxCache.mMap = new Map(); for (const m of matches) if (m && m.path) _idxCache.mMap.set(m.path, m);
+      _idxCache.mArr = matches; _idxCache.mLen = matches.length;
+    }
+    return _idxCache.mMap.get(path);
+  }
+  function _pByPath(path) {
+    if (_idxCache.pArr !== photos || _idxCache.pLen !== photos.length) {
+      _idxCache.pMap = new Map(); for (const ph of photos) if (ph && ph.path) _idxCache.pMap.set(ph.path, ph);
+      _idxCache.pArr = photos; _idxCache.pLen = photos.length;
+    }
+    return _idxCache.pMap.get(path);
+  }
   let selectedPath = null;
   let refMode = false;
   let referencePath = null;   // welches Foto wurde zuletzt als Referenz benutzt?
@@ -872,7 +891,7 @@ function mountGeotagger(body, headerActions) {
   // Chip, Karten-Kompass) → bei Umschalten Karte + offene Vorschau neu zeichnen.
   document.getElementById("gt-wf-direction")?.addEventListener("change", () => {
     try { redrawMarkers(); } catch (_) {}   // Pin-Pfeile + Karten-Kompass neu bewerten
-    const sel = selectedPath ? matches.find(x => x.path === selectedPath) : null;
+    const sel = selectedPath ? _mByPath(selectedPath) : null;
     if (sel) { try { showPhotoPopup(sel); } catch (_) {} }   // Vorschau-Chips neu
   });
   // v0.9.67: Undo-Listener auf #gt-panel
@@ -911,7 +930,7 @@ function mountGeotagger(body, headerActions) {
             if (isUnmounted) return;
             try {
               if (cache.referencePath) referencePath = cache.referencePath;
-              if (cache.selectedPath && photos.find(p => p.path === cache.selectedPath)) {
+              if (cache.selectedPath && _pByPath(cache.selectedPath)) {
                 selectPhoto(cache.selectedPath);
               }
             } catch (_) {}
@@ -1316,14 +1335,19 @@ function mountGeotagger(body, headerActions) {
     // v0.9.29 — Modul wurde inzwischen unmounted (Tab gewechselt) → stop.
     if (isUnmounted) { stopThumbPolling(); return; }
     try {
-      const res = await api().geotagger_poll_thumbs(Array.from(known));
+      // 22.08.2026 (Audit): nach dem ersten Tick nur noch „seit Laufnummer"
+      // fragen — vorher ging bei 5.000 Fotos alle 250 ms die ganze Pfadliste
+      // über die Brücke (MBs JSON pro Sekunde).
+      const _seit = (known.__seq != null) ? known.__seq : -1;
+      const res = await api().geotagger_poll_thumbs(_seit >= 0 ? [] : Array.from(known), _seit);
+      if (res && res.ok && res.seq != null) known.__seq = res.seq;
       if (isUnmounted) { stopThumbPolling(); return; }
       if (!res.ok) { stopThumbPolling(); return; }
       // Deltas in photo-state einarbeiten + Tiles updaten
       const deltas = res.deltas || {};
       let touched = 0;
       for (const [path, data] of Object.entries(deltas)) {
-        const ph = photos.find(p => p.path === path);
+        const ph = _pByPath(path);
         if (!ph) continue;
         ph.thumb = data.thumb;
         ph.photo_time = data.photo_time;
@@ -1344,9 +1368,17 @@ function mountGeotagger(body, headerActions) {
           "info", 7000); } catch (_) {}
       }
 
-      // Match neu berechnen wenn neue EXIF-Zeiten reingekommen sind
+      // Match neu berechnen wenn neue EXIF-Zeiten reingekommen sind.
+      // 22.08.2026: während der Worker läuft höchstens alle 1,5 s (Backend-Match
+      // + Badge-Durchlauf sind teuer); am Ende kommt ohnehin ein letzter Lauf.
       if (touched > 0 && currentGpxPath) {
-        updateMatches();
+        const now = Date.now();
+        if (!prog.running || now - (known.__lastMatch || 0) > 1500) {
+          known.__lastMatch = now; known.__matchOffen = false;
+          updateMatches();
+        } else {
+          known.__matchOffen = true;
+        }
       }
 
       if (window.__rzgpsShuttingDown) { stopThumbPolling(); return; }
@@ -1355,11 +1387,12 @@ function mountGeotagger(body, headerActions) {
       } else {
         // Fertig — jetzt sind alle EXIF-Zeiten da → Raster nach Aufnahmezeit
         // ordnen (v0.9.363) und einmal frisch aufbauen.
+        if (known.__matchOffen && currentGpxPath) { known.__matchOffen = false; updateMatches(); }
         _gtSortPhotosByTime();
         renderPhotoGrid();
         hideGridLoader();
         if (prog.total > 0) {
-          toast(`${prog.done} Fotos geladen`, "success", 2500);
+          toast(t("geotagger.thumbs.geladen", "{n} Fotos geladen").replace("{n}", prog.done), "success", 2500);
         }
       }
     } catch (err) {
@@ -1385,7 +1418,7 @@ function mountGeotagger(body, headerActions) {
   function updateTileForPath(path) {
     const tile = document.querySelector(`.photo-tile[data-path="${CSS.escape(path)}"]`);
     if (!tile) return;
-    const ph = photos.find(p => p.path === path);
+    const ph = _pByPath(path);
     if (!ph) return;
     if (ph.thumb) {
       tile.classList.remove("skeleton");
@@ -1550,7 +1583,7 @@ function mountGeotagger(body, headerActions) {
       tile.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
     // Karten-Fokus + Popup mit Foto-Preview
-    const m = matches.find(x => x.path === path);
+    const m = _mByPath(path);
     // v0.9.165 — Karte NUR bewegen wenn das Foto wirklich im Track-Zeitfenster
     // liegt (in_range). Bei „außerhalb der Track-Zeit" zeigt m.lat den
     // NÄCHSTGELEGENEN Punkt (= meist Track-Start) — dorthin zu fliegen wäre
@@ -1568,8 +1601,8 @@ function mountGeotagger(body, headerActions) {
   // (DateTimeOriginal, nicht UTC) + aktiver Zeit-Offset (pro Kamera oder global).
   // photo_time bleibt intern UTC fürs Track-Matching; das hier ist nur Anzeige.
   function _gtCaptureLocalStr(path) {
-    const m = matches.find(x => x.path === path);
-    const ph = photos.find(p => p.path === path);
+    const m = _mByPath(path);
+    const ph = _pByPath(path);
     const iso = (m && m.photo_time_local) || (ph && ph.photo_time_local)
               || (m && m.photo_time) || (ph && ph.photo_time) || null;
     if (!iso) return "";
@@ -1583,7 +1616,7 @@ function mountGeotagger(body, headerActions) {
   }
 
   function showPhotoPopup(m) {
-    const ph = photos.find(p => p.path === m.path);
+    const ph = _pByPath(m.path);
     if (!ph) return;
     const panel = document.getElementById("gt-preview");
     const img = document.getElementById("gt-preview-img");
@@ -1961,7 +1994,7 @@ function mountGeotagger(body, headerActions) {
       _gtgPushUndo(t("undo.adresse_bearbeitet", "Adresse bearbeitet"), { force: true });   // v0.9.359 — undoable
       if (empty) _gtAddr.delete(path); else _gtAddr.set(path, edited);
       openModal({}).close();
-      const mm = matches.find(x => x.path === path);
+      const mm = _mByPath(path);
       if (mm) showPhotoPopup(mm);
     };
   }
@@ -2022,7 +2055,7 @@ function mountGeotagger(body, headerActions) {
     const banner = document.getElementById("gt-banner");
     banner.classList.toggle("show", refMode);
     if (refMode && selectedPath) {
-      const ph = photos.find(p => p.path === selectedPath);
+      const ph = _pByPath(selectedPath);
       // Der Übersetzungstext trägt bewusst ein <strong> und muss deshalb ins
       // innerHTML. `t()` setzt Platzhalter per reiner Textersetzung ein und
       // entschärft nichts — der Dateiname wird also vorher entschärft. (Die
@@ -2274,7 +2307,7 @@ function mountGeotagger(body, headerActions) {
     // v0.9.337 — Kompass des selektierten Fotos nach jedem Redraw frisch aufsetzen
     // (nur wenn es auch durch den Filter sichtbar ist — v0.9.340)
     if (selectedPath) {
-      const sm = matches.find(x => x.path === selectedPath);
+      const sm = _mByPath(selectedPath);
       if (sm && _gtMatchInFilter(sm)) _gtShowCompass(sm); else _gtHideCompass();
     }
     // Marker neu gezeichnet → evtl. offene Auffächerung verwerfen (Marker-Objekte sind neu)
@@ -2422,7 +2455,7 @@ function mountGeotagger(body, headerActions) {
       if (typeof map.getCanvasContainer !== "function" || !map.getCanvasContainer()) return;
     } catch (_) { return; }
 
-    const ph = photos.find(p => p.path === m.path);
+    const ph = _pByPath(m.path);
     const el = document.createElement("div");
     el.className = "gt-compass";
     el.innerHTML = `
@@ -2479,7 +2512,7 @@ function mountGeotagger(body, headerActions) {
       m.dir_src = (tmpDir != null ? "manual" : null);
       m.dir_off = (tmpDir == null);
       redrawMarkers();                  // baut Pin-Pfeil + Kompass frisch auf
-      const sel = matches.find(x => x.path === m.path);
+      const sel = _mByPath(m.path);
       if (sel) showPhotoPopup(sel);
     }
     function onUp() {
@@ -2550,9 +2583,9 @@ function mountGeotagger(body, headerActions) {
   function _gtMergeManual() {
     if (!_gtManual.size) return;
     _gtManual.forEach((pos, path) => {
-      const ph = photos.find(p => p.path === path);
+      const ph = _pByPath(path);
       if (!ph) return;                       // Foto nicht mehr geladen
-      let m = matches.find(x => x.path === path);
+      let m = _mByPath(path);
       if (!m) { m = { path, name: ph.name, photo_time: ph.photo_time || null }; matches.push(m); }
       m.lat = pos.lat;
       m.lon = pos.lon;
@@ -2621,12 +2654,12 @@ function mountGeotagger(body, headerActions) {
   // gematcht ODER mit eigenem GPS)? Dann kein erneutes Raster→Karte-Ziehen (#3).
   function _gtPhotoIsPlaced(path) {
     if (_gtManual.has(path)) return true;
-    const m = matches.find(x => x.path === path);
+    const m = _mByPath(path);
     return !!(m && m.lat != null && (m.in_range || m.existing_gps));
   }
 
   async function _gtPlacePhoto(path, lat, lon, snap) {
-    const ph = photos.find(p => p.path === path);
+    const ph = _pByPath(path);
     if (!ph) return;
     _gtgPushUndo(t("undo.foto_platziert", "Foto platziert"), { force: true });   // v0.9.359 — undoable
     let alt = null;
@@ -2734,7 +2767,7 @@ function mountGeotagger(body, headerActions) {
       if (!tile) return;
       const path = tile.dataset.path;
       if (!path || path.startsWith("pending:")) return;
-      const ph = photos.find(p => p.path === path);
+      const ph = _pByPath(path);
       const startX = ev.clientX, startY = ev.clientY;
       let ghost = null, dragging = false;
 
@@ -2778,7 +2811,7 @@ function mountGeotagger(body, headerActions) {
     // v0.9.165-fix — Parameter heißt `tile` (NICHT `t`), sonst überschattet er
     // die i18n-Funktion t() → „t is not a function" bei den Badge-Tooltips.
     document.querySelectorAll(".photo-tile").forEach(tile => {
-      const m = matches.find(x => x.path === tile.dataset.path);
+      const m = _mByPath(tile.dataset.path);
       const b = tile.querySelector(".badge");
       const chk = tile.querySelector(".gt-tag-check");
       b.className = "badge";
@@ -2900,7 +2933,7 @@ function mountGeotagger(body, headerActions) {
   function _gtMatchInFilter(m) {
     if (!m) return false;
     if (_gtCamFilter) {
-      const ph = photos.find(p => p.path === m.path);
+      const ph = _pByPath(m.path);
       if (!ph || _gtPhotoCamera(ph) !== _gtCamFilter) return false;
     }
     if (_gtFilter) {
@@ -2930,7 +2963,7 @@ function mountGeotagger(body, headerActions) {
     // Kategorie-Filter (v0.9.163)
     if (_gtFilter) {
       if (!p.path) return false;            // Pending/Upload-Tiles nur ohne Filter
-      const m = matches.find(mm => mm.path === p.path);
+      const m = _mByPath(p.path);
       if (!m) return false;
       switch (_gtFilter) {
         case "tagged": return m.lat != null && m.in_range;
@@ -2983,7 +3016,7 @@ function mountGeotagger(body, headerActions) {
     _gtgPushUndo(t("undo.platzierung_aufgehoben", "Platzierung aufgehoben"), { force: true });   // v0.9.359 — undoable
     _gtManual.delete(path);
     // Sofortiges Feedback bis der debounced Re-Match durch ist:
-    const m = matches.find(x => x.path === path);
+    const m = _mByPath(path);
     if (m) m.manual = false;
     updateMatches();        // re-match per Aufnahmezeit (greift jetzt ohne diesen Pin)
     renderPhotoGrid();      // ↺-Button verschwindet (nicht mehr manuell)
@@ -3098,7 +3131,7 @@ function mountGeotagger(body, headerActions) {
   // das Platzieren ist die explizite Tagging-Absicht, ein Kategorie-Filter darf
   // sie nicht mehr rauswerfen (sie sind z.B. nicht mehr „außerhalb Track-Zeit").
   function _gtMatchTaggable(m) {
-    const p = photos.find(pp => pp.path === m.path);
+    const p = _pByPath(m.path);
     if (!p) return false;
     if (!_gtPhotoChecked(p)) return false;
     if (m && m.manual) return true;
@@ -3146,7 +3179,7 @@ function mountGeotagger(body, headerActions) {
       if (isUnmounted) { _gtGeoPolling = false; return; }
       Object.entries(st.results || {}).forEach(([p, a]) => _gtAddr.set(p, a));
       if (statusEl) statusEl.textContent = t("geotagger.geocode.progress", { done: st.done, total: st.total });
-      const sel = matches.find(x => x.path === selectedPath);
+      const sel = _mByPath(selectedPath);
       if (sel) showPhotoPopup(sel);
       if (st.running) { setTimeout(poll, 700); }
       else {
@@ -3549,18 +3582,29 @@ function mountGeotagger(body, headerActions) {
       _gtExifEdits.clear();
       _gtExif.clear();
       _gtRefreshWriteBtn();
-      const mSel = matches.find(x => x.path === selectedPath);
+      const mSel = _mByPath(selectedPath);
       if (mSel && document.getElementById("gt-preview")?.classList.contains("show")) {
         _gtRenderExif(selectedPath); _gtFetchExif(selectedPath);
       }
     }
 
-    // Photo-State refreshen (existing_gps ist jetzt überall gesetzt)
+    // Photo-State refreshen (existing_gps ist jetzt überall gesetzt).
+    // 22.08.2026 (Audit): vorher las geotagger_load_photos ALLE Fotos neu von
+    // der Platte (EXIF + Thumbs, bei 5.000 Bildern minutenlang, NAS noch länger).
+    // Wir wissen selbst, was geschrieben wurde → lokal markieren.
     if (photos.length && !canceled) {
-      const paths = photos.map(p => p.path);
-      api().geotagger_load_photos(paths).then(r2 => {
-        if (r2.ok) { photos = r2.photos; renderPhotoGrid(); updateMatches(); }
-      });
+      const written = new Map();
+      for (const m of (writable || [])) {
+        if (m && m.lat != null && m.lon != null) written.set(m.path, m);
+      }
+      let geaendert = 0;
+      for (const ph of photos) {
+        const m = written.get(ph.path);
+        if (!m) continue;
+        ph.existing_gps = { lat: m.lat, lon: m.lon, alt: (m.ele != null ? m.ele : null) };
+        geaendert++;
+      }
+      if (geaendert) { renderPhotoGrid(); updateMatches(); }
     }
   }
 

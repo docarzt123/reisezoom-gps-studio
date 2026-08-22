@@ -2121,6 +2121,7 @@
   "geotagger.write.bridge_tot": "Keine Rückmeldung vom Schreibvorgang — Details stehen im Log (Hilfe → Log).",
   "geotagger.write.haengt": "Seit 90 Sekunden kein Fortschritt — vermutlich hängt ein Foto. Du kannst das Fenster schließen; Details stehen im Log.",
   "geotagger.thumbs.capped": "Sehr viele Fotos — Vorschaubilder bleiben aus, damit die App stabil läuft. Verorten und Schreiben gehen ganz normal.",
+  "geotagger.thumbs.geladen": "{n} Fotos geladen",
   "geotagger.markers.capped": "Sehr viele Fotos — die Foto-Pins auf der Karte bleiben aus (nur Auswahl und manuell platzierte). Alles andere geht normal.",
   "geotagger.write.laeuft_schon": "Es läuft schon ein Schreibvorgang.",
   "geotagger.busy.lese": "Lese Fotos …",

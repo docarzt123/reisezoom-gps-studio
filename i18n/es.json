@@ -2121,6 +2121,7 @@
   "geotagger.write.bridge_tot": "El proceso de escritura no responde — los detalles están en el registro (Ayuda → Log).",
   "geotagger.write.haengt": "Sin avances desde hace 90 segundos — probablemente una foto se ha atascado. Puedes cerrar esta ventana; los detalles están en el registro.",
   "geotagger.thumbs.capped": "Muchísimas fotos — las miniaturas quedan desactivadas para que la aplicación siga estable. Ubicar y escribir funcionan con normalidad.",
+  "geotagger.thumbs.geladen": "{n} fotos cargadas",
   "geotagger.markers.capped": "Muchísimas fotos — los pines en el mapa quedan desactivados (solo selección y los colocados a mano). Todo lo demás funciona con normalidad.",
   "geotagger.write.laeuft_schon": "Ya hay una escritura en curso.",
   "geotagger.busy.lese": "Leyendo fotos …",

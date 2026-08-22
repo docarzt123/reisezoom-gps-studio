@@ -465,8 +465,14 @@ class _ExifToolDaemon:
             n = self._req_counter
             cmd = "\n".join(args) + f"\n-execute{n}\n"
             assert self._proc.stdin is not None
-            self._proc.stdin.write(cmd.encode("utf-8"))
-            self._proc.stdin.flush()
+            try:
+                self._proc.stdin.write(cmd.encode("utf-8"))
+                self._proc.stdin.flush()
+            except (BrokenPipeError, OSError, ValueError) as e:
+                # 22.08.2026 (Audit): Daemon tot → sonst flog ein nackter
+                # BrokenPipeError bis in den Worker und der Daemon blieb „kaputt".
+                self._on_hang(0)
+                raise ExifToolTimeout(f"exiftool-Prozess nicht erreichbar: {e}") from None
             marker = f"{{ready{n}}}".encode()
             out = self._read_until(marker, timeout)
             return out.rstrip(b"\r\n").decode("utf-8", errors="replace")
@@ -479,8 +485,14 @@ class _ExifToolDaemon:
             n = self._req_counter
             cmd = "\n".join(args) + f"\n-execute{n}\n"
             assert self._proc.stdin is not None
-            self._proc.stdin.write(cmd.encode("utf-8"))
-            self._proc.stdin.flush()
+            try:
+                self._proc.stdin.write(cmd.encode("utf-8"))
+                self._proc.stdin.flush()
+            except (BrokenPipeError, OSError, ValueError) as e:
+                # 22.08.2026 (Audit): Daemon tot → sonst flog ein nackter
+                # BrokenPipeError bis in den Worker und der Daemon blieb „kaputt".
+                self._on_hang(0)
+                raise ExifToolTimeout(f"exiftool-Prozess nicht erreichbar: {e}") from None
             marker = f"{{ready{n}}}".encode()
             return self._read_until(marker, timeout).rstrip(b"\r\n")
 
@@ -750,7 +762,15 @@ def _piexif_write_gps(path: str, lat: float, lon: float,
         gps_ifd[piexif.GPSIFD.GPSImgDirectionRef] = b"T"  # T = true north
         gps_ifd[piexif.GPSIFD.GPSImgDirection] = (int(round(d * 100)), 100)
 
-    ex["GPS"] = gps_ifd
+    # 22.08.2026 (Audit): bestehende GPS-Tags (Speed, DOP, Satelliten, …)
+    # nicht wegwerfen — nur unsere Felder überschreiben. Bei Neuposition
+    # widersprechende Altwerte (Lat/Lon/Alt/Zeit/Richtung) sind oben abgedeckt.
+    alt_gps = dict(ex.get("GPS") or {})
+    if alt is None:
+        alt_gps.pop(piexif.GPSIFD.GPSAltitudeRef, None)
+        alt_gps.pop(piexif.GPSIFD.GPSAltitude, None)
+    alt_gps.update(gps_ifd)
+    ex["GPS"] = alt_gps
     try:
         exif_bytes = piexif.dump(ex)
     except Exception as e:
@@ -974,8 +994,9 @@ def shift_datetime(path: str, seconds: float) -> bool:
         except Exception:
             return False
 
-    if is_raw(path) or is_tiff(path):
+    if is_raw(path) or is_tiff(path) or is_heif(path):
         # exiftool: -AllDates+="HH:MM:SS" (negativ erlaubt mit Vorzeichen davor)
+        # 22.08.2026 (Audit): HEIC dazu — lief vorher still in `return False`.
         # v0.9.154: TIFF mit dazu — piexif.insert() kann kein TIFF schreiben.
         try:
             daemon = _ensure_write_daemon()
@@ -1353,9 +1374,16 @@ def _heif_read_exif_dict(path: str) -> Optional[dict]:
 
 
 def _heif_read_datetime(path: str) -> Optional[datetime]:
+    return _heif_read_datetime_and_tz(path)[0]
+
+
+def _heif_read_datetime_and_tz(path: str) -> tuple[Optional[datetime], Optional[int]]:
+    """22.08.2026 (Audit): gibt den Offset MIT zurück. Vorher wurde die Zeit
+    hier schon auf UTC gedreht, der Aufrufer bekam aber tz=None und hielt sie
+    für Kamera-Lokalzeit → iPhone-HEICs lagen um die Zeitzone daneben."""
     d = _heif_read_exif_dict(path)
     if not d:
-        return None
+        return None, None
     try:
         # DateTimeOriginal (36867) → ExifIFD; CreateDate (36868); ModifyDate (306) → 0th
         for ifd_key, tag in (("Exif", 36867), ("Exif", 36868), ("0th", 306)):
@@ -1377,11 +1405,11 @@ def _heif_read_datetime(path: str) -> Optional[datetime]:
                     tz = _parse_exif_tz_minutes(raw_tz)
                     if tz is not None:
                         break
-                return _to_utc(dt, tz)
-        return None
+                return _to_utc(dt, tz), tz
+        return None, None
     except Exception as e:
         _log.debug("HEIF Datetime-Parse fehlgeschlagen (%s): %s", path, e)
-        return None
+        return None, None
 
 
 def _heif_read_gps(path: str) -> Optional[tuple[float, float, Optional[float]]]:
@@ -1555,8 +1583,7 @@ def read_datetime_and_tz_min(path: str) -> tuple[Optional[datetime], Optional[in
             except ExifToolMissingError:
                 return None, None
         if is_heif(path):
-            # pillow-heif liefert keine getrennte TZ-Info → konservativ unbekannt.
-            return read_datetime(path), None
+            return _heif_read_datetime_and_tz(path)
     except Exception:
         return None, None
     # Unbekannte Endung
