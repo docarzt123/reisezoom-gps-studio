@@ -3341,7 +3341,24 @@ function mountAnimator(body, headerActions, opts) {
    *  gebaut — Mapbox kann `icon-image` nicht nachträglich austauschen, ohne
    *  dass das Bild schon registriert ist. */
   function dotEbenenAufbauen() {
-    if (!map || !map.isStyleLoaded || !map.isStyleLoaded()) return;
+    if (!map) return;
+    // v0.9.531 (Beta-Tester, DRITTER Anlauf „Kugel erst mit dem Regler"): Hier
+    // stand ein stilles `return`, wenn der Stil noch nicht fertig war. Beim
+    // style.load-Event (v0.9.530) ist der Stil in Mapbox v3 aber oft noch
+    // nicht „fully loaded" (Sprites/Quellen) — auf langsameren Rechnern brach
+    // der Aufbau hier ab, und wenn Projekt- und Startstil gleich sind, kam nie
+    // ein zweiter Versuch. Jetzt holt er sich selbst nach (idle), wie die
+    // Track-Layer über _whenStyleReady.
+    if (map.isStyleLoaded && !map.isStyleLoaded()) {
+      _whenStyleReady("anim-dot", () => {
+        dotEbenenAufbauen();
+        try {
+          const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
+          dotSetzen(trackFracAusAnker(a));
+        } catch (_) {}
+      });
+      return;
+    }
     const farbe = document.getElementById("anim-color")?.value || "#ff6b35";
     const gr = dotGroesse();
     try {
