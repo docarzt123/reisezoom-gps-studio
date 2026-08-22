@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Laufpunkt („Kugel"), DRITTE Schicht (Beta-Tester: „v0.9.530 geht es immer
+  noch nicht"): `dotEbenenAufbauen` brach still ab, wenn `isStyleLoaded()`
+  noch false war — beim `style.load`-Event ist der Stil in Mapbox v3 oft noch
+  nicht „fully loaded". Auf langsameren Rechnern daher kein Aufbau und (bei
+  Projektstil = Startstil) nie ein zweiter Versuch. Jetzt holt sich der
+  Aufbau selbst nach (`_whenStyleReady` → idle), wie die Track-Layer.
+  Beweis mit simulierter langsamer Karte gegen die echten Funktionen:
+  tests/test_laufpunkt_langsamer_stil.py (schlägt auf dem alten Code fehl).
+
 ## [0.9.530] – 2026-08-21
 
 ### Added
