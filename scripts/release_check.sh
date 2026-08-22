@@ -37,6 +37,10 @@ run "JS-Syntax (node --check)" bash -c '
   done
   [[ $ok == 1 ]]'
 
+# 1b) Nicht deklarierte Bezeichner (ESLint no-undef) — `node --check` sieht
+#     keine Scope-Fehler; ein Beta-Tester sah „writable is not defined" (22.08.2026).
+run "JS-Bezeichner (eslint no-undef)" python3 scripts/check_js_undef.py
+
 # 2) Python-Syntax (Backend + Skripte)
 run "Python-Syntax (py_compile)" bash -c '
   python3 -m py_compile app.py core/*.py scripts/*.py 2>&1'

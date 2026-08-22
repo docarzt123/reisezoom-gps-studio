@@ -3592,10 +3592,19 @@ function mountGeotagger(body, headerActions) {
     // 22.08.2026 (Audit): vorher las geotagger_load_photos ALLE Fotos neu von
     // der Platte (EXIF + Thumbs, bei 5.000 Bildern minutenlang, NAS noch länger).
     // Wir wissen selbst, was geschrieben wurde → lokal markieren.
+    // ⚠️ In try/catch: Nacharbeit darf den Abschluss-Dialog nie kippen
+    // (Beta-Tester 22.08.2026: ReferenceError hier → Dialog blieb hängen).
+    try { _gtNachSchreibenMarkieren(canceled); } catch (e) { try { applog("warn", "[geotagger] Nacharbeit nach dem Schreiben: " + e); } catch (_) {} }
+  }
+
+  function _gtNachSchreibenMarkieren(canceled) {
     if (photos.length && !canceled) {
       const written = new Map();
-      for (const m of (writable || [])) {
-        if (m && m.lat != null && m.lon != null) written.set(m.path, m);
+      // ⚠️ `writable` gibt es hier nicht (Beta-Tester-Log 22.08.2026: „writable is
+      // not defined" → Dialog blieb offen). Dieselbe Auswahl wie beim Start des
+      // Schreibens, aus `matches` gerechnet.
+      for (const m of (matches || [])) {
+        if (m && m.lat != null && m.lon != null && m.in_range && _gtMatchTaggable(m)) written.set(m.path, m);
       }
       let geaendert = 0;
       for (const ph of photos) {
