@@ -113,9 +113,39 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.532</span>
+    <span class="version-date">22 August 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <p class="version-tagline">The big spring clean — every module reviewed.</p>
+
+  <div class="highlight">
+    <strong>🔍 Full audit.</strong> Every module was reviewed end to end — cloud, render, animator, archive, geotagger, elevation animator, inspector and maps. More than 60 findings are fixed; the most important ones are listed here.</div>
+
+  <div class="highlight">
+    <strong>📷 Geotagger much faster.</strong> After writing, photos are no longer re-read from disk (minutes with 5,000 images). A second drop sometimes stayed without capture time — fixed. iPhone HEICs now get the right time zone.</div>
+
+  <div class="highlight">
+    <strong>☁️ Cloud never deletes on its own.</strong> Items that exist only in the cloud are reported, not removed. Tours without a file no longer end up as empty shells.</div>
+
+  <div class="highlight">
+    <strong>🗂 Archive stays responsive.</strong> While a large scan runs, list and statistics answer immediately — previously everything waited for the scan to finish.</div>
+
+  <h4>Fixed</h4>
+  <ul>
+    <li><strong>Elevation animator</strong> did not remember the data series and locked the cancel button for the next render.</li>
+    <li><strong>Web map / Tour map HTML:</strong> changing colour or width discarded your map view.</li>
+    <li><strong>Inspector:</strong> “Fill gap” now asks before replacing existing points.</li>
+    <li><strong>Render:</strong> map errors (e.g. invalid token) abort cleanly instead of producing black frames; GPS writing keeps foreign GPS tags such as speed.</li>
+  </ul>
+
+  <p class="version-note">Many of these findings came from our own review — if you notice something, send the log, it now carries more diagnostics.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.531</span>
     <span class="version-date">August 22, 2026</span>
-    <span class="version-badge">Latest</span>
   </div>
   <p class="version-tagline">The position dot — for real now, on slower machines too.</p>
 

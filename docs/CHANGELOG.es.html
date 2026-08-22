@@ -113,9 +113,39 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.531</span>
+    <span class="version-num">v0.9.532</span>
     <span class="version-date">22 de agosto de 2026</span>
     <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">La gran limpieza — todos los módulos revisados.</p>
+
+  <div class="highlight">
+    <strong>🔍 Auditoría completa.</strong> Cada módulo se revisó de principio a fin: nube, render, animador, archivo, geoetiquetador, animador de altura, inspector y mapas. Más de 60 hallazgos corregidos; aquí los más importantes.</div>
+
+  <div class="highlight">
+    <strong>📷 Geoetiquetador mucho más rápido.</strong> Tras escribir ya no se releen todas las fotos del disco (minutos con 5.000 imágenes). Un segundo arrastre a veces quedaba sin hora de captura — corregido. Los HEIC de iPhone reciben la zona horaria correcta.</div>
+
+  <div class="highlight">
+    <strong>☁️ La nube ya no borra nada por sí sola.</strong> Lo que solo existe en la nube se informa, no se elimina. Las rutas sin archivo ya no acaban como cáscaras vacías.</div>
+
+  <div class="highlight">
+    <strong>🗂 El archivo sigue respondiendo.</strong> Mientras corre un escaneo grande, lista y estadísticas responden al instante — antes todo esperaba al final del escaneo.</div>
+
+  <h4>Corregido</h4>
+  <ul>
+    <li><strong>Animador de altura</strong> no recordaba la serie de datos y bloqueaba el botón Cancelar en el siguiente render.</li>
+    <li><strong>Mapa web / Tour-Map HTML:</strong> cambiar color o grosor descartaba tu encuadre del mapa.</li>
+    <li><strong>Inspector:</strong> «Rellenar hueco» pregunta antes de sustituir puntos existentes.</li>
+    <li><strong>Render:</strong> los errores de mapa (p. ej. token inválido) abortan limpiamente en vez de producir fotogramas negros; la escritura GPS conserva etiquetas GPS ajenas como la velocidad.</li>
+  </ul>
+
+  <p class="version-note">Muchos de estos hallazgos salieron de nuestra propia revisión — si notas algo, envía el registro, ahora lleva más diagnóstico.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.531</span>
+    <span class="version-date">22 de agosto de 2026</span>
   </div>
   <p class="version-tagline">La bola — ahora de verdad, también en equipos más lentos.</p>
 

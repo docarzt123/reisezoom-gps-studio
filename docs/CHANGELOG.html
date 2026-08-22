@@ -113,9 +113,39 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.531</span>
+    <span class="version-num">v0.9.532</span>
     <span class="version-date">22. August 2026</span>
     <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Der große Frühjahrsputz — alle Module einmal durchgesehen.</p>
+
+  <div class="highlight">
+    <strong>🔍 Komplett-Audit.</strong> Jedes Modul wurde einmal von vorne bis hinten durchgesehen — Cloud, Render, Animator, Archiv, Geotagger, Höhen-Animator, Inspektor und Karten. Über 60 Befunde sind behoben; die wichtigsten stehen hier.</div>
+
+  <div class="highlight">
+    <strong>📷 Geotagger deutlich flotter.</strong> Nach dem Schreiben werden nicht mehr alle Fotos neu von der Platte gelesen (bei 5.000 Bildern dauerte das Minuten). Ein zweiter Drop blieb manchmal ohne Aufnahmezeit — behoben. iPhone-HEICs bekommen jetzt die richtige Zeitzone.</div>
+
+  <div class="highlight">
+    <strong>☁️ Cloud löscht nichts mehr von selbst.</strong> Was nur in der Cloud liegt, wird nur gemeldet. Touren ohne Datei landen nicht mehr als leere Hülle im Bestand.</div>
+
+  <div class="highlight">
+    <strong>🗂 Archiv bleibt bedienbar.</strong> Während ein großer Scan läuft, antworten Liste und Statistik sofort — vorher wartete alles auf das Scan-Ende.</div>
+
+  <h4>Behoben</h4>
+  <ul>
+    <li><strong>Höhen-Animator</strong> merkte sich die Datenreihe nicht und sperrte den Abbrechen-Knopf beim nächsten Render.</li>
+    <li><strong>Web-Karte / Tour-Map-HTML:</strong> Farbe oder Breite ändern warf den gewählten Kartenausschnitt weg.</li>
+    <li><strong>Inspektor:</strong> „Lücke füllen“ fragt nach, bevor vorhandene Punkte ersetzt werden.</li>
+    <li><strong>Render:</strong> Karten-Fehler (z. B. ungültiger Token) brechen sauber ab statt schwarze Bilder zu liefern; GPS-Schreiben behält fremde GPS-Tags wie Tempo.</li>
+  </ul>
+
+  <p class="version-note">Viele dieser Befunde kamen aus dem eigenen Durchsehen — falls dir etwas auffällt, schick den Log, er enthält jetzt mehr Diagnose.</p>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.531</span>
+    <span class="version-date">22. August 2026</span>
   </div>
   <p class="version-tagline">Die Kugel — jetzt wirklich, auch auf langsameren Rechnern.</p>
 

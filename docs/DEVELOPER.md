@@ -2683,6 +2683,27 @@ in alle drei Sprach-HTMLs eingebettet werden.
 
 ## 9 · Gotchas & Lessons Learned
 
+### Audit 22.08.2026 — Muster, die sich wiederholt haben
+- **`try { … } catch (_) {}` verschluckt ReferenceErrors.** `_MODKEY` war im
+  Höhen-Animator nie definiert; jeder Zugriff flog und wurde still geschluckt —
+  die Funktion „lief", speicherte aber nie. Bei neuen Modul-Konstanten: einmal
+  `node --check` reicht nicht, die Konstante muss im Scope stehen.
+- **Geteilte `running`-Flags zwischen überlappenden Workern.** Thumbnail-Worker
+  laufen nach `join(timeout)` weiter; ein alter Pool schaltete den neuen Batch
+  ab. Lösung: Generationszähler (`_thumb_gen`), jeder Worker prüft seine
+  eigene Generation — nie ein gemeinsames Bool.
+- **Linearsuchen in Schleifen** (`matches.find(x => x.path === …)` in
+  `updateBadges` über alle Kacheln) sind bei 5.000 Fotos O(n²). Pfad-Index
+  `_mByPath/_pByPath` (Cache über Array-Identität + Länge).
+- **Polling schickt nicht die ganze Welt.** `geotagger_poll_thumbs` bekommt
+  eine Laufnummer (`seit_seq`) statt alle bekannten Pfade alle 250 ms.
+- **Locks nicht über I/O-Läufe halten.** `library.scan` lief minutenlang unter
+  `_DB_LOCK`; Statistik/Liste warteten. Lock nur um Upsert + Commit.
+- **Snapshots von Fremdformaten**: `sessions._save_snapshot` kopierte die
+  FIT-Rohdatei als `<hash>.gpx`. Immer die konvertierte GPX (`snapshot_src`).
+- **fitBounds bei jedem Redraw** wirft den Nutzer-Ausschnitt weg — nur bei
+  neuem Track (Signatur aus Länge + Endpunkten).
+
 ### `+faststart`-Hänger
 Siehe Animator-Abschnitt oben. Wichtig: Dateigröße bleibt konstant in Finalize-Phase. Erst nach mehreren Minuten ohne mtime-Änderung + 0% CPU killen.
 
