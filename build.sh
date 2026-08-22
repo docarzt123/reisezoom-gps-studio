@@ -42,8 +42,13 @@ fi
 
 # v0.9.229 — Playwright-Chromium ins Bundle (pw-browsers/), damit auch lokale
 # Builds out-of-box rendern. Nur ziehen wenn noch nicht da (Browser sind groß).
-if [ -z "$(ls -d pw-browsers/chromium_headless_shell-* 2>/dev/null)" ]; then
-  echo "🌐  Chromium-Headless-Shell ins Bundle laden (pw-browsers/) …"
+# 22.08.2026: auf die Revision prüfen, die das installierte Playwright erwartet —
+# vorher blieb nach einem Playwright-Update ein alter Browser (1223) im Ordner
+# liegen, und der lokale Build meldete „Executable doesn't exist … 1228".
+PW_REV=$(python3 -c "import json,playwright,os;d=os.path.dirname(playwright.__file__);b=json.load(open(os.path.join(d,'driver','package','browsers.json')));print([x['revision'] for x in b['browsers'] if x['name']=='chromium-headless-shell'][0])" 2>/dev/null || echo "")
+if [ -z "$PW_REV" ] || [ ! -d "pw-browsers/chromium_headless_shell-$PW_REV" ]; then
+  echo "🌐  Chromium-Headless-Shell ${PW_REV:-?} ins Bundle laden (pw-browsers/) …"
+  rm -rf pw-browsers/chromium_headless_shell-* pw-browsers/chromium-*
   PLAYWRIGHT_BROWSERS_PATH="$PWD/pw-browsers" python3 -m playwright install chromium-headless-shell
 fi
 
