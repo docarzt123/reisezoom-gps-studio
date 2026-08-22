@@ -2121,6 +2121,7 @@
   "geotagger.write.bridge_tot": "No response from the write process — details are in the log (Help → Log).",
   "geotagger.write.haengt": "No progress for 90 seconds — a photo is probably stuck. You can close this window; details are in the log.",
   "geotagger.thumbs.capped": "A lot of photos — previews stay off so the app remains stable. Matching and writing work as usual.",
+  "geotagger.thumbs.geladen": "{n} photos loaded",
   "geotagger.markers.capped": "A lot of photos — photo pins on the map stay off (only selection and manually placed ones). Everything else works as usual.",
   "geotagger.write.laeuft_schon": "A write operation is already running.",
   "geotagger.busy.lese": "Reading photos …",

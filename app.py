@@ -1080,6 +1080,15 @@ class Api:
         self._thumb_queue_ready: dict = {}    # path → {thumb, photo_time, existing_gps, is_raw}
         self._thumb_progress = {"total": 0, "done": 0, "running": False}
         self._thumb_lock = threading.Lock()
+        # 22.08.2026 (Audit): Worker-GENERATION statt geteiltem running-Flag —
+        # ein alter Pool (läuft nach join(timeout=2) weiter!) sah das `running`
+        # des neuen Batches, zählte dessen `done` hoch und schaltete ihn im
+        # finally ab → Fotos aus dem zweiten Drop blieben ohne Zeit/Kamera.
+        self._thumb_gen = 0
+        # Laufnummer pro fertigem Thumb: das UI fragt „alles nach seq N" statt
+        # jede 250 ms die komplette Liste bekannter Pfade über die Brücke zu schicken.
+        self._thumb_seq = 0
+        self._thumb_seq_of = {}
         # v0.9.146: In-Memory-Thumb-Cache (path+mtime+size → data-url), damit
         # Tab-Wechsel / erneutes Registrieren derselben Fotos nicht jedes Mal
         # das volle JPEG neu dekodiert. Key enthält mtime → nach GPS-Write
@@ -6080,10 +6089,12 @@ class Api:
         try:
             # Falls Thumbnail-Worker noch läuft → höflich stoppen
             with self._thumb_lock:
+                self._thumb_gen += 1          # alte Worker laufen ins Leere
                 if self._thumb_progress.get("running"):
                     self._thumb_progress["running"] = False
                 # Queue + Progress komplett zurücksetzen
                 self._thumb_queue_ready.clear()
+                self._thumb_seq_of = {}
                 self._thumb_progress = {"total": 0, "done": 0, "running": False}
             self._gtg_track = []
             self._gtg_display = []
@@ -6122,6 +6133,7 @@ class Api:
 
             with self._thumb_lock:
                 self._thumb_queue_ready.clear()
+                self._thumb_seq_of = {}
 
             # v0.9.176 (Nutzer-Feedback): Fotos ERGÄNZEN statt ersetzen + nach
             # Pfad deduplizieren. So fügt jeder Drop/Pick zur bestehenden Liste
@@ -6158,7 +6170,11 @@ class Api:
             ]
 
             with self._thumb_lock:
-                gesamt = len(self._gtg_photos or []) + len(registered)
+                # 22.08.2026 (Audit): _gtg_photos enthält `registered` schon —
+                # die Summe zählte doppelt, der Deckel griff bei 1001 statt 2000.
+                gesamt = len(self._gtg_photos or [])
+                self._thumb_gen += 1
+                gen = self._thumb_gen
                 self._thumb_progress = {
                     "total": len(registered),
                     "done": 0,
@@ -6167,12 +6183,13 @@ class Api:
                     # sonst die WebView. Das UI zeigt dazu einen Hinweis.
                     "thumbs_capped": gesamt > self._THUMB_DECKEL,
                 }
+                self._gtg_by_path = {ph.get("path"): ph for ph in (self._gtg_photos or [])}
 
             # Worker nur für die NEUEN Pfade starten
             if registered:
                 self._thumb_worker = threading.Thread(
                     target=self._thumb_worker_run,
-                    args=([r["path"] for r in registered],),
+                    args=([r["path"] for r in registered], gen),
                     daemon=True,
                 )
                 self._thumb_worker.start()
@@ -6235,12 +6252,12 @@ class Api:
         camera = cexif.read_camera(path)
         return dt, gps, camera, tz_min is not None, tz_min
 
-    def _thumb_one(self, p: str) -> None:
+    def _thumb_one(self, p: str, gen: int = -1) -> None:
         """Ein Foto: EXIF + Thumb generieren und in die Queue legen.
         Wird parallel aus dem Worker-Pool aufgerufen."""
-        # Cancellation: wenn _thumb_progress.running auf False gesetzt, gleich raus
+        # Cancellation: fremde Generation (neuer Batch/Clear) oder gestoppt → raus
         with self._thumb_lock:
-            if not self._thumb_progress.get("running"):
+            if (gen >= 0 and gen != self._thumb_gen) or not self._thumb_progress.get("running"):
                 return
         try:
             dt, gps, camera, tz_known, tz_min = self._read_meta_fast(p)
@@ -6262,21 +6279,26 @@ class Api:
             data = {"photo_time": None, "photo_time_local": None, "existing_gps": None,
                     "thumb": None, "camera": None, "tz_known": False, "error": str(e)}
         with self._thumb_lock:
+            if gen >= 0 and gen != self._thumb_gen:
+                return          # inzwischen ersetzt — nicht in den neuen Batch zählen
             self._thumb_queue_ready[p] = data
+            self._thumb_seq += 1
+            self._thumb_seq_of[p] = self._thumb_seq
             self._thumb_progress["done"] = self._thumb_progress.get("done", 0) + 1
             # Auch im Photo-State aktualisieren, damit match-Logik konsistent ist.
-            # (Felder einzelner Items setzen — die Liste selbst wird nicht mutiert.)
-            for ph in self._gtg_photos:
-                if ph.get("path") == p:
-                    ph["photo_time"] = data["photo_time"]
-                    ph["photo_time_local"] = data["photo_time_local"]
-                    ph["existing_gps"] = data["existing_gps"]
-                    ph["thumb"] = data["thumb"]
-                    ph["camera"] = data["camera"]
-                    ph["tz_known"] = data.get("tz_known", False)
-                    break
+            # 22.08.2026: Index statt Linearsuche (war O(n²) über 20k Fotos, unter Lock).
+            ph = (getattr(self, "_gtg_by_path", None) or {}).get(p)
+            if ph is None:
+                ph = next((x for x in (self._gtg_photos or []) if x.get("path") == p), None)
+            if ph is not None:
+                ph["photo_time"] = data["photo_time"]
+                ph["photo_time_local"] = data["photo_time_local"]
+                ph["existing_gps"] = data["existing_gps"]
+                ph["thumb"] = data["thumb"]
+                ph["camera"] = data["camera"]
+                ph["tz_known"] = data.get("tz_known", False)
 
-    def _thumb_worker_run(self, paths: list[str]) -> None:
+    def _thumb_worker_run(self, paths: list[str], gen: int = -1) -> None:
         """Background-Thread: Thumbs + EXIF PARALLEL erzeugen (v0.9.358).
         Die Einzel-Calls sind latenz-gebunden (exiftool-Round-Trip, Datei-IO),
         nicht CPU-gebunden — ein kleiner Thread-Pool überlappt das Warten und
@@ -6286,28 +6308,39 @@ class Api:
         n_workers = max(2, min(4, (os.cpu_count() or 4) - 1))
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as ex:
-                futures = [ex.submit(self._thumb_one, p) for p in paths]
+                futures = [ex.submit(self._thumb_one, p, gen) for p in paths]
                 for _f in concurrent.futures.as_completed(futures):
                     # Abbruch (Session schließen / neuer Load) → keine neuen Tasks mehr
                     # rechnen lassen; bereits gestartete laufen kurz aus.
                     with self._thumb_lock:
-                        if not self._thumb_progress.get("running"):
+                        if (gen >= 0 and gen != self._thumb_gen) or not self._thumb_progress.get("running"):
                             break
         finally:
             with self._thumb_lock:
-                self._thumb_progress["running"] = False
+                # Nur die EIGENE Generation abschalten — ein überholter Worker
+                # darf den neuen Batch nicht beenden.
+                if gen < 0 or gen == self._thumb_gen:
+                    self._thumb_progress["running"] = False
 
-    def geotagger_poll_thumbs(self, known_paths: Optional[list[str]] = None) -> dict:
+    def geotagger_poll_thumbs(self, known_paths: Optional[list[str]] = None,
+                              seit_seq: int = -1) -> dict:
         """Phase 3: liefert nur die noch nicht bekannten Thumbnail-Ergebnisse + Fortschritt.
 
-        `known_paths`: Liste der Pfade die das UI schon hat → werden ausgespart.
+        `seit_seq` ≥ 0 (22.08.2026): nur Einträge mit Laufnummer > seit_seq —
+        das UI merkt sich die zurückgegebene `seq`. `known_paths` bleibt als
+        Altweg (Pfadliste wird ausgespart).
         """
         try:
             known = set(known_paths or [])
             with self._thumb_lock:
-                deltas = {p: data for p, data in self._thumb_queue_ready.items() if p not in known}
+                if seit_seq >= 0:
+                    deltas = {p: data for p, data in self._thumb_queue_ready.items()
+                              if self._thumb_seq_of.get(p, 0) > seit_seq and p not in known}
+                else:
+                    deltas = {p: data for p, data in self._thumb_queue_ready.items() if p not in known}
                 prog = dict(self._thumb_progress)
-            return {"ok": True, "deltas": deltas, "progress": prog}
+                seq = self._thumb_seq
+            return {"ok": True, "deltas": deltas, "progress": prog, "seq": seq}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -6984,7 +7017,9 @@ class Api:
         # liest, käme der Write nicht dran und „Abbrechen" würde scheinbar hängen.
         if self._thumb_progress.get("running"):
             log.info("geotagger_start_write: stoppe laufenden Thumbnail-Worker vor Write …")
-            self._thumb_progress["running"] = False
+            with self._thumb_lock:
+                self._thumb_gen += 1            # 22.08.2026: sauber über Generation
+                self._thumb_progress["running"] = False
             if self._thumb_worker and self._thumb_worker.is_alive():
                 self._thumb_worker.join(timeout=3)
                 log.info("geotagger_start_write: Thumbnail-Worker gestoppt (alive=%s)",
@@ -7139,6 +7174,20 @@ class Api:
                 with self._write_lock:
                     if self._write_state.get("cancel"):
                         log.info("_write_worker_run: Phase B — abgebrochen bei %d/%d", idx, len(items))
+                        # 22.08.2026 (Audit): im Kopier-Modus blieben die noch
+                        # ungetaggten Kopien im Zielordner liegen — Nutzer hielt
+                        # sie für fertig. Nur Kopien (nie Originale) entfernen.
+                        if dest_dir:
+                            _rest = 0
+                            for _m in items[idx:]:
+                                _pth = _m.get("path") or ""
+                                try:
+                                    if _pth and os.path.dirname(_pth) == dest_dir and os.path.exists(_pth):
+                                        os.remove(_pth)
+                                        _rest += 1
+                                except Exception:
+                                    log.debug("Abbruch-Aufräumen: %s nicht entfernbar", _pth)
+                            log.info("_write_worker_run: Abbruch — %d ungetaggte Kopie(n) entfernt", _rest)
                         break
                     self._write_state["current_name"] = os.path.basename(m["path"])
                     self._write_state["current_path"] = m["path"]
@@ -7225,7 +7274,10 @@ class Api:
                     _shift = (offset_by_path or {}).get(m["path"], offset_seconds)
                     if adjust_photo_time and _shift:
                         try:
-                            cexif.shift_datetime(m["path"], _shift)
+                            if not cexif.shift_datetime(m["path"], _shift):
+                                # 22.08.2026 (Audit): Videos/unbekannte Typen
+                                # liefen still durch — jetzt sichtbar im Protokoll.
+                                raise RuntimeError("Dateityp unterstützt keine Zeit-Korrektur")
                         except Exception as e2:
                             log.exception("_write_worker_run: [%d/%d] Zeit-Korrektur FEHLGESCHLAGEN für %s",
                                           idx + 1, len(items), m.get("path"))
