@@ -307,6 +307,11 @@
       const nativeMap = (typeof consumeNativeDropMap === "function")
                         ? await consumeNativeDropMap() : {};
       const files = (e.dataTransfer && e.dataTransfer.files) || [];
+      // 22.08.2026 — Projekt-Datei (.rzproj) abgelegt → importieren statt laden
+      const proj = Array.from(files).find(f => /\.rzproj$/i.test(f.name));
+      let projPath = proj ? (nativePathFromMap(nativeMap, proj.name) || proj.path || null) : null;
+      if (!projPath) { for (const k in nativeMap) { if (/\.rzproj$/i.test(k)) { projPath = nativeMap[k]; break; } } }
+      if (projPath) { if (window.importProject) await window.importProject(projPath); return; }
       const gpx = Array.from(files).find(f => window.TRACK_DROP_RE.test(f.name));
       let path = null;
       if (gpx) {

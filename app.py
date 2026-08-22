@@ -150,7 +150,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.536"
+APP_VERSION = "0.9.537"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -5138,6 +5138,191 @@ class Api:
             log.exception("cloud_uebersicht")
             return {"ok": False, "error": str(e)}
 
+    # ── Projekt-Export/-Import (.rzproj) — OHNE Cloud (22.08.2026) ─────────
+    # Marc: „ein zip, mit allem drin" + „stelle bei ALLEM sicher, dass es ohne
+    # cloud geht". Der Umschlag ist dasselbe ZIP wie in der Cloud (track.gpx,
+    # tour.json, projekte.json, fotos/…), nur unverschlüsselt. Es wird weder
+    # Schlüsselbund noch Netz berührt: `core.cloud.archiv` ist ein reiner Helfer.
+
+    def _umschlag_einspielen(self, roh: bytes, *, quelle: str = "datei",
+                             geo_hash_hint: str = "") -> dict:
+        """ZIP (Cloud-Umschlag oder .rzproj) ins Archiv + in die Sessions
+        einspielen. Track landet unter APP_SUPPORT/cloud_touren bzw.
+        projekt_importe, Foto-Vorschauen daneben, Projekte werden an die
+        Session des kanonischen geo_hash gehängt — vorhandene Projekte bleiben,
+        gleichnamige bekommen den Zusatz „(importiert)"."""
+        import io as _io
+        import zipfile as _zip
+        try:
+            z = _zip.ZipFile(_io.BytesIO(roh))
+        except Exception:
+            return {"ok": False, "error": _ui_t()("projekt.import_kein_zip", "Das ist keine Projekt-Datei (.rzproj).")}
+        namen = set(z.namelist())
+        if "track.gpx" not in namen:
+            return {"ok": False, "error": _ui_t()("projekt.import_ohne_track", "Projekt-Datei ohne track.gpx — beschädigt?")}
+        tour = json.loads(z.read("tour.json").decode("utf-8")) if "tour.json" in namen else {}
+        geo_hash = str(tour.get("geo_hash") or geo_hash_hint or "")
+
+        # 1. GPX ablegen — Ordner ist beim Archiv als Quelle registriert.
+        ziel_dir = APP_SUPPORT / ("cloud_touren" if quelle == "cloud" else "projekt_importe")
+        ziel_dir.mkdir(parents=True, exist_ok=True)
+        basis = re.sub(r"[^\w\-. ]+", "_", str(tour.get("filename") or f"{geo_hash or 'tour'}.gpx"))
+        if not basis.lower().endswith(".gpx"):
+            basis += ".gpx"
+        gpx_bytes = z.read("track.gpx")
+        ziel = ziel_dir / basis
+        n = 1
+        while ziel.exists():
+            try:
+                if ziel.read_bytes() == gpx_bytes:
+                    break          # identische Datei liegt schon da → wiederverwenden
+            except OSError:
+                pass
+            n += 1
+            ziel = ziel_dir / f"{basis[:-4]}_{n}.gpx"
+        if not ziel.exists():
+            ziel.write_bytes(gpx_bytes)
+        if not geo_hash:
+            geo_hash = self._track_geo_hash(str(ziel))
+
+        # 2. Foto-Vorschauen daneben.
+        foto_dir = APP_SUPPORT / ("cloud_fotos" if quelle == "cloud" else "projekt_fotos") / (geo_hash or ziel.stem)
+        for name in sorted(namen):
+            if name.startswith("fotos/"):
+                foto_dir.mkdir(parents=True, exist_ok=True)
+                (foto_dir / Path(name).name).write_bytes(z.read(name))
+
+        # 3. Archiv-Quelle registrieren + einlesen (normaler Scan-Weg).
+        conn = self._lib()
+        clib.add_folder(conn, str(ziel_dir), recursive=False)
+        clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(ziel_dir)])
+
+        # 4. Tour-Daten (track_meta) aus dem Umschlag anwenden.
+        meta = tour.get("meta") or {}
+        if meta and geo_hash:
+            felder = [k for k in ("fav", "tags", "note", "cover", "display_name",
+                                   "hidden", "activity_user", "color",
+                                   "recorded_user") if meta.get(k) is not None]
+            if felder:
+                setzer = ", ".join(f"{k} = ?" for k in felder)
+                with clib._DB_LOCK:
+                    conn.execute(f"UPDATE track_meta SET {setzer} WHERE geo_hash = ?",
+                                 [meta[k] for k in felder] + [geo_hash])
+                    conn.commit()
+
+        # 5. Projekte (Sessions) unter dem kanonischen geo_hash mergen.
+        projekte = (json.loads(z.read("projekte.json").decode("utf-8"))
+                    if "projekte.json" in namen else None)
+        n_proj = 0
+        if projekte and geo_hash:
+            text = json.dumps(projekte)
+            for name in sorted(namen):
+                if name.startswith("fotos/"):
+                    text = text.replace(f'"{name}"', json.dumps(str(foto_dir / Path(name).name)))
+            projekte = json.loads(text)
+            projekte["track_hash"] = geo_hash
+            # Fotos: Original-Pfad gibt es auf diesem Rechner meist nicht →
+            # auf die mitgebrachte Vorschau zeigen (sonst „Bild fehlt" überall).
+            for proj in (projekte.get("projects") or {}).values():
+                for foto in (proj.get("photos") or []) if isinstance(proj, dict) else []:
+                    if isinstance(foto, dict) and foto.get("vorschau") and not os.path.exists(str(foto.get("path") or "")):
+                        foto["original_path"] = foto.get("path")
+                        foto["path"] = foto["vorschau"]
+            with _sessions.LOCK:
+                daten = _sessions.load_sessions(SESSIONS_FILE)
+                sess = (daten.get("sessions") or {}).get(geo_hash)
+                if sess is None:
+                    daten.setdefault("sessions", {})[geo_hash] = projekte
+                    n_proj = len(projekte.get("projects") or {})
+                else:
+                    # Vorhandene Session: Projekte DAZULEGEN (lokales bleibt).
+                    vorhanden = sess.setdefault("projects", {})
+                    namen_da = {str(p.get("name", "")).strip().lower() for p in vorhanden.values() if isinstance(p, dict)}
+                    for pid, proj in (projekte.get("projects") or {}).items():
+                        if not isinstance(proj, dict):
+                            continue
+                        if pid in vorhanden:
+                            if vorhanden[pid] == proj:
+                                continue          # identisch → nichts zu tun
+                            pid = f"{pid}_imp{n_proj + 1}"
+                        proj = dict(proj)
+                        if str(proj.get("name", "")).strip().lower() in namen_da:
+                            proj["name"] = f"{proj.get('name', '')} ({_ui_t()('projekt.importiert', 'importiert')})"
+                        vorhanden[pid] = proj
+                        n_proj += 1
+                    if not sess.get("active_project_id") and vorhanden:
+                        sess["active_project_id"] = next(iter(vorhanden))
+                _sessions.save_sessions(SESSIONS_FILE, daten)
+        log.info("Umschlag eingespielt (%s): %s → %s, %d Projekt(e)", quelle, geo_hash, ziel.name, n_proj)
+        return {"ok": True, "datei": str(ziel), "name": ziel.name, "geo_hash": geo_hash, "projekte": n_proj}
+
+    def projekt_exportieren(self, gpx_path: str = "", ziel: str = "") -> dict:
+        """Aktuellen Track + alle Projekte der Session als .rzproj speichern.
+        `ziel` leer → Save-Dialog. Läuft ohne Cloud."""
+        try:
+            from core.cloud import archiv as archiv_m     # reiner ZIP-Helfer
+            src = str(gpx_path or _load_settings().get("last_gpx_path", "") or "")
+            if not src or not os.path.exists(src):
+                return {"ok": False, "error": _ui_t()("error.kein_track_geladen", "Kein Track geladen.")}
+            gpx_datei = self._ensure_gpx(src)
+            geo_hash = self._track_geo_hash(gpx_datei)
+            if not geo_hash:
+                return {"ok": False, "error": _ui_t()("error.gpx_generic", "GPX-Fehler")}
+            with _sessions.LOCK:
+                daten = _sessions.load_sessions(SESSIONS_FILE)
+            sess = (daten.get("sessions") or {}).get(geo_hash)
+            if sess is None:
+                alt_key = _sessions.find_session_key(daten, geo_hash)
+                sess = (daten.get("sessions") or {}).get(alt_key) if alt_key else None
+            conn = self._lib()
+            ersatz = None
+            with clib._DB_LOCK:
+                da = conn.execute("SELECT 1 FROM tracks WHERE geo_hash = ? LIMIT 1", (geo_hash,)).fetchone()
+            if not da:
+                try:
+                    pts, st = cgpx.parse_gpx(gpx_datei)
+                    ersatz = {"geo_hash": geo_hash, "name": Path(src).stem, "filename": Path(src).name,
+                              "distance_m": getattr(st, "distance_m", None),
+                              "started_at": (pts[0].time if pts and pts[0].time else "")}
+                except Exception:
+                    ersatz = {"geo_hash": geo_hash, "name": Path(src).stem, "filename": Path(src).name}
+            with clib._DB_LOCK:
+                roh = archiv_m.umschlag_bauen(conn, geo_hash, gpx_pfad=gpx_datei,
+                                              projekte=sess, zeile_ersatz=ersatz)
+            if not ziel:
+                default_name = re.sub(r"[^\w\-. ]+", "_", Path(src).stem) + ".rzproj"
+                ziel = self.pick_save_path(default_name, str(Path.home()), ["Reisezoom-Projekt (*.rzproj)"])
+                if not ziel:
+                    return {"ok": False, "cancelled": True}
+            if not ziel.lower().endswith(".rzproj"):
+                ziel += ".rzproj"
+            Path(ziel).write_bytes(roh)
+            n_proj = len((sess or {}).get("projects") or {})
+            log.info("projekt_exportieren: %s → %s (%d Projekte, %.1f KB)", geo_hash, ziel, n_proj, len(roh) / 1024)
+            return {"ok": True, "path": ziel, "projekte": n_proj, "bytes": len(roh)}
+        except Exception as e:
+            log.exception("projekt_exportieren")
+            return {"ok": False, "error": str(e)}
+
+    def projekt_importieren(self, pfad: str = "") -> dict:
+        """.rzproj einspielen (Dialog, wenn kein Pfad). Läuft ohne Cloud."""
+        try:
+            if not pfad:
+                res = self.pick_file("open", ("Reisezoom-Projekt (*.rzproj;*.zip)",), False)
+                if not res:
+                    return {"ok": False, "cancelled": True}
+                pfad = res[0]
+            if not os.path.isfile(pfad):
+                return {"ok": False, "error": _ui_t()("error.datei_nicht_gefunden", "Datei nicht gefunden.")}
+            roh = Path(pfad).read_bytes()
+            out = self._umschlag_einspielen(roh, quelle="datei")
+            if out.get("ok"):
+                log.info("projekt_importieren: %s → %s", pfad, out.get("datei"))
+            return out
+        except Exception as e:
+            log.exception("projekt_importieren")
+            return {"ok": False, "error": str(e)}
+
     def cloud_tour_holen(self, geo_hash: str) -> dict:
         """Eine Tour aus dem Archiv auf DIESEN Rechner holen.
 
@@ -5158,81 +5343,14 @@ class Api:
                                                    "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, schluessel = vorhanden
         try:
-            import io as _io
-            import zipfile as _zip
             archiv_m = teile["archiv"]
             g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
             a = teile["sync"].Abgleich(g, schluessel)
             roh = a.holen(archiv_m.track_name(geo_hash))
-            z = _zip.ZipFile(_io.BytesIO(roh))
-            namen = set(z.namelist())
-            if "track.gpx" not in namen:
-                return {"ok": False, "error": "Umschlag ohne track.gpx — beschädigt?"}
-            tour = json.loads(z.read("tour.json").decode("utf-8")) if "tour.json" in namen else {}
-
-            # 1. GPX ablegen — Ordner ist beim Archiv als Quelle registriert.
-            ziel_dir = APP_SUPPORT / "cloud_touren"
-            ziel_dir.mkdir(parents=True, exist_ok=True)
-            basis = re.sub(r"[^\w\-. ]+", "_",
-                           str(tour.get("filename") or f"{geo_hash}.gpx"))
-            if not basis.lower().endswith(".gpx"):
-                basis += ".gpx"
-            ziel = ziel_dir / basis
-            n = 1
-            while ziel.exists():
-                n += 1
-                ziel = ziel_dir / f"{ziel_dir and basis[:-4]}_{n}.gpx"
-            ziel.write_bytes(z.read("track.gpx"))
-
-            # 2. Foto-Vorschauen daneben.
-            foto_dir = APP_SUPPORT / "cloud_fotos" / geo_hash
-            for name in sorted(namen):
-                if name.startswith("fotos/"):
-                    foto_dir.mkdir(parents=True, exist_ok=True)
-                    (foto_dir / Path(name).name).write_bytes(z.read(name))
-
-            # 3. Archiv-Quelle registrieren + einlesen (normaler Scan-Weg).
-            conn = self._lib()
-            clib.add_folder(conn, str(ziel_dir), recursive=False)
-            # ⚠️ `folders` erwartet PFAD-Strings (v0.9.528-Fix): mit dem
-            # früheren Dict wäre _iter_files an Path(dict) gestorben — der
-            # Import der geholten Tour in die Bibliothek wäre gecrasht.
-            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR,
-                      folders=[str(ziel_dir)])
-
-            # 4. Tour-Daten (track_meta) aus dem Umschlag anwenden.
-            meta = tour.get("meta") or {}
-            if meta:
-                felder = [k for k in ("fav", "tags", "note", "cover", "display_name",
-                                       "hidden", "activity_user", "color",
-                                       "recorded_user") if meta.get(k) is not None]
-                if felder:
-                    setzer = ", ".join(f"{k} = ?" for k in felder)
-                    with clib._DB_LOCK:      # 22.08.2026: geteilte Verbindung, Scan kann parallel laufen
-                        conn.execute(f"UPDATE track_meta SET {setzer} WHERE geo_hash = ?",
-                                     [meta[k] for k in felder] + [geo_hash])
-                        conn.commit()
-
-            # 5. Projekte (Sessions) unter dem kanonischen geo_hash mergen —
-            #    NUR wenn es dort noch keine Session gibt (lokales gewinnt).
-            #    (v0.9.529: vorher wurde hier tour["track_hash"] benutzt — der
-            #    Hash MIT Dateiname, unter dem nie eine Session lag.)
-            projekte = (json.loads(z.read("projekte.json").decode("utf-8"))
-                        if "projekte.json" in namen else None)
-            if projekte:
-                # Foto-Pfade auf die mitgebrachten Vorschauen zeigen lassen.
-                text = json.dumps(projekte)
-                for name in sorted(namen):
-                    if name.startswith("fotos/"):
-                        text = text.replace(f'"{name}"',
-                                            json.dumps(str(foto_dir / Path(name).name)))
-                projekte = json.loads(text)
-                projekte["track_hash"] = geo_hash
-                with _sessions.LOCK:     # 22.08.2026: wie alle anderen Schreiber
-                    daten = _sessions.load_sessions(SESSIONS_FILE)
-                    if geo_hash not in (daten.get("sessions") or {}):
-                        daten.setdefault("sessions", {})[geo_hash] = projekte
-                        _sessions.save_sessions(SESSIONS_FILE, daten)
+            res = self._umschlag_einspielen(roh, quelle="cloud", geo_hash_hint=geo_hash)
+            if not res.get("ok"):
+                return res
+            ziel = Path(res["datei"])
             log.info("cloud_tour_holen: %s → %s", geo_hash, ziel.name)
             return {"ok": True, "datei": str(ziel), "name": ziel.name}
         except teile["transport"].NichtVorhanden:
@@ -7935,6 +8053,9 @@ def main() -> None:
         def _export_gpx_from_menu(): _trigger_js("window.exportCurrentGpx && window.exportCurrentGpx()")
         # v0.9.297 — „Als CSV exportieren" (gleiche core.trackio-Logik wie das Web)
         def _export_csv_from_menu(): _trigger_js("window.exportCurrentCsv && window.exportCurrentCsv()")
+        # 22.08.2026 — Projekt als .rzproj (ZIP mit Track, Projekten, Foto-Vorschauen), ohne Cloud
+        def _export_project_from_menu(): _trigger_js("window.exportProject && window.exportProject()")
+        def _import_project_from_menu(): _trigger_js("window.importProject && window.importProject()")
         # v0.9.317 — weitere Zielformate (Kreuz-und-quer-Export, wie im Web-Konverter)
         def _export_kml_from_menu():     _trigger_js("window.exportCurrent && window.exportCurrent('kml')")
         def _export_kmz_from_menu():     _trigger_js("window.exportCurrent && window.exportCurrent('kmz')")
@@ -7968,6 +8089,8 @@ def main() -> None:
         _menu_export_tcx = _strings.get("menu.export_tcx", "Als TCX exportieren…")
         _menu_export_geojson = _strings.get("menu.export_geojson", "Als GeoJSON exportieren…")
         _menu_export_csv = _strings.get("menu.export_csv", "Als CSV exportieren…")
+        _menu_export_project = _strings.get("menu.export_project", "Projekt exportieren (.rzproj)…")
+        _menu_import_project = _strings.get("menu.import_project", "Projekt importieren (.rzproj)…")
 
         # v0.9.288 — aufgeräumte Menüstruktur (Marc): Dokument-Aktionen unter
         # „Datei", alles Hilfe/Web/Über unter „Hilfe" — mit Trennlinien gruppiert.
@@ -7980,6 +8103,9 @@ def main() -> None:
                 MenuAction(_menu_export_tcx, _export_tcx_from_menu),
                 MenuAction(_menu_export_geojson, _export_geojson_from_menu),
                 MenuAction(_menu_export_csv, _export_csv_from_menu),
+                MenuSeparator(),
+                MenuAction(_menu_export_project, _export_project_from_menu),
+                MenuAction(_menu_import_project, _import_project_from_menu),
                 MenuSeparator(),
                 MenuAction(_menu_settings, _open_settings_from_menu),
             ]),

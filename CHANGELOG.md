@@ -14,6 +14,26 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.537] – 2026-08-22
+
+### Added
+- **Projekt exportieren & importieren (.rzproj)** — Marc: „ein zip, mit allem
+  drin“. Eine Datei mit Track, allen Projekten der Session (Keyframes, Schilder,
+  Overlays), Tour-Daten (Name, Schlagwörter, Notiz) und Foto-Vorschauen.
+  Einstiege: Projekt-Menü, „Datei → Projekt exportieren/importieren“, Drag & Drop
+  der `.rzproj` auf die App. Import legt den Track ins Archiv
+  (`projekt_importe`), Projekte werden an die Session **dazugelegt** (nichts
+  überschrieben, gleichnamige „(importiert)“, identische nicht doppelt); fehlende
+  Original-Fotos zeigen auf die mitgebrachten Vorschauen. **Läuft komplett ohne
+  Cloud** — kein Schlüsselbund, kein Netz; der Umschlag-Helfer
+  (`archiv.umschlag_bauen`, jetzt auch ohne Archiv-Zeile) ist geteilt mit dem
+  Cloud-Holen (`_umschlag_einspielen`). Wache: tests/test_projekt_export_import.py
+  (RZ_CLOUD=0, frischer App-Support, zwei „Rechner“).
+
+### Changed
+- Cloud „Holen“ nutzt denselben Einspieler: hat die Session schon Projekte,
+  werden die aus der Cloud dazugelegt statt verworfen.
+
 ## [0.9.536] – 2026-08-22
 
 ### Changed

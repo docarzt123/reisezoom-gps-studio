@@ -939,6 +939,25 @@ window.exportCurrent = exportCurrent;
 window.exportCurrentGpx = () => exportCurrent("gpx");
 window.exportCurrentCsv = () => exportCurrent("csv");
 
+// 22.08.2026 — Projekt-Export/-Import (.rzproj): Track + alle Projekte der
+// Session + Foto-Vorschauen in EINER Datei. Läuft ohne Cloud.
+window.exportProject = async function () {
+  let res;
+  try { res = await api().projekt_exportieren(); } catch (e) { toast(String(e), "error"); return; }
+  if (!res || res.cancelled) return;
+  if (res.ok) toast(t("projekt.export_ok", "Projekt exportiert") + ` (${res.projekte} ${t("projekt.projekte", "Projekte")})`, "success", 5000);
+  else toast(res.error || t("export.error", "Export fehlgeschlagen."), "warn", 6000);
+};
+window.importProject = async function (pfad) {
+  let res;
+  try { res = await api().projekt_importieren(pfad || ""); } catch (e) { toast(String(e), "error"); return; }
+  if (!res || res.cancelled) return;
+  if (!res.ok) { toast(res.error || t("projekt.import_fehler", "Import fehlgeschlagen."), "warn", 7000); return; }
+  toast(t("projekt.import_ok", "Projekt importiert") + ` (${res.projekte} ${t("projekt.projekte", "Projekte")})`, "success", 5000);
+  // Den Track laden → Session mit den importierten Projekten wird aktiv
+  try { if (res.datei && window.loadGlobalGpx) await window.loadGlobalGpx(res.datei); } catch (e) { console.warn("importProject load", e); }
+};
+
 window.addEventListener("DOMContentLoaded", async () => {
   await whenApiReady();
   // v0.9.472 — Boot-Schritt-Logging: zeigt in Bug-Report-Logs GENAU, bis wohin der

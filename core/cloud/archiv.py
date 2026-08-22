@@ -152,15 +152,27 @@ def _foto_vorschau(pfad: str) -> bytes | None:
 
 
 def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
-                   projekte: dict | None = None) -> bytes:
-    """Alles, was zu einer Tour gehört, als ZIP im Speicher."""
-    zeile = conn.execute(
-        "SELECT * FROM tracks WHERE geo_hash = ? LIMIT 1", (geo_hash,)).fetchone()
+                   projekte: dict | None = None,
+                   zeile_ersatz: dict | None = None) -> bytes:
+    """Alles, was zu einer Tour gehört, als ZIP im Speicher.
+
+    `zeile_ersatz` (22.08.2026, Projekt-Export): Tour-Daten für eine Datei,
+    die NICHT im Archiv steht (direkt geladen). Dann braucht es keine
+    Datenbank-Zeile; `conn` darf None sein. Reiner Helfer — keine Cloud,
+    kein Schlüssel, kein Netz."""
+    zeile = None
+    meta = None
+    if conn is not None:
+        zeile = conn.execute(
+            "SELECT * FROM tracks WHERE geo_hash = ? LIMIT 1", (geo_hash,)).fetchone()
+        if zeile is not None and "track_meta" in _tabellen(conn):
+            meta = conn.execute("SELECT * FROM track_meta WHERE geo_hash = ? LIMIT 1",
+                                (geo_hash,)).fetchone()
     if zeile is None:
-        raise KeyError(f"Tour {geo_hash} steht nicht im Archiv.")
-    meta = (conn.execute("SELECT * FROM track_meta WHERE geo_hash = ? LIMIT 1",
-                         (geo_hash,)).fetchone()
-            if "track_meta" in _tabellen(conn) else None)
+        if zeile_ersatz is None:
+            raise KeyError(f"Tour {geo_hash} steht nicht im Archiv.")
+        zeile = dict(zeile_ersatz)
+        zeile.setdefault("geo_hash", geo_hash)
 
     puffer = io.BytesIO()
     # ⚠️ Ohne feste Zeitstempel wäre jedes ZIP byteweise anders, obwohl sich
@@ -174,6 +186,7 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
             z.writestr(info, daten)
 
         quelle = Path(gpx_pfad or zeile["path"])
+        # sqlite3.Row hat keys()/[]; ein dict ebenso — beide Wege unten gleich
         # ⚠️ Ohne Datei KEIN Umschlag (22.08.2026, Audit): Eine abgesteckte
         # Platte hätte sonst für alle Touren dort GPX-lose Umschläge gebaut,
         # deren Prüfsumme abweicht — und die guten Cloud-Kopien überschrieben.

@@ -302,6 +302,25 @@ Los datos de sesión se encuentran en:
 
 ---
 
+### Exportar e importar un proyecto (.rzproj, desde v0.9.537)
+
+**Entregar un proyecto en un solo archivo — sin nube.** En el menú de proyecto
+(clic en «Sesión · Proyecto» arriba) o en «Archivo → Exportar proyecto» se crea
+un archivo `.rzproj`: la ruta, **todos los proyectos** de la sesión (keyframes,
+carteles, superposiciones, ajustes), los datos de la ruta del archivo (nombre,
+etiquetas, nota) y **miniaturas** de tus fotos — no los originales, esos se
+quedan contigo.
+
+**Importar:** «Archivo → Importar proyecto», el menú de proyecto, o arrastra el
+`.rzproj` a la app. La ruta entra en el archivo (carpeta «projekt_importe») y los
+proyectos se unen a la sesión de esa ruta. Si la ruta ya existe, los proyectos
+se **añaden** — nada se sobrescribe, los homónimos reciben «(importado)». Si
+faltan las fotos originales en el otro ordenador, las fotos apuntan a las
+miniaturas incluidas.
+
+Para qué: enviar un proyecto para resolver un problema, mudarse a un segundo
+ordenador, o una copia de seguridad sin nube.
+
 ## 2b · Abrir archivos de track — muchos formatos (desde v0.9.282) ⭐
 
 No necesitas tener un **GPX**. Abre (a través de la barra GPX o mediante arrastrar y soltar) simplemente uno de estos formatos — la app lo convierte automáticamente en un GPX al cargarlo y sigue trabajando con él:
