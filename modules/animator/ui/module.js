@@ -5386,6 +5386,33 @@ function mountAnimator(body, headerActions, opts) {
     return trimA + ((z - ti) / anim) * spanne;
   }
 
+  /** 22.08.2026 — Glättungsgewicht (0..1) je Zeit-Stützstelle für „Ruhige
+   *  Kamera je Abschnitt": 1 in Abschnitten, deren ZIEL-Keyframe `smooth_in`
+   *  trägt (vom vorherigen Keyframe bis zu ihm), 0 sonst; an den Rändern eine
+   *  lineare Überblendung über `rand` Stützstellen. Synchron zu timeline.py. */
+  function glattGewichte(evZeit, zeiten, rand) {
+    const zs = Array.from(new Set((evZeit || []).filter((e) => e && e.zeit != null && ["center", "pitch", "zoom", "bearing", "position"].includes(e.kind))
+      .map((e) => +e.zeit))).sort((a, b) => a - b);
+    const segmente = [];
+    for (let i = 1; i < zs.length; i++) {
+      const ziel = (evZeit || []).some((e) => e && e.smooth_in && Math.abs((+e.zeit) - zs[i]) < 1e-9);
+      if (ziel) segmente.push([zs[i - 1], zs[i]]);
+    }
+    const n = zeiten.length;
+    const out = zeiten.map((t) => segmente.some(([a, b]) => t >= a && t <= b) ? 1 : 0);
+    if (!segmente.length || !(rand > 0)) return out;
+    const w = out.slice();
+    for (let i = 0; i < n; i++) {
+      if (out[i]) continue;
+      let best = 0;
+      for (let d = 1; d <= rand; d++) {
+        if ((i - d >= 0 && out[i - d]) || (i + d < n && out[i + d])) { best = Math.max(best, 1 - d / (rand + 1)); break; }
+      }
+      w[i] = best;
+    }
+    return w;
+  }
+
   /** Kopie der Events mit `zeit` — der Achse, auf der interpoliert wird.
    *  `anchor` bleibt, weil Track-folgen-Keyframes darüber ihren Punkt suchen. */
   function eventsMitZeit(events, ti, tf, trimA, trimB) {
@@ -5724,7 +5751,10 @@ function mountAnimator(body, headerActions, opts) {
     try {
       const _fProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
       // v0.9.318 — Default AUS: nur an, wenn Checkbox/Setting explizit true.
-      const _fSmooth = _fProj?.[_MODKEY]?.smooth_camera_3d === true;
+      const _fSmoothAll = _fProj?.[_MODKEY]?.smooth_camera_3d === true;
+      // 22.08.2026 — auch an, wenn nur einzelne Abschnitte „ruhig" sind.
+      const _fSmoothSeg = (events || []).some((e) => e && e.smooth_in);
+      const _fSmooth = _fSmoothAll || _fSmoothSeg;
       if (_fSmooth && map && map.getFreeCameraOptions && typeof mapboxgl !== "undefined") {
         // ⚠️ Stützstellen auf der ZEIT-Achse (20.08.2026), und zwar aus zwei
         // Gründen, die beide der Nutzer gefunden hat:
@@ -5785,12 +5815,17 @@ function mountAnimator(body, headerActions, opts) {
           // Zoom bleibt bildgenau). Synchron zu __camPrepFaithful im Render.
           let _letzt = 0;
           const _ezs = _faithCams.map((c) => { if (c.ez != null) _letzt = c.ez; return _letzt; });
+          // Gewicht je Stützstelle: 1 überall (Seitenleiste), sonst nur in
+          // markierten Abschnitten, mit ~0,5 s Überblendung an den Rändern.
+          // Synchron zu core/timeline.py `glatt_gewichte`.
+          const _gew = _fSmoothAll ? _anchors.map(() => 1) : glattGewichte(_evZeit, _anchors, _glattW);
           if (_faithCams.length > 2 * _glattW + 1 && _ezs.some((v) => v !== 0)) {
             for (let i = 0; i < _faithCams.length; i++) {
+              if (!_gew[i]) continue;
               const lo = Math.max(0, i - _glattW), hi = Math.min(_faithCams.length - 1, i + _glattW);
               let summe = 0;
               for (let j = lo; j <= hi; j++) summe += _ezs[j];
-              _faithCams[i].pos[2] = _faithCams[i].pos[2] - _ezs[i] + summe / (hi - lo + 1);
+              _faithCams[i].pos[2] = _faithCams[i].pos[2] + _gew[i] * (summe / (hi - lo + 1) - _ezs[i]);
             }
           }
           try { map.setFreeCameraOptions(_savedCam); } catch (_) {}
@@ -6721,6 +6756,25 @@ function mountAnimator(body, headerActions, opts) {
             if (_tlBar && _tlBar.refresh) _tlBar.refresh();
             // Sofort scrubPreview damit man die neue Kurve im Live-Preview sieht
             scrubPreview((_tlBar && _tlBar.getScrubber) ? _tlBar.getScrubber() : 0);
+          }
+        },
+        // 22.08.2026 — Ruhige Kamera je Abschnitt: Flag `smooth_in` an allen
+        // Events des ZIEL-Keyframes (wie `easing` = Übergang zu ihm hin).
+        onSmoothChange: (targetAnchor, an) => {
+          const proj = getActiveProject();
+          if (!proj || !proj[_MODKEY]) return;
+          const events = proj[_MODKEY].timeline_events || [];
+          let changed = 0;
+          for (const ev of events) {
+            if (ev && Math.abs((ev.anchor || 0) - targetAnchor) < 0.001) {
+              if (an) ev.smooth_in = true; else delete ev.smooth_in;
+              changed++;
+            }
+          }
+          if (changed > 0) {
+            _animPushUndo(t("undo.ruhige_kamera_abschnitt", "Ruhige Kamera (Abschnitt) geändert"));
+            saveProjectSettings(_MODKEY, { timeline_events: events });
+            if (_tlBar && _tlBar.refresh) _tlBar.refresh();
           }
         },
         onTrimChange: (start, end, committed) => {

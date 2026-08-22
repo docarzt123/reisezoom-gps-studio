@@ -14,6 +14,20 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.534] – 2026-08-22
+
+### Added
+- **Ruhige Kamera je Abschnitt** (Marc: „da einstellen, wo man den Übergang
+  einstellt“). Im Übergangs-Modal zwischen zwei Keyframes gibt es das Häkchen
+  „🎥 Ruhige Kamera in diesem Abschnitt“; das Übergangs-Symbol trägt dann ein
+  kleines 🎥. Gespeichert als `smooth_in` am Ziel-Keyframe (wie `easing`).
+  Die Gelände-Glättung wirkt nur in markierten Abschnitten, mit ~0,5 s
+  Überblendung an den Rändern; das Seitenleisten-Häkchen gilt weiter für das
+  ganze Video. Vorschau (Probelauf) und Render nutzen dieselben Gewichte
+  (`timeline.glatt_gewichte` ↔ `glattGewichte`). Wachen:
+  tests/test_ruhige_kamera_abschnitt.py (JS=Python), Render-Fall in
+  tests/test_ruhige_kamera_zoom.py.
+
 ## [0.9.533] – 2026-08-22
 
 ### Fixed

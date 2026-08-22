@@ -312,6 +312,39 @@ def mit_zeit(events, *, ti: float, tf: float, trim_a: float, trim_b: float) -> l
     return out
 
 
+_KAMERA_ARTEN = ("center", "pitch", "zoom", "bearing", "position")
+
+
+def glatt_gewichte(events_zeit, zeiten, rand: int) -> list[float]:
+    """22.08.2026 — „Ruhige Kamera je Abschnitt": Gewicht 0..1 je Zeit-Stützstelle.
+
+    1 in Abschnitten, deren ZIEL-Keyframe `smooth_in` trägt (vom vorherigen
+    Keyframe bis zu ihm — dieselbe Zuordnung wie `easing`), 0 sonst; an den
+    Rändern eine lineare Überblendung über `rand` Stützstellen, damit die
+    Kamerahöhe nicht springt. Synchron zu `glattGewichte` in module.js.
+    """
+    zs = sorted({float(e.get("zeit")) for e in (events_zeit or [])
+                 if isinstance(e, dict) and e.get("zeit") is not None and e.get("kind") in _KAMERA_ARTEN})
+    segmente = []
+    for i in range(1, len(zs)):
+        if any(isinstance(e, dict) and e.get("smooth_in") and e.get("zeit") is not None
+               and abs(float(e["zeit"]) - zs[i]) < 1e-9 for e in events_zeit):
+            segmente.append((zs[i - 1], zs[i]))
+    out = [1.0 if any(a <= t <= b for a, b in segmente) else 0.0 for t in zeiten]
+    if not segmente or rand <= 0:
+        return out
+    n = len(out)
+    w = list(out)
+    for i in range(n):
+        if out[i]:
+            continue
+        for d in range(1, rand + 1):
+            if (i - d >= 0 and out[i - d]) or (i + d < n and out[i + d]):
+                w[i] = 1.0 - d / (rand + 1)
+                break
+    return w
+
+
 def _x(e: dict) -> float:
     """Die Achse, auf der interpoliert wird: `zeit`, wenn vorhanden — sonst der
     Anker (ältere Aufrufer, Tests, alte Projekte)."""
