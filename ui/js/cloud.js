@@ -221,9 +221,26 @@
           '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
             (t.name || t.geo_hash) + ' <span class="muted">' + datum + km + '</span></span>' +
           '<button class="btn btn--ghost cloud-holen" data-gh="' + t.geo_hash + '">' +
-            T("cloud.holen", "Holen") + '</button></div>';
+            T("cloud.holen", "Holen") + '</button>' +
+          '<button class="btn btn--ghost cloud-entfernen" data-gh="' + t.geo_hash + '" title="' +
+            T("cloud.entfernen_tip", "Aus der Cloud entfernen (landet im Papierkorb)") + '">🗑</button></div>';
       }).join("");
       box.innerHTML = kopf + '<div style="max-height:180px;overflow:auto;margin-top:6px">' + zeilen + '</div>';
+      // 22.08.2026 — Löschen als bewusste Aktion: zwei Klicks, dann Papierkorb.
+      box.querySelectorAll(".cloud-entfernen").forEach(function (b) {
+        b.onclick = function () {
+          if (!b._sicher) {
+            b._sicher = true; b.textContent = T("cloud.entfernen_sicher", "Wirklich?");
+            setTimeout(function () { if (b.isConnected) { b._sicher = false; b.textContent = "🗑"; } }, 4000);
+            return;
+          }
+          b.disabled = true; b.textContent = "⏳";
+          window.pywebview.api.cloud_tour_entfernen(b.dataset.gh).then(function (r) {
+            if (r.ok) { ferneLaden(); korbLaden(); }
+            else { b.disabled = false; b._sicher = false; b.textContent = "🗑"; melden("⚠ " + r.error, "fehler"); }
+          });
+        };
+      });
       box.querySelectorAll(".cloud-holen").forEach(function (b) {
         b.onclick = function () {
           b.disabled = true; b.textContent = "⏳";
@@ -258,7 +275,7 @@
         return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">' +
           '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
             (e.klarname || T("cloud.korb_unbekannt", "(unbekannter Eintrag)")) +
-            ' <span class="muted">' + wann + '</span></span>' +
+            ' <span class="muted">' + wann + (e.art === "version" ? " · " + T("cloud.korb_version", "älterer Stand") : "") + '</span></span>' +
           '<button class="btn btn--ghost korb-zurueck" data-n="' + e.name + '" data-z="' + e.zeit + '">' +
             T("cloud.korb_zurueck", "Wiederherstellen") + '</button>' +
           '<button class="btn btn--ghost korb-weg" data-n="' + e.name + '" data-z="' + e.zeit + '">✕</button>' +

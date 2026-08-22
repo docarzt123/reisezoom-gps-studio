@@ -48,6 +48,8 @@ const RZ_FORMAT      = 1;         // Formatnummer des Protokolls
 const RZ_DATEN       = 'rz-daten';
 const RZ_MAX_NAME    = 64;        // sha256-hex
 const RZ_PAPIERKORB_TAGE_VORGABE = 30;
+// Ältere Stände je Umschlag, die beim Überschreiben aufgehoben werden (22.08.2026).
+const RZ_VERSIONEN = 5;
 
 // ── Antworten ────────────────────────────────────────────────────────────
 
@@ -162,6 +164,14 @@ function rz_pruefe_zugang(): void {
 // abgewiesen — damit ist ein Ausbruch aus dem Ordner (`../../`) unmöglich,
 // und der Server erfährt nebenbei nie, wie eine Tour heißt.
 
+function rz_korb_datei(string $name, int $zeit): ?string {
+    foreach (['.bin', '.alt.bin'] as $endung) {
+        $q = rz_pfad('p', $name . '.' . $zeit . $endung);
+        if (is_file($q)) return $q;
+    }
+    return null;
+}
+
 function rz_name_pruefen(string $name): string {
     if (!preg_match('/^[0-9a-f]{' . RZ_MAX_NAME . '}$/', $name)) {
         rz_fehler('Ungültiger Name.', 400);
@@ -247,7 +257,22 @@ if ($was === 'legen') {
         rz_fehler('Das ist kein Umschlag dieser App.');
     }
     rz_ablage_anlegen();
-    if (!rz_schreiben(rz_pfad('u', $name . '.bin'), $inhalt)) {
+    $ziel = rz_pfad('u', $name . '.bin');
+    if (is_file($ziel)) {
+        // Versionierung (22.08.2026): der bisherige Stand wandert als „älterer
+        // Stand" in den Papierkorb, statt überschrieben zu werden. Er ist dort
+        // wie ein gelöschter Eintrag wiederherstellbar; je Umschlag bleiben
+        // die letzten RZ_VERSIONEN Stände, Ältere räumt die Papierkorb-Frist.
+        $alt_pfad = rz_pfad('p', $name . '.' . time() . '.alt.bin');
+        @rename($ziel, $alt_pfad);
+        @touch($alt_pfad);   // Papierkorb-Frist läuft ab JETZT, nicht ab dem alten Upload
+        $alte = glob(rz_pfad('p', $name . '.*.alt.bin')) ?: [];
+        if (count($alte) > RZ_VERSIONEN) {
+            sort($alte);   // Zeitstempel gleich lang → lexikalisch = chronologisch
+            foreach (array_slice($alte, 0, count($alte) - RZ_VERSIONEN) as $f) @unlink($f);
+        }
+    }
+    if (!rz_schreiben($ziel, $inhalt)) {
         rz_fehler('Konnte nicht schreiben.', 500);
     }
     $index = rz_index_aendern(function (array $i) use ($name, $pruef, $inhalt) {
@@ -291,12 +316,15 @@ if ($was === 'papierkorb_liste') {
     $aus = [];
     foreach (glob(rz_pfad('p', '*.bin')) ?: [] as $f) {
         $b = basename($f, '.bin');
-        // Ablageform: <hexname>.<unixzeit>
+        // Ablageform: <hexname>.<unixzeit>[.alt]  — „.alt" = älterer Stand
+        $alt = false;
+        if (substr($b, -4) === '.alt') { $alt = true; $b = substr($b, 0, -4); }
         $punkt = strrpos($b, '.');
         if ($punkt === false) continue;
         $aus[] = ['name' => substr($b, 0, $punkt),
                   'zeit' => (int)substr($b, $punkt + 1),
-                  'groesse' => (int)@filesize($f)];
+                  'groesse' => (int)@filesize($f),
+                  'art' => $alt ? 'version' : 'geloescht'];
     }
     usort($aus, fn($a, $b2) => $b2['zeit'] <=> $a['zeit']);
     rz_json(['ok' => true, 'eintraege' => $aus]);
@@ -309,8 +337,8 @@ if ($was === 'papierkorb_holen') {
     // Prüfsumme des Klartexts zu kennen.
     $name = rz_name_pruefen((string)($_GET['name'] ?? ''));
     $zeit = (int)($_GET['zeit'] ?? 0);
-    $q = rz_pfad('p', $name . '.' . $zeit . '.bin');
-    if (!is_file($q)) rz_fehler('Nicht im Papierkorb.', 404);
+    $q = rz_korb_datei($name, $zeit);
+    if ($q === null) rz_fehler('Nicht im Papierkorb.', 404);
     header('Content-Type: application/octet-stream');
     readfile($q);
     exit;
@@ -321,8 +349,8 @@ if ($was === 'papierkorb_weg') {
     // Wiederherstellen, oder gezielt von Hand).
     $name = rz_name_pruefen((string)($_GET['name'] ?? ''));
     $zeit = (int)($_GET['zeit'] ?? 0);
-    $q = rz_pfad('p', $name . '.' . $zeit . '.bin');
-    $weg = is_file($q) && @unlink($q);
+    $q = rz_korb_datei($name, $zeit);
+    $weg = $q !== null && @unlink($q);
     rz_json(['ok' => true, 'geloescht' => $weg ? 1 : 0]);
 }
 

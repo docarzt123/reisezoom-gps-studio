@@ -116,3 +116,4 @@ docs/BLOGPOST_UPDATE.md
 
 # v0.9.529 — Migrations-Sicherungen der Sessions (Schema 1→2)
 sessions.json.bak-*
+cloud_pruefsummen.json
