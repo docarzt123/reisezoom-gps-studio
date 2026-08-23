@@ -90,11 +90,18 @@ def zeitzone_raten(photo_times, track, *, max_gap_seconds: float = 300.0) -> dic
     `eindeutig` ist False, wenn eine andere Zeitzone genauso gut passt — dann
     zeigt die Oberfläche den Vorschlag zurückhaltender an.
     """
-    zeiten = [t for _p, t in photo_times if t is not None]
+    def _naiv_utc(t):
+        # Echte GPX-Zeiten enden auf "Z" (aware), EXIF-Zeiten sind naive Lokalzeit.
+        # Für den Vergleich alles auf naive UTC bringen — wie match_photos, nur
+        # in die andere Richtung (dort wird die Fotozeit aware gemacht).
+        return t.astimezone(timezone.utc).replace(tzinfo=None) if t.tzinfo else t
+
+    zeiten = [_naiv_utc(t) for _p, t in photo_times if t is not None]
     tt = _track_times(track)
     if not zeiten or not tt or tt[0] is None:
-        return {"minuten": None, "treffer": 0, "gesamt": len(zeiten), "eindeutig": False, "kandidaten": []}
-    t_von, t_bis = tt[0], tt[-1]
+        return {"minuten": None, "treffer": 0, "gesamt": len(zeiten), "eindeutig": False,
+                "band": None, "kandidaten": []}
+    t_von, t_bis = _naiv_utc(tt[0]), _naiv_utc(tt[-1])
     ergebnisse = []
     for minuten in range(-12 * 60, 14 * 60 + 1, 15):
         versatz = timedelta(minutes=minuten)
@@ -125,10 +132,15 @@ def zeitzone_raten(photo_times, track, *, max_gap_seconds: float = 300.0) -> dic
         leer["band"] = band
         return leer
     mitte = gleich[len(gleich) // 2]
-    # Echte Zeitzonen sind meist volle Stunden — aber nur, wenn eine nah genug an
-    # der Mitte liegt. Sonst gewinnt die Mitte (Indien +5:30, Nepal +5:45).
-    volle = [m for m in gleich if m % 60 == 0 and abs(m - mitte) <= 15]
-    minuten = min(volle, key=lambda m: (abs(m - mitte), abs(m))) if volle else mitte
+    # Nur Verschiebungen anbieten, die es als Zeitzone GIBT: volle Stunden, halbe
+    # (Indien +5:30, Iran +3:30) und :45 (Nepal, Chatham). :15 existiert nicht —
+    # so eine Mitte entsteht nur durch eine leicht falsch gehende Uhr, dann ist
+    # die nächste echte Zone die richtige Antwort. Unter den echten Zonen im
+    # Bereich gewinnt die nächste an der Mitte; bei Gleichstand die "rundere".
+    def _rang(m):
+        return 0 if m % 60 == 0 else (1 if m % 30 == 0 else 2)
+    echte = [m for m in gleich if m % 30 == 0 or m % 60 == 45] or gleich
+    minuten = min(echte, key=lambda m: (abs(m - mitte), _rang(m), abs(m)))
     return {
         "minuten": minuten,
         "treffer": best,
