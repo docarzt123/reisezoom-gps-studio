@@ -254,6 +254,7 @@
 <li><a href="#2b-abrir-archivos-de-track-muchos-formatos" data-anchor="2b-abrir-archivos-de-track-muchos-formatos">2b · Abrir archivos de track — muchos formatos ⭐</a></li>
 <li><a href="#2c-m-dulo-archivo-todas-las-rutas-en-un-solo-sitio" data-anchor="2c-m-dulo-archivo-todas-las-rutas-en-un-solo-sitio">2c · Módulo: Archivo 📚 — todas las rutas en un solo sitio ⭐</a></li>
 <li><a href="#3-m-dulo-animator-renderizar-el-gpx-como-v-deo" data-anchor="3-m-dulo-animator-renderizar-el-gpx-como-v-deo">3 · Módulo: Animator — renderizar el GPX como vídeo</a></li>
+<li><a href="#3c-combinar-varias-rutas-en-un-v-deo" data-anchor="3c-combinar-varias-rutas-en-un-v-deo">3c · Combinar varias rutas en un vídeo 🧭</a></li>
 <li><a href="#4-m-dulo-ruta-de-viaje-la-llegada-como-v-deo" data-anchor="4-m-dulo-ruta-de-viaje-la-llegada-como-v-deo">4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️</a></li>
 <li><a href="#5-m-dulo-tour-map-png-de-mapa-est-tico" data-anchor="5-m-dulo-tour-map-png-de-mapa-est-tico">5 · Módulo: Tour-Map — PNG de mapa estático</a></li>
 <li><a href="#5c-m-dulo-mapa-web-mapa-interactivo-para-el-blog" data-anchor="5c-m-dulo-mapa-web-mapa-interactivo-para-el-blog">5c · Módulo: Mapa web 🌐 — mapa interactivo para el blog ⭐</a></li>
@@ -918,6 +919,33 @@ python app.py</code></pre>
 <blockquote><strong>No es posible:</strong> llevar keyframes a <strong>otro proyecto</strong>. Están ligados al track</blockquote>
 <blockquote>y a la posición dentro de él; en otra ruta con distinta longitud y trazado esa</blockquote>
 <blockquote>posición sencillamente no existe.</blockquote>
+<h2 id="3c-combinar-varias-rutas-en-un-v-deo">3c · Combinar varias rutas en un vídeo 🧭</h2>
+<p><strong>Varios días se convierten en un relato.</strong> Selecciona varias rutas en el <strong>archivo</strong> (⌘-clic, mayúsculas para un rango) y pulsa a la derecha <strong>«🧭 Combinar en un vídeo …»</strong>.</p>
+<p>En la ventana:</p>
+<ul>
+<li><strong>Orden</strong> — cada ruta tiene un asa <strong>⠿</strong> a la izquierda para arrastrarla</li>
+</ul>
+<p> arriba o abajo. Por defecto va por fecha, que suele ser lo correcto.</p>
+<ul>
+<li><strong>Transición</strong> entre las rutas:</li>
+<li><strong>Vuelo cinematográfico</strong> — la cámara vuela y la conexión queda</li>
+</ul>
+<p> <strong>invisible</strong> (por defecto)</p>
+<ul>
+<li><strong>Línea recta</strong> — la conexión <strong>se muestra</strong></li>
+<li><strong>Seguir carreteras</strong> — se calcula y muestra el <strong>trayecto real</strong></li>
+</ul>
+<p> (necesita el token de Mapbox)</p>
+<ul>
+<li><strong>Corte seco</strong> — sigue directamente, sin transición</li>
+<li><strong>Duración</strong> por transición y un <strong>nombre</strong> para el conjunto.</li>
+</ul>
+<p>El resultado es <strong>un archivo GPX totalmente normal</strong> — cada ruta se convierte en una <em>etapa</em> — que entra en el archivo y se abre en el animador. Al ser un trazado normal, todo funciona como siempre: keyframes, carteles, línea de tiempo, recorte, fotos, animador de altura.</p>
+<p><strong>¿Dónde están?</strong> En la barra lateral del archivo, en <strong>🧭 Combinadas</strong>. No aparecen entre tus rutas normales y <strong>no</strong> cuentan en las estadísticas — de lo contrario los kilómetros de las rutas de origen contarían dos veces.</p>
+<p><strong>Lo que muestra el vídeo:</strong> distancia y tiempo son la <strong>suma de tus rutas</strong> la transición no cuenta. Durante una transición invisible solo vuela la cámara: sin marcador, sin línea creciendo, los números quietos.</p>
+<p><strong>Valores por etapa:</strong> los campos de superposición ofrecen ahora <strong>Etapa</strong> (nombre), <strong>Etapa n.º</strong> (2 / 4), <strong>En esta etapa</strong> (distancia) y <strong>Tiempo en la etapa</strong>. Cada etapa puede tener además <strong>su propio color</strong>.</p>
+<blockquote><strong>Por cierto:</strong> un GPX con varias etapas (varios <code>&lt;trk&gt;</code> o <code>&lt;trkseg&gt;</code>) también</blockquote>
+<blockquote>se dibuja bien ahora — ya no cruza una línea el mapa entre etapas.</blockquote>
 <h2 id="4-m-dulo-ruta-de-viaje-la-llegada-como-v-deo">4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️</h2>
 <h3 id="qu-hace">Qué hace</h3>
 <p>Anima la <strong>llegada</strong> a una ruta: indicas origen y destino, a partir de ahí se calcula un trayecto y se anima como un track — p. ej. como intro antes del vídeo de senderismo propiamente dicho. El GPX cargado (la caminata) se muestra mientras tanto como <strong>ghost</strong> en el fondo.</p>

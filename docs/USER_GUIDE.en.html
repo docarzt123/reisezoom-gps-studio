@@ -254,6 +254,7 @@
 <li><a href="#2b-opening-track-files-many-formats" data-anchor="2b-opening-track-files-many-formats">2b · Opening track files — many formats ⭐</a></li>
 <li><a href="#2c-module-library-every-tour-in-one-place" data-anchor="2c-module-library-every-tour-in-one-place">2c · Module: Library 📚 — every tour in one place ⭐</a></li>
 <li><a href="#3-module-animator-render-a-gpx-as-a-video" data-anchor="3-module-animator-render-a-gpx-as-a-video">3 · Module: Animator — render a GPX as a video</a></li>
+<li><a href="#3c-merging-several-tours-into-one-video" data-anchor="3c-merging-several-tours-into-one-video">3c · Merging several tours into one video 🧭</a></li>
 <li><a href="#4-module-travel-route-the-journey-there-as-a-video" data-anchor="4-module-travel-route-the-journey-there-as-a-video">4 · Module: Travel Route — the journey there as a video 🛣️</a></li>
 <li><a href="#5-module-tour-map-static-map-png" data-anchor="5-module-tour-map-static-map-png">5 · Module: Tour-Map — static map PNG</a></li>
 <li><a href="#5c-module-web-map-interactive-map-for-your-blog" data-anchor="5c-module-web-map-interactive-map-for-your-blog">5c · Module: Web Map 🌐 — interactive map for your blog ⭐</a></li>
@@ -917,6 +918,34 @@ python app.py</code></pre>
 <blockquote><strong>Not possible:</strong> carrying keyframes over into a <strong>different project</strong>. They</blockquote>
 <blockquote>are tied to the track and to the position within it — on another route with a</blockquote>
 <blockquote>different length and shape that position simply does not exist.</blockquote>
+<h2 id="3c-merging-several-tours-into-one-video">3c · Merging several tours into one video 🧭</h2>
+<p><strong>Several days become one story.</strong> Select several tours in the <strong>archive</strong> (⌘-click, shift for a range) and click <strong>“🧭 Merge into one video …”</strong> on the right.</p>
+<p>In the dialog:</p>
+<ul>
+<li><strong>Order</strong> — every tour has a handle <strong>⠿</strong> on the left to drag it up or down.</li>
+</ul>
+<p> The default is by date, which is usually already right.</p>
+<ul>
+<li><strong>Transition</strong> between the tours:</li>
+<li><strong>Cinematic flight</strong> — the camera flies across, the connection stays</li>
+</ul>
+<p> <strong>invisible</strong> (default)</p>
+<ul>
+<li><strong>Straight line</strong> — the connection is <strong>shown</strong></li>
+<li><strong>Follow roads</strong> — the <strong>real journey</strong> is computed and shown (needs the</li>
+</ul>
+<p> Mapbox token)</p>
+<ul>
+<li><strong>Hard cut</strong> — it continues straight away, without a transition</li>
+<li><strong>Duration</strong> per transition and a <strong>name</strong> for the whole thing.</li>
+</ul>
+<p>The result is <strong>a perfectly normal GPX file</strong> — each tour becomes a <em>stage</em> which is added to the archive and opened in the animator right away. Because it is a normal track, everything works as usual: keyframes, signs, timeline, trim, photos, elevation animator.</p>
+<p><strong>Where do they live?</strong> In the archive sidebar under <strong>🧭 Merged</strong>. They deliberately do <strong>not</strong> sit among your normal tours and do <strong>not</strong> count in the statistics — otherwise the kilometres of the source tours would appear twice.</p>
+<p><strong>What the video shows:</strong> distance and time are the <strong>sum of your tours</strong> — the transition does not count. During an invisible transition only the camera moves: no marker, no growing line, the numbers stand still.</p>
+<p><strong>Stage values:</strong> the overlay fields now also offer <strong>Stage</strong> (name), <strong>Stage no.</strong> (2 / 4), <strong>In this stage</strong> (distance) and <strong>Time in this stage</strong>. The stage value runs on the left while the total keeps counting on the right. Each stage can also have <strong>its own colour</strong>.</p>
+<blockquote><strong>By the way:</strong> a single GPX with several stages (multiple <code>&lt;trk&gt;</code> or</blockquote>
+<blockquote><code>&lt;trkseg&gt;</code>, e.g. a multi-day tour in one file) is now drawn correctly too</blockquote>
+<blockquote>no more line running across the map between stages.</blockquote>
 <h2 id="4-module-travel-route-the-journey-there-as-a-video">4 · Module: Travel Route — the journey there as a video 🛣️</h2>
 <h3 id="what-it-does">What it does</h3>
 <p>Animates the <strong>journey</strong> to a tour: you enter a start and destination, from which a route is calculated and animated like a track — e.g. as an intro before the actual hiking video. The loaded GPX (the hike) is shown as a <strong>ghost</strong> in the background.</p>

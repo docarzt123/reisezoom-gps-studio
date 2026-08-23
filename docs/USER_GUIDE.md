@@ -1033,6 +1033,49 @@ verschiedene Werte an derselben Stelle könnte das Programm nicht abspielen.
 > am Track und an der Position darin — bei einer anderen Route mit anderer Länge
 > und anderem Verlauf gibt es diese Stelle schlicht nicht.
 
+## 3c · Mehrere Touren zu einem Video zusammenführen 🧭 (seit v0.9.539)
+
+**Aus mehreren Tagen wird eine Erzählung.** Markiere im **Archiv** mehrere
+Touren (⌘-Klick, Umschalt für einen Bereich) und klicke rechts auf
+**„🧭 Zu einem Video zusammenführen …“**.
+
+Im Fenster:
+
+- **Reihenfolge** — jede Tour hat links einen Griff **⠿** zum Hoch- und
+  Runterziehen. Vorgabe ist nach Datum, also meist schon richtig.
+- **Übergang** zwischen den Touren:
+  - **Kino-Flug** — die Kamera fliegt hinüber, die Verbindung bleibt
+    **unsichtbar** (Vorgabe)
+  - **Luftlinie** — die Verbindung wird als Linie **gezeigt**
+  - **Straße folgen** — die **echte Anreise** wird berechnet und gezeigt
+    (braucht den Mapbox-Token)
+  - **Harter Schnitt** — es geht ohne Übergang direkt weiter
+- **Dauer** je Übergang und ein **Name** für das Ganze.
+
+Danach entsteht **eine ganz normale GPX-Datei** — jede Tour wird eine *Etappe* —,
+sie wird ins Archiv aufgenommen und gleich im Animator geöffnet. Weil es ein
+normaler Track ist, geht alles wie sonst: Keyframes, Schilder, Zeitleiste,
+Trim, Fotos, Höhen-Animator.
+
+**Wo liegen sie?** In der Seitenleiste des Archivs im eigenen Bereich
+**🧭 Zusammengefügt**. Sie stehen bewusst **nicht** bei den normalen Touren und
+zählen **nicht** in der Statistik mit — sonst stünden die Kilometer deiner
+Quelltouren ein zweites Mal in der Bilanz.
+
+**Was das Video zeigt:** Strecke und Zeit sind die **Summe deiner Touren** — der
+Übergang zählt nicht mit. Während eines unsichtbaren Übergangs fliegt nur die
+Kamera: kein Laufpunkt, keine wachsende Linie, die Zahlen stehen still.
+
+**Etappen-Werte einblenden:** In den Overlay-Feldern gibt es jetzt zusätzlich
+**Etappe** (Name), **Etappe Nr.** (2 / 4), **In dieser Etappe** (Strecke) und
+**Zeit in der Etappe**. So läuft links der Tageswert mit, während rechts die
+Gesamtsumme weiterzählt. Jede Etappe kann außerdem **ihre eigene Farbe** haben.
+
+> **Übrigens:** Auch eine einzelne GPX mit mehreren Etappen (mehrere `<trk>`
+> oder `<trkseg>`, z. B. eine Mehrtages-Tour aus einem Stück) wird jetzt
+> richtig gezeichnet — zwischen den Etappen läuft kein Strich mehr quer über
+> die Karte.
+
 ## 4 · Modul: Reiseroute — Anreise als Video 🛣️ (seit v0.9.205)
 
 ### Was es macht

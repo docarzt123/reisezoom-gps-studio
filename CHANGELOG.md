@@ -14,6 +14,36 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.539] – 2026-08-23
+
+### Added
+- **Mehrere Touren zu einem Video zusammenführen** (Marc). Im Archiv mehrere
+  Touren markieren → „🧭 Zu einem Video zusammenführen …“: Reihenfolge per Griff
+  ziehen, Übergang wählen (**Kino-Flug** unsichtbar · **Luftlinie** sichtbar ·
+  **Straße folgen** = echte Anreise über Mapbox · **harter Schnitt**), fertig.
+  Daraus entsteht eine **ganz normale GPX** — eine Etappe je Tour —, die direkt
+  im Animator aufgeht. Damit gibt es keinen zweiten Renderpfad mehr: Keyframes,
+  Zeitleiste, Schilder, Trim, Fotos und Höhen-Animator funktionieren, weil es
+  einfach ein Track ist. Ergebnis liegt unter dem neuen Bereich
+  **🧭 Zusammengefügt** und zählt **nicht** in Liste und Statistik mit (sonst
+  stünden die Kilometer der Quelltouren doppelt in der Bilanz).
+- **Etappen-Werte im Overlay:** „Etappe“ (Name), „Etappe Nr.“ (2 / 4),
+  „In dieser Etappe“ (Strecke) und „Zeit in der Etappe“ — links der Tageswert,
+  rechts die Gesamtsumme. Erscheinen nur bei zusammengeführten Touren.
+- **Farbe je Tour:** jede Etappe in ihrer eigenen Farbe (aus dem Archiv oder aus
+  einer Palette).
+
+### Fixed
+- **Kein Strich mehr quer über die Karte** zwischen Etappen. Mehrtages-GPX mit
+  mehreren `<trk>`/`<trkseg>` wurden als eine durchgehende Linie gezeichnet.
+  Jetzt bleibt die Verbindung unsichtbar (durchsichtige Stützstellen im
+  Farbverlauf — die Geometrie bleibt EIN LineString, der eingespielte
+  Renderpfad also unangetastet). Strecke und Zeit ließen die Lücke schon seit
+  v0.9.483 weg. Gilt für Vorschau und Video.
+- Im unsichtbaren Übergang fliegt nur noch die Kamera: kein Laufpunkt, keine
+  wachsende Linie, die Zahlen stehen still — und das Höhenprofil fällt nicht
+  mehr auf 0 m.
+
 ## [0.9.538] – 2026-08-22
 
 ### Added

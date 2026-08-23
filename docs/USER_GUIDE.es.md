@@ -981,6 +981,45 @@ valores distintos en el mismo punto no podrían reproducirse.
 > y a la posición dentro de él; en otra ruta con distinta longitud y trazado esa
 > posición sencillamente no existe.
 
+## 3c · Combinar varias rutas en un vídeo 🧭 (desde v0.9.539)
+
+**Varios días se convierten en un relato.** Selecciona varias rutas en el
+**archivo** (⌘-clic, mayúsculas para un rango) y pulsa a la derecha
+**«🧭 Combinar en un vídeo …»**.
+
+En la ventana:
+
+- **Orden** — cada ruta tiene un asa **⠿** a la izquierda para arrastrarla
+  arriba o abajo. Por defecto va por fecha, que suele ser lo correcto.
+- **Transición** entre las rutas:
+  - **Vuelo cinematográfico** — la cámara vuela y la conexión queda
+    **invisible** (por defecto)
+  - **Línea recta** — la conexión **se muestra**
+  - **Seguir carreteras** — se calcula y muestra el **trayecto real**
+    (necesita el token de Mapbox)
+  - **Corte seco** — sigue directamente, sin transición
+- **Duración** por transición y un **nombre** para el conjunto.
+
+El resultado es **un archivo GPX totalmente normal** — cada ruta se convierte en
+una *etapa* — que entra en el archivo y se abre en el animador. Al ser un
+trazado normal, todo funciona como siempre: keyframes, carteles, línea de
+tiempo, recorte, fotos, animador de altura.
+
+**¿Dónde están?** En la barra lateral del archivo, en **🧭 Combinadas**. No
+aparecen entre tus rutas normales y **no** cuentan en las estadísticas — de lo
+contrario los kilómetros de las rutas de origen contarían dos veces.
+
+**Lo que muestra el vídeo:** distancia y tiempo son la **suma de tus rutas** —
+la transición no cuenta. Durante una transición invisible solo vuela la cámara:
+sin marcador, sin línea creciendo, los números quietos.
+
+**Valores por etapa:** los campos de superposición ofrecen ahora **Etapa**
+(nombre), **Etapa n.º** (2 / 4), **En esta etapa** (distancia) y **Tiempo en la
+etapa**. Cada etapa puede tener además **su propio color**.
+
+> **Por cierto:** un GPX con varias etapas (varios `<trk>` o `<trkseg>`) también
+> se dibuja bien ahora — ya no cruza una línea el mapa entre etapas.
+
 ## 4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️ (desde v0.9.205)
 
 ### Qué hace

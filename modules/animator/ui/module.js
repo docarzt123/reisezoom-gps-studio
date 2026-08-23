@@ -2154,7 +2154,14 @@ function mountAnimator(body, headerActions, opts) {
   }
   /** Verlauf, der die Verbindungsstücke zwischen Etappen durchsichtig macht.
    *  Wortgleich zu `__rzSegMask` in core/animator.py — bei Änderung beide pflegen. */
-  function segMaskExpr(cumGeo, i0, i1, segStarts, farbe) {
+  /** Farbe je Etappe aus dem Projekt (leer = eine Farbe für alles). */
+  function _tourFarben() {
+    try {
+      const p = getActiveProject();
+      return (p && p[_MODKEY] && p[_MODKEY].tour_colors) || null;
+    } catch (_) { return null; }
+  }
+  function segMaskExpr(cumGeo, i0, i1, segStarts, farbe, tourFarben, stageNr) {
     if (!segStarts || !segStarts.length || !cumGeo || i1 <= i0) return null;
     const g0 = cumGeo[i0], gT = cumGeo[i1] - g0;
     if (!(gT > 0)) return null;
@@ -2165,7 +2172,11 @@ function mountAnimator(body, headerActions, opts) {
       luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT]);
     }
     if (!luecken.length) return null;
-    const LEER = "rgba(0,0,0,0)", e = ["interpolate", ["linear"], ["line-progress"], 0, farbe];
+    const farbeBei = (idx) => {
+      if (!tourFarben || !stageNr) return farbe;
+      return tourFarben[stageNr[Math.max(0, Math.min(stageNr.length - 1, idx))]] || farbe;
+    };
+    const LEER = "rgba(0,0,0,0)", e = ["interpolate", ["linear"], ["line-progress"], 0, farbeBei(i0)];
     let letzte = 0;
     const setz = (p, c) => {
       p = Math.max(0, Math.min(1, p));
@@ -2173,10 +2184,11 @@ function mountAnimator(body, headerActions, opts) {
       if (p >= 1) return;
       letzte = p; e.push(p, c);
     };
-    for (const [a, b] of luecken) {
-      setz(a - 1e-5, farbe); setz(a, LEER); setz(b, LEER); setz(b + 1e-5, farbe);
-    }
-    e.push(1, farbe);
+    luecken.forEach(([a, b], k) => {
+      const vor = segStarts[k] ? segStarts[k][0] : i0, nach = segStarts[k] ? segStarts[k][1] : i1;
+      setz(a - 1e-5, farbeBei(vor)); setz(a, LEER); setz(b, LEER); setz(b + 1e-5, farbeBei(nach));
+    });
+    e.push(1, farbeBei(i1));
     return e;
   }
   let currentBbox   = null;
@@ -3096,7 +3108,8 @@ function mountAnimator(body, headerActions, opts) {
       // zusammen — wo die Maske greift, entfällt der Strich-Stil).
       // Neuer Track → neu rechnen (Selbst-Invalidierung über die Array-Identität).
       if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
-      const m = segMaskExpr(_cumGeoM, i0, i1, _segStarts, currentLineColor());
+      const m = segMaskExpr(_cumGeoM, i0, i1, _segStarts, currentLineColor(),
+                            _tourFarben(), (_ovSeries && _ovSeries.stage) ? _ovSeries.stage.nr : null);
       for (const id of ["preview-line", "preview-glow"]) {
         if (!map.getLayer(id)) continue;
         try {
@@ -9681,6 +9694,10 @@ function mountAnimator(body, headerActions, opts) {
       { id: "dist_done", req: "none" }, { id: "dist_left", req: "none" },
       { id: "speed", req: "time" }, { id: "time_elapsed", req: "time" }, { id: "time_left", req: "time" },
       { id: "ele_now", req: "ele" }, { id: "grade", req: "ele" },
+      // 23.08.2026 — Etappen-Werte (nur bei zusammengeführten Touren). SYNCHRON
+      // zu OVERLAY_LIVE_FIELDS in core/animator.py.
+      { id: "stage_name", req: "stages" }, { id: "stage_no", req: "stages" },
+      { id: "stage_dist", req: "stages" }, { id: "stage_time", req: "stages" },
     ],
     totals: [
       { id: "dist_total", req: "none" }, { id: "duration", req: "time" },
@@ -9694,6 +9711,7 @@ function mountAnimator(body, headerActions, opts) {
     totals: ["dist_total", "moving_time", "avg_speed", "max_speed", "elev_gain", "elev_loss"],
   };
   const _OV_FALLBACK_LABEL = {
+    stage_name: "Etappe", stage_no: "Etappe Nr.", stage_dist: "In dieser Etappe", stage_time: "Zeit in der Etappe",
     dist_done: "Zurückgelegt", dist_left: "Verbleibend", speed: "Tempo",
     time_elapsed: "Vergangen", time_left: "Restzeit", ele_now: "Höhe", grade: "Steigung",
     dist_total: "Strecke", duration: "Zeit", moving_time: "Bewegungszeit", avg_speed: "Ø Tempo", avg_speed_total: "Ø Tempo (gesamt)", max_speed: "Max. Tempo",
@@ -9731,7 +9749,10 @@ function mountAnimator(body, headerActions, opts) {
   const _ovSensorUnit = (key) => { const m = _ovResolvedMeta(key); return m.unit ? " " + m.unit : ""; };
   const _ovHasTime = () => !!(_gpxStats && _gpxStats.duration_s > 0);
   const _ovHasEle = () => !!(_gpxStats && _gpxStats.ele_max != null);
-  const _ovAvail = (req) => req === "time" ? _ovHasTime() : req === "ele" ? _ovHasEle() : true;
+  const _ovHasStages = () => !!(_ovSeries && _ovSeries.stage && (_ovSeries.stage.gesamt || 0) > 1);
+  const _ovAvail = (req) => req === "time" ? _ovHasTime()
+    : req === "ele" ? _ovHasEle()
+    : req === "stages" ? _ovHasStages() : true;
   const _ovFmtKm = (km) => km < 100 ? km.toFixed(1) + " km" : km.toFixed(0) + " km";
   const _ovFmtDur = (sec) => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60, p = n => n < 10 ? "0" + n : "" + n; return h > 0 ? h + ":" + p(m) + ":" + p(x) : p(m) + ":" + p(x); };
   // Font-Stacks (Spiegel von core/animator.py _OVERLAY_FONTS). Google-Fonts werden
@@ -9953,6 +9974,11 @@ function mountAnimator(body, headerActions, opts) {
           case "time_left": if (sr.has_time) v = _ovFmtDur(Math.max(0, totT - sr.cumTimeS[i])); break;
           case "ele_now": if (sr.has_ele) v = Math.round(sr.ele[i]) + " m"; break;
           case "grade": if (sr.has_ele) { const g = sr.gradePct[i]; v = (g >= 0 ? "+" : "") + g.toFixed(0) + " %"; } break;
+          // 23.08.2026 — Etappen-Werte, wortgleich zu core/animator.py
+          case "stage_name": if (sr.stage) v = sr.stage.name[i] || ("Etappe " + sr.stage.nr[i]); break;
+          case "stage_no": if (sr.stage) v = sr.stage.nr[i] + " / " + sr.stage.gesamt; break;
+          case "stage_dist": if (sr.stage) v = _ovFmtKm(Math.max(0, (sr.cumDistM[i] - sr.stage.d0[i]) / 1000)); break;
+          case "stage_time": if (sr.stage && sr.has_time) v = _ovFmtDur(Math.max(0, sr.cumTimeS[i] - sr.stage.t0[i])); break;
         }
         if (v != null) el.textContent = v;
       });
@@ -11958,6 +11984,7 @@ function mountAnimator(body, headerActions, opts) {
       // v0.9.157: renderEvents = getEffectiveEvents() PLUS Classic-Snapshot der
       // aktuellen Preview-Kamera (center/pitch/zoom) in die 2 hidden KFs.
       timeline_events: renderEvents,
+      tour_colors: _tourFarben() || {},        // 23.08.2026 — Farbe je Etappe
       // v0.9.41 — Partial-Track-Render (Trim-Bereich)
       ...(function() {
         const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;

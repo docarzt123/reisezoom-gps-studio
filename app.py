@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.538"
+APP_VERSION = "0.9.539"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2029,9 +2029,15 @@ class Api:
                 conn.execute("UPDATE tracks SET merged = 1, display_name = ? WHERE path = ?",
                              (erg.name, str(ziel)))
                 conn.commit()
+            # 23.08.2026 — „Farbe je Tour": Etappennummer (1-basiert) → Farbe.
+            # Eigene Farbe der Tour aus dem Archiv, sonst aus der Palette.
+            palette = ["#ff6b35", "#35a0ff", "#7ed957", "#ffd166", "#c77dff", "#ff4d6d", "#4ecdc4", "#f4a261"]
+            farben = {}
+            for k, t in enumerate(touren, start=1):
+                farben[str(k)] = t.color or palette[(k - 1) % len(palette)]
             log.info("library_merge: %d Touren → %s (%d Punkte, %d Übergänge)",
                      len(touren), ziel.name, erg.punkte, len(erg.uebergaenge))
-            return {"ok": True, "path": str(ziel), "name": erg.name,
+            return {"ok": True, "path": str(ziel), "name": erg.name, "farben": farben,
                     "etappen": erg.etappen, "uebergaenge": erg.uebergaenge, "punkte": erg.punkte}
         except Exception as e:      # noqa: BLE001
             log.exception("library_merge")
@@ -2878,6 +2884,8 @@ class Api:
                 "has_time": has_time,
                 "has_ele": has_ele,
                 "waypoints": wp_out,
+                # 23.08.2026 — Etappen-Werte fürs Overlay (siehe gpx.etappen_reihen)
+                "stage": cgpx.etappen_reihen(ds, stats.seg_names),
             }
             _t_ui = _ui_t()   # v0.9.507 — Katalog-Labels in der App-Sprache
             return {
@@ -3283,6 +3291,7 @@ class Api:
             camera_follow_inertia=float(params.get("camera_follow_inertia", 0.0)),
             smooth_camera_3d=bool(params.get("smooth_camera_3d", False)),  # v0.9.318 — entkoppelte FreeCamera
             timeline_events=list(params.get("timeline_events", []) or []),
+            tour_colors=dict(params.get("tour_colors") or {}),   # 23.08.2026 — Farbe je Etappe
             show_overlays=bool(params.get("show_overlays", True)),
             overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
             overlay_totals_position=params.get("overlay_totals_position", "tl"),
