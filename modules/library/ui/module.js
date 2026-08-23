@@ -1713,6 +1713,10 @@ function mountLibrary(body, headerActions) {
       // Direkt im Animator öffnen — der Track ist ab jetzt ein ganz normaler.
       try {
         const ok = await window.loadGlobalGpx(r.path);
+        // Farbe je Tour ins (frisch angelegte) Projekt des zusammengeführten Tracks.
+        if (ok !== false && r.farben && typeof saveProjectSettings === "function") {
+          try { saveProjectSettings("animator", { tour_colors: r.farben }); } catch (_) {}
+        }
         if (ok !== false && typeof switchMod === "function") switchMod("animator");
       } catch (e) { console.warn("merge open", e); }
     };

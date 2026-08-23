@@ -965,6 +965,46 @@ back.
 > are tied to the track and to the position within it — on another route with a
 > different length and shape that position simply does not exist.
 
+## 3c · Merging several tours into one video 🧭 (since v0.9.539)
+
+**Several days become one story.** Select several tours in the **archive**
+(⌘-click, shift for a range) and click **“🧭 Merge into one video …”** on the right.
+
+In the dialog:
+
+- **Order** — every tour has a handle **⠿** on the left to drag it up or down.
+  The default is by date, which is usually already right.
+- **Transition** between the tours:
+  - **Cinematic flight** — the camera flies across, the connection stays
+    **invisible** (default)
+  - **Straight line** — the connection is **shown**
+  - **Follow roads** — the **real journey** is computed and shown (needs the
+    Mapbox token)
+  - **Hard cut** — it continues straight away, without a transition
+- **Duration** per transition and a **name** for the whole thing.
+
+The result is **a perfectly normal GPX file** — each tour becomes a *stage* —
+which is added to the archive and opened in the animator right away. Because it
+is a normal track, everything works as usual: keyframes, signs, timeline, trim,
+photos, elevation animator.
+
+**Where do they live?** In the archive sidebar under **🧭 Merged**. They
+deliberately do **not** sit among your normal tours and do **not** count in the
+statistics — otherwise the kilometres of the source tours would appear twice.
+
+**What the video shows:** distance and time are the **sum of your tours** — the
+transition does not count. During an invisible transition only the camera
+moves: no marker, no growing line, the numbers stand still.
+
+**Stage values:** the overlay fields now also offer **Stage** (name),
+**Stage no.** (2 / 4), **In this stage** (distance) and **Time in this stage**.
+The stage value runs on the left while the total keeps counting on the right.
+Each stage can also have **its own colour**.
+
+> **By the way:** a single GPX with several stages (multiple `<trk>` or
+> `<trkseg>`, e.g. a multi-day tour in one file) is now drawn correctly too —
+> no more line running across the map between stages.
+
 ## 4 · Module: Travel Route — the journey there as a video 🛣️ (since v0.9.205)
 
 ### What it does

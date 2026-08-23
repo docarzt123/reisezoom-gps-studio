@@ -254,6 +254,7 @@
 <li><a href="#2b-track-dateien-ffnen-viele-formate" data-anchor="2b-track-dateien-ffnen-viele-formate">2b · Track-Dateien öffnen — viele Formate ⭐</a></li>
 <li><a href="#2c-modul-archiv-alle-touren-an-einem-ort" data-anchor="2c-modul-archiv-alle-touren-an-einem-ort">2c · Modul: Archiv 📚 — alle Touren an einem Ort ⭐</a></li>
 <li><a href="#3-modul-animator-gpx-als-video-rendern" data-anchor="3-modul-animator-gpx-als-video-rendern">3 · Modul: Animator — GPX als Video rendern</a></li>
+<li><a href="#3c-mehrere-touren-zu-einem-video-zusammenf-hren" data-anchor="3c-mehrere-touren-zu-einem-video-zusammenf-hren">3c · Mehrere Touren zu einem Video zusammenführen 🧭</a></li>
 <li><a href="#4-modul-reiseroute-anreise-als-video" data-anchor="4-modul-reiseroute-anreise-als-video">4 · Modul: Reiseroute — Anreise als Video 🛣️</a></li>
 <li><a href="#5-modul-tour-map-statische-karten-png" data-anchor="5-modul-tour-map-statische-karten-png">5 · Modul: Tour-Map — Statische Karten-PNG</a></li>
 <li><a href="#5c-modul-web-karte-interaktive-karte-f-rs-blog" data-anchor="5c-modul-web-karte-interaktive-karte-f-rs-blog">5c · Modul: Web Karte 🌐 — interaktive Karte fürs Blog ⭐</a></li>
@@ -944,6 +945,35 @@ python app.py</code></pre>
 <blockquote><strong>Nicht möglich:</strong> Keyframes in ein <strong>anderes Projekt</strong> übernehmen. Sie hängen</blockquote>
 <blockquote>am Track und an der Position darin — bei einer anderen Route mit anderer Länge</blockquote>
 <blockquote>und anderem Verlauf gibt es diese Stelle schlicht nicht.</blockquote>
+<h2 id="3c-mehrere-touren-zu-einem-video-zusammenf-hren">3c · Mehrere Touren zu einem Video zusammenführen 🧭</h2>
+<p><strong>Aus mehreren Tagen wird eine Erzählung.</strong> Markiere im <strong>Archiv</strong> mehrere Touren (⌘-Klick, Umschalt für einen Bereich) und klicke rechts auf <strong>„🧭 Zu einem Video zusammenführen …“</strong>.</p>
+<p>Im Fenster:</p>
+<ul>
+<li><strong>Reihenfolge</strong> — jede Tour hat links einen Griff <strong>⠿</strong> zum Hoch- und</li>
+</ul>
+<p> Runterziehen. Vorgabe ist nach Datum, also meist schon richtig.</p>
+<ul>
+<li><strong>Übergang</strong> zwischen den Touren:</li>
+<li><strong>Kino-Flug</strong> — die Kamera fliegt hinüber, die Verbindung bleibt</li>
+</ul>
+<p> <strong>unsichtbar</strong> (Vorgabe)</p>
+<ul>
+<li><strong>Luftlinie</strong> — die Verbindung wird als Linie <strong>gezeigt</strong></li>
+<li><strong>Straße folgen</strong> — die <strong>echte Anreise</strong> wird berechnet und gezeigt</li>
+</ul>
+<p> (braucht den Mapbox-Token)</p>
+<ul>
+<li><strong>Harter Schnitt</strong> — es geht ohne Übergang direkt weiter</li>
+<li><strong>Dauer</strong> je Übergang und ein <strong>Name</strong> für das Ganze.</li>
+</ul>
+<p>Danach entsteht <strong>eine ganz normale GPX-Datei</strong> — jede Tour wird eine <em>Etappe</em> —, sie wird ins Archiv aufgenommen und gleich im Animator geöffnet. Weil es ein normaler Track ist, geht alles wie sonst: Keyframes, Schilder, Zeitleiste, Trim, Fotos, Höhen-Animator.</p>
+<p><strong>Wo liegen sie?</strong> In der Seitenleiste des Archivs im eigenen Bereich <strong>🧭 Zusammengefügt</strong>. Sie stehen bewusst <strong>nicht</strong> bei den normalen Touren und zählen <strong>nicht</strong> in der Statistik mit — sonst stünden die Kilometer deiner Quelltouren ein zweites Mal in der Bilanz.</p>
+<p><strong>Was das Video zeigt:</strong> Strecke und Zeit sind die <strong>Summe deiner Touren</strong> — der Übergang zählt nicht mit. Während eines unsichtbaren Übergangs fliegt nur die Kamera: kein Laufpunkt, keine wachsende Linie, die Zahlen stehen still.</p>
+<p><strong>Etappen-Werte einblenden:</strong> In den Overlay-Feldern gibt es jetzt zusätzlich <strong>Etappe</strong> (Name), <strong>Etappe Nr.</strong> (2 / 4), <strong>In dieser Etappe</strong> (Strecke) und <strong>Zeit in der Etappe</strong>. So läuft links der Tageswert mit, während rechts die Gesamtsumme weiterzählt. Jede Etappe kann außerdem <strong>ihre eigene Farbe</strong> haben.</p>
+<blockquote><strong>Übrigens:</strong> Auch eine einzelne GPX mit mehreren Etappen (mehrere <code>&lt;trk&gt;</code></blockquote>
+<blockquote>oder <code>&lt;trkseg&gt;</code>, z. B. eine Mehrtages-Tour aus einem Stück) wird jetzt</blockquote>
+<blockquote>richtig gezeichnet — zwischen den Etappen läuft kein Strich mehr quer über</blockquote>
+<blockquote>die Karte.</blockquote>
 <h2 id="4-modul-reiseroute-anreise-als-video">4 · Modul: Reiseroute — Anreise als Video 🛣️</h2>
 <h3 id="was-es-macht">Was es macht</h3>
 <p>Animiert die <strong>Anreise</strong> zu einer Tour: du gibst Start und Ziel an, daraus wird eine Strecke berechnet und wie ein Track animiert — z.B. als Intro vor dem eigentlichen Wander-Video. Das geladene GPX (die Wanderung) wird dabei als <strong>Ghost</strong> im Hintergrund gezeigt.</p>

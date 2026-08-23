@@ -55,6 +55,9 @@ class TrackStats:
     sensor_fields: list = field(default_factory=list)
     # v0.9.483 — Anzahl Etappen (<trkseg>/<trk>). 1 = normale Einzeltour.
     n_segments: int = 1
+    # 23.08.2026 — Name je Etappe (Reihenfolge = Etappennummer). Bei
+    # zusammengeführten Touren ist das der Tour-Name; Übergänge heißen "".
+    seg_names: list = field(default_factory=list)
     # v0.9.501 — Tour-Ebene aus FIT (session/sport/device_info/weather), roh.
     # Leer bei GPX ohne Sidecar — kein Format außer FIT liefert so etwas.
     tour_meta: dict = field(default_factory=dict)
@@ -296,6 +299,42 @@ def _als_gpx(path: str) -> str:
 UEBERGANG_NAME = "rz:uebergang"
 
 
+def etappen_reihen(pts, seg_names=None) -> dict:
+    """23.08.2026 (Marc: „Statistiken für die Teilstücke und für das Ganze") —
+    Reihen je Punkt für die Etappen-Anzeige im Overlay:
+
+      nr    – Etappennummer (1-basiert, NUR Touren; im Übergang die davor)
+      d0/t0 – Strecke/Zeit am Anfang dieser Etappe → „in dieser Etappe" ist
+              schlicht `cumDist[i] - d0[i]`
+      name  – Etappenname je Punkt (aus den <trk>-Namen)
+      gesamt – Anzahl der Tour-Etappen (ohne Übergänge)
+    """
+    n = len(pts)
+    nr = [0] * n
+    d0 = [0.0] * n
+    t0 = [0.0] * n
+    namen = [""] * n
+    if not n:
+        return {"nr": nr, "d0": d0, "t0": t0, "name": namen, "gesamt": 0}
+    seg_names = list(seg_names or [])
+    zaehler = 0
+    letzte_seg = None
+    akt_d0 = akt_t0 = 0.0
+    akt_name = ""
+    for i, p in enumerate(pts):
+        ueberg = bool(p.extra.get("rz_uebergang"))
+        if p.seg != letzte_seg:
+            letzte_seg = p.seg
+            if not ueberg:
+                zaehler += 1
+                akt_d0, akt_t0 = p.dist_m, p.elapsed_s
+                akt_name = seg_names[p.seg] if p.seg < len(seg_names) else ""
+        nr[i] = zaehler
+        d0[i], t0[i] = akt_d0, akt_t0
+        namen[i] = akt_name
+    return {"nr": nr, "d0": d0, "t0": t0, "name": namen, "gesamt": zaehler}
+
+
 def unsichtbare_bereiche(pts) -> list:
     """Punkt-Indexbereiche [i, j], deren Linie NICHT gezeichnet werden darf
     (23.08.2026): die Sprünge über Etappengrenzen und die unsichtbaren
@@ -344,6 +383,7 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
         gpx = gpxpy.parse(fh)
 
     pts: List[TrackPoint] = []
+    seg_namen: List[str] = []
     name = None
     seg_no = -1          # v0.9.483 — läuft über ALLE Tracks/Segmente hinweg weiter
     for track in gpx.tracks:
@@ -358,6 +398,7 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
         for seg in track.segments:
             if seg.points:
                 seg_no += 1      # leere Segmente erzeugen keine Lücke
+                seg_namen.append("" if _ueberg else _tn)
             for p in seg.points:
                 t_iso = None
                 if p.time is not None:
@@ -390,6 +431,7 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
                 name = route.name
             if route.points:
                 seg_no += 1
+                seg_namen.append(str(route.name or ""))
             for p in route.points:
                 t_iso = None
                 if p.time is not None:
@@ -472,6 +514,7 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
         moving_time_s=moving_time_s,
         max_speed_kmh=max_speed_kmh,
         n_segments=(pts[-1].seg + 1),
+        seg_names=seg_namen,
         bbox={
             "min_lat": min(p.lat for p in pts),
             "max_lat": max(p.lat for p in pts),

@@ -93,7 +93,8 @@ def find_ffmpeg() -> str:
     )
 
 from .gpx import (parse_gpx as core_parse_gpx, downsample, TrackPoint, resample,
-                  unsichtbare_bereiche as core_gpx_bereiche, laufpunkt_aus_bereiche as core_gpx_dot)
+                  unsichtbare_bereiche as core_gpx_bereiche, laufpunkt_aus_bereiche as core_gpx_dot,
+                  etappen_reihen as core_gpx_etappen)
 from . import i18n as _i18n
 from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
 from . import sensors as _sensors    # v0.9.331: FIT-Sensorfeld-Registry
@@ -221,6 +222,8 @@ class AnimatorConfig:
     # Leere Liste → klassisches Verhalten (statischer pitch + linearer
     # Bearing-Sweep über `rotation`). Siehe `core/timeline.py`.
     timeline_events: list = field(default_factory=list)
+    # 23.08.2026 — Farbe je Etappe eines zusammengeführten Tracks: {"1": "#rrggbb", …}
+    tour_colors: dict = field(default_factory=dict)
     show_overlays: bool = True          # Master-Schalter (Backwards-Compat)
     # Granulare Overlay-Steuerung (überschreibt show_overlays NICHT — Master bleibt führend).
     # Position: tl|tr|bl|br|bc (bc = bottom-center für volle Breite)
@@ -519,6 +522,17 @@ OVERLAY_LIVE_FIELDS = [
      "js": "Math.round(elevations[idx])+' m'"},
     {"id": "grade",        "requires": "ele",  "label": "Steigung",
      "js": "(gradePct[idx]>=0?'+':'')+gradePct[idx].toFixed(0)+' %'"},
+    # 23.08.2026 (Marc) — Etappen-Werte für zusammengeführte Mehr-Touren-Tracks:
+    # links der Tageswert, rechts die Gesamtsumme. `requires: "stages"` blendet
+    # sie bei einer normalen Einzeltour aus.
+    {"id": "stage_name",   "requires": "stages", "label": "Etappe",
+     "js": "(STAGE_NAME[idx] || ('Etappe ' + STAGE_NR[idx]))"},
+    {"id": "stage_no",     "requires": "stages", "label": "Etappe Nr.",
+     "js": "(STAGE_NR[idx] + ' / ' + STAGE_TOTAL)"},
+    {"id": "stage_dist",   "requires": "stages", "label": "In dieser Etappe",
+     "js": "fmtKmJS(Math.max(0,(cumDistM[idx]-STAGE_D0[idx])/1000))"},
+    {"id": "stage_time",   "requires": "stages", "label": "Zeit in der Etappe",
+     "js": "fmtDurJS(Math.max(0,cumTimeS[idx]-STAGE_T0[idx]))"},
 ]
 OVERLAY_TOTAL_FIELDS = [
     {"id": "dist_total", "requires": "none", "label": "Strecke",
@@ -562,11 +576,14 @@ _OVERLAY_FONTS = {
 }
 
 
-def _overlay_field_available(requires: str, has_time: bool, has_ele: bool) -> bool:
+def _overlay_field_available(requires: str, has_time: bool, has_ele: bool,
+                            has_stages: bool = False) -> bool:
     if requires == "time":
         return has_time
     if requires == "ele":
         return has_ele
+    if requires == "stages":     # 23.08.2026 — nur bei zusammengeführten Touren
+        return has_stages
     return True
 
 
@@ -594,11 +611,12 @@ def _overlay_label_ov(fid, default_label, overrides, t=None):
     return default_label
 
 
-def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, overrides=None, t=None) -> str:
+def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, overrides=None, t=None,
+                         has_stages: bool = False) -> str:
     rows = []
     for fid in (field_ids or DEFAULT_TOTAL_FIELDS):
         f = _OVERLAY_TOTAL_BY_ID.get(fid)
-        if not f or not _overlay_field_available(f["requires"], has_time, has_ele):
+        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages):
             continue
         try:
             val = f["py"](total_stats)
@@ -635,7 +653,8 @@ def _overlay_sensor_series_json(ds_points, field_ids, extra_keys=None) -> str:
     return json.dumps(out)
 
 
-def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None, t=None) -> str:
+def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None, t=None,
+                       has_stages: bool = False) -> str:
     rows = []
     for fid in (field_ids or DEFAULT_LIVE_FIELDS):
         # v0.9.331 — FIT-Sensorfeld (sensor:<key>) → Label aus der Registry.
@@ -647,7 +666,7 @@ def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None,
                         f'<span class="value" id="{_sensor_dom_id(key)}">&mdash;</span></div>')
             continue
         f = _OVERLAY_LIVE_BY_ID.get(fid)
-        if not f or not _overlay_field_available(f["requires"], has_time, has_ele):
+        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages):
             continue
         accent = " accent" if f.get("accent") else ""
         lbl = _overlay_label_ov(fid, f["label"], overrides, t)  # v0.9.393/507 — Umbenennung > Übersetzung
@@ -655,7 +674,8 @@ def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None,
     return "\n".join(rows)
 
 
-def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=None) -> str:
+def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=None,
+                            has_stages: bool = False) -> str:
     """JS-Zeilen für updateOverlays(idx): pro aktivem Live-Feld ein textContent-Set.
     Wird als literaler Block in den per-Frame-Loop injiziert (kein f-string-Reparse)."""
     lines = []
@@ -671,7 +691,7 @@ def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=
                 f" _e.textContent=(_v==null?'\\u2013':(Math.round(_v)+{unit_js})); }} }}")
             continue
         f = _OVERLAY_LIVE_BY_ID.get(fid)
-        if not f or not _overlay_field_available(f["requires"], has_time, has_ele):
+        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages):
             continue
         lines.append(f"  {{ var _e=document.getElementById('live-{fid}'); if(_e) _e.textContent = {f['js']}; }}")
     return "\n".join(lines)
@@ -1249,7 +1269,9 @@ def _sign_draw_js() -> str:
 # zusammen — wo eine Maske greift, entfällt der Strich-Stil.
 # SYNCHRON zu `segMaskExpr` in modules/animator/ui/module.js.
 _SEG_MASK_JS = r"""
-window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe) {
+window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe, tourFarben, stageNr) {
+  // `tourFarben` (optional): Farbe je Etappennummer — dann bekommt jede Tour
+  // ihre eigene Farbe, die Verbindungen bleiben durchsichtig (23.08.2026).
   if (!segStarts || !segStarts.length || !cumGeo || i1 <= i0) return null;
   var g0 = cumGeo[i0], gT = cumGeo[i1] - g0;
   if (!(gT > 0)) return null;
@@ -1261,7 +1283,12 @@ window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe) {
     luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT]);
   }
   if (!luecken.length) return null;
-  var LEER = "rgba(0,0,0,0)", e = ["interpolate", ["linear"], ["line-progress"], 0, farbe], letzte = 0;
+  var farbeBei = function (idx) {
+    if (!tourFarben || !stageNr) return farbe;
+    var c = tourFarben[stageNr[Math.max(0, Math.min(stageNr.length - 1, idx))]];
+    return c || farbe;
+  };
+  var LEER = "rgba(0,0,0,0)", e = ["interpolate", ["linear"], ["line-progress"], 0, farbeBei(i0)], letzte = 0;
   var setz = function (p, c) {
     p = Math.max(0, Math.min(1, p));
     if (p <= letzte) p = letzte + 1e-6;
@@ -1269,12 +1296,13 @@ window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe) {
     letzte = p; e.push(p, c);
   };
   for (var l = 0; l < luecken.length; l++) {
-    setz(luecken[l][0] - 1e-5, farbe);
+    var vorIdx = segStarts[l] ? segStarts[l][0] : i0, nachIdx = segStarts[l] ? segStarts[l][1] : i1;
+    setz(luecken[l][0] - 1e-5, farbeBei(vorIdx));
     setz(luecken[l][0], LEER);
     setz(luecken[l][1], LEER);
-    setz(luecken[l][1] + 1e-5, farbe);
+    setz(luecken[l][1] + 1e-5, farbeBei(nachIdx));
   }
-  e.push(1, farbe);
+  e.push(1, farbeBei(i1));
   return e;
 };
 """
@@ -1529,6 +1557,12 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # quer über die Karte. Distanz und Zeit zählen es ohnehin nicht mit (gpx.py).
     seg_starts_json = json.dumps(core_gpx_bereiche(ds_points))
     dot_hidden_json = json.dumps(core_gpx_dot(ds_points))
+    _etappen = core_gpx_etappen(ds_points, (total_stats or {}).get("seg_names"))
+    stage_nr_json = json.dumps(_etappen["nr"])
+    stage_d0_json = json.dumps([round(x, 2) for x in _etappen["d0"]])
+    stage_t0_json = json.dumps([round(x, 2) for x in _etappen["t0"]])
+    stage_name_json = json.dumps(_etappen["name"])
+    stage_total_json = json.dumps(_etappen["gesamt"])
     seg_mask_js = _SEG_MASK_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
@@ -1556,6 +1590,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     _colors_on = bool(cfg.track_colors_enabled) and len(_stops) >= 1
     color_gradient_js = _COLOR_GRADIENT_JS if _colors_on else "// track colors disabled"
     line_color_json = json.dumps(cfg.line_color)
+    # 23.08.2026 — „Farbe je Tour": {Etappennummer: "#rrggbb"} aus dem Projekt.
+    tour_colors_json = json.dumps(getattr(cfg, "tour_colors", None) or {})
     colors_on_js = "true" if _colors_on else "false"
     color_source_json = json.dumps(_csrc)
     color_stops_km_json = json.dumps([_stopv(s) for s in _stops])
@@ -1622,17 +1658,18 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         total_stats["max_speed_kmh"] = 0.0
         total_stats["moving_time_s"] = 0.0
     _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
-    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
+    has_stages = (_etappen["gesamt"] or 0) > 1     # 23.08.2026 — zusammengeführte Touren
+    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), has_stages)
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
-            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t)
+            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages)
             if _trows:
                 totals_html = f"""
 <div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
   {_trows}
 </div>"""
         if cfg.overlay_live_enabled:
-            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t)
+            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages)
             if _lrows:
                 live_html = f"""
 <div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">
@@ -2122,6 +2159,9 @@ const allCoords = {coords_json};
 // die Geometrie, für Farbwerte weiterhin cumDistM.
 const SEG_STARTS = {seg_starts_json};      // [[i,j], …] unsichtbare Stücke
 const DOT_HIDDEN = {dot_hidden_json};      // [[i,j], …] dort ist der Laufpunkt aus
+// 23.08.2026 — Etappen-Werte fürs Overlay (siehe gpx.etappen_reihen)
+const STAGE_NR = {stage_nr_json}, STAGE_D0 = {stage_d0_json}, STAGE_T0 = {stage_t0_json};
+const STAGE_NAME = {stage_name_json}, STAGE_TOTAL = {stage_total_json};
 const cumGeoM = (() => {{
   const out = [0];
   for (let i = 1; i < allCoords.length; i++) {{
@@ -2483,6 +2523,9 @@ window.__camFaithful = (t) => {{
 // v0.9.435 — Mehrfarbiger Track: Konstanten (aus AnimatorConfig).
 const COLORS_ON = {colors_on_js};
 const LINE_COLOR = {line_color_json};    // 23.08.2026 — Grundfarbe für die Etappen-Maske
+const STAGE_COLORS = {tour_colors_json};  // Farbe je Etappennummer (leer = eine Farbe)
+// ⚠️ NICHT „TOUR_COLORS" nennen: so heißt im Mehrspur-HTML schon die Farbliste
+// des alten Pfads — die doppelte Deklaration ließ das ganze Skript sterben.
 const COLOR_SOURCE = {color_source_json};
 const COLOR_STOPS_VAL = {color_stops_km_json};
 const COLOR_STOPS_COL = {color_stops_col_json};
@@ -2526,7 +2569,7 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
       if (g) {{ try {{ map.setPaintProperty('track-line','line-gradient',g); if (map.getLayer('track-glow')) map.setPaintProperty('track-glow','line-gradient',g); }} catch(e) {{}} }}
     }} else if (SEG_STARTS.length) {{
       // 23.08.2026 — Etappen: Verbindungsstücke unsichtbar (siehe __rzSegMask).
-      const m = window.__rzSegMask(cumGeoM, sliceStart, sliceEnd-1, SEG_STARTS, LINE_COLOR);
+      const m = window.__rzSegMask(cumGeoM, sliceStart, sliceEnd-1, SEG_STARTS, LINE_COLOR, STAGE_COLORS, STAGE_NR);
       for (const id of ['track-line','track-glow','track-highlight']) {{
         if (!map.getLayer(id)) continue;
         try {{ map.setPaintProperty(id,'line-gradient', m || null); if (m) map.setPaintProperty(id,'line-dasharray', null); }} catch(e) {{}}
@@ -2669,6 +2712,8 @@ def build_interactive_html(cfg: AnimatorConfig) -> str:
         "ele_min": total_stats.ele_min, "ele_max": total_stats.ele_max,
         "moving_time_s": getattr(total_stats, "moving_time_s", 0.0),
         "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
+        # 23.08.2026 — Etappennamen fürs Overlay (zusammengeführte Touren)
+        "seg_names": list(getattr(total_stats, "seg_names", []) or []),
     }
     return _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
 
@@ -2688,6 +2733,12 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     coords_json = json.dumps([[p.lon, p.lat] for p in ds_points])
     seg_starts_json = json.dumps(core_gpx_bereiche(ds_points))
     dot_hidden_json = json.dumps(core_gpx_dot(ds_points))
+    _etappen = core_gpx_etappen(ds_points, (total_stats or {}).get("seg_names"))
+    stage_nr_json = json.dumps(_etappen["nr"])
+    stage_d0_json = json.dumps([round(x, 2) for x in _etappen["d0"]])
+    stage_t0_json = json.dumps([round(x, 2) for x in _etappen["t0"]])
+    stage_name_json = json.dumps(_etappen["name"])
+    stage_total_json = json.dumps(_etappen["gesamt"])
     seg_mask_js = _SEG_MASK_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
@@ -2730,17 +2781,18 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
         total_stats["max_speed_kmh"] = 0.0
         total_stats["moving_time_s"] = 0.0
     _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
-    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None))
+    has_stages = (_etappen["gesamt"] or 0) > 1     # 23.08.2026 — zusammengeführte Touren
+    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), has_stages)
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
-            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t)
+            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages)
             if _trows:
                 totals_html = f"""
 <div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
   {_trows}
 </div>"""
         if cfg.overlay_live_enabled:
-            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t)
+            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages)
             if _lrows:
                 live_html = f"""
 <div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">
@@ -2822,6 +2874,9 @@ const allCoords = {coords_json};
 // die Geometrie, für Farbwerte weiterhin cumDistM.
 const SEG_STARTS = {seg_starts_json};      // [[i,j], …] unsichtbare Stücke
 const DOT_HIDDEN = {dot_hidden_json};      // [[i,j], …] dort ist der Laufpunkt aus
+// 23.08.2026 — Etappen-Werte fürs Overlay (siehe gpx.etappen_reihen)
+const STAGE_NR = {stage_nr_json}, STAGE_D0 = {stage_d0_json}, STAGE_T0 = {stage_t0_json};
+const STAGE_NAME = {stage_name_json}, STAGE_TOTAL = {stage_total_json};
 const cumGeoM = (() => {{
   const out = [0];
   for (let i = 1; i < allCoords.length; i++) {{
@@ -3466,6 +3521,8 @@ async def render_frame(
         "ele_min": total_stats.ele_min, "ele_max": total_stats.ele_max,
         "moving_time_s": getattr(total_stats, "moving_time_s", 0.0),
         "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
+        # 23.08.2026 — Etappennamen fürs Overlay (zusammengeführte Touren)
+        "seg_names": list(getattr(total_stats, "seg_names", []) or []),
     }
 
     html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
@@ -3699,6 +3756,8 @@ async def render(
         "ele_max": total_stats.ele_max,
         "moving_time_s": getattr(total_stats, "moving_time_s", 0.0),
         "max_speed_kmh": getattr(total_stats, "max_speed_kmh", 0.0),
+        # 23.08.2026 — Etappennamen fürs Overlay (zusammengeführte Touren)
+        "seg_names": list(getattr(total_stats, "seg_names", []) or []),
     }
 
     # v0.9.41: bei stats_use_trim die Stats für den Trim-Bereich neu rechnen.
