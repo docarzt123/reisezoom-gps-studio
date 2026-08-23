@@ -2803,6 +2803,9 @@ class Api:
                 # damit Multi-Track-Render echte GPX nutzt statt das Fremdformat.
                 "gpx_path": path,
                 "coords": coords,
+                # 23.08.2026 — Etappengrenzen für die Vorschau (Verbindungsstücke
+                # zwischen Etappen werden unsichtbar gezeichnet, siehe segMaskExpr).
+                "seg_starts": [i for i in range(1, len(ds)) if ds[i].seg != ds[i - 1].seg],
                 "elevations": elevations,
                 "bbox": stats.bbox,
                 "stats": {
