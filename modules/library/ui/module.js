@@ -337,6 +337,7 @@ function mountLibrary(body, headerActions) {
     else if (scope === "fav") f.fav_only = true;
     else if (scope === "hidden") f.hidden_only = true;
     else if (scope === "missing") f.missing_only = true;
+    else if (scope === "merged") f.merged_only = true;   // 23.08.2026 — zusammengeführte Tracks
     return f;
   }
 
@@ -531,6 +532,9 @@ function mountLibrary(body, headerActions) {
       ["planned", "📝", T("library.scope_planned", "Geplante")],
       ["fav", "★", T("library.scope_fav", "Favoriten")],
     ];
+    // 23.08.2026 — Zusammengeführte Mehr-Touren-Tracks: eigener Bereich, damit
+    // ihre Kilometer nicht ein zweites Mal in Liste und Statistik landen.
+    if ((b.n_merged || 0) > 0) items.push(["merged", "🧭", T("library.scope_merged", "Zusammengefügt")]);
     if ((b.n_hidden || 0) > 0) items.push(["hidden", "🚫", T("library.scope_hidden", "Ausgeblendete")]);
     // Nur zeigen, wenn es tatsächlich unerreichbare Touren gibt — sonst wäre es
     // ein Bereich, den niemand versteht, weil er immer leer ist.
@@ -543,6 +547,7 @@ function mountLibrary(body, headerActions) {
       if (k === "done") return b.done ? b.done.n : "";
       if (k === "planned") return b.planned ? b.planned.n : "";
       if (k === "fav") return b.n_fav || "";
+      if (k === "merged") return b.n_merged || "";
       if (k === "hidden") return b.n_hidden || "";
       if (k === "missing") return b.n_missing || "";
       return "";
@@ -591,7 +596,8 @@ function mountLibrary(body, headerActions) {
   function scopeTitle() {
     const col = _collections.find(c => c.id === state.collection_id);
     if (col) return col.name;
-    return scope === "done" ? T("library.scope_done", "Gemachte")
+    return scope === "merged" ? T("library.scope_merged", "Zusammengefügt")
+      : scope === "done" ? T("library.scope_done", "Gemachte")
       : scope === "planned" ? T("library.scope_planned", "Geplante")
       : scope === "fav" ? T("library.scope_fav", "Favoriten")
       : scope === "hidden" ? T("library.scope_hidden", "Ausgeblendete")
@@ -1604,6 +1610,114 @@ function mountLibrary(body, headerActions) {
   /** Sammel-Panel: mehrere Touren gewählt. Werkzeuge öffnen geht hier nicht —
    *  welche Tour sollte der Animator laden? — Eigenschaften setzen dafür für
    *  alle auf einmal. */
+  /** 23.08.2026 (Marc) — Mehrere Touren zu EINEM Video-Track zusammenführen.
+   *  Reihenfolge per Griff (⠿, wie in der Reiseroute), Übergangs-Stil je Lücke.
+   *  Ergebnis ist eine normale GPX unter „Zusammengefügt" — der Animator braucht
+   *  dafür keinen Sonderfall (siehe core/merge.py). */
+  function openMergeDialog(items) {
+    if (!items || items.length < 2) { toast(T("library.merge.min2", "Mindestens zwei Touren auswählen (⌘-Klick)."), "warn"); return; }
+    // Vorgabe: nach Datum, das ist fast immer die Erzähl-Reihenfolge.
+    let liste = items.slice().sort((a, b) => String(a.started_at || "").localeCompare(String(b.started_at || "")));
+    const stile = [
+      ["kino", T("library.merge.style_kino", "Kino-Flug (Verbindung unsichtbar)")],
+      ["luftlinie", T("library.merge.style_arc", "Luftlinie (sichtbar)")],
+      ["strasse", T("library.merge.style_road", "Straße folgen (echte Anreise)")],
+      ["schnitt", T("library.merge.style_cut", "Harter Schnitt (ohne Übergang)")],
+    ];
+    const zeilen = () => liste.map((it, i) => `
+      <div class="lib-merge-row" data-i="${i}">
+        <span class="lib-merge-handle" title="${T("route.drag", "Ziehen, um die Reihenfolge zu ändern")}">⠿</span>
+        <span class="lib-merge-n">${i + 1}</span>
+        <span class="lib-merge-name">${esc(it.display_name || it.name || "")}</span>
+        <span class="lib-merge-meta">${fmtDate(it.started_at)} · ${fmtKmVal(it.distance_m || 0)}</span>
+      </div>`).join("");
+    const m = openModal({
+      title: T("library.merge.title", "Touren zusammenführen"),
+      body: `
+        <p class="muted" style="font-size:12px; line-height:1.45; margin:0 0 10px;">${T("library.merge.hint", "")}</p>
+        <div class="field"><label class="field-label">${T("library.merge.order", "Reihenfolge (ziehen zum Sortieren)")}</label>
+          <div id="lib-merge-list" class="lib-merge-list">${zeilen()}</div></div>
+        <div class="field"><label class="field-label">${T("library.merge.transition", "Übergang zwischen den Touren")}</label>
+          <select id="lib-merge-stil" class="lib-select">${stile.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("")}</select></div>
+        <div class="field" id="lib-merge-dauer-field"><label class="field-label">${T("library.merge.duration", "Dauer je Übergang")} <span class="label-val" id="lib-merge-dauer-v">3.0 s</span></label>
+          <input type="range" id="lib-merge-dauer" min="1" max="8" step="0.5" value="3"></div>
+        <div class="field"><label class="field-label">${T("library.merge.name", "Name")}</label>
+          <input type="text" id="lib-merge-name" class="lib-input" value=""></div>
+        <div class="lib-hint" id="lib-merge-status"></div>`,
+      footer: `<button class="btn" id="lib-merge-cancel">${T("common.cancel", "Abbrechen")}</button>
+               <button class="btn btn-primary" id="lib-merge-go">${T("library.merge.go", "Zusammenführen und öffnen")}</button>`,
+    });
+    const host = () => document.getElementById("lib-merge-list");
+    const namensfeld = () => document.getElementById("lib-merge-name");
+    const nameVorschlag = () => liste.map(x => x.display_name || x.name || "").filter(Boolean).slice(0, 3).join(" + ")
+      + (liste.length > 3 ? " …" : "");
+    const neuZeichnen = () => {
+      const h = host(); if (!h) return;
+      h.innerHTML = zeilen();
+      binden();
+      const nf = namensfeld();
+      if (nf && !nf._userEdited) nf.value = nameVorschlag();
+    };
+    let ziehtVon = -1;
+    const binden = () => {
+      host().querySelectorAll(".lib-merge-row").forEach((row) => {
+        const i = +row.dataset.i;
+        const griff = row.querySelector(".lib-merge-handle");
+        if (griff) griff.addEventListener("mousedown", () => { row.draggable = true; });
+        row.addEventListener("dragstart", (ev) => {
+          ziehtVon = i; row.classList.add("dragging");
+          try { ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", String(i)); } catch (_) {}
+        });
+        row.addEventListener("dragend", () => {
+          row.draggable = false; row.classList.remove("dragging");
+          host().querySelectorAll(".drag-over").forEach(r => r.classList.remove("drag-over"));
+        });
+        row.addEventListener("dragover", (ev) => { if (ziehtVon < 0) return; ev.preventDefault(); row.classList.add("drag-over"); });
+        row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+        row.addEventListener("drop", (ev) => {
+          ev.preventDefault(); row.classList.remove("drag-over");
+          if (ziehtVon < 0 || ziehtVon === i) { ziehtVon = -1; return; }
+          const [x] = liste.splice(ziehtVon, 1); liste.splice(i, 0, x); ziehtVon = -1;
+          neuZeichnen();
+        });
+      });
+    };
+    binden();
+    const nf = namensfeld();
+    if (nf) { nf.value = nameVorschlag(); nf.addEventListener("input", () => { nf._userEdited = true; }); }
+    const stil = document.getElementById("lib-merge-stil");
+    const dauer = document.getElementById("lib-merge-dauer");
+    const dauerV = document.getElementById("lib-merge-dauer-v");
+    const dauerFeld = document.getElementById("lib-merge-dauer-field");
+    const syncStil = () => { if (dauerFeld) dauerFeld.style.display = (stil.value === "schnitt") ? "none" : ""; };
+    stil.addEventListener("change", syncStil); syncStil();
+    dauer.addEventListener("input", () => { if (dauerV) dauerV.textContent = (+dauer.value).toFixed(1) + " s"; });
+    document.getElementById("lib-merge-cancel").onclick = () => m.close();
+    document.getElementById("lib-merge-go").onclick = async () => {
+      const st = document.getElementById("lib-merge-status");
+      const knopf = document.getElementById("lib-merge-go");
+      const frei = knopfBeschaeftigt("lib-merge-go", "library.merge.running", "Wird zusammengeführt …");
+      if (st) st.textContent = "";
+      const uebergaenge = liste.slice(1).map(() => ({ stil: stil.value, dauer_s: +dauer.value || 3 }));
+      let r;
+      try {
+        r = await api().library_merge({ paths: liste.map(x => x.path), name: (nf && nf.value) || "", uebergaenge });
+      } catch (e) { r = { ok: false, error: String(e) }; }
+      if (frei) frei();
+      if (!r || !r.ok) { if (st) st.textContent = "⚠ " + ((r && r.error) || "?"); void knopf; return; }
+      m.close();
+      _multi.clear();
+      toast(T("library.merge.done", "Zusammengeführt: {n} Touren").replace("{n}", liste.length), "success", 5000);
+      scope = "merged"; store.set("scope", scope);
+      await reload(); renderScopes();
+      // Direkt im Animator öffnen — der Track ist ab jetzt ein ganz normaler.
+      try {
+        const ok = await window.loadGlobalGpx(r.path);
+        if (ok !== false && typeof switchMod === "function") switchMod("animator");
+      } catch (e) { console.warn("merge open", e); }
+    };
+  }
+
   function renderMulti() {
     const box = $("lib-detail");
     const n = _multi.size;
@@ -1637,6 +1751,9 @@ function mountLibrary(body, headerActions) {
       </div>
 
       <div class="lib-actions" style="margin-top:16px;">
+        <button class="btn btn-primary btn-sm" id="lib-m-merge" style="width:100%;">${T("library.merge.action", "🧭 Zu einem Video zusammenführen …")}</button>
+      </div>
+      <div class="lib-actions">
         <button class="btn btn-ghost btn-sm" id="lib-m-fav">★ ${T("library.fav_on", "Als Favorit")}</button>
         <button class="btn btn-ghost btn-sm" id="lib-m-unfav">${T("library.fav_off", "Favorit weg")}</button>
       </div>
@@ -1666,6 +1783,7 @@ function mountLibrary(body, headerActions) {
     if (neu) neu.onclick = () => addToCollectionDialog(pfade());
 
     $("lib-m-clear").onclick = () => { _multi.clear(); renderView(); renderDetail(); };
+    $("lib-m-merge").onclick = () => openMergeDialog(multiItems());
 
     $("lib-m-act").onchange = async (e) => {
       const v = e.target.value;
