@@ -2135,6 +2135,49 @@ function mountAnimator(body, headerActions, opts) {
   // ein `tracks`-Array (≥2 Einträge) wenn hier ≥1 Extra-Tour liegt.
   let _extraTours = [];
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
+  // 23.08.2026 — Etappen: Startindizes + geometrische Kumulativlänge. `line-progress`
+  // misst gezeichnete Länge, cumDistM zählt Etappengrenzen bewusst NICHT mit — für die
+  // Maske brauchen wir die Geometrie. SYNCHRON zu core/animator.py (__rzSegMask).
+  let _segStarts = [];
+  let _cumGeoM = null, _cumGeoFuer = null;   // gebaut für GENAU diese Coords-Liste
+  function _segGeoAufbauen() {
+    _cumGeoM = null; _cumGeoFuer = currentCoords;
+    if (!Array.isArray(currentCoords) || currentCoords.length < 2) return;
+    const out = [0];
+    for (let i = 1; i < currentCoords.length; i++) {
+      const a = currentCoords[i - 1], b = currentCoords[i];
+      const dy = (b[1] - a[1]) * 111320;
+      const dx = (b[0] - a[0]) * 111320 * Math.cos((a[1] + b[1]) * Math.PI / 360);
+      out.push(out[i - 1] + Math.sqrt(dx * dx + dy * dy));
+    }
+    _cumGeoM = out;
+  }
+  /** Verlauf, der die Verbindungsstücke zwischen Etappen durchsichtig macht.
+   *  Wortgleich zu `__rzSegMask` in core/animator.py — bei Änderung beide pflegen. */
+  function segMaskExpr(cumGeo, i0, i1, segStarts, farbe) {
+    if (!segStarts || !segStarts.length || !cumGeo || i1 <= i0) return null;
+    const g0 = cumGeo[i0], gT = cumGeo[i1] - g0;
+    if (!(gT > 0)) return null;
+    const luecken = [];
+    for (const idx of segStarts) {
+      if (idx <= i0 || idx > i1) continue;
+      luecken.push([(cumGeo[idx - 1] - g0) / gT, (cumGeo[idx] - g0) / gT]);
+    }
+    if (!luecken.length) return null;
+    const LEER = "rgba(0,0,0,0)", e = ["interpolate", ["linear"], ["line-progress"], 0, farbe];
+    let letzte = 0;
+    const setz = (p, c) => {
+      p = Math.max(0, Math.min(1, p));
+      if (p <= letzte) p = letzte + 1e-6;
+      if (p >= 1) return;
+      letzte = p; e.push(p, c);
+    };
+    for (const [a, b] of luecken) {
+      setz(a - 1e-5, farbe); setz(a, LEER); setz(b, LEER); setz(b + 1e-5, farbe);
+    }
+    e.push(1, farbe);
+    return e;
+  }
   let currentBbox   = null;
   // v0.9.210 (Reiseroute Phase 2) — das geladene GPX (Wanderung) wird hier als
   // GHOST gehalten; animiert wird die berechnete Route (currentCoords). Nur im
@@ -3047,13 +3090,20 @@ function mountAnimator(body, headerActions, opts) {
     const on = currentColorsEnabled() && _ovSeries && _ovSeries.cumDistM
       && (currentColorsSource() === "distance" || (metric && metric.length));
     if (!on) {
-      if (_colorsPrevOn) {
-        for (const id of ["preview-line", "preview-glow"]) {
-          if (!map.getLayer(id)) continue;
-          try { map.setPaintProperty(id, "line-gradient", null); map.setPaintProperty(id, "line-dasharray", currentDasharray() || null); } catch (_) {}
-        }
-        _colorsPrevOn = false;
+      // 23.08.2026 — Etappen: statt „kein Verlauf" die Maske, die die
+      // Verbindungsstücke ausblendet (Mapbox kann Strich-Stil + Verlauf nicht
+      // zusammen — wo die Maske greift, entfällt der Strich-Stil).
+      // Neuer Track → neu rechnen (Selbst-Invalidierung über die Array-Identität).
+      if (!_cumGeoM || _cumGeoFuer !== currentCoords) _segGeoAufbauen();
+      const m = segMaskExpr(_cumGeoM, i0, i1, _segStarts, currentLineColor());
+      for (const id of ["preview-line", "preview-glow"]) {
+        if (!map.getLayer(id)) continue;
+        try {
+          map.setPaintProperty(id, "line-gradient", m || null);
+          map.setPaintProperty(id, "line-dasharray", m ? null : (currentDasharray() || null));
+        } catch (_) {}
       }
+      _colorsPrevOn = !!m;
       return;
     }
     const st = sortedColorStops();
@@ -10533,6 +10583,7 @@ function mountAnimator(body, headerActions, opts) {
     // sperrt sich, wenn der neue Track keine Zeiten hat).
     try { if (window.__animDurFaktor) window.__animDurFaktor(true); } catch (_) {}
     _ovSeries = res.series || null;
+    _segStarts = Array.isArray(res.seg_starts) ? res.seg_starts : [];
     _ovSensorFields = res.sensor_fields || [];   // v0.9.330 — FIT-Sensorfelder für den Live-Katalog
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
     _chartSeries = res.chart_series || [];       // v0.9.443 — Diagramm-Serien-Auswahl
@@ -10932,6 +10983,7 @@ function mountAnimator(body, headerActions, opts) {
     // sperrt sich, wenn der neue Track keine Zeiten hat).
     try { if (window.__animDurFaktor) window.__animDurFaktor(true); } catch (_) {}
     _ovSeries = res.series || null;
+    _segStarts = Array.isArray(res.seg_starts) ? res.seg_starts : [];
     _ovSensorFields = res.sensor_fields || [];   // v0.9.330 — FIT-Sensorfelder für den Live-Katalog
     _gpxElevations = res.elevations || (res.coords ? res.coords.map(() => 0) : []);
     _chartSeries = res.chart_series || [];       // v0.9.443 — Diagramm-Serien-Auswahl

@@ -1240,6 +1240,43 @@ def _sign_draw_js() -> str:
 # Frame neu (die km-Grenzen wandern im progress-Raum, während die Linie wächst).
 # Wird IDENTISCH in der Vorschau gespiegelt (modules/animator/ui/module.js →
 # __rzColorGradient). Bei Änderung BEIDE pflegen.
+# 23.08.2026 — Etappen-Maske: macht die Verbindungsstücke zwischen Etappen
+# unsichtbar, indem sie im `line-gradient` durchsichtige Stützstellen bekommen.
+# Bewusst über die Farbe statt über die Geometrie: die Linie bleibt EIN
+# LineString, der eingespielte Renderpfad (Trim, Marker, Alterung) bleibt
+# unangetastet. ⚠️ Mapbox kann `line-dasharray` und `line-gradient` nicht
+# zusammen — wo eine Maske greift, entfällt der Strich-Stil.
+# SYNCHRON zu `segMaskExpr` in modules/animator/ui/module.js.
+_SEG_MASK_JS = r"""
+window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe) {
+  if (!segStarts || !segStarts.length || !cumGeo || i1 <= i0) return null;
+  var g0 = cumGeo[i0], gT = cumGeo[i1] - g0;
+  if (!(gT > 0)) return null;
+  var luecken = [];
+  for (var k = 0; k < segStarts.length; k++) {
+    var idx = segStarts[k];
+    if (idx <= i0 || idx > i1) continue;          // Verbindung liegt außerhalb
+    luecken.push([(cumGeo[idx - 1] - g0) / gT, (cumGeo[idx] - g0) / gT]);
+  }
+  if (!luecken.length) return null;
+  var LEER = "rgba(0,0,0,0)", e = ["interpolate", ["linear"], ["line-progress"], 0, farbe], letzte = 0;
+  var setz = function (p, c) {
+    p = Math.max(0, Math.min(1, p));
+    if (p <= letzte) p = letzte + 1e-6;
+    if (p >= 1) return;
+    letzte = p; e.push(p, c);
+  };
+  for (var l = 0; l < luecken.length; l++) {
+    setz(luecken[l][0] - 1e-5, farbe);
+    setz(luecken[l][0], LEER);
+    setz(luecken[l][1], LEER);
+    setz(luecken[l][1] + 1e-5, farbe);
+  }
+  e.push(1, farbe);
+  return e;
+};
+"""
+
 _COLOR_GRADIENT_JS = r"""
 window.__rzHex2rgb = function(h){ h=(h||'#000').replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]; };
 window.__rzRgb2hex = function(r,g,b){ function c(x){ x=Math.max(0,Math.min(255,Math.round(x))); var s=x.toString(16); return s.length<2?'0'+s:s; } return '#'+c(r)+c(g)+c(b); };
@@ -1483,6 +1520,14 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "};\n"
         )
     coords_json = json.dumps([[p.lon, p.lat] for p in ds_points])
+    # 23.08.2026 — Etappengrenzen: Index jedes Punktes, an dem eine neue Etappe
+    # beginnt (mehrere <trk>/<trkseg> in einer Datei, später auch die
+    # zusammengefügten Mehr-Touren-Tracks). Das Verbindungsstück davor gehört zu
+    # keiner Etappe und wird unsichtbar gezeichnet — sonst zieht sich ein Strich
+    # quer über die Karte. Distanz und Zeit zählen es ohnehin nicht mit (gpx.py).
+    seg_starts_json = json.dumps(
+        [i for i in range(1, len(ds_points)) if ds_points[i].seg != ds_points[i - 1].seg])
+    seg_mask_js = _SEG_MASK_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
     cum_dist_json = json.dumps(cum_dist)
@@ -1508,6 +1553,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         _stops = [{"v": 0.0, "color": cfg.line_color}] + _stops
     _colors_on = bool(cfg.track_colors_enabled) and len(_stops) >= 1
     color_gradient_js = _COLOR_GRADIENT_JS if _colors_on else "// track colors disabled"
+    line_color_json = json.dumps(cfg.line_color)
     colors_on_js = "true" if _colors_on else "false"
     color_source_json = json.dumps(_csrc)
     color_stops_km_json = json.dumps([_stopv(s) for s in _stops])
@@ -2068,6 +2114,22 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
 <script>
 {gl_token_js}
 const allCoords = {coords_json};
+// 23.08.2026 — Etappen: Startindizes; dazu die GEOMETRISCHE Kumulativlänge
+// (inkl. Verbindungsstücke) — `line-progress` misst gezeichnete Länge, während
+// cumDistM Etappengrenzen bewusst NICHT mitzählt. Für die Maske brauchen wir
+// die Geometrie, für Farbwerte weiterhin cumDistM.
+const SEG_STARTS = {seg_starts_json};
+const cumGeoM = (() => {{
+  const out = [0];
+  for (let i = 1; i < allCoords.length; i++) {{
+    const a = allCoords[i - 1], b = allCoords[i];
+    const dy = (b[1] - a[1]) * 111320;
+    const dx = (b[0] - a[0]) * 111320 * Math.cos((a[1] + b[1]) * Math.PI / 360);
+    out.push(out[i - 1] + Math.sqrt(dx * dx + dy * dy));
+  }}
+  return out;
+}})();
+{seg_mask_js}
 const elevations = {elevations_json};
 const cumDistM = {cum_dist_json};
 const cumTimeS = {cum_time_json};
@@ -2204,7 +2266,7 @@ map.on('style.load', () => {{
   }} catch (_) {{}}
   {hide_labels_block}
   {terrain_block}
-  map.addSource('track', {{type:'geojson',{' lineMetrics:true,' if _colors_on else ''} data:{{type:'Feature',geometry:{{type:'LineString',coordinates:[]}}}}}});
+  map.addSource('track', {{type:'geojson', lineMetrics:true, data:{{type:'Feature',geometry:{{type:'LineString',coordinates:[]}}}}}});
   // v0.9.169 — Ghost-Track: die GANZE Route schwach/transparent als unterste
   // Track-Linie (eigene Source mit ALLEN Punkten, wird NIE animiert). Der
   // animierte Track (Source 'track') zeichnet voll deckend darüber. Zuerst
@@ -2417,6 +2479,7 @@ window.__camFaithful = (t) => {{
 {color_gradient_js}
 // v0.9.435 — Mehrfarbiger Track: Konstanten (aus AnimatorConfig).
 const COLORS_ON = {colors_on_js};
+const LINE_COLOR = {line_color_json};    // 23.08.2026 — Grundfarbe für die Etappen-Maske
 const COLOR_SOURCE = {color_source_json};
 const COLOR_STOPS_VAL = {color_stops_km_json};
 const COLOR_STOPS_COL = {color_stops_col_json};
@@ -2458,6 +2521,13 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
     if (COLORS_ON && !(COLOR_SOURCE !== 'distance' && !COLOR_METRIC)) {{
       const g = window.__rzColorGradient(cumDistM, sliceStart, sliceEnd-1, COLOR_STOPS_VAL, COLOR_STOPS_COL, COLOR_MODE, COLOR_METRIC);
       if (g) {{ try {{ map.setPaintProperty('track-line','line-gradient',g); if (map.getLayer('track-glow')) map.setPaintProperty('track-glow','line-gradient',g); }} catch(e) {{}} }}
+    }} else if (SEG_STARTS.length) {{
+      // 23.08.2026 — Etappen: Verbindungsstücke unsichtbar (siehe __rzSegMask).
+      const m = window.__rzSegMask(cumGeoM, sliceStart, sliceEnd-1, SEG_STARTS, LINE_COLOR);
+      for (const id of ['track-line','track-glow','track-highlight']) {{
+        if (!map.getLayer(id)) continue;
+        try {{ map.setPaintProperty(id,'line-gradient', m || null); if (m) map.setPaintProperty(id,'line-dasharray', null); }} catch(e) {{}}
+      }}
     }}
   }}
   const head = allCoords[safe] || allCoords[0];
@@ -2608,6 +2678,9 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     über echtes Video, wo perfekte Geo-Genauigkeit eh nicht das Ziel ist).
     """
     coords_json = json.dumps([[p.lon, p.lat] for p in ds_points])
+    seg_starts_json = json.dumps(
+        [i for i in range(1, len(ds_points)) if ds_points[i].seg != ds_points[i - 1].seg])
+    seg_mask_js = _SEG_MASK_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
     cum_dist_json = json.dumps(cum_dist)
@@ -2735,6 +2808,22 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
 {overlays_block}
 <script>
 const allCoords = {coords_json};
+// 23.08.2026 — Etappen: Startindizes; dazu die GEOMETRISCHE Kumulativlänge
+// (inkl. Verbindungsstücke) — `line-progress` misst gezeichnete Länge, während
+// cumDistM Etappengrenzen bewusst NICHT mitzählt. Für die Maske brauchen wir
+// die Geometrie, für Farbwerte weiterhin cumDistM.
+const SEG_STARTS = {seg_starts_json};
+const cumGeoM = (() => {{
+  const out = [0];
+  for (let i = 1; i < allCoords.length; i++) {{
+    const a = allCoords[i - 1], b = allCoords[i];
+    const dy = (b[1] - a[1]) * 111320;
+    const dx = (b[0] - a[0]) * 111320 * Math.cos((a[1] + b[1]) * Math.PI / 360);
+    out.push(out[i - 1] + Math.sqrt(dx * dx + dy * dy));
+  }}
+  return out;
+}})();
+{seg_mask_js}
 const elevations = {elevations_json};
 const cumDistM = {cum_dist_json};
 const cumTimeS = {cum_time_json};
