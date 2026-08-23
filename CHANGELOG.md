@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.538] – 2026-08-22
+
+### Added
+- **Reiseroute: Stationen sortieren** (Marc). Jede Station hat links einen Griff
+  (⠿) — damit ziehst du sie hoch und runter. Start und Ziel ergeben sich aus der
+  Reihenfolge, wandern also mit. Der Griff schaltet das Ziehen nur für seine
+  Zeile frei, damit Textauswahl im Eingabefeld weiter normal funktioniert.
+- **Reiseroute: Enter springt zur Adresse.** Ort eintippen, Enter — die Adresse
+  wird gesucht und die Karte fliegt hin, der Treffer steht unter dem Feld.
+  „47.05, 13.59“ fliegt direkt, ohne Suche. Nicht gefunden = klare Meldung, kein
+  Flug. Vorher musste man erst die ganze Route berechnen, um einen Tippfehler
+  zu bemerken. Wache: scripts/selftest_reiseroute_stationen.py (im Release-Gate).
+
 ## [0.9.537] – 2026-08-22
 
 ### Added
