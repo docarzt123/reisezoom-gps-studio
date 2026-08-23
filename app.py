@@ -95,6 +95,7 @@ from core import autotag as cautotag  # v0.9.349 — Bilderkennung (Apple Vision
 from core import backup as cbak
 from core import drops as cdrops
 from core import animator as canim
+from core import merge as cmerge   # 23.08.2026 — mehrere Touren zu einem Track
 from core import sessions as _sessions  # v0.8.0: Sessions + Projekte
 # v0.9.310 — core/tourmap.py entfernt: Tour-Map rendert jetzt über
 # canim.render_frame() (Standbild-Modus des Animators). Kein ctmap mehr.
@@ -261,6 +262,7 @@ SESSIONS_FILE = APP_SUPPORT / "sessions.json"
 SESSIONS_GPX_DIR = APP_SUPPORT / "sessions"
 # v0.9.282: gecachte GPX-Konvertate fremder Track-Formate (FIT/NMEA/KML/…)
 IMPORTS_DIR = APP_SUPPORT / "_imports"
+MERGED_DIR = APP_SUPPORT / "zusammengefuehrt"   # 23.08.2026 — zusammengeführte Mehr-Touren-Tracks
 # v0.9.486: Tour-Archiv — Index aller Touren aus den beobachteten Ordnern
 LIBRARY_DB = APP_SUPPORT / "library.db"
 # v0.9.526 — unsensible Cloud-Notiz („eingerichtet" + Adresse), damit die
@@ -1952,6 +1954,88 @@ class Api:
         except Exception as e:
             log.exception("library_query")
             return {"ok": False, "error": str(e), "items": [], "total": 0}
+
+    def library_merge(self, params: dict = None) -> dict:
+        """23.08.2026 (Marc) — Mehrere Touren aus dem Archiv zu EINEM Track
+        zusammenführen: eine Etappe je Tour, dazwischen ein Übergang.
+
+        Das Ergebnis ist eine ganz normale GPX — der Animator braucht dafür
+        keinen Sonderfall (siehe core/merge.py). Sie landet in
+        `zusammengefuehrt/`, wird ins Archiv aufgenommen und dort als eigene Art
+        geführt (`merged = 1`), damit ihre Kilometer nicht ein zweites Mal in
+        Liste und Statistik zählen.
+
+        params: {"paths": [str], "name": str,
+                 "uebergaenge": [{"stil": "kino|luftlinie|strasse|schnitt",
+                                  "dauer_s": float, "profile": "driving|walking|cycling"}]}
+        """
+        p = dict(params or {})
+        pfade = [str(x) for x in (p.get("paths") or []) if x]
+        if len(pfade) < 2:
+            return {"ok": False, "error": _ui_t()("merge.zu_wenig", "Mindestens zwei Touren auswählen.")}
+        try:
+            conn = self._lib()
+            with clib._DB_LOCK:
+                zeilen = {r["path"]: r for r in conn.execute(
+                    "SELECT path, name, display_name, color FROM tracks WHERE path IN (%s)"
+                    % ",".join("?" * len(pfade)), pfade)}
+            touren = []
+            for pf in pfade:
+                r = zeilen.get(pf)
+                touren.append(cmerge.Tour(
+                    path=pf,
+                    name=str((r["display_name"] if r and r["display_name"] else (r["name"] if r else "")) or Path(pf).stem),
+                    color=(r["color"] if r and r["color"] else None)))
+
+            # Übergänge vorbereiten; „Straße folgen" wird hier geroutet.
+            roh = list(p.get("uebergaenge") or [])
+            uebergaenge = []
+            for i in range(len(touren) - 1):
+                u = dict(roh[i]) if i < len(roh) else {}
+                stil = str(u.get("stil") or "kino").lower()
+                if stil not in cmerge.STILE:
+                    stil = "kino"
+                coords = None
+                if stil == "strasse":
+                    token = _active_mapbox_token()
+                    if not token:
+                        return {"ok": False, "error": _ui_t()("route.no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen).")}
+                    try:
+                        ende = cgpx.parse_gpx(self._ensure_gpx(touren[i].path))[0][-1]
+                        start = cgpx.parse_gpx(self._ensure_gpx(touren[i + 1].path))[0][0]
+                        rr = croute.road_route([(ende.lon, ende.lat), (start.lon, start.lat)], token,
+                                               profile=str(u.get("profile") or "driving"), grob=True)
+                        coords = [[c[0], c[1]] for c in (rr.get("coords") or [])]
+                    except Exception as e:      # noqa: BLE001
+                        log.warning("library_merge: Straßen-Übergang %d fehlgeschlagen (%s) → Luftlinie", i, e)
+                        stil = "luftlinie"
+                        coords = None
+                uebergaenge.append(cmerge.Uebergang(stil=stil, dauer_s=float(u.get("dauer_s") or 3.0), coords=coords))
+
+            erg = cmerge.zusammenfuehren(touren, uebergaenge, name=str(p.get("name") or ""))
+            MERGED_DIR.mkdir(parents=True, exist_ok=True)
+            basis = re.sub(r"[^\w\-. ]+", "_", erg.name)[:80] or "Zusammengefuehrt"
+            ziel = MERGED_DIR / f"{basis}.gpx"
+            n = 1
+            while ziel.exists():
+                n += 1
+                ziel = MERGED_DIR / f"{basis}_{n}.gpx"
+            ziel.write_text(erg.gpx, encoding="utf-8")
+
+            # Ins Archiv aufnehmen und als „zusammengefügt" kennzeichnen.
+            clib.add_folder(conn, str(MERGED_DIR), recursive=False)
+            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(MERGED_DIR)])
+            with clib._DB_LOCK:
+                conn.execute("UPDATE tracks SET merged = 1, display_name = ? WHERE path = ?",
+                             (erg.name, str(ziel)))
+                conn.commit()
+            log.info("library_merge: %d Touren → %s (%d Punkte, %d Übergänge)",
+                     len(touren), ziel.name, erg.punkte, len(erg.uebergaenge))
+            return {"ok": True, "path": str(ziel), "name": erg.name,
+                    "etappen": erg.etappen, "uebergaenge": erg.uebergaenge, "punkte": erg.punkte}
+        except Exception as e:      # noqa: BLE001
+            log.exception("library_merge")
+            return {"ok": False, "error": str(e)}
 
     def library_thumbs(self, images: list[str] | None = None) -> dict:
         """22.08.2026 — Vorschaubilder nur für das sichtbare Fenster der Liste

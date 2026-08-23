@@ -304,6 +304,10 @@ _ADD_COLS = [
     # weil uns später ein Feld einfällt, will niemand. Gezeigt wird nur der
     # kuratierte Auszug (`core.fitmeta.ANZEIGE`).
     ("fitmeta", "TEXT DEFAULT ''"),
+    # 23.08.2026 — aus mehreren Touren zusammengeführt (core/merge.py). Eigene
+    # Art, nicht bloß eine Sammlung: Liste UND Statistik müssen sie auslassen,
+    # sonst zählen die Kilometer der Quelltouren ein zweites Mal.
+    ("merged", "INTEGER DEFAULT 0"),
     # Der frei vergebene Profilname des Geräts („Gravel", „Rennrad", „Commute").
     # Eigene Spalte statt in `tags`: `tags` gehört dem Nutzer, und ein Neu-Scan
     # darf dessen Eingaben nicht überschreiben.
@@ -1373,7 +1377,8 @@ _SEARCH_HAY = ("COALESCE(display_name,'') || ' ' || COALESCE(name,'') || ' ' || 
 def _build_where(search="", year=None, activity="", fav_only=False, planned=None,
                  tags=None, min_km=None, max_km=None, bbox=None, collection_id=None,
                  include_errors=False, include_hidden=False, hidden_only=False,
-                 missing_only=False, von=None, bis=None, **_ignored) -> tuple:
+                 missing_only=False, merged_only=False, include_merged=False,
+                 von=None, bis=None, **_ignored) -> tuple:
     """Baut die WHERE-Klausel EINMAL — Liste und Statistik müssen zwingend
     dieselbe Auswahl meinen, sonst zählt die Statistik etwas anderes als das,
     was der Nutzer gerade sieht."""
@@ -1387,6 +1392,12 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
         where.append("hidden = 0")
     if missing_only:
         where.append("missing_since != ''")
+    # 23.08.2026 — Zusammengeführte Tracks sind eine eigene Art: nur im eigenen
+    # Bereich sichtbar, sonst überall raus (auch aus der Statistik).
+    if merged_only:
+        where.append("COALESCE(merged,0) = 1")
+    elif not include_merged:
+        where.append("COALESCE(merged,0) = 0")
     if year:
         where.append("year = ?"); args.append(int(year))
     # v0.9.505 — freier Zeitraum (Marc: „kann man nicht einfach einen
@@ -1483,6 +1494,8 @@ def query(
     include_hidden: bool = False,
     hidden_only: bool = False,
     missing_only: bool = False,
+    merged_only: bool = False,      # 23.08.2026 — zusammengeführte Tracks (eigener Bereich)
+    include_merged: bool = False,
     with_geom: bool = False,
     collection_id: Optional[int] = None,
     von: Optional[str] = None,
@@ -1496,6 +1509,7 @@ def query(
     """
     sql_where, args = _build_where(
         search=search, year=year, activity=activity, fav_only=fav_only, planned=planned,
+        merged_only=merged_only, include_merged=include_merged,
         tags=tags, min_km=min_km, max_km=max_km, bbox=bbox,
         collection_id=collection_id, include_errors=include_errors,
         include_hidden=include_hidden, hidden_only=hidden_only,
@@ -1765,6 +1779,9 @@ def stats(conn: sqlite3.Connection, **filters) -> dict:
         "n_fav": conn.execute(
             f"SELECT COUNT(*) FROM tracks WHERE {sql_where} AND fav = 1", args).fetchone()[0],
         "n_hidden": conn.execute(*_count_hidden(filters)).fetchone()[0],
+        # 23.08.2026 — zusammengeführte Tracks (eigener Bereich, sonst überall raus)
+        "n_merged": conn.execute(
+            "SELECT COUNT(*) FROM tracks WHERE COALESCE(merged,0) = 1 AND error = ''").fetchone()[0],
         # Wie viele Touren liegen gerade auf einer Platte, die nicht da ist?
         "n_missing": conn.execute(
             f"SELECT COUNT(*) FROM tracks WHERE {sql_where} AND missing_since != ''",

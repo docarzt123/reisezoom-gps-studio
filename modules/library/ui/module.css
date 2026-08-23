@@ -729,3 +729,15 @@
 /* 22.08.2026 — Platzhalter des Fenster-Renderings (halten die Scrollhöhe) */
 .lib-platz { width: 100%; flex: none; pointer-events: none; }
 .lib-row-thumb img[data-lazy], .lib-card-thumb img[data-lazy] { opacity: 0; }
+
+/* 23.08.2026 — Dialog „Touren zusammenführen" */
+.lib-merge-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 4px; }
+.lib-merge-row { display: flex; align-items: center; gap: 8px; padding: 6px 6px; border-radius: 6px; font-size: 12px; }
+.lib-merge-row + .lib-merge-row { border-top: 1px solid var(--border); }
+.lib-merge-handle { flex: none; width: 14px; text-align: center; color: var(--text-dim, #777); cursor: grab; user-select: none; }
+.lib-merge-handle:active { cursor: grabbing; }
+.lib-merge-n { flex: none; width: 18px; color: var(--text-muted); }
+.lib-merge-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-merge-meta { flex: none; color: var(--text-muted); font-size: 11px; }
+.lib-merge-row.dragging { opacity: 0.45; }
+.lib-merge-row.drag-over { outline: 2px dashed var(--accent, #ff6b35); outline-offset: -2px; }
