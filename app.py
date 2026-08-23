@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.539"
+APP_VERSION = "0.9.540"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -6895,6 +6895,31 @@ class Api:
             if eff:
                 out.add(p["path"])
         return out
+
+    def geotagger_zeitzone_vorschlag(self, max_gap_seconds: float = 300.0) -> dict:
+        """Errechnet die Zeitzone der Kamera-Uhr aus dem Track (v0.9.540).
+
+        Nur für Fotos OHNE eingebetteten Offset — die anderen bringen ihre
+        Zeitzone selbst mit und würden das Ergebnis verfälschen. Braucht kein
+        Netz: GeoSetter fragt dafür einen Webdienst nach dem Ort, wir messen
+        stattdessen, welche Verschiebung die Fotos in den Track legt.
+        """
+        try:
+            if not self._gtg_track or not self._gtg_photos:
+                return {"ok": False, "error": _ui_t()("error.track_oder_fotos_noch_nicht", "Track oder Fotos noch nicht geladen")}
+            phs = [(p["path"], datetime.fromisoformat(p["photo_time"]))
+                   for p in self._gtg_photos
+                   if p.get("photo_time") and not p.get("tz_known")]
+            if not phs:
+                return {"ok": True, "minuten": None, "treffer": 0, "gesamt": 0,
+                        "eindeutig": False, "kandidaten": []}
+            r = cgeo.zeitzone_raten(phs, self._gtg_track,
+                                    max_gap_seconds=float(max_gap_seconds))
+            r["ok"] = True
+            return r
+        except Exception as e:
+            log.warning("geotagger_zeitzone_vorschlag: %s", e)
+            return {"ok": False, "error": str(e)}
 
     def geotagger_match(self, offset_seconds: float = 0.0, max_gap_seconds: float = 600.0,
                         tz_offset_minutes: float = 0.0, cam_offsets=None,

@@ -1218,9 +1218,34 @@ Reads the capture time from the EXIF data of each photo and finds the matching t
 - **Tag the originals directly after all?** Just choose the **folder of your originals** as the target. Then the app asks **"Really overwrite the originals here? (no backup)"** — if you confirm, they're tagged in place. Without confirmation, the app **never** overwrites an original.
 
 ### Time-zone magic
-The app reads the `OffsetTimeOriginal` EXIF tag from each photo and converts the capture time to UTC. That way the track fits **out of the box** in 95 % of cases without you having to set an offset manually.
+The app reads the `OffsetTimeOriginal` EXIF tag from each photo and converts the
+capture time to UTC. If your camera writes that tag, the track fits **right
+away**, without you setting anything.
 
-If it doesn't after all (e.g. because the camera clock was wrong):
+**Not every camera writes it.** The tag only arrived with **Exif 2.31** (2016)
+and became common in cameras around **2017/2018**. Older models store the clock
+time only — **the clock can be perfectly correct**, what is missing is how far
+it was from UTC. Exactly then photos and track sit apart by the time-zone
+offset (two hours in German summer), although each of them is right on its own.
+The app now tells you: as soon as photos without a stored time zone are loaded,
+a note appears under the offset slider naming the cameras concerned.
+
+**And it works the time zone out for you (since v0.9.540).** With a track loaded,
+the same note carries the suggestion: *"Computed from the track: UTC+2 — that puts
+11 of 11 photos inside the track."* One click on **Apply** sets the camera time
+zone and the matching is recalculated at once. Other programs look the time zone
+up via a **web service** for the place you were and leave daylight saving for you
+to add — here it is **measured**: the app tries every time zone and takes the one
+that puts your photos inside the track. No internet needed, and daylight saving is
+included automatically, because it does not matter *why* it is two hours.
+
+Only what the track can actually support is suggested: if your photos cover just
+one hour of a full-day tour, several time zones fit equally well — then you get
+**no** suggestion and the manual route instead. If several close ones fit, the
+note says so explicitly.
+
+Here is how to bring them together (because the camera writes no time zone, or
+because the clock really was wrong):
 - **Offset slider** in the left panel — ±2h default, with expandable ±3 / ±6 / ±12h options
 - **Set a reference photo** — click a photo tile, then click the actual capture position on the map. The app computes the offset itself.
 - **Choose the camera time zone** (✎ → "Enter exact offset") — some cameras (many Olympus/OM, GoPro) store **no** time zone in the photo. If you travel to, say, Vietnam (UTC+7), the images then sit 7 hours off the track. Just set the **time zone of the camera clock** in the offset dialog — once set, everything fits. Photos that stored their own time zone (phones, etc.) stay untouched, so you can tag phone and camera photos from the same trip together without a problem. The active time zone is shown below the offset value.

@@ -74,6 +74,71 @@ def _track_times(points: List[TrackPoint]) -> list[datetime]:
     return out
 
 
+def zeitzone_raten(photo_times, track, *, max_gap_seconds: float = 300.0) -> dict:
+    """23.08.2026 (Beta-Tester) — Die fehlende Zeitzone aus dem Track ERRECHNEN,
+    statt den Nutzer am Regler raten zu lassen.
+
+    Ausgangslage: Kameras vor Exif 2.31 schreiben keinen `OffsetTimeOriginal`.
+    Ihre Uhr ist richtig gestellt, es fehlt nur, wie weit sie von UTC weg war.
+    Genau dieser Wert ist aber eine **Zeitzone** — ein glatter Vielfacher von
+    15 Minuten zwischen −12 h und +14 h. Und der Track weiß, wann der Nutzer wo
+    war. Also probieren wir alle Zeitzonen durch und nehmen die, bei der die
+    Fotos am besten in den Track fallen.
+
+    Rückgabe: {"minuten": int|None, "treffer": int, "gesamt": int,
+               "eindeutig": bool, "kandidaten": [(minuten, treffer), …]}
+    `eindeutig` ist False, wenn eine andere Zeitzone genauso gut passt — dann
+    zeigt die Oberfläche den Vorschlag zurückhaltender an.
+    """
+    zeiten = [t for _p, t in photo_times if t is not None]
+    tt = _track_times(track)
+    if not zeiten or not tt or tt[0] is None:
+        return {"minuten": None, "treffer": 0, "gesamt": len(zeiten), "eindeutig": False, "kandidaten": []}
+    t_von, t_bis = tt[0], tt[-1]
+    ergebnisse = []
+    for minuten in range(-12 * 60, 14 * 60 + 1, 15):
+        versatz = timedelta(minutes=minuten)
+        treffer = 0
+        summe = 0.0
+        for z in zeiten:
+            # Foto-Lokalzeit minus Zeitzone = UTC (wie in match_photos)
+            u = z - versatz
+            if t_von - timedelta(seconds=max_gap_seconds) <= u <= t_bis + timedelta(seconds=max_gap_seconds):
+                treffer += 1
+            else:
+                summe += min(abs((u - t_von).total_seconds()), abs((u - t_bis).total_seconds()))
+        ergebnisse.append((treffer, -summe, minuten))
+    ergebnisse.sort(reverse=True)
+    best = ergebnisse[0][0]
+    leer = {"minuten": None, "treffer": 0, "gesamt": len(zeiten), "eindeutig": False,
+            "band": None, "kandidaten": []}
+    if best <= 0:
+        return leer
+    # Es passt nie GENAU eine Verschiebung, sondern immer ein Bereich: decken die
+    # Fotos den ganzen Track ab, ist er schmal; stammen sie aus einer Stunde mitten
+    # in einer Tagestour, ist er stundenbreit — dann ist jede Zahl geraten, und wir
+    # schlagen lieber nichts vor, statt den Nutzer in die Irre zu schicken.
+    gleich = sorted(m for tr, _s, m in ergebnisse if tr == best)
+    band = gleich[-1] - gleich[0]
+    if band > 120:
+        leer["treffer"] = best
+        leer["band"] = band
+        return leer
+    mitte = gleich[len(gleich) // 2]
+    # Echte Zeitzonen sind meist volle Stunden — aber nur, wenn eine nah genug an
+    # der Mitte liegt. Sonst gewinnt die Mitte (Indien +5:30, Nepal +5:45).
+    volle = [m for m in gleich if m % 60 == 0 and abs(m - mitte) <= 15]
+    minuten = min(volle, key=lambda m: (abs(m - mitte), abs(m))) if volle else mitte
+    return {
+        "minuten": minuten,
+        "treffer": best,
+        "gesamt": len(zeiten),
+        "eindeutig": band <= 60,
+        "band": band,
+        "kandidaten": [(m, best) for m in gleich[:5]],
+    }
+
+
 def match_photos(
     photo_times: list[tuple[str, Optional[datetime]]],
     track: List[TrackPoint],

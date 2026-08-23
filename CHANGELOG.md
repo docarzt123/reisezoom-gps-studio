@@ -14,6 +14,34 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.540] – 2026-08-23
+
+### Added
+- **Die Kamera-Zeitzone wird jetzt aus dem Track gerechnet** (Beta-Tester).
+  Fehlt Fotos die gespeicherte Zeitzone, steht im Hinweis unter dem Regler
+  gleich der Vorschlag: „Aus dem Track gerechnet: **UTC+2** — damit liegen 11
+  von 11 Fotos im Track", ein Klick auf **Übernehmen** setzt ihn. Andere
+  Programme lassen die Zeitzone über einen **Webdienst** nachschlagen und die
+  Sommerzeit von Hand dazurechnen; hier wird sie **gemessen** — das braucht
+  kein Internet und hat die Sommerzeit automatisch drin.
+  Vorgeschlagen wird nur, was der Track wirklich hergibt: decken die Fotos nur
+  eine Stunde einer Tagestour ab, passen viele Zeitzonen gleich gut — dann
+  kommt **kein** Vorschlag, sondern der Weg von Hand. Wache:
+  tests/test_zeitzone_hinweis.py.
+
+### Changed
+- **Fotos ohne gespeicherte Zeitzone werden jetzt erklärt statt beschuldigt**
+  (Beta-Tester, ausführlich begründet). Kameras vor **Exif 2.31** (der Tag kam
+  2016, verbreitet in Kameras ab ~2017/2018) schreiben kein
+  `OffsetTimeOriginal` — die **Uhr ist dann völlig richtig**, es fehlt nur der
+  Abstand zu UTC. Hilfetext und Handbuch nannten als Grund die „falsch
+  eingestellte Uhr“ und behaupteten eine 95-%-Quote; beides ist raus.
+- **Neuer Hinweis im Geotagger:** Sobald Fotos ohne gespeicherte Zeitzone
+  geladen sind, steht unter dem Zeitversatz-Regler eine Zeile mit den
+  betroffenen **Kameramodellen** und dem Weg zur Lösung (Kamera-Zeitzone
+  einstellen oder Referenz-Foto setzen). Fotos, die ihre Zeitzone mitbringen,
+  lösen ihn nicht aus. Wache: tests/test_zeitzone_hinweis.py.
+
 ## [0.9.539] – 2026-08-23
 
 ### Added
