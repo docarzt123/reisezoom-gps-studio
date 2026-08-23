@@ -2805,7 +2805,8 @@ class Api:
                 "coords": coords,
                 # 23.08.2026 — Etappengrenzen für die Vorschau (Verbindungsstücke
                 # zwischen Etappen werden unsichtbar gezeichnet, siehe segMaskExpr).
-                "seg_starts": [i for i in range(1, len(ds)) if ds[i].seg != ds[i - 1].seg],
+                "seg_starts": cgpx.unsichtbare_bereiche(ds),
+                "dot_hidden": cgpx.laufpunkt_aus_bereiche(ds),
                 "elevations": elevations,
                 "bbox": stats.bbox,
                 "stats": {

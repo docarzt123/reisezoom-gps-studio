@@ -2159,9 +2159,10 @@ function mountAnimator(body, headerActions, opts) {
     const g0 = cumGeo[i0], gT = cumGeo[i1] - g0;
     if (!(gT > 0)) return null;
     const luecken = [];
-    for (const idx of segStarts) {
-      if (idx <= i0 || idx > i1) continue;
-      luecken.push([(cumGeo[idx - 1] - g0) / gT, (cumGeo[idx] - g0) / gT]);
+    for (const [ra, rb] of segStarts) {
+      if (rb <= i0 || ra >= i1) continue;
+      const a = Math.max(ra, i0), b = Math.min(rb, i1);
+      luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT]);
     }
     if (!luecken.length) return null;
     const LEER = "rgba(0,0,0,0)", e = ["interpolate", ["linear"], ["line-progress"], 0, farbe];

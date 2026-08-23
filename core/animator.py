@@ -92,7 +92,8 @@ def find_ffmpeg() -> str:
         "https://ffmpeg.org/download.html (Windows), `apt install ffmpeg` (Linux)."
     )
 
-from .gpx import parse_gpx as core_parse_gpx, downsample, TrackPoint, resample
+from .gpx import (parse_gpx as core_parse_gpx, downsample, TrackPoint, resample,
+                  unsichtbare_bereiche as core_gpx_bereiche, laufpunkt_aus_bereiche as core_gpx_dot)
 from . import i18n as _i18n
 from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
 from . import sensors as _sensors    # v0.9.331: FIT-Sensorfeld-Registry
@@ -1254,9 +1255,10 @@ window.__rzSegMask = function (cumGeo, i0, i1, segStarts, farbe) {
   if (!(gT > 0)) return null;
   var luecken = [];
   for (var k = 0; k < segStarts.length; k++) {
-    var idx = segStarts[k];
-    if (idx <= i0 || idx > i1) continue;          // Verbindung liegt außerhalb
-    luecken.push([(cumGeo[idx - 1] - g0) / gT, (cumGeo[idx] - g0) / gT]);
+    var a = segStarts[k][0], b = segStarts[k][1];
+    if (b <= i0 || a >= i1) continue;             // Stück liegt außerhalb
+    a = Math.max(a, i0); b = Math.min(b, i1);
+    luecken.push([(cumGeo[a] - g0) / gT, (cumGeo[b] - g0) / gT]);
   }
   if (!luecken.length) return null;
   var LEER = "rgba(0,0,0,0)", e = ["interpolate", ["linear"], ["line-progress"], 0, farbe], letzte = 0;
@@ -1525,8 +1527,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # zusammengefügten Mehr-Touren-Tracks). Das Verbindungsstück davor gehört zu
     # keiner Etappe und wird unsichtbar gezeichnet — sonst zieht sich ein Strich
     # quer über die Karte. Distanz und Zeit zählen es ohnehin nicht mit (gpx.py).
-    seg_starts_json = json.dumps(
-        [i for i in range(1, len(ds_points)) if ds_points[i].seg != ds_points[i - 1].seg])
+    seg_starts_json = json.dumps(core_gpx_bereiche(ds_points))
+    dot_hidden_json = json.dumps(core_gpx_dot(ds_points))
     seg_mask_js = _SEG_MASK_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
@@ -2118,7 +2120,8 @@ const allCoords = {coords_json};
 // (inkl. Verbindungsstücke) — `line-progress` misst gezeichnete Länge, während
 // cumDistM Etappengrenzen bewusst NICHT mitzählt. Für die Maske brauchen wir
 // die Geometrie, für Farbwerte weiterhin cumDistM.
-const SEG_STARTS = {seg_starts_json};
+const SEG_STARTS = {seg_starts_json};      // [[i,j], …] unsichtbare Stücke
+const DOT_HIDDEN = {dot_hidden_json};      // [[i,j], …] dort ist der Laufpunkt aus
 const cumGeoM = (() => {{
   const out = [0];
   for (let i = 1; i < allCoords.length; i++) {{
@@ -2531,11 +2534,16 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
     }}
   }}
   const head = allCoords[safe] || allCoords[0];
+  // 23.08.2026 — Im unsichtbaren Übergang fliegt nur die Kamera: kein Laufpunkt
+  // (sonst schwebt die Kugel über Land, wo gar keine Tour ist).
+  const dotAus = DOT_HIDDEN.some(r => safe >= r[0] && safe <= r[1]);
   // Fahrtrichtung aus dem Wegstück VOR dem Punkt (am Anfang aus dem danach) —
   // nur der Pfeil braucht sie, die Kugel ignoriert sie.
-  map.getSource('dot').setData({{type:'Feature',
-    properties:{{brg: __rzKurs(allCoords, safe)}},
-    geometry:{{type:'Point',coordinates:head}}}});
+  map.getSource('dot').setData(dotAus
+    ? {{type:'FeatureCollection',features:[]}}
+    : {{type:'Feature',
+        properties:{{brg: __rzKurs(allCoords, safe)}},
+        geometry:{{type:'Point',coordinates:head}}}});
   // v0.9.318 — setCam===false: Kamera NICHT hier setzen (entkoppelte FreeCamera
   // übernimmt das via __camFaithful). Linie/Punkt/Overlays laufen trotzdem.
   if (setCam !== false) {{
@@ -2678,8 +2686,8 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     über echtes Video, wo perfekte Geo-Genauigkeit eh nicht das Ziel ist).
     """
     coords_json = json.dumps([[p.lon, p.lat] for p in ds_points])
-    seg_starts_json = json.dumps(
-        [i for i in range(1, len(ds_points)) if ds_points[i].seg != ds_points[i - 1].seg])
+    seg_starts_json = json.dumps(core_gpx_bereiche(ds_points))
+    dot_hidden_json = json.dumps(core_gpx_dot(ds_points))
     seg_mask_js = _SEG_MASK_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
@@ -2812,7 +2820,8 @@ const allCoords = {coords_json};
 // (inkl. Verbindungsstücke) — `line-progress` misst gezeichnete Länge, während
 // cumDistM Etappengrenzen bewusst NICHT mitzählt. Für die Maske brauchen wir
 // die Geometrie, für Farbwerte weiterhin cumDistM.
-const SEG_STARTS = {seg_starts_json};
+const SEG_STARTS = {seg_starts_json};      // [[i,j], …] unsichtbare Stücke
+const DOT_HIDDEN = {dot_hidden_json};      // [[i,j], …] dort ist der Laufpunkt aus
 const cumGeoM = (() => {{
   const out = [0];
   for (let i = 1; i < allCoords.length; i++) {{
