@@ -8570,6 +8570,7 @@ function mountAnimator(body, headerActions, opts) {
     let _routePick = null;     // null | Zeilen-Index — aktiver per-Zeile-Karten-Pick
     let _routeChain = false;   // Klick-Modus: jeder Kartenklick hängt eine Station an
     let _routeBusy = false;
+    let _routeDragFrom = -1;     // 22.08.2026 — laufende Zieh-Geste in der Stationsliste
     function _routeStatus(msg, kind) {
       const el = document.getElementById("route-status");
       if (el) { el.textContent = msg || ""; el.style.color = (kind === "err") ? "#ff6b6b" : ""; }
@@ -8598,7 +8599,9 @@ function mountAnimator(body, headerActions, opts) {
         const val = String(w.text || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
         return `
           <div class="route-wp" data-i="${i}">
-            <div class="route-wp-head"><span class="route-wp-badge">${_routeBadge(i)}</span><span class="route-wp-role">${_routeRole(i)}</span></div>
+            <div class="route-wp-head">
+              <span class="route-wp-handle" data-i="${i}" title="${t("route.drag", "Ziehen, um die Reihenfolge zu ändern")}">⠿</span>
+              <span class="route-wp-badge">${_routeBadge(i)}</span><span class="route-wp-role">${_routeRole(i)}</span></div>
             <div class="route-pt-row">
               <input type="text" class="route-wp-input" data-i="${i}" value="${val}" placeholder="${t("route.placeholder", "Adresse / Ort oder lon,lat")}">
               <button type="button" class="btn btn-subtle route-wp-pick${active}" data-i="${i}" title="${t("route.pick", "Auf der Karte klicken")}">📍</button>
@@ -8613,11 +8616,85 @@ function mountAnimator(body, headerActions, opts) {
           if (w) { w.text = inp.value; w.lon = null; w.lat = null; w.label = null; }
         });
         inp.addEventListener("change", () => _routePersist());
+        // 22.08.2026 (Marc) — Enter sucht die Adresse und fliegt hin, damit man
+        // gleich sieht, ob der Treffer stimmt. Ohne das musste man erst die
+        // ganze Route berechnen, um einen Tippfehler zu bemerken.
+        inp.addEventListener("keydown", (ev) => {
+          if (ev.key !== "Enter") return;
+          ev.preventDefault();
+          _routeGoTo(+inp.dataset.i);
+        });
       });
       cont.querySelectorAll(".route-wp-pick").forEach((b) => b.addEventListener("click", () => {
         const i = +b.dataset.i; _routeSetPickMode(_routePick === i ? null : i);
       }));
       cont.querySelectorAll(".route-wp-del").forEach((b) => b.addEventListener("click", () => _routeRemoveWp(+b.dataset.i)));
+      // 22.08.2026 (Marc) — Stationen mit dem Griff hoch/runter ziehen. Der
+      // Griff schaltet `draggable` nur für seine Zeile ein; sonst würde jede
+      // Textauswahl im Eingabefeld eine Drag-Geste starten.
+      cont.querySelectorAll(".route-wp").forEach((row) => {
+        const i = +row.dataset.i;
+        const handle = row.querySelector(".route-wp-handle");
+        if (handle) {
+          handle.addEventListener("mousedown", () => { row.draggable = true; });
+          handle.addEventListener("touchstart", () => { row.draggable = true; }, { passive: true });
+        }
+        row.addEventListener("dragstart", (ev) => {
+          _routeDragFrom = i; row.classList.add("dragging");
+          try { ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", String(i)); } catch (_) {}
+        });
+        row.addEventListener("dragend", () => {
+          row.draggable = false; row.classList.remove("dragging");
+          cont.querySelectorAll(".drag-over").forEach((r) => r.classList.remove("drag-over"));
+        });
+        row.addEventListener("dragover", (ev) => {
+          if (_routeDragFrom < 0) return;
+          ev.preventDefault();
+          try { ev.dataTransfer.dropEffect = "move"; } catch (_) {}
+          row.classList.add("drag-over");
+        });
+        row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+        row.addEventListener("drop", (ev) => {
+          ev.preventDefault(); row.classList.remove("drag-over");
+          _routeReorderWp(_routeDragFrom, i);
+        });
+      });
+    }
+    /** Station verschieben. Start/Ziel ergeben sich aus der Reihenfolge, das
+     *  Ziehen ändert also auch die Rollen — genau so ist es gemeint. */
+    function _routeReorderWp(from, to) {
+      _routeDragFrom = -1;
+      if (from == null || from < 0 || to < 0 || from === to) return;
+      if (from >= _routeWps.length || to >= _routeWps.length) return;
+      const [moved] = _routeWps.splice(from, 1);
+      _routeWps.splice(to, 0, moved);
+      _routePick = null;          // Index-Verschiebung → aktiven Pick lösen
+      _routeRenderWps();
+      _routePersist();
+    }
+    /** Enter im Eingabefeld: Adresse auflösen und die Karte dorthin fliegen. */
+    async function _routeGoTo(i) {
+      const w = _routeWps[i];
+      if (!w) return;
+      if (!String(w.text || "").trim() && w.lon == null) {
+        _routeStatus(t("route.wp_empty", "%s ist leer — Adresse eingeben oder 📍 auf der Karte klicken.").replace("%s", _routeRole(i)), "err");
+        return;
+      }
+      _routeStatus(t("route.searching", "Suche Adresse …"));
+      const R = await _routeResolve(i);
+      if (R.err === "no_token") { _routeStatus(t("route.no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen)."), "err"); return; }
+      if (!R.coords) {
+        _routeStatus(R.err === "not_found"
+          ? t("route.not_found", "%s: Adresse nicht gefunden — anders schreiben oder 📍 auf der Karte klicken.").replace("%s", _routeRole(i))
+          : t("route.geocode_failed", "Adress-Suche fehlgeschlagen."), "err");
+        return;
+      }
+      _routeStatus(w.label ? `✓ ${w.label}` : `✓ ${_routeFmt(R.coords.lon, R.coords.lat)}`);
+      _routePersist();
+      try {
+        if (map) map.flyTo({ center: [R.coords.lon, R.coords.lat],
+                             zoom: Math.max(map.getZoom() || 0, 11), duration: 900 });
+      } catch (_) {}
     }
     function _routeCursor() {
       const cont = map && map.getCanvas ? map.getCanvas() : null;

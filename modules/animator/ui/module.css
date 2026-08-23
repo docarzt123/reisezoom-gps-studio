@@ -912,3 +912,10 @@ label.chip-toggle input:checked + span {
   border-radius: 5px; color: var(--text);
 }
 .anim-pause-num input:focus { border-color: var(--border-strong); outline: none; }
+
+/* 22.08.2026 — Stationen der Reiseroute per Griff sortieren (Marc) */
+.route-wp-handle { flex-shrink: 0; width: 14px; text-align: center; color: var(--text-dim, #777);
+  cursor: grab; user-select: none; font-size: 13px; line-height: 1; }
+.route-wp-handle:active { cursor: grabbing; }
+.route-wp.dragging { opacity: 0.45; }
+.route-wp.drag-over { outline: 2px dashed var(--accent, #ff6b35); outline-offset: 2px; border-radius: 6px; }

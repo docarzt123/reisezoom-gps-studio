@@ -1050,6 +1050,17 @@ Reiseroute ist ein **vollwertiger Klon des Animators**: alles was dort geht (Kar
 
 > **Detailgrad wirkt erst beim nächsten „Route berechnen"** — Slider schieben, dann neu berechnen.
 
+### Stationen sortieren und prüfen (seit v0.9.538)
+
+**Reihenfolge ändern:** Jede Station hat links einen Griff **⠿** — damit ziehst
+du sie in der Liste hoch oder runter. Start und Ziel ergeben sich aus der
+Reihenfolge, wandern also mit (die oberste ist der Start, die unterste das Ziel).
+
+**Ort prüfen:** Adresse eintippen und **Enter** drücken — die Adresse wird
+gesucht und die Karte fliegt hin, der gefundene Ort steht unter dem Feld. So
+merkst du einen Tippfehler sofort, statt erst nach „Route berechnen“.
+„47.05, 13.59“ fliegt direkt dorthin, ohne Adress-Suche.
+
 ### GPX-Ghost konfigurieren
 Bereich **„👻 GPX-Ghost"**: anzeigen an/aus, **Farbe**, **Deckkraft**, **Linienbreite**, **gestrichelt**. Wirkt live in der Vorschau und im gerenderten Video. (Im Reiseroute-Modul sind dafür die Stats-Overlays ausgeblendet.)
 

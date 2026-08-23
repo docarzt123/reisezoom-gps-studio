@@ -983,6 +983,17 @@ valores distintos en el mismo punto no podrían reproducirse.
 
 ## 4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️ (desde v0.9.205)
 
+### Reordenar y comprobar las paradas (desde v0.9.538)
+
+**Cambiar el orden:** cada parada tiene un asa **⠿** a la izquierda — arrástrala
+hacia arriba o abajo en la lista. El inicio y el destino salen del orden, así
+que se mueven con ella (la primera es el inicio, la última el destino).
+
+**Comprobar un lugar:** escribe una dirección y pulsa **Enter** — se busca la
+dirección y el mapa vuela hasta allí, con el resultado bajo el campo. Detectas
+una errata al instante en vez de tras «Calcular ruta». «47.05, 13.59» vuela
+directamente sin búsqueda.
+
 ### Qué hace
 Anima la **llegada** a una ruta: indicas origen y destino, a partir de ahí se calcula un trayecto y se anima como un track — p. ej. como intro antes del vídeo de senderismo propiamente dicho. El GPX cargado (la caminata) se muestra mientras tanto como **ghost** en el fondo.
 
