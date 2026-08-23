@@ -292,6 +292,50 @@ def _als_gpx(path: str) -> str:
         return path      # der eigentliche Parse-Fehler ist dann die bessere Meldung
 
 
+# Etappenname, an dem eine Übergangs-Etappe erkannt wird (siehe core/merge.py).
+UEBERGANG_NAME = "rz:uebergang"
+
+
+def unsichtbare_bereiche(pts) -> list:
+    """Punkt-Indexbereiche [i, j], deren Linie NICHT gezeichnet werden darf
+    (23.08.2026): die Sprünge über Etappengrenzen und die unsichtbaren
+    Übergänge aus dem Zusammenführen. Zusammenhängende Bereiche werden
+    verschmolzen. Die Vorschau (`segMaskExpr`) und der Render (`__rzSegMask`)
+    bekommen genau diese Liste — beide müssen dieselbe Antwort zeichnen."""
+    roh = []
+    for i in range(1, len(pts)):
+        a, b = pts[i - 1], pts[i]
+        versteckt = ((a.extra.get("rz_uebergang") and not a.extra.get("rz_uebergang_sichtbar"))
+                     or (b.extra.get("rz_uebergang") and not b.extra.get("rz_uebergang_sichtbar")))
+        if a.seg != b.seg or versteckt:
+            roh.append([i - 1, i])
+    if not roh:
+        return []
+    out = [roh[0]]
+    for r in roh[1:]:
+        if r[0] <= out[-1][1]:
+            out[-1][1] = max(out[-1][1], r[1])
+        else:
+            out.append(r)
+    return out
+
+
+def laufpunkt_aus_bereiche(pts) -> list:
+    """Wo der Laufpunkt nichts zu suchen hat: in den unsichtbaren Übergängen
+    (dort fliegt nur die Kamera)."""
+    roh = [[i, i] for i, p in enumerate(pts)
+           if p.extra.get("rz_uebergang") and not p.extra.get("rz_uebergang_sichtbar")]
+    if not roh:
+        return []
+    out = [roh[0]]
+    for r in roh[1:]:
+        if r[0] <= out[-1][1] + 1:
+            out[-1][1] = r[1]
+        else:
+            out.append(r)
+    return out
+
+
 def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
     """Liest eine GPX-Datei (oder ein konvertierbares Fremdformat, siehe
     IMPORT_CACHE_DIR), gibt Trackpunkte (mit kumulierten Werten) + Stats zurück."""
@@ -303,7 +347,13 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
     name = None
     seg_no = -1          # v0.9.483 — läuft über ALLE Tracks/Segmente hinweg weiter
     for track in gpx.tracks:
-        if not name and track.name:
+        # 23.08.2026 — Übergangs-Etappe aus dem Zusammenführen mehrerer Touren
+        # (core/merge.py). Sie gehört zu keiner Tour: Strecke und Zeit lassen sie
+        # aus, und die unsichtbare Variante wird auch nicht gezeichnet.
+        _tn = str(track.name or "")
+        _ueberg = _tn.startswith(UEBERGANG_NAME)
+        _ueberg_sichtbar = _tn.startswith(UEBERGANG_NAME + "-sichtbar")
+        if not name and track.name and not _ueberg:
             name = track.name
         for seg in track.segments:
             if seg.points:
@@ -313,6 +363,11 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
                 if p.time is not None:
                     t = p.time if p.time.tzinfo else p.time.replace(tzinfo=timezone.utc)
                     t_iso = t.astimezone(timezone.utc).isoformat()
+                _extra = _read_point_extensions(p)   # gpxtpx/gpxpx (Strava/Garmin)
+                if _ueberg:
+                    _extra["rz_uebergang"] = 1.0
+                    if _ueberg_sichtbar:
+                        _extra["rz_uebergang_sichtbar"] = 1.0
                 pts.append(
                     TrackPoint(
                         lat=p.latitude,
@@ -320,7 +375,7 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
                         ele=p.elevation,
                         time=t_iso,
                         seg=max(0, seg_no),
-                        extra=_read_point_extensions(p),  # gpxtpx/gpxpx (Strava/Garmin)
+                        extra=_extra,
                     )
                 )
 
@@ -366,7 +421,10 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
     pts[0].elapsed_s = 0.0
     prev = pts[0]
     for cur in pts[1:]:
-        same_seg = (cur.seg == prev.seg)
+        # Übergänge gehören zu keiner Tour → wie eine Etappengrenze behandeln.
+        same_seg = (cur.seg == prev.seg
+                    and not cur.extra.get("rz_uebergang")
+                    and not prev.extra.get("rz_uebergang"))
         cur.dist_m = prev.dist_m + (
             _haversine_m(prev.lat, prev.lon, cur.lat, cur.lon) if same_seg else 0.0
         )
