@@ -919,9 +919,6 @@ python app.py</code></pre>
 <blockquote>y a la posición dentro de él; en otra ruta con distinta longitud y trazado esa</blockquote>
 <blockquote>posición sencillamente no existe.</blockquote>
 <h2 id="4-m-dulo-ruta-de-viaje-la-llegada-como-v-deo">4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️</h2>
-<h3 id="reordenar-y-comprobar-las-paradas">Reordenar y comprobar las paradas</h3>
-<p><strong>Cambiar el orden:</strong> cada parada tiene un asa <strong>⠿</strong> a la izquierda — arrástrala hacia arriba o abajo en la lista. El inicio y el destino salen del orden, así que se mueven con ella (la primera es el inicio, la última el destino).</p>
-<p><strong>Comprobar un lugar:</strong> escribe una dirección y pulsa <strong>Enter</strong> — se busca la dirección y el mapa vuela hasta allí, con el resultado bajo el campo. Detectas una errata al instante en vez de tras «Calcular ruta». «47.05, 13.59» vuela directamente sin búsqueda.</p>
 <h3 id="qu-hace">Qué hace</h3>
 <p>Anima la <strong>llegada</strong> a una ruta: indicas origen y destino, a partir de ahí se calcula un trayecto y se anima como un track — p. ej. como intro antes del vídeo de senderismo propiamente dicho. El GPX cargado (la caminata) se muestra mientras tanto como <strong>ghost</strong> en el fondo.</p>
 <p>Ruta de viaje es un <strong>clon de pleno derecho del Animator</strong>: todo lo que se puede hacer allí (estilo de mapa, keyframes, carteles, opciones de render) se puede hacer aquí igual — solo que en lugar de un GPX se anima la ruta calculada. Ajustes propios y carteles propios (independientes del Animator).</p>
@@ -935,6 +932,9 @@ python app.py</code></pre>
 <li>Sigue como en el Animator: ensayo, cámara, carteles, <strong>renderizar vídeo</strong>.</li>
 </ol>
 <blockquote><strong>El nivel de detalle solo actúa en el siguiente «Calcular ruta»</strong> — mueve el slider, luego recalcula.</blockquote>
+<h3 id="reordenar-y-comprobar-las-paradas">Reordenar y comprobar las paradas</h3>
+<p><strong>Cambiar el orden:</strong> cada parada tiene un asa <strong>⠿</strong> a la izquierda — arrástrala hacia arriba o abajo en la lista. El inicio y el destino salen del orden, así que se mueven con ella (la primera es el inicio, la última el destino).</p>
+<p><strong>Comprobar un lugar:</strong> escribe una dirección y pulsa <strong>Enter</strong> — se busca la dirección y el mapa vuela hasta allí, con el resultado bajo el campo. Detectas una errata al instante en vez de tras «Calcular ruta». «47.05, 13.59» vuela directamente sin búsqueda.</p>
 <h3 id="configurar-el-gpx-ghost">Configurar el GPX-Ghost</h3>
 <p>Zona <strong>«👻 GPX-Ghost»</strong>: mostrar sí/no, <strong>color</strong>, <strong>opacidad</strong>, <strong>grosor de línea</strong>, <strong>discontinua</strong>. Actúa en directo en la vista previa y en el vídeo renderizado. (En el módulo Ruta de viaje, los overlays de estadísticas están ocultos para esto.)</p>
 <h3 id="qu-se-guarda">Qué se guarda</h3>

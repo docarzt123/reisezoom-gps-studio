@@ -967,17 +967,6 @@ back.
 
 ## 4 · Module: Travel Route — the journey there as a video 🛣️ (since v0.9.205)
 
-### Reordering and checking stops (since v0.9.538)
-
-**Change the order:** every stop has a handle **⠿** on the left — drag it up or
-down in the list. Start and destination follow from the order, so they move
-along (topmost is the start, bottom one the destination).
-
-**Check a place:** type an address and press **Enter** — the address is looked
-up and the map flies there, with the match shown below the field. You spot a
-typo right away instead of after “Compute route”. “47.05, 13.59” flies straight
-there without a lookup.
-
 ### What it does
 Animates the **journey** to a tour: you enter a start and destination, from which a route is calculated and animated like a track — e.g. as an intro before the actual hiking video. The loaded GPX (the hike) is shown as a **ghost** in the background.
 
@@ -992,6 +981,17 @@ Travel Route is a **full-fledged clone of the Animator**: everything that works 
 6. Continue as in the Animator: test run, camera, signs, **render video**.
 
 > **The detail level takes effect only at the next "Calculate route"** — move the slider, then recalculate.
+
+### Reordering and checking stops (since v0.9.538)
+
+**Change the order:** every stop has a handle **⠿** on the left — drag it up or
+down in the list. Start and destination follow from the order, so they move
+along (topmost is the start, bottom one the destination).
+
+**Check a place:** type an address and press **Enter** — the address is looked
+up and the map flies there, with the match shown below the field. You spot a
+typo right away instead of after “Compute route”. “47.05, 13.59” flies straight
+there without a lookup.
 
 ### Configure the GPX ghost
 The **"👻 GPX ghost"** area: show on/off, **color**, **opacity**, **line width**, **dashed**. Takes effect live in the preview and in the rendered video. (In the Travel Route module the stats overlays are hidden for this.)
