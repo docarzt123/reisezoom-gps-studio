@@ -1233,9 +1233,35 @@ Lee la hora de captura de los datos EXIF de cada foto y busca en el track GPX el
 - **¿Etiquetar los originales directamente?** Simplemente elige como destino la **carpeta de tus originales**. Entonces la app pregunta **«¿Sobrescribir realmente los originales aquí? (sin backup)»** — si lo confirmas, se etiqueta in situ. Sin confirmación, la app **nunca** sobrescribe un original.
 
 ### La magia de las zonas horarias
-La app lee el tag EXIF `OffsetTimeOriginal` de cada foto y convierte la hora de captura a UTC. Con eso, el track cuadra en el 95 % de los casos **de fábrica**, sin que tengas que ajustar el offset manualmente.
+La app lee el tag EXIF `OffsetTimeOriginal` de cada foto y convierte la hora de
+captura a UTC. Si tu cámara escribe ese tag, el trazado cuadra **de inmediato**,
+sin que ajustes nada.
 
-Si aun así no (p. ej. porque el reloj de la cámara estaba mal):
+**No todas las cámaras lo escriben.** El tag llegó con **Exif 2.31** (2016) y se
+generalizó en las cámaras hacia **2017/2018**. Los modelos anteriores guardan
+solo la hora — **el reloj puede estar perfectamente en hora**, lo que falta es a
+qué distancia estaba de UTC. Justo entonces las fotos y el trazado quedan
+separados por el desfase horario (dos horas en verano alemán), aunque cada cosa
+por separado sea correcta. Ahora la app te lo dice: en cuanto se cargan fotos sin
+zona horaria guardada, aparece un aviso bajo el control de desfase con las
+cámaras afectadas.
+
+**Y además la calcula por ti (desde v0.9.540).** Con un track cargado, ese mismo
+aviso trae la propuesta: *«Calculado a partir del track: UTC+2 — así 11 de 11
+fotos caen dentro del track».* Un clic en **Aplicar** fija la zona horaria de la
+cámara y la asignación se recalcula al instante. Otros programas consultan la
+zona horaria del lugar en un **servicio web** y te dejan sumar el horario de
+verano a mano; aquí se **mide**: el programa prueba todas las zonas horarias y se
+queda con la que mete tus fotos dentro del track. Sin internet, y con el horario
+de verano incluido automáticamente, porque da igual *por qué* son dos horas.
+
+Solo se propone lo que el track permite de verdad: si tus fotos cubren apenas una
+hora de una excursión de todo el día, varias zonas encajan igual de bien — en ese
+caso **no** hay propuesta, sino el camino manual. Si encajan varias muy próximas,
+el aviso lo dice expresamente.
+
+Así se juntan (porque la cámara no escribe zona horaria, o porque el reloj
+realmente iba mal):
 - **Slider de offset** en el panel izquierdo — ±2h por defecto, con opciones desplegables de ±3 / ±6 / ±12h
 - **Fijar foto de referencia** — clic en un mosaico de foto, luego clic en el mapa sobre la posición de captura real. La app calcula el offset por sí misma.
 - **Elegir la zona horaria de la cámara** (✎ → «Introducir offset exacto») — algunas cámaras (muchas Olympus/OM, GoPro) **no** guardan ninguna zona horaria en la foto. Si viajas, p. ej., a Vietnam (UTC+7), las imágenes quedan entonces 7 horas desplazadas respecto al track. En el diálogo de offset ajusta simplemente la **zona horaria del reloj de la cámara** — una vez fijada, todo cuadra. Las fotos que han guardado su zona horaria por sí mismas (móviles, etc.) quedan intactas, así que puedes etiquetar sin problema fotos de móvil y de cámara del mismo viaje juntas. La zona horaria activa figura bajo el valor de offset.

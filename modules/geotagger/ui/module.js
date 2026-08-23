@@ -84,6 +84,12 @@ function mountGeotagger(body, headerActions) {
           </div>
         </div>
 
+        <!-- 23.08.2026 (Beta-Tester Knut) — Fotos ohne eingebettete Zeitzone:
+             Bei Kameras vor Exif 2.31 (~2017) steht KEIN OffsetTimeOriginal im
+             Bild. Die Uhr ist dann völlig richtig, es fehlt nur die Zeitzone —
+             und der Nutzer sucht den Fehler bei sich. Deshalb sagen wir es hin. -->
+        <div class="gt-tz-hinweis" id="gt-tz-hinweis" hidden></div>
+
         <button class="btn btn-block btn-small" id="gt-ref-mode"
                 title="${t("geotagger.btn.ref_mode_tooltip")}">${t("geotagger.btn.ref_mode")}</button>
 
@@ -2807,7 +2813,99 @@ function mountGeotagger(body, headerActions) {
     });
   }
 
+  /** 23.08.2026 — „Diese Fotos bringen keine Zeitzone mit". Wird nach jedem
+   *  Laden/Thumb-Tick aufgefrischt; nennt die betroffenen Kameras und sagt, was
+   *  zu tun ist. Kein Fehler — nur eine Erklärung, bevor jemand am Slider rät. */
+  // v0.9.540 — Die fehlende Zeitzone AUS DEM TRACK rechnen, statt den Nutzer
+  // raten zu lassen. GeoSetter fragt dafür einen Webdienst nach dem Ort und
+  // lässt die Sommerzeit von Hand dazurechnen; wir messen stattdessen, welche
+  // Verschiebung die Fotos in den Track legt — das geht ohne Netz und hat die
+  // Sommerzeit automatisch drin.
+  let _tzVorschlag = null;     // letzte Antwort der Brücke
+  let _tzVorschlagKey = "";    // wofür sie gilt (Track + Fotos)
+
+  function _tzLabelKurz(min) {
+    const v = parseInt(min) || 0;
+    const s = v < 0 ? "−" : "+";
+    const a = Math.abs(v);
+    const h = Math.floor(a / 60), m = a % 60;
+    return "UTC" + (v === 0 ? "±0" : s + h + (m ? ":" + String(m).padStart(2, "0") : ""));
+  }
+
+  function _gtTzKey(ohneTz) {
+    return [currentGpxPath || "", ohneTz.length,
+            (ohneTz[0] && ohneTz[0].path) || "",
+            (ohneTz[ohneTz.length - 1] && ohneTz[ohneTz.length - 1].path) || ""].join("|");
+  }
+
+  async function _gtTzVorschlagHolen(key) {
+    _tzVorschlagKey = key;
+    _tzVorschlag = null;
+    try {
+      const r = await api().geotagger_zeitzone_vorschlag(300);
+      if (isUnmounted || _tzVorschlagKey !== key) return;   // Fotos haben sich geändert
+      _tzVorschlag = (r && r.ok && r.minuten != null && r.treffer > 0) ? r : null;
+      _gtTzHinweisAktualisieren();
+    } catch (_) { /* Vorschlag ist ein Extra, kein Muss */ }
+  }
+
+  function _gtTzHinweisAktualisieren() {
+    const box = document.getElementById("gt-tz-hinweis");
+    if (!box) return;
+    const mitZeit = photos.filter(p => p && p.photo_time);
+    if (!mitZeit.length) { box.hidden = true; return; }
+    const ohneTz = mitZeit.filter(p => !p.tz_known);
+    if (!ohneTz.length) { box.hidden = true; return; }
+    const kameras = [...new Set(ohneTz.map(p => (p.camera || "").trim()).filter(Boolean))];
+    const wer = kameras.length ? kameras.join(", ") : t("geotagger.tz_hint.cameras_unknown", "diese Fotos");
+    const alle = ohneTz.length === mitZeit.length;
+    let html = "🕐 " +
+      (alle ? t("geotagger.tz_hint.all", "{wer}: keine Zeitzone im Foto gespeichert (Kameras vor Exif 2.31, ca. 2017). Die Uhr kann völlig richtig sein — es fehlt nur die Angabe, wie weit sie von UTC entfernt war.")
+            : t("geotagger.tz_hint.some", "{n} von {gesamt} Fotos ohne gespeicherte Zeitzone ({wer}). Die Uhr kann richtig sein — es fehlt nur der Abstand zu UTC."))
+        .replace("{wer}", String(wer).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])))
+        .replace("{n}", ohneTz.length).replace("{gesamt}", mitZeit.length);
+
+    // Vorschlag nachziehen, sobald sich Track oder Fotoauswahl geändert haben
+    const key = _gtTzKey(ohneTz);
+    if (currentGpxPath && _tzVorschlagKey !== key) _gtTzVorschlagHolen(key);
+
+    const v = (_tzVorschlagKey === key) ? _tzVorschlag : null;
+    if (v) {
+      const tz = _tzLabelKurz(v.minuten);
+      if (v.minuten === getTzOffsetMinutes()) {
+        html += '<div class="gt-tz-vorschlag">✓ ' +
+          t("geotagger.tz_hint.matches", "Eingestellt ist <b>{tz}</b> — damit liegen {n} von {gesamt} Fotos im Track.")
+            .replace("{tz}", tz).replace("{n}", v.treffer).replace("{gesamt}", v.gesamt) + "</div>";
+      } else {
+        html += '<div class="gt-tz-vorschlag">' +
+          (v.eindeutig
+            ? t("geotagger.tz_hint.suggest", "Aus dem Track gerechnet: <b>{tz}</b> — damit liegen {n} von {gesamt} Fotos im Track.")
+            : t("geotagger.tz_hint.suggest_unsure", "Aus dem Track gerechnet passt <b>{tz}</b> am besten ({n} von {gesamt}) — andere Zeitzonen passen aber genauso gut."))
+            .replace("{tz}", tz).replace("{n}", v.treffer).replace("{gesamt}", v.gesamt) +
+          ' <button class="btn btn-small" id="gt-tz-uebernehmen">' +
+          t("geotagger.tz_hint.apply", "Übernehmen") + "</button></div>";
+      }
+    } else {
+      // Kein rechenbarer Vorschlag (kein Track geladen, oder keine Zeitzone
+      // legt die Fotos in den Track) — dann der Weg von Hand.
+      html += " " + t("geotagger.tz_hint.fix", "Stell dafür die <b>Kamera-Zeitzone</b> ein (✎ neben dem Offset) oder setz ein <b>Referenz-Foto</b> auf die Karte.");
+    }
+    box.innerHTML = html;
+    box.hidden = false;
+    const btn = document.getElementById("gt-tz-uebernehmen");
+    if (btn && v) {
+      btn.onclick = () => {
+        tzOffsetMin = v.minuten;
+        saveSettings({ geotagger: { tz_offset_minutes: tzOffsetMin } });
+        updateOffsetDisplay();
+        updateMatches();
+        toast(t("geotagger.tz_hint.applied", "Kamera-Zeitzone auf {tz} gesetzt.").replace("{tz}", _tzLabelKurz(v.minuten)), "success");
+      };
+    }
+  }
+
   function updateBadges() {
+    try { _gtTzHinweisAktualisieren(); } catch (_) {}
     // v0.9.165-fix — Parameter heißt `tile` (NICHT `t`), sonst überschattet er
     // die i18n-Funktion t() → „t is not a function" bei den Badge-Tooltips.
     document.querySelectorAll(".photo-tile").forEach(tile => {

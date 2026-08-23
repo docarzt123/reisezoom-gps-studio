@@ -113,9 +113,23 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.539</span>
+    <span class="version-num">v0.9.540</span>
     <span class="version-date">23 de agosto de 2026</span>
     <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Cámaras antiguas: el reloj no tiene la culpa.</p>
+
+  <div class="highlight">
+    <strong>🕐 Ahora se explica la zona horaria que falta.</strong> Las cámaras anteriores a Exif 2.31 (más o menos antes de 2017) no escriben la zona horaria en la foto — el reloj está perfectamente en hora, solo falta el desfase con UTC. La ayuda decía que el reloj estaba mal. Ahora el geoetiquetador lo dice en cuanto se cargan esas fotos, con el modelo de cámara y cómo resolverlo.</div>
+
+  <div class="highlight">
+    <strong>🧮 La zona horaria se calcula, no se consulta.</strong> Si las fotos no llevan zona horaria, el programa la deduce del track: «Calculado a partir del track: UTC+2 — así 11 de 11 fotos caen dentro del track», y basta un clic en <em>Aplicar</em>. Otros programas preguntan a un servicio web por el lugar y dejan el horario de verano en tus manos. Aquí se mide: sin internet y con el horario de verano ya incluido. Y si las fotos solo cubren una hora de una excursión de todo el día, muchas zonas encajan igual de bien — entonces no se propone nada, a propósito, en vez de adivinar.</div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.539</span>
+    <span class="version-date">23 de agosto de 2026</span>
   </div>
   <p class="version-tagline">Varias rutas, un vídeo.</p>
 

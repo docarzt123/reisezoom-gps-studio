@@ -1290,9 +1290,36 @@ Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den
 - **Originale doch direkt taggen?** Wähle einfach den **Ordner deiner Originale** als Ziel. Dann fragt die App **„Originale hier wirklich überschreiben? (kein Backup)"** — bestätigst du, wird in-place getaggt. Ohne Bestätigung überschreibt die App **nie** ein Original.
 
 ### Zeitzonen-Magie
-Die App liest die `OffsetTimeOriginal`-EXIF-Tag aus jedem Foto und konvertiert die Aufnahmezeit zu UTC. Dadurch passt der Track in 95 % der Fälle **out-of-the-box** ohne dass du manuell Offset einstellen musst.
+Die App liest den `OffsetTimeOriginal`-EXIF-Tag aus jedem Foto und rechnet die
+Aufnahmezeit nach UTC um. Schreibt deine Kamera diesen Tag, passt der Track
+**sofort**, ohne dass du irgendetwas einstellst.
 
-Wenn doch nicht (z.B. weil die Kamera-Uhr falsch stand):
+**Nicht jede Kamera schreibt ihn.** Der Tag kam erst mit **Exif 2.31** (2016);
+in Kameras steckt er verbreitet ab etwa **2017/2018**. Ältere Modelle speichern
+nur die Uhrzeit — **die Uhr kann völlig richtig gestellt sein**, es fehlt bloß
+die Angabe, wie weit sie von UTC entfernt war. Genau dann liegen Fotos und Track
+um den Zeitzonen-Abstand auseinander (in Deutschland im Sommer 2 Stunden),
+obwohl beides für sich stimmt. Die App sagt dir das jetzt: Sobald Fotos ohne
+gespeicherte Zeitzone geladen sind, steht unter dem Offset-Regler ein Hinweis mit
+den betroffenen Kameras.
+
+**Und sie rechnet dir die Zeitzone aus (seit v0.9.540).** Ist ein Track geladen,
+steht im selben Hinweis gleich der Vorschlag: *„Aus dem Track gerechnet: UTC+2 —
+damit liegen 11 von 11 Fotos im Track."* Ein Klick auf **Übernehmen** setzt die
+Kamera-Zeitzone, die Zuordnung wird sofort neu gerechnet. Andere Programme lassen
+die Zeitzone über einen **Webdienst** nach dem Aufnahmeort nachschlagen und die
+Sommerzeit von Hand dazurechnen — hier wird sie **gemessen**: Das Programm
+probiert alle Zeitzonen durch und nimmt die, bei der deine Fotos in den Track
+fallen. Kein Internet nötig, und die Sommerzeit ist automatisch drin, weil es
+nicht darauf ankommt, *warum* es zwei Stunden sind.
+
+Vorgeschlagen wird nur, was der Track wirklich hergibt: Decken deine Fotos bloß
+eine Stunde einer Tagestour ab, passen mehrere Zeitzonen gleich gut — dann kommt
+**kein** Vorschlag, sondern der Weg von Hand. Passen mehrere, aber nur knapp
+verschiedene, sagt der Hinweis das ausdrücklich dazu.
+
+So bringst du es zusammen (z. B. weil die Kamera keine Zeitzone schreibt oder
+weil die Uhr wirklich falsch stand):
 - **Offset-Slider** im linken Panel — ±2h Default, mit aufklappbaren ±3 / ±6 / ±12h-Optionen
 - **Referenz-Foto setzen** — Klick auf ein Foto-Tile, dann auf der Karte auf die tatsächliche Aufnahme-Position klicken. Die App berechnet den Offset selbst.
 - **Kamera-Zeitzone wählen** (✎ → „Genauen Offset eingeben") — manche Kameras (viele Olympus/OM, GoPro) speichern **keine** Zeitzone im Foto. Reist du z.B. nach Vietnam (UTC+7), liegen die Bilder dann um 7 Stunden neben dem Track. Stell im Offset-Dialog einfach die **Zeitzone der Kamera-Uhr** ein — einmal gesetzt, passt alles. Fotos, die ihre Zeitzone selbst gespeichert haben (Handys etc.), bleiben unangetastet, du kannst also Handy- und Kamera-Fotos derselben Reise problemlos zusammen taggen. Die aktive Zeitzone steht unter dem Offset-Wert.

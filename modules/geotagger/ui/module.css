@@ -560,3 +560,10 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
   line-height: 1.5;
   display: block;
 }
+
+/* 23.08.2026 — Hinweis „keine Zeitzone im Foto" (Beta-Tester-Rückmeldung) */
+.gt-tz-hinweis { margin: 8px 0 2px; padding: 7px 9px; border-radius: 7px; font-size: 11px; line-height: 1.45;
+  background: rgba(255, 179, 71, 0.10); border: 1px solid rgba(255, 179, 71, 0.35); color: var(--text); }
+.gt-tz-hinweis b { font-weight: 600; }
+.gt-tz-vorschlag { margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gt-tz-vorschlag .btn { padding: 3px 9px; font-size: 11px; }

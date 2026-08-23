@@ -113,9 +113,23 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.539</span>
+    <span class="version-num">v0.9.540</span>
     <span class="version-date">23. August 2026</span>
     <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Ältere Kameras: die Uhr ist nicht schuld.</p>
+
+  <div class="highlight">
+    <strong>🕐 Fehlende Zeitzone wird jetzt erklärt.</strong> Kameras vor Exif 2.31 (ungefähr vor 2017) schreiben die Zeitzone nicht ins Foto — die Uhr ist völlig richtig, es fehlt nur der Abstand zu UTC. Bisher stand in der Hilfe, die Uhr sei falsch gestellt. Jetzt sagt der Geotagger selbst Bescheid, sobald solche Fotos geladen sind: mit Kameramodell und dem Weg zur Lösung.</div>
+
+  <div class="highlight">
+    <strong>🧮 Zeitzone wird ausgerechnet, nicht nachgeschlagen.</strong> Fehlt den Fotos die Zeitzone, schlägt das Programm sie jetzt selbst vor: „Aus dem Track gerechnet: UTC+2 — damit liegen 11 von 11 Fotos im Track“, ein Klick auf <em>Übernehmen</em> genügt. Andere Programme fragen dafür einen Webdienst nach dem Ort und lassen die Sommerzeit von Hand dazurechnen. Hier wird gemessen: kein Internet nötig, Sommerzeit automatisch drin. Und wenn die Fotos nur eine Stunde einer Tagestour abdecken, passen viele Zeitzonen gleich gut — dann kommt bewusst kein Vorschlag statt eines geratenen.</div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.539</span>
+    <span class="version-date">23. August 2026</span>
   </div>
   <p class="version-tagline">Mehrere Touren, ein Video.</p>
 
