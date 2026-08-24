@@ -29,6 +29,16 @@ Bei jeder neuen Version:
   kommt **kein** Vorschlag, sondern der Weg von Hand. Wache:
   tests/test_zeitzone_hinweis.py.
 
+### Changed
+- **Die Modul-Symbole bleiben jetzt am längsten stehen** (Marc). Passt die
+  Modul-Leiste nicht ins Fenster, schrumpft sie in Stufen — bisher flogen dabei
+  zuerst die **Symbole** raus, übrig blieben abgeschnittene Wörter wie
+  „Daten-Ani…". Das war verkehrt herum: Das Symbol ist das Erkennungszeichen
+  des Moduls. Neue Reihenfolge: erst fällt die Unterzeile weg, dann werden die
+  Namen gekürzt, und ganz zum Schluss bleiben **nur die Symbole** — mit dem
+  vollen Namen im Tooltip. Ein breiteres Fenster holt jede Stufe zurück.
+  Wache: tests/test_modulleiste_stufen.py (echtes Chromium, sechs Breiten).
+
 ### Fixed
 - **Kein schwarzer Strich mehr quer über die Karte** (am Rechner gefunden).
   Der unsichtbare Kino-Flug zwischen zwei zusammengeführten Touren war doch zu

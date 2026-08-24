@@ -47,6 +47,9 @@ function renderTabs() {
     const btn = document.createElement("button");
     btn.className = "mod-btn" + (m.slug === activeMod ? " active" : "");
     btn.dataset.mod = m.slug;
+    // Tooltip immer setzen: in der engsten Stufe steht nur noch das Symbol da,
+    // dann ist er der einzige Weg zum vollen Namen.
+    btn.title = m.description ? `${m.name} — ${m.description}` : m.name;
     btn.innerHTML = `
       <span class="mod-ico">${m.icon || "•"}</span>
       <span class="mod-label">
@@ -70,18 +73,21 @@ function renderTabs() {
  * eine `@media`-Grenze trifft mal zu früh, mal gar nicht. Gemessen wird
  * deshalb, was wirklich zählt: ob der Inhalt überläuft.
  *
- * Zwei Stufen, in dieser Reihenfolge: erst fallen die Unterzeilen weg, dann
- * werden die Namen gekürzt. Die Knöpfe rechts (Einstellungen!) bleiben immer
- * erreichbar — dafür sorgt zusätzlich `flex: 0 0 auto` im CSS.
+ * Drei Stufen, in dieser Reihenfolge: erst fallen die Unterzeilen weg, dann
+ * werden die Namen gekürzt, zuletzt bleiben nur die Symbole (Name im Tooltip).
+ * Das **Symbol geht als Letztes** — es ist das Erkennungszeichen des Moduls,
+ * ein auf „Daten-Ani…" abgeschnittener Name dagegen hilft niemandem (Marc,
+ * 24.08.2026). Die Knöpfe rechts (Einstellungen!) bleiben immer erreichbar —
+ * dafür sorgt zusätzlich `flex: 0 0 auto` im CSS.
  */
 function passeTabsAnBreiteAn() {
   const wrap = document.getElementById("module-tabs");
   if (!wrap) return;
-  wrap.classList.remove("kompakt", "sehr-kompakt");
-  // In zwei Schritten prüfen — nach dem Entfernen der Unterzeilen kann es
-  // bereits passen.
+  wrap.classList.remove("kompakt", "sehr-kompakt", "nur-symbole");
+  // Stufenweise prüfen — nach jedem Schritt kann es bereits passen.
   if (wrap.scrollWidth > wrap.clientWidth + 1) wrap.classList.add("kompakt");
   if (wrap.scrollWidth > wrap.clientWidth + 1) wrap.classList.add("sehr-kompakt");
+  if (wrap.scrollWidth > wrap.clientWidth + 1) wrap.classList.add("nur-symbole");
 }
 
 // ⚠️ Einmal messen reicht nicht: beim ersten Aufbau stehen Schriften und
