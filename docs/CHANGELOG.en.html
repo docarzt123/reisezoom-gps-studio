@@ -113,6 +113,24 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.541</span>
+    <span class="version-date">24 August 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">Windows: projects can be sent again.</p>
+
+  <div class="highlight">
+    <strong>📦 Project export and import fixed (Windows).</strong> Both failed with an error — caused by a hyphen in the file filter's name, which Windows does not accept. It never showed on the Mac. Both work again, and every other file dialog is now guarded against the same mistake.</div>
+
+  <div class="highlight">
+    <strong>🔍 Zoom keyframes from older versions are detected.</strong> If keyframes were set before version 0.9.73, the zoom in the video can differ from the preview. The app now says so when the project opens — old projects are deliberately not converted; simply set the affected keyframes again.</div>
+
+  <div class="highlight">
+    <strong>🕐 No more invented time zones.</strong> In one case the suggestion read “UTC+1:45” — no such zone exists. Only real time zones are considered now; if none fits, nothing is suggested at all. The fine offset of a clock that runs wrong is still set with the slider.</div>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.540</span>
     <span class="version-date">24 August 2026</span>
     <span class="version-badge">Latest</span>

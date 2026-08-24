@@ -1282,8 +1282,12 @@ function mountAnimator(body, headerActions, opts) {
   // klickbar machen + State persistieren.
   try { _ovSyncGroups(); } catch (_) {}
   if (typeof onSessionChanged === "function") {
-    try { _animSessionUnsubs.push(onSessionChanged(() => { try { _ovSyncGroups(); } catch (_) {} })); } catch (_) {}
+    try { _animSessionUnsubs.push(onSessionChanged(() => {
+      try { _ovSyncGroups(); } catch (_) {}
+      try { _alteZoomKeyframesPruefen(); } catch (_) {}
+    })); } catch (_) {}
   }
+  try { _alteZoomKeyframesPruefen(); } catch (_) {}
   if (window.setupSectionAccordions) {
     window.setupSectionAccordions(_MODKEY, document.getElementById("anim-panel"));
   }
@@ -3645,6 +3649,38 @@ function mountAnimator(body, headerActions, opts) {
     } else if (currentBbox) {
       fitTrackPreview(false);
     }
+  }
+
+  // 24.08.2026 — Zoom-Keyframes aus einer älteren Fassung erkennen und es
+  // SAGEN, statt sie still umzurechnen. Hintergrund: Die WYSIWYG-Korrektur
+  // (Vorschau-Zoom → Video-Zoom) greift nur bei Keyframes mit `value_absolute`;
+  // vor v0.9.73 wurde nur `value_offset` gespeichert. In einem gemischten
+  // Projekt bedeutet dieselbe Eingabe zwei verschiedene Zoomstufen, und der
+  // Zoom wandert im Video.
+  //
+  // Marc-Entscheidung (24.08.2026): alte Projekte werden NICHT migriert — sie
+  // müssen laden, nicht funktionieren. Wer den Zoom braucht, setzt die
+  // Keyframes neu. Also nur ein deutlicher Hinweis, einmal je Projekt.
+  const _kfAltGewarnt = new Set();
+
+  function _alteZoomKeyframesPruefen() {
+    let evs = [];
+    try { evs = getRawTimelineEvents() || []; } catch (_) { return; }
+    const zoomEvs = evs.filter(e => e && e.kind === "zoom");
+    const alte = zoomEvs.filter(e => e.value_absolute === undefined || e.value_absolute === null);
+    if (!alte.length) return;
+    let id = "";
+    try { id = (typeof getActiveProject === "function" && getActiveProject()?.id) || ""; } catch (_) {}
+    const schluessel = `${id}|${zoomEvs.length}|${alte.length}`;
+    if (_kfAltGewarnt.has(schluessel)) return;
+    _kfAltGewarnt.add(schluessel);
+    try { applog && applog("info",
+      `[kf] ${alte.length} von ${zoomEvs.length} Zoom-Keyframes ohne value_absolute (altes Projekt)`); } catch (_) {}
+    try {
+      toast(t("animator.kf.alt_zoom",
+        "{n} Zoom-Keyframes stammen aus einer älteren Fassung. Der Zoom im Video kann von der Vorschau abweichen — setz diese Keyframes am besten neu.")
+        .replace("{n}", alte.length), "warn", 9000);
+    } catch (_) {}
   }
 
   // v0.8.16: Liefert die GESPEICHERTEN events, ohne den enabled-Filter.

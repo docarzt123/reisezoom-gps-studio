@@ -113,9 +113,26 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.540</span>
+    <span class="version-num">v0.9.541</span>
     <span class="version-date">24 de agosto de 2026</span>
     <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Windows: los proyectos se pueden enviar otra vez.</p>
+
+  <div class="highlight">
+    <strong>📦 Exportar e importar proyectos, arreglado (Windows).</strong> Ambos fallaban con un error: la culpa era un guion en el nombre del filtro de archivos, que Windows no acepta. En el Mac nunca se notaba. Ya funcionan de nuevo, y el resto de diálogos de archivo quedan protegidos del mismo fallo.</div>
+
+  <div class="highlight">
+    <strong>🔍 Se detectan los keyframes de zoom de versiones antiguas.</strong> Si se fijaron antes de la versión 0.9.73, el zoom del vídeo puede diferir de la vista previa. Ahora la aplicación lo avisa al abrir el proyecto — los proyectos antiguos no se convierten a propósito; basta con volver a fijar esos keyframes.</div>
+
+  <div class="highlight">
+    <strong>🕐 Se acabaron las zonas horarias inventadas.</strong> En un caso la propuesta decía «UTC+1:45» — esa zona no existe. Ahora solo se consideran zonas horarias reales; si no encaja ninguna, no se propone nada. El desfase fino de un reloj mal ajustado se sigue ajustando con el control deslizante.</div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.540</span>
+    <span class="version-date">24 de agosto de 2026</span>
   </div>
   <p class="version-tagline">Cámaras antiguas: el reloj no tiene la culpa.</p>
 

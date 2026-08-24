@@ -74,6 +74,36 @@ def _track_times(points: List[TrackPoint]) -> list[datetime]:
     return out
 
 
+# Die Zeitzonen, die es WIRKLICH gibt (UTC-Versatz in Minuten). Ohne diese
+# Liste schlug die Berechnung am 24.08.2026 einem Beta-Tester „UTC+1:45" vor —
+# ein Wert, den keine Uhr der Welt zeigt (gemeldet mit Screenshot). Krumme
+# Zonen sind die Ausnahme und stehen hier namentlich drin; alles andere sind
+# volle Stunden.
+ECHTE_ZONEN = (
+    -720, -660, -600, -570,      # …, Marquesas −9:30
+    -540, -480, -420, -360, -300, -240,
+    -210,                        # Neufundland −3:30
+    -180, -120, -60, 0, 60, 120, 180,
+    210,                         # Iran +3:30
+    240,
+    270,                         # Afghanistan +4:30
+    300,
+    330,                         # Indien +5:30
+    345,                         # Nepal +5:45
+    360,
+    390,                         # Myanmar +6:30
+    420, 480,
+    525,                         # Eucla +8:45
+    540,
+    570,                         # Adelaide +9:30
+    600,
+    630,                         # Lord Howe +10:30
+    660, 720,
+    765,                         # Chatham +12:45
+    780, 840,
+)
+
+
 def zeitzone_raten(photo_times, track, *, max_gap_seconds: float = 300.0) -> dict:
     """23.08.2026 (Beta-Tester) — Die fehlende Zeitzone aus dem Track ERRECHNEN,
     statt den Nutzer am Regler raten zu lassen.
@@ -132,22 +162,28 @@ def zeitzone_raten(photo_times, track, *, max_gap_seconds: float = 300.0) -> dic
         leer["band"] = band
         return leer
     mitte = gleich[len(gleich) // 2]
-    # Nur Verschiebungen anbieten, die es als Zeitzone GIBT: volle Stunden, halbe
-    # (Indien +5:30, Iran +3:30) und :45 (Nepal, Chatham). :15 existiert nicht —
-    # so eine Mitte entsteht nur durch eine leicht falsch gehende Uhr, dann ist
-    # die nächste echte Zone die richtige Antwort. Unter den echten Zonen im
-    # Bereich gewinnt die nächste an der Mitte; bei Gleichstand die "rundere".
-    def _rang(m):
-        return 0 if m % 60 == 0 else (1 if m % 30 == 0 else 2)
-    echte = [m for m in gleich if m % 30 == 0 or m % 60 == 45] or gleich
-    minuten = min(echte, key=lambda m: (abs(m - mitte), _rang(m), abs(m)))
+    # Nur anbieten, was es als Zeitzone wirklich gibt (siehe ECHTE_ZONEN). Passt
+    # keine in den Bereich, wird NICHTS vorgeschlagen — eine erfundene Zone wie
+    # „+1:45" ist schlimmer als gar kein Vorschlag, weil sie nach einer Antwort
+    # aussieht. Den Rest-Versatz (falsch gehende Uhr) stellt der Regler ein.
+    echte = [m for m in ECHTE_ZONEN if gleich[0] <= m <= gleich[-1]]
+    if not echte:
+        leer["treffer"] = best
+        leer["band"] = band
+        return leer
+    # Die nächste an der Mitte; bei Gleichstand die volle Stunde, dann die
+    # kleinere Verschiebung.
+    minuten = min(echte, key=lambda m: (abs(m - mitte), 0 if m % 60 == 0 else 1, abs(m)))
     return {
         "minuten": minuten,
         "treffer": best,
         "gesamt": len(zeiten),
-        "eindeutig": band <= 60,
+        # Eindeutig nur, wenn der Bereich schmal ist UND genau eine echte Zone
+        # darin liegt. Liegen +1 und +2 beide drin, ist es geraten — dann sagt
+        # die Oberfläche „andere passen genauso gut".
+        "eindeutig": band <= 60 and len(echte) == 1,
         "band": band,
-        "kandidaten": [(m, best) for m in gleich[:5]],
+        "kandidaten": [(m, best) for m in echte[:5]],
     }
 
 

@@ -1423,6 +1423,7 @@
   "gpxinspect.profile_help": "Línea recta = línea directa entre los puntos. Senderismo/Bici/Coche = busca la ruta real en la red de caminos (Mapbox, necesita internet + token), el track sigue los caminos. Los huecos muy grandes (p. ej. vuelos) siempre quedan rectos.",
   "animator.statsfield.dist_done": "Recorrido",
   "animator.statsfield.stage_name": "Etapa",
+  "animator.kf.alt_zoom": "{n} keyframes de zoom vienen de una versión anterior. El zoom del vídeo puede diferir de la vista previa — lo mejor es volver a fijarlos.",
   "animator.statsfield.stage_no": "Etapa n.º",
   "animator.statsfield.stage_dist": "En esta etapa",
   "animator.statsfield.stage_time": "Tiempo en la etapa",

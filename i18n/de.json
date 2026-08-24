@@ -1423,6 +1423,7 @@
   "gpxinspect.profile_help": "Luftlinie = gerade Linie zwischen den Punkten. Wandern/Fahrrad/Auto = die echte Route auf dem Wegenetz suchen (Mapbox, Internet + Token), der Track folgt den Wegen. Sehr große Lücken (z. B. Flüge) bleiben immer gerade.",
   "animator.statsfield.dist_done": "Zurückgelegt",
   "animator.statsfield.stage_name": "Etappe",
+  "animator.kf.alt_zoom": "{n} Zoom-Keyframes stammen aus einer älteren Fassung. Der Zoom im Video kann von der Vorschau abweichen — setz diese Keyframes am besten neu.",
   "animator.statsfield.stage_no": "Etappe Nr.",
   "animator.statsfield.stage_dist": "In dieser Etappe",
   "animator.statsfield.stage_time": "Zeit in der Etappe",
