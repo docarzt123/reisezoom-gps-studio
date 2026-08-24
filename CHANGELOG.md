@@ -14,6 +14,46 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.541] – 2026-08-24
+
+### Fixed
+- **Der Zeitzonen-Vorschlag erfindet keine Zeitzonen mehr** (Beta-Tester, mit
+  Screenshot). Vorgeschlagen wurde „UTC+1:45" — ein Versatz, den keine Uhr der
+  Welt zeigt: Die Auswahl ließ jede Viertelstunde durch, weil es mit Nepal
+  (+5:45) und Chatham (+12:45) ja krumme Zonen gibt. Jetzt kommen nur noch
+  **real existierende** Zonen infrage (Liste `ECHTE_ZONEN` in core/geotag.py);
+  passt keine in den erlaubten Bereich, gibt es **gar keinen** Vorschlag statt
+  eines erfundenen. Den Rest-Versatz einer falsch gehenden Uhr stellt weiterhin
+  der Regler ein — genau wie vom Melder vorgeschlagen. Außerdem gilt ein
+  Vorschlag nur noch als sicher, wenn **genau eine** echte Zone passt; liegen
+  etwa +5:30 und +5:45 beide im Bereich, sagt die App das jetzt dazu.
+  Wache: tests/test_zeitzone_szenarien.py (inkl. Streuprobe über Tracklängen
+  und Fotolagen — nie eine Zone außerhalb der Liste).
+- **Projekt-Export und -Import gingen auf Windows gar nicht** (Beta-Tester-Log).
+  Im Log stand `ValueError: Reisezoom-Projekt (*.rzproj) is not a valid file
+  filter`: pywebview lässt in der Beschreibung eines Dateifilters nur
+  Buchstaben, Ziffern und Leerzeichen zu — unser **Bindestrich** brach sie. Auf
+  macOS fällt das nie auf, weil dort ein eigener Cocoa-Dialog läuft, der diese
+  Prüfung nicht macht. Betroffen waren Export, Import und „PNG-Bild". Statt
+  einzelne Texte zu entschärfen, werden jetzt **alle** Filter zentral gesäubert
+  — auch übersetzte („Imagen PNG") und künftige. Wache:
+  tests/test_dateifilter_windows.py, geprüft gegen pywebviews echte Funktion.
+
+### Added
+- **Das Render-Log nennt jetzt die Zoom-Einstellungen** (Vorschau-Zoom,
+  WYSIWYG-Korrektur, „Kamera folgt Track", Anflug, ruhige Kamera und die Zahl
+  der Zoom-Keyframes, getrennt nach absolut und Offset). Bei der Zoom-Meldung
+  eines Beta-Testers ließ sich sein Render hier nicht nachstellen, weil genau
+  diese Werte fehlten.
+- **Hinweis bei Zoom-Keyframes aus älteren Fassungen.** Die WYSIWYG-Korrektur
+  greift nur bei Keyframes mit `value_absolute`; vor v0.9.73 wurde nur
+  `value_offset` gespeichert. In einem gemischten Projekt bedeutet dieselbe
+  Eingabe zwei verschiedene Zoomstufen (nachgerechnet: **1,3 Stufen**
+  Unterschied), und der Zoom wandert im Video. Alte Projekte werden bewusst
+  **nicht** umgerechnet (Marc: alte Projekte müssen laden, nicht funktionieren)
+  — stattdessen sagt die App es beim Öffnen und schlägt vor, die betroffenen
+  Keyframes neu zu setzen. Wache: tests/test_zoom_bezug_keyframes.py.
+
 ## [0.9.540] – 2026-08-24
 
 ### Added

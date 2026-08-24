@@ -113,9 +113,26 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.540</span>
+    <span class="version-num">v0.9.541</span>
     <span class="version-date">24. August 2026</span>
     <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Windows: Projekte lassen sich wieder verschicken.</p>
+
+  <div class="highlight">
+    <strong>📦 Projekt-Export und -Import repariert (Windows).</strong> Beides brach mit einer Fehlermeldung ab — schuld war ein Bindestrich im Namen des Dateifilters, den Windows nicht akzeptiert. Auf dem Mac fiel das nie auf. Jetzt gehen beide wieder, und alle anderen Dateidialoge sind gegen denselben Fehler abgesichert.</div>
+
+  <div class="highlight">
+    <strong>🔍 Zoom-Keyframes aus älteren Fassungen werden erkannt.</strong> Wurden Keyframes vor Version 0.9.73 gesetzt, kann der Zoom im Video von der Vorschau abweichen. Die App sagt das jetzt beim Öffnen des Projekts — alte Projekte werden bewusst nicht umgerechnet, es genügt, die betroffenen Keyframes neu zu setzen.</div>
+
+  <div class="highlight">
+    <strong>🕐 Keine erfundenen Zeitzonen mehr.</strong> Der Zeitzonen-Vorschlag schlug in einem Fall „UTC+1:45“ vor — so eine Zone gibt es nicht. Jetzt kommen nur noch real existierende Zeitzonen infrage; passt keine, wird bewusst nichts vorgeschlagen. Den Feinversatz einer falsch gehenden Uhr stellt weiterhin der Regler ein.</div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.540</span>
+    <span class="version-date">24. August 2026</span>
   </div>
   <p class="version-tagline">Ältere Kameras: die Uhr ist nicht schuld.</p>
 

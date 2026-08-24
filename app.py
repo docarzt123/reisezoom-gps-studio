@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.540"
+APP_VERSION = "0.9.541"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1737,6 +1737,34 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @staticmethod
+    def _filter_windows_tauglich(file_types):
+        r"""Dateifilter so umschreiben, dass pywebview sie akzeptiert (Windows).
+
+        24.08.2026, aus einem Beta-Tester-Log: „Reisezoom-Projekt (*.rzproj) is
+        not a valid file filter" — Projekt-Export und -Import waren auf Windows
+        gar nicht benutzbar. pywebview prüft den Filter gegen
+        `^([\w ]+)\(...\)$`: In der Beschreibung sind NUR Wortzeichen und
+        Leerzeichen erlaubt, ein **Bindestrich** bricht sie. Auf macOS fällt das
+        nie auf, weil dort `_macos_save_panel`/`NSOpenPanel` den Filter selbst
+        auswertet und diese Prüfung gar nicht läuft.
+
+        Statt einzelne Texte zu entschärfen wird hier jeder Filter gesäubert —
+        auch übersetzte („Imagen PNG") und künftige. Die Endungen bleiben, wie
+        sie sind; nur die Beschreibung wird auf erlaubte Zeichen reduziert.
+        """
+        import re as _re
+        raus = []
+        for f in (file_types or ()):
+            t = str(f)
+            m = _re.match(r"^(.*?)\s*\(([^()]*)\)\s*$", t)
+            if not m:
+                raus.append(t)
+                continue
+            beschr = _re.sub(r"\s+", " ", _re.sub(r"[^\w ]+", " ", m.group(1))).strip()
+            raus.append(f"{beschr or 'Dateien'} ({m.group(2)})")
+        return tuple(raus)
+
     def pick_save_path(self, default_name: str = "",
                        default_dir: str = "",
                        file_types: tuple[str, ...] = ()) -> str:
@@ -1759,7 +1787,7 @@ class Api:
             webview.SAVE_DIALOG,
             directory=default_dir or "",
             save_filename=default_name or "",
-            file_types=file_types,
+            file_types=self._filter_windows_tauglich(file_types),
         )
         if not res:
             return ""
@@ -1782,14 +1810,15 @@ class Api:
                 traceback.print_exc()
         if not self._window:
             return []
+        sicher = self._filter_windows_tauglich(file_types)   # siehe dort — Windows
         if dialog_type == "open":
             res = self._window.create_file_dialog(
-                webview.OPEN_DIALOG, allow_multiple=multiple, file_types=file_types
+                webview.OPEN_DIALOG, allow_multiple=multiple, file_types=sicher
             )
         elif dialog_type == "folder":
             res = self._window.create_file_dialog(webview.FOLDER_DIALOG)
         else:
-            res = self._window.create_file_dialog(webview.SAVE_DIALOG, file_types=file_types)
+            res = self._window.create_file_dialog(webview.SAVE_DIALOG, file_types=sicher)
         if not res:
             return []
         return list(res) if isinstance(res, (list, tuple)) else [res]
@@ -3433,6 +3462,23 @@ class Api:
         rlog.info("  Dauer:      %ds intro + %ds anim + %ds hold", cfg.intro_s, cfg.duration_s, cfg.hold_s)
         rlog.info("  Kamera:     pitch=%.1f° rotation=%.1f° exag=%.2f terrain=%s",
                   cfg.pitch, cfg.rotation, cfg.exaggeration, cfg.enable_terrain)
+        # 24.08.2026 — genau DIESE Werte entscheiden, wie der Zoom im Video läuft,
+        # und genau sie fehlten im Log: Bei der Zoom-Meldung eines Beta-Testers
+        # ließ sich sein Render deshalb hier nicht nachstellen (Marc-Regel
+        # „Diagnose ins app.log"). `mit_abs` ist der wichtigste Wert: Zoom-
+        # Keyframes OHNE `value_absolute` stammen aus einer älteren Fassung und
+        # bekommen die WYSIWYG-Korrektur nicht — in einem gemischten Projekt
+        # wandert der Zoom dadurch um genau diese Korrektur.
+        _kf = [e for e in (cfg.timeline_events or [])
+               if isinstance(e, dict) and e.get("prop") == "zoom"]
+        _mit_abs = sum(1 for e in _kf if e.get("value_absolute") is not None)
+        rlog.info("  Zoom:       override=%s correction=%.3f folgt_track=%s anflug=%s "
+                  "ruhige_kamera=%s · Zoom-Keyframes: %d (davon %d absolut, %d nur Offset)",
+                  ("%.2f" % cfg.override_zoom) if cfg.override_zoom is not None else "—",
+                  float(getattr(cfg, "zoom_correction", 0.0) or 0.0),
+                  cfg.camera_follow_track, cfg.cinematic_flyto,
+                  getattr(cfg, "smooth_camera_3d", False),
+                  len(_kf), _mit_abs, len(_kf) - _mit_abs)
         rlog.info("  Token:      %s",
                   ("user (pk.…" + cfg.mapbox_token[-6:] + ")") if (cfg.mapbox_token and len(cfg.mapbox_token) > 8) else "MISSING/EMPTY")
 
