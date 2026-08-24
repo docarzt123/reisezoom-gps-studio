@@ -263,14 +263,21 @@ input[type="color"] {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 15ch;
 }
-/* Wird es eng, verschwindet zuerst die Unterzeile, dann werden die Namen
-   gekürzt — gesteuert von `passeTabsAnBreiteAn()` in app.js, das misst statt zu
-   raten (Viewport-Breite ist in der WebView nicht die Fensterbreite, und
-   übersetzte Namen sind unterschiedlich lang). */
+/* Wird es eng, schrumpft die Leiste in DREI Stufen — gesteuert von
+   `passeTabsAnBreiteAn()` in app.js, das misst statt zu raten (Viewport-Breite
+   ist in der WebView nicht die Fensterbreite, und übersetzte Namen sind
+   unterschiedlich lang).
+
+   ⚠️ Reihenfolge (Marc, 24.08.2026): Das **Symbol bleibt am längsten**. Es ist
+   das Erkennungszeichen des Moduls — vorher flogen die Symbole VOR den Namen
+   raus, und übrig blieben abgeschnittene Wörter wie „Daten-Ani…". Jetzt:
+   1. Unterzeile weg · 2. Namen kürzen · 3. nur noch Symbole (Name im Tooltip). */
 .module-tabs.kompakt .mod-desc { display: none; }
 .module-tabs.kompakt .mod-btn { padding-left: 9px; padding-right: 10px; gap: 7px; }
 .module-tabs.sehr-kompakt .mod-name { max-width: 10ch; }
-.module-tabs.sehr-kompakt .mod-ico { display: none; }
+.module-tabs.nur-symbole .mod-label { display: none; }
+.module-tabs.nur-symbole .mod-btn { padding-left: 11px; padding-right: 11px; gap: 0; }
+.module-tabs.nur-symbole .mod-ico { font-size: 15px; }
 
 .topbar-actions {
   display: flex;
