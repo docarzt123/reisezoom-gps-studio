@@ -29,6 +29,16 @@ Bei jeder neuen Version:
   kommt **kein** Vorschlag, sondern der Weg von Hand. Wache:
   tests/test_zeitzone_hinweis.py.
 
+### Fixed
+- **Zusammengeführte Touren überleben Cloud und Projekt-Export als solche.**
+  Das „zusammengeführt"-Kennzeichen reiste bisher nicht mit: Auf einem zweiten
+  Gerät (Cloud-Sync) oder nach einem .rzproj-Import wäre so ein Track zwischen
+  den normalen Touren gelandet und hätte die Kilometer doppelt in die Statistik
+  gezählt. Jetzt trägt das Cloud-Verzeichnis das Kennzeichen (nur bei
+  zusammengeführten — die Prüfsummen der normalen Touren bleiben unverändert)
+  und der Einspieler setzt es wieder. Wache: Cloud-Rundreise in
+  tests/test_touren_zusammenfuehren.py (läuft komplett ohne Cloud-Zugang).
+
 ### Changed
 - **Fotos ohne gespeicherte Zeitzone werden jetzt erklärt statt beschuldigt**
   (Beta-Tester, ausführlich begründet). Kameras vor **Exif 2.31** (der Tag kam

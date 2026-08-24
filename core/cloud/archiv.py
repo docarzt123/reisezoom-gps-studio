@@ -95,6 +95,10 @@ def verzeichnis_bauen(conn) -> dict:
                  t.ended_at, t.year, t.distance_m, t.duration_s, t.moving_time_s,
                  t.ascent_m, t.descent_m, t.ele_min, t.ele_max,
                  t.max_speed_kmh, t.avg_speed_kmh, t.size"""
+    # `merged` kam erst am 23.08.2026 dazu — der Sync darf an einer älteren
+    # Datenbank (oder einem schlanken Test-Schema) nicht sterben.
+    if any(z[1] == "merged" for z in conn.execute("PRAGMA table_info(tracks)")):
+        spalten += ", t.merged"
     verbund = ""
     if "track_meta" in hat:
         spalten += """, m.fav, m.tags, m.note, m.cover, m.display_name, m.hidden,
@@ -106,7 +110,12 @@ def verzeichnis_bauen(conn) -> dict:
             " WHERE t.geo_hash IS NOT NULL AND t.geo_hash <> ''"):
         d = {k: zeile[k] for k in zeile.keys()}
         gh = d.pop("geo_hash")
-        touren[gh] = {k: v for k, v in d.items() if v is not None}
+        # 23.08.2026 — merged (zusammengeführte Mehr-Touren-Tracks) muss mit,
+        # sonst zählt so ein Track auf Gerät 2 doppelt in die Statistik.
+        # Nur wenn gesetzt, damit die Verzeichnis-Prüfsumme für die vielen
+        # normalen Touren unverändert bleibt.
+        touren[gh] = {k: v for k, v in d.items()
+                      if v is not None and not (k == "merged" and not v)}
     return {"format": 1, "touren": touren}
 
 
