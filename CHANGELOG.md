@@ -14,7 +14,7 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
-## [0.9.540] – 2026-08-23
+## [0.9.540] – 2026-08-24
 
 ### Added
 - **Die Kamera-Zeitzone wird jetzt aus dem Track gerechnet** (Beta-Tester).
