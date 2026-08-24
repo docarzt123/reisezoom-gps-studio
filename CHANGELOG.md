@@ -30,6 +30,23 @@ Bei jeder neuen Version:
   tests/test_zeitzone_hinweis.py.
 
 ### Fixed
+- **Kein schwarzer Strich mehr quer über die Karte** (am Rechner gefunden).
+  Der unsichtbare Kino-Flug zwischen zwei zusammengeführten Touren war doch zu
+  sehen — nicht als Track-Linie, sondern als **Schlagschatten**: Die Maske lag
+  auf Linie und Leuchten, nicht auf dem Schatten darunter. Bei Brandenburg →
+  Florida zog sich dadurch ein schwarzer Bogen über den Atlantik. Betraf
+  Vorschau **und** fertiges Video. Wache: Abschnitt 5 in
+  tests/test_etappen_linie.py.
+- **Der interne Übergangs-Marker steht nicht mehr in der Feldauswahl.**
+  `rz_uebergang` tauchte bei zusammengeführten Touren als wählbares Datenfeld
+  zwischen Puls und Trittfrequenz auf — ein Wahrheitswert, den niemand
+  einblenden will.
+- **Der Zeitzonen-Hinweis nannte die falschen Kameras.** Fotos werden erst
+  registriert und ihre EXIF-Daten danach nachgereicht; dabei fiel `tz_known`
+  unter den Tisch. Dadurch galten auch Fotos MIT gespeicherter Zeitzone als
+  „ohne" — der Hinweis listete etwa ein iPhone neben der alten Kamera auf. Die
+  Rechnung war immer richtig, nur die Aufzählung log. Gleich mit repariert:
+  die Kamera-Wanduhrzeit (`photo_time_local`) kam auf demselben Weg nicht an.
 - **Zusammengeführte Touren überleben Cloud und Projekt-Export als solche.**
   Das „zusammengeführt"-Kennzeichen reiste bisher nicht mit: Auf einem zweiten
   Gerät (Cloud-Sync) oder nach einem .rzproj-Import wäre so ein Track zwischen
