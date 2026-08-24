@@ -5307,6 +5307,15 @@ class Api:
                                  [meta[k] for k in felder] + [geo_hash])
                     conn.commit()
 
+        # 4b. Zusammengeführte Mehr-Touren-Tracks bleiben auch hier „zusammen-
+        # geführt" — sonst stünde der Track auf diesem Gerät zwischen den
+        # normalen Touren und seine Kilometer zählten doppelt (siehe
+        # library_merge / _build_where).
+        if tour.get("merged") and geo_hash:
+            with clib._DB_LOCK:
+                conn.execute("UPDATE tracks SET merged = 1 WHERE geo_hash = ?", (geo_hash,))
+                conn.commit()
+
         # 5. Projekte (Sessions) unter dem kanonischen geo_hash mergen.
         projekte = (json.loads(z.read("projekte.json").decode("utf-8"))
                     if "projekte.json" in namen else None)
