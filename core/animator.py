@@ -2574,6 +2574,14 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
         if (!map.getLayer(id)) continue;
         try {{ map.setPaintProperty(id,'line-gradient', m || null); if (m) map.setPaintProperty(id,'line-dasharray', null); }} catch(e) {{}}
       }}
+      // 24.08.2026, am Rechner gefunden: Der SCHATTEN lag nicht in dieser Liste
+      // — die „unsichtbare" Verbindung zwischen zwei Touren zog dadurch einen
+      // schwarzen Strich quer über die Karte (Berlin → Florida, gut sichtbar).
+      // Er braucht eine eigene Maske in Schattenfarbe (nie Etappenfarben).
+      if (map.getLayer('track-shadow')) {{
+        const ms = window.__rzSegMask(cumGeoM, sliceStart, sliceEnd-1, SEG_STARTS, 'rgba(0,0,0,0.7)', null, null);
+        try {{ map.setPaintProperty('track-shadow','line-gradient', ms || null); if (ms) map.setPaintProperty('track-shadow','line-dasharray', null); }} catch(e) {{}}
+      }}
     }}
   }}
   const head = allCoords[safe] || allCoords[0];

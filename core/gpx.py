@@ -447,6 +447,11 @@ def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
     _seen_fields = set()
     for _p in pts:
         _seen_fields.update(_p.extra.keys())
+    # 24.08.2026, am Rechner gefunden: `extra` trägt auch INTERNE Marker, keine
+    # Messwerte. `rz_uebergang` stand dadurch als wählbares Datenfeld zwischen
+    # Puls und Trittfrequenz — ein Wahrheitswert, den niemand einblenden will.
+    # Interne Marker heißen alle `rz_uebergang…` und fliegen hier raus.
+    _seen_fields -= {k for k in _seen_fields if str(k).startswith("rz_uebergang")}
     sensor_fields = _sensors.describe_fields(_seen_fields)
 
     # Kumulierte Distanz/Zeit + Auf-/Abstieg

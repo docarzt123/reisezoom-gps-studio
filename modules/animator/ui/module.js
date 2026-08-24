@@ -3117,6 +3117,16 @@ function mountAnimator(body, headerActions, opts) {
           map.setPaintProperty(id, "line-dasharray", m ? null : (currentDasharray() || null));
         } catch (_) {}
       }
+      // 24.08.2026 — auch der Schatten (synchron zu core/animator.py): ohne
+      // eigene Maske blieb die unsichtbare Verbindung als schwarzer Strich
+      // stehen. Schattenfarbe, keine Etappenfarben.
+      if (map.getLayer("preview-shadow")) {
+        const ms = segMaskExpr(_cumGeoM, i0, i1, _segStarts, "rgba(0,0,0,0.7)", null, null);
+        try {
+          map.setPaintProperty("preview-shadow", "line-gradient", ms || null);
+          map.setPaintProperty("preview-shadow", "line-dasharray", ms ? null : (currentDasharray() || null));
+        } catch (_) {}
+      }
       _colorsPrevOn = !!m;
       return;
     }

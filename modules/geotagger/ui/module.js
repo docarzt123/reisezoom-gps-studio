@@ -1357,8 +1357,16 @@ function mountGeotagger(body, headerActions) {
         if (!ph) continue;
         ph.thumb = data.thumb;
         ph.photo_time = data.photo_time;
+        ph.photo_time_local = data.photo_time_local || null;
         ph.existing_gps = data.existing_gps;
         ph.camera = data.camera || null;   // v0.9.164 — Kamera-Modell
+        // 24.08.2026 — `tz_known` fehlte hier: beim Laden über Registrieren +
+        // Nachreichen blieb der Platzhalterwert `false` stehen, also galten
+        // AUCH Fotos mit eingebettetem Offset als „ohne Zeitzone". Der
+        // Zeitzonen-Hinweis nannte dadurch Kameras, die ihre Zone mitbringen
+        // (das Backend rechnet richtig, nur die Anzeige log). Am Rechner
+        // aufgefallen, nicht im Test — die Tests setzen `photos` direkt.
+        ph.tz_known = !!data.tz_known;
         updateTileForPath(path);
         known.add(path);
         touched++;
