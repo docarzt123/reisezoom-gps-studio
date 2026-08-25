@@ -40,6 +40,17 @@ Bei jeder neuen Version:
   Mapbox die Kamera **nicht** über das Gelände: die gesetzte Höhe wird exakt
   übernommen (nachgewiesen mit einem Messpunkt, den `RZ_CAMDEBUG=1` mitloggt).
 
+  **Härtetest danach (Marc):** Rafaels Projekt end-to-end über die echte App
+  gerendert (Video sauber, Frame 113 zeigt den Astorga-Anflug statt Feldweg)
+  plus vier Archiv-Tracks mit Überhöhung 1,0 / 1,5 / 2,5 / 4,0 headless
+  gemessen — alle im Rahmen. Beim 4,0-Extremfall (Teide-Krater mit absichtlich
+  brutalen Test-Keyframes) schneidet die Kamera durch den Kraterrand, aber
+  **identisch in ruhiger Kamera, klassischem Pfad und Vorschau** (Pixelvergleich)
+  — bestellt ist bestellt, kein Wegdriften. Details: docs/IDEAS.md §36.
+- **Die neue Zoom-Diagnosezeile zählte die Keyframes falsch** (im Härtetest
+  gefunden): Sie filterte auf `prop`, die Events tragen die Spur in `kind` —
+  bei einem Render mit 7 Zoom-Keyframes stand „Zoom-Keyframes: 0" im Log.
+
 ## [0.9.541] – 2026-08-24
 
 ### Fixed
