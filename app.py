@@ -3469,8 +3469,11 @@ class Api:
         # Keyframes OHNE `value_absolute` stammen aus einer älteren Fassung und
         # bekommen die WYSIWYG-Korrektur nicht — in einem gemischten Projekt
         # wandert der Zoom dadurch um genau diese Korrektur.
+        # ⚠️ Die Events tragen die Spur in `kind` (siehe timeline._events_by_kind),
+        # NICHT in `prop` — mit dem falschen Feld stand hier bei einem echten
+        # Render mit 7 Zoom-Keyframes „Zoom-Keyframes: 0" (Live-Test 25.08.2026).
         _kf = [e for e in (cfg.timeline_events or [])
-               if isinstance(e, dict) and e.get("prop") == "zoom"]
+               if isinstance(e, dict) and e.get("kind") == "zoom"]
         _mit_abs = sum(1 for e in _kf if e.get("value_absolute") is not None)
         rlog.info("  Zoom:       override=%s correction=%.3f folgt_track=%s anflug=%s "
                   "ruhige_kamera=%s · Zoom-Keyframes: %d (davon %d absolut, %d nur Offset)",
