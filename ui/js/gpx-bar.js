@@ -117,7 +117,13 @@
       _gpxData = res;
       if (typeof sessionActivate === "function") {
         try { await sessionActivate(res.coords, path); }
-        catch (err) { console.warn("sessionActivate (gpx-bar):", err); }
+        catch (err) {
+          // 25.08.2026 — war nur console.warn: Schlug die Zuordnung zur Sitzung
+          // fehl, stand im Log nichts, und die Projekte eines frisch
+          // importierten Umschlags blieben unsichtbar.
+          console.warn("sessionActivate (gpx-bar):", err);
+          if (window.applog) window.applog("error", `[loadGlobalGpx] sessionActivate: ${err}`);
+        }
       }
       // v0.9.27 (Nutzer-Feedback): letzten GPX-Pfad persistieren damit
       // er beim App-Restart automatisch wiederhergestellt werden kann.

@@ -464,6 +464,8 @@
   "bugreport.btn.mailto": "Open local mail app",
   "bugreport.dau.hint": "Easiest way: click '📄 Save log to Desktop' — a file lands on your desktop that you can simply drag into your email to Marc. This guarantees the full log gets attached.",
   "bugreport.btn.desktop": "Save log to Desktop",
+  "projekt.import_track_nicht_geladen": "The projects are there, but the track could not be loaded. Open it by hand: {pfad}",
+  "bugreport.immer_mit": "The log is written continuously — you do not need to wait for an error message. Just send it after something did not work as expected.",
   "bugreport.btn.copyfull": "Copy full log",
   "bugreport.desktop_ok": "Done! '{name}' is now on your desktop — just drag the file into your email to Marc.",
   "bugreport.desktop_fail": "Could not save the log to the desktop.",

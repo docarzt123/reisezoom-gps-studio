@@ -2518,6 +2518,17 @@ window.__camFaithful = (t) => {{
   fc.position = new mapboxgl.MercatorCoordinate(px, py, pz);
   fc.orientation = window.__nlerpQuat(A.ori, B.ori, u);
   map.setFreeCameraOptions(fc);
+  // 25.08.2026 — Prüfstelle für die Zoom-Meldung (siehe docs/IDEAS.md §36):
+  // Übernimmt Mapbox die gesetzte Kamerahöhe, oder hebt es sie über das Gelände?
+  // Gemessen: `hub` ist durchgehend 0 — Mapbox übernimmt sie exakt. Der
+  // weggelaufene Zoom entsteht also NICHT beim Setzen, sondern steckt schon in
+  // der vorbereiteten Höhe (`__camPrepFaithful`). Wird nur mit RZ_CAMDEBUG=1
+  // geloggt (ein zusätzlicher Aufruf je Bild).
+  try {{
+    const nach = map.getFreeCameraOptions();
+    window.__camGesetzt = {{ soll_z: pz, ist_z: nach.position.z,
+                            hub: nach.position.z - pz, zoom: map.getZoom() }};
+  }} catch (e) {{}}
 }};
 {color_gradient_js}
 // v0.9.435 — Mehrfarbiger Track: Konstanten (aus AnimatorConfig).
@@ -4480,6 +4491,14 @@ async def render(
                         f"window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f}, false)"
                     )
                     await page.evaluate(f"window.__camFaithful({timeline_progress})")
+                    if os.environ.get("RZ_CAMDEBUG") == "1":
+                        try:
+                            _g = await page.evaluate("window.__camGesetzt")
+                            if _g:
+                                _log.info("CAMSET f=%d soll_pz=%.9f ist_pz=%.9f hub=%.9f zoom=%.2f",
+                                          frame, _g["soll_z"], _g["ist_z"], _g["hub"], _g["zoom"])
+                        except Exception:
+                            pass
                 else:
                     await page.evaluate(
                         f"window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f})"
