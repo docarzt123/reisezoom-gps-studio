@@ -113,9 +113,20 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.542</span>
+    <span class="version-date">25 August 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">The zoom stays where it belongs.</p>
+
+  <div class="highlight">
+    <strong>🎯 Smooth camera with 3D terrain: zoom fixed.</strong> With the smooth camera, terrain exaggeration and a close preview zoom, the video showed a completely different framing — the camera stuck to the ground although the preview looked right. The camera path was not at fault, the terrain was: while the camera run is prepared, the terrain tiles had not loaded yet, so the camera heights were computed from unfinished data. The app now waits for them — measured on an affected project: up to 8 zoom levels off before, 0.5 now. Video export even got faster.</div>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.541</span>
     <span class="version-date">24 August 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <p class="version-tagline">Windows: projects can be sent again.</p>
 
