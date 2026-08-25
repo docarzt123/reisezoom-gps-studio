@@ -960,8 +960,34 @@ window.importProject = async function (pfad) {
   if (!res || res.cancelled) return;
   if (!res.ok) { toast(res.error || t("projekt.import_fehler", "Import fehlgeschlagen."), "warn", 7000); return; }
   toast(t("projekt.import_ok", "Projekt importiert") + ` (${res.projekte} ${t("projekt.projekte", "Projekte")})`, "success", 5000);
-  // Den Track laden → Session mit den importierten Projekten wird aktiv
-  try { if (res.datei && window.loadGlobalGpx) await window.loadGlobalGpx(res.datei); } catch (e) { console.warn("importProject load", e); }
+  // Den Track laden → Session mit den importierten Projekten wird aktiv.
+  //
+  // 25.08.2026 (Beta-Tester, Video): Hier wurde JEDER Fehlschlag verschluckt —
+  // `loadGlobalGpx` WIRFT nicht, sondern gibt `false` zurück, und der alte
+  // try/catch sah nur Ausnahmen. Ergebnis: „Projekt importiert ✓" als Erfolg,
+  // aber leere Karte und kein Track — und im Log stand nichts dazu. Jetzt wird
+  // jeder der drei Fälle benannt und protokolliert.
+  let geladen = false;
+  try {
+    if (!res.datei) {
+      applog && applog("error", "[importProject] Umschlag ohne Track-Datei");
+    } else if (typeof window.loadGlobalGpx !== "function") {
+      applog && applog("error", "[importProject] loadGlobalGpx fehlt");
+    } else {
+      geladen = await window.loadGlobalGpx(res.datei);
+      applog && applog(geladen ? "info" : "error",
+        `[importProject] Track nachladen: ${geladen ? "ok" : "FEHLGESCHLAGEN"} · ${res.datei}`);
+    }
+  } catch (e) {
+    applog && applog("error", `[importProject] Track nachladen wirft: ${e}`);
+  }
+  if (!geladen) {
+    // Ohne Track sind die importierten Keyframes zwar da, aber nichts zu sehen —
+    // das sah für den Tester nach „Import unvollständig" aus.
+    toast(t("projekt.import_track_nicht_geladen",
+      "Die Projekte sind da, aber der Track konnte nicht geladen werden. Öffne ihn von Hand: {pfad}")
+      .replace("{pfad}", res.datei || "—"), "warn", 12000);
+  }
 };
 
 window.addEventListener("DOMContentLoaded", async () => {

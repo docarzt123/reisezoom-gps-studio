@@ -662,6 +662,13 @@ async function openBugReportModal(context = "") {
         <div style="font-size:12px; line-height:1.5; margin-bottom:10px;">
           ${t("bugreport.dau.hint")}
         </div>
+        <!-- 25.08.2026 (Beta-Tester): „¿cuándo tengo que generarlo?“ — er hielt
+             das Protokoll für etwas, das nur bei einer Fehlermeldung entsteht,
+             und schickte es deshalb NICHT, obwohl genau sein Fall drinstand.
+             Der Fenstertitel („informe de errores“) legt das auch nahe. -->
+        <div style="font-size:12px; line-height:1.5; margin-bottom:10px; opacity:.85;">
+          ℹ️ ${t("bugreport.immer_mit", "Das Protokoll läuft immer mit — du brauchst keine Fehlermeldung abzuwarten. Schick es einfach, nachdem etwas nicht so lief wie erwartet.")}
+        </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn btn-primary" id="br-desktop">📄 ${t("bugreport.btn.desktop")}</button>
           <button class="btn" id="br-copyfull">📋 ${t("bugreport.btn.copyfull")}</button>

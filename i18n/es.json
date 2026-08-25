@@ -464,6 +464,8 @@
   "bugreport.btn.mailto": "Abrir programa de correo",
   "bugreport.dau.hint": "Lo más fácil: pulsa '📄 Guardar registro en el Escritorio' — aparecerá un archivo en tu escritorio que puedes arrastrar directamente al correo para Marc. Así se adjunta el registro completo con seguridad.",
   "bugreport.btn.desktop": "Guardar registro en el Escritorio",
+  "projekt.import_track_nicht_geladen": "Los proyectos están ahí, pero no se pudo cargar el track. Ábrelo a mano: {pfad}",
+  "bugreport.immer_mit": "El registro se escribe siempre — no hace falta esperar a que salga un error. Envíalo sin más después de que algo no haya salido como esperabas.",
   "bugreport.btn.copyfull": "Copiar registro completo",
   "bugreport.desktop_ok": "¡Listo! '{name}' está ahora en tu escritorio — solo arrastra el archivo a tu correo para Marc.",
   "bugreport.desktop_fail": "No se pudo guardar el registro en el escritorio.",
