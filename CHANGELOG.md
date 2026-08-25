@@ -14,6 +14,32 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.542] – 2026-08-25
+
+### Fixed
+- **„Ruhige Kamera": der Zoom läuft nicht mehr weg** (Beta-Tester, seit Tagen
+  gemeldet, mit Videos). Bei eingeschalteter ruhiger Kamera **und** 3D-Gelände
+  **und** einem in der Vorschau herangezoomten Ausschnitt lief der Zoom im
+  Video weit über das Eingestellte hinaus — die Kamera klebte am Boden, während
+  die Vorschau richtig aussah. Mit seinem Projekt gemessen: bis zu **8,0
+  Zoomstufen** daneben, mit Sprüngen bis ans Mapbox-Maximum. Jetzt **0,53**.
+
+  Die Ursache lag nicht in der Kameraführung, sondern im **Ladezustand des
+  Geländes**: Beim Vorbereiten springt die Karte in Millisekunden durch alle
+  Kamerapositionen; die Höhen wurden dabei von Kacheln gelesen, die noch gar
+  nicht geladen waren. Beim Rendern lagen sie dann vor — und die vorbereitete
+  Höhe passte nicht mehr zum Zoom. Je stärker die Überhöhung, desto größer der
+  Fehler (Überhöhung 1,0 → 0,7 · 1,5 → 1,2 · 3,3 → 8,0; ohne Gelände 0,13).
+  `__camPrepFaithful` wartet nun je Bild auf `areTilesLoaded()`, mit Zeitgrenze.
+  Der Render wurde dadurch nicht langsamer, sondern **schneller** (weniger
+  Nachladen währenddessen). Wache: neuer Fall in
+  tests/test_ruhige_kamera_zoom.py.
+
+  ⚠️ Vier andere Vermutungen wurden gemessen und widerlegt — sie stehen in
+  docs/IDEAS.md §36, damit sie niemand erneut verfolgt. Insbesondere hebt
+  Mapbox die Kamera **nicht** über das Gelände: die gesetzte Höhe wird exakt
+  übernommen (nachgewiesen mit einem Messpunkt, den `RZ_CAMDEBUG=1` mitloggt).
+
 ## [0.9.541] – 2026-08-24
 
 ### Fixed

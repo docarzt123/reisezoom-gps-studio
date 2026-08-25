@@ -2458,9 +2458,25 @@ window.__stabCamHeight = (lon, lat) => {{ return; }};
 // Quaternion), zwischen Keyframes Position linear im 3D-Raum + Orientierung per nlerp
 // interpolieren → Kamera reitet NICHT mehr aufs Gelände, framing-treu an den KFs.
 window.__kfCams = null;
-window.__camPrepFaithful = (camList, glattFenster) => {{
-  const roh = camList.map((k) => {{
+window.__camPrepFaithful = async (camList, glattFenster) => {{
+  // 25.08.2026 — VERSUCH: auf die Geländekacheln warten, bevor die Kamerahöhe
+  // abgelesen wird. Ohne das springt die Karte hier in Millisekunden durch
+  // Hunderte Positionen; `getFreeCameraOptions()` und `queryTerrainElevation()`
+  // liefern dann Werte für Gelände, das noch gar nicht geladen ist. Beim
+  // späteren Rendern sind die Kacheln da — und die vorbereitete Höhe passt
+  // nicht mehr zum Zoom. Das erklärt, warum der Fehler mit der Überhöhung
+  // wächst (jeder Geländefehler geht mal 3,3) und ohne Gelände verschwindet.
+  const warteAufKacheln = async () => {{
+    for (let i = 0; i < 40; i++) {{                    // höchstens ~400 ms je Bild
+      try {{ if (map.areTilesLoaded()) return; }} catch (e) {{ return; }}
+      await new Promise(r => setTimeout(r, 10));
+    }}
+  }};
+  const roh = [];
+  for (const k of camList) {{
     map.jumpTo({{ center: [k.lng, k.lat], zoom: k.zoom, pitch: k.pitch, bearing: k.bearing }});
+    try {{ if (map._render) map._render(); }} catch (e) {{}}
+    await warteAufKacheln();
     try {{ if (map._render) map._render(); }} catch (e) {{}}
     const fc = map.getFreeCameraOptions();
     const o = fc.orientation;
@@ -2471,8 +2487,8 @@ window.__camPrepFaithful = (camList, glattFenster) => {{
       const e = map.queryTerrainElevation([k.lng, k.lat]);
       if (e != null && isFinite(e)) ez = mapboxgl.MercatorCoordinate.fromLngLat([k.lng, k.lat], e).z;
     }} catch (e) {{}}
-    return {{ t: k.t, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], ez, g: (k.g == null ? 1 : k.g) }};
-  }});
+    roh.push({{ t: k.t, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], ez, g: (k.g == null ? 1 : k.g) }});
+  }}
   // 22.08.2026 — Die Liste ist jetzt dicht (ein Eintrag je Bild). Das Berg-
   // Hüpfen steckt im GELÄNDEANTEIL der Kamerahöhe; nur der wird mit einem
   // gleitenden Mittelwert (~1 s) geglättet. Die Flughöhe aus dem Zoom bleibt
