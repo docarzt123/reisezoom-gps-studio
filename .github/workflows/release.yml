@@ -108,18 +108,39 @@ jobs:
           # Name ändert, brechen die Download-Buttons im Blog-Post.
           # Siehe docs/HANDOVER_DEPLOYMENT.md
           DMG="dist/dmg/ReisezoomGPSStudio-macos.dmg"
+          # 26.08.2026 (Marc: „ich kriege immer wieder mails, wo sich leute
+          # wundern, dass es nicht geht"): Auf Intel-Macs startet die App nicht,
+          # und macOS sagt nur „kann nicht geöffnet werden". Deshalb steht es
+          # jetzt schon im DMG — im Fenstertitel (= Name des Laufwerks auf dem
+          # Schreibtisch) UND als Textdatei neben der App. Der Dateiname des DMG
+          # bleibt unverändert, sonst brechen die Shortlinks.
+          mkdir -p dist/dmgsrc
+          cp -R "dist/Reisezoom GPS Studio.app" dist/dmgsrc/
+          cat > "dist/dmgsrc/Bitte lesen — nur Apple Silicon.txt" <<'HINWEIS'
+          Reisezoom GPS Studio läuft NUR auf Macs mit Apple Silicon (M1, M2, M3, M4 …).
+          
+          Auf älteren Macs mit Intel-Prozessor lässt sich die App nicht öffnen.
+          
+          So siehst du nach, was du hast:
+            Apfel-Menü oben links  →  „Über diesen Mac“
+            Steht dort „Intel“, läuft diese App auf deinem Mac leider nicht.
+            Steht dort „Apple M1“ (oder M2/M3/M4), passt alles.
+          
+          Fragen? marc@reisezoom.com
+          HINWEIS
           create-dmg \
-            --volname "Reisezoom GPS Studio" \
+            --volname "Reisezoom GPS Studio (Apple Silicon)" \
             --window-pos 200 120 \
-            --window-size 720 420 \
+            --window-size 720 460 \
             --icon-size 120 \
             --icon "Reisezoom GPS Studio.app" 180 200 \
+            --icon "Bitte lesen — nur Apple Silicon.txt" 180 360 \
             --app-drop-link 540 200 \
             --no-internet-enable \
             "$DMG" \
-            "dist/Reisezoom GPS Studio.app" || \
-          hdiutil create -volname "Reisezoom GPS Studio" \
-            -srcfolder "dist/Reisezoom GPS Studio.app" \
+            "dist/dmgsrc" || \
+          hdiutil create -volname "Reisezoom GPS Studio (Apple Silicon)" \
+            -srcfolder "dist/dmgsrc" \
             -ov -format UDZO "$DMG"
           ls -la dist/dmg/
 

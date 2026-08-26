@@ -14,6 +14,39 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.543] – 2026-08-26
+
+### Fixed
+- **Importierte Projekte werden jetzt auch angezeigt** (Beta-Tester, drittes
+  Video zum selben Thema). Nach dem Import fehlten weiterhin Keyframes,
+  Schilder — „nada". Dabei war der Umschlag vollständig (in seinen Dateien
+  55/50/60 Keyframe-Events und je zwei Schilder), das Log meldete Erfolg, und
+  der Track wurde geladen. Nur: Das importierte Projekt wurde **nicht aktiv
+  gesetzt**. Das geschah bisher ausschließlich dann, wenn überhaupt noch kein
+  Projekt aktiv war. Kennt der Rechner die Tour aber schon — der Normalfall,
+  dort wurde das Projekt ja gebaut und exportiert —, blieb das **eigene**, oft
+  leere Projekt vorn, und das importierte lag unsichtbar daneben als
+  „Standard (importiert)". Jetzt wird nach dem Import das mitgebrachte Projekt
+  aktiv (im Log: „Umschlag: aktives Projekt → …"); das eigene bleibt erhalten
+  und ist über die Projektauswahl weiter erreichbar.
+  Wache: tests/test_projekt_import_aktiv.py — prüft leeren Rechner, belegten
+  Rechner, doppelten Import und, falls vorhanden, die Originaldatei des Melders.
+
+### Changed
+- **Intel-Macs erfahren jetzt VOR dem Download, dass es nicht geht** (Marc:
+  „ich kriege immer wieder mails, wo sich leute wundern, dass es nicht geht").
+  Bisher stand „Apple Silicon (arm64)" nur klein neben Dateigröße und
+  Systemversion — wer nicht weiß, was das bedeutet, liest darüber hinweg, lädt
+  180 MB und bekommt von macOS nur ein dürres „kann nicht geöffnet werden".
+  Drei Stellen sind jetzt deutlich:
+  1. **Download-Seite:** eigener Hinweiskasten im macOS-Knopf, samt Weg zum
+     Nachsehen (Apfel-Menü → „Über diesen Mac" → steht dort „Intel", passt es
+     nicht).
+  2. **Das DMG heißt jetzt „Reisezoom GPS Studio (Apple Silicon)"** — der Name
+     steht im Fenstertitel und auf dem Schreibtisch. Der **Dateiname** bleibt
+     unverändert, sonst brechen die Shortlinks.
+  3. **Im DMG liegt „Bitte lesen — nur Apple Silicon.txt"** direkt neben der App.
+
 ## [0.9.542] – 2026-08-25
 
 ### Fixed

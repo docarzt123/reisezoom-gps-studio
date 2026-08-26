@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.542"
+APP_VERSION = "0.9.543"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -5397,19 +5397,37 @@ class Api:
                     # Vorhandene Session: Projekte DAZULEGEN (lokales bleibt).
                     vorhanden = sess.setdefault("projects", {})
                     namen_da = {str(p.get("name", "")).strip().lower() for p in vorhanden.values() if isinstance(p, dict)}
+                    mitgebracht = {}          # PID im Umschlag → PID in dieser Sitzung
                     for pid, proj in (projekte.get("projects") or {}).items():
                         if not isinstance(proj, dict):
                             continue
+                        urspruenglich = pid
                         if pid in vorhanden:
                             if vorhanden[pid] == proj:
+                                mitgebracht[urspruenglich] = pid
                                 continue          # identisch → nichts zu tun
                             pid = f"{pid}_imp{n_proj + 1}"
                         proj = dict(proj)
                         if str(proj.get("name", "")).strip().lower() in namen_da:
                             proj["name"] = f"{proj.get('name', '')} ({_ui_t()('projekt.importiert', 'importiert')})"
                         vorhanden[pid] = proj
+                        mitgebracht[urspruenglich] = pid
                         n_proj += 1
-                    if not sess.get("active_project_id") and vorhanden:
+                    # 26.08.2026 (Beta-Tester, drittes Video) — Wer ein Projekt
+                    # importiert, will es SEHEN. Vorher wurde das aktive Projekt nur
+                    # gesetzt, wenn noch gar keines aktiv war; kannte der Rechner die
+                    # Tour schon (der Normalfall — dort wurde das Projekt ja gebaut),
+                    # blieb das EIGENE, oft leere Projekt vorn. Das importierte lag
+                    # unsichtbar daneben als „… (importiert)", und es sah aus, als
+                    # käme beim Import nichts an: keine Keyframes, keine Schilder.
+                    gewuenscht = projekte.get("active_project_id")
+                    ziel_pid = mitgebracht.get(gewuenscht) or (
+                        next(iter(mitgebracht.values())) if mitgebracht else None)
+                    if ziel_pid:
+                        sess["active_project_id"] = ziel_pid
+                        log.info("Umschlag: aktives Projekt → %r (%s)",
+                                 (vorhanden.get(ziel_pid) or {}).get("name"), ziel_pid)
+                    elif not sess.get("active_project_id") and vorhanden:
                         sess["active_project_id"] = next(iter(vorhanden))
                 _sessions.save_sessions(SESSIONS_FILE, daten)
         log.info("Umschlag eingespielt (%s): %s → %s, %d Projekt(e)", quelle, geo_hash, ziel.name, n_proj)
