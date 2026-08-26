@@ -138,9 +138,18 @@ def render(m: dict) -> str:
                        "Rechtsklick auf die App → „Öffnen“ → im Dialog nochmal "
                        "„Öffnen“. Erscheint die Meldung „ist beschädigt“, hilft "
                        "<code>xattr -dr com.apple.quarantine</code> auf der App.")
+        # 26.08.2026 (Marc): „ich kriege immer wieder mails, wo sich leute wundern,
+        # dass es nicht geht" — Intel-Macs. Bisher stand „Apple Silicon (arm64)"
+        # nur klein in der Zeile mit Dateigröße und Systemversion; wer nicht weiß,
+        # was das heißt, liest darüber hinweg und lädt vergeblich. Jetzt steht es
+        # als eigener Satz IM Downloadknopf, mit dem Weg zum Nachsehen.
         cards.append(f'''  <a class="dl" href="{x["file"]}">
     <b>⬇ macOS</b>
     <span class="meta">{x["min_os"]} oder neuer · {x["arch"]} · DMG · {mb(x["size"])}</span>
+    <div class="warn"><b>Nur für Macs mit Apple Silicon</b> (M1, M2, M3, M4 …).
+      Auf älteren Macs mit Intel-Prozessor läuft die App nicht — sie lässt sich dort
+      nicht öffnen. Nachsehen: Apfel-Menü oben links → „Über diesen Mac“. Steht dort <b>Intel</b>,
+      ist dieser Download nicht der richtige.</div>
     <div class="note">{hinweis}</div>
     <span class="hash">SHA-256: {x["sha256"]}</span>
   </a>''')
@@ -180,6 +189,8 @@ def render(m: dict) -> str:
         color:var(--muted);word-break:break-all;margin-top:6px}}
   .box{{background:var(--paper);border:1px solid var(--rule);border-radius:14px;padding:14px 18px;margin:0 0 12px}}
   .fine{{color:var(--muted);font-size:14px;line-height:1.6;margin-top:24px;border-top:1px solid var(--rule);padding-top:16px}}
+  .warn{{background:#fff4e5;border:1px solid #f0b37e;border-radius:10px;padding:10px 12px;
+        margin:10px 0 0;font-size:14px;line-height:1.55;color:#7a4a12}}
 </style>
 </head>
 <body>
