@@ -2487,7 +2487,16 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function _ghostSpurenAufbauen() {
-    if (!map || !map.isStyleLoaded || !map.isStyleLoaded()) return;
+    // ⚠️ 27.08.2026 (Marc: „die ghost tracks sind geladen, aber ich sehe sie
+    // nicht in der preview") — Vorher stand hier ein stilles `return`, wenn der
+    // Kartenstil noch nicht fertig war. Beim Öffnen ist genau das der Fall: Die
+    // Spuren kommen mit der Sitzung, der Stil lädt noch. Danach rief sie
+    // niemand mehr auf, also blieb die Karte leer, obwohl die Liste stimmte.
+    // `_whenStyleReady` holt den Aufbau nach, sobald der Stil steht — dieselbe
+    // Lehre wie beim Laufpunkt in v0.9.531: bei nicht fertigem Stil NIE still
+    // aussteigen.
+    if (!_whenStyleReady("ghostSpuren", _ghostSpurenAufbauen)) return;
+    if (!map) return;
     const spuren = ghostSpuren();
     // Erst abräumen, was es nicht mehr gibt (oder anders aussieht) — Paint-
     // Eigenschaften ließen sich zwar setzen, aber beim Löschen/Umsortieren
@@ -2512,7 +2521,12 @@ function mountAnimator(body, headerActions, opts) {
             "line-width": Number(g.width) || 2.5,
             "line-opacity": Number(g.opacity) != null ? Number(g.opacity) : 0.6,
             "line-dasharray": g.dashed === false ? [1, 0] : [2, 2],
-          } }, "preview-shadow");     // unter die animierte Linie
+          } }, map.getLayer("preview-shadow") ? "preview-shadow"
+                : (map.getLayer("preview-line") ? "preview-line" : undefined));
+        // ⚠️ Der Bezugs-Layer muss EXISTIEREN, sonst wirft Mapbox und die Spur
+        // fehlt (27.08.2026): „preview-shadow" gibt es nur mit eingeschaltetem
+        // Schlagschatten, und beim Öffnen stehen die Track-Layer teils noch gar
+        // nicht. Ohne Bezug landet die Spur oben — sichtbar ist besser als weg.
       } catch (e) { applog && applog("warn", `[ghost] Layer ${i}: ${e}`); }
     });
   }
@@ -6898,7 +6912,8 @@ function mountAnimator(body, headerActions, opts) {
     if (typeof isOsmStyleKey === "function" && isOsmStyleKey(styleKey) && typeof window.osmRasterStyle === "function") {
       _currentStyleKey = styleKey;
       map.setStyle(window.osmRasterStyle(styleKey));
-      map.once("style.load", () => { rebuildPreviewLayers(); });
+      // 27.08.2026 — Ein Stilwechsel wirft ALLE Layer weg, auch die Ghost-Spuren.
+      map.once("style.load", () => { rebuildPreviewLayers(); _ghostSpurenAufbauen(); });
       if (osmHint) osmHint.hidden = false;
       return;
     }
@@ -6913,6 +6928,7 @@ function mountAnimator(body, headerActions, opts) {
     map.setStyle(url);
     map.once("style.load", () => {
       rebuildPreviewLayers();
+      _ghostSpurenAufbauen();     // 27.08.2026 — sonst sind sie nach dem Stilwechsel weg
     });
   }
 
