@@ -1543,12 +1543,14 @@ function mountLibrary(body, headerActions) {
         </div>
         <div class="lib-pop-btns">
           <button class="btn btn-primary btn-sm" data-pop="open">${T("library.open_animator", "Im Animator öffnen")}</button>
+          <button class="btn btn-sm" data-pop="ghost">👻 ${T("library.ghost.take_short", "Als Ghost-Spur")}</button>
           <button class="btn btn-sm" data-pop="col">+ ${T("library.col_add", "Zu Sammlung")}</button>
         </div>
       </div>`).addTo(_map);
     const el = _mapPopup.getElement();
     if (!el) return;
     const o = el.querySelector('[data-pop="open"]'); if (o) o.onclick = () => openIn("animator");
+    const g = el.querySelector('[data-pop="ghost"]'); if (g) g.onclick = () => alsGhost([it.path]);
     const c = el.querySelector('[data-pop="col"]'); if (c) c.onclick = () => addToCollectionDialog([it.path]);
   }
   function closeMapPopup() {
@@ -1770,6 +1772,8 @@ function mountLibrary(body, headerActions) {
         <button class="btn btn-ghost btn-sm lib-btn-danger" id="lib-m-trash">${T("library.trash", "In den Papierkorb")}</button>
       </div>
       <div class="lib-hint" id="lib-m-status"></div>`;
+    box.innerHTML = _ghostBannerHtml() + box.innerHTML;
+    _ghostBannerBinden();
 
     const pfade = () => multiItems().map(i => i.path);
     const status = (txt) => { const e = $("lib-m-status"); if (e) e.textContent = txt; };
@@ -1795,12 +1799,7 @@ function mountLibrary(body, headerActions) {
     const ghostBtn = $("lib-m-ghosts");
     if (ghostBtn) {
       ghostBtn.onclick = () => {
-        const pfade = multiItems().map(i => i.path).filter(Boolean);
-        if (!pfade.length) return;
-        window.__rzPendingGhosts = pfade;
-        toast(T("library.ghosts.sent", "{n} Spur(en) an den Animator übergeben.")
-          .replace("{n}", pfade.length), "success");
-        if (typeof switchMod === "function") switchMod("animator");
+        alsGhost(multiItems().map(i => i.path));
       };
     }
 
@@ -1916,8 +1915,9 @@ function mountLibrary(body, headerActions) {
     const box = $("lib-detail");
     if (_multi.size > 1) { renderMulti(); return; }
     if (!_sel) {
-      box.innerHTML = `<div class="lib-detail-empty">${T("library.pick_hint", "Tour auswählen — dann kannst du sie hier direkt in ein Werkzeug übernehmen.")}
+      box.innerHTML = _ghostBannerHtml() + `<div class="lib-detail-empty">${T("library.pick_hint", "Tour auswählen — dann kannst du sie hier direkt in ein Werkzeug übernehmen.")}
         <div class="lib-hint" style="margin-top:10px">${T("library.multi_hint", "Mehrere wählen: ⌘/Strg-Klick einzeln, Umschalt-Klick für einen Bereich.")}</div></div>`;
+      _ghostBannerBinden();
       return;
     }
     const it = _sel;
@@ -1931,7 +1931,7 @@ function mountLibrary(body, headerActions) {
       [T("library.activity", "Fortbewegung"), ACT_LABELS[it.activity] || (it.activity || "—")],
       [T("library.file", "Datei"), it.filename],
     ];
-    box.innerHTML = `
+    box.innerHTML = _ghostBannerHtml() + `
       <div class="lib-detail-thumb">${it.thumb_url
         ? `<img src="${it.thumb_url}" alt="">`
         // In der Kartenansicht werden die Vorschaubilder nicht mitgeladen (700
@@ -1952,11 +1952,16 @@ function mountLibrary(body, headerActions) {
           : T("library.file_gone", "Die Datei liegt nicht mehr an diesem Ort.")}</div>` : ""}
 
       <div class="lib-actions">
-        <button class="btn btn-primary btn-sm" data-open="animator">${T("library.open_animator", "Im Animator öffnen")}</button>
+        ${_ghostModus() ? `<button class="btn btn-primary btn-sm lib-ghost-take" data-ghost="1">👻 ${
+            T("library.ghost.take", "Als Ghost-Spur übernehmen")}</button>` : ""}
+        <button class="btn ${_ghostModus() ? "btn-sm" : "btn-primary btn-sm"}" data-open="animator">${T("library.open_animator", "Im Animator öffnen")}</button>
         <button class="btn btn-sm" data-open="tourmap">${T("library.open_tourmap", "Tour-Karte")}</button>
         <button class="btn btn-sm" data-open="heightanim">${T("library.open_height", "Daten-Animator")}</button>
         <button class="btn btn-sm" data-open="geotagger">${T("library.open_geotagger", "Fotos verorten")}</button>
         <button class="btn btn-sm" data-open="gpxinspect">${T("library.open_inspect", "Inspektor")}</button>
+        ${_ghostModus() ? "" : `<button class="btn btn-sm" data-ghost="1" title="${
+            esc(T("library.ghost.hint", "Legt die Tour als unbewegte Hintergrundlinie in den Animator — der Haupt-Track bleibt, wie er ist."))
+          }">👻 ${T("library.ghost.take_short", "Als Ghost-Spur")}</button>`}
       </div>
 
       <div class="lib-detail-rows">
@@ -2026,6 +2031,8 @@ function mountLibrary(body, headerActions) {
       </div>`;
 
     box.querySelectorAll("[data-open]").forEach(b => { b.onclick = () => openIn(b.dataset.open); });
+    box.querySelectorAll("[data-ghost]").forEach(b => { b.onclick = () => alsGhost(_sel ? [_sel.path] : []); });
+    _ghostBannerBinden();
     initHelpTips(box);   // „?"-Erklärblasen der Detailspalte
 
     const nameInput = $("lib-d-name");
@@ -2321,6 +2328,45 @@ function mountLibrary(body, headerActions) {
   }
 
   /** Tour in ein Werkzeug übernehmen: derselbe Weg wie „Datei wählen". */
+  /* 👻 Ghost-Spuren aus dem Archiv — der Weg, den Marc am 27.08.2026 gesucht hat.
+   *
+   * Sein Ablauf: Im Animator „Aus dem Archiv …", im Archiv die Tour suchen, und
+   * dann stand dort nur „Im Animator öffnen" — womit sie **der Haupt-Track**
+   * wurde statt eine Ghost-Spur. Die Übergabe gab es zwar, aber ausschließlich
+   * über die Mehrfach-Auswahl (⌘-Klick), von der der Knopf nichts sagte.
+   *
+   * Jetzt gibt es sie dort, wo man sie sucht: an der einzelnen Tour. Und wer aus
+   * dem Animator kommt, sieht oben, wonach das Archiv gerade fragt.
+   */
+  function _ghostModus() { try { return !!window.__rzGhostAuswahl; } catch (_) { return false; } }
+
+  function alsGhost(pfade) {
+    const gute = (pfade || []).filter(Boolean);
+    if (!gute.length) return;
+    window.__rzPendingGhosts = gute;
+    window.__rzGhostAuswahl = false;
+    toast(T("library.ghosts.sent", "{n} Spur(en) an den Animator übergeben.")
+      .replace("{n}", gute.length), "success");
+    if (typeof switchMod === "function") switchMod("animator");
+  }
+
+  /** Hinweisleiste im Detail-Bereich, solange das Archiv für den Animator eine
+   *  Ghost-Spur sucht. Bewusst DORT, wo auch der Knopf sitzt — eine Leiste über
+   *  dem Gitter würde das Layout verschieben und beim ersten Klick verschwinden. */
+  function _ghostBannerHtml() {
+    if (!_ghostModus()) return "";
+    return `<div class="lib-ghost-bar" id="lib-ghost-bar">
+      <span>👻 ${T("library.ghost.mode",
+        "Ghost-Spur auswählen: Tour anklicken und „Als Ghost-Spur übernehmen“. Mehrere gehen mit ⌘/Strg-Klick.")}</span>
+      <button class="btn btn-ghost btn-sm" id="lib-ghost-bar-x" type="button">${T("common.cancel", "Abbrechen")}</button>
+    </div>`;
+  }
+
+  function _ghostBannerBinden() {
+    const x = document.getElementById("lib-ghost-bar-x");
+    if (x) x.onclick = () => { window.__rzGhostAuswahl = false; renderDetail(); };
+  }
+
   async function openIn(slug) {
     if (!_sel) return;
     if (!_sel.exists) { toast(T("library.file_gone", "Die Datei liegt nicht mehr an diesem Ort."), "error"); return; }

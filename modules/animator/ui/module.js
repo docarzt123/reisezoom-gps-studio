@@ -1360,7 +1360,7 @@ function mountAnimator(body, headerActions, opts) {
         // Im Archiv markiert man die Touren und schickt sie über
         // „Als Ghost übernehmen" zurück (window.__rzPendingGhosts).
         window.__rzGhostAuswahl = true;
-        toast(t("ghosts.pick_hint", "Touren im Archiv markieren und „👻 Als Ghost-Spur“ wählen."), "info", 7000);
+        toast(t("ghosts.pick_hint", "Im Archiv die Tour anklicken und rechts „👻 Als Ghost-Spur übernehmen“ wählen — NICHT „Im Animator öffnen“, das würde den Haupt-Track ersetzen."), "info", 9000);
         if (typeof switchMod === "function") switchMod("library");
       };
     }
