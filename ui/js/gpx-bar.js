@@ -428,7 +428,9 @@
       toast((r && r.error) || t("archiv.fehler", "Konnte nicht ins Archiv gelegt werden."), "error", 6000);
       return path;
     }
-    toast(t("archiv.aufgenommen", "Ins Archiv aufgenommen."), "success", 4000);
+    toast(r.cloud
+      ? t("archiv.aufgenommen_cloud", "Ins Archiv aufgenommen — sie wandert gleich auch in deine Cloud.")
+      : t("archiv.aufgenommen", "Ins Archiv aufgenommen."), "success", 5000);
     // Ab jetzt mit der Archiv-Fassung arbeiten — sonst zeigt die Leiste weiter
     // auf die Datei außerhalb, und die nächste Sitzung sucht sie dort.
     if (r.pfad && r.pfad !== path) { try { await window.loadGlobalGpx(r.pfad, { stumm: true }); } catch (_) {} }

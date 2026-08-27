@@ -302,6 +302,7 @@
   "archiv.nein": "Nein, danke",
   "archiv.ja": "Ja, ins Archiv",
   "archiv.aufgenommen": "Ins Archiv aufgenommen.",
+  "archiv.aufgenommen_cloud": "Ins Archiv aufgenommen — sie wandert gleich auch in deine Cloud.",
   "archiv.fehler": "Konnte nicht ins Archiv gelegt werden.",
   "animator.kf.world_drag_hint": "🌍 Erde sitzt zu tief? Einfach mit der Maus hochziehen — beim Loslassen wird der Keyframe automatisch aktualisiert.",
   "animator.kf.duplicated": "Keyframe dupliziert",

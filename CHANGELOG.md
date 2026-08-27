@@ -14,6 +14,27 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.554] – 2026-08-27
+
+### Behoben
+- **Der Auto-Sync-Fühler konnte eine Änderung übersehen.** Er verglich
+  `mtime` in ganzen Sekunden plus Dateigröße. SQLite schreibt oft in bereits
+  belegte Seiten — die Größe bleibt dann gleich, und fiel die Änderung in
+  dieselbe Sekunde wie der zuletzt gesehene Stand, war sie unsichtbar: Die Tour
+  wäre erst mit der nächsten Änderung in die Cloud gewandert. Jetzt
+  `st_mtime_ns`. Aufgefallen bei Marcs Frage „landet so eine tour dann auch
+  automatisch in der cloud?" — sie tut es, aber der Beweis dafür fehlte.
+
+### Geändert
+- Nach dem Aufnehmen ins Archiv sagt die Meldung dazu, wenn die Tour auch in die
+  Cloud wandert. Gelesen wird dafür nur die Marker-Datei, nie der Schlüsselbund.
+
+### Hinweis (keine Änderung nötig)
+- **Der Zielordner ist nirgends fest verdrahtet.** Er kommt aus den überwachten
+  Ordnern des Archivs; die von der App angelegten (Projekt-Importe,
+  Zusammengeführtes, Cloud-Touren) sind bewusst ausgenommen. Wer noch keinen
+  Ordner hat, bekommt „Dokumente › Reisezoom Touren" angelegt.
+
 ## [0.9.553] – 2026-08-27
 
 ### Hinzugefügt

@@ -376,6 +376,11 @@ egal in welchem Modul:
   hast du noch gar keinen, wird **Dokumente › Reisezoom Touren** angelegt.
 - **Nach dem Reparieren im Inspektor** kommt dieselbe Frage für den geänderten Track.
 
+**Und die Cloud?** Wer sie eingerichtet hat: Die aufgenommene Tour wandert von allein mit
+hoch — der Abgleich nimmt alles, was im Archiv steht, und merkt die Änderung selbst. Sofort
+passiert das nicht: Erst muss rund anderthalb Minuten Ruhe sein, damit nicht jede Kleinigkeit
+die Leitung belegt.
+
 Gefragt wird nur, wenn du selbst eine Datei öffnest. Beim App-Start, beim Klick im Archiv
 und bei Touren aus der Cloud passiert das still. Ein **„Nein"** lässt sich pro Tour merken
 (Häkchen im Dialog), dann kommt die Frage für diese Tour nie wieder.

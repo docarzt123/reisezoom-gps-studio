@@ -302,6 +302,7 @@
   "archiv.nein": "No, gracias",
   "archiv.ja": "Sí, añadir",
   "archiv.aufgenommen": "Añadida al archivo.",
+  "archiv.aufgenommen_cloud": "Añadida al archivo; en breve se enviará también a tu nube.",
   "archiv.fehler": "No se ha podido añadir al archivo.",
   "animator.kf.world_drag_hint": "🌍 ¿La Tierra está demasiado abajo? Arrástrala con el ratón hacia arriba — al soltar, el keyframe se actualiza automáticamente.",
   "animator.kf.duplicated": "Keyframe duplicado",
