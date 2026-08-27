@@ -14,6 +14,25 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.549] – 2026-08-27
+
+### Fixed
+- **Ghost-Spuren waren geladen, aber nicht zu sehen** (Marc, direkt nach dem
+  Fix davor). Drei Stellen, alle mit demselben Ergebnis — die Liste stimmte,
+  die Karte blieb leer:
+  1. Der Aufbau **stieg still aus**, solange der Kartenstil noch lud. Beim
+     Öffnen ist genau das der Normalfall, und danach rief ihn niemand mehr auf.
+     Jetzt holt `_whenStyleReady` ihn nach, sobald der Stil steht — dieselbe
+     Lehre wie beim Laufpunkt in v0.9.531: bei nicht fertigem Stil **nie** still
+     aussteigen.
+  2. Die Spuren wurden unter den Layer „preview-shadow" gehängt — den es ohne
+     eingeschalteten Schlagschatten gar nicht gibt. Mapbox wirft dann, und die
+     Spur fehlt. Der Bezug wird jetzt geprüft, notfalls kommt die Spur nach oben:
+     sichtbar ist besser als weg.
+  3. Ein **Wechsel des Kartenstils** wirft alle Ebenen weg; die Ghost-Spuren
+     wurden danach nicht neu aufgebaut. Jetzt schon.
+  Wache: tests/test_ghosts_beim_start.py prüft zusätzlich die Karten-Ebenen.
+
 ## [0.9.548] – 2026-08-27
 
 ### Fixed
