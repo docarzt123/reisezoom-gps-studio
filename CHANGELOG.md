@@ -14,6 +14,25 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.548] – 2026-08-27
+
+### Fixed
+- **Ghost-Spuren waren nach einem Neustart weg** (Marc). Gespeichert waren sie
+  die ganze Zeit — in seinem Projekt standen 14 Stück in der `sessions.json`.
+  Nur geholt hat sie niemand: Beim Start ist zuerst das Modul da und **erst
+  danach** die Sitzung, die Spuren kommen also über den Sitzungs-Listener nach.
+  Und genau der wurde nie registriert, weil er auf `_animSessionUnsubs` zugriff,
+  **bevor** dieses `const` deklariert war — der Zugriff warf, und ein leeres
+  `catch` schluckte den Fehler spurlos.
+  Der Listener steht jetzt unterhalb seiner Deklaration, und seine `catch`-Zweige
+  schreiben ins Protokoll statt zu schweigen. **Bereits gespeicherte Spuren sind
+  nicht verloren** — sie erscheinen nach dem Update wieder.
+  ⚠️ Dieselbe Falle wie beim Ghost-Umbau zwei Tage zuvor (DEVELOPER.md §9):
+  `let`/`const` unterhalb des ersten Zugriffs, still verschluckt.
+  Wache: tests/test_ghosts_beim_start.py spielt die Startreihenfolge in echtem
+  Chromium durch (Modul mounten, dann Sitzung laden) und prüft zusätzlich, dass
+  der Listener unter seiner Deklaration steht.
+
 ## [0.9.547] – 2026-08-27
 
 ### Fixed
