@@ -628,7 +628,12 @@
     // Bei Session-/Projekt-Wechsel alle Einstellungen + Labels neu übernehmen
     // (deckt auch den Fall ab, dass das Projekt erst NACH dem Mount bereitsteht).
     if (typeof onSessionChanged === "function") {
-      try { _sessUnsub = onSessionChanged(() => { if (!destroyed) applyProjectState(); }); } catch (_) {}
+      try {
+      _sessUnsub = onSessionChanged(() => {
+        try { if (!destroyed) applyProjectState(); }
+        catch (e) { applog && applog("warn", `[webkarte] nach Projektwechsel: ${e}`); }
+      });
+    } catch (e) { applog && applog("error", `[webkarte] Sitzungs-Listener: ${e}`); }
     }
     applyProjectState();   // Stand aus dem (evtl. schon aktiven) Projekt sofort anwenden
     loadTrack();
