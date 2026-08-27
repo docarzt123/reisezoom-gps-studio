@@ -386,6 +386,15 @@ class AnimatorConfig:
     track_color_stops: list = field(default_factory=list)
     # v0.9.210/211 (Reiseroute) — zusätzlicher Ghost = geladenes Wander-GPX
     # (andere Linie als die animierte Route). [[lon,lat],…]; leer = aus.
+    # 27.08.2026 (Marc) — BELIEBIG VIELE Ghost-Spuren, jede mit eigenem Aussehen.
+    # Anwendungsfall: der offizielle Wanderweg als durchgehende Linie, die eigenen
+    # geplanten Rundtouren dünn gestrichelt daneben, darüber die gelaufene Tour
+    # animiert. Ein Eintrag:
+    #   {"name": str, "coords": [[lon,lat], …], "color": "#rrggbb",
+    #    "opacity": 0..1, "width": px, "dashed": bool, "show": bool}
+    # Die alten Einzelfelder `ghost_gpx_*` gelten weiter (ältere Projekte) und
+    # werden beim Rendern als erster Ghost geführt.
+    ghosts: list = field(default_factory=list)
     ghost_gpx_coords: list = field(default_factory=list)
     ghost_gpx_color: str = "#7fa8ff"
     ghost_gpx_opacity: float = 0.60
@@ -807,6 +816,32 @@ def _hex_to_rgb(hex_color: str, fallback=(0, 0, 0)) -> tuple[int, int, int]:
         return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
     except Exception:
         return fallback
+
+
+def ghost_liste(cfg) -> list:
+    """Alle sichtbaren Ghost-Spuren in Zeichenreihenfolge (27.08.2026).
+
+    Führt die alte Einzel-Fassung (`ghost_gpx_coords` + `ghost_gpx_*`) und die
+    neue Liste (`ghosts`) zusammen, damit ältere Projekte unverändert aussehen.
+    Spuren ohne mindestens zwei Punkte oder mit `show: False` fallen raus.
+    """
+    raus = []
+    alt_coords = getattr(cfg, "ghost_gpx_coords", None) or []
+    if len(alt_coords) > 1:
+        raus.append({
+            "name": "", "coords": alt_coords,
+            "color": str(getattr(cfg, "ghost_gpx_color", "#7fa8ff")),
+            "opacity": float(getattr(cfg, "ghost_gpx_opacity", 0.60)),
+            "width": float(getattr(cfg, "ghost_gpx_width", 2.5)),
+            "dashed": bool(getattr(cfg, "ghost_gpx_dashed", True)),
+            "show": True,
+        })
+    for g in (getattr(cfg, "ghosts", None) or []):
+        if not isinstance(g, dict) or not g.get("show", True):
+            continue
+        if len(g.get("coords") or []) > 1:
+            raus.append(g)
+    return raus
 
 
 def _bounds_zoom(points: list[TrackPoint], w: int, h: int) -> tuple[tuple[float, float, float, float], tuple[float, float], float]:
@@ -2072,23 +2107,33 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
 
     # v0.9.210 (Reiseroute) — zusätzlicher Ghost = geladenes Wander-GPX (andere
     # Linie als die animierte Route). Faint + gestrichelt, als eigener Layer.
+    # 27.08.2026 — Aus EINEM Ghost wurden beliebig viele. Jeder bekommt eine
+    # eigene Quelle UND einen eigenen Layer: Farbe, Breite, Deckkraft und
+    # Strichelung sind Paint-Eigenschaften des LAYERS und ließen sich in einem
+    # gemeinsamen Layer nicht je Spur unterscheiden (dieselbe Falle wie bei der
+    # Etappen-Maske, siehe __rzSegMask).
     _gpx_ghost_js = "// gpx-ghost off"
-    _gg_coords = getattr(cfg, "ghost_gpx_coords", None) or []
-    if len(_gg_coords) > 1:
-        _gg = json.dumps([[float(c[0]), float(c[1])] for c in _gg_coords])
+    _ghosts_alle = ghost_liste(cfg)
+    if _ghosts_alle:
         _gg_zoff = ",'line-z-offset':150" if cfg.enable_terrain else ""
-        _gg_dash = ",'line-dasharray':[2,2]" if getattr(cfg, "ghost_gpx_dashed", True) else ""
-        _gg_col = str(getattr(cfg, "ghost_gpx_color", "#7fa8ff"))
-        _gg_op = max(0.0, min(1.0, float(getattr(cfg, "ghost_gpx_opacity", 0.60))))
-        _gg_w = float(getattr(cfg, "ghost_gpx_width", 2.5))
-        _gpx_ghost_js = (
-            "map.addSource('gpx-ghost',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:"
-            + _gg + "}}});"
-            "map.addLayer({id:'gpx-ghost',type:'line',source:'gpx-ghost',"
-            "layout:{'line-cap':'round','line-join':'round'},"
-            f"paint:{{'line-color':'{_gg_col}','line-width':{_gg_w:.2f},'line-opacity':{_gg_op:.2f}"
-            + _gg_dash + _gg_zoff + "}});"
-        )
+        _teile = []
+        for _i, _g in enumerate(_ghosts_alle):
+            _koord = json.dumps([[float(c[0]), float(c[1])] for c in _g["coords"]])
+            _dash = ",'line-dasharray':[2,2]" if _g.get("dashed", True) else ""
+            _col = str(_g.get("color") or "#7fa8ff")
+            _op = max(0.0, min(1.0, float(_g.get("opacity", 0.60))))
+            _w = float(_g.get("width", 2.5))
+            # Der erste heißt weiter `gpx-ghost` — auf diesen Namen prüfen
+            # bestehende Tests und der Reiseroute-Pfad.
+            _id = "gpx-ghost" if _i == 0 else f"gpx-ghost-{_i}"
+            _teile.append(
+                "map.addSource('" + _id + "',{type:'geojson',data:{type:'Feature',"
+                "geometry:{type:'LineString',coordinates:" + _koord + "}}});"
+                "map.addLayer({id:'" + _id + "',type:'line',source:'" + _id + "',"
+                "layout:{'line-cap':'round','line-join':'round'},"
+                "paint:{'line-color':'" + _col + "',"
+                f"'line-width':{_w:.2f},'line-opacity':{_op:.2f}" + _dash + _gg_zoff + "}});")
+        _gpx_ghost_js = "".join(_teile)
 
     # v0.9.286b (Marc-Bug: 4K flimmert „zu scharf") — leichter Tiefpass NUR auf
     # die WebGL-Karte (#map canvas = Satellit + Track-Linie), NICHT auf Overlays/
@@ -4049,6 +4094,16 @@ async def render(
         page.on("console", _on_console)
         page.on("pageerror", _on_pageerror)
 
+        # RZ_DUMP_HTML=/pfad — die fertige Render-Seite mitschreiben. Nur zum
+        # Nachsehen beim Entwickeln (welche Layer entstehen wirklich?), im
+        # Normalbetrieb aus.
+        _dump = os.environ.get("RZ_DUMP_HTML")
+        if _dump:
+            try:
+                Path(_dump).write_text(html, encoding="utf-8")
+                _log.info("Render-HTML geschrieben: %s (%d KB)", _dump, len(html) // 1024)
+            except OSError as e:
+                _log.warning("RZ_DUMP_HTML: %s", e)
         await page.set_content(html)
 
         ready = False

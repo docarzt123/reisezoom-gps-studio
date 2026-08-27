@@ -1203,6 +1203,21 @@ No hace falta plugin de WordPress; sin Mapbox/CDN — el archivo funciona de for
 
 ---
 
+### Trazas fantasma: varios tracks de fondo (desde v0.9.544)
+
+A veces una ruta solo se entiende en su contexto: el sendero oficial, tu
+planificación y lo que al final caminaste. Para eso está la sección
+**👻 Trazas fantasma** en el animador.
+
+Añade tantos tracks como necesites — **📚 Desde el archivo** (marca allí las
+rutas y elige «👻 Como traza fantasma en el animador») o **📂 Archivo**. Cada
+traza se ajusta por separado: color, opacidad, grosor de línea y discontinua o
+continua. La casilla de la izquierda oculta una traza sin borrarla.
+
+Un montaje típico: el sendero oficial marcado y continuo, las circulares
+planificadas finas y discontinuas, y encima tu ruta real, animada. Las trazas
+forman parte del proyecto y se ven en el vídeo final.
+
 ## 6 · Módulo: Geotagger — etiquetar fotos con GPS
 
 > **El Geotagger existe en dos variantes:**
