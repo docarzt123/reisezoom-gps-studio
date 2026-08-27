@@ -1323,14 +1323,6 @@ function mountAnimator(body, headerActions, opts) {
   // Sektion-Akkordeons (v0.6.0): alle data-accordion-section-Elemente
   // klickbar machen + State persistieren.
   try { _ovSyncGroups(); } catch (_) {}
-  if (typeof onSessionChanged === "function") {
-    try { _animSessionUnsubs.push(onSessionChanged(() => {
-      try { _ovSyncGroups(); } catch (_) {}
-      try { _alteZoomKeyframesPruefen(); } catch (_) {}
-      // Projektwechsel: die Ghost-Spuren des NEUEN Projekts holen.
-      try { _ghostSpurenLaden(); _ghostListeZeichnen(); _ghostSpurenAufbauen(); } catch (_) {}
-    })); } catch (_) {}
-  }
   try { _alteZoomKeyframesPruefen(); } catch (_) {}
   if (window.setupSectionAccordions) {
     window.setupSectionAccordions(_MODKEY, document.getElementById("anim-panel"));
@@ -1472,6 +1464,27 @@ function mountAnimator(body, headerActions, opts) {
   let _animPendingToursTimer = null;
   // Abmelde-Funktionen der Projekt-Abos; im Cleanup abgearbeitet.
   const _animSessionUnsubs = [];
+
+  // ⚠️ 27.08.2026 — Dieser Block MUSS unterhalb von `_animSessionUnsubs` stehen.
+  // Vorher stand er weiter oben und griff auf das `const` zu, bevor es
+  // existierte: Der Zugriff warf, das leere `catch` schluckte es, und der
+  // Listener wurde nie registriert. Sichtbare Folge (Marc): Gespeicherte
+  // Ghost-Spuren waren nach einem Neustart weg — sie stehen in der
+  // sessions.json, aber niemand holte sie, sobald die Sitzung geladen war.
+  // Beim Mount ist `getActiveProject()` noch leer; erst dieser Listener bringt
+  // sie. Dieselbe Falle wie beim Ghost-Umbau, siehe DEVELOPER.md §9.
+  if (typeof onSessionChanged === "function") {
+    try { _animSessionUnsubs.push(onSessionChanged(() => {
+      try { _ovSyncGroups(); } catch (e) { applog && applog("warn", `[anim] _ovSyncGroups: ${e}`); }
+      try { _alteZoomKeyframesPruefen(); } catch (e) { applog && applog("warn", `[anim] kf-Prüfung: ${e}`); }
+      // Sitzung/Projekt gewechselt (auch beim Start!) → Ghost-Spuren holen.
+      try {
+        _ghostSpurenLaden();
+        _ghostListeZeichnen();
+        _ghostSpurenAufbauen();
+      } catch (e) { applog && applog("warn", `[ghost] nach Projektwechsel: ${e}`); }
+    })); } catch (e) { applog && applog("error", `[anim] Sitzungs-Listener: ${e}`); }
+  }
 
   /**
    * v0.9.39 (Marc-Bug-Report): liefert den TRACK-AUTO-FIT-Zoom als Basis
@@ -2309,12 +2322,16 @@ function mountAnimator(body, headerActions, opts) {
 
   function _ghostSpurenLaden() {
     let a = null;
+    let woher = "nichts";
     try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
+    if (a && Array.isArray(a.ghosts)) woher = "Projekt";
     if (!a || !Array.isArray(a.ghosts)) {
       const g = (typeof _settingsCache !== "undefined" && _settingsCache && _settingsCache[_MODKEY]) || null;
       a = (g && Array.isArray(g.ghosts)) ? g : null;
     }
+    if (woher === "nichts" && a && Array.isArray(a.ghosts)) woher = "Einstellungen";
     _ghostSpuren = (a && Array.isArray(a.ghosts)) ? a.ghosts.slice() : [];
+    applog && applog("info", `[ghost] geladen: ${_ghostSpuren.length} aus ${woher} (Schlüssel ${_MODKEY})`);
     return _ghostSpuren;
   }
 
