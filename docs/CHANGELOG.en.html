@@ -113,9 +113,20 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.544</span>
+    <span class="version-num">v0.9.545</span>
     <span class="version-date">27 August 2026</span>
     <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">RAW photos stay where they belong.</p>
+
+  <div class="highlight">
+    <strong>🌍 No more photos in the Atlantic.</strong> Some cameras write an empty GPS block of 0/0 into every RAW file — a position in the middle of the Gulf of Guinea. The geotagger took that for a real capture position and placed the photos there, while the JPEGs of the same shot sat correctly on the track. Empty blocks are now recognised during the fast read as well and ignored, so matching by time takes over. Affects RAW and HEIC.</div>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.544</span>
+    <span class="version-date">27 August 2026</span>
   </div>
   <p class="version-tagline">Several tracks in the background — each one your way.</p>
 

@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.544"
+APP_VERSION = "0.9.545"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -6699,7 +6699,15 @@ class Api:
             try:
                 meta = cexif._exiftool_read_video_meta(path)
                 gps = None
-                if meta["lat"] is not None and meta["lon"] is not None:
+                # 27.08.2026 (Marc, Insta360 Luna Pro) — NICHT nur auf „vorhanden"
+                # prüfen: Die Kamera schreibt in jede DNG einen leeren GPS-Block
+                # mit 0/0 („Null-Island" im Golf von Guinea). Ohne diese Prüfung
+                # galten die Fotos als „hat schon GPS", und diese Position
+                # gewinnt gegen die Zuordnung über die Uhrzeit — alle DNGs
+                # landeten mitten im Atlantik, während die JPEGs derselben
+                # Aufnahme richtig saßen. `cexif.read_gps()` filtert das längst;
+                # dieser schnelle Ladeweg (exiftool-Daemon) tat es nicht.
+                if cexif._gps_is_meaningful(meta["lat"], meta["lon"]):
                     gps = {"lat": meta["lat"], "lon": meta["lon"], "alt": meta["alt"]}
                 return meta["datetime"], gps, meta.get("camera"), meta.get("tz_minutes") is not None, meta.get("tz_minutes")
             except Exception:
@@ -6708,7 +6716,15 @@ class Api:
             try:
                 meta = cexif._exiftool_read_meta(path)
                 gps = None
-                if meta["lat"] is not None and meta["lon"] is not None:
+                # 27.08.2026 (Marc, Insta360 Luna Pro) — NICHT nur auf „vorhanden"
+                # prüfen: Die Kamera schreibt in jede DNG einen leeren GPS-Block
+                # mit 0/0 („Null-Island" im Golf von Guinea). Ohne diese Prüfung
+                # galten die Fotos als „hat schon GPS", und diese Position
+                # gewinnt gegen die Zuordnung über die Uhrzeit — alle DNGs
+                # landeten mitten im Atlantik, während die JPEGs derselben
+                # Aufnahme richtig saßen. `cexif.read_gps()` filtert das längst;
+                # dieser schnelle Ladeweg (exiftool-Daemon) tat es nicht.
+                if cexif._gps_is_meaningful(meta["lat"], meta["lon"]):
                     gps = {"lat": meta["lat"], "lon": meta["lon"], "alt": meta["alt"]}
                 return meta["datetime"], gps, meta.get("camera"), meta.get("tz_minutes") is not None, meta.get("tz_minutes")
             except Exception:

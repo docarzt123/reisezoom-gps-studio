@@ -1217,6 +1217,12 @@ Reads the capture time from the EXIF data of each photo and finds the matching t
 - **A single consistent flow**, whether you loaded the photos via **drag & drop** or via **"Choose folder"**: a clean folder with the tagged images always results. The done dialog shows **"Saved in …"** + **"Open folder"**.
 - **Tag the originals directly after all?** Just choose the **folder of your originals** as the target. Then the app asks **"Really overwrite the originals here? (no backup)"** — if you confirm, they're tagged in place. Without confirmation, the app **never** overwrites an original.
 
+> **Some cameras write an empty GPS field.** Insta360, for example, puts 0/0 into
+> every RAW file — a spot in the Gulf of Guinea. The app recognises such empty
+> fields and ignores them (since v0.9.545 during the fast read as well), so your
+> photos are matched to the track by capture time. If RAW files used to end up
+> “in the Atlantic” for you: that was the reason.
+
 ### Ghost tracks: several routes in the background (since v0.9.544)
 
 Sometimes a tour only makes sense in context: the official trail, your plan, and

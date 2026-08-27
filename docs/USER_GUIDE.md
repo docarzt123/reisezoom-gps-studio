@@ -1289,6 +1289,12 @@ Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den
 - **Ein einheitlicher Ablauf**, egal ob du die Fotos per **Drag & Drop** oder über **„Ordner wählen"** geladen hast: es entsteht immer ein sauberer Ordner mit den getaggten Bildern. Der Fertig-Dialog zeigt **„Gespeichert in …"** + **„Ordner öffnen"**.
 - **Originale doch direkt taggen?** Wähle einfach den **Ordner deiner Originale** als Ziel. Dann fragt die App **„Originale hier wirklich überschreiben? (kein Backup)"** — bestätigst du, wird in-place getaggt. Ohne Bestätigung überschreibt die App **nie** ein Original.
 
+> **Manche Kameras schreiben ein leeres GPS-Feld.** Insta360 legt zum Beispiel in
+> jede RAW-Datei Koordinaten 0/0 — eine Stelle mitten im Golf von Guinea. Solche
+> leeren Felder erkennt und ignoriert die App (seit v0.9.545 auch beim schnellen
+> Einlesen), damit deine Fotos über die Aufnahmezeit auf den Track kommen. Wenn
+> dir früher RAWs „im Atlantik" begegnet sind: Das war der Grund.
+
 ### Ghost-Spuren: mehrere Tracks im Hintergrund (seit v0.9.544)
 
 Manchmal erzählt eine Tour erst im Zusammenhang: der offizielle Wanderweg, deine
