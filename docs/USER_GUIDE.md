@@ -1304,13 +1304,16 @@ Abschnitt **👻 Ghost-Spuren**.
 Füge so viele Tracks hinzu, wie du brauchst — **📚 Aus dem Archiv** oder
 **📂 Datei**.
 
-> **Wichtig beim Weg übers Archiv:** Klick im Archiv die Tour an und wähle
-> **👻 Als Ghost-Spur** (rechts in der Detailleiste oder im Karten-Popup).
-> **Nicht** „Im Animator öffnen" — das macht die Tour zum **Haupt-Track** und
-> ersetzt deine Tour. Kommst du über den Ghost-Knopf aus dem Animator, steht oben
-> im Archiv eine Leiste, die genau daran erinnert; die Ghost-Übernahme ist dann
-> der hervorgehobene Knopf. Mehrere Spuren auf einmal: mit ⌘/Strg-Klick markieren
-> und „👻 Als Ghost-Spur in den Animator" wählen.
+> **Der Weg übers Archiv:** Über **📚 Aus dem Archiv** wird das Archiv zum
+> **reinen Auswähler** — oben steht, wonach gefragt wird, und an der Tour gibt es
+> nur noch **👻 Als Ghost-Spur übernehmen** (Doppelklick auf die Tour tut
+> dasselbe). „Im Animator öffnen", Tour-Karte, Fotos verorten und der Rest sind
+> so lange ausgeblendet, damit die Tour nicht versehentlich dein **Haupt-Track**
+> wird. Mehrere auf einmal: mit ⌘/Strg-Klick markieren und „👻 Diese N als
+> Ghost-Spuren übernehmen". Mit **Abbrechen** ist das Archiv wieder normal.
+>
+> Außerhalb dieses Modus steht **👻 Als Ghost-Spur** trotzdem an jeder Tour —
+> falls du erst im Archiv stöberst und dann entscheidest.
 
 Jede Spur stellst du einzeln ein: Farbe, Deckkraft, Linienbreite und gestrichelt
 oder durchgezogen. Das Häkchen links blendet eine Spur aus, ohne sie zu löschen.

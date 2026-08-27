@@ -14,6 +14,30 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.552] – 2026-08-27
+
+### Geändert
+- **Das Archiv ist im Ghost-Modus ein reiner Auswähler.** Marc zur Fassung
+  davor: „wenn ich über den animator komme mit ‚aus dem archiv‘, dann will ich
+  doch definitiv nur eine ghost auswählen, warum kann ich dann überhaupt alles
+  andere in animator machen??" Zu Recht — ein Modus, der weiter alle anderen
+  Wege anbietet, ist kein Modus, sondern eine Fehlerquelle mit Hinweis daneben.
+
+  Solange das Archiv für den Animator eine Ghost-Spur sucht, steht dort nur noch
+  die Übernahme:
+  - Detailleiste: **nur** „👻 Als Ghost-Spur übernehmen", über die volle Breite.
+    „Im Animator öffnen", Tour-Karte, Daten-Animator, Fotos verorten und
+    Inspektor sind weg.
+  - Karten-Popup: ebenso nur die Übernahme.
+  - Mehrfach-Auswahl: nur „👻 Diese N als Ghost-Spuren übernehmen" — kein
+    Zusammenführen, kein Favorit, kein Ausblenden, kein Papierkorb.
+  - **Doppelklick** auf eine Tour übernimmt sie als Ghost, statt sie zu öffnen.
+  - Abbrechen in der Hinweisleiste stellt alles wieder her.
+
+  Die Verdrahtung der ausgeblendeten Knöpfe ist abgesichert — ein fehlender
+  Knopf hätte sonst die restlichen Handler mitgerissen. Wächter erweitert:
+  `tests/test_ghost_aus_archiv.py`.
+
 ## [0.9.551] – 2026-08-27
 
 ### Behoben
