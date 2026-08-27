@@ -27,7 +27,8 @@ def _format_traceback(exc_type, exc_value, exc_tb) -> str:
     return "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
 
 
-def setup_logging(app_support_dir: Path, level: int = logging.INFO) -> Path:
+def setup_logging(app_support_dir: Path, level: int = logging.INFO,
+                  app_version: str = "") -> Path:
     """Initialisiert das globale Logging. Idempotent — mehrfach gerufen ist safe.
 
     Returns: Pfad zur Logdatei (auch wenn das Setup fehlschlägt, wird ein
@@ -106,7 +107,14 @@ def setup_logging(app_support_dir: Path, level: int = logging.INFO) -> Path:
 
     log = logging.getLogger("logger")
     log.info("─" * 60)
-    log.info("Reisezoom GPS Studio gestartet — Logdatei: %s", log_path)
+    # ⚠️ Die VERSION gehört in die erste Zeile (27.08.2026). Ohne sie kostet
+    # jeder Fehlerbericht doppelt Zeit: Ein Beta-Tester meldete, dass ein
+    # Doppelklick auf eine Projektdatei nichts lädt — die Funktion gab es in
+    # seiner Fassung schlicht noch nicht. Herausgefunden habe ich das nur, weil
+    # die Nummer zufällig auf einem seiner Bildschirmfotos stand. Steht sie im
+    # Log, ist die Frage „welche Version läuft da?" in einer Zeile beantwortet.
+    log.info("Reisezoom GPS Studio %s gestartet — Logdatei: %s",
+             app_version or "(Version unbekannt)", log_path)
     log.info("OS: %s", get_os_label())
     log.info("Gerät: %s", get_hardware_label())
     log.info("Python %s · pid=%s", sys.version.split()[0], _safe_pid())
