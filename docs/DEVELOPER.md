@@ -353,6 +353,26 @@ entsteht früher oder später eine Stelle, an der Klartext über die Leitung geh
 > nie die Bibliothek (Beta-Tester: 103k Dateien). Wächter:
 > `tests/test_cloud_projekte_im_umschlag.py`.
 
+> 🔁 **Kehrseite des Hashes: Reparieren kostet die Sitzung.** Weil die Identität
+> an den Koordinaten hängt, ist ein geheilter Track eine ANDERE Tour — mit leerer
+> Projektliste. Das ist kein Fehler, sondern der Preis der Wiedererkennung nach
+> dem Umbenennen; gemeldet hat es Marc am 27.08.2026 („Stand jetzt muss ich im
+> animator dann alles neu bauen"). Antwort: `session_projekte_uebernehmen(
+> quelle_hash, ziel_hash)` kopiert ALLE Projekte samt allen Modulbereichen
+> (`animator`, `tourmap`, `geotagger`, `heightanim`, `photos`, `signs`) auf die
+> Zielsitzung, entfernt dort das leere Standard-Projekt und setzt das zuletzt
+> aktive wieder aktiv. Die Quelle bleibt unangetastet.
+> **Zwei Fallen beim Anschluss:** (1) Der Quell-Hash muss VOR `loadGlobalGpx()`
+> gelesen werden — danach zeigt `getActiveSession()` bereits auf die neue Tour.
+> (2) Nach der Übernahme muss `sessionActivate()` erneut laufen, sonst hält die
+> Oberfläche die eben kopierten Projekte weiter für nicht vorhanden.
+> **Fachlich nicht sauber machbar:** Keyframes, Schilder und Foto-Pins sitzen an
+> einer relativen Position (0…1). Wird der Anfang gekappt, verschiebt sich alles
+> um genau diesen Anteil. Ein Umrechnen wäre nur mit Zuordnung alt→neu Punkt für
+> Punkt möglich, die das Heilen nicht führt — deshalb wird der Vorbehalt
+> **ausgesprochen** statt kaschiert (Dialogtext + Warnung ab 5 % Punktabweichung).
+> Wächter: `tests/test_projekte_uebernehmen.py`.
+
 **Fünf Fallen, jede mit einem Test dahinter:**
 
 1. **Prüfsummen über den Klartext, nie über den Umschlag.** Jeder Umschlag
