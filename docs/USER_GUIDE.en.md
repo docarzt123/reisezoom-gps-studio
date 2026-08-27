@@ -1217,6 +1217,21 @@ Reads the capture time from the EXIF data of each photo and finds the matching t
 - **A single consistent flow**, whether you loaded the photos via **drag & drop** or via **"Choose folder"**: a clean folder with the tagged images always results. The done dialog shows **"Saved in …"** + **"Open folder"**.
 - **Tag the originals directly after all?** Just choose the **folder of your originals** as the target. Then the app asks **"Really overwrite the originals here? (no backup)"** — if you confirm, they're tagged in place. Without confirmation, the app **never** overwrites an original.
 
+### Ghost tracks: several routes in the background (since v0.9.544)
+
+Sometimes a tour only makes sense in context: the official trail, your plan, and
+what you actually walked. That is what the **👻 Ghost tracks** section in the
+animator is for.
+
+Add as many tracks as you need — **📚 From the archive** (select the tours there
+and choose “👻 As ghost track in the animator”) or **📂 File**. Each track is set
+up on its own: colour, opacity, line width, and dashed or solid. The checkbox on
+the left hides a track without deleting it.
+
+A typical setup: the official trail strong and solid, the planned loops thin and
+dashed, and on top your actual tour, animated. The tracks belong to the project
+and appear in the finished video.
+
 ### Time-zone magic
 The app reads the `OffsetTimeOriginal` EXIF tag from each photo and converts the
 capture time to UTC. If your camera writes that tag, the track fits **right

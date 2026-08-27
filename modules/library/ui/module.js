@@ -1756,6 +1756,10 @@ function mountLibrary(body, headerActions) {
 
       <div class="lib-actions" style="margin-top:16px;">
         <button class="btn btn-primary btn-sm" id="lib-m-merge" style="width:100%;">${T("library.merge.action", "🧭 Zu einem Video zusammenführen …")}</button>
+      <!-- 27.08.2026 — Markierte Touren als Ghost-Spuren in den Animator: nicht
+           animiert, sondern als Hintergrundlinien (offizieller Weg, Planungen …).
+           Gleicher Übergabeweg wie „Alle im Animator" (window.__rzPendingGhosts). -->
+      <button class="btn btn-sm" id="lib-m-ghosts" style="width:100%;margin-top:6px;">${T("library.ghosts.action", "👻 Als Ghost-Spur in den Animator")}</button>
       </div>
       <div class="lib-actions">
         <button class="btn btn-ghost btn-sm" id="lib-m-fav">★ ${T("library.fav_on", "Als Favorit")}</button>
@@ -1788,6 +1792,17 @@ function mountLibrary(body, headerActions) {
 
     $("lib-m-clear").onclick = () => { _multi.clear(); renderView(); renderDetail(); };
     $("lib-m-merge").onclick = () => openMergeDialog(multiItems());
+    const ghostBtn = $("lib-m-ghosts");
+    if (ghostBtn) {
+      ghostBtn.onclick = () => {
+        const pfade = multiItems().map(i => i.path).filter(Boolean);
+        if (!pfade.length) return;
+        window.__rzPendingGhosts = pfade;
+        toast(T("library.ghosts.sent", "{n} Spur(en) an den Animator übergeben.")
+          .replace("{n}", pfade.length), "success");
+        if (typeof switchMod === "function") switchMod("animator");
+      };
+    }
 
     $("lib-m-act").onchange = async (e) => {
       const v = e.target.value;

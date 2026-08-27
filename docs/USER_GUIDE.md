@@ -1289,6 +1289,21 @@ Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den
 - **Ein einheitlicher Ablauf**, egal ob du die Fotos per **Drag & Drop** oder über **„Ordner wählen"** geladen hast: es entsteht immer ein sauberer Ordner mit den getaggten Bildern. Der Fertig-Dialog zeigt **„Gespeichert in …"** + **„Ordner öffnen"**.
 - **Originale doch direkt taggen?** Wähle einfach den **Ordner deiner Originale** als Ziel. Dann fragt die App **„Originale hier wirklich überschreiben? (kein Backup)"** — bestätigst du, wird in-place getaggt. Ohne Bestätigung überschreibt die App **nie** ein Original.
 
+### Ghost-Spuren: mehrere Tracks im Hintergrund (seit v0.9.544)
+
+Manchmal erzählt eine Tour erst im Zusammenhang: der offizielle Wanderweg, deine
+Planung, und was du am Ende wirklich gelaufen bist. Dafür gibt es im Animator den
+Abschnitt **👻 Ghost-Spuren**.
+
+Füge so viele Tracks hinzu, wie du brauchst — **📚 Aus dem Archiv** (dort die
+Touren markieren und „👻 Als Ghost-Spur in den Animator" wählen) oder **📂 Datei**.
+Jede Spur stellst du einzeln ein: Farbe, Deckkraft, Linienbreite und gestrichelt
+oder durchgezogen. Das Häkchen links blendet eine Spur aus, ohne sie zu löschen.
+
+Ein typischer Aufbau: der offizielle Weg kräftig und durchgezogen, die geplanten
+Runden dünn gestrichelt, und darüber läuft animiert deine tatsächliche Tour. Die
+Spuren gehören zum Projekt und sind im fertigen Video zu sehen.
+
 ### Zeitzonen-Magie
 Die App liest den `OffsetTimeOriginal`-EXIF-Tag aus jedem Foto und rechnet die
 Aufnahmezeit nach UTC um. Schreibt deine Kamera diesen Tag, passt der Track

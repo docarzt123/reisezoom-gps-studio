@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.543"
+APP_VERSION = "0.9.544"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2852,6 +2852,48 @@ class Api:
 
     # ── Animator ──────────────────────────────────────────────────────────────
 
+    def ghosts_laden(self, pfade: list = None, aus_dialog: bool = False) -> dict:
+        """Ghost-Spuren laden — aus dem Archiv (Pfade) oder per Datei-Dialog.
+
+        27.08.2026 (Marc): „mach so, dass man n ghosts hinzufügen kann und für
+        jeden ghost einzeln das aussehen bestimmen kann. man kann den entweder
+        aus dem archiv holen oder hochladen."
+
+        Liefert je Spur Name und ausgedünnte Koordinaten. Ausgedünnt wird
+        bewusst kräftig (600 Punkte): Ghosts sind Hintergrundlinien, und bei
+        einem Dutzend davon würde die volle Auflösung das Render-HTML unnötig
+        aufblähen. Läuft ohne Cloud.
+        """
+        try:
+            if aus_dialog:
+                pfade = self.pick_file("open", ("Tracks (*.gpx;*.fit;*.kml;*.kmz;*.tcx;*.geojson;*.json;*.nmea)",), True)
+            pfade = [str(x) for x in (pfade or []) if x]
+            if not pfade:
+                return {"ok": True, "ghosts": [], "cancelled": True}
+            raus, fehler = [], []
+            for pf in pfade:
+                try:
+                    gpx = self._ensure_gpx(pf)
+                    pts, stats = cgpx.parse_gpx(gpx)
+                    ds = cgpx.downsample(pts, 600)
+                    if len(ds) < 2:
+                        fehler.append(f"{Path(pf).name}: zu wenige Punkte")
+                        continue
+                    raus.append({
+                        "name": (stats.name or Path(pf).stem)[:60],
+                        "path": pf,
+                        "coords": [[p.lon, p.lat] for p in ds],
+                        "km": round((stats.distance_m or 0) / 1000.0, 1),
+                    })
+                except Exception as e:      # noqa: BLE001
+                    fehler.append(f"{Path(pf).name}: {e}")
+            log.info("ghosts_laden: %d von %d geladen%s", len(raus), len(pfade),
+                     f" · Fehler: {fehler}" if fehler else "")
+            return {"ok": True, "ghosts": raus, "fehler": fehler}
+        except Exception as e:              # noqa: BLE001
+            log.exception("ghosts_laden")
+            return {"ok": False, "error": str(e)}
+
     def animator_load_gpx(self, path: str) -> dict:
         """Lädt eine GPX, gibt downsampled GeoJSON + Stats fürs UI zurück.
         Andere Track-Formate werden vorher automatisch nach GPX konvertiert."""
@@ -3383,6 +3425,7 @@ class Api:
             track_colors_source=str(params.get("track_colors_source", "distance")),
             track_color_stops=list(params.get("track_color_stops") or []),
             ghost_gpx_coords=(params.get("ghost_gpx_coords") or []),
+            ghosts=(params.get("ghosts") or []),      # 27.08.2026 — N Ghost-Spuren
             ghost_gpx_color=str(params.get("ghost_gpx_color", "#7fa8ff")),
             ghost_gpx_opacity=float(params.get("ghost_gpx_opacity", 0.60)),
             ghost_gpx_width=float(params.get("ghost_gpx_width", 2.5)),
@@ -3661,6 +3704,7 @@ class Api:
             track_colors_source=str(params.get("track_colors_source", "distance")),
             track_color_stops=list(params.get("track_color_stops") or []),
             ghost_gpx_coords=(params.get("ghost_gpx_coords") or []),
+            ghosts=(params.get("ghosts") or []),      # 27.08.2026 — N Ghost-Spuren
             ghost_gpx_color=str(params.get("ghost_gpx_color", "#7fa8ff")),
             ghost_gpx_opacity=float(params.get("ghost_gpx_opacity", 0.60)),
             ghost_gpx_width=float(params.get("ghost_gpx_width", 2.5)),

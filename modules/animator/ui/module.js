@@ -75,6 +75,17 @@ function mountAnimator(body, headerActions, opts) {
     `;
   }
 
+  // ⚠️ EIGENER Zustand, kein Durchgriff auf Projekt/Einstellungen bei JEDEM
+  // Zugriff. Der erste Anlauf legte, wenn Projekt und Einstellungen fehlten, ein
+  // WEGWERF-Objekt an — Hinzufügen lief ins Leere.
+  //
+  // ⚠️ Und die Deklaration MUSS hier oben stehen, vor dem ersten Zugriff:
+  // `let` ist bis zur Deklarationszeile gesperrt (TDZ). Weiter unten deklariert
+  // warf der Aufbau beim Öffnen „Cannot access '_ghostSpuren' before
+  // initialization" — und weil das in einem `catch (_) {}` steckte, blieb die
+  // Liste einfach leer, ohne ein Wort. Beides ist jetzt behoben.
+  let _ghostSpuren = [];
+
   body.innerHTML = `
     <aside class="panel" id="anim-panel">
 
@@ -233,6 +244,25 @@ function mountAnimator(body, headerActions, opts) {
       </section>
 
       <!-- Track (Akkordeon) — Farbe, Dicke, Schlagschatten, Detail-Punkte -->
+      <!-- 27.08.2026 (Marc) — Ghost-Spuren: beliebig viele Referenzlinien hinter
+           der Animation, jede mit eigenem Aussehen. Sein Anwendungsfall: der
+           offizielle Wanderweg als durchgehende Linie, die geplanten Rundtouren
+           dünn gestrichelt, darüber die gelaufene Tour animiert. -->
+      <section class="section" data-accordion-section="ghosts">
+        <button class="section-collapse-header" type="button">
+          <span>${t("ghosts.section", "👻 Ghost-Spuren")}</span>
+          <span class="collapse-arrow">▸</span>
+        </button>
+        <div class="section-collapse-body" hidden>
+          <p class="hint">${t("ghosts.intro", "Weitere Tracks als schwache Linien im Hintergrund — etwa der offizielle Weg oder deine Planungen. Jede Spur bekommt ihr eigenes Aussehen.")}</p>
+          <div class="row-2">
+            <button class="btn btn-sm" id="ghosts-add-archive" type="button">📚 ${t("ghosts.add_archive", "Aus dem Archiv …")}</button>
+            <button class="btn btn-sm" id="ghosts-add-file" type="button">📂 ${t("ghosts.add_file", "Datei …")}</button>
+          </div>
+          <div id="ghosts-list"></div>
+        </div>
+      </section>
+
       <section class="section" data-accordion-section="track">
         <button class="section-collapse-header" type="button">
           <span>${t("animator.section.track")}</span>
@@ -1285,11 +1315,65 @@ function mountAnimator(body, headerActions, opts) {
     try { _animSessionUnsubs.push(onSessionChanged(() => {
       try { _ovSyncGroups(); } catch (_) {}
       try { _alteZoomKeyframesPruefen(); } catch (_) {}
+      // Projektwechsel: die Ghost-Spuren des NEUEN Projekts holen.
+      try { _ghostSpurenLaden(); _ghostListeZeichnen(); _ghostSpurenAufbauen(); } catch (_) {}
     })); } catch (_) {}
   }
   try { _alteZoomKeyframesPruefen(); } catch (_) {}
   if (window.setupSectionAccordions) {
     window.setupSectionAccordions(_MODKEY, document.getElementById("anim-panel"));
+  }
+
+  // 27.08.2026 — Ghost-Spuren: Knöpfe binden und gespeicherte Spuren anzeigen.
+  {
+    const ausDatei = document.getElementById("ghosts-add-file");
+    if (ausDatei) {
+      // ⚠️ `knopfBeschaeftigt(id, textKey, fallback)` nimmt eine ID und gibt die
+      // Aufräum-Funktion zurück — es FÜHRT NICHTS AUS. Mit einem Callback als
+      // zweitem Argument lief der Rumpf nie (im Oberflächentest aufgefallen:
+      // Klick „lief durch", aber nichts passierte). Muster wie im Geotagger.
+      ausDatei.onclick = async () => {
+        const frei = knopfBeschaeftigt("ghosts-add-file", "ghosts.busy", "Lade …");
+        try {
+          const res = await api().ghosts_laden(null, true);
+          applog && applog("info", `[ghost] Brücke: ok=${res && res.ok} n=${(res && res.ghosts || []).length}`);
+          if (!res || !res.ok) { toast((res && res.error) || t("ghosts.load_failed", "Konnte nicht geladen werden."), "error"); return; }
+          if (res.cancelled) return;
+          await _ghostsHinzufuegen(res.ghosts);
+          if ((res.fehler || []).length) {
+            toast(t("ghosts.partly", "{n} Datei(en) konnten nicht gelesen werden.")
+              .replace("{n}", res.fehler.length), "warn", 6000);
+          }
+        } catch (e) {
+          applog && applog("error", `[ghost] Datei-Auswahl: ${e}`);
+          toast(t("ghosts.load_failed", "Konnte nicht geladen werden."), "error");
+        } finally { if (frei) frei(); }
+      };
+    }
+    const ausArchiv = document.getElementById("ghosts-add-archive");
+    if (ausArchiv) {
+      ausArchiv.onclick = () => {
+        // Im Archiv markiert man die Touren und schickt sie über
+        // „Als Ghost übernehmen" zurück (window.__rzPendingGhosts).
+        window.__rzGhostAuswahl = true;
+        toast(t("ghosts.pick_hint", "Touren im Archiv markieren und „👻 Als Ghost-Spur“ wählen."), "info", 7000);
+        if (typeof switchMod === "function") switchMod("library");
+      };
+    }
+    // ⚠️ NICHT still schlucken: Ein Fehler hier heißt, dass gespeicherte
+    // Ghost-Spuren beim Öffnen unsichtbar bleiben — genau die Sorte Fehler,
+    // die man sonst erst aus einem Nutzer-Video erfährt.
+    // Nur laden und die Liste zeichnen. Die Karten-Layer NICHT hier — `map`
+    // ist an dieser Stelle noch nicht deklariert (dieselbe TDZ-Sperre wie
+    // oben), und der Kartenaufbau ruft `_ghostSpurenAufbauen()` ohnehin selbst
+    // auf, sobald der Stil steht (siehe rebuildPreviewLayers).
+    try {
+      _ghostSpurenLaden();
+      _ghostListeZeichnen();
+    } catch (e) {
+      applog && applog("error", `[ghost] Aufbau beim Öffnen: ${e && e.message || e}`);
+      console.warn("[ghost] Aufbau:", e);
+    }
   }
 
   // v0.8.20 — Help-Button-Click-Handler ist jetzt global in ui/js/util.js
@@ -2200,6 +2284,165 @@ function mountAnimator(body, headerActions, opts) {
   // GHOST gehalten; animiert wird die berechnete Route (currentCoords). Nur im
   // Reiseroute-Modul befüllt (im Animator immer null → keine Wirkung).
   let _ghostGpxCoords = null;
+
+  // ── Ghost-Spuren (27.08.2026, Marc) ─────────────────────────────────────
+  // Beliebig viele Referenzlinien hinter der Animation: der offizielle
+  // Wanderweg, geplante Rundtouren, alte Versuche … Jede mit eigener Farbe,
+  // Deckkraft, Breite und Strichelung. Quelle: Archiv oder Datei.
+  // Gespeichert im Projekt unter `<modul>.ghosts` — siehe ghost_liste() in
+  // core/animator.py, die dieselbe Liste beim Rendern verwendet.
+  let _ghostIdZaehler = 0;
+  const GHOST_FARBEN = ["#7fa8ff", "#ffd166", "#7ed957", "#ff8fa3", "#c77dff",
+                        "#4ecdc4", "#ffa94d", "#a0e7e5"];
+
+  function _ghostSpurenLaden() {
+    let a = null;
+    try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
+    if (!a || !Array.isArray(a.ghosts)) {
+      const g = (typeof _settingsCache !== "undefined" && _settingsCache && _settingsCache[_MODKEY]) || null;
+      a = (g && Array.isArray(g.ghosts)) ? g : null;
+    }
+    _ghostSpuren = (a && Array.isArray(a.ghosts)) ? a.ghosts.slice() : [];
+    return _ghostSpuren;
+  }
+
+  function ghostSpuren() { return _ghostSpuren; }
+  // Für die automatischen Tests greifbar (wie window.__libMap in den anderen
+  // Modulen) — der Zustand liegt sonst modul-intern.
+  try { window.__rzGhostSpuren = () => _ghostSpuren; } catch (_) {}
+
+  function ghostSpurenSichern() {
+    try { saveProjectSettings(_MODKEY, { ghosts: _ghostSpuren }); } catch (e) {
+      applog && applog("warn", `[ghost] speichern: ${e}`);
+    }
+    // Auch in den globalen Zwischenspeicher, damit ein Modulwechsel ohne
+    // aktives Projekt die Spuren nicht verliert.
+    try {
+      if (typeof _settingsCache !== "undefined" && _settingsCache) {
+        _settingsCache[_MODKEY] = _settingsCache[_MODKEY] || {};
+        _settingsCache[_MODKEY].ghosts = _ghostSpuren;
+      }
+    } catch (_) {}
+  }
+
+  function _ghostLayerIds() {
+    const ids = [];
+    try {
+      if (!map || !map.getStyle) return ids;
+      for (const l of (map.getStyle().layers || [])) {
+        if (String(l.id).startsWith("preview-ghostspur-")) ids.push(l.id);
+      }
+    } catch (_) {}
+    return ids;
+  }
+
+  // Namen kommen aus fremden Dateien — vor dem Einsetzen in HTML entschärfen.
+  const esc = (x) => String(x ?? "").replace(/[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function _ghostListeZeichnen() {
+    const box = document.getElementById("ghosts-list");
+    if (!box) return;
+    const spuren = ghostSpuren();
+    if (!spuren.length) {
+      box.innerHTML = `<p class="hint" style="opacity:.7">${t("ghosts.empty", "Noch keine Ghost-Spur.")}</p>`;
+      return;
+    }
+    box.innerHTML = spuren.map((g, i) => `
+      <div class="ghost-row" data-i="${i}">
+        <div class="ghost-head">
+          <input type="checkbox" class="ghost-show" ${g.show === false ? "" : "checked"}
+                 title="${esc(t("ghosts.show", "Anzeigen"))}">
+          <span class="ghost-name" title="${esc(g.name || "")}">${esc(g.name || "—")}</span>
+          <button class="ghost-del btn-ghost" type="button"
+                  title="${esc(t("ghosts.remove", "Entfernen"))}">✕</button>
+        </div>
+        <div class="ghost-opts">
+          <input type="color" class="ghost-color" value="${esc(g.color || "#7fa8ff")}"
+                 title="${esc(t("ghosts.color", "Farbe"))}">
+          <label title="${esc(t("ghosts.opacity", "Deckkraft"))}">
+            <input type="range" class="ghost-op" min="5" max="100" step="5"
+                   value="${Math.round((g.opacity != null ? g.opacity : 0.6) * 100)}">
+          </label>
+          <label title="${esc(t("ghosts.width", "Linienbreite"))}">
+            <input type="range" class="ghost-w" min="1" max="8" step="0.5"
+                   value="${Number(g.width) || 2.5}">
+          </label>
+          <label class="ghost-dash" title="${esc(t("ghosts.dashed", "Gestrichelt"))}">
+            <input type="checkbox" class="ghost-dashed" ${g.dashed === false ? "" : "checked"}>
+            <span>┄</span>
+          </label>
+        </div>
+      </div>`).join("");
+
+    box.querySelectorAll(".ghost-row").forEach(row => {
+      const i = parseInt(row.dataset.i, 10);
+      const spur = () => ghostSpuren()[i];
+      const nachAenderung = () => { ghostSpurenSichern(); _ghostSpurenAufbauen(); };
+      row.querySelector(".ghost-show").onchange = (e) => { spur().show = e.target.checked; nachAenderung(); };
+      row.querySelector(".ghost-color").oninput = (e) => { spur().color = e.target.value; nachAenderung(); };
+      row.querySelector(".ghost-op").oninput = (e) => { spur().opacity = parseInt(e.target.value, 10) / 100; nachAenderung(); };
+      row.querySelector(".ghost-w").oninput = (e) => { spur().width = parseFloat(e.target.value); nachAenderung(); };
+      row.querySelector(".ghost-dashed").onchange = (e) => { spur().dashed = e.target.checked; nachAenderung(); };
+      row.querySelector(".ghost-del").onclick = () => {
+        const weg = ghostSpuren().splice(i, 1)[0];
+        ghostSpurenSichern(); _ghostSpurenAufbauen(); _ghostListeZeichnen();
+        toast(t("ghosts.removed", "„{name}“ entfernt.").replace("{name}", (weg && weg.name) || "—"), "info");
+      };
+    });
+  }
+
+  async function _ghostsHinzufuegen(ghosts) {
+    applog && applog("info", `[ghost] hinzufügen: ${(ghosts || []).length} Spur(en)`);
+    if (!ghosts || !ghosts.length) return;
+    const liste = ghostSpuren();
+    for (const g of ghosts) {
+      if (!g || !(g.coords || []).length) continue;
+      liste.push({
+        id: `gh_${Date.now()}_${_ghostIdZaehler++}`,
+        name: g.name || "Ghost",
+        path: g.path || "",
+        coords: g.coords,
+        color: GHOST_FARBEN[(liste.length) % GHOST_FARBEN.length],
+        opacity: 0.6, width: 2.5, dashed: true, show: true,
+      });
+    }
+    ghostSpurenSichern();
+    _ghostSpurenAufbauen();
+    _ghostListeZeichnen();
+  }
+
+  function _ghostSpurenAufbauen() {
+    if (!map || !map.isStyleLoaded || !map.isStyleLoaded()) return;
+    const spuren = ghostSpuren();
+    // Erst abräumen, was es nicht mehr gibt (oder anders aussieht) — Paint-
+    // Eigenschaften ließen sich zwar setzen, aber beim Löschen/Umsortieren
+    // wäre die Buchhaltung fehleranfällig. Neu aufbauen ist hier billig:
+    // es sind Handvoll Linien, keine Bilder je Frame.
+    for (const id of _ghostLayerIds()) {
+      try { map.removeLayer(id); } catch (_) {}
+      try { map.removeSource(id); } catch (_) {}
+    }
+    spuren.forEach((g, i) => {
+      if (!g || g.show === false) return;
+      const co = g.coords || [];
+      if (co.length < 2) return;
+      const id = `preview-ghostspur-${i}`;
+      try {
+        map.addSource(id, { type: "geojson",
+          data: { type: "Feature", geometry: { type: "LineString", coordinates: co } } });
+        map.addLayer({ id, type: "line", source: id,
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: {
+            "line-color": g.color || "#7fa8ff",
+            "line-width": Number(g.width) || 2.5,
+            "line-opacity": Number(g.opacity) != null ? Number(g.opacity) : 0.6,
+            "line-dasharray": g.dashed === false ? [1, 0] : [2, 2],
+          } }, "preview-shadow");     // unter die animierte Linie
+      } catch (e) { applog && applog("warn", `[ghost] Layer ${i}: ${e}`); }
+    });
+  }
+
   let _ghostGpxPath = null;
   let _animViewportObserver = null;
   // v0.9.10 — beobachtet die Timeline-Bar-Höhe, damit padding-bottom +
@@ -2762,6 +3005,11 @@ function mountAnimator(body, headerActions, opts) {
                    "line-dasharray": currentGhostGpxDashed() ? [2, 2] : [1, 0] } });
       }
     }
+    // 27.08.2026 — Die frei hinzugefügten Ghost-Spuren (beliebig viele, jede mit
+    // eigenem Aussehen). Eigener Layer je Spur, weil Farbe/Breite/Deckkraft/
+    // Strichelung Paint-Eigenschaften des LAYERS sind. Synchron zu
+    // `ghost_liste()` + dem erzeugten Karten-JS in core/animator.py.
+    _ghostSpurenAufbauen();
     if (!map.getLayer("preview-shadow")) {
       const st = currentShadowStrength();
       const _sr = currentShadowDir() * Math.PI / 180;   // v0.9.478 — globale Richtung
@@ -6741,6 +6989,27 @@ function mountAnimator(body, headerActions, opts) {
       // `switchMod` ist der Animator zwar gemountet, aber sein Projekt-State
       // wird noch geladen — der Restore überschrieb `_extraTours` gleich wieder,
       // und alle Etappen außer der ersten waren still verloren.
+      // 27.08.2026 — Ghost-Spuren aus dem Archiv (gleicher Weg wie die Etappen
+      // oben, nur landen sie nicht als Track, sondern als Hintergrundlinie).
+      const pendingGhosts = window.__rzPendingGhosts;
+      if (Array.isArray(pendingGhosts) && pendingGhosts.length) {
+        window.__rzPendingGhosts = null;
+        setTimeout(async () => {
+          if (_animUnmounted) return;
+          try {
+            const res = await api().ghosts_laden(pendingGhosts);
+            if (res && res.ok) {
+              await _ghostsHinzufuegen(res.ghosts);
+              applog("info", `[Animator] ${(res.ghosts || []).length} Ghost-Spur(en) aus dem Archiv`);
+              if ((res.fehler || []).length) {
+                toast(t("ghosts.partly", "{n} Datei(en) konnten nicht gelesen werden.")
+                  .replace("{n}", res.fehler.length), "warn", 6000);
+              }
+            }
+          } catch (e) { applog("error", `[Ghosts] aus Archiv: ${e}`); }
+        }, 1200);
+      }
+
       const pending = window.__rzPendingTours;
       if (Array.isArray(pending) && pending.length) {
         window.__rzPendingTours = null;
@@ -12019,6 +12288,16 @@ function mountAnimator(body, headerActions, opts) {
       // mit konfigurierbarer Farbe/Deckkraft/Breite/Strichelung.
       ghost_gpx_coords: (_isReiseroute && _ghostGpxCoords && _ghostGpxCoords.length > 1 && currentGhostGpxShow())
         ? _ghostGpxCoords : [],
+      // 27.08.2026 — die frei hinzugefügten Ghost-Spuren. Nur sichtbare und nur
+      // die nötigen Felder; `path` bleibt hier, damit das Video reproduzierbar
+      // bleibt, aber die Koordinaten reisen mit (die Datei kann fehlen).
+      ghosts: ghostSpuren()
+        .filter(g => g && g.show !== false && (g.coords || []).length > 1)
+        .map(g => ({ name: g.name || "", coords: g.coords,
+                     color: g.color || "#7fa8ff",
+                     opacity: g.opacity != null ? g.opacity : 0.6,
+                     width: Number(g.width) || 2.5,
+                     dashed: g.dashed !== false, show: true })),
       ghost_gpx_color: currentGhostGpxColor(),
       ghost_gpx_opacity: currentGhostGpxOpacity(),
       ghost_gpx_width: currentGhostGpxWidth(),

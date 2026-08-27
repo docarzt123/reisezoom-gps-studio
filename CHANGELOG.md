@@ -14,6 +14,41 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.544] – 2026-08-27
+
+### Added
+- **Beliebig viele Ghost-Spuren, jede mit eigenem Aussehen** (Marc). Bisher gab
+  es genau EINEN Ghost, an einer einzigen Koordinatenliste — und nur im
+  Reiseroute-Modul. Jetzt lassen sich im Animator so viele Referenzlinien
+  hinzufügen wie man mag: **aus dem Archiv** (markieren → „👻 Als Ghost-Spur in
+  den Animator") oder **als Datei**. Je Spur einstellbar: Farbe, Deckkraft,
+  Linienbreite, gestrichelt ja/nein, und einzeln ein-/ausblendbar. Neue Spuren
+  bekommen automatisch verschiedene Farben.
+
+  Marcs Anwendungsfall (Schorfheide): Er läuft die Etappen des Rundwegs jeweils
+  als Rundtour zurück zum Start. Im Video sieht man künftig den **offiziellen
+  Weg** als durchgehende Linie, seine **geplanten Rundtouren** dünn gestrichelt
+  daneben — und darüber animiert die **tatsächlich gelaufene** Tour.
+  Die Spuren werden im Projekt gespeichert und wandern in den Videoexport.
+  Wachen: tests/test_ghost_spuren.py und tests/test_ghost_spuren_ui.py
+  (echtes Chromium: hinzufügen, umfärben, ausblenden, löschen).
+
+### Fixed
+- **Drei stille Fehler, die der neue Oberflächentest gefunden hat** — alle drei
+  hätten dazu geführt, dass gespeicherte Ghost-Spuren einfach nicht auftauchen,
+  ohne eine einzige Meldung:
+  1. Die Spurenliste wurde bei jedem Zugriff neu aus Projekt oder Einstellungen
+     geholt und legte, wenn beides fehlte, ein Wegwerf-Objekt an — Hinzufügen
+     lief ins Leere.
+  2. `knopfBeschaeftigt(id, …)` nimmt eine **ID** und führt selbst nichts aus;
+     als Callback-Wrapper benutzt lief der Rumpf des Knopfes nie.
+  3. Die Zustandsvariable stand unterhalb ihres ersten Zugriffs (`let` ist bis
+     dahin gesperrt) — der Aufbau warf beim Öffnen, und ein `catch (_) {}`
+     verschluckte es wortlos. Deklaration nach oben, und dieses `catch`
+     protokolliert jetzt.
+- **`RZ_DUMP_HTML=/pfad`** schreibt die fertige Render-Seite mit — beim Suchen
+  war das der schnellste Weg zu sehen, welche Karten-Layer wirklich entstehen.
+
 ## [0.9.543] – 2026-08-26
 
 ### Fixed

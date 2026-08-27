@@ -919,3 +919,21 @@ label.chip-toggle input:checked + span {
 .route-wp-handle:active { cursor: grabbing; }
 .route-wp.dragging { opacity: 0.45; }
 .route-wp.drag-over { outline: 2px dashed var(--accent, #ff6b35); outline-offset: 2px; border-radius: 6px; }
+
+/* 27.08.2026 — Ghost-Spuren: kompakte Liste, je Zeile eine Referenzlinie.
+   Bewusst schmal gehalten: Bei zehn Spuren soll die Seitenleiste nicht
+   überlaufen, deshalb Regler ohne Beschriftung (Titel als Tooltip). */
+.ghost-row { border: 1px solid var(--border, #2a2a2e); border-radius: 8px;
+             padding: 7px 9px; margin-top: 7px; background: rgba(255,255,255,0.02); }
+.ghost-head { display: flex; align-items: center; gap: 8px; }
+.ghost-name { flex: 1 1 auto; font-size: 12.5px; font-weight: 600;
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ghost-del { flex: 0 0 auto; background: none; border: 0; cursor: pointer;
+             color: var(--text-muted, #999); font-size: 14px; padding: 0 3px; }
+.ghost-del:hover { color: var(--danger, #ef4444); }
+.ghost-opts { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.ghost-opts input[type="color"] { width: 26px; height: 22px; padding: 0; border: 0;
+                                  background: none; cursor: pointer; flex: 0 0 auto; }
+.ghost-opts label { flex: 1 1 auto; display: flex; align-items: center; min-width: 0; }
+.ghost-opts input[type="range"] { width: 100%; }
+.ghost-dash { flex: 0 0 auto !important; gap: 3px; font-size: 13px; opacity: .85; }
