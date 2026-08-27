@@ -49,6 +49,17 @@
   #define OutputBaseFilename "ReisezoomGPSStudio-windows-setup"
 #endif
 
+; .rzproj-Dateizuordnung (27.08.2026, Beta-Tester aus Spanien): Er hatte sie
+; von Hand angelegt, damit ein Doppelklick auf eine Projektdatei das Programm
+; öffnet — das kann man von niemandem erwarten. NUR das Studio meldet den Typ
+; an; der Geotagger-Build nutzt dieselbe .iss und erzeugt gar keine Projekte.
+#ifndef RegisterRzproj
+  #if AppExeName == "ReisezoomGPSStudio.exe"
+    #define RegisterRzproj
+  #endif
+#endif
+#define RzprojProgId "ReisezoomGPSStudio.Project"
+
 #define AppPublisher   "Reisezoom (Marc Arzt)"
 #define AppURL         "https://reisezoom.com/reisezoom-gps-studio/"
 
@@ -89,6 +100,9 @@ SetupIconFile=..\assets\icon.ico
 ; Setup mit Default-Icon gebaut — kein Error.
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName}
+#ifdef RegisterRzproj
+ChangesAssociations=yes
+#endif
 VersionInfoVersion={#AppVersion}
 VersionInfoProductName={#AppName}
 VersionInfoCompany={#AppPublisher}
@@ -111,6 +125,23 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; Im CI wird der Workflow so aufgerufen, dass `dist\ReisezoomGPSStudio\`
 ; (PyInstaller-Output) der Source ist — drum gehen wir `..\dist\...`.
 Source: "..\dist\{#SourceDirName}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+#ifdef RegisterRzproj
+[Registry]
+; Endung → ProgId. `uninsdeletevalue` räumt nur den eigenen Wert weg; hat
+; inzwischen ein anderes Programm die Endung übernommen, bleibt dessen Eintrag.
+Root: HKA; Subkey: "Software\Classes\.rzproj"; ValueType: string; ValueName: ""; ValueData: "{#RzprojProgId}"; Flags: uninsdeletevalue
+; ProgId → Anzeigename, Symbol und Öffnen-Befehl. Das "%1" ist der Kern der
+; Sache: OHNE das bekommt die Anwendung beim Doppelklick keinen Pfad und
+; startet leer — genau die Meldung, die uns hierher geführt hat.
+Root: HKA; Subkey: "Software\Classes\{#RzprojProgId}"; ValueType: string; ValueName: ""; ValueData: "Reisezoom GPS Studio project"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\{#RzprojProgId}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExeName},0"
+Root: HKA; Subkey: "Software\Classes\{#RzprojProgId}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
+; „Öffnen mit" führt die Anwendung auch dann auf, wenn jemand die Endung
+; später einem anderen Programm zuweist.
+Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
+Root: HKA; Subkey: "Software\Classes\Applications\{#AppExeName}\SupportedTypes"; ValueType: string; ValueName: ".rzproj"; ValueData: ""
+#endif
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"

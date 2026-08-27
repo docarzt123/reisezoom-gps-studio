@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.554"
+APP_VERSION = "0.9.555"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -289,7 +289,7 @@ _drop_state_lock = threading.Lock()
 
 # Logging früh aufsetzen, damit auch Import-/Init-Fehler nach dem Bridge-
 # Import hier noch landen würden.
-LOG_PATH = clog.setup_logging(APP_SUPPORT)
+LOG_PATH = clog.setup_logging(APP_SUPPORT, app_version=APP_VERSION)
 log = clog.get_logger("app")
 
 # v0.9.496 — sichtbar machen, welchen Zertifikatsspeicher die App gefunden hat.
@@ -8344,6 +8344,13 @@ def main() -> None:
     if _sd:
         _START_DATEI.append(_sd)
         log.info("Startdatei aus den Argumenten: %s", _sd)
+    else:
+        # Auch das Nichts gehört ins Log (27.08.2026). Vorher stand hier bei
+        # einem erfolglosen Doppelklick GAR NICHTS — und „das Betriebssystem
+        # hat uns keinen Pfad gegeben" ließ sich nicht von „diese Fassung kennt
+        # die Funktion nicht" unterscheiden. Die Argumente selbst zeigen sofort,
+        # welcher der beiden Fälle vorliegt.
+        log.info("Keine Startdatei in den Argumenten: %r", sys.argv[1:])
     html_path = _prepare_html_with_cache_busting()
 
     # v0.9.28 (Marc-Feedback): Fenster-Geometrie wird IMMER aus Settings

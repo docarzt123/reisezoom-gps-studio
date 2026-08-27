@@ -14,6 +14,32 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.555] – 2026-08-27
+
+### Hinzugefügt
+- **Windows meldet `.rzproj` jetzt selbst an.** Ein Beta-Tester hatte die
+  Zuordnung von Hand angelegt, damit ein Doppelklick auf eine Projektdatei das
+  Programm öffnet — das kann man von niemandem erwarten. Der Installer trägt
+  Endung, Anzeigename, Symbol und Öffnen-Befehl ein; entscheidend ist das `"%1"`
+  darin, ohne das Windows die Anwendung zwar startet, ihr aber keinen Pfad
+  übergibt (genau das gemeldete Bild: Programm offen, Projekt nicht da). Beim
+  Deinstallieren verschwinden die Einträge wieder, und nur das Studio beansprucht
+  die Endung — der Geotagger-Build nutzt dieselbe Setup-Beschreibung und erzeugt
+  gar keine Projekte. macOS kennt den Typ seit v0.9.543.
+
+### Geändert
+- **Die App-Version steht jetzt in der ersten Zeile des Logs.** Bisher standen
+  dort Betriebssystem, Gerät und Python — aber nicht, welche Fassung läuft. Beim
+  Bericht desselben Testers war genau das die Antwort (er lief auf 0.9.537, die
+  Funktion kam mit 0.9.543); herausgefunden habe ich es nur, weil die Nummer
+  zufällig auf einem seiner Bildschirmfotos stand.
+- **Auch ein fehlendes Startargument wird protokolliert**, samt der Argumente
+  selbst. Vorher stand im erfolglosen Fall gar nichts im Log, und „das System hat
+  uns keinen Pfad gegeben" ließ sich nicht von „diese Fassung kennt die Funktion
+  nicht" unterscheiden.
+
+Wächter: `tests/test_diagnose_und_dateityp.py`.
+
 ## [0.9.554] – 2026-08-27
 
 ### Behoben
