@@ -361,6 +361,25 @@ ihn sofort ein; **700 Dateien dauern gut 20 Sekunden.** Unterordner werden mitge
 kannst beliebig viele Ordner beobachten lassen. (Solange kein Ordner da ist, steht auf der
 leeren Fläche ein großer **„+ Ordner hinzufügen"**-Knopf.)
 
+### „Soll die Tour ins Archiv?" — beim Öffnen (seit v0.9.553)
+Ins Archiv kommt eine Tour über die **überwachten Ordner**. Alles, was du sonst per
+Dateidialog öffnest, lief früher daran vorbei — jetzt schaut die App beim Öffnen nach,
+egal in welchem Modul:
+
+- **Es ist genau die Datei aus dem Archiv** → nichts passiert, alles wie gewohnt.
+- **Die Tour kennt das Archiv, die Datei kommt aber von woanders** → ein Hinweis sagt dir,
+  dass du gerade an einer **Kopie außerhalb** arbeitest (mit dem Namen der Archiv-Fassung).
+  Nützlich, wenn du eine ältere Version aus dem Download-Ordner erwischt hast.
+- **Die Tour ist neu** → die Frage **„Tour ins Archiv aufnehmen?"**. Bei **Ja** wird die
+  Datei in deinen überwachten Ordner **kopiert** — das Original bleibt liegen — und ab dann
+  arbeitest du mit der Fassung im Archiv. Hast du mehrere Ordner, wählst du den Zielordner;
+  hast du noch gar keinen, wird **Dokumente › Reisezoom Touren** angelegt.
+- **Nach dem Reparieren im Inspektor** kommt dieselbe Frage für den geänderten Track.
+
+Gefragt wird nur, wenn du selbst eine Datei öffnest. Beim App-Start, beim Klick im Archiv
+und bei Touren aus der Cloud passiert das still. Ein **„Nein"** lässt sich pro Tour merken
+(Häkchen im Dialog), dann kommt die Frage für diese Tour nie wieder.
+
 **Die Seitenleiste links entscheidet, welche Touren du überhaupt siehst:**
 
 | Bereich | Zeigt |

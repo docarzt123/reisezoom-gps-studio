@@ -974,7 +974,7 @@ window.importProject = async function (pfad) {
     } else if (typeof window.loadGlobalGpx !== "function") {
       applog && applog("error", "[importProject] loadGlobalGpx fehlt");
     } else {
-      geladen = await window.loadGlobalGpx(res.datei);
+      geladen = await window.loadGlobalGpx(res.datei, { stumm: true });
       applog && applog(geladen ? "info" : "error",
         `[importProject] Track nachladen: ${geladen ? "ok" : "FEHLGESCHLAGEN"} · ${res.datei}`);
     }
@@ -1086,7 +1086,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           if (sd.art === "projekt" && typeof window.importProject === "function") {
             await window.importProject(sd.pfad);
           } else if (typeof loadGlobalGpx === "function") {
-            await loadGlobalGpx(sd.pfad);
+            await loadGlobalGpx(sd.pfad);   // Doppelklick auf eine Datei: Frage erwünscht
           }
           return;                       // nicht zusätzlich den alten Track laden
         }
@@ -1108,7 +1108,9 @@ window.addEventListener("DOMContentLoaded", async () => {
         } catch (_) {}
         return;
       }
-      await loadGlobalGpx(lastPath);
+      // Beim App-Start die zuletzt benutzte Datei NICHT erneut zur Aufnahme
+      // anbieten — das wäre bei jedem Start dieselbe Frage.
+      await loadGlobalGpx(lastPath, { stumm: true });
     } catch (err) {
       console.warn("auto-restore GPX failed:", err);
     }

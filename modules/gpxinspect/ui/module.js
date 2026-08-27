@@ -1732,10 +1732,21 @@ function mountGpxInspect(body, headerActions) {
       altProjekte = ((typeof getProjectsList === "function") ? (getProjectsList() || []) : []).length;
     } catch (_) {}
 
+    // Fall 4 der Archiv-Frage (Marc, 27.08.2026): Ein hier geänderter und
+    // gespeicherter Track ist noch nirgends erfasst — also fragen, BEVOR er
+    // geladen wird. Sagt der Nutzer ja, liegt er danach im Archiv, und mit
+    // dieser Fassung wird weitergearbeitet.
+    let zielPfad = res.out_path;
+    if (typeof window.archivFrage === "function") {
+      try { zielPfad = await window.archivFrage(res.out_path, { nachAenderung: true }) || res.out_path; }
+      catch (_) {}
+    }
+    if (isUnmounted) return;
     // Geheilten Track gleich global laden → alle Module nutzen die saubere Version
     // (auch TCX: _ensure_gpx konvertiert + zieht die Sensoren in den Cache-Sidecar).
+    // Stumm: die Archiv-Frage ist an dieser Stelle schon beantwortet.
     if (typeof loadGlobalGpx === "function") {
-      try { await loadGlobalGpx(res.out_path); } catch (_) {}
+      try { await loadGlobalGpx(zielPfad, { stumm: true }); } catch (_) {}
     }
     if (isUnmounted) return;
     if (altHash && altProjekte) await _projekteUebernehmenFragen(altHash);

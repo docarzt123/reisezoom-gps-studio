@@ -100,8 +100,9 @@
   /** Lädt ein GPX einmal global. Master-Parse via animator_load_gpx
    *  (liefert die breiteste Stats-Sicht inkl. elevations). Aktiviert die
    *  Session, benachrichtigt alle Module. */
-  window.loadGlobalGpx = async function(path) {
+  window.loadGlobalGpx = async function(path, opts) {
     if (!path) return false;
+    const stumm = !!(opts && opts.stumm);
     try {
       if (window.applog) window.applog("info", `[loadGlobalGpx] start path=${path}`);
       const res = await api().animator_load_gpx(path);
@@ -131,6 +132,9 @@
       catch (_) {}
       _renderCurrent();
       notifyGpxLoaded();
+      // Kennt das Archiv diese Tour? (27.08.2026, Marc) — nicht bei Ladevorgängen,
+      // die aus dem Archiv selbst, aus der Cloud oder vom App-Start kommen.
+      if (!stumm) { try { await window.archivFrage(path); } catch (_) {} }
       return true;
     } catch (err) {
       console.warn("loadGlobalGpx error:", err);
@@ -332,6 +336,104 @@
       if (path) await window.loadGlobalGpx(path);
     });
   }
+
+  /* ── Archiv-Frage (27.08.2026, Marc) ──────────────────────────────────────
+   *
+   * „wenn ich eine gpx öffne, egal in welchem modul, dann landet die nicht
+   * automatisch im archiv" — und genau daran läuft die Hälfte der eigenen
+   * Touren vorbei. Marcs vier Fälle, hier eins zu eins:
+   *
+   *   1. Es IST die Archiv-Datei          → nichts sagen, läuft wie bisher.
+   *   2. Tour bekannt, andere Datei       → darauf hinweisen (Kopie außerhalb).
+   *   3. Tour unbekannt                   → fragen; bei Ja wird die Datei in den
+   *      überwachten Ordner KOPIERT und ab dann mit der Kopie gearbeitet.
+   *   4. Im Inspektor geänderter Track    → ebenfalls fragen (`nachAenderung`).
+   *
+   * Gefragt wird nur bei Ladevorgängen, die der Nutzer selbst ausgelöst hat.
+   * Beim App-Start, aus dem Archiv heraus und beim Cloud-Import wäre die Frage
+   * sinnlos oder schon beantwortet — die rufen mit `{stumm: true}`.
+   *
+   * Liefert den Pfad zurück, mit dem weitergearbeitet werden soll.
+   */
+  window.archivFrage = async function(path, opts) {
+    const nachAenderung = !!(opts && opts.nachAenderung);
+    let st;
+    try { st = await api().archiv_status(path); } catch (_) { return path; }
+    // Ohne Tour-Kennung ist die Antwort nicht belastbar (alte Brücke, Fehler im
+    // Archiv, Mock im Test) — dann lieber schweigen als einen Dialog aufmachen,
+    // den niemand beantworten kann. Genau das ließ am 27.08.2026 den
+    // Playwright-Test `selftest_pace` zehn Minuten lang stehen.
+    if (!st || !st.ok || st.im_archiv || !st.geo_hash) return path;   // Fall 1
+
+    if (st.bekannt && !nachAenderung) {                  // Fall 2 — nur Hinweis
+      const name = st.archiv_name || "";
+      toast(t("archiv.schon_da", "Diese Tour liegt schon im Archiv{name} — du arbeitest gerade an einer Kopie außerhalb.")
+        .replace("{name}", name ? ` („${name}“)` : ""), "warn", 8000);
+      return path;
+    }
+
+    // Schon einmal „nein" gesagt? Dann nicht bei jedem Öffnen erneut fragen.
+    const merker = st.geo_hash || path;
+    let abgelehnt = [];
+    try { abgelehnt = (await loadSettings()).archiv_frage_nie || []; } catch (_) {}
+    if (abgelehnt.indexOf(merker) >= 0) return path;
+
+    const ordner = st.ordner || [];
+    const zielHtml = ordner.length > 1
+      ? `<div class="field-label" style="margin-top:10px">${t("archiv.ziel", "Ablegen in")}</div>
+         <select id="md-arch-ordner" class="lib-select" style="width:100%">${
+           ordner.map(o => `<option value="${escapeAttr(o.path)}">${escapeHtml(o.name)}</option>`).join("")}</select>`
+      : `<p class="lib-hint" style="margin-top:8px">${t("archiv.ziel_fest", "Ablegen in:")} <code>${
+           escapeHtml(ordner.length ? ordner[0].path : t("archiv.ziel_neu", "Dokumente › Reisezoom Touren (wird angelegt)"))}</code></p>`;
+
+    const ja = await new Promise(resolve => {
+      openModal({
+        title: nachAenderung ? t("archiv.titel_geaendert", "Geänderten Track ins Archiv legen?")
+                             : t("archiv.titel", "Tour ins Archiv aufnehmen?"),
+        body: `<p>${nachAenderung
+                ? t("archiv.text_geaendert", "Der geänderte Track ist noch nirgends erfasst. Soll er ins Archiv, damit du ihn wiederfindest?")
+                : t("archiv.text", "Diese Tour kennt das Archiv noch nicht. Soll sie aufgenommen werden?")}</p>
+               <p class="lib-hint">${t("archiv.kopie_hinweis",
+                 "Die Datei wird in deinen überwachten Ordner kopiert — das Original bleibt, wo es ist. Weitergearbeitet wird ab dann mit der Fassung im Archiv.")}</p>
+               ${zielHtml}`,
+        footer: `
+          <label class="check-row" style="margin-right:auto;font-size:12px">
+            <input type="checkbox" id="md-arch-nie"><span>${t("archiv.nie_fragen", "Für diese Tour nicht mehr fragen")}</span>
+          </label>
+          <button class="btn" id="md-arch-nein">${t("archiv.nein", "Nein, danke")}</button>
+          <button class="btn btn-primary" id="md-arch-ja">${t("archiv.ja", "Ja, ins Archiv")}</button>`,
+        onClose: () => resolve(false),
+      });
+      const zu = (wert) => {
+        const nie = document.getElementById("md-arch-nie");
+        const wahl = document.getElementById("md-arch-ordner");
+        window.__rzArchivZiel = wahl ? wahl.value : "";
+        if (!wert && nie && nie.checked) {
+          try { saveSettings({ archiv_frage_nie: abgelehnt.concat([merker]) }); } catch (_) {}
+        }
+        try { openModal({}).close(); } catch (_) {}
+        resolve(wert);
+      };
+      const nein = document.getElementById("md-arch-nein");
+      const jaBtn = document.getElementById("md-arch-ja");
+      if (nein) nein.onclick = () => zu(false);
+      if (jaBtn) jaBtn.onclick = () => zu(true);
+    });
+    if (!ja) return path;
+
+    let r;
+    try { r = await api().archiv_datei_aufnehmen(path, window.__rzArchivZiel || ""); }
+    catch (e) { r = { ok: false, error: String(e) }; }
+    if (!r || !r.ok) {
+      toast((r && r.error) || t("archiv.fehler", "Konnte nicht ins Archiv gelegt werden."), "error", 6000);
+      return path;
+    }
+    toast(t("archiv.aufgenommen", "Ins Archiv aufgenommen."), "success", 4000);
+    // Ab jetzt mit der Archiv-Fassung arbeiten — sonst zeigt die Leiste weiter
+    // auf die Datei außerhalb, und die nächste Sitzung sucht sie dort.
+    if (r.pfad && r.pfad !== path) { try { await window.loadGlobalGpx(r.pfad, { stumm: true }); } catch (_) {} }
+    return r.pfad || path;
+  };
 
   // ── Utilities ─────────────────────────────────────────────────────────
   function escapeHtml(s) {
