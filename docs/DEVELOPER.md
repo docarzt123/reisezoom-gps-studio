@@ -2683,6 +2683,62 @@ in alle drei Sprach-HTMLs eingebettet werden.
 
 ## 9 · Gotchas & Lessons Learned
 
+### Foto-Metadaten haben ZWEI Lesewege (27.08.2026)
+
+Es gibt zwei Wege, Zeit und GPS aus einem Foto zu holen — und sie sind **nicht**
+deckungsgleich:
+
+| Weg | Wo | Wann benutzt |
+|---|---|---|
+| `cexif.read_gps()` / `read_datetime_and_tz_min()` | `core/exif.py` | Einzelabfragen, Schreiben, Referenzfoto |
+| `Api._read_meta_fast()` | `app.py` | **Massenweise beim Einlesen** (exiftool-Daemon, Vorschaubilder) |
+
+Der schnelle Weg fragt den exiftool-Daemon direkt und baut das Ergebnis selbst
+zusammen. Er hat dadurch schon zweimal Filter *nicht* gehabt, die im langsamen
+Weg längst standen — zuletzt der Null-Island-Filter (`_gps_is_meaningful`):
+Insta360 schreibt in jede DNG einen leeren GPS-Block `0/0`, der schnelle Weg
+hielt ihn für eine echte Position, und da eigenes Foto-GPS seit v0.9.339 die
+Zuordnung über die Uhrzeit schlägt, landeten alle RAW-Fotos im Golf von Guinea
+— während die JPEGs derselben Aufnahme richtig auf dem Track saßen.
+
+**Regel: Wer an einem der beiden Wege etwas ändert, prüft den anderen mit.**
+Wache: `tests/test_null_island_raw.py`.
+
+### Zwei Fallen beim Bauen von Seitenleisten-Bedienfeldern (27.08.2026)
+
+Beide beim Ghost-Spuren-Umbau aufgetreten, beide **still** — nichts im Fenster,
+nichts im Log:
+
+1. **`knopfBeschaeftigt(id, textKey, fallback)` führt nichts aus.** Es nimmt eine
+   **ID** (keinen Knopf, keine Funktion), sperrt den Knopf und gibt die
+   Aufräum-Funktion zurück. Als Callback-Wrapper missbraucht lief der ganze
+   Rumpf nie. Muster siehe Geotagger:
+   `const frei = knopfBeschaeftigt("id", …); try { … } finally { frei && frei(); }`
+2. **`let` unterhalb des ersten Zugriffs = TDZ.** Der Zustand `_ghostSpuren`
+   stand weiter unten in `mountAnimator` als der Init-Block, der ihn benutzt —
+   das warf beim Öffnen, und ein `catch (_) {}` schluckte es wortlos. Deshalb:
+   Zustandsvariablen **oben** deklarieren, und `catch` **immer** protokollieren
+   lassen. Aus demselben Grund gehören Karten-Layer nicht in die
+   Mount-Initialisierung: `map` ist dort ebenfalls noch gesperrt.
+
+**Konsequenz für Tests:** Quelltextprüfungen finden so etwas nicht. Der
+Oberflächentest in echtem Chromium (`tests/test_ghost_spuren_ui.py`) hat alle
+drei Fehler gefunden — Muster: `MOCK_API_JS` aus `scripts/selftest_ui.py` laden,
+Brückenantwort direkt am fertigen Objekt setzen (der Mock-Proxy beantwortet
+unbekannte Methoden sonst mit einem leeren `{ok:true}`), dann klicken.
+
+### Mehrere Linien auf der Karte brauchen mehrere Layer
+
+Farbe, Breite, Deckkraft und Strichelung sind Paint-Eigenschaften des **Layers**,
+nicht des Features. Wer mehrere Spuren unterschiedlich aussehen lassen will,
+braucht je Spur einen eigenen Layer (Ghost-Spuren, `ghost_liste()`). Dieselbe
+Grenze steckt hinter der Etappen-Maske `__rzSegMask`, die Verbindungsstücke über
+durchsichtige Stützstellen im `line-gradient` ausblendet, statt sie zu löschen.
+
+**Zum Nachsehen:** `RZ_DUMP_HTML=/pfad/render.html` schreibt die fertige
+Render-Seite mit — der schnellste Weg zu prüfen, welche Layer wirklich entstehen.
+
+
 ### Neue Bausteine seit 22.08.2026 (Vorschläge aus dem Audit)
 - **`core/frame_driver.py` — `FrameMuxer`**: der einzige ffmpeg-Lebenslauf
   (Popen + stderr-Drain, `schreiben(shot, frame)`, `abbrechen()`,
