@@ -2020,10 +2020,16 @@ function mountAnimator(body, headerActions, opts) {
   };
   // Bei GPX-/Projekt-Wechsel die Stops neu laden + Liste neu zeichnen.
   if (typeof onSessionChanged === "function") {
-    try { _animSessionUnsubs.push(onSessionChanged(() => { rebuildColorSourceOptions(); loadColorStops(); renderColorStops(); syncColorsUi(); })); } catch (_) {}
+    try { _animSessionUnsubs.push(onSessionChanged(() => {
+      try { rebuildColorSourceOptions(); loadColorStops(); renderColorStops(); syncColorsUi(); }
+      catch (e) { applog && applog("warn", `[farben] nach Projektwechsel: ${e}`); }
+    })); } catch (e) { applog && applog("error", `[farben] Sitzungs-Listener: ${e}`); }
     // v0.9.444 — Diagramme sind projekt-eigener State: bei Projekt-Wechsel/-Neuanlage
     // aus dem NEUEN Projekt neu laden (sonst bleibt das alte Diagramm stehen).
-    try { _animSessionUnsubs.push(onSessionChanged(() => { try { _chartsLoad(); _chartsRenderList(); _chartsPreviewRender(true); } catch (_) {} })); } catch (_) {}
+    try { _animSessionUnsubs.push(onSessionChanged(() => {
+      try { _chartsLoad(); _chartsRenderList(); _chartsPreviewRender(true); }
+      catch (e) { applog && applog("warn", `[diagramme] nach Projektwechsel: ${e}`); }
+    })); } catch (e) { applog && applog("error", `[diagramme] Sitzungs-Listener: ${e}`); }
   }
   // v0.9.211 (Reiseroute) — GPX-Ghost-Config (Elemente existieren nur hier).
   if (_isReiseroute) {
@@ -12021,7 +12027,10 @@ function mountAnimator(body, headerActions, opts) {
   document.getElementById("anim-fly")?.addEventListener("change", _animPersistTours);
   try { _animLoadTours(); } catch (_) {}
   if (typeof onSessionChanged === "function") {
-    try { _animSessionUnsubs.push(onSessionChanged(() => { try { _animLoadTours(); } catch (_) {} })); } catch (_) {}
+    try { _animSessionUnsubs.push(onSessionChanged(() => {
+      try { _animLoadTours(); }
+      catch (e) { applog && applog("warn", `[touren] nach Projektwechsel: ${e}`); }
+    })); } catch (e) { applog && applog("error", `[touren] Sitzungs-Listener: ${e}`); }
   }
 
   // ── v0.9.412 — Snapshot (aktueller Vorschau-Frame als Bild) + „Als Tour-Map

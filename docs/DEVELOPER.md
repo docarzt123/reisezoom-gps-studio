@@ -2627,6 +2627,11 @@ Manuelle Test-Runs (oben) vor jedem Commit / Build weiterhin empfohlen.
 3. **Bei Architektur-Änderungen:** Diese Datei (`DEVELOPER.md`) updaten
 4. **Bei UI-/Workflow-Änderungen:** `docs/USER_GUIDE.md` aktualisieren
 5. **Tests müssen grün bleiben** vor Build
+6. **Bei Oberflächen-Code zusätzlich:** `python3 scripts/check_ui_fallen.py` —
+   und die Checkliste in **§9** durchgehen. Die vier Fallen dort sind alle
+   **still**: Der Code sieht richtig aus, tut aber nichts, und weder Fenster
+   noch Protokoll sagen etwas. Sie standen schon in dieser Datei, als sie zum
+   zweiten Mal zuschlugen — Lesen allein reicht nicht, deshalb der Prüfer.
 
 **Karten-Bibliotheken liegen lokal (seit v0.9.446):** Mapbox GL JS, MapLibre GL JS
 und Leaflet werden aus `ui/vendor/` geladen, **nicht mehr vom CDN**. Vorher blockierte
@@ -2682,6 +2687,54 @@ in alle drei Sprach-HTMLs eingebettet werden.
 ---
 
 ## 9 · Gotchas & Lessons Learned
+
+### ⚠️ Checkliste, bevor du Oberflächen-Code anfasst
+
+Vier Muster haben in dieser Oberfläche mehrfach zugeschlagen, und **jedes Mal
+still**: nichts im Fenster, nichts im Protokoll, keine Fehlermeldung. Sie standen
+alle längst hier — und sind trotzdem am 27.08.2026 innerhalb weniger Stunden
+zweimal erneut passiert (Ghost-Spuren: erst nicht geladen, dann nicht sichtbar).
+Deshalb prüft sie jetzt ein Skript:
+
+```bash
+python3 scripts/check_ui_fallen.py          # meldet, was es findet
+python3 scripts/check_ui_fallen.py --strict # Rückgabewert ≠ 0 bei Funden
+```
+
+Es läuft in `run_tests.py` (als `tests/test_ui_fallen.py`) und im Release-Gate.
+Ist eine Stelle bewusst so gebaut: `// ui-falle-ok: <Begründung>` in die Zeile
+darüber — mit echter Begründung, nicht zum Stummschalten.
+
+| # | Falle | Woran man sie erkennt | Was stattdessen |
+|---|---|---|---|
+| 1 | **Stilles Aussteigen bei ladendem Kartenstil** | `if (!map.isStyleLoaded()) return;` | `if (!_whenStyleReady("name", fn)) return;` — holt den Aufbau nach |
+| 2 | **`addLayer` mit festem `beforeId`** | `addLayer({…}, "preview-shadow")` | vorher `map.getLayer(...)` prüfen; ohne Bezug lieber obenauf als gar nicht |
+| 3 | **Modul-Zustand vor seiner Deklaration** | `_foo.push(...)` steht über `let _foo` | Zustandsvariablen **oben** deklarieren |
+| 4 | **Leeres `catch (_) {}` um Laden/Aufbauen** | `catch (_) {}` | `catch (e) { applog("warn", …) }` |
+
+**Warum gerade diese vier?** Weil sie sich gegenseitig verstärken. Falle 3 wirft
+einen Fehler, Falle 4 verschluckt ihn — heraus kommt eine Funktion, die es zu
+geben scheint und nie läuft. Genau so verloren die Ghost-Spuren ihren
+Sitzungs-Listener, und genau so blieb der Laufpunkt in v0.9.531 unsichtbar.
+
+**Die Reihenfolge beim Start ist der häufigste Auslöser:**
+
+1. Das Modul wird gemountet — `getActiveProject()` ist **noch leer**
+2. Der Track wird nachgeladen → `sessionActivate()` → `onSessionChanged`
+3. Der Kartenstil wird fertig → erst jetzt darf man Layer bauen
+
+Wer beim Mounten liest, liest ins Leere; wer beim Mounten zeichnet, zeichnet ins
+Nichts. **Alles, was gespeicherten Zustand braucht, gehört zusätzlich in den
+`onSessionChanged`-Listener; alles, was auf die Karte malt, hinter
+`_whenStyleReady`.** Beides zusammen, nicht eins von beiden.
+
+**Und der Test dazu muss die Reihenfolge nachspielen.** Ein Oberflächentest, der
+nur mountet, findet nichts davon. ⚠️ Der Standard-Mock in `scripts/selftest_ui.py`
+kennt **`session_open_for_track` nicht** und beantwortet Unbekanntes mit einem
+leeren `{ok:true}` — dadurch kommt nie ein Projekt an, und die ganze Startkette
+läuft im Test gar nicht durch. Muster zum Nachrüsten:
+`tests/test_ghosts_beim_start.py`.
+
 
 ### Foto-Metadaten haben ZWEI Lesewege (27.08.2026)
 
