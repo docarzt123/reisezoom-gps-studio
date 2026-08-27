@@ -14,6 +14,22 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.546] – 2026-08-27
+
+### Changed
+- **Ghost-Spuren lassen sich jetzt sortieren** (Marc). Die Reihenfolge ist nicht
+  kosmetisch: Die Spuren werden von oben nach unten gezeichnet, die **unterste
+  liegt damit obenauf** und deckt die anderen ab. Wer den offiziellen Weg unter
+  seine Planungen legen will, muss ihn verschieben können — mit dem Griff **⠿**
+  am linken Rand jeder Zeile, wie bei den Stationen der Reiseroute. Der Griff
+  schaltet das Ziehen nur für seine Zeile frei, damit das Ziehen an einem Regler
+  keine Verschiebung auslöst.
+- **Der Erklärabsatz ist weg**, sein Text steckt jetzt hinter dem **?** neben
+  „Zusätzliche Spuren" (gleiches Muster wie bei Tempo-Modus und Track-Punkten)
+  und erklärt dort auch gleich, was die Reihenfolge bewirkt. Wache:
+  tests/test_ghost_spuren_ui.py — zieht im echten Browser eine Zeile nach oben
+  und prüft, dass Anzeige, gespeicherter Zustand und Karten-Layer mitziehen.
+
 ## [0.9.545] – 2026-08-27
 
 ### Fixed

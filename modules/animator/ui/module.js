@@ -85,6 +85,7 @@ function mountAnimator(body, headerActions, opts) {
   // initialization" — und weil das in einem `catch (_) {}` steckte, blieb die
   // Liste einfach leer, ohne ein Wort. Beides ist jetzt behoben.
   let _ghostSpuren = [];
+  let _ghostDragFrom = -1;      // Index der Zeile, die gerade gezogen wird
 
   body.innerHTML = `
     <aside class="panel" id="anim-panel">
@@ -254,7 +255,18 @@ function mountAnimator(body, headerActions, opts) {
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
-          <p class="hint">${t("ghosts.intro", "Weitere Tracks als schwache Linien im Hintergrund — etwa der offizielle Weg oder deine Planungen. Jede Spur bekommt ihr eigenes Aussehen.")}</p>
+          <!-- 27.08.2026 (Marc: „den beschreibungstext weg und ein ? mit tooltip") —
+               der Erklärabsatz stand dauerhaft im Weg. Jetzt hinter dem Fragezeichen,
+               gleiches Muster wie bei Tempo-Modus und Track-Punkten. -->
+          <div class="field-label" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <span>${t("ghosts.label", "Zusätzliche Spuren")}</span>
+            <button type="button" class="field-help" data-help="ghosts"
+                    title="${t("animator.help.show", "Erklärung anzeigen")}">?</button>
+          </div>
+          <div class="muted field-help-content" data-help-content="ghosts" hidden
+               style="font-size:11px; margin-top:2px; margin-bottom:8px; line-height:1.45;">
+            ${t("ghosts.intro", "Weitere Tracks als schwache Linien im Hintergrund — etwa der offizielle Weg oder deine Planungen. Jede Spur bekommt ihr eigenes Aussehen. Die Reihenfolge bestimmt, was oben liegt: Die unterste Spur wird zuletzt gezeichnet und deckt die darüber ab — mit dem Griff ⠿ verschieben.")}
+          </div>
           <div class="row-2">
             <button class="btn btn-sm" id="ghosts-add-archive" type="button">📚 ${t("ghosts.add_archive", "Aus dem Archiv …")}</button>
             <button class="btn btn-sm" id="ghosts-add-file" type="button">📂 ${t("ghosts.add_file", "Datei …")}</button>
@@ -2351,6 +2363,7 @@ function mountAnimator(body, headerActions, opts) {
     box.innerHTML = spuren.map((g, i) => `
       <div class="ghost-row" data-i="${i}">
         <div class="ghost-head">
+          <span class="ghost-handle" title="${esc(t("ghosts.reorder", "Ziehen, um die Reihenfolge zu ändern"))}">⠿</span>
           <input type="checkbox" class="ghost-show" ${g.show === false ? "" : "checked"}
                  title="${esc(t("ghosts.show", "Anzeigen"))}">
           <span class="ghost-name" title="${esc(g.name || "")}">${esc(g.name || "—")}</span>
@@ -2389,6 +2402,50 @@ function mountAnimator(body, headerActions, opts) {
         ghostSpurenSichern(); _ghostSpurenAufbauen(); _ghostListeZeichnen();
         toast(t("ghosts.removed", "„{name}“ entfernt.").replace("{name}", (weg && weg.name) || "—"), "info");
       };
+
+      // 27.08.2026 (Marc) — Reihenfolge ziehen. Sie ist nicht kosmetisch: die
+      // Spuren werden von oben nach unten gezeichnet, die UNTERSTE liegt also
+      // obenauf und deckt die anderen ab (siehe _ghostSpurenAufbauen). Wer den
+      // offiziellen Weg unter seine Planungen legen will, muss ihn nach oben
+      // ziehen können.
+      //
+      // Der Griff schaltet `draggable` nur für seine Zeile frei — sonst würde
+      // jedes Ziehen an einem Regler die Geste starten (dieselbe Lösung wie bei
+      // den Reiseroute-Stationen).
+      const griff = row.querySelector(".ghost-handle");
+      if (griff) {
+        griff.addEventListener("mousedown", () => { row.draggable = true; });
+        griff.addEventListener("touchstart", () => { row.draggable = true; }, { passive: true });
+      }
+      row.addEventListener("dragstart", (ev) => {
+        _ghostDragFrom = i; row.classList.add("dragging");
+        try { ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", String(i)); } catch (_) {}
+      });
+      row.addEventListener("dragend", () => {
+        row.draggable = false; row.classList.remove("dragging");
+        box.querySelectorAll(".drag-over").forEach((r) => r.classList.remove("drag-over"));
+        _ghostDragFrom = -1;
+      });
+      row.addEventListener("dragover", (ev) => {
+        if (_ghostDragFrom < 0) return;
+        ev.preventDefault();
+        try { ev.dataTransfer.dropEffect = "move"; } catch (_) {}
+        row.classList.add("drag-over");
+      });
+      row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+      row.addEventListener("drop", (ev) => {
+        ev.preventDefault();
+        row.classList.remove("drag-over");
+        const von = _ghostDragFrom;
+        _ghostDragFrom = -1;
+        if (von < 0 || von === i) return;
+        const liste = ghostSpuren();
+        const [bewegt] = liste.splice(von, 1);
+        liste.splice(i, 0, bewegt);
+        ghostSpurenSichern();
+        _ghostSpurenAufbauen();      // Zeichenreihenfolge neu aufbauen
+        _ghostListeZeichnen();
+      });
     });
   }
 

@@ -926,6 +926,14 @@ label.chip-toggle input:checked + span {
 .ghost-row { border: 1px solid var(--border, #2a2a2e); border-radius: 8px;
              padding: 7px 9px; margin-top: 7px; background: rgba(255,255,255,0.02); }
 .ghost-head { display: flex; align-items: center; gap: 8px; }
+/* 27.08.2026 — Griff zum Umsortieren. Die Reihenfolge ist nicht kosmetisch:
+   die unterste Spur wird zuletzt gezeichnet und liegt damit obenauf.
+   Aussehen bewusst identisch zu den Reiseroute-Stationen. */
+.ghost-handle { flex-shrink: 0; width: 14px; text-align: center; color: var(--text-dim, #777);
+                cursor: grab; user-select: none; font-size: 13px; }
+.ghost-handle:active { cursor: grabbing; }
+.ghost-row.dragging { opacity: 0.45; }
+.ghost-row.drag-over { outline: 2px dashed var(--accent, #ff6b35); outline-offset: 2px; }
 .ghost-name { flex: 1 1 auto; font-size: 12.5px; font-weight: 600;
               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ghost-del { flex: 0 0 auto; background: none; border: 0; cursor: pointer;
