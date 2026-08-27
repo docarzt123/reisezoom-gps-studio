@@ -8220,6 +8220,15 @@ function mountAnimator(body, headerActions, opts) {
         const o = document.createElement("option");
         o.value = "sys:" + f;
         o.textContent = f;
+        // 27.08.2026 (Beta-Tester, „Idea 1") — Den Namen einer Schrift IN der
+        // Schrift zeigen, wie es der Schriftdialog von Windows macht. Kostet
+        // nichts: Die Schrift ist ja installiert, ein `font-family` am
+        // <option> genügt. Zwei Vorbehalte, die die Sache klein halten:
+        // Symbolschriften (Wingdings & Co.) werden dadurch unlesbar, deshalb
+        // steht der Name zusätzlich im Titel; und einige Browser ignorieren
+        // die Auszeichnung an <option> — dann sieht es aus wie vorher.
+        o.style.fontFamily = `"${f.replace(/"/g, "")}", sans-serif`;
+        o.title = f;
         if (o.value === aktuell) o.selected = true;
         g.appendChild(o);
       }

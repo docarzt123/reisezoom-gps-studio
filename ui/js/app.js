@@ -1075,6 +1075,25 @@ window.addEventListener("DOMContentLoaded", async () => {
   // wird auch der Geotagger-State mit zurückgesetzt — App startet sauber leer.
   setTimeout(async () => {
     try {
+      // 27.08.2026 (Beta-Tester) — Wurde die App durch Doppelklick auf eine
+      // Datei gestartet (Endung mit dem Programm verknüpft), hat DIESE Vorrang
+      // vor dem zuletzt geladenen Track. Vorher wurde das Argument gar nicht
+      // gelesen: Das Programm startete und zeigte nichts.
+      try {
+        const sd = await api().startdatei_abholen();
+        if (sd && sd.ok && sd.pfad) {
+          applog && applog("info", `[start] Datei aus dem Systemstart: ${sd.art} · ${sd.pfad}`);
+          if (sd.art === "projekt" && typeof window.importProject === "function") {
+            await window.importProject(sd.pfad);
+          } else if (typeof loadGlobalGpx === "function") {
+            await loadGlobalGpx(sd.pfad);
+          }
+          return;                       // nicht zusätzlich den alten Track laden
+        }
+      } catch (e) {
+        applog && applog("warn", `[start] Startdatei: ${e}`);
+      }
+
       const lastPath = _settingsCache && _settingsCache.last_gpx_path;
       if (!lastPath || typeof loadGlobalGpx !== "function") return;
       const exists = await api().path_exists(lastPath);

@@ -14,6 +14,41 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.547] – 2026-08-27
+
+### Fixed
+- **Doppelklick auf eine Projektdatei öffnet sie jetzt auch** (Beta-Tester). Er
+  hatte unter Windows die Endung `.rzproj` mit dem Programm verknüpft — die App
+  startete daraufhin, zeigte aber nichts. Grund: Der Dateipfad steht in den
+  **Startargumenten**, und die wurden nirgends gelesen. Jetzt holt die
+  Oberfläche beim Start die Datei ab und importiert sie (bzw. lädt einen Track);
+  sie hat dabei Vorrang vor dem zuletzt geöffneten Track. Auf **macOS** kommt
+  der Pfad nicht als Argument, sondern als Apple-Event — das wird mit abgeholt,
+  und `.rzproj` ist jetzt am App-Bündel angemeldet, damit der Finder die Datei
+  überhaupt zuordnet und mit eigenem Namen statt „Dokument" anzeigt.
+
+### Changed
+- **Die Schriftauswahl zeigt jede Schrift in sich selbst** (Beta-Tester-Idee,
+  Vorbild ist der Schriftdialog von Windows). Der Name jeder installierten
+  Schrift steht jetzt in genau dieser Schrift — man sieht also vorher, was man
+  bekommt. Der Klartext-Name bleibt als Tooltip stehen, weil Symbolschriften
+  sonst unlesbar wären.
+- **Die Übergangs-Reiter sitzen jetzt über der Keyframe-Reihe** (Beta-Tester,
+  zweite Meldung zum selben Punkt). Sie lagen mittig, also **genau auf** den
+  Keyframe-Knöpfen: Bei Zeitleisten-Zoom 1× verdeckten sie diese, und man musste
+  hineinzoomen, um einen Keyframe zu greifen. Der erste Anlauf (16.08.) ließ sie
+  bei Enge einfach weg — sein berechtigter Einwand: dann sind sie eben nicht da.
+  Jetzt liegen sie darüber, wie der Griff unten, und verschwinden erst, wenn sie
+  sich **gegenseitig** überlagern würden (Grenze von 46 auf 20 px gesenkt).
+  Wache: tests/test_tester_wuensche_27_08.py.
+- **Im Inspektor sind Anfang und Ende einer Tour jetzt zu sehen** (Marc). Dort
+  sahen alle Punkte gleich aus — wer eine Aufzeichnung prüft, will aber zuerst
+  wissen, wo sie beginnt (Anfahrt wegschneiden, Ausreißer am Rand beurteilen).
+  Zwei beschriftete Fähnchen, **▶ START** und **■ ZIEL**; bei einer Rundtour,
+  wo beide praktisch aufeinanderliegen, steht ein einzelnes „▶ START · ZIEL"
+  statt zweier sich überdeckender. Bewusst Beschriftung statt Farbe: Grün und
+  Rot sind im Inspektor schon für die A/B-Auswahl vergeben.
+
 ## [0.9.546] – 2026-08-27
 
 ### Changed

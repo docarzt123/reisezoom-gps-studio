@@ -66,6 +66,14 @@
   border-radius: 6px 6px 0 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: 2px;
+  /* 27.08.2026 (Beta-Tester, „Idea 2") — Oben Platz für die Übergangs-Reiter.
+     Sie saßen mittig, also GENAU auf den Keyframe-Knöpfen: bei Zeitleisten-Zoom
+     1× deckten sie diese zu, und man musste hineinzoomen, um einen Keyframe zu
+     greifen. Der erste Anlauf (16.08.) blendete sie bei Enge einfach aus — sein
+     Einwand: dann sind sie eben weg. Jetzt liegen sie DARÜBER, wie der Griff
+     unten. `overflow: visible` ist Pflicht, sonst schneidet die Zeile sie ab. */
+  margin-top: 13px;
+  overflow: visible;
 }
 .timeline-cluster-row .cluster-label {
   flex: 0 0 84px;
@@ -798,5 +806,19 @@ body.wert-zieht .timeline-marker.is-selected {
 .easing-modal-smooth { display: flex; align-items: center; gap: 8px; margin: 10px 4px 2px; font-size: 12px; color: var(--text, #ddd); cursor: pointer; }
 .easing-modal-smooth input { accent-color: var(--accent, #ff6b35); }
 .timeline-easing-symbol { position: relative; }
+/* 27.08.2026 — die Reiter sitzen ÜBER der Keyframe-Reihe (siehe
+   .timeline-cluster-row). Kleiner als die Keyframe-Knöpfe, damit klar ist:
+   das hier ist der Übergang, nicht der Punkt. */
+.timeline-cluster-row .cluster-markers .timeline-easing-symbol {
+  top: -11px;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  pointer-events: auto;
+  z-index: 7;
+}
+.timeline-cluster-row .cluster-markers .timeline-easing-symbol:hover {
+  transform: translate(-50%, -50%) scale(1.2);
+}
 .timeline-easing-symbol.is-smooth { box-shadow: 0 0 0 1.5px var(--accent, #ff6b35) inset; }
 .timeline-easing-smooth-badge { position: absolute; right: -6px; top: -7px; font-size: 9px; line-height: 1; pointer-events: none; }

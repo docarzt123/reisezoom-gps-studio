@@ -562,16 +562,19 @@ function mountTimelineBar(opts) {
         const targetEasing = (b.events.find(e => e && e.easing) || {}).easing || "linear";
         const targetSmooth = !!(b.events.find(e => e && e.smooth_in) || {}).smooth_in;
         const midAnchor = (a.anchor + b.anchor) / 2;
-        // ⚠️ Nur zeichnen, wenn dazwischen PLATZ ist (Fehler-Bericht Rafael,
-        // 16.08.2026: „Wenn der Zoom der Zeitleiste auf 1 steht, verdeckt der
-        // Übergangs-Knopf den Keyframe-Knopf."). Symbol und Cluster sind beide
-        // 22 px breit; liegen zwei Keyframes näher beieinander, deckt das
-        // Symbol sie zu — und weil es obendrauf liegt, schluckt es die Klicks.
-        // Ein Knopf, den man nicht treffen kann, ist schlimmer als keiner:
-        // Beim Hineinzoomen taucht er wieder auf.
+        // Platzprüfung — 27.08.2026 deutlich gelockert.
+        //
+        // Vorgeschichte: Am 16.08. meldete ein Beta-Tester, dass der
+        // Übergangs-Knopf bei Zeitleisten-Zoom 1× den Keyframe-Knopf verdeckt.
+        // Die damalige Lösung war, ihn bei Enge WEGZULASSEN (Grenze 46 px) —
+        // sein Einwand jetzt: dann muss man zum Ändern trotzdem hineinzoomen.
+        // Seit heute sitzen die Reiter ÜBER der Keyframe-Reihe (CSS
+        // `.timeline-cluster-row`), überdecken also nichts mehr. Die Grenze
+        // schützt nur noch die Reiter voreinander: Sie sind 18 px breit, unter
+        // 20 px Abstand würden sie sich gegenseitig überlagern.
         const breitePx = (trackEl.getBoundingClientRect().width || 0) * _viewZoom;
         const abstandPx = Math.abs(_trackToBar(b.anchor) - _trackToBar(a.anchor)) * breitePx;
-        if (abstandPx < 46) continue;
+        if (abstandPx < 20) continue;
         const sym = document.createElement("button");
         sym.type = "button";
         sym.className = "timeline-easing-symbol easing-" + targetEasing + (targetSmooth ? " is-smooth" : "");
