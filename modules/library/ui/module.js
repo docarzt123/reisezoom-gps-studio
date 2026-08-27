@@ -1723,7 +1723,7 @@ function mountLibrary(body, headerActions) {
       await reload(); renderScopes();
       // Direkt im Animator öffnen — der Track ist ab jetzt ein ganz normaler.
       try {
-        const ok = await window.loadGlobalGpx(r.path);
+        const ok = await window.loadGlobalGpx(r.path, { stumm: true });
         // Farbe je Tour ins (frisch angelegte) Projekt des zusammengeführten Tracks.
         if (ok !== false && r.farben && typeof saveProjectSettings === "function") {
           try { saveProjectSettings("animator", { tour_colors: r.farben }); } catch (_) {}
@@ -2335,7 +2335,7 @@ function mountLibrary(body, headerActions) {
     // lädt beim Mounten seinen Projekt-State und würde sie sofort wieder
     // überschreiben. Er holt sie sich selbst ab, sobald er fertig ist.
     window.__rzPendingTours = items.slice(1).map(i => i.path);
-    const ok = await window.loadGlobalGpx(items[0].path);
+    const ok = await window.loadGlobalGpx(items[0].path, { stumm: true });
     if (ok === false) { window.__rzPendingTours = null; return; }
     if (typeof switchMod === "function") switchMod("animator");
     if (items.length > 1) {
@@ -2386,7 +2386,7 @@ function mountLibrary(body, headerActions) {
   async function openIn(slug) {
     if (!_sel) return;
     if (!_sel.exists) { toast(T("library.file_gone", "Die Datei liegt nicht mehr an diesem Ort."), "error"); return; }
-    const ok = await window.loadGlobalGpx(_sel.path);
+    const ok = await window.loadGlobalGpx(_sel.path, { stumm: true });
     if (ok !== false && typeof switchMod === "function") switchMod(slug);
   }
 

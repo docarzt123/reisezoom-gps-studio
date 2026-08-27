@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.552"
+APP_VERSION = "0.9.553"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1965,6 +1965,121 @@ class Api:
         except Exception as e:
             log.exception("library_folders")
             return {"ok": False, "error": str(e), "folders": []}
+
+    # ── Archiv-Frage beim Öffnen (27.08.2026, Marc) ──────────────────────────
+    # „wenn ich eine gpx öffne, egal in welchem modul, dann landet die nicht
+    # automatisch im archiv" — richtig, und genau das führt ein Archiv, an dem
+    # die Hälfte der eigenen Touren vorbeiläuft. Marcs vier Fälle:
+    #   1. Datei ist EXAKT die aus dem Archiv       → nichts, läuft wie bisher.
+    #   2. Tour ist inhaltlich bekannt, andere Datei → Hinweis (Kopie außerhalb).
+    #   3. Tour unbekannt                            → fragen; bei Ja wird die
+    #      Datei in den überwachten Ordner KOPIERT und mit der Kopie
+    #      weitergearbeitet.
+    #   4. Im Inspektor geänderter Track beim Speichern → ebenfalls fragen.
+    # Die Entscheidung, was passiert, liegt bewusst in der Oberfläche; hier
+    # steht nur, was der Fall IST.
+    INTERNE_ORDNER = ("projekt_importe", "zusammengefuehrt", "cloud_touren")
+
+    def _archiv_ordner_offen(self) -> list:
+        """Überwachte Ordner, die der Nutzer selbst gewählt hat.
+
+        Die von der App angelegten (Projekt-Importe, Zusammengeführtes,
+        Cloud-Touren) sind kein Ablageort für eigene Dateien — dort hinein zu
+        kopieren würde sie beim nächsten Aufräumen mitreißen.
+        """
+        raus = []
+        for f in clib.get_folders(self._lib()):
+            pfad = Path(f.get("path") or "")
+            if pfad.name in self.INTERNE_ORDNER and str(pfad).startswith(str(APP_SUPPORT)):
+                continue
+            raus.append({"path": str(pfad), "name": pfad.name,
+                         "exists": pfad.is_dir(), "recursive": bool(f.get("recursive"))})
+        return raus
+
+    def archiv_status(self, gpx_path: str = "") -> dict:
+        """Kennt das Archiv diese Datei — und wenn ja, wie?
+
+        `im_archiv`  … genau dieser Pfad steht im Archiv (Fall 1)
+        `bekannt`    … die TOUR ist da, aber unter einem anderen Pfad (Fall 2)
+        `ordner`     … wohin man kopieren könnte (leer = noch keiner da)
+        """
+        try:
+            p = Path(gpx_path).expanduser()
+            if not gpx_path or not p.exists():
+                return {"ok": False, "error": _ui_t()("error.datei_fehlt", "Datei nicht gefunden")}
+            conn = self._lib()
+            geo = self._track_geo_hash(str(p))
+            # ⚠️ Pfade NICHT als Zeichenkette vergleichen. Das Archiv speichert
+            # den Pfad so, wie der Ordner eingetragen wurde; ein Symlink davor
+            # (/var → /private/var, /Volumes-Aliase, ~/Documents in iCloud)
+            # macht daraus zwei verschiedene Zeichenketten für DIESELBE Datei —
+            # und die eigene Archiv-Datei gälte als fremde Kopie. `samefile`
+            # fragt das Dateisystem, und das weiß es genau.
+            treffer = None
+            eigene = None
+            if geo:
+                with clib._DB_LOCK:
+                    zeilen = conn.execute(
+                        "SELECT t.path, COALESCE(m.display_name, t.name) AS name "
+                        "FROM tracks t LEFT JOIN track_meta m ON m.geo_hash = t.geo_hash "
+                        "WHERE t.geo_hash = ?", (geo,)).fetchall()
+                for z in zeilen:
+                    treffer = treffer or z
+                    try:
+                        if Path(z["path"]).exists() and p.samefile(z["path"]):
+                            eigene = z
+                            break
+                    except OSError:
+                        continue
+            if eigene is not None:
+                return {"ok": True, "im_archiv": True, "bekannt": True, "geo_hash": geo,
+                        "archiv_pfad": eigene["path"], "archiv_name": eigene["name"] or "",
+                        "ordner": self._archiv_ordner_offen()}
+            return {"ok": True, "im_archiv": False, "bekannt": bool(treffer),
+                    "geo_hash": geo,
+                    "archiv_pfad": treffer["path"] if treffer else "",
+                    "archiv_name": (treffer["name"] if treffer else "") or "",
+                    "ordner": self._archiv_ordner_offen()}
+        except Exception as e:
+            log.exception("archiv_status")
+            return {"ok": False, "error": str(e)}
+
+    def archiv_datei_aufnehmen(self, gpx_path: str = "", ziel_ordner: str = "") -> dict:
+        """Datei ins Archiv legen: in den überwachten Ordner KOPIEREN + einlesen.
+
+        Kopieren, nicht verschieben: Die Datei kann aus einem fremden Ordner
+        stammen (Download, Kamera-Karte, fremde Platte) — dort etwas
+        wegzunehmen wäre übergriffig. Zurückgegeben wird der neue Pfad, denn ab
+        jetzt soll mit der Archiv-Fassung weitergearbeitet werden.
+        """
+        try:
+            quelle = Path(gpx_path).expanduser()
+            if not gpx_path or not quelle.exists():
+                return {"ok": False, "error": _ui_t()("error.datei_fehlt", "Datei nicht gefunden")}
+            ordner = Path(ziel_ordner).expanduser() if ziel_ordner else None
+            if ordner is None:
+                offen = self._archiv_ordner_offen()
+                ordner = Path(offen[0]["path"]) if offen else (Path.home() / "Documents" / "Reisezoom Touren")
+            ordner.mkdir(parents=True, exist_ok=True)
+            ziel = ordner / quelle.name
+            n = 1
+            while ziel.exists():
+                if ziel.read_bytes() == quelle.read_bytes():
+                    break               # dieselbe Datei liegt schon da
+                n += 1
+                ziel = ordner / f"{quelle.stem}_{n}{quelle.suffix}"
+            if not ziel.exists():
+                shutil.copy2(quelle, ziel)
+            conn = self._lib()
+            clib.add_folder(conn, str(ordner), recursive=True)
+            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(ordner)],
+                      map_thumbs_dir=LIBRARY_MAP_THUMBS, covers_dir=LIBRARY_COVERS)
+            log.info("Archiv: %s → %s", quelle, ziel)
+            return {"ok": True, "pfad": str(ziel), "ordner": str(ordner),
+                    "neuer_ordner": not ziel_ordner and not self._archiv_ordner_offen()}
+        except Exception as e:
+            log.exception("archiv_datei_aufnehmen")
+            return {"ok": False, "error": str(e)}
 
     def library_add_folder(self, path: str = "") -> dict:
         """Ordner beobachten. Ohne `path` öffnet sich der Ordner-Dialog."""

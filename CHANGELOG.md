@@ -14,6 +14,41 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.553] – 2026-08-27
+
+### Hinzugefügt
+- **Beim Öffnen fragt die App, ob die Tour ins Archiv soll.** Marc: „sollte man
+  in so einem fall nicht fragen, ob die datei ins archiv soll?" — bis jetzt kam
+  eine Tour nur über „Ordner & Einlesen" ins Archiv, alles per Dateidialog
+  Geöffnete lief daran vorbei. Vier Fälle, so wie Marc sie beschrieben hat:
+
+  1. **Es ist genau die Archiv-Datei** → nichts, läuft wie bisher.
+  2. **Die Tour ist bekannt, die Datei kommt von woanders** → Hinweis, dass
+     gerade an einer Kopie außerhalb des Archivs gearbeitet wird (mit Namen der
+     Archiv-Fassung).
+  3. **Die Tour ist unbekannt** → Frage „Tour ins Archiv aufnehmen?". Bei Ja
+     wird die Datei in den überwachten Ordner **kopiert** (das Original bleibt,
+     wo es ist) und ab dann mit der Archiv-Fassung weitergearbeitet. Gibt es
+     mehrere überwachte Ordner, ist der Zielordner wählbar; gibt es noch keinen,
+     wird „Dokumente › Reisezoom Touren" angelegt und aufgenommen.
+  4. **Im Inspektor geänderter und gespeicherter Track** → dieselbe Frage,
+     bevor er geladen wird.
+
+  Gefragt wird nur bei Ladevorgängen, die man selbst auslöst. App-Start,
+  Archiv-Klick und Cloud-Import laufen stumm — sonst käme bei jedem Start
+  dieselbe Frage. „Nein" lässt sich pro Tour dauerhaft merken.
+
+  Neue Brücken `archiv_status(gpx_path)` und
+  `archiv_datei_aufnehmen(gpx_path, ziel_ordner)`.
+
+### Behoben
+- **Symlinks machten aus der eigenen Archiv-Datei eine „fremde Kopie".** Beim
+  Prüfen wurden Pfade als Zeichenkette verglichen; `/var` gegen `/private/var`,
+  `/Volumes`-Aliase oder iCloud-Dokumente sind aber zwei Schreibweisen derselben
+  Datei. Jetzt entscheidet `samefile` — das Dateisystem weiß es genau. Beim Bau
+  aufgefallen und als Fall im Wächter festgehalten
+  (`tests/test_archiv_frage.py`).
+
 ## [0.9.552] – 2026-08-27
 
 ### Geändert
