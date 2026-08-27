@@ -47,6 +47,7 @@ function mountGpxInspect(body, headerActions) {
   let _profDraw = null;             // letzte Zeichen-Parameter fürs Hit-Testing
   let _maplib = null;               // Karten-Lib (mapboxgl/maplibregl) für Popup
   let _aMarker = null, _bMarker = null;   // v0.9.304 — deutliche A/B-Anker-Pins
+  let _startMarker = null, _zielMarker = null;   // 27.08.2026 — Anfang/Ende der Tour
   let _ptPopup = null;              // Mapbox-Popup mit Punkt-Info (Karte)
   let _clickTimer = null;           // Einzel-/Doppelklick-Entscheidung
 
@@ -390,6 +391,7 @@ function mountGpxInspect(body, headerActions) {
     }
     try { map.getSource("gpxi-pts").setData({ type: "FeatureCollection", features: feats }); } catch (_) {}
     renderAnchorMarkers();
+    renderStartZielMarker();     // 27.08.2026 — Anfang/Ende sichtbar halten
   }
   // v0.9.304 — Deutliche A/B-Anker als Pin-Badges (statt nur etwas größerer Kreise).
   function _mkAnchorEl(lab, cls) {
@@ -400,6 +402,44 @@ function mountGpxInspect(body, headerActions) {
     el.textContent = lab;
     return el;
   }
+  // 27.08.2026 (Marc: „im inspektor müssen anfang und ende einer tour klar
+  // sichtbar sein") — Wer eine Aufzeichnung prüft, muss zuerst wissen, wo sie
+  // beginnt: Anfahrt wegschneiden, Rundtour beurteilen, Ausreißer am Rand
+  // erkennen. Bisher sahen alle Punkte gleich aus, Grün/Rot war für die
+  // A/B-Auswahl reserviert. Deshalb hier BESCHRIFTETE Fähnchen statt Farben —
+  // die sind eindeutig und kollidieren nicht mit der Auswahl.
+  function _mkEndeEl(text, cls) {
+    // Kein CSS-transform am Element selbst (siehe _mkAnchorEl).
+    const el = document.createElement("div");
+    el.className = "gpxi-ende-mk " + cls;
+    el.textContent = text;
+    return el;
+  }
+
+  function renderStartZielMarker() {
+    if (!map || !_maplib || typeof _maplib.Marker !== "function") return;
+    try {
+      if (_startMarker) { _startMarker.remove(); _startMarker = null; }
+      if (_zielMarker) { _zielMarker.remove(); _zielMarker = null; }
+      if (!_points.length) return;
+      const a = _points[0], z = _points[_points.length - 1];
+      _startMarker = new _maplib.Marker({ element: _mkEndeEl(t("gpxinspect.start", "▶ START"), "gpxi-ende-start") })
+        .setLngLat([a.lon, a.lat]).addTo(map);
+      // Bei einer Rundtour liegen Anfang und Ende praktisch aufeinander; dann
+      // würde das zweite Fähnchen das erste verdecken. In dem Fall sagt EIN
+      // Fähnchen die Wahrheit — sonst rätselt man, warum „Ziel" fehlt.
+      const rund = Math.abs(a.lat - z.lat) < 1e-4 && Math.abs(a.lon - z.lon) < 1e-4;
+      if (rund) {
+        _startMarker.remove();
+        _startMarker = new _maplib.Marker({ element: _mkEndeEl(t("gpxinspect.rundtour", "▶ START · ZIEL"), "gpxi-ende-rund") })
+          .setLngLat([a.lon, a.lat]).addTo(map);
+        return;
+      }
+      _zielMarker = new _maplib.Marker({ element: _mkEndeEl(t("gpxinspect.ziel", "■ ZIEL"), "gpxi-ende-ziel") })
+        .setLngLat([z.lon, z.lat]).addTo(map);
+    } catch (e) { applog && applog("warn", "[gpxinspect] Start/Ziel: " + e); }
+  }
+
   function renderAnchorMarkers() {
     if (!map || !_maplib || typeof _maplib.Marker !== "function") return;
     try {

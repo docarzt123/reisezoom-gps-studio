@@ -308,5 +308,35 @@ if _sys.platform == "darwin":
             "NSAppTransportSecurity": {
                 "NSAllowsArbitraryLoads": True,
             },
+            # 27.08.2026 (Beta-Tester) — Damit ein Doppelklick auf eine
+            # Projektdatei überhaupt bei uns landet, muss die Endung am Bündel
+            # angemeldet sein. Unter Windows genügt die Verknüpfung im System,
+            # macOS verlangt diesen Eintrag. Der Pfad kommt dann als
+            # Apple-Event an (siehe `_macos_datei_event_abholen`).
+            "CFBundleDocumentTypes": [
+                {
+                    "CFBundleTypeName": "Reisezoom Projekt",
+                    "CFBundleTypeRole": "Editor",
+                    "LSHandlerRank": "Owner",
+                    "LSItemContentTypes": ["com.reisezoom.rzproj"],
+                    "CFBundleTypeExtensions": ["rzproj"],
+                },
+                {
+                    "CFBundleTypeName": "GPS-Track",
+                    "CFBundleTypeRole": "Viewer",
+                    "LSHandlerRank": "Alternate",
+                    "CFBundleTypeExtensions": ["gpx", "fit", "kml", "kmz", "tcx"],
+                },
+            ],
+            # Eigener Dateityp für .rzproj — sonst zeigt der Finder sie als
+            # „Dokument" ohne Zuordnung.
+            "UTExportedTypeDeclarations": [
+                {
+                    "UTTypeIdentifier": "com.reisezoom.rzproj",
+                    "UTTypeDescription": "Reisezoom Projekt",
+                    "UTTypeConformsTo": ["public.data", "public.zip-archive"],
+                    "UTTypeTagSpecification": {"public.filename-extension": ["rzproj"]},
+                },
+            ],
         },
     )

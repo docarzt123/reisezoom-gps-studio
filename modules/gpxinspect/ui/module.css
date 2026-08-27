@@ -82,6 +82,23 @@
 .gpxi-anchor-a { background: #16a34a; }
 .gpxi-anchor-b { background: #dc2626; }
 
+/* 27.08.2026 (Marc) — Anfang und Ende der Aufzeichnung. Bewusst BESCHRIFTETE
+   Fähnchen statt farbiger Punkte: Grün/Rot sind hier schon für die A/B-Auswahl
+   belegt, ein weiteres Farbpaar würde man verwechseln. Dunkler Grund mit
+   heller Schrift liest sich auf Satellitenbild wie auf Karte.
+   Kein transform am Element — Mapbox setzt dort seins (siehe _mkEndeEl). */
+.gpxi-ende-mk {
+  padding: 3px 8px; border-radius: 999px;
+  font-weight: 800; font-size: 10.5px; letter-spacing: .4px;
+  color: #fff; white-space: nowrap; line-height: 1.15;
+  border: 2px solid rgba(255,255,255,.92);
+  box-shadow: 0 2px 9px rgba(0,0,0,.65);
+  pointer-events: none;
+}
+.gpxi-ende-start { background: #0f766e; }          /* Petrol — klar neben dem A-Grün */
+.gpxi-ende-ziel  { background: #7c2d12; }          /* Dunkelbraun — klar neben dem B-Rot */
+.gpxi-ende-rund  { background: #4c1d95; }          /* Rundtour: Anfang = Ende */
+
 /* v0.9.303 — feste Live-Daten-Box (Punkt unter dem Mauszeiger), oben links über der Karte */
 .gpxi-hoverbox {
   position: absolute; top: 10px; left: 10px; z-index: 20;

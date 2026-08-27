@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.546"
+APP_VERSION = "0.9.547"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -5525,6 +5525,33 @@ class Api:
             log.exception("projekt_exportieren")
             return {"ok": False, "error": str(e)}
 
+    def startdatei_abholen(self) -> dict:
+        """Datei, mit der die App gestartet wurde — einmalig abholbar.
+
+        27.08.2026 (Beta-Tester): Er hat unter Windows die Endung `.rzproj` mit
+        dem Programm verknüpft. Doppelklick startete die App, das Projekt blieb
+        aber unsichtbar — der Pfad stand in `sys.argv` und niemand las ihn. Die
+        Oberfläche fragt hier beim Start einmal nach und importiert bzw. lädt,
+        was dasteht. Zweiter Aufruf liefert nichts (deshalb `pop`), damit ein
+        erneutes Laden der Seite nicht dieselbe Datei nochmal aufmacht.
+        """
+        try:
+            # macOS reicht Dateien nicht über argv, sondern per Apple-Event —
+            # das kommt ggf. später an, deshalb hier nochmal nachsehen.
+            if not _START_DATEI:
+                spaet = _macos_datei_event_abholen()
+                if spaet:
+                    _START_DATEI.append(spaet)
+            if not _START_DATEI:
+                return {"ok": True, "pfad": "", "art": ""}
+            pfad = _START_DATEI.pop(0)
+            art = "projekt" if pfad.lower().endswith(".rzproj") else "track"
+            log.info("startdatei_abholen: %s (%s)", pfad, art)
+            return {"ok": True, "pfad": pfad, "art": art}
+        except Exception as e:
+            log.warning("startdatei_abholen: %s", e)
+            return {"ok": False, "pfad": "", "art": "", "error": str(e)}
+
     def projekt_importieren(self, pfad: str = "") -> dict:
         """.rzproj einspielen (Dialog, wenn kein Pfad). Läuft ohne Cloud."""
         try:
@@ -8036,8 +8063,75 @@ def _prepare_html_with_cache_busting() -> str:
     return tmp.name
 
 
+# 27.08.2026 (Beta-Tester) — Doppelklick auf eine .rzproj startete die App,
+# aber das Projekt blieb unsichtbar: `sys.argv` wurde nirgends ausgewertet.
+# Windows und Linux übergeben den Dateipfad als Argument; macOS schickt
+# stattdessen ein Apple-Event („odoc"), das pywebview nicht durchreicht —
+# dort greift zusätzlich `_macos_datei_event_abholen()`.
+_START_DATEI: list = []
+
+
+def _macos_datei_event_abholen() -> Optional[str]:
+    """Auf macOS geöffnete Datei aus dem Apple-Event holen (falls vorhanden).
+
+    Finder schickt beim Doppelklick ein „odoc"-Event statt eines Arguments.
+    PyObjC legt es unter `NSApplication` ab, sobald die Anwendung läuft. Fehlt
+    PyObjC oder kommt kein Event, ist das kein Fehler — dann bleibt es beim
+    Argument-Weg (Windows/Linux).
+    """
+    if sys.platform != "darwin":
+        return None
+    try:
+        from Foundation import NSAppleEventManager, NSAppleEventDescriptor  # type: ignore  # noqa: F401
+        mgr = NSAppleEventManager.sharedAppleEventManager()
+        ev = mgr.currentAppleEvent()
+        if ev is None:
+            return None
+        liste = ev.paramDescriptorForKeyword_(0x2D2D2D2D)   # keyDirectObject '----'
+        if liste is None:
+            return None
+        n = liste.numberOfItems()
+        for i in range(1, n + 1):
+            eintrag = liste.descriptorAtIndex_(i)
+            if eintrag is None:
+                continue
+            url = eintrag.stringValue()
+            if not url:
+                continue
+            pfad = url[7:] if url.startswith("file://") else url
+            try:
+                from urllib.parse import unquote
+                pfad = unquote(pfad)
+            except Exception:
+                pass
+            if os.path.exists(pfad):
+                return pfad
+    except Exception:
+        return None
+    return None
+
+
+def _startdatei_aus_argv() -> Optional[str]:
+    """Erste geöffnete Datei aus den Startargumenten (.rzproj oder Track)."""
+    endungen = (".rzproj", ".gpx", ".fit", ".kml", ".kmz", ".tcx", ".geojson", ".nmea")
+    for arg in sys.argv[1:]:
+        if arg.startswith("-"):
+            continue
+        # PyInstaller-Bundles bekommen auf macOS ein „-psn_…"-Argument
+        if arg.startswith("-psn"):
+            continue
+        if arg.lower().endswith(endungen) and os.path.exists(arg):
+            return arg
+    return None
+
+
 def main() -> None:
     api = Api()
+    _START_DATEI.clear()
+    _sd = _startdatei_aus_argv()
+    if _sd:
+        _START_DATEI.append(_sd)
+        log.info("Startdatei aus den Argumenten: %s", _sd)
     html_path = _prepare_html_with_cache_busting()
 
     # v0.9.28 (Marc-Feedback): Fenster-Geometrie wird IMMER aus Settings
