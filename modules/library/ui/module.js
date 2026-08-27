@@ -966,7 +966,14 @@ function mountLibrary(body, headerActions) {
         renderView();
         renderDetail();
       };
-      btn.ondblclick = () => { if (_multi.size <= 1) openIn("animator"); };
+      btn.ondblclick = () => {
+        if (_multi.size > 1) return;
+        // Im Ghost-Modus heißt Doppelklick „diese hier" — NICHT „öffnen", was den
+        // Haupt-Track ersetzen würde (Marc, 27.08.2026).
+        const dbl = _items[parseInt(btn.dataset.i, 10)];
+        if (_ghostModus()) { if (dbl) alsGhost([dbl.path]); return; }
+        openIn("animator");
+      };
     });
   }
 
@@ -1542,9 +1549,11 @@ function mountLibrary(body, headerActions) {
           ${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}
         </div>
         <div class="lib-pop-btns">
-          <button class="btn btn-primary btn-sm" data-pop="open">${T("library.open_animator", "Im Animator öffnen")}</button>
+          ${_ghostModus()
+            ? `<button class="btn btn-primary btn-sm" data-pop="ghost">👻 ${T("library.ghost.take", "Als Ghost-Spur übernehmen")}</button>`
+            : `<button class="btn btn-primary btn-sm" data-pop="open">${T("library.open_animator", "Im Animator öffnen")}</button>
           <button class="btn btn-sm" data-pop="ghost">👻 ${T("library.ghost.take_short", "Als Ghost-Spur")}</button>
-          <button class="btn btn-sm" data-pop="col">+ ${T("library.col_add", "Zu Sammlung")}</button>
+          <button class="btn btn-sm" data-pop="col">+ ${T("library.col_add", "Zu Sammlung")}</button>`}
         </div>
       </div>`).addTo(_map);
     const el = _mapPopup.getElement();
@@ -1757,20 +1766,22 @@ function mountLibrary(body, headerActions) {
       </div>
 
       <div class="lib-actions" style="margin-top:16px;">
-        <button class="btn btn-primary btn-sm" id="lib-m-merge" style="width:100%;">${T("library.merge.action", "🧭 Zu einem Video zusammenführen …")}</button>
+        ${_ghostModus() ? "" : `<button class="btn btn-primary btn-sm" id="lib-m-merge" style="width:100%;">${T("library.merge.action", "🧭 Zu einem Video zusammenführen …")}</button>`}
       <!-- 27.08.2026 — Markierte Touren als Ghost-Spuren in den Animator: nicht
            animiert, sondern als Hintergrundlinien (offizieller Weg, Planungen …).
            Gleicher Übergabeweg wie „Alle im Animator" (window.__rzPendingGhosts). -->
-      <button class="btn btn-sm" id="lib-m-ghosts" style="width:100%;margin-top:6px;">${T("library.ghosts.action", "👻 Als Ghost-Spur in den Animator")}</button>
+      <button class="btn ${_ghostModus() ? "btn-primary" : ""} btn-sm" id="lib-m-ghosts" style="width:100%;margin-top:6px;">${
+        _ghostModus() ? `👻 ${T("library.ghost.take_n", "Diese {n} als Ghost-Spuren übernehmen").replace("{n}", _multi.size)}`
+                      : T("library.ghosts.action", "👻 Als Ghost-Spur in den Animator")}</button>
       </div>
-      <div class="lib-actions">
+      ${_ghostModus() ? "" : `<div class="lib-actions">
         <button class="btn btn-ghost btn-sm" id="lib-m-fav">★ ${T("library.fav_on", "Als Favorit")}</button>
         <button class="btn btn-ghost btn-sm" id="lib-m-unfav">${T("library.fav_off", "Favorit weg")}</button>
       </div>
       <div class="lib-actions lib-danger">
         <button class="btn btn-ghost btn-sm" id="lib-m-hide">${T("library.hide", "Ausblenden")}</button>
         <button class="btn btn-ghost btn-sm lib-btn-danger" id="lib-m-trash">${T("library.trash", "In den Papierkorb")}</button>
-      </div>
+      </div>`}
       <div class="lib-hint" id="lib-m-status"></div>`;
     box.innerHTML = _ghostBannerHtml() + box.innerHTML;
     _ghostBannerBinden();
@@ -1795,7 +1806,8 @@ function mountLibrary(body, headerActions) {
     if (neu) neu.onclick = () => addToCollectionDialog(pfade());
 
     $("lib-m-clear").onclick = () => { _multi.clear(); renderView(); renderDetail(); };
-    $("lib-m-merge").onclick = () => openMergeDialog(multiItems());
+    const mMerge = $("lib-m-merge");
+    if (mMerge) mMerge.onclick = () => openMergeDialog(multiItems());
     const ghostBtn = $("lib-m-ghosts");
     if (ghostBtn) {
       ghostBtn.onclick = () => {
@@ -1853,14 +1865,17 @@ function mountLibrary(body, headerActions) {
       }
       reload();
     };
-    $("lib-m-fav").onclick = () => favSetzen(true);
-    $("lib-m-unfav").onclick = () => favSetzen(false);
+    const mFav = $("lib-m-fav"), mUnfav = $("lib-m-unfav");
+    if (mFav) mFav.onclick = () => favSetzen(true);
+    if (mUnfav) mUnfav.onclick = () => favSetzen(false);
 
-    $("lib-m-hide").onclick = async () => {
+    const mHide = $("lib-m-hide");
+    if (mHide) mHide.onclick = async () => {
       for (const p of pfade()) await api().library_set_hidden(p, true);
       _multi.clear(); reload();
     };
-    $("lib-m-trash").onclick = async () => {
+    const mTrash = $("lib-m-trash");
+    if (mTrash) mTrash.onclick = async () => {
       if (!await frageTrash(_multi.size)) return;
       let ok = 0;
       for (const p of pfade()) {
@@ -1952,15 +1967,16 @@ function mountLibrary(body, headerActions) {
           : T("library.file_gone", "Die Datei liegt nicht mehr an diesem Ort.")}</div>` : ""}
 
       <div class="lib-actions">
-        ${_ghostModus() ? `<button class="btn btn-primary btn-sm lib-ghost-take" data-ghost="1">👻 ${
-            T("library.ghost.take", "Als Ghost-Spur übernehmen")}</button>` : ""}
-        <button class="btn ${_ghostModus() ? "btn-sm" : "btn-primary btn-sm"}" data-open="animator">${T("library.open_animator", "Im Animator öffnen")}</button>
+        ${_ghostModus()
+          ? `<button class="btn btn-primary btn-sm lib-ghost-take" data-ghost="1" style="width:100%">👻 ${
+              T("library.ghost.take", "Als Ghost-Spur übernehmen")}</button>`
+          : `<button class="btn btn-primary btn-sm" data-open="animator">${T("library.open_animator", "Im Animator öffnen")}</button>
         <button class="btn btn-sm" data-open="tourmap">${T("library.open_tourmap", "Tour-Karte")}</button>
         <button class="btn btn-sm" data-open="heightanim">${T("library.open_height", "Daten-Animator")}</button>
         <button class="btn btn-sm" data-open="geotagger">${T("library.open_geotagger", "Fotos verorten")}</button>
         <button class="btn btn-sm" data-open="gpxinspect">${T("library.open_inspect", "Inspektor")}</button>
-        ${_ghostModus() ? "" : `<button class="btn btn-sm" data-ghost="1" title="${
-            esc(T("library.ghost.hint", "Legt die Tour als unbewegte Hintergrundlinie in den Animator — der Haupt-Track bleibt, wie er ist."))
+        <button class="btn btn-sm" data-ghost="1" title="${esc(T("library.ghost.hint",
+            "Legt die Tour als unbewegte Hintergrundlinie in den Animator — der Haupt-Track bleibt, wie er ist."))
           }">👻 ${T("library.ghost.take_short", "Als Ghost-Spur")}</button>`}
       </div>
 
@@ -2357,7 +2373,7 @@ function mountLibrary(body, headerActions) {
     if (!_ghostModus()) return "";
     return `<div class="lib-ghost-bar" id="lib-ghost-bar">
       <span>👻 ${T("library.ghost.mode",
-        "Ghost-Spur auswählen: Tour anklicken und „Als Ghost-Spur übernehmen“. Mehrere gehen mit ⌘/Strg-Klick.")}</span>
+        "Ghost-Spur auswählen: Tour anklicken und „Als Ghost-Spur übernehmen“ (oder Doppelklick). Mehrere gehen mit ⌘/Strg-Klick. Die anderen Werkzeuge sind so lange ausgeblendet.")}</span>
       <button class="btn btn-ghost btn-sm" id="lib-ghost-bar-x" type="button">${T("common.cancel", "Abbrechen")}</button>
     </div>`;
   }
