@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.553"
+APP_VERSION = "0.9.554"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2075,7 +2075,17 @@ class Api:
             clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(ordner)],
                       map_thumbs_dir=LIBRARY_MAP_THUMBS, covers_dir=LIBRARY_COVERS)
             log.info("Archiv: %s → %s", quelle, ziel)
-            return {"ok": True, "pfad": str(ziel), "ordner": str(ordner),
+            # Ob die Tour auch in die Cloud wandert, darf der Nutzer erfahren —
+            # sie tut es (der Abgleich nimmt alles, was im Archiv steht), nur
+            # eben erst nach dem Ruhefenster. Gelesen wird ausschließlich die
+            # Marker-Datei: `cloud_status` und alles, was ungefragt läuft, darf
+            # den Schlüsselbund NICHT anfassen (v0.9.526).
+            cloud = False
+            try:
+                cloud = bool(self._cloud_sichtbar() and self._cloud_marker().get("eingerichtet"))
+            except Exception:
+                cloud = False
+            return {"ok": True, "pfad": str(ziel), "ordner": str(ordner), "cloud": cloud,
                     "neuer_ordner": not ziel_ordner and not self._archiv_ordner_offen()}
         except Exception as e:
             log.exception("archiv_datei_aufnehmen")
@@ -5996,12 +6006,18 @@ class Api:
 
     def _cloud_fingerabdruck(self):
         """Billiger Änderungs-Fühler: mtime+Größe der beiden Wahrheitsdateien.
-        Der Sync selbst verändert keine davon — keine Rückkopplung."""
+        Der Sync selbst verändert keine davon — keine Rückkopplung.
+
+        ⚠️ Nanosekunden, nicht ganze Sekunden (27.08.2026): Eine Datenbank-
+        Änderung, die in dieselbe Sekunde fällt wie der zuletzt gesehene Stand
+        und die Dateigröße nicht verändert (SQLite schreibt oft in schon
+        belegte Seiten), wäre sonst unsichtbar geblieben — die Tour hätte auf
+        die nächste Änderung warten müssen, um hochzugehen."""
         fp = []
         for pfad in (LIBRARY_DB, SESSIONS_FILE):
             try:
                 st = os.stat(pfad)
-                fp.append((str(pfad), int(st.st_mtime), st.st_size))
+                fp.append((str(pfad), st.st_mtime_ns, st.st_size))
             except OSError:
                 fp.append((str(pfad), 0, 0))
         return tuple(fp)

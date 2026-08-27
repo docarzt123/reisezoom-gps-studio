@@ -302,6 +302,7 @@
   "archiv.nein": "No thanks",
   "archiv.ja": "Yes, add it",
   "archiv.aufgenommen": "Added to the archive.",
+  "archiv.aufgenommen_cloud": "Added to the archive — it will go to your cloud shortly.",
   "archiv.fehler": "Could not be added to the archive.",
   "animator.kf.world_drag_hint": "🌍 Earth sitting too low? Just drag it up with your mouse — the keyframe updates automatically when you release.",
   "animator.kf.duplicated": "Keyframe duplicated",
