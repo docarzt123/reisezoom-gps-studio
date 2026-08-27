@@ -14,6 +14,22 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.545] – 2026-08-27
+
+### Fixed
+- **RAW-Fotos landeten mitten im Atlantik** (Marc, Insta360 Luna Pro). Die
+  Kamera schreibt in **jede DNG** einen leeren GPS-Block mit `0/0` — das ist
+  „Null-Island" im Golf von Guinea. Solche Blöcke werden seit v0.9.165
+  verworfen, aber der **schnelle Ladeweg** des Geotaggers (exiftool-Daemon beim
+  Einlesen) prüfte nur, *ob* Koordinaten dastehen, nicht ob sie etwas bedeuten.
+  Damit galten die Fotos als „hat schon eigenes GPS" — und diese Position
+  gewinnt gegen die Zuordnung über die Uhrzeit. Ergebnis: Die JPEGs saßen
+  richtig auf dem Track, die DNGs derselben Aufnahme im Atlantik.
+  An seiner Tour nachgemessen: vorher alle 37 DNGs bei 0/0, jetzt alle 37 auf
+  dem Track, auf wenige Sekunden genau. Betrifft RAW **und** HEIC/HEIF.
+  Wache: tests/test_null_island_raw.py (mit echter Luna-Pro-DNG, falls
+  vorhanden, sonst nachgebaut).
+
 ## [0.9.544] – 2026-08-27
 
 ### Added

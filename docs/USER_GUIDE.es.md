@@ -1203,6 +1203,12 @@ No hace falta plugin de WordPress; sin Mapbox/CDN — el archivo funciona de for
 
 ---
 
+> **Algunas cámaras escriben un campo GPS vacío.** Insta360, por ejemplo, pone
+> 0/0 en cada archivo RAW — un punto en el golfo de Guinea. La aplicación
+> reconoce esos campos vacíos y los ignora (desde la v0.9.545 también en la
+> lectura rápida), de modo que tus fotos se asignan al track por la hora de
+> captura. Si antes tus RAW acababan «en el Atlántico»: ese era el motivo.
+
 ### Trazas fantasma: varios tracks de fondo (desde v0.9.544)
 
 A veces una ruta solo se entiende en su contexto: el sendero oficial, tu
