@@ -1301,8 +1301,17 @@ Manchmal erzählt eine Tour erst im Zusammenhang: der offizielle Wanderweg, dein
 Planung, und was du am Ende wirklich gelaufen bist. Dafür gibt es im Animator den
 Abschnitt **👻 Ghost-Spuren**.
 
-Füge so viele Tracks hinzu, wie du brauchst — **📚 Aus dem Archiv** (dort die
-Touren markieren und „👻 Als Ghost-Spur in den Animator" wählen) oder **📂 Datei**.
+Füge so viele Tracks hinzu, wie du brauchst — **📚 Aus dem Archiv** oder
+**📂 Datei**.
+
+> **Wichtig beim Weg übers Archiv:** Klick im Archiv die Tour an und wähle
+> **👻 Als Ghost-Spur** (rechts in der Detailleiste oder im Karten-Popup).
+> **Nicht** „Im Animator öffnen" — das macht die Tour zum **Haupt-Track** und
+> ersetzt deine Tour. Kommst du über den Ghost-Knopf aus dem Animator, steht oben
+> im Archiv eine Leiste, die genau daran erinnert; die Ghost-Übernahme ist dann
+> der hervorgehobene Knopf. Mehrere Spuren auf einmal: mit ⌘/Strg-Klick markieren
+> und „👻 Als Ghost-Spur in den Animator" wählen.
+
 Jede Spur stellst du einzeln ein: Farbe, Deckkraft, Linienbreite und gestrichelt
 oder durchgezogen. Das Häkchen links blendet eine Spur aus, ohne sie zu löschen.
 

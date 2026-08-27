@@ -14,6 +14,30 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.551] – 2026-08-27
+
+### Behoben
+- **Ghost-Spur aus dem Archiv holen führte zum falschen Ergebnis.** Marc:
+  „ich bin über den ghosttrack im animator eingestiegen, dort aus dem archiv
+  wählen geklickt … ich suche meinen track und klicke dann in animator öffnen —
+  damit ist das dann der neue haupttrack, kein ghost."
+
+  Die Übergabe gab es, aber **nur über die Mehrfach-Auswahl** (⌘-Klick), von der
+  der Knopf im Animator nichts sagte. An der einzelnen, angeklickten Tour stand
+  allein „Im Animator öffnen" — und das ersetzt den Haupt-Track. Ein Weg, den
+  niemand findet, ist kein Weg.
+
+  - **👻 Als Ghost-Spur** steht jetzt direkt an der einzelnen Tour (Detailleiste
+    und Karten-Popup), mit Erklärung im Tooltip: „unbewegte Hintergrundlinie —
+    der Haupt-Track bleibt, wie er ist."
+  - Wer aus dem Animator kommt, sieht im Archiv eine **Leiste**, wonach gerade
+    gefragt wird, und die Ghost-Übernahme ist dort die **Hauptaktion**;
+    „Im Animator öffnen" tritt zurück. Abbrechen möglich.
+  - Der Hinweis-Toast im Animator warnt jetzt ausdrücklich davor, „Im Animator
+    öffnen" zu benutzen.
+  - Alle Wege (Einzel-Tour, Popup, Mehrfach-Auswahl) laufen über **eine** Stelle
+    `alsGhost()`. Wächter: `tests/test_ghost_aus_archiv.py`.
+
 ## [0.9.550] – 2026-08-27
 
 ### Hinzugefügt

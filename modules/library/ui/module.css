@@ -741,3 +741,15 @@
 .lib-merge-meta { flex: none; color: var(--text-muted); font-size: 11px; }
 .lib-merge-row.dragging { opacity: 0.45; }
 .lib-merge-row.drag-over { outline: 2px dashed var(--accent, #ff6b35); outline-offset: -2px; }
+
+/* 👻 Ghost-Auswahl: sichtbar machen, wonach das Archiv gerade fragt
+   (27.08.2026 — vorher landete die Tour als Haupt-Track statt als Ghost). */
+.lib-ghost-bar{
+  display:flex; align-items:center; gap:10px; justify-content:space-between;
+  margin:0 0 12px; padding:9px 12px; border-radius:8px;
+  background:color-mix(in srgb, var(--accent) 14%, transparent);
+  border:1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  font-size:12.5px; line-height:1.45;
+}
+.lib-ghost-bar button{ flex:0 0 auto; }
+.lib-actions .lib-ghost-take{ background:var(--accent); }
