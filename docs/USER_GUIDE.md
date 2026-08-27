@@ -1541,6 +1541,17 @@ GPS-Höhenwerte sind oft verrauscht — gerade bei wenig Empfang springt die Hö
 
 **Einzelklick auf einen Punkt** (Karte oder Profil) zeigt ein **kleines Info-Feld direkt am Punkt** (ohne den Hintergrund abzudunkeln) mit allen Daten (Position, Höhe GPS + Karte, Zeit, Distanz, Geschwindigkeit, Steigung) und Buttons „Als Anker A/B". Klickst du einen anderen Punkt, wandert das Feld dorthin. **Doppelklick** setzt den Anker direkt — der schnelle Weg fürs Heilen.
 
+### 🔁 Arbeit auf den geheilten Track übernehmen — seit v0.9.550
+Der klassische Ablauf: Du baust im **Animator** schon an der Tour und merkst dabei, dass mit dem Track etwas nicht stimmt. Also in den Inspektor, reparieren, speichern — und im Animator war früher alles weg.
+
+Der Grund: Eine Tour wird an ihren **Koordinaten** wiedererkannt, nicht am Dateinamen (deshalb findet die App deine Projekte auch nach dem Umbenennen wieder). Ein geheilter Track hat andere Koordinaten und ist damit für die App eine **neue Tour** — mit leerer Projektliste.
+
+Deshalb fragt der Inspektor jetzt **einmal nach dem Speichern**, ob deine Arbeit mitkommen soll. Sagst du ja, wandern **alle Projekte der Tour** herüber, mit allem drin: **Animator** (Kamera, Keyframes, Aussehen), **Tour-Karte**, **Geotagger**, **Höhen-Animator**, dazu **Fotos** und **Schilder**. Das zuletzt aktive Projekt ist danach wieder vorn.
+
+> **Wichtig, ehrlich gesagt:** Je nachdem, **wie viel** geheilt wurde, passt die Übernahme nicht überall. Keyframes, Schilder und Foto-Pins sitzen an einer **Stelle im Track**. Hast du nur ein paar Ausreißer geglättet, merkst du gar nichts. Hast du dagegen viele Punkte eingefügt oder den Anfang abgeschnitten, verschiebt sich alles um genau diesen Anteil — dann bitte kurz durch die Keyframes und Schilder gehen. Hat sich die Tour deutlich geändert, sagt dir die App das nach der Übernahme ausdrücklich.
+
+**Die alte Tour bleibt unangetastet.** Gefällt dir das Ergebnis nicht, öffne einfach wieder die Originaldatei — dort liegt alles unverändert.
+
 ### Rückgängig
 **⌘Z** macht jede Bearbeitung rückgängig, **⌘⇧Z** stellt wieder her (oder die ↩︎/↪︎-Buttons). Beim Laden eines neuen Tracks startet die Historie frisch.
 

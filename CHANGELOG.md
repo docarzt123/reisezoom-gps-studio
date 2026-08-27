@@ -14,6 +14,35 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.550] – 2026-08-27
+
+### Hinzugefügt
+- **Geheilten Track übernehmen — die Arbeit bleibt erhalten.** Marc: „wenn ich
+  im animator was baue und merke, dass mit dem track etwas nicht stimmt, dann
+  gehe ich in den inspektor und repariere den. Stand jetzt muss ich im animator
+  dann alles neu bauen."
+
+  Der Grund war das Sitzungs-Modell: Projekte hängen am **Koordinaten-Hash** der
+  Tour, nicht am Dateinamen. Ein geheilter Track hat andere Koordinaten, also
+  einen anderen Hash — und damit eine leere Sitzung. Das ist so gewollt (ein
+  Track wird über seinen Inhalt wiedererkannt, auch nach dem Umbenennen), führte
+  hier aber dazu, dass jede Reparatur die Arbeit kostete.
+
+  Nach dem Speichern im Inspektor fragt das Programm jetzt einmal, ob die Arbeit
+  mitkommen soll. Übernommen wird **alles**: Animator, Tour-Map, Geotagger,
+  Höhen-Animator samt Fotos und Schildern — und zwar alle Projekte der Tour, mit
+  dem zuletzt aktiven wieder vorn. Die Ursprungstour bleibt unangetastet; wer das
+  Ergebnis nicht mag, öffnet einfach wieder die Originaldatei.
+
+  **Der Vorbehalt steht im Dialog, nicht im Kleingedruckten:** Keyframes,
+  Schilder und Foto-Pins sitzen an einer Stelle im Track. Wurden nur einzelne
+  Ausreißer geglättet, merkt man nichts. Wurde viel eingefügt oder abgeschnitten,
+  können sie verrutschen. Hat sich die Punktzahl um mehr als 5 % geändert, sagt
+  das Programm das nach der Übernahme ausdrücklich dazu.
+
+  Neue Brücke `session_projekte_uebernehmen(quelle_hash, ziel_hash)`,
+  Wächter-Test `tests/test_projekte_uebernehmen.py`, dreisprachig.
+
 ## [0.9.549] – 2026-08-27
 
 ### Fixed

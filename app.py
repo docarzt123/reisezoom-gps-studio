@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.549"
+APP_VERSION = "0.9.550"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1519,6 +1519,87 @@ class Api:
             return ""
 
     @_mit_sessions_lock
+    def session_projekte_uebernehmen(self, quelle_hash: str, ziel_hash: str) -> dict:
+        """Projekte einer Tour auf eine andere übertragen (27.08.2026, Marc).
+
+        Anlass: „wenn ich im animator was baue und merke, dass mit dem track
+        etwas nicht stimmt, dann gehe ich in den inspektor und repariere den.
+        Stand jetzt muss ich im animator dann alles neu bauen."
+
+        Der Grund ist das Sitzungs-Modell: Projekte hängen am **Koordinaten-Hash**
+        der Tour, nicht am Dateinamen. Ein geheilter Track hat andere Koordinaten,
+        also einen anderen Hash — und damit eine leere Sitzung. Diese Brücke
+        kopiert die Projekte der Ursprungstour auf die geheilte, mit ALLEN
+        Modulen (Animator, Tour-Map, Geotagger, Höhen-Animator) samt Fotos und
+        Schildern.
+
+        Die Quelle bleibt unangetastet: Wer das Ergebnis nicht mag, öffnet
+        einfach wieder die alte Datei.
+
+        ⚠️ Keyframes, Schilder und Foto-Pins hängen an einer RELATIVEN Position
+        im Track (0…1). Wurden beim Heilen nur Ausreißer geglättet, merkt man
+        nichts; wurde der Anfang abgeschnitten, verschiebt sich alles um genau
+        diesen Anteil. Deshalb liefert die Antwort `laenge_alt`/`laenge_neu` —
+        die Oberfläche sagt dem Nutzer, wie stark sich die Tour geändert hat.
+        """
+        try:
+            if not quelle_hash or not ziel_hash:
+                return {"ok": False, "error": _ui_t()("error.uebernehmen_kennung", "Tour-Kennung fehlt")}
+            if ziel_hash == quelle_hash:
+                # Nichts verändert (oder nur Höhen) — die Sitzung ist ohnehin dieselbe.
+                return {"ok": True, "unveraendert": True, "projekte": 0,
+                        "ziel_hash": ziel_hash}
+            with _sessions.LOCK:
+                daten = _sessions.load_sessions(SESSIONS_FILE)
+                sess = (daten.get("sessions") or {})
+                quelle = sess.get(quelle_hash)
+                if not quelle:
+                    return {"ok": False, "error": _ui_t()("error.uebernehmen_quelle_fehlt", "Ursprungstour nicht gefunden")}
+                ziel = sess.get(ziel_hash)
+                if ziel is None:
+                    return {"ok": False, "error": _ui_t()("error.uebernehmen_ziel_fehlt", "Zieltour noch nicht angelegt")}
+                q_projekte = quelle.get("projects") or {}
+                if not q_projekte:
+                    return {"ok": True, "projekte": 0, "ziel_hash": ziel_hash}
+
+                # Die Projekte der Quelle ERSETZEN das leere Standard-Projekt der
+                # frisch angelegten Zieltour. Hat der Nutzer dort schon gearbeitet,
+                # bleiben seine Projekte erhalten und die kopierten kommen dazu.
+                ziel_projekte = ziel.setdefault("projects", {})
+                leer = [pid for pid, pr in ziel_projekte.items()
+                        if isinstance(pr, dict) and not any(
+                            (pr.get(k) or {}) for k in ("animator", "tourmap", "geotagger", "heightanim"))
+                        and not (pr.get("photos") or pr.get("signs"))]
+                import copy as _copy
+                kopiert = 0
+                neu_aktiv = ""
+                for pid, pr in q_projekte.items():
+                    if not isinstance(pr, dict):
+                        continue
+                    kopie = _copy.deepcopy(pr)
+                    neue_id = pid if pid not in ziel_projekte else f"{pid}_geheilt"
+                    kopie["id"] = neue_id
+                    ziel_projekte[neue_id] = kopie
+                    kopiert += 1
+                    if pid == quelle.get("active_project_id") or not neu_aktiv:
+                        neu_aktiv = neue_id
+                for pid in leer:
+                    ziel_projekte.pop(pid, None)
+                if neu_aktiv:
+                    ziel["active_project_id"] = neu_aktiv
+                _sessions.save_sessions(SESSIONS_FILE, daten)
+            q_stats = (quelle.get("stats") or {})
+            z_stats = (ziel.get("stats") or {})
+            log.info("session_projekte_uebernehmen: %s → %s, %d Projekt(e)",
+                     quelle_hash, ziel_hash, kopiert)
+            return {"ok": True, "projekte": kopiert, "ziel_hash": ziel_hash,
+                    "aktiv": neu_aktiv,
+                    "punkte_alt": int(q_stats.get("n_points") or 0),
+                    "punkte_neu": int(z_stats.get("n_points") or 0)}
+        except Exception as e:
+            log.exception("session_projekte_uebernehmen")
+            return {"ok": False, "error": str(e)}
+
     def session_open_for_track(self, coords: list, gpx_path: str = "") -> dict:
         """Aktiviert (oder erstellt) eine Session für die gegebenen
         Track-Koordinaten. Returns das aktive Projekt + Liste der Projekte.

@@ -1722,9 +1722,92 @@ function mountGpxInspect(body, headerActions) {
       + (res.sensors_kept ? " — " + t("gpxinspect.sensors_kept", "Sensordaten erhalten") : "");
     if (note) note.textContent = savedMsg;
     toast(savedMsg, "success", 6000);
+    // Wer war das VOR dem Heilen? Projekte hängen am Koordinaten-Hash der Tour;
+    // der geheilte Track hat einen anderen und damit eine leere Sitzung. Die
+    // Kennung müssen wir uns also merken, BEVOR wir die neue Datei laden.
+    let altHash = "", altProjekte = 0;
+    try {
+      const sess = (typeof getActiveSession === "function") ? getActiveSession() : null;
+      altHash = (sess && sess.track_hash) || "";
+      altProjekte = ((typeof getProjectsList === "function") ? (getProjectsList() || []) : []).length;
+    } catch (_) {}
+
     // Geheilten Track gleich global laden → alle Module nutzen die saubere Version
     // (auch TCX: _ensure_gpx konvertiert + zieht die Sensoren in den Cache-Sidecar).
-    if (typeof loadGlobalGpx === "function") { try { loadGlobalGpx(res.out_path); } catch (_) {} }
+    if (typeof loadGlobalGpx === "function") {
+      try { await loadGlobalGpx(res.out_path); } catch (_) {}
+    }
+    if (isUnmounted) return;
+    if (altHash && altProjekte) await _projekteUebernehmenFragen(altHash);
+  }
+
+  /** „Arbeit übernehmen?" — nach dem Heilen anbieten, die Projekte der
+   *  Ursprungstour auf den geheilten Track zu übertragen (27.08.2026, Marc:
+   *  „wenn ich im animator was baue und merke, dass mit dem track etwas nicht
+   *  stimmt … Stand jetzt muss ich im animator dann alles neu bauen").
+   *
+   *  Übernommen wird ALLES: Animator, Tour-Map, Geotagger, Höhen-Animator,
+   *  Fotos und Schilder. Der Vorbehalt steht im Dialog, nicht im Kleingedruckten:
+   *  Keyframes und Schilder sitzen an einer relativen Position im Track — je mehr
+   *  geheilt wurde, desto weiter können sie verrutschen.
+   */
+  async function _projekteUebernehmenFragen(altHash) {
+    let neuHash = "";
+    try {
+      const sess = (typeof getActiveSession === "function") ? getActiveSession() : null;
+      neuHash = (sess && sess.track_hash) || "";
+    } catch (_) {}
+    if (!neuHash || neuHash === altHash) return;   // nichts verändert → gleiche Sitzung
+
+    const ok = await new Promise(resolve => {
+      openModal({
+        title: t("gpxinspect.uebernehmen_titel", "Arbeit auf den geheilten Track übernehmen?"),
+        body: `<p>${t("gpxinspect.uebernehmen_text",
+                "Der geheilte Track ist für das Programm eine neue Tour — deine Projekte hängen noch an der alten Datei. Sollen Animator, Tour-Map, Geotagger, Höhen-Animator samt Fotos und Schildern mit herüberkommen?")}</p>
+               <p class="hinweis" style="opacity:.85">⚠️ ${t("gpxinspect.uebernehmen_vorbehalt",
+                "Je nachdem, wie viel geheilt wurde, passt die Übernahme nicht überall: Keyframes, Schilder und Foto-Pins sitzen an einer Stelle im Track. Wurden nur einzelne Ausreißer geglättet, merkst du nichts. Wurde viel eingefügt oder abgeschnitten, können sie verrutschen — dann bitte kurz nachsehen.")}</p>
+               <p style="opacity:.75">${t("gpxinspect.uebernehmen_sicher",
+                "Die alte Tour bleibt unangetastet — du kannst jederzeit wieder die Originaldatei öffnen.")}</p>`,
+        footer: `
+          <button class="btn" id="md-uebn-nein">${t("gpxinspect.uebernehmen_nein", "Nein, leer starten")}</button>
+          <button class="btn btn-primary" id="md-uebn-ja">${t("gpxinspect.uebernehmen_ja", "Ja, übernehmen")}</button>
+        `,
+        onClose: () => resolve(false),
+      });
+      const zu = (wert) => { try { openModal({}).close(); } catch (_) {} resolve(wert); };
+      const nein = document.getElementById("md-uebn-nein");
+      const ja   = document.getElementById("md-uebn-ja");
+      if (nein) nein.onclick = () => zu(false);
+      if (ja)   ja.onclick   = () => zu(true);
+    });
+    if (!ok || isUnmounted) return;
+
+    let r;
+    try { r = await api().session_projekte_uebernehmen(altHash, neuHash); }
+    catch (e) { r = { ok: false, error: String(e) }; }
+    if (isUnmounted) return;
+    if (!r || !r.ok) {
+      toast((r && r.error) || t("gpxinspect.uebernehmen_fehler", "Übernahme fehlgeschlagen"), "error", 6000);
+      return;
+    }
+    // Sitzung neu ziehen, damit Topbar und Module die kopierten Projekte sehen.
+    try {
+      const g = (typeof window.getGlobalGpxData === "function") ? window.getGlobalGpxData() : null;
+      const gp = (typeof window.getGlobalGpxPath === "function") ? window.getGlobalGpxPath() : "";
+      if (g && g.coords && typeof sessionActivate === "function") {
+        await sessionActivate(g.coords, gp || "");
+      }
+    } catch (_) {}
+    try { if (typeof rebindAllSettings === "function") rebindAllSettings(); } catch (_) {}
+    const abw = (r.punkte_alt && r.punkte_neu)
+      ? Math.round(Math.abs(r.punkte_neu - r.punkte_alt) / r.punkte_alt * 100) : 0;
+    let msg = t("gpxinspect.uebernehmen_ok", "%n Projekt(e) übernommen.").replace("%n", r.projekte);
+    if (abw >= 5) {
+      msg += " " + t("gpxinspect.uebernehmen_pruefen",
+        "Die Tour hat sich um rund %p % geändert — bitte Keyframes und Schilder kurz prüfen.")
+        .replace("%p", abw);
+    }
+    toast(msg, abw >= 5 ? "warn" : "success", 8000);
   }
 
   // ── UI-State ─────────────────────────────────────────────────────────────────
