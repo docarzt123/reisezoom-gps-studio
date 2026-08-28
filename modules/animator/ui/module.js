@@ -7164,7 +7164,9 @@ function mountAnimator(body, headerActions, opts) {
               if (_animUnmounted) return;
               nr++;
               _tourenLadeTick(nr, pending.length, (p.split(/[\\/]/).pop() || "").replace(/\.gpx$/i, ""));
-              if (p === currentGpx || _extraTours.some(t => t.gpx_path === p)) continue;
+              const pN = _pfadNFC(p);
+              if (pN === _pfadNFC(currentGpx)
+                  || _extraTours.some(t => _pfadNFC(t.gpx_path) === pN)) continue;
               try { await _animAddTourPath(p); neu++; } catch (e) { console.warn("pending tour:", e); }
             }
             _animPersistTours();
@@ -12212,7 +12214,8 @@ function mountAnimator(body, headerActions, opts) {
   /** Wie _animAddTour(), aber ohne Dialog — das Archiv übergibt ganze
    *  Sammlungen (Etappe 2, 3, 4 …) programmatisch. */
   async function _animAddTourPath(path) {
-    if (path === currentGpx || _extraTours.some(t => t.gpx_path === path)) {
+    if (_pfadNFC(path) === _pfadNFC(currentGpx)
+        || _extraTours.some(t => _pfadNFC(t.gpx_path) === _pfadNFC(path))) {
       toast(t("animator.tours.dup", "Diese Tour ist schon geladen."), "info");
       return;
     }
@@ -12270,6 +12273,15 @@ function mountAnimator(body, headerActions, opts) {
   function _tourenLadeTick(i, n, name) { tourenLadeModalTick(i, n, name); }
   function _tourenLadeZu() { tourenLadeModalZu(); }
 
+  /* 28.08.2026 — Pfadvergleiche IMMER über NFC normalisieren. macOS legt
+   * Umlaute im Dateinamen ZERLEGT ab (NFD: „o" + Trema), JavaScript-Strings
+   * aus anderen Quellen sind zusammengesetzt (NFC) — derselbe Pfad fiel so
+   * durch jeden ===-Vergleich. Ergebnis bei Marc: 4 Touren mit Umlaut im Namen
+   * („Schildkröte", „Familienrunde …Kirche") schlichen sich bei JEDER Übergabe
+   * erneut in die Liste (95 → 99 → …). Gespeichert wird der Pfad unverändert
+   * (das Dateisystem findet beide Schreibweisen), verglichen nur normalisiert. */
+  const _pfadNFC = (x) => { try { return String(x || "").normalize("NFC"); } catch (_) { return String(x || ""); } };
+
   let _animToursLading = false;      // 28.08.2026 — Reentrancy-Schutz
   let _animToursNochmal = false;     // während des Ladens kam ein neuer Wunsch
   async function _animLoadTours() {
@@ -12318,10 +12330,10 @@ function mountAnimator(body, headerActions, opts) {
     // gespeicherten Projekten Etappen VERDOPPELT (95 → 190). Beim Laden wird
     // jede Datei nur einmal genommen (auch der Haupt-Track gehört nicht in die
     // Liste); waren Doppelte da, wird der bereinigte Stand still persistiert.
-    const gesehen = new Set([currentGpx]);
+    const gesehen = new Set([_pfadNFC(currentGpx)]);
     for (const t of saved) {
-      if (!t || !t.gpx_path || gesehen.has(t.gpx_path)) continue;
-      gesehen.add(t.gpx_path);
+      if (!t || !t.gpx_path || gesehen.has(_pfadNFC(t.gpx_path))) continue;
+      gesehen.add(_pfadNFC(t.gpx_path));
       _ladeNr++;
       _tourenLadeTick(_ladeNr, saved.length, t.name || "");
       // Die Datei kann inzwischen weg/verschoben sein — dann still überspringen,
@@ -12330,8 +12342,8 @@ function mountAnimator(body, headerActions, opts) {
         const res = await api().animator_load_gpx(t.gpx_path);
         if (res && res.ok) {
           const pfad = res.gpx_path || t.gpx_path;
-          if (gesehen.has(pfad) && pfad !== t.gpx_path) continue;   // Cache-Pfad-Dublette
-          gesehen.add(pfad);
+          if (gesehen.has(_pfadNFC(pfad)) && pfad !== t.gpx_path) continue;   // Cache-Pfad-Dublette
+          gesehen.add(_pfadNFC(pfad));
           _extraTours.push({ gpx_path: pfad,
                              line_color: t.line_color || "#35a7ff",
                              name: t.name || "Tour", coords: res.coords });

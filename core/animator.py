@@ -2330,6 +2330,34 @@ const speedKmh = {speed_json};   // v0.9.321 — Stats-Editor: Pro-Punkt-Tempo
 const gradePct = {grade_json};   // v0.9.321 — Pro-Punkt-Steigung %
 const sensorSeries = {sensor_series_json};   // v0.9.330 — FIT-Sensorwerte pro Punkt (key → [werte])
 const TOTAL_DIST_M = cumDistM.length ? cumDistM[cumDistM.length - 1] : 0;
+// ⚠️ Die Schwarm-Konstanten MÜSSEN vor updateOverlays(0) stehen (28.08.2026:
+// „Cannot access 'SCHWARM_N' before initialization" — das Overlay-Feld
+// „Noch unterwegs" griff beim Initial-Aufruf auf sie zu, deklariert waren sie
+// erst weiter unten beim advanceFrame).
+// 🌊 Schwarm (IDEAS §38): weitere Touren, die GLEICHZEITIG mitlaufen. Jede ist
+// äquidistant abgetastet (step_m); der Fortschritt wird aus der bereits
+// zurückgelegten DISTANZ des Haupt-Tracks abgeleitet (cumDistM[safe] / step) —
+// damit gilt „gleiche Geschwindigkeit" in JEDEM Verteilungs-Modus des
+// Haupt-Tracks, und Trim/fullTrack verhalten sich von selbst richtig.
+const SCHWARM_COORDS = {schwarm_coords_json};
+const SCHWARM_COLORS = {schwarm_colors_json};
+const SCHWARM_STEPS = {schwarm_steps_json};
+const SCHWARM_N = SCHWARM_COORDS.length;
+// 28.08.2026 (Marc): Schwarm-Summen fürs Overlay. SWARM_TOTAL_M = Strecke
+// ALLER Touren; swarmDoneM(idx) = wie weit der ganze Schwarm bis jetzt
+// gelaufen ist — jede Tour trägt höchstens ihre eigene Länge bei (wer im
+// Ziel ist, läuft nicht weiter).
+const SWARM_TOTAL_M = TOTAL_DIST_M
+  + SCHWARM_COORDS.reduce((a, c, i) => a + (c.length - 1) * SCHWARM_STEPS[i], 0);
+function swarmDoneM(idx) {{
+  const d = cumDistM[Math.max(0, Math.min(idx, cumDistM.length - 1))] || 0;
+  let s = d;
+  for (let i = 0; i < SCHWARM_N; i++) {{
+    s += Math.min(d, (SCHWARM_COORDS[i].length - 1) * SCHWARM_STEPS[i]);
+  }}
+  return s;
+}}
+
 const TOTAL_TIME_S = cumTimeS.length ? cumTimeS[cumTimeS.length - 1] : 0;
 function fmtKmJS(km){{ return km < 100 ? km.toFixed(1)+' km' : km.toFixed(0)+' km'; }}
 function fmtDurJS(sec){{ sec=Math.max(0,Math.floor(sec)); var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60,p=function(n){{return n<10?'0'+n:''+n;}}; return h>0?h+':'+p(m)+':'+p(s):p(m)+':'+p(s); }}
@@ -2727,29 +2755,6 @@ const STAGE_COLORS = {tour_colors_json};  // Farbe je Etappennummer (leer = eine
 // ⚠️ NICHT „TOUR_COLORS" nennen: so heißt im Mehrspur-HTML schon die Farbliste
 // des alten Pfads — die doppelte Deklaration ließ das ganze Skript sterben.
 const COLOR_SOURCE = {color_source_json};
-// 🌊 Schwarm (IDEAS §38): weitere Touren, die GLEICHZEITIG mitlaufen. Jede ist
-// äquidistant abgetastet (step_m); der Fortschritt wird aus der bereits
-// zurückgelegten DISTANZ des Haupt-Tracks abgeleitet (cumDistM[safe] / step) —
-// damit gilt „gleiche Geschwindigkeit" in JEDEM Verteilungs-Modus des
-// Haupt-Tracks, und Trim/fullTrack verhalten sich von selbst richtig.
-const SCHWARM_COORDS = {schwarm_coords_json};
-const SCHWARM_COLORS = {schwarm_colors_json};
-const SCHWARM_STEPS = {schwarm_steps_json};
-const SCHWARM_N = SCHWARM_COORDS.length;
-// 28.08.2026 (Marc): Schwarm-Summen fürs Overlay. SWARM_TOTAL_M = Strecke
-// ALLER Touren; swarmDoneM(idx) = wie weit der ganze Schwarm bis jetzt
-// gelaufen ist — jede Tour trägt höchstens ihre eigene Länge bei (wer im
-// Ziel ist, läuft nicht weiter).
-const SWARM_TOTAL_M = TOTAL_DIST_M
-  + SCHWARM_COORDS.reduce((a, c, i) => a + (c.length - 1) * SCHWARM_STEPS[i], 0);
-function swarmDoneM(idx) {{
-  const d = cumDistM[Math.max(0, Math.min(idx, cumDistM.length - 1))] || 0;
-  let s = d;
-  for (let i = 0; i < SCHWARM_N; i++) {{
-    s += Math.min(d, (SCHWARM_COORDS[i].length - 1) * SCHWARM_STEPS[i]);
-  }}
-  return s;
-}}
 window.__rzSchwarmAdvance = (dNow) => {{
   if (!SCHWARM_N || !map.getSource('schwarm')) return;
   const linien = [], punkte = [];
