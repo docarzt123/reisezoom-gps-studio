@@ -12,7 +12,7 @@ name: Test Windows Install
 # 1. Installer-EXE startet sauber, /VERYSILENT-Modus funktioniert
 # 2. Files landen in C:\Program Files\Reisezoom GPS Studio\
 # 3. ReisezoomGPSStudio.exe startet ohne sofortigen Crash
-# 4. Python-Init kommt durch (Logfile hat "Reisezoom GPS Studio gestartet")
+# 4. Python-Init kommt durch (Logfile hat die Startzeile "… gestartet — Logdatei:")
 # 5. pywebview-Backend (Edge-WebView2) kann initialisieren — DAS war Beta-Testers Problem
 #
 # Was NICHT getestet wird (würde echten User brauchen):
@@ -163,7 +163,11 @@ jobs:
             throw "App stayed alive but wrote NO log — that's suspicious, Python probably never initialized."
           }
           $log = Get-Content $logFile -Raw
-          if ($log -notmatch "Reisezoom GPS Studio gestartet") {
+          # Nicht auf den exakten Wortlaut prüfen: Seit v0.9.555 steht die
+          # Version zwischen Name und "gestartet" ("… Studio 0.9.556 gestartet"),
+          # und genau daran ist dieser Test gescheitert, obwohl die App
+          # einwandfrei lief. Der stabile Teil ist "gestartet — Logdatei:".
+          if ($log -notmatch "gestartet — Logdatei:") {
             throw "Logfile exists but doesn't contain the startup signature. Python init may have failed."
           }
           Write-Host "✓ App is running, Python init OK, log contains startup signature."
