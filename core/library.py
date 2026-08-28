@@ -2215,10 +2215,15 @@ def collections(conn: sqlite3.Connection) -> list:
     rows = conn.execute("SELECT * FROM collections ORDER BY name COLLATE NOCASE").fetchall()
     out = []
     for r in rows:
+        # Pro GEO-HASH zählen, nicht pro Datei: dieselbe Tour kann als
+        # mehrere Dateien im Archiv liegen (Re-Download, projekt_importe) —
+        # dann stimmte weder n (140 statt 138) noch km/Hm (doppelt gezählt),
+        # und der Animator zeigte scheinbar „zu wenig" (Marc, 28.08.2026).
         agg = conn.execute(
-            "SELECT COUNT(*) n, COALESCE(SUM(t.distance_m),0) d, COALESCE(SUM(t.ascent_m),0) a "
-            "FROM collection_items ci JOIN tracks t ON t.geo_hash = ci.geo_hash "
-            "WHERE ci.collection_id = ?", (r["id"],)
+            "SELECT COUNT(*) n, COALESCE(SUM(d),0) d, COALESCE(SUM(a),0) a FROM ("
+            "  SELECT ci.geo_hash, MIN(t.distance_m) d, MIN(t.ascent_m) a "
+            "  FROM collection_items ci JOIN tracks t ON t.geo_hash = ci.geo_hash "
+            "  WHERE ci.collection_id = ? GROUP BY ci.geo_hash)", (r["id"],)
         ).fetchone()
         out.append({"id": r["id"], "name": r["name"], "note": r["note"] or "",
                     "created_at": r["created_at"] or "", "n": agg["n"],

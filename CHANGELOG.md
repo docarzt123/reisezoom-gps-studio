@@ -15,6 +15,19 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Fixed
+- „Lade Tour 26 von 271" (live erwischt, 28.08.2026): Der Reentrancy-Guard des
+  Etappen-Restores kehrte sofort zurück, wenn schon ein Lauf lief — der
+  Übergabe-Handler hielt den Restore für fertig und lud PARALLEL dazu; beide
+  Schleifen schoben in dieselbe Liste (271 statt 137, kurz auch persistiert).
+  Der Guard liefert jetzt das Promise der laufenden Instanz, Aufrufer warten
+  echt. Zusammen mit der Duplikat-Zählung der Sammlungen (140→138) stimmen
+  Archiv, Zähler und Animator jetzt überein.
+- Sammlungs-Anzeige zählte Datei-KOPIEN mit (Marc, 28.08.2026: „im archiv steht
+  140, im animator 138"): Liegt dieselbe Tour als mehrere Dateien im Archiv
+  (Komoot-Re-Download, projekt_importe-Kopie), zählte die Sammlung jede Datei
+  und summierte km/Höhenmeter doppelt. Jetzt zählt eine Tour einmal — Anzeige
+  und Animator sind sich einig. Der Lade-Zähler behält außerdem eine konstante
+  Gesamtzahl („Lade Tour 6 von 137"); schon Geladene gelten als erledigt.
 - Mengen-Übergabe lud mehrfach und schleppte fremde Etappen mit (Marc,
   28.08.2026: „der lädt immer noch zu viele touren … geht mehrmals ‚lade
   touren' durch"): 1. `loadGlobalGpx` aktivierte bei der Übergabe erst die
