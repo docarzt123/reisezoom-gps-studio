@@ -6796,6 +6796,13 @@ function mountAnimator(body, headerActions, opts) {
     // Admin-Boundaries: Mapbox hat dafür Mitte 2024 die Config-Property
     // ergänzt. Bei älteren Style-Versionen ist das ein No-Op (try/catch).
     try { map.setConfigProperty("basemap", "showAdminBoundaries", c.showAdmin); } catch (_) {}
+    // Standard-Styles zeichnen Straßen-, Wander- und FÄHRROUTEN-GEOMETRIE
+    // unabhängig von den Label-Properties — dafür gibt es nur den kombinierten
+    // Schalter showRoadsAndTransit. Ohne ihn wirkte „Alle aus" nicht auf die
+    // dünnen weißen Linien, die wie fremde Touren aussehen (Marc, 28.08.2026:
+    // „da sind touren auf der karte, die nicht in der sammlung sind" — es
+    // waren die Fährrouten ab Los Cristianos/Santa Cruz und das Wegenetz).
+    try { map.setConfigProperty("basemap", "showRoadsAndTransit", !!(c.showRoad || c.showTransit)); } catch (_) {}
     // 2) Klassische Styles: Layer-ID-Heuristik
     let style = null;
     try { style = map.getStyle && map.getStyle(); } catch (_) {}
@@ -12187,7 +12194,11 @@ function mountAnimator(body, headerActions, opts) {
     // Touren als Features (ein setData pro Bild statt 96) und je Tour auf
     // höchstens ~150 Vorschau-Punkte gedünnt — der Render rechnet ohnehin mit
     // eigenen, sauber abgetasteten Punkten (punktabstand in core/animator.py).
-    if (_animAblauf === "schwarm") { _swPrevBauen(lw); return; }
+    if (_animAblauf === "schwarm") {
+      _swPrevBauen(lw);
+      _vorschauDiagnose();
+      return;
+    }
     _extraTours.forEach((tr, i) => {
       if (!tr.coords || tr.coords.length < 2) return;
       try {
@@ -12202,6 +12213,28 @@ function mountAnimator(body, headerActions, opts) {
         });
       } catch (e) { console.warn("extra-tour preview:", e); }
     });
+  }
+
+  /** Diagnose ins app.log (Marc-Regel): Nach dem Vorschau-Aufbau einmal
+   *  auflisten, welche CUSTOM-Layer wirklich auf der Karte liegen — inkl.
+   *  Feature-Zahlen der Schwarm-Quelle. Nur so sieht man, welcher Layer
+   *  „fremde Touren" zeichnet, wenn Liste und Zähler längst stimmen. */
+  function _vorschauDiagnose() {
+    try {
+      const st = map.getStyle && map.getStyle();
+      if (!st) return;
+      const basis = new Set(["composite", "mapbox", "mapbox-dem", "mapbox://mapbox.satellite", "satellite"]);
+      const eigene = (st.layers || [])
+        .filter(l => l.source && !basis.has(l.source))
+        .map(l => l.id);
+      let swFeat = -1;
+      try {
+        const src = map.getSource("swarm-prev-lines");
+        swFeat = (src && src._data && src._data.features) ? src._data.features.length : -1;
+      } catch (_) {}
+      applog("info", `[Vorschau-Diagnose] ablauf=${_animAblauf} extraTours=${_extraTours.length} `
+        + `swarmFeatures=${swFeat} customLayer(${eigene.length}): ${eigene.join(", ")}`);
+    } catch (e) { try { applog("warn", `[Vorschau-Diagnose] ${e}`); } catch (_) {} }
   }
 
   // Karte auf alle Touren (primär + extra) einpassen.

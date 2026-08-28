@@ -15,6 +15,13 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Fixed
+- „Fremde Touren" auf der Animator-Karte waren keine (Marc, 28.08.2026, live
+  verifiziert per Alpha-Modus und Layer-Diagnose): Die dünnen weißen Linien
+  sind Straßen-, Wander- und Fährrouten-GEOMETRIE des Mapbox-Standard-Stils
+  (u. a. die Fähr-Fächer ab Los Cristianos und Santa Cruz). Die Chips
+  „Straßen"/„ÖPNV" steuerten aber nur die Beschriftungen — die Geometrie hat
+  bei Standard-Styles den eigenen Schalter showRoadsAndTransit, der jetzt in
+  Vorschau UND Render mitgesetzt wird: beide Chips aus → Linien weg.
 - Nach dem Wechsel Reise → Schwarm lagen bei großen Mengen zu viele Linien auf
   der Vorschau-Karte (Marc, 28.08.2026: „da steht 138, aber auf der karte sind
   mehr"): Der Vorschau-Aufräumer entfernte nur die ersten 64 Etappen-Layer —
