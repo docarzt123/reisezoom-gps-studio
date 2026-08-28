@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Schwarm/Reise aus einer Sammlung, deren längste Tour schon Teil einer
+  früheren Reise/eines Schwarms war: Der Q18a-Lese-Fallback kopierte das alte
+  Projekt der ersten Tour BLIND — mitsamt allen Etappen. Ergebnis bei Marc
+  (28.08.2026): Sammlung „teneriffa marc" laden holte danach „auch alle
+  anderen teneriffa touren". Jetzt wird der alte Stand nur noch übernommen,
+  wenn er EXAKT dieselbe Tourenmenge beschreibt; und bereits verseuchte
+  Mengen-Sitzungen werden beim nächsten Öffnen still bereinigt (Etappen, die
+  nicht zur Menge gehören, fliegen aus allen Projekten).
+
 ### Changed
 - Kartenansicht im Archiv: Die Info-Karte einer Tour lässt sich jetzt am Titel
   verschieben (Marc, 28.08.2026) — sie verdeckt sonst genau die Touren, die man
