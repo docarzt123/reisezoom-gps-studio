@@ -2380,5 +2380,6 @@
   "library.undo.hide": "Tour ausgeblendet",
   "library.undo.unhide": "Tour wieder eingeblendet",
   "library.undo.fehl": "Rückgängig ging schief: {e}",
-  "library.pop_drag": "Zum Verschieben ziehen"
+  "library.pop_drag": "Zum Verschieben ziehen",
+  "animator.tours.missing_n": "{n} gespeicherte Tour(en) wurden nicht gefunden — Details im Log."
 }

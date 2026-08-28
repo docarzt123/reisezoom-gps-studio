@@ -2380,5 +2380,6 @@
   "library.undo.hide": "Tour hidden",
   "library.undo.unhide": "Tour shown again",
   "library.undo.fehl": "Undo failed: {e}",
-  "library.pop_drag": "Drag to move"
+  "library.pop_drag": "Drag to move",
+  "animator.tours.missing_n": "{n} saved tour(s) could not be found — see the log for details."
 }

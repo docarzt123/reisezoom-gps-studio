@@ -2380,5 +2380,6 @@
   "library.undo.hide": "Ruta oculta",
   "library.undo.unhide": "Ruta visible de nuevo",
   "library.undo.fehl": "No se pudo deshacer: {e}",
-  "library.pop_drag": "Arrastra para mover"
+  "library.pop_drag": "Arrastra para mover",
+  "animator.tours.missing_n": "No se encontraron {n} ruta(s) guardada(s); detalles en el registro."
 }
