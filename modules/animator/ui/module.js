@@ -3924,6 +3924,10 @@ function mountAnimator(body, headerActions, opts) {
         type: "Feature",
         geometry: { type: "LineString", coordinates: coords },
       });
+      // 🌊 Schwarm: Die Zusatz-Touren folgen demselben Stand — voll, wenn der
+      // Haupt-Track voll gezeigt wird (auch im 1-Punkt-Ruhefall oben), sonst
+      // bis zur Distanz an der Scrubber-Position.
+      _animSchwarmPreviewAdvance(coordIdx, coords === currentCoords);
       // v0.9.434 — Track-Alterung: Gradient relativ zum Marker (coordIdx) setzen.
       applyPreviewColorGradient(ai0, ai1);
     } catch (_) {}
@@ -5438,6 +5442,7 @@ function mountAnimator(body, headerActions, opts) {
           ? currentCoords
           : currentCoords.slice(startIdx, Math.floor(coordFrac) + 1)
               .concat([coordBeiFrac(currentCoords, coordFrac)]);
+        _animSchwarmPreviewAdvance(coordFrac, previewFullTrack());
         src.setData({
           type: "Feature",
           geometry: { type: "LineString", coordinates: coords },
@@ -6503,6 +6508,7 @@ function mountAnimator(body, headerActions, opts) {
             ? currentCoords
             : currentCoords.slice(startCoordIdx, Math.floor(coordFrac) + 1)
                 .concat([coordBeiFrac(currentCoords, coordFrac)]);
+          _animSchwarmPreviewAdvance(coordFrac, previewFullTrack());
           src.setData({
             type: "Feature",
             geometry: { type: "LineString", coordinates: lineCoords },
@@ -11919,6 +11925,64 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   // Zeichnet pro Extra-Tour eine farbige Linie auf die Vorschau-Karte (WYSIWYG).
+  /* 🌊 Schwarm-Vorschau (28.08.2026, Marcs erster M1-Test: „es wird nur eine
+   * tour animiert, der rest liegt bunt und fertig auf der karte").
+   *
+   * WYSIWYG: Was der Render tut, muss die Vorschau zeigen. Der Fortschritt der
+   * Zusatz-Touren wird wie im Render aus der zurückgelegten DISTANZ des
+   * Haupt-Tracks abgeleitet — nicht aus dem Punktindex, denn die
+   * Punkteverteilung des Haupt-Tracks ist je Modus ungleichmäßig. Die
+   * kumulierten Distanzen werden je Koordinatenliste einmal gerechnet und an
+   * ihr gecacht (Referenz-Vergleich; ~800 Punkte, Haversine ist billig).
+   */
+  function _cumDistBerechnen(coords) {
+    const cum = [0];
+    for (let i = 1; i < coords.length; i++) {
+      const [lo1, la1] = coords[i - 1], [lo2, la2] = coords[i];
+      const dLa = (la2 - la1) * Math.PI / 180, dLo = (lo2 - lo1) * Math.PI / 180;
+      const q = Math.sin(dLa / 2) ** 2
+        + Math.cos(la1 * Math.PI / 180) * Math.cos(la2 * Math.PI / 180) * Math.sin(dLo / 2) ** 2;
+      cum.push(cum[i - 1] + 6371000 * 2 * Math.asin(Math.sqrt(q)));
+    }
+    return cum;
+  }
+  function _cumDistFuer(traeger, coords) {
+    if (!traeger.__rzCum || traeger.__rzCumRef !== coords) {
+      traeger.__rzCum = _cumDistBerechnen(coords);
+      traeger.__rzCumRef = coords;
+    }
+    return traeger.__rzCum;
+  }
+  const _swHauptCum = {};   // Cache-Träger für den Haupt-Track
+  function _animSchwarmPreviewAdvance(coordFrac, vollesBild) {
+    if (_animAblauf !== "schwarm" || !_extraTours.length || !map) return;
+    if (!currentCoords || currentCoords.length < 2) return;
+    let d = Infinity;
+    if (!vollesBild) {
+      const cum = _cumDistFuer(_swHauptCum, currentCoords);
+      const i0 = Math.max(0, Math.min(cum.length - 1, Math.floor(coordFrac)));
+      const i1 = Math.min(cum.length - 1, i0 + 1);
+      const f = Math.max(0, Math.min(1, coordFrac - i0));
+      d = cum[i0] + (cum[i1] - cum[i0]) * f;
+    }
+    _extraTours.forEach((tr, i) => {
+      const src = map.getSource("mtour-prev-" + i);
+      if (!src || !tr.coords || tr.coords.length < 2) return;
+      const cum = _cumDistFuer(tr, tr.coords);
+      // Binärsuche: letzter Punkt mit cum <= d (kürzere Touren bleiben im Ziel).
+      let lo = 0, hi = cum.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (cum[mid] <= d) lo = mid; else hi = mid - 1;
+      }
+      const k = Math.max(0, lo);
+      try {
+        src.setData({ type: "Feature", geometry: { type: "LineString",
+          coordinates: k >= 1 ? tr.coords.slice(0, k + 1) : [tr.coords[0], tr.coords[0]] } });
+      } catch (_) {}
+    });
+  }
+
   function _animDrawExtraToursPreview() {
     if (!map) return;
     // v0.9.492 — Früher hieß es hier nur „Style noch nicht fertig → raus".
