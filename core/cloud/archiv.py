@@ -50,6 +50,45 @@ FOTO_QUALITAET = 82
 
 VERZEICHNIS = "verzeichnis"
 SAMMLUNGEN = "sammlungen"
+MENGE_PRAEFIX = "menge/"   # IDEAS §38 M5 — Kompositionen (Reise/Schwarm) am Mengen-Hash
+
+
+def menge_name(mengen_hex: str) -> str:
+    """Cloud-Name einer Komposition. `mengen_hex` OHNE das Sitzungs-Präfix
+    `menge:` — der Doppelpunkt wäre im logischen Namen nur Stolperdraht."""
+    return MENGE_PRAEFIX + mengen_hex
+
+
+def mengen_bauen(sessions: dict | None) -> dict:
+    """Alle Mengen-Sitzungen (Reise/Schwarm, IDEAS §38) als Cloud-Objekte.
+
+    Bewusst OHNE `gpx_paths`: Wo die Dateien auf DIESEM Rechner liegen, geht
+    kein anderes Gerät etwas an. Die Identität der Touren sind ihre
+    `geo_hashes` — die Touren selbst reisen als track/-Umschläge mit, und das
+    Zielgerät baut die Pfade aus seinem eigenen Archiv neu.
+
+    Sitzungen ohne `geo_hashes` (Altbestand vor M5) werden übersprungen — das
+    Feld wird beim nächsten Öffnen im Archiv nachgetragen.
+    """
+    raus = {}
+    for schluessel, sess in ((sessions or {}).get("sessions") or {}).items():
+        if not isinstance(schluessel, str) or not schluessel.startswith("menge:"):
+            continue
+        if not isinstance(sess, dict):
+            continue
+        ghs = sess.get("geo_hashes") or []
+        if len(ghs) < 2:
+            continue
+        mh = schluessel.split(":", 1)[1]
+        raus[mh] = {
+            "schema": 1,
+            "name": sess.get("name") or "",
+            "ablauf": sess.get("ablauf") or "reise",
+            "geo_hashes": sorted(set(ghs)),
+            "active_project_id": sess.get("active_project_id") or "",
+            "projects": sess.get("projects") or {},
+        }
+    return raus
 
 
 def track_name(geo_hash: str) -> str:
@@ -64,6 +103,9 @@ class Bestand:
     sammlungen: dict = field(default_factory=dict)
     # geo_hash → Prüfsumme des Umschlag-Klartexts
     touren: dict[str, str] = field(default_factory=dict)
+    # IDEAS §38 M5 — Kompositionen: mengen_hex → Prüfsumme, Objekte fürs Hochladen
+    mengen: dict[str, str] = field(default_factory=dict)
+    mengen_objekte: dict[str, bytes] = field(default_factory=dict)
     neu_gebaut: int = 0     # wie viele Umschläge wirklich gebaut wurden (Diagnose)
 
 
@@ -330,6 +372,18 @@ def bestand_aufnehmen(conn, sessions: dict | None = None,
     verzeichnis = verzeichnis_bauen(conn)
     sammlungen = sammlungen_bauen(conn)
     b = Bestand(verzeichnis=verzeichnis, sammlungen=sammlungen)
+    # IDEAS §38 M5 — Kompositionen mitnehmen. Klein genug, um sie jedes Mal zu
+    # bauen; ob hochgeladen wird, entscheidet die Prüfsumme im Abgleich. Die
+    # Kurzinfos landen im Verzeichnis, damit das Zielgerät sie OHNE die
+    # einzelnen Objekte auflisten kann.
+    for mh, obj in mengen_bauen(sessions).items():
+        by = json_bytes(obj)
+        b.mengen[mh] = crypto.inhalts_pruefsumme(by)
+        b.mengen_objekte[mh] = by
+        verzeichnis.setdefault("mengen", {})[mh] = {
+            "name": obj["name"], "ablauf": obj["ablauf"],
+            "n_tours": len(obj["geo_hashes"]),
+        }
     cache = pruefsummen_cache_laden(cache_pfad) if cache_pfad else {}
     neu_cache: dict = {}
     gebaut = 0

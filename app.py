@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.568"
+APP_VERSION = "0.9.569"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1723,6 +1723,7 @@ class Api:
                     sess = {"track_hash": schluessel, "name": name,
                             "ablauf": ablauf,
                             "gpx_paths": pfade,
+                            "geo_hashes": sorted(set(hashes)),
                             "stats": {"n_tours": len(pfade)},
                             "active_project_id": proj["id"],
                             "projects": {proj["id"]: proj}}
@@ -1746,6 +1747,7 @@ class Api:
                     # Ablauf wird im Archiv gewählt (Q9); kommt dieselbe Menge
                     # mit anderem Ablauf, gilt der NEUE (bewusste Nutzerwahl).
                     sess["gpx_paths"] = pfade
+                    sess["geo_hashes"] = sorted(set(hashes))   # M5: auch Altbestand nachtragen
                     if sess.get("ablauf") != ablauf:
                         log.info("Mengen-Sitzung %s: Ablauf %r → %r (neue Wahl im Archiv)",
                                  schluessel, sess.get("ablauf"), ablauf)
@@ -3504,111 +3506,6 @@ class Api:
             log.exception("animator_pace_map")
             return {"ok": False, "error": str(e)}
 
-    def _schwarm_start_inner(self, params: dict) -> dict:
-        """Schwarm-Render starten — Zustand/Thread wie beim Animator-Render.
-
-        Erwartet `tracks` = [{gpx_path, color, name}], `output_path`, und die
-        wenigen Schwarm-Optionen. Alles andere (Overlays, Keyframes, Terrain)
-        gibt es im Schwarm bewusst nicht — siehe core/schwarm.py.
-        """
-        import core.schwarm as cschwarm
-
-        tracks = []
-        for t in list(params.get("tracks") or []):
-            tp = (t or {}).get("gpx_path", "")
-            if tp and Path(tp).exists():
-                tracks.append({"gpx_path": tp,
-                               "color": t.get("color") or "",
-                               "name": t.get("name") or Path(tp).stem})
-        if len(tracks) < 2:
-            return {"ok": False, "error": _ui_t()("schwarm.fehler.zu_wenig",
-                    "Der Schwarm braucht mindestens 2 lesbare Touren mit Strecke.")}
-        out_path = str(params.get("output_path") or "")
-        if not out_path:
-            return {"ok": False, "error": _ui_t()("error.kein_zielpfad", "Kein Zielpfad gewählt")}
-
-        pw = self.playwright_check()
-        if not pw.get("ok") or not pw.get("browser_present"):
-            return {"ok": False, "error_code": "playwright_browser_missing",
-                    "error": pw.get("error") or "Playwright Chromium-Browser nicht installiert.",
-                    "browsers_path": pw.get("browsers_path")}
-
-        token = (_load_settings() or {}).get("mapbox_token") or ""
-        if not token.startswith("pk."):
-            return {"ok": False, "error": _ui_t()("schwarm.fehler.token",
-                    "Der Schwarm braucht einen Mapbox-Token (Einstellungen).")}
-
-        cfg = cschwarm.SchwarmConfig(
-            tracks=tracks,
-            output_path=out_path,
-            mapbox_token=token,
-            map_style=str(params.get("map_style") or "outdoors"),
-            width=int(params.get("width") or 1920),
-            height=int(params.get("height") or 1080),
-            fps=int(params.get("fps") or 25),
-            duration_s=max(3.0, float(params.get("duration_s") or 20.0)),
-            hold_s=max(0.0, float(params.get("hold_s") or 3.0)),
-            line_width=max(0.5, float(params.get("line_width") or 3.0)),
-            codec=str(params.get("codec") or "h264"),
-            crf=int(params.get("crf") or 18),
-            ui_lang=_ui_sprache(),
-            overlay=bool(params.get("overlay", True)),
-        )
-
-        self._render_state = {"running": True, "progress": 0.0, "status": "Starte …",
-                              "output": out_path, "error": "", "log_path": str(LOG_PATH),
-                              "preview_b64": "", "cancel_requested": False,
-                              "cancelled": False}
-        rlog = clog.get_logger("schwarm.render")
-        rlog.info("─" * 60)
-        rlog.info("Schwarm-Render gestartet: %d Touren → %s", len(tracks), out_path)
-        rlog.info("  Stil: %s · %dx%d @ %d fps · Dauer %ss + Hold %ss · Linie %.1f px",
-                  cfg.map_style, cfg.width, cfg.height, cfg.fps,
-                  cfg.duration_s, cfg.hold_s, cfg.line_width)
-
-        def on_progress(p: float, msg: str) -> None:
-            self._render_state["progress"] = p
-            self._render_state["status"] = msg
-
-        def on_preview(b64: str) -> None:
-            self._render_state["preview_b64"] = b64
-
-        def is_cancelled() -> bool:
-            return bool(self._render_state.get("cancel_requested", False))
-
-        def worker() -> None:
-            t0 = time.time()
-            try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    loop.run_until_complete(cschwarm.render_schwarm(
-                        cfg, on_progress=on_progress, on_preview=on_preview,
-                        is_cancelled=is_cancelled))
-                finally:
-                    loop.close()
-                self._render_state["running"] = False
-                self._render_state["progress"] = 1.0
-                self._render_state["status"] = "Fertig."
-                rlog.info("Schwarm-Render OK in %.1fs → %s", time.time() - t0, out_path)
-            except canim.RenderCancelled:
-                self._render_state["running"] = False
-                self._render_state["cancelled"] = True
-                self._render_state["status"] = "Abgebrochen"
-                self._render_state["error"] = ""
-                rlog.info("Schwarm-Render abgebrochen nach %.1fs", time.time() - t0)
-            except Exception as e:
-                tb = traceback.format_exc()
-                self._render_state["error"] = str(e) + "\n" + tb
-                self._render_state["status"] = "Fehler"
-                self._render_state["running"] = False
-                rlog.error("Schwarm-Render fehlgeschlagen nach %.1fs: %s", time.time() - t0, e)
-                rlog.error("Traceback:\n%s", tb)
-
-        self._render_thread = threading.Thread(target=worker, daemon=True)
-        self._render_thread.start()
-        return {"ok": True}
-
     def animator_start_render(self, params: dict) -> dict:
         """Startet Render im Hintergrund-Thread. Status pollen via animator_status()."""
         with self._start_lock:
@@ -3630,14 +3527,6 @@ class Api:
         return res
 
     def _animator_start_render_inner(self, params: dict) -> dict:
-
-        # 🌊 Schwarm (28.08.2026, IDEAS §33): alle Touren laufen GLEICHZEITIG
-        # los, gleiche Geschwindigkeit, die längste bestimmt die Videodauer.
-        # Eigener Renderpfad (core/schwarm.py), aber DIESELBE Brücke — damit
-        # gelten „Render läuft bereits", animator_status() und animator_cancel()
-        # unverändert, und die Oberfläche braucht keinen zweiten Poll-Weg.
-        if params.get("schwarm"):
-            return self._schwarm_start_inner(params)
 
         # v0.9.156 — Multi-Track: UI kann `tracks` (Liste von
         # {gpx_path, line_color, name}) senden. ≥2 Einträge → Multi-Track-
@@ -5682,6 +5571,9 @@ class Api:
                         return archiv_m.json_bytes(bestand.verzeichnis)
                     if name == archiv_m.SAMMLUNGEN:
                         return archiv_m.json_bytes(bestand.sammlungen)
+                    # IDEAS §38 M5 — Kompositionen: schon gebaut, nur ausliefern.
+                    if name.startswith(archiv_m.MENGE_PRAEFIX):
+                        return bestand.mengen_objekte[name.split("/", 1)[1]]
                     gh = name.split("/", 1)[1]
                     return archiv_m.umschlag_bauen(
                         conn, gh, projekte=archiv_m._projekte_fuer(conn, gh, sessions))
@@ -5748,8 +5640,24 @@ class Api:
                     "distance_m": t.get("distance_m"),
                 })
             nur_cloud.sort(key=lambda x: x.get("started_at") or "", reverse=True)
+            # IDEAS §38 M5 — Kompositionen (Reise/Schwarm): lokal vorhanden ist,
+            # was in sessions.json unter `menge:<hash>` steht.
+            try:
+                _sess_daten = _sessions.load_sessions(SESSIONS_FILE)
+                _lokale_mengen = {k.split(":", 1)[1] for k in (_sess_daten.get("sessions") or {})
+                                  if isinstance(k, str) and k.startswith("menge:")}
+            except Exception:
+                _lokale_mengen = set()
+            mengen = []
+            for mh, m in (verz.get("mengen") or {}).items():
+                mengen.append({"mengen_hash": mh,
+                               "name": m.get("name") or mh,
+                               "ablauf": m.get("ablauf") or "reise",
+                               "n_tours": m.get("n_tours") or 0,
+                               "lokal": mh in _lokale_mengen})
+            mengen.sort(key=lambda x: x["name"])
             return {"ok": True, "im_archiv": len(verz.get("touren") or {}),
-                    "lokal": len(lokal), "nur_cloud": nur_cloud}
+                    "lokal": len(lokal), "nur_cloud": nur_cloud, "mengen": mengen}
         except Exception as e:      # noqa: BLE001
             log.exception("cloud_uebersicht")
             return {"ok": False, "error": str(e)}
@@ -6059,6 +5967,92 @@ class Api:
         except Exception:
             pass
         return buch
+
+    def cloud_menge_holen(self, mengen_hash: str) -> dict:
+        """Eine Komposition (Reise/Schwarm, IDEAS §38 M5) auf DIESEN Rechner holen.
+
+        Ablauf: das `menge/<hash>`-Objekt holen, für jede noch fehlende Tour den
+        track/-Umschlag einspielen (derselbe Weg wie cloud_tour_holen), dann die
+        Mengen-Sitzung lokal anlegen — die Datei-Pfade entstehen hier NEU aus dem
+        eigenen Archiv (in der Cloud liegen bewusst keine fremden Pfade).
+        Eine bereits vorhandene lokale Sitzung wird NICHT überschrieben — lokale
+        Arbeit gewinnt; wer den Cloud-Stand will, löscht die Sitzung erst.
+        """
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        self._cloud_neuversuch()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+        if not vorhanden:
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
+        teile, zugang, schluessel = vorhanden
+        try:
+            archiv_m = teile["archiv"]
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            a = teile["sync"].Abgleich(g, schluessel)
+            mh = str(mengen_hash).split(":", 1)[-1]
+            obj = json.loads(a.holen(archiv_m.menge_name(mh)).decode("utf-8"))
+            ghs = list(obj.get("geo_hashes") or [])
+            if len(ghs) < 2:
+                return {"ok": False, "error": _ui_t()("cloud.menge_leer", "Komposition ohne Touren")}
+
+            schluessel_sess = f"menge:{mh}"
+            with _sessions.LOCK:
+                daten = _sessions.load_sessions(SESSIONS_FILE)
+                if (daten.get("sessions") or {}).get(schluessel_sess):
+                    return {"ok": False, "error": _ui_t()("cloud.menge_schon_da",
+                            "Diese Komposition gibt es hier schon — lokale Arbeit bleibt.")}
+
+            # Fehlende Touren zuerst — jede über den bewährten Umschlag-Weg.
+            import sqlite3 as _sq
+            def _lokale_pfade():
+                c = _sq.connect(str(LIBRARY_DB))
+                try:
+                    return {z[0]: z[1] for z in c.execute(
+                        "SELECT geo_hash, path FROM tracks WHERE geo_hash IS NOT NULL")}
+                finally:
+                    c.close()
+            pfade = _lokale_pfade()
+            geholt = 0
+            for gh in ghs:
+                if gh in pfade:
+                    continue
+                roh = a.holen(archiv_m.track_name(gh))
+                res = self._umschlag_einspielen(roh, quelle="cloud", geo_hash_hint=gh)
+                if not res.get("ok"):
+                    return {"ok": False, "error": res.get("error")
+                            or _ui_t()("cloud.menge_tour_fehler", "Eine Tour ließ sich nicht einspielen")}
+                geholt += 1
+            if geholt:
+                pfade = _lokale_pfade()
+            fehlend = [gh for gh in ghs if gh not in pfade]
+            if fehlend:
+                return {"ok": False, "error": _ui_t()("cloud.menge_touren_fehlen",
+                        "Nicht alle Touren der Komposition sind verfügbar.")}
+
+            with _sessions.LOCK:
+                daten = _sessions.load_sessions(SESSIONS_FILE)
+                daten.setdefault("sessions", {})[schluessel_sess] = {
+                    "track_hash": schluessel_sess,
+                    "name": obj.get("name") or f"Komposition ({len(ghs)} Touren)",
+                    "ablauf": obj.get("ablauf") or "reise",
+                    "gpx_paths": [pfade[gh] for gh in ghs],
+                    "geo_hashes": sorted(set(ghs)),
+                    "stats": {"n_tours": len(ghs)},
+                    "active_project_id": obj.get("active_project_id") or "",
+                    "projects": obj.get("projects") or {},
+                }
+                _sessions.save_sessions(SESSIONS_FILE, daten)
+            log.info("cloud_menge_holen: %s · %d Touren (davon %d frisch geholt)",
+                     mh, len(ghs), geholt)
+            return {"ok": True, "mengen_hash": mh, "touren": len(ghs),
+                    "geholt": geholt, "name": obj.get("name") or ""}
+        except Exception as e:      # noqa: BLE001
+            log.exception("cloud_menge_holen")
+            return {"ok": False, "error": str(e)}
 
     def cloud_tour_entfernen(self, geo_hash: str) -> dict:
         """22.08.2026 — Löschen als BEWUSSTE Aktion: eine Tour, die nur noch in

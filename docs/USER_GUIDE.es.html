@@ -518,6 +518,36 @@ python app.py</code></pre>
 <h2 id="2c-m-dulo-archivo-todas-las-rutas-en-un-solo-sitio">2c · Módulo: Archivo 📚 — todas las rutas en un solo sitio ⭐</h2>
 <p>Quien acumula rutas durante años acaba con cientos de archivos GPX repartidos por carpetas —y ya no encuentra el que busca—. Para eso está el <strong>Archivo</strong>: lee tus carpetas de tracks y te muestra todas las rutas con imagen, fecha y cifras.</p>
 <p><strong>Configuración (una sola vez):</strong> abre la pestaña <strong>📚 Archivo</strong> → abajo a la izquierda <strong>«📂 Carpetas y lectura»</strong> → <strong>«+ Añadir carpeta»</strong> → elige la carpeta donde están tus tracks. La app la lee de inmediato; <strong>700 archivos tardan unos 20 segundos.</strong> Las subcarpetas se incluyen. Puedes vigilar tantas carpetas como quieras. (Mientras no haya ninguna carpeta, el área vacía muestra un gran botón <strong>«+ Añadir carpeta»</strong>.)</p>
+<h3 id="el-enjambre-todas-las-rutas-a-la-vez">🌊 El enjambre — todas las rutas a la vez</h3>
+<p>Marca varias rutas (⌘/Ctrl+clic) o abre una colección y elige <strong>«🌊 Animar como enjambre …»</strong>: la selección pasa <strong>directamente al Animador</strong>. Todas las rutas arrancan juntas y avanzan a la <strong>misma velocidad</strong> por el mapa: la más larga marca la duración del vídeo, las cortas llegan antes y su punto se queda en la meta. Cada ruta conserva su color del archivo. Con muchas rutas, una ventana de carga va contando («Cargando ruta 37 de 96 …»).</p>
+<p>En el Animador tienes después <strong>todo</strong> lo que conoces de una ruta individual: estilos de mapa y 3D, fotogramas clave de cámara y la prueba, intro y pausa final, resoluciones hasta 4K y vertical. Dos cosas son propias del enjambre:</p>
+<ul>
+<li><strong>🎥 La cámara sigue a</strong> (encima de la lista de rutas): <em>nadie</em> (vista</li>
+</ul>
+<p> general, el estándar), <em>la ruta más larga</em> — o <strong>cualquier ruta</strong> que  elijas. La cámara la acompaña y <strong>se queda quieta en su meta</strong> mientras las  demás siguen corriendo.</p>
+<ul>
+<li><strong>Números del enjambre en el overlay:</strong> «Recorrido» y «Restante» son la</li>
+</ul>
+<p> <strong>suma de todas las rutas</strong> (cuánto ha avanzado el enjambre en conjunto),  «Distancia» es el total — además de <strong>«Aún en camino»</strong> (p. ej. «37 / 96»)  y <strong>«Rutas en total»</strong> («96 · 812 km»). Los campos de tiempo, velocidad y  altitud siguen mostrando la ruta más larga.</p>
+<p>El modo (enjambre o viaje) se <strong>elige en el archivo</strong>; el Animador lo muestra encima de la lista de rutas. Para cambiarlo, vuelve a entregar la selección en el archivo con el otro botón.</p>
+<h3 id="a-adir-la-ruta-al-archivo-al-abrir">«¿Añadir la ruta al archivo?» — al abrir</h3>
+<p>Una ruta entra en el archivo a través de las <strong>carpetas vigiladas</strong>. Todo lo que abrías con el diálogo de archivos pasaba de largo — ahora la aplicación lo comprueba al abrir, en cualquier módulo:</p>
+<ul>
+<li><strong>Es exactamente el archivo del catálogo</strong> → no pasa nada, todo como</li>
+</ul>
+<p> siempre.</p>
+<ul>
+<li><strong>El catálogo conoce la ruta, pero el archivo viene de otro sitio</strong> → un</li>
+</ul>
+<p> aviso te dice que trabajas con una <strong>copia externa</strong> (con el nombre de la  versión del catálogo). Útil si has cogido una versión antigua de tu carpeta  de descargas.</p>
+<ul>
+<li><strong>La ruta es nueva</strong> → la pregunta <strong>«¿Añadir la ruta al archivo?»</strong>. Al</li>
+</ul>
+<p> aceptar, el archivo se <strong>copia</strong> a tu carpeta vigilada — el original se  queda donde está — y a partir de ahí trabajas con la copia del catálogo.  Con varias carpetas vigiladas eliges el destino; sin ninguna, se crea  <strong>Documentos › Reisezoom Touren</strong>.</p>
+<ul>
+<li><strong>Tras reparar una ruta en el inspector</strong> llega la misma pregunta.</li>
+</ul>
+<p>Solo pregunta cuando abres un archivo tú mismo. El arranque de la aplicación, los clics en el archivo y las importaciones de la nube van en silencio. Un «no» se puede recordar por ruta (casilla en el diálogo).</p>
 <p><strong>La barra lateral izquierda decide qué rutas ves siquiera:</strong></p>
 <table><thead><tr><th>Sección</th><th>Muestra</th></tr></thead><tbody><tr><td>📚 <strong>Todas las rutas</strong></td><td>todo, realizadas y planificadas mezcladas</td></tr><tr><td>✅ <strong>Realizadas</strong></td><td>solo lo que de verdad hiciste</td></tr><tr><td>📝 <strong>Planificadas</strong></td><td>solo las rutas que aún tienes pendientes</td></tr><tr><td>★ <strong>Favoritas</strong></td><td>tus rutas marcadas</td></tr><tr><td>🚫 <strong>Ocultas</strong></td><td>lo que apartaste (solo aparece si hay algo)</td></tr></tbody></table>
 <p>Debajo están tus <strong>colecciones</strong>: un clic muestra <strong>solo esa</strong>, un segundo clic lo deshace y un <strong>clic derecho</strong> abre renombrar, mostrar, «Todas en el animador» y borrar. La app recuerda la última sección elegida.</p>
@@ -780,6 +810,17 @@ python app.py</code></pre>
 </ul>
 <p><strong>Posición manual del mapa (WYSIWYG):</strong> Puedes <strong>desplazar</strong> el mapa de la vista previa con el ratón (clic+arrastrar) y hacer <strong>zoom</strong> con la rueda de scroll. El render adopta tu posición 1:1 — lo que ves en la vista previa es lo que sale en el vídeo.</p>
 <p>Cuando quieras volver a centrar el track: botón <strong>⤢</strong> abajo a la derecha.</p>
+<h3 id="rutas-fantasma-varias-rutas-de-fondo">Rutas fantasma: varias rutas de fondo</h3>
+<p>A veces una ruta solo se entiende en contexto: el sendero oficial, tu plan y lo que realmente caminaste. Para eso está la sección <strong>👻 Rutas fantasma</strong> del Animador.</p>
+<p>Añade tantas rutas como necesites — <strong>📚 Del archivo</strong> o <strong>📂 Archivo</strong>.</p>
+<blockquote><strong>El camino por el archivo:</strong> con <strong>📚 Del archivo …</strong> el catálogo se</blockquote>
+<blockquote>convierte en un <strong>selector puro</strong>: una barra arriba dice qué se está</blockquote>
+<blockquote>eligiendo, y en la ruta seleccionada solo aparece **👻 Usar como ruta</blockquote>
+<blockquote>fantasma** (también vale un doble clic). «Abrir en el animador» y las demás</blockquote>
+<blockquote>herramientas quedan ocultas mientras tanto, para que una ruta no acabe</blockquote>
+<blockquote>siendo tu ruta principal por error. Varias a la vez: márcalas con</blockquote>
+<blockquote>⌘/Ctrl+clic. <strong>Cancelar</strong> devuelve el catálogo a la normalidad.</blockquote>
+<p>Cada ruta se configura por separado: color, opacidad, grosor y trazo continuo o discontinuo. La casilla de la izquierda oculta una ruta sin borrarla. Las rutas pertenecen al proyecto y aparecen en el vídeo final.</p>
 <h3 id="camera-keyframes-barra-de-l-nea-de-tiempo">Camera-Keyframes (barra de línea de tiempo) ⭐</h3>
 <blockquote><strong>Es una función Pro opcional.</strong> Por defecto en los proyectos nuevos: solo una casilla «🎥 Editor de keyframes» en la barra lateral. Solo al activarla: aparece la barra de línea de tiempo bajo el mapa, el editor de detalle se hace accesible en la barra lateral, se dibujan los pines en el mapa. Los proyectos existentes con keyframes se activan automáticamente.</blockquote>
 <p>Con la barra de línea de tiempo <strong>bajo</strong> la vista previa del mapa puedes diseñar el flujo de cámara de forma dinámica — fijando libremente inclinación, giro y zoom en cualquier punto del track. El motor interpola limpiamente entre los keyframes (igual que en Premiere o Final Cut).</p>
@@ -1274,6 +1315,15 @@ python app.py</code></pre>
 <blockquote>Necesita un <strong>token de Mapbox</strong> (ajustes) e internet — sin token, el botón «Cargar» está atenuado. La adopción se puede deshacer con <strong>⌘Z</strong>. Si después cambias puntos (eliminas/insertas), el perfil se descarta automáticamente — simplemente vuelve a cargar.</blockquote>
 <p><strong>Sincronización de zoom + puntos clicables:</strong> el mapa y el perfil de altitud están conectados — <strong>si haces zoom/desplazas el mapa</strong>, el perfil muestra automáticamente solo el tramo visible; la <strong>rueda del ratón sobre el perfil</strong> hace zoom, <strong>arrastrar</strong> desplaza, y el mapa acompaña en cada caso. <strong>Cursor del ratón vinculado:</strong> si pasas el ratón por el <strong>mapa</strong>, una <strong>barra vertical en el perfil de altitud</strong> muestra dónde estás justo ahora; si pasas por el <strong>perfil</strong>, aparece un <strong>anillo blanco sobre el track</strong>. Así encuentras puntos a la velocidad del rayo, sin hacer clic.</p>
 <p><strong>Un solo clic en un punto</strong> (mapa o perfil) muestra un <strong>pequeño campo de información justo en el punto</strong> (sin oscurecer el fondo) con todos los datos (posición, altitud GPS + mapa, tiempo, distancia, velocidad, pendiente) y los botones «Como ancla A/B». Si haces clic en otro punto, el campo se desplaza allí. Un <strong>doble clic</strong> fija el ancla directamente — el camino rápido para sanar.</p>
+<h3 id="trasladar-tu-trabajo-a-la-ruta-reparada">🔁 Trasladar tu trabajo a la ruta reparada</h3>
+<p>El flujo clásico: ya estás montando algo en el <strong>Animador</strong>, notas que la ruta tiene fallos, la reparas en el inspector, guardas — y antes el Animador arrancaba vacío, porque para la aplicación una ruta reparada es una <strong>ruta nueva</strong> (las rutas se reconocen por sus coordenadas, no por el nombre del archivo). Por eso el inspector pregunta <strong>una vez al guardar</strong> si tu trabajo debe acompañarte. Di que sí y <strong>todos los proyectos</strong> de la ruta se trasladan: animador (cámara, fotogramas clave, aspecto), mapa de la ruta, geoetiquetador, animador de altitud, junto con fotos y carteles.</p>
+<blockquote><strong>Advertencia honesta:</strong> según <strong>cuánto</strong> se haya reparado, el traslado</blockquote>
+<blockquote>puede no encajar en todas partes. Los fotogramas clave, carteles y pines de</blockquote>
+<blockquote>fotos están anclados a una <strong>posición del recorrido</strong>. Unos pocos valores</blockquote>
+<blockquote>suavizados no se notan; muchos puntos insertados o un inicio recortado</blockquote>
+<blockquote>desplazan todo en esa medida — revisa entonces fotogramas y carteles. Si la</blockquote>
+<blockquote>ruta cambió de forma apreciable, la aplicación lo dice tras el traslado.</blockquote>
+<p><strong>La ruta antigua queda intacta.</strong> Si el resultado no te gusta, abre de nuevo el archivo original.</p>
 <h3 id="deshacer">Deshacer</h3>
 <p><strong>⌘Z</strong> deshace cualquier edición, <strong>⌘⇧Z</strong> rehace (o los botones ↩︎/↪︎). Al cargar un track nuevo, el historial arranca de cero.</p>
 <h3 id="guardar">Guardar</h3>
@@ -1440,6 +1490,8 @@ python app.py</code></pre>
 <p><strong>La sincronización nunca borra nada.</strong> Si una ruta solo existe en la nube (porque la quitaste del archivo aquí), el diálogo de la nube la muestra en «Rutas en el archivo» — con <strong>Traer</strong> y un botón <strong>🗑</strong>. Solo el segundo clic en 🗑 la quita de la nube, y aun así solo a la <strong>papelera del servidor</strong>.</p>
 <p><strong>Versiones anteriores.</strong> Cuando una ruta se sobrescribe en la nube (nuevo nombre, nuevos proyectos), la versión anterior queda en la papelera como «versión anterior» — las últimas cinco por ruta. <strong>Restaurar</strong> la convierte de nuevo en la versión actual. La papelera se limpia sola a los 30 días.</p>
 <p><strong>Solo https://.</strong> La dirección de <code>rz-cloud.php</code> debe empezar por https — por http tu clave de acceso viajaría sin cifrar. Casi todos los hostings ofrecen https, a menudo con «Let&#x27;s Encrypt» en un clic.</p>
+<h3 id="los-viajes-y-enjambres-viajan-contigo">Los viajes y enjambres viajan contigo</h3>
+<p>Tus <strong>composiciones</strong> — viajes de varias rutas y enjambres, con fotogramas clave y ajustes — también van a la nube automáticamente. En el otro equipo las encuentras en el diálogo de la nube bajo <strong>«Viajes y enjambres»</strong>: un clic en <strong>Descargar</strong> trae las rutas que falten y lo deja todo listo. Una composición que ya exista en el equipo <strong>nunca se sobrescribe</strong>: el trabajo local gana.</p>
 <h2 id="13-soporte-y-contacto">13 · Soporte y contacto</h2>
 <ul>
 <li><strong>Reportes de bugs y feedback</strong>: Ayuda → 📧 (ver la sección 7) o directamente <code>marc@reisezoom.com</code></li>

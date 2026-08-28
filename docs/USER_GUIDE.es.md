@@ -356,6 +356,54 @@ tracks. La app la lee de inmediato; **700 archivos tardan unos 20 segundos.** La
 se incluyen. Puedes vigilar tantas carpetas como quieras. (Mientras no haya ninguna carpeta,
 el área vacía muestra un gran botón **«+ Añadir carpeta»**.)
 
+### 🌊 El enjambre — todas las rutas a la vez (desde v0.9.557, completo en el Animador desde v0.9.569)
+Marca varias rutas (⌘/Ctrl+clic) o abre una colección y elige
+**«🌊 Animar como enjambre …»**: la selección pasa **directamente al
+Animador**. Todas las rutas arrancan juntas y avanzan a la **misma velocidad**
+por el mapa: la más larga marca la duración del vídeo, las cortas llegan antes
+y su punto se queda en la meta. Cada ruta conserva su color del archivo. Con
+muchas rutas, una ventana de carga va contando («Cargando ruta 37 de 96 …»).
+
+En el Animador tienes después **todo** lo que conoces de una ruta individual:
+estilos de mapa y 3D, fotogramas clave de cámara y la prueba, intro y pausa
+final, resoluciones hasta 4K y vertical. Dos cosas son propias del enjambre:
+
+- **🎥 La cámara sigue a** (encima de la lista de rutas): *nadie* (vista
+  general, el estándar), *la ruta más larga* — o **cualquier ruta** que
+  elijas. La cámara la acompaña y **se queda quieta en su meta** mientras las
+  demás siguen corriendo.
+- **Números del enjambre en el overlay:** «Recorrido» y «Restante» son la
+  **suma de todas las rutas** (cuánto ha avanzado el enjambre en conjunto),
+  «Distancia» es el total — además de **«Aún en camino»** (p. ej. «37 / 96»)
+  y **«Rutas en total»** («96 · 812 km»). Los campos de tiempo, velocidad y
+  altitud siguen mostrando la ruta más larga.
+
+El modo (enjambre o viaje) se **elige en el archivo**; el Animador lo muestra
+encima de la lista de rutas. Para cambiarlo, vuelve a entregar la selección en
+el archivo con el otro botón.
+
+### «¿Añadir la ruta al archivo?» — al abrir (desde v0.9.553)
+Una ruta entra en el archivo a través de las **carpetas vigiladas**. Todo lo
+que abrías con el diálogo de archivos pasaba de largo — ahora la aplicación lo
+comprueba al abrir, en cualquier módulo:
+
+- **Es exactamente el archivo del catálogo** → no pasa nada, todo como
+  siempre.
+- **El catálogo conoce la ruta, pero el archivo viene de otro sitio** → un
+  aviso te dice que trabajas con una **copia externa** (con el nombre de la
+  versión del catálogo). Útil si has cogido una versión antigua de tu carpeta
+  de descargas.
+- **La ruta es nueva** → la pregunta **«¿Añadir la ruta al archivo?»**. Al
+  aceptar, el archivo se **copia** a tu carpeta vigilada — el original se
+  queda donde está — y a partir de ahí trabajas con la copia del catálogo.
+  Con varias carpetas vigiladas eliges el destino; sin ninguna, se crea
+  **Documentos › Reisezoom Touren**.
+- **Tras reparar una ruta en el inspector** llega la misma pregunta.
+
+Solo pregunta cuando abres un archivo tú mismo. El arranque de la aplicación,
+los clics en el archivo y las importaciones de la nube van en silencio. Un
+«no» se puede recordar por ruta (casilla en el diálogo).
+
 **La barra lateral izquierda decide qué rutas ves siquiera:**
 
 | Sección | Muestra |
@@ -802,6 +850,26 @@ parado, número de paradas y cuántos segundos quedan en el vídeo.
 Puedes **desplazar** el mapa de la vista previa con el ratón (clic+arrastrar) y hacer **zoom** con la rueda de scroll. El render adopta tu posición 1:1 — lo que ves en la vista previa es lo que sale en el vídeo.
 
 Cuando quieras volver a centrar el track: botón **⤢** abajo a la derecha.
+
+### Rutas fantasma: varias rutas de fondo (desde v0.9.544)
+
+A veces una ruta solo se entiende en contexto: el sendero oficial, tu plan y lo
+que realmente caminaste. Para eso está la sección **👻 Rutas fantasma** del
+Animador.
+
+Añade tantas rutas como necesites — **📚 Del archivo** o **📂 Archivo**.
+
+> **El camino por el archivo:** con **📚 Del archivo …** el catálogo se
+> convierte en un **selector puro**: una barra arriba dice qué se está
+> eligiendo, y en la ruta seleccionada solo aparece **👻 Usar como ruta
+> fantasma** (también vale un doble clic). «Abrir en el animador» y las demás
+> herramientas quedan ocultas mientras tanto, para que una ruta no acabe
+> siendo tu ruta principal por error. Varias a la vez: márcalas con
+> ⌘/Ctrl+clic. **Cancelar** devuelve el catálogo a la normalidad.
+
+Cada ruta se configura por separado: color, opacidad, grosor y trazo continuo
+o discontinuo. La casilla de la izquierda oculta una ruta sin borrarla. Las
+rutas pertenecen al proyecto y aparecen en el vídeo final.
 
 ### Camera-Keyframes (barra de línea de tiempo, desde v0.7) ⭐
 
@@ -1466,6 +1534,26 @@ Los valores de altitud del GPS suelen ser ruidosos — sobre todo con poca cober
 
 **Un solo clic en un punto** (mapa o perfil) muestra un **pequeño campo de información justo en el punto** (sin oscurecer el fondo) con todos los datos (posición, altitud GPS + mapa, tiempo, distancia, velocidad, pendiente) y los botones «Como ancla A/B». Si haces clic en otro punto, el campo se desplaza allí. Un **doble clic** fija el ancla directamente — el camino rápido para sanar.
 
+### 🔁 Trasladar tu trabajo a la ruta reparada — desde v0.9.550
+El flujo clásico: ya estás montando algo en el **Animador**, notas que la ruta
+tiene fallos, la reparas en el inspector, guardas — y antes el Animador
+arrancaba vacío, porque para la aplicación una ruta reparada es una **ruta
+nueva** (las rutas se reconocen por sus coordenadas, no por el nombre del
+archivo). Por eso el inspector pregunta **una vez al guardar** si tu trabajo
+debe acompañarte. Di que sí y **todos los proyectos** de la ruta se trasladan:
+animador (cámara, fotogramas clave, aspecto), mapa de la ruta,
+geoetiquetador, animador de altitud, junto con fotos y carteles.
+
+> **Advertencia honesta:** según **cuánto** se haya reparado, el traslado
+> puede no encajar en todas partes. Los fotogramas clave, carteles y pines de
+> fotos están anclados a una **posición del recorrido**. Unos pocos valores
+> suavizados no se notan; muchos puntos insertados o un inicio recortado
+> desplazan todo en esa medida — revisa entonces fotogramas y carteles. Si la
+> ruta cambió de forma apreciable, la aplicación lo dice tras el traslado.
+
+**La ruta antigua queda intacta.** Si el resultado no te gusta, abre de nuevo
+el archivo original.
+
 ### Deshacer
 **⌘Z** deshace cualquier edición, **⌘⇧Z** rehace (o los botones ↩︎/↪︎). Al cargar un track nuevo, el historial arranca de cero.
 
@@ -1722,6 +1810,13 @@ nuevo en la versión actual. La papelera se limpia sola a los 30 días.
 **Solo https://.** La dirección de `rz-cloud.php` debe empezar por https — por
 http tu clave de acceso viajaría sin cifrar. Casi todos los hostings ofrecen
 https, a menudo con «Let's Encrypt» en un clic.
+
+### Los viajes y enjambres viajan contigo (desde v0.9.569)
+Tus **composiciones** — viajes de varias rutas y enjambres, con fotogramas
+clave y ajustes — también van a la nube automáticamente. En el otro equipo las
+encuentras en el diálogo de la nube bajo **«Viajes y enjambres»**: un clic en
+**Descargar** trae las rutas que falten y lo deja todo listo. Una composición
+que ya exista en el equipo **nunca se sobrescribe**: el trabajo local gana.
 
 ## 13 · Soporte y contacto
 

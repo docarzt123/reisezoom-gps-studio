@@ -519,6 +519,33 @@ python app.py</code></pre>
 <h2 id="2c-module-library-every-tour-in-one-place">2c · Module: Library 📚 — every tour in one place ⭐</h2>
 <p>Collect tours for a few years and you end up with hundreds of GPX files scattered across folders — and you can never find the right one again. That is what the <strong>Library</strong> is for: it reads your track folders and shows every tour with a picture, a date and the numbers.</p>
 <p><strong>Set up (once):</strong> open the <strong>📚 Library</strong> tab → <strong>“📂 Folders &amp; scanning”</strong> at the bottom left → <strong>“+ Add folder”</strong> → pick the folder your tracks live in. The app reads it straight away; <strong>700 files take a good 20 seconds.</strong> Sub-folders are included. You can watch as many folders as you like. (While there is no folder, the empty area shows a big <strong>“+ Add folder”</strong> button.)</p>
+<h3 id="the-swarm-all-tours-run-at-once">🌊 The swarm — all tours run at once</h3>
+<p>Select several tours (⌘/Ctrl-click) or open a collection and choose <strong>&quot;🌊 Animate as a swarm …&quot;</strong> — the selection goes <strong>straight into the Animator</strong>. All tours start together and move at the <strong>same speed</strong> across the map: the longest one sets the video length, shorter ones finish earlier and their dot stays at the finish. Every tour keeps its colour from the library. With many tours, a loading window counts along (&quot;Loading tour 37 of 96 …&quot;).</p>
+<p>Inside the Animator you then have <strong>everything</strong> you know from a single tour: map styles and 3D, camera keyframes and the trial run, intro and hold, resolutions up to 4K and portrait. Two things are swarm-specific:</p>
+<ul>
+<li><strong>🎥 Camera follows</strong> (above the tour list): <em>nobody</em> (overview, the</li>
+</ul>
+<p> default), <em>the longest tour</em> — or <strong>any single tour</strong> of your choice. The  camera accompanies it and <strong>stays put at its finish</strong> while the rest keep  running.</p>
+<ul>
+<li><strong>Swarm numbers in the overlay:</strong> &quot;Distance done&quot; and &quot;Remaining&quot; are the</li>
+</ul>
+<p> <strong>sum over all tours</strong> (how far the swarm has travelled altogether),  &quot;Distance&quot; is the grand total — plus <strong>&quot;Still under way&quot;</strong> (e.g. &quot;37 / 96&quot;)  and <strong>&quot;Tours in total&quot;</strong> (&quot;96 · 812 km&quot;). Time, speed and elevation fields  still show the longest tour.</p>
+<p>The sequence (swarm or journey) is <strong>chosen in the library</strong> — the Animator shows it above the tour list. To switch, simply hand the selection over again in the library using the other button.</p>
+<h3 id="add-this-tour-to-the-archive-on-opening">&quot;Add this tour to the archive?&quot; — on opening</h3>
+<p>A tour enters the library through the <strong>watched folders</strong>. Anything you open through a file dialog used to pass it by — now the app checks on opening, in any module:</p>
+<ul>
+<li><strong>It is exactly the library file</strong> → nothing happens, everything as usual.</li>
+<li><strong>The library knows the tour, but the file comes from elsewhere</strong> → a hint</li>
+</ul>
+<p> tells you that you are working on a <strong>copy outside</strong> the library (with the  name of the library version). Useful when you grabbed an older file from  your Downloads folder.</p>
+<ul>
+<li><strong>The tour is new</strong> → the question <strong>&quot;Add this tour to the archive?&quot;</strong>. On</li>
+</ul>
+<p> <strong>yes</strong> the file is <strong>copied</strong> into your watched folder — the original  stays put — and from then on you work with the library copy. With several  watched folders you pick the target; with none, <strong>Documents › Reisezoom  Touren</strong> is created for you.</p>
+<ul>
+<li><strong>After repairing a track in the inspector</strong> the same question follows.</li>
+</ul>
+<p>It only asks when you open a file yourself. App start, library clicks and cloud imports stay silent. A <strong>&quot;no&quot;</strong> can be remembered per tour (checkbox in the dialog).</p>
 <p><strong>The sidebar on the left decides which tours you see at all:</strong></p>
 <table><thead><tr><th>Section</th><th>Shows</th></tr></thead><tbody><tr><td>📚 <strong>All tours</strong></td><td>everything, done and planned mixed</td></tr><tr><td>✅ <strong>Done</strong></td><td>only what you actually rode or walked</td></tr><tr><td>📝 <strong>Planned</strong></td><td>only the routes still ahead of you</td></tr><tr><td>★ <strong>Favourites</strong></td><td>your marked tours</td></tr><tr><td>🚫 <strong>Hidden</strong></td><td>what you put aside (only appears when there is something)</td></tr></tbody></table>
 <p>Below that sit your <strong>collections</strong>: one click shows <strong>only that one</strong>, a second click undoes it, a <strong>right-click</strong> opens rename, show, “All in Animator” and delete. The app remembers the section you were last in.</p>
@@ -1116,7 +1143,14 @@ python app.py</code></pre>
 <blockquote>“in the Atlantic” for you: that was the reason.</blockquote>
 <h3 id="ghost-tracks-several-routes-in-the-background">Ghost tracks: several routes in the background</h3>
 <p>Sometimes a tour only makes sense in context: the official trail, your plan, and what you actually walked. That is what the <strong>👻 Ghost tracks</strong> section in the animator is for.</p>
-<p>Add as many tracks as you need — <strong>📚 From the archive</strong> (select the tours there and choose “👻 As ghost track in the animator”) or <strong>📂 File</strong>. Each track is set up on its own: colour, opacity, line width, and dashed or solid. The checkbox on the left hides a track without deleting it.</p>
+<p>Add as many tracks as you need — <strong>📚 From the archive</strong> or <strong>📂 File</strong>.</p>
+<blockquote><strong>The archive route:</strong> via <strong>📚 From the archive …</strong> the library turns into a</blockquote>
+<blockquote><strong>pure picker</strong> — a bar at the top says what is being asked for, and the</blockquote>
+<blockquote>selected tour offers only <strong>👻 Use as ghost track</strong> (a double-click does it</blockquote>
+<blockquote>too). &quot;Open in animator&quot; and the other tools are hidden meanwhile, so a tour</blockquote>
+<blockquote>can&#x27;t accidentally become your main track. Several at once: mark them with</blockquote>
+<blockquote>⌘/Ctrl-click. <strong>Cancel</strong> returns the library to normal.</blockquote>
+<p>Each track is set up on its own: colour, opacity, line width, and dashed or solid. The checkbox on the left hides a track without deleting it.</p>
 <p>A typical setup: the official trail strong and solid, the planned loops thin and dashed, and on top your actual tour, animated. The tracks belong to the project and appear in the finished video.</p>
 <h3 id="time-zone-magic">Time-zone magic</h3>
 <p>The app reads the <code>OffsetTimeOriginal</code> EXIF tag from each photo and converts the capture time to UTC. If your camera writes that tag, the track fits <strong>right away</strong>, without you setting anything.</p>
@@ -1273,6 +1307,15 @@ python app.py</code></pre>
 <blockquote>Needs a <strong>Mapbox token</strong> (settings) and internet — without a token the &quot;Load&quot; button is grayed out. Applying can be undone with <strong>⌘Z</strong>. If you change points afterwards (delete/insert), the profile discards itself automatically — just reload it.</blockquote>
 <p><strong>Zoom sync &amp; clickable points:</strong> the map and the elevation profile are linked — <strong>zoom/pan the map</strong> and the profile automatically shows only the visible section; the <strong>mouse wheel over the profile</strong> zooms, <strong>dragging</strong> pans, and the map moves along each time. <strong>Cursor linked:</strong> if you move the mouse over the <strong>map</strong>, a <strong>vertical bar in the elevation profile</strong> shows where you currently are; if you move over the <strong>profile</strong>, a <strong>white ring appears on the track</strong>. That way you find spots in a flash, without clicking.</p>
 <p><strong>A single click on a point</strong> (map or profile) shows a <strong>small info field right at the point</strong> (without dimming the background) with all data (position, elevation GPS + map, time, distance, speed, gradient) and &quot;As anchor A/B&quot; buttons. Click another point and the field moves there. A <strong>double-click</strong> sets the anchor directly — the fast way to heal.</p>
+<h3 id="carry-your-work-over-to-the-healed-track">🔁 Carry your work over to the healed track</h3>
+<p>The classic flow: you are already building in the <strong>Animator</strong>, notice the track is off, repair it in the inspector, save — and the animator used to start empty, because a healed track is a <strong>new tour</strong> to the app (tours are recognised by their coordinates, not their file name). The inspector therefore asks <strong>once after saving</strong> whether your work should come along. Say yes and <strong>all projects</strong> of the tour move over — animator (camera, keyframes, look), tour map, geotagger, elevation animator, plus photos and signs.</p>
+<blockquote><strong>Honest caveat:</strong> depending on <strong>how much</strong> was healed, the transfer may</blockquote>
+<blockquote>not fit everywhere. Keyframes, signs and photo pins sit at a **position on</blockquote>
+<blockquote>the track**. A few smoothed outliers — you won&#x27;t notice. Many inserted</blockquote>
+<blockquote>points or a cut start — everything shifts by that amount; please glance over</blockquote>
+<blockquote>keyframes and signs then. If the tour changed noticeably, the app says so</blockquote>
+<blockquote>after the transfer.</blockquote>
+<p><strong>The old tour stays untouched.</strong> If you don&#x27;t like the result, just open the original file again.</p>
 <h3 id="undo">Undo</h3>
 <p><strong>⌘Z</strong> undoes every edit, <strong>⌘⇧Z</strong> redoes it (or the ↩︎/↪︎ buttons). When you load a new track, the history starts fresh.</p>
 <h3 id="saving">Saving</h3>
@@ -1438,6 +1481,8 @@ python app.py</code></pre>
 <p><strong>Sync never deletes anything.</strong> If a tour only exists in the cloud (because you removed it from the archive here), the cloud dialog lists it under “Tours in the archive” — with <strong>Fetch</strong> and a <strong>🗑</strong> button. Only the second click on 🗑 removes it from the cloud, and even then only into the <strong>trash on the server</strong>.</p>
 <p><strong>Older versions.</strong> When a tour is overwritten in the cloud (new name, new projects), the previous version stays in the trash as an “older version” the last five per tour. <strong>Restore</strong> makes it the current version again. The trash cleans itself after 30 days (“Permanently delete older than 30 days”).</p>
 <p><strong>https:// only.</strong> The address of <code>rz-cloud.php</code> must start with https — over http your access key would travel unencrypted. Practically every host offers https, often via “Let&#x27;s Encrypt” with one click.</p>
+<h3 id="journeys-swarms-travel-along">Journeys &amp; swarms travel along</h3>
+<p>Your <strong>compositions</strong> — multi-tour journeys and swarms, including keyframes and settings — go to the cloud automatically as well. On the other machine you find them in the cloud dialog under <strong>&quot;Journeys &amp; swarms&quot;</strong>: one click on <strong>Fetch</strong> brings any missing tours along and sets everything up ready to use. A composition that already exists on the machine is <strong>never overwritten</strong> local work wins.</p>
 <h2 id="13-support-contact">13 · Support &amp; Contact</h2>
 <ul>
 <li><strong>Bug reports &amp; feedback</strong>: Help → 📧 (see section 7) or directly <code>marc@reisezoom.com</code></li>

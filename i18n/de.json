@@ -2353,5 +2353,11 @@
   "animator.tours.lade_titel": "Touren werden geladen",
   "animator.tours.lade_text": "Lade Tour {i} von {n} …",
   "animator.tours.lade_warte": "Bitte warten — danach baut sich die Vorschau mit allen Touren auf.",
-  "animator.tours.lade_vorbereiten": "Touren werden vorbereitet …"
+  "animator.tours.lade_vorbereiten": "Touren werden vorbereitet …",
+  "cloud.mengen_titel": "Reisen & Schwärme",
+  "cloud.menge_geholt": "Komposition geholt: ",
+  "cloud.menge_schon_da": "Diese Komposition gibt es hier schon — lokale Arbeit bleibt.",
+  "cloud.menge_touren_fehlen": "Nicht alle Touren der Komposition sind verfügbar.",
+  "cloud.menge_leer": "Komposition ohne Touren",
+  "cloud.menge_tour_fehler": "Eine Tour ließ sich nicht einspielen"
 }

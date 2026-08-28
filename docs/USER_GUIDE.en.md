@@ -354,6 +354,53 @@ away; **700 files take a good 20 seconds.** Sub-folders are included. You can wa
 folders as you like. (While there is no folder, the empty area shows a big **“+ Add folder”**
 button.)
 
+### 🌊 The swarm — all tours run at once (since v0.9.557, fully in the Animator since v0.9.569)
+Select several tours (⌘/Ctrl-click) or open a collection and choose
+**"🌊 Animate as a swarm …"** — the selection goes **straight into the
+Animator**. All tours start together and move at the **same speed** across the
+map: the longest one sets the video length, shorter ones finish earlier and
+their dot stays at the finish. Every tour keeps its colour from the library.
+With many tours, a loading window counts along ("Loading tour 37 of 96 …").
+
+Inside the Animator you then have **everything** you know from a single tour:
+map styles and 3D, camera keyframes and the trial run, intro and hold,
+resolutions up to 4K and portrait. Two things are swarm-specific:
+
+- **🎥 Camera follows** (above the tour list): *nobody* (overview, the
+  default), *the longest tour* — or **any single tour** of your choice. The
+  camera accompanies it and **stays put at its finish** while the rest keep
+  running.
+- **Swarm numbers in the overlay:** "Distance done" and "Remaining" are the
+  **sum over all tours** (how far the swarm has travelled altogether),
+  "Distance" is the grand total — plus **"Still under way"** (e.g. "37 / 96")
+  and **"Tours in total"** ("96 · 812 km"). Time, speed and elevation fields
+  still show the longest tour.
+
+The sequence (swarm or journey) is **chosen in the library** — the Animator
+shows it above the tour list. To switch, simply hand the selection over again
+in the library using the other button.
+
+### "Add this tour to the archive?" — on opening (since v0.9.553)
+A tour enters the library through the **watched folders**. Anything you open
+through a file dialog used to pass it by — now the app checks on opening, in
+any module:
+
+- **It is exactly the library file** → nothing happens, everything as usual.
+- **The library knows the tour, but the file comes from elsewhere** → a hint
+  tells you that you are working on a **copy outside** the library (with the
+  name of the library version). Useful when you grabbed an older file from
+  your Downloads folder.
+- **The tour is new** → the question **"Add this tour to the archive?"**. On
+  **yes** the file is **copied** into your watched folder — the original
+  stays put — and from then on you work with the library copy. With several
+  watched folders you pick the target; with none, **Documents › Reisezoom
+  Touren** is created for you.
+- **After repairing a track in the inspector** the same question follows.
+
+It only asks when you open a file yourself. App start, library clicks and
+cloud imports stay silent. A **"no"** can be remembered per tour (checkbox in
+the dialog).
+
 **The sidebar on the left decides which tours you see at all:**
 
 | Section | Shows |
@@ -1229,10 +1276,17 @@ Sometimes a tour only makes sense in context: the official trail, your plan, and
 what you actually walked. That is what the **👻 Ghost tracks** section in the
 animator is for.
 
-Add as many tracks as you need — **📚 From the archive** (select the tours there
-and choose “👻 As ghost track in the animator”) or **📂 File**. Each track is set
-up on its own: colour, opacity, line width, and dashed or solid. The checkbox on
-the left hides a track without deleting it.
+Add as many tracks as you need — **📚 From the archive** or **📂 File**.
+
+> **The archive route:** via **📚 From the archive …** the library turns into a
+> **pure picker** — a bar at the top says what is being asked for, and the
+> selected tour offers only **👻 Use as ghost track** (a double-click does it
+> too). "Open in animator" and the other tools are hidden meanwhile, so a tour
+> can't accidentally become your main track. Several at once: mark them with
+> ⌘/Ctrl-click. **Cancel** returns the library to normal.
+
+Each track is set up on its own: colour, opacity, line width, and dashed or
+solid. The checkbox on the left hides a track without deleting it.
 
 A typical setup: the official trail strong and solid, the planned loops thin and
 dashed, and on top your actual tour, animated. The tracks belong to the project
@@ -1448,6 +1502,25 @@ GPS elevation values are often noisy — especially with poor reception the elev
 **Zoom sync & clickable points (since v0.9.293):** the map and the elevation profile are linked — **zoom/pan the map** and the profile automatically shows only the visible section; the **mouse wheel over the profile** zooms, **dragging** pans, and the map moves along each time. **Cursor linked (since v0.9.294):** if you move the mouse over the **map**, a **vertical bar in the elevation profile** shows where you currently are; if you move over the **profile**, a **white ring appears on the track**. That way you find spots in a flash, without clicking.
 
 **A single click on a point** (map or profile) shows a **small info field right at the point** (without dimming the background) with all data (position, elevation GPS + map, time, distance, speed, gradient) and "As anchor A/B" buttons. Click another point and the field moves there. A **double-click** sets the anchor directly — the fast way to heal.
+
+### 🔁 Carry your work over to the healed track — since v0.9.550
+The classic flow: you are already building in the **Animator**, notice the
+track is off, repair it in the inspector, save — and the animator used to
+start empty, because a healed track is a **new tour** to the app (tours are
+recognised by their coordinates, not their file name). The inspector therefore
+asks **once after saving** whether your work should come along. Say yes and
+**all projects** of the tour move over — animator (camera, keyframes, look),
+tour map, geotagger, elevation animator, plus photos and signs.
+
+> **Honest caveat:** depending on **how much** was healed, the transfer may
+> not fit everywhere. Keyframes, signs and photo pins sit at a **position on
+> the track**. A few smoothed outliers — you won't notice. Many inserted
+> points or a cut start — everything shifts by that amount; please glance over
+> keyframes and signs then. If the tour changed noticeably, the app says so
+> after the transfer.
+
+**The old tour stays untouched.** If you don't like the result, just open the
+original file again.
 
 ### Undo
 **⌘Z** undoes every edit, **⌘⇧Z** redoes it (or the ↩︎/↪︎ buttons). When you load a new track, the history starts fresh.
@@ -1700,6 +1773,14 @@ trash cleans itself after 30 days (“Permanently delete older than 30 days”).
 **https:// only.** The address of `rz-cloud.php` must start with https — over
 http your access key would travel unencrypted. Practically every host offers
 https, often via “Let's Encrypt” with one click.
+
+### Journeys & swarms travel along (since v0.9.569)
+Your **compositions** — multi-tour journeys and swarms, including keyframes
+and settings — go to the cloud automatically as well. On the other machine you
+find them in the cloud dialog under **"Journeys & swarms"**: one click on
+**Fetch** brings any missing tours along and sets everything up ready to use.
+A composition that already exists on the machine is **never overwritten** —
+local work wins.
 
 ## 13 · Support & Contact
 

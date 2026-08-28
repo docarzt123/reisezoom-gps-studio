@@ -2353,5 +2353,11 @@
   "animator.tours.lade_titel": "Loading tours",
   "animator.tours.lade_text": "Loading tour {i} of {n} …",
   "animator.tours.lade_warte": "Please wait — the preview with all tours will build right after.",
-  "animator.tours.lade_vorbereiten": "Preparing tours …"
+  "animator.tours.lade_vorbereiten": "Preparing tours …",
+  "cloud.mengen_titel": "Journeys & swarms",
+  "cloud.menge_geholt": "Composition fetched: ",
+  "cloud.menge_schon_da": "This composition already exists here — local work stays.",
+  "cloud.menge_touren_fehlen": "Not all tours of this composition are available.",
+  "cloud.menge_leer": "Composition without tours",
+  "cloud.menge_tour_fehler": "One tour could not be imported"
 }
