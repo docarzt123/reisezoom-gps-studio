@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- App-Start im Archiv mit gemerkter Tourenmenge (Reise/Schwarm): Das nicht
+  schließbare „Touren werden geladen"-Modal wurde geöffnet, obwohl der Animator
+  — der einzige, der lädt, abbricht und schließt — gar nicht gemountet war.
+  Folge: Modal für immer, Abbrechen wirkungslos, App tot (Marc, 28.08.2026:
+  „klick ich abbrechen hängt er"). Jetzt: Modal beim Boot nur im Animator;
+  scheitert der Haupt-Track, wird hart geschlossen; der Abbrechen-Knopf hat
+  einen 5-s-Notausstieg, falls nie eine Ladeschleife das Flag konsumiert; und
+  Abbrechen löscht das Neustart-Gedächtnis der Menge, damit der nächste Start
+  nicht wieder dieselben 95 Touren anschleppt.
+
 ### Added
 - Archiv: Sammlungen lassen sich duplizieren (Verwalten-Dialog, „⎘ Duplizieren"). Die Kopie
   übernimmt alle Touren in ihrer Reihenfolge und heißt „<Name> (Kopie)"; sie lässt sich frei
