@@ -10447,9 +10447,26 @@ function mountAnimator(body, headerActions, opts) {
           if (v != null) el.textContent = v;
           return;
         }
+        // 28.08.2026 (Marc): Im Schwarm sind die Distanz-Felder SUMMEN über
+        // alle Touren — wortgleich zur Render-Rechnung (swarmDoneM/SWARM_TOTAL_M
+        // in core/animator.py). Jede Tour trägt höchstens ihre Länge bei.
+        const _sw = (_animAblauf === "schwarm" && _extraTours.length)
+          ? (() => {
+              const d = sr.cumDistM[i] || 0;
+              let done = d, gesamt = totD;
+              for (const tr of _extraTours) {
+                if (!tr.coords || tr.coords.length < 2) continue;
+                const cum = _cumDistFuer(tr, tr.coords);
+                const L = cum[cum.length - 1] || 0;
+                done += Math.min(d, L);
+                gesamt += L;
+              }
+              return { done, gesamt };
+            })()
+          : null;
         switch (id) {
-          case "dist_done": v = _ovFmtKm(sr.cumDistM[i] / 1000); break;
-          case "dist_left": v = _ovFmtKm(Math.max(0, (totD - sr.cumDistM[i]) / 1000)); break;
+          case "dist_done": v = _ovFmtKm((_sw ? _sw.done : sr.cumDistM[i]) / 1000); break;
+          case "dist_left": v = _ovFmtKm(Math.max(0, ((_sw ? _sw.gesamt : totD) - (_sw ? _sw.done : sr.cumDistM[i])) / 1000)); break;
           case "speed": if (sr.has_time) v = Math.round(sr.speedKmh[i]) + " km/h"; break;
           case "time_elapsed": if (sr.has_time) v = _ovFmtDur(sr.cumTimeS[i]); break;
           case "time_left": if (sr.has_time) v = _ovFmtDur(Math.max(0, totT - sr.cumTimeS[i])); break;

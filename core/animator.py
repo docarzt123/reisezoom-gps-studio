@@ -592,6 +592,17 @@ OVERLAY_TOTAL_FIELDS = [
     {"id": "swarm_total", "requires": "schwarm", "label": "Touren gesamt",
      "py": lambda ts: f'{ts.get("swarm_n", 0)} &middot; {_format_km(ts.get("swarm_dist_m", 0))}'},
 ]
+# 28.08.2026 (Marc: „der soll immer die summe anzeigen beim schwarm") — im
+# Schwarm-Ablauf rechnen die Distanz-Felder über ALLE Touren: „Zurückgelegt"
+# ist, wie weit der ganze Schwarm bis jetzt gelaufen ist, „Verbleibend" der
+# Rest bis alle im Ziel sind. Die Helfer swarmDoneM/SWARM_TOTAL_M definiert
+# das Render-HTML nur, wenn Schwarm-Touren da sind (deshalb greifen die
+# Overrides ausschließlich bei has_schwarm).
+_SCHWARM_LIVE_JS = {
+    "dist_done": "fmtKmJS(swarmDoneM(idx)/1000)",
+    "dist_left": "fmtKmJS(Math.max(0,(SWARM_TOTAL_M-swarmDoneM(idx))/1000))",
+}
+
 _OVERLAY_LIVE_BY_ID = {f["id"]: f for f in OVERLAY_LIVE_FIELDS}
 _OVERLAY_TOTAL_BY_ID = {f["id"]: f for f in OVERLAY_TOTAL_FIELDS}
 DEFAULT_LIVE_FIELDS = ["dist_done", "time_elapsed", "ele_now"]
@@ -656,7 +667,11 @@ def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, 
         if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
             continue
         try:
-            val = f["py"](total_stats)
+            # 28.08.2026 (Marc): Im Schwarm ist „Strecke" die Summe ALLER Touren.
+            if has_schwarm and fid == "dist_total" and total_stats.get("swarm_dist_m"):
+                val = _format_km(total_stats["swarm_dist_m"])
+            else:
+                val = f["py"](total_stats)
         except Exception:
             continue
         lbl = _overlay_label_ov(fid, f["label"], overrides, t)
@@ -730,7 +745,8 @@ def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=
         f = _OVERLAY_LIVE_BY_ID.get(fid)
         if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
             continue
-        lines.append(f"  {{ var _e=document.getElementById('live-{fid}'); if(_e) _e.textContent = {f['js']}; }}")
+        _js = _SCHWARM_LIVE_JS.get(fid, f["js"]) if has_schwarm else f["js"]
+        lines.append(f"  {{ var _e=document.getElementById('live-{fid}'); if(_e) _e.textContent = {_js}; }}")
     return "\n".join(lines)
 
 
@@ -2720,6 +2736,20 @@ const SCHWARM_COORDS = {schwarm_coords_json};
 const SCHWARM_COLORS = {schwarm_colors_json};
 const SCHWARM_STEPS = {schwarm_steps_json};
 const SCHWARM_N = SCHWARM_COORDS.length;
+// 28.08.2026 (Marc): Schwarm-Summen fürs Overlay. SWARM_TOTAL_M = Strecke
+// ALLER Touren; swarmDoneM(idx) = wie weit der ganze Schwarm bis jetzt
+// gelaufen ist — jede Tour trägt höchstens ihre eigene Länge bei (wer im
+// Ziel ist, läuft nicht weiter).
+const SWARM_TOTAL_M = TOTAL_DIST_M
+  + SCHWARM_COORDS.reduce((a, c, i) => a + (c.length - 1) * SCHWARM_STEPS[i], 0);
+function swarmDoneM(idx) {{
+  const d = cumDistM[Math.max(0, Math.min(idx, cumDistM.length - 1))] || 0;
+  let s = d;
+  for (let i = 0; i < SCHWARM_N; i++) {{
+    s += Math.min(d, (SCHWARM_COORDS[i].length - 1) * SCHWARM_STEPS[i]);
+  }}
+  return s;
+}}
 window.__rzSchwarmAdvance = (dNow) => {{
   if (!SCHWARM_N || !map.getSource('schwarm')) return;
   const linien = [], punkte = [];

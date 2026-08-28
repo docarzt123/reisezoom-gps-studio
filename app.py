@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.566"
+APP_VERSION = "0.9.567"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1718,7 +1718,7 @@ class Api:
                         proj["animator"].setdefault("overlay_live_fields",
                                                     ["dist_done", "swarm_underway"])
                         proj["animator"].setdefault("overlay_totals_fields",
-                                                    ["swarm_total", "dist_total"])
+                                                    ["swarm_total"])
                     name = ("Schwarm" if ablauf == "schwarm" else "Reise") + f" ({len(pfade)} Touren)"
                     sess = {"track_hash": schluessel, "name": name,
                             "ablauf": ablauf,
