@@ -1822,7 +1822,7 @@ function mountLibrary(body, headerActions) {
     const mMerge = $("lib-m-merge");
     if (mMerge) mMerge.onclick = () => openMergeDialog(multiItems());
     const mSchwarm = $("lib-m-schwarm");
-    if (mSchwarm) mSchwarm.onclick = () => openSchwarmDialog(multiItems());
+    if (mSchwarm) mSchwarm.onclick = () => alsSchwarmInDenAnimator(multiItems());
     const ghostBtn = $("lib-m-ghosts");
     if (ghostBtn) {
       ghostBtn.onclick = () => {
@@ -2333,7 +2333,7 @@ function mountLibrary(body, headerActions) {
     if (schwarm) schwarm.onclick = async () => {
       m.close();
       const r = await api().library_collection_items(cid);
-      openSchwarmDialog((r && r.items) || []);
+      alsSchwarmInDenAnimator((r && r.items) || []);
     };
     const del = document.getElementById("lib-cm-del");
     if (del) del.onclick = async () => {
@@ -2357,159 +2357,31 @@ function mountLibrary(body, headerActions) {
    * `schwarm: true`) — damit gelten „Render läuft bereits", animator_status()
    * und animator_cancel() unverändert.
    */
-  let _schwarmPoll = null;
-  function openSchwarmDialog(items) {
+  /* 🌊 Schwarm-Übergabe (M4, 28.08.2026 — Marcs Beschluss aus dem Grilling:
+   * „weg sobald der animator steht"): Der frühere Schnell-Render-Dialog mit
+   * eigenem Renderer ist abgebaut. Das Archiv komponiert nur noch — die Menge
+   * geht direkt in den Animator (längste Tour als Haupt-Track = Zeitachse),
+   * wo alle Werkzeuge und der EINE Renderpfad leben.
+   */
+  async function alsSchwarmInDenAnimator(items) {
     const gute = (items || []).filter(i => i && i.path && i.exists !== false);
     if (gute.length < 2) {
       toast(T("schwarm.zu_wenig", "Für einen Schwarm mindestens 2 Touren markieren."), "warn");
       return;
     }
-    const km = gute.reduce((a, i) => a + (i.distance_m || 0), 0) / 1000;
-    openModal({
-      title: `🌊 ${T("schwarm.titel", "Schwarm — alle Touren laufen gleichzeitig")}`,
-      body: `<div class="lib-fmodal">
-        <div id="sw-lauf" hidden>
-          <img id="sw-preview" style="width:100%; border-radius:8px; display:none" alt="">
-          <div class="lib-progress" style="margin-top:8px"><i id="sw-bar" style="width:0%"></i></div>
-          <div class="lib-hint" id="sw-status" style="margin-top:4px"></div>
-        </div>
-        <div id="sw-opts">
-        <p class="lib-hint" style="margin-top:0">${T("schwarm.erklaerung",
-          "Alle Touren starten gleichzeitig und laufen gleich schnell. Die längste bestimmt die Videodauer — kürzere sind früher im Ziel, ihr Punkt bleibt dort stehen.")}</p>
-        <div class="lib-hint">${gute.length} ${T("library.tours", "Touren")} · ${Math.round(km)} km</div>
-
-        <div class="field-label" style="margin-top:12px">${T("schwarm.dauer", "Laufzeit der längsten Tour (Sekunden)")}</div>
-        <input type="number" id="sw-dauer" class="lib-input" value="20" min="3" max="600" step="1">
-
-        <div class="field-label" style="margin-top:10px">${T("schwarm.stil", "Kartenstil")}</div>
-        <select id="sw-stil" class="lib-select" style="width:100%">
-          <option value="outdoors">${T("animator.style.outdoors", "Outdoor")}</option>
-          <option value="satellite">${T("animator.style.satellite", "Satellit")}</option>
-          <option value="satellite_streets">${T("animator.style.satellite_streets", "Satellit + Straßen")}</option>
-          <option value="dark">${T("animator.style.dark", "Dunkel")}</option>
-          <option value="light">${T("animator.style.light", "Hell")}</option>
-        </select>
-
-        <div style="display:flex; gap:10px; margin-top:10px">
-          <div style="flex:1">
-            <div class="field-label">${T("schwarm.aufloesung", "Auflösung")}</div>
-            <select id="sw-res" class="lib-select" style="width:100%">
-              <option value="1920x1080">1080p</option>
-              <option value="3840x2160">4K</option>
-              <option value="1080x1920">${T("schwarm.hochkant", "Hochkant (Shorts)")}</option>
-            </select>
-          </div>
-          <div style="flex:1">
-            <div class="field-label">${T("schwarm.linie", "Linienbreite")}</div>
-            <input type="number" id="sw-linie" class="lib-input" value="3" min="1" max="10" step="0.5">
-          </div>
-        </div>
-
-        <label class="check-row" style="margin-top:10px">
-          <input type="checkbox" id="sw-overlay" checked>
-          <span>${T("schwarm.overlay", "Zähler einblenden (Touren · km · noch unterwegs)")}</span>
-        </label>
-        </div>
-      </div>`,
-      footer: `
-        <button class="btn" id="sw-abbruch">${T("common.cancel", "Abbrechen")}</button>
-        <button class="btn" id="sw-start">${T("schwarm.start_schnell", "Schnell rendern …")}</button>
-        <button class="btn btn-primary" id="sw-animator" title="${
-          esc(T("schwarm.animator_hint", "Voller Funktionsumfang: Keyframes, Kamera, Stile, Overlays — die längste Tour ist die Zeitachse."))
-        }">🎬 ${T("schwarm.animator", "Im Animator gestalten")}</button>`,
-      onClose: () => { if (_schwarmPoll) { clearInterval(_schwarmPoll); _schwarmPoll = null; } },
-    });
-
-    const abbr = document.getElementById("sw-abbruch");
-    const start = document.getElementById("sw-start");
-    // IDEAS §38 M1 — der volle Weg: längste Tour wird Haupt-Track (= Zeitachse,
-    // „die längste bestimmt die videodauer"), der Rest reist als Etappen mit,
-    // Ablauf „schwarm". Der Animator aktiviert dann die Mengen-Sitzung.
-    const inAnimator = document.getElementById("sw-animator");
-    if (inAnimator) inAnimator.onclick = async () => {
-      const sortiert = gute.slice().sort((x, y) => (y.distance_m || 0) - (x.distance_m || 0));
-      window.__rzPendingTours = sortiert.slice(1).map(i => i.path);
-      window.__rzPendingAblauf = "schwarm";
-      openModal({}).close();
-      // 28.08.2026 (Marc): Das Lade-Modal SOFORT — nicht erst, wenn der
-      // Animator nach Haupt-Track-Load und Wartezeit übernimmt.
-      if (sortiert.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
-      const ok = await window.loadGlobalGpx(sortiert[0].path, { stumm: true, menge: true });
-      if (ok === false) {
-        window.__rzPendingTours = null; window.__rzPendingAblauf = null;
-        if (typeof tourenLadeModalZu === "function") tourenLadeModalZu();
-        return;
-      }
-      if (typeof switchMod === "function") switchMod("animator");
-      toast(`🌊 ${sortiert.length} ${T("schwarm.an_animator", "Touren als Schwarm im Animator.")}`, "success");
-    };
-    let laeuft = false;
-    if (abbr) abbr.onclick = () => {
-      if (laeuft) { api().animator_cancel(); return; }   // Render abbrechen, Dialog bleibt
-      openModal({}).close();
-    };
-    if (start) start.onclick = async () => {
-      // Zeitstempel im Namen — Marc-Regel: Ausgabedateien nie überschreiben.
-      const jetzt = new Date();
-      const p2 = (x) => String(x).padStart(2, "0");
-      const stempel = `${jetzt.getFullYear()}${p2(jetzt.getMonth() + 1)}${p2(jetzt.getDate())}-${p2(jetzt.getHours())}${p2(jetzt.getMinutes())}`;
-      let ziel = "";
-      try { ziel = await api().pick_save_path(`${stempel}-Schwarm.mp4`, "", ["MP4 (*.mp4)"]); }
-      catch (_) { ziel = ""; }
-      if (!ziel) return;
-
-      const [w, h] = (document.getElementById("sw-res").value || "1920x1080").split("x").map(Number);
-      const res = await api().animator_start_render({
-        schwarm: true,
-        tracks: gute.map((i, idx) => ({
-          gpx_path: i.path,
-          color: (i.color && /^#[0-9a-f]{6}$/i.test(i.color)) ? i.color : trackColor(i),
-          name: i.name || "",
-        })),
-        output_path: ziel,
-        map_style: document.getElementById("sw-stil").value,
-        width: w, height: h, fps: 25,
-        duration_s: parseFloat(document.getElementById("sw-dauer").value) || 20,
-        hold_s: 3,
-        line_width: parseFloat(document.getElementById("sw-linie").value) || 3,
-        overlay: document.getElementById("sw-overlay").checked,
-      });
-      if (!res || !res.ok) {
-        toast((res && res.error) || T("schwarm.fehler", "Schwarm-Render konnte nicht starten."), "error", 7000);
-        return;
-      }
-      laeuft = true;
-      start.disabled = true;
-      // Fortschritt steht OBEN im Dialog; die Optionen verschwinden während
-      // des Renderns — vorher musste man am Ende der Optionsliste zum Balken
-      // scrollen (Marc, 28.08.2026).
-      const lauf = document.getElementById("sw-lauf");
-      const opts = document.getElementById("sw-opts");
-      if (lauf) lauf.hidden = false;
-      if (opts) opts.hidden = true;
-      _schwarmPoll = setInterval(async () => {
-        let st = null;
-        try { st = await api().animator_status(); } catch (_) { return; }
-        const bar = document.getElementById("sw-bar");
-        const txt = document.getElementById("sw-status");
-        const img = document.getElementById("sw-preview");
-        if (!bar || !txt) { clearInterval(_schwarmPoll); _schwarmPoll = null; return; }
-        bar.style.width = Math.round((st.progress || 0) * 100) + "%";
-        txt.textContent = st.status || "";
-        if (img && st.preview_b64) { img.src = "data:image/jpeg;base64," + st.preview_b64; img.style.display = "block"; }
-        if (!st.running) {
-          clearInterval(_schwarmPoll); _schwarmPoll = null;
-          laeuft = false; start.disabled = false;
-          const optsEnde = document.getElementById("sw-opts");
-          if (optsEnde) optsEnde.hidden = false;
-          if (st.cancelled) { toast(T("schwarm.abgebrochen", "Abgebrochen."), "info"); return; }
-          if (st.error) { toast(T("schwarm.fehler", "Schwarm-Render konnte nicht starten.") + " " + String(st.error).split("\n")[0], "error", 8000); return; }
-          openModal({}).close();
-          toast(`🌊 ${T("schwarm.fertig", "Schwarm-Video fertig:")} ${ziel.split(/[\\/]/).pop()}`, "success", 8000);
-          try { api().reveal_in_finder(ziel); } catch (_) {}
-        }
-      }, 600);
-    };
+    const sortiert = gute.slice().sort((x, y) => (y.distance_m || 0) - (x.distance_m || 0));
+    window.__rzPendingTours = sortiert.slice(1).map(i => i.path);
+    window.__rzPendingAblauf = "schwarm";
+    // Lade-Modal SOFORT (Marc: „das modal kommt viel zu spät").
+    if (sortiert.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
+    const ok = await window.loadGlobalGpx(sortiert[0].path, { stumm: true, menge: true });
+    if (ok === false) {
+      window.__rzPendingTours = null; window.__rzPendingAblauf = null;
+      if (typeof tourenLadeModalZu === "function") tourenLadeModalZu();
+      return;
+    }
+    if (typeof switchMod === "function") switchMod("animator");
+    toast(`🌊 ${sortiert.length} ${T("schwarm.an_animator", "Touren als Schwarm im Animator.")}`, "success");
   }
 
   /** Ganze Sammlung an den Animator übergeben — erste Tour als Haupt-Track,

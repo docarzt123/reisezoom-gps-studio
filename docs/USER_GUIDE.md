@@ -361,24 +361,31 @@ ihn sofort ein; **700 Dateien dauern gut 20 Sekunden.** Unterordner werden mitge
 kannst beliebig viele Ordner beobachten lassen. (Solange kein Ordner da ist, steht auf der
 leeren Fläche ein großer **„+ Ordner hinzufügen"**-Knopf.)
 
-### 🌊 Der Schwarm — alle Touren laufen gleichzeitig (seit v0.9.557)
+### 🌊 Der Schwarm — alle Touren laufen gleichzeitig (seit v0.9.557, voll im Animator seit v0.9.569)
 Markiere mehrere Touren (⌘/Strg-Klick) oder öffne eine Sammlung und wähle
-**„🌊 Als Schwarm animieren …"**. Alle Touren starten gleichzeitig und laufen
-**gleich schnell** über die Karte — die längste bestimmt die Videodauer,
-kürzere sind früher im Ziel und ihr Punkt bleibt dort stehen. Die Kamera steht
-still über allen Touren; jede behält ihre Farbe aus dem Archiv, und ein kleiner
-Zähler zeigt „N Touren · X km · noch unterwegs: m".
+**„🌊 Als Schwarm animieren …"** — die Auswahl geht **direkt in den Animator**.
+Alle Touren starten gleichzeitig und laufen **gleich schnell** über die Karte:
+die längste bestimmt die Videodauer, kürzere sind früher im Ziel und ihr Punkt
+bleibt dort stehen. Jede Tour behält ihre Farbe aus dem Archiv. Bei vielen
+Touren zeigt ein Lade-Fenster den Fortschritt („Lade Tour 37 von 96 …").
 
-Im Dialog stellst du **Laufzeit** (der längsten Tour), **Kartenstil**,
-**Auflösung** (1080p, 4K oder Hochkant für Shorts) und **Linienbreite** ein.
-Der Dateiname bekommt automatisch einen Zeitstempel — nichts wird überschrieben.
-Während des Renders siehst du Vorschau und Fortschritt; Abbrechen ist jederzeit
-möglich. Es läuft immer nur ein Render gleichzeitig (auch nicht parallel zum
-Animator).
+Im Animator steht dir dann **alles** zur Verfügung, was du von einer einzelnen
+Tour kennst: Kartenstile und 3D, Kamera-Keyframes und Probe-Lauf, Intro und
+Hold, Auflösung bis 4K und Hochkant. Zwei Dinge sind Schwarm-eigen:
 
-> Der Schwarm ist bewusst schlank: keine Keyframes, kein Höhenprofil, keine
-> Kameraflüge — das alles gehört zu EINER Tour. Für eine Etappen-Reise
-> nacheinander nimm weiter **„Alle im Animator"**.
+- **🎥 Kamera folgt** (über der Tourenliste): *niemandem* (Gesamtsicht,
+  Standard), *der längsten Tour* — oder **jeder einzelnen Tour** deiner Wahl.
+  Die Kamera begleitet sie und **bleibt an ihrem Ziel stehen**, während der
+  Rest weiterläuft.
+- **Schwarm-Zahlen im Overlay:** „Zurückgelegt" und „Verbleibend" sind die
+  **Summe über alle Touren** (wie weit der Schwarm insgesamt ist), „Strecke"
+  die Gesamtsumme — dazu **„Noch unterwegs"** (z. B. „37 / 96") und
+  **„Touren gesamt"** („96 · 812 km"). Zeit-, Tempo- und Höhenfelder zeigen
+  weiterhin die längste Tour.
+
+Der Ablauf (Schwarm oder Reise) wird **im Archiv gewählt** — im Animator zeigt
+ihn ein Hinweis über der Tourenliste. Zum Wechseln übergibst du die Auswahl im
+Archiv einfach neu, über den jeweils anderen Knopf.
 
 ### „Soll die Tour ins Archiv?" — beim Öffnen (seit v0.9.553)
 Ins Archiv kommt eine Tour über die **überwachten Ordner**. Alles, was du sonst per
@@ -1866,6 +1873,14 @@ Stand. Der Papierkorb räumt sich nach 30 Tagen selbst auf („Älteres als
 **Nur https://.** Die Adresse der `rz-cloud.php` muss mit https beginnen — über
 http ginge dein Zugangsschlüssel unverschlüsselt durchs Netz. Praktisch jeder
 Hoster bietet https, oft über „Let's Encrypt" mit einem Klick.
+
+### Reisen & Schwärme wandern mit (seit v0.9.569)
+Auch deine **Kompositionen** — Mehr-Touren-Reisen und Schwärme samt Keyframes
+und Einstellungen — gehen automatisch mit in die Cloud. Auf dem anderen Rechner
+findest du sie im Cloud-Dialog unter **„Reisen & Schwärme"**: Ein Klick auf
+**Holen** bringt fehlende Touren gleich mit und legt alles startklar an.
+Eine Komposition, die es auf dem Rechner schon gibt, wird **nie überschrieben**
+— lokale Arbeit gewinnt.
 
 ## 13 · Support & Kontakt
 

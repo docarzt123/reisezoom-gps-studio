@@ -2353,5 +2353,11 @@
   "animator.tours.lade_titel": "Cargando rutas",
   "animator.tours.lade_text": "Cargando ruta {i} de {n} …",
   "animator.tours.lade_warte": "Un momento: después se montará la vista previa con todas las rutas.",
-  "animator.tours.lade_vorbereiten": "Preparando rutas …"
+  "animator.tours.lade_vorbereiten": "Preparando rutas …",
+  "cloud.mengen_titel": "Viajes y enjambres",
+  "cloud.menge_geholt": "Composición descargada: ",
+  "cloud.menge_schon_da": "Esta composición ya existe aquí; el trabajo local se conserva.",
+  "cloud.menge_touren_fehlen": "No todas las rutas de la composición están disponibles.",
+  "cloud.menge_leer": "Composición sin rutas",
+  "cloud.menge_tour_fehler": "Una ruta no se ha podido importar"
 }

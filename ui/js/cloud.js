@@ -255,6 +255,38 @@
           });
         };
       });
+
+      // IDEAS §38 M5 — Kompositionen (Reise/Schwarm): nur die zeigen, die es
+      // hier noch nicht gibt. Holen bringt fehlende Touren gleich mit.
+      var fremde = (u.mengen || []).filter(function (m) { return !m.lokal; });
+      if (fremde.length) {
+        var mz = fremde.map(function (m) {
+          var art = m.ablauf === "schwarm" ? "🌊" : "🧭";
+          return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">' +
+            '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+              art + ' ' + (m.name || m.mengen_hash) +
+              ' <span class="muted">' + m.n_tours + ' ' + T("library.tours", "Touren") + '</span></span>' +
+            '<button class="btn btn--ghost cloud-menge-holen" data-mh="' + m.mengen_hash + '">' +
+              T("cloud.holen", "Holen") + '</button></div>';
+        }).join("");
+        box.innerHTML += '<div style="margin-top:10px"><b>' +
+          T("cloud.mengen_titel", "Reisen & Schwärme") + '</b>' +
+          '<div style="max-height:120px;overflow:auto;margin-top:4px">' + mz + '</div></div>';
+        box.querySelectorAll(".cloud-menge-holen").forEach(function (b) {
+          b.onclick = function () {
+            b.disabled = true; b.textContent = "⏳";
+            window.pywebview.api.cloud_menge_holen(b.dataset.mh).then(function (r) {
+              if (r.ok) {
+                b.textContent = "✓";
+                try { toast(T("cloud.menge_geholt", "Komposition geholt: ") + r.name, "success", 6000); } catch (_) {}
+              } else {
+                b.disabled = false; b.textContent = T("cloud.holen", "Holen");
+                melden("⚠ " + r.error, "fehler");
+              }
+            });
+          };
+        });
+      }
     });
   }
 

@@ -96,6 +96,9 @@ class Abgleich:
                    crypto.inhalts_pruefsumme(archiv.json_bytes(bestand.sammlungen)))
         for gh, pruef in bestand.touren.items():
             vergleiche(archiv.track_name(gh), pruef)
+        # IDEAS §38 M5 — Kompositionen (Reise/Schwarm) wie Touren behandeln.
+        for mh, pruef in bestand.mengen.items():
+            vergleiche(archiv.menge_name(mh), pruef)
 
         # ⚠️ Was oben liegt und lokal nicht mehr existiert, ist gelöscht —
         # aber NUR, wenn wir das Verzeichnis wirklich kennen. Bei einem leeren
@@ -106,6 +109,10 @@ class Abgleich:
                        transport.server_name(archiv.SAMMLUNGEN)}
             bekannt |= {transport.server_name(archiv.track_name(gh))
                         for gh in bestand.touren}
+            # ⚠️ Ohne diese Zeile würde der Aufräum-Zweig jede eben hochgeladene
+            # Komposition beim NÄCHSTEN Abgleich wieder löschen.
+            bekannt |= {transport.server_name(archiv.menge_name(mh))
+                        for mh in bestand.mengen}
             for sname in oben:
                 if sname not in bekannt:
                     plan.weg.append(sname)

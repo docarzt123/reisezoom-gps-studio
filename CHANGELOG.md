@@ -14,6 +14,29 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.569] – 2026-08-28
+
+### Entfernt (Schwarm M4 — IDEAS §38)
+- **Der Standalone-Schnellrender im Archiv ist abgebaut** (Marcs Beschluss:
+  „weg, sobald der Animator steht"). „🌊 Als Schwarm animieren" übergibt die
+  Auswahl jetzt DIREKT in den Animator — dort leben alle Werkzeuge und der
+  eine Renderpfad. Der frühere Dialog mit eigenen Optionen (Dauer, Stil,
+  Auflösung) entfällt; das stellt man im Animator ein. `core/schwarm.py` und
+  der `schwarm:true`-Zweig der Render-Brücke sind gelöscht; die Mathe des
+  Effekts (Punktabstand, äquidistantes Abtasten) lebt weiter in
+  `core/animator.py` und ist dort weiter durch Tests gedeckt.
+
+### Hinzugefügt (Schwarm M5 — IDEAS §38)
+- **Reisen und Schwärme wandern in die Cloud.** Jede Komposition geht als
+  eigenes verschlüsseltes Objekt `menge/<hash>` mit — bewusst OHNE Dateipfade:
+  Die Identität der Touren sind ihre geo_hashes, die Touren selbst reisen wie
+  bisher als Umschläge, und das Zielgerät baut die Pfade aus seinem eigenen
+  Archiv neu. Der Cloud-Dialog zeigt fremde Kompositionen unter
+  **„Reisen & Schwärme"**; „Holen" bringt fehlende Touren automatisch mit und
+  legt die Sitzung an. Eine bereits vorhandene lokale Komposition wird nie
+  überschrieben — lokale Arbeit gewinnt. Der Auto-Sync nimmt Änderungen an
+  Kompositionen von selbst mit (gleicher Fühler wie bisher).
+
 ## [0.9.568] – 2026-08-28
 
 ### Behoben (Live-Test auf Marcs Rechner, 96-Touren-Schwarm)
