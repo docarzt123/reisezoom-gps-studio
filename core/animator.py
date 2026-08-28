@@ -1872,6 +1872,10 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         "  try { map.setConfigProperty('basemap', 'showPointOfInterestLabels', showPoi); } catch(_){}"
         "  try { map.setConfigProperty('basemap', 'showTransitLabels', showTransit); } catch(_){}"
         "  try { map.setConfigProperty('basemap', 'showAdminBoundaries', showAdmin); } catch(_){}"
+        # Geometrie-Schalter (synchron zur Vorschau, s. applyHideLabels):
+        # Standard-Styles zeichnen Straßen/Wege/Fährrouten unabhängig von den
+        # Label-Properties — nur showRoadsAndTransit blendet die Linien aus.
+        "  try { map.setConfigProperty('basemap', 'showRoadsAndTransit', showRoad || showTransit); } catch(_){}"
         # Classic-Style Layer-ID-Heuristik
         "  const s = map.getStyle(); if(!s || !s.layers) return;"
         "  s.layers.forEach(l => {"
