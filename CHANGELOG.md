@@ -14,6 +14,37 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.557] – 2026-08-28
+
+### Hinzugefügt
+- **🌊 Der Schwarm — alle Touren laufen gleichzeitig los.** Marcs Idee vom
+  24.08. („guck ich so auf Teneriffa drauf. Da laufen dann alle Wanderungen
+  gleichzeitig los, gleich schnell. Ist dann 'n cooler Effekt"), gebaut nach
+  seiner Ansage: **die längste Tour bestimmt die Videodauer.**
+
+  Im Archiv mehrere Touren markieren (oder eine Sammlung öffnen) →
+  **„🌊 Als Schwarm animieren …"**. Alle starten gleichzeitig und laufen gleich
+  schnell; kürzere sind früher im Ziel, ihr Punkt bleibt dort stehen — man
+  sieht sofort, welche Tour die große war. Die Kamera steht still über allen
+  Touren. Farben kommen aus dem Archiv, ein kleines Overlay zählt mit
+  („N Touren · X km · noch unterwegs: m"). Einstellbar: Laufzeit der längsten
+  Tour, Kartenstil, Auflösung (1080p/4K/Hochkant), Linienbreite.
+
+  Bewusst ein **eigener schlanker Modus** (`core/schwarm.py`), kein Schalter im
+  Animator: Höhenprofil, Keyframes, Schilder und Kameraflüge rechnen mit EINEM
+  Track und ergeben im Schwarm keinen Sinn. Technisch: alle Touren werden mit
+  demselben Punktabstand äquidistant abgetastet — derselbe Frame-Index ist dann
+  für jede Tour dieselbe zurückgelegte Strecke. Geschnitten statt maskiert
+  (Mapbox-Farbverläufe gelten je Layer, nicht je Tour), Punkte-Deckel gegen
+  154-Touren-Sammlungen. Der Render läuft über die bestehende Brücke — Status,
+  Vorschau und Abbrechen wie beim Animator, nur ein Render gleichzeitig.
+
+  **End-to-end bewiesen** (`tests/test_schwarm_render.py`, echter
+  Playwright-Render): Framezahl stimmt, die rote Linie wächst im Bild monoton
+  (0 → 477 Pixel), steht im Hold still — und die kürzeste Tour wächst ab der
+  Mitte des Videos nicht mehr, während die längste weiterläuft. Mathe-Wächter:
+  `tests/test_schwarm.py`.
+
 ## [0.9.556] – 2026-08-28
 
 ### Behoben

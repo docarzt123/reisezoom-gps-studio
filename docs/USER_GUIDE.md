@@ -361,6 +361,25 @@ ihn sofort ein; **700 Dateien dauern gut 20 Sekunden.** Unterordner werden mitge
 kannst beliebig viele Ordner beobachten lassen. (Solange kein Ordner da ist, steht auf der
 leeren Fläche ein großer **„+ Ordner hinzufügen"**-Knopf.)
 
+### 🌊 Der Schwarm — alle Touren laufen gleichzeitig (seit v0.9.557)
+Markiere mehrere Touren (⌘/Strg-Klick) oder öffne eine Sammlung und wähle
+**„🌊 Als Schwarm animieren …"**. Alle Touren starten gleichzeitig und laufen
+**gleich schnell** über die Karte — die längste bestimmt die Videodauer,
+kürzere sind früher im Ziel und ihr Punkt bleibt dort stehen. Die Kamera steht
+still über allen Touren; jede behält ihre Farbe aus dem Archiv, und ein kleiner
+Zähler zeigt „N Touren · X km · noch unterwegs: m".
+
+Im Dialog stellst du **Laufzeit** (der längsten Tour), **Kartenstil**,
+**Auflösung** (1080p, 4K oder Hochkant für Shorts) und **Linienbreite** ein.
+Der Dateiname bekommt automatisch einen Zeitstempel — nichts wird überschrieben.
+Während des Renders siehst du Vorschau und Fortschritt; Abbrechen ist jederzeit
+möglich. Es läuft immer nur ein Render gleichzeitig (auch nicht parallel zum
+Animator).
+
+> Der Schwarm ist bewusst schlank: keine Keyframes, kein Höhenprofil, keine
+> Kameraflüge — das alles gehört zu EINER Tour. Für eine Etappen-Reise
+> nacheinander nimm weiter **„Alle im Animator"**.
+
 ### „Soll die Tour ins Archiv?" — beim Öffnen (seit v0.9.553)
 Ins Archiv kommt eine Tour über die **überwachten Ordner**. Alles, was du sonst per
 Dateidialog öffnest, lief früher daran vorbei — jetzt schaut die App beim Öffnen nach,
