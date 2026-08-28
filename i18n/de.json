@@ -2349,5 +2349,8 @@
   "animator.statsfield.swarm_total": "Touren gesamt",
   "animator.fokus.label": "Kamera folgt",
   "animator.fokus.none": "niemandem (Gesamtsicht)",
-  "animator.fokus.haupt": "der längsten Tour"
+  "animator.fokus.haupt": "der längsten Tour",
+  "animator.tours.lade_titel": "Touren werden geladen",
+  "animator.tours.lade_text": "Lade Tour {i} von {n} …",
+  "animator.tours.lade_warte": "Bitte warten — danach baut sich die Vorschau mit allen Touren auf."
 }
