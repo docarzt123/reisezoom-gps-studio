@@ -2379,5 +2379,6 @@
   "library.undo.col_dup": "Sammlung dupliziert",
   "library.undo.hide": "Tour ausgeblendet",
   "library.undo.unhide": "Tour wieder eingeblendet",
-  "library.undo.fehl": "Rückgängig ging schief: {e}"
+  "library.undo.fehl": "Rückgängig ging schief: {e}",
+  "library.pop_drag": "Zum Verschieben ziehen"
 }

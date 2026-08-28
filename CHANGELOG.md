@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Kartenansicht im Archiv: Die Info-Karte einer Tour lässt sich jetzt am Titel
+  verschieben (Marc, 28.08.2026) — sie verdeckt sonst genau die Touren, die man
+  vergleichen will. Bleibt an der Karte verankert, zieht beim Schwenken mit.
+
 ### Added
 - Archiv: Rückgängig/Wiederherstellen mit ⌘Z / Strg+Z (Marc, 28.08.2026:
   „undo soll überall gehen" — das Archiv war das einzige Modul ohne). Als
