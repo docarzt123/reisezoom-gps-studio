@@ -7144,23 +7144,33 @@ function mountAnimator(body, headerActions, opts) {
             }
           } catch (e) { applog("warn", `[Animator] Mengen-Sitzung: ${e}`); }
           if (_animUnmounted) return;
-          // 28.08.2026: ERST den Projekt-Stand der Mengen-Sitzung laden (beim
-          // Wieder-Öffnen stehen die Etappen schon dort), DANN nur die Pfade
-          // nachtragen, die wirklich fehlen. Vorher liefen Restore und
-          // Pending-Schleife parallel → 95 Etappen doppelt (191 im Render).
-          try { await _animLoadTours(); } catch (_) {}
-          if (_animUnmounted) return;
-          _animAblauf = pendingAblauf;   // die Sitzung hat ihn schon, das Modul jetzt auch
-          let neu = 0;
-          for (const p of pending) {
+          // 28.08.2026 (Marc): Ausgrau-Modal um die GESAMTE Übergabe — Restore
+          // plus Nachtragen. try/finally, weil die Unmount-Ausstiege das Modal
+          // sonst offen ließen (nicht schließbar = App tot).
+          const modalSelbst = pending.length >= 3 ? _tourenLadeModal() : false;
+          try {
+            // ERST den Projekt-Stand der Mengen-Sitzung laden (beim
+            // Wieder-Öffnen stehen die Etappen schon dort), DANN nur die Pfade
+            // nachtragen, die wirklich fehlen. Vorher liefen Restore und
+            // Pending-Schleife parallel → 95 Etappen doppelt (191 im Render).
+            try { await _animLoadTours(); } catch (_) {}
             if (_animUnmounted) return;
-            if (p === currentGpx || _extraTours.some(t => t.gpx_path === p)) continue;
-            try { await _animAddTourPath(p); neu++; } catch (e) { console.warn("pending tour:", e); }
+            _animAblauf = pendingAblauf;   // die Sitzung hat ihn schon, das Modul jetzt auch
+            let neu = 0, nr = 0;
+            for (const p of pending) {
+              if (_animUnmounted) return;
+              nr++;
+              _tourenLadeTick(nr, pending.length, (p.split(/[\\/]/).pop() || "").replace(/\.gpx$/i, ""));
+              if (p === currentGpx || _extraTours.some(t => t.gpx_path === p)) continue;
+              try { await _animAddTourPath(p); neu++; } catch (e) { console.warn("pending tour:", e); }
+            }
+            _animPersistTours();
+            _animRenderToursList();
+            _animDrawExtraToursPreview();
+            applog("info", `[Animator] Mengen-Übergabe: ${pending.length} Etappe(n), davon ${neu} neu (Ablauf: ${pendingAblauf})`);
+          } finally {
+            if (modalSelbst) _tourenLadeZu();
           }
-          _animPersistTours();
-          _animRenderToursList();
-          _animDrawExtraToursPreview();
-          applog("info", `[Animator] Mengen-Übergabe: ${pending.length} Etappe(n), davon ${neu} neu (Ablauf: ${pendingAblauf})`);
         }, 1200);
       }
     });
@@ -12225,6 +12235,39 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) {}
   }
 
+  /* 28.08.2026 (Marc): „der animator muss ausgegraut sein, solange alle touren
+   * geladen werden … ein fettes modal ‚Lade gerade tour X von X … bitte
+   * warten.'" — Bei 96 Touren lädt die Übergabe seriell fast eine Minute, und
+   * ohne Rückmeldung sieht das nach Absturz aus. Das Modal (nicht schließbar)
+   * graut die App aus und zählt mit. Wer es öffnet, schließt es auch —
+   * Restore und Übergabe teilen sich die Anzeige, ohne sie zu stapeln.
+   */
+  let _ladeModalAktiv = false;
+  function _tourenLadeModal() {
+    if (_ladeModalAktiv) return false;
+    _ladeModalAktiv = true;
+    openModal({
+      title: "⏳ " + t("animator.tours.lade_titel", "Touren werden geladen"),
+      body: `<div style="text-align:center; padding:14px 6px">
+        <div id="anim-lade-status" style="font-size:17px; font-weight:700; margin-bottom:10px">…</div>
+        <div class="hint" style="opacity:.8">${t("animator.tours.lade_warte",
+          "Bitte warten — danach baut sich die Vorschau mit allen Touren auf.")}</div>
+      </div>`,
+      closable: false,
+    });
+    return true;
+  }
+  function _tourenLadeTick(i, n, name) {
+    const el = document.getElementById("anim-lade-status");
+    if (el) el.textContent = t("animator.tours.lade_text", "Lade Tour {i} von {n} …")
+      .replace("{i}", i).replace("{n}", n) + (name ? " — " + name : "");
+  }
+  function _tourenLadeZu() {
+    if (!_ladeModalAktiv) return;
+    _ladeModalAktiv = false;
+    try { openModal({}).close(); } catch (_) {}
+  }
+
   let _animToursLading = false;      // 28.08.2026 — Reentrancy-Schutz
   let _animToursNochmal = false;     // während des Ladens kam ein neuer Wunsch
   async function _animLoadTours() {
@@ -12265,6 +12308,10 @@ function mountAnimator(body, headerActions, opts) {
     if (flyEl) { flyEl.value = fly; const l = document.getElementById("anim-fly-v"); if (l) l.textContent = fly.toFixed(1) + " s"; }
 
     _extraTours = [];
+    // Ausgrau-Modal nur, wenn es dauert (ab 3 Touren) und keiner es schon zeigt.
+    const _modalSelbst = saved.length >= 3 ? _tourenLadeModal() : false;
+    let _ladeNr = 0;
+    try {
     // 28.08.2026 — Selbstheilung: Der Übergabe-Bug (v0.9.559/560) hat in
     // gespeicherten Projekten Etappen VERDOPPELT (95 → 190). Beim Laden wird
     // jede Datei nur einmal genommen (auch der Haupt-Track gehört nicht in die
@@ -12273,6 +12320,8 @@ function mountAnimator(body, headerActions, opts) {
     for (const t of saved) {
       if (!t || !t.gpx_path || gesehen.has(t.gpx_path)) continue;
       gesehen.add(t.gpx_path);
+      _ladeNr++;
+      _tourenLadeTick(_ladeNr, saved.length, t.name || "");
       // Die Datei kann inzwischen weg/verschoben sein — dann still überspringen,
       // statt mit einer Tour ohne Koordinaten weiterzumachen.
       try {
@@ -12293,6 +12342,12 @@ function mountAnimator(body, headerActions, opts) {
     }
     try { _animRenderToursList(); } catch (_) {}
     try { _animDrawExtraToursPreview(); } catch (e) { rzSwallow(e, "drawExtraTours@rebuild"); }
+    } finally {
+      // Ein geworfener Fehler darf das NICHT SCHLIESSBARE Modal nie stehen
+      // lassen — sonst ist die App tot. Nur schließen, wenn Inner es öffnete
+      // (die Übergabe verwaltet ihr eigenes Modal im Pending-Handler).
+      if (_modalSelbst) _tourenLadeZu();
+    }
   }
   window.__animLoadTours = _animLoadTours;
 

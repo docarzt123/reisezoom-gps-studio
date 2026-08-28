@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.565] – 2026-08-28
+
+### Hinzugefügt
+- **Beim Laden vieler Touren graut sich der Animator aus und zählt mit**
+  (Marc: „sonst wundert man sich"). Ab drei Touren erscheint ein nicht
+  schließbares Modal **„⏳ Touren werden geladen — Lade Tour 37 von 96 …"** mit
+  dem Namen der aktuellen Tour, sowohl bei der Übergabe aus dem Archiv als auch
+  beim Wiederherstellen nach App-Start oder Projektwechsel. Ein Fehler mitten
+  im Laden lässt das Modal nie stehen (die App wäre sonst unbedienbar) —
+  beide Wege schließen es garantiert.
+
 ## [0.9.564] – 2026-08-28
 
 ### Hinzugefügt (Schwarm M2 komplett — IDEAS §38)
