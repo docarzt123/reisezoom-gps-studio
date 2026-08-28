@@ -2379,5 +2379,6 @@
   "library.undo.col_dup": "Colección duplicada",
   "library.undo.hide": "Ruta oculta",
   "library.undo.unhide": "Ruta visible de nuevo",
-  "library.undo.fehl": "No se pudo deshacer: {e}"
+  "library.undo.fehl": "No se pudo deshacer: {e}",
+  "library.pop_drag": "Arrastra para mover"
 }

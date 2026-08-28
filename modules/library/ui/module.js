@@ -1559,7 +1559,7 @@ function mountLibrary(body, headerActions) {
       closeButton: true, closeOnClick: false, maxWidth: "300px", offset: 12, className: "lib-popup",
     }).setLngLat(lngLat).setHTML(`
       <div class="lib-pop">
-        <div class="lib-pop-title">${esc(it.name)}</div>
+        <div class="lib-pop-title" title="${esc(T("library.pop_drag", "Zum Verschieben ziehen"))}">${esc(it.name)}</div>
         <div class="lib-pop-sub">${fmtDate(it.started_at)}
           ${it.activity ? " · " + esc(ACT_LABELS[it.activity] || it.activity) : ""}
           ${it.recorded_eff ? "" : " · " + T("library.planned", "geplant")}</div>
@@ -1582,6 +1582,31 @@ function mountLibrary(body, headerActions) {
     const c = el.querySelector('[data-pop="col"]'); if (c) c.onclick = () => addToCollectionDialog([it.path]);
     const cb = el.querySelector(".lib-pop-cols");
     if (cb) renderColChips(cb, it, { popup: true });
+    // 28.08.2026 (Marc): Die Info-Karte muss verschiebbar sein — sie verdeckt
+    // sonst genau die Touren, die man vergleichen will. Anfassen am Titel;
+    // das Popup bleibt an einer Karten-Koordinate verankert (unproject), zieht
+    // beim Schwenken/Zoomen also weiter korrekt mit.
+    const kopf = el.querySelector(".lib-pop-title");
+    if (kopf) {
+      kopf.style.cursor = "grab";
+      kopf.onmousedown = (ev) => {
+        ev.preventDefault();
+        const start = _map.project(_mapPopup.getLngLat());
+        const sx = ev.clientX, sy = ev.clientY;
+        kopf.style.cursor = "grabbing";
+        const ziehen = (m) => {
+          if (!_mapPopup) return;
+          _mapPopup.setLngLat(_map.unproject([start.x + (m.clientX - sx), start.y + (m.clientY - sy)]));
+        };
+        const loslassen = () => {
+          document.removeEventListener("mousemove", ziehen);
+          document.removeEventListener("mouseup", loslassen);
+          kopf.style.cursor = "grab";
+        };
+        document.addEventListener("mousemove", ziehen);
+        document.addEventListener("mouseup", loslassen);
+      };
+    }
   }
   function closeMapPopup() {
     if (_mapPopup) { try { _mapPopup.remove(); } catch (_) {} _mapPopup = null; }
