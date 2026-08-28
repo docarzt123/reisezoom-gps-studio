@@ -939,9 +939,15 @@ async function confirmClearWorkspace(moduleName, onConfirm) {
  * dehnen.
  */
 let _tourenLadeOffen = false;
+// 28.08.2026 (Marc): Abbrechen muss gehen — der Knopf setzt nur dieses Flag,
+// die Ladeschleifen im Animator prüfen es pro Tour und räumen selbst auf
+// (nichts Halbes wird gespeichert, es geht zurück ins Archiv).
+let _tourenLadeAbbruch = false;
+function tourenLadeModalAbgebrochen() { return _tourenLadeAbbruch; }
 function tourenLadeModalZeigen() {
   if (_tourenLadeOffen) return false;
   _tourenLadeOffen = true;
+  _tourenLadeAbbruch = false;
   openModal({
     title: "⏳ " + t("animator.tours.lade_titel", "Touren werden geladen"),
     body: `<div style="width:360px; max-width:100%; text-align:center; padding:14px 6px">
@@ -952,8 +958,15 @@ function tourenLadeModalZeigen() {
       <div class="hint" style="opacity:.8">${t("animator.tours.lade_warte",
         "Bitte warten — danach baut sich die Vorschau mit allen Touren auf.")}</div>
     </div>`,
+    footer: `<button class="btn" id="rz-lade-abbruch">${t("common.cancel", "Abbrechen")}</button>`,
     closable: false,
   });
+  const ab = document.getElementById("rz-lade-abbruch");
+  if (ab) ab.onclick = () => {
+    _tourenLadeAbbruch = true;
+    ab.disabled = true;
+    tourenLadeModalSchritt(t("animator.tours.lade_abbruch", "Wird abgebrochen …"));
+  };
   return true;
 }
 function tourenLadeModalTick(i, n, name) {
@@ -977,6 +990,7 @@ function tourenLadeModalOffen() { return _tourenLadeOffen; }
 function tourenLadeModalZu() {
   if (!_tourenLadeOffen) return;
   _tourenLadeOffen = false;
+  _tourenLadeAbbruch = false;
   try { openModal({}).close(); } catch (_) {}
 }
 

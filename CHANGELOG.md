@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.571] – 2026-08-28
+
+### Hinzugefügt
+- **Das Lade-Fenster hat einen Abbrechen-Knopf.** Wer mitten in „Lade Tour 37
+  von 96 …" abbricht, landet wieder im **Archiv** — Marcs Konsistenz-Regel: im
+  Animator kann man nicht landen, wenn nur die Hälfte geladen ist. Nichts
+  Halbes wird gespeichert; die Komposition behält ihren vorherigen Stand, und
+  ein erneutes Übergeben startet sauber. Der Knopf meldet „Wird abgebrochen …"
+  und die App sagt danach, dass die Auswahl weiter im Archiv liegt.
+
 ## [0.9.570] – 2026-08-28
 
 ### Geändert (Marc: das Modal muss bleiben, bis man arbeiten kann)

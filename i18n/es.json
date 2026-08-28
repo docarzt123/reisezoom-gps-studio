@@ -2361,5 +2361,7 @@
   "cloud.menge_leer": "Composición sin rutas",
   "cloud.menge_tour_fehler": "Una ruta no se ha podido importar",
   "animator.tours.lade_vorschau": "Montando la vista previa …",
-  "animator.tours.lade_karte": "Dibujando el mapa …"
+  "animator.tours.lade_karte": "Dibujando el mapa …",
+  "animator.tours.lade_abbruch": "Cancelando …",
+  "animator.tours.lade_abgebrochen": "Carga cancelada; tu selección sigue en el archivo."
 }

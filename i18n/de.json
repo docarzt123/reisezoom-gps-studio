@@ -2361,5 +2361,7 @@
   "cloud.menge_leer": "Komposition ohne Touren",
   "cloud.menge_tour_fehler": "Eine Tour ließ sich nicht einspielen",
   "animator.tours.lade_vorschau": "Vorschau wird aufgebaut …",
-  "animator.tours.lade_karte": "Karte wird gezeichnet …"
+  "animator.tours.lade_karte": "Karte wird gezeichnet …",
+  "animator.tours.lade_abbruch": "Wird abgebrochen …",
+  "animator.tours.lade_abgebrochen": "Laden abgebrochen — deine Auswahl liegt weiter im Archiv."
 }
