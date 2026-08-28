@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.560"
+APP_VERSION = "0.9.561"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -3903,8 +3903,11 @@ class Api:
         rlog.info("─" * 60)
         rlog.info("Render gestartet")
         if cfg.tracks:
-            rlog.info("  Multi-Track: %d Touren (%s), Flug %.1fs",
-                      len(cfg.tracks), ", ".join(t["name"] for t in cfg.tracks), cfg.fly_duration_s)
+            # ⚠️ Ablauf IMMER mitloggen (28.08.2026): Marcs 96-Touren-Schwarm
+            # rannte als „Reise" mit 191 Touren in den Render — ohne diese Zeile
+            # wäre aus dem Log nicht zu sehen gewesen, WELCHER Pfad überhaupt lief.
+            rlog.info("  Multi-Track: %d Touren · Ablauf=%s · Flug %.1fs",
+                      len(cfg.tracks), getattr(cfg, "tracks_ablauf", "reise"), cfg.fly_duration_s)
         rlog.info("  GPX:        %s", gpx_path)
         rlog.info("  Output:     %s", out_path)
         if cfg.transparent_background:

@@ -2352,8 +2352,18 @@ window.__camStabAmt = {_cam_stab_amt};  // v0.9.314 — Kamera-Höhe halten (0=a
 const HAS_ELE = {str(has_ele).lower()};
 const HAS_TIME = {str(has_time).lower()};
 const SVG_W = 1000, SVG_H = 120, PAD_Y = 10;
-const eleMin = HAS_ELE ? Math.min.apply(null, elevations) : 0;
-const eleMax = HAS_ELE ? Math.max.apply(null, elevations) : 1;
+// 28.08.2026 — `Math.min.apply(null, arr)` legt JEDES Element als Argument auf
+// den Stack; ab ~100k Punkten (Marcs 96-Touren-Schwarm) stirbt das ganze Skript
+// mit „Maximum call stack size exceeded", danach fehlt window.isReady und der
+// Render bricht ab. Schleife statt apply — unspektakulär und unbegrenzt.
+let eleMin = 0, eleMax = 1;
+if (HAS_ELE && elevations.length) {{
+  eleMin = eleMax = elevations[0];
+  for (let i = 1; i < elevations.length; i++) {{
+    const v = elevations[i];
+    if (v < eleMin) eleMin = v; else if (v > eleMax) eleMax = v;
+  }}
+}}
 const eleRange = (eleMax - eleMin) || 1;
 function eleToY(e){{return SVG_H - PAD_Y - ((e - eleMin)/eleRange)*(SVG_H - PAD_Y*2);}}
 function idxToX(i){{return (i / Math.max(1, totalPoints - 1)) * SVG_W;}}
@@ -3110,8 +3120,18 @@ const projected = allCoords.map(c => [projX(c[0]).toFixed(2), projY(c[1]).toFixe
 const HAS_ELE = {str(has_ele).lower()};
 const HAS_TIME = {str(has_time).lower()};
 const SVG_W = 1000, SVG_H = 120, PAD_Y = 10;
-const eleMin = HAS_ELE ? Math.min.apply(null, elevations) : 0;
-const eleMax = HAS_ELE ? Math.max.apply(null, elevations) : 1;
+// 28.08.2026 — `Math.min.apply(null, arr)` legt JEDES Element als Argument auf
+// den Stack; ab ~100k Punkten (Marcs 96-Touren-Schwarm) stirbt das ganze Skript
+// mit „Maximum call stack size exceeded", danach fehlt window.isReady und der
+// Render bricht ab. Schleife statt apply — unspektakulär und unbegrenzt.
+let eleMin = 0, eleMax = 1;
+if (HAS_ELE && elevations.length) {{
+  eleMin = eleMax = elevations[0];
+  for (let i = 1; i < elevations.length; i++) {{
+    const v = elevations[i];
+    if (v < eleMin) eleMin = v; else if (v > eleMax) eleMax = v;
+  }}
+}}
 const eleRange = (eleMax - eleMin) || 1;
 function eleToY(e){{return SVG_H - PAD_Y - ((e - eleMin)/eleRange)*(SVG_H - PAD_Y*2);}}
 function idxToX(i){{return (i / Math.max(1, totalPoints - 1)) * SVG_W;}}

@@ -7141,13 +7141,23 @@ function mountAnimator(body, headerActions, opts) {
             }
           } catch (e) { applog("warn", `[Animator] Mengen-Sitzung: ${e}`); }
           if (_animUnmounted) return;
+          // 28.08.2026: ERST den Projekt-Stand der Mengen-Sitzung laden (beim
+          // Wieder-Öffnen stehen die Etappen schon dort), DANN nur die Pfade
+          // nachtragen, die wirklich fehlen. Vorher liefen Restore und
+          // Pending-Schleife parallel → 95 Etappen doppelt (191 im Render).
+          try { await _animLoadTours(); } catch (_) {}
+          if (_animUnmounted) return;
+          _animAblauf = pendingAblauf;   // die Sitzung hat ihn schon, das Modul jetzt auch
+          let neu = 0;
           for (const p of pending) {
             if (_animUnmounted) return;
-            try { await _animAddTourPath(p); } catch (e) { console.warn("pending tour:", e); }
+            if (p === currentGpx || _extraTours.some(t => t.gpx_path === p)) continue;
+            try { await _animAddTourPath(p); neu++; } catch (e) { console.warn("pending tour:", e); }
           }
           _animPersistTours();
           _animRenderToursList();
-          applog("info", `[Animator] ${pending.length} Etappe(n) aus dem Archiv übernommen (Ablauf: ${pendingAblauf})`);
+          _animDrawExtraToursPreview();
+          applog("info", `[Animator] Mengen-Übergabe: ${pending.length} Etappe(n), davon ${neu} neu (Ablauf: ${pendingAblauf})`);
         }, 1200);
       }
     });
@@ -11576,7 +11586,13 @@ function mountAnimator(body, headerActions, opts) {
         try { _ghostGpxRestore(); } catch (_) {}
       }
     };
-    if (!_isReiseroute && typeof sessionActivate === "function") {
+    // 28.08.2026 (Marcs 96-Touren-Schwarm): Steht eine MENGEN-Übergabe an,
+    // die Einzel-Sitzung NICHT aktivieren — sie käme asynchron NACH der
+    // Mengen-Aktivierung an und würde Ablauf und Projekt wieder auf die
+    // Einzeltour zurückdrehen (Folge: Render lief als „Reise" mit doppelten
+    // Etappen, 191 statt 96). Der Pending-Handler aktiviert die Menge selbst.
+    if (!_isReiseroute && typeof sessionActivate === "function"
+        && !(Array.isArray(window.__rzPendingTours) && window.__rzPendingTours.length)) {
       sessionActivate(res.coords, currentGpx || "")
         .then(_applySessionState)
         .catch(err => console.warn("sessionActivate failed:", err));
@@ -11916,6 +11932,11 @@ function mountAnimator(body, headerActions, opts) {
   // Entfernt alle Multi-Track-Preview-Layer/-Sources von der Karte.
   function _animClearExtraPreview() {
     if (!map) return;
+    for (const id of ["swarm-prev-lines", "swarm-prev-dots"]) {
+      try { if (map.getLayer(id)) map.removeLayer(id); } catch (_) {}
+      try { if (map.getSource(id)) map.removeSource(id); } catch (_) {}
+    }
+    _swPrev = [];
     for (let i = 0; i < 64; i++) {
       try {
         if (map.getLayer("mtour-prev-line-" + i)) map.removeLayer("mtour-prev-line-" + i);
@@ -11954,8 +11975,45 @@ function mountAnimator(body, headerActions, opts) {
     return traeger.__rzCum;
   }
   const _swHauptCum = {};   // Cache-Träger für den Haupt-Track
+  let _swPrev = [];          // [{coords (gedünnt), cum, color}] — nur Schwarm-Modus
+
+  function _swAusduennen(coords, maxN) {
+    if (coords.length <= maxN) return coords;
+    const raus = [];
+    const schritt = (coords.length - 1) / (maxN - 1);
+    for (let i = 0; i < maxN; i++) raus.push(coords[Math.round(i * schritt)]);
+    return raus;
+  }
+
+  function _swPrevBauen(lw) {
+    _swPrev = _extraTours
+      .filter(tr => tr.coords && tr.coords.length >= 2)
+      .map(tr => {
+        const coords = _swAusduennen(tr.coords, 150);
+        return { coords, cum: _cumDistBerechnen(coords), color: tr.line_color || "#35a7ff" };
+      });
+    if (!_swPrev.length) return;
+    try {
+      map.addSource("swarm-prev-lines", { type: "geojson",
+        data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({ id: "swarm-prev-lines", type: "line", source: "swarm-prev-lines",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": ["get", "color"], "line-width": Math.max(1, lw * 0.8),
+                 "line-opacity": 0.9 } });
+      map.addSource("swarm-prev-dots", { type: "geojson",
+        data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({ id: "swarm-prev-dots", type: "circle", source: "swarm-prev-dots",
+        paint: { "circle-color": ["get", "color"],
+                 "circle-radius": Math.max(3, lw * 1.2),
+                 "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2 } });
+    } catch (e) { console.warn("swarm preview layers:", e); }
+    // Ruhezustand: alles voll gezeichnet, Punkte am Ziel (wie der Haupt-Track).
+    _animSchwarmPreviewAdvance(0, true);
+  }
+
   function _animSchwarmPreviewAdvance(coordFrac, vollesBild) {
-    if (_animAblauf !== "schwarm" || !_extraTours.length || !map) return;
+    if (_animAblauf !== "schwarm" || !_swPrev.length || !map) return;
+    if (!map.getSource("swarm-prev-lines")) return;
     if (!currentCoords || currentCoords.length < 2) return;
     let d = Infinity;
     if (!vollesBild) {
@@ -11965,10 +12023,9 @@ function mountAnimator(body, headerActions, opts) {
       const f = Math.max(0, Math.min(1, coordFrac - i0));
       d = cum[i0] + (cum[i1] - cum[i0]) * f;
     }
-    _extraTours.forEach((tr, i) => {
-      const src = map.getSource("mtour-prev-" + i);
-      if (!src || !tr.coords || tr.coords.length < 2) return;
-      const cum = _cumDistFuer(tr, tr.coords);
+    const linien = [], punkte = [];
+    for (const t of _swPrev) {
+      const cum = t.cum;
       // Binärsuche: letzter Punkt mit cum <= d (kürzere Touren bleiben im Ziel).
       let lo = 0, hi = cum.length - 1;
       while (lo < hi) {
@@ -11976,11 +12033,16 @@ function mountAnimator(body, headerActions, opts) {
         if (cum[mid] <= d) lo = mid; else hi = mid - 1;
       }
       const k = Math.max(0, lo);
-      try {
-        src.setData({ type: "Feature", geometry: { type: "LineString",
-          coordinates: k >= 1 ? tr.coords.slice(0, k + 1) : [tr.coords[0], tr.coords[0]] } });
-      } catch (_) {}
-    });
+      linien.push({ type: "Feature", properties: { color: t.color },
+        geometry: { type: "LineString",
+          coordinates: k >= 1 ? t.coords.slice(0, k + 1) : [t.coords[0], t.coords[0]] } });
+      punkte.push({ type: "Feature", properties: { color: t.color },
+        geometry: { type: "Point", coordinates: t.coords[k] } });
+    }
+    try {
+      map.getSource("swarm-prev-lines").setData({ type: "FeatureCollection", features: linien });
+      map.getSource("swarm-prev-dots").setData({ type: "FeatureCollection", features: punkte });
+    } catch (_) {}
   }
 
   function _animDrawExtraToursPreview() {
@@ -11995,6 +12057,13 @@ function mountAnimator(body, headerActions, opts) {
     }
     _animClearExtraPreview();
     const lw = parseFloat(document.getElementById("anim-lw")?.value || "3.5");
+    // 🌊 Schwarm (28.08.2026, Marc: „da müssen ordentlich punkte rausgenommen
+    // werden, sonst ist es einfach zu viel"): Bei 96 Touren wären das 96
+    // einzelne Quellen mit je ~800 Punkten. Stattdessen EINE Quelle mit allen
+    // Touren als Features (ein setData pro Bild statt 96) und je Tour auf
+    // höchstens ~150 Vorschau-Punkte gedünnt — der Render rechnet ohnehin mit
+    // eigenen, sauber abgetasteten Punkten (punktabstand in core/animator.py).
+    if (_animAblauf === "schwarm") { _swPrevBauen(lw); return; }
     _extraTours.forEach((tr, i) => {
       if (!tr.coords || tr.coords.length < 2) return;
       try {
@@ -12088,7 +12157,23 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) {}
   }
 
+  let _animToursLading = false;      // 28.08.2026 — Reentrancy-Schutz
+  let _animToursNochmal = false;     // während des Ladens kam ein neuer Wunsch
   async function _animLoadTours() {
+    // 28.08.2026 (96-Touren-Schwarm): Der Sitzungs-Listener und der
+    // Pending-Handler riefen das PARALLEL — zwei serielle Ladeschleifen über
+    // dieselbe Liste, Ergebnis: doppelte Etappen. Läuft schon eine Instanz,
+    // wird nur gemerkt, dass danach noch einmal frisch geladen werden soll.
+    if (_animToursLading) { _animToursNochmal = true; return; }
+    _animToursLading = true;
+    try {
+      await _animLoadToursInner();
+    } finally {
+      _animToursLading = false;
+      if (_animToursNochmal) { _animToursNochmal = false; _animLoadTours(); }
+    }
+  }
+  async function _animLoadToursInner() {
     let saved = [];
     let fly = 3;
     try {
@@ -12096,7 +12181,16 @@ function mountAnimator(body, headerActions, opts) {
       const a = proj?.[_MODKEY] || {};
       saved = Array.isArray(a.extra_tours) ? a.extra_tours : [];
       if (typeof a.fly_duration_s === "number") fly = a.fly_duration_s;
-      _animAblauf = a.tours_ablauf === "schwarm" ? "schwarm" : "reise";
+      // Ablauf-Wahrheit: ERST die Sitzung (Mengen-Sitzungen tragen `ablauf`,
+      // vom Archiv gewählt), DANN das Projekt, sonst den aktuellen Wert
+      // BEHALTEN — ein hartes „reise" hier war der Kern von Marcs Bug: die
+      // Einzel-Sitzung kennt kein tours_ablauf und drehte den Schwarm zurück.
+      const sess = (typeof getActiveSession === "function") ? getActiveSession() : null;
+      if (sess && (sess.ablauf === "schwarm" || sess.ablauf === "reise")) {
+        _animAblauf = sess.ablauf;
+      } else if (a.tours_ablauf === "schwarm" || a.tours_ablauf === "reise") {
+        _animAblauf = a.tours_ablauf;
+      }
     } catch (_) {}
     const flyEl = document.getElementById("anim-fly");
     if (flyEl) { flyEl.value = fly; const l = document.getElementById("anim-fly-v"); if (l) l.textContent = fly.toFixed(1) + " s"; }
