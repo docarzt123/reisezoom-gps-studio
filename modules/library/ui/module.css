@@ -753,3 +753,10 @@
 }
 .lib-ghost-bar button{ flex:0 0 auto; }
 .lib-actions .lib-ghost-take{ background:var(--accent); }
+
+/* 28.08.2026 — Sammlungs-Verwaltung sichtbar erreichbar (⋯), Chips im Popup */
+.lib-nav-menu { flex: none; padding: 0 5px; border-radius: 5px; color: var(--text-muted);
+  font-weight: 700; letter-spacing: 1px; }
+.lib-nav-menu:hover { color: var(--text); background: rgba(127,127,127,.18); }
+.lib-pop-cols { margin: 6px 0 2px; }
+.lib-pop-cols:empty { display: none; }

@@ -1966,7 +1966,7 @@
   "library.done_short": "realizadas",
   "library.hidden_short": "off",
   "library.view_stats": "Estadísticas",
-  "library.col_menu_hint": "Un clic muestra solo esta colección · clic derecho abre su gestión",
+  "library.col_menu_hint": "Un clic muestra solo esta colección · ⋯ abre la gestión",
   "library.col_delete_note": "Al borrar se elimina solo la colección — las rutas siguen en el archivo.",
   "library.no_folders_short": "Aún no hay ninguna carpeta",
   "library.empty_start_hint2": "Indica una vez dónde están tus archivos de track — la app lee la carpeta y muestra aquí cada ruta con imagen y cifras.",
@@ -2367,5 +2367,8 @@
   "library.col_duplicate": "Duplicar",
   "library.col_copy_suffix": "(copia)",
   "library.col_fehlt": "Colección no encontrada",
-  "library.col_duplicated": "Colección copiada; ahora puedes modificar la copia libremente."
+  "library.col_duplicated": "Colección copiada; ahora puedes modificar la copia libremente.",
+  "library.col_manage": "Gestionar la colección",
+  "library.col_in_none": "En ninguna colección.",
+  "library.col_removed_toast": "Quitada de «{col}»; la ruta permanece en el archivo."
 }

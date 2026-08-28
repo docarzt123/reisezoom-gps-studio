@@ -454,8 +454,8 @@ GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:
   Filter: nach „Märkischer Landweg" suchen und **„Alle 5 Treffer in eine Sammlung"** nehmen.
 - **Anzeigen:** Links auf die Sammlung klicken — dann siehst du nur ihre Touren, und zwar in
   **ihrer eigenen Reihenfolge** (Etappe 1, 2, 3 …), sortiert nach Datum.
-- **Verwalten:** **Rechtsklick** auf eine Sammlung öffnet umbenennen, anzeigen, „Alle im
-  Animator", duplizieren und löschen. **Duplizieren** legt eine „(Kopie)" mit denselben Touren
+- **Verwalten:** Der **⋯-Knopf** an der Sammlung (oder ein Rechtsklick) öffnet umbenennen,
+  anzeigen, „Alle im Animator", duplizieren und löschen. **Duplizieren** legt eine „(Kopie)" mit denselben Touren
   in derselben Reihenfolge an — praktisch, um eine Variante zu bauen, ohne das Original (und
   dessen Animator-Einstellungen) anzufassen.
 - **Weiterverarbeiten:** **„Alle im Animator"** übergibt die ganze Sammlung an den Animator —

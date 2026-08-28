@@ -575,6 +575,7 @@ function mountLibrary(body, headerActions) {
             <span class="lib-nav-ico">📁</span>
             <span class="lib-nav-lbl">${esc(c.name)}</span>
             <span class="lib-nav-n">${c.n}</span>
+            <span class="lib-nav-menu" data-colmenu="${c.id}" title="${esc(T("library.col_manage", "Sammlung verwalten"))}">⋯</span>
           </button>`).join("")
       : `<div class="lib-nav-empty">${T("library.col_none", "Noch keine Sammlung angelegt.")}</div>`;
     box.querySelectorAll("[data-col]").forEach(b => {
@@ -589,6 +590,13 @@ function mountLibrary(body, headerActions) {
         renderCollections(); reload();
       };
       b.oncontextmenu = (e) => { e.preventDefault(); openCollectionMenu(id); };
+    });
+    // 28.08.2026 (Marc: „rechtsklick geht nicht"): Verwaltung zusätzlich über
+    // einen sichtbaren ⋯-Knopf — Rechtsklick bleibt, ist aber nicht mehr der
+    // einzige (und unauffindbare) Weg. stopPropagation, sonst würde der Klick
+    // die Sammlung zugleich als Filter ein-/ausschalten.
+    box.querySelectorAll("[data-colmenu]").forEach(sp => {
+      sp.onclick = (e) => { e.stopPropagation(); openCollectionMenu(parseInt(sp.dataset.colmenu, 10)); };
     });
   }
 
@@ -1558,6 +1566,7 @@ function mountLibrary(body, headerActions) {
         <div class="lib-pop-stats">
           ${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}
         </div>
+        <div class="lib-colchips lib-pop-cols"></div>
         <div class="lib-pop-btns">
           ${_ghostModus()
             ? `<button class="btn btn-primary btn-sm" data-pop="ghost">👻 ${T("library.ghost.take", "Als Ghost-Spur übernehmen")}</button>`
@@ -1571,6 +1580,8 @@ function mountLibrary(body, headerActions) {
     const o = el.querySelector('[data-pop="open"]'); if (o) o.onclick = () => openIn("animator");
     const g = el.querySelector('[data-pop="ghost"]'); if (g) g.onclick = () => alsGhost([it.path]);
     const c = el.querySelector('[data-pop="col"]'); if (c) c.onclick = () => addToCollectionDialog([it.path]);
+    const cb = el.querySelector(".lib-pop-cols");
+    if (cb) renderColChips(cb, it, { popup: true });
   }
   function closeMapPopup() {
     if (_mapPopup) { try { _mapPopup.remove(); } catch (_) {} _mapPopup = null; }
@@ -2234,22 +2245,42 @@ function mountLibrary(body, headerActions) {
     return m[it.recorded_src] || "";
   }
 
-  async function renderTrackCollections(it) {
-    const box = $("lib-d-cols");
+  async function renderTrackCollections(it) { return renderColChips($("lib-d-cols"), it, {}); }
+
+  /** Sammlungs-Chips einer Tour — Detailspalte UND Karten-Info-Karte (Marc,
+   *  28.08.2026: in der Kartenansicht fehlten sie ganz). Das ✕ nimmt die Tour
+   *  aus der Sammlung; verlässt sie dabei die gerade ANGEZEIGTE Sammlung,
+   *  springt die Ansicht zur Sammlungs-Übersicht zurück — vorher „blieb man
+   *  auf der tour, obwohl ich sie aus der sammlung haben wollte". */
+  async function renderColChips(box, it, opts) {
     if (!box) return;
+    const imPopup = !!(opts && opts.popup);
     const res = await api().library_collections_of(it.path);
     const mine = (res && res.collections) || [];
     box.innerHTML =
-      mine.map(c => `<span class="lib-colchip">${esc(c.name)}<button data-rm="${c.id}" title="${esc(T("library.col_remove", "Aus der Sammlung nehmen"))}">✕</button></span>`).join("") +
-      `<button class="lib-chip lib-chip-ghost" id="lib-d-addcol">+ ${T("library.col_add", "Zu Sammlung")}</button>`;
+      mine.map(c => `<span class="lib-colchip">${esc(c.name)}<button data-rm="${c.id}" data-rmname="${esc(c.name)}" title="${esc(T("library.col_remove", "Aus der Sammlung nehmen"))}">✕</button></span>`).join("") +
+      (imPopup && !mine.length ? `<span class="lib-hint">${T("library.col_in_none", "In keiner Sammlung.")}</span>` : "") +
+      (imPopup ? "" : `<button class="lib-chip lib-chip-ghost" id="lib-d-addcol">+ ${T("library.col_add", "Zu Sammlung")}</button>`);
     box.querySelectorAll("[data-rm]").forEach(b => {
-      b.onclick = async () => {
-        await api().library_collection_remove(parseInt(b.dataset.rm, 10), [it.path]);
-        await reloadCollections(); renderTrackCollections(it);
-        if (state.collection_id) reload();
+      b.onclick = async (e) => {
+        e.stopPropagation();
+        const cid = parseInt(b.dataset.rm, 10);
+        await api().library_collection_remove(cid, [it.path]);
+        await reloadCollections();
+        toast(T("library.col_removed_toast", "Aus „{col}“ genommen — die Tour bleibt im Archiv.")
+          .replace("{col}", b.dataset.rmname || ""), "info", 4000);
+        if (state.collection_id === cid) {
+          _sel = null; store.set("sel", "");
+          closeMapPopup();
+          renderDetail();
+          reload();
+        } else {
+          renderColChips(box, it, opts);
+          if (state.collection_id) reload();
+        }
       };
     });
-    const add = $("lib-d-addcol");
+    const add = imPopup ? null : box.querySelector("#lib-d-addcol");
     if (add) add.onclick = () => addToCollectionDialog([it.path]);
   }
 
