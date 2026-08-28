@@ -2363,5 +2363,9 @@
   "animator.tours.lade_vorschau": "Vorschau wird aufgebaut …",
   "animator.tours.lade_karte": "Karte wird gezeichnet …",
   "animator.tours.lade_abbruch": "Wird abgebrochen …",
-  "animator.tours.lade_abgebrochen": "Laden abgebrochen — deine Auswahl liegt weiter im Archiv."
+  "animator.tours.lade_abgebrochen": "Laden abgebrochen — deine Auswahl liegt weiter im Archiv.",
+  "library.col_duplicate": "Duplizieren",
+  "library.col_copy_suffix": "(Kopie)",
+  "library.col_fehlt": "Sammlung nicht gefunden",
+  "library.col_duplicated": "Sammlung kopiert — die Kopie kannst du jetzt frei umbauen."
 }

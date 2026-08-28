@@ -2363,5 +2363,9 @@
   "animator.tours.lade_vorschau": "Montando la vista previa …",
   "animator.tours.lade_karte": "Dibujando el mapa …",
   "animator.tours.lade_abbruch": "Cancelando …",
-  "animator.tours.lade_abgebrochen": "Carga cancelada; tu selección sigue en el archivo."
+  "animator.tours.lade_abgebrochen": "Carga cancelada; tu selección sigue en el archivo.",
+  "library.col_duplicate": "Duplicar",
+  "library.col_copy_suffix": "(copia)",
+  "library.col_fehlt": "Colección no encontrada",
+  "library.col_duplicated": "Colección copiada; ahora puedes modificar la copia libremente."
 }

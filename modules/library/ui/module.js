@@ -2312,6 +2312,7 @@ function mountLibrary(body, headerActions) {
           <button class="btn btn-primary btn-sm" id="lib-cm-show">${T("library.col_open", "Anzeigen")}</button>
           <button class="btn btn-sm" id="lib-cm-anim">${T("library.col_animator", "Alle im Animator")}</button>
           <button class="btn btn-sm" id="lib-cm-schwarm">🌊 ${T("schwarm.action", "Als Schwarm animieren …")}</button>
+          <button class="btn btn-sm" id="lib-cm-dup">⎘ ${T("library.col_duplicate", "Duplizieren")}</button>
           <button class="btn btn-ghost btn-sm lib-btn-danger" id="lib-cm-del">${T("library.col_delete", "Löschen")}</button>
         </div>
         <div class="lib-hint" style="margin-top:8px;">${T("library.col_delete_note", "Löschen entfernt nur die Sammlung — die Touren bleiben im Archiv.")}</div>
@@ -2329,6 +2330,15 @@ function mountLibrary(body, headerActions) {
     };
     const anim = document.getElementById("lib-cm-anim");
     if (anim) anim.onclick = () => { m.close(); openCollectionInAnimator(cid); };
+    const dup = document.getElementById("lib-cm-dup");
+    if (dup) dup.onclick = async () => {
+      dup.disabled = true;
+      const r = await api().library_collection_duplicate(cid);
+      if (!r || !r.ok) { dup.disabled = false; toast((r && r.error) || "Fehler", "error"); return; }
+      m.close();
+      await reloadCollections();
+      toast(T("library.col_duplicated", "Sammlung kopiert — die Kopie kannst du jetzt frei umbauen."), "success", 5000);
+    };
     const schwarm = document.getElementById("lib-cm-schwarm");
     if (schwarm) schwarm.onclick = async () => {
       m.close();

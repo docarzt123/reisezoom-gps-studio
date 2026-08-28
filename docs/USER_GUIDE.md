@@ -455,7 +455,9 @@ GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:
 - **Anzeigen:** Links auf die Sammlung klicken — dann siehst du nur ihre Touren, und zwar in
   **ihrer eigenen Reihenfolge** (Etappe 1, 2, 3 …), sortiert nach Datum.
 - **Verwalten:** **Rechtsklick** auf eine Sammlung öffnet umbenennen, anzeigen, „Alle im
-  Animator" und löschen.
+  Animator", duplizieren und löschen. **Duplizieren** legt eine „(Kopie)" mit denselben Touren
+  in derselben Reihenfolge an — praktisch, um eine Variante zu bauen, ohne das Original (und
+  dessen Animator-Einstellungen) anzufassen.
 - **Weiterverarbeiten:** **„Alle im Animator"** übergibt die ganze Sammlung an den Animator —
   erste Etappe als Haupt-Track, alle weiteren als zusätzliche Touren. Aus sechs Etappen wird
   so ein Video.
