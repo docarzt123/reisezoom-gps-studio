@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.562"
+APP_VERSION = "0.9.563"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1709,6 +1709,16 @@ class Api:
                     # keinen Snapshot und keine Koordinaten-Stats.
                     defaults = self._session_get_global_defaults()
                     proj = _sessions._project_from_defaults(_sessions.DEFAULT_PROJECT_NAME, defaults)
+                    if ablauf == "schwarm":
+                        # IDEAS §38 M2 — die Schwarm-Overlay-Felder gleich aktiv
+                        # setzen (nur bei NEUEN Sitzungen; wer umstellt, dessen
+                        # Wahl bleibt). „Zurückgelegt" zeigt bewusst die längste
+                        # Tour (Q10a), der Zähler die ganze Herde.
+                        proj.setdefault("animator", {})
+                        proj["animator"].setdefault("overlay_live_fields",
+                                                    ["dist_done", "swarm_underway"])
+                        proj["animator"].setdefault("overlay_totals_fields",
+                                                    ["swarm_total", "dist_total"])
                     name = ("Schwarm" if ablauf == "schwarm" else "Reise") + f" ({len(pfade)} Touren)"
                     sess = {"track_hash": schluessel, "name": name,
                             "ablauf": ablauf,

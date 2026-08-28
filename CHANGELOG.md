@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.563] – 2026-08-28
+
+### Hinzugefügt (Schwarm M2, erster Teil — IDEAS §38)
+- **Der Schwarm-Zähler ist ein echtes Overlay-Feld.** Zwei neue Felder im
+  Stats-Overlay, nur im Schwarm-Ablauf sichtbar: **„Noch unterwegs"** (live,
+  z. B. „37 / 96" — zählt pro Bild, wie viele Touren ihr Ziel noch nicht
+  erreicht haben, Haupt-Track eingeschlossen) und **„Touren gesamt"**
+  (z. B. „96 · 812 km" — Tourenzahl und Strecke aller Touren zusammen; die
+  übrigen Felder zeigen bewusst weiter die längste Tour, Grilling Q10a). Beide
+  sind wie jedes Overlay-Feld sortierbar, umbenennbar und abwählbar. Neue
+  Schwarm-Sitzungen starten mit beiden aktiv; das Alpha-Rendering ohne Karte
+  kennt sie bewusst nicht.
+
 ## [0.9.562] – 2026-08-28
 
 ### Behoben

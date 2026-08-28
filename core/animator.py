@@ -548,6 +548,17 @@ OVERLAY_LIVE_FIELDS = [
      "js": "fmtKmJS(Math.max(0,(cumDistM[idx]-STAGE_D0[idx])/1000))"},
     {"id": "stage_time",   "requires": "stages", "label": "Zeit in der Etappe",
      "js": "fmtDurJS(Math.max(0,cumTimeS[idx]-STAGE_T0[idx]))"},
+    # 28.08.2026 (IDEAS §38 M2) — Schwarm-Zähler: wie viele Touren sind noch
+    # unterwegs? Zählt den Haupt-Track mit; „unterwegs" heißt: die bereits
+    # zurückgelegte Distanz des Haupt-Tracks liegt vor dem Ende der Tour
+    # (kleine Toleranz von einem Schrittabstand, sonst flackert der letzte
+    # Frame). `requires: "schwarm"` blendet das Feld überall sonst aus.
+    {"id": "swarm_underway", "requires": "schwarm", "label": "Noch unterwegs",
+     "js": ("(function(){const d=cumDistM[idx];"
+            "let m=(idx<cumDistM.length-1)?1:0;"
+            "for(let i=0;i<SCHWARM_N;i++){"
+            "if(d<(SCHWARM_COORDS[i].length-1)*SCHWARM_STEPS[i]-SCHWARM_STEPS[i])m++;}"
+            "return m+' / '+(SCHWARM_N+1);})()")},
 ]
 OVERLAY_TOTAL_FIELDS = [
     {"id": "dist_total", "requires": "none", "label": "Strecke",
@@ -572,6 +583,10 @@ OVERLAY_TOTAL_FIELDS = [
      "py": lambda ts: f'{ts["ele_max"]:.0f} m'},
     {"id": "ele_low",    "requires": "ele",  "label": "Tiefster Punkt",
      "py": lambda ts: f'{ts["ele_min"]:.0f} m'},
+    # 28.08.2026 (IDEAS §38 M2) — Schwarm-Gesamtwert: Tourenzahl + Strecke ALLER
+    # Touren zusammen (die normalen Felder zeigen bewusst die längste Tour).
+    {"id": "swarm_total", "requires": "schwarm", "label": "Touren gesamt",
+     "py": lambda ts: f'{ts.get("swarm_n", 0)} &middot; {_format_km(ts.get("swarm_dist_m", 0))}'},
 ]
 _OVERLAY_LIVE_BY_ID = {f["id"]: f for f in OVERLAY_LIVE_FIELDS}
 _OVERLAY_TOTAL_BY_ID = {f["id"]: f for f in OVERLAY_TOTAL_FIELDS}
@@ -592,13 +607,16 @@ _OVERLAY_FONTS = {
 
 
 def _overlay_field_available(requires: str, has_time: bool, has_ele: bool,
-                            has_stages: bool = False) -> bool:
+                            has_stages: bool = False,
+                            has_schwarm: bool = False) -> bool:
     if requires == "time":
         return has_time
     if requires == "ele":
         return has_ele
     if requires == "stages":     # 23.08.2026 — nur bei zusammengeführten Touren
         return has_stages
+    if requires == "schwarm":    # 28.08.2026 — nur im Schwarm-Ablauf
+        return has_schwarm
     return True
 
 
@@ -627,11 +645,11 @@ def _overlay_label_ov(fid, default_label, overrides, t=None):
 
 
 def _overlay_totals_rows(field_ids, total_stats, has_time: bool, has_ele: bool, overrides=None, t=None,
-                         has_stages: bool = False) -> str:
+                         has_stages: bool = False, has_schwarm: bool = False) -> str:
     rows = []
     for fid in (field_ids or DEFAULT_TOTAL_FIELDS):
         f = _OVERLAY_TOTAL_BY_ID.get(fid)
-        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages):
+        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
             continue
         try:
             val = f["py"](total_stats)
@@ -669,7 +687,7 @@ def _overlay_sensor_series_json(ds_points, field_ids, extra_keys=None) -> str:
 
 
 def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None, t=None,
-                       has_stages: bool = False) -> str:
+                       has_stages: bool = False, has_schwarm: bool = False) -> str:
     rows = []
     for fid in (field_ids or DEFAULT_LIVE_FIELDS):
         # v0.9.331 — FIT-Sensorfeld (sensor:<key>) → Label aus der Registry.
@@ -681,7 +699,7 @@ def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None,
                         f'<span class="value" id="{_sensor_dom_id(key)}">&mdash;</span></div>')
             continue
         f = _OVERLAY_LIVE_BY_ID.get(fid)
-        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages):
+        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
             continue
         accent = " accent" if f.get("accent") else ""
         lbl = _overlay_label_ov(fid, f["label"], overrides, t)  # v0.9.393/507 — Umbenennung > Übersetzung
@@ -690,7 +708,7 @@ def _overlay_live_rows(field_ids, has_time: bool, has_ele: bool, overrides=None,
 
 
 def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=None,
-                            has_stages: bool = False) -> str:
+                            has_stages: bool = False, has_schwarm: bool = False) -> str:
     """JS-Zeilen für updateOverlays(idx): pro aktivem Live-Feld ein textContent-Set.
     Wird als literaler Block in den per-Frame-Loop injiziert (kein f-string-Reparse)."""
     lines = []
@@ -706,7 +724,7 @@ def _overlay_live_update_js(field_ids, has_time: bool, has_ele: bool, overrides=
                 f" _e.textContent=(_v==null?'\\u2013':(Math.round(_v)+{unit_js})); }} }}")
             continue
         f = _OVERLAY_LIVE_BY_ID.get(fid)
-        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages):
+        if not f or not _overlay_field_available(f["requires"], has_time, has_ele, has_stages, has_schwarm):
             continue
         lines.append(f"  {{ var _e=document.getElementById('live-{fid}'); if(_e) _e.textContent = {f['js']}; }}")
     return "\n".join(lines)
@@ -1758,17 +1776,20 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         total_stats["moving_time_s"] = 0.0
     _t = _i18n.uebersetzer(getattr(cfg, "ui_lang", ""))
     has_stages = (_etappen["gesamt"] or 0) > 1     # 23.08.2026 — zusammengeführte Touren
-    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), has_stages)
+    # 28.08.2026 (IDEAS §38 M2) — Schwarm-Felder nur im Mapbox-HTML: das
+    # Alpha-HTML hat keine SCHWARM_-Konstanten, dort bleibt has_schwarm False.
+    has_schwarm = bool(schwarm_tours)
+    live_update_js = _overlay_live_update_js(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), has_stages, has_schwarm)
     if cfg.show_overlays:
         if cfg.overlay_totals_enabled:
-            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages)
+            _trows = _overlay_totals_rows(getattr(cfg, "overlay_totals_fields", None), total_stats, has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages, has_schwarm=has_schwarm)
             if _trows:
                 totals_html = f"""
 <div id="overlay-totals" class="stats-box pos-{cfg.overlay_totals_position}">
   {_trows}
 </div>"""
         if cfg.overlay_live_enabled:
-            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages)
+            _lrows = _overlay_live_rows(getattr(cfg, "overlay_live_fields", None), has_time, has_ele, getattr(cfg, "overlay_field_overrides", None), t=_t, has_stages=has_stages, has_schwarm=has_schwarm)
             if _lrows:
                 live_html = f"""
 <div id="overlay-live" class="stats-box pos-{cfg.overlay_live_position}">
@@ -4078,6 +4099,13 @@ async def render(
                   _trim_s * 100, _trim_e * 100,
                   _trim_dist / 1000.0, _trim_time, _asc, _dsc)
 
+    if _schwarm:
+        # IDEAS §38 M2 — Gesamtwerte für das Overlay-Feld „Touren gesamt":
+        # Tourenzahl inkl. Haupt-Track, Strecke = Summe aller Touren (die
+        # normalen Felder zeigen bewusst weiter die längste Tour).
+        total_stats_dict["swarm_n"] = len(_schwarm) + 1
+        total_stats_dict["swarm_dist_m"] = (cum_dist[-1] if cum_dist else 0.0) + sum(
+            (len(t["coords"]) - 1) * t["step_m"] for t in _schwarm)
     html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox,
                       schwarm_tours=_schwarm)
 

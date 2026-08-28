@@ -2344,5 +2344,7 @@
   "schwarm.start_schnell": "Quick render …",
   "schwarm.animator": "Design in the animator",
   "schwarm.animator_hint": "Full feature set: keyframes, camera, styles, overlays — the longest tour is the timeline.",
-  "schwarm.an_animator": "tours as a swarm in the animator."
+  "schwarm.an_animator": "tours as a swarm in the animator.",
+  "animator.statsfield.swarm_underway": "Still under way",
+  "animator.statsfield.swarm_total": "Tours in total"
 }
