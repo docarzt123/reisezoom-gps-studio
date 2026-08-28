@@ -2253,6 +2253,10 @@ function mountAnimator(body, headerActions, opts) {
   // in der Bar). Jede: { gpx_path, line_color, name }. Render schickt nur dann
   // ein `tracks`-Array (≥2 Einträge) wenn hier ≥1 Extra-Tour liegt.
   let _extraTours = [];
+  // IDEAS §38 — Ablauf der Mehr-Touren-Übergabe: "reise" (nacheinander, wie
+  // bisher) oder "schwarm" (alle gleichzeitig). Wird im ARCHIV gewählt und
+  // hier nur ANGEZEIGT (Grilling Q9: kein Umschalter im Animator).
+  let _animAblauf = "reise";
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
   // 23.08.2026 — Etappen: Startindizes + geometrische Kumulativlänge. `line-progress`
   // misst gezeichnete Länge, cumDistM zählt Etappengrenzen bewusst NICHT mit — für die
@@ -7109,17 +7113,35 @@ function mountAnimator(body, headerActions, opts) {
       const pending = window.__rzPendingTours;
       if (Array.isArray(pending) && pending.length) {
         window.__rzPendingTours = null;
+        const pendingAblauf = window.__rzPendingAblauf === "schwarm" ? "schwarm" : "reise";
+        window.__rzPendingAblauf = null;
         _animPendingToursTimer = setTimeout(async () => {
           // Wer nach dem Sprung aus dem Archiv binnen 1,2 s weiterklickt, darf
           // keine Etappen mehr in ein totes Modul schreiben — `_animPersistTours`
           // am Ende von `_animAddTourPath` würde sonst den Projekt-Stand
           // überschreiben, den das nächste Modul schon anders gesetzt hat.
           if (_animUnmounted) return;
+          // IDEAS §38 — ERST die Mengen-Sitzung aktivieren, DANN Etappen
+          // hinzufügen: `_animAddTourPath` persistiert in die AKTIVE Sitzung,
+          // und die Arbeit gehört an die Menge, nicht an die erste Tour.
+          _animAblauf = pendingAblauf;
+          try {
+            const haupt = (typeof window.getGlobalGpxPath === "function") ? window.getGlobalGpxPath() : "";
+            const alle = [haupt].concat(pending).filter(Boolean);
+            if (alle.length >= 2 && typeof sessionActivateMenge === "function") {
+              await sessionActivateMenge(alle, pendingAblauf);
+              // Neustart-Gedächtnis: Haupt + Etappen + Ablauf.
+              try { saveSettings({ last_menge: { paths: alle, ablauf: pendingAblauf } }); } catch (_) {}
+            }
+          } catch (e) { applog("warn", `[Animator] Mengen-Sitzung: ${e}`); }
+          if (_animUnmounted) return;
           for (const p of pending) {
             if (_animUnmounted) return;
             try { await _animAddTourPath(p); } catch (e) { console.warn("pending tour:", e); }
           }
-          applog("info", `[Animator] ${pending.length} Etappe(n) aus dem Archiv übernommen`);
+          _animPersistTours();
+          _animRenderToursList();
+          applog("info", `[Animator] ${pending.length} Etappe(n) aus dem Archiv übernommen (Ablauf: ${pendingAblauf})`);
         }, 1200);
       }
     });
@@ -11823,6 +11845,23 @@ function mountAnimator(body, headerActions, opts) {
     // Liste sichtbar sein: sonst sieht man eine Tour und weiß nicht, wo die
     // anderen geblieben sind. Ohne weitere Touren bleibt sie versteckt.
     const toursSec = document.querySelector('[data-accordion-section="tours"]');
+    // IDEAS §38 — Ablauf-Anzeige: gewählt wird er im ARCHIV (Grilling Q9),
+    // hier steht nur, was gerade gilt. Beim Schwarm ist der Kinoflug sinnlos
+    // (es gibt keine Übergänge), also verschwindet sein Regler.
+    let badge = document.getElementById("anim-ablauf-badge");
+    if (!badge && host) {
+      badge = document.createElement("div");
+      badge.id = "anim-ablauf-badge";
+      badge.className = "hint";
+      badge.style.cssText = "margin:2px 0 8px;font-size:11.5px;opacity:.85";
+      host.parentElement.insertBefore(badge, host);
+    }
+    if (badge) {
+      badge.textContent = _animAblauf === "schwarm"
+        ? "🌊 " + t("animator.ablauf.schwarm", "Gleichzeitig (Schwarm) — die längste Tour bestimmt die Videodauer. Gewählt im Archiv.")
+        : "🧭 " + t("animator.ablauf.reise", "Nacheinander (eine Reise) — mit Kinoflug zwischen den Etappen. Gewählt im Archiv.");
+      badge.hidden = _extraTours.length === 0;
+    }
     if (toursSec) {
       const show = _extraTours.length > 0;
       toursSec.hidden = !show;
@@ -11865,7 +11904,7 @@ function mountAnimator(body, headerActions, opts) {
       });
       host.appendChild(row);
     });
-    if (flyField) flyField.hidden = _extraTours.length === 0;
+    if (flyField) flyField.hidden = _extraTours.length === 0 || _animAblauf === "schwarm";
   }
 
   // Entfernt alle Multi-Track-Preview-Layer/-Sources von der Karte.
@@ -11979,6 +12018,7 @@ function mountAnimator(body, headerActions, opts) {
       saveProjectSettings(_MODKEY, {
         extra_tours: _extraTours.map(t => ({
           gpx_path: t.gpx_path, line_color: t.line_color, name: t.name })),
+        tours_ablauf: _animAblauf,
         fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
       });
     } catch (_) {}
@@ -11992,6 +12032,7 @@ function mountAnimator(body, headerActions, opts) {
       const a = proj?.[_MODKEY] || {};
       saved = Array.isArray(a.extra_tours) ? a.extra_tours : [];
       if (typeof a.fly_duration_s === "number") fly = a.fly_duration_s;
+      _animAblauf = a.tours_ablauf === "schwarm" ? "schwarm" : "reise";
     } catch (_) {}
     const flyEl = document.getElementById("anim-fly");
     if (flyEl) { flyEl.value = fly; const l = document.getElementById("anim-fly-v"); if (l) l.textContent = fly.toFixed(1) + " s"; }
@@ -12255,6 +12296,7 @@ function mountAnimator(body, headerActions, opts) {
         })));
         return {
           tracks,
+          tracks_ablauf: _animAblauf,
           fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
         };
       })(),

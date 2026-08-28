@@ -987,6 +987,31 @@ async function sessionActivate(coords, gpxPath) {
   }
 }
 
+/** Aktiviert die Sitzung einer TOURENMENGE (Reise/Schwarm, IDEAS §38).
+ *
+ *  Wird nach der Archiv-Übergabe gerufen, wenn alle Pfade bekannt sind. Die
+ *  Menge ist die Identität (`menge:<hash>`), nicht die erste Tour — dieselben
+ *  Touren wieder wählen heißt: die Arbeit ist wieder da. Alle Projekt-Brücken
+ *  arbeiten danach unverändert mit dem Mengen-Schlüssel.
+ */
+async function sessionActivateMenge(gpxPaths, ablauf) {
+  try {
+    const res = await api().session_open_for_menge(gpxPaths || [], ablauf || "reise");
+    if (!res || !res.ok) {
+      console.warn("sessionActivateMenge failed:", res);
+      return null;
+    }
+    _activeSession = res.session;
+    _activeProject = res.active_project;
+    _projectsList = res.projects || [];
+    _notifySessionChanged();
+    return res;
+  } catch (err) {
+    console.warn("sessionActivateMenge error:", err);
+    return null;
+  }
+}
+
 /** Wechselt das aktive Projekt der aktuellen Session. */
 async function projectSetActive(projectId) {
   if (!_activeSession) return null;

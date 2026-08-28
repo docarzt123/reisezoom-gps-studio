@@ -2338,5 +2338,11 @@
   "schwarm.overlay.km_gesamt": "{km} km gesamt",
   "schwarm.overlay.unterwegs": "noch unterwegs: {n}",
   "schwarm.overlay.alle_da": "alle angekommen",
-  "error.kein_zielpfad": "Kein Zielpfad gewählt"
+  "error.kein_zielpfad": "Kein Zielpfad gewählt",
+  "animator.ablauf.schwarm": "Gleichzeitig (Schwarm) — die längste Tour bestimmt die Videodauer. Gewählt im Archiv.",
+  "animator.ablauf.reise": "Nacheinander (eine Reise) — mit Kinoflug zwischen den Etappen. Gewählt im Archiv.",
+  "schwarm.start_schnell": "Schnell rendern …",
+  "schwarm.animator": "Im Animator gestalten",
+  "schwarm.animator_hint": "Voller Funktionsumfang: Keyframes, Kamera, Stile, Overlays — die längste Tour ist die Zeitachse.",
+  "schwarm.an_animator": "Touren als Schwarm im Animator."
 }

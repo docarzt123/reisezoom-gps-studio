@@ -14,6 +14,36 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.559] – 2026-08-28
+
+### Hinzugefügt (Schwarm-Vollausbau, Meilenstein 1 — IDEAS §38)
+- **Der Schwarm läuft jetzt im Animator — mit vollem Funktionsumfang.**
+  Grilling-Beschluss mit Marc: „Das Archiv komponiert, der Animator animiert."
+  Im Schwarm-Dialog des Archivs gibt es neben „Schnell rendern" jetzt
+  **„🎬 Im Animator gestalten"**: Die längste Tour wird Haupt-Track, die übrigen
+  laufen als Schwarm-Linien gleichzeitig mit. Tragende Idee: Weil die längste
+  Tour die Videodauer bestimmt und alle gleich schnell laufen, ist ihre
+  Track-Position linear zur Videozeit — **Keyframes, ruhige Kamera, Trim,
+  Stile, Overlays und Schilder funktionieren unverändert.** Der Fortschritt der
+  Zusatz-Touren wird aus der zurückgelegten Distanz des Haupt-Tracks abgeleitet
+  und stimmt damit in jedem Verteilungs-Modus; auch der Vorschau-Snapshot
+  („ganze Route zeigen") zeichnet sie mit.
+- **Tourenmengen haben ein Gedächtnis.** Reisen und Schwärme hängen nicht mehr
+  am Projekt der ersten Tour, sondern an der **Menge selbst** (Hash über die
+  sortierten Tour-Kennungen): dieselben Touren wieder übergeben — egal in
+  welcher Reihenfolge — und die ganze Arbeit ist wieder da. Alte Reise-Anhänge
+  an der ersten Tour werden beim ersten Öffnen als Startstand übernommen
+  (Grilling Q18a); die Einzel-Sitzung bleibt unangetastet. Beim App-Neustart
+  wird die zuletzt aktive Menge komplett wiederhergestellt.
+- **Der Ablauf wird im Archiv gewählt und im Animator nur angezeigt**
+  (Grilling Q9): „🌊 Gleichzeitig (Schwarm)" bzw. „🧭 Nacheinander (Reise)" als
+  Hinweiszeile über der Tourenliste; der Kinoflug-Regler verschwindet im
+  Schwarm, weil es dort keine Übergänge gibt.
+
+  End-to-end bewiesen (`tests/test_schwarm_m1_render.py`, echter Render über
+  den Animator-Pfad): Haupt-Track wächst durchgehend, die kürzeste Zusatz-Tour
+  steht ab einem Viertel der Laufzeit. Logik-Wächter: `tests/test_schwarm_m1.py`.
+
 ## [0.9.558] – 2026-08-28
 
 ### Behoben (Marcs erste Schwarm-Testrunde)

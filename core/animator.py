@@ -480,6 +480,12 @@ class AnimatorConfig:
     # Kamera = Per-Tour-Bounds-Fit + Flug dazwischen. Overlays kumulieren
     # über alle Touren (Gesamt-Distanz/-Zeit wachsen durchgehend).
     tracks: list = field(default_factory=list)
+    # IDEAS §38 (28.08.2026): Ablauf der Mehr-Touren-Übergabe. "reise" =
+    # nacheinander mit Kinoflügen (_render_multi, wie bisher). "schwarm" =
+    # alle gleichzeitig, gleiche Geschwindigkeit — läuft über den NORMALEN
+    # Single-Track-Pfad (Haupt-Track = Zeitachse), die übrigen Touren wachsen
+    # als Zusatz-Linien im selben Takt mit (schwarm_tours in _make_html).
+    tracks_ablauf: str = "reise"
     # Dauer des Kino-Flugs zwischen zwei Touren (Sekunden). Während dieser
     # Zeit wächst keine Linie, der Marker ist ausgeblendet, die Kamera fliegt
     # von der einen Tour zur anderen.
@@ -841,6 +847,54 @@ def ghost_liste(cfg) -> list:
             continue
         if len(g.get("coords") or []) > 1:
             raus.append(g)
+    return raus
+
+
+# Punkte-Deckel für gleichzeitig laufende Touren (Schwarm, IDEAS §38).
+MAX_PUNKTE_GESAMT = 40_000     # Summe über alle Touren
+MAX_PUNKTE_LAENGSTE = 800      # feiner braucht die längste Tour nie zu sein
+MIN_ABSTAND_M = 2.0            # unter 2 m Punktabstand sieht niemand einen Unterschied
+
+
+def punktabstand(l_max_m: float, l_sum_m: float) -> float:
+    """Der eine Punktabstand `s` für ALLE Touren.
+
+    Zwei Schranken, die strengere gewinnt:
+    - Gesamtdeckel: Summe aller Punkte ≈ l_sum/s ≤ MAX_PUNKTE_GESAMT.
+    - Auflösung: die längste Tour braucht nie mehr als MAX_PUNKTE_LAENGSTE.
+    """
+    s = max(l_sum_m / MAX_PUNKTE_GESAMT,
+            l_max_m / MAX_PUNKTE_LAENGSTE,
+            MIN_ABSTAND_M)
+    return s
+
+
+def resample_aequidistant(points, s_m: float) -> list:
+    """Track auf festen Punktabstand bringen: [[lon, lat], …], Start und Ziel exakt.
+
+    `points` sind geparste TrackPoints mit `lon`, `lat` und kumuliertem
+    `dist_m`. Lineare Interpolation zwischen den Stützpunkten reicht — es geht
+    um eine Linie auf der Karte, nicht um Vermessung.
+    """
+    if len(points) < 2:
+        return [[p.lon, p.lat] for p in points]
+    gesamt = points[-1].dist_m
+    if gesamt <= 0:
+        return [[points[0].lon, points[0].lat], [points[-1].lon, points[-1].lat]]
+    n = max(2, int(math.floor(gesamt / s_m)) + 1)
+    raus = []
+    j = 0
+    for i in range(n):
+        ziel = min(gesamt, i * s_m)
+        while j < len(points) - 2 and points[j + 1].dist_m < ziel:
+            j += 1
+        a, b = points[j], points[j + 1]
+        spanne = b.dist_m - a.dist_m
+        t = 0.0 if spanne <= 0 else (ziel - a.dist_m) / spanne
+        raus.append([a.lon + (b.lon - a.lon) * t, a.lat + (b.lat - a.lat) * t])
+    # Ziel exakt — sonst endet die Linie einen halben Schritt vor dem Zielort.
+    if raus[-1] != [points[-1].lon, points[-1].lat]:
+        raus.append([points[-1].lon, points[-1].lat])
     return raus
 
 
@@ -1447,7 +1501,8 @@ window.__rzColorGradient = function(CD, i0, i1, stopsVal, stopsCol, mode, metric
 def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[float],
                cum_time: list[float], total_stats: dict,
                bbox: tuple[float, float, float, float],
-               tours: "list | None" = None) -> str:
+               tours: "list | None" = None,
+               schwarm_tours: "list | None" = None) -> str:
     # Alpha-Modus: keine Mapbox-Map, nur Track + Punkt + Overlays auf
     # transparentem Hintergrund (für Composit über echtes Video in NLEs).
     if cfg.transparent_background:
@@ -1629,6 +1684,15 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     tour_colors_json = json.dumps(getattr(cfg, "tour_colors", None) or {})
     colors_on_js = "true" if _colors_on else "false"
     color_source_json = json.dumps(_csrc)
+    # 🌊 Schwarm (IDEAS §38): Zusatz-Touren, die gleichzeitig mitlaufen.
+    _sw = schwarm_tours or []
+    schwarm_coords_json = json.dumps([t["coords"] for t in _sw])
+    schwarm_colors_json = json.dumps([t.get("color") or cfg.line_color for t in _sw])
+    schwarm_steps_json = json.dumps([max(0.5, float(t.get("step_m") or 1.0)) for t in _sw])
+    schwarm_line_width_json = json.dumps(round(max(0.5, float(cfg.line_width or 3.0) * 0.8), 2))
+    # Bei 3D-Gelände brauchen die Linien denselben z-Offset wie der Haupt-Track,
+    # sonst verschwinden sie im Berg.
+    schwarm_zoff_frag = ", 'line-z-offset': 150" if cfg.enable_terrain else ""
     color_stops_km_json = json.dumps([_stopv(s) for s in _stops])
     color_stops_col_json = json.dumps([str(s["color"]) for s in _stops])
     color_mode_json = json.dumps("gradient" if str(cfg.track_colors_mode) == "gradient" else "hard")
@@ -2355,6 +2419,19 @@ map.on('style.load', () => {{
   {hide_labels_block}
   {terrain_block}
   map.addSource('track', {{type:'geojson', lineMetrics:true, data:{{type:'Feature',geometry:{{type:'LineString',coordinates:[]}}}}}});
+  if (SCHWARM_N) {{
+    map.addSource('schwarm', {{ type: 'geojson', data: {{ type: 'FeatureCollection', features: [] }} }});
+    map.addLayer({{ id: 'schwarm-lines', type: 'line', source: 'schwarm',
+      layout: {{ 'line-join': 'round', 'line-cap': 'round' }},
+      paint: {{ 'line-color': ['get', 'color'],
+               'line-width': Math.max(1, {schwarm_line_width_json}),
+               'line-opacity': 0.9{schwarm_zoff_frag} }} }});
+    map.addSource('schwarm-dots', {{ type: 'geojson', data: {{ type: 'FeatureCollection', features: [] }} }});
+    map.addLayer({{ id: 'schwarm-dots', type: 'circle', source: 'schwarm-dots',
+      paint: {{ 'circle-color': ['get', 'color'],
+               'circle-radius': Math.max(3, {schwarm_line_width_json} * 1.5),
+               'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.2 }} }});
+  }}
   // v0.9.169 — Ghost-Track: die GANZE Route schwach/transparent als unterste
   // Track-Linie (eigene Source mit ALLEN Punkten, wird NIE animiert). Der
   // animierte Track (Source 'track') zeichnet voll deckend darüber. Zuerst
@@ -2599,6 +2676,29 @@ const STAGE_COLORS = {tour_colors_json};  // Farbe je Etappennummer (leer = eine
 // ⚠️ NICHT „TOUR_COLORS" nennen: so heißt im Mehrspur-HTML schon die Farbliste
 // des alten Pfads — die doppelte Deklaration ließ das ganze Skript sterben.
 const COLOR_SOURCE = {color_source_json};
+// 🌊 Schwarm (IDEAS §38): weitere Touren, die GLEICHZEITIG mitlaufen. Jede ist
+// äquidistant abgetastet (step_m); der Fortschritt wird aus der bereits
+// zurückgelegten DISTANZ des Haupt-Tracks abgeleitet (cumDistM[safe] / step) —
+// damit gilt „gleiche Geschwindigkeit" in JEDEM Verteilungs-Modus des
+// Haupt-Tracks, und Trim/fullTrack verhalten sich von selbst richtig.
+const SCHWARM_COORDS = {schwarm_coords_json};
+const SCHWARM_COLORS = {schwarm_colors_json};
+const SCHWARM_STEPS = {schwarm_steps_json};
+const SCHWARM_N = SCHWARM_COORDS.length;
+window.__rzSchwarmAdvance = (dNow) => {{
+  if (!SCHWARM_N || !map.getSource('schwarm')) return;
+  const linien = [], punkte = [];
+  for (let i = 0; i < SCHWARM_N; i++) {{
+    const c = SCHWARM_COORDS[i];
+    const k = Math.max(0, Math.min(c.length - 1, Math.floor(dNow / SCHWARM_STEPS[i])));
+    linien.push({{ type: 'Feature', properties: {{ color: SCHWARM_COLORS[i] }},
+      geometry: {{ type: 'LineString', coordinates: k >= 1 ? c.slice(0, k + 1) : [c[0], c[0]] }} }});
+    punkte.push({{ type: 'Feature', properties: {{ color: SCHWARM_COLORS[i] }},
+      geometry: {{ type: 'Point', coordinates: c[k] }} }});
+  }}
+  map.getSource('schwarm').setData({{ type: 'FeatureCollection', features: linien }});
+  map.getSource('schwarm-dots').setData({{ type: 'FeatureCollection', features: punkte }});
+}};
 const COLOR_STOPS_VAL = {color_stops_km_json};
 const COLOR_STOPS_COL = {color_stops_col_json};
 const COLOR_MODE = {color_mode_json};
@@ -2655,6 +2755,9 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
         try {{ map.setPaintProperty('track-shadow','line-gradient', ms || null); if (ms) map.setPaintProperty('track-shadow','line-dasharray', null); }} catch(e) {{}}
       }}
     }}
+  }}
+  if (SCHWARM_N) {{
+    window.__rzSchwarmAdvance(fullTrack ? Number.MAX_SAFE_INTEGER : (cumDistM[safe] || 0));
   }}
   const head = allCoords[safe] || allCoords[0];
   // 23.08.2026 — Im unsichtbaren Übergang fliegt nur die Kamera: kein Laufpunkt
@@ -3605,7 +3708,12 @@ async def render_frame(
         "seg_names": list(getattr(total_stats, "seg_names", []) or []),
     }
 
-    html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
+    _schwarm_frame = None
+    if (getattr(cfg, "tracks", None) and len(cfg.tracks) >= 2
+            and getattr(cfg, "tracks_ablauf", "reise") == "schwarm"):
+        _schwarm_frame = _schwarm_touren_vorbereiten(cfg)
+    html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox,
+                      schwarm_tours=_schwarm_frame)
 
     emit(0.1, _t("animator.progress.render_map", "Karte rendern …"))
     from playwright.async_api import async_playwright
@@ -3741,6 +3849,54 @@ async def _grab_still_png(page, cfg: "AnimatorConfig") -> bytes:
     return _downscale_frame(raw, cfg.width, cfg.height, cfg.transparent_background, 0)
 
 
+def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
+    """Die Zusatz-Touren des Schwarms parsen und äquidistant abtasten.
+
+    Haupt-Track (cfg.gpx_path) wird ÜBERSPRUNGEN — er läuft über den normalen
+    Single-Track-Pfad und ist die Zeitachse. Der Punktabstand kommt aus dem
+    gemeinsamen Deckel (`punktabstand`), damit auch eine 154-Touren-Sammlung
+    nicht das Bild erstickt. Unlesbare Dateien werden geloggt und übersprungen —
+    eine kaputte Tour darf den Render nicht abbrechen (gleiche Regel wie im
+    Archiv-Scan)."""
+    try:
+        haupt = str(Path(cfg.gpx_path).resolve())
+    except Exception:
+        haupt = str(cfg.gpx_path)
+    geparst = []
+    for t in (cfg.tracks or []):
+        pfad = str((t or {}).get("gpx_path") or "")
+        if not pfad:
+            continue
+        try:
+            if str(Path(pfad).resolve()) == haupt:
+                continue
+        except Exception:
+            if pfad == cfg.gpx_path:
+                continue
+        try:
+            pts, _st = core_parse_gpx(pfad)
+        except Exception as e:
+            _log.warning("Schwarm: %s unlesbar (%s) — übersprungen", pfad, e)
+            continue
+        if len(pts) < 2 or pts[-1].dist_m <= 0:
+            _log.warning("Schwarm: %s ohne Strecke — übersprungen", pfad)
+            continue
+        geparst.append({"points": pts, "laenge": pts[-1].dist_m,
+                        "color": (t or {}).get("line_color") or ""})
+    if not geparst:
+        return []
+    l_max = max(t["laenge"] for t in geparst)
+    l_sum = sum(t["laenge"] for t in geparst)
+    s = punktabstand(l_max, l_sum)
+    raus = []
+    for t in geparst:
+        raus.append({"coords": resample_aequidistant(t["points"], s),
+                     "color": t["color"], "step_m": s})
+    _log.info("Schwarm: %d Zusatz-Touren · Abstand %.1f m · Punkte %d",
+              len(raus), s, sum(len(t["coords"]) for t in raus))
+    return raus
+
+
 async def render(
     cfg: AnimatorConfig,
     on_progress: Optional[Callable[[float, str], None]] = None,
@@ -3797,8 +3953,16 @@ async def render(
             _log.warning("Mapbox-Token fehlt oder ungültig — Mapbox-Render wird fehlschlagen.")
     # v0.9.156 — Multi-Track läuft in einem eigenen, isolierten Render-Pfad,
     # damit der battle-tested Single-Track-Code unverändert bleibt.
+    # IDEAS §38 (28.08.2026) — Ausnahme SCHWARM: alle Touren gleichzeitig.
+    # Der läuft absichtlich über GENAU DIESEN Single-Track-Pfad (Haupt-Track =
+    # längste Tour = Zeitachse; Keyframes, ruhige Kamera, Trim, Overlays gelten
+    # unverändert) — nur die Zusatz-Touren wachsen als Linien im selben Takt mit.
+    _schwarm = None
     if getattr(cfg, "tracks", None) and len(cfg.tracks) >= 2:
-        return await _render_multi(cfg, emit, push_preview, check_cancel)
+        if getattr(cfg, "tracks_ablauf", "reise") == "schwarm":
+            _schwarm = _schwarm_touren_vorbereiten(cfg)
+        else:
+            return await _render_multi(cfg, emit, push_preview, check_cancel)
     raw_points, total_stats = core_parse_gpx(cfg.gpx_path)
     # Punkte-Anzahl auflösen:
     #   point_count == 0 oder >= n_raw  → alle Original-Punkte
@@ -3894,7 +4058,8 @@ async def render(
                   _trim_s * 100, _trim_e * 100,
                   _trim_dist / 1000.0, _trim_time, _asc, _dsc)
 
-    html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox)
+    html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox,
+                      schwarm_tours=_schwarm)
 
     # v0.9.53 (Marc-Klärung): Trim-Range = welcher Abschnitt des REALEN Tracks
     # gerendert wird. Render-Output-Länge IMMER fix = intro + dur + hold Sekunden.

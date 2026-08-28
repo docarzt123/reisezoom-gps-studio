@@ -2413,12 +2413,29 @@ function mountLibrary(body, headerActions) {
       </div>`,
       footer: `
         <button class="btn" id="sw-abbruch">${T("common.cancel", "Abbrechen")}</button>
-        <button class="btn btn-primary" id="sw-start">🎬 ${T("schwarm.start", "Video rendern …")}</button>`,
+        <button class="btn" id="sw-start">${T("schwarm.start_schnell", "Schnell rendern …")}</button>
+        <button class="btn btn-primary" id="sw-animator" title="${
+          esc(T("schwarm.animator_hint", "Voller Funktionsumfang: Keyframes, Kamera, Stile, Overlays — die längste Tour ist die Zeitachse."))
+        }">🎬 ${T("schwarm.animator", "Im Animator gestalten")}</button>`,
       onClose: () => { if (_schwarmPoll) { clearInterval(_schwarmPoll); _schwarmPoll = null; } },
     });
 
     const abbr = document.getElementById("sw-abbruch");
     const start = document.getElementById("sw-start");
+    // IDEAS §38 M1 — der volle Weg: längste Tour wird Haupt-Track (= Zeitachse,
+    // „die längste bestimmt die videodauer"), der Rest reist als Etappen mit,
+    // Ablauf „schwarm". Der Animator aktiviert dann die Mengen-Sitzung.
+    const inAnimator = document.getElementById("sw-animator");
+    if (inAnimator) inAnimator.onclick = async () => {
+      const sortiert = gute.slice().sort((x, y) => (y.distance_m || 0) - (x.distance_m || 0));
+      window.__rzPendingTours = sortiert.slice(1).map(i => i.path);
+      window.__rzPendingAblauf = "schwarm";
+      openModal({}).close();
+      const ok = await window.loadGlobalGpx(sortiert[0].path, { stumm: true, menge: true });
+      if (ok === false) { window.__rzPendingTours = null; window.__rzPendingAblauf = null; return; }
+      if (typeof switchMod === "function") switchMod("animator");
+      toast(`🌊 ${sortiert.length} ${T("schwarm.an_animator", "Touren als Schwarm im Animator.")}`, "success");
+    };
     let laeuft = false;
     if (abbr) abbr.onclick = () => {
       if (laeuft) { api().animator_cancel(); return; }   // Render abbrechen, Dialog bleibt
@@ -2498,7 +2515,8 @@ function mountLibrary(body, headerActions) {
     // lädt beim Mounten seinen Projekt-State und würde sie sofort wieder
     // überschreiben. Er holt sie sich selbst ab, sobald er fertig ist.
     window.__rzPendingTours = items.slice(1).map(i => i.path);
-    const ok = await window.loadGlobalGpx(items[0].path, { stumm: true });
+    window.__rzPendingAblauf = "reise";   // IDEAS §38: Ablauf wird HIER gewählt
+    const ok = await window.loadGlobalGpx(items[0].path, { stumm: true, menge: true });
     if (ok === false) { window.__rzPendingTours = null; return; }
     if (typeof switchMod === "function") switchMod("animator");
     if (items.length > 1) {

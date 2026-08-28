@@ -2338,5 +2338,11 @@
   "schwarm.overlay.km_gesamt": "{km} km en total",
   "schwarm.overlay.unterwegs": "aún en camino: {n}",
   "schwarm.overlay.alle_da": "todas han llegado",
-  "error.kein_zielpfad": "No se ha elegido una ruta de destino"
+  "error.kein_zielpfad": "No se ha elegido una ruta de destino",
+  "animator.ablauf.schwarm": "Simultáneo (enjambre): la ruta más larga marca la duración del vídeo. Se elige en el archivo.",
+  "animator.ablauf.reise": "Una tras otra (un viaje), con vuelo cinematográfico entre etapas. Se elige en el archivo.",
+  "schwarm.start_schnell": "Render rápido …",
+  "schwarm.animator": "Diseñar en el animador",
+  "schwarm.animator_hint": "Todas las funciones: fotogramas clave, cámara, estilos, superposiciones; la ruta más larga es la línea de tiempo.",
+  "schwarm.an_animator": "rutas como enjambre en el animador."
 }

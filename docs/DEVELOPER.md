@@ -390,6 +390,29 @@ entsteht früher oder später eine Stelle, an der Klartext über die Leitung geh
 > Wache: `scripts/check_hartkodierte_sprache.py` (im Release-Gate) und
 > `tests/test_sprache_vollstaendig.py`.
 
+> 🧺 **Mengen-Sitzungen (`menge:<hash>`, IDEAS §38, v0.9.559):** Reisen und
+> Schwärme speichern am Hash über die SORTIERTEN geo_hashes aller Touren
+> (`sessions.mengen_hash`), im selben `sessions`-Speicher — das Präfix
+> kollidiert nie mit einem geo_hash, alle Projekt-Brücken funktionieren
+> unverändert (sie schlagen nur den Schlüssel nach), und Cloud-Sync/Migration
+> übergehen die Einträge (kein Snapshot, kein Umschlag; Cloud = M5).
+> Anlegen/Öffnen über `session_open_for_menge(gpx_paths, ablauf)`; der Ablauf
+> („reise"|"schwarm") wird im ARCHIV gewählt (Grilling Q9) und reist über
+> `window.__rzPendingAblauf` mit. ⚠️ Im Animator gilt die Reihenfolge: ERST
+> `sessionActivateMenge`, DANN `_animAddTourPath` — sonst landet die Arbeit in
+> der Einzel-Sitzung der ersten Tour. Neustart-Gedächtnis: `last_menge` in den
+> Settings; jeder normale Einzel-Load räumt es. Q18a-Fallback: alte
+> `extra_tours`-Anhänge an der ersten Tour werden beim ersten Mengen-Öffnen als
+> Startstand kopiert. Wächter: `tests/test_schwarm_m1.py`.
+>
+> 🌊 **Schwarm-Render = Single-Track-Pfad**, NICHT `_render_multi`: bei
+> `cfg.tracks_ablauf == "schwarm"` bereitet `_schwarm_touren_vorbereiten` die
+> Zusatz-Touren äquidistant auf, `_make_html(..., schwarm_tours=…)` legt Layer
+> UNTER dem Haupt-Track an, und `advanceFrame` leitet den Fortschritt aus
+> `cumDistM[safe]` ab — dadurch stimmt „gleiche Geschwindigkeit" in jedem
+> Verteilungs-Modus, und Trim/fullTrack verhalten sich von selbst richtig.
+> Beweis am Bild: `tests/test_schwarm_m1_render.py`.
+
 **Fünf Fallen, jede mit einem Test dahinter:**
 
 1. **Prüfsummen über den Klartext, nie über den Umschlag.** Jeder Umschlag

@@ -1110,6 +1110,19 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
       // Beim App-Start die zuletzt benutzte Datei NICHT erneut zur Aufnahme
       // anbieten — das wäre bei jedem Start dieselbe Frage.
+      // IDEAS §38: War zuletzt eine TOURENMENGE aktiv (Reise/Schwarm), wird
+      // sie komplett wiederhergestellt — Haupt-Track laden, dann die übrigen
+      // Etappen über den Pending-Weg an den Animator reichen. Ohne das stünde
+      // nach dem Neustart nur die erste Tour da und die Mengen-Sitzung (mit
+      // allen Keyframes) bliebe unauffindbar.
+      const menge = (_settingsCache && _settingsCache.last_menge) || null;
+      if (menge && Array.isArray(menge.paths) && menge.paths.length >= 2
+          && menge.paths[0] === lastPath) {
+        window.__rzPendingTours = menge.paths.slice(1);
+        window.__rzPendingAblauf = menge.ablauf === "schwarm" ? "schwarm" : "reise";
+        await loadGlobalGpx(lastPath, { stumm: true, menge: true });
+        return;
+      }
       await loadGlobalGpx(lastPath, { stumm: true });
     } catch (err) {
       console.warn("auto-restore GPX failed:", err);
