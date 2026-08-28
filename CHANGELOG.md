@@ -14,6 +14,25 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.568] – 2026-08-28
+
+### Behoben (Live-Test auf Marcs Rechner, 96-Touren-Schwarm)
+- **Der Schwarm-Render brach mit „isReady is not a function" ab.** Dahinter:
+  „Cannot access SCHWARM_N before initialization" — das neue Overlay-Feld
+  „Noch unterwegs" lief beim allerersten Overlay-Aufruf, bevor die
+  Schwarm-Konstanten im Render-Skript deklariert waren. Der Konstantenblock
+  steht jetzt ganz vorn, vor jedem Overlay-Code.
+- **Vier Touren schlichen sich bei jeder Übergabe erneut in die Liste**
+  (95 → 99 → …): macOS speichert Umlaute im Dateinamen zerlegt (NFD),
+  JavaScript vergleicht zusammengesetzt (NFC) — derselbe Pfad fiel durch jeden
+  Vergleich. Betroffen waren genau die Touren mit Umlaut im Namen
+  („Schildkröte", „Familienrunde"). Alle Pfadvergleiche der Tourenliste sind
+  jetzt Unicode-normalisiert; die Selbstheilung beim Laden räumt die
+  vorhandenen Zwillinge mit ab.
+
+Beides beim Selbst-Test in der echten App gefunden (Marc: „teste selbst") —
+Probe-Lauf, Fokus-Tour und Summen-Overlays waren dabei bereits verifiziert.
+
 ## [0.9.567] – 2026-08-28
 
 ### Geändert (Marc: „der soll immer die Summe anzeigen beim Schwarm")
