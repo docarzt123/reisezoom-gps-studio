@@ -2352,5 +2352,6 @@
   "animator.fokus.haupt": "the longest tour",
   "animator.tours.lade_titel": "Loading tours",
   "animator.tours.lade_text": "Loading tour {i} of {n} …",
-  "animator.tours.lade_warte": "Please wait — the preview with all tours will build right after."
+  "animator.tours.lade_warte": "Please wait — the preview with all tours will build right after.",
+  "animator.tours.lade_vorbereiten": "Preparing tours …"
 }

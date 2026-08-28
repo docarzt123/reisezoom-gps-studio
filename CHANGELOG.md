@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.566] – 2026-08-28
+
+### Behoben (Marcs Rückmeldung zum Lade-Modal)
+- **Das Lade-Modal erscheint jetzt SOFORT beim Klick im Archiv** — nicht erst,
+  wenn der Animator nach Haupt-Track-Load, Modulwechsel und interner Wartezeit
+  übernimmt. Es steht bei allen drei Wegen von der ersten Sekunde: Schwarm-
+  Übergabe, Reise-Übergabe, App-Start-Wiederherstellung. Schlägt schon das
+  Laden des Haupt-Tracks fehl, wird es sauber geschlossen.
+- **Das Modal springt nicht mehr in der Größe.** Feste Breite, Zähler und
+  Tourname in eigenen Zeilen fester Höhe; lange Namen werden mit „…"
+  abgeschnitten, statt das Fenster zu dehnen.
+
 ## [0.9.565] – 2026-08-28
 
 ### Hinzugefügt

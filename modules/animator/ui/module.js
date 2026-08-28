@@ -7147,7 +7147,10 @@ function mountAnimator(body, headerActions, opts) {
           // 28.08.2026 (Marc): Ausgrau-Modal um die GESAMTE Übergabe — Restore
           // plus Nachtragen. try/finally, weil die Unmount-Ausstiege das Modal
           // sonst offen ließen (nicht schließbar = App tot).
-          const modalSelbst = pending.length >= 3 ? _tourenLadeModal() : false;
+          // Das Archiv hat das Modal längst geöffnet (sofort beim Klick);
+          // falls nicht (z. B. Neustart-Restore mit wenigen Touren), holt der
+          // Handler es hier nach.
+          if (pending.length >= 3) _tourenLadeModal();
           try {
             // ERST den Projekt-Stand der Mengen-Sitzung laden (beim
             // Wieder-Öffnen stehen die Etappen schon dort), DANN nur die Pfade
@@ -7169,7 +7172,9 @@ function mountAnimator(body, headerActions, opts) {
             _animDrawExtraToursPreview();
             applog("info", `[Animator] Mengen-Übergabe: ${pending.length} Etappe(n), davon ${neu} neu (Ablauf: ${pendingAblauf})`);
           } finally {
-            if (modalSelbst) _tourenLadeZu();
+            // IMMER schließen — egal wer geöffnet hat. Ein stehen gebliebenes,
+            // nicht schließbares Modal wäre eine tote App.
+            _tourenLadeZu();
           }
         }, 1200);
       }
@@ -12242,31 +12247,11 @@ function mountAnimator(body, headerActions, opts) {
    * graut die App aus und zählt mit. Wer es öffnet, schließt es auch —
    * Restore und Übergabe teilen sich die Anzeige, ohne sie zu stapeln.
    */
-  let _ladeModalAktiv = false;
-  function _tourenLadeModal() {
-    if (_ladeModalAktiv) return false;
-    _ladeModalAktiv = true;
-    openModal({
-      title: "⏳ " + t("animator.tours.lade_titel", "Touren werden geladen"),
-      body: `<div style="text-align:center; padding:14px 6px">
-        <div id="anim-lade-status" style="font-size:17px; font-weight:700; margin-bottom:10px">…</div>
-        <div class="hint" style="opacity:.8">${t("animator.tours.lade_warte",
-          "Bitte warten — danach baut sich die Vorschau mit allen Touren auf.")}</div>
-      </div>`,
-      closable: false,
-    });
-    return true;
-  }
-  function _tourenLadeTick(i, n, name) {
-    const el = document.getElementById("anim-lade-status");
-    if (el) el.textContent = t("animator.tours.lade_text", "Lade Tour {i} von {n} …")
-      .replace("{i}", i).replace("{n}", n) + (name ? " — " + name : "");
-  }
-  function _tourenLadeZu() {
-    if (!_ladeModalAktiv) return;
-    _ladeModalAktiv = false;
-    try { openModal({}).close(); } catch (_) {}
-  }
+  // Die Anzeige selbst lebt global in ui/js/util.js (tourenLadeModal…), weil
+  // das ARCHIV sie schon beim Klick öffnet. Hier nur dünne Wrapper.
+  function _tourenLadeModal() { return tourenLadeModalZeigen(); }
+  function _tourenLadeTick(i, n, name) { tourenLadeModalTick(i, n, name); }
+  function _tourenLadeZu() { tourenLadeModalZu(); }
 
   let _animToursLading = false;      // 28.08.2026 — Reentrancy-Schutz
   let _animToursNochmal = false;     // während des Ladens kam ein neuer Wunsch

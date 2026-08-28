@@ -2431,8 +2431,15 @@ function mountLibrary(body, headerActions) {
       window.__rzPendingTours = sortiert.slice(1).map(i => i.path);
       window.__rzPendingAblauf = "schwarm";
       openModal({}).close();
+      // 28.08.2026 (Marc): Das Lade-Modal SOFORT — nicht erst, wenn der
+      // Animator nach Haupt-Track-Load und Wartezeit übernimmt.
+      if (sortiert.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
       const ok = await window.loadGlobalGpx(sortiert[0].path, { stumm: true, menge: true });
-      if (ok === false) { window.__rzPendingTours = null; window.__rzPendingAblauf = null; return; }
+      if (ok === false) {
+        window.__rzPendingTours = null; window.__rzPendingAblauf = null;
+        if (typeof tourenLadeModalZu === "function") tourenLadeModalZu();
+        return;
+      }
       if (typeof switchMod === "function") switchMod("animator");
       toast(`🌊 ${sortiert.length} ${T("schwarm.an_animator", "Touren als Schwarm im Animator.")}`, "success");
     };
@@ -2516,8 +2523,13 @@ function mountLibrary(body, headerActions) {
     // überschreiben. Er holt sie sich selbst ab, sobald er fertig ist.
     window.__rzPendingTours = items.slice(1).map(i => i.path);
     window.__rzPendingAblauf = "reise";   // IDEAS §38: Ablauf wird HIER gewählt
+    if (items.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
     const ok = await window.loadGlobalGpx(items[0].path, { stumm: true, menge: true });
-    if (ok === false) { window.__rzPendingTours = null; return; }
+    if (ok === false) {
+      window.__rzPendingTours = null;
+      if (typeof tourenLadeModalZu === "function") tourenLadeModalZu();
+      return;
+    }
     if (typeof switchMod === "function") switchMod("animator");
     if (items.length > 1) {
       toast(`${items.length} ${T("library.col_loaded", "Touren geladen.")}`, "info");

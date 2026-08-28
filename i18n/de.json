@@ -2352,5 +2352,6 @@
   "animator.fokus.haupt": "der längsten Tour",
   "animator.tours.lade_titel": "Touren werden geladen",
   "animator.tours.lade_text": "Lade Tour {i} von {n} …",
-  "animator.tours.lade_warte": "Bitte warten — danach baut sich die Vorschau mit allen Touren auf."
+  "animator.tours.lade_warte": "Bitte warten — danach baut sich die Vorschau mit allen Touren auf.",
+  "animator.tours.lade_vorbereiten": "Touren werden vorbereitet …"
 }

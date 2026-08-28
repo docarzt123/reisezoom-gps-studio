@@ -1120,6 +1120,7 @@ window.addEventListener("DOMContentLoaded", async () => {
           && menge.paths[0] === lastPath) {
         window.__rzPendingTours = menge.paths.slice(1);
         window.__rzPendingAblauf = menge.ablauf === "schwarm" ? "schwarm" : "reise";
+        if (menge.paths.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
         await loadGlobalGpx(lastPath, { stumm: true, menge: true });
         return;
       }
