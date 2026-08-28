@@ -2295,6 +2295,19 @@ def collection_sort_by_date(conn: sqlite3.Connection, cid: int) -> None:
 
 
 @_locked
+def collection_set_order(conn: sqlite3.Connection, cid: int, paths: list) -> None:
+    """Reihenfolge exakt auf die übergebene Pfad-Liste setzen (Undo braucht
+    das: Wieder-Hinzufügen hängt sonst hinten an, die Etappen-Folge wäre weg).
+    Pfade, die nicht (mehr) in der Sammlung liegen, werden still übergangen."""
+    for i, p in enumerate(paths):
+        gh = _geo_of(conn, p)
+        if gh:
+            conn.execute("UPDATE collection_items SET sort_index = ? "
+                         "WHERE collection_id = ? AND geo_hash = ?", (i, cid, gh))
+    conn.commit()
+
+
+@_locked
 def collection_items(conn: sqlite3.Connection, cid: int) -> list:
     # Bei doppelt vorliegenden Dateien (gleicher Verlauf) genügt eine davon.
     rows = conn.execute(

@@ -702,7 +702,7 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 ### Ajustes
 
-> **↩︎ Deshacer para todo (desde v0.9.322):** cualquier cambio de ajuste se puede deshacer con **⌘Z** (Mac) / **Ctrl+Z** (Windows) — en **Animator, Tour-Map, Geotagger y Animador de datos**: colores, tipografía, grosor de línea, glow, campos de overlay, keyframes, trim, offset de tiempo, etc. **Rehacer** con **⌘⇧Z** / **Ctrl+Y**. (Un arrastre de slider = un paso.)
+> **↩︎ Deshacer para todo (desde v0.9.322):** cualquier cambio de ajuste se puede deshacer con **⌘Z** (Mac) / **Ctrl+Z** (Windows) — en **Animator, Tour-Map, Geotagger y Animador de datos**: colores, tipografía, grosor de línea, glow, campos de overlay, keyframes, trim, offset de tiempo, etc. También en el **archivo**: quitar de/añadir a una colección, crear, renombrar, duplicar, borrar (incluido el orden) y ocultar. **Rehacer** con **⌘⇧Z** / **Ctrl+Y**. (Un arrastre de slider = un paso.)
 
 **Mapa:**
 - **Estilo**: 6 estilos de Mapbox (Satellite 3D, Satellite+Streets, Outdoors, Streets, Claro, Oscuro)

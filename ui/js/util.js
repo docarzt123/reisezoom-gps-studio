@@ -2162,6 +2162,7 @@ function _rzActiveModuleForUndo() {
     ["gt-panel",   "geotagger"],
     ["gpxi-panel", "gpxinspect"],  // v0.9.238 — GPX-Inspektor (Track-Edits undoable)
     ["height-panel", "heightanim"],  // v0.9.322 — Höhen-Animator (Einstellungen undoable)
+    ["lib-panel",  "library"],       // 28.08.2026 — Archiv (Sammlungs-Aktionen undoable)
   ];
   for (const [id, key] of candidates) {
     const el = document.getElementById(id);

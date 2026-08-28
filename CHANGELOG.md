@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Archiv: Rückgängig/Wiederherstellen mit ⌘Z / Strg+Z (Marc, 28.08.2026:
+  „undo soll überall gehen" — das Archiv war das einzige Modul ohne). Als
+  Kommando-Stack für die DB-Aktionen: aus Sammlung nehmen (stellt auch die
+  Reihenfolge wieder her), hinzufügen, anlegen, umbenennen, duplizieren,
+  löschen (legt Name + Touren + Reihenfolge wieder an) und Tour ausblenden.
+  Nicht im Stack: Papierkorb (System-Papierkorb ist das Undo) und „Aus Archiv
+  nehmen" (kommt beim Einlesen wieder). Neue Brücke
+  `library_collection_set_order` + `core/library.collection_set_order`.
+
 ### Changed
 - Kartenansicht im Archiv: Eine Tour per Sammlungs-Chip (✕) entfernen lässt
   den Kartenausschnitt jetzt stehen — die Tour verschwindet einfach, statt

@@ -2186,7 +2186,13 @@ function mountLibrary(body, headerActions) {
     };
 
     $("lib-d-hide").onclick = async () => {
-      await api().library_set_hidden(it.path, !it.hidden);
+      const vorher = !!it.hidden;
+      const pfad = it.path;
+      await api().library_set_hidden(pfad, !vorher);
+      _libUndoPush(vorher ? T("library.undo.unhide", "Tour wieder eingeblendet")
+                          : T("library.undo.hide", "Tour ausgeblendet"),
+        async () => { await api().library_set_hidden(pfad, vorher); },
+        async () => { await api().library_set_hidden(pfad, !vorher); });
       _sel = null; store.set("sel", ""); renderDetail(); reload();
     };
     $("lib-d-forget").onclick = async () => {
@@ -2254,6 +2260,41 @@ function mountLibrary(body, headerActions) {
     return m[it.recorded_src] || "";
   }
 
+  /* ── Undo (Cmd/Strg+Z) — 28.08.2026, Marc: „hatten wir nicht mal gesagt,
+   *  dass undo überall gehen soll?" Das Archiv war das einzige Modul ohne
+   *  Controller. Seine Aktionen sind DB-Operationen, kein DOM-Zustand — darum
+   *  ein KOMMANDO-Stack (jede Aktion bringt ihr eigenes undo/redo mit) statt
+   *  des Snapshot-Controllers der anderen Module. Nicht im Stack: Papierkorb
+   *  (System-Papierkorb ist das Undo) und „Aus Archiv nehmen" (kommt beim
+   *  nächsten Einlesen wieder — ein Undo müsste die Datei neu scannen). */
+  const _libUndoStack = [], _libRedoStack = [];
+  function _libUndoPush(label, undoFn, redoFn) {
+    _libUndoStack.push({ label, undoFn, redoFn });
+    if (_libUndoStack.length > 50) _libUndoStack.shift();
+    _libRedoStack.length = 0;
+  }
+  async function _libUndoLauf(von, nach, fn, pfeil, leerKey, leerTxt) {
+    const a = von.pop();
+    if (!a) { toast(T(leerKey, leerTxt), "info"); return false; }
+    try { await a[fn](); }
+    catch (e) { von.push(a); toast(T("library.undo.fehl", "Rückgängig ging schief: {e}").replace("{e}", String(e)), "error"); return false; }
+    nach.push(a);
+    await reloadCollections();
+    reload();
+    if (_sel) renderDetail();
+    toast(pfeil + " " + a.label, "info");
+    return true;
+  }
+  window.__rzUndoControllers = window.__rzUndoControllers || {};
+  window.__rzUndoControllers.library = {
+    push: _libUndoPush,
+    undo: () => _libUndoLauf(_libUndoStack, _libRedoStack, "undoFn", "↶", "undo.nothing_undo", "Nichts zum Rückgängig"),
+    redo: () => _libUndoLauf(_libRedoStack, _libUndoStack, "redoFn", "↷", "undo.nothing_redo", "Nichts zum Wiederherstellen"),
+    reset: () => { _libUndoStack.length = 0; _libRedoStack.length = 0; },
+    canUndo: () => _libUndoStack.length > 0,
+    canRedo: () => _libRedoStack.length > 0,
+  };
+
   async function renderTrackCollections(it) { return renderColChips($("lib-d-cols"), it, {}); }
 
   /** Sammlungs-Chips einer Tour — Detailspalte UND Karten-Info-Karte (Marc,
@@ -2274,7 +2315,13 @@ function mountLibrary(body, headerActions) {
       b.onclick = async (e) => {
         e.stopPropagation();
         const cid = parseInt(b.dataset.rm, 10);
+        const vorher = await api().library_collection_items(cid);
+        const ordnung = ((vorher && vorher.items) || []).map(x => x.path);
         await api().library_collection_remove(cid, [it.path]);
+        _libUndoPush(T("library.undo.col_remove", "Aus Sammlung genommen"),
+          async () => { await api().library_collection_add(cid, [it.path]);
+                        await api().library_collection_set_order(cid, ordnung); },
+          async () => { await api().library_collection_remove(cid, [it.path]); });
         await reloadCollections();
         toast(T("library.col_removed_toast", "Aus „{col}“ genommen — die Tour bleibt im Archiv.")
           .replace("{col}", b.dataset.rmname || ""), "info", 4000);
@@ -2321,8 +2368,15 @@ function mountLibrary(body, headerActions) {
     document.querySelectorAll("#modal-body .lib-colpick").forEach(b => {
       b.onclick = async () => {
         const cid = parseInt(b.dataset.col, 10);
+        const vorher = await api().library_collection_items(cid);
+        const ordnung = ((vorher && vorher.items) || []).map(x => x.path);
         await api().library_collection_add(cid, paths);
         await api().library_collection_sort_by_date(cid);
+        _libUndoPush(T("library.undo.col_add", "Zur Sammlung hinzugefügt"),
+          async () => { await api().library_collection_remove(cid, paths);
+                        await api().library_collection_set_order(cid, ordnung); },
+          async () => { await api().library_collection_add(cid, paths);
+                        await api().library_collection_sort_by_date(cid); });
         m.close(); await reloadCollections();
         if (_sel) renderTrackCollections(_sel);
         if (state.collection_id) reload();
@@ -2335,6 +2389,14 @@ function mountLibrary(body, headerActions) {
       if (!name.trim()) return;
       const res = await api().library_collection_create(name.trim(), paths);
       if (res && res.ok && paths.length) await api().library_collection_sort_by_date(res.id);
+      if (res && res.ok) {
+        let lebendId = res.id;   // Redo legt neu an → neue ID merken
+        _libUndoPush(T("library.undo.col_create", "Sammlung angelegt"),
+          async () => { await api().library_collection_delete(lebendId); },
+          async () => { const r = await api().library_collection_create(name.trim(), paths);
+                        if (r && r.ok) { lebendId = r.id;
+                          if (paths.length) await api().library_collection_sort_by_date(lebendId); } });
+      }
       m.close(); await reloadCollections();
       if (_sel) renderTrackCollections(_sel);
       toast(T("library.col_created", "Sammlung angelegt."), "info");
@@ -2364,7 +2426,12 @@ function mountLibrary(body, headerActions) {
     });
     const nameEl = document.getElementById("lib-cm-name");
     if (nameEl) nameEl.onchange = async () => {
-      await api().library_collection_rename(cid, nameEl.value);
+      const alterName = (_collections.find(x => x.id === cid) || {}).name || c.name;
+      const neuerName = nameEl.value;
+      await api().library_collection_rename(cid, neuerName);
+      _libUndoPush(T("library.undo.col_rename", "Sammlung umbenannt"),
+        async () => { await api().library_collection_rename(cid, alterName); },
+        async () => { await api().library_collection_rename(cid, neuerName); });
       await reloadCollections();
     };
     const show = document.getElementById("lib-cm-show");
@@ -2379,6 +2446,11 @@ function mountLibrary(body, headerActions) {
       dup.disabled = true;
       const r = await api().library_collection_duplicate(cid);
       if (!r || !r.ok) { dup.disabled = false; toast((r && r.error) || "Fehler", "error"); return; }
+      let kopieId = r.id;
+      _libUndoPush(T("library.undo.col_dup", "Sammlung dupliziert"),
+        async () => { await api().library_collection_delete(kopieId); },
+        async () => { const r2 = await api().library_collection_duplicate(cid);
+                      if (r2 && r2.ok) kopieId = r2.id; });
       m.close();
       await reloadCollections();
       toast(T("library.col_duplicated", "Sammlung kopiert — die Kopie kannst du jetzt frei umbauen."), "success", 5000);
@@ -2391,7 +2463,15 @@ function mountLibrary(body, headerActions) {
     };
     const del = document.getElementById("lib-cm-del");
     if (del) del.onclick = async () => {
+      const itemsRes = await api().library_collection_items(cid);
+      const pfade = ((itemsRes && itemsRes.items) || []).map(x => x.path);
+      const gelName = (_collections.find(x => x.id === cid) || {}).name || c.name;
       await api().library_collection_delete(cid);
+      let lebendId = null;   // Undo legt neu an → für Redo die neue ID merken
+      _libUndoPush(T("library.undo.col_delete", "Sammlung gelöscht"),
+        async () => { const r = await api().library_collection_create(gelName, pfade);
+                      if (r && r.ok) lebendId = r.id; },
+        async () => { if (lebendId != null) await api().library_collection_delete(lebendId); });
       if (state.collection_id === cid) {
         state.collection_id = 0;
         state.sort = gemerkterSort();

@@ -2370,5 +2370,14 @@
   "library.col_duplicated": "Colección copiada; ahora puedes modificar la copia libremente.",
   "library.col_manage": "Gestionar la colección",
   "library.col_in_none": "En ninguna colección.",
-  "library.col_removed_toast": "Quitada de «{col}»; la ruta permanece en el archivo."
+  "library.col_removed_toast": "Quitada de «{col}»; ⌘/Ctrl+Z lo deshace.",
+  "library.undo.col_remove": "Quitada de la colección",
+  "library.undo.col_add": "Añadida a la colección",
+  "library.undo.col_create": "Colección creada",
+  "library.undo.col_rename": "Colección renombrada",
+  "library.undo.col_delete": "Colección borrada",
+  "library.undo.col_dup": "Colección duplicada",
+  "library.undo.hide": "Ruta oculta",
+  "library.undo.unhide": "Ruta visible de nuevo",
+  "library.undo.fehl": "No se pudo deshacer: {e}"
 }
