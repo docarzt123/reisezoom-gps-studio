@@ -1767,6 +1767,9 @@ function mountLibrary(body, headerActions) {
 
       <div class="lib-actions" style="margin-top:16px;">
         ${_ghostModus() ? "" : `<button class="btn btn-primary btn-sm" id="lib-m-merge" style="width:100%;">${T("library.merge.action", "🧭 Zu einem Video zusammenführen …")}</button>`}
+        ${_ghostModus() ? "" : `<button class="btn btn-sm" id="lib-m-schwarm" style="width:100%;margin-top:6px;" title="${
+          esc(T("schwarm.hint", "Alle markierten Touren starten gleichzeitig und laufen nebeneinander — die längste bestimmt die Videodauer."))
+        }">🌊 ${T("schwarm.action", "Als Schwarm animieren …")}</button>`}
       <!-- 27.08.2026 — Markierte Touren als Ghost-Spuren in den Animator: nicht
            animiert, sondern als Hintergrundlinien (offizieller Weg, Planungen …).
            Gleicher Übergabeweg wie „Alle im Animator" (window.__rzPendingGhosts). -->
@@ -1808,6 +1811,8 @@ function mountLibrary(body, headerActions) {
     $("lib-m-clear").onclick = () => { _multi.clear(); renderView(); renderDetail(); };
     const mMerge = $("lib-m-merge");
     if (mMerge) mMerge.onclick = () => openMergeDialog(multiItems());
+    const mSchwarm = $("lib-m-schwarm");
+    if (mSchwarm) mSchwarm.onclick = () => openSchwarmDialog(multiItems());
     const ghostBtn = $("lib-m-ghosts");
     if (ghostBtn) {
       ghostBtn.onclick = () => {
@@ -2296,6 +2301,7 @@ function mountLibrary(body, headerActions) {
         <div class="lib-actions" style="margin-top:12px;">
           <button class="btn btn-primary btn-sm" id="lib-cm-show">${T("library.col_open", "Anzeigen")}</button>
           <button class="btn btn-sm" id="lib-cm-anim">${T("library.col_animator", "Alle im Animator")}</button>
+          <button class="btn btn-sm" id="lib-cm-schwarm">🌊 ${T("schwarm.action", "Als Schwarm animieren …")}</button>
           <button class="btn btn-ghost btn-sm lib-btn-danger" id="lib-cm-del">${T("library.col_delete", "Löschen")}</button>
         </div>
         <div class="lib-hint" style="margin-top:8px;">${T("library.col_delete_note", "Löschen entfernt nur die Sammlung — die Touren bleiben im Archiv.")}</div>
@@ -2313,6 +2319,12 @@ function mountLibrary(body, headerActions) {
     };
     const anim = document.getElementById("lib-cm-anim");
     if (anim) anim.onclick = () => { m.close(); openCollectionInAnimator(cid); };
+    const schwarm = document.getElementById("lib-cm-schwarm");
+    if (schwarm) schwarm.onclick = async () => {
+      m.close();
+      const r = await api().library_collection_items(cid);
+      openSchwarmDialog((r && r.items) || []);
+    };
     const del = document.getElementById("lib-cm-del");
     if (del) del.onclick = async () => {
       await api().library_collection_delete(cid);
@@ -2322,6 +2334,139 @@ function mountLibrary(body, headerActions) {
         sortAnzeigen();
       }
       m.close(); await reloadCollections(); reload();
+    };
+  }
+
+  /* 🌊 Schwarm (28.08.2026, IDEAS §33 → Marc: „die längste bestimmt die
+   * videodauer. bau das so"): Alle markierten Touren starten GLEICHZEITIG,
+   * gleiche Geschwindigkeit, Kamera steht still über allen. Ein eigener
+   * schlanker Modus — bewusst KEIN Umweg über den Animator, dessen Overlays,
+   * Keyframes und Kameraflüge hier keinen Sinn ergeben.
+   *
+   * Der Render läuft über die BESTEHENDE Brücke (animator_start_render mit
+   * `schwarm: true`) — damit gelten „Render läuft bereits", animator_status()
+   * und animator_cancel() unverändert.
+   */
+  let _schwarmPoll = null;
+  function openSchwarmDialog(items) {
+    const gute = (items || []).filter(i => i && i.path && i.exists !== false);
+    if (gute.length < 2) {
+      toast(T("schwarm.zu_wenig", "Für einen Schwarm mindestens 2 Touren markieren."), "warn");
+      return;
+    }
+    const km = gute.reduce((a, i) => a + (i.distance_m || 0), 0) / 1000;
+    openModal({
+      title: `🌊 ${T("schwarm.titel", "Schwarm — alle Touren laufen gleichzeitig")}`,
+      body: `<div class="lib-fmodal">
+        <p class="lib-hint" style="margin-top:0">${T("schwarm.erklaerung",
+          "Alle Touren starten gleichzeitig und laufen gleich schnell. Die längste bestimmt die Videodauer — kürzere sind früher im Ziel, ihr Punkt bleibt dort stehen.")}</p>
+        <div class="lib-hint">${gute.length} ${T("library.tours", "Touren")} · ${Math.round(km)} km</div>
+
+        <div class="field-label" style="margin-top:12px">${T("schwarm.dauer", "Laufzeit der längsten Tour (Sekunden)")}</div>
+        <input type="number" id="sw-dauer" class="lib-input" value="20" min="3" max="600" step="1">
+
+        <div class="field-label" style="margin-top:10px">${T("schwarm.stil", "Kartenstil")}</div>
+        <select id="sw-stil" class="lib-select" style="width:100%">
+          <option value="outdoors">${T("animator.style.outdoors", "Outdoor")}</option>
+          <option value="satellite">${T("animator.style.satellite", "Satellit")}</option>
+          <option value="satellite_streets">${T("animator.style.satellite_streets", "Satellit + Straßen")}</option>
+          <option value="dark">${T("animator.style.dark", "Dunkel")}</option>
+          <option value="light">${T("animator.style.light", "Hell")}</option>
+        </select>
+
+        <div style="display:flex; gap:10px; margin-top:10px">
+          <div style="flex:1">
+            <div class="field-label">${T("schwarm.aufloesung", "Auflösung")}</div>
+            <select id="sw-res" class="lib-select" style="width:100%">
+              <option value="1920x1080">1080p</option>
+              <option value="3840x2160">4K</option>
+              <option value="1080x1920">${T("schwarm.hochkant", "Hochkant (Shorts)")}</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <div class="field-label">${T("schwarm.linie", "Linienbreite")}</div>
+            <input type="number" id="sw-linie" class="lib-input" value="3" min="1" max="10" step="0.5">
+          </div>
+        </div>
+
+        <label class="check-row" style="margin-top:10px">
+          <input type="checkbox" id="sw-overlay" checked>
+          <span>${T("schwarm.overlay", "Zähler einblenden (Touren · km · noch unterwegs)")}</span>
+        </label>
+
+        <div id="sw-lauf" hidden style="margin-top:14px">
+          <img id="sw-preview" style="width:100%; border-radius:8px; display:none" alt="">
+          <div class="lib-progress" style="margin-top:8px"><i id="sw-bar" style="width:0%"></i></div>
+          <div class="lib-hint" id="sw-status" style="margin-top:4px"></div>
+        </div>
+      </div>`,
+      footer: `
+        <button class="btn" id="sw-abbruch">${T("common.cancel", "Abbrechen")}</button>
+        <button class="btn btn-primary" id="sw-start">🎬 ${T("schwarm.start", "Video rendern …")}</button>`,
+      onClose: () => { if (_schwarmPoll) { clearInterval(_schwarmPoll); _schwarmPoll = null; } },
+    });
+
+    const abbr = document.getElementById("sw-abbruch");
+    const start = document.getElementById("sw-start");
+    let laeuft = false;
+    if (abbr) abbr.onclick = () => {
+      if (laeuft) { api().animator_cancel(); return; }   // Render abbrechen, Dialog bleibt
+      openModal({}).close();
+    };
+    if (start) start.onclick = async () => {
+      // Zeitstempel im Namen — Marc-Regel: Ausgabedateien nie überschreiben.
+      const jetzt = new Date();
+      const p2 = (x) => String(x).padStart(2, "0");
+      const stempel = `${jetzt.getFullYear()}${p2(jetzt.getMonth() + 1)}${p2(jetzt.getDate())}-${p2(jetzt.getHours())}${p2(jetzt.getMinutes())}`;
+      let ziel = "";
+      try { ziel = await api().pick_save_path(`${stempel}-Schwarm.mp4`, "", ["MP4 (*.mp4)"]); }
+      catch (_) { ziel = ""; }
+      if (!ziel) return;
+
+      const [w, h] = (document.getElementById("sw-res").value || "1920x1080").split("x").map(Number);
+      const res = await api().animator_start_render({
+        schwarm: true,
+        tracks: gute.map((i, idx) => ({
+          gpx_path: i.path,
+          color: (i.color && /^#[0-9a-f]{6}$/i.test(i.color)) ? i.color : trackColor(i),
+          name: i.name || "",
+        })),
+        output_path: ziel,
+        map_style: document.getElementById("sw-stil").value,
+        width: w, height: h, fps: 25,
+        duration_s: parseFloat(document.getElementById("sw-dauer").value) || 20,
+        hold_s: 3,
+        line_width: parseFloat(document.getElementById("sw-linie").value) || 3,
+        overlay: document.getElementById("sw-overlay").checked,
+      });
+      if (!res || !res.ok) {
+        toast((res && res.error) || T("schwarm.fehler", "Schwarm-Render konnte nicht starten."), "error", 7000);
+        return;
+      }
+      laeuft = true;
+      start.disabled = true;
+      const lauf = document.getElementById("sw-lauf");
+      if (lauf) lauf.hidden = false;
+      _schwarmPoll = setInterval(async () => {
+        let st = null;
+        try { st = await api().animator_status(); } catch (_) { return; }
+        const bar = document.getElementById("sw-bar");
+        const txt = document.getElementById("sw-status");
+        const img = document.getElementById("sw-preview");
+        if (!bar || !txt) { clearInterval(_schwarmPoll); _schwarmPoll = null; return; }
+        bar.style.width = Math.round((st.progress || 0) * 100) + "%";
+        txt.textContent = st.status || "";
+        if (img && st.preview_b64) { img.src = "data:image/jpeg;base64," + st.preview_b64; img.style.display = "block"; }
+        if (!st.running) {
+          clearInterval(_schwarmPoll); _schwarmPoll = null;
+          laeuft = false; start.disabled = false;
+          if (st.cancelled) { toast(T("schwarm.abgebrochen", "Abgebrochen."), "info"); return; }
+          if (st.error) { toast(T("schwarm.fehler", "Schwarm-Render konnte nicht starten.") + " " + String(st.error).split("\n")[0], "error", 8000); return; }
+          openModal({}).close();
+          toast(`🌊 ${T("schwarm.fertig", "Schwarm-Video fertig:")} ${ziel.split(/[\\/]/).pop()}`, "success", 8000);
+          try { api().reveal_in_finder(ziel); } catch (_) {}
+        }
+      }, 600);
     };
   }
 

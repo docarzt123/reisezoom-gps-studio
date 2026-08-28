@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.556"
+APP_VERSION = "0.9.557"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -3406,6 +3406,111 @@ class Api:
             log.exception("animator_pace_map")
             return {"ok": False, "error": str(e)}
 
+    def _schwarm_start_inner(self, params: dict) -> dict:
+        """Schwarm-Render starten — Zustand/Thread wie beim Animator-Render.
+
+        Erwartet `tracks` = [{gpx_path, color, name}], `output_path`, und die
+        wenigen Schwarm-Optionen. Alles andere (Overlays, Keyframes, Terrain)
+        gibt es im Schwarm bewusst nicht — siehe core/schwarm.py.
+        """
+        import core.schwarm as cschwarm
+
+        tracks = []
+        for t in list(params.get("tracks") or []):
+            tp = (t or {}).get("gpx_path", "")
+            if tp and Path(tp).exists():
+                tracks.append({"gpx_path": tp,
+                               "color": t.get("color") or "",
+                               "name": t.get("name") or Path(tp).stem})
+        if len(tracks) < 2:
+            return {"ok": False, "error": _ui_t()("schwarm.fehler.zu_wenig",
+                    "Der Schwarm braucht mindestens 2 lesbare Touren mit Strecke.")}
+        out_path = str(params.get("output_path") or "")
+        if not out_path:
+            return {"ok": False, "error": _ui_t()("error.kein_zielpfad", "Kein Zielpfad gewählt")}
+
+        pw = self.playwright_check()
+        if not pw.get("ok") or not pw.get("browser_present"):
+            return {"ok": False, "error_code": "playwright_browser_missing",
+                    "error": pw.get("error") or "Playwright Chromium-Browser nicht installiert.",
+                    "browsers_path": pw.get("browsers_path")}
+
+        token = (_load_settings() or {}).get("mapbox_token") or ""
+        if not token.startswith("pk."):
+            return {"ok": False, "error": _ui_t()("schwarm.fehler.token",
+                    "Der Schwarm braucht einen Mapbox-Token (Einstellungen).")}
+
+        cfg = cschwarm.SchwarmConfig(
+            tracks=tracks,
+            output_path=out_path,
+            mapbox_token=token,
+            map_style=str(params.get("map_style") or "outdoors"),
+            width=int(params.get("width") or 1920),
+            height=int(params.get("height") or 1080),
+            fps=int(params.get("fps") or 25),
+            duration_s=max(3.0, float(params.get("duration_s") or 20.0)),
+            hold_s=max(0.0, float(params.get("hold_s") or 3.0)),
+            line_width=max(0.5, float(params.get("line_width") or 3.0)),
+            codec=str(params.get("codec") or "h264"),
+            crf=int(params.get("crf") or 18),
+            ui_lang=_ui_sprache(),
+            overlay=bool(params.get("overlay", True)),
+        )
+
+        self._render_state = {"running": True, "progress": 0.0, "status": "Starte …",
+                              "output": out_path, "error": "", "log_path": str(LOG_PATH),
+                              "preview_b64": "", "cancel_requested": False,
+                              "cancelled": False}
+        rlog = clog.get_logger("schwarm.render")
+        rlog.info("─" * 60)
+        rlog.info("Schwarm-Render gestartet: %d Touren → %s", len(tracks), out_path)
+        rlog.info("  Stil: %s · %dx%d @ %d fps · Dauer %ss + Hold %ss · Linie %.1f px",
+                  cfg.map_style, cfg.width, cfg.height, cfg.fps,
+                  cfg.duration_s, cfg.hold_s, cfg.line_width)
+
+        def on_progress(p: float, msg: str) -> None:
+            self._render_state["progress"] = p
+            self._render_state["status"] = msg
+
+        def on_preview(b64: str) -> None:
+            self._render_state["preview_b64"] = b64
+
+        def is_cancelled() -> bool:
+            return bool(self._render_state.get("cancel_requested", False))
+
+        def worker() -> None:
+            t0 = time.time()
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(cschwarm.render_schwarm(
+                        cfg, on_progress=on_progress, on_preview=on_preview,
+                        is_cancelled=is_cancelled))
+                finally:
+                    loop.close()
+                self._render_state["running"] = False
+                self._render_state["progress"] = 1.0
+                self._render_state["status"] = "Fertig."
+                rlog.info("Schwarm-Render OK in %.1fs → %s", time.time() - t0, out_path)
+            except canim.RenderCancelled:
+                self._render_state["running"] = False
+                self._render_state["cancelled"] = True
+                self._render_state["status"] = "Abgebrochen"
+                self._render_state["error"] = ""
+                rlog.info("Schwarm-Render abgebrochen nach %.1fs", time.time() - t0)
+            except Exception as e:
+                tb = traceback.format_exc()
+                self._render_state["error"] = str(e) + "\n" + tb
+                self._render_state["status"] = "Fehler"
+                self._render_state["running"] = False
+                rlog.error("Schwarm-Render fehlgeschlagen nach %.1fs: %s", time.time() - t0, e)
+                rlog.error("Traceback:\n%s", tb)
+
+        self._render_thread = threading.Thread(target=worker, daemon=True)
+        self._render_thread.start()
+        return {"ok": True}
+
     def animator_start_render(self, params: dict) -> dict:
         """Startet Render im Hintergrund-Thread. Status pollen via animator_status()."""
         with self._start_lock:
@@ -3427,6 +3532,14 @@ class Api:
         return res
 
     def _animator_start_render_inner(self, params: dict) -> dict:
+
+        # 🌊 Schwarm (28.08.2026, IDEAS §33): alle Touren laufen GLEICHZEITIG
+        # los, gleiche Geschwindigkeit, die längste bestimmt die Videodauer.
+        # Eigener Renderpfad (core/schwarm.py), aber DIESELBE Brücke — damit
+        # gelten „Render läuft bereits", animator_status() und animator_cancel()
+        # unverändert, und die Oberfläche braucht keinen zweiten Poll-Weg.
+        if params.get("schwarm"):
+            return self._schwarm_start_inner(params)
 
         # v0.9.156 — Multi-Track: UI kann `tracks` (Liste von
         # {gpx_path, line_color, name}) senden. ≥2 Einträge → Multi-Track-

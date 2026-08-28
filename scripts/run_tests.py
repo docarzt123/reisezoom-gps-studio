@@ -52,6 +52,7 @@ BEDINGT = {
     #   · der Alpha-Test rendert ohne Karte, braucht also gar nichts (~4 s)
     # Das kostet die Reihe etwa 20 Sekunden. Der Fehler kostete vier Releases.
     "test_animator_render.py": ("token", "netz"),
+    "test_schwarm_render.py": ("token", "netz"),   # 28.08.2026: echter Schwarm-Mini-Render
     "test_animator_alpha.py": (),
     "test_geotagger_e2e.py": ("fixtures",),
     "test_raw_geotagging.py": ("fixtures",),
