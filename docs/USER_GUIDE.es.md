@@ -415,7 +415,8 @@ los clics en el archivo y las importaciones de la nube van en silencio. Un
 | 🚫 **Ocultas** | lo que apartaste (solo aparece si hay algo) |
 
 Debajo están tus **colecciones**: un clic muestra **solo esa**, un segundo clic lo deshace y
-un **clic derecho** abre renombrar, mostrar, «Todas en el animador», duplicar y borrar.
+el **botón ⋯** de la colección (o un clic derecho) abre renombrar, mostrar, «Todas en el
+animador», duplicar y borrar.
 **Duplicar** crea una «(copia)» con las mismas rutas en el mismo orden — útil para montar una
 variante sin tocar el original (ni sus ajustes del animador). La app recuerda
 la última sección elegida.

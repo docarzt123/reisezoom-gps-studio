@@ -1966,7 +1966,7 @@
   "library.done_short": "done",
   "library.hidden_short": "off",
   "library.view_stats": "Statistics",
-  "library.col_menu_hint": "Click shows only this collection · right-click opens its settings",
+  "library.col_menu_hint": "Click shows only this collection · ⋯ opens management",
   "library.col_delete_note": "Deleting removes the collection only — the tours stay in the archive.",
   "library.no_folders_short": "No folder indexed yet",
   "library.empty_start_hint2": "Tell the app once where your track files live — it reads the folder and shows every tour here with a picture and its numbers.",
@@ -2367,5 +2367,8 @@
   "library.col_duplicate": "Duplicate",
   "library.col_copy_suffix": "(copy)",
   "library.col_fehlt": "Collection not found",
-  "library.col_duplicated": "Collection copied — feel free to rework the copy."
+  "library.col_duplicated": "Collection copied — feel free to rework the copy.",
+  "library.col_manage": "Manage collection",
+  "library.col_in_none": "Not in any collection.",
+  "library.col_removed_toast": "Removed from “{col}” — the tour stays in the archive."
 }

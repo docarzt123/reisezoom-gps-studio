@@ -1966,7 +1966,7 @@
   "library.done_short": "gemacht",
   "library.hidden_short": "aus",
   "library.view_stats": "Statistik",
-  "library.col_menu_hint": "Klick zeigt nur diese Sammlung · Rechtsklick öffnet die Verwaltung",
+  "library.col_menu_hint": "Klick zeigt nur diese Sammlung · ⋯ öffnet die Verwaltung",
   "library.col_delete_note": "Löschen entfernt nur die Sammlung — die Touren bleiben im Archiv.",
   "library.no_folders_short": "Noch kein Ordner eingelesen",
   "library.empty_start_hint2": "Sag der App einmal, wo deine Track-Dateien liegen — sie liest den Ordner dann ein und zeigt hier jede Tour mit Bild und Zahlen.",
@@ -2367,5 +2367,8 @@
   "library.col_duplicate": "Duplizieren",
   "library.col_copy_suffix": "(Kopie)",
   "library.col_fehlt": "Sammlung nicht gefunden",
-  "library.col_duplicated": "Sammlung kopiert — die Kopie kannst du jetzt frei umbauen."
+  "library.col_duplicated": "Sammlung kopiert — die Kopie kannst du jetzt frei umbauen.",
+  "library.col_manage": "Sammlung verwalten",
+  "library.col_in_none": "In keiner Sammlung.",
+  "library.col_removed_toast": "Aus „{col}“ genommen — die Tour bleibt im Archiv."
 }

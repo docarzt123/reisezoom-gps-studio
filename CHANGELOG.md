@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Archiv-Sammlungen (Marc, 28.08.2026, drei Punkte): Die Verwaltung hängt nicht
+  mehr allein am Rechtsklick — jede Sammlung hat jetzt einen sichtbaren
+  ⋯-Knopf. Das ✕ am Sammlungs-Chip bestätigt per Toast, und verlässt die Tour
+  dabei die gerade angezeigte Sammlung, springt die Ansicht zur Übersicht
+  zurück statt auf der entfernten Tour stehen zu bleiben. Die Info-Karte in
+  der Kartenansicht zeigt die Sammlungs-Chips jetzt ebenfalls.
+
 ### Fixed
 - App-Start im Archiv mit gemerkter Tourenmenge (Reise/Schwarm): Das nicht
   schließbare „Touren werden geladen"-Modal wurde geöffnet, obwohl der Animator
