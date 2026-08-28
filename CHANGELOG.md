@@ -14,6 +14,32 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.561] – 2026-08-28
+
+### Behoben (Marcs 96-Touren-Schwarm)
+- **Der Schwarm-Render lief als „Reise" mit 191 statt 96 Touren und stürzte
+  ab.** Drei Ursachen, alle aus einem Log-Auszug:
+  1. **Wettrennen bei der Übergabe:** Der Haupt-Track aktivierte asynchron die
+     Einzel-Sitzung, die den Ablauf wieder auf „Reise" zurückdrehte, nachdem
+     der Pending-Handler längst „Schwarm" gesetzt hatte. Steht eine
+     Mengen-Übergabe an, wird die Einzel-Aktivierung jetzt übersprungen; die
+     Ablauf-Wahrheit kommt aus der Sitzung (dann Projekt, sonst behalten —
+     das harte „reise" als Standard war der Kern des Fehlers).
+  2. **Doppelte Etappen:** Projekt-Wiederherstellung und Pending-Schleife
+     luden parallel dieselben 95 Touren. Das Laden ist jetzt
+     wiedereintritts-fest, und die Übergabe trägt nur noch Pfade nach, die
+     wirklich fehlen.
+  3. **„Maximum call stack size exceeded":** `Math.min.apply` legte jeden der
+     ~150.000 Höhenwerte als einzelnes Argument auf den Stack — das ganze
+     Render-Skript starb, danach fehlte `isReady`. Jetzt eine schlichte
+     Schleife, unbegrenzt.
+- **Die Schwarm-Vorschau verkraftet große Sammlungen.** Statt 96 einzelner
+  Karten-Quellen mit je ~800 Punkten: EINE Quelle mit allen Touren, jede auf
+  ~150 Vorschau-Punkte gedünnt (der Render tastet ohnehin selbst sauber ab),
+  dazu Laufpunkte wie im Video. Ein setData pro Bild statt 96.
+- Der Render-Start schreibt den Ablauf jetzt ins Log — ohne das wäre aus
+  Marcs Log nicht zu erkennen gewesen, welcher Pfad überhaupt lief.
+
 ## [0.9.560] – 2026-08-28
 
 ### Behoben
