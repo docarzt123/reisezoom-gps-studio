@@ -3492,12 +3492,13 @@ function mountGeotagger(body, headerActions) {
       if (wouldOverwrite) {
         overwriteOriginals = await new Promise((resolve) => {
           openModal({
-            title: "Originale überschreiben?",
-            body: `<p style="line-height:1.5">Das ist der Ordner deiner <b>Originale</b>.
-                   Sollen die Originale hier wirklich <b>überschrieben</b> werden?
-                   <br><span style="color:var(--warn)">Ohne Backup — das lässt sich nicht rückgängig machen.</span></p>`,
+            title: t("geotagger.overwrite.title", "Originale überschreiben?"),
+            body: `<p style="line-height:1.5">${t("geotagger.overwrite.body",
+                     "Das ist der Ordner deiner <b>Originale</b>. Sollen die Originale hier wirklich <b>überschrieben</b> werden?")}
+                   <br><span style="color:var(--warn)">${t("geotagger.overwrite.warn",
+                     "Ohne Backup — das lässt sich nicht rückgängig machen.")}</span></p>`,
             footer: `<button class="btn" id="ov-cancel">${t("common.cancel", "Abbrechen")}</button>
-                     <button class="btn btn-danger" id="ov-ok">Ja, überschreiben</button>`,
+                     <button class="btn btn-danger" id="ov-ok">${t("geotagger.overwrite.ok", "Ja, überschreiben")}</button>`,
           });
           document.getElementById("ov-cancel").onclick = () => { openModal({}).close(); resolve(false); };
           document.getElementById("ov-ok").onclick = () => { openModal({}).close(); resolve(true); };
@@ -3658,7 +3659,7 @@ function mountGeotagger(body, headerActions) {
     const dir = s.saved_dir || "";
     const dirName = dir ? dir.replace(/[\\/]+$/, "").split(/[\\/]/).pop() : "";
     const savedRow = (dir && !canceled && s.done > 0)
-      ? `<div class="modal-stat-row"><span class="label">Gespeichert in</span><span class="val mono">${dirName}</span></div>`
+      ? `<div class="modal-stat-row"><span class="label">${t("geotagger.done.saved_in", "Gespeichert in")}</span><span class="val mono">${dirName}</span></div>`
       : '';
     const canOpen = dir && !canceled && s.done > 0;
 
@@ -3668,16 +3669,16 @@ function mountGeotagger(body, headerActions) {
     // mit totem Abbrechen-Knopf wieder hervor. Der Dialog blieb scheinbar hängen.
     try { openModal({}).close(); } catch (_) {}
     openModal({
-      title: canceled ? "Abgebrochen" : "Fertig",
+      title: canceled ? t("geotagger.done.canceled", "Abgebrochen") : t("geotagger.done.title", "Fertig"),
       body: `
-        <div class="modal-stat-row"><span class="label">Fotos getaggt</span><span class="val" style="color:var(--success)">${s.done}</span></div>
-        ${s.skipped ? `<div class="modal-stat-row"><span class="label">Fehler / übersprungen</span><span class="val" style="color:var(--danger)">${s.skipped}</span></div>` : ''}
-        ${s.skipped_existing ? `<div class="modal-stat-row"><span class="label">Bereits getaggt (übersprungen)</span><span class="val muted">${s.skipped_existing}</span></div>` : ''}
+        <div class="modal-stat-row"><span class="label">${t("geotagger.done.tagged", "Fotos getaggt")}</span><span class="val" style="color:var(--success)">${s.done}</span></div>
+        ${s.skipped ? `<div class="modal-stat-row"><span class="label">${t("geotagger.done.failed", "Fehler / übersprungen")}</span><span class="val" style="color:var(--danger)">${s.skipped}</span></div>` : ''}
+        ${s.skipped_existing ? `<div class="modal-stat-row"><span class="label">${t("geotagger.done.already", "Bereits getaggt (übersprungen)")}</span><span class="val muted">${s.skipped_existing}</span></div>` : ''}
         ${savedRow}
         ${errBlock}
       `,
       footer: `
-        ${canOpen ? '<button class="btn btn-primary" id="md-open">Ordner öffnen</button>' : ''}
+        ${canOpen ? '<button class="btn btn-primary" id="md-open">${t("geotagger.done.open_folder", "Ordner öffnen")}</button>' : ''}
         <button class="btn ${canOpen ? '' : 'btn-primary'}" id="md-ok">OK</button>
       `,
       closable: true,

@@ -533,7 +533,8 @@
     (function initMap() {
       const host = el("wk-map");
       if (!host || typeof L === "undefined" || !L.map) {
-        if (host) host.innerHTML = '<div style="padding:20px;color:#c00;">Leaflet nicht geladen.</div>';
+        if (host) host.innerHTML = '<div style="padding:20px;color:#c00;">'
+          + t("map.leaflet_missing", "Karte konnte nicht geladen werden (keine Internetverbindung?).") + '</div>';
         return;
       }
       map = L.map(host, { scrollWheelZoom: true }).setView([51.16, 10.45], 5);

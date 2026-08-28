@@ -5,6 +5,10 @@
  * für das Modul, in dem man gerade steht (nicht eine lange Gesamtseite).
  *
  * v0.9.507 — Die deutschen Texte hier sind nur noch die FALLBACKS: übersetzt
+ * sprache-ok: Die deutschen Texte hier sind RÜCKFALLWERTE. Gezeigt wird
+ * immer `tr(feld, fallback)` = `T("quickstart.<modul>.<feld>", …)`, siehe
+ * unten — die Sprachdateien enthalten alle Schlüssel (Wache:
+ * tests/test_keine_hartkodierte_sprache.py, Abschnitt 7).
  * wird beim Öffnen über `quickstart.<modul>.<feld>`-Schlüssel (title, intro,
  * step1..3, tip). Die ursprüngliche Entscheidung „Zielgruppe ist deutschsprachig"
  * (v0.9.460) ist überholt — das Programm wird international genutzt, und ein

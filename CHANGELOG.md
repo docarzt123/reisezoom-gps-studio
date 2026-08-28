@@ -14,6 +14,44 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.556] – 2026-08-28
+
+### Behoben
+- **Deutsche Texte in der fremdsprachigen Oberfläche.** Ein Beta-Tester aus
+  Spanien: Bei ihm stand der Knopf „Track wählen …" auf Deutsch, „schon seit
+  mehreren Versionen". Uns fiel es nie auf — wir benutzen die App auf Deutsch.
+  Das ganze Werkzeug wurde daraufhin durchgesehen und alles Gefundene übersetzt
+  (DE/EN/ES):
+  - **GPX-Leiste:** „Track wählen …", der Ziehen-Hinweis, „Anderen Track wählen",
+    „Datei neu wählen" und „Ausblenden" im Fehlt-Banner.
+  - **Geotagger:** die Warnung vor dem Überschreiben der Originale samt Knopf,
+    und der ganze Fertig-Dialog (Fotos verortet, Fehler/übersprungen, bereits
+    verortet, Gespeichert in, Ordner öffnen).
+  - **Tour-Karte und Web-Karte:** die Meldungen, wenn die Karte nicht lädt —
+    nebenbei verständlicher formuliert („Karte konnte nicht geladen werden
+    (keine Internetverbindung?)" statt „Leaflet nicht geladen (CDN nicht
+    erreichbar?)").
+  - **Titel des Schließen-Knopfs** in jedem Dialog.
+
+### Hinzugefügt
+- **Festes Markup lässt sich jetzt anmelden.** `data-i18n`, `data-i18n-title`
+  und `data-i18n-placeholder` werden beim Laden der Sprache von
+  `uebersetzeMarkup()` ersetzt; der deutsche Wortlaut bleibt als Rückfall im
+  HTML stehen. Einzelne Zuweisungen in JavaScript wären dieselbe Falle für die
+  nächste Beschriftung gewesen.
+- **Der Notfall-Bildschirm spricht drei Sprachen.** Er erscheint, WEIL die
+  Oberfläche nicht geladen hat — also gibt es dort weder Sprachdateien noch
+  Einstellungen. Er bringt jetzt eine eigene kleine Tabelle mit und wählt nach
+  `navigator.language` (unbekannt → Englisch). Gerade dieser Bildschirm
+  richtet sich an Leute, die nicht weiterkommen.
+- **Prüfer `scripts/check_hartkodierte_sprache.py`** — findet sichtbaren
+  deutschen Text, der an der Übersetzung vorbeigeht. Er unterscheidet
+  Rückfallwerte (beide Schreibweisen), Kommentare, reine Log-Ausgaben und
+  angemeldetes Markup. Läuft im Release-Gate und in
+  `tests/test_sprache_vollstaendig.py`, das zusätzlich prüft, dass alle drei
+  Sprachdateien denselben Schlüsselvorrat haben (2314) und kein
+  englischer/spanischer Eintrag in Wahrheit noch der deutsche ist.
+
 ## [0.9.555] – 2026-08-27
 
 ### Hinzugefügt

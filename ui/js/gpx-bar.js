@@ -208,14 +208,16 @@
       <div class="gpxbar-empty">
         <button class="gpxbar-pick-btn" type="button" data-gpxbar="pick-empty">
           <span class="gpxbar-icon">📂</span>
-          <span>Track wählen …</span>
+          <span>${(typeof t === "function" ? t("gpxbar.pick", "Track wählen …") : "Track wählen …")}</span>
         </button>
         <button class="gpxbar-pick-btn" type="button" data-gpxbar="library"
                 title="${escapeAttr((typeof t === "function" ? t("library.open", "Archiv öffnen") : "Archiv öffnen"))}">
           <span class="gpxbar-icon">📚</span>
           <span>${(typeof t === "function" ? t("library.from_archive", "Aus dem Archiv …") : "Aus dem Archiv …")}</span>
         </button>
-        <span class="gpxbar-hint">… oder Track (GPX/FIT/KML…) hierher ziehen.</span>
+        <span class="gpxbar-hint">${(typeof t === "function"
+          ? t("gpxbar.drop_hint", "… oder Track (GPX/FIT/KML…) hierher ziehen.")
+          : "… oder Track (GPX/FIT/KML…) hierher ziehen.")}</span>
       </div>
     `;
   }
@@ -227,7 +229,8 @@
     return `
       <div class="gpxbar-loaded">
         <button class="gpxbar-pick-btn gpxbar-pick-btn-compact" type="button"
-                data-gpxbar="pick" title="Anderen Track wählen">
+                data-gpxbar="pick" title="${escapeAttr((typeof t === "function"
+                  ? t("gpxbar.pick_other", "Anderen Track wählen") : "Anderen Track wählen"))}">
           <span class="gpxbar-icon">📂</span>
         </button>
         <button class="gpxbar-pick-btn gpxbar-pick-btn-compact" type="button"
