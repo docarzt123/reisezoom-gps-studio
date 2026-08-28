@@ -1120,13 +1120,25 @@ window.addEventListener("DOMContentLoaded", async () => {
           && menge.paths[0] === lastPath) {
         window.__rzPendingTours = menge.paths.slice(1);
         window.__rzPendingAblauf = menge.ablauf === "schwarm" ? "schwarm" : "reise";
-        if (menge.paths.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
-        await loadGlobalGpx(lastPath, { stumm: true, menge: true });
+        // 28.08.2026 (Marc: „klick ich abbrechen hängt er"): Das Lade-Modal
+        // NUR öffnen, wenn der ANIMATOR das aktive Modul ist. Laden, Abbrechen
+        // und Schließen erledigt sein Pending-Handler — startet die App im
+        // Archiv, ist der gar nicht gemountet, und ein hier geöffnetes, nicht
+        // schließbares Modal stünde für immer (App tot). Die Pending-Pfade
+        // bleiben liegen; der Animator holt sie sich beim nächsten Mount
+        // selbst und zeigt DANN sein Modal.
+        const imAnimator = (typeof window.getActiveMod === "function") && window.getActiveMod() === "animator";
+        if (imAnimator && menge.paths.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
+        const ok = await loadGlobalGpx(lastPath, { stumm: true, menge: true });
+        // Schlug schon der Haupt-Track fehl, läuft kein Handler mehr, der
+        // das Modal je schlösse — hart zumachen.
+        if (!ok && typeof tourenLadeModalZu === "function") tourenLadeModalZu();
         return;
       }
       await loadGlobalGpx(lastPath, { stumm: true });
     } catch (err) {
       console.warn("auto-restore GPX failed:", err);
+      try { if (typeof tourenLadeModalZu === "function") tourenLadeModalZu(); } catch (_) {}
     }
   }, 250);
 });

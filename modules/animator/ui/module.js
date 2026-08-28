@@ -12289,6 +12289,11 @@ function mountAnimator(body, headerActions, opts) {
     try { _animClearExtraPreview(); } catch (_) {}
     try { _animRenderToursList(); } catch (_) {}
     _tourenLadeZu();
+    // Abbruch heißt auch: beim NÄCHSTEN Start nicht wieder dieselben 95
+    // Touren anschleppen — das Neustart-Gedächtnis der Menge löschen. Die
+    // Mengen-Sitzung selbst bleibt; erneutes Übergeben im Archiv findet
+    // alle Keyframes wieder.
+    try { if (typeof saveSettings === "function") saveSettings({ last_menge: null }); } catch (_) {}
     try { toast(t("animator.tours.lade_abgebrochen",
       "Laden abgebrochen — deine Auswahl liegt weiter im Archiv."), "info", 6000); } catch (_) {}
     try { if (typeof switchMod === "function") switchMod("library"); } catch (_) {}

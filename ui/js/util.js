@@ -966,6 +966,18 @@ function tourenLadeModalZeigen() {
     _tourenLadeAbbruch = true;
     ab.disabled = true;
     tourenLadeModalSchritt(t("animator.tours.lade_abbruch", "Wird abgebrochen …"));
+    // Notausstieg (28.08.2026, Marc: „klick ich abbrechen hängt er"): das Flag
+    // konsumieren nur die Ladeschleifen im Animator. Läuft keine (Modal beim
+    // Boot geöffnet, Animator nie gemountet), wäre der Knopf wirkungslos und
+    // das nicht schließbare Modal eine tote App. Konsumiert binnen 5 s niemand,
+    // schließen wir hart — das Flag bleibt bewusst stehen, damit eine doch
+    // noch laufende Schleife es beim nächsten Blick sieht.
+    setTimeout(() => {
+      if (_tourenLadeOffen && _tourenLadeAbbruch) {
+        _tourenLadeOffen = false;
+        try { openModal({}).close(); } catch (_) {}
+      }
+    }, 5000);
   };
   return true;
 }
