@@ -12029,12 +12029,23 @@ function mountAnimator(body, headerActions, opts) {
       try { if (map.getSource(id)) map.removeSource(id); } catch (_) {}
     }
     _swPrev = [];
-    for (let i = 0; i < 64; i++) {
-      try {
-        if (map.getLayer("mtour-prev-line-" + i)) map.removeLayer("mtour-prev-line-" + i);
-        if (map.getSource("mtour-prev-" + i)) map.removeSource("mtour-prev-" + i);
-      } catch (_) {}
-    }
+    // ALLE mtour-Layer entfernen — per Präfix über den Style, nicht bis zu
+    // einer festen Zahl. Der alte 64er-Deckel ließ bei 137 Reise-Etappen die
+    // Layer 64–136 für immer stehen: nach dem Wechsel auf Schwarm lagen sie
+    // als volle Linien ZUSÄTZLICH zu den gedünnten Schwarm-Linien auf der
+    // Karte (Marc, 28.08.2026: „da steht 138, aber auf der karte sind mehr").
+    try {
+      for (const l of (map.getStyle()?.layers || [])) {
+        if (l.id && l.id.startsWith("mtour-prev-line-")) {
+          try { map.removeLayer(l.id); } catch (_) {}
+        }
+      }
+      for (const sid of Object.keys(map.getStyle()?.sources || {})) {
+        if (sid.startsWith("mtour-prev-")) {
+          try { map.removeSource(sid); } catch (_) {}
+        }
+      }
+    } catch (_) {}
   }
 
   // Zeichnet pro Extra-Tour eine farbige Linie auf die Vorschau-Karte (WYSIWYG).

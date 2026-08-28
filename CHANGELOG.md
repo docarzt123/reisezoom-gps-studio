@@ -15,6 +15,11 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Fixed
+- Nach dem Wechsel Reise → Schwarm lagen bei großen Mengen zu viele Linien auf
+  der Vorschau-Karte (Marc, 28.08.2026: „da steht 138, aber auf der karte sind
+  mehr"): Der Vorschau-Aufräumer entfernte nur die ersten 64 Etappen-Layer —
+  bei 137 Reise-Etappen blieben die Layer 64–136 für immer stehen. Jetzt wird
+  per Präfix über den Karten-Style aufgeräumt, egal wie viele es sind.
 - „Lade Tour 26 von 271" (live erwischt, 28.08.2026): Der Reentrancy-Guard des
   Etappen-Restores kehrte sofort zurück, wenn schon ein Lauf lief — der
   Übergabe-Handler hielt den Restore für fertig und lud PARALLEL dazu; beide
