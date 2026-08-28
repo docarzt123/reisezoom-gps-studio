@@ -7158,10 +7158,12 @@ function mountAnimator(body, headerActions, opts) {
             // Pending-Schleife parallel → 95 Etappen doppelt (191 im Render).
             try { await _animLoadTours(); } catch (_) {}
             if (_animUnmounted) return;
+            if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
             _animAblauf = pendingAblauf;   // die Sitzung hat ihn schon, das Modul jetzt auch
             let neu = 0, nr = 0;
             for (const p of pending) {
               if (_animUnmounted) return;
+              if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
               nr++;
               _tourenLadeTick(nr, pending.length, (p.split(/[\\/]/).pop() || "").replace(/\.gpx$/i, ""));
               const pN = _pfadNFC(p);
@@ -7169,6 +7171,7 @@ function mountAnimator(body, headerActions, opts) {
                   || _extraTours.some(t => _pfadNFC(t.gpx_path) === pN)) continue;
               try { await _animAddTourPath(p); neu++; } catch (e) { console.warn("pending tour:", e); }
             }
+            if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
             _animPersistTours();
             await _tourenLadeAbschluss();
             applog("info", `[Animator] Mengen-Übergabe: ${pending.length} Etappe(n), davon ${neu} neu (Ablauf: ${pendingAblauf})`);
@@ -12272,6 +12275,25 @@ function mountAnimator(body, headerActions, opts) {
   function _tourenLadeTick(i, n, name) { tourenLadeModalTick(i, n, name); }
   function _tourenLadeZu() { tourenLadeModalZu(); }
 
+  /** Abbruch der Mengen-Übergabe (Marc, 28.08.2026): nichts Halbes behalten,
+   *  nichts speichern, zurück ins Archiv — dort kam die Auswahl her, und ein
+   *  erneutes Übergeben startet sauber. Die Mengen-Sitzung behält ihren
+   *  vorherigen Stand, weil der Abbruchpfad nie persistiert. */
+  function _tourenLadeAbgebrochen() {
+    return (typeof tourenLadeModalAbgebrochen === "function") && tourenLadeModalAbgebrochen();
+  }
+  function _tourenLadeAbbruchAusfuehren() {
+    _extraTours = [];
+    window.__rzPendingTours = null;
+    window.__rzPendingAblauf = null;
+    try { _animClearExtraPreview(); } catch (_) {}
+    try { _animRenderToursList(); } catch (_) {}
+    _tourenLadeZu();
+    try { toast(t("animator.tours.lade_abgebrochen",
+      "Laden abgebrochen — deine Auswahl liegt weiter im Archiv."), "info", 6000); } catch (_) {}
+    try { if (typeof switchMod === "function") switchMod("library"); } catch (_) {}
+  }
+
   /** Abschluss der Mengen-Übergabe: Vorschau bauen und erst schließen, wenn
    *  die KARTE wirklich gezeichnet hat (Marc, 28.08.2026: das Modal muss
    *  bleiben, „bis man mit dem animator arbeiten kann" — vorher schloss es
@@ -12365,6 +12387,7 @@ function mountAnimator(body, headerActions, opts) {
     for (const t of saved) {
       if (!t || !t.gpx_path || gesehen.has(_pfadNFC(t.gpx_path))) continue;
       gesehen.add(_pfadNFC(t.gpx_path));
+      if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
       _ladeNr++;
       _tourenLadeTick(_ladeNr, saved.length, t.name || "");
       // Die Datei kann inzwischen weg/verschoben sein — dann still überspringen,

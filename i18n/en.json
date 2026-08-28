@@ -2361,5 +2361,7 @@
   "cloud.menge_leer": "Composition without tours",
   "cloud.menge_tour_fehler": "One tour could not be imported",
   "animator.tours.lade_vorschau": "Building the preview …",
-  "animator.tours.lade_karte": "Drawing the map …"
+  "animator.tours.lade_karte": "Drawing the map …",
+  "animator.tours.lade_abbruch": "Cancelling …",
+  "animator.tours.lade_abgebrochen": "Loading cancelled — your selection is still in the library."
 }
