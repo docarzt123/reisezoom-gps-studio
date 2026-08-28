@@ -7170,12 +7170,15 @@ function mountAnimator(body, headerActions, opts) {
               const pN = _pfadNFC(p);
               if (!vorhanden.has(pN)) { vorhanden.add(pN); fehlt.push(p); }
             }
-            let neu = 0, nr = 0;
+            // Zähler: y bleibt die GESAMTzahl der Etappen (Marc, 28.08.2026:
+            // „y müsst doch immer gleich bleiben"); schon Geladene zählen als
+            // erledigt, x läuft also z. B. bei 6 los statt wieder bei 1.
+            let neu = 0, nr = pending.length - fehlt.length;
             for (const p of fehlt) {
               if (_animUnmounted) return;
               if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
               nr++;
-              _tourenLadeTick(nr, fehlt.length, (p.split(/[\\/]/).pop() || "").replace(/\.gpx$/i, ""));
+              _tourenLadeTick(nr, pending.length, (p.split(/[\\/]/).pop() || "").replace(/\.gpx$/i, ""));
               try { await _animAddTourPath(p); neu++; } catch (e) { console.warn("pending tour:", e); }
             }
             if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
@@ -12347,21 +12350,27 @@ function mountAnimator(body, headerActions, opts) {
    * (das Dateisystem findet beide Schreibweisen), verglichen nur normalisiert. */
   const _pfadNFC = (x) => { try { return String(x || "").normalize("NFC"); } catch (_) { return String(x || ""); } };
 
-  let _animToursLading = false;      // 28.08.2026 — Reentrancy-Schutz
+  let _animToursLaufend = null;      // Promise der laufenden Instanz
   let _animToursNochmal = false;     // während des Ladens kam ein neuer Wunsch
   async function _animLoadTours() {
     // 28.08.2026 (96-Touren-Schwarm): Der Sitzungs-Listener und der
     // Pending-Handler riefen das PARALLEL — zwei serielle Ladeschleifen über
     // dieselbe Liste, Ergebnis: doppelte Etappen. Läuft schon eine Instanz,
-    // wird nur gemerkt, dass danach noch einmal frisch geladen werden soll.
-    if (_animToursLading) { _animToursNochmal = true; return; }
-    _animToursLading = true;
-    try {
-      await _animLoadToursInner();
-    } finally {
-      _animToursLading = false;
-      if (_animToursNochmal) { _animToursNochmal = false; _animLoadTours(); }
-    }
+    // wird gemerkt, dass danach frisch geladen werden soll — und der Aufrufer
+    // bekommt das PROMISE der laufenden Instanz. Vorher kehrte der Guard
+    // sofort zurück: der Übergabe-Handler hielt den Restore für fertig und
+    // startete seine Nachtrag-Schleife PARALLEL dazu — beide schoben in
+    // dieselbe Liste (Marcs „Lade Tour 26 von 271", 28.08.2026 live gesehen).
+    if (_animToursLaufend) { _animToursNochmal = true; return _animToursLaufend; }
+    _animToursLaufend = (async () => {
+      try {
+        await _animLoadToursInner();
+      } finally {
+        _animToursLaufend = null;
+        if (_animToursNochmal) { _animToursNochmal = false; await _animLoadTours(); }
+      }
+    })();
+    return _animToursLaufend;
   }
   async function _animLoadToursInner() {
     let saved = [];
