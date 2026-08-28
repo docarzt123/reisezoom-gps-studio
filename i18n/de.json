@@ -2344,5 +2344,7 @@
   "schwarm.start_schnell": "Schnell rendern …",
   "schwarm.animator": "Im Animator gestalten",
   "schwarm.animator_hint": "Voller Funktionsumfang: Keyframes, Kamera, Stile, Overlays — die längste Tour ist die Zeitachse.",
-  "schwarm.an_animator": "Touren als Schwarm im Animator."
+  "schwarm.an_animator": "Touren als Schwarm im Animator.",
+  "animator.statsfield.swarm_underway": "Noch unterwegs",
+  "animator.statsfield.swarm_total": "Touren gesamt"
 }

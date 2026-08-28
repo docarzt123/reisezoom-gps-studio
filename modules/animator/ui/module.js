@@ -10156,12 +10156,15 @@ function mountAnimator(body, headerActions, opts) {
       // zu OVERLAY_LIVE_FIELDS in core/animator.py.
       { id: "stage_name", req: "stages" }, { id: "stage_no", req: "stages" },
       { id: "stage_dist", req: "stages" }, { id: "stage_time", req: "stages" },
+      // 28.08.2026 (IDEAS §38 M2) — Schwarm-Zähler, nur im Schwarm-Ablauf.
+      { id: "swarm_underway", req: "schwarm" },
     ],
     totals: [
       { id: "dist_total", req: "none" }, { id: "duration", req: "time" },
       { id: "moving_time", req: "time" }, { id: "avg_speed", req: "time" }, { id: "avg_speed_total", req: "time" }, { id: "max_speed", req: "time" },
       { id: "elev_gain", req: "ele" }, { id: "elev_loss", req: "ele" },
       { id: "ele_high", req: "ele" }, { id: "ele_low", req: "ele" },
+      { id: "swarm_total", req: "schwarm" },
     ],
   };
   const OVERLAY_DEFAULT_FIELDS = {
@@ -10170,6 +10173,7 @@ function mountAnimator(body, headerActions, opts) {
   };
   const _OV_FALLBACK_LABEL = {
     stage_name: "Etappe", stage_no: "Etappe Nr.", stage_dist: "In dieser Etappe", stage_time: "Zeit in der Etappe",
+    swarm_underway: "Noch unterwegs", swarm_total: "Touren gesamt",
     dist_done: "Zurückgelegt", dist_left: "Verbleibend", speed: "Tempo",
     time_elapsed: "Vergangen", time_left: "Restzeit", ele_now: "Höhe", grade: "Steigung",
     dist_total: "Strecke", duration: "Zeit", moving_time: "Bewegungszeit", avg_speed: "Ø Tempo", avg_speed_total: "Ø Tempo (gesamt)", max_speed: "Max. Tempo",
@@ -10210,7 +10214,8 @@ function mountAnimator(body, headerActions, opts) {
   const _ovHasStages = () => !!(_ovSeries && _ovSeries.stage && (_ovSeries.stage.gesamt || 0) > 1);
   const _ovAvail = (req) => req === "time" ? _ovHasTime()
     : req === "ele" ? _ovHasEle()
-    : req === "stages" ? _ovHasStages() : true;
+    : req === "stages" ? _ovHasStages()
+    : req === "schwarm" ? (_animAblauf === "schwarm" && _extraTours.length > 0) : true;
   const _ovFmtKm = (km) => km < 100 ? km.toFixed(1) + " km" : km.toFixed(0) + " km";
   const _ovFmtDur = (sec) => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60, p = n => n < 10 ? "0" + n : "" + n; return h > 0 ? h + ":" + p(m) + ":" + p(x) : p(m) + ":" + p(x); };
   // Font-Stacks (Spiegel von core/animator.py _OVERLAY_FONTS). Google-Fonts werden
