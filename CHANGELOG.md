@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.562] – 2026-08-28
+
+### Behoben
+- **Vom Übergabe-Bug verdoppelte Etappen heilen sich selbst.** Wer den
+  96-Touren-Fehler (v0.9.559/560) erwischt hat, trägt in seinem gespeicherten
+  Projekt 190 statt 95 Etappen. Beim Laden nimmt die Tourenliste jede Datei
+  jetzt nur noch einmal (der Haupt-Track gehört gar nicht hinein) und
+  persistiert den bereinigten Stand still — kein Neuanlegen, kein Handlöschen.
+
 ## [0.9.561] – 2026-08-28
 
 ### Behoben (Marcs 96-Touren-Schwarm)

@@ -12196,14 +12196,23 @@ function mountAnimator(body, headerActions, opts) {
     if (flyEl) { flyEl.value = fly; const l = document.getElementById("anim-fly-v"); if (l) l.textContent = fly.toFixed(1) + " s"; }
 
     _extraTours = [];
+    // 28.08.2026 — Selbstheilung: Der Übergabe-Bug (v0.9.559/560) hat in
+    // gespeicherten Projekten Etappen VERDOPPELT (95 → 190). Beim Laden wird
+    // jede Datei nur einmal genommen (auch der Haupt-Track gehört nicht in die
+    // Liste); waren Doppelte da, wird der bereinigte Stand still persistiert.
+    const gesehen = new Set([currentGpx]);
     for (const t of saved) {
-      if (!t || !t.gpx_path) continue;
+      if (!t || !t.gpx_path || gesehen.has(t.gpx_path)) continue;
+      gesehen.add(t.gpx_path);
       // Die Datei kann inzwischen weg/verschoben sein — dann still überspringen,
       // statt mit einer Tour ohne Koordinaten weiterzumachen.
       try {
         const res = await api().animator_load_gpx(t.gpx_path);
         if (res && res.ok) {
-          _extraTours.push({ gpx_path: res.gpx_path || t.gpx_path,
+          const pfad = res.gpx_path || t.gpx_path;
+          if (gesehen.has(pfad) && pfad !== t.gpx_path) continue;   // Cache-Pfad-Dublette
+          gesehen.add(pfad);
+          _extraTours.push({ gpx_path: pfad,
                              line_color: t.line_color || "#35a7ff",
                              name: t.name || "Tour", coords: res.coords });
         }
