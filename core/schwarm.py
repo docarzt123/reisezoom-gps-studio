@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import math
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -48,15 +47,12 @@ from . import i18n as _i18n
 from .frame_driver import FrameMuxer, muxer_fuer as _muxer_fuer, teildatei as _teildatei
 from .gpx import parse_gpx as core_parse_gpx
 from .logger import get_logger
-from .animator import (MAP_STYLES, RenderCancelled, find_ffmpeg, _grab_frame,
-                       _mapbox_gl_head, _render_dsf, _render_ss)
+from .animator import (MAP_STYLES, MAX_PUNKTE_GESAMT, MAX_PUNKTE_LAENGSTE,   # noqa: F401
+                       MIN_ABSTAND_M, RenderCancelled, find_ffmpeg, _grab_frame,
+                       _mapbox_gl_head, _render_dsf, _render_ss,
+                       punktabstand, resample_aequidistant)
 
 _log = get_logger("schwarm")
-
-# Obergrenzen für den Punkte-Deckel (siehe Modul-Docstring).
-MAX_PUNKTE_GESAMT = 40_000     # Summe über alle Touren
-MAX_PUNKTE_LAENGSTE = 800      # feiner braucht die längste Tour nie zu sein
-MIN_ABSTAND_M = 2.0            # unter 2 m Punktabstand sieht niemand einen Unterschied
 
 
 @dataclass
@@ -86,48 +82,6 @@ class SchwarmConfig:
     transparent_background: bool = False
     frame_format: str = "jpeg"
     jpeg_quality: int = 92
-
-
-def punktabstand(l_max_m: float, l_sum_m: float) -> float:
-    """Der eine Punktabstand `s` für ALLE Touren.
-
-    Zwei Schranken, die strengere gewinnt:
-    - Gesamtdeckel: Summe aller Punkte ≈ l_sum/s ≤ MAX_PUNKTE_GESAMT.
-    - Auflösung: die längste Tour braucht nie mehr als MAX_PUNKTE_LAENGSTE.
-    """
-    s = max(l_sum_m / MAX_PUNKTE_GESAMT,
-            l_max_m / MAX_PUNKTE_LAENGSTE,
-            MIN_ABSTAND_M)
-    return s
-
-
-def resample_aequidistant(points, s_m: float) -> list:
-    """Track auf festen Punktabstand bringen: [[lon, lat], …], Start und Ziel exakt.
-
-    `points` sind geparste TrackPoints mit `lon`, `lat` und kumuliertem
-    `dist_m`. Lineare Interpolation zwischen den Stützpunkten reicht — es geht
-    um eine Linie auf der Karte, nicht um Vermessung.
-    """
-    if len(points) < 2:
-        return [[p.lon, p.lat] for p in points]
-    gesamt = points[-1].dist_m
-    if gesamt <= 0:
-        return [[points[0].lon, points[0].lat], [points[-1].lon, points[-1].lat]]
-    n = max(2, int(math.floor(gesamt / s_m)) + 1)
-    raus = []
-    j = 0
-    for i in range(n):
-        ziel = min(gesamt, i * s_m)
-        while j < len(points) - 2 and points[j + 1].dist_m < ziel:
-            j += 1
-        a, b = points[j], points[j + 1]
-        spanne = b.dist_m - a.dist_m
-        t = 0.0 if spanne <= 0 else (ziel - a.dist_m) / spanne
-        raus.append([a.lon + (b.lon - a.lon) * t, a.lat + (b.lat - a.lat) * t])
-    # Ziel exakt — sonst endet die Linie einen halben Schritt vor dem Zielort.
-    if raus[-1] != [points[-1].lon, points[-1].lat]:
-        raus.append([points[-1].lon, points[-1].lat])
-    return raus
 
 
 def _esc(s: str) -> str:

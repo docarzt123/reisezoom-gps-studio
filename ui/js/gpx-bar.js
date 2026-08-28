@@ -128,8 +128,16 @@
       }
       // v0.9.27 (Nutzer-Feedback): letzten GPX-Pfad persistieren damit
       // er beim App-Restart automatisch wiederhergestellt werden kann.
-      try { if (typeof saveSettings === "function") saveSettings({ last_gpx_path: path }); }
-      catch (_) {}
+      // IDEAS §38: Gehört der Load zu einer TOURENMENGE (Reise/Schwarm), bleibt
+      // `last_menge` stehen — sonst löscht ein normaler Einzel-Load sie, damit
+      // der nächste App-Start nicht fälschlich die Menge wiederherstellt.
+      try {
+        if (typeof saveSettings === "function") {
+          const patch = { last_gpx_path: path };
+          if (!(opts && opts.menge)) patch.last_menge = null;
+          saveSettings(patch);
+        }
+      } catch (_) {}
       _renderCurrent();
       notifyGpxLoaded();
       // Kennt das Archiv diese Tour? (27.08.2026, Marc) — nicht bei Ladevorgängen,

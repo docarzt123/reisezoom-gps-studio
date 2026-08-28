@@ -116,6 +116,25 @@ def compute_track_hash(coords: Iterable, name: str = "") -> str:
     return h.hexdigest()[:16]
 
 
+def mengen_hash(geo_hashes) -> str:
+    """Ein Schlüssel für eine MENGE von Touren (Schwarm/Reise, IDEAS §38).
+
+    Grilling-Entscheid Q14c+Q18a (28.08.2026): Projekte über mehrere Touren
+    hängen nicht mehr am Projekt der ersten Tour, sondern an der Menge selbst —
+    dieselben Touren wieder wählen heißt: die Arbeit ist wieder da, egal in
+    welcher Reihenfolge markiert wurde. Deshalb wird SORTIERT und dedupliziert
+    gehasht. Der Rückgabewert trägt das Präfix `menge:` — er landet im selben
+    `sessions`-Speicher wie die Einzeltour-Sitzungen, kollidiert aber nie mit
+    einem geo_hash (16 Hex ohne Präfix) und wird von Cloud-Sync und Migration
+    schlicht übergangen (kein Snapshot, kein Umschlag — Cloud kommt in M5).
+    """
+    eindeutig = sorted(set(h for h in geo_hashes if h))
+    h = hashlib.sha1()
+    for g in eindeutig:
+        h.update(g.encode("ascii", "replace") + b"\x00")
+    return "menge:" + h.hexdigest()[:16]
+
+
 def find_session_key(sessions_data: dict, ui_hash: str) -> str:
     """Sucht den Session-Schlüssel zu einem UI-Koordinaten-Hash.
 

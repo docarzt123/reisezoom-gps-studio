@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.558"
+APP_VERSION = "0.9.559"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1664,6 +1664,94 @@ class Api:
             }
         except Exception as e:
             log.exception("session_open_for_track failed")
+            return {"ok": False, "error": str(e)}
+
+    def session_open_for_menge(self, gpx_paths: list, ablauf: str = "reise") -> dict:
+        """Sitzung für eine MENGE von Touren (Reise oder Schwarm, IDEAS §38).
+
+        Grilling-Entscheid (28.08.2026): „Das Archiv komponiert, der Animator
+        animiert." Die Menge ist die Identität — Schlüssel ist
+        `sessions.mengen_hash` über die geo_hashes aller Touren, gespeichert im
+        selben Sitzungs-Speicher unter dem Präfix `menge:`. Damit funktionieren
+        ALLE bestehenden Projekt-Brücken (update_settings, set_active, …)
+        unverändert, denn sie schlagen nur den Schlüssel nach.
+
+        Q18a — Lese-Fallback für alte Reisen: Bisher hing eine Mehr-Touren-Reise
+        am Projekt der ERSTEN Tour (`animator.extra_tours`). Ist die
+        Mengen-Sitzung frisch und die Einzel-Sitzung der ersten Tour trägt so
+        einen Anhang, wird ihr aktives Projekt als Startstand KOPIERT — alte
+        Arbeit bleibt lesbar, neue landet an der Menge.
+        """
+        try:
+            pfade = [p for p in (gpx_paths or []) if p and Path(p).exists()]
+            if len(pfade) < 2:
+                return {"ok": False, "error": _ui_t()("schwarm.fehler.zu_wenig",
+                        "Der Schwarm braucht mindestens 2 lesbare Touren mit Strecke.")}
+            hashes = []
+            for p in pfade:
+                gh = self._track_geo_hash(p)
+                if gh:
+                    hashes.append(gh)
+            if len(set(hashes)) < 2:
+                return {"ok": False, "error": _ui_t()("schwarm.fehler.zu_wenig",
+                        "Der Schwarm braucht mindestens 2 lesbare Touren mit Strecke.")}
+            schluessel = _sessions.mengen_hash(hashes)
+            ablauf = "schwarm" if str(ablauf) == "schwarm" else "reise"
+
+            with _sessions.LOCK:
+                data = _sessions.load_sessions(SESSIONS_FILE)
+                sess = (data.get("sessions") or {}).get(schluessel)
+                neu_angelegt = sess is None
+                if neu_angelegt:
+                    # Projekt über den KANONISCHEN Weg anlegen (gleiche Struktur
+                    # wie jede Einzeltour-Sitzung) — nur die Sitzung selbst wird
+                    # von Hand gebaut: eine Menge hat keine EINE Datei, also
+                    # keinen Snapshot und keine Koordinaten-Stats.
+                    defaults = self._session_get_global_defaults()
+                    proj = _sessions._project_from_defaults(_sessions.DEFAULT_PROJECT_NAME, defaults)
+                    name = ("Schwarm" if ablauf == "schwarm" else "Reise") + f" ({len(pfade)} Touren)"
+                    sess = {"track_hash": schluessel, "name": name,
+                            "ablauf": ablauf,
+                            "gpx_paths": pfade,
+                            "stats": {"n_tours": len(pfade)},
+                            "active_project_id": proj["id"],
+                            "projects": {proj["id"]: proj}}
+                    data.setdefault("sessions", {})[schluessel] = sess
+
+                    # Q18a: alte Reise an der ersten Tour? → Startstand übernehmen.
+                    erste = (data.get("sessions") or {}).get(hashes[0])
+                    if erste:
+                        alt_proj = (erste.get("projects") or {}).get(erste.get("active_project_id") or "")
+                        if isinstance(alt_proj, dict) and (alt_proj.get("animator") or {}).get("extra_tours"):
+                            import copy as _copy
+                            kopie = _copy.deepcopy(alt_proj)
+                            kopie["id"] = proj["id"]
+                            kopie["name"] = alt_proj.get("name") or proj["name"]
+                            sess["projects"] = {proj["id"]: kopie}
+                            log.info("Mengen-Sitzung %s: alte Reise aus Einzel-Sitzung %s übernommen",
+                                     schluessel, hashes[0])
+                else:
+                    # Pfadliste aktuell halten (Dateien können umziehen) und den
+                    # Ablauf der Session NICHT stillschweigend wechseln — der
+                    # Ablauf wird im Archiv gewählt (Q9); kommt dieselbe Menge
+                    # mit anderem Ablauf, gilt der NEUE (bewusste Nutzerwahl).
+                    sess["gpx_paths"] = pfade
+                    if sess.get("ablauf") != ablauf:
+                        log.info("Mengen-Sitzung %s: Ablauf %r → %r (neue Wahl im Archiv)",
+                                 schluessel, sess.get("ablauf"), ablauf)
+                        sess["ablauf"] = ablauf
+                _sessions.save_sessions(SESSIONS_FILE, data)
+
+            aktiv = (sess.get("projects") or {}).get(sess.get("active_project_id") or "") or {}
+            log.info("session_open_for_menge: %s · %d Touren · ablauf=%s · neu=%s",
+                     schluessel, len(pfade), ablauf, neu_angelegt)
+            return {"ok": True, "track_hash": schluessel,
+                    "session": {"track_hash": schluessel, "name": sess.get("name", ""),
+                                "stats": sess.get("stats", {}), "ablauf": sess.get("ablauf", ablauf)},
+                    "active_project": aktiv,
+                    "projects": _sessions.list_projects(sess)}
+        except Exception as e:
+            log.exception("session_open_for_menge failed")
             return {"ok": False, "error": str(e)}
 
     def session_get_active(self) -> dict:
@@ -3779,6 +3867,10 @@ class Api:
             render_scale=float(params.get("render_scale", 1.0) or 1.0),  # v0.9.224 WYSIWYG Schild/Pin-Größe
             # v0.9.156 — Multi-Track
             tracks=tracks,
+            # IDEAS §38 — "reise" (nacheinander) | "schwarm" (gleichzeitig).
+            # Der Ablauf wird im ARCHIV gewählt und reist mit der Übergabe mit.
+            tracks_ablauf=("schwarm" if str(params.get("tracks_ablauf") or "reise") == "schwarm"
+                           else "reise"),
             fly_duration_s=float(params.get("fly_duration_s", 3.0) or 3.0),
         )
 

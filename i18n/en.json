@@ -2338,5 +2338,11 @@
   "schwarm.overlay.km_gesamt": "{km} km in total",
   "schwarm.overlay.unterwegs": "still under way: {n}",
   "schwarm.overlay.alle_da": "all arrived",
-  "error.kein_zielpfad": "No target path chosen"
+  "error.kein_zielpfad": "No target path chosen",
+  "animator.ablauf.schwarm": "Simultaneous (swarm) — the longest tour sets the video length. Chosen in the archive.",
+  "animator.ablauf.reise": "One after another (a journey) — with a cinematic flight between stages. Chosen in the archive.",
+  "schwarm.start_schnell": "Quick render …",
+  "schwarm.animator": "Design in the animator",
+  "schwarm.animator_hint": "Full feature set: keyframes, camera, styles, overlays — the longest tour is the timeline.",
+  "schwarm.an_animator": "tours as a swarm in the animator."
 }
