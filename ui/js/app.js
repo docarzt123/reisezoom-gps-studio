@@ -1138,6 +1138,9 @@ window.addEventListener("DOMContentLoaded", async () => {
       await loadGlobalGpx(lastPath, { stumm: true });
     } catch (err) {
       console.warn("auto-restore GPX failed:", err);
+      // Der Fehler selbst steht schon eine Zeile höher im Log — hier nur noch
+      // das Not-Schließen des unschließbaren Modals, das nie werfen darf.
+      // ui-falle-ok: letzte Abräum-Aktion im Fehlerpfad, Fehler bereits geloggt
       try { if (typeof tourenLadeModalZu === "function") tourenLadeModalZu(); } catch (_) {}
     }
   }, 250);

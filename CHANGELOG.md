@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.586] – 2026-08-28
+
 ### Changed
 - Sammlungs-Übergaben respektieren die aktiven Archiv-Filter (Marc,
   28.08.2026, „große verwirrung": Bereich „Gemachte" war an, der Schwarm nahm
