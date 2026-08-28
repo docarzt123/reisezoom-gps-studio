@@ -229,7 +229,8 @@
       if (!host) { _log("no #tmhtml-map"); return; }
       if (typeof L === "undefined" || !L || !L.map) {
         _log("Leaflet L undefined/incomplete!");
-        host.innerHTML = '<div style="padding:20px; color:#c00;">Leaflet nicht geladen (CDN nicht erreichbar?).</div>';
+        host.innerHTML = '<div style="padding:20px; color:#c00;">'
+          + t("map.leaflet_missing", "Karte konnte nicht geladen werden (keine Internetverbindung?).") + '</div>';
         return;
       }
       const r = host.getBoundingClientRect();
@@ -247,7 +248,8 @@
         [120, 400, 900].forEach((ms) => setTimeout(() => { try { map.invalidateSize(false); } catch (_) {} }, ms));
       } catch (e) {
         _log("map init throw: " + e);
-        host.innerHTML = '<div style="padding:20px; color:#c00;">Karte-Init-Fehler: ' + e + "</div>";
+        host.innerHTML = '<div style="padding:20px; color:#c00;">'
+          + t("map.init_error", "Die Karte ließ sich nicht aufbauen") + ": " + e + "</div>";
       }
     })();
 

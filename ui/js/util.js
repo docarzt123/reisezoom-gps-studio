@@ -496,6 +496,42 @@ async function loadI18n() {
   } catch (err) {
     console.warn("[i18n] load failed", err);
   }
+  uebersetzeMarkup();
+}
+
+/** Übersetzt festes HTML anhand von `data-i18n`-Attributen.
+ *
+ * Warum es das gibt (28.08.2026): In `index.html` stehen ein paar
+ * Beschriftungen fest im Markup, weil die Seite lädt, bevor die Sprachdateien
+ * da sind — „Datei neu wählen", der Titel des Schließen-Knopfs. Die blieben
+ * IMMER deutsch, auch in der spanischen Oberfläche; einem Beta-Tester fiel
+ * genau das auf. Einzelne Zuweisungen in JS wären dieselbe Falle für die
+ * nächste Beschriftung, deshalb ein allgemeiner Weg:
+ *
+ *   <button data-i18n="gpxbar.pick_again">Datei neu wählen</button>
+ *   <button data-i18n-title="common.close" title="Schließen">✕</button>
+ *
+ * Der deutsche Text im HTML bleibt als Rückfall stehen — fehlt der Schlüssel
+ * oder scheitert das Laden, steht dort weiterhin etwas Lesbares.
+ */
+function uebersetzeMarkup(wurzel) {
+  const w = wurzel || document;
+  try {
+    w.querySelectorAll("[data-i18n]").forEach(el => {
+      const wert = t(el.getAttribute("data-i18n"), el.textContent.trim());
+      if (wert) el.textContent = wert;
+    });
+    w.querySelectorAll("[data-i18n-title]").forEach(el => {
+      const wert = t(el.getAttribute("data-i18n-title"), el.getAttribute("title") || "");
+      if (wert) el.title = wert;
+    });
+    w.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+      const wert = t(el.getAttribute("data-i18n-placeholder"), el.getAttribute("placeholder") || "");
+      if (wert) el.placeholder = wert;
+    });
+  } catch (err) {
+    console.warn("[i18n] Markup:", err);
+  }
 }
 
 /**

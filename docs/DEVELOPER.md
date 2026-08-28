@@ -373,6 +373,23 @@ entsteht früher oder später eine Stelle, an der Klartext über die Leitung geh
 > **ausgesprochen** statt kaschiert (Dialogtext + Warnung ab 5 % Punktabweichung).
 > Wächter: `tests/test_projekte_uebernehmen.py`.
 
+> 🗣 **Sichtbarer Text gehört IMMER durch `t()`** (28.08.2026, Pflicht). Ein
+> Beta-Tester aus Spanien sah den Knopf „Track wählen …" auf Deutsch — uns fiel
+> es nie auf, weil wir die App auf Deutsch benutzen. Genau daran scheitert die
+> Selbstkontrolle: Der eigene Text sieht immer richtig aus.
+> - In JavaScript: `t("bereich.schlüssel", "Deutscher Rückfall")`. Der Rückfall
+>   ist Absicht — fehlt der Schlüssel, steht trotzdem etwas Lesbares da.
+> - Im festen Markup (`ui/index.html`): `data-i18n="schlüssel"`,
+>   `data-i18n-title=…`, `data-i18n-placeholder=…`. `uebersetzeMarkup()` in
+>   `ui/js/util.js` setzt sie beim Laden der Sprache.
+> - Neue Schlüssel **immer in alle drei** Dateien (`i18n/{de,en,es}.json`) —
+>   gleiche Menge, keine Kopie des deutschen Texts.
+> - Ausnahme mit Begründung: `// sprache-ok: …` (ganze Datei) oder
+>   `sprache-ok-anfang` / `sprache-ok-ende` (Bereich, etwa für die
+>   Sprachtabelle des Notfall-Bildschirms, die ja selbst die Übersetzung ist).
+> Wache: `scripts/check_hartkodierte_sprache.py` (im Release-Gate) und
+> `tests/test_sprache_vollstaendig.py`.
+
 **Fünf Fallen, jede mit einem Test dahinter:**
 
 1. **Prüfsummen über den Klartext, nie über den Umschlag.** Jeder Umschlag
