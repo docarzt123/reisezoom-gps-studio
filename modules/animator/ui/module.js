@@ -2257,6 +2257,9 @@ function mountAnimator(body, headerActions, opts) {
   // bisher) oder "schwarm" (alle gleichzeitig). Wird im ARCHIV gewählt und
   // hier nur ANGEZEIGT (Grilling Q9: kein Umschalter im Animator).
   let _animAblauf = "reise";
+  // IDEAS §38 M2 — Fokus-Tour: GPX-Pfad der Zusatz-Tour, der die Kamera folgt
+  // („" = Haupt-Track). Nur im Schwarm-Ablauf von Bedeutung.
+  let _animFokusPfad = "";
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
   // 23.08.2026 — Etappen: Startindizes + geometrische Kumulativlänge. `line-progress`
   // misst gezeichnete Länge, cumDistM zählt Etappengrenzen bewusst NICHT mit — für die
@@ -5395,7 +5398,7 @@ function mountAnimator(body, headerActions, opts) {
     if (interp.center) {
       easeArgs.center = interp.center.slice ? interp.center.slice() : interp.center;
     } else if (!isClassic || cameraFollow) {
-      const tp = currentCoords[coordIdx];
+      const tp = _fokusZiel(coordIdx) || currentCoords[coordIdx];
       easeArgs.center = tp.slice ? tp.slice() : tp;
     }
     // v0.9.136 — Welt-Drehung steckt jetzt in der *abgewickelten* center.lng
@@ -6451,7 +6454,7 @@ function mountAnimator(body, headerActions, opts) {
       if (interp.center) { jumpArgs.center = interp.center.slice(); _follLL = null; }
       else if (!isClassic2 || cameraFollow2) {
         _didFollow = true;
-        const _tgt = currentCoords[coordIdx];
+        const _tgt = _fokusZiel(coordFrac) || currentCoords[coordIdx];
         // v0.9.277 (Nutzer) — Kamera-Trägheit: EMA des Folge-Zentrums, zeitbasiert auf
         // 30fps-Render referenziert → Vorschau wirkt genauso träge wie das Video.
         const _inertia = (parseInt(document.getElementById("anim-follow-inertia")?.value, 10) || 0) / 100;
@@ -11889,6 +11892,44 @@ function mountAnimator(body, headerActions, opts) {
         : "🧭 " + t("animator.ablauf.reise", "Nacheinander (eine Reise) — mit Kinoflug zwischen den Etappen. Gewählt im Archiv.");
       badge.hidden = _extraTours.length === 0;
     }
+    // IDEAS §38 M2 — Fokus-Tour (Marc: „kamera bleibt stehen", wenn sie fertig
+    // ist). Das Dropdown steuert AUCH das „Kamera folgt Track"-Häkchen — die
+    // gesamte Folge-Logik (Vorschau + Render) hängt an diesem einen Schalter,
+    // ein zweiter paralleler Zustand wäre die nächste Race-Falle.
+    let fokusWrap = document.getElementById("anim-fokus-wrap");
+    if (!fokusWrap && host) {
+      fokusWrap = document.createElement("div");
+      fokusWrap.id = "anim-fokus-wrap";
+      fokusWrap.style.cssText = "margin:2px 0 8px";
+      fokusWrap.innerHTML = `<label class="field-label" for="anim-fokus" style="font-size:11px">🎥 ${
+        t("animator.fokus.label", "Kamera folgt")}</label>
+        <select id="anim-fokus" class="lib-select" style="width:100%"></select>`;
+      host.parentElement.insertBefore(fokusWrap, host);
+      fokusWrap.querySelector("#anim-fokus").addEventListener("change", (e) => {
+        const wert = e.target.value;
+        _animFokusPfad = (wert === "" || wert === "haupt") ? "" : wert;
+        const cb = document.getElementById("anim-camera-follow");
+        if (cb) {
+          const soll = wert !== "";
+          if (cb.checked !== soll) { cb.checked = soll; cb.dispatchEvent(new Event("change")); }
+        }
+        _animPersistTours();
+        try { scrubPreview(_tlBar ? _tlBar.getScrubber() : 0); } catch (_) {}
+      });
+    }
+    if (fokusWrap) {
+      fokusWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
+      const sel = fokusWrap.querySelector("#anim-fokus");
+      if (sel && !fokusWrap.hidden) {
+        const cb = document.getElementById("anim-camera-follow");
+        const aktiv = cb && cb.checked;
+        sel.innerHTML = `<option value="">${t("animator.fokus.none", "niemandem (Gesamtsicht)")}</option>
+          <option value="haupt">${t("animator.fokus.haupt", "der längsten Tour")}</option>`
+          + _extraTours.map(tr => `<option value="${esc(tr.gpx_path)}">${esc(tr.name || "Tour")}</option>`).join("");
+        sel.value = !aktiv ? "" : (_animFokusPfad || "haupt");
+        if (sel.value === "" && aktiv) sel.value = "haupt";
+      }
+    }
     if (toursSec) {
       const show = _extraTours.length > 0;
       toursSec.hidden = !show;
@@ -12014,6 +12055,27 @@ function mountAnimator(body, headerActions, opts) {
     } catch (e) { console.warn("swarm preview layers:", e); }
     // Ruhezustand: alles voll gezeichnet, Punkte am Ziel (wie der Haupt-Track).
     _animSchwarmPreviewAdvance(0, true);
+  }
+
+  /** Kamera-Ziel der Fokus-Tour in der Vorschau — synchron zu
+   *  `fokus_koordinate` in core/animator.py (geklemmt: Kamera bleibt stehen). */
+  function _fokusZiel(coordFrac) {
+    if (_animAblauf !== "schwarm" || !_animFokusPfad) return null;
+    const tr = _extraTours.find(x => x.gpx_path === _animFokusPfad);
+    if (!tr || !tr.coords || tr.coords.length < 2) return null;
+    if (!currentCoords || currentCoords.length < 2) return null;
+    const cumH = _cumDistFuer(_swHauptCum, currentCoords);
+    const i0 = Math.max(0, Math.min(cumH.length - 1, Math.floor(coordFrac)));
+    const i1 = Math.min(cumH.length - 1, i0 + 1);
+    const f = Math.max(0, Math.min(1, coordFrac - i0));
+    const d = cumH[i0] + (cumH[i1] - cumH[i0]) * f;
+    const cum = _cumDistFuer(tr, tr.coords);
+    let lo = 0, hi = cum.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (cum[mid] <= d) lo = mid; else hi = mid - 1;
+    }
+    return tr.coords[Math.max(0, lo)];
   }
 
   function _animSchwarmPreviewAdvance(coordFrac, vollesBild) {
@@ -12157,6 +12219,7 @@ function mountAnimator(body, headerActions, opts) {
         extra_tours: _extraTours.map(t => ({
           gpx_path: t.gpx_path, line_color: t.line_color, name: t.name })),
         tours_ablauf: _animAblauf,
+        tours_fokus: _animFokusPfad,
         fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
       });
     } catch (_) {}
@@ -12196,6 +12259,7 @@ function mountAnimator(body, headerActions, opts) {
       } else if (a.tours_ablauf === "schwarm" || a.tours_ablauf === "reise") {
         _animAblauf = a.tours_ablauf;
       }
+      _animFokusPfad = (typeof a.tours_fokus === "string") ? a.tours_fokus : "";
     } catch (_) {}
     const flyEl = document.getElementById("anim-fly");
     if (flyEl) { flyEl.value = fly; const l = document.getElementById("anim-fly-v"); if (l) l.textContent = fly.toFixed(1) + " s"; }
@@ -12469,6 +12533,7 @@ function mountAnimator(body, headerActions, opts) {
         return {
           tracks,
           tracks_ablauf: _animAblauf,
+          schwarm_fokus_gpx: _animAblauf === "schwarm" ? _animFokusPfad : "",
           fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
         };
       })(),

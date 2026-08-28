@@ -2346,5 +2346,8 @@
   "schwarm.animator_hint": "Voller Funktionsumfang: Keyframes, Kamera, Stile, Overlays — die längste Tour ist die Zeitachse.",
   "schwarm.an_animator": "Touren als Schwarm im Animator.",
   "animator.statsfield.swarm_underway": "Noch unterwegs",
-  "animator.statsfield.swarm_total": "Touren gesamt"
+  "animator.statsfield.swarm_total": "Touren gesamt",
+  "animator.fokus.label": "Kamera folgt",
+  "animator.fokus.none": "niemandem (Gesamtsicht)",
+  "animator.fokus.haupt": "der längsten Tour"
 }

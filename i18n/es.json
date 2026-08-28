@@ -2346,5 +2346,8 @@
   "schwarm.animator_hint": "Todas las funciones: fotogramas clave, cámara, estilos, superposiciones; la ruta más larga es la línea de tiempo.",
   "schwarm.an_animator": "rutas como enjambre en el animador.",
   "animator.statsfield.swarm_underway": "Aún en camino",
-  "animator.statsfield.swarm_total": "Rutas en total"
+  "animator.statsfield.swarm_total": "Rutas en total",
+  "animator.fokus.label": "La cámara sigue a",
+  "animator.fokus.none": "nadie (vista general)",
+  "animator.fokus.haupt": "la ruta más larga"
 }
