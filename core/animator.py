@@ -486,6 +486,10 @@ class AnimatorConfig:
     # Single-Track-Pfad (Haupt-Track = Zeitachse), die übrigen Touren wachsen
     # als Zusatz-Linien im selben Takt mit (schwarm_tours in _make_html).
     tracks_ablauf: str = "reise"
+    # IDEAS §38 M2 — Fokus-Tour im Schwarm (Marc, 28.08.2026: „kamera bleibt
+    # stehen" wenn sie fertig ist). GPX-Pfad einer Zusatz-Tour; leer = die
+    # Kamera folgt (falls eingeschaltet) wie bisher dem Haupt-Track.
+    schwarm_fokus_gpx: str = ""
     # Dauer des Kino-Flugs zwischen zwei Touren (Sekunden). Während dieser
     # Zeit wächst keine Linie, der Marker ist ausgeblendet, die Kamera fliegt
     # von der einen Tour zur anderen.
@@ -3923,7 +3927,8 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
             _log.warning("Schwarm: %s ohne Strecke — übersprungen", pfad)
             continue
         geparst.append({"points": pts, "laenge": pts[-1].dist_m,
-                        "color": (t or {}).get("line_color") or ""})
+                        "color": (t or {}).get("line_color") or "",
+                        "gpx_path": pfad})
     if not geparst:
         return []
     l_max = max(t["laenge"] for t in geparst)
@@ -3932,10 +3937,25 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
     raus = []
     for t in geparst:
         raus.append({"coords": resample_aequidistant(t["points"], s),
-                     "color": t["color"], "step_m": s})
+                     "color": t["color"], "step_m": s,
+                     "gpx_path": t["gpx_path"]})
     _log.info("Schwarm: %d Zusatz-Touren · Abstand %.1f m · Punkte %d",
               len(raus), s, sum(len(t["coords"]) for t in raus))
     return raus
+
+
+def fokus_koordinate(fokus: dict, cum_dist: list, idx: int) -> tuple:
+    """Kamera-Ziel der Fokus-Tour bei der Distanz, die der Haupt-Track bei
+    `idx` zurückgelegt hat (IDEAS §38 M2).
+
+    Geklemmt ans Tour-Ende — Marcs Entscheidung wörtlich: „kamera bleibt
+    stehen", wenn die Fokus-Tour fertig ist, während der Rest weiterläuft.
+    """
+    d = cum_dist[min(max(0, idx), len(cum_dist) - 1)] if cum_dist else 0.0
+    coords = fokus["coords"]
+    k = min(len(coords) - 1, max(0, int(d / max(0.5, float(fokus["step_m"])))))
+    c = coords[k]
+    return (c[0], c[1])
 
 
 async def render(
@@ -4099,6 +4119,18 @@ async def render(
                   _trim_s * 100, _trim_e * 100,
                   _trim_dist / 1000.0, _trim_time, _asc, _dsc)
 
+    # IDEAS §38 M2 — Fokus-Tour: „Kamera folgt" zielt auf DIESE Zusatz-Tour
+    # statt auf den Haupt-Track; ist sie fertig, bleibt die Kamera stehen
+    # (fokus_koordinate klemmt ans Tour-Ende).
+    _fokus = None
+    if _schwarm and getattr(cfg, "schwarm_fokus_gpx", ""):
+        _fokus = next((t for t in _schwarm
+                       if t.get("gpx_path") == cfg.schwarm_fokus_gpx), None)
+        if _fokus is None:
+            _log.warning("Schwarm-Fokus %r nicht in den Zusatz-Touren — folge dem Haupt-Track",
+                         cfg.schwarm_fokus_gpx)
+        else:
+            _log.info("Schwarm-Fokus: Kamera folgt %s", cfg.schwarm_fokus_gpx)
     if _schwarm:
         # IDEAS §38 M2 — Gesamtwerte für das Overlay-Feld „Touren gesamt":
         # Tourenzahl inkl. Haupt-Track, Strecke = Summe aller Touren (die
@@ -4433,7 +4465,10 @@ async def render(
                 # v0.9.275 (Nutzer) — TrackPoint ist ein dataclass, NICHT subscriptable.
                 # Dieselbe Falle wie v0.9.124 im Haupt-Loop, hier im Tile-Prewarm übersehen
                 # → „'TrackPoint' object is not subscriptable" beim Render mit „Kamera folgt Track".
-                pw_lon, pw_lat = points[_idx].lon, points[_idx].lat
+                if _fokus is not None:
+                    pw_lon, pw_lat = fokus_koordinate(_fokus, cum_dist, _idx)
+                else:
+                    pw_lon, pw_lat = points[_idx].lon, points[_idx].lat
             else:
                 pw_lon, pw_lat = center[0], center[1]
             prewarm_samples.append([pw_bearing, pw_lon, pw_lat, pw_zoom, pw_pitch])
@@ -4634,7 +4669,10 @@ async def render(
                         if _kc:
                             _lo, _la = _kc[0], _kc[1]
                         elif cfg.camera_follow_track and _idx < len(points):
-                            _lo, _la = points[_idx].lon, points[_idx].lat
+                            if _fokus is not None:
+                                _lo, _la = fokus_koordinate(_fokus, cum_dist, _idx)
+                            else:
+                                _lo, _la = points[_idx].lon, points[_idx].lat
                         else:
                             _lo, _la = center[0], center[1]
                         _kf_cam_list.append({
@@ -4713,8 +4751,11 @@ async def render(
                     frame_lat = kf_center[1]
                 elif cfg.camera_follow_track and idx < len(points):
                     # v0.9.124 — TrackPoint ist ein dataclass, NICHT subscriptable.
-                    _tlon = points[idx].lon
-                    _tlat = points[idx].lat
+                    if _fokus is not None:
+                        _tlon, _tlat = fokus_koordinate(_fokus, cum_dist, idx)
+                    else:
+                        _tlon = points[idx].lon
+                        _tlat = points[idx].lat
                     # v0.9.275 (Nutzer) — Trägheit: Folge-Zentrum glätten (gegen GPS-Wackeln).
                     if _foll_lon is None or _foll_k >= 0.999:
                         _foll_lon, _foll_lat = _tlon, _tlat

@@ -2346,5 +2346,8 @@
   "schwarm.animator_hint": "Full feature set: keyframes, camera, styles, overlays — the longest tour is the timeline.",
   "schwarm.an_animator": "tours as a swarm in the animator.",
   "animator.statsfield.swarm_underway": "Still under way",
-  "animator.statsfield.swarm_total": "Tours in total"
+  "animator.statsfield.swarm_total": "Tours in total",
+  "animator.fokus.label": "Camera follows",
+  "animator.fokus.none": "nobody (overview)",
+  "animator.fokus.haupt": "the longest tour"
 }

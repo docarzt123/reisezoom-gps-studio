@@ -14,6 +14,23 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.564] – 2026-08-28
+
+### Hinzugefügt (Schwarm M2 komplett — IDEAS §38)
+- **Die Fokus-Tour: „Kamera folgt …" im Schwarm.** Über der Tourenliste sitzt
+  jetzt das Dropdown **„🎥 Kamera folgt"**: *niemandem (Gesamtsicht)* — der
+  Standard, wie von Marc festgelegt —, *der längsten Tour* oder **jeder
+  beliebigen Zusatz-Tour**. Die Kamera folgt der gewählten Tour über ihre
+  zurückgelegte Distanz; ist sie im Ziel und andere laufen noch, **bleibt die
+  Kamera dort stehen** (Marcs Entscheidung wörtlich). Vorschau und Render
+  benutzen dieselbe Rechnung; das Dropdown steuert das bestehende
+  „Kamera folgt Track"-Häkchen mit, damit es keinen zweiten, konkurrierenden
+  Zustand gibt. Die Wahl wird im Projekt gespeichert.
+
+  Damit ist **M2 komplett** (Zähler-Overlay + Fokus-Tour). Als Nächstes laut
+  Beschluss: M3 (Modi „gleichzeitig im Ziel", „echte Uhrzeit"), M4 (Abbau des
+  Standalone-Schwarms), M5 (Cloud).
+
 ## [0.9.563] – 2026-08-28
 
 ### Hinzugefügt (Schwarm M2, erster Teil — IDEAS §38)
