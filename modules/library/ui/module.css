@@ -760,3 +760,6 @@
 .lib-nav-menu:hover { color: var(--text); background: rgba(127,127,127,.18); }
 .lib-pop-cols { margin: 6px 0 2px; }
 .lib-pop-cols:empty { display: none; }
+
+/* 28.08.2026 — Filter-Hinweis im Sammlungs-Dialog: auffälliger als .lib-hint */
+.lib-warnhint { color: var(--warn, #e8a33d); opacity: 1; }

@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Sammlungs-Übergaben respektieren die aktiven Archiv-Filter (Marc,
+  28.08.2026, „große verwirrung": Bereich „Gemachte" war an, der Schwarm nahm
+  trotzdem die ganze Sammlung samt geplanter Touren): „Alle im Animator" und
+  „Als Schwarm animieren" nehmen jetzt genau die Touren, die die Filter zeigen
+  (Bereich, Suche, Jahr, Art, km) — ohne aktive Filter wie bisher die ganze
+  Sammlung. Der Verwaltungs-Dialog sagt es vor dem Klick an („Archiv-Filter
+  aktiv: 95 von 138 Touren sichtbar …").
+
 ### Fixed
 - „Fremde Touren" auf der Animator-Karte waren keine (Marc, 28.08.2026, live
   verifiziert per Alpha-Modus und Layer-Diagnose): Die dünnen weißen Linien

@@ -2381,5 +2381,6 @@
   "library.undo.unhide": "Tour wieder eingeblendet",
   "library.undo.fehl": "Rückgängig ging schief: {e}",
   "library.pop_drag": "Zum Verschieben ziehen",
-  "animator.tours.missing_n": "{n} gespeicherte Tour(en) wurden nicht gefunden — Details im Log."
+  "animator.tours.missing_n": "{n} gespeicherte Tour(en) wurden nicht gefunden — Details im Log.",
+  "library.col_filterhint": "Archiv-Filter aktiv: {n} von {m} Touren sichtbar — „Alle im Animator“ und „Als Schwarm“ nehmen genau diese {n}."
 }
