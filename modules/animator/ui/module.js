@@ -7160,15 +7160,22 @@ function mountAnimator(body, headerActions, opts) {
             if (_animUnmounted) return;
             if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
             _animAblauf = pendingAblauf;   // die Sitzung hat ihn schon, das Modul jetzt auch
-            let neu = 0, nr = 0;
+            // Erst bestimmen, was wirklich FEHLT — der Zähler lief sonst über
+            // alle 137 Etappen, obwohl fast alles längst geladen war (sah aus
+            // wie „er lädt schon wieder alles", Marc 28.08.2026).
+            const vorhanden = new Set([_pfadNFC(currentGpx)]
+              .concat(_extraTours.map(t => _pfadNFC(t.gpx_path))));
+            const fehlt = [];
             for (const p of pending) {
+              const pN = _pfadNFC(p);
+              if (!vorhanden.has(pN)) { vorhanden.add(pN); fehlt.push(p); }
+            }
+            let neu = 0, nr = 0;
+            for (const p of fehlt) {
               if (_animUnmounted) return;
               if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
               nr++;
-              _tourenLadeTick(nr, pending.length, (p.split(/[\\/]/).pop() || "").replace(/\.gpx$/i, ""));
-              const pN = _pfadNFC(p);
-              if (pN === _pfadNFC(currentGpx)
-                  || _extraTours.some(t => _pfadNFC(t.gpx_path) === pN)) continue;
+              _tourenLadeTick(nr, fehlt.length, (p.split(/[\\/]/).pop() || "").replace(/\.gpx$/i, ""));
               try { await _animAddTourPath(p); neu++; } catch (e) { console.warn("pending tour:", e); }
             }
             if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
@@ -12379,6 +12386,26 @@ function mountAnimator(body, headerActions, opts) {
     const flyEl = document.getElementById("anim-fly");
     if (flyEl) { flyEl.value = fly; const l = document.getElementById("anim-fly-v"); if (l) l.textContent = fly.toFixed(1) + " s"; }
 
+    // Kurzschluss (28.08.2026): Session-Benachrichtigungen kommen mehrfach —
+    // entspricht der geladene Stand schon EXAKT der gespeicherten Liste
+    // (gleiche Pfade, gleiche Reihenfolge, NFC-verglichen), gibt es nichts zu
+    // tun. Vorher lud jeder Ping alle Etappen erneut von der Platte, mit
+    // Modal und Zähler von vorn.
+    {
+      const seen = new Set([_pfadNFC(currentGpx)]);
+      const ziel = [];
+      for (const t of saved) {
+        if (t && t.gpx_path && !seen.has(_pfadNFC(t.gpx_path))) {
+          seen.add(_pfadNFC(t.gpx_path));
+          ziel.push(_pfadNFC(t.gpx_path));
+        }
+      }
+      const ist = _extraTours.map(t => _pfadNFC(t.gpx_path));
+      if (ziel.length && ist.length === ziel.length && ziel.every((p, i) => ist[i] === p)) {
+        try { _animRenderToursList(); } catch (_) {}
+        return;
+      }
+    }
     _extraTours = [];
     // Ausgrau-Modal nur, wenn es dauert (ab 3 Touren) und keiner es schon zeigt.
     const _modalSelbst = saved.length >= 3 ? _tourenLadeModal() : false;

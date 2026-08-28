@@ -15,6 +15,15 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Fixed
+- Mengen-Übergabe lud mehrfach und schleppte fremde Etappen mit (Marc,
+  28.08.2026: „der lädt immer noch zu viele touren … geht mehrmals ‚lade
+  touren' durch"): 1. `loadGlobalGpx` aktivierte bei der Übergabe erst die
+  EINZEL-Sitzung des Haupt-Tracks — deren alter Reise-Anhang lud parallel zur
+  Menge (Race). Bei Mengen-Loads wird sie jetzt übersprungen, die
+  Mengen-Sitzung aktiviert der Übergabe-Handler. 2. Der Modal-Zähler lief über
+  ALLE Etappen, auch längst geladene — jetzt zählt er nur die wirklich
+  fehlenden. 3. Session-Benachrichtigungen luden den kompletten Stand erneut
+  von der Platte — entspricht er exakt dem gespeicherten, passiert nichts mehr.
 - Fehlalarm „Manche gespeicherten Touren wurden nicht gefunden" beim Laden in
   den Animator (Marc, 28.08.2026): Der Toast kam auch, wenn nur die
   Selbstheilung Duplikate oder den Haupt-Track aussortiert hatte. Gewarnt wird

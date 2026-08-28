@@ -116,7 +116,13 @@
       if (window.applog) window.applog("info", `[loadGlobalGpx] parsed n_coords=${res.coords?.length}`);
       _gpxPath = path;
       _gpxData = res;
-      if (typeof sessionActivate === "function") {
+      // 28.08.2026 (Marc: „der lädt immer noch zu viele touren / geht mehrmals
+      // durch"): Bei einer MENGEN-Übergabe die Einzel-Sitzung des Haupt-Tracks
+      // NICHT aktivieren — der Pending-Handler im Animator aktiviert gleich
+      // die Mengen-Sitzung. Die Einzel-Aktivierung stieß vorher einen
+      // Session-Restore an, der die alten Reise-Anhänge des Haupt-Tracks
+      // mitten in die Übergabe lud (Race → fremde Etappen, doppeltes Zählen).
+      if (typeof sessionActivate === "function" && !(opts && opts.menge)) {
         try { await sessionActivate(res.coords, path); }
         catch (err) {
           // 25.08.2026 — war nur console.warn: Schlug die Zuordnung zur Sitzung
