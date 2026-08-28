@@ -927,6 +927,48 @@ async function confirmClearWorkspace(moduleName, onConfirm) {
   });
 }
 
+/* ⏳ Touren-Lade-Modal (28.08.2026, Marc) — global, weil ZWEI Orte es brauchen:
+ * Das ARCHIV öffnet es SOFORT beim Klick auf die Übergabe (Marcs Punkt 1: „das
+ * modal kommt viel zu spät" — vorher erschien es erst im Animator-Handler,
+ * nach Haupt-Track-Load, Modulwechsel und 1,2 s Wartezeit), der ANIMATOR tickt
+ * hinein und schließt am Ende.
+ *
+ * Feste Maße gegen Marcs Punkt 2 („springt die ganze zeit hin und her"):
+ * Der Inhalt hat eine feste Breite, Zähler und Tourname je eine eigene Zeile
+ * mit fester Höhe; lange Namen werden mit … abgeschnitten statt das Modal zu
+ * dehnen.
+ */
+let _tourenLadeOffen = false;
+function tourenLadeModalZeigen() {
+  if (_tourenLadeOffen) return false;
+  _tourenLadeOffen = true;
+  openModal({
+    title: "⏳ " + t("animator.tours.lade_titel", "Touren werden geladen"),
+    body: `<div style="width:360px; max-width:100%; text-align:center; padding:14px 6px">
+      <div id="rz-lade-zaehler" style="font-size:17px; font-weight:700; height:1.5em">${
+        t("animator.tours.lade_vorbereiten", "Touren werden vorbereitet …")}</div>
+      <div id="rz-lade-name" style="height:1.5em; line-height:1.5em; white-space:nowrap;
+           overflow:hidden; text-overflow:ellipsis; opacity:.75; margin-bottom:8px"></div>
+      <div class="hint" style="opacity:.8">${t("animator.tours.lade_warte",
+        "Bitte warten — danach baut sich die Vorschau mit allen Touren auf.")}</div>
+    </div>`,
+    closable: false,
+  });
+  return true;
+}
+function tourenLadeModalTick(i, n, name) {
+  const z = document.getElementById("rz-lade-zaehler");
+  if (z) z.textContent = t("animator.tours.lade_text", "Lade Tour {i} von {n} …")
+    .replace("{i}", i).replace("{n}", n);
+  const nm = document.getElementById("rz-lade-name");
+  if (nm) nm.textContent = name || "";
+}
+function tourenLadeModalZu() {
+  if (!_tourenLadeOffen) return;
+  _tourenLadeOffen = false;
+  try { openModal({}).close(); } catch (_) {}
+}
+
 // ── Settings ───────────────────────────────────────────────────────────────
 
 let _settingsCache = null;

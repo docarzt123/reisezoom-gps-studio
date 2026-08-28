@@ -2352,5 +2352,6 @@
   "animator.fokus.haupt": "la ruta más larga",
   "animator.tours.lade_titel": "Cargando rutas",
   "animator.tours.lade_text": "Cargando ruta {i} de {n} …",
-  "animator.tours.lade_warte": "Un momento: después se montará la vista previa con todas las rutas."
+  "animator.tours.lade_warte": "Un momento: después se montará la vista previa con todas las rutas.",
+  "animator.tours.lade_vorbereiten": "Preparando rutas …"
 }
