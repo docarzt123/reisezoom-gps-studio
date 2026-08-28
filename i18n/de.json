@@ -2359,5 +2359,7 @@
   "cloud.menge_schon_da": "Diese Komposition gibt es hier schon — lokale Arbeit bleibt.",
   "cloud.menge_touren_fehlen": "Nicht alle Touren der Komposition sind verfügbar.",
   "cloud.menge_leer": "Komposition ohne Touren",
-  "cloud.menge_tour_fehler": "Eine Tour ließ sich nicht einspielen"
+  "cloud.menge_tour_fehler": "Eine Tour ließ sich nicht einspielen",
+  "animator.tours.lade_vorschau": "Vorschau wird aufgebaut …",
+  "animator.tours.lade_karte": "Karte wird gezeichnet …"
 }

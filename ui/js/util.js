@@ -963,6 +963,17 @@ function tourenLadeModalTick(i, n, name) {
   const nm = document.getElementById("rz-lade-name");
   if (nm) nm.textContent = name || "";
 }
+/** Schritt-Anzeige ohne Zähler — für die Phasen NACH dem Touren-Laden
+ *  („Vorschau wird aufgebaut …", „Karte wird gezeichnet …"). Marc, 28.08.2026:
+ *  „das modal muss so lange bleiben, bis man mit dem animator arbeiten kann …
+ *  immer schön hinschreiben, was passiert." */
+function tourenLadeModalSchritt(text) {
+  const z = document.getElementById("rz-lade-zaehler");
+  if (z) z.textContent = text || "";
+  const nm = document.getElementById("rz-lade-name");
+  if (nm) nm.textContent = "";
+}
+function tourenLadeModalOffen() { return _tourenLadeOffen; }
 function tourenLadeModalZu() {
   if (!_tourenLadeOffen) return;
   _tourenLadeOffen = false;

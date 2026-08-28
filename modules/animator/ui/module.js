@@ -7170,8 +7170,7 @@ function mountAnimator(body, headerActions, opts) {
               try { await _animAddTourPath(p); neu++; } catch (e) { console.warn("pending tour:", e); }
             }
             _animPersistTours();
-            _animRenderToursList();
-            _animDrawExtraToursPreview();
+            await _tourenLadeAbschluss();
             applog("info", `[Animator] Mengen-Übergabe: ${pending.length} Etappe(n), davon ${neu} neu (Ablauf: ${pendingAblauf})`);
           } finally {
             // IMMER schließen — egal wer geöffnet hat. Ein stehen gebliebenes,
@@ -12273,6 +12272,38 @@ function mountAnimator(body, headerActions, opts) {
   function _tourenLadeTick(i, n, name) { tourenLadeModalTick(i, n, name); }
   function _tourenLadeZu() { tourenLadeModalZu(); }
 
+  /** Abschluss der Mengen-Übergabe: Vorschau bauen und erst schließen, wenn
+   *  die KARTE wirklich gezeichnet hat (Marc, 28.08.2026: das Modal muss
+   *  bleiben, „bis man mit dem animator arbeiten kann" — vorher schloss es
+   *  nach dem Laden, und bei 95 Touren stand die App danach sekundenlang
+   *  scheinbar eingefroren da, während Mapbox zeichnete).
+   *
+   *  ⚠️ Hartes Zeitlimit (8 s): `map.once("idle")` feuert nicht in jedem
+   *  Zustand (Karte pausiert, Stil lädt neu, Modul wird gewechselt) — ein
+   *  NICHT SCHLIESSBARES Modal, das darauf ewig wartet, wäre eine tote App.
+   */
+  async function _tourenLadeAbschluss() {
+    const offen = (typeof tourenLadeModalOffen === "function") && tourenLadeModalOffen();
+    if (offen) {
+      tourenLadeModalSchritt(t("animator.tours.lade_vorschau", "Vorschau wird aufgebaut …"));
+      await new Promise(r => setTimeout(r, 30));   // den neuen Text erst malen lassen
+    }
+    try { _animRenderToursList(); } catch (_) {}
+    try { _animDrawExtraToursPreview(); } catch (e) { console.warn("tours preview:", e); }
+    try { _animFitAllTours(); } catch (_) {}
+    if (!offen) return;
+    tourenLadeModalSchritt(t("animator.tours.lade_karte", "Karte wird gezeichnet …"));
+    await new Promise((res) => {
+      let fertig = false;
+      const zu = () => { if (!fertig) { fertig = true; res(); } };
+      setTimeout(zu, 8000);
+      try {
+        if (map && typeof map.once === "function") map.once("idle", zu);
+        else zu();
+      } catch (_) { zu(); }
+    });
+  }
+
   /* 28.08.2026 — Pfadvergleiche IMMER über NFC normalisieren. macOS legt
    * Umlaute im Dateinamen ZERLEGT ab (NFD: „o" + Trema), JavaScript-Strings
    * aus anderen Quellen sind zusammengesetzt (NFC) — derselbe Pfad fiel so
@@ -12354,8 +12385,7 @@ function mountAnimator(body, headerActions, opts) {
       try { toast(t("animator.tours.missing", "Manche gespeicherten Touren wurden nicht gefunden."), "warn", 5000); } catch (_) {}
       _animPersistTours();
     }
-    try { _animRenderToursList(); } catch (_) {}
-    try { _animDrawExtraToursPreview(); } catch (e) { rzSwallow(e, "drawExtraTours@rebuild"); }
+    await _tourenLadeAbschluss();
     } finally {
       // Ein geworfener Fehler darf das NICHT SCHLIESSBARE Modal nie stehen
       // lassen — sonst ist die App tot. Nur schließen, wenn Inner es öffnete

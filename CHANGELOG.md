@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.570] – 2026-08-28
+
+### Geändert (Marc: das Modal muss bleiben, bis man arbeiten kann)
+- **Das Lade-Fenster bleibt bis zum fertig gezeichneten Animator.** Bisher
+  schloss es nach dem Laden der Touren — bei 95 Touren stand die App danach
+  sekundenlang scheinbar eingefroren da, während die Vorschau gebaut und die
+  Karte gezeichnet wurde. Jetzt benennt das Fenster jede Phase („Lade Tour 37
+  von 96 …" → „Vorschau wird aufgebaut …" → „Karte wird gezeichnet …") und
+  schließt erst, wenn die Karte wirklich fertig ist. Ein hartes Zeitlimit von
+  acht Sekunden sorgt dafür, dass das nicht schließbare Fenster niemals hängen
+  bleiben kann, falls die Karte kein Fertig-Signal liefert.
+
 ## [0.9.569] – 2026-08-28
 
 ### Entfernt (Schwarm M4 — IDEAS §38)
