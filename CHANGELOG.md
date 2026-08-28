@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Archiv: Sammlungen lassen sich duplizieren (Verwalten-Dialog, „⎘ Duplizieren"). Die Kopie
+  übernimmt alle Touren in ihrer Reihenfolge und heißt „<Name> (Kopie)"; sie lässt sich frei
+  umbauen, ohne das Original oder dessen Animator-Kompositionen anzufassen (Marc, 28.08.2026:
+  „ich meine im archiv eine sammlung kopieren").
+
 ## [0.9.571] – 2026-08-28
 
 ### Hinzugefügt

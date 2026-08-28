@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.571"
+APP_VERSION = "0.9.572"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2797,6 +2797,30 @@ class Api:
             cid = clib.collection_create(self._lib(), name, paths or [])
             return {"ok": True, "id": cid, "collections": clib.collections(self._lib())}
         except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_collection_duplicate(self, cid: int) -> dict:
+        """Sammlung kopieren (Marc, 28.08.2026: „im archiv eine sammlung
+        kopieren") — gleiche Touren in gleicher Reihenfolge, Name mit Zusatz.
+        Gedacht für Varianten: Kopie anlegen, dann Touren rein/raus, ohne das
+        Original anzufassen. Die Projekte im Animator hängen an der
+        TOURENMENGE — solange die Kopie dieselben Touren hat, teilt sie sich
+        die Komposition mit dem Original; ändert man die Kopie, entsteht beim
+        Übergeben eine eigene."""
+        try:
+            conn = self._lib()
+            quelle = next((c for c in clib.collections(conn) if c["id"] == cid), None)
+            if not quelle:
+                return {"ok": False, "error": _ui_t()("library.col_fehlt", "Sammlung nicht gefunden")}
+            items = clib.collection_items(conn, cid)
+            pfade = [i["path"] for i in items if i.get("path")]
+            name = f'{quelle["name"]} ' + _ui_t()("library.col_copy_suffix", "(Kopie)")
+            neu_id = clib.collection_create(conn, name, pfade)
+            log.info("Sammlung dupliziert: %r (%d) → %r (%d), %d Touren",
+                     quelle["name"], cid, name, neu_id, len(pfade))
+            return {"ok": True, "id": neu_id, "collections": clib.collections(conn)}
+        except Exception as e:
+            log.exception("library_collection_duplicate")
             return {"ok": False, "error": str(e)}
 
     def library_collection_rename(self, cid: int, name: str) -> dict:

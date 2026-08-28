@@ -412,7 +412,9 @@ the dialog).
 | 🚫 **Hidden** | what you put aside (only appears when there is something) |
 
 Below that sit your **collections**: one click shows **only that one**, a second click undoes
-it, a **right-click** opens rename, show, “All in Animator” and delete. The app remembers the
+it, a **right-click** opens rename, show, “All in Animator”, duplicate and delete. **Duplicate**
+creates a “(copy)” with the same tours in the same order — handy for building a variant
+without touching the original (and its Animator settings). The app remembers the
 section you were last in.
 
 **Four views**, switchable on the right of the bar (the app remembers your choice):

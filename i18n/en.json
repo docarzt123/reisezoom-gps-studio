@@ -2363,5 +2363,9 @@
   "animator.tours.lade_vorschau": "Building the preview …",
   "animator.tours.lade_karte": "Drawing the map …",
   "animator.tours.lade_abbruch": "Cancelling …",
-  "animator.tours.lade_abgebrochen": "Loading cancelled — your selection is still in the library."
+  "animator.tours.lade_abgebrochen": "Loading cancelled — your selection is still in the library.",
+  "library.col_duplicate": "Duplicate",
+  "library.col_copy_suffix": "(copy)",
+  "library.col_fehlt": "Collection not found",
+  "library.col_duplicated": "Collection copied — feel free to rework the copy."
 }
