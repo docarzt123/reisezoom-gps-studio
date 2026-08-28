@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.577"
+APP_VERSION = "0.9.578"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1729,18 +1729,34 @@ class Api:
                             "projects": {proj["id"]: proj}}
                     data.setdefault("sessions", {})[schluessel] = sess
 
-                    # Q18a: alte Reise an der ersten Tour? → Startstand übernehmen.
+                    # Q18a: alte Reise an der ersten Tour? → Startstand übernehmen —
+                    # aber NUR, wenn sie exakt DIESE Menge beschreibt. Vorher wurde
+                    # blind kopiert: Marcs längste Teneriffa-Tour trug aus den
+                    # Schwarm-Tests 95 Etappen, und jede neue (Teil-)Sammlung mit
+                    # derselben längsten Tour erbte alle („danach lädt er auch
+                    # alle anderen teneriffa touren", 28.08.2026).
                     erste = (data.get("sessions") or {}).get(hashes[0])
                     if erste:
                         alt_proj = (erste.get("projects") or {}).get(erste.get("active_project_id") or "")
-                        if isinstance(alt_proj, dict) and (alt_proj.get("animator") or {}).get("extra_tours"):
-                            import copy as _copy
-                            kopie = _copy.deepcopy(alt_proj)
-                            kopie["id"] = proj["id"]
-                            kopie["name"] = alt_proj.get("name") or proj["name"]
-                            sess["projects"] = {proj["id"]: kopie}
-                            log.info("Mengen-Sitzung %s: alte Reise aus Einzel-Sitzung %s übernommen",
-                                     schluessel, hashes[0])
+                        alt_extra = ((alt_proj.get("animator") or {}).get("extra_tours")
+                                     if isinstance(alt_proj, dict) else None)
+                        if alt_extra:
+                            import unicodedata
+                            _nfc = lambda x: unicodedata.normalize("NFC", str(x or ""))
+                            alte_menge = {_nfc(pfade[0])} | {_nfc(t.get("gpx_path"))
+                                for t in alt_extra if isinstance(t, dict) and t.get("gpx_path")}
+                            if alte_menge == {_nfc(p) for p in pfade}:
+                                import copy as _copy
+                                kopie = _copy.deepcopy(alt_proj)
+                                kopie["id"] = proj["id"]
+                                kopie["name"] = alt_proj.get("name") or proj["name"]
+                                sess["projects"] = {proj["id"]: kopie}
+                                log.info("Mengen-Sitzung %s: alte Reise aus Einzel-Sitzung %s übernommen",
+                                         schluessel, hashes[0])
+                            else:
+                                log.info("Mengen-Sitzung %s: alte Reise an %s beschreibt eine ANDERE Menge "
+                                         "(%d vs %d Touren) — kein Übernehmen",
+                                         schluessel, hashes[0], len(alte_menge), len(pfade))
                 else:
                     # Pfadliste aktuell halten (Dateien können umziehen) und den
                     # Ablauf der Session NICHT stillschweigend wechseln — der
@@ -1752,6 +1768,24 @@ class Api:
                         log.info("Mengen-Sitzung %s: Ablauf %r → %r (neue Wahl im Archiv)",
                                  schluessel, sess.get("ablauf"), ablauf)
                         sess["ablauf"] = ablauf
+                    # Selbstheilung (28.08.2026): Etappen, die nicht zur Menge
+                    # gehören, fliegen raus — der Q18a-Fallback hat vor diesem
+                    # Datum fremde extra_tours in frische Mengen-Sitzungen
+                    # kopiert; solche Sitzungen werden hier still bereinigt.
+                    import unicodedata
+                    _nfc = lambda x: unicodedata.normalize("NFC", str(x or ""))
+                    _mitglied = {_nfc(p) for p in pfade}
+                    for _proj in (sess.get("projects") or {}).values():
+                        _anim = _proj.get("animator") if isinstance(_proj, dict) else None
+                        _et = _anim.get("extra_tours") if isinstance(_anim, dict) else None
+                        if not isinstance(_et, list):
+                            continue
+                        _behalten = [t for t in _et if isinstance(t, dict)
+                                     and _nfc(t.get("gpx_path")) in _mitglied]
+                        if len(_behalten) != len(_et):
+                            log.info("Mengen-Sitzung %s: %d fremde Etappe(n) aus Projekt %r entfernt",
+                                     schluessel, len(_et) - len(_behalten), _proj.get("name"))
+                            _anim["extra_tours"] = _behalten
                 _sessions.save_sessions(SESSIONS_FILE, data)
 
             aktiv = (sess.get("projects") or {}).get(sess.get("active_project_id") or "") or {}
