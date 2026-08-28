@@ -14,6 +14,20 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.567] – 2026-08-28
+
+### Geändert (Marc: „der soll immer die Summe anzeigen beim Schwarm")
+- **Die Distanz-Felder rechnen im Schwarm über ALLE Touren.** „Zurückgelegt"
+  ist jetzt, wie weit der ganze Schwarm bis jetzt gelaufen ist (jede Tour
+  trägt höchstens ihre eigene Länge bei — wer im Ziel ist, läuft nicht
+  weiter), „Verbleibend" der Rest, bis alle angekommen sind, und der
+  Gesamtwert „Strecke" die Summe aller Touren. Zusammen mit „Noch unterwegs"
+  (37 / 96) erzählen die Overlays damit den Schwarm als Ganzes statt nur die
+  längste Tour. Die Overlay-Vorschau im Animator rechnet wortgleich mit.
+  Außerhalb des Schwarms ändert sich nichts. Zeit-, Tempo- und Höhen-Felder
+  zeigen weiterhin die längste Tour — eine Summen-Zeit über 96 Touren wäre
+  keine sinnvolle Zahl.
+
 ## [0.9.566] – 2026-08-28
 
 ### Behoben (Marcs Rückmeldung zum Lade-Modal)
