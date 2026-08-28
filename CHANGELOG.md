@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.558] – 2026-08-28
+
+### Behoben (Marcs erste Schwarm-Testrunde)
+- **Der Fortschrittsbalken beim Schwarm-Rendern steht jetzt oben.** Er hing
+  unter der Optionsliste — man musste scrollen, um ihn zu sehen. Jetzt
+  verschwinden die Optionen beim Start, übrig bleiben Vorschau, Balken und
+  Status ganz oben; nach Ende oder Abbruch kommen die Optionen zurück.
+- **⌘-Klick kann falsch Ausgewählte wieder abwählen.** Die zuerst NORMAL
+  angeklickte Tour stand nur in der Einzel-Auswahl, nie in der Mehrfach-Menge —
+  ein ⌘-Klick auf genau sie fügte sie deshalb (unsichtbar erneut) hinzu statt
+  sie abzuwählen. Jetzt wird die Einzel-Auswahl beim ersten ⌘-Klick Teil der
+  Menge, wie im Finder; alles abwählen leert auch die Detailspalte.
+
 ## [0.9.557] – 2026-08-28
 
 ### Hinzugefügt
