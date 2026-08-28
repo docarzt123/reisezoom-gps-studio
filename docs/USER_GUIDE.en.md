@@ -689,7 +689,7 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 ### Settings
 
-> **↩︎ Undo for everything (since v0.9.322):** Every settings change can be undone with **⌘Z** (Mac) / **Ctrl+Z** (Windows) — in **Animator, Tour-Map, Geotagger and Data Animator**: colors, font, line width, glow, overlay fields, keyframes, trim, time offset, etc. **Redo** with **⌘⇧Z** / **Ctrl+Y**. (One slider drag = one step.)
+> **↩︎ Undo for everything (since v0.9.322):** Every settings change can be undone with **⌘Z** (Mac) / **Ctrl+Z** (Windows) — in **Animator, Tour-Map, Geotagger and Data Animator**: colors, font, line width, glow, overlay fields, keyframes, trim, time offset, etc. Also in the **archive**: removing from / adding to a collection, creating, renaming, duplicating, deleting (including order) and hiding. **Redo** with **⌘⇧Z** / **Ctrl+Y**. (One slider drag = one step.)
 
 **Map:**
 - **Style**: 6 Mapbox styles (Satellite 3D, Satellite+Streets, Outdoors, Streets, Light, Dark)

@@ -2370,5 +2370,14 @@
   "library.col_duplicated": "Sammlung kopiert — die Kopie kannst du jetzt frei umbauen.",
   "library.col_manage": "Sammlung verwalten",
   "library.col_in_none": "In keiner Sammlung.",
-  "library.col_removed_toast": "Aus „{col}“ genommen — die Tour bleibt im Archiv."
+  "library.col_removed_toast": "Aus „{col}“ genommen — ⌘/Strg+Z macht’s rückgängig.",
+  "library.undo.col_remove": "Aus Sammlung genommen",
+  "library.undo.col_add": "Zur Sammlung hinzugefügt",
+  "library.undo.col_create": "Sammlung angelegt",
+  "library.undo.col_rename": "Sammlung umbenannt",
+  "library.undo.col_delete": "Sammlung gelöscht",
+  "library.undo.col_dup": "Sammlung dupliziert",
+  "library.undo.hide": "Tour ausgeblendet",
+  "library.undo.unhide": "Tour wieder eingeblendet",
+  "library.undo.fehl": "Rückgängig ging schief: {e}"
 }

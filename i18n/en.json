@@ -2370,5 +2370,14 @@
   "library.col_duplicated": "Collection copied — feel free to rework the copy.",
   "library.col_manage": "Manage collection",
   "library.col_in_none": "Not in any collection.",
-  "library.col_removed_toast": "Removed from “{col}” — the tour stays in the archive."
+  "library.col_removed_toast": "Removed from “{col}” — ⌘/Ctrl+Z undoes it.",
+  "library.undo.col_remove": "Removed from collection",
+  "library.undo.col_add": "Added to collection",
+  "library.undo.col_create": "Collection created",
+  "library.undo.col_rename": "Collection renamed",
+  "library.undo.col_delete": "Collection deleted",
+  "library.undo.col_dup": "Collection duplicated",
+  "library.undo.hide": "Tour hidden",
+  "library.undo.unhide": "Tour shown again",
+  "library.undo.fehl": "Undo failed: {e}"
 }

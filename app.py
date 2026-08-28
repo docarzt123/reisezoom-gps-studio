@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.575"
+APP_VERSION = "0.9.576"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2854,6 +2854,13 @@ class Api:
     def library_collection_sort_by_date(self, cid: int) -> dict:
         try:
             clib.collection_sort_by_date(self._lib(), int(cid))
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def library_collection_set_order(self, cid: int, paths: list) -> dict:
+        try:
+            clib.collection_set_order(self._lib(), int(cid), paths or [])
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
