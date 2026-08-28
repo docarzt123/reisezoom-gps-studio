@@ -2359,5 +2359,7 @@
   "cloud.menge_schon_da": "Esta composición ya existe aquí; el trabajo local se conserva.",
   "cloud.menge_touren_fehlen": "No todas las rutas de la composición están disponibles.",
   "cloud.menge_leer": "Composición sin rutas",
-  "cloud.menge_tour_fehler": "Una ruta no se ha podido importar"
+  "cloud.menge_tour_fehler": "Una ruta no se ha podido importar",
+  "animator.tours.lade_vorschau": "Montando la vista previa …",
+  "animator.tours.lade_karte": "Dibujando el mapa …"
 }

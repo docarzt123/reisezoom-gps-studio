@@ -2359,5 +2359,7 @@
   "cloud.menge_schon_da": "This composition already exists here — local work stays.",
   "cloud.menge_touren_fehlen": "Not all tours of this composition are available.",
   "cloud.menge_leer": "Composition without tours",
-  "cloud.menge_tour_fehler": "One tour could not be imported"
+  "cloud.menge_tour_fehler": "One tour could not be imported",
+  "animator.tours.lade_vorschau": "Building the preview …",
+  "animator.tours.lade_karte": "Drawing the map …"
 }
