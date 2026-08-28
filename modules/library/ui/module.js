@@ -948,9 +948,19 @@ function mountLibrary(body, headerActions) {
         const it = _items[i];
         if (!it) return;
         if (e.metaKey || e.ctrlKey) {
-          // Einzeln dazu oder weg
+          // Einzeln dazu oder weg. ⚠️ Die zuerst NORMAL angeklickte Tour steht
+          // nur in `_sel`, nie in `_multi` — ein ⌘-Klick auf genau sie hätte
+          // sie deshalb HINZUGEFÜGT statt abgewählt („ich muss falsch
+          // ausgewählte wieder abwählen können", Marc 28.08.2026). Darum wird
+          // die Einzel-Auswahl beim ersten ⌘-Klick erst Teil der Menge — wie
+          // im Finder.
+          if (!_multi.size && _sel) _multi.add(_sel.path);
           if (_multi.has(it.path)) _multi.delete(it.path); else _multi.add(it.path);
-          if (_multi.size) _sel = it;
+          if (_multi.size) {
+            _sel = _multi.has(it.path) ? it : (multiItems()[0] || null);
+          } else {
+            _sel = null;             // alles abgewählt → auch die Detailspalte leeren
+          }
           _ankerIdx = i;
         } else if (e.shiftKey && _ankerIdx >= 0) {
           // Bereich vom Anker bis hier
@@ -2358,6 +2368,12 @@ function mountLibrary(body, headerActions) {
     openModal({
       title: `🌊 ${T("schwarm.titel", "Schwarm — alle Touren laufen gleichzeitig")}`,
       body: `<div class="lib-fmodal">
+        <div id="sw-lauf" hidden>
+          <img id="sw-preview" style="width:100%; border-radius:8px; display:none" alt="">
+          <div class="lib-progress" style="margin-top:8px"><i id="sw-bar" style="width:0%"></i></div>
+          <div class="lib-hint" id="sw-status" style="margin-top:4px"></div>
+        </div>
+        <div id="sw-opts">
         <p class="lib-hint" style="margin-top:0">${T("schwarm.erklaerung",
           "Alle Touren starten gleichzeitig und laufen gleich schnell. Die längste bestimmt die Videodauer — kürzere sind früher im Ziel, ihr Punkt bleibt dort stehen.")}</p>
         <div class="lib-hint">${gute.length} ${T("library.tours", "Touren")} · ${Math.round(km)} km</div>
@@ -2393,11 +2409,6 @@ function mountLibrary(body, headerActions) {
           <input type="checkbox" id="sw-overlay" checked>
           <span>${T("schwarm.overlay", "Zähler einblenden (Touren · km · noch unterwegs)")}</span>
         </label>
-
-        <div id="sw-lauf" hidden style="margin-top:14px">
-          <img id="sw-preview" style="width:100%; border-radius:8px; display:none" alt="">
-          <div class="lib-progress" style="margin-top:8px"><i id="sw-bar" style="width:0%"></i></div>
-          <div class="lib-hint" id="sw-status" style="margin-top:4px"></div>
         </div>
       </div>`,
       footer: `
@@ -2445,8 +2456,13 @@ function mountLibrary(body, headerActions) {
       }
       laeuft = true;
       start.disabled = true;
+      // Fortschritt steht OBEN im Dialog; die Optionen verschwinden während
+      // des Renderns — vorher musste man am Ende der Optionsliste zum Balken
+      // scrollen (Marc, 28.08.2026).
       const lauf = document.getElementById("sw-lauf");
+      const opts = document.getElementById("sw-opts");
       if (lauf) lauf.hidden = false;
+      if (opts) opts.hidden = true;
       _schwarmPoll = setInterval(async () => {
         let st = null;
         try { st = await api().animator_status(); } catch (_) { return; }
@@ -2460,6 +2476,8 @@ function mountLibrary(body, headerActions) {
         if (!st.running) {
           clearInterval(_schwarmPoll); _schwarmPoll = null;
           laeuft = false; start.disabled = false;
+          const optsEnde = document.getElementById("sw-opts");
+          if (optsEnde) optsEnde.hidden = false;
           if (st.cancelled) { toast(T("schwarm.abgebrochen", "Abgebrochen."), "info"); return; }
           if (st.error) { toast(T("schwarm.fehler", "Schwarm-Render konnte nicht starten.") + " " + String(st.error).split("\n")[0], "error", 8000); return; }
           openModal({}).close();
