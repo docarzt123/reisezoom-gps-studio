@@ -12389,6 +12389,7 @@ function mountAnimator(body, headerActions, opts) {
     // jede Datei nur einmal genommen (auch der Haupt-Track gehört nicht in die
     // Liste); waren Doppelte da, wird der bereinigte Stand still persistiert.
     const gesehen = new Set([_pfadNFC(currentGpx)]);
+    let fehlend = 0;   // 28.08.2026 — nur ECHTE Lade-Fehlschläge zählen
     for (const t of saved) {
       if (!t || !t.gpx_path || gesehen.has(_pfadNFC(t.gpx_path))) continue;
       gesehen.add(_pfadNFC(t.gpx_path));
@@ -12406,13 +12407,22 @@ function mountAnimator(body, headerActions, opts) {
           _extraTours.push({ gpx_path: pfad,
                              line_color: t.line_color || "#35a7ff",
                              name: t.name || "Tour", coords: res.coords });
+        } else {
+          fehlend++;
+          applog("warn", `[Animator] gespeicherte Etappe nicht ladbar: ${t.gpx_path} (${(res && res.error) || "?"})`);
         }
-      } catch (_) {}
+      } catch (e) { fehlend++; applog("warn", `[Animator] gespeicherte Etappe nicht ladbar: ${t.gpx_path} (${e})`); }
     }
-    if (_extraTours.length !== saved.length) {
-      try { toast(t("animator.tours.missing", "Manche gespeicherten Touren wurden nicht gefunden."), "warn", 5000); } catch (_) {}
-      _animPersistTours();
+    // 28.08.2026 (Marc: „warum?"): Der Warn-Toast kam auch, wenn nur die
+    // SELBSTHEILUNG Duplikate oder den Haupt-Track aussortiert hat — ein
+    // Längenvergleich ist kein Beleg für fehlende Dateien. Gewarnt wird
+    // jetzt nur bei echten Lade-Fehlschlägen (Datei weg/kaputt, s. app.log);
+    // still persistiert wird der bereinigte Stand in beiden Fällen.
+    if (fehlend > 0) {
+      try { toast(t("animator.tours.missing_n", "{n} gespeicherte Tour(en) wurden nicht gefunden — Details im Log.")
+        .replace("{n}", fehlend), "warn", 6000); } catch (_) {}
     }
+    if (_extraTours.length !== saved.length) _animPersistTours();
     await _tourenLadeAbschluss();
     } finally {
       // Ein geworfener Fehler darf das NICHT SCHLIESSBARE Modal nie stehen

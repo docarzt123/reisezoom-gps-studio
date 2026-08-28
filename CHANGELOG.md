@@ -15,6 +15,10 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Fixed
+- Fehlalarm „Manche gespeicherten Touren wurden nicht gefunden" beim Laden in
+  den Animator (Marc, 28.08.2026): Der Toast kam auch, wenn nur die
+  Selbstheilung Duplikate oder den Haupt-Track aussortiert hatte. Gewarnt wird
+  jetzt nur bei echten Lade-Fehlschlägen, mit Anzahl und Log-Spur.
 - Schwarm/Reise aus einer Sammlung, deren längste Tour schon Teil einer
   früheren Reise/eines Schwarms war: Der Q18a-Lese-Fallback kopierte das alte
   Projekt der ersten Tour BLIND — mitsamt allen Etappen. Ergebnis bei Marc
