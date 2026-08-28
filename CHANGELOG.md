@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.560] – 2026-08-28
+
+### Behoben
+- **Die Vorschau animiert den Schwarm jetzt mit** (Marcs erster M1-Test: „es
+  wird nur eine tour animiert, der rest liegt bunt und fertig auf der karte").
+  Die Zusatz-Touren lagen in der Vorschau als fertige Linien da, während sie im
+  gerenderten Video korrekt mitwuchsen — ein WYSIWYG-Bruch. Jetzt wachsen sie
+  beim Scrubben, im Probe-Lauf und im Ruhe-Zustand mit, abgeleitet aus der
+  zurückgelegten Distanz des Haupt-Tracks (derselbe Mechanismus wie im Render);
+  kürzere Touren bleiben im Ziel stehen. Beim vollen Trackbild („Ganzer Track")
+  sind auch sie voll zu sehen.
+
 ## [0.9.559] – 2026-08-28
 
 ### Hinzugefügt (Schwarm-Vollausbau, Meilenstein 1 — IDEAS §38)
