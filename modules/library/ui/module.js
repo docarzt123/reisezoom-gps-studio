@@ -2446,9 +2446,22 @@ function mountLibrary(body, headerActions) {
           <button class="btn btn-sm" id="lib-cm-dup">⎘ ${T("library.col_duplicate", "Duplizieren")}</button>
           <button class="btn btn-ghost btn-sm lib-btn-danger" id="lib-cm-del">${T("library.col_delete", "Löschen")}</button>
         </div>
+        <div class="lib-hint lib-warnhint" id="lib-cm-filterhint" hidden style="margin-top:8px;"></div>
         <div class="lib-hint" style="margin-top:8px;">${T("library.col_delete_note", "Löschen entfernt nur die Sammlung — die Touren bleiben im Archiv.")}</div>
       </div>`,
     });
+    // Aktive Archiv-Filter? Dann VOR dem Klick sagen, was eine Übergabe nimmt.
+    let _cmMenge = null;
+    sammlungGefiltert(cid).then(m => {
+      _cmMenge = m;
+      const h = document.getElementById("lib-cm-filterhint");
+      if (h && m.reduziert) {
+        h.hidden = false;
+        h.textContent = T("library.col_filterhint",
+          "Archiv-Filter aktiv: {n} von {m} Touren sichtbar — „Alle im Animator“ und „Als Schwarm“ nehmen genau diese {n}.")
+          .replace(/\{n\}/g, String(m.gefiltert.length)).replace("{m}", String(m.alle.length));
+      }
+    }).catch(() => {});
     const nameEl = document.getElementById("lib-cm-name");
     if (nameEl) nameEl.onchange = async () => {
       const alterName = (_collections.find(x => x.id === cid) || {}).name || c.name;
@@ -2465,7 +2478,12 @@ function mountLibrary(body, headerActions) {
       m.close(); renderCollections(); reload();
     };
     const anim = document.getElementById("lib-cm-anim");
-    if (anim) anim.onclick = () => { m.close(); openCollectionInAnimator(cid); };
+    if (anim) anim.onclick = async () => {
+      m.close();
+      const menge = _cmMenge || await sammlungGefiltert(cid);
+      const items = (menge.reduziert && menge.gefiltert.length >= 1) ? menge.gefiltert : menge.alle;
+      openCollectionInAnimator(cid, items);
+    };
     const dup = document.getElementById("lib-cm-dup");
     if (dup) dup.onclick = async () => {
       dup.disabled = true;
@@ -2483,6 +2501,11 @@ function mountLibrary(body, headerActions) {
     const schwarm = document.getElementById("lib-cm-schwarm");
     if (schwarm) schwarm.onclick = async () => {
       m.close();
+      const menge = _cmMenge || await sammlungGefiltert(cid);
+      if (menge.reduziert && menge.gefiltert.length >= 2) {
+        alsSchwarmInDenAnimator(menge.gefiltert);
+        return;
+      }
       const r = await api().library_collection_items(cid);
       alsSchwarmInDenAnimator((r && r.items) || []);
     };
@@ -2545,9 +2568,36 @@ function mountLibrary(body, headerActions) {
 
   /** Ganze Sammlung an den Animator übergeben — erste Tour als Haupt-Track,
    *  der Rest als zusätzliche Touren. Genau dafür hat sie eine Reihenfolge. */
-  async function openCollectionInAnimator(cid) {
-    const res = await api().library_collection_items(cid);
-    const items = (res && res.items) || [];
+  /** Sammlung in ihrer Reihenfolge, PLUS dieselbe Sammlung durch die gerade
+   *  aktiven Archiv-Filter gesehen (Bereich „Gemachte", Suche, Jahr, Art, km).
+   *  Marc, 28.08.2026 („große verwirrung"): Er stand im Bereich „Gemachte",
+   *  startete den Schwarm — und bekam die GANZE Sammlung samt geplanter
+   *  Touren. Übergaben nehmen jetzt das, was die Filter zeigen; ohne aktive
+   *  Filter bleibt es die ganze Sammlung. Abgleich über geo_hash, weil
+   *  dieselbe Tour als mehrere Dateien im Archiv liegen kann. */
+  async function sammlungGefiltert(cid) {
+    const alleRes = await api().library_collection_items(cid);
+    const alle = ((alleRes && alleRes.items) || []);
+    let gefiltert = alle;
+    try {
+      const r = await api().library_query(queryParams({
+        collection_id: cid, sort: "collection", limit: 100000, offset: 0,
+        with_thumbs: false, with_geom: false,
+      }));
+      if (r && r.ok && Array.isArray(r.items)) {
+        const drin = new Set(r.items.map(i => i.geo_hash));
+        gefiltert = alle.filter(i => drin.has(i.geo_hash));
+      }
+    } catch (_) {}
+    return { alle, gefiltert, reduziert: gefiltert.length < alle.length };
+  }
+
+  async function openCollectionInAnimator(cid, itemsOpt) {
+    let items = itemsOpt;
+    if (!items) {
+      const res = await api().library_collection_items(cid);
+      items = (res && res.items) || [];
+    }
     if (!items.length) { toast(T("library.col_empty", "Diese Sammlung ist leer."), "warn"); return; }
     // Die weiteren Etappen werden NICHT von hier aus hinzugefügt: der Animator
     // lädt beim Mounten seinen Projekt-State und würde sie sofort wieder
