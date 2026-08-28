@@ -15,6 +15,10 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed
+- Kartenansicht im Archiv: Eine Tour per Sammlungs-Chip (✕) entfernen lässt
+  den Kartenausschnitt jetzt stehen — die Tour verschwindet einfach, statt
+  dass die Karte auf die Default-Zoomstufe aller Touren zurückspringt
+  (Marc, 28.08.2026).
 - Archiv-Sammlungen (Marc, 28.08.2026, drei Punkte): Die Verwaltung hängt nicht
   mehr allein am Rechtsklick — jede Sammlung hat jetzt einen sichtbaren
   ⋯-Knopf. Das ✕ am Sammlungs-Chip bestätigt per Toast, und verlässt die Tour

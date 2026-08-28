@@ -1586,9 +1586,18 @@ function mountLibrary(body, headerActions) {
   function closeMapPopup() {
     if (_mapPopup) { try { _mapPopup.remove(); } catch (_) {} _mapPopup = null; }
   }
+  // 28.08.2026 (Marc): Verschwindet eine Tour von der Karte (aus der
+  // Sammlung genommen), soll die Kamera stehen bleiben — nicht auf die
+  // Default-Zoomstufe aller Touren zurückspringen. Einmal-Flag, vom
+  // Chip-✕ gesetzt, beim nächsten Daten-Update verbraucht.
+  let _mapKeepCamera = false;
   function applyMapData(data) {
     const src = _map.getSource("lib-tracks");
-    if (src) { src.setData(data); fitAll(data); }
+    if (src) {
+      src.setData(data);
+      if (_mapKeepCamera) _mapKeepCamera = false;
+      else fitAll(data);
+    }
   }
   function applyMapSelection(fly) {
     if (!_map || !_mapReady) return;
@@ -2273,10 +2282,14 @@ function mountLibrary(body, headerActions) {
           _sel = null; store.set("sel", "");
           closeMapPopup();
           renderDetail();
+          if (view === "map") _mapKeepCamera = true;
           reload();
         } else {
           renderColChips(box, it, opts);
-          if (state.collection_id) reload();
+          if (state.collection_id) {
+            if (view === "map") _mapKeepCamera = true;
+            reload();
+          }
         }
       };
     });
