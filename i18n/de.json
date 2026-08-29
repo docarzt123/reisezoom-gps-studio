@@ -2394,5 +2394,7 @@
   "schwarm.modus_uhrzeit_bew": "Echte Uhrzeit — ohne Pausen",
   "schwarm.modus_uhrzeit_bew_hint": "Wie oben, aber Pausen werden herausgeschnitten — verglichen wird das reine Tempo.",
   "animator.statsfield.asc_done": "Bergauf bisher",
-  "animator.statsfield.desc_done": "Bergab bisher"
+  "animator.statsfield.desc_done": "Bergab bisher",
+  "library.sort.maxspeed_desc": "Höchstes Max-Tempo",
+  "library.maxspeed": "Max. Tempo"
 }

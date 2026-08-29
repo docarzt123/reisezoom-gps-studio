@@ -257,6 +257,7 @@ function mountLibrary(body, headerActions) {
           <option value="dist_asc">${T("library.sort.dist_asc", "Kürzeste zuerst")}</option>
           <option value="asc_desc">${T("library.sort.asc_desc", "Meiste Höhenmeter")}</option>
           <option value="dur_desc">${T("library.sort.dur_desc", "Längste Dauer")}</option>
+          <option value="maxspeed_desc">${T("library.sort.maxspeed_desc", "Höchstes Max-Tempo")}</option>
           <option value="name_asc">${T("library.sort.name_asc", "Name A–Z")}</option>
           <option value="name_desc">${T("library.sort.name_desc", "Name Z–A")}</option>
           <option value="dur_asc">${T("library.sort.dur_asc", "Kürzeste Dauer")}</option>
@@ -2002,6 +2003,7 @@ function mountLibrary(body, headerActions) {
       [T("library.duration", "Dauer"), it.duration_s ? fmtDurVal(it.duration_s) : "—"],
       [T("library.ascent", "Höhenmeter"), `↑ ${num(it.ascent_m)} m · ↓ ${num(it.descent_m)} m`],
       [T("library.speed", "Schnitt"), it.avg_speed_kmh ? it.avg_speed_kmh.toFixed(1) + " km/h" : "—"],
+      [T("library.maxspeed", "Max. Tempo"), it.max_speed_kmh ? it.max_speed_kmh.toFixed(1) + " km/h" : "—"],
       [T("library.points", "Punkte"), `${it.n_points || 0}${it.n_segments > 1 ? ` · ${it.n_segments} ${T("library.segments", "Etappen")}` : ""}`],
       [T("library.activity", "Fortbewegung"), ACT_LABELS[it.activity] || (it.activity || "—")],
       [T("library.file", "Datei"), it.filename],

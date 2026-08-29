@@ -14,7 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- „Noch unterwegs" zeigte in der VORSCHAU nichts an (Marc, 29.08.2026) — das
+  Feld hatte dort keinen Rechen-Fall, nur im Render. Jetzt zählt die Vorschau
+  live und modus-treu mit (gleich/Fotofinish/Uhrzeit), Standbild zeigt
+  „0 / N" (Ende = alle im Ziel).
+
 ### Changed
+- Archiv: neue Sortierung „Höchstes Max-Tempo" und die Detailspalte zeigt das
+  Max-Tempo jeder Tour — so findet man die Tour mit dem GPS-Ausreißer, die dem
+  Schwarm sein „Max. Tempo" stempelt (Marcs 44,4 km/h kamen aus „Barranco de
+  Masca Extended Version").
 - Schwarm-Gesamtwerte sind jetzt SUMMEN über alle Touren (Marc, 29.08.2026):
   Strecke, Zeit, Bewegungszeit, Bergauf/Bergab als Summe; Ø-Tempo als Schnitt
   aus den Summen; Max. Tempo, Höchster/Tiefster Punkt als Extremwert. Gilt im
