@@ -107,6 +107,9 @@ window.addEventListener("resize", () => { try { passeTabsAnBreiteAn(); } catch (
 window.getActiveMod = () => activeMod;
 
 function switchMod(slug) {
+  // v0.9.602: ein Tab-Klick ist immer auch "Projektmanager zu" — sonst gäbe
+  // es aus dem Overlay keinen Weg zurück ins Modul darunter.
+  if (typeof window.projektManagerZu === "function") window.projektManagerZu();
   if (slug === activeMod) return;
   const reg = window.RZGPS_MODULES || {};
   if (!reg[slug]) return;

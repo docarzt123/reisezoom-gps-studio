@@ -123,6 +123,13 @@ async def main():
         print("\n━━━ 1. Boot öffnet den Projektmanager (Vollbild) ━━━")
         sagen(not await pg.eval_on_selector("#pmgr-overlay", "e => e.hidden"),
               "das Overlay steht beim Start offen")
+        # v0.9.602 (Marc: „im projekt manager fehlt die ganze topbar"): das
+        # Overlay beginnt UNTER der Topbar — Tabs bleiben klickbar.
+        sagen(await pg.evaluate("""(() => {
+          const tb = document.querySelector(".topbar").getBoundingClientRect();
+          const ov = document.getElementById("pmgr-overlay").getBoundingClientRect();
+          return ov.top >= tb.bottom - 1 && tb.height > 10;
+        })()"""), "… die Topbar bleibt sichtbar (Overlay beginnt darunter)")
         deine = await pg.eval_on_selector_all(
             "#pmgr-body > .lib-proj-liste .lib-proj-karte",
             "e => e.map(x => x.dataset.pid)")
