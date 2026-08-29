@@ -2472,5 +2472,17 @@
   "library.stand_done": "Arbeitsstand wiederhergestellt.",
   "library.stand_nicht_gefunden": "Stand nicht gefunden",
   "library.fassung_unbekannt": "Fassung unbekannt",
-  "topbar.project.action_all": "Alle Projekte …"
+  "topbar.project.action_all": "Alle Projekte …",
+  "library.proj_new": "Neues Projekt",
+  "library.proj_new_hint": "Startet leer — Touren kannst du später mit ➕ hinzufügen oder es gleich ohne Tour öffnen (Reiseroute, Kartenflug).",
+  "library.proj_angelegt": "Projekt angelegt.",
+  "library.proj_frei": "Noch keine Touren — mit ➕ hinzufügen oder leer öffnen (Reiseroute, Kartenflug)",
+  "library.proj_addtours": "Touren aus dem Archiv hinzufügen",
+  "library.proj_addtours_ok": "Hinzufügen",
+  "library.proj_tours_gesetzt": "{n} Tour(en) hinzugefügt.",
+  "topbar.project.none": "Projekte",
+  "topbar.project.action_new_empty": "Neues leeres Projekt …",
+  "topbar.project.new_empty_title": "Neues leeres Projekt",
+  "topbar.project.new_empty_msg": "Name (Touren kannst du später hinzufügen):",
+  "topbar.project.new_empty_default": "Neues Projekt"
 }

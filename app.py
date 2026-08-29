@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.611"
+APP_VERSION = "0.9.612"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -6967,6 +6967,15 @@ class Api:
             touren = daten.get("touren") or {}
             conn = self._lib()
             for k in karten:
+                # v0.9.612: leeres Projekt (frei:) — nichts aufzulösen, Öffnen
+                # geht ohne Datei ins Modul.
+                if str(k.get("kontext", "")).startswith("frei:") \
+                        and not (k.get("geo_hashes") or []):
+                    k["haupt_pfad"] = ""
+                    k["exists"] = True
+                    k["frei"] = True
+                    k["n_touren"] = 0
+                    continue
                 # E2 (Q16a): hängt an der gepinnten Fassung eine neuere Kette?
                 hinweis = None
                 for gh in (k.get("geo_hashes") or []):
@@ -7084,6 +7093,7 @@ class Api:
                             break
                 pfade.append(ersatz or pf)
             return {"ok": True, "kontext": p.get("kontext", ""),
+                    "frei": str(p.get("kontext", "")).startswith("frei:"),
                     "ablauf": p.get("ablauf", "solo"),
                     "schwarm_modus": p.get("schwarm_modus", "gleich"),
                     "schwarm_pausen": bool(p.get("schwarm_pausen", True)),
@@ -7191,6 +7201,62 @@ class Api:
                 log.info("Fassungs-Adoption: %d Sicherung(en) aus track_backups "
                          "in Versions-Ketten übernommen", geaendert)
         return geaendert
+
+    @_mit_sessions_lock
+    def projekt_frei_anlegen(self, name: str = "") -> dict:
+        """v0.9.612 (Q1/Q2): leeres Projekt ohne Tour — z. B. für eine
+        Reiseroute oder einen reinen Kartenflug. Antwort im
+        session_open_for_track-Vertrag, damit die Topbar sofort mitzieht."""
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            p = _projekte.projekt_frei_anlegen(
+                daten, (name or "").strip(), self._session_get_global_defaults())
+            _projekte.speichern(APP_SUPPORT, daten)
+            k = p["kontext"]
+            return {"ok": True, "track_hash": k,
+                    "session": _projekte.session_sicht(daten, k) | {"track_hash": k},
+                    "active_project": p,
+                    "projects": _projekte.projekte_im(daten, k)}
+        except Exception as e:
+            log.error("projekt_frei_anlegen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def session_open_for_frei(self, kontext: str) -> dict:
+        """Frei-Kontext (wieder) aktivieren — gleicher Vertrag wie
+        session_open_for_track, nur ohne Track."""
+        try:
+            if not str(kontext).startswith("frei:"):
+                return {"ok": False, "error": "kein frei-Kontext"}
+            with _projekte.LOCK:
+                daten = _projekte.laden(APP_SUPPORT)
+                if not _projekte._aktives_projekt(daten, kontext):
+                    return {"ok": False, "error": _ui_t()(
+                        "error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            return {"ok": True, "track_hash": kontext,
+                    "session": _projekte.session_sicht(daten, kontext) | {"track_hash": kontext},
+                    "active_project": _projekte._aktives_projekt(daten, kontext),
+                    "projects": _projekte.projekte_im(daten, kontext)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    @_mit_sessions_lock
+    def projekt_touren_setzen(self, project_id: str, paths: list) -> dict:
+        """Touren (Archiv-Pfade) einem leeren Projekt geben — Kontext wird
+        re-keyed, der Arbeitsstand bleibt."""
+        try:
+            paare = []
+            for pf in (paths or []):
+                gh = self._track_geo_hash(str(pf))
+                if gh:
+                    paare.append((gh, str(pf)))
+            daten = _projekte.laden(APP_SUPPORT)
+            r = _projekte.projekt_touren_setzen(daten, project_id, paare)
+            if r.get("ok"):
+                _projekte.speichern(APP_SUPPORT, daten)
+            return r
+        except Exception as e:
+            log.error("projekt_touren_setzen: %s", e)
+            return {"ok": False, "error": str(e)}
 
     @_mit_sessions_lock
     def projekt_fassung_aktualisieren(self, project_id: str) -> dict:

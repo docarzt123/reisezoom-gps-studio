@@ -37,7 +37,10 @@
       const session = (typeof getActiveSession === "function") ? getActiveSession() : null;
       const project = (typeof getActiveProject === "function") ? getActiveProject() : null;
       if (!session || !project) {
-        wrap.hidden = true;
+        // v0.9.612 (Q2): auch OHNE geladenen Track sichtbar — man kann ein
+        // leeres Projekt anlegen oder in den Projektmanager springen.
+        wrap.hidden = false;
+        label.textContent = tT("topbar.project.none", "Projekte");
         return;
       }
       wrap.hidden = false;
@@ -53,7 +56,31 @@
       const project = (typeof getActiveProject === "function") ? getActiveProject() : null;
       const projects = (typeof getProjectsList === "function") ? getProjectsList() : [];
       if (!session || !project) {
-        menu.innerHTML = `<div class="topbar-project-menu-info">${tT("topbar.project.no_session", "Lade ein GPX um Projekte zu nutzen.")}</div>`;
+        menu.innerHTML = `<div class="topbar-project-menu-info">${tT("topbar.project.no_session", "Lade ein GPX um Projekte zu nutzen.")}</div>`
+          + `<button type="button" class="topbar-project-menu-item menu-action" data-action="new_frei">🆕 ${tT("topbar.project.action_new_empty", "Neues leeres Projekt …")}</button>`
+          + `<button type="button" class="topbar-project-menu-item menu-action" data-action="alle">🗂 ${tT("topbar.project.action_all", "Alle Projekte …")}</button>`;
+        menu.querySelectorAll("[data-action]").forEach(el => {
+          el.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            menu.hidden = true;
+            if (el.dataset.action === "alle") {
+              window.__rzStartProjekte = true;
+              if (typeof switchMod === "function") switchMod("library");
+              window.dispatchEvent(new CustomEvent("rz-projekte-anzeigen"));
+              return;
+            }
+            const name = await promptModal(
+              tT("topbar.project.new_empty_title", "Neues leeres Projekt"),
+              tT("topbar.project.new_empty_msg", "Name (Touren kannst du später hinzufügen):"),
+              tT("topbar.project.new_empty_default", "Neues Projekt"));
+            if (!name) return;
+            const r = await api().projekt_frei_anlegen(name);
+            if (r && r.ok && typeof sessionActivateFrei === "function") {
+              await sessionActivateFrei(r.track_hash);
+              if (typeof rebindAllSettings === "function") rebindAllSettings();
+            }
+          });
+        });
         return;
       }
       const stats = session.stats || {};

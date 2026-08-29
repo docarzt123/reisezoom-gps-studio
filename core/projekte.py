@@ -287,6 +287,11 @@ def session_sicht(daten: dict, kontext: str) -> dict:
     if kontext.startswith("menge:"):
         name = aktiv.get("name") or ""
         stats = {"n_tours": len(aktiv.get("geo_hashes") or [])}
+    elif kontext.startswith("frei:"):
+        # v0.9.612 (Marc: „bau direkt ein leeres projekt"): Projekt ohne Tour —
+        # der Name der Sitzung ist der Projektname, Stats gibt es keine.
+        name = aktiv.get("name") or ""
+        stats = {}
     else:
         tour = (daten.get("touren") or {}).get(kontext) or {}
         name = tour.get("name") or ""
@@ -592,6 +597,54 @@ def kontext_oeffnen_menge(daten: dict, pfade: list, hashes: list, ablauf: str,
 
 
 # ── Querschnitt: Projekt-Manager, Ersetzen-Migration, Cloud-Sicht ───────────
+
+def projekt_frei_anlegen(daten: dict, name: str, defaults: dict) -> dict:
+    """v0.9.612 (Q1/Q2, Marc: „bau direkt ein leeres projekt und wenn man
+    will kann man da dann touren hinzufügen"): Projekt OHNE Tour. Kontext
+    `frei:<uuid>` — der Store und alle Projekt-Brücken können mit jedem
+    Kontext-Schlüssel umgehen, nur Öffnen/Laden behandeln ihn besonders."""
+    kontext = "frei:" + uuid.uuid4().hex[:12]
+    p = _neues_projekt(kontext, name or _s.DEFAULT_PROJECT_NAME, defaults,
+                       auto=False, ablauf="solo", geo_hashes=[], gpx_paths=[])
+    p["geo_hashes"] = []
+    daten.setdefault("projects", {})[p["id"]] = p
+    daten.setdefault("aktiv", {})[kontext] = p["id"]
+    log.info("Leeres Projekt angelegt: %r (%s)", p["name"], kontext)
+    return p
+
+
+def projekt_touren_setzen(daten: dict, project_id: str, paare: list) -> dict:
+    """Touren einem (frei angelegten) Projekt geben: `paare` = [(geo_hash,
+    gpx_path)] in gewünschter Reihenfolge. Re-keyt den Kontext (1 Tour =
+    solo-Hash, ≥2 = Mengen-Hash) und zieht den aktiv-Zeiger mit; der
+    Payload (Keyframes, Stationen, Schilder) bleibt unangetastet."""
+    p = (daten.get("projects") or {}).get(project_id)
+    if not p or not paare:
+        return {"ok": False, "error": "Projekt/Touren fehlen"}
+    hashes = [gh for gh, _pf in paare if gh]
+    pfade = [pf for _gh, pf in paare if pf]
+    if not hashes:
+        return {"ok": False, "error": "keine geo_hashes"}
+    alt_kontext = p.get("kontext") or ""
+    if len(hashes) == 1:
+        neu_kontext = hashes[0]
+        p["ablauf"] = "solo"
+    else:
+        neu_kontext = _s.mengen_hash(hashes)
+        if p.get("ablauf") not in ("reise", "schwarm"):
+            p["ablauf"] = "reise"
+    p["geo_hashes"] = sorted(set(hashes))
+    p["gpx_paths"] = list(pfade)
+    p["kontext"] = neu_kontext
+    aktiv = daten.setdefault("aktiv", {})
+    if aktiv.get(alt_kontext) == project_id:
+        aktiv.pop(alt_kontext, None)
+    aktiv.setdefault(neu_kontext, project_id)
+    _angefasst(p)
+    log.info("Projekt %s: %d Tour(en) gesetzt, Kontext %s → %s",
+             project_id, len(hashes), alt_kontext, neu_kontext)
+    return {"ok": True, "kontext": neu_kontext, "ablauf": p["ablauf"]}
+
 
 def alle_projekte(daten: dict) -> list:
     """Karten-Daten für den Projekte-Bereich im Archiv (sortiert die UI)."""

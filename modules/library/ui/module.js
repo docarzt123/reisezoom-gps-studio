@@ -210,6 +210,7 @@ function mountLibrary(body, headerActions) {
       <div id="lib-nav-projekte" hidden>
         <div class="lib-nav-title">${T("pm.title", "Projekte")}</div>
         <nav class="lib-scopes" id="lib-proj-scopes"></nav>
+        <button class="lib-nav-add" id="lib-proj-new" type="button">+ ${T("library.proj_new", "Neues Projekt")}</button>
       </div>
       <div id="lib-nav-touren">
       <div class="lib-nav-title">${T("library.section_library", "Bibliothek")}</div>
@@ -753,7 +754,9 @@ function mountLibrary(body, headerActions) {
     const MODUL_CHIP = { animator: ["🎬", "Animator"], tourmap: ["🗺", "Tour-Map"],
                          geotagger: ["📷", "Geotagger"], heightanim: ["📈", T("library.proj_daten", "Daten")] };
     const karte = (p) => {
-      const ablauf = p.ablauf === "schwarm"
+      const ablauf = p.frei
+        ? `🆕 ${T("library.proj_frei", "Noch keine Touren — mit ➕ hinzufügen oder leer öffnen (Reiseroute, Kartenflug)")}`
+        : p.ablauf === "schwarm"
         ? `🌊 ${T("schwarm.name", "Schwarm")} · ${p.n_touren} ${T("library.tours", "Touren")}`
         : p.ablauf === "reise"
           ? `🧵 ${T("library.proj_reise", "Reise")} · ${p.n_touren} ${T("library.tours", "Touren")}`
@@ -784,7 +787,8 @@ function mountLibrary(body, headerActions) {
             <button class="btn btn-primary btn-sm" data-open="${p.id}">${T("library.proj_open", "Öffnen")}</button>
             <button class="btn btn-ghost btn-sm" data-ren="${p.id}" title="${T("library.rename", "Umbenennen")}">✎</button>
             <button class="btn btn-ghost btn-sm" data-dup="${p.id}" title="${T("library.col_duplicate", "Duplizieren")}">⎘</button>
-            <button class="btn btn-ghost btn-sm" data-st="${p.id}" title="${T("library.staende", "Frühere Arbeitsstände")}">🕘</button>
+            <button class="btn btn-ghost btn-sm" data-st="${p.id}" title="${T("library.staende", "Frühere Arbeitsstände")}">🕘</button>${p.frei ? `
+            <button class="btn btn-ghost btn-sm" data-addtours="${p.id}" title="${T("library.proj_addtours", "Touren aus dem Archiv hinzufügen")}">➕</button>` : ""}
             <button class="btn btn-ghost btn-sm lib-btn-danger" data-del="${p.id}" title="${T("library.proj_delete", "Projekt löschen")}">🗑</button>
           </span>
         </div>
@@ -863,6 +867,48 @@ function mountLibrary(body, headerActions) {
         renderProjekte();
       });
     });
+    // v0.9.612: Touren aus dem Archiv in ein leeres Projekt legen.
+    box.querySelectorAll("[data-addtours]").forEach(b => b.onclick = async (e) => {
+      e.stopPropagation();
+      const res = await api().library_query({ limit: 300, with_thumbs: false });
+      const items = (res && res.items) || [];
+      const zeilen = items.map((it, i) => `
+        <label class="lib-fassung" style="cursor:pointer;">
+          <input type="checkbox" data-tpick="${i}">
+          <span class="lib-fassung-info">${esc(it.name || it.filename || it.path)}</span>
+        </label>`).join("");
+      const m = openModal({
+        title: "➕ " + T("library.proj_addtours", "Touren aus dem Archiv hinzufügen"),
+        body: `<input type="search" id="lib-tp-such" class="lib-input" placeholder="${esc(T("library.search_ph", "Suchen — Name, Ort, Schlagwort …"))}" style="margin-bottom:8px;">
+               <div style="max-height:50vh;overflow-y:auto;" id="lib-tp-liste">${zeilen
+                 || `<p>${T("library.no_folders_short", "Noch kein Ordner eingelesen")}</p>`}</div>`,
+        footer: `<button class="btn" id="lib-tp-ab">${T("common.cancel", "Abbrechen")}</button>
+                 <button class="btn btn-primary" id="lib-tp-ok">${T("library.proj_addtours_ok", "Hinzufügen")}</button>`,
+      });
+      const such = document.getElementById("lib-tp-such");
+      if (such) such.oninput = () => {
+        const q = such.value.trim().toLowerCase();
+        document.querySelectorAll("#lib-tp-liste label").forEach((el, i) => {
+          const it = items[i] || {};
+          const txt = `${it.name || ""} ${it.filename || ""}`.toLowerCase();
+          el.style.display = !q || txt.includes(q) ? "" : "none";
+        });
+      };
+      const ok = document.getElementById("lib-tp-ok");
+      if (ok) ok.onclick = async () => {
+        const pfade = [];
+        document.querySelectorAll("#lib-tp-liste [data-tpick]").forEach(cb => {
+          if (cb.checked) { const it = items[parseInt(cb.dataset.tpick, 10)]; if (it) pfade.push(it.path); }
+        });
+        m.close();
+        if (!pfade.length) return;
+        const r = await api().projekt_touren_setzen(b.dataset.addtours, pfade);
+        if (r && r.ok) { toast(T("library.proj_tours_gesetzt", "{n} Tour(en) hinzugefügt.").replace("{n}", pfade.length), "info"); renderProjekte(); }
+        else toast((r && r.error) || "?", "error");
+      };
+      const ab = document.getElementById("lib-tp-ab");
+      if (ab) ab.onclick = () => m.close();
+    });
     box.querySelectorAll("[data-up]").forEach(b => b.onclick = (e) => {
       e.stopPropagation();
       const p = _projekte.find(x => x.id === b.dataset.up) || {};
@@ -913,6 +959,15 @@ function mountLibrary(body, headerActions) {
     if (!info || !info.ok) { toast((info && info.error) || "?", "error"); return; }
     const k = _projekte.find(x => x.id === pid) || {};
     const modul = modulWunsch || info.letztes_modul || "animator";
+    // v0.9.612 (Q1): leeres Projekt — kein Track zu laden, Sitzung direkt
+    // aktivieren und ins Modul springen (leere Karte; Reiseroute & Co.
+    // speichern ihre Arbeit dann am Projekt).
+    if (info.frei) {
+      try { if (typeof clearGlobalGpx === "function") clearGlobalGpx(); } catch (_) {}
+      if (typeof sessionActivateFrei === "function") await sessionActivateFrei(info.kontext);
+      if (typeof switchMod === "function") switchMod(modul);
+      return;
+    }
     if (info.ablauf === "reise" || info.ablauf === "schwarm") {
       const pfade = info.gpx_paths || [];
       if (pfade.length < 2 || k.pfade_ok === false) {
@@ -3489,6 +3544,27 @@ function mountLibrary(body, headerActions) {
   }
 
   // ── Ereignisse ────────────────────────────────────────────────────────
+  { const np = document.getElementById("lib-proj-new");
+    if (np) np.onclick = () => {
+      const m = openModal({
+        title: "🆕 " + T("library.proj_new", "Neues Projekt"),
+        body: `<p class="lib-hint">${T("library.proj_new_hint", "Startet leer — Touren kannst du später mit ➕ hinzufügen oder es gleich ohne Tour öffnen (Reiseroute, Kartenflug).")}</p>
+               <input type="text" id="lib-proj-newname" class="lib-input" value="${esc(T("topbar.project.new_empty_default", "Neues Projekt"))}">`,
+        footer: `<button class="btn" id="lib-pn-ab">${T("common.cancel", "Abbrechen")}</button>
+                 <button class="btn btn-primary" id="lib-pn-ok">OK</button>`,
+      });
+      const ok = document.getElementById("lib-pn-ok");
+      if (ok) ok.onclick = async () => {
+        const v = (document.getElementById("lib-proj-newname") || {}).value || "";
+        m.close();
+        if (!v.trim()) return;
+        const r = await api().projekt_frei_anlegen(v.trim());
+        if (r && r.ok) { toast(T("library.proj_angelegt", "Projekt angelegt."), "info"); renderProjekte(); }
+        else toast((r && r.error) || "?", "error");
+      };
+      const ab = document.getElementById("lib-pn-ab");
+      if (ab) ab.onclick = () => m.close();
+    }; }
   { const sp = document.getElementById("lib-seg-projekte");
     const st = document.getElementById("lib-seg-touren");
     if (sp) sp.onclick = () => { if (!_projView) projViewSetzen(true); };
