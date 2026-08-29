@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.625"
+APP_VERSION = "0.9.626"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -3586,6 +3586,8 @@ class Api:
                     "gpx_path": tp,
                     "line_color": t.get("line_color") or params.get("line_color", "#ff6b35"),
                     "name": t.get("name") or Path(tp).stem,
+                    # 29.08.2026 — Start-Verzögerung je Zusatz-Tour (Sekunden)
+                    "start_s": max(0.0, float(t.get("start_s") or 0)),
                 })
         # Single-Track-Pfad benutzt weiter `gpx_path`. Bei Multi-Track nehmen
         # wir die erste Tour als Basis für Output-Namen etc.
@@ -3819,6 +3821,8 @@ class Api:
             # IDEAS §38 M2 — Fokus-Tour (leer = Haupt-Track).
             schwarm_fokus_gpx=str(params.get("schwarm_fokus_gpx") or ""),
             schwarm_haupt_dezent=bool(params.get("schwarm_haupt_dezent")),
+            # 29.08.2026 (Marc, Schorfheide): Haupt-Tour startet verzögert
+            schwarm_haupt_start_s=max(0.0, float(params.get("schwarm_haupt_start_s", 0) or 0)),
             # IDEAS §38 M3 — Geschwindigkeitsmodus (Wahl im Archiv, via Session)
             schwarm_modus=(str(params.get("schwarm_modus") or "gleich")
                            if str(params.get("schwarm_modus") or "gleich") in ("gleich", "ziel", "uhrzeit")

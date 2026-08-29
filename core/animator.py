@@ -306,6 +306,10 @@ class AnimatorConfig:
     # ⚠️ Vorgabe bleibt "raw": bestehende Projekte müssen aussehen wie bisher.
     # Neue Projekte setzt die Oberfläche auf "even".
     pace_mode: str = "raw"
+    # 29.08.2026 (Marc, Schorfheide): Haupt-Tour darf verzögert loslaufen —
+    # sie bleibt Haupt (Schatten/Glow/Laufpunkt), der Schwarm läuft derweil
+    # an der Videozeit. Renormiert: sie kommt trotzdem am Videoende an.
+    schwarm_haupt_start_s: float = 0.0
     # Nur bei "real": was mit Standzeiten passiert. "show" (voll ausspielen),
     # "trim" (auf `pause_trim_s` kürzen) oder "skip" (ganz raus). Ohne
     # Behandlung wäre der ehrlichste Modus der langweiligste — bei einer
@@ -1818,6 +1822,12 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     schwarm_asc_json = json.dumps([round(float((t.get("stats") or {}).get("ascent_m") or 0), 1) for t in _sw])
     schwarm_desc_json = json.dumps([round(float((t.get("stats") or {}).get("descent_m") or 0), 1) for t in _sw])
     schwarm_dur_json = json.dumps([round(float((t.get("stats") or {}).get("duration_s") or 0), 1) for t in _sw])
+    # 29.08.2026 (Marc): Start-Verzögerung je Tour — als ANTEIL der Animation
+    # (Sekunden ÷ Animationsdauer), damit alle Modi dieselbe Sprache sprechen.
+    _anim_dauer = max(0.1, float(getattr(cfg, "duration_s", 0) or 0) or 20.0)
+    schwarm_start_json = json.dumps([
+        round(min(0.95, max(0.0, float(t.get("start_s") or 0) / _anim_dauer)), 4)
+        for t in _sw])
     # M3 — gewählte Zeitachse je Tour (roh = mit Pausen, bew = gestutzt) und
     # gemeinsame Achse = längste Dauer (Haupt-Track zählt mit; er selbst läuft
     # als Zeitachse weiter linear — seine Pausen sind im Video geglättet).
@@ -2483,21 +2493,31 @@ const SCHWARM_N = SCHWARM_COORDS.length;
 const SCHWARM_MODUS = {schwarm_modus_json};
 const SCHWARM_T = {schwarm_t_json};
 const SCHWARM_T_AXIS = {schwarm_t_axis_json};
+const SCHWARM_START = {schwarm_start_json};   // Start-Verzögerung je Tour (Anteil 0..1)
 function swarmIdx(i, dNow) {{
   const c = SCHWARM_COORDS[i];
-  const frac = TOTAL_DIST_M > 0 ? Math.min(1, dNow / TOTAL_DIST_M) : 1;
-  if (SCHWARM_MODUS === 'ziel') return Math.round(frac * (c.length - 1));
+  const frac0 = TOTAL_DIST_M > 0 ? Math.min(1, dNow / TOTAL_DIST_M) : 1;
+  const s0 = SCHWARM_START[i] || 0;
+  // 29.08.2026 (Marc): verzögerter Start. „Fotofinish" renormiert (kommt
+  // trotzdem an), „gleich"/„uhrzeit" laufen mit ECHTER Geschwindigkeit los —
+  // wer spät startet, ist am Ende ggf. noch unterwegs (ehrlich).
+  if (SCHWARM_MODUS === 'ziel') {{
+    const frac = s0 > 0 ? Math.max(0, Math.min(1, (frac0 - s0) / (1 - s0))) : frac0;
+    return Math.round(frac * (c.length - 1));
+  }}
   if (SCHWARM_MODUS === 'uhrzeit') {{
     const T = SCHWARM_T[i];
+    const fracV = Math.max(0, frac0 - s0);
     if (T && T.length === c.length && SCHWARM_T_AXIS > 0) {{
-      const t = frac * SCHWARM_T_AXIS;
+      const t = fracV * SCHWARM_T_AXIS;
       let lo = 0, hi = T.length - 1;
       while (lo < hi) {{ const mid = (lo + hi + 1) >> 1; if (T[mid] <= t) lo = mid; else hi = mid - 1; }}
       return lo;
     }}
-    return Math.round(frac * (c.length - 1));   // ohne Zeitstempel: gleichmäßig
+    return Math.round(Math.min(1, fracV / Math.max(1e-9, 1 - s0)) * (c.length - 1));
   }}
-  return Math.max(0, Math.min(c.length - 1, Math.floor(dNow / SCHWARM_STEPS[i])));
+  const dEff = Math.max(0, dNow - s0 * TOTAL_DIST_M);
+  return Math.max(0, Math.min(c.length - 1, Math.floor(dEff / SCHWARM_STEPS[i])));
 }}
 // „Fertig" mit einem Punkt Toleranz — sonst flackert der Zähler im letzten Frame.
 function swarmFertig(i, dNow) {{ return swarmIdx(i, dNow) >= SCHWARM_COORDS[i].length - 2; }}
@@ -3012,7 +3032,11 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
     }}
   }}
   if (SCHWARM_N) {{
-    window.__rzSchwarmAdvance(fullTrack ? Number.MAX_SAFE_INTEGER : (cumDistM[safe] || 0));
+    // 29.08.2026 — verzögerter Haupt-Start: Schwarm läuft an der
+    // unverzögerten Referenzachse (__rzSwarmRefIdx), nicht am wartenden Haupt.
+    const swSafe = (window.__rzSwarmRefIdx == null) ? safe
+      : Math.max(0, Math.min(totalPoints - 1, window.__rzSwarmRefIdx));
+    window.__rzSchwarmAdvance(fullTrack ? Number.MAX_SAFE_INTEGER : (cumDistM[swSafe] || 0));
   }}
   const head = allCoords[safe] || allCoords[0];
   // 23.08.2026 — Im unsichtbaren Übergang fliegt nur die Kamera: kein Laufpunkt
@@ -4167,6 +4191,9 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
             continue
         geparst.append({"points": pts, "laenge": pts[-1].dist_m,
                         "color": (t or {}).get("line_color") or "",
+                        # 29.08.2026 (Marc, Schorfheide): „an jedem einzelnen
+                        # schwarm track angeben, wie lange er warten soll"
+                        "start_s": max(0.0, float((t or {}).get("start_s") or 0)),
                         # 29.08.2026 (Marc: Gesamt-Stats = Summe aller Touren)
                         "stats": {"duration_s": float(getattr(_st, "duration_s", 0) or 0),
                                   "moving_time_s": float(getattr(_st, "moving_time_s", 0) or 0),
@@ -4190,6 +4217,7 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
                      "color": t["color"], "step_m": s,
                      "t_roh": t_roh, "t_bew": t_bew,
                      "stats": t["stats"],
+                     "start_s": t.get("start_s", 0.0),
                      "gpx_path": t["gpx_path"]})
     _log.info("Schwarm: %d Zusatz-Touren · Abstand %.1f m · Punkte %d",
               len(raus), s, sum(len(t["coords"]) for t in raus))
@@ -4482,6 +4510,14 @@ async def render(
     _end_idx   = int(_trim_end   * (len(points) - 1))
     _trim_n = max(1, _end_idx - _start_idx + 1)
     coords_per_frame = _trim_n / max(1, anim_frames)
+    # 29.08.2026 — Haupt-Start-Verzögerung (nur mit Schwarm sinnvoll): in der
+    # Anim-Phase steht der Haupt-Track erst still und läuft dann RENORMIERT
+    # (schneller) bis zum Ende. Die Schwarm-Referenzachse bleibt unverzögert.
+    _haupt_delay_frames = 0
+    if getattr(cfg, "schwarm_haupt_start_s", 0) and len(cfg.tracks) >= 2:
+        _haupt_delay_frames = min(anim_frames - 1, max(0, int(round(
+            float(cfg.schwarm_haupt_start_s) * cfg.fps))))
+    coords_per_frame_eff = _trim_n / max(1, anim_frames - _haupt_delay_frames)
     # v0.9.204 — Schild-Vorlauf reicht ins Intro. Im Intro friert der Marker am
     # trim_start ein (idx = _start_idx → markerAnchor = base_anchor). Der
     # Schild-FILTER bekommt aber pro Intro-Frame einen NEGATIV laufenden Anker
@@ -5034,9 +5070,25 @@ async def render(
                 elif frame < intro_frames + anim_frames:
                     anim_frame = frame - intro_frames
                     rel = int(anim_frame * coords_per_frame)
+                    if _haupt_delay_frames:
+                        rel = int(max(0, anim_frame - _haupt_delay_frames)
+                                  * coords_per_frame_eff)
                     idx = min(_start_idx + rel, _end_idx)
                 else:
                     idx = _end_idx
+                # Schwarm-Referenz: UNVERZÖGERTER Fortschritt, damit die
+                # Zusatz-Touren nicht mit dem wartenden Haupt-Track warten.
+                if _haupt_delay_frames:
+                    if frame < intro_frames:
+                        _swref = _start_idx
+                    elif frame < intro_frames + anim_frames:
+                        _swref = min(_start_idx + int((frame - intro_frames)
+                                     * coords_per_frame), _end_idx)
+                    else:
+                        _swref = _end_idx
+                    swref_js = f"window.__rzSwarmRefIdx={_swref};"
+                else:
+                    swref_js = ""
                 pitch_p, bearing_p, zoom_off_p, kf_center, kf_position, kf_rotation = _timeline.interpolate_properties(
                     _events_zeit, frame / max(1, total_frames - 1),   # v0.9.520: Zeit, nicht Anker
                     default_pitch=cfg.pitch,
@@ -5133,7 +5185,7 @@ async def render(
                 if _use_faithful and _g_fr > 0:
                     # Daten (Linie/Punkt/Overlays) ohne Kamera, dann entkoppelte FreeCamera.
                     await page.evaluate(
-                        f"window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f}, false)"
+                        f"{swref_js}window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f}, false)"
                     )
                     await page.evaluate(f"window.__camFaithful({timeline_progress})")
                     if os.environ.get("RZ_CAMDEBUG") == "1":
@@ -5146,7 +5198,7 @@ async def render(
                             pass
                 else:
                     await page.evaluate(
-                        f"window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f})"
+                        f"{swref_js}window.advanceFrame({idx}, {bearing}, {frame_lon}, {frame_lat}, {frame_zoom}, {pitch_f})"
                     )
                 # v0.9.228 — Overlay-Zeitfenster (Nutzer): Box pro Video-Sekunde
                 # ein-/ausblenden. Nur wenn überhaupt ein Fenster gesetzt ist.

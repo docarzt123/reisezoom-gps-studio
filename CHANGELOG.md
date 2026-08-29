@@ -15,6 +15,19 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- Schwarm: Start-Verzögerung je Tour (v0.9.626, Marc, Schorfheide: „während
+  die komplette Runde noch läuft anfangen den Teil zu animieren, den ich
+  schon gelaufen bin"): (1) jede Zusatz-Tour bekommt in der Touren-Liste ein
+  „⏱ Start nach X s"-Feld (Videozeit; 0 = gemeinsamer Start) — bei
+  „Fotofinish" renormiert (sie kommt trotzdem an), bei „gleich schnell" und
+  „echte Uhrzeit" läuft sie mit echter Geschwindigkeit später los; (2) die
+  HAUPT-Tour kann ebenfalls verzögert starten („Haupt-Tour startet nach X s")
+  und behält dabei Schatten, Glow und Laufpunkt — der Schwarm läuft derweil
+  an der unverzögerten Videozeit-Achse weiter; sie holt bis zum Videoende
+  auf. Vorschau spiegelt die Zusatz-Tour-Verzögerungen (zentraler Helfer
+  `_swIdxVerzoegert` an allen vier Rechen-Stellen); der Haupt-Start wirkt im
+  gerenderten Video, die Vorschau zeigt die Haupt-Tour unverzögert (Hinweis
+  steht am Feld). Alles im Projekt gespeichert, i18n DE/EN/ES.
 - Ghost-Spuren robust (v0.9.625, Marc: „im animator ist noch der nicht
   geheilte track zu sehen" — es war das Knäuel doppelter, eingefrorener
   Ghost-Routen): (1) Hinzufügen überspringt Pfade, die schon als Ghost

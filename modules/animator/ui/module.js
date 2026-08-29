@@ -2265,6 +2265,7 @@ function mountAnimator(body, headerActions, opts) {
   // („" = Haupt-Track). Nur im Schwarm-Ablauf von Bedeutung.
   let _animFokusPfad = "";
   let _animDezent = false;   // 29.08.2026 — Haupt-Tour im Schwarm dezent
+  let _animHauptStartS = 0;  // 29.08.2026 — Haupt-Tour startet nach X s (Schwarm)
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
   // 23.08.2026 — Etappen: Startindizes + geometrische Kumulativlänge. `line-progress`
   // misst gezeichnete Länge, cumDistM zählt Etappengrenzen bewusst NICHT mit — für die
@@ -2369,6 +2370,7 @@ function mountAnimator(body, headerActions, opts) {
       if (sauber.length !== _ghostSpuren.length) {
         applog && applog("info", `[ghost] ${_ghostSpuren.length - sauber.length} Dublette(n) zusammengelegt`);
         _ghostSpuren = sauber;
+        // ui-falle-ok: Sichern ist Komfort — scheitert es, bleibt die bereinigte Liste im Speicher aktiv
         try { ghostSpurenSichern(); } catch (_) {}
       }
       const pfade = _ghostSpuren.filter(g => g && g.path).map(g => g.path);
@@ -2386,7 +2388,9 @@ function mountAnimator(body, headerActions, opts) {
           }
           if (geaendert) {
             applog && applog("info", `[ghost] ${geaendert} Spur(en) von der Quelldatei aufgefrischt`);
+            // ui-falle-ok: Sichern/Neuaufbau nach Auffrischung — Fehler dürfen den Lade-Fluss nicht stoppen, applog eine Zeile drüber
             try { ghostSpurenSichern(); } catch (_) {}
+            // ui-falle-ok: s.o.
             try { _ghostSpurenAufbauen(); } catch (_) {}
           }
         }).catch(() => {});
@@ -10641,21 +10645,12 @@ function mountAnimator(body, headerActions, opts) {
                 const cum = _cumDistFuer(tr, tr.coords);
                 const L = cum[cum.length - 1] || 0;
                 const n1 = tr.coords.length - 1;
-                // M3 — pro Modus, wortgleich zu swarmDoneM/swarmIdx im Render.
-                let k;
-                if (_animModus === "ziel") {
-                  done += frac * L;
-                  k = Math.round(frac * n1);
-                } else if (_animModus === "uhrzeit") {
-                  const achse = _swAchseFuer(tr);
-                  k = (achse && _swPrevTAxis > 0)
-                    ? _swBinIdx(achse, frac * _swPrevTAxis)
-                    : Math.round(frac * n1);
-                  done += (achse && _swPrevTAxis > 0) ? (cum[k] || 0) : frac * L;
-                } else {
-                  done += Math.min(d, L);
-                  k = _swBinIdx(cum, d);
-                }
+                // M3 — pro Modus, wortgleich zu swarmDoneM/swarmIdx im Render;
+                // 29.08.2026: delay-fest — `done` aus dem (ggf. verzögerten)
+                // Index abgeleitet statt aus dem rohen frac.
+                const k = _swIdxVerzoegert(n1, _swAchseFuer(tr), cum,
+                                           _swStartAnteil(tr), frac, d, totD);
+                done += Math.min(L, cum[Math.max(0, Math.min(n1, k))] || 0);
                 gesamt += L;
                 // 29.08.2026 (Marc-Nebenbefund): Bergauf/Bergab/Vergangen sind
                 // im Schwarm Summen — je Tour anteilig zum eigenen Fortschritt
@@ -10686,17 +10681,9 @@ function mountAnimator(body, headerActions, opts) {
             const frac2 = totD > 0 ? Math.max(0, Math.min(1, (sr.cumDistM[i] || 0) / totD)) : 1;
             for (const tr of _extraTours) {
               if (!tr.coords || tr.coords.length < 2) continue;
-              let k;
-              if (_animModus === "ziel") {
-                k = Math.round(frac2 * (tr.coords.length - 1));
-              } else if (_animModus === "uhrzeit") {
-                const achse = _swAchseFuer(tr);
-                k = (achse && _swPrevTAxis > 0)
-                  ? _swBinIdx(achse, frac2 * _swPrevTAxis)
-                  : Math.round(frac2 * (tr.coords.length - 1));
-              } else {
-                k = _swBinIdx(_cumDistFuer(tr, tr.coords), sr.cumDistM[i] || 0);
-              }
+              const k = _swIdxVerzoegert(tr.coords.length - 1, _swAchseFuer(tr),
+                _cumDistFuer(tr, tr.coords), _swStartAnteil(tr),
+                frac2, sr.cumDistM[i] || 0, totD);
               if (k < tr.coords.length - 2) m++;
             }
             v = m + " / " + (_extraTours.length + 1);
@@ -12219,6 +12206,33 @@ function mountAnimator(body, headerActions, opts) {
         try { scrubPreview(_tlBar ? _tlBar.getScrubber() : 0); } catch (_) {}
       });
     }
+    // 29.08.2026 (Marc: „während 1. noch läuft anfangen den [Maintrack] zu
+    // animieren") — Haupt-Tour startet verzögert; der Schwarm läuft derweil an
+    // der Videozeit. Die Vorschau zeigt den Haupt-Start unverzögert (Hinweis).
+    let hsWrap = document.getElementById("anim-haupt-start-wrap");
+    if (!hsWrap && dzWrap && dzWrap.parentNode) {
+      hsWrap = document.createElement("div");
+      hsWrap.id = "anim-haupt-start-wrap";
+      hsWrap.style.cssText = "margin-top:6px;font-size:11px";
+      hsWrap.innerHTML = `<label class="field-label" for="anim-haupt-start" style="font-size:11px">⏱ ${
+        t("animator.haupt_start.label", "Haupt-Tour startet nach")}
+        <input type="number" id="anim-haupt-start" min="0" step="1" style="width:52px"> s</label>
+        <div class="hint" style="font-size:10.5px;opacity:.75">${
+        t("animator.haupt_start.hint", "Sie holt bis zum Videoende auf. Wirkt im gerenderten Video — die Vorschau zeigt die Haupt-Tour unverzögert.")}</div>`;
+      dzWrap.parentNode.insertBefore(hsWrap, dzWrap.nextSibling);
+      const inp = hsWrap.querySelector("#anim-haupt-start");
+      inp.value = _animHauptStartS;
+      inp.addEventListener("change", () => {
+        _animHauptStartS = Math.max(0, parseFloat(inp.value) || 0);
+        inp.value = _animHauptStartS;
+        _animPersistTours();
+      });
+    }
+    if (hsWrap) {
+      hsWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
+      const inp = hsWrap.querySelector("#anim-haupt-start");
+      if (inp && document.activeElement !== inp) inp.value = _animHauptStartS;
+    }
     if (dzWrap) dzWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
     if (fokusWrap) {
       fokusWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
@@ -12251,11 +12265,19 @@ function mountAnimator(body, headerActions, opts) {
         <span class="anim-tour-idx">${i + 2}</span>
         <input type="color" class="anim-tour-color" value="${_animEscapeHtml(tr.line_color)}" title="${t("animator.tours.color", "Farbe dieser Tour")}">
         <span class="anim-tour-name" title="${_animEscapeHtml(tr.gpx_path)}">${_animEscapeHtml(tr.name)}</span>
+        ${_animAblauf === "schwarm" ? `<span class="anim-tour-start-wrap" title="${t("animator.tours.start_delay", "Start nach … Sekunden Videozeit (0 = gemeinsamer Start)")}">⏱<input type="number" class="anim-tour-start" min="0" step="1" value="${+tr.start_s || 0}" style="width:44px">s</span>` : ""}
         <span class="anim-tour-actions">
           <button type="button" class="anim-tour-btn" data-act="up" ${i === 0 ? "disabled" : ""} title="${t("animator.tours.up", "nach oben")}">↑</button>
           <button type="button" class="anim-tour-btn" data-act="down" ${i === _extraTours.length - 1 ? "disabled" : ""} title="${t("animator.tours.down", "nach unten")}">↓</button>
           <button type="button" class="anim-tour-btn anim-tour-del" data-act="del" title="${t("animator.tours.remove", "entfernen")}">✕</button>
         </span>`;
+      // 29.08.2026 (Marc, Schorfheide): Start-Verzögerung je Zusatz-Tour.
+      row.querySelector(".anim-tour-start")?.addEventListener("change", (e) => {
+        _extraTours[i].start_s = Math.max(0, parseFloat(e.target.value) || 0);
+        e.target.value = _extraTours[i].start_s;
+        _animPersistTours();
+        try { _animSchwarmPreviewAdvance(_tlBar ? trackFracAusAnker(_tlBar.getScrubber()) : 0, previewFullTrack()); } catch (_) {}
+      });
       row.querySelector(".anim-tour-color").addEventListener("input", (e) => {
         _extraTours[i].line_color = e.target.value;
         _animPersistTours();
@@ -12374,6 +12396,27 @@ function mountAnimator(body, headerActions, opts) {
     }
     return tr.__rzAchse;
   }
+  /** 29.08.2026 (Marc, Schorfheide) — Start-Verzögerung je Tour, wortgleich
+   *  zu swarmIdx (core/animator.py): 'ziel' renormiert (kommt trotzdem an),
+   *  'uhrzeit'/'gleich' laufen mit echter Geschwindigkeit später los. */
+  function _swStartAnteil(x) {
+    const sek = +((x && x.start_s) || 0);
+    if (sek <= 0) return 0;
+    const dur = parseInt(document.getElementById("anim-dur")?.value) || 20;
+    return Math.min(0.95, Math.max(0, sek / Math.max(0.1, dur)));
+  }
+  function _swIdxVerzoegert(n1, achse, cum, s0, frac0, d, totD) {
+    if (_animModus === "ziel") {
+      const fr = s0 > 0 ? Math.max(0, Math.min(1, (frac0 - s0) / (1 - s0))) : frac0;
+      return Math.round(fr * n1);
+    }
+    if (_animModus === "uhrzeit") {
+      const fv = Math.max(0, frac0 - s0);
+      if (achse && _swPrevTAxis > 0) return _swBinIdx(achse, fv * _swPrevTAxis);
+      return Math.round(Math.min(1, fv / Math.max(1e-9, 1 - s0)) * n1);
+    }
+    return _swBinIdx(cum, Math.max(0, d - s0 * totD));
+  }
   function _swBinIdx(arr, wert) {
     let lo = 0, hi = arr.length - 1;
     while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (arr[mid] <= wert) lo = mid; else hi = mid - 1; }
@@ -12395,6 +12438,7 @@ function mountAnimator(body, headerActions, opts) {
           if (achse) zeit = idx ? idx.map(j => achse[j]) : achse;
         }
         return { coords, cum: _cumDistBerechnen(coords), zeit,
+                 start_s: +tr.start_s || 0,
                  dauer: zeit ? zeit[zeit.length - 1] : 0,
                  color: tr.line_color || "#35a7ff" };
       });
@@ -12444,18 +12488,9 @@ function mountAnimator(body, headerActions, opts) {
     const d = cumH[i0] + (cumH[i1] - cumH[i0]) * f;
     // M3 — synchron zu fokus_koordinate (core/animator.py).
     const frac = totalH > 0 ? Math.max(0, Math.min(1, d / totalH)) : 1;
-    let k;
-    if (_animModus === "ziel") {
-      k = Math.round(frac * (tr.coords.length - 1));
-    } else if (_animModus === "uhrzeit") {
-      const achse = _swAchseFuer(tr);
-      k = (achse && _swPrevTAxis > 0)
-        ? _swBinIdx(achse, frac * _swPrevTAxis)
-        : Math.round(frac * (tr.coords.length - 1));
-    } else {
-      const cum = _cumDistFuer(tr, tr.coords);
-      k = _swBinIdx(cum, d);
-    }
+    const k = _swIdxVerzoegert(tr.coords.length - 1, _swAchseFuer(tr),
+                               _cumDistFuer(tr, tr.coords), _swStartAnteil(tr),
+                               frac, d, totalH);
     return tr.coords[Math.max(0, Math.min(tr.coords.length - 1, k))];
   }
 
@@ -12478,16 +12513,8 @@ function mountAnimator(body, headerActions, opts) {
     const frac = totalH > 0 ? Math.max(0, Math.min(1, d / totalH)) : 1;
     const linien = [], punkte = [];
     for (const t of _swPrev) {
-      let k;
-      if (_animModus === "ziel") {
-        k = Math.round(frac * (t.coords.length - 1));
-      } else if (_animModus === "uhrzeit") {
-        k = (t.zeit && _swPrevTAxis > 0)
-          ? _swBinIdx(t.zeit, frac * _swPrevTAxis)
-          : Math.round(frac * (t.coords.length - 1));
-      } else {
-        k = _swBinIdx(t.cum, d);
-      }
+      let k = _swIdxVerzoegert(t.coords.length - 1, t.zeit, t.cum,
+                               _swStartAnteil(t), frac, d, totalH);
       k = Math.max(0, Math.min(t.coords.length - 1, k));
       linien.push({ type: "Feature", properties: { color: t.color },
         geometry: { type: "LineString",
@@ -12639,10 +12666,12 @@ function mountAnimator(body, headerActions, opts) {
     try {
       saveProjectSettings(_MODKEY, {
         extra_tours: _extraTours.map(t => ({
-          gpx_path: t.gpx_path, line_color: t.line_color, name: t.name })),
+          gpx_path: t.gpx_path, line_color: t.line_color, name: t.name,
+          start_s: +t.start_s || 0 })),
         tours_ablauf: _animAblauf,
         tours_fokus: _animFokusPfad,
         tours_dezent: _animDezent,
+        tours_haupt_start_s: _animHauptStartS,
         fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
       });
     } catch (_) {}
@@ -12780,6 +12809,9 @@ function mountAnimator(body, headerActions, opts) {
       _animDezent = a.tours_dezent === true;
       { const cb = document.getElementById("anim-schwarm-dezent");
         if (cb) cb.checked = _animDezent; }
+      _animHauptStartS = Math.max(0, +a.tours_haupt_start_s || 0);
+      { const inp = document.getElementById("anim-haupt-start");
+        if (inp) inp.value = _animHauptStartS; }
     } catch (_) {}
     const flyEl = document.getElementById("anim-fly");
     if (flyEl) { flyEl.value = fly; const l = document.getElementById("anim-fly-v"); if (l) l.textContent = fly.toFixed(1) + " s"; }
@@ -12833,6 +12865,7 @@ function mountAnimator(body, headerActions, opts) {
           _extraTours.push({ gpx_path: pfad,
                              line_color: t.line_color || "#35a7ff",
                              name: t.name || "Tour", coords: res.coords,
+                             start_s: +t.start_s || 0,
                              // M3 „echte Uhrzeit": Sekunden je Koordinate
                              zeit: (res.series && res.series.cumTimeS
                                     && res.has_time !== false
@@ -13098,12 +13131,14 @@ function mountAnimator(body, headerActions, opts) {
           name: primaryName,
         }].concat(_extraTours.map(tr => ({
           gpx_path: tr.gpx_path, line_color: tr.line_color, name: tr.name,
+          start_s: _animAblauf === "schwarm" ? (+tr.start_s || 0) : 0,
         })));
         return {
           tracks,
           tracks_ablauf: _animAblauf,
           schwarm_fokus_gpx: _animAblauf === "schwarm" ? _animFokusPfad : "",
           schwarm_haupt_dezent: hauptDezent(),
+          schwarm_haupt_start_s: _animAblauf === "schwarm" ? _animHauptStartS : 0,
           schwarm_modus: _animAblauf === "schwarm" ? _animModus : "gleich",
           schwarm_pausen: _animAblauf === "schwarm" ? _animPausen : true,
           fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
