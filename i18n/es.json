@@ -149,7 +149,7 @@
   "animator.fokus.none": "nadie (vista general)",
   "animator.ghost.tooltip": "Ghost track: dibuja toda la ruta de forma tenue/semitransparente al fondo, mientras solo la parte animada se dibuja totalmente opaca encima. Útil para ver hacia dónde sigue la ruta.",
   "animator.glow.tooltip": "Halo de color alrededor del trazado. Lo hace más vistoso sobre el mapa. Desactivado o 0 — solo la línea. La intensidad controla cuán suave es el halo.",
-  "animator.haupt_start.hint": "Recupera hasta el final del vídeo. Se aplica al vídeo renderizado — la vista previa muestra el tour principal sin retraso.",
+  "animator.haupt_start.hint": "Espera, luego corre más rápido y recupera hasta el final del vídeo — la vista previa y el vídeo muestran lo mismo.",
   "animator.haupt_start.label": "El tour principal empieza tras",
   "animator.help.label.kf_delete": "¿Cómo borrar un keyframe?",
   "animator.help.label.kf_edit": "¿Cómo funciona esto?",
