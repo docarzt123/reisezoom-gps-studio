@@ -46,6 +46,11 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Projekt-Sichtbarkeit (v0.9.616, Marc: „sehe nur das 2. angelegte
+  projekt"): Hat eine Tour mehr als ein Projekt, wird keins davon mehr
+  unter „Automatisch angelegt" versteckt — wer ein zweites anlegt,
+  arbeitet offensichtlich an der Tour. Außerdem zeigt das leere Projekt
+  🗂 statt des missverständlichen 🆕-Platzhalters.
 - Karten-Vorschau auf den Projektkarten (v0.9.615, Marc: „kann man da
   nicht auch eine karte anzeigen?"): Solo-Projekte zeigen das echte
   Karten-Thumbnail ihrer Tour; Kompositionen (und Touren ohne Thumbnail)

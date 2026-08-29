@@ -772,7 +772,7 @@ function mountLibrary(body, headerActions) {
       const up = p.neuere_fassung
         ? ` <button class="lib-proj-up" data-up="${p.id}" title="${T("library.fassung_up_tip", "Neuere Fassung der Tour verfügbar — Projekt per Klick aktualisieren")}">⬆ ${T("library.fassung_up", "neuere Fassung")}</button>` : "";
       return `<div class="lib-proj-karte${p.status === "fertig" ? " fertig" : ""}" data-pid="${p.id}">
-        <div class="lib-proj-thumb" data-pthumb="${p.id}">${p.frei ? "🆕" : "🗺"}</div>
+        <div class="lib-proj-thumb" data-pthumb="${p.id}">${p.frei ? "🗂" : "🗺"}</div>
         <div class="lib-proj-kopf">
           <span class="lib-proj-name">${esc(p.name)}</span>${fehlt}${up}
           <select class="lib-proj-status" data-pid="${p.id}" title="${T("library.proj_status", "Status")}">

@@ -650,6 +650,13 @@ def alle_projekte(daten: dict) -> list:
     """Karten-Daten für den Projekte-Bereich im Archiv (sortiert die UI)."""
     out = []
     touren = daten.get("touren") or {}
+    # v0.9.616 (Marc: „sehe nur das 2. angelegte projekt"): sobald ein Kontext
+    # MEHR als ein Projekt hat, wird keins davon als „automatisch" versteckt —
+    # wer ein zweites Projekt anlegt, arbeitet offensichtlich an der Tour.
+    je_kontext: dict = {}
+    for p in (daten.get("projects") or {}).values():
+        k = p.get("kontext") or ""
+        je_kontext[k] = je_kontext.get(k, 0) + 1
     for pid, p in (daten.get("projects") or {}).items():
         ghs = p.get("geo_hashes") or []
         tour_namen = [((touren.get(g) or {}).get("name") or "") for g in ghs]
@@ -658,7 +665,7 @@ def alle_projekte(daten: dict) -> list:
         out.append({
             "id": pid, "name": p.get("name", "?"),
             "status": p.get("status", "aktiv"),
-            "auto": bool(p.get("auto")),
+            "auto": bool(p.get("auto")) and je_kontext.get(p.get("kontext") or "", 1) < 2,
             "created_at": p.get("created_at"), "modified_at": p.get("modified_at"),
             "kontext": p.get("kontext", ""),
             "ablauf": p.get("ablauf", "solo"),
