@@ -2492,5 +2492,6 @@
   "library.proj_addtours_leer": "Nada marcado — selecciona rutas primero.",
   "library.keine_treffer": "Sin resultados.",
   "animator.pace.wirkung_min": "Esta ruta se grabó tan uniforme que esta distribución apenas se nota (como mucho {p} % de desplazamiento).",
-  "animator.pace.wirkung": "Efecto en esta ruta: el avance se desplaza hasta un {p} % respecto a «uniforme»."
+  "animator.pace.wirkung": "Efecto en esta ruta: el avance se desplaza hasta un {p} % respecto a «uniforme».",
+  "library.rename": "Renombrar"
 }
