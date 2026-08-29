@@ -283,22 +283,34 @@ Archivo de ajustes:
 - Windows: `%APPDATA%\Reisezoom GPS Studio\settings.json`
 - Linux: `~/.local/share/Reisezoom GPS Studio/settings.json`
 
-### Sesiones y proyectos (desde v0.8) ⭐
+### Proyectos (independientes desde v0.9.600) ⭐
 
-Las **sesiones** están vinculadas al track: cada track GPX recibe automáticamente su propia sesión (reconocida mediante un hash de las coordenadas del track). Si cargas el mismo track por segunda vez, recuperas **todos los ajustes + keyframes que habías hecho** — nunca más «se perdió» al cambiar de módulo.
+Un **proyecto** es tu carpeta de trabajo para un vídeo: las rutas implicadas
+(una — o muchas en viaje/enjambre), todos los ajustes, keyframes, fotos y
+carteles. Los proyectos ya no «pertenecen a una ruta»: son **cosas propias**
+con nombre, estado y «última edición». La misma ruta puede estar en tantos
+proyectos como quieras.
 
-Los **proyectos** son variantes dentro de una sesión — p. ej. «variante estándar» + «reels en vertical» + «con inserciones de fotos». Por cada track puedes crear tantos proyectos como quieras.
+**El área «🎬 Proyectos»**, arriba del todo a la izquierda del **archivo**, es
+su casa — y la app **arranca ahí**: el primer vistazo responde «¿en qué
+estaba?», un clic en **Abrir** salta al módulo que usaste por última vez en
+ese proyecto (los iconos de módulo de la tarjeta también son clicables). Cada
+tarjeta tiene además: estado (**activo / idea / terminado** — «terminado» baja
+al final), renombrar, duplicar, borrar. El buscador también filtra proyectos.
 
-**¿Dónde lo encuentro?** En la topbar arriba a la derecha — un menú desplegable de proyecto con 4 acciones:
-- 🆕 **Nuevo proyecto** (con valores por defecto de fábrica)
-- 📋 **Duplicar el actual** (copia todos los ajustes + keyframes)
-- ✏️ **Renombrar**
-- 🗑 **Eliminar** (el último proyecto de una sesión no se puede eliminar — se restaura automáticamente como «Estándar»)
+**Creados automáticamente:** al abrir una ruta siempre se crea un estado de
+trabajo — nunca se pierde nada. Los estados intactos quedan plegados bajo
+«Creados automáticamente» y suben en cuanto trabajas en ellos o los renombras.
 
-Los datos de sesión se encuentran en:
-- macOS: `~/Library/Application Support/Reisezoom GPS Studio/sessions/`
+**De la ruta al proyecto:** la columna de detalles de cada ruta muestra «está
+en N proyectos» — un clic muestra exactamente esos.
 
-(Por cada hash de track, una carpeta con snapshot del GPX + projects.json con todas las variantes.)
+**Dentro de un módulo** (topbar, arriba a la derecha) sigue el conmutador de
+proyecto de siempre: 🆕 Nuevo · 📋 Duplicar · ✏️ Renombrar · 🗑 Borrar.
+
+Se guarda en `…/Reisezoom GPS Studio/projekte.json` (carpetas de trabajo) y
+`touren.json` (datos de las rutas); los snapshots GPX siguen en
+`…/sessions/`.
 
 ---
 

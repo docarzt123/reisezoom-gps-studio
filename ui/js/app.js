@@ -1057,9 +1057,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Aktiven Map-Token für die Factory laden (auch wenn kein Token → OSM-Mode)
   await initMapToken();
 
-  const wanted = (_settingsCache && _settingsCache.active_module);
+  // E1 (Grilling Q19/Q21, 29.08.2026): Die App startet IMMER im Archiv im
+  // Bereich „Projekte" — der erste Blick beantwortet „woran war ich dran?",
+  // ein Klick öffnet das Projekt von gestern. Das frühere Auto-Restore des
+  // letzten Tracks (samt Boot-Lade-Modal) entfällt damit ersatzlos.
   const available = getModules().map(m => m.manifest.slug);
-  activeMod = available.includes(wanted) ? wanted : (available[0] || null);
+  activeMod = available.includes("library") ? "library" : (available[0] || null);
+  window.__rzStartProjekte = true;
   renderTabs();
   renderMod();
 
@@ -1094,50 +1098,10 @@ window.addEventListener("DOMContentLoaded", async () => {
         applog && applog("warn", `[start] Startdatei: ${e}`);
       }
 
-      const lastPath = _settingsCache && _settingsCache.last_gpx_path;
-      if (!lastPath || typeof loadGlobalGpx !== "function") return;
-      const exists = await api().path_exists(lastPath);
-      if (!exists || !exists.ok || !exists.exists) {
-        try {
-          if (typeof saveSettings === "function") {
-            saveSettings({
-              last_gpx_path: "",
-              geotagger: { last_photos_dir: "", last_photos_paths: [] }
-            });
-          }
-        } catch (_) {}
-        return;
-      }
-      // Beim App-Start die zuletzt benutzte Datei NICHT erneut zur Aufnahme
-      // anbieten — das wäre bei jedem Start dieselbe Frage.
-      // IDEAS §38: War zuletzt eine TOURENMENGE aktiv (Reise/Schwarm), wird
-      // sie komplett wiederhergestellt — Haupt-Track laden, dann die übrigen
-      // Etappen über den Pending-Weg an den Animator reichen. Ohne das stünde
-      // nach dem Neustart nur die erste Tour da und die Mengen-Sitzung (mit
-      // allen Keyframes) bliebe unauffindbar.
-      const menge = (_settingsCache && _settingsCache.last_menge) || null;
-      if (menge && Array.isArray(menge.paths) && menge.paths.length >= 2
-          && menge.paths[0] === lastPath) {
-        window.__rzPendingTours = menge.paths.slice(1);
-        window.__rzPendingAblauf = menge.ablauf === "schwarm" ? "schwarm" : "reise";
-        window.__rzPendingModus = ["gleich", "ziel", "uhrzeit"].includes(menge.modus) ? menge.modus : "gleich";
-        window.__rzPendingPausen = menge.pausen !== false;
-        // 28.08.2026 (Marc: „klick ich abbrechen hängt er"): Das Lade-Modal
-        // NUR öffnen, wenn der ANIMATOR das aktive Modul ist. Laden, Abbrechen
-        // und Schließen erledigt sein Pending-Handler — startet die App im
-        // Archiv, ist der gar nicht gemountet, und ein hier geöffnetes, nicht
-        // schließbares Modal stünde für immer (App tot). Die Pending-Pfade
-        // bleiben liegen; der Animator holt sie sich beim nächsten Mount
-        // selbst und zeigt DANN sein Modal.
-        const imAnimator = (typeof window.getActiveMod === "function") && window.getActiveMod() === "animator";
-        if (imAnimator && menge.paths.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
-        const ok = await loadGlobalGpx(lastPath, { stumm: true, menge: true });
-        // Schlug schon der Haupt-Track fehl, läuft kein Handler mehr, der
-        // das Modal je schlösse — hart zumachen.
-        if (!ok && typeof tourenLadeModalZu === "function") tourenLadeModalZu();
-        return;
-      }
-      await loadGlobalGpx(lastPath, { stumm: true });
+      // E1: KEIN Auto-Restore des letzten Tracks mehr — die App startet im
+      // Projekte-Bereich, das letzte Projekt liegt dort oben und ist einen
+      // Klick entfernt. (Die Boot-Deadlocks vom 28.08. verschwinden damit
+      // als Nebeneffekt gleich mit.)
     } catch (err) {
       console.warn("auto-restore GPX failed:", err);
       // Der Fehler selbst steht schon eine Zeile höher im Log — hier nur noch

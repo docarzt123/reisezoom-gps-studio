@@ -52,16 +52,23 @@ KARENZ_TAGE = 2
 _VERWEIS = re.compile(r"_drops[/\\]{1,2}([0-9A-Za-z_-]{4,64})[/\\]")
 
 
-def _referenzierte_ids(sessions_datei: Path) -> set:
-    """Alle Drop-Ordner, auf die irgendeine Sitzung verweist."""
-    try:
-        roh = Path(sessions_datei).read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        # Keine Sitzungsdatei lesbar → im Zweifel NICHTS löschen. Lieber
-        # Speicher verschwenden als die Dateien eines Projekts wegräumen.
-        log.warning("drops: sessions.json nicht lesbar — Aufräumen übersprungen")
-        return None          # type: ignore[return-value]
-    return set(_VERWEIS.findall(roh))
+def _referenzierte_ids(sessions_datei) -> set:
+    """Alle Drop-Ordner, auf die irgendein Projekt/eine Tour verweist.
+
+    E1 (29.08.2026): nimmt eine Datei ODER eine Liste von Dateien — der
+    Projekt-Store besteht aus projekte.json + touren.json. Ist auch nur EINE
+    der Dateien unlesbar, wird im Zweifel NICHTS gelöscht: lieber Speicher
+    verschwenden als die Dateien eines Projekts wegräumen."""
+    dateien = sessions_datei if isinstance(sessions_datei, (list, tuple)) else [sessions_datei]
+    ids = set()
+    for datei in dateien:
+        try:
+            roh = Path(datei).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            log.warning("drops: %s nicht lesbar — Aufräumen übersprungen", datei)
+            return None          # type: ignore[return-value]
+        ids |= set(_VERWEIS.findall(roh))
+    return ids
 
 
 def _groesse(p: Path) -> int:

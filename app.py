@@ -96,7 +96,8 @@ from core import backup as cbak
 from core import drops as cdrops
 from core import animator as canim
 from core import merge as cmerge   # 23.08.2026 — mehrere Touren zu einem Track
-from core import sessions as _sessions  # v0.8.0: Sessions + Projekte
+from core import sessions as _sessions
+from core import projekte as _projekte  # v0.8.0: Sessions + Projekte
 # v0.9.310 — core/tourmap.py entfernt: Tour-Map rendert jetzt über
 # canim.render_frame() (Standbild-Modus des Animators). Kein ctmap mehr.
 from core import i18n as ci18n
@@ -151,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.594"
+APP_VERSION = "0.9.600"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -637,15 +638,19 @@ def _session_hashes() -> set:
     """
     global _SESSION_HASHES, _SESSION_HASHES_STAMP
     try:
-        st = SESSIONS_FILE.stat()
+        st = (APP_SUPPORT / "projekte.json").stat()
         stempel = (st.st_mtime_ns, st.st_size)
     except OSError:
         return set()
     with _SESSION_HASHES_LOCK:
         if stempel == _SESSION_HASHES_STAMP and _SESSION_HASHES is not None:
             return _SESSION_HASHES
-    daten = _sessions.load_sessions(SESSIONS_FILE)
-    menge = set((daten.get("sessions") or {}).keys())
+    daten = _projekte.laden(APP_SUPPORT)
+    # E1: „hat Projekte" = alle Kontexte mit mindestens einem NICHT-auto-Projekt
+    # plus alle bekannten Touren-Fakten (Punkt im Archiv wie bisher).
+    menge = set((daten.get("touren") or {}).keys())
+    menge |= {p.get("kontext") for p in (daten.get("projects") or {}).values()
+              if p.get("kontext")}
     with _SESSION_HASHES_LOCK:
         _SESSION_HASHES = menge
         _SESSION_HASHES_STAMP = stempel
@@ -700,7 +705,8 @@ def _mit_sessions_lock(fn):
     """
     @functools.wraps(fn)
     def wrapper(*a, **kw):
-        with _sessions.LOCK:
+        # E1: der Store ist jetzt projekte.json — gleiche Race-Klasse, neuer Lock.
+        with _projekte.LOCK:
             return fn(*a, **kw)
     return wrapper
 
@@ -1077,6 +1083,20 @@ class Api:
         # umschlüsseln — BEVOR irgendein Thread (Cloud-Auto-Sync liest
         # sessions.json roh!) die Datei anfasst.
         self._sessions_migrieren()
+        # E1 (IDEAS §39, 29.08.2026): einmalige Überführung Sessions → Projekte.
+        # Läuft NACH der alten Schema-2-Migration (geo_hash-Schlüssel), damit
+        # auch uralte Bestände sauber ankommen. sessions.json wird danach zu
+        # sessions.json.aufgeloest-<stamp> umbenannt — nichts wird gelöscht.
+        try:
+            _info = _projekte.migrieren_falls_noetig(
+                APP_SUPPORT, SESSIONS_FILE, self._session_get_global_defaults())
+            if _info and not _info.get("neu"):
+                log.info("E1-Migration: %d Projekte (%d Kompositionen), %d Touren"
+                         " — alte Datei: %s", _info["projekte"],
+                         _info["kompositionen"], _info["touren"],
+                         _info.get("alt_datei"))
+        except Exception:
+            log.exception("E1-Migration fehlgeschlagen — Projekte-Store leer?")
         # v0.9.524 — Cloud-Auto-Sync-Wächter (tut nichts, solange keine Cloud
         # eingerichtet ist; fasst den Schlüsselbund erst bei echter Arbeit an).
         self._cloud_auto_thread = None
@@ -1398,10 +1418,8 @@ class Api:
         try:
             source = {}
             if track_hash and project_id:
-                data = _sessions.load_sessions(SESSIONS_FILE)
-                sess = data.get("sessions", {}).get(track_hash)
-                if sess:
-                    source = sess.get("projects", {}).get(project_id) or {}
+                daten = _projekte.laden(APP_SUPPORT)
+                source = (daten.get("projects") or {}).get(project_id) or {}
             if not source:
                 source = _load_settings()  # Fallback: globaler Scratch-Stand
             # Track-spezifische Keys, die ZWAR in DEFAULT_SETTINGS stehen (als
@@ -1549,47 +1567,49 @@ class Api:
                 # Nichts verändert (oder nur Höhen) — die Sitzung ist ohnehin dieselbe.
                 return {"ok": True, "unveraendert": True, "projekte": 0,
                         "ziel_hash": ziel_hash}
-            with _sessions.LOCK:
-                daten = _sessions.load_sessions(SESSIONS_FILE)
-                sess = (daten.get("sessions") or {})
-                quelle = sess.get(quelle_hash)
-                if not quelle:
+            with _projekte.LOCK:
+                daten = _projekte.laden(APP_SUPPORT)
+                q_liste = [p for p in (daten.get("projects") or {}).values()
+                           if p.get("kontext") == quelle_hash]
+                if not q_liste:
                     return {"ok": False, "error": _ui_t()("error.uebernehmen_quelle_fehlt", "Ursprungstour nicht gefunden")}
-                ziel = sess.get(ziel_hash)
-                if ziel is None:
+                if ziel_hash not in (daten.get("touren") or {}):
                     return {"ok": False, "error": _ui_t()("error.uebernehmen_ziel_fehlt", "Zieltour noch nicht angelegt")}
-                q_projekte = quelle.get("projects") or {}
-                if not q_projekte:
-                    return {"ok": True, "projekte": 0, "ziel_hash": ziel_hash}
-
-                # Die Projekte der Quelle ERSETZEN das leere Standard-Projekt der
-                # frisch angelegten Zieltour. Hat der Nutzer dort schon gearbeitet,
-                # bleiben seine Projekte erhalten und die kopierten kommen dazu.
-                ziel_projekte = ziel.setdefault("projects", {})
-                leer = [pid for pid, pr in ziel_projekte.items()
-                        if isinstance(pr, dict) and not any(
-                            (pr.get(k) or {}) for k in ("animator", "tourmap", "geotagger", "heightanim"))
-                        and not (pr.get("photos") or pr.get("signs"))]
+                # Kopien mit Ziel-Kontext anlegen; leere auto-Projekte des Ziels
+                # verschwinden (gleiche Regel wie früher).
                 import copy as _copy
+                def _ist_leer(p):
+                    return (not any((p.get(k) or {}) for k in
+                                    ("animator", "tourmap", "geotagger", "heightanim"))
+                            and not (p.get("photos") or p.get("signs")))
+                leer = [p["id"] for p in (daten.get("projects") or {}).values()
+                        if p.get("kontext") == ziel_hash
+                        and (p.get("auto") or _ist_leer(p))]
+                q_aktiv = (daten.get("aktiv") or {}).get(quelle_hash)
                 kopiert = 0
                 neu_aktiv = ""
-                for pid, pr in q_projekte.items():
-                    if not isinstance(pr, dict):
-                        continue
+                for pr in q_liste:
                     kopie = _copy.deepcopy(pr)
-                    neue_id = pid if pid not in ziel_projekte else f"{pid}_geheilt"
+                    # E1: Projekt-IDs sind global eindeutig — die Kopie auf dem
+                    # neuen Kontext bekommt deshalb immer eine frische Kennung.
+                    neue_id = f'{pr["id"]}_geheilt'
+                    if neue_id in daten["projects"]:
+                        import uuid as _uuid
+                        neue_id = _uuid.uuid4().hex[:12]
                     kopie["id"] = neue_id
-                    ziel_projekte[neue_id] = kopie
+                    kopie["kontext"] = ziel_hash
+                    kopie["geo_hashes"] = [ziel_hash]
+                    daten["projects"][neue_id] = kopie
                     kopiert += 1
-                    if pid == quelle.get("active_project_id") or not neu_aktiv:
+                    if pr["id"] == q_aktiv or not neu_aktiv:
                         neu_aktiv = neue_id
                 for pid in leer:
-                    ziel_projekte.pop(pid, None)
+                    daten["projects"].pop(pid, None)
                 if neu_aktiv:
-                    ziel["active_project_id"] = neu_aktiv
-                _sessions.save_sessions(SESSIONS_FILE, daten)
-            q_stats = (quelle.get("stats") or {})
-            z_stats = (ziel.get("stats") or {})
+                    daten.setdefault("aktiv", {})[ziel_hash] = neu_aktiv
+                _projekte.speichern(APP_SUPPORT, daten)
+            q_stats = ((daten.get("touren") or {}).get(quelle_hash) or {}).get("stats") or {}
+            z_stats = ((daten.get("touren") or {}).get(ziel_hash) or {}).get("stats") or {}
             log.info("session_projekte_uebernehmen: %s → %s, %d Projekt(e)",
                      quelle_hash, ziel_hash, kopiert)
             return {"ok": True, "projekte": kopiert, "ziel_hash": ziel_hash,
@@ -1632,35 +1652,37 @@ class Api:
             # taugen deshalb NICHT als Identität — ihr Hash dient nur noch als
             # Alias (`ui_hashes`), damit pfadlose Aufrufe die Session wiederfinden.
             ui_hash = _sessions.compute_track_hash(coords)
-            data = _sessions.load_sessions(SESSIONS_FILE)
-            track_hash = self._track_geo_hash(gpx_path) if gpx_path else ""
-            if not track_hash:
-                track_hash = _sessions.find_session_key(data, ui_hash) or ui_hash
-            defaults = self._session_get_global_defaults()
-            snap_src = None
-            if gpx_path and not str(gpx_path).lower().endswith(".gpx"):
-                try:
-                    snap_src = self._ensure_gpx(gpx_path)
-                except Exception:
-                    snap_src = None
-            sess, active_proj = _sessions.get_or_create_session(
-                data, track_hash, coords, gpx_path or None,
-                SESSIONS_GPX_DIR, defaults, ui_hash=ui_hash, snapshot_src=snap_src,
-            )
-            _sessions.save_sessions(SESSIONS_FILE, data)
+            # E1: gleicher Vertrag, neuer Store — Projekte statt Session.
+            with _projekte.LOCK:
+                daten = _projekte.laden(APP_SUPPORT)
+                track_hash = self._track_geo_hash(gpx_path) if gpx_path else ""
+                if not track_hash:
+                    track_hash = _projekte.find_kontext_by_ui_hash(daten, ui_hash) or ui_hash
+                defaults = self._session_get_global_defaults()
+                snap_src = None
+                if gpx_path and not str(gpx_path).lower().endswith(".gpx"):
+                    try:
+                        snap_src = self._ensure_gpx(gpx_path)
+                    except Exception:
+                        snap_src = None
+                active_proj = _projekte.kontext_oeffnen_einzel(
+                    daten, track_hash, coords, gpx_path or None,
+                    SESSIONS_GPX_DIR, defaults, ui_hash=ui_hash, snapshot_src=snap_src)
+                _projekte.speichern(APP_SUPPORT, daten)
+            tour = (daten.get("touren") or {}).get(track_hash) or {}
             log.info("session_open_for_track: hash=%s name=%r active=%r",
-                     track_hash, sess.get("name"), active_proj.get("name"))
+                     track_hash, tour.get("name"), active_proj.get("name"))
             return {
                 "ok": True,
                 "track_hash": track_hash,
                 "session": {
-                    "track_hash": sess["track_hash"],
-                    "name": sess["name"],
-                    "stats": sess.get("stats", {}),
-                    "gpx_snapshot_path": sess.get("gpx_snapshot_path", ""),
+                    "track_hash": track_hash,
+                    "name": tour.get("name", ""),
+                    "stats": tour.get("stats", {}),
+                    "gpx_snapshot_path": tour.get("gpx_snapshot_path", ""),
                 },
                 "active_project": active_proj,
-                "projects": _sessions.list_projects(sess),
+                "projects": _projekte.projekte_im(daten, track_hash),
             }
         except Exception as e:
             log.exception("session_open_for_track failed")
@@ -1703,115 +1725,25 @@ class Api:
             modus = str(modus) if str(modus) in ("gleich", "ziel", "uhrzeit") else "gleich"
             pausen = bool(pausen)
 
-            with _sessions.LOCK:
-                data = _sessions.load_sessions(SESSIONS_FILE)
-                sess = (data.get("sessions") or {}).get(schluessel)
-                neu_angelegt = sess is None
-                if neu_angelegt:
-                    # Projekt über den KANONISCHEN Weg anlegen (gleiche Struktur
-                    # wie jede Einzeltour-Sitzung) — nur die Sitzung selbst wird
-                    # von Hand gebaut: eine Menge hat keine EINE Datei, also
-                    # keinen Snapshot und keine Koordinaten-Stats.
-                    defaults = self._session_get_global_defaults()
-                    proj = _sessions._project_from_defaults(_sessions.DEFAULT_PROJECT_NAME, defaults)
-                    if ablauf == "schwarm":
-                        # IDEAS §38 M2 — die Schwarm-Overlay-Felder gleich aktiv
-                        # setzen (nur bei NEUEN Sitzungen; wer umstellt, dessen
-                        # Wahl bleibt). „Zurückgelegt" zeigt bewusst die längste
-                        # Tour (Q10a), der Zähler die ganze Herde.
-                        proj.setdefault("animator", {})
-                        proj["animator"].setdefault("overlay_live_fields",
-                                                    ["dist_done", "swarm_underway"])
-                        proj["animator"].setdefault("overlay_totals_fields",
-                                                    ["swarm_total"])
-                    name = ("Schwarm" if ablauf == "schwarm" else "Reise") + f" ({len(pfade)} Touren)"
-                    sess = {"track_hash": schluessel, "name": name,
-                            "ablauf": ablauf,
-                            "schwarm_modus": modus,
-                            "schwarm_pausen": pausen,
-                            "gpx_paths": pfade,
-                            "geo_hashes": sorted(set(hashes)),
-                            "stats": {"n_tours": len(pfade)},
-                            "active_project_id": proj["id"],
-                            "projects": {proj["id"]: proj}}
-                    data.setdefault("sessions", {})[schluessel] = sess
-
-                    # Q18a: alte Reise an der ersten Tour? → Startstand übernehmen —
-                    # aber NUR, wenn sie exakt DIESE Menge beschreibt. Vorher wurde
-                    # blind kopiert: Marcs längste Teneriffa-Tour trug aus den
-                    # Schwarm-Tests 95 Etappen, und jede neue (Teil-)Sammlung mit
-                    # derselben längsten Tour erbte alle („danach lädt er auch
-                    # alle anderen teneriffa touren", 28.08.2026).
-                    erste = (data.get("sessions") or {}).get(hashes[0])
-                    if erste:
-                        alt_proj = (erste.get("projects") or {}).get(erste.get("active_project_id") or "")
-                        alt_extra = ((alt_proj.get("animator") or {}).get("extra_tours")
-                                     if isinstance(alt_proj, dict) else None)
-                        if alt_extra:
-                            import unicodedata
-                            _nfc = lambda x: unicodedata.normalize("NFC", str(x or ""))
-                            alte_menge = {_nfc(pfade[0])} | {_nfc(t.get("gpx_path"))
-                                for t in alt_extra if isinstance(t, dict) and t.get("gpx_path")}
-                            if alte_menge == {_nfc(p) for p in pfade}:
-                                import copy as _copy
-                                kopie = _copy.deepcopy(alt_proj)
-                                kopie["id"] = proj["id"]
-                                kopie["name"] = alt_proj.get("name") or proj["name"]
-                                sess["projects"] = {proj["id"]: kopie}
-                                log.info("Mengen-Sitzung %s: alte Reise aus Einzel-Sitzung %s übernommen",
-                                         schluessel, hashes[0])
-                            else:
-                                log.info("Mengen-Sitzung %s: alte Reise an %s beschreibt eine ANDERE Menge "
-                                         "(%d vs %d Touren) — kein Übernehmen",
-                                         schluessel, hashes[0], len(alte_menge), len(pfade))
-                else:
-                    # Pfadliste aktuell halten (Dateien können umziehen) und den
-                    # Ablauf der Session NICHT stillschweigend wechseln — der
-                    # Ablauf wird im Archiv gewählt (Q9); kommt dieselbe Menge
-                    # mit anderem Ablauf, gilt der NEUE (bewusste Nutzerwahl).
-                    sess["gpx_paths"] = pfade
-                    sess["geo_hashes"] = sorted(set(hashes))   # M5: auch Altbestand nachtragen
-                    if sess.get("ablauf") != ablauf:
-                        log.info("Mengen-Sitzung %s: Ablauf %r → %r (neue Wahl im Archiv)",
-                                 schluessel, sess.get("ablauf"), ablauf)
-                        sess["ablauf"] = ablauf
-                    # M3: neue Modus-Wahl im Archiv gilt (gleiche Regel wie Ablauf).
-                    if sess.get("schwarm_modus") != modus or bool(sess.get("schwarm_pausen", True)) != pausen:
-                        log.info("Mengen-Sitzung %s: Modus %r(P=%s) → %r(P=%s)",
-                                 schluessel, sess.get("schwarm_modus"),
-                                 sess.get("schwarm_pausen", True), modus, pausen)
-                        sess["schwarm_modus"] = modus
-                        sess["schwarm_pausen"] = pausen
-                    # Selbstheilung (28.08.2026): Etappen, die nicht zur Menge
-                    # gehören, fliegen raus — der Q18a-Fallback hat vor diesem
-                    # Datum fremde extra_tours in frische Mengen-Sitzungen
-                    # kopiert; solche Sitzungen werden hier still bereinigt.
-                    import unicodedata
-                    _nfc = lambda x: unicodedata.normalize("NFC", str(x or ""))
-                    _mitglied = {_nfc(p) for p in pfade}
-                    for _proj in (sess.get("projects") or {}).values():
-                        _anim = _proj.get("animator") if isinstance(_proj, dict) else None
-                        _et = _anim.get("extra_tours") if isinstance(_anim, dict) else None
-                        if not isinstance(_et, list):
-                            continue
-                        _behalten = [t for t in _et if isinstance(t, dict)
-                                     and _nfc(t.get("gpx_path")) in _mitglied]
-                        if len(_behalten) != len(_et):
-                            log.info("Mengen-Sitzung %s: %d fremde Etappe(n) aus Projekt %r entfernt",
-                                     schluessel, len(_et) - len(_behalten), _proj.get("name"))
-                            _anim["extra_tours"] = _behalten
-                _sessions.save_sessions(SESSIONS_FILE, data)
-
-            aktiv = (sess.get("projects") or {}).get(sess.get("active_project_id") or "") or {}
+            # E1: gleicher Vertrag, neuer Store — die „Mengen-Sitzung" ist jetzt
+            # schlicht ein Projekt mit mehreren Tour-Referenzen (Q9/Q13); Q18a,
+            # Selbstheilung, Ablauf-/Modus-Regeln leben in kontext_oeffnen_menge.
+            with _projekte.LOCK:
+                daten = _projekte.laden(APP_SUPPORT)
+                erg = _projekte.kontext_oeffnen_menge(
+                    daten, pfade, hashes, ablauf, modus, pausen,
+                    self._session_get_global_defaults())
+                _projekte.speichern(APP_SUPPORT, daten)
+            schluessel = erg["kontext"]
+            neu_angelegt = erg["neu"]
+            aktiv = _projekte._aktives_projekt(daten, schluessel) or {}
             log.info("session_open_for_menge: %s · %d Touren · ablauf=%s · modus=%s(P=%s) · neu=%s",
                      schluessel, len(pfade), ablauf, modus, pausen, neu_angelegt)
+            sicht = _projekte.session_sicht(daten, schluessel)
             return {"ok": True, "track_hash": schluessel,
-                    "session": {"track_hash": schluessel, "name": sess.get("name", ""),
-                                "stats": sess.get("stats", {}), "ablauf": sess.get("ablauf", ablauf),
-                                "schwarm_modus": sess.get("schwarm_modus", modus),
-                                "schwarm_pausen": bool(sess.get("schwarm_pausen", pausen))},
+                    "session": sicht,
                     "active_project": aktiv,
-                    "projects": _sessions.list_projects(sess)}
+                    "projects": _projekte.projekte_im(daten, schluessel)}
         except Exception as e:
             log.exception("session_open_for_menge failed")
             return {"ok": False, "error": str(e)}
@@ -1827,14 +1759,14 @@ class Api:
 
     def session_list_projects(self, track_hash: str) -> dict:
         try:
-            data = _sessions.load_sessions(SESSIONS_FILE)
-            sess = (data.get("sessions") or {}).get(track_hash)
-            if not sess:
+            daten = _projekte.laden(APP_SUPPORT)
+            projekte = _projekte.projekte_im(daten, track_hash)
+            if not projekte:
                 return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
             return {
                 "ok": True,
-                "projects": _sessions.list_projects(sess),
-                "active_project_id": sess.get("active_project_id"),
+                "projects": projekte,
+                "active_project_id": (daten.get("aktiv") or {}).get(track_hash),
             }
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1842,20 +1774,17 @@ class Api:
     @_mit_sessions_lock
     def session_set_active_project(self, track_hash: str, project_id: str) -> dict:
         try:
-            data = _sessions.load_sessions(SESSIONS_FILE)
-            sess = (data.get("sessions") or {}).get(track_hash)
-            if not sess:
-                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
-            if not _sessions.set_active_project(sess, project_id):
+            daten = _projekte.laden(APP_SUPPORT)
+            if not _projekte.set_active(daten, track_hash, project_id):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _sessions.save_sessions(SESSIONS_FILE, data)
-            active_proj = sess["projects"][project_id]
+            _projekte.speichern(APP_SUPPORT, daten)
+            active_proj = daten["projects"][project_id]
             log.info("session_set_active_project: hash=%s project=%r",
                      track_hash, active_proj.get("name"))
             return {
                 "ok": True,
                 "active_project": active_proj,
-                "projects": _sessions.list_projects(sess),
+                "projects": _projekte.projekte_im(daten, track_hash),
             }
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1867,22 +1796,20 @@ class Api:
         settings.json. Gefüllt → Duplikat des angegebenen Projekts.
         Macht das neue Projekt automatisch zum aktiven."""
         try:
-            data = _sessions.load_sessions(SESSIONS_FILE)
-            sess = (data.get("sessions") or {}).get(track_hash)
-            if not sess:
+            daten = _projekte.laden(APP_SUPPORT)
+            if not _projekte.projekte_im(daten, track_hash):
                 return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
             defaults = self._session_get_global_defaults()
-            proj = _sessions.create_project(
-                sess, name or _sessions.DEFAULT_PROJECT_NAME, defaults,
-                copy_from_id=copy_from_id or None,
-            )
-            _sessions.save_sessions(SESSIONS_FILE, data)
+            proj = _projekte.create(daten, track_hash,
+                                    name or _sessions.DEFAULT_PROJECT_NAME,
+                                    defaults, copy_from_id=copy_from_id or None)
+            _projekte.speichern(APP_SUPPORT, daten)
             log.info("session_create_project: hash=%s name=%r dup_from=%s",
                      track_hash, proj.get("name"), copy_from_id or None)
             return {
                 "ok": True,
                 "active_project": proj,
-                "projects": _sessions.list_projects(sess),
+                "projects": _projekte.projekte_im(daten, track_hash),
             }
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1891,33 +1818,27 @@ class Api:
     def session_rename_project(self, track_hash: str, project_id: str,
                                 new_name: str) -> dict:
         try:
-            data = _sessions.load_sessions(SESSIONS_FILE)
-            sess = (data.get("sessions") or {}).get(track_hash)
-            if not sess:
-                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
-            if not _sessions.rename_project(sess, project_id, new_name or "?"):
+            daten = _projekte.laden(APP_SUPPORT)
+            if not _projekte.rename(daten, project_id, new_name or "?"):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _sessions.save_sessions(SESSIONS_FILE, data)
-            return {"ok": True, "projects": _sessions.list_projects(sess)}
+            _projekte.speichern(APP_SUPPORT, daten)
+            return {"ok": True, "projects": _projekte.projekte_im(daten, track_hash)}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
     @_mit_sessions_lock
     def session_delete_project(self, track_hash: str, project_id: str) -> dict:
         try:
-            data = _sessions.load_sessions(SESSIONS_FILE)
-            sess = (data.get("sessions") or {}).get(track_hash)
-            if not sess:
-                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
+            daten = _projekte.laden(APP_SUPPORT)
             defaults = self._session_get_global_defaults()
-            new_active = _sessions.delete_project(sess, project_id, defaults)
-            _sessions.save_sessions(SESSIONS_FILE, data)
+            new_active = _projekte.delete(daten, track_hash, project_id, defaults)
+            _projekte.speichern(APP_SUPPORT, daten)
             log.info("session_delete_project: hash=%s id=%s → new-active=%r",
                      track_hash, project_id, new_active.get("name"))
             return {
                 "ok": True,
                 "active_project": new_active,
-                "projects": _sessions.list_projects(sess),
+                "projects": _projekte.projekte_im(daten, track_hash),
             }
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1932,19 +1853,14 @@ class Api:
         ist hier eine zweite Sicherheits-Ebene (Frontend sollte sie eh
         nicht senden)."""
         try:
-            data = _sessions.load_sessions(SESSIONS_FILE)
-            sess = (data.get("sessions") or {}).get(track_hash)
-            if not sess:
-                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
+            daten = _projekte.laden(APP_SUPPORT)
             # Geotagger: photo-Refs filtern
             if module == "geotagger" and isinstance(patch, dict):
                 patch = {k: v for k, v in patch.items()
                          if k not in ("photos", "photo_paths", "loaded_photos")}
-            # Auch animator: timeline_events landet aber jetzt im Projekt,
-            # das ist OK (track-gebunden, ergibt Sinn)
-            if not _sessions.update_project_settings(sess, project_id, module, patch):
+            if not _projekte.update_settings(daten, track_hash, project_id, module, patch):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _sessions.save_sessions(SESSIONS_FILE, data)
+            _projekte.speichern(APP_SUPPORT, daten)
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1957,13 +1873,15 @@ class Api:
         Animator + Tour-Map). Reserved-Keys (id, created_at) werden vom
         Backend gefiltert."""
         try:
-            data = _sessions.load_sessions(SESSIONS_FILE)
-            sess = (data.get("sessions") or {}).get(track_hash)
-            if not sess:
-                return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
-            if not _sessions.update_project_settings(sess, project_id, None, patch):
+            daten = _projekte.laden(APP_SUPPORT)
+            # Reserved-Keys des neuen Modells zusätzlich schützen.
+            if isinstance(patch, dict):
+                patch = {k: v for k, v in patch.items()
+                         if k not in ("id", "created_at", "kontext", "geo_hashes",
+                                      "gpx_paths", "status", "auto")}
+            if not _projekte.update_settings(daten, track_hash, project_id, None, patch):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _sessions.save_sessions(SESSIONS_FILE, data)
+            _projekte.speichern(APP_SUPPORT, daten)
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -2089,7 +2007,9 @@ class Api:
             # bewusst beim Start (kein Ziehen im Gange) und rührt nichts an,
             # worauf eine Sitzung noch verweist.
             try:
-                res = cdrops.aufraeumen(DROPS_DIR, SESSIONS_FILE)
+                res = cdrops.aufraeumen(
+                    DROPS_DIR, [APP_SUPPORT / "projekte.json",
+                                APP_SUPPORT / "touren.json"])
                 if res.get("geloescht"):
                     log.info("drops: %d verwaiste Ordner entfernt, %.1f GB frei",
                              res["geloescht"], res.get("bytes", 0) / 2**30)
@@ -5610,9 +5530,12 @@ class Api:
         conn = sqlite3.connect(str(LIBRARY_DB))
         conn.row_factory = sqlite3.Row
         try:
+            # E1: die Cloud spricht bis v2 (E3) weiter das sessions-Format —
+            # gebaut wird die Sicht jetzt aus dem Projekt-Store (Übergang,
+            # Wire-Format und Zweitrechner bleiben unverändert kompatibel).
             sessions = None
             try:
-                sessions = json.loads((APP_SUPPORT / "sessions.json").read_text("utf-8"))
+                sessions = _projekte.export_sessions_sicht(_projekte.laden(APP_SUPPORT))
             except Exception:
                 pass
             return teile["archiv"].bestand_aufnehmen(conn, sessions, cache_pfad=CLOUD_PRUEFSUMMEN)
@@ -5731,9 +5654,10 @@ class Api:
             # IDEAS §38 M5 — Kompositionen (Reise/Schwarm): lokal vorhanden ist,
             # was in sessions.json unter `menge:<hash>` steht.
             try:
-                _sess_daten = _sessions.load_sessions(SESSIONS_FILE)
-                _lokale_mengen = {k.split(":", 1)[1] for k in (_sess_daten.get("sessions") or {})
-                                  if isinstance(k, str) and k.startswith("menge:")}
+                _pdaten = _projekte.laden(APP_SUPPORT)
+                _lokale_mengen = {str(p.get("kontext")).split(":", 1)[1]
+                                  for p in (_pdaten.get("projects") or {}).values()
+                                  if str(p.get("kontext") or "").startswith("menge:")}
             except Exception:
                 _lokale_mengen = set()
             mengen = []
@@ -5853,49 +5777,58 @@ class Api:
                         if isinstance(eintrag, dict) and eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
                             eintrag["original_" + feld] = eintrag.get(feld)
                             eintrag[feld] = eintrag["vorschau"]
-            with _sessions.LOCK:
-                daten = _sessions.load_sessions(SESSIONS_FILE)
-                sess = (daten.get("sessions") or {}).get(geo_hash)
-                if sess is None:
-                    daten.setdefault("sessions", {})[geo_hash] = projekte
-                    n_proj = len(projekte.get("projects") or {})
+            with _projekte.LOCK:
+                daten = _projekte.laden(APP_SUPPORT)
+                vorhanden = {pid: p for pid, p in (daten.get("projects") or {}).items()
+                             if p.get("kontext") == geo_hash}
+                if not vorhanden:
+                    n_proj = _projekte.import_session_objekt(
+                        daten, geo_hash, projekte, self._session_get_global_defaults())
                 else:
-                    # Vorhandene Session: Projekte DAZULEGEN (lokales bleibt).
-                    vorhanden = sess.setdefault("projects", {})
-                    namen_da = {str(p.get("name", "")).strip().lower() for p in vorhanden.values() if isinstance(p, dict)}
-                    mitgebracht = {}          # PID im Umschlag → PID in dieser Sitzung
+                    # Vorhandener Kontext: Projekte DAZULEGEN (lokales bleibt) —
+                    # gleiche Regeln wie vor E1: identische überspringen, Namen
+                    # entdoppeln, importiertes Projekt wird aktiv (26.08.2026,
+                    # Beta-Tester: „wer importiert, will es SEHEN").
+                    namen_da = {str(p.get("name", "")).strip().lower()
+                                for p in vorhanden.values()}
+                    mitgebracht = {}
+                    # E1: die Verwaltungsfelder des Stores zählen beim
+                    # „identisch?"-Vergleich nicht mit — der Umschlag kennt sie nicht.
+                    _e1_felder = ("status", "auto", "kontext", "ablauf",
+                                  "schwarm_modus", "schwarm_pausen",
+                                  "geo_hashes", "gpx_paths", "letztes_modul")
+
+                    def _kern(d):
+                        return {k: v for k, v in _projekte._payload_von(d).items()
+                                if k not in _e1_felder}
                     for pid, proj in (projekte.get("projects") or {}).items():
                         if not isinstance(proj, dict):
                             continue
                         urspruenglich = pid
-                        if pid in vorhanden:
-                            if vorhanden[pid] == proj:
+                        alt = daten["projects"].get(pid)
+                        if alt is not None and alt.get("kontext") == geo_hash:
+                            # Vorhandener Kontext: Projekte DAZULEGEN (lokales bleibt)
+                            if _kern(alt) == _kern(proj) and alt.get("name") == proj.get("name"):
                                 mitgebracht[urspruenglich] = pid
-                                continue          # identisch → nichts zu tun
+                                continue
                             pid = f"{pid}_imp{n_proj + 1}"
-                        proj = dict(proj)
-                        if str(proj.get("name", "")).strip().lower() in namen_da:
-                            proj["name"] = f"{proj.get('name', '')} ({_ui_t()('projekt.importiert', 'importiert')})"
-                        vorhanden[pid] = proj
+                        neu = dict(proj)
+                        if str(neu.get("name", "")).strip().lower() in namen_da:
+                            neu["name"] = f"{neu.get('name', '')} ({_ui_t()('projekt.importiert', 'importiert')})"
+                        _projekte.import_session_objekt(
+                            daten, geo_hash,
+                            {"projects": {pid: neu}},
+                            self._session_get_global_defaults())
                         mitgebracht[urspruenglich] = pid
                         n_proj += 1
-                    # 26.08.2026 (Beta-Tester, drittes Video) — Wer ein Projekt
-                    # importiert, will es SEHEN. Vorher wurde das aktive Projekt nur
-                    # gesetzt, wenn noch gar keines aktiv war; kannte der Rechner die
-                    # Tour schon (der Normalfall — dort wurde das Projekt ja gebaut),
-                    # blieb das EIGENE, oft leere Projekt vorn. Das importierte lag
-                    # unsichtbar daneben als „… (importiert)", und es sah aus, als
-                    # käme beim Import nichts an: keine Keyframes, keine Schilder.
                     gewuenscht = projekte.get("active_project_id")
                     ziel_pid = mitgebracht.get(gewuenscht) or (
                         next(iter(mitgebracht.values())) if mitgebracht else None)
                     if ziel_pid:
-                        sess["active_project_id"] = ziel_pid
+                        daten.setdefault("aktiv", {})[geo_hash] = ziel_pid
                         log.info("Umschlag: aktives Projekt → %r (%s)",
-                                 (vorhanden.get(ziel_pid) or {}).get("name"), ziel_pid)
-                    elif not sess.get("active_project_id") and vorhanden:
-                        sess["active_project_id"] = next(iter(vorhanden))
-                _sessions.save_sessions(SESSIONS_FILE, daten)
+                                 (daten["projects"].get(ziel_pid) or {}).get("name"), ziel_pid)
+                _projekte.speichern(APP_SUPPORT, daten)
         log.info("Umschlag eingespielt (%s): %s → %s, %d Projekt(e)", quelle, geo_hash, ziel.name, n_proj)
         return {"ok": True, "datei": str(ziel), "name": ziel.name, "geo_hash": geo_hash, "projekte": n_proj}
 
@@ -5911,12 +5844,13 @@ class Api:
             geo_hash = self._track_geo_hash(gpx_datei)
             if not geo_hash:
                 return {"ok": False, "error": _ui_t()("error.gpx_generic", "GPX-Fehler")}
-            with _sessions.LOCK:
-                daten = _sessions.load_sessions(SESSIONS_FILE)
-            sess = (daten.get("sessions") or {}).get(geo_hash)
+            with _projekte.LOCK:
+                pdaten = _projekte.laden(APP_SUPPORT)
+            sicht = _projekte.export_sessions_sicht(pdaten)
+            sess = (sicht.get("sessions") or {}).get(geo_hash)
             if sess is None:
-                alt_key = _sessions.find_session_key(daten, geo_hash)
-                sess = (daten.get("sessions") or {}).get(alt_key) if alt_key else None
+                alt_key = _projekte.find_kontext_by_ui_hash(pdaten, geo_hash)
+                sess = (sicht.get("sessions") or {}).get(alt_key) if alt_key else None
             conn = self._lib()
             ersatz = None
             with clib._DB_LOCK:
@@ -6088,9 +6022,10 @@ class Api:
                 return {"ok": False, "error": _ui_t()("cloud.menge_leer", "Komposition ohne Touren")}
 
             schluessel_sess = f"menge:{mh}"
-            with _sessions.LOCK:
-                daten = _sessions.load_sessions(SESSIONS_FILE)
-                if (daten.get("sessions") or {}).get(schluessel_sess):
+            with _projekte.LOCK:
+                pdaten = _projekte.laden(APP_SUPPORT)
+                if any(p.get("kontext") == schluessel_sess
+                       for p in (pdaten.get("projects") or {}).values()):
                     return {"ok": False, "error": _ui_t()("cloud.menge_schon_da",
                             "Diese Komposition gibt es hier schon — lokale Arbeit bleibt.")}
 
@@ -6121,22 +6056,21 @@ class Api:
                 return {"ok": False, "error": _ui_t()("cloud.menge_touren_fehlen",
                         "Nicht alle Touren der Komposition sind verfügbar.")}
 
-            with _sessions.LOCK:
-                daten = _sessions.load_sessions(SESSIONS_FILE)
-                daten.setdefault("sessions", {})[schluessel_sess] = {
-                    "track_hash": schluessel_sess,
-                    "name": obj.get("name") or f"Komposition ({len(ghs)} Touren)",
-                    "ablauf": obj.get("ablauf") or "reise",
-                    "schwarm_modus": (obj.get("schwarm_modus")
-                                      if obj.get("schwarm_modus") in ("gleich", "ziel", "uhrzeit") else "gleich"),
-                    "schwarm_pausen": bool(obj.get("schwarm_pausen", True)),
-                    "gpx_paths": [pfade[gh] for gh in ghs],
-                    "geo_hashes": sorted(set(ghs)),
-                    "stats": {"n_tours": len(ghs)},
-                    "active_project_id": obj.get("active_project_id") or "",
-                    "projects": obj.get("projects") or {},
-                }
-                _sessions.save_sessions(SESSIONS_FILE, daten)
+            with _projekte.LOCK:
+                pdaten = _projekte.laden(APP_SUPPORT)
+                _projekte.import_session_objekt(
+                    pdaten, schluessel_sess,
+                    {"name": obj.get("name") or f"Komposition ({len(ghs)} Touren)",
+                     "ablauf": obj.get("ablauf") or "reise",
+                     "schwarm_modus": (obj.get("schwarm_modus")
+                                       if obj.get("schwarm_modus") in ("gleich", "ziel", "uhrzeit") else "gleich"),
+                     "schwarm_pausen": bool(obj.get("schwarm_pausen", True)),
+                     "gpx_paths": [pfade[gh] for gh in ghs],
+                     "geo_hashes": sorted(set(ghs)),
+                     "active_project_id": obj.get("active_project_id") or "",
+                     "projects": obj.get("projects") or {}},
+                    self._session_get_global_defaults())
+                _projekte.speichern(APP_SUPPORT, pdaten)
             log.info("cloud_menge_holen: %s · %d Touren (davon %d frisch geholt)",
                      mh, len(ghs), geholt)
             return {"ok": True, "mengen_hash": mh, "touren": len(ghs),
@@ -6319,7 +6253,8 @@ class Api:
         belegte Seiten), wäre sonst unsichtbar geblieben — die Tour hätte auf
         die nächste Änderung warten müssen, um hochzugehen."""
         fp = []
-        for pfad in (LIBRARY_DB, SESSIONS_FILE):
+        for pfad in (LIBRARY_DB, APP_SUPPORT / "projekte.json",
+                     APP_SUPPORT / "touren.json"):
             try:
                 st = os.stat(pfad)
                 fp.append((str(pfad), st.st_mtime_ns, st.st_size))
@@ -6898,27 +6833,14 @@ class Api:
             if neu_gh and neu_gh != alt_gh:
                 n_col = clib.track_hash_migrieren(conn, alt_gh, neu_gh)
                 self._geo_hash_cache.pop(pfad, None)
-                with _sessions.LOCK:
-                    daten = _sessions.load_sessions(SESSIONS_FILE)
-                    sess = daten.setdefault("sessions", {})
-                    if alt_gh in sess and neu_gh not in sess:
-                        s = sess.pop(alt_gh)
-                        s["track_hash"] = neu_gh
-                        sess[neu_gh] = s
-                    for key in [k for k in list(sess) if isinstance(k, str) and k.startswith("menge:")]:
-                        m = sess.get(key) or {}
-                        ghs = m.get("geo_hashes") or []
-                        if alt_gh not in ghs:
-                            continue
-                        neue = sorted(set(neu_gh if g == alt_gh else g for g in ghs))
-                        m["geo_hashes"] = neue
-                        neu_key = _sessions.mengen_hash(neue)
-                        if neu_key != key and neu_key not in sess:
-                            m["track_hash"] = neu_key
-                            sess[neu_key] = m
-                            del sess[key]
-                        n_menge += 1
-                    _sessions.save_sessions(SESSIONS_FILE, daten)
+                with _projekte.LOCK:
+                    pdaten = _projekte.laden(APP_SUPPORT)
+                    betroffen = _projekte.geo_hash_migrieren(pdaten, alt_gh, neu_gh)
+                    n_menge = sum(1 for p in (pdaten.get("projects") or {}).values()
+                                  if str(p.get("kontext") or "").startswith("menge:")
+                                  and neu_gh in (p.get("geo_hashes") or []))
+                    _projekte.speichern(APP_SUPPORT, pdaten)
+                log.info("Ersetzen: %d Projekt(e) auf neuen geo_hash migriert", betroffen)
             log.info("Track im Archiv ersetzt: %s · %s → %s · %d Sammlungs-Einträge · "
                      "%d Kompositionen · Sicherung: %s",
                      pfad, alt_gh, neu_gh, n_col, n_menge, backup)
@@ -6928,6 +6850,113 @@ class Api:
                     "fmt": "gpx", "count": res.get("count", 0)}
         except Exception as e:
             log.error("library_track_ersetzen: %s\n%s", e, traceback.format_exc())
+            return {"ok": False, "error": str(e)}
+
+    # ── Projekte-Bereich im Archiv (E1, IDEAS §39) ────────────────────────────
+
+    def projekte_liste(self) -> dict:
+        """Alle Projekte als Karten-Daten. Pfade werden über die Tour-Fakten
+        und notfalls das Archiv aufgelöst; `haupt_pfad` + `exists` sagen dem
+        Frontend, ob „Öffnen" sofort funktioniert."""
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            karten = _projekte.alle_projekte(daten)
+            touren = daten.get("touren") or {}
+            conn = self._lib()
+            for k in karten:
+                pfad = (k.get("gpx_paths") or [None])[0]
+                if not pfad or not Path(str(pfad)).exists():
+                    pfad = None
+                    for gh in (k.get("geo_hashes") or []):
+                        for kand in reversed((touren.get(gh) or {}).get("gpx_paths") or []):
+                            if Path(kand).exists():
+                                pfad = kand
+                                break
+                        if not pfad:
+                            try:
+                                row = conn.execute(
+                                    "SELECT path FROM tracks WHERE geo_hash = ? LIMIT 1",
+                                    (gh,)).fetchone()
+                                if row and Path(row["path"]).exists():
+                                    pfad = row["path"]
+                            except Exception:
+                                pass
+                        if pfad:
+                            break
+                k["haupt_pfad"] = pfad or ""
+                k["exists"] = bool(pfad)
+                # Für Kompositionen: alle Pfade prüfen (Übergabe braucht sie).
+                if k.get("ablauf") in ("reise", "schwarm"):
+                    k["pfade_ok"] = all(Path(p).exists() for p in (k.get("gpx_paths") or []))                         and len(k.get("gpx_paths") or []) >= 2
+            return {"ok": True, "projekte": karten}
+        except Exception as e:
+            log.error("projekte_liste: %s", e)
+            return {"ok": False, "error": str(e), "projekte": []}
+
+    @_mit_sessions_lock
+    def projekt_status_setzen(self, project_id: str, status: str) -> dict:
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            if not _projekte.set_status(daten, project_id, status):
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            _projekte.speichern(APP_SUPPORT, daten)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    @_mit_sessions_lock
+    def projekt_umbenennen(self, project_id: str, name: str) -> dict:
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            if not _projekte.rename(daten, project_id, name or "?"):
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            _projekte.speichern(APP_SUPPORT, daten)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    @_mit_sessions_lock
+    def projekt_loeschen(self, project_id: str) -> dict:
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            if not _projekte.loeschen(daten, project_id):
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            _projekte.speichern(APP_SUPPORT, daten)
+            log.info("Projekt gelöscht: %s", project_id)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    @_mit_sessions_lock
+    def projekt_duplizieren(self, project_id: str) -> dict:
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            neu = _projekte.duplizieren(daten, project_id)
+            if neu is None:
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            _projekte.speichern(APP_SUPPORT, daten)
+            return {"ok": True, "id": neu["id"], "name": neu["name"]}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    @_mit_sessions_lock
+    def projekt_aktivieren(self, project_id: str) -> dict:
+        """Öffnen aus dem Projekte-Bereich: macht das Projekt in seinem Kontext
+        aktiv und liefert alles, was das Frontend zum Laden braucht."""
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            p = (daten.get("projects") or {}).get(project_id)
+            if not p:
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            daten.setdefault("aktiv", {})[p.get("kontext", "")] = project_id
+            _projekte.speichern(APP_SUPPORT, daten)
+            return {"ok": True, "kontext": p.get("kontext", ""),
+                    "ablauf": p.get("ablauf", "solo"),
+                    "schwarm_modus": p.get("schwarm_modus", "gleich"),
+                    "schwarm_pausen": bool(p.get("schwarm_pausen", True)),
+                    "gpx_paths": list(p.get("gpx_paths") or []),
+                    "letztes_modul": p.get("letztes_modul") or ""}
+        except Exception as e:
             return {"ok": False, "error": str(e)}
 
     # ── Geotagger ─────────────────────────────────────────────────────────────

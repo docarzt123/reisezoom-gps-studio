@@ -287,22 +287,36 @@ Settings-Datei:
 - Windows: `%APPDATA%\Reisezoom GPS Studio\settings.json`
 - Linux: `~/.local/share/Reisezoom GPS Studio/settings.json`
 
-### Sessions & Projekte (seit v0.8) ⭐
+### Projekte (seit v0.9.600 eigenständig) ⭐
 
-**Sessions** sind track-gebunden: jeder GPX-Track bekommt automatisch eine eigene Session (über einen Hash der Track-Koordinaten erkannt). Lädst du den selben Track ein zweites Mal, kriegst du **alle vorher gemachten Einstellungen + Keyframes** zurück — kein „verloren" mehr beim Modul-Wechsel.
+Ein **Projekt** ist deine Arbeitsmappe für ein Video: die beteiligten Touren
+(eine — oder viele bei Reise/Schwarm), alle Einstellungen, Keyframes, Fotos
+und Schilder. Projekte gehören nicht mehr „zur Tour", sondern sind **eigene
+Dinge** mit Name, Status und „zuletzt bearbeitet". Dieselbe Tour kann in
+beliebig vielen Projekten stecken — z. B. „Sunset-Video" und dein
+Teneriffa-Schwarm.
 
-**Projekte** sind Varianten innerhalb einer Session — z.B. „Standard-Variante" + „Hochformat-Reels" + „mit Foto-Inserts". Pro Track kannst du beliebig viele Projekte anlegen.
+**Der Bereich „🎬 Projekte"** ganz oben links im **Archiv** ist ihr Zuhause —
+und die App **startet dort**: der erste Blick beantwortet „woran war ich
+dran?", ein Klick auf **Öffnen** springt ins zuletzt benutzte Modul des
+Projekts (die Modul-Symbole auf der Karte sind auch direkt klickbar). Dazu je
+Karte: Status (**aktiv / Idee / fertig** — „fertig" sinkt ans Listenende),
+Umbenennen, Duplizieren, Löschen. Die Suche oben filtert auch die Projekte.
 
-**Wo finde ich das?** Topbar oben rechts — Projekt-Dropdown mit 4 Aktionen:
-- 🆕 **Neues Projekt** (mit pristinen Defaults)
-- 📋 **Aktuelles duplizieren** (kopiert alle Settings + Keyframes)
-- ✏️ **Umbenennen**
-- 🗑 **Löschen** (das letzte Projekt einer Session lässt sich nicht löschen — wird automatisch als „Standard" wiederhergestellt)
+**Automatisch angelegt:** Beim Öffnen einer Tour entsteht immer ein
+Arbeitsstand — nichts geht je verloren. Nie angefasste Stände liegen
+eingeklappt unter „Automatisch angelegt" und wandern nach oben, sobald du
+darin arbeitest oder sie umbenennst.
 
-Die Session-Daten liegen unter:
-- macOS: `~/Library/Application Support/Reisezoom GPS Studio/sessions/`
+**Von der Tour zum Projekt:** Die Detailspalte jeder Tour zeigt „steckt in
+N Projekten" — ein Klick zeigt genau diese.
 
-(Je Track-Hash ein Ordner mit GPX-Snapshot + projects.json mit allen Varianten.)
+**Im Modul** (Topbar oben rechts) bleibt der vertraute Projekt-Umschalter:
+🆕 Neues Projekt · 📋 Duplizieren · ✏️ Umbenennen · 🗑 Löschen.
+
+Gespeichert wird unter `…/Reisezoom GPS Studio/projekte.json` (Arbeitsmappen)
+und `touren.json` (Tour-Fakten); GPX-Snapshots liegen weiter unter
+`…/sessions/`.
 
 ---
 

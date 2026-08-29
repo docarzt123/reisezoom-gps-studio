@@ -79,6 +79,10 @@ async def main():
             await pg.add_init_script(js)
         await pg.goto(f"file://{UI_INDEX.resolve()}", wait_until="domcontentloaded")
         await pg.wait_for_timeout(2500)
+        # Seit E1 (v0.9.600) startet die App im Archiv/Projekte — dieser Test
+        # prüft den Animator, also erst dorthin wechseln.
+        await pg.evaluate("switchMod('animator')")
+        await pg.wait_for_timeout(800)
 
         print("\n━━━ 1. Die Auswahl selbst ━━━")
         opts = await pg.eval_on_selector_all("#anim-pace option", "e=>e.map(x=>x.value)")

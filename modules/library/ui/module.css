@@ -769,3 +769,29 @@
 .lib-modus-zeile input { margin-top: 3px; }
 .lib-modus-pausen { display: block; margin: 8px 4px 0; padding-top: 8px; border-top: 1px solid rgba(127,127,127,.25); }
 .lib-modus-pausen input:disabled + *, .lib-modus-pausen:has(input:disabled) { opacity: .5; }
+
+/* ══ E1 — Projekte-Bereich (IDEAS §39) ══ */
+.lib-projwrap { padding: 4px 2px 16px; overflow-y: auto; }
+.lib-proj-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
+.lib-proj-karte { border: 1px solid rgba(127,127,127,.25); border-radius: 10px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px; }
+.lib-proj-karte.fertig { opacity: .55; }
+.lib-proj-kopf { display: flex; align-items: center; gap: 8px; }
+.lib-proj-name { font-weight: 700; flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.lib-proj-status { font-size: 11px; background: transparent; color: var(--text-muted);
+  border: 1px solid rgba(127,127,127,.3); border-radius: 6px; padding: 1px 4px; }
+.lib-proj-sub { font-size: 12px; color: var(--text-muted); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.lib-proj-fuss { display: flex; align-items: center; gap: 8px; }
+.lib-proj-chips { display: flex; gap: 4px; }
+.lib-proj-chip { border: 1px solid rgba(127,127,127,.3); background: transparent;
+  border-radius: 6px; padding: 1px 6px; cursor: pointer; }
+.lib-proj-chip:hover { background: rgba(127,127,127,.18); }
+.lib-proj-wann { font-size: 11px; color: var(--text-muted); flex: 1; }
+.lib-proj-akt { display: flex; gap: 4px; }
+.lib-proj-autos { margin-top: 14px; }
+.lib-proj-autos > summary { cursor: pointer; color: var(--text-muted); margin-bottom: 8px; }
+.lib-proj-fehlt { cursor: help; }
+.lib-proj-filter { margin: 0 0 10px; font-size: 12px; color: var(--text-muted); }
+.lib-proj-filter button { border: none; background: transparent; cursor: pointer; color: inherit; }
