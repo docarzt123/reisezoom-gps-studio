@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Auto-Heilen: neue Option „Unmögliches Tempo entzerren (Zeit korrigieren)"
+  (Marc, 29.08.2026: „wie heile ich diese tempo probleme?"): Dauerhafte
+  GPS-Versätze (Track springt und bleibt drüben) lassen sich positionsbasiert
+  nicht heilen — die Strecke wurde real zurückgelegt, nur die Zeitstempel
+  behaupten Unmögliches. Die Option setzt die Zeit solcher Segmente aufs
+  übliche Tempo der Umgebung (±15 Segmente, Median) und rückt alle späteren
+  Zeitstempel nach; Strecke und Positionen bleiben unangetastet. Standard: an
+  (nur bei Tracks mit Zeitstempeln sichtbar); der Vorher/Nachher-Kasten zeigt
+  jetzt auch die Dauer.
+
 ### Changed
 - Auto-Heilen erkennt jetzt auch KURZE Tempo-Spikes (Marc, 29.08.2026, live an
   der Masca-Tour geeicht): Sekündliche Aufzeichnungen machen GPS-Sprünge nur

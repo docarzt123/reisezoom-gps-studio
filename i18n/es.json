@@ -2405,5 +2405,8 @@
   "gpxinspect.st_dur": "Duración",
   "gpxinspect.st_avg": "Vel. media",
   "gpxinspect.st_max": "Vel. máx.",
-  "gpxinspect.st_hm": "Desnivel"
+  "gpxinspect.st_hm": "Desnivel",
+  "gpxinspect.heal_opt_tempo": "Corregir velocidades imposibles (ajustar tiempo)",
+  "gpxinspect.heal_opt_tempo_help": "Algunos saltos de GPS son un desplazamiento permanente: la ruta salta p. ej. 40 m y se queda allí — alisar posiciones no puede curarlo, porque la distancia sí se recorrió; solo las marcas de tiempo afirman «en 3 segundos». Esta opción corrige el TIEMPO de esos puntos al ritmo habitual del entorno. La ruta se alarga unos segundos; distancia y posiciones quedan intactas.",
+  "gpxinspect.heal_tempo_done": "%t puntos de velocidad ajustados"
 }

@@ -97,6 +97,7 @@ function mountGpxInspect(body, headerActions) {
           </div>
           <label class="gpxi-check"><input type="checkbox" id="gpxi-heal-spikes" checked> ${t("gpxinspect.heal_opt_spikes", "Ausreißer/Sprünge glätten")}</label>
           <label class="gpxi-check"><input type="checkbox" id="gpxi-heal-gaps" checked> ${t("gpxinspect.heal_opt_gaps", "Lücken mit Punkten füllen")}</label>
+          <label class="gpxi-check" id="gpxi-heal-tempo-row"><input type="checkbox" id="gpxi-heal-tempo" checked> ${t("gpxinspect.heal_opt_tempo", "Unmögliches Tempo entzerren (Zeit korrigieren)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_opt_tempo_help", "Manche GPS-Sprünge sind ein dauerhafter Versatz: Der Track springt z. B. 40 m und bleibt dort — Position glätten kann das nicht heilen, denn die Strecke wurde ja zurückgelegt, nur die Zeitstempel behaupten „in 3 Sekunden“. Diese Option korrigiert die ZEIT solcher Stellen aufs übliche Tempo der Umgebung. Die Tour wird dadurch ein paar Sekunden länger; Strecke und Positionen bleiben unangetastet.")}">?</span></label>
           <div class="gpxi-fillrow" id="gpxi-profilerow">
             <label>${t("gpxinspect.profile", "Lücken füllen als")}<span class="gpxi-q" data-tip="${t("gpxinspect.profile_help", "Luftlinie = gerade Linie zwischen den Punkten. Wandern/Fahrrad/Auto = die echte Route auf dem Wegenetz suchen (Mapbox, Internet + Token) und der Track folgt den Wegen. Sehr große Lücken (z. B. Flüge) bleiben immer gerade.")}">?</span></label>
             <select id="gpxi-profile">
@@ -380,6 +381,8 @@ function mountGpxInspect(body, headerActions) {
     if (_undo) _undo.reset();
     const _scRow = document.getElementById("gpxi-speedcolor-row");
     if (_scRow) _scRow.style.display = _hasTime ? "" : "none";   // ohne Zeit kein Tempo
+    const _htRow = document.getElementById("gpxi-heal-tempo-row");
+    if (_htRow) _htRow.style.display = _hasTime ? "" : "none";
     clearBeforeAfter();
     renderAll();
     try { renderDraw(); } catch (_) {}
@@ -476,6 +479,8 @@ function mountGpxInspect(body, headerActions) {
       + zeile(t("gpxinspect.st_dist", "Strecke"), _fmtKm(vor.dist), _fmtKm(nach.dist), true)
       + (vor.dur > 0 ? zeile(t("gpxinspect.st_max", "Max. Tempo"),
           vor.maxKmh.toFixed(1) + " km/h", nach.maxKmh.toFixed(1) + " km/h", true) : "")
+      + (vor.dur > 0 ? zeile(t("gpxinspect.st_dur", "Dauer"),
+          _fmtDur(vor.dur * 1000), _fmtDur(nach.dur * 1000), null) : "")
       + (vor.asc || nach.asc ? zeile(t("gpxinspect.st_hm", "Höhenmeter") + " ↑",
           Math.round(vor.asc) + " m", Math.round(nach.asc) + " m", true) : "");
     box.hidden = false;
@@ -516,6 +521,60 @@ function mountGpxInspect(body, headerActions) {
     return out;
   }
   let _speedFarben = null;   // Punkt-Index → Tempo-Farbe (nur wenn Färbung an)
+  /* 29.08.2026 (Marc: „wie heile ich diese tempo probleme?") — der Rest nach
+   * dem Positions-Glätten sind DAUERHAFTE Versätze: 40 m Sprung, der Track
+   * bleibt drüben. Die Strecke wurde real zurückgelegt, nur die Zeitstempel
+   * behaupten Unmögliches. Heilung = ZEIT korrigieren: Segmente über der
+   * Ausreißer-Schwelle (Median-relativ, wie die Erkennung) bekommen die Dauer,
+   * die das übliche Tempo der Umgebung (±15 Segmente) gebraucht hätte; alle
+   * späteren Zeitstempel rücken entsprechend nach hinten. Positionen und
+   * Strecke bleiben unangetastet, die Tour wird ein paar Sekunden länger. */
+  function tempoEntzerren() {
+    if (!_hasTime) return 0;
+    const n = _points.length;
+    if (n < 3) return 0;
+    const orig = _points.map(p => p.time ? Date.parse(p.time) : null);
+    const sens = Math.max(1, Math.min(10, parseFloat((document.getElementById("gpxi-sens") || {}).value) || 5));
+    const lerp = (a, b) => a + (b - a) * (sens - 1) / 9;
+    const vs = [];
+    for (let i = 1; i < n; i++) {
+      if (orig[i] == null || orig[i - 1] == null) continue;
+      const dt = (orig[i] - orig[i - 1]) / 1000;
+      if (dt > 0) vs.push(_haversine(_points[i - 1], _points[i]) / dt);
+    }
+    vs.sort((a, b) => a - b);
+    const med = vs.length ? vs[Math.floor(vs.length / 2)] : 0;
+    if (med <= 0) return 0;
+    const thr = Math.max(4.2, med * lerp(12, 3));
+    let shiftMs = 0, fixed = 0;
+    for (let i = 1; i < n; i++) {
+      if (orig[i] == null) continue;
+      if (orig[i - 1] != null) {
+        const dt = (orig[i] - orig[i - 1]) / 1000;
+        const d = _haversine(_points[i - 1], _points[i]);
+        const zuSchnell = (dt <= 0 && d > 1) || (dt > 0 && d / dt > thr);
+        if (zuSchnell) {
+          // Zieltempo: Median der Umgebung ohne die Ausreißer selbst.
+          const fenster = [];
+          for (let j = Math.max(1, i - 15); j < Math.min(n, i + 16); j++) {
+            if (orig[j] == null || orig[j - 1] == null) continue;
+            const ddt = (orig[j] - orig[j - 1]) / 1000;
+            if (ddt <= 0) continue;
+            const vv = _haversine(_points[j - 1], _points[j]) / ddt;
+            if (vv <= thr) fenster.push(vv);
+          }
+          fenster.sort((a, b) => a - b);
+          const ziel = Math.max(0.5, fenster.length ? fenster[Math.floor(fenster.length / 2)] : med);
+          const neuDt = d / ziel;
+          shiftMs += (neuDt - Math.max(0, dt)) * 1000;
+          fixed++;
+        }
+      }
+      if (shiftMs > 0.5) _points[i].time = new Date(orig[i] + Math.round(shiftMs)).toISOString();
+    }
+    return fixed;
+  }
+
   function renderSpeedColor() {
     const src = map && map.getSource("gpxi-speed");
     if (!src) return;
@@ -1393,11 +1452,13 @@ function mountGpxInspect(body, headerActions) {
           fillPts += _linearFillGap(g, spacing);   // Fallback: gerade Linie (Flugbögen ODER verworfener Umweg)
         }
       }
+      const nT = ((document.getElementById("gpxi-heal-tempo") || {}).checked) ? tempoEntzerren() : 0;
       _dirty = true; clearSpikes(); _selA = _selB = null;
       renderAll(); updateUI();
       const msg = t("gpxinspect.heal_done_route", "Geheilt: %s Ausreißer · %r Lücken an Route angepasst, %l gerade gefüllt")
         .replace("%s", nS).replace("%r", routed).replace("%l", nG - routed)
-        + (detour ? " (" + detour + " " + t("gpxinspect.heal_detour", "Umwege verworfen") + ")" : "");
+        + (detour ? " (" + detour + " " + t("gpxinspect.heal_detour", "Umwege verworfen") + ")" : "")
+        + (nT ? " · " + t("gpxinspect.heal_tempo_done", "%t Tempo-Stellen entzerrt").replace("%t", nT) : "");
       toast(msg, "success", 4000);
       return;
     }
@@ -1406,10 +1467,12 @@ function mountGpxInspect(body, headerActions) {
     let fillPts = 0;
     const gapsDesc = [..._gaps].sort((a, b) => b.a - a.a);
     for (const g of gapsDesc) fillPts += _linearFillGap(g, spacing);
+    const nT = ((document.getElementById("gpxi-heal-tempo") || {}).checked) ? tempoEntzerren() : 0;
     _dirty = true; clearSpikes(); _selA = _selB = null;
     renderAll(); updateUI();
     toast(t("gpxinspect.heal_done", "Geheilt: %s Ausreißer, %g Lücken (+%p Punkte)")
-      .replace("%s", nS).replace("%g", nG).replace("%p", fillPts), "success", 3200);
+      .replace("%s", nS).replace("%g", nG).replace("%p", fillPts)
+      + (nT ? " · " + t("gpxinspect.heal_tempo_done", "%t Tempo-Stellen entzerrt").replace("%t", nT) : ""), "success", 3200);
   }
   // Eine Lücke mit gerade interpolierten Punkten füllen (Position/Höhe/Zeit linear). Gibt
   // die Anzahl eingefügter Punkte zurück. b = a+1 → reines Einfügen bei a+1.
