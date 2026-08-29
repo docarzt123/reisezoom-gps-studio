@@ -46,6 +46,11 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Übergabe-Hinweis nennt die Filter (v0.9.617, Marc: „ist es zufall, dass
+  genau fünfzig …?" — es war der übersehene Jahr-Filter 2023): Der
+  Verwaltungs-Dialog sagt jetzt nicht nur „50 von 137", sondern auch
+  WARUM — „Aktive Filter: Gemachte · Jahr 2023 · …" (Bereich, Jahr, Art,
+  Zeitraum, km, Suchtext, Karten-Gegend).
 - Projekt-Sichtbarkeit (v0.9.616, Marc: „sehe nur das 2. angelegte
   projekt"): Hat eine Tour mehr als ein Projekt, wird keins davon mehr
   unter „Automatisch angelegt" versteckt — wer ein zweites anlegt,

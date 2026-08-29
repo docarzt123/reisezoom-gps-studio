@@ -2484,5 +2484,8 @@
   "topbar.project.action_new_empty": "Nuevo proyecto vacío …",
   "topbar.project.new_empty_title": "Nuevo proyecto vacío",
   "topbar.project.new_empty_msg": "Nombre (puedes añadir rutas después):",
-  "topbar.project.new_empty_default": "Nuevo proyecto"
+  "topbar.project.new_empty_default": "Nuevo proyecto",
+  "library.col_filterhint_filter": "Filtros activos: {f}.",
+  "library.filter_jahr": "año {j}",
+  "library.filter_gegend": "zona del mapa"
 }

@@ -2484,5 +2484,8 @@
   "topbar.project.action_new_empty": "New empty project …",
   "topbar.project.new_empty_title": "New empty project",
   "topbar.project.new_empty_msg": "Name (you can add tours later):",
-  "topbar.project.new_empty_default": "New project"
+  "topbar.project.new_empty_default": "New project",
+  "library.col_filterhint_filter": "Active filters: {f}.",
+  "library.filter_jahr": "year {j}",
+  "library.filter_gegend": "map area"
 }
