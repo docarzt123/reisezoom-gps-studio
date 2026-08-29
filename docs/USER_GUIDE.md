@@ -1802,7 +1802,9 @@ Bei Render-Fehlern öffnet sich automatisch ein Fehler-Modal mit ausklappbarem L
 ## 10 · FAQ
 
 ### Wie bekomme ich neue Versionen? (seit v0.9.280)
-Die App prüft beim Start im Hintergrund, ob auf GitHub eine neuere Version vorliegt. Falls ja, erscheint oben ein dezentes Banner **„Neue Version vX.Y.Z ist verfügbar"** mit **Herunterladen**-Button (öffnet den passenden Mac-/Windows-Download im Browser). Mit dem **✕** blendest du den Hinweis für diese Version aus. Du kannst auch jederzeit manuell im **Über-Dialog** (Hilfe → Über) auf **„Nach Updates suchen"** klicken. Heruntergeladene Updates installierst du wie beim Erst-Setup (DMG/Installer) — die App ersetzt sich aus Sicherheitsgründen nicht selbst.
+Die App prüft beim Start im Hintergrund, ob eine neuere Version vorliegt. Falls ja, erscheint oben ein dezentes Banner **„Neue Version vX.Y.Z ist verfügbar"** mit **Herunterladen**-Button (öffnet den passenden Mac-/Windows-Download im Browser). Mit dem **✕** blendest du den Hinweis für diese Version aus. Du kannst auch jederzeit manuell im **Über-Dialog** (Hilfe → Über) auf **„Nach Updates suchen"** klicken. Heruntergeladene Updates installierst du wie beim Erst-Setup (DMG/Installer) — die App ersetzt sich aus Sicherheitsgründen nicht selbst.
+
+Der Update-Check ruft dafür eine kleine Datei auf reisezoom.com ab (höchstens alle 12 Stunden); dabei entstehen die üblichen Server-Logdaten wie bei jedem Webseiten-Aufruf — keine IDs, keine Telemetrie.
 
 **Die automatische Prüfung lässt sich abschalten** (⚙ Einstellungen → „Beim
 Start nach einer neuen Version suchen"). Aus heißt: Die App baut von sich aus

@@ -1740,7 +1740,9 @@ Ante errores de render se abre automáticamente un modal de error con un extract
 ## 10 · FAQ
 
 ### ¿Cómo obtengo las versiones nuevas? (desde v0.9.280)
-La app comprueba al arrancar, en segundo plano, si hay en GitHub una versión más reciente. Si es así, aparece arriba un banner discreto **«La nueva versión vX.Y.Z está disponible»** con un botón de **Descargar** (abre en el navegador la descarga adecuada para Mac/Windows). Con la **✕** ocultas el aviso para esa versión. También puedes hacer clic en cualquier momento manualmente en el **diálogo Acerca de** (Ayuda → Acerca de) en **«Buscar actualizaciones»**. Las actualizaciones descargadas las instalas como en la configuración inicial (DMG/instalador) — por razones de seguridad, la app no se reemplaza a sí misma.
+La app comprueba al arrancar, en segundo plano, si hay una versión más reciente. Si es así, aparece arriba un banner discreto **«La nueva versión vX.Y.Z está disponible»** con un botón de **Descargar** (abre en el navegador la descarga adecuada para Mac/Windows). Con la **✕** ocultas el aviso para esa versión. También puedes hacer clic en cualquier momento manualmente en el **diálogo Acerca de** (Ayuda → Acerca de) en **«Buscar actualizaciones»**. Las actualizaciones descargadas las instalas como en la configuración inicial (DMG/instalador) — por razones de seguridad, la app no se reemplaza a sí misma.
+
+La comprobación de actualizaciones descarga un pequeño archivo de reisezoom.com (como mucho cada 12 horas); esto genera los datos de log habituales de cualquier visita web — sin IDs, sin telemetría.
 
 **La comprobación automática se puede desactivar** (⚙ Ajustes → «Buscar una
 versión nueva al arrancar»). Desactivado significa: la aplicación no establece

@@ -1704,7 +1704,9 @@ On render errors an error modal opens automatically with an expandable log excer
 ## 10 · FAQ
 
 ### How do I get new versions? (since v0.9.280)
-On startup the app checks in the background whether a newer version is available on GitHub. If so, a subtle banner appears at the top, **"New version vX.Y.Z is available"**, with a **Download** button (opens the matching Mac/Windows download in the browser). With the **✕** you dismiss the notice for this version. You can also click **"Check for updates"** at any time manually in the **About dialog** (Help → About). You install downloaded updates like the first setup (DMG/installer) — the app doesn't replace itself, for security reasons.
+On startup the app checks in the background whether a newer version is available. If so, a subtle banner appears at the top, **"New version vX.Y.Z is available"**, with a **Download** button (opens the matching Mac/Windows download in the browser). With the **✕** you dismiss the notice for this version. You can also click **"Check for updates"** at any time manually in the **About dialog** (Help → About). You install downloaded updates like the first setup (DMG/installer) — the app doesn't replace itself, for security reasons.
+
+The update check fetches a small file from reisezoom.com (at most every 12 hours); this produces the usual server log data like any website visit — no IDs, no telemetry.
 
 **The automatic check can be switched off** (⚙ Settings → “Check for a new
 version at startup”). Off means: the app makes no network connection on its

@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.623"
+APP_VERSION = "0.9.624"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -213,6 +213,12 @@ APP_NAME = "Reisezoom Geotagger" if APP_EDITION == "geotagger" else "Reisezoom G
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
 # meldet dem UI, ob ein neueres Release da ist. Download bleibt manuell (Shortlink).
 GITHUB_REPO = "docarzt123/reisezoom-gps-studio"
+# v0.9.624 (Marc): Update-Check gegen das eigene Manifest auf reisezoom.com
+# statt der GitHub-API — (1) die normalen Server-Logs zählen damit, wie viele
+# Instanzen weltweit laufen (nur Standard-Weblogs, KEINE IDs/Telemetrie),
+# (2) kein GitHub-Rate-Limit, (3) alles läuft über reisezoom (Haus-Regel).
+# GitHub bleibt stiller Fallback, falls reisezoom gerade nicht erreichbar ist.
+UPDATE_MANIFEST_URL = "https://reisezoom.com/downloads/gps-studio/latest/manifest.json"
 UPDATE_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 UPDATE_DOWNLOAD_PAGE = f"https://github.com/{GITHUB_REPO}/releases/latest"
 # Plattform-spezifische Direkt-Download-Shortlinks (Linux baut aus Quelle → Seite).
@@ -1256,14 +1262,29 @@ class Api:
                     _ctx = ssl.create_default_context(cafile=certifi.where())
                 except Exception:  # noqa: BLE001
                     _ctx = ssl.create_default_context()
-                req = urllib.request.Request(
-                    UPDATE_RELEASES_API,
-                    headers={"User-Agent": f"ReisezoomGPSStudio/{current}",
-                             "Accept": "application/vnd.github+json"},
-                )
-                with urllib.request.urlopen(req, timeout=5, context=_ctx) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                tag = str(data.get("tag_name") or "").lstrip("vV").strip()
+                # User-Agent trägt Version + Plattform (kein Gerätebezug) —
+                # damit sagen die Server-Logs auch „Mac oder Windows".
+                _ua = (f"ReisezoomGPSStudio/{current} "
+                       f"({'macOS' if sys.platform == 'darwin' else 'Windows' if sys.platform == 'win32' else 'Linux'})")
+                tag = ""
+                try:
+                    req = urllib.request.Request(
+                        UPDATE_MANIFEST_URL, headers={"User-Agent": _ua})
+                    with urllib.request.urlopen(req, timeout=5, context=_ctx) as resp:
+                        data = json.loads(resp.read().decode("utf-8"))
+                    tag = str(data.get("version") or "").lstrip("vV").strip()
+                except Exception as e:  # noqa: BLE001 — Fallback unten
+                    log.info("check_for_update: Manifest nicht erreichbar (%s) — "
+                             "GitHub-Fallback", e)
+                if not tag:
+                    req = urllib.request.Request(
+                        UPDATE_RELEASES_API,
+                        headers={"User-Agent": _ua,
+                                 "Accept": "application/vnd.github+json"},
+                    )
+                    with urllib.request.urlopen(req, timeout=5, context=_ctx) as resp:
+                        data = json.loads(resp.read().decode("utf-8"))
+                    tag = str(data.get("tag_name") or "").lstrip("vV").strip()
                 if tag:
                     latest = tag
                 # ⚠️ NICHT das vor dem Netzaufruf geladene `s` zurückschreiben
