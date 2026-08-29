@@ -46,6 +46,18 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Tester-Feedback Dieter (v0.9.622): (1) „Track-Punkte reduzieren" — ganz
+  links war in der Vorschau keine Spur zu sehen: die Vorschau bildete den
+  Wert proportional auf ihre 800 Punkte ab (→ 2 Punkte; bei einer Rundtour
+  ist Start≈Ziel und die Linie unsichtbar). Bis 800 nimmt die Vorschau den
+  Wert jetzt DIREKT (render-genau, nie unsichtbar); der Hilfetext sagt
+  außerdem klar, dass der Probe-Lauf die volle Dichte zeigt und die
+  Reduktion im Video wirkt. (2) „Verteilung über den Track" — kein Bug:
+  auf gleichmäßig gelaufenen Touren verschieben die Modi den Lauf nur um
+  wenige Prozent (gemessen: „gleichmäßig" ≤1 %, „echtes Tempo" ~5 %).
+  Die Auswahl zeigt jetzt die MESSBARE Wirkung der eigenen Tour an
+  („verschiebt sich um bis zu X %" bzw. „so gleichmäßig aufgezeichnet,
+  dass kaum sichtbar").
 - Abnahme-Runde (v0.9.621, autonomer Voll-Test auf Marcs Rechner): 10 Funde
   gefixt — (1) Projektkarten zeigten IMMER alle vier Modul-Chips (Default-
   Payload galt als „Arbeit"); Chips heißen jetzt: dort liegt echte Arbeit

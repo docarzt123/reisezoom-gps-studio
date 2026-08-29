@@ -951,7 +951,7 @@
   "animator.pause.result_show": "En el vídeo eso serán unos {voll} detenido.",
   "animator.pause.result_trim": "Sin tratar, el vídeo estaría detenido unos {voll}; con este ajuste, {jetzt}.",
   "animator.pause.under1s": "menos de un segundo",
-  "animator.point_count.hint": "Por defecto se usan todos los puntos del GPX. Arrastra el control hacia la izquierda para hacer el trazado más simple — la vista previa se actualiza al instante. Afecta al render: menos puntos = ligeramente más rápido. El tiempo depende sobre todo de duración × FPS × resolución.",
+  "animator.point_count.hint": "Por defecto se usan todos los puntos del GPX. Arrastra el control hacia la izquierda para hacer el trazado más simple — la vista previa se actualiza al instante. Afecta al render: menos puntos = ligeramente más rápido. El tiempo depende sobre todo de duración × FPS × resolución. Nota: la prueba sigue mostrando la densidad completa — la reducción se aplica al vídeo renderizado (y a la vista fija de la línea).",
   "animator.alpha.toggle": "Animación sin mapa (canal alfa)",
   "animator.alpha.tooltip": "Renderiza solo el trazado + overlays sobre fondo transparente. La salida es un archivo ProRes-4444 .mov que se puede colocar directamente sobre vídeo real en Premiere/Final Cut/DaVinci.",
   "animator.alpha.hint": "Salida en .mov (ProRes 4444) — más grande que MP4 pero apto para NLE (Premiere/Final Cut/DaVinci). En este modo se ignoran estilo de mapa, terreno, inclinación y códec.",
@@ -2490,5 +2490,7 @@
   "library.filter_gegend": "zona del mapa",
   "animator.schwarm_dezent": "No resaltar la ruta principal (como las demás)",
   "library.proj_addtours_leer": "Nada marcado — selecciona rutas primero.",
-  "library.keine_treffer": "Sin resultados."
+  "library.keine_treffer": "Sin resultados.",
+  "animator.pace.wirkung_min": "Esta ruta se grabó tan uniforme que esta distribución apenas se nota (como mucho {p} % de desplazamiento).",
+  "animator.pace.wirkung": "Efecto en esta ruta: el avance se desplaza hasta un {p} % respecto a «uniforme»."
 }

@@ -951,7 +951,7 @@
   "animator.pause.result_show": "Im Video steht davon rund {voll} still.",
   "animator.pause.result_trim": "Ohne Behandlung stünde das Video rund {voll} still, mit dieser Einstellung {jetzt}.",
   "animator.pause.under1s": "unter 1 Sekunde",
-  "animator.point_count.hint": "Standard sind alle Punkte aus deinem GPX. Ziehe den Slider nach links um den Track gröber zu machen — die Vorschau aktualisiert sich live. Wirkt sich aufs Rendern aus: weniger Punkte = etwas schneller. Render-Zeit hängt aber v.a. von Dauer × FPS × Auflösung ab.",
+  "animator.point_count.hint": "Standard sind alle Punkte aus deinem GPX. Ziehe den Slider nach links um den Track gröber zu machen — die Vorschau aktualisiert sich live. Wirkt sich aufs Rendern aus: weniger Punkte = etwas schneller. Render-Zeit hängt aber v.a. von Dauer × FPS × Auflösung ab. Hinweis: Der Probe-Lauf zeigt weiterhin die volle Punktdichte — die Reduktion wirkt im gerenderten Video (und in der Standbild-Vorschau der Linie).",
   "animator.alpha.toggle": "Animation ohne Karte (Alpha-Kanal)",
   "animator.alpha.tooltip": "Rendert nur den Track + Overlays auf transparentem Hintergrund. Ausgabe ist eine ProRes-4444-.mov-Datei, die in Premiere/Final Cut/DaVinci direkt über echtes Video gelegt werden kann.",
   "animator.alpha.hint": "Output ist eine .mov (ProRes 4444) — größer als MP4, aber NLE-tauglich (Premiere/Final Cut/DaVinci). Karten-Stil, Terrain, Neigung und Codec werden in diesem Modus ignoriert.",
@@ -2490,5 +2490,7 @@
   "library.filter_gegend": "Gegend auf der Karte",
   "animator.schwarm_dezent": "Haupt-Tour nicht hervorheben (wie die anderen)",
   "library.proj_addtours_leer": "Nichts angehakt — erst Touren auswählen.",
-  "library.keine_treffer": "Keine Treffer."
+  "library.keine_treffer": "Keine Treffer.",
+  "animator.pace.wirkung_min": "Diese Tour wurde so gleichmäßig aufgezeichnet, dass diese Verteilung kaum sichtbar wirkt (höchstens {p} % Verschiebung).",
+  "animator.pace.wirkung": "Wirkung bei dieser Tour: der Lauf verschiebt sich um bis zu {p} % gegenüber „gleichmäßig“."
 }
