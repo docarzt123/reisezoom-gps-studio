@@ -1524,6 +1524,23 @@ Muestra **cada punto individual** de tu track en el mapa (el track en bruto comp
 - **Ajustar todo el track** — la traza completa por Map Matching sobre caminos cercanos (sigue la forma de la traza). Ajustable con el **radio de ajuste** (5–50 m).
 Con el **radio de búsqueda** (5–50 m, slider) ajustas hasta qué distancia puede estar un punto del camino para aún ajustarse: pequeño = solo muy cerca del camino, grande = capta más deriva de GPS, pero puede saltar antes a una carretera **paralela**. La posición se ajusta, **el tiempo y la altitud se reparten sobre la nueva longitud**, y todo es **reversible** (⌘Z). Los tracks largos se descomponen automáticamente en trozos (límite de Mapbox). Si la app **no** encuentra ningún camino dentro del radio, no pasa nada y recibes un aviso claro. **Importante:** solo tiene sentido si el track realmente sigue caminos/carreteras — en **caminatas campo a través** puede falsear la traza. Necesita **internet + token de Mapbox**.
 
+### 🌡️ Ver los valores atípicos: colorear por velocidad + estadísticas en vivo
+¿Cómo saber *si* una ruta tiene un valor atípico de GPS? Dos ayudas:
+
+- **Estadísticas en vivo** arriba en la barra lateral: distancia, duración,
+  velocidad media, **velocidad máxima** y desnivel — calculadas en vivo a
+  partir de los puntos actuales. ¿44 km/h en una caminata? Algo falla.
+- **🌡️ «Colorear por velocidad»**: colorea la ruta según la velocidad entre
+  puntos — verde = normal, amarillo = rápido, naranja = muy rápido, **rojo =
+  posible atípico**. Los umbrales salen de la propia ruta (funciona igual para
+  senderismo que para bici) y la leyenda muestra los km/h reales. Mira los
+  tramos rojos → Curar (o alisa el tramo a mano). Necesita marcas de tiempo.
+
+Tras el auto-curado aparece una caja **«Antes → Después»**: puntos, distancia,
+velocidad máxima y desnivel comparados (las mejoras en verde), y la **ruta
+antigua permanece en el mapa como línea gris discontinua** hasta que cierres la
+caja — así se ve exactamente qué cambió el curado.
+
 ### 🩹 Auto-sanar: valores atípicos + huecos (desde v0.9.295)
 En lugar de buscar a mano: **🩹 Auto-sanar** escanea todo el track y muestra como **vista previa en el mapa** lo que haría — antes de que se cambie nada:
 - **🟠 Valores atípicos** (naranja) — saltos de GPS que se van *y vuelven*. Se suavizan al sanar.

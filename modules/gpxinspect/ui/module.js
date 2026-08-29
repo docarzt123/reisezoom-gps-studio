@@ -85,7 +85,11 @@ function mountGpxInspect(body, headerActions) {
         <div class="gpxi-empty" id="gpxi-empty">${t("gpxinspect.empty", "Lade ein GPX über die Leiste oben — dann erscheint hier jeder einzelne Track-Punkt.")}</div>
         <div class="gpxi-panel" id="gpxi-panel" hidden>
           <div class="gpxi-stat" id="gpxi-stat"></div>
+          <div class="gpxi-statgrid" id="gpxi-statgrid"></div>
           <div class="gpxi-stat-help">${t("gpxinspect.points_help_short", "Was ein Punkt ist")}<span class="gpxi-q" data-tip="${t("gpxinspect.points_help", "Ein Track besteht aus vielen einzelnen Messpunkten — jedes Mal, wenn dein Gerät die Position aufgezeichnet hat. Ein Punkt alle 1–10 Sekunden ist üblich; bei einer langen Tour kommen so schnell mehrere tausend zusammen. Auf der Karte ist jeder Punkt ein kleiner Kreis, den du anklicken kannst. Mehr Punkte heißt nicht besser: Beim Heilen werden Ausreißer entfernt und Lücken aufgefüllt, dabei ändert sich die Zahl.")}">?</span></div>
+          <label class="gpxi-check" id="gpxi-speedcolor-row"><input type="checkbox" id="gpxi-speedcolor">
+            🌡️ ${t("gpxinspect.speedcolor", "Nach Tempo einfärben")}<span class="gpxi-q" data-tip="${t("gpxinspect.speedcolor_help", "Färbt den Track nach Geschwindigkeit zwischen den Punkten: grün = normal, gelb = zügig, orange = sehr schnell, rot = Ausreißer-verdächtig. So springen GPS-Sprünge sofort ins Auge — dann Heilen oder den Abschnitt manuell glätten. Braucht Zeitstempel.")}">?</span></label>
+          <div class="gpxi-speedlegend" id="gpxi-speedlegend" hidden></div>
           <div class="gpxi-mm-title">🩹 ${t("gpxinspect.heal_title", "Heilen (automatisch)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_help", "Findet automatisch GPS-Ausreißer und Lücken und behebt sie. Bereich und Aktionen wählen, dann Heilen. Rückgängig jederzeit.")}">?</span></div>
           <div class="gpxi-segrow" role="radiogroup">
             <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-track" value="track" checked> ${t("gpxinspect.scope_track", "Ganzer Track")}</label>
@@ -113,6 +117,13 @@ function mountGpxInspect(body, headerActions) {
           </div>
           <div class="gpxi-sel" id="gpxi-sel">${t("gpxinspect.sel_none", "Keine Auswahl")}</div>
           <button class="btn btn-primary gpxi-act" id="gpxi-heal-run">🩹 ${t("gpxinspect.heal_run", "Heilen")}</button>
+          <div class="gpxi-baft" id="gpxi-baft" hidden>
+            <div class="gpxi-baft-head">✨ ${t("gpxinspect.baft_title", "Vorher → Nachher")}
+              <button type="button" class="gpxi-baft-x" id="gpxi-baft-close" title="${t("common.close", "Schließen")}">✕</button></div>
+            <div class="gpxi-baft-rows" id="gpxi-baft-rows"></div>
+            <label class="gpxi-check"><input type="checkbox" id="gpxi-before-toggle" checked>
+              ${t("gpxinspect.baft_show_before", "Vorher-Track auf der Karte zeigen (grau gestrichelt)")}</label>
+          </div>
           <div class="gpxi-undorow">
             <button class="btn" id="gpxi-undo" disabled title="⌘Z">↩︎ ${t("gpxinspect.undo", "Rückgängig")}</button>
             <button class="btn" id="gpxi-redo" disabled title="⌘⇧Z">↪︎ ${t("gpxinspect.redo", "Wiederherstellen")}</button>
@@ -229,10 +240,21 @@ function mountGpxInspect(body, headerActions) {
       const emptyLine = { type: "Feature", geometry: { type: "LineString", coordinates: [] } };
       const emptyFC = { type: "FeatureCollection", features: [] };
       try {
+        // 29.08.2026 (Marc: „nach 'auto heilen' direkt ein vorher nachher") —
+        // der Stand VOR dem Heilen bleibt als graue gestrichelte Linie sichtbar.
+        map.addSource("gpxi-before", { type: "geojson", data: emptyLine });
+        map.addLayer({ id: "gpxi-before-lyr", type: "line", source: "gpxi-before",
+          paint: { "line-color": "#9aa0a8", "line-width": 2, "line-dasharray": [2, 1.6], "line-opacity": 0.8 } });
         map.addSource("gpxi-line", { type: "geojson", data: emptyLine });
         map.addLayer({ id: "gpxi-line-lyr", type: "line", source: "gpxi-line",
           paint: { "line-color": "#3aa0ff", "line-width": 2.4, "line-opacity": 0.85 } });
         // v0.9.294 — Lücken-Heil-Vorschau (andersfarbig): gestrichelte Füll-Linie + Geister-Punkte.
+        // 29.08.2026 (Marc: „nach tempo einfärben lassen, damit ich die
+        // ausreiser sehe") — Segment-Färbung nach km/h, liegt ÜBER der Linie.
+        map.addSource("gpxi-speed", { type: "geojson", data: emptyFC });
+        map.addLayer({ id: "gpxi-speed-lyr", type: "line", source: "gpxi-speed",
+          layout: { "line-cap": "round" },
+          paint: { "line-color": ["get", "color"], "line-width": 3.2, "line-opacity": 0.95 } });
         map.addSource("gpxi-gapfill", { type: "geojson", data: emptyLine });
         map.addLayer({ id: "gpxi-gapfill-lyr", type: "line", source: "gpxi-gapfill",
           paint: { "line-color": "#e879f9", "line-width": 3, "line-dasharray": [1.5, 1.2], "line-opacity": 0.95 } });
@@ -253,7 +275,9 @@ function mountGpxInspect(body, headerActions) {
             ["==", ["get", "sel"], "a"], "#22c55e",
             ["==", ["get", "sel"], "b"], "#ef4444",
             ["boolean", ["get", "spike"], false], "#f59e0b",
-            "#cfe6ff"],
+            // 29.08.2026 — Tempo-Einfärbung: bei 2 788 dichten Punkten sieht
+            // man die Kreise, nicht die Linie darunter — also färben BEIDE.
+            ["coalesce", ["get", "sc"], "#cfe6ff"]],
           "circle-stroke-width": ["case",
             ["boolean", ["get", "spike"], false], 2.4,
             ["boolean", ["get", "anchor"], false], 2.2, 0.6],
@@ -261,7 +285,9 @@ function mountGpxInspect(body, headerActions) {
             ["==", ["get", "sel"], "a"], "#0a7a32",
             ["==", ["get", "sel"], "b"], "#a11",
             ["boolean", ["get", "spike"], false], "#7c4a02",
-            "#1f6fc4"],
+            // 29.08.2026 — Tempo-Einfärbung: Rand folgt der Füllfarbe, sonst
+            // übertönt das Standard-Blau die winzigen Kreise komplett.
+            ["coalesce", ["get", "sc"], "#1f6fc4"]],
         } });
         // v0.9.237 — Pfad-Zeichnen: Preview-Linie A→Stützpunkte→B + Stützpunkt-Marker.
         map.addSource("gpxi-draw", { type: "geojson", data: emptyLine });
@@ -352,6 +378,9 @@ function mountGpxInspect(body, headerActions) {
     clearSpikes();
     _eleInvalidate();   // v0.9.292 — neues Track → altes Höhenprofil verwerfen
     if (_undo) _undo.reset();
+    const _scRow = document.getElementById("gpxi-speedcolor-row");
+    if (_scRow) _scRow.style.display = _hasTime ? "" : "none";   // ohne Zeit kein Tempo
+    clearBeforeAfter();
     renderAll();
     try { renderDraw(); } catch (_) {}
     fitTrack(res.bbox);
@@ -366,6 +395,95 @@ function mountGpxInspect(body, headerActions) {
     updateUI();
   }
 
+  /* 29.08.2026 (Marc: „man sollte die kompletten stats im inspector sehen —
+   * dann sieht man auch direkt, ob alles passt") — Kennzahlen LIVE aus den
+   * aktuellen Punkten gerechnet (nicht aus der Datei): nach jedem Heilen oder
+   * Editieren stimmen sie sofort. Bergauf/Bergab sind hier bewusst die rohen
+   * Summen (das Archiv glättet stärker) — für Vorher/Nachher zählt, dass
+   * beide Seiten gleich gerechnet sind. */
+  function _trackStats() {
+    let dist = 0, dur = 0, maxKmh = 0, asc = 0, desc = 0;
+    for (let i = 1; i < _points.length; i++) {
+      const a = _points[i - 1], b = _points[i];
+      const d = _haversine(a, b);
+      dist += d;
+      if (a.time && b.time) {
+        const dt = (Date.parse(b.time) - Date.parse(a.time)) / 1000;
+        if (dt > 0) {
+          dur += dt;
+          const v = d / dt * 3.6;
+          if (v > maxKmh) maxKmh = v;
+        }
+      }
+      if (a.ele != null && b.ele != null) {
+        const dE = b.ele - a.ele;
+        if (dE > 0) asc += dE; else desc -= dE;
+      }
+    }
+    return { n: _points.length, dist, dur, maxKmh, asc, desc,
+             avg: dur > 0 ? dist / dur * 3.6 : 0 };
+  }
+  function renderStatGrid() {
+    const box = document.getElementById("gpxi-statgrid");
+    if (!box) return;
+    if (!_points.length) { box.innerHTML = ""; return; }
+    const s = _trackStats();
+    const z = (lab, val) => `<span class="gpxi-sg-l">${lab}</span><span class="gpxi-sg-v">${val}</span>`;
+    box.innerHTML =
+      z(t("gpxinspect.st_dist", "Strecke"), _fmtKm(s.dist))
+      + (s.dur > 0 ? z(t("gpxinspect.st_dur", "Dauer"), _fmtDur(s.dur * 1000)) : "")
+      + (s.dur > 0 ? z(t("gpxinspect.st_avg", "Ø Tempo"), s.avg.toFixed(1) + " km/h") : "")
+      + (s.dur > 0 ? z(t("gpxinspect.st_max", "Max. Tempo"), s.maxKmh.toFixed(1) + " km/h") : "")
+      + (s.asc || s.desc ? z(t("gpxinspect.st_hm", "Höhenmeter"), `↑ ${Math.round(s.asc)} · ↓ ${Math.round(s.desc)} m`) : "");
+  }
+
+  /* Vorher/Nachher nach dem Auto-Heilen: Kennzahlen-Vergleich + der alte
+   * Track als graue gestrichelte Linie (eingefügte Punkte sind ohnehin
+   * magenta). Undo/Redo oder ein neuer Track räumen den Vergleich ab. */
+  let _beforeStats = null, _beforeCoords = null;
+  function merkeVorher() {
+    _beforeStats = _trackStats();
+    _beforeCoords = _points.map(p => [p.lon, p.lat]);
+  }
+  function clearBeforeAfter() {
+    _beforeStats = null; _beforeCoords = null;
+    const box = document.getElementById("gpxi-baft");
+    if (box) box.hidden = true;
+    try { map.getSource("gpxi-before").setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] } }); } catch (_) {}
+  }
+  function renderBeforeLine() {
+    const an = !!document.getElementById("gpxi-before-toggle")?.checked;
+    try {
+      map.getSource("gpxi-before").setData({ type: "Feature", geometry: {
+        type: "LineString", coordinates: (an && _beforeCoords) ? _beforeCoords : [] } });
+    } catch (_) {}
+  }
+  function zeigeVorherNachher() {
+    if (!_beforeStats) return;
+    const nach = _trackStats();
+    const vor = _beforeStats;
+    const box = document.getElementById("gpxi-baft");
+    const rows = document.getElementById("gpxi-baft-rows");
+    if (!box || !rows) return;
+    const zeile = (lab, a, b, besserWennKleiner) => {
+      const gleich = a === b;
+      const cls = gleich ? "" : (besserWennKleiner === null ? " neutral"
+        : ((b < a) === besserWennKleiner ? " gut" : " schlecht"));
+      return `<span class="gpxi-sg-l">${lab}</span><span class="gpxi-sg-v${cls}">${a} → ${b}</span>`;
+    };
+    rows.innerHTML =
+      zeile(t("gpxinspect.points", "Punkte"), vor.n, nach.n, null)
+      + zeile(t("gpxinspect.st_dist", "Strecke"), _fmtKm(vor.dist), _fmtKm(nach.dist), true)
+      + (vor.dur > 0 ? zeile(t("gpxinspect.st_max", "Max. Tempo"),
+          vor.maxKmh.toFixed(1) + " km/h", nach.maxKmh.toFixed(1) + " km/h", true) : "")
+      + (vor.asc || nach.asc ? zeile(t("gpxinspect.st_hm", "Höhenmeter") + " ↑",
+          Math.round(vor.asc) + " m", Math.round(nach.asc) + " m", true) : "");
+    box.hidden = false;
+    const bt = document.getElementById("gpxi-before-toggle");
+    if (bt) bt.checked = true;
+    renderBeforeLine();
+  }
+
   function renderAll() {
     if (!map) return;
     // v0.9.292 — DEM-Profil wird ungültig sobald sich die Punktzahl ändert (Indizes verschieben sich).
@@ -374,7 +492,69 @@ function mountGpxInspect(body, headerActions) {
       const line = { type: "Feature", geometry: { type: "LineString", coordinates: _points.map(p => [p.lon, p.lat]) } };
       if (map.getSource("gpxi-line")) map.getSource("gpxi-line").setData(line);
     } catch (_) {}
+    try { renderSpeedColor(); } catch (_) {}
+    try { renderStatGrid(); } catch (_) {}
     renderPoints();
+  }
+
+  /* 29.08.2026 (Marc) — Track nach Tempo einfärben, um GPS-Ausreißer zu SEHEN.
+   * Pro Segment km/h aus Distanz/Zeitdifferenz; die Schwellen kommen aus dem
+   * Track selbst (Perzentile), damit Wandern wie Radfahren funktioniert:
+   * grün ≤ P80, gelb ≤ P95, orange ≤ 1,5×P95, rot darüber (Ausreißer-Kandidat).
+   * Die Legende zeigt die echten km/h-Schwellen dieses Tracks. */
+  function _segSpeeds() {
+    const out = new Array(Math.max(0, _points.length - 1)).fill(null);
+    for (let i = 1; i < _points.length; i++) {
+      const a = _points[i - 1], b = _points[i];
+      if (!a.time || !b.time) continue;
+      const dt = (Date.parse(b.time) - Date.parse(a.time)) / 1000;
+      if (!(dt > 0)) continue;
+      const R = 6371000, dLa = (b.lat - a.lat) * Math.PI / 180, dLo = (b.lon - a.lon) * Math.PI / 180;
+      const q = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLo / 2) ** 2;
+      out[i - 1] = (R * 2 * Math.asin(Math.sqrt(q))) / dt * 3.6;
+    }
+    return out;
+  }
+  let _speedFarben = null;   // Punkt-Index → Tempo-Farbe (nur wenn Färbung an)
+  function renderSpeedColor() {
+    const src = map && map.getSource("gpxi-speed");
+    if (!src) return;
+    const an = !!document.getElementById("gpxi-speedcolor")?.checked;
+    const leg = document.getElementById("gpxi-speedlegend");
+    if (!an || !_hasTime || _points.length < 3) {
+      src.setData({ type: "FeatureCollection", features: [] });
+      if (leg) leg.hidden = true;
+      const warAn = !!_speedFarben;
+      _speedFarben = null;
+      try { map.setPaintProperty("gpxi-line-lyr", "line-opacity", 0.85); } catch (_) {}
+      if (warAn) renderPoints();   // Punktfarben zurücksetzen
+      return;
+    }
+    const spd = _segSpeeds();
+    const werte = spd.filter(v => v != null && isFinite(v)).slice().sort((x, y) => x - y);
+    if (!werte.length) { src.setData({ type: "FeatureCollection", features: [] }); if (leg) leg.hidden = true; return; }
+    const p = (f) => werte[Math.min(werte.length - 1, Math.floor(f * (werte.length - 1)))];
+    const p80 = p(0.80), p95 = p(0.95), rot = Math.max(p95 * 1.5, p95 + 1);
+    const farbe = (v) => v == null ? "#8a8f98"
+      : v <= p80 ? "#2ecc71" : v <= p95 ? "#f1c40f" : v <= rot ? "#ff8c1a" : "#ff3355";
+    const feats = [];
+    for (let i = 0; i < spd.length; i++) {
+      feats.push({ type: "Feature", properties: { color: farbe(spd[i]), i: i },
+        geometry: { type: "LineString",
+          coordinates: [[_points[i].lon, _points[i].lat], [_points[i + 1].lon, _points[i + 1].lat]] } });
+    }
+    src.setData({ type: "FeatureCollection", features: feats });
+    // Punktfarbe = Tempo des ANKOMMENDEN Segments (Punkt 0 erbt das erste).
+    _speedFarben = new Array(_points.length);
+    for (let i = 0; i < _points.length; i++) _speedFarben[i] = farbe(spd[Math.max(0, i - 1)]);
+    renderPoints();
+    try { map.setPaintProperty("gpxi-line-lyr", "line-opacity", 0.15); } catch (_) {}
+    if (leg) {
+      leg.hidden = false;
+      leg.innerHTML = [["#2ecc71", `≤ ${p80.toFixed(1)}`], ["#f1c40f", `≤ ${p95.toFixed(1)}`],
+                       ["#ff8c1a", `≤ ${rot.toFixed(1)}`], ["#ff3355", `> ${rot.toFixed(1)} km/h`]]
+        .map(([c, txt]) => `<span><i style="background:${c}"></i>${txt}</span>`).join("");
+    }
   }
 
   function renderPoints() {
@@ -385,7 +565,8 @@ function mountGpxInspect(body, headerActions) {
       const sel = (i === _selA) ? "a" : (i === _selB) ? "b" : "";
       feats[i] = {
         type: "Feature",
-        properties: { i: i, sel: sel, anchor: (sel !== ""), spike: _spikeSet.has(i) },
+        properties: { i: i, sel: sel, anchor: (sel !== ""), spike: _spikeSet.has(i),
+                      sc: _speedFarben ? _speedFarben[i] : null },
         geometry: { type: "Point", coordinates: [p.lon, p.lat] },
       };
     }
@@ -969,6 +1150,27 @@ function mountGpxInspect(body, headerActions) {
     const FLOOR = lerp(120, 15);                    // Mindest-Sprungweite in m
     const ABS_JUMP = Math.max(FLOOR, medSeg * SPIKE_FACTOR);
     const SPEED_CAP = lerp(120, 25);               // m/s; 120≈432 km/h … 25≈90 km/h
+    // 29.08.2026 (Marcs Masca-Spikes, live seziert): Sekündliche Aufzeichnung
+    // macht Spikes KURZ (13–15 m) — die Sprungweiten-Regel greift nie. Was sie
+    // verrät, ist ihr TEMPO relativ zur Tour: 13-facher Median bei einer
+    // Wanderung ist unmöglich. Median-relativ bleibt es aktivitäts-neutral
+    // (Radfahren hat höheren Median → höhere Schwelle), das absolute Minimum
+    // (15 km/h) schützt normales Gehen vor Fehlalarmen.
+    let medSpeed = 0;
+    if (haveTime) {
+      const vs = [];
+      for (let i = 0; i < n - 1; i++) {
+        const dt = (Date.parse(P[i + 1].time) - Date.parse(P[i].time)) / 1000;
+        if (dt > 0) vs.push(seg[i] / dt);
+      }
+      vs.sort((a, b) => a - b);
+      medSpeed = vs.length ? vs[Math.floor(vs.length / 2)] : 0;
+    }
+    // Kurve an Marcs Masca-Track geeicht: Median 1,34 m/s, Spikes 12,6–15,5 m/s
+    // (≈ 9–12× Median). lerp(12, 3): Standard (5) fängt ab ~8× Median, die
+    // niedrigste Stufe bleibt bei 12× konservativ.
+    const REL_SPEED = lerp(12, 3);                 // Vielfaches des Median-Tempos
+    const SPEED_THR = medSpeed > 0 ? Math.max(4.2, medSpeed * REL_SPEED) : Infinity;
     const flags = new Array(n).fill(false);
     for (let i = 1; i < n - 1; i++) {
       const inD = seg[i - 1], outD = seg[i];
@@ -977,14 +1179,16 @@ function mountGpxInspect(body, headerActions) {
       const bigJump = (inD > ABS_JUMP || outD > ABS_JUMP);
       const returns = detour > ABS_JUMP * 0.8;     // springt raus UND zurück
       let speedBad = true;
+      let vIn = 0, vOut = 0;
       if (haveTime) {
         const dtIn = (Date.parse(P[i].time) - Date.parse(P[i - 1].time)) / 1000;
         const dtOut = (Date.parse(P[i + 1].time) - Date.parse(P[i].time)) / 1000;
-        const vIn = dtIn > 0 ? inD / dtIn : Infinity;
-        const vOut = dtOut > 0 ? outD / dtOut : Infinity;
+        vIn = dtIn > 0 ? inD / dtIn : Infinity;
+        vOut = dtOut > 0 ? outD / dtOut : Infinity;
         speedBad = (vIn > SPEED_CAP || vOut > SPEED_CAP);
       }
       if (bigJump && returns && speedBad) flags[i] = true;
+      else if (haveTime && (vIn > SPEED_THR || vOut > SPEED_THR)) flags[i] = true;
     }
     // Aufeinanderfolgende markierte Punkte zu einer Ausreißer-Gruppe zusammenfassen.
     const groups = [];
@@ -1103,7 +1307,9 @@ function mountGpxInspect(body, headerActions) {
       _gaps = gaps;
       _selA = _selB = null;
       if (_spikes.length || _gaps.length) {
+        merkeVorher();           // 29.08.2026 — für den Vorher/Nachher-Vergleich
         await healAllSpikes();   // füllt Lücken laut Profil (Luftlinie oder Route)
+        zeigeVorherNachher();
       } else {
         toast(t("gpxinspect.heal_none", "Nichts zu heilen gefunden 👍"), "info", 2800);
       }
@@ -1937,6 +2143,16 @@ function mountGpxInspect(body, headerActions) {
   _on("gpxi-undo", () => { if (_undo) _undo.undo(); });
   _on("gpxi-redo", () => { if (_undo) _undo.redo(); });
   _on("gpxi-heal-run", runHeal);
+  { const sc = document.getElementById("gpxi-speedcolor");
+    if (sc) sc.addEventListener("change", () => { try { renderSpeedColor(); } catch (_) {} }); }
+  _on("gpxi-baft-close", () => clearBeforeAfter());
+  { const bt = document.getElementById("gpxi-before-toggle");
+    if (bt) bt.addEventListener("change", () => renderBeforeLine()); }
+  // Undo/Redo macht den Vorher/Nachher-Vergleich ungültig (Stand ändert sich).
+  for (const id of ["gpxi-undo", "gpxi-redo"]) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", () => clearBeforeAfter());
+  }
   // ?-Erklärblasen. Seit v0.9.501 liegt der Helfer in ui/js/util.js, damit
   // Archiv und Inspektor dieselbe Blase benutzen — vorher gab es ihn nur hier.
   initHelpTips(document.getElementById("gpxi-panel") || body);

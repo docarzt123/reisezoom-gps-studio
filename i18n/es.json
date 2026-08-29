@@ -2396,5 +2396,14 @@
   "animator.statsfield.asc_done": "Subido hasta ahora",
   "animator.statsfield.desc_done": "Bajado hasta ahora",
   "library.sort.maxspeed_desc": "Mayor velocidad máx.",
-  "library.maxspeed": "Velocidad máx."
+  "library.maxspeed": "Velocidad máx.",
+  "gpxinspect.speedcolor": "Colorear por velocidad",
+  "gpxinspect.speedcolor_help": "Colorea la ruta según la velocidad entre puntos: verde = normal, amarillo = rápido, naranja = muy rápido, rojo = posible valor atípico. Los saltos de GPS saltan a la vista; después usa Curar o alisa el tramo a mano. Necesita marcas de tiempo.",
+  "gpxinspect.baft_title": "Antes → Después",
+  "gpxinspect.baft_show_before": "Mostrar la ruta anterior en el mapa (gris discontinuo)",
+  "gpxinspect.st_dist": "Distancia",
+  "gpxinspect.st_dur": "Duración",
+  "gpxinspect.st_avg": "Vel. media",
+  "gpxinspect.st_max": "Vel. máx.",
+  "gpxinspect.st_hm": "Desnivel"
 }

@@ -1574,6 +1574,24 @@ Zeigt **jeden einzelnen Punkt** deines Tracks auf der Karte (den vollen Roh-Trac
 - **Ganzen Track snappen** — die komplette Spur per Map Matching auf nahe Wege (folgt der Form der Spur). Mit **Snap-Radius** (5–50 m) einstellbar.
 Mit dem **Such-Radius** (5–50 m, Slider) stellst du ein, wie weit ein Punkt vom Weg entfernt sein darf, um noch gesnappt zu werden: klein = nur sehr nah am Weg, groß = fängt mehr GPS-Drift, kann aber eher auf eine **parallele** Straße springen. Position wird gesnappt, **Zeit und Höhe werden über die neue Länge verteilt**, alles ist **rückgängig machbar** (⌘Z). Lange Tracks werden automatisch in Stücke zerlegt (Mapbox-Limit). Findet die App in dem Radius **keinen** Weg, passiert nichts und du bekommst eine klare Meldung. **Wichtig:** nur sinnvoll, wenn der Track tatsächlich Wegen/Straßen folgt — bei **Querfeldein-Wanderungen** kann es die Spur verfälschen. Braucht **Internet + Mapbox-Token**.
 
+### 🌡️ Ausreißer sehen: nach Tempo einfärben + Live-Stats
+Woher weiß man, *ob* eine Tour einen GPS-Ausreißer hat? Zwei Helfer:
+
+- **Live-Stats** oben in der Seitenleiste: Strecke, Dauer, Ø-Tempo,
+  **Max. Tempo** und Höhenmeter — live aus den aktuellen Punkten gerechnet.
+  44 km/h bei einer Wanderung? Da stimmt was nicht.
+- **🌡️ „Nach Tempo einfärben"**: färbt den Track nach der Geschwindigkeit
+  zwischen den Punkten — grün = normal, gelb = zügig, orange = sehr schnell,
+  **rot = Ausreißer-verdächtig**. Die Schwellen kommen aus der Tour selbst
+  (funktioniert also für Wandern wie Radfahren), die Legende zeigt die echten
+  km/h-Grenzen. Rote Stücke anschauen → Heilen (oder den Abschnitt manuell
+  glätten). Braucht Zeitstempel.
+
+Nach dem Auto-Heilen erscheint ein **„Vorher → Nachher"-Kasten**: Punkte,
+Strecke, Max. Tempo und Höhenmeter im Vergleich (Verbesserungen grün), und der
+**alte Track bleibt als graue gestrichelte Linie** auf der Karte, bis du den
+Kasten schließt — so sieht man genau, was das Heilen verändert hat.
+
 ### 🩹 Auto-Heilen: Ausreißer + Lücken (seit v0.9.295)
 Statt von Hand zu suchen: **🩹 Auto-Heilen** scannt den ganzen Track und zeigt als **Vorschau auf der Karte**, was es tun würde — bevor etwas geändert wird:
 - **🟠 Ausreißer** (orange) — GPS-Sprünge, die wegspringen *und wieder zurückkommen*. Werden beim Heilen geglättet.

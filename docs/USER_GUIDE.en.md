@@ -1491,6 +1491,23 @@ Shows **every single point** of your track on the map (the full raw track, not t
 - **Snap the whole track** — the complete trace via map matching onto nearby paths (follows the shape of the trace). Adjustable via a **snap radius** (5–50 m).
 With the **search radius** (5–50 m, slider) you set how far a point may be from the path to still be snapped: small = only very close to the path, large = catches more GPS drift, but can rather jump onto a **parallel** road. The position is snapped, **time and elevation are distributed over the new length**, everything is **undoable** (⌘Z). Long tracks are automatically split into pieces (Mapbox limit). If the app finds **no** path within the radius, nothing happens and you get a clear message. **Important:** only sensible if the track actually follows paths/roads — for **cross-country hikes** it can distort the trace. Needs **internet + a Mapbox token**.
 
+### 🌡️ Seeing outliers: colour by speed + live stats
+How do you know *whether* a tour has a GPS outlier? Two helpers:
+
+- **Live stats** at the top of the sidebar: distance, duration, average speed,
+  **max. speed** and elevation — computed live from the current points.
+  44 km/h on a hike? Something is off.
+- **🌡️ "Colour by speed"**: colours the track by the speed between points —
+  green = normal, yellow = brisk, orange = very fast, **red = likely
+  outlier**. The thresholds come from the tour itself (so it works for hiking
+  and cycling alike), and the legend shows the actual km/h limits. Inspect the
+  red bits → heal (or smooth the section manually). Needs timestamps.
+
+After auto-healing, a **"Before → After" box** appears: points, distance,
+max. speed and elevation compared (improvements in green), and the **old track
+stays on the map as a grey dashed line** until you close the box — so you can
+see exactly what healing changed.
+
 ### 🩹 Auto-heal: outliers + gaps (since v0.9.295)
 Instead of searching by hand: **🩹 Auto-heal** scans the whole track and shows as a **preview on the map** what it would do — before anything is changed:
 - **🟠 Outliers** (orange) — GPS jumps that fly off *and come back again*. Are smoothed on healing.

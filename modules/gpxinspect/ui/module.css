@@ -253,3 +253,23 @@
 }
 .gpxi-seg input { margin: 0; }
 .gpxi-seg:has(input:checked) { border-color: var(--accent, #2f8a3e); color: var(--text); background: var(--bg-1); }
+
+/* 29.08.2026 — Live-Stats-Grid, Tempo-Legende, Vorher/Nachher-Vergleich */
+.gpxi-statgrid { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px;
+  font-size: 12px; margin: 4px 0 8px; }
+.gpxi-sg-l { color: var(--text-muted); }
+.gpxi-sg-v { text-align: right; font-variant-numeric: tabular-nums; }
+.gpxi-sg-v.gut { color: #2ecc71; }
+.gpxi-sg-v.schlecht { color: #ff5566; }
+.gpxi-speedlegend { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px;
+  color: var(--text-muted); margin: 2px 0 6px 22px; }
+.gpxi-speedlegend i { display: inline-block; width: 10px; height: 10px;
+  border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.gpxi-baft { border: 1px solid rgba(46, 204, 113, .4); border-radius: 8px;
+  padding: 8px 10px; margin-top: 8px; }
+.gpxi-baft-head { font-weight: 700; font-size: 12px; display: flex;
+  justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.gpxi-baft-x { background: none; border: none; color: var(--text-muted);
+  cursor: pointer; font-size: 12px; }
+.gpxi-baft-rows { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px;
+  font-size: 12px; }

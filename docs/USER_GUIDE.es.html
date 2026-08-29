@@ -1311,6 +1311,17 @@ python app.py</code></pre>
 <li><strong>Ajustar todo el track</strong> — la traza completa por Map Matching sobre caminos cercanos (sigue la forma de la traza). Ajustable con el <strong>radio de ajuste</strong> (5–50 m).</li>
 </ul>
 <p>Con el <strong>radio de búsqueda</strong> (5–50 m, slider) ajustas hasta qué distancia puede estar un punto del camino para aún ajustarse: pequeño = solo muy cerca del camino, grande = capta más deriva de GPS, pero puede saltar antes a una carretera <strong>paralela</strong>. La posición se ajusta, <strong>el tiempo y la altitud se reparten sobre la nueva longitud</strong>, y todo es <strong>reversible</strong> (⌘Z). Los tracks largos se descomponen automáticamente en trozos (límite de Mapbox). Si la app <strong>no</strong> encuentra ningún camino dentro del radio, no pasa nada y recibes un aviso claro. <strong>Importante:</strong> solo tiene sentido si el track realmente sigue caminos/carreteras — en <strong>caminatas campo a través</strong> puede falsear la traza. Necesita <strong>internet + token de Mapbox</strong>.</p>
+<h3 id="ver-los-valores-at-picos-colorear-por-velocidad-estad-sticas-en-vivo">🌡️ Ver los valores atípicos: colorear por velocidad + estadísticas en vivo</h3>
+<p>¿Cómo saber <em>si</em> una ruta tiene un valor atípico de GPS? Dos ayudas:</p>
+<ul>
+<li><strong>Estadísticas en vivo</strong> arriba en la barra lateral: distancia, duración,</li>
+</ul>
+<p> velocidad media, <strong>velocidad máxima</strong> y desnivel — calculadas en vivo a  partir de los puntos actuales. ¿44 km/h en una caminata? Algo falla.</p>
+<ul>
+<li><strong>🌡️ «Colorear por velocidad»</strong>: colorea la ruta según la velocidad entre</li>
+</ul>
+<p> puntos — verde = normal, amarillo = rápido, naranja = muy rápido, <strong>rojo =  posible atípico</strong>. Los umbrales salen de la propia ruta (funciona igual para  senderismo que para bici) y la leyenda muestra los km/h reales. Mira los  tramos rojos → Curar (o alisa el tramo a mano). Necesita marcas de tiempo.</p>
+<p>Tras el auto-curado aparece una caja <strong>«Antes → Después»</strong>: puntos, distancia, velocidad máxima y desnivel comparados (las mejoras en verde), y la <strong>ruta antigua permanece en el mapa como línea gris discontinua</strong> hasta que cierres la caja — así se ve exactamente qué cambió el curado.</p>
 <h3 id="auto-sanar-valores-at-picos-huecos">🩹 Auto-sanar: valores atípicos + huecos</h3>
 <p>En lugar de buscar a mano: <strong>🩹 Auto-sanar</strong> escanea todo el track y muestra como <strong>vista previa en el mapa</strong> lo que haría — antes de que se cambie nada:</p>
 <ul>
