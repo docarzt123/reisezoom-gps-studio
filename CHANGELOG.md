@@ -46,6 +46,10 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Fix (v0.9.620, Marc: „bumms war der schwarm weg"): Ein NEUES Projekt im
+  Schwarm/Reise-Kontext (Topbar → Neues Projekt) erbt jetzt die Komposition
+  — Etappen, Farben je Tour, Modus, Dezent-Wahl — statt nur den Haupt-Track
+  zu zeigen. Keyframes, Schilder und Fotos starten bewusst frisch.
 - Fix (v0.9.619): der dezente Haupt-Laufpunkt war im gerenderten Video
   riesig — er skalierte mit der Render-Auflösung, die Schwarm-Punkte
   nicht. Jetzt exakt gleich groß.
