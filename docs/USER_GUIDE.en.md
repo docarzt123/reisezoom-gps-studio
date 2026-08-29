@@ -282,47 +282,93 @@ Settings file:
 - Windows: `%APPDATA%\Reisezoom GPS Studio\settings.json`
 - Linux: `~/.local/share/Reisezoom GPS Studio/settings.json`
 
-### Projects (standalone since v0.9.600) ⭐
+### Projects — how it all works ⭐ (as of v0.9.617)
 
-A **project** is your working folder for one video: the tours involved (one —
-or many for journey/swarm), all settings, keyframes, photos and signs.
-Projects no longer "belong to a tour" — they are **things of their own** with
-a name, a status and "last edited". The same tour can be part of any number
-of projects.
+A **project** is your working folder for one video: the tours involved (none,
+one — or many for trip/swarm), plus everything you build: keyframes, signs,
+photos, overlays, map style, render settings. A **tour** is the recording in
+the archive. The same tour can sit in any number of projects; a project also
+remembers which module you last worked in.
 
-**The project manager** (since v0.9.601) is its **own full-screen view**:
-the 🗂 button at the far left of the track bar (next to "Choose track") opens
-it from any module, and the app **starts there** — the first glance answers
-"what was I working on?". One click on **Open** jumps to the module you last
-used in that project (the module icons on the card are directly clickable
-too); **Esc** or ✕ closes the view again. Each card also has: status
-(**active / idea / done** — "done" sinks to the end), rename, duplicate,
-delete. The search box at the top right filters the projects.
+#### The project manager
 
-**Created automatically:** Opening a tour always creates a working state —
-nothing is ever lost. Untouched states sit collapsed under "Created
-automatically" and move up as soon as you work in them or rename them.
+The app **starts in the project list** (inside the archive). The orange
+switch **"🗂 Projects | 📚 Tour archive"** at the top of the filter row only
+swaps the view below it and is always there. In the projects view:
 
-**From tour to project:** every tour's detail column shows "part of N
-projects" — one click shows exactly those.
+- **Left:** the areas **All / active / idea / done / created automatically**
+  with counters, plus **"+ New project"**.
+- **Top:** the search box filters by project and tour names.
+- **Right:** the project cards, sorted active before ideas before done,
+  most recently edited first within each group.
 
-**Inside a module** (top bar, top right) the familiar project switcher stays:
-🆕 New · 📋 Duplicate · ✏️ Rename · 🗑 Delete.
+#### The project card
 
-**Versions & history (since v0.9.610):** Every tour has a fixed identity
-that survives healing and replacing. When you heal a tour and replace it in
-the archive, a new **version** is created — your existing projects stay
-"pinned" to their old version (the animation does not fall apart) and show
-**"⬆ newer version"**; one click lifts exactly that project to the new one.
-The tour detail column shows the whole version chain, and **↩︎** restores any
-version byte-for-byte (nothing is ever lost). While you work, the app also
-saves a **working state** of your project at most every 10 minutes — 🕘 on
-the project card lists the last 20; restoring saves the current state first,
-automatically. With the cloud set up, version chains travel along — rollback
-works on your second machine too.
+- **Map preview:** solo projects show their tour's map image; trip/swarm a
+  drawn picture of ALL lines; empty projects 🗂.
+- **Status selector** (active / idea / done) right on the card — "done"
+  sinks to the end of the list.
+- **Module icons** (🎬 🗺 📷 📈) show where work already exists — and are
+  clickable: opens the project straight in that module.
+- **Open** loads the tour(s) and jumps to the last used module.
+- **✎ rename · ⎘ duplicate · 🗑 delete** (delete only removes the working
+  state — the tours stay in the archive).
+- **🕘 earlier working states:** while you work, a state is saved at most
+  every 10 minutes (last 20 kept). Restoring saves the current state first.
+- **"⬆ newer version"** appears when the tour was healed/replaced in the
+  meantime → see "Versions" below.
+- **➕** (empty projects only): add tours from the archive.
 
-Stored under `…/Reisezoom GPS Studio/projekte.json` (working folders) and
-`touren.json` (tour facts); GPX snapshots stay under `…/sessions/`.
+#### How projects come to be
+
+1. **Automatically:** every opened tour instantly gets a working state
+   ("Standard") — nothing is ever lost. Untouched states sit collapsed under
+   **"created automatically"** and move up to "your projects" as soon as you
+   work in them or rename them. If a tour has more than one project, none of
+   them is hidden.
+2. **Empty, by hand:** "+ New project" in the project list — or via the
+   topbar switcher, which is visible even without a loaded track
+   ("🗂 Projects ▾ → New empty project"). You can open an empty project right
+   away (empty map — ideal for the route planner or a pure camera flight;
+   the work then lives on the project) or fill it via ➕: one tour makes it a
+   solo project, two or more ask for trip or swarm — your working state
+   survives.
+3. **As a composition:** a swarm or trip handover from the archive creates a
+   project that contains EVERYTHING: the set of tours, the flow (trip/swarm)
+   and the speed mode. Reopening is one click; all stages load automatically.
+
+#### The switcher at the top of every module
+
+The topbar shows (in orange) **"🗂 tour · project ▾"** as soon as a track is
+loaded. Use it to switch between the projects of the same tour and to create
+new ones: 🆕 new project · ⎘ duplicate · ✎ rename · 🗑 delete ·
+🗂 all projects … (jumps into the project manager). That is how you make a
+landscape AND a portrait video from one tour without overwriting anything.
+
+#### From tour to project and back
+
+Every tour's detail column in the tour archive shows "part of N projects" —
+one click filters the project list to exactly those.
+
+#### Versions (tour healed? projects stay stable)
+
+Every tour has a fixed identity that survives healing and replacing. If you
+heal a tour in the inspector and choose "replace in archive", a new
+**version** is created — your existing projects stay "pinned" to their old
+version: keyframes and signs remain exactly where you built them. Such
+projects show **"⬆ newer version"**; only YOUR click lifts that one project
+onto the new geometry. The tour detail column shows the whole version chain
+(when, by what, how long) — **↩︎** brings any version back byte-for-byte,
+keeping the current one in the chain. Whenever our tools write a GPX, an
+invisible tag (`rz:id`) travels inside so another machine recognizes the
+tour. With the cloud set up, version chains travel along — rollback works on
+your second machine too.
+
+#### Where things are stored
+
+`…/Reisezoom GPS Studio/projekte.json` (working folders), `touren.json`
+(tour facts + versions), `projekt_staende/` (🕘 states), version GPX
+snapshots under `…/sessions/`.
 
 ---
 

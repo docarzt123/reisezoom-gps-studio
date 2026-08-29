@@ -487,14 +487,70 @@ python app.py</code></pre>
 <li>Windows: <code>%APPDATA%\Reisezoom GPS Studio\settings.json</code></li>
 <li>Linux: <code>~/.local/share/Reisezoom GPS Studio/settings.json</code></li>
 </ul>
-<h3 id="proyectos-independientes">Proyectos (independientes) ⭐</h3>
-<p>Un <strong>proyecto</strong> es tu carpeta de trabajo para un vídeo: las rutas implicadas (una — o muchas en viaje/enjambre), todos los ajustes, keyframes, fotos y carteles. Los proyectos ya no «pertenecen a una ruta»: son <strong>cosas propias</strong> con nombre, estado y «última edición». La misma ruta puede estar en tantos proyectos como quieras.</p>
-<p><strong>El gestor de proyectos</strong> es una <strong>vista propia a pantalla completa</strong>: el botón 🗂 en el extremo izquierdo de la barra de ruta (junto a «Elegir ruta») lo abre desde cualquier módulo, y la app <strong>arranca ahí</strong> — el primer vistazo responde «¿en qué estaba?». Un clic en <strong>Abrir</strong> salta al módulo que usaste por última vez en ese proyecto (los iconos de módulo de la tarjeta también son clicables); <strong>Esc</strong> o ✕ cierra la vista. Cada tarjeta tiene además: estado (<strong>activo / idea / terminado</strong> — «terminado» baja al final), renombrar, duplicar, borrar. El buscador arriba a la derecha filtra los proyectos.</p>
-<p><strong>Creados automáticamente:</strong> al abrir una ruta siempre se crea un estado de trabajo — nunca se pierde nada. Los estados intactos quedan plegados bajo «Creados automáticamente» y suben en cuanto trabajas en ellos o los renombras.</p>
-<p><strong>De la ruta al proyecto:</strong> la columna de detalles de cada ruta muestra «está en N proyectos» — un clic muestra exactamente esos.</p>
-<p><strong>Dentro de un módulo</strong> (topbar, arriba a la derecha) sigue el conmutador de proyecto de siempre: 🆕 Nuevo · 📋 Duplicar · ✏️ Renombrar · 🗑 Borrar.</p>
-<p><strong>Versiones e historial:</strong> Cada ruta tiene una identidad fija que sobrevive a curar y sustituir. Al curar una ruta y sustituirla en el archivo se crea una <strong>versión</strong> nueva — tus proyectos existentes quedan «anclados» a su versión antigua (la animación no se descompone) y muestran <strong>«⬆ versión más nueva»</strong>; un clic sube exactamente ese proyecto a la nueva. La columna de detalles muestra toda la cadena de versiones, y <strong>↩︎</strong> restaura cualquiera byte a byte (nunca se pierde nada). Mientras trabajas, la app guarda además un <strong>estado de trabajo</strong> de tu proyecto como mucho cada 10 minutos — 🕘 en la tarjeta lista los últimos 20; restaurar guarda antes el estado actual automáticamente. Con la nube configurada, las cadenas de versiones viajan también — la restauración funciona en tu segundo equipo.</p>
-<p>Se guarda en <code>…/Reisezoom GPS Studio/projekte.json</code> (carpetas de trabajo) y <code>touren.json</code> (datos de las rutas); los snapshots GPX siguen en <code>…/sessions/</code>.</p>
+<h3 id="proyectos-as-funciona-todo-a-fecha-de">Proyectos — así funciona todo ⭐ (a fecha de)</h3>
+<p>Un <strong>proyecto</strong> es tu carpeta de trabajo para un vídeo: las rutas implicadas (ninguna, una — o muchas en viaje/enjambre) más todo lo que construyes: fotogramas clave, carteles, fotos, overlays, estilo de mapa, ajustes de render. Una <strong>ruta</strong> es la grabación del archivo. La misma ruta puede estar en cualquier número de proyectos; el proyecto recuerda además en qué módulo trabajaste por última vez.</p>
+<h4 id="el-gestor-de-proyectos">El gestor de proyectos</h4>
+<p>La app <strong>arranca en la lista de proyectos</strong> (dentro del archivo). El</p>
+<p>conmutador naranja <strong>«🗂 Proyectos | 📚 Archivo de rutas»</strong> arriba en la fila de filtros solo cambia la vista de debajo y siempre está ahí. En la vista de proyectos:</p>
+<ul>
+<li><strong>Izquierda:</strong> las áreas **Todos / activo / idea / terminado / creados</li>
+</ul>
+<p> automáticamente<strong> con contadores, más </strong>«+ Nuevo proyecto»**.</p>
+<ul>
+<li><strong>Arriba:</strong> el buscador filtra por nombres de proyecto y de ruta.</li>
+<li><strong>Derecha:</strong> las tarjetas, ordenadas: activos antes que ideas antes que</li>
+</ul>
+<p> terminados, y dentro, los últimos editados primero.</p>
+<h4 id="la-tarjeta-de-proyecto">La tarjeta de proyecto</h4>
+<ul>
+<li><strong>Vista previa de mapa:</strong> los proyectos solo muestran la imagen de mapa de</li>
+</ul>
+<p> su ruta; viaje/enjambre un dibujo de TODAS las líneas; los vacíos 🗂.</p>
+<ul>
+<li><strong>Selector de estado</strong> (activo / idea / terminado) en la tarjeta</li>
+</ul>
+<p> «terminado» baja al final.</p>
+<ul>
+<li><strong>Iconos de módulo</strong> (🎬 🗺 📷 📈) muestran dónde ya hay trabajo — y son</li>
+</ul>
+<p> clicables: abren el proyecto directamente en ese módulo.</p>
+<ul>
+<li><strong>Abrir</strong> carga la(s) ruta(s) y salta al último módulo usado.</li>
+<li><strong>✎ renombrar · ⎘ duplicar · 🗑 borrar</strong> (borrar solo elimina el estado de</li>
+</ul>
+<p> trabajo — las rutas siguen en el archivo).</p>
+<ul>
+<li><strong>🕘 estados anteriores:</strong> mientras trabajas se guarda un estado como mucho</li>
+</ul>
+<p> cada 10 minutos (se conservan los últimos 20). Restaurar guarda antes el  estado actual.</p>
+<ul>
+<li><strong>«⬆ versión más nueva»</strong> aparece si la ruta fue curada/sustituida →</li>
+</ul>
+<p> véase «Versiones».</p>
+<ul>
+<li><strong>➕</strong> (solo proyectos vacíos): añadir rutas del archivo.</li>
+</ul>
+<h4 id="c-mo-nacen-los-proyectos">Cómo nacen los proyectos</h4>
+<ol>
+<li><strong>Automáticamente:</strong> cada ruta abierta recibe al instante un estado de</li>
+</ol>
+<p> trabajo («Standard») — nunca se pierde nada. Los estados intactos quedan  plegados bajo <strong>«Creados automáticamente»</strong> y suben a «tus proyectos» en  cuanto trabajas en ellos o los renombras. Si una ruta tiene más de un  proyecto, ninguno se oculta.</p>
+<ol>
+<li><strong>Vacío, a mano:</strong> «+ Nuevo proyecto» en la lista — o desde el conmutador</li>
+</ol>
+<p> de la barra superior, visible incluso sin ruta cargada («🗂 Proyectos ▾ →  Nuevo proyecto vacío»). Puedes abrirlo enseguida (mapa vacío — ideal para  el planificador o un vuelo de cámara puro; el trabajo queda en el  proyecto) o llenarlo con ➕: una ruta lo hace solo, dos o más preguntan  viaje o enjambre — tu estado de trabajo sobrevive.</p>
+<ol>
+<li><strong>Como composición:</strong> una entrega de enjambre o viaje desde el archivo</li>
+</ol>
+<p> crea un proyecto con TODO: el conjunto de rutas, el modo (viaje/enjambre)  y la velocidad. Reabrir es un clic; todas las etapas cargan solas.</p>
+<h4 id="el-conmutador-arriba-en-cada-m-dulo">El conmutador arriba en cada módulo</h4>
+<p>La barra superior muestra (en naranja) <strong>«🗂 ruta · proyecto ▾»</strong> en cuanto hay una ruta cargada. Con él cambias entre los proyectos de la misma ruta y creas nuevos: 🆕 nuevo · ⎘ duplicar · ✎ renombrar · 🗑 borrar · 🗂 todos los proyectos … (salta al gestor). Así haces de una ruta un vídeo horizontal Y uno vertical sin que nada se sobrescriba.</p>
+<h4 id="de-la-ruta-al-proyecto-y-de-vuelta">De la ruta al proyecto y de vuelta</h4>
+<p>La columna de detalles de cada ruta muestra «está en N proyectos» — un clic filtra la lista de proyectos a exactamente esos.</p>
+<h4 id="versiones-ruta-curada-los-proyectos-no-se-rompen">Versiones (¿ruta curada? los proyectos no se rompen)</h4>
+<p>Cada ruta tiene una identidad fija que sobrevive a curar y sustituir. Si curas una ruta y eliges «sustituir en el archivo», nace una <strong>versión</strong> nueva — tus proyectos existentes quedan «anclados» a la antigua: fotogramas y carteles siguen exactamente donde los pusiste. Esos proyectos muestran <strong>«⬆ versión más nueva»</strong>; solo TU clic sube ese proyecto a la geometría nueva. La columna de detalles muestra toda la cadena (cuándo, por qué, cuán larga) — <strong>↩︎</strong> recupera cualquier versión byte a byte, la actual queda en la cadena. Cuando nuestras herramientas escriben un GPX viaja dentro una marca invisible (<code>rz:id</code>) para que otro equipo reconozca la ruta. Con la nube, las cadenas viajan también — la restauración funciona en tu segundo equipo.</p>
+<h4 id="d-nde-se-guarda">Dónde se guarda</h4>
+<p><code>…/Reisezoom GPS Studio/projekte.json</code> (carpetas de trabajo), <code>touren.json</code> (datos de rutas + versiones), <code>projekt_staende/</code> (estados 🕘), snapshots GPX de las versiones en <code>…/sessions/</code>.</p>
 <hr>
 <h3 id="exportar-e-importar-un-proyecto-rzproj">Exportar e importar un proyecto (.rzproj)</h3>
 <p><strong>Entregar un proyecto en un solo archivo — sin nube.</strong> En el menú de proyecto (clic en «Sesión · Proyecto» arriba) o en «Archivo → Exportar proyecto» se crea un archivo <code>.rzproj</code>: la ruta, <strong>todos los proyectos</strong> de la sesión (keyframes, carteles, superposiciones, ajustes), los datos de la ruta del archivo (nombre, etiquetas, nota) y <strong>miniaturas</strong> de tus fotos y las <strong>imágenes de tus carteles</strong> — las fotos originales se quedan contigo.</p>

@@ -490,14 +490,70 @@ python app.py</code></pre>
 <li>Windows: <code>%APPDATA%\Reisezoom GPS Studio\settings.json</code></li>
 <li>Linux: <code>~/.local/share/Reisezoom GPS Studio/settings.json</code></li>
 </ul>
-<h3 id="projekte">Projekte ⭐</h3>
-<p>Ein <strong>Projekt</strong> ist deine Arbeitsmappe für ein Video: die beteiligten Touren (eine — oder viele bei Reise/Schwarm), alle Einstellungen, Keyframes, Fotos und Schilder. Projekte gehören nicht mehr „zur Tour&quot;, sondern sind <strong>eigene Dinge</strong> mit Name, Status und „zuletzt bearbeitet&quot;. Dieselbe Tour kann in beliebig vielen Projekten stecken — z. B. „Sunset-Video&quot; und dein Teneriffa-Schwarm.</p>
-<p><strong>Der Projektmanager</strong> ist eine <strong>eigene Vollbild-Ansicht</strong>: Der 🗂-Knopf ganz links in der Track-Leiste (neben „Track wählen&quot;) öffnet ihn aus jedem Modul, und die App <strong>startet dort</strong> — der erste Blick beantwortet „woran war ich dran?&quot;. Ein Klick auf <strong>Öffnen</strong> springt ins zuletzt benutzte Modul des Projekts (die Modul-Symbole auf der Karte sind auch direkt klickbar); <strong>Esc</strong> oder ✕ schließt die Ansicht wieder. Dazu je Karte: Status (<strong>aktiv / Idee / fertig</strong> — „fertig&quot; sinkt ans Listenende), Umbenennen, Duplizieren, Löschen. Das Suchfeld oben rechts filtert die Projekte.</p>
-<p><strong>Automatisch angelegt:</strong> Beim Öffnen einer Tour entsteht immer ein Arbeitsstand — nichts geht je verloren. Nie angefasste Stände liegen eingeklappt unter „Automatisch angelegt&quot; und wandern nach oben, sobald du darin arbeitest oder sie umbenennst.</p>
-<p><strong>Von der Tour zum Projekt:</strong> Die Detailspalte jeder Tour zeigt „steckt in N Projekten&quot; — ein Klick zeigt genau diese.</p>
-<p><strong>Im Modul</strong> (Topbar oben rechts) bleibt der vertraute Projekt-Umschalter: 🆕 Neues Projekt · 📋 Duplizieren · ✏️ Umbenennen · 🗑 Löschen.</p>
-<p><strong>Fassungen &amp; Historie:</strong> Jede Tour hat eine feste Identität, die Heilen und Ersetzen überlebt. Wenn du eine Tour heilst und im Archiv ersetzt, entsteht eine neue <strong>Fassung</strong> — deine bestehenden Projekte bleiben an ihrer alten Fassung „gepinnt&quot; (die Animation fällt nicht auseinander) und zeigen <strong>„⬆ neuere Fassung&quot;</strong>; ein Klick hebt genau dieses Projekt auf die neue. In der Tour-Detailspalte siehst du die ganze Fassungs-Kette und kannst jede per <strong>↩︎</strong> byte-genau wiederherstellen (nichts geht dabei verloren). Beim Arbeiten sichert die App außerdem höchstens alle 10 Minuten einen <strong>Arbeitsstand</strong> deines Projekts — 🕘 auf der Projektkarte listet die letzten 20, Wiederherstellen sichert den jetzigen Stand vorher automatisch. Mit eingerichteter Cloud wandern die Fassungs-Ketten mit — Rollback geht auch am Zweitrechner.</p>
-<p>Gespeichert wird unter <code>…/Reisezoom GPS Studio/projekte.json</code> (Arbeitsmappen) und <code>touren.json</code> (Tour-Fakten); GPX-Snapshots liegen weiter unter <code>…/sessions/</code>.</p>
+<h3 id="projekte-so-funktioniert-alles-stand">Projekte — so funktioniert alles ⭐ (Stand)</h3>
+<p>Ein <strong>Projekt</strong> ist deine Arbeitsmappe für ein Video: die beteiligten Touren (keine, eine — oder viele bei Reise/Schwarm), dazu alles, was du baust: Keyframes, Schilder, Fotos, Overlays, Karten-Stil, Render-Einstellungen. Eine <strong>Tour</strong> ist das Aufgezeichnete im Archiv. Dieselbe Tour kann in beliebig vielen Projekten stecken; ein Projekt merkt sich außerdem, in welchem Modul du zuletzt daran gearbeitet hast.</p>
+<h4 id="der-projektmanager">Der Projektmanager</h4>
+<p>Die App <strong>startet in der Projektliste</strong> (im Archiv). Oben in der Filterzeile</p>
+<p>sitzt der orangene Umschalter <strong>„🗂 Projekte | 📚 Touren-Archiv&quot;</strong> — er wechselt nur die Ansicht darunter und ist immer da. In der Projekte-Ansicht:</p>
+<ul>
+<li><strong>Links</strong> die Bereiche **Alle / aktiv / Idee / fertig / Automatisch</li>
+</ul>
+<p> angelegt<strong> mit Zählern, dazu </strong>„+ Neues Projekt&quot;**.</p>
+<ul>
+<li><strong>Oben</strong> filtert das Suchfeld nach Projekt- und Tournamen.</li>
+<li><strong>Rechts</strong> die Projektkarten, sortiert: aktive vor Ideen vor fertigen,</li>
+</ul>
+<p> darin jeweils zuletzt bearbeitete zuerst.</p>
+<h4 id="die-projektkarte">Die Projektkarte</h4>
+<ul>
+<li><strong>Karten-Vorschau:</strong> Solo-Projekte zeigen das Kartenbild ihrer Tour;</li>
+</ul>
+<p> Reise/Schwarm ein gezeichnetes Bild ALLER Linien; leere Projekte 🗂.</p>
+<ul>
+<li><strong>Status-Auswahl</strong> (aktiv / Idee / fertig) direkt auf der Karte</li>
+</ul>
+<p> „fertig&quot; rückt ans Listenende.</p>
+<ul>
+<li><strong>Modul-Symbole</strong> (🎬 🗺 📷 📈) zeigen, wo schon Arbeit liegt — und sind</li>
+</ul>
+<p> klickbar: öffnet das Projekt direkt in diesem Modul.</p>
+<ul>
+<li><strong>Öffnen</strong> lädt die Tour(en) und springt ins zuletzt benutzte Modul.</li>
+<li><strong>✎ Umbenennen · ⎘ Duplizieren · 🗑 Löschen</strong> (Löschen entfernt nur den</li>
+</ul>
+<p> Arbeitsstand — die Touren im Archiv bleiben).</p>
+<ul>
+<li><strong>🕘 Frühere Arbeitsstände:</strong> beim Arbeiten sichert die App höchstens alle</li>
+</ul>
+<p> 10 Minuten einen Stand (die letzten 20 bleiben). Wiederherstellen sichert  den jetzigen Stand vorher automatisch.</p>
+<ul>
+<li><strong>„⬆ neuere Fassung&quot;</strong> erscheint, wenn die Tour inzwischen geheilt/ersetzt</li>
+</ul>
+<p> wurde → siehe „Fassungen&quot; unten.</p>
+<ul>
+<li><strong>➕</strong> (nur bei leeren Projekten): Touren aus dem Archiv hinzufügen.</li>
+</ul>
+<h4 id="wie-projekte-entstehen">Wie Projekte entstehen</h4>
+<ol>
+<li><strong>Automatisch:</strong> Jede geöffnete Tour bekommt sofort einen Arbeitsstand</li>
+</ol>
+<p> („Standard&quot;) — nichts geht je verloren. Nie angefasste Stände liegen  eingeklappt unter <strong>„Automatisch angelegt&quot;</strong> und wandern zu „Deine  Projekte&quot;, sobald du darin arbeitest oder sie umbenennst. Hat eine Tour  mehr als ein Projekt, wird keins davon versteckt.</p>
+<ol>
+<li><strong>Leer per Hand:</strong> „+ Neues Projekt&quot; in der Projektliste — oder im</li>
+</ol>
+<p> Topbar-Umschalter, der auch ohne geladenen Track sichtbar ist  („🗂 Projekte ▾ → Neues leeres Projekt&quot;). Ein leeres Projekt kannst du  sofort öffnen (leere Karte — ideal für Reiseroute oder einen reinen  Kamera-Flug; die Arbeit hängt dann am Projekt) oder per ➕ mit Touren  füllen: bei einer Tour wird es ein Solo-Projekt, ab zwei fragt die App  Reise oder Schwarm — dein bisheriger Arbeitsstand bleibt erhalten.</p>
+<ol>
+<li><strong>Als Komposition:</strong> Eine Schwarm- oder Reise-Übergabe aus dem Archiv</li>
+</ol>
+<p> erzeugt ein Projekt, das ALLES enthält: die Tourenmenge, den Ablauf  (Reise/Schwarm) und den Geschwindigkeits-Modus. Wiederöffnen = ein Klick,  alle Etappen laden automatisch.</p>
+<h4 id="der-umschalter-oben-in-jedem-modul">Der Umschalter oben in jedem Modul</h4>
+<p>In der Topbar steht (orange) <strong>„🗂 Tourname · Projektname ▾&quot;</strong>, sobald ein Track geladen ist. Darüber wechselst du zwischen den Projekten derselben Tour und legst neue an: 🆕 Neues Projekt · ⎘ Duplizieren · ✎ Umbenennen · 🗑 Löschen · 🗂 Alle Projekte … (springt in den Projektmanager). So machst du z. B. aus einer Tour ein Quer- UND ein Hochkant-Video, ohne dass sich etwas überschreibt.</p>
+<h4 id="von-der-tour-zum-projekt-und-zur-ck">Von der Tour zum Projekt und zurück</h4>
+<p>Die Detailspalte jeder Tour im Touren-Archiv zeigt „steckt in N Projekten&quot; ein Klick filtert die Projektliste auf genau diese.</p>
+<h4 id="fassungen-tour-geheilt-projekte-bleiben-stabil">Fassungen (Tour geheilt? Projekte bleiben stabil)</h4>
+<p>Jede Tour hat eine feste Identität, die Heilen und Ersetzen überlebt. Heilst du eine Tour im Inspektor und wählst „Im Archiv ersetzen&quot;, entsteht eine neue <strong>Fassung</strong> — deine bestehenden Projekte bleiben an ihrer alten Fassung „gepinnt&quot;: Keyframes und Schilder sitzen weiter exakt dort, wo du sie gebaut hast. Solche Projekte zeigen <strong>„⬆ neuere Fassung&quot;</strong>; erst DEIN Klick hebt genau dieses Projekt auf die neue Geometrie. In der Tour-Detailspalte steht die ganze Fassungs-Kette (wann, wodurch, wie lang) — <strong>↩︎</strong> holt jede Fassung byte-genau zurück, die jetzige bleibt dabei als Fassung erhalten. Schreiben unsere Werkzeuge eine GPX, wandert eine unsichtbare Kennung (<code>rz:id</code>) mit hinein, sodass auch ein anderer Rechner die Tour wiedererkennt. Mit eingerichteter Cloud reisen die Fassungs-Ketten mit — Rollback geht auch am Zweitrechner.</p>
+<h4 id="speicherorte">Speicherorte</h4>
+<p><code>…/Reisezoom GPS Studio/projekte.json</code> (Arbeitsmappen), <code>touren.json</code> (Tour-Fakten + Fassungen), <code>projekt_staende/</code> (🕘-Stände), GPX-Snapshots der Fassungen unter <code>…/sessions/</code>.</p>
 <hr>
 <h3 id="projekt-exportieren-importieren-rzproj">Projekt exportieren &amp; importieren (.rzproj)</h3>
 <p><strong>Ein Projekt als eine Datei weitergeben — ganz ohne Cloud.</strong> Im Projekt-Menü (Klick auf „Session · Projekt“ oben) oder unter „Datei → Projekt exportieren“ entsteht eine <code>.rzproj</code>-Datei: darin der Track, <strong>alle Projekte</strong> der Session (Keyframes, Schilder, Overlays, Einstellungen), die Tour-Daten aus dem Archiv (Name, Schlagwörter, Notiz) und <strong>Vorschaubilder</strong> deiner Fotos sowie die <strong>Bilder deiner Schilder</strong> — die Original-Fotos bleiben bei dir.</p>
