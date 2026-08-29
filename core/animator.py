@@ -2751,10 +2751,12 @@ map.on('style.load', () => {{
   }} else if (DOT_SHOW && {haupt_dezent_js}) {{
     // Marc (29.08.2026): Haupt-Laufpunkt im Schwarm-Stil — kleiner Kreis in
     // Tour-Farbe mit weißem Rand, exakt wie die schwarm-dots.
+    // ⚠️ OHNE RENDER_SCALE — die schwarm-dots skalieren auch nicht mit;
+    // mit Faktor war der Haupt-Punkt im 4K-Video riesig (Marc, 29.08.2026).
     map.addLayer({{id:'dot-core',type:'circle',source:'dot',
-      paint:{{'circle-radius':Math.max(3, {schwarm_line_width_json} * 1.5) * RENDER_SCALE,
+      paint:{{'circle-radius':Math.max(3, {schwarm_line_width_json} * 1.5),
              'circle-color':'{cfg.line_color}','circle-stroke-color':'#ffffff',
-             'circle-stroke-width':1.2 * RENDER_SCALE,'circle-pitch-alignment':'map'}}}});
+             'circle-stroke-width':1.2,'circle-pitch-alignment':'map'}}}});
   }} else if (DOT_SHOW) {{
     map.addLayer({{id:'dot-glow',type:'circle',source:'dot',
       paint:{{'circle-radius':10 * {cfg.marker_dot_size} * RENDER_SCALE,'circle-color':'#fff','circle-opacity':0.3,'circle-blur':0.8,'circle-pitch-alignment':'map'}}}});
