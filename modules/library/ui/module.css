@@ -814,3 +814,12 @@
   background: var(--bg-4); border-radius: 5px; padding: 1px 4px;
 }
 .lib-fassung-info { flex: 1; }
+
+/* v0.9.615 — Karten-Vorschau auf der Projektkarte */
+.lib-proj-thumb {
+  height: 120px; border-radius: 8px 8px 0 0; overflow: hidden;
+  background: var(--bg-3); display: flex; align-items: center;
+  justify-content: center; font-size: 28px; color: var(--text-muted);
+  margin: -10px -12px 8px;
+}
+.lib-proj-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }

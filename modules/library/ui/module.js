@@ -692,6 +692,7 @@ function mountLibrary(body, headerActions) {
   let _projView = false;
   let _projekte = [];
   let _projScope = "alle";  // alle | aktiv | idee | fertig | auto
+  const _projThumbCache = {};   // pid → data-URL (Sitzungs-Cache)
   let _projFilterGh = "";   // Detailspalte: „Projekte dieser Tour" zeigen
 
   function projViewSetzen(an) {
@@ -771,6 +772,7 @@ function mountLibrary(body, headerActions) {
       const up = p.neuere_fassung
         ? ` <button class="lib-proj-up" data-up="${p.id}" title="${T("library.fassung_up_tip", "Neuere Fassung der Tour verfügbar — Projekt per Klick aktualisieren")}">⬆ ${T("library.fassung_up", "neuere Fassung")}</button>` : "";
       return `<div class="lib-proj-karte${p.status === "fertig" ? " fertig" : ""}" data-pid="${p.id}">
+        <div class="lib-proj-thumb" data-pthumb="${p.id}">${p.frei ? "🆕" : "🗺"}</div>
         <div class="lib-proj-kopf">
           <span class="lib-proj-name">${esc(p.name)}</span>${fehlt}${up}
           <select class="lib-proj-status" data-pid="${p.id}" title="${T("library.proj_status", "Status")}">
@@ -808,6 +810,38 @@ function mountLibrary(body, headerActions) {
       </div>` : ""}
       ${autoBlock}`;
     initHelpTips(box);
+    // v0.9.615 (Marc: „kann man da nicht auch eine karte anzeigen?") —
+    // Karten-Vorschau je Projekt: Solo = echtes Karten-Thumbnail der Tour,
+    // Komposition = gezeichnete Linien aller Mitglieder.
+    const thumbsHolen = async () => {
+      const det = box.querySelector(".lib-proj-autos");
+      const offen = det ? det.open : true;
+      const pids = [];
+      box.querySelectorAll("[data-pthumb]").forEach(el => {
+        const pid = el.dataset.pthumb;
+        if (_projThumbCache[pid]) {
+          el.innerHTML = `<img src="${_projThumbCache[pid]}" alt="">`;
+          return;
+        }
+        const p = _projekte.find(x => x.id === pid) || {};
+        const imAuto = !!el.closest(".lib-proj-autos");
+        if (p.frei || (imAuto && !offen)) return;
+        pids.push(pid);
+      });
+      if (!pids.length) return;
+      try {
+        const r = await api().projekt_thumbs(pids);
+        const th = (r && r.thumbs) || {};
+        Object.keys(th).forEach(pid => {
+          _projThumbCache[pid] = th[pid];
+          const el = box.querySelector(`[data-pthumb="${pid}"]`);
+          if (el) el.innerHTML = `<img src="${th[pid]}" alt="">`;
+        });
+      } catch (_) {}
+    };
+    thumbsHolen();
+    { const det = box.querySelector(".lib-proj-autos");
+      if (det) det.addEventListener("toggle", () => { if (det.open) thumbsHolen(); }); }
     { const fx = document.getElementById("lib-proj-filter-x");
       if (fx) fx.onclick = () => { _projFilterGh = ""; renderProjekte(); }; }
     box.querySelectorAll("[data-open]").forEach(b => b.onclick = () => projektOeffnen(b.dataset.open));

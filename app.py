@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.614"
+APP_VERSION = "0.9.615"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -7101,6 +7101,95 @@ class Api:
                     "letztes_modul": p.get("letztes_modul") or ""}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    def projekt_thumbs(self, project_ids: list) -> dict:
+        """v0.9.615 (Marc: „die projekte brauchen eine bessere vorschau"):
+        Karten-Vorschau je Projektkarte. Solo = das echte Karten-Thumbnail der
+        Tour (library_mapthumbs); Kompositionen (und Touren ohne Thumbnail) =
+        gezeichnetes Linien-Komposit aller Mitglieder aus den vereinfachten
+        DB-Geometrien — offline, ohne Mapbox-Abruf, gecacht pro Mitglieder-Menge."""
+        import base64
+        import hashlib
+        out = {}
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            conn = self._lib()
+            for pid in (project_ids or [])[:80]:
+                pr = (daten.get("projects") or {}).get(str(pid))
+                if not pr:
+                    continue
+                kontext = str(pr.get("kontext") or "")
+                ghs = list(pr.get("geo_hashes") or [])
+                if not ghs and kontext and not kontext.startswith(("frei:", "menge:")):
+                    ghs = [kontext]
+                if not ghs:
+                    continue
+                # Solo mit echtem Karten-Thumbnail? Das ist die schönste Vorschau.
+                if len(ghs) == 1:
+                    mt = LIBRARY_MAP_THUMBS / f"{ghs[0]}.png"
+                    if mt.exists():
+                        out[pid] = ("data:image/png;base64,"
+                                    + base64.b64encode(mt.read_bytes()).decode())
+                        continue
+                schluessel = hashlib.md5(("|".join(sorted(ghs))).encode()).hexdigest()[:16]
+                cache = LIBRARY_MAP_THUMBS / f"proj_{schluessel}.png"
+                if not cache.exists():
+                    geoms = []
+                    for gh in ghs[:200]:
+                        try:
+                            row = conn.execute(
+                                "SELECT geom FROM tracks WHERE geo_hash = ? "
+                                "AND geom IS NOT NULL AND geom != '' LIMIT 1",
+                                (gh,)).fetchone()
+                            if row and row["geom"]:
+                                g = json.loads(row["geom"])
+                                if len(g) >= 2:
+                                    geoms.append(g)
+                        except Exception:
+                            continue
+                    if not geoms:
+                        continue
+                    self._projekt_thumb_zeichnen(geoms, cache)
+                if cache.exists():
+                    out[pid] = ("data:image/png;base64,"
+                                + base64.b64encode(cache.read_bytes()).decode())
+            return {"ok": True, "thumbs": out}
+        except Exception as e:
+            log.error("projekt_thumbs: %s", e)
+            return {"ok": False, "error": str(e), "thumbs": out}
+
+    @staticmethod
+    def _projekt_thumb_zeichnen(geoms: list, ziel: Path) -> None:
+        """Linien-Komposit im Stil der App: dunkler Grund, je Tour eine Farbe.
+        Equirektangular mit Breitengrad-Korrektur — für eine Vorschau reicht das."""
+        import math
+        from PIL import Image, ImageDraw
+        W, H, PAD = 720, 400, 30
+        alle = [p for g in geoms for p in g]
+        lons = [p[0] for p in alle]
+        lats = [p[1] for p in alle]
+        mlat = math.radians((min(lats) + max(lats)) / 2)
+        kx = math.cos(mlat)
+        spx = (max(lons) - min(lons)) * kx or 1e-9
+        spy = (max(lats) - min(lats)) or 1e-9
+        sk = min((W - 2 * PAD) / spx, (H - 2 * PAD) / spy)
+        ox = (W - spx * sk) / 2
+        oy = (H - spy * sk) / 2
+
+        def xy(p):
+            return (ox + (p[0] - min(lons)) * kx * sk,
+                    H - (oy + (p[1] - min(lats)) * sk))
+
+        img = Image.new("RGB", (W, H), (22, 26, 34))          # --bg-2
+        d = ImageDraw.Draw(img)
+        PALETTE = [(255, 107, 53), (53, 167, 255), (94, 210, 120), (240, 200, 80),
+                   (200, 120, 255), (255, 120, 160), (120, 220, 220), (250, 160, 90)]
+        breite = 4 if len(geoms) <= 3 else (3 if len(geoms) <= 12 else 2)
+        for i, g in enumerate(geoms):
+            farbe = PALETTE[i % len(PALETTE)]
+            d.line([xy(p) for p in g], fill=farbe, width=breite, joint="curve")
+        LIBRARY_MAP_THUMBS.mkdir(parents=True, exist_ok=True)
+        img.save(ziel, "PNG", optimize=True)
 
     def projekt_staende(self, project_id: str) -> dict:
         """E3: Liste der gesicherten Arbeitsstände eines Projekts."""
