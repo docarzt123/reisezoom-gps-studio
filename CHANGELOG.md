@@ -15,6 +15,11 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed — ⚠️ E1 des Projekt-Umbaus (IDEAS §39, Grilling 29.08.2026)
+- Projektmanager: Umschalter „🗂 Projekte | 📚 Touren-Archiv" (v0.9.603,
+  Marc: „generell sollte man da zwischen projekten und tourenarchiv wählen
+  können") — im Manager-Kopf UND vorn in der Archiv-Werkzeugleiste, gleiche
+  Optik; der 🗂-Knopf aus der Track-Leiste aller Module ist wieder raus
+  („in allen anderen modulen muss oben nicht auch projekte stehen").
 - Projektmanager: Topbar bleibt sichtbar und bedienbar (v0.9.602, Marc: „im
   projekt manager fehlt die ganze topbar. man kommt gar nicht raus") — das
   Overlay beginnt unter der Topbar, und jeder Klick auf einen Modul-Tab

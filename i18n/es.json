@@ -2447,5 +2447,6 @@
   "gpxbar.projects_hint": "Todo tu trabajo en curso: ¿por dónde iba?",
   "pm.title": "Proyectos",
   "pm.search": "Buscar proyectos …",
-  "pm.count": "{n} propios"
+  "pm.count": "{n} propios",
+  "pm.seg_archive": "Archivo de rutas"
 }

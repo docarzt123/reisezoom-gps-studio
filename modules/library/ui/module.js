@@ -220,6 +220,13 @@ function mountLibrary(body, headerActions) {
 
     <section class="lib-main">
       <div class="lib-bar">
+        <!-- v0.9.603 (Marc): oberste Zeile = Wahl zwischen Projekten und
+             Touren-Archiv. Hier ist das Archiv aktiv; „Projekte" öffnet den
+             Vollbild-Manager (ui/js/projekte.js). -->
+        <div class="pmgr-seg" role="group">
+          <button type="button" class="pmgr-seg-btn" id="lib-seg-projekte">🗂 ${T("pm.title", "Projekte")}</button>
+          <button type="button" class="pmgr-seg-btn is-on">📚 ${T("pm.seg_archive", "Touren-Archiv")}</button>
+        </div>
         <input type="search" id="lib-search" class="lib-search"
                placeholder="${T("library.search_ph", "Suchen — Name, Ort, Schlagwort …")}">
         <select id="lib-year" class="lib-select"></select>
@@ -3167,6 +3174,10 @@ function mountLibrary(body, headerActions) {
   }
 
   // ── Ereignisse ────────────────────────────────────────────────────────
+  { const sp = document.getElementById("lib-seg-projekte");
+    if (sp) sp.onclick = () => {
+      if (typeof window.projektManagerOeffnen === "function") window.projektManagerOeffnen();
+    }; }
   $("lib-search").oninput = debounce(() => {
     state.search = $("lib-search").value;
     _ortAus = false;           // neue Eingabe → Gegend wieder erlauben

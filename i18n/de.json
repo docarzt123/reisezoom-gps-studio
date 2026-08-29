@@ -2447,5 +2447,6 @@
   "gpxbar.projects_hint": "Alle Arbeitsstände: woran war ich dran?",
   "pm.title": "Projekte",
   "pm.search": "Projekte durchsuchen …",
-  "pm.count": "{n} eigene"
+  "pm.count": "{n} eigene",
+  "pm.seg_archive": "Touren-Archiv"
 }
