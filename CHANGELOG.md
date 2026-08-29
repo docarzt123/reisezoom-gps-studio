@@ -15,6 +15,15 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed — ⚠️ E1 des Projekt-Umbaus (IDEAS §39, Grilling 29.08.2026)
+- Projekte als gleichwertige Archiv-Ansicht (v0.9.606, Marc: „lass den
+  [Umschalter] immer da unten … die projekte können ja auch filter
+  gebrauchen … touren und projekte werden ähnlich organisiert"): Das
+  Vollbild-Overlay ist wieder raus. Der Umschalter bleibt fest in der
+  Filterzeile des Archivs und wechselt nur die Ansicht darunter — links
+  Status-Bereiche (Alle/aktiv/Idee/fertig/Automatisch) statt Tour-Filter,
+  die Suche filtert Projekte, rechts das Karten-Raster. Dazu behoben:
+  „drops aufraeumen"-TypeError seit E1 (Aufräum-Routine bekam die neue
+  Datei-Liste, erwartete einen einzelnen Pfad).
 - Projektmanager: Umschalter „🗂 Projekte | 📚 Touren-Archiv" (v0.9.603,
   Marc: „generell sollte man da zwischen projekten und tourenarchiv wählen
   können") — im Manager-Kopf UND vorn in der Archiv-Werkzeugleiste, gleiche

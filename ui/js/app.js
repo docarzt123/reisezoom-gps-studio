@@ -107,9 +107,6 @@ window.addEventListener("resize", () => { try { passeTabsAnBreiteAn(); } catch (
 window.getActiveMod = () => activeMod;
 
 function switchMod(slug) {
-  // v0.9.602: ein Tab-Klick ist immer auch "Projektmanager zu" — sonst gäbe
-  // es aus dem Overlay keinen Weg zurück ins Modul darunter.
-  if (typeof window.projektManagerZu === "function") window.projektManagerZu();
   if (slug === activeMod) return;
   const reg = window.RZGPS_MODULES || {};
   if (!reg[slug]) return;
@@ -1068,12 +1065,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   // über dem Archiv, kein Seitenleisten-Bereich mehr.
   const available = getModules().map(m => m.manifest.slug);
   activeMod = available.includes("library") ? "library" : (available[0] || null);
+  // v0.9.606: Projekte sind wieder eine Ansicht IM Archiv (Umschalter in der
+  // Filterzeile) — die Flagge lässt das Archiv in dieser Ansicht starten.
+  // __rzKeinPmBoot: die Playwright-Selbsttests wollen die Touren-Ansicht.
+  if (!window.__rzKeinPmBoot) window.__rzStartProjekte = true;
   renderTabs();
   renderMod();
-  // __rzKeinPmBoot: die Playwright-Selbsttests (selftest_ui-Mock) drücken
-  // das Boot-Overlay weg — sonst fängt es jeden Testklick ab. Der echte
-  // Start (und selftest_projekte) öffnet den Manager.
-  if (!window.__rzKeinPmBoot && typeof window.projektManagerOeffnen === "function") window.projektManagerOeffnen();
 
   // v0.9.446 — Entwarnung an den Start-Watchdog in index.html: die Oberfläche
   // steht (Tabs + Modul gerendert). Ohne dieses Signal blendet der Watchdog nach
@@ -1095,9 +1092,6 @@ window.addEventListener("DOMContentLoaded", async () => {
         const sd = await api().startdatei_abholen();
         if (sd && sd.ok && sd.pfad) {
           applog && applog("info", `[start] Datei aus dem Systemstart: ${sd.art} · ${sd.pfad}`);
-          // v0.9.601: Doppelklick auf eine Datei schlägt den Projektmanager —
-          // wer eine Datei öffnet, will DIESE sehen, nicht die Übersicht.
-          if (typeof window.projektManagerZu === "function") window.projektManagerZu();
           if (sd.art === "projekt" && typeof window.importProject === "function") {
             await window.importProject(sd.pfad);
           } else if (typeof loadGlobalGpx === "function") {
