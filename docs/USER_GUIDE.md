@@ -1596,6 +1596,7 @@ Kasten schließt — so sieht man genau, was das Heilen verändert hat.
 Statt von Hand zu suchen: **🩹 Auto-Heilen** scannt den ganzen Track und zeigt als **Vorschau auf der Karte**, was es tun würde — bevor etwas geändert wird:
 - **🟠 Ausreißer** (orange) — GPS-Sprünge, die wegspringen *und wieder zurückkommen*. Werden beim Heilen geglättet.
 - **🟣 Lücken** (magenta, gestrichelte Linie + helle Geister-Punkte) — größere Aussetzer/Dropouts ohne Punkte dazwischen. Werden beim Heilen mit interpolierten Punkten gefüllt (Position, Höhe und Zeit).
+- **⏱️ Unmögliches Tempo** — manche Sprünge sind ein *dauerhafter Versatz* (der Track springt 40 m und bleibt dort): Position glätten hilft da nicht, denn die Strecke wurde real zurückgelegt — nur die Zeitstempel behaupten „in 3 Sekunden". Die Option **„Unmögliches Tempo entzerren"** korrigiert die Zeit solcher Stellen aufs übliche Tempo der Umgebung; die Tour wird ein paar Sekunden länger, Strecke und Positionen bleiben unangetastet.
 
 Mit **‹ / Nächster ›** springst du durch die Ausreißer, **🩹 Alle heilen** wendet beides auf einmal an. Der **Empfindlichkeits-Regler** (1–10) stellt ein, wie streng gesucht wird (niedrig = nur krasse Sprünge/große Lücken, hoch = auch kleine), der **Füll-Abstand** bestimmt, wie dicht Lücken aufgefüllt werden — beide aktualisieren die Vorschau live. Alles lässt sich mit **⌘Z** rückgängig machen.
 

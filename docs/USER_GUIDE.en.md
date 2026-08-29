@@ -1512,6 +1512,7 @@ see exactly what healing changed.
 Instead of searching by hand: **🩹 Auto-heal** scans the whole track and shows as a **preview on the map** what it would do — before anything is changed:
 - **🟠 Outliers** (orange) — GPS jumps that fly off *and come back again*. Are smoothed on healing.
 - **🟣 Gaps** (magenta, dashed line + faint ghost points) — larger dropouts/outages without points in between. Are filled on healing with interpolated points (position, elevation and time).
+- **⏱️ Impossible speeds** — some jumps are a *permanent offset* (the track leaps 40 m and stays there): smoothing positions doesn't help, because the distance really was covered — only the timestamps claim "in 3 seconds". The **"Fix impossible speeds"** option corrects the time of such spots to the usual pace of the surroundings; the tour gets a few seconds longer, distance and positions stay untouched.
 
 With **‹ / Next ›** you jump through the outliers, **🩹 Heal all** applies both at once. The **sensitivity slider** (1–10) sets how strictly it searches (low = only glaring jumps/large gaps, high = also small ones), the **fill spacing** determines how densely gaps are filled — both update the preview live. Everything can be undone with **⌘Z**.
 

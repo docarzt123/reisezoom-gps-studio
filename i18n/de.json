@@ -2405,5 +2405,8 @@
   "gpxinspect.st_dur": "Dauer",
   "gpxinspect.st_avg": "Ø Tempo",
   "gpxinspect.st_max": "Max. Tempo",
-  "gpxinspect.st_hm": "Höhenmeter"
+  "gpxinspect.st_hm": "Höhenmeter",
+  "gpxinspect.heal_opt_tempo": "Unmögliches Tempo entzerren (Zeit korrigieren)",
+  "gpxinspect.heal_opt_tempo_help": "Manche GPS-Sprünge sind ein dauerhafter Versatz: Der Track springt z. B. 40 m und bleibt dort — Position glätten kann das nicht heilen, denn die Strecke wurde ja zurückgelegt, nur die Zeitstempel behaupten „in 3 Sekunden“. Diese Option korrigiert die ZEIT solcher Stellen aufs übliche Tempo der Umgebung. Die Tour wird dadurch ein paar Sekunden länger; Strecke und Positionen bleiben unangetastet.",
+  "gpxinspect.heal_tempo_done": "%t Tempo-Stellen entzerrt"
 }
