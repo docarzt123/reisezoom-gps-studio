@@ -149,7 +149,7 @@
   "animator.fokus.none": "nobody (overview)",
   "animator.ghost.tooltip": "Ghost track: draws the whole route faintly/semi-transparent in the background while only the animated portion is drawn fully opaque on top. Handy to see where the route still goes.",
   "animator.glow.tooltip": "Colored aura/halo around the track. Makes it pop against the map. Off or 0 — just the bare line. Strength controls how soft the halo is.",
-  "animator.haupt_start.hint": "It catches up by the end of the video. Applies to the rendered video — the preview shows the main tour without delay.",
+  "animator.haupt_start.hint": "It waits, then runs faster and catches up by the end of the video — preview and video show the same thing.",
   "animator.haupt_start.label": "Main tour starts after",
   "animator.help.label.kf_delete": "How do I delete a keyframe?",
   "animator.help.label.kf_edit": "How does this work?",

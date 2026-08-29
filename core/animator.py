@@ -579,7 +579,7 @@ OVERLAY_LIVE_FIELDS = [
     # (kleine Toleranz von einem Schrittabstand, sonst flackert der letzte
     # Frame). `requires: "schwarm"` blendet das Feld überall sonst aus.
     {"id": "swarm_underway", "requires": "schwarm", "label": "Noch unterwegs",
-     "js": ("(function(){const d=cumDistM[idx];"
+     "js": ("(function(){const d=swarmRefD(idx);"
             "let m=(idx<cumDistM.length-1)?1:0;"
             "for(let i=0;i<SCHWARM_N;i++){"
             "if(!swarmFertig(i,d))m++;}"
@@ -2532,8 +2532,14 @@ const SCHWARM_DESC_TOT = {schwarm_desc_json};
 const SCHWARM_DUR = {schwarm_dur_json};
 // 29.08.2026 (Marc): Bergauf/Bergab/Vergangen kumulieren über den ganzen
 // Schwarm — jede Tour anteilig zu ihrem eigenen Fortschritt (swarmIdx).
+// 29.08.2026 — verzögerter Haupt-Start: die Schwarm-Summen laufen an der
+// UNVERZÖGERTEN Referenzachse (__rzSwarmRefIdx), nicht am wartenden Haupt.
+function swarmRefD(idx) {{
+  const r = (window.__rzSwarmRefIdx == null) ? idx : window.__rzSwarmRefIdx;
+  return cumDistM[Math.max(0, Math.min(r, cumDistM.length - 1))] || 0;
+}}
 function swarmSum(tot, idx) {{
-  const d = cumDistM[Math.max(0, Math.min(idx, cumDistM.length - 1))] || 0;
+  const d = swarmRefD(idx);
   let s = 0;
   for (let i = 0; i < SCHWARM_N; i++) {{
     const n1 = SCHWARM_COORDS[i].length - 1;
@@ -2542,7 +2548,7 @@ function swarmSum(tot, idx) {{
   return s;
 }}
 function swarmDoneM(idx) {{
-  const d = cumDistM[Math.max(0, Math.min(idx, cumDistM.length - 1))] || 0;
+  const d = swarmRefD(idx);
   let s = d;
   for (let i = 0; i < SCHWARM_N; i++) {{
     s += Math.min((SCHWARM_COORDS[i].length - 1) * SCHWARM_STEPS[i],

@@ -3072,6 +3072,34 @@ function mountAnimator(body, headerActions, opts) {
     return fracAusFortschritt(markerReal, n);
   }
 
+  /** 29.08.2026 (Marc: „wir wollen immer wysiwyg") — Haupt-Start-Verzögerung
+   *  auch in der Vorschau: Anteil der Animationsdauer, wortgleich zum Render
+   *  (_haupt_delay_frames in core/animator.py). Nur im Schwarm aktiv. */
+  function hauptStartAnteil() {
+    if (_animAblauf !== "schwarm" || !_extraTours.length) return 0;
+    const sek = +_animHauptStartS || 0;
+    if (sek <= 0) return 0;
+    const dur = parseInt(document.getElementById("anim-dur")?.value) || 20;
+    return Math.min(0.95, Math.max(0, sek / Math.max(0.1, dur)));
+  }
+  /** Wie trackFracAusAnker, aber mit Haupt-Start-Verzögerung: der Haupt-Track
+   *  wartet und läuft dann RENORMIERT bis zum Trim-Ende — exakt die
+   *  coords_per_frame_eff-Rechnung des Renders. Trim-Griffe, Kamera-Anker und
+   *  Schilder bleiben bewusst UNVERZÖGERT (auch das spiegelt den Render). */
+  function trackFracAusAnkerHaupt(anchor) {
+    const s = hauptStartAnteil();
+    if (s <= 0) return trackFracAusAnker(anchor);
+    const n = currentCoords ? currentCoords.length : 0;
+    if (n < 2) return 0;
+    const trim = (_tlBar && typeof _tlBar.getTrim === "function")
+      ? _tlBar.getTrim() : { start: 0, end: 1 };
+    const trimA = Math.max(0, Math.min(1, trim.start ?? 0));
+    const trimB = Math.max(trimA, Math.min(1, trim.end ?? 1));
+    const markerReal = Math.max(trimA, Math.min(trimB, Math.max(0, Math.min(1, anchor))));
+    const q = (markerReal - trimA) / Math.max(1e-9, trimB - trimA);
+    const qEff = Math.max(0, Math.min(1, (q - s) / (1 - s)));
+    return fracAusFortschritt(trimA + qEff * (trimB - trimA), n);
+  }
   function trackIdxFromTimelineAnchor(anchor) {
     const n = currentCoords ? currentCoords.length : 0;
     if (n < 2) return 0;
@@ -4010,7 +4038,9 @@ function mountAnimator(body, headerActions, opts) {
       const src = map.getSource("preview-track");
       if (!src) return;
       const scrubAnchor = _tlBar ? _tlBar.getScrubber() : 0;
-      const coordIdx = trackIdxFromTimelineAnchor(scrubAnchor);
+      const coordIdxRoh = trackIdxFromTimelineAnchor(scrubAnchor);   // Schwarm-Referenz
+      const coordIdx = Math.max(0, Math.min(currentCoords.length - 1,
+        Math.round(trackFracAusAnkerHaupt(scrubAnchor))));
       const startIdx = lineStartCoordIdx();
       let coords, ai0, ai1;
       if (previewFullTrack()) {
@@ -4035,7 +4065,7 @@ function mountAnimator(body, headerActions, opts) {
       // 🌊 Schwarm: Die Zusatz-Touren folgen demselben Stand — voll, wenn der
       // Haupt-Track voll gezeigt wird (auch im 1-Punkt-Ruhefall oben), sonst
       // bis zur Distanz an der Scrubber-Position.
-      _animSchwarmPreviewAdvance(coordIdx, coords === currentCoords);
+      _animSchwarmPreviewAdvance(coordIdxRoh, coords === currentCoords);
       // v0.9.434 — Track-Alterung: Gradient relativ zum Marker (coordIdx) setzen.
       applyPreviewColorGradient(ai0, ai1);
     } catch (_) {}
@@ -5453,10 +5483,12 @@ function mountAnimator(body, headerActions, opts) {
     // dieselbe Größe wie ein Keyframe, ein Schild oder ein Foto-Pin. Wer von
     // der Leiste kommt (Scrubber-Drag), rechnet vorher mit `barToTrack` um.
     // Außerhalb des Schnitts steht der Track still — wie im fertigen Video.
-    const coordFrac = trackFracAusAnker(anchor);
+    const coordFracRoh = trackFracAusAnker(anchor);   // unverzögerte Achse (Schwarm-Referenz)
+    const coordFrac = trackFracAusAnkerHaupt(anchor);
     const coordIdx = Math.max(0, Math.min((currentCoords ? currentCoords.length : 1) - 1, Math.round(coordFrac)));
     // v0.9.325 — Live-Stats beim Scrubben mitlaufen lassen (WYSIWYG).
-    try { _ovUpdateLiveAt(coordIdx / Math.max(1, currentCoords.length - 1)); } catch (_) {}
+    try { _ovUpdateLiveAt(coordIdx / Math.max(1, currentCoords.length - 1),
+                          coordFracRoh / Math.max(1, currentCoords.length - 1)); } catch (_) {}
     // v0.8.7: wenn Keyframe expliziten center hat → nutze ihn, sonst Track-Punkt
     // v0.8.19: Im Classic-Modus (kein KF-Editor) respektieren wir
     // camera_follow_track — wenn aus, bewegt der Scrubber die Kamera NICHT
@@ -5550,7 +5582,7 @@ function mountAnimator(body, headerActions, opts) {
           ? currentCoords
           : currentCoords.slice(startIdx, Math.floor(coordFrac) + 1)
               .concat([coordBeiFrac(currentCoords, coordFrac)]);
-        _animSchwarmPreviewAdvance(coordFrac, previewFullTrack());
+        _animSchwarmPreviewAdvance(coordFracRoh, previewFullTrack());
         src.setData({
           type: "Feature",
           geometry: { type: "LineString", coordinates: coords },
@@ -6512,7 +6544,16 @@ function mountAnimator(body, headerActions, opts) {
         kamAnker = trimB + holdProgress * (ankerAmRechtenRand - trimB);
         signAnchor = trimB + (holdProgress * holdSec) / Math.max(0.001, durSec);
       }
-      const coordFrac = fracAusFortschritt(markerReal, tn);
+      const coordFracRoh = fracAusFortschritt(markerReal, tn);   // Schwarm-Referenz
+      let coordFrac = coordFracRoh;
+      { // 29.08.2026 — Haupt-Start-Verzögerung im Probelauf (WYSIWYG).
+        const s = hauptStartAnteil();
+        if (s > 0) {
+          const q = (markerReal - trimA) / Math.max(1e-9, trimB - trimA);
+          const qEff = Math.max(0, Math.min(1, (q - s) / (1 - s)));
+          coordFrac = fracAusFortschritt(trimA + qEff * (trimB - trimA), tn);
+        }
+      }
       const coordIdx = Math.max(0, Math.min(tn - 1, Math.round(coordFrac)));
       try { dotSetzen(coordFrac); } catch (_) {}   // v0.9.509/510 — gleitender Laufpunkt
       // v0.9.56: Track-Linien-Start respektiert show_pretrim_track-Setting:
@@ -6616,7 +6657,7 @@ function mountAnimator(body, headerActions, opts) {
             ? currentCoords
             : currentCoords.slice(startCoordIdx, Math.floor(coordFrac) + 1)
                 .concat([coordBeiFrac(currentCoords, coordFrac)]);
-          _animSchwarmPreviewAdvance(coordFrac, previewFullTrack());
+          _animSchwarmPreviewAdvance(coordFracRoh, previewFullTrack());
           src.setData({
             type: "Feature",
             geometry: { type: "LineString", coordinates: lineCoords },
@@ -6645,7 +6686,7 @@ function mountAnimator(body, headerActions, opts) {
         if (sg && sg.applyMarkerAnchor) sg.applyMarkerAnchor(signAnchor);
       } catch (e) { console.warn("[anim-photos] step filter update failed:", e); }
       // v0.9.325 — Live-Stats im Probelauf mitlaufen lassen (WYSIWYG zum Render).
-      try { _ovUpdateLiveAt(markerReal); } catch (_) {}
+      try { _ovUpdateLiveAt(coordFrac / Math.max(1, tn - 1), coordFracRoh / Math.max(1, tn - 1)); } catch (_) {}
       // Scrubber visuell — siehe Berechnung oben (durch Trim-Handles wandernd).
       if (_tlBar) _tlBar.setScrubberBar(scrubberVis);
       if (elapsed < totalMs) {
@@ -10608,8 +10649,11 @@ function mountAnimator(body, headerActions, opts) {
     return sr.__rzCumHm;
   }
 
-  function _ovUpdateLiveAt(frac) {
+  function _ovUpdateLiveAt(frac, refFrac) {
     frac = Math.max(0, Math.min(1, frac || 0));
+    // 29.08.2026 — verzögerter Haupt-Start: die Schwarm-Summen rechnen an der
+    // UNVERZÖGERTEN Achse (refFrac), der Haupt-Anteil am (wartenden) frac.
+    refFrac = (refFrac == null) ? frac : Math.max(0, Math.min(1, refFrac));
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer) return;
     const sr = _ovSeries;
@@ -10618,6 +10662,8 @@ function mountAnimator(body, headerActions, opts) {
       const n = sr.cumDistM.length;
       let i = Math.round(frac * (n - 1));
       if (i < 0) i = 0; else if (i > n - 1) i = n - 1;
+      let iRef = Math.round(refFrac * (n - 1));
+      if (iRef < 0) iRef = 0; else if (iRef > n - 1) iRef = n - 1;
       const totD = sr.total_dist_m || sr.cumDistM[n - 1] || 0;
       const totT = sr.total_time_s || (sr.cumTimeS ? sr.cumTimeS[n - 1] : 0) || 0;
       box.querySelectorAll('.ov-v[data-ovid]').forEach((el) => {
@@ -10637,7 +10683,7 @@ function mountAnimator(body, headerActions, opts) {
         // in core/animator.py). Jede Tour trägt höchstens ihre Länge bei.
         const _sw = (_animAblauf === "schwarm" && _extraTours.length)
           ? (() => {
-              const d = sr.cumDistM[i] || 0;
+              const d = sr.cumDistM[iRef] || 0;
               const frac = totD > 0 ? Math.max(0, Math.min(1, d / totD)) : 1;
               let done = d, gesamt = totD, asc = 0, desc = 0, tzeit = 0;
               for (const tr of _extraTours) {
@@ -10678,12 +10724,12 @@ function mountAnimator(body, headerActions, opts) {
           case "swarm_underway": {
             if (_animAblauf !== "schwarm" || !_extraTours.length) break;
             let m = (i < n - 1) ? 1 : 0;
-            const frac2 = totD > 0 ? Math.max(0, Math.min(1, (sr.cumDistM[i] || 0) / totD)) : 1;
+            const frac2 = totD > 0 ? Math.max(0, Math.min(1, (sr.cumDistM[iRef] || 0) / totD)) : 1;
             for (const tr of _extraTours) {
               if (!tr.coords || tr.coords.length < 2) continue;
               const k = _swIdxVerzoegert(tr.coords.length - 1, _swAchseFuer(tr),
                 _cumDistFuer(tr, tr.coords), _swStartAnteil(tr),
-                frac2, sr.cumDistM[i] || 0, totD);
+                frac2, sr.cumDistM[iRef] || 0, totD);
               if (k < tr.coords.length - 2) m++;
             }
             v = m + " / " + (_extraTours.length + 1);
@@ -12208,7 +12254,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     // 29.08.2026 (Marc: „während 1. noch läuft anfangen den [Maintrack] zu
     // animieren") — Haupt-Tour startet verzögert; der Schwarm läuft derweil an
-    // der Videozeit. Die Vorschau zeigt den Haupt-Start unverzögert (Hinweis).
+    // der Videozeit. WYSIWYG: die Vorschau spiegelt die Verzögerung.
     let hsWrap = document.getElementById("anim-haupt-start-wrap");
     if (!hsWrap && dzWrap && dzWrap.parentNode) {
       hsWrap = document.createElement("div");
@@ -12218,7 +12264,7 @@ function mountAnimator(body, headerActions, opts) {
         t("animator.haupt_start.label", "Haupt-Tour startet nach")}
         <input type="number" id="anim-haupt-start" min="0" step="1" style="width:52px"> s</label>
         <div class="hint" style="font-size:10.5px;opacity:.75">${
-        t("animator.haupt_start.hint", "Sie holt bis zum Videoende auf. Wirkt im gerenderten Video — die Vorschau zeigt die Haupt-Tour unverzögert.")}</div>`;
+        t("animator.haupt_start.hint", "Sie wartet, läuft dann schneller und holt bis zum Videoende auf — Vorschau und Video zeigen dasselbe.")}</div>`;
       dzWrap.parentNode.insertBefore(hsWrap, dzWrap.nextSibling);
       const inp = hsWrap.querySelector("#anim-haupt-start");
       inp.value = _animHauptStartS;

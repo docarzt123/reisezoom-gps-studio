@@ -24,10 +24,12 @@ Bei jeder neuen Version:
   HAUPT-Tour kann ebenfalls verzögert starten („Haupt-Tour startet nach X s")
   und behält dabei Schatten, Glow und Laufpunkt — der Schwarm läuft derweil
   an der unverzögerten Videozeit-Achse weiter; sie holt bis zum Videoende
-  auf. Vorschau spiegelt die Zusatz-Tour-Verzögerungen (zentraler Helfer
-  `_swIdxVerzoegert` an allen vier Rechen-Stellen); der Haupt-Start wirkt im
-  gerenderten Video, die Vorschau zeigt die Haupt-Tour unverzögert (Hinweis
-  steht am Feld). Alles im Projekt gespeichert, i18n DE/EN/ES.
+  auf. Volles WYSIWYG (v0.9.627, Marc: „wir wollen immer wysiwyg"): die
+  Vorschau spiegelt BEIDE Verzögerungen — Zusatz-Touren über den zentralen
+  Helfer `_swIdxVerzoegert` an allen vier Rechen-Stellen, der Haupt-Start in
+  Scrub, Probelauf und Ruhepfad (`trackFracAusAnkerHaupt`); Schwarm-Zeichnung
+  und Overlay-Summen laufen in Vorschau UND Render an der unverzögerten
+  Referenzachse. Alles im Projekt gespeichert, i18n DE/EN/ES.
 - Ghost-Spuren robust (v0.9.625, Marc: „im animator ist noch der nicht
   geheilte track zu sehen" — es war das Knäuel doppelter, eingefrorener
   Ghost-Routen): (1) Hinzufügen überspringt Pfade, die schon als Ghost

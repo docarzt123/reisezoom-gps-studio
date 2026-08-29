@@ -149,7 +149,7 @@
   "animator.fokus.none": "niemandem (Gesamtsicht)",
   "animator.ghost.tooltip": "Ghost-Track: zeigt die komplette Route schon schwach/transparent im Hintergrund, während nur der animierte Teil voll deckend darüber gezeichnet wird. Praktisch, damit man sieht, wo es noch hingeht.",
   "animator.glow.tooltip": "Farbige Aura/Halo um den Track. Macht ihn auffälliger gegen die Karte. Bei 0 oder ausgeschaltet — nur die nackte Linie. Stärke steuert die Weichheit der Aura.",
-  "animator.haupt_start.hint": "Sie holt bis zum Videoende auf. Wirkt im gerenderten Video — die Vorschau zeigt die Haupt-Tour unverzögert.",
+  "animator.haupt_start.hint": "Sie wartet, läuft dann schneller und holt bis zum Videoende auf — Vorschau und Video zeigen dasselbe.",
   "animator.haupt_start.label": "Haupt-Tour startet nach",
   "animator.help.label.kf_delete": "Keyframe löschen — wie?",
   "animator.help.label.kf_edit": "Wie funktioniert das?",
