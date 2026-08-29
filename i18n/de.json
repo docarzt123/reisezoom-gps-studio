@@ -2442,5 +2442,10 @@
   "library.proj_pfade_fehlen": "Nicht alle Tour-Dateien der Komposition wurden gefunden.",
   "library.proj_in": "steckt in {n} Projekt(en) — ansehen",
   "library.proj_filter_tour": "Nur Projekte dieser Tour",
-  "schwarm.name": "Schwarm"
+  "schwarm.name": "Schwarm",
+  "gpxbar.projects": "Projekte",
+  "gpxbar.projects_hint": "Alle Arbeitsstände: woran war ich dran?",
+  "pm.title": "Projekte",
+  "pm.search": "Projekte durchsuchen …",
+  "pm.count": "{n} eigene"
 }

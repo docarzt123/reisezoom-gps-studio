@@ -220,6 +220,11 @@
   function templateEmpty() {
     return `
       <div class="gpxbar-empty">
+        <button class="gpxbar-pick-btn" type="button" data-gpxbar="projekte"
+                title="${escapeAttr((typeof t === "function" ? t("gpxbar.projects_hint", "Alle Arbeitsst\u00e4nde: woran war ich dran?") : "Projekte"))}">
+          <span class="gpxbar-icon">\ud83d\uddc2</span>
+          <span>${(typeof t === "function" ? t("gpxbar.projects", "Projekte") : "Projekte")}</span>
+        </button>
         <button class="gpxbar-pick-btn" type="button" data-gpxbar="pick-empty">
           <span class="gpxbar-icon">📂</span>
           <span>${(typeof t === "function" ? t("gpxbar.pick", "Track wählen …") : "Track wählen …")}</span>
@@ -242,6 +247,11 @@
     const desc = stats?.descent_m  != null ? "↓ " + fmtMeter(stats.descent_m) : "—";
     return `
       <div class="gpxbar-loaded">
+        <button class="gpxbar-pick-btn gpxbar-pick-btn-compact" type="button"
+                data-gpxbar="projekte"
+                title="${escapeAttr((typeof t === "function" ? t("gpxbar.projects", "Projekte") : "Projekte"))}">
+          <span class="gpxbar-icon">\ud83d\uddc2</span>
+        </button>
         <button class="gpxbar-pick-btn gpxbar-pick-btn-compact" type="button"
                 data-gpxbar="pick" title="${escapeAttr((typeof t === "function"
                   ? t("gpxbar.pick_other", "Anderen Track wählen") : "Anderen Track wählen"))}">
@@ -299,6 +309,10 @@
         // Datei-Dialogs der Katalog mit Vorschau, Suche und Filtern.
         else if (action === "library") {
           if (typeof switchMod === "function") switchMod("library");
+        }
+        // v0.9.601 - Projektmanager als eigene Ansicht, aus jedem Modul heraus.
+        else if (action === "projekte") {
+          if (typeof window.projektManagerOeffnen === "function") window.projektManagerOeffnen();
         }
         else if (action === "clearws") window.clearWorkspaceGlobal();
         else if (action === "clear") window.clearGlobalGpx();   // Legacy-Fallback

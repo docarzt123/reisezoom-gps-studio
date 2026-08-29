@@ -290,12 +290,14 @@ Projects no longer "belong to a tour" — they are **things of their own** with
 a name, a status and "last edited". The same tour can be part of any number
 of projects.
 
-**The "🎬 Projects" area** at the very top left of the **archive** is their
-home — and the app **starts there**: the first glance answers "what was I
-working on?", one click on **Open** jumps to the module you last used in that
-project (the module icons on the card are directly clickable too). Each card
-also has: status (**active / idea / done** — "done" sinks to the end),
-rename, duplicate, delete. The search box filters projects as well.
+**The project manager** (since v0.9.601) is its **own full-screen view**:
+the 🗂 button at the far left of the track bar (next to "Choose track") opens
+it from any module, and the app **starts there** — the first glance answers
+"what was I working on?". One click on **Open** jumps to the module you last
+used in that project (the module icons on the card are directly clickable
+too); **Esc** or ✕ closes the view again. Each card also has: status
+(**active / idea / done** — "done" sinks to the end), rename, duplicate,
+delete. The search box at the top right filters the projects.
 
 **Created automatically:** Opening a tour always creates a working state —
 nothing is ever lost. Untouched states sit collapsed under "Created
