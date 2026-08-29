@@ -10476,6 +10476,7 @@ function mountAnimator(body, headerActions, opts) {
       case "asc_done": return "↑ " + Math.round(ascM) + " m";
       case "desc_done": return "↓ " + Math.round(descM) + " m";
       case "swarm_total": return (_extraTours.length + 1) + " · " + _ovFmtKm(km);
+      case "swarm_underway": return "0 / " + (_extraTours.length + 1);
     }
     return "—";
   }
@@ -10566,6 +10567,31 @@ function mountAnimator(body, headerActions, opts) {
           case "time_left": if (sr.has_time) v = _ovFmtDur(Math.max(0, totT - sr.cumTimeS[i])); break;
           case "ele_now": if (sr.has_ele) v = Math.round(sr.ele[i]) + " m"; break;
           case "asc_done": if (sr.has_ele) v = "↑ " + Math.round(_ovCumHm(sr).asc[i]) + " m"; break;
+          // 29.08.2026 (Marc: „noch unterwegs funktioniert nicht") — das Feld
+          // hatte in der VORSCHAU keinen Rechen-Fall (nur im Render). Spiegel
+          // zu swarmFertig: fertig = Fortschritts-Index ≥ vorletzter Punkt.
+          case "swarm_underway": {
+            if (_animAblauf !== "schwarm" || !_extraTours.length) break;
+            let m = (i < n - 1) ? 1 : 0;
+            const frac2 = totD > 0 ? Math.max(0, Math.min(1, (sr.cumDistM[i] || 0) / totD)) : 1;
+            for (const tr of _extraTours) {
+              if (!tr.coords || tr.coords.length < 2) continue;
+              let k;
+              if (_animModus === "ziel") {
+                k = Math.round(frac2 * (tr.coords.length - 1));
+              } else if (_animModus === "uhrzeit") {
+                const achse = _swAchseFuer(tr);
+                k = (achse && _swPrevTAxis > 0)
+                  ? _swBinIdx(achse, frac2 * _swPrevTAxis)
+                  : Math.round(frac2 * (tr.coords.length - 1));
+              } else {
+                k = _swBinIdx(_cumDistFuer(tr, tr.coords), sr.cumDistM[i] || 0);
+              }
+              if (k < tr.coords.length - 2) m++;
+            }
+            v = m + " / " + (_extraTours.length + 1);
+            break;
+          }
           case "desc_done": if (sr.has_ele) v = "↓ " + Math.round(_ovCumHm(sr).desc[i]) + " m"; break;
           case "grade": if (sr.has_ele) { const g = sr.gradePct[i]; v = (g >= 0 ? "+" : "") + g.toFixed(0) + " %"; } break;
           // 23.08.2026 — Etappen-Werte, wortgleich zu core/animator.py

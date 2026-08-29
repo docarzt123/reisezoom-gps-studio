@@ -1291,6 +1291,9 @@ _SORTS = {
     "asc_desc": "ascent_m DESC",
     "asc_asc": "ascent_m ASC",
     "dur_desc": "duration_s DESC",
+    # 29.08.2026 (Marc: „kann ich im archiv irgendwie filtern um die tour zu
+    # finden, die das anzeigt?") — Ausreißer-Jagd: schnellste zuerst.
+    "maxspeed_desc": "max_speed_kmh DESC",
     "dur_asc": "duration_s ASC",
     "name_asc": "name COLLATE NOCASE ASC",
     "name_desc": "name COLLATE NOCASE DESC",

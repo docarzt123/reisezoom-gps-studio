@@ -2394,5 +2394,7 @@
   "schwarm.modus_uhrzeit_bew": "Hora real, sin pausas",
   "schwarm.modus_uhrzeit_bew_hint": "Igual que arriba, pero las pausas se recortan: se compara el ritmo de movimiento puro.",
   "animator.statsfield.asc_done": "Subido hasta ahora",
-  "animator.statsfield.desc_done": "Bajado hasta ahora"
+  "animator.statsfield.desc_done": "Bajado hasta ahora",
+  "library.sort.maxspeed_desc": "Mayor velocidad máx.",
+  "library.maxspeed": "Velocidad máx."
 }

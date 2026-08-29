@@ -2394,5 +2394,7 @@
   "schwarm.modus_uhrzeit_bew": "Real time — without breaks",
   "schwarm.modus_uhrzeit_bew_hint": "Same as above, but breaks are cut out — pure moving pace is compared.",
   "animator.statsfield.asc_done": "Climbed so far",
-  "animator.statsfield.desc_done": "Descended so far"
+  "animator.statsfield.desc_done": "Descended so far",
+  "library.sort.maxspeed_desc": "Highest max speed",
+  "library.maxspeed": "Max. speed"
 }
