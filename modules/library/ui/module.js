@@ -3559,7 +3559,18 @@ function mountLibrary(body, headerActions) {
         m.close();
         if (!v.trim()) return;
         const r = await api().projekt_frei_anlegen(v.trim());
-        if (r && r.ok) { toast(T("library.proj_angelegt", "Projekt angelegt."), "info"); renderProjekte(); }
+        if (r && r.ok) {
+          // v0.9.613 (Marc: „sollte doch gleich in der liste erscheinen"):
+          // aktiver Bereich (z. B. „fertig"/„Automatisch") oder Suchtext
+          // filterte das frische Projekt unsichtbar — nach dem Anlegen
+          // immer auf „Alle" springen und Filter leeren.
+          _projScope = "alle";
+          _projFilterGh = "";
+          const su = $("lib-search");
+          if (su && su.value) { su.value = ""; state.search = ""; }
+          toast(T("library.proj_angelegt", "Projekt angelegt."), "info");
+          renderProjekte();
+        }
         else toast((r && r.error) || "?", "error");
       };
       const ab = document.getElementById("lib-pn-ab");

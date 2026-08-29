@@ -306,6 +306,10 @@ async def main():
         print("\n━━━ 4c. Leeres Projekt (Q1/Q2, v0.9.612) ━━━")
         sagen(bool(await pg.query_selector("#lib-proj-new")),
               "„+ Neues Projekt“ steht in der Projekt-Seitenleiste")
+        # v0.9.613: absichtlich in einen filternden Bereich stellen — das
+        # frische Projekt muss TROTZDEM sofort sichtbar sein (Marc-Befund).
+        await pg.click('[data-pscope="fertig"]')
+        await pg.wait_for_timeout(200)
         await pg.click("#lib-proj-new")
         await pg.wait_for_timeout(200)
         await pg.eval_on_selector("#lib-proj-newname", "e => e.value = 'Intro-Flug'")
