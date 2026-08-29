@@ -75,9 +75,13 @@
               tT("topbar.project.new_empty_default", "Neues Projekt"));
             if (!name) return;
             const r = await api().projekt_frei_anlegen(name);
+            if (typeof applog === "function") applog("info", "[PM] Neues leeres Projekt via TOPBAR: " + JSON.stringify(!!(r && r.ok)));
             if (r && r.ok && typeof sessionActivateFrei === "function") {
               await sessionActivateFrei(r.track_hash);
               if (typeof rebindAllSettings === "function") rebindAllSettings();
+              // v0.9.614: Wenn die Projektliste gerade offen ist, muss sie das
+              // neue Projekt SOFORT zeigen (Marc: „landet nicht in der liste").
+              window.dispatchEvent(new CustomEvent("rz-projekt-angelegt"));
             }
           });
         });

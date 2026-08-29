@@ -46,6 +46,10 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Neues Projekt erscheint sofort, Teil 2 (v0.9.614): auch der Topbar-Weg
+  („🗂 → Neues leeres Projekt") frischt eine offene Projektliste jetzt
+  sofort auf (Custom-Event an das Archiv); beide Anlege-Wege loggen ihren
+  Pfad ins app.log.
 - Neues Projekt erscheint sofort (v0.9.613, Marc: „sollte doch gleich in
   der liste erscheinen"): Ein aktiver Bereich (fertig/Automatisch) oder
   Suchtext filterte das frisch angelegte Projekt unsichtbar — nach dem

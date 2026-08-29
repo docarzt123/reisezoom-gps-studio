@@ -3559,6 +3559,7 @@ function mountLibrary(body, headerActions) {
         m.close();
         if (!v.trim()) return;
         const r = await api().projekt_frei_anlegen(v.trim());
+        if (typeof applog === "function") applog("info", "[PM] Neues leeres Projekt via SEITENLEISTE: " + JSON.stringify(!!(r && r.ok)));
         if (r && r.ok) {
           // v0.9.613 (Marc: „sollte doch gleich in der liste erscheinen"):
           // aktiver Bereich (z. B. „fertig"/„Automatisch") oder Suchtext
@@ -3592,6 +3593,15 @@ function mountLibrary(body, headerActions) {
     if (_unmounted) return;
     window.__rzStartProjekte = false;
     if (!_projView) projViewSetzen(true);
+  });
+  // v0.9.614: Topbar hat ein leeres Projekt angelegt — offene Liste auffrischen.
+  window.addEventListener("rz-projekt-angelegt", () => {
+    if (_unmounted || !_projView) return;
+    _projScope = "alle";
+    _projFilterGh = "";
+    const su = $("lib-search");
+    if (su && su.value) { su.value = ""; state.search = ""; }
+    renderProjekte();
   });
   $("lib-search").oninput = debounce(() => {
     state.search = $("lib-search").value;
