@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.622"
+APP_VERSION = "0.9.623"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -7364,6 +7364,80 @@ class Api:
             return r
         except Exception as e:
             log.error("projekt_touren_setzen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def projekt_detail(self, project_id: str) -> dict:
+        """v0.9.623 (Marc: „wir brauchen eine komplette Projekt-Detail-Seite"):
+        Alles für die rechte Spalte in einem Aufruf — Stammdaten, Mitglieds-
+        Touren (mit Pfad, km, Fassungs-Hinweis), Stände."""
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            pr = (daten.get("projects") or {}).get(project_id)
+            if not pr:
+                return {"ok": False, "error": _ui_t()(
+                    "error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            touren = daten.get("touren") or {}
+            conn = self._lib()
+            reihen = []
+            ghs = list(pr.get("geo_hashes") or [])
+            pfad_reihenfolge = list(pr.get("gpx_paths") or [])
+            # Reihenfolge der Übergabe beibehalten (erste = Haupt/Zeitachse);
+            # geo_hashes sind sortiert und taugen nicht als Reihenfolge.
+            geordnet = []
+            for pf in pfad_reihenfolge:
+                for gh in ghs:
+                    t = touren.get(gh) or {}
+                    if pf in (t.get("gpx_paths") or []) and gh not in [g for g, _ in geordnet]:
+                        geordnet.append((gh, pf))
+                        break
+            for gh in ghs:
+                if gh not in [g for g, _ in geordnet]:
+                    geordnet.append((gh, ""))
+            for i, (gh, pf) in enumerate(geordnet):
+                t = touren.get(gh) or {}
+                st = t.get("stats") or {}
+                pfad = pf
+                if not pfad or not Path(str(pfad)).exists():
+                    for kand in reversed(t.get("gpx_paths") or []):
+                        if Path(kand).exists():
+                            pfad = kand
+                            break
+                if not pfad:
+                    try:
+                        row = conn.execute(
+                            "SELECT path FROM tracks WHERE geo_hash = ? LIMIT 1",
+                            (gh,)).fetchone()
+                        if row:
+                            pfad = row["path"]
+                    except Exception:
+                        pass
+                reihen.append({
+                    "geo_hash": gh,
+                    "name": t.get("name") or Path(str(pfad or "?")).stem,
+                    "distance_km": st.get("distance_km"),
+                    "path": str(pfad or ""),
+                    "exists": bool(pfad) and Path(str(pfad)).exists(),
+                    "haupt": i == 0 and len(geordnet) > 1,
+                    "neuere_fassung": _projekte.fassungs_hinweis(daten, gh),
+                })
+            return {"ok": True,
+                    "projekt": {
+                        "id": project_id, "name": pr.get("name", "?"),
+                        "status": pr.get("status", "aktiv"),
+                        "auto": bool(pr.get("auto")),
+                        "ablauf": pr.get("ablauf", "solo"),
+                        "schwarm_modus": pr.get("schwarm_modus", "gleich"),
+                        "schwarm_pausen": bool(pr.get("schwarm_pausen", True)),
+                        "created_at": pr.get("created_at"),
+                        "modified_at": pr.get("modified_at"),
+                        "letztes_modul": pr.get("letztes_modul") or "",
+                        "frei": str(pr.get("kontext", "")).startswith("frei:")
+                                and not ghs,
+                    },
+                    "touren": reihen,
+                    "staende": _projekte.staende_liste(APP_SUPPORT, project_id)}
+        except Exception as e:
+            log.error("projekt_detail: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
 
     @_mit_sessions_lock
