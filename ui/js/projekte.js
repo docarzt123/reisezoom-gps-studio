@@ -65,6 +65,10 @@
     _filterGh = (opts && opts.filterGh) || "";
     overlayBauen();
     const el = document.getElementById("pmgr-overlay");
+    // Die Topbar (Modul-Tabs, Projekt-Umschalter, Einstellungen) bleibt
+    // sichtbar und bedienbar — das Overlay beginnt direkt darunter.
+    const tb = document.querySelector(".topbar");
+    if (tb) el.style.top = Math.round(tb.getBoundingClientRect().bottom) + "px";
     el.hidden = false;
     renderProjekte().catch(() => {});
     const s = document.getElementById("pmgr-search");

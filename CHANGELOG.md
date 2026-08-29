@@ -15,6 +15,10 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed — ⚠️ E1 des Projekt-Umbaus (IDEAS §39, Grilling 29.08.2026)
+- Projektmanager: Topbar bleibt sichtbar und bedienbar (v0.9.602, Marc: „im
+  projekt manager fehlt die ganze topbar. man kommt gar nicht raus") — das
+  Overlay beginnt unter der Topbar, und jeder Klick auf einen Modul-Tab
+  schließt es (auch auf den Tab des aktiven Moduls).
 - **Projektmanager als eigene Vollbild-Ansicht** (v0.9.601, Marc: „das ist
   blöd über die sidebar, weil die tourfilter da sind … bau eine komplett neue
   ansicht"): Der 🗂-Knopf ganz links in der Track-Leiste (neben „Track
