@@ -64,6 +64,11 @@ PROJ_MOCK_JS = r"""
       tour_namen: ["Etappe 1", "Etappe 2"], geo_hashes: ["gh2", "gh3"],
       module: ["animator"], letztes_modul: "animator",
       exists: true, pfade_ok: true },
+    { id: "pf", name: "Kartenflug", status: "aktiv", auto: false,
+      ablauf: "solo", frei: true, kontext: "frei:abc123",
+      modified_at: "2026-08-25T10:00:00", n_touren: 0, tour_namen: [],
+      geo_hashes: [], module: [], letztes_modul: "reiseroute",
+      exists: true, pfade_ok: true, haupt_pfad: "" },
     { id: "pc", name: "t3.gpx", status: "aktiv", auto: true, ablauf: "solo",
       modified_at: "2026-08-26T10:00:00", n_touren: 1, tour_namen: ["t3"],
       geo_hashes: ["gh4"], module: [], letztes_modul: "animator",
@@ -75,6 +80,7 @@ PROJ_MOCK_JS = r"""
       merken("projekt_aktivieren", [pid]);
       const p = P.find(x => x.id === pid) || {};
       return { ok: true, ablauf: p.ablauf, letztes_modul: p.letztes_modul,
+               frei: !!p.frei, kontext: p.kontext || "",
                gpx_paths: pid === "pb" ? ["/mock/e1.gpx", "/mock/e2.gpx"]
                                        : [p.haupt_pfad],
                schwarm_modus: p.schwarm_modus || "gleich",
@@ -97,6 +103,34 @@ PROJ_MOCK_JS = r"""
       if (p) P.push(Object.assign({}, p, { id: pid + "_k",
                                            name: p.name + " (Kopie)" }));
       return { ok: true };
+    },
+    projekt_frei_anlegen: async (name) => {
+      merken("projekt_frei_anlegen", [name]);
+      P.push({ id: "pneu", name, status: "aktiv", auto: false, ablauf: "solo",
+               frei: true, kontext: "frei:neu", n_touren: 0, tour_namen: [],
+               geo_hashes: [], module: [], letztes_modul: "", exists: true,
+               modified_at: "2026-08-29T12:00:00" });
+      return { ok: true, track_hash: "frei:neu",
+               session: { track_hash: "frei:neu", name, stats: {} },
+               active_project: { id: "pneu", name, is_active: true },
+               projects: [{ id: "pneu", name, is_active: true }] };
+    },
+    session_open_for_frei: async (k) => {
+      merken("session_open_for_frei", [k]);
+      return { ok: true, track_hash: k,
+               session: { track_hash: k, name: "Kartenflug", stats: {} },
+               active_project: { id: "pf", name: "Kartenflug", is_active: true },
+               projects: [{ id: "pf", name: "Kartenflug", is_active: true }] };
+    },
+    library_query: async () => ({ ok: true, items: [
+      { path: "/mock/t1.gpx", name: "Tour Eins", filename: "t1.gpx" },
+      { path: "/mock/t2.gpx", name: "Tour Zwei", filename: "t2.gpx" },
+    ], total: 2 }),
+    projekt_touren_setzen: async (pid, paths) => {
+      merken("projekt_touren_setzen", [pid, paths]);
+      const p = P.find(x => x.id === pid);
+      if (p) { p.frei = false; p.n_touren = paths.length; p.geo_hashes = paths.map((_, i) => "g" + i); }
+      return { ok: true, kontext: "menge:xyz", ablauf: "reise" };
     },
     projekt_fassung_aktualisieren: async (pid) => {
       merken("projekt_fassung_aktualisieren", [pid]);
@@ -150,8 +184,8 @@ async def main():
         deine = await pg.eval_on_selector_all(
             "#lib-projwrap > .lib-proj-liste .lib-proj-karte",
             "e => e.map(x => x.dataset.pid)")
-        sagen(deine == ["pa", "pb"],
-              "„Deine Projekte“: aktiv vor fertig", str(deine))
+        sagen(deine == ["pa", "pf", "pb"],
+              "„Deine Projekte“: aktiv vor fertig (frei-Projekt dabei)", str(deine))
         autos = await pg.eval_on_selector_all(
             ".lib-proj-autos .lib-proj-karte", "e => e.map(x => x.dataset.pid)")
         sagen(autos == ["pc"], "auto-Projekte eingeklappt darunter (Q10c)",
@@ -268,6 +302,42 @@ async def main():
                   and r["args"] == ["pb", "2026-08-29T10:00:00+00:00"]
                   for r in ruf),
               "↩︎ stellt den gewählten Stand wieder her")
+
+        print("\n━━━ 4c. Leeres Projekt (Q1/Q2, v0.9.612) ━━━")
+        sagen(bool(await pg.query_selector("#lib-proj-new")),
+              "„+ Neues Projekt“ steht in der Projekt-Seitenleiste")
+        await pg.click("#lib-proj-new")
+        await pg.wait_for_timeout(200)
+        await pg.eval_on_selector("#lib-proj-newname", "e => e.value = 'Intro-Flug'")
+        await pg.click("#lib-pn-ok")
+        await pg.wait_for_timeout(300)
+        ruf = await pg.evaluate("window.__ruf")
+        sagen(any(r["name"] == "projekt_frei_anlegen" and r["args"] == ["Intro-Flug"]
+                  for r in ruf), "Anlegen ruft die Brücke")
+        sagen(bool(await pg.query_selector('.lib-proj-karte[data-pid="pneu"]')),
+              "… und die Karte erscheint")
+        sagen(bool(await pg.query_selector('[data-addtours="pf"]')),
+              "frei-Karte trägt den ➕-Knopf")
+        await pg.click('[data-open="pf"]')
+        await pg.wait_for_timeout(300)
+        ruf = await pg.evaluate("window.__ruf")
+        sagen(any(r["name"] == "session_open_for_frei" and r["args"] == ["frei:abc123"]
+                  for r in ruf), "Öffnen aktiviert den frei-Kontext ohne Track")
+        mods = await pg.evaluate("window.__mods")
+        sagen(mods[-1] == "reiseroute",
+              "… und springt ins letzte Modul (Reiseroute)", str(mods))
+        await pg.click('[data-addtours="pf"]')
+        await pg.wait_for_timeout(300)
+        sagen(bool(await pg.query_selector("#lib-tp-liste")),
+              "➕ öffnet den Archiv-Picker")
+        await pg.eval_on_selector('#lib-tp-liste [data-tpick="0"]', "e => e.checked = true")
+        await pg.eval_on_selector('#lib-tp-liste [data-tpick="1"]', "e => e.checked = true")
+        await pg.click("#lib-tp-ok")
+        await pg.wait_for_timeout(300)
+        ruf = await pg.evaluate("window.__ruf")
+        sagen(any(r["name"] == "projekt_touren_setzen"
+                  and r["args"] == ["pf", ["/mock/t1.gpx", "/mock/t2.gpx"]]
+                  for r in ruf), "Hinzufügen setzt die gewählten Touren")
 
         print("\n━━━ 5. Verwalten direkt auf der Karte ━━━")
         await pg.eval_on_selector(

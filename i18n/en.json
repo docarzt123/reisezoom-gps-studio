@@ -2472,5 +2472,17 @@
   "library.stand_done": "Working state restored.",
   "library.stand_nicht_gefunden": "State not found",
   "library.fassung_unbekannt": "Unknown version",
-  "topbar.project.action_all": "All projects …"
+  "topbar.project.action_all": "All projects …",
+  "library.proj_new": "New project",
+  "library.proj_new_hint": "Starts empty — add tours later with ➕, or open it without a tour right away (route planner, map flight).",
+  "library.proj_angelegt": "Project created.",
+  "library.proj_frei": "No tours yet — add some with ➕ or open it empty (route planner, map flight)",
+  "library.proj_addtours": "Add tours from the archive",
+  "library.proj_addtours_ok": "Add",
+  "library.proj_tours_gesetzt": "{n} tour(s) added.",
+  "topbar.project.none": "Projects",
+  "topbar.project.action_new_empty": "New empty project …",
+  "topbar.project.new_empty_title": "New empty project",
+  "topbar.project.new_empty_msg": "Name (you can add tours later):",
+  "topbar.project.new_empty_default": "New project"
 }

@@ -1092,6 +1092,22 @@ async function sessionActivateMenge(gpxPaths, ablauf, modus, pausen) {
   }
 }
 
+/** v0.9.612 — Frei-Kontext aktivieren (leeres Projekt ohne Track). */
+async function sessionActivateFrei(kontext) {
+  try {
+    const res = await api().session_open_for_frei(kontext);
+    if (!res || !res.ok) { console.warn("sessionActivateFrei failed:", res); return null; }
+    _activeSession = res.session;
+    _activeProject = res.active_project;
+    _projectsList = res.projects || [];
+    _notifySessionChanged();
+    return res;
+  } catch (err) {
+    console.warn("sessionActivateFrei error:", err);
+    return null;
+  }
+}
+
 /** Wechselt das aktive Projekt der aktuellen Session. */
 async function projectSetActive(projectId) {
   if (!_activeSession) return null;

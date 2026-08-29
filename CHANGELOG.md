@@ -46,6 +46,16 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Leere Projekte (v0.9.612, Marc: „bau direkt ein leeres projekt und wenn
+  man will kann man da dann touren hinzufügen"): „+ Neues Projekt" in der
+  Projekt-Seitenleiste UND im Topbar-Dropdown (dort jetzt auch OHNE
+  geladenen Track sichtbar) legt ein Projekt ohne Tour an (Kontext
+  `frei:<id>`). Öffnen springt ins zuletzt benutzte Modul mit leerer Karte —
+  Reiseroute und reine Kamera-Flüge speichern ihre Arbeit damit am Projekt
+  statt in den globalen Einstellungen. ➕ auf der Karte holt später Touren
+  aus dem Archiv dazu (1 = solo, ab 2 = Reise/Schwarm; der Arbeitsstand
+  bleibt). Rollen (Haupttrack, Ghosts, Schwarm) muss man beim Anlegen NICHT
+  festlegen — die entstehen wie bisher beim Arbeiten.
 - Topbar-Projekt-Umschalter (v0.9.611, Marc: „im animator kann ich jetzt
   kein neues projekt mehr machen"): er war da, aber grau in grau neben den
   Modul-Tabs unsichtbar — jetzt in Akzentfarbe wie der Archiv-Umschalter,

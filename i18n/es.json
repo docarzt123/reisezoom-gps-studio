@@ -2472,5 +2472,17 @@
   "library.stand_done": "Estado de trabajo restaurado.",
   "library.stand_nicht_gefunden": "Estado no encontrado",
   "library.fassung_unbekannt": "Versión desconocida",
-  "topbar.project.action_all": "Todos los proyectos …"
+  "topbar.project.action_all": "Todos los proyectos …",
+  "library.proj_new": "Nuevo proyecto",
+  "library.proj_new_hint": "Empieza vacío — añade rutas luego con ➕ o ábrelo sin ruta (planificador, vuelo de mapa).",
+  "library.proj_angelegt": "Proyecto creado.",
+  "library.proj_frei": "Aún sin rutas — añade con ➕ o ábrelo vacío (planificador, vuelo de mapa)",
+  "library.proj_addtours": "Añadir rutas del archivo",
+  "library.proj_addtours_ok": "Añadir",
+  "library.proj_tours_gesetzt": "{n} ruta(s) añadida(s).",
+  "topbar.project.none": "Proyectos",
+  "topbar.project.action_new_empty": "Nuevo proyecto vacío …",
+  "topbar.project.new_empty_title": "Nuevo proyecto vacío",
+  "topbar.project.new_empty_msg": "Nombre (puedes añadir rutas después):",
+  "topbar.project.new_empty_default": "Nuevo proyecto"
 }
