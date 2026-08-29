@@ -106,7 +106,11 @@ def _alter_tage(p: Path) -> float:
 def analysiere(drops_dir, sessions_datei) -> dict:
     """Was läge an, ohne etwas anzufassen. Für Vorschau und Test."""
     drops_dir = Path(drops_dir)
-    ids = _referenzierte_ids(Path(sessions_datei))
+    # E1 (v0.9.600): sessions_datei darf auch eine LISTE von Store-Dateien
+    # sein (projekte.json + touren.json) — _referenzierte_ids kann beides,
+    # ein Path()-Wrapper hier warf bei der Liste einen TypeError (im Log
+    # am 29.08. als "drops aufraeumen" aufgefallen).
+    ids = _referenzierte_ids(sessions_datei)
     if ids is None:
         return {"ok": False, "grund": "sessions_unlesbar",
                 "loeschbar": [], "behalten": [], "bytes": 0}

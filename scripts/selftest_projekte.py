@@ -3,19 +3,19 @@
 
 Der Anlass
 ----------
-Grilling 29.08.2026 (IDEAS §39): Sessions sind aufgelöst, Projekte sind
-eigenständige Arbeitsmappen. v0.9.601 (Marc: „das ist blöd über die sidebar
-… bau eine komplett neue ansicht"): der Projektmanager ist ein Vollbild-
-Overlay (ui/js/projekte.js), die App startet darin, der 🗂-Knopf in der
-Track-Leiste öffnet ihn aus jedem Modul. Marc dazu: „nicht meinen rechner
-übernehmen für tests. alles nur headless testen" — deshalb prüft dieser
-Test die Oberfläche komplett ohne echte App.
+Grilling 29.08.2026 (IDEAS §39) + v0.9.606 (Marc: „lass den [Umschalter]
+immer da unten … wechsel nur die ansicht da unten … touren und projekte
+werden ähnlich organisiert"): Projekte sind eine gleichwertige Ansicht IM
+Archiv — Umschalter in der Filterzeile, Status-Bereiche links, Suche wirkt,
+die App startet in dieser Ansicht. Marc: „nicht meinen rechner übernehmen
+für tests. alles nur headless testen" — deshalb komplett ohne echte App.
 
 Warum im Browser und nicht am Quelltext
 ---------------------------------------
-Der Boot-Weg (app.js ruft projektManagerOeffnen → Overlay → renderProjekte)
-läuft über drei Dateien. Ob am Ende wirklich Karten auf dem Bildschirm
-stehen und ein Klick die richtige Brücke ruft, sieht nur ein echter Browser.
+Der Boot-Weg (app.js setzt __rzStartProjekte → Archiv verbraucht die Flagge
+→ renderProjekte) läuft über mehrere Dateien. Ob am Ende wirklich Karten auf
+dem Bildschirm stehen und ein Klick die richtige Brücke ruft, sieht nur ein
+echter Browser.
 
 Aufruf:  .venv/bin/python scripts/selftest_projekte.py
 Braucht kein Netz (alle Brücken gemockt).
@@ -47,7 +47,7 @@ def sagen(ok: bool, text: str, zusatz: str = "") -> None:
 # Ruf-Protokoll, damit der Test sieht, was die Oberfläche wirklich sendet.
 PROJ_MOCK_JS = r"""
 (() => {
-  window.__rzKeinPmBoot = false;   // dieser Test prüft den Boot-Öffner selbst
+  window.__rzKeinPmBoot = false;   // dieser Test prüft den Boot-Einstieg selbst
   const echt = window.pywebview.api;
   window.__ruf = [];
   const merken = (name, args) => window.__ruf.push({ name, args });
@@ -120,18 +120,18 @@ async def main():
                       wait_until="domcontentloaded")
         await pg.wait_for_timeout(2500)
 
-        print("\n━━━ 1. Boot öffnet den Projektmanager (Vollbild) ━━━")
-        sagen(not await pg.eval_on_selector("#pmgr-overlay", "e => e.hidden"),
-              "das Overlay steht beim Start offen")
-        # v0.9.602 (Marc: „im projekt manager fehlt die ganze topbar"): das
-        # Overlay beginnt UNTER der Topbar — Tabs bleiben klickbar.
-        sagen(await pg.evaluate("""(() => {
-          const tb = document.querySelector(".topbar").getBoundingClientRect();
-          const ov = document.getElementById("pmgr-overlay").getBoundingClientRect();
-          return ov.top >= tb.bottom - 1 && tb.height > 10;
-        })()"""), "… die Topbar bleibt sichtbar (Overlay beginnt darunter)")
+        print("\n━━━ 1. Boot startet in der Projekte-Ansicht ━━━")
+        sagen(not await pg.eval_on_selector("#lib-projwrap", "e => e.hidden"),
+              "die Projekt-Fläche ist beim Start sichtbar")
+        sagen(await pg.eval_on_selector("#lib-grid", "e => e.hidden"),
+              "… die Touren-Kacheln sind weg")
+        sagen(await pg.eval_on_selector("#lib-nav-touren", "e => e.hidden")
+              and not await pg.eval_on_selector("#lib-nav-projekte", "e => e.hidden"),
+              "… die Seitenleiste zeigt Projekt-Bereiche statt Tour-Filter")
+        sagen(await pg.eval_on_selector(".lib-bar", "e => e.classList.contains('proj-mode')"),
+              "… die Filterzeile zeigt nur Umschalter + Suche")
         deine = await pg.eval_on_selector_all(
-            "#pmgr-body > .lib-proj-liste .lib-proj-karte",
+            "#lib-projwrap > .lib-proj-liste .lib-proj-karte",
             "e => e.map(x => x.dataset.pid)")
         sagen(deine == ["pa", "pb"],
               "„Deine Projekte“: aktiv vor fertig", str(deine))
@@ -139,40 +139,46 @@ async def main():
             ".lib-proj-autos .lib-proj-karte", "e => e.map(x => x.dataset.pid)")
         sagen(autos == ["pc"], "auto-Projekte eingeklappt darunter (Q10c)",
               str(autos))
-        sagen("2" in (await pg.eval_on_selector(
-            "#pmgr-n", "e => e.textContent")),
-              "Kopfzeile zählt nur die eigenen")
         sagen(await pg.eval_on_selector(
             '.lib-proj-karte[data-pid="pb"]',
             "e => e.classList.contains('fertig')"),
               "fertige Projekte sind als solche gestaltet")
 
-        print("\n━━━ 2. Suche filtert die Karten ━━━")
-        await pg.fill("#pmgr-search", "camino")
-        await pg.wait_for_timeout(500)
+        print("\n━━━ 2. Bereiche links + Suche filtern ━━━")
+        n_fertig = await pg.eval_on_selector(
+            '[data-pscope="fertig"] .lib-nav-n', "e => e.textContent")
+        sagen(n_fertig.strip() == "1", "Status-Bereiche zählen mit", n_fertig)
+        await pg.click('[data-pscope="fertig"]')
+        await pg.wait_for_timeout(300)
         nur = await pg.eval_on_selector_all(
-            "#pmgr-body .lib-proj-karte", "e => e.map(x => x.dataset.pid)")
+            "#lib-projwrap .lib-proj-karte", "e => e.map(x => x.dataset.pid)")
+        sagen(nur == ["pb"], "Bereich „fertig“ filtert die Karten", str(nur))
+        await pg.click('[data-pscope="auto"]')
+        await pg.wait_for_timeout(300)
+        nur = await pg.eval_on_selector_all(
+            "#lib-projwrap .lib-proj-karte", "e => e.map(x => x.dataset.pid)")
+        sagen(nur == ["pc"], "Bereich „Automatisch angelegt“ zeigt die autos", str(nur))
+        await pg.click('[data-pscope="alle"]')
+        await pg.wait_for_timeout(300)
+        await pg.fill("#lib-search", "camino")
+        await pg.wait_for_timeout(700)
+        nur = await pg.eval_on_selector_all(
+            "#lib-projwrap > .lib-proj-liste .lib-proj-karte",
+            "e => e.map(x => x.dataset.pid)")
         sagen(nur == ["pb"], "Suche „camino“ lässt nur das eine übrig", str(nur))
-        await pg.fill("#pmgr-search", "")
-        await pg.wait_for_timeout(500)
+        await pg.fill("#lib-search", "")
+        await pg.wait_for_timeout(700)
 
         print("\n━━━ 2b. Umschalter Projekte ⇄ Touren-Archiv ━━━")
-        await pg.click("#pmgr-seg-archiv")
-        sagen(await pg.eval_on_selector("#pmgr-overlay", "e => e.hidden"),
-              "„Touren-Archiv“ im Manager-Kopf wechselt ins Archiv")
-        sagen(not bool(await pg.query_selector('[data-gpxbar=\'projekte\']')),
-              "kein Projekte-Knopf mehr in der Track-Leiste (nur Archiv-Kopf)")
-        sagen(bool(await pg.query_selector("#lib-seg-projekte")),
-              "der Archiv-Kopf hat den Umschalter")
+        await pg.click("#lib-seg-touren")
+        await pg.wait_for_timeout(300)
+        sagen(await pg.eval_on_selector("#lib-projwrap", "e => e.hidden")
+              and not await pg.eval_on_selector("#lib-nav-touren", "e => e.hidden"),
+              "„Touren-Archiv“ zeigt wieder Touren + Tour-Filter")
         await pg.click("#lib-seg-projekte")
         await pg.wait_for_timeout(300)
-        sagen(not await pg.eval_on_selector("#pmgr-overlay", "e => e.hidden"),
-              "… und „Projekte“ dort öffnet den Manager wieder")
-        await pg.click("#pmgr-close")
-        sagen(await pg.eval_on_selector("#pmgr-overlay", "e => e.hidden"),
-              "✕ schließt das Overlay")
-        await pg.evaluate("window.projektManagerOeffnen()")
-        await pg.wait_for_timeout(300)
+        sagen(not await pg.eval_on_selector("#lib-projwrap", "e => e.hidden"),
+              "… und „Projekte“ wechselt zurück")
 
         # Ab hier: Modulwechsel + Track-Laden abfangen — geprüft wird die
         # ÜBERGABE, nicht der Lader (der hat eigene Tests).
@@ -196,17 +202,11 @@ async def main():
         mods = await pg.evaluate("window.__mods")
         sagen(mods and mods[-1] == "tourmap",
               "… und springt ins letzte Modul (tourmap)", str(mods))
-        sagen(await pg.eval_on_selector("#pmgr-overlay", "e => e.hidden"),
-              "Öffnen schließt das Overlay")
-        await pg.evaluate("window.projektManagerOeffnen()")
-        await pg.wait_for_timeout(300)
         await pg.click('.lib-proj-chip[data-open-modul="animator"][data-pid="pa"]')
         await pg.wait_for_timeout(300)
         mods = await pg.evaluate("window.__mods")
         sagen(mods[-1] == "animator",
               "Modul-Chip überstimmt das letzte Modul", str(mods))
-        await pg.evaluate("window.projektManagerOeffnen()")
-        await pg.wait_for_timeout(300)
 
         print("\n━━━ 4. Kompositionen gehen den Übergabe-Weg ━━━")
         await pg.click('[data-open="pb"]')
@@ -224,8 +224,6 @@ async def main():
               "erste Etappe lädt als Mengen-Start", str(loads[-1]))
         mods = await pg.evaluate("window.__mods")
         sagen(mods[-1] == "animator", "Komposition öffnet im Animator")
-        await pg.evaluate("window.projektManagerOeffnen()")
-        await pg.wait_for_timeout(300)
 
         print("\n━━━ 5. Verwalten direkt auf der Karte ━━━")
         await pg.eval_on_selector(

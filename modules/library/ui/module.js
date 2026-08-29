@@ -204,6 +204,14 @@ function mountLibrary(body, headerActions) {
 
   body.innerHTML = `
     <aside class="panel lib-nav" id="lib-panel">
+      <!-- v0.9.606 (Marc: „touren und projekte werden ähnlich organisiert"):
+           die Seitenleiste hat ZWEI Gesichter — Touren-Filter oder
+           Projekt-Bereiche, je nach Umschalter in der Filterzeile. -->
+      <div id="lib-nav-projekte" hidden>
+        <div class="lib-nav-title">${T("pm.title", "Projekte")}</div>
+        <nav class="lib-scopes" id="lib-proj-scopes"></nav>
+      </div>
+      <div id="lib-nav-touren">
       <div class="lib-nav-title">${T("library.section_library", "Bibliothek")}</div>
       <nav class="lib-scopes" id="lib-scopes"></nav>
 
@@ -216,6 +224,7 @@ function mountLibrary(body, headerActions) {
         <button class="btn btn-ghost btn-sm" id="lib-dupes" type="button">${T("library.duplicates", "Doppelte finden")}</button>
         <div class="lib-nav-hint" id="lib-nav-hint"></div>
       </div>
+      </div>
     </aside>
 
     <section class="lib-main">
@@ -225,7 +234,7 @@ function mountLibrary(body, headerActions) {
              Vollbild-Manager (ui/js/projekte.js). -->
         <div class="pmgr-seg" role="group">
           <button type="button" class="pmgr-seg-btn" id="lib-seg-projekte">🗂 ${T("pm.title", "Projekte")}</button>
-          <button type="button" class="pmgr-seg-btn is-on">📚 ${T("pm.seg_archive", "Touren-Archiv")}</button>
+          <button type="button" class="pmgr-seg-btn is-on" id="lib-seg-touren">📚 ${T("pm.seg_archive", "Touren-Archiv")}</button>
         </div>
         <input type="search" id="lib-search" class="lib-search"
                placeholder="${T("library.search_ph", "Suchen — Name, Ort, Schlagwort …")}">
@@ -300,6 +309,7 @@ function mountLibrary(body, headerActions) {
             🖼 <span>${T("library.map_png_short", "PNG")}</span></button>
         </div>
         <div class="lib-stats" id="lib-stats" hidden></div>
+        <div class="lib-projwrap" id="lib-projwrap" hidden></div>
       </div>
     </section>
 
@@ -671,17 +681,225 @@ function mountLibrary(body, headerActions) {
       acts.map(a => `<option value="${esc(a.activity)}"${state.activity === a.activity ? " selected" : ""}>${esc(ACT_LABELS[a.activity] || a.activity)} (${a.n})</option>`).join("");
   }
 
-  // v0.9.601: Der PROJEKTE-Bereich ist in eine eigene Vollbild-Ansicht
-  // umgezogen (ui/js/projekte.js, Knopf in der Track-Leiste) — Marc:
-  // „das ist blöd über die sidebar, weil die tourfilter da sind“.
+  /* ══ PROJEKTE-Ansicht (E1 + v0.9.606) ═══════════════════════════════════
+   * Marc, 29.08.2026: „lass den [Umschalter] immer da unten … wechsel nur die
+   * ansicht da unten. die projekte können ja auch filter gebrauchen …
+   * touren und projekte werden ähnlich organisiert." — Projekte sind eine
+   * gleichwertige Archiv-Ansicht: gleiche Filterzeile (Suche wirkt), eigene
+   * Bereiche links (Status statt Jahr/Art), Karten-Raster rechts.
+   * Öffnen springt ins zuletzt benutzte Modul (Q22). */
+  let _projView = false;
+  let _projekte = [];
+  let _projScope = "alle";  // alle | aktiv | idee | fertig | auto
+  let _projFilterGh = "";   // Detailspalte: „Projekte dieser Tour" zeigen
+
+  function projViewSetzen(an) {
+    _projView = !!an;
+    const bar = document.querySelector(".lib-bar");
+    if (bar) bar.classList.toggle("proj-mode", _projView);
+    const sp = document.getElementById("lib-seg-projekte");
+    const st = document.getElementById("lib-seg-touren");
+    if (sp) sp.classList.toggle("is-on", _projView);
+    if (st) st.classList.toggle("is-on", !_projView);
+    const np = document.getElementById("lib-nav-projekte");
+    const nt = document.getElementById("lib-nav-touren");
+    if (np) np.hidden = !_projView;
+    if (nt) nt.hidden = _projView;
+    renderView();
+  }
+
+  function renderProjNav() {
+    const box = document.getElementById("lib-proj-scopes");
+    if (!box) return;
+    const eigene = _projekte.filter(p => !p.auto);
+    const n = (st) => eigene.filter(p => p.status === st).length;
+    const eintraege = [
+      ["alle", "🗂", T("library.projects_all", "Alle Projekte"), eigene.length],
+      ["aktiv", "🟢", T("library.proj_st_aktiv", "aktiv"), n("aktiv")],
+      ["idee", "💡", T("library.proj_st_idee", "Idee"), n("idee")],
+      ["fertig", "✅", T("library.proj_st_fertig", "fertig"), n("fertig")],
+      ["auto", "⚙️", T("library.proj_autos", "Automatisch angelegt"),
+       _projekte.filter(p => p.auto).length],
+    ];
+    box.innerHTML = eintraege.map(([k, ico, lbl, anz]) => `
+      <button class="lib-nav-item${_projScope === k ? " is-on" : ""}" data-pscope="${k}" type="button">
+        <span class="lib-nav-ico">${ico}</span><span class="lib-nav-lbl">${esc(lbl)}</span>
+        <span class="lib-nav-n">${anz || ""}</span>
+      </button>`).join("");
+    box.querySelectorAll("[data-pscope]").forEach(b => {
+      b.onclick = () => { _projScope = b.dataset.pscope; renderProjekte(); };
+    });
+  }
+
+  async function renderProjekte() {
+    const box = $("lib-projwrap");
+    if (!box) return;
+    const res = await api().projekte_liste();
+    _projekte = (res && res.projekte) || [];
+    renderProjNav();
+    const suche = (state.search || "").trim().toLowerCase();
+    const passt = (p) => (!_projFilterGh || (p.geo_hashes || []).includes(_projFilterGh))
+      && (_projScope === "alle" ? true
+          : _projScope === "auto" ? !!p.auto : (!p.auto && p.status === _projScope))
+      && (!suche
+          || p.name.toLowerCase().includes(suche)
+          || (p.tour_namen || []).some(nm => nm.toLowerCase().includes(suche)));
+    const deine = _projekte.filter(p => !p.auto && passt(p));
+    const autos = _projekte.filter(p => p.auto && passt(p));
+    const rang = { aktiv: 0, idee: 1, fertig: 2 };
+    deine.sort((a, b) => (rang[a.status] ?? 0) - (rang[b.status] ?? 0)
+      || String(b.modified_at || "").localeCompare(String(a.modified_at || "")));
+    autos.sort((a, b) => String(b.modified_at || "").localeCompare(String(a.modified_at || "")));
+    const MODUL_CHIP = { animator: ["🎬", "Animator"], tourmap: ["🗺", "Tour-Map"],
+                         geotagger: ["📷", "Geotagger"], heightanim: ["📈", T("library.proj_daten", "Daten")] };
+    const karte = (p) => {
+      const ablauf = p.ablauf === "schwarm"
+        ? `🌊 ${T("schwarm.name", "Schwarm")} · ${p.n_touren} ${T("library.tours", "Touren")}`
+        : p.ablauf === "reise"
+          ? `🧵 ${T("library.proj_reise", "Reise")} · ${p.n_touren} ${T("library.tours", "Touren")}`
+          : esc((p.tour_namen || [])[0] || "");
+      const chips = (p.module || []).map(m => {
+        const c = MODUL_CHIP[m] || ["▫", m];
+        return `<button class="lib-proj-chip" data-open-modul="${m}" data-pid="${p.id}" title="${esc(c[1])}">${c[0]}</button>`;
+      }).join("");
+      const wann = fmtDate(p.modified_at);
+      const fehlt = p.exists === false ? ` <span class="lib-proj-fehlt" title="${T("library.proj_fehlt_tip", "Tour-Datei nicht gefunden — Öffnen sucht sie im Archiv.")}">⚠️</span>` : "";
+      return `<div class="lib-proj-karte${p.status === "fertig" ? " fertig" : ""}" data-pid="${p.id}">
+        <div class="lib-proj-kopf">
+          <span class="lib-proj-name">${esc(p.name)}</span>${fehlt}
+          <select class="lib-proj-status" data-pid="${p.id}" title="${T("library.proj_status", "Status")}">
+            <option value="aktiv"${p.status === "aktiv" ? " selected" : ""}>${T("library.proj_st_aktiv", "aktiv")}</option>
+            <option value="idee"${p.status === "idee" ? " selected" : ""}>${T("library.proj_st_idee", "Idee")}</option>
+            <option value="fertig"${p.status === "fertig" ? " selected" : ""}>${T("library.proj_st_fertig", "fertig")}</option>
+          </select>
+        </div>
+        <div class="lib-proj-sub">${ablauf}</div>
+        <div class="lib-proj-fuss">
+          <span class="lib-proj-chips">${chips}</span>
+          <span class="lib-proj-wann">${wann}</span>
+          <span class="lib-proj-akt">
+            <button class="btn btn-primary btn-sm" data-open="${p.id}">${T("library.proj_open", "Öffnen")}</button>
+            <button class="btn btn-ghost btn-sm" data-ren="${p.id}" title="${T("library.rename", "Umbenennen")}">✎</button>
+            <button class="btn btn-ghost btn-sm" data-dup="${p.id}" title="${T("library.col_duplicate", "Duplizieren")}">⎘</button>
+            <button class="btn btn-ghost btn-sm lib-btn-danger" data-del="${p.id}" title="${T("library.proj_delete", "Projekt löschen")}">🗑</button>
+          </span>
+        </div>
+      </div>`;
+    };
+    const filterChip = _projFilterGh
+      ? `<div class="lib-proj-filter">${T("library.proj_filter_tour", "Nur Projekte dieser Tour")}
+           <button type="button" id="lib-proj-filter-x">✕</button></div>` : "";
+    const autoBlock = _projScope === "auto"
+      ? `<div class="lib-proj-liste pmgr-liste">${autos.map(karte).join("")
+          || `<div class="lib-empty"><div class="lib-empty-title">${T("library.proj_leer", "Noch keine Projekte — öffne eine Tour oder starte einen Schwarm, dann entsteht hier dein Arbeitsstand.")}</div></div>`}</div>`
+      : `${autos.length && _projScope === "alle" ? `<details class="lib-proj-autos"><summary>${T("library.proj_autos", "Automatisch angelegt")} (${autos.length})<span class="gpxi-q" data-tip="${T("library.proj_autos_tip", "Beim Öffnen einer Tour entsteht automatisch ein Arbeitsstand. Sobald du darin etwas baust oder ihn umbenennst, wandert er nach oben zu deinen Projekten.")}">?</span></summary>
+        <div class="lib-proj-liste pmgr-liste">${autos.map(karte).join("")}</div></details>` : ""}`;
+    box.innerHTML = `${filterChip}
+      ${_projScope !== "auto" ? `<div class="lib-proj-liste pmgr-liste">${deine.map(karte).join("")
+        || `<div class="lib-empty"><div class="lib-empty-title">${T("library.proj_leer", "Noch keine Projekte — öffne eine Tour oder starte einen Schwarm, dann entsteht hier dein Arbeitsstand.")}</div></div>`}
+      </div>` : ""}
+      ${autoBlock}`;
+    initHelpTips(box);
+    { const fx = document.getElementById("lib-proj-filter-x");
+      if (fx) fx.onclick = () => { _projFilterGh = ""; renderProjekte(); }; }
+    box.querySelectorAll("[data-open]").forEach(b => b.onclick = () => projektOeffnen(b.dataset.open));
+    box.querySelectorAll("[data-open-modul]").forEach(b => b.onclick = (e) => {
+      e.stopPropagation(); projektOeffnen(b.dataset.pid, b.dataset.openModul);
+    });
+    box.querySelectorAll(".lib-proj-status").forEach(sel => sel.onchange = async () => {
+      await api().projekt_status_setzen(sel.dataset.pid, sel.value);
+      renderProjekte();
+    });
+    box.querySelectorAll("[data-ren]").forEach(b => b.onclick = () => {
+      const p = _projekte.find(x => x.id === b.dataset.ren);
+      const m = openModal({
+        title: "✎ " + T("library.rename", "Umbenennen"),
+        body: `<input type="text" id="lib-proj-neuname" class="lib-input" value="${esc((p || {}).name || "")}">`,
+        footer: `<button class="btn" id="lib-pr-ab">${T("common.cancel", "Abbrechen")}</button>
+                 <button class="btn btn-primary" id="lib-pr-ok">OK</button>`,
+      });
+      const ok = document.getElementById("lib-pr-ok");
+      if (ok) ok.onclick = async () => {
+        const v = (document.getElementById("lib-proj-neuname") || {}).value || "";
+        m.close();
+        if (v.trim()) { await api().projekt_umbenennen(b.dataset.ren, v.trim()); renderProjekte(); }
+      };
+      const ab = document.getElementById("lib-pr-ab");
+      if (ab) ab.onclick = () => m.close();
+    });
+    box.querySelectorAll("[data-dup]").forEach(b => b.onclick = async () => {
+      await api().projekt_duplizieren(b.dataset.dup);
+      renderProjekte();
+    });
+    box.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+      const p = _projekte.find(x => x.id === b.dataset.del);
+      const m = openModal({
+        title: "🗑 " + T("library.proj_delete", "Projekt löschen"),
+        body: `<p>${T("library.proj_delete_frage", "Dieses Projekt löschen? Die Touren im Archiv bleiben unberührt — nur der Arbeitsstand (Keyframes, Einstellungen) geht verloren.")}</p>
+               <div class="lib-hint">${esc((p || {}).name || "")}</div>`,
+        footer: `<button class="btn" id="lib-pd-ab">${T("common.cancel", "Abbrechen")}</button>
+                 <button class="btn lib-btn-danger" id="lib-pd-ok">${T("library.proj_delete", "Projekt löschen")}</button>`,
+      });
+      const ok = document.getElementById("lib-pd-ok");
+      if (ok) ok.onclick = async () => {
+        m.close();
+        await api().projekt_loeschen(b.dataset.del);
+        renderProjekte();
+        toast(T("library.proj_geloescht", "Projekt gelöscht."), "info");
+      };
+      const ab = document.getElementById("lib-pd-ab");
+      if (ab) ab.onclick = () => m.close();
+    });
+  }
+
+  /** Öffnen (Q22): Solo lädt die Tour und springt ins zuletzt benutzte Modul;
+   *  Kompositionen gehen den bewährten Übergabe-Weg (Pending + Lade-Modal). */
+  async function projektOeffnen(pid, modulWunsch) {
+    const info = await api().projekt_aktivieren(pid);
+    if (!info || !info.ok) { toast((info && info.error) || "?", "error"); return; }
+    const k = _projekte.find(x => x.id === pid) || {};
+    const modul = modulWunsch || info.letztes_modul || "animator";
+    if (info.ablauf === "reise" || info.ablauf === "schwarm") {
+      const pfade = info.gpx_paths || [];
+      if (pfade.length < 2 || k.pfade_ok === false) {
+        toast(T("library.proj_pfade_fehlen", "Nicht alle Tour-Dateien der Komposition wurden gefunden."), "warn", 6000);
+        return;
+      }
+      window.__rzPendingTours = pfade.slice(1);
+      window.__rzPendingAblauf = info.ablauf;
+      window.__rzPendingModus = info.schwarm_modus || "gleich";
+      window.__rzPendingPausen = info.schwarm_pausen !== false;
+      if (pfade.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
+      const ok = await window.loadGlobalGpx(pfade[0], { stumm: true, menge: true });
+      if (ok === false) {
+        window.__rzPendingTours = null;
+        if (typeof tourenLadeModalZu === "function") tourenLadeModalZu();
+        return;
+      }
+      if (typeof switchMod === "function") switchMod("animator");
+      return;
+    }
+    if (!k.haupt_pfad) {
+      toast(T("library.proj_pfade_fehlen", "Nicht alle Tour-Dateien der Komposition wurden gefunden."), "warn", 6000);
+      return;
+    }
+    const ok = await window.loadGlobalGpx(k.haupt_pfad, { stumm: true });
+    if (ok === false) return;
+    if (typeof switchMod === "function") switchMod(modul);
+  }
 
   // ── Ansichten ─────────────────────────────────────────────────────────
   function renderView() {
     document.querySelectorAll(".lib-view").forEach(b => b.classList.toggle("is-on", b.dataset.view === view));
-    $("lib-grid").hidden = view !== "cards";
-    $("lib-list").hidden = view !== "list";
-    $("lib-mapwrap").hidden = view !== "map";
-    $("lib-stats").hidden = view !== "stats";
+    const pv = _projView;
+    $("lib-projwrap").hidden = !pv;
+    $("lib-head").hidden = pv;
+    { const d = $("lib-detail"); if (d) d.hidden = pv; }
+    $("lib-grid").hidden = pv || view !== "cards";
+    $("lib-list").hidden = pv || view !== "list";
+    $("lib-mapwrap").hidden = pv || view !== "map";
+    $("lib-stats").hidden = pv || view !== "stats";
+    if (pv) { renderProjekte(); return; }
     if (view === "cards") renderGrid();
     else if (view === "list") renderList();
     else if (view === "stats") renderStats();
@@ -2205,9 +2423,8 @@ function mountLibrary(body, headerActions) {
         const a2 = document.getElementById("lib-d-proj-link");
         if (a2) a2.onclick = (e) => {
           e.preventDefault();
-          // v0.9.601: der Projektmanager ist eine eigene Vollbild-Ansicht.
-          if (typeof window.projektManagerOeffnen === "function")
-            window.projektManagerOeffnen({ filterGh: it.geo_hash });
+          _projFilterGh = it.geo_hash;
+          projViewSetzen(true);
         };
       } catch (_) { el.textContent = ""; }
     })();
@@ -3175,12 +3392,19 @@ function mountLibrary(body, headerActions) {
 
   // ── Ereignisse ────────────────────────────────────────────────────────
   { const sp = document.getElementById("lib-seg-projekte");
-    if (sp) sp.onclick = () => {
-      if (typeof window.projektManagerOeffnen === "function") window.projektManagerOeffnen();
-    }; }
+    const st = document.getElementById("lib-seg-touren");
+    if (sp) sp.onclick = () => { if (!_projView) projViewSetzen(true); };
+    if (st) st.onclick = () => { if (_projView) projViewSetzen(false); }; }
+  // Q19/Q21: Die App startet im Archiv, Ansicht „Projekte" — app.js setzt
+  // die Flagge beim Boot; hier wird sie genau einmal verbraucht.
+  if (window.__rzStartProjekte) {
+    window.__rzStartProjekte = false;
+    projViewSetzen(true);
+  }
   $("lib-search").oninput = debounce(() => {
     state.search = $("lib-search").value;
     _ortAus = false;           // neue Eingabe → Gegend wieder erlauben
+    if (_projView) { renderProjekte(); return; }
     reload();
   }, 400);
   $("lib-year").onchange = () => { setFilter("year", parseInt($("lib-year").value, 10) || 0); reload(); };
