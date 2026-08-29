@@ -2498,5 +2498,6 @@
   "library.proj_solo": "Ruta única",
   "library.proj_touren": "Rutas",
   "library.proj_angelegt_am": "Creado",
-  "library.proj_geaendert_am": "Último"
+  "library.proj_geaendert_am": "Último",
+  "ghosts.schon_da": "{n} ruta(s) ya están como fantasma — no se añaden dos veces."
 }

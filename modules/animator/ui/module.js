@@ -2349,6 +2349,49 @@ function mountAnimator(body, headerActions, opts) {
     }
     if (woher === "nichts" && a && Array.isArray(a.ghosts)) woher = "Einstellungen";
     _ghostSpuren = (a && Array.isArray(a.ghosts)) ? a.ghosts.slice() : [];
+    // Schorfheide-Befund (Marc, 29.08.2026): dieselben Routen wurden an zwei
+    // Tagen erneut hinzugefügt — 14 Spuren, 5 doppelt, und das Knäuel sah wie
+    // „der ungeheilte Track" aus. (1) Dubletten (gleicher Pfad) beim Laden
+    // zusammenlegen — die erste behält ihre Optik; beim nächsten Sichern ist
+    // das Projekt sauber. (2) Die im Projekt EINGEFRORENEN Koordinaten
+    // auffrischen: wird die Quelldatei später geheilt/ersetzt, zeigt der
+    // Ghost sonst für immer die alte Geometrie.
+    {
+      const nfc = (x) => { try { return String(x || "").normalize("NFC"); } catch (_) { return String(x || ""); } };
+      const gesehen = new Set();
+      const sauber = [];
+      for (const g of _ghostSpuren) {
+        const k = nfc(g && g.path) || ("#" + (g && g.id));
+        if (gesehen.has(k)) continue;
+        gesehen.add(k);
+        sauber.push(g);
+      }
+      if (sauber.length !== _ghostSpuren.length) {
+        applog && applog("info", `[ghost] ${_ghostSpuren.length - sauber.length} Dublette(n) zusammengelegt`);
+        _ghostSpuren = sauber;
+        try { ghostSpurenSichern(); } catch (_) {}
+      }
+      const pfade = _ghostSpuren.filter(g => g && g.path).map(g => g.path);
+      if (pfade.length) {
+        api().ghosts_laden(pfade).then(res => {
+          if (!res || !res.ok || !Array.isArray(res.ghosts)) return;
+          const frisch = new Map(res.ghosts.map(sp => [nfc(sp.path || ""), sp.coords]));
+          let geaendert = 0;
+          for (const g of _ghostSpuren) {
+            const c = frisch.get(nfc(g.path));
+            if (c && c.length > 1 && JSON.stringify(c) !== JSON.stringify(g.coords)) {
+              g.coords = c;
+              geaendert++;
+            }
+          }
+          if (geaendert) {
+            applog && applog("info", `[ghost] ${geaendert} Spur(en) von der Quelldatei aufgefrischt`);
+            try { ghostSpurenSichern(); } catch (_) {}
+            try { _ghostSpurenAufbauen(); } catch (_) {}
+          }
+        }).catch(() => {});
+      }
+    }
     applog && applog("info", `[ghost] geladen: ${_ghostSpuren.length} aus ${woher} (Schlüssel ${_MODKEY})`);
     return _ghostSpuren;
   }
@@ -2488,8 +2531,15 @@ function mountAnimator(body, headerActions, opts) {
     applog && applog("info", `[ghost] hinzufügen: ${(ghosts || []).length} Spur(en)`);
     if (!ghosts || !ghosts.length) return;
     const liste = ghostSpuren();
+    // Schorfheide-Befund (29.08.2026): dieselben Routen zweimal hinzugefügt →
+    // 14 Spuren, 5 doppelt. Bereits vorhandene Pfade überspringen + ansagen.
+    const nfc = (x) => { try { return String(x || "").normalize("NFC"); } catch (_) { return String(x || ""); } };
+    const da = new Set(liste.map(g => nfc(g && g.path)).filter(Boolean));
+    let uebersprungen = 0;
     for (const g of ghosts) {
       if (!g || !(g.coords || []).length) continue;
+      if (g.path && da.has(nfc(g.path))) { uebersprungen++; continue; }
+      if (g.path) da.add(nfc(g.path));
       liste.push({
         id: `gh_${Date.now()}_${_ghostIdZaehler++}`,
         name: g.name || "Ghost",
@@ -2498,6 +2548,10 @@ function mountAnimator(body, headerActions, opts) {
         color: GHOST_FARBEN[(liste.length) % GHOST_FARBEN.length],
         opacity: 0.6, width: 2.5, dashed: true, show: true,
       });
+    }
+    if (uebersprungen) {
+      toast(t("ghosts.schon_da", "{n} Spur(en) liegen schon als Ghost drüber — nicht doppelt hinzugefügt.")
+        .replace("{n}", uebersprungen), "info", 3200);
     }
     ghostSpurenSichern();
     _ghostSpurenAufbauen();

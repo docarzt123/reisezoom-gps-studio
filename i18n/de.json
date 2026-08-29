@@ -2498,5 +2498,6 @@
   "library.proj_solo": "Einzeltour",
   "library.proj_touren": "Touren",
   "library.proj_angelegt_am": "Angelegt",
-  "library.proj_geaendert_am": "Zuletzt"
+  "library.proj_geaendert_am": "Zuletzt",
+  "ghosts.schon_da": "{n} Spur(en) liegen schon als Ghost drüber — nicht doppelt hinzugefügt."
 }
