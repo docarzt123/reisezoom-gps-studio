@@ -2895,9 +2895,12 @@ function mountLibrary(body, headerActions) {
       const h = document.getElementById("lib-cm-filterhint");
       if (h && m.reduziert) {
         h.hidden = false;
+        const filter = aktiveFilterText();
         h.textContent = T("library.col_filterhint",
           "Archiv-Filter aktiv: {n} von {m} Touren sichtbar — „Alle im Animator“ und „Als Schwarm“ nehmen genau diese {n}.")
-          .replace(/\{n\}/g, String(m.gefiltert.length)).replace("{m}", String(m.alle.length));
+          .replace(/\{n\}/g, String(m.gefiltert.length)).replace("{m}", String(m.alle.length))
+          + (filter ? " " + T("library.col_filterhint_filter",
+              "Aktive Filter: {f}.").replace("{f}", filter) : "");
       }
     }).catch(() => {});
     const nameEl = document.getElementById("lib-cm-name");
@@ -3060,6 +3063,27 @@ function mountLibrary(body, headerActions) {
    *  Touren. Übergaben nehmen jetzt das, was die Filter zeigen; ohne aktive
    *  Filter bleibt es die ganze Sammlung. Abgleich über geo_hash, weil
    *  dieselbe Tour als mehrere Dateien im Archiv liegen kann. */
+  /** v0.9.617 (Marc: „ist es zufall, dass genau fünfzig …?" — es war der
+   *  übersehene Jahr-Filter 2023): die aktiven Filter beim Namen nennen,
+   *  damit klar ist, WARUM eine Übergabe weniger nimmt als die Sammlung hat. */
+  function aktiveFilterText() {
+    const teile = [];
+    const SCOPE_LBL = { done: T("library.scope_done", "Gemachte"),
+                        planned: T("library.scope_planned", "Geplante"),
+                        fav: T("library.scope_fav", "Favoriten"),
+                        merged: T("library.scope_merged", "Zusammengefügt"),
+                        hidden: T("library.scope_hidden", "Ausgeblendete") };
+    if (scope !== "all" && SCOPE_LBL[scope]) teile.push(SCOPE_LBL[scope]);
+    if (state.year) teile.push(T("library.filter_jahr", "Jahr {j}").replace("{j}", String(state.year)));
+    if (state.activity) teile.push(ACT_LABELS[state.activity] || state.activity);
+    if (state.von || state.bis) teile.push(`${state.von || "…"} – ${state.bis || "…"}`);
+    if (state.min_km != null || state.max_km != null)
+      teile.push(`${state.min_km != null ? state.min_km : 0}–${state.max_km != null ? state.max_km : "∞"} km`);
+    if ((state.search || "").trim()) teile.push(`„${state.search.trim()}“`);
+    if (_ortAktiv) teile.push(T("library.filter_gegend", "Gegend auf der Karte"));
+    return teile.join(" · ");
+  }
+
   async function sammlungGefiltert(cid) {
     const alleRes = await api().library_collection_items(cid);
     const alle = ((alleRes && alleRes.items) || []);

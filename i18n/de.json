@@ -2484,5 +2484,8 @@
   "topbar.project.action_new_empty": "Neues leeres Projekt …",
   "topbar.project.new_empty_title": "Neues leeres Projekt",
   "topbar.project.new_empty_msg": "Name (Touren kannst du später hinzufügen):",
-  "topbar.project.new_empty_default": "Neues Projekt"
+  "topbar.project.new_empty_default": "Neues Projekt",
+  "library.col_filterhint_filter": "Aktive Filter: {f}.",
+  "library.filter_jahr": "Jahr {j}",
+  "library.filter_gegend": "Gegend auf der Karte"
 }
