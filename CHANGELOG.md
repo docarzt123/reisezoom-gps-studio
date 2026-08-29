@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.622] – 2026-08-29
+
 ### Added — ⚠️ E2+E3 des Projekt-Umbaus (v0.9.610): Tour-Identität, Fassungen, Historie, Cloud v2
 - **Tour-Register (E2):** Jede Tour trägt jetzt eine stabile **UUID**; Heilen,
   Ersetzen und extern erkannte Änderungen bilden eine **Fassungs-Kette**

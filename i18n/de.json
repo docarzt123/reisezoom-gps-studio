@@ -2492,5 +2492,6 @@
   "library.proj_addtours_leer": "Nichts angehakt — erst Touren auswählen.",
   "library.keine_treffer": "Keine Treffer.",
   "animator.pace.wirkung_min": "Diese Tour wurde so gleichmäßig aufgezeichnet, dass diese Verteilung kaum sichtbar wirkt (höchstens {p} % Verschiebung).",
-  "animator.pace.wirkung": "Wirkung bei dieser Tour: der Lauf verschiebt sich um bis zu {p} % gegenüber „gleichmäßig“."
+  "animator.pace.wirkung": "Wirkung bei dieser Tour: der Lauf verschiebt sich um bis zu {p} % gegenüber „gleichmäßig“.",
+  "library.rename": "Umbenennen"
 }

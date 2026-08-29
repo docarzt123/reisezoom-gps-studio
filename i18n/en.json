@@ -2492,5 +2492,6 @@
   "library.proj_addtours_leer": "Nothing ticked — select tours first.",
   "library.keine_treffer": "No matches.",
   "animator.pace.wirkung_min": "This tour was recorded so evenly that this distribution is barely visible (at most {p} % shift).",
-  "animator.pace.wirkung": "Effect on this tour: the run shifts by up to {p} % compared to “even”."
+  "animator.pace.wirkung": "Effect on this tour: the run shifts by up to {p} % compared to “even”.",
+  "library.rename": "Rename"
 }
