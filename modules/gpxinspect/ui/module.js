@@ -98,6 +98,10 @@ function mountGpxInspect(body, headerActions) {
           <label class="gpxi-check"><input type="checkbox" id="gpxi-heal-spikes" checked> ${t("gpxinspect.heal_opt_spikes", "Ausreißer/Sprünge glätten")}</label>
           <label class="gpxi-check"><input type="checkbox" id="gpxi-heal-gaps" checked> ${t("gpxinspect.heal_opt_gaps", "Lücken mit Punkten füllen")}</label>
           <label class="gpxi-check" id="gpxi-heal-tempo-row"><input type="checkbox" id="gpxi-heal-tempo" checked> ${t("gpxinspect.heal_opt_tempo", "Unmögliches Tempo entzerren (Zeit korrigieren)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_opt_tempo_help", "Manche GPS-Sprünge sind ein dauerhafter Versatz: Der Track springt z. B. 40 m und bleibt dort — Position glätten kann das nicht heilen, denn die Strecke wurde ja zurückgelegt, nur die Zeitstempel behaupten „in 3 Sekunden“. Diese Option korrigiert die ZEIT solcher Stellen aufs übliche Tempo der Umgebung. Die Tour wird dadurch ein paar Sekunden länger; Strecke und Positionen bleiben unangetastet.")}">?</span></label>
+          <div class="gpxi-fillrow" id="gpxi-tempocap-row">
+            <label>${t("gpxinspect.tempo_cap", "Max. plausibles Tempo")}<span class="gpxi-q" data-tip="${t("gpxinspect.tempo_cap_help", "Leer = automatisch (aus dem Tempo-Median der Tour). Trage z. B. 15 ein, wenn du weißt, dass du nie schneller als 15 km/h warst — alles darüber wird beim Heilen zeitlich entzerrt.")}">?</span></label>
+            <input type="number" id="gpxi-tempo-cap" min="1" max="500" step="1" placeholder="${t("gpxinspect.tempo_cap_auto", "auto")}"> km/h
+          </div>
           <div class="gpxi-fillrow" id="gpxi-profilerow">
             <label>${t("gpxinspect.profile", "Lücken füllen als")}<span class="gpxi-q" data-tip="${t("gpxinspect.profile_help", "Luftlinie = gerade Linie zwischen den Punkten. Wandern/Fahrrad/Auto = die echte Route auf dem Wegenetz suchen (Mapbox, Internet + Token) und der Track folgt den Wegen. Sehr große Lücken (z. B. Flüge) bleiben immer gerade.")}">?</span></label>
             <select id="gpxi-profile">
@@ -383,6 +387,8 @@ function mountGpxInspect(body, headerActions) {
     if (_scRow) _scRow.style.display = _hasTime ? "" : "none";   // ohne Zeit kein Tempo
     const _htRow = document.getElementById("gpxi-heal-tempo-row");
     if (_htRow) _htRow.style.display = _hasTime ? "" : "none";
+    const _tcRow = document.getElementById("gpxi-tempocap-row");
+    if (_tcRow) _tcRow.style.display = _hasTime ? "" : "none";
     clearBeforeAfter();
     renderAll();
     try { renderDraw(); } catch (_) {}
@@ -545,7 +551,13 @@ function mountGpxInspect(body, headerActions) {
     vs.sort((a, b) => a - b);
     const med = vs.length ? vs[Math.floor(vs.length / 2)] : 0;
     if (med <= 0) return 0;
-    const thr = Math.max(4.2, med * lerp(12, 3));
+    // 29.08.2026 (Marc: „ich bin ein paar mal gerannt, aber 27 km/h hab ich
+    // bestimmt nicht erreicht") — wer sein Maximal-Tempo kennt, gibt es vor;
+    // leer bleibt die automatische Median-Schwelle.
+    const capKmh = parseFloat((document.getElementById("gpxi-tempo-cap") || {}).value);
+    const thr = (isFinite(capKmh) && capKmh >= 1)
+      ? capKmh / 3.6
+      : Math.max(4.2, med * lerp(12, 3));
     let shiftMs = 0, fixed = 0;
     for (let i = 1; i < n; i++) {
       if (orig[i] == null) continue;
@@ -2208,6 +2220,17 @@ function mountGpxInspect(body, headerActions) {
   _on("gpxi-heal-run", runHeal);
   { const sc = document.getElementById("gpxi-speedcolor");
     if (sc) sc.addEventListener("change", () => { try { renderSpeedColor(); } catch (_) {} }); }
+  // Max-Tempo-Deckel überlebt den Neustart (z. B. „15" für Wander-Touren).
+  { const tc = document.getElementById("gpxi-tempo-cap");
+    if (tc) {
+      try {
+        const merk = (typeof _settingsCache === "object" && _settingsCache) ? _settingsCache.gpxi_tempo_cap : null;
+        if (merk != null && merk !== "") tc.value = merk;
+      } catch (_) {}
+      tc.addEventListener("change", () => {
+        try { saveSettings({ gpxi_tempo_cap: tc.value === "" ? "" : parseFloat(tc.value) }); } catch (_) {}
+      });
+    } }
   _on("gpxi-baft-close", () => clearBeforeAfter());
   { const bt = document.getElementById("gpxi-before-toggle");
     if (bt) bt.addEventListener("change", () => renderBeforeLine()); }

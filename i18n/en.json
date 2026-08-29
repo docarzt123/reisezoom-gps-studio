@@ -2408,5 +2408,8 @@
   "gpxinspect.st_hm": "Elevation",
   "gpxinspect.heal_opt_tempo": "Fix impossible speeds (correct time)",
   "gpxinspect.heal_opt_tempo_help": "Some GPS jumps are a permanent offset: the track leaps e.g. 40 m and stays there — smoothing positions cannot heal that, because the distance really was covered; only the timestamps claim “in 3 seconds”. This option corrects the TIME of such spots to the usual pace of the surroundings. The tour gets a few seconds longer; distance and positions stay untouched.",
-  "gpxinspect.heal_tempo_done": "%t speed spots re-timed"
+  "gpxinspect.heal_tempo_done": "%t speed spots re-timed",
+  "gpxinspect.tempo_cap": "Max. plausible speed",
+  "gpxinspect.tempo_cap_help": "Empty = automatic (from the tour's median pace). Enter e.g. 15 if you know you were never faster than 15 km/h — anything above gets re-timed on healing.",
+  "gpxinspect.tempo_cap_auto": "auto"
 }
