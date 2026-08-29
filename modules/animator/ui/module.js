@@ -10538,35 +10538,48 @@ function mountAnimator(body, headerActions, opts) {
           ? (() => {
               const d = sr.cumDistM[i] || 0;
               const frac = totD > 0 ? Math.max(0, Math.min(1, d / totD)) : 1;
-              let done = d, gesamt = totD;
+              let done = d, gesamt = totD, asc = 0, desc = 0, tzeit = 0;
               for (const tr of _extraTours) {
                 if (!tr.coords || tr.coords.length < 2) continue;
                 const cum = _cumDistFuer(tr, tr.coords);
                 const L = cum[cum.length - 1] || 0;
+                const n1 = tr.coords.length - 1;
                 // M3 — pro Modus, wortgleich zu swarmDoneM/swarmIdx im Render.
+                let k;
                 if (_animModus === "ziel") {
                   done += frac * L;
+                  k = Math.round(frac * n1);
                 } else if (_animModus === "uhrzeit") {
                   const achse = _swAchseFuer(tr);
-                  done += (achse && _swPrevTAxis > 0)
-                    ? (cum[_swBinIdx(achse, frac * _swPrevTAxis)] || 0)
-                    : frac * L;
+                  k = (achse && _swPrevTAxis > 0)
+                    ? _swBinIdx(achse, frac * _swPrevTAxis)
+                    : Math.round(frac * n1);
+                  done += (achse && _swPrevTAxis > 0) ? (cum[k] || 0) : frac * L;
                 } else {
                   done += Math.min(d, L);
+                  k = _swBinIdx(cum, d);
                 }
                 gesamt += L;
+                // 29.08.2026 (Marc-Nebenbefund): Bergauf/Bergab/Vergangen sind
+                // im Schwarm Summen — je Tour anteilig zum eigenen Fortschritt
+                // (wortgleich zu swarmSum im Render).
+                const fr = n1 > 0 ? Math.max(0, Math.min(1, k / n1)) : 1;
+                const st = tr.stats || {};
+                asc += fr * (+st.ascent_m || 0);
+                desc += fr * (+st.descent_m || 0);
+                tzeit += fr * (+st.duration_s || 0);
               }
-              return { done, gesamt };
+              return { done, gesamt, asc, desc, tzeit };
             })()
           : null;
         switch (id) {
           case "dist_done": v = _ovFmtKm((_sw ? _sw.done : sr.cumDistM[i]) / 1000); break;
           case "dist_left": v = _ovFmtKm(Math.max(0, ((_sw ? _sw.gesamt : totD) - (_sw ? _sw.done : sr.cumDistM[i])) / 1000)); break;
           case "speed": if (sr.has_time) v = Math.round(sr.speedKmh[i]) + " km/h"; break;
-          case "time_elapsed": if (sr.has_time) v = _ovFmtDur(sr.cumTimeS[i]); break;
+          case "time_elapsed": if (sr.has_time) v = _ovFmtDur(sr.cumTimeS[i] + (_sw ? _sw.tzeit : 0)); break;
           case "time_left": if (sr.has_time) v = _ovFmtDur(Math.max(0, totT - sr.cumTimeS[i])); break;
           case "ele_now": if (sr.has_ele) v = Math.round(sr.ele[i]) + " m"; break;
-          case "asc_done": if (sr.has_ele) v = "↑ " + Math.round(_ovCumHm(sr).asc[i]) + " m"; break;
+          case "asc_done": if (sr.has_ele) v = "↑ " + Math.round(_ovCumHm(sr).asc[i] + (_sw ? _sw.asc : 0)) + " m"; break;
           // 29.08.2026 (Marc: „noch unterwegs funktioniert nicht") — das Feld
           // hatte in der VORSCHAU keinen Rechen-Fall (nur im Render). Spiegel
           // zu swarmFertig: fertig = Fortschritts-Index ≥ vorletzter Punkt.
@@ -10592,7 +10605,7 @@ function mountAnimator(body, headerActions, opts) {
             v = m + " / " + (_extraTours.length + 1);
             break;
           }
-          case "desc_done": if (sr.has_ele) v = "↓ " + Math.round(_ovCumHm(sr).desc[i]) + " m"; break;
+          case "desc_done": if (sr.has_ele) v = "↓ " + Math.round(_ovCumHm(sr).desc[i] + (_sw ? _sw.desc : 0)) + " m"; break;
           case "grade": if (sr.has_ele) { const g = sr.gradePct[i]; v = (g >= 0 ? "+" : "") + g.toFixed(0) + " %"; } break;
           // 23.08.2026 — Etappen-Werte, wortgleich zu core/animator.py
           case "stage_name": if (sr.stage) v = sr.stage.name[i] || ("Etappe " + sr.stage.nr[i]); break;

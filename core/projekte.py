@@ -300,9 +300,16 @@ def session_sicht(daten: dict, kontext: str) -> dict:
 def kontext_oeffnen_einzel(daten: dict, geo_hash: str, coords: list,
                            gpx_path: Optional[str], snapshot_dir: Path,
                            defaults: dict, ui_hash: str = "",
-                           snapshot_src: Optional[str] = None) -> dict:
+                           snapshot_src: Optional[str] = None,
+                           rz_id: str = "") -> dict:
     """Spiegel von get_or_create_session für Einzeltouren: pflegt die
-    Tour-Fakten, sorgt für ≥1 Projekt im Kontext und liefert das aktive."""
+    Tour-Fakten, sorgt für ≥1 Projekt im Kontext und liefert das aktive.
+
+    E2/E3: `rz_id` = in der Datei eingebettete Tour-Kennung (falls vorhanden).
+    Ist die Geometrie neu, aber die Tour bekannt (per rz:id ODER weil dieselbe
+    Datei früher eine andere Geometrie hatte), wird der neue Eintrag als
+    FASSUNG an die bestehende Kette gehängt („extern geändert", Q4b) statt
+    eine fremde Tour aufzumachen."""
     touren = daten.setdefault("touren", {})
     tour = touren.get(geo_hash)
     now = _now_iso()
@@ -315,6 +322,35 @@ def kontext_oeffnen_einzel(daten: dict, geo_hash: str, coords: list,
         if gpx_path:
             tour["gpx_snapshot_path"] = _s._save_snapshot(
                 snapshot_src or gpx_path, geo_hash, snapshot_dir)
+        # E3 (Q4b): bekannte Tour, neue Geometrie? Erst über rz:id, dann über
+        # den Datei-Pfad suchen — Treffer heißt: Fassung, keine neue Tour.
+        vorgaenger = None
+        if rz_id:
+            g = kette(daten, rz_id)
+            if g:
+                vorgaenger = g[-1]
+        if vorgaenger is None and gpx_path:
+            for gh2, t2 in touren.items():
+                if gh2 != geo_hash and isinstance(t2, dict)                         and gpx_path in (t2.get("gpx_paths") or []):
+                    vorgaenger = (gh2, t2)
+                    break
+        if vorgaenger is not None:
+            alt_gh, alt_t = vorgaenger
+            if not alt_t.get("id"):
+                register_migrieren(daten)
+            nmax = max(((t.get("fassung") or {}).get("nr", 1)
+                        for _, t in kette(daten, alt_t["id"])), default=1)
+            tour["id"] = alt_t["id"]
+            tour["fassung"] = {"nr": nmax + 1, "erstellt": now,
+                               "quelle": "extern"}
+            if not tour.get("name"):
+                tour["name"] = alt_t.get("name") or ""
+            log.info("Tour %s: extern geänderte Datei erkannt — Fassung %d "
+                     "(%s → %s)", alt_t["id"], nmax + 1,
+                     alt_gh[:12], geo_hash[:12])
+        else:
+            tour["id"] = "tour_" + uuid.uuid4().hex[:12]
+            tour["fassung"] = {"nr": 1, "erstellt": now, "quelle": "import"}
         touren[geo_hash] = tour
     else:
         tour["last_active_at"] = now
@@ -582,6 +618,252 @@ def alle_projekte(daten: dict) -> list:
             "letztes_modul": p.get("letztes_modul") or "",
         })
     return out
+
+
+# ── E2: Tour-Register — UUID + Fassungen (IDEAS §39, 29.08.2026) ─────────────
+#
+# Abwärtskompatibel gebaut: `touren` bleibt nach geo_hash verschlüsselt (jede
+# FASSUNG = ein Eintrag, wie bisher jede Tour), die Kette entsteht über ein
+# geteiltes `id` + `fassung {nr, erstellt, quelle}` je Eintrag. Alle Brücken-
+# Verträge (track_hash == kontext == geo_hash) bleiben unangetastet; ein
+# Projekt ist automatisch an die Fassung „gepinnt", deren geo_hash sein
+# Kontext ist (Q16a — Marcs „die animation könnte auseinanderfallen").
+
+FASSUNG_QUELLEN = ("import", "werkzeug", "extern", "rollback", "backup")
+
+
+def register_migrieren(daten: dict) -> int:
+    """Einmalig/idempotent: jedem Tour-Eintrag ohne `id` eine stabile UUID und
+    Fassung 1 geben. Läuft bei jedem Start mit (neue Einträge rutschen nach)."""
+    n = 0
+    for t in (daten.get("touren") or {}).values():
+        if not isinstance(t, dict) or t.get("id"):
+            continue
+        t["id"] = "tour_" + uuid.uuid4().hex[:12]
+        t["fassung"] = {"nr": 1, "erstellt": t.get("created_at") or _now_iso(),
+                        "quelle": "import"}
+        n += 1
+    return n
+
+
+def register_lauf(app_support: Path) -> int:
+    """Beim App-Start: Alt-Einträge ohne UUID nachregistrieren (idempotent)."""
+    with LOCK:
+        daten = laden(app_support)
+        n = register_migrieren(daten)
+        if n:
+            speichern(app_support, daten)
+            log.info("Tour-Register: %d Einträge mit UUID+Fassung versehen", n)
+    return n
+
+
+def tour_von_hash(daten: dict, geo_hash: str) -> Optional[dict]:
+    return (daten.get("touren") or {}).get(geo_hash)
+
+
+def kette(daten: dict, tour_id: str) -> list:
+    """Alle Fassungen einer Tour als [(geo_hash, eintrag)], älteste zuerst."""
+    if not tour_id:
+        return []
+    glieder = [(gh, t) for gh, t in (daten.get("touren") or {}).items()
+               if isinstance(t, dict) and t.get("id") == tour_id]
+    glieder.sort(key=lambda x: ((x[1].get("fassung") or {}).get("nr", 1),
+                                (x[1].get("fassung") or {}).get("erstellt", "")))
+    return glieder
+
+
+def neueste_fassung(daten: dict, tour_id: str) -> str:
+    g = kette(daten, tour_id)
+    return g[-1][0] if g else ""
+
+
+def fassung_anlegen(daten: dict, alt_gh: str, neu_gh: str, quelle: str,
+                    snapshot_pfad: str = "", gpx_path: str = "") -> Optional[dict]:
+    """Neue Fassung an die Kette von `alt_gh` hängen (Heilen/Ersetzen/extern).
+
+    Bestehende Projekte bleiben GEPINNT (ihr Kontext zeigt weiter auf die alte
+    Fassung — die alte Tour-Zeile samt Snapshot bleibt stehen); nur das
+    Register wächst. Gibt den neuen Eintrag zurück, None wenn nichts zu tun."""
+    if not alt_gh or not neu_gh or alt_gh == neu_gh:
+        return None
+    touren = daten.setdefault("touren", {})
+    alt = touren.get(alt_gh)
+    if not isinstance(alt, dict):
+        return None
+    if not alt.get("id"):
+        register_migrieren(daten)
+    if neu_gh in touren:
+        # Kette ggf. zusammenführen (Datei kam auf bekannte Geometrie zurück).
+        vorhanden = touren[neu_gh]
+        if not vorhanden.get("id"):
+            vorhanden["id"] = alt["id"]
+            nmax = max(((t.get("fassung") or {}).get("nr", 1)
+                        for _, t in kette(daten, alt["id"])), default=1)
+            vorhanden["fassung"] = {"nr": nmax + 1, "erstellt": _now_iso(),
+                                    "quelle": quelle}
+        return vorhanden
+    nmax = max(((t.get("fassung") or {}).get("nr", 1)
+                for _, t in kette(daten, alt["id"])), default=1)
+    now = _now_iso()
+    neu = {"id": alt["id"],
+           "fassung": {"nr": nmax + 1, "erstellt": now, "quelle": quelle},
+           "name": alt.get("name") or "",
+           "stats": {},
+           "created_at": now, "last_active_at": now,
+           "gpx_filenames_seen": list(alt.get("gpx_filenames_seen") or []),
+           "gpx_snapshot_path": snapshot_pfad or "",
+           "ui_hashes": [],
+           "gpx_paths": [gpx_path] if gpx_path else list(alt.get("gpx_paths") or [])}
+    touren[neu_gh] = neu
+    log.info("Tour %s: Fassung %d angelegt (%s) %s → %s",
+             alt["id"], nmax + 1, quelle, alt_gh[:12], neu_gh[:12])
+    return neu
+
+
+def fassungs_hinweis(daten: dict, geo_hash: str) -> Optional[dict]:
+    """Für die Projekt-Karte: gibt es zur gepinnten Fassung eine NEUERE?"""
+    t = tour_von_hash(daten, geo_hash)
+    if not t or not t.get("id"):
+        return None
+    neu_gh = neueste_fassung(daten, t["id"])
+    if not neu_gh or neu_gh == geo_hash:
+        return None
+    neu = tour_von_hash(daten, neu_gh) or {}
+    return {"geo_hash": neu_gh,
+            "nr": (neu.get("fassung") or {}).get("nr", 0),
+            "eigene_nr": (t.get("fassung") or {}).get("nr", 0)}
+
+
+def projekt_auf_neueste(daten: dict, project_id: str) -> dict:
+    """„⬆ neuere Fassung": genau DIESES Projekt auf die neuesten Fassungen
+    seiner Touren heben (Solo-Kontext, geo_hashes-Liste, Mengen-Hash, aktiv).
+    Andere Projekte bleiben gepinnt — das ist der Unterschied zum alten
+    geo_hash_migrieren."""
+    p = (daten.get("projects") or {}).get(project_id)
+    if not p:
+        return {"ok": False, "error": "unbekanntes Projekt"}
+    umzu = {}
+    for gh in list(p.get("geo_hashes") or []) + ([p["kontext"]] if not str(p.get("kontext", "")).startswith("menge:") else []):
+        t = tour_von_hash(daten, gh)
+        if t and t.get("id"):
+            neu = neueste_fassung(daten, t["id"])
+            if neu and neu != gh:
+                umzu[gh] = neu
+    if not umzu:
+        return {"ok": True, "geaendert": 0}
+    aktiv = daten.setdefault("aktiv", {})
+    alt_kontext = p.get("kontext")
+    if p.get("geo_hashes"):
+        p["geo_hashes"] = sorted(set(umzu.get(g, g) for g in p["geo_hashes"]))
+    if str(alt_kontext or "").startswith("menge:"):
+        p["kontext"] = _s.mengen_hash(p["geo_hashes"])
+        # gpx_paths bleiben stehen — die Brücke löst Pfade beim Öffnen ohnehin
+        # frisch über Tour-Fakten/Archiv auf (projekte_liste/projekt_aktivieren).
+    else:
+        p["kontext"] = umzu.get(alt_kontext, alt_kontext)
+    if aktiv.get(alt_kontext) == project_id:
+        aktiv.pop(alt_kontext, None)
+    aktiv.setdefault(p["kontext"], project_id)
+    _angefasst(p)
+    log.info("Projekt %s auf neueste Fassung(en) gehoben: %s", project_id, umzu)
+    return {"ok": True, "geaendert": len(umzu), "kontext": p["kontext"]}
+
+
+# ── E3: Projekt-Stände — Arbeitsstand-Historie je Projekt (IDEAS §39) ───────
+#
+# Jede Werkzeug-Speicherung erzeugt höchstens alle STAND_MIN_ABSTAND_S einen
+# Stand (sonst würde jeder Regler-Zug einen anlegen). Ablage als JSONL neben
+# dem Store: projekt_staende/<pid>.jsonl, die letzten STAND_MAX bleiben.
+
+STAND_MAX = 20
+STAND_MIN_ABSTAND_S = 600
+
+
+def _staende_datei(app_support: Path, project_id: str) -> Path:
+    d = app_support / "projekt_staende"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{project_id}.jsonl"
+
+
+def stand_schreiben(app_support: Path, projekt: dict,
+                    erzwingen: bool = False) -> bool:
+    """Aktuellen Arbeitsstand des Projekts anhängen (gedrosselt)."""
+    pid = (projekt or {}).get("id")
+    if not pid:
+        return False
+    datei = _staende_datei(app_support, pid)
+    zeilen = []
+    if datei.exists():
+        zeilen = [z for z in datei.read_text(encoding="utf-8").splitlines() if z.strip()]
+    if zeilen and not erzwingen:
+        try:
+            from datetime import datetime, timezone
+            letzt = json.loads(zeilen[-1]).get("ts", "")
+            if letzt:
+                # _now_iso() ist UTC-aware — mktime/strptime würde die Zeit
+                # als LOKAL deuten und die Drossel je nach Zeitzone aushebeln.
+                delta = (datetime.now(timezone.utc)
+                         - datetime.fromisoformat(letzt)).total_seconds()
+                if 0 <= delta < STAND_MIN_ABSTAND_S:
+                    return False
+        except Exception:
+            pass
+    stand = {"ts": _now_iso(), "name": projekt.get("name", ""),
+             "payload": _payload_von(projekt)}
+    zeilen.append(json.dumps(stand, ensure_ascii=False, sort_keys=True))
+    datei.write_text("\n".join(zeilen[-STAND_MAX:]) + "\n", encoding="utf-8")
+    return True
+
+
+def staende_liste(app_support: Path, project_id: str) -> list:
+    datei = _staende_datei(app_support, project_id)
+    if not datei.exists():
+        return []
+    out = []
+    for z in datei.read_text(encoding="utf-8").splitlines():
+        if not z.strip():
+            continue
+        try:
+            d = json.loads(z)
+            pl = d.get("payload") or {}
+            out.append({"ts": d.get("ts", ""),
+                        "keyframes": len((pl.get("animator") or {}).get("timeline_events") or []),
+                        "schilder": len(pl.get("tourmap_signs") or pl.get("signs") or []),
+                        "fotos": len(pl.get("photos") or [])})
+        except Exception:
+            continue
+    return out
+
+
+def stand_wiederherstellen(app_support: Path, daten: dict, project_id: str,
+                           ts: str) -> bool:
+    """Payload eines Stands zurück ins Projekt — der JETZIGE Stand wird
+    vorher selbst als Stand gesichert (nichts geht verloren)."""
+    p = (daten.get("projects") or {}).get(project_id)
+    if not p:
+        return False
+    datei = _staende_datei(app_support, project_id)
+    if not datei.exists():
+        return False
+    ziel = None
+    for z in datei.read_text(encoding="utf-8").splitlines():
+        try:
+            d = json.loads(z)
+        except Exception:
+            continue
+        if d.get("ts") == ts:
+            ziel = d
+    if ziel is None:
+        return False
+    stand_schreiben(app_support, p, erzwingen=True)
+    for k in list(p.keys()):
+        if k not in _META_FELDER:
+            p.pop(k)
+    for k, v in (ziel.get("payload") or {}).items():
+        p[k] = v
+    _angefasst(p)
+    log.info("Projekt %s: Stand %s wiederhergestellt", project_id, ts)
+    return True
 
 
 def geo_hash_migrieren(daten: dict, alt: str, neu: str) -> int:

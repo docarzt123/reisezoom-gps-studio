@@ -14,6 +14,38 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added — ⚠️ E2+E3 des Projekt-Umbaus (v0.9.610): Tour-Identität, Fassungen, Historie, Cloud v2
+- **Tour-Register (E2):** Jede Tour trägt jetzt eine stabile **UUID**; Heilen,
+  Ersetzen und extern erkannte Änderungen bilden eine **Fassungs-Kette**
+  (jede Fassung bleibt samt Snapshot erhalten). Dupletten (gleiche Geometrie,
+  mehrere Dateien) waren schon vorher EIN Eintrag — jetzt überlebt die
+  Identität auch Geometrie-Änderungen. Beim Schreiben eigener GPX-Dateien
+  (Heilen-Speichern, Ersetzen, Rollback) wandert die Kennung als **`rz:id`**
+  in die Datei — ein anderer Rechner erkennt die Tour daran wieder; fremde
+  Dateien werden nie ungefragt angefasst.
+- **Version-Pinning (Q16a, Marcs „die animation könnte auseinanderfallen"):**
+  „Im Archiv ersetzen" migriert Projekte NICHT mehr automatisch. Bestehende
+  Projekte bleiben an ihrer Fassung gepinnt (Öffnen lädt den Fassungs-
+  Snapshot), die Projektkarte zeigt **„⬆ neuere Fassung"** — Aktualisieren
+  ist ein bewusster Klick mit Hinweis. Archiv/Sammlungen zeigen weiter die
+  neueste Datei.
+- **Fassungs-Historie im Tour-Detail (E3):** Liste aller Fassungen (Zeit,
+  Quelle, km) mit **↩︎ Rollback** — byte-genaue Kopie zurück ins Archiv, die
+  jetzige Geometrie bleibt als Fassung in der Kette. Alte „Im Archiv
+  ersetzen"-Sicherungen (track_backups) werden beim Start automatisch als
+  Fassungen adoptiert.
+- **Projekt-Stände (E3):** Beim Arbeiten wird höchstens alle 10 Minuten ein
+  Arbeitsstand gesichert (letzte 20). 🕘 auf der Projektkarte listet sie;
+  Wiederherstellen sichert den jetzigen Stand vorher automatisch.
+- **Cloud v2 (Q6b):** Die ganze **Versions-Kette** wandert mit — als kleines
+  `kette/`-Objekt + Fassungs-Snapshots als normale Track-Umschläge. Das
+  Zielgerät übernimmt fremde Ketten in sein Register und holt beim Rollback
+  fehlende Snapshots aus der Cloud. Abwärtskompatibel: Alt-Clients ignorieren
+  die neuen Objekte (der Aufräum-Zweig läuft seit v0.9.542 nie automatisch).
+- Schwarm-Overlay: **Bergauf/Bergab bisher und „Vergangen" kumulieren jetzt
+  über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
+  Fortschritt, in Vorschau UND Render wortgleich.
+
 ### Changed — ⚠️ E1 des Projekt-Umbaus (IDEAS §39, Grilling 29.08.2026)
 - Projekte als gleichwertige Archiv-Ansicht (v0.9.606, Marc: „lass den
   [Umschalter] immer da unten … die projekte können ja auch filter

@@ -20,6 +20,72 @@ from typing import List, Optional
 from . import gpx as cgpx
 
 
+
+# ── E2 (IDEAS §39): eingebettete Tour-Kennung `rz:id` ────────────────────────
+# Hybrid-Beschluss Q2: das Register führt, aber sobald UNSERE Werkzeuge eine
+# Datei ohnehin schreiben, wandert die Kennung mit hinein — so erkennt jeder
+# Rechner die Tour wieder, auch wenn die Geometrie (Heilen!) längst eine
+# andere ist. Fremde Dateien werden NIE ungefragt angefasst.
+import re as _re
+from pathlib import Path as _P
+
+_RZ_ID_RE = _re.compile(r"<rz:id>\s*(tour_[0-9a-f]{12})\s*</rz:id>")
+
+
+def read_rz_id(path) -> str:
+    """Eingebettete Tour-Kennung lesen (steht im metadata-Kopf; 32 KB reichen)."""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            kopf = f.read(32768)
+        m = _RZ_ID_RE.search(kopf)
+        return m.group(1) if m else ""
+    except OSError:
+        return ""
+
+
+def embed_rz_id(path, tour_id: str) -> bool:
+    """Kennung in eine GPX schreiben, die WIR gerade geschrieben haben.
+    Vorhandene Kennung wird ersetzt; sonst kommt ein metadata/extensions-Block
+    direkt hinter den <gpx>-Öffner (metadata muss laut Schema zuerst stehen)."""
+    if not tour_id or not str(path).lower().endswith(".gpx"):
+        return False
+    try:
+        text = _P(path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    if _RZ_ID_RE.search(text):
+        neu = _RZ_ID_RE.sub(f"<rz:id>{tour_id}</rz:id>", text, count=1)
+    else:
+        m = _re.search(r"<gpx\b[^>]*>", text)
+        if not m:
+            return False
+        oeffner = m.group(0)
+        if "xmlns:rz=" not in oeffner:
+            oeffner_neu = oeffner[:-1] + ' xmlns:rz="https://reisezoom.com/gpx/1">'
+            text = text.replace(oeffner, oeffner_neu, 1)
+            m = _re.search(r"<gpx\b[^>]*>", text)
+        einschub = f"<rz:id>{tour_id}</rz:id>"
+        mm = _re.search(r"<metadata\b[^>]*>", text)
+        if mm and mm.start() < text.find("<trk"):
+            ext = _re.search(r"<extensions\b[^>]*>", text[mm.end():text.index("</metadata>")])
+            if ext:
+                pos = mm.end() + ext.end()
+                neu = text[:pos] + einschub + text[pos:]
+            else:
+                pos = text.index("</metadata>")
+                neu = text[:pos] + f"<extensions>{einschub}</extensions>" + text[pos:]
+        else:
+            pos = m.end()
+            neu = (text[:pos]
+                   + f"\n  <metadata><extensions>{einschub}</extensions></metadata>"
+                   + text[pos:])
+    try:
+        _P(path).write_text(neu, encoding="utf-8")
+        return True
+    except OSError:
+        return False
+
+
 def load_points(path: str) -> dict:
     """Alle Track-Punkte mit Index, lat, lon, ele, time (ISO-UTC) laden.
 

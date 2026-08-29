@@ -316,6 +316,19 @@ N Projekten" — ein Klick zeigt genau diese.
 **Im Modul** (Topbar oben rechts) bleibt der vertraute Projekt-Umschalter:
 🆕 Neues Projekt · 📋 Duplizieren · ✏️ Umbenennen · 🗑 Löschen.
 
+**Fassungen & Historie (seit v0.9.610):** Jede Tour hat eine feste Identität,
+die Heilen und Ersetzen überlebt. Wenn du eine Tour heilst und im Archiv
+ersetzt, entsteht eine neue **Fassung** — deine bestehenden Projekte bleiben
+an ihrer alten Fassung „gepinnt" (die Animation fällt nicht auseinander) und
+zeigen **„⬆ neuere Fassung"**; ein Klick hebt genau dieses Projekt auf die
+neue. In der Tour-Detailspalte siehst du die ganze Fassungs-Kette und kannst
+jede per **↩︎** byte-genau wiederherstellen (nichts geht dabei verloren).
+Beim Arbeiten sichert die App außerdem höchstens alle 10 Minuten einen
+**Arbeitsstand** deines Projekts — 🕘 auf der Projektkarte listet die letzten
+20, Wiederherstellen sichert den jetzigen Stand vorher automatisch. Mit
+eingerichteter Cloud wandern die Fassungs-Ketten mit — Rollback geht auch am
+Zweitrechner.
+
 Gespeichert wird unter `…/Reisezoom GPS Studio/projekte.json` (Arbeitsmappen)
 und `touren.json` (Tour-Fakten); GPX-Snapshots liegen weiter unter
 `…/sessions/`.

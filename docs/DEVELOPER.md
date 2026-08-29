@@ -183,6 +183,55 @@ weil der Browser kein ExifTool/Python hat).
 
 ## 3 · Core-Module im Detail
 
+### 3.0a · Tour-Register, Fassungen, Historie, Cloud v2 (E2+E3, seit v0.9.610) ⚠️ PFLICHTLEKTÜRE
+
+Marc, 29.08.2026: „bau komplett fertig, achte halt auf abwärtskompatibilität."
+E2+E3 setzen den Rest von IDEAS §39 um — **ohne einen einzigen Brücken-Vertrag
+zu ändern**:
+
+- **Tour-UUID + Fassungs-Kette:** `touren` bleibt nach geo_hash verschlüsselt;
+  jede FASSUNG ist ein Eintrag, die Kette entsteht über geteiltes `id`
+  (`tour_<12hex>`) + `fassung {nr, erstellt, quelle}` je Eintrag
+  (`quelle ∈ import|werkzeug|extern|rollback|backup`). Kernfunktionen:
+  `register_migrieren/-lauf` (idempotent beim Start), `kette`,
+  `neueste_fassung`, `fassung_anlegen`, `fassungs_hinweis`,
+  `projekt_auf_neueste`. Ein Projekt ist automatisch an die Fassung GEPINNT,
+  deren geo_hash sein Kontext ist (Q16a) — deshalb brauchte das Pinning
+  keinerlei JS-Änderung.
+- **„Im Archiv ersetzen" (app.py `library_track_ersetzen`)** migriert seit
+  E2 KEINE Projekte mehr: Archiv/Sammlungen ziehen um, das Register bekommt
+  eine neue Fassung, die alte behält ihren Snapshot (`sessions/<gh>.gpx`) —
+  gepinnte Projekte öffnen darüber (`projekte_liste` → haupt_pfad).
+  `geo_hash_migrieren` existiert weiter nur für `projekt_auf_neueste`-artige
+  bewusste Umzüge.
+- **rz:id (`core/gpxedit.py: embed_rz_id/read_rz_id`):** wird in JEDE von uns
+  geschriebene GPX eingebettet (Heilen-Speichern, Ersetzen, Rollback);
+  `session_open_for_track` liest sie und `kontext_oeffnen_einzel` hängt
+  unbekannte Geometrie bekannter Touren als Fassung an (Q4b — auch ohne
+  rz:id über den Datei-Pfad). Namespace `xmlns:rz="https://reisezoom.com/gpx/1"`.
+- **Fassungs-Brücken:** `tour_fassungen(gh)` (Kette fürs Archiv-Detail),
+  `tour_fassung_wiederherstellen(gh)` (Rollback = byte-genaue Snapshot-Kopie
+  über die Archiv-Datei, mit Sicherung + neuer Fassung `rollback`),
+  `projekt_fassung_aktualisieren(pid)` (⬆-Chip). `_fassungs_backups_adoptieren`
+  holt alte track_backups beim Start als Fassungen (nr < 1) in die Ketten.
+- **Projekt-Stände (E3):** `stand_schreiben` (gedrosselt, 10 min; Ablage
+  `projekt_staende/<pid>.jsonl`, letzte 20), `staende_liste`,
+  `stand_wiederherstellen` (sichert den JETZIGEN Stand vorher selbst).
+  Hook: `session_update_project_settings`. UI: 🕘 auf der Projektkarte.
+- **Cloud v2 (Q6b):** `archiv.ketten_bauen(pdaten)` → `kette/<tour_id>`-
+  Objekte + Fassungs-Snapshots als normale `track/<gh>`-Umschläge
+  (`Bestand.ketten/fassungen`); die Ketten stehen zusätzlich im VERZEICHNIS
+  (Servernamen sind opak — nur so entdeckt das Zielgerät sie).
+  `cloud_uebersicht` merged fremde Ketten ins lokale Register (nur Lücken),
+  `tour_fassung_wiederherstellen` holt fehlende Snapshots via
+  `_cloud_fassung_snapshot_holen`. Alt-Clients: unbekannte Objekte landen in
+  `plan.weg`, das seit 22.08.2026 NIE automatisch gelöscht wird — einzige
+  Vorsicht: der manuelle „Cloud aufräumen"-Knopf eines ALT-Clients würde
+  v2-Objekte entfernen (beide Rechner aktuell halten).
+- **Wächter:** `tests/test_projekte_e2.py` (Store/Cloud/Anker),
+  `tests/test_inspektor_ersetzen.py` (Pinning + Rollback End-to-End),
+  `scripts/selftest_projekte.py` (⬆-Chip + 🕘 im echten Browser).
+
 ### 3.0 · core/projekte.py — der Projekt-Store (E1, seit v0.9.600) ⚠️ PFLICHTLEKTÜRE
 
 **Beschlossen im Grilling (Marc, 29.08.2026, docs/IDEAS.md §39):** „wir müssen

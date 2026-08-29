@@ -56,7 +56,8 @@ PROJ_MOCK_JS = r"""
       ablauf: "solo", modified_at: "2026-08-28T10:00:00", n_touren: 1,
       tour_namen: ["Masca-Schlucht"], geo_hashes: ["gh1"],
       module: ["animator", "tourmap"], letztes_modul: "tourmap",
-      exists: true, pfade_ok: true, haupt_pfad: "/mock/masca.gpx" },
+      exists: true, pfade_ok: true, haupt_pfad: "/mock/masca.gpx",
+      neuere_fassung: { geo_hash: "ghNEU", nr: 3, eigene_nr: 2 } },
     { id: "pb", name: "Camino Schwarm", status: "fertig", auto: false,
       ablauf: "schwarm", schwarm_modus: "ziel",
       modified_at: "2026-08-27T10:00:00", n_touren: 2,
@@ -95,6 +96,22 @@ PROJ_MOCK_JS = r"""
       const p = P.find(x => x.id === pid);
       if (p) P.push(Object.assign({}, p, { id: pid + "_k",
                                            name: p.name + " (Kopie)" }));
+      return { ok: true };
+    },
+    projekt_fassung_aktualisieren: async (pid) => {
+      merken("projekt_fassung_aktualisieren", [pid]);
+      const p = P.find(x => x.id === pid); if (p) delete p.neuere_fassung;
+      return { ok: true, geaendert: 1 };
+    },
+    projekt_staende: async (pid) => {
+      merken("projekt_staende", [pid]);
+      return { ok: true, staende: [
+        { ts: "2026-08-29T10:00:00+00:00", keyframes: 4, schilder: 1, fotos: 0 },
+        { ts: "2026-08-29T11:00:00+00:00", keyframes: 7, schilder: 2, fotos: 1 },
+      ] };
+    },
+    projekt_stand_wiederherstellen: async (pid, ts) => {
+      merken("projekt_stand_wiederherstellen", [pid, ts]);
       return { ok: true };
     },
     projekt_loeschen: async (pid) => {
@@ -224,6 +241,33 @@ async def main():
               "erste Etappe lädt als Mengen-Start", str(loads[-1]))
         mods = await pg.evaluate("window.__mods")
         sagen(mods[-1] == "animator", "Komposition öffnet im Animator")
+
+        print("\n━━━ 4b. Fassungs-Pinning + Stände (E2/E3) ━━━")
+        sagen(bool(await pg.query_selector('.lib-proj-up[data-up="pa"]')),
+              "gepinnte Karte trägt den ⬆-Chip")
+        await pg.click('.lib-proj-up[data-up="pa"]')
+        await pg.wait_for_timeout(200)
+        sagen(bool(await pg.query_selector("#lib-up-ok")),
+              "… Klick fragt mit Vorher/Nachher-Hinweis")
+        await pg.click("#lib-up-ok")
+        await pg.wait_for_timeout(300)
+        ruf = await pg.evaluate("window.__ruf")
+        sagen(any(r["name"] == "projekt_fassung_aktualisieren"
+                  and r["args"] == ["pa"] for r in ruf),
+              "… Bestätigen ruft die Brücke")
+        sagen(not bool(await pg.query_selector('.lib-proj-up[data-up="pa"]')),
+              "… danach ist der Chip weg")
+        await pg.click('[data-st="pb"]')
+        await pg.wait_for_timeout(300)
+        sagen(bool(await pg.query_selector("[data-strb]")),
+              "🕘 zeigt die gesicherten Stände")
+        await pg.click('[data-strb="2026-08-29T10:00:00+00:00"]')
+        await pg.wait_for_timeout(300)
+        ruf = await pg.evaluate("window.__ruf")
+        sagen(any(r["name"] == "projekt_stand_wiederherstellen"
+                  and r["args"] == ["pb", "2026-08-29T10:00:00+00:00"]
+                  for r in ruf),
+              "↩︎ stellt den gewählten Stand wieder her")
 
         print("\n━━━ 5. Verwalten direkt auf der Karte ━━━")
         await pg.eval_on_selector(

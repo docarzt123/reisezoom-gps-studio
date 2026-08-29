@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.606"
+APP_VERSION = "0.9.610"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1097,6 +1097,11 @@ class Api:
                          _info.get("alt_datei"))
         except Exception:
             log.exception("E1-Migration fehlgeschlagen — Projekte-Store leer?")
+        # E2 (IDEAS §39): Tour-Register — Alt-Einträge bekommen UUID + Fassung 1.
+        try:
+            _projekte.register_lauf(APP_SUPPORT)
+        except Exception:
+            log.exception("Tour-Register-Lauf fehlgeschlagen")
         # v0.9.524 — Cloud-Auto-Sync-Wächter (tut nichts, solange keine Cloud
         # eingerichtet ist; fasst den Schlüsselbund erst bei echter Arbeit an).
         self._cloud_auto_thread = None
@@ -1665,9 +1670,13 @@ class Api:
                         snap_src = self._ensure_gpx(gpx_path)
                     except Exception:
                         snap_src = None
+                rz_id = ""
+                if gpx_path and str(gpx_path).lower().endswith(".gpx"):
+                    rz_id = cgpxedit.read_rz_id(gpx_path)
                 active_proj = _projekte.kontext_oeffnen_einzel(
                     daten, track_hash, coords, gpx_path or None,
-                    SESSIONS_GPX_DIR, defaults, ui_hash=ui_hash, snapshot_src=snap_src)
+                    SESSIONS_GPX_DIR, defaults, ui_hash=ui_hash,
+                    snapshot_src=snap_src, rz_id=rz_id)
                 _projekte.speichern(APP_SUPPORT, daten)
             tour = (daten.get("touren") or {}).get(track_hash) or {}
             log.info("session_open_for_track: hash=%s name=%r active=%r",
@@ -1861,6 +1870,14 @@ class Api:
             if not _projekte.update_settings(daten, track_hash, project_id, module, patch):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             _projekte.speichern(APP_SUPPORT, daten)
+            # E3 (IDEAS §39): Arbeitsstand-Historie — gedrosselt (10 min),
+            # damit nicht jeder Regler-Zug einen Stand anlegt.
+            try:
+                pr = (daten.get("projects") or {}).get(project_id)
+                if pr:
+                    _projekte.stand_schreiben(APP_SUPPORT, pr)
+            except Exception:
+                log.exception("Projekt-Stand schreiben")
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -2015,6 +2032,13 @@ class Api:
                              res["geloescht"], res.get("bytes", 0) / 2**30)
             except Exception:
                 log.exception("drops aufraeumen")
+            # E3 (IDEAS §39): track_backups aus v0.9.594 als erste
+            # Fassungseinträge adoptieren — läuft idempotent (bekannte
+            # geo_hashes werden übersprungen) im Hintergrund.
+            try:
+                self._fassungs_backups_adoptieren()
+            except Exception:
+                log.exception("Fassungs-Backups adoptieren")
             try:
                 self.library_map_thumbs_start(auto=True)
             except Exception:
@@ -5572,7 +5596,11 @@ class Api:
                     sessions = json.loads((APP_SUPPORT / "sessions.json").read_text("utf-8"))
                 except Exception:
                     pass
-                bestand = archiv_m.bestand_aufnehmen(conn, sessions, cache_pfad=CLOUD_PRUEFSUMMEN)
+                with _projekte.LOCK:
+                    _pd_cloud = _projekte.laden(APP_SUPPORT)
+                bestand = archiv_m.bestand_aufnehmen(
+                    conn, sessions, cache_pfad=CLOUD_PRUEFSUMMEN,
+                    pdaten=_pd_cloud, snapshot_dir=SESSIONS_GPX_DIR)
                 log.info("Cloud: Bestand %d Touren, %d Umschläge neu gebaut", len(bestand.touren), bestand.neu_gebaut)
                 a = sync_m.Abgleich(g, schluessel)
                 plan = a.planen(bestand)
@@ -5585,7 +5613,12 @@ class Api:
                     # IDEAS §38 M5 — Kompositionen: schon gebaut, nur ausliefern.
                     if name.startswith(archiv_m.MENGE_PRAEFIX):
                         return bestand.mengen_objekte[name.split("/", 1)[1]]
+                    # E3 / Cloud v2 — Ketten + Fassungs-Snapshots liegen fertig da.
+                    if name.startswith(archiv_m.KETTE_PRAEFIX):
+                        return bestand.ketten_objekte[name.split("/", 1)[1]]
                     gh = name.split("/", 1)[1]
+                    if gh in bestand.fassungen_objekte:
+                        return bestand.fassungen_objekte[gh]
                     return archiv_m.umschlag_bauen(
                         conn, gh, projekte=archiv_m._projekte_fuer(conn, gh, sessions))
 
@@ -5651,6 +5684,46 @@ class Api:
                     "distance_m": t.get("distance_m"),
                 })
             nur_cloud.sort(key=lambda x: x.get("started_at") or "", reverse=True)
+            # E3 / Cloud v2 (Q6b): Versions-Ketten des anderen Geräts ins
+            # lokale Register übernehmen — nur Lücken füllen, nie überschreiben.
+            try:
+                _ketten = verz.get("ketten") or {}
+                if _ketten:
+                    with _projekte.LOCK:
+                        _kd = _projekte.laden(APP_SUPPORT)
+                        _kt = _kd.setdefault("touren", {})
+                        _kneu = 0
+                        for _tid, _k in _ketten.items():
+                            for _f in (_k.get("fassungen") or []):
+                                _gh = _f.get("geo_hash")
+                                if not _gh:
+                                    continue
+                                _t = _kt.get(_gh)
+                                if _t is None:
+                                    _wann = _f.get("erstellt") or _projekte._now_iso()
+                                    _kt[_gh] = {"id": _tid,
+                                                "fassung": {"nr": _f.get("nr", 1),
+                                                            "erstellt": _f.get("erstellt", ""),
+                                                            "quelle": _f.get("quelle", "")},
+                                                "name": _k.get("name") or "",
+                                                "stats": {}, "created_at": _wann,
+                                                "last_active_at": _wann,
+                                                "gpx_filenames_seen": [],
+                                                "gpx_snapshot_path": "",
+                                                "ui_hashes": [], "gpx_paths": []}
+                                    _kneu += 1
+                                elif not _t.get("id"):
+                                    _t["id"] = _tid
+                                    _t["fassung"] = {"nr": _f.get("nr", 1),
+                                                     "erstellt": _f.get("erstellt", ""),
+                                                     "quelle": _f.get("quelle", "")}
+                                    _kneu += 1
+                        if _kneu:
+                            _projekte.speichern(APP_SUPPORT, _kd)
+                            log.info("Cloud v2: %d Fassungs-Einträge aus fremden "
+                                     "Ketten übernommen", _kneu)
+            except Exception:
+                log.exception("Cloud v2: Ketten-Merge")
             # IDEAS §38 M5 — Kompositionen (Reise/Schwarm): lokal vorhanden ist,
             # was in sessions.json unter `menge:<hash>` steht.
             try:
@@ -6782,6 +6855,18 @@ class Api:
                                        src_path=src_path, fmt=fmt,
                                        sources=list(sources) if sources else None)
             if res.get("ok"):
+                # E2: Tour-Kennung mitschreiben — die Datei ist von UNS, und so
+                # erkennt jeder Rechner die Tour trotz neuer Geometrie wieder.
+                if res.get("fmt") == "gpx" and src_path:
+                    try:
+                        gh = self._track_geo_hash(src_path)
+                        with _projekte.LOCK:
+                            t = _projekte.tour_von_hash(
+                                _projekte.laden(APP_SUPPORT), gh)
+                        if t and t.get("id"):
+                            cgpxedit.embed_rz_id(out, t["id"])
+                    except Exception:
+                        log.exception("rz:id einbetten (gpxinspect_save)")
                 log.info("gpxinspect_save[%s]: %d Punkte → %s (Sensoren: %s)",
                          res.get("fmt"), res.get("count", 0), out, res.get("sensors_kept"))
             return res
@@ -6830,21 +6915,39 @@ class Api:
             neu_gh = row2["geo_hash"] if row2 else ""
             n_col = 0
             n_menge = 0
+            fassung_nr = 0
             if neu_gh and neu_gh != alt_gh:
                 n_col = clib.track_hash_migrieren(conn, alt_gh, neu_gh)
                 self._geo_hash_cache.pop(pfad, None)
                 with _projekte.LOCK:
                     pdaten = _projekte.laden(APP_SUPPORT)
-                    betroffen = _projekte.geo_hash_migrieren(pdaten, alt_gh, neu_gh)
-                    n_menge = sum(1 for p in (pdaten.get("projects") or {}).values()
-                                  if str(p.get("kontext") or "").startswith("menge:")
-                                  and neu_gh in (p.get("geo_hashes") or []))
+                    # E2 (Q16a): KEINE Voll-Migration mehr — bestehende
+                    # Projekte bleiben an ihrer Fassung gepinnt und zeigen
+                    # „⬆ neuere Fassung"; hier wächst nur die Kette.
+                    alt_t = _projekte.tour_von_hash(pdaten, alt_gh)
+                    if alt_t is not None and not alt_t.get("gpx_snapshot_path"):
+                        # Die alte Geometrie muss ladbar bleiben (Pinning!) —
+                        # die Sicherung von eben IST sie.
+                        alt_t["gpx_snapshot_path"] = _sessions._save_snapshot(
+                            str(backup), alt_gh, SESSIONS_GPX_DIR)
+                    snap = _sessions._save_snapshot(pfad, neu_gh, SESSIONS_GPX_DIR)
+                    neu_t = _projekte.fassung_anlegen(
+                        pdaten, alt_gh, neu_gh, "werkzeug",
+                        snapshot_pfad=snap, gpx_path=pfad)
+                    fassung_nr = ((neu_t or {}).get("fassung") or {}).get("nr", 0)
                     _projekte.speichern(APP_SUPPORT, pdaten)
-                log.info("Ersetzen: %d Projekt(e) auf neuen geo_hash migriert", betroffen)
+                    if neu_t and neu_t.get("id"):
+                        try:
+                            cgpxedit.embed_rz_id(pfad, neu_t["id"])
+                        except Exception:
+                            log.exception("rz:id einbetten (ersetzen)")
+                log.info("Ersetzen: Fassung %d angelegt — Projekte bleiben gepinnt",
+                         fassung_nr)
             log.info("Track im Archiv ersetzt: %s · %s → %s · %d Sammlungs-Einträge · "
                      "%d Kompositionen · Sicherung: %s",
                      pfad, alt_gh, neu_gh, n_col, n_menge, backup)
             return {"ok": True, "out_path": pfad, "backup": str(backup),
+                    "fassung": fassung_nr,
                     "collections": n_col, "mengen": n_menge,
                     "geo_hash": neu_gh, "sensors_kept": res.get("sensors_kept"),
                     "fmt": "gpx", "count": res.get("count", 0)}
@@ -6864,7 +6967,23 @@ class Api:
             touren = daten.get("touren") or {}
             conn = self._lib()
             for k in karten:
+                # E2 (Q16a): hängt an der gepinnten Fassung eine neuere Kette?
+                hinweis = None
+                for gh in (k.get("geo_hashes") or []):
+                    h = _projekte.fassungs_hinweis(daten, gh)
+                    if h:
+                        hinweis = h
+                        break
+                if hinweis:
+                    k["neuere_fassung"] = hinweis
                 pfad = (k.get("gpx_paths") or [None])[0]
+                # Gepinnte Solo-Projekte laden vom FASSUNGS-SNAPSHOT — die
+                # Archiv-Datei trägt ja längst die neue Geometrie.
+                if hinweis and k.get("ablauf") not in ("reise", "schwarm"):
+                    kk = k.get("kontext") or ""
+                    snap = SESSIONS_GPX_DIR / f"{kk}.gpx"
+                    if snap.exists():
+                        pfad = str(snap)
                 if not pfad or not Path(str(pfad)).exists():
                     pfad = None
                     for gh in (k.get("geo_hashes") or []):
@@ -6950,13 +7069,242 @@ class Api:
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             daten.setdefault("aktiv", {})[p.get("kontext", "")] = project_id
             _projekte.speichern(APP_SUPPORT, daten)
+            pfade = []
+            for pf in (p.get("gpx_paths") or []):
+                if Path(str(pf)).exists():
+                    pfade.append(pf)
+                    continue
+                # E2: Datei weg/ersetzt → Fassungs-Snapshot der Tour suchen.
+                ersatz = ""
+                for gh, t in (daten.get("touren") or {}).items():
+                    if pf in (t.get("gpx_paths") or []):
+                        snap = SESSIONS_GPX_DIR / f"{gh}.gpx"
+                        if snap.exists():
+                            ersatz = str(snap)
+                            break
+                pfade.append(ersatz or pf)
             return {"ok": True, "kontext": p.get("kontext", ""),
                     "ablauf": p.get("ablauf", "solo"),
                     "schwarm_modus": p.get("schwarm_modus", "gleich"),
                     "schwarm_pausen": bool(p.get("schwarm_pausen", True)),
-                    "gpx_paths": list(p.get("gpx_paths") or []),
+                    "gpx_paths": pfade,
                     "letztes_modul": p.get("letztes_modul") or ""}
         except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def projekt_staende(self, project_id: str) -> dict:
+        """E3: Liste der gesicherten Arbeitsstände eines Projekts."""
+        try:
+            return {"ok": True,
+                    "staende": _projekte.staende_liste(APP_SUPPORT, project_id)}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "staende": []}
+
+    @_mit_sessions_lock
+    def projekt_stand_wiederherstellen(self, project_id: str, ts: str) -> dict:
+        """E3: einen früheren Arbeitsstand zurückholen — der jetzige wird
+        vorher selbst gesichert (nichts geht verloren)."""
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            if not _projekte.stand_wiederherstellen(APP_SUPPORT, daten,
+                                                    project_id, ts):
+                return {"ok": False, "error": _ui_t()(
+                    "library.stand_nicht_gefunden", "Stand nicht gefunden")}
+            _projekte.speichern(APP_SUPPORT, daten)
+            return {"ok": True}
+        except Exception as e:
+            log.error("projekt_stand_wiederherstellen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def _cloud_fassung_snapshot_holen(self, geo_hash: str) -> bool:
+        """track/<geo_hash>-Umschlag aus der Cloud in den Snapshot-Ordner
+        entpacken (nur track.gpx). Still, wenn keine Cloud eingerichtet ist."""
+        if not self._cloud_sichtbar():
+            return False
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception:      # noqa: BLE001 — Schlüsselbund-Ablehnung u.ä.
+            return False
+        if not vorhanden:
+            return False
+        teile, zugang, schluessel = vorhanden
+        import io as _io
+        import zipfile as _zip
+        g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+        a = teile["sync"].Abgleich(g, schluessel)
+        roh = a.holen(teile["archiv"].track_name(geo_hash))
+        with _zip.ZipFile(_io.BytesIO(roh)) as z:
+            daten = z.read("track.gpx")
+        SESSIONS_GPX_DIR.mkdir(parents=True, exist_ok=True)
+        (SESSIONS_GPX_DIR / f"{geo_hash}.gpx").write_bytes(daten)
+        log.info("Cloud v2: Fassungs-Snapshot %s geholt (%d Bytes)",
+                 geo_hash[:12], len(daten))
+        return True
+
+    def _fassungs_backups_adoptieren(self) -> int:
+        """E3: alte „Im Archiv ersetzen"-Sicherungen (track_backups/) in die
+        Versions-Kette holen. Zuordnung über den Original-Dateinamen im
+        Backup-Namen (<stamp>_<name>.gpx); ohne sicheren Treffer passiert
+        NICHTS — lieber eine Fassung weniger als eine falsche Kette."""
+        bdir = APP_SUPPORT / "track_backups"
+        if not bdir.is_dir():
+            return 0
+        geaendert = 0
+        with _projekte.LOCK:
+            daten = _projekte.laden(APP_SUPPORT)
+            touren = daten.setdefault("touren", {})
+            for f in sorted(bdir.glob("*.gpx")):
+                try:
+                    gh = self._track_geo_hash(str(f))
+                except Exception:
+                    continue
+                if not gh or gh in touren:
+                    continue
+                name = f.name.split("_", 1)[-1] if "_" in f.name else f.name
+                alt_t = None
+                for t in touren.values():
+                    if name in (t.get("gpx_filenames_seen") or [])                             or any(Path(pp).name == name
+                                   for pp in (t.get("gpx_paths") or [])):
+                        alt_t = t
+                        break
+                if alt_t is None:
+                    continue
+                if not alt_t.get("id"):
+                    _projekte.register_migrieren(daten)
+                nmin = min(((t2.get("fassung") or {}).get("nr", 1)
+                            for _, t2 in _projekte.kette(daten, alt_t["id"])),
+                           default=1)
+                snap = _sessions._save_snapshot(str(f), gh, SESSIONS_GPX_DIR)
+                wann = datetime.fromtimestamp(f.stat().st_mtime).astimezone().isoformat(timespec="seconds")
+                touren[gh] = {"id": alt_t["id"],
+                              "fassung": {"nr": nmin - 1, "erstellt": wann,
+                                          "quelle": "backup"},
+                              "name": alt_t.get("name") or "",
+                              "stats": {}, "created_at": wann,
+                              "last_active_at": wann,
+                              "gpx_filenames_seen": [name],
+                              "gpx_snapshot_path": snap,
+                              "ui_hashes": [], "gpx_paths": []}
+                geaendert += 1
+            if geaendert:
+                _projekte.speichern(APP_SUPPORT, daten)
+                log.info("Fassungs-Adoption: %d Sicherung(en) aus track_backups "
+                         "in Versions-Ketten übernommen", geaendert)
+        return geaendert
+
+    @_mit_sessions_lock
+    def projekt_fassung_aktualisieren(self, project_id: str) -> dict:
+        """„⬆ neuere Fassung verfügbar" → genau dieses Projekt auf die
+        neuesten Fassungen seiner Touren heben (Q16a: nur per Klick)."""
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            r = _projekte.projekt_auf_neueste(daten, project_id)
+            if r.get("ok"):
+                _projekte.speichern(APP_SUPPORT, daten)
+            return r
+        except Exception as e:
+            log.error("projekt_fassung_aktualisieren: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def tour_fassungen(self, geo_hash: str) -> dict:
+        """E3: die Versions-Kette einer Tour fürs Archiv-Detail — je Fassung
+        nr, Zeit, Quelle, Punkte/km (Vergleich), ob Snapshot ladbar ist."""
+        try:
+            daten = _projekte.laden(APP_SUPPORT)
+            t = _projekte.tour_von_hash(daten, geo_hash)
+            if not t or not t.get("id"):
+                return {"ok": True, "fassungen": []}
+            out = []
+            for gh, e in _projekte.kette(daten, t["id"]):
+                st = e.get("stats") or {}
+                snap = SESSIONS_GPX_DIR / f"{gh}.gpx"
+                out.append({"geo_hash": gh,
+                            "nr": (e.get("fassung") or {}).get("nr", 1),
+                            "erstellt": (e.get("fassung") or {}).get("erstellt", ""),
+                            "quelle": (e.get("fassung") or {}).get("quelle", ""),
+                            "distance_km": st.get("distance_km"),
+                            "n_points": st.get("n_points"),
+                            "aktuell": gh == geo_hash,
+                            "snapshot": snap.exists()})
+            return {"ok": True, "tour_id": t["id"], "fassungen": out}
+        except Exception as e:
+            log.error("tour_fassungen: %s", e)
+            return {"ok": False, "error": str(e), "fassungen": []}
+
+    def tour_fassung_wiederherstellen(self, geo_hash: str, ziel_pfad: str = "") -> dict:
+        """E3-Rollback: den Snapshot einer Fassung als Datei zurückholen.
+        Ohne ziel_pfad → Original-Archivdatei der Tour überschreiben (mit
+        Sicherung + neuer Fassung „rollback"); mit ziel_pfad → nur Kopie."""
+        try:
+            snap = SESSIONS_GPX_DIR / f"{geo_hash}.gpx"
+            if not snap.exists():
+                # E3 / Cloud v2 (Q6b): Rollback auch am Zweitrechner — den
+                # Fassungs-Snapshot als track/<gh>-Umschlag aus der Cloud holen.
+                try:
+                    self._cloud_fassung_snapshot_holen(geo_hash)
+                except Exception:
+                    log.exception("Cloud v2: Fassungs-Snapshot holen")
+            if not snap.exists():
+                return {"ok": False, "error": _ui_t()("library.fassung_kein_snapshot",
+                        "Für diese Fassung liegt keine Kopie mehr vor.")}
+            if ziel_pfad:
+                shutil.copy2(snap, ziel_pfad)
+                return {"ok": True, "out_path": ziel_pfad}
+            with _projekte.LOCK:
+                daten = _projekte.laden(APP_SUPPORT)
+                t = _projekte.tour_von_hash(daten, geo_hash)
+                if not t:
+                    return {"ok": False, "error": _ui_t()(
+                        "library.fassung_unbekannt", "Fassung unbekannt")}
+                neuester = _projekte.neueste_fassung(daten, t.get("id") or "")
+                ziel = ""
+                for kand in reversed(((daten.get("touren") or {}).get(neuester) or {}).get("gpx_paths") or []):
+                    if Path(kand).exists():
+                        ziel = kand
+                        break
+            if not ziel:
+                return {"ok": False, "error": _ui_t()("error.datei_fehlt", "Datei nicht gefunden")}
+            # Byte-genaue Kopie statt Re-Export über Punkte — so überleben
+            # Sensoren, Wegpunkte und alles Exotische den Rollback verlustfrei.
+            conn = self._lib()
+            row = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?",
+                               (ziel,)).fetchone()
+            alt_gh = row["geo_hash"] if row else ""
+            backup_dir = APP_SUPPORT / "track_backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            backup = backup_dir / f'{time.strftime("%Y%m%d-%H%M%S")}_{Path(ziel).name}'
+            shutil.copy2(ziel, backup)
+            shutil.copy2(snap, ziel)
+            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR,
+                      folders=[str(Path(ziel).parent)])
+            row2 = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?",
+                                (ziel,)).fetchone()
+            neu_gh = row2["geo_hash"] if row2 else geo_hash
+            if alt_gh and neu_gh and alt_gh != neu_gh:
+                clib.track_hash_migrieren(conn, alt_gh, neu_gh)
+                self._geo_hash_cache.pop(ziel, None)
+            with _projekte.LOCK:
+                daten = _projekte.laden(APP_SUPPORT)
+                if alt_gh and neu_gh and alt_gh != neu_gh:
+                    neu_t = _projekte.fassung_anlegen(
+                        daten, alt_gh, neu_gh, "rollback",
+                        snapshot_pfad=f"sessions/{geo_hash}.gpx", gpx_path=ziel)
+                else:
+                    neu_t = _projekte.tour_von_hash(daten, neu_gh)
+                if neu_t is not None and ziel not in (neu_t.get("gpx_paths") or []):
+                    neu_t.setdefault("gpx_paths", []).append(ziel)
+                _projekte.speichern(APP_SUPPORT, daten)
+                if neu_t and neu_t.get("id"):
+                    try:
+                        cgpxedit.embed_rz_id(ziel, neu_t["id"])
+                    except Exception:
+                        log.exception("rz:id einbetten (rollback)")
+            log.info("Fassung %s als %s wiederhergestellt (Sicherung: %s)",
+                     geo_hash[:12], ziel, backup)
+            return {"ok": True, "out_path": ziel, "backup": str(backup),
+                    "geo_hash": neu_gh}
+        except Exception as e:
+            log.error("tour_fassung_wiederherstellen: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
 
     # ── Geotagger ─────────────────────────────────────────────────────────────

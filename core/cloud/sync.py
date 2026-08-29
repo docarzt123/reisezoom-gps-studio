@@ -99,6 +99,11 @@ class Abgleich:
         # IDEAS §38 M5 — Kompositionen (Reise/Schwarm) wie Touren behandeln.
         for mh, pruef in bestand.mengen.items():
             vergleiche(archiv.menge_name(mh), pruef)
+        # E3 / Cloud v2 — Versions-Ketten + Fassungs-Snapshots (IDEAS §39 Q6b).
+        for tid, pruef in bestand.ketten.items():
+            vergleiche(archiv.kette_name(tid), pruef)
+        for gh, pruef in bestand.fassungen.items():
+            vergleiche(archiv.track_name(gh), pruef)
 
         # ⚠️ Was oben liegt und lokal nicht mehr existiert, ist gelöscht —
         # aber NUR, wenn wir das Verzeichnis wirklich kennen. Bei einem leeren
@@ -113,6 +118,11 @@ class Abgleich:
             # Komposition beim NÄCHSTEN Abgleich wieder löschen.
             bekannt |= {transport.server_name(archiv.menge_name(mh))
                         for mh in bestand.mengen}
+            # E3 / Cloud v2 — sonst gälten Ketten/Fassungen als „nur in der Cloud".
+            bekannt |= {transport.server_name(archiv.kette_name(tid))
+                        for tid in bestand.ketten}
+            bekannt |= {transport.server_name(archiv.track_name(gh))
+                        for gh in bestand.fassungen}
             for sname in oben:
                 if sname not in bekannt:
                     plan.weg.append(sname)
