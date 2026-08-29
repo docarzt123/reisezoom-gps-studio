@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.617"
+APP_VERSION = "0.9.618"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -3797,6 +3797,7 @@ class Api:
                            else "reise"),
             # IDEAS §38 M2 — Fokus-Tour (leer = Haupt-Track).
             schwarm_fokus_gpx=str(params.get("schwarm_fokus_gpx") or ""),
+            schwarm_haupt_dezent=bool(params.get("schwarm_haupt_dezent")),
             # IDEAS §38 M3 — Geschwindigkeitsmodus (Wahl im Archiv, via Session)
             schwarm_modus=(str(params.get("schwarm_modus") or "gleich")
                            if str(params.get("schwarm_modus") or "gleich") in ("gleich", "ziel", "uhrzeit")

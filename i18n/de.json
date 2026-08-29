@@ -2487,5 +2487,6 @@
   "topbar.project.new_empty_default": "Neues Projekt",
   "library.col_filterhint_filter": "Aktive Filter: {f}.",
   "library.filter_jahr": "Jahr {j}",
-  "library.filter_gegend": "Gegend auf der Karte"
+  "library.filter_gegend": "Gegend auf der Karte",
+  "animator.schwarm_dezent": "Haupt-Tour nicht hervorheben (wie die anderen)"
 }

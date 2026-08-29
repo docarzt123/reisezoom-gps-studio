@@ -46,6 +46,12 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Schwarm: „Haupt-Tour nicht hervorheben" (v0.9.618, Marc: „ich will
+  nicht, dass eine tour raussticht"): neues Häkchen im Schwarm-Bereich —
+  der Laufpunkt der Haupt-Tour wird zum kleinen Kreis in Tour-Farbe (wie
+  die anderen), die Linie bekommt exakt Schwarm-Breite, Schatten und Glow
+  entfallen. Vorschau und Render wortgleich; die Wahl wird im Projekt
+  gespeichert.
 - Übergabe-Hinweis nennt die Filter (v0.9.617, Marc: „ist es zufall, dass
   genau fünfzig …?" — es war der übersehene Jahr-Filter 2023): Der
   Verwaltungs-Dialog sagt jetzt nicht nur „50 von 137", sondern auch

@@ -2264,6 +2264,7 @@ function mountAnimator(body, headerActions, opts) {
   // IDEAS §38 M2 — Fokus-Tour: GPX-Pfad der Zusatz-Tour, der die Kamera folgt
   // („" = Haupt-Track). Nur im Schwarm-Ablauf von Bedeutung.
   let _animFokusPfad = "";
+  let _animDezent = false;   // 29.08.2026 — Haupt-Tour im Schwarm dezent
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
   // 23.08.2026 — Etappen: Startindizes + geometrische Kumulativlänge. `line-progress`
   // misst gezeichnete Länge, cumDistM zählt Etappengrenzen bewusst NICHT mit — für die
@@ -2799,7 +2800,10 @@ function mountAnimator(body, headerActions, opts) {
    * (denn setStyle entfernt alle Sources/Layer).
    */
   function currentLineWidth() {
-    return parseFloat(document.getElementById("anim-lw")?.value) || 3.5;
+    const w = parseFloat(document.getElementById("anim-lw")?.value) || 3.5;
+    // Dezent-Modus (Schwarm): Haupt-Linie in Schwarm-Breite — Spiegel des
+    // cfg.line_width-Overrides in core/animator.py.
+    return hauptDezent() ? Math.max(0.5, Math.round(w * 0.8 * 100) / 100) : w;
   }
   // v0.9.169 — Ghost-Track (ganze Route schwach im Hintergrund)
   function currentGhostEnabled() {
@@ -3115,7 +3119,7 @@ function mountAnimator(body, headerActions, opts) {
     // Strichelung Paint-Eigenschaften des LAYERS sind. Synchron zu
     // `ghost_liste()` + dem erzeugten Karten-JS in core/animator.py.
     _ghostSpurenAufbauen();
-    if (!map.getLayer("preview-shadow")) {
+    if (!map.getLayer("preview-shadow") && !hauptDezent()) {
       const st = currentShadowStrength();
       const _sr = currentShadowDir() * Math.PI / 180;   // v0.9.478 — globale Richtung
       map.addLayer({ id: "preview-shadow", type: "line", source: "preview-track",
@@ -3130,7 +3134,7 @@ function mountAnimator(body, headerActions, opts) {
         }
       });
     }
-    if (!map.getLayer("preview-glow")) {
+    if (!map.getLayer("preview-glow") && !hauptDezent()) {
       const gs = currentGlowStrength();
       // v0.9.16 — Glow-Opacity auf 0.35 angeglichen (war 0.4 vs Render 0.35).
       // v0.9.20 — line-width skaliert mit gs: bei gs=4 (Default) ≈ 2.85×lw
@@ -3740,6 +3744,11 @@ function mountAnimator(body, headerActions, opts) {
    * `dot-*` im Render (`core/animator.py`) — ⚠️ bei Änderungen beide pflegen.
    */
   function dotZeigen()  { return document.getElementById("anim-dot-show")?.checked !== false; }
+  /** Schwarm + „Haupt-Tour nicht hervorheben"? Dann Laufpunkt/Linie im
+   *  Schwarm-Stil — synchron zu haupt_dezent_js in core/animator.py. */
+  function hauptDezent() {
+    return _animAblauf === "schwarm" && _extraTours.length > 0 && _animDezent;
+  }
   function dotStil()    { return document.getElementById("anim-dot-style")?.value || "dot"; }
   function dotGroesse() { return parseFloat(document.getElementById("anim-dot-size")?.value) || 1; }
 
@@ -3814,7 +3823,14 @@ function mountAnimator(body, headerActions, opts) {
         if (map.getLayer(id)) map.removeLayer(id);
       });
       if (!dotZeigen() || !currentCoords) return;
-      if (dotStil() === "arrow") {
+      if (hauptDezent()) {
+        // currentLineWidth() ist im Dezent-Modus schon auf Schwarm-Breite
+        // reduziert — Radius exakt wie die schwarm-dots im Render.
+        map.addLayer({ id: "anim-dot-core", type: "circle", source: "anim-dot",
+          paint: { "circle-radius": Math.max(3, currentLineWidth() * 1.5), "circle-color": farbe,
+                   "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2,
+                   "circle-pitch-alignment": "map" } });
+      } else if (dotStil() === "arrow") {
         try {
           if (map.hasImage("anim-arrow")) map.removeImage("anim-arrow");
           map.addImage("anim-arrow", _pfeilBild(farbe), { pixelRatio: 2 });
@@ -12084,6 +12100,34 @@ function mountAnimator(body, headerActions, opts) {
         try { scrubPreview(_tlBar ? _tlBar.getScrubber() : 0); } catch (_) {}
       });
     }
+    // 29.08.2026 (Marc: „ich will nicht, dass eine tour raussticht"):
+    // Haupt-Tour dezent — Laufpunkt + Linie wie die Zusatz-Touren.
+    let dzWrap = document.getElementById("anim-dezent-wrap");
+    if (!dzWrap && fokusWrap && fokusWrap.parentNode) {
+      dzWrap = document.createElement("div");
+      dzWrap.id = "anim-dezent-wrap";
+      dzWrap.style.marginTop = "6px";
+      dzWrap.innerHTML = `<label class="chk" style="font-size:11px">
+        <input type="checkbox" id="anim-schwarm-dezent">
+        <span>${t("animator.schwarm_dezent", "Haupt-Tour nicht hervorheben (wie die anderen)")}</span></label>`;
+      fokusWrap.parentNode.insertBefore(dzWrap, fokusWrap.nextSibling);
+      const cb = dzWrap.querySelector("#anim-schwarm-dezent");
+      if (cb) cb.checked = _animDezent;
+      if (cb) cb.addEventListener("change", () => {
+        _animDezent = cb.checked;
+        _animPersistTours();
+        // Layer neu bauen — Breite/Schatten/Glow stecken in den Paint-Werten
+        // der bestehenden Layer und ändern sich sonst nicht.
+        try {
+          ["preview-shadow", "preview-glow", "preview-line", "preview-highlight"]
+            .forEach(id => { if (map && map.getLayer(id)) map.removeLayer(id); });
+        } catch (_) {}
+        try { dotEbenenAufbauen(); } catch (_) {}
+        try { renderTrackPreview(); } catch (_) {}
+        try { scrubPreview(_tlBar ? _tlBar.getScrubber() : 0); } catch (_) {}
+      });
+    }
+    if (dzWrap) dzWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
     if (fokusWrap) {
       fokusWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
       const sel = fokusWrap.querySelector("#anim-fokus");
@@ -12506,6 +12550,7 @@ function mountAnimator(body, headerActions, opts) {
           gpx_path: t.gpx_path, line_color: t.line_color, name: t.name })),
         tours_ablauf: _animAblauf,
         tours_fokus: _animFokusPfad,
+        tours_dezent: _animDezent,
         fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
       });
     } catch (_) {}
@@ -12640,6 +12685,9 @@ function mountAnimator(body, headerActions, opts) {
         _animPausen = sess.schwarm_pausen !== false;
       }
       _animFokusPfad = (typeof a.tours_fokus === "string") ? a.tours_fokus : "";
+      _animDezent = a.tours_dezent === true;
+      { const cb = document.getElementById("anim-schwarm-dezent");
+        if (cb) cb.checked = _animDezent; }
     } catch (_) {}
     const flyEl = document.getElementById("anim-fly");
     if (flyEl) { flyEl.value = fly; const l = document.getElementById("anim-fly-v"); if (l) l.textContent = fly.toFixed(1) + " s"; }
@@ -12963,6 +13011,7 @@ function mountAnimator(body, headerActions, opts) {
           tracks,
           tracks_ablauf: _animAblauf,
           schwarm_fokus_gpx: _animAblauf === "schwarm" ? _animFokusPfad : "",
+          schwarm_haupt_dezent: hauptDezent(),
           schwarm_modus: _animAblauf === "schwarm" ? _animModus : "gleich",
           schwarm_pausen: _animAblauf === "schwarm" ? _animPausen : true,
           fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),

@@ -2487,5 +2487,6 @@
   "topbar.project.new_empty_default": "New project",
   "library.col_filterhint_filter": "Active filters: {f}.",
   "library.filter_jahr": "year {j}",
-  "library.filter_gegend": "map area"
+  "library.filter_gegend": "map area",
+  "animator.schwarm_dezent": "Don't highlight the main tour (blend in)"
 }
