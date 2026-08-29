@@ -366,11 +366,13 @@ velocidad** y la selección pasa **directamente al Animador**:
 - **Llegada conjunta** (photo finish): cada ruta se escala para que todas
   lleguen exactamente con el final del vídeo — las cortas van más despacio,
   las largas más deprisa.
-- **Hora real**: cada ruta avanza según sus marcas de tiempo — los tramos
-  rápidos, rápido; y durante un descanso el punto se detiene de verdad (la
-  casilla **«Contar las pausas»** cambia a tiempo de movimiento puro). Todas
-  salen juntas; la ruta de mayor duración marca el eje de tiempo. Las rutas
-  sin marcas de tiempo (planificadas) avanzan de forma uniforme.
+- **Hora real, con pausas**: cada ruta avanza según sus marcas de tiempo —
+  los tramos rápidos, rápido; y durante un descanso el punto se detiene de
+  verdad. Todas salen juntas; la ruta de mayor duración marca el eje de
+  tiempo. Las rutas sin marcas de tiempo (planificadas) avanzan de forma
+  uniforme.
+- **Hora real, sin pausas**: igual que arriba, pero las pausas se recortan —
+  se compara el ritmo de movimiento puro.
 
 La última elección se recuerda; el modo queda guardado en la combinación —
 elige las mismas rutas otra vez y ahí está. Cada ruta conserva su color del archivo. Con

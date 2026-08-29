@@ -370,11 +370,13 @@ Markiere mehrere Touren (⌘/Strg-Klick) oder öffne eine Sammlung und wähle
   kürzere sind früher im Ziel und ihr Punkt bleibt dort stehen.
 - **Gleichzeitig im Ziel** (Fotofinish): jede Tour wird so skaliert, dass alle
   exakt mit dem Videoende ankommen — kurze laufen langsamer, lange schneller.
-- **Echte Uhrzeit**: jede Tour läuft nach ihren aufgezeichneten Zeitstempeln —
-  schnelle Abschnitte schnell, und bei einer Rast steht der Punkt wirklich
-  still (das Häkchen **„Pausen mitzählen"** schaltet auf reine Bewegungszeit
-  um). Alle starten gemeinsam; die Tour mit der längsten Dauer bestimmt die
-  Zeitachse. Touren ohne Zeitstempel (geplante Routen) laufen gleichmäßig mit.
+- **Echte Uhrzeit — mit Pausen**: jede Tour läuft nach ihren aufgezeichneten
+  Zeitstempeln — schnelle Abschnitte schnell, und bei einer Rast steht der
+  Punkt wirklich still. Alle starten gemeinsam; die Tour mit der längsten
+  Dauer bestimmt die Zeitachse. Touren ohne Zeitstempel (geplante Routen)
+  laufen gleichmäßig mit.
+- **Echte Uhrzeit — ohne Pausen**: wie oben, aber Pausen werden
+  herausgeschnitten — verglichen wird das reine Tempo.
 
 Die letzte Wahl wird gemerkt; gespeichert ist der Modus an der Zusammenstellung
 selbst — dieselben Touren wieder gewählt, und er ist wieder da. Jede Tour behält ihre Farbe aus dem Archiv. Bei vielen

@@ -2388,8 +2388,9 @@
   "schwarm.modus_gleich_hint": "La ruta más larga marca la duración del vídeo; las cortas llegan antes.",
   "schwarm.modus_ziel": "Llegada conjunta",
   "schwarm.modus_ziel_hint": "Photo finish: cada ruta se escala para que todas lleguen con el final del vídeo.",
-  "schwarm.modus_uhrzeit": "Hora real",
-  "schwarm.modus_uhrzeit_hint": "Cada ruta avanza según sus marcas de tiempo (salida común). Las rutas sin marcas avanzan de forma uniforme.",
-  "schwarm.modus_pausen": "Contar las pausas: el punto se detiene de verdad durante un descanso",
-  "schwarm.los": "Vamos"
+  "schwarm.modus_uhrzeit": "Hora real, con pausas",
+  "schwarm.modus_uhrzeit_hint": "Cada ruta avanza según sus marcas de tiempo (salida común); durante un descanso el punto se detiene. Las rutas sin marcas avanzan de forma uniforme.",
+  "schwarm.los": "Vamos",
+  "schwarm.modus_uhrzeit_bew": "Hora real, sin pausas",
+  "schwarm.modus_uhrzeit_bew_hint": "Igual que arriba, pero las pausas se recortan: se compara el ritmo de movimiento puro."
 }

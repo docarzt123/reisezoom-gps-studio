@@ -363,11 +363,12 @@ then the selection goes **straight into the Animator**:
   shorter ones finish earlier and their dot stays at the finish.
 - **Finish together** (photo finish): every tour is scaled so all arrive
   exactly with the end of the video — short ones run slower, long ones faster.
-- **Real time**: every tour runs by its recorded timestamps — fast sections
-  fast, and during a rest the dot really stands still (the **"Count breaks"**
-  checkbox switches to pure moving time). All start together; the tour with
-  the longest duration sets the time axis. Tours without timestamps (planned
-  routes) move evenly.
+- **Real time — with breaks**: every tour runs by its recorded timestamps —
+  fast sections fast, and during a rest the dot really stands still. All start
+  together; the tour with the longest duration sets the time axis. Tours
+  without timestamps (planned routes) move evenly.
+- **Real time — without breaks**: same as above, but breaks are cut out —
+  pure moving pace is compared.
 
 Your last choice is remembered; the mode itself is stored with the line-up —
 pick the same tours again and it is back. Every tour keeps its colour from the library.

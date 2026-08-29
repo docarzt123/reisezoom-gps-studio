@@ -2554,13 +2554,17 @@ function mountLibrary(body, headerActions) {
       toast(T("schwarm.zu_wenig", "Für einen Schwarm mindestens 2 Touren markieren."), "warn");
       return;
     }
+    // Marc, 29.08.2026: VIER Radios statt drei + Pausen-Häkchen — die
+    // Checkbox galt zwar nur für „Echte Uhrzeit" (sonst ausgegraut), aber
+    // vier explizite Optionen sind eindeutiger.
     const merkModus = (typeof _settingsCache === "object" && _settingsCache
                        && ["gleich", "ziel", "uhrzeit"].includes(_settingsCache.schwarm_modus))
                       ? _settingsCache.schwarm_modus : "gleich";
     const merkPausen = !(typeof _settingsCache === "object" && _settingsCache
                          && _settingsCache.schwarm_pausen === false);
+    const merkWahl = merkModus === "uhrzeit" ? (merkPausen ? "uhrzeit" : "uhrzeit_bew") : merkModus;
     const radio = (wert, titel, hint) => `
-      <label class="lib-modus-zeile"><input type="radio" name="lib-sw-modus" value="${wert}"${wert === merkModus ? " checked" : ""}>
+      <label class="lib-modus-zeile"><input type="radio" name="lib-sw-modus" value="${wert}"${wert === merkWahl ? " checked" : ""}>
         <span><strong>${titel}</strong><br><span class="lib-hint">${hint}</span></span></label>`;
     const m = openModal({
       title: "🌊 " + T("schwarm.action", "Als Schwarm animieren …"),
@@ -2570,27 +2574,21 @@ function mountLibrary(body, headerActions) {
                 T("schwarm.modus_gleich_hint", "Die längste Tour bestimmt die Videodauer, kürzere sind früher im Ziel."))}
         ${radio("ziel", T("schwarm.modus_ziel", "Gleichzeitig im Ziel"),
                 T("schwarm.modus_ziel_hint", "Fotofinish: jede Tour wird skaliert, alle kommen mit dem Videoende an."))}
-        ${radio("uhrzeit", T("schwarm.modus_uhrzeit", "Echte Uhrzeit"),
-                T("schwarm.modus_uhrzeit_hint", "Jede Tour läuft nach ihren Zeitstempeln (gemeinsamer Start). Touren ohne Zeitstempel laufen gleichmäßig mit."))}
-        <label class="lib-modus-pausen"><input type="checkbox" id="lib-sw-pausen"${merkPausen ? " checked" : ""}>
-          ${T("schwarm.modus_pausen", "Pausen mitzählen — der Punkt steht bei Rast still")}</label>
+        ${radio("uhrzeit", T("schwarm.modus_uhrzeit", "Echte Uhrzeit — mit Pausen"),
+                T("schwarm.modus_uhrzeit_hint", "Jede Tour läuft nach ihren Zeitstempeln (gemeinsamer Start); bei einer Rast steht der Punkt still. Touren ohne Zeitstempel laufen gleichmäßig mit."))}
+        ${radio("uhrzeit_bew", T("schwarm.modus_uhrzeit_bew", "Echte Uhrzeit — ohne Pausen"),
+                T("schwarm.modus_uhrzeit_bew_hint", "Wie oben, aber Pausen werden herausgeschnitten — verglichen wird das reine Tempo."))}
       </div>`,
       footer: `<button class="btn" id="lib-sw-abbruch">${T("common.cancel", "Abbrechen")}</button>
                <button class="btn btn-primary" id="lib-sw-los">🌊 ${T("schwarm.los", "Los")}</button>`,
     });
-    const pausenBox = document.getElementById("lib-sw-pausen");
-    const pausenSync = () => {
-      const w = (document.querySelector('input[name="lib-sw-modus"]:checked') || {}).value;
-      if (pausenBox) pausenBox.disabled = w !== "uhrzeit";
-    };
-    document.querySelectorAll('input[name="lib-sw-modus"]').forEach(r => r.onchange = pausenSync);
-    pausenSync();
     const ab = document.getElementById("lib-sw-abbruch");
     if (ab) ab.onclick = () => m.close();
     const los = document.getElementById("lib-sw-los");
     if (los) los.onclick = () => {
-      const modus = (document.querySelector('input[name="lib-sw-modus"]:checked') || {}).value || "gleich";
-      const pausen = !pausenBox || pausenBox.checked;
+      const wahl = (document.querySelector('input[name="lib-sw-modus"]:checked') || {}).value || "gleich";
+      const modus = wahl === "uhrzeit_bew" ? "uhrzeit" : wahl;
+      const pausen = wahl !== "uhrzeit_bew";
       try { saveSettings({ schwarm_modus: modus, schwarm_pausen: pausen }); } catch (_) {}
       m.close();
       _schwarmStarten(gute, modus, pausen);
