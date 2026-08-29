@@ -413,7 +413,11 @@ egal in welchem Modul:
   Datei in deinen überwachten Ordner **kopiert** — das Original bleibt liegen — und ab dann
   arbeitest du mit der Fassung im Archiv. Hast du mehrere Ordner, wählst du den Zielordner;
   hast du noch gar keinen, wird **Dokumente › Reisezoom Touren** angelegt.
-- **Nach dem Reparieren im Inspektor** kommt dieselbe Frage für den geänderten Track.
+- **Nach dem Reparieren im Inspektor** fragt Speichern bei Archiv-Touren direkt:
+  **„Im Archiv ersetzen"** überschreibt das Original (vorher automatisch in der
+  App-Ablage gesichert) — Sammlungen, Projekte (Keyframes, Fotos, Schilder) und
+  Reise/Schwarm-Kompositionen wandern dabei automatisch mit. **„Als neue
+  Datei …"** ist der bisherige Weg; ohne Archiv ändert sich nichts.
 
 **Und die Cloud?** Wer sie eingerichtet hat: Die aufgenommene Tour wandert von allein mit
 hoch — der Abgleich nimmt alles, was im Archiv steht, und merkt die Änderung selbst. Sofort

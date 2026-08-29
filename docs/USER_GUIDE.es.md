@@ -412,7 +412,12 @@ comprueba al abrir, en cualquier módulo:
   queda donde está — y a partir de ahí trabajas con la copia del catálogo.
   Con varias carpetas vigiladas eliges el destino; sin ninguna, se crea
   **Documentos › Reisezoom Touren**.
-- **Tras reparar una ruta en el inspector** llega la misma pregunta.
+- **Tras reparar una ruta en el inspector**, guardar pregunta directamente en
+  las rutas del archivo: **«Reemplazar en el archivo»** sobrescribe el original
+  (antes se guarda una copia en el almacén de la app) — colecciones, proyectos
+  (keyframes, fotos, carteles) y combinaciones de viaje/enjambre se trasladan
+  automáticamente. **«Guardar como archivo nuevo …»** es el camino de siempre;
+  sin archivo nada cambia.
 
 Solo pregunta cuando abres un archivo tú mismo. El arranque de la aplicación,
 los clics en el archivo y las importaciones de la nube van en silencio. Un

@@ -407,7 +407,11 @@ any module:
   stays put — and from then on you work with the library copy. With several
   watched folders you pick the target; with none, **Documents › Reisezoom
   Touren** is created for you.
-- **After repairing a track in the inspector** the same question follows.
+- **After repairing a track in the inspector**, saving asks directly for
+  archive tours: **"Replace in archive"** overwrites the original (backed up to
+  the app storage first) — collections, projects (keyframes, photos, signs) and
+  journey/swarm line-ups move along automatically. **"Save as new file …"** is
+  the previous way; without the archive nothing changes.
 
 It only asks when you open a file yourself. App start, library clicks and
 cloud imports stay silent. A **"no"** can be remembered per tour (checkbox in

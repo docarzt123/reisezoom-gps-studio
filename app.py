@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.593"
+APP_VERSION = "0.9.594"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -6852,6 +6852,82 @@ class Api:
             return res
         except Exception as e:
             log.error("gpxinspect_save: %s\n%s", e, traceback.format_exc())
+            return {"ok": False, "error": str(e)}
+
+    def library_track_ersetzen(self, points: list, src_path: str,
+                               orig_path: str, sources: list = None) -> dict:
+        """Geheilten Track direkt ins Archiv zurückschreiben (Marc, 29.08.2026:
+        „ich bin ja ausm archiv gekommen … und möchte sie dann im archiv direkt
+        haben"). Ablauf: Original sichern (App-Ablage, wird nicht gescannt) →
+        Datei überschreiben → neu einlesen → Sammlungen + Tour-Meta auf den
+        neuen geo_hash umziehen → Einzel-Sitzung re-keyen → Mengen-Sitzungen
+        (Reise/Schwarm) auf den neuen Mengen-Hash umziehen. Ohne Archiv bleibt
+        der bisherige „Speichern unter …"-Weg unangetastet."""
+        try:
+            pfad = str(orig_path or "")
+            if not pfad.lower().endswith(".gpx"):
+                return {"ok": False, "error": _ui_t()("gpxinspect.ersetzen_nur_gpx",
+                        "Ersetzen geht nur bei GPX-Originalen — bitte „Speichern unter …“ nutzen.")}
+            if not Path(pfad).exists():
+                return {"ok": False, "error": _ui_t()("error.datei_fehlt", "Datei nicht gefunden")}
+            conn = self._lib()
+            row = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?", (pfad,)).fetchone()
+            if not row or not row["geo_hash"]:
+                return {"ok": False, "error": _ui_t()("gpxinspect.ersetzen_unbekannt",
+                        "Diese Datei liegt nicht im Archiv.")}
+            alt_gh = row["geo_hash"]
+            # 1) Sicherung — GPS Studio löscht nie endgültig.
+            backup_dir = APP_SUPPORT / "track_backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            backup = backup_dir / f'{time.strftime("%Y%m%d-%H%M%S")}_{Path(pfad).name}'
+            shutil.copy2(pfad, backup)
+            # 2) Überschreiben (GPX, Sensoren eingebettet wie beim normalen Speichern)
+            res = cgpxedit.save_points(points or [], pfad, name=Path(pfad).stem,
+                                       src_path=src_path, fmt="gpx",
+                                       sources=list(sources) if sources else None)
+            if not res.get("ok"):
+                try: shutil.copy2(backup, pfad)
+                except Exception: pass
+                return res
+            # 3) Neu einlesen (mtime-Skip: nur die geänderte Datei wird gelesen)
+            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(Path(pfad).parent)])
+            row2 = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?", (pfad,)).fetchone()
+            neu_gh = row2["geo_hash"] if row2 else ""
+            n_col = 0
+            n_menge = 0
+            if neu_gh and neu_gh != alt_gh:
+                n_col = clib.track_hash_migrieren(conn, alt_gh, neu_gh)
+                self._geo_hash_cache.pop(pfad, None)
+                with _sessions.LOCK:
+                    daten = _sessions.load_sessions(SESSIONS_FILE)
+                    sess = daten.setdefault("sessions", {})
+                    if alt_gh in sess and neu_gh not in sess:
+                        s = sess.pop(alt_gh)
+                        s["track_hash"] = neu_gh
+                        sess[neu_gh] = s
+                    for key in [k for k in list(sess) if isinstance(k, str) and k.startswith("menge:")]:
+                        m = sess.get(key) or {}
+                        ghs = m.get("geo_hashes") or []
+                        if alt_gh not in ghs:
+                            continue
+                        neue = sorted(set(neu_gh if g == alt_gh else g for g in ghs))
+                        m["geo_hashes"] = neue
+                        neu_key = _sessions.mengen_hash(neue)
+                        if neu_key != key and neu_key not in sess:
+                            m["track_hash"] = neu_key
+                            sess[neu_key] = m
+                            del sess[key]
+                        n_menge += 1
+                    _sessions.save_sessions(SESSIONS_FILE, daten)
+            log.info("Track im Archiv ersetzt: %s · %s → %s · %d Sammlungs-Einträge · "
+                     "%d Kompositionen · Sicherung: %s",
+                     pfad, alt_gh, neu_gh, n_col, n_menge, backup)
+            return {"ok": True, "out_path": pfad, "backup": str(backup),
+                    "collections": n_col, "mengen": n_menge,
+                    "geo_hash": neu_gh, "sensors_kept": res.get("sensors_kept"),
+                    "fmt": "gpx", "count": res.get("count", 0)}
+        except Exception as e:
+            log.error("library_track_ersetzen: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
 
     # ── Geotagger ─────────────────────────────────────────────────────────────

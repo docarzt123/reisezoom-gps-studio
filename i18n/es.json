@@ -2411,5 +2411,15 @@
   "gpxinspect.heal_tempo_done": "%t puntos de velocidad ajustados",
   "gpxinspect.tempo_cap": "Velocidad máx. plausible",
   "gpxinspect.tempo_cap_help": "Vacío = automático (según el ritmo mediano de la ruta). Escribe p. ej. 15 si sabes que nunca fuiste más rápido de 15 km/h — todo lo que supere ese valor se ajustará en el tiempo al curar.",
-  "gpxinspect.tempo_cap_auto": "auto"
+  "gpxinspect.tempo_cap_auto": "auto",
+  "gpxinspect.ersetzen_frage": "Esta ruta está en el archivo. ¿Debe la versión curada reemplazar al original?",
+  "gpxinspect.ersetzen_hint": "Al reemplazar, las colecciones, los proyectos (keyframes, fotos, carteles) y las combinaciones de viaje/enjambre se trasladan automáticamente. El original se guarda antes en el almacén de la app.",
+  "gpxinspect.ersetzen_ja": "Reemplazar en el archivo",
+  "gpxinspect.ersetzen_neu": "Guardar como archivo nuevo …",
+  "gpxinspect.ersetzt_toast": "Reemplazado en el archivo.",
+  "gpxinspect.ersetzt_col": "%n entradas de colección migradas",
+  "gpxinspect.ersetzt_mengen": "%n combinaciones actualizadas",
+  "gpxinspect.ersetzt_backup": "Copia de seguridad:",
+  "gpxinspect.ersetzen_nur_gpx": "Reemplazar solo funciona con originales GPX; usa «Guardar como …».",
+  "gpxinspect.ersetzen_unbekannt": "Este archivo no está en el archivo."
 }
