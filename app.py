@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.620"
+APP_VERSION = "0.9.621"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -6944,6 +6944,24 @@ class Api:
                             log.exception("rz:id einbetten (ersetzen)")
                 log.info("Ersetzen: Fassung %d angelegt — Projekte bleiben gepinnt",
                          fassung_nr)
+            elif neu_gh == alt_gh:
+                # Abnahme-Befund 29.08.2026: reine ZEIT-Heilung (Tempo
+                # entzerren) lässt den Geometrie-Hash unverändert — dann gab
+                # es weder rz:id noch frischen Snapshot. Fassungs-Einträge
+                # sind hash-verschlüsselt (Geometrie-Stände); der Zeit-Stand
+                # wird über Snapshot + track_backups festgehalten.
+                with _projekte.LOCK:
+                    pdaten = _projekte.laden(APP_SUPPORT)
+                    t = _projekte.tour_von_hash(pdaten, alt_gh)
+                    if t is not None:
+                        t["gpx_snapshot_path"] = _sessions._save_snapshot(
+                            pfad, alt_gh, SESSIONS_GPX_DIR)
+                        _projekte.speichern(APP_SUPPORT, pdaten)
+                    if t and t.get("id"):
+                        try:
+                            cgpxedit.embed_rz_id(pfad, t["id"])
+                        except Exception:
+                            log.exception("rz:id einbetten (ersetzen, gleicher Hash)")
             log.info("Track im Archiv ersetzt: %s · %s → %s · %d Sammlungs-Einträge · "
                      "%d Kompositionen · Sicherung: %s",
                      pfad, alt_gh, neu_gh, n_col, n_menge, backup)

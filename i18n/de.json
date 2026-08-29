@@ -2413,7 +2413,7 @@
   "gpxinspect.tempo_cap_help": "Leer = automatisch (aus dem Tempo-Median der Tour). Trage z. B. 15 ein, wenn du weißt, dass du nie schneller als 15 km/h warst — alles darüber wird beim Heilen zeitlich entzerrt.",
   "gpxinspect.tempo_cap_auto": "auto",
   "gpxinspect.ersetzen_frage": "Diese Tour liegt im Archiv. Soll die geheilte Fassung das Original ersetzen?",
-  "gpxinspect.ersetzen_hint": "Beim Ersetzen wandern Sammlungen, Projekte (Keyframes, Fotos, Schilder) und Reise/Schwarm-Kompositionen automatisch mit. Das Original wird vorher in der App-Ablage gesichert.",
+  "gpxinspect.ersetzen_hint": "Sammlungen und das Archiv zeigen danach die geheilte Fassung. Bestehende Projekte bleiben an der bisherigen Fassung „gepinnt“ (nichts verrutscht) und zeigen „⬆ neuere Fassung“ zum bewussten Aktualisieren. Das Original wird vorher in der App-Ablage gesichert und bleibt als Fassung wiederherstellbar.",
   "gpxinspect.ersetzen_ja": "Im Archiv ersetzen",
   "gpxinspect.ersetzen_neu": "Als neue Datei …",
   "gpxinspect.ersetzt_toast": "Im Archiv ersetzt.",
@@ -2488,5 +2488,7 @@
   "library.col_filterhint_filter": "Aktive Filter: {f}.",
   "library.filter_jahr": "Jahr {j}",
   "library.filter_gegend": "Gegend auf der Karte",
-  "animator.schwarm_dezent": "Haupt-Tour nicht hervorheben (wie die anderen)"
+  "animator.schwarm_dezent": "Haupt-Tour nicht hervorheben (wie die anderen)",
+  "library.proj_addtours_leer": "Nichts angehakt — erst Touren auswählen.",
+  "library.keine_treffer": "Keine Treffer."
 }

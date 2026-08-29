@@ -670,8 +670,28 @@ def alle_projekte(daten: dict) -> list:
     for pid, p in (daten.get("projects") or {}).items():
         ghs = p.get("geo_hashes") or []
         tour_namen = [((touren.get(g) or {}).get("name") or "") for g in ghs]
+        # v0.9.621 (Abnahme-Befund): „Modul-Dict nicht leer" traf IMMER zu —
+        # jedes Projekt trägt Default-Einstellungen, also zeigten alle Karten
+        # alle vier Chips. Ein Chip heißt jetzt: dort liegt ARBEIT (Marker)
+        # oder es war das zuletzt benutzte Modul.
+        def _mod_arbeit(m: str, p=p) -> bool:
+            d = p.get(m) if isinstance(p.get(m), dict) else {}
+            if m == p.get("letztes_modul"):
+                return True
+            if m == "animator":
+                return any(d.get(k) for k in ("timeline_events", "extra_tours",
+                                              "ghosts", "charts",
+                                              "track_color_stops"))
+            if m == "tourmap":
+                return bool(p.get("tourmap_signs") or d.get("signs")
+                            or p.get("signs"))
+            if m == "geotagger":
+                return bool(p.get("photos"))
+            if m == "heightanim":
+                return bool(d.get("series") or d.get("series2"))
+            return False
         module = [m for m in ("animator", "tourmap", "geotagger", "heightanim")
-                  if isinstance(p.get(m), dict) and p.get(m)]
+                  if _mod_arbeit(m)]
         out.append({
             "id": pid, "name": p.get("name", "?"),
             "status": p.get("status", "aktiv"),

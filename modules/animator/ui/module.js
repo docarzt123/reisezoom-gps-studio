@@ -3238,6 +3238,14 @@ function mountAnimator(body, headerActions, opts) {
       { type: "Feature", properties: { kind: "start" }, geometry: { type: "Point", coordinates: currentCoords[0] } },
       { type: "Feature", properties: { kind: "end" },   geometry: { type: "Point", coordinates: currentCoords[currentCoords.length - 1] } },
     ]};
+    // v0.9.621 — Dezent-Modus: Haupt-Tour ohne Start/End-Pins (die Schwarm-
+    // Touren haben auch keine; der wandernde End-Pin war der „riesige Kreis").
+    if (hauptDezent()) {
+      ["preview-pin-glow", "preview-pin-core"].forEach(id => {
+        try { if (map.getLayer(id)) map.removeLayer(id); } catch (_) {}
+      });
+      return;
+    }
     if (!map.getSource("preview-pins")) {
       map.addSource("preview-pins", { type: "geojson", data });
     } else {
@@ -12119,11 +12127,17 @@ function mountAnimator(body, headerActions, opts) {
         // Layer neu bauen — Breite/Schatten/Glow stecken in den Paint-Werten
         // der bestehenden Layer und ändern sich sonst nicht.
         try {
-          ["preview-shadow", "preview-glow", "preview-line", "preview-highlight"]
+          ["preview-shadow", "preview-glow", "preview-line", "preview-highlight",
+           "preview-pin-glow", "preview-pin-core"]
             .forEach(id => { if (map && map.getLayer(id)) map.removeLayer(id); });
         } catch (_) {}
+        // ui-falle-ok: reiner Neuaufbau nach Toggle — Fehler landen im eigenen catch von dotEbenenAufbauen (applog)
         try { dotEbenenAufbauen(); } catch (_) {}
-        try { renderTrackPreview(); } catch (_) {}
+        // Abnahme 29.08.2026 (js_undef): hier stand renderTrackPreview() —
+        // die Funktion heißt rebuildPreviewLayers; der try-catch verschluckte
+        // den ReferenceError und die Layer kamen erst beim nächsten Redraw.
+        // ui-falle-ok: Neuaufbau — rebuildPreviewLayers loggt selbst
+        try { rebuildPreviewLayers(); } catch (_) {}
         try { scrubPreview(_tlBar ? _tlBar.getScrubber() : 0); } catch (_) {}
       });
     }

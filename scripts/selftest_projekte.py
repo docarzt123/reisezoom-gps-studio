@@ -340,15 +340,25 @@ async def main():
               "… und springt ins letzte Modul (Reiseroute)", str(mods))
         await pg.click('[data-addtours="pf"]')
         await pg.wait_for_timeout(300)
+        await pg.wait_for_timeout(300)
         sagen(bool(await pg.query_selector("#lib-tp-liste")),
               "➕ öffnet den Archiv-Picker")
-        await pg.eval_on_selector('#lib-tp-liste [data-tpick="0"]', "e => e.checked = true")
-        await pg.eval_on_selector('#lib-tp-liste [data-tpick="1"]', "e => e.checked = true")
+        # v0.9.621: leeres Bestätigen darf nicht mehr stumm enden.
+        await pg.click("#lib-tp-ok")
+        await pg.wait_for_timeout(200)
+        sagen(not any(r["name"] == "projekt_touren_setzen"
+                      for r in await pg.evaluate("window.__ruf")),
+              "leeres Bestätigen ruft die Brücke NICHT (Hinweis statt stumm)")
+        for pfad in ("/mock/t1.gpx", "/mock/t2.gpx"):
+            await pg.eval_on_selector(
+                f'#lib-tp-liste [data-tpath="{pfad}"]',
+                "e => { e.checked = true; e.dispatchEvent(new Event('change')); }")
         await pg.click("#lib-tp-ok")
         await pg.wait_for_timeout(300)
         ruf = await pg.evaluate("window.__ruf")
         sagen(any(r["name"] == "projekt_touren_setzen"
-                  and r["args"] == ["pf", ["/mock/t1.gpx", "/mock/t2.gpx"]]
+                  and r["args"][0] == "pf"
+                  and sorted(r["args"][1]) == ["/mock/t1.gpx", "/mock/t2.gpx"]
                   for r in ruf), "Hinzufügen setzt die gewählten Touren")
 
         print("\n━━━ 5. Verwalten direkt auf der Karte ━━━")
