@@ -2413,7 +2413,7 @@
   "gpxinspect.tempo_cap_help": "Empty = automatic (from the tour's median pace). Enter e.g. 15 if you know you were never faster than 15 km/h — anything above gets re-timed on healing.",
   "gpxinspect.tempo_cap_auto": "auto",
   "gpxinspect.ersetzen_frage": "This tour is in the archive. Should the healed version replace the original?",
-  "gpxinspect.ersetzen_hint": "When replacing, collections, projects (keyframes, photos, signs) and journey/swarm line-ups move along automatically. The original is backed up to the app storage first.",
+  "gpxinspect.ersetzen_hint": "Collections and the archive will show the healed version. Existing projects stay “pinned” to the previous version (nothing shifts) and show “⬆ newer version” for a deliberate update. The original is backed up to app storage first and remains restorable as a version.",
   "gpxinspect.ersetzen_ja": "Replace in archive",
   "gpxinspect.ersetzen_neu": "Save as new file …",
   "gpxinspect.ersetzt_toast": "Replaced in the archive.",
@@ -2488,5 +2488,7 @@
   "library.col_filterhint_filter": "Active filters: {f}.",
   "library.filter_jahr": "year {j}",
   "library.filter_gegend": "map area",
-  "animator.schwarm_dezent": "Don't highlight the main tour (blend in)"
+  "animator.schwarm_dezent": "Don't highlight the main tour (blend in)",
+  "library.proj_addtours_leer": "Nothing ticked — select tours first.",
+  "library.keine_treffer": "No matches."
 }

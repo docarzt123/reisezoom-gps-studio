@@ -904,38 +904,48 @@ function mountLibrary(body, headerActions) {
     // v0.9.612: Touren aus dem Archiv in ein leeres Projekt legen.
     box.querySelectorAll("[data-addtours]").forEach(b => b.onclick = async (e) => {
       e.stopPropagation();
-      const res = await api().library_query({ limit: 300, with_thumbs: false });
-      const items = (res && res.items) || [];
-      const zeilen = items.map((it, i) => `
+      // Abnahme 29.08.2026: die Suche fragt jetzt das ARCHIV (vorher wurden
+      // nur die ersten 300 geladenen Zeilen clientseitig gefiltert — Treffer
+      // außerhalb fehlten). Gewählte Touren überleben die Suche (Pfad-Set).
+      const gewaehlt = new Set();
+      let items = [];
+      const liste = () => (items.map((it) => `
         <label class="lib-fassung" style="cursor:pointer;">
-          <input type="checkbox" data-tpick="${i}">
+          <input type="checkbox" data-tpath="${esc(it.path)}"${gewaehlt.has(it.path) ? " checked" : ""}>
           <span class="lib-fassung-info">${esc(it.name || it.filename || it.path)}</span>
-        </label>`).join("");
+        </label>`).join("")
+        || `<p>${T("library.keine_treffer", "Keine Treffer.")}</p>`);
+      const laden = async (q) => {
+        const res = await api().library_query({ search: q || "", limit: 300, with_thumbs: false });
+        items = (res && res.items) || [];
+        const el = document.getElementById("lib-tp-liste");
+        if (el) {
+          el.innerHTML = liste();
+          el.querySelectorAll("[data-tpath]").forEach(cb => cb.onchange = () => {
+            if (cb.checked) gewaehlt.add(cb.dataset.tpath);
+            else gewaehlt.delete(cb.dataset.tpath);
+          });
+        }
+      };
       const m = openModal({
         title: "➕ " + T("library.proj_addtours", "Touren aus dem Archiv hinzufügen"),
         body: `<input type="search" id="lib-tp-such" class="lib-input" placeholder="${esc(T("library.search_ph", "Suchen — Name, Ort, Schlagwort …"))}" style="margin-bottom:8px;">
-               <div style="max-height:50vh;overflow-y:auto;" id="lib-tp-liste">${zeilen
-                 || `<p>${T("library.no_folders_short", "Noch kein Ordner eingelesen")}</p>`}</div>`,
+               <div style="max-height:50vh;overflow-y:auto;" id="lib-tp-liste"></div>`,
         footer: `<button class="btn" id="lib-tp-ab">${T("common.cancel", "Abbrechen")}</button>
                  <button class="btn btn-primary" id="lib-tp-ok">${T("library.proj_addtours_ok", "Hinzufügen")}</button>`,
       });
+      await laden("");
       const such = document.getElementById("lib-tp-such");
-      if (such) such.oninput = () => {
-        const q = such.value.trim().toLowerCase();
-        document.querySelectorAll("#lib-tp-liste label").forEach((el, i) => {
-          const it = items[i] || {};
-          const txt = `${it.name || ""} ${it.filename || ""}`.toLowerCase();
-          el.style.display = !q || txt.includes(q) ? "" : "none";
-        });
-      };
+      if (such) such.oninput = debounce(() => { laden(such.value.trim()); }, 300);
       const ok = document.getElementById("lib-tp-ok");
       if (ok) ok.onclick = async () => {
-        const pfade = [];
-        document.querySelectorAll("#lib-tp-liste [data-tpick]").forEach(cb => {
-          if (cb.checked) { const it = items[parseInt(cb.dataset.tpick, 10)]; if (it) pfade.push(it.path); }
-        });
+        const pfade = [...gewaehlt];
+        if (!pfade.length) {
+          // Abnahme 29.08.2026: leeres Bestätigen endete STUMM.
+          toast(T("library.proj_addtours_leer", "Nichts angehakt — erst Touren auswählen."), "warn", 2600);
+          return;
+        }
         m.close();
-        if (!pfade.length) return;
         const r = await api().projekt_touren_setzen(b.dataset.addtours, pfade);
         if (r && r.ok) { toast(T("library.proj_tours_gesetzt", "{n} Tour(en) hinzugefügt.").replace("{n}", pfade.length), "info"); renderProjekte(); }
         else toast((r && r.error) || "?", "error");
@@ -2559,8 +2569,16 @@ function mountLibrary(body, headerActions) {
       if (!el) return;
       try {
         const res = await api().projekte_liste();
+        // Abnahme 29.08.2026: über die GANZE Fassungs-Kette zählen — ein auf
+        // Fassung 1 gepinntes Projekt gehört auch zu dieser Tour.
+        let kette = [it.geo_hash];
+        try {
+          const fs = await api().tour_fassungen(it.geo_hash);
+          if (fs && fs.ok && fs.fassungen && fs.fassungen.length)
+            kette = fs.fassungen.map(f => f.geo_hash);
+        } catch (_) {}
         const meine = ((res && res.projekte) || [])
-          .filter(p => !p.auto && (p.geo_hashes || []).includes(it.geo_hash));
+          .filter(p => !p.auto && (p.geo_hashes || []).some(g => kette.includes(g)));
         if (!meine.length) { el.textContent = ""; return; }
         el.innerHTML = `🎬 <a href="#" id="lib-d-proj-link">${
           T("library.proj_in", "steckt in {n} Projekt(en) — ansehen").replace("{n}", meine.length)}</a>`;
@@ -2607,7 +2625,14 @@ function mountLibrary(body, headerActions) {
           if (ok) ok.onclick = async () => {
             m.close();
             const r = await api().tour_fassung_wiederherstellen(b.dataset.frb);
-            if (r && r.ok) { toast(T("library.fassung_rb_done", "Fassung wiederhergestellt."), "info"); reload(); }
+            if (r && r.ok) {
+              toast(T("library.fassung_rb_done", "Fassung wiederhergestellt."), "info");
+              // Abnahme 29.08.2026: die Detailspalte zeigte sonst weiter die
+              // alte Fassung als „aktuell" — Auswahl-Objekt verwerfen, reload
+              // findet die Tour über den gemerkten PFAD mit frischen Daten.
+              _sel = null;
+              reload();
+            }
             else toast((r && r.error) || "?", "error");
           };
           const ab = document.getElementById("lib-frb-ab");

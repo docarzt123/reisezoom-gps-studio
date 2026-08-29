@@ -2541,6 +2541,9 @@ const SHOW_OVERLAYS = {str(cfg.show_overlays).lower()};
 const SHOW_PRETRIM_TRACK = {str(cfg.show_pretrim_track).lower()};
 const TRIM_START_IDX = Math.max(0, Math.min(totalPoints - 1, Math.floor({float(cfg.render_start_anchor)} * (totalPoints - 1))));
 const SHOW_PINS = {str(bool(cfg.show_pins)).lower()};  // v0.9.307 — Start/End-Pins (Standbild/Tour-Map-Erbe)
+// v0.9.621 (Marc: „nicht, dass eine tour raussticht") — die Schwarm-Touren
+// haben keine Start/End-Pins; im Dezent-Modus bekommt die Haupt-Tour auch keine.
+const HAUPT_DEZENT = {haupt_dezent_js};
 // v0.9.509 — Laufpunkt: sichtbar? welche Form? RENDER_SCALE hält ihn im
 // 4K-Render optisch gleich groß wie in der Vorschau (dasselbe Prinzip wie bei
 // Schildern und Foto-Pins seit v0.9.224).
@@ -2765,7 +2768,7 @@ map.on('style.load', () => {{
   }}
   // v0.9.307 — Start/End-Pins (aus der Tour-Map übernommen, Standbild-Modus).
   // Identische Optik wie früher core/tourmap.py: weißer Start, Track-farbiges Ende.
-  if (SHOW_PINS && allCoords.length >= 2) {{
+  if (SHOW_PINS && !HAUPT_DEZENT && allCoords.length >= 2) {{
     map.addSource('pins', {{type:'geojson', data:{{type:'FeatureCollection', features:[
       {{type:'Feature', properties:{{kind:'start'}}, geometry:{{type:'Point', coordinates: allCoords[0]}}}},
       {{type:'Feature', properties:{{kind:'end'}},   geometry:{{type:'Point', coordinates: allCoords[allCoords.length-1]}}}}

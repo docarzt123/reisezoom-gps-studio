@@ -1381,6 +1381,20 @@ function mountGpxInspect(body, headerActions) {
         merkeVorher();           // 29.08.2026 — für den Vorher/Nachher-Vergleich
         await healAllSpikes();   // füllt Lücken laut Profil (Luftlinie oder Route)
         zeigeVorherNachher();
+      } else if ((document.getElementById("gpxi-heal-tempo") || {}).checked) {
+        // v0.9.621 (Abnahme-Befund): Tempo-Entzerren lief nur als Anhängsel
+        // von healAllSpikes — ein sauberer Track mit reinem Tempo-Problem
+        // (z. B. gesetzter Deckel) bekam „Nichts zu heilen". Eigener Schritt.
+        merkeVorher();
+        _pushUndo(t("gpxinspect.heal", "Heilen"));
+        const nT = tempoEntzerren();
+        if (nT) {
+          _dirty = true; renderAll(); updateUI(); zeigeVorherNachher();
+          toast(t("gpxinspect.heal_tempo_done", "%t Tempo-Stellen entzerrt")
+            .replace("%t", nT), "success", 3200);
+        } else {
+          toast(t("gpxinspect.heal_none", "Nichts zu heilen gefunden 👍"), "info", 2800);
+        }
       } else {
         toast(t("gpxinspect.heal_none", "Nichts zu heilen gefunden 👍"), "info", 2800);
       }
@@ -1993,7 +2007,7 @@ function mountGpxInspect(body, headerActions) {
           title: "💾 " + t("gpxinspect.save", "Geheilten Track speichern …"),
           body: `<div class="lib-fmodal">
             <p>${t("gpxinspect.ersetzen_frage", "Diese Tour liegt im Archiv. Soll die geheilte Fassung das Original ersetzen?")}</p>
-            <div class="lib-hint">${t("gpxinspect.ersetzen_hint", "Beim Ersetzen wandern Sammlungen, Projekte (Keyframes, Fotos, Schilder) und Reise/Schwarm-Kompositionen automatisch mit. Das Original wird vorher in der App-Ablage gesichert.")}</div>
+            <div class="lib-hint">${t("gpxinspect.ersetzen_hint", "Sammlungen und das Archiv zeigen danach die geheilte Fassung. Bestehende Projekte bleiben an der bisherigen Fassung „gepinnt“ (nichts verrutscht) und zeigen „⬆ neuere Fassung“ zum bewussten Aktualisieren. Das Original wird vorher in der App-Ablage gesichert und bleibt als Fassung wiederherstellbar.")}</div>
           </div>`,
           footer: `<button class="btn" id="gpxi-ers-abbruch">${t("common.cancel", "Abbrechen")}</button>
                    <button class="btn" id="gpxi-ers-neu">${t("gpxinspect.ersetzen_neu", "Als neue Datei …")}</button>

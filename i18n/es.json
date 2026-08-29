@@ -2413,7 +2413,7 @@
   "gpxinspect.tempo_cap_help": "Vacío = automático (según el ritmo mediano de la ruta). Escribe p. ej. 15 si sabes que nunca fuiste más rápido de 15 km/h — todo lo que supere ese valor se ajustará en el tiempo al curar.",
   "gpxinspect.tempo_cap_auto": "auto",
   "gpxinspect.ersetzen_frage": "Esta ruta está en el archivo. ¿Debe la versión curada reemplazar al original?",
-  "gpxinspect.ersetzen_hint": "Al reemplazar, las colecciones, los proyectos (keyframes, fotos, carteles) y las combinaciones de viaje/enjambre se trasladan automáticamente. El original se guarda antes en el almacén de la app.",
+  "gpxinspect.ersetzen_hint": "Las colecciones y el archivo mostrarán la versión curada. Los proyectos existentes quedan «anclados» a la versión anterior (nada se descoloca) y muestran «⬆ versión más nueva» para actualizar a propósito. El original se respalda antes en la app y sigue restaurable como versión.",
   "gpxinspect.ersetzen_ja": "Reemplazar en el archivo",
   "gpxinspect.ersetzen_neu": "Guardar como archivo nuevo …",
   "gpxinspect.ersetzt_toast": "Reemplazado en el archivo.",
@@ -2488,5 +2488,7 @@
   "library.col_filterhint_filter": "Filtros activos: {f}.",
   "library.filter_jahr": "año {j}",
   "library.filter_gegend": "zona del mapa",
-  "animator.schwarm_dezent": "No resaltar la ruta principal (como las demás)"
+  "animator.schwarm_dezent": "No resaltar la ruta principal (como las demás)",
+  "library.proj_addtours_leer": "Nada marcado — selecciona rutas primero.",
+  "library.keine_treffer": "Sin resultados."
 }
