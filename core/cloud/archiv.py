@@ -99,6 +99,41 @@ def track_name(geo_hash: str) -> str:
     return f"track/{geo_hash}"
 
 
+# E3 / Cloud v2 (IDEAS §39, Q6b): die VERSIONS-KETTE einer Tour wandert als
+# eigenes kleines Objekt mit — Rollback geht damit auch am Zweitrechner.
+# Fassungs-Snapshots reisen als normale track/<geo_hash>-Umschläge (gleiche
+# Verschlüsselung, gleiches Format); Alt-Clients ignorieren beides (ihr
+# Aufräum-Zweig läuft seit 22.08.2026 nie automatisch).
+KETTE_PRAEFIX = "kette/"
+
+
+def kette_name(tour_id: str) -> str:
+    return KETTE_PRAEFIX + tour_id
+
+
+def ketten_bauen(pdaten: dict | None) -> dict[str, dict]:
+    """tour_id → Ketten-Objekt aus dem Projekt-Store. Nur Touren mit
+    Register-UUID und ≥2 Fassungen — eine Ein-Fassungs-Kette sagt nichts."""
+    out: dict[str, dict] = {}
+    touren = (pdaten or {}).get("touren") or {}
+    for gh, t in touren.items():
+        tid = (t or {}).get("id")
+        if not tid:
+            continue
+        f = (t.get("fassung") or {})
+        eintrag = out.setdefault(tid, {"id": tid, "name": t.get("name") or "",
+                                       "fassungen": []})
+        eintrag["fassungen"].append({"nr": f.get("nr", 1), "geo_hash": gh,
+                                     "erstellt": f.get("erstellt", ""),
+                                     "quelle": f.get("quelle", "")})
+        if t.get("name"):
+            eintrag["name"] = t["name"]
+    out = {tid: k for tid, k in out.items() if len(k["fassungen"]) >= 2}
+    for k in out.values():
+        k["fassungen"].sort(key=lambda x: (x.get("nr", 1), x.get("erstellt", "")))
+    return out
+
+
 @dataclass
 class Bestand:
     """Was lokal da ist, in der Form, in der es hochgehört."""
@@ -109,6 +144,12 @@ class Bestand:
     # IDEAS §38 M5 — Kompositionen: mengen_hex → Prüfsumme, Objekte fürs Hochladen
     mengen: dict[str, str] = field(default_factory=dict)
     mengen_objekte: dict[str, bytes] = field(default_factory=dict)
+    # E3 / Cloud v2 — Versions-Ketten + Fassungs-Snapshots (alte Geometrien,
+    # die nur noch als sessions/<gh>.gpx existieren)
+    ketten: dict[str, str] = field(default_factory=dict)
+    ketten_objekte: dict[str, bytes] = field(default_factory=dict)
+    fassungen: dict[str, str] = field(default_factory=dict)
+    fassungen_objekte: dict[str, bytes] = field(default_factory=dict)
     neu_gebaut: int = 0     # wie viele Umschläge wirklich gebaut wurden (Diagnose)
 
 
@@ -366,7 +407,8 @@ def pruefsummen_cache_schreiben(pfad, cache: dict) -> None:
 
 
 def bestand_aufnehmen(conn, sessions: dict | None = None,
-                      cache_pfad=None) -> Bestand:
+                      cache_pfad=None, pdaten: dict | None = None,
+                      snapshot_dir=None) -> Bestand:
     """Prüfsummen von allem, was hochgehört — ohne schon etwas zu übertragen.
 
     `cache_pfad` (22.08.2026): JSON-Datei geo_hash → {stempel, pruef}. Touren,
@@ -387,6 +429,31 @@ def bestand_aufnehmen(conn, sessions: dict | None = None,
             "name": obj["name"], "ablauf": obj["ablauf"],
             "n_tours": len(obj["geo_hashes"]),
         }
+    # E3 / Cloud v2 — Ketten + Fassungs-Snapshots, die das Archiv nicht kennt.
+    if pdaten:
+        for tid, obj in ketten_bauen(pdaten).items():
+            by = json_bytes(obj)
+            b.ketten[tid] = crypto.inhalts_pruefsumme(by)
+            b.ketten_objekte[tid] = by
+            # Kurz genug fürs Verzeichnis — so ENTDECKT das Zielgerät die
+            # Ketten überhaupt (Servernamen sind opak/gehasht).
+            verzeichnis.setdefault("ketten", {})[tid] = obj
+            if snapshot_dir is not None:
+                for f in obj["fassungen"]:
+                    gh = f["geo_hash"]
+                    if gh in verzeichnis.get("touren", {}) or gh in b.fassungen:
+                        continue
+                    snap = Path(snapshot_dir) / f"{gh}.gpx"
+                    if not snap.exists():
+                        continue
+                    t = (pdaten.get("touren") or {}).get(gh) or {}
+                    inhalt = umschlag_bauen(
+                        None, gh, gpx_pfad=str(snap),
+                        zeile_ersatz={"geo_hash": gh,
+                                      "filename": f"{gh}.gpx",
+                                      "name": t.get("name") or obj.get("name") or ""})
+                    b.fassungen[gh] = crypto.inhalts_pruefsumme(inhalt)
+                    b.fassungen_objekte[gh] = inhalt
     cache = pruefsummen_cache_laden(cache_pfad) if cache_pfad else {}
     neu_cache: dict = {}
     gebaut = 0

@@ -764,9 +764,12 @@ function mountLibrary(body, headerActions) {
       }).join("");
       const wann = fmtDate(p.modified_at);
       const fehlt = p.exists === false ? ` <span class="lib-proj-fehlt" title="${T("library.proj_fehlt_tip", "Tour-Datei nicht gefunden — Öffnen sucht sie im Archiv.")}">⚠️</span>` : "";
+      // E2 (Q16a): gepinnte Fassung, neuere vorhanden → bewusster Klick.
+      const up = p.neuere_fassung
+        ? ` <button class="lib-proj-up" data-up="${p.id}" title="${T("library.fassung_up_tip", "Neuere Fassung der Tour verfügbar — Projekt per Klick aktualisieren")}">⬆ ${T("library.fassung_up", "neuere Fassung")}</button>` : "";
       return `<div class="lib-proj-karte${p.status === "fertig" ? " fertig" : ""}" data-pid="${p.id}">
         <div class="lib-proj-kopf">
-          <span class="lib-proj-name">${esc(p.name)}</span>${fehlt}
+          <span class="lib-proj-name">${esc(p.name)}</span>${fehlt}${up}
           <select class="lib-proj-status" data-pid="${p.id}" title="${T("library.proj_status", "Status")}">
             <option value="aktiv"${p.status === "aktiv" ? " selected" : ""}>${T("library.proj_st_aktiv", "aktiv")}</option>
             <option value="idee"${p.status === "idee" ? " selected" : ""}>${T("library.proj_st_idee", "Idee")}</option>
@@ -781,6 +784,7 @@ function mountLibrary(body, headerActions) {
             <button class="btn btn-primary btn-sm" data-open="${p.id}">${T("library.proj_open", "Öffnen")}</button>
             <button class="btn btn-ghost btn-sm" data-ren="${p.id}" title="${T("library.rename", "Umbenennen")}">✎</button>
             <button class="btn btn-ghost btn-sm" data-dup="${p.id}" title="${T("library.col_duplicate", "Duplizieren")}">⎘</button>
+            <button class="btn btn-ghost btn-sm" data-st="${p.id}" title="${T("library.staende", "Frühere Arbeitsstände")}">🕘</button>
             <button class="btn btn-ghost btn-sm lib-btn-danger" data-del="${p.id}" title="${T("library.proj_delete", "Projekt löschen")}">🗑</button>
           </span>
         </div>
@@ -830,6 +834,56 @@ function mountLibrary(body, headerActions) {
     box.querySelectorAll("[data-dup]").forEach(b => b.onclick = async () => {
       await api().projekt_duplizieren(b.dataset.dup);
       renderProjekte();
+    });
+    // E3: Arbeitsstand-Historie — Liste + Wiederherstellen (der jetzige
+    // Stand wird vorher selbst gesichert).
+    box.querySelectorAll("[data-st]").forEach(b => b.onclick = async (e) => {
+      e.stopPropagation();
+      const res = await api().projekt_staende(b.dataset.st);
+      const st = (res && res.staende) || [];
+      const zeile = (x) => `<div class="lib-fassung">
+          <span class="lib-fassung-info">${esc(fmtDate(x.ts))} ${esc(String(x.ts).slice(11, 16))} · 🎬 ${x.keyframes} · 🚩 ${x.schilder} · 📷 ${x.fotos}</span>
+          <button class="btn btn-ghost btn-sm" data-strb="${esc(x.ts)}">↩︎</button>
+        </div>`;
+      const m = openModal({
+        title: "🕘 " + T("library.staende", "Frühere Arbeitsstände"),
+        body: st.length
+          ? `<div class="lib-hint">${T("library.staende_hint", "Beim Arbeiten wird höchstens alle 10 Minuten ein Stand gesichert. Wiederherstellen sichert den jetzigen Stand vorher automatisch.")}</div>`
+            + st.slice().reverse().map(zeile).join("")
+          : `<p>${T("library.staende_leer", "Noch keine gesicherten Stände — sie entstehen beim Arbeiten von selbst.")}</p>`,
+        footer: `<button class="btn" id="lib-st-zu">${T("common.close", "Schließen")}</button>`,
+      });
+      const zu = document.getElementById("lib-st-zu");
+      if (zu) zu.onclick = () => m.close();
+      document.querySelectorAll("[data-strb]").forEach(rb => rb.onclick = async () => {
+        m.close();
+        const r = await api().projekt_stand_wiederherstellen(b.dataset.st, rb.dataset.strb);
+        if (r && r.ok) toast(T("library.stand_done", "Arbeitsstand wiederhergestellt."), "info");
+        else toast((r && r.error) || "?", "error");
+        renderProjekte();
+      });
+    });
+    box.querySelectorAll("[data-up]").forEach(b => b.onclick = (e) => {
+      e.stopPropagation();
+      const p = _projekte.find(x => x.id === b.dataset.up) || {};
+      const nf = p.neuere_fassung || {};
+      const m = openModal({
+        title: "⬆ " + T("library.fassung_up", "neuere Fassung"),
+        body: `<p>${T("library.fassung_up_frage", "Dieses Projekt auf die neueste Fassung der Tour heben (Fassung {a} → {b})? Die Geometrie hat sich geändert — Keyframes und Schilder können danach anders auf der Strecke liegen. Das Projekt bleibt sonst unverändert; die alte Fassung bleibt im Archiv erhalten.")
+          .replace("{a}", nf.eigene_nr || "?").replace("{b}", nf.nr || "?")}</p>`,
+        footer: `<button class="btn" id="lib-up-ab">${T("common.cancel", "Abbrechen")}</button>
+                 <button class="btn btn-primary" id="lib-up-ok">${T("library.fassung_up_ok", "Aktualisieren")}</button>`,
+      });
+      const ok = document.getElementById("lib-up-ok");
+      if (ok) ok.onclick = async () => {
+        m.close();
+        const r = await api().projekt_fassung_aktualisieren(b.dataset.up);
+        if (r && r.ok) toast(T("library.fassung_up_done", "Projekt auf die neueste Fassung gehoben."), "info");
+        else toast((r && r.error) || "?", "error");
+        renderProjekte();
+      };
+      const ab = document.getElementById("lib-up-ab");
+      if (ab) ab.onclick = () => m.close();
     });
     box.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
       const p = _projekte.find(x => x.id === b.dataset.del);
@@ -2311,6 +2365,7 @@ function mountLibrary(body, headerActions) {
       <div class="field-label" style="margin-top:10px;">${T("library.collections", "Sammlungen")}</div>
       <div id="lib-d-cols" class="lib-colchips"></div>
       <div id="lib-d-projekte" class="lib-hint" style="margin-top:6px;"></div>
+      <div id="lib-d-fassungen" style="margin-top:6px;"></div>
 
       <label class="field-label" for="lib-d-tags" style="margin-top:10px;">${T("library.tags", "Schlagwörter")}</label>
       <input type="text" id="lib-d-tags" class="lib-input" value="${esc((it.tag_list || []).join(", "))}"
@@ -2427,6 +2482,49 @@ function mountLibrary(body, headerActions) {
           projViewSetzen(true);
         };
       } catch (_) { el.textContent = ""; }
+    })();
+
+    // E3 (IDEAS §39): Versions-Kette der Tour — jede Heilung/Ersetzung/extern
+    // erkannte Änderung ist eine Fassung; Rollback holt sie byte-genau zurück.
+    (async () => {
+      const el = document.getElementById("lib-d-fassungen");
+      if (!el) return;
+      try {
+        const res = await api().tour_fassungen(it.geo_hash);
+        const fs = (res && res.fassungen) || [];
+        if (fs.length < 2) { el.innerHTML = ""; return; }
+        const QUELLE = { import: T("library.fq_import", "eingelesen"),
+                         werkzeug: T("library.fq_werkzeug", "geheilt/ersetzt"),
+                         extern: T("library.fq_extern", "extern geändert"),
+                         rollback: T("library.fq_rollback", "wiederhergestellt"),
+                         backup: T("library.fq_backup", "aus Sicherung") };
+        el.innerHTML = `<div class="field-label">${T("library.fassungen", "Fassungen")} (${fs.length})</div>`
+          + fs.slice().reverse().map(f => `
+            <div class="lib-fassung${f.aktuell ? " is-on" : ""}">
+              <span class="lib-fassung-nr">${f.nr}</span>
+              <span class="lib-fassung-info">${esc(fmtDate(f.erstellt))} · ${esc(QUELLE[f.quelle] || f.quelle)}${
+                f.distance_km ? ` · ${(+f.distance_km).toFixed(1)} km` : ""}${
+                f.aktuell ? ` · <b>${T("library.fassung_aktuell", "aktuell")}</b>` : ""}</span>
+              ${!f.aktuell && f.snapshot ? `<button class="btn btn-ghost btn-sm" data-frb="${f.geo_hash}" title="${T("library.fassung_rb_tip", "Diese Fassung als Datei ins Archiv zurückholen (die jetzige bleibt als Fassung erhalten)")}">↩︎</button>` : ""}
+            </div>`).join("");
+        el.querySelectorAll("[data-frb]").forEach(b => b.onclick = () => {
+          const m = openModal({
+            title: "↩︎ " + T("library.fassung_rb", "Fassung wiederherstellen"),
+            body: `<p>${T("library.fassung_rb_frage", "Die Archiv-Datei durch diese Fassung ersetzen? Die jetzige Geometrie bleibt als Fassung in der Kette (nichts geht verloren); gepinnte Projekte bleiben unberührt.")}</p>`,
+            footer: `<button class="btn" id="lib-frb-ab">${T("common.cancel", "Abbrechen")}</button>
+                     <button class="btn btn-primary" id="lib-frb-ok">${T("library.fassung_rb", "Fassung wiederherstellen")}</button>`,
+          });
+          const ok = document.getElementById("lib-frb-ok");
+          if (ok) ok.onclick = async () => {
+            m.close();
+            const r = await api().tour_fassung_wiederherstellen(b.dataset.frb);
+            if (r && r.ok) { toast(T("library.fassung_rb_done", "Fassung wiederhergestellt."), "info"); reload(); }
+            else toast((r && r.error) || "?", "error");
+          };
+          const ab = document.getElementById("lib-frb-ab");
+          if (ab) ab.onclick = () => m.close();
+        });
+      } catch (_) { el.innerHTML = ""; }
     })();
 
     const saveTags = debounce(async () => {

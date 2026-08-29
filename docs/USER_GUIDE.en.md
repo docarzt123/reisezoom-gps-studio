@@ -309,6 +309,18 @@ projects" — one click shows exactly those.
 **Inside a module** (top bar, top right) the familiar project switcher stays:
 🆕 New · 📋 Duplicate · ✏️ Rename · 🗑 Delete.
 
+**Versions & history (since v0.9.610):** Every tour has a fixed identity
+that survives healing and replacing. When you heal a tour and replace it in
+the archive, a new **version** is created — your existing projects stay
+"pinned" to their old version (the animation does not fall apart) and show
+**"⬆ newer version"**; one click lifts exactly that project to the new one.
+The tour detail column shows the whole version chain, and **↩︎** restores any
+version byte-for-byte (nothing is ever lost). While you work, the app also
+saves a **working state** of your project at most every 10 minutes — 🕘 on
+the project card lists the last 20; restoring saves the current state first,
+automatically. With the cloud set up, version chains travel along — rollback
+works on your second machine too.
+
 Stored under `…/Reisezoom GPS Studio/projekte.json` (working folders) and
 `touren.json` (tour facts); GPX snapshots stay under `…/sessions/`.
 

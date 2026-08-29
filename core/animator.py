@@ -627,6 +627,11 @@ OVERLAY_TOTAL_FIELDS = [
 _SCHWARM_LIVE_JS = {
     "dist_done": "fmtKmJS(swarmDoneM(idx)/1000)",
     "dist_left": "fmtKmJS(Math.max(0,(SWARM_TOTAL_M-swarmDoneM(idx))/1000))",
+    # 29.08.2026 (Marc-Nebenbefund): auch Höhenmeter und Zeit sind im Schwarm
+    # Summen über alle Touren, nicht nur der Haupt-Track.
+    "asc_done": "'\u2191 '+Math.round(cumAscM[idx]+swarmSum(SCHWARM_ASC_TOT,idx))+' m'",
+    "desc_done": "'\u2193 '+Math.round(cumDescM[idx]+swarmSum(SCHWARM_DESC_TOT,idx))+' m'",
+    "time_elapsed": "fmtDurJS(cumTimeS[idx]+swarmSum(SCHWARM_DUR,idx))",
 }
 
 _OVERLAY_LIVE_BY_ID = {f["id"]: f for f in OVERLAY_LIVE_FIELDS}
@@ -1804,6 +1809,12 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     schwarm_coords_json = json.dumps([t["coords"] for t in _sw])
     schwarm_colors_json = json.dumps([t.get("color") or cfg.line_color for t in _sw])
     schwarm_steps_json = json.dumps([max(0.5, float(t.get("step_m") or 1.0)) for t in _sw])
+    # 29.08.2026 (Marc: „bergauf/bergab/vergangen zeigen nur den Haupttrack"):
+    # Live-Felder summieren im Schwarm über ALLE Touren — je Tour anteilig
+    # zum eigenen Fortschritt (exakt am Ziel, monoton dazwischen).
+    schwarm_asc_json = json.dumps([round(float((t.get("stats") or {}).get("ascent_m") or 0), 1) for t in _sw])
+    schwarm_desc_json = json.dumps([round(float((t.get("stats") or {}).get("descent_m") or 0), 1) for t in _sw])
+    schwarm_dur_json = json.dumps([round(float((t.get("stats") or {}).get("duration_s") or 0), 1) for t in _sw])
     # M3 — gewählte Zeitachse je Tour (roh = mit Pausen, bew = gestutzt) und
     # gemeinsame Achse = längste Dauer (Haupt-Track zählt mit; er selbst läuft
     # als Zeitachse weiter linear — seine Pausen sind im Video geglättet).
@@ -2488,6 +2499,20 @@ function swarmFertig(i, dNow) {{ return swarmIdx(i, dNow) >= SCHWARM_COORDS[i].l
 // Ziel ist, läuft nicht weiter).
 const SWARM_TOTAL_M = TOTAL_DIST_M
   + SCHWARM_COORDS.reduce((a, c, i) => a + (c.length - 1) * SCHWARM_STEPS[i], 0);
+const SCHWARM_ASC_TOT = {schwarm_asc_json};
+const SCHWARM_DESC_TOT = {schwarm_desc_json};
+const SCHWARM_DUR = {schwarm_dur_json};
+// 29.08.2026 (Marc): Bergauf/Bergab/Vergangen kumulieren über den ganzen
+// Schwarm — jede Tour anteilig zu ihrem eigenen Fortschritt (swarmIdx).
+function swarmSum(tot, idx) {{
+  const d = cumDistM[Math.max(0, Math.min(idx, cumDistM.length - 1))] || 0;
+  let s = 0;
+  for (let i = 0; i < SCHWARM_N; i++) {{
+    const n1 = SCHWARM_COORDS[i].length - 1;
+    s += (n1 > 0 ? Math.min(1, swarmIdx(i, d) / n1) : 1) * (tot[i] || 0);
+  }}
+  return s;
+}}
 function swarmDoneM(idx) {{
   const d = cumDistM[Math.max(0, Math.min(idx, cumDistM.length - 1))] || 0;
   let s = d;

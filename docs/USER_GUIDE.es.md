@@ -311,6 +311,18 @@ en N proyectos» — un clic muestra exactamente esos.
 **Dentro de un módulo** (topbar, arriba a la derecha) sigue el conmutador de
 proyecto de siempre: 🆕 Nuevo · 📋 Duplicar · ✏️ Renombrar · 🗑 Borrar.
 
+**Versiones e historial (desde v0.9.610):** Cada ruta tiene una identidad
+fija que sobrevive a curar y sustituir. Al curar una ruta y sustituirla en el
+archivo se crea una **versión** nueva — tus proyectos existentes quedan
+«anclados» a su versión antigua (la animación no se descompone) y muestran
+**«⬆ versión más nueva»**; un clic sube exactamente ese proyecto a la nueva.
+La columna de detalles muestra toda la cadena de versiones, y **↩︎** restaura
+cualquiera byte a byte (nunca se pierde nada). Mientras trabajas, la app
+guarda además un **estado de trabajo** de tu proyecto como mucho cada 10
+minutos — 🕘 en la tarjeta lista los últimos 20; restaurar guarda antes el
+estado actual automáticamente. Con la nube configurada, las cadenas de
+versiones viajan también — la restauración funciona en tu segundo equipo.
+
 Se guarda en `…/Reisezoom GPS Studio/projekte.json` (carpetas de trabajo) y
 `touren.json` (datos de las rutas); los snapshots GPX siguen en
 `…/sessions/`.
