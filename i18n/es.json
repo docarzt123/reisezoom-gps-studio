@@ -2487,5 +2487,6 @@
   "topbar.project.new_empty_default": "Nuevo proyecto",
   "library.col_filterhint_filter": "Filtros activos: {f}.",
   "library.filter_jahr": "año {j}",
-  "library.filter_gegend": "zona del mapa"
+  "library.filter_gegend": "zona del mapa",
+  "animator.schwarm_dezent": "No resaltar la ruta principal (como las demás)"
 }

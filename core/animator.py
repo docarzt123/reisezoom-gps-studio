@@ -495,6 +495,9 @@ class AnimatorConfig:
     # "uhrzeit": zählen Pausen mit (True = wörtlich echte Uhrzeit, der Punkt
     # steht bei Rast) oder nur Bewegungszeit (False, Pausen rausgeschnitten)?
     schwarm_pausen: bool = True
+    # 29.08.2026 (Marc: „ich will nicht, dass eine tour raussticht"): Haupt-
+    # Tour im Schwarm dezent — Laufpunkt/Linie wie die Zusatz-Touren.
+    schwarm_haupt_dezent: bool = False
     # IDEAS §38 M2 — Fokus-Tour im Schwarm (Marc, 28.08.2026: „kamera bleibt
     # stehen" wenn sie fertig ist). GPX-Pfad einer Zusatz-Tour; leer = die
     # Kamera folgt (falls eingeschaltet) wie bisher dem Haupt-Track.
@@ -1830,7 +1833,12 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     schwarm_modus_json = json.dumps(_modus)
     schwarm_t_json = json.dumps(_zeiten if _modus == "uhrzeit" else [None] * len(_sw))
     schwarm_t_axis_json = json.dumps(round(max([_haupt_dauer] + _dauern), 1) if _modus == "uhrzeit" else 0)
-    schwarm_line_width_json = json.dumps(round(max(0.5, float(cfg.line_width or 3.0) * 0.8), 2))
+    _haupt_dezent = bool(_sw) and bool(getattr(cfg, "schwarm_haupt_dezent", False))
+    # Dezent-Modus: cfg.line_width wurde oben schon auf Schwarm-Breite gesetzt —
+    # die Zusatz-Touren nehmen dann 1:1 dieselbe Breite (sonst 0.8×).
+    schwarm_line_width_json = json.dumps(round(max(0.5, float(cfg.line_width or 3.0)
+                                                   * (1.0 if _haupt_dezent else 0.8)), 2))
+    haupt_dezent_js = "true" if _haupt_dezent else "false"
     # Bei 3D-Gelände brauchen die Linien denselben z-Offset wie der Haupt-Track,
     # sonst verschwinden sie im Berg.
     schwarm_zoff_frag = ", 'line-z-offset': 150" if cfg.enable_terrain else ""
@@ -2740,6 +2748,13 @@ map.on('style.load', () => {{
       layout:{{'icon-image':'rz-arrow','icon-size':{cfg.marker_dot_size} * RENDER_SCALE,
         'icon-rotate':['get','brg'],'icon-rotation-alignment':'map',
         'icon-pitch-alignment':'map','icon-allow-overlap':true,'icon-ignore-placement':true}}}});
+  }} else if (DOT_SHOW && {haupt_dezent_js}) {{
+    // Marc (29.08.2026): Haupt-Laufpunkt im Schwarm-Stil — kleiner Kreis in
+    // Tour-Farbe mit weißem Rand, exakt wie die schwarm-dots.
+    map.addLayer({{id:'dot-core',type:'circle',source:'dot',
+      paint:{{'circle-radius':Math.max(3, {schwarm_line_width_json} * 1.5) * RENDER_SCALE,
+             'circle-color':'{cfg.line_color}','circle-stroke-color':'#ffffff',
+             'circle-stroke-width':1.2 * RENDER_SCALE,'circle-pitch-alignment':'map'}}}});
   }} else if (DOT_SHOW) {{
     map.addLayer({{id:'dot-glow',type:'circle',source:'dot',
       paint:{{'circle-radius':10 * {cfg.marker_dot_size} * RENDER_SCALE,'circle-color':'#fff','circle-opacity':0.3,'circle-blur':0.8,'circle-pitch-alignment':'map'}}}});
@@ -4275,6 +4290,13 @@ async def render(
     if getattr(cfg, "tracks", None) and len(cfg.tracks) >= 2:
         if getattr(cfg, "tracks_ablauf", "reise") == "schwarm":
             _schwarm = _schwarm_touren_vorbereiten(cfg)
+            # Marc (29.08.2026): „nicht, dass eine tour raussticht" — die
+            # Haupt-Tour bekommt Schwarm-Optik: gleiche Linienbreite, kein
+            # Schatten/Glow (der Laufpunkt folgt unten im DOT-Block).
+            if _schwarm and getattr(cfg, "schwarm_haupt_dezent", False):
+                cfg.line_width = max(0.5, round(float(cfg.line_width or 3.0) * 0.8, 2))
+                cfg.shadow_enabled = False
+                cfg.glow_enabled = False
         else:
             return await _render_multi(cfg, emit, push_preview, check_cancel)
     raw_points, total_stats = core_parse_gpx(cfg.gpx_path)
