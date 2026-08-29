@@ -2442,5 +2442,10 @@
   "library.proj_pfade_fehlen": "No se encontraron todos los archivos de rutas de esta combinación.",
   "library.proj_in": "está en {n} proyecto(s) — ver",
   "library.proj_filter_tour": "Solo proyectos de esta ruta",
-  "schwarm.name": "Enjambre"
+  "schwarm.name": "Enjambre",
+  "gpxbar.projects": "Proyectos",
+  "gpxbar.projects_hint": "Todo tu trabajo en curso: ¿por dónde iba?",
+  "pm.title": "Proyectos",
+  "pm.search": "Buscar proyectos …",
+  "pm.count": "{n} propios"
 }

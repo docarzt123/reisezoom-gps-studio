@@ -291,12 +291,15 @@ carteles. Los proyectos ya no «pertenecen a una ruta»: son **cosas propias**
 con nombre, estado y «última edición». La misma ruta puede estar en tantos
 proyectos como quieras.
 
-**El área «🎬 Proyectos»**, arriba del todo a la izquierda del **archivo**, es
-su casa — y la app **arranca ahí**: el primer vistazo responde «¿en qué
-estaba?», un clic en **Abrir** salta al módulo que usaste por última vez en
-ese proyecto (los iconos de módulo de la tarjeta también son clicables). Cada
-tarjeta tiene además: estado (**activo / idea / terminado** — «terminado» baja
-al final), renombrar, duplicar, borrar. El buscador también filtra proyectos.
+**El gestor de proyectos** (desde v0.9.601) es una **vista propia a pantalla
+completa**: el botón 🗂 en el extremo izquierdo de la barra de ruta (junto a
+«Elegir ruta») lo abre desde cualquier módulo, y la app **arranca ahí** — el
+primer vistazo responde «¿en qué estaba?». Un clic en **Abrir** salta al
+módulo que usaste por última vez en ese proyecto (los iconos de módulo de la
+tarjeta también son clicables); **Esc** o ✕ cierra la vista. Cada tarjeta
+tiene además: estado (**activo / idea / terminado** — «terminado» baja al
+final), renombrar, duplicar, borrar. El buscador arriba a la derecha filtra
+los proyectos.
 
 **Creados automáticamente:** al abrir una ruta siempre se crea un estado de
 trabajo — nunca se pierde nada. Los estados intactos quedan plegados bajo

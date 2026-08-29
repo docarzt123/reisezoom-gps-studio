@@ -296,12 +296,14 @@ Dinge** mit Name, Status und „zuletzt bearbeitet". Dieselbe Tour kann in
 beliebig vielen Projekten stecken — z. B. „Sunset-Video" und dein
 Teneriffa-Schwarm.
 
-**Der Bereich „🎬 Projekte"** ganz oben links im **Archiv** ist ihr Zuhause —
-und die App **startet dort**: der erste Blick beantwortet „woran war ich
-dran?", ein Klick auf **Öffnen** springt ins zuletzt benutzte Modul des
-Projekts (die Modul-Symbole auf der Karte sind auch direkt klickbar). Dazu je
-Karte: Status (**aktiv / Idee / fertig** — „fertig" sinkt ans Listenende),
-Umbenennen, Duplizieren, Löschen. Die Suche oben filtert auch die Projekte.
+**Der Projektmanager** (seit v0.9.601) ist eine **eigene Vollbild-Ansicht**:
+Der 🗂-Knopf ganz links in der Track-Leiste (neben „Track wählen") öffnet ihn
+aus jedem Modul, und die App **startet dort** — der erste Blick beantwortet
+„woran war ich dran?". Ein Klick auf **Öffnen** springt ins zuletzt benutzte
+Modul des Projekts (die Modul-Symbole auf der Karte sind auch direkt
+klickbar); **Esc** oder ✕ schließt die Ansicht wieder. Dazu je Karte: Status
+(**aktiv / Idee / fertig** — „fertig" sinkt ans Listenende), Umbenennen,
+Duplizieren, Löschen. Das Suchfeld oben rechts filtert die Projekte.
 
 **Automatisch angelegt:** Beim Öffnen einer Tour entsteht immer ein
 Arbeitsstand — nichts geht je verloren. Nie angefasste Stände liegen

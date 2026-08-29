@@ -2442,5 +2442,10 @@
   "library.proj_pfade_fehlen": "Not all tour files of this line-up were found.",
   "library.proj_in": "part of {n} project(s) — view",
   "library.proj_filter_tour": "Only projects of this tour",
-  "schwarm.name": "Swarm"
+  "schwarm.name": "Swarm",
+  "gpxbar.projects": "Projects",
+  "gpxbar.projects_hint": "All your work in progress: where was I?",
+  "pm.title": "Projects",
+  "pm.search": "Search projects …",
+  "pm.count": "{n} of yours"
 }

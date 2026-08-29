@@ -15,6 +15,15 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed — ⚠️ E1 des Projekt-Umbaus (IDEAS §39, Grilling 29.08.2026)
+- **Projektmanager als eigene Vollbild-Ansicht** (v0.9.601, Marc: „das ist
+  blöd über die sidebar, weil die tourfilter da sind … bau eine komplett neue
+  ansicht"): Der 🗂-Knopf ganz links in der Track-Leiste (neben „Track
+  wählen") öffnet den Manager aus jedem Modul als Overlay über allem —
+  Kopfzeile mit Suche, Karten-Raster, Esc/✕ schließt. Die App startet darin;
+  der Seitenleisten-Bereich „Projekte" im Archiv ist wieder raus (die
+  Archiv-Filter daneben wirkten, als gälten sie auch für Projekte). Der
+  „steckt in N Projekten"-Link in der Tour-Detailspalte springt jetzt in die
+  neue Ansicht.
 - **Projekte sind jetzt eigenständig** („wir müssen weg davon, alles am track
   festzumachen"): Die frühere Sitzungs-Datei sessions.json ist AUFGELÖST —
   Projekte leben als eigene Arbeitsmappen in `projekte.json`, Tour-Fakten
