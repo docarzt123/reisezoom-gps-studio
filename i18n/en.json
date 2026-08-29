@@ -2447,5 +2447,6 @@
   "gpxbar.projects_hint": "All your work in progress: where was I?",
   "pm.title": "Projects",
   "pm.search": "Search projects …",
-  "pm.count": "{n} of yours"
+  "pm.count": "{n} of yours",
+  "pm.seg_archive": "Tour archive"
 }

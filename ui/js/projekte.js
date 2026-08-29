@@ -42,7 +42,10 @@
     el.hidden = true;
     el.innerHTML = `
       <div class="pmgr-kopf">
-        <span class="pmgr-titel">🗂 ${T("pm.title", "Projekte")}</span>
+        <div class="pmgr-seg" role="group">
+          <button type="button" class="pmgr-seg-btn is-on">🗂 ${T("pm.title", "Projekte")}</button>
+          <button type="button" class="pmgr-seg-btn" id="pmgr-seg-archiv">📚 ${T("pm.seg_archive", "Touren-Archiv")}</button>
+        </div>
         <span class="pmgr-sub" id="pmgr-n"></span>
         <input type="search" id="pmgr-search" class="pmgr-search"
                placeholder="${esc(T("pm.search", "Projekte durchsuchen …"))}">
@@ -52,6 +55,12 @@
       <div class="pmgr-body" id="pmgr-body"></div>`;
     document.body.appendChild(el);
     document.getElementById("pmgr-close").onclick = () => window.projektManagerZu();
+    // Marc (29.08.2026): „generell sollte man da zwischen projekten und
+    // tourenarchiv wählen können" — der Umschalter führt ins Archiv.
+    document.getElementById("pmgr-seg-archiv").onclick = () => {
+      window.projektManagerZu();
+      if (typeof switchMod === "function") switchMod("library");
+    };
     document.getElementById("pmgr-search").oninput = () => {
       clearTimeout(_sucheTimer);
       _sucheTimer = setTimeout(() => { renderProjekte().catch(() => {}); }, 200);

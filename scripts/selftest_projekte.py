@@ -156,16 +156,23 @@ async def main():
         await pg.fill("#pmgr-search", "")
         await pg.wait_for_timeout(500)
 
-        print("\n━━━ 2b. Schließen + 🗂-Knopf in der Track-Leiste ━━━")
+        print("\n━━━ 2b. Umschalter Projekte ⇄ Touren-Archiv ━━━")
+        await pg.click("#pmgr-seg-archiv")
+        sagen(await pg.eval_on_selector("#pmgr-overlay", "e => e.hidden"),
+              "„Touren-Archiv“ im Manager-Kopf wechselt ins Archiv")
+        sagen(not bool(await pg.query_selector('[data-gpxbar=\'projekte\']')),
+              "kein Projekte-Knopf mehr in der Track-Leiste (nur Archiv-Kopf)")
+        sagen(bool(await pg.query_selector("#lib-seg-projekte")),
+              "der Archiv-Kopf hat den Umschalter")
+        await pg.click("#lib-seg-projekte")
+        await pg.wait_for_timeout(300)
+        sagen(not await pg.eval_on_selector("#pmgr-overlay", "e => e.hidden"),
+              "… und „Projekte“ dort öffnet den Manager wieder")
         await pg.click("#pmgr-close")
         sagen(await pg.eval_on_selector("#pmgr-overlay", "e => e.hidden"),
               "✕ schließt das Overlay")
-        sagen(bool(await pg.query_selector('[data-gpxbar=\'projekte\']')),
-              "die Track-Leiste hat den Projekte-Knopf (oben links)")
-        await pg.click('[data-gpxbar="projekte"]')
+        await pg.evaluate("window.projektManagerOeffnen()")
         await pg.wait_for_timeout(300)
-        sagen(not await pg.eval_on_selector("#pmgr-overlay", "e => e.hidden"),
-              "… und er öffnet den Manager wieder")
 
         # Ab hier: Modulwechsel + Track-Laden abfangen — geprüft wird die
         # ÜBERGABE, nicht der Lader (der hat eigene Tests).
