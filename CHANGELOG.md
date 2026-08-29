@@ -46,6 +46,9 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Fix (v0.9.619): der dezente Haupt-Laufpunkt war im gerenderten Video
+  riesig — er skalierte mit der Render-Auflösung, die Schwarm-Punkte
+  nicht. Jetzt exakt gleich groß.
 - Schwarm: „Haupt-Tour nicht hervorheben" (v0.9.618, Marc: „ich will
   nicht, dass eine tour raussticht"): neues Häkchen im Schwarm-Bereich —
   der Laufpunkt der Haupt-Tour wird zum kleinen Kreis in Tour-Farbe (wie
