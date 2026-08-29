@@ -2932,6 +2932,25 @@ function mountAnimator(body, headerActions, opts) {
       if (lauf !== _paceMapLauf) return;             // veraltete Antwort
       _paceMap = (r && r.ok && Array.isArray(r.map)) ? r.map : null;
     } catch (_) { _paceMap = null; }
+    // Tester-Befund (Dieter, 29.08.2026: „keine Veränderung spürbar"): auf
+    // gleichmäßig gelaufenen Touren verschieben die Modi den Lauf nur um
+    // wenige Prozent — das IST korrekt, sieht aber nach „wirkt nicht" aus.
+    // Deshalb die messbare Wirkung DIESER Tour dazuschreiben.
+    try {
+      const desc = document.getElementById("anim-pace-desc");
+      if (desc && _paceMap && _paceMap.length >= 2) {
+        const n1 = _paceMap.length - 1;
+        let maxAbw = 0;
+        for (let i = 0; i <= n1; i++)
+          maxAbw = Math.max(maxAbw, Math.abs(_paceMap[i] - i / n1));
+        const pct = Math.round(maxAbw * 100);
+        const satz = pct < 2
+          ? t("animator.pace.wirkung_min", "Diese Tour wurde so gleichmäßig aufgezeichnet, dass diese Verteilung kaum sichtbar wirkt (höchstens {p} % Verschiebung).")
+          : t("animator.pace.wirkung", "Wirkung bei dieser Tour: der Lauf verschiebt sich um bis zu {p} % gegenüber „gleichmäßig“.");
+        desc.textContent = (desc.textContent ? desc.textContent + " " : "")
+          + satz.replace("{p}", String(Math.max(1, pct)));
+      }
+    } catch (_) {}
     vorschauNeuZeichnen();
   }
 
@@ -11365,8 +11384,13 @@ function mountAnimator(body, headerActions, opts) {
     // Map-Source-Update: Preview-Track auf reduzierte Coords umschalten
     let coords = _fullPreviewCoords;
     if (v < maxN) {
-      // Wir resampeln aus den 800 Frontend-Coords proportional zu v/maxN.
-      const targetIn800 = Math.max(2, Math.round(_fullPreviewCoords.length * (v / maxN)));
+      // Tester-Befund (Dieter, 29.08.2026): proportional (800·v/maxN) landete
+      // links bei 2 Punkten — bei einer RUNDTOUR ist Start≈Ziel und die Linie
+      // unsichtbar („keine Spur zu sehen"). Bis 800 nehmen wir v DIREKT (der
+      // Render nutzt ja auch genau v Punkte), erst darüber proportional.
+      const targetIn800 = Math.max(3, Math.min(_fullPreviewCoords.length,
+        v <= _fullPreviewCoords.length ? v
+          : Math.round(_fullPreviewCoords.length * (v / maxN))));
       coords = resampleArray(_fullPreviewCoords, targetIn800);
     }
     try {
