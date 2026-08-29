@@ -693,6 +693,7 @@ function mountLibrary(body, headerActions) {
   let _projekte = [];
   let _projScope = "alle";  // alle | aktiv | idee | fertig | auto
   const _projThumbCache = {};   // pid → data-URL (Sitzungs-Cache)
+  let _projSel = "";            // v0.9.623 — gewähltes Projekt (Detailspalte)
   let _projFilterGh = "";   // Detailspalte: „Projekte dieser Tour" zeigen
 
   function projViewSetzen(an) {
@@ -844,6 +845,19 @@ function mountLibrary(body, headerActions) {
       if (det) det.addEventListener("toggle", () => { if (det.open) thumbsHolen(); }); }
     { const fx = document.getElementById("lib-proj-filter-x");
       if (fx) fx.onclick = () => { _projFilterGh = ""; renderProjekte(); }; }
+    // v0.9.623 (Marc: „komplette Projekt-Detail-Seite … wie bei den Touren"):
+    // Klick auf die Karte (nicht auf Knöpfe) wählt sie aus → rechte Spalte.
+    box.querySelectorAll(".lib-proj-karte").forEach(k => k.onclick = (e) => {
+      if (e.target.closest("button, select, input, a")) return;
+      _projSel = k.dataset.pid;
+      box.querySelectorAll(".lib-proj-karte").forEach(x =>
+        x.classList.toggle("is-sel", x.dataset.pid === _projSel));
+      renderProjektDetail(_projSel);
+    });
+    if (_projSel) {
+      const k = box.querySelector(`.lib-proj-karte[data-pid="${_projSel}"]`);
+      if (k) k.classList.add("is-sel");
+    }
     box.querySelectorAll("[data-open]").forEach(b => b.onclick = () => projektOeffnen(b.dataset.open));
     box.querySelectorAll("[data-open-modul]").forEach(b => b.onclick = (e) => {
       e.stopPropagation(); projektOeffnen(b.dataset.pid, b.dataset.openModul);
@@ -996,6 +1010,100 @@ function mountLibrary(body, headerActions) {
     });
   }
 
+  async function renderProjektDetail(pid) {
+    const box = $("lib-detail");
+    if (!box) return;
+    const res = await api().projekt_detail(pid);
+    if (!res || !res.ok) { box.innerHTML = ""; return; }
+    const p = res.projekt;
+    const kartenInfo = _projekte.find(x => x.id === pid) || {};
+    const MODUL_LBL = { animator: ["🎬", "Animator"], reiseroute: ["🧭", "Reiseroute"],
+                        tourmap: ["🗺", "Tour-Map"], geotagger: ["📷", "Geotagger"],
+                        heightanim: ["📈", T("library.proj_daten", "Daten")] };
+    const ablauf = p.frei ? T("library.proj_frei_kurz", "Leeres Projekt")
+      : p.ablauf === "schwarm" ? `🌊 ${T("schwarm.name", "Schwarm")} · ${T("animator.pace." + (p.schwarm_modus === "gleich" ? "even" : p.schwarm_modus), p.schwarm_modus)}`
+      : p.ablauf === "reise" ? `🧵 ${T("library.proj_reise", "Reise")}`
+      : T("library.proj_solo", "Einzeltour");
+    const tourZeile = (t2) => `
+      <div class="lib-fassung lib-projd-tour" data-tpfad="${esc(t2.path)}" ${t2.exists ? "" : 'style="opacity:.55"'}>
+        <span class="lib-fassung-info">${t2.haupt ? "⭐ " : ""}${esc(t2.name)}${
+          t2.distance_km ? ` · ${(+t2.distance_km).toFixed(1)} km` : ""}${
+          t2.exists ? "" : " · ⚠️"}${
+          t2.neuere_fassung ? ` <span class="lib-proj-fehlt">⬆</span>` : ""}</span>
+      </div>`;
+    const standZeile = (x) => `
+      <div class="lib-fassung">
+        <span class="lib-fassung-info">${esc(fmtDate(x.ts))} ${esc(String(x.ts).slice(11, 16))} · 🎬 ${x.keyframes} · 🚩 ${x.schilder} · 📷 ${x.fotos}</span>
+        <button class="btn btn-ghost btn-sm" data-pd-strb="${esc(x.ts)}">↩︎</button>
+      </div>`;
+    box.innerHTML = `
+      <div class="lib-proj-thumb" data-pdthumb style="height:150px;margin:0 0 10px;border-radius:8px;">${p.frei ? "🗂" : "🗺"}</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:2px;">${esc(p.name)}</div>
+      <div class="lib-hint">${ablauf}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;">
+        <button class="btn btn-primary btn-sm" data-pd-open>${T("library.proj_open", "Öffnen")}</button>
+        ${(kartenInfo.module || []).map(m => {
+          const c = MODUL_LBL[m] || ["▫", m];
+          return `<button class="btn btn-ghost btn-sm" data-pd-modul="${m}" title="${esc(c[1])}">${c[0]}</button>`;
+        }).join("")}
+        <button class="btn btn-ghost btn-sm" data-pd-ren title="${T("library.rename", "Umbenennen")}">✎</button>
+        <button class="btn btn-ghost btn-sm" data-pd-dup title="${T("library.col_duplicate", "Duplizieren")}">⎘</button>
+        <button class="btn btn-ghost btn-sm lib-btn-danger" data-pd-del title="${T("library.proj_delete", "Projekt löschen")}">🗑</button>
+      </div>
+      <div class="field-label">${T("library.proj_status", "Status")}</div>
+      <select class="lib-select" data-pd-status style="width:100%;">
+        <option value="aktiv"${p.status === "aktiv" ? " selected" : ""}>${T("library.proj_st_aktiv", "aktiv")}</option>
+        <option value="idee"${p.status === "idee" ? " selected" : ""}>${T("library.proj_st_idee", "Idee")}</option>
+        <option value="fertig"${p.status === "fertig" ? " selected" : ""}>${T("library.proj_st_fertig", "fertig")}</option>
+      </select>
+      <div class="field-label" style="margin-top:12px;">${T("library.proj_touren", "Touren")} (${res.touren.length})${p.frei ? ` <button class="btn btn-ghost btn-sm" data-pd-add>➕</button>` : ""}</div>
+      ${res.touren.map(tourZeile).join("")
+        || `<div class="lib-hint">${T("library.proj_frei", "Noch keine Touren — mit ➕ hinzufügen oder leer öffnen (Reiseroute, Kartenflug)")}</div>`}
+      <div class="field-label" style="margin-top:12px;">${T("library.staende", "Frühere Arbeitsstände")} (${res.staende.length})</div>
+      ${res.staende.slice().reverse().map(standZeile).join("")
+        || `<div class="lib-hint">${T("library.staende_leer", "Noch keine gesicherten Stände — sie entstehen beim Arbeiten von selbst.")}</div>`}
+      <div class="lib-hint" style="margin-top:12px;">${T("library.proj_angelegt_am", "Angelegt")}: ${esc(fmtDate(p.created_at))} · ${T("library.proj_geaendert_am", "Zuletzt")}: ${esc(fmtDate(p.modified_at))}</div>`;
+    // Vorschau-Bild (Cache des Rasters mitbenutzen).
+    { const el = box.querySelector("[data-pdthumb]");
+      if (el && _projThumbCache[pid]) el.innerHTML = `<img src="${_projThumbCache[pid]}" alt="">`;
+      else if (el && !p.frei) {
+        api().projekt_thumbs([pid]).then(r => {
+          const u = r && r.thumbs && r.thumbs[pid];
+          if (u) { _projThumbCache[pid] = u; el.innerHTML = `<img src="${u}" alt="">`; }
+        }).catch(() => {});
+      } }
+    box.querySelector("[data-pd-open]").onclick = () => projektOeffnen(pid);
+    box.querySelectorAll("[data-pd-modul]").forEach(b => b.onclick = () => projektOeffnen(pid, b.dataset.pdModul));
+    box.querySelector("[data-pd-status]").onchange = async (e) => {
+      await api().projekt_status_setzen(pid, e.target.value);
+      renderProjekte();
+    };
+    box.querySelectorAll(".lib-projd-tour").forEach(z => z.onclick = () => {
+      const pf = z.dataset.tpfad;
+      if (!pf) return;
+      // Zur Tour ins Touren-Archiv springen (gleiche Auswahl-Mechanik).
+      store.set("sel", pf);
+      _sel = null;
+      projViewSetzen(false);
+      reload();
+    });
+    box.querySelectorAll("[data-pd-strb]").forEach(b => b.onclick = async () => {
+      const r = await api().projekt_stand_wiederherstellen(pid, b.dataset.pdStrb);
+      if (r && r.ok) toast(T("library.stand_done", "Arbeitsstand wiederhergestellt."), "info");
+      else toast((r && r.error) || "?", "error");
+      renderProjekte();
+      renderProjektDetail(pid);
+    });
+    { const b = box.querySelector("[data-pd-ren]");
+      if (b) b.onclick = () => { const k = document.querySelector(`[data-ren="${pid}"]`); if (k) k.click(); }; }
+    { const b = box.querySelector("[data-pd-dup]");
+      if (b) b.onclick = () => { const k = document.querySelector(`[data-dup="${pid}"]`); if (k) k.click(); }; }
+    { const b = box.querySelector("[data-pd-del]");
+      if (b) b.onclick = () => { const k = document.querySelector(`[data-del="${pid}"]`); if (k) k.click(); }; }
+    { const b = box.querySelector("[data-pd-add]");
+      if (b) b.onclick = () => { const k = document.querySelector(`[data-addtours="${pid}"]`); if (k) k.click(); }; }
+  }
+
   /** Öffnen (Q22): Solo lädt die Tour und springt ins zuletzt benutzte Modul;
    *  Kompositionen gehen den bewährten Übergabe-Weg (Pending + Lade-Modal). */
   async function projektOeffnen(pid, modulWunsch) {
@@ -1047,7 +1155,12 @@ function mountLibrary(body, headerActions) {
     const pv = _projView;
     $("lib-projwrap").hidden = !pv;
     $("lib-head").hidden = pv;
-    { const d = $("lib-detail"); if (d) d.hidden = pv; }
+    // v0.9.623: rechte Spalte bleibt — sie zeigt im Projekt-Modus das Projekt.
+    { const d = $("lib-detail");
+      if (d) {
+        d.hidden = false;
+        if (pv) { d.innerHTML = _projSel ? d.innerHTML : ""; if (_projSel) renderProjektDetail(_projSel); }
+      } }
     $("lib-grid").hidden = pv || view !== "cards";
     $("lib-list").hidden = pv || view !== "list";
     $("lib-mapwrap").hidden = pv || view !== "map";

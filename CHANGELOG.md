@@ -14,6 +14,16 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Projekt-Detailspalte (v0.9.623, Marc: „wir brauchen eine komplette
+  Projekt-Detail-Seite … wie bei den einzelnen Touren"): Klick auf eine
+  Projektkarte zeigt rechts alles auf einen Blick — große Karten-Vorschau,
+  Status, Ablauf/Modus, die Touren-Liste (⭐ Haupt-Track, km, ⬆ bei neuerer
+  Fassung; Klick springt zur Tour ins Archiv), die früheren Arbeitsstände
+  mit Wiederherstellen direkt eingebettet, Aktionen (Öffnen je Modul,
+  Umbenennen, Duplizieren, Löschen, bei leeren Projekten ➕) sowie
+  Angelegt/Zuletzt-Daten.
+
 ## [0.9.622] – 2026-08-29
 
 ### Added — ⚠️ E2+E3 des Projekt-Umbaus (v0.9.610): Tour-Identität, Fassungen, Historie, Cloud v2

@@ -823,3 +823,8 @@
   margin: -10px -12px 8px;
 }
 .lib-proj-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* v0.9.623 — Projekt-Detailspalte: gewählte Karte markieren, Tour-Zeilen klickbar */
+.lib-proj-karte.is-sel { outline: 2px solid var(--accent); outline-offset: -2px; }
+.lib-projd-tour { cursor: pointer; }
+.lib-projd-tour:hover { background: var(--bg-3); }

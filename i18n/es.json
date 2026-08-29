@@ -2493,5 +2493,10 @@
   "library.keine_treffer": "Sin resultados.",
   "animator.pace.wirkung_min": "Esta ruta se grabó tan uniforme que esta distribución apenas se nota (como mucho {p} % de desplazamiento).",
   "animator.pace.wirkung": "Efecto en esta ruta: el avance se desplaza hasta un {p} % respecto a «uniforme».",
-  "library.rename": "Renombrar"
+  "library.rename": "Renombrar",
+  "library.proj_frei_kurz": "Proyecto vacío",
+  "library.proj_solo": "Ruta única",
+  "library.proj_touren": "Rutas",
+  "library.proj_angelegt_am": "Creado",
+  "library.proj_geaendert_am": "Último"
 }

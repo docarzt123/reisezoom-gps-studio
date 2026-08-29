@@ -137,6 +137,21 @@ PROJ_MOCK_JS = r"""
       const px = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
       const o = {}; pids.forEach(p => { o[p] = px; }); return { ok: true, thumbs: o };
     },
+    projekt_detail: async (pid) => {
+      merken("projekt_detail", [pid]);
+      const p = P.find(x => x.id === pid) || {};
+      return { ok: true,
+        projekt: { id: pid, name: p.name, status: p.status, auto: !!p.auto,
+                   ablauf: p.ablauf, schwarm_modus: p.schwarm_modus || "gleich",
+                   schwarm_pausen: true, created_at: "2026-08-29T09:00:00",
+                   modified_at: p.modified_at, letztes_modul: p.letztes_modul || "",
+                   frei: !!p.frei },
+        touren: pid === "pb"
+          ? [{ geo_hash: "gh2", name: "Etappe 1", distance_km: 12.5, path: "/mock/e1.gpx", exists: true, haupt: true, neuere_fassung: null },
+             { geo_hash: "gh3", name: "Etappe 2", distance_km: 9.1, path: "/mock/e2.gpx", exists: true, haupt: false, neuere_fassung: { nr: 2 } }]
+          : (p.frei ? [] : [{ geo_hash: "gh1", name: "Masca-Schlucht", distance_km: 14.5, path: "/mock/masca.gpx", exists: true, haupt: false, neuere_fassung: null }]),
+        staende: [{ ts: "2026-08-29T10:00:00+00:00", keyframes: 3, schilder: 0, fotos: 1 }] };
+    },
     projekt_fassung_aktualisieren: async (pid) => {
       merken("projekt_fassung_aktualisieren", [pid]);
       const p = P.find(x => x.id === pid); if (p) delete p.neuere_fassung;
@@ -360,6 +375,28 @@ async def main():
                   and r["args"][0] == "pf"
                   and sorted(r["args"][1]) == ["/mock/t1.gpx", "/mock/t2.gpx"]
                   for r in ruf), "Hinzufügen setzt die gewählten Touren")
+
+        print("\n━━━ 4d. Projekt-Detailspalte (v0.9.623) ━━━")
+        await pg.click('.lib-proj-karte[data-pid="pb"] .lib-proj-sub')
+        await pg.wait_for_timeout(400)
+        ruf = await pg.evaluate("window.__ruf")
+        sagen(any(r["name"] == "projekt_detail" and r["args"] == ["pb"] for r in ruf),
+              "Karten-Klick lädt die Detailspalte")
+        sagen(await pg.eval_on_selector('.lib-proj-karte[data-pid="pb"]',
+              "e => e.classList.contains('is-sel')"),
+              "… Karte ist als gewählt markiert")
+        zeilen = await pg.eval_on_selector_all("#lib-detail .lib-projd-tour",
+              "e => e.map(x => x.textContent)")
+        sagen(len(zeilen) == 2 and "⭐" in zeilen[0] and "⬆" in zeilen[1],
+              "Touren-Liste mit Haupt-Stern und ⬆-Hinweis", str(zeilen))
+        sagen(bool(await pg.query_selector("#lib-detail [data-pd-strb]")),
+              "Stände stehen eingebettet in der Spalte")
+        await pg.eval_on_selector("#lib-detail .lib-projd-tour", "e => e.click()")
+        await pg.wait_for_timeout(400)
+        sagen(await pg.eval_on_selector("#lib-projwrap", "e => e.hidden"),
+              "Klick auf eine Tour springt ins Touren-Archiv")
+        await pg.click("#lib-seg-projekte")
+        await pg.wait_for_timeout(300)
 
         print("\n━━━ 5. Verwalten direkt auf der Karte ━━━")
         await pg.eval_on_selector(
