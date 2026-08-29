@@ -132,6 +132,11 @@ PROJ_MOCK_JS = r"""
       if (p) { p.frei = false; p.n_touren = paths.length; p.geo_hashes = paths.map((_, i) => "g" + i); }
       return { ok: true, kontext: "menge:xyz", ablauf: "reise" };
     },
+    projekt_thumbs: async (pids) => {
+      merken("projekt_thumbs", [pids.slice().sort()]);
+      const px = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+      const o = {}; pids.forEach(p => { o[p] = px; }); return { ok: true, thumbs: o };
+    },
     projekt_fassung_aktualisieren: async (pid) => {
       merken("projekt_fassung_aktualisieren", [pid]);
       const p = P.find(x => x.id === pid); if (p) delete p.neuere_fassung;
@@ -194,6 +199,9 @@ async def main():
             '.lib-proj-karte[data-pid="pb"]',
             "e => e.classList.contains('fertig')"),
               "fertige Projekte sind als solche gestaltet")
+        await pg.wait_for_timeout(400)
+        sagen(bool(await pg.query_selector('[data-pthumb="pa"] img')),
+              "Karten-Vorschau wird geladen (v0.9.615)")
 
         print("\n━━━ 2. Bereiche links + Suche filtern ━━━")
         n_fertig = await pg.eval_on_selector(

@@ -46,6 +46,13 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Karten-Vorschau auf den Projektkarten (v0.9.615, Marc: „kann man da
+  nicht auch eine karte anzeigen?"): Solo-Projekte zeigen das echte
+  Karten-Thumbnail ihrer Tour; Kompositionen (und Touren ohne Thumbnail)
+  ein gezeichnetes Linien-Komposit aller Mitglieder — wie der fertige
+  Schwarm, offline aus den Archiv-Geometrien, gecacht pro
+  Mitglieder-Menge und lazy nur für sichtbare Karten geladen
+  (eingeklappte auto-Projekte erst beim Aufklappen).
 - Neues Projekt erscheint sofort, Teil 2 (v0.9.614): auch der Topbar-Weg
   („🗂 → Neues leeres Projekt") frischt eine offene Projektliste jetzt
   sofort auf (Custom-Event an das Archiv); beide Anlege-Wege loggen ihren
