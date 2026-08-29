@@ -183,6 +183,49 @@ weil der Browser kein ExifTool/Python hat).
 
 ## 3 · Core-Module im Detail
 
+### 3.0 · core/projekte.py — der Projekt-Store (E1, seit v0.9.600) ⚠️ PFLICHTLEKTÜRE
+
+**Beschlossen im Grilling (Marc, 29.08.2026, docs/IDEAS.md §39):** „wir müssen
+weg davon, alles am track festzumachen." E1 löst die Sessions auf:
+
+- **Store:** `projekte.json` (`{schema, projects: {pid: PROJEKT}, aktiv:
+  {kontext: pid}}`) + `touren.json` (Tour-Fakten: Name, Stats, Snapshot,
+  gesehene Dateinamen, ui_hashes — Vorstufe des Tour-Registers aus E2).
+  `sessions.json` existiert nicht mehr (Migration benennt sie in
+  `sessions.json.aufgeloest-<stamp>` um).
+- **PROJEKT** = eigenständige Arbeitsmappe: id, name, status
+  (aktiv/fertig/idee), auto (nie angefasst), kontext, ablauf
+  (solo/reise/schwarm), schwarm_modus/-pausen, geo_hashes, gpx_paths,
+  letztes_modul + die Modul-Stände (animator/tourmap/geotagger/heightanim/
+  photos — unverändert übernommen; `animator.extra_tours` bleibt in E1
+  bewusst dort, Normalisierung ist E2/E3).
+- **Kontext-Schlüssel:** geo_hash (Einzeltour) bzw. `menge:<hash>`
+  (Komposition). Er ist NUR ein Gruppierungs-Schlüssel und ersetzt die
+  Session 1:1 — deshalb behalten ALLE session_*-Brücken ihre
+  Antwort-Verträge und das Modul-JS blieb unangetastet. In E2 wird er durch
+  Tour-UUIDs ersetzt.
+- **Nebenläufigkeit:** `_projekte.LOCK` (der frühere `@_mit_sessions_lock`
+  sperrt jetzt diesen Lock). Speichern atomar (tmp + os.replace).
+- **Cloud:** spricht bis Cloud v2 (E3) das alte sessions-Wire-Format —
+  `export_sessions_sicht()` baut die Sicht aus dem Store,
+  `import_session_objekt()` spielt Empfangenes zurück. Zweitrechner mit
+  älterer Version bleiben kompatibel.
+- **Migration:** `migrieren_falls_noetig()` — einmalig, idempotent,
+  ID-Kollisionen werden aufgelöst, `auto` über Arbeits-Marker bestimmt
+  (umbenannt/timeline_events/extra_tours/ghosts/charts/stops/fokus/photos).
+  Wächter: `tests/test_projekte_e1.py` (läuft u. a. gegen eine Kopie der
+  echten sessions.json und prüft Byte-Gleichheit aller Payloads).
+- **Drops-Aufräumer** (`core/drops.py`) liest Referenzen jetzt aus
+  projekte.json + touren.json (Liste statt einer Datei); unlesbar → es wird
+  NICHTS gelöscht.
+- **Projekte-Bereich im Archiv:** `modules/library/ui/module.js`
+  (renderProjekte/projektOeffnen, Sektion „PROJEKTE" oben in der Sidebar);
+  Brücken `projekte_liste`, `projekt_aktivieren`, `projekt_status_setzen`,
+  `projekt_umbenennen`, `projekt_duplizieren`, `projekt_loeschen`.
+  App-Start = Archiv/Projekte (`window.__rzStartProjekte`, ui/js/app.js);
+  das frühere Auto-Restore des letzten Tracks ist ersatzlos entfernt.
+
+
 ### `core/imports.py` (seit v0.9.282) — universelle Track-Import-Schicht
 
 **Zweck:** Fremde Track-Formate (FIT, NMEA, KML/KMZ, TCX, GeoJSON) werden beim Öffnen transparent nach GPX konvertiert. Damit arbeitet die **gesamte App weiter ausschließlich mit GPX** — kein Downstream-Code (Animator/Tour-Map/Geotagger/Höhen) muss Formate kennen.

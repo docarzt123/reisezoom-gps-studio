@@ -488,21 +488,13 @@ python app.py</code></pre>
 <li>Windows: <code>%APPDATA%\Reisezoom GPS Studio\settings.json</code></li>
 <li>Linux: <code>~/.local/share/Reisezoom GPS Studio/settings.json</code></li>
 </ul>
-<h3 id="sessions-projects">Sessions &amp; Projects ⭐</h3>
-<p><strong>Sessions</strong> are track-bound: every GPX track automatically gets its own session (recognized via a hash of the track coordinates). Load the same track a second time and you get <strong>all previously made settings + keyframes</strong> back — no more &quot;lost&quot; state when switching modules.</p>
-<p><strong>Projects</strong> are variants within a session — e.g. &quot;Standard variant&quot; + &quot;portrait reels&quot; + &quot;with photo inserts&quot;. You can create any number of projects per track.</p>
-<p><strong>Where do I find this?</strong> Top bar, top right — a project dropdown with 4 actions:</p>
-<ul>
-<li>🆕 <strong>New project</strong> (with pristine defaults)</li>
-<li>📋 <strong>Duplicate current</strong> (copies all settings + keyframes)</li>
-<li>✏️ <strong>Rename</strong></li>
-<li>🗑 <strong>Delete</strong> (the last project of a session can&#x27;t be deleted — it&#x27;s automatically restored as &quot;Standard&quot;)</li>
-</ul>
-<p>The session data lives under:</p>
-<ul>
-<li>macOS: <code>~/Library/Application Support/Reisezoom GPS Studio/sessions/</code></li>
-</ul>
-<p>(One folder per track hash, with a GPX snapshot + projects.json holding all variants.)</p>
+<h3 id="projects-standalone">Projects (standalone) ⭐</h3>
+<p>A <strong>project</strong> is your working folder for one video: the tours involved (one or many for journey/swarm), all settings, keyframes, photos and signs. Projects no longer &quot;belong to a tour&quot; — they are <strong>things of their own</strong> with a name, a status and &quot;last edited&quot;. The same tour can be part of any number of projects.</p>
+<p><strong>The &quot;🎬 Projects&quot; area</strong> at the very top left of the <strong>archive</strong> is their home — and the app <strong>starts there</strong>: the first glance answers &quot;what was I working on?&quot;, one click on <strong>Open</strong> jumps to the module you last used in that project (the module icons on the card are directly clickable too). Each card also has: status (<strong>active / idea / done</strong> — &quot;done&quot; sinks to the end), rename, duplicate, delete. The search box filters projects as well.</p>
+<p><strong>Created automatically:</strong> Opening a tour always creates a working state nothing is ever lost. Untouched states sit collapsed under &quot;Created automatically&quot; and move up as soon as you work in them or rename them.</p>
+<p><strong>From tour to project:</strong> every tour&#x27;s detail column shows &quot;part of N projects&quot; — one click shows exactly those.</p>
+<p><strong>Inside a module</strong> (top bar, top right) the familiar project switcher stays: 🆕 New · 📋 Duplicate · ✏️ Rename · 🗑 Delete.</p>
+<p>Stored under <code>…/Reisezoom GPS Studio/projekte.json</code> (working folders) and <code>touren.json</code> (tour facts); GPX snapshots stay under <code>…/sessions/</code>.</p>
 <hr>
 <h3 id="export-import-a-project-rzproj">Export &amp; import a project (.rzproj)</h3>
 <p><strong>Hand over a project as one file — no cloud needed.</strong> In the project menu (click “Session · Project” at the top) or via “File → Export project” you get a <code>.rzproj</code> file: the track, <strong>all projects</strong> of the session (keyframes, signs, overlays, settings), the tour data from the archive (name, tags, note) and <strong>preview images</strong> of your photos plus the <strong>images of your signs</strong> — the original photos stay with you.</p>

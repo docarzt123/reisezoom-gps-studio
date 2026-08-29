@@ -14,6 +14,29 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed — ⚠️ E1 des Projekt-Umbaus (IDEAS §39, Grilling 29.08.2026)
+- **Projekte sind jetzt eigenständig** („wir müssen weg davon, alles am track
+  festzumachen"): Die frühere Sitzungs-Datei sessions.json ist AUFGELÖST —
+  Projekte leben als eigene Arbeitsmappen in `projekte.json`, Tour-Fakten
+  (Name, Stats, Snapshot, Aliase) in `touren.json` (Vorstufe des
+  Tour-Registers, E2). Reise/Schwarm samt Modus ist eine Projekt-Eigenschaft.
+  Die einmalige **Migration** läuft beim ersten Start (113 Projekte + 3
+  Kompositionen bei Marc, byte-gleich verifiziert); die alte Datei wird zu
+  `sessions.json.aufgeloest-<stamp>` umbenannt, nichts wird gelöscht. Alle
+  session_*-Brücken behalten ihre Antwort-Verträge — die Module merken nichts.
+- **Neuer Bereich „PROJEKTE"** ganz oben im Archiv (kein neues Top-Modul):
+  Karten je Projekt mit Status (aktiv/Idee/fertig), Modul-Chips (direkt
+  klickbar), „zuletzt bearbeitet"; Suche wirkt mit; nie angefasste
+  auto-Projekte liegen eingeklappt unter „Automatisch angelegt". Aktionen:
+  Öffnen (springt ins zuletzt benutzte Modul), Umbenennen, Duplizieren,
+  Löschen. Tour-Detailspalte verlinkt „steckt in N Projekten" und zurück.
+- **Die App startet jetzt im Archiv, Bereich Projekte** — „woran war ich
+  dran?" als erster Blick. Das Auto-Restore des letzten Tracks (samt
+  Boot-Lade-Modal) entfällt ersatzlos; das letzte Projekt liegt oben und ist
+  einen Klick entfernt. Doppelklick auf Dateien/.rzproj funktioniert weiter.
+- Cloud spricht bis Cloud v2 (E3) unverändert das alte Format — die Sicht
+  wird jetzt aus dem Projekt-Store gebaut (Zweitrechner bleibt kompatibel).
+
 ### Added
 - Inspektor → Archiv: „Im Archiv ersetzen" beim Speichern (Marc, 29.08.2026:
   „ich bin ja ausm archiv gekommen … und möchte sie dann im archiv direkt

@@ -67,6 +67,11 @@ client_secret*.json
 sessions.json
 cloud_zustand.json
 sessions/
+# v0.9.600 — E1-Projekt-Store (Dev-Modus schreibt neben app.py)
+projekte.json
+touren.json
+sessions.json.aufgeloest-*
+sessions.json.vor-e1-*
 
 # v0.9.486 — Tour-Archiv: Index + Vorschaubilder (Dev-Modus schreibt neben app.py)
 library.db
