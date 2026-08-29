@@ -15,11 +15,23 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed
+- Schwarm-Gesamtwerte sind jetzt SUMMEN über alle Touren (Marc, 29.08.2026):
+  Strecke, Zeit, Bewegungszeit, Bergauf/Bergab als Summe; Ø-Tempo als Schnitt
+  aus den Summen; Max. Tempo, Höchster/Tiefster Punkt als Extremwert. Gilt im
+  Render UND in der Vorschau (WYSIWYG); ohne Schwarm unverändert.
+- „Noch unterwegs"/„Touren gesamt" sind nach einer Schwarm-Übergabe sofort
+  wählbar — die Feld-Editoren wurden vorher gebaut, bevor die Touren geladen
+  waren, und blieben ausgegraut.
+
 - Schwarm-Modus-Dialog: vier Radio-Optionen statt drei + Pausen-Häkchen
   (Marc, 29.08.2026) — „Echte Uhrzeit — mit Pausen" und „— ohne Pausen" sind
   jetzt eigene, eindeutige Auswahlen.
 
 ### Added
+- Neue Live-Overlay-Felder „Bergauf bisher" / „Bergab bisher" (Marc: „warum
+  gibts da nicht auch bergauf bergab?"): kumulierte Höhenmeter bis zum
+  aktuellen Punkt, auf die geglätteten Gesamtwerte skaliert — das Live-Feld
+  endet exakt beim „Bergauf"-Gesamtwert. In Render und Vorschau, dreisprachig.
 - Schwarm-Geschwindigkeitsmodi (IDEAS §38 M3 — Marc, 29.08.2026: „jetzt das
   mit der geschwindigkeit"): Beim Start aus dem Archiv fragt ein Dialog nach
   dem Modus — „Alle gleich schnell" (Standard), „Gleichzeitig im Ziel"

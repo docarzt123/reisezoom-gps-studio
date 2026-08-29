@@ -2392,5 +2392,7 @@
   "schwarm.modus_uhrzeit_hint": "Cada ruta avanza según sus marcas de tiempo (salida común); durante un descanso el punto se detiene. Las rutas sin marcas avanzan de forma uniforme.",
   "schwarm.los": "Vamos",
   "schwarm.modus_uhrzeit_bew": "Hora real, sin pausas",
-  "schwarm.modus_uhrzeit_bew_hint": "Igual que arriba, pero las pausas se recortan: se compara el ritmo de movimiento puro."
+  "schwarm.modus_uhrzeit_bew_hint": "Igual que arriba, pero las pausas se recortan: se compara el ritmo de movimiento puro.",
+  "animator.statsfield.asc_done": "Subido hasta ahora",
+  "animator.statsfield.desc_done": "Bajado hasta ahora"
 }
