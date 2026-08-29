@@ -15,6 +15,14 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- Update-Check über reisezoom.com (v0.9.624, Marc: „können wir zählen, wie
+  viele instanzen weltweit laufen?"): Die App fragt jetzt das eigene
+  Versions-Manifest auf reisezoom.com ab (GitHub nur noch als stiller
+  Rückfall). Die normalen Server-Logs zeigen damit, wie viele Instanzen
+  laufen — KEINE IDs, keine Telemetrie, nur Standard-Weblogs; der
+  User-Agent nennt Version + Plattform. Transparenz-Satz im Handbuch
+  (3 Sprachen); Auswertung: `scripts/instanzen_zaehlen.py` (braucht
+  aktivierte KAS-Logfiles). Nebeneffekt: kein GitHub-Rate-Limit mehr.
 - Projekt-Detailspalte (v0.9.623, Marc: „wir brauchen eine komplette
   Projekt-Detail-Seite … wie bei den einzelnen Touren"): Klick auf eine
   Projektkarte zeigt rechts alles auf einen Blick — große Karten-Vorschau,
