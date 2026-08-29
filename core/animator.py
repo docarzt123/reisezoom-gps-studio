@@ -486,6 +486,15 @@ class AnimatorConfig:
     # Single-Track-Pfad (Haupt-Track = Zeitachse), die übrigen Touren wachsen
     # als Zusatz-Linien im selben Takt mit (schwarm_tours in _make_html).
     tracks_ablauf: str = "reise"
+    # IDEAS §38 M3 — Geschwindigkeitsmodus des Schwarms (Wahl im Archiv):
+    #   "gleich"  = alle gleich schnell (Standard, längste bestimmt die Dauer)
+    #   "ziel"    = gleichzeitig im Ziel (Fotofinish: jede Tour skaliert)
+    #   "uhrzeit" = echte Uhrzeit (aufgezeichnete Zeitstempel; gemeinsamer
+    #               Start, die längste DAUER bestimmt die Zeitachse)
+    schwarm_modus: str = "gleich"
+    # "uhrzeit": zählen Pausen mit (True = wörtlich echte Uhrzeit, der Punkt
+    # steht bei Rast) oder nur Bewegungszeit (False, Pausen rausgeschnitten)?
+    schwarm_pausen: bool = True
     # IDEAS §38 M2 — Fokus-Tour im Schwarm (Marc, 28.08.2026: „kamera bleibt
     # stehen" wenn sie fertig ist). GPX-Pfad einer Zusatz-Tour; leer = die
     # Kamera folgt (falls eingeschaltet) wie bisher dem Haupt-Track.
@@ -561,7 +570,7 @@ OVERLAY_LIVE_FIELDS = [
      "js": ("(function(){const d=cumDistM[idx];"
             "let m=(idx<cumDistM.length-1)?1:0;"
             "for(let i=0;i<SCHWARM_N;i++){"
-            "if(d<(SCHWARM_COORDS[i].length-1)*SCHWARM_STEPS[i]-SCHWARM_STEPS[i])m++;}"
+            "if(!swarmFertig(i,d))m++;}"
             "return m+' / '+(SCHWARM_N+1);})()")},
 ]
 OVERLAY_TOTAL_FIELDS = [
@@ -934,6 +943,55 @@ def resample_aequidistant(points, s_m: float) -> list:
     if raus[-1] != [points[-1].lon, points[-1].lat]:
         raus.append([points[-1].lon, points[-1].lat])
     return raus
+
+
+# IDEAS §38 M3 — „nur Bewegungszeit": Segment-Zeiten über diesem Deckel gelten
+# als Pause und werden auf ihn gestutzt (übliche GPX-Aufzeichnung tickt ≤ 5 s;
+# 20 s trennt „langsam" sauber von „steht"). Bewusst dieselbe einfache Regel
+# wie bei Moving-Time-Schätzungen — es geht um die Video-Choreografie,
+# nicht um Sportwissenschaft.
+PAUSEN_DECKEL_S = 20.0
+
+
+def resample_zeiten(points, s_m: float) -> "tuple[list | None, list | None]":
+    """Zeitachsen passend zu `resample_aequidistant(points, s_m)`.
+
+    Liefert (t_roh, t_bew) — je ein Array, INDEX-GLEICH zu den äquidistant
+    abgetasteten Koordinaten: kumulierte Sekunden seit Tour-Start am jeweiligen
+    Streckenpunkt. t_roh = echte Uhrzeit (Pausen zählen), t_bew = Bewegungszeit
+    (Segment-dt auf PAUSEN_DECKEL_S gestutzt). (None, None), wenn die Tour
+    keine Zeitstempel trägt.
+    """
+    if len(points) < 2 or points[-1].dist_m <= 0:
+        return (None, None)
+    if not any(p.elapsed_s for p in points):
+        return (None, None)
+    # Bewegungszeit je Stützpunkt einmal vorab kumulieren.
+    bew = [0.0]
+    for i in range(1, len(points)):
+        dt = max(0.0, points[i].elapsed_s - points[i - 1].elapsed_s)
+        bew.append(bew[-1] + min(dt, PAUSEN_DECKEL_S))
+    gesamt = points[-1].dist_m
+    n = max(2, int(math.floor(gesamt / s_m)) + 1)
+    t_roh, t_bew = [], []
+    j = 0
+    letzte_koord = None
+    for i in range(n):
+        ziel = min(gesamt, i * s_m)
+        while j < len(points) - 2 and points[j + 1].dist_m < ziel:
+            j += 1
+        a, b = points[j], points[j + 1]
+        spanne = b.dist_m - a.dist_m
+        t = 0.0 if spanne <= 0 else (ziel - a.dist_m) / spanne
+        t_roh.append(a.elapsed_s + (b.elapsed_s - a.elapsed_s) * t)
+        t_bew.append(bew[j] + (bew[j + 1] - bew[j]) * t)
+        letzte_koord = [a.lon + (b.lon - a.lon) * t, a.lat + (b.lat - a.lat) * t]
+    # Ziel exakt — WÖRTLICH dieselbe Bedingung wie der Extra-Punkt in
+    # resample_aequidistant, sonst verrutschen die Indizes um eins.
+    if letzte_koord != [points[-1].lon, points[-1].lat]:
+        t_roh.append(points[-1].elapsed_s)
+        t_bew.append(bew[-1])
+    return ([round(x, 1) for x in t_roh], [round(x, 1) for x in t_bew])
 
 
 def _bounds_zoom(points: list[TrackPoint], w: int, h: int) -> tuple[tuple[float, float, float, float], tuple[float, float], float]:
@@ -1727,6 +1785,21 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     schwarm_coords_json = json.dumps([t["coords"] for t in _sw])
     schwarm_colors_json = json.dumps([t.get("color") or cfg.line_color for t in _sw])
     schwarm_steps_json = json.dumps([max(0.5, float(t.get("step_m") or 1.0)) for t in _sw])
+    # M3 — gewählte Zeitachse je Tour (roh = mit Pausen, bew = gestutzt) und
+    # gemeinsame Achse = längste Dauer (Haupt-Track zählt mit; er selbst läuft
+    # als Zeitachse weiter linear — seine Pausen sind im Video geglättet).
+    _modus = str(getattr(cfg, "schwarm_modus", "gleich") or "gleich")
+    if _modus not in ("gleich", "ziel", "uhrzeit"):
+        _modus = "gleich"
+    _pausen = bool(getattr(cfg, "schwarm_pausen", True))
+    _zeitkey = "t_roh" if _pausen else "t_bew"
+    _zeiten = [t.get(_zeitkey) for t in _sw]
+    _dauern = [(z[-1] if z else 0.0) for z in _zeiten]
+    _haupt_dauer = float((total_stats.get("duration_s") if _pausen
+                          else (total_stats.get("moving_time_s") or total_stats.get("duration_s"))) or 0.0)
+    schwarm_modus_json = json.dumps(_modus)
+    schwarm_t_json = json.dumps(_zeiten if _modus == "uhrzeit" else [None] * len(_sw))
+    schwarm_t_axis_json = json.dumps(round(max([_haupt_dauer] + _dauern), 1) if _modus == "uhrzeit" else 0)
     schwarm_line_width_json = json.dumps(round(max(0.5, float(cfg.line_width or 3.0) * 0.8), 2))
     # Bei 3D-Gelände brauchen die Linien denselben z-Offset wie der Haupt-Track,
     # sonst verschwinden sie im Berg.
@@ -2347,6 +2420,32 @@ const SCHWARM_COORDS = {schwarm_coords_json};
 const SCHWARM_COLORS = {schwarm_colors_json};
 const SCHWARM_STEPS = {schwarm_steps_json};
 const SCHWARM_N = SCHWARM_COORDS.length;
+// IDEAS §38 M3 — Geschwindigkeitsmodus. 'gleich' = alle gleich schnell,
+// 'ziel' = Fotofinish (jede Tour skaliert, alle enden mit dem Video),
+// 'uhrzeit' = aufgezeichnete Zeitstempel (gemeinsamer Start; SCHWARM_T je
+// Tour: Sekunden am jeweiligen Streckenpunkt, Achse = längste Dauer inkl.
+// Haupt-Track; Touren OHNE Zeit laufen gleichmäßig mit — Marcs Entscheid).
+const SCHWARM_MODUS = {schwarm_modus_json};
+const SCHWARM_T = {schwarm_t_json};
+const SCHWARM_T_AXIS = {schwarm_t_axis_json};
+function swarmIdx(i, dNow) {{
+  const c = SCHWARM_COORDS[i];
+  const frac = TOTAL_DIST_M > 0 ? Math.min(1, dNow / TOTAL_DIST_M) : 1;
+  if (SCHWARM_MODUS === 'ziel') return Math.round(frac * (c.length - 1));
+  if (SCHWARM_MODUS === 'uhrzeit') {{
+    const T = SCHWARM_T[i];
+    if (T && T.length === c.length && SCHWARM_T_AXIS > 0) {{
+      const t = frac * SCHWARM_T_AXIS;
+      let lo = 0, hi = T.length - 1;
+      while (lo < hi) {{ const mid = (lo + hi + 1) >> 1; if (T[mid] <= t) lo = mid; else hi = mid - 1; }}
+      return lo;
+    }}
+    return Math.round(frac * (c.length - 1));   // ohne Zeitstempel: gleichmäßig
+  }}
+  return Math.max(0, Math.min(c.length - 1, Math.floor(dNow / SCHWARM_STEPS[i])));
+}}
+// „Fertig" mit einem Punkt Toleranz — sonst flackert der Zähler im letzten Frame.
+function swarmFertig(i, dNow) {{ return swarmIdx(i, dNow) >= SCHWARM_COORDS[i].length - 2; }}
 // 28.08.2026 (Marc): Schwarm-Summen fürs Overlay. SWARM_TOTAL_M = Strecke
 // ALLER Touren; swarmDoneM(idx) = wie weit der ganze Schwarm bis jetzt
 // gelaufen ist — jede Tour trägt höchstens ihre eigene Länge bei (wer im
@@ -2357,7 +2456,8 @@ function swarmDoneM(idx) {{
   const d = cumDistM[Math.max(0, Math.min(idx, cumDistM.length - 1))] || 0;
   let s = d;
   for (let i = 0; i < SCHWARM_N; i++) {{
-    s += Math.min(d, (SCHWARM_COORDS[i].length - 1) * SCHWARM_STEPS[i]);
+    s += Math.min((SCHWARM_COORDS[i].length - 1) * SCHWARM_STEPS[i],
+                  swarmIdx(i, d) * SCHWARM_STEPS[i]);
   }}
   return s;
 }}
@@ -2764,7 +2864,7 @@ window.__rzSchwarmAdvance = (dNow) => {{
   const linien = [], punkte = [];
   for (let i = 0; i < SCHWARM_N; i++) {{
     const c = SCHWARM_COORDS[i];
-    const k = Math.max(0, Math.min(c.length - 1, Math.floor(dNow / SCHWARM_STEPS[i])));
+    const k = Math.max(0, Math.min(c.length - 1, swarmIdx(i, dNow)));
     linien.push({{ type: 'Feature', properties: {{ color: SCHWARM_COLORS[i] }},
       geometry: {{ type: 'LineString', coordinates: k >= 1 ? c.slice(0, k + 1) : [c[0], c[0]] }} }});
     punkte.push({{ type: 'Feature', properties: {{ color: SCHWARM_COLORS[i] }},
@@ -3975,8 +4075,12 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
     s = punktabstand(l_max, l_sum)
     raus = []
     for t in geparst:
+        # M3 „echte Uhrzeit": Zeitachsen index-gleich zu den Koordinaten
+        # (t_roh inkl. Pausen, t_bew gestutzt); (None, None) ohne Zeitstempel.
+        t_roh, t_bew = resample_zeiten(t["points"], s)
         raus.append({"coords": resample_aequidistant(t["points"], s),
                      "color": t["color"], "step_m": s,
+                     "t_roh": t_roh, "t_bew": t_bew,
                      "gpx_path": t["gpx_path"]})
     _log.info("Schwarm: %d Zusatz-Touren · Abstand %.1f m · Punkte %d",
               len(raus), s, sum(len(t["coords"]) for t in raus))
@@ -3992,7 +4096,28 @@ def fokus_koordinate(fokus: dict, cum_dist: list, idx: int) -> tuple:
     """
     d = cum_dist[min(max(0, idx), len(cum_dist) - 1)] if cum_dist else 0.0
     coords = fokus["coords"]
-    k = min(len(coords) - 1, max(0, int(d / max(0.5, float(fokus["step_m"])))))
+    modus = str(fokus.get("modus") or "gleich")
+    total = float(fokus.get("haupt_total_m") or 0.0)
+    frac = min(1.0, d / total) if total > 0 else 1.0
+    zeiten = fokus.get("t")
+    if modus == "uhrzeit" and zeiten and len(zeiten) == len(coords) and fokus.get("t_axis"):
+        # Position bei der Sekunde, die der Video-Fortschritt auf der
+        # gemeinsamen Zeitachse bedeutet (synchron zu swarmIdx im Render-JS).
+        t = frac * float(fokus["t_axis"])
+        lo, hi = 0, len(zeiten) - 1
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if zeiten[mid] <= t:
+                lo = mid
+            else:
+                hi = mid - 1
+        k = lo
+    elif modus in ("ziel", "uhrzeit"):
+        # Fotofinish — bzw. Uhrzeit-Modus ohne Zeitstempel: gleichmäßig.
+        k = int(round(frac * (len(coords) - 1)))
+    else:
+        k = int(d / max(0.5, float(fokus["step_m"])))
+    k = min(len(coords) - 1, max(0, k))
     c = coords[k]
     return (c[0], c[1])
 
@@ -4170,6 +4295,20 @@ async def render(
                          cfg.schwarm_fokus_gpx)
         else:
             _log.info("Schwarm-Fokus: Kamera folgt %s", cfg.schwarm_fokus_gpx)
+            # M3: fokus_koordinate braucht Modus + Zeitachse (synchron zum JS).
+            _fokus = dict(_fokus)
+            _f_modus = str(getattr(cfg, "schwarm_modus", "gleich") or "gleich")
+            _f_pausen = bool(getattr(cfg, "schwarm_pausen", True))
+            _fokus["modus"] = _f_modus
+            _fokus["haupt_total_m"] = cum_dist[-1] if cum_dist else 0.0
+            if _f_modus == "uhrzeit":
+                _fokus["t"] = _fokus.get("t_roh" if _f_pausen else "t_bew")
+                _f_dauern = [((t.get("t_roh" if _f_pausen else "t_bew") or [0.0])[-1])
+                             for t in _schwarm]
+                _f_haupt = float((total_stats_dict.get("duration_s") if _f_pausen
+                                  else (total_stats_dict.get("moving_time_s")
+                                        or total_stats_dict.get("duration_s"))) or 0.0)
+                _fokus["t_axis"] = max([_f_haupt] + _f_dauern)
     if _schwarm:
         # IDEAS §38 M2 — Gesamtwerte für das Overlay-Feld „Touren gesamt":
         # Tourenzahl inkl. Haupt-Track, Strecke = Summe aller Touren (die

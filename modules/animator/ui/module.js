@@ -2257,6 +2257,10 @@ function mountAnimator(body, headerActions, opts) {
   // bisher) oder "schwarm" (alle gleichzeitig). Wird im ARCHIV gewählt und
   // hier nur ANGEZEIGT (Grilling Q9: kein Umschalter im Animator).
   let _animAblauf = "reise";
+  // IDEAS §38 M3 — Geschwindigkeitsmodus des Schwarms (Archiv-Wahl, Sitzung
+  // trägt die Wahrheit): "gleich" | "ziel" (Fotofinish) | "uhrzeit".
+  let _animModus = "gleich";
+  let _animPausen = true;
   // IDEAS §38 M2 — Fokus-Tour: GPX-Pfad der Zusatz-Tour, der die Kamera folgt
   // („" = Haupt-Track). Nur im Schwarm-Ablauf von Bedeutung.
   let _animFokusPfad = "";
@@ -7131,6 +7135,12 @@ function mountAnimator(body, headerActions, opts) {
         window.__rzPendingTours = null;
         const pendingAblauf = window.__rzPendingAblauf === "schwarm" ? "schwarm" : "reise";
         window.__rzPendingAblauf = null;
+        // IDEAS §38 M3 — Geschwindigkeitsmodus, im Archiv gewählt.
+        const pendingModus = ["gleich", "ziel", "uhrzeit"].includes(window.__rzPendingModus)
+          ? window.__rzPendingModus : "gleich";
+        const pendingPausen = window.__rzPendingPausen !== false;
+        window.__rzPendingModus = null;
+        window.__rzPendingPausen = null;
         _animPendingToursTimer = setTimeout(async () => {
           // Wer nach dem Sprung aus dem Archiv binnen 1,2 s weiterklickt, darf
           // keine Etappen mehr in ein totes Modul schreiben — `_animPersistTours`
@@ -7141,13 +7151,16 @@ function mountAnimator(body, headerActions, opts) {
           // hinzufügen: `_animAddTourPath` persistiert in die AKTIVE Sitzung,
           // und die Arbeit gehört an die Menge, nicht an die erste Tour.
           _animAblauf = pendingAblauf;
+          _animModus = pendingModus;
+          _animPausen = pendingPausen;
           try {
             const haupt = (typeof window.getGlobalGpxPath === "function") ? window.getGlobalGpxPath() : "";
             const alle = [haupt].concat(pending).filter(Boolean);
             if (alle.length >= 2 && typeof sessionActivateMenge === "function") {
-              await sessionActivateMenge(alle, pendingAblauf);
-              // Neustart-Gedächtnis: Haupt + Etappen + Ablauf.
-              try { saveSettings({ last_menge: { paths: alle, ablauf: pendingAblauf } }); } catch (_) {}
+              await sessionActivateMenge(alle, pendingAblauf, pendingModus, pendingPausen);
+              // Neustart-Gedächtnis: Haupt + Etappen + Ablauf + Modus.
+              try { saveSettings({ last_menge: { paths: alle, ablauf: pendingAblauf,
+                                                 modus: pendingModus, pausen: pendingPausen } }); } catch (_) {}
             }
           } catch (e) { applog("warn", `[Animator] Mengen-Sitzung: ${e}`); }
           if (_animUnmounted) return;
@@ -7167,6 +7180,8 @@ function mountAnimator(body, headerActions, opts) {
             if (_animUnmounted) return;
             if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
             _animAblauf = pendingAblauf;   // die Sitzung hat ihn schon, das Modul jetzt auch
+            _animModus = pendingModus;
+            _animPausen = pendingPausen;
             // Erst bestimmen, was wirklich FEHLT — der Zähler lief sonst über
             // alle 137 Etappen, obwohl fast alles längst geladen war (sah aus
             // wie „er lädt schon wieder alles", Marc 28.08.2026).
@@ -10474,12 +10489,23 @@ function mountAnimator(body, headerActions, opts) {
         const _sw = (_animAblauf === "schwarm" && _extraTours.length)
           ? (() => {
               const d = sr.cumDistM[i] || 0;
+              const frac = totD > 0 ? Math.max(0, Math.min(1, d / totD)) : 1;
               let done = d, gesamt = totD;
               for (const tr of _extraTours) {
                 if (!tr.coords || tr.coords.length < 2) continue;
                 const cum = _cumDistFuer(tr, tr.coords);
                 const L = cum[cum.length - 1] || 0;
-                done += Math.min(d, L);
+                // M3 — pro Modus, wortgleich zu swarmDoneM/swarmIdx im Render.
+                if (_animModus === "ziel") {
+                  done += frac * L;
+                } else if (_animModus === "uhrzeit") {
+                  const achse = _swAchseFuer(tr);
+                  done += (achse && _swPrevTAxis > 0)
+                    ? (cum[_swBinIdx(achse, frac * _swPrevTAxis)] || 0)
+                    : frac * L;
+                } else {
+                  done += Math.min(d, L);
+                }
                 gesamt += L;
               }
               return { done, gesamt };
@@ -12094,14 +12120,72 @@ function mountAnimator(body, headerActions, opts) {
     for (let i = 0; i < maxN; i++) raus.push(coords[Math.round(i * schritt)]);
     return raus;
   }
+  /* M3 — dieselbe Dünnung als INDEX-Liste, damit Zeitreihen synchron zu den
+   * Koordinaten gedünnt werden (null = nichts zu dünnen). */
+  function _swAusduennenIdx(n, maxN) {
+    if (n <= maxN) return null;
+    const raus = [];
+    const schritt = (n - 1) / (maxN - 1);
+    for (let i = 0; i < maxN; i++) raus.push(Math.round(i * schritt));
+    return raus;
+  }
+  /* M3 — Zeitachse einer Tour: roh (Pausen zählen) oder Segment-dt auf 20 s
+   * gestutzt (synchron zu PAUSEN_DECKEL_S in core/animator.py). Am Träger
+   * gecacht (Referenz + Pausen-Wahl), Overlay ruft das pro Frame auf. */
+  function _swZeitAchse(roh, pausen) {
+    if (!roh || roh.length < 2) return null;
+    if (pausen) return roh;
+    const aus = [0];
+    for (let i = 1; i < roh.length; i++) {
+      aus.push(aus[i - 1] + Math.min(Math.max(0, roh[i] - roh[i - 1]), 20));
+    }
+    return aus;
+  }
+  function _swAchseFuer(tr) {
+    if (!tr.zeit || tr.zeit.length !== (tr.coords || []).length) return null;
+    if (tr.__rzAchse === undefined || tr.__rzAchseRef !== tr.zeit || tr.__rzAchseP !== _animPausen) {
+      tr.__rzAchse = _swZeitAchse(tr.zeit, _animPausen);
+      tr.__rzAchseRef = tr.zeit;
+      tr.__rzAchseP = _animPausen;
+    }
+    return tr.__rzAchse;
+  }
+  function _swBinIdx(arr, wert) {
+    let lo = 0, hi = arr.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (arr[mid] <= wert) lo = mid; else hi = mid - 1; }
+    return lo;
+  }
+  /* M3 — gemeinsame Zeitachse (längste Dauer inkl. Haupt-Track), nur im
+   * Uhrzeit-Modus > 0. Vom Bauen gesetzt, von Advance/Fokus/Overlay gelesen. */
+  let _swPrevTAxis = 0;
 
   function _swPrevBauen(lw) {
     _swPrev = _extraTours
       .filter(tr => tr.coords && tr.coords.length >= 2)
       .map(tr => {
-        const coords = _swAusduennen(tr.coords, 150);
-        return { coords, cum: _cumDistBerechnen(coords), color: tr.line_color || "#35a7ff" };
+        const idx = _swAusduennenIdx(tr.coords.length, 150);
+        const coords = idx ? idx.map(j => tr.coords[j]) : tr.coords;
+        let zeit = null;
+        if (_animModus === "uhrzeit") {
+          const achse = _swAchseFuer(tr);
+          if (achse) zeit = idx ? idx.map(j => achse[j]) : achse;
+        }
+        return { coords, cum: _cumDistBerechnen(coords), zeit,
+                 dauer: zeit ? zeit[zeit.length - 1] : 0,
+                 color: tr.line_color || "#35a7ff" };
       });
+    // Achse = längste Dauer, Haupt-Track zählt mit (er läuft selbst linear).
+    _swPrevTAxis = 0;
+    if (_animModus === "uhrzeit") {
+      let haupt = 0;
+      try {
+        const gd = (typeof getGlobalGpxData === "function") ? getGlobalGpxData() : null;
+        const roh = gd && gd.series ? gd.series.cumTimeS : null;
+        const achse = _swZeitAchse(roh, _animPausen);
+        haupt = achse ? achse[achse.length - 1] : 0;
+      } catch (_) {}
+      _swPrevTAxis = Math.max(haupt, ..._swPrev.map(t => t.dauer || 0), 0);
+    }
     if (!_swPrev.length) return;
     try {
       map.addSource("swarm-prev-lines", { type: "geojson",
@@ -12129,41 +12213,58 @@ function mountAnimator(body, headerActions, opts) {
     if (!tr || !tr.coords || tr.coords.length < 2) return null;
     if (!currentCoords || currentCoords.length < 2) return null;
     const cumH = _cumDistFuer(_swHauptCum, currentCoords);
+    const totalH = cumH[cumH.length - 1] || 0;
     const i0 = Math.max(0, Math.min(cumH.length - 1, Math.floor(coordFrac)));
     const i1 = Math.min(cumH.length - 1, i0 + 1);
     const f = Math.max(0, Math.min(1, coordFrac - i0));
     const d = cumH[i0] + (cumH[i1] - cumH[i0]) * f;
-    const cum = _cumDistFuer(tr, tr.coords);
-    let lo = 0, hi = cum.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if (cum[mid] <= d) lo = mid; else hi = mid - 1;
+    // M3 — synchron zu fokus_koordinate (core/animator.py).
+    const frac = totalH > 0 ? Math.max(0, Math.min(1, d / totalH)) : 1;
+    let k;
+    if (_animModus === "ziel") {
+      k = Math.round(frac * (tr.coords.length - 1));
+    } else if (_animModus === "uhrzeit") {
+      const achse = _swAchseFuer(tr);
+      k = (achse && _swPrevTAxis > 0)
+        ? _swBinIdx(achse, frac * _swPrevTAxis)
+        : Math.round(frac * (tr.coords.length - 1));
+    } else {
+      const cum = _cumDistFuer(tr, tr.coords);
+      k = _swBinIdx(cum, d);
     }
-    return tr.coords[Math.max(0, lo)];
+    return tr.coords[Math.max(0, Math.min(tr.coords.length - 1, k))];
   }
 
   function _animSchwarmPreviewAdvance(coordFrac, vollesBild) {
     if (_animAblauf !== "schwarm" || !_swPrev.length || !map) return;
     if (!map.getSource("swarm-prev-lines")) return;
     if (!currentCoords || currentCoords.length < 2) return;
-    let d = Infinity;
+    const cumH = _cumDistFuer(_swHauptCum, currentCoords);
+    const totalH = cumH[cumH.length - 1] || 0;
+    let d = totalH;
     if (!vollesBild) {
-      const cum = _cumDistFuer(_swHauptCum, currentCoords);
-      const i0 = Math.max(0, Math.min(cum.length - 1, Math.floor(coordFrac)));
-      const i1 = Math.min(cum.length - 1, i0 + 1);
+      const i0 = Math.max(0, Math.min(cumH.length - 1, Math.floor(coordFrac)));
+      const i1 = Math.min(cumH.length - 1, i0 + 1);
       const f = Math.max(0, Math.min(1, coordFrac - i0));
-      d = cum[i0] + (cum[i1] - cum[i0]) * f;
+      d = cumH[i0] + (cumH[i1] - cumH[i0]) * f;
     }
+    // M3 — WYSIWYG zu swarmIdx (core/animator.py): 'ziel' skaliert auf den
+    // Video-Fortschritt, 'uhrzeit' läuft über die gemeinsame Zeitachse,
+    // 'gleich' über die zurückgelegte Distanz des Haupt-Tracks.
+    const frac = totalH > 0 ? Math.max(0, Math.min(1, d / totalH)) : 1;
     const linien = [], punkte = [];
     for (const t of _swPrev) {
-      const cum = t.cum;
-      // Binärsuche: letzter Punkt mit cum <= d (kürzere Touren bleiben im Ziel).
-      let lo = 0, hi = cum.length - 1;
-      while (lo < hi) {
-        const mid = (lo + hi + 1) >> 1;
-        if (cum[mid] <= d) lo = mid; else hi = mid - 1;
+      let k;
+      if (_animModus === "ziel") {
+        k = Math.round(frac * (t.coords.length - 1));
+      } else if (_animModus === "uhrzeit") {
+        k = (t.zeit && _swPrevTAxis > 0)
+          ? _swBinIdx(t.zeit, frac * _swPrevTAxis)
+          : Math.round(frac * (t.coords.length - 1));
+      } else {
+        k = _swBinIdx(t.cum, d);
       }
-      const k = Math.max(0, lo);
+      k = Math.max(0, Math.min(t.coords.length - 1, k));
       linien.push({ type: "Feature", properties: { color: t.color },
         geometry: { type: "LineString",
           coordinates: k >= 1 ? t.coords.slice(0, k + 1) : [t.coords[0], t.coords[0]] } });
@@ -12277,8 +12378,10 @@ function mountAnimator(body, headerActions, opts) {
     }
     // Coords für die Vorschau laden (downsampled GeoJSON aus dem Backend).
     let coords = null;
+    let _ladeRes = null;
     try {
       const res = await api().animator_load_gpx(path);
+      _ladeRes = res;
       if (res && res.ok) {
         coords = res.coords;
         // v0.9.282: aufgelösten GPX-Pfad merken (bei Fremdformaten der Cache-GPX),
@@ -12293,7 +12396,10 @@ function mountAnimator(body, headerActions, opts) {
     }
     const color = _TOUR_PALETTE[_extraTours.length % _TOUR_PALETTE.length];
     const name = (path.split("/").pop() || "Tour").replace(/\.[^.]+$/i, "");
-    _extraTours.push({ gpx_path: path, line_color: color, name, coords });
+    _extraTours.push({ gpx_path: path, line_color: color, name, coords,
+                       zeit: (_ladeRes && _ladeRes.series && _ladeRes.series.cumTimeS
+                              && _ladeRes.series.cumTimeS.length === (coords || []).length)
+                             ? _ladeRes.series.cumTimeS : null });
     _animPersistTours();
     _animRenderToursList();
     _animDrawExtraToursPreview();
@@ -12340,6 +12446,8 @@ function mountAnimator(body, headerActions, opts) {
     _extraTours = [];
     window.__rzPendingTours = null;
     window.__rzPendingAblauf = null;
+    window.__rzPendingModus = null;
+    window.__rzPendingPausen = null;
     try { _animClearExtraPreview(); } catch (_) {}
     try { _animRenderToursList(); } catch (_) {}
     _tourenLadeZu();
@@ -12434,6 +12542,11 @@ function mountAnimator(body, headerActions, opts) {
       } else if (a.tours_ablauf === "schwarm" || a.tours_ablauf === "reise") {
         _animAblauf = a.tours_ablauf;
       }
+      // M3 — Modus-Wahrheit: die Sitzung trägt ihn (vom Archiv gewählt).
+      if (sess && ["gleich", "ziel", "uhrzeit"].includes(sess.schwarm_modus)) {
+        _animModus = sess.schwarm_modus;
+        _animPausen = sess.schwarm_pausen !== false;
+      }
       _animFokusPfad = (typeof a.tours_fokus === "string") ? a.tours_fokus : "";
     } catch (_) {}
     const flyEl = document.getElementById("anim-fly");
@@ -12486,7 +12599,12 @@ function mountAnimator(body, headerActions, opts) {
           gesehen.add(_pfadNFC(pfad));
           _extraTours.push({ gpx_path: pfad,
                              line_color: t.line_color || "#35a7ff",
-                             name: t.name || "Tour", coords: res.coords });
+                             name: t.name || "Tour", coords: res.coords,
+                             // M3 „echte Uhrzeit": Sekunden je Koordinate
+                             zeit: (res.series && res.series.cumTimeS
+                                    && res.has_time !== false
+                                    && res.series.cumTimeS.length === (res.coords || []).length)
+                                   ? res.series.cumTimeS : null });
         } else {
           fehlend++;
           applog("warn", `[Animator] gespeicherte Etappe nicht ladbar: ${t.gpx_path} (${(res && res.error) || "?"})`);
@@ -12751,6 +12869,8 @@ function mountAnimator(body, headerActions, opts) {
           tracks,
           tracks_ablauf: _animAblauf,
           schwarm_fokus_gpx: _animAblauf === "schwarm" ? _animFokusPfad : "",
+          schwarm_modus: _animAblauf === "schwarm" ? _animModus : "gleich",
+          schwarm_pausen: _animAblauf === "schwarm" ? _animPausen : true,
           fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
         };
       })(),

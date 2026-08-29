@@ -356,10 +356,21 @@ button.)
 
 ### 🌊 The swarm — all tours run at once (since v0.9.557, fully in the Animator since v0.9.569)
 Select several tours (⌘/Ctrl-click) or open a collection and choose
-**"🌊 Animate as a swarm …"** — the selection goes **straight into the
-Animator**. All tours start together and move at the **same speed** across the
-map: the longest one sets the video length, shorter ones finish earlier and
-their dot stays at the finish. Every tour keeps its colour from the library.
+**"🌊 Animate as a swarm …"** — a small dialog asks for the **speed mode**,
+then the selection goes **straight into the Animator**:
+
+- **All at the same speed** (default): the longest tour sets the video length,
+  shorter ones finish earlier and their dot stays at the finish.
+- **Finish together** (photo finish): every tour is scaled so all arrive
+  exactly with the end of the video — short ones run slower, long ones faster.
+- **Real time**: every tour runs by its recorded timestamps — fast sections
+  fast, and during a rest the dot really stands still (the **"Count breaks"**
+  checkbox switches to pure moving time). All start together; the tour with
+  the longest duration sets the time axis. Tours without timestamps (planned
+  routes) move evenly.
+
+Your last choice is remembered; the mode itself is stored with the line-up —
+pick the same tours again and it is back. Every tour keeps its colour from the library.
 With many tours, a loading window counts along ("Loading tour 37 of 96 …").
 
 Inside the Animator you then have **everything** you know from a single tour:

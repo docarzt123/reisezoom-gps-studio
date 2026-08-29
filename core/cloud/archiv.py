@@ -84,6 +84,9 @@ def mengen_bauen(sessions: dict | None) -> dict:
             "schema": 1,
             "name": sess.get("name") or "",
             "ablauf": sess.get("ablauf") or "reise",
+            # M3 — Geschwindigkeitsmodus reist mit (Zweitrechner findet die Wahl vor).
+            "schwarm_modus": sess.get("schwarm_modus") or "gleich",
+            "schwarm_pausen": bool(sess.get("schwarm_pausen", True)),
             "geo_hashes": sorted(set(ghs)),
             "active_project_id": sess.get("active_project_id") or "",
             "projects": sess.get("projects") or {},

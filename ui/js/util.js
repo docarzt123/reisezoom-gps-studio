@@ -1073,9 +1073,10 @@ async function sessionActivate(coords, gpxPath) {
  *  Touren wieder wählen heißt: die Arbeit ist wieder da. Alle Projekt-Brücken
  *  arbeiten danach unverändert mit dem Mengen-Schlüssel.
  */
-async function sessionActivateMenge(gpxPaths, ablauf) {
+async function sessionActivateMenge(gpxPaths, ablauf, modus, pausen) {
   try {
-    const res = await api().session_open_for_menge(gpxPaths || [], ablauf || "reise");
+    const res = await api().session_open_for_menge(gpxPaths || [], ablauf || "reise",
+      modus || "gleich", pausen !== false);
     if (!res || !res.ok) {
       console.warn("sessionActivateMenge failed:", res);
       return null;

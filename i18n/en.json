@@ -2382,5 +2382,14 @@
   "library.undo.fehl": "Undo failed: {e}",
   "library.pop_drag": "Drag to move",
   "animator.tours.missing_n": "{n} saved tour(s) could not be found — see the log for details.",
-  "library.col_filterhint": "Archive filters active: {n} of {m} tours visible — “All in Animator” and “As swarm” take exactly these {n}."
+  "library.col_filterhint": "Archive filters active: {n} of {m} tours visible — “All in Animator” and “As swarm” take exactly these {n}.",
+  "schwarm.modus_titel": "How fast do the tours run?",
+  "schwarm.modus_gleich": "All at the same speed",
+  "schwarm.modus_gleich_hint": "The longest tour sets the video length; shorter ones finish earlier.",
+  "schwarm.modus_ziel": "Finish together",
+  "schwarm.modus_ziel_hint": "Photo finish: every tour is scaled so all arrive with the end of the video.",
+  "schwarm.modus_uhrzeit": "Real time",
+  "schwarm.modus_uhrzeit_hint": "Every tour runs by its recorded timestamps (common start). Tours without timestamps move evenly.",
+  "schwarm.modus_pausen": "Count breaks — the dot really stands still during a rest",
+  "schwarm.los": "Go"
 }

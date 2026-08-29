@@ -763,3 +763,9 @@
 
 /* 28.08.2026 — Filter-Hinweis im Sammlungs-Dialog: auffälliger als .lib-hint */
 .lib-warnhint { color: var(--warn, #e8a33d); opacity: 1; }
+
+/* M3 — Schwarm-Modus-Dialog */
+.lib-modus-zeile { display: flex; gap: 10px; align-items: flex-start; padding: 7px 4px; cursor: pointer; }
+.lib-modus-zeile input { margin-top: 3px; }
+.lib-modus-pausen { display: block; margin: 8px 4px 0; padding-top: 8px; border-top: 1px solid rgba(127,127,127,.25); }
+.lib-modus-pausen input:disabled + *, .lib-modus-pausen:has(input:disabled) { opacity: .5; }
