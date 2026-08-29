@@ -46,6 +46,10 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Neues Projekt erscheint sofort (v0.9.613, Marc: „sollte doch gleich in
+  der liste erscheinen"): Ein aktiver Bereich (fertig/Automatisch) oder
+  Suchtext filterte das frisch angelegte Projekt unsichtbar — nach dem
+  Anlegen springt die Ansicht jetzt auf „Alle Projekte" und leert die Filter.
 - Leere Projekte (v0.9.612, Marc: „bau direkt ein leeres projekt und wenn
   man will kann man da dann touren hinzufügen"): „+ Neues Projekt" in der
   Projekt-Seitenleiste UND im Topbar-Dropdown (dort jetzt auch OHNE
