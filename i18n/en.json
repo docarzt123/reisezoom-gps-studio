@@ -2388,8 +2388,9 @@
   "schwarm.modus_gleich_hint": "The longest tour sets the video length; shorter ones finish earlier.",
   "schwarm.modus_ziel": "Finish together",
   "schwarm.modus_ziel_hint": "Photo finish: every tour is scaled so all arrive with the end of the video.",
-  "schwarm.modus_uhrzeit": "Real time",
-  "schwarm.modus_uhrzeit_hint": "Every tour runs by its recorded timestamps (common start). Tours without timestamps move evenly.",
-  "schwarm.modus_pausen": "Count breaks — the dot really stands still during a rest",
-  "schwarm.los": "Go"
+  "schwarm.modus_uhrzeit": "Real time — with breaks",
+  "schwarm.modus_uhrzeit_hint": "Every tour runs by its recorded timestamps (common start); during a rest the dot stands still. Tours without timestamps move evenly.",
+  "schwarm.los": "Go",
+  "schwarm.modus_uhrzeit_bew": "Real time — without breaks",
+  "schwarm.modus_uhrzeit_bew_hint": "Same as above, but breaks are cut out — pure moving pace is compared."
 }

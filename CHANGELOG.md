@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Schwarm-Modus-Dialog: vier Radio-Optionen statt drei + Pausen-Häkchen
+  (Marc, 29.08.2026) — „Echte Uhrzeit — mit Pausen" und „— ohne Pausen" sind
+  jetzt eigene, eindeutige Auswahlen.
+
 ### Added
 - Schwarm-Geschwindigkeitsmodi (IDEAS §38 M3 — Marc, 29.08.2026: „jetzt das
   mit der geschwindigkeit"): Beim Start aus dem Archiv fragt ein Dialog nach
