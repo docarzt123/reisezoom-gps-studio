@@ -1336,6 +1336,17 @@ python app.py</code></pre>
 <li><strong>Ganzen Track snappen</strong> — die komplette Spur per Map Matching auf nahe Wege (folgt der Form der Spur). Mit <strong>Snap-Radius</strong> (5–50 m) einstellbar.</li>
 </ul>
 <p>Mit dem <strong>Such-Radius</strong> (5–50 m, Slider) stellst du ein, wie weit ein Punkt vom Weg entfernt sein darf, um noch gesnappt zu werden: klein = nur sehr nah am Weg, groß = fängt mehr GPS-Drift, kann aber eher auf eine <strong>parallele</strong> Straße springen. Position wird gesnappt, <strong>Zeit und Höhe werden über die neue Länge verteilt</strong>, alles ist <strong>rückgängig machbar</strong> (⌘Z). Lange Tracks werden automatisch in Stücke zerlegt (Mapbox-Limit). Findet die App in dem Radius <strong>keinen</strong> Weg, passiert nichts und du bekommst eine klare Meldung. <strong>Wichtig:</strong> nur sinnvoll, wenn der Track tatsächlich Wegen/Straßen folgt — bei <strong>Querfeldein-Wanderungen</strong> kann es die Spur verfälschen. Braucht <strong>Internet + Mapbox-Token</strong>.</p>
+<h3 id="ausrei-er-sehen-nach-tempo-einf-rben-live-stats">🌡️ Ausreißer sehen: nach Tempo einfärben + Live-Stats</h3>
+<p>Woher weiß man, <em>ob</em> eine Tour einen GPS-Ausreißer hat? Zwei Helfer:</p>
+<ul>
+<li><strong>Live-Stats</strong> oben in der Seitenleiste: Strecke, Dauer, Ø-Tempo,</li>
+</ul>
+<p> <strong>Max. Tempo</strong> und Höhenmeter — live aus den aktuellen Punkten gerechnet.  44 km/h bei einer Wanderung? Da stimmt was nicht.</p>
+<ul>
+<li><strong>🌡️ „Nach Tempo einfärben&quot;</strong>: färbt den Track nach der Geschwindigkeit</li>
+</ul>
+<p> zwischen den Punkten — grün = normal, gelb = zügig, orange = sehr schnell,  <strong>rot = Ausreißer-verdächtig</strong>. Die Schwellen kommen aus der Tour selbst  (funktioniert also für Wandern wie Radfahren), die Legende zeigt die echten  km/h-Grenzen. Rote Stücke anschauen → Heilen (oder den Abschnitt manuell  glätten). Braucht Zeitstempel.</p>
+<p>Nach dem Auto-Heilen erscheint ein <strong>„Vorher → Nachher&quot;-Kasten</strong>: Punkte, Strecke, Max. Tempo und Höhenmeter im Vergleich (Verbesserungen grün), und der <strong>alte Track bleibt als graue gestrichelte Linie</strong> auf der Karte, bis du den Kasten schließt — so sieht man genau, was das Heilen verändert hat.</p>
 <h3 id="auto-heilen-ausrei-er-l-cken">🩹 Auto-Heilen: Ausreißer + Lücken</h3>
 <p>Statt von Hand zu suchen: <strong>🩹 Auto-Heilen</strong> scannt den ganzen Track und zeigt als <strong>Vorschau auf der Karte</strong>, was es tun würde — bevor etwas geändert wird:</p>
 <ul>

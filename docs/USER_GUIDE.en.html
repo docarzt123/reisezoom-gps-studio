@@ -1303,6 +1303,17 @@ python app.py</code></pre>
 <li><strong>Snap the whole track</strong> — the complete trace via map matching onto nearby paths (follows the shape of the trace). Adjustable via a <strong>snap radius</strong> (5–50 m).</li>
 </ul>
 <p>With the <strong>search radius</strong> (5–50 m, slider) you set how far a point may be from the path to still be snapped: small = only very close to the path, large = catches more GPS drift, but can rather jump onto a <strong>parallel</strong> road. The position is snapped, <strong>time and elevation are distributed over the new length</strong>, everything is <strong>undoable</strong> (⌘Z). Long tracks are automatically split into pieces (Mapbox limit). If the app finds <strong>no</strong> path within the radius, nothing happens and you get a clear message. <strong>Important:</strong> only sensible if the track actually follows paths/roads — for <strong>cross-country hikes</strong> it can distort the trace. Needs <strong>internet + a Mapbox token</strong>.</p>
+<h3 id="seeing-outliers-colour-by-speed-live-stats">🌡️ Seeing outliers: colour by speed + live stats</h3>
+<p>How do you know <em>whether</em> a tour has a GPS outlier? Two helpers:</p>
+<ul>
+<li><strong>Live stats</strong> at the top of the sidebar: distance, duration, average speed,</li>
+</ul>
+<p> <strong>max. speed</strong> and elevation — computed live from the current points.  44 km/h on a hike? Something is off.</p>
+<ul>
+<li><strong>🌡️ &quot;Colour by speed&quot;</strong>: colours the track by the speed between points</li>
+</ul>
+<p> green = normal, yellow = brisk, orange = very fast, <strong>red = likely  outlier</strong>. The thresholds come from the tour itself (so it works for hiking  and cycling alike), and the legend shows the actual km/h limits. Inspect the  red bits → heal (or smooth the section manually). Needs timestamps.</p>
+<p>After auto-healing, a <strong>&quot;Before → After&quot; box</strong> appears: points, distance, max. speed and elevation compared (improvements in green), and the <strong>old track stays on the map as a grey dashed line</strong> until you close the box — so you can see exactly what healing changed.</p>
 <h3 id="auto-heal-outliers-gaps">🩹 Auto-heal: outliers + gaps</h3>
 <p>Instead of searching by hand: <strong>🩹 Auto-heal</strong> scans the whole track and shows as a <strong>preview on the map</strong> what it would do — before anything is changed:</p>
 <ul>

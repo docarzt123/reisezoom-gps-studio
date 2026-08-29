@@ -2396,5 +2396,14 @@
   "animator.statsfield.asc_done": "Climbed so far",
   "animator.statsfield.desc_done": "Descended so far",
   "library.sort.maxspeed_desc": "Highest max speed",
-  "library.maxspeed": "Max. speed"
+  "library.maxspeed": "Max. speed",
+  "gpxinspect.speedcolor": "Colour by speed",
+  "gpxinspect.speedcolor_help": "Colours the track by the speed between points: green = normal, yellow = brisk, orange = very fast, red = likely outlier. GPS jumps stand out immediately — then heal or smooth the section manually. Needs timestamps.",
+  "gpxinspect.baft_title": "Before → After",
+  "gpxinspect.baft_show_before": "Show the before-track on the map (grey dashed)",
+  "gpxinspect.st_dist": "Distance",
+  "gpxinspect.st_dur": "Duration",
+  "gpxinspect.st_avg": "Avg. speed",
+  "gpxinspect.st_max": "Max. speed",
+  "gpxinspect.st_hm": "Elevation"
 }

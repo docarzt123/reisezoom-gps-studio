@@ -14,6 +14,25 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Auto-Heilen erkennt jetzt auch KURZE Tempo-Spikes (Marc, 29.08.2026, live an
+  der Masca-Tour geeicht): Sekündliche Aufzeichnungen machen GPS-Sprünge nur
+  13–15 m weit — die Sprungweiten-Regel griff nie. Neu zählt zusätzlich das
+  Tempo relativ zum Median der Tour (aktivitäts-neutral: Radfahren hat höhere
+  Schwellen; Minimum 15 km/h schützt normales Gehen). Ergebnis am Masca-Track:
+  Max. Tempo 55,4 → 46,6 km/h in einem Durchgang; der Rest ist ein dauerhafter
+  Versatz, den Positions-Glätten prinzipiell nicht heilen kann.
+
+### Added
+- GPX-Inspektor (Marc, 29.08.2026, Ausreißer-Jagd nach dem 44-km/h-Fund):
+  1. „🌡️ Nach Tempo einfärben" — der Track wird nach der Geschwindigkeit
+  zwischen den Punkten gefärbt (Schwellen als Perzentile aus der Tour selbst,
+  Legende mit echten km/h; rot = Ausreißer-verdächtig). 2. Live-Stats-Grid in
+  der Seitenleiste (Strecke, Dauer, Ø, Max. Tempo, Höhenmeter — aus den
+  aktuellen Punkten, nach jedem Edit frisch). 3. Nach dem Auto-Heilen ein
+  „Vorher → Nachher"-Vergleich (Verbesserungen grün) und der alte Track bleibt
+  als graue gestrichelte Linie auf der Karte, bis der Kasten geschlossen wird.
+
 ### Fixed
 - „Noch unterwegs" zeigte in der VORSCHAU nichts an (Marc, 29.08.2026) — das
   Feld hatte dort keinen Rechen-Fall, nur im Render. Jetzt zählt die Vorschau
