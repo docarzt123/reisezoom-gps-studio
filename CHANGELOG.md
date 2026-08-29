@@ -15,6 +15,10 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- Auto-Heilen: Feld „Max. plausibles Tempo" (Marc, 29.08.2026: „ich bin ein
+  paar mal gerannt, aber 27 km/h hab ich bestimmt nicht erreicht") — leer =
+  automatische Median-Schwelle, mit Wert (z. B. 15) wird ALLES darüber beim
+  Heilen zeitlich entzerrt. Der Wert wird app-weit gemerkt.
 - Auto-Heilen: neue Option „Unmögliches Tempo entzerren (Zeit korrigieren)"
   (Marc, 29.08.2026: „wie heile ich diese tempo probleme?"): Dauerhafte
   GPS-Versätze (Track springt und bleibt drüben) lassen sich positionsbasiert
