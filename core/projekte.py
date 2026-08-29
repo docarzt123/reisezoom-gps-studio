@@ -437,6 +437,16 @@ def create(daten: dict, kontext: str, name: str, defaults: dict,
                              gpx_paths=(muster or {}).get("gpx_paths"),
                              modus=(muster or {}).get("schwarm_modus", "gleich"),
                              pausen=(muster or {}).get("schwarm_pausen", True))
+        # 29.08.2026 (Marc: „bumms war der schwarm weg"): Der Animator zeichnet
+        # die Etappen aus animator.extra_tours — ein NEUES Projekt im selben
+        # Mengen-Kontext muss die Komposition erben, sonst steht nur der
+        # Haupt-Track da. Keyframes & Co. bleiben bewusst frisch.
+        extra = ((muster or {}).get("animator") or {}).get("extra_tours")
+        if extra and str(kontext).startswith("menge:"):
+            neu.setdefault("animator", {})["extra_tours"] = json.loads(json.dumps(extra))
+            for k in ("tours_ablauf", "tour_colors", "tours_dezent"):
+                if k in (muster.get("animator") or {}):
+                    neu["animator"][k] = json.loads(json.dumps(muster["animator"][k]))
     daten.setdefault("projects", {})[neu["id"]] = neu
     daten.setdefault("aktiv", {})[kontext] = neu["id"]
     return neu
