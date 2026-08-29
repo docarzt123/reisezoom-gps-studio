@@ -46,6 +46,31 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Abnahme-Runde (v0.9.621, autonomer Voll-Test auf Marcs Rechner): 10 Funde
+  gefixt — (1) Projektkarten zeigten IMMER alle vier Modul-Chips (Default-
+  Payload galt als „Arbeit"); Chips heißen jetzt: dort liegt echte Arbeit
+  oder es war das letzte Modul. (2) „Haupt-Tour nicht hervorheben" ließ die
+  Start/End-Pins stehen — der wandernde End-Pin war der „riesige Kreis" in
+  der Vorschau; im Dezent-Modus gibt es jetzt wie bei den Schwarm-Touren
+  keine Pins (Render + Vorschau). (3) Tempo-Entzerren lief nur als Anhängsel
+  der Ausreißer-Heilung — ein sauberer Track mit gesetztem Tempo-Deckel bekam
+  „Nichts zu heilen"; jetzt eigener Heil-Schritt (live: 71 Stellen, 7,9→5,0
+  km/h). (4) Der Ersetzen-Dialog beschrieb noch die alte Voll-Migration;
+  der Text erklärt jetzt das Pinning. (5) Reine ZEIT-Heilung (gleicher
+  Geometrie-Hash) bekam weder rz:id noch frischen Snapshot. (6) „steckt in
+  N Projekten" zählt jetzt über die ganze Fassungs-Kette. (7) Nach einem
+  Rollback zeigte die Detailspalte weiter die alte Fassung als „aktuell".
+  (8) Der Touren-Picker durchsuchte nur die ersten 300 geladenen Touren —
+  er sucht jetzt serverseitig im ganzen Archiv; die Auswahl überlebt die
+  Suche. (9) Leeres Bestätigen im Picker endete stumm — jetzt Hinweis.
+  (10) Der Dezent-Toggle rief eine nicht existierende Funktion auf
+  (renderTrackPreview statt rebuildPreviewLayers); der try-catch verschluckte
+  den Fehler — vom js_undef-Wächter gefangen.
+  Live verifiziert außerdem: 81-Touren-Schwarm-Übergabe (konstante Zählung),
+  kumulierte Live-Stats beim Scrubben, Projekt-Erbe beim zweiten Projekt,
+  ⬆-Pinning-Kette Ersetzen→Aktualisieren→Rollback (Archiv-Hash byte-genau
+  zurück), Cloud v2 (kette/-Objekte + Fassungs-Umschläge im Auto-Sync),
+  leeres Projekt → leerer Animator, Stände-Dialog.
 - Fix (v0.9.620, Marc: „bumms war der schwarm weg"): Ein NEUES Projekt im
   Schwarm/Reise-Kontext (Topbar → Neues Projekt) erbt jetzt die Komposition
   — Etappen, Farben je Tour, Modus, Dezent-Wahl — statt nur den Haupt-Track
