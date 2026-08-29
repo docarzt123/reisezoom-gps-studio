@@ -2392,5 +2392,7 @@
   "schwarm.modus_uhrzeit_hint": "Every tour runs by its recorded timestamps (common start); during a rest the dot stands still. Tours without timestamps move evenly.",
   "schwarm.los": "Go",
   "schwarm.modus_uhrzeit_bew": "Real time — without breaks",
-  "schwarm.modus_uhrzeit_bew_hint": "Same as above, but breaks are cut out — pure moving pace is compared."
+  "schwarm.modus_uhrzeit_bew_hint": "Same as above, but breaks are cut out — pure moving pace is compared.",
+  "animator.statsfield.asc_done": "Climbed so far",
+  "animator.statsfield.desc_done": "Descended so far"
 }

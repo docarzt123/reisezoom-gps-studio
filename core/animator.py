@@ -550,6 +550,11 @@ OVERLAY_LIVE_FIELDS = [
      "js": "Math.round(elevations[idx])+' m'"},
     {"id": "grade",        "requires": "ele",  "label": "Steigung",
      "js": "(gradePct[idx]>=0?'+':'')+gradePct[idx].toFixed(0)+' %'"},
+    # 29.08.2026 (Marc) — kumulierte Höhenmeter bis zum aktuellen Punkt.
+    {"id": "asc_done",     "requires": "ele",  "label": "Bergauf bisher",
+     "js": "'\u2191 '+Math.round(cumAscM[idx])+' m'"},
+    {"id": "desc_done",    "requires": "ele",  "label": "Bergab bisher",
+     "js": "'\u2193 '+Math.round(cumDescM[idx])+' m'"},
     # 23.08.2026 (Marc) — Etappen-Werte für zusammengeführte Mehr-Touren-Tracks:
     # links der Tageswert, rechts die Gesamtsumme. `requires: "stages"` blendet
     # sie bei einer normalen Einzeltour aus.
@@ -573,29 +578,41 @@ OVERLAY_LIVE_FIELDS = [
             "if(!swarmFertig(i,d))m++;}"
             "return m+' / '+(SCHWARM_N+1);})()")},
 ]
+# 29.08.2026 (Marc: „gesamtstats beim schwarm sollten die summe anzeigen von
+# allen touren") — im Schwarm zeigen die Gesamt-Felder die SUMME über alle
+# Touren (Ø-Tempo = Schnitt aus den Summen, Max/Höchster/Tiefster = Extremwert).
+# `_sw` greift auf die in render() vorberechneten swarm_*-Aggregate zu; ohne
+# Schwarm (kein swarm_n) läuft alles unverändert über die Einzeltour.
+def _sw(ts, key, sonst):
+    return ts.get(key) if ts.get("swarm_n") and ts.get(key) is not None else sonst
+
+
 OVERLAY_TOTAL_FIELDS = [
     {"id": "dist_total", "requires": "none", "label": "Strecke",
-     "py": lambda ts: _format_km(ts["distance_m"])},
+     "py": lambda ts: _format_km(_sw(ts, "swarm_dist_m", ts["distance_m"]))},
     {"id": "duration",   "requires": "time", "label": "Zeit",
-     "py": lambda ts: _format_dur(ts["duration_s"])},
+     "py": lambda ts: _format_dur(_sw(ts, "swarm_duration_s", ts["duration_s"]))},
     {"id": "moving_time", "requires": "time", "label": "Bewegungszeit",
-     "py": lambda ts: _format_dur(ts.get("moving_time_s") or ts.get("duration_s") or 0)},
+     "py": lambda ts: _format_dur(_sw(ts, "swarm_moving_s",
+                                      ts.get("moving_time_s") or ts.get("duration_s") or 0))},
     {"id": "avg_speed",  "requires": "time", "label": "&Oslash; Tempo",
      # v0.9.323 (Nutzer-Feedback): Ø aus FAHRZEIT (ohne Pausen), nicht aus Gesamtzeit. 1 Nachkomma.
-     "py": lambda ts: (f'{ts["distance_m"] / (ts.get("moving_time_s") or ts["duration_s"]) * 3.6:.1f} km/h' if (ts.get("moving_time_s") or ts.get("duration_s")) else "—")},
+     "py": lambda ts: (f'{_sw(ts, "swarm_dist_m", ts["distance_m"]) / _sw(ts, "swarm_moving_s", (ts.get("moving_time_s") or ts["duration_s"])) * 3.6:.1f} km/h'
+                       if _sw(ts, "swarm_moving_s", (ts.get("moving_time_s") or ts.get("duration_s"))) else "—")},
     {"id": "avg_speed_total", "requires": "time", "label": "&Oslash; Tempo (gesamt)",
      # Ø aus GESAMTZEIT (inkl. Pausen) — wählbar als zweites Feld.
-     "py": lambda ts: (f'{ts["distance_m"] / ts["duration_s"] * 3.6:.1f} km/h' if ts.get("duration_s") else "—")},
+     "py": lambda ts: (f'{_sw(ts, "swarm_dist_m", ts["distance_m"]) / _sw(ts, "swarm_duration_s", ts["duration_s"]) * 3.6:.1f} km/h'
+                       if _sw(ts, "swarm_duration_s", ts.get("duration_s")) else "—")},
     {"id": "max_speed",  "requires": "time", "label": "Max. Tempo",
-     "py": lambda ts: f'{ts.get("max_speed_kmh", 0):.1f} km/h'},
+     "py": lambda ts: f'{_sw(ts, "swarm_max_kmh", ts.get("max_speed_kmh", 0)):.1f} km/h'},
     {"id": "elev_gain",  "requires": "ele",  "label": "Bergauf",
-     "py": lambda ts: f'&uarr; {ts["ascent_m"]:.0f} m'},
+     "py": lambda ts: f'&uarr; {_sw(ts, "swarm_ascent_m", ts["ascent_m"]):.0f} m'},
     {"id": "elev_loss",  "requires": "ele",  "label": "Bergab",
-     "py": lambda ts: f'&darr; {ts["descent_m"]:.0f} m'},
+     "py": lambda ts: f'&darr; {_sw(ts, "swarm_descent_m", ts["descent_m"]):.0f} m'},
     {"id": "ele_high",   "requires": "ele",  "label": "H&ouml;chster Punkt",
-     "py": lambda ts: f'{ts["ele_max"]:.0f} m'},
+     "py": lambda ts: f'{_sw(ts, "swarm_ele_max", ts["ele_max"]):.0f} m'},
     {"id": "ele_low",    "requires": "ele",  "label": "Tiefster Punkt",
-     "py": lambda ts: f'{ts["ele_min"]:.0f} m'},
+     "py": lambda ts: f'{_sw(ts, "swarm_ele_min", ts["ele_min"]):.0f} m'},
     # 28.08.2026 (IDEAS §38 M2) — Schwarm-Gesamtwert: Tourenzahl + Strecke ALLER
     # Touren zusammen (die normalen Felder zeigen bewusst die längste Tour).
     {"id": "swarm_total", "requires": "schwarm", "label": "Touren gesamt",
@@ -1752,6 +1769,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     seg_mask_js = _SEG_MASK_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
+    total_asc_json = json.dumps(round(float(total_stats.get("ascent_m") or 0), 1))
+    total_desc_json = json.dumps(round(float(total_stats.get("descent_m") or 0), 1))
     cum_dist_json = json.dumps(cum_dist)
     cum_time_json = json.dumps(cum_time)
     # v0.9.435 — Mehrfarbiger Track: Helper + Konstanten fürs Render-Template.
@@ -2406,6 +2425,23 @@ const cumTimeS = {cum_time_json};
 const speedKmh = {speed_json};   // v0.9.321 — Stats-Editor: Pro-Punkt-Tempo
 const gradePct = {grade_json};   // v0.9.321 — Pro-Punkt-Steigung %
 const sensorSeries = {sensor_series_json};   // v0.9.330 — FIT-Sensorwerte pro Punkt (key → [werte])
+// 29.08.2026 (Marc: „warum gibts da nicht auch bergauf bergab?") — kumulierte
+// Höhenmeter je Punkt. Roh-Summen über die downsampled Höhen überschätzen
+// (Rauschen), darum werden sie auf die GEGLÄTTETEN Gesamtwerte der Stats
+// skaliert: das Live-Feld endet exakt beim „Bergauf"-Gesamtwert.
+const TOTAL_ASC_M = {total_asc_json};
+const TOTAL_DESC_M = {total_desc_json};
+const cumAscM = [0], cumDescM = [0];
+for (let i = 1; i < elevations.length; i++) {{
+  const dE = elevations[i] - elevations[i - 1];
+  cumAscM.push(cumAscM[i - 1] + Math.max(0, dE));
+  cumDescM.push(cumDescM[i - 1] + Math.max(0, -dE));
+}}
+(function () {{
+  const a = cumAscM[cumAscM.length - 1], b = cumDescM[cumDescM.length - 1];
+  if (a > 0 && TOTAL_ASC_M > 0) {{ const f = TOTAL_ASC_M / a; for (let i = 0; i < cumAscM.length; i++) cumAscM[i] *= f; }}
+  if (b > 0 && TOTAL_DESC_M > 0) {{ const f = TOTAL_DESC_M / b; for (let i = 0; i < cumDescM.length; i++) cumDescM[i] *= f; }}
+}})();
 const TOTAL_DIST_M = cumDistM.length ? cumDistM[cumDistM.length - 1] : 0;
 // ⚠️ Die Schwarm-Konstanten MÜSSEN vor updateOverlays(0) stehen (28.08.2026:
 // „Cannot access 'SCHWARM_N' before initialization" — das Overlay-Feld
@@ -3099,6 +3135,8 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     seg_mask_js = _SEG_MASK_JS
     eles = [p.ele if p.ele is not None else 0.0 for p in ds_points]
     elevations_json = json.dumps(eles)
+    total_asc_json = json.dumps(round(float(total_stats.get("ascent_m") or 0), 1))
+    total_desc_json = json.dumps(round(float(total_stats.get("descent_m") or 0), 1))
     cum_dist_json = json.dumps(cum_dist)
     cum_time_json = json.dumps(cum_time)
     ele_min = min(eles)
@@ -3251,6 +3289,23 @@ const cumTimeS = {cum_time_json};
 const speedKmh = {speed_json};   // v0.9.321 — Stats-Editor: Pro-Punkt-Tempo
 const gradePct = {grade_json};   // v0.9.321 — Pro-Punkt-Steigung %
 const sensorSeries = {sensor_series_json};   // v0.9.330 — FIT-Sensorwerte pro Punkt (key → [werte])
+// 29.08.2026 (Marc: „warum gibts da nicht auch bergauf bergab?") — kumulierte
+// Höhenmeter je Punkt. Roh-Summen über die downsampled Höhen überschätzen
+// (Rauschen), darum werden sie auf die GEGLÄTTETEN Gesamtwerte der Stats
+// skaliert: das Live-Feld endet exakt beim „Bergauf"-Gesamtwert.
+const TOTAL_ASC_M = {total_asc_json};
+const TOTAL_DESC_M = {total_desc_json};
+const cumAscM = [0], cumDescM = [0];
+for (let i = 1; i < elevations.length; i++) {{
+  const dE = elevations[i] - elevations[i - 1];
+  cumAscM.push(cumAscM[i - 1] + Math.max(0, dE));
+  cumDescM.push(cumDescM[i - 1] + Math.max(0, -dE));
+}}
+(function () {{
+  const a = cumAscM[cumAscM.length - 1], b = cumDescM[cumDescM.length - 1];
+  if (a > 0 && TOTAL_ASC_M > 0) {{ const f = TOTAL_ASC_M / a; for (let i = 0; i < cumAscM.length; i++) cumAscM[i] *= f; }}
+  if (b > 0 && TOTAL_DESC_M > 0) {{ const f = TOTAL_DESC_M / b; for (let i = 0; i < cumDescM.length; i++) cumDescM[i] *= f; }}
+}})();
 const TOTAL_DIST_M = cumDistM.length ? cumDistM[cumDistM.length - 1] : 0;
 const TOTAL_TIME_S = cumTimeS.length ? cumTimeS[cumTimeS.length - 1] : 0;
 function fmtKmJS(km){{ return km < 100 ? km.toFixed(1)+' km' : km.toFixed(0)+' km'; }}
@@ -4058,7 +4113,7 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
             if pfad == cfg.gpx_path:
                 continue
         try:
-            pts, _st = core_parse_gpx(pfad)
+            pts, _st = core_parse_gpx(pfad)   # _st fließt in die Schwarm-Summen
         except Exception as e:
             _log.warning("Schwarm: %s unlesbar (%s) — übersprungen", pfad, e)
             continue
@@ -4067,6 +4122,14 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
             continue
         geparst.append({"points": pts, "laenge": pts[-1].dist_m,
                         "color": (t or {}).get("line_color") or "",
+                        # 29.08.2026 (Marc: Gesamt-Stats = Summe aller Touren)
+                        "stats": {"duration_s": float(getattr(_st, "duration_s", 0) or 0),
+                                  "moving_time_s": float(getattr(_st, "moving_time_s", 0) or 0),
+                                  "ascent_m": float(getattr(_st, "ascent_m", 0) or 0),
+                                  "descent_m": float(getattr(_st, "descent_m", 0) or 0),
+                                  "max_speed_kmh": float(getattr(_st, "max_speed_kmh", 0) or 0),
+                                  "ele_max": getattr(_st, "ele_max", None),
+                                  "ele_min": getattr(_st, "ele_min", None)},
                         "gpx_path": pfad})
     if not geparst:
         return []
@@ -4081,6 +4144,7 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
         raus.append({"coords": resample_aequidistant(t["points"], s),
                      "color": t["color"], "step_m": s,
                      "t_roh": t_roh, "t_bew": t_bew,
+                     "stats": t["stats"],
                      "gpx_path": t["gpx_path"]})
     _log.info("Schwarm: %d Zusatz-Touren · Abstand %.1f m · Punkte %d",
               len(raus), s, sum(len(t["coords"]) for t in raus))
@@ -4316,6 +4380,32 @@ async def render(
         total_stats_dict["swarm_n"] = len(_schwarm) + 1
         total_stats_dict["swarm_dist_m"] = (cum_dist[-1] if cum_dist else 0.0) + sum(
             (len(t["coords"]) - 1) * t["step_m"] for t in _schwarm)
+        # 29.08.2026 (Marc): die Gesamt-Felder zeigen im Schwarm die SUMME
+        # über alle Touren (Ø-Tempo als Schnitt daraus, Max/Extrem als
+        # Maximum/Minimum) — nicht mehr nur die längste Tour.
+        _sts = [t.get("stats") or {} for t in _schwarm]
+        total_stats_dict["swarm_duration_s"] = total_stats_dict["duration_s"] + sum(
+            s.get("duration_s") or 0 for s in _sts)
+        total_stats_dict["swarm_moving_s"] = (total_stats_dict.get("moving_time_s")
+            or total_stats_dict["duration_s"] or 0) + sum(
+            (s.get("moving_time_s") or s.get("duration_s") or 0) for s in _sts)
+        total_stats_dict["swarm_ascent_m"] = (total_stats_dict.get("ascent_m") or 0) + sum(
+            s.get("ascent_m") or 0 for s in _sts)
+        total_stats_dict["swarm_descent_m"] = (total_stats_dict.get("descent_m") or 0) + sum(
+            s.get("descent_m") or 0 for s in _sts)
+        total_stats_dict["swarm_max_kmh"] = max(
+            [total_stats_dict.get("max_speed_kmh") or 0]
+            + [s.get("max_speed_kmh") or 0 for s in _sts])
+        _hoehen = [s.get("ele_max") for s in _sts if s.get("ele_max") is not None]
+        _tiefen = [s.get("ele_min") for s in _sts if s.get("ele_min") is not None]
+        if total_stats_dict.get("ele_max") is not None:
+            _hoehen.append(total_stats_dict["ele_max"])
+        if total_stats_dict.get("ele_min") is not None:
+            _tiefen.append(total_stats_dict["ele_min"])
+        if _hoehen:
+            total_stats_dict["swarm_ele_max"] = max(_hoehen)
+        if _tiefen:
+            total_stats_dict["swarm_ele_min"] = min(_tiefen)
     html = _make_html(cfg, points, cum_dist, cum_time, total_stats_dict, bbox,
                       schwarm_tours=_schwarm)
 

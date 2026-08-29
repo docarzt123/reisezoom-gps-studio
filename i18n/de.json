@@ -2392,5 +2392,7 @@
   "schwarm.modus_uhrzeit_hint": "Jede Tour läuft nach ihren Zeitstempeln (gemeinsamer Start); bei einer Rast steht der Punkt still. Touren ohne Zeitstempel laufen gleichmäßig mit.",
   "schwarm.los": "Los",
   "schwarm.modus_uhrzeit_bew": "Echte Uhrzeit — ohne Pausen",
-  "schwarm.modus_uhrzeit_bew_hint": "Wie oben, aber Pausen werden herausgeschnitten — verglichen wird das reine Tempo."
+  "schwarm.modus_uhrzeit_bew_hint": "Wie oben, aber Pausen werden herausgeschnitten — verglichen wird das reine Tempo.",
+  "animator.statsfield.asc_done": "Bergauf bisher",
+  "animator.statsfield.desc_done": "Bergab bisher"
 }

@@ -10206,6 +10206,8 @@ function mountAnimator(body, headerActions, opts) {
       { id: "dist_done", req: "none" }, { id: "dist_left", req: "none" },
       { id: "speed", req: "time" }, { id: "time_elapsed", req: "time" }, { id: "time_left", req: "time" },
       { id: "ele_now", req: "ele" }, { id: "grade", req: "ele" },
+      // 29.08.2026 (Marc) — kumulierte Höhenmeter bis zum aktuellen Punkt.
+      { id: "asc_done", req: "ele" }, { id: "desc_done", req: "ele" },
       // 23.08.2026 — Etappen-Werte (nur bei zusammengeführten Touren). SYNCHRON
       // zu OVERLAY_LIVE_FIELDS in core/animator.py.
       { id: "stage_name", req: "stages" }, { id: "stage_no", req: "stages" },
@@ -10230,6 +10232,7 @@ function mountAnimator(body, headerActions, opts) {
     swarm_underway: "Noch unterwegs", swarm_total: "Touren gesamt",
     dist_done: "Zurückgelegt", dist_left: "Verbleibend", speed: "Tempo",
     time_elapsed: "Vergangen", time_left: "Restzeit", ele_now: "Höhe", grade: "Steigung",
+    asc_done: "Bergauf bisher", desc_done: "Bergab bisher",
     dist_total: "Strecke", duration: "Zeit", moving_time: "Bewegungszeit", avg_speed: "Ø Tempo", avg_speed_total: "Ø Tempo (gesamt)", max_speed: "Max. Tempo",
     elev_gain: "Bergauf", elev_loss: "Bergab", ele_high: "Höchster Punkt", ele_low: "Tiefster Punkt",
   };
@@ -10428,13 +10431,32 @@ function mountAnimator(body, headerActions, opts) {
       return "—";
     }
     const s = _gpxStats; if (!s) return "—";
-    const km = s.distance_km || 0, dur = s.duration_s || 0;
+    let km = s.distance_km || 0, dur = s.duration_s || 0;
     // v0.9.324 — echte Werte aus den Track-Stats (kein Schätz-Faktor mehr).
     // moving_time_s/max_speed_kmh kommen voll-aufgelöst vom Backend.
-    const movS = (s.moving_time_s != null && s.moving_time_s > 0) ? s.moving_time_s : dur;
+    let movS = (s.moving_time_s != null && s.moving_time_s > 0) ? s.moving_time_s : dur;
+    let maxKmh = (s.max_speed_kmh != null && s.max_speed_kmh > 0) ? s.max_speed_kmh : 0;
+    let ascM = s.ascent_m || 0, descM = s.descent_m || 0;
+    let eleH = s.ele_max, eleL = s.ele_min;
+    // 29.08.2026 (Marc): Im Schwarm sind die Gesamt-Felder SUMMEN über alle
+    // Touren (Ø aus den Summen, Max/Extreme als Extremwert) — wortgleich zu
+    // den swarm_*-Aggregaten in core/animator.py.
+    if (_animAblauf === "schwarm" && _extraTours.length) {
+      for (const tr of _extraTours) {
+        const st = tr.stats;
+        if (!st) continue;
+        km += st.distance_km || 0;
+        dur += st.duration_s || 0;
+        movS += (st.moving_time_s != null && st.moving_time_s > 0) ? st.moving_time_s : (st.duration_s || 0);
+        ascM += st.ascent_m || 0;
+        descM += st.descent_m || 0;
+        if (st.max_speed_kmh != null && st.max_speed_kmh > maxKmh) maxKmh = st.max_speed_kmh;
+        if (st.ele_max != null && (eleH == null || st.ele_max > eleH)) eleH = st.ele_max;
+        if (st.ele_min != null && (eleL == null || st.ele_min < eleL)) eleL = st.ele_min;
+      }
+    }
     const avgTotal = dur > 0 ? (km / (dur / 3600)) : 0;
     const avgMov = movS > 0 ? (km / (movS / 3600)) : 0;
-    const maxKmh = (s.max_speed_kmh != null && s.max_speed_kmh > 0) ? s.max_speed_kmh : 0;
     const lastEle = (_gpxElevations && _gpxElevations.length) ? Math.round(_gpxElevations[_gpxElevations.length - 1]) : (s.ele_max != null ? Math.round(s.ele_max) : null);
     switch (id) {
       case "dist_done": case "dist_total": return _ovFmtKm(km);
@@ -10447,10 +10469,13 @@ function mountAnimator(body, headerActions, opts) {
       case "time_left": return _ovFmtDur(0);
       case "ele_now": return lastEle != null ? lastEle + " m" : "—";
       case "grade": return "0 %";
-      case "elev_gain": return "↑ " + Math.round(s.ascent_m || 0) + " m";
-      case "elev_loss": return "↓ " + Math.round(s.descent_m || 0) + " m";
-      case "ele_high": return s.ele_max != null ? Math.round(s.ele_max) + " m" : "—";
-      case "ele_low": return s.ele_min != null ? Math.round(s.ele_min) + " m" : "—";
+      case "elev_gain": return "↑ " + Math.round(ascM) + " m";
+      case "elev_loss": return "↓ " + Math.round(descM) + " m";
+      case "ele_high": return eleH != null ? Math.round(eleH) + " m" : "—";
+      case "ele_low": return eleL != null ? Math.round(eleL) + " m" : "—";
+      case "asc_done": return "↑ " + Math.round(ascM) + " m";
+      case "desc_done": return "↓ " + Math.round(descM) + " m";
+      case "swarm_total": return (_extraTours.length + 1) + " · " + _ovFmtKm(km);
     }
     return "—";
   }
@@ -10459,6 +10484,28 @@ function mountAnimator(body, headerActions, opts) {
   // mitlaufen lassen. `frac` = 0..1 entlang des realen Tracks (= markerReal im
   // Probelauf bzw. coordIdx/len beim Scrubben). Nutzt exakt die Render-Formeln
   // (s. OVERLAY_LIVE_FIELDS[*].js in core/animator.py) auf den Backend-Reihen.
+  /* 29.08.2026 — kumulierte Höhenmeter je Punkt für die Live-Vorschau,
+   * skaliert auf die geglätteten Stats-Gesamtwerte (synchron zum Render-JS:
+   * cumAscM/cumDescM in core/animator.py). Cache an der Serien-Referenz. */
+  function _ovCumHm(sr) {
+    if (sr.__rzCumHm && sr.__rzCumHmRef === sr.ele) return sr.__rzCumHm;
+    const asc = [0], desc = [0];
+    const e = sr.ele || [];
+    for (let i = 1; i < e.length; i++) {
+      const dE = e[i] - e[i - 1];
+      asc.push(asc[i - 1] + Math.max(0, dE));
+      desc.push(desc[i - 1] + Math.max(0, -dE));
+    }
+    const zielA = (_gpxStats && _gpxStats.ascent_m) || 0;
+    const zielD = (_gpxStats && _gpxStats.descent_m) || 0;
+    const a = asc[asc.length - 1] || 0, b = desc[desc.length - 1] || 0;
+    if (a > 0 && zielA > 0) { const f = zielA / a; for (let i = 0; i < asc.length; i++) asc[i] *= f; }
+    if (b > 0 && zielD > 0) { const f = zielD / b; for (let i = 0; i < desc.length; i++) desc[i] *= f; }
+    sr.__rzCumHm = { asc, desc };
+    sr.__rzCumHmRef = sr.ele;
+    return sr.__rzCumHm;
+  }
+
   function _ovUpdateLiveAt(frac) {
     frac = Math.max(0, Math.min(1, frac || 0));
     const layer = document.getElementById("anim-overlay-preview");
@@ -10518,6 +10565,8 @@ function mountAnimator(body, headerActions, opts) {
           case "time_elapsed": if (sr.has_time) v = _ovFmtDur(sr.cumTimeS[i]); break;
           case "time_left": if (sr.has_time) v = _ovFmtDur(Math.max(0, totT - sr.cumTimeS[i])); break;
           case "ele_now": if (sr.has_ele) v = Math.round(sr.ele[i]) + " m"; break;
+          case "asc_done": if (sr.has_ele) v = "↑ " + Math.round(_ovCumHm(sr).asc[i]) + " m"; break;
+          case "desc_done": if (sr.has_ele) v = "↓ " + Math.round(_ovCumHm(sr).desc[i]) + " m"; break;
           case "grade": if (sr.has_ele) { const g = sr.gradePct[i]; v = (g >= 0 ? "+" : "") + g.toFixed(0) + " %"; } break;
           // 23.08.2026 — Etappen-Werte, wortgleich zu core/animator.py
           case "stage_name": if (sr.stage) v = sr.stage.name[i] || ("Etappe " + sr.stage.nr[i]); break;
@@ -12399,7 +12448,8 @@ function mountAnimator(body, headerActions, opts) {
     _extraTours.push({ gpx_path: path, line_color: color, name, coords,
                        zeit: (_ladeRes && _ladeRes.series && _ladeRes.series.cumTimeS
                               && _ladeRes.series.cumTimeS.length === (coords || []).length)
-                             ? _ladeRes.series.cumTimeS : null });
+                             ? _ladeRes.series.cumTimeS : null,
+                       stats: (_ladeRes && _ladeRes.stats) || null });
     _animPersistTours();
     _animRenderToursList();
     _animDrawExtraToursPreview();
@@ -12480,6 +12530,9 @@ function mountAnimator(body, headerActions, opts) {
     try { _animRenderToursList(); } catch (_) {}
     try { _animDrawExtraToursPreview(); } catch (e) { console.warn("tours preview:", e); }
     try { _animFitAllTours(); } catch (_) {}
+    // 29.08.2026 (Marc: „'noch unterwegs' ist ausgegraut"): Die Feld-Editoren
+    // wurden vor dem Touren-Laden gebaut — jetzt sind Ablauf + Touren da.
+    try { _ovRebuildEditors(); renderOverlayPreview(); } catch (_) {}
     if (!offen) return;
     tourenLadeModalSchritt(t("animator.tours.lade_karte", "Karte wird gezeichnet …"));
     await new Promise((res) => {
@@ -12569,6 +12622,7 @@ function mountAnimator(body, headerActions, opts) {
       const ist = _extraTours.map(t => _pfadNFC(t.gpx_path));
       if (ziel.length && ist.length === ziel.length && ziel.every((p, i) => ist[i] === p)) {
         try { _animRenderToursList(); } catch (_) {}
+        try { _ovRebuildEditors(); } catch (_) {}
         return;
       }
     }
@@ -12604,7 +12658,8 @@ function mountAnimator(body, headerActions, opts) {
                              zeit: (res.series && res.series.cumTimeS
                                     && res.has_time !== false
                                     && res.series.cumTimeS.length === (res.coords || []).length)
-                                   ? res.series.cumTimeS : null });
+                                   ? res.series.cumTimeS : null,
+                             stats: res.stats || null });
         } else {
           fehlend++;
           applog("warn", `[Animator] gespeicherte Etappe nicht ladbar: ${t.gpx_path} (${(res && res.error) || "?"})`);
