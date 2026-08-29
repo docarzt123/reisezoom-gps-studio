@@ -14,6 +14,21 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Schwarm-Geschwindigkeitsmodi (IDEAS §38 M3 — Marc, 29.08.2026: „jetzt das
+  mit der geschwindigkeit"): Beim Start aus dem Archiv fragt ein Dialog nach
+  dem Modus — „Alle gleich schnell" (Standard), „Gleichzeitig im Ziel"
+  (Fotofinish: jede Tour skaliert, alle enden mit dem Video) und „Echte
+  Uhrzeit" (aufgezeichnete Zeitstempel, gemeinsamer Start, längste DAUER =
+  Zeitachse; Pausen mitzählen ist wählbar — sonst Bewegungszeit mit
+  20-s-Pausen-Deckel; Touren ohne Zeitstempel laufen gleichmäßig mit). Gilt in
+  Render, Vorschau (WYSIWYG), Overlay-Summen, „Noch unterwegs"-Zähler und der
+  Fokus-Kamera. Die Wahl wird an der Tourenmenge gespeichert, reist per Cloud
+  mit (M5) und die letzte Wahl ist vorausgewählt. Neu: `resample_zeiten`
+  (Zeitachsen index-gleich zur Geometrie), Session-Felder `schwarm_modus`/
+  `schwarm_pausen`, Guard `tests/test_schwarm_m3.py` mit in Node AUSGEFÜHRTER
+  swarmIdx-Mathe.
+
 ## [0.9.586] – 2026-08-28
 
 ### Changed

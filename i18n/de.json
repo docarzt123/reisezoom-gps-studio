@@ -2382,5 +2382,14 @@
   "library.undo.fehl": "Rückgängig ging schief: {e}",
   "library.pop_drag": "Zum Verschieben ziehen",
   "animator.tours.missing_n": "{n} gespeicherte Tour(en) wurden nicht gefunden — Details im Log.",
-  "library.col_filterhint": "Archiv-Filter aktiv: {n} von {m} Touren sichtbar — „Alle im Animator“ und „Als Schwarm“ nehmen genau diese {n}."
+  "library.col_filterhint": "Archiv-Filter aktiv: {n} von {m} Touren sichtbar — „Alle im Animator“ und „Als Schwarm“ nehmen genau diese {n}.",
+  "schwarm.modus_titel": "Wie schnell laufen die Touren?",
+  "schwarm.modus_gleich": "Alle gleich schnell",
+  "schwarm.modus_gleich_hint": "Die längste Tour bestimmt die Videodauer, kürzere sind früher im Ziel.",
+  "schwarm.modus_ziel": "Gleichzeitig im Ziel",
+  "schwarm.modus_ziel_hint": "Fotofinish: jede Tour wird skaliert, alle kommen mit dem Videoende an.",
+  "schwarm.modus_uhrzeit": "Echte Uhrzeit",
+  "schwarm.modus_uhrzeit_hint": "Jede Tour läuft nach ihren Zeitstempeln (gemeinsamer Start). Touren ohne Zeitstempel laufen gleichmäßig mit.",
+  "schwarm.modus_pausen": "Pausen mitzählen — der Punkt steht bei Rast still",
+  "schwarm.los": "Los"
 }

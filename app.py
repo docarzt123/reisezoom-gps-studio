@@ -151,7 +151,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.586"
+APP_VERSION = "0.9.587"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -1666,7 +1666,8 @@ class Api:
             log.exception("session_open_for_track failed")
             return {"ok": False, "error": str(e)}
 
-    def session_open_for_menge(self, gpx_paths: list, ablauf: str = "reise") -> dict:
+    def session_open_for_menge(self, gpx_paths: list, ablauf: str = "reise",
+                               modus: str = "gleich", pausen: bool = True) -> dict:
         """Sitzung für eine MENGE von Touren (Reise oder Schwarm, IDEAS §38).
 
         Grilling-Entscheid (28.08.2026): „Das Archiv komponiert, der Animator
@@ -1697,6 +1698,10 @@ class Api:
                         "Der Schwarm braucht mindestens 2 lesbare Touren mit Strecke.")}
             schluessel = _sessions.mengen_hash(hashes)
             ablauf = "schwarm" if str(ablauf) == "schwarm" else "reise"
+            # M3 — Geschwindigkeitsmodus (nur beim Schwarm relevant, wird aber
+            # immer mitgeführt: wer später auf Schwarm umstellt, findet ihn vor).
+            modus = str(modus) if str(modus) in ("gleich", "ziel", "uhrzeit") else "gleich"
+            pausen = bool(pausen)
 
             with _sessions.LOCK:
                 data = _sessions.load_sessions(SESSIONS_FILE)
@@ -1722,6 +1727,8 @@ class Api:
                     name = ("Schwarm" if ablauf == "schwarm" else "Reise") + f" ({len(pfade)} Touren)"
                     sess = {"track_hash": schluessel, "name": name,
                             "ablauf": ablauf,
+                            "schwarm_modus": modus,
+                            "schwarm_pausen": pausen,
                             "gpx_paths": pfade,
                             "geo_hashes": sorted(set(hashes)),
                             "stats": {"n_tours": len(pfade)},
@@ -1768,6 +1775,13 @@ class Api:
                         log.info("Mengen-Sitzung %s: Ablauf %r → %r (neue Wahl im Archiv)",
                                  schluessel, sess.get("ablauf"), ablauf)
                         sess["ablauf"] = ablauf
+                    # M3: neue Modus-Wahl im Archiv gilt (gleiche Regel wie Ablauf).
+                    if sess.get("schwarm_modus") != modus or bool(sess.get("schwarm_pausen", True)) != pausen:
+                        log.info("Mengen-Sitzung %s: Modus %r(P=%s) → %r(P=%s)",
+                                 schluessel, sess.get("schwarm_modus"),
+                                 sess.get("schwarm_pausen", True), modus, pausen)
+                        sess["schwarm_modus"] = modus
+                        sess["schwarm_pausen"] = pausen
                     # Selbstheilung (28.08.2026): Etappen, die nicht zur Menge
                     # gehören, fliegen raus — der Q18a-Fallback hat vor diesem
                     # Datum fremde extra_tours in frische Mengen-Sitzungen
@@ -1789,11 +1803,13 @@ class Api:
                 _sessions.save_sessions(SESSIONS_FILE, data)
 
             aktiv = (sess.get("projects") or {}).get(sess.get("active_project_id") or "") or {}
-            log.info("session_open_for_menge: %s · %d Touren · ablauf=%s · neu=%s",
-                     schluessel, len(pfade), ablauf, neu_angelegt)
+            log.info("session_open_for_menge: %s · %d Touren · ablauf=%s · modus=%s(P=%s) · neu=%s",
+                     schluessel, len(pfade), ablauf, modus, pausen, neu_angelegt)
             return {"ok": True, "track_hash": schluessel,
                     "session": {"track_hash": schluessel, "name": sess.get("name", ""),
-                                "stats": sess.get("stats", {}), "ablauf": sess.get("ablauf", ablauf)},
+                                "stats": sess.get("stats", {}), "ablauf": sess.get("ablauf", ablauf),
+                                "schwarm_modus": sess.get("schwarm_modus", modus),
+                                "schwarm_pausen": bool(sess.get("schwarm_pausen", pausen))},
                     "active_project": aktiv,
                     "projects": _sessions.list_projects(sess)}
         except Exception as e:
@@ -3837,6 +3853,11 @@ class Api:
                            else "reise"),
             # IDEAS §38 M2 — Fokus-Tour (leer = Haupt-Track).
             schwarm_fokus_gpx=str(params.get("schwarm_fokus_gpx") or ""),
+            # IDEAS §38 M3 — Geschwindigkeitsmodus (Wahl im Archiv, via Session)
+            schwarm_modus=(str(params.get("schwarm_modus") or "gleich")
+                           if str(params.get("schwarm_modus") or "gleich") in ("gleich", "ziel", "uhrzeit")
+                           else "gleich"),
+            schwarm_pausen=bool(params.get("schwarm_pausen", True)),
             fly_duration_s=float(params.get("fly_duration_s", 3.0) or 3.0),
         )
 
@@ -3872,8 +3893,10 @@ class Api:
             # ⚠️ Ablauf IMMER mitloggen (28.08.2026): Marcs 96-Touren-Schwarm
             # rannte als „Reise" mit 191 Touren in den Render — ohne diese Zeile
             # wäre aus dem Log nicht zu sehen gewesen, WELCHER Pfad überhaupt lief.
-            rlog.info("  Multi-Track: %d Touren · Ablauf=%s · Flug %.1fs",
-                      len(cfg.tracks), getattr(cfg, "tracks_ablauf", "reise"), cfg.fly_duration_s)
+            rlog.info("  Multi-Track: %d Touren · Ablauf=%s · Modus=%s (Pausen=%s) · Flug %.1fs",
+                      len(cfg.tracks), getattr(cfg, "tracks_ablauf", "reise"),
+                      getattr(cfg, "schwarm_modus", "gleich"),
+                      getattr(cfg, "schwarm_pausen", True), cfg.fly_duration_s)
         rlog.info("  GPX:        %s", gpx_path)
         rlog.info("  Output:     %s", out_path)
         if cfg.transparent_background:
@@ -6104,6 +6127,9 @@ class Api:
                     "track_hash": schluessel_sess,
                     "name": obj.get("name") or f"Komposition ({len(ghs)} Touren)",
                     "ablauf": obj.get("ablauf") or "reise",
+                    "schwarm_modus": (obj.get("schwarm_modus")
+                                      if obj.get("schwarm_modus") in ("gleich", "ziel", "uhrzeit") else "gleich"),
+                    "schwarm_pausen": bool(obj.get("schwarm_pausen", True)),
                     "gpx_paths": [pfade[gh] for gh in ghs],
                     "geo_hashes": sorted(set(ghs)),
                     "stats": {"n_tours": len(ghs)},

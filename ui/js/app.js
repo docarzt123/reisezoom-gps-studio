@@ -1120,6 +1120,8 @@ window.addEventListener("DOMContentLoaded", async () => {
           && menge.paths[0] === lastPath) {
         window.__rzPendingTours = menge.paths.slice(1);
         window.__rzPendingAblauf = menge.ablauf === "schwarm" ? "schwarm" : "reise";
+        window.__rzPendingModus = ["gleich", "ziel", "uhrzeit"].includes(menge.modus) ? menge.modus : "gleich";
+        window.__rzPendingPausen = menge.pausen !== false;
         // 28.08.2026 (Marc: „klick ich abbrechen hängt er"): Das Lade-Modal
         // NUR öffnen, wenn der ANIMATOR das aktive Modul ist. Laden, Abbrechen
         // und Schließen erledigt sein Pending-Handler — startet die App im

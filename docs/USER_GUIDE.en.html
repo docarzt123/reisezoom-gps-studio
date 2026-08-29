@@ -520,7 +520,20 @@ python app.py</code></pre>
 <p>Collect tours for a few years and you end up with hundreds of GPX files scattered across folders — and you can never find the right one again. That is what the <strong>Library</strong> is for: it reads your track folders and shows every tour with a picture, a date and the numbers.</p>
 <p><strong>Set up (once):</strong> open the <strong>📚 Library</strong> tab → <strong>“📂 Folders &amp; scanning”</strong> at the bottom left → <strong>“+ Add folder”</strong> → pick the folder your tracks live in. The app reads it straight away; <strong>700 files take a good 20 seconds.</strong> Sub-folders are included. You can watch as many folders as you like. (While there is no folder, the empty area shows a big <strong>“+ Add folder”</strong> button.)</p>
 <h3 id="the-swarm-all-tours-run-at-once">🌊 The swarm — all tours run at once</h3>
-<p>Select several tours (⌘/Ctrl-click) or open a collection and choose <strong>&quot;🌊 Animate as a swarm …&quot;</strong> — the selection goes <strong>straight into the Animator</strong>. All tours start together and move at the <strong>same speed</strong> across the map: the longest one sets the video length, shorter ones finish earlier and their dot stays at the finish. Every tour keeps its colour from the library. With many tours, a loading window counts along (&quot;Loading tour 37 of 96 …&quot;).</p>
+<p>Select several tours (⌘/Ctrl-click) or open a collection and choose <strong>&quot;🌊 Animate as a swarm …&quot;</strong> — a small dialog asks for the <strong>speed mode</strong>, then the selection goes <strong>straight into the Animator</strong>:</p>
+<ul>
+<li><strong>All at the same speed</strong> (default): the longest tour sets the video length,</li>
+</ul>
+<p> shorter ones finish earlier and their dot stays at the finish.</p>
+<ul>
+<li><strong>Finish together</strong> (photo finish): every tour is scaled so all arrive</li>
+</ul>
+<p> exactly with the end of the video — short ones run slower, long ones faster.</p>
+<ul>
+<li><strong>Real time</strong>: every tour runs by its recorded timestamps — fast sections</li>
+</ul>
+<p> fast, and during a rest the dot really stands still (the <strong>&quot;Count breaks&quot;</strong>  checkbox switches to pure moving time). All start together; the tour with  the longest duration sets the time axis. Tours without timestamps (planned  routes) move evenly.</p>
+<p>Your last choice is remembered; the mode itself is stored with the line-up pick the same tours again and it is back. Every tour keeps its colour from the library. With many tours, a loading window counts along (&quot;Loading tour 37 of 96 …&quot;).</p>
 <p>Inside the Animator you then have <strong>everything</strong> you know from a single tour: map styles and 3D, camera keyframes and the trial run, intro and hold, resolutions up to 4K and portrait. Two things are swarm-specific:</p>
 <ul>
 <li><strong>🎥 Camera follows</strong> (above the tour list): <em>nobody</em> (overview, the</li>

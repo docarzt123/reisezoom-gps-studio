@@ -2545,15 +2545,64 @@ function mountLibrary(body, headerActions) {
    * geht direkt in den Animator (längste Tour als Haupt-Track = Zeitachse),
    * wo alle Werkzeuge und der EINE Renderpfad leben.
    */
-  async function alsSchwarmInDenAnimator(items) {
+  /** IDEAS §38 M3 — Geschwindigkeitsmodus VOR der Übergabe wählen (das Archiv
+   *  komponiert). Letzte Wahl wird gemerkt; „Los" reicht Modus + Pausen-Wahl
+   *  als Pending an den Animator, der Rest läuft wie bisher. */
+  function alsSchwarmInDenAnimator(items) {
     const gute = (items || []).filter(i => i && i.path && i.exists !== false);
     if (gute.length < 2) {
       toast(T("schwarm.zu_wenig", "Für einen Schwarm mindestens 2 Touren markieren."), "warn");
       return;
     }
+    const merkModus = (typeof _settingsCache === "object" && _settingsCache
+                       && ["gleich", "ziel", "uhrzeit"].includes(_settingsCache.schwarm_modus))
+                      ? _settingsCache.schwarm_modus : "gleich";
+    const merkPausen = !(typeof _settingsCache === "object" && _settingsCache
+                         && _settingsCache.schwarm_pausen === false);
+    const radio = (wert, titel, hint) => `
+      <label class="lib-modus-zeile"><input type="radio" name="lib-sw-modus" value="${wert}"${wert === merkModus ? " checked" : ""}>
+        <span><strong>${titel}</strong><br><span class="lib-hint">${hint}</span></span></label>`;
+    const m = openModal({
+      title: "🌊 " + T("schwarm.action", "Als Schwarm animieren …"),
+      body: `<div class="lib-fmodal">
+        <div class="field-label">${T("schwarm.modus_titel", "Wie schnell laufen die Touren?")}</div>
+        ${radio("gleich", T("schwarm.modus_gleich", "Alle gleich schnell"),
+                T("schwarm.modus_gleich_hint", "Die längste Tour bestimmt die Videodauer, kürzere sind früher im Ziel."))}
+        ${radio("ziel", T("schwarm.modus_ziel", "Gleichzeitig im Ziel"),
+                T("schwarm.modus_ziel_hint", "Fotofinish: jede Tour wird skaliert, alle kommen mit dem Videoende an."))}
+        ${radio("uhrzeit", T("schwarm.modus_uhrzeit", "Echte Uhrzeit"),
+                T("schwarm.modus_uhrzeit_hint", "Jede Tour läuft nach ihren Zeitstempeln (gemeinsamer Start). Touren ohne Zeitstempel laufen gleichmäßig mit."))}
+        <label class="lib-modus-pausen"><input type="checkbox" id="lib-sw-pausen"${merkPausen ? " checked" : ""}>
+          ${T("schwarm.modus_pausen", "Pausen mitzählen — der Punkt steht bei Rast still")}</label>
+      </div>`,
+      footer: `<button class="btn" id="lib-sw-abbruch">${T("common.cancel", "Abbrechen")}</button>
+               <button class="btn btn-primary" id="lib-sw-los">🌊 ${T("schwarm.los", "Los")}</button>`,
+    });
+    const pausenBox = document.getElementById("lib-sw-pausen");
+    const pausenSync = () => {
+      const w = (document.querySelector('input[name="lib-sw-modus"]:checked') || {}).value;
+      if (pausenBox) pausenBox.disabled = w !== "uhrzeit";
+    };
+    document.querySelectorAll('input[name="lib-sw-modus"]').forEach(r => r.onchange = pausenSync);
+    pausenSync();
+    const ab = document.getElementById("lib-sw-abbruch");
+    if (ab) ab.onclick = () => m.close();
+    const los = document.getElementById("lib-sw-los");
+    if (los) los.onclick = () => {
+      const modus = (document.querySelector('input[name="lib-sw-modus"]:checked') || {}).value || "gleich";
+      const pausen = !pausenBox || pausenBox.checked;
+      try { saveSettings({ schwarm_modus: modus, schwarm_pausen: pausen }); } catch (_) {}
+      m.close();
+      _schwarmStarten(gute, modus, pausen);
+    };
+  }
+
+  async function _schwarmStarten(gute, modus, pausen) {
     const sortiert = gute.slice().sort((x, y) => (y.distance_m || 0) - (x.distance_m || 0));
     window.__rzPendingTours = sortiert.slice(1).map(i => i.path);
     window.__rzPendingAblauf = "schwarm";
+    window.__rzPendingModus = modus || "gleich";
+    window.__rzPendingPausen = pausen !== false;
     // Lade-Modal SOFORT (Marc: „das modal kommt viel zu spät").
     if (sortiert.length >= 3 && typeof tourenLadeModalZeigen === "function") tourenLadeModalZeigen();
     const ok = await window.loadGlobalGpx(sortiert[0].path, { stumm: true, menge: true });

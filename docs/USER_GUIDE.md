@@ -363,10 +363,21 @@ leeren Fläche ein großer **„+ Ordner hinzufügen"**-Knopf.)
 
 ### 🌊 Der Schwarm — alle Touren laufen gleichzeitig (seit v0.9.557, voll im Animator seit v0.9.569)
 Markiere mehrere Touren (⌘/Strg-Klick) oder öffne eine Sammlung und wähle
-**„🌊 Als Schwarm animieren …"** — die Auswahl geht **direkt in den Animator**.
-Alle Touren starten gleichzeitig und laufen **gleich schnell** über die Karte:
-die längste bestimmt die Videodauer, kürzere sind früher im Ziel und ihr Punkt
-bleibt dort stehen. Jede Tour behält ihre Farbe aus dem Archiv. Bei vielen
+**„🌊 Als Schwarm animieren …"** — ein kleiner Dialog fragt nach dem
+**Geschwindigkeitsmodus**, dann geht die Auswahl **direkt in den Animator**:
+
+- **Alle gleich schnell** (Standard): die längste Tour bestimmt die Videodauer,
+  kürzere sind früher im Ziel und ihr Punkt bleibt dort stehen.
+- **Gleichzeitig im Ziel** (Fotofinish): jede Tour wird so skaliert, dass alle
+  exakt mit dem Videoende ankommen — kurze laufen langsamer, lange schneller.
+- **Echte Uhrzeit**: jede Tour läuft nach ihren aufgezeichneten Zeitstempeln —
+  schnelle Abschnitte schnell, und bei einer Rast steht der Punkt wirklich
+  still (das Häkchen **„Pausen mitzählen"** schaltet auf reine Bewegungszeit
+  um). Alle starten gemeinsam; die Tour mit der längsten Dauer bestimmt die
+  Zeitachse. Touren ohne Zeitstempel (geplante Routen) laufen gleichmäßig mit.
+
+Die letzte Wahl wird gemerkt; gespeichert ist der Modus an der Zusammenstellung
+selbst — dieselben Touren wieder gewählt, und er ist wieder da. Jede Tour behält ihre Farbe aus dem Archiv. Bei vielen
 Touren zeigt ein Lade-Fenster den Fortschritt („Lade Tour 37 von 96 …").
 
 Im Animator steht dir dann **alles** zur Verfügung, was du von einer einzelnen

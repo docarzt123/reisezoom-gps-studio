@@ -358,10 +358,22 @@ el área vacía muestra un gran botón **«+ Añadir carpeta»**.)
 
 ### 🌊 El enjambre — todas las rutas a la vez (desde v0.9.557, completo en el Animador desde v0.9.569)
 Marca varias rutas (⌘/Ctrl+clic) o abre una colección y elige
-**«🌊 Animar como enjambre …»**: la selección pasa **directamente al
-Animador**. Todas las rutas arrancan juntas y avanzan a la **misma velocidad**
-por el mapa: la más larga marca la duración del vídeo, las cortas llegan antes
-y su punto se queda en la meta. Cada ruta conserva su color del archivo. Con
+**«🌊 Animar como enjambre …»**: un pequeño diálogo pregunta por el **modo de
+velocidad** y la selección pasa **directamente al Animador**:
+
+- **Todas a la misma velocidad** (estándar): la ruta más larga marca la
+  duración del vídeo, las cortas llegan antes y su punto se queda en la meta.
+- **Llegada conjunta** (photo finish): cada ruta se escala para que todas
+  lleguen exactamente con el final del vídeo — las cortas van más despacio,
+  las largas más deprisa.
+- **Hora real**: cada ruta avanza según sus marcas de tiempo — los tramos
+  rápidos, rápido; y durante un descanso el punto se detiene de verdad (la
+  casilla **«Contar las pausas»** cambia a tiempo de movimiento puro). Todas
+  salen juntas; la ruta de mayor duración marca el eje de tiempo. Las rutas
+  sin marcas de tiempo (planificadas) avanzan de forma uniforme.
+
+La última elección se recuerda; el modo queda guardado en la combinación —
+elige las mismas rutas otra vez y ahí está. Cada ruta conserva su color del archivo. Con
 muchas rutas, una ventana de carga va contando («Cargando ruta 37 de 96 …»).
 
 En el Animador tienes después **todo** lo que conoces de una ruta individual:
