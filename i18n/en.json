@@ -2498,5 +2498,6 @@
   "library.proj_solo": "Single tour",
   "library.proj_touren": "Tours",
   "library.proj_angelegt_am": "Created",
-  "library.proj_geaendert_am": "Last"
+  "library.proj_geaendert_am": "Last",
+  "ghosts.schon_da": "{n} track(s) are already a ghost — not added twice."
 }

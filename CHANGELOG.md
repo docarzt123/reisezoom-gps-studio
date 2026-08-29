@@ -15,6 +15,15 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- Ghost-Spuren robust (v0.9.625, Marc: „im animator ist noch der nicht
+  geheilte track zu sehen" — es war das Knäuel doppelter, eingefrorener
+  Ghost-Routen): (1) Hinzufügen überspringt Pfade, die schon als Ghost
+  liegen (mit Ansage). (2) Beim Laden werden Alt-Dubletten zusammengelegt
+  — bestehende Projekte bereinigen sich selbst. (3) Die im Projekt
+  gespeicherten Ghost-Koordinaten werden von der Quelldatei aufgefrischt:
+  Heilst du eine Tour, zieht ihr Ghost jetzt mit statt für immer die alte
+  Geometrie zu zeigen. Der animierte Haupt-Track hatte übrigens immer die
+  richtige (geheilte) Fassung — headless nachgewiesen.
 - Update-Check über reisezoom.com (v0.9.624, Marc: „können wir zählen, wie
   viele instanzen weltweit laufen?"): Die App fragt jetzt das eigene
   Versions-Manifest auf reisezoom.com ab (GitHub nur noch als stiller
