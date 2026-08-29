@@ -2303,6 +2303,27 @@ def collection_sort_by_date(conn: sqlite3.Connection, cid: int) -> None:
 
 
 @_locked
+def track_hash_migrieren(conn: sqlite3.Connection, alt: str, neu: str) -> int:
+    """Nach dem Ersetzen einer Datei im Archiv (Inspektor-Heilung, Marc,
+    29.08.2026): Sammlungen und Tour-Meta hängen am geo_hash — der ändert sich
+    mit den Koordinaten. Zieht beide vom alten auf den neuen Hash um; gibt die
+    Zahl der umgezogenen Sammlungs-Einträge zurück."""
+    if not alt or not neu or alt == neu:
+        return 0
+    cur = conn.execute("UPDATE OR IGNORE collection_items SET geo_hash = ? WHERE geo_hash = ?",
+                       (neu, alt))
+    n = cur.rowcount
+    conn.execute("DELETE FROM collection_items WHERE geo_hash = ?", (alt,))
+    hat_neu = conn.execute("SELECT 1 FROM track_meta WHERE geo_hash = ?", (neu,)).fetchone()
+    if hat_neu:
+        conn.execute("DELETE FROM track_meta WHERE geo_hash = ?", (alt,))
+    else:
+        conn.execute("UPDATE track_meta SET geo_hash = ? WHERE geo_hash = ?", (neu, alt))
+    conn.commit()
+    return n
+
+
+@_locked
 def collection_set_order(conn: sqlite3.Connection, cid: int, paths: list) -> None:
     """Reihenfolge exakt auf die übergebene Pfad-Liste setzen (Undo braucht
     das: Wieder-Hinzufügen hängt sonst hinten an, die Etappen-Folge wäre weg).

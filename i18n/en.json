@@ -2411,5 +2411,15 @@
   "gpxinspect.heal_tempo_done": "%t speed spots re-timed",
   "gpxinspect.tempo_cap": "Max. plausible speed",
   "gpxinspect.tempo_cap_help": "Empty = automatic (from the tour's median pace). Enter e.g. 15 if you know you were never faster than 15 km/h — anything above gets re-timed on healing.",
-  "gpxinspect.tempo_cap_auto": "auto"
+  "gpxinspect.tempo_cap_auto": "auto",
+  "gpxinspect.ersetzen_frage": "This tour is in the archive. Should the healed version replace the original?",
+  "gpxinspect.ersetzen_hint": "When replacing, collections, projects (keyframes, photos, signs) and journey/swarm line-ups move along automatically. The original is backed up to the app storage first.",
+  "gpxinspect.ersetzen_ja": "Replace in archive",
+  "gpxinspect.ersetzen_neu": "Save as new file …",
+  "gpxinspect.ersetzt_toast": "Replaced in the archive.",
+  "gpxinspect.ersetzt_col": "%n collection entries migrated",
+  "gpxinspect.ersetzt_mengen": "%n line-ups updated",
+  "gpxinspect.ersetzt_backup": "Backup:",
+  "gpxinspect.ersetzen_nur_gpx": "Replacing only works for GPX originals — please use “Save as …”.",
+  "gpxinspect.ersetzen_unbekannt": "This file is not in the archive."
 }

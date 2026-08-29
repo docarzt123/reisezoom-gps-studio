@@ -15,6 +15,15 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- Inspektor → Archiv: „Im Archiv ersetzen" beim Speichern (Marc, 29.08.2026:
+  „ich bin ja ausm archiv gekommen … und möchte sie dann im archiv direkt
+  haben"): Liegt das Original im Archiv, fragt Speichern jetzt — Ersetzen
+  überschreibt die Datei (Original wird vorher in der App-Ablage gesichert)
+  und zieht ALLES auf den neuen geo_hash um: Sammlungs-Einträge, Tour-Meta,
+  die Einzel-Sitzung (Keyframes, Fotos, Schilder) und Reise/Schwarm-
+  Kompositionen (neuer Mengen-Hash, Modus-Wahl bleibt). „Als neue Datei …"
+  und der Weg ganz ohne Archiv bleiben unverändert. Neue Brücke
+  `library_track_ersetzen` + `core/library.track_hash_migrieren`.
 - Auto-Heilen: Feld „Max. plausibles Tempo" (Marc, 29.08.2026: „ich bin ein
   paar mal gerannt, aber 27 km/h hab ich bestimmt nicht erreicht") — leer =
   automatische Median-Schwelle, mit Wert (z. B. 15) wird ALLES darüber beim

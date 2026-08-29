@@ -1974,6 +1974,58 @@ function mountGpxInspect(body, headerActions) {
 
   async function saveTrack() {
     if (!_points.length) return;
+    // 29.08.2026 (Marc: „ich bin ja ausm archiv gekommen … und möchte sie dann
+    // im archiv direkt haben") — liegt das Original im Archiv, ist ERSETZEN
+    // der kurze Weg: Datei überschreiben (Sicherung in der App-Ablage),
+    // Sammlungen, Projekte und Reise/Schwarm-Kompositionen wandern mit.
+    // Ohne Archiv (oder bei Nicht-GPX-Originalen) bleibt alles wie bisher.
+    const origPfad = _origPath || _srcPath || "";
+    let imArchiv = false;
+    if (origPfad.toLowerCase().endsWith(".gpx")) {
+      try {
+        const st = await api().archiv_status(origPfad);
+        imArchiv = !!(st && st.ok && st.im_archiv);
+      } catch (_) {}
+    }
+    if (imArchiv) {
+      const wahl = await new Promise((res) => {
+        const m = openModal({
+          title: "💾 " + t("gpxinspect.save", "Geheilten Track speichern …"),
+          body: `<div class="lib-fmodal">
+            <p>${t("gpxinspect.ersetzen_frage", "Diese Tour liegt im Archiv. Soll die geheilte Fassung das Original ersetzen?")}</p>
+            <div class="lib-hint">${t("gpxinspect.ersetzen_hint", "Beim Ersetzen wandern Sammlungen, Projekte (Keyframes, Fotos, Schilder) und Reise/Schwarm-Kompositionen automatisch mit. Das Original wird vorher in der App-Ablage gesichert.")}</div>
+          </div>`,
+          footer: `<button class="btn" id="gpxi-ers-abbruch">${t("common.cancel", "Abbrechen")}</button>
+                   <button class="btn" id="gpxi-ers-neu">${t("gpxinspect.ersetzen_neu", "Als neue Datei …")}</button>
+                   <button class="btn btn-primary" id="gpxi-ers-ja">${t("gpxinspect.ersetzen_ja", "Im Archiv ersetzen")}</button>`,
+        });
+        const fertig = (w) => { m.close(); res(w); };
+        const a = document.getElementById("gpxi-ers-abbruch"); if (a) a.onclick = () => fertig("abbruch");
+        const n = document.getElementById("gpxi-ers-neu"); if (n) n.onclick = () => fertig("neu");
+        const j = document.getElementById("gpxi-ers-ja"); if (j) j.onclick = () => fertig("ersetzen");
+      });
+      if (wahl === "abbruch") return;
+      if (wahl === "ersetzen") {
+        const payload = _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi, si: p.si || 0 }));
+        let res;
+        try {
+          res = await api().library_track_ersetzen(payload, _srcPath, origPfad,
+                                                   _sources.length > 1 ? _sources : null);
+        } catch (e) { res = { ok: false, error: String(e) }; }
+        if (isUnmounted) return;
+        if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
+        _dirty = false; updateUI();
+        const teile = [t("gpxinspect.ersetzt_toast", "Im Archiv ersetzt.")];
+        if (res.collections) teile.push(t("gpxinspect.ersetzt_col", "%n Sammlungs-Einträge umgezogen").replace("%n", res.collections));
+        if (res.mengen) teile.push(t("gpxinspect.ersetzt_mengen", "%n Kompositionen aktualisiert").replace("%n", res.mengen));
+        if (res.sensors_kept) teile.push(t("gpxinspect.sensors_kept", "Sensordaten erhalten"));
+        toast(teile.join(" · "), "success", 7000);
+        const note = document.getElementById("gpxi-note");
+        if (note) note.textContent = teile.join(" · ") + " — " + t("gpxinspect.ersetzt_backup", "Sicherung:") + " " + (res.backup || "");
+        return;
+      }
+      // „Als neue Datei …" → normaler Weg unten.
+    }
     // v0.9.335 (Nutzer-Feedback): „Speichern unter…" mit Format-Wahl —
     // Default-Ordner ist der der Original-Datei (nicht der tiefe Library-Cache),
     // GPX (mit eingebetteten Sensoren) oder TCX. oi mitsenden → Sensoren bleiben.
