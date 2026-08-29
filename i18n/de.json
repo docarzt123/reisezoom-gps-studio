@@ -2471,5 +2471,6 @@
   "library.staende_leer": "Noch keine gesicherten Stände — sie entstehen beim Arbeiten von selbst.",
   "library.stand_done": "Arbeitsstand wiederhergestellt.",
   "library.stand_nicht_gefunden": "Stand nicht gefunden",
-  "library.fassung_unbekannt": "Fassung unbekannt"
+  "library.fassung_unbekannt": "Fassung unbekannt",
+  "topbar.project.action_all": "Alle Projekte …"
 }
