@@ -46,6 +46,13 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
+- Topbar-Projekt-Umschalter (v0.9.611, Marc: „im animator kann ich jetzt
+  kein neues projekt mehr machen"): er war da, aber grau in grau neben den
+  Modul-Tabs unsichtbar — jetzt in Akzentfarbe wie der Archiv-Umschalter,
+  in JEDEM Modul sichtbar sobald ein Track geladen ist (Wechseln, Neues
+  Projekt, Duplizieren, Umbenennen, Löschen). Neuer Eintrag „🗂 Alle
+  Projekte …" springt in den großen Projektmanager.
+
 ### Changed — ⚠️ E1 des Projekt-Umbaus (IDEAS §39, Grilling 29.08.2026)
 - Projekte als gleichwertige Archiv-Ansicht (v0.9.606, Marc: „lass den
   [Umschalter] immer da unten … die projekte können ja auch filter

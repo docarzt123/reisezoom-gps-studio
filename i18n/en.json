@@ -2471,5 +2471,6 @@
   "library.staende_leer": "No saved states yet — they appear by themselves as you work.",
   "library.stand_done": "Working state restored.",
   "library.stand_nicht_gefunden": "State not found",
-  "library.fassung_unbekannt": "Unknown version"
+  "library.fassung_unbekannt": "Unknown version",
+  "topbar.project.action_all": "All projects …"
 }

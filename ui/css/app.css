@@ -395,8 +395,11 @@ input[type="color"] {
   gap: 8px;
   padding: 6px 10px;
   border-radius: 8px;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
+  /* v0.9.611 (Marc: „im animator kann ich kein neues projekt mehr machen")
+     — der Umschalter WAR da, aber grau in grau neben den Tabs; jetzt trägt
+     er die Akzentfarbe wie der Projekte-Umschalter im Archiv. */
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-dim);
   color: var(--text);
   font-size: 12.5px;
   font-weight: 600;

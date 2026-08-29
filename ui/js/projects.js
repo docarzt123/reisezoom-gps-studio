@@ -78,6 +78,8 @@
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="duplicate">⎘ ${tT("topbar.project.action_duplicate", "Aktuelles duplizieren")}</button>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="rename">✎ ${tT("topbar.project.action_rename", "Umbenennen …")}</button>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action menu-action-danger" data-action="delete">🗑 ${tT("topbar.project.action_delete", "Aktuelles löschen")}</button>`;
+      html += `<div class="topbar-project-menu-sep"></div>`;
+      html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="alle">🗂 ${tT("topbar.project.action_all", "Alle Projekte …")}</button>`;
       // v0.9.28: Session komplett schließen — clearGlobalGpx leert Track,
       // Session-Aktivierung + persistierten last_gpx_path. App ist dann „leer".
       html += `<div class="topbar-project-menu-sep"></div>`;
@@ -102,6 +104,14 @@
               if (typeof window._animOnProjectChanged === "function") window._animOnProjectChanged();
             }
             menu.hidden = true;
+          } else if (action === "alle") {
+            // v0.9.611: Sprung in den großen Projektmanager — das Archiv
+            // verbraucht die Boot-Flagge auch beim normalen Mount.
+            menu.hidden = true;
+            window.__rzStartProjekte = true;
+            if (typeof switchMod === "function") switchMod("library");
+            // Falls das Archiv schon offen ist (kein Re-Mount): direkt schalten.
+            window.dispatchEvent(new CustomEvent("rz-projekte-anzeigen"));
           } else if (action === "new") {
             menu.hidden = true;
             const name = await promptModal(

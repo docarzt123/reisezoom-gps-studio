@@ -3499,6 +3499,13 @@ function mountLibrary(body, headerActions) {
     window.__rzStartProjekte = false;
     projViewSetzen(true);
   }
+  // v0.9.611: „Alle Projekte …" im Topbar-Dropdown, wenn das Archiv SCHON
+  // offen ist (switchMod re-mountet dann nicht — die Flagge bliebe liegen).
+  window.addEventListener("rz-projekte-anzeigen", () => {
+    if (_unmounted) return;
+    window.__rzStartProjekte = false;
+    if (!_projView) projViewSetzen(true);
+  });
   $("lib-search").oninput = debounce(() => {
     state.search = $("lib-search").value;
     _ortAus = false;           // neue Eingabe → Gegend wieder erlauben

@@ -2471,5 +2471,6 @@
   "library.staende_leer": "Aún no hay estados guardados — aparecen solos mientras trabajas.",
   "library.stand_done": "Estado de trabajo restaurado.",
   "library.stand_nicht_gefunden": "Estado no encontrado",
-  "library.fassung_unbekannt": "Versión desconocida"
+  "library.fassung_unbekannt": "Versión desconocida",
+  "topbar.project.action_all": "Todos los proyectos …"
 }
