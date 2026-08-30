@@ -139,8 +139,11 @@ function renderMod() {
     </div>
     <div class="module-body" id="module-body"></div>
   `;
-  // GPX-Bar in den linken Header-Slot einsetzen
-  if (typeof renderGpxBarInto === "function") {
+  // GPX-Bar in den linken Header-Slot einsetzen.
+  // 30.08.2026 (Beta-Tester Dieter: „Statistik und Karte … keine Funktion"):
+  // NICHT im Archiv — dort IST die Tour-Auswahl der Inhalt, der globale
+  // „Track wählen …"-Öffner oben hatte da nichts zu suchen und wirkte kaputt.
+  if (activeMod !== "library" && typeof renderGpxBarInto === "function") {
     renderGpxBarInto(document.getElementById("mod-header-gpx"));
   }
   activeCleanup = mod.mount(
