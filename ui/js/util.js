@@ -1027,6 +1027,7 @@ let _activeProject = null;       // { id, name, animator, tourmap, geotagger }
 let _projectsList = [];          // [{ id, name, is_active }]
 let _projectSaveTimer = null;
 let _projectPendingPatch = null; // { module: { key: val, ... } }
+let _projectPendingZiel = null;  // { hash, id } — Ziel des offenen Patches
 
 async function loadSettings() {
   if (_settingsCache) return _settingsCache;
@@ -1155,6 +1156,9 @@ async function projectDelete(projectId) {
 /** v0.8.1: Aktive Session zurücksetzen (kein GPX mehr geladen).
  *  Wird von gpx-bar.js gerufen wenn der User „✕" drückt. */
 function _resetActiveSession() {
+  // Offene Patches gehören noch dem alten Projekt — erst wegschreiben,
+  // sonst verschluckt der Timer sie (Audit 30.08.2026).
+  try { _projectFlushNow(); _projectRootFlushNow(); } catch (e) { applog("warn", "[projekt] Flush beim Schliessen: " + e); }
   _activeSession = null;
   _activeProject = null;
   _projectsList = [];
@@ -1322,19 +1326,38 @@ function saveProjectSettings(module, patch) {
   if (!_projectPendingPatch[module]) _projectPendingPatch[module] = {};
   _mergePatchInto(_projectPendingPatch[module], patch);
 
+  // Ziel JETZT festhalten, nicht erst beim Feuern (Audit 30.08.2026).
+  // Vorher las der Timer `_activeSession`/`_activeProject` erst nach 200 ms —
+  // wer in dieser Zeit das Projekt wechselte, ein neues anlegte oder „✕"
+  // drückte, schrieb seine Änderung in das FALSCHE Projekt oder verlor sie
+  // kommentarlos (`if (!session || !project) return;`).
+  const ziel = { hash: _activeSession.track_hash, id: _activeProject.id };
+  if (_projectPendingZiel && (_projectPendingZiel.hash !== ziel.hash
+                              || _projectPendingZiel.id !== ziel.id)) {
+    _projectFlushNow();          // anderes Ziel: Offenes erst wegschreiben
+    if (!_projectPendingPatch) _projectPendingPatch = {};
+    if (!_projectPendingPatch[module]) _projectPendingPatch[module] = {};
+    _mergePatchInto(_projectPendingPatch[module], patch);
+  }
+  _projectPendingZiel = ziel;
+
   clearTimeout(_projectSaveTimer);
-  _projectSaveTimer = setTimeout(() => {
-    const toSend = _projectPendingPatch;
-    _projectPendingPatch = null;
-    const session = _activeSession;
-    const project = _activeProject;
-    if (!session || !project) return;
-    // Schicke jeden Modul-Patch separat — Bridge nimmt module + patch
-    Object.entries(toSend).forEach(([mod, modPatch]) => {
-      api().session_update_project_settings(session.track_hash, project.id, mod, modPatch)
-        .catch(err => console.warn("session_update_project_settings", err));
-    });
-  }, 200);
+  _projectSaveTimer = setTimeout(_projectFlushNow, 200);
+}
+
+/** Offenen Projekt-Patch sofort an SEIN Ziel schicken (nicht ans gerade aktive). */
+function _projectFlushNow() {
+  clearTimeout(_projectSaveTimer);
+  const toSend = _projectPendingPatch;
+  const ziel = _projectPendingZiel;
+  _projectPendingPatch = null;
+  _projectPendingZiel = null;
+  if (!toSend || !ziel) return;
+  Object.entries(toSend).forEach(([mod, modPatch]) => {
+    api().session_update_project_settings(ziel.hash, ziel.id, mod, modPatch)
+      .catch(err => applog("warn", "[projekt] Speichern von " + mod
+                           + " fehlgeschlagen: " + (err && err.message ? err.message : err)));
+  });
 }
 
 /**
@@ -1354,6 +1377,7 @@ function saveProjectSettings(module, patch) {
  * laden → keine Pins auf der Karte. Marc-Bug v0.9.77.
  */
 let _projectRootPendingPatch = null;
+let _projectRootPendingZiel = null;  // { hash, id } — Ziel des offenen Root-Patches
 let _projectRootSaveTimer = null;
 function saveActiveProjectPatch(patch, opts) {
   if (!_activeSession || !_activeProject) return;
@@ -1364,18 +1388,32 @@ function saveActiveProjectPatch(patch, opts) {
       _activeProject[k] = v;
     }
   }
+  // Ziel beim Einreihen festhalten — gleiche Begründung wie bei
+  // `saveProjectSettings`: sonst landen Fotos/Pins im falschen Projekt.
+  const zielR = { hash: _activeSession.track_hash, id: _activeProject.id };
+  if (_projectRootPendingZiel && (_projectRootPendingZiel.hash !== zielR.hash
+                                  || _projectRootPendingZiel.id !== zielR.id)) {
+    _projectRootFlushNow();
+    if (!_projectRootPendingPatch) _projectRootPendingPatch = {};
+  }
   if (!_projectRootPendingPatch) _projectRootPendingPatch = {};
   Object.assign(_projectRootPendingPatch, patch);
+  _projectRootPendingZiel = zielR;
   clearTimeout(_projectRootSaveTimer);
-  _projectRootSaveTimer = setTimeout(() => {
-    const toSend = _projectRootPendingPatch;
-    _projectRootPendingPatch = null;
-    const session = _activeSession;
-    const project = _activeProject;
-    if (!session || !project) return;
-    api().session_update_project_root(session.track_hash, project.id, toSend)
-      .catch(err => console.warn("session_update_project_root", err));
-  }, 200);
+  _projectRootSaveTimer = setTimeout(_projectRootFlushNow, 200);
+}
+
+/** Offenen Projekt-ROOT-Patch sofort an SEIN Ziel schicken. */
+function _projectRootFlushNow() {
+  clearTimeout(_projectRootSaveTimer);
+  const toSend = _projectRootPendingPatch;
+  const ziel = _projectRootPendingZiel;
+  _projectRootPendingPatch = null;
+  _projectRootPendingZiel = null;
+  if (!toSend || !ziel) return;
+  api().session_update_project_root(ziel.hash, ziel.id, toSend)
+    .catch(err => applog("warn", "[projekt] Speichern der Projektdaten fehlgeschlagen: "
+                         + (err && err.message ? err.message : err)));
 }
 
 /** Tief-Merge des Patches in target (in-place). Sections werden objekt-merged. */

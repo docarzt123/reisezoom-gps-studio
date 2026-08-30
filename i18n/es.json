@@ -1050,6 +1050,7 @@
   "gpxinspect.ersetzen_neu": "Guardar como archivo nuevo …",
   "gpxinspect.ersetzen_nur_gpx": "Reemplazar solo funciona con originales GPX; usa «Guardar como …».",
   "gpxinspect.ersetzen_unbekannt": "Este archivo no está en el archivo.",
+  "gpxinspect.ersetzen_backup_hinweis": "No se pudo restaurar el archivo original. Hay una copia de seguridad en: ",
   "gpxinspect.ersetzt_backup": "Copia de seguridad:",
   "gpxinspect.ersetzt_col": "%n entradas de colección migradas",
   "gpxinspect.ersetzt_mengen": "%n combinaciones actualizadas",

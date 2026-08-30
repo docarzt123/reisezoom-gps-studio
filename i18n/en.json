@@ -1050,6 +1050,7 @@
   "gpxinspect.ersetzen_neu": "Save as new file …",
   "gpxinspect.ersetzen_nur_gpx": "Replacing only works for GPX originals — please use “Save as …”.",
   "gpxinspect.ersetzen_unbekannt": "This file is not in the archive.",
+  "gpxinspect.ersetzen_backup_hinweis": "The original file could not be restored. A backup is stored at: ",
   "gpxinspect.ersetzt_backup": "Backup:",
   "gpxinspect.ersetzt_col": "%n collection entries migrated",
   "gpxinspect.ersetzt_mengen": "%n line-ups updated",

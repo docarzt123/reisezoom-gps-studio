@@ -275,7 +275,82 @@ Bei jeder neuen Version:
   „Vorher → Nachher"-Vergleich (Verbesserungen grün) und der alte Track bleibt
   als graue gestrichelte Linie auf der Karte, bis der Kasten geschlossen wird.
 
+### Added
+- **Strategie- und Marktanalyse** (`docs/STRATEGIE-2026-08.md`) — Standortbestimmung
+  gegen ~40 Wettbewerber, Anforderungsliste (50 Punkte, davon 39 erfüllt),
+  Marktlücken, Modul-Überbau-Konzept, Finanzierungskonzept und Empfehlung zur
+  Reihenfolge. Belegbasis: fünf Rechercheberichte in `docs/recherche/`.
+- **Audit-Befundliste** (`docs/AUDIT-2026-08-30.md`) — alle Funde aus Code-, Bedien-
+  und Doku-Prüfung, getrennt nach behoben und offen, mit empfohlener Reihenfolge.
+
 ### Fixed
+- **Audit 30.08.2026 — acht Befunde mit Verlustrisiko behoben** (v0.9.628).
+  Auffällig: vier davon sind **Rückfälle in bereits einmal behobene Fehler** — die
+  Härtung wurde beim jeweiligen Umbau nicht mitgenommen.
+  - **Projekt-Store ungehärtet geschrieben** (kritisch): `projekte.json` und
+    `touren.json` — seit E1 der Ort ALLER Projekte, Keyframes, Schilder und
+    Fassungsketten — wurden ohne `fsync` und mit festem `.tmp`-Namen geschrieben.
+    Beide Härtungen hatte `sessions.json` nach echten Vorfällen bekommen (siehe
+    `core/sessions.py`), beim E1-Umbau gingen sie verloren. Folgen im schlechten
+    Fall: hartes Aus → 0-Byte-Datei am Ziel → alle Projekte weg; zweite Instanz →
+    verschränkter JSON. Jetzt prozess-eindeutiger Temp-Name + flush + fsync.
+  - **Debounce schrieb ins falsche Projekt** (hoch): `saveProjectSettings` und
+    `saveActiveProjectPatch` lasen Ziel-Session und -Projekt erst beim Feuern des
+    200-ms-Timers. Wer in dieser Zeit das Projekt wechselte, eins anlegte oder „✕"
+    drückte, schrieb seine Änderung in ein FREMDES Projekt — oder verlor sie
+    kommentarlos (`if (!session || !project) return;`). Jetzt wird das Ziel beim
+    Einreihen festgehalten, bei Zielwechsel sofort weggeschrieben, und
+    `_resetActiveSession` leert die Warteschlange, statt sie zu verschlucken.
+    Fehlschläge landen nicht mehr in `console.warn`, sondern im `applog`.
+  - **Wiederholter `.rzproj`-Import überschrieb den eigenen Klon** (hoch): Der
+    Ausweichname `_imp<n>` zählte je Aufruf bei 0 los, statt eine freie ID zu
+    suchen. Beim zweiten Import derselben Datei kam wieder `_imp1` heraus und
+    überschrieb die Arbeit daran (`import_session_objekt` überschreibt bewusst
+    bedingungslos, „Cloud gewinnt").
+  - **Original-GPX wurde in-place überschrieben** (hoch): „Im Archiv ersetzen"
+    öffnete die Datei des Nutzers mit `"wb"` — das kürzt sie sofort auf 0. Ein
+    Abbruch (Absturz, volle Platte, Netzlaufwerk weg) hinterließ einen Torso an
+    der Stelle der Tour. `save_points` und `embed_rz_id` schreiben jetzt nach
+    Temp + fsync + `os.replace`, wie der Renderer mit seinem `.rzpart`.
+  - **`embed_rz_id` beschädigte reine `<rte>`-Routen und stürzte ab** (mittel):
+    Ohne `<trk>` (Komoot-/Outdooractive-Routen) lieferte `find("<trk")` −1, die
+    Bedingung kippte, und der else-Zweig legte ein ZWEITES `<metadata>` an — das
+    Schema erlaubt genau eines. Bei selbstschließendem `<metadata/>` flog
+    `text.index("</metadata>")` mit `ValueError` auf, außerhalb des try-Blocks.
+    Beides über den Rollback-Weg erreichbar. Neuer Wächter:
+    `tests/test_rz_id_einbetten.py` (fünf GPX-Formen).
+  - **Ortssuche merkte sich Netzfehler als „nichts gefunden"** (mittel):
+    `geocode.forward()` fiel im Fehlerfall in den Cache-Schreibvorgang und legte
+    `None` ab — ein kurzer WLAN-Aussetzer beim ersten Tippen blockierte den
+    Suchbegriff für die restliche Sitzung, ohne dass noch ein Fehler entstand.
+    Zusätzlich schlief die Drossel unter dem Cache-Lock und bremste damit auch
+    alle `reverse()`-Abfragen aus. Beide Härtungen standen seit v0.9.496 in
+    `reverse()` — mit ausführlicher Begründung — und fehlten in `forward()`.
+  - **Gleichnamige Dateien aus zwei Ordnern kollabierten auf eine** (hoch):
+    `consume_drop_paths` bildete ein `basename → Pfad`-Verzeichnis; bei
+    Namensgleichheit gewann der zuletzt gedroppte Pfad, und BEIDE Dateien trugen
+    danach denselben. Wer `100NIKON/DSC_0001.JPG` und `101NIKON/DSC_0001.JPG`
+    zusammen in den Geotagger zog, verlor eines der Fotos spurlos — die Dedup
+    warf es weg, ohne Meldung und ohne Log-Eintrag. Dieselbe Fehlerklasse wie bei
+    den Ghost-Spuren: ein Schlüssel ohne Eindeutigkeit. Mehrdeutige Namen werden
+    jetzt ganz entfernt, die Oberfläche nimmt dafür den base64-Kopie-Weg (im
+    Docstring ohnehin als Rückfallebene vorgesehen) — langsamer, aber verlustfrei.
+    Der Fall wird protokolliert.
+  - **Stiller Rollback-Fehler beim Ersetzen** (mittel): Scheiterte die
+    Rücksicherung der Originaldatei (typisch: dieselbe volle Platte), wurde das
+    verschluckt. Der Nutzer sah „Speichern fehlgeschlagen", hatte eine beschädigte
+    Tour im Archiv und wusste nichts von `track_backups/`. Jetzt mit Log-Eintrag
+    und dem Sicherungspfad in der Fehlermeldung (neuer Schlüssel
+    `gpxinspect.ersetzen_backup_hinweis`, DE/EN/ES).
+- **Ghost-Spuren ohne Quelldatei gingen beim Laden verloren** (v0.9.628,
+  gefunden im Audit 30.08.2026). Die Dubletten-Erkennung aus v0.9.625 bildete
+  ihren Schlüssel als `path || ("#" + id)`. Fehlte der Pfad, wurde daraus für
+  JEDE solche Spur derselbe Wert `"#undefined"` — ab der zweiten galt jede als
+  Dublette, wurde verworfen und das Ergebnis gleich gesichert, der Verlust also
+  dauerhaft. Betroffen waren Spuren ohne `path` und ohne `id` (Altbestand,
+  Cloud-Übernahme); Marcs eigene 24 Spuren tragen alle einen Pfad und waren
+  nicht betroffen. Jetzt gilt: keine Identität = nie eine Dublette.
+  Wächter `tests/test_ghosts_beim_start.py` war deshalb rot und ist wieder grün.
 - „Noch unterwegs" zeigte in der VORSCHAU nichts an (Marc, 29.08.2026) — das
   Feld hatte dort keinen Rechen-Fall, nur im Render. Jetzt zählt die Vorschau
   live und modus-treu mit (gleich/Fotofinish/Uhrzeit), Standbild zeigt

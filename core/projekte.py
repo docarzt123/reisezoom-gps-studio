@@ -90,11 +90,30 @@ def _lese_json(pfad: Path) -> dict:
 
 
 def _schreibe_json(pfad: Path, daten: dict) -> None:
+    """Atomar schreiben — wortgleich zu `sessions.save_sessions`.
+
+    Zwei Härtungen, die dieser Store beim E1-Umbau nicht mitbekommen hatte und
+    die beide aus echten Vorfällen stammen (siehe `core/sessions.py`):
+    (1) **prozess-eindeutiger Temp-Name** — bei festem `.tmp` schrieben zwei
+    gleichzeitige Schreiber (zweite App-Instanz) in dieselbe Datei, das Ergebnis
+    war verschränkter JSON, den `_lese_json` still als „kaputt" beiseitelegt —
+    und mit ihm ALLE Projekte. (2) **flush + fsync** — sonst überlebt der Inhalt
+    kein hartes Aus, und am Ziel landet nach `os.replace` ein 0-Byte-Torso.
+    """
     pfad.parent.mkdir(parents=True, exist_ok=True)
-    tmp = str(pfad) + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(daten, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, pfad)
+    tmp = pfad.with_name(f"{pfad.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(daten, f, ensure_ascii=False, indent=1)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, pfad)
+    finally:
+        try:
+            if tmp.exists():
+                tmp.unlink()
+        except OSError:
+            pass
 
 
 def laden(app_support: Path) -> dict:
