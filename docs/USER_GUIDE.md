@@ -1,15 +1,28 @@
 # Reisezoom GPS Studio — Benutzer-Handbuch
 
-Cross-Plattform-Suite für GPS-Workflows (macOS · Windows · Linux). **v0.3.3** — Beta.
+Cross-Plattform-Suite für GPS-Workflows (macOS · Windows · Linux). **v0.9.628**
 
 > **🚀 Neu hier?** Jedes Modul hat einen eigenen **Schnell-Einstieg** — über **Hilfe → Erste Schritte** (oder das Hilfe-Fenster) bekommst du 3 Schritte mit Screenshot für genau das Modul, in dem du gerade bist.
 
-Module:
-- **Animator** — GPX-Track als animiertes 3D-Karten-Video (MP4)
-- **Reiseroute** — Anreise als Video: Start/Ziel → berechnete Strecke animiert, das geladene GPX als Ghost
-- **Tour-Map** — GPX-Track als statisches PNG (z.B. für YouTube-Thumbnails)
-- **Geotagger** — GPS-Koordinaten aus GPX in JPG / RAW / Video-EXIF schreiben
-- **GPX-Inspektor** — Track Punkt-für-Punkt reparieren: Ausreißer heilen, Lücken füllen, Punkte verschieben, Anfang/Ende abschneiden, mehrere Aufzeichnungen zu einem Track verbinden
+Die acht Module, grob in der Reihenfolge, in der man sie benutzt:
+
+**Sammeln**
+- **Archiv** 📚 — alle deine Touren an einem Ort: Ordner einlesen, suchen, filtern, Sammlungen bilden, Statistik über alle Jahre. **Hier startet die App.**
+
+**Reparieren**
+- **GPX-Inspektor** 🔍 — Track reparieren: Ausreißer heilen, Lücken füllen, Höhe korrigieren, Punkte verschieben, Anfang/Ende abschneiden, Mittelstücke rausschneiden, mehrere Aufzeichnungen verbinden
+
+**Anreichern**
+- **Geotagger** 📷 — GPS-Koordinaten aus dem Track in JPG / RAW / Video-EXIF schreiben
+
+**Zeigen**
+- **Animator** 🎬 — Track als animiertes 3D-Karten-Video (MP4, bis 4K, auch mit Alpha-Kanal für den Schnitt)
+- **Tour-Map** 🗺 — Track als statisches PNG (z. B. für YouTube-Thumbnails)
+- **Web Karte** 🌐 — interaktive Karte als HTML zum Einbetten im Blog
+- **Daten-Animator** 📊 — Höhe, Puls, Tempo oder Leistung als animiertes Diagramm-Video
+- **Reiseroute** 🛣️ — Anreise als Video: Start/Ziel → berechnete Strecke animiert, das geladene GPX als Ghost
+
+Der Reiter **Overlay** ist ein Platzhalter für eine noch nicht gebaute Funktion (siehe Kapitel 12). Über allem steht das **Projekt** — deine Arbeitsmappe zu einer Tour, die den Stand aller Module, frühere Fassungen und die Historie hält.
 
 ---
 
@@ -1825,12 +1838,12 @@ Selbes Problem auf Windows. **„Weitere Informationen" → „Trotzdem ausführ
 Beim allerersten Render lädt die App einmalig Chromium für die Karten-Render-Pipeline runter (~150 MB). Modal erscheint mit Fortschritts-Anzeige. Danach läuft jeder weitere Render direkt los.
 
 ### „Mapbox-Token fehlt" beim Render
-Animator + Tour-Map brauchen einen Mapbox-Token (Geotagger nicht). Im ⚙-Modal eintragen. Wenn du erstmal ohne probieren willst: OSM-Modus (Standard-Karte ohne Satellite), aber Animator-Render bleibt deaktiviert.
+Nur der **Animator-Render** braucht den Token. Tour-Map, Web Karte, Geotagger, GPX-Inspektor und Daten-Animator laufen auch ohne — die Tour-Map zeichnet dann mit einem OpenStreetMap-Stil statt Satellit oder 3D (seit v0.9.406). Eintragen im ⚙-Modal (auf dem Mac auch mit Cmd+,); wie du in zwei Minuten an einen kostenlosen kommst, steht in Kapitel 2.
 
 ### Mein RAW-Format wird nicht erkannt
 Aktuell unterstützt: CR3, CR2, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW, HEIC, HEIF. Falls dein Format fehlt: Mail an Marc, vermutlich easy zu ergänzen.
 
-**HEIC-Spezial:** iPhone-Fotos (HEIC) funktionieren seit v0.9.57 **out-of-the-box** — das nötige Decoder-Plugin (`pillow-heif` mit libheif) ist im App-Bundle drin, du brauchst kein extra installiertes Tool. Bei den anderen RAW-Formaten brauchst du weiterhin **ExifTool** auf dem System (auf macOS via `brew install exiftool`, auf Windows die offiziellen Standalone-Builds). Wenn ExifTool fehlt, sieht der Geotagger das beim Foto-Import und überspringt die RAW-Dateien.
+**HEIC und RAW brauchen nichts extra.** iPhone-Fotos (HEIC) laufen seit v0.9.57, RAW seit v0.9.61 out-of-the-box: sowohl das Decoder-Plugin (`pillow-heif` mit libheif) als auch **ExifTool** stecken auf macOS und Windows fest im App-Bundle. Du installierst nichts. Nur unter **Linux** (Start aus dem Quellcode) holst du ExifTool aus der Paketverwaltung — die Befehle stehen in Kapitel 1.
 
 ### Render frisst Stunden / scheint zu hängen
 Animator-Render bei 4K mit 30 fps × 17 Sek = 510 Frames. Pro Frame ~3-5 Sekunden bei aktiviertem Terrain = ~30 Min realistisch für ein 17-Sek-Video.
@@ -1905,14 +1918,15 @@ Auf Windows/Linux entsprechend `Strg + …` statt `Cmd + …` und `Strg + Y` zus
 
 ---
 
-## 12 · Bekannte Einschränkungen (Beta v0.3.x)
+## 12 · Bekannte Einschränkungen (Stand v0.9.628)
 
 - **macOS**: nur Apple Silicon (M1/M2/M3/M4) — kein Intel-Mac
 - **Windows-Build ist nicht signiert** → SmartScreen meldet sich einmalig (macOS ist signiert + notarisiert)
-- **Multi-Track**: ein GPX pro Render — Multi-Track-Vergleich kommt später
-- **Video-Overlay** (live-stats über bestehendes MP4): noch nicht implementiert
-- **Hochauflösendes Geocoding** (Foto exakt auf Trail-Kurve): nicht implementiert; Punkte werden auf den nächstgelegenen Track-Punkt gesnapped
-- **Custom-Schriften/Logos im Overlay**: nicht möglich
+- **Video-Overlay** — Live-Werte über ein bestehendes MP4 legen: noch nicht gebaut. Der Reiter „Overlay" ist deshalb mit „bald" beschriftet. Bis dahin renderst du im Animator mit **„Animation ohne Karte (Alpha-Kanal)"** und legst die `.mov` im Schnittprogramm über dein Material — das Ergebnis ist dasselbe.
+- **Eigene Schriftdateien** lassen sich nicht laden; wählbar sind die eingebauten. Ein **Logo** bekommst du trotzdem ins Bild: als Bild in einem Wegpunkt-Schild.
+- **Auto-Tag per Bilderkennung** gibt es nur auf dem Mac (Apple Vision).
+
+**Was hier früher stand und längst nicht mehr gilt:** Mehrere Touren in einem Video gehen seit v0.9.539 (Zusammenführen), v0.9.544 (Ghost-Spuren) und v0.9.557 (Schwarm — bis zu 96 Touren gleichzeitig). Fotos lassen sich seit v0.9.166 frei auf der Karte platzieren, statt nur auf den nächsten Track-Punkt zu rasten.
 
 Vollständige Roadmap im Repo unter `docs/IDEAS.md`.
 

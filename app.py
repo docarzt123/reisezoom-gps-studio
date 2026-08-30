@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.627"
+APP_VERSION = "0.9.628"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -4919,6 +4919,28 @@ class Api:
                 items = list(_dnd_state.get("paths", []))
                 _dnd_state["paths"] = []
             out = {}
+            mehrdeutig = set()
+
+            def _merken(schluessel: str, pfad: str) -> None:
+                """Gleicher Dateiname aus ZWEI Ordnern darf nicht kollabieren.
+
+                Vorher gewann schlicht der zuletzt gedroppte Pfad. Wer
+                `100NIKON/DSC_0001.JPG` und `101NIKON/DSC_0001.JPG` zusammen
+                hineinzog, bekam für BEIDE denselben Pfad — die Dedup im
+                Geotagger warf danach eines der Fotos weg, ohne Meldung und
+                ohne Log. Mehrdeutige Namen werden deshalb ganz entfernt: Die
+                Oberfläche findet dann keinen nativen Pfad und nimmt den
+                base64-Kopie-Weg, der im Docstring ohnehin als Rückfallebene
+                vorgesehen ist. Langsamer, aber es geht nichts verloren.
+                """
+                if not schluessel:
+                    return
+                vorhanden = out.get(schluessel)
+                if vorhanden is not None and vorhanden != pfad:
+                    mehrdeutig.add(schluessel)
+                else:
+                    out[schluessel] = pfad
+
             for entry in items:
                 try:
                     name, path = entry
@@ -4927,9 +4949,15 @@ class Api:
                 p = str(path)
                 if not p:
                     continue
-                out[os.path.basename(p)] = p
+                _merken(os.path.basename(p), p)
                 if name:
-                    out[os.path.basename(str(name))] = p
+                    _merken(os.path.basename(str(name)), p)
+            for schluessel in mehrdeutig:
+                out.pop(schluessel, None)
+            if mehrdeutig:
+                log.info("consume_drop_paths: %d mehrdeutige(r) Dateiname(n) — "
+                         "diese Dateien gehen über den Kopie-Weg: %s",
+                         len(mehrdeutig), ", ".join(sorted(mehrdeutig)[:5]))
             return {"ok": True, "paths": out, "count": len(items)}
         except Exception as e:
             log.warning("consume_drop_paths fehlgeschlagen: %s", e)
@@ -5910,7 +5938,17 @@ class Api:
                             if _kern(alt) == _kern(proj) and alt.get("name") == proj.get("name"):
                                 mitgebracht[urspruenglich] = pid
                                 continue
-                            pid = f"{pid}_imp{n_proj + 1}"
+                            # Freie Ausweich-ID SUCHEN, nicht raten. Der Zähler
+                            # startet je Aufruf bei 0 — beim zweiten Import
+                            # derselben Datei kam wieder „_imp1" heraus und
+                            # überschrieb den Klon, an dem der Nutzer inzwischen
+                            # gearbeitet hatte (import_session_objekt überschreibt
+                            # bestehende IDs bedingungslos, „Cloud gewinnt").
+                            _basis, _k = pid, n_proj + 1
+                            pid = f"{_basis}_imp{_k}"
+                            while pid in (daten.get("projects") or {}):
+                                _k += 1
+                                pid = f"{_basis}_imp{_k}"
                         neu = dict(proj)
                         if str(neu.get("name", "")).strip().lower() in namen_da:
                             neu["name"] = f"{neu.get('name', '')} ({_ui_t()('projekt.importiert', 'importiert')})"
@@ -6932,8 +6970,21 @@ class Api:
                                        src_path=src_path, fmt="gpx",
                                        sources=list(sources) if sources else None)
             if not res.get("ok"):
-                try: shutil.copy2(backup, pfad)
-                except Exception: pass
+                # Rücksicherung — der letzte Rettungsanker. Schlägt SIE fehl
+                # (typisch: dieselbe volle Platte, die schon das Schreiben
+                # gekippt hat), darf das nicht still verschwinden: sonst sieht
+                # der Nutzer nur „Speichern fehlgeschlagen", hat aber eine
+                # beschädigte Tour im Archiv und weiß nichts von track_backups/.
+                try:
+                    shutil.copy2(backup, pfad)
+                except Exception:
+                    log.exception("Rücksicherung nach fehlgeschlagenem Ersetzen scheiterte: %s", pfad)
+                    res = dict(res)
+                    res["error"] = (str(res.get("error") or "") + " — "
+                                    + _ui_t()("gpxinspect.ersetzen_backup_hinweis",
+                                              "Die Originaldatei konnte nicht wiederhergestellt werden. "
+                                              "Eine Sicherung liegt unter: ") + str(backup))
+                    res["backup"] = str(backup)
                 return res
             # 3) Neu einlesen (mtime-Skip: nur die geänderte Datei wird gelesen)
             clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(Path(pfad).parent)])

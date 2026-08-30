@@ -318,8 +318,15 @@ def forward(query: str, *, lang: str = "de", timeout: float = 10.0) -> Optional[
         if key in _FWD_CACHE:
             return _FWD_CACHE[key]
 
+    # Drossel mit EIGENEM Lock — dieselbe Begründung wie bei `reverse()` oben:
+    # `_LOCK` schützt zugleich den Zwischenspeicher. Wer hier bis zu 1,1 s unter
+    # `_LOCK` schläft, hält jede andere Abfrage auf, auch die schnellen
+    # Mapbox-Aufrufe des Geotaggers. Beim Tippen im Archiv-Suchfeld während
+    # eines laufenden Ortslaufs war genau das der Fall.
     interval = _MIN_INTERVAL.get("nominatim", 1.0)
     with _LOCK:
+        drossel = _THROTTLE_LOCKS.setdefault("nominatim", threading.Lock())
+    with drossel:
         wait = interval - (time.monotonic() - _last_call.get("nominatim", 0.0))
         if wait > 0:
             time.sleep(wait)
@@ -347,6 +354,12 @@ def forward(query: str, *, lang: str = "de", timeout: float = 10.0) -> Optional[
     except Exception as e:
         log.warning("forward(%r) fehlgeschlagen: %s", q, e)
         merke_fehler(e)
+        # NICHT merken — wie bei `reverse()`: Ein Netzfehler ist keine Aussage
+        # über diesen Suchbegriff. Vorher fiel der Fehlerpfad in das Schreiben
+        # unten durch und legte `None` ab; ein kurzer WLAN-Aussetzer beim ersten
+        # Tippen von „Teneriffa" lieferte dann für den Rest der Sitzung ein
+        # leeres Ergebnis — ohne dass überhaupt noch ein Fehler entstand.
+        return None
 
     with _LOCK:
         _FWD_CACHE[key] = out

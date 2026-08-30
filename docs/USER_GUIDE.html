@@ -265,21 +265,35 @@
 <li><a href="#9-hilfe-feedback-bug-reports" data-anchor="9-hilfe-feedback-bug-reports">9 · Hilfe, Feedback &amp; Bug-Reports</a></li>
 <li><a href="#10-faq" data-anchor="10-faq">10 · FAQ</a></li>
 <li><a href="#11-tastatur-shortcuts-macos" data-anchor="11-tastatur-shortcuts-macos">11 · Tastatur-Shortcuts (macOS)</a></li>
-<li><a href="#12-bekannte-einschr-nkungen-beta" data-anchor="12-bekannte-einschr-nkungen-beta">12 · Bekannte Einschränkungen (Beta)</a></li>
+<li><a href="#12-bekannte-einschr-nkungen-stand" data-anchor="12-bekannte-einschr-nkungen-stand">12 · Bekannte Einschränkungen (Stand)</a></li>
 <li><a href="#cloud-archiv-dein-archiv-auf-deinem-eigenen-server" data-anchor="cloud-archiv-dein-archiv-auf-deinem-eigenen-server">Cloud-Archiv — dein Archiv auf deinem eigenen Server</a></li>
 <li><a href="#13-support-kontakt" data-anchor="13-support-kontakt">13 · Support &amp; Kontakt</a></li></ul></nav></aside>
     <main class="doc-main">
       <h1 id="reisezoom-gps-studio-benutzer-handbuch">Reisezoom GPS Studio — Benutzer-Handbuch</h1>
-<p>Cross-Plattform-Suite für GPS-Workflows (macOS · Windows · Linux). Beta.</p>
+<p>Cross-Plattform-Suite für GPS-Workflows (macOS · Windows · Linux). <strong>v0.9.628</strong></p>
 <blockquote><strong>🚀 Neu hier?</strong> Jedes Modul hat einen eigenen <strong>Schnell-Einstieg</strong> — über <strong>Hilfe → Erste Schritte</strong> (oder das Hilfe-Fenster) bekommst du 3 Schritte mit Screenshot für genau das Modul, in dem du gerade bist.</blockquote>
-<p>Module:</p>
+<p>Die acht Module, grob in der Reihenfolge, in der man sie benutzt:</p>
+<p><strong>Sammeln</strong></p>
 <ul>
-<li><strong>Animator</strong> — GPX-Track als animiertes 3D-Karten-Video (MP4)</li>
-<li><strong>Reiseroute</strong> — Anreise als Video: Start/Ziel → berechnete Strecke animiert, das geladene GPX als Ghost</li>
-<li><strong>Tour-Map</strong> — GPX-Track als statisches PNG (z.B. für YouTube-Thumbnails)</li>
-<li><strong>Geotagger</strong> — GPS-Koordinaten aus GPX in JPG / RAW / Video-EXIF schreiben</li>
-<li><strong>GPX-Inspektor</strong> — Track Punkt-für-Punkt reparieren: Ausreißer heilen, Lücken füllen, Punkte verschieben, Anfang/Ende abschneiden, mehrere Aufzeichnungen zu einem Track verbinden</li>
+<li><strong>Archiv</strong> 📚 — alle deine Touren an einem Ort: Ordner einlesen, suchen, filtern, Sammlungen bilden, Statistik über alle Jahre. <strong>Hier startet die App.</strong></li>
 </ul>
+<p><strong>Reparieren</strong></p>
+<ul>
+<li><strong>GPX-Inspektor</strong> 🔍 — Track reparieren: Ausreißer heilen, Lücken füllen, Höhe korrigieren, Punkte verschieben, Anfang/Ende abschneiden, Mittelstücke rausschneiden, mehrere Aufzeichnungen verbinden</li>
+</ul>
+<p><strong>Anreichern</strong></p>
+<ul>
+<li><strong>Geotagger</strong> 📷 — GPS-Koordinaten aus dem Track in JPG / RAW / Video-EXIF schreiben</li>
+</ul>
+<p><strong>Zeigen</strong></p>
+<ul>
+<li><strong>Animator</strong> 🎬 — Track als animiertes 3D-Karten-Video (MP4, bis 4K, auch mit Alpha-Kanal für den Schnitt)</li>
+<li><strong>Tour-Map</strong> 🗺 — Track als statisches PNG (z. B. für YouTube-Thumbnails)</li>
+<li><strong>Web Karte</strong> 🌐 — interaktive Karte als HTML zum Einbetten im Blog</li>
+<li><strong>Daten-Animator</strong> 📊 — Höhe, Puls, Tempo oder Leistung als animiertes Diagramm-Video</li>
+<li><strong>Reiseroute</strong> 🛣️ — Anreise als Video: Start/Ziel → berechnete Strecke animiert, das geladene GPX als Ghost</li>
+</ul>
+<p>Der Reiter <strong>Overlay</strong> ist ein Platzhalter für eine noch nicht gebaute Funktion (siehe Kapitel 12). Über allem steht das <strong>Projekt</strong> — deine Arbeitsmappe zu einer Tour, die den Stand aller Module, frühere Fassungen und die Historie hält.</p>
 <hr>
 <h2 id="1-installation">1 · Installation</h2>
 <h3 id="download">Download</h3>
@@ -1514,10 +1528,10 @@ python app.py</code></pre>
 <h3 id="beim-ersten-animator-render-dauert-s-lange">Beim ersten Animator-Render dauert&#x27;s lange</h3>
 <p>Beim allerersten Render lädt die App einmalig Chromium für die Karten-Render-Pipeline runter (~150 MB). Modal erscheint mit Fortschritts-Anzeige. Danach läuft jeder weitere Render direkt los.</p>
 <h3 id="mapbox-token-fehlt-beim-render">„Mapbox-Token fehlt&quot; beim Render</h3>
-<p>Animator + Tour-Map brauchen einen Mapbox-Token (Geotagger nicht). Im ⚙-Modal eintragen. Wenn du erstmal ohne probieren willst: OSM-Modus (Standard-Karte ohne Satellite), aber Animator-Render bleibt deaktiviert.</p>
+<p>Nur der <strong>Animator-Render</strong> braucht den Token. Tour-Map, Web Karte, Geotagger, GPX-Inspektor und Daten-Animator laufen auch ohne — die Tour-Map zeichnet dann mit einem OpenStreetMap-Stil statt Satellit oder 3D. Eintragen im ⚙-Modal (auf dem Mac auch mit Cmd+,); wie du in zwei Minuten an einen kostenlosen kommst, steht in Kapitel 2.</p>
 <h3 id="mein-raw-format-wird-nicht-erkannt">Mein RAW-Format wird nicht erkannt</h3>
 <p>Aktuell unterstützt: CR3, CR2, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW, HEIC, HEIF. Falls dein Format fehlt: Mail an Marc, vermutlich easy zu ergänzen.</p>
-<p><strong>HEIC-Spezial:</strong> iPhone-Fotos (HEIC) funktionieren <strong>out-of-the-box</strong> — das nötige Decoder-Plugin (<code>pillow-heif</code> mit libheif) ist im App-Bundle drin, du brauchst kein extra installiertes Tool. Bei den anderen RAW-Formaten brauchst du weiterhin <strong>ExifTool</strong> auf dem System (auf macOS via <code>brew install exiftool</code>, auf Windows die offiziellen Standalone-Builds). Wenn ExifTool fehlt, sieht der Geotagger das beim Foto-Import und überspringt die RAW-Dateien.</p>
+<p><strong>HEIC und RAW brauchen nichts extra.</strong> iPhone-Fotos (HEIC) laufen, RAW out-of-the-box: sowohl das Decoder-Plugin (<code>pillow-heif</code> mit libheif) als auch <strong>ExifTool</strong> stecken auf macOS und Windows fest im App-Bundle. Du installierst nichts. Nur unter <strong>Linux</strong> (Start aus dem Quellcode) holst du ExifTool aus der Paketverwaltung — die Befehle stehen in Kapitel 1.</p>
 <h3 id="render-frisst-stunden-scheint-zu-h-ngen">Render frisst Stunden / scheint zu hängen</h3>
 <p>Animator-Render bei 4K mit 30 fps × 17 Sek = 510 Frames. Pro Frame ~3-5 Sekunden bei aktiviertem Terrain = ~30 Min realistisch für ein 17-Sek-Video.</p>
 <p>Läuft bei <strong>4K</strong> zusätzlich <strong>Supersampling (Anti-Flimmern)</strong>: das Bild wird intern größer berechnet und sauber runtergerechnet, damit feines Satelliten-Detail beim Schwenk nicht flimmert. Das macht 4K-Renders <strong>etwas langsamer</strong>, aber spürbar ruhiger. 1080p ist davon nicht betroffen — wenn du Tempo brauchst und auf den letzten Schliff verzichten kannst, rendere in 1080p.</p>
@@ -1560,15 +1574,15 @@ python app.py</code></pre>
 <table><thead><tr><th>Shortcut</th><th>Aktion</th></tr></thead><tbody><tr><td><code>←</code> / <code>→</code></td><td>1 GPS-Punkt vor/zurück</td></tr><tr><td><code>Shift + ← / →</code></td><td>10 GPS-Punkte vor/zurück</td></tr><tr><td><code>Home</code> / <code>End</code></td><td>Track-Anfang / -Ende</td></tr><tr><td><code>Space</code></td><td>Probe-Lauf Start/Stop</td></tr></tbody></table>
 <p>Auf Windows/Linux entsprechend <code>Strg + …</code> statt <code>Cmd + …</code> und <code>Strg + Y</code> zusätzlich für Redo.</p>
 <hr>
-<h2 id="12-bekannte-einschr-nkungen-beta">12 · Bekannte Einschränkungen (Beta)</h2>
+<h2 id="12-bekannte-einschr-nkungen-stand">12 · Bekannte Einschränkungen (Stand)</h2>
 <ul>
 <li><strong>macOS</strong>: nur Apple Silicon (M1/M2/M3/M4) — kein Intel-Mac</li>
 <li><strong>Windows-Build ist nicht signiert</strong> → SmartScreen meldet sich einmalig (macOS ist signiert + notarisiert)</li>
-<li><strong>Multi-Track</strong>: ein GPX pro Render — Multi-Track-Vergleich kommt später</li>
-<li><strong>Video-Overlay</strong> (live-stats über bestehendes MP4): noch nicht implementiert</li>
-<li><strong>Hochauflösendes Geocoding</strong> (Foto exakt auf Trail-Kurve): nicht implementiert; Punkte werden auf den nächstgelegenen Track-Punkt gesnapped</li>
-<li><strong>Custom-Schriften/Logos im Overlay</strong>: nicht möglich</li>
+<li><strong>Video-Overlay</strong> — Live-Werte über ein bestehendes MP4 legen: noch nicht gebaut. Der Reiter „Overlay&quot; ist deshalb mit „bald&quot; beschriftet. Bis dahin renderst du im Animator mit <strong>„Animation ohne Karte (Alpha-Kanal)&quot;</strong> und legst die <code>.mov</code> im Schnittprogramm über dein Material — das Ergebnis ist dasselbe.</li>
+<li><strong>Eigene Schriftdateien</strong> lassen sich nicht laden; wählbar sind die eingebauten. Ein <strong>Logo</strong> bekommst du trotzdem ins Bild: als Bild in einem Wegpunkt-Schild.</li>
+<li><strong>Auto-Tag per Bilderkennung</strong> gibt es nur auf dem Mac (Apple Vision).</li>
 </ul>
+<p><strong>Was hier früher stand und längst nicht mehr gilt:</strong> Mehrere Touren in einem Video gehen (Zusammenführen), v0.9.544 (Ghost-Spuren) und v0.9.557 (Schwarm — bis zu 96 Touren gleichzeitig). Fotos lassen sich frei auf der Karte platzieren, statt nur auf den nächsten Track-Punkt zu rasten.</p>
 <p>Vollständige Roadmap im Repo unter <code>docs/IDEAS.md</code>.</p>
 <hr>
 <h2 id="cloud-archiv-dein-archiv-auf-deinem-eigenen-server">Cloud-Archiv — dein Archiv auf deinem eigenen Server</h2>

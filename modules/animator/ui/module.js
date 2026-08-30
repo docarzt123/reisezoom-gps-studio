@@ -2362,9 +2362,15 @@ function mountAnimator(body, headerActions, opts) {
       const gesehen = new Set();
       const sauber = [];
       for (const g of _ghostSpuren) {
-        const k = nfc(g && g.path) || ("#" + (g && g.id));
-        if (gesehen.has(k)) continue;
-        gesehen.add(k);
+        // Ohne Pfad UND ohne id hat die Spur keine Identität — dann darf sie
+        // NIE als Dublette gelten. Vorher fielen alle solchen Spuren auf den
+        // gemeinsamen Schlüssel "#undefined" zusammen: ab der zweiten wurde
+        // jede verworfen und das Ergebnis gleich gesichert (Datenverlust).
+        const k = nfc(g && g.path) || (g && g.id ? "#" + String(g.id) : "");
+        if (k) {
+          if (gesehen.has(k)) continue;
+          gesehen.add(k);
+        }
         sauber.push(g);
       }
       if (sauber.length !== _ghostSpuren.length) {

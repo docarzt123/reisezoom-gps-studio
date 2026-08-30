@@ -27,6 +27,7 @@ from . import gpx as cgpx
 # Rechner die Tour wieder, auch wenn die Geometrie (Heilen!) längst eine
 # andere ist. Fremde Dateien werden NIE ungefragt angefasst.
 import re as _re
+import uuid as _uuid
 from pathlib import Path as _P
 
 _RZ_ID_RE = _re.compile(r"<rz:id>\s*(tour_[0-9a-f]{12})\s*</rz:id>")
@@ -65,25 +66,51 @@ def embed_rz_id(path, tour_id: str) -> bool:
             text = text.replace(oeffner, oeffner_neu, 1)
             m = _re.search(r"<gpx\b[^>]*>", text)
         einschub = f"<rz:id>{tour_id}</rz:id>"
+        # Ein selbstschließendes <metadata/> zuerst zu einem Paar aufmachen —
+        # sonst gibt es kein </metadata>, an dem der Einschub hängen kann, und
+        # die Suche danach warf ein ValueError bis vor die Tür.
+        selbst = _re.search(r"<metadata\b[^>]*/>", text)
+        if selbst:
+            text = text[:selbst.start()] + "<metadata></metadata>" + text[selbst.end():]
+            m = _re.search(r"<gpx\b[^>]*>", text)
         mm = _re.search(r"<metadata\b[^>]*>", text)
-        if mm and mm.start() < text.find("<trk"):
-            ext = _re.search(r"<extensions\b[^>]*>", text[mm.end():text.index("</metadata>")])
+        ende = text.find("</metadata>")
+        trk = text.find("<trk")
+        # Vorhandenes <metadata> auch dann nutzen, wenn die Datei gar keinen
+        # <trk> hat: reine <rte>-Routen (Komoot, Outdooractive) werden bewusst
+        # als Touren eingelesen. Vorher verglich der Code gegen find("<trk"),
+        # das ohne Track -1 liefert — die Bedingung wurde falsch und der
+        # else-Zweig legte ein ZWEITES <metadata> an. Das Schema erlaubt es
+        # genau einmal; strenge Leser lehnen die Datei danach ab.
+        if mm and ende >= mm.end() and (trk < 0 or mm.start() < trk):
+            ext = _re.search(r"<extensions\b[^>]*>", text[mm.end():ende])
             if ext:
                 pos = mm.end() + ext.end()
                 neu = text[:pos] + einschub + text[pos:]
             else:
-                pos = text.index("</metadata>")
-                neu = text[:pos] + f"<extensions>{einschub}</extensions>" + text[pos:]
+                neu = text[:ende] + f"<extensions>{einschub}</extensions>" + text[ende:]
         else:
             pos = m.end()
             neu = (text[:pos]
                    + f"\n  <metadata><extensions>{einschub}</extensions></metadata>"
                    + text[pos:])
+    # Auch hier atomar: das Ziel ist die Original-Tour des Nutzers.
+    tmp = f"{path}.{os.getpid()}.{_uuid.uuid4().hex[:8]}.tmp"
     try:
-        _P(path).write_text(neu, encoding="utf-8")
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(neu)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
         return True
     except OSError:
         return False
+    finally:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except OSError:
+            pass
 
 
 def load_points(path: str) -> dict:
@@ -197,8 +224,25 @@ def save_points(
     data, _mime = ctrackio.export_payload(pts, fmt, name)
 
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
-    with open(out_path, "wb") as fh:
-        fh.write(data if isinstance(data, (bytes, bytearray)) else str(data).encode("utf-8"))
+    # Atomar schreiben. „Im Archiv ersetzen" gibt hier die ORIGINAL-Datei des
+    # Nutzers als Ziel an; ein `open(..., "wb")` kürzt sie sofort auf 0. Bricht
+    # der Vorgang danach ab (Absturz, volle Platte, Netzlaufwerk weg), liegt am
+    # Platz der Tour ein Torso. Gleiche Begründung wie beim `.rzpart` des
+    # Renderers: am Ziel darf nie eine halbe Datei stehen.
+    _roh = data if isinstance(data, (bytes, bytearray)) else str(data).encode("utf-8")
+    _tmp = f"{out_path}.{os.getpid()}.{_uuid.uuid4().hex[:8]}.tmp"
+    try:
+        with open(_tmp, "wb") as fh:
+            fh.write(_roh)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(_tmp, out_path)
+    finally:
+        try:
+            if os.path.exists(_tmp):
+                os.remove(_tmp)
+        except OSError:
+            pass
 
     # GPX: zusätzlich Sidecar (verlustfrei, auch exotische Felder) neben die Datei.
     sensors_kept = has_sensors
