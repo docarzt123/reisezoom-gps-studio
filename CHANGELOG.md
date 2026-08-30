@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Einzeldatei-Import ins Archiv (v0.9.631, Marc-OK nach Dieters
+  Komoot-Fall): im „Ordner & Einlesen"-Dialog gibt es „+ Einzelne
+  Track-Datei …" (Mehrfachauswahl), und Track-Dateien lassen sich direkt
+  aufs Archiv ziehen. Die Dateien werden in den app-verwalteten,
+  automatisch beobachteten Import-Ordner KOPIERT (Original bleibt, wo es
+  ist), Dubletten mit gleichem Namen und gleicher Größe werden
+  übersprungen, Namenskollisionen bekommen einen freien Namen, danach
+  läuft der normale Ein-Ordner-Scan. Wächter
+  `test_archiv_einzelimport.py`, i18n DE/EN/ES.
+
 ### Changed
 - Auto-Projekte räumen sich auf (v0.9.630, Marc-OK nach Dieters 111
   „Standard"-Karten): automatisch angelegte Projekte, die nie umbenannt,

@@ -33,6 +33,21 @@
 };
 
 function mountLibrary(body, headerActions) {
+  // 30.08.2026 (Marc-OK): Track-Datei aufs Archiv ziehen = importieren.
+  // setupDropZone/persistDroppedFiles (util.js) liefern echte Pfade oder
+  // _drops-Kopien; die Bridge kopiert in den beobachteten Import-Ordner.
+  try {
+    setupDropZone({
+      target: body,
+      accept: ["gpx", "fit", "tcx", "kml", "kmz", "geojson", "nmea"],
+      onDrop: async (files) => {
+        const paths = await persistDroppedFiles(files, "binary");
+        if (paths && paths.length && typeof importSingleFiles === "function") {
+          importSingleFiles(paths);
+        }
+      },
+    });
+  } catch (e) { applog && applog("warn", "[Archiv] Dropzone: " + e); }
   const T = (typeof t === "function") ? t : (k, d) => d || k;
 
   // Farben der Übersichtskarte. Magenta statt Orange, weil die Karte selbst
@@ -2234,10 +2249,12 @@ function mountLibrary(body, headerActions) {
           row.draggable = false; row.classList.remove("dragging");
           host().querySelectorAll(".drag-over").forEach(r => r.classList.remove("drag-over"));
         });
-        row.addEventListener("dragover", (ev) => { if (ziehtVon < 0) return; ev.preventDefault(); row.classList.add("drag-over"); });
+        row.addEventListener("dragover", (ev) => { if (ziehtVon < 0) return; ev.preventDefault(); ev.stopPropagation(); row.classList.add("drag-over"); });
         row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
         row.addEventListener("drop", (ev) => {
-          ev.preventDefault(); row.classList.remove("drag-over");
+          // stopPropagation: sonst fängt die Archiv-Import-Dropzone das
+          // interne Sortier-Drag ab und meldet „keine Dateien".
+          ev.preventDefault(); ev.stopPropagation(); row.classList.remove("drag-over");
           if (ziehtVon < 0 || ziehtVon === i) { ziehtVon = -1; return; }
           const [x] = liste.splice(ziehtVon, 1); liste.splice(i, 0, x); ziehtVon = -1;
           neuZeichnen();
@@ -3348,6 +3365,7 @@ function mountLibrary(body, headerActions) {
         <div class="lib-folders">${list}</div>
         <div class="lib-actions" style="margin-top:10px;">
           <button class="btn btn-primary btn-sm" id="lib-add-folder">📂 ${T("library.add_folder", "+ Ordner hinzufügen")}</button>
+          <button class="btn btn-sm" id="lib-import-file">📄 ${T("library.import_file", "+ Einzelne Track-Datei …")}</button>
           <button class="btn btn-ghost btn-sm" id="lib-scan">${T("library.scan", "Neu einlesen")}</button>
           <button class="btn btn-ghost btn-sm" id="lib-scan-stop" hidden>${T("library.scan_stop", "Anhalten")}</button>
         </div>
@@ -3383,6 +3401,9 @@ function mountLibrary(body, headerActions) {
     });
     const add = $("lib-add-folder");
     if (add) add.onclick = addFolder;
+    // 30.08.2026 (Marc-OK): einzelne Track-Dateien direkt ins Archiv.
+    const imp = $("lib-import-file");
+    if (imp) imp.onclick = () => importSingleFiles();
     const scan = $("lib-scan");
     if (scan) scan.onclick = () => startScan(false);
     // 22.08.2026 (Audit): Die Brücke library_scan_stop gab es, aber keinen Knopf —
@@ -3398,6 +3419,24 @@ function mountLibrary(body, headerActions) {
     if (maps) maps.onclick = startMapThumbs;
     const stop = $("lib-maps-stop");
     if (stop) stop.onclick = () => api().library_map_thumbs_stop();
+  }
+
+  /** 30.08.2026 (Marc-OK, Dieters Komoot-Fall): einzelne Track-Dateien ins
+   *  Archiv — kopiert in den app-verwalteten Import-Ordner (automatisch
+   *  beobachtet), danach liest der normale Ein-Ordner-Scan sie ein. */
+  async function importSingleFiles(paths) {
+    const res = await api().library_import_files(paths || null);
+    if (!res || res.cancelled) return;
+    if (!res.ok) { toast(res.error || T("library.import_fail", "Import fehlgeschlagen"), "error"); return; }
+    if (!res.kopiert && !res.uebersprungen) {
+      toast(T("library.import_none", "Keine Track-Dateien erkannt"), "warn");
+      return;
+    }
+    toast(T("library.import_done", "Dateien importiert — Einlesen läuft")
+      + ` (${res.kopiert}${res.uebersprungen ? " · " + res.uebersprungen + " " + T("library.import_skip", "schon da") : ""})`);
+    await reloadFolders();
+    if (_foldersModal) { _foldersModal.update({ body: foldersModalHtml() }); bindFoldersModal(); }
+    startScan(false, res.folder);
   }
 
   async function addFolder() {

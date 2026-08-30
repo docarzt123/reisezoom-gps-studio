@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.630"
+APP_VERSION = "0.9.631"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2220,6 +2220,50 @@ class Api:
                     "folders": clib.get_folders(self._lib())}
         except Exception as e:
             log.exception("library_add_folder")
+            return {"ok": False, "error": str(e)}
+
+    def library_import_files(self, paths: list | None = None) -> dict:
+        """30.08.2026 (Marc-OK, nach Dieters Komoot-Fall): EINZELNE
+        Track-Dateien direkt ins Archiv. Ohne `paths` öffnet der Datei-Dialog
+        (Mehrfachauswahl). Die Dateien werden in den app-verwalteten
+        Import-Ordner KOPIERT (Original bleibt unangetastet), der Ordner wird
+        automatisch beobachtet; das Einlesen stößt die Oberfläche danach als
+        gewöhnlichen Ein-Ordner-Scan an (`library_scan_start(folder=…)`)."""
+        try:
+            exts = sorted({".gpx"} | set(cimports.IMPORT_EXTS)
+                          - clib.MEHRDEUTIGE_EXTS)
+            if not paths:
+                ft = ("Track-Dateien (" + ";".join("*" + e for e in exts) + ")",)
+                paths = self.pick_file("open", ft, multiple=True)
+            if not paths:
+                return {"ok": False, "cancelled": True}
+            ziel = APP_SUPPORT / "import"
+            ziel.mkdir(parents=True, exist_ok=True)
+            kopiert, uebersprungen = [], 0
+            for roh in paths:
+                src = Path(str(roh))
+                if not src.is_file() or src.suffix.lower() not in exts:
+                    uebersprungen += 1
+                    continue
+                d = ziel / src.name
+                n = 1
+                # Gleicher Name + gleiche Größe = schon importiert → überspringen;
+                # gleicher Name, andere Datei → freien Namen suchen.
+                while d.exists() and d.stat().st_size != src.stat().st_size:
+                    d = ziel / f"{src.stem}-{n}{src.suffix}"
+                    n += 1
+                if d.exists():
+                    uebersprungen += 1
+                    continue
+                shutil.copy2(src, d)
+                kopiert.append(d.name)
+            clib.add_folder(self._lib(), str(ziel), recursive=False)
+            log.info("library_import_files: %d kopiert, %d übersprungen → %s",
+                     len(kopiert), uebersprungen, ziel)
+            return {"ok": True, "kopiert": len(kopiert),
+                    "uebersprungen": uebersprungen, "folder": str(ziel)}
+        except Exception as e:
+            log.exception("library_import_files")
             return {"ok": False, "error": str(e)}
 
     def library_remove_folder(self, path: str, drop_tracks: bool = True) -> dict:
