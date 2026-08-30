@@ -2730,6 +2730,13 @@ eigenständiges Skript, das mit `sys.exit(0|1)` endet, und genau das wird ausgew
 Läuft ein Test gerade nicht (kein Netz, kein Token, echter Render), wird er
 **mit Grund** übersprungen und am Ende aufgeführt.
 
+⚠️ **Testumfang proportional zur Änderung** (Marc-Regel, 29.08.2026): Die
+**volle Suite** läuft nur bei großen Umbauten und vor Releases/Builds. Bei
+kleineren Änderungen laufen nur die **betroffenen Wächter** — also gezielt
+`run_tests.py <teilname>` bzw. das passende `scripts/selftest_*.py`, bei
+Oberflächen-Code zusätzlich `check_ui_fallen.py`. Vor jedem `./build.sh` und
+im Release-Gate (`release_check.sh`) bleibt die volle Suite Pflicht.
+
 ⚠️ **Warum es diesen Runner gibt:** `release_check.sh` rief lange genau EINE Datei aus
 `tests/` auf. Die übrigen siebzehn startete kein Skript — sie liefen also auch lokal
 nie, und niemand bemerkte, dass zwei davon längst rot waren. Darunter die
@@ -2778,7 +2785,8 @@ Manuelle Test-Runs (oben) vor jedem Commit / Build weiterhin empfohlen.
 2. **NACH Funktions-Änderung:** `CHANGELOG.md` unter `[Unreleased]` ergänzen
 3. **Bei Architektur-Änderungen:** Diese Datei (`DEVELOPER.md`) updaten
 4. **Bei UI-/Workflow-Änderungen:** `docs/USER_GUIDE.md` aktualisieren
-5. **Tests müssen grün bleiben** vor Build
+5. **Tests müssen grün bleiben** vor Build — Umfang nach der Proportional-Regel
+   in §7: unterwegs nur betroffene Wächter, volle Suite vor Build/Release
 6. **Bei Oberflächen-Code zusätzlich:** `python3 scripts/check_ui_fallen.py` —
    und die Checkliste in **§9** durchgehen. Die vier Fallen dort sind alle
    **still**: Der Code sieht richtig aus, tut aber nichts, und weder Fenster
