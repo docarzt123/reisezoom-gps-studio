@@ -580,10 +580,21 @@ def add_folder(conn: sqlite3.Connection, path: str, recursive: bool = True) -> b
 
 @_locked
 def remove_folder(conn: sqlite3.Connection, path: str, drop_tracks: bool = True) -> None:
-    p = str(Path(path).expanduser().resolve())
-    conn.execute("DELETE FROM folders WHERE path = ?", (p,))
-    if drop_tracks:
-        conn.execute("DELETE FROM tracks WHERE folder = ?", (p,))
+    """30.08.2026 (Beta-Tester Dieter: „am X angeklickt, nichts passiert") —
+    der Pfad kommt aus der WebView, die Strings NFC-normalisiert; in der DB
+    kann er NFD stehen (NAS/macOS). Ein exaktes `WHERE path = ?` trifft dann
+    NICHTS und der Ordner bleibt kommentarlos stehen. Deshalb: Kandidaten
+    lesen, unicode-normalisiert vergleichen, mit dem DB-Originalwert löschen."""
+    import unicodedata
+    kandidaten = {str(Path(path).expanduser().resolve()), str(path)}
+    ziel_nfc = {unicodedata.normalize("NFC", k) for k in kandidaten}
+    treffer = [r["path"] for r in conn.execute("SELECT path FROM folders").fetchall()
+               if r["path"] in kandidaten
+               or unicodedata.normalize("NFC", r["path"]) in ziel_nfc]
+    for db_pfad in treffer or sorted(kandidaten):
+        conn.execute("DELETE FROM folders WHERE path = ?", (db_pfad,))
+        if drop_tracks:
+            conn.execute("DELETE FROM tracks WHERE folder = ?", (db_pfad,))
     conn.commit()
 
 
