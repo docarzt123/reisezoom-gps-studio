@@ -711,8 +711,14 @@ def alle_projekte(daten: dict) -> list:
             return False
         module = [m for m in ("animator", "tourmap", "geotagger", "heightanim")
                   if _mod_arbeit(m)]
+        # 30.08.2026 (Beta-Tester Dieter, 111 Auto-Projekte): jede Karte hieß
+        # „Standard" (DEFAULT_PROJECT_NAME) — 111-mal derselbe Name sagt
+        # nichts. Automatisch angelegte Projekte zeigen den Tour-Namen.
+        name = p.get("name", "?")
+        if p.get("auto") and (not name or name == _s.DEFAULT_PROJECT_NAME):
+            name = next((n for n in tour_namen if n), name)
         out.append({
-            "id": pid, "name": p.get("name", "?"),
+            "id": pid, "name": name,
             "status": p.get("status", "aktiv"),
             "auto": bool(p.get("auto")) and je_kontext.get(p.get("kontext") or "", 1) < 2,
             "created_at": p.get("created_at"), "modified_at": p.get("modified_at"),

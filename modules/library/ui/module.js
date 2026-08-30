@@ -3367,8 +3367,17 @@ function mountLibrary(body, headerActions) {
   function bindFoldersModal() {
     document.querySelectorAll("#modal-body [data-folder]").forEach(btn => {
       btn.onclick = async () => {
-        await api().library_remove_folder(btn.dataset.folder, true);
+        // 30.08.2026 (Beta-Tester: „X angeklickt, nichts passiert") — bei
+        // 100k Tracks dauert das Löschen spürbar, und ein Fehler blieb
+        // vorher komplett stumm. Deshalb: Knopf sperren + Ergebnis prüfen.
+        btn.disabled = true; btn.textContent = "…";
+        const res = await api().library_remove_folder(btn.dataset.folder, true);
         await reloadFolders(); await reload();
+        if (!(res && res.ok)) {
+          toast(((res && res.error) || T("library.remove_folder_fail", "Ordner konnte nicht entfernt werden")), "error");
+        } else if (_folders.some(f => f.path === btn.dataset.folder)) {
+          toast(T("library.remove_folder_fail", "Ordner konnte nicht entfernt werden"), "error");
+        }
         if (_foldersModal) { _foldersModal.update({ body: foldersModalHtml() }); bindFoldersModal(); }
       };
     });

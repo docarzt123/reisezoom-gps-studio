@@ -828,3 +828,18 @@
 .lib-proj-karte.is-sel { outline: 2px solid var(--accent); outline-offset: -2px; }
 .lib-projd-tour { cursor: pointer; }
 .lib-projd-tour:hover { background: var(--bg-3); }
+
+/* 30.08.2026 (Beta-Tester Dieter: „Können die grauen Schriften größer und
+   deutlicher gemacht werden; sind auf dem Monitor schwer zu lesen") — die
+   Beschriftungen der Statistik von text-muted (#6b7384) auf text-dim
+   (#98a1b0) angehoben und einen Punkt größer. Zahlen bleiben unverändert. */
+.lib-stats-inner .lib-tile span { font-size: 12px; color: var(--text-dim); }
+.lib-stats-inner .lib-tile b i { color: var(--text-dim); }
+.lib-stats-inner .lib-cbar-lbl,
+.lib-stats-inner .lib-cbar-sub,
+.lib-stats-inner .lib-act-km,
+.lib-stats-inner .lib-split-lbl span,
+.lib-stats-inner .lib-chart-hint,
+.lib-stats-inner .lib-stats-head span { color: var(--text-dim); }
+.lib-stats-inner .lib-cbar-lbl { font-size: 11.5px; }
+.lib-stats-inner .lib-cbar-sub { font-size: 10.5px; }

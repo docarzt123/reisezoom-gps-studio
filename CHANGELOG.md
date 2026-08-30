@@ -14,6 +14,19 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Tester-Mails Dieter 30.08. (v0.9.629): (1) **Ordner-Entfernen griff bei
+  NFD-Pfaden ins Leere** („am X angeklickt, nichts passiert") — die WebView
+  liefert NFC, in der DB kann der Pfad NFD stehen (NAS/macOS); Entfernen
+  vergleicht jetzt unicode-normalisiert und löscht per DB-Originalwert; der
+  Knopf sperrt sich währenddessen und Fehlschläge werden gemeldet statt
+  verschluckt (neuer Wächter `test_ordner_entfernen_nfd.py`).
+  (2) **111 Auto-Projekte hießen alle „Standard"** — automatisch angelegte
+  Projekte zeigen jetzt den Tour-Namen als Kartennamen. (3) **Graue
+  Statistik-Beschriftungen** (Kachel-Labels, Balken-Beschriftungen, km-Werte)
+  von text-muted auf text-dim angehoben und einen Punkt größer — Zahlen
+  unverändert.
+
 ### Added
 - Schwarm: Start-Verzögerung je Tour (v0.9.626, Marc, Schorfheide: „während
   die komplette Runde noch läuft anfangen den Teil zu animieren, den ich
