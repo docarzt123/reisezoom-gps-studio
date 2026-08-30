@@ -339,10 +339,22 @@ wechselt nur die Ansicht darunter und ist immer da. In der Projekte-Ansicht:
   wurde → siehe „Fassungen" unten.
 - **➕** (nur bei leeren Projekten): Touren aus dem Archiv hinzufügen.
 
+#### Die Projekt-Detailspalte (seit v0.9.623)
+
+Ein Klick auf eine Projektkarte öffnet **rechts die Detailspalte** — wie bei
+einzelnen Touren: großes Kartenbild, alle Aktionen (Öffnen, Modul-Sprünge,
+Umbenennen, Duplizieren, Löschen, Status), die **Mitglieds-Touren** mit
+Stern für die Haupt-Tour und Sprung ins Archiv, die **früheren
+Arbeitsstände** (🕘) und die Fassungs-Hinweise (⬆).
+
 #### Wie Projekte entstehen
 
-1. **Automatisch:** Jede geöffnete Tour bekommt sofort einen Arbeitsstand
-   („Standard") — nichts geht je verloren. Nie angefasste Stände liegen
+1. **Automatisch:** Jede geöffnete Tour bekommt sofort einen Arbeitsstand —
+   die Karte trägt den **Tour-Namen** (seit v0.9.629) — nichts geht je
+   verloren. **Selbstreinigung** (seit v0.9.630): Automatisch angelegte
+   Projekte, die nie umbenannt wurden, keinen Status bekamen und in keinem
+   Modul echte Arbeit tragen, verschwinden nach 30 Tagen von selbst —
+   die Tour wieder öffnen legt jederzeit ein frisches an. Nie angefasste Stände liegen
    eingeklappt unter **„Automatisch angelegt"** und wandern zu „Deine
    Projekte", sobald du darin arbeitest oder sie umbenennst. Hat eine Tour
    mehr als ein Projekt, wird keins davon versteckt.
@@ -479,6 +491,19 @@ Hold, Auflösung bis 4K und Hochkant. Zwei Dinge sind Schwarm-eigen:
   Standard), *der längsten Tour* — oder **jeder einzelnen Tour** deiner Wahl.
   Die Kamera begleitet sie und **bleibt an ihrem Ziel stehen**, während der
   Rest weiterläuft.
+- **Haupt-Tour nicht hervorheben** (Häkchen über der Tourenliste, seit
+  v0.9.618): normalerweise bekommt die Haupt-Tour Schatten, Leuchten und den
+  großen Laufpunkt. Mit dem Häkchen sieht sie aus wie alle anderen — nichts
+  sticht heraus.
+- **⏱ Start-Verzögerung** (seit v0.9.626): Jede Zusatz-Tour hat in der
+  Tourenliste ein Feld **„Start nach X s"** (Videozeit; 0 = gemeinsamer
+  Start). Bei „Fotofinish" kommt eine verzögerte Tour trotzdem pünktlich an,
+  bei den anderen Modi läuft sie einfach später mit echter Geschwindigkeit
+  los. Auch die **Haupt-Tour** kann warten („Haupt-Tour startet nach X s"):
+  sie behält Schatten und Laufpunkt, der Schwarm läuft derweil weiter, und
+  sie holt bis zum Videoende auf. Vorschau und Video zeigen dasselbe.
+  Typischer Einsatz: die geplante Runde läuft komplett, und der Teil, den du
+  schon gelaufen bist, startet mittendrin.
 - **Schwarm-Zahlen im Overlay:** „Zurückgelegt" und „Verbleibend" sind die
   **Summe über alle Touren** (wie weit der Schwarm insgesamt ist), „Strecke"
   die Gesamtsumme — dazu **„Noch unterwegs"** (z. B. „37 / 96") und
@@ -629,6 +654,13 @@ er erneut. Die Datei auf der Festplatte wird **nicht** umbenannt.
 **Doppelte finden:** Der Knopf unten links gruppiert Dateien mit **identischem
 Streckenverlauf** — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach
 heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.
+
+**Einzelne Datei importieren (seit v0.9.631):** Eine einzelne GPX (oder FIT,
+TCX, KML …) — etwa frisch von Komoot heruntergeladen — muss nicht erst in
+einen beobachteten Ordner: **„📂 Ordner & Einlesen" → „+ Einzelne
+Track-Datei …"**, oder die Datei einfach **aufs Archiv ziehen**. Die App
+kopiert sie in ihren eigenen Import-Ordner (das Original bleibt liegen,
+Dubletten werden übersprungen) und liest sie sofort ein.
 
 **Neue Dateien:** Nach jedem größeren Export einmal unten links **„📂 Ordner & Einlesen" → „Neu einlesen"** drücken. Bereits
 bekannte Dateien werden übersprungen, das geht in Sekunden.

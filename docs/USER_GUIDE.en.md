@@ -319,10 +319,22 @@ swaps the view below it and is always there. In the projects view:
   meantime → see "Versions" below.
 - **➕** (empty projects only): add tours from the archive.
 
+#### The project detail column (since v0.9.623)
+
+Clicking a project card opens the **detail column on the right** — just like
+for single tours: big map image, all actions (open, module jumps, rename,
+duplicate, delete, status), the **member tours** with a star for the main
+tour and a jump into the archive, the **earlier working states** (🕘) and
+the version hints (⬆).
+
 #### How projects come to be
 
-1. **Automatically:** every opened tour instantly gets a working state
-   ("Standard") — nothing is ever lost. Untouched states sit collapsed under
+1. **Automatically:** every opened tour instantly gets a working state —
+   the card carries the **tour name** (since v0.9.629) — nothing is ever
+   lost. **Self-cleaning** (since v0.9.630): auto-created projects that were
+   never renamed, never got a status and carry no real work in any module
+   remove themselves after 30 days — reopening the tour creates a fresh one
+   any time. Untouched states sit collapsed under
    **"created automatically"** and move up to "your projects" as soon as you
    work in them or rename them. If a tour has more than one project, none of
    them is hidden.
@@ -453,6 +465,17 @@ resolutions up to 4K and portrait. Two things are swarm-specific:
   default), *the longest tour* — or **any single tour** of your choice. The
   camera accompanies it and **stays put at its finish** while the rest keep
   running.
+- **Don't highlight the main tour** (checkbox above the tour list, since
+  v0.9.618): normally the main tour gets shadow, glow and the big runner
+  dot. With the checkbox it looks like all the others — nothing stands out.
+- **⏱ Start delay** (since v0.9.626): every extra tour has a **"starts
+  after X s"** field in the tour list (video time; 0 = starts together).
+  In "photo finish" a delayed tour still arrives on time; in the other
+  modes it simply sets off later at true speed. The **main tour** can wait
+  too ("main tour starts after X s"): it keeps shadow and runner dot, the
+  swarm keeps moving meanwhile, and it catches up by the end of the video.
+  Preview and video show the same thing. Typical use: the planned loop runs
+  in full while the part you have already walked starts mid-way.
 - **Swarm numbers in the overlay:** "Distance done" and "Remaining" are the
   **sum over all tours** (how far the swarm has travelled altogether),
   "Distance" is the grand total — plus **"Still under way"** (e.g. "37 / 96")
@@ -570,6 +593,13 @@ disk is **not** renamed.
 **Find duplicates:** the button at the bottom left groups files with an **identical route** —
 handy after a bulk export that downloaded the same tour several times. Nothing is deleted;
 you only get to see what is doubled up.
+
+**Import a single file (since v0.9.631):** a single GPX (or FIT, TCX,
+KML …) — say, freshly downloaded from Komoot — doesn't need a watched
+folder first: **"📂 Folders & Scan" → "+ Single track file …"**, or simply
+**drag the file onto the archive**. The app copies it into its own import
+folder (the original stays put, duplicates are skipped) and scans it right
+away.
 
 **New files:** press **“Rescan”** once after a bigger export. Files already known are
 skipped, so it takes seconds.

@@ -113,9 +113,35 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.631</span>
+    <span class="version-date">30 de agosto de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Salidas escalonadas. Importación directa.</p>
+
+  <div class="highlight">
+    <strong>⏱ Enjambre con salida retrasada.</strong> Cada ruta del enjambre puede esperar: un campo «empieza tras X s» en cada ruta adicional — y también el <em>tour principal</em> puede arrancar tarde, conservando sombra y punto corredor y recuperando hasta el final del vídeo. Así la vuelta planificada corre completa mientras el tramo que ya caminaste arranca a mitad. La vista previa y el vídeo muestran exactamente lo mismo.
+  </div>
+
+  <div class="highlight">
+    <strong>📄 Archivos sueltos al archivo.</strong> ¿Un GPX recién bajado de Komoot? Simplemente <em>arrástralo sobre el archivo</em> o usa «Carpetas y lectura → + Archivo de track individual …» — la app lo copia a su propia carpeta de importación (el original se queda, los duplicados se omiten) y lo lee al momento.
+  </div>
+
+  <ul>
+    <li><strong>Columna de detalle del proyecto:</strong> un clic en una tarjeta abre a la derecha la vista completa — acciones, rutas miembro, estados anteriores, avisos de versión.</li>
+    <li><strong>Los proyectos se limpian solos:</strong> los creados automáticamente sin trabajo alguno se eliminan tras 30 días — y ahora llevan el nombre de la ruta en vez de «Standard» 111 veces.</li>
+    <li><strong>Quitar carpetas arreglado:</strong> en unidades NAS el botón ✕ a veces no hacía nada (una diferencia invisible de codificación) — ahora siempre funciona y avisa de los fallos.</li>
+    <li><strong>Más legible:</strong> las etiquetas grises de las estadísticas son más claras y un punto más grandes.</li>
+    <li><strong>Rutas fantasma fiables:</strong> los duplicados se rechazan y se fusionan, y la geometría guardada se refresca desde el archivo fuente — cura una ruta y su fantasma la sigue.</li>
+    <li><strong>Guardado más robusto:</strong> los datos de proyecto se escriben a prueba de fallos (dos vías críticas de pérdida de datos cerradas), y los GPX originales nunca más se sobrescriben in situ.</li>
+    <li>Además, una auditoría completa de código y manual con más de 20 correcciones.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.622</span>
     <span class="version-date">29 de agosto de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">Tus proyectos. Tus versiones.</p>
 
