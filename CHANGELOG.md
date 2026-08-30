@@ -282,6 +282,12 @@ Bei jeder neuen Version:
   Reihenfolge. Belegbasis: fünf Rechercheberichte in `docs/recherche/`.
 - **Audit-Befundliste** (`docs/AUDIT-2026-08-30.md`) — alle Funde aus Code-, Bedien-
   und Doku-Prüfung, getrennt nach behoben und offen, mit empfohlener Reihenfolge.
+- **Roadmap-Eintrag `docs/IDEAS.md` §43** — die konkreten Aufgaben aus der Analyse,
+  sortiert nach Aufwand/Alleinstellung: Baro-Drift herausrechnen (kann niemand im
+  Markt), Brücken/Tunnel bei der Höhenkorrektur, Ausreißer-Schwellen offenlegen,
+  vier Phasen in der Oberfläche, Telemetrie-Overlay, Formatlücken (IGC/CSV/GPMF),
+  Windows signieren — plus ausdrücklich, was NICHT gebaut wird. Die Master-Strategie
+  in §25 hat einen Kopf bekommen, der sagt, was daran überholt ist.
 
 ### Fixed
 - **Audit 30.08.2026 — acht Befunde mit Verlustrisiko behoben** (v0.9.628).
