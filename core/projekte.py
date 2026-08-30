@@ -505,6 +505,67 @@ def delete(daten: dict, kontext: str, project_id: str, defaults: dict) -> dict:
     return projects[aktiv[kontext]]
 
 
+def modul_arbeit(p: dict, m: str) -> bool:
+    """Liegt in Modul `m` ECHTE Arbeit (Inhalte, keine Default-Settings)?
+    v0.9.621 als Chip-Kriterium eingeführt; seit v0.9.630 auch die Grundlage
+    des Auto-Aufräumens — deshalb zählt `letztes_modul` hier NICHT (das trägt
+    jedes nur geöffnete Projekt und würde das Aufräumen aushebeln)."""
+    d = p.get(m) if isinstance(p.get(m), dict) else {}
+    if m == "animator":
+        return any(d.get(k) for k in ("timeline_events", "extra_tours",
+                                      "ghosts", "charts", "track_color_stops"))
+    if m == "tourmap":
+        return bool(p.get("tourmap_signs") or d.get("signs") or p.get("signs"))
+    if m == "geotagger":
+        return bool(p.get("photos"))
+    if m == "heightanim":
+        return bool(d.get("series") or d.get("series2"))
+    return False
+
+
+AUTO_AUFRAEUMEN_TAGE = 30
+
+
+def auto_aufraeumen(app_support: Path, daten: dict) -> int:
+    """Auto-Projekte ohne jede Arbeit still entfernen (Marc, 30.08.2026, nach
+    Dieters 111 „Standard"-Karten): Nur Projekte, die (1) automatisch angelegt
+    wurden, (2) nie umbenannt oder im Status geändert wurden, (3) in KEINEM
+    Modul echte Arbeit tragen und (4) seit `AUTO_AUFRAEUMEN_TAGE` Tagen
+    unberührt sind. Öffnet man die Tour später wieder, entsteht ohnehin ein
+    frisches Auto-Projekt — es geht nichts verloren. Rückgabe: Anzahl weg."""
+    from datetime import datetime, timezone
+    jetzt = datetime.now(timezone.utc)
+    weg = []
+    for pid, p in list((daten.get("projects") or {}).items()):
+        if not p.get("auto"):
+            continue
+        if (p.get("name") or _s.DEFAULT_PROJECT_NAME) != _s.DEFAULT_PROJECT_NAME:
+            continue
+        if (p.get("status") or "aktiv") != "aktiv":
+            continue
+        if any(modul_arbeit(p, m) for m in ("animator", "tourmap",
+                                            "geotagger", "heightanim")):
+            continue
+        stempel = p.get("modified_at") or p.get("created_at") or ""
+        try:
+            alter_tage = (jetzt - datetime.fromisoformat(stempel)).total_seconds() / 86400.0
+        except (TypeError, ValueError):
+            continue   # ohne lesbaren Stempel lieber behalten
+        if alter_tage < AUTO_AUFRAEUMEN_TAGE:
+            continue
+        weg.append(pid)
+    for pid in weg:
+        if loeschen(daten, pid):
+            try:
+                _staende_datei(app_support, pid).unlink(missing_ok=True)
+            except OSError:
+                pass
+    if weg:
+        log.info("Auto-Aufräumen: %d unberührte Auto-Projekte (> %d Tage) entfernt",
+                 len(weg), AUTO_AUFRAEUMEN_TAGE)
+    return len(weg)
+
+
 def loeschen(daten: dict, project_id: str) -> bool:
     """PM-Löschen: das Projekt verschwindet WIRKLICH (kein Kontext-Safeguard —
     öffnet man die Tour später wieder, entsteht ein frisches auto-Projekt)."""
@@ -693,24 +754,8 @@ def alle_projekte(daten: dict) -> list:
         # jedes Projekt trägt Default-Einstellungen, also zeigten alle Karten
         # alle vier Chips. Ein Chip heißt jetzt: dort liegt ARBEIT (Marker)
         # oder es war das zuletzt benutzte Modul.
-        def _mod_arbeit(m: str, p=p) -> bool:
-            d = p.get(m) if isinstance(p.get(m), dict) else {}
-            if m == p.get("letztes_modul"):
-                return True
-            if m == "animator":
-                return any(d.get(k) for k in ("timeline_events", "extra_tours",
-                                              "ghosts", "charts",
-                                              "track_color_stops"))
-            if m == "tourmap":
-                return bool(p.get("tourmap_signs") or d.get("signs")
-                            or p.get("signs"))
-            if m == "geotagger":
-                return bool(p.get("photos"))
-            if m == "heightanim":
-                return bool(d.get("series") or d.get("series2"))
-            return False
         module = [m for m in ("animator", "tourmap", "geotagger", "heightanim")
-                  if _mod_arbeit(m)]
+                  if m == p.get("letztes_modul") or modul_arbeit(p, m)]
         # 30.08.2026 (Beta-Tester Dieter, 111 Auto-Projekte): jede Karte hieß
         # „Standard" (DEFAULT_PROJECT_NAME) — 111-mal derselbe Name sagt
         # nichts. Automatisch angelegte Projekte zeigen den Tour-Namen.

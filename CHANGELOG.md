@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Auto-Projekte räumen sich auf (v0.9.630, Marc-OK nach Dieters 111
+  „Standard"-Karten): automatisch angelegte Projekte, die nie umbenannt,
+  nie im Status geändert wurden und in keinem Modul echte Arbeit tragen,
+  verschwinden nach 30 Tagen still beim Laden der Projektliste. Öffnet man
+  die Tour später wieder, entsteht ohnehin ein frisches Auto-Projekt —
+  es geht nichts verloren. Wächter in `test_projekte_e2.py`.
+- Archiv ohne globale Track-Leiste (v0.9.630, Dieters „Statistik und Karte:
+  keine Funktion" — gemeint war der „Track wählen …"-Öffner ganz oben):
+  im Archiv IST die Tour-Auswahl der Inhalt, der globale Öffner oben wirkte
+  dort kaputt und ist jetzt ausgeblendet. Alle anderen Module unverändert.
+
 ### Fixed
 - Tester-Mails Dieter 30.08. (v0.9.629): (1) **Ordner-Entfernen griff bei
   NFD-Pfaden ins Leere** („am X angeklickt, nichts passiert") — die WebView

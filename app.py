@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.629"
+APP_VERSION = "0.9.630"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -7058,6 +7058,10 @@ class Api:
         Frontend, ob „Öffnen" sofort funktioniert."""
         try:
             daten = _projekte.laden(APP_SUPPORT)
+            # 30.08.2026 (Marc, nach Dieters 111 „Standard"-Karten): unberührte
+            # Auto-Projekte räumen sich nach 30 Tagen still auf.
+            if _projekte.auto_aufraeumen(APP_SUPPORT, daten):
+                _projekte.speichern(APP_SUPPORT, daten)
             karten = _projekte.alle_projekte(daten)
             touren = daten.get("touren") or {}
             conn = self._lib()
