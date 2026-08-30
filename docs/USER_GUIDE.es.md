@@ -323,10 +323,22 @@ proyectos:
   véase «Versiones».
 - **➕** (solo proyectos vacíos): añadir rutas del archivo.
 
+#### La columna de detalle del proyecto (desde v0.9.623)
+
+Un clic en una tarjeta de proyecto abre **la columna de detalle a la
+derecha** — como en las rutas individuales: imagen de mapa grande, todas las
+acciones (abrir, saltos a módulos, renombrar, duplicar, borrar, estado),
+las **rutas miembro** con estrella para la principal y salto al archivo,
+los **estados de trabajo anteriores** (🕘) y los avisos de versión (⬆).
+
 #### Cómo nacen los proyectos
 
 1. **Automáticamente:** cada ruta abierta recibe al instante un estado de
-   trabajo («Standard») — nunca se pierde nada. Los estados intactos quedan
+   trabajo — la tarjeta lleva el **nombre de la ruta** (desde v0.9.629) —
+   nunca se pierde nada. **Auto-limpieza** (desde v0.9.630): los proyectos
+   creados automáticamente que nunca fueron renombrados, sin estado asignado
+   y sin trabajo real en ningún módulo se eliminan solos tras 30 días —
+   reabrir la ruta crea uno nuevo en cualquier momento. Los estados intactos quedan
    plegados bajo **«Creados automáticamente»** y suben a «tus proyectos» en
    cuanto trabajas en ellos o los renombras. Si una ruta tiene más de un
    proyecto, ninguno se oculta.
@@ -458,6 +470,18 @@ final, resoluciones hasta 4K y vertical. Dos cosas son propias del enjambre:
   general, el estándar), *la ruta más larga* — o **cualquier ruta** que
   elijas. La cámara la acompaña y **se queda quieta en su meta** mientras las
   demás siguen corriendo.
+- **No resaltar el tour principal** (casilla sobre la lista de rutas, desde
+  v0.9.618): normalmente el tour principal lleva sombra, brillo y el punto
+  corredor grande. Con la casilla se ve como todos los demás — nada resalta.
+- **⏱ Salida retrasada** (desde v0.9.626): cada ruta adicional tiene en la
+  lista un campo **«empieza tras X s»** (tiempo de vídeo; 0 = salida
+  conjunta). En «foto-finish» una ruta retrasada llega igualmente a tiempo;
+  en los otros modos simplemente arranca más tarde a velocidad real. El
+  **tour principal** también puede esperar («el tour principal empieza tras
+  X s»): conserva sombra y punto corredor, el enjambre sigue avanzando
+  mientras tanto, y recupera hasta el final del vídeo. La vista previa y el
+  vídeo muestran lo mismo. Uso típico: la vuelta planificada corre completa
+  y el tramo que ya has caminado arranca a mitad.
 - **Números del enjambre en el overlay:** «Recorrido» y «Restante» son la
   **suma de todas las rutas** (cuánto ha avanzado el enjambre en conjunto),
   «Distancia» es el total — además de **«Aún en camino»** (p. ej. «37 / 96»)
@@ -579,6 +603,13 @@ vuelve a aplicarse. El archivo del disco **no** se renombra.
 **Buscar duplicadas:** el botón de abajo a la izquierda agrupa los archivos con un
 **recorrido idéntico**, útil tras una exportación masiva que descargó la misma ruta varias
 veces. No se borra nada: solo ves qué está duplicado.
+
+**Importar un archivo suelto (desde v0.9.631):** un GPX individual (o FIT,
+TCX, KML …) — por ejemplo recién bajado de Komoot — ya no necesita una
+carpeta vigilada: **«📂 Carpetas y lectura» → «+ Archivo de track
+individual …»**, o simplemente **arrastra el archivo sobre el archivo de
+rutas**. La app lo copia a su propia carpeta de importación (el original se
+queda donde está, los duplicados se omiten) y lo lee al momento.
 
 **Archivos nuevos:** pulsa **«Volver a leer»** después de cada exportación grande. Los
 archivos ya conocidos se omiten, así que tarda segundos.

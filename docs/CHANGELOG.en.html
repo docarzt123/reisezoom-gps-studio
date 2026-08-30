@@ -113,9 +113,35 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.631</span>
+    <span class="version-date">August 30, 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">Staggered starts. Direct imports.</p>
+
+  <div class="highlight">
+    <strong>⏱ Swarm with start delays.</strong> Every tour in the swarm can now wait: a "starts after X s" field on each extra tour — and the <em>main tour</em> can set off late too, keeping its shadow and runner dot and catching up by the end of the video. So the full planned loop can run while the part you already walked starts mid-way. Preview and video show exactly the same thing.
+  </div>
+
+  <div class="highlight">
+    <strong>📄 Single files into the archive.</strong> A GPX fresh from Komoot? Just <em>drag it onto the archive</em> or use "Folders &amp; Scan → + Single track file …" — the app copies it into its own import folder (the original stays put, duplicates are skipped) and scans it right away.
+  </div>
+
+  <ul>
+    <li><strong>Project detail column:</strong> clicking a project card opens the full detail view on the right — actions, member tours, earlier working states, version hints.</li>
+    <li><strong>Projects clean up after themselves:</strong> auto-created projects without any work remove themselves after 30 days — and now carry the tour name instead of "Standard" 111 times over.</li>
+    <li><strong>Folder removal fixed:</strong> on NAS drives the ✕ button sometimes did nothing at all (an invisible character-encoding mismatch) — it now always works and reports failures.</li>
+    <li><strong>Easier to read:</strong> the grey labels in the statistics view are lighter and one point larger.</li>
+    <li><strong>Ghost tracks reliable:</strong> duplicates are rejected and merged, and stored ghost geometry refreshes from the source file — heal a tour and its ghost follows.</li>
+    <li><strong>Sturdier saving:</strong> project data now writes crash-safe (two critical data-loss paths closed), and original GPX files are never overwritten in place again.</li>
+    <li>Plus a full code and manual audit with more than 20 further fixes.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.622</span>
     <span class="version-date">August 29, 2026</span>
-    <span class="version-badge">Current</span>
   </div>
   <p class="version-tagline">Your projects. Your versions.</p>
 

@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.631] – 2026-08-30
+
 ### Added
 - Einzeldatei-Import ins Archiv (v0.9.631, Marc-OK nach Dieters
   Komoot-Fall): im „Ordner & Einlesen"-Dialog gibt es „+ Einzelne
