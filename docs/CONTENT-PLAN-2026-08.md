@@ -180,3 +180,79 @@ hat. Was NICHT als eigener Artikel taugt, steht bei der jeweiligen Frage unter
 - **Nicht überverkaufen.** Bei 3 und 10 stehen oben ausdrücklich die Grenzen — die
   gehören in den Text. Ein Artikel, der mehr verspricht, als die App hält, kostet
   mehr Vertrauen, als er Downloads bringt.
+
+---
+
+## Artikelaufbau (Marc-Vorgabe 30.08.2026)
+
+**Problem formulieren → zeigen, wie GPS Studio es löst.** Dabei gilt:
+**Wenn es im Browser geht, führt der Artikel über das Webtool** — keine Installation,
+kein Konto, Ergebnis in zwei Minuten. Erst wenn das Webtool an seine Grenze kommt
+(oder die Aufgabe nur die App kann), kommt der Download ins Spiel.
+
+Das ist gleichzeitig ein sauberer Einstieg: Wer sein Problem im Browser gelöst
+bekommt, hat einen Grund, sich die App anzusehen — statt umgekehrt erst installieren
+zu müssen, um zu sehen, ob es hilft.
+
+### Gliederung je Artikel
+
+1. **H2 = die echte Nutzerfrage** (Absatzbau-Regel)
+2. **Antwort im ersten Satz** — inklusive Aufwand: „Das geht im Browser, ohne
+   Installation, in etwa zwei Minuten."
+3. **Woran es liegt** — kurz, damit der Leser versteht statt nur klickt
+4. **Der Weg im Browser** — Schritt für Schritt, mit Link auf `reisezoom.com/gps/`
+5. **Wenn du mehr brauchst** — was die App zusätzlich kann, ehrlich abgegrenzt
+6. **Folgefragen** im selben Artikel (nie als eigene dünne Seite)
+7. **Marcs Tour** — der eigene Fall, an dem das Problem auftrat
+
+### Was das Webtool auf `/gps/` heute kann (geprüft 30.08.2026)
+
+**Track-Werkzeuge im Browser:** Zusammenfügen · Kürzen · Ausdünnen · Säubern ·
+Teilen · Umkehren · Startpunkt · Höhen · Zeiten · Runden
+**Dazu:** Karte ansehen · Höhenprofil · Tourdaten · Formate umwandeln
+(GPX/KML/KMZ/TCX/GeoJSON/CSV) · Fotos verorten (`/gps/tagger/`) · Blog-Einbettung
+
+**Nur in der App** (auf der Seite selbst mit „APP" gekennzeichnet):
+Animator (Video) · Tour-Map (PNG) · Daten-Animator · Archiv · der **tiefe**
+GPX-Inspektor (Ausreißer glätten, Lücken füllen, Höhe korrigieren mit Vorher/Nachher)
+
+⚠️ **Sauber trennen:** „✨ Säubern" im Browser und „🩹 Auto-Heilen" in der App sind
+nicht dasselbe, ebenso „⛰ Höhen" (holen) und „Höhe korrigieren" (Mischregler mit
+Vorher/Nachher). Im Artikel nicht verwischen — sonst enttäuscht das Webtool.
+
+### Zuordnung der zehn Fragen
+
+| # | Frage | Weg | Anmerkung |
+|---|---|---|---|
+| 1 | Wanderung als Video | **App** | Animator — Kernfunktion, kein Webtool |
+| 2 | Relive-Alternative | **App** | dito; Webtool als Vorgeschmack erwähnen |
+| 3 | Höhenmeter korrigieren | **Gestuft** | Browser „⛰ Höhen" holt Kartenhöhen; App mischt mit Regler + Vorher/Nachher |
+| 4 | Vergessen zu stoppen | **Browser ✅** | „✂ Kürzen" — sofort, ohne Installation |
+| 5 | Zickzack und Sprünge | **Gestuft** | Browser „✨ Säubern"; App heilt gezielt mit Vorschau |
+| 6 | Fotos geotaggen | **Browser ✅** | `/gps/tagger/` — Überarbeitung des Bestandsartikels |
+| 7 | Touren aus Strava/Komoot | **Browser ✅** | Formate umwandeln, sechs Eingangsformate |
+| 8 | Bild fürs Thumbnail | **App** | Tour-Map |
+| 9 | Karte im Blog | **Browser ✅** | „🧩 Diese Tour auf deinem Blog" |
+| 10 | Tempo/Puls über Video | **App** | Daten-Animator mit Alpha-Kanal |
+
+**Fünf von zehn Fragen sind sofort im Browser lösbar** — das sind die Artikel mit der
+niedrigsten Einstiegshürde und dem besten Verhältnis von Aufwand zu Wirkung.
+
+## Sprachen (Beschluss 30.08.2026)
+
+- **Deutsch im Blog** — Marcs Stimme, eigene Touren, zehn Jahre Domain-Autorität.
+  Die belegte Nachfrage stammt aus deutschen Foren.
+- **Englisch (später Spanisch) im `/gps/`-Bereich** — die Struktur steht bereits
+  (`/gps/` = EN, `/gps/de/`, `/gps/es/`); die JS-Sprachweiche liegt nur auf `/gps/`
+  selbst, Unterseiten wären davon nicht betroffen. WordPress hat **kein**
+  Mehrsprachigkeits-Plugin und ist bewusst schlank — dort nichts nachrüsten.
+- **Nicht übersetzen, neu schreiben:** Die englische Suchintention ist „gib mir den
+  Schritt", nicht „erzähl mir deine Wanderung". Geschwister, keine Kopien.
+- **Zuerst international**, weil die Konkurrenz dort eine belegte Fähigkeitslücke hat:
+  Fragen **4** (Mitte schneiden — keine Plattform kann es, gpx.studio nur per Rechteck),
+  **5** (automatische Ausreißererkennung — **gpx.studio kann das nicht**), **1/2**
+  (Video lokal in 4K ohne Wasserzeichen) und die **ganze Kette** (kann keiner der fünf).
+- Zur Einordnung: Von den fünf üblichen Gegnern ist nur **gpx.studio** groß
+  (833k Besuche/Quartal) — und der macht etwas anderes. **TrailReplay hat 46
+  GitHub-Sterne**, GpxFix/PeakLine/TrailBlender sind Ein-Personen-Projekte von
+  2025/26 ohne Domain-Autorität.
