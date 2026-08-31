@@ -85,11 +85,26 @@ Es hat **zwei Regler: „Von" und „Bis"** (0 bis 100). Man legt damit fest, we
 **Für unseren Fall:** Die Heimfahrt hängt am Ende → den **„Bis"-Regler** nach links
 ziehen, bis der Track am tatsächlichen Ziel endet. Anfahrt am Anfang → „Von"-Regler.
 
-⚠️ **Ganz wichtig und nicht verwischen:** „Kürzen" behält einen **zusammenhängenden
-Ausschnitt**. Man kann damit vorn und hinten wegschneiden, aber **kein Stück aus der
-Mitte entfernen**. Wer das braucht (Mittagspause, Abstecher zum Auto und zurück),
-braucht die App — siehe 3.2. **Das Webtool nicht schöner darstellen, als es ist**,
-sonst probiert es jemand aus, scheitert und kommt gar nicht erst zur App.
+**Und seit dem 31.08.2026 kann das Webtool auch die MITTE** — das ist neu und der
+eigentliche Aufhänger des Artikels. Unter den beiden Reglern steht ein Auswahlfeld
+**„Bereich"** mit zwei Möglichkeiten:
+
+- **„behalten — Rest wegschneiden"** (Vorgabe): der eingestellte Bereich bleibt,
+  alles davor und dahinter fällt weg. Der klassische Fall Anfahrt/Heimfahrt.
+- **„entfernen — Rest zusammenhängen"**: der eingestellte Bereich fliegt raus, die
+  beiden Enden werden direkt verbunden. **Damit schneidet man die Mittagspause oder
+  den Abstecher zum Auto heraus** — im Browser, ohne Installation.
+
+**Das ist die Stelle, an der der Artikel seinen stärksten Punkt hat:** Strava,
+Garmin Connect und Komoot können **ausschließlich** die Ränder kürzen. Ein Stück aus
+der Mitte kann keines der großen Portale — und die meisten Web-Werkzeuge auch nicht
+(gpx.studio nur, indem man ein Rechteck über die Karte zieht und Punkte darin löscht).
+
+**Ehrlich dazusagen:** Die Zeitstempel der verbleibenden Punkte bleiben unverändert.
+Die Pause ist also aus der *Strecke* verschwunden, die Gesamtdauer (Start bis Ende)
+bleibt aber gleich — das ist bewusst so, weil sonst die Uhrzeiten aller späteren
+Punkte nicht mehr stimmen würden. Wer auch die Zeit zusammenziehen will, nimmt
+danach „🕒 Zeiten".
 
 **Weitere Browser-Werkzeuge, die im Artikel kurz vorkommen dürfen** (jeweils mit den
 echten Beschriftungen):
@@ -112,9 +127,10 @@ keine Testphase, keine Werbung)
 
 **Modul GPX-Inspektor.** Was dort zusätzlich geht:
 
-- **„✂️ Punkte zwischen A→B rausschneiden"** — zwei Punkte auf der Karte anklicken
-  (A grün, B rot), alles dazwischen fliegt raus, die Linie verbindet A und B direkt.
-  **Das ist der Schnitt aus der Mitte, den keine Plattform kann.**
+- **„✂️ Punkte zwischen A→B rausschneiden"** — zwei Punkte **auf der Karte**
+  anklicken (A grün, B rot) statt Prozente zu schätzen. Das Webtool kann den Schnitt
+  aus der Mitte inzwischen auch, aber über Regler; in der App trifft man die Stelle
+  punktgenau und sieht sofort, was verschwindet.
 - **„Diesen Punkt löschen"** für einzelne Ausreißer
 - **Anfang bis hierher entfernen** / **Alles danach entfernen** — punktgenau statt
   über einen Prozentregler
@@ -129,8 +145,9 @@ oder wenn ohnehin noch andere Dinge anstehen (Fotos verorten, Video bauen).
 
 ## 4 · Was NICHT behauptet werden darf
 
-- ❌ **Nicht:** „Mit dem Webtool schneidest du beliebige Stücke heraus." → Falsch,
-  siehe 3.1. Nur ein zusammenhängender Ausschnitt.
+- ❌ **Nicht:** „Nur die App kann aus der Mitte schneiden." → Seit 31.08.2026 kann
+  das Webtool es auch (Auswahlfeld „Bereich" → „entfernen"). Die App bleibt genauer,
+  weil man dort zwei Punkte auf der Karte anklickt statt Prozente einzustellen.
 - ❌ **Nicht:** „Strava und Garmin können das gar nicht." → Beide **können** Anfang
   und Ende kürzen. Der Unterschied liegt bei der **Mitte** und bei der
   Umkehrbarkeit (Strava: irreversibel; Garmin: ändert nur die Anzeige).
