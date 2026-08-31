@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.634] – 2026-08-31
+
 ### Changed
 - Archiv-Scan liest jede GPX nur noch EINMAL (v0.9.634, Dieters
   NAS-Befund: „das Einlesen hat auffällig lange gedauert"): vorher wurde

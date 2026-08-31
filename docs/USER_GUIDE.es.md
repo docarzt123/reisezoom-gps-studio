@@ -878,6 +878,17 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 
 **Posiciones (desde v0.9.284):** las cajas de estadísticas en una **cuadrícula de 3×3** — las cuatro esquinas más **arriba (↥)**, **abajo (↧)**, **izquierda (⇤)**, **derecha (⇥)** centradas y **centro (✛)** (p. ej. para un rótulo de título/apertura). El **perfil de altitud** es más estrecho y ofrece además **arriba ancho / abajo ancho** (a lo largo de todo el ancho).
 
+**💧 Marca de agua (desde v0.9.632):** Al final de la sección de overlays
+puedes poner **tu propio logo** en el vídeo — se recomienda PNG con
+transparencia (JPG, WebP, GIF y SVG también valen). Ajusta **tamaño**
+(porcentaje del ancho del vídeo) y **opacidad** con los reguladores; la
+**posición la fijas directamente en la vista previa: arrastra el logo con el
+ratón hasta donde deba estar** (desde v0.9.633). Aparece en el vídeo
+renderizado, en la imagen fija y en la exportación alfa — la vista previa lo
+muestra fiel al píxel (WYSIWYG). La imagen se incrusta al renderizar; la
+elección se guarda por proyecto. En 4K y vertical queda automáticamente en el
+mismo sitio, porque todo se calcula en porcentaje del área del vídeo.
+
 **📊 Gráficos en el vídeo (desde v0.9.443):** en la sección de overlays, debajo del perfil de altitud sencillo, está el apartado **📊 Gráficos**. Con él superpones **tantos** gráficos de series de datos totalmente diseñados como quieras directamente sobre el vídeo del mapa — altitud, pulso, velocidad, potencia y cualquier otra serie que ofrezca tu track, incluyendo **zonas de color** y un **segundo eje Y**.
 
 ![Dos gráficos en el vídeo final: el perfil de altitud a lo ancho abajo y la curva de velocidad a su derecha — ambos van sincronizados con la posición en el mapa.](img/diagramme-im-video.jpg)
