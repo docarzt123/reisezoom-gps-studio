@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.632"
+APP_VERSION = "0.9.633"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -3887,6 +3887,8 @@ class Api:
             # 30.08.2026 (Marc): eigenes Wasserzeichen im Render
             watermark_path=str(params.get("watermark_path", "") or ""),
             watermark_pos=str(params.get("watermark_pos", "br") or "br"),
+            watermark_x_pct=float(params.get("watermark_x_pct", -1.0) if params.get("watermark_x_pct") is not None else -1.0),
+            watermark_y_pct=float(params.get("watermark_y_pct", -1.0) if params.get("watermark_y_pct") is not None else -1.0),
             watermark_w_pct=float(params.get("watermark_w_pct", 12.0) or 12.0),
             watermark_opacity=float(params.get("watermark_opacity", 0.9) or 0.9),
             # IDEAS §38 M3 — Geschwindigkeitsmodus (Wahl im Archiv, via Session)
@@ -4154,6 +4156,8 @@ class Api:
             # 30.08.2026 (Marc): eigenes Wasserzeichen im Render
             watermark_path=str(params.get("watermark_path", "") or ""),
             watermark_pos=str(params.get("watermark_pos", "br") or "br"),
+            watermark_x_pct=float(params.get("watermark_x_pct", -1.0) if params.get("watermark_x_pct") is not None else -1.0),
+            watermark_y_pct=float(params.get("watermark_y_pct", -1.0) if params.get("watermark_y_pct") is not None else -1.0),
             watermark_w_pct=float(params.get("watermark_w_pct", 12.0) or 12.0),
             watermark_opacity=float(params.get("watermark_opacity", 0.9) or 0.9),
             # Tour-Map (Standbild) hat keine Live-Box (zeit-animiert).

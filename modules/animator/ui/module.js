@@ -907,13 +907,7 @@ function mountAnimator(body, headerActions, opts) {
               </div>
               <div id="anim-wm-name" class="muted-note" style="margin-top:4px; word-break:break-all;"></div>
               <div id="anim-wm-opts" hidden>
-                <label class="field-label" style="margin-top:6px">${t("animator.wm.pos", "Ecke")}</label>
-                <select id="anim-wm-pos" class="pos-select" style="width:100%">
-                  <option value="br">${t("animator.pos.br", "unten rechts")}</option>
-                  <option value="bl">${t("animator.pos.bl", "unten links")}</option>
-                  <option value="tr">${t("animator.pos.tr", "oben rechts")}</option>
-                  <option value="tl">${t("animator.pos.tl", "oben links")}</option>
-                </select>
+                <div class="muted-note" style="margin-top:6px">🖱 ${t("animator.wm.drag_hint", "Zieh das Logo in der Vorschau mit der Maus dorthin, wo es sitzen soll.")}</div>
                 <label class="field-label" style="margin-top:6px">${t("animator.wm.size", "Größe")} <span id="anim-wm-w-v">12 %</span></label>
                 <input type="range" id="anim-wm-w" min="3" max="40" step="1" value="12">
                 <label class="field-label" style="margin-top:6px">${t("animator.wm.opacity", "Deckkraft")} <span id="anim-wm-op-v">90 %</span></label>
@@ -2375,7 +2369,8 @@ function mountAnimator(body, headerActions, opts) {
                         "#4ecdc4", "#ffa94d", "#a0e7e5"];
 
   // ── 💧 Wasserzeichen (30.08.2026) ──────────────────────────────────────
-  let _wm = { path: "", pos: "br", w: 12, op: 0.9 };
+  let _wm = { path: "", x: 86, y: 80, w: 12, op: 0.9 };
+  let _wmPrevLauf = 0;   // 30.08.2026 (Marc: „doppelt zu sehen") — Async-Guard
   function _wmPersist() {
     try { saveProjectSettings(_MODKEY, { watermark: { ..._wm } }); } catch (_) {}
   }
@@ -2387,8 +2382,6 @@ function mountAnimator(body, headerActions, opts) {
     name.textContent = _wm.path ? _wm.path.split("/").pop() : "";
     if (opts) opts.hidden = !_wm.path;
     if (clr) clr.hidden = !_wm.path;
-    const pos = document.getElementById("anim-wm-pos");
-    if (pos) pos.value = _wm.pos;
     const w = document.getElementById("anim-wm-w");
     if (w) { w.value = _wm.w; const v = document.getElementById("anim-wm-w-v"); if (v) v.textContent = _wm.w + " %"; }
     const op = document.getElementById("anim-wm-op");
@@ -2399,31 +2392,78 @@ function mountAnimator(body, headerActions, opts) {
   async function watermarkPreviewAnwenden() {
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer) return;
-    layer.querySelector("#anim-wm-preview")?.remove();
+    // Schneller Weg: Bild steht schon — nur Lage/Größe nachziehen (kein
+    // Bridge-Roundtrip, und der Doppel-Bug (zwei parallele Läufe hängten
+    // je ein <img> an) kann gar nicht erst entstehen.
+    const alt = layer.querySelector("#anim-wm-preview");
+    if (alt && _wm.path && alt.dataset.wmPath === _wm.path) {
+      _wmPreviewStyle(alt);
+      return;
+    }
+    const lauf = ++_wmPrevLauf;
+    alt?.remove();
     if (!_wm.path) return;
     let uri = "";
     try {
       const r = await api().watermark_data(_wm.path);
       uri = (r && r.ok && r.data_uri) || "";
     } catch (_) {}
-    if (!uri) return;
+    if (!uri || lauf !== _wmPrevLauf) return;   // veralteter Lauf → verwerfen
+    layer.querySelector("#anim-wm-preview")?.remove();
     const img = document.createElement("img");
     img.id = "anim-wm-preview";
-    const rand = "2%";
-    const lage = { tl: `top:${rand};left:${rand};`, tr: `top:${rand};right:${rand};`,
-                   bl: `bottom:${rand};left:${rand};`, br: `bottom:${rand};right:${rand};` }[_wm.pos] || "";
+    img.dataset.wmPath = _wm.path;
     img.src = uri;
-    img.style.cssText = `position:absolute; ${lage} width:${_wm.w}%; height:auto; opacity:${_wm.op}; z-index:40; pointer-events:none;`;
+    _wmPreviewStyle(img);
+    _wmDragAktivieren(img, layer);
     layer.appendChild(img);
+  }
+  function _wmPreviewStyle(img) {
+    img.style.cssText = `position:absolute; left:${_wm.x}%; top:${_wm.y}%; width:${_wm.w}%; height:auto; opacity:${_wm.op}; z-index:40; pointer-events:auto; cursor:move; user-select:none; -webkit-user-drag:none;`;
+  }
+  /** 30.08.2026 (Marc: „mit der maus hinziehen, wo es hin soll") — das Logo
+   *  in der Vorschau frei verschieben; gespeichert wird die linke obere Ecke
+   *  in % der Videofläche, wortgleich zu `wasserzeichen_lage` im Render. */
+  function _wmDragAktivieren(img, layer) {
+    img.addEventListener("mousedown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const r = layer.getBoundingClientRect();
+      const startX = e.clientX, startY = e.clientY;
+      const beginX = _wm.x, beginY = _wm.y;
+      const move = (ev) => {
+        _wm.x = Math.max(0, Math.min(98, beginX + ((ev.clientX - startX) / Math.max(1, r.width)) * 100));
+        _wm.y = Math.max(0, Math.min(98, beginY + ((ev.clientY - startY) / Math.max(1, r.height)) * 100));
+        img.style.left = _wm.x + "%";
+        img.style.top = _wm.y + "%";
+      };
+      const up = () => {
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", up);
+        _wmPersist();
+      };
+      window.addEventListener("mousemove", move);
+      window.addEventListener("mouseup", up);
+    });
   }
   function _wmLaden() {
     let a = null;
     try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
     const w = a && a.watermark;
-    _wm = (w && typeof w === "object")
-      ? { path: String(w.path || ""), pos: ["tl", "tr", "bl", "br"].includes(w.pos) ? w.pos : "br",
-          w: Math.max(3, Math.min(40, +w.w || 12)), op: Math.max(0.1, Math.min(1, +w.op || 0.9)) }
-      : { path: "", pos: "br", w: 12, op: 0.9 };
+    if (w && typeof w === "object") {
+      const breite = Math.max(3, Math.min(40, +w.w || 12));
+      let x = +w.x, y = +w.y;
+      if (!isFinite(x) || !isFinite(y)) {
+        // Migration v0.9.632-Ecken → freie Lage (wortgleich zu wasserzeichen_lage)
+        const pos = ["tl", "tr", "bl", "br"].includes(w.pos) ? w.pos : "br";
+        x = (pos === "tl" || pos === "bl") ? 2 : Math.max(2, 98 - breite);
+        y = (pos === "tl" || pos === "tr") ? 2 : 80;
+      }
+      _wm = { path: String(w.path || ""), x: Math.max(0, Math.min(98, x)),
+              y: Math.max(0, Math.min(98, y)), w: breite,
+              op: Math.max(0.1, Math.min(1, +w.op || 0.9)) };
+    } else {
+      _wm = { path: "", x: 86, y: 80, w: 12, op: 0.9 };
+    }
     _wmUiSync();
     // ui-falle-ok: reine Vorschau-Kür — Fehler loggt watermarkPreviewAnwenden nicht kritisch
     try { watermarkPreviewAnwenden(); } catch (_) {}
@@ -2438,8 +2478,6 @@ function mountAnimator(body, headerActions, opts) {
     };
     const clr = document.getElementById("anim-wm-clear");
     if (clr) clr.onclick = () => { _wm.path = ""; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
-    const pos = document.getElementById("anim-wm-pos");
-    if (pos) pos.onchange = () => { _wm.pos = pos.value; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
     const w = document.getElementById("anim-wm-w");
     if (w) w.oninput = () => { _wm.w = +w.value || 12; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
     const op = document.getElementById("anim-wm-op");
@@ -13312,7 +13350,8 @@ function mountAnimator(body, headerActions, opts) {
       still_frame: _isStaticFrame,
       // 30.08.2026 — Wasserzeichen (gilt für Video UND Standbild)
       watermark_path: _wm.path || "",
-      watermark_pos: _wm.pos,
+      watermark_x_pct: _wm.x,
+      watermark_y_pct: _wm.y,
       watermark_w_pct: _wm.w,
       watermark_opacity: _wm.op,
       ...(_isStaticFrame ? {
