@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Reisezoom GPS Studio Logo</title>
+  <desc id="desc">Eine GPS-Route läuft durch einen Standort-Pin mit Play-Symbol.</desc>
+  <defs>
+    <mask id="play-cutout">
+      <rect width="1024" height="1024" fill="white"/>
+      <path d="M444 304 444 476 594 390Z" fill="black"/>
+    </mask>
+  </defs>
+
+  <g fill="none" stroke="#FF6B35" stroke-width="58" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M118 794 C210 734 250 670 314 718 C404 786 470 842 550 770 C618 708 600 648 684 644 C786 640 858 590 910 500"/>
+  </g>
+  <circle cx="112" cy="798" r="38" fill="#FF6B35"/>
+  <circle cx="914" cy="494" r="38" fill="#FF6B35"/>
+
+  <path
+    d="M512 104 C350 104 236 224 236 384 C236 586 512 786 512 786 C512 786 788 586 788 384 C788 224 674 104 512 104Z"
+    fill="#FF6B35"
+    mask="url(#play-cutout)"
+  />
+</svg>

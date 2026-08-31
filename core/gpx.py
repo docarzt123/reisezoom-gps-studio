@@ -375,12 +375,20 @@ def laufpunkt_aus_bereiche(pts) -> list:
     return out
 
 
-def parse_gpx(path: str) -> tuple[List[TrackPoint], TrackStats]:
+def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], TrackStats]:
     """Liest eine GPX-Datei (oder ein konvertierbares Fremdformat, siehe
-    IMPORT_CACHE_DIR), gibt Trackpunkte (mit kumulierten Werten) + Stats zurück."""
-    path = _als_gpx(path)
-    with open(path, "r", encoding="utf-8") as fh:
-        gpx = gpxpy.parse(fh)
+    IMPORT_CACHE_DIR), gibt Trackpunkte (mit kumulierten Werten) + Stats zurück.
+
+    `text` (31.08.2026, Dieters NAS-Befund): Wer die Datei schon gelesen hat,
+    reicht den Inhalt herein — dann wird sie hier NICHT erneut geöffnet. Der
+    Archiv-Scan öffnete jede GPX zweimal (Parse + Quell-Erkennung); über SMB
+    ist jede Öffnung ein Netz-Roundtrip."""
+    if text is not None:
+        gpx = gpxpy.parse(text)
+    else:
+        path = _als_gpx(path)
+        with open(path, "r", encoding="utf-8") as fh:
+            gpx = gpxpy.parse(fh)
 
     pts: List[TrackPoint] = []
     seg_namen: List[str] = []
