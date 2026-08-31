@@ -14,6 +14,15 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Archiv-Scan liest jede GPX nur noch EINMAL (v0.9.634, Dieters
+  NAS-Befund: „das Einlesen hat auffällig lange gedauert"): vorher wurde
+  jede Datei zweimal geöffnet — einmal fürs Parsen, einmal für die
+  Komoot/Creator-Erkennung. Auf einem NAS ist jede Öffnung ein
+  Netz-Roundtrip; jetzt bedienen sich beide aus demselben Read
+  (Äquivalenz nachgemessen: identische Punkte, Stats und Quell-Erkennung).
+  Wächter `test_scan_ein_read.py`.
+
 ### Added
 - Eigenes Wasserzeichen (v0.9.632, Marc: „dann kann ich in meinen videos
   zumindest ein kleines bisschen mehr marketing machen"): In der

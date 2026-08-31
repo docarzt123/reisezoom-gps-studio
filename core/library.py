@@ -660,13 +660,17 @@ _KOMOOT_RE = re.compile(r"komoot\.[a-z]{2,3}/tour/(\d+)", re.I)
 _CREATOR_RE = re.compile(r'creator="([^"]{1,60})"', re.I)
 
 
-def _peek_source(path: Path) -> tuple:
-    """Herkunft aus dem Dateikopf: (source, source_url). Billig, nur 4 KB."""
-    try:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
-            head = fh.read(4096)
-    except OSError:
-        return "", ""
+def _peek_source(path: Path, head: "str | None" = None) -> tuple:
+    """Herkunft aus dem Dateikopf: (source, source_url).
+
+    `head` (31.08.2026): schon gelesener Dateianfang — spart die zweite
+    Datei-Öffnung pro Scan-Datei (über NAS ein voller Netz-Roundtrip)."""
+    if head is None:
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                head = fh.read(4096)
+        except OSError:
+            return "", ""
     m = _KOMOOT_RE.search(head)
     if m:
         return "komoot", f"https://www.komoot.de/tour/{m.group(1)}"
@@ -914,14 +918,25 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     if path.suffix.lower() != ".gpx":
         gpx_path = cimports.ensure_gpx(str(path), import_cache)
 
-    pts, stats = cgpx.parse_gpx(gpx_path)
+    # 31.08.2026 (Dieters NAS-Befund: „das Einlesen hat auffällig lange
+    # gedauert"): die Datei EINMAL lesen und daraus Parse UND Quell-Erkennung
+    # bedienen — vorher wurde jede GPX zweimal geöffnet, und über SMB kostet
+    # jede Öffnung einen Netz-Roundtrip. Fremdformate (FIT …) laufen weiter
+    # über das lokale Konvertat.
+    text = None
+    if gpx_path == str(path):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            text = None      # exotische Kodierung → alter Weg (eigenes open)
+    pts, stats = cgpx.parse_gpx(gpx_path, text=text)
     coords = [(p.lon, p.lat) for p in pts]
     times = [p.time for p in pts if p.time]
 
     dur = float(stats.duration_s or 0.0)
     moving = float(stats.moving_time_s or 0.0) or dur
     dist = float(stats.distance_m or 0.0)
-    src, src_url = _peek_source(path)
+    src, src_url = _peek_source(path, head=(text[:4096] if text is not None else None))
     name = (stats.name or path.stem).strip()
     _rec, _rec_src = _recorded_guess(pts, stats, name)
 
