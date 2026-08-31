@@ -314,7 +314,12 @@ class AnimatorConfig:
     # marketing") — eigenes Logo im gerenderten Video/Bild. Pfad zu PNG/JPG/
     # WebP (leer = aus), Ecke, Breite in % der Videobreite, Deckkraft.
     watermark_path: str = ""
-    watermark_pos: str = "br"           # tl | tr | bl | br
+    watermark_pos: str = "br"           # Alt-Projekte (v0.9.632): tl|tr|bl|br
+    # 30.08.2026 (Marc: „mit der maus hinziehen, wo es hin soll") — freie
+    # Position: linke obere Ecke des Logos in % der Videofläche. -1 = nicht
+    # gesetzt → aus watermark_pos abgeleitet (Abwärtskompatibilität).
+    watermark_x_pct: float = -1.0
+    watermark_y_pct: float = -1.0
     watermark_w_pct: float = 12.0
     watermark_opacity: float = 0.9
     # Nur bei "real": was mit Standzeiten passiert. "show" (voll ausspielen),
@@ -1649,17 +1654,26 @@ def _watermark_html(cfg) -> str:
             ".webp": "image/webp", ".gif": "image/gif",
             ".svg": "image/svg+xml"}.get(Path(pfad).suffix.lower(), "image/png")
     b64 = base64.b64encode(roh).decode("ascii")
-    pos = getattr(cfg, "watermark_pos", "br")
-    if pos not in ("tl", "tr", "bl", "br"):
-        pos = "br"
     w = max(2.0, min(60.0, float(getattr(cfg, "watermark_w_pct", 12.0) or 12.0)))
     op = max(0.05, min(1.0, float(getattr(cfg, "watermark_opacity", 0.9) or 0.9)))
-    rand = "2%"
-    lage = {"tl": f"top:{rand}; left:{rand};", "tr": f"top:{rand}; right:{rand};",
-            "bl": f"bottom:{rand}; left:{rand};", "br": f"bottom:{rand}; right:{rand};"}[pos]
+    x, y = wasserzeichen_lage(cfg, w)
     return (f'<img id="rz-watermark" src="data:{mime};base64,{b64}" alt="" '
-            f'style="position:absolute; {lage} width:{w}vw; height:auto; '
+            f'style="position:absolute; left:{x}%; top:{y}%; width:{w}vw; height:auto; '
             f'opacity:{op}; z-index:40; pointer-events:none;">')
+
+
+def wasserzeichen_lage(cfg, w_pct: float) -> tuple[float, float]:
+    """Freie Position (x/y in % der Videofläche, linke obere Ecke des Logos).
+    Alt-Projekte tragen nur die Ecke (`watermark_pos`) — daraus wird einmalig
+    eine x/y-Lage abgeleitet, wortgleich zur Migration in `_wmLaden`
+    (modules/animator/ui/module.js)."""
+    x = float(getattr(cfg, "watermark_x_pct", -1.0))
+    y = float(getattr(cfg, "watermark_y_pct", -1.0))
+    if x < 0 or y < 0:
+        pos = getattr(cfg, "watermark_pos", "br")
+        x = 2.0 if pos in ("tl", "bl") else max(2.0, 98.0 - w_pct)
+        y = 2.0 if pos in ("tl", "tr") else 80.0
+    return (max(0.0, min(98.0, x)), max(0.0, min(98.0, y)))
 
 
 def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[float],

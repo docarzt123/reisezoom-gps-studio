@@ -24,6 +24,13 @@ Bei jeder neuen Version:
   WYSIWYG. Das Bild wird beim Rendern eingebettet (data-URI, offline-fest),
   die Wahl wird im Projekt gespeichert. Wächter `test_wasserzeichen.py`,
   i18n DE/EN/ES.
+- Wasserzeichen frei verschiebbar (v0.9.633, Marc): statt vier Ecken zieht
+  man das Logo jetzt **mit der Maus in der Vorschau** an seinen Platz
+  (Position in % der Videofläche, Render wortgleich via
+  `wasserzeichen_lage`; Ecken-Projekte aus v0.9.632 werden migriert).
+  Behoben: beim Ändern der Größe erschien das Logo in der Vorschau doppelt
+  (zwei parallele Async-Läufe hängten je ein Bild an — jetzt Lauf-Guard und
+  Stil-Update ohne Neuladen).
 
 ## [0.9.631] – 2026-08-30
 
