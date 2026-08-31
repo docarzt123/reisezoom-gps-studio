@@ -947,6 +947,16 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 **Positionen (seit v0.9.284):** Stats-Boxen in einem **3×3-Raster** — vier Ecken plus **oben (↥)**, **unten (↧)**, **links (⇤)**, **rechts (⇥)** mittig und **Mitte (✛)** (z.B. für eine Titel-/Eröffnungs-Einblendung). Das **Höhenprofil** ist schmaler und bietet zusätzlich **oben breit / unten breit** (über die volle Breite).
 
+**💧 Wasserzeichen (seit v0.9.632):** Ganz unten in der Overlays-Sektion legst
+du **dein eigenes Logo** ins Video — PNG mit Transparenz empfohlen (JPG, WebP,
+GIF und SVG gehen auch). **Größe** (Prozent der Videobreite) und **Deckkraft**
+stellst du per Regler ein; die **Position bestimmst du direkt in der Vorschau:
+Logo mit der Maus dorthin ziehen, wo es sitzen soll** (seit v0.9.633). Es
+erscheint im gerenderten Video, im Standbild-Export und im Alpha-Export — die
+Vorschau zeigt es bildgenau (WYSIWYG). Das Bild wird beim Rendern eingebettet;
+die Wahl wird im Projekt gespeichert. Bei 4K und Hochkant sitzt es automatisch
+an derselben Stelle, weil alles in Prozent der Videofläche gerechnet wird.
+
 **📊 Diagramme im Video (seit v0.9.443):** In der Overlays-Sektion gibt es unter dem einfachen Höhenprofil den Abschnitt **📊 Diagramme**. Damit blendest du **beliebig viele** voll gestaltete Datenreihen-Diagramme direkt ins Karten-Video ein — Höhe, Puls, Tempo, Leistung und jede andere Reihe, die dein Track hergibt, inklusive **Farbzonen** und **zweiter Y-Achse**.
 
 ![Zwei Diagramme im fertigen Video: das Höhenprofil unten über die volle Breite, die Tempo-Kurve rechts daneben — beide laufen synchron zur Position auf der Karte.](img/diagramme-im-video.jpg)

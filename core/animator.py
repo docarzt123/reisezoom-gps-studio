@@ -3183,6 +3183,34 @@ window.waitForRender = () => new Promise(r => {{
   }}, 5000);
 }});
 
+// 31.08.2026 (Dieters „Kachelbildung") — STRENGES Warten für Frames, in denen
+// sich der ZOOM geändert hat. `waitForRender` nimmt die 60-ms-Abkürzung, sobald
+// `areTilesLoaded()` true meldet — während eines Zoom-Flugs gilt aber auch die
+// übergangsweise dargestellte ELTERN-Kachel (andere Zoomstufe = oft anderes
+// Aufnahme-Datum!) als „geladen". Mit `raster-fade-duration: 0` (v0.9.286)
+// stehen dann frisch geladene Ziel-Kacheln HART neben alten Eltern-Kacheln —
+// das Schachbrett aus verschiedenfarbigen Kacheln im Video. Hier: Repaint
+// erzwingen und IMMER auf echtes `idle` (= Ziel-Zoomstufe vollständig) warten.
+window.waitForTilesStrict = () => new Promise(r => {{
+  const settleMs = 60;
+  const finish = () => setTimeout(r, settleMs);
+  let done = false;
+  const onIdle = () => {{
+    if (done) return;
+    done = true;
+    map.off('idle', onIdle);
+    finish();
+  }};
+  map.on('idle', onIdle);
+  try {{ map.triggerRepaint && map.triggerRepaint(); }} catch (_) {{}}
+  setTimeout(() => {{
+    if (done) return;
+    done = true;
+    map.off('idle', onIdle);
+    finish();
+  }}, 5000);
+}});
+
 // v0.9.19 — Tile-Cache-Prewarm. Wird VOR der Frame-Loop einmal aufgerufen
 // und „durchfliegt" die Animation an N stützstellen, damit Mapbox die
 // benötigten Tiles in seinen Browser-Cache zieht. Dann fliegt jeder echte
@@ -5107,6 +5135,10 @@ async def render(
                     _use_faithful = True
                     if _rt:
                         _log.info("🎥 entkoppelte FreeCamera aktiv (%d Keyframes)", len(_kf_cam_list))
+            # 31.08.2026 — strenges Kachel-Warten bei Zoom-Änderung (Dieters
+            # „Kachelbildung"). RZ_TILE_STRICT=0 schaltet es für Vergleiche ab.
+            _tile_streng = os.environ.get("RZ_TILE_STRICT", "1") != "0"
+            _prev_frame_zoom = float("nan")
             for frame in range(total_frames):
                 # Cancel-Check VOR jeder teuren Frame-Operation
                 check_cancel()
@@ -5284,7 +5316,16 @@ async def render(
                     await page.evaluate(
                         f"window.__signsAnchorFilter && window.__signsAnchorFilter({_sign_hold_anchor})"
                     )
-                await page.evaluate("window.waitForRender()")
+                # 31.08.2026 (Dieters „Kachelbildung"): Frames mit Zoom-
+                # Änderung (Anflug, Zoom-Keyframes) warten STRENG, bis die
+                # Ziel-Zoomstufe vollständig geladen ist — sonst mischt der
+                # Frame Eltern- und Kind-Kacheln verschiedener Aufnahme-
+                # Chargen mit harter Kante (raster-fade-duration ist 0).
+                if _tile_streng and abs(frame_zoom - _prev_frame_zoom) > 1e-6:
+                    await page.evaluate("window.waitForTilesStrict()")
+                else:
+                    await page.evaluate("window.waitForRender()")
+                _prev_frame_zoom = frame_zoom
                 # RZ_CAMDEBUG=1 — Kamera-Fährte pro Frame: befohlener Zoom vs.
                 # das, was Mapbox danach wirklich meldet (inkl. Kamera-Höhe).
                 # Nur für Fehlersuche (Rafael-Report 21.08.2026: „Render-Zoom

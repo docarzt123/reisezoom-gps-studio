@@ -256,3 +256,59 @@ niedrigsten Einstiegshürde und dem besten Verhältnis von Aufwand zu Wirkung.
   (833k Besuche/Quartal) — und der macht etwas anderes. **TrailReplay hat 46
   GitHub-Sterne**, GpxFix/PeakLine/TrailBlender sind Ein-Personen-Projekte von
   2025/26 ohne Domain-Autorität.
+
+---
+
+## Beim Schreiben der Briefings aufgefallen — TODOs
+
+Diese Punkte sind entstanden, während ich für jeden Artikel geprüft habe, was das
+Webtool **wirklich** kann. Sortiert nach Wirkung auf die Artikel.
+
+### 1. ⚠️ Web-Tagger kann kein HEIC — iPhone-Fotos gehen nicht
+`web-tagger` verarbeitet **ausschließlich JPEG**. HEIC ist seit Jahren das
+Standardformat der iPhone-Kamera. Wer also mit dem iPhone fotografiert und den
+Web-Tagger ausprobiert, kommt nicht weit — und das ist genau die größte Gruppe.
+**Wirkung:** Artikel 6 muss diese Grenze deutlich benennen, sonst scheitert der erste
+Versuch. **Vorschlag:** entweder HEIC im Browser nachrüsten (es gibt JS-Decoder, aber
+sie sind groß und langsam) oder wenigstens eine klare Meldung
+(„HEIC-Dateien kann der Browser-Tagger nicht — dafür die App").
+**Minimum: die verständliche Fehlermeldung.**
+
+### 2. „Säubern" ist auf 250 km/h voreingestellt — für Wanderer nutzlos
+Der Regler „Höchstgeschwindigkeit" steht auf 250 km/h. Für eine Wanderung müsste er
+bei etwa 15–20 km/h stehen, sonst greift der Filter praktisch nie. Ein Wanderer, der
+das Werkzeug ausprobiert, sieht **kein Ergebnis** und hält es für kaputt.
+**Vorschlag:** eine Sportart-Vorauswahl (Wandern · Rad · Motorrad/Auto), die den
+Regler sinnvoll vorbelegt. Das ist wenig Arbeit und macht das Werkzeug deutlich
+nützlicher. **Der Tipp steht so in Briefing 5 — besser wäre, ihn gar nicht zu brauchen.**
+
+### 3. Höhen im Browser: der Mischregler der App fehlt
+Im Browser gibt es nur „Nur fehlende ergänzen" oder „Alle ersetzen (entrauschen)" —
+also ganz oder gar nicht. Der eigentliche Fortschritt der App ist der **Mischregler**
+(Voreinstellung 70 % Karte) mit Live-Vorschau der Höhenmeter.
+**Vorschlag:** einen Prozentregler auch im Browser. Damit wäre der stärkste Teil von
+Artikel 3 sofort ausprobierbar, statt erst nach dem Download.
+
+### 4. `/gps/en/` liefert 404
+`/gps/` ist die englische Fassung, `/gps/de/` und `/gps/es/` die anderen. Wer die
+naheliegende URL `/gps/en/` rät oder verlinkt bekommt, landet im Nichts.
+**Vorschlag:** eine Weiterleitung auf `/gps/` einrichten. Zwei Zeilen `.htaccess`.
+
+### 5. Kein RSS-Feed für den Changelog
+Aus der Newsletter-Überlegung übrig geblieben und weiterhin sinnvoll: Der Changelog
+liegt bereits als HTML unter einer festen URL. Ein Feed daneben kostet fast nichts,
+hat keine DSGVO-Folgen und keine Supportlast — und erreicht genau die technische
+Zielgruppe, die GPS Studio nutzt.
+
+### 6. Kein PNG-Export im Browser
+Artikel 8 (Thumbnail) muss deshalb komplett auf die App verweisen. Ein einfacher
+PNG-Export der Kartenansicht wäre ein starker Einstieg — und technisch überschaubar,
+weil die Karte im Browser ohnehin schon gezeichnet wird.
+
+### 7. Die „APP"-Kennzeichnung auf `/gps/` ist teilweise missverständlich
+Bei „Track reparieren" steht „APP" — dabei gibt es „Säubern" und „Höhen" auch im
+Browser, nur in einfacherer Form. Wer die Kennzeichnung liest, denkt, im Browser ginge
+gar nichts.
+**Vorschlag:** statt „APP" ein „mehr in der App" bei den Werkzeugen, die es in beiden
+Fassungen gibt — und „nur in der App" bei denen, die es wirklich nur dort gibt
+(Animator, Tour-Map, Daten-Animator, Archiv).

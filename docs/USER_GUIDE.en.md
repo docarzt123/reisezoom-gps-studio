@@ -860,6 +860,16 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 **Positions (since v0.9.284):** stats boxes in a **3×3 grid** — four corners plus **top (↥)**, **bottom (↧)**, **left (⇤)**, **right (⇥)** centered and **center (✛)** (e.g. for a title/opening overlay). The **elevation profile** is narrower and additionally offers **top wide / bottom wide** (across the full width).
 
+**💧 Watermark (since v0.9.632):** At the bottom of the overlays section you
+can put **your own logo** into the video — PNG with transparency recommended
+(JPG, WebP, GIF and SVG work too). Set **size** (percent of the video width)
+and **opacity** with sliders; **position it directly in the preview: drag the
+logo with the mouse to wherever it should sit** (since v0.9.633). It appears
+in the rendered video, the still-image export and the alpha export — the
+preview shows it pixel-true (WYSIWYG). The image is embedded at render time;
+the choice is stored per project. At 4K and portrait it automatically sits in
+the same spot, because everything is calculated in percent of the video area.
+
 **📊 Charts in the video (since v0.9.443):** in the Overlays section, below the simple elevation profile, there's the **📊 Charts** area. With it you overlay **as many** fully styled data-series charts as you like directly onto the map video — elevation, heart rate, speed, power and any other series your track provides, including **color zones** and a **second Y axis**.
 
 ![Two charts in the finished video: the elevation profile along the full width at the bottom and the speed curve next to it on the right — both run in sync with the position on the map.](img/diagramme-im-video.jpg)
