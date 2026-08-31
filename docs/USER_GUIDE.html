@@ -547,11 +547,13 @@ python app.py</code></pre>
 <ul>
 <li><strong>➕</strong> (nur bei leeren Projekten): Touren aus dem Archiv hinzufügen.</li>
 </ul>
+<h4 id="die-projekt-detailspalte">Die Projekt-Detailspalte</h4>
+<p>Ein Klick auf eine Projektkarte öffnet <strong>rechts die Detailspalte</strong> — wie bei einzelnen Touren: großes Kartenbild, alle Aktionen (Öffnen, Modul-Sprünge, Umbenennen, Duplizieren, Löschen, Status), die <strong>Mitglieds-Touren</strong> mit Stern für die Haupt-Tour und Sprung ins Archiv, die <strong>früheren Arbeitsstände</strong> (🕘) und die Fassungs-Hinweise (⬆).</p>
 <h4 id="wie-projekte-entstehen">Wie Projekte entstehen</h4>
 <ol>
 <li><strong>Automatisch:</strong> Jede geöffnete Tour bekommt sofort einen Arbeitsstand</li>
 </ol>
-<p> („Standard&quot;) — nichts geht je verloren. Nie angefasste Stände liegen  eingeklappt unter <strong>„Automatisch angelegt&quot;</strong> und wandern zu „Deine  Projekte&quot;, sobald du darin arbeitest oder sie umbenennst. Hat eine Tour  mehr als ein Projekt, wird keins davon versteckt.</p>
+<p> die Karte trägt den <strong>Tour-Namen</strong> — nichts geht je  verloren. <strong>Selbstreinigung</strong>: Automatisch angelegte  Projekte, die nie umbenannt wurden, keinen Status bekamen und in keinem  Modul echte Arbeit tragen, verschwinden nach 30 Tagen von selbst  die Tour wieder öffnen legt jederzeit ein frisches an. Nie angefasste Stände liegen  eingeklappt unter <strong>„Automatisch angelegt&quot;</strong> und wandern zu „Deine  Projekte&quot;, sobald du darin arbeitest oder sie umbenennst. Hat eine Tour  mehr als ein Projekt, wird keins davon versteckt.</p>
 <ol>
 <li><strong>Leer per Hand:</strong> „+ Neues Projekt&quot; in der Projektliste — oder im</li>
 </ol>
@@ -608,6 +610,14 @@ python app.py</code></pre>
 <li><strong>🎥 Kamera folgt</strong> (über der Tourenliste): <em>niemandem</em> (Gesamtsicht,</li>
 </ul>
 <p> Standard), <em>der längsten Tour</em> — oder <strong>jeder einzelnen Tour</strong> deiner Wahl.  Die Kamera begleitet sie und <strong>bleibt an ihrem Ziel stehen</strong>, während der  Rest weiterläuft.</p>
+<ul>
+<li><strong>Haupt-Tour nicht hervorheben</strong> (Häkchen über der Tourenliste, seit</li>
+</ul>
+<p>): normalerweise bekommt die Haupt-Tour Schatten, Leuchten und den  großen Laufpunkt. Mit dem Häkchen sieht sie aus wie alle anderen — nichts  sticht heraus.</p>
+<ul>
+<li><strong>⏱ Start-Verzögerung</strong>: Jede Zusatz-Tour hat in der</li>
+</ul>
+<p> Tourenliste ein Feld <strong>„Start nach X s&quot;</strong> (Videozeit; 0 = gemeinsamer  Start). Bei „Fotofinish&quot; kommt eine verzögerte Tour trotzdem pünktlich an,  bei den anderen Modi läuft sie einfach später mit echter Geschwindigkeit  los. Auch die <strong>Haupt-Tour</strong> kann warten („Haupt-Tour startet nach X s&quot;):  sie behält Schatten und Laufpunkt, der Schwarm läuft derweil weiter, und  sie holt bis zum Videoende auf. Vorschau und Video zeigen dasselbe.  Typischer Einsatz: die geplante Runde läuft komplett, und der Teil, den du  schon gelaufen bist, startet mittendrin.</p>
 <ul>
 <li><strong>Schwarm-Zahlen im Overlay:</strong> „Zurückgelegt&quot; und „Verbleibend&quot; sind die</li>
 </ul>
@@ -679,6 +689,7 @@ python app.py</code></pre>
 <p><strong>Was die Kacheln verraten:</strong></p>
 <table><thead><tr><th>Zeichen</th><th>Bedeutung</th></tr></thead><tbody><tr><td>★</td><td>Favorit</td></tr><tr><td>„geplant&quot;</td><td>Tour war nur geplant, nicht aufgezeichnet</td></tr><tr><td>„aus&quot;</td><td>Tour ist ausgeblendet</td></tr><tr><td>● (orange)</td><td>Für diese Tour gibt es schon gespeicherte Projekte</td></tr></tbody></table>
 <p><strong>Doppelte finden:</strong> Der Knopf unten links gruppiert Dateien mit <strong>identischem Streckenverlauf</strong> — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.</p>
+<p><strong>Einzelne Datei importieren:</strong> Eine einzelne GPX (oder FIT, TCX, KML …) — etwa frisch von Komoot heruntergeladen — muss nicht erst in einen beobachteten Ordner: <strong>„📂 Ordner &amp; Einlesen&quot; → „+ Einzelne Track-Datei …&quot;</strong>, oder die Datei einfach <strong>aufs Archiv ziehen</strong>. Die App kopiert sie in ihren eigenen Import-Ordner (das Original bleibt liegen, Dubletten werden übersprungen) und liest sie sofort ein.</p>
 <p><strong>Neue Dateien:</strong> Nach jedem größeren Export einmal unten links <strong>„📂 Ordner &amp; Einlesen&quot; → „Neu einlesen&quot;</strong> drücken. Bereits bekannte Dateien werden übersprungen, das geht in Sekunden.</p>
 <p><strong>Einen Zeitraum wählen.</strong> Ganz links in der Filterleiste steht eine Auswahl mit <strong>„Dieses Jahr&quot;</strong>, <strong>„Letzte 12 Monate&quot;</strong>, <strong>„Letzte 12 Wochen&quot;</strong> und <strong>„Eigener Zeitraum …&quot;</strong>. Beim eigenen Zeitraum erscheinen zwei Datumsfelder für <em>von</em> und <em>bis</em>; beide Tage zählen mit. Der Zeitraum wirkt auf alles gleichzeitig Liste, Karte und Statistik zeigen danach denselben Ausschnitt. Solange ein Zeitraum eingestellt ist, ist das Jahres-Feld ausgegraut: beide meinen dasselbe, und der Zeitraum ist der genauere von beiden.</p>
 <p><strong>Nach Länge filtern.</strong> Neben Jahr und Fortbewegung stehen zwei kleine Felder <strong>„ab km&quot;</strong> und <strong>„bis km&quot;</strong>. Zusammen beantworten die drei Filter Fragen wie <em>„alle Wanderungen über 20 km in 2025&quot;</em>: Fortbewegung auf Wandern, Jahr auf 2025, „ab km&quot; auf 20 — fertig.</p>

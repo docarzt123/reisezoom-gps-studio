@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.631"
+APP_VERSION = "0.9.632"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -2222,6 +2222,23 @@ class Api:
             log.exception("library_add_folder")
             return {"ok": False, "error": str(e)}
 
+    def watermark_data(self, path: str) -> dict:
+        """30.08.2026 — Wasserzeichen-Bild als data-URI für die WYSIWYG-Vorschau
+        (die WebView darf lokale Pfade nicht direkt laden). Deckel 8 MB."""
+        try:
+            p = Path(str(path or ""))
+            if not p.is_file():
+                return {"ok": False, "error": "not found"}
+            if p.stat().st_size > 8 * 1024 * 1024:
+                return {"ok": False, "error": _ui_t()("animator.wm.zu_gross", "Bild ist zu groß (max. 8 MB)")}
+            mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                    ".webp": "image/webp", ".gif": "image/gif",
+                    ".svg": "image/svg+xml"}.get(p.suffix.lower(), "image/png")
+            import base64 as _b64
+            return {"ok": True, "data_uri": f"data:{mime};base64," + _b64.b64encode(p.read_bytes()).decode("ascii")}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def library_import_files(self, paths: list | None = None) -> dict:
         """30.08.2026 (Marc-OK, nach Dieters Komoot-Fall): EINZELNE
         Track-Dateien direkt ins Archiv. Ohne `paths` öffnet der Datei-Dialog
@@ -3867,6 +3884,11 @@ class Api:
             schwarm_haupt_dezent=bool(params.get("schwarm_haupt_dezent")),
             # 29.08.2026 (Marc, Schorfheide): Haupt-Tour startet verzögert
             schwarm_haupt_start_s=max(0.0, float(params.get("schwarm_haupt_start_s", 0) or 0)),
+            # 30.08.2026 (Marc): eigenes Wasserzeichen im Render
+            watermark_path=str(params.get("watermark_path", "") or ""),
+            watermark_pos=str(params.get("watermark_pos", "br") or "br"),
+            watermark_w_pct=float(params.get("watermark_w_pct", 12.0) or 12.0),
+            watermark_opacity=float(params.get("watermark_opacity", 0.9) or 0.9),
             # IDEAS §38 M3 — Geschwindigkeitsmodus (Wahl im Archiv, via Session)
             schwarm_modus=(str(params.get("schwarm_modus") or "gleich")
                            if str(params.get("schwarm_modus") or "gleich") in ("gleich", "ziel", "uhrzeit")
@@ -4129,6 +4151,11 @@ class Api:
             show_overlays=bool(params.get("show_overlays", True)),
             overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
             overlay_totals_position=params.get("overlay_totals_position", "tl"),
+            # 30.08.2026 (Marc): eigenes Wasserzeichen im Render
+            watermark_path=str(params.get("watermark_path", "") or ""),
+            watermark_pos=str(params.get("watermark_pos", "br") or "br"),
+            watermark_w_pct=float(params.get("watermark_w_pct", 12.0) or 12.0),
+            watermark_opacity=float(params.get("watermark_opacity", 0.9) or 0.9),
             # Tour-Map (Standbild) hat keine Live-Box (zeit-animiert).
             overlay_live_enabled=False,
             overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", False)),

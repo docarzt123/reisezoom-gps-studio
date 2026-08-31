@@ -530,11 +530,13 @@ python app.py</code></pre>
 <ul>
 <li><strong>➕</strong> (solo proyectos vacíos): añadir rutas del archivo.</li>
 </ul>
+<h4 id="la-columna-de-detalle-del-proyecto">La columna de detalle del proyecto</h4>
+<p>Un clic en una tarjeta de proyecto abre <strong>la columna de detalle a la derecha</strong> — como en las rutas individuales: imagen de mapa grande, todas las acciones (abrir, saltos a módulos, renombrar, duplicar, borrar, estado), las <strong>rutas miembro</strong> con estrella para la principal y salto al archivo, los <strong>estados de trabajo anteriores</strong> (🕘) y los avisos de versión (⬆).</p>
 <h4 id="c-mo-nacen-los-proyectos">Cómo nacen los proyectos</h4>
 <ol>
 <li><strong>Automáticamente:</strong> cada ruta abierta recibe al instante un estado de</li>
 </ol>
-<p> trabajo («Standard») — nunca se pierde nada. Los estados intactos quedan  plegados bajo <strong>«Creados automáticamente»</strong> y suben a «tus proyectos» en  cuanto trabajas en ellos o los renombras. Si una ruta tiene más de un  proyecto, ninguno se oculta.</p>
+<p> trabajo — la tarjeta lleva el <strong>nombre de la ruta</strong>  nunca se pierde nada. <strong>Auto-limpieza</strong>: los proyectos  creados automáticamente que nunca fueron renombrados, sin estado asignado  y sin trabajo real en ningún módulo se eliminan solos tras 30 días  reabrir la ruta crea uno nuevo en cualquier momento. Los estados intactos quedan  plegados bajo <strong>«Creados automáticamente»</strong> y suben a «tus proyectos» en  cuanto trabajas en ellos o los renombras. Si una ruta tiene más de un  proyecto, ninguno se oculta.</p>
 <ol>
 <li><strong>Vacío, a mano:</strong> «+ Nuevo proyecto» en la lista — o desde el conmutador</li>
 </ol>
@@ -592,6 +594,14 @@ python app.py</code></pre>
 </ul>
 <p> general, el estándar), <em>la ruta más larga</em> — o <strong>cualquier ruta</strong> que  elijas. La cámara la acompaña y <strong>se queda quieta en su meta</strong> mientras las  demás siguen corriendo.</p>
 <ul>
+<li><strong>No resaltar el tour principal</strong> (casilla sobre la lista de rutas, desde</li>
+</ul>
+<p>): normalmente el tour principal lleva sombra, brillo y el punto  corredor grande. Con la casilla se ve como todos los demás — nada resalta.</p>
+<ul>
+<li><strong>⏱ Salida retrasada</strong>: cada ruta adicional tiene en la</li>
+</ul>
+<p> lista un campo <strong>«empieza tras X s»</strong> (tiempo de vídeo; 0 = salida  conjunta). En «foto-finish» una ruta retrasada llega igualmente a tiempo;  en los otros modos simplemente arranca más tarde a velocidad real. El  <strong>tour principal</strong> también puede esperar («el tour principal empieza tras  X s»): conserva sombra y punto corredor, el enjambre sigue avanzando  mientras tanto, y recupera hasta el final del vídeo. La vista previa y el  vídeo muestran lo mismo. Uso típico: la vuelta planificada corre completa  y el tramo que ya has caminado arranca a mitad.</p>
+<ul>
 <li><strong>Números del enjambre en el overlay:</strong> «Recorrido» y «Restante» son la</li>
 </ul>
 <p> <strong>suma de todas las rutas</strong> (cuánto ha avanzado el enjambre en conjunto),  «Distancia» es el total — además de <strong>«Aún en camino»</strong> (p. ej. «37 / 96»)  y <strong>«Rutas en total»</strong> («96 · 812 km»). Los campos de tiempo, velocidad y  altitud siguen mostrando la ruta más larga.</p>
@@ -642,6 +652,7 @@ python app.py</code></pre>
 <p><strong>Qué indican las tarjetas:</strong></p>
 <table><thead><tr><th>Señal</th><th>Significado</th></tr></thead><tbody><tr><td>★</td><td>favorita</td></tr><tr><td>«planificada»</td><td>la ruta solo se planificó, no se grabó</td></tr><tr><td>«off»</td><td>la ruta está oculta</td></tr><tr><td>● (naranja)</td><td>ya hay proyectos guardados para esta ruta</td></tr></tbody></table>
 <p><strong>Buscar duplicadas:</strong> el botón de abajo a la izquierda agrupa los archivos con un <strong>recorrido idéntico</strong>, útil tras una exportación masiva que descargó la misma ruta varias veces. No se borra nada: solo ves qué está duplicado.</p>
+<p><strong>Importar un archivo suelto:</strong> un GPX individual (o FIT, TCX, KML …) — por ejemplo recién bajado de Komoot — ya no necesita una carpeta vigilada: <strong>«📂 Carpetas y lectura» → «+ Archivo de track individual …»</strong>, o simplemente <strong>arrastra el archivo sobre el archivo de rutas</strong>. La app lo copia a su propia carpeta de importación (el original se queda donde está, los duplicados se omiten) y lo lee al momento.</p>
 <p><strong>Archivos nuevos:</strong> pulsa <strong>«Volver a leer»</strong> después de cada exportación grande. Los archivos ya conocidos se omiten, así que tarda segundos.</p>
 <p><strong>Elegir un periodo.</strong> En el extremo izquierdo de la barra de filtros hay un selector con <strong>«Este año»</strong>, <strong>«Últimos 12 meses»</strong>, <strong>«Últimas 12 semanas»</strong> y <strong>«Periodo personalizado …»</strong>. Con el periodo propio aparecen dos campos de fecha, <em>desde</em> y <em>hasta</em>; ambos días cuentan. El periodo se aplica a todo a la vez: lista, mapa y estadísticas muestran el mismo tramo. Mientras haya un periodo definido, el campo del año queda atenuado: ambos significan lo mismo y el periodo es el más preciso de los dos.</p>
 <p><strong>Filtrar por longitud.</strong> Junto al año y la actividad hay dos campos pequeños <strong>«desde km»</strong> y <strong>«hasta km»</strong>. Juntos, los tres filtros responden a preguntas como <em>«todas las excursiones de más de 20 km en 2025»</em>: actividad en senderismo, año en 2025, «desde km» en 20 — listo.</p>
