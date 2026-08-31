@@ -14,6 +14,17 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Eigenes Wasserzeichen (v0.9.632, Marc: „dann kann ich in meinen videos
+  zumindest ein kleines bisschen mehr marketing machen"): In der
+  Overlay-Sektion des Animators lässt sich ein eigenes Logo (PNG mit
+  Transparenz empfohlen, auch JPG/WebP/GIF/SVG) wählen — Ecke, Größe
+  (% der Videobreite) und Deckkraft einstellbar. Erscheint im gerenderten
+  Video, im Tour-Map-Standbild und im Alpha-Export; die Vorschau zeigt es
+  WYSIWYG. Das Bild wird beim Rendern eingebettet (data-URI, offline-fest),
+  die Wahl wird im Projekt gespeichert. Wächter `test_wasserzeichen.py`,
+  i18n DE/EN/ES.
+
 ## [0.9.631] – 2026-08-30
 
 ### Added

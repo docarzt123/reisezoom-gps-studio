@@ -531,11 +531,13 @@ python app.py</code></pre>
 <ul>
 <li><strong>➕</strong> (empty projects only): add tours from the archive.</li>
 </ul>
+<h4 id="the-project-detail-column">The project detail column</h4>
+<p>Clicking a project card opens the <strong>detail column on the right</strong> — just like for single tours: big map image, all actions (open, module jumps, rename, duplicate, delete, status), the <strong>member tours</strong> with a star for the main tour and a jump into the archive, the <strong>earlier working states</strong> (🕘) and the version hints (⬆).</p>
 <h4 id="how-projects-come-to-be">How projects come to be</h4>
 <ol>
 <li><strong>Automatically:</strong> every opened tour instantly gets a working state</li>
 </ol>
-<p> (&quot;Standard&quot;) — nothing is ever lost. Untouched states sit collapsed under  <strong>&quot;created automatically&quot;</strong> and move up to &quot;your projects&quot; as soon as you  work in them or rename them. If a tour has more than one project, none of  them is hidden.</p>
+<p> the card carries the <strong>tour name</strong> — nothing is ever  lost. <strong>Self-cleaning</strong>: auto-created projects that were  never renamed, never got a status and carry no real work in any module  remove themselves after 30 days — reopening the tour creates a fresh one  any time. Untouched states sit collapsed under  <strong>&quot;created automatically&quot;</strong> and move up to &quot;your projects&quot; as soon as you  work in them or rename them. If a tour has more than one project, none of  them is hidden.</p>
 <ol>
 <li><strong>Empty, by hand:</strong> &quot;+ New project&quot; in the project list — or via the</li>
 </ol>
@@ -593,6 +595,14 @@ python app.py</code></pre>
 </ul>
 <p> default), <em>the longest tour</em> — or <strong>any single tour</strong> of your choice. The  camera accompanies it and <strong>stays put at its finish</strong> while the rest keep  running.</p>
 <ul>
+<li><strong>Don&#x27;t highlight the main tour</strong> (checkbox above the tour list, since</li>
+</ul>
+<p>): normally the main tour gets shadow, glow and the big runner  dot. With the checkbox it looks like all the others — nothing stands out.</p>
+<ul>
+<li><strong>⏱ Start delay</strong>: every extra tour has a **&quot;starts</li>
+</ul>
+<p> after X s&quot;<strong> field in the tour list (video time; 0 = starts together).  In &quot;photo finish&quot; a delayed tour still arrives on time; in the other  modes it simply sets off later at true speed. The </strong>main tour** can wait  too (&quot;main tour starts after X s&quot;): it keeps shadow and runner dot, the  swarm keeps moving meanwhile, and it catches up by the end of the video.  Preview and video show the same thing. Typical use: the planned loop runs  in full while the part you have already walked starts mid-way.</p>
+<ul>
 <li><strong>Swarm numbers in the overlay:</strong> &quot;Distance done&quot; and &quot;Remaining&quot; are the</li>
 </ul>
 <p> <strong>sum over all tours</strong> (how far the swarm has travelled altogether),  &quot;Distance&quot; is the grand total — plus <strong>&quot;Still under way&quot;</strong> (e.g. &quot;37 / 96&quot;)  and <strong>&quot;Tours in total&quot;</strong> (&quot;96 · 812 km&quot;). Time, speed and elevation fields  still show the longest tour.</p>
@@ -640,6 +650,7 @@ python app.py</code></pre>
 <p><strong>What the cards tell you:</strong></p>
 <table><thead><tr><th>Mark</th><th>Meaning</th></tr></thead><tbody><tr><td>★</td><td>favourite</td></tr><tr><td>“planned”</td><td>the tour was only planned, never recorded</td></tr><tr><td>“off”</td><td>the tour is hidden</td></tr><tr><td>● (orange)</td><td>there are already saved projects for this tour</td></tr></tbody></table>
 <p><strong>Find duplicates:</strong> the button at the bottom left groups files with an <strong>identical route</strong> handy after a bulk export that downloaded the same tour several times. Nothing is deleted; you only get to see what is doubled up.</p>
+<p><strong>Import a single file:</strong> a single GPX (or FIT, TCX, KML …) — say, freshly downloaded from Komoot — doesn&#x27;t need a watched folder first: <strong>&quot;📂 Folders &amp; Scan&quot; → &quot;+ Single track file …&quot;</strong>, or simply <strong>drag the file onto the archive</strong>. The app copies it into its own import folder (the original stays put, duplicates are skipped) and scans it right away.</p>
 <p><strong>New files:</strong> press <strong>“Rescan”</strong> once after a bigger export. Files already known are skipped, so it takes seconds.</p>
 <p><strong>Choosing a period.</strong> At the far left of the filter bar is a selector with <strong>“This year”</strong>, <strong>“Last 12 months”</strong>, <strong>“Last 12 weeks”</strong> and <strong>“Custom period …”</strong>. The custom option shows two date fields for <em>from</em> and <em>to</em>; both days are included. The period applies to everything at once — list, map and statistics all show the same slice. While a period is set, the year field is greyed out: both mean the same thing, and the period is the more precise of the two.</p>
 <p><strong>Filter by length.</strong> Next to year and activity sit two small fields <strong>“from km”</strong> and <strong>“to km”</strong>. Together the three filters answer questions like <em>“all hikes over 20 km in 2025”</em>: activity to hiking, year to 2025, “from km” to 20 — done.</p>

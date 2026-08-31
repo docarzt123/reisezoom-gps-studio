@@ -310,6 +310,13 @@ class AnimatorConfig:
     # sie bleibt Haupt (Schatten/Glow/Laufpunkt), der Schwarm läuft derweil
     # an der Videozeit. Renormiert: sie kommt trotzdem am Videoende an.
     schwarm_haupt_start_s: float = 0.0
+    # 30.08.2026 (Marc: „eigene wasserzeichen … ein kleines bisschen mehr
+    # marketing") — eigenes Logo im gerenderten Video/Bild. Pfad zu PNG/JPG/
+    # WebP (leer = aus), Ecke, Breite in % der Videobreite, Deckkraft.
+    watermark_path: str = ""
+    watermark_pos: str = "br"           # tl | tr | bl | br
+    watermark_w_pct: float = 12.0
+    watermark_opacity: float = 0.9
     # Nur bei "real": was mit Standzeiten passiert. "show" (voll ausspielen),
     # "trim" (auf `pause_trim_s` kürzen) oder "skip" (ganz raus). Ohne
     # Behandlung wäre der ehrlichste Modus der langweiligste — bei einer
@@ -1623,6 +1630,38 @@ window.__rzColorGradient = function(CD, i0, i1, stopsVal, stopsCol, mode, metric
 """
 
 
+def _watermark_html(cfg) -> str:
+    """Wasserzeichen als eingebettetes <img> (data-URI, offline-fest).
+
+    Breite/Abstand in % der Viewportbreite → skaliert automatisch mit jeder
+    Auflösung (kein RENDER_SCALE nötig). Liegt ÜBER der Karte und UNTER den
+    Overlay-Boxen (die kommen später im DOM). WYSIWYG-Spiegel:
+    `watermarkPreviewAnwenden` in modules/animator/ui/module.js."""
+    pfad = str(getattr(cfg, "watermark_path", "") or "")
+    if not pfad:
+        return ""
+    try:
+        roh = Path(pfad).read_bytes()
+    except OSError as e:
+        _log.warning("Wasserzeichen nicht lesbar (%s) — wird weggelassen: %s", pfad, e)
+        return ""
+    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".webp": "image/webp", ".gif": "image/gif",
+            ".svg": "image/svg+xml"}.get(Path(pfad).suffix.lower(), "image/png")
+    b64 = base64.b64encode(roh).decode("ascii")
+    pos = getattr(cfg, "watermark_pos", "br")
+    if pos not in ("tl", "tr", "bl", "br"):
+        pos = "br"
+    w = max(2.0, min(60.0, float(getattr(cfg, "watermark_w_pct", 12.0) or 12.0)))
+    op = max(0.05, min(1.0, float(getattr(cfg, "watermark_opacity", 0.9) or 0.9)))
+    rand = "2%"
+    lage = {"tl": f"top:{rand}; left:{rand};", "tr": f"top:{rand}; right:{rand};",
+            "bl": f"bottom:{rand}; left:{rand};", "br": f"bottom:{rand}; right:{rand};"}[pos]
+    return (f'<img id="rz-watermark" src="data:{mime};base64,{b64}" alt="" '
+            f'style="position:absolute; {lage} width:{w}vw; height:auto; '
+            f'opacity:{op}; z-index:40; pointer-events:none;">')
+
+
 def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[float],
                cum_time: list[float], total_stats: dict,
                bbox: tuple[float, float, float, float],
@@ -1958,7 +1997,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
   </svg>
 </div>"""
     charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
-    overlays_block = (totals_html + live_html + ele_html + charts_html
+    overlays_block = (_watermark_html(cfg) + totals_html + live_html
+                      + ele_html + charts_html
                       + _overlay_timing_js(cfg) + _chart_driver_js(cfg))
     # JS-Block für Karten-Feinabstimmung. Wird im `style.load`-Callback
     # ausgespielt. Zwei Mechanismen parallel:
@@ -3290,7 +3330,8 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
   </svg>
 </div>"""
     charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
-    overlays_block = (totals_html + live_html + ele_html + charts_html
+    overlays_block = (_watermark_html(cfg) + totals_html + live_html
+                      + ele_html + charts_html
                       + _overlay_timing_js(cfg) + _chart_driver_js(cfg))
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">

@@ -894,6 +894,32 @@ function mountAnimator(body, headerActions, opts) {
               <button type="button" id="anim-chart-add" class="ghost-btn" style="width:100%; margin-top:6px;">＋ ${t("animator.charts.add", "Diagramm hinzufügen")}</button>
               <div id="anim-charts-empty" class="charts-empty muted-note" style="margin-top:6px;"></div>
             </div>
+            <!-- 30.08.2026 (Marc: „eigene wasserzeichen … ein kleines bisschen
+                 mehr marketing") — eigenes Logo im Video, WYSIWYG. -->
+            <div class="overlay-group" id="anim-wm-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
+              <div class="ov-style-title" style="display:flex; align-items:center; gap:6px;">
+                <span>💧 ${t("animator.wm.title", "Wasserzeichen")}</span>
+                <span class="ov-help" title="${t("animator.wm.help", "Eigenes Logo (PNG mit Transparenz empfohlen) im gerenderten Video und Standbild — z. B. dein Kanal-Logo. Größe ist Prozent der Videobreite.")}">?</span>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
+                <button type="button" id="anim-wm-pick" class="ghost-btn" style="flex:1">🖼 ${t("animator.wm.pick", "Bild wählen …")}</button>
+                <button type="button" id="anim-wm-clear" class="ghost-btn" hidden title="${t("animator.wm.clear", "Wasserzeichen entfernen")}">✕</button>
+              </div>
+              <div id="anim-wm-name" class="muted-note" style="margin-top:4px; word-break:break-all;"></div>
+              <div id="anim-wm-opts" hidden>
+                <label class="field-label" style="margin-top:6px">${t("animator.wm.pos", "Ecke")}</label>
+                <select id="anim-wm-pos" class="pos-select" style="width:100%">
+                  <option value="br">${t("animator.pos.br", "unten rechts")}</option>
+                  <option value="bl">${t("animator.pos.bl", "unten links")}</option>
+                  <option value="tr">${t("animator.pos.tr", "oben rechts")}</option>
+                  <option value="tl">${t("animator.pos.tl", "oben links")}</option>
+                </select>
+                <label class="field-label" style="margin-top:6px">${t("animator.wm.size", "Größe")} <span id="anim-wm-w-v">12 %</span></label>
+                <input type="range" id="anim-wm-w" min="3" max="40" step="1" value="12">
+                <label class="field-label" style="margin-top:6px">${t("animator.wm.opacity", "Deckkraft")} <span id="anim-wm-op-v">90 %</span></label>
+                <input type="range" id="anim-wm-op" min="10" max="100" step="5" value="90">
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -1376,6 +1402,13 @@ function mountAnimator(body, headerActions, opts) {
       _ghostListeZeichnen();
     } catch (e) {
       applog && applog("error", `[ghost] Aufbau beim Öffnen: ${e && e.message || e}`);
+    }
+    // 💧 Wasserzeichen: Bedienung binden + Stand aus dem Projekt holen.
+    try {
+      _wmBinden();
+      _wmLaden();
+    } catch (e) {
+      applog && applog("warn", `[wm] Aufbau beim Öffnen: ${e && e.message || e}`);
       console.warn("[ghost] Aufbau:", e);
     }
   }
@@ -1483,6 +1516,8 @@ function mountAnimator(body, headerActions, opts) {
         _ghostListeZeichnen();
         _ghostSpurenAufbauen();
       } catch (e) { applog && applog("warn", `[ghost] nach Projektwechsel: ${e}`); }
+      // ui-falle-ok: Vorschau-Kür — _wmLaden loggt über applog selbst nicht, Fehler hier sind kosmetisch
+      try { _wmLaden(); } catch (e) { applog && applog("warn", `[wm] nach Projektwechsel: ${e}`); }
     })); } catch (e) { applog && applog("error", `[anim] Sitzungs-Listener: ${e}`); }
   }
 
@@ -2338,6 +2373,78 @@ function mountAnimator(body, headerActions, opts) {
   let _ghostIdZaehler = 0;
   const GHOST_FARBEN = ["#7fa8ff", "#ffd166", "#7ed957", "#ff8fa3", "#c77dff",
                         "#4ecdc4", "#ffa94d", "#a0e7e5"];
+
+  // ── 💧 Wasserzeichen (30.08.2026) ──────────────────────────────────────
+  let _wm = { path: "", pos: "br", w: 12, op: 0.9 };
+  function _wmPersist() {
+    try { saveProjectSettings(_MODKEY, { watermark: { ..._wm } }); } catch (_) {}
+  }
+  function _wmUiSync() {
+    const name = document.getElementById("anim-wm-name");
+    const opts = document.getElementById("anim-wm-opts");
+    const clr = document.getElementById("anim-wm-clear");
+    if (!name) return;
+    name.textContent = _wm.path ? _wm.path.split("/").pop() : "";
+    if (opts) opts.hidden = !_wm.path;
+    if (clr) clr.hidden = !_wm.path;
+    const pos = document.getElementById("anim-wm-pos");
+    if (pos) pos.value = _wm.pos;
+    const w = document.getElementById("anim-wm-w");
+    if (w) { w.value = _wm.w; const v = document.getElementById("anim-wm-w-v"); if (v) v.textContent = _wm.w + " %"; }
+    const op = document.getElementById("anim-wm-op");
+    if (op) { op.value = Math.round(_wm.op * 100); const v = document.getElementById("anim-wm-op-v"); if (v) v.textContent = Math.round(_wm.op * 100) + " %"; }
+  }
+  /** WYSIWYG-Spiegel zu `_watermark_html` (core/animator.py): gleiches Bild,
+   *  gleiche Ecke, Breite in % der VORSCHAU-Breite (Render: % der Videobreite). */
+  async function watermarkPreviewAnwenden() {
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer) return;
+    layer.querySelector("#anim-wm-preview")?.remove();
+    if (!_wm.path) return;
+    let uri = "";
+    try {
+      const r = await api().watermark_data(_wm.path);
+      uri = (r && r.ok && r.data_uri) || "";
+    } catch (_) {}
+    if (!uri) return;
+    const img = document.createElement("img");
+    img.id = "anim-wm-preview";
+    const rand = "2%";
+    const lage = { tl: `top:${rand};left:${rand};`, tr: `top:${rand};right:${rand};`,
+                   bl: `bottom:${rand};left:${rand};`, br: `bottom:${rand};right:${rand};` }[_wm.pos] || "";
+    img.src = uri;
+    img.style.cssText = `position:absolute; ${lage} width:${_wm.w}%; height:auto; opacity:${_wm.op}; z-index:40; pointer-events:none;`;
+    layer.appendChild(img);
+  }
+  function _wmLaden() {
+    let a = null;
+    try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
+    const w = a && a.watermark;
+    _wm = (w && typeof w === "object")
+      ? { path: String(w.path || ""), pos: ["tl", "tr", "bl", "br"].includes(w.pos) ? w.pos : "br",
+          w: Math.max(3, Math.min(40, +w.w || 12)), op: Math.max(0.1, Math.min(1, +w.op || 0.9)) }
+      : { path: "", pos: "br", w: 12, op: 0.9 };
+    _wmUiSync();
+    // ui-falle-ok: reine Vorschau-Kür — Fehler loggt watermarkPreviewAnwenden nicht kritisch
+    try { watermarkPreviewAnwenden(); } catch (_) {}
+  }
+  function _wmBinden() {
+    const pick = document.getElementById("anim-wm-pick");
+    if (pick) pick.onclick = async () => {
+      const res = await api().pick_file("open", ["Bilder (*.png;*.jpg;*.jpeg;*.webp;*.gif;*.svg)"], false);
+      const pfad = Array.isArray(res) ? res[0] : "";
+      if (!pfad) return;
+      _wm.path = pfad; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
+    };
+    const clr = document.getElementById("anim-wm-clear");
+    if (clr) clr.onclick = () => { _wm.path = ""; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
+    const pos = document.getElementById("anim-wm-pos");
+    if (pos) pos.onchange = () => { _wm.pos = pos.value; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
+    const w = document.getElementById("anim-wm-w");
+    if (w) w.oninput = () => { _wm.w = +w.value || 12; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
+    const op = document.getElementById("anim-wm-op");
+    if (op) op.oninput = () => { _wm.op = (+op.value || 90) / 100; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
+  }
 
   function _ghostSpurenLaden() {
     let a = null;
@@ -13203,6 +13310,11 @@ function mountAnimator(body, headerActions, opts) {
       // Reglern in der Kamera-Sektion (WYSIWYG zur Vorschau). Fallback auf die
       // bisherigen Tour-Map-Defaults wenn ein Element fehlt.
       still_frame: _isStaticFrame,
+      // 30.08.2026 — Wasserzeichen (gilt für Video UND Standbild)
+      watermark_path: _wm.path || "",
+      watermark_pos: _wm.pos,
+      watermark_w_pct: _wm.w,
+      watermark_opacity: _wm.op,
       ...(_isStaticFrame ? {
         bearing: (() => { const v = parseFloat(document.getElementById("anim-static-bearing")?.value); return isNaN(v) ? -10 : v; })(),
         padding_pct: (() => { const v = parseFloat(document.getElementById("anim-static-padding")?.value); return isNaN(v) ? 8 : v; })(),
