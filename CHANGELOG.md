@@ -14,6 +14,103 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.635] – 2026-09-01
+
+### Added
+- Rafael-Paket (v0.9.635, aus seinen zwei Test-Mails vom 31.08.):
+  (1) **Mehrfachauswahl im Projektmanager** — ⌘/Strg-Klick sammelt
+  Projektkarten, eine Leiste löscht alle ausgewählten auf einmal (er musste
+  27 Stück einzeln löschen). (2) **Pfeil für alle Schwarm-Touren** — neues
+  Häkchen „Laufpunkt-Form der Haupt-Tour für alle Touren": steht die
+  Haupt-Tour auf „Pfeil in Fahrtrichtung", bekommen auch alle Zusatz-Touren
+  ihren eingefärbten, mitdrehenden Pfeil (Render + Vorschau wortgleich).
+  (3) **Inspektor: „Reduzieren & Tempo"** — Punktzahl der Datei auf eine
+  Wunschzahl verkleinern (echte Punkte, gleichmäßig nach Strecke) und
+  Zeitstempel auf ein Ø-Tempo umschreiben (macht auch geplante Routen
+  „echt-Uhrzeit"-tauglich); beides mit Undo und Vorher/Nachher.
+  **Reduzieren als Schieberegler mit Live-Vorschau** (Marc, 01.09.2026):
+  Der Regler geht von 2 Punkten bis zur **echten Punktzahl dieses Tracks**
+  (100 % = alles bleibt, kein Fantasiewert mehr im Feld) und zeigt beim
+  Schieben sofort auf der Karte, was übrig bliebe — die überlebenden Punkte
+  orange, das Original blass dahinter, dazu „X Punkte fallen weg".
+  Erst „Reduzieren" ändert die Datei. Wächter
+  `test_inspektor_reduzieren.py`.
+  **Tempo-Teil geschärft** (Marc, 01.09.2026: „wir haben doch son
+  Geschwindigkeitsheiler"): Er hat recht — bei aufgezeichneten Tracks
+  repariert „Unmögliches Tempo entzerren" die Zeiten gezielt und behält den
+  echten Rhythmus. Bleibt genau eine Lücke: Tracks **ohne jede Uhrzeit**
+  (geplante Routen), bei denen der Heiler sofort aussteigt. Die Funktion
+  heißt deshalb jetzt **„🕐 Zeitachse erzeugen"** und erscheint nur noch
+  dort — danach verschwindet sie und der Heiler übernimmt.
+- **Neues Logo** überall: App-Icon (macOS .icns + Windows .ico, neues Mark
+  auf dunklem Grund), Topbar-Mark, About-Dialog mit Lockup, Changelog-Seiten
+  und Handbuch (eingebettet, bleibt auch hochgeladen sichtbar), README.
+
+### Changed
+- **Das Tool heißt jetzt „GPS Studio by reisezoom.com"** (Marc, 01.09.2026 —
+  „etwas mehr internationalisieren"): sichtbarer Name in Topbar,
+  Fenstertitel, Über-Dialog, Menü, Web-Karten-Credit, Handbüchern,
+  Changelog-Seiten und README. **Bewusst unverändert:** Bundle-ID,
+  App-Support-Ordner und Download-Dateinamen (ReisezoomGPSStudio-…) — eine
+  Umbenennung dort würde Bestandsdaten verwaisen lassen und die
+  s.reisezoom.com-Shortlinks brechen.
+- **Wasserzeichen: ein Schalter, ein Logo** (Marc, 01.09.2026 — „ein ganz
+  einfacher Knopf, Wasserzeichen an oder aus … nicht son Dropdown noch"):
+  Häkchen **„Wasserzeichen einblenden"**, darunter **„🖼 eigenes Bild …"**
+  (mit ↩︎ zurück zum GPS-Studio-Logo). Dazu wie gehabt Größe, Deckkraft und
+  Ziehen in der Vorschau.
+  **Neue Projekte** starten mit dem Logo unten rechts, in Marcs erprobter
+  Platzierung (15 % Größe, 65 % Deckkraft) — **bestehende
+  Projekte bleiben unverändert ohne**: Der Standard wird beim *Anlegen*
+  gesetzt (`core/sessions.py`), nicht beim Laden, damit bei Beta-Testern
+  nicht nachträglich ein Logo in fertige Videos rutscht.
+  **Unterzeile lesbar gemacht:** „BY REISEZOOM.COM" ist jetzt exakt so
+  breit wie „GPS STUDIO" darüber (vorher rund ein Drittel — bei 23 % im
+  1080p-Video nicht zu entziffern).
+  **Eingebautes Logo als Sentinel** (`@lockup-white`) statt absolutem Pfad:
+  Ein exportiertes Projekt zeigte sonst auf einem anderen Rechner ins Leere.
+  Alte Pfade werden beim Laden automatisch gehoben; der Auflöser sitzt im
+  Render-Kern, damit jeder Weg (Video, Standbild, Alpha, Tests) dasselbe
+  Logo findet.
+- **App-Icon mit dem neuen Logo** (orangenes Mark auf dunklem Grund,
+  macOS .icns + Windows .ico); Topbar-Mark, About-Dialog-Lockup,
+  Logo in Changelog-Seiten, Handbüchern (eingebettet) und README.
+
+### Fixed
+- **„Bild öffnen" / „Neues Bild" nach einem VIDEO** (Marc, 01.09.2026): Der
+  Standbild-Zweig des Fertig-Bereichs schreibt Bild-Beschriftungen in die
+  Knöpfe — zurückgesetzt hat sie niemand. Wer erst ein Standbild und danach
+  ein Video rendert, bekam beim Video „🖼 Bild öffnen" und „Neues Bild".
+  Der Video-Zweig stellt Beschriftungen, Player und Standbild jetzt
+  ausdrücklich zurück.
+- Vorschau-Kamera „der Zoom haut ab" (Rafael, drei Ursachen — alle
+  behoben, Wächter `test_zoom_haut_ab.py`):
+  (1) Rumzoomen zum Angucken wurde still als `static_zoom` gespeichert und
+  galt fortan als bewusste Kamera-Wahl; (2) die implizite Classic-Kamera
+  nahm den rohen Zoom-Slider (Markup-Default 12) statt Projekt-Wahl →
+  Fit-Zoom → Slider; (3) bei eingeschaltetem Keyframe-EDITOR ohne
+  Keyframes folgte der Probelauf dem Track (mit Trägheit kriechend),
+  obwohl „Kamera folgt Track" aus war — jetzt zeigt der Probelauf ohne
+  Kamera-Keyframes exakt die Fit-Gesamtsicht des Renders (WYSIWYG).
+- Projektmanager-Mehrfachauswahl (aus dem Live-Test der neuen Funktion):
+  Bestätigen-Knopf im Löschen-Dialog war leer; die Aktionsleiste verschob
+  beim ⌘-Klicken die Karten unter dem Zeiger (Aktionen jetzt in der
+  Detailspalte wie im Touren-Archiv); die rechte Spalte behielt beim
+  Moduswechsel den Inhalt des anderen Modus.
+- Inspektor „Reduzieren & Tempo": Felder zeigten nur Platzhalter — leer
+  abgeschickt lief „Reduzieren" stumm ins Leere und „Anwenden" verlangte
+  eine Eingabe, obwohl „12" sichtbar war. Platzhalter zählt jetzt als
+  Wert, ungültige Ziele bekommen eine Ansage.
+
+- Rafael: **Deutsche Texte in fremdsprachiger Oberfläche** — der
+  „Projekte"-Knopf oben rechts rendert jetzt neu, sobald die Sprachdateien
+  geladen sind (vorher blieb der deutsche Fallback stehen), und der
+  ⚙-Tooltip „Einstellungen" ist übersetzbar (topbar.settings, DE/EN/ES).
+- Rafael: **„(importado) (importado)"-Kaskade beim .rzproj-Import** — ein
+  inhaltsgleiches Projekt im selben Kontext wird beim erneuten Import nicht
+  mehr dupliziert, und der Namenszusatz stapelt sich nicht mehr
+  („… (importiert 2)" statt „… (importiert) (importiert)").
+
 ## [0.9.634] – 2026-08-31
 
 ### Changed

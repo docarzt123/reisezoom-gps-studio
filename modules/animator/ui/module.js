@@ -897,16 +897,21 @@ function mountAnimator(body, headerActions, opts) {
             <!-- 30.08.2026 (Marc: „eigene wasserzeichen … ein kleines bisschen
                  mehr marketing") — eigenes Logo im Video, WYSIWYG. -->
             <div class="overlay-group" id="anim-wm-group" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
-              <div class="ov-style-title" style="display:flex; align-items:center; gap:6px;">
+              <!-- 01.09.2026 (Marc, nach Screenshot: „da überlagert sich ein
+                   bisschen … macht doch einfach die Checkbox direkt vor
+                   Wasserzeichen … und das Fragezeichen kann weg"): EIN Schalter
+                   im Titel, darunter Datei/Größe/Deckkraft. Kein zweites
+                   Ein-Aus, kein Hilfe-Fragezeichen. -->
+              <label class="ov-style-title" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="anim-wm-on">
                 <span>💧 ${t("animator.wm.title", "Wasserzeichen")}</span>
-                <span class="ov-help" title="${t("animator.wm.help", "Eigenes Logo (PNG mit Transparenz empfohlen) im gerenderten Video und Standbild — z. B. dein Kanal-Logo. Größe ist Prozent der Videobreite.")}">?</span>
-              </div>
-              <div style="display:flex; gap:6px; align-items:center; margin-top:6px;">
-                <button type="button" id="anim-wm-pick" class="ghost-btn" style="flex:1">🖼 ${t("animator.wm.pick", "Bild wählen …")}</button>
-                <button type="button" id="anim-wm-clear" class="ghost-btn" hidden title="${t("animator.wm.clear", "Wasserzeichen entfernen")}">✕</button>
-              </div>
-              <div id="anim-wm-name" class="muted-note" style="margin-top:4px; word-break:break-all;"></div>
+              </label>
               <div id="anim-wm-opts" hidden>
+                <div style="display:flex; gap:6px; margin-top:8px">
+                  <button type="button" id="anim-wm-eigen" class="ghost-btn" style="flex:1">🖼 ${t("animator.wm.v_eigen", "eigenes Bild …")}</button>
+                  <button type="button" id="anim-wm-standard" class="ghost-btn" hidden title="${t("animator.wm.zurueck", "Wieder das GPS-Studio-Logo nehmen")}">↩︎</button>
+                </div>
+                <div id="anim-wm-name" class="muted-note" style="margin-top:4px; word-break:break-all;"></div>
                 <div class="muted-note" style="margin-top:6px">🖱 ${t("animator.wm.drag_hint", "Zieh das Logo in der Vorschau mit der Maus dorthin, wo es sitzen soll.")}</div>
                 <label class="field-label" style="margin-top:6px">${t("animator.wm.size", "Größe")} <span id="anim-wm-w-v">12 %</span></label>
                 <input type="range" id="anim-wm-w" min="3" max="40" step="1" value="12">
@@ -2295,6 +2300,7 @@ function mountAnimator(body, headerActions, opts) {
   let _animFokusPfad = "";
   let _animDezent = false;   // 29.08.2026 — Haupt-Tour im Schwarm dezent
   let _animHauptStartS = 0;  // 29.08.2026 — Haupt-Tour startet nach X s (Schwarm)
+  let _animSwarmForm = false; // 31.08.2026 (Rafael) — Zusatz-Touren mit Haupt-Form (Pfeil)
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
   // 23.08.2026 — Etappen: Startindizes + geometrische Kumulativlänge. `line-progress`
   // misst gezeichnete Länge, cumDistM zählt Etappengrenzen bewusst NICHT mit — für die
@@ -2370,6 +2376,14 @@ function mountAnimator(body, headerActions, opts) {
 
   // ── 💧 Wasserzeichen (30.08.2026) ──────────────────────────────────────
   let _wm = { path: "", x: 86, y: 80, w: 12, op: 0.9 };
+  let _wmEigen = "";   // zuletzt gewähltes eigenes Bild (für den Umschalter)
+  // 01.09.2026 (Marc): eingebaute Wasserzeichen als SENTINEL — überlebt Export
+  // zu anderen Rechnern (fester Pfad zeigte dort ins Leere).
+  const WM_EINGEBAUT = ["@lockup-white"];
+  // Marcs Einstellung aus dem Schorfheide-Projekt = Vorgabe für NEUE Projekte.
+  // 01.09.2026 (Marc): „platziere das wasserzeichen — größe, opacity und
+  // position per default so, wie im aktuell offenen projekt."
+  const WM_STANDARD = { path: "@lockup-white", x: 84.5, y: 91.3, w: 15, op: 0.65 };
   let _wmPrevLauf = 0;   // 30.08.2026 (Marc: „doppelt zu sehen") — Async-Guard
   function _wmPersist() {
     try { saveProjectSettings(_MODKEY, { watermark: { ..._wm } }); } catch (_) {}
@@ -2377,11 +2391,15 @@ function mountAnimator(body, headerActions, opts) {
   function _wmUiSync() {
     const name = document.getElementById("anim-wm-name");
     const opts = document.getElementById("anim-wm-opts");
-    const clr = document.getElementById("anim-wm-clear");
+    const an = document.getElementById("anim-wm-on");
+    const sel = document.getElementById("anim-wm-quelle");
     if (!name) return;
-    name.textContent = _wm.path ? _wm.path.split("/").pop() : "";
+    const eingebaut = WM_EINGEBAUT.includes(_wm.path);
+    name.textContent = (_wm.path && !eingebaut) ? _wm.path.split("/").pop() : "";
+    if (an) an.checked = !!_wm.path;
+    const zurueck = document.getElementById("anim-wm-standard");
+    if (zurueck) zurueck.hidden = eingebaut || !_wm.path;
     if (opts) opts.hidden = !_wm.path;
-    if (clr) clr.hidden = !_wm.path;
     const w = document.getElementById("anim-wm-w");
     if (w) { w.value = _wm.w; const v = document.getElementById("anim-wm-w-v"); if (v) v.textContent = _wm.w + " %"; }
     const op = document.getElementById("anim-wm-op");
@@ -2449,6 +2467,20 @@ function mountAnimator(body, headerActions, opts) {
     let a = null;
     try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
     const w = a && a.watermark;
+    // 01.09.2026: Wer das eingebaute Logo früher von Hand ausgewählt hat, trägt
+    // einen absoluten Pfad im Projekt — der zeigt auf einem anderen Rechner ins
+    // Leere. Bekannte Dateinamen werden auf den Sentinel gehoben.
+    const _wmMigrieren = (pfad) => {
+      const datei = String(pfad || "").split("/").pop().toLowerCase();
+      if (String(pfad || "").startsWith("@")) return "@lockup-white";
+      const eigene = new Set([
+        "wm-lockup-white.png", "logo-lockup.png", "gps-studio-lockup-white-watermark.png",
+        "wm-lockup-color.png", "gps-studio-lockup-color.png",
+        "wm-mark-white.png", "gps-studio-mark-white-clean.png", "gps-studio-logo-weiss-ohne-text.png",
+        "wm-mark-orange.png", "gps-studio-logo-orange-ohne-text.png",
+      ]);
+      return eigene.has(datei) ? "@lockup-white" : pfad;
+    };
     if (w && typeof w === "object") {
       const breite = Math.max(3, Math.min(40, +w.w || 12));
       let x = +w.x, y = +w.y;
@@ -2458,26 +2490,49 @@ function mountAnimator(body, headerActions, opts) {
         x = (pos === "tl" || pos === "bl") ? 2 : Math.max(2, 98 - breite);
         y = (pos === "tl" || pos === "tr") ? 2 : 80;
       }
-      _wm = { path: String(w.path || ""), x: Math.max(0, Math.min(98, x)),
+      _wm = { path: _wmMigrieren(String(w.path || "")), x: Math.max(0, Math.min(98, x)),
               y: Math.max(0, Math.min(98, y)), w: breite,
               op: Math.max(0.1, Math.min(1, +w.op || 0.9)) };
     } else {
-      _wm = { path: "", x: 86, y: 80, w: 12, op: 0.9 };
+      // 01.09.2026 (Marc: „für alle Projekte, die Dieter und Rafael schon
+      // haben, kommt jetzt das Wasserzeichen nicht rein") — hier wird KEIN
+      // Standard mehr gesetzt. Neue Projekte bringen ihn aus dem Store mit
+      // (core/sessions.py `_project_from_defaults`), bestehende bleiben ohne.
+      _wm = { path: "", x: WM_STANDARD.x, y: WM_STANDARD.y, w: WM_STANDARD.w, op: WM_STANDARD.op };
     }
     _wmUiSync();
     // ui-falle-ok: reine Vorschau-Kür — Fehler loggt watermarkPreviewAnwenden nicht kritisch
     try { watermarkPreviewAnwenden(); } catch (_) {}
   }
+  async function _wmEigenesWaehlen() {
+    const res = await api().pick_file("open", ["Bilder (*.png;*.jpg;*.jpeg;*.webp;*.gif;*.svg)"], false);
+    const pfad = Array.isArray(res) ? res[0] : "";
+    if (!pfad) return false;
+    _wmEigen = pfad; _wm.path = pfad;
+    _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
+    return true;
+  }
   function _wmBinden() {
-    const pick = document.getElementById("anim-wm-pick");
-    if (pick) pick.onclick = async () => {
-      const res = await api().pick_file("open", ["Bilder (*.png;*.jpg;*.jpeg;*.webp;*.gif;*.svg)"], false);
-      const pfad = Array.isArray(res) ? res[0] : "";
-      if (!pfad) return;
-      _wm.path = pfad; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
+    // 01.09.2026 (Marc): „ein ganz einfacher Knopf, Wasserzeichen an oder aus,
+    // und dann eben eine Auswahl."
+    const an = document.getElementById("anim-wm-on");
+    if (an) an.onchange = () => {
+      if (an.checked) {
+        // Einschalten nimmt das GPS-Studio-Logo — oder das zuletzt gewählte
+        // eigene Bild, falls es eines gab.
+        _wm.path = _wmEigen || WM_STANDARD.path;
+      } else {
+        _wm.path = "";
+      }
+      _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
     };
-    const clr = document.getElementById("anim-wm-clear");
-    if (clr) clr.onclick = () => { _wm.path = ""; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
+    const eigen = document.getElementById("anim-wm-eigen");
+    if (eigen) eigen.onclick = () => { _wmEigenesWaehlen().then(ok => { if (!ok) _wmUiSync(); }); };
+    const zurueck = document.getElementById("anim-wm-standard");
+    if (zurueck) zurueck.onclick = () => {
+      _wm.path = WM_STANDARD.path;
+      _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
+    };
     const w = document.getElementById("anim-wm-w");
     if (w) w.oninput = () => { _wm.w = +w.value || 12; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
     const op = document.getElementById("anim-wm-op");
@@ -3919,12 +3974,14 @@ function mountAnimator(body, headerActions, opts) {
     if (zoomSlider && !keyframesEnabled()) {
       zoomSlider.value = String(curZoom);
       if (zoomLabel) zoomLabel.textContent = curZoom.toFixed(1);
-      // Persistenz: spiegelt den Live-Zoom als static_zoom — beim nächsten
-      // Restart fängt die Map natürlich wieder mit Auto-Fit an, dieser Wert
-      // ist eher informativ.
-      if (typeof saveProjectSettings === "function" && typeof getActiveSession === "function" && getActiveSession()) {
-        saveProjectSettings(_MODKEY, { static_zoom: curZoom });
-      }
+      // 31.08.2026 (Rafael: „el zoom se va") — NICHT mehr persistieren.
+      // Der Kommentar hier nannte den Wert selbst „eher informativ", aber er
+      // wurde als static_zoom gespeichert und galt fortan als BEWUSSTE
+      // Nutzer-Wahl: Wer nur zum Angucken in die Karte zoomte, nagelte damit
+      // die statische Probelauf-/Render-Kamera auf seinen Rumschau-Zoom fest
+      // — der Track lief aus dem Bild. Gespeichert wird static_zoom jetzt
+      // ausschließlich, wenn der Nutzer den Zoom-Stufe-SLIDER bewegt
+      // (bindSetting oben). Die Anzeige läuft weiter live mit.
     }
 
     // v0.9.0 — Wenn auf einem Keyframe-Cluster: dessen Property-Events
@@ -4358,7 +4415,19 @@ function mountAnimator(body, headerActions, opts) {
   // Center=null wenn camera_follow_track an, sonst null als Default (Track-Punkt).
   function buildDefaultEvents() {
     const pitch = parseFloat(document.getElementById("anim-pitch")?.value) || 40;
-    const zoomAbs = parseFloat(document.getElementById("anim-zoom")?.value);
+    // 31.08.2026 (Rafael: „el zoom se va") — der rohe Slider-Wert war die
+    // Wurzel des klebenden Zooms: Auf manchen Ladewegen verliert der
+    // Fit-Sync das Rennen und der Slider steht noch auf seinem
+    // Markup-Default 12 → die implizite Kamera nagelte JEDEN Track auf
+    // Zoom 12, egal wie groß er ist (150 km bei Zoom 12 = Track läuft aus
+    // dem Bild). Wahrheits-Reihenfolge jetzt wie im Render: bewusste
+    // Projekt-Wahl (static_zoom) → Fit-Zoom → Slider als letzter Notnagel.
+    const _projZ = (typeof getActiveProject === "function")
+      ? getActiveProject()?.[_MODKEY]?.static_zoom : null;
+    const _fitB = effectiveFitZoomBase();
+    const zoomAbs = (typeof _projZ === "number") ? _projZ
+      : (_fitB != null ? _fitB
+         : parseFloat(document.getElementById("anim-zoom")?.value));
     const rot = parseFloat(document.getElementById("anim-rot")?.value) || 0;
     // center = null bedeutet Track-Punkt-Folgen (gewollt im Classic-Modus
     // wenn `camera_follow_track` an). Sonst lassen wir's auch null —
@@ -6256,7 +6325,9 @@ function mountAnimator(body, headerActions, opts) {
       return {
         pitch: p != null ? p : defaultPitch,
         bearing: b != null ? b : (defaultBearingStart + progress * defaultRotation),
-        zoom_offset: z != null ? z : 0,
+        // 31.08.2026 (Rafael): null bleibt null — „keine Zoom-Keyframes" ist
+        // eine eigene Information (der Lauf nimmt dann die Fit-Kamera).
+        zoom_offset: z,
         center: c,
         position: posInterp,
       };
@@ -6470,6 +6541,35 @@ function mountAnimator(body, headerActions, opts) {
     // die Vorschau (≈60fps) genauso träge wirkt wie das Video.
     let _follLL = null;
     let _follLastNow = 0;
+    // 31.08.2026 (Rafael: „el zoom se va") — OHNE Keyframes und ohne
+    // „Kamera folgt Track" rendert das Video IMMER den Bounds-Fit
+    // (core/animator.py: „Initial view from Mapbox bounds-fit"). Der
+    // Probelauf nahm stattdessen die ZUFÄLLIGE aktuelle Ansicht (wer zum
+    // Angucken reingezoomt hatte, bekam eine klebende Nah-Kamera, aus der
+    // die ruhige Kamera minutenlang herausglitt). Jetzt: deterministische
+    // Fit-Kamera pro Lauf, wie im Video.
+    let _runFitCam = null;
+    try {
+      if (currentCoords && currentCoords.length > 1 && map && map.cameraForBounds) {
+        let mnLo = Infinity, mxLo = -Infinity, mnLa = Infinity, mxLa = -Infinity;
+        for (const c of currentCoords) {
+          if (c[0] < mnLo) mnLo = c[0]; if (c[0] > mxLo) mxLo = c[0];
+          if (c[1] < mnLa) mnLa = c[1]; if (c[1] > mxLa) mxLa = c[1];
+        }
+        const _rp = parseFloat(document.getElementById("anim-pitch")?.value) || 0;
+        const _rb0 = parseFloat(document.getElementById("anim-bearing-start")?.value) || 0;
+        const cam = map.cameraForBounds([[mnLo, mnLa], [mxLo, mxLa]],
+          { padding: 60, pitch: _rp, bearing: _rb0 });
+        if (cam) _runFitCam = cam;
+      }
+    } catch (e) { try { applog("warn", "[runFitCam] cameraForBounds: " + e); } catch (_) {} }
+    try { applog("info", "[runFitCam] " + (_runFitCam
+      ? ("zoom=" + (+_runFitCam.zoom).toFixed(2) + " center=" + JSON.stringify(_runFitCam.center))
+      : "null") + " · fitBase=" + _previewFitBase); } catch (_) {}
+    const _projStaticZ0 = (typeof getActiveProject === "function")
+      ? getActiveProject()?.[_MODKEY]?.static_zoom : null;
+    const _runStaticBase = (typeof _projStaticZ0 === "number") ? _projStaticZ0
+      : (_runFitCam ? _runFitCam.zoom : null);
     // v0.9.314 — Kamera-Höhe HALTEN: eingefrorene Gelände-Referenz pro Probelauf.
     let _camStabBase = null;
     // v0.9.318 — Entkoppelte FreeCamera (WYSIWYG zum Render). Pro Keyframe-Anker
@@ -6554,13 +6654,17 @@ function mountAnimator(body, headerActions, opts) {
             // `tz` ist eine Zeit; `a` die zugehörige Stelle im Track.
             const a = zeitZuAnker(tz, _fti, _ftf, _ftA, _ftB);
             const ip = interpolateCameraJs(_evZeit, tz, defaultPitch, defaultRotation, undefined, _previewFitBase, { cinematic: _fCine });
-            const zm = _previewFitBase + (ip.zoom_offset || 0);
+            const zm = (ip.zoom_offset == null && _runStaticBase != null)
+              ? _runStaticBase
+              : _previewFitBase + (ip.zoom_offset || 0);
             let ll;
             if (ip.center) ll = ip.center.slice();
             else if (_fFollow) {
               const ci = Math.max(0, Math.min(_ftn - 1, Math.round(_markerAt(a) * (_ftn - 1))));
               ll = currentCoords[ci] ? [currentCoords[ci][0], currentCoords[ci][1]] : _fStatic;
-            } else ll = _fStatic;
+            } else ll = _runFitCam
+              ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
+              : _fStatic;
             map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
             const fc = map.getFreeCameraOptions(), o = fc.orientation;
             let ez = null;
@@ -6730,7 +6834,7 @@ function mountAnimator(body, headerActions, opts) {
                                           undefined, _previewFitBase,
                                           { cinematic: _runCinematic });
       // v0.8.7: Keyframe-center hat Vorrang vor Track-Punkt
-      const isClassic2 = !keyframesEnabled();
+      const isClassic2 = !keyframesEnabled();   // (31.08.2026: nur noch informativ)
       const cameraFollow2 = !!document.getElementById("anim-camera-follow")?.checked;
       // v0.9.72: konstante Base über den Probe-Lauf (siehe _previewFitBase oben).
       const base = _previewFitBase;
@@ -6738,7 +6842,9 @@ function mountAnimator(body, headerActions, opts) {
       // deklarativ aus center.lng-Werten pro KF (= Welt-Drehung-Slider
       // setzt das im Snapshot). interpolateCameraJs interpoliert linear
       // zwischen den KF-lng-Werten.
-      const _curZoom = base + (interp.zoom_offset || 0);
+      const _curZoom = (interp.zoom_offset == null && _runStaticBase != null)
+        ? _runStaticBase
+        : base + (interp.zoom_offset || 0);
       const jumpArgs = {
         pitch: interp.pitch,
         bearing: interp.bearing || 0,
@@ -6749,7 +6855,17 @@ function mountAnimator(body, headerActions, opts) {
       // rotation-Lane ist abgeschafft.
       let _didFollow = false;
       if (interp.center) { jumpArgs.center = interp.center.slice(); _follLL = null; }
-      else if (!isClassic2 || cameraFollow2) {
+      else if (!cameraFollow2 && _runFitCam) {
+        // 31.08.2026 (Rafael: „el zoom se va"): Ohne Kamera-Keyframes und
+        // ohne „Kamera folgt Track" ist die Kamera die FIT-GESAMTSICHT —
+        // exakt wie im gerenderten Video. Vorher folgte die Vorschau bei
+        // eingeschaltetem Keyframe-EDITOR (auch ganz ohne Keyframes!) dem
+        // Track als Fallback — mit Trägheit kroch die Kamera dem Punkt
+        // ewig hinterher und ließ ihn aus dem Bild laufen.
+        jumpArgs.center = [_runFitCam.center.lng ?? _runFitCam.center[0],
+                           _runFitCam.center.lat ?? _runFitCam.center[1]];
+      }
+      else if (cameraFollow2) {
         _didFollow = true;
         const _tgt = _fokusZiel(coordFrac) || currentCoords[coordIdx];
         // v0.9.277 (Nutzer) — Kamera-Trägheit: EMA des Folge-Zentrums, zeitbasiert auf
@@ -12223,8 +12339,10 @@ function mountAnimator(body, headerActions, opts) {
           try {
             if (!keyframesEnabled()) {
               const projZ = getActiveProject()?.[_MODKEY]?.static_zoom;
-              const cacheZ = _settingsCache?.[_MODKEY]?.static_zoom;
-              const userSet = (typeof projZ === "number") || (typeof cacheZ === "number");
+              // 31.08.2026 (Rafael): nur die PROJEKT-Wahl zählt. Der globale
+              // Cache trug den Rumschau-Zoom des vorherigen Tracks und machte
+              // aus jedem neuen Track eine „bewusste" Nah-Kamera.
+              const userSet = (typeof projZ === "number");
               if (!userSet) {
                 const zs = document.getElementById("anim-zoom");
                 const zl = document.getElementById("anim-zoom-v");
@@ -12425,6 +12543,32 @@ function mountAnimator(body, headerActions, opts) {
         _animPersistTours();
       });
     }
+    // 31.08.2026 (Rafael: „la flecha en todos los tracks") — Laufpunkt-Form
+    // der Haupt-Tour (Pfeil!) auf alle Zusatz-Touren anwenden.
+    let sfWrap = document.getElementById("anim-swform-wrap");
+    if (!sfWrap && dzWrap && dzWrap.parentNode) {
+      sfWrap = document.createElement("div");
+      sfWrap.id = "anim-swform-wrap";
+      sfWrap.style.marginTop = "6px";
+      sfWrap.innerHTML = `<label class="chk" style="font-size:11px">
+        <input type="checkbox" id="anim-swarm-form">
+        <span>${t("animator.schwarm_form", "Laufpunkt-Form der Haupt-Tour für alle Touren (z. B. Pfeil)")}</span></label>`;
+      dzWrap.parentNode.insertBefore(sfWrap, dzWrap.nextSibling);
+      const cb = sfWrap.querySelector("#anim-swarm-form");
+      if (cb) cb.checked = _animSwarmForm;
+      if (cb) cb.addEventListener("change", () => {
+        _animSwarmForm = cb.checked;
+        _animPersistTours();
+        // ui-falle-ok: Layer-Neuaufbau — Fehler landen im catch von _animDrawExtraToursPreview (applog)
+        try { _animDrawExtraToursPreview(); } catch (_) {}
+        try { _animSchwarmPreviewAdvance(_tlBar ? trackFracAusAnker(_tlBar.getScrubber()) : 0, previewFullTrack()); } catch (_) {}
+      });
+    }
+    if (sfWrap) {
+      sfWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
+      const cb = sfWrap.querySelector("#anim-swarm-form");
+      if (cb) cb.checked = _animSwarmForm;
+    }
     if (hsWrap) {
       hsWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
       const inp = hsWrap.querySelector("#anim-haupt-start");
@@ -12596,6 +12740,11 @@ function mountAnimator(body, headerActions, opts) {
   /** 29.08.2026 (Marc, Schorfheide) — Start-Verzögerung je Tour, wortgleich
    *  zu swarmIdx (core/animator.py): 'ziel' renormiert (kommt trotzdem an),
    *  'uhrzeit'/'gleich' laufen mit echter Geschwindigkeit später los. */
+  /** 31.08.2026 (Rafael): Zusatz-Touren mit Haupt-Form (Pfeil) — nur im
+   *  Schwarm, nur wenn die Haupt-Tour selbst auf „Pfeil" steht. */
+  function _swArrowAktiv() {
+    return _animAblauf === "schwarm" && _animSwarmForm && dotStil() === "arrow";
+  }
   function _swStartAnteil(x) {
     const sek = +((x && x.start_s) || 0);
     if (sek <= 0) return 0;
@@ -12661,10 +12810,26 @@ function mountAnimator(body, headerActions, opts) {
                  "line-opacity": 0.9 } });
       map.addSource("swarm-prev-dots", { type: "geojson",
         data: { type: "FeatureCollection", features: [] } });
-      map.addLayer({ id: "swarm-prev-dots", type: "circle", source: "swarm-prev-dots",
-        paint: { "circle-color": ["get", "color"],
-                 "circle-radius": Math.max(3, lw * 1.2),
-                 "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2 } });
+      if (_swArrowAktiv()) {
+        // Pfeil je Tour in Tour-Farbe — wortgleich zum Render (rz-sw-arrow-i).
+        _swPrev.forEach((t, i) => {
+          try {
+            if (map.hasImage("sw-prev-arrow-" + i)) map.removeImage("sw-prev-arrow-" + i);
+            map.addImage("sw-prev-arrow-" + i, _pfeilBild(t.color), { pixelRatio: 2 });
+          } catch (_) {}
+        });
+        map.addLayer({ id: "swarm-prev-dots", type: "symbol", source: "swarm-prev-dots",
+          layout: { "icon-image": ["get", "icon"],
+                    "icon-size": Math.max(3, lw * 1.2) / 8.5,
+                    "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
+                    "icon-pitch-alignment": "map", "icon-allow-overlap": true,
+                    "icon-ignore-placement": true } });
+      } else {
+        map.addLayer({ id: "swarm-prev-dots", type: "circle", source: "swarm-prev-dots",
+          paint: { "circle-color": ["get", "color"],
+                   "circle-radius": Math.max(3, lw * 1.2),
+                   "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2 } });
+      }
     } catch (e) { console.warn("swarm preview layers:", e); }
     // Ruhezustand: alles voll gezeichnet, Punkte am Ziel (wie der Haupt-Track).
     _animSchwarmPreviewAdvance(0, true);
@@ -12716,7 +12881,9 @@ function mountAnimator(body, headerActions, opts) {
       linien.push({ type: "Feature", properties: { color: t.color },
         geometry: { type: "LineString",
           coordinates: k >= 1 ? t.coords.slice(0, k + 1) : [t.coords[0], t.coords[0]] } });
-      punkte.push({ type: "Feature", properties: { color: t.color },
+      punkte.push({ type: "Feature",
+        properties: { color: t.color, icon: "sw-prev-arrow-" + _swPrev.indexOf(t),
+                      brg: _swArrowAktiv() ? _kursAn(t.coords, k) : 0 },
         geometry: { type: "Point", coordinates: t.coords[k] } });
     }
     try {
@@ -12869,6 +13036,7 @@ function mountAnimator(body, headerActions, opts) {
         tours_fokus: _animFokusPfad,
         tours_dezent: _animDezent,
         tours_haupt_start_s: _animHauptStartS,
+        tours_dot_haupt: _animSwarmForm,
         fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
       });
     } catch (_) {}
@@ -13007,6 +13175,9 @@ function mountAnimator(body, headerActions, opts) {
       { const cb = document.getElementById("anim-schwarm-dezent");
         if (cb) cb.checked = _animDezent; }
       _animHauptStartS = Math.max(0, +a.tours_haupt_start_s || 0);
+      _animSwarmForm = a.tours_dot_haupt === true;
+      { const cb = document.getElementById("anim-swarm-form");
+        if (cb) cb.checked = _animSwarmForm; }
       { const inp = document.getElementById("anim-haupt-start");
         if (inp) inp.value = _animHauptStartS; }
     } catch (_) {}
@@ -13336,6 +13507,7 @@ function mountAnimator(body, headerActions, opts) {
           schwarm_fokus_gpx: _animAblauf === "schwarm" ? _animFokusPfad : "",
           schwarm_haupt_dezent: hauptDezent(),
           schwarm_haupt_start_s: _animAblauf === "schwarm" ? _animHauptStartS : 0,
+          schwarm_dot_haupt_form: _animAblauf === "schwarm" && _animSwarmForm,
           schwarm_modus: _animAblauf === "schwarm" ? _animModus : "gleich",
           schwarm_pausen: _animAblauf === "schwarm" ? _animPausen : true,
           fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
@@ -13727,7 +13899,18 @@ function mountAnimator(body, headerActions, opts) {
       }
       const _h2v = document.getElementById("anim-done-title");
       if (_h2v) _h2v.textContent = t("animator.status.done", "✓ Video fertig");
+      // 01.09.2026 (Marc): Der Standbild-Zweig oben schreibt „🖼 Bild öffnen"
+      // und „Neues Bild" in die Knöpfe — und NIEMAND stellte sie zurück. Wer
+      // erst ein Standbild und danach ein Video machte, bekam beim Video die
+      // Bild-Beschriftungen. Deshalb hier ausdrücklich auf Video zurücksetzen.
+      { const _img = document.getElementById("anim-still-img");
+        if (_img) { _img.hidden = true; _img.removeAttribute("src"); } }
+      { const _pb = document.getElementById("anim-play-video");
+        if (_pb) _pb.textContent = t("animator.btn.play_video", "▶ Abspielen"); }
+      { const _nb = document.getElementById("anim-new");
+        if (_nb) _nb.textContent = t("animator.btn.next", "Neues Video"); }
       const v = document.getElementById("anim-video");
+      v.hidden = false;
       v.onerror = () => {
         const code = (v.error && v.error.code) || 0;
         console.warn("[anim-video] Laden fehlgeschlagen — MediaError code=" + code + " src=" + v.src);

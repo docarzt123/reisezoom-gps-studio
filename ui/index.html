@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Reisezoom GPS Studio</title>
+<title>GPS Studio by reisezoom.com</title>
 
 <!-- ══ v0.9.446 — START-DIAGNOSE ══════════════════════════════════════════
      MUSS als ERSTES Script laufen und ist bewusst reines ES5 (kein let/const,
@@ -36,7 +36,7 @@
   // sprache-ok-anfang (dies IST die Übersetzung, kein vergessener Text)
   var RZ_TXT = {
     de: {
-      titel: 'Reisezoom GPS Studio konnte nicht starten',
+      titel: 'GPS Studio konnte nicht starten',
       sub_translo: 'Fast geschafft — es fehlt nur der letzte Installations-Schritt.',
       sub_fehler: 'Die Programmoberfläche konnte nicht geladen werden.',
       tr_kopf: '⚠️ Die App muss noch richtig installiert werden',
@@ -54,7 +54,7 @@
       pfad_manuell: 'Bitte den Pfad manuell im Finder öffnen:'
     },
     en: {
-      titel: 'Reisezoom GPS Studio could not start',
+      titel: 'GPS Studio could not start',
       sub_translo: 'Almost there — only the last installation step is missing.',
       sub_fehler: 'The program interface could not be loaded.',
       tr_kopf: '⚠️ The app still needs to be installed properly',
@@ -72,7 +72,7 @@
       pfad_manuell: 'Please open the path manually in Finder:'
     },
     es: {
-      titel: 'Reisezoom GPS Studio no ha podido arrancar',
+      titel: 'GPS Studio no ha podido arrancar',
       sub_translo: 'Casi está: solo falta el último paso de la instalación.',
       sub_fehler: 'No se ha podido cargar la interfaz del programa.',
       tr_kopf: '⚠️ La aplicación todavía no está bien instalada',
@@ -290,10 +290,10 @@
 
 <header class="topbar">
   <div class="brand">
-    <img class="brand-mark" src="assets/icon.png" alt="Reisezoom GPS Studio">
+    <img class="brand-mark" src="assets/icon.png" alt="GPS Studio by reisezoom.com">
     <div class="brand-text">
-      <div class="brand-title">Reisezoom</div>
-      <div class="brand-sub" id="brand-sub">GPS&nbsp;Studio</div>
+      <div class="brand-title">GPS&nbsp;Studio</div>
+      <div class="brand-sub" id="brand-sub">by&nbsp;reisezoom.com</div>
     </div>
   </div>
   <nav class="module-tabs" id="module-tabs">
@@ -313,7 +313,7 @@
   <div class="topbar-actions">
     <!-- v0.9.288 — Topbar aufgeräumt (Marc): YouTube/Blog/Feedback/Hilfe sind
          jetzt im macOS-Menü („Datei" / „Hilfe"). Topbar = nur noch ⚙ + Version. -->
-    <button class="topbar-settings" id="topbar-settings" title="Einstellungen">⚙</button>
+    <button class="topbar-settings" id="topbar-settings" title="Einstellungen" data-i18n-title="topbar.settings">⚙</button>
     <span class="version" id="topbar-version">v0.2</span>
   </div>
 </header>

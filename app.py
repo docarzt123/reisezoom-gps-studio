@@ -152,7 +152,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.634"
+APP_VERSION = "0.9.635"
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -161,7 +161,7 @@ APP_VERSION = "0.9.634"
 # Datei, die der Nutzer weitergibt (Blog, Kunde, Social) — ein spanischer
 # Nutzer soll dort nicht „erstellt mit" lesen. Der Produktname bleibt
 # unübersetzt, er ist eine Marke. Siehe `credit.made_with` in i18n/.
-WEBKARTE_CREDIT_TEXT_FALLBACK = "erstellt mit Reisezoom GPS Studio"
+WEBKARTE_CREDIT_TEXT_FALLBACK = "erstellt mit GPS Studio by reisezoom.com"
 # Der Verweis zeigt auf die Einstiegsseite in der Sprache des Nutzers.
 # Englisch liegt auf `/gps/` (zugleich x-default), Deutsch und Spanisch in
 # eigenen Ordnern — dieselbe Ordnung wie bei den Werkzeugseiten.
@@ -207,7 +207,12 @@ def _detect_edition() -> str:
     return "full"
 
 APP_EDITION = _detect_edition()
-APP_NAME = "Reisezoom Geotagger" if APP_EDITION == "geotagger" else "Reisezoom GPS Studio"
+# 01.09.2026 (Marc: „das tool heißt jetzt gps studio by reisezoom.com —
+# etwas mehr internationalisieren") — der SICHTBARE Produktname. Bundle-ID,
+# App-Support-Ordner und Download-Dateinamen bleiben bewusst beim alten
+# Namen: eine Umbenennung dort würde Bestandsdaten verwaisen lassen und die
+# s.reisezoom.com-Shortlinks brechen.
+APP_NAME = "Reisezoom Geotagger" if APP_EDITION == "geotagger" else "GPS Studio by reisezoom.com"
 
 # v0.9.280 (Nutzer-Wunsch) — In-App-Update-Check (Stufe 1: nur prüfen + Hinweis,
 # kein Selbst-Update). Fragt die GitHub-Releases-API, vergleicht die Version und
@@ -1074,6 +1079,11 @@ def _height_visual_cfg_kwargs(params: dict) -> dict:
         trim_start=float(params.get("trim_start", 0.0)),
         trim_end=float(params.get("trim_end", 1.0)),
     )
+
+
+# 01.09.2026 — Wasserzeichen-Sentinel („@lockup-white"): der Auflöser lebt im
+# Render-Kern (core/animator.py), damit JEDER Weg dasselbe Logo findet.
+from core.animator import wasserzeichen_pfad  # noqa: E402
 
 
 class Api:
@@ -2222,11 +2232,16 @@ class Api:
             log.exception("library_add_folder")
             return {"ok": False, "error": str(e)}
 
+    def watermark_default_path(self) -> dict:
+        """Alt-Brücke (v0.9.635): Pfad des eingebauten Standard-Wasserzeichens."""
+        p = wasserzeichen_pfad("@lockup-white")
+        return {"ok": bool(p), "path": p or ""}
+
     def watermark_data(self, path: str) -> dict:
         """30.08.2026 — Wasserzeichen-Bild als data-URI für die WYSIWYG-Vorschau
         (die WebView darf lokale Pfade nicht direkt laden). Deckel 8 MB."""
         try:
-            p = Path(str(path or ""))
+            p = Path(wasserzeichen_pfad(str(path or "")))
             if not p.is_file():
                 return {"ok": False, "error": "not found"}
             if p.stat().st_size > 8 * 1024 * 1024:
@@ -3884,8 +3899,9 @@ class Api:
             schwarm_haupt_dezent=bool(params.get("schwarm_haupt_dezent")),
             # 29.08.2026 (Marc, Schorfheide): Haupt-Tour startet verzögert
             schwarm_haupt_start_s=max(0.0, float(params.get("schwarm_haupt_start_s", 0) or 0)),
+            schwarm_dot_haupt_form=bool(params.get("schwarm_dot_haupt_form")),
             # 30.08.2026 (Marc): eigenes Wasserzeichen im Render
-            watermark_path=str(params.get("watermark_path", "") or ""),
+            watermark_path=wasserzeichen_pfad(str(params.get("watermark_path", "") or "")),
             watermark_pos=str(params.get("watermark_pos", "br") or "br"),
             watermark_x_pct=float(params.get("watermark_x_pct", -1.0) if params.get("watermark_x_pct") is not None else -1.0),
             watermark_y_pct=float(params.get("watermark_y_pct", -1.0) if params.get("watermark_y_pct") is not None else -1.0),
@@ -4154,7 +4170,7 @@ class Api:
             overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
             overlay_totals_position=params.get("overlay_totals_position", "tl"),
             # 30.08.2026 (Marc): eigenes Wasserzeichen im Render
-            watermark_path=str(params.get("watermark_path", "") or ""),
+            watermark_path=wasserzeichen_pfad(str(params.get("watermark_path", "") or "")),
             watermark_pos=str(params.get("watermark_pos", "br") or "br"),
             watermark_x_pct=float(params.get("watermark_x_pct", -1.0) if params.get("watermark_x_pct") is not None else -1.0),
             watermark_y_pct=float(params.get("watermark_y_pct", -1.0) if params.get("watermark_y_pct") is not None else -1.0),
@@ -6007,6 +6023,21 @@ class Api:
                         if not isinstance(proj, dict):
                             continue
                         urspruenglich = pid
+                        # 31.08.2026 (Rafael: „Standard (importado) (importado)"-
+                        # Kaskade): Existiert im selben Kontext bereits ein
+                        # INHALTSGLEICHES Projekt — egal unter welcher ID oder
+                        # Namens-Variante —, wird NICHTS erneut angelegt. Vorher
+                        # verglich nur die identische ID; wer seinen eigenen
+                        # Import-Klon exportierte und wieder importierte, bekam
+                        # bei jedem Durchgang eine weitere Kopie mit einem
+                        # weiteren „(importiert)"-Anhang.
+                        _zwilling = next(
+                            (zpid for zpid, zp in (daten.get("projects") or {}).items()
+                             if isinstance(zp, dict) and zp.get("kontext") == geo_hash
+                             and _kern(zp) == _kern(proj)), None)
+                        if _zwilling:
+                            mitgebracht[urspruenglich] = _zwilling
+                            continue
                         alt = daten["projects"].get(pid)
                         if alt is not None and alt.get("kontext") == geo_hash:
                             # Vorhandener Kontext: Projekte DAZULEGEN (lokales bleibt)
@@ -6026,7 +6057,23 @@ class Api:
                                 pid = f"{_basis}_imp{_k}"
                         neu = dict(proj)
                         if str(neu.get("name", "")).strip().lower() in namen_da:
-                            neu["name"] = f"{neu.get('name', '')} ({_ui_t()('projekt.importiert', 'importiert')})"
+                            # Suffix nie stapeln: „Standard (importiert)" wird bei
+                            # der nächsten Kollision zu „Standard (importiert 2)",
+                            # nicht zu „… (importiert) (importiert)".
+                            _sfx = _ui_t()('projekt.importiert', 'importiert')
+                            _basis = str(neu.get("name", "")).strip()
+                            import re as _re
+                            _m = _re.match(rf"^(.*?)\s*\({_re.escape(_sfx)}(?:\s+(\d+))?\)$", _basis)
+                            if _m:
+                                _basis = _m.group(1)
+                            _k2 = 1
+                            while True:
+                                _kand = f"{_basis} ({_sfx})" if _k2 == 1 else f"{_basis} ({_sfx} {_k2})"
+                                if _kand.strip().lower() not in namen_da:
+                                    break
+                                _k2 += 1
+                            neu["name"] = _kand
+                            namen_da.add(_kand.strip().lower())
                         _projekte.import_session_objekt(
                             daten, geo_hash,
                             {"projects": {pid: neu}},
@@ -9409,6 +9456,17 @@ def _prepare_html_with_cache_busting() -> str:
     html = re.sub(
         r'(<img[^>]+src=)"((?!https?:|data:)[^"]+\.(?:png|jpg|jpeg|gif|webp|svg))"',
         patch_url, html, flags=re.IGNORECASE,
+    )
+
+    # 01.09.2026 (About-Logo lud nicht): JS-seitig erzeugte <img> mit
+    # relativen Pfaden brechen in der Temp-HTML — die Regexe oben patchen nur
+    # STATISCHES Markup. Deshalb die Asset-Basis als JS-Global exportieren;
+    # dynamischer Code baut damit absolute file://-URLs.
+    _asset_base = (UI_DIR).resolve().as_uri().rstrip("/") + "/"
+    html = html.replace(
+        "<head>",
+        f'<head><script>window.__rzAssetBase = {json.dumps(_asset_base)};</script>',
+        1,
     )
 
     # Reste früherer Starts wegräumen. Das Aufräumen am Ende von `main()` wird

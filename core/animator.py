@@ -313,6 +313,10 @@ class AnimatorConfig:
     # 30.08.2026 (Marc: „eigene wasserzeichen … ein kleines bisschen mehr
     # marketing") — eigenes Logo im gerenderten Video/Bild. Pfad zu PNG/JPG/
     # WebP (leer = aus), Ecke, Breite in % der Videobreite, Deckkraft.
+    # 31.08.2026 (Rafael: „el poder seleccionar la flecha en todos los
+    # tracks") — Zusatz-Touren übernehmen die Laufpunkt-Form der Haupt-Tour
+    # (praktisch: Pfeil in Fahrtrichtung für den ganzen Schwarm).
+    schwarm_dot_haupt_form: bool = False
     watermark_path: str = ""
     watermark_pos: str = "br"           # Alt-Projekte (v0.9.632): tl|tr|bl|br
     # 30.08.2026 (Marc: „mit der maus hinziehen, wo es hin soll") — freie
@@ -1635,6 +1639,27 @@ window.__rzColorGradient = function(CD, i0, i1, stopsVal, stopsCol, mode, metric
 """
 
 
+# 01.09.2026 — Das eingebaute Wasserzeichen wird als SENTINEL gespeichert
+# („@lockup-white"), nicht als Pfad: nur so überlebt die Wahl den Export auf
+# einen anderen Rechner. Die Auflösung gehört HIERHER, nicht nur in app.py —
+# sonst rendert jeder Aufrufer, der die Config selbst baut (Tests, Tour-Map,
+# Snapshot), ohne Logo. Genau das ist beim ersten Testrender passiert.
+WASSERZEICHEN_STANDARD = "wm-lockup-white.png"
+
+
+def wasserzeichen_pfad(pfad: str) -> str:
+    """Sentinel → absoluter Pfad im Bundle; alles andere unverändert zurück."""
+    roh = str(pfad or "")
+    if not roh.startswith("@"):
+        return roh
+    for basis in (Path(getattr(sys, "_MEIPASS", "") or "."),
+                  Path(__file__).resolve().parent.parent):
+        k = basis / "ui" / "assets" / WASSERZEICHEN_STANDARD
+        if k.is_file():
+            return str(k)
+    return ""
+
+
 def _watermark_html(cfg) -> str:
     """Wasserzeichen als eingebettetes <img> (data-URI, offline-fest).
 
@@ -1642,7 +1667,7 @@ def _watermark_html(cfg) -> str:
     Auflösung (kein RENDER_SCALE nötig). Liegt ÜBER der Karte und UNTER den
     Overlay-Boxen (die kommen später im DOM). WYSIWYG-Spiegel:
     `watermarkPreviewAnwenden` in modules/animator/ui/module.js."""
-    pfad = str(getattr(cfg, "watermark_path", "") or "")
+    pfad = wasserzeichen_pfad(str(getattr(cfg, "watermark_path", "") or ""))
     if not pfad:
         return ""
     try:
@@ -1878,6 +1903,11 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # 29.08.2026 (Marc): Start-Verzögerung je Tour — als ANTEIL der Animation
     # (Sekunden ÷ Animationsdauer), damit alle Modi dieselbe Sprache sprechen.
     _anim_dauer = max(0.1, float(getattr(cfg, "duration_s", 0) or 0) or 20.0)
+    # 31.08.2026 (Rafael): Pfeil-Form für alle Schwarm-Touren — nur wenn die
+    # Haupt-Tour selbst den Pfeil nutzt UND das Häkchen gesetzt ist.
+    schwarm_dot_arrow_js = ("true" if (getattr(cfg, "schwarm_dot_haupt_form", False)
+                                       and str(getattr(cfg, "marker_dot_style", "dot")) == "arrow")
+                            else "false")
     schwarm_start_json = json.dumps([
         round(min(0.95, max(0.0, float(t.get("start_s") or 0) / _anim_dauer)), 4)
         for t in _sw])
@@ -2548,6 +2578,7 @@ const SCHWARM_MODUS = {schwarm_modus_json};
 const SCHWARM_T = {schwarm_t_json};
 const SCHWARM_T_AXIS = {schwarm_t_axis_json};
 const SCHWARM_START = {schwarm_start_json};   // Start-Verzögerung je Tour (Anteil 0..1)
+const SCHWARM_DOT_ARROW = {schwarm_dot_arrow_js};   // 31.08.2026 (Rafael): Pfeil für alle Touren
 function swarmIdx(i, dNow) {{
   const c = SCHWARM_COORDS[i];
   const frac0 = TOTAL_DIST_M > 0 ? Math.min(1, dNow / TOTAL_DIST_M) : 1;
@@ -2762,10 +2793,26 @@ map.on('style.load', () => {{
                'line-width': Math.max(1, {schwarm_line_width_json}),
                'line-opacity': 0.9{schwarm_zoff_frag} }} }});
     map.addSource('schwarm-dots', {{ type: 'geojson', data: {{ type: 'FeatureCollection', features: [] }} }});
-    map.addLayer({{ id: 'schwarm-dots', type: 'circle', source: 'schwarm-dots',
-      paint: {{ 'circle-color': ['get', 'color'],
-               'circle-radius': Math.max(3, {schwarm_line_width_json} * 1.5),
-               'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.2 }} }});
+    // 31.08.2026 (Rafael): Pfeil für ALLE Touren — je Tour ein eingefärbtes
+    // Pfeil-Bild, Symbol-Layer mit Fahrtrichtungs-Rotation. Größe an den
+    // bisherigen Kreis angelehnt (Durchmesser ≈ 2·radius), OHNE RENDER_SCALE
+    // (die schwarm-dots skalieren auch nicht mit — Lehre aus v0.9.619).
+    if (SCHWARM_DOT_ARROW) {{
+      for (let i = 0; i < SCHWARM_N; i++) {{
+        try {{ map.addImage('rz-sw-arrow-' + i, __rzPfeilBild(SCHWARM_COLORS[i]), {{pixelRatio: 2}}); }} catch (e) {{}}
+      }}
+      map.addLayer({{ id: 'schwarm-dots', type: 'symbol', source: 'schwarm-dots',
+        layout: {{ 'icon-image': ['get', 'icon'],
+                 'icon-size': Math.max(3, {schwarm_line_width_json} * 1.5) / 8.5,
+                 'icon-rotate': ['get', 'brg'], 'icon-rotation-alignment': 'map',
+                 'icon-pitch-alignment': 'map', 'icon-allow-overlap': true,
+                 'icon-ignore-placement': true }} }});
+    }} else {{
+      map.addLayer({{ id: 'schwarm-dots', type: 'circle', source: 'schwarm-dots',
+        paint: {{ 'circle-color': ['get', 'color'],
+                 'circle-radius': Math.max(3, {schwarm_line_width_json} * 1.5),
+                 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.2 }} }});
+    }}
   }}
   // v0.9.169 — Ghost-Track: die GANZE Route schwach/transparent als unterste
   // Track-Linie (eigene Source mit ALLEN Punkten, wird NIE animiert). Der
@@ -3028,7 +3075,9 @@ window.__rzSchwarmAdvance = (dNow) => {{
     const k = Math.max(0, Math.min(c.length - 1, swarmIdx(i, dNow)));
     linien.push({{ type: 'Feature', properties: {{ color: SCHWARM_COLORS[i] }},
       geometry: {{ type: 'LineString', coordinates: k >= 1 ? c.slice(0, k + 1) : [c[0], c[0]] }} }});
-    punkte.push({{ type: 'Feature', properties: {{ color: SCHWARM_COLORS[i] }},
+    punkte.push({{ type: 'Feature',
+      properties: {{ color: SCHWARM_COLORS[i], icon: 'rz-sw-arrow-' + i,
+                   brg: SCHWARM_DOT_ARROW ? __rzKurs(c, k) : 0 }},
       geometry: {{ type: 'Point', coordinates: c[k] }} }});
   }}
   map.getSource('schwarm').setData({{ type: 'FeatureCollection', features: linien }});

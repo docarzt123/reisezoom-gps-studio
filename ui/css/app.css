@@ -189,6 +189,20 @@ input[type="color"] {
   letter-spacing: 1.3px;
   text-transform: uppercase;
   margin-top: 2px;
+  white-space: nowrap;
+}
+/* 01.09.2026 — „BY REISEZOOM.COM" ist breiter als das alte „GPS Studio":
+   auf schmalen Fenstern schob der Marken-Block die Modulleiste zum Überlauf
+   (Wächter test_modulleiste_stufen: „820 px: Leiste läuft nicht über").
+   Deshalb schrumpft die Marke in denselben Stufen wie die Modulnamen —
+   und ganz eng bleibt nur noch das Zeichen stehen. */
+@media (max-width: 1150px) {
+  .brand { padding-right: 8px; gap: 8px; }
+  .brand-sub { letter-spacing: 0.6px; font-size: 8px; }
+}
+@media (max-width: 1000px) {
+  .brand-text { display: none; }
+  .brand { padding-right: 6px; }
 }
 
 .module-tabs {
