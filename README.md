@@ -1,4 +1,7 @@
-# Reisezoom GPS Studio
+# GPS Studio by reisezoom.com
+
+<p align="center"><img src="logo-originale-mit-text/gps-studio-lockup-color.png" alt="GPS Studio by reisezoom.com" width="420"></p>
+
 
 **Animierte GPS-Karten-Videos aus deinen Touren – plus Foto-Geotagging. Kostenlos, für macOS & Windows (Linux aus dem Quellcode).**
 

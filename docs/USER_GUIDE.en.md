@@ -1,4 +1,6 @@
-# Reisezoom GPS Studio — User Manual
+# GPS Studio by reisezoom.com — User Guide
+
+<p align="center"><img src="../logo-originale-mit-text/gps-studio-lockup-color.png" alt="GPS Studio by reisezoom.com" width="420"></p>
 
 Cross-platform suite for GPS workflows (macOS · Windows · Linux). **v0.3.3** — Beta.
 
@@ -860,15 +862,24 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 
 **Positions (since v0.9.284):** stats boxes in a **3×3 grid** — four corners plus **top (↥)**, **bottom (↧)**, **left (⇤)**, **right (⇥)** centered and **center (✛)** (e.g. for a title/opening overlay). The **elevation profile** is narrower and additionally offers **top wide / bottom wide** (across the full width).
 
-**💧 Watermark (since v0.9.632):** At the bottom of the overlays section you
-can put **your own logo** into the video — PNG with transparency recommended
-(JPG, WebP, GIF and SVG work too). Set **size** (percent of the video width)
-and **opacity** with sliders; **position it directly in the preview: drag the
-logo with the mouse to wherever it should sit** (since v0.9.633). It appears
-in the rendered video, the still-image export and the alpha export — the
-preview shows it pixel-true (WYSIWYG). The image is embedded at render time;
-the choice is stored per project. At 4K and portrait it automatically sits in
-the same spot, because everything is calculated in percent of the video area.
+**💧 Watermark (since v0.9.632):** At the bottom of the overlays section
+there is a **💧 Watermark** checkbox — on or off, that's it. When it's on,
+below it appear **"🖼 own image …"** (with ↩︎ back to the GPS Studio logo),
+**size** as a percentage of the video width, and **opacity**. You set the
+**position directly in the preview: drag the logo with the mouse to wherever
+it should sit.**
+
+**New projects** start with the GPS Studio logo in the bottom right (15 %,
+65 % opacity) — discreet but readable. One click turns it off, and that
+decision sticks. **Existing projects never get a watermark added**: the
+default is applied when a project is created, not when it is opened.
+
+The watermark appears in the rendered video, the still-image export and the
+alpha export — the preview shows it pixel-true (WYSIWYG). The image is
+embedded at render time; at 4K and portrait it automatically sits in the same
+spot, because everything is calculated in percent of the video area. The
+built-in logo is stored as a placeholder rather than a file path, so an
+exported project shows the logo on another machine too.
 
 **📊 Charts in the video (since v0.9.443):** in the Overlays section, below the simple elevation profile, there's the **📊 Charts** area. With it you overlay **as many** fully styled data-series charts as you like directly onto the map video — elevation, heart rate, speed, power and any other series your track provides, including **color zones** and a **second Y axis**.
 
@@ -1627,6 +1638,8 @@ see exactly what healing changed.
 Instead of searching by hand: **🩹 Auto-heal** scans the whole track and shows as a **preview on the map** what it would do — before anything is changed:
 - **🟠 Outliers** (orange) — GPS jumps that fly off *and come back again*. Are smoothed on healing.
 - **🟣 Gaps** (magenta, dashed line + faint ghost points) — larger dropouts/outages without points in between. Are filled on healing with interpolated points (position, elevation and time).
+- **✂️ Reduce points (since v0.9.635):** A slider from 2 points up to your track's real point count (100 % = everything stays). While you drag, the map shows **immediately** what would remain — the surviving points in orange, the original faded behind them, plus "X points will be dropped". Only **"Reduce"** changes the file; ⌘Z undoes it. Useful for very large recordings and for other programs with point limits.
+- **🕐 Create a time axis (since v0.9.635):** Appears **only for tracks without timestamps** — typically a planned route from Komoot. Given a desired average speed it gets a plausible time axis: duration, average speed and the animator's time readouts work afterwards, and in a swarm it can run in "real clock time" mode. Recorded tracks don't need this — their broken timestamps are fixed precisely by "fix impossible speeds".
 - **⏱️ Impossible speeds** — some jumps are a *permanent offset* (the track leaps 40 m and stays there): smoothing positions doesn't help, because the distance really was covered — only the timestamps claim "in 3 seconds". The **"Fix impossible speeds"** option corrects the time of such spots to the usual pace of the surroundings; the tour gets a few seconds longer, distance and positions stay untouched. With **"Max. plausible speed"** you set the threshold yourself (e.g. 15 km/h for a hike with some running) — empty means automatic.
 
 With **‹ / Next ›** you jump through the outliers, **🩹 Heal all** applies both at once. The **sensitivity slider** (1–10) sets how strictly it searches (low = only glaring jumps/large gaps, high = also small ones), the **fill spacing** determines how densely gaps are filled — both update the preview live. Everything can be undone with **⌘Z**.

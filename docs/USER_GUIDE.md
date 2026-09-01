@@ -1,4 +1,6 @@
-# Reisezoom GPS Studio — Benutzer-Handbuch
+# GPS Studio by reisezoom.com — Handbuch
+
+<p align="center"><img src="../logo-originale-mit-text/gps-studio-lockup-color.png" alt="GPS Studio by reisezoom.com" width="420"></p>
 
 Cross-Plattform-Suite für GPS-Workflows (macOS · Windows · Linux). **v0.9.628**
 
@@ -947,15 +949,25 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 
 **Positionen (seit v0.9.284):** Stats-Boxen in einem **3×3-Raster** — vier Ecken plus **oben (↥)**, **unten (↧)**, **links (⇤)**, **rechts (⇥)** mittig und **Mitte (✛)** (z.B. für eine Titel-/Eröffnungs-Einblendung). Das **Höhenprofil** ist schmaler und bietet zusätzlich **oben breit / unten breit** (über die volle Breite).
 
-**💧 Wasserzeichen (seit v0.9.632):** Ganz unten in der Overlays-Sektion legst
-du **dein eigenes Logo** ins Video — PNG mit Transparenz empfohlen (JPG, WebP,
-GIF und SVG gehen auch). **Größe** (Prozent der Videobreite) und **Deckkraft**
-stellst du per Regler ein; die **Position bestimmst du direkt in der Vorschau:
-Logo mit der Maus dorthin ziehen, wo es sitzen soll** (seit v0.9.633). Es
-erscheint im gerenderten Video, im Standbild-Export und im Alpha-Export — die
-Vorschau zeigt es bildgenau (WYSIWYG). Das Bild wird beim Rendern eingebettet;
-die Wahl wird im Projekt gespeichert. Bei 4K und Hochkant sitzt es automatisch
-an derselben Stelle, weil alles in Prozent der Videofläche gerechnet wird.
+**💧 Wasserzeichen (seit v0.9.632):** Ganz unten in der Overlays-Sektion
+steht ein Häkchen **💧 Wasserzeichen** — an oder aus, mehr nicht. Ist es an,
+erscheint darunter **„🖼 eigenes Bild …"** (mit ↩︎ zurück zum
+GPS-Studio-Logo), **Größe** in Prozent der Videobreite und **Deckkraft**.
+Die **Position bestimmst du direkt in der Vorschau: Logo mit der Maus
+dorthin ziehen, wo es sitzen soll.**
+
+**Neue Projekte** starten mit dem GPS-Studio-Logo unten rechts (15 %,
+65 % Deckkraft) — dezent, aber lesbar. Ausschalten genügt ein Klick, und die
+Entscheidung bleibt. **Bestehende Projekte bekommen nachträglich kein
+Wasserzeichen**: Der Standard wird beim Anlegen eines Projekts gesetzt, nicht
+beim Öffnen.
+
+Das Wasserzeichen erscheint im gerenderten Video, im Standbild-Export und im
+Alpha-Export — die Vorschau zeigt es bildgenau (WYSIWYG). Beim Rendern wird
+das Bild eingebettet; bei 4K und Hochkant sitzt es automatisch an derselben
+Stelle, weil alles in Prozent der Videofläche gerechnet wird. Das eingebaute
+Logo wird als Platzhalter gespeichert, nicht als Dateipfad — ein exportiertes
+Projekt zeigt damit auch auf einem anderen Rechner das Logo.
 
 **📊 Diagramme im Video (seit v0.9.443):** In der Overlays-Sektion gibt es unter dem einfachen Höhenprofil den Abschnitt **📊 Diagramme**. Damit blendest du **beliebig viele** voll gestaltete Datenreihen-Diagramme direkt ins Karten-Video ein — Höhe, Puls, Tempo, Leistung und jede andere Reihe, die dein Track hergibt, inklusive **Farbzonen** und **zweiter Y-Achse**.
 
@@ -1731,6 +1743,8 @@ Kasten schließt — so sieht man genau, was das Heilen verändert hat.
 Statt von Hand zu suchen: **🩹 Auto-Heilen** scannt den ganzen Track und zeigt als **Vorschau auf der Karte**, was es tun würde — bevor etwas geändert wird:
 - **🟠 Ausreißer** (orange) — GPS-Sprünge, die wegspringen *und wieder zurückkommen*. Werden beim Heilen geglättet.
 - **🟣 Lücken** (magenta, gestrichelte Linie + helle Geister-Punkte) — größere Aussetzer/Dropouts ohne Punkte dazwischen. Werden beim Heilen mit interpolierten Punkten gefüllt (Position, Höhe und Zeit).
+- **✂️ Punkte reduzieren (seit v0.9.635):** Ein Schieberegler von 2 Punkten bis zur echten Punktzahl deines Tracks (100 % = alles bleibt). Beim Schieben zeigt die Karte **sofort**, was übrig bliebe — die überlebenden Punkte orange, das Original blass dahinter, daneben „X Punkte fallen weg". Erst **„Reduzieren"** ändert die Datei; rückgängig geht mit ⌘Z. Nützlich für sehr große Aufzeichnungen und für Fremdprogramme mit Punkt-Limits.
+- **🕐 Zeitachse erzeugen (seit v0.9.635):** Erscheint **nur bei Tracks ohne Uhrzeiten** — typisch eine geplante Route aus Komoot. Mit einem Wunsch-Ø-Tempo bekommt sie eine plausible Zeitachse: Dauer, Ø-Tempo und die Zeit-Anzeigen im Animator funktionieren danach, und im Schwarm kann sie im Modus „echte Uhrzeit" mitlaufen. Aufgezeichnete Tracks brauchen das nicht — deren kaputte Zeiten repariert „Unmögliches Tempo entzerren" gezielt.
 - **⏱️ Unmögliches Tempo** — manche Sprünge sind ein *dauerhafter Versatz* (der Track springt 40 m und bleibt dort): Position glätten hilft da nicht, denn die Strecke wurde real zurückgelegt — nur die Zeitstempel behaupten „in 3 Sekunden". Die Option **„Unmögliches Tempo entzerren"** korrigiert die Zeit solcher Stellen aufs übliche Tempo der Umgebung; die Tour wird ein paar Sekunden länger, Strecke und Positionen bleiben unangetastet. Mit **„Max. plausibles Tempo"** gibst du die Schwelle selbst vor (z. B. 15 km/h fürs Wandern mit Lauf-Einlagen) — leer heißt automatisch.
 
 Mit **‹ / Nächster ›** springst du durch die Ausreißer, **🩹 Alle heilen** wendet beides auf einmal an. Der **Empfindlichkeits-Regler** (1–10) stellt ein, wie streng gesucht wird (niedrig = nur krasse Sprünge/große Lücken, hoch = auch kleine), der **Füll-Abstand** bestimmt, wie dicht Lücken aufgefüllt werden — beide aktualisieren die Vorschau live. Alles lässt sich mit **⌘Z** rückgängig machen.

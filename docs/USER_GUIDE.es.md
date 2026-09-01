@@ -1,4 +1,6 @@
-# Reisezoom GPS Studio — Manual de usuario
+# GPS Studio by reisezoom.com — Manual
+
+<p align="center"><img src="../logo-originale-mit-text/gps-studio-lockup-color.png" alt="GPS Studio by reisezoom.com" width="420"></p>
 
 Suite multiplataforma para flujos de trabajo con GPS (macOS · Windows · Linux). **v0.3.3** — Beta.
 
@@ -879,15 +881,23 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 **Posiciones (desde v0.9.284):** las cajas de estadísticas en una **cuadrícula de 3×3** — las cuatro esquinas más **arriba (↥)**, **abajo (↧)**, **izquierda (⇤)**, **derecha (⇥)** centradas y **centro (✛)** (p. ej. para un rótulo de título/apertura). El **perfil de altitud** es más estrecho y ofrece además **arriba ancho / abajo ancho** (a lo largo de todo el ancho).
 
 **💧 Marca de agua (desde v0.9.632):** Al final de la sección de overlays
-puedes poner **tu propio logo** en el vídeo — se recomienda PNG con
-transparencia (JPG, WebP, GIF y SVG también valen). Ajusta **tamaño**
-(porcentaje del ancho del vídeo) y **opacidad** con los reguladores; la
-**posición la fijas directamente en la vista previa: arrastra el logo con el
-ratón hasta donde deba estar** (desde v0.9.633). Aparece en el vídeo
-renderizado, en la imagen fija y en la exportación alfa — la vista previa lo
-muestra fiel al píxel (WYSIWYG). La imagen se incrusta al renderizar; la
-elección se guarda por proyecto. En 4K y vertical queda automáticamente en el
-mismo sitio, porque todo se calcula en porcentaje del área del vídeo.
+hay una casilla **💧 Marca de agua** — activada o desactivada, nada más. Si
+está activada, debajo aparecen **«🖼 imagen propia …»** (con ↩︎ para volver al
+logo de GPS Studio), el **tamaño** en porcentaje del ancho del vídeo y la
+**opacidad**. La **posición la fijas directamente en la vista previa:
+arrastra el logo con el ratón hasta donde deba estar.**
+
+**Los proyectos nuevos** empiezan con el logo de GPS Studio abajo a la derecha
+(15 %, 65 % de opacidad) — discreto pero legible. Un clic lo desactiva y esa
+decisión se mantiene. **Los proyectos existentes nunca reciben una marca de
+agua**: el valor por defecto se aplica al crear un proyecto, no al abrirlo.
+
+La marca de agua aparece en el vídeo renderizado, en la imagen fija y en la
+exportación alfa — la vista previa la muestra fiel al píxel (WYSIWYG). La
+imagen se incrusta al renderizar; en 4K y vertical queda automáticamente en el
+mismo sitio, porque todo se calcula en porcentaje del área del vídeo. El logo
+integrado se guarda como marcador, no como ruta de archivo, así un proyecto
+exportado muestra el logo también en otro ordenador.
 
 **📊 Gráficos en el vídeo (desde v0.9.443):** en la sección de overlays, debajo del perfil de altitud sencillo, está el apartado **📊 Gráficos**. Con él superpones **tantos** gráficos de series de datos totalmente diseñados como quieras directamente sobre el vídeo del mapa — altitud, pulso, velocidad, potencia y cualquier otra serie que ofrezca tu track, incluyendo **zonas de color** y un **segundo eje Y**.
 
@@ -1664,6 +1674,8 @@ caja — así se ve exactamente qué cambió el curado.
 En lugar de buscar a mano: **🩹 Auto-sanar** escanea todo el track y muestra como **vista previa en el mapa** lo que haría — antes de que se cambie nada:
 - **🟠 Valores atípicos** (naranja) — saltos de GPS que se van *y vuelven*. Se suavizan al sanar.
 - **🟣 Huecos** (magenta, línea discontinua + puntos fantasma claros) — cortes/dropouts mayores sin puntos intermedios. Se rellenan al sanar con puntos interpolados (posición, altitud y tiempo).
+- **✂️ Reducir puntos (desde v0.9.635):** Un regulador desde 2 puntos hasta el número real de puntos de tu track (100 % = se mantiene todo). Al arrastrarlo, el mapa muestra **al instante** lo que quedaría — los puntos supervivientes en naranja, el original difuminado detrás, y «se eliminarán X puntos». Solo **«Reducir»** cambia el archivo; ⌘Z lo deshace. Útil para grabaciones muy grandes y para programas con límite de puntos.
+- **🕐 Crear un eje de tiempo (desde v0.9.635):** Aparece **solo en tracks sin marcas de tiempo** — típicamente una ruta planificada de Komoot. Con una velocidad media deseada obtiene un eje temporal plausible: duración, velocidad media y los indicadores de tiempo del animador funcionan después, y en un enjambre puede correr en modo «hora real». Los tracks grabados no lo necesitan — sus tiempos rotos los corrige «corregir velocidades imposibles».
 - **⏱️ Velocidades imposibles** — algunos saltos son un *desplazamiento permanente* (la ruta salta 40 m y se queda allí): alisar posiciones no ayuda, porque la distancia sí se recorrió — solo las marcas de tiempo afirman «en 3 segundos». La opción **«Corregir velocidades imposibles»** ajusta el tiempo de esos puntos al ritmo habitual del entorno; la ruta se alarga unos segundos, distancia y posiciones quedan intactas. Con **«Velocidad máx. plausible»** fijas tú el umbral (p. ej. 15 km/h para una caminata con tramos corriendo) — vacío significa automático.
 
 Con **‹ / Siguiente ›** saltas por los valores atípicos, **🩹 Sanar todo** aplica ambos de una vez. El **regulador de sensibilidad** (1–10) ajusta lo estricta que es la búsqueda (bajo = solo saltos brutos/huecos grandes, alto = también los pequeños), la **distancia de relleno** determina lo densamente que se rellenan los huecos — ambos actualizan la vista previa en directo. Todo se puede deshacer con **⌘Z**.

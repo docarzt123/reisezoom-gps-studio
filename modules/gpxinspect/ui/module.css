@@ -273,3 +273,6 @@
   cursor: pointer; font-size: 12px; }
 .gpxi-baft-rows { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px;
   font-size: 12px; }
+/* 01.09.2026 — Reduzieren: Beschriftung einzeilig, Wert rechtsbündig */
+.gpxi-reduce-lbl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.gpxi-reduce-lbl b { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--accent); }

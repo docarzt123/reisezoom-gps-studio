@@ -258,6 +258,15 @@ def _project_from_defaults(name: str, defaults: dict) -> dict:
     # für bestehende Projekte, die genau so aussehen sollen wie bisher.
     anim = dict(defaults.get("animator", {}))
     anim.setdefault("pace_mode", "even")
+    # 01.09.2026 (Marc): NEUE Projekte starten mit dem GPS-Studio-Wasserzeichen —
+    # dieselbe Überlegung wie bei `pace_mode` oben: nur HIER lässt sich sicher
+    # sagen, dass ein Projekt gerade entsteht. Bestehende Projekte (auch die von
+    # Dieter und Rafael) haben den Schlüssel nicht und bleiben unverändert ohne
+    # Wasserzeichen — sie sollen nicht plötzlich ein Logo im Video haben.
+    # `@lockup-white` ist ein Sentinel, kein Pfad: er löst sich auf jedem
+    # Rechner auf und überlebt den Projekt-Export.
+    anim.setdefault("watermark", {"path": "@lockup-white", "x": 84.5, "y": 91.3,
+                                  "w": 15, "op": 0.65})
     return {
         "id": _new_project_id(),
         "name": name,

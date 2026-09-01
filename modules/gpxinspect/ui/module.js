@@ -73,6 +73,9 @@ function mountGpxInspect(body, headerActions) {
       _drawMode = false; _drawPts = [];
       clearSpikes();
       renderAll(); renderDraw(); updateUI();
+      // 01.09.2026: nach Undo/Redo hat der Track eine andere Punktzahl —
+      // Regler-Maximum und Vorschau müssen mitziehen.
+      try { reduzierReglerSync(); } catch (_) {}
     },
     toast: (m) => { try { toast(m, "info", 1000); } catch (_) {} },
     throttleMs: 0,
@@ -135,6 +138,38 @@ function mountGpxInspect(body, headerActions) {
           </div>
 
           <hr class="gpxi-hr">
+          <!-- 31.08.2026 (Rafaels MTB-Kollege): Punkte reduzieren + Tempo
+               umschreiben — direkt am Track, speichern wie nach dem Heilen. -->
+          <details class="gpxi-manual" id="gpxi-toolbox">
+            <summary class="gpxi-mm-title">✂️ ${t("gpxinspect.tools_title", "Reduzieren & Tempo")}<span class="gpxi-q" data-tip="${t("gpxinspect.tools_help", "Punktzahl der Datei verkleinern (echte Punkte bleiben, gleichmäßig nach Strecke gewählt) oder die Zeitstempel auf ein Wunsch-Ø-Tempo umschreiben — z. B. um eine geplante Route mit realistischer Geschwindigkeit zu animieren. Beides landet erst beim Speichern in einer Datei.")}">?</span></summary>
+            <label class="field-label gpxi-reduce-lbl" style="margin-top:2px">
+              <span>${t("gpxinspect.reduce_label", "Punkte reduzieren auf")}</span>
+              <b id="gpxi-reduce-v">—</b></label>
+            <input type="range" id="gpxi-reduce-n" min="2" max="100" step="1" value="100" style="width:100%">
+            <div class="gpxi-fillrow" style="margin-top:4px">
+              <button class="btn btn-sm" id="gpxi-reduce-run">${t("gpxinspect.reduce_run", "Reduzieren")}</button>
+              <span class="gpxi-hint-sm" id="gpxi-reduce-hint"></span>
+            </div>
+            <!-- 01.09.2026 (Marc: „wir haben doch son Geschwindigkeitsheiler,
+                 damit können wir das meiste davon schon machen") — stimmt: bei
+                 AUFGEZEICHNETEN Tracks repariert „Unmögliches Tempo entzerren"
+                 die Zeiten gezielt und behält den echten Rhythmus. Bleibt genau
+                 eine Lücke: Tracks OHNE jede Uhrzeit (geplante Routen) — dort
+                 steigt der Heiler sofort aus. Deshalb ist diese Zeile nur
+                 noch bei zeitlosen Tracks sichtbar. -->
+            <div id="gpxi-speedrow" hidden style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);">
+              <div class="ov-style-title" style="font-size:12px">🕐 ${t("gpxinspect.speed_title", "Zeitachse erzeugen")}
+                <span class="gpxi-q" data-tip="${t("gpxinspect.speed_help", "Fuer geplante Routen ohne Uhrzeit.")}">?</span>
+              </div>
+              <div class="gpxi-fillrow" style="margin-top:4px">
+                <span>${t("gpxinspect.speed_label", "Ø-Tempo")}</span>
+                <input type="number" id="gpxi-speed-v" min="0.5" max="300" step="0.5" placeholder="12"> km/h
+                <button class="btn btn-sm" id="gpxi-speed-run">${t("gpxinspect.speed_run", "Anwenden")}</button>
+              </div>
+            </div>
+            <div class="gpxi-sel" id="gpxi-tools-info"></div>
+          </details>
+
           <details class="gpxi-manual" open>
             <summary class="gpxi-mm-title">✏️ ${t("gpxinspect.manual_title", "Manuell bearbeiten (A→B)")}<span class="gpxi-q" data-tip="${t("gpxinspect.manual_help", "Zwei Punkte auf der Karte klicken (A grün, B rot), dann eine Aktion für den Abschnitt dazwischen wählen — z. B. Punkte dazwischen löschen.")}">?</span></summary>
             <button class="btn gpxi-act" id="gpxi-heal" disabled
@@ -268,6 +303,17 @@ function mountGpxInspect(body, headerActions) {
           "circle-radius": 3, "circle-color": "#e879f9", "circle-opacity": 0.55,
           "circle-stroke-width": 1, "circle-stroke-color": "#86198f",
         } });
+        // 01.09.2026 (Marc: „sieht man live, wie sich der track verändert?") —
+        // Vorschau der reduzierten Linie beim Schieben des Reglers. MUSS über
+        // Track-Linie und Tempo-Färbung liegen, sonst ist sie unsichtbar.
+        map.addSource("gpxi-redprev", { type: "geojson", data: emptyLine });
+        map.addLayer({ id: "gpxi-redprev-lyr", type: "line", source: "gpxi-redprev",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#ff6b35", "line-width": 3.4, "line-opacity": 1 } });
+        map.addSource("gpxi-redprev-pts", { type: "geojson", data: emptyFC });
+        map.addLayer({ id: "gpxi-redprev-pts-lyr", type: "circle", source: "gpxi-redprev-pts",
+          paint: { "circle-radius": 3.4, "circle-color": "#ff6b35",
+                   "circle-stroke-width": 1, "circle-stroke-color": "#ffffff" } });
         map.addSource("gpxi-pts", { type: "geojson", data: emptyFC });
         map.addLayer({ id: "gpxi-pts-lyr", type: "circle", source: "gpxi-pts", paint: {
           // Zoom-Interpolate MUSS oben stehen (Mapbox erlaubt kein zoom-interpolate
@@ -389,14 +435,27 @@ function mountGpxInspect(body, headerActions) {
     if (_htRow) _htRow.style.display = _hasTime ? "" : "none";
     const _tcRow = document.getElementById("gpxi-tempocap-row");
     if (_tcRow) _tcRow.style.display = _hasTime ? "" : "none";
+    // 01.09.2026: „Zeitachse erzeugen" NUR bei Tracks ohne Uhrzeit — sonst ist
+    // es ein zweiter Knopf für etwas, das der Geschwindigkeitsheiler besser kann.
+    const _spRow = document.getElementById("gpxi-speedrow");
+    if (_spRow) _spRow.hidden = _hasTime;
     clearBeforeAfter();
     renderAll();
     try { renderDraw(); } catch (_) {}
     fitTrack(res.bbox);
     updateUI();
+    // 01.09.2026 (Marc): Regler zeigt die ECHTE Punktzahl dieses Tracks.
+    try { reduzierReglerSync(); } catch (_) {}
   }
 
   function clearTrack() {
+    try {
+      map.getSource("gpxi-redprev").setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] } });
+      map.getSource("gpxi-redprev-pts").setData({ type: "FeatureCollection", features: [] });
+      if (map.getLayer("gpxi-pts-lyr")) { map.setPaintProperty("gpxi-pts-lyr", "circle-opacity", 1); map.setPaintProperty("gpxi-pts-lyr", "circle-stroke-opacity", 1); }
+      if (map.getLayer("gpxi-speed-lyr")) map.setPaintProperty("gpxi-speed-lyr", "line-opacity", 0.95);
+      if (map.getLayer("gpxi-line-lyr")) map.setPaintProperty("gpxi-line-lyr", "line-opacity", 0.85);
+    } catch (_) {}
     _points = []; _srcPath = null; _origPath = null; _sources = []; _selA = _selB = null; _dirty = false;
     try { if (map && map.getSource("gpxi-line")) map.getSource("gpxi-line").setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] } }); } catch (_) {}
     try { if (map && map.getSource("gpxi-pts")) map.getSource("gpxi-pts").setData({ type: "FeatureCollection", features: [] }); } catch (_) {}
@@ -585,6 +644,131 @@ function mountGpxInspect(body, headerActions) {
       if (shiftMs > 0.5) _points[i].time = new Date(orig[i] + Math.round(shiftMs)).toISOString();
     }
     return fixed;
+  }
+
+  /** 31.08.2026 (Rafaels MTB-Kollege): Punktzahl reduzieren — behält ECHTE
+   *  Punkte, gleichmäßig über die Strecke gewählt (erster/letzter immer). */
+  /** Welche Punkte überleben? Gleichmäßig nach STRECKE gewählt, erster und
+   *  letzter immer. Vorschau und Anwenden teilen sich diese Rechnung. */
+  function _reduzierAuswahl(ziel) {
+    const n = _points.length;
+    ziel = Math.round(ziel);
+    if (!n || !isFinite(ziel) || ziel < 2 || ziel >= n) return null;
+    const cum = [0];
+    for (let i = 1; i < n; i++) cum.push(cum[i - 1] + _haversine(_points[i - 1], _points[i]));
+    const total = cum[n - 1] || 1;
+    const schritt = total / (ziel - 1);
+    const behalten = [_points[0]];
+    let naechste = schritt, i = 1;
+    while (i < n - 1 && behalten.length < ziel - 1) {
+      if (cum[i] >= naechste) { behalten.push(_points[i]); naechste += schritt; }
+      i++;
+    }
+    behalten.push(_points[n - 1]);
+    return behalten;
+  }
+
+  /** Regler-Stand → Beschriftung + orange Vorschau-Linie auf der Karte. */
+  function reduzierVorschau() {
+    const el = document.getElementById("gpxi-reduce-n");
+    const lbl = document.getElementById("gpxi-reduce-v");
+    const hint = document.getElementById("gpxi-reduce-hint");
+    const n = _points.length;
+    if (!el) return;
+    const ziel = Math.max(2, Math.min(n, parseInt(el.value, 10) || n));
+    const pct = n > 1 ? Math.round((ziel / n) * 100) : 100;
+    if (lbl) lbl.textContent = `${ziel} / ${n} (${pct} %)`;
+    const auswahl = (ziel < n) ? _reduzierAuswahl(ziel) : null;
+    if (hint) {
+      hint.textContent = auswahl
+        ? t("gpxinspect.reduce_hint", "{n} Punkte fallen weg").replace("{n}", String(n - auswahl.length))
+        : t("gpxinspect.reduce_alle", "alle Punkte bleiben");
+    }
+    try {
+      map.getSource("gpxi-redprev").setData({ type: "Feature", geometry: {
+        type: "LineString",
+        coordinates: auswahl ? auswahl.map(p => [p.lon, p.lat]) : [] } });
+      // 01.09.2026 (im Test gefunden): die orange Linie allein sieht man NICHT —
+      // die dichten blauen Punkt-Kreise des Originals decken sie zu. Deshalb
+      // (1) die überlebenden Punkte orange darüber zeichnen, (2) das Original
+      // währenddessen abblenden und (3) beide Vorschau-Ebenen nach oben holen.
+      map.getSource("gpxi-redprev-pts").setData({ type: "FeatureCollection",
+        features: (auswahl || []).map(p => ({ type: "Feature", properties: {},
+          geometry: { type: "Point", coordinates: [p.lon, p.lat] } })) });
+      for (const id of ["gpxi-redprev-lyr", "gpxi-redprev-pts-lyr"]) {
+        if (map.getLayer(id)) map.moveLayer(id);
+      }
+      const blass = !!auswahl;
+      if (map.getLayer("gpxi-pts-lyr")) map.setPaintProperty("gpxi-pts-lyr", "circle-opacity", blass ? 0.18 : 1);
+      if (map.getLayer("gpxi-pts-lyr")) map.setPaintProperty("gpxi-pts-lyr", "circle-stroke-opacity", blass ? 0.18 : 1);
+      if (map.getLayer("gpxi-speed-lyr")) map.setPaintProperty("gpxi-speed-lyr", "line-opacity", blass ? 0.2 : 0.95);
+      if (map.getLayer("gpxi-line-lyr")) map.setPaintProperty("gpxi-line-lyr", "line-opacity", blass ? 0.25 : 0.85);
+    } catch (_) {}
+    const btn = document.getElementById("gpxi-reduce-run");
+    if (btn) btn.disabled = !auswahl;
+  }
+
+  /** Regler auf den aktuellen Track einstellen: Maximum = echte Punktzahl,
+   *  Stand = 100 % (Marc, 01.09.2026: „immer die anzahl des tracks drin"). */
+  function reduzierReglerSync(behalteStand) {
+    const el = document.getElementById("gpxi-reduce-n");
+    if (!el) return;
+    const n = Math.max(2, _points.length);
+    el.max = String(n);
+    el.min = "2";
+    el.step = String(n > 2000 ? 10 : 1);
+    // Neuer Track (oder Stand größer als der Track): auf 100 % = alle Punkte.
+    // Der Regler zeigt damit immer die ECHTE Punktzahl dieses Tracks an.
+    if (!behalteStand || !el.value || parseInt(el.value, 10) > n) el.value = String(n);
+    reduzierVorschau();
+  }
+
+  function punkteReduzieren(ziel) {
+    const n = _points.length;
+    const behalten = _reduzierAuswahl(ziel);
+    if (!behalten) {
+      toast(t("gpxinspect.reduce_schon", "Der Track hat nur {n} Punkte").replace("{n}", String(n)), "info");
+      return 0;
+    }
+    _pushUndo(t("gpxinspect.reduce_run", "Reduzieren"));
+    merkeVorher();
+    _points = behalten;
+    _selA = _selB = null;
+    _dirty = true;
+    renderAll(); updateUI(); zeigeVorherNachher();
+    reduzierReglerSync(true);
+    return n - _points.length;
+  }
+
+  /** 31.08.2026: Zeitstempel auf ein Wunsch-Ø-Tempo umschreiben. Startzeit
+   *  bleibt die vorhandene erste Zeit (ohne Zeiten: heute 09:00). Danach hat
+   *  auch eine geplante Route eine echte Zeitachse. */
+  function tempoSetzen(kmh) {
+    const n = _points.length;
+    if (n < 2 || !isFinite(kmh) || kmh <= 0) return false;
+    _pushUndo(t("gpxinspect.speed_run", "Anwenden"));
+    merkeVorher();
+    let t0 = _points[0].time ? Date.parse(_points[0].time) : NaN;
+    if (!isFinite(t0)) {
+      const d = new Date(); d.setHours(9, 0, 0, 0);
+      t0 = d.getTime();
+    }
+    const v = kmh / 3.6;
+    let cum = 0;
+    _points[0].time = new Date(t0).toISOString();
+    for (let i = 1; i < n; i++) {
+      cum += _haversine(_points[i - 1], _points[i]);
+      _points[i].time = new Date(t0 + Math.round((cum / v) * 1000)).toISOString();
+    }
+    _hasTime = true;
+    _dirty = true;
+    renderAll(); updateUI(); zeigeVorherNachher();
+    // Jetzt hat der Track eine Uhr: die Zeile hat ihren Zweck erfüllt, ab hier
+    // ist der Geschwindigkeitsheiler zuständig.
+    { const r = document.getElementById("gpxi-speedrow"); if (r) r.hidden = true; }
+    { const r = document.getElementById("gpxi-heal-tempo-row"); if (r) r.style.display = ""; }
+    { const r = document.getElementById("gpxi-tempocap-row"); if (r) r.style.display = ""; }
+    return true;
   }
 
   function renderSpeedColor() {
@@ -2284,6 +2468,34 @@ function mountGpxInspect(body, headerActions) {
   _on("gpxi-undo", () => { if (_undo) _undo.undo(); });
   _on("gpxi-redo", () => { if (_undo) _undo.redo(); });
   _on("gpxi-heal-run", runHeal);
+  // 31.08.2026 (Rafaels MTB-Kollege): Reduzieren + Tempo
+  { const _rEl = document.getElementById("gpxi-reduce-n");
+    if (_rEl) _rEl.addEventListener("input", () => { try { reduzierVorschau(); } catch (e) { applog("warn", "[gpxi] Reduzier-Vorschau: " + e); } }); }
+  _on("gpxi-reduce-run", () => {
+    const _el = document.getElementById("gpxi-reduce-n") || {};
+    const ziel = parseInt(_el.value, 10);
+    if (!isFinite(ziel) || ziel < 2) {
+      toast(t("gpxinspect.reduce_fehlt", "Bitte eine Ziel-Punktzahl eingeben"), "warn");
+      return;
+    }
+    const weg = punkteReduzieren(ziel);
+    if (weg > 0) {
+      toast(t("gpxinspect.reduce_done", "{n} Punkte entfernt — jetzt {m}")
+        .replace("{n}", String(weg)).replace("{m}", String(_points.length)), "success", 3200);
+    }
+  });
+  _on("gpxi-speed-run", () => {
+    const _el = document.getElementById("gpxi-speed-v") || {};
+    const v = parseFloat(_el.value || _el.placeholder);
+    if (!isFinite(v) || v <= 0) {
+      toast(t("gpxinspect.speed_fehlt", "Bitte ein Tempo in km/h eingeben"), "warn");
+      return;
+    }
+    if (tempoSetzen(v)) {
+      toast(t("gpxinspect.speed_done", "Zeitstempel auf Ø {v} km/h gesetzt")
+        .replace("{v}", String(v)), "success", 3200);
+    }
+  });
   { const sc = document.getElementById("gpxi-speedcolor");
     if (sc) sc.addEventListener("change", () => { try { renderSpeedColor(); } catch (_) {} }); }
   // Max-Tempo-Deckel überlebt den Neustart (z. B. „15" für Wander-Touren).

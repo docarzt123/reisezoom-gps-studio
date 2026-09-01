@@ -657,10 +657,10 @@ async function openAboutModal() {
     title: t("about.title"),
     body: `
       <div style="text-align:center; padding:8px 0 4px;">
-        <img src="assets/icon.png" alt="" onerror="this.style.display='none'"
-             style="width:128px; height:128px; border-radius:24px;
-                    filter: drop-shadow(0 6px 16px rgba(0,0,0,0.55));
-                    margin-bottom:14px;">
+        <img src="${(window.__rzAssetBase || "")}assets/logo-lockup.png" alt="GPS Studio by reisezoom.com"
+             onerror="this.style.display='none'"
+             style="width:min(340px, 90%); height:auto; margin-bottom:14px;
+                    filter: drop-shadow(0 6px 16px rgba(0,0,0,0.55));">
         <div style="font-size:22px; font-weight:700; letter-spacing:0.2px;">
           ${escapeHtml(info.name || "Reisezoom GPS Studio")}
         </div>

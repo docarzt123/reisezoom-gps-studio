@@ -497,6 +497,10 @@ async function loadI18n() {
     console.warn("[i18n] load failed", err);
   }
   uebersetzeMarkup();
+  // 31.08.2026 (Rafael: „las pestañas salen en Alemán") — Bausteine, die VOR
+  // den Sprachdateien gerendert haben (Topbar-Projekt-Knopf), rendern auf
+  // dieses Signal hin neu, statt auf ihrem deutschen Fallback sitzenzubleiben.
+  try { window.dispatchEvent(new CustomEvent("rz-i18n-ready")); } catch (_) {}
 }
 
 /** Übersetzt festes HTML anhand von `data-i18n`-Attributen.

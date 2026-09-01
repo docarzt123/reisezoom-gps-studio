@@ -705,6 +705,7 @@ function mountLibrary(body, headerActions) {
    * Bereiche links (Status statt Jahr/Art), Karten-Raster rechts.
    * Öffnen springt ins zuletzt benutzte Modul (Q22). */
   let _projView = false;
+  const _projMulti = new Set();   // 31.08.2026 (Rafael): Mehrfachauswahl zum Löschen
   let _projekte = [];
   let _projScope = "alle";  // alle | aktiv | idee | fertig | auto
   const _projThumbCache = {};   // pid → data-URL (Sitzungs-Cache)
@@ -864,11 +865,51 @@ function mountLibrary(body, headerActions) {
     // Klick auf die Karte (nicht auf Knöpfe) wählt sie aus → rechte Spalte.
     box.querySelectorAll(".lib-proj-karte").forEach(k => k.onclick = (e) => {
       if (e.target.closest("button, select, input, a")) return;
+      // 31.08.2026 (Rafael: „no puedo seleccionar los que quiera para
+      // borrarlos") — ⌘/Strg-Klick sammelt Projekte für Sammel-Aktionen,
+      // exakt wie die Mehrfachauswahl im Touren-Archiv.
+      if (e.metaKey || e.ctrlKey) {
+        const pid = k.dataset.pid;
+        if (_projMulti.has(pid)) _projMulti.delete(pid); else _projMulti.add(pid);
+        renderProjekte();
+        return;
+      }
+      if (_projMulti.size) { _projMulti.clear(); renderProjekte(); }
       _projSel = k.dataset.pid;
       box.querySelectorAll(".lib-proj-karte").forEach(x =>
         x.classList.toggle("is-sel", x.dataset.pid === _projSel));
       renderProjektDetail(_projSel);
     });
+    box.querySelectorAll(".lib-proj-karte").forEach(k =>
+      k.classList.toggle("is-multi", _projMulti.has(k.dataset.pid)));
+    { const d = $("lib-detail");
+      if (d) {
+        if (_projMulti.size) renderProjMultiPanel();
+        else if (_projSel) renderProjektDetail(_projSel);
+        else d.innerHTML = `<div class="lib-detail-empty" style="padding:14px">${
+          T("library.proj_detail_hint", "Projekt anklicken — dann erscheinen hier Details, Touren und frühere Arbeitsstände. Mehrere wählen: ⌘/Strg-Klick.")}</div>`;
+      } }
+    { const bx = document.getElementById("lib-proj-multi-x");
+      if (bx) bx.onclick = () => { _projMulti.clear(); renderProjekte(); };
+      const bd = document.getElementById("lib-proj-multi-del");
+      if (bd) bd.onclick = async () => {
+        const n = _projMulti.size;
+        const ok = await (window.rzConfirm
+          ? rzConfirm("🗑 " + T("library.proj_delete_multi", "Ausgewählte löschen"),
+              T("library.proj_delete_multi_frage", "{n} Projekte löschen? Die Touren im Archiv bleiben unberührt.").replace("{n}", String(n)),
+              T("library.proj_delete_multi", "Ausgewählte löschen"), true)
+          : Promise.resolve(confirm(n + "?")));
+        if (!ok) return;
+        for (const pid of Array.from(_projMulti)) {
+          try { await api().projekt_loeschen(pid); } catch (_) {}
+          if (_projSel === pid) _projSel = null;
+        }
+        _projMulti.clear();
+        toast(T("library.proj_delete_multi_ok", "Projekte gelöscht") + ` (${n})`);
+        renderProjekte();
+        renderProjNav();
+      };
+    }
     if (_projSel) {
       const k = box.querySelector(`.lib-proj-karte[data-pid="${_projSel}"]`);
       if (k) k.classList.add("is-sel");
@@ -1171,10 +1212,20 @@ function mountLibrary(body, headerActions) {
     $("lib-projwrap").hidden = !pv;
     $("lib-head").hidden = pv;
     // v0.9.623: rechte Spalte bleibt — sie zeigt im Projekt-Modus das Projekt.
+    // 31.08.2026 (Testrunde): Die Spalte je Modus IMMER neu bestücken —
+    // vorher blieb beim Umschalten der Inhalt des anderen Modus stehen
+    // (Touren-Hinweis im Projekte-Modus, Projekt-Mehrfachauswahl im Archiv).
     { const d = $("lib-detail");
       if (d) {
         d.hidden = false;
-        if (pv) { d.innerHTML = _projSel ? d.innerHTML : ""; if (_projSel) renderProjektDetail(_projSel); }
+        if (pv) {
+          if (_projMulti.size) renderProjMultiPanel();
+          else if (_projSel) renderProjektDetail(_projSel);
+          else d.innerHTML = `<div class="lib-detail-empty" style="padding:14px">${
+            T("library.proj_detail_hint", "Projekt anklicken — dann erscheinen hier Details, Touren und frühere Arbeitsstände. Mehrere wählen: ⌘/Strg-Klick.")}</div>`;
+        } else {
+          try { renderDetail(); } catch (_) {}
+        }
       } }
     $("lib-grid").hidden = pv || view !== "cards";
     $("lib-list").hidden = pv || view !== "list";
@@ -3419,6 +3470,22 @@ function mountLibrary(body, headerActions) {
     if (maps) maps.onclick = startMapThumbs;
     const stop = $("lib-maps-stop");
     if (stop) stop.onclick = () => api().library_map_thumbs_stop();
+  }
+
+  /** 31.08.2026 (Rafael, Mehrfachauswahl): Sammel-Aktionen leben in der
+   *  rechten Detailspalte — wie beim Touren-Archiv. Eine Leiste ÜBER der
+   *  Liste verschob beim ⌘-Klicken die Karten unter dem Mauszeiger. */
+  function renderProjMultiPanel() {
+    const d = $("lib-detail");
+    if (!d) return;
+    d.innerHTML = `
+      <div class="lib-multi-head" style="padding:12px">
+        <b>${_projMulti.size}</b> ${T("library.proj_multi_n", "Projekte ausgewählt")}
+      </div>
+      <div style="padding:0 12px; display:flex; flex-direction:column; gap:8px;">
+        <button class="btn lib-btn-danger" id="lib-proj-multi-del">🗑 ${T("library.proj_delete_multi", "Ausgewählte löschen")}</button>
+        <button class="btn btn-ghost" id="lib-proj-multi-x">${T("library.clear_sel", "Auswahl aufheben")}</button>
+      </div>`;
   }
 
   /** 30.08.2026 (Marc-OK, Dieters Komoot-Fall): einzelne Track-Dateien ins

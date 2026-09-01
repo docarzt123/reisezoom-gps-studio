@@ -333,7 +333,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title} — Reisezoom GPS Studio</title>
+<title>{title} — GPS Studio by reisezoom.com</title>
 <style>
   :root {{
     --bg-1: #0e1117;
@@ -570,9 +570,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="layout">
   <div class="header">
-    <img class="header-icon" src="../ui/assets/icon.png" alt="" onerror="this.style.display='none'">
+    <img class="header-icon" src="{logo_uri}" alt="">
     <div>
-      <div class="header-title">Reisezoom GPS Studio</div>
+      <div class="header-title">GPS Studio <span style="font-weight:400;opacity:.7">by reisezoom.com</span></div>
       <div class="header-sub">{title}</div>
     </div>
     <div class="langswitch" style="margin-left:auto;display:flex;gap:5px">{langswitch}</div>
@@ -582,7 +582,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <main class="doc-main">
       {content}
       <div class="footer">
-        Reisezoom GPS Studio · diese Doku wurde aus <code>docs/USER_GUIDE.md</code> generiert.
+        GPS Studio by reisezoom.com · diese Doku wurde aus <code>docs/USER_GUIDE.md</code> generiert.
       </div>
     </main>
   </div>
@@ -698,7 +698,12 @@ def build_one(lang: str, src: Path, dst: Path) -> Path:
     md = _strip_versions(md)                    # „(seit vX)"-Notizen policy-mäßig raus
     content = md_to_html(md)
     toc = _build_toc(content, lang)
-    html = HTML_TEMPLATE.format(lang=lang, title=_html.escape(title),
+    # 31.08.2026 (Marc: neues Logo) — Mark als data-URI einbetten, damit die
+    # Datei auch hochgeladen (reisezoom.com) ihr Logo behält.
+    import base64 as _b64
+    _logo = ROOT / "ui" / "assets" / "icon.png"
+    logo_uri = ("data:image/png;base64," + _b64.b64encode(_logo.read_bytes()).decode()) if _logo.exists() else ""
+    html = HTML_TEMPLATE.format(lang=lang, title=_html.escape(title), logo_uri=logo_uri,
                                 content=content, toc=toc, langswitch=_langswitch(lang))
     dst.write_text(html, encoding="utf-8")
     print(f"✅ {dst.relative_to(ROOT)} ({len(html) // 1024} KB)")
