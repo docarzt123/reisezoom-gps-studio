@@ -2591,3 +2591,61 @@ function hoehenmeter(points) {
   }
   return { asc, desc };
 }
+
+// ── Fahrtrichtung des Laufpunkt-Pfeils ──────────────────────────────────────
+// 02.09.2026 (Marc: „wenn der laufpunkt ein pfeil ist, muss der geglättet
+// werden, sonst springt der wie wild hin und her"): Die Richtung kam aus EINEM
+// Wegstück. Bei sekündlicher Aufzeichnung sind das 1–3 m — genau die
+// Größenordnung, in der GPS rauscht. Der Pfeil zeigte also halb ins Rauschen.
+//
+// Jetzt: Richtung aus einer Strecke von mindestens `basisM` UND mindestens
+// `minPunkte` Punkten, gerechnet als Schwerpunkt der vorderen gegen den der
+// hinteren Hälfte (Endpunkt gegen Endpunkt würde das volle Rauschen der beiden
+// äußersten Punkte tragen). Ohne Gedächtnis über Bilder hinweg — dasselbe Bild
+// sieht in Vorschau und Render gleich aus.
+//
+// ⚠️ Die Render-Seite hat eine eigene Kopie (`__rzKurs` in core/animator.py),
+// weil die erzeugte Seite util.js nicht lädt. Bei Änderungen BEIDE pflegen.
+function kursPeilung(a, b) {
+  const rad = Math.PI / 180;
+  const dLon = (b[0] - a[0]) * rad;
+  const y = Math.sin(dLon) * Math.cos(b[1] * rad);
+  const x = Math.cos(a[1] * rad) * Math.sin(b[1] * rad)
+          - Math.sin(a[1] * rad) * Math.cos(b[1] * rad) * Math.cos(dLon);
+  return (Math.atan2(y, x) / rad + 360) % 360;
+}
+function kursMeter(a, b) {
+  const rad = Math.PI / 180, R = 6371000;
+  return Math.hypot((b[1] - a[1]) * rad,
+                    (b[0] - a[0]) * rad * Math.cos((a[1] + b[1]) / 2 * rad)) * R;
+}
+/** Regler 0–10 → (Basislänge in Metern, Mindestzahl Punkte). */
+function kursGlaettung(stufe) {
+  const v = Math.max(0, Math.min(10, +stufe || 0));
+  const basis = 10 + v * 10;                   // 0 → 10 m, 5 → 60 m, 10 → 110 m
+  return { basisM: basis, minPunkte: Math.max(2, Math.round(basis / 3)) };
+}
+function kursAusSpur(coords, i, basisM, minPunkte) {
+  const n = coords ? coords.length : 0;
+  if (n < 2) return 0;
+  const BAS = basisM == null ? 60 : basisM;
+  const MINP = minPunkte == null ? 20 : minPunkte;
+  const mitte = Math.max(0, Math.min(n - 1, i));
+  let a = mitte, b = mitte, weg = 0;
+  const offen = () => (weg < BAS || (b - a + 1) < MINP);
+  while (offen() && (a > 0 || b < n - 1)) {
+    if (a > 0) { weg += kursMeter(coords[a - 1], coords[a]); a--; }
+    if (offen() && b < n - 1) { weg += kursMeter(coords[b], coords[b + 1]); b++; }
+  }
+  if (a === b) return 0;
+  if (kursMeter(coords[a], coords[b]) < 1 && n > 2) {
+    a = Math.max(0, mitte - 25); b = Math.min(n - 1, mitte + 25);
+    if (a === b) return 0;
+  }
+  const m = (a + b) >> 1;
+  let x1 = 0, y1 = 0, c1 = 0, x2 = 0, y2 = 0, c2 = 0;
+  for (let k = a; k <= m; k++) { x1 += coords[k][0]; y1 += coords[k][1]; c1++; }
+  for (let k = m; k <= b; k++) { x2 += coords[k][0]; y2 += coords[k][1]; c2++; }
+  if (!c1 || !c2) return kursPeilung(coords[a], coords[b]);
+  return kursPeilung([x1 / c1, y1 / c1], [x2 / c2, y2 / c2]);
+}

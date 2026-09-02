@@ -55,6 +55,23 @@ function mountAnimator(body, headerActions, opts) {
   const _isReiseroute = (RZ_MODE === "reiseroute");
   const _isStaticFrame = (RZ_MODE === "staticFrame");  // v0.9.308 — Tour-Map
   const _MODKEY = opts.moduleSlug || "animator";
+
+  // ── 💧 Wasserzeichen: Zustand ─────────────────────────────────────────
+  // ⚠️ Muss GANZ oben stehen. Der Mount ruft `_wmBinden()`/`_wmLaden()` sehr
+  // früh; standen diese Deklarationen weiter unten, warf `let` seine Totzone
+  // („Cannot access '_wm' before initialization"), der Aufbau brach ab und
+  // das Wasserzeichen war beim Öffnen eines Projekts nicht da. Im Protokoll
+  // der laufenden App gefunden (02.09.2026) — die Meldung stand dort seit dem
+  // 31.08. bei jedem Start, gesehen hatte sie niemand.
+  let _wm = { path: "", x: 86, y: 80, w: 12, op: 0.9 };
+  let _wmEigen = "";     // zuletzt gewähltes eigenes Bild (für den Umschalter)
+  let _wmPrevLauf = 0;   // 30.08.2026 (Marc: „doppelt zu sehen") — Async-Guard
+  // Eingebaute Wasserzeichen als SENTINEL — überlebt den Export zu anderen
+  // Rechnern (ein fester Pfad zeigte dort ins Leere).
+  const WM_EINGEBAUT = ["@lockup-white"];
+  // Vorgabe für NEUE Projekte (01.09.2026, Marc: „größe, opacity und position
+  // per default so, wie im aktuell offenen projekt").
+  const WM_STANDARD = { path: "@lockup-white", x: 84.5, y: 91.3, w: 15, op: 0.65 };
   // v0.9.212 — Schilder/Fotos pro Modul trennen. Animator behält den Root-Key
   // "signs" (Back-Compat zu bestehenden Projekten); Reiseroute bekommt eigene
   // "reiseroute_signs". Sonst würde Reiseroute die Animator-Schilder zeigen.
@@ -298,6 +315,16 @@ function mountAnimator(body, headerActions, opts) {
                 <span class="label-val" id="anim-dot-size-v">1.0×</span>
               </label>
               <input type="range" id="anim-dot-size" min="0.5" max="3" step="0.1" value="1">
+              <!-- 02.09.2026 (Marc: „vielleicht braucht man einen schieberegler,
+                   wenn der pfeil gewählt wird") — wie ruhig der Pfeil liegt.
+                   Nur bei Pfeil sichtbar; bei der Kugel gibt es keine Richtung. -->
+              <div id="anim-dot-smooth-row" hidden>
+                <label class="field-label" style="margin-top:8px;">${t("animator.dot.smooth", "Ruhe des Pfeils")}
+                  <span class="label-val" id="anim-dot-smooth-v">5</span>
+                </label>
+                <input type="range" id="anim-dot-smooth" min="0" max="10" step="1" value="5">
+                <div class="hint-sm">${t("animator.dot.smooth_hint", "Links folgt der Pfeil jeder Zuckung, rechts zeigt er die grobe Richtung. In Klammern steht, aus wie viel Streckenlänge um den Punkt herum die Richtung abgelesen wird.")}</div>
+              </div>
             </div>
           </div>
 
@@ -2286,6 +2313,12 @@ function mountAnimator(body, headerActions, opts) {
   // v0.9.156 — Multi-Track: zusätzliche Touren NACH der ersten (= globale GPX
   // in der Bar). Jede: { gpx_path, line_color, name }. Render schickt nur dann
   // ein `tracks`-Array (≥2 Einträge) wenn hier ≥1 Extra-Tour liegt.
+  // 💧 Wasserzeichen-Zustand. ⚠️ MUSS hier oben stehen: Seit
+  // `renderOverlayPreview()` das Logo nach jedem Neuzeichnen wieder ansetzt
+  // (Beta-Tester-Fehler „Wasserzeichen weg mit den Stats-Overlays"), kann der
+  // erste Aufruf VOR der alten Deklarationsstelle liegen — dann warf `let`
+  // seine Totzone: „Cannot access '_wm' before initialization", und das Logo
+  // fehlte beim Öffnen. In der laufenden App im Protokoll gefunden (02.09.2026).
   let _extraTours = [];
   // IDEAS §38 — Ablauf der Mehr-Touren-Übergabe: "reise" (nacheinander, wie
   // bisher) oder "schwarm" (alle gleichzeitig). Wird im ARCHIV gewählt und
@@ -2375,16 +2408,7 @@ function mountAnimator(body, headerActions, opts) {
                         "#4ecdc4", "#ffa94d", "#a0e7e5"];
 
   // ── 💧 Wasserzeichen (30.08.2026) ──────────────────────────────────────
-  let _wm = { path: "", x: 86, y: 80, w: 12, op: 0.9 };
-  let _wmEigen = "";   // zuletzt gewähltes eigenes Bild (für den Umschalter)
-  // 01.09.2026 (Marc): eingebaute Wasserzeichen als SENTINEL — überlebt Export
-  // zu anderen Rechnern (fester Pfad zeigte dort ins Leere).
-  const WM_EINGEBAUT = ["@lockup-white"];
-  // Marcs Einstellung aus dem Schorfheide-Projekt = Vorgabe für NEUE Projekte.
-  // 01.09.2026 (Marc): „platziere das wasserzeichen — größe, opacity und
-  // position per default so, wie im aktuell offenen projekt."
-  const WM_STANDARD = { path: "@lockup-white", x: 84.5, y: 91.3, w: 15, op: 0.65 };
-  let _wmPrevLauf = 0;   // 30.08.2026 (Marc: „doppelt zu sehen") — Async-Guard
+  // (Zustand steht weiter oben — siehe `_wm`.)
   function _wmPersist() {
     try { saveProjectSettings(_MODKEY, { watermark: { ..._wm } }); } catch (_) {}
   }
@@ -2534,7 +2558,26 @@ function mountAnimator(body, headerActions, opts) {
       _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
     };
     const w = document.getElementById("anim-wm-w");
-    if (w) w.oninput = () => { _wm.w = +w.value || 12; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
+    if (w) w.oninput = () => {
+      // 02.09.2026 (Beta-Tester: „lässt sich in der Größe verändern,
+      // verschiebt sich dadurch aber"): Gespeichert wird die LINKE OBERE Ecke.
+      // Wird das Logo größer, wächst es nach rechts unten — es wandert also
+      // beim Größerziehen aus seiner Ecke heraus. Jetzt bleibt die MITTE
+      // stehen: die Ecke wird um die halbe Änderung zurückgesetzt.
+      const alt_w = _wm.w;
+      const neu_w = +w.value || 12;
+      const img = document.getElementById("anim-wm-preview");
+      const lay = document.getElementById("anim-overlay-preview");
+      if (img && lay && img.naturalWidth > 0 && lay.clientHeight > 0) {
+        // Höhe in % der Fläche folgt aus dem Seitenverhältnis des Bildes.
+        const hoehe = (br) => br * (img.naturalHeight / img.naturalWidth)
+                            * (lay.clientWidth / lay.clientHeight);
+        _wm.x = Math.max(0, Math.min(98, _wm.x + (alt_w - neu_w) / 2));
+        _wm.y = Math.max(0, Math.min(98, _wm.y + (hoehe(alt_w) - hoehe(neu_w)) / 2));
+      }
+      _wm.w = neu_w;
+      _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden();
+    };
     const op = document.getElementById("anim-wm-op");
     if (op) op.oninput = () => { _wm.op = (+op.value || 90) / 100; _wmPersist(); _wmUiSync(); watermarkPreviewAnwenden(); };
   }
@@ -4072,18 +4115,21 @@ function mountAnimator(body, headerActions, opts) {
   }
   function dotStil()    { return document.getElementById("anim-dot-style")?.value || "dot"; }
   function dotGroesse() { return parseFloat(document.getElementById("anim-dot-size")?.value) || 1; }
+  function dotGlaettung() {
+    const el = document.getElementById("anim-dot-smooth");
+    const v = el ? parseFloat(el.value) : 5;
+    return isFinite(v) ? Math.max(0, Math.min(10, v)) : 5;
+  }
 
   /** Kurs in Grad am Koordinaten-Index — dieselbe Rechnung wie im Render. */
+  /** Fahrtrichtung für den Vorschau-Pfeil.
+   *  02.09.2026: Hier stand eine eigene Rechnung aus EINEM Wegstück — die
+   *  Vorschau zappelte deshalb auch dann noch, wenn der Render längst ruhig
+   *  wäre. Beide benutzen jetzt dieselbe Formel (util.js → kursAusSpur, im
+   *  Render gespiegelt als __rzKurs in core/animator.py). */
   function _kursAn(coords, i) {
-    if (!coords || coords.length < 2) return 0;
-    const a = coords[Math.max(0, i - 1)] || coords[0];
-    const b = coords[Math.min(coords.length - 1, Math.max(1, i))] || coords[1];
-    const rad = Math.PI / 180;
-    const dLon = (b[0] - a[0]) * rad;
-    const y = Math.sin(dLon) * Math.cos(b[1] * rad);
-    const x = Math.cos(a[1] * rad) * Math.sin(b[1] * rad)
-            - Math.sin(a[1] * rad) * Math.cos(b[1] * rad) * Math.cos(dLon);
-    return (Math.atan2(y, x) / rad + 360) % 360;
+    const g = kursGlaettung(dotGlaettung());
+    return kursAusSpur(coords, i, g.basisM, g.minPunkte);
   }
 
   /** Pfeil-Bild — identisch zum Render, nur ohne f-string-Klammern. */
@@ -5665,6 +5711,34 @@ function mountAnimator(body, headerActions, opts) {
   // und trimmt die Track-Linie bis zu diesem Punkt.
   // v0.7.4: zusätzlich Auto-Selektion synchronisieren — wenn der Scrubber
   // nahe an einem Keyframe landet, wird dieser ausgewählt; sonst Editor weg.
+  /** Die Kamera, die den GANZEN Track zeigt (Fit-Gesamtsicht).
+   *
+   *  02.09.2026 (Beta-Tester, zweite Meldung dazu): Genau diese Rechnung
+   *  stand nur im Probelauf. Der Probelauf wurde am 31.08. auf „ohne
+   *  Keyframes und ohne ‚Kamera folgt Track‘ = Gesamtsicht" umgestellt, das
+   *  SCRUBBEN aber nicht — dort galt weiter „Keyframe-Editor an ⇒ Kamera
+   *  klebt am Punkt". Deshalb lief beim Ziehen des Wiedergabepunkts der Zoom
+   *  weg und der Pfeil landete in der Bildmitte, während dasselbe Projekt
+   *  beim Abspielen richtig aussah. Jetzt teilen sich beide Wege diesen
+   *  Helfer — was der eine zeigt, zeigt auch der andere. */
+  function fitKameraGesamt() {
+    try {
+      if (!(currentCoords && currentCoords.length > 1 && map && map.cameraForBounds)) return null;
+      let mnLo = Infinity, mxLo = -Infinity, mnLa = Infinity, mxLa = -Infinity;
+      for (const c of currentCoords) {
+        if (c[0] < mnLo) mnLo = c[0]; if (c[0] > mxLo) mxLo = c[0];
+        if (c[1] < mnLa) mnLa = c[1]; if (c[1] > mxLa) mxLa = c[1];
+      }
+      const _rp = parseFloat(document.getElementById("anim-pitch")?.value) || 0;
+      const _rb0 = parseFloat(document.getElementById("anim-bearing-start")?.value) || 0;
+      return map.cameraForBounds([[mnLo, mnLa], [mxLo, mxLa]],
+        { padding: 60, pitch: _rp, bearing: _rb0 }) || null;
+    } catch (e) {
+      try { applog("warn", "[runFitCam] cameraForBounds: " + e); } catch (_) {}
+      return null;
+    }
+  }
+
   function scrubPreview(anchor, opts) {
     if (!map || !currentCoords || currentCoords.length < 2) return;
     // v0.9.3 — opts.skipSelectionSync: wenn true, KEIN syncScrubberSelection.
@@ -5754,7 +5828,17 @@ function mountAnimator(body, headerActions, opts) {
     };
     if (interp.center) {
       easeArgs.center = interp.center.slice ? interp.center.slice() : interp.center;
-    } else if (!isClassic || cameraFollow) {
+    } else if (!cameraFollow && !isClassic) {
+      // Keyframe-Editor an, aber keine Kamera-Keyframes und „Kamera folgt
+      // Track" aus: Dann ist die Kamera die Gesamtsicht — genau wie im
+      // Probelauf (31.08.2026) und im fertigen Video. Vorher klebte allein
+      // das Scrubben am Punkt (Bericht: „se va el zoom … coloca la flecha en
+      // la parte central de la pantalla").
+      const fc = fitKameraGesamt();
+      if (fc) {
+        easeArgs.center = [fc.center.lng ?? fc.center[0], fc.center.lat ?? fc.center[1]];
+      }
+    } else if (cameraFollow) {
       const tp = _fokusZiel(coordIdx) || currentCoords[coordIdx];
       easeArgs.center = tp.slice ? tp.slice() : tp;
     }
@@ -6548,21 +6632,7 @@ function mountAnimator(body, headerActions, opts) {
     // Angucken reingezoomt hatte, bekam eine klebende Nah-Kamera, aus der
     // die ruhige Kamera minutenlang herausglitt). Jetzt: deterministische
     // Fit-Kamera pro Lauf, wie im Video.
-    let _runFitCam = null;
-    try {
-      if (currentCoords && currentCoords.length > 1 && map && map.cameraForBounds) {
-        let mnLo = Infinity, mxLo = -Infinity, mnLa = Infinity, mxLa = -Infinity;
-        for (const c of currentCoords) {
-          if (c[0] < mnLo) mnLo = c[0]; if (c[0] > mxLo) mxLo = c[0];
-          if (c[1] < mnLa) mnLa = c[1]; if (c[1] > mxLa) mxLa = c[1];
-        }
-        const _rp = parseFloat(document.getElementById("anim-pitch")?.value) || 0;
-        const _rb0 = parseFloat(document.getElementById("anim-bearing-start")?.value) || 0;
-        const cam = map.cameraForBounds([[mnLo, mnLa], [mxLo, mxLa]],
-          { padding: 60, pitch: _rp, bearing: _rb0 });
-        if (cam) _runFitCam = cam;
-      }
-    } catch (e) { try { applog("warn", "[runFitCam] cameraForBounds: " + e); } catch (_) {} }
+    let _runFitCam = fitKameraGesamt();
     try { applog("info", "[runFitCam] " + (_runFitCam
       ? ("zoom=" + (+_runFitCam.zoom).toFixed(2) + " center=" + JSON.stringify(_runFitCam.center))
       : "null") + " · fitBase=" + _previewFitBase); } catch (_) {}
@@ -10354,19 +10424,33 @@ function mountAnimator(body, headerActions, opts) {
   function dotGeaendert(speichern) {
     dotAnzeigen();
     dotEbenenAufbauen();
+    // 02.09.2026: Größe und Form gelten auch für die Punkte der übrigen
+    // Touren — deren Ebene muss also mit neu gebaut werden, sonst wirkt der
+    // Regler erst nach einem Neuladen.
+    try { _animDrawExtraToursPreview(); } catch (_) {}
     // An der Scrubber-Stelle bleiben, sonst springt der Punkt beim Umschalten
     // an den Anfang.
     try {
       const a = (_tlBar && typeof _tlBar.getScrubber === "function") ? _tlBar.getScrubber() : 0;
       dotSetzen(trackFracAusAnker(a));
     } catch (_) {}
+    // Der Ruhe-Regler gehört zum Pfeil — bei der Kugel gibt es keine Richtung.
+    // ⚠️ VOR dem `speichern`-Ausstieg: Beim Laden eines Projekts wird
+    // `dotGeaendert(false)` gerufen. Stand das hier darunter, blieb der
+    // Regler unsichtbar, obwohl „Pfeil in Fahrtrichtung" gewählt war — genau
+    // so beim Test in der laufenden App gesehen (02.09.2026).
+    const smRow = document.getElementById("anim-dot-smooth-row");
+    if (smRow) smRow.hidden = (dotStil() !== "arrow");
+    const smV = document.getElementById("anim-dot-smooth-v");
+    if (smV) smV.textContent = dotGlaettung() + " (" + kursGlaettung(dotGlaettung()).basisM + " m)";
     if (!speichern) return;
     const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(),
-                    marker_dot_size: dotGroesse() };
+                    marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung() };
     if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, patch);
     else if (typeof saveSettings === "function") saveSettings({ animator: patch });
   }
 
+  document.getElementById("anim-dot-smooth")?.addEventListener("input", () => dotGeaendert(true));
   document.getElementById("anim-dot-show")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-style")?.addEventListener("change", () => dotGeaendert(true));
   document.getElementById("anim-dot-size")?.addEventListener("input", () => dotGeaendert(false));
@@ -10419,6 +10503,8 @@ function mountAnimator(body, headerActions, opts) {
       if (stil) stil.value = a.marker_dot_style || "dot";
       const gr = document.getElementById("anim-dot-size");
       if (gr && a.marker_dot_size) gr.value = a.marker_dot_size;
+      const sm = document.getElementById("anim-dot-smooth");
+      if (sm && a.marker_dot_smooth != null) sm.value = a.marker_dot_smooth;
       dotGeaendert(false);
   }
 
@@ -11482,8 +11568,24 @@ function mountAnimator(body, headerActions, opts) {
   _ovRebuildEditors();
 
   /** Spiegelt die Render-Overlays als HTML-Layer auf der Preview-Karte.
-   *  Wird gerufen bei Mount, GPX-Load, Color-/Toggle-/Position-Change. */
+   *  Wird gerufen bei Mount, GPX-Load, Color-/Toggle-/Position-Change.
+   *
+   *  02.09.2026 (Beta-Tester: „Ausschalten von Stats-Overlays anzeigen
+   *  wird auch das Wasserzeichen ausgeschaltet, schalte ich die Stats-Overlays
+   *  wieder zu ist alles beim alten nur ohne Wasserzeichen ist aber
+   *  angeschaltet."): Das Wasserzeichen liegt im SELBEN Layer wie die
+   *  Stats-Boxen, und der wird hier komplett neu geschrieben — dabei flog das
+   *  Logo mit raus und kam nie wieder. Im fertigen Video war es trotzdem drin
+   *  (der Render kennt diese Kopplung nicht), die Vorschau log also.
+   *  Deshalb: nach JEDEM Neuschreiben das Wasserzeichen wieder ansetzen. */
   function renderOverlayPreview() {
+    try { _overlayBoxenRendern(); } catch (e) {
+      try { applog("warn", "[anim-ov] Vorschau: " + e); } catch (_) {}
+    }
+    try { watermarkPreviewAnwenden(); } catch (_) {}
+  }
+
+  function _overlayBoxenRendern() {
     // v0.9.443 — Diagramm-Overlays im eigenen Layer aktuell halten (Position/
     // Größe/Deckkraft; kein srcdoc-Refetch wenn unverändert). Läuft VOR den
     // Early-Returns, damit auch das Leeren bei Reiseroute/Master-Aus greift.
@@ -12437,6 +12539,9 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function _animRenderToursList() {
+    // Die Kopfzeile zeigt die Zahlen der Haupt-Tour — sie soll wenigstens
+    // sagen, dass noch weitere dazugehören (02.09.2026, Beta-Tester-Frage).
+    try { if (typeof window.rzGpxBarExtras === "function") window.rzGpxBarExtras(_extraTours.length); } catch (_) {}
     const host = document.getElementById("anim-tours-list");
     const flyField = document.getElementById("anim-fly-field");
     if (!host) return;
@@ -12820,14 +12925,16 @@ function mountAnimator(body, headerActions, opts) {
         });
         map.addLayer({ id: "swarm-prev-dots", type: "symbol", source: "swarm-prev-dots",
           layout: { "icon-image": ["get", "icon"],
-                    "icon-size": Math.max(3, lw * 1.2) / 8.5,
+                    // 02.09.2026: Der Größenregler gilt für ALLE Touren, nicht
+                    // nur für die Haupt-Tour (wortgleich zum Render).
+                    "icon-size": Math.max(3, lw * 1.2) / 8.5 * dotGroesse(),
                     "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
                     "icon-pitch-alignment": "map", "icon-allow-overlap": true,
                     "icon-ignore-placement": true } });
       } else {
         map.addLayer({ id: "swarm-prev-dots", type: "circle", source: "swarm-prev-dots",
           paint: { "circle-color": ["get", "color"],
-                   "circle-radius": Math.max(3, lw * 1.2),
+                   "circle-radius": Math.max(3, lw * 1.2) * dotGroesse(),
                    "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2 } });
       }
     } catch (e) { console.warn("swarm preview layers:", e); }
@@ -13625,6 +13732,7 @@ function mountAnimator(body, headerActions, opts) {
       marker_dot_show: dotZeigen(),
       marker_dot_style: dotStil(),
       marker_dot_size: dotGroesse(),
+      marker_dot_smooth: dotGlaettung(),
       // v0.9.506 — Verteilung + Pausen.
       pace_mode: (document.getElementById("anim-pace")?.value) || "raw",
       pause_mode: (document.getElementById("anim-pause-mode")?.value) || "trim",

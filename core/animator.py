@@ -348,6 +348,9 @@ class AnimatorConfig:
     marker_dot_show: bool = True
     marker_dot_style: str = "dot"
     marker_dot_size: float = 1.0        # Faktor auf die Grundgröße
+    # 02.09.2026 — Ruhe des Pfeils, Regler 0–10 (siehe ui/js/util.js
+    # `kursGlaettung`): 0 = folgt jeder Zuckung, 10 = zeigt die grobe Richtung.
+    marker_dot_smooth: float = 5.0
     # Alpha-Channel-Modus: kein Karten-Background, nur Track + Punkt + Overlays
     # auf transparentem Hintergrund. Output ist dann eine ProRes-4444-.mov,
     # die in Premiere/Final Cut/DaVinci/Resolve direkt als Overlay-Layer
@@ -2466,6 +2469,12 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # blendet den Lauf-Punkt aus; danach bleibt die Karte frei zoom-/pan-bar. Da die
     # Schilder asynchron gerastert werden (__rzDrawSign im Besucher-Browser), nach
     # __signsReady erneut seeken, damit ihr Sichtbarkeits-Filter greift.
+    # 02.09.2026 — Ruhe des Pfeils (Regler 0–10). Dieselbe Umrechnung wie
+    # `kursGlaettung` in ui/js/util.js: 0 → 10 m, 5 → 60 m, 10 → 110 m, und
+    # mindestens ein Drittel davon an Punkten. Bei Änderung BEIDE pflegen.
+    _kurs_stufe = max(0.0, min(10.0, float(getattr(cfg, "marker_dot_smooth", 5.0) or 0.0)))
+    _kurs_basis_m = 10 + _kurs_stufe * 10
+    _kurs_min_punkte = max(2, round(_kurs_basis_m / 3))
     _interactive_boot_js = ""
     if getattr(cfg, "interactive_export", False):
         _interactive_boot_js = """
@@ -2662,18 +2671,76 @@ const DOT_SHOW = {str(bool(cfg.marker_dot_show)).lower()};
 const DOT_STYLE = {json.dumps(str(cfg.marker_dot_style or 'dot'))};
 const RENDER_SCALE = {float(getattr(cfg, 'render_scale', 1.0) or 1.0)};
 
-/** Kurs (Grad, 0 = Norden) am Punkt `i` — aus dem Wegstück davor, am Anfang
- *  aus dem danach. Nur der Pfeil braucht das. */
-function __rzKurs(coords, i) {{
-  if (!coords || coords.length < 2) return 0;
-  const a = coords[Math.max(0, i - 1)] || coords[0];
-  const b = coords[Math.min(coords.length - 1, Math.max(1, i))] || coords[1];
+/** Kurs (Grad, 0 = Norden) zwischen zwei Koordinaten. */
+function __rzPeilung(a, b) {{
   const rad = Math.PI / 180;
   const dLon = (b[0] - a[0]) * rad;
   const y = Math.sin(dLon) * Math.cos(b[1] * rad);
   const x = Math.cos(a[1] * rad) * Math.sin(b[1] * rad)
           - Math.sin(a[1] * rad) * Math.cos(b[1] * rad) * Math.cos(dLon);
   return (Math.atan2(y, x) / rad + 360) % 360;
+}}
+
+/** Grober Abstand zweier Koordinaten in Metern (reicht für die Basislänge). */
+function __rzMeter(a, b) {{
+  const rad = Math.PI / 180, R = 6371000;
+  const dLat = (b[1] - a[1]) * rad;
+  const dLon = (b[0] - a[0]) * rad * Math.cos((a[1] + b[1]) / 2 * rad);
+  return Math.hypot(dLat, dLon) * R;
+}}
+
+// Wie lang die Strecke sein muss, aus der die Fahrtrichtung abgelesen wird.
+// 02.09.2026 (Marc: „wenn der laufpunkt ein pfeil ist, muss der irgendwie
+// geglättet werden, sonst springt der wie wild hin und her"): Bei sekündlicher
+// Aufzeichnung liegen die Punkte 1–3 m auseinander, und GPS rauscht in genau
+// dieser Größenordnung. Die Richtung aus EINEM solchen Wegstück ist deshalb
+// fast Zufall — der Pfeil zappelt. Über 25 m ist das Rauschen klein gegen die
+// echte Bewegung, und der Pfeil zeigt dorthin, wo es wirklich hingeht.
+const KURS_BASIS_M = {_kurs_basis_m};
+// … und aus mindestens so vielen Punkten. Die Strecke allein genügt nicht:
+// Liegen die Punkte 10 m auseinander (Masca-Tour), spannen 25 m gerade drei
+// Punkte — da ist nichts zu mitteln. Mit neun Punkten fällt das Zappeln auf
+// Marcs Masca-Aufzeichnung von 22,6° auf 7,0° je Bild (Sprünge über 30°:
+// 23 % → 1,8 %). Mehr wäre glatter, würde aber echte Kehren verschlucken.
+const KURS_MIN_PUNKTE = {_kurs_min_punkte};
+
+/** Kurs (Grad, 0 = Norden) am Punkt `i` — aus einer Strecke von mindestens
+ *  KURS_BASIS_M um den Punkt herum, nicht aus einem einzelnen Wegstück.
+ *
+ *  Bewusst OHNE Gedächtnis über Bilder hinweg: Das Ergebnis hängt nur vom
+ *  Punkt ab, nicht davon, welche Bilder vorher gerendert wurden. Sonst sähe
+ *  dasselbe Bild bei Vorschau, Neu-Rendern und Sprung an eine Stelle
+ *  unterschiedlich aus. */
+function __rzKurs(coords, i) {{
+  const n = coords ? coords.length : 0;
+  if (n < 2) return 0;
+  const mitte = Math.max(0, Math.min(n - 1, i));
+  let a = mitte, b = mitte, weg = 0;
+  const offen = () => (weg < KURS_BASIS_M || (b - a + 1) < KURS_MIN_PUNKTE);
+  // Abwechselnd nach hinten und vorn aufmachen, bis Länge UND Punktzahl stehen.
+  while (offen() && (a > 0 || b < n - 1)) {{
+    if (a > 0) {{ weg += __rzMeter(coords[a - 1], coords[a]); a--; }}
+    if (offen() && b < n - 1) {{ weg += __rzMeter(coords[b], coords[b + 1]); b++; }}
+  }}
+  if (a === b) return 0;
+  // Steht die Aufzeichnung praktisch still (Pause, Ampel), gibt es keine
+  // sinnvolle Richtung — dann lieber die des größeren Umfelds als eine, die
+  // aus zwei Zentimetern Rauschen entsteht.
+  if (__rzMeter(coords[a], coords[b]) < 1 && n > 2) {{
+    a = Math.max(0, mitte - 25); b = Math.min(n - 1, mitte + 25);
+    if (a === b) return 0;
+  }}
+  // Nicht Endpunkt gegen Endpunkt: Die beiden äußersten Punkte tragen ihr
+  // volles Rauschen, und weil sie bei jedem Bild andere sind, zappelt der
+  // Pfeil trotz langer Basis weiter (gemessen: 13° im Mittel). Stattdessen
+  // der SCHWERPUNKT der vorderen gegen den der hinteren Hälfte — über ein
+  // Dutzend Punkte gemittelt bleibt vom Rauschen kaum etwas übrig (2°).
+  const m = (a + b) >> 1;
+  let x1 = 0, y1 = 0, c1 = 0, x2 = 0, y2 = 0, c2 = 0;
+  for (let k = a; k <= m; k++) {{ x1 += coords[k][0]; y1 += coords[k][1]; c1++; }}
+  for (let k = m; k <= b; k++) {{ x2 += coords[k][0]; y2 += coords[k][1]; c2++; }}
+  if (!c1 || !c2) return __rzPeilung(coords[a], coords[b]);
+  return __rzPeilung([x1 / c1, y1 / c1], [x2 / c2, y2 / c2]);
 }}
 
 /** Pfeil-Grafik als Bild — weiße Spitze mit Rand in Track-Farbe, damit sie auf
@@ -2803,14 +2870,20 @@ map.on('style.load', () => {{
       }}
       map.addLayer({{ id: 'schwarm-dots', type: 'symbol', source: 'schwarm-dots',
         layout: {{ 'icon-image': ['get', 'icon'],
-                 'icon-size': Math.max(3, {schwarm_line_width_json} * 1.5) / 8.5,
+                 // 02.09.2026 (Beta-Tester: „solo se puede modificar el tamaño
+                 // de la ruta principal") — der Größenregler galt nur für die
+                 // Haupt-Tour; die Pfeile der übrigen Touren hingen allein an
+                 // der Linienbreite. Jetzt zieht der Regler alle mit.
+                 'icon-size': Math.max(3, {schwarm_line_width_json} * 1.5) / 8.5
+                              * {float(cfg.marker_dot_size):.3f},
                  'icon-rotate': ['get', 'brg'], 'icon-rotation-alignment': 'map',
                  'icon-pitch-alignment': 'map', 'icon-allow-overlap': true,
                  'icon-ignore-placement': true }} }});
     }} else {{
       map.addLayer({{ id: 'schwarm-dots', type: 'circle', source: 'schwarm-dots',
         paint: {{ 'circle-color': ['get', 'color'],
-                 'circle-radius': Math.max(3, {schwarm_line_width_json} * 1.5),
+                 'circle-radius': Math.max(3, {schwarm_line_width_json} * 1.5)
+                                  * {float(cfg.marker_dot_size):.3f},
                  'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.2 }} }});
     }}
   }}

@@ -235,6 +235,19 @@
       </div>
     `;
   }
+  // 02.09.2026 (Beta-Tester: „¿por qué si tengo abiertas 4 rutas, solo indica
+  // 1?"): Die Kopfzeile zeigt die Zahlen der HAUPT-Tour. Bei einem Schwarm
+  // sieht das aus, als wären die anderen Touren verschwunden — im Video
+  // stehen dann aber die Summen aller Touren im Overlay. Deshalb sagt die
+  // Kopfzeile jetzt, wie viele noch dazugehören.
+  let _extraN = 0;
+  window.rzGpxBarExtras = function (n) {
+    const neu = Math.max(0, parseInt(n, 10) || 0);
+    if (neu === _extraN) return;
+    _extraN = neu;
+    try { _renderCurrent(); } catch (_) {}
+  };
+
   function templateLoaded(name, fullPath, stats) {
     const dist = stats?.distance_km != null ? fmtKm(stats.distance_km * 1000) : "—";
     const time = stats?.duration_s != null ? fmtDur(stats.duration_s) : "—";
@@ -258,6 +271,11 @@
         <span class="gpxbar-stat">${escapeHtml(time)}</span>
         <span class="gpxbar-stat">${escapeHtml(asc)}</span>
         <span class="gpxbar-stat">${escapeHtml(desc)}</span>
+        ${_extraN > 0 ? `<span class="gpxbar-stat gpxbar-extra" title="${escapeAttr(
+          (typeof t === "function"
+            ? t("gpxbar.extra_tip", "Die Zahlen links gehören zur Haupt-Tour. Im Video stehen in den Overlays die Summen aller Touren.")
+            : ""))}">+${_extraN} ${(typeof t === "function"
+              ? t("gpxbar.extra_n", "weitere Touren") : "weitere Touren")}</span>` : ""}
         <button class="gpxbar-close-btn gpxbar-clearws-btn" type="button" data-gpxbar="clearws"
                 title="${escapeAttr((typeof t === "function" ? t("common.clear_workspace") : "Workspace leeren"))}">✕</button>
       </div>

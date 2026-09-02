@@ -14,6 +14,77 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.648] – 2026-09-02
+
+### Inspektor, Laufpunkt und der Umzug
+
+#### Hinzugefügt
+- **Die Ausreißer-Schwelle der Tempo-Färbung lässt sich vorgeben** („Rot ab
+  … km/h", erscheint mit der Färbung). Leer = wie bisher aus der Tour selbst;
+  mit Zahl gilt sie fest, dann heißt „rot" bei zwei Aufzeichnungen dasselbe.
+- **„Lücken füllen als" wird aus dem Tempo vorgeschlagen** — Median unter
+  9 km/h zu Fuß, unter 25 Fahrrad, darüber Auto, mit sichtbarer Begründung
+  („aus dem Tempo dieser Tour geschätzt, Median 14,2 km/h"). Wer selbst
+  wählt, behält seine Wahl.
+- **„Ruhe des Pfeils"** — ein Regler beim Laufpunkt, sichtbar nur bei der
+  Pfeil-Form. Er bestimmt, aus wie viel Strecke die Fahrtrichtung abgelesen
+  wird (Stufe 5 = 60 m).
+- **Der Umzug in die Bibliothek zeigt sich.** Statt vor dem ersten Fenster
+  stumm zu laufen, meldet sich ein Schirm mit Fortschritt und der Zusage,
+  dass nichts gelöscht wird. **Kopiert wird nebenläufig** — bei Touren auf
+  einer Netzwerkplatte ist das der Unterschied zwischen Minuten und
+  Viertelstunden (lokal gemessen: 300 Dateien 0,80 s → 0,11 s).
+- **Nicht lesbare Dateien zeigen ihren Ordner und lassen sich im Finder
+  öffnen**, bevor man über sie entscheidet.
+- **„Alle sichtbaren auswählen"** bei den Projekten, mit dem Hinweis, dass
+  automatisch angelegte Arbeitsstände im zugeklappten Bereich liegen.
+
+#### Behoben
+- **⚠️ Der Pfeil des Laufpunkts zeigte halb ins Rauschen.** Die Richtung kam
+  aus EINEM Wegstück; bei sekündlicher Aufzeichnung sind das 1–3 m — genau
+  die Größenordnung, in der GPS rauscht. Jetzt aus mindestens 25 m und
+  9 Punkten, gerechnet als Schwerpunkt der vorderen gegen die hintere Hälfte.
+  An einer echten Tour: **22,6° Sprung je Bild → 3,5°**, Bilder mit über 30°
+  von 23 % auf 0,3 %. — `tests/test_pfeil_ruhe.py`
+- **Die Vorschau rechnete den Pfeil anders als der Render** — sie hatte eine
+  eigene Kopie der Formel. Beide benutzen jetzt dieselbe.
+- **⚠️ Beim Ziehen des Wiedergabepunkts lief die Kamera weg.** Ohne
+  Kamera-Keyframes und ohne „Kamera folgt Track" zeigt der Probelauf seit dem
+  31.08. die Gesamtsicht — **das Scrubben wurde damals nicht mitgezogen** und
+  klebte weiter am Punkt. Dasselbe Projekt sah beim Abspielen richtig aus und
+  beim Ziehen falsch. Beide Wege teilen sich jetzt eine Rechnung.
+  — `tests/test_zoom_haut_ab.py`
+- **⚠️ Beim Löschen mehrerer Projekte konnte eines zurückkommen.** Jeder
+  Aufruf las die Projektdatei neu und schrieb sie neu, ohne Schloss — ein
+  gleichzeitiges Speichern brachte den alten Stand zurück. Jetzt ein Aufruf
+  für alle: einmal lesen, alle entfernen, einmal schreiben. Und die Meldung
+  **zählt, was wirklich weg ist**, statt jeden Fehlschlag zu verschlucken.
+- **Der Größenregler des Laufpunkts galt nur für die Haupt-Tour** — bei
+  mehreren Touren blieben die anderen Pfeile, wie sie waren.
+- **Das Wasserzeichen verschwand mit den Stats-Overlays** und kam nicht
+  zurück. Beide liegen im selben Vorschau-Layer, der beim Ausschalten neu
+  geschrieben wurde. Im fertigen Video war es die ganze Zeit drin — die
+  Vorschau hat gelogen.
+- **Das Wasserzeichen wanderte beim Größerziehen aus seiner Ecke.**
+  Gespeichert wird die linke obere Ecke; jetzt bleibt beim Skalieren die
+  Mitte stehen.
+- **„Zeitachse erzeugen" sagt jetzt, was es NICHT tut** — zwei Tester lasen
+  es als „Abspielgeschwindigkeit des Videos ändern". Die Länge des Videos
+  stellt man im Animator ein.
+- **⚠️ Das Wasserzeichen wurde beim Öffnen eines Projekts gar nicht
+  aufgebaut** — seit dem 31.08. bei jedem Start. Der Aufbau lief los, bevor
+  sein Zustand deklariert war, brach in der Totzone ab und wurde stumm
+  weggefangen; sichtbar war nur eine Zeile im Protokoll. Beim Test in der
+  laufenden App gefunden. — `tests/test_wasserzeichen.py`
+- **Der Regler „Ruhe des Pfeils" erschien erst beim Umschalten der Form**,
+  nicht beim Laden eines Projekts. Ebenfalls erst in der laufenden App
+  aufgefallen. — `tests/test_pfeil_ruhe.py`
+- **Die Kopfzeile verschwieg die übrigen Touren.** Bei einem Schwarm standen
+  dort die Zahlen der Haupt-Tour, im Video aber die Summen aller — es sah
+  aus, als wären drei Touren verschwunden. Jetzt steht „+3 weitere Touren"
+  dahinter, mit Erklärung beim Darüberfahren.
+
+
 ## [0.9.647] – 2026-09-02
 
 #### Behoben

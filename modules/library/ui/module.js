@@ -893,7 +893,17 @@ function mountLibrary(body, headerActions) {
         else d.innerHTML = `<div class="lib-detail-empty" style="padding:14px">${
           T("library.proj_detail_hint", "Projekt anklicken — dann erscheinen hier Details, Touren und frühere Arbeitsstände. Mehrere wählen: ⌘/Strg-Klick.")}</div>`;
       } }
-    { const bx = document.getElementById("lib-proj-multi-x");
+    { const ba = document.getElementById("lib-proj-multi-alle");
+      // 02.09.2026 (Beta-Tester: „alle ausgewählt, es nahm nur zwei"): Der
+      // Knopf nimmt genau das, was gerade sichtbar ist — und der Satz
+      // darunter sagt, was das NICHT einschließt.
+      if (ba) ba.onclick = () => {
+        box.querySelectorAll(".lib-proj-karte").forEach(k => {
+          if (k.dataset.pid) _projMulti.add(k.dataset.pid);
+        });
+        renderProjekte();
+      };
+      const bx = document.getElementById("lib-proj-multi-x");
       if (bx) bx.onclick = () => { _projMulti.clear(); renderProjekte(); };
       const bd = document.getElementById("lib-proj-multi-del");
       if (bd) bd.onclick = async () => {
@@ -904,12 +914,26 @@ function mountLibrary(body, headerActions) {
               T("library.proj_delete_multi", "Ausgewählte löschen"), true)
           : Promise.resolve(confirm(n + "?")));
         if (!ok) return;
-        for (const pid of Array.from(_projMulti)) {
-          try { await api().projekt_loeschen(pid); } catch (_) {}
-          if (_projSel === pid) _projSel = null;
-        }
+        // 02.09.2026 (Beta-Tester: drei ausgewählt, nur zwei gelöscht): Hier
+        // lief eine Schleife einzelner Aufrufe, und JEDER Fehler wurde
+        // verschluckt — gemeldet wurde trotzdem die volle Zahl. Jetzt ein
+        // Aufruf für alle, und die Meldung sagt, was wirklich weg ist.
+        const ids = Array.from(_projMulti);
+        let r = null;
+        try { r = await api().projekte_loeschen(ids); } catch (e) { r = { ok: false, error: String(e) }; }
+        for (const pid of ids) if (_projSel === pid) _projSel = null;
         _projMulti.clear();
-        toast(T("library.proj_delete_multi_ok", "Projekte gelöscht") + ` (${n})`);
+        if (r && r.ok) {
+          const weg = r.geloescht || 0;
+          const offen = r.fehlgeschlagen || [];
+          toast(offen.length
+            ? T("library.proj_delete_multi_teil", "{n} von {m} gelöscht — nicht möglich: {liste}")
+                .replace("{n}", weg).replace("{m}", ids.length).replace("{liste}", offen.join(", "))
+            : T("library.proj_delete_multi_ok", "Projekte gelöscht") + ` (${weg})`,
+            offen.length ? "warn" : "info");
+        } else {
+          toast((r && r.error) || "?", "error");
+        }
         renderProjekte();
         renderProjNav();
       };
@@ -3681,9 +3705,13 @@ function mountLibrary(body, headerActions) {
         <b>${_projMulti.size}</b> ${T("library.proj_multi_n", "Projekte ausgewählt")}
       </div>
       <div style="padding:0 12px; display:flex; flex-direction:column; gap:8px;">
+        <button class="btn btn-ghost" id="lib-proj-multi-alle">${
+          T("library.proj_multi_alle", "Alle sichtbaren auswählen")}</button>
         <button class="btn lib-btn-danger" id="lib-proj-multi-del">🗑 ${T("library.proj_delete_multi", "Ausgewählte löschen")}</button>
         <button class="btn btn-ghost" id="lib-proj-multi-x">${T("library.clear_sel", "Auswahl aufheben")}</button>
-      </div>`;
+      </div>
+      <p class="muted bib-klein" style="padding:0 12px">${T("library.proj_multi_hinweis",
+        "Ausgewählt wird nur, was gerade in der Liste steht. Automatisch angelegte Arbeitsstände liegen im zugeklappten Bereich darunter — die musst du erst aufklappen.")}</p>`;
   }
 
   /** 30.08.2026 (Marc-OK, der Komoot-Fall eines Beta-Testers): einzelne Track-Dateien ins
@@ -3903,18 +3931,35 @@ function mountLibrary(body, headerActions) {
     // Jetzt kommt die Gesamtzahl aus einer Zählabfrage und die Liste gedeckelt.
     const zahlen = await api().library_errors_count(!!zeigeWeg);
     const res = await api().library_errors(!!zeigeWeg);
+    /** Nur der Ordner, in dem die Datei liegt — der Dateiname steht darüber. */
+    const _ordnerVon = (pfad) => {
+      const teile = String(pfad || "").split(/[\\/]/);
+      teile.pop();
+      return teile.slice(-2).join("/") || String(pfad || "");
+    };
     const items = (res && res.items) || [];
     const ohne = items.filter(i => i.error_kind === "no_points");
     const kaputt = items.filter(i => i.error_kind !== "no_points");
     const gesamt = (zahlen && zahlen.gesamt) || items.length;
     const gekuerzt = gesamt > items.length;
 
+    // 02.09.2026 (Beta-Tester: „es wäre schön, wenn man die Datei vor
+    // dem Löschen ansehen kann, zum Beispiel zeigen im Finder. Erspart langes
+    // Suchen."): Der Dateiname allein sagt nicht, WO die Datei liegt — bei
+    // gleichnamigen Exporten aus mehreren Ordnern hilft er gar nicht. Jetzt
+    // steht der Ordner darunter, und ein Knopf zeigt die Datei im Finder
+    // (Windows: Explorer), ohne sie anzufassen.
     const zeile = (i) => `
-      <label class="lib-dupe-item lib-dupe-pick">
-        <input type="checkbox" class="lib-err-cb" data-path="${esc(i.path)}">
-        <span class="lib-dupe-name">${esc(i.filename)}</span>
-        ${i.hidden ? `<span class="lib-dupe-keep">${T("library.err_dismissed", "weggeräumt")}</span>` : ""}
-      </label>`;
+      <div class="lib-err-zeile">
+        <label class="lib-dupe-item lib-dupe-pick">
+          <input type="checkbox" class="lib-err-cb" data-path="${esc(i.path)}">
+          <span class="lib-dupe-name">${esc(i.filename)}
+            <span class="lib-err-ordner">${esc(_ordnerVon(i.path))}</span></span>
+          ${i.hidden ? `<span class="lib-dupe-keep">${T("library.err_dismissed", "weggeräumt")}</span>` : ""}
+        </label>
+        <button class="btn btn-ghost btn-sm lib-err-zeigen" data-zeigen="${esc(i.path)}"
+                title="${T("library.err_reveal_tip", "Die Datei im Finder zeigen — sie wird nicht verändert")}">📁</button>
+      </div>`;
     const gruppe = (titel, hinweis, liste) => !liste.length ? "" : `
       <div class="lib-dupe-group">
         <div class="lib-dupe-head">${liste.length} · ${titel}</div>
@@ -3985,6 +4030,14 @@ function mountLibrary(body, headerActions) {
     });
 
     if (!items.length) return;
+
+    // Die Datei im Finder zeigen, bevor man über sie entscheidet.
+    document.querySelectorAll("[data-zeigen]").forEach(b => {
+      b.onclick = (ev) => {
+        ev.preventDefault(); ev.stopPropagation();   // nicht das Kästchen umschalten
+        api().library_reveal(b.dataset.zeigen);
+      };
+    });
 
     const boxen = () => Array.from(document.querySelectorAll(".lib-err-cb"));
     const zaehlen = () => {

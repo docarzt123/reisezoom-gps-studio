@@ -2890,6 +2890,17 @@ body.is-rendering .modal-overlay * {
 .bib-gate-box h2 { margin: 0 0 10px; font-size: 19px; }
 .bib-gate-box p { margin: 0 0 12px; line-height: 1.5; }
 .bib-klein { font-size: 12px; }
+/* 02.09.2026 — Fortschritt des einmaligen Umzugs. Bewusst schlicht: Der
+   Balken ist das einzige, was in diesen Minuten passiert. */
+.bib-fortschritt {
+  height: 8px; border-radius: 999px; background: var(--bg-1);
+  border: 1px solid var(--border); overflow: hidden; margin: 14px 0 8px;
+}
+.bib-fortschritt-balken {
+  height: 100%; width: 0%; background: var(--accent);
+  transition: width .35s ease;
+}
+
 .bib-ort {
   display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   background: var(--bg-1); border: 1px solid var(--border); border-radius: 8px;
@@ -2912,3 +2923,9 @@ body.is-rendering .modal-overlay * {
 .bib-gate-box ul { margin: 0 0 12px 18px; color: var(--text-dim); }
 .bib-gate-box ul li { margin: 1px 0; }
 .bib-gate-box h2 { color: var(--text); }
+
+/* 02.09.2026 — „+3 weitere Touren" in der Kopfzeile: gehört zu den Zahlen,
+   ist aber ein Hinweis und keine Kennzahl. Deshalb abgesetzt. */
+.gpxbar-extra {
+  opacity: .75; font-style: italic; cursor: help;
+}

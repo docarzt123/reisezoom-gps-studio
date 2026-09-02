@@ -5,23 +5,30 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 02 Sep 2026 13:20:27 GMT</lastBuildDate>
+<lastBuildDate>Wed, 02 Sep 2026 15:21:02 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.648 — Der Pfeil liegt ruhig, der Zoom bleibt stehen.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-648</link>
+<guid isPermaLink="false">gps-studio-v0.9.648</guid>
+<pubDate>Wed, 02 Sep 2026 17:00:00 +0000</pubDate>
+<description>➤ Der Pfeil in Fahrtrichtung zappelt nicht mehr. Er nahm seine Richtung aus einem einzigen Wegstück — bei sekündlicher Aufzeichnung sind das ein bis drei Meter, also genau die Größenordnung, in der GPS rauscht. Jetzt liest er sie aus einem längeren Stück Strecke ab: An einer echten Bergtour sinkt der Sprung von Bild zu Bild von 22,6° auf 3,5°. Wie ruhig er liegen soll, stellst du selbst ein.
+
+Außerdem: Beim Ziehen des Wiedergabepunkts läuft die Kamera nicht mehr weg, der Umzug in die Bibliothek zeigt seinen Fortschritt und kopiert nebenläufig, die Ausreißer-Schwelle beim Einfärben nach Tempo lässt sich vorgeben, und das Wasserzeichen ist beim Öffnen eines Projekts wieder da.</description>
+</item>
 <item>
 <title>v0.9.647 — Kleiner Nachzügler zu v0.9.646.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-647</link>
 <guid isPermaLink="false">gps-studio-v0.9.647</guid>
-<pubDate>Wed, 02 Sep 2026 16:00:00 +0000</pubDate>
-<description>Drei Texte im Dialog „Doppelte finden" standen in der englischen und spanischen Fassung auf Deutsch da. Sonst ist alles wie in v0.9.646 — die Neuerungen stehen dort.</description>
+<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
+<description>Drei Texte im Dialog „Doppelte finden&quot; standen in der englischen und spanischen Fassung auf Deutsch da. Sonst ist alles wie in v0.9.646 — die Neuerungen stehen dort.</description>
 </item>
 <item>
 <title>v0.9.646 — Nachgeprüft: fünf Dinge, die nur fast stimmten.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-646</link>
 <guid isPermaLink="false">gps-studio-v0.9.646</guid>
-<pubDate>Wed, 02 Sep 2026 15:00:00 +0000</pubDate>
-<description>⌚ Wer mit Uhr aufzeichnet, hatte keine echte Sicherheitskopie. Von einer Garmin- oder Suunto-Datei landete die Rohaufzeichnung unverändert in der Bibliothek — GPS Studio selbst konnte sie dort nicht mehr lesen. Ab jetzt wird beim Aufnehmen umgewandelt, und was schon falsch liegt, wird beim nächsten Start einmalig in Ordnung gebracht.
-
-Außerdem: Höhenmeter sind in Archiv, Inspektor und Höhen-Animator endlich dieselbe Zahl; ein Projekt lässt sich auf eine andere Version stellen; gepackte Touren (.gpx.gz) werden eingelesen; fehlende Kartenbilder holt die App wieder von selbst.</description>
+<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
+<description>⌚ Wer mit Uhr aufzeichnet, hatte keine echte Sicherheitskopie. Von einer Garmin- oder Suunto-Datei landete die Rohaufzeichnung unverändert in der Bibliothek — GPS Studio selbst konnte sie dort nicht mehr lesen. Ab jetzt wird beim Aufnehmen umgewandelt, und was schon falsch liegt, bringt die App beim nächsten Start einmalig in Ordnung — aus dem, was gespeichert ist. Die Originaldatei von damals brauchst du dafür nicht.</description>
 </item>
 <item>
 <title>v0.9.645 — Die Cloud spiegelt jetzt deine Bibliothek.</title>
@@ -182,20 +189,6 @@ Außerdem: Höhenmeter sind in Archiv, Inspektor und Höhen-Animator endlich die
 <guid isPermaLink="false">gps-studio-v0.9.537</guid>
 <pubDate>Sat, 22 Aug 2026 12:00:00 +0000</pubDate>
 <description>📦 Projekt exportieren &amp; importieren. Im Projekt-Menü oder unter „Datei“: eine .rzproj-Datei mit Track, allen Projekten der Session, Tour-Daten, Foto-Vorschauen und Schild-Bildern. Zum Importieren einfach auf die App ziehen — die Projekte kommen zur vorhandenen Session dazu, nichts wird überschrieben. Ganz ohne Cloud. Ideal, um uns ein Projekt zur Fehlersuche zu schicken oder auf einen zweiten Rechner umzuziehen.</description>
-</item>
-<item>
-<title>v0.9.536 — Kleine Nachbesserung: keine rote Meldung mehr beim Modulwechsel.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-536</link>
-<guid isPermaLink="false">gps-studio-v0.9.536</guid>
-<pubDate>Sat, 22 Aug 2026 12:00:00 +0000</pubDate>
-<description>🗺 Harmloser Karten-Nachzügler, kein Alarm mehr. Beim Wechsel zwischen Modulen konnte eine rote Meldung „… reading &#x27;getOwnLayer&#x27;“ auftauchen — eine Kartenkachel, die ankam, nachdem die Karte schon abgebaut war. Folgenlos, landet jetzt nur noch im Log.</description>
-</item>
-<item>
-<title>v0.9.535 — Geotagger: der Schreib-Dialog schließt wieder.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-535</link>
-<guid isPermaLink="false">gps-studio-v0.9.535</guid>
-<pubDate>Sat, 22 Aug 2026 12:00:00 +0000</pubDate>
-<description>📷 Schreiben fertig — und der Dialog merkt es auch. Nach dem Schreiben (getestet mit 5 und mit 1.478 Fotos) blieb das Fenster stehen, obwohl alle Fotos korrekt getaggt waren. Ein Fehler im Abschluss-Schritt, seit v0.9.532 drin, jetzt behoben — und der Abschluss ist so abgesichert, dass so etwas den Dialog nie mehr blockieren kann. Danke für die beiden Logs!</description>
 </item>
 </channel>
 </rss>

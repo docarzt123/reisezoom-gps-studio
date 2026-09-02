@@ -665,6 +665,14 @@ vuelve a aplicarse. El archivo del disco **no** se renombra.
 | «off» | la ruta está oculta |
 | ● (naranja) | ya hay proyectos guardados para esta ruta |
 
+**La flecha de dirección:** si eliges «Flecha en el sentido de la marcha»
+para el punto en movimiento, debajo aparece el control **«Estabilidad de la
+flecha»**. Define cuánto trayecto alrededor del punto se usa para leer el
+rumbo: hacia la izquierda la flecha sigue cada temblor, hacia la derecha
+muestra la dirección general. El valor por defecto es el nivel 5 (60 m), que
+basta para grabaciones cada segundo, donde el ruido del GPS y el movimiento
+real tienen el mismo tamaño.
+
 **Buscar duplicadas:** el botón de abajo a la izquierda agrupa los archivos con un
 **recorrido idéntico**, útil tras una exportación masiva que descargó la misma ruta varias
 veces.

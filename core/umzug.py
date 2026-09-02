@@ -23,6 +23,7 @@ from __future__ import annotations
 import shutil
 import sqlite3
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Optional
@@ -275,33 +276,49 @@ def bestand_aufnehmen(conn: sqlite3.Connection, ort: Path,
     zeilen = conn.execute(
         "SELECT path, geo_hash FROM tracks WHERE geo_hash != '' AND error = ''"
     ).fetchall()
-    ges = max(1, len(zeilen))
     neu = schon = fehlt = 0
     ohne_kopie = []
-    for i, r in enumerate(zeilen):
+    offen = []
+    for r in zeilen:
         gh = r["geo_hash"] if hasattr(r, "keys") else r[1]
         pfad = r["path"] if hasattr(r, "keys") else r[0]
-        if melden and i % 25 == 0:
-            melden("aufnehmen", i / ges)
         if bib.version_datei(ort, gh).is_file():
             schon += 1
             continue
-        q = Path(pfad)
+        offen.append((Path(pfad), gh))
+    ges = max(1, len(offen))
+
+    def eine(auftrag):
+        q, gh = auftrag
         if not q.is_file():
-            fehlt += 1
-            if len(ohne_kopie) < 50:
-                ohne_kopie.append(pfad)
-            continue
+            return ("fehlt", str(q))
         try:
-            # 02.09.2026: `version_ablegen` wandelt Fremdformate um und kann
-            # dabei auch an einer kaputten Datei scheitern (TrackImportError,
-            # kein OSError). EINE Datei darf den Umzug nicht anhalten.
+            # `version_ablegen` wandelt Fremdformate um und kann dabei auch an
+            # einer kaputten Datei scheitern (TrackImportError, kein OSError).
+            # EINE Datei darf den Umzug nicht anhalten.
             bib.version_ablegen(ort, q, gh)
-            neu += 1
+            return ("neu", "")
         except Exception:       # noqa: BLE001
-            fehlt += 1
-            if len(ohne_kopie) < 50:
-                ohne_kopie.append(pfad)
+            return ("fehlt", str(q))
+
+    # 02.09.2026 (Beta-Tester mit NAS: „die Migration dauert sehr lange"):
+    # nebenläufig kopieren. Der Engpass ist nicht die Rechenzeit, sondern die
+    # WARTEZEIT je Datei — über SMB kostet jedes Öffnen einen Netz-Roundtrip
+    # (10–50 ms), und nacheinander summiert sich das bei 5 000 Touren auf
+    # Viertelstunden. Acht Aufträge gleichzeitig füllen die Wartezeiten
+    # gegenseitig auf; lokal (SSD) ändert es kaum etwas, schadet aber nicht.
+    fertig = 0
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for art, wo in pool.map(eine, offen):
+            fertig += 1
+            if art == "neu":
+                neu += 1
+            else:
+                fehlt += 1
+                if len(ohne_kopie) < 50:
+                    ohne_kopie.append(wo)
+            if melden and fertig % 25 == 0:
+                melden("aufnehmen", fertig / ges)
     if melden:
         melden("fertig", 1.0)
     return {"ok": True, "neu": neu, "schon_da": schon, "ohne_kopie": fehlt,
