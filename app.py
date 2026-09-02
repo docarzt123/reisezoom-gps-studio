@@ -25,6 +25,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
 
 # Zertifikate für ausgehende HTTPS-Aufrufe — MUSS vor dem ersten TLS-Aufbau
 # stehen. Im gebauten Programm findet Pythons OpenSSL die System-Zertifikate
@@ -154,7 +155,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.647"
+APP_VERSION = "0.9.648"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -2145,23 +2146,40 @@ class Api:
             "SELECT path, geo_hash, name FROM tracks "
             "WHERE geo_hash != '' AND error = '' AND COALESCE(missing_since,'') = ''"
         ).fetchall()
-        kopiert = 0
+        offen = []
         for r in zeilen:
             gh = r["geo_hash"]
             if cbib.version_datei(BIB, gh).is_file():
                 continue
             quelle = Path(r["path"])
-            if not quelle.is_file():
-                continue
+            if quelle.is_file():
+                offen.append((quelle, gh))
+
+        def _kopieren(auftrag):
+            quelle, gh = auftrag
             try:
                 # `umwandlung_cache`: FIT/TCX/KML werden vor dem Ablegen nach
                 # GPX gewandelt (siehe cbib._als_gpx). Der Cache ist derselbe,
                 # den auch das Einlesen benutzt — kein zweites Umwandeln.
                 cbib.version_ablegen(BIB, quelle, gh, umwandlung_cache=IMPORTS_DIR)
-                kopiert += 1
+                return True
             except Exception:       # noqa: BLE001 — eine Datei darf nicht alles anhalten
                 log.warning("Bibliothek: Kopie fehlgeschlagen für %s", quelle,
                             exc_info=True)
+                return False
+
+        kopiert = 0
+        if offen:
+            # 02.09.2026 (Beta-Tester mit NAS): nebenläufig, aus demselben
+            # Grund wie im Umzug — über SMB ist die Wartezeit je Datei der
+            # Engpass, nicht die Rechenzeit.
+            t0 = time.time()
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                kopiert = sum(1 for ok in pool.map(_kopieren, offen) if ok)
+            if kopiert:
+                log.info("Bibliothek: %d Kopie(n) in %.1f s angelegt (%.0f ms je Tour)",
+                         kopiert, time.time() - t0,
+                         (time.time() - t0) / max(1, kopiert) * 1000)
 
         neu_registriert = 0
         with _projekte.LOCK:
@@ -2275,16 +2293,20 @@ class Api:
             # Kein Zeiger. Zwei sehr verschiedene Fälle.
             if cumzug.noetig(APP_SUPPORT):
                 # Aktualisierung: Der Bestand liegt noch im App-Ordner.
-                log.info("Bibliothek: Altbestand gefunden — Umzug läuft an")
+                #
+                # 02.09.2026 (Beta-Tester mit NAS: „die Migration dauert sehr
+                # lange"): Hier lief der Umzug FRÜHER an dieser Stelle —
+                # mitten in `Api.__init__`, also bevor es überhaupt ein
+                # Fenster gab. Wer seine Touren auf einem NAS hat, sah
+                # minutenlang nichts als ein hüpfendes Dock-Symbol und musste
+                # glauben, die App sei hängen geblieben. Jetzt meldet sich die
+                # Oberfläche zuerst und stößt den Umzug selbst an — mit
+                # Fortschritt und der Zusage, dass nichts gelöscht wird.
                 ziel = cbib.standard_ort(APP_SUPPORT)
-                bericht = cumzug.ausfuehren(APP_SUPPORT, ziel)
-                self._umzug_bericht_merken(bericht, ziel)
-                if not bericht.get("ok"):
-                    BIB_PROBLEM = {"art": "umzug", "bericht": bericht}
-                    log.error("Bibliothek: Umzug fehlgeschlagen — %s", bericht.get("probleme"))
-                    return
-                log.info("Bibliothek: Umzug fertig → %s", ziel)
-                ort = ziel
+                BIB_PROBLEM = {"art": "umzug_wartet", "ziel": str(ziel)}
+                log.info("Bibliothek: Altbestand gefunden — Umzug wartet auf "
+                         "die Oberfläche (Ziel: %s)", ziel)
+                return
             else:
                 BIB_PROBLEM = {"art": "erststart",
                                "vorschlag": str(cbib.standard_ort(APP_SUPPORT))}
@@ -2337,6 +2359,57 @@ class Api:
         # Sicherung NACH dem Öffnen, damit sie den Start nicht verzögert.
         threading.Thread(target=self._bib_sichern_still, daemon=True,
                          name="bib-sicherung").start()
+
+    def bibliothek_umzug_starten(self) -> dict:
+        """Den Umzug des Altbestands anstoßen — sichtbar, mit Fortschritt.
+
+        02.09.2026: Vorher lief er stumm in `Api.__init__`, also bevor ein
+        Fenster existierte. Auf einem NAS dauert das Kopieren von tausenden
+        Touren Minuten; sichtbar war davon nichts. Jetzt ruft die Oberfläche
+        hier an, bekommt Schritt und Anteil und kann beides zeigen.
+        """
+        with self._start_lock:
+            lauf = getattr(self, "_umzug_lauf", None)
+            if lauf and lauf.get("laeuft"):
+                return {"ok": True, "laeuft": True}
+            self._umzug_lauf = {"laeuft": True, "schritt": "start", "anteil": 0.0,
+                                "fertig": False, "ok": False}
+
+        ziel = Path((BIB_PROBLEM or {}).get("ziel") or cbib.standard_ort(APP_SUPPORT))
+
+        def melden(schritt: str, anteil: float) -> None:
+            self._umzug_lauf["schritt"] = str(schritt)
+            self._umzug_lauf["anteil"] = max(0.0, min(1.0, float(anteil or 0)))
+
+        def arbeiter():
+            t0 = time.time()
+            try:
+                bericht = cumzug.ausfuehren(APP_SUPPORT, ziel, melden=melden)
+            except Exception as e:      # noqa: BLE001
+                log.exception("Umzug abgebrochen")
+                bericht = {"ok": False, "probleme": [{"was": "umzug", "detail": str(e)}]}
+            self._umzug_bericht_merken(bericht, ziel)
+            dauer = time.time() - t0
+            if bericht.get("ok"):
+                log.info("Bibliothek: Umzug fertig in %.1f s → %s", dauer, ziel)
+                try:
+                    self._bib_oeffnen()
+                except Exception:
+                    log.exception("Bibliothek: Öffnen nach dem Umzug")
+            else:
+                global BIB_PROBLEM
+                BIB_PROBLEM = {"art": "umzug", "bericht": bericht}
+                log.error("Bibliothek: Umzug fehlgeschlagen — %s", bericht.get("probleme"))
+            self._umzug_lauf.update({"laeuft": False, "fertig": True,
+                                     "ok": bool(bericht.get("ok")), "anteil": 1.0,
+                                     "dauer_s": round(dauer, 1)})
+
+        threading.Thread(target=arbeiter, daemon=True, name="bib-umzug").start()
+        return {"ok": True, "laeuft": True}
+
+    def bibliothek_umzug_lauf(self) -> dict:
+        """Wie weit ist der Umzug? (Die Oberfläche fragt im Sekundentakt.)"""
+        return dict(getattr(self, "_umzug_lauf", {"laeuft": False, "fertig": False}))
 
     def _umzug_bericht_merken(self, bericht: dict, ziel) -> None:
         """Den Umzugsbericht behalten — im Speicher UND in der Bibliothek.
@@ -4591,6 +4664,7 @@ class Api:
             marker_dot_show=bool(params.get("marker_dot_show", True)),
             marker_dot_style=str(params.get("marker_dot_style", "dot") or "dot"),
             marker_dot_size=float(params.get("marker_dot_size", 1.0) or 1.0),
+            marker_dot_smooth=float(params.get("marker_dot_smooth", 5.0) or 0.0),
             pace_mode=str(params.get("pace_mode", "raw") or "raw"),
             pause_mode=str(params.get("pause_mode", "trim") or "trim"),
             pause_min_s=float(params.get("pause_min_s", 120) or 120),
@@ -7923,14 +7997,58 @@ class Api:
 
     @_mit_sessions_lock
     def projekt_loeschen(self, project_id: str) -> dict:
+        """Ein Projekt löschen.
+
+        ⚠️ 02.09.2026 — MIT Schloss. Ohne es lasen Löschen und ein
+        gleichzeitiges `saveProjectSettings` dieselbe Datei, und der
+        Nachzügler schrieb den Stand von VORHER zurück: Das gelöschte Projekt
+        war wieder da. Genau so sah es der Beta-Tester, der drei Projekte
+        auswählte und nur zwei losbekam.
+        """
         try:
-            daten = _projekte.laden(DATEN_ORT)
-            if not _projekte.loeschen(daten, project_id):
-                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _projekte.speichern(DATEN_ORT, daten)
+            with _projekte.LOCK:
+                daten = _projekte.laden(DATEN_ORT)
+                if not _projekte.loeschen(daten, project_id):
+                    return {"ok": False, "error": _ui_t()(
+                        "error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+                _projekte.speichern(DATEN_ORT, daten)
             log.info("Projekt gelöscht: %s", project_id)
             return {"ok": True}
         except Exception as e:
+            log.exception("projekt_loeschen")
+            return {"ok": False, "error": str(e)}
+
+    def projekte_loeschen(self, project_ids: list) -> dict:
+        """Mehrere Projekte in EINEM Zug löschen.
+
+        02.09.2026 (Beta-Tester: „he seleccionado para borrar todos los
+        proyectos que tenía pero solo me ha seleccionado dos"): Die Oberfläche
+        rief das Löschen vorher in einer Schleife einzeln auf — jeder Aufruf
+        las die Datei neu und schrieb sie neu. Jetzt: einmal lesen, alle
+        entfernen, einmal schreiben. Und es wird GEZÄHLT, was wirklich weg
+        ist; wer nicht gelöscht werden konnte, kommt namentlich zurück,
+        statt still durchzurutschen.
+        """
+        ids = [str(x) for x in (project_ids or []) if x]
+        if not ids:
+            return {"ok": True, "geloescht": 0, "fehlgeschlagen": []}
+        try:
+            weg, fehl = 0, []
+            with _projekte.LOCK:
+                daten = _projekte.laden(DATEN_ORT)
+                namen = {pid: (pr.get("name") or pid)
+                         for pid, pr in (daten.get("projects") or {}).items()}
+                for pid in ids:
+                    if _projekte.loeschen(daten, pid):
+                        weg += 1
+                    else:
+                        fehl.append(namen.get(pid, pid))
+                if weg:
+                    _projekte.speichern(DATEN_ORT, daten)
+            log.info("Projekte gelöscht: %d von %d (offen: %s)", weg, len(ids), fehl)
+            return {"ok": True, "geloescht": weg, "fehlgeschlagen": fehl}
+        except Exception as e:
+            log.exception("projekte_loeschen")
             return {"ok": False, "error": str(e)}
 
     @_mit_sessions_lock

@@ -201,6 +201,51 @@
   }
 
   /* ── Umzug fehlgeschlagen ───────────────────────────────────────────── */
+  /* ── Umzug: sichtbar, mit Fortschritt ────────────────────────────────
+     02.09.2026 (Beta-Tester mit NAS: „die Migration dauert sehr lange"):
+     Der Umzug lief vorher, bevor es ein Fenster gab. Wer seine Touren auf
+     einem NAS hat, sah minutenlang gar nichts. Jetzt meldet sich dieser
+     Schirm ZUERST, stößt den Umzug an und zeigt, wo er steht. */
+  var SCHRITTE = {
+    start:      "Wird vorbereitet …",
+    sichern:    "Sicherung wird angelegt …",
+    aufnehmen:  "Touren werden in die Bibliothek kopiert …",
+    aufraeumen: "Alter Ort wird aufgeräumt …",
+    fertig:     "Fertig.",
+  };
+  function umzugLaeuft(st) {
+    var ziel = (st.problem && st.problem.ziel) || "";
+    var el = schale(
+      '<h2>' + T("bib.umzug_lauf_titel", "Deine Daten ziehen um") + "</h2>" +
+      '<p>' + T("bib.umzug_lauf_text",
+        "GPS Studio legt einmalig eine Bibliothek an und kopiert deinen Bestand hinein. Es wird nichts gelöscht — der bisherige Ort wird nur umbenannt. Liegen deine Touren auf einer Netzwerkplatte, kann das ein paar Minuten dauern.") + "</p>" +
+      '<div class="bib-ort"><code>' + ziel + "</code></div>" +
+      '<div class="bib-fortschritt"><div class="bib-fortschritt-balken" id="bib-umzug-bar"></div></div>' +
+      '<p class="muted bib-klein" id="bib-umzug-schritt">' +
+        T("bib.umzug_schritt_start", "Wird vorbereitet …") + "</p>");
+    var bar = el.querySelector("#bib-umzug-bar");
+    var txt = el.querySelector("#bib-umzug-schritt");
+    api().bibliothek_umzug_starten().catch(function (e) {
+      try { applog("error", "[bib] Umzug-Start: " + e); } catch (_) {}
+    });
+    var tick = setInterval(async function () {
+      var r;
+      try { r = await api().bibliothek_umzug_lauf(); } catch (_) { return; }
+      if (!r) return;
+      if (bar) bar.style.width = Math.round((r.anteil || 0) * 100) + "%";
+      if (txt) {
+        var name = SCHRITTE[r.schritt] || SCHRITTE.start;
+        txt.textContent = T("bib.umzug_schritt_" + (r.schritt || "start"), name);
+      }
+      if (r.fertig) {
+        clearInterval(tick);
+        // Fertig oder gescheitert — in beiden Fällen entscheidet der frische
+        // Status, welcher Schirm jetzt dran ist.
+        location.reload();
+      }
+    }, 700);
+  }
+
   function umzugKaputt(st) {
     var b = st.problem.bericht || {};
     var gruende = (b.probleme || []).map(function (x) {
@@ -287,6 +332,7 @@
     else if (art === "belegt") belegt(st);
     else if (art === "defekt") defekt(st);
     else if (art === "umzug") umzugKaputt(st);
+    else if (art === "umzug_wartet") umzugLaeuft(st);
     else fehlt(st);
   }
 

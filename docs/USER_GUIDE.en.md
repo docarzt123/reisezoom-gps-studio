@@ -656,6 +656,13 @@ disk is **not** renamed.
 | “off” | the tour is hidden |
 | ● (orange) | there are already saved projects for this tour |
 
+**The direction arrow:** if you pick “Arrow in direction of travel” for the
+moving dot, the **“Arrow steadiness”** slider appears below it. It sets how
+much track around the point the heading is read from — to the left the arrow
+follows every twitch, to the right it shows the general direction. The
+default is level 5 (60 m); that is enough for one-second recordings, where
+GPS noise and real movement are the same size.
+
 **Find duplicates:** the button at the bottom left groups files with an **identical route** —
 handy after a bulk export that downloaded the same tour several times.
 

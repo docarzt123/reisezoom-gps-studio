@@ -98,6 +98,10 @@ function mountGpxInspect(body, headerActions) {
           <label class="gpxi-check" id="gpxi-speedcolor-row"><input type="checkbox" id="gpxi-speedcolor">
             🌡️ ${t("gpxinspect.speedcolor", "Nach Tempo einfärben")}<span class="gpxi-q" data-tip="${t("gpxinspect.speedcolor_help", "Färbt den Track nach Geschwindigkeit zwischen den Punkten: grün = normal, gelb = zügig, orange = sehr schnell, rot = Ausreißer-verdächtig. So springen GPS-Sprünge sofort ins Auge — dann Heilen oder den Abschnitt manuell glätten. Braucht Zeitstempel.")}">?</span></label>
           <div class="gpxi-speedlegend" id="gpxi-speedlegend" hidden></div>
+          <div class="gpxi-fillrow" id="gpxi-speedthr-row" hidden>
+            <label>${t("gpxinspect.speedthr", "Rot ab")}<span class="gpxi-q" data-tip="${t("gpxinspect.speedthr_help", "Ab welchem Tempo ein Stück als Ausreißer gilt (rot). Leer = automatisch aus dieser Tour selbst (grün bis zum üblichen Tempo, rot erst deutlich darüber) — das passt für Wandern wie für Autofahrten. Trägst du eine Zahl ein, gilt sie fest: grün bis zu einem Drittel, gelb bis zwei Dritteln, orange bis zur Schwelle, rot darüber.")}">?</span></label>
+            <input type="number" id="gpxi-speed-thr" min="1" max="500" step="1" placeholder="${t("gpxinspect.tempo_cap_auto", "auto")}"> km/h
+          </div>
           <div class="gpxi-mm-title">🩹 ${t("gpxinspect.heal_title", "Heilen (automatisch)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_help", "Findet automatisch GPS-Ausreißer und Lücken und behebt sie. Bereich und Aktionen wählen, dann Heilen. Rückgängig jederzeit.")}">?</span></div>
           <div class="gpxi-segrow" role="radiogroup">
             <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-track" value="track" checked> ${t("gpxinspect.scope_track", "Ganzer Track")}</label>
@@ -111,7 +115,7 @@ function mountGpxInspect(body, headerActions) {
             <input type="number" id="gpxi-tempo-cap" min="1" max="500" step="1" placeholder="${t("gpxinspect.tempo_cap_auto", "auto")}"> km/h
           </div>
           <div class="gpxi-fillrow" id="gpxi-profilerow">
-            <label>${t("gpxinspect.profile", "Lücken füllen als")}<span class="gpxi-q" data-tip="${t("gpxinspect.profile_help", "Luftlinie = gerade Linie zwischen den Punkten. Wandern/Fahrrad/Auto = die echte Route auf dem Wegenetz suchen (Mapbox, Internet + Token) und der Track folgt den Wegen. Sehr große Lücken (z. B. Flüge) bleiben immer gerade.")}">?</span></label>
+            <label>${t("gpxinspect.profile", "Lücken füllen als")}<span class="gpxi-q" data-tip="${t("gpxinspect.profile_help", "Luftlinie = gerade Linie zwischen den Punkten. Wandern/Fahrrad/Auto = die echte Route auf dem Wegenetz suchen (Mapbox, Internet + Token) und der Track folgt den Wegen. Plausibilitäts-Bremse: Wird der gefundene Weg länger als das 2,5-Fache der Luftlinie, ist er vermutlich ein Umweg über die falsche Kreuzung — dann wird die Lücke gerade gefüllt, und die Meldung sagt, wie oft das passiert ist. Sehr große Lücken (z. B. Flüge, über 300 km) bleiben immer gerade.")}">?</span></label>
             <select id="gpxi-profile">
               <option value="linear" selected>📏 ${t("gpxinspect.profile_linear", "Luftlinie (gerade)")}</option>
               <option value="walking">🚶 ${t("gpxinspect.mm_walking", "Zu Fuß / Wandern")}</option>
@@ -119,6 +123,7 @@ function mountGpxInspect(body, headerActions) {
               <option value="driving">🚗 ${t("gpxinspect.mm_driving", "Auto")}</option>
             </select>
           </div>
+          <div class="gpxi-hint-sm" id="gpxi-profil-hinweis" hidden></div>
           <div class="gpxi-fillrow gpxi-sensrow">
             <label>${t("gpxinspect.sens", "Empfindlichkeit")}<span class="gpxi-q" data-tip="${t("gpxinspect.sens_help", "Wie streng gesucht wird. Niedrig = nur krasse Ausreißer und große Lücken, hoch = auch kleine.")}">?</span></label>
             <input type="range" id="gpxi-sens" min="1" max="10" step="1" value="5">
@@ -128,7 +133,10 @@ function mountGpxInspect(body, headerActions) {
             <label>${t("gpxinspect.spacing", "Abstand beim Füllen")}</label>
             <input type="number" id="gpxi-spacing" min="2" max="500" step="1" value="20"> m
           </div>
-          <div class="gpxi-sel" id="gpxi-sel">${t("gpxinspect.sel_none", "Keine Auswahl")}</div>
+          <!-- Zu Anfang versteckt: Die Zeile gehört zum Bereich Abschnitt
+               A nach B und wird von updateUI eingeblendet, sobald dieser
+               gewählt ist (02.09.2026: "was bedeutet hier keine auswahl?"). -->
+          <div class="gpxi-sel" id="gpxi-sel" hidden>${t("gpxinspect.sel_klick_a", "Klicke auf der Karte den Punkt A an, dann Punkt B — dazwischen wird geheilt.")}</div>
           <button class="btn btn-primary gpxi-act" id="gpxi-heal-run">🩹 ${t("gpxinspect.heal_run", "Heilen")}</button>
           <div class="gpxi-baft" id="gpxi-baft" hidden>
             <div class="gpxi-baft-head">✨ ${t("gpxinspect.baft_title", "Vorher → Nachher")}
@@ -451,6 +459,9 @@ function mountGpxInspect(body, headerActions) {
     updateUI();
     // 01.09.2026 (Marc): Regler zeigt die ECHTE Punktzahl dieses Tracks.
     try { reduzierReglerSync(); } catch (_) {}
+    // Neuer Track → neue Schätzung; eine frühere Handauswahl gilt nicht weiter.
+    _profilManuell = false;
+    try { profilVorschlagen(); } catch (_) {}
   }
 
   function clearTrack() {
@@ -677,6 +688,36 @@ function mountGpxInspect(body, headerActions) {
   }
 
   /** Regler-Stand → Beschriftung + orange Vorschau-Linie auf der Karte. */
+  /* 02.09.2026 (Marc: „lücke füllen sollte vorausgefüllt sein, je nach tempo —
+   * da kann man sich ja denken, welche art der fortbewegung es war"):
+   * Die Fortbewegungsart aus dem Tempo der Tour vorschlagen. Gerechnet wird
+   * mit dem MEDIAN der Segmente in Bewegung (über 0,5 km/h) — der Mittelwert
+   * würde von Pausen und Ausreißern verzogen. Die Grenzen sind bewusst weit:
+   * 9 km/h liegt über jedem Wandertempo und unter jedem Radtempo, 25 km/h
+   * über flottem Radfahren und unter Landstraße. Wer selbst wählt, behält
+   * seine Wahl — der Vorschlag kommt nur beim Laden eines Tracks. */
+  let _profilManuell = false;
+  function profilVorschlagen() {
+    const sel = document.getElementById("gpxi-profile");
+    const hin = document.getElementById("gpxi-profil-hinweis");
+    if (!sel) return;
+    if (_profilManuell || !_hasTime) { if (hin) hin.hidden = true; return; }
+    const vs = _segSpeeds().filter(v => v != null && isFinite(v) && v > 0.5).sort((a, b) => a - b);
+    if (vs.length < 10) { if (hin) hin.hidden = true; return; }
+    const med = vs[Math.floor(vs.length / 2)];
+    const wahl = med <= 9 ? "walking" : med <= 25 ? "cycling" : "driving";
+    sel.value = wahl;
+    if (hin) {
+      const name = { walking: t("gpxinspect.mm_walking", "Zu Fuß / Wandern"),
+                     cycling: t("gpxinspect.mm_cycling", "Fahrrad"),
+                     driving: t("gpxinspect.mm_driving", "Auto") }[wahl];
+      hin.hidden = false;
+      hin.textContent = t("gpxinspect.profil_geraten",
+        "\u201E{art}\u201C aus dem Tempo dieser Tour geschätzt (Median {v} km/h) — du kannst es ändern.")
+        .replace("{art}", name).replace("{v}", med.toFixed(1));
+    }
+  }
+
   function reduzierVorschau() {
     const el = document.getElementById("gpxi-reduce-n");
     const lbl = document.getElementById("gpxi-reduce-v");
@@ -794,6 +835,8 @@ function mountGpxInspect(body, headerActions) {
     if (!src) return;
     const an = !!document.getElementById("gpxi-speedcolor")?.checked;
     const leg = document.getElementById("gpxi-speedlegend");
+    const thrRow = document.getElementById("gpxi-speedthr-row");
+    if (thrRow) thrRow.hidden = !(an && _hasTime && _points.length >= 3);
     if (!an || !_hasTime || _points.length < 3) {
       src.setData({ type: "FeatureCollection", features: [] });
       if (leg) leg.hidden = true;
@@ -807,7 +850,17 @@ function mountGpxInspect(body, headerActions) {
     const werte = spd.filter(v => v != null && isFinite(v)).slice().sort((x, y) => x - y);
     if (!werte.length) { src.setData({ type: "FeatureCollection", features: [] }); if (leg) leg.hidden = true; return; }
     const p = (f) => werte[Math.min(werte.length - 1, Math.floor(f * (werte.length - 1)))];
-    const p80 = p(0.80), p95 = p(0.95), rot = Math.max(p95 * 1.5, p95 + 1);
+    // 02.09.2026 (Marc): Die Schwelle lässt sich vorgeben. Leer = wie bisher aus
+    // der Tour selbst (Perzentile), damit Wandern wie Radfahren funktioniert.
+    // Mit Zahl gilt sie fest — dann heißt „rot" für jede Tour dasselbe, und man
+    // kann zwei Aufzeichnungen wirklich vergleichen.
+    const eigene = parseFloat((document.getElementById("gpxi-speed-thr") || {}).value);
+    let p80, p95, rot;
+    if (isFinite(eigene) && eigene > 0) {
+      rot = eigene; p95 = eigene * (2 / 3); p80 = eigene / 3;
+    } else {
+      p80 = p(0.80); p95 = p(0.95); rot = Math.max(p95 * 1.5, p95 + 1);
+    }
     const farbe = (v) => v == null ? "#8a8f98"
       : v <= p80 ? "#2ecc71" : v <= p95 ? "#f1c40f" : v <= rot ? "#ff8c1a" : "#ff3355";
     const feats = [];
@@ -2379,7 +2432,14 @@ function mountGpxInspect(body, headerActions) {
     const selEl = document.getElementById("gpxi-sel");
     const haveA = _selA !== null, haveB = _selB !== null;
     if (selEl) {
-      if (!haveA) selEl.textContent = t("gpxinspect.sel_none", "Keine Auswahl");
+      // 02.09.2026 (Marc: „was bedeutet hier ‚keine auswahl‘, für was ist das?")
+      // — die Zeile gehört zum Bereich „Abschnitt A→B" und stand auch dann da,
+      // wenn „Ganzer Track" gewählt war. Dort meint sie nichts, und ein Wort
+      // ohne Bezug ist schlimmer als gar keins. Jetzt erscheint sie nur im
+      // A→B-Modus und sagt statt „Keine Auswahl", was zu tun ist.
+      selEl.hidden = (_healScope() !== "ab");
+      if (!haveA) selEl.textContent = t("gpxinspect.sel_klick_a",
+        "Klicke auf der Karte den Punkt A an, dann Punkt B — dazwischen wird geheilt.");
       else if (!haveB) {
         // v0.9.293 — Detail-Daten liegen jetzt im Punkt-Modal (Klick), hier nur kurz.
         selEl.textContent = t("gpxinspect.sel_a_short", "Anker A: ") + "#" + (_selA + 1)
@@ -2503,8 +2563,36 @@ function mountGpxInspect(body, headerActions) {
         .replace("{v}", String(v)), "success", 3200);
     }
   });
+  // Wer die Fortbewegungsart selbst wählt, behält seine Wahl — der Vorschlag
+  // aus dem Tempo mischt sich dann nicht mehr ein (bis zum nächsten Track).
+  { const pf = document.getElementById("gpxi-profile");
+    if (pf) pf.addEventListener("change", () => {
+      _profilManuell = true;
+      const hin = document.getElementById("gpxi-profil-hinweis");
+      if (hin) hin.hidden = true;
+    }); }
+  // Bereichswechsel: die Auswahl-Zeile gehört nur zu „Abschnitt A→B".
+  for (const id of ["gpxi-scope-track", "gpxi-scope-ab"]) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => { try { updateUI(); } catch (_) {} });
+  }
   { const sc = document.getElementById("gpxi-speedcolor");
     if (sc) sc.addEventListener("change", () => { try { renderSpeedColor(); } catch (_) {} }); }
+  // Eigene Ausreißer-Schwelle für die Tempo-Färbung — wie der Tempo-Deckel
+  // darüber: überlebt den Neustart, leer heißt automatisch.
+  { const st = document.getElementById("gpxi-speed-thr");
+    if (st) {
+      try {
+        const merk = (typeof _settingsCache === "object" && _settingsCache) ? _settingsCache.gpxi_speed_thr : null;
+        if (merk != null && merk !== "") st.value = merk;
+      } catch (_) {}
+      const um = () => {
+        try { saveSettings({ gpxi_speed_thr: st.value === "" ? "" : parseFloat(st.value) }); } catch (_) {}
+        try { renderSpeedColor(); } catch (_) {}
+      };
+      st.addEventListener("change", um);
+      st.addEventListener("input", um);
+    } }
   // Max-Tempo-Deckel überlebt den Neustart (z. B. „15" für Wander-Touren).
   { const tc = document.getElementById("gpxi-tempo-cap");
     if (tc) {

@@ -719,6 +719,14 @@ er erneut. Die Datei auf der Festplatte wird **nicht** umbenannt.
 | „aus" | Tour ist ausgeblendet |
 | ● (orange) | Für diese Tour gibt es schon gespeicherte Projekte |
 
+**Der Pfeil in Fahrtrichtung:** Wählst du beim Laufpunkt „Pfeil in
+Fahrtrichtung", erscheint darunter der Regler **„Ruhe des Pfeils"**. Er
+bestimmt, aus wie viel Streckenlänge um den Punkt herum die Richtung
+abgelesen wird — links folgt der Pfeil jeder Zuckung, rechts zeigt er die
+grobe Richtung. Voreingestellt ist Stufe 5 (60 m); das genügt für
+sekündliche Aufzeichnungen, bei denen GPS-Rauschen und echte Bewegung
+gleich groß sind.
+
 **Doppelte finden:** Der Knopf unten links gruppiert Dateien mit **identischem
 Streckenverlauf** — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach
 heruntergeladen wurde.

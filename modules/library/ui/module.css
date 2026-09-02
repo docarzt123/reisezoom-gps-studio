@@ -890,3 +890,14 @@
    der Tour) — sonst verwechselt man „ich schaue gerade hin" mit „das gilt". */
 .lib-fassung[data-gh] { cursor: pointer; }
 .lib-fassung.is-gezeigt { outline: 1px solid var(--accent); outline-offset: -1px; }
+
+/* 02.09.2026 (Beta-Tester: „es wäre schön, wenn man die Datei vor dem
+   Löschen ansehen kann") — Zeile in der Fehlerliste: Name + Ordner links,
+   Finder-Knopf rechts. */
+.lib-err-zeile { display: flex; align-items: center; gap: 6px; }
+.lib-err-zeile > label { flex: 1; min-width: 0; }
+.lib-err-ordner {
+  display: block; font-size: 11px; opacity: .6; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.lib-err-zeigen { flex: none; }

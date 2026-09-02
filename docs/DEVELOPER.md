@@ -3225,6 +3225,21 @@ Aufräumen aus dem Archiv geflogen. Gesetzt in `_row_from_file` (0) und
 und `Api._bib_nachziehen`. Die Migration markiert einmalig alle bestehenden
 `.gpx.gz`-Zeilen als Speicher.
 
+### Fahrtrichtung des Laufpunkt-Pfeils
+
+`kursAusSpur()` in `ui/js/util.js` (Vorschau) und `__rzKurs` in
+`core/animator.py` (erzeugte Render-Seite) — **dieselbe Rechnung, zwei
+Kopien**, weil die Render-Seite kein `util.js` lädt. Bei Änderungen beide
+pflegen; `tests/test_pfeil_ruhe.py` rechnet sie gegeneinander.
+
+Die Richtung kommt aus einer Strecke von mindestens `basisM` **und**
+mindestens `minPunkte` Punkten, als Peilung zwischen den Schwerpunkten der
+vorderen und der hinteren Hälfte. Beides zusammen ist nötig: Über 25 m
+spannen bei 10 m Punktabstand nur drei Punkte, da ist nichts zu mitteln.
+Der Regler „Ruhe des Pfeils" (0–10) wird in `kursGlaettung()` auf
+(10 + v·10) Meter und ein Drittel davon an Punkten abgebildet; im Render
+setzt `_make_html` daraus `KURS_BASIS_M` / `KURS_MIN_PUNKTE`.
+
 ### Höhenmeter — eine Rechnung für alles
 
 `core/gpx._compute_ascent_descent` (geglättet über 5 Punkte, 3-m-Hysterese,
