@@ -8,6 +8,13 @@
 <lastBuildDate>Wed, 02 Sep 2026 15:21:02 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
+<title>v0.9.649 — Das Archiv sortiert wieder sofort.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-649</link>
+<guid isPermaLink="false">gps-studio-v0.9.649</guid>
+<pubDate>Wed, 02 Sep 2026 18:00:00 +0000</pubDate>
+<description>Sortieren in der Listenansicht war seit dem Bibliotheks-Umbau träge geworden — bei 717 Touren bis zu 686 statt 11 Millisekunden je Seite. Ursache war eine fehlende Datenbank-Verknüpfung; sie wird beim Öffnen einmalig angelegt. Außerdem lief die Liste beim Scrollen über ihre Kopfzeile.</description>
+</item>
+<item>
 <title>v0.9.648 — Der Pfeil liegt ruhig, der Zoom bleibt stehen.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-648</link>
 <guid isPermaLink="false">gps-studio-v0.9.648</guid>

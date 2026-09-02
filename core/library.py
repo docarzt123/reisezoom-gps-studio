@@ -379,6 +379,14 @@ def open_db(db_path: Path) -> sqlite3.Connection:
         if col not in have:
             conn.execute(f"ALTER TABLE tracks ADD COLUMN {col} {decl}")
             log.info("library: Spalte %s nachgetragen", col)
+    # 02.09.2026 (Beta-Tester: „Sortieren in der Liste ist sehr träge geworden"):
+    # `tour_id` kam mit dem Bibliotheks-Umbau dazu und wird seither in ZWEI
+    # Unterabfragen JE ZEILE benutzt (Fundorte und Versionen der Tour). Ohne
+    # Index heißt das je Zeile ein voller Durchlauf der Tabelle — an einem
+    # echten Archiv mit 717 Zeilen gemessen: **444 ms statt 2 ms** für eine
+    # Seite der Liste. MUSS nach den ALTER TABLEs stehen, sonst gibt es die
+    # Spalte noch nicht.
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_tracks_tour ON tracks(tour_id)")
     conn.execute(
         "INSERT INTO meta(key, value) VALUES('schema', ?) "
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
