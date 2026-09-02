@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.647] – 2026-09-02
+
+#### Behoben
+- **Drei Texte des Doppelten-Dialogs standen nur auf Deutsch da.** Die Schlüssel
+  fehlten in allen drei Sprachdateien, sodass Englisch und Spanisch den
+  deutschen Rückfalltext zeigten. Gefunden hat es das Release-Tor vor dem
+  Hochladen — genau dafür ist es da.
+
 ## [0.9.646] – 2026-09-02
 
 ### ⚠️ Umbau: die Tour-Bibliothek (v0.9.640–646)
