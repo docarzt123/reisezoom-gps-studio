@@ -2300,7 +2300,7 @@ function mountAnimator(body, headerActions, opts) {
   let _animFokusPfad = "";
   let _animDezent = false;   // 29.08.2026 — Haupt-Tour im Schwarm dezent
   let _animHauptStartS = 0;  // 29.08.2026 — Haupt-Tour startet nach X s (Schwarm)
-  let _animSwarmForm = false; // 31.08.2026 (Rafael) — Zusatz-Touren mit Haupt-Form (Pfeil)
+  let _animSwarmForm = false; // 31.08.2026 (Beta-Tester) — Zusatz-Touren mit Haupt-Form (Pfeil)
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
   // 23.08.2026 — Etappen: Startindizes + geometrische Kumulativlänge. `line-progress`
   // misst gezeichnete Länge, cumDistM zählt Etappengrenzen bewusst NICHT mit — für die
@@ -2494,7 +2494,7 @@ function mountAnimator(body, headerActions, opts) {
               y: Math.max(0, Math.min(98, y)), w: breite,
               op: Math.max(0.1, Math.min(1, +w.op || 0.9)) };
     } else {
-      // 01.09.2026 (Marc: „für alle Projekte, die Dieter und Rafael schon
+      // 01.09.2026 (Marc: „für alle Projekte, die zwei Beta-Tester schon
       // haben, kommt jetzt das Wasserzeichen nicht rein") — hier wird KEIN
       // Standard mehr gesetzt. Neue Projekte bringen ihn aus dem Store mit
       // (core/sessions.py `_project_from_defaults`), bestehende bleiben ohne.
@@ -3196,7 +3196,7 @@ function mountAnimator(body, headerActions, opts) {
       if (lauf !== _paceMapLauf) return;             // veraltete Antwort
       _paceMap = (r && r.ok && Array.isArray(r.map)) ? r.map : null;
     } catch (_) { _paceMap = null; }
-    // Tester-Befund (Dieter, 29.08.2026: „keine Veränderung spürbar"): auf
+    // Tester-Befund (ein Beta-Tester, 29.08.2026: „keine Veränderung spürbar"): auf
     // gleichmäßig gelaufenen Touren verschieben die Modi den Lauf nur um
     // wenige Prozent — das IST korrekt, sieht aber nach „wirkt nicht" aus.
     // Deshalb die messbare Wirkung DIESER Tour dazuschreiben.
@@ -3974,7 +3974,7 @@ function mountAnimator(body, headerActions, opts) {
     if (zoomSlider && !keyframesEnabled()) {
       zoomSlider.value = String(curZoom);
       if (zoomLabel) zoomLabel.textContent = curZoom.toFixed(1);
-      // 31.08.2026 (Rafael: „el zoom se va") — NICHT mehr persistieren.
+      // 31.08.2026 (Beta-Tester: „el zoom se va") — NICHT mehr persistieren.
       // Der Kommentar hier nannte den Wert selbst „eher informativ", aber er
       // wurde als static_zoom gespeichert und galt fortan als BEWUSSTE
       // Nutzer-Wahl: Wer nur zum Angucken in die Karte zoomte, nagelte damit
@@ -4415,7 +4415,7 @@ function mountAnimator(body, headerActions, opts) {
   // Center=null wenn camera_follow_track an, sonst null als Default (Track-Punkt).
   function buildDefaultEvents() {
     const pitch = parseFloat(document.getElementById("anim-pitch")?.value) || 40;
-    // 31.08.2026 (Rafael: „el zoom se va") — der rohe Slider-Wert war die
+    // 31.08.2026 (Beta-Tester: „el zoom se va") — der rohe Slider-Wert war die
     // Wurzel des klebenden Zooms: Auf manchen Ladewegen verliert der
     // Fit-Sync das Rennen und der Slider steht noch auf seinem
     // Markup-Default 12 → die implizite Kamera nagelte JEDEN Track auf
@@ -6325,7 +6325,7 @@ function mountAnimator(body, headerActions, opts) {
       return {
         pitch: p != null ? p : defaultPitch,
         bearing: b != null ? b : (defaultBearingStart + progress * defaultRotation),
-        // 31.08.2026 (Rafael): null bleibt null — „keine Zoom-Keyframes" ist
+        // 31.08.2026 (Beta-Tester): null bleibt null — „keine Zoom-Keyframes" ist
         // eine eigene Information (der Lauf nimmt dann die Fit-Kamera).
         zoom_offset: z,
         center: c,
@@ -6541,7 +6541,7 @@ function mountAnimator(body, headerActions, opts) {
     // die Vorschau (≈60fps) genauso träge wirkt wie das Video.
     let _follLL = null;
     let _follLastNow = 0;
-    // 31.08.2026 (Rafael: „el zoom se va") — OHNE Keyframes und ohne
+    // 31.08.2026 (Beta-Tester: „el zoom se va") — OHNE Keyframes und ohne
     // „Kamera folgt Track" rendert das Video IMMER den Bounds-Fit
     // (core/animator.py: „Initial view from Mapbox bounds-fit"). Der
     // Probelauf nahm stattdessen die ZUFÄLLIGE aktuelle Ansicht (wer zum
@@ -6856,7 +6856,7 @@ function mountAnimator(body, headerActions, opts) {
       let _didFollow = false;
       if (interp.center) { jumpArgs.center = interp.center.slice(); _follLL = null; }
       else if (!cameraFollow2 && _runFitCam) {
-        // 31.08.2026 (Rafael: „el zoom se va"): Ohne Kamera-Keyframes und
+        // 31.08.2026 (Beta-Tester: „el zoom se va"): Ohne Kamera-Keyframes und
         // ohne „Kamera folgt Track" ist die Kamera die FIT-GESAMTSICHT —
         // exakt wie im gerenderten Video. Vorher folgte die Vorschau bei
         // eingeschaltetem Keyframe-EDITOR (auch ganz ohne Keyframes!) dem
@@ -11738,7 +11738,7 @@ function mountAnimator(body, headerActions, opts) {
     // Map-Source-Update: Preview-Track auf reduzierte Coords umschalten
     let coords = _fullPreviewCoords;
     if (v < maxN) {
-      // Tester-Befund (Dieter, 29.08.2026): proportional (800·v/maxN) landete
+      // Tester-Befund (ein Beta-Tester, 29.08.2026): proportional (800·v/maxN) landete
       // links bei 2 Punkten — bei einer RUNDTOUR ist Start≈Ziel und die Linie
       // unsichtbar („keine Spur zu sehen"). Bis 800 nehmen wir v DIREKT (der
       // Render nutzt ja auch genau v Punkte), erst darüber proportional.
@@ -12339,7 +12339,7 @@ function mountAnimator(body, headerActions, opts) {
           try {
             if (!keyframesEnabled()) {
               const projZ = getActiveProject()?.[_MODKEY]?.static_zoom;
-              // 31.08.2026 (Rafael): nur die PROJEKT-Wahl zählt. Der globale
+              // 31.08.2026 (Beta-Tester): nur die PROJEKT-Wahl zählt. Der globale
               // Cache trug den Rumschau-Zoom des vorherigen Tracks und machte
               // aus jedem neuen Track eine „bewusste" Nah-Kamera.
               const userSet = (typeof projZ === "number");
@@ -12543,7 +12543,7 @@ function mountAnimator(body, headerActions, opts) {
         _animPersistTours();
       });
     }
-    // 31.08.2026 (Rafael: „la flecha en todos los tracks") — Laufpunkt-Form
+    // 31.08.2026 (Beta-Tester: „la flecha en todos los tracks") — Laufpunkt-Form
     // der Haupt-Tour (Pfeil!) auf alle Zusatz-Touren anwenden.
     let sfWrap = document.getElementById("anim-swform-wrap");
     if (!sfWrap && dzWrap && dzWrap.parentNode) {
@@ -12740,7 +12740,7 @@ function mountAnimator(body, headerActions, opts) {
   /** 29.08.2026 (Marc, Schorfheide) — Start-Verzögerung je Tour, wortgleich
    *  zu swarmIdx (core/animator.py): 'ziel' renormiert (kommt trotzdem an),
    *  'uhrzeit'/'gleich' laufen mit echter Geschwindigkeit später los. */
-  /** 31.08.2026 (Rafael): Zusatz-Touren mit Haupt-Form (Pfeil) — nur im
+  /** 31.08.2026 (Beta-Tester): Zusatz-Touren mit Haupt-Form (Pfeil) — nur im
    *  Schwarm, nur wenn die Haupt-Tour selbst auf „Pfeil" steht. */
   function _swArrowAktiv() {
     return _animAblauf === "schwarm" && _animSwarmForm && dotStil() === "arrow";

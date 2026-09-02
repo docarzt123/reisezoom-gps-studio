@@ -249,6 +249,7 @@
   </div>
   <div class="doc-shell">
     <aside class="toc" id="toc"><div class="toc-head">Inhalt</div><nav><ul><li><a href="#1-installation" data-anchor="1-installation">1 · Installation</a></li>
+<li><a href="#1a-deine-bibliothek" data-anchor="1a-deine-bibliothek">1a · Deine Bibliothek 📚 ⭐</a></li>
 <li><a href="#1b-anf-ngerleitfaden-vom-download-zum-ersten-video" data-anchor="1b-anf-ngerleitfaden-vom-download-zum-ersten-video">1b · Anfängerleitfaden: vom Download zum ersten Video 🚀</a></li>
 <li><a href="#2-erste-schritte" data-anchor="2-erste-schritte">2 · Erste Schritte</a></li>
 <li><a href="#2b-track-dateien-ffnen-viele-formate" data-anchor="2b-track-dateien-ffnen-viele-formate">2b · Track-Dateien öffnen — viele Formate ⭐</a></li>
@@ -266,7 +267,7 @@
 <li><a href="#10-faq" data-anchor="10-faq">10 · FAQ</a></li>
 <li><a href="#11-tastatur-shortcuts-macos" data-anchor="11-tastatur-shortcuts-macos">11 · Tastatur-Shortcuts (macOS)</a></li>
 <li><a href="#12-bekannte-einschr-nkungen-stand" data-anchor="12-bekannte-einschr-nkungen-stand">12 · Bekannte Einschränkungen (Stand)</a></li>
-<li><a href="#cloud-archiv-dein-archiv-auf-deinem-eigenen-server" data-anchor="cloud-archiv-dein-archiv-auf-deinem-eigenen-server">Cloud-Archiv — dein Archiv auf deinem eigenen Server</a></li>
+<li><a href="#cloud-archiv-deine-bibliothek-auf-deinem-eigenen-server" data-anchor="cloud-archiv-deine-bibliothek-auf-deinem-eigenen-server">Cloud-Archiv — deine Bibliothek auf deinem eigenen Server</a></li>
 <li><a href="#13-support-kontakt" data-anchor="13-support-kontakt">13 · Support &amp; Kontakt</a></li></ul></nav></aside>
     <main class="doc-main">
       <h1 id="gps-studio-by-reisezoom-com-handbuch">GPS Studio by reisezoom.com — Handbuch</h1>
@@ -345,6 +346,40 @@ python app.py</code></pre>
 <p>Beim ersten Render lädt die App einmalig Chromium nach (~150 MB).</p>
 <p>Ohne ExifTool funktionieren JPEG-, TIFF- und HEIC-Fotos trotzdem (via piexif + pillow-heif, beides eingebaut). Nur RAW-Dateien (CR3, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW) und Video-Metadaten brauchen exiftool, und GPS-Schreiben in HEIC ebenfalls.</p>
 <hr>
+<hr>
+<h2 id="1a-deine-bibliothek">1a · Deine Bibliothek 📚 ⭐</h2>
+<p><strong>Wo GPS Studio deine Touren aufbewahrt — und warum das wichtig ist.</strong></p>
+<p>Beim allerersten Start fragt dich GPS Studio in drei Schritten, wo deine <strong>Bibliothek</strong> liegen soll. Das ist ein Ordner, in dem alles zusammenliegt: deine Touren, deine Projekte, deine Sammlungen. Die Vorgabe passt für die meisten; wer viel Platz braucht, legt sie auf eine externe Platte oder ein NAS. Ändern kannst du den Ort später jederzeit (Einstellungen → Bibliothek → <em>An anderen Ort verschieben</em>) — die App verschiebt dann wirklich, sie fängt nicht neu an.</p>
+<p><strong>Cloud-Ordner gehen nicht.</strong> Dropbox, iCloud Drive, OneDrive und Google Drive tauschen Dateien mitten im Schreiben aus; die Datenbank geht dabei kaputt. GPS Studio lehnt solche Orte deshalb ab und sagt auch, warum. Externe Platten und Netzlaufwerke sind in Ordnung.</p>
+<h3 id="was-das-f-r-deine-ordner-bedeutet">Was das für deine Ordner bedeutet</h3>
+<p>Deine beobachteten Ordner bleiben, wie sie sind — sie sind ab jetzt die <strong>Quelle</strong>, aus der neue Touren kommen. Sobald eine Tour im Archiv ist, hat GPS Studio eine eigene Kopie davon. Zwei Folgen:</p>
+<ul>
+<li><strong>Räumst du draußen auf, verlierst du nichts.</strong> Die Tour bleibt im Archiv,</li>
+</ul>
+<p> nur mit dem Vermerk, dass ihre Quelldatei nicht mehr da ist. Über den  Filter <em>Quelle fehlt</em> findest du solche Touren, wenn du aufräumen willst.</p>
+<ul>
+<li><strong>GPS Studio schreibt nie in deine Dateien.</strong> Heilst du eine Tour im</li>
+</ul>
+<p> Inspektor, entsteht daraus eine neue <strong>Version</strong> in deiner Bibliothek  deine Originaldatei bleibt unangetastet. Brauchst du die geheilte Fassung  auch draußen, exportierst du sie über <em>Version exportieren …</em>.</p>
+<h3 id="wenn-die-bibliothek-mal-nicht-da-ist">Wenn die Bibliothek mal nicht da ist</h3>
+<p>Liegt sie auf einer externen Platte, die gerade nicht angeschlossen ist, sagt GPS Studio das beim Start und bietet <em>Erneut suchen</em> oder <em>Anderen Ort wählen</em> an. Es wird <strong>niemals</strong> stillschweigend eine leere neue Bibliothek angelegt — deine Daten sind dann nicht weg, sie sind nur nicht erreichbar.</p>
+<h3 id="versionen-einer-tour">Versionen einer Tour</h3>
+<p>Eine Tour kann mehrere Versionen haben: wie aufgezeichnet, geheilt, zugeschnitten. Im Archiv siehst du an der Kachel „V3&quot;, wenn es drei sind; die Liste steht in der Detailspalte. Wichtig für deine Videos:</p>
+<ul>
+<li><strong>Ein Projekt bleibt auf seiner Version.</strong> Heilst du die Tour später,</li>
+</ul>
+<p> verrutscht in einem fertigen Video nichts — Schilder und Keyframes sitzen  weiter dort, wo du sie gesetzt hast.</p>
+<ul>
+<li>Das Projekt meldet dann <em>⬆ neuere Version</em> und du entscheidest, ob du es</li>
+</ul>
+<p> mitnimmst. Du kannst auch <strong>zurück</strong> auf eine ältere Version wechseln.</p>
+<ul>
+<li>Versionen, die kein Projekt benutzt, kannst du einzeln löschen. Die</li>
+</ul>
+<p> neueste nicht — sie ist die Tour.</p>
+<p>An jeder Version in der Liste stehen bis zu vier kleine Knöpfe:</p>
+<table><thead><tr><th>Knopf</th><th>Was er tut</th></tr></thead><tbody><tr><td>↩︎</td><td>Diese Version zurückholen — sie wird als <strong>neuester</strong> Stand ans Ende der Kette gestellt, nichts geht verloren.</td></tr><tr><td>🎬</td><td>Ein Projekt auf diese Version stellen. Es öffnet sich die Liste der Projekte, die an dieser Tour hängen, mit der Version, die jedes gerade benutzt.</td></tr><tr><td>⬇</td><td>Diese Version als GPX-Datei exportieren — der Weg nach draußen, seit GPS Studio nicht mehr in deine Dateien schreibt.</td></tr><tr><td>🗑</td><td>Diese Version löschen. Hängt ein Projekt daran, passiert nichts und die App sagt dir, welches.</td></tr></tbody></table>
+<p>Ein Klick auf die Zeile selbst zeigt oben die Kennzahlen <strong>dieser</strong> Version sonst sehen zwei Versionen derselben Tour gleich aus.</p>
 <hr>
 <h2 id="1b-anf-ngerleitfaden-vom-download-zum-ersten-video">1b · Anfängerleitfaden: vom Download zum ersten Video 🚀</h2>
 <p>Dieses Kapitel ist für den allerersten Tag gedacht. Es geht einmal geradeaus durch installieren, Track laden, erstes Bild, erstes Video. Alles andere in diesem Handbuch ist Nachschlagewerk; hier steht nur, was Sie wirklich brauchen.</p>
@@ -689,7 +724,8 @@ python app.py</code></pre>
 <table><thead><tr><th>Knopf</th><th>Was passiert</th></tr></thead><tbody><tr><td><strong>Ausblenden</strong></td><td>Tour verschwindet aus allen Listen, bleibt aber im Bereich „Ausgeblendete&quot; — für Doppelte oder Testfahrten, die du nicht sehen willst</td></tr><tr><td><strong>Aus Archiv nehmen</strong></td><td>Das Archiv vergisst den Eintrag, die Datei bleibt liegen (beim nächsten Einlesen ist sie wieder da)</td></tr><tr><td><strong>In den Papierkorb</strong></td><td>Legt die Datei nach Rückfrage in den Papierkorb des Systems — von dort holst du sie zurück, solange er nicht geleert ist</td></tr></tbody></table>
 <p><strong>Was die Kacheln verraten:</strong></p>
 <table><thead><tr><th>Zeichen</th><th>Bedeutung</th></tr></thead><tbody><tr><td>★</td><td>Favorit</td></tr><tr><td>„geplant&quot;</td><td>Tour war nur geplant, nicht aufgezeichnet</td></tr><tr><td>„aus&quot;</td><td>Tour ist ausgeblendet</td></tr><tr><td>● (orange)</td><td>Für diese Tour gibt es schon gespeicherte Projekte</td></tr></tbody></table>
-<p><strong>Doppelte finden:</strong> Der Knopf unten links gruppiert Dateien mit <strong>identischem Streckenverlauf</strong> — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach heruntergeladen wurde. Gelöscht wird nichts; du siehst nur, was doppelt ist.</p>
+<p><strong>Doppelte finden:</strong> Der Knopf unten links gruppiert Dateien mit <strong>identischem Streckenverlauf</strong> — hilfreich nach einem Sammel-Export, bei dem dieselbe Tour mehrfach heruntergeladen wurde.</p>
+<p>Seit der Bibliothek ist das <strong>kein Schaden mehr</strong>: Das Archiv zeigt ohnehin eine Tour und schreibt nur „2× Dateien&quot; daran. Wegräumen lohnt sich also nur, wenn du Plattenplatz sparen willst. Angehakte Dateien wandern in den <strong>Papierkorb deines Systems</strong> — es sind deine Dateien, GPS Studio löscht nichts endgültig, und die Tour bleibt in jedem Fall, weil die Bibliothek ihre eigene Kopie hat. Diese Kopie taucht in der Liste nicht auf.</p>
 <p><strong>Einzelne Datei importieren:</strong> Eine einzelne GPX (oder FIT, TCX, KML …) — etwa frisch von Komoot heruntergeladen — muss nicht erst in einen beobachteten Ordner: <strong>„📂 Ordner &amp; Einlesen&quot; → „+ Einzelne Track-Datei …&quot;</strong>, oder die Datei einfach <strong>aufs Archiv ziehen</strong>. Die App kopiert sie in ihren eigenen Import-Ordner (das Original bleibt liegen, Dubletten werden übersprungen) und liest sie sofort ein.</p>
 <p><strong>Neue Dateien:</strong> Nach jedem größeren Export einmal unten links <strong>„📂 Ordner &amp; Einlesen&quot; → „Neu einlesen&quot;</strong> drücken. Bereits bekannte Dateien werden übersprungen, das geht in Sekunden.</p>
 <p><strong>Einen Zeitraum wählen.</strong> Ganz links in der Filterleiste steht eine Auswahl mit <strong>„Dieses Jahr&quot;</strong>, <strong>„Letzte 12 Monate&quot;</strong>, <strong>„Letzte 12 Wochen&quot;</strong> und <strong>„Eigener Zeitraum …&quot;</strong>. Beim eigenen Zeitraum erscheinen zwei Datumsfelder für <em>von</em> und <em>bis</em>; beide Tage zählen mit. Der Zeitraum wirkt auf alles gleichzeitig Liste, Karte und Statistik zeigen danach denselben Ausschnitt. Solange ein Zeitraum eingestellt ist, ist das Jahres-Feld ausgegraut: beide meinen dasselbe, und der Zeitraum ist der genauere von beiden.</p>
@@ -1602,44 +1638,19 @@ python app.py</code></pre>
 <p><strong>Was hier früher stand und längst nicht mehr gilt:</strong> Mehrere Touren in einem Video gehen (Zusammenführen), v0.9.544 (Ghost-Spuren) und v0.9.557 (Schwarm — bis zu 96 Touren gleichzeitig). Fotos lassen sich frei auf der Karte platzieren, statt nur auf den nächsten Track-Punkt zu rasten.</p>
 <p>Vollständige Roadmap im Repo unter <code>docs/IDEAS.md</code>.</p>
 <hr>
-<h2 id="cloud-archiv-dein-archiv-auf-deinem-eigenen-server">Cloud-Archiv — dein Archiv auf deinem eigenen Server</h2>
-<blockquote><strong>Das ist freiwillig.</strong> Ohne Cloud arbeitet die App genau wie bisher: alles</blockquote>
-<blockquote>bleibt auf deinem Rechner, es gibt kein Konto und nichts einzurichten.</blockquote>
-<p>Wer sein Archiv auf mehreren Rechnern haben will — oder es nach einem Neuaufsetzen 1:1 zurückhaben will — kann es auf <strong>den eigenen Webserver</strong> legen. Nicht auf unseren: du behältst deine Daten.</p>
-<h3 id="einrichten-einmal-dauert-zwei-minuten">Einrichten (einmal, dauert zwei Minuten)</h3>
-<ol>
-<li>Klick oben in der Leiste auf die graue <strong>☁</strong>-Wolke (oder öffne</li>
-</ol>
-<p> <strong>Einstellungen → Cloud-Archiv</strong>). Im Dialog steht die Anleitung — und ein  Knopf <strong>„rz-cloud.php auf den Schreibtisch legen&quot;</strong> gibt dir die  Server-Datei; sie kommt mit der App mit und passt immer zur App-Version.</p>
-<ol>
-<li>Lade diese Datei **<code>rz-cloud.php</code>** in einen Ordner deines Webspace, zum</li>
-</ol>
-<p> Beispiel nach <code>deineseite.de/archiv/</code> — mit deinem FTP-Programm oder dem  Datei-Manager deines Hosters. Der Webspace braucht nur <strong>PHP (ab 7.4) und  HTTPS</strong>; das kann praktisch jeder Hoster. Keine Datenbank, keine  Einstellungen.</p>
-<ol>
-<li>Die <strong>Adresse der Datei</strong> eintragen (<code>https://deineseite.de/archiv/rz-cloud.php</code>).</li>
-</ol>
-<p> Die App sagt sofort, ob sie dort etwas findet.</p>
-<ol>
-<li><strong>Neues Archiv anlegen</strong> — und dann das Wichtigste:</li>
-</ol>
-<blockquote>⚠️ <strong>Die App zeigt dir einmalig ein Passwort.</strong> Es öffnet deine Daten.</blockquote>
-<blockquote>Speichere es sofort in deinem Passwortmanager. Wir kennen es nicht und können</blockquote>
-<blockquote>es nicht wiederherstellen: **Geht es verloren, kommt niemand mehr an das</blockquote>
-<blockquote>Archiv — auch wir nicht.**</blockquote>
-<p>Danach wandert alles von selbst hoch. Oben in der Leiste zeigt ein <strong>☁</strong> den Stand: ruhig, wenn alles abgeglichen ist; mit Zähler, während übertragen wird.</p>
-<h3 id="was-hochgeht-und-was-nicht">Was hochgeht — und was nicht</h3>
-<p><strong>Ja:</strong> Touren, alle Tourdaten (Name, Notiz, Schlagworte, Sammlungen), die Animator- und Tour-Map-Projekte, die Geotagger-Einstellungen und Vorschaubilder der Fotos, die du in einem Projekt gesetzt hast.</p>
-<p><strong>Nein:</strong> deine Originalfotos, fertige Videos, Kartenbilder. Fotos bleiben, wo sie sind — ein Archiv ist kein Fotospeicher.</p>
-<h3 id="ein-zweiter-rechner">Ein zweiter Rechner</h3>
-<p>Dort <strong>Einstellungen → Cloud-Archiv → Mit vorhandenem verbinden</strong>, Adresse, Zugangsschlüssel und dein Passwort eingeben. Mehr nicht: Das Archiv erscheint, und die Touren kommen, sobald du sie brauchst.</p>
-<h3 id="was-der-server-sieht">Was der Server sieht</h3>
-<p><strong>Nichts Verwertbares.</strong> Alles wird auf deinem Rechner verschlüsselt, bevor es losgeht. Auf dem Server liegen undurchsichtige Namen, Dateigrößen und Zeitpunkte — kein Tourname, kein Ort, keine Strecke. Selbst wer den kompletten Webspace kopiert, hat verschlüsselte Klumpen.</p>
-<h3 id="papierkorb-ltere-st-nde-entfernen">Papierkorb, ältere Stände, Entfernen</h3>
-<p><strong>Der Abgleich löscht nie etwas.</strong> Liegt eine Tour nur noch in der Cloud (weil du sie hier aus dem Archiv genommen hast), wird sie im Cloud-Dialog unter „Touren im Archiv&quot; aufgeführt — mit <strong>Holen</strong> und einem <strong>🗑</strong>-Knopf. Erst der zweite Klick auf 🗑 entfernt sie aus der Cloud, und auch dann nur in den <strong>Papierkorb auf dem Server</strong>.</p>
-<p><strong>Ältere Stände.</strong> Wird eine Tour in der Cloud überschrieben (neuer Name, neue Projekte), bleibt der bisherige Stand als „älterer Stand&quot; im Papierkorb — die letzten fünf je Tour. Über <strong>Wiederherstellen</strong> wird er wieder zum aktuellen Stand. Der Papierkorb räumt sich nach 30 Tagen selbst auf („Älteres als 30 Tage endgültig löschen&quot;).</p>
-<p><strong>Nur https://.</strong> Die Adresse der <code>rz-cloud.php</code> muss mit https beginnen — über http ginge dein Zugangsschlüssel unverschlüsselt durchs Netz. Praktisch jeder Hoster bietet https, oft über „Let&#x27;s Encrypt&quot; mit einem Klick.</p>
-<h3 id="reisen-schw-rme-wandern-mit">Reisen &amp; Schwärme wandern mit</h3>
-<p>Auch deine <strong>Kompositionen</strong> — Mehr-Touren-Reisen und Schwärme samt Keyframes und Einstellungen — gehen automatisch mit in die Cloud. Auf dem anderen Rechner findest du sie im Cloud-Dialog unter <strong>„Reisen &amp; Schwärme&quot;</strong>: Ein Klick auf <strong>Holen</strong> bringt fehlende Touren gleich mit und legt alles startklar an. Eine Komposition, die es auf dem Rechner schon gibt, wird <strong>nie überschrieben</strong> — lokale Arbeit gewinnt.</p>
+<h2 id="cloud-archiv-deine-bibliothek-auf-deinem-eigenen-server">Cloud-Archiv — deine Bibliothek auf deinem eigenen Server</h2>
+<p><strong>Freiwillig. Ohne Cloud arbeitet GPS Studio genauso — es geht nichts ins Netz, und der Schlüsselbund wird nicht angefasst.</strong></p>
+<p>Ist die Cloud eine <strong>Kopie deiner Bibliothek</strong>. Was hochgeht: deine Touren (jede Version einzeln), das Tour-Register, deine Projekte, deine Eingaben (Schlagworte, Favoriten, Notizen, eigene Namen, Farben, Sammlungen) und deine selbst gewählten Titelbilder. Alles verschlüsselt, bevor es dein Gerät verlässt.</p>
+<p><strong>Was NICHT hochgeht:</strong> die Archiv-Datenbank (sie entsteht aus den Touren neu), Vorschau- und Kartenbilder (die kommen von Mapbox) und deine Fotos — die gehören dir und lagen nie in der App.</p>
+<h3 id="zweiter-rechner">Zweiter Rechner</h3>
+<p><em>Bibliothek aus der Cloud laden</em> holt alles, was dort fehlt: Touren, Projekte, Sammlungen, deine Eingaben. Was schon da ist, wird nicht überschrieben. Danach steht dein Archiv da wie auf dem ersten Rechner.</p>
+<p>Das ist zugleich dein Rettungsweg: Geht die Datenbank verloren, genügt die Bibliothek — die Touren werden daraus neu ins Archiv aufgenommen.</p>
+<h3 id="einrichten">Einrichten</h3>
+<p>Du brauchst irgendeinen Webspace mit <strong>PHP 7.4 oder neuer</strong> — mehr nicht, keine Datenbank, kein Dienst, kein Abo. In den Einstellungen legt GPS Studio dir die Datei **<code>rz-cloud.php</code>** auf den Schreibtisch; die lädst du auf deinen Server und gibst ihre Adresse in der App an. Fertig.</p>
+<p>Der Server sieht dabei nie deine Daten: Alles wird auf deinem Rechner verschlüsselt, bevor es hochgeht. Er speichert Klumpen, deren Namen er nicht lesen kann. Den Schlüssel hast nur du — er liegt in deinem Schlüsselbund. Für einen zweiten Rechner brauchst du ihn; in den Einstellungen kannst du ihn dir anzeigen lassen.</p>
+<h3 id="aufr-umen">Aufräumen</h3>
+<p><em>Fremdes entfernen</em> wirft weg, was nicht zu deiner Bibliothek gehört — etwa den Bestand aus einer älteren Version von GPS Studio. Zwei Klicks, und es landet im Papierkorb des Servers, nicht im Nichts.</p>
+<p><strong>Es wird nie automatisch gelöscht.</strong> Wenn du zwei Rechner benutzt, heißt „liegt oben, kenne ich hier nicht&quot; meistens „vom anderen Rechner&quot;. Deshalb ist Aufräumen immer deine ausdrückliche Entscheidung.</p>
 <h2 id="13-support-kontakt">13 · Support &amp; Kontakt</h2>
 <ul>
 <li><strong>Bug-Reports &amp; Feedback</strong>: Hilfe → 📧 (siehe Sektion 7) oder direkt <code>marc@reisezoom.com</code></li>

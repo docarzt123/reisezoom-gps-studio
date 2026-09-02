@@ -28,7 +28,6 @@ import hashlib
 import json
 import logging
 import os
-import shutil
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -261,7 +260,7 @@ def _project_from_defaults(name: str, defaults: dict) -> dict:
     # 01.09.2026 (Marc): NEUE Projekte starten mit dem GPS-Studio-Wasserzeichen —
     # dieselbe Überlegung wie bei `pace_mode` oben: nur HIER lässt sich sicher
     # sagen, dass ein Projekt gerade entsteht. Bestehende Projekte (auch die von
-    # Dieter und Rafael) haben den Schlüssel nicht und bleiben unverändert ohne
+    # zwei Beta-Tester) haben den Schlüssel nicht und bleiben unverändert ohne
     # Wasserzeichen — sie sollen nicht plötzlich ein Logo im Video haben.
     # `@lockup-white` ist ein Sentinel, kein Pfad: er löst sich auf jedem
     # Rechner auf und überlebt den Projekt-Export.
@@ -402,16 +401,24 @@ def _compute_stats(coords: list) -> dict:
 
 
 def _save_snapshot(gpx_path: str, track_hash: str, snapshot_dir: Path) -> str:
-    """Kopiert das GPX in den Snapshot-Ordner. Returns: rel. Pfad zu APP_SUPPORT."""
-    snapshot_dir.mkdir(parents=True, exist_ok=True)
-    target = snapshot_dir / f"{track_hash}.gpx"
+    """Legt die Trackdatei als Version in der Bibliothek ab.
+
+    02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Schnitt 1): Bis hierher war das eine
+    schlichte Kopie nach `sessions/<hash>.gpx` im App-Ordner — ein Nebenkanal
+    neben dem Archiv. Jetzt IST diese Kopie die Wahrheit: `snapshot_dir` zeigt
+    auf den Versionsspeicher der Bibliothek, geschrieben wird komprimiert.
+    Der Rückgabewert bleibt ein relativer Pfad, damit Alt-Einträge in
+    `touren.json` weiter lesbar sind.
+    """
+    from . import bibliothek as _bib
+    ort = Path(snapshot_dir).parent          # <Bibliothek>/touren → <Bibliothek>
     try:
-        shutil.copy2(gpx_path, target)
+        _bib.version_ablegen(ort, Path(gpx_path), track_hash)
     except Exception:
-        # Fehlt z.B. die Quelle (User-Quirk) — Session funktioniert auch
-        # ohne Snapshot, GPX-Reload erfordert dann Marc's manuelles Öffnen.
+        # Fehlt z.B. die Quelle (User-Quirk) — die Tour funktioniert auch ohne
+        # Kopie, sie hängt dann eben weiter an ihrer Datei draußen.
         pass
-    return f"sessions/{track_hash}.gpx"
+    return f"touren/{track_hash[:2]}/{track_hash}.gpx.gz"
 
 
 # ── Migration Schema 1 → 2: kanonischer geo_hash ────────────────────────────

@@ -122,3 +122,12 @@ docs/BLOGPOST_UPDATE.md
 # v0.9.529 — Migrations-Sicherungen der Sessions (Schema 1→2)
 sessions.json.bak-*
 cloud_pruefsummen.json
+
+# 02.09.2026 — Dev-Modus legt die Bibliothek im Projektordner an
+/Bibliothek/
+/bibliothek.json
+/_gpxcache/
+/_umzug_sicherung/
+
+# 02.09.2026 — was der Umzug im Dev-Ordner stehen lässt (Marcs Daten)
+*.umgezogen-*

@@ -118,7 +118,7 @@
    „dieser hier zieht alle 4 zusammen". */
 .timeline-marker.timeline-marker-cluster {
   /* Über dem Übergangs-Symbol (z-index 4): Wo beide übereinander liegen, muss
-     der Keyframe klickbar bleiben. Siehe Rafaels Bericht vom 16.08.2026. */
+     der Keyframe klickbar bleiben. Siehe ein Beta-Tester-Bericht vom 16.08.2026. */
   z-index: 6;
   width: 22px;
   height: 22px;

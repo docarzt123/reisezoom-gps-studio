@@ -367,11 +367,21 @@ def kontext_oeffnen_einzel(daten: dict, geo_hash: str, coords: list,
             tour["id"] = alt_t["id"]
             tour["fassung"] = {"nr": nmax + 1, "erstellt": now,
                                "quelle": "extern"}
+            # 02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Q22): MELDEN statt handeln.
+            # Bis hierher entstand eine neue Version stillschweigend, sobald
+            # jemand die Datei draußen verändert hatte. Genau solche
+            # unsichtbaren Vorgänge waren der Grund für den ganzen Umbau —
+            # eine Tour bekam Versionen, von denen niemand wusste. Die Version
+            # wird weiterhin angelegt (die Daten sind ja da und sollen nicht
+            # verloren gehen), aber sie ist als UNBESTÄTIGT markiert: Das
+            # Archiv fragt nach, bevor sie zur aktuellen Version wird.
+            tour["extern_unbestaetigt"] = True
+            tour["extern_vorgaenger"] = alt_gh
             if not tour.get("name"):
                 tour["name"] = alt_t.get("name") or ""
-            log.info("Tour %s: extern geänderte Datei erkannt — Fassung %d "
-                     "(%s → %s)", alt_t["id"], nmax + 1,
-                     alt_gh[:12], geo_hash[:12])
+            log.info("Tour %s: extern geänderte Datei erkannt — Version %d "
+                     "vorgemerkt, wartet auf Bestätigung (%s → %s)",
+                     alt_t["id"], nmax + 1, alt_gh[:12], geo_hash[:12])
         else:
             tour["id"] = "tour_" + uuid.uuid4().hex[:12]
             tour["fassung"] = {"nr": 1, "erstellt": now, "quelle": "import"}
@@ -394,11 +404,37 @@ def kontext_oeffnen_einzel(daten: dict, geo_hash: str, coords: list,
 
     aktiv = _aktives_projekt(daten, geo_hash)
     if aktiv is None:
-        # Q10c: jeder Track bekommt automatisch ein (leeres) Start-Projekt.
+        # 02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Q15) — bis hierher bekam JEDER
+        # geöffnete Track sofort ein Projekt. Ergebnis bei einem Beta-Tester:
+        # 111 Karten namens „Standard", von denen keine je Arbeit trug.
+        #
+        # Ab jetzt entsteht ein Projekt erst bei der ersten echten Änderung.
+        # Bis dahin gibt es ein SCHWEBENDES Projekt: Es sieht für die
+        # Oberfläche aus wie eines (damit alles Weitere unverändert
+        # funktioniert), hat aber eine leere Kennung und wird nicht
+        # gespeichert. `festschreiben()` macht daraus ein echtes, sobald
+        # jemand etwas einstellt.
         aktiv = _neues_projekt(geo_hash, _s.DEFAULT_PROJECT_NAME, defaults, auto=True)
-        daten.setdefault("projects", {})[aktiv["id"]] = aktiv
-        daten.setdefault("aktiv", {})[geo_hash] = aktiv["id"]
+        aktiv["id"] = ""
+        aktiv["schwebend"] = True
     return aktiv
+
+
+def festschreiben(daten: dict, kontext: str, defaults: dict,
+                  name: str = "") -> dict:
+    """Aus einem schwebenden Projekt ein echtes machen (02.09.2026, Q15).
+
+    Wird von der ersten echten Änderung gerufen — und nur von ihr. Gibt es
+    für diesen Kontext schon ein Projekt, wird dieses zurückgegeben.
+    """
+    vorhanden = _aktives_projekt(daten, kontext)
+    if vorhanden is not None:
+        return vorhanden
+    neu = _neues_projekt(kontext, name or _s.DEFAULT_PROJECT_NAME, defaults, auto=True)
+    daten.setdefault("projects", {})[neu["id"]] = neu
+    daten.setdefault("aktiv", {})[kontext] = neu["id"]
+    log.info("Projekt %s angelegt (erste Änderung an %s)", neu["id"], kontext[:12])
+    return neu
 
 
 def find_kontext_by_ui_hash(daten: dict, ui_hash: str) -> str:
@@ -421,8 +457,13 @@ def _angefasst(p: dict) -> None:
 
 
 def update_settings(daten: dict, kontext: str, project_id: str,
-                    module: Optional[str], patch: dict) -> bool:
+                    module: Optional[str], patch: dict,
+                    defaults: Optional[dict] = None) -> bool:
     p = (daten.get("projects") or {}).get(project_id)
+    if p is None and not project_id and kontext:
+        # Erste echte Änderung an einem schwebenden Projekt: JETZT entsteht es
+        # (Q15). Vorher lag hier nichts auf der Platte.
+        p = festschreiben(daten, kontext, defaults or {})
     if not p or p.get("kontext") != kontext:
         return False
     ziel = p if not module else p.setdefault(module, {})
@@ -523,12 +564,27 @@ def modul_arbeit(p: dict, m: str) -> bool:
     return False
 
 
+#: Alle Module, die ein Projekt tragen kann. An EINER Stelle, damit ein neues
+#: Modul nicht an drei Orten nachgetragen werden muss.
+MODULE = ("animator", "tourmap", "geotagger", "heightanim")
+
+
+def modul_arbeit_irgendwo(p: dict) -> bool:
+    """Trägt dieses Projekt in IRGENDEINEM Modul echte Arbeit?
+
+    02.09.2026 (Schnitt 3): Gebraucht bei der Frage, ob eine Version noch
+    jemand festhält. Ein automatisch angelegtes Projekt ohne Inhalt hält
+    nichts fest — sonst wäre jede je geöffnete Version für immer unlöschbar.
+    """
+    return any(modul_arbeit(p, m) for m in MODULE)
+
+
 AUTO_AUFRAEUMEN_TAGE = 30
 
 
 def auto_aufraeumen(app_support: Path, daten: dict) -> int:
     """Auto-Projekte ohne jede Arbeit still entfernen (Marc, 30.08.2026, nach
-    Dieters 111 „Standard"-Karten): Nur Projekte, die (1) automatisch angelegt
+    111 „Standard"-Karten bei einem Beta-Tester): Nur Projekte, die (1) automatisch angelegt
     wurden, (2) nie umbenannt oder im Status geändert wurden, (3) in KEINEM
     Modul echte Arbeit tragen und (4) seit `AUTO_AUFRAEUMEN_TAGE` Tagen
     unberührt sind. Öffnet man die Tour später wieder, entsteht ohnehin ein
@@ -756,7 +812,7 @@ def alle_projekte(daten: dict) -> list:
         # oder es war das zuletzt benutzte Modul.
         module = [m for m in ("animator", "tourmap", "geotagger", "heightanim")
                   if m == p.get("letztes_modul") or modul_arbeit(p, m)]
-        # 30.08.2026 (Beta-Tester Dieter, 111 Auto-Projekte): jede Karte hieß
+        # 30.08.2026 (ein Beta-Tester, 111 Auto-Projekte): jede Karte hieß
         # „Standard" (DEFAULT_PROJECT_NAME) — 111-mal derselbe Name sagt
         # nichts. Automatisch angelegte Projekte zeigen den Tour-Namen.
         name = p.get("name", "?")
@@ -892,6 +948,43 @@ def fassungs_hinweis(daten: dict, geo_hash: str) -> Optional[dict]:
     return {"geo_hash": neu_gh,
             "nr": (neu.get("fassung") or {}).get("nr", 0),
             "eigene_nr": (t.get("fassung") or {}).get("nr", 0)}
+
+
+def projekt_version_setzen(daten: dict, project_id: str, alt_gh: str,
+                           neu_gh: str) -> dict:
+    """Ein Projekt auf eine BESTIMMTE Version einer seiner Touren stellen.
+
+    02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Q7). Marc: „man muss generell die
+    Version wählen können, default ist immer die neueste." Bis hierher gab es
+    nur den Sprung auf die neueste — zurück ging nichts.
+
+    Beide Versionen müssen zur selben Tour gehören; sonst würde aus einem
+    Wechsel unbemerkt ein Tour-Tausch.
+    """
+    p = (daten.get("projects") or {}).get(project_id)
+    if not p:
+        return {"ok": False, "error": "unbekanntes Projekt"}
+    t_alt, t_neu = tour_von_hash(daten, alt_gh), tour_von_hash(daten, neu_gh)
+    if not t_alt or not t_neu or not t_alt.get("id") or t_alt.get("id") != t_neu.get("id"):
+        return {"ok": False, "error": "andere Tour"}
+    if alt_gh not in (p.get("geo_hashes") or []) and p.get("kontext") != alt_gh:
+        return {"ok": False, "error": "Version gehört nicht zu diesem Projekt"}
+    aktiv = daten.setdefault("aktiv", {})
+    alt_kontext = p.get("kontext")
+    if p.get("geo_hashes"):
+        p["geo_hashes"] = sorted({neu_gh if g == alt_gh else g
+                                  for g in p["geo_hashes"]})
+    if str(alt_kontext or "").startswith("menge:"):
+        p["kontext"] = _s.mengen_hash(p["geo_hashes"])
+    elif alt_kontext == alt_gh:
+        p["kontext"] = neu_gh
+    if aktiv.get(alt_kontext) == project_id:
+        aktiv.pop(alt_kontext, None)
+    aktiv.setdefault(p["kontext"], project_id)
+    _angefasst(p)
+    log.info("Projekt %s auf Version %s gestellt (war %s)",
+             project_id, neu_gh[:12], alt_gh[:12])
+    return {"ok": True, "kontext": p["kontext"]}
 
 
 def projekt_auf_neueste(daten: dict, project_id: str) -> dict:

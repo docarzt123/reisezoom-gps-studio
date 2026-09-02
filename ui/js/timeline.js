@@ -348,7 +348,7 @@ function mountTimelineBar(opts) {
   // dagegen mit ihrem rohen Anker als Leisten-Position gezeichnet. Ohne Intro
   // und ohne Hold sind beide Größen gleich, deshalb fiel es nie auf; mit Hold
   // wanderten die Pins nach rechts weg von ihrer Stelle im Track.
-  // ⚠️ Bewusst OHNE Klemmen auf 0..1 (Fehler-Bericht Rafael, 16.08.2026:
+  // ⚠️ Bewusst OHNE Klemmen auf 0..1 (Fehler-Bericht ein Beta-Tester, 16.08.2026:
   // „Früher konnte ich hier einen Keyframe setzen, in dieser letzten Version
   // schaffe ich das nicht.")
   //

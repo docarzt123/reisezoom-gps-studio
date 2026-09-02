@@ -11,7 +11,12 @@
     name: "GPX-Inspektor",
     description: "Track heilen",
     icon: "🔍",
-    sort_order: 60,
+    // 02.09.2026 (Marc: „zieh den Inspektor in der Menübar hinter das Archiv,
+  // da gehört er hin") — 7 statt 60, also zwischen Archiv (5) und
+  // Animator (10). Passt auch zur Aufteilung aus dem Bibliotheks-Umbau:
+  // Archiv und Inspektor arbeiten an den DATEN, alles danach an einem
+  // Projekt (docs/UMBAU-BIBLIOTHEK.md, Abschnitt 2).
+  sort_order: 7,
   },
   mount: function (body, headerActions) { return mountGpxInspect(body, headerActions); },
 };
@@ -138,7 +143,7 @@ function mountGpxInspect(body, headerActions) {
           </div>
 
           <hr class="gpxi-hr">
-          <!-- 31.08.2026 (Rafaels MTB-Kollege): Punkte reduzieren + Tempo
+          <!-- 31.08.2026 (der MTB-Kollege eines Beta-Testers): Punkte reduzieren + Tempo
                umschreiben — direkt am Track, speichern wie nach dem Heilen. -->
           <details class="gpxi-manual" id="gpxi-toolbox">
             <summary class="gpxi-mm-title">✂️ ${t("gpxinspect.tools_title", "Reduzieren & Tempo")}<span class="gpxi-q" data-tip="${t("gpxinspect.tools_help", "Punktzahl der Datei verkleinern (echte Punkte bleiben, gleichmäßig nach Strecke gewählt) oder die Zeitstempel auf ein Wunsch-Ø-Tempo umschreiben — z. B. um eine geplante Route mit realistischer Geschwindigkeit zu animieren. Beides landet erst beim Speichern in einer Datei.")}">?</span></summary>
@@ -483,11 +488,14 @@ function mountGpxInspect(body, headerActions) {
           if (v > maxKmh) maxKmh = v;
         }
       }
-      if (a.ele != null && b.ele != null) {
-        const dE = b.ele - a.ele;
-        if (dE > 0) asc += dE; else desc -= dE;
-      }
     }
+    // 02.09.2026, Audit: Hier stand die naive Summe (jeder positive
+    // Höhenunterschied addiert). Bei GPS-Rauschen von ±5–10 m je Punkt ergab
+    // das ein Vielfaches dessen, was das Archiv für dieselbe Tour zeigte.
+    // Jetzt rechnet die ganze App mit `hoehenmeter()` aus util.js — der
+    // JS-Fassung von core/gpx.py, samt Etappen-Trennung.
+    const hm = hoehenmeter(_points);
+    asc = hm.asc; desc = hm.desc;
     return { n: _points.length, dist, dur, maxKmh, asc, desc,
              avg: dur > 0 ? dist / dur * 3.6 : 0 };
   }
@@ -646,7 +654,7 @@ function mountGpxInspect(body, headerActions) {
     return fixed;
   }
 
-  /** 31.08.2026 (Rafaels MTB-Kollege): Punktzahl reduzieren — behält ECHTE
+  /** 31.08.2026 (der MTB-Kollege eines Beta-Testers): Punktzahl reduzieren — behält ECHTE
    *  Punkte, gleichmäßig über die Strecke gewählt (erster/letzter immer). */
   /** Welche Punkte überleben? Gleichmäßig nach STRECKE gewählt, erster und
    *  letzter immer. Vorschau und Anwenden teilen sich diese Rechnung. */
@@ -702,7 +710,11 @@ function mountGpxInspect(body, headerActions) {
       if (map.getLayer("gpxi-pts-lyr")) map.setPaintProperty("gpxi-pts-lyr", "circle-opacity", blass ? 0.18 : 1);
       if (map.getLayer("gpxi-pts-lyr")) map.setPaintProperty("gpxi-pts-lyr", "circle-stroke-opacity", blass ? 0.18 : 1);
       if (map.getLayer("gpxi-speed-lyr")) map.setPaintProperty("gpxi-speed-lyr", "line-opacity", blass ? 0.2 : 0.95);
-      if (map.getLayer("gpxi-line-lyr")) map.setPaintProperty("gpxi-line-lyr", "line-opacity", blass ? 0.25 : 0.85);
+      // Ohne Vorschau gehoert die Grundlinie NICHT pauschal auf 0,85 zurueck:
+      // bei aktiver Tempo-Faerbung haelt renderSpeedColor sie bewusst auf 0,15,
+      // sonst uebertoent das Blau die Farbsegmente.
+      if (map.getLayer("gpxi-line-lyr")) map.setPaintProperty("gpxi-line-lyr", "line-opacity",
+        blass ? 0.25 : (_speedFarben ? 0.15 : 0.85));
     } catch (_) {}
     const btn = document.getElementById("gpxi-reduce-run");
     if (btn) btn.disabled = !auswahl;
@@ -716,7 +728,13 @@ function mountGpxInspect(body, headerActions) {
     const n = Math.max(2, _points.length);
     el.max = String(n);
     el.min = "2";
-    el.step = String(n > 2000 ? 10 : 1);
+    // 02.09.2026 (Marc: „nach tempo einfaerben geht nicht mehr") — hier stand
+    // bei langen Tracks eine Schrittweite von 10. Der Browser rastet den Wert auf min + k*step,
+    // also auf 2, 12, 22 … Bei 2 788 Punkten wurde aus value="2788" ein 2782:
+    // der Regler stand nie auf 100 %, die Reduzier-Vorschau lief dauerhaft mit
+    // und blendete Track UND Tempo-Faerbung auf 0,2 ab. Schrittweite 1 kostet
+    // nichts und laesst den Regler die echte Punktzahl erreichen.
+    el.step = "1";
     // Neuer Track (oder Stand größer als der Track): auf 100 % = alle Punkte.
     // Der Regler zeigt damit immer die ECHTE Punktzahl dieses Tracks an.
     if (!behalteStand || !el.value || parseInt(el.value, 10) > n) el.value = String(n);
@@ -1713,21 +1731,10 @@ function mountGpxInspect(body, headerActions) {
   // der Karte GPS- + Karten-Linie übereinander zeichnen; der Regler mischt live
   // eine fette Ergebnis-Linie. „Übernehmen" schreibt sie in _points[].ele.
   function _eleGain(eles) {
-    // Geglättet (Fenster 5) + 3-m-Schwelle, analog core/gpx.py.
-    const v = eles.filter(e => e != null && isFinite(e));
-    if (v.length < 2) return 0;
-    const sm = v.map((_, i) => {
-      let s = 0, n = 0;
-      for (let k = Math.max(0, i - 2); k <= Math.min(v.length - 1, i + 2); k++) { s += v[k]; n++; }
-      return s / n;
-    });
-    let g = 0, ref = sm[0];
-    for (let i = 1; i < sm.length; i++) {
-      const d = sm[i] - ref;
-      if (d > 3) { g += d; ref = sm[i]; }
-      else if (d < -3) { ref = sm[i]; }
-    }
-    return g;
+    // Dieselbe Rechnung wie überall sonst (util.js → core/gpx.py). Hier ohne
+    // Etappen, weil verglichen wird: GPS-Höhe gegen Karten-Höhe über dieselbe
+    // Punktreihe.
+    return hoehenmeterAusReihe(eles).asc;
   }
   function _trackBounds() {
     let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
@@ -2190,8 +2197,8 @@ function mountGpxInspect(body, headerActions) {
         const m = openModal({
           title: "💾 " + t("gpxinspect.save", "Geheilten Track speichern …"),
           body: `<div class="lib-fmodal">
-            <p>${t("gpxinspect.ersetzen_frage", "Diese Tour liegt im Archiv. Soll die geheilte Fassung das Original ersetzen?")}</p>
-            <div class="lib-hint">${t("gpxinspect.ersetzen_hint", "Sammlungen und das Archiv zeigen danach die geheilte Fassung. Bestehende Projekte bleiben an der bisherigen Fassung „gepinnt“ (nichts verrutscht) und zeigen „⬆ neuere Fassung“ zum bewussten Aktualisieren. Das Original wird vorher in der App-Ablage gesichert und bleibt als Fassung wiederherstellbar.")}</div>
+            <p>${t("gpxinspect.ersetzen_frage", "Diese Tour liegt im Archiv. Soll die geheilte Version das Original ersetzen?")}</p>
+            <div class="lib-hint">${t("gpxinspect.ersetzen_hint", "Sammlungen und das Archiv zeigen danach die geheilte Version. Bestehende Projekte bleiben an der bisherigen Version „gepinnt“ (nichts verrutscht) und zeigen „⬆ neuere Version“ zum bewussten Aktualisieren. Das Original wird vorher in der App-Ablage gesichert und bleibt als Version wiederherstellbar.")}</div>
           </div>`,
           footer: `<button class="btn" id="gpxi-ers-abbruch">${t("common.cancel", "Abbrechen")}</button>
                    <button class="btn" id="gpxi-ers-neu">${t("gpxinspect.ersetzen_neu", "Als neue Datei …")}</button>
@@ -2266,7 +2273,7 @@ function mountGpxInspect(body, headerActions) {
     // Fall 4 der Archiv-Frage (Marc, 27.08.2026): Ein hier geänderter und
     // gespeicherter Track ist noch nirgends erfasst — also fragen, BEVOR er
     // geladen wird. Sagt der Nutzer ja, liegt er danach im Archiv, und mit
-    // dieser Fassung wird weitergearbeitet.
+    // dieser Version wird weitergearbeitet.
     let zielPfad = res.out_path;
     if (typeof window.archivFrage === "function") {
       try { zielPfad = await window.archivFrage(res.out_path, { nachAenderung: true }) || res.out_path; }
@@ -2468,7 +2475,7 @@ function mountGpxInspect(body, headerActions) {
   _on("gpxi-undo", () => { if (_undo) _undo.undo(); });
   _on("gpxi-redo", () => { if (_undo) _undo.redo(); });
   _on("gpxi-heal-run", runHeal);
-  // 31.08.2026 (Rafaels MTB-Kollege): Reduzieren + Tempo
+  // 31.08.2026 (der MTB-Kollege eines Beta-Testers): Reduzieren + Tempo
   { const _rEl = document.getElementById("gpxi-reduce-n");
     if (_rEl) _rEl.addEventListener("input", () => { try { reduzierVorschau(); } catch (e) { applog("warn", "[gpxi] Reduzier-Vorschau: " + e); } }); }
   _on("gpxi-reduce-run", () => {

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="alternate" type="application/rss+xml" title="GPS Studio — Versions-Verlauf" href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml">
 <title>GPS Studio by reisezoom.com — Versions-Verlauf</title>
 <meta name="description" content="Alle Neuerungen in GPS Studio by reisezoom.com — was sich für dich in jeder Version geändert hat.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -107,6 +108,7 @@
   <h1>Versions-Verlauf</h1>
   <p class="lead">Was sich in jeder Version von <strong>GPS Studio by reisezoom.com</strong> geändert hat — kurz und ohne Technik-Kauderwelsch.</p>
   <a class="download-cta" href="https://reisezoom.com/reisezoom-gps-studio/" target="_blank" rel="noopener">📥 App herunterladen</a>
+<p style="text-align:center;margin-top:10px;font-size:13px"><a href="changelog.xml">📡 RSS-Feed abonnieren</a></p>
 <div class="clog-lang" style="display:flex;gap:6px;justify-content:center;margin-top:10px"><a href="changelog.html" style="font:700 13px/1 var(--sans);padding:6px 12px;border-radius:999px;text-decoration:none;background:var(--terra);color:#fff">DE</a><a href="changelog.en.html" style="font:700 13px/1 var(--sans);padding:6px 12px;border-radius:999px;text-decoration:none;background:var(--paper2);color:var(--muted)">EN</a><a href="changelog.es.html" style="font:700 13px/1 var(--sans);padding:6px 12px;border-radius:999px;text-decoration:none;background:var(--paper2);color:var(--muted)">ES</a></div>
 </header>
 
@@ -114,9 +116,81 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.646</span>
+    <span class="version-date">2. September 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Nachgeprüft: fünf Dinge, die nur fast stimmten.</p>
+
+  <div class="highlight">
+    <strong>⌚ Wer mit Uhr aufzeichnet, hatte keine echte Sicherheitskopie.</strong> Von einer Garmin- oder Suunto-Datei landete die Rohaufzeichnung unverändert in der Bibliothek — GPS Studio selbst konnte sie dort nicht mehr lesen. Ab jetzt wird beim Aufnehmen umgewandelt, und was schon falsch liegt, bringt die App beim nächsten Start einmalig in Ordnung — aus dem, was gespeichert ist. Die Originaldatei von damals brauchst du dafür nicht.
+  </div>
+
+  <ul>
+    <li><strong>Höhenmeter sind überall gleich.</strong> Archiv, Inspektor und Höhen-Animator zeigten für dieselbe Tour drei Zahlen. Es gilt jetzt überall die Rechnung des Archivs — geglättet, mit 3-Meter-Schwelle, je Etappe.</li>
+    <li><strong>Ein Projekt lässt sich auf eine andere Version stellen</strong> (🎬 an der Version), und einzelne Versionen kannst du exportieren (⬇) oder löschen (🗑). Das war versprochen, hatte aber keinen Knopf.</li>
+    <li><strong>Gepackte Touren (<code>.gpx.gz</code>) werden eingelesen</strong> — Strava-Exporte und viele Logger liefern genau das.</li>
+    <li><strong>Fehlende Kartenbilder holt die App wieder von selbst</strong>, nicht erst auf Knopfdruck.</li>
+    <li><strong>„Doppelte finden" sagt jetzt, was es tut:</strong> Es sind deine Dateien, sie wandern in den System-Papierkorb, und die Tour bleibt — die Bibliothek hat ihre eigene Kopie. Die bietet der Dialog nicht mehr zum Wegräumen an.</li>
+    <li>Das Vorschaubild in der Detailspalte fehlte manchmal, obwohl es da war.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.645</span>
+    <span class="version-date">2. September 2026</span>
+  </div>
+  <p class="version-tagline">Die Cloud spiegelt jetzt deine Bibliothek.</p>
+
+  <div class="highlight">
+    <strong>☁️ Die Cloud ist eine Kopie deiner Bibliothek.</strong> Vorher lud GPS Studio je Tour ein eigenes Paket hoch, in dem Verzeichnis, Sammlungen, Projekte und Fotos steckten — ein zweites Datenmodell neben dem echten. Jetzt geht schlicht hoch, was in deiner Bibliothek liegt: die Touren mit allen Versionen, deine Projekte und alles, was du selbst eingetragen hast. Verschlüsselt, bevor es dein Gerät verlässt.
+  </div>
+
+  <ul>
+    <li><strong>„Bibliothek aus der Cloud laden"</strong> richtet einen zweiten Rechner in einem Zug ein — Touren, Projekte, Sammlungen, Schlagworte. Vorhandenes wird nicht überschrieben.</li>
+    <li><strong>Geht die Datenbank verloren, genügt die Bibliothek.</strong> Die Touren werden daraus neu ins Archiv aufgenommen.</li>
+    <li><strong>„Fremdes entfernen"</strong> räumt weg, was nicht zu deiner Bibliothek gehört. Nie automatisch — bei zwei Rechnern heißt „kenne ich nicht" meistens „vom anderen Rechner".</li>
+    <li><strong>Ohne eingerichtete Cloud passiert weiterhin nichts.</strong> Kein Netz, kein Schlüsselbund.</li>
+    <li>Nicht hochgeladen werden: die Archiv-Datenbank (entsteht neu), Vorschau- und Kartenbilder (kommen von Mapbox) und deine Fotos.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.640</span>
+    <span class="version-date">2. September 2026</span>
+    
+  </div>
+  <p class="version-tagline">Deine Touren haben jetzt ein Zuhause.</p>
+
+  <div class="highlight">
+    <strong>📚 Die Bibliothek.</strong> GPS Studio bewahrt deine Touren ab jetzt an einem Ort auf, den du selbst bestimmst — mit einer eigenen Kopie jeder Tour. Beobachtete Ordner sind nur noch die Quelle: Räumst du draußen auf, bleibt deine Tour vollständig da. Beim ersten Start fragt die App in drei Schritten, wo die Bibliothek liegen soll; dein bisheriger Bestand zieht dabei von selbst um (vorher gesichert, und der alte Stand wird nur umbenannt, nie gelöscht).
+  </div>
+
+  <div class="highlight">
+    <strong>✋ GPS Studio schreibt nie mehr in deine Dateien.</strong> Heilst du eine Tour, entsteht daraus eine neue <em>Version</em> in deiner Bibliothek — deine Originaldatei bleibt unangetastet, auf das Byte genau. Brauchst du die geheilte Fassung auch außerhalb, exportierst du sie bewusst.
+  </div>
+
+  <div class="highlight">
+    <strong>🎯 Eine Kachel je Tour statt je Datei.</strong> Dieselbe Strecke als Komoot-Download, App-Import und geheilte Fassung war bisher dreimal im Archiv. Jetzt ist es eine Tour, erkennbar an „V3" (drei Versionen) und „2×" (aus zwei Dateien). Schlagworte, Favorit und dein eigener Name hängen an der Tour und überleben eine Heilung.
+  </div>
+
+  <ul>
+    <li><strong>Versionen frei wählbar.</strong> Ein Projekt bleibt auf seiner Version — nichts verrutscht, wenn du später heilst. Du kannst es jederzeit auf eine andere stellen, auch zurück.</li>
+    <li><strong>Öffnen legt kein Projekt mehr an.</strong> Ein Projekt entsteht erst, wenn du wirklich etwas einstellst. Damit ist Schluss mit Dutzenden leerer Karten namens „Standard".</li>
+    <li><strong>Löschen sagt Bescheid.</strong> Eine Tour, die in Projekten steckt, verschwindet nicht unbemerkt — du siehst, welche das sind, und entscheidest.</li>
+    <li><strong>„Fassung" heißt jetzt „Version".</strong></li>
+    <li><strong>Inspektor:</strong> „Nach Tempo einfärben" wirkte bei Touren über 2 000 Punkten nicht mehr — behoben.</li>
+    <li><strong>Das Cloud-Archiv ruht</strong>, solange der Umbau läuft. Hochgeladenes bleibt unangetastet; es kommt danach zurück.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.635</span>
     <span class="version-date">1. September 2026</span>
-    <span class="version-badge">Aktuell</span>
+    
   </div>
   <p class="version-tagline">Neuer Name, neues Zeichen.</p>
 
@@ -137,7 +211,7 @@
     <li><strong>Schwarm mit Pfeilen:</strong> Steht die Haupt-Tour auf „Pfeil in Fahrtrichtung", bekommen auf Wunsch alle Touren ihren eigenen mitdrehenden Pfeil.</li>
     <li><strong>Mehrere Projekte auf einmal löschen</strong> (⌘/Strg-Klick) — statt 27-mal einzeln.</li>
     <li><strong>Einzelne Datei ins Archiv</strong> und schnelleres Einlesen von Netzlaufwerken.</li>
-    <li>Dazu die spanische Oberfläche vervollständigt und ein Dutzend kleinerer Korrekturen aus den Tests von Dieter und Rafael.</li>
+    <li>Dazu die spanische Oberfläche vervollständigt und ein Dutzend kleinerer Korrekturen aus den Tests der Beta-Tester.</li>
   </ul>
 </article>
 
@@ -153,7 +227,7 @@
   </div>
 
   <div class="highlight">
-    <strong>⚡ Schnelleres Einlesen vom NAS.</strong> Der Archiv-Scan öffnete jede Track-Datei zweimal — auf einem Netzlaufwerk ist jede Öffnung ein Netz-Roundtrip. Jetzt wird jede Datei genau einmal gelesen; ein Tester-Hinweis („das Einlesen hat auffällig lange gedauert") hat das aufgedeckt. Danke, Dieter!
+    <strong>⚡ Schnelleres Einlesen vom NAS.</strong> Der Archiv-Scan öffnete jede Track-Datei zweimal — auf einem Netzlaufwerk ist jede Öffnung ein Netz-Roundtrip. Jetzt wird jede Datei genau einmal gelesen; ein Tester-Hinweis („das Einlesen hat auffällig lange gedauert") hat das aufgedeckt. Danke für den Hinweis!
   </div>
 
   <ul>
@@ -2669,7 +2743,7 @@
     <span class="version-num">v0.8.10</span>
     <span class="version-date">23. Mai 2026</span>
   </div>
-  <p class="version-tagline">Erste Version der Röhren-Track-Optik (Idee von Beta-Tester). Im v0.8.13-Update siehst du den finalen Stand — Röhre ist dort Eintrag im Linien-Stil-Dropdown.</p>
+  <p class="version-tagline">Erste Version der Röhren-Track-Optik (Idee eines Beta-Testers). Im v0.8.13-Update siehst du den finalen Stand — Röhre ist dort Eintrag im Linien-Stil-Dropdown.</p>
 </article>
 
 <article class="version">
@@ -2716,7 +2790,7 @@
   </div>
 
   <p style="margin-top:12px; font-size:13px; color:#666;">
-    Idee von Beta-Tester („Kamera Neigung und Rotation mit Keyframes beeinflussen") + Marcs Erweiterung mit dem Snapshot-Workflow. 🙏 — Die Grundlage ist gelegt: Foto-Inserts und Text-Overlays landen demnächst auf der gleichen Timeline.
+    Idee eines Beta-Testers („Kamera Neigung und Rotation mit Keyframes beeinflussen") + Marcs Erweiterung mit dem Snapshot-Workflow. 🙏 — Die Grundlage ist gelegt: Foto-Inserts und Text-Overlays landen demnächst auf der gleichen Timeline.
   </p>
 </article>
 
@@ -2818,7 +2892,7 @@
   </div>
 
   <p style="margin-top:12px; font-size:13px; color:#666;">
-    Idee von Beta-Tester — danke! 🙏
+    Idee eines Beta-Testers — danke! 🙏
   </p>
 </article>
 

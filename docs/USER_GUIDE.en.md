@@ -92,6 +92,70 @@ into HEIC.
 ---
 ---
 
+## 1a · Your library 📚 (since v0.9.640) ⭐
+
+**Where GPS Studio keeps your tours — and why it matters.**
+
+On the very first start, GPS Studio asks in three steps where your
+**library** should live. That is one folder holding everything: your tours,
+your projects, your collections. The default suits most people; if you need
+space, put it on an external drive or a NAS. You can move it later at any
+time (Settings → Library → *Move to another location*) — the app really
+moves it, it does not start over.
+
+**Cloud folders will not work.** Dropbox, iCloud Drive, OneDrive and Google
+Drive swap files out mid-write, which corrupts the database. GPS Studio
+refuses such locations and says why. External drives and network shares are
+fine.
+
+### What this means for your folders
+
+Your watched folders stay as they are — from now on they are the **source**
+new tours come from. Once a tour is in the archive, GPS Studio holds its own
+copy. Two consequences:
+
+* **Tidying up out there loses you nothing.** The tour stays in the archive,
+  just marked as having no source file any more. The *source missing* filter
+  finds those when you want to clean up.
+* **GPS Studio never writes to your files.** Healing a tour in the inspector
+  creates a new **version** in your library — your original file stays
+  untouched. If you need the healed file outside the app, use *Export
+  version …*.
+
+### When the library is not there
+
+If it lives on an external drive that is not connected, GPS Studio says so on
+start and offers *Search again* or *Choose another location*. It **never**
+silently creates an empty new library — your data is not gone, it is just
+out of reach.
+
+### Versions of a tour
+
+A tour can have several versions: as recorded, healed, trimmed. In the
+archive the card shows „V3" when there are three; the list is in the detail
+column. What matters for your videos:
+
+* **A project stays on its version.** Healing the tour later does not shift
+  anything in a finished video — signs and keyframes stay where you put them.
+* The project then offers *⬆ newer version* and you decide whether to move.
+  You can also switch **back** to an older version.
+* Versions no project uses can be deleted individually. The newest cannot —
+  it is the tour.
+
+Each version in the list carries up to four small buttons:
+
+| Button | What it does |
+| --- | --- |
+| ↩︎ | Bring this version back — it is placed at the end of the chain as the **newest** state, nothing is lost. |
+| 🎬 | Set a project to this version. A list opens with the projects attached to this tour and the version each one currently uses. |
+| ⬇ | Export this version as a GPX file — the way out, now that GPS Studio no longer writes into your files. |
+| 🗑 | Delete this version. If a project depends on it, nothing happens and the app tells you which one. |
+
+Clicking the row itself shows the figures of **that** version above —
+otherwise two versions of the same tour look identical.
+
+---
+
 ## 1b · Beginner's guide: from download to your first video 🚀
 
 This chapter is for your very first day. It runs straight through — install, load a track,
@@ -593,8 +657,14 @@ disk is **not** renamed.
 | ● (orange) | there are already saved projects for this tour |
 
 **Find duplicates:** the button at the bottom left groups files with an **identical route** —
-handy after a bulk export that downloaded the same tour several times. Nothing is deleted;
-you only get to see what is doubled up.
+handy after a bulk export that downloaded the same tour several times.
+
+Since the library exists this is **no longer a problem**: the archive shows
+one tour anyway and merely notes "2× files". Clearing up is only worth it if
+you want to save disk space. Ticked files go to **your system's trash** —
+they are your files, GPS Studio never deletes anything for good, and the tour
+stays either way because the library keeps its own copy. That copy is not
+listed here.
 
 **Import a single file (since v0.9.631):** a single GPX (or FIT, TCX,
 KML …) — say, freshly downloaded from Komoot — doesn't need a watched
@@ -1869,81 +1939,50 @@ The full roadmap is in the repo under `docs/IDEAS.md`.
 
 ---
 
-## Cloud archive — your archive on your own server (since v0.9.515)
+## Cloud archive — your library on your own server
 
-> **This is optional.** Without a cloud the app works exactly as before:
-> everything stays on your computer, there is no account and nothing to set up.
+**Optional. Without a cloud, GPS Studio works exactly the same — nothing goes
+online and the keychain is never touched.**
 
-If you want your archive on more than one computer — or want it back exactly as
-it was after reinstalling — you can put it on **your own web server**. Not ours:
-you keep your data.
+Since v0.9.640 the cloud is a **copy of your library**. What goes up: your
+tours (each version separately), the tour register, your projects, your own
+input (tags, favourites, notes, custom names, colours, collections) and the
+cover images you chose. Everything is encrypted before it leaves your machine.
 
-### Setting it up (once, about two minutes)
+**What does NOT go up:** the archive database (it is rebuilt from the tours),
+preview and map images (those come from Mapbox) and your photos — they are
+yours and never lived inside the app.
 
-1. Click the grey **☁** cloud in the top bar (or open **Settings → Cloud
-   archive**). The dialog contains the guide — and a button **“Put
-   rz-cloud.php on my desktop”** gives you the server file; it ships with the
-   app and always matches your app version.
-2. Upload that file **`rz-cloud.php`** into a folder of your web space, for
-   example `yoursite.com/archive/` — with your FTP program or your host’s file
-   manager. The web space only needs **PHP (7.4 or newer) and HTTPS**;
-   virtually every host has that. No database, no configuration.
-3. Enter the **address of that file** (`https://yoursite.com/archive/rz-cloud.php`).
-   The app tells you straight away whether it finds anything there.
-4. **Create a new archive** — and then the important part:
+### Second computer
 
-> ⚠️ **The app shows you a passphrase once.** It unlocks your data. Save it in
-> your password manager immediately. We do not know it and cannot restore it:
-> **if it is lost, nobody can reach the archive any more — not even us.**
+*Load library from the cloud* fetches everything missing there: tours,
+projects, collections, your input. Anything already present is not
+overwritten. Afterwards your archive looks like it does on the first machine.
 
-After that everything goes up by itself. A **☁** in the top bar shows the state:
-quiet when everything is in sync, with a counter while transferring.
+This is also your way back after a loss: if the database is gone, the library
+alone is enough — the tours are taken into the archive from it.
 
-### What goes up — and what does not
+### Setting it up
 
-**Yes:** tours, all tour data (name, note, tags, collections), the animator and
-tour-map projects, the geotagger settings, and thumbnails of the photos you
-placed in a project.
+You need any web space with **PHP 7.4 or newer** — nothing else, no database,
+no service, no subscription. In the settings GPS Studio puts the file
+**`rz-cloud.php`** on your desktop; upload it to your server and give the app
+its address. That is all.
 
-**No:** your original photos, finished videos, map images. Photos stay where they
-are — an archive is not a photo store.
+The server never sees your data: everything is encrypted on your machine
+before it goes up. It stores blobs whose names it cannot read. Only you have
+the key — it lives in your keychain. You need it for a second computer; the
+settings can show it to you.
 
-### A second computer
+### Tidying up
 
-There, choose **Settings → Cloud archive → Connect to an existing one**, enter
-the address, the access key and your passphrase. That is all: the archive
-appears, and tours arrive as you need them.
+*Remove unknown* discards whatever does not belong to your library — for
+instance data from an older version of GPS Studio. Two clicks, and it lands
+in the server's trash, not in nothing.
 
-### What the server sees
-
-**Nothing usable.** Everything is encrypted on your machine before it leaves.
-The server holds opaque names, file sizes and timestamps — no tour name, no
-place, no route. Even someone copying the entire web space gets encrypted blobs.
-
-### Trash, older versions, removing (since v0.9.532)
-
-**Sync never deletes anything.** If a tour only exists in the cloud (because
-you removed it from the archive here), the cloud dialog lists it under
-“Tours in the archive” — with **Fetch** and a **🗑** button. Only the second
-click on 🗑 removes it from the cloud, and even then only into the
-**trash on the server**.
-
-**Older versions.** When a tour is overwritten in the cloud (new name, new
-projects), the previous version stays in the trash as an “older version” —
-the last five per tour. **Restore** makes it the current version again. The
-trash cleans itself after 30 days (“Permanently delete older than 30 days”).
-
-**https:// only.** The address of `rz-cloud.php` must start with https — over
-http your access key would travel unencrypted. Practically every host offers
-https, often via “Let's Encrypt” with one click.
-
-### Journeys & swarms travel along (since v0.9.569)
-Your **compositions** — multi-tour journeys and swarms, including keyframes
-and settings — go to the cloud automatically as well. On the other machine you
-find them in the cloud dialog under **"Journeys & swarms"**: one click on
-**Fetch** brings any missing tours along and sets everything up ready to use.
-A composition that already exists on the machine is **never overwritten** —
-local work wins.
+**Nothing is ever deleted automatically.** With two computers, "up there but
+unknown here" usually means "from the other machine". Tidying up is always
+your explicit decision.
 
 ## 13 · Support & Contact
 

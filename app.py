@@ -106,6 +106,8 @@ from core import photos as cphotos  # v0.9.74: Foto-Pins für Animator + Tour-Ma
 from core import route as croute  # v0.9.205: Anreise/Flug-Route (Directions/Arc)
 from core import heightanim as cheight  # v0.9.92: Höhen-Animator-Modul (Phase 1, Skelett)
 from core import library as clib  # v0.9.486: Tour-Archiv (durchsuchbarer Track-Katalog)
+from core import bibliothek as cbib  # 02.09.2026: die Tour-Bibliothek (Wahrheit statt Datei-Index)
+from core import umzug as cumzug    # 02.09.2026: Altbestand → Bibliothek
 from core import tourmap_html as ctourhtml  # v0.9.406: Tour-Map → interaktiver Leaflet-HTML-Export
 from core import tourmap_leaflet as ctmleaflet  # v0.9.418: leichter Leaflet-Blog-Export (HTML-Modus)
 from core import sign_raster as csignraster  # v0.9.418: serverseitige Schild-Rasterung (WYSIWYG)
@@ -152,7 +154,15 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.635"
+APP_VERSION = "0.9.646"
+
+# ── Cloud ────────────────────────────────────────────────────────────────────
+# War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
+# dem Umbau auf „die Cloud ist eine Kopie der Bibliothek"
+# (`core/cloud/bibliothek.py`) läuft sie wieder. Die Konstante bleibt als
+# Not-Aus stehen — ein Wert, ein Schalter, falls wieder etwas Größeres an der
+# Datenbasis ansteht.
+CLOUD_STILLGELEGT = False
 
 # v0.9.431 — abschaltbarer „erstellt mit"-Backlink im Web-Karte-Export (Cross-Promo
 # + SEO-Backlink zur Webversion). URL an EINER Stelle → bei URL-Wechsel (z.B. Umzug
@@ -271,28 +281,71 @@ TOURMAPS_DIR = Path.home() / "Pictures" / "Reisezoom Tour Maps"
 SETTINGS_FILE = APP_SUPPORT / "settings.json"
 # v0.8.0: Sessions + Projekte (track-bound). Siehe core/sessions.py
 SESSIONS_FILE = APP_SUPPORT / "sessions.json"
-SESSIONS_GPX_DIR = APP_SUPPORT / "sessions"
+
+# ── Die Bibliothek (02.09.2026, docs/UMBAU-BIBLIOTHEK.md, Schnitt 1) ────────
+#
+# Bis hierher lagen Daten und Arbeitskram gemeinsam im App-Ordner. Ab jetzt
+# gilt die Trennung:
+#
+#   BIBLIOTHEK   deine Daten — Archiv-Datenbank, Projekte, Tour-Register,
+#                die Trackdateien selbst, Bilder, Arbeitsstände. Der Ort ist
+#                frei wählbar; ausgetauscht wird er über den Zeiger in
+#                APP_SUPPORT/bibliothek.json — die einzige Datei außerhalb.
+#   APP_SUPPORT  gehört zum RECHNER, nicht zu den Daten: Einstellungen
+#                (samt Mapbox-Konto), Protokolle, Renders, Umwandlungs-Cache,
+#                Foto-Vorschaubilder, Drag-&-Drop-Kopien.
+#
+# `BIB_ORT` ist None, solange nie ein Ort gewählt wurde — das ist der
+# Erststart, den das Onboarding abfängt. Ist ein Ort gesetzt, aber nicht
+# erreichbar (externe Platte ab, NAS weg), startet die App trotzdem und sagt
+# es; sie legt NIEMALS stillschweigend eine leere neue Bibliothek an.
+BIB_ORT: Optional[Path] = cbib.ort_lesen(APP_SUPPORT)
+BIB_ERSTSTART = BIB_ORT is None
+BIB = BIB_ORT or cbib.standard_ort(APP_SUPPORT)
+# Wird beim Start gesetzt (`_bib_oeffnen`). Solange False, verweigert `_lib()`
+# den Dienst und die Oberfläche zeigt den Grund.
+BIB_BEREIT = False
+BIB_PROBLEM: dict = {}
+# Projekte und Tour-Register gehören zu den Daten und liegen deshalb in der
+# Bibliothek. `core/projekte.py` bekommt diesen Ort statt APP_SUPPORT — die
+# 72 Aufrufstellen unterscheiden sich sonst in nichts.
+DATEN_ORT = BIB
+
+# Der Trackspeicher der Bibliothek. Hieß früher `sessions/` und lag im
+# App-Ordner; die Dateien heißen weiterhin nach dem `geo_hash` — eine Version
+# IST ihr Streckenverlauf, ein zweiter Schlüssel wäre nur eine weitere
+# Gelegenheit, dass zwei Wahrheiten auseinanderlaufen.
+SESSIONS_GPX_DIR = cbib.touren_ordner(BIB)
 # v0.9.282: gecachte GPX-Konvertate fremder Track-Formate (FIT/NMEA/KML/…)
 IMPORTS_DIR = APP_SUPPORT / "_imports"
+# Ausgepackte Versionen für alles, was einen echten Dateipfad braucht
+# (Render, Export, fremde Werkzeuge). Reiner Cache, jederzeit wegwerfbar —
+# deshalb im App-Ordner und nicht in der Bibliothek.
+GPX_CACHE_DIR = APP_SUPPORT / "_gpxcache"
 MERGED_DIR = APP_SUPPORT / "zusammengefuehrt"   # 23.08.2026 — zusammengeführte Mehr-Touren-Tracks
 # v0.9.486: Tour-Archiv — Index aller Touren aus den beobachteten Ordnern
-LIBRARY_DB = APP_SUPPORT / "library.db"
+LIBRARY_DB = cbib.db_pfad(BIB)
 # v0.9.526 — unsensible Cloud-Notiz („eingerichtet" + Adresse), damit die
 # ☁-Statusanzeige den Schlüsselbund nie anfassen muss (Marc-Report:
 # macOS-Passwortdialog bei jedem App-Start). Geheimnisse: NUR Schlüsselbund.
 CLOUD_MARKER = APP_SUPPORT / "cloud_zustand.json"
 CLOUD_PRUEFSUMMEN = APP_SUPPORT / "cloud_pruefsummen.json"   # 22.08.2026: Stempel → Prüfsumme
-LIBRARY_THUMBS = APP_SUPPORT / "library_thumbs"
+# Bilder gehören zu den Daten und ziehen mit der Bibliothek um — sonst zeigt
+# eine mitgenommene Bibliothek am zweiten Rechner leere Kacheln.
+LIBRARY_THUMBS = BIB / "bilder" / "vorschau"
 # v0.9.487: gecachte Karten-Vorschaubilder (einmal von Mapbox geladen)
 # und selbst gewählte Titelbilder.
-LIBRARY_MAP_THUMBS = APP_SUPPORT / "library_mapthumbs"
-LIBRARY_COVERS = APP_SUPPORT / "library_covers"
+LIBRARY_MAP_THUMBS = BIB / "bilder" / "karten"
+LIBRARY_COVERS = BIB / "bilder" / "titel"
 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
 BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
 DROPS_DIR.mkdir(parents=True, exist_ok=True)
 TOURMAPS_DIR.mkdir(parents=True, exist_ok=True)
-SESSIONS_GPX_DIR.mkdir(parents=True, exist_ok=True)
+# ⚠️ SESSIONS_GPX_DIR wird hier BEWUSST nicht angelegt: Es liegt in der
+# Bibliothek, und die darf beim Erststart oder bei abgezogener Platte nicht
+# nebenbei entstehen (siehe `_bib_oeffnen`).
 IMPORTS_DIR.mkdir(parents=True, exist_ok=True)
+GPX_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 cgpx.IMPORT_CACHE_DIR = str(IMPORTS_DIR)    # 22.08.2026: parse_gpx konvertiert Fremdformate selbst
 
 # v0.9.153: schützt den Zugriff auf pywebviews internen Drag&Drop-Pfad-Puffer
@@ -656,7 +709,7 @@ def _session_hashes() -> set:
     with _SESSION_HASHES_LOCK:
         if stempel == _SESSION_HASHES_STAMP and _SESSION_HASHES is not None:
             return _SESSION_HASHES
-    daten = _projekte.laden(APP_SUPPORT)
+    daten = _projekte.laden(DATEN_ORT)
     # E1: „hat Projekte" = alle Kontexte mit mindestens einem NICHT-auto-Projekt
     # plus alle bekannten Touren-Fakten (Punkt im Archiv wie bisher).
     menge = set((daten.get("touren") or {}).keys())
@@ -1113,22 +1166,46 @@ class Api:
                          _info.get("alt_datei"))
         except Exception:
             log.exception("E1-Migration fehlgeschlagen — Projekte-Store leer?")
-        # E2 (IDEAS §39): Tour-Register — Alt-Einträge bekommen UUID + Fassung 1.
-        try:
-            _projekte.register_lauf(APP_SUPPORT)
-        except Exception:
-            log.exception("Tour-Register-Lauf fehlgeschlagen")
-        # v0.9.524 — Cloud-Auto-Sync-Wächter (tut nichts, solange keine Cloud
-        # eingerichtet ist; fasst den Schlüsselbund erst bei echter Arbeit an).
-        self._cloud_auto_thread = None
-        self._cloud_auto_start()
-        self._render_thread: Optional[threading.Thread] = None
-        self._render_state = {"running": False, "progress": 0.0, "status": "", "output": "", "error": ""}
         # 22.08.2026 — EIN Start-Lock für Render/Scan/Karten: „läuft schon?"
         # prüfen und das Flag setzen passiert atomar. Vorher lagen beim
         # Animator ~260 Zeilen Validierung zwischen Prüfung und Flag — zwei
         # schnelle Klicks (oder Klick + Auto-Start) konnten zwei Läufe starten.
+        #
+        # ⚠️ MUSS vor `_bib_oeffnen()` stehen (02.09.2026, im Protokoll
+        # gefunden): Das Öffnen zieht das Archiv auf, das Archiv startet seine
+        # Hintergrundläufe, und der erste davon holt fehlende Kartenbilder —
+        # `library_map_thumbs_start` greift als Allererstes zu diesem Lock.
+        # Stand es weiter unten, endete der Lauf an drei von vier Starts mit
+        # `AttributeError: _start_lock`, und die Kartenbilder wurden nur noch
+        # von Hand nachgezogen.
         self._start_lock = threading.Lock()
+        # 02.09.2026 — Die Bibliothek MUSS vor allem anderen offen sein: Sie
+        # bestimmt, wo Archiv, Projekte und Tour-Register liegen. Ist sie es
+        # nicht (Erststart, Platte ab, belegt, defekt), läuft die App trotzdem
+        # an und erklärt es — sie fasst dann aber keine Daten an.
+        self._bib_oeffnen()
+        # Das Archiv holt sich die Tour-Zuordnung von hier (Schnitt 2).
+        clib.REGISTER_HOOK = self._register_fuer_archiv
+        clib.AUFNAHME_HOOK = self._archiv_aufnehmen
+        # E2 (IDEAS §39): Tour-Register — Alt-Einträge bekommen UUID + Fassung 1.
+        if BIB_BEREIT:
+            try:
+                _projekte.register_lauf(DATEN_ORT)
+            except Exception:
+                log.exception("Tour-Register-Lauf fehlgeschlagen")
+        # v0.9.524 — Cloud-Auto-Sync-Wächter (tut nichts, solange keine Cloud
+        # eingerichtet ist; fasst den Schlüsselbund erst bei echter Arbeit an).
+        # 02.09.2026: Während der Stilllegung startet er gar nicht erst —
+        # sonst liefe ein Thread, der alle 20 s in eine Datenbasis schaut,
+        # die gerade umgebaut wird.
+        self._cloud_auto_thread = None
+        if not CLOUD_STILLGELEGT:
+            self._cloud_auto_start()
+        else:
+            log.info("Cloud-Archiv stillgelegt (Bibliotheks-Umbau) — "
+                     "kein Abgleich, kein Wächter, kein Schlüsselbund-Zugriff")
+        self._render_thread: Optional[threading.Thread] = None
+        self._render_state = {"running": False, "progress": 0.0, "status": "", "output": "", "error": ""}
         # Tour-Karten-PNG-Worker (analog Animator, eigener Thread/State)
         self._tourmap_thread: Optional[threading.Thread] = None
         self._tourmap_state = {"running": False, "progress": 0.0, "status": "", "output": "", "error": ""}
@@ -1454,7 +1531,7 @@ class Api:
         try:
             source = {}
             if track_hash and project_id:
-                daten = _projekte.laden(APP_SUPPORT)
+                daten = _projekte.laden(DATEN_ORT)
                 source = (daten.get("projects") or {}).get(project_id) or {}
             if not source:
                 source = _load_settings()  # Fallback: globaler Scratch-Stand
@@ -1604,7 +1681,7 @@ class Api:
                 return {"ok": True, "unveraendert": True, "projekte": 0,
                         "ziel_hash": ziel_hash}
             with _projekte.LOCK:
-                daten = _projekte.laden(APP_SUPPORT)
+                daten = _projekte.laden(DATEN_ORT)
                 q_liste = [p for p in (daten.get("projects") or {}).values()
                            if p.get("kontext") == quelle_hash]
                 if not q_liste:
@@ -1643,7 +1720,7 @@ class Api:
                     daten["projects"].pop(pid, None)
                 if neu_aktiv:
                     daten.setdefault("aktiv", {})[ziel_hash] = neu_aktiv
-                _projekte.speichern(APP_SUPPORT, daten)
+                _projekte.speichern(DATEN_ORT, daten)
             q_stats = ((daten.get("touren") or {}).get(quelle_hash) or {}).get("stats") or {}
             z_stats = ((daten.get("touren") or {}).get(ziel_hash) or {}).get("stats") or {}
             log.info("session_projekte_uebernehmen: %s → %s, %d Projekt(e)",
@@ -1690,7 +1767,7 @@ class Api:
             ui_hash = _sessions.compute_track_hash(coords)
             # E1: gleicher Vertrag, neuer Store — Projekte statt Session.
             with _projekte.LOCK:
-                daten = _projekte.laden(APP_SUPPORT)
+                daten = _projekte.laden(DATEN_ORT)
                 track_hash = self._track_geo_hash(gpx_path) if gpx_path else ""
                 if not track_hash:
                     track_hash = _projekte.find_kontext_by_ui_hash(daten, ui_hash) or ui_hash
@@ -1708,7 +1785,7 @@ class Api:
                     daten, track_hash, coords, gpx_path or None,
                     SESSIONS_GPX_DIR, defaults, ui_hash=ui_hash,
                     snapshot_src=snap_src, rz_id=rz_id)
-                _projekte.speichern(APP_SUPPORT, daten)
+                _projekte.speichern(DATEN_ORT, daten)
             tour = (daten.get("touren") or {}).get(track_hash) or {}
             log.info("session_open_for_track: hash=%s name=%r active=%r",
                      track_hash, tour.get("name"), active_proj.get("name"))
@@ -1722,7 +1799,12 @@ class Api:
                     "gpx_snapshot_path": tour.get("gpx_snapshot_path", ""),
                 },
                 "active_project": active_proj,
-                "projects": _projekte.projekte_im(daten, track_hash),
+                # 02.09.2026 (Q15): Ist das Projekt noch schwebend, steht es in
+                # keiner Liste — es gibt es ja noch nicht. Für die Oberfläche
+                # gehört es trotzdem hinein, sonst stünde dort „keine Projekte",
+                # während oben eines aktiv ist.
+                "projects": (_projekte.projekte_im(daten, track_hash)
+                             or [dict(active_proj, is_active=True)]),
             }
         except Exception as e:
             log.exception("session_open_for_track failed")
@@ -1769,11 +1851,11 @@ class Api:
             # schlicht ein Projekt mit mehreren Tour-Referenzen (Q9/Q13); Q18a,
             # Selbstheilung, Ablauf-/Modus-Regeln leben in kontext_oeffnen_menge.
             with _projekte.LOCK:
-                daten = _projekte.laden(APP_SUPPORT)
+                daten = _projekte.laden(DATEN_ORT)
                 erg = _projekte.kontext_oeffnen_menge(
                     daten, pfade, hashes, ablauf, modus, pausen,
                     self._session_get_global_defaults())
-                _projekte.speichern(APP_SUPPORT, daten)
+                _projekte.speichern(DATEN_ORT, daten)
             schluessel = erg["kontext"]
             neu_angelegt = erg["neu"]
             aktiv = _projekte._aktives_projekt(daten, schluessel) or {}
@@ -1799,7 +1881,7 @@ class Api:
 
     def session_list_projects(self, track_hash: str) -> dict:
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             projekte = _projekte.projekte_im(daten, track_hash)
             if not projekte:
                 return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
@@ -1814,10 +1896,10 @@ class Api:
     @_mit_sessions_lock
     def session_set_active_project(self, track_hash: str, project_id: str) -> dict:
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             if not _projekte.set_active(daten, track_hash, project_id):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             active_proj = daten["projects"][project_id]
             log.info("session_set_active_project: hash=%s project=%r",
                      track_hash, active_proj.get("name"))
@@ -1836,14 +1918,14 @@ class Api:
         settings.json. Gefüllt → Duplikat des angegebenen Projekts.
         Macht das neue Projekt automatisch zum aktiven."""
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             if not _projekte.projekte_im(daten, track_hash):
                 return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
             defaults = self._session_get_global_defaults()
             proj = _projekte.create(daten, track_hash,
                                     name or _sessions.DEFAULT_PROJECT_NAME,
                                     defaults, copy_from_id=copy_from_id or None)
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             log.info("session_create_project: hash=%s name=%r dup_from=%s",
                      track_hash, proj.get("name"), copy_from_id or None)
             return {
@@ -1858,10 +1940,10 @@ class Api:
     def session_rename_project(self, track_hash: str, project_id: str,
                                 new_name: str) -> dict:
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             if not _projekte.rename(daten, project_id, new_name or "?"):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             return {"ok": True, "projects": _projekte.projekte_im(daten, track_hash)}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1869,10 +1951,10 @@ class Api:
     @_mit_sessions_lock
     def session_delete_project(self, track_hash: str, project_id: str) -> dict:
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             defaults = self._session_get_global_defaults()
             new_active = _projekte.delete(daten, track_hash, project_id, defaults)
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             log.info("session_delete_project: hash=%s id=%s → new-active=%r",
                      track_hash, project_id, new_active.get("name"))
             return {
@@ -1893,20 +1975,26 @@ class Api:
         ist hier eine zweite Sicherheits-Ebene (Frontend sollte sie eh
         nicht senden)."""
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             # Geotagger: photo-Refs filtern
             if module == "geotagger" and isinstance(patch, dict):
                 patch = {k: v for k, v in patch.items()
                          if k not in ("photos", "photo_paths", "loaded_photos")}
-            if not _projekte.update_settings(daten, track_hash, project_id, module, patch):
+            # 02.09.2026 (Q15): Ist das Projekt noch schwebend (leere Kennung),
+            # entsteht es GENAU HIER — bei der ersten echten Änderung.
+            if not _projekte.update_settings(daten, track_hash, project_id, module,
+                                             patch, defaults=self._projekt_defaults()):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
+            if not project_id:
+                p_neu = _projekte._aktives_projekt(daten, track_hash)
+                project_id = (p_neu or {}).get("id", "")
             # E3 (IDEAS §39): Arbeitsstand-Historie — gedrosselt (10 min),
             # damit nicht jeder Regler-Zug einen Stand anlegt.
             try:
                 pr = (daten.get("projects") or {}).get(project_id)
                 if pr:
-                    _projekte.stand_schreiben(APP_SUPPORT, pr)
+                    _projekte.stand_schreiben(DATEN_ORT, pr)
             except Exception:
                 log.exception("Projekt-Stand schreiben")
             return {"ok": True}
@@ -1921,15 +2009,16 @@ class Api:
         Animator + Tour-Map). Reserved-Keys (id, created_at) werden vom
         Backend gefiltert."""
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             # Reserved-Keys des neuen Modells zusätzlich schützen.
             if isinstance(patch, dict):
                 patch = {k: v for k, v in patch.items()
                          if k not in ("id", "created_at", "kontext", "geo_hashes",
                                       "gpx_paths", "status", "auto")}
-            if not _projekte.update_settings(daten, track_hash, project_id, None, patch):
+            if not _projekte.update_settings(daten, track_hash, project_id, None, patch,
+                                             defaults=self._projekt_defaults()):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -2027,8 +2116,520 @@ class Api:
     # Einlesen in einem eigenen Thread läuft). Geschrieben wird immer nur aus
     # einem Thread gleichzeitig — dafür sorgt `_lib_scan_running`.
 
+    # ── Die Bibliothek (02.09.2026, docs/UMBAU-BIBLIOTHEK.md) ──────────────
+
+    def _projekt_defaults(self) -> dict:
+        """Die Vorgaben, mit denen ein neues Projekt startet — dieselben, die
+        auch das schwebende Projekt beim Öffnen benutzt hat."""
+        try:
+            return self._session_get_global_defaults()
+        except Exception:
+            return {}
+
+    def _archiv_aufnehmen(self, conn) -> dict:
+        """Jede Tour im Archiv gehört vollständig in die Bibliothek.
+
+        02.09.2026 (docs/UMBAU-BIBLIOTHEK.md) — läuft nach jedem Einlesen und
+        holt zwei Dinge nach, ohne die die Bibliothek nur ein Index wäre:
+
+        1. **Die Kopie.** Fehlt sie, wird die Trackdatei komprimiert abgelegt.
+           Erst dadurch überlebt die Tour das Löschen ihrer Quelldatei.
+        2. **Die Tour-Kennung.** Eine Strecke, die noch in keinem Register
+           steht, bekommt eine — sonst hätte sie keine Identität, an der
+           Versionen, Schlagworte und Sammlungen hängen könnten.
+
+        Beides ist idempotent und still: Wer nichts Neues eingelesen hat,
+        merkt nichts davon.
+        """
+        zeilen = conn.execute(
+            "SELECT path, geo_hash, name FROM tracks "
+            "WHERE geo_hash != '' AND error = '' AND COALESCE(missing_since,'') = ''"
+        ).fetchall()
+        kopiert = 0
+        for r in zeilen:
+            gh = r["geo_hash"]
+            if cbib.version_datei(BIB, gh).is_file():
+                continue
+            quelle = Path(r["path"])
+            if not quelle.is_file():
+                continue
+            try:
+                # `umwandlung_cache`: FIT/TCX/KML werden vor dem Ablegen nach
+                # GPX gewandelt (siehe cbib._als_gpx). Der Cache ist derselbe,
+                # den auch das Einlesen benutzt — kein zweites Umwandeln.
+                cbib.version_ablegen(BIB, quelle, gh, umwandlung_cache=IMPORTS_DIR)
+                kopiert += 1
+            except Exception:       # noqa: BLE001 — eine Datei darf nicht alles anhalten
+                log.warning("Bibliothek: Kopie fehlgeschlagen für %s", quelle,
+                            exc_info=True)
+
+        neu_registriert = 0
+        with _projekte.LOCK:
+            daten = _projekte.laden(DATEN_ORT)
+            touren = daten.setdefault("touren", {})
+            jetzt = datetime.now().astimezone().isoformat(timespec="seconds")
+            for r in zeilen:
+                gh = r["geo_hash"]
+                if gh in touren:
+                    continue
+                touren[gh] = {
+                    "id": "tour_" + uuid.uuid4().hex[:12],
+                    "fassung": {"nr": 1, "erstellt": jetzt, "quelle": "import"},
+                    "name": r["name"] or "", "stats": {},
+                    "created_at": jetzt, "last_active_at": jetzt,
+                    "gpx_filenames_seen": [Path(r["path"]).name],
+                    "gpx_snapshot_path": f"touren/{gh[:2]}/{gh}.gpx.gz",
+                    "ui_hashes": [], "gpx_paths": [r["path"]],
+                }
+                neu_registriert += 1
+            if neu_registriert:
+                _projekte.speichern(DATEN_ORT, daten)
+        if kopiert or neu_registriert:
+            log.info("Bibliothek: %d Tour(en) kopiert, %d neu registriert",
+                     kopiert, neu_registriert)
+        return {"kopiert": kopiert, "registriert": neu_registriert}
+
+    @staticmethod
+    def _register_fuer_archiv() -> tuple:
+        """Das Archiv fragt hier nach der Tour-Zuordnung (Schnitt 2).
+
+        Rückgabe: (geo_hash → tour_id, tour_id → neuester geo_hash). Das
+        Register liegt in `touren.json`; scheitert das Lesen, ist einfach jede
+        Strecke ihre eigene Tour — dann sieht das Archiv aus wie früher,
+        statt gar nicht zu funktionieren.
+        """
+        try:
+            daten = _projekte.laden(DATEN_ORT)
+            register, hoechste, neueste = {}, {}, {}
+            for gh, e in (daten.get("touren") or {}).items():
+                tid = e.get("id") or ""
+                if not tid:
+                    continue
+                register[gh] = tid
+                # Eine draußen entstandene, noch unbestätigte Änderung darf
+                # NICHT stillschweigend die angezeigte Version werden (Q22).
+                # Sie gehört zur Tour, wartet aber auf eine Entscheidung.
+                if e.get("extern_unbestaetigt"):
+                    continue
+                nr = (e.get("fassung") or {}).get("nr", 1)
+                if tid not in hoechste or nr > hoechste[tid]:
+                    hoechste[tid] = nr
+                    neueste[tid] = gh
+            return register, neueste
+        except Exception:
+            log.exception("_register_fuer_archiv")
+            return {}, {}
+
+    @staticmethod
+    def _version_da(geo_hash: str) -> bool:
+        """Liegt diese Version in der Bibliothek?"""
+        try:
+            return cbib.version_datei(BIB, geo_hash).is_file()
+        except Exception:
+            return False
+
+    @staticmethod
+    def _version_pfad(geo_hash: str) -> Optional[Path]:
+        """Eine Version als gewöhnliche .gpx — für alles, was einen echten
+        Dateipfad braucht (Render, Export, fremde Werkzeuge).
+
+        Der Versionsspeicher hält die Daten komprimiert; hier werden sie bei
+        Bedarf in den Cache im App-Ordner ausgepackt. Der Cache ist jederzeit
+        wegwerfbar und gehört deshalb NICHT in die Bibliothek.
+        """
+        try:
+            quelle = cbib.version_datei(BIB, geo_hash)
+            if not quelle.is_file():
+                return None
+            ziel = GPX_CACHE_DIR / f"{geo_hash}.gpx"
+            if ziel.is_file() and ziel.stat().st_mtime >= quelle.stat().st_mtime:
+                return ziel
+            return cbib.version_auspacken(BIB, geo_hash, ziel)
+        except Exception:
+            log.exception("_version_pfad(%s)", geo_hash[:12])
+            return None
+
+    def _bib_oeffnen(self) -> None:
+        """Beim Start: Ort klären, Sperre nehmen, Datenbank prüfen.
+
+        Vier Ausgänge, und nur einer davon arbeitet weiter:
+
+        * `erststart` — noch nie ein Ort gewählt. Das Onboarding übernimmt.
+        * `fehlt` — Ort gesetzt, aber nicht da (externe Platte ab, NAS weg).
+          Die App startet trotzdem und sagt es. Sie legt **niemals**
+          stillschweigend eine leere neue Bibliothek an — das ist der Moment,
+          in dem Leute glauben, alles sei weg.
+        * `belegt` — eine zweite GPS-Studio-Instanz hat sie offen (Riegel 2).
+        * `defekt` — die Datenbank ist nicht lesbar (Riegel 3); es werden
+          Sicherungen angeboten.
+
+        Ein Altbestand im App-Ordner zieht **von selbst** um. Wer aktualisiert,
+        soll kein Werkzeug suchen müssen (Marc, 02.09.2026).
+        """
+        global BIB, DATEN_ORT, BIB_BEREIT, BIB_PROBLEM
+        global SESSIONS_GPX_DIR, LIBRARY_DB, LIBRARY_THUMBS, LIBRARY_MAP_THUMBS, LIBRARY_COVERS
+        self._bib_umzug_bericht = getattr(self, "_bib_umzug_bericht", {})
+
+        ort = BIB_ORT
+        if ort is None:
+            # Kein Zeiger. Zwei sehr verschiedene Fälle.
+            if cumzug.noetig(APP_SUPPORT):
+                # Aktualisierung: Der Bestand liegt noch im App-Ordner.
+                log.info("Bibliothek: Altbestand gefunden — Umzug läuft an")
+                ziel = cbib.standard_ort(APP_SUPPORT)
+                bericht = cumzug.ausfuehren(APP_SUPPORT, ziel)
+                self._umzug_bericht_merken(bericht, ziel)
+                if not bericht.get("ok"):
+                    BIB_PROBLEM = {"art": "umzug", "bericht": bericht}
+                    log.error("Bibliothek: Umzug fehlgeschlagen — %s", bericht.get("probleme"))
+                    return
+                log.info("Bibliothek: Umzug fertig → %s", ziel)
+                ort = ziel
+            else:
+                BIB_PROBLEM = {"art": "erststart",
+                               "vorschlag": str(cbib.standard_ort(APP_SUPPORT))}
+                log.info("Bibliothek: Erststart — warte auf Ortswahl")
+                return
+
+        ort = Path(ort)
+        if not ort.is_dir() or not cbib.ist_bibliothek(ort):
+            BIB_PROBLEM = {"art": "fehlt", "ort": str(ort)}
+            log.warning("Bibliothek nicht erreichbar: %s", ort)
+            return
+
+        sp = cbib.sperre_nehmen(ort)
+        if not sp.get("ok"):
+            BIB_PROBLEM = {"art": "belegt", "ort": str(ort),
+                           "belegt_von": sp.get("belegt_von") or {}}
+            log.warning("Bibliothek ist von einer anderen Instanz belegt: %s", ort)
+            return
+
+        if not cbib.db_heil(cbib.db_pfad(ort)):
+            BIB_PROBLEM = {"art": "defekt", "ort": str(ort),
+                           "sicherungen": cbib.sicherungen(ort)}
+            log.error("Bibliothek: Datenbank nicht lesbar — %s", cbib.db_pfad(ort))
+            return
+
+        cbib.anlegen(ort)                       # idempotent, legt Unterordner an
+        BIB = ort
+        DATEN_ORT = ort
+        SESSIONS_GPX_DIR = cbib.touren_ordner(ort)
+        LIBRARY_DB = cbib.db_pfad(ort)
+        LIBRARY_THUMBS = ort / "bilder" / "vorschau"
+        LIBRARY_MAP_THUMBS = ort / "bilder" / "karten"
+        LIBRARY_COVERS = ort / "bilder" / "titel"
+        for d in (LIBRARY_THUMBS, LIBRARY_MAP_THUMBS, LIBRARY_COVERS):
+            d.mkdir(parents=True, exist_ok=True)
+        BIB_PROBLEM = {}
+        BIB_BEREIT = True
+        log.info("Bibliothek offen: %s", ort)
+        # 02.09.2026, nach dem ersten Umzug auf einem echten Rechner: Zwei
+        # Dinge müssen beim ÖFFNEN passieren, nicht erst beim nächsten
+        # Einlesen — sonst sieht das Archiv bis dahin falsch aus.
+        #   1. Bildpfade: Die Dateien sind umgezogen, die absoluten Pfade in
+        #      der Datenbank nicht. Ohne das steht überall ein Fragezeichen.
+        #   2. Tour-Zuordnung: Ohne sie ist `tour_id` leer, jede Kachel zählt
+        #      alle Dateien („717×") und Duplikate verschmelzen nicht.
+        try:
+            self._bib_nachziehen()
+        except Exception:
+            log.exception("Bibliothek: Nachziehen nach dem Öffnen")
+        # Sicherung NACH dem Öffnen, damit sie den Start nicht verzögert.
+        threading.Thread(target=self._bib_sichern_still, daemon=True,
+                         name="bib-sicherung").start()
+
+    def _umzug_bericht_merken(self, bericht: dict, ziel) -> None:
+        """Den Umzugsbericht behalten — im Speicher UND in der Bibliothek.
+
+        02.09.2026: Er wird beim Start einmal gezeigt. Danach wäre er weg,
+        obwohl er die einzige Auskunft darüber ist, was mit den Daten passiert
+        ist — welche Posten wohin gewandert sind und wo die Sicherung liegt.
+        Deshalb liegt er ab jetzt in der Bibliothek und ist über die
+        Einstellungen jederzeit wieder aufrufbar.
+        """
+        self._bib_umzug_bericht = bericht
+        if not bericht.get("ok"):
+            return
+        try:
+            (Path(ziel) / "umzug-bericht.json").write_text(
+                json.dumps(bericht, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError:
+            log.warning("Umzugs-Bericht nicht ablegbar")
+
+    def _bib_nachziehen(self) -> None:
+        """Was nach dem Öffnen einer Bibliothek einmal laufen muss.
+
+        Beides idempotent und schnell (bei 717 Touren zusammen deutlich unter
+        einer Sekunde), deshalb ohne Bedingung bei jedem Start.
+        """
+        conn = self._lib()
+        r = cumzug.bildpfade_richten(conn, APP_SUPPORT, BIB)
+        if r.get("geaendert"):
+            log.info("Bibliothek: %d Bildpfade auf den neuen Ort umgeschrieben",
+                     r["geaendert"])
+        # 02.09.2026, auf einem echten Rechner aufgefallen: Nach einem Rollback
+        # stand dieselbe Version zweimal im Archiv — als Datei des Nutzers UND
+        # als unsere Kopie in der Bibliothek. Die Kachel meldete „3×" für eine
+        # Tour, die an zwei Orten liegt. Solche Doppelten hier einmal wegräumen;
+        # neue entstehen nicht mehr (siehe clib.version_aufnehmen).
+        doppelt = conn.execute(
+            "DELETE FROM tracks WHERE COALESCE(speicher,0) = 1 AND geo_hash IN ("
+            "  SELECT geo_hash FROM tracks WHERE COALESCE(speicher,0) = 0"
+            "  AND error = '' AND geo_hash != '')").rowcount or 0
+        if doppelt:
+            conn.commit()
+            log.info("Bibliothek: %d doppelte Versionszeile(n) entfernt", doppelt)
+        # 02.09.2026, beim Cloud-Live-Test gefunden: Ein zweiter Rechner hatte
+        # nach dem Herunterladen alle Touren als Datei in der Bibliothek —
+        # und ein LEERES Archiv. Archivzeilen entstanden bis dahin nur beim
+        # Einlesen beobachteter Ordner; die gibt es dort nicht.
+        #
+        # Also: Jede Version im Speicher, zu der keine Zeile gehört, wird
+        # aufgenommen. Das ist auch der Rettungsweg, wenn die Datenbank
+        # verloren geht — die Bibliothek allein genügt.
+        neu_aus_speicher = 0
+        nicht_lesbar = 0
+        bekannt = {z[0] for z in conn.execute(
+            "SELECT geo_hash FROM tracks WHERE geo_hash != ''")}
+        # ⚠️ NUR auf einem LEEREN Archiv. Das ist der Rettungsfall: zweiter
+        # Rechner nach dem Herunterladen, oder Datenbank verloren — dann ist
+        # die Bibliothek die einzige Quelle und jede Version muss herhalten.
+        #
+        # Auf einem Rechner, der sein Archiv schon hat, wäre es falsch: Der
+        # Speicher enthält auch ÄLTERE Stände, und die sind Versionen einer
+        # Tour, keine eigenen Touren. Beim ersten Anlauf ohne diese Bedingung
+        # wurden aus 711 Touren 740 — zehn davon derselbe Wandertag in zehn
+        # Fassungen, jede als eigene Kachel.
+        leeres_archiv = not bekannt
+        for datei in (sorted(cbib.touren_ordner(BIB).rglob("*.gpx.gz"))
+                      if leeres_archiv else []):
+            gh = datei.name[:-len(".gpx.gz")]
+            if gh in bekannt:
+                continue
+            try:
+                r = clib.version_aufnehmen(conn, datei, LIBRARY_THUMBS, IMPORTS_DIR,
+                                           LIBRARY_MAP_THUMBS, LIBRARY_COVERS)
+            except Exception:       # noqa: BLE001
+                log.exception("Version aufnehmen: %s", datei.name)
+                r = {"ok": False}
+            if r.get("ok"):
+                neu_aus_speicher += 1
+            else:
+                nicht_lesbar += 1
+        if neu_aus_speicher or nicht_lesbar:
+            log.info("Bibliothek: %d Version(en) aus dem Speicher ins Archiv "
+                     "aufgenommen, %d nicht lesbar", neu_aus_speicher, nicht_lesbar)
+
+        try:
+            self._versionen_gpx_pruefen(conn)
+        except Exception:
+            log.exception("Bibliothek: GPX-Prüfung der Versionen")
+
+        offen = conn.execute(
+            "SELECT COUNT(*) FROM tracks WHERE geo_hash != '' "
+            "AND COALESCE(tour_id,'') = ''").fetchone()[0]
+        if offen or doppelt or neu_aus_speicher:
+            self._archiv_aufnehmen(conn)
+            reg, neu = self._register_fuer_archiv()
+            z = clib.touren_bestimmen(conn, reg, neu)
+            log.info("Bibliothek: Tour-Zuordnung nachgeholt — %s", z)
+
+    def _versionen_gpx_pruefen(self, conn) -> None:
+        """Einmal je Bibliothek: Liegen in allen Versionen wirklich GPX-Daten?
+
+        02.09.2026, beim Audit gefunden: `version_ablegen` packte die
+        Quelldatei byte-genau. Bei einer `.fit` lag danach ein FIT-Rohblock
+        unter dem Namen `<version>.gpx.gz` in der Bibliothek — für uns nicht
+        lesbar, für einen zweiten Rechner nicht aufnehmbar, und die Cloud
+        spiegelte ihn mit. Neue können seit heute nicht mehr entstehen
+        (`cbib._als_gpx`); die vorher abgelegten werden hier repariert.
+
+        Repariert wird aus der Quelldatei, falls sie noch erreichbar ist.
+        Ist sie es nicht, bleibt die Datei liegen (nichts wird gelöscht, was
+        vielleicht doch noch zu retten ist) und wandert ins Protokoll.
+        """
+        if cbib.stempel_lesen(BIB, "gpx_geprueft"):
+            return
+        t0 = time.time()
+
+        def quelle_fuer(vid: str):
+            r = conn.execute(
+                "SELECT path FROM tracks WHERE geo_hash = ? AND error = '' "
+                "AND COALESCE(speicher,0) = 0 LIMIT 1", (vid,)).fetchone()
+            return r["path"] if r else None
+
+        r = cbib.versionen_reparieren(BIB, quelle_fuer, umwandlung_cache=IMPORTS_DIR)
+        cbib.stempel_setzen(BIB, "gpx_geprueft", 1)
+        if r["kaputt"]:
+            log.warning("Bibliothek: %d Version(en) enthielten kein GPX — "
+                        "%d repariert, %d ohne erreichbare Quelle (%s)",
+                        len(r["kaputt"]), r["repariert"], len(r["offen"]),
+                        ", ".join(v[:12] for v in r["offen"][:10]))
+            if r["offen"]:
+                cbib.stempel_setzen(BIB, "gpx_kaputt", r["offen"][:200])
+        log.info("Bibliothek: Versionen auf GPX geprüft (%.1f s, %d kaputt)",
+                 time.time() - t0, len(r["kaputt"]))
+
+    def _bib_sichern_still(self) -> None:
+        try:
+            z = cbib.db_sichern(BIB)
+            if z:
+                log.info("Bibliothek: Sicherung angelegt (%s)", z.name)
+        except Exception:
+            log.exception("Bibliothek: Sicherung fehlgeschlagen")
+
+    def _bib_schliessen(self) -> None:
+        """Sperre freigeben. Muss beim Beenden laufen, sonst hält ein
+        Absturzrest die Bibliothek bis zum Verfall belegt."""
+        try:
+            if BIB_BEREIT:
+                cbib.sperre_freigeben(BIB)
+        except Exception:
+            pass
+
+    def bibliothek_status(self) -> dict:
+        """Die Oberfläche fragt das als Allererstes. Ist `bereit` falsch,
+        zeigt sie statt des Archivs eine Erklärung mit Auswegen."""
+        d = {"bereit": BIB_BEREIT, "ort": str(BIB), "problem": BIB_PROBLEM,
+             "erststart": BIB_ERSTSTART}
+        b = getattr(self, "_bib_umzug_bericht", None)
+        if not b and BIB_BEREIT:
+            # Nach einem Neustart liegt der Bericht nur noch in der Bibliothek.
+            try:
+                b = json.loads((BIB / "umzug-bericht.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                b = None
+        if b:
+            d["umzug"] = b
+        if BIB_BEREIT:
+            try:
+                d["platz"] = cbib.platz_bericht(BIB)
+            except Exception:
+                pass
+        return d
+
+    def bibliothek_pruefen(self, pfad: str) -> dict:
+        """Taugt dieser Ort? Für den Auswahldialog — ohne etwas anzulegen."""
+        try:
+            return cbib.pruefen(Path(pfad))
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def bibliothek_ordner_waehlen(self) -> dict:
+        """Ordnerauswahl öffnen und den gewählten Ort gleich prüfen."""
+        try:
+            # `pick_file("folder")` ist der Ordner-Dialog dieser App und liefert
+            # IMMER eine Liste. Ein `pick_folder()` gibt es nicht — genau daran
+            # ist „An anderen Ort verschieben" beim ersten Test gescheitert.
+            gewaehlt = self.pick_file("folder")
+            if not gewaehlt:
+                return {"ok": False, "cancelled": True}
+            pfad = gewaehlt[0]
+            res = cbib.pruefen(Path(pfad))
+            res["pfad"] = str(pfad)
+            return res
+        except Exception as e:
+            log.exception("bibliothek_ordner_waehlen")
+            return {"ok": False, "error": str(e)}
+
+    def bibliothek_festlegen(self, pfad: str) -> dict:
+        """Den Ort festlegen — beim Erststart und beim späteren Wechsel.
+
+        Liegt noch Altbestand im App-Ordner, zieht er hierher um. Sonst wird
+        eine leere Bibliothek angelegt beziehungsweise eine vorhandene
+        geöffnet."""
+        global BIB_ORT
+        try:
+            ziel = Path(pfad).expanduser()
+            pr = cbib.pruefen(ziel)
+            if not pr.get("ok"):
+                return pr
+            if cumzug.noetig(APP_SUPPORT) and not cbib.ist_bibliothek(ziel):
+                bericht = cumzug.ausfuehren(APP_SUPPORT, ziel)
+                self._umzug_bericht_merken(bericht, ziel)
+                if not bericht.get("ok"):
+                    return {"ok": False, "umzug": bericht}
+            else:
+                r = cbib.anlegen(ziel)
+                if not r.get("ok"):
+                    return r
+                cbib.ort_schreiben(APP_SUPPORT, ziel)
+            BIB_ORT = ziel
+            self._lib_conn = None
+            self._bib_oeffnen()
+            return {"ok": BIB_BEREIT, "status": self.bibliothek_status()}
+        except Exception as e:
+            log.exception("bibliothek_festlegen")
+            return {"ok": False, "error": str(e)}
+
+    def bibliothek_erneut(self) -> dict:
+        """„Erneut suchen" — nachdem die Platte wieder dran ist."""
+        global BIB_PROBLEM
+        try:
+            BIB_PROBLEM = {}
+            self._lib_conn = None
+            self._bib_oeffnen()
+            return {"ok": BIB_BEREIT, "status": self.bibliothek_status()}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def bibliothek_sicherungen(self) -> dict:
+        try:
+            ort = Path(BIB_PROBLEM.get("ort") or BIB)
+            return {"ok": True, "sicherungen": cbib.sicherungen(ort)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def bibliothek_wiederherstellen(self, datei: str) -> dict:
+        """Riegel 3: eine Sicherung zurückholen. Die kaputte Datenbank wird
+        beiseitegelegt, nicht gelöscht."""
+        try:
+            ort = Path(BIB_PROBLEM.get("ort") or BIB)
+            r = cbib.db_wiederherstellen(ort, datei)
+            if not r.get("ok"):
+                return r
+            return self.bibliothek_erneut()
+        except Exception as e:
+            log.exception("bibliothek_wiederherstellen")
+            return {"ok": False, "error": str(e)}
+
+    def bibliothek_umziehen(self, pfad: str) -> dict:
+        """Die Bibliothek an einen anderen Ort verschieben — echt verschieben."""
+        global BIB_ORT
+        try:
+            ziel = Path(pfad).expanduser()
+            if not BIB_BEREIT:
+                return {"ok": False, "error": _ui_t()(
+                    "bib.nicht_offen", "Die Bibliothek ist gerade nicht geöffnet.")}
+            try:
+                if getattr(self, "_lib_conn", None) is not None:
+                    self._lib_conn.close()
+            except Exception:
+                pass
+            self._lib_conn = None
+            cbib.sperre_freigeben(BIB)
+            r = cbib.umziehen(BIB, ziel)
+            if not r.get("ok"):
+                self._bib_oeffnen()          # zurück an den alten Ort
+                return r
+            cbib.ort_schreiben(APP_SUPPORT, ziel)
+            BIB_ORT = ziel
+            self._bib_oeffnen()
+            return {"ok": BIB_BEREIT, "status": self.bibliothek_status()}
+        except Exception as e:
+            log.exception("bibliothek_umziehen")
+            return {"ok": False, "error": str(e)}
+
     def _lib(self):
         if getattr(self, "_lib_conn", None) is None:
+            # Nur beim ÖFFNEN prüfen: Eine bereits offene Verbindung ist eine
+            # offene Verbindung — der Zustand der Bibliothek ändert daran
+            # nichts. (Im Test aufgefallen: sonst verweigert die App auch dort
+            # den Dienst, wo die Verbindung ausdrücklich gesetzt wurde.)
+            if not BIB_BEREIT:
+                # Nicht raten: Ohne Bibliothek gibt es kein Archiv. Die
+                # Oberfläche zeigt den Grund aus `bibliothek_status()`.
+                raise RuntimeError("bibliothek-nicht-bereit")
             self._lib_conn = clib.open_db(LIBRARY_DB)
             self._lib_startup_jobs()
         return self._lib_conn
@@ -2063,13 +2664,6 @@ class Api:
                              res["geloescht"], res.get("bytes", 0) / 2**30)
             except Exception:
                 log.exception("drops aufraeumen")
-            # E3 (IDEAS §39): track_backups aus v0.9.594 als erste
-            # Fassungseinträge adoptieren — läuft idempotent (bekannte
-            # geo_hashes werden übersprungen) im Hintergrund.
-            try:
-                self._fassungs_backups_adoptieren()
-            except Exception:
-                log.exception("Fassungs-Backups adoptieren")
             try:
                 self.library_map_thumbs_start(auto=True)
             except Exception:
@@ -2254,8 +2848,85 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def library_dateien_waehlen(self) -> dict:
+        """Nur den Dateidialog öffnen — ohne zu importieren.
+
+        02.09.2026: Nötig, weil zwischen Auswahl und Import jetzt die Frage
+        steht, ob GPS Studio eine der Dateien schon kennt.
+        """
+        try:
+            exts = sorted({".gpx"} | set(cimports.IMPORT_EXTS) - clib.MEHRDEUTIGE_EXTS)
+            ft = ("Track-Dateien (" + ";".join("*" + e for e in exts) + ")",)
+            paths = self.pick_file("open", ft, multiple=True)
+            if not paths:
+                return {"ok": False, "cancelled": True}
+            return {"ok": True, "paths": [str(x) for x in paths]}
+        except Exception as e:
+            log.exception("library_dateien_waehlen")
+            return {"ok": False, "error": str(e)}
+
+    def library_import_pruefen(self, paths: list) -> dict:
+        """Kennt GPS Studio diese Dateien schon? (02.09.2026, Abschnitt 6)
+
+        Wird VOR dem Kopieren gefragt. Bis hierher rutschte eine bereits
+        bekannte Tour stillschweigend durch — genau der Fall, der Marc am
+        Morgen des 02.09. stutzen ließ: Eine „neu importierte" Masca war in
+        Wahrheit die ungeheilte Version 0 einer Tour, die längst im Archiv lag.
+
+        Drei Ausgänge je Datei:
+          * `neu`         — unbekannte Strecke, wird ohne Rückfrage aufgenommen.
+          * `im_archiv`   — dieselbe Strecke liegt schon als Tour da.
+          * `nur_version` — die Strecke ist als ältere VERSION einer Tour
+                            bekannt, hat aber keine eigene Archivzeile.
+        """
+        try:
+            conn = self._lib()
+            daten = _projekte.laden(DATEN_ORT)
+            touren = daten.get("touren") or {}
+            out = []
+            for roh in (paths or []):
+                pfad = str(roh)
+                eintrag = {"pfad": pfad, "name": Path(pfad).name, "art": "neu"}
+                try:
+                    gh = self._track_geo_hash(pfad)
+                except Exception:
+                    gh = ""
+                eintrag["geo_hash"] = gh
+                if not gh:
+                    out.append(eintrag)
+                    continue
+                zeile = conn.execute(
+                    "SELECT path, name, display_name, tour_id FROM tracks "
+                    "WHERE geo_hash = ? AND error = '' LIMIT 1", (gh,)).fetchone()
+                t = touren.get(gh)
+                if zeile is not None:
+                    eintrag["art"] = "im_archiv"
+                    eintrag["tour_name"] = (zeile["display_name"] or zeile["name"] or "")
+                    eintrag["tour_pfad"] = zeile["path"]
+                elif t is not None:
+                    eintrag["art"] = "nur_version"
+                    eintrag["tour_name"] = t.get("name") or ""
+                if t is not None and t.get("id"):
+                    kette = _projekte.kette(daten, t["id"])
+                    eintrag["version_nr"] = (t.get("fassung") or {}).get("nr", 1)
+                    eintrag["versionen"] = len(kette)
+                    neuester = _projekte.neueste_fassung(daten, t["id"])
+                    eintrag["ist_neueste"] = (neuester == gh)
+                    n_e = (touren.get(neuester) or {}).get("fassung") or {}
+                    eintrag["neueste_nr"] = n_e.get("nr", 1)
+                    eintrag["neueste_quelle"] = n_e.get("quelle", "")
+                    eintrag["neueste_erstellt"] = n_e.get("erstellt", "")
+                    if not eintrag.get("tour_name"):
+                        eintrag["tour_name"] = t.get("name") or ""
+                out.append(eintrag)
+            return {"ok": True, "dateien": out,
+                    "bekannt": sum(1 for e in out if e["art"] != "neu")}
+        except Exception as e:
+            log.exception("library_import_pruefen")
+            return {"ok": False, "error": str(e)}
+
     def library_import_files(self, paths: list | None = None) -> dict:
-        """30.08.2026 (Marc-OK, nach Dieters Komoot-Fall): EINZELNE
+        """30.08.2026 (Marc-OK, nach der Komoot-Fall eines Beta-Testers): EINZELNE
         Track-Dateien direkt ins Archiv. Ohne `paths` öffnet der Datei-Dialog
         (Mehrfachauswahl). Die Dateien werden in den app-verwalteten
         Import-Ordner KOPIERT (Original bleibt unangetastet), der Ordner wird
@@ -2848,10 +3519,95 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def library_trash(self, path: str) -> dict:
-        """Datei in den Papierkorb legen und aus dem Archiv nehmen.
-        Bewusst Papierkorb statt endgültig — ein Fehlgriff bleibt rückholbar."""
+    def tour_projekte(self, path: str) -> dict:
+        """Welche Projekte hängen an dieser Tour? (02.09.2026, Q31/Q35)
+
+        Über die GANZE Versionskette — ein auf Version 1 gepinntes Projekt
+        gehört genauso zu dieser Tour wie eines auf Version 3.
+        """
         try:
+            conn = self._lib()
+            r = conn.execute("SELECT tour_id FROM tracks WHERE path = ?", (path,)).fetchone()
+            tid = (r["tour_id"] if r and "tour_id" in r.keys() else "") or ""
+            hashes = {z["geo_hash"] for z in conn.execute(
+                "SELECT DISTINCT geo_hash FROM tracks WHERE tour_id = ?", (tid,)).fetchall()} \
+                if tid else set()
+            if not hashes:
+                r2 = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?", (path,)).fetchone()
+                hashes = {r2["geo_hash"]} if r2 else set()
+            daten = _projekte.laden(DATEN_ORT)
+            treffer = []
+            for pid, pr in (daten.get("projects") or {}).items():
+                if not (set(pr.get("geo_hashes") or []) & hashes
+                        or pr.get("kontext") in hashes):
+                    continue
+                if pr.get("auto") and not _projekte.modul_arbeit_irgendwo(pr):
+                    continue          # leerer Arbeitsstand hält nichts fest
+                # 02.09.2026, Audit: WELCHE Version dieses Projekt benutzt.
+                # Ohne das kann die Oberfläche das Umstellen nicht anbieten —
+                # `projekt_version_setzen` braucht die alte Version als Anker.
+                eigene = sorted(set(pr.get("geo_hashes") or []) & hashes) \
+                    or ([pr["kontext"]] if pr.get("kontext") in hashes else [])
+                gh_p = eigene[0] if eigene else ""
+                nr = ((daten.get("touren") or {}).get(gh_p, {})
+                      .get("fassung") or {}).get("nr", 1) if gh_p else 0
+                treffer.append({"id": pid, "name": pr.get("name") or "",
+                                "gh": gh_p, "version": nr,
+                                "geaendert": (pr.get("modified_at")
+                                              or pr.get("created_at") or "")[:10]})
+            # 02.09.2026, beim Durchtesten gesehen: Der Löschdialog listete
+            # „Standard, Standard, Standard, …" — so weiß niemand, was er
+            # löscht. Gleichnamige bekommen ihr Datum dazu.
+            namen = [t["name"] for t in treffer]
+            for t in treffer:
+                if namen.count(t["name"]) > 1 and t["geaendert"]:
+                    d = t["geaendert"]
+                    t["name"] = f'{t["name"]} ({d[8:10]}.{d[5:7]}.{d[0:4]})'
+            return {"ok": True, "projekte": treffer, "tour_id": tid}
+        except Exception as e:
+            log.exception("tour_projekte")
+            return {"ok": False, "error": str(e)}
+
+    def library_trash(self, path: str, mit_projekten: bool = False) -> dict:
+        """Eine Tour wegwerfen. Papierkorb statt endgültig — ein Fehlgriff
+        bleibt rückholbar.
+
+        02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Q35): Steckt die Tour in
+        Projekten, wird das VERWEIGERT und gesagt, in welchen. Es gibt einen
+        zweiten, ausdrücklichen Weg (`mit_projekten=True`), der Tour und
+        Projekte zusammen entfernt. Damit gilt durchgehend: Ein Projekt hat
+        immer seine Daten — es gibt keinen Zustand, in dem eines beim Öffnen
+        ins Leere greift.
+        """
+        try:
+            # 02.09.2026, Audit: Dieser Weg wirft die DATEI DES NUTZERS weg.
+            # Auf unsere eigene Kopie in der Bibliothek darf er nie zeigen —
+            # das wäre kein Aufräumen, sondern der Verlust der Tour. Wer eine
+            # Version loswerden will, nimmt `tour_version_loeschen`.
+            if BIB_BEREIT and Path(path).resolve().is_relative_to(
+                    cbib.touren_ordner(BIB).resolve()):
+                return {"ok": False, "error": _ui_t()(
+                    "library.trash_speicher",
+                    "Das ist die Kopie in der Bibliothek, nicht deine Datei. "
+                    "Einzelne Versionen entfernst du in der Tour bei den Versionen.")}
+        except (OSError, ValueError):
+            pass
+        try:
+            info = self.tour_projekte(path)
+            halter = info.get("projekte") or []
+            if halter and not mit_projekten:
+                return {"ok": False, "grund": "benutzt",
+                        "projekte": [h["name"] for h in halter],
+                        "error": _ui_t()("library.tour_benutzt",
+                        "Diese Tour wird von {n} Projekt(en) benutzt.").replace(
+                            "{n}", str(len(halter)))}
+            if halter and mit_projekten:
+                with _projekte.LOCK:
+                    daten = _projekte.laden(DATEN_ORT)
+                    for h in halter:
+                        _projekte.loeschen(daten, h["id"])
+                    _projekte.speichern(DATEN_ORT, daten)
+                log.info("library_trash: %d Projekt(e) mit entfernt", len(halter))
             res = clib.trash_file(self._lib(), path)
             log.info("library_trash: %s → %s", path, res.get("moved_to", "?"))
             return res
@@ -5375,25 +6131,46 @@ class Api:
     ARCHIV_KENNUNG = "haupt"          # ein Archiv je Rechner (docs/IDEAS §26)
 
     def _cloud_sichtbar(self) -> bool:
-        """Das Cloud-Archiv ist seit v0.9.524 regulär sichtbar — die drei
-        Bedingungen aus dem Versteck-Beschluss (Marc, 16.08.2026) sind erfüllt:
-        selbsttätiger Abgleich, Einzeltour-Holen, Papierkorb.
+        """Das Cloud-Archiv war seit v0.9.524 regulär sichtbar.
 
-        `RZ_CLOUD=0` bleibt als Not-Aus für die Entwicklung: Damit wird
-        `core.cloud` nicht geladen und der Schlüsselbund nicht angefasst.
+        ⚠️ **Seit 02.09.2026 stillgelegt** (Marc: „lege die cloud still, bis
+        alles fertig ist"). Grund steht in `docs/UMBAU-BIBLIOTHEK.md`: Der
+        Bibliotheks-Umbau tauscht die Datenbasis aus; eine mitlaufende Cloud
+        würde in halb umgestellte Daten schreiben. Dazu kommt, dass der
+        Abgleich ohnehin defekt ist — er liest `sessions.json`, die es seit
+        der Projekt-Umstellung nicht mehr gibt, weshalb hochgeladene Umschläge
+        seither KEINE Projekte enthalten.
+
+        Nach dem Umbau kommt die Cloud als **Kopie der Bibliothek** zurück,
+        nicht als Umschlag je Tour. Bis dahin bleibt alles Hochgeladene
+        unangetastet liegen — stillgelegt heißt nicht gelöscht.
+
+        Zum Wiedereinschalten: `CLOUD_STILLGELEGT = False` setzen. Der
+        Not-Aus `RZ_CLOUD=0` bleibt davon unberührt.
         """
+        if CLOUD_STILLGELEGT:
+            return False
         return os.environ.get("RZ_CLOUD", "").strip().lower() not in ("0", "aus", "off")
 
     def _cloud_aus(self) -> dict:
-        """Antwort für jede Cloud-Brücke, wenn das Not-Aus (RZ_CLOUD=0) gilt."""
+        """Antwort für jede Cloud-Brücke, wenn die Cloud nicht läuft.
+
+        Zwei Gründe, ein Ergebnis: Stilllegung für den Umbau (Regelfall seit
+        02.09.2026) oder der Entwickler-Not-Aus `RZ_CLOUD=0`. Die Oberfläche
+        blendet bei `sichtbar: False` alles Cloud-bezogene aus."""
+        if CLOUD_STILLGELEGT:
+            return {"ok": False, "sichtbar": False, "stillgelegt": True,
+                    "error": "cloud archive paused for the library rebuild "
+                             "(see docs/UMBAU-BIBLIOTHEK.md)"}
         return {"ok": False, "sichtbar": False,
                 "error": "cloud archive disabled via RZ_CLOUD (see _cloud_sichtbar)"}
 
     def _cloud_teile(self):
         """Die Cloud-Module holen — oder sagen, warum es nicht geht."""
         try:
-            from core.cloud import archiv, crypto, keys, sync, transport
-            return {"archiv": archiv, "crypto": crypto, "keys": keys,
+            from core.cloud import bibliothek as cloud_bib
+            from core.cloud import crypto, keys, sync, transport
+            return {"bibliothek": cloud_bib, "crypto": crypto, "keys": keys,
                     "sync": sync, "transport": transport}
         except ImportError as e:
             raise RuntimeError(
@@ -5526,7 +6303,12 @@ class Api:
         # Knopf, und `ui/js/app.js` lässt den Abschnitt in den Einstellungen
         # weg. Kein Import, kein Schlüsselbund, kein Zeitgeber.
         if not self._cloud_sichtbar():
-            return {"ok": True, "sichtbar": False, "verfuegbar": False}
+            # 02.09.2026 (im Test aufgefallen): `stillgelegt` MUSS hier mit
+            # durch. Sonst weiß die Oberfläche nur „nicht sichtbar" und lässt
+            # den Cloud-Abschnitt kommentarlos weg — wer die Cloud eingerichtet
+            # hat, sucht dann vergeblich statt eine Erklärung zu lesen.
+            return {"ok": True, "sichtbar": False, "verfuegbar": False,
+                    "stillgelegt": bool(CLOUD_STILLGELEGT)}
         try:
             teile = self._cloud_teile()
         except RuntimeError as e:
@@ -5671,45 +6453,7 @@ class Api:
                         "Nur https:// ist erlaubt — über http:// ginge der Zugangsschlüssel unverschlüsselt durchs Netz.")}
             return {"ok": False, "error": str(e)}
 
-    def cloud_plan(self) -> dict:
-        """Was wäre zu tun? Ohne etwas zu übertragen."""
-        if not self._cloud_sichtbar():
-            return self._cloud_aus()
-        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
-        try:
-            vorhanden = self._cloud_zugang()
-        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
-            return {"ok": False, "error": str(e)}
-        if not vorhanden:
-            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
-                                                   "Die Cloud ist nicht eingerichtet.")}
-        teile, zugang, schluessel = vorhanden
-        try:
-            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
-            bestand = self._cloud_bestand(teile)
-            plan = teile["sync"].Abgleich(g, schluessel).planen(bestand)
-            return {"ok": True, "hoch": len(plan.hoch), "weg": len(plan.weg),
-                    "unveraendert": plan.unveraendert, "text": str(plan)}
-        except Exception as e:      # noqa: BLE001
-            return {"ok": False, "error": str(e)}
 
-    def _cloud_bestand(self, teile):
-        """Den lokalen Bestand aufnehmen (Verzeichnis, Sammlungen, Prüfsummen)."""
-        import sqlite3
-        conn = sqlite3.connect(str(LIBRARY_DB))
-        conn.row_factory = sqlite3.Row
-        try:
-            # E1: die Cloud spricht bis v2 (E3) weiter das sessions-Format —
-            # gebaut wird die Sicht jetzt aus dem Projekt-Store (Übergang,
-            # Wire-Format und Zweitrechner bleiben unverändert kompatibel).
-            sessions = None
-            try:
-                sessions = _projekte.export_sessions_sicht(_projekte.laden(APP_SUPPORT))
-            except Exception:
-                pass
-            return teile["archiv"].bestand_aufnehmen(conn, sessions, cache_pfad=CLOUD_PRUEFSUMMEN)
-        finally:
-            conn.close()
 
     def cloud_abgleichen(self) -> dict:
         """Alles Ausstehende übertragen — der Knopf. Der Auto-Sync ruft
@@ -5720,7 +6464,17 @@ class Api:
         return self._cloud_sync_einmal()
 
     def _cloud_sync_einmal(self) -> dict:
-        """EIN kompletter Abgleich: Bestand aufnehmen, planen, hochladen."""
+        """EIN kompletter Abgleich: Bestand aufnehmen, planen, hochladen.
+
+        02.09.2026 — die Cloud ist eine Kopie der Bibliothek. Vorher baute
+        dieser Kern je Tour einen Umschlag aus Verzeichnis, Sammlungen,
+        Projekten und Fotos: ein zweites Datenmodell neben dem echten. Jetzt
+        wird schlicht hochgeladen, was in der Bibliothek liegt
+        (`core/cloud/bibliothek.py`).
+        """
+        if not BIB_BEREIT:
+            return {"ok": False, "error": _ui_t()(
+                "bib.nicht_offen", "Die Bibliothek ist gerade nicht geöffnet.")}
         try:
             vorhanden = self._cloud_zugang()
         except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
@@ -5729,174 +6483,215 @@ class Api:
             return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
                                                    "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, schluessel = vorhanden
-        archiv_m, sync_m, transport_m = teile["archiv"], teile["sync"], teile["transport"]
+        cbib_m, sync_m, transport_m = teile["bibliothek"], teile["sync"], teile["transport"]
         try:
-            import sqlite3
             g = transport_m.Gegenstelle(zugang.adresse, zugang.schluessel)
-            conn = sqlite3.connect(str(LIBRARY_DB))
-            conn.row_factory = sqlite3.Row
+            pruef, liefer = cbib_m.bestand(BIB, self._lib())
+            log.info("Cloud: Bestand %s", cbib_m.zusammenfassung(pruef))
+            a = sync_m.Abgleich(g, schluessel)
+            plan = a.planen(pruef)
+
+            # ⚠️ Fortschritt wird HINTERLEGT, nicht in die Oberfläche
+            # geschoben: Ein JS-Push aus einem Hintergrund-Thread ist in
+            # pywebview heikel. `cloud_status()` gibt den Stand zurück,
+            # die Oberfläche fragt im Sekundentakt nach.
+            def melden(i, n, name):
+                self._cloud_lauf = {"i": i, "n": n}
+
+            self._cloud_lauf = {"i": 0, "n": len(plan.hoch)}
             try:
-                sessions = None
-                try:
-                    sessions = json.loads((APP_SUPPORT / "sessions.json").read_text("utf-8"))
-                except Exception:
-                    pass
-                with _projekte.LOCK:
-                    _pd_cloud = _projekte.laden(APP_SUPPORT)
-                bestand = archiv_m.bestand_aufnehmen(
-                    conn, sessions, cache_pfad=CLOUD_PRUEFSUMMEN,
-                    pdaten=_pd_cloud, snapshot_dir=SESSIONS_GPX_DIR)
-                log.info("Cloud: Bestand %d Touren, %d Umschläge neu gebaut", len(bestand.touren), bestand.neu_gebaut)
-                a = sync_m.Abgleich(g, schluessel)
-                plan = a.planen(bestand)
-
-                def inhalt(name):
-                    if name == archiv_m.VERZEICHNIS:
-                        return archiv_m.json_bytes(bestand.verzeichnis)
-                    if name == archiv_m.SAMMLUNGEN:
-                        return archiv_m.json_bytes(bestand.sammlungen)
-                    # IDEAS §38 M5 — Kompositionen: schon gebaut, nur ausliefern.
-                    if name.startswith(archiv_m.MENGE_PRAEFIX):
-                        return bestand.mengen_objekte[name.split("/", 1)[1]]
-                    # E3 / Cloud v2 — Ketten + Fassungs-Snapshots liegen fertig da.
-                    if name.startswith(archiv_m.KETTE_PRAEFIX):
-                        return bestand.ketten_objekte[name.split("/", 1)[1]]
-                    gh = name.split("/", 1)[1]
-                    if gh in bestand.fassungen_objekte:
-                        return bestand.fassungen_objekte[gh]
-                    return archiv_m.umschlag_bauen(
-                        conn, gh, projekte=archiv_m._projekte_fuer(conn, gh, sessions))
-
-                # ⚠️ Fortschritt wird HINTERLEGT, nicht in die Oberfläche
-                # geschoben: Ein JS-Push aus einem Hintergrund-Thread ist in
-                # pywebview heikel. `cloud_status()` gibt den Stand zurück,
-                # die Oberfläche fragt im Sekundentakt nach.
-                def melden(i, n, name):
-                    self._cloud_lauf = {"i": i, "n": n}
-
-                self._cloud_lauf = {"i": 0, "n": len(plan.hoch)}
-                try:
-                    e = a.hochladen(plan, inhalt, melden)
-                    # ⚠️ KEIN a.loeschen(plan) mehr (22.08.2026, Audit): Was oben
-                    # liegt und hier unbekannt ist, gehört meist dem anderen
-                    # Rechner — oder wurde gerade aus dem Papierkorb geholt.
-                    # Löschen ist eine bewusste Nutzer-Aktion, kein Nebeneffekt.
-                finally:
-                    self._cloud_lauf = None
-                return {"ok": True, "uebertragen": e.uebertragen,
-                        "mb": round(e.bytes_hoch / 1024 / 1024, 1),
-                        "fehler": e.fehler[:5]}
+                e = a.hochladen(plan, lambda name: liefer[name](), melden)
+                # ⚠️ KEIN a.loeschen(plan): Was oben liegt und hier unbekannt
+                # ist, gehört meist dem anderen Rechner. Löschen ist eine
+                # bewusste Nutzer-Aktion, kein Nebeneffekt.
             finally:
-                conn.close()
+                self._cloud_lauf = None
+            return {"ok": True, "uebertragen": e.uebertragen,
+                    "mb": round(e.bytes_hoch / 1024 / 1024, 1),
+                    "nur_oben": len(plan.weg),
+                    "unveraendert": plan.unveraendert,
+                    "fehler": e.fehler[:5]}
         except Exception as e:      # noqa: BLE001
             log.exception("Cloud-Abgleich fehlgeschlagen")
             return {"ok": False, "error": str(e)}
 
-    # ══ Cloud: Übersicht + Einzeltour-Holen (v0.9.524, „Gerät 2") ═════════
-
     def cloud_uebersicht(self) -> dict:
-        """Was liegt im Archiv, was davon fehlt hier? Für den Cloud-Dialog."""
+        """Was liegt oben? Zahlen für die Anzeige — ohne etwas zu übertragen."""
         if not self._cloud_sichtbar():
             return self._cloud_aus()
-        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
         try:
             vorhanden = self._cloud_zugang()
-        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
+        except Exception as e:      # noqa: BLE001
             return {"ok": False, "error": str(e)}
         if not vorhanden:
             return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
                                                    "Die Cloud ist nicht eingerichtet.")}
         teile, zugang, schluessel = vorhanden
         try:
-            import sqlite3
             g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            oben = g.liste()
+            pruef, _ = (cbib_bestand := teile["bibliothek"].bestand(
+                BIB, self._lib() if BIB_BEREIT else None))
             a = teile["sync"].Abgleich(g, schluessel)
-            verz = json.loads(a.holen(teile["archiv"].VERZEICHNIS).decode("utf-8"))
-            conn = sqlite3.connect(str(LIBRARY_DB))
-            try:
-                lokal = {z[0] for z in conn.execute(
-                    "SELECT geo_hash FROM tracks WHERE geo_hash IS NOT NULL")}
-            finally:
-                conn.close()
-            nur_cloud = []
-            for gh, t in (verz.get("touren") or {}).items():
-                if gh in lokal:
-                    continue
-                nur_cloud.append({
-                    "geo_hash": gh,
-                    "name": t.get("display_name") or t.get("name") or t.get("filename") or gh,
-                    "started_at": t.get("started_at"),
-                    "distance_m": t.get("distance_m"),
-                })
-            nur_cloud.sort(key=lambda x: x.get("started_at") or "", reverse=True)
-            # E3 / Cloud v2 (Q6b): Versions-Ketten des anderen Geräts ins
-            # lokale Register übernehmen — nur Lücken füllen, nie überschreiben.
-            try:
-                _ketten = verz.get("ketten") or {}
-                if _ketten:
-                    with _projekte.LOCK:
-                        _kd = _projekte.laden(APP_SUPPORT)
-                        _kt = _kd.setdefault("touren", {})
-                        _kneu = 0
-                        for _tid, _k in _ketten.items():
-                            for _f in (_k.get("fassungen") or []):
-                                _gh = _f.get("geo_hash")
-                                if not _gh:
-                                    continue
-                                _t = _kt.get(_gh)
-                                if _t is None:
-                                    _wann = _f.get("erstellt") or _projekte._now_iso()
-                                    _kt[_gh] = {"id": _tid,
-                                                "fassung": {"nr": _f.get("nr", 1),
-                                                            "erstellt": _f.get("erstellt", ""),
-                                                            "quelle": _f.get("quelle", "")},
-                                                "name": _k.get("name") or "",
-                                                "stats": {}, "created_at": _wann,
-                                                "last_active_at": _wann,
-                                                "gpx_filenames_seen": [],
-                                                "gpx_snapshot_path": "",
-                                                "ui_hashes": [], "gpx_paths": []}
-                                    _kneu += 1
-                                elif not _t.get("id"):
-                                    _t["id"] = _tid
-                                    _t["fassung"] = {"nr": _f.get("nr", 1),
-                                                     "erstellt": _f.get("erstellt", ""),
-                                                     "quelle": _f.get("quelle", "")}
-                                    _kneu += 1
-                        if _kneu:
-                            _projekte.speichern(APP_SUPPORT, _kd)
-                            log.info("Cloud v2: %d Fassungs-Einträge aus fremden "
-                                     "Ketten übernommen", _kneu)
-            except Exception:
-                log.exception("Cloud v2: Ketten-Merge")
-            # IDEAS §38 M5 — Kompositionen (Reise/Schwarm): lokal vorhanden ist,
-            # was in sessions.json unter `menge:<hash>` steht.
-            try:
-                _pdaten = _projekte.laden(APP_SUPPORT)
-                _lokale_mengen = {str(p.get("kontext")).split(":", 1)[1]
-                                  for p in (_pdaten.get("projects") or {}).values()
-                                  if str(p.get("kontext") or "").startswith("menge:")}
-            except Exception:
-                _lokale_mengen = set()
-            mengen = []
-            for mh, m in (verz.get("mengen") or {}).items():
-                mengen.append({"mengen_hash": mh,
-                               "name": m.get("name") or mh,
-                               "ablauf": m.get("ablauf") or "reise",
-                               "n_tours": m.get("n_tours") or 0,
-                               "lokal": mh in _lokale_mengen})
-            mengen.sort(key=lambda x: x["name"])
-            return {"ok": True, "im_archiv": len(verz.get("touren") or {}),
-                    "lokal": len(lokal), "nur_cloud": nur_cloud, "mengen": mengen}
+            plan = a.planen(pruef)
+            return {"ok": True, "oben": len(oben),
+                    "lokal": teile["bibliothek"].zusammenfassung(pruef),
+                    "offen": len(plan.hoch), "nur_oben": len(plan.weg),
+                    "unveraendert": plan.unveraendert,
+                    "adresse": zugang.adresse}
         except Exception as e:      # noqa: BLE001
             log.exception("cloud_uebersicht")
             return {"ok": False, "error": str(e)}
+
+    def cloud_aufraeumen(self) -> dict:
+        """Alles aus der Cloud entfernen, was nicht zur Bibliothek gehört.
+
+        02.09.2026 (Marc: „alten cloud teil löschen, neuen hochladen, fertig
+        aus"). Beim Umbau auf „die Cloud ist eine Kopie der Bibliothek" bleibt
+        oben der Bestand des alten Umschlag-Modells liegen — er lässt sich
+        nicht mehr lesen und wird nie wieder gebraucht.
+
+        ⚠️ Bewusst KEINE Nebenwirkung eines Abgleichs. Im Zwei-Geräte-Betrieb
+        heißt „liegt oben, kenne ich nicht" meistens „vom anderen Rechner" —
+        deshalb ist das ein eigener, ausdrücklicher Knopf. Gelöschtes landet
+        im Papierkorb des Servers, nicht im Nichts.
+        """
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        if not BIB_BEREIT:
+            return {"ok": False, "error": _ui_t()(
+                "bib.nicht_offen", "Die Bibliothek ist gerade nicht geöffnet.")}
+        self._cloud_neuversuch()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+        if not vorhanden:
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
+        teile, zugang, schluessel = vorhanden
+        try:
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            pruef, _ = teile["bibliothek"].bestand(BIB, self._lib())
+            a = teile["sync"].Abgleich(g, schluessel)
+            plan = a.planen(pruef)
+            if not plan.weg:
+                return {"ok": True, "entfernt": 0}
+            entfernt = a.loeschen(plan)
+            log.info("Cloud aufgeräumt: %d Objekt(e) entfernt (Bibliothek: %d)",
+                     entfernt, len(pruef))
+            return {"ok": True, "entfernt": entfernt, "behalten": len(pruef)}
+        except Exception as e:      # noqa: BLE001
+            log.exception("cloud_aufraeumen")
+            return {"ok": False, "error": str(e)}
+
+    def cloud_herunterladen(self) -> dict:
+        """Die Bibliothek aus der Cloud zurückholen.
+
+        Für den zweiten Rechner und für den Fall, dass lokal etwas fehlt.
+        Es wird nur geholt, was hier NICHT liegt — nichts wird überschrieben,
+        außer den Nutzerdaten, die ergänzend eingespielt werden.
+        """
+        if not self._cloud_sichtbar():
+            return self._cloud_aus()
+        if not BIB_BEREIT:
+            return {"ok": False, "error": _ui_t()(
+                "bib.nicht_offen", "Die Bibliothek ist gerade nicht geöffnet.")}
+        self._cloud_neuversuch()
+        try:
+            vorhanden = self._cloud_zugang()
+        except Exception as e:      # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+        if not vorhanden:
+            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
+                                                   "Die Cloud ist nicht eingerichtet.")}
+        teile, zugang, schluessel = vorhanden
+        cbib_m = teile["bibliothek"]
+        try:
+            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
+            a = teile["sync"].Abgleich(g, schluessel)
+            oben = g.liste()
+            pruef, _ = cbib_m.bestand(BIB, self._lib())
+            geholt, fehler = 0, []
+            nutzerdaten = None
+
+            def hole(logisch: str) -> bytes | None:
+                """Ein Objekt holen, wenn es oben liegt und sich unterscheidet."""
+                nonlocal geholt
+                sname = teile["transport"].server_name(logisch)
+                if sname not in oben:
+                    return None
+                if logisch in pruef and teile["crypto"].gleich(
+                        oben[sname].pruef, pruef[logisch]):
+                    return None       # identisch, nichts zu tun
+                try:
+                    klar = a.holen(logisch)
+                except Exception as f:      # noqa: BLE001
+                    fehler.append(f"{logisch}: {f}")
+                    return None
+                geholt += 1
+                return klar
+
+            # ⚠️ ZWEI Durchgänge, und die Reihenfolge ist der ganze Trick:
+            # Der Server kennt nur Hash-Namen. Ein frischer Rechner weiß also
+            # gar nicht, was oben liegt — er kann die Namen nicht zurückrechnen.
+            # Deshalb liegt oben ein INHALTSVERZEICHNIS, das sie aufzählt; es
+            # kommt zuerst, alles Weitere ergibt sich daraus.
+            #
+            # (Erster Live-Test: drei Objekte, keine einzige Tour. Zweiter
+            # Anlauf riet die Namen aus dem Tour-Register und verfehlte 16
+            # Versionen, die dort nicht stehen.)
+            inhalt_roh = hole(cbib_m.INHALT)
+            namen_oben = []
+            if inhalt_roh:
+                try:
+                    namen_oben = list(json.loads(inhalt_roh.decode("utf-8")).get("namen") or [])
+                except ValueError:
+                    log.warning("Cloud: Inhaltsverzeichnis unlesbar")
+            for fest in (cbib_m.NUTZERDATEN, cbib_m.PROJEKTE, cbib_m.TOUREN):
+                klar = hole(fest)
+                if klar is None:
+                    continue
+                if fest == cbib_m.NUTZERDATEN:
+                    nutzerdaten = klar
+                else:
+                    cbib_m.ablegen(BIB, fest, klar)
+
+            gesetzt = {}
+            if nutzerdaten:
+                gesetzt = cbib_m.nutzerdaten_import(
+                    self._lib(), json.loads(nutzerdaten.decode("utf-8")))
+
+            # Jetzt sind alle Namen bekannt — holen, was noch fehlt.
+            fest_namen = {cbib_m.INHALT, cbib_m.NUTZERDATEN,
+                          cbib_m.PROJEKTE, cbib_m.TOUREN}
+            for logisch in namen_oben:
+                if logisch in fest_namen:
+                    continue
+                klar = hole(logisch)
+                if klar is not None:
+                    cbib_m.ablegen(BIB, logisch, klar)
+            # Was neu auf der Platte liegt, muss ins Archiv — sonst sieht man
+            # es nicht.
+            try:
+                self._bib_nachziehen()
+            except Exception:
+                log.exception("Nachziehen nach dem Herunterladen")
+            log.info("Cloud: %d Objekt(e) geholt, Nutzerdaten %s", geholt, gesetzt)
+            return {"ok": True, "geholt": geholt, "nutzerdaten": gesetzt,
+                    "fehler": fehler[:5]}
+        except Exception as e:      # noqa: BLE001
+            log.exception("cloud_herunterladen")
+            return {"ok": False, "error": str(e)}
+
+    # ══ Cloud: Übersicht + Einzeltour-Holen (v0.9.524, „Gerät 2") ═════════
+
 
     # ── Projekt-Export/-Import (.rzproj) — OHNE Cloud (22.08.2026) ─────────
     # Marc: „ein zip, mit allem drin" + „stelle bei ALLEM sicher, dass es ohne
     # cloud geht". Der Umschlag ist dasselbe ZIP wie in der Cloud (track.gpx,
     # tour.json, projekte.json, fotos/…), nur unverschlüsselt. Es wird weder
-    # Schlüsselbund noch Netz berührt: `core.cloud.archiv` ist ein reiner Helfer.
+    # Schlüsselbund noch Netz berührt: `core.projektpaket` ist ein reiner Helfer.
 
     def _umschlag_einspielen(self, roh: bytes, *, quelle: str = "datei",
                              geo_hash_hint: str = "") -> dict:
@@ -5986,7 +6781,7 @@ class Api:
             projekte["track_hash"] = geo_hash
             # Fotos/Schild-Bilder: Original-Pfad gibt es auf diesem Rechner meist
             # nicht → auf die mitgebrachte Kopie zeigen (sonst „Bild fehlt" überall).
-            from core.cloud.archiv import BILD_FELDER
+            from core.projektpaket import BILD_FELDER
             for proj in (projekte.get("projects") or {}).values():
                 if not isinstance(proj, dict):
                     continue
@@ -5996,7 +6791,7 @@ class Api:
                             eintrag["original_" + feld] = eintrag.get(feld)
                             eintrag[feld] = eintrag["vorschau"]
             with _projekte.LOCK:
-                daten = _projekte.laden(APP_SUPPORT)
+                daten = _projekte.laden(DATEN_ORT)
                 vorhanden = {pid: p for pid, p in (daten.get("projects") or {}).items()
                              if p.get("kontext") == geo_hash}
                 if not vorhanden:
@@ -6023,7 +6818,7 @@ class Api:
                         if not isinstance(proj, dict):
                             continue
                         urspruenglich = pid
-                        # 31.08.2026 (Rafael: „Standard (importado) (importado)"-
+                        # 31.08.2026 (Beta-Tester: „Standard (importado) (importado)"-
                         # Kaskade): Existiert im selben Kontext bereits ein
                         # INHALTSGLEICHES Projekt — egal unter welcher ID oder
                         # Namens-Variante —, wird NICHTS erneut angelegt. Vorher
@@ -6087,7 +6882,7 @@ class Api:
                         daten.setdefault("aktiv", {})[geo_hash] = ziel_pid
                         log.info("Umschlag: aktives Projekt → %r (%s)",
                                  (daten["projects"].get(ziel_pid) or {}).get("name"), ziel_pid)
-                _projekte.speichern(APP_SUPPORT, daten)
+                _projekte.speichern(DATEN_ORT, daten)
         log.info("Umschlag eingespielt (%s): %s → %s, %d Projekt(e)", quelle, geo_hash, ziel.name, n_proj)
         return {"ok": True, "datei": str(ziel), "name": ziel.name, "geo_hash": geo_hash, "projekte": n_proj}
 
@@ -6095,7 +6890,7 @@ class Api:
         """Aktuellen Track + alle Projekte der Session als .rzproj speichern.
         `ziel` leer → Save-Dialog. Läuft ohne Cloud."""
         try:
-            from core.cloud import archiv as archiv_m     # reiner ZIP-Helfer
+            from core import projektpaket as archiv_m     # reiner ZIP-Helfer
             src = str(gpx_path or _load_settings().get("last_gpx_path", "") or "")
             if not src or not os.path.exists(src):
                 return {"ok": False, "error": _ui_t()("error.kein_track_geladen", "Kein Track geladen.")}
@@ -6104,7 +6899,7 @@ class Api:
             if not geo_hash:
                 return {"ok": False, "error": _ui_t()("error.gpx_generic", "GPX-Fehler")}
             with _projekte.LOCK:
-                pdaten = _projekte.laden(APP_SUPPORT)
+                pdaten = _projekte.laden(DATEN_ORT)
             sicht = _projekte.export_sessions_sicht(pdaten)
             sess = (sicht.get("sessions") or {}).get(geo_hash)
             if sess is None:
@@ -6186,197 +6981,11 @@ class Api:
             log.exception("projekt_importieren")
             return {"ok": False, "error": str(e)}
 
-    def cloud_tour_holen(self, geo_hash: str) -> dict:
-        """Eine Tour aus dem Archiv auf DIESEN Rechner holen.
-
-        Der Umschlag bringt alles mit: die GPX-Datei (landet in einem eigenen
-        Archiv-Ordner, der beim Archiv als Quelle registriert ist), die
-        Tour-Daten (`track_meta`) und die Projekte (Sessions). Foto-Vorschauen
-        landen daneben; die Projekt-Pfade zeigen darauf.
-        """
-        if not self._cloud_sichtbar():
-            return self._cloud_aus()
-        self._cloud_neuversuch()   # bewusste Nutzer-Aktion → Schlüsselbund darf neu fragen
-        try:
-            vorhanden = self._cloud_zugang()
-        except Exception as e:      # noqa: BLE001 — gemerkter Schlüsselbund-Fehler u.ä.
-            return {"ok": False, "error": str(e)}
-        if not vorhanden:
-            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
-                                                   "Die Cloud ist nicht eingerichtet.")}
-        teile, zugang, schluessel = vorhanden
-        try:
-            archiv_m = teile["archiv"]
-            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
-            a = teile["sync"].Abgleich(g, schluessel)
-            roh = a.holen(archiv_m.track_name(geo_hash))
-            res = self._umschlag_einspielen(roh, quelle="cloud", geo_hash_hint=geo_hash)
-            if not res.get("ok"):
-                return res
-            ziel = Path(res["datei"])
-            log.info("cloud_tour_holen: %s → %s", geo_hash, ziel.name)
-            return {"ok": True, "datei": str(ziel), "name": ziel.name}
-        except teile["transport"].NichtVorhanden:
-            return {"ok": False, "error": _ui_t()(
-                "cloud.tour_fehlt", "Diese Tour liegt nicht (mehr) im Archiv.")}
-        except Exception as e:      # noqa: BLE001
-            log.exception("cloud_tour_holen")
-            return {"ok": False, "error": str(e)}
 
     # ══ Cloud: Papierkorb (v0.9.524) ══════════════════════════════════════
 
-    def _cloud_namensbuch(self, teile, schluessel, g) -> dict:
-        """Hex-Servername → {logisch, anzeige}. Der Server kennt nur Hashes;
-        wir kennen alle logischen Namen aus dem Verzeichnis + den festen zwei.
-        `logisch` ist die Bindung der Verschlüsselung, `anzeige` der Name fürs
-        Auge — die beiden zu verwechseln hieße: Entschlüsseln schlägt fehl
-        (genau so vom Ende-zu-Ende-Test gefangen, 21.08.2026)."""
-        buch = {}
-        archiv_m, transport_m = teile["archiv"], teile["transport"]
-        for fest in (archiv_m.VERZEICHNIS, archiv_m.SAMMLUNGEN):
-            buch[transport_m.server_name(fest)] = {"logisch": fest, "anzeige": fest}
-        try:
-            a = teile["sync"].Abgleich(g, schluessel)
-            verz = json.loads(a.holen(archiv_m.VERZEICHNIS).decode("utf-8"))
-            for gh, t in (verz.get("touren") or {}).items():
-                logisch = archiv_m.track_name(gh)
-                buch[transport_m.server_name(logisch)] = {
-                    "logisch": logisch,
-                    "anzeige": t.get("display_name") or t.get("name")
-                               or t.get("filename") or gh,
-                }
-        except Exception:
-            pass
-        return buch
 
-    def cloud_menge_holen(self, mengen_hash: str) -> dict:
-        """Eine Komposition (Reise/Schwarm, IDEAS §38 M5) auf DIESEN Rechner holen.
 
-        Ablauf: das `menge/<hash>`-Objekt holen, für jede noch fehlende Tour den
-        track/-Umschlag einspielen (derselbe Weg wie cloud_tour_holen), dann die
-        Mengen-Sitzung lokal anlegen — die Datei-Pfade entstehen hier NEU aus dem
-        eigenen Archiv (in der Cloud liegen bewusst keine fremden Pfade).
-        Eine bereits vorhandene lokale Sitzung wird NICHT überschrieben — lokale
-        Arbeit gewinnt; wer den Cloud-Stand will, löscht die Sitzung erst.
-        """
-        if not self._cloud_sichtbar():
-            return self._cloud_aus()
-        self._cloud_neuversuch()
-        try:
-            vorhanden = self._cloud_zugang()
-        except Exception as e:      # noqa: BLE001
-            return {"ok": False, "error": str(e)}
-        if not vorhanden:
-            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
-                                                   "Die Cloud ist nicht eingerichtet.")}
-        teile, zugang, schluessel = vorhanden
-        try:
-            archiv_m = teile["archiv"]
-            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
-            a = teile["sync"].Abgleich(g, schluessel)
-            mh = str(mengen_hash).split(":", 1)[-1]
-            obj = json.loads(a.holen(archiv_m.menge_name(mh)).decode("utf-8"))
-            ghs = list(obj.get("geo_hashes") or [])
-            if len(ghs) < 2:
-                return {"ok": False, "error": _ui_t()("cloud.menge_leer", "Komposition ohne Touren")}
-
-            schluessel_sess = f"menge:{mh}"
-            with _projekte.LOCK:
-                pdaten = _projekte.laden(APP_SUPPORT)
-                if any(p.get("kontext") == schluessel_sess
-                       for p in (pdaten.get("projects") or {}).values()):
-                    return {"ok": False, "error": _ui_t()("cloud.menge_schon_da",
-                            "Diese Komposition gibt es hier schon — lokale Arbeit bleibt.")}
-
-            # Fehlende Touren zuerst — jede über den bewährten Umschlag-Weg.
-            import sqlite3 as _sq
-            def _lokale_pfade():
-                c = _sq.connect(str(LIBRARY_DB))
-                try:
-                    return {z[0]: z[1] for z in c.execute(
-                        "SELECT geo_hash, path FROM tracks WHERE geo_hash IS NOT NULL")}
-                finally:
-                    c.close()
-            pfade = _lokale_pfade()
-            geholt = 0
-            for gh in ghs:
-                if gh in pfade:
-                    continue
-                roh = a.holen(archiv_m.track_name(gh))
-                res = self._umschlag_einspielen(roh, quelle="cloud", geo_hash_hint=gh)
-                if not res.get("ok"):
-                    return {"ok": False, "error": res.get("error")
-                            or _ui_t()("cloud.menge_tour_fehler", "Eine Tour ließ sich nicht einspielen")}
-                geholt += 1
-            if geholt:
-                pfade = _lokale_pfade()
-            fehlend = [gh for gh in ghs if gh not in pfade]
-            if fehlend:
-                return {"ok": False, "error": _ui_t()("cloud.menge_touren_fehlen",
-                        "Nicht alle Touren der Komposition sind verfügbar.")}
-
-            with _projekte.LOCK:
-                pdaten = _projekte.laden(APP_SUPPORT)
-                _projekte.import_session_objekt(
-                    pdaten, schluessel_sess,
-                    {"name": obj.get("name") or f"Komposition ({len(ghs)} Touren)",
-                     "ablauf": obj.get("ablauf") or "reise",
-                     "schwarm_modus": (obj.get("schwarm_modus")
-                                       if obj.get("schwarm_modus") in ("gleich", "ziel", "uhrzeit") else "gleich"),
-                     "schwarm_pausen": bool(obj.get("schwarm_pausen", True)),
-                     "gpx_paths": [pfade[gh] for gh in ghs],
-                     "geo_hashes": sorted(set(ghs)),
-                     "active_project_id": obj.get("active_project_id") or "",
-                     "projects": obj.get("projects") or {}},
-                    self._session_get_global_defaults())
-                _projekte.speichern(APP_SUPPORT, pdaten)
-            log.info("cloud_menge_holen: %s · %d Touren (davon %d frisch geholt)",
-                     mh, len(ghs), geholt)
-            return {"ok": True, "mengen_hash": mh, "touren": len(ghs),
-                    "geholt": geholt, "name": obj.get("name") or ""}
-        except Exception as e:      # noqa: BLE001
-            log.exception("cloud_menge_holen")
-            return {"ok": False, "error": str(e)}
-
-    def cloud_tour_entfernen(self, geo_hash: str) -> dict:
-        """22.08.2026 — Löschen als BEWUSSTE Aktion: eine Tour, die nur noch in
-        der Cloud liegt, aus dem Archiv nehmen. Der Umschlag wandert auf dem
-        Server in den Papierkorb (wiederherstellbar), und der Eintrag verschwindet
-        aus dem Cloud-Verzeichnis, damit andere Geräte sie nicht mehr anbieten.
-        Der Abgleich selbst löscht weiterhin nie etwas."""
-        if not self._cloud_sichtbar():
-            return self._cloud_aus()
-        self._cloud_neuversuch()
-        try:
-            vorhanden = self._cloud_zugang()
-        except Exception as e:      # noqa: BLE001
-            return {"ok": False, "error": str(e)}
-        if not vorhanden:
-            return {"ok": False, "error": _ui_t()("cloud.nicht_eingerichtet",
-                                                   "Die Cloud ist nicht eingerichtet.")}
-        teile, zugang, schluessel = vorhanden
-        gh = (geo_hash or "").strip()
-        if not gh:
-            return {"ok": False, "error": "geo_hash fehlt"}
-        try:
-            archiv_m, crypto_m = teile["archiv"], teile["crypto"]
-            g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
-            a = teile["sync"].Abgleich(g, schluessel)
-            # 1) Umschlag → Server-Papierkorb
-            g.loeschen(archiv_m.track_name(gh))
-            # 2) Verzeichnis ohne diese Tour neu ablegen
-            verz = json.loads(a.holen(archiv_m.VERZEICHNIS).decode("utf-8"))
-            if gh in (verz.get("touren") or {}):
-                del verz["touren"][gh]
-                klartext = archiv_m.json_bytes(verz)
-                g.legen(archiv_m.VERZEICHNIS,
-                        crypto_m.verschliessen(schluessel, archiv_m.VERZEICHNIS, klartext),
-                        crypto_m.inhalts_pruefsumme(klartext))
-            log.info("Cloud: Tour %s bewusst entfernt (Papierkorb)", gh)
-            return {"ok": True}
-        except Exception as e:      # noqa: BLE001
-            log.exception("cloud_tour_entfernen")
-            return {"ok": False, "error": str(e)}
 
     def cloud_papierkorb(self) -> dict:
         """Papierkorb-Inhalt, mit lokal zurückübersetzten Namen."""
@@ -6393,7 +7002,17 @@ class Api:
         teile, zugang, schluessel = vorhanden
         try:
             g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
-            buch = self._cloud_namensbuch(teile, schluessel, g)
+            # 02.09.2026: Statt eines Namensbuchs (entfiel mit dem alten
+            # Umschlag-Modell) wird der Hash-Name gegen die möglichen
+            # logischen Namen der Bibliothek aufgelöst.
+            buch = {}
+            try:
+                cbib_m = teile["bibliothek"]
+                pruef, _ = cbib_m.bestand(BIB, self._lib() if BIB_BEREIT else None)
+                for n in list(pruef) + [cbib_m.NUTZERDATEN, cbib_m.PROJEKTE, cbib_m.TOUREN]:
+                    buch[teile["transport"].server_name(n)] = {"logisch": n}
+            except Exception:
+                log.exception("Papierkorb: Namen auflösen")
             aus = []
             for e in g.papierkorb_liste():
                 eintrag = buch.get(e.get("name")) or {}
@@ -6423,23 +7042,23 @@ class Api:
         teile, zugang, schluessel = vorhanden
         try:
             crypto_m = teile["crypto"]
+            cbib_m = teile["bibliothek"]
             g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
-            buch = self._cloud_namensbuch(teile, schluessel, g)
-            klar = (buch.get(hex_name) or {}).get("logisch")
-            # Das Namensbuch kennt TOUREN über das Verzeichnis — eine gelöschte
-            # Tour steht dort nicht mehr. Dann den logischen Namen aus der
-            # lokalen Datenbank rekonstruieren:
-            if klar is None:
-                import sqlite3
-                conn = sqlite3.connect(str(LIBRARY_DB))
-                try:
-                    for (gh,) in conn.execute("SELECT geo_hash FROM tracks"):
-                        n = teile["archiv"].track_name(gh)
-                        if teile["transport"].server_name(n) == hex_name:
-                            klar = n
-                            break
-                finally:
-                    conn.close()
+            # 02.09.2026: Der Server kennt nur Hash-Namen. Statt eines
+            # Namensbuchs (das mit dem alten Umschlag-Modell entfiel) werden
+            # die möglichen logischen Namen aus der BIBLIOTHEK gebildet und
+            # durchprobiert — es sind wenige, und sie sind eindeutig.
+            klar = None
+            moeglich = [cbib_m.NUTZERDATEN, cbib_m.PROJEKTE, cbib_m.TOUREN]
+            try:
+                pruef, _ = cbib_m.bestand(BIB, self._lib() if BIB_BEREIT else None)
+                moeglich += list(pruef)
+            except Exception:
+                log.exception("Papierkorb: Bestand für die Namenssuche")
+            for n in moeglich:
+                if teile["transport"].server_name(n) == hex_name:
+                    klar = n
+                    break
             if klar is None:
                 return {"ok": False, "error": "Zu diesem Eintrag ist der Name "
                         "nicht mehr bekannt — wiederherstellen geht nur auf dem "
@@ -7048,7 +7667,7 @@ class Api:
                         gh = self._track_geo_hash(src_path)
                         with _projekte.LOCK:
                             t = _projekte.tour_von_hash(
-                                _projekte.laden(APP_SUPPORT), gh)
+                                _projekte.laden(DATEN_ORT), gh)
                         if t and t.get("id"):
                             cgpxedit.embed_rz_id(out, t["id"])
                     except Exception:
@@ -7062,115 +7681,153 @@ class Api:
 
     def library_track_ersetzen(self, points: list, src_path: str,
                                orig_path: str, sources: list = None) -> dict:
-        """Geheilten Track direkt ins Archiv zurückschreiben (Marc, 29.08.2026:
-        „ich bin ja ausm archiv gekommen … und möchte sie dann im archiv direkt
-        haben"). Ablauf: Original sichern (App-Ablage, wird nicht gescannt) →
-        Datei überschreiben → neu einlesen → Sammlungen + Tour-Meta auf den
-        neuen geo_hash umziehen → Einzel-Sitzung re-keyen → Mengen-Sitzungen
-        (Reise/Schwarm) auf den neuen Mengen-Hash umziehen. Ohne Archiv bleibt
-        der bisherige „Speichern unter …"-Weg unangetastet."""
+        """Den geheilten Stand als NEUE VERSION der Tour übernehmen.
+
+        02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Schnitt 3) — vorher hieß das
+        „Im Archiv ersetzen" und tat genau das: Es **überschrieb die Datei des
+        Nutzers**. Daran hingen drei Dinge, die alle weg sind:
+
+        * ein Sicherungsordner (`track_backups/`), der unbegrenzt wuchs,
+        * eine Adoptionslogik, die alte Sicherungen über **Dateinamen** zu
+          Versionen zuordnen musste — also raten,
+        * und das Grundproblem: GPS Studio fasste fremde Dateien an.
+
+        Jetzt landet die neue Version in der Bibliothek. Die Quelldatei des
+        Nutzers bleibt unangetastet; sie ist ab jetzt Herkunft, nicht Speicher.
+        Wer die geheilte Fassung draußen haben will, exportiert sie bewusst.
+
+        Zwischenstände häufen sich nicht an: Benutzt kein Projekt die
+        bisherige Version, wird sie ersetzt statt eine weitere anzulegen —
+        sonst hinterlässt eine Inspektor-Sitzung fünf Versionen, von denen
+        vier niemanden interessieren.
+        """
         try:
             pfad = str(orig_path or "")
-            if not pfad.lower().endswith(".gpx"):
-                return {"ok": False, "error": _ui_t()("gpxinspect.ersetzen_nur_gpx",
-                        "Ersetzen geht nur bei GPX-Originalen — bitte „Speichern unter …“ nutzen.")}
-            if not Path(pfad).exists():
-                return {"ok": False, "error": _ui_t()("error.datei_fehlt", "Datei nicht gefunden")}
             conn = self._lib()
-            row = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?", (pfad,)).fetchone()
+            row = conn.execute(
+                "SELECT geo_hash, tour_id, name FROM tracks WHERE path = ?", (pfad,)).fetchone()
             if not row or not row["geo_hash"]:
                 return {"ok": False, "error": _ui_t()("gpxinspect.ersetzen_unbekannt",
                         "Diese Datei liegt nicht im Archiv.")}
             alt_gh = row["geo_hash"]
-            # 1) Sicherung — GPS Studio löscht nie endgültig.
-            backup_dir = APP_SUPPORT / "track_backups"
-            backup_dir.mkdir(parents=True, exist_ok=True)
-            backup = backup_dir / f'{time.strftime("%Y%m%d-%H%M%S")}_{Path(pfad).name}'
-            shutil.copy2(pfad, backup)
-            # 2) Überschreiben (GPX, Sensoren eingebettet wie beim normalen Speichern)
-            res = cgpxedit.save_points(points or [], pfad, name=Path(pfad).stem,
-                                       src_path=src_path, fmt="gpx",
+            tour_id = (row["tour_id"] if "tour_id" in row.keys() else "") or ""
+
+            # 1) Die neue Geometrie schreiben — in einen Arbeitsplatz, NICHT
+            #    über die Datei des Nutzers.
+            GPX_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            tmp = GPX_CACHE_DIR / f"neu-{uuid.uuid4().hex[:10]}.gpx"
+            # Der Name der TOUR, nicht der Dateiname: Sonst hieße die geheilte
+            # Version plötzlich wie die Datei („runde") statt wie die Tour
+            # („Barranco de Masca") — im Test aufgefallen, weil die Suche sie
+            # danach nicht mehr fand.
+            tour_name = (row["name"] if "name" in row.keys() else "") or Path(pfad).stem
+            res = cgpxedit.save_points(points or [], str(tmp),
+                                       name=tour_name, src_path=src_path,
+                                       fmt="gpx",
                                        sources=list(sources) if sources else None)
             if not res.get("ok"):
-                # Rücksicherung — der letzte Rettungsanker. Schlägt SIE fehl
-                # (typisch: dieselbe volle Platte, die schon das Schreiben
-                # gekippt hat), darf das nicht still verschwinden: sonst sieht
-                # der Nutzer nur „Speichern fehlgeschlagen", hat aber eine
-                # beschädigte Tour im Archiv und weiß nichts von track_backups/.
-                try:
-                    shutil.copy2(backup, pfad)
-                except Exception:
-                    log.exception("Rücksicherung nach fehlgeschlagenem Ersetzen scheiterte: %s", pfad)
-                    res = dict(res)
-                    res["error"] = (str(res.get("error") or "") + " — "
-                                    + _ui_t()("gpxinspect.ersetzen_backup_hinweis",
-                                              "Die Originaldatei konnte nicht wiederhergestellt werden. "
-                                              "Eine Sicherung liegt unter: ") + str(backup))
-                    res["backup"] = str(backup)
+                tmp.unlink(missing_ok=True)
                 return res
-            # 3) Neu einlesen (mtime-Skip: nur die geänderte Datei wird gelesen)
-            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(Path(pfad).parent)])
-            row2 = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?", (pfad,)).fetchone()
-            neu_gh = row2["geo_hash"] if row2 else ""
-            n_col = 0
-            n_menge = 0
-            fassung_nr = 0
-            if neu_gh and neu_gh != alt_gh:
-                n_col = clib.track_hash_migrieren(conn, alt_gh, neu_gh)
-                self._geo_hash_cache.pop(pfad, None)
-                with _projekte.LOCK:
-                    pdaten = _projekte.laden(APP_SUPPORT)
-                    # E2 (Q16a): KEINE Voll-Migration mehr — bestehende
-                    # Projekte bleiben an ihrer Fassung gepinnt und zeigen
-                    # „⬆ neuere Fassung"; hier wächst nur die Kette.
-                    alt_t = _projekte.tour_von_hash(pdaten, alt_gh)
-                    if alt_t is not None and not alt_t.get("gpx_snapshot_path"):
-                        # Die alte Geometrie muss ladbar bleiben (Pinning!) —
-                        # die Sicherung von eben IST sie.
-                        alt_t["gpx_snapshot_path"] = _sessions._save_snapshot(
-                            str(backup), alt_gh, SESSIONS_GPX_DIR)
-                    snap = _sessions._save_snapshot(pfad, neu_gh, SESSIONS_GPX_DIR)
-                    neu_t = _projekte.fassung_anlegen(
-                        pdaten, alt_gh, neu_gh, "werkzeug",
-                        snapshot_pfad=snap, gpx_path=pfad)
-                    fassung_nr = ((neu_t or {}).get("fassung") or {}).get("nr", 0)
-                    _projekte.speichern(APP_SUPPORT, pdaten)
-                    if neu_t and neu_t.get("id"):
-                        try:
-                            cgpxedit.embed_rz_id(pfad, neu_t["id"])
-                        except Exception:
-                            log.exception("rz:id einbetten (ersetzen)")
-                log.info("Ersetzen: Fassung %d angelegt — Projekte bleiben gepinnt",
-                         fassung_nr)
-            elif neu_gh == alt_gh:
-                # Abnahme-Befund 29.08.2026: reine ZEIT-Heilung (Tempo
-                # entzerren) lässt den Geometrie-Hash unverändert — dann gab
-                # es weder rz:id noch frischen Snapshot. Fassungs-Einträge
-                # sind hash-verschlüsselt (Geometrie-Stände); der Zeit-Stand
-                # wird über Snapshot + track_backups festgehalten.
-                with _projekte.LOCK:
-                    pdaten = _projekte.laden(APP_SUPPORT)
-                    t = _projekte.tour_von_hash(pdaten, alt_gh)
-                    if t is not None:
-                        t["gpx_snapshot_path"] = _sessions._save_snapshot(
-                            pfad, alt_gh, SESSIONS_GPX_DIR)
-                        _projekte.speichern(APP_SUPPORT, pdaten)
-                    if t and t.get("id"):
-                        try:
-                            cgpxedit.embed_rz_id(pfad, t["id"])
-                        except Exception:
-                            log.exception("rz:id einbetten (ersetzen, gleicher Hash)")
-            log.info("Track im Archiv ersetzt: %s · %s → %s · %d Sammlungs-Einträge · "
-                     "%d Kompositionen · Sicherung: %s",
-                     pfad, alt_gh, neu_gh, n_col, n_menge, backup)
-            return {"ok": True, "out_path": pfad, "backup": str(backup),
-                    "fassung": fassung_nr,
-                    "collections": n_col, "mengen": n_menge,
-                    "geo_hash": neu_gh, "sensors_kept": res.get("sensors_kept"),
+
+            neu_gh = self._track_geo_hash(str(tmp))
+            if not neu_gh:
+                tmp.unlink(missing_ok=True)
+                return {"ok": False, "error": _ui_t()(
+                    "gpxinspect.ersetzen_unbekannt", "Diese Datei liegt nicht im Archiv.")}
+
+            # 2) Nur die ZEIT geheilt? Dann ist es dieselbe Geometrie und damit
+            #    dieselbe Version — sie wird aufgefrischt, keine neue angelegt.
+            if neu_gh == alt_gh:
+                cbib.version_bytes_ablegen(BIB, tmp.read_bytes(), neu_gh)
+                tmp.unlink(missing_ok=True)
+                # Der ausgepackte Arbeitsstand ist jetzt veraltet.
+                (GPX_CACHE_DIR / f"{neu_gh}.gpx").unlink(missing_ok=True)
+                log.info("Version aufgefrischt (nur Zeit geheilt): %s", neu_gh[:12])
+                return {"ok": True, "out_path": pfad, "geo_hash": neu_gh,
+                        "fassung": 0, "nur_zeit": True,
+                        "sensors_kept": res.get("sensors_kept"),
+                        "fmt": "gpx", "count": res.get("count", 0)}
+
+            # 3) Neue Version: erst in die Bibliothek, dann ins Register,
+            #    dann als Archivzeile. In dieser Reihenfolge — bricht etwas ab,
+            #    liegen höchstens Daten herum, aber nie ein Verweis ins Leere.
+            ersetzt = ""
+            with _projekte.LOCK:
+                pdaten = _projekte.laden(DATEN_ORT)
+                # Zwischenstand-Regel — bewusst eng: Verworfen wird NUR eine
+                # Version, die das Werkzeug selbst erzeugt hat und die kein
+                # Projekt hält. Im Test aufgefallen: Ohne die Herkunftsprüfung
+                # hätte schon das erste Heilen die EINGELESENE Ursprungsversion
+                # gelöscht — die Tour hätte damit ihren Anfang verloren, sobald
+                # jemand die Quelldatei draußen wegräumt.
+                alt_e = (pdaten.get("touren") or {}).get(alt_gh) or {}
+                alt_quelle = (alt_e.get("fassung") or {}).get("quelle", "")
+                if alt_quelle == "werkzeug" and self._version_frei(pdaten, alt_gh):
+                    ersetzt = alt_gh
+                neu_t = _projekte.fassung_anlegen(
+                    pdaten, alt_gh, neu_gh, "werkzeug",
+                    snapshot_pfad=f"touren/{neu_gh[:2]}/{neu_gh}.gpx.gz",
+                    gpx_path="")
+                fassung_nr = ((neu_t or {}).get("fassung") or {}).get("nr", 0)
+                _projekte.speichern(DATEN_ORT, pdaten)
+                if not tour_id and neu_t:
+                    tour_id = neu_t.get("id") or ""
+
+            daten_neu = tmp.read_bytes()
+            cbib.version_bytes_ablegen(BIB, daten_neu, neu_gh)
+            tmp.unlink(missing_ok=True)
+
+            auf = clib.version_aufnehmen(
+                conn, cbib.version_datei(BIB, neu_gh), LIBRARY_THUMBS, IMPORTS_DIR,
+                LIBRARY_MAP_THUMBS, LIBRARY_COVERS, tour_id=tour_id)
+            if not auf.get("ok"):
+                return {"ok": False, "error": auf.get("error") or "?"}
+
+            # Sammlungen und Nutzer-Eingaben ziehen mit — sie gehören der Tour.
+            n_col = clib.track_hash_migrieren(conn, alt_gh, neu_gh)
+            reg, neuste = self._register_fuer_archiv()
+            clib.touren_bestimmen(conn, reg, neuste)
+
+            if ersetzt and ersetzt != neu_gh:
+                cbib.version_weg(BIB, ersetzt)
+                # Im Test aufgefallen: Die ARCHIVZEILE des Zwischenstands blieb
+                # stehen, obwohl seine Datei weg war. Damit zählte die Tour
+                # eine Datei zu viel, und die Kennzahlen-Abfrage lieferte Werte
+                # für eine Version, die es nicht mehr gibt. Nur Zeilen aus dem
+                # Versionsspeicher anfassen — die Datei des Nutzers nie.
+                conn.execute("DELETE FROM tracks WHERE geo_hash = ? AND path LIKE ?",
+                             (ersetzt, str(cbib.touren_ordner(BIB)) + "%"))
+                conn.commit()
+                log.info("Zwischenstand %s verworfen (kein Projekt hielt ihn)", ersetzt[:12])
+
+            log.info("Neue Version übernommen: %s → %s (Nr. %s) · %d Sammlungs-Einträge "
+                     "· Quelldatei unangetastet: %s",
+                     alt_gh[:12], neu_gh[:12], fassung_nr, n_col, pfad)
+            return {"ok": True, "out_path": pfad, "fassung": fassung_nr,
+                    "collections": n_col, "mengen": 0, "geo_hash": neu_gh,
+                    "ersetzt": ersetzt,
+                    "sensors_kept": res.get("sensors_kept"),
                     "fmt": "gpx", "count": res.get("count", 0)}
         except Exception as e:
             log.error("library_track_ersetzen: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
+
+    @staticmethod
+    def _version_frei(pdaten: dict, geo_hash: str) -> bool:
+        """Hält ein Projekt diese Version fest?
+
+        Entscheidet zweierlei: ob ein Zwischenstand beim Heilen überschrieben
+        werden darf, und ob eine Version gelöscht werden kann. Automatisch
+        angelegte Projekte ohne Arbeit zählen NICHT als Halter — sonst wäre
+        jede je geöffnete Version für immer unantastbar.
+        """
+        for p in ((pdaten.get("projects") or {}).values()):
+            if geo_hash not in (p.get("geo_hashes") or []) and p.get("kontext") != geo_hash:
+                continue
+            if p.get("auto") and not _projekte.modul_arbeit_irgendwo(p):
+                continue
+            return False
+        return True
 
     # ── Projekte-Bereich im Archiv (E1, IDEAS §39) ────────────────────────────
 
@@ -7179,11 +7836,11 @@ class Api:
         und notfalls das Archiv aufgelöst; `haupt_pfad` + `exists` sagen dem
         Frontend, ob „Öffnen" sofort funktioniert."""
         try:
-            daten = _projekte.laden(APP_SUPPORT)
-            # 30.08.2026 (Marc, nach Dieters 111 „Standard"-Karten): unberührte
+            daten = _projekte.laden(DATEN_ORT)
+            # 30.08.2026 (Marc, nach 111 „Standard"-Karten bei einem Beta-Tester): unberührte
             # Auto-Projekte räumen sich nach 30 Tagen still auf.
-            if _projekte.auto_aufraeumen(APP_SUPPORT, daten):
-                _projekte.speichern(APP_SUPPORT, daten)
+            if _projekte.auto_aufraeumen(DATEN_ORT, daten):
+                _projekte.speichern(DATEN_ORT, daten)
             karten = _projekte.alle_projekte(daten)
             touren = daten.get("touren") or {}
             conn = self._lib()
@@ -7211,8 +7868,8 @@ class Api:
                 # Archiv-Datei trägt ja längst die neue Geometrie.
                 if hinweis and k.get("ablauf") not in ("reise", "schwarm"):
                     kk = k.get("kontext") or ""
-                    snap = SESSIONS_GPX_DIR / f"{kk}.gpx"
-                    if snap.exists():
+                    snap = self._version_pfad(kk)
+                    if snap:
                         pfad = str(snap)
                 if not pfad or not Path(str(pfad)).exists():
                     pfad = None
@@ -7245,10 +7902,10 @@ class Api:
     @_mit_sessions_lock
     def projekt_status_setzen(self, project_id: str, status: str) -> dict:
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             if not _projekte.set_status(daten, project_id, status):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -7256,10 +7913,10 @@ class Api:
     @_mit_sessions_lock
     def projekt_umbenennen(self, project_id: str, name: str) -> dict:
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             if not _projekte.rename(daten, project_id, name or "?"):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -7267,10 +7924,10 @@ class Api:
     @_mit_sessions_lock
     def projekt_loeschen(self, project_id: str) -> dict:
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             if not _projekte.loeschen(daten, project_id):
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             log.info("Projekt gelöscht: %s", project_id)
             return {"ok": True}
         except Exception as e:
@@ -7279,11 +7936,11 @@ class Api:
     @_mit_sessions_lock
     def projekt_duplizieren(self, project_id: str) -> dict:
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             neu = _projekte.duplizieren(daten, project_id)
             if neu is None:
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             return {"ok": True, "id": neu["id"], "name": neu["name"]}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -7293,12 +7950,12 @@ class Api:
         """Öffnen aus dem Projekte-Bereich: macht das Projekt in seinem Kontext
         aktiv und liefert alles, was das Frontend zum Laden braucht."""
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             p = (daten.get("projects") or {}).get(project_id)
             if not p:
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             daten.setdefault("aktiv", {})[p.get("kontext", "")] = project_id
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             pfade = []
             for pf in (p.get("gpx_paths") or []):
                 if Path(str(pf)).exists():
@@ -7308,8 +7965,8 @@ class Api:
                 ersatz = ""
                 for gh, t in (daten.get("touren") or {}).items():
                     if pf in (t.get("gpx_paths") or []):
-                        snap = SESSIONS_GPX_DIR / f"{gh}.gpx"
-                        if snap.exists():
+                        snap = self._version_pfad(gh)
+                        if snap:
                             ersatz = str(snap)
                             break
                 pfade.append(ersatz or pf)
@@ -7333,7 +7990,7 @@ class Api:
         import hashlib
         out = {}
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             conn = self._lib()
             for pid in (project_ids or [])[:80]:
                 pr = (daten.get("projects") or {}).get(str(pid))
@@ -7416,7 +8073,7 @@ class Api:
         """E3: Liste der gesicherten Arbeitsstände eines Projekts."""
         try:
             return {"ok": True,
-                    "staende": _projekte.staende_liste(APP_SUPPORT, project_id)}
+                    "staende": _projekte.staende_liste(DATEN_ORT, project_id)}
         except Exception as e:
             return {"ok": False, "error": str(e), "staende": []}
 
@@ -7425,92 +8082,17 @@ class Api:
         """E3: einen früheren Arbeitsstand zurückholen — der jetzige wird
         vorher selbst gesichert (nichts geht verloren)."""
         try:
-            daten = _projekte.laden(APP_SUPPORT)
-            if not _projekte.stand_wiederherstellen(APP_SUPPORT, daten,
+            daten = _projekte.laden(DATEN_ORT)
+            if not _projekte.stand_wiederherstellen(DATEN_ORT, daten,
                                                     project_id, ts):
                 return {"ok": False, "error": _ui_t()(
                     "library.stand_nicht_gefunden", "Stand nicht gefunden")}
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             return {"ok": True}
         except Exception as e:
             log.error("projekt_stand_wiederherstellen: %s", e)
             return {"ok": False, "error": str(e)}
 
-    def _cloud_fassung_snapshot_holen(self, geo_hash: str) -> bool:
-        """track/<geo_hash>-Umschlag aus der Cloud in den Snapshot-Ordner
-        entpacken (nur track.gpx). Still, wenn keine Cloud eingerichtet ist."""
-        if not self._cloud_sichtbar():
-            return False
-        try:
-            vorhanden = self._cloud_zugang()
-        except Exception:      # noqa: BLE001 — Schlüsselbund-Ablehnung u.ä.
-            return False
-        if not vorhanden:
-            return False
-        teile, zugang, schluessel = vorhanden
-        import io as _io
-        import zipfile as _zip
-        g = teile["transport"].Gegenstelle(zugang.adresse, zugang.schluessel)
-        a = teile["sync"].Abgleich(g, schluessel)
-        roh = a.holen(teile["archiv"].track_name(geo_hash))
-        with _zip.ZipFile(_io.BytesIO(roh)) as z:
-            daten = z.read("track.gpx")
-        SESSIONS_GPX_DIR.mkdir(parents=True, exist_ok=True)
-        (SESSIONS_GPX_DIR / f"{geo_hash}.gpx").write_bytes(daten)
-        log.info("Cloud v2: Fassungs-Snapshot %s geholt (%d Bytes)",
-                 geo_hash[:12], len(daten))
-        return True
-
-    def _fassungs_backups_adoptieren(self) -> int:
-        """E3: alte „Im Archiv ersetzen"-Sicherungen (track_backups/) in die
-        Versions-Kette holen. Zuordnung über den Original-Dateinamen im
-        Backup-Namen (<stamp>_<name>.gpx); ohne sicheren Treffer passiert
-        NICHTS — lieber eine Fassung weniger als eine falsche Kette."""
-        bdir = APP_SUPPORT / "track_backups"
-        if not bdir.is_dir():
-            return 0
-        geaendert = 0
-        with _projekte.LOCK:
-            daten = _projekte.laden(APP_SUPPORT)
-            touren = daten.setdefault("touren", {})
-            for f in sorted(bdir.glob("*.gpx")):
-                try:
-                    gh = self._track_geo_hash(str(f))
-                except Exception:
-                    continue
-                if not gh or gh in touren:
-                    continue
-                name = f.name.split("_", 1)[-1] if "_" in f.name else f.name
-                alt_t = None
-                for t in touren.values():
-                    if name in (t.get("gpx_filenames_seen") or [])                             or any(Path(pp).name == name
-                                   for pp in (t.get("gpx_paths") or [])):
-                        alt_t = t
-                        break
-                if alt_t is None:
-                    continue
-                if not alt_t.get("id"):
-                    _projekte.register_migrieren(daten)
-                nmin = min(((t2.get("fassung") or {}).get("nr", 1)
-                            for _, t2 in _projekte.kette(daten, alt_t["id"])),
-                           default=1)
-                snap = _sessions._save_snapshot(str(f), gh, SESSIONS_GPX_DIR)
-                wann = datetime.fromtimestamp(f.stat().st_mtime).astimezone().isoformat(timespec="seconds")
-                touren[gh] = {"id": alt_t["id"],
-                              "fassung": {"nr": nmin - 1, "erstellt": wann,
-                                          "quelle": "backup"},
-                              "name": alt_t.get("name") or "",
-                              "stats": {}, "created_at": wann,
-                              "last_active_at": wann,
-                              "gpx_filenames_seen": [name],
-                              "gpx_snapshot_path": snap,
-                              "ui_hashes": [], "gpx_paths": []}
-                geaendert += 1
-            if geaendert:
-                _projekte.speichern(APP_SUPPORT, daten)
-                log.info("Fassungs-Adoption: %d Sicherung(en) aus track_backups "
-                         "in Versions-Ketten übernommen", geaendert)
-        return geaendert
 
     @_mit_sessions_lock
     def projekt_frei_anlegen(self, name: str = "") -> dict:
@@ -7518,10 +8100,10 @@ class Api:
         Reiseroute oder einen reinen Kartenflug. Antwort im
         session_open_for_track-Vertrag, damit die Topbar sofort mitzieht."""
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             p = _projekte.projekt_frei_anlegen(
                 daten, (name or "").strip(), self._session_get_global_defaults())
-            _projekte.speichern(APP_SUPPORT, daten)
+            _projekte.speichern(DATEN_ORT, daten)
             k = p["kontext"]
             return {"ok": True, "track_hash": k,
                     "session": _projekte.session_sicht(daten, k) | {"track_hash": k},
@@ -7538,7 +8120,7 @@ class Api:
             if not str(kontext).startswith("frei:"):
                 return {"ok": False, "error": "kein frei-Kontext"}
             with _projekte.LOCK:
-                daten = _projekte.laden(APP_SUPPORT)
+                daten = _projekte.laden(DATEN_ORT)
                 if not _projekte._aktives_projekt(daten, kontext):
                     return {"ok": False, "error": _ui_t()(
                         "error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
@@ -7559,10 +8141,10 @@ class Api:
                 gh = self._track_geo_hash(str(pf))
                 if gh:
                     paare.append((gh, str(pf)))
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             r = _projekte.projekt_touren_setzen(daten, project_id, paare)
             if r.get("ok"):
-                _projekte.speichern(APP_SUPPORT, daten)
+                _projekte.speichern(DATEN_ORT, daten)
             return r
         except Exception as e:
             log.error("projekt_touren_setzen: %s", e)
@@ -7573,7 +8155,7 @@ class Api:
         Alles für die rechte Spalte in einem Aufruf — Stammdaten, Mitglieds-
         Touren (mit Pfad, km, Fassungs-Hinweis), Stände."""
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             pr = (daten.get("projects") or {}).get(project_id)
             if not pr:
                 return {"ok": False, "error": _ui_t()(
@@ -7637,20 +8219,38 @@ class Api:
                                 and not ghs,
                     },
                     "touren": reihen,
-                    "staende": _projekte.staende_liste(APP_SUPPORT, project_id)}
+                    "staende": _projekte.staende_liste(DATEN_ORT, project_id)}
         except Exception as e:
             log.error("projekt_detail: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
 
     @_mit_sessions_lock
+    def projekt_version_setzen(self, project_id: str, alt_gh: str,
+                               neu_gh: str) -> dict:
+        """Ein Projekt auf eine bestimmte Version seiner Tour stellen (Q7).
+
+        Vorgabe beim Anlegen bleibt die neueste; dieser Weg erlaubt auch
+        zurück — etwa um zu vergleichen, wie das Video vor einer Heilung aussah.
+        """
+        try:
+            with _projekte.LOCK:
+                daten = _projekte.laden(DATEN_ORT)
+                r = _projekte.projekt_version_setzen(daten, project_id, alt_gh, neu_gh)
+                if r.get("ok"):
+                    _projekte.speichern(DATEN_ORT, daten)
+            return r
+        except Exception as e:
+            log.exception("projekt_version_setzen")
+            return {"ok": False, "error": str(e)}
+
     def projekt_fassung_aktualisieren(self, project_id: str) -> dict:
         """„⬆ neuere Fassung verfügbar" → genau dieses Projekt auf die
         neuesten Fassungen seiner Touren heben (Q16a: nur per Klick)."""
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             r = _projekte.projekt_auf_neueste(daten, project_id)
             if r.get("ok"):
-                _projekte.speichern(APP_SUPPORT, daten)
+                _projekte.speichern(DATEN_ORT, daten)
             return r
         except Exception as e:
             log.error("projekt_fassung_aktualisieren: %s", e)
@@ -7660,14 +8260,13 @@ class Api:
         """E3: die Versions-Kette einer Tour fürs Archiv-Detail — je Fassung
         nr, Zeit, Quelle, Punkte/km (Vergleich), ob Snapshot ladbar ist."""
         try:
-            daten = _projekte.laden(APP_SUPPORT)
+            daten = _projekte.laden(DATEN_ORT)
             t = _projekte.tour_von_hash(daten, geo_hash)
             if not t or not t.get("id"):
                 return {"ok": True, "fassungen": []}
             out = []
             for gh, e in _projekte.kette(daten, t["id"]):
                 st = e.get("stats") or {}
-                snap = SESSIONS_GPX_DIR / f"{gh}.gpx"
                 out.append({"geo_hash": gh,
                             "nr": (e.get("fassung") or {}).get("nr", 1),
                             "erstellt": (e.get("fassung") or {}).get("erstellt", ""),
@@ -7675,84 +8274,227 @@ class Api:
                             "distance_km": st.get("distance_km"),
                             "n_points": st.get("n_points"),
                             "aktuell": gh == geo_hash,
-                            "snapshot": snap.exists()})
+                            "snapshot": self._version_da(gh)})
             return {"ok": True, "tour_id": t["id"], "fassungen": out}
         except Exception as e:
             log.error("tour_fassungen: %s", e)
             return {"ok": False, "error": str(e), "fassungen": []}
+
+    def tour_extern_stand(self) -> dict:
+        """Welche Touren haben draußen eine Änderung, die noch niemand
+        bestätigt hat? (02.09.2026, Q22 — melden statt handeln.)"""
+        try:
+            daten = _projekte.laden(DATEN_ORT)
+            offen = []
+            for gh, t in (daten.get("touren") or {}).items():
+                if not t.get("extern_unbestaetigt"):
+                    continue
+                offen.append({"geo_hash": gh, "name": t.get("name") or "",
+                              "vorgaenger": t.get("extern_vorgaenger") or "",
+                              "nr": (t.get("fassung") or {}).get("nr", 0),
+                              "erstellt": (t.get("fassung") or {}).get("erstellt", "")})
+            return {"ok": True, "offen": offen}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def tour_extern_entscheiden(self, geo_hash: str, uebernehmen: bool) -> dict:
+        """Die draußen entstandene Änderung annehmen oder verwerfen."""
+        try:
+            gh = str(geo_hash or "")
+            with _projekte.LOCK:
+                daten = _projekte.laden(DATEN_ORT)
+                t = (daten.get("touren") or {}).get(gh)
+                if not t:
+                    return {"ok": False, "error": _ui_t()(
+                        "library.fassung_unbekannt", "Version unbekannt")}
+                if uebernehmen:
+                    t.pop("extern_unbestaetigt", None)
+                    t.pop("extern_vorgaenger", None)
+                else:
+                    # Verworfen: Die Version verschwindet aus der Kette. Die
+                    # DATEI draußen bleibt unangetastet — sie gehört uns nicht.
+                    (daten.get("touren") or {}).pop(gh, None)
+                _projekte.speichern(DATEN_ORT, daten)
+            if not uebernehmen:
+                cbib.version_weg(BIB, gh)
+            conn = self._lib()
+            reg, neuste = self._register_fuer_archiv()
+            clib.touren_bestimmen(conn, reg, neuste)
+            log.info("Externe Änderung %s: %s", gh[:12],
+                     "übernommen" if uebernehmen else "verworfen")
+            return {"ok": True}
+        except Exception as e:
+            log.exception("tour_extern_entscheiden")
+            return {"ok": False, "error": str(e)}
+
+    def tour_version_daten(self, geo_hash: str) -> dict:
+        """Die Kennzahlen EINER Version — für die Tabelle im Archiv-Detail.
+
+        02.09.2026 (Marc): „wenn man auf die Versionen klickt, soll sich das
+        ändern, damit man wenigstens sieht, welche Version man da gerade
+        anklickt." Ohne das sind zwei Versionen derselben Tour in der Liste
+        nicht unterscheidbar — sie tragen ja denselben Namen.
+
+        Erste Wahl ist die Archivzeile (dort stehen alle Werte fertig). Gibt
+        es keine, werden sie aus der Kopie in der Bibliothek gerechnet.
+        """
+        try:
+            gh = str(geo_hash or "")
+            conn = self._lib()
+            r = conn.execute(
+                "SELECT started_at, distance_m, duration_s, ascent_m, descent_m, "
+                "avg_speed_kmh, max_speed_kmh, n_points, n_segments, activity, filename "
+                "FROM tracks WHERE geo_hash = ? AND error = '' LIMIT 1", (gh,)).fetchone()
+            if r is not None:
+                return {"ok": True, "geo_hash": gh, "daten": dict(r), "quelle": "archiv"}
+            datei = cbib.version_datei(BIB, gh)
+            if not datei.is_file():
+                return {"ok": False, "fehlt": True, "error": _ui_t()(
+                    "library.fassung_kein_snapshot",
+                    "Für diese Version liegt keine Kopie mehr vor.")}
+            zeile = clib._row_from_file(datei, str(datei.parent), LIBRARY_THUMBS,
+                                        IMPORTS_DIR, LIBRARY_MAP_THUMBS, LIBRARY_COVERS)
+            return {"ok": True, "geo_hash": gh, "quelle": "bibliothek",
+                    "daten": {k: zeile.get(k) for k in
+                              ("started_at", "distance_m", "duration_s", "ascent_m",
+                               "descent_m", "avg_speed_kmh", "max_speed_kmh",
+                               "n_points", "n_segments", "activity", "filename")}}
+        except Exception as e:
+            log.exception("tour_version_daten")
+            return {"ok": False, "error": str(e)}
+
+    def tour_version_loeschen(self, geo_hash: str) -> dict:
+        """Eine einzelne Version wegwerfen (02.09.2026, Schnitt 3).
+
+        Gesperrt, solange ein Projekt sie hält — sonst griffe dieses Projekt
+        beim Öffnen ins Leere. Die NEUESTE Version ist nie löschbar; sie ist
+        die Tour. Wer eine Tour ganz loswerden will, löscht die Tour.
+
+        Gemeldet wird bei einer Sperre, WELCHE Projekte sie halten — „geht
+        nicht" ohne Grund ist die nutzloseste aller Meldungen.
+        """
+        try:
+            gh = str(geo_hash or "")
+            with _projekte.LOCK:
+                daten = _projekte.laden(DATEN_ORT)
+                t = _projekte.tour_von_hash(daten, gh)
+                if not t or not t.get("id"):
+                    return {"ok": False, "error": _ui_t()(
+                        "library.fassung_unbekannt", "Version unbekannt")}
+                kette = _projekte.kette(daten, t["id"])
+                if len(kette) < 2:
+                    return {"ok": False, "grund": "einzige",
+                            "error": _ui_t()("library.version_einzige",
+                            "Das ist die einzige Version dieser Tour.")}
+                if gh == _projekte.neueste_fassung(daten, t["id"]):
+                    return {"ok": False, "grund": "neueste",
+                            "error": _ui_t()("library.version_neueste",
+                            "Die neueste Version lässt sich nicht löschen — sie ist die Tour.")}
+                halter = [p.get("name") or "?" for p in (daten.get("projects") or {}).values()
+                          if (gh in (p.get("geo_hashes") or []) or p.get("kontext") == gh)
+                          and not (p.get("auto") and not _projekte.modul_arbeit_irgendwo(p))]
+                if halter:
+                    return {"ok": False, "grund": "benutzt", "projekte": halter,
+                            "error": _ui_t()("library.version_benutzt",
+                            "Diese Version wird von {n} Projekt(en) benutzt.").replace(
+                                "{n}", str(len(halter)))}
+                (daten.get("touren") or {}).pop(gh, None)
+                _projekte.speichern(DATEN_ORT, daten)
+
+            cbib.version_weg(BIB, gh)
+            conn = self._lib()
+            conn.execute("DELETE FROM tracks WHERE geo_hash = ? AND path LIKE ?",
+                         (gh, str(cbib.touren_ordner(BIB)) + "%"))
+            conn.commit()
+            reg, neuste = self._register_fuer_archiv()
+            clib.touren_bestimmen(conn, reg, neuste)
+            log.info("Version %s gelöscht", gh[:12])
+            return {"ok": True}
+        except Exception as e:
+            log.exception("tour_version_loeschen")
+            return {"ok": False, "error": str(e)}
+
+    def tour_version_exportieren(self, geo_hash: str) -> dict:
+        """Eine Version bewusst nach draußen geben (02.09.2026, Schnitt 3).
+
+        Seit die App nicht mehr in fremde Dateien zurückschreibt, ist das der
+        einzige Weg nach draußen — und genau deshalb ein ausdrücklicher.
+        """
+        try:
+            quelle = self._version_pfad(str(geo_hash or ""))
+            if not quelle:
+                return {"ok": False, "error": _ui_t()(
+                    "library.fassung_kein_snapshot",
+                    "Für diese Version liegt keine Kopie mehr vor.")}
+            # `pick_file` liefert immer eine Liste — auch beim Speichern.
+            gewaehlt = self.pick_file("save", ("GPX (*.gpx)",))
+            ziel = (gewaehlt or [None])[0]
+            if not ziel:
+                return {"ok": False, "cancelled": True}
+            if not str(ziel).lower().endswith(".gpx"):
+                ziel = str(ziel) + ".gpx"
+            shutil.copy2(quelle, ziel)
+            log.info("Version %s exportiert → %s", str(geo_hash)[:12], ziel)
+            return {"ok": True, "out_path": str(ziel)}
+        except Exception as e:
+            log.exception("tour_version_exportieren")
+            return {"ok": False, "error": str(e)}
 
     def tour_fassung_wiederherstellen(self, geo_hash: str, ziel_pfad: str = "") -> dict:
         """E3-Rollback: den Snapshot einer Fassung als Datei zurückholen.
         Ohne ziel_pfad → Original-Archivdatei der Tour überschreiben (mit
         Sicherung + neuer Fassung „rollback"); mit ziel_pfad → nur Kopie."""
         try:
-            snap = SESSIONS_GPX_DIR / f"{geo_hash}.gpx"
-            if not snap.exists():
-                # E3 / Cloud v2 (Q6b): Rollback auch am Zweitrechner — den
-                # Fassungs-Snapshot als track/<gh>-Umschlag aus der Cloud holen.
-                try:
-                    self._cloud_fassung_snapshot_holen(geo_hash)
-                except Exception:
-                    log.exception("Cloud v2: Fassungs-Snapshot holen")
-            if not snap.exists():
+            snap = self._version_pfad(geo_hash)
+            if not snap:
+                # 02.09.2026: Am Zweitrechner kann die Version fehlen — dann
+                # holt „Bibliothek aus der Cloud laden" sie (cloud_herunterladen).
+                # Ein Sonderweg nur für diesen Fall ist mit dem Umbau entfallen.
+                pass
+            if not snap:
                 return {"ok": False, "error": _ui_t()("library.fassung_kein_snapshot",
                         "Für diese Fassung liegt keine Kopie mehr vor.")}
             if ziel_pfad:
                 shutil.copy2(snap, ziel_pfad)
                 return {"ok": True, "out_path": ziel_pfad}
+            # 02.09.2026 (Schnitt 3) — Wiederherstellen heißt ab jetzt: Diese
+            # Version wird wieder die aktuelle. Vorher wurde dafür die DATEI
+            # des Nutzers überschrieben (mit Sicherung in `track_backups/`);
+            # beides ist weggefallen. Die Version liegt ohnehin vollständig in
+            # der Bibliothek — es genügt, die Kette weiterzuschreiben und die
+            # Archivzeile darauf zeigen zu lassen.
+            conn = self._lib()
             with _projekte.LOCK:
-                daten = _projekte.laden(APP_SUPPORT)
+                daten = _projekte.laden(DATEN_ORT)
                 t = _projekte.tour_von_hash(daten, geo_hash)
                 if not t:
                     return {"ok": False, "error": _ui_t()(
-                        "library.fassung_unbekannt", "Fassung unbekannt")}
+                        "library.fassung_unbekannt", "Version unbekannt")}
                 neuester = _projekte.neueste_fassung(daten, t.get("id") or "")
-                ziel = ""
-                for kand in reversed(((daten.get("touren") or {}).get(neuester) or {}).get("gpx_paths") or []):
-                    if Path(kand).exists():
-                        ziel = kand
-                        break
-            if not ziel:
-                return {"ok": False, "error": _ui_t()("error.datei_fehlt", "Datei nicht gefunden")}
-            # Byte-genaue Kopie statt Re-Export über Punkte — so überleben
-            # Sensoren, Wegpunkte und alles Exotische den Rollback verlustfrei.
-            conn = self._lib()
-            row = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?",
-                               (ziel,)).fetchone()
-            alt_gh = row["geo_hash"] if row else ""
-            backup_dir = APP_SUPPORT / "track_backups"
-            backup_dir.mkdir(parents=True, exist_ok=True)
-            backup = backup_dir / f'{time.strftime("%Y%m%d-%H%M%S")}_{Path(ziel).name}'
-            shutil.copy2(ziel, backup)
-            shutil.copy2(snap, ziel)
-            clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR,
-                      folders=[str(Path(ziel).parent)])
-            row2 = conn.execute("SELECT geo_hash FROM tracks WHERE path = ?",
-                                (ziel,)).fetchone()
-            neu_gh = row2["geo_hash"] if row2 else geo_hash
-            if alt_gh and neu_gh and alt_gh != neu_gh:
-                clib.track_hash_migrieren(conn, alt_gh, neu_gh)
-                self._geo_hash_cache.pop(ziel, None)
-            with _projekte.LOCK:
-                daten = _projekte.laden(APP_SUPPORT)
-                if alt_gh and neu_gh and alt_gh != neu_gh:
-                    neu_t = _projekte.fassung_anlegen(
-                        daten, alt_gh, neu_gh, "rollback",
-                        snapshot_pfad=f"sessions/{geo_hash}.gpx", gpx_path=ziel)
-                else:
-                    neu_t = _projekte.tour_von_hash(daten, neu_gh)
-                if neu_t is not None and ziel not in (neu_t.get("gpx_paths") or []):
-                    neu_t.setdefault("gpx_paths", []).append(ziel)
-                _projekte.speichern(APP_SUPPORT, daten)
-                if neu_t and neu_t.get("id"):
-                    try:
-                        cgpxedit.embed_rz_id(ziel, neu_t["id"])
-                    except Exception:
-                        log.exception("rz:id einbetten (rollback)")
-            log.info("Fassung %s als %s wiederhergestellt (Sicherung: %s)",
-                     geo_hash[:12], ziel, backup)
-            return {"ok": True, "out_path": ziel, "backup": str(backup),
-                    "geo_hash": neu_gh}
+                if neuester and neuester != geo_hash:
+                    # Im Test aufgefallen: `fassung_anlegen` tut hier NICHTS,
+                    # weil diese Version längst in der Kette steht — der
+                    # Rollback blieb wirkungslos, das Archiv zeigte weiter die
+                    # geheilte Fassung. Richtig ist, diese Version wieder ans
+                    # ENDE der Kette zu stellen: Sie ist ab jetzt die aktuelle.
+                    nmax = max(((e.get("fassung") or {}).get("nr", 1)
+                                for _, e in _projekte.kette(daten, t["id"])), default=1)
+                    t["fassung"] = {
+                        "nr": nmax + 1,
+                        "erstellt": datetime.now().astimezone().isoformat(timespec="seconds"),
+                        "quelle": "rollback"}
+                    t["gpx_snapshot_path"] = f"touren/{geo_hash[:2]}/{geo_hash}.gpx.gz"
+                    _projekte.speichern(DATEN_ORT, daten)
+                tour_id = t.get("id") or ""
+
+            clib.version_aufnehmen(
+                conn, cbib.version_datei(BIB, geo_hash), LIBRARY_THUMBS, IMPORTS_DIR,
+                LIBRARY_MAP_THUMBS, LIBRARY_COVERS, tour_id=tour_id)
+            reg, neuste = self._register_fuer_archiv()
+            clib.touren_bestimmen(conn, reg, neuste)
+            log.info("Version %s ist wieder die aktuelle (Quelldateien unangetastet)",
+                     geo_hash[:12])
+            return {"ok": True, "geo_hash": geo_hash}
         except Exception as e:
             log.error("tour_fassung_wiederherstellen: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}

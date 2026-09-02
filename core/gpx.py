@@ -379,12 +379,20 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
     """Liest eine GPX-Datei (oder ein konvertierbares Fremdformat, siehe
     IMPORT_CACHE_DIR), gibt Trackpunkte (mit kumulierten Werten) + Stats zurück.
 
-    `text` (31.08.2026, Dieters NAS-Befund): Wer die Datei schon gelesen hat,
+    `text` (31.08.2026, Beta-Tester-Befund (NAS)): Wer die Datei schon gelesen hat,
     reicht den Inhalt herein — dann wird sie hier NICHT erneut geöffnet. Der
     Archiv-Scan öffnete jede GPX zweimal (Parse + Quell-Erkennung); über SMB
     ist jede Öffnung ein Netz-Roundtrip."""
     if text is not None:
         gpx = gpxpy.parse(text)
+    elif str(path).lower().endswith(".gz"):
+        # 02.09.2026 — Der Versionsspeicher der Bibliothek legt Touren
+        # gzip-komprimiert ab (docs/UMBAU-BIBLIOTHEK.md, Schnitt 1). Das ist
+        # kein Sonderfall der App: `.gpx.gz` liefern auch Strava-Exporte und
+        # etliche Logger, es hat vorher nur niemand lesen können.
+        import gzip as _gzip
+        with _gzip.open(path, "rt", encoding="utf-8") as fh:
+            gpx = gpxpy.parse(fh)
     else:
         path = _als_gpx(path)
         with open(path, "r", encoding="utf-8") as fh:

@@ -522,13 +522,23 @@ function rzHeaderStats(ds, es, i0, i1) {{
     if (e < eMin) eMin = e; if (e > eMax) eMax = e; eSum += e; eCnt++;
   }}
   // Auf-/Abstieg: Glättung (±2) + 3-m-Hysterese-Referenz (wie core/gpx.py)
-  const sm = [];
+  // 02.09.2026, Audit: Punkte OHNE Höhe werden mit dem letzten gültigen Wert
+  // gefüllt statt aus dem Fenster geworfen — sonst rechnet dieses Modul über
+  // eine andere Punktreihe als Archiv und Inspektor und zeigt eine dritte
+  // Zahl für dieselbe Tour.
+  const rein = [];
+  let letzte = null;
   for (let i = i0; i <= i1; i++) {{
+    if (es[i] != null) letzte = es[i];
+    rein.push(letzte == null ? 0 : letzte);
+  }}
+  const sm = [];
+  for (let i = 0; i < rein.length; i++) {{
     let s = 0, c = 0;
-    for (let j = Math.max(i0, i - 2); j <= Math.min(i1, i + 2); j++) {{
-      if (es[j] != null) {{ s += es[j]; c++; }}
+    for (let j = Math.max(0, i - 2); j <= Math.min(rein.length - 1, i + 2); j++) {{
+      s += rein[j]; c++;
     }}
-    sm.push(c ? s / c : (es[i] || 0));
+    sm.push(c ? s / c : 0);
   }}
   let asc = 0, desc = 0, ref = sm[0] || 0;
   for (let k = 1; k < sm.length; k++) {{

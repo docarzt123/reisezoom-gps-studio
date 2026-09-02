@@ -92,6 +92,69 @@ escritura de GPS en HEIC.
 ---
 ---
 
+## 1a · Tu biblioteca 📚 (desde v0.9.640) ⭐
+
+**Dónde guarda GPS Studio tus rutas, y por qué importa.**
+
+En el primer arranque, GPS Studio pregunta en tres pasos dónde debe estar tu
+**biblioteca**: una carpeta con todo junto — tus rutas, tus proyectos, tus
+colecciones. La opción por defecto vale para casi todo el mundo; si
+necesitas espacio, ponla en un disco externo o un NAS. Puedes cambiarla
+después cuando quieras (Ajustes → Biblioteca → *Mover a otra ubicación*): la
+app la mueve de verdad, no empieza de cero.
+
+**Las carpetas en la nube no sirven.** Dropbox, iCloud Drive, OneDrive y
+Google Drive reemplazan archivos mientras se escriben y eso corrompe la base
+de datos. GPS Studio rechaza esas ubicaciones y explica por qué. Los discos
+externos y las unidades de red sí valen.
+
+### Qué significa para tus carpetas
+
+Tus carpetas vigiladas siguen igual: a partir de ahora son el **origen** del
+que llegan rutas nuevas. En cuanto una ruta está en el archivo, GPS Studio
+tiene su propia copia. Dos consecuencias:
+
+* **Ordenar ahí fuera no te hace perder nada.** La ruta sigue en el archivo,
+  solo marcada como sin archivo de origen. El filtro *falta el origen* las
+  encuentra cuando quieras limpiar.
+* **GPS Studio no escribe nunca en tus archivos.** Al curar una ruta en el
+  inspector se crea una **versión** nueva en tu biblioteca; tu archivo
+  original queda intacto. Si la necesitas fuera, usa *Exportar versión …*.
+
+### Si la biblioteca no está
+
+Si vive en un disco externo que no está conectado, GPS Studio lo dice al
+arrancar y ofrece *Buscar de nuevo* o *Elegir otra ubicación*. **Nunca** crea
+en silencio una biblioteca vacía: tus datos no se han perdido, solo no están
+accesibles.
+
+### Versiones de una ruta
+
+Una ruta puede tener varias versiones: como se grabó, curada, recortada. En
+el archivo la tarjeta muestra «V3» cuando hay tres; la lista está en la
+columna de detalle. Lo importante para tus vídeos:
+
+* **Un proyecto se queda en su versión.** Curar la ruta más tarde no mueve
+  nada en un vídeo terminado: carteles y keyframes siguen donde los pusiste.
+* El proyecto avisa con *⬆ versión más reciente* y tú decides. También puedes
+  volver **atrás** a una versión anterior.
+* Las versiones que ningún proyecto usa se pueden borrar por separado. La más
+  reciente no: es la ruta.
+
+Cada versión de la lista lleva hasta cuatro botones pequeños:
+
+| Botón | Qué hace |
+| --- | --- |
+| ↩︎ | Recuperar esta versión: se coloca al final de la cadena como estado **más reciente**, no se pierde nada. |
+| 🎬 | Ajustar un proyecto a esta versión. Se abre la lista de los proyectos ligados a esta ruta con la versión que usa cada uno. |
+| ⬇ | Exportar esta versión como archivo GPX: la salida al exterior, ahora que GPS Studio ya no escribe en tus archivos. |
+| 🗑 | Eliminar esta versión. Si un proyecto depende de ella no pasa nada y la aplicación te dice cuál. |
+
+Al pulsar la fila se muestran arriba los datos de **esa** versión; si no, dos
+versiones de la misma ruta parecen idénticas.
+
+---
+
 ## 1b · Guía para principiantes: de la descarga al primer vídeo 🚀
 
 Este capítulo es para el primer día. Va en línea recta — instalar, cargar un track, primera
@@ -604,7 +667,14 @@ vuelve a aplicarse. El archivo del disco **no** se renombra.
 
 **Buscar duplicadas:** el botón de abajo a la izquierda agrupa los archivos con un
 **recorrido idéntico**, útil tras una exportación masiva que descargó la misma ruta varias
-veces. No se borra nada: solo ves qué está duplicado.
+veces.
+
+Desde que existe la biblioteca esto **ya no es un problema**: el archivo
+muestra una sola ruta y solo anota «2× archivos». Limpiar solo merece la pena
+si quieres ahorrar espacio en disco. Los archivos marcados van a la
+**papelera del sistema**: son tus archivos, GPS Studio nunca borra nada de
+forma definitiva y la ruta se mantiene igualmente porque la biblioteca tiene
+su propia copia. Esa copia no aparece en la lista.
 
 **Importar un archivo suelto (desde v0.9.631):** un GPX individual (o FIT,
 TCX, KML …) — por ejemplo recién bajado de Komoot — ya no necesita una
@@ -1907,84 +1977,50 @@ Roadmap completa en el repo bajo `docs/IDEAS.md`.
 
 ---
 
-## Archivo en la nube — tu archivo en tu propio servidor (desde v0.9.515)
+## Archivo en la nube — tu biblioteca en tu propio servidor
 
-> **Es opcional.** Sin nube la app funciona igual que siempre: todo se queda en
-> tu ordenador, no hay cuenta y no hay nada que configurar.
+**Es opcional. Sin nube, GPS Studio funciona exactamente igual: no sale nada
+a la red y no se toca el llavero.**
 
-Si quieres tu archivo en varios ordenadores —o recuperarlo tal cual tras
-reinstalar— puedes ponerlo en **tu propio servidor web**. No en el nuestro: tus
-datos siguen siendo tuyos.
+Desde la v0.9.640 la nube es una **copia de tu biblioteca**. Lo que sube: tus
+rutas (cada versión por separado), el registro de rutas, tus proyectos, lo que
+has escrito tú (etiquetas, favoritos, notas, nombres propios, colores,
+colecciones) y las imágenes de portada que elegiste. Todo se cifra antes de
+salir de tu equipo.
 
-### Configuración (una vez, unos dos minutos)
+**Lo que NO sube:** la base de datos del archivo (se reconstruye a partir de
+las rutas), las miniaturas y los mapas (vienen de Mapbox) y tus fotos: son
+tuyas y nunca estuvieron dentro de la app.
 
-1. Pulsa la nube gris **☁** en la barra superior (o abre **Ajustes →
-   Archivo en la nube**). El diálogo contiene la guía — y un botón **«Dejar
-   rz-cloud.php en mi escritorio»** te da el archivo de servidor; viene con la
-   aplicación y siempre corresponde a tu versión.
-2. Sube ese archivo **`rz-cloud.php`** a una carpeta de tu espacio web, por
-   ejemplo `tusitio.com/archivo/` — con tu programa FTP o el gestor de archivos
-   de tu proveedor. El espacio web solo necesita **PHP (7.4 o superior) y
-   HTTPS**; prácticamente cualquier proveedor lo tiene. Ni base de datos ni
-   ajustes.
-3. Introduce la **dirección de ese archivo**
-   (`https://tusitio.com/archivo/rz-cloud.php`). La app te dice al momento si
-   encuentra algo ahí.
-4. **Crear un archivo nuevo** — y ahora lo importante:
+### Segundo ordenador
 
-> ⚠️ **La app te muestra una contraseña una sola vez.** Es la que abre tus
-> datos. Guárdala enseguida en tu gestor de contraseñas. Nosotros no la
-> conocemos y no podemos recuperarla: **si se pierde, nadie podrá acceder al
-> archivo, tampoco nosotros.**
+*Cargar la biblioteca desde la nube* trae todo lo que falta allí: rutas,
+proyectos, colecciones y lo tuyo. Lo que ya existe no se sobrescribe. Después
+tu archivo se ve como en el primer ordenador.
 
-A partir de ahí todo sube solo. Una **☁** en la barra superior muestra el
-estado: tranquila cuando todo está sincronizado, con un contador mientras
-transfiere.
+También es tu vuelta atrás tras una pérdida: si la base de datos desaparece,
+basta con la biblioteca — las rutas se vuelven a incorporar al archivo desde ahí.
 
-### Qué sube y qué no
+### Cómo configurarlo
 
-**Sí:** rutas, todos sus datos (nombre, nota, etiquetas, colecciones), los
-proyectos del animador y del mapa de ruta, los ajustes del geolocalizador y las
-miniaturas de las fotos que hayas colocado en un proyecto.
+Necesitas cualquier alojamiento web con **PHP 7.4 o superior**, nada más: sin
+base de datos, sin servicio, sin suscripción. En los ajustes GPS Studio te deja
+el archivo **`rz-cloud.php`** en el escritorio; súbelo a tu servidor e indica
+su dirección en la app. Ya está.
 
-**No:** tus fotos originales, los vídeos terminados ni las imágenes de mapa. Las
-fotos se quedan donde están: un archivo no es un almacén de fotos.
+El servidor nunca ve tus datos: todo se cifra en tu equipo antes de subir. Él
+guarda bloques cuyos nombres no puede leer. La clave la tienes solo tú, en tu
+llavero. La necesitas para un segundo ordenador; los ajustes pueden mostrártela.
 
-### Un segundo ordenador
+### Limpiar
 
-Allí elige **Ajustes → Archivo en la nube → Conectar con uno existente**, e
-introduce la dirección, la clave de acceso y tu contraseña. Nada más: el archivo
-aparece y las rutas llegan cuando las necesitas.
+*Quitar ajenos* descarta lo que no pertenece a tu biblioteca, por ejemplo
+datos de una versión anterior de GPS Studio. Dos clics, y va a la papelera del
+servidor, no a la nada.
 
-### Qué ve el servidor
-
-**Nada aprovechable.** Todo se cifra en tu equipo antes de salir. En el servidor
-hay nombres opacos, tamaños y fechas: ningún nombre de ruta, ningún lugar,
-ningún recorrido. Aunque alguien copie todo el espacio web, obtiene bloques
-cifrados.
-
-### Papelera, versiones anteriores, quitar (desde v0.9.532)
-
-**La sincronización nunca borra nada.** Si una ruta solo existe en la nube
-(porque la quitaste del archivo aquí), el diálogo de la nube la muestra en
-«Rutas en el archivo» — con **Traer** y un botón **🗑**. Solo el segundo clic
-en 🗑 la quita de la nube, y aun así solo a la **papelera del servidor**.
-
-**Versiones anteriores.** Cuando una ruta se sobrescribe en la nube (nuevo
-nombre, nuevos proyectos), la versión anterior queda en la papelera como
-«versión anterior» — las últimas cinco por ruta. **Restaurar** la convierte de
-nuevo en la versión actual. La papelera se limpia sola a los 30 días.
-
-**Solo https://.** La dirección de `rz-cloud.php` debe empezar por https — por
-http tu clave de acceso viajaría sin cifrar. Casi todos los hostings ofrecen
-https, a menudo con «Let's Encrypt» en un clic.
-
-### Los viajes y enjambres viajan contigo (desde v0.9.569)
-Tus **composiciones** — viajes de varias rutas y enjambres, con fotogramas
-clave y ajustes — también van a la nube automáticamente. En el otro equipo las
-encuentras en el diálogo de la nube bajo **«Viajes y enjambres»**: un clic en
-**Descargar** trae las rutas que falten y lo deja todo listo. Una composición
-que ya exista en el equipo **nunca se sobrescribe**: el trabajo local gana.
+**Nunca se borra nada automáticamente.** Con dos ordenadores, «está arriba
+pero aquí no lo conozco» suele significar «es del otro equipo». Limpiar es
+siempre una decisión tuya.
 
 ## 13 · Soporte y contacto
 

@@ -3148,3 +3148,125 @@ Beim ersten Doppelklick auf eine ad-hoc-signierte App fragt Gatekeeper. `xattr -
 - App-Icon (.icns aus 1024 px PNG via `iconutil`)
 - Notarisierte Distribution
 - Freemium-License-Layer (kommt erst nach feature-completeness)
+
+
+---
+
+## Die Bibliothek (seit 02.09.2026, v0.9.640)
+
+**Entscheidungsdokument: `docs/UMBAU-BIBLIOTHEK.md` — das ist die Wahrheit.**
+Hier steht nur, wie es gebaut ist.
+
+### Wo was liegt
+
+| | |
+|---|---|
+| `APP_SUPPORT/bibliothek.json` | **der einzige Wert außerhalb**: der Pfad zur Bibliothek |
+| `<Bibliothek>/library.db` | Archiv-Datenbank |
+| `<Bibliothek>/projekte.json`, `touren.json` | Projekte und Tour-Register |
+| `<Bibliothek>/touren/aa/<geo_hash>.gpx.gz` | der Versionsspeicher, eine Datei je Version |
+| `<Bibliothek>/bilder/{vorschau,karten,titel}` | Vorschau-, Karten- und Titelbilder |
+| `<Bibliothek>/sicherungen/` | rollierende Kopien von `library.db` (5) |
+| `<Bibliothek>/.sperre` | Riegel 2, mit PID + Rechnername + Zeit |
+
+Im **App-Ordner** bleibt, was zum Rechner gehört: `settings.json` (samt
+Mapbox-Konto), `logs/`, `_renders/`, `_imports/` (Umwandlungs-Cache),
+`_gpxcache/` (ausgepackte Versionen, wegwerfbar), `_drops/`,
+`photo_thumb_cache/`.
+
+### Module
+
+* **`core/bibliothek.py`** — Ort lesen/schreiben, die drei Riegel,
+  Datenbankprüfung und -sicherung, Versionsspeicher (`version_ablegen`,
+  `version_bytes_ablegen`, `version_lesen`, `version_auspacken`,
+  `version_weg`), Umzug an einen anderen Ort.
+  **⚠️ `version_ablegen` wandelt Fremdformate selbst nach GPX** (`_als_gpx`,
+  lazy `core.imports`) und übernimmt eine bereits gepackte Quelle 1:1. Das
+  gehört bewusst in die Ablage und nicht zu den Aufrufern: Vorher packte sie
+  die Quelldatei byte-genau, und eine `.fit` lag als FIT-Rohblock unter dem
+  Namen `<Version>.gpx.gz` in der Bibliothek (Audit 02.09.2026).
+  `version_ist_lesbar()`/`versionen_pruefen()` finden solche Altlasten,
+  `Api._versionen_gpx_pruefen()` repariert sie einmalig aus der Quelle
+  (Stempel `gpx_geprueft` über `stempel_lesen`/`stempel_setzen`).
+* **`core/umzug.py`** — Altbestand aus dem App-Ordner in die Bibliothek.
+  Läuft **von selbst** beim ersten Start nach dem Update (`noetig()` →
+  `ausfuehren()`), sichert vorher, prüft danach und benennt den Altbestand
+  nur um. `bestand_aufnehmen()` legt für jede Archiv-Tour eine Kopie an.
+
+### Zwei Haken vom Archiv nach oben
+
+`core/library.py` darf nichts über Projekte wissen, braucht aber beides.
+Deshalb reicht `app.py` zwei Funktionen herein (gesetzt in `Api.__init__`):
+
+* **`clib.AUFNAHME_HOOK`** → `Api._archiv_aufnehmen(conn)`. Läuft nach jedem
+  Einlesen: legt fehlende Kopien in die Bibliothek und registriert neue
+  Touren. Ohne ihn wäre die Bibliothek nur ein Index.
+* **`clib.REGISTER_HOOK`** → `Api._register_fuer_archiv()`. Liefert
+  `(geo_hash → tour_id, tour_id → neuester geo_hash)`. Unbestätigte externe
+  Änderungen sind aus `neueste` ausgenommen.
+
+Direkt danach läuft `clib.touren_bestimmen()` und setzt `tracks.tour_id`
+sowie `tracks.haupt` — **`haupt = 1` ist die eine Zeile je Tour, die das
+Archiv zeigt.** `_build_where` hängt `COALESCE(haupt,1) = 1` an; nur der
+Duplikat-Aufräumdialog hebt das mit `alle_dateien=True` auf.
+
+### Schema-Zusätze
+
+`tracks.tour_id`, `tracks.haupt`, `tracks.speicher`, `track_meta.tour_id`.
+Nutzer-Eingaben werden über `_set_meta` auf **alle** Versionen einer Tour
+geschrieben, damit sie eine Heilung überleben.
+
+**`tracks.speicher`** (0 = Fundort des Nutzers, 1 = unsere Kopie) ersetzt die
+frühere Erkennung an der Endung `.gpx.gz`. Nötig geworden, seit beobachtete
+Ordner ebenfalls `.gpx.gz` einlesen (Strava-Exporte, Logger — `_passende_endung`);
+sonst hätte die Datei eines Nutzers als unser Speicher gegolten und wäre beim
+Aufräumen aus dem Archiv geflogen. Gesetzt in `_row_from_file` (0) und
+`version_aufnehmen` (1); gelesen von `query()` (`n_dateien`), `duplicates()`
+und `Api._bib_nachziehen`. Die Migration markiert einmalig alle bestehenden
+`.gpx.gz`-Zeilen als Speicher.
+
+### Höhenmeter — eine Rechnung für alles
+
+`core/gpx._compute_ascent_descent` (geglättet über 5 Punkte, 3-m-Hysterese,
+je Etappe) ist die Wahrheit. Die Oberfläche benutzt dieselbe Rechnung als
+`hoehenmeter()` / `hoehenmeterAusReihe()` in `ui/js/util.js`; der Inspektor
+ruft nur noch die auf. **Wer die eine ändert, ändert die andere mit** —
+`tests/test_hoehenmeter_einig.py` rechnet beide Seiten gegeneinander (Python
+gegen `node`) und lässt höchstens 0,5 m Abweichung zu. `core/heightanim.py`
+trägt eine eigene Kopie im erzeugten HTML (das Modul läuft als eigenständige
+Seite ohne `util.js`) — bei Änderungen mitziehen.
+
+### Was nie mehr passiert
+
+`library_track_ersetzen` schreibt **nicht** mehr in fremde Dateien; es legt
+eine Version an (`cbib.version_bytes_ablegen`), schreibt die Kette fort und
+nimmt die Version über `clib.version_aufnehmen()` als Archivzeile auf.
+`track_backups/` und die Backup-Adoption sind ersatzlos entfallen.
+Wächter: `tests/test_nie_zurueckschreiben.py`.
+
+### Projekte
+
+`kontext_oeffnen_einzel` legt kein Projekt mehr an, sondern gibt ein
+**schwebendes** zurück (`id: ""`, `schwebend: True`, nicht gespeichert).
+`update_settings` ruft bei leerer Kennung `festschreiben()` — dort entsteht
+das Projekt, bei der ersten echten Änderung.
+
+
+## Cloud nach dem Umbau (02.09.2026)
+
+* **`core/cloud/bibliothek.py`** — was hochgeht und wie es zurückkommt:
+  `bestand(bib, conn)` liefert `(Prüfsummen, Lieferanten)`, `ablegen()` legt
+  ein geholtes Objekt an seinen Platz, `nutzerdaten_export/import` sind die
+  Brücke zur Datenbank. `INHALT` ist das Objektverzeichnis — ohne es kann ein
+  frischer Rechner nichts holen (der Server kennt nur Hash-Namen).
+* **`core/cloud/sync.py`** — `planen()` nimmt jetzt schlicht
+  `{logischer Name: Prüfsumme}` statt der Bauteile des alten Archivs.
+* **`core/cloud/archiv.py` ist gelöscht.** Der ZIP-Bauer für `.rzproj` lebt
+  weiter als `core/projektpaket.py`.
+* **Brücken:** `cloud_abgleichen` (hoch), `cloud_herunterladen` (runter, zwei
+  Durchgänge: erst `bib/inhalt`, dann alles daraus), `cloud_uebersicht`,
+  `cloud_aufraeumen` (entfernt, was nicht zur Bibliothek gehört — nur auf
+  ausdrücklichen Klick).
+* **Ohne Cloud:** Jede Brücke prüft `_cloud_sichtbar()` und `_cloud_zugang()`
+  und antwortet mit einem Fehler-Dict, statt zu werfen. Der Schlüsselbund
+  wird erst bei echter Arbeit angefasst.

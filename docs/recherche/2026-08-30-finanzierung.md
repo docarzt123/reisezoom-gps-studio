@@ -31,7 +31,7 @@ Jede Warnung erzeugt eine E-Mail.
 
 | Projekt | Eingenommen | Kontext |
 |---|---|---|
-| **gpx.studio** (Open Collective) | **11.810,36 €** gesamt, Jahresbudget ~**14.771 €** (≈1.231 €/Monat), **1.255 Beitragende** | Web-Tool mit hoher Reichweite, 5 Jahre Ko-fi-Vorlauf. Autor ist **Vincent Coppé** (nicht „Rafael Verbuggen") |
+| **gpx.studio** (Open Collective) | **11.810,36 €** gesamt, Jahresbudget ~**14.771 €** (≈1.231 €/Monat), **1.255 Beitragende** | Web-Tool mit hoher Reichweite, 5 Jahre Ko-fi-Vorlauf. Autor ist **Vincent Coppé** (nicht „ein Beta-Tester Verbuggen") |
 | **Organic Maps** | **14.537 $** eingesammelt, **158 Beiträge** | Projekt selbst: „far from achieving any sort of financial sustainability" |
 | **KeePassXC** (Liberapay) | **197 $/Woche von 376 Patrons ≈ 10.266 $/Jahr** | plus Open Collective und GitHub Sponsors |
 | **Krita** | ≈ **2.623 $/Monat von 233 Unterstützern** (~31 k$/Jahr) | plus Store-Erlöse, plus Einmal-Grants (50.000 $ FLOSS/fund 2025) |

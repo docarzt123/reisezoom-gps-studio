@@ -13,6 +13,15 @@ wenn die Finanzierungs-Spur sie deckt — nicht vorher.
 
 ## Phase 1 — Projekte fertig machen + Nutzererlebnis (JETZT, Wochen)
 
+> **02.09.2026:** Diese Phase hat einen neuen, größeren Kern bekommen.
+> Beim Durchdenken des Archivs zeigte sich, dass Punkt 1 und 2 unten nur
+> Symptome eines Datenmodell-Problems sind (Identität hängt am Dateipfad).
+> Beschlossen ist deshalb der **Bibliotheks-Umbau** — Entscheidungsdokument:
+> **`docs/UMBAU-BIBLIOTHEK.md`**, Reihenfolge dort in Abschnitt 10.
+> Das Erstnutzer-Erlebnis (1.) fällt als Onboarding im Schnitt 1 mit an,
+> „Session" und die Begriffe (2./3.) im Schnitt 4.
+
+
 Marc, 30.08.2026: „die projekte komplett richtig zu implementieren und
 generell die user experience zu verbessern." Deckt sich mit dem
 Strategie-Befund „Dass es beim ersten Start funktioniert" und Audit §D.
@@ -39,7 +48,7 @@ Strategie-Befund „Dass es beim ersten Start funktioniert" und Audit §D.
 
 **Fertig-Kriterium:** Ein Neuling kommt ohne Handbuch vom Download bis zum
 ersten Video; kein Oberflächentext benutzt „Session" oder unerklärte
-Fachwörter; Tester-Feedback (Dieter/Rafael/Keppler) zur neuen Projektwelt
+Fachwörter; Tester-Feedback (Beta-Tester) zur neuen Projektwelt
 eingearbeitet.
 
 ## Phase 2 — Finanzierung (parallel starten, klein)

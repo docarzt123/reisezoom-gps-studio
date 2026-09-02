@@ -281,11 +281,29 @@ _TECH_COLS = [
     # v0.9.501: FIT-Tour-Ebene. Technisch, weil beides direkt aus der Datei
     # kommt und bei jedem Einlesen neu entsteht — keine Nutzer-Eingabe.
     "fitmeta", "fit_profile",
+    # 02.09.2026: 1 = unsere Kopie im Versionsspeicher, 0 = Datei des Nutzers.
+    # Technisch, weil es am Fundort hängt und beim Einlesen entsteht.
+    "speicher",
 ]
 
 # Spalten, die eine ältere Datenbank noch nicht hat. Beim Öffnen nachgezogen —
 # eine bestehende Sammlung soll nicht neu aufgebaut werden müssen.
 _ADD_COLS = [
+    # ── 02.09.2026, docs/UMBAU-BIBLIOTHEK.md, Schnitt 2 ────────────────────
+    # Die Identität einer Tour ist nicht mehr ihr Dateipfad. `tour_id` sagt,
+    # zu welcher Tour diese Datei gehört; `haupt` markiert die eine Zeile je
+    # Tour, die das Archiv zeigt. Alle anderen Zeilen derselben Tour sind
+    # weiterhin da — sie sind ihre Herkunft (Fundorte und ältere Versionen),
+    # nur eben keine eigene Kachel mehr.
+    ("tour_id", "TEXT DEFAULT ''"),
+    ("haupt", "INTEGER DEFAULT 1"),
+    # 02.09.2026, Audit — „ist das unsere Kopie im Versionsspeicher?"
+    # Vorher wurde das an der Endung `.gpx.gz` festgemacht. Das ging so lange
+    # gut, wie NUR wir solche Dateien hatten; seit beobachtete Ordner ebenfalls
+    # `.gpx.gz` einlesen (Strava-Exporte, Logger), wäre die Datei eines Nutzers
+    # fälschlich als unser Speicher gezählt — und beim Aufräumen sogar aus dem
+    # Archiv gelöscht worden.
+    ("speicher", "INTEGER DEFAULT 0"),
     ("geom", "TEXT DEFAULT ''"),
     ("color", "TEXT DEFAULT ''"),
     ("map_thumb", "TEXT DEFAULT ''"),
@@ -371,6 +389,14 @@ def open_db(db_path: Path) -> sqlite3.Connection:
     _migrate_collection_items(conn)
     _migrate_error_kind(conn)
     _migrate_fit_neu_lesen(conn, schema_alt)
+    if "speicher" not in have:
+        # Zum Zeitpunkt dieser Migration gibt es `.gpx.gz` nur als unsere
+        # Kopien — Nutzer-Dateien mit dieser Endung liest das Archiv erst ab
+        # heute ein. Danach entscheidet die Spalte, nicht die Endung.
+        n = conn.execute("UPDATE tracks SET speicher = 1 "
+                         "WHERE path LIKE '%.gpx.gz'").rowcount or 0
+        if n:
+            log.info("library: %d Speicher-Zeile(n) markiert", n)
     _fts_einrichten(conn)
     conn.commit()
     return conn
@@ -478,7 +504,12 @@ def _migrate_error_kind(conn: sqlite3.Connection) -> None:
 def _migrate_meta_spalten(conn: sqlite3.Connection) -> None:
     """Fehlende Spalten in `track_meta` nachziehen (bestehende Archive)."""
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(track_meta)").fetchall()}
-    for name, typ in (("activity_user", "TEXT DEFAULT ''"), ("color", "TEXT DEFAULT ''")):
+    # `tour_id` (02.09.2026): Nutzer-Eingaben hingen bisher am `geo_hash`, also
+    # an einer VERSION. Beim Heilen entstand ein neuer Hash und Schlagworte,
+    # Favorit und eigener Name der alten Version wurden gelöscht. Sie gehören
+    # an die Tour und müssen eine Heilung überleben.
+    for name, typ in (("activity_user", "TEXT DEFAULT ''"), ("color", "TEXT DEFAULT ''"),
+                      ("tour_id", "TEXT DEFAULT ''")):
         if name not in cols:
             log.info("library: track_meta.%s wird ergänzt", name)
             conn.execute(f"ALTER TABLE track_meta ADD COLUMN {name} {typ}")
@@ -580,7 +611,7 @@ def add_folder(conn: sqlite3.Connection, path: str, recursive: bool = True) -> b
 
 @_locked
 def remove_folder(conn: sqlite3.Connection, path: str, drop_tracks: bool = True) -> None:
-    """30.08.2026 (Beta-Tester Dieter: „am X angeklickt, nichts passiert") —
+    """30.08.2026 (ein Beta-Tester: „am X angeklickt, nichts passiert") —
     der Pfad kommt aus der WebView, die Strings NFC-normalisiert; in der DB
     kann er NFD stehen (NAS/macOS). Ein exaktes `WHERE path = ?` trifft dann
     NICHTS und der Ordner bleibt kommentarlos stehen. Deshalb: Kandidaten
@@ -637,6 +668,20 @@ def _sieht_nach_track_aus(p: Path) -> bool:
         return False
 
 
+def _passende_endung(name: str) -> bool:
+    """Liest das Archiv diese Datei?
+
+    02.09.2026, Audit: `.gpx.gz` stand im Changelog („auch Strava-Exporte und
+    Logger liefern das"), wurde aber nie eingelesen — `Path("x.gpx.gz").suffix`
+    ist `.gz`, und das steht in keiner Liste. Gelesen wurde es nur im
+    Versionsspeicher, wo wir den Pfad selbst kennen.
+    """
+    k = name.lower()
+    if k.endswith(".gpx.gz"):
+        return True
+    return Path(k).suffix in INDEX_EXTS
+
+
 def _iter_files(folder: str, recursive: bool) -> Iterable[Path]:
     base = Path(folder)
     if not base.is_dir():
@@ -645,13 +690,13 @@ def _iter_files(folder: str, recursive: bool) -> Iterable[Path]:
         for root, dirs, files in os.walk(base):
             dirs[:] = [d for d in dirs if d not in SKIP_DIR_NAMES and not d.startswith(".")]
             for f in files:
-                if Path(f).suffix.lower() in INDEX_EXTS and not f.startswith("."):
+                if _passende_endung(f) and not f.startswith("."):
                     voll = Path(root) / f
                     if _sieht_nach_track_aus(voll):
                         yield voll
     else:
         for f in sorted(base.iterdir()):
-            if f.is_file() and f.suffix.lower() in INDEX_EXTS and not f.name.startswith("."):
+            if f.is_file() and _passende_endung(f.name) and not f.name.startswith("."):
                 if _sieht_nach_track_aus(f):
                     yield f
 
@@ -913,12 +958,18 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         "indexed_at": _now_iso(),
         "error": "",
         "error_kind": "",
+        # Eine eingelesene Datei ist ein Fundort. `version_aufnehmen` setzt
+        # das auf 1, wenn die Zeile unsere eigene Kopie beschreibt.
+        "speicher": 0,
     }
     gpx_path = str(path)
-    if path.suffix.lower() != ".gpx":
+    # 02.09.2026: Versionen aus der Bibliothek liegen als `.gpx.gz` — das ist
+    # GPX, nur gepackt, und braucht keine Format-Umwandlung.
+    _ist_gz = path.name.lower().endswith(".gpx.gz")
+    if path.suffix.lower() != ".gpx" and not _ist_gz:
         gpx_path = cimports.ensure_gpx(str(path), import_cache)
 
-    # 31.08.2026 (Dieters NAS-Befund: „das Einlesen hat auffällig lange
+    # 31.08.2026 (Beta-Tester-Befund (NAS): „das Einlesen hat auffällig lange
     # gedauert"): die Datei EINMAL lesen und daraus Parse UND Quell-Erkennung
     # bedienen — vorher wurde jede GPX zweimal geöffnet, und über SMB kostet
     # jede Öffnung einen Netz-Roundtrip. Fremdformate (FIT …) laufen weiter
@@ -926,8 +977,13 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
     text = None
     if gpx_path == str(path):
         try:
-            text = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
+            if _ist_gz:
+                import gzip as _gzip
+                with _gzip.open(path, "rt", encoding="utf-8") as _fh:
+                    text = _fh.read()
+            else:
+                text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
             text = None      # exotische Kodierung → alter Weg (eigenes open)
     pts, stats = cgpx.parse_gpx(gpx_path, text=text)
     coords = [(p.lon, p.lat) for p in pts]
@@ -1217,14 +1273,115 @@ def scan(
         log.info("library: %d Datei(en) ohne Koordinaten übersprungen (Indoor-/Kraft-Einheiten — kein Fehler)", ohne_punkte)
     res = {"total": total, "added": added, "updated": updated, "skipped": skipped,
            "failed": failed, "removed": removed, "missing": missing, "back": back}
+    # 02.09.2026, Schnitt 2 — nach JEDEM Einlesen die Tour-Zuordnung neu setzen.
+    # Bewusst hier und nicht an den sechs Aufrufstellen: Wer künftig einen
+    # siebten Weg ins Archiv baut, bekommt es geschenkt statt es zu vergessen.
+    try:
+        # ERST aufnehmen, DANN zuordnen: Die Aufnahme legt fehlende Kopien in
+        # die Bibliothek und trägt neue Touren ins Register ein — ohne sie
+        # wäre die Zuordnung gleich wieder unvollständig.
+        if AUFNAHME_HOOK:
+            res["aufgenommen"] = AUFNAHME_HOOK(conn)
+        reg, neu = REGISTER_HOOK() if REGISTER_HOOK else ({}, {})
+        res["touren"] = touren_bestimmen(conn, reg, neu)
+    except Exception:
+        log.exception("library: Aufnahme/Tour-Zuordnung nach dem Einlesen")
     log.info("library.scan: %s", res)
     return res
 
+
+# Woher kommt die Tour-Zuordnung? Das Tour-Register lebt in `core/projekte.py`
+# und damit eine Ebene über dem Archiv — deshalb reicht `app.py` hier eine
+# Funktion herein, statt dass das Archiv nach oben greift. Gibt sie
+# `(register, neueste)` zurück: geo_hash → tour_id und tour_id → neuester
+# geo_hash. Ohne Hook ist jede Strecke ihre eigene Tour, das Archiv
+# funktioniert also auch ohne.
+REGISTER_HOOK: Optional[Callable[[], tuple]] = None
+
+# 02.09.2026 (Schnitt 1+3) — Was passiert, wenn eine Tour NEU ins Archiv kommt?
+# Sie muss in die Bibliothek kopiert und als Tour registriert werden, sonst ist
+# die Bibliothek nicht die Wahrheit und das Löschen der Quelldatei reißt sie
+# ein. Auch das gehört eine Ebene höher (`app.py`), deshalb wieder ein Haken.
+AUFNAHME_HOOK: Optional[Callable[[sqlite3.Connection], dict]] = None
 
 _META_COLS = ["fav", "tags", "note", "cover", "recorded_user", "display_name", "hidden", "color"]
 # Sonderfall: in `track_meta` heißt die Spalte `activity_user` (leer = Schätzung
 # gilt), in `tracks` schlicht `activity`. Deshalb wird sie getrennt gespiegelt.
 
+
+
+# ── Eine Tour, mehrere Dateien (02.09.2026, Schnitt 2) ──────────────────────
+#
+# Bis hierher war jede DATEI eine Kachel im Archiv. Dieselbe Strecke als
+# Komoot-Download, App-Import und Versions-Kopie ergab drei „Touren", die sich
+# beim Anfassen synchron änderten — für den Nutzer unerklärlich. Ab jetzt:
+#
+#   * `tour_id`  sagt, zu welcher TOUR eine Dateizeile gehört. Sie kommt aus
+#     dem Tour-Register (`touren.json`), das Versionen derselben Tour bereits
+#     verkettet. Ohne Registereintrag ist eine Strecke ihre eigene Tour.
+#   * `haupt`    markiert die EINE Zeile je Tour, die das Archiv anzeigt.
+#
+# Die übrigen Zeilen verschwinden nicht — sie sind die Herkunft der Tour
+# („liegt an 3 Orten") und ihre älteren Versionen.
+
+def _tour_schluessel(geo_hash: str, register: dict) -> str:
+    """Tour-Kennung für eine Version. Ohne Register ist sie ihre eigene Tour."""
+    return (register or {}).get(geo_hash) or f"gh:{geo_hash}"
+
+
+@_locked
+def touren_bestimmen(conn: sqlite3.Connection, register: Optional[dict] = None,
+                     neueste: Optional[dict] = None) -> dict:
+    """`tour_id` und `haupt` für alle Dateizeilen neu setzen.
+
+    `register`: geo_hash → tour_id (aus dem Tour-Register).
+    `neueste`:  tour_id → geo_hash der neuesten Version. Nur zur Auswahl der
+                Hauptzeile — fehlt sie, entscheidet die Dateizeit.
+
+    Welche Zeile wird die Hauptzeile? In dieser Reihenfolge:
+      1. sie gehört zur neuesten Version der Tour,
+      2. ihre Datei ist auffindbar und lesbar,
+      3. sie ist die zuletzt geänderte.
+    So zeigt das Archiv immer den aktuellen Stand und nie eine tote Datei,
+    solange es eine lebende gibt.
+    """
+    register = register or {}
+    neueste = neueste or {}
+    rows = conn.execute(
+        "SELECT path, geo_hash, mtime, missing_since, error FROM tracks "
+        "WHERE geo_hash != ''").fetchall()
+    gruppen: dict = {}
+    for r in rows:
+        tid = _tour_schluessel(r["geo_hash"], register)
+        gruppen.setdefault(tid, []).append(r)
+
+    setz_haupt, setz_neben, setz_tid = [], [], []
+    for tid, zeilen in gruppen.items():
+        neu_gh = neueste.get(tid, "")
+
+        def rang(r, _neu=neu_gh):
+            return (0 if (_neu and r["geo_hash"] == _neu) else 1,
+                    0 if not (r["missing_since"] or "") else 1,
+                    0 if not (r["error"] or "") else 1,
+                    -(r["mtime"] or 0))
+        zeilen = sorted(zeilen, key=rang)
+        setz_haupt.append(zeilen[0]["path"])
+        setz_neben.extend(z["path"] for z in zeilen[1:])
+        setz_tid.extend((tid, z["path"]) for z in zeilen)
+
+    conn.executemany("UPDATE tracks SET tour_id = ? WHERE path = ?", setz_tid)
+    conn.executemany("UPDATE tracks SET haupt = 1 WHERE path = ?",
+                     [(p,) for p in setz_haupt])
+    conn.executemany("UPDATE tracks SET haupt = 0 WHERE path = ?",
+                     [(p,) for p in setz_neben])
+    # Nutzer-Eingaben an die Tour hängen (sie sollen eine Heilung überleben).
+    conn.executemany(
+        "UPDATE track_meta SET tour_id = ? WHERE geo_hash = ?",
+        [(_tour_schluessel(gh, register), gh)
+         for gh in {r["geo_hash"] for r in rows}])
+    conn.commit()
+    return {"touren": len(gruppen), "dateien": len(rows),
+            "mehrfach": sum(1 for z in gruppen.values() if len(z) > 1)}
 
 
 def _geo_of(conn: sqlite3.Connection, path: str) -> str:
@@ -1285,13 +1442,39 @@ def _set_meta(conn: sqlite3.Connection, path: str, **fields) -> bool:
                  "VALUES(?,?,?,?) ON CONFLICT(geo_hash) DO NOTHING",
                  (gh, r["name"] or "", now, now))
     sets = ", ".join(f"{k} = ?" for k in fields)
-    conn.execute(f"UPDATE track_meta SET {sets}, last_seen = ? WHERE geo_hash = ?",
-                 list(fields.values()) + [now, gh])
+    # 02.09.2026, Schnitt 2 — die Eingabe gilt für die ganze TOUR, also für
+    # alle ihre Versionen. Vorher hing sie am `geo_hash`, also an genau einer
+    # Version: Nach dem Heilen war die Bewertung weg, weil die neue Geometrie
+    # einen neuen Hash hat. Ohne Tour-Zuordnung (frisches Archiv, Register
+    # noch nicht gelaufen) bleibt es beim alten Verhalten.
+    tid = _tour_of(conn, path)
+    if tid:
+        hashes = [z["geo_hash"] for z in conn.execute(
+            "SELECT DISTINCT geo_hash FROM tracks WHERE tour_id = ? AND geo_hash != ''",
+            (tid,)).fetchall()]
+    else:
+        hashes = [gh]
+    for h in hashes:
+        conn.execute("INSERT INTO track_meta(geo_hash, tour_id, last_name, first_seen, last_seen) "
+                     "VALUES(?,?,?,?,?) ON CONFLICT(geo_hash) DO NOTHING",
+                     (h, tid, r["name"] or "", now, now))
+        conn.execute(f"UPDATE track_meta SET {sets}, last_seen = ? WHERE geo_hash = ?",
+                     list(fields.values()) + [now, h])
     # Anzeige-Cache in allen Datei-Zeilen derselben Tour nachziehen.
-    conn.execute(f"UPDATE tracks SET {sets} WHERE geo_hash = ?",
-                 list(fields.values()) + [gh])
+    if tid:
+        conn.execute(f"UPDATE tracks SET {sets} WHERE tour_id = ?",
+                     list(fields.values()) + [tid])
+    else:
+        conn.execute(f"UPDATE tracks SET {sets} WHERE geo_hash = ?",
+                     list(fields.values()) + [gh])
     conn.commit()
     return True
+
+
+def _tour_of(conn: sqlite3.Connection, path: str) -> str:
+    """Zu welcher Tour gehört diese Datei? Leer = noch nicht zugeordnet."""
+    r = conn.execute("SELECT tour_id FROM tracks WHERE path = ?", (path,)).fetchone()
+    return (r["tour_id"] if r and "tour_id" in r.keys() else "") or ""
 
 
 def _upsert(conn: sqlite3.Connection, row: dict) -> None:
@@ -1305,6 +1488,62 @@ def _upsert(conn: sqlite3.Connection, row: dict) -> None:
     )
     _apply_meta(conn, row.get("geo_hash") or "", row.get("name") or "",
                 row.get("cover") or "")
+
+
+@_locked
+def version_aufnehmen(conn: sqlite3.Connection, gpx_pfad: Path, thumbs_dir: Path,
+                      import_cache: Path, map_thumbs_dir: Optional[Path] = None,
+                      covers_dir: Optional[Path] = None,
+                      tour_id: str = "") -> dict:
+    """Eine in der App ENTSTANDENE Version als Archivzeile aufnehmen.
+
+    02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Schnitt 3): Bis hierher entstand
+    eine geheilte Tour dadurch, dass die App die Datei des Nutzers
+    ÜBERSCHRIEB — mitsamt Sicherungsordner, der unbegrenzt wuchs, und einer
+    Zuordnung über Dateinamen, die raten musste. Ab jetzt schreibt GPS Studio
+    nie mehr in fremde Dateien: Die neue Version liegt in der Bibliothek, und
+    diese Funktion macht daraus eine Zeile im Archiv.
+
+    Der Unterschied zum gewöhnlichen Einlesen: Die Datei liegt nicht in einem
+    beobachteten Ordner, sie wird also nie gescannt — sie muss hier einmal
+    ausdrücklich aufgenommen werden.
+    """
+    gpx_pfad = Path(gpx_pfad)
+    try:
+        row = _row_from_file(gpx_pfad, str(gpx_pfad.parent), thumbs_dir, import_cache,
+                             map_thumbs_dir, covers_dir)
+    except Exception as e:      # noqa: BLE001
+        # 02.09.2026, beim Cloud-Live-Test gefunden: EINE unlesbare Datei hat
+        # die ganze Aufnahme abgebrochen — von 762 Touren landeten 22 im
+        # Archiv. `scan()` fängt seit jeher je Datei ab; hier fehlte es.
+        log.warning("version_aufnehmen: %s nicht lesbar — %s", gpx_pfad.name, e)
+        return {"ok": False, "error": str(e)}
+    if row.get("error"):
+        return {"ok": False, "error": row["error"]}
+    # 02.09.2026, auf einem echten Rechner aufgefallen: Nach einem Rollback
+    # stand dieselbe Version ZWEIMAL im Archiv — einmal als Datei des Nutzers,
+    # einmal als unsere Kopie in der Bibliothek. Die Kachel meldete daraufhin
+    # „3×" (drei Dateien), obwohl es nur zwei Fundorte gibt.
+    #
+    # Gibt es zu dieser Geometrie schon eine echte Datei, braucht es keine
+    # zweite Zeile: Die Bibliothekskopie ist Speicher, kein Fundort.
+    row["speicher"] = 1        # das hier IST der Versionsspeicher
+    vorhanden = conn.execute(
+        "SELECT path FROM tracks WHERE geo_hash = ? AND error = '' "
+        "AND COALESCE(speicher,0) = 0", (row.get("geo_hash") or "",)).fetchone()
+    if vorhanden is not None:
+        if tour_id:
+            conn.execute("UPDATE tracks SET tour_id = ? WHERE geo_hash = ?",
+                         (tour_id, row.get("geo_hash") or ""))
+        conn.commit()
+        return {"ok": True, "geo_hash": row.get("geo_hash") or "", "row": dict(vorhanden),
+                "vorhanden": True}
+    _upsert(conn, row)
+    if tour_id:
+        conn.execute("UPDATE tracks SET tour_id = ? WHERE path = ?",
+                     (tour_id, str(gpx_pfad)))
+    conn.commit()
+    return {"ok": True, "geo_hash": row.get("geo_hash") or "", "row": row}
 
 
 # ── Abfragen ─────────────────────────────────────────────────────────────────
@@ -1407,11 +1646,19 @@ def _build_where(search="", year=None, activity="", fav_only=False, planned=None
                  tags=None, min_km=None, max_km=None, bbox=None, collection_id=None,
                  include_errors=False, include_hidden=False, hidden_only=False,
                  missing_only=False, merged_only=False, include_merged=False,
-                 von=None, bis=None, **_ignored) -> tuple:
+                 von=None, bis=None, alle_dateien=False, **_ignored) -> tuple:
     """Baut die WHERE-Klausel EINMAL — Liste und Statistik müssen zwingend
     dieselbe Auswahl meinen, sonst zählt die Statistik etwas anderes als das,
-    was der Nutzer gerade sieht."""
+    was der Nutzer gerade sieht.
+
+    `alle_dateien=True` hebt die Ein-Kachel-je-Tour-Regel auf. Das braucht
+    genau eine Stelle: der Aufräum-Dialog für doppelte Dateien, der die
+    Dateien ja gerade zeigen SOLL.
+    """
     where, args = ["1=1"], []
+    if not alle_dateien:
+        # 02.09.2026, Schnitt 2 — eine Kachel je Tour, nicht je Datei.
+        where.append("COALESCE(haupt,1) = 1")
     if not include_errors:
         where.append("error = ''")
     if hidden_only:
@@ -1564,6 +1811,27 @@ def query(
     # obwohl ihn dort nichts anfasst. Nur `get_track` (eine Tour) liest ihn.
     spalten = (_spalten_ohne_geom(conn) + ", geom") if with_geom \
         else _spalten_ohne_geom(conn)
+    # 02.09.2026, Schnitt 2 — was die Kachel über die TOUR sagen muss:
+    # an wie vielen Orten sie liegt und wie viele Versionen es gibt. Beides
+    # als Unterabfrage; ein JOIN würde die WHERE-Klausel verkomplizieren, die
+    # Liste und Statistik sich teilen.
+    # ⚠️ `tracks.tour_id != ''` ist Pflicht: Solange die Zuordnung noch nicht
+    # gelaufen ist, sind ALLE tour_id leer — ohne diese Bedingung zählte jede
+    # Kachel den ganzen Bestand und trug „717×" (auf einem echten Rechner
+    # genau so passiert).
+    spalten += (
+        # Unsere eigenen Kopien im Versionsspeicher sind Speicher, kein
+        # Fundort. Sie mitzuzählen ergab „3×" für eine Tour, die an zwei Orten
+        # liegt. Erkannt an der Spalte, NICHT an der Endung: seit dem
+        # 02.09.2026 liest das Archiv auch `.gpx.gz` aus beobachteten Ordnern.
+        ", (SELECT COUNT(*) FROM tracks t2 WHERE t2.tour_id = tracks.tour_id"
+        "   AND COALESCE(t2.speicher,0) = 0"
+        "   AND COALESCE(tracks.tour_id,'') != '') AS n_dateien"
+        ", (SELECT COUNT(DISTINCT t2.geo_hash) FROM tracks t2 "
+        "   WHERE t2.tour_id = tracks.tour_id"
+        "   AND COALESCE(tracks.tour_id,'') != '') AS n_versionen"
+        ", (SELECT tm.first_seen FROM track_meta tm "
+        "   WHERE tm.geo_hash = tracks.geo_hash) AS hinzugefuegt")
     sql = f"SELECT {spalten} FROM tracks WHERE {sql_where} ORDER BY {order}"
     if limit:
         sql += f" LIMIT {int(limit)} OFFSET {int(offset)}"
@@ -1996,17 +2264,32 @@ def trash_file(conn: sqlite3.Connection, path: str) -> dict:
 
 @_locked
 def duplicates(conn: sqlite3.Connection) -> list:
-    """Gruppen von Dateien mit identischem Streckenverlauf."""
+    """Gruppen von DATEIEN mit identischem Streckenverlauf.
+
+    ⚠️ Bewusst OHNE die Ein-Kachel-je-Tour-Regel: Dieser Dialog ist genau
+    dafür da, die einzelnen Dateien zu zeigen.
+
+    ⚠️ 02.09.2026, Audit — **unsere eigenen Kopien bleiben draußen.** Seit dem
+    Bibliotheks-Umbau ist eine mehrfach vorhandene Datei kein Schaden mehr:
+    Das Archiv zeigt EINE Tour und schreibt „2×" daran. Wer hier etwas
+    weglegt, räumt nur Plattenplatz auf — und dabei darf ihm niemals die
+    Kopie angeboten werden, an der die Tour hängt. Sonst hätte der Dialog die
+    Bibliothek ausräumen können, während er „doppelt" sagt.
+    """
     rows = conn.execute(
         "SELECT geo_hash, COUNT(*) n FROM tracks WHERE geo_hash != '' AND error = '' "
+        "AND COALESCE(speicher,0) = 0 "
         "GROUP BY geo_hash HAVING n > 1 ORDER BY n DESC"
     ).fetchall()
     out = []
     for r in rows:
         items = conn.execute(
-            "SELECT * FROM tracks WHERE geo_hash = ? ORDER BY mtime", (r["geo_hash"],)
+            "SELECT * FROM tracks WHERE geo_hash = ? AND COALESCE(speicher,0) = 0 "
+            "ORDER BY mtime", (r["geo_hash"],)
         ).fetchall()
-        out.append({"geo_hash": r["geo_hash"], "n": r["n"],
+        if len(items) < 2:
+            continue
+        out.append({"geo_hash": r["geo_hash"], "n": len(items),
                     "items": [_to_dict(x) for x in items]})
     return out
 

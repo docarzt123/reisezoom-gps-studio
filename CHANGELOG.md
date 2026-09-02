@@ -14,10 +14,239 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.646] – 2026-09-02
+
+### ⚠️ Umbau: die Tour-Bibliothek (v0.9.640–646)
+
+Beschlossen mit Marc am 02.09.2026 in einer Fragerunde; das
+Entscheidungsdokument mit allen Begründungen ist
+`docs/UMBAU-BIBLIOTHEK.md`. Auslöser war eine harmlose Beobachtung: Eine
+frisch importierte Tour meldete „steckt in 5 Projekten", obwohl sie in
+keinem steckte. Die Ursache war kein Fehler, sondern das Datenmodell —
+**die Identität einer Tour hing an ihrem Dateipfad.**
+
+#### Hinzugefügt
+- **Die Bibliothek.** GPS Studio bewahrt Touren, Projekte und die
+  Archiv-Datenbank ab jetzt an einem Ort auf, den du selbst bestimmst.
+  Jede Tour liegt dort als Kopie, eine Datei je Version, komprimiert (bei
+  762 Versionen rund 18 MB). Beobachtete Ordner sind nur noch **Quellen**:
+  Verschwindet eine Datei draußen, bleibt die Tour vollständig.
+- **Onboarding beim ersten Start** — drei Schritte, ausdrücklich ohne
+  Mapbox-Konto und ohne Cloud. Bestehende beobachtete Ordner sind
+  vorausgewählt.
+- **Der Umzugsbericht bleibt abrufbar** (Einstellungen → Bibliothek →
+  *Umzugsbericht ansehen*). Vorher wurde er einmal gezeigt und war danach
+  weg — obwohl er die einzige Auskunft darüber ist, was mit den Daten
+  passiert ist und wo die Sicherung liegt.
+- **Drei Schutzriegel für die Bibliothek:** Cloud-Sync-Ordner (iCloud,
+  Dropbox, OneDrive, Google Drive und weitere) werden als Ort **abgelehnt**,
+  weil SQLite dort zuverlässig kaputtgeht — externe Platten und NAS bleiben
+  erlaubt; eine Sperrdatei verhindert, dass zwei GPS Studios dieselbe
+  Bibliothek öffnen; die Datenbank wird beim Start geprüft und bei Schaden
+  aus einer rollierenden Sicherung angeboten.
+- **Erklärende Bildschirme statt Rätselraten**, wenn die Bibliothek nicht
+  erreichbar, belegt oder beschädigt ist — je mit den Auswegen, die es
+  wirklich gibt. Es wird **niemals** stillschweigend eine leere neue
+  Bibliothek angelegt.
+- **Versionen frei wählbar.** Ein Projekt hängt an einer bestimmten Version
+  und lässt sich jederzeit auf eine andere stellen — auch zurück.
+- **Version einzeln löschen und exportieren** — über die Knöpfe an der
+  Version (⬇ und 🗑). Löschen ist gesperrt, solange ein Projekt an der
+  Version hängt; der Dialog sagt dann, welche das sind.
+- **Ein Projekt auf eine andere Version stellen** (🎬 an der Version). Die
+  Vorgabe bleibt die neueste; zurück geht jetzt auch — etwa um zu sehen, wie
+  das Video vor einer Heilung aussah. Die Funktion war gebaut, hatte aber
+  keinen Bedienweg. — `tests/test_bruecken_haben_aufrufer.py`
+- **Eine einzige unlesbare Datei konnte das Aufnehmen ganzer Bestände
+  abbrechen.** Beim Zurückholen aus der Cloud landeten dadurch 22 von 762
+  Touren im Archiv. Jede Datei wird jetzt einzeln abgefangen und gezählt —
+  so, wie es das Einlesen beobachteter Ordner seit jeher tut.
+- **Versionen aus der Bibliothek werden ins Archiv aufgenommen, wenn es leer
+  ist.** Vorher hatte ein zweiter Rechner nach dem Herunterladen alle Dateien
+  und ein leeres Archiv. Das ist zugleich der Rettungsweg, wenn die Datenbank
+  verloren geht: Die Bibliothek allein genügt. Bewusst nur bei leerem Archiv —
+  der Speicher enthält auch ältere Stände, und die sind Versionen einer Tour,
+  keine eigenen Touren.
+- **Ein Dialog erbte die Knöpfe des vorherigen.** Nach einem abgebrochenen
+  Löschdialog stand im Fenster „Ordner & Einlesen" unten ein roter
+  „Tour und diese Projekte löschen" — ausgerechnet ein Löschknopf, in einem
+  Fenster, das nichts damit zu tun hat. Ein neuer Dialog leert die Fußzeile
+  jetzt, wenn er keine eigene mitbringt.
+- **Die Merkmale auf der Kachel lagen übereinander.** „V2" (Versionen) und
+  „2×" (Fundorte) hatten dieselbe Ecke bekommen, sichtbar war nur das
+  zweite. Sie liegen jetzt in einer Reihe oben links. Dabei kam ein
+  Altfehler mit heraus: „Datei nicht auffindbar" (🔌) und „hat Projekte" (●)
+  teilten sich ebenfalls eine Ecke.
+- **Der Löschdialog listete „Standard, Standard, Standard …".** Gleichnamige
+  Projekte bekommen jetzt ihr Datum dazu, damit man sieht, was man löscht.
+- **Eine Kachel meldete „3×", obwohl die Tour an zwei Orten liegt.** Nach
+  einem Wiederherstellen stand dieselbe Version zweimal im Archiv: einmal als
+  deine Datei, einmal als unsere Kopie in der Bibliothek. Die Kopie ist
+  Speicher, kein Fundort — sie wird nicht mehr als zweite Zeile angelegt und
+  zählt nicht mit. Bestehende Doppelte räumt die App beim nächsten Start weg.
+- **Der GPX-Inspektor steht in der Modulleiste jetzt direkt hinter dem
+  Archiv** statt ganz am Ende. Das entspricht auch der Aufteilung aus dem
+  Umbau: Archiv und Inspektor arbeiten an den Daten, alles danach an einem
+  Projekt.
+- **Das Archiv startet in der Ansicht, die zuletzt offen war** — Touren oder
+  Projekte. Vorher startete es immer bei den Projekten.
+- **Die Versionsliste steht jetzt direkt unter den Kennzahlen — und ein Klick
+  auf eine Version zeigt IHRE Werte** in der Tabelle darüber. Vorher trugen
+  zwei Versionen derselben Tour denselben Namen und waren nicht
+  auseinanderzuhalten. Die angesehene Version ist orange umrandet, die
+  aktuelle bleibt getrennt davon markiert.
+- Ein verworfener Zwischenstand ließ seine **Archivzeile** stehen, obwohl
+  seine Datei weg war — die Tour zählte dadurch eine Datei zu viel.
+- **Verworfene Zwischenstände sagen es jetzt selbst.** In der Versionsliste
+  standen sie aussehen-wie-alle-anderen, nur ohne Zurückholen-Knopf — wer sie
+  wollte, fand nichts und wusste nicht warum. Sie sind jetzt ausgegraut und
+  mit „nicht mehr vorhanden" beschriftet, mit Erklärung im Tooltip.
+- **Der Import erkennt bekannte Touren, bevor er kopiert.** Wählst du eine
+  Datei, deren Streckenverlauf GPS Studio schon kennt, sagt es das — mit dem
+  Namen der Tour und, falls es eine ältere Version ist, mit „Version 0 von 2".
+  Du entscheidest dann: nur die neuen aufnehmen oder trotzdem alle. Vorher
+  rutschte so eine Datei stillschweigend durch und tauchte als weitere
+  Version auf, ohne dass jemand davon wusste.
+- **`.gpx.gz` wird gelesen** — nicht nur unser Versionsspeicher, auch
+  Strava-Exporte und Logger liefern das.
+
+#### Geändert
+- **Eine Kachel je Tour statt je Datei.** Dieselbe Strecke als
+  Komoot-Download, App-Import und Versions-Kopie ist ab jetzt **eine** Tour
+  mit den Merkmalen „V3" (drei Versionen) und „2×" (aus zwei Dateien).
+- **„Fassung" heißt „Version"** — in allen drei Sprachen.
+- **Schlagworte, Favorit, Notiz und eigener Name hängen an der Tour**, nicht
+  mehr an einer einzelnen Version: Sie überleben eine Heilung.
+- **Der Inspektor ersetzt nichts mehr, er übernimmt.** „Im Archiv ersetzen"
+  heißt jetzt „Als neue Version übernehmen".
+- **Öffnen legt kein Projekt mehr an.** Ein Projekt entsteht erst bei der
+  ersten echten Änderung. (Ein Beta-Tester hatte 111 Karten namens
+  „Standard", von denen keine je Arbeit trug.)
+- **„Reise" ist als Wort für ein Mehr-Touren-Projekt weg** — es stand
+  unerklärt in der Oberfläche und meinte mal das eine, mal das andere.
+- **Der Umzug des Bestands läuft von selbst**, einmal beim ersten Start:
+  vorher sichern, kopieren, prüfen, und erst dann den Altbestand umbenennen
+  (nie löschen). Bei jedem Zweifel bricht er ab und lässt alles, wie es war.
+  Gegen echte Daten geprüft: 717 Touren, 79 Projekte, 4 Sammlungen mit 444
+  Zuordnungen — hinterher identisch.
+
+#### Entfernt
+- **⚠️ GPS Studio schreibt nie mehr in deine Dateien.** Bis hierher
+  überschrieb „Im Archiv ersetzen" die Originaldatei. Damit entfallen der
+  Sicherungsordner `track_backups/` (der unbegrenzt wuchs) und die Logik,
+  die alte Sicherungen über **Dateinamen** zu Versionen zuordnen musste —
+  also raten. Wer die geheilte Fassung draußen braucht, exportiert sie.
+- **Eine draußen geänderte Datei erzeugt keine stille Version mehr** —
+  sie wird gemeldet und wartet auf eine Entscheidung.
+
+#### Die Cloud ist jetzt eine Kopie der Bibliothek
+- **Neu gebaut statt geflickt.** Vorher lud die App je Tour einen eigenen
+  Umschlag hoch, der Verzeichnis, Sammlungen, Projekte, Fotos und
+  Versionsketten in sich trug — ein zweites Datenmodell neben dem echten, das
+  bei jeder Änderung nachgezogen werden musste. Jetzt geht schlicht hoch, was
+  in der Bibliothek liegt: die Versionen, das Tour-Register, die Projekte,
+  deine Eingaben (Schlagworte, Favoriten, Notizen, Farben, Sammlungen) und
+  deine Titelbilder.
+- **Nicht dabei:** die Archiv-Datenbank (abgeleitet — wird am zweiten Rechner
+  neu aufgebaut), Vorschau- und Kartenbilder (kommen von Mapbox) und deine
+  Fotos (die gehören dir und lagen nie in der App).
+- **„Bibliothek aus der Cloud laden"** holt auf einem zweiten Rechner alles,
+  was fehlt — Touren, Projekte, Sammlungen, deine Eingaben. Vorhandenes wird
+  nicht überschrieben.
+- **„Fremdes entfernen"** räumt auf, was nicht zur Bibliothek gehört — etwa
+  den Bestand des alten Modells. Zwei Klicks, und es landet im Papierkorb des
+  Servers, nicht im Nichts. Nie automatisch: Bei zwei Rechnern heißt „liegt
+  oben, kenne ich nicht" meistens „vom anderen Rechner".
+- **Ohne eingerichtete Cloud passiert weiterhin nichts** — kein Netz, kein
+  Schlüsselbund, kein Hintergrund-Thread.
+- **Der Papierkorb erklärt sich.** Nach dem Umbau liegen dort hunderte
+  Objekte des alten Modells, deren Klarnamen niemand mehr kennt — eine Liste
+  aus lauter „(unbekannter Eintrag)". Eine Zeile darüber sagt jetzt, woher
+  sie kommen und dass sie nach 30 Tagen von selbst verschwinden.
+- Nebenbefund, der damit erledigt ist: Der Abgleich war seit der
+  Projekt-Umstellung defekt — er las eine Datei, die es nicht mehr gibt,
+  weshalb hochgeladene Umschläge **keine Projekte** enthielten.
+
+#### Behoben
+- **⚠️ FIT- und TCX-Touren lagen als Rohdaten in der Bibliothek.** Die Kopie
+  wurde byte-genau angelegt — bei einer Garmin- oder Suunto-Datei stand danach
+  ein FIT-Block unter dem Namen `<Version>.gpx.gz` in der Bibliothek. Für uns
+  nicht lesbar, für einen zweiten Rechner nicht aufnehmbar, und die Cloud
+  spiegelte ihn mit. Für alle, die mit Uhr aufzeichnen, hätte die Bibliothek
+  ihr Kernversprechen nicht gehalten. Jetzt wird vor dem Ablegen umgewandelt;
+  schon abgelegte Rohdaten repariert die App beim nächsten Start einmalig —
+  **aus ihrem eigenen Inhalt**, die Quelldatei von damals wird nicht
+  gebraucht. Auf Marcs Rechner betraf es 2 von 762 Versionen; beide ergeben
+  nach der Reparatur wieder 6731 Punkte über 41,5 km.
+  — `tests/test_version_ist_gpx.py`
+- **Fehlende Kartenbilder wurden beim Start nicht mehr nachgeholt.** Das
+  Öffnen der Bibliothek stieß die Hintergrundläufe an, bevor die App fertig
+  gebaut war; der erste Lauf brach mit einem Fehler ab (im Protokoll an drei
+  von vier Starts). Der Knopf von Hand funktionierte weiter — deshalb fiel es
+  niemandem auf. — `tests/test_start_reihenfolge.py`
+- **Höhenmeter: eine Tour, drei Zahlen.** Archiv, Inspektor und
+  Höhen-Animator rechneten unterschiedlich; der Inspektor summierte jeden
+  Höhenunterschied und kam damit je nach Aufzeichnung auf 1 bis 35 Prozent zu
+  viel. Ab jetzt rechnet die ganze Oberfläche mit derselben Formel wie das
+  Archiv (geglättet, 3-Meter-Schwelle, je Etappe getrennt).
+  — `tests/test_hoehenmeter_einig.py`
+- **`.gpx.gz` in beobachteten Ordnern wurde nie eingelesen** — versprochen war
+  es seit dem Umbau, gelesen wurde es nur im eigenen Versionsspeicher.
+  Strava-Exporte und Logger liefern genau dieses Format.
+- **„Doppelte finden" konnte die Kopie der Bibliothek anbieten.** Wer sie
+  angehakt hätte, hätte nicht aufgeräumt, sondern der Tour die Grundlage
+  genommen. Unsere Kopien stehen dort jetzt nicht mehr zur Auswahl, und der
+  Dialog sagt, was er tut: Es sind deine Dateien, sie wandern in den
+  System-Papierkorb, die Tour bleibt in jedem Fall.
+  — `tests/test_doppelte_nicht_bibliothek.py`
+- **Das Vorschaubild fehlte in der Detailspalte**, wenn die Tour nicht
+  angeklickt, sondern wiederhergestellt wurde (gemerkte Auswahl, nach einem
+  Rollback). Der Platzhalter blieb dauerhaft stehen, obwohl das Bild da war.
+- **Inspektor: „Nach Tempo einfärben" wirkte bei langen Tracks nicht mehr.**
+  Der Punkte-Regler rastet auf `Minimum + k × Schrittweite`; bei über 2 000
+  Punkten war die Schrittweite 10, aus „2788" wurde 2782 — der Regler
+  erreichte nie 100 %, die Reduzier-Vorschau lief dauerhaft mit und blendete
+  alles auf 20 % ab.
+- Eine Tour löschen, die in Projekten steckt, wird verweigert und nennt sie;
+  es gibt einen ausdrücklichen zweiten Weg, der beides entfernt.
+- Wiederherstellen einer Version war wirkungslos, weil die Kette nicht
+  fortgeschrieben wurde.
+- **Nach dem Umzug zeigte das Archiv überall ein Fragezeichen statt der
+  Vorschaubilder.** Die Bilder waren umgezogen, die in der Datenbank
+  gespeicherten **absoluten** Pfade nicht — 716 von 717 Kacheln waren
+  betroffen. Die Pfade werden jetzt beim Umzug umgeschrieben und bei jedem
+  Öffnen der Bibliothek nachgezogen, falls doch einer übrig ist.
+- **Jede Kachel trug „717×".** Die Tour-Zuordnung lief bisher nur nach einem
+  Einlesen; nach dem Umzug hatte keins stattgefunden, also war `tour_id`
+  überall leer und jede Kachel zählte den gesamten Bestand. Die Zuordnung
+  läuft jetzt auch beim Öffnen, und die Zählung setzt eine gesetzte
+  Tour-Kennung voraus.
+- **„An anderen Ort verschieben" warf einen Fehler** — der Ordner-Dialog
+  heißt in dieser App `pick_file("folder")`, nicht `pick_folder()`. Python
+  merkt so etwas erst beim Klick. Zwei neue Wächter schließen die Lücke von
+  beiden Seiten: `tests/test_self_aufrufe.py` prüft jeden `self.…`-Aufruf in
+  `app.py` gegen die Klasse, `tests/test_bruecken_existieren.py` jede aus der
+  Oberfläche gerufene Brücke gegen `app.py`.
+- Der Umzugs-Hinweis beim ersten Start war **durchsichtig** — die CSS-
+  Variablen `--panel` und `--bg` gibt es in diesem Theme nicht (es heißt
+  `--panel-bg` und `--bg-0`…`--bg-4`), und eine unbekannte Variable ohne
+  Rückfall macht die Deklaration stillschweigend ungültig. Neuer Wächter
+  `tests/test_css_variablen.py` findet so etwas künftig vor dem Bauen.
+
+### Behoben
+- **Inspektor: „Nach Tempo einfärben" wirkte bei langen Tracks nicht mehr.**
+  Ursache war der neue Punkte-Regler: Ein Schieberegler rastet seinen Wert auf
+  `Minimum + k × Schrittweite`. Bei Tracks über 2 000 Punkten war die
+  Schrittweite 10, aus „2788" wurde damit 2782 — der Regler konnte 100 % nie
+  erreichen. Die Reduzier-Vorschau lief deshalb dauerhaft mit und blendete
+  Track und Tempo-Farben auf 20 % ab. Schrittweite ist jetzt immer 1.
+  Zusätzlich setzt die Vorschau die blaue Grundlinie nicht mehr über die
+  Tempo-Färbung zurück.
+
 ## [0.9.635] – 2026-09-01
 
 ### Added
-- Rafael-Paket (v0.9.635, aus seinen zwei Test-Mails vom 31.08.):
+- Tester-Paket (v0.9.635, aus zwei Test-Mails vom 31.08.):
   (1) **Mehrfachauswahl im Projektmanager** — ⌘/Strg-Klick sammelt
   Projektkarten, eine Leiste löscht alle ausgewählten auf einmal (er musste
   27 Stück einzeln löschen). (2) **Pfeil für alle Schwarm-Touren** — neues
@@ -83,7 +312,7 @@ Bei jeder neuen Version:
   ein Video rendert, bekam beim Video „🖼 Bild öffnen" und „Neues Bild".
   Der Video-Zweig stellt Beschriftungen, Player und Standbild jetzt
   ausdrücklich zurück.
-- Vorschau-Kamera „der Zoom haut ab" (Rafael, drei Ursachen — alle
+- Vorschau-Kamera „der Zoom haut ab" (Tester-Meldung, drei Ursachen — alle
   behoben, Wächter `test_zoom_haut_ab.py`):
   (1) Rumzoomen zum Angucken wurde still als `static_zoom` gespeichert und
   galt fortan als bewusste Kamera-Wahl; (2) die implizite Classic-Kamera
@@ -102,11 +331,11 @@ Bei jeder neuen Version:
   eine Eingabe, obwohl „12" sichtbar war. Platzhalter zählt jetzt als
   Wert, ungültige Ziele bekommen eine Ansage.
 
-- Rafael: **Deutsche Texte in fremdsprachiger Oberfläche** — der
+- Tester-Meldung: **Deutsche Texte in fremdsprachiger Oberfläche** — der
   „Projekte"-Knopf oben rechts rendert jetzt neu, sobald die Sprachdateien
   geladen sind (vorher blieb der deutsche Fallback stehen), und der
   ⚙-Tooltip „Einstellungen" ist übersetzbar (topbar.settings, DE/EN/ES).
-- Rafael: **„(importado) (importado)"-Kaskade beim .rzproj-Import** — ein
+- Tester-Meldung: **„(importado) (importado)"-Kaskade beim .rzproj-Import** — ein
   inhaltsgleiches Projekt im selben Kontext wird beim erneuten Import nicht
   mehr dupliziert, und der Namenszusatz stapelt sich nicht mehr
   („… (importiert 2)" statt „… (importiert) (importiert)").
@@ -114,7 +343,7 @@ Bei jeder neuen Version:
 ## [0.9.634] – 2026-08-31
 
 ### Changed
-- Archiv-Scan liest jede GPX nur noch EINMAL (v0.9.634, Dieters
+- Archiv-Scan liest jede GPX nur noch EINMAL (v0.9.634, Beta-Tester-
   NAS-Befund: „das Einlesen hat auffällig lange gedauert"): vorher wurde
   jede Datei zweimal geöffnet — einmal fürs Parsen, einmal für die
   Komoot/Creator-Erkennung. Auf einem NAS ist jede Öffnung ein
@@ -143,7 +372,7 @@ Bei jeder neuen Version:
 ## [0.9.631] – 2026-08-30
 
 ### Added
-- Einzeldatei-Import ins Archiv (v0.9.631, Marc-OK nach Dieters
+- Einzeldatei-Import ins Archiv (v0.9.631, Marc-OK nach Beta-Tester-
   Komoot-Fall): im „Ordner & Einlesen"-Dialog gibt es „+ Einzelne
   Track-Datei …" (Mehrfachauswahl), und Track-Dateien lassen sich direkt
   aufs Archiv ziehen. Die Dateien werden in den app-verwalteten,
@@ -154,19 +383,19 @@ Bei jeder neuen Version:
   `test_archiv_einzelimport.py`, i18n DE/EN/ES.
 
 ### Changed
-- Auto-Projekte räumen sich auf (v0.9.630, Marc-OK nach Dieters 111
+- Auto-Projekte räumen sich auf (v0.9.630, Marc-OK nach Beta-Tester- 111
   „Standard"-Karten): automatisch angelegte Projekte, die nie umbenannt,
   nie im Status geändert wurden und in keinem Modul echte Arbeit tragen,
   verschwinden nach 30 Tagen still beim Laden der Projektliste. Öffnet man
   die Tour später wieder, entsteht ohnehin ein frisches Auto-Projekt —
   es geht nichts verloren. Wächter in `test_projekte_e2.py`.
-- Archiv ohne globale Track-Leiste (v0.9.630, Dieters „Statistik und Karte:
+- Archiv ohne globale Track-Leiste (v0.9.630, „Statistik und Karte:
   keine Funktion" — gemeint war der „Track wählen …"-Öffner ganz oben):
   im Archiv IST die Tour-Auswahl der Inhalt, der globale Öffner oben wirkte
   dort kaputt und ist jetzt ausgeblendet. Alle anderen Module unverändert.
 
 ### Fixed
-- Tester-Mails Dieter 30.08. (v0.9.629): (1) **Ordner-Entfernen griff bei
+- Tester-Mails vom 30.08. (v0.9.629): (1) **Ordner-Entfernen griff bei
   NFD-Pfaden ins Leere** („am X angeklickt, nichts passiert") — die WebView
   liefert NFC, in der DB kann der Pfad NFD stehen (NAS/macOS); Entfernen
   vergleicht jetzt unicode-normalisiert und löscht per DB-Originalwert; der
@@ -254,7 +483,7 @@ Bei jeder neuen Version:
   über alle Touren** (Marc-Nebenbefund) — je Tour anteilig zu ihrem eigenen
   Fortschritt, in Vorschau UND Render wortgleich.
 
-- Tester-Feedback Dieter (v0.9.622): (1) „Track-Punkte reduzieren" — ganz
+- Tester-Feedback (v0.9.622): (1) „Track-Punkte reduzieren" — ganz
   links war in der Vorschau keine Spur zu sehen: die Vorschau bildete den
   Wert proportional auf ihre 800 Punkte ab (→ 2 Punkte; bei einer Rundtour
   ist Start≈Ziel und die Linie unsichtbar). Bis 800 nimmt die Vorschau den
@@ -1313,7 +1542,7 @@ Wächter: `tests/test_diagnose_und_dateityp.py`.
   Mapbox die Kamera **nicht** über das Gelände: die gesetzte Höhe wird exakt
   übernommen (nachgewiesen mit einem Messpunkt, den `RZ_CAMDEBUG=1` mitloggt).
 
-  **Härtetest danach (Marc):** Rafaels Projekt end-to-end über die echte App
+  **Härtetest danach (Marc):** ein Tester-Projekt end-to-end über die echte App
   gerendert (Video sauber, Frame 113 zeigt den Astorga-Anflug statt Feldweg)
   plus vier Archiv-Tracks mit Überhöhung 1,0 / 1,5 / 2,5 / 4,0 headless
   gemessen — alle im Rahmen. Beim 4,0-Extremfall (Teide-Krater mit absichtlich

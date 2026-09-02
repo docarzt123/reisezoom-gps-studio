@@ -313,7 +313,7 @@ class AnimatorConfig:
     # 30.08.2026 (Marc: „eigene wasserzeichen … ein kleines bisschen mehr
     # marketing") — eigenes Logo im gerenderten Video/Bild. Pfad zu PNG/JPG/
     # WebP (leer = aus), Ecke, Breite in % der Videobreite, Deckkraft.
-    # 31.08.2026 (Rafael: „el poder seleccionar la flecha en todos los
+    # 31.08.2026 (Beta-Tester: „el poder seleccionar la flecha en todos los
     # tracks") — Zusatz-Touren übernehmen die Laufpunkt-Form der Haupt-Tour
     # (praktisch: Pfeil in Fahrtrichtung für den ganzen Schwarm).
     schwarm_dot_haupt_form: bool = False
@@ -1903,7 +1903,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # 29.08.2026 (Marc): Start-Verzögerung je Tour — als ANTEIL der Animation
     # (Sekunden ÷ Animationsdauer), damit alle Modi dieselbe Sprache sprechen.
     _anim_dauer = max(0.1, float(getattr(cfg, "duration_s", 0) or 0) or 20.0)
-    # 31.08.2026 (Rafael): Pfeil-Form für alle Schwarm-Touren — nur wenn die
+    # 31.08.2026 (Beta-Tester): Pfeil-Form für alle Schwarm-Touren — nur wenn die
     # Haupt-Tour selbst den Pfeil nutzt UND das Häkchen gesetzt ist.
     schwarm_dot_arrow_js = ("true" if (getattr(cfg, "schwarm_dot_haupt_form", False)
                                        and str(getattr(cfg, "marker_dot_style", "dot")) == "arrow")
@@ -2578,7 +2578,7 @@ const SCHWARM_MODUS = {schwarm_modus_json};
 const SCHWARM_T = {schwarm_t_json};
 const SCHWARM_T_AXIS = {schwarm_t_axis_json};
 const SCHWARM_START = {schwarm_start_json};   // Start-Verzögerung je Tour (Anteil 0..1)
-const SCHWARM_DOT_ARROW = {schwarm_dot_arrow_js};   // 31.08.2026 (Rafael): Pfeil für alle Touren
+const SCHWARM_DOT_ARROW = {schwarm_dot_arrow_js};   // 31.08.2026 (Beta-Tester): Pfeil für alle Touren
 function swarmIdx(i, dNow) {{
   const c = SCHWARM_COORDS[i];
   const frac0 = TOTAL_DIST_M > 0 ? Math.min(1, dNow / TOTAL_DIST_M) : 1;
@@ -2793,7 +2793,7 @@ map.on('style.load', () => {{
                'line-width': Math.max(1, {schwarm_line_width_json}),
                'line-opacity': 0.9{schwarm_zoff_frag} }} }});
     map.addSource('schwarm-dots', {{ type: 'geojson', data: {{ type: 'FeatureCollection', features: [] }} }});
-    // 31.08.2026 (Rafael): Pfeil für ALLE Touren — je Tour ein eingefärbtes
+    // 31.08.2026 (Beta-Tester): Pfeil für ALLE Touren — je Tour ein eingefärbtes
     // Pfeil-Bild, Symbol-Layer mit Fahrtrichtungs-Rotation. Größe an den
     // bisherigen Kreis angelehnt (Durchmesser ≈ 2·radius), OHNE RENDER_SCALE
     // (die schwarm-dots skalieren auch nicht mit — Lehre aus v0.9.619).
@@ -3232,7 +3232,7 @@ window.waitForRender = () => new Promise(r => {{
   }}, 5000);
 }});
 
-// 31.08.2026 (Dieters „Kachelbildung") — STRENGES Warten für Frames, in denen
+// 31.08.2026 (gemeldete „Kachelbildung") — STRENGES Warten für Frames, in denen
 // sich der ZOOM geändert hat. `waitForRender` nimmt die 60-ms-Abkürzung, sobald
 // `areTilesLoaded()` true meldet — während eines Zoom-Flugs gilt aber auch die
 // übergangsweise dargestellte ELTERN-Kachel (andere Zoomstufe = oft anderes
@@ -4802,7 +4802,7 @@ async def render(
             device_scale_factor=_dsf * _ss,
         )
 
-        # RZ_SLOWNET — nur Fehlersuche (Rafael 21.08.2026): Mapbox-Requests
+        # RZ_SLOWNET — nur Fehlersuche (Beta-Tester 21.08.2026): Mapbox-Requests
         # künstlich verzögern, um langsame Verbindungen nachzustellen.
         #   RZ_SLOWNET=dem:8   → nur Terrain-DEM-Kacheln 8 s verzögern
         #   RZ_SLOWNET=all:5   → alle Mapbox-Requests 5 s verzögern
@@ -5184,7 +5184,7 @@ async def render(
                     _use_faithful = True
                     if _rt:
                         _log.info("🎥 entkoppelte FreeCamera aktiv (%d Keyframes)", len(_kf_cam_list))
-            # 31.08.2026 — strenges Kachel-Warten bei Zoom-Änderung (Dieters
+            # 31.08.2026 — strenges Kachel-Warten bei Zoom-Änderung (Beta-Tester-
             # „Kachelbildung"). RZ_TILE_STRICT=0 schaltet es für Vergleiche ab.
             _tile_streng = os.environ.get("RZ_TILE_STRICT", "1") != "0"
             _prev_frame_zoom = float("nan")
@@ -5365,7 +5365,7 @@ async def render(
                     await page.evaluate(
                         f"window.__signsAnchorFilter && window.__signsAnchorFilter({_sign_hold_anchor})"
                     )
-                # 31.08.2026 (Dieters „Kachelbildung"): Frames mit Zoom-
+                # 31.08.2026 (gemeldete „Kachelbildung"): Frames mit Zoom-
                 # Änderung (Anflug, Zoom-Keyframes) warten STRENG, bis die
                 # Ziel-Zoomstufe vollständig geladen ist — sonst mischt der
                 # Frame Eltern- und Kind-Kacheln verschiedener Aufnahme-
@@ -5377,7 +5377,7 @@ async def render(
                 _prev_frame_zoom = frame_zoom
                 # RZ_CAMDEBUG=1 — Kamera-Fährte pro Frame: befohlener Zoom vs.
                 # das, was Mapbox danach wirklich meldet (inkl. Kamera-Höhe).
-                # Nur für Fehlersuche (Rafael-Report 21.08.2026: „Render-Zoom
+                # Nur für Fehlersuche (Tester-Report 21.08.2026: „Render-Zoom
                 # weicht von der Vorschau ab"); kostet einen evaluate pro Frame.
                 if os.environ.get("RZ_CAMDEBUG") == "1":
                     try:
