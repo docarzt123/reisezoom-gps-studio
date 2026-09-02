@@ -14,6 +14,23 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.649] – 2026-09-02
+
+#### Behoben
+- **⚠️ Sortieren im Touren-Archiv war seit dem Bibliotheks-Umbau träge.** Mit
+  `tracks.tour_id` kamen zwei Unterabfragen je Zeile dazu (Fundorte und
+  Versionen der Tour) — **ohne Index**, also je Zeile ein voller Durchlauf
+  über die Tabelle. An einem echten Archiv mit 717 Touren gemessen: eine
+  Seite der Liste brauchte **453 ms statt 11 ms**, nach „Hinzugefügt"
+  sortiert sogar 686 ms; bei mehreren tausend Touren wird daraus das, was ein
+  Beta-Tester als „geht gar nicht" beschrieben hat. Der Index entsteht jetzt
+  beim Öffnen jeder Bibliothek (einmalig, 12 ms).
+  — `tests/test_liste_flott.py`
+- **Beim Scrollen lief die Liste über ihre Kopfzeile.** Die Liste hat oben
+  8 Pixel Innenabstand, die klebende Kopfzeile klebt aber am Inhalt und nicht
+  an der Kante — in diesem Streifen zogen die Zeilen sichtbar vorbei.
+
+
 ## [0.9.648] – 2026-09-02
 
 ### Inspektor, Laufpunkt und der Umzug

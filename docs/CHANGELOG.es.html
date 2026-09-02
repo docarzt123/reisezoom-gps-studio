@@ -116,9 +116,22 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.648</span>
+    <span class="version-num">v0.9.649</span>
     <span class="version-date">2 de septiembre de 2026</span>
     <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">El archivo vuelve a ordenar al instante.</p>
+
+  <ul>
+    <li><strong>Ordenar en la vista de lista se había vuelto lento desde la reforma de la biblioteca</strong>: con un archivo de 717 rutas una página tardaba hasta 686 milisegundos en lugar de 11, y con varios miles de rutas eso se convierte en una espera perceptible. La causa era un índice de base de datos que faltaba; ahora se crea una sola vez al abrir la biblioteca.</li>
+    <li><strong>Al desplazarse, la lista pasaba por encima de su fila de cabecera.</strong> Ahora la cabecera se queda arriba como debe.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.648</span>
+    <span class="version-date">2 de septiembre de 2026</span>
   </div>
   <p class="version-tagline">La flecha se queda quieta y el zoom no se va.</p>
 

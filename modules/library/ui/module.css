@@ -210,8 +210,17 @@
 .lib-row.is-sel { background: var(--accent-soft); }
 .lib-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-row-head {
-  position: sticky; top: 0; z-index: 1; cursor: default;
+  position: sticky; top: 0; z-index: 3; cursor: default;
   background: var(--bg-1); color: var(--text-muted); font-size: 11px;
+}
+/* 02.09.2026 (Beta-Tester: „beim Scrollen geht die Liste über die Kopfzeile
+   hinweg"): `.lib-list` hat oben 8 px Innenabstand. Die klebende Kopfzeile
+   klebt am oberen Rand des INHALTS, also 8 px unter der Kante — und in diesem
+   Streifen sah man die Zeilen vorbeiziehen. Der Balken deckt ihn ab; die
+   Kopfzeile bleibt dadurch optisch am Rand, ohne dass etwas darüber läuft. */
+.lib-row-head::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -9px; height: 9px;
+  background: var(--bg-1);
 }
 .lib-row-head:hover { background: var(--bg-1); }
 .lib-row-thumb {

@@ -3216,6 +3216,13 @@ Duplikat-Aufräumdialog hebt das mit `alle_dateien=True` auf.
 Nutzer-Eingaben werden über `_set_meta` auf **alle** Versionen einer Tour
 geschrieben, damit sie eine Heilung überleben.
 
+**⚠️ `tracks.tour_id` braucht seinen Index** (`idx_tracks_tour`, angelegt in
+`open_db` NACH den ALTER-TABLEs). Die Spalte steckt in zwei korrelierten
+Unterabfragen je Zeile (`n_dateien`, `n_versionen`); ohne Index ist das je
+Zeile ein voller Tabellendurchlauf — an einem echten Archiv mit 717 Zeilen
+gemessen 453 ms statt 11 ms für eine Listenseite. Wer künftig eine Spalte in
+eine solche Unterabfrage aufnimmt, legt im selben Zug den Index an.
+
 **`tracks.speicher`** (0 = Fundort des Nutzers, 1 = unsere Kopie) ersetzt die
 frühere Erkennung an der Endung `.gpx.gz`. Nötig geworden, seit beobachtete
 Ordner ebenfalls `.gpx.gz` einlesen (Strava-Exporte, Logger — `_passende_endung`);

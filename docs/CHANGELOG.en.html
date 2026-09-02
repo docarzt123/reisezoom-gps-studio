@@ -116,9 +116,22 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.648</span>
+    <span class="version-num">v0.9.649</span>
     <span class="version-date">2 September 2026</span>
     <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">The archive sorts instantly again.</p>
+
+  <ul>
+    <li><strong>Sorting in the list view had become sluggish since the library rebuild</strong> — with an archive of 717 tours a page took up to 686 instead of 11 milliseconds, and with several thousand tours that turns into noticeable waiting. A missing database index was the cause; it is created once when the library opens.</li>
+    <li><strong>Scrolling ran the list over its header row.</strong> The header now stays cleanly on top.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.648</span>
+    <span class="version-date">2 September 2026</span>
   </div>
   <p class="version-tagline">The arrow sits still, the zoom stays put.</p>
 
