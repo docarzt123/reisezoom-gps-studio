@@ -114,7 +114,12 @@ function mountLibrary(body, headerActions) {
                     "asc_desc", "dur_desc", "name_asc", "act_asc"];
   const gespeicherterSort = store.get("sort", "date_desc");
   const state = {
-    search: "",
+    // 02.09.2026 (Marc: „wenn ich einen Suchbegriff eingebe, das Modul wechsle
+    // und zurückkomme, ist der Suchbegriff weg — das Archiv soll so aussehen,
+    // wie ich es verlassen habe"): Jahr, Art, Zeitraum, Länge, Sortierung und
+    // Ansicht wurden längst gemerkt, ausgerechnet die Suche nicht. Sie steht
+    // sichtbar im Feld — niemand sucht später ratlos nach fehlenden Touren.
+    search: store.get("search", ""),
     year: parseInt(store.get("year", "0"), 10) || 0,
     activity: store.get("activity", ""),
     von: store.get("von", "") || null,
@@ -122,7 +127,11 @@ function mountLibrary(body, headerActions) {
     min_km: parseFloat(store.get("min_km", "")) || null,
     max_km: parseFloat(store.get("max_km", "")) || null,
     sort: SORTS_OK.includes(gespeicherterSort) ? gespeicherterSort : "date_desc",
-    collection_id: 0,
+    // 02.09.2026 (Marc: „im Archiv sollen ALLE Filter erhalten bleiben"): auch
+    // die gewählte Sammlung. Sie stand als einzige fest auf 0 — wer in einer
+    // Sammlung arbeitete, stand nach jedem Modulwechsel wieder im ganzen
+    // Bestand.
+    collection_id: parseInt(store.get("collection_id", "0"), 10) || 0,
   };
 
   /** Filterwert setzen und merken. */
@@ -253,6 +262,7 @@ function mountLibrary(body, headerActions) {
           <button type="button" class="pmgr-seg-btn is-on" id="lib-seg-touren">📚 ${T("pm.seg_archive", "Touren-Archiv")}</button>
         </div>
         <input type="search" id="lib-search" class="lib-search"
+               value="${esc(state.search || "")}"
                placeholder="${T("library.search_ph", "Suchen — Name, Ort, Schlagwort …")}">
         <select id="lib-year" class="lib-select"></select>
         <select id="lib-act" class="lib-select"></select>
@@ -542,6 +552,14 @@ function mountLibrary(body, headerActions) {
     const res = await api().library_collections();
     if (_unmounted) return;
     _collections = (res && res.collections) || [];
+    // Gemerkte Sammlung, die es nicht mehr gibt (gelöscht, andere Bibliothek):
+    // zurück in den ganzen Bestand, statt eine leere Liste zu zeigen, deren
+    // Grund niemand sieht.
+    if (state.collection_id && !_collections.some(c => c.id === state.collection_id)) {
+      state.collection_id = 0;
+      store.set("collection_id", "0");
+      if (state.sort === "collection") setFilter("sort", gemerkterSort());
+    }
     renderCollections();
   }
 
@@ -595,6 +613,7 @@ function mountLibrary(body, headerActions) {
       b.onclick = () => {
         scope = b.dataset.scope; store.set("scope", scope);
         state.collection_id = 0;
+        store.set("collection_id", "0");
         renderCollections(); reload();
       };
     });
@@ -617,6 +636,7 @@ function mountLibrary(body, headerActions) {
       b.onclick = () => {
         // Zweiter Klick auf dieselbe Sammlung hebt die Auswahl wieder auf.
         state.collection_id = state.collection_id === id ? 0 : id;
+        store.set("collection_id", String(state.collection_id));
         // Beim Verlassen einer Sammlung zurück auf die gemerkte Sortierung,
         // nicht stumpf auf „Neueste zuerst".
         state.sort = state.collection_id ? "collection" : gemerkterSort();
@@ -783,9 +803,20 @@ function mountLibrary(body, headerActions) {
         : p.ablauf === "reise"
           ? `🧵 ${T("library.proj_reise", "Reise")} · ${p.n_touren} ${T("library.tours", "Touren")}`
           : esc((p.tour_namen || [])[0] || "");
-      const chips = (p.module || []).map(m => {
-        const c = MODUL_CHIP[m] || ["▫", m];
-        return `<button class="lib-proj-chip" data-open-modul="${m}" data-pid="${p.id}" title="${esc(c[1])}">${c[0]}</button>`;
+      // 02.09.2026 (Marc: „wenn unten im Projekt zusätzlich die ganzen Icons
+      // für Animator, Tour-Map usw. sind, damit man das Projekt schnell darin
+      // öffnen kann"): ALLE Module anbieten — nicht nur die, in denen schon
+      // etwas liegt. Die mit Arbeit bleiben hervorgehoben, der Rest ist
+      // blasser: So sieht man weiterhin, wo etwas gebaut wurde, kann aber
+      // überall direkt hineinspringen.
+      const drin = new Set(p.module || []);
+      const chips = Object.keys(MODUL_CHIP).map(m => {
+        const c = MODUL_CHIP[m];
+        const hat = drin.has(m);
+        return `<button class="lib-proj-chip${hat ? " hat-arbeit" : " ist-leer"}"
+          data-open-modul="${m}" data-pid="${p.id}"
+          title="${esc(hat ? c[1] + " — " + T("library.proj_chip_arbeit", "hier liegt Arbeit")
+                           : T("library.proj_chip_leer", "Projekt hier öffnen") + ": " + c[1])}">${c[0]}</button>`;
       }).join("");
       const wann = fmtDate(p.modified_at);
       const fehlt = p.exists === false ? ` <span class="lib-proj-fehlt" title="${T("library.proj_fehlt_tip", "Tour-Datei nicht gefunden — Öffnen sucht sie im Archiv.")}">⚠️</span>` : "";
@@ -867,6 +898,13 @@ function mountLibrary(body, headerActions) {
       if (fx) fx.onclick = () => { _projFilterGh = ""; renderProjekte(); }; }
     // v0.9.623 (Marc: „komplette Projekt-Detail-Seite … wie bei den Touren"):
     // Klick auf die Karte (nicht auf Knöpfe) wählt sie aus → rechte Spalte.
+    // 02.09.2026 (Marc: „wie wäre es, wenn Doppelklick aufs Bild das gleiche
+    // macht wie Öffnen"): genau das — auf der Karte wie auf dem Bild.
+    box.querySelectorAll(".lib-proj-karte").forEach(k => k.ondblclick = (e) => {
+      if (e.target.closest("button, select, input, a")) return;
+      const pid = k.dataset.pid;
+      if (pid) projektOeffnen(pid);
+    });
     box.querySelectorAll(".lib-proj-karte").forEach(k => k.onclick = (e) => {
       if (e.target.closest("button, select, input, a")) return;
       // 31.08.2026 (Beta-Tester: „no puedo seleccionar los que quiera para
@@ -3391,6 +3429,7 @@ function mountLibrary(body, headerActions) {
         async () => { if (lebendId != null) await api().library_collection_delete(lebendId); });
       if (state.collection_id === cid) {
         state.collection_id = 0;
+        store.set("collection_id", "0");
         state.sort = gemerkterSort();
         sortAnzeigen();
       }
@@ -4209,7 +4248,7 @@ function mountLibrary(body, headerActions) {
           _projScope = "alle";
           _projFilterGh = "";
           const su = $("lib-search");
-          if (su && su.value) { su.value = ""; state.search = ""; }
+          if (su && su.value) { su.value = ""; setFilter("search", ""); }
           toast(T("library.proj_angelegt", "Projekt angelegt."), "info");
           renderProjekte();
         }
@@ -4247,11 +4286,11 @@ function mountLibrary(body, headerActions) {
     _projScope = "alle";
     _projFilterGh = "";
     const su = $("lib-search");
-    if (su && su.value) { su.value = ""; state.search = ""; }
+    if (su && su.value) { su.value = ""; setFilter("search", ""); }
     renderProjekte();
   });
   $("lib-search").oninput = debounce(() => {
-    state.search = $("lib-search").value;
+    setFilter("search", $("lib-search").value);
     _ortAus = false;           // neue Eingabe → Gegend wieder erlauben
     if (_projView) { renderProjekte(); return; }
     reload();
@@ -4314,7 +4353,7 @@ function mountLibrary(body, headerActions) {
   if (state.von || state.bis) $("lib-range").value = "eigen";
   zeitraumAnzeigen();
   $("lib-reset").onclick = () => {
-    state.search = "";
+    setFilter("search", "");
     setFilter("year", 0); setFilter("activity", ""); setFilter("sort", "date_desc");
     setFilter("von", null); setFilter("bis", null);
     // ⚠️ Nicht nur den Wert zurücksetzen, sondern auch die Anzeige: sonst
@@ -4385,6 +4424,22 @@ function mountLibrary(body, headerActions) {
     await reloadCollections();
     await reload();
     renderDetail();
+    // 02.09.2026 (Marc: „die App merkt sich den Stand nicht beim Schließen,
+    // sondern startet immer wieder im Archiv"): Beim ERSTEN Betreten nach dem
+    // Programmstart dort weitermachen, wo zuletzt gearbeitet wurde — dasselbe
+    // Projekt, dieselbe Tour, dasselbe Modul. Danach nie wieder, sonst käme
+    // man aus dem Archiv nicht mehr heraus.
+    if (!window.__rzFortsetzenGeprueft) {
+      window.__rzFortsetzenGeprueft = true;
+      try {
+        const r = await api().letzte_sitzung();
+        if (r && r.ok && r.weiter && r.projekt_id) {
+          await projektOeffnen(r.projekt_id, r.modul || undefined);
+        }
+      } catch (e) {
+        try { applog("warn", "[bib] Fortsetzen: " + e); } catch (_) {}
+      }
+    }
   })();
 
   /** Beobachtet den Hintergrundlauf und zieht die Ansicht nach, während die

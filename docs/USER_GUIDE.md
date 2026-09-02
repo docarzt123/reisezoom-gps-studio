@@ -719,6 +719,16 @@ er erneut. Die Datei auf der Festplatte wird **nicht** umbenannt.
 | „aus" | Tour ist ausgeblendet |
 | ● (orange) | Für diese Tour gibt es schon gespeicherte Projekte |
 
+**Beim Start geht es weiter, wo du aufgehört hast** — GPS Studio öffnet das
+zuletzt bearbeitete Projekt mit seiner Tour und im selben Modul. Wenn du
+lieber im Archiv beginnst, schalte es in den Einstellungen ab („Beim Start
+dort weitermachen, wo ich aufgehört habe").
+
+**Auf jeder Projektkarte stehen alle Modul-Symbole** — 🎬 Animator, 🗺
+Tour-Map, 📷 Geotagger, 📈 Daten. Ein Klick öffnet das Projekt direkt dort.
+Symbole mit Arbeit darin sind hervorgehoben, die übrigen blass. Ein
+**Doppelklick auf die Karte** öffnet das Projekt ganz normal.
+
 **Der Pfeil in Fahrtrichtung:** Wählst du beim Laufpunkt „Pfeil in
 Fahrtrichtung", erscheint darunter der Regler **„Ruhe des Pfeils"**. Er
 bestimmt, aus wie viel Streckenlänge um den Punkt herum die Richtung

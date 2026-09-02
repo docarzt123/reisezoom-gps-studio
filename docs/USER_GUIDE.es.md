@@ -665,6 +665,16 @@ vuelve a aplicarse. El archivo del disco **no** se renombra.
 | «off» | la ruta está oculta |
 | ● (naranja) | ya hay proyectos guardados para esta ruta |
 
+**Al iniciar, la aplicación sigue donde lo dejaste**: GPS Studio abre el
+último proyecto en el que trabajaste, con su ruta y en el mismo módulo. Si
+prefieres empezar en el archivo, desactívalo en los ajustes («Al iniciar,
+continuar donde lo dejé»).
+
+**Cada tarjeta de proyecto lleva todos los iconos de módulo**: 🎬 animador,
+🗺 mapa de ruta, 📷 geoetiquetador, 📈 datos. Un clic abre el proyecto
+directamente ahí; los iconos con trabajo dentro están resaltados y el resto
+atenuados. Un **doble clic en la tarjeta** abre el proyecto de forma normal.
+
 **La flecha de dirección:** si eliges «Flecha en el sentido de la marcha»
 para el punto en movimiento, debajo aparece el control **«Estabilidad de la
 flecha»**. Define cuánto trayecto alrededor del punto se usa para leer el

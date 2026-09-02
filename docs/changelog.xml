@@ -5,23 +5,30 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 02 Sep 2026 15:21:02 +0000</lastBuildDate>
+<lastBuildDate>Wed, 02 Sep 2026 17:59:52 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.650 — Weitermachen, wo du aufgehört hast.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-650</link>
+<guid isPermaLink="false">gps-studio-v0.9.650</guid>
+<pubDate>Wed, 02 Sep 2026 20:00:00 +0000</pubDate>
+<description>▶ Die App startet dort, wo du aufgehört hast: zuletzt bearbeitetes Projekt, seine Tour, dasselbe Modul. Dazu: Das Archiv behält Suchbegriff und Sammlung, neue Projekte heißen nach ihrer Tour, im Inspektor sind die Punkte Richtungspfeile, und auf der Projektkarte öffnet ein Klick das Projekt direkt im gewünschten Modul.</description>
+</item>
 <item>
 <title>v0.9.649 — Das Archiv sortiert wieder sofort.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-649</link>
 <guid isPermaLink="false">gps-studio-v0.9.649</guid>
-<pubDate>Wed, 02 Sep 2026 18:00:00 +0000</pubDate>
-<description>Sortieren in der Listenansicht war seit dem Bibliotheks-Umbau träge geworden — bei 717 Touren bis zu 686 statt 11 Millisekunden je Seite. Ursache war eine fehlende Datenbank-Verknüpfung; sie wird beim Öffnen einmalig angelegt. Außerdem lief die Liste beim Scrollen über ihre Kopfzeile.</description>
+<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
+<description>Sortieren in der Listenansicht war seit dem Bibliotheks-Umbau träge geworden — bei einem Archiv mit 717 Touren brauchte eine Seite bis zu 686 statt 11 Millisekunden, bei mehreren tausend Touren wurde daraus spürbares Warten. Ursache war eine fehlende Datenbank-Verknüpfung; sie wird beim Öffnen einmalig angelegt.
+
+Beim Scrollen lief die Liste über ihre Kopfzeile. Jetzt bleibt die Kopfzeile sauber oben stehen.</description>
 </item>
 <item>
 <title>v0.9.648 — Der Pfeil liegt ruhig, der Zoom bleibt stehen.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-648</link>
 <guid isPermaLink="false">gps-studio-v0.9.648</guid>
-<pubDate>Wed, 02 Sep 2026 17:00:00 +0000</pubDate>
-<description>➤ Der Pfeil in Fahrtrichtung zappelt nicht mehr. Er nahm seine Richtung aus einem einzigen Wegstück — bei sekündlicher Aufzeichnung sind das ein bis drei Meter, also genau die Größenordnung, in der GPS rauscht. Jetzt liest er sie aus einem längeren Stück Strecke ab: An einer echten Bergtour sinkt der Sprung von Bild zu Bild von 22,6° auf 3,5°. Wie ruhig er liegen soll, stellst du selbst ein.
-
-Außerdem: Beim Ziehen des Wiedergabepunkts läuft die Kamera nicht mehr weg, der Umzug in die Bibliothek zeigt seinen Fortschritt und kopiert nebenläufig, die Ausreißer-Schwelle beim Einfärben nach Tempo lässt sich vorgeben, und das Wasserzeichen ist beim Öffnen eines Projekts wieder da.</description>
+<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
+<description>➤ Der Pfeil in Fahrtrichtung zappelt nicht mehr. Er nahm seine Richtung aus einem einzigen Wegstück — bei sekündlicher Aufzeichnung sind das ein bis drei Meter, also genau die Größenordnung, in der GPS rauscht. Jetzt liest er sie aus einem längeren Stück Strecke ab: An einer echten Bergtour sinkt der Sprung von Bild zu Bild von 22,6° auf 3,5°. Wie ruhig er liegen soll, stellst du selbst ein — der Regler „Ruhe des Pfeils&quot; erscheint, sobald du die Pfeil-Form wählst.</description>
 </item>
 <item>
 <title>v0.9.647 — Kleiner Nachzügler zu v0.9.646.</title>
@@ -180,22 +187,6 @@ Außerdem: Beim Ziehen des Wiedergabepunkts läuft die Kamera nicht mehr weg, de
 📊 Tageswert und Gesamtsumme nebeneinander. Neue Overlay-Felder zeigen „Etappe“, „Etappe Nr.“, „In dieser Etappe“ und „Zeit in der Etappe“ — während rechts weiter die Gesamtstrecke läuft. Jede Etappe kann ihre eigene Farbe haben.
 
 ✂️ Kein Strich mehr über die Karte. Mehrtages-Touren in einer Datei zogen bisher eine Linie quer von Etappenende zu Etappenanfang. Die ist jetzt unsichtbar — im Video und in der Vorschau.</description>
-</item>
-<item>
-<title>v0.9.538 — Reiseroute: Stationen anfassen und umsortieren.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-538</link>
-<guid isPermaLink="false">gps-studio-v0.9.538</guid>
-<pubDate>Sat, 22 Aug 2026 12:00:00 +0000</pubDate>
-<description>↕ Stationen einfach verschieben. Jede Station hat jetzt einen Griff — damit ziehst du sie in der Liste hoch oder runter. Start und Ziel ergeben sich aus der Reihenfolge und wandern mit.
-
-⏎ Enter zeigt dir den Ort. Ort eintippen, Enter drücken — die Karte fliegt hin und der gefundene Treffer steht unter dem Feld. So siehst du sofort, ob die Adresse die richtige ist, statt es erst nach dem Berechnen zu merken.</description>
-</item>
-<item>
-<title>v0.9.537 — Ein Projekt, eine Datei.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-537</link>
-<guid isPermaLink="false">gps-studio-v0.9.537</guid>
-<pubDate>Sat, 22 Aug 2026 12:00:00 +0000</pubDate>
-<description>📦 Projekt exportieren &amp; importieren. Im Projekt-Menü oder unter „Datei“: eine .rzproj-Datei mit Track, allen Projekten der Session, Tour-Daten, Foto-Vorschauen und Schild-Bildern. Zum Importieren einfach auf die App ziehen — die Projekte kommen zur vorhandenen Session dazu, nichts wird überschrieben. Ganz ohne Cloud. Ideal, um uns ein Projekt zur Fehlersuche zu schicken oder auf einen zweiten Rechner umzuziehen.</description>
 </item>
 </channel>
 </rss>

@@ -353,6 +353,38 @@ function mountGpxInspect(body, headerActions) {
             // übertönt das Standard-Blau die winzigen Kreise komplett.
             ["coalesce", ["get", "sc"], "#1f6fc4"]],
         } });
+        // 02.09.2026 (Marc: „ich bin die gleiche Strecke vor und zurück
+        // gelaufen und kann überhaupt nicht erkennen, in welcher Richtung der
+        // Track an der Stelle läuft, wo ich gucke"): Dieselben Punkte, nur als
+        // kleine Richtungspfeile. Eigene Ebene über DERSELBEN Quelle — Klicks,
+        // Anker, Ausreißer-Hervorhebung und Tempo-Färbung gelten unverändert.
+        // Das Bild ist ein SDF, damit `icon-color` je Punkt greift; sonst
+        // müsste je Farbe ein eigenes Bild in den Atlas.
+        try {
+          if (!map.hasImage("gpxi-arrow")) {
+            map.addImage("gpxi-arrow", _pfeilBildSdf(), { pixelRatio: 2, sdf: true });
+          }
+        } catch (_) {}
+        map.addLayer({ id: "gpxi-pts-arrow", type: "symbol", source: "gpxi-pts",
+          layout: {
+            "icon-image": "gpxi-arrow",
+            "icon-rotate": ["get", "brg"],
+            "icon-rotation-alignment": "map",
+            "icon-allow-overlap": true, "icon-ignore-placement": true,
+            "icon-size": ["interpolate", ["linear"], ["zoom"],
+              9, ["case", ["boolean", ["get", "spike"], false], 0.30, 0.20],
+              14, ["case", ["boolean", ["get", "spike"], false], 0.55, 0.38],
+              18, ["case", ["boolean", ["get", "spike"], false], 0.80, 0.60]],
+          },
+          paint: {
+            "icon-color": ["case",
+              ["==", ["get", "sel"], "a"], "#22c55e",
+              ["==", ["get", "sel"], "b"], "#ef4444",
+              ["boolean", ["get", "spike"], false], "#f59e0b",
+              ["coalesce", ["get", "sc"], "#cfe6ff"]],
+            "icon-halo-color": "#0b1220",
+            "icon-halo-width": 1.1,
+          } });
         // v0.9.237 — Pfad-Zeichnen: Preview-Linie A→Stützpunkte→B + Stützpunkt-Marker.
         map.addSource("gpxi-draw", { type: "geojson", data: emptyLine });
         map.addLayer({ id: "gpxi-draw-lyr", type: "line", source: "gpxi-draw",
@@ -390,9 +422,19 @@ function mountGpxInspect(body, headerActions) {
       map.on("mousemove", onMapHover);
       map.on("mouseout", () => setHover(null));
       // Ausgewählten Punkt (Anker A, Einzel-Auswahl) per Drag verschieben (v0.9.243).
+      // 02.09.2026: Punkte werden als Pfeile gezeichnet — Klick, Ziehen und
+      // Zeiger müssen auf BEIDEN Ebenen hängen, sonst sind die Punkte
+      // unanklickbar, sobald die Pfeile sichtbar sind.
       map.on("mousedown", "gpxi-pts-lyr", onPointMouseDown);
+      map.on("mousedown", "gpxi-pts-arrow", onPointMouseDown);
       map.on("mousemove", onDragMove);
       map.on("mouseup", onDragEnd);
+      map.on("mouseenter", "gpxi-pts-arrow", (e) => {
+        try { map.getCanvas().style.cursor = "pointer"; } catch (_) {}
+      });
+      map.on("mouseleave", "gpxi-pts-arrow", () => {
+        try { map.getCanvas().style.cursor = ""; } catch (_) {}
+      });
       map.on("mouseenter", "gpxi-pts-lyr", (e) => {
         if (_drawMode) { _setCursor("crosshair"); return; }   // Zeichnen-Modus: Fadenkreuz behalten
         const f = e.features && e.features[0];
@@ -459,6 +501,8 @@ function mountGpxInspect(body, headerActions) {
     updateUI();
     // 01.09.2026 (Marc): Regler zeigt die ECHTE Punktzahl dieses Tracks.
     try { reduzierReglerSync(); } catch (_) {}
+    // Richtungspfeile: Kurse einmal für diesen Track rechnen.
+    try { _pfeileBerechnen(); _punktFormAnwenden(); renderPoints(); } catch (_) {}
     // Neuer Track → neue Schätzung; eine frühere Handauswahl gilt nicht weiter.
     _profilManuell = false;
     try { profilVorschlagen(); } catch (_) {}
@@ -469,6 +513,7 @@ function mountGpxInspect(body, headerActions) {
       map.getSource("gpxi-redprev").setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] } });
       map.getSource("gpxi-redprev-pts").setData({ type: "FeatureCollection", features: [] });
       if (map.getLayer("gpxi-pts-lyr")) { map.setPaintProperty("gpxi-pts-lyr", "circle-opacity", 1); map.setPaintProperty("gpxi-pts-lyr", "circle-stroke-opacity", 1); }
+      if (map.getLayer("gpxi-pts-arrow")) map.setPaintProperty("gpxi-pts-arrow", "icon-opacity", 1);
       if (map.getLayer("gpxi-speed-lyr")) map.setPaintProperty("gpxi-speed-lyr", "line-opacity", 0.95);
       if (map.getLayer("gpxi-line-lyr")) map.setPaintProperty("gpxi-line-lyr", "line-opacity", 0.85);
     } catch (_) {}
@@ -574,6 +619,8 @@ function mountGpxInspect(body, headerActions) {
   }
 
   function renderAll() {
+    // Der Track hat sich geändert → Fahrtrichtungen neu (nur wenn Pfeile an).
+    try { _pfeileBerechnen(); } catch (_) {}
     if (!map) return;
     // v0.9.292 — DEM-Profil wird ungültig sobald sich die Punktzahl ändert (Indizes verschieben sich).
     if (_demEles && _demEles.length !== _points.length) _eleInvalidate();
@@ -605,6 +652,20 @@ function mountGpxInspect(body, headerActions) {
     return out;
   }
   let _speedFarben = null;   // Punkt-Index → Tempo-Farbe (nur wenn Färbung an)
+  let _pfeilBrg = null;      // Punkt-Index → Fahrtrichtung (nur für die Pfeile)
+  /** Fahrtrichtung je Punkt — einmal je Track, nicht bei jedem Zeichnen.
+   *  Nutzt dieselbe geglättete Rechnung wie der Laufpunkt (ui/js/util.js);
+   *  bei 25 m Basis zeigt eine Wendestrecke sauber in beide Richtungen. */
+  function _pfeileBerechnen() {
+    if (_points.length < 2) { _pfeilBrg = null; return; }
+    const co = _points.map(p => [p.lon, p.lat]);
+    const g = (typeof kursGlaettung === "function") ? kursGlaettung(2) : { basisM: 30, minPunkte: 10 };
+    _pfeilBrg = new Array(co.length);
+    for (let i = 0; i < co.length; i++) {
+      _pfeilBrg[i] = (typeof kursAusSpur === "function")
+        ? kursAusSpur(co, i, g.basisM, g.minPunkte) : 0;
+    }
+  }
   /* 29.08.2026 (Marc: „wie heile ich diese tempo probleme?") — der Rest nach
    * dem Positions-Glätten sind DAUERHAFTE Versätze: 40 m Sprung, der Track
    * bleibt drüben. Die Strecke wurde real zurückgelegt, nur die Zeitstempel
@@ -750,6 +811,7 @@ function mountGpxInspect(body, headerActions) {
       const blass = !!auswahl;
       if (map.getLayer("gpxi-pts-lyr")) map.setPaintProperty("gpxi-pts-lyr", "circle-opacity", blass ? 0.18 : 1);
       if (map.getLayer("gpxi-pts-lyr")) map.setPaintProperty("gpxi-pts-lyr", "circle-stroke-opacity", blass ? 0.18 : 1);
+      if (map.getLayer("gpxi-pts-arrow")) map.setPaintProperty("gpxi-pts-arrow", "icon-opacity", blass ? 0.18 : 1);
       if (map.getLayer("gpxi-speed-lyr")) map.setPaintProperty("gpxi-speed-lyr", "line-opacity", blass ? 0.2 : 0.95);
       // Ohne Vorschau gehoert die Grundlinie NICHT pauschal auf 0,85 zurueck:
       // bei aktiver Tempo-Faerbung haelt renderSpeedColor sie bewusst auf 0,15,
@@ -883,6 +945,45 @@ function mountGpxInspect(body, headerActions) {
     }
   }
 
+  /** Pfeilspitze als SDF-Bild (nur Alpha zählt) — damit `icon-color` je
+   *  Punkt greift und die Tempo-Färbung auch für Pfeile gilt. */
+  function _pfeilBildSdf() {
+    const d = 2, w = 26 * d, h = 26 * d;
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const g = c.getContext("2d");
+    g.translate(w / 2, h / 2);
+    g.fillStyle = "#fff";
+    g.beginPath();
+    g.moveTo(0, -10 * d);          // Spitze
+    g.lineTo(7 * d, 9 * d);
+    g.lineTo(0, 5 * d);            // Kerbe
+    g.lineTo(-7 * d, 9 * d);
+    g.closePath();
+    g.fill();
+    return c.getContext("2d").getImageData(0, 0, w, h);
+  }
+
+  /** 02.09.2026 (Marc: „Pfeile sind immer da als Default, die haben doch
+   *  keinen Nachteil"): Richtig — der Pfeil sagt zusätzlich die Richtung und
+   *  kostet sonst nichts. Also kein Umschalter.
+   *
+   *  Einzige Ausnahme: Wenn das Pfeilbild nicht in den Karten-Atlas kommt
+   *  (alte GPU, Stil noch nicht fertig), bleiben die Kreise stehen — lieber
+   *  Punkte als eine leere Karte. */
+  function _pfeilModus() {
+    try { return !!(map && map.hasImage && map.hasImage("gpxi-arrow")); }
+    catch (_) { return false; }
+  }
+  function _punktFormAnwenden() {
+    const pfeile = _pfeilModus();
+    try {
+      if (map.getLayer("gpxi-pts-lyr"))
+        map.setLayoutProperty("gpxi-pts-lyr", "visibility", pfeile ? "none" : "visible");
+      if (map.getLayer("gpxi-pts-arrow"))
+        map.setLayoutProperty("gpxi-pts-arrow", "visibility", pfeile ? "visible" : "none");
+    } catch (_) {}
+  }
+
   function renderPoints() {
     if (!map || !map.getSource("gpxi-pts")) return;
     const feats = new Array(_points.length);
@@ -892,7 +993,12 @@ function mountGpxInspect(body, headerActions) {
       feats[i] = {
         type: "Feature",
         properties: { i: i, sel: sel, anchor: (sel !== ""), spike: _spikeSet.has(i),
-                      sc: _speedFarben ? _speedFarben[i] : null },
+                      sc: _speedFarben ? _speedFarben[i] : null,
+                      // Fahrtrichtung an dieser Stelle — nur für die
+                      // Pfeil-Darstellung. Dieselbe Rechnung wie beim
+                      // Laufpunkt (util.js), damit „vor" und „zurück" auf
+                      // einer Wendestrecke wirklich auseinandergehen.
+                      brg: _pfeilBrg ? _pfeilBrg[i] : 0 },
         geometry: { type: "Point", coordinates: [p.lon, p.lat] },
       };
     }

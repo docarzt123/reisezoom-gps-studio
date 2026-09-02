@@ -14,6 +14,54 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.650] – 2026-09-02
+
+### Weitermachen, wo man aufgehört hat
+
+#### Hinzugefügt
+- **Die App startet dort, wo du aufgehört hast** — zuletzt bearbeitetes
+  Projekt, seine Tour und dasselbe Modul. Das war seit dem 29.08. bewusst
+  anders („die App startet im Projektmanager"); diese Entscheidung ist damit
+  aufgehoben. Abschaltbar in den Einstellungen. Ein gelöschtes Projekt führt
+  nicht ins Leere, und das Fortsetzen greift genau einmal je Programmstart.
+  — `tests/test_start_fortsetzen.py`
+- **Das Archiv sieht aus, wie du es verlassen hast.** Der Suchbegriff blieb
+  als einziger Filter nicht erhalten; die gewählte Sammlung ebenso wenig.
+  Beide werden jetzt gemerkt — und der Prüflauf geht alle Filter durch.
+  — `tests/test_archiv_filter_bleiben.py`
+- **Neue Projekte heißen nach ihrer Tour**, nicht mehr „Standard" — mit
+  Zähler bei Namensgleichheit („Barranco de Masca (2)"), „+2" bei mehreren
+  Touren. Angezeigt sofort, fest eingetragen beim Übergang vom stillen
+  Arbeitsstand zum echten Projekt. Der interne Marker bleibt erhalten, sonst
+  liefe das automatische Aufräumen unbenutzter Stände nie wieder an.
+  — `tests/test_projektnamen.py`
+- **Im Inspektor sind die Punkte jetzt Richtungspfeile.** Auf einer Strecke,
+  die man hin und zurück gegangen ist, sieht man damit endlich, welcher Teil
+  welcher ist. Farben, Ausreißer-Markierung und Klicks bleiben; ohne
+  Pfeilbild fällt die Anzeige auf Punkte zurück.
+- **Auf der Projektkarte stehen alle Modul-Symbole** — ein Klick öffnet das
+  Projekt direkt dort. Module mit Arbeit sind hervorgehoben, leere blass.
+  **Doppelklick auf die Karte öffnet das Projekt.**
+  — `tests/test_projektkarte_bedienung.py`
+
+#### Geändert
+- **Erklärtexte in der Animator-Seitenleiste stehen hinter einem `?`**, wie
+  überall sonst — auch die tour-spezifischen Sätze zu Tempo und Pausen.
+  — `tests/test_sidebar_ohne_fliesstext.py`
+- **Ein Projekt merkt sich das Modul beim Wechseln**, nicht erst beim
+  Speichern einer Einstellung. Vorher hatten die meisten Projekte gar kein
+  Modul gemerkt und öffneten deshalb immer im Animator.
+  — `tests/test_letztes_modul.py`
+
+#### Behoben
+- **⚠️ Eine Layout-Änderung zog die Kamera zurück auf den Track.** Wer die
+  Welt-Sicht eingestellt hatte und danach „Laufpunkt zeigen" umschaltete,
+  verlor sie: Die Optionen klappen auf, die Karten-Fläche ändert ihre Größe,
+  und daran hing ein Refit. Jetzt gilt: Gehört die Kamera dem Nutzer
+  (Welt-Sicht, eigenes Ziehen oder Zoomen), lässt der Refit sie in Ruhe. Der
+  ⤢-Knopf und ein neuer Track geben sie wieder frei.
+
+
 ## [0.9.649] – 2026-09-02
 
 #### Behoben

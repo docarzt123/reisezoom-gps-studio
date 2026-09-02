@@ -910,3 +910,9 @@
   text-overflow: ellipsis; white-space: nowrap;
 }
 .lib-err-zeigen { flex: none; }
+
+/* 02.09.2026 (Marc) — Modul-Symbole auf der Projektkarte: alle anbieten, die
+   mit Arbeit hervorheben. Blass heißt „leer, aber du kannst hier öffnen". */
+.lib-proj-chip.ist-leer { opacity: .42; }
+.lib-proj-chip.ist-leer:hover { opacity: 1; }
+.lib-proj-chip.hat-arbeit { opacity: 1; }

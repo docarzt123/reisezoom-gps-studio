@@ -259,6 +259,11 @@ function createMap(opts) {
       style: opts.mapboxStyle || "mapbox://styles/mapbox/standard-satellite",
       maxZoom: 18,
     }, opts.common || {}));
+    // 02.09.2026 — Prüfstand-Haken: die zuletzt gebaute Karte nach außen
+    // geben, damit headless (Playwright) Kamera-Zustände ausgelesen werden
+    // können, ohne den Rechner zu übernehmen. Kostet nichts und die App
+    // benutzt es selbst nicht.
+    try { window.__rzLetzteKarte = map; } catch (_) {}
     return { map, engine: "mapbox", lib: mapboxgl };
   }
   // OSM-Mode — OSM-Raster-Tiles enden bei z19, darüber wird's leer/schwarz.
@@ -268,6 +273,7 @@ function createMap(opts) {
     style: OSM_STYLE,
     maxZoom: 19,
   }, opts.common || {}));
+  try { window.__rzLetzteKarte = map; } catch (_) {}
   return { map, engine: "maplibre", lib: maplibregl };
 }
 

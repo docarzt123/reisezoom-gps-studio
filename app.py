@@ -155,7 +155,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.649"
+APP_VERSION = "0.9.650"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -423,6 +423,12 @@ cphotos.set_cache_dir(APP_SUPPORT / "photo_thumb_cache")
 # Default-Settings — werden mit gespeicherten Werten gemerged
 DEFAULT_SETTINGS = {
     "active_module": "animator",   # zuletzt aktives Modul
+    # 02.09.2026 (Marc: „die App merkt sich den Stand nicht beim Schließen,
+    # sondern startet immer wieder im Archiv"): Beim Start dort weitermachen,
+    # wo zuletzt gearbeitet wurde — zuletzt geöffnetes Projekt samt Modul.
+    # Abschaltbar in den Einstellungen; dann startet die App im Archiv.
+    "start_fortsetzen": True,
+    "letztes_projekt": "",         # id, gesetzt von `projekt_aktivieren`
     "language": "auto",            # 'auto' | 'de' | 'en' | 'es'
     "mapbox_token": "",            # leer → OSM-Fallback; sonst User-Token
     # v0.9.247 — OSM-Modus erzwingen (Test): App läuft als hätte sie keinen
@@ -809,6 +815,25 @@ def _save_settings(data: dict) -> None:
                 tmp.unlink()
         except OSError:
             pass
+
+
+def _einstellung_merken(schluessel: str, wert) -> None:
+    """EINEN Wert in den Einstellungen ändern — ohne den Rest zu verlieren.
+
+    ⚠️ 02.09.2026, teuer gelernt: `_save_settings(data)` schreibt die Datei
+    KOMPLETT neu. Wer ihm `{"letztes_projekt": …}` übergibt, löscht damit
+    alles andere — Mapbox-Token eingeschlossen. Genau das ist passiert, und
+    der Docstring von `_save_settings` warnt sogar davor („der Nutzer stand
+    ohne Mapbox-Token und ohne seine Einstellungen da"), nur eben in einem
+    anderen Zusammenhang. Deshalb geht ab jetzt jede Einzeländerung aus
+    Python durch diese Funktion.
+    """
+    with _SETTINGS_LOCK:
+        s = _load_settings() or {}
+        if s.get(schluessel) == wert:
+            return
+        s[schluessel] = wert
+        _save_settings(s)
 
 
 # ── Native macOS NSOpenPanel-Helper ──────────────────────────────────────────
@@ -3624,7 +3649,10 @@ class Api:
                 gh_p = eigene[0] if eigene else ""
                 nr = ((daten.get("touren") or {}).get(gh_p, {})
                       .get("fassung") or {}).get("nr", 1) if gh_p else 0
-                treffer.append({"id": pid, "name": pr.get("name") or "",
+                treffer.append({"id": pid,
+                                # 02.09.2026: überall derselbe Name wie im
+                                # Projekte-Bereich (Tour-Name statt „Standard").
+                                "name": _projekte.anzeigename(daten, pr),
                                 "gh": gh_p, "version": nr,
                                 "geaendert": (pr.get("modified_at")
                                               or pr.get("created_at") or "")[:10]})
@@ -7996,6 +8024,68 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     @_mit_sessions_lock
+    def projekt_modul_merken(self, project_id: str, modul: str) -> dict:
+        """Merken, in welchem Modul zuletzt an diesem Projekt gearbeitet wurde.
+
+        02.09.2026 (Marc: „Öffnen geht beim Projekt immer in den Animator,
+        aber warum?"): Weil `letztes_modul` bisher NUR beim Speichern einer
+        Modul-Einstellung mitgeschrieben wurde. Wer ein Projekt im Tour-Map
+        ansieht und nichts verstellt, hinterließ nichts — und landete beim
+        nächsten Öffnen im Animator (dem Rückfall). In Marcs Bestand hatten
+        6 von 7 Projekten gar kein Modul gemerkt.
+
+        ⚠️ Diese Brücke fasst NUR `letztes_modul` an — kein `_angefasst()`.
+        Sonst würde jeder Modulwechsel aus einem unberührten Arbeitsstand ein
+        echtes Projekt machen (und ihn benennen), und das automatische
+        Aufräumen liefe nie wieder.
+        """
+        pid, m = str(project_id or ""), str(modul or "")
+        if not pid or not m:
+            return {"ok": False, "error": "leer"}
+        try:
+            with _projekte.LOCK:
+                daten = _projekte.laden(DATEN_ORT)
+                p = (daten.get("projects") or {}).get(pid)
+                if not p:
+                    return {"ok": False, "error": "unbekannt"}
+                if (p.get("letztes_modul") or "") == m:
+                    return {"ok": True, "unveraendert": True}
+                p["letztes_modul"] = m
+                _projekte.speichern(DATEN_ORT, daten)
+            return {"ok": True}
+        except Exception as e:
+            log.exception("projekt_modul_merken")
+            return {"ok": False, "error": str(e)}
+
+    def letzte_sitzung(self) -> dict:
+        """Womit soll die App starten? (02.09.2026)
+
+        Marc: „die App soll so aufgehen, wie man sie geschlossen hat — also
+        die Tour, die geladen war, und das Modul." Zurück kommt das zuletzt
+        geöffnete Projekt, sofern es noch existiert; die Oberfläche öffnet es
+        dann auf demselben Weg wie ein Klick im Projekte-Bereich.
+
+        Gibt es nichts (Erststart, Projekt gelöscht, Fortsetzen abgeschaltet),
+        kommt `{"ok": True, "weiter": False}` — dann bleibt es beim Archiv.
+        """
+        try:
+            s = _load_settings() or {}
+            if s.get("start_fortsetzen") is False:
+                return {"ok": True, "weiter": False, "grund": "abgeschaltet"}
+            pid = str(s.get("letztes_projekt") or "")
+            if not pid:
+                return {"ok": True, "weiter": False, "grund": "nichts_gemerkt"}
+            daten = _projekte.laden(DATEN_ORT)
+            p = (daten.get("projects") or {}).get(pid)
+            if not p:
+                return {"ok": True, "weiter": False, "grund": "projekt_weg"}
+            return {"ok": True, "weiter": True, "projekt_id": pid,
+                    "name": _projekte.anzeigename(daten, p),
+                    "modul": p.get("letztes_modul") or "animator"}
+        except Exception as e:
+            log.exception("letzte_sitzung")
+            return {"ok": False, "error": str(e)}
+
     def projekt_loeschen(self, project_id: str) -> dict:
         """Ein Projekt löschen.
 
@@ -8036,7 +8126,7 @@ class Api:
             weg, fehl = 0, []
             with _projekte.LOCK:
                 daten = _projekte.laden(DATEN_ORT)
-                namen = {pid: (pr.get("name") or pid)
+                namen = {pid: _projekte.anzeigename(daten, pr)
                          for pid, pr in (daten.get("projects") or {}).items()}
                 for pid in ids:
                     if _projekte.loeschen(daten, pid):
@@ -8074,6 +8164,14 @@ class Api:
                 return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
             daten.setdefault("aktiv", {})[p.get("kontext", "")] = project_id
             _projekte.speichern(DATEN_ORT, daten)
+            # 02.09.2026 (Marc: „die App merkt sich den Stand nicht beim
+            # Schließen, sondern startet immer wieder im Archiv"): Wer zuletzt
+            # offen war, wird hier festgehalten — beim nächsten Start macht die
+            # App genau dort weiter (Tour UND Modul).
+            try:
+                _einstellung_merken("letztes_projekt", project_id)
+            except Exception:
+                log.debug("letztes_projekt nicht gemerkt", exc_info=True)
             pfade = []
             for pf in (p.get("gpx_paths") or []):
                 if Path(str(pf)).exists():
@@ -8324,7 +8422,8 @@ class Api:
                 })
             return {"ok": True,
                     "projekt": {
-                        "id": project_id, "name": pr.get("name", "?"),
+                        "id": project_id,
+                        "name": _projekte.anzeigename(daten, pr),
                         "status": pr.get("status", "aktiv"),
                         "auto": bool(pr.get("auto")),
                         "ablauf": pr.get("ablauf", "solo"),

@@ -656,6 +656,16 @@ disk is **not** renamed.
 | “off” | the tour is hidden |
 | ● (orange) | there are already saved projects for this tour |
 
+**On start the app carries on where you left off** — GPS Studio opens the
+project you last worked on, with its tour and in the same module. If you
+prefer to start in the archive, switch it off in the settings (“On start,
+continue where I left off”).
+
+**Every project card carries all module icons** — 🎬 animator, 🗺 tour map,
+📷 geotagger, 📈 data. One click opens the project straight in that module;
+icons with work in them are highlighted, the others are dimmed. A
+**double-click on the card** opens the project normally.
+
 **The direction arrow:** if you pick “Arrow in direction of travel” for the
 moving dot, the **“Arrow steadiness”** slider appears below it. It sets how
 much track around the point the heading is read from — to the left the arrow

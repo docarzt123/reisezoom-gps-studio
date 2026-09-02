@@ -475,7 +475,17 @@ def update_settings(daten: dict, kontext: str, project_id: str,
     if module:
         # Q22: „Öffnen" im Projekte-Bereich springt ins zuletzt benutzte Modul.
         p["letztes_modul"] = module
-    _angefasst(p)
+    war_auto = bool(p.get("auto"))
+    _angefasst(p)          # setzt u. a. auto = False
+    # 02.09.2026 (Marc): Genau hier wird aus dem stillen Arbeitsstand ein
+    # echtes Projekt — und genau hier bekommt es seinen Namen: den der Tour,
+    # bei Bedarf mit Zähler. Vorher wäre „Standard" als Marker verloren
+    # gegangen (siehe `anzeigename`).
+    if war_auto:
+        try:
+            namen_festschreiben(daten, p.get("id") or "")
+        except Exception:      # noqa: BLE001 — ein Name darf nichts blockieren
+            log.debug("Namen festschreiben fehlgeschlagen", exc_info=True)
     return True
 
 
@@ -567,6 +577,79 @@ def modul_arbeit(p: dict, m: str) -> bool:
 #: Alle Module, die ein Projekt tragen kann. An EINER Stelle, damit ein neues
 #: Modul nicht an drei Orten nachgetragen werden muss.
 MODULE = ("animator", "tourmap", "geotagger", "heightanim")
+
+
+def tour_namen_von(daten: dict, p: dict) -> list:
+    """Die Namen der Touren, die zu diesem Projekt gehören (in Reihenfolge)."""
+    touren = daten.get("touren") or {}
+    namen = []
+    for gh in (p.get("geo_hashes") or []):
+        n = ((touren.get(gh) or {}).get("name") or "").strip()
+        if n:
+            namen.append(n)
+    return namen
+
+
+def anzeigename(daten: dict, p: dict) -> str:
+    """Wie das Projekt heißen SOLL — überall gleich.
+
+    02.09.2026 (Marc: „wenn ein Projekt angelegt wird, heißt es ‚Standard‘,
+    besser wäre der Titel der Tour"). Der gespeicherte Name bleibt bis zur
+    ersten echten Änderung leer bzw. „Standard" — er ist ein **Marker**:
+    Daran hängt, ob ein Projekt als unberührt gilt (und damit nach 30 Tagen
+    still aufgeräumt wird). Würde schon beim Anlegen der Tour-Name
+    hineingeschrieben, liefe das Aufräumen nie wieder an, und jede geöffnete
+    Tour ließe für immer ein Projekt zurück.
+
+    Deshalb: Der Marker bleibt, die ANZEIGE bekommt den Tour-Namen. Beim
+    Festschreiben (erste echte Änderung) wird er dann fest eingetragen —
+    siehe `namen_festschreiben`.
+    """
+    name = (p.get("name") or "").strip()
+    if name and name != _s.DEFAULT_PROJECT_NAME:
+        return name
+    namen = tour_namen_von(daten, p)
+    if not namen:
+        return _s.DEFAULT_PROJECT_NAME
+    if len(namen) == 1:
+        return namen[0]
+    # Mehrere Touren (Schwarm/Reise): die erste plus die Zahl der übrigen.
+    return f"{namen[0]} +{len(namen) - 1}"
+
+
+def freier_name(daten: dict, basis: str, ausser: str = "") -> str:
+    """`basis`, und wenn es den schon gibt: „basis (2)", „basis (3)" …"""
+    basis = (basis or "").strip() or _s.DEFAULT_PROJECT_NAME
+    belegt = {((q.get("name") or "").strip())
+              for pid, q in (daten.get("projects") or {}).items() if pid != ausser}
+    if basis not in belegt:
+        return basis
+    for i in range(2, 500):
+        kandidat = f"{basis} ({i})"
+        if kandidat not in belegt:
+            return kandidat
+    return basis
+
+
+def namen_festschreiben(daten: dict, project_id: str) -> str:
+    """Beim Übergang „schwebend → echt": den Tour-Namen fest eintragen.
+
+    Erst hier, nicht beim Anlegen — vorher ist „Standard" der Marker für
+    „unberührt" (siehe `anzeigename`). Ab jetzt ist das Projekt ohnehin kein
+    Aufräum-Kandidat mehr, der Name darf also stehen bleiben.
+    """
+    p = (daten.get("projects") or {}).get(project_id)
+    if not p:
+        return ""
+    jetzt = (p.get("name") or "").strip()
+    if jetzt and jetzt != _s.DEFAULT_PROJECT_NAME:
+        return jetzt                     # der Nutzer hat schon selbst benannt
+    vorschlag = anzeigename(daten, p)
+    if not vorschlag or vorschlag == _s.DEFAULT_PROJECT_NAME:
+        return jetzt                     # freies Projekt ohne Tour — später
+    p["name"] = freier_name(daten, vorschlag, ausser=project_id)
+    log.info("Projekt %s benannt: %s", project_id, p["name"])
+    return p["name"]
 
 
 def modul_arbeit_irgendwo(p: dict) -> bool:
@@ -815,9 +898,9 @@ def alle_projekte(daten: dict) -> list:
         # 30.08.2026 (ein Beta-Tester, 111 Auto-Projekte): jede Karte hieß
         # „Standard" (DEFAULT_PROJECT_NAME) — 111-mal derselbe Name sagt
         # nichts. Automatisch angelegte Projekte zeigen den Tour-Namen.
-        name = p.get("name", "?")
-        if p.get("auto") and (not name or name == _s.DEFAULT_PROJECT_NAME):
-            name = next((n for n in tour_namen if n), name)
+        # Einheitlich über `anzeigename` — sonst hieß dasselbe Projekt im
+        # Projekte-Bereich nach seiner Tour und im Löschdialog „Standard".
+        name = anzeigename(daten, p)
         out.append({
             "id": pid, "name": name,
             "status": p.get("status", "aktiv"),
