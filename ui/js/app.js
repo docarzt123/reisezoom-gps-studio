@@ -113,6 +113,17 @@ function switchMod(slug) {
   if (typeof activeCleanup === "function") activeCleanup();
   activeMod = slug;
   saveSettings({ active_module: slug });
+  // 02.09.2026 (Marc: „Öffnen geht beim Projekt immer in den Animator, aber
+  // warum?"): Weil das Modul bisher nur beim SPEICHERN einer Einstellung
+  // gemerkt wurde. Wer nur hinüberwechselt und schaut, hinterließ nichts.
+  // Jetzt merkt sich das offene Projekt, wo man zuletzt war — ohne es
+  // dadurch zu einem „echten" Projekt zu machen (eigene Brücke).
+  try {
+    const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    if (proj && proj.id && window.pywebview?.api?.projekt_modul_merken) {
+      window.pywebview.api.projekt_modul_merken(proj.id, slug);
+    }
+  } catch (_) {}
   renderTabs();
   renderMod();
 }
@@ -183,6 +194,7 @@ function _settingsStand() {
     rqCrf: (rq.crf != null) ? rq.crf : 20,
     rqPreset: rq.encoder_preset || "fast",
     geoEnabled: c.geocode_enabled !== false,
+    startFortsetzen: c.start_fortsetzen !== false,
     geoProvider: c.geocode_provider || "auto",
     // v0.9.530 (IDEAS §23): Update-Prüfung beim Start abschaltbar — danach
     // telefoniert die App von sich aus mit niemandem mehr.
@@ -213,7 +225,7 @@ async function openSettingsModal() {
   // kommen aus `_settingsStand()` — derselben Quelle, aus der auch der
   // Speichern-Handler liest.
   const { rqFmt, rqJq, rqCodec, rqCrf, rqPreset, forceOsm, geoEnabled, geoProvider,
-          updateCheck } = _settingsStand();
+          updateCheck, startFortsetzen } = _settingsStand();
   const _sel = (a, b) => (a === b ? " selected" : "");
   const hasTok = !!(currentTok && currentTok.startsWith("pk."));
   // v0.9.287 — Eigene Standardwerte für neue Tracks (Marc-Wunsch)
@@ -254,6 +266,14 @@ async function openSettingsModal() {
           <span>${t("settings.update_check.label", "Beim Start nach einer neuen Version suchen")}</span>
         </label>
         <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.update_check.help", "Aus heißt: die App baut von sich aus keine Verbindung ins Netz auf.")}</p>
+
+        <!-- 02.09.2026 (Marc: „die App merkt sich den Stand nicht beim
+             Schließen, sondern startet immer wieder im Archiv"). -->
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" id="md-start-weiter" ${startFortsetzen ? "checked" : ""}>
+          <span>${t("settings.start_weiter.label", "Beim Start dort weitermachen, wo ich aufgehört habe")}</span>
+        </label>
+        <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.start_weiter.help", "Öffnet das zuletzt bearbeitete Projekt mit seiner Tour und im selben Modul. Aus = die App startet im Archiv.")}</p>
       </div>
 
       <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border);">
@@ -548,6 +568,10 @@ function _bindSettingsModalHandlers() {
     const newGeoProvider = document.getElementById("md-geo-provider")?.value || "auto";
     if (newGeoEnabled !== alt.geoEnabled) patch.geocode_enabled = newGeoEnabled;
     if (newGeoProvider !== alt.geoProvider) patch.geocode_provider = newGeoProvider;
+
+    // Beim Start dort weitermachen, wo zuletzt gearbeitet wurde.
+    const neuWeiter = !!document.getElementById("md-start-weiter")?.checked;
+    if (neuWeiter !== alt.startFortsetzen) patch.start_fortsetzen = neuWeiter;
 
     if (Object.keys(patch).length === 0) {
       openModal({}).close();

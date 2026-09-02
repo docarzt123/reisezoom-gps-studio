@@ -320,10 +320,15 @@ function mountAnimator(body, headerActions, opts) {
                    Nur bei Pfeil sichtbar; bei der Kugel gibt es keine Richtung. -->
               <div id="anim-dot-smooth-row" hidden>
                 <label class="field-label" style="margin-top:8px;">${t("animator.dot.smooth", "Ruhe des Pfeils")}
+                  <button type="button" class="field-help" data-help="dot_smooth"
+                          title="${t("animator.help.show")}">?</button>
                   <span class="label-val" id="anim-dot-smooth-v">5</span>
                 </label>
                 <input type="range" id="anim-dot-smooth" min="0" max="10" step="1" value="5">
-                <div class="hint-sm">${t("animator.dot.smooth_hint", "Links folgt der Pfeil jeder Zuckung, rechts zeigt er die grobe Richtung. In Klammern steht, aus wie viel Streckenlänge um den Punkt herum die Richtung abgelesen wird.")}</div>
+                <div class="muted field-help-content" data-help-content="dot_smooth" hidden
+                     style="font-size:11px; margin-top:6px; line-height:1.45;">
+                  ${t("animator.dot.smooth_hint", "Links folgt der Pfeil jeder Zuckung, rechts zeigt er die grobe Richtung. In Klammern steht, aus wie viel Streckenlänge um den Punkt herum die Richtung abgelesen wird.")}
+                </div>
               </div>
             </div>
           </div>
@@ -342,10 +347,16 @@ function mountAnimator(body, headerActions, opts) {
               <option value="real">${t("animator.pace.real")}</option>
               <option value="raw">${t("animator.pace.raw")}</option>
             </select>
-            <div class="muted" id="anim-pace-desc" style="font-size:11px; margin-top:5px; line-height:1.45;"></div>
+            <!-- 02.09.2026 (Marc: „im Animator stehen wieder jede Menge
+                 Erklärtexte in der Sidebar, die sollen weg — stattdessen ein
+                 klickbares ? mit dem Text drin"): Der tour-spezifische Satz
+                 („Wirkung bei dieser Tour …") stand dauerhaft unter dem Feld.
+                 Er ist nützlich, aber nicht ständig — deshalb liegt er jetzt
+                 im selben Hilfe-Block wie die allgemeine Erklärung. -->
             <div class="muted field-help-content" data-help-content="pace_mode" hidden
                  style="font-size:11px; margin-top:6px; line-height:1.45;">
               ${t("animator.pace_mode.hint")}
+              <div id="anim-pace-desc" style="margin-top:6px;"></div>
             </div>
           </div>
 
@@ -353,7 +364,10 @@ function mountAnimator(body, headerActions, opts) {
                ehrlichste Modus der langweiligste: eine gemessene Bergtour hätte
                63 von 232 Sekunden Standbild gehabt, in 27 Einfrierern. -->
           <div class="field" id="anim-pause-box" hidden>
-            <label class="field-label">${t("animator.field.pause_mode")}</label>
+            <label class="field-label">${t("animator.field.pause_mode")}
+              <button type="button" class="field-help" data-help="pause_info"
+                      title="${t("animator.help.show")}">?</button>
+            </label>
             <select id="anim-pause-mode" class="select">
               <option value="trim">${t("animator.pause.trim")}</option>
               <option value="skip">${t("animator.pause.skip")}</option>
@@ -371,7 +385,8 @@ function mountAnimator(body, headerActions, opts) {
                 <span class="muted">${t("animator.unit.sec")}</span>
               </label>
             </div>
-            <div class="muted" id="anim-pause-info" style="font-size:11px; margin-top:6px; line-height:1.5;"></div>
+            <div class="muted field-help-content" data-help-content="pause_info" hidden
+                 id="anim-pause-info" style="font-size:11px; margin-top:6px; line-height:1.5;"></div>
           </div>
 
           <div class="field">
@@ -477,7 +492,13 @@ function mountAnimator(body, headerActions, opts) {
               <button type="button" class="btn btn-small" id="anim-color-add-val">＋ <span id="anim-color-add-val-lbl">${t("animator.colors.add_ele", "ab Höhe (hier)")}</span></button>
               <button type="button" class="btn btn-small" id="anim-color-auto">${t("animator.colors.auto", "Auto (min → max)")}</button>
             </div>
-            <div class="muted" id="anim-colors-hint" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")}</div>
+            <div style="margin-top:4px;">
+              <button type="button" class="field-help" data-help="colors_hint"
+                      title="${t("animator.help.show")}">?</button>
+              <span class="muted" style="font-size:11px;">${t("animator.colors.hint_kurz", "Wie die Farbwechsel gelten")}</span>
+            </div>
+            <div class="muted field-help-content" data-help-content="colors_hint" hidden
+                 id="anim-colors-hint" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")}</div>
           </div>
           
         </div>
@@ -939,7 +960,13 @@ function mountAnimator(body, headerActions, opts) {
                   <button type="button" id="anim-wm-standard" class="ghost-btn" hidden title="${t("animator.wm.zurueck", "Wieder das GPS-Studio-Logo nehmen")}">↩︎</button>
                 </div>
                 <div id="anim-wm-name" class="muted-note" style="margin-top:4px; word-break:break-all;"></div>
-                <div class="muted-note" style="margin-top:6px">🖱 ${t("animator.wm.drag_hint", "Zieh das Logo in der Vorschau mit der Maus dorthin, wo es sitzen soll.")}</div>
+                <div style="margin-top:6px">
+                  <button type="button" class="field-help" data-help="wm_drag"
+                          title="${t("animator.help.show")}">?</button>
+                  <span class="muted-note">🖱 ${t("animator.wm.drag_kurz", "Platzieren")}</span>
+                </div>
+                <div class="muted-note field-help-content" data-help-content="wm_drag" hidden
+                     style="margin-top:4px">${t("animator.wm.drag_hint", "Zieh das Logo in der Vorschau mit der Maus dorthin, wo es sitzen soll.")}</div>
                 <label class="field-label" style="margin-top:6px">${t("animator.wm.size", "Größe")} <span id="anim-wm-w-v">12 %</span></label>
                 <input type="range" id="anim-wm-w" min="3" max="40" step="1" value="12">
                 <label class="field-label" style="margin-top:6px">${t("animator.wm.opacity", "Deckkraft")} <span id="anim-wm-op-v">90 %</span></label>
@@ -2319,6 +2346,17 @@ function mountAnimator(body, headerActions, opts) {
   // erste Aufruf VOR der alten Deklarationsstelle liegen — dann warf `let`
   // seine Totzone: „Cannot access '_wm' before initialization", und das Logo
   // fehlte beim Öffnen. In der laufenden App im Protokoll gefunden (02.09.2026).
+  // 02.09.2026 (Beta-Tester: „Ausgangsbild Globus … dann drücke ich auf
+  // ‚Laufpunkt zeigen‘ und er springt auf folgendes Bild"): Der
+  // ResizeObserver der Karten-Fläche zoomt bei JEDER Größenänderung auf den
+  // Track zurück. Beim Einschalten des Laufpunkts klappen dessen Optionen
+  // auf, die Seitenleiste wird höher, die Karten-Fläche ändert sich um ein
+  // paar Pixel — und die mühsam eingestellte Welt-Sicht war weg.
+  //
+  // Deshalb: Sobald die Kamera dem NUTZER gehört (Welt-Knöpfe, eigenes
+  // Ziehen/Zoomen), lässt der Refit sie in Ruhe. Ein neuer Track und der
+  // ⤢-Knopf geben sie wieder frei.
+  let _kameraGehoertNutzer = false;
   let _extraTours = [];
   // IDEAS §38 — Ablauf der Mehr-Touren-Übergabe: "reise" (nacheinander, wie
   // bisher) oder "schwarm" (alle gleichzeitig). Wird im ARCHIV gewählt und
@@ -5445,6 +5483,7 @@ function mountAnimator(body, headerActions, opts) {
     // (easeTo + Slider-Bump + Anti-Spring), nur das center unterscheidet sich.
     function _centerWorld(mode) {
       if (!map) return;
+      _kameraGehoertNutzer = true;   // Welt-Sicht ist eine Ansage, kein Zufall
       const WORLD_PITCH = 0;          // Marc: flach von oben — Polachsen-Spin
       const WORLD_ZOOM = 0;           // Marc: ganz raus, volle Erde sichtbar
       // Center je nach Modus.
@@ -7498,6 +7537,10 @@ function mountAnimator(body, headerActions, opts) {
       const wasUser = _userInteracting;
       _userInteracting = false;
       if (!e || (!e.originalEvent && !wasUser)) return;
+      // Wer selbst zieht oder zoomt, will diesen Ausschnitt — ein
+      // Layout-Zucken darf ihn nicht zurück auf den Track ziehen
+      // (02.09.2026, siehe `_kameraGehoertNutzer`).
+      _kameraGehoertNutzer = true;
       _syncMapStateToUi();
     });
 
@@ -7709,7 +7752,9 @@ function mountAnimator(body, headerActions, opts) {
       clearTimeout(_resizeRefitTimer);
       _resizeRefitTimer = setTimeout(() => {
         updateAnimatorViewport();
-        if (currentBbox) fitTrackPreview(false);
+        // Die Fläche darf sich neu vermessen — die Kamera bleibt, wenn sie
+        // dem Nutzer gehört (Welt-Sicht, eigenes Ziehen/Zoomen).
+        if (currentBbox && !_kameraGehoertNutzer) fitTrackPreview(false);
       }, 200);
     };
     // ResizeObserver: Section-Größe ändert sich → Viewport neu fitten + Refit
@@ -7729,7 +7774,7 @@ function mountAnimator(body, headerActions, opts) {
         _tlResizeTimer = setTimeout(() => {
           syncTimelineHeight();
           updateAnimatorViewport();
-          if (currentBbox) fitTrackPreview(false);
+          if (currentBbox && !_kameraGehoertNutzer) fitTrackPreview(false);
         }, 200);
       });
       _animTimelineObserver.observe(tlHostEl);
@@ -10346,6 +10391,7 @@ function mountAnimator(body, headerActions, opts) {
   });
   document.getElementById("anim-refit")?.addEventListener("click", () => {
     _tmCamActive = false;   // v0.9.412 — „⤢ Auf Track": übernommene Animator-Kamera aufheben
+    _kameraGehoertNutzer = false;   // ausdrücklich zurück auf den Track
     if (currentBbox) {
       fitTrackPreview(true);
       // v0.8.9: Refit zeigt zusätzlich die GANZE Track-Linie (= „Reset"
@@ -12187,6 +12233,9 @@ function mountAnimator(body, headerActions, opts) {
     applog("info", `[drawPreview] n_coords=${res?.coords?.length} hasSource=${!!map?.getSource?.("preview-track")}`);
     currentCoords = res.coords;
     currentBbox = res.bbox;
+    // Neuer Track = neue Ausgangslage: Die Karte darf sich wieder selbst auf
+    // ihn einstellen, bis der Nutzer die Kamera erneut in die Hand nimmt.
+    _kameraGehoertNutzer = false;
     // v0.9.390 — WYSIWYG-Invariante: sobald ein echter Track gezeichnet wird,
     // MUSS der Render-Button aktiv sein. Vorher hing der Enable am ENDE eines
     // try-Blocks in applyGlobalGpx (nach den Stats-Box-Updates). Warf dort eine
