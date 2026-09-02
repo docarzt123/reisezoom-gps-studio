@@ -140,7 +140,7 @@ function renderMod() {
     <div class="module-body" id="module-body"></div>
   `;
   // GPX-Bar in den linken Header-Slot einsetzen.
-  // 30.08.2026 (Beta-Tester Dieter: „Statistik und Karte … keine Funktion"):
+  // 30.08.2026 (ein Beta-Tester: „Statistik und Karte … keine Funktion"):
   // NICHT im Archiv — dort IST die Tour-Auswahl der Inhalt, der globale
   // „Track wählen …"-Öffner oben hatte da nichts zu suchen und wirkte kaputt.
   if (activeMod !== "library" && typeof renderGpxBarInto === "function") {
@@ -337,6 +337,23 @@ async function openSettingsModal() {
            ⚠️ Standardmäßig gar nicht da: window.rzCloudSichtbar kommt aus
            cloud_status() und ist aus, solange das Archiv nicht fertig ist
            (Marc, 16.08.2026). Kein halbfertiger Knopf in den Einstellungen. -->
+      <!-- Bibliothek (02.09.2026, docs/UMBAU-BIBLIOTHEK.md): Ort zeigen und
+           wechseln können. Der Umzug verschiebt wirklich — er fängt nicht neu
+           an; deshalb steht der Platzbedarf daneben. -->
+      <div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+        <p class="muted" style="margin-bottom:6px">${t("bib.titel", "Bibliothek")}</p>
+        <div class="bib-ort" style="margin:0 0 8px"><code id="md-bib-ort">…</code></div>
+        <button class="btn" id="md-bib-umziehen">${t("bib.umziehen", "An anderen Ort verschieben …")}</button>
+        <button class="btn" id="md-bib-bericht" hidden>${t("bib.bericht_zeigen", "Umzugsbericht ansehen")}</button>
+        <p class="muted" style="font-size:11px; margin-top:6px;" id="md-bib-platz"></p>
+      </div>
+
+      ${window.rzCloudStillgelegt ? `
+      <div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
+        <p class="muted" style="margin-bottom:6px">${t("cloud.titel", "Cloud-Archiv")}</p>
+        <p class="muted" style="font-size:11px; margin:0;">${t("cloud.stillgelegt",
+          "Das Cloud-Archiv ist zurzeit stillgelegt, während die Tour-Bibliothek umgebaut wird. Bereits hochgeladene Daten bleiben unangetastet — die Cloud kommt danach zurück.")}</p>
+      </div>` : ""}
       ${!window.rzCloudSichtbar ? "" : `
       <div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
         <p class="muted" style="margin-bottom:6px">${t("cloud.titel", "Cloud-Archiv")}</p>
@@ -427,6 +444,49 @@ function _bindSettingsModalHandlers() {
   if (_crfSl) _crfSl.oninput = () => { const v = document.getElementById("md-rq-crf-val"); if (v) v.textContent = _crfSl.value; };
   // v0.9.338 — Adress-Suche: Provider-Dropdown nur aktiv wenn eingeschaltet
   // Cloud: Dialog aus ui/js/cloud.js öffnen, dieses Fenster dabei schließen.
+  // Bibliothek: Ort und Platzbedarf nachtragen, sobald der Dialog steht.
+  (async () => {
+    try {
+      const st = await api().bibliothek_status();
+      const o = document.getElementById("md-bib-ort");
+      if (o) o.textContent = st.ort || "?";
+      const pl = document.getElementById("md-bib-platz");
+      if (pl && st.platz) {
+        pl.textContent = t("bib.platz", "{n} Versionen, {mb} MB")
+          .replace("{n}", st.platz.versionen)
+          .replace("{mb}", (st.platz.bytes / 1048576).toFixed(0));
+      }
+    } catch (_) {}
+  })();
+  // Den Umzugsbericht gibt es nur, wenn wirklich einer stattgefunden hat.
+  (async () => {
+    try {
+      const st = await api().bibliothek_status();
+      const b = document.getElementById("md-bib-bericht");
+      if (b && st && st.umzug && st.umzug.ok) {
+        b.hidden = false;
+        // Erst die Einstellungen schließen (dasselbe Muster wie „Abbrechen"),
+        // sonst liegt der Bericht hinter dem Dialog.
+        b.onclick = () => { openModal({}).close(); window.rzBibUmzugZeigen(); };
+      }
+    } catch (_) {}
+  })();
+  const _bibUmz = document.getElementById("md-bib-umziehen");
+  if (_bibUmz) _bibUmz.onclick = async () => {
+    const w = await api().bibliothek_ordner_waehlen();
+    if (!w || w.cancelled) return;
+    if (!w.ok) { toast(w.cloud
+      ? t("bib.cloud_abgelehnt", "Dieser Ordner gehört zu {dienst} und ist deshalb nicht möglich.").replace("{dienst}", w.cloud)
+      : (w.grund || w.error || "?"), "warn"); return; }
+    _bibUmz.disabled = true;
+    _bibUmz.textContent = t("bib.zieht_um", "Wird verschoben …");
+    const r = await api().bibliothek_umziehen(w.pfad);
+    if (r && r.ok) { location.reload(); return; }
+    _bibUmz.disabled = false;
+    _bibUmz.textContent = t("bib.umziehen", "An anderen Ort verschieben …");
+    toast((r && (r.grund || r.error)) || "?", "warn");
+  };
+
   const _cloudBtn = document.getElementById("md-cloud");
   if (_cloudBtn) _cloudBtn.onclick = () => {
     openModal({}).close();
@@ -999,6 +1059,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Start kam. Fehlt eine der Zeilen, hängt es an genau diesem await (Beta-Tester-
   // Diagnose ohne Rätselraten). applog geht erst NACH whenApiReady zuverlässig durch.
   applog && applog("info", "[boot] api-ready");
+  // 02.09.2026 — Die Bibliothek ist die Voraussetzung für alles Weitere.
+  // Ist sie nicht offen (Erststart, Platte ab, belegt, defekt), legt sich
+  // hier eine Erklärung mit Auswegen über das Fenster. Der restliche Start
+  // läuft trotzdem durch, damit Sprache und Menüs funktionieren.
+  try { await window.rzBibPruefen(); } catch (e) { applog && applog("warn", "[boot] bib: " + e); }
+  applog && applog("info", "[boot] bibliothek geprueft");
   await loadSettings();
   applog && applog("info", "[boot] settings geladen");
   await loadI18n();
@@ -1069,9 +1135,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   const available = getModules().map(m => m.manifest.slug);
   activeMod = available.includes("library") ? "library" : (available[0] || null);
   // v0.9.606: Projekte sind wieder eine Ansicht IM Archiv (Umschalter in der
-  // Filterzeile) — die Flagge lässt das Archiv in dieser Ansicht starten.
-  // __rzKeinPmBoot: die Playwright-Selbsttests wollen die Touren-Ansicht.
-  if (!window.__rzKeinPmBoot) window.__rzStartProjekte = true;
+  // Filterzeile).
+  // 02.09.2026 (Marc: „die app soll sich merken ob zuletzt touren oder
+  // projekte offen waren und so auch wieder starten"): Diese Entscheidung
+  // trifft ab jetzt das Archiv-Modul selbst aus seinem eigenen Gedächtnis —
+  // hier wird nichts mehr vorgegeben. Die Flagge bleibt für die
+  // AUSDRÜCKLICHEN Sprünge („Alle Projekte …" im Topbar-Menü, siehe
+  // ui/js/projects.js), die eine Ansicht erzwingen sollen.
   renderTabs();
   renderMod();
 

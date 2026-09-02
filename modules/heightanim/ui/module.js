@@ -14,7 +14,9 @@
     name: "Daten-Animator",
     description: "Messwerte als Video",
     icon: "⛰",
-    sort_order: 30,  // Reihenfolge: Animator(10) Reiseroute(20) Höhen(30) Tour-Map(40) Geotagger(50) Inspektor(60)
+    // Reihenfolge: Archiv(5) Inspektor(7) Animator(10) Reiseroute(20)
+  // Höhen(30) Tour-Map(40) Web-Karte(45) Geotagger(50)
+  sort_order: 30,
   },
   mount: function (body, headerActions) { return mountHeightAnim(body, headerActions); },
 };

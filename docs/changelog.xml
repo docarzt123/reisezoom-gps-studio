@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+<title>GPS Studio by reisezoom.com — Versions-Verlauf</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
+<description>Was sich in jeder Version von GPS Studio ändert.</description>
+<language>de</language>
+<lastBuildDate>Wed, 02 Sep 2026 13:20:27 GMT</lastBuildDate>
+<atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.646 — Nachgeprüft: fünf Dinge, die nur fast stimmten.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-646</link>
+<guid isPermaLink="false">gps-studio-v0.9.646</guid>
+<pubDate>Wed, 02 Sep 2026 15:00:00 +0000</pubDate>
+<description>⌚ Wer mit Uhr aufzeichnet, hatte keine echte Sicherheitskopie. Von einer Garmin- oder Suunto-Datei landete die Rohaufzeichnung unverändert in der Bibliothek — GPS Studio selbst konnte sie dort nicht mehr lesen. Ab jetzt wird beim Aufnehmen umgewandelt, und was schon falsch liegt, wird beim nächsten Start einmalig in Ordnung gebracht.
+
+Außerdem: Höhenmeter sind in Archiv, Inspektor und Höhen-Animator endlich dieselbe Zahl; ein Projekt lässt sich auf eine andere Version stellen; gepackte Touren (.gpx.gz) werden eingelesen; fehlende Kartenbilder holt die App wieder von selbst.</description>
+</item>
+<item>
+<title>v0.9.645 — Die Cloud spiegelt jetzt deine Bibliothek.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-645</link>
+<guid isPermaLink="false">gps-studio-v0.9.645</guid>
+<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
+<description>☁️ Die Cloud ist eine Kopie deiner Bibliothek. Vorher lud GPS Studio je Tour ein eigenes Paket hoch, in dem Verzeichnis, Sammlungen, Projekte und Fotos steckten — ein zweites Datenmodell neben dem echten. Jetzt geht schlicht hoch, was in deiner Bibliothek liegt: die Touren mit allen Versionen, deine Projekte und alles, was du selbst eingetragen hast. Verschlüsselt, bevor es dein Gerät verlässt.</description>
+</item>
+<item>
+<title>v0.9.640 — Deine Touren haben jetzt ein Zuhause.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-640</link>
+<guid isPermaLink="false">gps-studio-v0.9.640</guid>
+<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
+<description>📚 Die Bibliothek. GPS Studio bewahrt deine Touren ab jetzt an einem Ort auf, den du selbst bestimmst — mit einer eigenen Kopie jeder Tour. Beobachtete Ordner sind nur noch die Quelle: Räumst du draußen auf, bleibt deine Tour vollständig da. Beim ersten Start fragt die App in drei Schritten, wo die Bibliothek liegen soll; dein bisheriger Bestand zieht dabei von selbst um (vorher gesichert, und der alte Stand wird nur umbenannt, nie gelöscht).
+
+✋ GPS Studio schreibt nie mehr in deine Dateien. Heilst du eine Tour, entsteht daraus eine neue Version in deiner Bibliothek — deine Originaldatei bleibt unangetastet, auf das Byte genau. Brauchst du die geheilte Fassung auch außerhalb, exportierst du sie bewusst.
+
+🎯 Eine Kachel je Tour statt je Datei. Dieselbe Strecke als Komoot-Download, App-Import und geheilte Fassung war bisher dreimal im Archiv. Jetzt ist es eine Tour, erkennbar an „V3&quot; (drei Versionen) und „2×&quot; (aus zwei Dateien). Schlagworte, Favorit und dein eigener Name hängen an der Tour und überleben eine Heilung.</description>
+</item>
+<item>
+<title>v0.9.635 — Neuer Name, neues Zeichen.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-635</link>
+<guid isPermaLink="false">gps-studio-v0.9.635</guid>
+<pubDate>Tue, 01 Sep 2026 12:00:00 +0000</pubDate>
+<description>🏷 Das Tool heißt jetzt „GPS Studio by reisezoom.com&quot;. Neuer Name, neues Logo — im Programm, im Icon, im Handbuch und auf diesen Seiten. Deine Projekte, Ordner und Downloads bleiben unverändert, es ändert sich nur, was du siehst.
+
+💧 Wasserzeichen mit einem Häkchen. Neue Projekte starten mit dem GPS-Studio-Logo dezent unten rechts — ein Klick schaltet es aus, ein eigenes Bild geht auch, und die Position ziehst du mit der Maus in der Vorschau. Bestehende Projekte bekommen nachträglich nichts; deine fertigen Videos bleiben, wie sie sind.
+
+✂️ Punkte reduzieren mit Live-Vorschau. Im GPX-Inspektor schiebst du einen Regler von „alle Punkte&quot; bis „nur zwei&quot; und siehst dabei sofort auf der Karte, was übrig bliebe. Dazu neu: Zeitachse erzeugen für geplante Routen ohne Uhrzeit — danach laufen sie im Animator wie eine echte Aufzeichnung.</description>
+</item>
+<item>
+<title>v0.9.634 — Dein Logo. Dein Tempo.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-634</link>
+<guid isPermaLink="false">gps-studio-v0.9.634</guid>
+<pubDate>Mon, 31 Aug 2026 12:00:00 +0000</pubDate>
+<description>💧 Eigenes Wasserzeichen. Leg dein Logo ins Video: Bild wählen (PNG mit Transparenz empfohlen), Größe und Deckkraft einstellen — und die Position bestimmst du, indem du das Logo in der Vorschau einfach mit der Maus dorthin ziehst , wo es sitzen soll. Erscheint im Video, im Standbild und im Alpha-Export, bei 4K und Hochkant automatisch an derselben Stelle.
+
+⚡ Schnelleres Einlesen vom NAS. Der Archiv-Scan öffnete jede Track-Datei zweimal — auf einem Netzlaufwerk ist jede Öffnung ein Netz-Roundtrip. Jetzt wird jede Datei genau einmal gelesen; ein Tester-Hinweis („das Einlesen hat auffällig lange gedauert&quot;) hat das aufgedeckt. Danke für den Hinweis!</description>
+</item>
+<item>
+<title>v0.9.631 — Versetzt loslaufen. Direkt importieren.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-631</link>
+<guid isPermaLink="false">gps-studio-v0.9.631</guid>
+<pubDate>Sun, 30 Aug 2026 12:00:00 +0000</pubDate>
+<description>⏱ Schwarm mit Start-Verzögerung. Jede Tour im Schwarm kann jetzt warten: „Start nach X s&quot; an jeder Zusatz-Tour — und auch die Haupt-Tour kann verzögert loslaufen, behält dabei Schatten und Laufpunkt und holt bis zum Videoende auf. So läuft z. B. die komplette geplante Runde, während der Teil, den du schon gelaufen bist, mittendrin startet. Vorschau und Video zeigen exakt dasselbe.
+
+📄 Einzelne Datei ins Archiv. Eine GPX frisch von Komoot? Einfach aufs Archiv ziehen oder „Ordner &amp; Einlesen → + Einzelne Track-Datei …&quot; — die App kopiert sie in ihren eigenen Import-Ordner (das Original bleibt liegen, Dubletten werden übersprungen) und liest sie sofort ein.</description>
+</item>
+<item>
+<title>v0.9.622 — Deine Projekte. Deine Fassungen.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-622</link>
+<guid isPermaLink="false">gps-studio-v0.9.622</guid>
+<pubDate>Sat, 29 Aug 2026 12:00:00 +0000</pubDate>
+<description>🗂 Projekte sind jetzt eigenständig. Die App startet in deiner Projektliste : jede Karte zeigt eine Karten-Vorschau, den Status (aktiv / Idee / fertig), wann zuletzt daran gearbeitet wurde — und Öffnen springt direkt ins zuletzt benutzte Werkzeug. Dieselbe Tour kann in beliebig vielen Projekten stecken (Quer-Video UND Hochkant-Short), ein Schwarm samt Tourenmenge und Geschwindigkeits-Modus ist EIN Klick, und oben in jedem Modul wechselst du per Umschalter zwischen den Projekten einer Tour. Auch ganz ohne Tour: leeres Projekt anlegen, Reiseroute planen oder Kamera-Flug bauen, Touren später dazuholen. Deine bisherigen Arbeitsstände wurden automatisch übernommen — nichts ging verloren.
+
+🧬 Touren haben jetzt Fassungen. Heilst du eine Tour und ersetzt sie im Archiv, entsteht eine neue Fassung — deine fertigen Video-Projekte bleiben an ihrer alten Fassung „gepinnt&quot; (Keyframes und Schilder verrutschen nicht!) und zeigen „⬆ neuere Fassung&quot; zum bewussten Aktualisieren. Die Tour-Detailspalte listet die ganze Kette, jede Fassung lässt sich byte-genau wiederherstellen, und mit eingerichteter Cloud wandern die Fassungen auf den Zweitrechner mit. Beim Arbeiten sichert die App außerdem alle 10 Minuten einen Arbeitsstand (🕘 auf der Projektkarte).</description>
+</item>
+<item>
+<title>v0.9.586 — Alle auf einmal.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-586</link>
+<guid isPermaLink="false">gps-studio-v0.9.586</guid>
+<pubDate>Fri, 28 Aug 2026 12:00:00 +0000</pubDate>
+<description>🌊 Der Schwarm. Markiere im Archiv mehrere Touren (oder öffne eine Sammlung) und wähle „Als Schwarm animieren&quot; : Alle Touren starten gleichzeitig und laufen gleich schnell über die Karte — die längste bestimmt die Videodauer, kürzere sind früher im Ziel und ihr Punkt bleibt dort stehen. Die Kamera steht still über allen Touren, jede hat ihre Farbe aus dem Archiv, und ein kleiner Zähler zeigt, wie viele noch unterwegs sind. Perfekt, um ein ganzes Wandergebiet oder einen Urlaub in einem einzigen Bild zu erzählen. Einstellbar: Laufzeit, Kartenstil, Auflösung (auch Hochkant für Shorts) und Linienbreite.
+
+📁 Das Archiv komponiert. Reise und Schwarm startest du jetzt direkt an der Sammlung (⋯-Knopf oder Rechtsklick) — und die Übergabe nimmt genau das, was deine Archiv-Filter zeigen: Steht der Bereich auf „Gemachte&quot;, bleiben geplante Routen draußen; der Dialog sagt es vor dem Klick an („81 von 138 Touren sichtbar&quot;). Jede Zusammenstellung hat ihr eigenes Gedächtnis: dieselben Touren wieder gewählt, und Keyframes, Farben und Einstellungen sind wieder da — auf Wunsch auch über die Cloud auf deinem zweiten Rechner.</description>
+</item>
+<item>
+<title>v0.9.556 — In jeder Sprache dieselbe App.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-556</link>
+<guid isPermaLink="false">gps-studio-v0.9.556</guid>
+<pubDate>Fri, 28 Aug 2026 12:00:00 +0000</pubDate>
+<description>🗣 Keine deutschen Reste mehr. Ein Beta-Tester aus Spanien hat es gemeldet: Bei ihm stand der Knopf „Track wählen …&quot; auf Deutsch — seit mehreren Versionen. Uns fiel das nie auf, wir benutzen die App ja auf Deutsch. Das ganze Programm wurde daraufhin durchgesehen: GPX-Leiste, Geotagger (Überschreib-Warnung und der ganze Fertig-Dialog), die Karten-Fehlermeldungen und die Knopf-Hinweise sind jetzt vollständig auf Deutsch, Englisch und Spanisch. Selbst der Bildschirm, der erscheint, wenn die App gar nicht erst startet, spricht jetzt alle drei Sprachen — gerade dort steht ja jemand, der nicht weiterkommt.</description>
+</item>
+<item>
+<title>v0.9.554 — Reparieren, ohne von vorn anzufangen.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-554</link>
+<guid isPermaLink="false">gps-studio-v0.9.554</guid>
+<pubDate>Thu, 27 Aug 2026 12:00:00 +0000</pubDate>
+<description>🔁 Geheilten Track übernehmen. Wer im Animator schon gebaut hat und dann merkt, dass mit dem Track etwas nicht stimmt, musste bisher nach der Reparatur alles neu machen: Für das Programm ist der geheilte Track eine neue Tour. Jetzt fragt der Inspektor nach dem Speichern einmal nach — und nimmt Animator, Tour-Map, Geotagger und Höhen-Animator samt Fotos und Schildern mit herüber. Die alte Tour bleibt unverändert liegen. Ein Vorbehalt gehört dazu: Keyframes, Schilder und Foto-Pins sitzen an einer Stelle im Track. Wurden nur einzelne Ausreißer geglättet, merkt man nichts; wurde viel eingefügt oder abgeschnitten, können sie verrutschen. Ändert sich die Tour deutlich, weist das Programm nach der Übernahme darauf hin.</description>
+</item>
+<item>
+<title>v0.9.545 — RAW-Fotos bleiben, wo sie hingehören.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-545</link>
+<guid isPermaLink="false">gps-studio-v0.9.545</guid>
+<pubDate>Thu, 27 Aug 2026 12:00:00 +0000</pubDate>
+<description>🌍 Keine Fotos mehr im Atlantik. Manche Kameras schreiben in jedes RAW-Foto einen leeren GPS-Block mit 0/0 — eine Position mitten im Golf von Guinea. Der Geotagger hielt das für eine echte Aufnahmeposition und stellte die Fotos dorthin, während die JPEGs derselben Aufnahme richtig auf dem Track saßen. Leere Blöcke werden jetzt auch beim schnellen Einlesen erkannt und ignoriert, sodass die Zuordnung über die Uhrzeit greift. Betrifft RAW und HEIC.</description>
+</item>
+<item>
+<title>v0.9.544 — Mehrere Tracks im Hintergrund — jeder wie du willst.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-544</link>
+<guid isPermaLink="false">gps-studio-v0.9.544</guid>
+<pubDate>Thu, 27 Aug 2026 12:00:00 +0000</pubDate>
+<description>👻 Beliebig viele Ghost-Spuren. Du kannst jetzt so viele Tracks als schwache Hintergrundlinien einblenden, wie du magst — aus dem Archiv markiert oder als Datei geladen. Jede Spur bekommt ihr eigenes Aussehen: Farbe, Deckkraft, Linienbreite, gestrichelt oder durchgezogen, und einzeln ein- und ausblendbar. So zeigst du zum Beispiel den offiziellen Wanderweg als kräftige Linie, deine geplanten Runden dünn gestrichelt daneben — und darüber läuft animiert die Tour, die du tatsächlich gegangen bist.</description>
+</item>
+<item>
+<title>v0.9.543 — Importierte Projekte sind jetzt auch zu sehen.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-543</link>
+<guid isPermaLink="false">gps-studio-v0.9.543</guid>
+<pubDate>Wed, 26 Aug 2026 12:00:00 +0000</pubDate>
+<description>📂 Projekt-Import zeigt endlich, was drin ist. Nach dem Importieren einer .rzproj-Datei fehlten Keyframes und Schilder — obwohl alles in der Datei steckte. Grund: Das importierte Projekt wurde nicht nach vorn geholt, wenn der Rechner die Tour schon kannte. Dann blieb das eigene, meist leere Projekt aktiv und das importierte lag unsichtbar daneben. Jetzt ist nach dem Import das mitgebrachte Projekt aktiv; das eigene bleibt erhalten und lässt sich oben weiter auswählen.
+
+🖥 Intel-Macs: Hinweis vor dem Download. Die App läuft nur auf Macs mit Apple Silicon (M1 und neuer). Das stand bisher nur klein in der Zeile mit der Dateigröße — jetzt steht es als eigener Hinweis im Download-Knopf, im Namen des DMG-Fensters und als Textdatei im DMG. Mit der Anleitung zum Nachsehen: Apfel-Menü → „Über diesen Mac“.</description>
+</item>
+<item>
+<title>v0.9.542 — Der Zoom bleibt, wo er soll.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-542</link>
+<guid isPermaLink="false">gps-studio-v0.9.542</guid>
+<pubDate>Tue, 25 Aug 2026 12:00:00 +0000</pubDate>
+<description>🎯 „Ruhige Kamera“ mit 3D-Gelände: Zoom repariert. Wer die ruhige Kamera mit Geländeüberhöhung nutzte und in der Vorschau nah herangezoomt hatte, bekam im Video einen ganz anderen Ausschnitt — die Kamera klebte am Boden, obwohl die Vorschau richtig aussah. Schuld war nicht die Kameraführung, sondern das Gelände: Beim Vorbereiten der Kamerafahrt waren die Geländekacheln noch nicht geladen, die Kamerahöhen wurden also aus unfertigen Daten berechnet. Jetzt wartet die App darauf — gemessen an einem betroffenen Projekt: vorher bis zu 8 Zoomstufen daneben, jetzt 0,5. Der Videoexport wurde dadurch sogar schneller.</description>
+</item>
+<item>
+<title>v0.9.541 — Windows: Projekte lassen sich wieder verschicken.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-541</link>
+<guid isPermaLink="false">gps-studio-v0.9.541</guid>
+<pubDate>Mon, 24 Aug 2026 12:00:00 +0000</pubDate>
+<description>📦 Projekt-Export und -Import repariert (Windows). Beides brach mit einer Fehlermeldung ab — schuld war ein Bindestrich im Namen des Dateifilters, den Windows nicht akzeptiert. Auf dem Mac fiel das nie auf. Jetzt gehen beide wieder, und alle anderen Dateidialoge sind gegen denselben Fehler abgesichert.
+
+🔍 Zoom-Keyframes aus älteren Fassungen werden erkannt. Wurden Keyframes vor Version 0.9.73 gesetzt, kann der Zoom im Video von der Vorschau abweichen. Die App sagt das jetzt beim Öffnen des Projekts — alte Projekte werden bewusst nicht umgerechnet, es genügt, die betroffenen Keyframes neu zu setzen.
+
+🕐 Keine erfundenen Zeitzonen mehr. Der Zeitzonen-Vorschlag schlug in einem Fall „UTC+1:45“ vor — so eine Zone gibt es nicht. Jetzt kommen nur noch real existierende Zeitzonen infrage; passt keine, wird bewusst nichts vorgeschlagen. Den Feinversatz einer falsch gehenden Uhr stellt weiterhin der Regler ein.</description>
+</item>
+<item>
+<title>v0.9.540 — Ältere Kameras: die Uhr ist nicht schuld.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-540</link>
+<guid isPermaLink="false">gps-studio-v0.9.540</guid>
+<pubDate>Mon, 24 Aug 2026 12:00:00 +0000</pubDate>
+<description>🕐 Fehlende Zeitzone wird jetzt erklärt. Kameras vor Exif 2.31 (ungefähr vor 2017) schreiben die Zeitzone nicht ins Foto — die Uhr ist völlig richtig, es fehlt nur der Abstand zu UTC. Bisher stand in der Hilfe, die Uhr sei falsch gestellt. Jetzt sagt der Geotagger selbst Bescheid, sobald solche Fotos geladen sind: mit Kameramodell und dem Weg zur Lösung.
+
+🧮 Zeitzone wird ausgerechnet, nicht nachgeschlagen. Fehlt den Fotos die Zeitzone, schlägt das Programm sie jetzt selbst vor: „Aus dem Track gerechnet: UTC+2 — damit liegen 11 von 11 Fotos im Track“, ein Klick auf Übernehmen genügt. Andere Programme fragen dafür einen Webdienst nach dem Ort und lassen die Sommerzeit von Hand dazurechnen. Hier wird gemessen: kein Internet nötig, Sommerzeit automatisch drin. Und wenn die Fotos nur eine Stunde einer Tagestour abdecken, passen viele Zeitzonen gleich gut — dann kommt bewusst kein Vorschlag statt eines geratenen.
+
+🩹 Am Rechner gefunden. Der unsichtbare Kino-Flug zwischen zwei zusammengeführten Touren zog doch einen schwarzen Bogen über die Karte — sein Schatten war nicht mitversteckt, in der Vorschau wie im fertigen Video. Behoben. Ebenso: der interne Übergangs-Marker stand als wählbares Datenfeld zwischen Puls und Trittfrequenz, und der Zeitzonen-Hinweis zählte Kameras auf, die ihre Zeitzone längst mitbringen.
+
+🧭 Die Modul-Symbole bleiben. Ist das Fenster zu schmal für die Modul-Leiste, schrumpft sie automatisch. Bisher verschwanden dabei ausgerechnet die Symbole zuerst, und übrig blieben abgeschnittene Wörter wie „Daten-Ani…&quot;. Jetzt andersherum: erst geht die kleine Unterzeile, dann werden die Namen gekürzt, und zuletzt bleiben nur noch die Symbole — den vollen Namen zeigt der Tooltip. Fenster breiter ziehen holt alles zurück.</description>
+</item>
+<item>
+<title>v0.9.539 — Mehrere Touren, ein Video.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-539</link>
+<guid isPermaLink="false">gps-studio-v0.9.539</guid>
+<pubDate>Sun, 23 Aug 2026 12:00:00 +0000</pubDate>
+<description>🧭 Touren zusammenführen. Im Archiv mehrere Touren markieren und „Zu einem Video zusammenführen“ wählen: Reihenfolge ziehen, Übergang aussuchen — Kino-Flug, sichtbare Luftlinie, echte Anreise über die Straße oder harter Schnitt. Daraus wird ein ganz normaler Track, mit dem alles geht, was der Animator kann: Keyframes, Schilder, Zeitleiste.
+
+📊 Tageswert und Gesamtsumme nebeneinander. Neue Overlay-Felder zeigen „Etappe“, „Etappe Nr.“, „In dieser Etappe“ und „Zeit in der Etappe“ — während rechts weiter die Gesamtstrecke läuft. Jede Etappe kann ihre eigene Farbe haben.
+
+✂️ Kein Strich mehr über die Karte. Mehrtages-Touren in einer Datei zogen bisher eine Linie quer von Etappenende zu Etappenanfang. Die ist jetzt unsichtbar — im Video und in der Vorschau.</description>
+</item>
+<item>
+<title>v0.9.538 — Reiseroute: Stationen anfassen und umsortieren.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-538</link>
+<guid isPermaLink="false">gps-studio-v0.9.538</guid>
+<pubDate>Sat, 22 Aug 2026 12:00:00 +0000</pubDate>
+<description>↕ Stationen einfach verschieben. Jede Station hat jetzt einen Griff — damit ziehst du sie in der Liste hoch oder runter. Start und Ziel ergeben sich aus der Reihenfolge und wandern mit.
+
+⏎ Enter zeigt dir den Ort. Ort eintippen, Enter drücken — die Karte fliegt hin und der gefundene Treffer steht unter dem Feld. So siehst du sofort, ob die Adresse die richtige ist, statt es erst nach dem Berechnen zu merken.</description>
+</item>
+<item>
+<title>v0.9.537 — Ein Projekt, eine Datei.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-537</link>
+<guid isPermaLink="false">gps-studio-v0.9.537</guid>
+<pubDate>Sat, 22 Aug 2026 12:00:00 +0000</pubDate>
+<description>📦 Projekt exportieren &amp; importieren. Im Projekt-Menü oder unter „Datei“: eine .rzproj-Datei mit Track, allen Projekten der Session, Tour-Daten, Foto-Vorschauen und Schild-Bildern. Zum Importieren einfach auf die App ziehen — die Projekte kommen zur vorhandenen Session dazu, nichts wird überschrieben. Ganz ohne Cloud. Ideal, um uns ein Projekt zur Fehlersuche zu schicken oder auf einen zweiten Rechner umzuziehen.</description>
+</item>
+<item>
+<title>v0.9.536 — Kleine Nachbesserung: keine rote Meldung mehr beim Modulwechsel.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-536</link>
+<guid isPermaLink="false">gps-studio-v0.9.536</guid>
+<pubDate>Sat, 22 Aug 2026 12:00:00 +0000</pubDate>
+<description>🗺 Harmloser Karten-Nachzügler, kein Alarm mehr. Beim Wechsel zwischen Modulen konnte eine rote Meldung „… reading &#x27;getOwnLayer&#x27;“ auftauchen — eine Kartenkachel, die ankam, nachdem die Karte schon abgebaut war. Folgenlos, landet jetzt nur noch im Log.</description>
+</item>
+<item>
+<title>v0.9.535 — Geotagger: der Schreib-Dialog schließt wieder.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-535</link>
+<guid isPermaLink="false">gps-studio-v0.9.535</guid>
+<pubDate>Sat, 22 Aug 2026 12:00:00 +0000</pubDate>
+<description>📷 Schreiben fertig — und der Dialog merkt es auch. Nach dem Schreiben (getestet mit 5 und mit 1.478 Fotos) blieb das Fenster stehen, obwohl alle Fotos korrekt getaggt waren. Ein Fehler im Abschluss-Schritt, seit v0.9.532 drin, jetzt behoben — und der Abschluss ist so abgesichert, dass so etwas den Dialog nie mehr blockieren kann. Danke für die beiden Logs!</description>
+</item>
+</channel>
+</rss>

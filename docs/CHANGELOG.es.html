@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="alternate" type="application/rss+xml" title="GPS Studio — Versions-Verlauf" href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml">
 <title>GPS Studio by reisezoom.com — Registro de cambios</title>
 <meta name="description" content="Todas las novedades de GPS Studio by reisezoom.com — qué ha cambiado para ti en cada versión.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -107,6 +108,7 @@
   <h1>Registro de cambios</h1>
   <p class="lead">Qué ha cambiado en cada versión de <strong>GPS Studio by reisezoom.com</strong> — breve y sin jerga técnica.</p>
   <a class="download-cta" href="https://reisezoom.com/reisezoom-gps-studio/" target="_blank" rel="noopener">📥 Descargar la app</a>
+<p style="text-align:center;margin-top:10px;font-size:13px"><a href="changelog.xml">📡 Suscribirse por RSS</a></p>
 <div class="clog-lang" style="display:flex;gap:6px;justify-content:center;margin-top:10px"><a href="changelog.html" style="font:700 13px/1 var(--sans);padding:6px 12px;border-radius:999px;text-decoration:none;background:var(--paper2);color:var(--muted)">DE</a><a href="changelog.en.html" style="font:700 13px/1 var(--sans);padding:6px 12px;border-radius:999px;text-decoration:none;background:var(--paper2);color:var(--muted)">EN</a><a href="changelog.es.html" style="font:700 13px/1 var(--sans);padding:6px 12px;border-radius:999px;text-decoration:none;background:var(--terra);color:#fff">ES</a></div>
 </header>
 
@@ -114,9 +116,80 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.646</span>
+    <span class="version-date">2 de septiembre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Revisado: cinco cosas que solo casi funcionaban.</p>
+
+  <div class="highlight">
+    <strong>⌚ Grabar con reloj no daba una copia de seguridad real.</strong> De un archivo Garmin o Suunto se guardaba la grabación en bruto sin convertir, y GPS Studio ya no podía leerla en la biblioteca. A partir de ahora se convierte al incorporarla, y lo que ya estaba mal guardado se repara una vez al arrancar, a partir de lo que hay almacenado. No necesitas el archivo original.
+  </div>
+
+  <ul>
+    <li><strong>El desnivel es el mismo en todas partes.</strong> Archivo, inspector y animador de altura mostraban tres cifras para la misma ruta. Ahora rige el cálculo del archivo: suavizado, umbral de 3 metros y por etapas.</li>
+    <li><strong>Un proyecto se puede ajustar a otra versión</strong> (🎬 en la versión), y las versiones sueltas se pueden exportar (⬇) o eliminar (🗑). Estaba prometido, pero no había ningún botón.</li>
+    <li><strong>Se leen las rutas comprimidas (<code>.gpx.gz</code>)</strong>: las exportaciones de Strava y muchos registradores entregan justo eso.</li>
+    <li><strong>Las imágenes de mapa que faltan vuelven a recuperarse solas</strong>, no solo al pulsar el botón.</li>
+    <li><strong>«Buscar duplicados» dice ahora lo que hace:</strong> son tus archivos, van a la papelera del sistema y la ruta se mantiene, porque la biblioteca tiene su propia copia. Esa copia ya no se ofrece para eliminar.</li>
+    <li>La imagen de vista previa faltaba a veces en la columna de detalle aunque existía.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.645</span>
+    <span class="version-date">2 de septiembre de 2026</span>
+  </div>
+  <p class="version-tagline">La nube ahora refleja tu biblioteca.</p>
+
+  <div class="highlight">
+    <strong>☁️ La nube es una copia de tu biblioteca.</strong> Antes GPS Studio subía un paquete por ruta con el directorio, las colecciones, los proyectos y las fotos: un segundo modelo de datos junto al real. Ahora sube sencillamente lo que hay en tu biblioteca: las rutas con todas sus versiones, tus proyectos y todo lo que has escrito tú. Cifrado antes de salir de tu equipo.
+  </div>
+
+  <ul>
+    <li><strong>«Cargar la biblioteca desde la nube»</strong> deja listo un segundo ordenador de una vez: rutas, proyectos, colecciones, etiquetas. No se sobrescribe lo existente.</li>
+    <li><strong>Si se pierde la base de datos, basta con la biblioteca.</strong> Las rutas se vuelven a incorporar al archivo desde ahí.</li>
+    <li><strong>«Quitar ajenos»</strong> descarta lo que no pertenece a tu biblioteca. Nunca automáticamente: con dos ordenadores, «aquí no lo conozco» suele significar «es del otro equipo».</li>
+    <li><strong>Sin nube configurada no pasa nada.</strong> Ni red, ni llavero.</li>
+    <li>No se sube: la base de datos del archivo (se reconstruye), las miniaturas y mapas (vienen de Mapbox) ni tus fotos.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.640</span>
+    <span class="version-date">2 de septiembre de 2026</span>
+    
+  </div>
+  <p class="version-tagline">Tus rutas ya tienen un hogar.</p>
+
+  <div class="highlight">
+    <strong>📚 La biblioteca.</strong> GPS Studio guarda tus rutas en un lugar que eliges tú, con una copia propia de cada ruta. Las carpetas vigiladas son solo el origen: si ordenas ahí fuera, tu ruta sigue completa. Al primer arranque la app pregunta en tres pasos dónde debe estar la biblioteca; lo que ya tenías se traslada solo (con copia de seguridad previa, y lo antiguo solo se renombra, nunca se borra).
+  </div>
+
+  <div class="highlight">
+    <strong>✋ GPS Studio ya no escribe en tus archivos.</strong> Al curar una ruta se crea una <em>versión</em> nueva en tu biblioteca; tu archivo original queda intacto, byte a byte. Si necesitas la versión curada fuera de la app, la exportas a propósito.
+  </div>
+
+  <div class="highlight">
+    <strong>🎯 Una tarjeta por ruta, no por archivo.</strong> La misma ruta como descarga de Komoot, importación y copia curada aparecía tres veces. Ahora es una sola ruta, con «V3» (tres versiones) y «2×» (de dos archivos). Etiquetas, favorito y tu propio nombre pertenecen a la ruta y sobreviven a una curación.
+  </div>
+
+  <ul>
+    <li><strong>Elige la versión que quieras.</strong> Un proyecto se queda en su versión: nada se mueve si curas más tarde. Puedes cambiarlo cuando quieras, también hacia atrás.</li>
+    <li><strong>Abrir ya no crea un proyecto.</strong> El proyecto aparece cuando cambias algo de verdad. Se acabaron las docenas de tarjetas vacías llamadas «Standard».</li>
+    <li><strong>Borrar avisa.</strong> Una ruta que usan proyectos no desaparece en silencio: ves cuáles son y decides.</li>
+    <li><strong>Inspector:</strong> «Colorear por velocidad» dejaba de funcionar en rutas de más de 2000 puntos — corregido.</li>
+    <li><strong>El archivo en la nube está en pausa</strong> mientras dura la reconstrucción. Lo subido queda intacto; volverá.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.635</span>
     <span class="version-date">1 de septiembre de 2026</span>
-    <span class="version-badge">Actual</span>
+    
   </div>
   <p class="version-tagline">Nuevo nombre, nuevo símbolo.</p>
 
@@ -137,7 +210,7 @@
     <li><strong>Enjambre con flechas:</strong> si el tour principal usa «flecha en dirección de marcha», todas las rutas pueden tener su propia flecha giratoria.</li>
     <li><strong>Borrar varios proyectos a la vez</strong> (clic con ⌘/Ctrl) — en lugar de 27 veces uno a uno.</li>
     <li><strong>Archivos sueltos al archivo</strong> y lectura más rápida desde unidades de red.</li>
-    <li>Además, la interfaz en español completada y una docena de correcciones menores de las pruebas de Dieter y Rafael.</li>
+    <li>Además, la interfaz en español completada y una docena de correcciones menores surgidas de las pruebas de los beta-testers.</li>
   </ul>
 </article>
 
@@ -153,7 +226,7 @@
   </div>
 
   <div class="highlight">
-    <strong>⚡ Lectura más rápida desde un NAS.</strong> El escaneo del archivo abría cada fichero de track dos veces — en una unidad de red cada apertura es un viaje por la red. Ahora cada fichero se lee exactamente una vez; lo destapó el aviso de un tester («la lectura tardó llamativamente»). ¡Gracias, Dieter!
+    <strong>⚡ Lectura más rápida desde un NAS.</strong> El escaneo del archivo abría cada fichero de track dos veces — en una unidad de red cada apertura es un viaje por la red. Ahora cada fichero se lee exactamente una vez; lo destapó el aviso de un tester («la lectura tardó llamativamente»). ¡Gracias por el aviso!
   </div>
 
   <ul>
@@ -2668,7 +2741,7 @@
     <span class="version-num">v0.8.10</span>
     <span class="version-date">23. Mai 2026</span>
   </div>
-  <p class="version-tagline">Erste Version der Röhren-Track-Optik (Idee von Beta-Tester). Im v0.8.13-Update siehst du den finalen Stand — Röhre ist dort Eintrag im Linien-Stil-Dropdown.</p>
+  <p class="version-tagline">Erste Version der Röhren-Track-Optik (Idee eines Beta-Testers). Im v0.8.13-Update siehst du den finalen Stand — Röhre ist dort Eintrag im Linien-Stil-Dropdown.</p>
 </article>
 
 <article class="version">
@@ -2715,7 +2788,7 @@
   </div>
 
   <p style="margin-top:12px; font-size:13px; color:#666;">
-    Idee von Beta-Tester („Kamera Neigung und Rotation mit Keyframes beeinflussen") + Marcs Erweiterung mit dem Snapshot-Workflow. 🙏 — Die Grundlage ist gelegt: Foto-Inserts und Text-Overlays landen demnächst auf der gleichen Timeline.
+    Idee eines Beta-Testers („Kamera Neigung und Rotation mit Keyframes beeinflussen") + Marcs Erweiterung mit dem Snapshot-Workflow. 🙏 — Die Grundlage ist gelegt: Foto-Inserts und Text-Overlays landen demnächst auf der gleichen Timeline.
   </p>
 </article>
 
@@ -2817,7 +2890,7 @@
   </div>
 
   <p style="margin-top:12px; font-size:13px; color:#666;">
-    Idee von Beta-Tester — danke! 🙏
+    Idee eines Beta-Testers — danke! 🙏
   </p>
 </article>
 

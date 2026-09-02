@@ -249,6 +249,7 @@
   </div>
   <div class="doc-shell">
     <aside class="toc" id="toc"><div class="toc-head">Contenido</div><nav><ul><li><a href="#1-instalaci-n" data-anchor="1-instalaci-n">1 · Instalación</a></li>
+<li><a href="#1a-tu-biblioteca" data-anchor="1a-tu-biblioteca">1a · Tu biblioteca 📚 ⭐</a></li>
 <li><a href="#1b-gu-a-para-principiantes-de-la-descarga-al-primer-v-deo" data-anchor="1b-gu-a-para-principiantes-de-la-descarga-al-primer-v-deo">1b · Guía para principiantes: de la descarga al primer vídeo 🚀</a></li>
 <li><a href="#2-primeros-pasos" data-anchor="2-primeros-pasos">2 · Primeros pasos</a></li>
 <li><a href="#2b-abrir-archivos-de-track-muchos-formatos" data-anchor="2b-abrir-archivos-de-track-muchos-formatos">2b · Abrir archivos de track — muchos formatos ⭐</a></li>
@@ -266,7 +267,7 @@
 <li><a href="#10-faq" data-anchor="10-faq">10 · FAQ</a></li>
 <li><a href="#11-atajos-de-teclado-macos" data-anchor="11-atajos-de-teclado-macos">11 · Atajos de teclado (macOS)</a></li>
 <li><a href="#12-limitaciones-conocidas-beta" data-anchor="12-limitaciones-conocidas-beta">12 · Limitaciones conocidas (Beta)</a></li>
-<li><a href="#archivo-en-la-nube-tu-archivo-en-tu-propio-servidor" data-anchor="archivo-en-la-nube-tu-archivo-en-tu-propio-servidor">Archivo en la nube — tu archivo en tu propio servidor</a></li>
+<li><a href="#archivo-en-la-nube-tu-biblioteca-en-tu-propio-servidor" data-anchor="archivo-en-la-nube-tu-biblioteca-en-tu-propio-servidor">Archivo en la nube — tu biblioteca en tu propio servidor</a></li>
 <li><a href="#13-soporte-y-contacto" data-anchor="13-soporte-y-contacto">13 · Soporte y contacto</a></li></ul></nav></aside>
     <main class="doc-main">
       <h1 id="gps-studio-by-reisezoom-com-manual">GPS Studio by reisezoom.com — Manual</h1>
@@ -330,6 +331,40 @@ python app.py</code></pre>
 <p>En el primer render, la app descarga Chromium una sola vez (~150 MB).</p>
 <p>Sin ExifTool, las fotos JPEG, TIFF y HEIC funcionan igualmente (mediante piexif + pillow-heif, ambos integrados). Solo los archivos RAW (CR3, NEF, ARW, RAF, RW2, ORF, DNG, PEF, RWL, SRW) y los metadatos de vídeo necesitan exiftool, y también la escritura de GPS en HEIC.</p>
 <hr>
+<hr>
+<h2 id="1a-tu-biblioteca">1a · Tu biblioteca 📚 ⭐</h2>
+<p><strong>Dónde guarda GPS Studio tus rutas, y por qué importa.</strong></p>
+<p>En el primer arranque, GPS Studio pregunta en tres pasos dónde debe estar tu <strong>biblioteca</strong>: una carpeta con todo junto — tus rutas, tus proyectos, tus colecciones. La opción por defecto vale para casi todo el mundo; si necesitas espacio, ponla en un disco externo o un NAS. Puedes cambiarla después cuando quieras (Ajustes → Biblioteca → <em>Mover a otra ubicación</em>): la app la mueve de verdad, no empieza de cero.</p>
+<p><strong>Las carpetas en la nube no sirven.</strong> Dropbox, iCloud Drive, OneDrive y Google Drive reemplazan archivos mientras se escriben y eso corrompe la base de datos. GPS Studio rechaza esas ubicaciones y explica por qué. Los discos externos y las unidades de red sí valen.</p>
+<h3 id="qu-significa-para-tus-carpetas">Qué significa para tus carpetas</h3>
+<p>Tus carpetas vigiladas siguen igual: a partir de ahora son el <strong>origen</strong> del que llegan rutas nuevas. En cuanto una ruta está en el archivo, GPS Studio tiene su propia copia. Dos consecuencias:</p>
+<ul>
+<li><strong>Ordenar ahí fuera no te hace perder nada.</strong> La ruta sigue en el archivo,</li>
+</ul>
+<p> solo marcada como sin archivo de origen. El filtro <em>falta el origen</em> las  encuentra cuando quieras limpiar.</p>
+<ul>
+<li><strong>GPS Studio no escribe nunca en tus archivos.</strong> Al curar una ruta en el</li>
+</ul>
+<p> inspector se crea una <strong>versión</strong> nueva en tu biblioteca; tu archivo  original queda intacto. Si la necesitas fuera, usa <em>Exportar versión …</em>.</p>
+<h3 id="si-la-biblioteca-no-est">Si la biblioteca no está</h3>
+<p>Si vive en un disco externo que no está conectado, GPS Studio lo dice al arrancar y ofrece <em>Buscar de nuevo</em> o <em>Elegir otra ubicación</em>. <strong>Nunca</strong> crea en silencio una biblioteca vacía: tus datos no se han perdido, solo no están accesibles.</p>
+<h3 id="versiones-de-una-ruta">Versiones de una ruta</h3>
+<p>Una ruta puede tener varias versiones: como se grabó, curada, recortada. En el archivo la tarjeta muestra «V3» cuando hay tres; la lista está en la columna de detalle. Lo importante para tus vídeos:</p>
+<ul>
+<li><strong>Un proyecto se queda en su versión.</strong> Curar la ruta más tarde no mueve</li>
+</ul>
+<p> nada en un vídeo terminado: carteles y keyframes siguen donde los pusiste.</p>
+<ul>
+<li>El proyecto avisa con <em>⬆ versión más reciente</em> y tú decides. También puedes</li>
+</ul>
+<p> volver <strong>atrás</strong> a una versión anterior.</p>
+<ul>
+<li>Las versiones que ningún proyecto usa se pueden borrar por separado. La más</li>
+</ul>
+<p> reciente no: es la ruta.</p>
+<p>Cada versión de la lista lleva hasta cuatro botones pequeños:</p>
+<table><thead><tr><th>Botón</th><th>Qué hace</th></tr></thead><tbody><tr><td>↩︎</td><td>Recuperar esta versión: se coloca al final de la cadena como estado <strong>más reciente</strong>, no se pierde nada.</td></tr><tr><td>🎬</td><td>Ajustar un proyecto a esta versión. Se abre la lista de los proyectos ligados a esta ruta con la versión que usa cada uno.</td></tr><tr><td>⬇</td><td>Exportar esta versión como archivo GPX: la salida al exterior, ahora que GPS Studio ya no escribe en tus archivos.</td></tr><tr><td>🗑</td><td>Eliminar esta versión. Si un proyecto depende de ella no pasa nada y la aplicación te dice cuál.</td></tr></tbody></table>
+<p>Al pulsar la fila se muestran arriba los datos de <strong>esa</strong> versión; si no, dos versiones de la misma ruta parecen idénticas.</p>
 <hr>
 <h2 id="1b-gu-a-para-principiantes-de-la-descarga-al-primer-v-deo">1b · Guía para principiantes: de la descarga al primer vídeo 🚀</h2>
 <p>Este capítulo es para el primer día. Va en línea recta — instalar, cargar un track, primera imagen, primer vídeo. Todo lo demás en este manual es material de consulta; aquí está solo lo que realmente necesitas.</p>
@@ -652,7 +687,8 @@ python app.py</code></pre>
 <table><thead><tr><th>Botón</th><th>Qué ocurre</th></tr></thead><tbody><tr><td><strong>Ocultar</strong></td><td>la ruta desaparece de todas las listas pero queda en la sección «Ocultas» — para duplicados o pruebas que no quieres ver</td></tr><tr><td><strong>Quitar del archivo</strong></td><td>el archivo olvida la entrada, el fichero se queda donde está (la próxima lectura vuelve a incluirlo)</td></tr><tr><td><strong>Mover a la papelera</strong></td><td>tras una confirmación el fichero va a la papelera del sistema; puedes recuperarlo mientras no la vacíes</td></tr></tbody></table>
 <p><strong>Qué indican las tarjetas:</strong></p>
 <table><thead><tr><th>Señal</th><th>Significado</th></tr></thead><tbody><tr><td>★</td><td>favorita</td></tr><tr><td>«planificada»</td><td>la ruta solo se planificó, no se grabó</td></tr><tr><td>«off»</td><td>la ruta está oculta</td></tr><tr><td>● (naranja)</td><td>ya hay proyectos guardados para esta ruta</td></tr></tbody></table>
-<p><strong>Buscar duplicadas:</strong> el botón de abajo a la izquierda agrupa los archivos con un <strong>recorrido idéntico</strong>, útil tras una exportación masiva que descargó la misma ruta varias veces. No se borra nada: solo ves qué está duplicado.</p>
+<p><strong>Buscar duplicadas:</strong> el botón de abajo a la izquierda agrupa los archivos con un <strong>recorrido idéntico</strong>, útil tras una exportación masiva que descargó la misma ruta varias veces.</p>
+<p>Desde que existe la biblioteca esto <strong>ya no es un problema</strong>: el archivo muestra una sola ruta y solo anota «2× archivos». Limpiar solo merece la pena si quieres ahorrar espacio en disco. Los archivos marcados van a la <strong>papelera del sistema</strong>: son tus archivos, GPS Studio nunca borra nada de forma definitiva y la ruta se mantiene igualmente porque la biblioteca tiene su propia copia. Esa copia no aparece en la lista.</p>
 <p><strong>Importar un archivo suelto:</strong> un GPX individual (o FIT, TCX, KML …) — por ejemplo recién bajado de Komoot — ya no necesita una carpeta vigilada: <strong>«📂 Carpetas y lectura» → «+ Archivo de track individual …»</strong>, o simplemente <strong>arrastra el archivo sobre el archivo de rutas</strong>. La app lo copia a su propia carpeta de importación (el original se queda donde está, los duplicados se omiten) y lo lee al momento.</p>
 <p><strong>Archivos nuevos:</strong> pulsa <strong>«Volver a leer»</strong> después de cada exportación grande. Los archivos ya conocidos se omiten, así que tarda segundos.</p>
 <p><strong>Elegir un periodo.</strong> En el extremo izquierdo de la barra de filtros hay un selector con <strong>«Este año»</strong>, <strong>«Últimos 12 meses»</strong>, <strong>«Últimas 12 semanas»</strong> y <strong>«Periodo personalizado …»</strong>. Con el periodo propio aparecen dos campos de fecha, <em>desde</em> y <em>hasta</em>; ambos días cuentan. El periodo se aplica a todo a la vez: lista, mapa y estadísticas muestran el mismo tramo. Mientras haya un periodo definido, el campo del año queda atenuado: ambos significan lo mismo y el periodo es el más preciso de los dos.</p>
@@ -1551,44 +1587,19 @@ python app.py</code></pre>
 </ul>
 <p>Roadmap completa en el repo bajo <code>docs/IDEAS.md</code>.</p>
 <hr>
-<h2 id="archivo-en-la-nube-tu-archivo-en-tu-propio-servidor">Archivo en la nube — tu archivo en tu propio servidor</h2>
-<blockquote><strong>Es opcional.</strong> Sin nube la app funciona igual que siempre: todo se queda en</blockquote>
-<blockquote>tu ordenador, no hay cuenta y no hay nada que configurar.</blockquote>
-<p>Si quieres tu archivo en varios ordenadores —o recuperarlo tal cual tras reinstalar— puedes ponerlo en <strong>tu propio servidor web</strong>. No en el nuestro: tus datos siguen siendo tuyos.</p>
-<h3 id="configuraci-n-una-vez-unos-dos-minutos">Configuración (una vez, unos dos minutos)</h3>
-<ol>
-<li>Pulsa la nube gris <strong>☁</strong> en la barra superior (o abre **Ajustes →</li>
-</ol>
-<p> Archivo en la nube<strong>). El diálogo contiene la guía — y un botón </strong>«Dejar  rz-cloud.php en mi escritorio»** te da el archivo de servidor; viene con la  aplicación y siempre corresponde a tu versión.</p>
-<ol>
-<li>Sube ese archivo **<code>rz-cloud.php</code>** a una carpeta de tu espacio web, por</li>
-</ol>
-<p> ejemplo <code>tusitio.com/archivo/</code> — con tu programa FTP o el gestor de archivos  de tu proveedor. El espacio web solo necesita <strong>PHP (7.4 o superior) y  HTTPS</strong>; prácticamente cualquier proveedor lo tiene. Ni base de datos ni  ajustes.</p>
-<ol>
-<li>Introduce la <strong>dirección de ese archivo</strong></li>
-</ol>
-<p> (<code>https://tusitio.com/archivo/rz-cloud.php</code>). La app te dice al momento si  encuentra algo ahí.</p>
-<ol>
-<li><strong>Crear un archivo nuevo</strong> — y ahora lo importante:</li>
-</ol>
-<blockquote>⚠️ <strong>La app te muestra una contraseña una sola vez.</strong> Es la que abre tus</blockquote>
-<blockquote>datos. Guárdala enseguida en tu gestor de contraseñas. Nosotros no la</blockquote>
-<blockquote>conocemos y no podemos recuperarla: **si se pierde, nadie podrá acceder al</blockquote>
-<blockquote>archivo, tampoco nosotros.**</blockquote>
-<p>A partir de ahí todo sube solo. Una <strong>☁</strong> en la barra superior muestra el estado: tranquila cuando todo está sincronizado, con un contador mientras transfiere.</p>
-<h3 id="qu-sube-y-qu-no">Qué sube y qué no</h3>
-<p><strong>Sí:</strong> rutas, todos sus datos (nombre, nota, etiquetas, colecciones), los proyectos del animador y del mapa de ruta, los ajustes del geolocalizador y las miniaturas de las fotos que hayas colocado en un proyecto.</p>
-<p><strong>No:</strong> tus fotos originales, los vídeos terminados ni las imágenes de mapa. Las fotos se quedan donde están: un archivo no es un almacén de fotos.</p>
-<h3 id="un-segundo-ordenador">Un segundo ordenador</h3>
-<p>Allí elige <strong>Ajustes → Archivo en la nube → Conectar con uno existente</strong>, e introduce la dirección, la clave de acceso y tu contraseña. Nada más: el archivo aparece y las rutas llegan cuando las necesitas.</p>
-<h3 id="qu-ve-el-servidor">Qué ve el servidor</h3>
-<p><strong>Nada aprovechable.</strong> Todo se cifra en tu equipo antes de salir. En el servidor hay nombres opacos, tamaños y fechas: ningún nombre de ruta, ningún lugar, ningún recorrido. Aunque alguien copie todo el espacio web, obtiene bloques cifrados.</p>
-<h3 id="papelera-versiones-anteriores-quitar">Papelera, versiones anteriores, quitar</h3>
-<p><strong>La sincronización nunca borra nada.</strong> Si una ruta solo existe en la nube (porque la quitaste del archivo aquí), el diálogo de la nube la muestra en «Rutas en el archivo» — con <strong>Traer</strong> y un botón <strong>🗑</strong>. Solo el segundo clic en 🗑 la quita de la nube, y aun así solo a la <strong>papelera del servidor</strong>.</p>
-<p><strong>Versiones anteriores.</strong> Cuando una ruta se sobrescribe en la nube (nuevo nombre, nuevos proyectos), la versión anterior queda en la papelera como «versión anterior» — las últimas cinco por ruta. <strong>Restaurar</strong> la convierte de nuevo en la versión actual. La papelera se limpia sola a los 30 días.</p>
-<p><strong>Solo https://.</strong> La dirección de <code>rz-cloud.php</code> debe empezar por https — por http tu clave de acceso viajaría sin cifrar. Casi todos los hostings ofrecen https, a menudo con «Let&#x27;s Encrypt» en un clic.</p>
-<h3 id="los-viajes-y-enjambres-viajan-contigo">Los viajes y enjambres viajan contigo</h3>
-<p>Tus <strong>composiciones</strong> — viajes de varias rutas y enjambres, con fotogramas clave y ajustes — también van a la nube automáticamente. En el otro equipo las encuentras en el diálogo de la nube bajo <strong>«Viajes y enjambres»</strong>: un clic en <strong>Descargar</strong> trae las rutas que falten y lo deja todo listo. Una composición que ya exista en el equipo <strong>nunca se sobrescribe</strong>: el trabajo local gana.</p>
+<h2 id="archivo-en-la-nube-tu-biblioteca-en-tu-propio-servidor">Archivo en la nube — tu biblioteca en tu propio servidor</h2>
+<p><strong>Es opcional. Sin nube, GPS Studio funciona exactamente igual: no sale nada a la red y no se toca el llavero.</strong></p>
+<p>La nube es una <strong>copia de tu biblioteca</strong>. Lo que sube: tus rutas (cada versión por separado), el registro de rutas, tus proyectos, lo que has escrito tú (etiquetas, favoritos, notas, nombres propios, colores, colecciones) y las imágenes de portada que elegiste. Todo se cifra antes de salir de tu equipo.</p>
+<p><strong>Lo que NO sube:</strong> la base de datos del archivo (se reconstruye a partir de las rutas), las miniaturas y los mapas (vienen de Mapbox) y tus fotos: son tuyas y nunca estuvieron dentro de la app.</p>
+<h3 id="segundo-ordenador">Segundo ordenador</h3>
+<p><em>Cargar la biblioteca desde la nube</em> trae todo lo que falta allí: rutas, proyectos, colecciones y lo tuyo. Lo que ya existe no se sobrescribe. Después tu archivo se ve como en el primer ordenador.</p>
+<p>También es tu vuelta atrás tras una pérdida: si la base de datos desaparece, basta con la biblioteca — las rutas se vuelven a incorporar al archivo desde ahí.</p>
+<h3 id="c-mo-configurarlo">Cómo configurarlo</h3>
+<p>Necesitas cualquier alojamiento web con <strong>PHP 7.4 o superior</strong>, nada más: sin base de datos, sin servicio, sin suscripción. En los ajustes GPS Studio te deja el archivo **<code>rz-cloud.php</code>** en el escritorio; súbelo a tu servidor e indica su dirección en la app. Ya está.</p>
+<p>El servidor nunca ve tus datos: todo se cifra en tu equipo antes de subir. Él guarda bloques cuyos nombres no puede leer. La clave la tienes solo tú, en tu llavero. La necesitas para un segundo ordenador; los ajustes pueden mostrártela.</p>
+<h3 id="limpiar">Limpiar</h3>
+<p><em>Quitar ajenos</em> descarta lo que no pertenece a tu biblioteca, por ejemplo datos de una versión anterior de GPS Studio. Dos clics, y va a la papelera del servidor, no a la nada.</p>
+<p><strong>Nunca se borra nada automáticamente.</strong> Con dos ordenadores, «está arriba pero aquí no lo conozco» suele significar «es del otro equipo». Limpiar es siempre una decisión tuya.</p>
 <h2 id="13-soporte-y-contacto">13 · Soporte y contacto</h2>
 <ul>
 <li><strong>Reportes de bugs y feedback</strong>: Ayuda → 📧 (ver la sección 7) o directamente <code>marc@reisezoom.com</code></li>

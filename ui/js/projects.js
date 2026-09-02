@@ -217,7 +217,7 @@
     }
 
     // Session-Listener
-    // 31.08.2026 (Rafael): Erst-Render läuft vor den Sprachdateien —
+    // 31.08.2026 (Beta-Tester): Erst-Render läuft vor den Sprachdateien —
     // sobald sie da sind, Label neu beschriften (sonst bleibt „Projekte" DE).
     window.addEventListener("rz-i18n-ready", () => { try { renderLabel(); } catch (_) {} });
     if (typeof onSessionChanged === "function") {

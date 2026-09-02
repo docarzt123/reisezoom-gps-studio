@@ -28,7 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable
 
-from . import archiv, crypto, transport
+from . import crypto, transport
 
 # Wie viele Fehler ein Durchlauf verträgt, bevor er aufgibt. Ein einzelner
 # hakeliger Umschlag darf den Rest nicht blockieren; hundert Fehler bedeuten
@@ -76,56 +76,32 @@ class Abgleich:
 
     # ── planen ───────────────────────────────────────────────────────────
 
-    def planen(self, bestand: archiv.Bestand) -> Plan:
-        """Vergleicht lokalen Bestand mit dem, was oben liegt."""
+    def planen(self, bestand: dict) -> Plan:
+        """Vergleicht lokalen Bestand mit dem, was oben liegt.
+
+        02.09.2026: `bestand` ist jetzt schlicht `{logischer Name: Prüfsumme}`.
+        Vorher kannte diese Ebene die Bauteile des Archivs einzeln (Verzeichnis,
+        Sammlungen, Touren, Mengen, Ketten, Fassungen) — bei jeder neuen Sorte
+        musste sie mitwachsen. Was hochgehört, entscheidet jetzt allein
+        `core/cloud/bibliothek.py`; hier wird nur noch verglichen.
+        """
         oben = self.g.liste()
         plan = Plan()
-
-        def vergleiche(logisch: str, pruef_lokal: str):
+        for logisch, pruef_lokal in bestand.items():
             eintrag = oben.get(transport.server_name(logisch))
-            if eintrag is None:
-                plan.hoch.append(logisch)
-            elif not crypto.gleich(eintrag.pruef, pruef_lokal):
+            if eintrag is None or not crypto.gleich(eintrag.pruef, pruef_lokal):
                 plan.hoch.append(logisch)
             else:
                 plan.unveraendert += 1
 
-        vergleiche(archiv.VERZEICHNIS,
-                   crypto.inhalts_pruefsumme(archiv.json_bytes(bestand.verzeichnis)))
-        vergleiche(archiv.SAMMLUNGEN,
-                   crypto.inhalts_pruefsumme(archiv.json_bytes(bestand.sammlungen)))
-        for gh, pruef in bestand.touren.items():
-            vergleiche(archiv.track_name(gh), pruef)
-        # IDEAS §38 M5 — Kompositionen (Reise/Schwarm) wie Touren behandeln.
-        for mh, pruef in bestand.mengen.items():
-            vergleiche(archiv.menge_name(mh), pruef)
-        # E3 / Cloud v2 — Versions-Ketten + Fassungs-Snapshots (IDEAS §39 Q6b).
-        for tid, pruef in bestand.ketten.items():
-            vergleiche(archiv.kette_name(tid), pruef)
-        for gh, pruef in bestand.fassungen.items():
-            vergleiche(archiv.track_name(gh), pruef)
-
         # ⚠️ Was oben liegt und lokal nicht mehr existiert, ist gelöscht —
-        # aber NUR, wenn wir das Verzeichnis wirklich kennen. Bei einem leeren
-        # lokalen Bestand (frisch eingerichtetes Gerät) wäre das sonst der
-        # Befehl, das ganze Archiv zu löschen.
-        if bestand.touren or bestand.verzeichnis.get("touren"):
-            bekannt = {transport.server_name(archiv.VERZEICHNIS),
-                       transport.server_name(archiv.SAMMLUNGEN)}
-            bekannt |= {transport.server_name(archiv.track_name(gh))
-                        for gh in bestand.touren}
-            # ⚠️ Ohne diese Zeile würde der Aufräum-Zweig jede eben hochgeladene
-            # Komposition beim NÄCHSTEN Abgleich wieder löschen.
-            bekannt |= {transport.server_name(archiv.menge_name(mh))
-                        for mh in bestand.mengen}
-            # E3 / Cloud v2 — sonst gälten Ketten/Fassungen als „nur in der Cloud".
-            bekannt |= {transport.server_name(archiv.kette_name(tid))
-                        for tid in bestand.ketten}
-            bekannt |= {transport.server_name(archiv.track_name(gh))
-                        for gh in bestand.fassungen}
-            for sname in oben:
-                if sname not in bekannt:
-                    plan.weg.append(sname)
+        # aber NUR, wenn wir lokal überhaupt etwas kennen. Bei leerem lokalem
+        # Bestand (frisch eingerichtetes Gerät) wäre das sonst der Befehl, das
+        # ganze Archiv zu löschen. Gelöscht wird ohnehin nichts automatisch
+        # (siehe Plan.__str__) — die Zahl ist nur eine Auskunft.
+        if bestand:
+            bekannt = {transport.server_name(n) for n in bestand}
+            plan.weg = [sname for sname in oben if sname not in bekannt]
         return plan
 
     # ── übertragen ───────────────────────────────────────────────────────

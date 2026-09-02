@@ -133,6 +133,11 @@ def load_points(path: str) -> dict:
             "lon": float(p.lon),
             "ele": (None if p.ele is None else float(p.ele)),
             "time": p.time,  # ISO-String oder None
+            # 02.09.2026, Audit: Die Etappe muss mit. Höhenmeter werden je
+            # Etappe gerechnet (der Sprung zwischen zwei Etappen ist kein
+            # Anstieg) — ohne diese Angabe kann der Inspektor nicht dieselbe
+            # Zahl zeigen wie das Archiv.
+            "seg": int(getattr(p, "seg", 0) or 0),
         })
     # Hat der Quell-Track FIT/TCX-Sensoren? (→ Frontend zeigt Hinweis, dass sie
     # beim Speichern erhalten bleiben). extra ist nur intern, geht nicht raus.

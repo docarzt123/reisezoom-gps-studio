@@ -2417,7 +2417,7 @@ body.is-rendering .modal-overlay * {
   justify-content: center;
   /* ⚠️ UNTER den Keyframe-Markern (die liegen bei 6). Wo sich beide doch
      einmal überlappen, gewinnt der Keyframe — er ist das Wichtigere, und
-     ein verdeckter Keyframe war Rafaels Fehlerbericht vom 16.08.2026. */
+     ein verdeckter Keyframe war ein Fehlerbericht vom 16.08.2026. */
   z-index: 4;
   transition: background 0.12s, border-color 0.12s, transform 0.12s;
 }
@@ -2869,3 +2869,46 @@ body.is-rendering .modal-overlay * {
 }
 
 .lib-bar.proj-mode > :not(.pmgr-seg):not(#lib-search) { display: none; }
+
+
+/* ── Bibliotheks-Tor (02.09.2026, docs/UMBAU-BIBLIOTHEK.md) ────────────────
+   Deckt das Fenster ab, solange die Bibliothek nicht offen ist. Bewusst
+   blockierend: Ohne sie gibt es kein Archiv und keine Projekte — ein halb
+   bedienbares Fenster wäre schlimmer als eine klare Ansage. */
+#bib-gate {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(10, 13, 18, 0.86);   /* --bg-0 mit Deckkraft */
+  backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.bib-gate-box {
+  /* DECKEND — sonst liest man den Text über den Kacheln dahinter nicht. */
+  background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: 12px;
+  padding: 26px 28px; max-width: 560px; width: 100%;
+  box-shadow: 0 18px 48px rgba(0,0,0,.35); max-height: 86vh; overflow: auto;
+}
+.bib-gate-box h2 { margin: 0 0 10px; font-size: 19px; }
+.bib-gate-box p { margin: 0 0 12px; line-height: 1.5; }
+.bib-klein { font-size: 12px; }
+.bib-ort {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  background: var(--bg-1); border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 11px; margin: 12px 0;
+}
+/* `break-all` trennte mitten im Wort („…/Bi bliothek"). `anywhere` bricht
+   bevorzugt an den Schrägstrichen und nur zur Not im Wort. */
+.bib-ort code { font-size: 12px; overflow-wrap: anywhere; line-height: 1.5;
+                flex: 1 1 240px; }
+.bib-warn { color: var(--warn); font-size: 12px; }
+.bib-warn li { margin-left: 16px; }
+.bib-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.bib-sicherungen { display: flex; flex-direction: column; gap: 4px; margin: 12px 0; }
+.bib-sicherung {
+  display: flex; gap: 8px; align-items: center; font-size: 13px;
+  padding: 6px 9px; border: 1px solid var(--border); border-radius: 7px;
+  background: var(--bg-1);
+}
+.bib-gate-box p { color: var(--text-dim); }
+.bib-gate-box ul { margin: 0 0 12px 18px; color: var(--text-dim); }
+.bib-gate-box ul li { margin: 1px 0; }
+.bib-gate-box h2 { color: var(--text); }

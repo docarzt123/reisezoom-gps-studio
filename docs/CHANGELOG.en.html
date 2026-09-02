@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="alternate" type="application/rss+xml" title="GPS Studio — Versions-Verlauf" href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml">
 <title>GPS Studio by reisezoom.com — Changelog</title>
 <meta name="description" content="All the latest in GPS Studio by reisezoom.com — what changed for you in every version.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -107,6 +108,7 @@
   <h1>Changelog</h1>
   <p class="lead">What changed in each version of <strong>GPS Studio by reisezoom.com</strong> — short and free of tech jargon.</p>
   <a class="download-cta" href="https://reisezoom.com/reisezoom-gps-studio/" target="_blank" rel="noopener">📥 Download the app</a>
+<p style="text-align:center;margin-top:10px;font-size:13px"><a href="changelog.xml">📡 Subscribe via RSS</a></p>
 <div class="clog-lang" style="display:flex;gap:6px;justify-content:center;margin-top:10px"><a href="changelog.html" style="font:700 13px/1 var(--sans);padding:6px 12px;border-radius:999px;text-decoration:none;background:var(--paper2);color:var(--muted)">DE</a><a href="changelog.en.html" style="font:700 13px/1 var(--sans);padding:6px 12px;border-radius:999px;text-decoration:none;background:var(--terra);color:#fff">EN</a><a href="changelog.es.html" style="font:700 13px/1 var(--sans);padding:6px 12px;border-radius:999px;text-decoration:none;background:var(--paper2);color:var(--muted)">ES</a></div>
 </header>
 
@@ -114,9 +116,80 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.646</span>
+    <span class="version-date">2 September 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <p class="version-tagline">Checked again: five things that were only almost right.</p>
+
+  <div class="highlight">
+    <strong>⌚ Recording with a watch did not give you a real backup copy.</strong> For a Garmin or Suunto file the raw recording was stored in the library unchanged — GPS Studio could no longer read it there. From now on it is converted when taken in, and anything already stored wrongly is repaired once at the next start — from what is stored. You do not need the original file for that.
+  </div>
+
+  <ul>
+    <li><strong>Elevation gain is the same everywhere.</strong> Archive, inspector and elevation animator showed three numbers for the same tour. The archive’s calculation now applies everywhere — smoothed, 3-metre threshold, per leg.</li>
+    <li><strong>A project can be set to a different version</strong> (🎬 on the version), and single versions can be exported (⬇) or deleted (🗑). That was promised but had no button.</li>
+    <li><strong>Compressed tours (<code>.gpx.gz</code>) are read</strong> — Strava exports and many loggers deliver exactly that.</li>
+    <li><strong>Missing map images are fetched automatically again</strong>, not only on demand.</li>
+    <li><strong>“Find duplicates” now says what it does:</strong> these are your files, they go to your system’s trash, and the tour stays — the library keeps its own copy. That copy is no longer offered for removal.</li>
+    <li>The preview image in the detail column was sometimes missing although it existed.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.645</span>
+    <span class="version-date">2 September 2026</span>
+  </div>
+  <p class="version-tagline">The cloud now mirrors your library.</p>
+
+  <div class="highlight">
+    <strong>☁️ The cloud is a copy of your library.</strong> Previously GPS Studio uploaded a separate package per tour containing the directory, collections, projects and photos — a second data model beside the real one. Now it simply uploads what is in your library: the tours with all their versions, your projects, and everything you entered yourself. Encrypted before it leaves your machine.
+  </div>
+
+  <ul>
+    <li><strong>“Load library from the cloud”</strong> sets up a second computer in one go — tours, projects, collections, tags. Existing files are not overwritten.</li>
+    <li><strong>If the database is lost, the library is enough.</strong> The tours are taken back into the archive from it.</li>
+    <li><strong>“Remove unknown”</strong> discards whatever does not belong to your library. Never automatically — with two computers, “unknown here” usually means “from the other machine”.</li>
+    <li><strong>Without a cloud set up, nothing happens.</strong> No network, no keychain.</li>
+    <li>Not uploaded: the archive database (rebuilt), preview and map images (from Mapbox) and your photos.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.640</span>
+    <span class="version-date">2 September 2026</span>
+    
+  </div>
+  <p class="version-tagline">Your tours now have a home.</p>
+
+  <div class="highlight">
+    <strong>📚 The library.</strong> GPS Studio now keeps your tours in one place that you choose — with its own copy of every tour. Watched folders are only the source: tidy up out there and your tour stays complete. On first start the app asks in three steps where the library should live; your existing data moves there by itself (backed up first, and the old state is only renamed, never deleted).
+  </div>
+
+  <div class="highlight">
+    <strong>✋ GPS Studio never writes to your files any more.</strong> Healing a tour creates a new <em>version</em> in your library — your original file stays untouched, byte for byte. If you need the healed file outside the app, you export it deliberately.
+  </div>
+
+  <div class="highlight">
+    <strong>🎯 One card per tour, not per file.</strong> The same route as a Komoot download, an app import and a healed copy used to appear three times. Now it is one tour, marked „V3" (three versions) and „2×" (from two files). Tags, favourite and your own name belong to the tour and survive a healing.
+  </div>
+
+  <ul>
+    <li><strong>Pick any version.</strong> A project stays on its version — nothing shifts when you heal later. You can move it to another version at any time, backwards too.</li>
+    <li><strong>Opening no longer creates a project.</strong> A project appears once you actually change something. No more dozens of empty cards called „Standard".</li>
+    <li><strong>Deleting speaks up.</strong> A tour used by projects does not vanish silently — you see which ones and decide.</li>
+    <li><strong>Inspector:</strong> „Colour by speed" stopped working on tours above 2,000 points — fixed.</li>
+    <li><strong>The cloud archive is paused</strong> while the rebuild runs. Anything uploaded stays untouched; it will come back.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.635</span>
     <span class="version-date">September 1, 2026</span>
-    <span class="version-badge">Current</span>
+    
   </div>
   <p class="version-tagline">New name, new mark.</p>
 
@@ -137,7 +210,7 @@
     <li><strong>Swarm with arrows:</strong> if the main tour uses “arrow in direction of travel”, every tour can get its own rotating arrow.</li>
     <li><strong>Delete several projects at once</strong> (⌘/Ctrl-click) — instead of 27 times individually.</li>
     <li><strong>Single files into the archive</strong> and faster scanning from network drives.</li>
-    <li>Plus a completed Spanish interface and a dozen smaller fixes from Dieter's and Rafael's testing.</li>
+    <li>Plus a completed Spanish interface and a dozen smaller fixes from beta-tester feedback.</li>
   </ul>
 </article>
 
@@ -153,7 +226,7 @@
   </div>
 
   <div class="highlight">
-    <strong>⚡ Faster scanning from a NAS.</strong> The archive scan opened every track file twice — on a network drive every open is a network round trip. Each file is now read exactly once; a tester's hint ("scanning felt noticeably slow") uncovered this. Thanks, Dieter!
+    <strong>⚡ Faster scanning from a NAS.</strong> The archive scan opened every track file twice — on a network drive every open is a network round trip. Each file is now read exactly once; a tester's hint ("scanning felt noticeably slow") uncovered this. Thanks for the report!
   </div>
 
   <ul>
@@ -2669,7 +2742,7 @@
     <span class="version-num">v0.8.10</span>
     <span class="version-date">23. Mai 2026</span>
   </div>
-  <p class="version-tagline">Erste Version der Röhren-Track-Optik (Idee von Beta-Tester). Im v0.8.13-Update siehst du den finalen Stand — Röhre ist dort Eintrag im Linien-Stil-Dropdown.</p>
+  <p class="version-tagline">Erste Version der Röhren-Track-Optik (Idee eines Beta-Testers). Im v0.8.13-Update siehst du den finalen Stand — Röhre ist dort Eintrag im Linien-Stil-Dropdown.</p>
 </article>
 
 <article class="version">
@@ -2716,7 +2789,7 @@
   </div>
 
   <p style="margin-top:12px; font-size:13px; color:#666;">
-    Idee von Beta-Tester („Kamera Neigung und Rotation mit Keyframes beeinflussen") + Marcs Erweiterung mit dem Snapshot-Workflow. 🙏 — Die Grundlage ist gelegt: Foto-Inserts und Text-Overlays landen demnächst auf der gleichen Timeline.
+    Idee eines Beta-Testers („Kamera Neigung und Rotation mit Keyframes beeinflussen") + Marcs Erweiterung mit dem Snapshot-Workflow. 🙏 — Die Grundlage ist gelegt: Foto-Inserts und Text-Overlays landen demnächst auf der gleichen Timeline.
   </p>
 </article>
 
@@ -2818,7 +2891,7 @@
   </div>
 
   <p style="margin-top:12px; font-size:13px; color:#666;">
-    Idee von Beta-Tester — danke! 🙏
+    Idee eines Beta-Testers — danke! 🙏
   </p>
 </article>
 

@@ -375,6 +375,15 @@ function openModal(options = {}) {
   }
 
   render(options);
+  // 02.09.2026, beim Durchtesten gefunden: Ein neuer Dialog, der seine Knöpfe
+  // im Rumpf mitbringt (z. B. „Ordner & Einlesen"), ließ die Fußzeile des
+  // VORIGEN Dialogs stehen. Nach einem abgebrochenen Löschdialog stand
+  // darunter plötzlich ein roter „Tour und diese Projekte löschen" — in einem
+  // Fenster, das damit nichts zu tun hat.
+  //
+  // Nur beim ÖFFNEN leeren, nicht bei `update()`: Dort wird oft nur der Rumpf
+  // erneuert, und die Fußzeile soll stehen bleiben.
+  if (_hatInhalt && options.footer === undefined) footEl.innerHTML = "";
   overlay.hidden = false;
 
   function close() {
@@ -497,7 +506,7 @@ async function loadI18n() {
     console.warn("[i18n] load failed", err);
   }
   uebersetzeMarkup();
-  // 31.08.2026 (Rafael: „las pestañas salen en Alemán") — Bausteine, die VOR
+  // 31.08.2026 (Beta-Tester: „las pestañas salen en Alemán") — Bausteine, die VOR
   // den Sprachdateien gerendert haben (Topbar-Projekt-Knopf), rendern auf
   // dieses Signal hin neu, statt auf ihrem deutschen Fallback sitzenzubleiben.
   try { window.dispatchEvent(new CustomEvent("rz-i18n-ready")); } catch (_) {}
@@ -2526,3 +2535,59 @@ function knopfBeschaeftigt(id, textKey, textFallback) {
 /** Kurz ans DOM abgeben, damit der gesperrte Knopf auch GEMALT wird, bevor
  *  schwere Arbeit den Thread blockiert. */
 function malPause() { return new Promise(r => setTimeout(r, 30)); }
+
+// ── Höhenmeter — EINE Rechnung für die ganze App ─────────────────────────────
+// 02.09.2026, Audit-Befund: Archiv, Inspektor und Höhen-Animator zeigten für
+// dieselbe Tour drei verschiedene Zahlen. Das Archiv rechnete (richtig)
+// geglättet mit 3-m-Schwelle je Etappe, der Inspektor summierte JEDEN
+// positiven Höhenunterschied — bei GPS-Rauschen von ±5–10 m pro Punkt kommt
+// dabei ein Vielfaches heraus. Wer beide Fenster offen hatte, musste die App
+// für kaputt halten; welche Zahl stimmt, war nicht erkennbar.
+//
+// Diese Funktion ist die JS-Fassung von `core/gpx._compute_ascent_descent`
+// samt Etappen-Trennung aus `parse_gpx`. Sie ist die einzige Stelle, an der
+// die Oberfläche Höhenmeter rechnet. **Wer sie ändert, ändert core/gpx.py
+// mit** — sonst laufen die Zahlen wieder auseinander.
+function hoehenmeterAusReihe(eles, fenster, schwelle) {
+  const win = Math.max(1, fenster == null ? 5 : fenster);
+  const th = schwelle == null ? 3.0 : schwelle;
+  if (!eles || eles.length < 2) return { asc: 0, desc: 0 };
+  // Punkte OHNE Höhe bekommen den letzten gültigen Wert (wie Python) — sie
+  // fallen nicht heraus, sonst verschiebt sich die Glättung.
+  let letzte = null;
+  const rein = eles.map(e => {
+    if (e != null && isFinite(e)) letzte = +e;
+    return letzte == null ? 0 : letzte;
+  });
+  if (rein.every(v => v === 0)) return { asc: 0, desc: 0 };
+  const halb = win >> 1;
+  const glatt = (win > 1 && rein.length >= win) ? rein.map((_, i) => {
+    const lo = Math.max(0, i - halb), hi = Math.min(rein.length, i + halb + 1);
+    let s = 0;
+    for (let k = lo; k < hi; k++) s += rein[k];
+    return s / (hi - lo);
+  }) : rein.slice();
+  let asc = 0, desc = 0, ref = glatt[0];
+  for (let i = 1; i < glatt.length; i++) {
+    const dz = glatt[i] - ref;
+    if (dz >= th) { asc += dz; ref = glatt[i]; }
+    else if (dz <= -th) { desc += -dz; ref = glatt[i]; }
+  }
+  return { asc, desc };
+}
+
+/** Höhenmeter einer Punktliste [{ele, seg}] — je Etappe getrennt, weil der
+ *  Höhenunterschied zwischen dem Ende einer Etappe und dem Start der nächsten
+ *  (anderes Tal!) kein Anstieg ist. Genau wie `core/gpx.parse_gpx`. */
+function hoehenmeter(points) {
+  let asc = 0, desc = 0, start = 0;
+  const n = (points || []).length;
+  for (let i = 1; i <= n; i++) {
+    const grenze = (i === n) || ((points[i].seg || 0) !== (points[start].seg || 0));
+    if (!grenze) continue;
+    const r = hoehenmeterAusReihe(points.slice(start, i).map(p => p.ele));
+    asc += r.asc; desc += r.desc;
+    start = i;
+  }
+  return { asc, desc };
+}

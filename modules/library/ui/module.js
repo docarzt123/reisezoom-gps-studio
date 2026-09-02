@@ -521,7 +521,7 @@ function mountLibrary(body, headerActions) {
 
   async function reloadStats() {
     // ⚠️ Zeigt die Liste eine Gegend, muss die Statistik dieselbe Gegend meinen.
-    // Erste Fassung ließ sie auf der Textsuche stehen: die Kacheln zeigten 89
+    // Erste Version ließ sie auf der Textsuche stehen: die Kacheln zeigten 89
     // Touren, die Seitenleiste behauptete 4, und die Kilometer daneben gehörten
     // zu den 4. Gemeldet mit Bildschirmfoto — und es sah aus wie ein Zählfehler,
     // war aber schlicht eine zweite, andere Abfrage.
@@ -705,7 +705,7 @@ function mountLibrary(body, headerActions) {
    * Bereiche links (Status statt Jahr/Art), Karten-Raster rechts.
    * Öffnen springt ins zuletzt benutzte Modul (Q22). */
   let _projView = false;
-  const _projMulti = new Set();   // 31.08.2026 (Rafael): Mehrfachauswahl zum Löschen
+  const _projMulti = new Set();   // 31.08.2026 (Beta-Tester): Mehrfachauswahl zum Löschen
   let _projekte = [];
   let _projScope = "alle";  // alle | aktiv | idee | fertig | auto
   const _projThumbCache = {};   // pid → data-URL (Sitzungs-Cache)
@@ -714,6 +714,10 @@ function mountLibrary(body, headerActions) {
 
   function projViewSetzen(an) {
     _projView = !!an;
+    // 02.09.2026 (Marc): Was zuletzt offen war, soll beim nächsten Start
+    // wieder offen sein. Gemerkt wird beim Umschalten, nicht beim Verlassen —
+    // so überlebt es auch einen Absturz.
+    store.setJson("projview", _projView);
     const bar = document.querySelector(".lib-bar");
     if (bar) bar.classList.toggle("proj-mode", _projView);
     const sp = document.getElementById("lib-seg-projekte");
@@ -785,9 +789,9 @@ function mountLibrary(body, headerActions) {
       }).join("");
       const wann = fmtDate(p.modified_at);
       const fehlt = p.exists === false ? ` <span class="lib-proj-fehlt" title="${T("library.proj_fehlt_tip", "Tour-Datei nicht gefunden — Öffnen sucht sie im Archiv.")}">⚠️</span>` : "";
-      // E2 (Q16a): gepinnte Fassung, neuere vorhanden → bewusster Klick.
+      // E2 (Q16a): gepinnte Version, neuere vorhanden → bewusster Klick.
       const up = p.neuere_fassung
-        ? ` <button class="lib-proj-up" data-up="${p.id}" title="${T("library.fassung_up_tip", "Neuere Fassung der Tour verfügbar — Projekt per Klick aktualisieren")}">⬆ ${T("library.fassung_up", "neuere Fassung")}</button>` : "";
+        ? ` <button class="lib-proj-up" data-up="${p.id}" title="${T("library.fassung_up_tip", "Neuere Version der Tour verfügbar — Projekt per Klick aktualisieren")}">⬆ ${T("library.fassung_up", "neuere Version")}</button>` : "";
       return `<div class="lib-proj-karte${p.status === "fertig" ? " fertig" : ""}" data-pid="${p.id}">
         <div class="lib-proj-thumb" data-pthumb="${p.id}">${p.frei ? "🗂" : "🗺"}</div>
         <div class="lib-proj-kopf">
@@ -865,7 +869,7 @@ function mountLibrary(body, headerActions) {
     // Klick auf die Karte (nicht auf Knöpfe) wählt sie aus → rechte Spalte.
     box.querySelectorAll(".lib-proj-karte").forEach(k => k.onclick = (e) => {
       if (e.target.closest("button, select, input, a")) return;
-      // 31.08.2026 (Rafael: „no puedo seleccionar los que quiera para
+      // 31.08.2026 (Beta-Tester: „no puedo seleccionar los que quiera para
       // borrarlos") — ⌘/Strg-Klick sammelt Projekte für Sammel-Aktionen,
       // exakt wie die Mehrfachauswahl im Touren-Archiv.
       if (e.metaKey || e.ctrlKey) {
@@ -1028,8 +1032,8 @@ function mountLibrary(body, headerActions) {
       const p = _projekte.find(x => x.id === b.dataset.up) || {};
       const nf = p.neuere_fassung || {};
       const m = openModal({
-        title: "⬆ " + T("library.fassung_up", "neuere Fassung"),
-        body: `<p>${T("library.fassung_up_frage", "Dieses Projekt auf die neueste Fassung der Tour heben (Fassung {a} → {b})? Die Geometrie hat sich geändert — Keyframes und Schilder können danach anders auf der Strecke liegen. Das Projekt bleibt sonst unverändert; die alte Fassung bleibt im Archiv erhalten.")
+        title: "⬆ " + T("library.fassung_up", "neuere Version"),
+        body: `<p>${T("library.fassung_up_frage", "Dieses Projekt auf die neueste Version der Tour heben (Version {a} → {b})? Die Geometrie hat sich geändert — Keyframes und Schilder können danach anders auf der Strecke liegen. Das Projekt bleibt sonst unverändert; die alte Version bleibt im Archiv erhalten.")
           .replace("{a}", nf.eigene_nr || "?").replace("{b}", nf.nr || "?")}</p>`,
         footer: `<button class="btn" id="lib-up-ab">${T("common.cancel", "Abbrechen")}</button>
                  <button class="btn btn-primary" id="lib-up-ok">${T("library.fassung_up_ok", "Aktualisieren")}</button>`,
@@ -1038,7 +1042,7 @@ function mountLibrary(body, headerActions) {
       if (ok) ok.onclick = async () => {
         m.close();
         const r = await api().projekt_fassung_aktualisieren(b.dataset.up);
-        if (r && r.ok) toast(T("library.fassung_up_done", "Projekt auf die neueste Fassung gehoben."), "info");
+        if (r && r.ok) toast(T("library.fassung_up_done", "Projekt auf die neueste Version gehoben."), "info");
         else toast((r && r.error) || "?", "error");
         renderProjekte();
       };
@@ -1266,11 +1270,29 @@ function mountLibrary(body, headerActions) {
   }
 
   function badges(it) {
+    // ⚠️ JEDES Merkmal hier ist absolut positioniert (siehe .lib-badge im CSS)
+    // und braucht eine eigene Ecke. Zwei ohne eigene Position liegen exakt
+    // übereinander — genau so verschwand „V2" unter „2×" (02.09.2026, auf
+    // Marcs Rechner gesehen). Deshalb sitzen die Merkmale oben links jetzt in
+    // EINER Reihe nebeneinander statt jedes für sich.
+    const linksOben = [
+      it.fav ? `<span class="lib-badge-in lib-badge-fav">★</span>` : "",
+      // 02.09.2026, vom Waechter gefunden (Altfehler): "nicht auffindbar" sass
+      // in derselben Ecke wie "hat Projekte" — eine Tour mit beidem zeigte nur
+      // eines davon. In der Reihe kann das nicht mehr passieren.
+      it.missing_since ? `<span class="lib-badge-in lib-badge-missing" title="${esc(
+          T("library.missing_hint", "Die Datei ist gerade nicht auffindbar — Platte nicht angeschlossen?"))}">🔌</span>` : "",
+      (it.n_versionen || 1) > 1 ? `<span class="lib-badge-in lib-badge-ver" title="${esc(
+          T("library.versionen_titel", "Diese Tour hat {n} Versionen — die neueste wird gezeigt.")
+            .replace("{n}", it.n_versionen))}">V${it.n_versionen}</span>` : "",
+      (it.n_dateien || 1) > 1 ? `<span class="lib-badge-in lib-badge-orte" title="${esc(
+          T("library.orte_titel", "Diese Tour stammt aus {n} Dateien. Sie liegt vollständig in deiner Bibliothek.")
+            .replace("{n}", it.n_dateien))}">${it.n_dateien}×</span>` : "",
+    ].filter(Boolean).join("");
     return `
-      ${it.fav ? `<span class="lib-badge lib-badge-fav">★</span>` : ""}
+      ${linksOben ? `<span class="lib-badge-grp">${linksOben}</span>` : ""}
       ${it.recorded_eff ? "" : `<span class="lib-badge lib-badge-plan">${T("library.planned", "geplant")}</span>`}
       ${it.hidden ? `<span class="lib-badge lib-badge-hidden">${T("library.hidden_short", "aus")}</span>` : ""}
-        ${it.missing_since ? `<span class="lib-badge lib-badge-missing" title="${esc(T("library.missing_hint", "Die Datei ist gerade nicht auffindbar — Platte nicht angeschlossen?"))}">🔌</span>` : ""}
       ${it.has_session ? `<span class="lib-badge lib-badge-proj" title="${esc(T("library.has_project", "Für diese Tour gibt es gespeicherte Projekte"))}">●</span>` : ""}`;
   }
 
@@ -2216,13 +2238,7 @@ function mountLibrary(body, headerActions) {
 
   function select(it, opts) {
     _sel = it;
-    if (it && it.image && !it.thumb_url && it.thumb_url !== "") {
-      api().library_thumbs([it.image]).then(r => {
-        if (_unmounted || !r || !r.ok || _sel !== it) return;
-        it.thumb_url = r.thumbs[it.image] || "";
-        renderDetail();
-      }).catch(() => {});
-    }
+    // (Das Vorschaubild holt `renderDetail()` — auf jedem Weg dorthin.)
     // Die Auswahl merken (Wunsch Beta-Tester): Wer eine Tour markiert, ins
     // Werkzeug wechselt und zurückkommt, stand vorher wieder vor einer leeren
     // Detailspalte und musste die Tour erneut suchen. Der Pfad reicht — beim
@@ -2560,17 +2576,22 @@ function mountLibrary(body, headerActions) {
       return;
     }
     const it = _sel;
-    const rows = [
-      [T("library.date", "Datum"), fmtDate(it.started_at)],
-      [T("library.distance", "Strecke"), fmtKmVal(it.distance_m || 0)],
-      [T("library.duration", "Dauer"), it.duration_s ? fmtDurVal(it.duration_s) : "—"],
-      [T("library.ascent", "Höhenmeter"), `↑ ${num(it.ascent_m)} m · ↓ ${num(it.descent_m)} m`],
-      [T("library.speed", "Schnitt"), it.avg_speed_kmh ? it.avg_speed_kmh.toFixed(1) + " km/h" : "—"],
-      [T("library.maxspeed", "Max. Tempo"), it.max_speed_kmh ? it.max_speed_kmh.toFixed(1) + " km/h" : "—"],
-      [T("library.points", "Punkte"), `${it.n_points || 0}${it.n_segments > 1 ? ` · ${it.n_segments} ${T("library.segments", "Etappen")}` : ""}`],
-      [T("library.activity", "Fortbewegung"), ACT_LABELS[it.activity] || (it.activity || "—")],
-      [T("library.file", "Datei"), it.filename],
-    ];
+    // 02.09.2026, Audit („das Detail-Vorschaubild fehlt"): Das Bild wurde nur
+    // in `select()` nachgeladen. Wer die Tour NICHT anklickt — gemerkte
+    // Auswahl beim Betreten, `reload()` nach einem Rollback — landete hier
+    // ohne `thumb_url`, und zwar dauerhaft: Der Platzhalter 🗺️ blieb stehen,
+    // obwohl das Bild auf der Platte lag. Deshalb wird es dort geholt, wo es
+    // gebraucht wird, nicht nur auf dem einen Weg dorthin.
+    if (it.image && it.thumb_url === undefined && !it._thumbLaeuft) {
+      it._thumbLaeuft = true;
+      api().library_thumbs([it.image]).then(r => {
+        it._thumbLaeuft = false;
+        if (_unmounted || !r || !r.ok) { it.thumb_url = ""; return; }
+        it.thumb_url = r.thumbs[it.image] || "";
+        if (_sel === it) renderDetail();
+      }).catch(() => { it._thumbLaeuft = false; it.thumb_url = ""; });
+    }
+    const rows = kennzahlen(it);
     box.innerHTML = _ghostBannerHtml() + `
       <div class="lib-detail-thumb">${it.thumb_url
         ? `<img src="${it.thumb_url}" alt="">`
@@ -2605,9 +2626,13 @@ function mountLibrary(body, headerActions) {
           }">👻 ${T("library.ghost.take_short", "Als Ghost-Spur")}</button>`}
       </div>
 
-      <div class="lib-detail-rows">
+      <div class="lib-detail-rows" id="lib-d-rows">
         ${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}
       </div>
+      <!-- 02.09.2026 (Marc): Die Versionen gehören DIREKT unter die Kennzahlen —
+           beim Anklicken zeigt die Tabelle darüber die Werte dieser Version.
+           Sonst sind zwei Versionen derselben Tour nicht unterscheidbar. -->
+      <div id="lib-d-fassungen" style="margin-top:8px;"></div>
       ${fitBlockHtml(it)}
 
       <label class="check-row" style="margin-top:12px;">
@@ -2645,7 +2670,6 @@ function mountLibrary(body, headerActions) {
       <div class="field-label" style="margin-top:10px;">${T("library.collections", "Sammlungen")}</div>
       <div id="lib-d-cols" class="lib-colchips"></div>
       <div id="lib-d-projekte" class="lib-hint" style="margin-top:6px;"></div>
-      <div id="lib-d-fassungen" style="margin-top:6px;"></div>
 
       <label class="field-label" for="lib-d-tags" style="margin-top:10px;">${T("library.tags", "Schlagwörter")}</label>
       <input type="text" id="lib-d-tags" class="lib-input" value="${esc((it.tag_list || []).join(", "))}"
@@ -2750,8 +2774,8 @@ function mountLibrary(body, headerActions) {
       if (!el) return;
       try {
         const res = await api().projekte_liste();
-        // Abnahme 29.08.2026: über die GANZE Fassungs-Kette zählen — ein auf
-        // Fassung 1 gepinntes Projekt gehört auch zu dieser Tour.
+        // Abnahme 29.08.2026: über die GANZE Versions-Kette zählen — ein auf
+        // Version 1 gepinntes Projekt gehört auch zu dieser Tour.
         let kette = [it.geo_hash];
         try {
           const fs = await api().tour_fassungen(it.geo_hash);
@@ -2773,7 +2797,7 @@ function mountLibrary(body, headerActions) {
     })();
 
     // E3 (IDEAS §39): Versions-Kette der Tour — jede Heilung/Ersetzung/extern
-    // erkannte Änderung ist eine Fassung; Rollback holt sie byte-genau zurück.
+    // erkannte Änderung ist eine Version; Rollback holt sie byte-genau zurück.
     (async () => {
       const el = document.getElementById("lib-d-fassungen");
       if (!el) return;
@@ -2786,30 +2810,165 @@ function mountLibrary(body, headerActions) {
                          extern: T("library.fq_extern", "extern geändert"),
                          rollback: T("library.fq_rollback", "wiederhergestellt"),
                          backup: T("library.fq_backup", "aus Sicherung") };
-        el.innerHTML = `<div class="field-label">${T("library.fassungen", "Fassungen")} (${fs.length})</div>`
-          + fs.slice().reverse().map(f => `
-            <div class="lib-fassung${f.aktuell ? " is-on" : ""}">
+        el.innerHTML = `<div class="field-label">${T("library.fassungen", "Versionen")} (${fs.length})</div>`
+          + `<div class="lib-hint" id="lib-d-vhint" hidden></div>`
+          // 02.09.2026 (Marc: „das hab ich jetzt nicht geblickt") — Versionen
+          // ohne Datei standen bisher aussehen-wie-alle-anderen in der Liste,
+          // nur ohne Knopf. Wer sie zurückholen wollte, fand einfach nichts
+          // und wusste nicht warum. Sie sind Zwischenstände, die beim
+          // nächsten Heilen verworfen wurden, weil kein Projekt sie hielt.
+          // Jetzt sagen sie das selbst.
+          + fs.slice().reverse().map(f => {
+            const weg = !f.snapshot && !f.aktuell;
+            return `
+            <div class="lib-fassung${f.aktuell ? " is-on" : ""}${weg ? " is-weg" : ""}" data-gh="${f.geo_hash}"${
+              weg ? ` title="${esc(T("library.version_weg_tip", "Dieser Zwischenstand wurde beim nächsten Heilen verworfen, weil ihn kein Projekt benutzt hat. Er lässt sich nicht mehr zurückholen."))}"` : ""}>
               <span class="lib-fassung-nr">${f.nr}</span>
               <span class="lib-fassung-info">${esc(fmtDate(f.erstellt))} · ${esc(QUELLE[f.quelle] || f.quelle)}${
                 f.distance_km ? ` · ${(+f.distance_km).toFixed(1)} km` : ""}${
-                f.aktuell ? ` · <b>${T("library.fassung_aktuell", "aktuell")}</b>` : ""}</span>
-              ${!f.aktuell && f.snapshot ? `<button class="btn btn-ghost btn-sm" data-frb="${f.geo_hash}" title="${T("library.fassung_rb_tip", "Diese Fassung als Datei ins Archiv zurückholen (die jetzige bleibt als Fassung erhalten)")}">↩︎</button>` : ""}
-            </div>`).join("");
+                f.aktuell ? ` · <b>${T("library.fassung_aktuell", "aktuell")}</b>` : ""}${
+                weg ? ` · <i>${T("library.version_weg", "nicht mehr vorhanden")}</i>` : ""}</span>
+              ${f.snapshot ? `<button class="btn btn-ghost btn-sm" data-fvp="${f.geo_hash}" data-fvn="${f.nr}" title="${T("library.vproj_tip", "Ein Projekt auf diese Version stellen")}" hidden>🎬</button>` : ""}
+              ${!f.aktuell && f.snapshot ? `<button class="btn btn-ghost btn-sm" data-frb="${f.geo_hash}" title="${T("library.fassung_rb_tip", "Diese Version als Datei ins Archiv zurückholen (die jetzige bleibt als Version erhalten)")}">↩︎</button>` : ""}
+              ${f.snapshot ? `<button class="btn btn-ghost btn-sm" data-fex="${f.geo_hash}" title="${T("library.version_export_tip", "Diese Version als GPX-Datei exportieren")}">⬇</button>` : ""}
+              ${!f.aktuell && f.snapshot ? `<button class="btn btn-ghost btn-sm" data-fdel="${f.geo_hash}" data-fdn="${f.nr}" title="${T("library.version_loeschen_tip", "Diese Version löschen (die neueste bleibt immer erhalten)")}">🗑</button>` : ""}
+            </div>`; }).join("");
+        // 02.09.2026 (Marc): Eine Version anklicken zeigt IHRE Kennzahlen in
+        // der Tabelle darüber. Ohne das sehen zwei Versionen derselben Tour
+        // gleich aus — sie tragen ja denselben Namen.
+        el.querySelectorAll(".lib-fassung[data-gh]").forEach(z => {
+          z.onclick = async (ev) => {
+            if (ev.target.closest("[data-frb],[data-fvp],[data-fex],[data-fdel]")) return;
+            const gh = z.dataset.gh;
+            el.querySelectorAll(".lib-fassung").forEach(x => x.classList.remove("is-gezeigt"));
+            const r = await api().tour_version_daten(gh);
+            if (!r || !r.ok) {
+              toast(r && r.error ? r.error
+                : T("library.fassung_kein_snapshot", "Für diese Version liegt keine Kopie mehr vor."), "warn");
+              kennzahlenSetzen(_sel);   // zurück auf die aktuelle
+              return;
+            }
+            z.classList.add("is-gezeigt");
+            kennzahlenSetzen(r.daten);
+            const hin = document.getElementById("lib-d-vhint");
+            if (hin) {
+              const aktuell = z.classList.contains("is-on");
+              hin.hidden = aktuell;
+              hin.textContent = aktuell ? "" : T("library.version_gezeigt",
+                "Oben stehen die Werte dieser Version. Dein Projekt benutzt weiterhin die, an der es hängt.");
+            }
+          };
+        });
+        // 02.09.2026, Audit: „Ein Projekt hängt an einer Version und lässt
+        // sich jederzeit auf eine andere stellen" stand im Changelog, die
+        // Brücke gab es auch — nur kein Weg dorthin. Hier ist er: Der
+        // 🎬-Knopf erscheint an jeder Version, sobald ein Projekt an dieser
+        // Tour hängt, und öffnet die Liste dieser Projekte.
+        (async () => {
+          let pr = [];
+          try {
+            const rp = await api().tour_projekte(it.path);
+            pr = ((rp && rp.projekte) || []).filter(p => p.gh);
+          } catch (_) { return; }
+          if (!pr.length) return;
+          el.querySelectorAll("[data-fvp]").forEach(b => {
+            b.hidden = false;
+            b.onclick = () => {
+              const zielGh = b.dataset.fvp, zielNr = b.dataset.fvn;
+              const zeilen = pr.map(p => {
+                const hier = p.gh === zielGh;
+                return `<div class="lib-fassung${hier ? " is-on" : ""}">
+                  <span class="lib-fassung-info">🎬 ${esc(p.name)} · ${
+                    T("library.vproj_v", "Version {n}").replace("{n}", p.version || "?")}</span>
+                  ${hier ? `<span class="muted">${T("library.vproj_hier", "benutzt diese Version")}</span>`
+                         : `<button class="btn btn-sm" data-vpid="${esc(p.id)}" data-vpalt="${p.gh}">${
+                             T("library.vproj_setzen", "Umstellen")}</button>`}
+                </div>`;
+              }).join("");
+              const m = openModal({
+                title: "🎬 " + T("library.vproj_titel", "Projekt auf diese Version stellen"),
+                body: `<p class="muted">${T("library.vproj_hilfe",
+                        "Das Projekt rechnet danach mit Version {n} dieser Tour. Die Tour selbst und alle anderen Projekte bleiben, wie sie sind.")
+                        .replace("{n}", zielNr)}</p>` + zeilen,
+                footer: `<button class="btn" id="lib-vp-zu">${T("common.close", "Schließen")}</button>`,
+              });
+              const zu = document.getElementById("lib-vp-zu");
+              if (zu) zu.onclick = () => m.close();
+              document.querySelectorAll("[data-vpid]").forEach(k => k.onclick = async () => {
+                const r = await api().projekt_version_setzen(k.dataset.vpid, k.dataset.vpalt, zielGh);
+                if (r && r.ok) {
+                  m.close();
+                  toast(T("library.vproj_done", "Projekt auf Version {n} gestellt.")
+                          .replace("{n}", zielNr), "info");
+                  renderDetail();
+                } else toast((r && r.error) || "?", "error");
+              });
+            };
+          });
+        })();
+
+        // Exportieren: der einzige Weg nach draußen, seit die App nicht mehr
+        // in fremde Dateien zurückschreibt.
+        el.querySelectorAll("[data-fex]").forEach(b => b.onclick = async () => {
+          const r = await api().tour_version_exportieren(b.dataset.fex);
+          if (r && r.cancelled) return;
+          if (r && r.ok) toast(T("library.version_export_done", "Version exportiert."), "info");
+          else toast((r && r.error) || "?", "error");
+        });
+
+        // Löschen: gesperrt, solange ein Projekt sie hält — die Brücke sagt,
+        // welche das sind, und genau das zeigen wir dann an.
+        el.querySelectorAll("[data-fdel]").forEach(b => b.onclick = () => {
+          const m = openModal({
+            title: "🗑 " + T("library.version_loeschen", "Version löschen"),
+            body: `<p>${T("library.version_loeschen_frage",
+              "Version {n} dieser Tour endgültig entfernen? Die Tour und alle anderen Versionen bleiben.")
+              .replace("{n}", b.dataset.fdn)}</p>`,
+            footer: `<button class="btn" id="lib-fdel-ab">${T("common.cancel", "Abbrechen")}</button>
+                     <button class="btn btn-danger" id="lib-fdel-ok">${T("library.version_loeschen", "Version löschen")}</button>`,
+          });
+          const ab = document.getElementById("lib-fdel-ab");
+          if (ab) ab.onclick = () => m.close();
+          const ok = document.getElementById("lib-fdel-ok");
+          if (ok) ok.onclick = async () => {
+            const r = await api().tour_version_loeschen(b.dataset.fdel);
+            m.close();
+            if (r && r.ok) {
+              toast(T("library.version_geloescht", "Version gelöscht."), "info");
+              _sel = null; reload();
+              return;
+            }
+            // `tour_version_loeschen` liefert die Halter als Namen (Strings).
+            const namen = ((r && r.projekte) || [])
+              .map(p => (typeof p === "string" ? p : (p.name || p.id || "?")));
+            const m2 = openModal({
+              title: T("library.version_haelt_titel", "Diese Version wird noch gebraucht"),
+              body: `<p>${namen.length
+                ? T("library.version_haelt", "Diese Projekte hängen an der Version: {liste}. Stelle sie erst auf eine andere Version (🎬), dann lässt sie sich löschen.")
+                    .replace("{liste}", namen.map(esc).join(", "))
+                : esc((r && r.error) || "?")}</p>`,
+              footer: `<button class="btn" id="lib-fdel-zu">${T("common.close", "Schließen")}</button>`,
+            });
+            const zu = document.getElementById("lib-fdel-zu");
+            if (zu) zu.onclick = () => m2.close();
+          };
+        });
+
         el.querySelectorAll("[data-frb]").forEach(b => b.onclick = () => {
           const m = openModal({
-            title: "↩︎ " + T("library.fassung_rb", "Fassung wiederherstellen"),
-            body: `<p>${T("library.fassung_rb_frage", "Die Archiv-Datei durch diese Fassung ersetzen? Die jetzige Geometrie bleibt als Fassung in der Kette (nichts geht verloren); gepinnte Projekte bleiben unberührt.")}</p>`,
+            title: "↩︎ " + T("library.fassung_rb", "Version wiederherstellen"),
+            body: `<p>${T("library.fassung_rb_frage", "Die Archiv-Datei durch diese Version ersetzen? Die jetzige Geometrie bleibt als Version in der Kette (nichts geht verloren); gepinnte Projekte bleiben unberührt.")}</p>`,
             footer: `<button class="btn" id="lib-frb-ab">${T("common.cancel", "Abbrechen")}</button>
-                     <button class="btn btn-primary" id="lib-frb-ok">${T("library.fassung_rb", "Fassung wiederherstellen")}</button>`,
+                     <button class="btn btn-primary" id="lib-frb-ok">${T("library.fassung_rb", "Version wiederherstellen")}</button>`,
           });
           const ok = document.getElementById("lib-frb-ok");
           if (ok) ok.onclick = async () => {
             m.close();
             const r = await api().tour_fassung_wiederherstellen(b.dataset.frb);
             if (r && r.ok) {
-              toast(T("library.fassung_rb_done", "Fassung wiederhergestellt."), "info");
+              toast(T("library.fassung_rb_done", "Version wiederhergestellt."), "info");
               // Abnahme 29.08.2026: die Detailspalte zeigte sonst weiter die
-              // alte Fassung als „aktuell" — Auswahl-Objekt verwerfen, reload
+              // alte Version als „aktuell" — Auswahl-Objekt verwerfen, reload
               // findet die Tour über den gemerkten PFAD mit frischen Daten.
               _sel = null;
               reload();
@@ -2911,13 +3070,52 @@ function mountLibrary(body, headerActions) {
 
   async function confirmTrash(it) {
     if (!await frageTrash(1, it.path)) return;
-    const res = await api().library_trash(it.path);
+    let res = await api().library_trash(it.path);
+    // 02.09.2026 (Q35): Steckt die Tour in Projekten, verweigert das Backend
+    // und nennt sie. Der zweite Weg ist ein bewusster Klick — nie automatisch.
+    if (res && res.grund === "benutzt") {
+      const liste = (res.projekte || []).join(", ");
+      // rzConfirm(titel, text, knopf, gefahr) — Beschriftung und Gefahr-Kennung
+      // sind Pflicht, sonst steht dort ein leerer Knopf (Fehler vom 31.08.).
+      const weiter = await rzConfirm(
+        "🗑 " + T("library.tour_mit_projekten", "Tour und diese Projekte löschen"),
+        T("library.tour_loeschen_frage",
+          "„{name}“ löschen? Sie wird von diesen Projekten benutzt: {liste}")
+          .replace("{name}", it.display_name || it.name || "")
+          .replace("{liste}", liste),
+        T("library.tour_mit_projekten", "Tour und diese Projekte löschen"), true);
+      if (!weiter) return;
+      res = await api().library_trash(it.path, true);
+    }
     if (!res.ok) { toast(res.error || "Nicht möglich", "error"); return; }
     toast(T("library.trash_done", "In den Papierkorb gelegt."), "info");
     _sel = null; store.set("sel", ""); renderDetail(); reload();
   }
 
   /** Woran erkannt? — damit die Schätzung nachvollziehbar bleibt. */
+  /** Die Kennzahlen-Zeilen einer Tour ODER einer einzelnen Version.
+   *  `q` sind rohe Werte aus der Datenbank (siehe `tour_version_daten`). */
+  function kennzahlen(q) {
+    return [
+      [T("library.date", "Datum"), fmtDate(q.started_at)],
+      [T("library.distance", "Strecke"), fmtKmVal(q.distance_m || 0)],
+      [T("library.duration", "Dauer"), q.duration_s ? fmtDurVal(q.duration_s) : "—"],
+      [T("library.ascent", "Höhenmeter"), `↑ ${num(q.ascent_m)} m · ↓ ${num(q.descent_m)} m`],
+      [T("library.speed", "Schnitt"), q.avg_speed_kmh ? (+q.avg_speed_kmh).toFixed(1) + " km/h" : "—"],
+      [T("library.maxspeed", "Max. Tempo"), q.max_speed_kmh ? (+q.max_speed_kmh).toFixed(1) + " km/h" : "—"],
+      [T("library.points", "Punkte"), `${q.n_points || 0}${q.n_segments > 1 ? ` · ${q.n_segments} ${T("library.segments", "Etappen")}` : ""}`],
+      [T("library.activity", "Fortbewegung"), ACT_LABELS[q.activity] || (q.activity || "—")],
+      [T("library.file", "Datei"), q.filename || "—"],
+    ];
+  }
+
+  function kennzahlenSetzen(q) {
+    const el = document.getElementById("lib-d-rows");
+    if (!el) return;
+    el.innerHTML = kennzahlen(q).map(([k, v]) =>
+      `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
+  }
+
   function recSrcText(it) {
     if (it.recorded_manual) return T("library.rec_src.user", "Von dir festgelegt.");
     const m = {
@@ -3472,7 +3670,7 @@ function mountLibrary(body, headerActions) {
     if (stop) stop.onclick = () => api().library_map_thumbs_stop();
   }
 
-  /** 31.08.2026 (Rafael, Mehrfachauswahl): Sammel-Aktionen leben in der
+  /** 31.08.2026 (ein Beta-Tester, Mehrfachauswahl): Sammel-Aktionen leben in der
    *  rechten Detailspalte — wie beim Touren-Archiv. Eine Leiste ÜBER der
    *  Liste verschob beim ⌘-Klicken die Karten unter dem Mauszeiger. */
   function renderProjMultiPanel() {
@@ -3488,11 +3686,88 @@ function mountLibrary(body, headerActions) {
       </div>`;
   }
 
-  /** 30.08.2026 (Marc-OK, Dieters Komoot-Fall): einzelne Track-Dateien ins
+  /** 30.08.2026 (Marc-OK, der Komoot-Fall eines Beta-Testers): einzelne Track-Dateien ins
    *  Archiv — kopiert in den app-verwalteten Import-Ordner (automatisch
    *  beobachtet), danach liest der normale Ein-Ordner-Scan sie ein. */
+  /* 02.09.2026 (docs/UMBAU-BIBLIOTHEK.md, Abschnitt 6) — der Import erkennt
+   * die Tour, BEVOR er kopiert. Vorher rutschte eine längst bekannte Strecke
+   * stillschweigend durch und tauchte als weitere Version auf, ohne dass
+   * jemand davon wusste.
+   *
+   * ⚠️ Bewusst NICHT `rzConfirm`: Das maskiert seinen Text (die Dateiliste
+   * käme als roher HTML-Quelltext an) und hat eine feste Beschriftung für
+   * „Abbrechen". Hier braucht es beides — eine Liste und zwei Knöpfe, die
+   * sagen, was sie tun.
+   *
+   * Rückgabe: true = auch die bekannten aufnehmen, false = nur die neuen.
+   */
+  function importFrage(bekannt, neu) {
+    return new Promise((fertig) => {
+      let beantwortet = false;
+      const zeilen = bekannt.map(e => {
+        const nam = esc(e.tour_name || e.name);
+        const was = e.art === "im_archiv"
+          ? T("library.imp_im_archiv", "liegt schon im Archiv als „{tour}“").replace("{tour}", nam)
+          : T("library.imp_nur_version", "ist Version {nr} von {n} der Tour „{tour}“ — nicht die neueste")
+              .replace("{nr}", e.version_nr == null ? "?" : e.version_nr)
+              .replace("{n}", e.versionen == null ? "?" : e.versionen)
+              .replace("{tour}", nam);
+        return `<li><b>${esc(e.name)}</b><br><span class="lib-hint">${was}</span></li>`;
+      }).join("");
+      const m = openModal({
+        title: "📥 " + T("library.imp_titel", "Diese Touren kennt GPS Studio schon"),
+        body: `<div class="lib-fmodal">
+          <p>${bekannt.length === 1
+                ? T("library.imp_text_1", "Eine der gewählten Dateien ist bereits bekannt — der Streckenverlauf stimmt genau überein.")
+                : T("library.imp_text", "Von den gewählten Dateien sind {n} bereits bekannt — der Streckenverlauf stimmt genau überein.")
+                    .replace("{n}", num(bekannt.length))}</p>
+          <ul class="lib-imp-liste">${zeilen}</ul>
+          <p class="lib-hint">${T("library.imp_hinweis", "Nimmst du sie trotzdem auf, kommen sie als weitere Datei derselben Tour dazu — eine zweite Tour entsteht nicht. Ältere Versionen kannst du im Archiv unter „Versionen“ wiederherstellen.")}</p>
+          <div class="lib-actions" style="margin-top:12px;">
+            <button class="btn btn-sm" id="lib-imp-nur">${
+              neu === 1 ? T("library.imp_nur_neue_1", "Nur die neue aufnehmen")
+              : neu ? T("library.imp_nur_neue", "Nur die {n} neuen aufnehmen").replace("{n}", num(neu))
+                    : T("library.cancel", "Abbrechen")}</button>
+            <button class="btn btn-sm" id="lib-imp-alle">${T("library.imp_trotzdem", "Trotzdem alle aufnehmen")}</button>
+          </div>
+        </div>`,
+        onClose: () => { if (!beantwortet) { beantwortet = true; fertig(false); } },
+      });
+      const ende = (wert) => {
+        if (beantwortet) return;
+        beantwortet = true;
+        m.close();
+        fertig(wert);
+      };
+      const nur = document.getElementById("lib-imp-nur");
+      if (nur) nur.onclick = () => ende(false);
+      const alle = document.getElementById("lib-imp-alle");
+      if (alle) alle.onclick = () => ende(true);
+    });
+  }
+
   async function importSingleFiles(paths) {
-    const res = await api().library_import_files(paths || null);
+    let liste = paths || null;
+    if (!liste) {
+      const w = await api().library_dateien_waehlen();
+      if (!w || w.cancelled) return;
+      if (!w.ok) { toast(w.error || T("library.import_fail", "Import fehlgeschlagen"), "error"); return; }
+      liste = w.paths;
+    }
+    try {
+      const pr = await api().library_import_pruefen(liste);
+      if (pr && pr.ok && pr.bekannt) {
+        const bekannt = pr.dateien.filter(e => e.art !== "neu");
+        const neue = pr.dateien.filter(e => e.art === "neu").map(e => e.pfad);
+        if (!await importFrage(bekannt, neue.length)) {
+          if (!neue.length) return;      // es blieb nichts übrig
+          liste = neue;
+        }
+      }
+    } catch (e) {
+      applog && applog("warn", "[Archiv] Import-Prüfung: " + e);
+    }
+    const res = await api().library_import_files(liste);
     if (!res || res.cancelled) return;
     if (!res.ok) { toast(res.error || T("library.import_fail", "Import fehlgeschlagen"), "error"); return; }
     if (!res.kopiert && !res.uebersprungen) {
@@ -3803,8 +4078,10 @@ function mountLibrary(body, headerActions) {
     openModal({
       title: T("library.duplicates", "Doppelte finden"),
       body: `<div class="lib-dupes">
-        <p class="lib-dupe-intro">${T("library.dupe_intro",
-          "Angehakt wird weggeräumt — in den Papierkorb, nicht endgültig gelöscht. Vorbelegt ist die älteste Datei jeder Gruppe zum Behalten.")}</p>
+        <p class="lib-dupe-intro">${T("library.dupe_intro2",
+          "Diese Touren liegen mehrfach auf deiner Platte. Für GPS Studio ist das kein Problem — es ist jeweils EINE Tour, das Archiv schreibt nur \u201E2\u00D7 Dateien\u201C daran. Wegräumen lohnt sich also nur, wenn du Platz sparen willst.")}</p>
+        <p class="lib-dupe-intro">${T("library.dupe_intro3",
+          "Angehakte Dateien wandern in den Papierkorb deines Systems — es sind DEINE Dateien, GPS Studio löscht nichts endgültig. Die Tour bleibt in jedem Fall: Die Bibliothek hat ihre eigene Kopie.")}</p>
         ${groups.map((g, gi) => `<div class="lib-dupe-group">
             <div class="lib-dupe-head">${g.n} ${T("library.same_route", "Dateien mit identischem Verlauf")}</div>
             ${g.items.map((i, ii) => zeile(i, gi, ii)).join("")}</div>`).join("")}
@@ -3892,11 +4169,17 @@ function mountLibrary(body, headerActions) {
     const st = document.getElementById("lib-seg-touren");
     if (sp) sp.onclick = () => { if (!_projView) projViewSetzen(true); };
     if (st) st.onclick = () => { if (_projView) projViewSetzen(false); }; }
-  // Q19/Q21: Die App startet im Archiv, Ansicht „Projekte" — app.js setzt
-  // die Flagge beim Boot; hier wird sie genau einmal verbraucht.
+  // Q19/Q21: Ein AUSDRÜCKLICHER Sprung („Alle Projekte …" im Topbar-Menü)
+  // setzt diese Flagge; hier wird sie genau einmal verbraucht.
+  // 02.09.2026: Ohne Flagge entscheidet das Gedächtnis — die Ansicht, die
+  // zuletzt offen war. Beim allerersten Start sind das die Projekte
+  // („woran war ich dran?"); die Playwright-Selbsttests wollen die Touren.
   if (window.__rzStartProjekte) {
     window.__rzStartProjekte = false;
     projViewSetzen(true);
+  } else {
+    const zuletzt = window.__rzKeinPmBoot ? false : store.getJson("projview", true);
+    if (zuletzt !== _projView) projViewSetzen(zuletzt);
   }
   // v0.9.611: „Alle Projekte …" im Topbar-Dropdown, wenn das Archiv SCHON
   // offen ist (switchMod re-mountet dann nicht — die Flagge bliebe liegen).

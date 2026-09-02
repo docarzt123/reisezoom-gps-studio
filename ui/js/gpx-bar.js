@@ -411,7 +411,7 @@
                 ? t("archiv.text_geaendert", "Der geänderte Track ist noch nirgends erfasst. Soll er ins Archiv, damit du ihn wiederfindest?")
                 : t("archiv.text", "Diese Tour kennt das Archiv noch nicht. Soll sie aufgenommen werden?")}</p>
                <p class="lib-hint">${t("archiv.kopie_hinweis",
-                 "Die Datei wird in deinen überwachten Ordner kopiert — das Original bleibt, wo es ist. Weitergearbeitet wird ab dann mit der Fassung im Archiv.")}</p>
+                 "Die Datei wird in deinen überwachten Ordner kopiert — das Original bleibt, wo es ist. Weitergearbeitet wird ab dann mit der Version im Archiv.")}</p>
                ${zielHtml}`,
         footer: `
           <label class="check-row" style="margin-right:auto;font-size:12px">
@@ -448,7 +448,7 @@
     toast(r.cloud
       ? t("archiv.aufgenommen_cloud", "Ins Archiv aufgenommen — sie wandert gleich auch in deine Cloud.")
       : t("archiv.aufgenommen", "Ins Archiv aufgenommen."), "success", 5000);
-    // Ab jetzt mit der Archiv-Fassung arbeiten — sonst zeigt die Leiste weiter
+    // Ab jetzt mit der Archiv-Version arbeiten — sonst zeigt die Leiste weiter
     // auf die Datei außerhalb, und die nächste Sitzung sucht sie dort.
     if (r.pfad && r.pfad !== path) { try { await window.loadGlobalGpx(r.pfad, { stumm: true }); } catch (_) {} }
     return r.pfad || path;
