@@ -2949,3 +2949,12 @@ body.is-rendering .modal-overlay * {
 .rz-style-rights { font-size: 11px; line-height: 1.45; margin-top: 6px; padding: 6px 8px; border-radius: 6px;
   background: rgba(255, 157, 58, 0.10); border-left: 3px solid #ff9d3a; }
 .rz-style-rights[hidden] { display: none; }
+
+/* 03.09.2026 — Einstellungen als Reiter (Marc: „viel zu unübersichtlich") */
+.set-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: -4px 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.set-tab { font: inherit; font-size: 12px; padding: 6px 11px; border-radius: 7px; border: 1px solid transparent;
+  background: transparent; color: var(--text-muted, #aaa); cursor: pointer; }
+.set-tab:hover { color: var(--text); background: var(--bg-3); }
+.set-tab.is-active { color: var(--text); background: var(--bg-3); border-color: var(--border); font-weight: 600; }
+.set-panel[hidden] { display: none; }
+.set-panel > div + div { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }

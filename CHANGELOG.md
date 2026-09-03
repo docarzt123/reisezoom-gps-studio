@@ -18,6 +18,11 @@ Bei jeder neuen Version:
 
 ### Drei Meldungen eines Beta-Testers (Windows, spanische Oberfläche, 4 Touren als Schwarm)
 
+#### Geändert
+- **Einstellungen als Reiter** (Allgemein · Karten · Adressen · Qualität & Export ·
+  Standardwerte · Bibliothek & Cloud) statt einer langen Liste untereinander
+  (Marc: „viel zu unübersichtlich“). Der zuletzt offene Reiter wird gemerkt.
+
 #### Hinzugefügt
 - **Doku „Kartenquellen & Schlüssel"** im Benutzerhandbuch (DE/EN/ES): Tabelle
   aller Quellen mit Schlüsselpflicht, Kosten, Videorecht und Nennung; welche
