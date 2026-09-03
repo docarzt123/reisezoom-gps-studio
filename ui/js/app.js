@@ -283,53 +283,79 @@ async function openSettingsModal() {
       </div>
 
       <div class="set-panel" data-panel="karten" hidden>
-        <p class="muted" style="margin-bottom:6px; font-weight:600; color:var(--text);">${t("settings.maps.title", "Kartenanbieter")}</p>
-        <p class="muted" style="font-size:11px; line-height:1.5; margin-bottom:10px;">${t("settings.maps.intro", "Kostenlose Satellitenbilder und Karten sind sofort da — ganz ohne Schlüssel. Mapbox und MapTiler kommen dazu, sobald du hier einen Schlüssel einträgst. Jeder Stil zeigt in der Liste, ob er kostenlos ist und ob Videos damit veröffentlicht werden dürfen.")}</p>
-        <label class="field-label" for="md-map-default" style="font-size:12px;">${t("settings.maps.default", "Standard-Kartenstil für neue Projekte")}</label>
-        <select id="md-map-default" style="width:100%;">${(typeof mapStyleOptionsHtml === "function") ? mapStyleOptionsHtml(mapStyleDefault) : ""}</select>
-        <p class="muted" style="margin:4px 0 12px; font-size:11px; line-height:1.5;">${t("settings.maps.default_help", "Bestehende Projekte behalten ihren Stil; sie lassen sich im Animator bzw. in der Tour-Map umstellen.")}</p>
-
-        <p class="muted" style="margin-bottom:4px; display:flex; justify-content:space-between; align-items:baseline;">
-          <span>${t("settings.mapbox.label")}</span>
-          <span style="font-size:11px">${tokenStatusLabel}</span>
-        </p>
-        <input type="text" id="md-mapbox-token" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;"
-               placeholder="pk.eyJ1Ijoi..." value="${currentTok.replace(/"/g, '&quot;')}">
-        <p class="muted" style="margin-top:6px; font-size:11px;">
-          ${t("settings.mapbox.help_short")}
-          &nbsp;<a href="#" id="md-mapbox-help-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.mapbox.help_link")}</a>
-        </p>
-        <p style="margin-top:10px; font-size:12px;">
-          <a href="#" id="md-mapbox-usage-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.mapbox.usage_link")}</a>
-        </p>
-        <p class="muted" style="margin-top:2px; font-size:11px;">${t("settings.mapbox.usage_hint")}</p>
-        <p class="muted" style="margin-top:6px; font-size:11px; line-height:1.5;">${t("settings.mapbox.video_warning", "⚠️ Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur mit gekauften Videorechten (Product Terms §1.7). Für YouTube & Co. lieber einen kostenlosen Stil oder MapTiler nehmen.")}</p>
-
-        <p class="muted" style="margin:14px 0 4px;">${t("settings.maptiler.label", "MapTiler-Schlüssel")}</p>
-        <input type="text" id="md-maptiler-key" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;"
-               placeholder="${t("settings.maptiler.placeholder", "API-Key aus cloud.maptiler.com")}" value="${(maptilerKey || "").replace(/"/g, '&quot;')}">
-        <p class="muted" style="margin-top:6px; font-size:11px; line-height:1.5;">
-          ${t("settings.maptiler.help", "Satellit und Gelände weltweit aus einer Hand. Videos für Kanäle bis 100.000 Abonnenten erlaubt (Nennung im Bild); der Gratistarif gilt für nicht-kommerzielle Nutzung.")}
-          &nbsp;<a href="#" id="md-maptiler-help-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.maptiler.help_link", "Wie bekomme ich einen Schlüssel?")}</a>
-          &nbsp;·&nbsp;<a href="#" id="md-maptiler-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">cloud.maptiler.com</a>
-        </p>
-
-        <p class="muted" style="margin:14px 0 4px; display:flex; justify-content:space-between; align-items:baseline;">
-          <span>${t("settings.tilecache.label", "Kachel-Zwischenspeicher (Render)")}</span>
-          <span style="font-size:11px" id="md-tc-size">${t("settings.tilecache.size", "{mb} MB belegt").replace("{mb}", String(tcMb))}</span>
-        </p>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input type="number" id="md-tc-mb" min="0" max="20000" step="256" value="${tileCacheMb}" style="width:110px;">
-          <span class="muted" style="font-size:11px;">MB</span>
-          <button class="btn" id="md-tc-clear" type="button" style="margin-left:auto;">${t("settings.tilecache.clear", "Leeren")}</button>
+        <!-- 03.09.2026 (Marc): Karten weiter unterteilt, mit ausführlichen Hilfetexten. -->
+        <div class="set-subtabs" data-group="karten">
+          <button type="button" class="set-subtab" data-subtab="ueberblick">${t("settings.maps.sub.ueberblick", "Überblick")}</button>
+          <button type="button" class="set-subtab" data-subtab="kostenlos">${t("settings.maps.sub.kostenlos", "Kostenlose Quellen")}</button>
+          <button type="button" class="set-subtab" data-subtab="maptiler">MapTiler</button>
+          <button type="button" class="set-subtab" data-subtab="mapbox">Mapbox</button>
+          <button type="button" class="set-subtab" data-subtab="speicher">${t("settings.maps.sub.speicher", "Speicher & Test")}</button>
         </div>
-        <p class="muted" style="margin-top:4px; font-size:11px; line-height:1.5;">${t("settings.tilecache.help", "Geladene Kacheln bleiben auf der Platte, ein zweiter Render derselben Gegend geht schneller und schont die Server. 0 = aus. Mapbox-Kacheln werden nicht gespeichert.")}</p>
 
-        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; cursor:pointer;">
-          <input type="checkbox" id="md-force-osm" ${forceOsm ? "checked" : ""}>
-          <span>${t("settings.force_osm.label")}</span>
-        </label>
-        <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.force_osm.help")}</p>
+        <div class="set-subpanel" data-subpanel="ueberblick" hidden>
+          <p class="set-help">${t("settings.maps.help.ueberblick1", "Jede Karte der App — Animator, Tour-Map, Inspektor, Geotagger, Archiv, Web-Karte — bietet dieselbe Stilliste. Sie ist in drei Gruppen geteilt: kostenlos (Video erlaubt), MapTiler (eigener Schlüssel) und Mapbox (Video nur mit gekauften Rechten). Jeder Eintrag trägt seine Marke, du musst dir nichts merken.")}</p>
+          <p class="set-help">${t("settings.maps.help.ueberblick2", "Warum das Ganze: Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur, wenn du Videorechte gekauft hast (Product Terms §1.7). Für YouTube, Instagram & Co. sind deshalb die kostenlosen Stile oder MapTiler die richtige Wahl — die Nennung der Quelle steht dabei automatisch unten rechts im Bild und gehört zum Video.")}</p>
+          <label class="field-label" for="md-map-default" style="font-size:12px;">${t("settings.maps.default", "Standard-Kartenstil für neue Projekte")}</label>
+          <select id="md-map-default" style="width:100%;">${(typeof mapStyleOptionsHtml === "function") ? mapStyleOptionsHtml(mapStyleDefault) : ""}</select>
+          <p class="set-help">${t("settings.maps.help.default", "Dieser Stil gilt für jedes neue Projekt. Bestehende Projekte behalten ihren Stil; sie lassen sich jederzeit im Animator oder in der Tour-Map umstellen. Fehlt für einen Stil der Schlüssel oder für den Track die Abdeckung, weicht die App still aus und sagt es dir unter dem Stil-Feld — sie bricht nie ab.")}</p>
+          <p class="set-help">${t("settings.maps.help.gelaende", "3D-Gelände gibt es mit jeder Quelle: Mapbox-Stile nutzen das Mapbox-Gelände, MapTiler-Stile das von MapTiler, alle kostenlosen Stile das AWS-Geländemodell (Mapzen). Das Gelände hängt fest am Stil — in einem Video ohne Mapbox stecken auch keine Mapbox-Daten.")}</p>
+        </div>
+
+        <div class="set-subpanel" data-subpanel="kostenlos" hidden>
+          <p class="set-help">${t("settings.maps.help.frei1", "„Satellit (kostenlos)“ nimmt die amtlichen Luftbilder der Landesvermessungen — oft schärfer als Mapbox (20–50 cm Bodenauflösung). Die App wählt die Quelle anhand der Lage deines Tracks, du musst nichts einstellen. Dabei sind: 15 deutsche Bundesländer (Hamburg fehlt), Österreich, Schweiz, Luxemburg, Niederlande, Frankreich, Spanien mit Kanaren, Portugal, Italien, Tschechien, Polen, Estland, Japan und die USA.")}</p>
+          <p class="set-help">${t("settings.maps.help.frei2", "Liegt der Track außerhalb dieser Abdeckung (etwa Skandinavien, Großbritannien, Kanada), weicht die App auf die OpenFreeMap-Karte mit Gelände aus — für Satellit dort MapTiler nehmen. An deutschen Landesgrenzen werden die Nachbarländer übereinandergelegt, damit kein Streifen leer bleibt.")}</p>
+          <p class="set-help">${t("settings.maps.help.frei3", "OpenFreeMap (Liberty, Bright, Positron) sind Vektorkarten aus OpenStreetMap-Daten — kostenlos, ohne Schlüssel, ohne Limit, kommerziell erlaubt. OpenStreetMap, OpenTopoMap, CyclOSM und Humanitarian sind Kachelkarten von Freiwilligen: kostenlos, aber bitte nicht massenhaft rendern; der Zwischenspeicher hilft dabei.")}</p>
+          <p class="set-help">${t("settings.maps.help.frei4", "Für alle kostenlosen Quellen gilt: Videos dürfen veröffentlicht werden, auch monetarisiert. Bedingung ist die Nennung im Bild, die die App automatisch setzt — bitte nicht wegschneiden.")}</p>
+        </div>
+
+        <div class="set-subpanel" data-subpanel="maptiler" hidden>
+          <p class="set-help">${t("settings.maps.help.maptiler1", "MapTiler liefert Satellitenbilder und Gelände für die ganze Welt aus einer Hand — die Ergänzung dort, wo es kein amtliches Luftbild gibt. Der Schlüssel ist kostenlos, ohne Kreditkarte, in drei Minuten geholt: Konto auf cloud.maptiler.com anlegen, Bestätigungs-Mail klicken, links „API Keys“ öffnen, den vorhandenen Schlüssel kopieren und unten einfügen.")}</p>
+          <p class="set-help">${t("settings.maps.help.maptiler2", "Wichtig: Beim Schlüssel das Feld „Allowed HTTP origins“ leer lassen. Trägst du dort eine Website ein, sperrt MapTiler den Render aus, der ohne Browser-Adresse läuft — die Vorschau ginge, das Video bliebe schwarz.")}</p>
+          <p class="set-help">${t("settings.maps.help.maptiler3", "Gratistarif: 100.000 Kachelabrufe pro Monat, das reicht für viele Renders — aber nur nicht-kommerzielle Nutzung. Für einen monetarisierten Kanal ist der Flex-Tarif (ca. 30 $/Monat) gedacht. Videos für Kanäle bis 100.000 Abonnenten sind laut MapTiler Cloud Terms §5 erlaubt, darüber vorher bei MapTiler nachfragen.")}</p>
+          <p class="muted" style="margin:14px 0 4px;">${t("settings.maptiler.label", "MapTiler-Schlüssel")}</p>
+          <input type="text" id="md-maptiler-key" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;"
+                 placeholder="${t("settings.maptiler.placeholder", "API-Key aus cloud.maptiler.com")}" value="${(maptilerKey || "").replace(/"/g, '&quot;')}">
+          <p class="muted" style="margin-top:6px; font-size:11px; line-height:1.5;">
+            <a href="#" id="md-maptiler-help-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.maptiler.help_link", "Wie bekomme ich einen Schlüssel?")}</a>
+            &nbsp;·&nbsp;<a href="#" id="md-maptiler-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">cloud.maptiler.com</a>
+          </p>
+        </div>
+
+        <div class="set-subpanel" data-subpanel="mapbox" hidden>
+          <p class="set-help">${t("settings.maps.help.mapbox1", "Mapbox war lange die einzige Kartenquelle der App: Satellit in 3D, Straßen, Outdoor, Hell und Dunkel. Die Stile bleiben — mit eigenem Token (kostenlos, seit Mitte 2026 mit Kreditkarte bei der Registrierung; abgebucht wird im Free-Tier von 50.000 Karten-Loads pro Monat nichts).")}</p>
+          <p class="set-help">${t("settings.maps.help.mapbox2", "Der Haken steht im Kleingedruckten: Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur mit gekauften Videorechten (Product Terms §1.7 „Print or Video Use“). Privat ansehen darfst du sie; auf YouTube, Instagram oder deiner Website nicht ohne Zukauf. Die App sperrt deshalb nichts, erinnert dich aber vor einem Video-Render mit Mapbox-Stil einmal je Sitzung daran.")}</p>
+          <p class="set-help">${t("settings.maps.help.mapbox3", "Token holen: Konto auf account.mapbox.com anlegen, Bestätigungs-Mail klicken, im Dashboard „Access tokens“ öffnen, den „Default public token“ (beginnt mit pk.eyJ…) kopieren und unten einfügen. Public-Tokens sind nicht geheim, aber gib sie trotzdem nicht weiter.")}</p>
+          <p class="muted" style="margin:14px 0 4px; display:flex; justify-content:space-between; align-items:baseline;">
+            <span>${t("settings.mapbox.label")}</span>
+            <span style="font-size:11px">${tokenStatusLabel}</span>
+          </p>
+          <input type="text" id="md-mapbox-token" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;"
+                 placeholder="pk.eyJ1Ijoi..." value="${currentTok.replace(/"/g, '&quot;')}">
+          <p class="muted" style="margin-top:6px; font-size:11px;">
+            <a href="#" id="md-mapbox-help-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.mapbox.help_link")}</a>
+            &nbsp;·&nbsp;<a href="#" id="md-mapbox-usage-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.mapbox.usage_link")}</a>
+          </p>
+          <p class="muted" style="margin-top:2px; font-size:11px;">${t("settings.mapbox.usage_hint")}</p>
+        </div>
+
+        <div class="set-subpanel" data-subpanel="speicher" hidden>
+          <p class="set-help">${t("settings.maps.help.speicher1", "Der Kachel-Zwischenspeicher hält geladene Kartenkacheln auf der Platte (im App-Support-Ordner). Vorschau und Render teilen ihn sich: Der zweite Render derselben Gegend geht spürbar schneller, die Server der Landesvermessungen und von OpenStreetMap werden geschont — deren Nutzungsbedingungen verlangen so einen Speicher sogar. Mapbox-Kacheln werden nicht gespeichert.")}</p>
+          <p class="set-help">${t("settings.maps.help.speicher2", "Die Größe ist eine Obergrenze: Läuft der Speicher voll, fliegen die ältesten Kacheln zuerst. 2 GB sind ein guter Wert; 0 schaltet ihn aus. „Leeren“ hilft, wenn eine Gegend neu befliegen wurde und du die frischen Bilder sehen willst.")}</p>
+          <p class="muted" style="margin:14px 0 4px; display:flex; justify-content:space-between; align-items:baseline;">
+            <span>${t("settings.tilecache.label", "Kachel-Zwischenspeicher (Render)")}</span>
+            <span style="font-size:11px" id="md-tc-size">${t("settings.tilecache.size", "{mb} MB belegt").replace("{mb}", String(tcMb))}</span>
+          </p>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="number" id="md-tc-mb" min="0" max="20000" step="256" value="${tileCacheMb}" style="width:110px;">
+            <span class="muted" style="font-size:11px;">MB</span>
+            <button class="btn" id="md-tc-clear" type="button" style="margin-left:auto;">${t("settings.tilecache.clear", "Leeren")}</button>
+          </div>
+          <p class="set-help" style="margin-top:18px;">${t("settings.maps.help.test", "Nur zum Testen: „OSM erzwingen“ lässt die App laufen, als wäre kein Mapbox-Token da — Mapbox-Stile weichen dann auf „Satellit (kostenlos)“ aus. Der Token bleibt gespeichert. So siehst du, was ein Nutzer ohne Token bekommt.")}</p>
+          <label style="display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12.5px; cursor:pointer;">
+            <input type="checkbox" id="md-force-osm" ${forceOsm ? "checked" : ""}>
+            <span>${t("settings.force_osm.label")}</span>
+          </label>
+        </div>
       </div>
 
       <div class="set-panel" data-panel="adressen" hidden>
@@ -596,6 +622,23 @@ function _bindSettingsModalHandlers() {
     };
     tabs.forEach(b => b.addEventListener("click", () => zeige(b.dataset.tab)));
     zeige(cur);
+    // Unter-Reiter (Karten): gleiche Mechanik, eigener Merkschlüssel je Gruppe.
+    document.querySelectorAll(".set-subtabs").forEach(bar => {
+      const grp = bar.dataset.group || "x";
+      const subs = Array.from(bar.querySelectorAll(".set-subtab"));
+      const panel = bar.parentElement;
+      const subpanels = Array.from(panel.querySelectorAll(".set-subpanel"));
+      let sc = subs[0] && subs[0].dataset.subtab;
+      try { sc = window.localStorage.getItem("rz_settings_subtab_" + grp) || sc; } catch (_) {}
+      if (!subs.some(b => b.dataset.subtab === sc)) sc = subs[0] && subs[0].dataset.subtab;
+      const zeigeSub = (name) => {
+        subs.forEach(b => b.classList.toggle("is-active", b.dataset.subtab === name));
+        subpanels.forEach(pn => { pn.hidden = (pn.dataset.subpanel !== name); });
+        try { window.localStorage.setItem("rz_settings_subtab_" + grp, name); } catch (_) {}
+      };
+      subs.forEach(b => b.addEventListener("click", () => zeigeSub(b.dataset.subtab)));
+      zeigeSub(sc);
+    });
   })();
   document.getElementById("md-cancel-set").onclick = () => openModal({}).close();
   document.getElementById("md-maptiler-link")?.addEventListener("click", (e) => { e.preventDefault(); api().open_url("https://cloud.maptiler.com/account/keys/"); });

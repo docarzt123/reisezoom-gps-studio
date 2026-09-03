@@ -2958,3 +2958,12 @@ body.is-rendering .modal-overlay * {
 .set-tab.is-active { color: var(--text); background: var(--bg-3); border-color: var(--border); font-weight: 600; }
 .set-panel[hidden] { display: none; }
 .set-panel > div + div { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+/* Unter-Reiter + Hilfetexte im Karten-Reiter */
+.set-subtabs { display: flex; flex-wrap: wrap; gap: 3px; margin: 0 0 12px; }
+.set-subtab { font: inherit; font-size: 11.5px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted, #aaa); cursor: pointer; }
+.set-subtab:hover { color: var(--text); }
+.set-subtab.is-active { color: var(--text); background: var(--bg-3); border-color: var(--accent); }
+.set-subpanel[hidden] { display: none; }
+.set-help { font-size: 11.5px; line-height: 1.6; color: var(--text-muted, #bbb); margin: 0 0 10px; }

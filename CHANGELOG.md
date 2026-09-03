@@ -19,6 +19,10 @@ Bei jeder neuen Version:
 ### Drei Meldungen eines Beta-Testers (Windows, spanische Oberfläche, 4 Touren als Schwarm)
 
 #### Geändert
+- **Karten-Reiter weiter unterteilt** (Überblick · Kostenlose Quellen · MapTiler ·
+  Mapbox · Speicher & Test) mit ausführlichen Hilfetexten in DE/EN/ES: was jede
+  Quelle ist, was sie kostet, was man veröffentlichen darf, wie man den
+  Schlüssel bekommt und welche Falle es dabei gibt.
 - **Einstellungen als Reiter** (Allgemein · Karten · Adressen · Qualität & Export ·
   Standardwerte · Bibliothek & Cloud) statt einer langen Liste untereinander
   (Marc: „viel zu unübersichtlich“). Der zuletzt offene Reiter wird gemerkt.
