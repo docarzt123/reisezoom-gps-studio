@@ -418,7 +418,9 @@ def stack_style(stack: list[dict], proxy_base: str = "") -> dict:
             src["scheme"] = "tms"
         sources[sid] = src
         layers.append({"id": sid, "type": "raster", "source": sid, "minzoom": 0})
-    return {"version": 8, "sources": sources, "layers": layers}
+    # Weltkugel: MapLibre 5 zeichnet bei kleinem Zoom einen Globus (Anflug aus
+    # dem All wie bei Mapbox) — der Blue-Marble-Untergrund macht ihn erst schön.
+    return {"version": 8, "projection": {"type": "globe"}, "sources": sources, "layers": layers}
 
 
 def region_leaflet(region: dict, transparent: bool = False) -> dict:
@@ -467,7 +469,8 @@ def raster_style(tiles: list[str], *, tile_size: int = 256, maxzoom: int = 19,
            "maxzoom": int(maxzoom), "attribution": attribution}
     if scheme == "tms":
         src["scheme"] = "tms"
-    return {"version": 8, "sources": {"rz-raster": src},
+    return {"version": 8, "projection": {"type": "globe"},   # 03.09.2026: Weltkugel wie bei Mapbox
+            "sources": {"rz-raster": src},
             "layers": [{"id": "rz-raster", "type": "raster", "source": "rz-raster", "minzoom": 0}]}
 
 

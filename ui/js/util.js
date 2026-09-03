@@ -233,14 +233,14 @@ function _stackStyle(stack) {
     if (r.scheme === "tms" && !proxy) src.scheme = "tms";
     sources[sid] = src; layers.push({ id: sid, type: "raster", source: sid, minzoom: 0 });
   }
-  return { version: 8, sources, layers };
+  return { version: 8, projection: { type: "globe" }, sources, layers };
 }
 
 function _rasterStyle(tiles, tileSize, maxzoom, attribution, scheme) {
   const src = { type: "raster", tiles: tiles, tileSize: tileSize || 256, maxzoom: maxzoom || 19, attribution: attribution || "" };
   if (scheme === "tms") src.scheme = "tms";
   // KEIN Layer-maxzoom: über der letzten Kachelstufe wird hochskaliert, nicht schwarz.
-  return { version: 8, sources: { "rz-raster": src }, layers: [{ id: "rz-raster", type: "raster", source: "rz-raster", minzoom: 0 }] };
+  return { version: 8, projection: { type: "globe" }, sources: { "rz-raster": src }, layers: [{ id: "rz-raster", type: "raster", source: "rz-raster", minzoom: 0 }] };
 }
 
 function _terrainSource(name, maptilerKey) {
@@ -440,7 +440,7 @@ function createMap(opts) {
   // meldet erst true, wenn auch alle Kacheln da sind — bei Raster + Gelände in
   // Bewegung also fast nie; Warteschleifen im Animator drehten sich dann endlos.
   map.__rzStyleReady = false;
-  try { map.on("style.load", () => { map.__rzStyleReady = true; }); } catch (_) {}
+  try { map.on("style.load", () => { map.__rzStyleReady = true; rzGlobeForMapLibre(map); }); } catch (_) {}
   if (opts.terrain === true) rzApplyMapTerrain(map, spec, opts.exaggeration);
   // 02.09.2026 — Prüfstand-Haken: die zuletzt gebaute Karte nach außen geben,
   // damit headless (Playwright) Kamera-Zustände auslesbar sind.
@@ -448,6 +448,23 @@ function createMap(opts) {
   try { applog && applog("info", `[map] ${opts.container}: Stil ${spec.key} (gewünscht ${key}) · ${spec.engine}` + (spec.region ? ` · ${spec.region.name}` : "") + (spec.notes.length ? ` · ${spec.notes.join(",")}` : "")); } catch (_) {}
   return { map, engine: spec.engine, lib, spec, styleKey: spec.key };
 }
+
+/** 03.09.2026 (Marc: „ein Weltanflug geht mit dem freien Satellit nicht mehr?") —
+ *  MapLibre 5 kann die Weltkugel; Mapbox macht sie von selbst. Für Style-URLs
+ *  (OpenFreeMap, MapTiler) nach dem Laden setzen, Raster-Stile tragen sie schon
+ *  im JSON. Dazu ein dunkler Hintergrund, sonst schwebt die Kugel vor Weiß. */
+function rzGlobeForMapLibre(map) {
+  try {
+    if (!map || map.__rzEngine !== "maplibre") return;
+    if (typeof map.setProjection === "function") {
+      const pr = map.getProjection && map.getProjection();
+      if (!pr || pr.type !== "globe") map.setProjection({ type: "globe" });
+    }
+    const c = map.getContainer && map.getContainer();
+    if (c) c.style.background = "#05070d";
+  } catch (_) {}
+}
+window.rzGlobeForMapLibre = rzGlobeForMapLibre;
 
 /** Gelände des Stils an die Karte hängen (Quellname 'mapbox-dem' — historisch). */
 function rzApplyMapTerrain(map, spec, exaggeration) {

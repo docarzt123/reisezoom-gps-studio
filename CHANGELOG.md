@@ -19,6 +19,10 @@ Bei jeder neuen Version:
 ### Drei Meldungen eines Beta-Testers (Windows, spanische Oberfläche, 4 Touren als Schwarm)
 
 #### Hinzugefügt
+- **Weltkugel auch ohne Mapbox** (Marc: „ein Weltanflug geht mit dem freien
+  Satellit nicht mehr?“): Alle MapLibre-Stile laufen jetzt als Globus mit dunklem
+  Weltraum-Hintergrund — der Anflug aus dem All startet über NASA Blue Marble
+  und landet im Luftbild. Der Schwarz-Frame-Schutz setzt bei kleinem Zoom aus.
 - **Links zu den Bedingungen aller Anbieter** (Mapbox, MapTiler, OSM, OpenFreeMap,
   AWS, NASA, Landeslizenzen) in den Einstellungen und im Handbuch — und überall
   der Hinweis, dass Tabelle und Empfehlungen Marcs Verständnis sind, keine
