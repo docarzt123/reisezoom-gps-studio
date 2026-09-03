@@ -106,6 +106,7 @@ from .frame_driver import FrameMuxer    # 22.08.2026: gemeinsamer ffmpeg-Lebensl
 # staatliche Orthofotos, OpenFreeMap, OSM-Raster). `MAP_STYLES` bleibt als
 # Mapbox-Teilmenge für ältere Aufrufer erhalten.
 from . import mapstyles as _mapstyles
+from . import tileproxy as _tileproxy
 MAP_STYLES = _mapstyles.MAP_STYLES
 
 # Kachel-Zwischenspeicher für den kopflosen Render (app.py setzt Pfad + Grenze).
@@ -1538,7 +1539,8 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         url = req.url
         if req.method != "GET" or "mapbox.com" in url or url.startswith("data:") or url.startswith("blob:"):
             await route.continue_(); return
-        h = hashlib.sha1(url.encode("utf-8")).hexdigest()
+        _terr = _tileproxy.is_terrarium_url(url)
+        h = hashlib.sha1((url + (_tileproxy.CLAMP_KEY_SUFFIX if _terr else "")).encode("utf-8")).hexdigest()
         f = (d / h[:2] / (h + ".bin")) if d is not None else None
         if f is not None and f.exists():
             try:
@@ -1560,6 +1562,8 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         try:
             ct = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
             body = await resp.body()
+            if _terr and resp.status == 200:
+                body = _tileproxy.clamp_terrarium(body)   # Meerestiefen → 0 m (s. tileproxy)
             if (f is not None and resp.status == 200 and len(body) < 8_000_000
                     and (ct.startswith("image/") or "protobuf" in ct or "font" in ct
                          or ct == "application/octet-stream")):
@@ -4516,6 +4520,20 @@ async def render_frame(
                 )
             try: await page.evaluate("window.waitForRender()")
             except Exception: pass
+            # 03.09.2026 — Standbild über WMS-Dienste (Landes-Orthofotos): der
+            # 5-s-Deckel von waitForRender schnappte zu, bevor alle Kacheln da
+            # waren → unscharfer Untergrund (Blue Marble) im fertigen Bild.
+            # Wie im Video (Smart-Tile-Retry): solange `areTilesLoaded()` nein
+            # sagt, bis zu 6 × 2 s nachwarten.
+            for _tr in range(6):
+                try: _tiles_ok = await page.evaluate("map.areTilesLoaded()")
+                except Exception: _tiles_ok = True
+                if _tiles_ok: break
+                _log.warning(f"Standbild: Kacheln fehlen, Nachwarten {_tr+1}/6 …")
+                check_cancel()
+                await asyncio.sleep(2.0)
+                try: await page.evaluate("window.waitForRender()")
+                except Exception: pass
 
             shot = await _grab_still_png(page, cfg)
             # Schwarz-Frame-Schutz (wie im Video, Frame 0): triggerRepaint + neu greifen.
@@ -5683,7 +5701,7 @@ async def render(
                 # `map.areTilesLoaded()` gibt direkt zurück ob noch was in-flight ist.
                 # Max 3 Versuche, dann Frame mit Glitch akzeptieren (besser als hängen).
                 tile_retries = 0
-                while tile_retries < 3:
+                while tile_retries < 5:     # 03.09.2026: 3 → 5 (langsame WMS-Dienste)
                     try:
                         tiles_ok = await page.evaluate("map.areTilesLoaded()")
                     except Exception:
@@ -5692,7 +5710,7 @@ async def render(
                         break
                     tile_retries += 1
                     _log.warning(
-                        f"Frame {frame + 1}: Tiles fehlen, Retry {tile_retries}/3 — warte 2 s …"
+                        f"Frame {frame + 1}: Tiles fehlen, Retry {tile_retries}/5 — warte 2 s …"
                     )
                     check_cancel()
                     await asyncio.sleep(2.0)

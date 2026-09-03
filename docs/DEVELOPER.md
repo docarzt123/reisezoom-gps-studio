@@ -2505,10 +2505,11 @@ Stilliste ist EINE Datei für alle sieben Kartenflächen.
   `{key, engine, style, terrain, attribution, region, notes, badge, video_ok}`.
   Ausweichkette: Mapbox/MapTiler ohne Schlüssel → `free_satellite`; keine
   Abdeckung → `ofm_liberty`. Nie abbrechen, immer Vermerk.
-- `region_stack(bbox)` — Deutschland: alle Bundesländer um den Track-
-  Mittelpunkt, kleinste Fläche oben, als PNG mit Alpha übereinander (die
-  Landesdienste liefern außerhalb ihrer Grenzen durchsichtig). Außerhalb
-  Deutschlands genau eine Region.
+- `region_stack(bbox)` — ALLE Regionen, deren Rechteck den Track enthält
+  (höchstens vier), kleinste Fläche oben, als PNG mit Alpha übereinander —
+  auch über Ländergrenzen (03.09.2026, Seebensee: Bayern allein liefert
+  außerhalb Bayerns weiße JPEG-Kacheln; als PNG mit Alpha scheint Österreich
+  durch). XYZ-Dienste ohne Alpha-Variante (basemap.at) liegen ohnehin unten.
 - `catalog_for_ui()` — alles fürs Frontend (ohne Schlüsselwerte; die ergänzt
   `Api.map_catalog`).
 
@@ -2537,6 +2538,19 @@ WebGL-Karten Kacheln per fetch() laden. Vorschau UND Render (via
 `cfg.tile_proxy_base`) laufen darüber; ohne Server (Tests) gehen die URLs
 direkt zum Dienst und `_install_tile_cache()` (Playwright-Route) übernimmt
 Zwischenspeicher + CORS im Render.
+
+**Gelände-Klemme (03.09.2026):** Die AWS-Terrarium-Kacheln enthalten
+Meerestiefen — an jeder Küste stand eine dunkle Klippe bis zum Meeresgrund
+(Masca). `tileproxy.clamp_terrarium()` setzt alle Pixel mit R < 128 (Höhe
+< 0 m) auf (128,0,0) = 0 m. Vorschau: `terrain_source(..., proxy_base)` und
+`catalog_for_ui()` leiten `aws` auf `/tile/terrain-aws/{z}/{x}/{y}` um. Render
+ohne Weiche: die Playwright-Route klemmt bei `is_terrarium_url()`. Beide Wege
+speichern unter `url + "#clamp0"` — alte ungeklemmte Kacheln bleiben
+unbenutzt liegen, bis der Speicher sie verdrängt.
+
+**Standbild-Warten (03.09.2026):** `render_frame()` wartet nach `waitForRender`
+wie das Video gezielt nach (bis 6 × 2 s), solange `map.areTilesLoaded()` nein
+sagt — WMS-Dienste brauchen bei 60+ Kacheln länger als der 5-s-Deckel.
 
 **MapLibre-Fallstricke (beide gelöst, beide Wächter in `tests/test_kartenanbieter.py`):**
 - `setTerrain()` während einer Kamerafahrt → „reading 'wrap'", danach

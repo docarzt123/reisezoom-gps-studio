@@ -134,3 +134,6 @@ cloud_pruefsummen.json
 
 # 03.09.2026 — Kachel-Zwischenspeicher im Dev-Modus (App-Support = Repo-Root)
 /_tilecache/
+
+# Dev-APP_SUPPORT: Projekt-Importe (.rzproj) aus Prüfständen
+/projekt_importe/
