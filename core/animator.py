@@ -2266,6 +2266,12 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         "  });"
         "})();"
     )
+    # 03.09.2026 — Weltkugel auch in MapLibre (Style-URLs setzen sie nach dem
+    # Laden; Raster-Stile tragen `projection` im JSON) + Weltraum-Hintergrund.
+    globe_block = ("" if _spec["engine"] == "mapbox" else
+                   "    try { const _pr = map.getProjection && map.getProjection();"
+                   " if (map.setProjection && (!_pr || _pr.type !== 'globe')) map.setProjection({type:'globe'}); } catch(_){}\n"
+                   "    try { map.getContainer().style.background = '#05070d'; } catch(_){}\n")
     terrain_block = ""
     if cfg.enable_terrain and _spec.get("terrain"):
         # Gelände hängt am Stil (Mapbox-DEM / MapTiler terrain-rgb / AWS terrarium).
@@ -3023,6 +3029,7 @@ map.on('style.load', () => {{
     }});
   }} catch (_) {{}}
   {hide_labels_block}
+  {globe_block}
   {terrain_block}
   map.addSource('track', {{type:'geojson', lineMetrics:true, data:{{type:'Feature',geometry:{{type:'LineString',coordinates:[]}}}}}});
   if (SCHWARM_N) {{
@@ -5706,7 +5713,14 @@ async def render(
                 # Anteil direkt am Bild und greifen neu, bis er sauber ist (max 8×1s).
                 # Nur Frame 0–2 und nicht im Alpha-Modus (transparenter Hintergrund
                 # liest sich sonst als „schwarz" → würde endlos retrien).
-                if frame <= 2 and not cfg.transparent_background:
+                # 03.09.2026 — Weltkugel-Anflug: bei kleinem Zoom ist die halbe Fläche
+                # legitim Weltraum (dunkel). Der Schwarz-Schutz würde sechsmal neu
+                # greifen und „Buffer eingefroren" melden — dort aussetzen.
+                _globe_start = False
+                if frame <= 2:
+                    try: _globe_start = float(await page.evaluate("map.getZoom()")) < 5.0
+                    except Exception: _globe_start = False
+                if frame <= 2 and not cfg.transparent_background and not _globe_start:
                     # ECHTE URSACHE (v0.9.286, Log-bestätigt): bei den statischen
                     # Intro-Frames (Stillstand, identische Kamera) macht Mapbox KEIN
                     # Repaint → der WebGL-Buffer bleibt auf der unfertigen Erst-
