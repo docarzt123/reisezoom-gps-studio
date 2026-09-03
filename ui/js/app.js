@@ -215,6 +215,74 @@ function _settingsStand() {
   };
 }
 
+/** 03.09.2026 — Rechte-Tabelle: Zeilen = Kartenquelle, Spalten = wo du es zeigst,
+ *  je Zelle Video · Foto · Web-Einbettung. ✅ erlaubt · ⚠️ mit Auflage · ❌ nicht. */
+function rzRightsTableHtml() {
+  const H = (k, f) => t(k, f);
+  const cell = (v, f, w, note) => `<td><span class="rt-ico" title="${H("rights.video", "Video")}">🎬${v}</span> <span class="rt-ico" title="${H("rights.foto", "Foto / Standbild")}">📷${f}</span> <span class="rt-ico" title="${H("rights.web", "Web-Karte (Einbettung)")}">🌐${w}</span>${note ? `<div class="rt-note">${note}</div>` : ""}</td>`;
+  const rows = [
+    [H("rights.row.gov", "Satellit (kostenlos) — amtliche Luftbilder"),
+     cell("✅", "✅", "✅"), cell("✅", "✅", "✅"), cell("✅", "✅", "✅", H("rights.note.gov", "Nennung genügt (CC BY / dl-de/by)"))],
+    [H("rights.row.osm", "OpenFreeMap · OpenStreetMap-Karten"),
+     cell("✅", "✅", "✅"), cell("✅", "✅", "✅"), cell("✅", "✅", "⚠️", H("rights.note.osm", "Web bei viel Traffic: eigener Kachelserver"))],
+    [H("rights.row.maptiler", "MapTiler (eigener Schlüssel)"),
+     cell("✅", "✅", "❌"), cell("✅", "✅", "❌", H("rights.note.maptiler_pub", "Video bis 100.000 Abonnenten")), cell("⚠️", "⚠️", "❌", H("rights.note.maptiler_com", "Flex-Tarif (ca. 30 $/Mon.) nötig; Web: nicht im Export"))],
+    [H("rights.row.mapbox", "Mapbox (Token)"),
+     cell("⚠️", "✅", "❌", H("rights.note.mapbox_priv", "Video formal nur mit Videorechten")), cell("❌", "⚠️", "❌", H("rights.note.mapbox_pub", "Video: Rechte kaufen; Foto: kein Druck")), cell("❌", "⚠️", "❌", H("rights.note.mapbox_com", "Video: Rechte kaufen; Web: nicht im Export"))],
+  ];
+  return `<table class="rights-table">
+    <thead><tr><th></th><th>${H("rights.col.privat", "Privat<br><small>nur für dich</small>")}</th><th>${H("rights.col.oeffentlich", "Öffentlich, ohne Geld<br><small>Hobby-Kanal, Blog</small>")}</th><th>${H("rights.col.kommerziell", "Kommerziell<br><small>monetarisiert, Kunden</small>")}</th></tr></thead>
+    <tbody>${rows.map(r => `<tr><th>${r[0]}</th>${r[1]}${r[2]}${r[3]}</tr>`).join("")}</tbody>
+  </table>
+  <p class="set-help" style="margin:6px 0 12px;">🎬 ${H("rights.video", "Video")} · 📷 ${H("rights.foto", "Foto / Standbild")} · 🌐 ${H("rights.web", "Web-Karte (Einbettung)")} — ${H("rights.legend", "✅ erlaubt · ⚠️ mit Auflage · ❌ nicht (Details in den Unter-Reitern)")}</p>`;
+}
+
+/** „Was passt zu dir?" — drei Fragen, eine Empfehlung, ein Klick übernimmt sie. */
+function rzMapQuizHtml() {
+  const H = (k, f) => t(k, f);
+  const opt = (name, val, label) => `<label class="quiz-opt"><input type="radio" name="${name}" value="${val}"><span>${label}</span></label>`;
+  return `<div class="quiz" id="md-map-quiz">
+    <div class="quiz-title">${H("quiz.title", "Was passt zu dir?")}</div>
+    <div class="quiz-q"><div class="quiz-qt">${H("quiz.q1", "Was machst du damit?")}</div>
+      ${opt("qz1", "video", H("quiz.q1.video", "Videos"))}${opt("qz1", "foto", H("quiz.q1.foto", "Bilder / Standbilder"))}${opt("qz1", "web", H("quiz.q1.web", "Karte für Website / Blog"))}</div>
+    <div class="quiz-q"><div class="quiz-qt">${H("quiz.q2", "Wo zeigst du es?")}</div>
+      ${opt("qz2", "privat", H("quiz.q2.privat", "Nur privat"))}${opt("qz2", "oeff", H("quiz.q2.oeff", "Öffentlich, ohne Geld"))}${opt("qz2", "komm", H("quiz.q2.komm", "Kommerziell / monetarisiert"))}</div>
+    <div class="quiz-q"><div class="quiz-qt">${H("quiz.q3", "Wo sind deine Touren meistens?")}</div>
+      ${opt("qz3", "abgedeckt", H("quiz.q3.abgedeckt", "Deutschland, Alpenländer, Spanien, Frankreich, Benelux, Polen, Tschechien, Italien, Japan, USA"))}${opt("qz3", "sonst", H("quiz.q3.sonst", "Woanders (z. B. Skandinavien, UK, Kanada, Südamerika)"))}</div>
+    <div class="quiz-result" id="md-quiz-result" hidden>
+      <div id="md-quiz-text"></div>
+      <button type="button" class="btn btn-primary" id="md-quiz-apply" style="margin-top:8px;"></button>
+    </div>
+  </div>`;
+}
+
+/** Quiz auswerten → Empfehlung + „Als Standard übernehmen". */
+function _bindMapQuiz() {
+  const box = document.getElementById("md-map-quiz"); if (!box) return;
+  const val = (n) => (box.querySelector(`input[name=${n}]:checked`) || {}).value;
+  const res = document.getElementById("md-quiz-result"), txt = document.getElementById("md-quiz-text"), btn = document.getElementById("md-quiz-apply");
+  const empfehlung = () => {
+    const q1 = val("qz1"), q2 = val("qz2"), q3 = val("qz3");
+    if (!q1 || !q2 || !q3) return null;
+    if (q1 === "web") return { key: q3 === "abgedeckt" ? "free_satellite" : "osm", text: t("quiz.r.web", "Für die Web-Karte nimmt der Export ohnehin nur Kacheln ohne Schlüssel: „Satellit (kostenlos)“, wo es Luftbilder gibt, sonst OpenStreetMap. Kostenlos, erlaubt, Nennung ist drin.") };
+    if (q3 === "abgedeckt") return { key: "free_satellite", text: t("quiz.r.frei", "„Satellit (kostenlos)“: amtliche Luftbilder, schärfer als Mapbox, kein Schlüssel — und du darfst alles veröffentlichen, auch monetarisiert. Nur die Nennung im Bild muss bleiben.") };
+    if (q2 === "komm") return { key: "maptiler_satellite", text: t("quiz.r.maptiler_komm", "Außerhalb der kostenlosen Abdeckung: MapTiler-Satellit mit eigenem Schlüssel — für einen monetarisierten Kanal der Flex-Tarif (ca. 30 $/Monat), Videos bis 100.000 Abonnenten erlaubt. Ohne Satellit tut es auch die kostenlose OpenFreeMap-Karte mit Gelände.") };
+    if (q2 === "oeff") return { key: "maptiler_satellite", text: t("quiz.r.maptiler_oeff", "Außerhalb der kostenlosen Abdeckung: MapTiler-Satellit mit kostenlosem Schlüssel (nicht-kommerziell, Videos bis 100.000 Abonnenten erlaubt). Ohne Satellit: die kostenlose OpenFreeMap-Karte mit Gelände.") };
+    return { key: "maptiler_satellite", text: t("quiz.r.privat", "Nur für dich: alles geht — auch Mapbox mit Token. Am einfachsten: MapTiler-Satellit (kostenloser Schlüssel) oder, wo es Luftbilder gibt, „Satellit (kostenlos)“.") };
+  };
+  const zeige = () => {
+    const e = empfehlung();
+    if (!e) { res.hidden = true; return; }
+    res.hidden = false;
+    txt.innerHTML = `<strong>${t("quiz.empfehlung", "Empfehlung")}: ${(typeof mapStyleLabel === "function") ? mapStyleLabel(e.key) : e.key}</strong><br>${e.text}`;
+    btn.textContent = t("quiz.apply", "Als Standard übernehmen");
+    btn.onclick = () => { const sel = document.getElementById("md-map-default"); if (sel) { sel.value = e.key; } toast(t("quiz.applied", "Übernommen — beim Speichern wird es der Standard."), "success"); };
+  };
+  box.querySelectorAll("input[type=radio]").forEach(r => r.addEventListener("change", zeige));
+}
+window.rzRightsTableHtml = rzRightsTableHtml;
+window.rzMapQuizHtml = rzMapQuizHtml;
+
 async function openSettingsModal() {
   const meta = i18nMeta();
   const available = meta.available || [];
@@ -293,12 +361,14 @@ async function openSettingsModal() {
         </div>
 
         <div class="set-subpanel" data-subpanel="ueberblick" hidden>
-          <p class="set-help">${t("settings.maps.help.ueberblick1", "Jede Karte der App — Animator, Tour-Map, Inspektor, Geotagger, Archiv, Web-Karte — bietet dieselbe Stilliste. Sie ist in drei Gruppen geteilt: kostenlos (Video erlaubt), MapTiler (eigener Schlüssel) und Mapbox (Video nur mit gekauften Rechten). Jeder Eintrag trägt seine Marke, du musst dir nichts merken.")}</p>
-          <p class="set-help">${t("settings.maps.help.ueberblick2", "Warum das Ganze: Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur, wenn du Videorechte gekauft hast (Product Terms §1.7). Für YouTube, Instagram & Co. sind deshalb die kostenlosen Stile oder MapTiler die richtige Wahl — die Nennung der Quelle steht dabei automatisch unten rechts im Bild und gehört zum Video.")}</p>
-          <label class="field-label" for="md-map-default" style="font-size:12px;">${t("settings.maps.default", "Standard-Kartenstil für neue Projekte")}</label>
+          <!-- 03.09.2026 (Marc: „auf den ersten Blick erkennen, welchen Typ man wählen soll")
+               — Rechte-Tabelle + „Was passt zu dir?" statt Fließtext. -->
+          <p class="set-help" style="margin-bottom:8px;">${t("rights.intro", "Was darfst du mit welcher Karte? Nennung der Quelle steht immer automatisch im Bild und bleibt drin.")}</p>
+          ${rzRightsTableHtml()}
+          ${rzMapQuizHtml()}
+          <label class="field-label" for="md-map-default" style="font-size:12px; margin-top:14px;">${t("settings.maps.default", "Standard-Kartenstil für neue Projekte")}</label>
           <select id="md-map-default" style="width:100%;">${(typeof mapStyleOptionsHtml === "function") ? mapStyleOptionsHtml(mapStyleDefault) : ""}</select>
-          <p class="set-help">${t("settings.maps.help.default", "Dieser Stil gilt für jedes neue Projekt. Bestehende Projekte behalten ihren Stil; sie lassen sich jederzeit im Animator oder in der Tour-Map umstellen. Fehlt für einen Stil der Schlüssel oder für den Track die Abdeckung, weicht die App still aus und sagt es dir unter dem Stil-Feld — sie bricht nie ab.")}</p>
-          <p class="set-help">${t("settings.maps.help.gelaende", "3D-Gelände gibt es mit jeder Quelle: Mapbox-Stile nutzen das Mapbox-Gelände, MapTiler-Stile das von MapTiler, alle kostenlosen Stile das AWS-Geländemodell (Mapzen). Das Gelände hängt fest am Stil — in einem Video ohne Mapbox stecken auch keine Mapbox-Daten.")}</p>
+          <p class="set-help" style="margin-top:4px;">${t("settings.maps.default_help", "Bestehende Projekte behalten ihren Stil; sie lassen sich im Animator bzw. in der Tour-Map umstellen.")}</p>
         </div>
 
         <div class="set-subpanel" data-subpanel="kostenlos" hidden>
@@ -640,6 +710,7 @@ function _bindSettingsModalHandlers() {
       zeigeSub(sc);
     });
   })();
+  try { _bindMapQuiz(); } catch (_) {}
   document.getElementById("md-cancel-set").onclick = () => openModal({}).close();
   document.getElementById("md-maptiler-link")?.addEventListener("click", (e) => { e.preventDefault(); api().open_url("https://cloud.maptiler.com/account/keys/"); });
   document.getElementById("md-tc-clear")?.addEventListener("click", async () => {
@@ -1088,6 +1159,7 @@ async function openFirstRunMapboxModal() {
         <p class="muted" style="margin-top:10px; font-size:11px;">${t("first_run.change_later_hint")}</p>
       `,
       footer: `
+        <button class="btn" id="md-fr-quiz">${t("quiz.title", "Was passt zu dir?")}</button>
         <button class="btn" id="md-fr-settings">${t("common.settings", "Einstellungen")}</button>
         <button class="btn btn-primary" id="md-fr-go">${t("first_run.btn.go", "Los geht's")}</button>
       `,
@@ -1099,6 +1171,12 @@ async function openFirstRunMapboxModal() {
       resolve();
     };
     document.getElementById("md-fr-go").onclick = fertig;
+    // Direkt zur Rechte-Tabelle + Quiz (Einstellungen → Karten → Überblick)
+    document.getElementById("md-fr-quiz").onclick = async () => {
+      await fertig();
+      try { window.localStorage.setItem("rz_settings_tab", "karten"); window.localStorage.setItem("rz_settings_subtab_karten", "ueberblick"); } catch (_) {}
+      try { openSettingsModal(); } catch (_) {}
+    };
     document.getElementById("md-fr-settings").onclick = async () => {
       await fertig();
       try { openSettingsModal(); } catch (_) {}
