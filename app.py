@@ -3336,6 +3336,21 @@ class Api:
                 conn.execute("UPDATE tracks SET merged = 1, display_name = ? WHERE path = ?",
                              (erg.name, str(ziel)))
                 conn.commit()
+            # 03.09.2026 (Beta-Tester, „3 Rutas" hieß „01 - Leon Astorga"): Dieselben
+            # Routen noch einmal zusammengeführt = derselbe Koordinaten-Hash = dieselbe
+            # Tour im Projektspeicher — mit dem alten Namen. Den gewählten Namen
+            # nachziehen, damit Animator und Projekt ihn zeigen.
+            try:
+                _h = self._track_geo_hash(str(ziel))
+                if _h:
+                    with _projekte.LOCK:
+                        daten = _projekte.laden(DATEN_ORT)
+                        tour = (daten.get("touren") or {}).get(_h)
+                        if tour is not None and tour.get("name") != erg.name:
+                            tour["name"] = erg.name
+                            _projekte.speichern(DATEN_ORT, daten)
+            except Exception as e:      # noqa: BLE001
+                log.warning("library_merge: Tour-Name nachziehen: %s", e)
             # 23.08.2026 — „Farbe je Tour": Etappennummer (1-basiert) → Farbe.
             # Eigene Farbe der Tour aus dem Archiv, sonst aus der Palette.
             palette = ["#ff6b35", "#35a0ff", "#7ed957", "#ffd166", "#c77dff", "#ff4d6d", "#4ecdc4", "#f4a261"]

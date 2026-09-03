@@ -43,6 +43,10 @@ Bei jeder neuen Version:
   Rechtelage statt eines „mitgelieferten Standard-Tokens", den es nicht mehr gibt.
 
 #### Behoben
+- **Zusammengeführte Touren hießen nach der ersten Route** statt nach dem
+  gewählten Namen („3 Rutas" → „01 - Leon Astorga"): Der gewählte Name steht
+  in `<metadata><name>`, die App las nur den ersten `<trk>`. Metadaten-Name
+  gewinnt jetzt, Etappen behalten ihre Namen. — `tests/test_zusammenfuehren_name.py`
 - **Bibliotheks-Dialoge kamen auf Deutsch** („Willkommen bei GPS Studio",
   „Deine Daten sind umgezogen"), obwohl die Oberfläche Spanisch war: Die
   Sprache wurde erst nach der Bibliotheksprüfung geladen. Jetzt zuerst.
