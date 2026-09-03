@@ -354,15 +354,16 @@ def region_stack(bbox) -> list[dict]:
     """Welche Regionen werden übereinandergelegt? Rechtecke der Bundesländer
     überlappen sich stark (Potsdam liegt im Rechteck von Sachsen-Anhalt). Da
     die Landesdienste außerhalb ihrer Grenzen durchsichtige PNGs liefern
-    (03.09.2026 für alle 15 geprüft), werden bei einem deutschen Treffer ALLE
-    deutschen Treffer gestapelt — kleinste Fläche oben. Außerhalb Deutschlands
-    genügt die eine Region (kein Überlapp)."""
+    (03.09.2026 für alle 15 geprüft), werden ALLE Treffer gestapelt —
+    kleinste Fläche oben, höchstens vier."""
     hits = regions_for_bbox(bbox)
     if not hits:
         return []
-    if hits[0]["country"] == "DE":
-        return [r for r in hits if r["country"] == "DE"][:4]
-    return [hits[0]]
+    # 03.09.2026 (Seebensee/Tirol): auch über Ländergrenzen stapeln. Der
+    # Track lag im Rechteck von Bayern UND Österreich; allein gewählt liefert
+    # der bayerische Dienst außerhalb Bayerns WEISSE Kacheln (JPEG) — als
+    # PNG mit Alpha im Stapel scheint darunter Österreich durch.
+    return hits[:4]
 
 
 def wms_tile_template(wms: dict, transparent: bool = False) -> str:
@@ -474,7 +475,14 @@ def raster_style(tiles: list[str], *, tile_size: int = 256, maxzoom: int = 19,
             "layers": [{"id": "rz-raster", "type": "raster", "source": "rz-raster", "minzoom": 0}]}
 
 
-def terrain_source(name: str, *, maptiler_key: str = "") -> Optional[dict]:
+TERRAIN_AWS_PROXY_ID = "terrain-aws"     # Weiche: /tile/terrain-aws/{z}/{x}/{y}
+
+
+def terrain_source(name: str, *, maptiler_key: str = "", proxy_base: str = "") -> Optional[dict]:
+    """raster-dem-Quelle. AWS-Terrarium enthält MEERESTIEFEN (Bathymetrie):
+    an Küsten fiel das Gelände als dunkle Klippe ins Meer (Masca, 03.09.2026).
+    Mit `proxy_base` laufen die Kacheln über die lokale Weiche, die alles
+    unter 0 m auf 0 m klemmt (core/tileproxy.clamp_terrarium)."""
     t = TERRAIN.get(name)
     if not t:
         return None
@@ -483,6 +491,8 @@ def terrain_source(name: str, *, maptiler_key: str = "") -> Optional[dict]:
         src["url"] = t["url"]
     if t.get("tiles"):
         src["tiles"] = [u.replace("{maptiler_key}", maptiler_key) for u in t["tiles"]]
+        if name == "aws" and proxy_base:
+            src["tiles"] = [proxy_base.rstrip("/") + "/tile/" + TERRAIN_AWS_PROXY_ID + "/{z}/{x}/{y}"]
     if t.get("encoding"):
         src["encoding"] = t["encoding"]
     if t.get("attribution"):
@@ -554,7 +564,7 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
         style = st["style_url"].replace("{maptiler_key}", maptiler_key)
 
     engine = "mapbox" if st["provider"] == "mapbox" else "maplibre"
-    terrain = terrain_source(st["terrain"], maptiler_key=maptiler_key) if want_terrain else None
+    terrain = terrain_source(st["terrain"], maptiler_key=maptiler_key, proxy_base=proxy_base) if want_terrain else None
     attribution = ""
     if terrain and TERRAIN[st["terrain"]].get("attribution"):
         attribution = TERRAIN[st["terrain"]]["attribution"]
@@ -583,7 +593,8 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
                            and (s["provider"] != "maptiler" or has_maptiler))}
             for s in STYLES
         ],
-        "terrain": TERRAIN,
+        "terrain": {k: ({**t, "tiles": [proxy_base.rstrip("/") + "/tile/" + TERRAIN_AWS_PROXY_ID + "/{z}/{x}/{y}"]}
+                        if (k == "aws" and proxy_base) else t) for k, t in TERRAIN.items()},
         "regions": [
             {"id": r["id"], "name": r["name"], "country": r["country"], "bbox": list(r["bbox"]),
              "maxzoom": r.get("maxzoom", 19), "tiles": region_tiles(r),

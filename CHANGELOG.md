@@ -51,6 +51,26 @@ Bei jeder neuen Version:
   Rechtelage statt eines „mitgelieferten Standard-Tokens", den es nicht mehr gibt.
 
 #### Behoben
+- **Klippe an jeder Küste bei „Satellit (kostenlos)“** (Testlauf Masca, 03.09.):
+  Die AWS-Geländekacheln enthalten Meerestiefen — das Gelände fiel am Ufer als
+  dunkle Wand bis zum Meeresgrund ab. Die Kachel-Weiche (`core/tileproxy.py`)
+  klemmt jetzt alles unter 0 m auf 0 m; der Render ohne App-Weiche (Tests)
+  klemmt in der Playwright-Route. Vorschau und Video sehen dieselben Kacheln.
+- **Weiße Karte an Landesgrenzen** (Seebensee/Tirol, Bad Muskau/Neiße): Lag
+  ein Track im Rechteck von Bayern UND Österreich, gewann Bayern allein — und
+  der bayerische Dienst liefert außerhalb Bayerns weiße Kacheln. Jetzt werden
+  alle Treffer gestapelt, auch über Ländergrenzen (kleinste Fläche oben, als
+  PNG mit Alpha), darunter scheint das Nachbarland durch.
+- **Standbild mit unscharfem Untergrund** über langsamen WMS-Diensten: Der
+  5-s-Deckel des Render-Wartens schnappte zu, bevor alle Orthofoto-Kacheln da
+  waren. Wie im Video wartet das Standbild jetzt gezielt nach (bis 6 × 2 s),
+  solange die Karte Kacheln vermisst; im Video 5 statt 3 Nachwarte-Runden.
+- **Vorschau im Hochgebirge mit MapLibre-Stil zeigte Fels von innen**
+  (Seebensee): MapLibre hält beim Einschalten des Geländes die Kamerahöhe über
+  dem Meer fest, der Berg wuchs durch die Kamera; der Render war korrekt.
+  `rzApplyMapTerrain` setzt die Kamera nach dem ersten `idle` einmal neu.
+- **Regionsname im Stil-Hinweis nur deutsch** („Ortofoto: Spanien" in der
+  spanischen Oberfläche): 30 Regionen jetzt als `mapregion.<id>` in DE/EN/ES.
 - **Kachel-Löcher am Rand und über dem Meer** bei „Satellit (kostenlos)“ (Marc,
   Masca-Render): Die Landesdienste decken nur ihr Gebiet, PNOA lieferte über dem
   Meer opake dunkle Kacheln und unterhalb Zoom 7 ein Rausch-Muster. Jetzt liegt

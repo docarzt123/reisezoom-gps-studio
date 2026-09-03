@@ -202,11 +202,15 @@ function mapRegionForBbox(bbox) { const h = mapRegionsForBbox(bbox); return h.le
 /** Stapel (Spiegel von mapstyles.region_stack): in Deutschland alle Bundesländer
  *  um den Mittelpunkt, kleinste Fläche oben — die Dienste liefern außerhalb
  *  ihrer Grenzen durchsichtige PNGs. Sonst nur die eine Region. */
+/** Regionsname in der Sprache der Oberfläche (i18n `mapregion.<id>`, sonst Katalogname). */
+function mapRegionName(r) {
+  if (!r) return "";
+  try { return (typeof t === "function" ? t("mapregion." + r.id, r.name) : r.name) || r.name; } catch (_) { return r.name; }
+}
 function mapRegionStack(bbox) {
   const h = mapRegionsForBbox(bbox);
   if (!h.length) return [];
-  if (h[0].country === "DE") return h.filter(r => r.country === "DE").slice(0, 4);
-  return [h[0]];
+  return h.slice(0, 4);   // alle Treffer, auch über Ländergrenzen (synchron zu mapstyles.region_stack)
 }
 function _stackAttribution(stack) {
   const out = [];
@@ -290,7 +294,7 @@ function resolveMapStyle(styleKey, bbox, wantTerrain) {
   const terrain = (wantTerrain !== false) ? _terrainSource(d.terrain, mt) : null;
   const tdef = cat.terrain[d.terrain] || {};
   return { key, requested: styleKey, engine, style, terrain, attribution: (terrain && tdef.attribution) || "",
-           region: region ? { id: region.id, name: stack.map(r => r.name).join("/"), ids: stack.map(r => r.id) } : null, notes,
+           region: region ? { id: region.id, name: stack.map(r => mapRegionName(r)).join("/"), ids: stack.map(r => r.id) } : null, notes,
            badge: d.badge, videoOk: d.badge !== "video_rights", provider: d.provider, kind: d.kind };
 }
 
@@ -474,6 +478,36 @@ function rzGlobeForMapLibre(map) {
 window.rzGlobeForMapLibre = rzGlobeForMapLibre;
 
 /** Gelände des Stils an die Karte hängen (Quellname 'mapbox-dem' — historisch). */
+/**
+ * MapLibre (03.09.2026, Seebensee): Nach dem Einschalten des Geländes blieb
+ * `transform.elevation` (Höhe unter dem Bildmittelpunkt) bei 0 m, obwohl das
+ * Gelände dort auf 2350 m liegt — die Kamera steckte im Berg, die Vorschau
+ * zeigte Fels von innen (der Render setzt die Kamera erst NACH dem Gelände
+ * und war korrekt). Weder easeTo noch recalculateZoomAndCenter halfen;
+ * `setCenterElevation` mit der gemessenen Höhe schon. Einmal nach dem ersten
+ * `idle` (Geländekacheln da) und nach jeder Kamerafahrt nachziehen — eine
+ * Abfrage, billig. Wird von rzApplyMapTerrain UND Animator.applyTerrain gerufen
+ * (synchron zu animator/tourmap — beide nutzen diesen Helfer).
+ */
+function rzSeatMapLibreCenter(map) {
+  if (!map || map.__rzEngine !== "maplibre" || typeof map.setCenterElevation !== "function") return;
+  const seat = () => {
+    try {
+      if (map.isMoving && map.isMoving()) return;
+      if (!map.getTerrain || !map.getTerrain()) return;
+      const e = map.queryTerrainElevation(map.getCenter());
+      const have = map.getCenterElevation ? map.getCenterElevation() : 0;
+      if (e != null && isFinite(e) && Math.abs(e - (have || 0)) > 1) {
+        map.setCenterElevation(e);
+        if (map.triggerRepaint) map.triggerRepaint();
+      }
+    } catch (_) {}
+  };
+  map.once("idle", seat);
+  if (!map.__rzSeatBound) { map.__rzSeatBound = true; map.on("moveend", seat); }
+}
+window.rzSeatMapLibreCenter = rzSeatMapLibreCenter;
+
 function rzApplyMapTerrain(map, spec, exaggeration) {
   if (!map || !spec || !spec.terrain) return;
   const run = () => {
@@ -482,6 +516,7 @@ function rzApplyMapTerrain(map, spec, exaggeration) {
       if (map.isMoving && map.isMoving()) { map.once("moveend", () => setTimeout(run, 30)); return; }
       if (!map.getSource("mapbox-dem")) map.addSource("mapbox-dem", spec.terrain);
       map.setTerrain({ source: "mapbox-dem", exaggeration: (exaggeration != null ? exaggeration : 1.0) });
+      rzSeatMapLibreCenter(map);
     } catch (e) { try { applog("warn", "[map] Gelände: " + e); } catch (_) {} }
   };
   if (map.isStyleLoaded && map.isStyleLoaded()) run(); else map.once("style.load", run);

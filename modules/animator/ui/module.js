@@ -7369,6 +7369,9 @@ function mountAnimator(body, headerActions, opts) {
         const ex = currentExaggeration();
         if (!cur || cur.source !== "mapbox-dem" || Math.abs((cur.exaggeration || 0) - ex) > 1e-6) {
           map.setTerrain({ source: "mapbox-dem", exaggeration: ex });
+          // 03.09.2026 — MapLibre: Mittelpunkt-Höhe nachziehen, sonst steckt die
+          // Kamera im Hochgebirge im Berg (s. util.rzSeatMapLibreCenter).
+          if (window.rzSeatMapLibreCenter) window.rzSeatMapLibreCenter(map);
         }
       } else {
         if (map.getTerrain && map.getTerrain()) {

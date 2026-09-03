@@ -56,15 +56,51 @@ def cache_path(cache_dir: Path, url: str) -> Path:
     return cache_dir / h[:2] / (h + ".bin")
 
 
+TERRARIUM_HOST = "elevation-tiles-prod/terrarium"
+CLAMP_KEY_SUFFIX = "#clamp0"     # eigener Schlüssel: alte, ungeklemmte Kacheln bleiben liegen
+
+
+def is_terrarium_url(url: str) -> bool:
+    return TERRARIUM_HOST in url
+
+
+def clamp_terrarium(body: bytes) -> bytes:
+    """Terrarium-PNG: Höhe = R·256 + G + B/256 − 32768. Alles unter 0 m
+    (R < 128, also Meeresboden) wird auf genau 0 m gesetzt (128,0,0) — sonst
+    steht an jeder Küste eine Klippe bis zum Meeresgrund. Bei Fehlern
+    kommt die Kachel unverändert zurück."""
+    try:
+        from io import BytesIO
+        from PIL import Image
+        im = Image.open(BytesIO(body)).convert("RGB")
+        r = im.split()[0]
+        mask = r.point(lambda v: 255 if v < 128 else 0)
+        if not mask.getbbox():
+            return body
+        im.paste((128, 0, 0), mask=mask)
+        out = BytesIO(); im.save(out, format="PNG", compress_level=1)
+        return out.getvalue()
+    except Exception as e:      # noqa: BLE001
+        _log.debug("clamp_terrarium: %s", e)
+        return body
+
+
 def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
                cache_dir: Optional[Path], timeout: float = 30.0) -> tuple[int, str, bytes]:
     """(status, content_type, body). 404 bei unbekannter Region, 502 wenn der
-    Dienst nicht antwortet. Erfolgreiche Bilder landen im Zwischenspeicher."""
-    region = next((r for r in ms.ORTHO_REGIONS if r["id"] == region_id), None)
-    if region is None or z < 0 or z > 22:
-        return 404, "text/plain", b"unknown region"
-    url = upstream_url(region, z, x, y, transparent)
-    cp = cache_path(Path(cache_dir), url) if cache_dir else None
+    Dienst nicht antwortet. Erfolgreiche Bilder landen im Zwischenspeicher.
+    `terrain-aws` = AWS-Terrarium mit Klemme (Meerestiefen → 0 m)."""
+    if z < 0 or z > 22:
+        return 404, "text/plain", b"bad zoom"
+    terrain = region_id == ms.TERRAIN_AWS_PROXY_ID
+    if terrain:
+        url = ms.TERRAIN["aws"]["tiles"][0].replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
+    else:
+        region = next((r for r in ms.ORTHO_REGIONS if r["id"] == region_id), None)
+        if region is None:
+            return 404, "text/plain", b"unknown region"
+        url = upstream_url(region, z, x, y, transparent)
+    cp = cache_path(Path(cache_dir), url + (CLAMP_KEY_SUFFIX if terrain else "")) if cache_dir else None
     if cp is not None and cp.exists():
         try:
             raw = cp.read_bytes()
@@ -84,6 +120,8 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
     if not ct.startswith("image/"):
         # WMS-Fehler kommen als XML mit Status 200 — nicht als Bild ausliefern
         return 502, "text/plain", body[:400]
+    if terrain:
+        body = clamp_terrarium(body)
     if cp is not None and len(body) < 8_000_000:
         try:
             cp.parent.mkdir(parents=True, exist_ok=True)
