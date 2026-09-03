@@ -16,7 +16,7 @@ weder echte Tracks noch echte Sitzungen kennt. `loadGlobalGpx` NICHT awaiten:
 die echte App öffnet danach den Archiv-Dialog, und das Versprechen wartet.
 `RZ_TRACE=1` protokolliert jede Karten-Methode samt Aufrufer.
 """
-import asyncio, sys, json, os, re, time
+import asyncio, sys, json, os, time
 from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))

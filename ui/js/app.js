@@ -1117,13 +1117,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Ist sie nicht offen (Erststart, Platte ab, belegt, defekt), legt sich
   // hier eine Erklärung mit Auswegen über das Fenster. Der restliche Start
   // läuft trotzdem durch, damit Sprache und Menüs funktionieren.
+  // 03.09.2026 (Beta-Tester, spanische Oberfläche): Die Bibliotheks-Dialoge
+  // („Willkommen", „Deine Daten sind umgezogen") kamen auf Deutsch, weil die
+  // Sprache erst NACH der Bibliotheksprüfung geladen wurde. Die Strings
+  // kommen vom Backend (i18n_get_strings liest die Einstellungen selbst) und
+  // brauchen die Bibliothek nicht — also zuerst die Sprache.
+  await loadI18n();
+  applog && applog("info", "[boot] i18n geladen");
   try { await window.rzBibPruefen(); } catch (e) { applog && applog("warn", "[boot] bib: " + e); }
   applog && applog("info", "[boot] bibliothek geprueft");
   await loadSettings();
   applog && applog("info", "[boot] settings geladen");
-  await loadI18n();
   applyI18nToModuleManifests();
-  applog && applog("info", "[boot] i18n geladen");
 
   document.getElementById("topbar-settings").addEventListener("click", openSettingsModal);
   // v0.9.288 — Topbar aufgeräumt (Marc): Hilfe/Feedback/YouTube/Blog sind aus der
