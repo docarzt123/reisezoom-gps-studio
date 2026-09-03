@@ -18,6 +18,12 @@ Bei jeder neuen Version:
 
 ### Drei Meldungen eines Beta-Testers (Windows, spanische Oberfläche, 4 Touren als Schwarm)
 
+#### Hinzugefügt
+- **Rechte-Tabelle + „Was passt zu dir?“** (Einstellungen → Karten → Überblick):
+  auf einen Blick, was jede Quelle für Video, Foto und Web-Karte erlaubt —
+  privat, öffentlich ohne Geld, kommerziell. Drei Fragen empfehlen den Stil und
+  setzen ihn per Klick als Standard. Der Erststart-Dialog führt direkt dorthin.
+
 #### Geändert
 - **Karten-Reiter weiter unterteilt** (Überblick · Kostenlose Quellen · MapTiler ·
   Mapbox · Speicher & Test) mit ausführlichen Hilfetexten in DE/EN/ES: was jede

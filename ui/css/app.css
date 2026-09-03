@@ -2967,3 +2967,19 @@ body.is-rendering .modal-overlay * {
 .set-subtab.is-active { color: var(--text); background: var(--bg-3); border-color: var(--accent); }
 .set-subpanel[hidden] { display: none; }
 .set-help { font-size: 11.5px; line-height: 1.6; color: var(--text-muted, #bbb); margin: 0 0 10px; }
+
+/* Rechte-Tabelle + Quiz (Einstellungen → Karten → Überblick) */
+.rights-table { width: 100%; border-collapse: collapse; font-size: 11px; line-height: 1.35; }
+.rights-table th, .rights-table td { border: 1px solid var(--border); padding: 5px 6px; vertical-align: top; text-align: left; }
+.rights-table thead th { background: var(--bg-3); font-weight: 600; color: var(--text); }
+.rights-table thead th small { display: block; font-weight: 400; color: var(--text-muted, #aaa); }
+.rights-table tbody th { font-weight: 600; color: var(--text); width: 30%; }
+.rights-table .rt-ico { white-space: nowrap; margin-right: 4px; }
+.rights-table .rt-note { color: var(--text-muted, #aaa); font-size: 10px; margin-top: 3px; }
+.quiz { margin-top: 6px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 8px; }
+.quiz-title { font-weight: 600; margin-bottom: 6px; }
+.quiz-q { margin-top: 6px; }
+.quiz-qt { font-size: 11.5px; color: var(--text-muted, #aaa); margin-bottom: 3px; }
+.quiz-opt { display: inline-flex; align-items: center; gap: 4px; margin: 0 10px 4px 0; font-size: 12px; cursor: pointer; }
+.quiz-result { margin-top: 10px; padding: 8px 10px; background: rgba(255,157,58,0.10); border-left: 3px solid #ff9d3a; border-radius: 6px; font-size: 12px; line-height: 1.5; }
+.quiz-result[hidden] { display: none; }
