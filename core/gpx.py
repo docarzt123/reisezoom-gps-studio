@@ -400,7 +400,12 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
 
     pts: List[TrackPoint] = []
     seg_namen: List[str] = []
-    name = None
+    # 03.09.2026 (Beta-Tester, 3 zusammengeführte Routen): Der Name der DATEI
+    # steht in <metadata><name> — das Zusammenführen schreibt den gewählten
+    # Namen genau dorthin, jede Etappe behält ihren eigenen <trk><name>. Bisher
+    # gewann der erste Track („01 - Leon Astorga"), der gewählte Name („3 Rutas")
+    # tauchte nirgends auf. Metadaten-Name zuerst, Track-Name als Rückfall.
+    name = (str(gpx.name).strip() if getattr(gpx, "name", None) else None) or None
     seg_no = -1          # v0.9.483 — läuft über ALLE Tracks/Segmente hinweg weiter
     for track in gpx.tracks:
         # 23.08.2026 — Übergangs-Etappe aus dem Zusammenführen mehrerer Touren
