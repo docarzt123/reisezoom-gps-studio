@@ -368,27 +368,51 @@ schaut, rendert einfach weiter.
 gehört zum Video. Bitte nicht wegschneiden — Mapbox wie MapTiler wie die
 Landesvermessungen verlangen sie.
 
-### Mapbox-Token einrichten 🗺️
-Ein Mapbox-Token ist ein **kostenloser Zugangsschlüssel** für Satellit-, 3D- und Premium-Karten. Der **Animator** (bewegte Karten-Animation) braucht ihn. **Vieles geht aber auch ohne Token:** 📷 Fotos verorten (Geotagger) · 🗺️ Tour-Karte als Bild/Export · 🧭 Tracks ansehen & aufräumen (Inspektor) · 📈 Höhenprofil-/Daten-Videos.
+### Kartenquellen & Schlüssel — was woher kommt, was es kostet, was du veröffentlichen darfst 🗺️
 
-Beim ersten App-Start öffnet sich automatisch ein Onboarding-Modal mit zwei Optionen:
-- **Mit Mapbox-Token** (empfohlen) — volle Features inkl. Animator, kostenlos in 2 Minuten
-- **Ohne Token (OSM)** — funktioniert sofort; Standard-Karte statt Satellit/3D, kein Animator-Render. Du kannst den Token jederzeit später nachtragen.
+**Kurz:** Ohne irgendeinen Schlüssel hast du Satellitenbilder, Karten und 3D-Gelände — und darfst die Videos veröffentlichen. Schlüssel brauchst du nur für **MapTiler** (kostenlos) und **Mapbox** (kostenlos, aber Videos nur mit gekauften Rechten).
 
-> Landest du ohne Token im Animator, zeigt der Hinweisschirm, was ohne Token geht und bringt dich per Klick direkt zur **Tour-Karte** (läuft ohne Token).
+| Quelle | Schlüssel? | Kosten | Videos veröffentlichen? | Nennung im Bild |
+|---|---|---|---|---|
+| **Satellit (kostenlos)** — amtliche Luftbilder | nein | kostenlos | ja | automatisch (z. B. „Luftbild: PNOA © IGN España") |
+| **OpenFreeMap** (Liberty, Bright, Positron) | nein | kostenlos, ohne Limit | ja | automatisch (© OpenMapTiles, © OpenStreetMap) |
+| **OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian** | nein | kostenlos (Kacheldienste der Community, bitte nicht massenhaft) | ja | automatisch |
+| **3D-Gelände** (AWS Terrain Tiles / Mapzen) | nein | kostenlos | ja | automatisch („Gelände: Mapzen/AWS Terrain Tiles") |
+| **MapTiler** (Satellit, Hybrid, Outdoor, Topo, Streets + eigenes Gelände) | **ja** | Gratistarif (100.000 Kachelabrufe/Monat, **nur nicht-kommerziell**); Flex ab ca. 30 $/Monat | **ja, bis 100.000 Abonnenten** (Cloud Terms §5) | automatisch (© MapTiler © OpenStreetMap contributors) |
+| **Mapbox** (Satellit 3D, Satellit + Straßen, Outdoor, Streets, Hell, Dunkel) | **ja** (Token `pk.…`) | Free-Tier 50.000 Karten-Loads/Monat, Kreditkarte bei Registrierung | **nur mit gekauften Videorechten** (Product Terms §1.7) | automatisch (© Mapbox © OpenStreetMap) |
 
-**So bekommst du einen kostenlosen Mapbox-Token:**
-1. Konto bei [account.mapbox.com](https://account.mapbox.com/auth/signup) anlegen
-2. Bestätigungs-Mail klicken
-3. Im Dashboard auf [Access tokens](https://account.mapbox.com/access-tokens/)
-4. „Default public token" kopieren — beginnt mit `pk.eyJ…`
-5. In der App ins Token-Feld einfügen → Speichern
+> ⚠️ **Die Nennung unten rechts im Bild gehört zum Video.** Bitte nicht wegschneiden — alle Quellen verlangen sie, Mapbox und MapTiler ausdrücklich.
 
-> ⚠️ **Zahlungsdaten**: Das Anmeldeformular selbst fragt **keine** Kreditkarte ab — dort stehen Name, E-Mail, Benutzername und Passwort (nachgesehen am 01.08.2026). Mapbox kann im weiteren Verlauf oder ab einer gewissen Nutzung nach einer Karte fragen. **Abgebucht wird nichts**, solange du im Free-Tier bleibst.
+#### Welche amtlichen Luftbilder stecken in „Satellit (kostenlos)"?
+Die App wählt die Quelle anhand der Track-Lage; unter dem Stil-Feld steht, welche greift. Stand 03.09.2026:
+
+- **Deutschland (Land für Land):** Baden-Württemberg (LGL), Bayern (Vermessungsverwaltung, CC BY 4.0), Berlin (TrueDOP), Brandenburg (LGB), Bremen (CC BY 4.0), Hessen (HVBG), Mecklenburg-Vorpommern, Niedersachsen (LGLN, CC BY 4.0), Nordrhein-Westfalen (Geobasis NRW), Rheinland-Pfalz, Saarland, Sachsen (GeoSN), Sachsen-Anhalt, Schleswig-Holstein (CC BY 4.0), Thüringen — meist unter „Datenlizenz Deutschland – Namensnennung 2.0". **Hamburg fehlt** (kein erreichbarer Dienst). Liegt der Track an einer Landesgrenze, legt die App die Nachbarländer übereinander.
+- **Europa:** Österreich (basemap.at, CC BY 4.0), Schweiz (swisstopo), Luxemburg (CC0), Niederlande (PDOK, CC BY 4.0), Frankreich (IGN Géoplateforme), Spanien inkl. Kanaren (PNOA © IGN, CC BY 4.0), Portugal (DGT, CC BY 4.0), Italien (Geoportale Nazionale, 2012), Tschechien (ČÚZK), Polen (GUGiK), Estland (Maa-amet, CC BY 4.0).
+- **Welt:** Japan (GSI), USA inkl. Alaska und Hawaii (USGS, gemeinfrei).
+- **Keine kostenlose Quelle** gibt es derzeit für Skandinavien, Großbritannien, Irland und Kanada — dort weicht die App auf die OpenFreeMap-Karte mit Gelände aus; für Satellit dort MapTiler nehmen.
+
+#### MapTiler-Schlüssel besorgen (kostenlos, 3 Minuten)
+1. Konto anlegen auf [cloud.maptiler.com](https://cloud.maptiler.com/) — E-Mail + Passwort oder Google/GitHub, **keine Kreditkarte**.
+2. Bestätigungs-Mail klicken.
+3. Links im Menü **API Keys** (direkt: [cloud.maptiler.com/account/keys](https://cloud.maptiler.com/account/keys/)). Dort liegt schon ein Schlüssel — kopieren (20 Zeichen, Buchstaben und Ziffern).
+4. In der App: **Einstellungen → Kartenanbieter → MapTiler-Schlüssel** einfügen → Speichern. Die App lädt neu, die MapTiler-Stile stehen in der Liste.
+
+> ⚠️ **Beim Schlüssel „Allowed HTTP origins" leer lassen.** Trägst du dort eine Website ein, sperrt MapTiler den Render aus (der läuft ohne Browser-Adresse) — die Vorschau ginge, das Video bliebe schwarz.
 >
-> 💡 **Free-Tier: 50.000 Karten-Loads pro Monat — kostenlos.** Das reicht in der Praxis für sehr viele Renders. Bei normaler Hobby-Nutzung wirst du nie eine Rechnung sehen — du müsstest schon richtig intensiv produzieren, um an die Grenze zu kommen.
+> 💡 **Gratistarif:** 100.000 Kachelabrufe pro Monat, das reicht für viele Renders. Er ist auf **nicht-kommerzielle Nutzung** begrenzt — für einen monetarisierten Kanal ist der Flex-Tarif (ca. 30 $/Monat) gedacht. Videos für Kanäle bis 100.000 Abonnenten sind laut MapTiler Cloud Terms §5 erlaubt; darüber vorher bei MapTiler nachfragen.
 
-**Token später ändern**: macOS-Menü → **Reisezoom** → **Einstellungen…** (oder Cmd+,) — Windows/Linux: ⚙-Button oben rechts.
+#### Mapbox-Token besorgen (kostenlos — aber lies erst den Hinweis)
+Mapbox erlaubt die **Veröffentlichung von Videos** mit seinem Kartenmaterial **nur mit gekauften Videorechten** (Product Terms §1.7 „Print or Video Use"). Für YouTube, Instagram & Co. also einen kostenlosen Stil oder MapTiler nehmen. Der Token ist trotzdem sinnvoll, wenn du die Mapbox-Stile privat nutzt oder Rechte gekauft hast.
+
+1. Konto bei [account.mapbox.com](https://account.mapbox.com/auth/signup) anlegen — Mapbox verlangt seit Mitte 2026 eine **Kreditkarte** bei der Registrierung; abgebucht wird im Free-Tier nichts.
+2. Bestätigungs-Mail klicken.
+3. Im Dashboard auf [Access tokens](https://account.mapbox.com/access-tokens/).
+4. „Default public token" kopieren — beginnt mit `pk.eyJ…`
+5. In der App: **Einstellungen → Kartenanbieter → Mapbox-Token** einfügen → Speichern.
+
+> 💡 Free-Tier: 50.000 Karten-Loads pro Monat. Vor jedem Video-Render mit einem Mapbox-Stil erinnert die App einmal je Sitzung an die Rechtelage — sie sperrt nichts.
+
+**Schlüssel später ändern**: macOS-Menü → **Reisezoom** → **Einstellungen…** (oder Cmd+,) — Windows/Linux: ⚙-Button oben rechts → **Kartenanbieter**.
 
 ### Sprache wechseln 🌍
 Die App startet automatisch in der **Systemsprache** (Deutsch, Englisch oder Spanisch — Fallback Englisch). Wechseln im **⚙-Einstellungen-Modal** → Sprache-Dropdown. Sofort aktiv, kein Restart nötig.

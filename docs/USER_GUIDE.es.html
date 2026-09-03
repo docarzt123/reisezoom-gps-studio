@@ -489,25 +489,39 @@ python app.py</code></pre>
 <p><strong>Ajustes → Proveedores de mapas:</strong> estilo por defecto para proyectos nuevos (de fábrica «Satélite (gratis)»; los proyectos existentes conservan su estilo), token de Mapbox, clave de MapTiler y la <strong>caché de teselas</strong> (2 GB por defecto; botón «Vaciar»). Las teselas descargadas se quedan en disco: el segundo render de la misma zona es más rápido.</p>
 <p><strong>Antes de renderizar un vídeo con un estilo Mapbox</strong> la app recuerda una vez por sesión la situación de derechos. No bloquea nada: si tienes los derechos o solo lo ves en privado, sigue renderizando.</p>
 <p><strong>Importante al publicar:</strong> la atribución de la fuente abajo a la derecha forma parte del vídeo. No la recortes — Mapbox, MapTiler y los institutos cartográficos la exigen.</p>
-<h3 id="configurar-el-token-de-mapbox">Configurar el token de Mapbox 🗺️</h3>
-<p>Animator + Tour-Map necesitan un <strong>token gratuito de Mapbox</strong> para los mapas 3D. <strong>El Geotagger también funciona sin él</strong>.</p>
-<p>En el primer arranque de la app se abre automáticamente un modal de onboarding con dos opciones:</p>
+<h3 id="fuentes-de-mapas-y-claves-de-d-nde-vienen-qu-cuestan-qu-puedes-publicar">Fuentes de mapas y claves — de dónde vienen, qué cuestan, qué puedes publicar 🗺️</h3>
+<p><strong>En resumen:</strong> sin ninguna clave tienes imágenes de satélite, mapas y relieve 3D — y puedes publicar los vídeos. Solo necesitas claves para <strong>MapTiler</strong> (gratis) y <strong>Mapbox</strong> (gratis, pero vídeos solo con derechos comprados).</p>
+<table><thead><tr><th>Fuente</th><th>¿Clave?</th><th>Coste</th><th>¿Publicar vídeos?</th><th>Atribución en la imagen</th></tr></thead><tbody><tr><td><strong>Satélite (gratis)</strong> — ortofotos oficiales</td><td>no</td><td>gratis</td><td>sí</td><td>automática (p. ej. «Ortofoto: PNOA © IGN España»)</td></tr><tr><td><strong>OpenFreeMap</strong> (Liberty, Bright, Positron)</td><td>no</td><td>gratis, sin límite</td><td>sí</td><td>automática (© OpenMapTiles, © OpenStreetMap)</td></tr><tr><td><strong>OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian</strong></td><td>no</td><td>gratis (servidores de la comunidad, sin uso masivo)</td><td>sí</td><td>automática</td></tr><tr><td><strong>Relieve 3D</strong> (AWS Terrain Tiles / Mapzen)</td><td>no</td><td>gratis</td><td>sí</td><td>automática («Terrain: Mapzen/AWS Terrain Tiles»)</td></tr><tr><td><strong>MapTiler</strong> (Satélite, Híbrido, Outdoor, Topo, Streets + su propio relieve)</td><td><strong>sí</strong></td><td>plan gratis (100.000 peticiones de teselas al mes, <strong>solo no comercial</strong>); Flex desde unos 30 $/mes</td><td><strong>sí, hasta 100.000 suscriptores</strong> (Cloud Terms §5)</td><td>automática (© MapTiler © OpenStreetMap contributors)</td></tr><tr><td><strong>Mapbox</strong> (Satélite 3D, Satélite + calles, Outdoors, Streets, Claro, Oscuro)</td><td><strong>sí</strong> (token <code>pk.…</code>)</td><td>plan gratis 50.000 cargas de mapa al mes, tarjeta al registrarse</td><td><strong>solo con derechos de vídeo comprados</strong> (Product Terms §1.7)</td><td>automática (© Mapbox © OpenStreetMap)</td></tr></tbody></table>
+<blockquote>⚠️ <strong>La atribución abajo a la derecha forma parte del vídeo.</strong> No la recortes — todas las fuentes la exigen, Mapbox y MapTiler expresamente.</blockquote>
+<h4 id="qu-ortofotos-oficiales-hay-detr-s-de-sat-lite-gratis">¿Qué ortofotos oficiales hay detrás de «Satélite (gratis)»?</h4>
+<p>La app elige la fuente según la posición del track; bajo el campo de estilo se muestra cuál está activa. A 3 de septiembre de 2026:</p>
 <ul>
-<li><strong>Con token de Mapbox</strong> (recomendado) — todas las funciones, gratis en 2 minutos</li>
-<li><strong>Sin token (OSM)</strong> — funciona al instante, pero solo con el mapa estándar (sin Satellite, sin 3D)</li>
+<li><strong>Alemania (estado por estado):</strong> Baden-Wurtemberg, Baviera (CC BY 4.0), Berlín (TrueDOP), Brandeburgo, Bremen (CC BY 4.0), Hesse, Mecklemburgo-Pomerania Occidental, Baja Sajonia (CC BY 4.0), Renania del Norte-Westfalia, Renania-Palatinado, Sarre, Sajonia, Sajonia-Anhalt, Schleswig-Holstein (CC BY 4.0), Turingia — casi todo bajo «Datenlizenz Deutschland – Namensnennung 2.0». <strong>Falta Hamburgo</strong> (sin servicio accesible). Cerca de una frontera entre estados la app superpone los vecinos.</li>
+<li><strong>Europa:</strong> Austria (basemap.at, CC BY 4.0), Suiza (swisstopo), Luxemburgo (CC0), Países Bajos (PDOK, CC BY 4.0), Francia (IGN Géoplateforme), <strong>España con Canarias (PNOA © IGN, CC BY 4.0)</strong>, Portugal (DGT, CC BY 4.0), Italia (Geoportale Nazionale, 2012), Chequia (ČÚZK), Polonia (GUGiK), Estonia (Maa-amet, CC BY 4.0).</li>
+<li><strong>Mundo:</strong> Japón (GSI), EE. UU. con Alaska y Hawái (USGS, dominio público).</li>
+<li><strong>Aún sin fuente gratis</strong> para Escandinavia, Reino Unido, Irlanda y Canadá — ahí la app pasa al mapa OpenFreeMap con relieve; para satélite usa MapTiler.</li>
 </ul>
-<p><strong>Así consigues un token gratuito de Mapbox:</strong></p>
+<h4 id="conseguir-una-clave-de-maptiler-gratis-3-minutos">Conseguir una clave de MapTiler (gratis, 3 minutos)</h4>
 <ol>
-<li>Crea una cuenta en <a href="https://account.mapbox.com/auth/signup" target="_blank" rel="noopener">account.mapbox.com</a></li>
-<li>Haz clic en el correo de confirmación</li>
-<li>En el panel, ve a <a href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener">Access tokens</a></li>
-<li>Copia el «Default public token» — empieza por <code>pk.eyJ…</code></li>
-<li>Pégalo en la app en el campo del token → Guardar</li>
+<li>Crea una cuenta en <a href="https://cloud.maptiler.com/" target="_blank" rel="noopener">cloud.maptiler.com</a> — correo + contraseña o Google/GitHub, <strong>sin tarjeta</strong>.</li>
+<li>Haz clic en el correo de confirmación.</li>
+<li>En el menú de la izquierda abre <strong>API Keys</strong> (directo: <a href="https://cloud.maptiler.com/account/keys/" target="_blank" rel="noopener">cloud.maptiler.com/account/keys</a>). Ya hay una clave — cópiala (20 caracteres, letras y cifras).</li>
+<li>En la app: <strong>Ajustes → Proveedores de mapas → Clave de MapTiler</strong>, pega → Guardar. La app se recarga y los estilos MapTiler aparecen en la lista.</li>
 </ol>
-<blockquote>⚠️ <strong>Datos de pago</strong>: el formulario de registro <strong>no</strong> pide tarjeta de crédito — pide nombre, correo, nombre de usuario y contraseña (comprobado el 01.08.2026). Mapbox puede pedir una tarjeta más adelante o a partir de cierto uso. <strong>No se cobra nada</strong> mientras te mantengas en el plan gratuito.</blockquote>
+<blockquote>⚠️ <strong>Deja vacío «Allowed HTTP origins» en la clave.</strong> Si pones ahí una web, MapTiler bloquea el render (funciona sin dirección de navegador) — la vista previa iría, el vídeo saldría negro.</blockquote>
 <blockquote></blockquote>
-<blockquote>💡 <strong>Nivel gratuito: 50 000 cargas de mapa al mes — gratis.</strong> En la práctica alcanza para muchísimos renders. Con un uso normal de aficionado nunca verás una factura — tendrías que producir de forma realmente intensiva para llegar al límite.</blockquote>
-<p><strong>Cambiar el token después</strong>: menú de macOS → <strong>Reisezoom</strong> → <strong>Preferencias…</strong> (o Cmd+,) — Windows/Linux: botón ⚙ arriba a la derecha.</p>
+<blockquote>💡 <strong>Plan gratis:</strong> 100.000 peticiones de teselas al mes, suficiente para muchos renders. Está limitado a <strong>uso no comercial</strong> — un canal monetizado necesita el plan Flex (unos 30 $/mes). Los vídeos para canales de hasta 100.000 suscriptores están permitidos según MapTiler Cloud Terms §5; por encima, pregunta antes a MapTiler.</blockquote>
+<h4 id="conseguir-un-token-de-mapbox-gratis-pero-lee-antes-el-aviso">Conseguir un token de Mapbox (gratis — pero lee antes el aviso)</h4>
+<p>Mapbox permite <strong>publicar vídeos</strong> con su cartografía <strong>solo con derechos de vídeo comprados</strong> (Product Terms §1.7 «Print or Video Use»). Para YouTube, Instagram, etc. elige un estilo gratis o MapTiler. El token sigue teniendo sentido si usas los estilos Mapbox en privado o has comprado derechos.</p>
+<ol>
+<li>Crea una cuenta en <a href="https://account.mapbox.com/auth/signup" target="_blank" rel="noopener">account.mapbox.com</a> — desde mediados de 2026 Mapbox pide <strong>tarjeta de crédito</strong> al registrarse; en el plan gratis no se cobra nada.</li>
+<li>Haz clic en el correo de confirmación.</li>
+<li>En el panel abre <a href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener">Access tokens</a>.</li>
+<li>Copia el «Default public token» — empieza por <code>pk.eyJ…</code></li>
+<li>En la app: <strong>Ajustes → Proveedores de mapas → Token de Mapbox</strong>, pega → Guardar.</li>
+</ol>
+<blockquote>💡 Plan gratis: 50.000 cargas de mapa al mes. Antes de renderizar un vídeo con un estilo Mapbox la app recuerda una vez por sesión la situación de derechos — no bloquea nada.</blockquote>
+<p><strong>Cambiar las claves después</strong>: menú de macOS → <strong>Reisezoom</strong> → <strong>Preferencias…</strong> (o Cmd+,) — Windows/Linux: botón ⚙ arriba a la derecha → <strong>Proveedores de mapas</strong>.</p>
 <h3 id="cambiar-de-idioma">Cambiar de idioma 🌍</h3>
 <p>La app arranca automáticamente en el <strong>idioma del sistema</strong> (alemán, inglés o español — con inglés como reserva). Se cambia en el <strong>modal de preferencias ⚙</strong> → menú desplegable de idioma. Activo al instante, sin necesidad de reiniciar.</p>
 <h3 id="ajustar-la-calidad-de-render-y-la-exportaci-n">Ajustar la calidad de render y la exportación ⭐</h3>
