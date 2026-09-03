@@ -281,7 +281,8 @@ async function openSettingsModal() {
                placeholder="${t("settings.maptiler.placeholder", "API-Key aus cloud.maptiler.com")}" value="${(maptilerKey || "").replace(/"/g, '&quot;')}">
         <p class="muted" style="margin-top:6px; font-size:11px; line-height:1.5;">
           ${t("settings.maptiler.help", "Satellit und Gelände weltweit aus einer Hand. Videos für Kanäle bis 100.000 Abonnenten erlaubt (Nennung im Bild); der Gratistarif gilt für nicht-kommerzielle Nutzung.")}
-          &nbsp;<a href="#" id="md-maptiler-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">cloud.maptiler.com</a>
+          &nbsp;<a href="#" id="md-maptiler-help-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.maptiler.help_link", "Wie bekomme ich einen Schlüssel?")}</a>
+          &nbsp;·&nbsp;<a href="#" id="md-maptiler-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">cloud.maptiler.com</a>
         </p>
 
         <p class="muted" style="margin:14px 0 4px; display:flex; justify-content:space-between; align-items:baseline;">
@@ -474,6 +475,9 @@ function _bindSettingsModalHandlers() {
     // Änderungen verloren — reproduzierbar mit drei Klicks.
     openMapboxHelpModal(_bindSettingsModalHandlers);
   };
+  // 03.09.2026 — dasselbe für MapTiler
+  const _mth = document.getElementById("md-maptiler-help-link");
+  if (_mth) _mth.onclick = (e) => { e.preventDefault(); openMapTilerHelpModal(_bindSettingsModalHandlers); };
   // v0.8.0: Direkt-Link zum Mapbox-Usage-Dashboard. Öffnet im externen
   // Browser via pywebview-Bridge (Marc kann dort seinen Verbrauch sehen).
   const usageLink = document.getElementById("md-mapbox-usage-link");
@@ -663,6 +667,37 @@ function _bindSettingsModalHandlers() {
     openModal({}).close();
   };
 }
+
+/** 03.09.2026 — Schlüssel-Hilfe für MapTiler, Gegenstück zu openMapboxHelpModal. */
+function openMapTilerHelpModal(zurueck) {
+  openModal({
+    restorePrevious: zurueck,
+    title: t("maptiler_help.title", "MapTiler-Schlüssel besorgen"),
+    body: `
+      <p>${t("maptiler_help.intro")}</p>
+      <ol style="margin-top:14px; padding-left:18px; line-height:1.7;">
+        <li>${t("maptiler_help.step1")}
+          &nbsp;<a href="#" data-url="https://cloud.maptiler.com/" class="md-link">cloud.maptiler.com</a></li>
+        <li>${t("maptiler_help.step2")}</li>
+        <li>${t("maptiler_help.step3")}</li>
+        <li>${t("maptiler_help.step4")}</li>
+      </ol>
+      <div style="margin-top:12px; padding:10px 14px; background:rgba(255,165,0,0.08); border-left:3px solid #ff9d3a; border-radius:6px; font-size:12.5px; line-height:1.55;">
+        ${t("maptiler_help.origins")}
+      </div>
+      <p class="muted" style="margin-top:14px; font-size:11.5px; line-height:1.55;">${t("maptiler_help.tier_info")}</p>
+    `,
+    footer: `
+      <button class="btn" id="md-mth-open" data-url="https://cloud.maptiler.com/account/keys/">${t("maptiler_help.btn.open", "MapTiler-Konto öffnen")}</button>
+      <button class="btn btn-primary" id="md-mth-ok">${t("common.ok")}</button>
+    `,
+  });
+  document.querySelectorAll(".md-link, #md-mth-open").forEach(a => {
+    a.addEventListener("click", (e) => { e.preventDefault(); api().open_url(a.dataset.url); });
+  });
+  document.getElementById("md-mth-ok").onclick = () => openModal({}).close();
+}
+window.openMapTilerHelpModal = openMapTilerHelpModal;
 
 function openMapboxHelpModal(zurueck) {
   openModal({

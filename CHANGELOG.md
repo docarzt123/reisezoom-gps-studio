@@ -18,6 +18,15 @@ Bei jeder neuen Version:
 
 ### Drei Meldungen eines Beta-Testers (Windows, spanische Oberfläche, 4 Touren als Schwarm)
 
+#### Hinzugefügt
+- **Doku „Kartenquellen & Schlüssel"** im Benutzerhandbuch (DE/EN/ES): Tabelle
+  aller Quellen mit Schlüsselpflicht, Kosten, Videorecht und Nennung; welche
+  amtlichen Luftbilder hinter „Satellit (kostenlos)" stecken; Schritt-für-Schritt
+  zum MapTiler-Schlüssel (inkl. Falle „Allowed HTTP origins" leer lassen) und
+  zum Mapbox-Token. In den Einstellungen dazu „Wie bekomme ich einen Schlüssel?"
+  für MapTiler als eigener Hilfe-Dialog; der Mapbox-Hilfetext nennt jetzt die
+  Rechtelage statt eines „mitgelieferten Standard-Tokens", den es nicht mehr gibt.
+
 #### Behoben
 - **Bibliotheks-Dialoge kamen auf Deutsch** („Willkommen bei GPS Studio",
   „Deine Daten sind umgezogen"), obwohl die Oberfläche Spanisch war: Die
