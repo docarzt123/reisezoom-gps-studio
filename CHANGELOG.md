@@ -43,6 +43,11 @@ Bei jeder neuen Version:
   Rechtelage statt eines „mitgelieferten Standard-Tokens", den es nicht mehr gibt.
 
 #### Behoben
+- **Render brach mit „map.getFreeCameraOptions is not a function“ ab**, sobald
+  „Ruhige Kamera (3D)“ mit einem Nicht-Mapbox-Stil lief: Die entkoppelte
+  FreeCamera gibt es nur in Mapbox GL. Auf MapLibre läuft jetzt die klassische
+  Kamera, mit Vermerk im Fortschritt — kein Abbruch mehr. **Offen:** ruhige
+  3D-Kamera für MapLibre-Stile nachbauen.
 - **Zusammengeführte Touren hießen nach der ersten Route** statt nach dem
   gewählten Namen („3 Rutas" → „01 - Leon Astorga"): Der gewählte Name steht
   in `<metadata><name>`, die App las nur den ersten `<trk>`. Metadaten-Name
