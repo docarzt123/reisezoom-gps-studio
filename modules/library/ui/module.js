@@ -2109,7 +2109,8 @@ function mountLibrary(body, headerActions) {
 
     const created = createMap({
       container: "lib-map",
-      mapboxStyle: "mapbox://styles/mapbox/outdoors-v12",
+      // 03.09.2026 — gemeinsame Stilliste (Einstellung je Modul).
+      styleKey: (_settingsCache && _settingsCache.library && _settingsCache.library.map_style) || mapDefaultStyle(),
       // `preserveDrawingBuffer`: ohne das liefert `toDataURL()` eine schwarze
       // Fläche — WebGL verwirft den Puffer nach jedem Bild. Kostet etwas
       // Zeichenleistung, aber ohne wäre der PNG-Export nicht möglich.
@@ -2120,6 +2121,15 @@ function mountLibrary(body, headerActions) {
     // Für die automatischen Tests greifbar (wie in den anderen Modulen üblich).
     window.__libMap = _map;
     _map.addControl(new created.lib.NavigationControl({ showCompass: false }), "top-right");
+    try {
+      const cv = document.getElementById("lib-map");
+      if (cv && cv.parentElement && typeof attachMapStyleControl === "function") {
+        attachMapStyleControl(cv.parentElement, {
+          section: "library", getMap: () => _map,
+          getBbox: () => { try { const b = _map.getBounds(); return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]; } catch (_) { return null; } },
+        });
+      }
+    } catch (_) {}
     _map.on("load", () => {
       _mapReady = true;
       _map.addSource("lib-tracks", { type: "geojson", data });

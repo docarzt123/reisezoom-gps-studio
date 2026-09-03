@@ -5,14 +5,14 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 02 Sep 2026 17:59:52 +0000</lastBuildDate>
+<lastBuildDate>Wed, 02 Sep 2026 20:56:05 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
 <item>
 <title>v0.9.650 — Weitermachen, wo du aufgehört hast.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-650</link>
 <guid isPermaLink="false">gps-studio-v0.9.650</guid>
-<pubDate>Wed, 02 Sep 2026 20:00:00 +0000</pubDate>
-<description>▶ Die App startet dort, wo du aufgehört hast: zuletzt bearbeitetes Projekt, seine Tour, dasselbe Modul. Dazu: Das Archiv behält Suchbegriff und Sammlung, neue Projekte heißen nach ihrer Tour, im Inspektor sind die Punkte Richtungspfeile, und auf der Projektkarte öffnet ein Klick das Projekt direkt im gewünschten Modul.</description>
+<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
+<description>▶ Die App startet dort, wo du aufgehört hast. Zuletzt bearbeitetes Projekt, seine Tour, dasselbe Modul — kein Suchen mehr nach dem Stand von gestern. Wer lieber im Archiv beginnt, schaltet es in den Einstellungen ab.</description>
 </item>
 <item>
 <title>v0.9.649 — Das Archiv sortiert wieder sofort.</title>
@@ -176,17 +176,6 @@ Beim Scrollen lief die Liste über ihre Kopfzeile. Jetzt bleibt die Kopfzeile sa
 🩹 Am Rechner gefunden. Der unsichtbare Kino-Flug zwischen zwei zusammengeführten Touren zog doch einen schwarzen Bogen über die Karte — sein Schatten war nicht mitversteckt, in der Vorschau wie im fertigen Video. Behoben. Ebenso: der interne Übergangs-Marker stand als wählbares Datenfeld zwischen Puls und Trittfrequenz, und der Zeitzonen-Hinweis zählte Kameras auf, die ihre Zeitzone längst mitbringen.
 
 🧭 Die Modul-Symbole bleiben. Ist das Fenster zu schmal für die Modul-Leiste, schrumpft sie automatisch. Bisher verschwanden dabei ausgerechnet die Symbole zuerst, und übrig blieben abgeschnittene Wörter wie „Daten-Ani…&quot;. Jetzt andersherum: erst geht die kleine Unterzeile, dann werden die Namen gekürzt, und zuletzt bleiben nur noch die Symbole — den vollen Namen zeigt der Tooltip. Fenster breiter ziehen holt alles zurück.</description>
-</item>
-<item>
-<title>v0.9.539 — Mehrere Touren, ein Video.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-539</link>
-<guid isPermaLink="false">gps-studio-v0.9.539</guid>
-<pubDate>Sun, 23 Aug 2026 12:00:00 +0000</pubDate>
-<description>🧭 Touren zusammenführen. Im Archiv mehrere Touren markieren und „Zu einem Video zusammenführen“ wählen: Reihenfolge ziehen, Übergang aussuchen — Kino-Flug, sichtbare Luftlinie, echte Anreise über die Straße oder harter Schnitt. Daraus wird ein ganz normaler Track, mit dem alles geht, was der Animator kann: Keyframes, Schilder, Zeitleiste.
-
-📊 Tageswert und Gesamtsumme nebeneinander. Neue Overlay-Felder zeigen „Etappe“, „Etappe Nr.“, „In dieser Etappe“ und „Zeit in der Etappe“ — während rechts weiter die Gesamtstrecke läuft. Jede Etappe kann ihre eigene Farbe haben.
-
-✂️ Kein Strich mehr über die Karte. Mehrtages-Touren in einer Datei zogen bisher eine Linie quer von Etappenende zu Etappenanfang. Die ist jetzt unsichtbar — im Video und in der Vorschau.</description>
 </item>
 </channel>
 </rss>

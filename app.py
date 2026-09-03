@@ -96,6 +96,8 @@ from core import autotag as cautotag  # v0.9.349 — Bilderkennung (Apple Vision
 from core import backup as cbak
 from core import drops as cdrops
 from core import animator as canim
+from core import mapstyles as cmapstyles  # 03.09.2026 — Kartenanbieter zur Auswahl
+from core import tileproxy as ctileproxy  # 03.09.2026 — Kachel-Weiche (CORS + Zwischenspeicher)
 from core import merge as cmerge   # 23.08.2026 — mehrere Touren zu einem Track
 from core import sessions as _sessions
 from core import projekte as _projekte  # v0.8.0: Sessions + Projekte
@@ -155,7 +157,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.650"
+APP_VERSION = "0.9.651"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -340,6 +342,8 @@ LIBRARY_MAP_THUMBS = BIB / "bilder" / "karten"
 LIBRARY_COVERS = BIB / "bilder" / "titel"
 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
 BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
+# 03.09.2026 — Kachel-Zwischenspeicher des Renders (Grenze folgt den Einstellungen)
+canim.TILE_CACHE_DIR = APP_SUPPORT / "_tilecache"
 DROPS_DIR.mkdir(parents=True, exist_ok=True)
 TOURMAPS_DIR.mkdir(parents=True, exist_ok=True)
 # ⚠️ SESSIONS_GPX_DIR wird hier BEWUSST nicht angelegt: Es liegt in der
@@ -430,7 +434,11 @@ DEFAULT_SETTINGS = {
     "start_fortsetzen": True,
     "letztes_projekt": "",         # id, gesetzt von `projekt_aktivieren`
     "language": "auto",            # 'auto' | 'de' | 'en' | 'es'
-    "mapbox_token": "",            # leer → OSM-Fallback; sonst User-Token
+    "mapbox_token": "",            # leer → Mapbox-Stile weichen auf „Satellit (kostenlos)" aus
+    # 03.09.2026 — Kartenanbieter zur Auswahl (core/mapstyles.py)
+    "maptiler_key": "",            # MapTiler Cloud API-Key; leer → MapTiler-Stile weichen aus
+    "map_style_default": "free_satellite",   # Werkseinstellung für Karten ohne eigene Wahl
+    "tile_cache_mb": 2048,         # Kachel-Zwischenspeicher des Renders (0 = aus)
     # v0.9.247 — OSM-Modus erzwingen (Test): App läuft als hätte sie keinen
     # Token; der gespeicherte Token bleibt aber erhalten.
     "force_osm": False,
@@ -471,7 +479,7 @@ DEFAULT_SETTINGS = {
         "encoder_preset": "fast",  # libx264/265 Tempo↔Größe
     },
     "animator": {
-        "map_style": "satellite",
+        "map_style": "free_satellite",   # 03.09.2026: kostenlos + Video erlaubt
         "duration_s": 12,
         "hold_s": 5,
         # v0.9.59 (Nutzer-Wunsch): Intro-Hold am Anfang. Default 0 = aus.
@@ -584,7 +592,7 @@ DEFAULT_SETTINGS = {
         "folder_recursive": False,          # Unterordner-Checkbox-State
     },
     "tourmap": {
-        "map_style": "satellite",
+        "map_style": "free_satellite",   # 03.09.2026: kostenlos + Video erlaubt
         "width": 1920,
         "height": 1080,
         "pitch": 35.0,
@@ -998,6 +1006,34 @@ def _is_mapbox_configured() -> bool:
     return bool(_active_mapbox_token())
 
 
+def _track_bbox_lonlat(track) -> "tuple | None":
+    """[[lat, lon], …] → (lon_min, lat_min, lon_max, lat_max) für mapstyles."""
+    try:
+        lats = [float(p[0]) for p in track]; lons = [float(p[1]) for p in track]
+        if not lats:
+            return None
+        return (min(lons), min(lats), max(lons), max(lats))
+    except Exception:
+        return None
+
+
+def _active_maptiler_key() -> str:
+    """MapTiler-Schlüssel aus den Einstellungen (03.09.2026). Leer = keiner."""
+    s = _load_settings()
+    key = (s.get("maptiler_key") or "").strip()
+    return key if len(key) >= 8 else ""
+
+
+def _sync_tile_cache_settings() -> None:
+    """Kachel-Zwischenspeicher des Renders an die Einstellungen koppeln."""
+    try:
+        mb = int(_load_settings().get("tile_cache_mb", 2048) or 0)
+    except (TypeError, ValueError):
+        mb = 2048
+    canim.TILE_CACHE_MAX_MB = mb
+    canim.TILE_CACHE_DIR = (APP_SUPPORT / "_tilecache") if mb > 0 else None
+
+
 # ── Lokaler Media-HTTP-Server (v0.9.160) ──────────────────────────────────────
 # WKWebView lädt <video src="file://…"> von externen Volumes/anderen Ordnern NICHT
 # zuverlässig: pywebview setzt `allowFileAccessFromFileURLs` (deshalb laden CSS/JS
@@ -1033,7 +1069,34 @@ class _MediaRequestHandler(_httpserver.BaseHTTPRequestHandler):
     def do_GET(self):
         self._serve(head_only=False)
 
+    def _serve_tile(self, head_only: bool) -> bool:
+        """03.09.2026 — Kachel-Weiche `/tile/<region>/<z>/<x>/<y>[?t=1]`
+        (core/tileproxy.py): holt die Kachel beim Landesdienst, speichert sie
+        im Zwischenspeicher und liefert sie MIT CORS-Freigabe an die WebGL-Karte."""
+        req = ctileproxy.parse_request_path(self.path)
+        if req is None:
+            return False
+        try:
+            _sync_tile_cache_settings()
+            status, ctype, body = ctileproxy.fetch_tile(*req, cache_dir=canim.TILE_CACHE_DIR)
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "max-age=86400")
+            self.end_headers()
+            if not head_only:
+                try: self.wfile.write(body)
+                except (BrokenPipeError, ConnectionResetError): pass
+        except Exception as e:
+            log.warning("Kachel-Weiche: %s", e)
+            try: self.send_error(500)
+            except Exception: pass
+        return True
+
     def _serve(self, head_only: bool):
+        if self._serve_tile(head_only):
+            return
         fp = self._resolve()
         if not fp or not os.path.isfile(fp):
             try: self.send_error(404)
@@ -1097,6 +1160,15 @@ def _ensure_media_server() -> int:
         _media_httpd = httpd
         log.info("Media-HTTP-Server läuft auf 127.0.0.1:%d", _media_port)
         return _media_port
+
+
+def _tile_proxy_base() -> str:
+    """Adresse der lokalen Kachel-Weiche (startet den Media-Server bei Bedarf)."""
+    try:
+        return f"http://127.0.0.1:{_ensure_media_server()}"
+    except Exception as e:
+        log.warning("Kachel-Weiche nicht verfügbar: %s", e)
+        return ""
 
 
 def _height_visual_cfg_kwargs(params: dict) -> dict:
@@ -1290,6 +1362,46 @@ class Api:
 
     def get_mapbox_token(self) -> str:
         return _active_mapbox_token()
+
+    # ── 03.09.2026: Kartenanbieter zur Auswahl ────────────────────────────
+    def map_catalog(self) -> dict:
+        """Stilliste, Gelände-Quellen, Orthofoto-Regionen und Schlüssel für die
+        Oberfläche. Die Schlüsselwerte selbst sind dabei, weil die Karte im
+        WebView die Kachel-URLs damit baut (bleibt auf diesem Rechner)."""
+        tok = _active_mapbox_token()
+        mt = _active_maptiler_key()
+        cat = cmapstyles.catalog_for_ui(has_mapbox=bool(tok), has_maptiler=bool(mt), proxy_base=_tile_proxy_base())
+        cat["key_values"] = {"mapbox": tok, "maptiler": mt}
+        s = _load_settings()
+        d = s.get("map_style_default") or cmapstyles.DEFAULT_STYLE
+        cat["default_style"] = d if d in cmapstyles.STYLE_BY_KEY else cmapstyles.DEFAULT_STYLE
+        return cat
+
+    def map_style_resolve(self, style_key: str, bbox=None, want_terrain: bool = True) -> dict:
+        """Denselben Stil auflösen wie der Render — für Vorschau und Hinweise."""
+        try:
+            return {"ok": True, **cmapstyles.resolve(
+                str(style_key or ""), mapbox_token=_active_mapbox_token(),
+                maptiler_key=_active_maptiler_key(), bbox=bbox, want_terrain=bool(want_terrain),
+                proxy_base=_tile_proxy_base())}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def maptiler_key_info(self) -> dict:
+        key = (_load_settings().get("maptiler_key") or "").strip()
+        return {"is_configured": bool(key), "preview": (key[:6] + "…") if key else ""}
+
+    def tile_cache_info(self) -> dict:
+        _sync_tile_cache_settings()
+        return {"bytes": canim.tile_cache_size_bytes(), "max_mb": canim.TILE_CACHE_MAX_MB,
+                "dir": str(canim.TILE_CACHE_DIR or "")}
+
+    def tile_cache_clear(self) -> dict:
+        _sync_tile_cache_settings()
+        try:
+            return {"ok": True, "deleted": canim.tile_cache_clear()}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def mapbox_token_info(self) -> dict:
         """Liefert Status des aktuell gesetzten Tokens fürs Settings-UI."""
@@ -4581,7 +4693,10 @@ class Api:
         # Mapbox-Token rendern (OSM-Raster-Karte). Ein Video braucht weiter einen
         # Token (das Frontend blockt den Video-Render im OSM-Modus). OSM-Karte ist
         # flach → Terrain aus, Pitch 0.
-        _osm_render = _still and not _active_mapbox_token()
+        # 03.09.2026 — kein OSM-Zwang mehr: ohne Token weicht der Stil selbst
+        # aus (core/mapstyles.resolve), Video und Gelände gehen mit jeder Quelle.
+        _osm_render = False
+        _sync_tile_cache_settings()
         target_ext = ".png" if _still else (".mov" if needs_mov else ".mp4")
         _valid_exts = (".png",) if _still else (".mp4", ".mov")
 
@@ -4617,6 +4732,8 @@ class Api:
             gpx_path=gpx_path,
             output_path=out_path,
             mapbox_token=_active_mapbox_token(),
+            maptiler_key=_active_maptiler_key(),
+            tile_proxy_base=_tile_proxy_base(),
             map_style=effective_map_style,
             # v0.9.391 — OSM-Fallback für die Tour-Map (kein Token → OSM-Raster).
             use_osm=_osm_render,
@@ -4937,14 +5054,9 @@ class Api:
         if not gpx_path or not Path(gpx_path).exists():
             return {"ok": False, "error": _ui_t()("error.gpx_datei_fehlt_oder_existiert", "GPX-Datei fehlt oder existiert nicht")}
 
-        # Mapbox-Token-Check (Static-Map braucht zwingend Mapbox)
+        # 03.09.2026 — kein Token nötig: ohne Mapbox weicht der Stil aus.
         token = _active_mapbox_token()
-        if not token or not token.startswith("pk."):
-            return {
-                "ok": False,
-                "error_code": "mapbox_token_missing",
-                "error": _ui_t()("error.tour_karten_brauchen_einen_mapbox", "Tour-Karten brauchen einen Mapbox-Token (Settings → Mapbox-Token)."),
-            }
+        _sync_tile_cache_settings()
 
         # Pre-Flight: Chromium für Playwright vorhanden?
         pw = self.playwright_check()
@@ -4985,6 +5097,8 @@ class Api:
             gpx_path=gpx_path,
             output_path=out_path,
             mapbox_token=token,
+            maptiler_key=_active_maptiler_key(),
+            tile_proxy_base=_tile_proxy_base(),
             still_frame=True,
             map_style=params.get("map_style", "satellite"),
             width=int(params.get("width", 1920)),
@@ -5426,7 +5540,10 @@ class Api:
 
             # Gewählter tokenfreier OSM-Kachelstil (Mapbox-Styles → OSM-Standard).
             style_key = params.get("tile_style") or params.get("map_style") or "osm"
-            st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm")
+            # 03.09.2026 — „Satellit (kostenlos)": Land nach Track-Lage, im Export
+            # übernimmt core/mapstyles.resolve die Quelle (kein osm_tiles_url).
+            _frei = (style_key == "free_satellite")
+            st = ctourhtml.tile_style(style_key if (style_key in ctourhtml.OSM_TILE_STYLES and not _frei) else "osm")
             # v0.9.507 — Attribution: außerhalb von Deutsch die kanonische
             # englische OSM-Form („© OpenStreetMap contributors").
             if _ui_sprache() != "de" and st.get("attr"):
@@ -5463,10 +5580,10 @@ class Api:
                 use_osm=True,
                 interactive_export=True,
                 still_frame=True,
-                osm_tiles_url=st["url"],
+                osm_tiles_url=(None if _frei else st["url"]),
                 osm_max_zoom=int(st.get("max", 19) or 19),
                 osm_attribution=st.get("attr"),
-                map_style="osm",
+                map_style=("free_satellite" if _frei else "osm"),
                 width=w, height=h,
                 pitch=_pitch, bearing=_bearing,
                 enable_terrain=False, hide_labels=False,
@@ -5583,7 +5700,8 @@ class Api:
                      if p.lat is not None and p.lon is not None]
 
             style_key = params.get("tile_style") or "osm"
-            st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm")
+            _bb = _track_bbox_lonlat(track)
+            st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm", bbox=_bb)
             # v0.9.507 — Attribution: außerhalb von Deutsch die kanonische
             # englische OSM-Form („© OpenStreetMap contributors").
             if _ui_sprache() != "de" and st.get("attr"):
@@ -5746,7 +5864,8 @@ class Api:
                                "show_pins": bool(params.get("show_pins", True))}]
 
             style_key = params.get("tile_style") or "osm"
-            st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm")
+            _bb = _track_bbox_lonlat(track)
+            st = ctourhtml.tile_style(style_key if style_key in ctourhtml.OSM_TILE_STYLES else "osm", bbox=_bb)
             # v0.9.507 — Attribution: außerhalb von Deutsch die kanonische
             # englische OSM-Form („© OpenStreetMap contributors").
             if _ui_sprache() != "de" and st.get("attr"):

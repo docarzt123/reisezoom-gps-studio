@@ -2488,6 +2488,66 @@ eigenständige `.app` ausgeliefert werden soll, kommt nur ein dünner App-Frame
 dazu der `window.RZGPS_MODULES[<slug>]` lädt und sofort `mount()`-aufruft.
 Der Modul-Code bleibt identisch.
 
+### Kartenanbieter zur Auswahl — `core/mapstyles.py`, `core/tileproxy.py` (v0.9.651)
+
+**Anlass:** Mapbox Product Terms §1.7 verbieten Videos mit Mapbox-Kartenmaterial
+ohne gekaufte Videorechte. Die App bietet seitdem vier weitere Quellen an; die
+Stilliste ist EINE Datei für alle sieben Kartenflächen.
+
+**Single Source of Truth: `core/mapstyles.py`**
+- `STYLES` — je Stil `key`, `provider` (gov | ofm | osm | maptiler | mapbox),
+  `kind` (gov | raster | vector), `terrain` (aws | maptiler | mapbox), `group`.
+- `ORTHO_REGIONS` — staatliche Orthofotos: `bbox`, `tiles` (XYZ/WMTS) ODER
+  `wms` {base, layers, format}, `maxzoom`, `attribution`, optional `scheme: tms`.
+- `TERRAIN` — raster-dem-Quellen; das Gelände hängt am Stil (nie Mapbox-DEM
+  unter einem Nicht-Mapbox-Stil).
+- `resolve(key, mapbox_token, maptiler_key, bbox, want_terrain, proxy_base)` →
+  `{key, engine, style, terrain, attribution, region, notes, badge, video_ok}`.
+  Ausweichkette: Mapbox/MapTiler ohne Schlüssel → `free_satellite`; keine
+  Abdeckung → `ofm_liberty`. Nie abbrechen, immer Vermerk.
+- `region_stack(bbox)` — Deutschland: alle Bundesländer um den Track-
+  Mittelpunkt, kleinste Fläche oben, als PNG mit Alpha übereinander (die
+  Landesdienste liefern außerhalb ihrer Grenzen durchsichtig). Außerhalb
+  Deutschlands genau eine Region.
+- `catalog_for_ui()` — alles fürs Frontend (ohne Schlüsselwerte; die ergänzt
+  `Api.map_catalog`).
+
+**Frontend-Spiegel: `ui/js/util.js`** — `resolveMapStyle()` rechnet mit den
+Katalogdaten dieselbe Logik (bei Änderung BEIDE pflegen; Vermerk-Codes
+`no_mapbox_token | no_maptiler_key | no_coverage`). `createMap({styleKey, bbox,
+terrain})` wählt die Engine: Mapbox-Stile → Mapbox GL JS, alles andere →
+MapLibre GL JS (Lizenz: Mapbox GL JS nicht mit fremden Kacheln). Ein
+Stilwechsel über die Engine-Grenze liefert `needsRemount` → `window.remountActiveModule()`.
+`attachMapStyleControl()` ist der kleine Schalter über Inspektor/Geotagger/
+Archiv (Einstellung je Modul: `gpxinspect.map_style`, `geotagger_map.map_style`,
+`library.map_style`). Animator/Tour-Map nutzen weiter `map_style` im Projekt.
+
+**Render: `core/animator.py`** — `_make_html` ruft `mapstyles.resolve()`,
+setzt `cfg.map_engine`/`cfg.map_spec`; `_maplibre_gl_head()` bettet die
+Bibliothek aus `ui/vendor` ein. `line-z-offset` nur noch über `_zoff_on(cfg)`
+(Mapbox-only-Eigenschaft; MapLibre drapiert Linien selbst). Die Nennung wird
+mit `AttributionControl({compact:false})` nie eingeklappt.
+
+**Kachel-Weiche: `core/tileproxy.py`** — der lokale Media-Server (app.py,
+`_MediaRequestHandler._serve_tile`) beantwortet `/tile/<region>/<z>/<x>/<y>[?t=1]`:
+holt beim Landesdienst (XYZ/TMS/WMS-bbox), speichert in `_tilecache`
+(App-Support; Grenze `tile_cache_mb`, älteste zuerst), antwortet mit
+`Access-Control-Allow-Origin: *`. Nötig, weil SH/ST/SN kein CORS senden und
+WebGL-Karten Kacheln per fetch() laden. Vorschau UND Render (via
+`cfg.tile_proxy_base`) laufen darüber; ohne Server (Tests) gehen die URLs
+direkt zum Dienst und `_install_tile_cache()` (Playwright-Route) übernimmt
+Zwischenspeicher + CORS im Render.
+
+**MapLibre-Fallstricke (beide gelöst, beide Wächter in `tests/test_kartenanbieter.py`):**
+- `setTerrain()` während einer Kamerafahrt → „reading 'wrap'", danach
+  „Attempting to run(), but is already running" bei jedem Bild. Gelände erst
+  nach `moveend` setzen (`applyTerrain`, `rzApplyMapTerrain`).
+- `setStyle()` mit aktivem Gelände → Gelände kam nie zurück. Vor dem Wechsel
+  `map.stop()` + `setTerrain(null)`, nach `style.load` neu anhängen.
+
+**Prüfen:** `tests/test_kartenanbieter.py` (ohne Netz), `scripts/check_map_sources.py`
+(eine echte Kachel je Quelle, mit Netz).
+
 ### Mapbox-Karten
 
 - Pro Modul **eigene Map-Instanz** im `#map-canvas`-Div

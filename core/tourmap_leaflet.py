@@ -142,7 +142,11 @@ def make_leaflet_html(params: dict) -> str:
         "lineColor": line_color, "lineWidth": line_width,
         "showPins": show_pins, "startLabel": start_label, "endLabel": end_label,
         "tile": {"url": tile.get("url"), "sub": tile.get("sub", ""),
-                 "max": int(tile.get("max", 19) or 19), "attr": tile.get("attr", "")},
+                 "max": int(tile.get("max", 19) or 19), "attr": tile.get("attr", ""),
+                 # 03.09.2026 — staatliche Orthofotos: WMS-Angaben / TMS-Flag durchreichen
+                 **({"wms": tile["wms"]} if tile.get("wms") else {}),
+                 **({"tms": True} if tile.get("tms") else {}),
+                 **({"stack": tile["stack"]} if tile.get("stack") else {})},
     }
     D = json.dumps(data, ensure_ascii=False)
 
@@ -228,7 +232,19 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
   iconSize:[20,20], iconAnchor:[10,10] }); }
 (function(){
   var map = L.map('rz-map', { scrollWheelZoom:true });
-  L.tileLayer(D.tile.url, { maxZoom:D.tile.max, subdomains:(D.tile.sub||''), attribution:D.tile.attr }).addTo(map);
+  // 03.09.2026 — staatliche Orthofotos: WMS (L.tileLayer.wms) oder TMS-Kacheln
+  function rzTile(t, attr){
+    return t.wms
+      ? L.tileLayer.wms(t.wms.base, { layers:t.wms.layers, format:(t.wms.format||'image/jpeg'),
+          version:'1.3.0', transparent:!!t.wms.transparent, maxZoom:t.max, attribution:attr })
+      : L.tileLayer(t.url, { maxZoom:t.max, subdomains:(t.sub||''), attribution:attr, tms:!!t.tms });
+  }
+  // Stapel (mehrere Bundesländer, unten → oben): nur die oberste trägt die Nennung
+  if (D.tile.stack && D.tile.stack.length) {
+    D.tile.stack.forEach(function(t, i){ rzTile(t, i === D.tile.stack.length - 1 ? D.tile.attr : '').addTo(map); });
+  } else {
+    rzTile(D.tile, D.tile.attr).addTo(map);
+  }
   // §17 — mehrere Tracks: pro Track eine Polylinie, fitBounds über die Vereinigung.
   var allB = null;
   (D.tracks||[]).forEach(function(t){

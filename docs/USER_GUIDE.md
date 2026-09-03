@@ -322,6 +322,52 @@ Diese Gesamtdatei laden Sie dann oben in der Leiste — und machen mit Schritt 4
 
 ## 2 · Erste Schritte
 
+### Kartenanbieter wählen — kostenlos, MapTiler oder Mapbox (seit v0.9.651) ⭐
+
+**Kurz:** Du brauchst keinen Schlüssel mehr. Die App bringt kostenlose
+Satellitenbilder und Karten mit, und Videos daraus darfst du veröffentlichen.
+
+**Warum es das gibt.** Mapbox erlaubt die Veröffentlichung von Videos mit
+seinem Kartenmaterial nur, wenn man Videorechte gekauft hat (Mapbox Product
+Terms §1.7 „Print or Video Use"). Für YouTube, Instagram & Co. war der
+bisherige Standardstil also ungeeignet. Seit v0.9.651 wählst du den Anbieter —
+auf allen Karten der App aus derselben Liste.
+
+**Die Liste (Animator, Tour-Map, Inspektor, Geotagger, Archiv, Web-Karte):**
+
+| Gruppe | Stile | Rechtelage |
+|---|---|---|
+| **Kostenlos · Video erlaubt** | **Satellit (kostenlos, Land wählt sich selbst)**, Karte Liberty/Bright/Positron (OpenFreeMap), OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian | kein Schlüssel, Videos erlaubt, Nennung steht automatisch im Bild |
+| **MapTiler · eigener Schlüssel** | Satellit, Satellit + Beschriftung, Outdoor, Topo, Streets | kostenloser Schlüssel auf cloud.maptiler.com; Videos für Kanäle bis 100.000 Abonnenten erlaubt; Gratistarif nur nicht-kommerziell |
+| **Mapbox · Video nur mit gekauften Rechten** | Satellit (3D), Satellit + Straßen, Outdoor, Streets, Hell, Dunkel | Token nötig; Veröffentlichung von Videos nur mit gekauften Videorechten |
+
+**Satellit (kostenlos)** nimmt die amtlichen Luftbilder der Landesvermessung —
+meist schärfer als Mapbox (20–50 cm). Dabei: 15 deutsche Bundesländer (Hamburg
+fehlt derzeit), Österreich, Schweiz, Luxemburg, Niederlande, Frankreich,
+Spanien mit Kanaren, Portugal, Italien, Tschechien, Polen, Estland, Japan und
+die USA. Welche Quelle gerade greift, steht unter dem Stil-Feld
+(„Luftbild: Brandenburg"). Liegt der Track außerhalb, weicht die App still auf
+die OpenFreeMap-Karte mit 3D-Gelände aus — und sagt es dir an derselben Stelle.
+
+**3D-Gelände** gibt es jetzt mit jeder Quelle: Mapbox-Stile nutzen das
+Mapbox-Gelände, MapTiler-Stile das von MapTiler, alle kostenlosen Stile das
+AWS-Geländemodell (Mapzen). Das Gelände hängt fest am Stil — in einem Video
+ohne Mapbox stecken auch keine Mapbox-Daten.
+
+**Einstellungen → Kartenanbieter:** Standardstil für neue Projekte (ab Werk
+„Satellit (kostenlos)"; bestehende Projekte behalten ihren Stil), Mapbox-Token,
+MapTiler-Schlüssel und der **Kachel-Zwischenspeicher** (Standard 2 GB;
+„Leeren"-Knopf). Geladene Kacheln bleiben auf der Platte — der zweite Render
+derselben Gegend geht schneller.
+
+**Vor einem Video-Render mit Mapbox-Stil** erinnert die App einmal je Sitzung an
+die Rechtelage. Sie sperrt nichts: Wer Rechte gekauft hat oder nur privat
+schaut, rendert einfach weiter.
+
+**Wichtig fürs Veröffentlichen:** Die Nennung der Quelle unten rechts im Bild
+gehört zum Video. Bitte nicht wegschneiden — Mapbox wie MapTiler wie die
+Landesvermessungen verlangen sie.
+
 ### Mapbox-Token einrichten 🗺️
 Ein Mapbox-Token ist ein **kostenloser Zugangsschlüssel** für Satellit-, 3D- und Premium-Karten. Der **Animator** (bewegte Karten-Animation) braucht ihn. **Vieles geht aber auch ohne Token:** 📷 Fotos verorten (Geotagger) · 🗺️ Tour-Karte als Bild/Export · 🧭 Tracks ansehen & aufräumen (Inspektor) · 📈 Höhenprofil-/Daten-Videos.
 

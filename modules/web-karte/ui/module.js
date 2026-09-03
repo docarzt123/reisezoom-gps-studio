@@ -156,9 +156,24 @@
     let _ro = null, _gpxUnsub = null, _sessUnsub = null;
 
     function tileFor(id) {
+      // 03.09.2026 — „Satellit (kostenlos)": Orthofoto nach Track-Lage (util.js).
+      if (typeof rzLeafletTileLayer === "function") return rzLeafletTileLayer(id, _trackBboxLonLat());
       const s = styles[id] || styles.osm;
       const urls = (s.sub && s.sub.length) ? s.sub.map((d) => s.url.replace("{s}", d)) : [s.url];
       return L.tileLayer(urls[0], { maxZoom: s.max || 19, subdomains: (s.sub || []).join(""), attribution: s.attr || "" });
+    }
+    function _coordsForBbox() {
+      if (Array.isArray(track) && track.length) return track;
+      try { const all = []; for (const tr of (tracks || [])) for (const c of (tr.coords || tr.c || [])) all.push(c); return all; } catch (_) { return []; }
+    }
+    function _trackBboxLonLat() {
+      try {
+        const pts = (typeof _coordsForBbox === "function") ? _coordsForBbox() : null;
+        if (!pts || !pts.length) return null;
+        let a = 999, b = 999, c = -999, d = -999;
+        for (const p of pts) { const lat = p[0], lon = p[1]; if (lon < a) a = lon; if (lat < b) b = lat; if (lon > c) c = lon; if (lat > d) d = lat; }
+        return [a, b, c, d];
+      } catch (_) { return null; }
     }
     function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 

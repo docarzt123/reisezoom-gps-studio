@@ -304,6 +304,51 @@ Después carga ese archivo en la barra de arriba — y sigue con el paso 4.
 
 ## 2 · Primeros pasos
 
+### Elegir el proveedor de mapas — gratis, MapTiler o Mapbox (desde v0.9.651) ⭐
+
+**En resumen:** ya no necesitas ninguna clave. La app incluye imágenes de
+satélite y mapas gratuitos, y los vídeos hechos con ellos se pueden publicar.
+
+**Por qué.** Mapbox solo permite publicar vídeos con su cartografía si has
+comprado derechos de vídeo (Mapbox Product Terms §1.7 «Print or Video Use»).
+El estilo por defecto anterior no servía para YouTube, Instagram, etc. Desde
+v0.9.651 eliges el proveedor — la misma lista en todos los mapas de la app.
+
+**La lista (Animator, Tour Map, Inspector, Geotagger, Archivo, Mapa web):**
+
+| Grupo | Estilos | Derechos |
+|---|---|---|
+| **Gratis · vídeo permitido** | **Satélite (gratis, el país se elige solo)**, Mapa Liberty/Bright/Positron (OpenFreeMap), OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian | sin clave, vídeos permitidos, la atribución aparece automáticamente en la imagen |
+| **MapTiler · clave propia** | Satélite, Satélite + etiquetas, Outdoor, Topo, Streets | clave gratis en cloud.maptiler.com; vídeos permitidos para canales de hasta 100.000 suscriptores; el plan gratis es solo para uso no comercial |
+| **Mapbox · vídeo solo con derechos comprados** | Satélite (3D), Satélite + calles, Outdoors, Streets, Claro, Oscuro | token necesario; publicar vídeos solo con derechos de vídeo comprados |
+
+**Satélite (gratis)** usa las ortofotos oficiales de los institutos
+cartográficos — normalmente más nítidas que Mapbox (20–50 cm): 15 estados
+alemanes (falta Hamburgo), Austria, Suiza, Luxemburgo, Países Bajos, Francia,
+España con Canarias, Portugal, Italia, Chequia, Polonia, Estonia, Japón y
+EE. UU. Qué fuente está activa se muestra bajo el campo de estilo («Ortofoto:
+Brandenburg»). Fuera de la cobertura la app pasa en silencio al mapa
+OpenFreeMap con relieve 3D — y te lo dice en el mismo sitio.
+
+**El relieve 3D** funciona ahora con todas las fuentes: los estilos Mapbox usan
+el relieve de Mapbox, los de MapTiler el de MapTiler, todos los estilos gratis
+el modelo de AWS (Mapzen). El relieve va ligado al estilo — un vídeo sin Mapbox
+no contiene datos de Mapbox.
+
+**Ajustes → Proveedores de mapas:** estilo por defecto para proyectos nuevos
+(de fábrica «Satélite (gratis)»; los proyectos existentes conservan su estilo),
+token de Mapbox, clave de MapTiler y la **caché de teselas** (2 GB por
+defecto; botón «Vaciar»). Las teselas descargadas se quedan en disco: el
+segundo render de la misma zona es más rápido.
+
+**Antes de renderizar un vídeo con un estilo Mapbox** la app recuerda una vez
+por sesión la situación de derechos. No bloquea nada: si tienes los derechos o
+solo lo ves en privado, sigue renderizando.
+
+**Importante al publicar:** la atribución de la fuente abajo a la derecha forma
+parte del vídeo. No la recortes — Mapbox, MapTiler y los institutos
+cartográficos la exigen.
+
 ### Configurar el token de Mapbox 🗺️
 Animator + Tour-Map necesitan un **token gratuito de Mapbox** para los mapas 3D. **El Geotagger también funciona sin él**.
 

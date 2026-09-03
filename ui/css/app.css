@@ -2929,3 +2929,23 @@ body.is-rendering .modal-overlay * {
 .gpxbar-extra {
   opacity: .75; font-style: italic; cursor: help;
 }
+
+/* 03.09.2026 — Stil-Schalter über kleinen Karten (Geotagger, Inspektor, Archiv) */
+.rz-style-ctrl {
+  position: absolute; top: 10px; left: 10px; z-index: 5;
+  display: flex; flex-direction: column; gap: 4px; max-width: min(360px, 70%);
+}
+.rz-style-ctrl select {
+  font-size: 11.5px; padding: 4px 8px; border-radius: 6px;
+  background: rgba(20, 22, 28, 0.86); color: var(--text, #eee); border: 1px solid var(--border, #444);
+  backdrop-filter: blur(6px);
+}
+.rz-style-ctrl .rz-style-note {
+  font-size: 10.5px; line-height: 1.3; padding: 3px 7px; border-radius: 5px;
+  background: rgba(20, 22, 28, 0.72); color: var(--text-muted, #bbb);
+}
+.rz-style-ctrl .rz-style-note[hidden] { display: none; }
+/* Rechtelage-Hinweis unter dem Stil-Feld (Animator/Tour-Map) */
+.rz-style-rights { font-size: 11px; line-height: 1.45; margin-top: 6px; padding: 6px 8px; border-radius: 6px;
+  background: rgba(255, 157, 58, 0.10); border-left: 3px solid #ff9d3a; }
+.rz-style-rights[hidden] { display: none; }
