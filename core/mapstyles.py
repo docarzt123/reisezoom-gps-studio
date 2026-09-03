@@ -240,8 +240,11 @@ ORTHO_REGIONS = [
     {"id": "fr", "name": "Frankreich", "country": "FR", "bbox": (-5.20, 41.30, 9.60, 51.10), "maxzoom": 19,
      "tiles": ["https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}"],
      "attribution": "Luftbild: © IGN France / Géoplateforme"},
+    # 03.09.2026 (Marc, Masca-Render): Das PNOA-WMTS liefert über dem Meer opake
+    # dunkellila Kacheln — Ränder und Meer wurden zugedeckt. Der WMS mit PNG +
+    # TRANSPARENT lässt dort den Blue-Marble-Untergrund durch.
     {"id": "es", "name": "Spanien", "country": "ES", "bbox": (-18.20, 27.60, 4.40, 43.80), "maxzoom": 19,
-     "tiles": ["https://www.ign.es/wmts/pnoa-ma?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=OI.OrthoimageCoverage&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}"],
+     "wms": _wms("https://www.ign.es/wms-inspire/pnoa-ma", "OI.OrthoimageCoverage", "image/png"),
      "attribution": "Luftbild: PNOA © IGN España (CC BY 4.0)"},
     {"id": "it", "name": "Italien", "country": "IT", "bbox": (6.60, 36.60, 18.60, 47.10), "maxzoom": 18,
      "wms": _wms("https://wms.pcn.minambiente.it/ogc?map=/ms_ogc/WMS_v1.3/raster/ortofoto_colore_12.map", "OI.ORTOIMMAGINI.2012.32,OI.ORTOIMMAGINI.2012.33"),
@@ -262,6 +265,48 @@ ORTHO_REGIONS = [
     {"id": "us-hi", "name": "Hawaii", "country": "US", "bbox": (-160.30, 18.90, -154.80, 22.30), "maxzoom": 16,
      "tiles": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"],
      "attribution": "Luftbild: USGS The National Map (public domain)"},
+]
+
+
+# ── Weltweiter Untergrund für die Orthofotos ────────────────────────────────
+# 03.09.2026 (Marc, Masca-Render): Die Landesdienste decken nur ihr Gebiet;
+# über dem Meer und in der Ferne (steile Kamera) kamen Kachel-Löcher und bei
+# PNOA unterhalb z7 ein Rausch-Muster. Darunter liegt jetzt NASA Blue Marble
+# (gemeinfrei, global, z0–8): Meer bleibt Meer, ferne Küsten bleiben Küsten.
+# Die Orthofoto-Quellen fordern erst ab `ORTHO_MINZOOM` Kacheln an.
+BASE_LAYER = {
+    "tiles": ["https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg"],
+    "tileSize": 256, "maxzoom": 8,
+    "attribution": "Hintergrund: NASA Blue Marble (GIBS)",
+}
+ORTHO_MINZOOM = 7
+
+# ── Nachlesen: Bedingungen der Anbieter (Einstellungen → Karten, Handbuch) ─
+# Marc, 03.09.2026: „setze links zu den quellen … dass jeder selbst nachlesen
+# kann, was in den terms steht". Alles hier ist UNSERE Lesart der Bedingungen;
+# Bedingungen ändern sich, und wir können uns irren — die Links sind die Quelle.
+TERMS_LINKS = [
+    {"id": "mapbox_terms", "label": "Mapbox Product Terms (§1.7 Print or Video Use)", "url": "https://www.mapbox.com/legal/product-terms"},
+    {"id": "mapbox_tos", "label": "Mapbox Terms of Service", "url": "https://www.mapbox.com/legal/tos"},
+    {"id": "maptiler_terms", "label": "MapTiler Cloud Terms of Service (§4 Free plan, §5 Limited Videos)", "url": "https://www.maptiler.com/terms/"},
+    {"id": "maptiler_pricing", "label": "MapTiler Cloud — Tarife", "url": "https://www.maptiler.com/cloud/pricing/"},
+    {"id": "osm_copyright", "label": "OpenStreetMap — Urheberrecht und Lizenz (ODbL)", "url": "https://www.openstreetmap.org/copyright"},
+    {"id": "osm_tile_policy", "label": "OpenStreetMap Tile Usage Policy", "url": "https://operations.osmfoundation.org/policies/tiles/"},
+    {"id": "openfreemap", "label": "OpenFreeMap — Nutzung und Lizenz", "url": "https://openfreemap.org/"},
+    {"id": "openmaptiles", "label": "OpenMapTiles-Lizenz (BSD-3 / CC BY 4.0)", "url": "https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md"},
+    {"id": "aws_terrain", "label": "AWS Terrain Tiles (Mapzen/Tilezen) — Nennung", "url": "https://registry.opendata.aws/terrain-tiles/"},
+    {"id": "nasa_gibs", "label": "NASA GIBS — Nutzung (gemeinfrei)", "url": "https://www.earthdata.nasa.gov/engage/open-data-services-software-policies"},
+    {"id": "dl_de_by", "label": "Datenlizenz Deutschland – Namensnennung 2.0 (dl-de/by-2-0)", "url": "https://www.govdata.de/dl-de/by-2-0"},
+    {"id": "dl_de_zero", "label": "Datenlizenz Deutschland – Zero 2.0 (dl-de/zero-2-0)", "url": "https://www.govdata.de/dl-de/zero-2-0"},
+    {"id": "cc_by_4", "label": "Creative Commons BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
+    {"id": "ign_es", "label": "IGN España — Nutzungsbedingungen PNOA", "url": "https://www.ign.es/web/ign/portal/politica-datos"},
+    {"id": "ign_fr", "label": "IGN France — Géoplateforme, Lizenz (Etalab)", "url": "https://geoservices.ign.fr/cgu-licences"},
+    {"id": "swisstopo", "label": "swisstopo — Nutzungsbedingungen", "url": "https://www.swisstopo.admin.ch/de/nutzungsbedingungen-kostenlose-geodaten-und-geodienste"},
+    {"id": "basemap_at", "label": "basemap.at — Nutzungsbedingungen (CC BY 4.0)", "url": "https://basemap.at/nutzungsbedingungen/"},
+    {"id": "pdok", "label": "PDOK Luchtfoto — Lizenz", "url": "https://www.pdok.nl/introductie/-/article/luchtfoto-pdok"},
+    {"id": "gsi_jp", "label": "GSI Japan — Nutzungsbedingungen (地理院タイル)", "url": "https://maps.gsi.go.jp/development/ichiran.html"},
+    {"id": "usgs", "label": "USGS The National Map — gemeinfrei", "url": "https://www.usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map"},
+    {"id": "google_geo", "label": "Zum Vergleich: Google Geo Guidelines (Earth/Earth Studio)", "url": "https://about.google/brand-resource-center/products-and-services/geo-guidelines/"},
 ]
 
 
@@ -326,7 +371,9 @@ def wms_tile_template(wms: dict, transparent: bool = False) -> str:
     im Stapel das nächste Land durchscheint."""
     base = wms["base"]
     sep = "&" if "?" in base else "?"
-    fmt = "image/png&TRANSPARENT=TRUE" if transparent else wms.get("format", "image/jpeg")
+    fmt = wms.get("format", "image/jpeg")
+    if transparent or fmt == "image/png":
+        fmt = "image/png&TRANSPARENT=TRUE"     # Alpha außerhalb der Abdeckung → Untergrund scheint durch
     return (base + sep + "SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=" + wms["layers"]
             + "&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=" + fmt)
 
@@ -358,10 +405,15 @@ def stack_style(stack: list[dict], proxy_base: str = "") -> dict:
     """GL-Style mit einer Raster-Quelle je Region; unterste = größte Fläche."""
     transparent = len(stack) > 1
     sources, layers = {}, []
+    # Untergrund zuerst (ganz unten): Meer, Ferne, Lücken der Landesdienste.
+    sources["rz-base"] = {"type": "raster", "tiles": list(BASE_LAYER["tiles"]), "tileSize": BASE_LAYER["tileSize"],
+                          "maxzoom": BASE_LAYER["maxzoom"], "attribution": BASE_LAYER["attribution"]}
+    layers.append({"id": "rz-base", "type": "raster", "source": "rz-base", "minzoom": 0})
     for r in reversed(stack):            # groß → klein = unten → oben
         sid = "rz-raster-" + r["id"] if transparent else "rz-raster"
         src = {"type": "raster", "tiles": region_tiles(r, transparent=transparent, proxy_base=proxy_base),
-               "tileSize": 256, "maxzoom": int(r.get("maxzoom", 19)), "attribution": r["attribution"]}
+               "tileSize": 256, "minzoom": int(r.get("minzoom", ORTHO_MINZOOM)),
+               "maxzoom": int(r.get("maxzoom", 19)), "attribution": r["attribution"]}
         if r.get("scheme") == "tms" and not proxy_base:   # die Weiche spiegelt y selbst
             src["scheme"] = "tms"
         sources[sid] = src
@@ -387,16 +439,22 @@ def region_leaflet(region: dict, transparent: bool = False) -> dict:
     return d
 
 
+def base_leaflet() -> dict:
+    return {"label": "NASA Blue Marble", "url": BASE_LAYER["tiles"][0], "sub": "", "max": BASE_LAYER["maxzoom"],
+            "attr": BASE_LAYER["attribution"], "base": True}
+
+
 def stack_leaflet(stack: list[dict]) -> dict:
-    """Leaflet-Kachelangabe für einen Stapel: `stack` = Liste unten → oben."""
+    """Leaflet-Kachelangabe für einen Stapel: `stack` = Liste unten → oben,
+    immer mit dem Blue-Marble-Untergrund als erster Ebene."""
     if not stack:
         return {}
-    if len(stack) == 1:
-        return region_leaflet(stack[0])
-    d = region_leaflet(stack[0], transparent=True)
+    transparent = len(stack) > 1
+    d = region_leaflet(stack[0], transparent=transparent)
     d["attr"] = stack_attribution(stack)
-    d["label"] = "Luftbild " + "/".join(r["name"] for r in stack)
-    d["stack"] = [region_leaflet(r, transparent=True) for r in reversed(stack)]
+    if transparent:
+        d["label"] = "Luftbild " + "/".join(r["name"] for r in stack)
+    d["stack"] = [base_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=ORTHO_MINZOOM) for r in reversed(stack)]
     return d
 
 
@@ -532,6 +590,8 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
             for r in ORTHO_REGIONS
         ],
         "keys": {"mapbox": bool(has_mapbox), "maptiler": bool(has_maptiler)},
+        "base_layer": BASE_LAYER, "ortho_minzoom": ORTHO_MINZOOM,
+        "terms_links": TERMS_LINKS,
         # Lokale Kachel-Weiche (core/tileproxy.py); leer = direkt zum Dienst
         "proxy_base": proxy_base or "",
     }

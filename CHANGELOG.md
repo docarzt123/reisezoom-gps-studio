@@ -19,6 +19,10 @@ Bei jeder neuen Version:
 ### Drei Meldungen eines Beta-Testers (Windows, spanische Oberfläche, 4 Touren als Schwarm)
 
 #### Hinzugefügt
+- **Links zu den Bedingungen aller Anbieter** (Mapbox, MapTiler, OSM, OpenFreeMap,
+  AWS, NASA, Landeslizenzen) in den Einstellungen und im Handbuch — und überall
+  der Hinweis, dass Tabelle und Empfehlungen Marcs Verständnis sind, keine
+  Rechtsberatung; Bedingungen ändern sich, bitte selbst nachlesen.
 - **Rechte-Tabelle + „Was passt zu dir?“** (Einstellungen → Karten → Überblick):
   auf einen Blick, was jede Quelle für Video, Foto und Web-Karte erlaubt —
   privat, öffentlich ohne Geld, kommerziell. Drei Fragen empfehlen den Stil und
@@ -43,6 +47,13 @@ Bei jeder neuen Version:
   Rechtelage statt eines „mitgelieferten Standard-Tokens", den es nicht mehr gibt.
 
 #### Behoben
+- **Kachel-Löcher am Rand und über dem Meer** bei „Satellit (kostenlos)“ (Marc,
+  Masca-Render): Die Landesdienste decken nur ihr Gebiet, PNOA lieferte über dem
+  Meer opake dunkle Kacheln und unterhalb Zoom 7 ein Rausch-Muster. Jetzt liegt
+  NASA Blue Marble (gemeinfrei, weltweit) unter allen Luftbildern, die Orthofotos
+  werden erst ab Zoom 7 angefordert, Spanien läuft über den IGN-WMS mit Alpha.
+  **Offen:** Niederlande, Österreich und Luxemburg liefern außerhalb ihrer
+  Grenzen weiße Kacheln (nur nahe der Grenze sichtbar).
 - **Render brach mit „map.getFreeCameraOptions is not a function“ ab**, sobald
   „Ruhige Kamera (3D)“ mit einem Nicht-Mapbox-Stil lief: Die entkoppelte
   FreeCamera gibt es nur in Mapbox GL. Auf MapLibre läuft jetzt die klassische

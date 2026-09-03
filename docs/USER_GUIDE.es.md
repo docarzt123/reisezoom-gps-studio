@@ -364,6 +364,29 @@ cartográficos la exigen.
 
 > ⚠️ **La atribución abajo a la derecha forma parte del vídeo.** No la recortes — todas las fuentes la exigen, Mapbox y MapTiler expresamente.
 
+> ⚠️ **Mi interpretación, no asesoramiento legal.** Todo lo de este capítulo — tabla, recomendaciones, avisos en la app — es mi lectura de las condiciones de los proveedores a fecha de septiembre de 2026. Las condiciones cambian y puedo equivocarme. Lee tú mismo antes de publicar y decide tú:
+- [Mapbox Product Terms (§1.7 Print or Video Use)](https://www.mapbox.com/legal/product-terms)
+- [Mapbox Terms of Service](https://www.mapbox.com/legal/tos)
+- [MapTiler Cloud Terms of Service (§4 Free plan, §5 Limited Videos)](https://www.maptiler.com/terms/)
+- [MapTiler Cloud — Tarife](https://www.maptiler.com/cloud/pricing/)
+- [OpenStreetMap — Urheberrecht und Lizenz (ODbL)](https://www.openstreetmap.org/copyright)
+- [OpenStreetMap Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/)
+- [OpenFreeMap — Nutzung und Lizenz](https://openfreemap.org/)
+- [OpenMapTiles-Lizenz (BSD-3 / CC BY 4.0)](https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md)
+- [AWS Terrain Tiles (Mapzen/Tilezen) — Nennung](https://registry.opendata.aws/terrain-tiles/)
+- [NASA GIBS — Nutzung (gemeinfrei)](https://www.earthdata.nasa.gov/engage/open-data-services-software-policies)
+- [Datenlizenz Deutschland – Namensnennung 2.0 (dl-de/by-2-0)](https://www.govdata.de/dl-de/by-2-0)
+- [Datenlizenz Deutschland – Zero 2.0 (dl-de/zero-2-0)](https://www.govdata.de/dl-de/zero-2-0)
+- [Creative Commons BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- [IGN España — Nutzungsbedingungen PNOA](https://www.ign.es/web/ign/portal/politica-datos)
+- [IGN France — Géoplateforme, Lizenz (Etalab)](https://geoservices.ign.fr/cgu-licences)
+- [swisstopo — Nutzungsbedingungen](https://www.swisstopo.admin.ch/de/nutzungsbedingungen-kostenlose-geodaten-und-geodienste)
+- [basemap.at — Nutzungsbedingungen (CC BY 4.0)](https://basemap.at/nutzungsbedingungen/)
+- [PDOK Luchtfoto — Lizenz](https://www.pdok.nl/introductie/-/article/luchtfoto-pdok)
+- [GSI Japan — Nutzungsbedingungen (地理院タイル)](https://maps.gsi.go.jp/development/ichiran.html)
+- [USGS The National Map — gemeinfrei](https://www.usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map)
+- [Zum Vergleich: Google Geo Guidelines (Earth/Earth Studio)](https://about.google/brand-resource-center/products-and-services/geo-guidelines/)
+
 #### ¿Qué ortofotos oficiales hay detrás de «Satélite (gratis)»?
 La app elige la fuente según la posición del track; bajo el campo de estilo se muestra cuál está activa. A 3 de septiembre de 2026:
 

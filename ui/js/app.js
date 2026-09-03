@@ -234,8 +234,24 @@ function rzRightsTableHtml() {
     <thead><tr><th></th><th>${H("rights.col.privat", "Privat<br><small>nur für dich</small>")}</th><th>${H("rights.col.oeffentlich", "Öffentlich, ohne Geld<br><small>Hobby-Kanal, Blog</small>")}</th><th>${H("rights.col.kommerziell", "Kommerziell<br><small>monetarisiert, Kunden</small>")}</th></tr></thead>
     <tbody>${rows.map(r => `<tr><th>${r[0]}</th>${r[1]}${r[2]}${r[3]}</tr>`).join("")}</tbody>
   </table>
-  <p class="set-help" style="margin:6px 0 12px;">🎬 ${H("rights.video", "Video")} · 📷 ${H("rights.foto", "Foto / Standbild")} · 🌐 ${H("rights.web", "Web-Karte (Einbettung)")} — ${H("rights.legend", "✅ erlaubt · ⚠️ mit Auflage · ❌ nicht (Details in den Unter-Reitern)")}</p>`;
+  <p class="set-help" style="margin:6px 0 6px;">🎬 ${H("rights.video", "Video")} · 📷 ${H("rights.foto", "Foto / Standbild")} · 🌐 ${H("rights.web", "Web-Karte (Einbettung)")} — ${H("rights.legend", "✅ erlaubt · ⚠️ mit Auflage · ❌ nicht (Details in den Unter-Reitern)")}</p>
+  ${rzTermsDisclaimerHtml()}
+  ${rzTermsLinksHtml()}`;
 }
+
+/** Marc, 03.09.2026: überall sagen, dass das UNSER Verständnis ist. */
+function rzTermsDisclaimerHtml() {
+  return `<div class="terms-disclaimer">${t("rights.disclaimer", "⚠️ Das ist mein Verständnis der Bedingungen, Stand September 2026 — keine Rechtsberatung. Bedingungen ändern sich, und ich kann mich irren. Bitte lies vor einer Veröffentlichung selbst nach (Links unten) und entscheide selbst.")}</div>`;
+}
+/** Links zu den Bedingungen der Anbieter — aus core/mapstyles.TERMS_LINKS (eine Wahrheit). */
+function rzTermsLinksHtml(filterIds) {
+  const links = ((mapCatalog().terms_links) || []).filter(l => !filterIds || filterIds.includes(l.id));
+  if (!links.length) return "";
+  return `<details class="terms-links"><summary>${t("rights.links_title", "Bedingungen der Anbieter selbst nachlesen")}</summary><ul>` +
+    links.map(l => `<li><a href="#" class="rz-ext-link" data-url="${l.url}">${l.label}</a> <span class="muted">↗</span></li>`).join("") +
+    `</ul></details>`;
+}
+window.rzTermsLinksHtml = rzTermsLinksHtml;
 
 /** „Was passt zu dir?" — drei Fragen, eine Empfehlung, ein Klick übernimmt sie. */
 function rzMapQuizHtml() {
@@ -372,6 +388,8 @@ async function openSettingsModal() {
         </div>
 
         <div class="set-subpanel" data-subpanel="kostenlos" hidden>
+          ${rzTermsDisclaimerHtml()}
+          ${rzTermsLinksHtml(["osm_copyright", "osm_tile_policy", "openfreemap", "openmaptiles", "aws_terrain", "nasa_gibs", "dl_de_by", "dl_de_zero", "cc_by_4", "ign_es", "ign_fr", "swisstopo", "basemap_at", "pdok", "gsi_jp", "usgs"])}
           <p class="set-help">${t("settings.maps.help.frei1", "„Satellit (kostenlos)“ nimmt die amtlichen Luftbilder der Landesvermessungen — oft schärfer als Mapbox (20–50 cm Bodenauflösung). Die App wählt die Quelle anhand der Lage deines Tracks, du musst nichts einstellen. Dabei sind: 15 deutsche Bundesländer (Hamburg fehlt), Österreich, Schweiz, Luxemburg, Niederlande, Frankreich, Spanien mit Kanaren, Portugal, Italien, Tschechien, Polen, Estland, Japan und die USA.")}</p>
           <p class="set-help">${t("settings.maps.help.frei2", "Liegt der Track außerhalb dieser Abdeckung (etwa Skandinavien, Großbritannien, Kanada), weicht die App auf die OpenFreeMap-Karte mit Gelände aus — für Satellit dort MapTiler nehmen. An deutschen Landesgrenzen werden die Nachbarländer übereinandergelegt, damit kein Streifen leer bleibt.")}</p>
           <p class="set-help">${t("settings.maps.help.frei3", "OpenFreeMap (Liberty, Bright, Positron) sind Vektorkarten aus OpenStreetMap-Daten — kostenlos, ohne Schlüssel, ohne Limit, kommerziell erlaubt. OpenStreetMap, OpenTopoMap, CyclOSM und Humanitarian sind Kachelkarten von Freiwilligen: kostenlos, aber bitte nicht massenhaft rendern; der Zwischenspeicher hilft dabei.")}</p>
@@ -379,6 +397,8 @@ async function openSettingsModal() {
         </div>
 
         <div class="set-subpanel" data-subpanel="maptiler" hidden>
+          ${rzTermsDisclaimerHtml()}
+          ${rzTermsLinksHtml(["maptiler_terms", "maptiler_pricing"])}
           <p class="set-help">${t("settings.maps.help.maptiler1", "MapTiler liefert Satellitenbilder und Gelände für die ganze Welt aus einer Hand — die Ergänzung dort, wo es kein amtliches Luftbild gibt. Der Schlüssel ist kostenlos, ohne Kreditkarte, in drei Minuten geholt: Konto auf cloud.maptiler.com anlegen, Bestätigungs-Mail klicken, links „API Keys“ öffnen, den vorhandenen Schlüssel kopieren und unten einfügen.")}</p>
           <p class="set-help">${t("settings.maps.help.maptiler2", "Wichtig: Beim Schlüssel das Feld „Allowed HTTP origins“ leer lassen. Trägst du dort eine Website ein, sperrt MapTiler den Render aus, der ohne Browser-Adresse läuft — die Vorschau ginge, das Video bliebe schwarz.")}</p>
           <p class="set-help">${t("settings.maps.help.maptiler3", "Gratistarif: 100.000 Kachelabrufe pro Monat, das reicht für viele Renders — aber nur nicht-kommerzielle Nutzung. Für einen monetarisierten Kanal ist der Flex-Tarif (ca. 30 $/Monat) gedacht. Videos für Kanäle bis 100.000 Abonnenten sind laut MapTiler Cloud Terms §5 erlaubt, darüber vorher bei MapTiler nachfragen.")}</p>
@@ -392,6 +412,8 @@ async function openSettingsModal() {
         </div>
 
         <div class="set-subpanel" data-subpanel="mapbox" hidden>
+          ${rzTermsDisclaimerHtml()}
+          ${rzTermsLinksHtml(["mapbox_terms", "mapbox_tos", "google_geo"])}
           <p class="set-help">${t("settings.maps.help.mapbox1", "Mapbox war lange die einzige Kartenquelle der App: Satellit in 3D, Straßen, Outdoor, Hell und Dunkel. Die Stile bleiben — mit eigenem Token (kostenlos, seit Mitte 2026 mit Kreditkarte bei der Registrierung; abgebucht wird im Free-Tier von 50.000 Karten-Loads pro Monat nichts).")}</p>
           <p class="set-help">${t("settings.maps.help.mapbox2", "Der Haken steht im Kleingedruckten: Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur mit gekauften Videorechten (Product Terms §1.7 „Print or Video Use“). Privat ansehen darfst du sie; auf YouTube, Instagram oder deiner Website nicht ohne Zukauf. Die App sperrt deshalb nichts, erinnert dich aber vor einem Video-Render mit Mapbox-Stil einmal je Sitzung daran.")}</p>
           <p class="set-help">${t("settings.maps.help.mapbox3", "Token holen: Konto auf account.mapbox.com anlegen, Bestätigungs-Mail klicken, im Dashboard „Access tokens“ öffnen, den „Default public token“ (beginnt mit pk.eyJ…) kopieren und unten einfügen. Public-Tokens sind nicht geheim, aber gib sie trotzdem nicht weiter.")}</p>
@@ -711,6 +733,7 @@ function _bindSettingsModalHandlers() {
     });
   })();
   try { _bindMapQuiz(); } catch (_) {}
+  document.querySelectorAll(".rz-ext-link").forEach(a => { a.onclick = (e) => { e.preventDefault(); api().open_url(a.dataset.url); }; });
   document.getElementById("md-cancel-set").onclick = () => openModal({}).close();
   document.getElementById("md-maptiler-link")?.addEventListener("click", (e) => { e.preventDefault(); api().open_url("https://cloud.maptiler.com/account/keys/"); });
   document.getElementById("md-tc-clear")?.addEventListener("click", async () => {
