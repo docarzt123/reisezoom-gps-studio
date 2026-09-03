@@ -1514,16 +1514,22 @@ def _tile_cache_prune(max_mb: int) -> None:
 async def _install_tile_cache(page, cfg) -> Optional[dict]:
     """Playwright-Route: Kacheln aus dem Zwischenspeicher bedienen, neue ablegen.
     Liefert das Zähler-Dict (hit/miss/store) fürs Log, None wenn aus."""
-    if not TILE_CACHE_DIR or getattr(cfg, "transparent_background", False):
+    if getattr(cfg, "transparent_background", False):
         return None
     import hashlib
-    d = Path(TILE_CACHE_DIR)
-    try:
-        d.mkdir(parents=True, exist_ok=True)
-        _tile_cache_prune(TILE_CACHE_MAX_MB)
-    except OSError as e:
-        _log.warning("Kachel-Zwischenspeicher nicht nutzbar: %s", e)
-        return None
+    # Die Route läuft AUCH ohne Zwischenspeicher (tile_cache_mb = 0 oder Test
+    # ohne App): sie setzt die CORS-Freigabe auf jede Antwort. Ohne sie bleiben
+    # Landesdienste ohne `Access-Control-Allow-Origin` (Schleswig-Holstein,
+    # Sachsen-Anhalt, Sachsen) für die WebGL-Karte unerreichbar — der Render
+    # brach dann mit „Failed to fetch" ab, obwohl die Kachel per curl kommt.
+    d = Path(TILE_CACHE_DIR) if TILE_CACHE_DIR else None
+    if d is not None:
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            _tile_cache_prune(TILE_CACHE_MAX_MB)
+        except OSError as e:
+            _log.warning("Kachel-Zwischenspeicher nicht nutzbar: %s", e)
+            d = None
     stats = {"hit": 0, "miss": 0, "store": 0}
     cors = {"Access-Control-Allow-Origin": "*"}
 
@@ -1533,8 +1539,8 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         if req.method != "GET" or "mapbox.com" in url or url.startswith("data:") or url.startswith("blob:"):
             await route.continue_(); return
         h = hashlib.sha1(url.encode("utf-8")).hexdigest()
-        f = d / h[:2] / (h + ".bin")
-        if f.exists():
+        f = (d / h[:2] / (h + ".bin")) if d is not None else None
+        if f is not None and f.exists():
             try:
                 raw = f.read_bytes()
                 nl = raw.index(b"\n")
@@ -1554,7 +1560,7 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         try:
             ct = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
             body = await resp.body()
-            if (resp.status == 200 and len(body) < 8_000_000
+            if (f is not None and resp.status == 200 and len(body) < 8_000_000
                     and (ct.startswith("image/") or "protobuf" in ct or "font" in ct
                          or ct == "application/octet-stream")):
                 f.parent.mkdir(parents=True, exist_ok=True)
@@ -1562,7 +1568,9 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
                 tmp.write_bytes(ct.encode("ascii", "ignore") + b"\n" + body)
                 os.replace(tmp, f)
                 stats["store"] += 1
-            await route.fulfill(response=resp)
+            await route.fulfill(status=resp.status, headers={**{k: v for k, v in resp.headers.items()
+                                                                 if k.lower() not in ("content-length", "content-encoding", "transfer-encoding")},
+                                                              **cors}, body=body)
         except Exception:
             try: await route.fulfill(response=resp)
             except Exception: pass
@@ -3039,8 +3047,11 @@ map.on('style.load', () => {{
                  // de la ruta principal") — der Größenregler galt nur für die
                  // Haupt-Tour; die Pfeile der übrigen Touren hingen allein an
                  // der Linienbreite. Jetzt zieht der Regler alle mit.
-                 'icon-size': Math.max(3, {schwarm_line_width_json} * 1.5) / 8.5
-                              * {float(cfg.marker_dot_size):.3f},
+                 // 03.09.2026 (Beta-Tester: Haupt-Pfeil größer als alle anderen):
+                 // dieselbe Größe wie der Haupt-Pfeil (rz-arrow: Regler × RENDER_SCALE),
+                 // vorher an die Linienbreite gekoppelt und ohne RENDER_SCALE —
+                 // bei 4K wuchs nur der Haupt-Pfeil mit. Synchron zu module.js swarm-prev-dots.
+                 'icon-size': {float(cfg.marker_dot_size):.3f} * RENDER_SCALE,
                  'icon-rotate': ['get', 'brg'], 'icon-rotation-alignment': 'map',
                  'icon-pitch-alignment': 'map', 'icon-allow-overlap': true,
                  'icon-ignore-placement': true }} }});
@@ -4688,9 +4699,11 @@ async def render(
     emit(0.0, _t("animator.progress.load_gpx", "Lade GPX-Datei …"))
     _log.info("render() start · GPX=%s · output=%s", cfg.gpx_path, cfg.output_path)
     if not cfg.transparent_background:
-        # Token nur im Mapbox-Modus relevant. Im Alpha-Modus rendern wir ohne Karte.
-        if not cfg.mapbox_token or not cfg.mapbox_token.startswith("pk."):
-            _log.warning("Mapbox-Token fehlt oder ungültig — Mapbox-Render wird fehlschlagen.")
+        # 03.09.2026 — ohne Token weicht ein Mapbox-Stil auf „Satellit (kostenlos)"
+        # aus (core/mapstyles.resolve); hier nur noch ein Hinweis, keine Drohung.
+        _st = _mapstyles.STYLE_BY_KEY.get(cfg.map_style, {})
+        if _st.get("provider") == "mapbox" and not (cfg.mapbox_token or "").startswith("pk."):
+            _log.info("Mapbox-Stil ohne Token gewünscht — der Render weicht auf einen kostenlosen Stil aus.")
     # v0.9.156 — Multi-Track läuft in einem eigenen, isolierten Render-Pfad,
     # damit der battle-tested Single-Track-Code unverändert bleibt.
     # IDEAS §38 (28.08.2026) — Ausnahme SCHWARM: alle Touren gleichzeitig.

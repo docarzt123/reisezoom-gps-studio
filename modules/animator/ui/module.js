@@ -5719,7 +5719,12 @@ function mountAnimator(body, headerActions, opts) {
     try {
       if (!(currentCoords && currentCoords.length > 1 && map && map.cameraForBounds)) return null;
       let mnLo = Infinity, mxLo = -Infinity, mnLa = Infinity, mxLa = -Infinity;
-      for (const c of currentCoords) {
+      // 03.09.2026 (Beta-Tester, 4 Touren als Schwarm: „sigue variando el zoom
+      // cuando muevo manualmente la posición"): Die Gesamtsicht umfasst ALLE
+      // Touren, nicht nur die Haupt-Tour — sonst springt die Kamera beim
+      // Scrubben auf den Ausschnitt der ersten Tour und wieder zurück.
+      const alle = [currentCoords].concat(_extraTours.map(tr => tr.coords).filter(Array.isArray));
+      for (const liste of alle) for (const c of liste) {
         if (c[0] < mnLo) mnLo = c[0]; if (c[0] > mxLo) mxLo = c[0];
         if (c[1] < mnLa) mnLa = c[1]; if (c[1] > mxLa) mxLa = c[1];
       }
@@ -12959,7 +12964,11 @@ function mountAnimator(body, headerActions, opts) {
           layout: { "icon-image": ["get", "icon"],
                     // 02.09.2026: Der Größenregler gilt für ALLE Touren, nicht
                     // nur für die Haupt-Tour (wortgleich zum Render).
-                    "icon-size": Math.max(3, lw * 1.2) / 8.5 * dotGroesse(),
+                    // 03.09.2026 (Beta-Tester: „la flecha de la ruta principal la
+                    // hace más grande que todas las demás"): dieselbe Größe wie der
+                    // Haupt-Pfeil (anim-dot-arrow: icon-size = Regler), nicht mehr an
+                    // die Linienbreite gekoppelt — alle Pfeile gleich groß.
+                    "icon-size": dotGroesse(),
                     "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
                     "icon-pitch-alignment": "map", "icon-allow-overlap": true,
                     "icon-ignore-placement": true } });
@@ -13109,6 +13118,16 @@ function mountAnimator(body, headerActions, opts) {
     let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
     for (const p of pts) { if (p[0] < a) a = p[0]; if (p[0] > c) c = p[0]; if (p[1] < b) b = p[1]; if (p[1] > d) d = p[1]; }
     try {
+      // 03.09.2026 — nach dem Fit auf ALLE Touren ist DAS die Zoom-Basis für
+      // Scrubben, Probelauf und Render (Keyframe-Offsets rechnen darauf).
+      // Vorher blieb die Basis vom Fit auf die Haupt-Tour stehen: jedes
+      // Scrubben zoomte auf die erste Tour, der Fit auf alle wieder raus.
+      map.once("moveend", () => {
+        try {
+          _fitZoomBase = map.getZoom();
+          applog && applog("info", "[fit] alle Touren → _fitZoomBase = " + _fitZoomBase.toFixed(3));
+        } catch (_) {}
+      });
       map.fitBounds([[a, b], [c, d]], {
         padding: 60, duration: 600,
         pitch: (typeof currentPitch === "function") ? currentPitch() : 0,

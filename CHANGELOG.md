@@ -14,6 +14,23 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.652] – 2026-09-03
+
+### Drei Meldungen eines Beta-Testers (Windows, spanische Oberfläche, 4 Touren als Schwarm)
+
+#### Behoben
+- **Bibliotheks-Dialoge kamen auf Deutsch** („Willkommen bei GPS Studio",
+  „Deine Daten sind umgezogen"), obwohl die Oberfläche Spanisch war: Die
+  Sprache wurde erst nach der Bibliotheksprüfung geladen. Jetzt zuerst.
+- **Pfeile im Schwarm:** Der Größenregler ließ den Pfeil der Haupt-Tour
+  stärker wachsen als die übrigen, und im 4K-Render wuchs nur er mit der
+  Auflösung mit (die anderen hingen an der Linienbreite, ohne RENDER_SCALE).
+  Jetzt sind alle Pfeile gleich groß — Vorschau wie Render.
+- **Zoom sprang beim Scrubben mit mehreren Touren:** Die Zoom-Basis stammte
+  vom Fit auf die Haupt-Tour, die Gesamtsicht rechnete nur mit ihr. Jedes
+  Scrubben zog die Kamera auf die erste Tour, der Fit auf alle wieder raus.
+  Basis und Gesamtsicht umfassen jetzt alle geladenen Touren.
+
 ## [0.9.651] – 2026-09-03
 
 ### Kartenanbieter zur Auswahl — Videos, die man veröffentlichen darf
