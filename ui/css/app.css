@@ -2983,3 +2983,7 @@ body.is-rendering .modal-overlay * {
 .quiz-opt { display: inline-flex; align-items: center; gap: 4px; margin: 0 10px 4px 0; font-size: 12px; cursor: pointer; }
 .quiz-result { margin-top: 10px; padding: 8px 10px; background: rgba(255,157,58,0.10); border-left: 3px solid #ff9d3a; border-radius: 6px; font-size: 12px; line-height: 1.5; }
 .quiz-result[hidden] { display: none; }
+
+/* Ruhige 3D-Kamera nur mit Mapbox (FreeCamera-API): Abschnitts-Schalter in der
+   Zeitleiste verschwindet, wenn die Karte in MapLibre läuft. */
+body.rz-no-freecam .easing-modal-smooth { display: none !important; }

@@ -7432,6 +7432,15 @@ function mountAnimator(body, headerActions, opts) {
     try { spec = alpha ? null : resolveMapStyle(styleKey, currentBbox || null, false); } catch (_) {}
     if (noteEl) { const txt = spec ? mapStyleNoteText(spec) : ""; noteEl.textContent = txt; noteEl.hidden = !txt; }
     if (rightsEl) rightsEl.hidden = alpha || !spec || spec.videoOk;
+    // 03.09.2026 (Marc: „die Checkbox muss bei Nicht-Mapbox weg"): Die ruhige
+    // 3D-Kamera (FreeCamera) gibt es nur in Mapbox GL — Regler und Abschnitts-
+    // Schalter in der Zeitleiste nur zeigen, wenn die Karte in Mapbox läuft.
+    try {
+      const mb = !!(spec && spec.engine === "mapbox");
+      const row = document.getElementById("anim-smooth-camera-row");
+      if (row && !_isStaticFrame) row.hidden = !mb;
+      document.body.classList.toggle("rz-no-freecam", !mb);
+    } catch (_) {}
     if (alpha || !spec || spec.videoOk) { const hc = document.querySelector('[data-help-content="map_rights"]'); if (hc) hc.hidden = true; }
     if (osmHint) osmHint.hidden = alpha || !spec || spec.kind === "raster" || spec.kind === "gov";
   }

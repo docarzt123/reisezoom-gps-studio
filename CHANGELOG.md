@@ -48,6 +48,8 @@ Bei jeder neuen Version:
   FreeCamera gibt es nur in Mapbox GL. Auf MapLibre läuft jetzt die klassische
   Kamera, mit Vermerk im Fortschritt — kein Abbruch mehr. **Offen:** ruhige
   3D-Kamera für MapLibre-Stile nachbauen.
+  Der Regler „Ruhige Kamera (3D)“ und der Abschnitts-Schalter in der Zeitleiste
+  erscheinen nur noch, wenn die Karte in Mapbox läuft.
 - **Zusammengeführte Touren hießen nach der ersten Route** statt nach dem
   gewählten Namen („3 Rutas" → „01 - Leon Astorga"): Der gewählte Name steht
   in `<metadata><name>`, die App las nur den ersten `<trk>`. Metadaten-Name
