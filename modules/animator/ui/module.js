@@ -199,27 +199,20 @@ function mountAnimator(body, headerActions, opts) {
           <div class="field" id="anim-style-field">
             <label class="field-label" for="anim-style">${t("animator.field.style")}</label>
             <select id="anim-style">
-              <option value="satellite">${t("animator.style.satellite")}</option>
-              <option value="satellite_streets">${t("animator.style.satellite_streets")}</option>
-              <option value="outdoors">${t("animator.style.outdoors")}</option>
-              <option value="streets">${t("animator.style.streets")}</option>
-              <option value="light">${t("animator.style.light")}</option>
-              <option value="dark">${t("animator.style.dark")}</option>
-              <option value="alpha">${t("animator.style.alpha")}</option>
-              ${_isStaticFrame ? `<optgroup label="${t("tourmap.style.osm_group", "OpenStreetMap (für HTML-Export)")}">
-                <option value="osm">${t("tourmap.style.osm", "OSM Standard")}</option>
-                <option value="topo">${t("tourmap.style.topo", "OpenTopoMap")}</option>
-                <option value="cyclosm">${t("tourmap.style.cyclosm", "CyclOSM")}</option>
-                <option value="humanitarian">${t("tourmap.style.humanitarian", "Humanitarian")}</option>
-              </optgroup>` : ``}
+              ${(typeof mapStyleOptionsHtml === "function") ? mapStyleOptionsHtml(null, { extraBottom: `<option value="alpha">${t("animator.style.alpha")}</option>` }) : `<option value="alpha">${t("animator.style.alpha")}</option>`}
             </select>
-            ${_isStaticFrame ? `<div class="muted" id="anim-style-osm-hint" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">${t("tourmap.style.osm_hint", "OSM-Stile sind tokenfrei und werden 1:1 in den interaktiven HTML-Export übernommen (WYSIWYG). Mapbox-Stile gelten nur für den PNG-Export.")}</div>` : ``}
-            <div class="osm-disabled-notice" id="anim-style-osm-notice" hidden>
-              <span class="osm-disabled-title">${t("animator.style.osm_disabled_title")}</span>
-              ${t(_isStaticFrame ? "animator.style.osm_disabled_body_static" : "animator.style.osm_disabled_body")}
-              <br>
-              <button type="button" class="osm-disabled-cta" id="anim-style-osm-cta">${t("animator.style.osm_disabled_cta")}</button>
+            <!-- 03.09.2026 — Anbieterauswahl: Vermerk (welches Land greift, Ausweichen) + Rechtelage -->
+            <div class="muted" id="anim-style-note" hidden style="font-size:11px; margin-top:6px; line-height:1.45;"></div>
+            <!-- Rechtelage: kurze Zeile in der Seitenleiste, die Erklärung hinterm ?-Knopf
+                 (Seitenleisten-Regel: kein Fließtext ≥ 60 Zeichen offen). -->
+            <div class="rz-style-rights" id="anim-style-rights" hidden style="display:flex; align-items:center; gap:6px;">
+              <span>${t("mapstyle.rights_short", "⚠️ Mapbox: Video nur mit gekauften Rechten")}</span>
+              <button type="button" class="field-help" data-help="map_rights" title="${t("animator.help.show", "Erklärung anzeigen")}">?</button>
             </div>
+            <div class="muted field-help-content" data-help-content="map_rights" hidden style="font-size:11px; margin-top:2px; line-height:1.45;">
+              ${t("mapstyle.rights_hint", "Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur mit gekauften Videorechten (Product Terms §1.7). Für YouTube & Co. einen kostenlosen Stil oder MapTiler wählen.")}
+            </div>
+            ${_isStaticFrame ? `<div class="muted" id="anim-style-osm-hint" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">${t("tourmap.style.export_hint", "Der interaktive HTML-Export kennt nur Kachel-Stile (OpenStreetMap, Satellit kostenlos). Für Vektor-Stile wird dort OpenStreetMap verwendet; das PNG nutzt den gewählten Stil.")}</div>` : ``}
             <div class="muted" id="anim-alpha-hint" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">
               ${t("animator.style.alpha_hint")}
             </div>
@@ -1234,37 +1227,7 @@ function mountAnimator(body, headerActions, opts) {
     },
   });
 
-  // OSM-Modus → Style-Picker disablen + Hinweis mit „Token hinzufügen"-CTA.
-  // (Bei Token-Wechsel ruft app.js renderMod() → komplettes Remount,
-  //  daher reicht ein einmaliges Setup beim Mount.)
-  (function applyOsmStyleLock() {
-    const fieldEl  = document.getElementById("anim-style-field");
-    const noticeEl = document.getElementById("anim-style-osm-notice");
-    const selectEl = document.getElementById("anim-style");
-    const ctaEl    = document.getElementById("anim-style-osm-cta");
-    if (!fieldEl || !noticeEl || !selectEl || !ctaEl) return;
-
-    // v0.9.406 — Tour-Map (Standbild) darf im OSM-Modus die OSM-Stile wählen
-    // (tokenfrei, WYSIWYG-Export). Select bleibt aktiv, keine „Token nötig"-Sperre.
-    if (isOsmMode() && _isStaticFrame) {
-      fieldEl.classList.remove("is-osm-disabled");
-      selectEl.disabled = false;
-      noticeEl.hidden = true;
-    } else if (isOsmMode()) {
-      fieldEl.classList.add("is-osm-disabled");
-      selectEl.disabled = true;
-      noticeEl.hidden = false;
-      ctaEl.addEventListener("click", () => {
-        if (typeof window.openSettingsModal === "function") {
-          window.openSettingsModal();
-        }
-      });
-    } else {
-      fieldEl.classList.remove("is-osm-disabled");
-      selectEl.disabled = false;
-      noticeEl.hidden = true;
-    }
-  })();
+  // 03.09.2026 — keine „nur mit Token"-Sperre mehr: jede Quelle läuft, Ausweichen steht im Vermerk.
   bindSetting("anim-terrain", _MODKEY, "enable_terrain", { type: "bool" });
   // v0.8.16 — Master-Toggle: Keyframe-Editor an/aus.
   bindSetting("anim-kf-enabled", _MODKEY, "keyframes_enabled", { type: "bool",
@@ -2327,7 +2290,7 @@ function mountAnimator(body, headerActions, opts) {
   const _styleDeferred = new Set();
   function _whenStyleReady(name, fn) {
     if (!map) return false;
-    if (!map.isStyleLoaded || map.isStyleLoaded()) return true;
+    if (rzStyleReady(map)) return true;   // 03.09.2026: Style-JSON-Semantik, nicht „alle Kacheln da"
     if (!_styleDeferred.has(name)) {
       _styleDeferred.add(name);
       try {
@@ -3117,15 +3080,7 @@ function mountAnimator(body, headerActions, opts) {
     }
   }
 
-  // Style-Map muss zum Backend (`core/animator.py.MAP_STYLES`) passen
-  const MAP_STYLES = {
-    satellite:          "mapbox://styles/mapbox/standard-satellite",
-    satellite_streets:  "mapbox://styles/mapbox/satellite-streets-v12",
-    streets:            "mapbox://styles/mapbox/streets-v12",
-    outdoors:           "mapbox://styles/mapbox/outdoors-v12",
-    light:              "mapbox://styles/mapbox/light-v11",
-    dark:               "mapbox://styles/mapbox/dark-v11",
-  };
+  // 03.09.2026 — Stilliste kommt aus core/mapstyles.py über util.js (mapCatalog()).
 
   function currentLineColor() {
     return document.getElementById("anim-color").value || "#ff6b35";
@@ -3423,9 +3378,9 @@ function mountAnimator(body, headerActions, opts) {
   // verschwindet. `isOsmMode()` allein reicht nicht, denn mit Token bleibt der
   // Modus „mapbox", auch wenn man einen OSM-Stil fährt.
   function osmStyleActive() {
-    try {
-      return isOsmMode() || (typeof isOsmStyleKey === "function" && isOsmStyleKey(_currentStyleKey));
-    } catch (_) { return isOsmMode(); }
+    // 03.09.2026 — heißt jetzt: „läuft die Karte in MapLibre?" (alles außer Mapbox).
+    // Dort gibt es kein `line-z-offset`; Gelände gibt es trotzdem (applyTerrain).
+    try { return !(map && map.__rzEngine === "mapbox"); } catch (_) { return isOsmMode(); }
   }
 
   function rebuildPreviewLayers() {
@@ -4202,7 +4157,7 @@ function mountAnimator(body, headerActions, opts) {
     // der Aufbau hier ab, und wenn Projekt- und Startstil gleich sind, kam nie
     // ein zweiter Versuch. Jetzt holt er sich selbst nach (idle), wie die
     // Track-Layer über _whenStyleReady.
-    if (map.isStyleLoaded && !map.isStyleLoaded()) {
+    if (!rzStyleReady(map)) {
       // Spur im app.log — damit ein Nutzer-Log beweist, ob dieser Pfad bei
       // ihm überhaupt läuft (auf dem Entwickler-Mac nie).
       try { applog("info", "[anim-dot] Stil noch nicht fertig — Laufpunkt-Aufbau wartet auf idle"); } catch (_) {}
@@ -7391,29 +7346,38 @@ function mountAnimator(body, headerActions, opts) {
 
   function applyTerrain() {
     if (!map) return;
-    if (osmStyleActive()) return;   // OSM (Modus ODER OSM-Raster-Stil) → kein DEM / keine line-z-offset
     const want = currentTerrainOn();
+    const spec = map.__rzSpec || null;
+    const mapboxEngine = (map.__rzEngine === "mapbox");
     try {
-      if (want) {
-        if (!map.getSource("mapbox-dem")) {
-          map.addSource("mapbox-dem", {
-            type: "raster-dem",
-            url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-            tileSize: 512, maxzoom: 14,
-          });
+      // 03.09.2026 — Gelände hängt am Stil (Mapbox-DEM / MapTiler / AWS terrarium),
+      // Quellname bleibt 'mapbox-dem' (so kennt ihn der übrige Code).
+      if (want && spec && spec.terrain) {
+        // MapLibre kippt, wenn das Gelände MITTEN in einer Kamerafahrt gesetzt
+        // wird (fitBounds nach dem Track-Laden → „reading 'wrap'", danach
+        // „Attempting to run(), but is already running" bei jedem Bild). Also
+        // erst nach dem Ende der Fahrt — und nur, wenn sich wirklich etwas ändert.
+        if (map.isMoving && map.isMoving()) { map.once("moveend", () => setTimeout(applyTerrain, 30)); return; }
+        if (!map.getSource("mapbox-dem")) map.addSource("mapbox-dem", spec.terrain);
+        const cur = map.getTerrain ? map.getTerrain() : null;
+        const ex = currentExaggeration();
+        if (!cur || cur.source !== "mapbox-dem" || Math.abs((cur.exaggeration || 0) - ex) > 1e-6) {
+          map.setTerrain({ source: "mapbox-dem", exaggeration: ex });
         }
-        map.setTerrain({ source: "mapbox-dem", exaggeration: currentExaggeration() });
       } else {
-        map.setTerrain(null);
+        if (map.getTerrain && map.getTerrain()) {
+          if (map.isMoving && map.isMoving()) { map.once("moveend", () => setTimeout(applyTerrain, 30)); return; }
+          map.setTerrain(null);
+        }
       }
-      // v0.9.16 — line-z-offset auf 150 m setzen wenn Terrain aktiv, sonst auf 0.
-      // Damit „schwebt" der Track im Preview genau gleich wie im Render
-      // (Render-Code hat dasselbe 150-m-Offset in core/animator.py). Shadow
-      // bleibt bewusst auf dem Boden (kein z-offset).
-      const zOff = want ? 150 : 0;
-      for (const lid of ["preview-glow", "preview-line", "preview-highlight"]) {
-        if (map.getLayer(lid)) {
-          try { map.setPaintProperty(lid, "line-z-offset", zOff); } catch (_) {}
+      // v0.9.16 — line-z-offset 150 m bei Terrain, sonst 0 — nur Mapbox GL kennt
+      // die Eigenschaft; MapLibre drapiert die Linie selbst aufs Gelände.
+      if (mapboxEngine) {
+        const zOff = want ? 150 : 0;
+        for (const lid of ["preview-glow", "preview-line", "preview-highlight"]) {
+          if (map.getLayer(lid)) {
+            try { map.setPaintProperty(lid, "line-z-offset", zOff); } catch (_) {}
+          }
         }
       }
     } catch (_) {}
@@ -7452,32 +7416,56 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   let _currentStyleKey = null;   // v0.9.329 — aktuell auf der Karte gesetzter Stil
+  // 03.09.2026 — Vermerk + Rechtelage unter dem Stil-Feld aktualisieren.
+  function _updateStyleHints(styleKey) {
+    const noteEl = document.getElementById("anim-style-note");
+    const rightsEl = document.getElementById("anim-style-rights");
+    const osmHint = document.getElementById("anim-style-osm-hint");
+    const alpha = (styleKey === "alpha");
+    let spec = null;
+    try { spec = alpha ? null : resolveMapStyle(styleKey, currentBbox || null, false); } catch (_) {}
+    if (noteEl) { const txt = spec ? mapStyleNoteText(spec) : ""; noteEl.textContent = txt; noteEl.hidden = !txt; }
+    if (rightsEl) rightsEl.hidden = alpha || !spec || spec.videoOk;
+    if (alpha || !spec || spec.videoOk) { const hc = document.querySelector('[data-help-content="map_rights"]'); if (hc) hc.hidden = true; }
+    if (osmHint) osmHint.hidden = alpha || !spec || spec.kind === "raster" || spec.kind === "gov";
+  }
   function applyStyle(styleKey) {
     if (!map) return;
-    const osmHint = document.getElementById("anim-style-osm-hint");
-    // v0.9.406 — Tour-Map darf OSM-Raster-Stile wählen (auch mit Mapbox-Token).
-    // OSM-Raster funktioniert in beiden Engines (mapboxgl + maplibregl).
-    if (typeof isOsmStyleKey === "function" && isOsmStyleKey(styleKey) && typeof window.osmRasterStyle === "function") {
-      _currentStyleKey = styleKey;
-      map.setStyle(window.osmRasterStyle(styleKey));
-      // 27.08.2026 — Ein Stilwechsel wirft ALLE Layer weg, auch die Ghost-Spuren.
-      map.once("style.load", () => { rebuildPreviewLayers(); _ghostSpurenAufbauen(); });
-      if (osmHint) osmHint.hidden = false;
+    _updateStyleHints(styleKey);
+    // Alpha ist kein Kartenstil: Karte bleibt, wie sie ist (die Vorschau deckt sie ab).
+    const key = (styleKey === "alpha") ? (map.__rzStyleKey || mapDefaultStyle()) : styleKey;
+    const r = applyMapStyle(map, key, currentBbox || null, { terrain: false });
+    if (r.needsRemount) {
+      // Engine-Wechsel (Mapbox GL ↔ MapLibre GL): Karte neu bauen. Der Stil ist
+      // über bindSetting schon gespeichert, der Neuaufbau liest ihn.
+      if (window.remountActiveModule) window.remountActiveModule();
       return;
     }
-    if (osmHint) osmHint.hidden = true;
-    if (isOsmMode()) {
-      // Kein Token → Mapbox-Stile nicht möglich
-      toast(t("animator.osm_only"), "info", 3000);
-      return;
-    }
-    const url = MAP_STYLES[styleKey] || MAP_STYLES.satellite;
     _currentStyleKey = styleKey;   // v0.9.329 — gegen redundante setStyle-Reloads (onLoad)
-    map.setStyle(url);
     map.once("style.load", () => {
       rebuildPreviewLayers();
       _ghostSpurenAufbauen();     // 27.08.2026 — sonst sind sie nach dem Stilwechsel weg
+      applyTerrain();
     });
+  }
+  // Nach dem Laden eines Tracks: „Satellit (kostenlos)" wählt das Land anhand
+  // der Track-Lage — greift jetzt ein anderes, Stil neu anwenden.
+  function _refreshStyleForTrack() {
+    try {
+      if (!map || !map.__rzSpec) return;
+      const sel = document.getElementById("anim-style");
+      const wanted = (sel && sel.value !== "alpha") ? sel.value : map.__rzSpec.requested;
+      const now = resolveMapStyle(wanted, currentBbox || null, false);
+      const cur = map.__rzSpec;
+      const rid = (x) => (x && x.region && x.region.id) || "";
+      if (now.key !== cur.key || rid(now) !== rid(cur)) {
+        // Nach dem Track-Laden fährt die Kamera gerade auf den Track (fitBounds);
+        // erst danach den Stil wechseln — setStyle während der Fahrt kippt MapLibre.
+        const go = () => { try { applyStyle(sel ? sel.value : wanted); } catch (_) {} };
+        if (map.isMoving && map.isMoving()) map.once("moveend", () => setTimeout(go, 80));
+        else setTimeout(go, 80);
+      } else _updateStyleHints(sel ? sel.value : wanted);
+    } catch (_) {}
   }
 
   whenApiReady().then(async () => {
@@ -7506,20 +7494,14 @@ function mountAnimator(body, headerActions, opts) {
     updateAnimatorViewport();
     const made = createMap({
       container: "map-canvas",
-      mapboxStyle: MAP_STYLES[initialStyleKey] || MAP_STYLES.satellite,
+      // 03.09.2026 — Stil aus der gemeinsamen Liste; Alpha ist kein Kartenstil.
+      styleKey: (initialStyleKey === "alpha") ? mapDefaultStyle() : initialStyleKey,
+      bbox: currentBbox || null,
       common: { center: [10, 51], zoom: 4, pitch: currentPitch() },
     });
     map = made.map;
     map.addControl(new made.lib.NavigationControl(), "top-right");
-
-    // v0.9.406 — Persistierter OSM-Stil (Tour-Map): createMap() kann nur Mapbox-
-    // URLs bzw. den OSM-Standard. Ist ein anderer OSM-Stil (topo/cyclosm/…) oder
-    // — im Mapbox-Modus — überhaupt ein OSM-Stil gewählt, nach dem ersten Load
-    // per applyStyle() das Raster-Objekt setzen. So matcht die Karte das Dropdown.
-    if (_isStaticFrame && typeof isOsmStyleKey === "function" && isOsmStyleKey(initialStyleKey)
-        && !(isOsmMode() && initialStyleKey === "osm")) {
-      map.once("load", () => { try { applyStyle(initialStyleKey); } catch (_) {} });
-    }
+    try { _updateStyleHints(initialStyleKey); } catch (_) {}
 
     // v0.8.6: Karte-Edits → Slider + Keyframe-Sync.
     // Wenn der User in der Karte mit Maus/Cmd+Drag etwas ändert (Pitch,
@@ -8389,7 +8371,7 @@ function mountAnimator(body, headerActions, opts) {
       // No-Op → die Schilder erschienen erst nach einem Modul-Wechsel (2. Mount,
       // Style dann warm). Betraf besonders „Aus Geotagger" direkt nach Ankunft auf
       // der Tour-Map (Marc 2026-07-01). Auf idle warten + einmal neu versuchen.
-      if (typeof map.isStyleLoaded === "function" && !map.isStyleLoaded()) {
+      if (!rzStyleReady(map)) {
         try { map.once("idle", _animSignsAttachToMap); } catch (_) {}
         return;
       }
@@ -12233,6 +12215,7 @@ function mountAnimator(body, headerActions, opts) {
     applog("info", `[drawPreview] n_coords=${res?.coords?.length} hasSource=${!!map?.getSource?.("preview-track")}`);
     currentCoords = res.coords;
     currentBbox = res.bbox;
+    try { _refreshStyleForTrack(); } catch (_) {}   // 03.09.2026 — Land für „Satellit (kostenlos)"
     // Neuer Track = neue Ausgangslage: Die Karte darf sich wieder selbst auf
     // ihn einstellen, bis der Nutzer die Kamera erneut in die Hand nimmt.
     _kameraGehoertNutzer = false;
@@ -13048,16 +13031,23 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) {}
   }
 
+  let _animExtraRetry = 0;
   function _animDrawExtraToursPreview() {
     if (!map) return;
     // v0.9.492 — Früher hieß es hier nur „Style noch nicht fertig → raus".
     // Damit blieb eine Tour, die während des Kartenaufbaus dazukam (Archiv:
     // „Alle im Animator"), dauerhaft unsichtbar, obwohl sie in der Liste stand.
     // Jetzt wird der Versuch nachgeholt, sobald die Karte still ist.
-    if (map.isStyleLoaded && !map.isStyleLoaded()) {
-      try { map.once("idle", () => { _animDrawExtraToursPreview(); _animFitAllTours(); }); } catch (_) {}
+    // 03.09.2026 — MapLibre meldet `isStyleLoaded()` erst, wenn auch alle
+    // Kacheln da sind; ein fitBounds lädt neue → wieder „nicht fertig" → wieder
+    // fitBounds … die Karte flog endlos hin und her, die Oberfläche stand.
+    // Darum: höchstens drei Anläufe, und der Fit nur beim ersten Nachholen.
+    if (!rzStyleReady(map) && (_animExtraRetry = (_animExtraRetry || 0) + 1) <= 3) {
+      const fit = (_animExtraRetry === 1);
+      try { map.once("idle", () => { _animDrawExtraToursPreview(); if (fit) _animFitAllTours(); }); } catch (_) {}
       return;
     }
+    _animExtraRetry = 0;
     _animClearExtraPreview();
     const lw = parseFloat(document.getElementById("anim-lw")?.value || "3.5");
     // 🌊 Schwarm (28.08.2026, Marc: „da müssen ordentlich punkte rausgenommen
@@ -13095,7 +13085,7 @@ function mountAnimator(body, headerActions, opts) {
     try {
       const st = map.getStyle && map.getStyle();
       if (!st) return;
-      const basis = new Set(["composite", "mapbox", "mapbox-dem", "mapbox://mapbox.satellite", "satellite"]);
+      const basis = new Set(["composite", "mapbox", "mapbox-dem", "mapbox://mapbox.satellite", "satellite", "rz-raster", "openmaptiles", "maptiler_planet", "maptiler_attribution", "natural_earth_shaded_relief", "ne"]);
       const eigene = (st.layers || [])
         .filter(l => l.source && !basis.has(l.source))
         .map(l => l.id);
@@ -13510,22 +13500,26 @@ function mountAnimator(body, headerActions, opts) {
     // Alpha-Modus braucht keinen Mapbox-Token (keine Map). Skip Token-Check.
     // v0.6.0: Alpha-Modus = Stil "alpha". Alpha + OSM ist OK (kein Token nötig).
     const alphaModeActive = document.getElementById("anim-style").value === "alpha";
-    // v0.9.391 — Tour-Map (Standbild) darf im OSM-Modus rendern: das Backend
-    // baut dann eine OSM-Raster-Karte statt Mapbox. Nur der Video-Render
-    // (Animator) bleibt Token-pflichtig. Alpha braucht sowieso keinen Token.
-    if (isOsmMode() && !alphaModeActive && !_isStaticFrame && !_snapshotRequest) {
+    // 03.09.2026 — keine Token-Sperre mehr. Stattdessen: Mapbox-Stil beim
+    // Video-Render → einmal je Sitzung auf die Rechtelage hinweisen, nicht sperren
+    // (wer Rechte gekauft hat, darf).
+    const _styleNow = document.getElementById("anim-style").value;
+    if (!alphaModeActive && !_isStaticFrame && !_snapshotRequest && !window.__rzRightsAck
+        && typeof mapStyleVideoOk === "function" && !mapStyleVideoOk(_styleNow)) {
       openModal({
-        title: t("animator.render_needs_token.title"),
-        body: `<p>${t("animator.render_needs_token.body")}</p>`,
+        title: t("mapstyle.rights_modal.title", "Mapbox-Stil: Videorechte nötig"),
+        body: `<p>${t("mapstyle.rights_hint", "Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur mit gekauften Videorechten (Product Terms §1.7). Für YouTube & Co. einen kostenlosen Stil oder MapTiler wählen.")}</p>
+               <p class="muted" style="font-size:12px; margin-top:8px;">${t("mapstyle.rights_modal.body", "Für den eigenen Gebrauch oder mit gekauften Rechten kannst du trotzdem rendern.")}</p>`,
         footer: `
           <button class="btn" id="md-rs-close">${t("common.cancel")}</button>
-          <button class="btn btn-primary" id="md-rs-settings">${t("common.settings")}</button>
+          <button class="btn btn-primary" id="md-rs-go">${t("mapstyle.rights_modal.go", "Trotzdem rendern")}</button>
         `,
       });
       document.getElementById("md-rs-close").onclick = () => openModal({}).close();
-      document.getElementById("md-rs-settings").onclick = () => {
+      document.getElementById("md-rs-go").onclick = () => {
+        window.__rzRightsAck = true;
         openModal({}).close();
-        if (window.openSettingsModal) window.openSettingsModal();
+        try { document.getElementById("anim-render").click(); } catch (_) {}
       };
       return;
     }
@@ -14217,7 +14211,7 @@ function mountAnimator(body, headerActions, opts) {
       }
       // Gewählter OSM-Kachelstil (Mapbox-Styles → OSM-Standard, tokenfrei fürs Blog).
       const styleKey = document.getElementById("anim-style")?.value || "osm";
-      const tileStyle = (typeof isOsmStyleKey === "function" && isOsmStyleKey(styleKey)) ? styleKey : "osm";
+      const tileStyle = ((typeof isOsmStyleKey === "function" && isOsmStyleKey(styleKey)) || styleKey === "free_satellite") ? styleKey : "osm";
       // Aktuelle Vorschau-Kamera ROH übernehmen (gleiche Engine → kein correctedZoom).
       let cam = {};
       try {

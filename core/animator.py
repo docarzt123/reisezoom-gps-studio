@@ -102,14 +102,24 @@ from . import heightanim as _cheight  # v0.9.443: Daten-Diagramme als Overlay
 from .frame_driver import FrameMuxer    # 22.08.2026: gemeinsamer ffmpeg-Lebenslauf
 
 
-MAP_STYLES = {
-    "satellite":         "mapbox://styles/mapbox/standard-satellite",
-    "satellite_streets": "mapbox://styles/mapbox/satellite-streets-v12",
-    "streets":           "mapbox://styles/mapbox/streets-v12",
-    "outdoors":          "mapbox://styles/mapbox/outdoors-v12",
-    "light":             "mapbox://styles/mapbox/light-v11",
-    "dark":              "mapbox://styles/mapbox/dark-v11",
-}
+# 03.09.2026 — Die Stilliste lebt in core/mapstyles.py (Mapbox, MapTiler,
+# staatliche Orthofotos, OpenFreeMap, OSM-Raster). `MAP_STYLES` bleibt als
+# Mapbox-Teilmenge für ältere Aufrufer erhalten.
+from . import mapstyles as _mapstyles
+MAP_STYLES = _mapstyles.MAP_STYLES
+
+# Kachel-Zwischenspeicher für den kopflosen Render (app.py setzt Pfad + Grenze).
+# None = aus (Tests). Mapbox-Kacheln werden bewusst NICHT gespeichert — nur die
+# Quellen, die es ausdrücklich erlauben (MapTiler) oder verlangen (OSM ≥ 7 Tage).
+TILE_CACHE_DIR: Optional[Path] = None
+TILE_CACHE_MAX_MB: int = 2048
+
+
+def _zoff_on(cfg) -> bool:
+    """`line-z-offset` gibt es nur in Mapbox GL v3. MapLibre lehnt die Eigenschaft
+    ab und legt die Ebene dann gar nicht an — dort drapiert es die Linie ohnehin
+    aufs Gelände. Also nur mit Mapbox-Engine UND Gelände."""
+    return bool(cfg.enable_terrain and getattr(cfg, "map_engine", "mapbox") == "mapbox")
 
 
 @dataclass
@@ -117,7 +127,16 @@ class AnimatorConfig:
     gpx_path: str
     output_path: str
     mapbox_token: str
-    map_style: str = "satellite"        # key in MAP_STYLES
+    map_style: str = "satellite"        # Schlüssel in core/mapstyles.STYLES
+    # 03.09.2026 — MapTiler-Schlüssel (Einstellungen → Kartenanbieter). Leer = die
+    # MapTiler-Stile weichen auf „Satellit (kostenlos)" aus.
+    maptiler_key: str = ""
+    # Wird von _make_html aus dem aufgelösten Stil gesetzt: "mapbox" | "maplibre".
+    # Entscheidet über Bibliothek, Token und Mapbox-only-Eigenschaften.
+    map_engine: str = "mapbox"
+    map_spec: Optional[dict] = None     # Ergebnis von mapstyles.resolve() (Log, Vermerke)
+    # Lokale Kachel-Weiche der App (core/tileproxy.py); leer = direkt zum Dienst.
+    tile_proxy_base: str = ""
     # v0.9.391 — OSM-Fallback (nur Tour-Map/Standbild ohne Mapbox-Token): Karte
     # aus OSM-Raster-Kacheln statt Mapbox-Style. Terrain/Pitch sind bei Raster
     # flach → app.py erzwingt im OSM-Modus enable_terrain=False, pitch=0.
@@ -1437,6 +1456,145 @@ def _read_sign_draw_js() -> str:
 _MAPBOX_GL_CACHE: Optional[str] = None
 
 
+# ── Kachel-Zwischenspeicher (kopfloser Render) ──────────────────────────────
+# 03.09.2026. Jede Kachel, die der Render lädt, landet einmal auf der Platte;
+# der nächste Render desselben Gebiets holt sie von dort. Mapbox bleibt außen
+# vor (Nutzungsbedingungen), alle anderen Quellen erlauben oder verlangen den
+# Zwischenspeicher. Aufbewahrt wird bis zur Größengrenze, die ältesten fliegen
+# zuerst. Leeren-Knopf: Einstellungen → Kartenanbieter.
+
+def tile_cache_size_bytes() -> int:
+    if not TILE_CACHE_DIR:
+        return 0
+    total = 0
+    try:
+        for f in Path(TILE_CACHE_DIR).rglob("*.bin"):
+            try: total += f.stat().st_size
+            except OSError: pass
+    except OSError:
+        pass
+    return total
+
+
+def tile_cache_clear() -> int:
+    """Alles weg. Liefert die Zahl gelöschter Dateien."""
+    if not TILE_CACHE_DIR:
+        return 0
+    n = 0
+    for f in list(Path(TILE_CACHE_DIR).rglob("*.bin")) + list(Path(TILE_CACHE_DIR).rglob("*.tmp")):
+        try: f.unlink(); n += 1
+        except OSError: pass
+    return n
+
+
+def _tile_cache_prune(max_mb: int) -> None:
+    """Über der Grenze: älteste Dateien löschen, bis 90 % erreicht sind."""
+    if not TILE_CACHE_DIR:
+        return
+    files = []
+    for f in Path(TILE_CACHE_DIR).rglob("*.bin"):
+        try: st = f.stat(); files.append((st.st_mtime, st.st_size, f))
+        except OSError: pass
+    total = sum(sz for _, sz, _ in files)
+    limit = int(max_mb) * 1024 * 1024
+    if total <= limit:
+        return
+    files.sort()
+    ziel = int(limit * 0.9)
+    n = 0
+    for _, sz, f in files:
+        if total <= ziel:
+            break
+        try: f.unlink(); total -= sz; n += 1
+        except OSError: pass
+    _log.info("Kachel-Zwischenspeicher: %d alte Dateien gelöscht (jetzt %.0f MB, Grenze %d MB)",
+              n, total / 2**20, max_mb)
+
+
+async def _install_tile_cache(page, cfg) -> Optional[dict]:
+    """Playwright-Route: Kacheln aus dem Zwischenspeicher bedienen, neue ablegen.
+    Liefert das Zähler-Dict (hit/miss/store) fürs Log, None wenn aus."""
+    if not TILE_CACHE_DIR or getattr(cfg, "transparent_background", False):
+        return None
+    import hashlib
+    d = Path(TILE_CACHE_DIR)
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        _tile_cache_prune(TILE_CACHE_MAX_MB)
+    except OSError as e:
+        _log.warning("Kachel-Zwischenspeicher nicht nutzbar: %s", e)
+        return None
+    stats = {"hit": 0, "miss": 0, "store": 0}
+    cors = {"Access-Control-Allow-Origin": "*"}
+
+    async def handler(route):
+        req = route.request
+        url = req.url
+        if req.method != "GET" or "mapbox.com" in url or url.startswith("data:") or url.startswith("blob:"):
+            await route.continue_(); return
+        h = hashlib.sha1(url.encode("utf-8")).hexdigest()
+        f = d / h[:2] / (h + ".bin")
+        if f.exists():
+            try:
+                raw = f.read_bytes()
+                nl = raw.index(b"\n")
+                stats["hit"] += 1
+                await route.fulfill(status=200, content_type=raw[:nl].decode("ascii", "ignore"),
+                                    body=raw[nl + 1:], headers=cors)
+                return
+            except Exception:
+                pass
+        try:
+            resp = await route.fetch()
+        except Exception:
+            try: await route.abort()
+            except Exception: pass
+            return
+        stats["miss"] += 1
+        try:
+            ct = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
+            body = await resp.body()
+            if (resp.status == 200 and len(body) < 8_000_000
+                    and (ct.startswith("image/") or "protobuf" in ct or "font" in ct
+                         or ct == "application/octet-stream")):
+                f.parent.mkdir(parents=True, exist_ok=True)
+                tmp = f.with_name(f.name + f".{os.getpid()}.tmp")
+                tmp.write_bytes(ct.encode("ascii", "ignore") + b"\n" + body)
+                os.replace(tmp, f)
+                stats["store"] += 1
+            await route.fulfill(response=resp)
+        except Exception:
+            try: await route.fulfill(response=resp)
+            except Exception: pass
+
+    await page.route("**/*", handler)
+    return stats
+
+
+_MAPLIBRE_GL_CACHE: Optional[str] = None
+
+
+def _maplibre_gl_head() -> str:
+    """`<script>`/`<style>` für maplibre-gl — aus dem Bundle (ui/vendor), wie
+    `_mapbox_gl_head()`. Fällt auf die CDN zurück, wenn die Dateien fehlen."""
+    global _MAPLIBRE_GL_CACHE
+    if _MAPLIBRE_GL_CACHE is None:
+        try:
+            base = Path(getattr(sys, "_MEIPASS", None)
+                        or Path(__file__).resolve().parent.parent)
+            js = (base / "ui" / "vendor" / "maplibre-gl.js").read_text(encoding="utf-8")
+            css = (base / "ui" / "vendor" / "maplibre-gl.css").read_text(encoding="utf-8")
+            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>"
+            _log.info("maplibre-gl aus dem Bundle eingebettet (%.1f MB)", len(js) / 2**20)
+        except Exception as e:
+            _log.warning("maplibre-gl nicht im Bundle gefunden (%s) — CDN-Rückfall", e)
+            _MAPLIBRE_GL_CACHE = (
+                '<script src="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.js"></script>\n'
+                '<link href="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.css" rel="stylesheet">'
+            )
+    return _MAPLIBRE_GL_CACHE
+
+
 def _mapbox_gl_head() -> str:
     """`<script>`/`<style>` für mapbox-gl — aus dem Bundle statt aus dem Netz.
 
@@ -1713,50 +1871,50 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # transparentem Hintergrund (für Composit über echtes Video in NLEs).
     if cfg.transparent_background:
         return _make_html_alpha(cfg, ds_points, cum_dist, cum_time, total_stats, bbox)
-    style_url = MAP_STYLES.get(cfg.map_style, MAP_STYLES["satellite"])
-    # v0.9.391 — OSM-Fallback (Tour-Map ohne Mapbox-Token). mapbox-gl-js rendert
-    # ein Style-OBJEKT mit Raster-Source ohne Token (keine mapbox://-Ressourcen).
-    # Identische Kachel-Quelle wie die Live-Karte (ui/js/util.js OSM_STYLE), damit
-    # Vorschau = Render. Die Source trägt die Attribution → die Default-
-    # AttributionControl zeigt automatisch „© OpenStreetMap". `style_expr` wird
-    # OHNE Quotes direkt ins Map-Init injiziert.
+    # 03.09.2026 — Stil auflösen: Anbieter, Engine, Gelände und Nennung kommen
+    # aus core/mapstyles.py. Ausweichen (kein Schlüssel, keine Abdeckung) wird
+    # dort entschieden und hier nur noch protokolliert — nie abgebrochen.
     _osm = bool(getattr(cfg, "use_osm", False))
-    if _osm:
-        # v0.9.415 — Kachel-Quelle parametrisierbar (gewählter OSM-Stil beim
-        # interaktiven Export). Default = Standard-OSM (wie bisher). `{s}`-Platzhalter
-        # (a/b/c-Subdomains) werden zu expliziten Tile-URLs expandiert (MapLibre
-        # kennt kein {s}). Attribution als Plain-Text ins JS-Single-Quote-Literal.
-        _osm_url = getattr(cfg, "osm_tiles_url", None) or "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        _osm_max = int(getattr(cfg, "osm_max_zoom", 19) or 19)
-        if "{s}" in _osm_url:
-            _tiles = "[" + ",".join(
-                "'" + _osm_url.replace("{s}", sd).replace("'", "\\'") + "'" for sd in ("a", "b", "c")
-            ) + "]"
-        else:
-            _tiles = "['" + _osm_url.replace("'", "\\'") + "']"
-        _osm_attr = getattr(cfg, "osm_attribution", None) or "&copy; OpenStreetMap contributors"
-        _osm_attr = str(_osm_attr).replace("'", "\\'")
-        style_expr = (
-            "{version:8,"
-            "sources:{osm:{type:'raster',"
-            "tiles:" + _tiles + ","
-            "tileSize:256,maxzoom:" + str(_osm_max) + ","
-            "attribution:'" + _osm_attr + "'}},"
-            "layers:[{id:'osm-tiles',type:'raster',source:'osm',minzoom:0}]}"
-        )
+    if _osm and getattr(cfg, "osm_tiles_url", None):
+        # Interaktiver HTML-Export mit ausdrücklich gewählter Kachelquelle
+        # (Web-Karte/Tour-Map-HTML). `{s}` (Leaflet-Subdomains) expandieren,
+        # MapLibre kennt das nicht.
+        _osm_url = cfg.osm_tiles_url
+        _tiles = ([_osm_url.replace("{s}", sd) for sd in ("a", "b", "c")]
+                  if "{s}" in _osm_url else [_osm_url])
+        _spec = {
+            "key": "osm", "requested": cfg.map_style, "engine": "maplibre",
+            "style": _mapstyles.raster_style(_tiles, maxzoom=int(getattr(cfg, "osm_max_zoom", 19) or 19),
+                                             attribution=str(getattr(cfg, "osm_attribution", None)
+                                                             or "&copy; OpenStreetMap contributors")),
+            "terrain": (_mapstyles.terrain_source("aws") if cfg.enable_terrain else None),
+            "attribution": (_mapstyles.TERRAIN["aws"]["attribution"] if _zoff_on(cfg) else ""),
+            "region": None, "notes": [], "badge": "free", "video_ok": True, "provider": "osm",
+        }
     else:
-        style_expr = "'" + style_url + "'"
-    # v0.9.391 — Karten-Engine wählen. Mapbox GL JS v3 VERLANGT einen gültigen
-    # Token (wirft sonst „valid access token required" und die Karte bleibt leer)
-    # — auch bei reinen Raster-Styles. Darum im OSM-Fall (kein Token) MapLibre GL
-    # JS laden (braucht keinen Token), exakt wie die Live-Karte (ui/index.html).
-    # MapLibre ist API-kompatibel für unsere Nutzung; wir aliasen `mapboxgl` darauf,
-    # damit die restliche Render-JS unverändert bleibt.
+        _spec = _mapstyles.resolve(
+            cfg.map_style if (not _osm or cfg.map_style in _mapstyles.STYLE_BY_KEY) else "osm",
+            mapbox_token=cfg.mapbox_token or "", maptiler_key=getattr(cfg, "maptiler_key", "") or "",
+            bbox=bbox, want_terrain=bool(cfg.enable_terrain),
+            proxy_base=getattr(cfg, "tile_proxy_base", "") or "")
+    cfg.map_engine = _spec["engine"]
+    cfg.map_spec = _spec
+    if not _spec["terrain"]:
+        cfg.enable_terrain = False
+    for _n in _spec["notes"]:
+        _log.warning("Kartenstil: %s", _n)
+    _log.info("Kartenstil: %s (gewünscht %s) · Engine %s · Gelände %s · Region %s",
+              _spec["key"], _spec["requested"], _spec["engine"],
+              "ja" if _spec["terrain"] else "nein",
+              (_spec["region"] or {}).get("name", "–"))
+    _osm = _spec["engine"] == "maplibre"    # alter Name, neue Bedeutung: MapLibre-Engine
+    style_expr = (json.dumps(_spec["style"]) if isinstance(_spec["style"], dict)
+                  else "'" + str(_spec["style"]).replace("'", "\\'") + "'")
+    # Karten-Engine: Mapbox GL JS nur für Mapbox-Stile (verlangt Token und darf
+    # mit fremden Kacheln nicht betrieben werden); alles andere MapLibre GL JS.
+    # `mapboxgl` wird auf `maplibregl` aliased, damit der Render-JS-Code gleich bleibt.
     if _osm:
-        gl_head = (
-            '<script src="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.js"></script>\n'
-            '<link href="https://unpkg.com/maplibre-gl@5.4.0/dist/maplibre-gl.css" rel="stylesheet">'
-        )
+        gl_head = _maplibre_gl_head()
         gl_token_js = "window.mapboxgl = maplibregl;"
     else:
         gl_head = _mapbox_gl_head()
@@ -1784,7 +1942,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         )
         _dash = _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)
         _dash_frag = f",'line-dasharray':{_dash}" if _dash else ""
-        _zoff_frag = ",'line-z-offset':150" if cfg.enable_terrain else ""
+        _zoff_frag = ",'line-z-offset':150" if _zoff_on(cfg) else ""
         _layers = ["for (let i=0;i<TOUR_N;i++){", "  const __col = TOUR_COLORS[i];",
                    "  map.addSource('mtrack'+i, {type:'geojson', data:{type:'Feature',geometry:{type:'LineString',coordinates:[]}}});"]
         if cfg.shadow_enabled and cfg.shadow_strength > 0:
@@ -1937,7 +2095,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     haupt_dezent_js = "true" if _haupt_dezent else "false"
     # Bei 3D-Gelände brauchen die Linien denselben z-Offset wie der Haupt-Track,
     # sonst verschwinden sie im Berg.
-    schwarm_zoff_frag = ", 'line-z-offset': 150" if cfg.enable_terrain else ""
+    schwarm_zoff_frag = ", 'line-z-offset': 150" if _zoff_on(cfg) else ""
     color_stops_km_json = json.dumps([_stopv(s) for s in _stops])
     color_stops_col_json = json.dumps([str(s["color"]) for s in _stops])
     color_mode_json = json.dumps("gradient" if str(cfg.track_colors_mode) == "gradient" else "hard")
@@ -2101,14 +2259,11 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         "})();"
     )
     terrain_block = ""
-    if cfg.enable_terrain and not _osm:
+    if cfg.enable_terrain and _spec.get("terrain"):
+        # Gelände hängt am Stil (Mapbox-DEM / MapTiler terrain-rgb / AWS terrarium).
+        # Quellname bleibt 'mapbox-dem', weil der Render-JS-Code ihn so kennt.
         terrain_block = f"""
-    map.addSource('mapbox-dem', {{
-        type: 'raster-dem',
-        url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-        tileSize: 512,
-        maxzoom: 14
-    }});
+    map.addSource('mapbox-dem', {json.dumps(_spec["terrain"])});
     map.setTerrain({{ source: 'mapbox-dem', exaggeration: {cfg.exaggeration} }});
 """
 
@@ -2121,9 +2276,18 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # über große Strecken sind die Tiles dann schon im Browser-Cache → der
     # per-Frame `idle`-Wait fällt drastisch. Keine Quality-Auswirkung, nur
     # initial etwas mehr Tile-Download.
+    # 03.09.2026 — Nennung nie einklappen: unter 640 px CSS-Breite (Hochkant-
+    # Videos!) machen beide Bibliotheken aus der Nennung sonst ein „i"-Knöpfchen.
+    # Mapbox wie MapTiler verlangen die sichtbare Nennung im Bild.
+    _extra_attr = str(_spec.get("attribution") or "").replace("'", "\\'")
     common_opts = (
         "  preserveDrawingBuffer:true, antialias:true, fadeDuration:0,\n"
-        "  prefetchZoomDelta:6\n"
+        "  prefetchZoomDelta:6, attributionControl:false\n"
+    )
+    attribution_init = (
+        "map.addControl(new mapboxgl.AttributionControl({compact:false"
+        + (f", customAttribution:'{_extra_attr}'" if _extra_attr else "")
+        + "}), 'bottom-right');"
     )
     # v0.9.307 — Standbild-Modus: Bounds-Fit nutzt cfg.padding_pct + cfg.bearing
     # (Tour-Map-Parität). Im Video-Modus bleibt's bei 8 % / bearing -10.
@@ -2432,7 +2596,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     _gpx_ghost_js = "// gpx-ghost off"
     _ghosts_alle = ghost_liste(cfg)
     if _ghosts_alle:
-        _gg_zoff = ",'line-z-offset':150" if cfg.enable_terrain else ""
+        _gg_zoff = ",'line-z-offset':150" if _zoff_on(cfg) else ""
         _teile = []
         for _i, _g in enumerate(_ghosts_alle):
             _koord = json.dumps([[float(c[0]), float(c[1])] for c in _g["coords"]])
@@ -2834,6 +2998,7 @@ function updateOverlays(idx) {{
 updateOverlays(0);
 
 {map_init}
+{attribution_init}
 {multi_consts_js}
 let mapReady=false;
 map.on('style.load', () => {{
@@ -2896,7 +3061,7 @@ map.on('style.load', () => {{
     "layout:{'line-cap':'round','line-join':'round'},"
     f"paint:{{'line-color':'{cfg.ghost_track_color}','line-width':{cfg.line_width:.2f},'line-opacity':{max(0.0, min(1.0, cfg.ghost_track_opacity)):.2f}"
     + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else "")
-    + (",'line-z-offset':150" if cfg.enable_terrain else "")
+    + (",'line-z-offset':150" if _zoff_on(cfg) else "")
     + "}});") if cfg.ghost_track_enabled and cfg.ghost_track_opacity > 0 else "// ghost track disabled"}
   // v0.9.210 (Reiseroute) — geladenes Wander-GPX als zusätzlicher Ghost.
   {_gpx_ghost_js}
@@ -2925,16 +3090,16 @@ map.on('style.load', () => {{
     # → spürbar breiterer Halo.
     f"paint:{{'line-color':'{cfg.line_color}','line-width':{cfg.line_width * (2.0 + 0.21 * cfg.glow_strength):.2f},'line-opacity':0.35,'line-blur':{cfg.glow_strength:.1f}"
     + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) and not _colors_on else "")
-    + (",'line-z-offset':150" if cfg.enable_terrain else "")
+    + (",'line-z-offset':150" if _zoff_on(cfg) else "")
     + "}});") if cfg.glow_enabled and cfg.glow_strength > 0 else "// glow disabled"}
   map.addLayer({{id:'track-line',type:'line',source:'track',
     layout:{{'line-cap':'round','line-join':'round'}},
-    paint:{{'line-color':'{cfg.line_color}','line-width':{cfg.line_width:.2f},'line-opacity':0.95{f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) and not _colors_on else ""}{',\'line-z-offset\':150' if cfg.enable_terrain else ''}}}}});
+    paint:{{'line-color':'{cfg.line_color}','line-width':{cfg.line_width:.2f},'line-opacity':0.95{f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) and not _colors_on else ""}{',\'line-z-offset\':150' if _zoff_on(cfg) else ''}}}}});
   {("map.addLayer({id:'track-highlight',type:'line',source:'track',"
     "layout:{'line-cap':'round','line-join':'round'},"
     f"paint:{{'line-color':'#ffffff','line-width':{cfg.line_width * 0.35:.2f},'line-opacity':0.55,'line-blur':0.6"
     + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else "")
-    + (",'line-z-offset':150" if cfg.enable_terrain else "")
+    + (",'line-z-offset':150" if _zoff_on(cfg) else "")
     + "}});") if cfg.track_style == "tube" else "// no tube highlight"}
   // v0.9.156 — Multi-Track: N eigene Tour-Sources/Layer (leer wenn Single-Track).
   {multi_track_layers}
@@ -3930,6 +4095,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
             viewport={"width": _vp_w, "height": _vp_h},
             device_scale_factor=_dsf * _ss,
         )
+        _tc_stats = await _install_tile_cache(page, cfg)
 
         def _on_console(msg):
             try: _log.info("page.console [%s] %s", msg.type, msg.text)
@@ -4202,8 +4368,8 @@ async def render_frame(
 
     emit(0.0, _t("animator.progress.load_gpx", "Lade GPX-Datei …"))
     _log.info("render_frame() start · GPX=%s · output=%s", cfg.gpx_path, cfg.output_path)
-    if not cfg.transparent_background and not getattr(cfg, "use_osm", False) and (not cfg.mapbox_token or not cfg.mapbox_token.startswith("pk.")):
-        _log.warning("Mapbox-Token fehlt/ungültig — Standbild-Render wird fehlschlagen.")
+    # 03.09.2026 — ohne Token weicht der Stil auf „Satellit (kostenlos)" aus
+    # (core/mapstyles.resolve); eine Warnung gibt es nur noch dort.
 
     raw_points, total_stats = core_parse_gpx(cfg.gpx_path)
     points = _punkte_verteilen(cfg, raw_points)
@@ -4259,6 +4425,7 @@ async def render_frame(
                 viewport={"width": _vp_w, "height": _vp_h},
                 device_scale_factor=_dsf * _ss,
             )
+            _tc_stats = await _install_tile_cache(page, cfg)
             page.on("console", lambda m: _log.info("page.console [%s] %s", m.type, m.text))
             page.on("pageerror", lambda e: _log.error("page.pageerror: %s", e))
             await page.set_content(html)
@@ -4874,6 +5041,7 @@ async def render(
             viewport={"width": _vp_w, "height": _vp_h},
             device_scale_factor=_dsf * _ss,
         )
+        _tc_stats = await _install_tile_cache(page, cfg)
 
         # RZ_SLOWNET — nur Fehlersuche (Beta-Tester 21.08.2026): Mapbox-Requests
         # künstlich verzögern, um langsame Verbindungen nachzustellen.

@@ -14,6 +14,87 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.651] – 2026-09-03
+
+### Kartenanbieter zur Auswahl — Videos, die man veröffentlichen darf
+
+**Warum:** Mapbox verbietet in seinen Product Terms §1.7 („Print or Video Use")
+die Veröffentlichung von Videos mit Mapbox-Kartenmaterial, solange keine
+Videorechte gekauft sind — und der Standardstil der App war ausgerechnet der
+Mapbox-Satellit. Ein Nutzer aus Japan hatte gefragt, ob er sein Video auf
+YouTube stellen darf. Antwort: mit Mapbox nicht ohne Zukauf. Deshalb dieser Umbau.
+
+#### Hinzugefügt
+- **Vier neue Kartenquellen, dieselbe Liste auf allen sieben Kartenflächen**
+  (Animator, Tour-Map, GPX-Inspektor, Geotagger, Archiv, Web-Karte, Tour-Map-HTML):
+  - **Satellit (kostenlos, Land wählt sich selbst)** — staatliche Orthofotos,
+    kostenlos und meist schärfer als Mapbox (20–50 cm). Ein Eintrag, der die
+    Quelle anhand der Track-Lage wählt: 15 deutsche Bundesländer (Hamburg
+    fehlt, sein Dienst antwortet 404), Österreich, Schweiz, Luxemburg,
+    Niederlande, Frankreich, Spanien (inkl. Kanaren), Portugal, Italien,
+    Tschechien, Polen, Estland, Japan und die USA. In Deutschland werden die
+    Länder um den Mittelpunkt übereinandergelegt (durchsichtige PNGs), weil die
+    Rechtecke der Bundesländer sich überlappen — Potsdam liegt sonst im
+    Rechteck von Sachsen-Anhalt. — `core/mapstyles.py`, `tests/test_kartenanbieter.py`
+  - **OpenFreeMap** (Liberty, Bright, Positron) — kostenlose OSM-Vektorkarten
+    ohne Schlüssel.
+  - **MapTiler** (Satellit, Satellit + Beschriftung, Outdoor, Topo, Streets)
+    — weltweit Satellit und Gelände mit eigenem Schlüssel; Videos für Kanäle
+    bis 100.000 Abonnenten erlaubt (MapTiler Cloud Terms §5).
+  - **Gelände ohne Mapbox:** AWS Terrain Tiles (Mapzen terrarium) für alle
+    Nicht-Mapbox-Stile, MapTiler-Gelände für MapTiler-Stile. Das Gelände hängt
+    fest am Stil — es landen keine Mapbox-Daten in einem Video, das genau
+    deshalb nicht mit Mapbox gerendert wurde. Damit gibt es 3D auch mit den
+    OpenStreetMap-Rasterkarten (bisher flach erzwungen).
+- **Rechtelage sichtbar:** jeder Stil trägt in der Liste seine Marke
+  („kostenlos · Video ok" / „Schlüssel nötig" / „Video: Rechte nötig"). Unter
+  dem Stil-Feld steht, welches Luftbild gerade greift oder worauf ausgewichen
+  wurde. Vor einem Video-Render mit Mapbox-Stil kommt einmal je Sitzung ein
+  Hinweis — keine Sperre, wer Rechte hat, darf.
+- **Einstellungen → Kartenanbieter:** Standardstil für neue Projekte,
+  Mapbox-Token, MapTiler-Schlüssel, Größe und „Leeren" für den
+  Kachel-Zwischenspeicher.
+- **Kachel-Zwischenspeicher** im App-Support-Ordner (`_tilecache`, Grenze
+  einstellbar, Standard 2 GB, älteste Kacheln fliegen zuerst). Vorschau und
+  Render teilen ihn sich über eine lokale Kachel-Weiche (`core/tileproxy.py`);
+  Mapbox-Kacheln werden bewusst nicht gespeichert.
+- **Nennung im Bild** kommt weiter automatisch von der Karte, je Quelle mit dem
+  richtigen Text, und wird nie mehr zu einem „i"-Knopf eingeklappt — auch bei
+  Hochkant-Videos steht sie ausgeschrieben da (Mapbox wie MapTiler verlangen das).
+- `scripts/check_map_sources.py` klopft alle Quellen mit einer echten Kachel an.
+
+#### Geändert
+- **Werkseinstellung ist „Satellit (kostenlos)".** Bestehende Installationen
+  und Projekte behalten ihren Stil.
+- **Kein Token-Zwang mehr:** Der Erststart-Dialog verlangt keinen Mapbox-Token,
+  Tour-Map und Video-Render laufen ohne. Fehlt ein Schlüssel oder die
+  Abdeckung, weicht die App aus (Vermerk im `app.log` und unter dem Stil-Feld)
+  statt abzubrechen: Mapbox/MapTiler ohne Schlüssel → Satellit (kostenlos);
+  kein Luftbild für den Track → OpenFreeMap-Karte mit Gelände.
+- Fremde Kacheln laufen ausschließlich über MapLibre GL; Mapbox GL JS nur noch
+  für Mapbox-Stile (Lizenz). Ein Stilwechsel über diese Grenze baut die Karte
+  neu auf.
+- Die Leaflet-Exporte (Web-Karte, Tour-Map-HTML) kennen „Satellit
+  (kostenlos)" ebenfalls — als WMS- oder Kachelebene, ohne Schlüssel im
+  Blog-HTML.
+
+#### Behoben
+- MapLibre kippte, wenn das Gelände mitten in einer Kamerafahrt gesetzt oder
+  der Stil mit aktivem Gelände gewechselt wurde („Attempting to run(), but is
+  already running"). Gelände wird jetzt nach der Fahrt gesetzt, vor einem
+  Stilwechsel abgehängt.
+
+#### Offen
+- Auf allen Nicht-Mapbox-Stilen liegt die Track-Linie AUF dem Gelände (MapLibre
+  kennt kein `line-z-offset`, das die Linie bei Mapbox 150 m schweben lässt).
+  Hinter Graten kann sie deshalb im Standbild kurz verdeckt sein; im Video
+  fällt es kaum auf. Abhilfe wäre eine eigene 3D-Linie — noch nicht gebaut.
+- Hamburg (kein erreichbarer Luftbild-Dienst), Skandinavien, Großbritannien
+  und Kanada haben keine kostenlose Luftbildquelle im Katalog → dort greift die
+  Karte (OpenFreeMap) bzw. MapTiler mit Schlüssel.
+- Archiv-Vorschaubilder holen weiter Mapbox-Statikbilder ohne Nennung
+  (`core/library.py`) — separater Punkt.
+
 ## [0.9.650] – 2026-09-02
 
 ### Weitermachen, wo man aufgehört hat

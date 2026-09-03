@@ -271,6 +271,9 @@ async def main():
         await pg.select_option("#anim-pause-mode", "skip")
         await pg.fill("#anim-pause-min", "4")
         await pg.wait_for_timeout(700)
+        # 03.09.2026 — der Prüfstand fährt den Mapbox-Stil; der Rechtelage-Hinweis
+        # vor dem Video-Render (Kartenanbieter-Umbau) ist hier nicht Gegenstand.
+        await pg.evaluate("window.__rzRightsAck = true")
         await pg.click("#anim-render")
         await pg.wait_for_timeout(1500)
         prm = await pg.evaluate("window.__renderParams")

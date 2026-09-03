@@ -304,6 +304,49 @@ Then load that file in the bar at the top — and carry on with step 4.
 
 ## 2 · Getting Started
 
+### Choosing a map provider — free, MapTiler or Mapbox (since v0.9.651) ⭐
+
+**In short:** you no longer need a key. The app ships with free satellite
+imagery and maps, and videos made with them may be published.
+
+**Why.** Mapbox only permits publishing videos that contain its map content if
+you have purchased video rights (Mapbox Product Terms §1.7 "Print or Video
+Use"). So the old default style was unsuitable for YouTube, Instagram etc.
+Since v0.9.651 you choose the provider — the same list on every map in the app.
+
+**The list (Animator, Tour Map, Inspector, Geotagger, Archive, Web Map):**
+
+| Group | Styles | Rights |
+|---|---|---|
+| **Free · video allowed** | **Satellite (free, country picks itself)**, Map Liberty/Bright/Positron (OpenFreeMap), OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian | no key, videos allowed, attribution is placed in the picture automatically |
+| **MapTiler · your own key** | Satellite, Satellite + labels, Outdoor, Topo, Streets | free key at cloud.maptiler.com; videos allowed for channels up to 100,000 subscribers; the free plan is non-commercial only |
+| **Mapbox · video only with purchased rights** | Satellite (3D), Satellite + streets, Outdoors, Streets, Light, Dark | token required; publishing videos only with purchased video rights |
+
+**Satellite (free)** uses the official aerial imagery of the national mapping
+agencies — usually sharper than Mapbox (20–50 cm): 15 German states (Hamburg is
+currently missing), Austria, Switzerland, Luxembourg, the Netherlands, France,
+Spain incl. the Canaries, Portugal, Italy, Czechia, Poland, Estonia, Japan and
+the USA. Which source is active is shown below the style field ("Aerial
+imagery: Brandenburg"). Outside the coverage the app quietly falls back to the
+OpenFreeMap map with 3D terrain — and tells you so in the same place.
+
+**3D terrain** now works with every source: Mapbox styles use Mapbox terrain,
+MapTiler styles MapTiler's, all free styles the AWS terrain model (Mapzen). The
+terrain is tied to the style — a video without Mapbox contains no Mapbox data.
+
+**Settings → Map providers:** default style for new projects (factory setting
+"Satellite (free)"; existing projects keep their style), Mapbox token, MapTiler
+key and the **tile cache** (default 2 GB; "Clear" button). Downloaded tiles stay
+on disk, so the second render of the same area is faster.
+
+**Before a video render with a Mapbox style** the app reminds you of the rights
+situation once per session. It blocks nothing: if you own the rights or only
+watch privately, just render on.
+
+**Important for publishing:** the source attribution at the bottom right of the
+picture is part of the video. Please don't crop it away — Mapbox, MapTiler and
+the mapping agencies all require it.
+
 ### Set up a Mapbox token 🗺️
 Animator + Tour-Map need a **free Mapbox token** for the 3D maps. **The Geotagger works without one too**.
 

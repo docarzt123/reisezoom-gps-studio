@@ -125,72 +125,262 @@ window.addEventListener("unhandledrejection", (ev) => {
   } catch (_) {}
 });
 
-// ── Map-Factory: Mapbox (mit Token) ODER MapLibre+OSM (ohne Token) ─────────
+// ── Kartenanbieter zur Auswahl (03.09.2026) ─────────────────────────────────
 //
-// Die Wahl der Engine wird beim Map-Erzeugen einmal festgelegt. Wenn ein
-// Token gesetzt ist → Mapbox GL JS mit allen Premium-Features (Satellite,
-// 3D-Terrain). Wenn nicht → MapLibre GL JS mit OpenStreetMap-Raster-Tiles.
+// Die Stilliste kommt aus core/mapstyles.py (Brücke `map_catalog`). Hier steht
+// der Spiegel von `mapstyles.resolve()`: Stil-Schlüssel + Schlüssel + Track-Lage
+// → Engine, Style, Gelände, Nennung. Bei Änderung BEIDE pflegen.
+//
+// Regel: Mapbox-Stile laufen in Mapbox GL JS (Token), ALLE anderen in MapLibre
+// GL JS — Mapbox GL JS darf mit fremden Kacheln lizenzrechtlich nicht betrieben
+// werden. Die Engine hängt damit am Stil; ein Wechsel über die Engine-Grenze
+// baut die Karte neu (Modul-Remount, siehe `applyMapStyle`).
 
 const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-const OSM_STYLE = {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: [OSM_TILE_URL],
-      tileSize: 256,
-      // v0.9.359 (Bug schwarze Karte): Source-maxzoom = letzte verfügbare Kachel-
-      // Ebene. Darüber SKALIERT MapLibre die letzte Kachel (Overzoom) statt eine
-      // nicht-existente {z}-Kachel anzufordern → kein schwarzes Loch mehr.
-      maxzoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    },
-  },
-  layers: [
-    // KEIN Layer-maxzoom: vorher 19 == Map-maxZoom → bei Vollzoom verschwand der
-    // Kachel-Layer (Layer-maxzoom ist exklusiv) → schwarz. Layer rendert jetzt
-    // immer; die Source overzoomt sauber.
-    { id: "osm-tiles", type: "raster", source: "osm", minzoom: 0 },
+// Notfall-Katalog, falls die Brücke noch nicht geantwortet hat (Start, Tests).
+const _RZ_FALLBACK_CATALOG = {
+  default: "free_satellite", default_style: "free_satellite", group_order: ["free"],
+  styles: [
+    { key: "free_satellite", provider: "gov", kind: "gov", group: "free", label: "Satellit (kostenlos)", terrain: "aws", badge: "free", available: true },
+    { key: "osm", provider: "osm", kind: "raster", group: "free", label: "OpenStreetMap", terrain: "aws", badge: "free", available: true,
+      tiles: [OSM_TILE_URL], tileSize: 256, maxzoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' },
   ],
+  terrain: { aws: { tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 15, encoding: "terrarium", attribution: "Gelände: Mapzen/AWS Terrain Tiles" } },
+  regions: [], keys: { mapbox: false, maptiler: false }, key_values: { mapbox: "", maptiler: "" },
 };
+window.RZ_MAP_CATALOG = null;
+function mapCatalog() { return window.RZ_MAP_CATALOG || _RZ_FALLBACK_CATALOG; }
+function mapStyleDef(key) { return mapCatalog().styles.find(s => s.key === key) || null; }
+function mapStyleKnown(key) { return !!mapStyleDef(key); }
+function mapDefaultStyle() { const c = mapCatalog(); return c.default_style || c.default || "free_satellite"; }
+/** Kurzer Text zur Rechtelage eines Stils (für Listen und Hinweise). */
+function mapStyleBadgeText(key) {
+  const d = mapStyleDef(key); const b = d ? d.badge : "free";
+  if (b === "video_rights") return t("mapstyle.badge.video_rights", "Video: Rechte nötig");
+  if (b === "key") return t("mapstyle.badge.key", "Schlüssel nötig");
+  return t("mapstyle.badge.free", "kostenlos");
+}
+function mapStyleLabel(key) {
+  const d = mapStyleDef(key);
+  return d ? t("mapstyle." + key, d.label) : key;
+}
+/** True, wenn der Stil ohne gekaufte Videorechte veröffentlicht werden darf. */
+function mapStyleVideoOk(key) { const d = mapStyleDef(key); return !d || d.badge !== "video_rights"; }
 
-// v0.9.406 — Katalog wählbarer OSM-Raster-Stile für die Tour-Map (WYSIWYG-
-// Vorschau + interaktiver HTML-Export). Anders als der Animator (Mapbox-only)
-// darf die Tour-Map OSM-Stile anbieten, AUCH wenn ein Mapbox-Token gesetzt ist.
-// SYNCHRON zu core/tourmap_html.py OSM_TILE_STYLES — bei Änderung beide pflegen.
+// Mapbox-URL → Stil-Schlüssel (für alte Aufrufer, die noch `mapboxStyle` übergeben).
+function _mapKeyFromMapboxUrl(url) {
+  const d = mapCatalog().styles.find(s => s.style_url && s.style_url === url);
+  return d ? d.key : null;
+}
+
+/** Die Orthofoto-Region für ein Track-Rechteck [lon_min, lat_min, lon_max, lat_max]
+ *  — Mittelpunkt, kleinste Fläche gewinnt (Spiegel von mapstyles.region_for_bbox). */
+/** Track-Rechteck in [lon_min, lat_min, lon_max, lat_max] — die Brücke liefert
+ *  ein Objekt {min_lat, max_lat, min_lon, max_lon} (core/gpx.py), Module rechnen
+ *  teils mit Arrays. Beides wird hier angenommen; null, wenn nichts Brauchbares. */
+function mapBboxArray(b) {
+  if (!b) return null;
+  if (Array.isArray(b)) return (b.length >= 4 && b.every(v => isFinite(Number(v)))) ? b.slice(0, 4).map(Number) : null;
+  if (typeof b === "object" && b.min_lon != null && b.min_lat != null) {
+    const a = [Number(b.min_lon), Number(b.min_lat), Number(b.max_lon), Number(b.max_lat)];
+    return a.every(v => isFinite(v)) ? a : null;
+  }
+  return null;
+}
+window.mapBboxArray = mapBboxArray;
+function mapRegionsForBbox(bbox) {
+  bbox = mapBboxArray(bbox);
+  if (!bbox) return [];
+  const cx = (Number(bbox[0]) + Number(bbox[2])) / 2, cy = (Number(bbox[1]) + Number(bbox[3])) / 2;
+  if (!isFinite(cx) || !isFinite(cy)) return [];
+  const hits = mapCatalog().regions.filter(r => r.bbox[0] <= cx && cx <= r.bbox[2] && r.bbox[1] <= cy && cy <= r.bbox[3]);
+  hits.sort((a, b) => ((a.bbox[2]-a.bbox[0])*(a.bbox[3]-a.bbox[1])) - ((b.bbox[2]-b.bbox[0])*(b.bbox[3]-b.bbox[1])));
+  return hits;
+}
+function mapRegionForBbox(bbox) { const h = mapRegionsForBbox(bbox); return h.length ? h[0] : null; }
+/** Stapel (Spiegel von mapstyles.region_stack): in Deutschland alle Bundesländer
+ *  um den Mittelpunkt, kleinste Fläche oben — die Dienste liefern außerhalb
+ *  ihrer Grenzen durchsichtige PNGs. Sonst nur die eine Region. */
+function mapRegionStack(bbox) {
+  const h = mapRegionsForBbox(bbox);
+  if (!h.length) return [];
+  if (h[0].country === "DE") return h.filter(r => r.country === "DE").slice(0, 4);
+  return [h[0]];
+}
+function _stackAttribution(stack) {
+  const out = [];
+  stack.forEach((r, i) => { let a = r.attribution || ""; if (i && a.startsWith("Luftbild: ")) a = a.slice(10); if (a && !out.includes(a)) out.push(a); });
+  return out.join(" | ");
+}
+function _stackStyle(stack) {
+  const transparent = stack.length > 1;
+  const sources = {}, layers = [];
+  const proxy = (mapCatalog().proxy_base || "").replace(/\/$/, "");
+  for (const r of stack.slice().reverse()) {
+    const sid = transparent ? "rz-raster-" + r.id : "rz-raster";
+    // Über die lokale Kachel-Weiche (CORS + Zwischenspeicher), wenn die App sie anbietet.
+    const tiles = proxy ? [proxy + "/tile/" + r.id + "/{z}/{x}/{y}" + (transparent ? "?t=1" : "")]
+                        : (transparent ? (r.tiles_transparent || r.tiles) : r.tiles);
+    const src = { type: "raster", tiles, tileSize: 256, maxzoom: r.maxzoom || 19, attribution: r.attribution || "" };
+    if (r.scheme === "tms" && !proxy) src.scheme = "tms";
+    sources[sid] = src; layers.push({ id: sid, type: "raster", source: sid, minzoom: 0 });
+  }
+  return { version: 8, sources, layers };
+}
+
+function _rasterStyle(tiles, tileSize, maxzoom, attribution, scheme) {
+  const src = { type: "raster", tiles: tiles, tileSize: tileSize || 256, maxzoom: maxzoom || 19, attribution: attribution || "" };
+  if (scheme === "tms") src.scheme = "tms";
+  // KEIN Layer-maxzoom: über der letzten Kachelstufe wird hochskaliert, nicht schwarz.
+  return { version: 8, sources: { "rz-raster": src }, layers: [{ id: "rz-raster", type: "raster", source: "rz-raster", minzoom: 0 }] };
+}
+
+function _terrainSource(name, maptilerKey) {
+  const tdef = mapCatalog().terrain[name];
+  if (!tdef) return null;
+  const src = { type: "raster-dem", tileSize: tdef.tileSize, maxzoom: tdef.maxzoom };
+  if (tdef.url) src.url = tdef.url;
+  if (tdef.tiles) src.tiles = tdef.tiles.map(u => u.replace("{maptiler_key}", maptilerKey || ""));
+  if (tdef.encoding) src.encoding = tdef.encoding;
+  if (tdef.attribution) src.attribution = tdef.attribution;
+  return src;
+}
+
+/**
+ * Stil auflösen — Spiegel von core/mapstyles.resolve().
+ * Liefert { key, requested, engine, style, terrain, attribution, region, notes[], badge, videoOk }.
+ * `notes` sind Codes: no_mapbox_token | no_maptiler_key | no_coverage | unknown_style
+ */
+function resolveMapStyle(styleKey, bbox, wantTerrain) {
+  const cat = mapCatalog();
+  const keys = cat.key_values || { mapbox: window._RZGPS_MAPBOX_TOKEN || "", maptiler: "" };
+  const notes = [];
+  let key = mapStyleKnown(styleKey) ? styleKey : mapDefaultStyle();
+  if (key !== styleKey) notes.push("unknown_style");
+  let d = mapStyleDef(key);
+  const tok = (keys.mapbox || "").trim(), mt = (keys.maptiler || "").trim();
+  if (d.provider === "mapbox" && !(tok.startsWith("pk.") && tok.length > 20)) { notes.push("no_mapbox_token"); key = "free_satellite"; d = mapStyleDef(key) || d; }
+  if (d.provider === "maptiler" && !mt) { notes.push("no_maptiler_key"); key = "free_satellite"; d = mapStyleDef(key) || d; }
+  let region = null, stack = [];
+  if (d.kind === "gov") {
+    stack = mapRegionStack(bbox);
+    region = stack.length ? stack[0] : null;
+    if (!region) {
+      if (mapBboxArray(bbox)) notes.push("no_coverage");
+      key = mapStyleKnown("ofm_liberty") ? "ofm_liberty" : "osm"; d = mapStyleDef(key);
+    }
+  }
+  let style;
+  if (d.kind === "gov") style = _stackStyle(stack);
+  else if (d.kind === "raster") style = _rasterStyle(d.tiles, d.tileSize, d.maxzoom, d.attribution);
+  else style = String(d.style_url || "").replace("{maptiler_key}", mt);
+  const engine = d.provider === "mapbox" ? "mapbox" : "maplibre";
+  const terrain = (wantTerrain !== false) ? _terrainSource(d.terrain, mt) : null;
+  const tdef = cat.terrain[d.terrain] || {};
+  return { key, requested: styleKey, engine, style, terrain, attribution: (terrain && tdef.attribution) || "",
+           region: region ? { id: region.id, name: stack.map(r => r.name).join("/"), ids: stack.map(r => r.id) } : null, notes,
+           badge: d.badge, videoOk: d.badge !== "video_rights", provider: d.provider, kind: d.kind };
+}
+
+/** Lesbarer Vermerk zu einer Auflösung (leer, wenn nichts zu sagen ist). */
+function mapStyleNoteText(spec) {
+  if (!spec) return "";
+  const parts = [];
+  for (const n of spec.notes || []) {
+    if (n === "no_mapbox_token") parts.push(t("mapstyle.note.no_mapbox_token", "Kein Mapbox-Token — Satellit (kostenlos) wird verwendet."));
+    else if (n === "no_maptiler_key") parts.push(t("mapstyle.note.no_maptiler_key", "Kein MapTiler-Schlüssel — Satellit (kostenlos) wird verwendet."));
+    else if (n === "no_coverage") parts.push(t("mapstyle.note.no_coverage", "Satellit für diesen Track nicht verfügbar — Karte (OpenFreeMap) wird verwendet."));
+  }
+  if (spec.region) parts.push(t("mapstyle.note.region", "Luftbild: {name}").replace("{name}", spec.region.name));
+  return parts.join(" ");
+}
+
+/** <option>/<optgroup>-HTML der gemeinsamen Stilliste. opts.extraTop = HTML vor allem anderen. */
+function mapStyleOptionsHtml(currentKey, opts) {
+  opts = opts || {};
+  const cat = mapCatalog();
+  const groups = cat.group_order || ["free", "maptiler", "mapbox"];
+  const gLabel = { free: t("mapstyle.group.free", "Kostenlos · Video erlaubt"),
+                   maptiler: t("mapstyle.group.maptiler", "MapTiler · eigener Schlüssel"),
+                   mapbox: t("mapstyle.group.mapbox", "Mapbox · Video nur mit gekauften Rechten") };
+  let html = opts.extraTop || "";
+  for (const g of groups) {
+    const items = cat.styles.filter(s => s.group === g);
+    if (!items.length) continue;
+    html += `<optgroup label="${gLabel[g] || g}">`;
+    for (const s of items) {
+      const sel = (s.key === currentKey) ? " selected" : "";
+      const miss = s.available ? "" : " · " + t("mapstyle.missing_key", "Schlüssel fehlt");
+      html += `<option value="${s.key}"${sel}>${mapStyleLabel(s.key)} · ${mapStyleBadgeText(s.key)}${miss}</option>`;
+    }
+    html += `</optgroup>`;
+  }
+  if (opts.extraBottom) html += opts.extraBottom;
+  return html;
+}
+
+// Bis 03.09.2026 die einzige tokenfreie Karte; Leaflet-Module (Web-Karte,
+// Tour-Map-HTML) und alte Tests lesen die Liste noch. Sie wird nach dem
+// Katalog-Laden um `free_satellite` ergänzt (`_syncOsmTileStyles`).
+const OSM_STYLE = _rasterStyle([OSM_TILE_URL], 256, 19, '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>');
 const RZ_OSM_TILE_STYLES = {
-  osm:          { label: "OpenStreetMap", url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",                sub: [],               max: 19, attr: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
+  osm:          { label: "OpenStreetMap", url: OSM_TILE_URL, sub: [], max: 19, attr: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
   topo:         { label: "OpenTopoMap",   url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",              sub: ["a","b","c"],    max: 17, attr: 'Kartendaten: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende, SRTM | © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)' },
   cyclosm:      { label: "CyclOSM",       url: "https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", sub: ["a","b","c"], max: 20, attr: '© <a href="https://www.cyclosm.org/">CyclOSM</a> | © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
   humanitarian: { label: "Humanitarian",  url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",         sub: ["a","b","c"],    max: 20, attr: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Tiles: <a href="https://www.hotosm.org/">HOT</a>' },
 };
-
-/**
- * Baut ein GL-Style-8-Objekt (raster) für einen OSM-Stil. Funktioniert mit
- * mapboxgl UND maplibregl — beide rendern Raster-Sources aus Tile-URLs. Das
- * {s}-Subdomain-Token (Leaflet-Syntax) wird zu mehreren tiles-URLs expandiert,
- * weil GL kein {s} kennt.
- */
+function _syncOsmTileStyles() {
+  RZ_OSM_TILE_STYLES.free_satellite = { label: t("mapstyle.free_satellite", "Satellit (kostenlos, Land wählt sich selbst)"), url: "", sub: [], max: 19, attr: "", gov: true };
+}
+/** Leaflet-Kachelebene für einen Stil der Web-Exporte; `bbox` = [lon_min, lat_min, lon_max, lat_max]. */
+function rzLeafletTileLayer(styleId, bbox) {
+  if (styleId === "free_satellite") {
+    const stack = mapRegionStack(bbox);
+    if (stack.length) {
+      const transparent = stack.length > 1;
+      const attr = _stackAttribution(stack);
+      const mk = (r, a) => {
+        const lf = (transparent && r.leaflet_transparent) ? r.leaflet_transparent : r.leaflet;
+        if (lf.wms) return L.tileLayer.wms(lf.wms.base, { layers: lf.wms.layers, format: lf.wms.format || "image/jpeg", version: "1.3.0", transparent: !!lf.wms.transparent, maxZoom: lf.max || 19, attribution: a });
+        return L.tileLayer(lf.url, { maxZoom: lf.max || 19, attribution: a, tms: !!lf.tms });
+      };
+      if (!transparent) return mk(stack[0], attr);
+      const rev = stack.slice().reverse();          // groß → klein = unten → oben
+      return L.layerGroup(rev.map((r, i) => mk(r, i === rev.length - 1 ? attr : "")));
+    }
+    styleId = "osm";
+  }
+  const s = RZ_OSM_TILE_STYLES[styleId] || RZ_OSM_TILE_STYLES.osm;
+  const urls = (s.sub && s.sub.length) ? s.sub.map((d) => s.url.replace("{s}", d)) : [s.url];
+  return L.tileLayer(urls[0], { maxZoom: s.max || 19, subdomains: (s.sub || []).join(""), attribution: s.attr || "" });
+}
+/** GL-Style-8-Objekt (raster) für einen OSM-Stil — beide Engines rendern das. */
 function osmRasterStyle(id) {
   const s = RZ_OSM_TILE_STYLES[id] || RZ_OSM_TILE_STYLES.osm;
   const urls = (s.sub && s.sub.length) ? s.sub.map((d) => s.url.replace("{s}", d)) : [s.url];
-  return {
-    version: 8,
-    sources: { osm: { type: "raster", tiles: urls, tileSize: 256, maxzoom: s.max, attribution: s.attr } },
-    layers: [{ id: "osm-tiles", type: "raster", source: "osm", minzoom: 0 }],
-  };
+  return _rasterStyle(urls, 256, s.max, s.attr);
 }
-/** True, wenn `key` ein OSM-Raster-Stil aus RZ_OSM_TILE_STYLES ist. */
-function isOsmStyleKey(key) { return !!(key && Object.prototype.hasOwnProperty.call(RZ_OSM_TILE_STYLES, key)); }
+/** True, wenn `key` ein OSM-Raster-Stil aus RZ_OSM_TILE_STYLES ist (ohne free_satellite). */
+function isOsmStyleKey(key) { return !!(key && key !== "free_satellite" && Object.prototype.hasOwnProperty.call(RZ_OSM_TILE_STYLES, key)); }
 window.RZ_OSM_TILE_STYLES = RZ_OSM_TILE_STYLES;
 window.osmRasterStyle = osmRasterStyle;
 window.isOsmStyleKey = isOsmStyleKey;
+window.rzLeafletTileLayer = rzLeafletTileLayer;
+window.resolveMapStyle = resolveMapStyle;
+window.mapStyleOptionsHtml = mapStyleOptionsHtml;
+window.mapStyleNoteText = mapStyleNoteText;
+window.mapStyleVideoOk = mapStyleVideoOk;
+window.mapStyleLabel = mapStyleLabel;
+window.mapDefaultStyle = mapDefaultStyle;
+window.mapCatalog = mapCatalog;
+window.mapRegionForBbox = mapRegionForBbox;
+window.mapRegionStack = mapRegionStack;
 
-/** Liefert den globalen Map-Modus: "mapbox" oder "osm" (kein Token). */
+/** Engine der zuletzt gebauten Karte: "mapbox" | "osm" (= MapLibre). Historischer Name. */
 let _mapMode = null;
 
-/** Liefert die aktive Map-GL-Library (mapboxgl oder maplibregl) für Marker/Popup-Konstruktoren. */
+/** Die GL-Bibliothek der zuletzt gebauten Karte (Marker/Popup-Konstruktoren). */
 function mapLib() {
   return _mapMode === "osm" ? maplibregl : mapboxgl;
 }
@@ -199,94 +389,146 @@ function isOsmMode() { return _mapMode === "osm"; }
 function isMapboxMode() { return _mapMode === "mapbox"; }
 
 /**
- * v0.9.249 — Karten-Render-Module (Animator, Reiseroute, Tour-Map) sind
- * Mapbox-only. Im OSM-Modus (kein/ausgeschalteter Token) macht eine Vorschau
- * keinen Sinn → die Karten-Fläche mit einer klaren „Nur mit Mapbox-Token"-
- * Meldung deckend überdecken. `targetEl` muss position:relative sein (die
- * `.canvas`-Section ist das). Gibt true zurück wenn überdeckt (= OSM-Modus).
+ * Bis 03.09.2026 deckte das die Karten-Render-Module ohne Token ab. Seit der
+ * Anbieterauswahl läuft alles auch ohne Token (kostenlose Stile) — die Sperre
+ * ist Geschichte. Bleibt als No-op, damit alte Aufrufer nicht stolpern.
  */
-function osmBlockOverlay(targetEl) {
-  if (!targetEl || !isOsmMode()) return false;
-  if (targetEl.querySelector(":scope > .osm-block-overlay")) return true;  // schon da
-  const ov = document.createElement("div");
-  ov.className = "osm-block-overlay";
-  // v0.9.474 — kein Dead-End mehr (Beta-Tester-Feedback: der reine „braucht
-  // Token"-Screen wirkte wie „geht gar nichts"). Der Screen erklärt jetzt WARUM dieses
-  // eine Modul einen Token braucht, zeigt POSITIV was ohne Token sofort geht, und bietet
-  // einen Direkt-Sprung zur Tour-Karte (läuft ohne Token) statt nur „Einstellungen".
-  const hasTourmap = (typeof getModules === "function") &&
-    getModules().some(m => m && m.manifest && m.manifest.slug === "tourmap");
-  ov.innerHTML =
-    '<div class="osm-block-card">' +
-      '<div class="osm-block-icon">🛰️</div>' +
-      '<div class="osm-block-title">' + t("osm_block.title", "Nur mit Mapbox-Token") + '</div>' +
-      '<div class="osm-block-body">' + t("osm_block.body", "Für Satellit, 3D und die bewegte Karten-Animation brauchst du einen (kostenlosen) Mapbox-Token.") + '</div>' +
-      '<div class="osm-block-osm">' +
-        '<div class="osm-block-osm-hd">' + t("osm_block.osm_hint", "Du bist im OSM-Modus. Ohne Token kannst du sofort loslegen:") + '</div>' +
-        '<div class="osm-block-osm-list">' + t("osm_block.osm_list", "📷 Fotos verorten · 🗺️ Tour-Karte als Bild · 🧭 Tracks aufräumen · 📈 Höhenprofil-Videos") + '</div>' +
-      '</div>' +
-      '<div class="osm-block-btns">' +
-        (hasTourmap ? '<button class="btn osm-block-tourmap">' + t("osm_block.cta_tourmap", "Zur Tour-Karte →") + '</button>' : '') +
-        '<button class="btn btn-primary osm-block-cta">' + t("osm_block.cta_token", "Kostenlosen Token einrichten") + '</button>' +
-      '</div>' +
-    '</div>';
-  const cta = ov.querySelector(".osm-block-cta");
-  if (cta) cta.addEventListener("click", () => { try { window.openSettingsModal && window.openSettingsModal(); } catch (_) {} });
-  const tm = ov.querySelector(".osm-block-tourmap");
-  if (tm) tm.addEventListener("click", () => { try { window.switchMod && window.switchMod("tourmap"); } catch (_) {} });
-  targetEl.appendChild(ov);
-  return true;
-}
+function osmBlockOverlay(_targetEl) { return false; }
 window.osmBlockOverlay = osmBlockOverlay;
 
 /**
- * Erzeugt eine Map-Instanz passend zum aktuellen Modus.
- * - opts.container, opts.center, opts.zoom, opts.pitch, opts.bearing, …
- * - opts.mapboxStyle = Mapbox-Style-URL (nur wenn Token da)
- * Returns: { map, engine: "mapbox"|"maplibre" }
+ * Erzeugt eine Karte passend zum Stil.
+ *   opts.container, opts.common (Map-Optionen), opts.styleKey (bevorzugt),
+ *   opts.mapboxStyle (alt: Mapbox-URL → Schlüssel), opts.bbox (Track-Rechteck für
+ *   „Satellit (kostenlos)"), opts.terrain (true = Gelände des Stils gleich anhängen).
+ * Returns: { map, engine: "mapbox"|"maplibre", lib, spec, styleKey }
  */
 function createMap(opts) {
-  const token = window._RZGPS_MAPBOX_TOKEN || "";
-  if (token && token.startsWith("pk.")) {
+  let key = opts.styleKey || (opts.mapboxStyle && _mapKeyFromMapboxUrl(opts.mapboxStyle)) || mapDefaultStyle();
+  // Gelände IMMER mit auflösen (spec.terrain) — `opts.terrain` sagt nur, ob es
+  // hier gleich angehängt wird; der Animator hängt es selbst an (applyTerrain).
+  const spec = resolveMapStyle(key, opts.bbox || null, true);
+  let map, lib;
+  if (spec.engine === "mapbox") {
     _mapMode = "mapbox";
+    const token = (mapCatalog().key_values || {}).mapbox || window._RZGPS_MAPBOX_TOKEN || "";
     mapboxgl.accessToken = token;
-    // v0.9.246/274 (Nutzer-Feedback): maxZoom begrenzen, sonst zoomt man bis ins
-    // Daten-Nichts (schwarze Fläche), besonders in entlegenen Outdoor-Gebieten
-    // wo Satellit-Tiles früh enden. 20 reichte noch nicht (Nutzer bekam weiter
-    // Schwarz „einen Tick zu weit"), darum jetzt 18 — verhindert das Void zuverlässig.
-    const map = new mapboxgl.Map(Object.assign({
-      container: opts.container,
-      style: opts.mapboxStyle || "mapbox://styles/mapbox/standard-satellite",
-      maxZoom: 18,
-    }, opts.common || {}));
-    // 02.09.2026 — Prüfstand-Haken: die zuletzt gebaute Karte nach außen
-    // geben, damit headless (Playwright) Kamera-Zustände ausgelesen werden
-    // können, ohne den Rechner zu übernehmen. Kostet nichts und die App
-    // benutzt es selbst nicht.
-    try { window.__rzLetzteKarte = map; } catch (_) {}
-    return { map, engine: "mapbox", lib: mapboxgl };
+    lib = mapboxgl;
+    // v0.9.246/274: maxZoom 18 — sonst zoomt man ins Daten-Nichts (schwarz).
+    map = new mapboxgl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 18 }, opts.common || {}));
+  } else {
+    _mapMode = "osm";
+    lib = maplibregl;
+    map = new maplibregl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 20 }, opts.common || {}));
   }
-  // OSM-Mode — OSM-Raster-Tiles enden bei z19, darüber wird's leer/schwarz.
-  _mapMode = "osm";
-  const map = new maplibregl.Map(Object.assign({
-    container: opts.container,
-    style: OSM_STYLE,
-    maxZoom: 19,
-  }, opts.common || {}));
+  map.__rzEngine = spec.engine;
+  map.__rzSpec = spec;
+  map.__rzStyleKey = spec.key;
+  // „Stil fertig" im Mapbox-Sinn (Style-JSON geladen). MapLibres isStyleLoaded()
+  // meldet erst true, wenn auch alle Kacheln da sind — bei Raster + Gelände in
+  // Bewegung also fast nie; Warteschleifen im Animator drehten sich dann endlos.
+  map.__rzStyleReady = false;
+  try { map.on("style.load", () => { map.__rzStyleReady = true; }); } catch (_) {}
+  if (opts.terrain === true) rzApplyMapTerrain(map, spec, opts.exaggeration);
+  // 02.09.2026 — Prüfstand-Haken: die zuletzt gebaute Karte nach außen geben,
+  // damit headless (Playwright) Kamera-Zustände auslesbar sind.
   try { window.__rzLetzteKarte = map; } catch (_) {}
-  return { map, engine: "maplibre", lib: maplibregl };
+  try { applog && applog("info", `[map] ${opts.container}: Stil ${spec.key} (gewünscht ${key}) · ${spec.engine}` + (spec.region ? ` · ${spec.region.name}` : "") + (spec.notes.length ? ` · ${spec.notes.join(",")}` : "")); } catch (_) {}
+  return { map, engine: spec.engine, lib, spec, styleKey: spec.key };
 }
 
-/** Cached Token vom Backend, damit Map-Factory ohne async funktioniert. */
+/** Gelände des Stils an die Karte hängen (Quellname 'mapbox-dem' — historisch). */
+function rzApplyMapTerrain(map, spec, exaggeration) {
+  if (!map || !spec || !spec.terrain) return;
+  const run = () => {
+    try {
+      // Nie mitten in einer Kamerafahrt (MapLibre: „reading 'wrap'"-Absturz).
+      if (map.isMoving && map.isMoving()) { map.once("moveend", () => setTimeout(run, 30)); return; }
+      if (!map.getSource("mapbox-dem")) map.addSource("mapbox-dem", spec.terrain);
+      map.setTerrain({ source: "mapbox-dem", exaggeration: (exaggeration != null ? exaggeration : 1.0) });
+    } catch (e) { try { applog("warn", "[map] Gelände: " + e); } catch (_) {} }
+  };
+  if (map.isStyleLoaded && map.isStyleLoaded()) run(); else map.once("style.load", run);
+}
+window.rzApplyMapTerrain = rzApplyMapTerrain;
+/** Style-JSON geladen? (Mapbox-Semantik; s. createMap.) Für Guards vor addSource/addLayer. */
+function rzStyleReady(map) {
+  if (!map) return false;
+  if (map.__rzStyleReady === true) return true;
+  if (map.__rzStyleReady === false) return false;   // wird gerade gewechselt
+  try { return !map.isStyleLoaded || map.isStyleLoaded(); } catch (_) { return false; }
+}
+window.rzStyleReady = rzStyleReady;
+
+/**
+ * Stil auf eine bestehende Karte anwenden. Bleibt die Engine gleich → setStyle;
+ * sonst { needsRemount: true } — der Aufrufer speichert den Stil und ruft
+ * `window.remountActiveModule()`.
+ */
+function applyMapStyle(map, styleKey, bbox, opts) {
+  opts = opts || {};
+  const spec = resolveMapStyle(styleKey, bbox || null, true);
+  if (!map) return { needsRemount: true, spec };
+  if (map.__rzEngine && spec.engine !== map.__rzEngine) return { needsRemount: true, spec };
+  map.__rzSpec = spec; map.__rzStyleKey = spec.key;
+  // MapLibre stolpert, wenn beim Stilwechsel noch Gelände aktiv ist (die
+  // DEM-Quelle verschwindet unter dem Gelände weg → „_checkLoaded of undefined",
+  // und das Gelände kam danach nie zurück). Erst abhängen, dann wechseln; der
+  // Aufrufer hängt es nach `style.load` wieder an.
+  // Laufende Kamerafahrt (fitBounds nach dem Track-Laden) erst anhalten: ein
+  // setStyle mitten in der Fahrt ließ MapLibre in „Attempting to run(), but is
+  // already running" hängen — die Karte war danach tot.
+  try { if (map.stop) map.stop(); } catch (_) {}
+  try { if (map.getTerrain && map.getTerrain()) map.setTerrain(null); } catch (_) {}
+  map.__rzStyleReady = false;
+  try { map.setStyle(spec.style, { diff: false }); } catch (e) { try { applog("warn", "[map] setStyle: " + e); } catch (_) {} }
+  if (opts.terrain === true) rzApplyMapTerrain(map, spec, opts.exaggeration);
+  return { needsRemount: false, spec };
+}
+window.applyMapStyle = applyMapStyle;
+
+/**
+ * Kleiner Stil-Schalter über der Karte (Geotagger, Inspektor, Archiv).
+ *   o.section — Einstellungs-Abschnitt (Modul-Slug), o.getMap(), o.getBbox(),
+ *   o.onApplied(spec) — nach setStyle (Layer neu aufbauen).
+ */
+function attachMapStyleControl(containerEl, o) {
+  if (!containerEl) return null;
+  const section = o.section;
+  const cur = ((_settingsCache && _settingsCache[section] && _settingsCache[section].map_style) || mapDefaultStyle());
+  const wrap = document.createElement("div");
+  wrap.className = "rz-style-ctrl";
+  wrap.innerHTML = `<select title="${t("animator.field.style", "Karten-Stil")}">${mapStyleOptionsHtml(cur)}</select><div class="rz-style-note muted"></div>`;
+  containerEl.appendChild(wrap);
+  const sel = wrap.querySelector("select"), note = wrap.querySelector(".rz-style-note");
+  const showNote = (spec) => { const txt = mapStyleNoteText(spec); note.textContent = txt; note.hidden = !txt; };
+  try { const m = o.getMap && o.getMap(); if (m && m.__rzSpec) showNote(m.__rzSpec); } catch (_) {}
+  sel.addEventListener("change", () => {
+    const v = sel.value;
+    const patch = {}; patch[section] = { map_style: v };
+    saveSettings(patch, { immediate: true });
+    // Ein Stilwechsel wirft alle Quellen/Ebenen weg — statt jedes Modul seine
+    // Ebenen nachbauen zu lassen, wird das Modul neu aufgebaut (dauert einen
+    // Wimpernschlag und deckt auch den Engine-Wechsel Mapbox ↔ MapLibre ab).
+    if (window.remountActiveModule) window.remountActiveModule();
+  });
+  return { el: wrap, refresh: (spec) => showNote(spec) };
+}
+window.attachMapStyleControl = attachMapStyleControl;
+
+/** Katalog + Schlüssel vom Backend holen, damit die Kartenfabrik ohne async läuft. */
 async function initMapToken() {
   try {
-    const tok = await api().get_mapbox_token();
-    window._RZGPS_MAPBOX_TOKEN = tok || "";
+    const cat = await api().map_catalog();
+    if (cat && cat.styles) window.RZ_MAP_CATALOG = cat;
+    const tok = (cat && cat.key_values && cat.key_values.mapbox) || "";
+    window._RZGPS_MAPBOX_TOKEN = tok;
     _mapMode = (tok && tok.startsWith("pk.")) ? "mapbox" : "osm";
   } catch (_) {
-    window._RZGPS_MAPBOX_TOKEN = "";
-    _mapMode = "osm";
+    try { const tok = await api().get_mapbox_token(); window._RZGPS_MAPBOX_TOKEN = tok || ""; } catch (__) { window._RZGPS_MAPBOX_TOKEN = ""; }
+    _mapMode = (window._RZGPS_MAPBOX_TOKEN.startsWith("pk.")) ? "mapbox" : "osm";
   }
+  try { _syncOsmTileStyles(); } catch (_) {}
 }
 
 // ── Modal-System ────────────────────────────────────────────────────────────

@@ -274,9 +274,13 @@ function mountGpxInspect(body, headerActions) {
     if (isUnmounted) return;
     let made;
     try {
+      // 03.09.2026 — gemeinsame Stilliste; Gelände des Stils gleich mit
+      // (queryTerrainElevation für die Höhenkorrektur braucht eine DEM-Quelle).
       made = createMap({
         container: "gpxi-canvas",
-        mapboxStyle: "mapbox://styles/mapbox/outdoors-v12",
+        styleKey: (_settingsCache && _settingsCache.gpxinspect && _settingsCache.gpxinspect.map_style) || mapDefaultStyle(),
+        bbox: (typeof _bboxLonLat === "function") ? _bboxLonLat() : null,
+        terrain: true, exaggeration: 1.0,
         common: { center: [10, 51], zoom: 4 },
       });
     } catch (e) {
@@ -402,17 +406,17 @@ function mountGpxInspect(body, headerActions) {
         } });
       } catch (e) { applog && applog("warn", "[gpxinspect] layer add: " + e); }
       // v0.9.291 — Terrain-DEM für die Höhenkorrektur (queryTerrainElevation).
-      // Nur mit Mapbox-Token (raster-dem ist mapbox://). Bei pitch 0 (Top-Down)
-      // ändert das die Optik nicht — wir brauchen's nur als Höhen-Datenquelle.
-      if (typeof isMapboxMode === "function" && isMapboxMode()) {
-        try {
-          if (!map.getSource("gpxi-dem")) {
-            map.addSource("gpxi-dem", { type: "raster-dem",
-              url: "mapbox://mapbox.mapbox-terrain-dem-v1", tileSize: 512, maxzoom: 14 });
-          }
-          map.setTerrain({ source: "gpxi-dem", exaggeration: 1.0 });
-        } catch (e) { applog && applog("warn", "[gpxinspect] terrain: " + e); }
-      }
+      // 03.09.2026: hängt createMap() aus dem Stil an (Mapbox-DEM / MapTiler /
+      // AWS terrarium) — für jede Quelle, nicht mehr nur mit Mapbox-Token.
+      try {
+        const cv = document.getElementById("gpxi-canvas");
+        if (cv && cv.parentElement && typeof attachMapStyleControl === "function") {
+          attachMapStyleControl(cv.parentElement, {
+            section: "gpxinspect", terrain: true,
+            getMap: () => map, getBbox: () => (typeof _bboxLonLat === "function" ? _bboxLonLat() : null),
+          });
+        }
+      } catch (_) {}
       // v0.9.294 — tolerante Klicks: nächster Punkt im Pixel-Radius (statt layer-gebunden).
       map.on("click", onMapClick);
       map.on("dblclick", onMapDbl);   // Doppelklick = Anker setzen
@@ -2264,12 +2268,23 @@ function mountGpxInspect(body, headerActions) {
     if (cBtn) cBtn.onclick = _closeProfileBox;
     _wirePointInfo(idx, _closeProfileBox);
   }
+  // 03.09.2026 — Helfer für die Anbieterauswahl
+  function _bboxLonLat() {
+    try {
+      const ps = (_points || []).filter(p => p && isFinite(p.lat) && isFinite(p.lon));
+      if (!ps.length) return null;
+      let a = 999, b = 999, c = -999, d = -999;
+      for (const p of ps) { if (p.lon < a) a = p.lon; if (p.lat < b) b = p.lat; if (p.lon > c) c = p.lon; if (p.lat > d) d = p.lat; }
+      return [a, b, c, d];
+    } catch (_) { return null; }
+  }
+  function _hatGelaende() { try { return !!(map && map.getTerrain && map.getTerrain()); } catch (_) { return false; } }
   // DEM einmal samplen + Profil einblenden.
   async function loadEleProfile() {
     const resEl = document.getElementById("gpxi-ele-result");
     if (_eleBusy || _points.length < 2 || !map) return;
-    if (!(typeof isMapboxMode === "function" && isMapboxMode())) {
-      const m = t("gpxinspect.ele_need_token", "Braucht einen Mapbox-Token (Einstellungen).");
+    if (!_hatGelaende()) {
+      const m = t("gpxinspect.ele_need_terrain", "Der gewählte Kartenstil hat kein Gelände — bitte einen anderen Stil wählen.");
       if (resEl) resEl.textContent = m; toast(m, "warn"); return;
     }
     _eleBusy = true;
@@ -2809,11 +2824,7 @@ function mountGpxInspect(body, headerActions) {
       psvg.addEventListener("mouseleave", _hideHover);
       window.addEventListener("pointerup", onProfileUp);
     } }
-  if (!(typeof isMapboxMode === "function" && isMapboxMode())) {
-    const lb = document.getElementById("gpxi-ele-load"); if (lb) lb.disabled = true;
-    const rr = document.getElementById("gpxi-ele-result");
-    if (rr) rr.textContent = t("gpxinspect.ele_need_token", "Braucht einen Mapbox-Token (Einstellungen).");
-  }
+  // 03.09.2026 — Gelände gibt es mit jeder Quelle; die Sperre „nur mit Token" ist weg.
   _on("gpxi-save", saveTrack);
   _on("gpxi-reset", () => { if (_srcPath) loadTrack(_srcPath); });
 

@@ -131,3 +131,6 @@ cloud_pruefsummen.json
 
 # 02.09.2026 — was der Umzug im Dev-Ordner stehen lässt (Marcs Daten)
 *.umgezogen-*
+
+# 03.09.2026 — Kachel-Zwischenspeicher im Dev-Modus (App-Support = Repo-Root)
+/_tilecache/

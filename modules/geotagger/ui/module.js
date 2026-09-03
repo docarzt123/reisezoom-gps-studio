@@ -904,13 +904,24 @@ function mountGeotagger(body, headerActions) {
   _wireGeotaggerUndoListeners();
 
   whenApiReady().then(async () => {
+    // 03.09.2026 — gemeinsame Stilliste (Einstellung je Modul).
     const made = createMap({
       container: "map-canvas",
-      mapboxStyle: "mapbox://styles/mapbox/outdoors-v12",
+      styleKey: (_settingsCache && _settingsCache.geotagger_map && _settingsCache.geotagger_map.map_style) || mapDefaultStyle(),
       common: { center: [10, 51], zoom: 4 },
     });
     map = made.map;
     map.addControl(new made.lib.NavigationControl(), "top-right");
+    try {
+      const cv = document.getElementById("map-canvas");
+      if (cv && cv.parentElement && typeof attachMapStyleControl === "function") {
+        attachMapStyleControl(cv.parentElement, {
+          section: "geotagger_map",
+          getMap: () => map,
+          getBbox: () => { try { const b = map.getBounds(); return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]; } catch (_) { return null; } },
+        });
+      }
+    } catch (_) {}
     // v0.8.4: onMapReady ist robust gegen Race-Conditions — falls Mapbox
     // den Style schon geladen hat BEVOR der Listener registriert wird.
     onMapReady(map, () => {

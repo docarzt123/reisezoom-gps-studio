@@ -28,6 +28,12 @@ import html as _html
 # `max` = maxZoom des Providers. Katalog ist SYNCHRON zu ui/js/util.js
 # (RZ_OSM_TILE_STYLES) — bei Änderung beide pflegen.
 OSM_TILE_STYLES = {
+    # 03.09.2026 — Platzhalter: die echte Quelle liefert tile_style() je nach
+    # Track-Lage aus core/mapstyles.ORTHO_REGIONS.
+    "free_satellite": {
+        "label": "Satellit (kostenlos, Land wählt sich selbst)",
+        "url": "", "sub": "", "max": 19, "attr": "",
+    },
     "osm": {
         "label": "OpenStreetMap Standard",
         "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -61,7 +67,18 @@ DEFAULT_CONSENT_TEXT = (
 )
 
 
-def tile_style(style_id: str) -> dict:
+def tile_style(style_id: str, bbox=None) -> dict:
+    """Kachelquelle für die Leaflet-Exporte. 03.09.2026: `free_satellite` =
+    staatliches Orthofoto nach Track-Lage (`bbox` = lon_min, lat_min, lon_max,
+    lat_max); ohne Abdeckung fällt es still auf OSM zurück (Vermerk im Log)."""
+    if style_id == "free_satellite":
+        from . import mapstyles as _ms
+        stack = _ms.region_stack(bbox)
+        if stack:
+            return _ms.stack_leaflet(stack)
+        import logging
+        logging.getLogger("rzgps.tourmap").warning(
+            "Satellit (kostenlos): keine Abdeckung für bbox=%s → OpenStreetMap", bbox)
     return OSM_TILE_STYLES.get(style_id, OSM_TILE_STYLES["osm"])
 
 

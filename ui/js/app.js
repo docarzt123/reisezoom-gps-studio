@@ -128,6 +128,15 @@ function switchMod(slug) {
   renderMod();
 }
 
+/** 03.09.2026 — Modul neu aufbauen, wenn ein Stilwechsel die Karten-Engine
+ *  wechselt (Mapbox GL ↔ MapLibre GL). Erst sauber abräumen, dann mounten. */
+function remountActiveModule() {
+  if (typeof activeCleanup === "function") { try { activeCleanup(); } catch (_) {} }
+  activeCleanup = null;
+  renderMod();
+}
+window.remountActiveModule = remountActiveModule;
+
 function renderMod() {
   applog && applog("info", `[renderMod] activeMod=${activeMod}`);
   const reg = window.RZGPS_MODULES || {};
@@ -196,6 +205,10 @@ function _settingsStand() {
     geoEnabled: c.geocode_enabled !== false,
     startFortsetzen: c.start_fortsetzen !== false,
     geoProvider: c.geocode_provider || "auto",
+    // 03.09.2026 — Kartenanbieter
+    maptilerKey: c.maptiler_key || "",
+    mapStyleDefault: c.map_style_default || (typeof mapDefaultStyle === "function" ? mapDefaultStyle() : "free_satellite"),
+    tileCacheMb: (c.tile_cache_mb != null) ? c.tile_cache_mb : 2048,
     // v0.9.530 (IDEAS §23): Update-Prüfung beim Start abschaltbar — danach
     // telefoniert die App von sich aus mit niemandem mehr.
     updateCheck: c.update_check_enabled !== false,
@@ -225,7 +238,9 @@ async function openSettingsModal() {
   // kommen aus `_settingsStand()` — derselben Quelle, aus der auch der
   // Speichern-Handler liest.
   const { rqFmt, rqJq, rqCodec, rqCrf, rqPreset, forceOsm, geoEnabled, geoProvider,
-          updateCheck, startFortsetzen } = _settingsStand();
+          updateCheck, startFortsetzen, maptilerKey, mapStyleDefault, tileCacheMb } = _settingsStand();
+  const tcInfo = await api().tile_cache_info().catch(() => ({ bytes: 0 }));
+  const tcMb = Math.round((tcInfo.bytes || 0) / 1048576);
   const _sel = (a, b) => (a === b ? " selected" : "");
   const hasTok = !!(currentTok && currentTok.startsWith("pk."));
   // v0.9.287 — Eigene Standardwerte für neue Tracks (Marc-Wunsch)
@@ -239,6 +254,12 @@ async function openSettingsModal() {
       <p class="muted" style="margin-top:6px; font-size:11px;">${t("settings.language.help")}</p>
 
       <div style="margin-top:18px; padding-top:14px; border-top: 1px solid var(--border);">
+        <p class="muted" style="margin-bottom:6px; font-weight:600; color:var(--text);">${t("settings.maps.title", "Kartenanbieter")}</p>
+        <p class="muted" style="font-size:11px; line-height:1.5; margin-bottom:10px;">${t("settings.maps.intro", "Kostenlose Satellitenbilder und Karten sind sofort da — ganz ohne Schlüssel. Mapbox und MapTiler kommen dazu, sobald du hier einen Schlüssel einträgst. Jeder Stil zeigt in der Liste, ob er kostenlos ist und ob Videos damit veröffentlicht werden dürfen.")}</p>
+        <label class="field-label" for="md-map-default" style="font-size:12px;">${t("settings.maps.default", "Standard-Kartenstil für neue Projekte")}</label>
+        <select id="md-map-default" style="width:100%;">${(typeof mapStyleOptionsHtml === "function") ? mapStyleOptionsHtml(mapStyleDefault) : ""}</select>
+        <p class="muted" style="margin:4px 0 12px; font-size:11px; line-height:1.5;">${t("settings.maps.default_help", "Bestehende Projekte behalten ihren Stil; sie lassen sich im Animator bzw. in der Tour-Map umstellen.")}</p>
+
         <p class="muted" style="margin-bottom:4px; display:flex; justify-content:space-between; align-items:baseline;">
           <span>${t("settings.mapbox.label")}</span>
           <span style="font-size:11px">${tokenStatusLabel}</span>
@@ -253,6 +274,27 @@ async function openSettingsModal() {
           <a href="#" id="md-mapbox-usage-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">${t("settings.mapbox.usage_link")}</a>
         </p>
         <p class="muted" style="margin-top:2px; font-size:11px;">${t("settings.mapbox.usage_hint")}</p>
+        <p class="muted" style="margin-top:6px; font-size:11px; line-height:1.5;">${t("settings.mapbox.video_warning", "⚠️ Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur mit gekauften Videorechten (Product Terms §1.7). Für YouTube & Co. lieber einen kostenlosen Stil oder MapTiler nehmen.")}</p>
+
+        <p class="muted" style="margin:14px 0 4px;">${t("settings.maptiler.label", "MapTiler-Schlüssel")}</p>
+        <input type="text" id="md-maptiler-key" style="width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;"
+               placeholder="${t("settings.maptiler.placeholder", "API-Key aus cloud.maptiler.com")}" value="${(maptilerKey || "").replace(/"/g, '&quot;')}">
+        <p class="muted" style="margin-top:6px; font-size:11px; line-height:1.5;">
+          ${t("settings.maptiler.help", "Satellit und Gelände weltweit aus einer Hand. Videos für Kanäle bis 100.000 Abonnenten erlaubt (Nennung im Bild); der Gratistarif gilt für nicht-kommerzielle Nutzung.")}
+          &nbsp;<a href="#" id="md-maptiler-link" style="color:var(--accent); text-decoration:underline; cursor:pointer">cloud.maptiler.com</a>
+        </p>
+
+        <p class="muted" style="margin:14px 0 4px; display:flex; justify-content:space-between; align-items:baseline;">
+          <span>${t("settings.tilecache.label", "Kachel-Zwischenspeicher (Render)")}</span>
+          <span style="font-size:11px" id="md-tc-size">${t("settings.tilecache.size", "{mb} MB belegt").replace("{mb}", String(tcMb))}</span>
+        </p>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="number" id="md-tc-mb" min="0" max="20000" step="256" value="${tileCacheMb}" style="width:110px;">
+          <span class="muted" style="font-size:11px;">MB</span>
+          <button class="btn" id="md-tc-clear" type="button" style="margin-left:auto;">${t("settings.tilecache.clear", "Leeren")}</button>
+        </div>
+        <p class="muted" style="margin-top:4px; font-size:11px; line-height:1.5;">${t("settings.tilecache.help", "Geladene Kacheln bleiben auf der Platte, ein zweiter Render derselben Gegend geht schneller und schont die Server. 0 = aus. Mapbox-Kacheln werden nicht gespeichert.")}</p>
+
         <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; cursor:pointer;">
           <input type="checkbox" id="md-force-osm" ${forceOsm ? "checked" : ""}>
           <span>${t("settings.force_osm.label")}</span>
@@ -519,6 +561,14 @@ function _bindSettingsModalHandlers() {
   };
 
   document.getElementById("md-cancel-set").onclick = () => openModal({}).close();
+  document.getElementById("md-maptiler-link")?.addEventListener("click", (e) => { e.preventDefault(); api().open_url("https://cloud.maptiler.com/account/keys/"); });
+  document.getElementById("md-tc-clear")?.addEventListener("click", async () => {
+    const r = await api().tile_cache_clear().catch(() => ({ ok: false }));
+    if (r && r.ok) {
+      const sz = document.getElementById("md-tc-size"); if (sz) sz.textContent = t("settings.tilecache.size", "{mb} MB belegt").replace("{mb}", "0");
+      toast(t("settings.tilecache.cleared", "Kachel-Zwischenspeicher geleert"), "success");
+    } else toast((r && r.error) || "Fehler", "error");
+  });
   document.getElementById("md-ok-set").onclick = async () => {
     const newLang = document.getElementById("md-lang").value;
     const newTok = document.getElementById("md-mapbox-token").value.trim();
@@ -541,6 +591,13 @@ function _bindSettingsModalHandlers() {
     const patch = {};
     if (newLang !== alt.current) patch.language = newLang;
     if (newTok !== oldTok)   patch.mapbox_token = newTok;
+    // 03.09.2026 — Kartenanbieter
+    const newMt = (document.getElementById("md-maptiler-key")?.value || "").trim();
+    if (newMt !== alt.maptilerKey) patch.maptiler_key = newMt;
+    const newDef = document.getElementById("md-map-default")?.value || alt.mapStyleDefault;
+    if (newDef !== alt.mapStyleDefault) patch.map_style_default = newDef;
+    const newTc = parseInt(document.getElementById("md-tc-mb")?.value, 10);
+    if (isFinite(newTc) && newTc !== alt.tileCacheMb) patch.tile_cache_mb = Math.max(0, newTc);
 
     // v0.9.247 — OSM-Modus erzwingen (Test)
     const newForceOsm = !!document.getElementById("md-force-osm")?.checked;
@@ -580,7 +637,7 @@ function _bindSettingsModalHandlers() {
 
     await saveSettings(patch, { immediate: true });
 
-    if (patch.mapbox_token !== undefined || patch.force_osm !== undefined) {
+    if (patch.mapbox_token !== undefined || patch.force_osm !== undefined || patch.maptiler_key !== undefined || patch.map_style_default !== undefined) {
       // Token-Wechsel ODER OSM-Umschalter ändert die Map-Engine (Mapbox ↔ OSM),
       // Token-Cache in util.js, Animator-Style-Lock, MapLibre/Mapbox-Lib-Wahl
       // etc. — sicherer Weg: komplettes UI-Reload, damit alles frisch init.
@@ -822,6 +879,16 @@ async function openAboutModal() {
             <a href="#" class="md-about-link" data-url="https://leafletjs.com/">Leaflet</a>
             — BSD-2-Clause (Web-Karten-Export, gebündelt)
           </li>
+          <!-- 03.09.2026 — Kartenanbieter zur Auswahl: Datenquellen mit Lizenz -->
+          <li>
+            ${t("about.credits.mapdata", "Kartendaten")}:
+            <a href="#" class="md-about-link" data-url="https://openfreemap.org/">OpenFreeMap</a> — MIT ·
+            <a href="#" class="md-about-link" data-url="https://openmaptiles.org/">OpenMapTiles</a> — BSD-3 / CC BY 4.0 ·
+            <a href="#" class="md-about-link" data-url="https://www.openstreetmap.org/copyright">OpenStreetMap</a> — ODbL ·
+            <a href="#" class="md-about-link" data-url="https://www.maptiler.com/copyright/">MapTiler</a> — MapTiler Cloud Terms (eigener Schlüssel) ·
+            <a href="#" class="md-about-link" data-url="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> — Mapzen/Tilezen (SRTM, EU-DEM, 3DEP u.&nbsp;a.) ·
+            ${t("about.credits.orthos", "staatliche Orthofotos der Landesvermessungen (dl-de/by-2-0, CC BY 4.0 u. a.; Nennung im Bild)")}
+          </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://pywebview.flowrl.com/">pywebview</a> — BSD-3-Clause ·
             <a href="#" class="md-about-link" data-url="https://python-pillow.org/">Pillow</a> — HPND ·
@@ -894,73 +961,36 @@ window.openAboutModal = openAboutModal;
  * App normal weiter.
  */
 async function openFirstRunMapboxModal() {
+  // 03.09.2026 — Seit der Anbieterauswahl braucht der Start keinen Token mehr:
+  // kostenlose Satellitenbilder (staatliche Orthofotos) und Karten (OpenFreeMap)
+  // sind sofort da. Der Dialog sagt nur noch, dass es losgeht und wo später ein
+  // Schlüssel hingehört.
   return new Promise(resolve => {
     openModal({
-      title: t("first_run.title"),
+      title: t("first_run.title2", "Willkommen — es geht sofort los"),
       body: `
-        <p>${t("first_run.intro")}</p>
-        <p class="muted" style="font-size:12px; margin-top:4px;">${t("first_run.token_what", "Ein „Token“ ist ein kostenloser Zugangsschlüssel für die Premium-Karten (Satellit, 3D). Optional — du kannst ihn auch später in den Einstellungen eintragen.")}</p>
-
-        <div style="margin-top:14px; padding:12px 14px; background:var(--bg-3); border-radius:8px;">
-          <p style="font-weight:600; margin-bottom:6px;">${t("first_run.opt_token_title")}</p>
-          <p class="muted" style="font-size:12px;">${t("first_run.opt_token_desc")}</p>
-          <div style="margin-top:10px; padding:8px 12px; background:rgba(255,165,0,0.08); border-left:3px solid #ff9d3a; border-radius:5px; font-size:11.5px; line-height:1.5;">
-            ${t("mapbox_help.cc_info")}<br>${t("mapbox_help.tier_info")}
-          </div>
-          <ol style="margin-top:10px; padding-left:18px; line-height:1.55; font-size:12px;">
-            <li>${t("mapbox_help.step1")}
-              &nbsp;<a href="#" data-url="https://account.mapbox.com/auth/signup" class="md-link">account.mapbox.com</a></li>
-            <li>${t("mapbox_help.step3")}</li>
-            <li>${t("mapbox_help.step4")}</li>
-          </ol>
-          <input type="text" id="md-fr-token" style="width:100%; margin-top:8px; font-family:ui-monospace,Menlo,monospace; font-size:11.5px;" placeholder="pk.eyJ1Ijoi...">
-          <div id="md-fr-err" style="color:var(--danger); font-size:11px; margin-top:6px; display:none"></div>
+        <p>${t("first_run.intro2", "Karten und Satellitenbilder sind ohne Anmeldung dabei: kostenlose Luftbilder der Landesvermessungen (Deutschland, Österreich, Schweiz, Spanien, Frankreich und weitere), OpenStreetMap-Karten und ein 3D-Gelände. Damit gerenderte Videos dürfen auf YouTube & Co. veröffentlicht werden — die Nennung der Quelle steht automatisch im Bild.")}</p>
+        <div style="margin-top:12px; padding:12px 14px; background:var(--bg-3); border-radius:8px; font-size:12px; line-height:1.55;">
+          <p style="font-weight:600; margin-bottom:6px;">${t("first_run.keys_title", "Mehr Stile mit eigenem Schlüssel (optional)")}</p>
+          <p class="muted">${t("first_run.keys_desc", "MapTiler (Satellit weltweit, Videos bis 100.000 Abonnenten erlaubt) und Mapbox (Videos nur mit gekauften Rechten) lassen sich jederzeit unter Einstellungen → Kartenanbieter eintragen.")}</p>
         </div>
-
-        <div style="margin-top:10px; padding:12px 14px; border:1px dashed var(--border); border-radius:8px;">
-          <p style="font-weight:600; margin-bottom:4px;">${t("first_run.opt_osm_title")}</p>
-          <p class="muted" style="font-size:12px;">${t("first_run.opt_osm_desc")}</p>
-          <p style="font-size:12px; margin-top:6px; color:var(--text);">${t("first_run.opt_osm_can", "Sofort ohne Token nutzbar: 📷 Fotos verorten · 🗺️ Tour-Karte als Bild · 🧭 Tracks aufräumen · 📈 Höhenprofil-Videos.")}</p>
-        </div>
-
         <p class="muted" style="margin-top:10px; font-size:11px;">${t("first_run.change_later_hint")}</p>
       `,
       footer: `
-        <button class="btn btn-left" id="md-fr-skip">${t("first_run.btn.skip")}</button>
-        <button class="btn" data-url="https://account.mapbox.com/access-tokens/" id="md-fr-open">${t("mapbox_help.btn.open_dashboard")}</button>
-        <button class="btn btn-primary" id="md-fr-save">${t("first_run.btn.save")}</button>
+        <button class="btn" id="md-fr-settings">${t("common.settings", "Einstellungen")}</button>
+        <button class="btn btn-primary" id="md-fr-go">${t("first_run.btn.go", "Los geht's")}</button>
       `,
       closable: false,
     });
-    setTimeout(() => document.getElementById("md-fr-token")?.focus(), 100);
-    document.getElementById("md-fr-open").onclick = (e) => {
-      e.preventDefault();
-      api().open_url(e.currentTarget.dataset.url);
-    };
-    document.querySelectorAll(".md-link").forEach(a => {
-      a.addEventListener("click", (e) => {
-        e.preventDefault();
-        api().open_url(a.dataset.url);
-      });
-    });
-    const errEl = document.getElementById("md-fr-err");
-    document.getElementById("md-fr-save").onclick = async () => {
-      const v = document.getElementById("md-fr-token").value.trim();
-      errEl.style.display = "none";
-      if (!v.startsWith("pk.") || v.length < 20) {
-        errEl.textContent = t("settings.mapbox.invalid_token");
-        errEl.style.display = "block";
-        return;
-      }
-      await saveSettings({ mapbox_token: v, onboarding_done: true }, { immediate: true });
+    const fertig = async () => {
+      await saveSettings({ onboarding_done: true }, { immediate: true });
       openModal({}).close();
       resolve();
     };
-    document.getElementById("md-fr-skip").onclick = async () => {
-      // Ohne Token weiterarbeiten → OSM-Modus, kein Premium-Render
-      await saveSettings({ mapbox_token: "", onboarding_done: true }, { immediate: true });
-      openModal({}).close();
-      resolve();
+    document.getElementById("md-fr-go").onclick = fertig;
+    document.getElementById("md-fr-settings").onclick = async () => {
+      await fertig();
+      try { openSettingsModal(); } catch (_) {}
     };
   });
 }
