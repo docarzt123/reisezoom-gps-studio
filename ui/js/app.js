@@ -218,23 +218,22 @@ function _settingsStand() {
 /** 03.09.2026 — Rechte-Tabelle: Zeilen = Kartenquelle, Spalten = wo du es zeigst,
  *  je Zelle Video · Foto · Web-Einbettung. ✅ erlaubt · ⚠️ mit Auflage · ❌ nicht. */
 function rzRightsTableHtml() {
-  const H = (k, f) => t(k, f);
-  const cell = (v, f, w, note) => `<td><span class="rt-ico" title="${H("rights.video", "Video")}">🎬${v}</span> <span class="rt-ico" title="${H("rights.foto", "Foto / Standbild")}">📷${f}</span> <span class="rt-ico" title="${H("rights.web", "Web-Karte (Einbettung)")}">🌐${w}</span>${note ? `<div class="rt-note">${note}</div>` : ""}</td>`;
+  const cell = (v, f, w, note) => `<td><span class="rt-ico" title="${t("rights.video", "Video")}">🎬${v}</span> <span class="rt-ico" title="${t("rights.foto", "Foto / Standbild")}">📷${f}</span> <span class="rt-ico" title="${t("rights.web", "Web-Karte (Einbettung)")}">🌐${w}</span>${note ? `<div class="rt-note">${note}</div>` : ""}</td>`;
   const rows = [
-    [H("rights.row.gov", "Satellit (kostenlos) — amtliche Luftbilder"),
-     cell("✅", "✅", "✅"), cell("✅", "✅", "✅"), cell("✅", "✅", "✅", H("rights.note.gov", "Nennung genügt (CC BY / dl-de/by)"))],
-    [H("rights.row.osm", "OpenFreeMap · OpenStreetMap-Karten"),
-     cell("✅", "✅", "✅"), cell("✅", "✅", "✅"), cell("✅", "✅", "⚠️", H("rights.note.osm", "Web bei viel Traffic: eigener Kachelserver"))],
-    [H("rights.row.maptiler", "MapTiler (eigener Schlüssel)"),
-     cell("✅", "✅", "❌"), cell("✅", "✅", "❌", H("rights.note.maptiler_pub", "Video bis 100.000 Abonnenten")), cell("⚠️", "⚠️", "❌", H("rights.note.maptiler_com", "Flex-Tarif (ca. 30 $/Mon.) nötig; Web: nicht im Export"))],
-    [H("rights.row.mapbox", "Mapbox (Token)"),
-     cell("⚠️", "✅", "❌", H("rights.note.mapbox_priv", "Video formal nur mit Videorechten")), cell("❌", "⚠️", "❌", H("rights.note.mapbox_pub", "Video: Rechte kaufen; Foto: kein Druck")), cell("❌", "⚠️", "❌", H("rights.note.mapbox_com", "Video: Rechte kaufen; Web: nicht im Export"))],
+    [t("rights.row.gov", "Satellit (kostenlos) — amtliche Luftbilder"),
+     cell("✅", "✅", "✅"), cell("✅", "✅", "✅"), cell("✅", "✅", "✅", t("rights.note.gov", "Nennung genügt (CC BY / dl-de/by)"))],
+    [t("rights.row.osm", "OpenFreeMap · OpenStreetMap-Karten"),
+     cell("✅", "✅", "✅"), cell("✅", "✅", "✅"), cell("✅", "✅", "⚠️", t("rights.note.osm", "Web bei viel Traffic: eigener Kachelserver"))],
+    [t("rights.row.maptiler", "MapTiler (eigener Schlüssel)"),
+     cell("✅", "✅", "❌"), cell("✅", "✅", "❌", t("rights.note.maptiler_pub", "Video bis 100.000 Abonnenten")), cell("⚠️", "⚠️", "❌", t("rights.note.maptiler_com", "Flex-Tarif (ca. 30 $/Mon.) nötig; Web: nicht im Export"))],
+    [t("rights.row.mapbox", "Mapbox (Token)"),
+     cell("⚠️", "✅", "❌", t("rights.note.mapbox_priv", "Video formal nur mit Videorechten")), cell("❌", "⚠️", "❌", t("rights.note.mapbox_pub", "Video: Rechte kaufen; Foto: kein Druck")), cell("❌", "⚠️", "❌", t("rights.note.mapbox_com", "Video: Rechte kaufen; Web: nicht im Export"))],
   ];
   return `<table class="rights-table">
-    <thead><tr><th></th><th>${H("rights.col.privat", "Privat<br><small>nur für dich</small>")}</th><th>${H("rights.col.oeffentlich", "Öffentlich, ohne Geld<br><small>Hobby-Kanal, Blog</small>")}</th><th>${H("rights.col.kommerziell", "Kommerziell<br><small>monetarisiert, Kunden</small>")}</th></tr></thead>
+    <thead><tr><th></th><th>${t("rights.col.privat", "Privat<br><small>nur für dich</small>")}</th><th>${t("rights.col.oeffentlich", "Öffentlich, ohne Geld<br><small>Hobby-Kanal, Blog</small>")}</th><th>${t("rights.col.kommerziell", "Kommerziell<br><small>monetarisiert, Kunden</small>")}</th></tr></thead>
     <tbody>${rows.map(r => `<tr><th>${r[0]}</th>${r[1]}${r[2]}${r[3]}</tr>`).join("")}</tbody>
   </table>
-  <p class="set-help" style="margin:6px 0 6px;">🎬 ${H("rights.video", "Video")} · 📷 ${H("rights.foto", "Foto / Standbild")} · 🌐 ${H("rights.web", "Web-Karte (Einbettung)")} — ${H("rights.legend", "✅ erlaubt · ⚠️ mit Auflage · ❌ nicht (Details in den Unter-Reitern)")}</p>
+  <p class="set-help" style="margin:6px 0 6px;">🎬 ${t("rights.video", "Video")} · 📷 ${t("rights.foto", "Foto / Standbild")} · 🌐 ${t("rights.web", "Web-Karte (Einbettung)")} — ${t("rights.legend", "✅ erlaubt · ⚠️ mit Auflage · ❌ nicht (Details in den Unter-Reitern)")}</p>
   ${rzTermsDisclaimerHtml()}
   ${rzTermsLinksHtml()}`;
 }
@@ -255,16 +254,15 @@ window.rzTermsLinksHtml = rzTermsLinksHtml;
 
 /** „Was passt zu dir?" — drei Fragen, eine Empfehlung, ein Klick übernimmt sie. */
 function rzMapQuizHtml() {
-  const H = (k, f) => t(k, f);
   const opt = (name, val, label) => `<label class="quiz-opt"><input type="radio" name="${name}" value="${val}"><span>${label}</span></label>`;
   return `<div class="quiz" id="md-map-quiz">
-    <div class="quiz-title">${H("quiz.title", "Was passt zu dir?")}</div>
-    <div class="quiz-q"><div class="quiz-qt">${H("quiz.q1", "Was machst du damit?")}</div>
-      ${opt("qz1", "video", H("quiz.q1.video", "Videos"))}${opt("qz1", "foto", H("quiz.q1.foto", "Bilder / Standbilder"))}${opt("qz1", "web", H("quiz.q1.web", "Karte für Website / Blog"))}</div>
-    <div class="quiz-q"><div class="quiz-qt">${H("quiz.q2", "Wo zeigst du es?")}</div>
-      ${opt("qz2", "privat", H("quiz.q2.privat", "Nur privat"))}${opt("qz2", "oeff", H("quiz.q2.oeff", "Öffentlich, ohne Geld"))}${opt("qz2", "komm", H("quiz.q2.komm", "Kommerziell / monetarisiert"))}</div>
-    <div class="quiz-q"><div class="quiz-qt">${H("quiz.q3", "Wo sind deine Touren meistens?")}</div>
-      ${opt("qz3", "abgedeckt", H("quiz.q3.abgedeckt", "Deutschland, Alpenländer, Spanien, Frankreich, Benelux, Polen, Tschechien, Italien, Japan, USA"))}${opt("qz3", "sonst", H("quiz.q3.sonst", "Woanders (z. B. Skandinavien, UK, Kanada, Südamerika)"))}</div>
+    <div class="quiz-title">${t("quiz.title", "Was passt zu dir?")}</div>
+    <div class="quiz-q"><div class="quiz-qt">${t("quiz.q1", "Was machst du damit?")}</div>
+      ${opt("qz1", "video", t("quiz.q1.video", "Videos"))}${opt("qz1", "foto", t("quiz.q1.foto", "Bilder / Standbilder"))}${opt("qz1", "web", t("quiz.q1.web", "Karte für Website / Blog"))}</div>
+    <div class="quiz-q"><div class="quiz-qt">${t("quiz.q2", "Wo zeigst du es?")}</div>
+      ${opt("qz2", "privat", t("quiz.q2.privat", "Nur privat"))}${opt("qz2", "oeff", t("quiz.q2.oeff", "Öffentlich, ohne Geld"))}${opt("qz2", "komm", t("quiz.q2.komm", "Kommerziell / monetarisiert"))}</div>
+    <div class="quiz-q"><div class="quiz-qt">${t("quiz.q3", "Wo sind deine Touren meistens?")}</div>
+      ${opt("qz3", "abgedeckt", t("quiz.q3.abgedeckt", "Deutschland, Alpenländer, Spanien, Frankreich, Benelux, Polen, Tschechien, Italien, Japan, USA"))}${opt("qz3", "sonst", t("quiz.q3.sonst", "Woanders (z. B. Skandinavien, UK, Kanada, Südamerika)"))}</div>
     <div class="quiz-result" id="md-quiz-result" hidden>
       <div id="md-quiz-text"></div>
       <button type="button" class="btn btn-primary" id="md-quiz-apply" style="margin-top:8px;"></button>

@@ -233,14 +233,18 @@ function _stackStyle(stack) {
     if (r.scheme === "tms" && !proxy) src.scheme = "tms";
     sources[sid] = src; layers.push({ id: sid, type: "raster", source: sid, minzoom: 0 });
   }
-  return { version: 8, projection: { type: "globe" }, sources, layers };
+  const st = { version: 8, sources, layers };
+  if (!window.__rzNoGlobe) st.projection = { type: "globe" };
+  return st;
 }
 
 function _rasterStyle(tiles, tileSize, maxzoom, attribution, scheme) {
   const src = { type: "raster", tiles: tiles, tileSize: tileSize || 256, maxzoom: maxzoom || 19, attribution: attribution || "" };
   if (scheme === "tms") src.scheme = "tms";
   // KEIN Layer-maxzoom: über der letzten Kachelstufe wird hochskaliert, nicht schwarz.
-  return { version: 8, projection: { type: "globe" }, sources: { "rz-raster": src }, layers: [{ id: "rz-raster", type: "raster", source: "rz-raster", minzoom: 0 }] };
+  const st = { version: 8, sources: { "rz-raster": src }, layers: [{ id: "rz-raster", type: "raster", source: "rz-raster", minzoom: 0 }] };
+  if (!window.__rzNoGlobe) st.projection = { type: "globe" };   // Prüfstände ohne GPU: Globus aus
+  return st;
 }
 
 function _terrainSource(name, maptilerKey) {
@@ -456,6 +460,9 @@ function createMap(opts) {
 function rzGlobeForMapLibre(map) {
   try {
     if (!map || map.__rzEngine !== "maplibre") return;
+    // Kopflose Prüfstände ohne GPU: der Globus kostet dort Sekunden je Bild und
+    // blockiert die Klick-Prüfungen — selftest_ui.py setzt die Flagge.
+    if (window.__rzNoGlobe) return;
     if (typeof map.setProjection === "function") {
       const pr = map.getProjection && map.getProjection();
       if (!pr || pr.type !== "globe") map.setProjection({ type: "globe" });
@@ -485,6 +492,7 @@ function rzStyleReady(map) {
   if (!map) return false;
   if (map.__rzStyleReady === true) return true;
   if (map.__rzStyleReady === false) return false;   // wird gerade gewechselt
+  // ui-falle-ok: reine Zustandsabfrage für Guards — die Aufrufer holen sich per _whenStyleReady/idle selbst nach
   try { return !map.isStyleLoaded || map.isStyleLoaded(); } catch (_) { return false; }
 }
 window.rzStyleReady = rzStyleReady;
