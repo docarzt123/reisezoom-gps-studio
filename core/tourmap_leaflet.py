@@ -234,10 +234,14 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
   var map = L.map('rz-map', { scrollWheelZoom:true });
   // 03.09.2026 — staatliche Orthofotos: WMS (L.tileLayer.wms) oder TMS-Kacheln
   function rzTile(t, attr){
+    // maxNativeZoom: darüber wird hochskaliert statt leer; minZoom: Orthofotos
+    // erst ab z7 (darunter liefern manche Dienste Rausch-Muster) — der Blue-
+    // Marble-Untergrund (t.base) füllt Meer und Ferne.
+    var o = { maxZoom:22, maxNativeZoom:t.max, minZoom:(t.min||0), attribution:attr };
     return t.wms
-      ? L.tileLayer.wms(t.wms.base, { layers:t.wms.layers, format:(t.wms.format||'image/jpeg'),
-          version:'1.3.0', transparent:!!t.wms.transparent, maxZoom:t.max, attribution:attr })
-      : L.tileLayer(t.url, { maxZoom:t.max, subdomains:(t.sub||''), attribution:attr, tms:!!t.tms });
+      ? L.tileLayer.wms(t.wms.base, Object.assign(o, { layers:t.wms.layers, format:(t.wms.format||'image/jpeg'),
+          version:'1.3.0', transparent:!!t.wms.transparent }))
+      : L.tileLayer(t.url, Object.assign(o, { subdomains:(t.sub||''), tms:!!t.tms }));
   }
   // Stapel (mehrere Bundesländer, unten → oben): nur die oberste trägt die Nennung
   if (D.tile.stack && D.tile.stack.length) {

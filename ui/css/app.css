@@ -2987,3 +2987,11 @@ body.is-rendering .modal-overlay * {
 /* Ruhige 3D-Kamera nur mit Mapbox (FreeCamera-API): Abschnitts-Schalter in der
    Zeitleiste verschwindet, wenn die Karte in MapLibre läuft. */
 body.rz-no-freecam .easing-modal-smooth { display: none !important; }
+
+/* „Mein Verständnis"-Hinweis + Links zu den Bedingungen (Einstellungen → Karten) */
+.terms-disclaimer { font-size: 11px; line-height: 1.5; padding: 7px 9px; border-radius: 6px; margin: 0 0 10px;
+  background: rgba(255, 157, 58, 0.10); border-left: 3px solid #ff9d3a; color: var(--text); }
+.terms-links { font-size: 11.5px; margin: 0 0 12px; }
+.terms-links summary { cursor: pointer; color: var(--accent); }
+.terms-links ul { margin: 6px 0 0 16px; padding: 0; line-height: 1.7; }
+.terms-links a { color: var(--accent); text-decoration: underline; cursor: pointer; }

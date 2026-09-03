@@ -494,6 +494,30 @@ python app.py</code></pre>
 <p><strong>In short:</strong> without any key you get satellite imagery, maps and 3D terrain — and you may publish the videos. You only need keys for <strong>MapTiler</strong> (free) and <strong>Mapbox</strong> (free, but videos only with purchased rights).</p>
 <table><thead><tr><th>Source</th><th>Key?</th><th>Cost</th><th>Publish videos?</th><th>Attribution in the picture</th></tr></thead><tbody><tr><td><strong>Satellite (free)</strong> — official aerial imagery</td><td>no</td><td>free</td><td>yes</td><td>automatic (e.g. &quot;Aerial imagery: PNOA © IGN España&quot;)</td></tr><tr><td><strong>OpenFreeMap</strong> (Liberty, Bright, Positron)</td><td>no</td><td>free, no limit</td><td>yes</td><td>automatic (© OpenMapTiles, © OpenStreetMap)</td></tr><tr><td><strong>OpenStreetMap, OpenTopoMap, CyclOSM, Humanitarian</strong></td><td>no</td><td>free (community tile servers, please no bulk use)</td><td>yes</td><td>automatic</td></tr><tr><td><strong>3D terrain</strong> (AWS Terrain Tiles / Mapzen)</td><td>no</td><td>free</td><td>yes</td><td>automatic (&quot;Terrain: Mapzen/AWS Terrain Tiles&quot;)</td></tr><tr><td><strong>MapTiler</strong> (Satellite, Hybrid, Outdoor, Topo, Streets + its own terrain)</td><td><strong>yes</strong></td><td>free plan (100,000 tile requests/month, <strong>non-commercial only</strong>); Flex from about $30/month</td><td><strong>yes, up to 100,000 subscribers</strong> (Cloud Terms §5)</td><td>automatic (© MapTiler © OpenStreetMap contributors)</td></tr><tr><td><strong>Mapbox</strong> (Satellite 3D, Satellite + streets, Outdoors, Streets, Light, Dark)</td><td><strong>yes</strong> (token <code>pk.…</code>)</td><td>free tier 50,000 map loads/month, credit card at signup</td><td><strong>only with purchased video rights</strong> (Product Terms §1.7)</td><td>automatic (© Mapbox © OpenStreetMap)</td></tr></tbody></table>
 <blockquote>⚠️ <strong>The attribution at the bottom right of the picture is part of the video.</strong> Please don&#x27;t crop it away — every source requires it, Mapbox and MapTiler explicitly.</blockquote>
+<blockquote>⚠️ <strong>My understanding, not legal advice.</strong> Everything in this chapter — table, recommendations, hints in the app — is my reading of the providers&#x27; terms as of September 2026. Terms change, and I may be wrong. Read them yourself before publishing and decide for yourself:</blockquote>
+<ul>
+<li><a href="https://www.mapbox.com/legal/product-terms" target="_blank" rel="noopener">Mapbox Product Terms (§1.7 Print or Video Use)</a></li>
+<li><a href="https://www.mapbox.com/legal/tos" target="_blank" rel="noopener">Mapbox Terms of Service</a></li>
+<li><a href="https://www.maptiler.com/terms/" target="_blank" rel="noopener">MapTiler Cloud Terms of Service (§4 Free plan, §5 Limited Videos)</a></li>
+<li><a href="https://www.maptiler.com/cloud/pricing/" target="_blank" rel="noopener">MapTiler Cloud — Tarife</a></li>
+<li><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap — Urheberrecht und Lizenz (ODbL)</a></li>
+<li><a href="https://operations.osmfoundation.org/policies/tiles/" target="_blank" rel="noopener">OpenStreetMap Tile Usage Policy</a></li>
+<li><a href="https://openfreemap.org/" target="_blank" rel="noopener">OpenFreeMap — Nutzung und Lizenz</a></li>
+<li><a href="https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md" target="_blank" rel="noopener">OpenMapTiles-Lizenz (BSD-3 / CC BY 4.0)</a></li>
+<li><a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">AWS Terrain Tiles (Mapzen/Tilezen) — Nennung</a></li>
+<li><a href="https://www.earthdata.nasa.gov/engage/open-data-services-software-policies" target="_blank" rel="noopener">NASA GIBS — Nutzung (gemeinfrei)</a></li>
+<li><a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="noopener">Datenlizenz Deutschland – Namensnennung 2.0 (dl-de/by-2-0)</a></li>
+<li><a href="https://www.govdata.de/dl-de/zero-2-0" target="_blank" rel="noopener">Datenlizenz Deutschland – Zero 2.0 (dl-de/zero-2-0)</a></li>
+<li><a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons BY 4.0</a></li>
+<li><a href="https://www.ign.es/web/ign/portal/politica-datos" target="_blank" rel="noopener">IGN España — Nutzungsbedingungen PNOA</a></li>
+<li><a href="https://geoservices.ign.fr/cgu-licences" target="_blank" rel="noopener">IGN France — Géoplateforme, Lizenz (Etalab)</a></li>
+<li><a href="https://www.swisstopo.admin.ch/de/nutzungsbedingungen-kostenlose-geodaten-und-geodienste" target="_blank" rel="noopener">swisstopo — Nutzungsbedingungen</a></li>
+<li><a href="https://basemap.at/nutzungsbedingungen/" target="_blank" rel="noopener">basemap.at — Nutzungsbedingungen (CC BY 4.0)</a></li>
+<li><a href="https://www.pdok.nl/introductie/-/article/luchtfoto-pdok" target="_blank" rel="noopener">PDOK Luchtfoto — Lizenz</a></li>
+<li><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">GSI Japan — Nutzungsbedingungen (地理院タイル)</a></li>
+<li><a href="https://www.usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map" target="_blank" rel="noopener">USGS The National Map — gemeinfrei</a></li>
+<li><a href="https://about.google/brand-resource-center/products-and-services/geo-guidelines/" target="_blank" rel="noopener">Zum Vergleich: Google Geo Guidelines (Earth/Earth Studio)</a></li>
+</ul>
 <h4 id="which-official-aerial-imagery-is-behind-satellite-free">Which official aerial imagery is behind &quot;Satellite (free)&quot;?</h4>
 <p>The app picks the source from the track&#x27;s location; the style field shows which one is active. As of 3 Sept 2026:</p>
 <ul>

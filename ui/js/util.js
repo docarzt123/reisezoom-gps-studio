@@ -217,12 +217,19 @@ function _stackStyle(stack) {
   const transparent = stack.length > 1;
   const sources = {}, layers = [];
   const proxy = (mapCatalog().proxy_base || "").replace(/\/$/, "");
+  // Untergrund (NASA Blue Marble) ganz unten: Meer, Ferne, Lücken der Landesdienste.
+  const base = mapCatalog().base_layer;
+  if (base && base.tiles) {
+    sources["rz-base"] = { type: "raster", tiles: base.tiles.slice(), tileSize: base.tileSize || 256, maxzoom: base.maxzoom || 8, attribution: base.attribution || "" };
+    layers.push({ id: "rz-base", type: "raster", source: "rz-base", minzoom: 0 });
+  }
+  const orthoMin = mapCatalog().ortho_minzoom || 7;
   for (const r of stack.slice().reverse()) {
     const sid = transparent ? "rz-raster-" + r.id : "rz-raster";
     // Über die lokale Kachel-Weiche (CORS + Zwischenspeicher), wenn die App sie anbietet.
     const tiles = proxy ? [proxy + "/tile/" + r.id + "/{z}/{x}/{y}" + (transparent ? "?t=1" : "")]
                         : (transparent ? (r.tiles_transparent || r.tiles) : r.tiles);
-    const src = { type: "raster", tiles, tileSize: 256, maxzoom: r.maxzoom || 19, attribution: r.attribution || "" };
+    const src = { type: "raster", tiles, tileSize: 256, minzoom: r.minzoom || orthoMin, maxzoom: r.maxzoom || 19, attribution: r.attribution || "" };
     if (r.scheme === "tms" && !proxy) src.scheme = "tms";
     sources[sid] = src; layers.push({ id: sid, type: "raster", source: sid, minzoom: 0 });
   }
@@ -340,14 +347,19 @@ function rzLeafletTileLayer(styleId, bbox) {
     if (stack.length) {
       const transparent = stack.length > 1;
       const attr = _stackAttribution(stack);
+      const orthoMin = mapCatalog().ortho_minzoom || 7;
       const mk = (r, a) => {
         const lf = (transparent && r.leaflet_transparent) ? r.leaflet_transparent : r.leaflet;
-        if (lf.wms) return L.tileLayer.wms(lf.wms.base, { layers: lf.wms.layers, format: lf.wms.format || "image/jpeg", version: "1.3.0", transparent: !!lf.wms.transparent, maxZoom: lf.max || 19, attribution: a });
-        return L.tileLayer(lf.url, { maxZoom: lf.max || 19, attribution: a, tms: !!lf.tms });
+        const o = { maxZoom: 22, maxNativeZoom: lf.max || 19, minZoom: orthoMin, attribution: a };
+        if (lf.wms) return L.tileLayer.wms(lf.wms.base, Object.assign(o, { layers: lf.wms.layers, format: lf.wms.format || "image/jpeg", version: "1.3.0", transparent: !!lf.wms.transparent }));
+        return L.tileLayer(lf.url, Object.assign(o, { tms: !!lf.tms }));
       };
-      if (!transparent) return mk(stack[0], attr);
+      const base = mapCatalog().base_layer;
+      const layers = [];
+      if (base && base.tiles) layers.push(L.tileLayer(base.tiles[0], { maxZoom: 22, maxNativeZoom: base.maxzoom || 8, attribution: base.attribution || "" }));
       const rev = stack.slice().reverse();          // groß → klein = unten → oben
-      return L.layerGroup(rev.map((r, i) => mk(r, i === rev.length - 1 ? attr : "")));
+      rev.forEach((r, i) => layers.push(mk(r, i === rev.length - 1 ? attr : "")));
+      return L.layerGroup(layers);
     }
     styleId = "osm";
   }
