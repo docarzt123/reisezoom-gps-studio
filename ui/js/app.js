@@ -249,11 +249,40 @@ async function openSettingsModal() {
   openModal({
     title: t("settings.title"),
     body: `
+      <!-- 03.09.2026 (Marc: „viel zu unübersichtlich") — Reiter statt einer
+           langen Liste. Alle Element-IDs bleiben, der Speichern-Handler liest
+           sie unverändert; versteckte Reiter bleiben im DOM. -->
+      <div class="set-tabs" role="tablist">
+        <button type="button" class="set-tab" data-tab="allgemein">${t("settings.tab.allgemein", "Allgemein")}</button>
+        <button type="button" class="set-tab" data-tab="karten">${t("settings.tab.karten", "Karten")}</button>
+        <button type="button" class="set-tab" data-tab="adressen">${t("settings.tab.adressen", "Adressen")}</button>
+        <button type="button" class="set-tab" data-tab="export">${t("settings.tab.export", "Qualität & Export")}</button>
+        <button type="button" class="set-tab" data-tab="standard">${t("settings.tab.standard", "Standardwerte")}</button>
+        <button type="button" class="set-tab" data-tab="bibliothek">${t("settings.tab.bibliothek", "Bibliothek & Cloud")}</button>
+      </div>
+
+      <div class="set-panel" data-panel="allgemein" hidden>
       <p class="muted" style="margin-bottom:4px">${t("settings.language")}</p>
       <select id="md-lang" style="width:100%;">${langOptions}</select>
       <p class="muted" style="margin-top:6px; font-size:11px;">${t("settings.language.help")}</p>
+        <!-- v0.9.530 (IDEAS §23) — Update-Prüfung abschaltbar: aus heißt, die
+             App baut von sich aus KEINE Verbindung mehr auf (kein stiller
+             Fallback). Der manuelle Knopf im Über-Dialog nutzt force=true. -->
+        <label style="display:flex; align-items:center; gap:8px; margin-top:16px; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" id="md-update-check" ${updateCheck ? "checked" : ""}>
+          <span>${t("settings.update_check.label", "Beim Start nach einer neuen Version suchen")}</span>
+        </label>
+        <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.update_check.help", "Aus heißt: die App baut von sich aus keine Verbindung ins Netz auf.")}</p>
+        <!-- 02.09.2026 (Marc: „die App merkt sich den Stand nicht beim
+             Schließen, sondern startet immer wieder im Archiv"). -->
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" id="md-start-weiter" ${startFortsetzen ? "checked" : ""}>
+          <span>${t("settings.start_weiter.label", "Beim Start dort weitermachen, wo ich aufgehört habe")}</span>
+        </label>
+        <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.start_weiter.help", "Öffnet das zuletzt bearbeitete Projekt mit seiner Tour und im selben Modul. Aus = die App startet im Archiv.")}</p>
+      </div>
 
-      <div style="margin-top:18px; padding-top:14px; border-top: 1px solid var(--border);">
+      <div class="set-panel" data-panel="karten" hidden>
         <p class="muted" style="margin-bottom:6px; font-weight:600; color:var(--text);">${t("settings.maps.title", "Kartenanbieter")}</p>
         <p class="muted" style="font-size:11px; line-height:1.5; margin-bottom:10px;">${t("settings.maps.intro", "Kostenlose Satellitenbilder und Karten sind sofort da — ganz ohne Schlüssel. Mapbox und MapTiler kommen dazu, sobald du hier einen Schlüssel einträgst. Jeder Stil zeigt in der Liste, ob er kostenlos ist und ob Videos damit veröffentlicht werden dürfen.")}</p>
         <label class="field-label" for="md-map-default" style="font-size:12px;">${t("settings.maps.default", "Standard-Kartenstil für neue Projekte")}</label>
@@ -301,25 +330,9 @@ async function openSettingsModal() {
           <span>${t("settings.force_osm.label")}</span>
         </label>
         <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.force_osm.help")}</p>
-        <!-- v0.9.530 (IDEAS §23) — Update-Prüfung abschaltbar: aus heißt, die
-             App baut von sich aus KEINE Verbindung mehr auf (kein stiller
-             Fallback). Der manuelle Knopf im Über-Dialog nutzt force=true. -->
-        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; cursor:pointer;">
-          <input type="checkbox" id="md-update-check" ${updateCheck ? "checked" : ""}>
-          <span>${t("settings.update_check.label", "Beim Start nach einer neuen Version suchen")}</span>
-        </label>
-        <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.update_check.help", "Aus heißt: die App baut von sich aus keine Verbindung ins Netz auf.")}</p>
-
-        <!-- 02.09.2026 (Marc: „die App merkt sich den Stand nicht beim
-             Schließen, sondern startet immer wieder im Archiv"). -->
-        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; cursor:pointer;">
-          <input type="checkbox" id="md-start-weiter" ${startFortsetzen ? "checked" : ""}>
-          <span>${t("settings.start_weiter.label", "Beim Start dort weitermachen, wo ich aufgehört habe")}</span>
-        </label>
-        <p class="muted" style="margin-top:2px; font-size:11px; line-height:1.5; padding-left:24px;">${t("settings.start_weiter.help", "Öffnet das zuletzt bearbeitete Projekt mit seiner Tour und im selben Modul. Aus = die App startet im Archiv.")}</p>
       </div>
 
-      <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border);">
+      <div class="set-panel" data-panel="adressen" hidden>
         <p class="muted" style="margin-bottom:6px; font-weight:600; color:var(--text);">${t("settings.geocode.title", "Adress-Suche (Geotagger)")}</p>
         <p class="muted" style="font-size:11px; line-height:1.5; margin-bottom:10px;">${t("settings.geocode.intro", "Beim Taggen kann die App zu jedem Foto-Standort die Adresse (Ort, Land, Straße) ermitteln und ins Foto schreiben. Das fragt online bei einem Karten-Dienst an.")}</p>
         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer;">
@@ -342,7 +355,7 @@ async function openSettingsModal() {
         </div>
       </div>
 
-      <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border);">
+      <div class="set-panel" data-panel="export" hidden>
         <p class="muted" style="margin-bottom:8px; font-weight:600; color:var(--text);">${t("settings.render.title")}</p>
 
         <label class="field-label" for="md-rq-fmt" style="font-size:12px;">${t("settings.render.frame_format")}</label>
@@ -383,7 +396,7 @@ async function openSettingsModal() {
         <p class="muted" style="margin-top:8px; font-size:11px; line-height:1.5;">${t("settings.render.hint")}</p>
       </div>
 
-      <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border);">
+      <div class="set-panel" data-panel="standard" hidden>
         <p class="muted" style="margin-bottom:6px; font-weight:600; color:var(--text);">${t("settings.defaults.title")}</p>
         <p class="muted" style="font-size:11px; line-height:1.5; margin-bottom:10px;">${t("settings.defaults.help")}</p>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -403,8 +416,9 @@ async function openSettingsModal() {
       <!-- Bibliothek (02.09.2026, docs/UMBAU-BIBLIOTHEK.md): Ort zeigen und
            wechseln können. Der Umzug verschiebt wirklich — er fängt nicht neu
            an; deshalb steht der Platzbedarf daneben. -->
-      <div style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px;">
-        <p class="muted" style="margin-bottom:6px">${t("bib.titel", "Bibliothek")}</p>
+      <div class="set-panel" data-panel="bibliothek" hidden>
+      <div>
+        <p class="muted" style="margin-bottom:6px; font-weight:600; color:var(--text);">${t("bib.titel", "Bibliothek")}</p>
         <div class="bib-ort" style="margin:0 0 8px"><code id="md-bib-ort">…</code></div>
         <button class="btn" id="md-bib-umziehen">${t("bib.umziehen", "An anderen Ort verschieben …")}</button>
         <button class="btn" id="md-bib-bericht" hidden>${t("bib.bericht_zeigen", "Umzugsbericht ansehen")}</button>
@@ -423,6 +437,7 @@ async function openSettingsModal() {
         <button class="btn" id="md-cloud">${t("cloud.oeffnen", "Cloud-Archiv einrichten …")}</button>
         <p class="muted" style="font-size:11px; margin-top:6px;">${t("cloud.optional", "Das ist freiwillig. Ohne Cloud arbeitet die App wie bisher, alles bleibt lokal.")}</p>
       </div>`}
+      </div>
 
     `,
     footer: `
@@ -564,6 +579,24 @@ function _bindSettingsModalHandlers() {
     if (sel) sel.disabled = !_geoEn.checked;
   };
 
+  // 03.09.2026 — Reiter: einen zeigen, Wahl merken (auch nach Rückkehr aus
+  // einem Hilfe-Dialog derselbe Reiter). IDs der Felder bleiben, der
+  // Speichern-Handler unten liest alle Reiter, sichtbar oder nicht.
+  (function reiter() {
+    const tabs = Array.from(document.querySelectorAll(".set-tab"));
+    const panels = Array.from(document.querySelectorAll(".set-panel"));
+    if (!tabs.length) return;
+    let cur = "allgemein";
+    try { cur = window.localStorage.getItem("rz_settings_tab") || cur; } catch (_) {}
+    if (!tabs.some(b => b.dataset.tab === cur)) cur = "allgemein";
+    const zeige = (name) => {
+      tabs.forEach(b => b.classList.toggle("is-active", b.dataset.tab === name));
+      panels.forEach(pn => { pn.hidden = (pn.dataset.panel !== name); });
+      try { window.localStorage.setItem("rz_settings_tab", name); } catch (_) {}
+    };
+    tabs.forEach(b => b.addEventListener("click", () => zeige(b.dataset.tab)));
+    zeige(cur);
+  })();
   document.getElementById("md-cancel-set").onclick = () => openModal({}).close();
   document.getElementById("md-maptiler-link")?.addEventListener("click", (e) => { e.preventDefault(); api().open_url("https://cloud.maptiler.com/account/keys/"); });
   document.getElementById("md-tc-clear")?.addEventListener("click", async () => {
