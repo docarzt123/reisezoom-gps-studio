@@ -5356,6 +5356,15 @@ async def render(
             _smooth_all = bool(getattr(cfg, "smooth_camera_3d", False))
             _smooth_seg = any(isinstance(_e, dict) and _e.get("smooth_in") for _e in _events_zeit)
             _smooth_cam = (_smooth_all or _smooth_seg) and os.environ.get("RZ_NOFAITHFUL") != "1"
+            # 03.09.2026 (Marc, erster Render mit „Satellit (kostenlos)"): Die
+            # entkoppelte FreeCamera gibt es nur in Mapbox GL (`getFreeCameraOptions`);
+            # MapLibre kennt sie nicht → „is not a function", Render tot. Auf
+            # MapLibre läuft die klassische Kamera — mit Vermerk, ohne Abbruch.
+            if _smooth_cam and getattr(cfg, "map_engine", "mapbox") != "mapbox":
+                _smooth_cam = False
+                _log.warning("Ruhige Kamera (3D) nur mit Mapbox-Stilen — %s nutzt die klassische Kamera.", cfg.map_style)
+                emit(0.05, _t("animator.progress.ruhig_nur_mapbox",
+                              "Ruhige Kamera (3D) gibt es nur mit Mapbox-Stilen — klassische Kamera."))
             _use_faithful = False
             if _smooth_cam and total_frames > 2:
                 _cam_kinds = ("center", "pitch", "zoom", "bearing", "position", "rotation")

@@ -313,6 +313,7 @@
   "animator.progress.map_ready": "Karte bereit, rendere Frames …",
   "animator.progress.prewarm": "Tile-Cache vorwärmen",
   "animator.progress.render_map": "Karte rendern …",
+  "animator.progress.ruhig_nur_mapbox": "Ruhige Kamera (3D) gibt es nur mit Mapbox-Stilen — klassische Kamera.",
   "animator.render_error.body": "Beim Rendern ist ein Fehler aufgetreten. Details siehe Traceback und Logdatei.",
   "animator.render_error.btn.open_log": "Log öffnen",
   "animator.render_error.btn.reveal_log": "Im Finder zeigen",

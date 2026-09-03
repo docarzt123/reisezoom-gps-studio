@@ -6660,6 +6660,7 @@ function mountAnimator(body, headerActions, opts) {
     };
     const _faithSeek = (tp) => {
       const cams = _faithCams; if (!cams || !cams.length) return;
+      if (!map || typeof map.getFreeCameraOptions !== "function") return;   // MapLibre: keine FreeCamera
       const fc = map.getFreeCameraOptions();
       if (cams.length === 1) {
         const c = cams[0];
