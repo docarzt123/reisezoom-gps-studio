@@ -313,6 +313,7 @@
   "animator.progress.map_ready": "Mapa listo, renderizando fotogramas …",
   "animator.progress.prewarm": "Precalentando la caché de teselas",
   "animator.progress.render_map": "Renderizando mapa …",
+  "animator.progress.ruhig_nur_mapbox": "La cámara suave (3D) solo existe con estilos Mapbox — se usa la cámara clásica.",
   "animator.render_error.body": "Se produjo un error durante el renderizado. Consulta el traceback y el archivo de registro para más detalles.",
   "animator.render_error.btn.open_log": "Abrir registro",
   "animator.render_error.btn.reveal_log": "Mostrar en Finder",

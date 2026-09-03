@@ -313,6 +313,7 @@
   "animator.progress.map_ready": "Map ready, rendering frames …",
   "animator.progress.prewarm": "Pre-warming tile cache",
   "animator.progress.render_map": "Rendering map …",
+  "animator.progress.ruhig_nur_mapbox": "Smooth camera (3D) is only available with Mapbox styles — using the classic camera.",
   "animator.render_error.body": "An error occurred during rendering. See traceback and log file below for details.",
   "animator.render_error.btn.open_log": "Open log",
   "animator.render_error.btn.reveal_log": "Show in Finder",
