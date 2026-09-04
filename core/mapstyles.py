@@ -405,7 +405,7 @@ def stack_attribution(stack: list[dict]) -> str:
     return " | ".join(out)
 
 
-def stack_style(stack: list[dict], proxy_base: str = "") -> dict:
+def stack_style(stack: list[dict], proxy_base: str = "", adjust_pct=None) -> dict:
     """GL-Style mit einer Raster-Quelle je Region; unterste = größte Fläche."""
     # 04.09.2026 (Marc, Brandenburg bei Zoom 7): Auch eine EINZELNE Region
     # immer als PNG mit Alpha — als JPEG füllt der Landesdienst alles
@@ -426,7 +426,11 @@ def stack_style(stack: list[dict], proxy_base: str = "") -> dict:
         if r.get("scheme") == "tms" and not proxy_base:   # die Weiche spiegelt y selbst
             src["scheme"] = "tms"
         sources[sid] = src
-        layers.append({"id": sid, "type": "raster", "source": sid, "minzoom": 0})
+        lay = {"id": sid, "type": "raster", "source": sid, "minzoom": 0}
+        paint = raster_adjust_paint(DEFAULT_RASTER_PCT if adjust_pct is None else adjust_pct)
+        if paint:
+            lay["paint"] = paint
+        layers.append(lay)
     # Weltkugel: MapLibre 5 zeichnet bei kleinem Zoom einen Globus (Anflug aus
     # dem All wie bei Mapbox) — der Blue-Marble-Untergrund macht ihn erst schön.
     return {"version": 8, "projection": {"type": "globe"}, "sources": sources, "layers": layers}
@@ -455,7 +459,7 @@ def base_leaflet() -> dict:
             "attr": BASE_LAYER["attribution"], "base": True}
 
 
-def stack_leaflet(stack: list[dict]) -> dict:
+def stack_leaflet(stack: list[dict], adjust_pct=None) -> dict:
     """Leaflet-Kachelangabe für einen Stapel: `stack` = Liste unten → oben,
     immer mit dem Blue-Marble-Untergrund als erster Ebene."""
     if not stack:
@@ -471,6 +475,7 @@ def stack_leaflet(stack: list[dict]) -> dict:
     if transparent:
         d["label"] = "Luftbild " + "/".join(r["name"] for r in stack)
     d["stack"] = [base_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=ORTHO_MINZOOM) for r in reversed(stack)]
+    d["adjust"] = float(DEFAULT_RASTER_PCT if adjust_pct is None else adjust_pct)   # Farbkraft (CSS-Filter im Export)
     return d
 
 
@@ -498,6 +503,22 @@ TERRAIN_AWS_PROXY_ID = "terrain-aws"     # Weiche: /tile/terrain-aws/{z}/{x}/{y}
 # places · roads · pois · transit · admin. Schnappschuss im Bundle:
 # ui/vendor/ofm-liberty-overlay.json (scripts/update_ofm_overlay.py).
 LABEL_GROUPS = ("places", "roads", "pois", "transit", "admin")
+
+# ── Farbkraft der Orthofotos (04.09.2026, Marc: „Brandenburg sieht halb tot aus") ──
+# Landesluftbilder sind oft flau. Ein Regler 0–100 % hebt Sättigung und
+# Kontrast der Orthofoto-Ebenen (nicht des Blue-Marble-Untergrunds). Werk 30.
+# GL: raster-saturation/-contrast; Leaflet: CSS filter saturate()/contrast().
+DEFAULT_RASTER_PCT = 30.0
+
+
+def raster_adjust_paint(pct) -> dict:
+    try:
+        v = max(0.0, min(100.0, float(pct))) / 100.0
+    except (TypeError, ValueError):
+        v = 0.0
+    if v <= 0:
+        return {}
+    return {"raster-saturation": round(v * 0.8, 3), "raster-contrast": round(v * 0.25, 3)}
 _OVERLAY_CACHE: Optional[dict] = None
 
 
@@ -576,7 +597,7 @@ def video_ok(key: str) -> bool:
 
 def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
             bbox=None, want_terrain: bool = True, proxy_base: str = "",
-            labels: Optional[dict] = None) -> dict:
+            labels: Optional[dict] = None, raster_pct=None) -> dict:
     """Aus Stil-Schlüssel + Schlüsseln + Track-Lage die konkrete Karte machen.
 
     Liefert:
@@ -621,7 +642,7 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
             key = "ofm_liberty"; st = STYLE_BY_KEY[key]
 
     if st["kind"] == "gov":
-        style = stack_style(stack, proxy_base=proxy_base)
+        style = stack_style(stack, proxy_base=proxy_base, adjust_pct=raster_pct)
     elif st["kind"] == "raster":
         style = raster_style(st["tiles"], tile_size=st.get("tileSize", 256),
                              maxzoom=st.get("maxzoom", 19), attribution=st.get("attribution", ""))

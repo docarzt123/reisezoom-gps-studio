@@ -225,6 +225,11 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.exaggeration")} <span class="label-val" id="anim-ex-v">1.5×</span></label>
             <input type="range" id="anim-ex" min="0" max="4" step="0.1" value="1.5">
           </div>
+          <!-- 04.09.2026 (Marc: „Brandenburg sieht halb tot aus") — Farbkraft der Orthofotos, nur bei „Satellit (kostenlos)" -->
+          <div class="field" id="anim-sat-row" title="${t("animator.field.map_saturation_tip", "Sättigung und Kontrast der amtlichen Luftbilder anheben — sie sind oft flau. Wirkt in Vorschau, Video und Web-Karte gleich.")}">
+            <label class="field-label">${t("animator.field.map_saturation", "Luftbild-Farbkraft")} <span class="label-val" id="anim-sat-v">30 %</span></label>
+            <input type="range" id="anim-sat" min="0" max="100" step="5" value="30">
+          </div>
           <div class="field">
             <label class="field-label" for="anim-mc-light">${t("map_config.light_preset")}</label>
             <select id="anim-mc-light">
@@ -1661,6 +1666,10 @@ function mountAnimator(body, headerActions, opts) {
   _fiSync(); _fiLbl();
   bindSetting("anim-ex", _MODKEY, "exaggeration", { type: "number",
     onLoad: v => updateLabel("anim-ex-v", v, "×") });
+  bindLabel("anim-sat", "anim-sat-v", " %");
+  bindSetting("anim-sat", _MODKEY, "map_saturation", { type: "number",
+    onLoad: v => { updateLabel("anim-sat-v", v, " %"); try { if (map) rzApplyRasterAdjust(map, v); } catch (_) {} } });
+  document.getElementById("anim-sat")?.addEventListener("input", (e) => { try { if (map) rzApplyRasterAdjust(map, e.target.value); } catch (_) {} });
   bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number" });
   // v0.9.530 (IDEAS §22) — Echtzeit ÷ Faktor. Der Faktor SCHREIBT nur die
   // Sekunden ins Dauer-Feld (und löst dessen change aus → duration_s wird wie
@@ -7276,6 +7285,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   // 04.09.2026 — die fünf Schalter als Overlay-Gruppen (mapstyles.LABEL_GROUPS).
+  function _currentSat() { const v = parseFloat(document.getElementById("anim-sat")?.value); return isFinite(v) ? v : 30; }
   function _labelsFromConfig() {
     try { const c = getMapConfig(); return { places: !!c.showPlace, roads: !!c.showRoad, pois: !!c.showPoi, transit: !!c.showTransit, admin: !!c.showAdmin }; }
     catch (_) { return { places: true, roads: true, pois: true, transit: true, admin: true }; }
@@ -7473,6 +7483,8 @@ function mountAnimator(body, headerActions, opts) {
       const row = document.getElementById("anim-smooth-camera-row");
       if (row && !_isStaticFrame) row.hidden = false;
       document.body.classList.remove("rz-no-freecam");
+      const satRow = document.getElementById("anim-sat-row");   // Farbkraft nur bei Orthofotos
+      if (satRow) satRow.hidden = !(spec && spec.kind === "gov");
     } catch (_) {}
     if (alpha || !spec || spec.videoOk) { const hc = document.querySelector('[data-help-content="map_rights"]'); if (hc) hc.hidden = true; }
     if (osmHint) osmHint.hidden = alpha || !spec || spec.kind === "raster" || spec.kind === "gov";
@@ -7482,7 +7494,7 @@ function mountAnimator(body, headerActions, opts) {
     _updateStyleHints(styleKey);
     // Alpha ist kein Kartenstil: Karte bleibt, wie sie ist (die Vorschau deckt sie ab).
     const key = (styleKey === "alpha") ? (map.__rzStyleKey || mapDefaultStyle()) : styleKey;
-    const r = applyMapStyle(map, key, currentBbox || null, { terrain: false, labels: _labelsFromConfig() });
+    const r = applyMapStyle(map, key, currentBbox || null, { terrain: false, labels: _labelsFromConfig(), rasterPct: _currentSat() });
     if (r.needsRemount) {
       // Engine-Wechsel (Mapbox GL ↔ MapLibre GL): Karte neu bauen. Der Stil ist
       // über bindSetting schon gespeichert, der Neuaufbau liest ihn.
@@ -7546,6 +7558,7 @@ function mountAnimator(body, headerActions, opts) {
       styleKey: (initialStyleKey === "alpha") ? mapDefaultStyle() : initialStyleKey,
       bbox: currentBbox || null,
       labels: _labelsFromConfig(),   // 04.09.2026: Orte/Straßen/… auch über Rasterkarten
+      rasterPct: _currentSat(),
       common: { center: [10, 51], zoom: 4, pitch: currentPitch() },
     });
     map = made.map;
@@ -13771,6 +13784,7 @@ function mountAnimator(body, headerActions, opts) {
       spin_dps: 0,
       cinematic_flyto: !!document.getElementById("anim-cinematic-flyto")?.checked,
       exaggeration: parseFloat(document.getElementById("anim-ex").value),
+      map_saturation: _currentSat(),
       enable_terrain: document.getElementById("anim-terrain").checked,
       // v0.8.17 — Classic-Mode Toggle „Kamera folgt Track" → Backend bewegt
       // Center pro Frame zum aktuellen Track-Punkt. Im KF-Modus per KF gesteuert.

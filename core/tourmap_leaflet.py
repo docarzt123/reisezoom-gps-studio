@@ -146,7 +146,8 @@ def make_leaflet_html(params: dict) -> str:
                  # 03.09.2026 — staatliche Orthofotos: WMS-Angaben / TMS-Flag durchreichen
                  **({"wms": tile["wms"]} if tile.get("wms") else {}),
                  **({"tms": True} if tile.get("tms") else {}),
-                 **({"stack": tile["stack"]} if tile.get("stack") else {})},
+                 **({"stack": tile["stack"]} if tile.get("stack") else {}),
+                 **({"adjust": float(tile["adjust"])} if tile.get("adjust") else {})},
     }
     D = json.dumps(data, ensure_ascii=False)
 
@@ -238,12 +239,18 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
     // erst ab z7 (darunter liefern manche Dienste Rausch-Muster) — der Blue-
     // Marble-Untergrund (t.base) füllt Meer und Ferne.
     var o = { maxZoom:22, maxNativeZoom:t.max, minZoom:(t.min||0), attribution:attr };
+    if (!t.base && D.tile.adjust > 0) o.className = 'rz-ortho';   // Farbkraft (s. Style-Block unten)
     return t.wms
       ? L.tileLayer.wms(t.wms.base, Object.assign(o, { layers:t.wms.layers, format:(t.wms.format||'image/jpeg'),
           version:'1.3.0', transparent:!!t.wms.transparent }))
       : L.tileLayer(t.url, Object.assign(o, { subdomains:(t.sub||''), tms:!!t.tms }));
   }
   // Stapel (mehrere Bundesländer, unten → oben): nur die oberste trägt die Nennung
+  if (D.tile.adjust > 0) {   // 04.09.2026 — Orthofotos sind oft flau: Sättigung/Kontrast wie in der App
+    var v = Math.max(0, Math.min(100, D.tile.adjust)) / 100, st = document.createElement('style');
+    st.textContent = '.rz-ortho{filter:saturate(' + (1 + v * 0.8).toFixed(2) + ') contrast(' + (1 + v * 0.25).toFixed(2) + ')}';
+    document.head.appendChild(st);
+  }
   if (D.tile.stack && D.tile.stack.length) {
     D.tile.stack.forEach(function(t, i){ rzTile(t, i === D.tile.stack.length - 1 ? D.tile.attr : '').addTo(map); });
   } else {
