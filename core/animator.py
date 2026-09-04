@@ -2087,10 +2087,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "  const dvis = showDot ? 'visible' : 'none';\n"
             "  try { map.setLayoutProperty('dot-core','visibility',dvis); map.setLayoutProperty('dot-glow','visibility',dvis); } catch(_){}\n"
             "  try { map.setPaintProperty('dot-core','circle-stroke-color', TOUR_COLORS[tourIdx]); } catch(_){}\n"
-            "  map.setBearing(brg); map.setCenter([lon,lat]);\n"
-            "  if (zm !== undefined) map.setZoom(zm);\n"
-            "  if (pt !== undefined) map.setPitch(pt);\n"
             "  const g = (TOUR_OFFSETS[tourIdx]||0) + li;\n"
+            "  window.__rzSetCam(brg, lon, lat, zm, pt, Math.max(0, Math.min(g, totalPoints-1)));\n"
             "  updateOverlays(Math.max(0, Math.min(g, totalPoints-1)));\n"
             "  if (map.triggerRepaint) map.triggerRepaint();\n"  # v0.9.286 — wie advanceFrame: statische Frames neu malen
             "};\n"
@@ -3324,6 +3322,33 @@ window.getInitialView = () => ({{
 // Neuanfang entfernt. Die Kamera läuft jetzt rein über map.jumpTo/setCenter/setZoom/
 // setPitch (= reitet auf dem Gelände, vorhersehbar). Neukonzept folgt separat.
 window.__stabCamHeight = (lon, lat) => {{ return; }};
+// 04.09.2026 (Marc, Masca: „Zoom landet an der falschen Stelle") — MapLibre führt
+// die Mittelpunkt-Höhe bei setCenter/jumpTo NICHT nach. Blieb sie bei 0 (Start
+// auf der Weltkugel), schaute die Kamera bei 58° Neigung auf einen Punkt in
+// 1000 m Höhe → sichtbarer Ausschnitt ~2,8 km daneben (kopflos gemessen, gleicher
+// Effekt im Video). Jeder Frame bekommt jetzt die Höhe mit: Gelände, sonst
+// GPX-Höhe × Überhöhung. Mapbox regelt das selbst (setCenter reicht).
+window.__rzSetCam = (brg, lon, lat, zm, pt, idx) => {{
+  const ml = (typeof map.getCenterClampedToGround === 'function');
+  let e = null;
+  if (ml) {{
+    try {{ if (map.getTerrain && map.getTerrain()) {{ const q = map.queryTerrainElevation([lon, lat]); if (q != null && isFinite(q)) e = q; }} }} catch (_) {{}}
+    if (e == null && typeof HAS_ELE !== 'undefined' && HAS_ELE && typeof elevations !== 'undefined' && idx != null && elevations[idx] != null) {{
+      try {{ if (map.getTerrain && map.getTerrain()) e = elevations[Math.max(0, Math.min(elevations.length - 1, idx))] * (window.__RZ_EXAG || 1); }} catch (_) {{}}
+    }}
+  }}
+  if (e != null) {{
+    try {{ if (map.getCenterClampedToGround()) map.setCenterClampedToGround(false); }} catch (_) {{}}
+    const o = {{ center: [lon, lat], bearing: brg, elevation: e }};
+    if (zm !== undefined) o.zoom = zm;
+    if (pt !== undefined) o.pitch = pt;
+    map.jumpTo(o);
+    return;
+  }}
+  map.setBearing(brg); map.setCenter([lon, lat]);
+  if (zm !== undefined) map.setZoom(zm);
+  if (pt !== undefined) map.setPitch(pt);
+}};
 
 // v0.9.318 — Entkoppelte FreeCamera gegen Berg-Hüpfen (in Sandbox validiert).
 // Pro Keyframe die exakte 3D-Kamera auslesen (Position Mercator-x/y/z + Orientierung-
@@ -3338,6 +3363,7 @@ window.__kfCams = null;
 // NICHT wieder ans Gelände geklemmt wird (das wäre das Berg-Hüpfen), wird
 // `centerClampedToGround` aus- und die berechnete `elevation` mitgegeben.
 window.__rzMC = (typeof mapboxgl !== "undefined" && mapboxgl.MercatorCoordinate) ? mapboxgl.MercatorCoordinate : maplibregl.MercatorCoordinate;
+window.__RZ_EXAG = {float(getattr(cfg, "exaggeration", 1.0) or 1.0) if getattr(cfg, "enable_terrain", False) else 1.0};
 window.__rzCamRead = (elevM) => {{
   if (typeof map.getFreeCameraOptions === "function") {{
     const fc = map.getFreeCameraOptions(); const o = fc.orientation;
@@ -3546,9 +3572,7 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
   // v0.9.318 — setCam===false: Kamera NICHT hier setzen (entkoppelte FreeCamera
   // übernimmt das via __camFaithful). Linie/Punkt/Overlays laufen trotzdem.
   if (setCam !== false) {{
-    map.setBearing(brg); map.setCenter([lon,lat]);
-    if (zm !== undefined) map.setZoom(zm);
-    if (pt !== undefined) map.setPitch(pt);
+    window.__rzSetCam(brg, lon, lat, zm, pt, safe);   // 04.09.2026 — mit Mittelpunkt-Höhe (MapLibre)
     __stabCamHeight(lon, lat);
   }}
   updateOverlays(safe);
@@ -3656,10 +3680,7 @@ window.prewarmTiles = async (samples) => {{
   if (!samples || samples.length === 0) return;
   for (const s of samples) {{
     const [brg, lon, lat, zm, pt] = s;
-    map.setBearing(brg);
-    map.setCenter([lon, lat]);
-    if (zm !== undefined) map.setZoom(zm);
-    if (pt !== undefined) map.setPitch(pt);
+    window.__rzSetCam(brg, lon, lat, zm, pt, null);
     // Pro Stützstelle auf `idle` warten (= alle Tiles für diese Ansicht geladen)
     await window.waitForRender();
   }}
@@ -5802,7 +5823,9 @@ async def render(
                             " lng: +map.getCenter().lng.toFixed(5),"
                             " p: +map.getPitch().toFixed(1),"
                             " alt: (function(){try{return +window.__rzCamRead().pos[2].toExponential(3);}catch(e){return null;}})(),"
-                            " elev: (function(){try{var e=map.queryTerrainElevation(map.getCenter());return e==null?null:+e.toFixed(0);}catch(e){return null;}})()})"
+                            " elev: (function(){try{var e=map.queryTerrainElevation(map.getCenter());return e==null?null:+e.toFixed(0);}catch(e){return null;}})(),"
+                            " ce: (function(){try{return +map.getCenterElevation().toFixed(0);}catch(e){return null;}})(),"
+                            " mid_m: (function(){try{var c=map.getCanvas(),m=map.unproject([c.clientWidth/2,c.clientHeight/2]),g=map.getCenter();var R=6371000,d=Math.PI/180;return Math.round(R*Math.hypot((m.lng-g.lng)*d*Math.cos(g.lat*d),(m.lat-g.lat)*d));}catch(e){return null;}})()})"
                         )
                         _log.info("CAMDEBUG f=%d t=%.4f soll_z=%.3f soll_pitch=%.1f ist=%s",
                                   frame, timeline_progress, frame_zoom, pitch_f, _dbg)
