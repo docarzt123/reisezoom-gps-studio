@@ -2498,7 +2498,7 @@
   "settings.tab.standard": "Valores por defecto",
   "settings.tilecache.clear": "Vaciar",
   "settings.tilecache.cleared": "Caché de teselas vaciada",
-  "settings.tilecache.help": "Las teselas descargadas se guardan en disco: un segundo render de la misma zona es más rápido y cuida los servidores. 0 = desactivado. Las teselas de Mapbox no se guardan.",
+  "settings.tilecache.help": "Las teselas descargadas se conservan 90 días en el disco: un segundo render de la misma zona es más rápido y alivia los servidores; después se vuelven a descargar (las ortofotos se renuevan). 0 = desactivado. Las teselas de Mapbox nunca se guardan.",
   "settings.tilecache.label": "Caché de teselas (render)",
   "settings.tilecache.size": "{mb} MB ocupados",
   "settings.title": "Ajustes",

@@ -25,6 +25,7 @@ import hashlib
 import logging
 import math
 import os
+import time
 import re
 import urllib.request
 from pathlib import Path
@@ -110,6 +111,20 @@ def downscale_tile(body: bytes, ct: str, size: int = TILE_OUT_PX) -> tuple[bytes
         return body, ct
 
 
+# 04.09.2026 (Marc: „mach 90 Tage Cache"): Landesluftbilder werden neu
+# beflogen, Geländedaten aktualisiert — eine Kachel gilt 90 Tage, danach wird
+# sie neu geholt (Weiche, Render-Route) bzw. beim Aufräumen gelöscht.
+TILE_CACHE_MAX_AGE_S = 90 * 86400
+
+
+def cache_fresh(path: Path) -> bool:
+    """Datei vorhanden und jünger als TILE_CACHE_MAX_AGE_S?"""
+    try:
+        return path.exists() and (time.time() - path.stat().st_mtime) < TILE_CACHE_MAX_AGE_S
+    except OSError:
+        return False
+
+
 def cache_path(cache_dir: Path, url: str) -> Path:
     h = hashlib.sha1(url.encode("utf-8")).hexdigest()
     return cache_dir / h[:2] / (h + ".bin")
@@ -159,7 +174,7 @@ def _terrarium_raw(z: int, x: int, y: int, cache_dir, timeout: float = 30.0):
     url = ms.TERRAIN["aws"]["tiles"][0].replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
     cp = cache_path(Path(cache_dir), url + "#raw") if cache_dir else None
     body = None
-    if cp is not None and cp.exists():
+    if cp is not None and cache_fresh(cp):
         try:
             raw = cp.read_bytes(); body = raw[raw.index(b"\n") + 1:]
         except Exception:
@@ -247,7 +262,7 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
         url = upstream_url(region, z, x, y, transparent)
     _suffix = CLAMP_KEY_SUFFIX if terrain else ("#sea1" if (region is not None and region.get("sea_mask") and z <= SEA_MASK_MAX_Z) else "")
     cp = cache_path(Path(cache_dir), url + _suffix) if cache_dir else None   # eigener Schlüssel je Nachbearbeitung
-    if cp is not None and cp.exists():
+    if cp is not None and cache_fresh(cp):
         try:
             raw = cp.read_bytes()
             nl = raw.index(b"\n")
