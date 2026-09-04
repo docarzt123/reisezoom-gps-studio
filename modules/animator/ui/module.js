@@ -7668,8 +7668,12 @@ function mountAnimator(body, headerActions, opts) {
     // die Karte rendert aber „Satellit" (bei Modulwechsel + App-Neustart).
     // Nutzer-Bug (Beta-Tester, Motorrad-Touren).
     const _styleProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    // 04.09.2026 (Marc: Schwarm aus dem Archiv kam mit Mapbox-Satellit statt
+    // seinem Standard): ohne aktives Projekt galt die GLOBALE settings.json
+    // (`animator.map_style`, ein Altwert „satellite"). Jetzt: Projekt → sonst
+    // der in den Einstellungen gewählte Standard-Kartenstil (mapDefaultStyle).
     const initialStyleKey = (_styleProj?.[_MODKEY]?.map_style)
-                            || (_settingsCache?.[_MODKEY]?.map_style) || "satellite";
+                            || ((typeof mapDefaultStyle === "function") ? mapDefaultStyle() : "free_satellite");
     _currentStyleKey = initialStyleKey;   // v0.9.329 — Init-Stil merken (onLoad-Guard)
     // Viewport vor Map-Init dimensionieren — sonst hat Mapbox die falsche Größe.
     updateAnimatorViewport();

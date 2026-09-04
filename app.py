@@ -1661,6 +1661,14 @@ class Api:
             for mod, vals in ud.items():
                 if mod in base and isinstance(base[mod], dict) and isinstance(vals, dict):
                     base[mod].update({k: v for k, v in vals.items() if k not in _nie})
+            # 04.09.2026 (Marc: „man muss einstellen können, welche Kartenart
+            # Standard ist … dauerhaft"): Einstellungen → „Standard-Kartenstil für
+            # neue Projekte" gewinnt gegen gemerkte Standardwerte und Werk.
+            ms = str(raw.get("map_style_default") or "").strip()
+            if ms and ms in {d["key"] for d in cmapstyles.STYLES}:
+                for mod in ("animator", "tourmap"):
+                    if mod in base and isinstance(base[mod], dict) and "map_style" in base[mod]:
+                        base[mod]["map_style"] = ms
         except Exception:
             pass  # Defekte Defaults → still auf Werk zurückfallen
         return base

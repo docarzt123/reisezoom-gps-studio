@@ -101,6 +101,17 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Standard-Kartenstil aus den Einstellungen griff nicht zuverlässig** (Marc,
+  04.09.: „man muss einstellen können, welche Kartenart Standard ist … dauerhaft
+  gespeichert"): Die Einstellung „Standard-Kartenstil für neue Projekte" gab es
+  schon und war gespeichert, aber (1) beim Wiedereinstieg in den Animator ohne
+  aktives Projekt nahm die Karte den Altwert `animator.map_style` aus der
+  globalen settings.json („satellite" = Mapbox), und (2) neue Projekte bekamen
+  ihren Stil aus Werk bzw. gemerkten Standardwerten, nicht aus dieser
+  Einstellung. Jetzt: Projekt → sonst der Standard-Kartenstil; neue Projekte
+  (Animator und Tour-Map) starten immer damit, er gewinnt auch gegen „Diesen
+  Look für neue Tracks merken". Kopflos geprüft: globaler Altwert „satellite" +
+  Mapbox-Token, Standard „Satellit (kostenlos)" → Karte startet mit MapLibre.
 - **Schwarm aus dem Archiv startet mit offenem Keyframe-Editor und den
   Keyframes des vorherigen Projekts** (Marc, 04.09.): zwei Ursachen. (1) Ein
   Projekt ohne eigene Keyframes fiel auf den globalen Zwischenspeicher zurück,
