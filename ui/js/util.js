@@ -565,6 +565,12 @@ function createMap(opts) {
   } catch (_) {}
   map.__rzSpec = spec;
   map.__rzStyleKey = spec.key;
+  // 04.09.2026 (Marc: „wir wollen überall WYSIWYG") — Beschriftungen in der
+  // Vorschau im Render-Maßstab: nach jedem Stil-Aufbau neu skalieren.
+  try {
+    map.on("style.load", () => { map.__rzLabelOrig = null; setTimeout(() => { try { rzScaleMapLabels(map); } catch (_) {} }, 0); });
+    map.once("load", () => { try { rzScaleMapLabels(map); } catch (_) {} });
+  } catch (_) {}
   // „Stil fertig" im Mapbox-Sinn (Style-JSON geladen). MapLibres isStyleLoaded()
   // meldet erst true, wenn auch alle Kacheln da sind — bei Raster + Gelände in
   // Bewegung also fast nie; Warteschleifen im Animator drehten sich dann endlos.
@@ -3139,3 +3145,66 @@ window.rzSetDataLatest = function (map, src, data) {
   }
   src.setData(data);
 };
+
+/** 04.09.2026 — Beschriftungen (Symbol-Ebenen) der Vorschau im Render-Maßstab.
+ *  Der Render malt Text in CSS-Pixeln auf einem 1920 px breiten Viewport; die
+ *  Vorschau ist ~800 px breit und zeigt denselben Ausschnitt (Zoom-Korrektur).
+ *  Ohne Skalierung wirken Ortsnamen in der Vorschau 2–3× so groß wie im
+ *  Video. k = Vorschau-Breite / Render-CSS-Breite (wie --rz-prev-k für die
+ *  Quellen-Nennung). Originalwerte werden je Stil gemerkt (style.load setzt
+ *  den Speicher zurück), damit ein neues k nicht auf ein altes k aufsetzt. */
+function rzScaleMapLabels(map, k) {
+  if (!map || !map.getStyle) return;
+  if (k == null) k = map.__rzLabelK;
+  if (k == null) {
+    try { const vp = map.getContainer().closest("#anim-viewport"); const v = vp && parseFloat(vp.style.getPropertyValue("--rz-prev-k")); if (v && isFinite(v)) k = v; } catch (_) {}
+  }
+  if (!(k > 0) || !isFinite(k)) return;
+  map.__rzLabelK = k;
+  let layers = [];
+  try { layers = (map.getStyle() && map.getStyle().layers) || []; } catch (_) { return; }
+  if (!map.__rzLabelOrig) map.__rzLabelOrig = {};
+  const orig = map.__rzLabelOrig;
+  // Zoom-Kurven dürfen nur auf oberster Ebene stehen („zoom expression must be
+  // top-level"): ["*", ["interpolate", …, ["zoom"], …], k] lehnt MapLibre still
+  // ab. Deshalb die AUSGABEN der Kurve skalieren, nicht die Kurve einwickeln.
+  const hasZoom = (v) => { try { return JSON.stringify(v).indexOf('["zoom"]') >= 0; } catch (_) { return false; } };
+  const scale = (v) => {
+    if (typeof v === "number") return v * k;
+    if (!Array.isArray(v)) return v;
+    const op = v[0];
+    if (op === "interpolate" || op === "interpolate-hcl" || op === "interpolate-lab") {
+      const out = v.slice(0, 3);
+      for (let i = 3; i < v.length; i += 2) { out.push(v[i]); out.push(scale(v[i + 1])); }
+      return out;
+    }
+    if (op === "step") {
+      const out = [v[0], v[1], scale(v[2])];
+      for (let i = 3; i < v.length; i += 2) { out.push(v[i]); out.push(scale(v[i + 1])); }
+      return out;
+    }
+    if (op === "case") { const out = [v[0]]; for (let i = 1; i < v.length - 1; i += 2) { out.push(v[i]); out.push(scale(v[i + 1])); } out.push(scale(v[v.length - 1])); return out; }
+    if (op === "match") { const out = [v[0], v[1]]; for (let i = 2; i < v.length - 1; i += 2) { out.push(v[i]); out.push(scale(v[i + 1])); } out.push(scale(v[v.length - 1])); return out; }
+    if (op === "coalesce") return [v[0]].concat(v.slice(1).map(scale));
+    if (op === "let") { const out = v.slice(0, v.length - 1); out.push(scale(v[v.length - 1])); return out; }
+    if (!hasZoom(v)) return ["*", v, k];
+    return v;   // unbekannte Form mit Zoom: lieber unskaliert als ungültig
+  };
+  const mul = (v, def) => {
+    if (v == null) return def * k;
+    if (v && typeof v === "object" && !Array.isArray(v) && Array.isArray(v.stops)) return Object.assign({}, v, { stops: v.stops.map((s) => [s[0], scale(s[1])]) });
+    return scale(v);
+  };
+  for (const l of layers) {
+    if (!l || l.type !== "symbol") continue;
+    try {
+      if (!orig[l.id]) {
+        orig[l.id] = { ts: map.getLayoutProperty(l.id, "text-size"), is: map.getLayoutProperty(l.id, "icon-size") };
+      }
+      const o = orig[l.id];
+      map.setLayoutProperty(l.id, "text-size", mul(o.ts, 16));
+      if (o.is != null || (l.layout && l.layout["icon-image"])) map.setLayoutProperty(l.id, "icon-size", mul(o.is, 1));
+    } catch (_) {}
+  }
+}
+window.rzScaleMapLabels = rzScaleMapLabels;

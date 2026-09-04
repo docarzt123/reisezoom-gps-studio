@@ -101,6 +101,18 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Beschriftungen in der Vorschau 2–3× so groß wie im Video** (Marc, 04.09.:
+  „wir wollen überall WYSIWYG"): Ortsnamen, Straßennamen, Schilder und POI-Icons
+  sind Symbol-Ebenen mit Größen in CSS-Pixeln; der Render malt sie auf einem
+  1920 px breiten Viewport, die Vorschau ist ~800 px breit und zeigt denselben
+  Ausschnitt — also wirkten sie in der Vorschau viel größer. Neu:
+  `rzScaleMapLabels` (util.js) skaliert `text-size` und `icon-size` aller
+  Symbol-Ebenen in der Vorschau mit dem Vorschau-Faktor (wie schon die
+  Quellen-Nennung), bei jedem Stil-Aufbau und jeder Größenänderung; Zoom-Kurven
+  werden an den Ausgaben skaliert (MapLibre erlaubt Zoom-Ausdrücke nur auf
+  oberster Ebene, ein Einwickeln in „*" wird still verworfen). Der Render
+  bleibt die Wahrheit. Kopflos: Vorschau und „Aktuellen Frame als Bild" decken
+  sich jetzt auch in der Schriftgröße.
 - **Video 1,7× weiter als die Vorschau** (Marc, 04.09., Schorfheide-Projekt,
   „das ist doch nicht WYSIWYG"): Die Zoom-Basis der Vorschau (Bezug der
   impliziten Zoom-Keyframes und damit des Renders) wurde am NÄCHSTEN
