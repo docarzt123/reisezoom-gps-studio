@@ -101,6 +101,16 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Projekt lässt sich aus dem Archiv nicht mehr öffnen** (Marc, 04.09.:
+  „jetzt geht mein Masca-Projekt nicht mehr auf"; Log: nur `loadGlobalGpx`,
+  nie ein Modulwechsel): Seit 02.09. merkt sich jeder Modulwechsel das Modul
+  am Projekt — auch der Wechsel INS Archiv. Beim Öffnen sprang die App dann
+  „ins zuletzt benutzte Modul" = ins Archiv, in dem sie schon war, also
+  passierte nichts. Archiv und Einstellungen gelten jetzt nicht mehr als
+  Arbeitsmodul: werden nicht gemerkt, beim Lesen ignoriert (heilt bereits
+  gespeicherte Projekte), und das Archiv öffnet nie „ins Archiv". Kopflos mit
+  einem Projekt nachgestellt, dessen gemerktes Modul „library" war: öffnet
+  jetzt im Animator. Wächter `tests/test_letztes_modul.py`.
 - **Kamera schaut bei Gelände auf die falsche Stelle — Probelauf UND Video,
   ohne ruhige Kamera** (Marc, 04.09., Masca: „von ganz vorne landet der Zoom
   an der falschen Stelle"; die eigentliche Ursache nach zwei Fehlversuchen an
