@@ -218,7 +218,7 @@ function _stackAttribution(stack) {
   return out.join(" | ");
 }
 function _stackStyle(stack) {
-  const transparent = stack.length > 1;
+  const transparent = true;   // 04.09.2026: auch einzeln als PNG mit Alpha, sonst weiß außerhalb der Grenze (synchron zu mapstyles.stack_style)
   const sources = {}, layers = [];
   const proxy = (mapCatalog().proxy_base || "").replace(/\/$/, "");
   // Untergrund (NASA Blue Marble) ganz unten: Meer, Ferne, Lücken der Landesdienste.
@@ -353,7 +353,7 @@ function rzLeafletTileLayer(styleId, bbox) {
   if (styleId === "free_satellite") {
     const stack = mapRegionStack(bbox);
     if (stack.length) {
-      const transparent = stack.length > 1;
+      const transparent = true;   // 04.09.2026: auch einzeln als PNG mit Alpha, sonst weiß außerhalb der Grenze (synchron zu mapstyles.stack_style)
       const attr = _stackAttribution(stack);
       const orthoMin = mapCatalog().ortho_minzoom || 7;
       const mk = (r, a) => {
