@@ -5765,12 +5765,17 @@ function mountAnimator(body, headerActions, opts) {
     }
   }
 
+  let _scrubRaf = 0, _scrubZiel = null, _scrubLetzt = null;   // 04.09.2026 — Scrub-Zusammenfassung je Bild
   function scrubPreview(anchor, opts) {
     if (!map || !currentCoords || currentCoords.length < 2) return;
     // v0.9.3 — opts.skipSelectionSync: wenn true, KEIN syncScrubberSelection.
     // Wird von selectEvent() benutzt — sonst löscht der sync sofort wieder
     // die gerade gesetzte Per-Property-Selektion.
     const skipSel = !!(opts && opts.skipSelectionSync);
+    // 04.09.2026 — opts.light: während des Ziehens nur das Nötige (Linie, Punkt,
+    // Kamera per jumpTo); Overlays, Fotos, Schilder und Detail-Editor erst am
+    // Ende des Ziehens (onScrubEnd ruft die volle Fassung).
+    const light = !!(opts && opts.light);
     // v0.9.86: einheitlicher Pfad — getEffectiveEvents liefert User-KFs ODER
     // implizite Default-KFs aus den Slidern. Kein Sonderfall für Classic mehr.
     const events = getEffectiveEvents();
@@ -5807,7 +5812,7 @@ function mountAnimator(body, headerActions, opts) {
     const coordFrac = trackFracAusAnkerHaupt(anchor);
     const coordIdx = Math.max(0, Math.min((currentCoords ? currentCoords.length : 1) - 1, Math.round(coordFrac)));
     // v0.9.325 — Live-Stats beim Scrubben mitlaufen lassen (WYSIWYG).
-    try { _ovUpdateLiveAt(coordIdx / Math.max(1, currentCoords.length - 1),
+    if (!light) try { _ovUpdateLiveAt(coordIdx / Math.max(1, currentCoords.length - 1),
                           coordFracRoh / Math.max(1, currentCoords.length - 1)); } catch (_) {}
     // v0.8.7: wenn Keyframe expliziten center hat → nutze ihn, sonst Track-Punkt
     // v0.8.19: Im Classic-Modus (kein KF-Editor) respektieren wir
@@ -5897,7 +5902,7 @@ function mountAnimator(body, headerActions, opts) {
     } else {
       easeArgs.padding = { top: 0, bottom: 0, left: 0, right: 0 };
     }
-    map.easeTo(easeArgs);
+    if (light) { try { delete easeArgs.duration; } catch (_) {} map.jumpTo(easeArgs); } else map.easeTo(easeArgs);
     // Track-Trim: nur bis zum Scrubber-Punkt anzeigen
     // v0.9.11 — wenn der „Ganzer Track"-Toggle an ist, KEIN Trim — Marc
     // will manchmal den ganzen Track sehen während er die Keyframes setzt.
@@ -5928,7 +5933,7 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.79 — Foto-Pins: Filter auf aktuelle Marker-Position. Foto erscheint
     // erst wenn Track-Marker es passiert hat.
     // v0.9.81 — via window-Helper (Scope-Fix, sonst ReferenceError silent).
-    try {
+    if (!light) try {
       const ph = window.__rzAnimPhotos;
       if (ph && ph.updateMarkerFilter) ph.updateMarkerFilter(anchor);
       const sg = window.__rzAnimSigns;   // v0.9.171 — Schilder live mitführen
@@ -5936,7 +5941,7 @@ function mountAnimator(body, headerActions, opts) {
     } catch (e) { console.warn("[anim-photos] scrubPreview filter update failed:", e); }
     // Detail-Editor an Scrubber-Position anpassen (überspringen wenn vom
     // Per-Event-Pfad gerufen — siehe selectEvent)
-    if (!skipSel) syncScrubberSelection(anchor);
+    if (!skipSel && !light) syncScrubberSelection(anchor);
   }
 
   // v0.7.4: Findet den Keyframe (falls einer) der nah genug am Scrubber-
@@ -7859,8 +7864,23 @@ function mountAnimator(body, headerActions, opts) {
         getPositionLabel: timelinePositionLabel,
         // Die Zeitleiste meldet eine Stelle auf der LEISTE; die Vorschau will
         // eine Stelle im TRACK (v0.9.511).
-        onScrub:        (anchor) => scrubPreview(_tlBar ? _tlBar.barToTrack(anchor) : anchor),
+        // 04.09.2026 (Marc: „wenn ich den Scrubber schnell hin und her ziehe,
+        // dauert es, bis er nachgemalt hat"): Die Leiste feuert je Mausbewegung,
+        // die Vorschau (Linie kürzen, Punkt, Kamera, Overlays, Schilder) ist
+        // teurer als ein Bild. Deshalb pro Bild nur EINMAL zeichnen — die
+        // letzte Position gewinnt, alles dazwischen wird übersprungen.
+        onScrub:        (anchor) => {
+          _scrubZiel = _tlBar ? _tlBar.barToTrack(anchor) : anchor;
+          if (_scrubRaf) return;
+          _scrubRaf = requestAnimationFrame(() => {
+            _scrubRaf = 0;
+            const a = _scrubZiel; _scrubZiel = null;
+            if (a != null) { _scrubLetzt = a; try { scrubPreview(a, { light: true }); } catch (e) { console.warn("[scrub]", e); } }
+          });
+        },
         onScrubEnd:     () => {
+          // Ende des Ziehens: einmal die volle Fassung (Overlays, Fotos, Schilder, Editor)
+          try { if (_scrubRaf) { cancelAnimationFrame(_scrubRaf); _scrubRaf = 0; } const a = (_scrubZiel != null) ? _scrubZiel : _scrubLetzt; _scrubZiel = null; if (a != null) scrubPreview(a); } catch (_) {}
           // v0.8.9: KEIN Track-Reset mehr nach Scrubbing — Marc will dass
           // der Track bis zur Scrubber-Position getrimmt BLEIBT (Wunsch
           // 2026-05-23). Für volle Linie: zum 100%-Ende scrubben oder
