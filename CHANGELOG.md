@@ -15,6 +15,11 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 #### Hinzugefügt
+- **Sternenhimmel hinter der Weltkugel** (Beta-Tester, 04.09.: „in der
+  Kugel-Ansicht fehlen die schönen Sterne"): die MapLibre-Stile (Satellit
+  kostenlos, OpenFreeMap, OSM, MapTiler) zeigen hinter dem Globus jetzt ein
+  Sternenfeld statt einer schwarzen Fläche — Vorschau und Render gleich
+  (`ui/js/rz-stars.js`, kachelbares 512-px-PNG als Data-URI, 8 KB).
 - **Klare Hinweise auf der Karte** (Marc, 04.09.: „das muss klar in der App
   kommuniziert werden … dann kommen solche Fragen erst gar nicht"): drei
   Banner oben auf der Karte, DE/EN/ES. **Bekannte Lücke** („Für Hamburg gibt es
@@ -85,6 +90,13 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **„Auf der Karte anzeigen" greift jetzt auch auf den MapTiler-Stilen**
+  (Beta-Tester, 04.09.: „die Schalter funktionieren nicht so richtig"):
+  MapTiler benennt seine Ebenen in Klartext („City labels", „Sport",
+  „Station", „Park labels" …), die bisherigen Regeln kannten nur Mapbox- und
+  OpenMapTiles-Namen. Orte/Gipfel/Gewässer, POIs und ÖPNV werden jetzt
+  erkannt — Vorschau (`applyHideLabels`) und Render (`hide_labels_block`)
+  gleich; kopflos geprüft (Standbild Orte an/aus: 38 000 Pixel Unterschied).
 - **Standardwerte übernahmen nur einen Teil der Regler** (Beta-Tester, 04.09.:
   „algunas configuraciones las carga y otras no"): „Als Standard speichern" /
   „Diesen Look für neue Tracks merken" nahm nur Schlüssel aus der Werksliste —
