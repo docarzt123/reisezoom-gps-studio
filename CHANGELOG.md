@@ -101,6 +101,16 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Video ohne Schilder, Ghost-Spuren hauchdünn** (Marc, 04.09. spätabends,
+  Projekt „Standard" 4K): (1) Der neue Schild-Filter (nur bei Änderung setzen)
+  filterte auf `signIdx`, das nur die Vorschau-Features tragen — die
+  Render-Features haben nur die Feature-`id` → im Video kein Schild. Jetzt
+  `coalesce(signIdx, id)`. (2) Ghost-Spuren gingen mit ihrer Vorschau-Breite in
+  den Render, während die Hauptlinie mit `lineScale` auf den Render-Viewport
+  gebracht wird — bei 4K waren die gestrichelten Ghosts 2,5 px auf 1920 px und
+  kaum zu sehen. Jetzt gleiche Skalierung wie die Hauptlinie. Kopflos über den
+  App-Render geprüft (Frames: Schild sichtbar, Ghosts gestrichelt und in
+  Vorschau-Breite).
 - **Neigung über 60° kam in MapLibre-Stilen nicht an** (04.09., Prüfstand mit
   Marcs Masca-Projekt: Keyframe 76°, Karte blieb bei 60°): MapLibres Standard
   `maxPitch` ist 60, Mapbox erlaubt 85. Vorschau- und Render-Karte laufen jetzt

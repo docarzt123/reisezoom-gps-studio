@@ -14189,11 +14189,15 @@ function mountAnimator(body, headerActions, opts) {
         .map(g => ({ name: g.name || "", coords: g.coords,
                      color: g.color || "#7fa8ff",
                      opacity: g.opacity != null ? g.opacity : 0.6,
-                     width: Number(g.width) || 2.5,
+                     // 04.09.2026 (Marc: „im Video fehlen die gestrichelten Ghosts"):
+                     // Breite wie die Hauptlinie mit lineScale auf den Render-
+                     // Viewport bringen — vorher blieben Ghosts bei ihrer
+                     // Vorschau-Breite und waren bei 4K hauchdünn (2,5 px auf 1920).
+                     width: (Number(g.width) || 2.5) * lineScale,
                      dashed: g.dashed !== false, show: true })),
       ghost_gpx_color: currentGhostGpxColor(),
       ghost_gpx_opacity: currentGhostGpxOpacity(),
-      ghost_gpx_width: currentGhostGpxWidth(),
+      ghost_gpx_width: currentGhostGpxWidth() * lineScale,
       ghost_gpx_dashed: currentGhostGpxDashed(),
       // v0.7.0: Camera-Keyframe-Timeline
       // v0.9.86: Render bekommt User-KFs ODER implizite Default-KFs aus den
