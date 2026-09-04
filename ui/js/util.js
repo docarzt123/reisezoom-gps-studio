@@ -332,10 +332,12 @@ function resolveMapStyle(styleKey, bbox, wantTerrain, labels, ortho) {
   const tok = (keys.mapbox || "").trim(), mt = (keys.maptiler || "").trim();
   if (d.provider === "mapbox" && !(tok.startsWith("pk.") && tok.length > 20)) { notes.push("no_mapbox_token"); key = "free_satellite"; d = mapStyleDef(key) || d; }
   if (d.provider === "maptiler" && !mt) { notes.push("no_maptiler_key"); key = "free_satellite"; d = mapStyleDef(key) || d; }
-  let region = null, stack = [];
+  let region = null, stack = [], gaps = [];
   if (d.kind === "gov") {
     stack = mapRegionStack(bbox);
     region = stack.length ? stack[0] : null;
+    gaps = mapGapsForBbox(bbox);
+    for (const g of gaps) notes.push("gap:" + g.id);
     if (!region) {
       if (mapBboxArray(bbox)) notes.push("no_coverage");
       key = mapStyleKnown("ofm_liberty") ? "ofm_liberty" : "osm"; d = mapStyleDef(key);
@@ -351,10 +353,50 @@ function resolveMapStyle(styleKey, bbox, wantTerrain, labels, ortho) {
   const tdef = cat.terrain[d.terrain] || {};
   return { key, requested: styleKey, engine, style, terrain, attribution: (terrain && tdef.attribution) || "",
            region: region ? { id: region.id, name: stack.map(r => mapRegionName(r)).join("/"), ids: stack.map(r => r.id) } : null, notes,
-           badge: d.badge, videoOk: d.badge !== "video_rights", provider: d.provider, kind: d.kind };
+           badge: d.badge, videoOk: d.badge !== "video_rights", provider: d.provider, kind: d.kind,
+           gaps: gaps.map(g => ({ id: g.id, name: g.name, reason: g.reason })) };
 }
 
 /** Lesbarer Vermerk zu einer Auflösung (leer, wenn nichts zu sagen ist). */
+/** Bekannte Lücken (Spiegel von mapstyles.gaps_for_bbox). */
+function mapGapsForBbox(bbox) {
+  const b = mapBboxArray(bbox); if (!b) return [];
+  return (mapCatalog().known_gaps || []).filter(g => b[0] <= g.bbox[2] && b[2] >= g.bbox[0] && b[1] <= g.bbox[3] && b[3] >= g.bbox[1]);
+}
+
+/**
+ * Hinweis-Banner AUF der Karte (04.09.2026, Marc: „das muss klar in der App
+ * kommuniziert werden … dann kommen solche Fragen erst gar nicht"). Ein Banner
+ * je Schlüssel (`gap`, `no_coverage`, `server`); null = weg.
+ */
+function _escHtml(x) { return String(x == null ? "" : x).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch])); }
+function rzMapBanner(map, key, html) {
+  if (!map || !map.getContainer) return;
+  const c = map.getContainer();
+  let wrap = c.querySelector(".rz-map-banners");
+  if (!wrap) { wrap = document.createElement("div"); wrap.className = "rz-map-banners"; c.appendChild(wrap); }
+  let el = wrap.querySelector(`[data-banner="${key}"]`);
+  if (!html) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement("div"); el.className = "rz-map-banner"; el.dataset.banner = key; wrap.appendChild(el); }
+  el.innerHTML = `<span class="rz-map-banner-ico">⚠️</span><span>${html}</span>`;
+}
+window.rzMapBanner = rzMapBanner;
+
+/** Abdeckungs-Banner aus einer Auflösung setzen/entfernen (Lücke, keine Abdeckung). */
+function rzMapCoverageBanners(map, spec) {
+  if (!map) return;
+  const noCov = !!(spec && (spec.notes || []).includes("no_coverage"));
+  rzMapBanner(map, "no_coverage", noCov
+    ? _escHtml(t("map.banner.no_coverage", "Für diese Gegend gibt es keine amtlichen Luftbilder — gezeigt wird die OpenFreeMap-Karte. Bitte einen anderen Kartenstil wählen, z. B. MapTiler oder OpenStreetMap."))
+    : null);
+  const gaps = (spec && spec.gaps) || [];
+  rzMapBanner(map, "gap", gaps.length
+    ? _escHtml(t("map.banner.gap", "Für {gebiet} gibt es derzeit keine amtlichen Luftbilder — bitte einen anderen Kartenstil wählen.").replace("{gebiet}", gaps.map(g => g.name).join(", ")))
+      + ` <small>${_escHtml(gaps.map(g => t("map.gap." + g.id + ".reason", g.reason)).join(" "))}</small>`
+    : null);
+}
+window.rzMapCoverageBanners = rzMapCoverageBanners;
+
 function mapStyleNoteText(spec) {
   if (!spec) return "";
   const parts = [];
@@ -509,14 +551,17 @@ function createMap(opts) {
       const msg = (e && (e.message || String(e))) || "";
       const url = (e && (e.url || (e.resource && e.resource.url))) || (ev && ev.source && ev.source.url) || "";
       const m = /https?:\/\/([^\/]+)/.exec(url || msg); const host = m ? m[1] : "";
-      const status = e && (e.status || (/\b(4\d\d|5\d\d)\b/.exec(msg) || [])[1]);
+      const status = e && (e.status || e.statusCode || (/\((4\d\d|5\d\d)\)/.exec(msg) || /\b(4\d\d|5\d\d)\b/.exec(msg) || [])[1]);
       if (!host && !status) return;
       const key = host || "?"; const now = Date.now();
       if (seen[key] && now - seen[key] < 30000) return;
       seen[key] = now;
-      try { toast(t("map.tile_error", "Kartendienst antwortet nicht ({host}{status}) — Kacheln fehlen. Später nochmal versuchen oder anderen Stil wählen.").replace("{host}", key).replace("{status}", status ? " · " + status : ""), "warn", 7000); } catch (_) {}
+      const text = t("map.tile_error", "Kartendienst antwortet nicht ({host}{status}) — Kacheln fehlen. Später nochmal versuchen oder anderen Stil wählen.").replace("{host}", key).replace("{status}", status ? " · " + status : "");
+      try { rzMapBanner(map, "server", _escHtml(text)); } catch (_) {}
+      try { if (map.__rzServerBannerTimer) clearTimeout(map.__rzServerBannerTimer); map.__rzServerBannerTimer = setTimeout(() => { try { rzMapBanner(map, "server", null); } catch (_) {} }, 20000); } catch (_) {}
       try { applog("warn", "[map] Kachel-Fehler " + key + " " + (status || "") + " " + msg.slice(0, 120)); } catch (_) {}
     });
+    map.once("load", () => { try { rzMapCoverageBanners(map, spec); } catch (_) {} });
   } catch (_) {}
   map.__rzSpec = spec;
   map.__rzStyleKey = spec.key;
@@ -627,6 +672,7 @@ function applyMapStyle(map, styleKey, bbox, opts) {
   if (!map) return { needsRemount: true, spec };
   if (map.__rzEngine && spec.engine !== map.__rzEngine) return { needsRemount: true, spec };
   map.__rzSpec = spec; map.__rzStyleKey = spec.key;
+  try { rzMapCoverageBanners(map, spec); rzMapBanner(map, "server", null); } catch (_) {}   // Stilwechsel = neuer Versuch
   // MapLibre stolpert, wenn beim Stilwechsel noch Gelände aktiv ist (die
   // DEM-Quelle verschwindet unter dem Gelände weg → „_checkLoaded of undefined",
   // und das Gelände kam danach nie zurück). Erst abhängen, dann wechseln; der
