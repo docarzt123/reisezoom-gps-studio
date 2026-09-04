@@ -38,13 +38,21 @@
     try { if (map.getTerrain && map.getTerrain()) { const e = map.queryTerrainElevation(lngLat); if (e != null && isFinite(e)) return e; } } catch (_) {}
     return fallback;
   }
-  function rzMlCamRead(map) {
+  // elevOpt (Meter, optional): bekannte Geländehöhe unter der Bildmitte. Ohne sie
+  // wird das Gelände abgefragt; erst wenn auch das fehlt, gilt die Karten-Höhe.
+  // 04.09.2026 (Marc: „Anflug vom 1. zum 2. Keyframe verhält sich anders, je
+  // nachdem wo ich anfange"): vorher las diese Funktion die MITTELPUNKT-Höhe
+  // der Karte (`getCenterElevation`), die nach jumpTo nicht nachgeführt wird
+  // und deshalb noch von der Position VOR dem Probelauf stammte; rzMlCamApply
+  // rechnet aber mit der echten Geländehöhe → der Zoom lief um die Differenz
+  // weg, und die hing vom Startpunkt ab.
+  function rzMlCamRead(map, elevOpt) {
     const c = map.getCenter(), zoom = map.getZoom();
     const p = map.getPitch() * D2R, b = map.getBearing() * D2R;
     const worldSize = 512 * Math.pow(2, zoom);
     const ppm = mercZfromAlt(1, c.lat) * worldSize;                    // Pixel je Meter in der Bildmitte
     const ctcd = ctcdPx(map);
-    const elev = centerElev(map);
+    const elev = (elevOpt != null && isFinite(elevOpt)) ? elevOpt : terrainAt(map, [c.lng, c.lat], centerElev(map));
     const altM = Math.cos(p) * ctcd / ppm + elev;
     const offMerc = Math.sin(p) * ctcd / worldSize;                    // Kamera steht HINTER der Mitte
     const cx = lngX(c.lng) - Math.sin(b) * offMerc;
