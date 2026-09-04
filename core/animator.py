@@ -2289,6 +2289,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         "    if (id.startsWith('rz-ov-')) { want = ({places: showPlace, roads: showRoad, pois: showPoi, transit: showTransit, admin: showAdmin})[id.split('-')[2]];"
         "      if (want == null) return; try { map.setLayoutProperty(l.id, 'visibility', want ? 'visible' : 'none'); } catch(_){} return; }"
         "    if (id.includes('admin') || id.includes('boundary') || id.includes('country-boundary')) want = showAdmin;"
+        "    else if (id.startsWith('label_') || id.startsWith('water_name') || id.startsWith('waterway_line_label')) want = showPlace;"
+        "    else if (id.startsWith('highway-name') || id.startsWith('highway-shield') || id.startsWith('road_shield')) want = showRoad;"
         "    else if (id.includes('road') || id.includes('street') || id.includes('path')) want = (l.type === 'line') ? null : showRoad;"
         "    else if (id.includes('poi')) want = showPoi;"
         "    else if (id.includes('transit') || id.includes('airport') || id.includes('rail') || id.includes('ferry')) want = showTransit;"

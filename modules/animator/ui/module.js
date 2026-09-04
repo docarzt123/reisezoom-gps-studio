@@ -7356,6 +7356,10 @@ function mountAnimator(body, headerActions, opts) {
         return;
       }
       if (id.includes("admin") || id.includes("boundary") || id.includes("country-boundary")) want = c.showAdmin;
+      // 04.09.2026 (Beta-Tester: „Schalter haben auf den neuen Karten keinen Einfluss"):
+      // OpenFreeMap/OpenMapTiles-Namen (label_*, highway-name-*, waterway_*_label) mit abdecken.
+      else if (id.startsWith("label_") || id.startsWith("water_name") || id.startsWith("waterway_line_label")) want = c.showPlace;
+      else if (id.startsWith("highway-name") || id.startsWith("highway-shield") || id.startsWith("road_shield")) want = c.showRoad;
       else if (id.includes("road") || id.includes("street") || id.includes("path")) want = (l.type === "line") ? null : c.showRoad;
       else if (id.includes("poi")) want = c.showPoi;
       else if (id.includes("transit") || id.includes("airport") || id.includes("rail") || id.includes("ferry")) want = c.showTransit;

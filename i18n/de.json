@@ -2046,6 +2046,7 @@
   "mapstyle.maptiler_topo": "MapTiler Topo",
   "mapstyle.missing_key": "Schlüssel fehlt",
   "mapstyle.note.no_coverage": "Satellit für diesen Track nicht verfügbar — Karte (OpenFreeMap) wird verwendet.",
+  "map.tile_error": "Kartendienst antwortet nicht ({host}{status}) — Kacheln fehlen. Später nochmal versuchen oder anderen Stil wählen.",
   "mapstyle.note.no_mapbox_token": "Kein Mapbox-Token — Satellit (kostenlos) wird verwendet.",
   "mapstyle.note.no_maptiler_key": "Kein MapTiler-Schlüssel — Satellit (kostenlos) wird verwendet.",
   "mapstyle.note.region": "Luftbild: {name}",
