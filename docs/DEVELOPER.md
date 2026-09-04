@@ -3395,3 +3395,5 @@ das Projekt, bei der ersten echten Änderung.
 * **Ohne Cloud:** Jede Brücke prüft `_cloud_sichtbar()` und `_cloud_zugang()`
   und antwortet mit einem Fehler-Dict, statt zu werfen. Der Schlüsselbund
   wird erst bei echter Arbeit angefasst.
+
+**04.09.2026 — Sternenhimmel + MapTiler-Ebenennamen (Beta-Feedback):** (1) `ui/js/rz-stars.js` definiert `window.RZ_STARS_CSS` (kachelbares 512-px-PNG als Data-URI, ~8 KB); `rzGlobeForMapLibre` (util.js) und `globe_block` in `core/animator.py` setzen es als Container-Hintergrund der MapLibre-Karte — vorher einfarbig `#05070d`. Der Render-Kopf (`_maplibre_gl_head`) bettet die Datei wie den Kamera-Adapter inline ein. (2) Die Beschriftungs-Schalter (`applyHideLabels` im Animator-Modul, `hide_labels_block` im Render) kennen jetzt die Klartext-Ebenennamen der MapTiler-Stile (`City labels`, `Sport`, `Station`, `Park labels`, …) über drei Regexe; Regel bleibt: beide Stellen synchron pflegen. Kopflos geprüft mit `render_frame()` auf `maptiler_outdoor` (Orte/POI/ÖPNV an vs. aus → 38 000 Pixel Unterschied).

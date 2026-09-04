@@ -7364,6 +7364,10 @@ function mountAnimator(body, headerActions, opts) {
       // 04.09.2026 (Beta-Tester: „Schalter haben auf den neuen Karten keinen Einfluss"):
       // OpenFreeMap/OpenMapTiles-Namen (label_*, highway-name-*, waterway_*_label) mit abdecken.
       else if (id.startsWith("label_") || id.startsWith("water_name") || id.startsWith("waterway_line_label")) want = c.showPlace;
+      // MapTiler-Stile (04.09.2026, Beta-Tester): „City labels", „Sport", „Station", … — Namen in Klartext
+      else if (/^(city|state|country|continent|town|village|capital city|place|peak|volcano|river|water|ocean|lake)\b.* labels?( \(us\))?$/.test(id)) want = c.showPlace;
+      else if (/^(sport|food|tourism|culture|shopping|park( labels)?|healthcare|education|public|outdoor( shop| water)?|castle|housenumber)$/.test(id)) want = c.showPoi;
+      else if (/^(station|transport|gondola|aerialway labels|airport( gate)?|ferry)$/.test(id)) want = c.showTransit;
       else if (id.startsWith("highway-name") || id.startsWith("highway-shield") || id.startsWith("road_shield")) want = c.showRoad;
       else if (id.includes("road") || id.includes("street") || id.includes("path")) want = (l.type === "line") ? null : c.showRoad;
       else if (id.includes("poi")) want = c.showPoi;

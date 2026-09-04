@@ -1614,7 +1614,8 @@ def _maplibre_gl_head() -> str:
             js = (base / "ui" / "vendor" / "maplibre-gl.js").read_text(encoding="utf-8")
             css = (base / "ui" / "vendor" / "maplibre-gl.css").read_text(encoding="utf-8")
             cam = (base / "ui" / "js" / "maplibre-camera.js").read_text(encoding="utf-8")   # 04.09.2026 Kamera-Adapter
-            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>\n<script>{cam}</script>"
+            stars = (base / "ui" / "js" / "rz-stars.js").read_text(encoding="utf-8")        # 04.09.2026 Sternenhimmel
+            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>\n<script>{stars}</script>\n<script>{cam}</script>"
             _log.info("maplibre-gl aus dem Bundle eingebettet (%.1f MB)", len(js) / 2**20)
         except Exception as e:
             _log.warning("maplibre-gl nicht im Bundle gefunden (%s) — CDN-Rückfall", e)
@@ -2290,6 +2291,10 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         "      if (want == null) return; try { map.setLayoutProperty(l.id, 'visibility', want ? 'visible' : 'none'); } catch(_){} return; }"
         "    if (id.includes('admin') || id.includes('boundary') || id.includes('country-boundary')) want = showAdmin;"
         "    else if (id.startsWith('label_') || id.startsWith('water_name') || id.startsWith('waterway_line_label')) want = showPlace;"
+        # MapTiler-Stile (04.09.2026, Beta-Tester): 'City labels', 'Sport', 'Station', … — Namen in Klartext
+        "    else if (/^(city|state|country|continent|town|village|capital city|place|peak|volcano|river|water|ocean|lake)\\b.* labels?( \\(us\\))?$/.test(id)) want = showPlace;"
+        "    else if (/^(sport|food|tourism|culture|shopping|park( labels)?|healthcare|education|public|outdoor( shop| water)?|castle|housenumber)$/.test(id)) want = showPoi;"
+        "    else if (/^(station|transport|gondola|aerialway labels|airport( gate)?|ferry)$/.test(id)) want = showTransit;"
         "    else if (id.startsWith('highway-name') || id.startsWith('highway-shield') || id.startsWith('road_shield')) want = showRoad;"
         "    else if (id.includes('road') || id.includes('street') || id.includes('path')) want = (l.type === 'line') ? null : showRoad;"
         "    else if (id.includes('poi')) want = showPoi;"
@@ -2305,7 +2310,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     globe_block = ("" if _spec["engine"] == "mapbox" else
                    "    try { const _pr = map.getProjection && map.getProjection();"
                    " if (map.setProjection && (!_pr || _pr.type !== 'globe')) map.setProjection({type:'globe'}); } catch(_){}\n"
-                   "    try { map.getContainer().style.background = '#05070d'; } catch(_){}\n")
+                   "    try { map.getContainer().style.background = (window.RZ_STARS_CSS || '#05070d'); } catch(_){}\n")
     terrain_block = ""
     if cfg.enable_terrain and _spec.get("terrain"):
         # Gelände hängt am Stil (Mapbox-DEM / MapTiler terrain-rgb / AWS terrarium).

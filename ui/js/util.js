@@ -593,7 +593,7 @@ function rzGlobeForMapLibre(map) {
       if (!pr || pr.type !== "globe") map.setProjection({ type: "globe" });
     }
     const c = map.getContainer && map.getContainer();
-    if (c) c.style.background = "#05070d";
+    if (c) c.style.background = window.RZ_STARS_CSS || "#05070d";   // Sternenhimmel (rz-stars.js)
   } catch (_) {}
 }
 window.rzGlobeForMapLibre = rzGlobeForMapLibre;
