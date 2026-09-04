@@ -1195,7 +1195,7 @@ window.openBugReportModal = openBugReportModal;
  *     </div>
  *   </section>
  *
- * Persistenz: `settings.json[moduleKey].collapsed_sections` ist ein Array
+ * Persistenz: `settings.json[moduleKey].open_sections` ist ein Array (seit 04.09.2026; vorher collapsed_sections)
  * von Slugs, die zugeklappt sind. Beim Klick wird der State sofort
  * gespeichert. Beim ersten App-Start sind ALLE Sektionen zu (Default).
  *
@@ -1208,14 +1208,23 @@ function setupSectionAccordions(moduleKey, root) {
   const sections = root.querySelectorAll("[data-accordion-section]");
   if (sections.length === 0) return;
 
-  // Aktuellen Collapsed-State aus Settings holen — Array of section slugs.
-  // Default: leer (alle Sektionen offen). Bei initialem App-Start setzt
-  // app.py die Default-Settings; falls da nichts steht, ist Array undefined
-  // → wir interpretieren das als "noch nie konfiguriert" und lassen alles offen.
+  // 04.09.2026 (Marc: „beim 1. Öffnen alles eingeklappt, dann merken, was
+  // offen war"): Gespeichert werden die OFFENEN Abschnitte
+  // (`settings.json[moduleKey].open_sections`). Fehlt der Eintrag = noch nie
+  // angefasst → alles zu. Altbestand `collapsed_sections` wird einmal
+  // umgerechnet, damit niemand seinen Stand verliert. Die Einstellung hängt am
+  // Modul, nicht am Projekt — gilt also nach Neustart und in neuen Projekten.
   const cur = (_settingsCache && _settingsCache[moduleKey]) || {};
-  const collapsed = new Set(Array.isArray(cur.collapsed_sections)
-    ? cur.collapsed_sections
-    : []);
+  const slugs = Array.from(sections).map(s => s.dataset.accordionSection);
+  let open;
+  if (Array.isArray(cur.open_sections)) open = new Set(cur.open_sections);
+  else if (Array.isArray(cur.collapsed_sections)) {
+    const c = new Set(cur.collapsed_sections); open = new Set(slugs.filter(sl => !c.has(sl)));
+  } else open = new Set();
+  const persist = () => {
+    if (_settingsCache) { _settingsCache[moduleKey] = Object.assign({}, _settingsCache[moduleKey] || {}, { open_sections: Array.from(open) }); }
+    saveSettings({ [moduleKey]: { open_sections: Array.from(open) } });
+  };
 
   sections.forEach(section => {
     const slug = section.dataset.accordionSection;
@@ -1223,18 +1232,16 @@ function setupSectionAccordions(moduleKey, root) {
     const body = section.querySelector(".section-collapse-body");
     if (!header || !body) return;
 
-    const isCollapsed = collapsed.has(slug);
-    header.setAttribute("aria-expanded", String(!isCollapsed));
-    body.hidden = isCollapsed;
+    const isOpen = open.has(slug);
+    header.setAttribute("aria-expanded", String(isOpen));
+    body.hidden = !isOpen;
 
     header.addEventListener("click", () => {
       const wasOpen = header.getAttribute("aria-expanded") === "true";
       header.setAttribute("aria-expanded", String(!wasOpen));
       body.hidden = wasOpen;
-      // State aktualisieren + persistieren
-      if (wasOpen) collapsed.add(slug);
-      else collapsed.delete(slug);
-      saveSettings({ [moduleKey]: { collapsed_sections: Array.from(collapsed) } });
+      if (wasOpen) open.delete(slug); else open.add(slug);
+      persist();
     });
   });
 }

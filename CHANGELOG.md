@@ -49,6 +49,11 @@ Bei jeder neuen Version:
   bei jedem Stil sichtbar.
 
 #### Geändert
+- **Module starten aufgeräumt** (Marc, 04.09.): Beim allerersten Öffnen eines
+  Moduls sind alle Abschnitte der Seitenleiste zugeklappt. Was du aufklappst,
+  merkt sich die App je Modul (`open_sections`) — auch nach Neustart und in
+  neuen Projekten. Wer schon einen Stand hatte, behält ihn (Altbestand wird
+  umgerechnet).
 - **Seitenleisten-Abschnitte besser sichtbar** (Marc, 04.09.: „die Ziehharmonikas
   sieht man kaum"): Kopfzeilen der Auf-/Zuklapp-Abschnitte leicht abgesetzt
   (eigener Hintergrund, Rahmen, Innenabstand), Pfeil größer und kräftiger.
