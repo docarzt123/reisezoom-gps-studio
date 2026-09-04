@@ -885,6 +885,36 @@ function mountAnimator(body, headerActions, opts) {
               </div>
             </div>
             
+            <!-- 04.09.2026 — Nordpfeil + Maßstab (Beta-Tester: „dürfen nicht fehlen"), Standard an -->
+            <div class="overlay-group" id="anim-overlay-north-group">
+              <label class="checkbox-row inline">
+                <input type="checkbox" id="anim-ov-north" checked>
+                <span>${t("animator.overlay.north", "Nordpfeil")}</span>
+              </label>
+              <div class="ov-group-details">
+              <select id="anim-ov-north-pos" class="pos-select" title="${t("animator.overlay.position")}">
+                <option value="br">${t("animator.pos.br")}</option>
+                <option value="bl">${t("animator.pos.bl")}</option>
+                <option value="tr">${t("animator.pos.tr")}</option>
+                <option value="tl">${t("animator.pos.tl")}</option>
+              </select>
+              </div>
+            </div>
+            <div class="overlay-group" id="anim-overlay-scale-group">
+              <label class="checkbox-row inline">
+                <input type="checkbox" id="anim-ov-scale" checked>
+                <span>${t("animator.overlay.scale", "Maßstab")}</span>
+              </label>
+              <div class="ov-group-details">
+              <select id="anim-ov-scale-pos" class="pos-select" title="${t("animator.overlay.position")}">
+                <option value="bl">${t("animator.pos.bl")}</option>
+                <option value="br">${t("animator.pos.br")}</option>
+                <option value="tl">${t("animator.pos.tl")}</option>
+                <option value="tr">${t("animator.pos.tr")}</option>
+              </select>
+              </div>
+            </div>
+
             <!-- v0.9.321 — Stats-Editor: globales Styling aller Stats-Boxen -->
             <div class="ov-style" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border);">
               <div class="ov-style-title">🎨 ${t("animator.overlay.style", "Aussehen der Stats-Boxen")}</div>
@@ -2158,6 +2188,8 @@ function mountAnimator(body, headerActions, opts) {
     { cb: "anim-ov-totals", group: "anim-overlay-totals-group" },
     { cb: "anim-ov-live",   group: "anim-overlay-live-group" },
     { cb: "anim-ov-ele",    group: "anim-overlay-elevation-group" },
+    { cb: "anim-ov-north",  group: "anim-overlay-north-group" },   // 04.09.2026
+    { cb: "anim-ov-scale",  group: "anim-overlay-scale-group" },
   ];
   function _ovSyncGroups() {
     const master = document.getElementById("anim-overlays");
@@ -2185,6 +2217,11 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-ov-live-pos", _MODKEY, "overlay_live_position");
   bindSetting("anim-ov-ele", _MODKEY, "overlay_elevation_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
   bindSetting("anim-ov-ele-pos", _MODKEY, "overlay_elevation_position");
+  // 04.09.2026 — Nordpfeil + Maßstab
+  bindSetting("anim-ov-north", _MODKEY, "overlay_north_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
+  bindSetting("anim-ov-north-pos", _MODKEY, "overlay_north_position");
+  bindSetting("anim-ov-scale", _MODKEY, "overlay_scale_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
+  bindSetting("anim-ov-scale-pos", _MODKEY, "overlay_scale_position");
   // v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y"). 0 = ab Start /
   // bis Ende. number-Bind speichert/restored projekt-bewusst.
   bindSetting("anim-ov-totals-from", _MODKEY, "overlay_totals_from_s", { type: "number" });
@@ -7595,6 +7632,7 @@ function mountAnimator(body, headerActions, opts) {
       common: { center: [10, 51], zoom: 4, pitch: currentPitch() },
     });
     map = made.map;
+    try { map.on("move", () => { try { _ovUpdateNorthScale(); } catch (_) {} }); } catch (_) {}   // 04.09.2026 Nordpfeil/Maßstab
     map.addControl(new made.lib.NavigationControl(), "top-right");
     try { _updateStyleHints(initialStyleKey); } catch (_) {}
 
@@ -10803,6 +10841,7 @@ function mountAnimator(body, headerActions, opts) {
    "anim-ov-totals", "anim-ov-totals-pos",
    "anim-ov-live", "anim-ov-live-pos",
    "anim-ov-ele", "anim-ov-ele-pos",
+   "anim-ov-north", "anim-ov-north-pos", "anim-ov-scale", "anim-ov-scale-pos",   // 04.09.2026
    // v0.9.228 — Zeitfenster-Inputs: bei Änderung Preview neu (zeigt im
    // Probelauf das Ein-/Ausblenden).
    "anim-ov-totals-from", "anim-ov-totals-to",
@@ -11845,7 +11884,46 @@ function mountAnimator(body, headerActions, opts) {
     if (ele && eleSvg) {
       html += `<div class="ov-ele-box pos-${posE}" data-ovbox="ele" style="${boxStyle}">${eleSvg}</div>`;
     }
+    // 04.09.2026 — Nordpfeil + Maßstab (Standard an; Render-Spiegel: _north_scale_html)
+    {
+      const _mst = document.getElementById("anim-overlays");
+      const _on = !_mst || _mst.checked;
+      if (_on && document.getElementById("anim-ov-north")?.checked) {
+        const p = document.getElementById("anim-ov-north-pos")?.value || "br";
+        html += `<div class="ov-north pos-${p}" data-ovbox="north">${window.RZ_NORTH_SVG || ""}</div>`;
+      }
+      if (_on && document.getElementById("anim-ov-scale")?.checked) {
+        const p = document.getElementById("anim-ov-scale-pos")?.value || "bl";
+        html += `<div class="ov-scale pos-${p}" data-ovbox="scale"><div class="ov-scale-txt"></div><div class="ov-scale-bar"></div></div>`;
+      }
+    }
     layer.innerHTML = html;
+    try { _ovUpdateNorthScale(); } catch (_) {}
+  }
+
+  // 04.09.2026 — Nordpfeil dreht mit dem Bearing, Maßstab folgt Zoom/Breite
+  // (Bildmitte, wie MapLibre ScaleControl). Spiegel von __rzNorthScale im Render.
+  function _ovUpdateNorthScale() {
+    const layer = document.getElementById("anim-overlay-preview");
+    if (!layer || !map) return;
+    const n = layer.querySelector(".ov-north"), s = layer.querySelector(".ov-scale");
+    if (!n && !s) return;
+    let brg = 0; try { brg = map.getBearing() || 0; } catch (_) {}
+    if (n) n.style.setProperty("--rz-north", (-brg) + "deg");
+    if (!s) return;
+    const ovs = parseFloat(getComputedStyle(layer).getPropertyValue("--overlay-scale")) || 1;
+    const host = map.getContainer(); const sw = host.clientWidth, sh = host.clientHeight;
+    const k = (layer.getBoundingClientRect().width || sw) / (layer.offsetWidth || sw);   // Layer-px → Bildschirm-px
+    const maxLayer = 120 * ovs, maxScreen = maxLayer * k;
+    let dist = 0;
+    try { const a = map.unproject([sw / 2 - maxScreen / 2, sh / 2]), b = map.unproject([sw / 2 + maxScreen / 2, sh / 2]); dist = a.distanceTo(b); } catch (_) {}
+    if (!(dist > 0) || !isFinite(dist)) return;
+    const p10 = Math.pow(10, Math.floor(Math.log10(dist))); let r = dist / p10;
+    r = r >= 10 ? 10 : r >= 5 ? 5 : r >= 3 ? 3 : r >= 2 ? 2 : 1;
+    const nice = r * p10;
+    s.style.setProperty("--rz-scale-w", (maxLayer * nice / dist) + "px");
+    const txt = s.querySelector(".ov-scale-txt");
+    if (txt) txt.textContent = nice >= 1000 ? (Math.round(nice / 100) / 10) + " km" : Math.round(nice) + " m";
   }
 
   // v0.9.228 — Preview-WYSIWYG für Beta-Testers Overlay-Zeitfenster: blendet die
@@ -13857,6 +13935,10 @@ function mountAnimator(body, headerActions, opts) {
       overlay_totals_position: document.getElementById("anim-ov-totals-pos")?.value || "top-left",
       overlay_live_enabled: !_isReiseroute && !_isStaticFrame && !!document.getElementById("anim-ov-live")?.checked,
       overlay_live_position: document.getElementById("anim-ov-live-pos")?.value || "bottom-left",
+      overlay_north_enabled: !!document.getElementById("anim-ov-north")?.checked,   // 04.09.2026
+      overlay_north_position: document.getElementById("anim-ov-north-pos")?.value || "br",
+      overlay_scale_enabled: !!document.getElementById("anim-ov-scale")?.checked,
+      overlay_scale_position: document.getElementById("anim-ov-scale-pos")?.value || "bl",
       overlay_elevation_enabled: !_isReiseroute && !!document.getElementById("anim-ov-ele")?.checked,
       overlay_elevation_position: document.getElementById("anim-ov-ele-pos")?.value || "bottom-right",
       // v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y"). Leeres
@@ -14393,6 +14475,10 @@ function mountAnimator(body, headerActions, opts) {
         show_overlays: !!document.getElementById("anim-overlays")?.checked,
         overlay_totals_enabled: !!document.getElementById("anim-ov-totals")?.checked,
         overlay_totals_position: document.getElementById("anim-ov-totals-pos")?.value || "top-left",
+        overlay_north_enabled: !!document.getElementById("anim-ov-north")?.checked,   // 04.09.2026
+        overlay_north_position: document.getElementById("anim-ov-north-pos")?.value || "br",
+        overlay_scale_enabled: !!document.getElementById("anim-ov-scale")?.checked,
+        overlay_scale_position: document.getElementById("anim-ov-scale-pos")?.value || "bl",
         // v0.9.416 — Höhenprofil-Overlay 1:1 wie Vorschau (Default im Backend ist AN
         // → ohne dieses Feld erschien es im Export, auch wenn die Vorschau es aus hat).
         overlay_elevation_enabled: !!document.getElementById("anim-ov-ele")?.checked,

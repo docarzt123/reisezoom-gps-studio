@@ -89,6 +89,15 @@
           <input type="range" id="wk-width" min="1" max="12" step="0.5" value="${lineWidth0}" style="width:100%;">
           <label class="field-label" for="wk-tile" style="margin-top:10px;">${T("webkarte.tile_style", "Kartenstil")}</label>
           <select id="wk-tile" style="width:100%;">${styleOpts}</select>
+          <!-- 04.09.2026 — Maßstabsleiste + Nordpfeil (Beta-Tester), Standard an -->
+          <label class="check-row" style="margin-top:10px;">
+            <input type="checkbox" id="wk-scale"${get("show_scale", true) !== false ? " checked" : ""}>
+            <span>${T("webkarte.scale", "Maßstabsleiste")}</span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" id="wk-north"${get("show_north", true) !== false ? " checked" : ""}>
+            <span>${T("webkarte.north", "Nordpfeil")}</span>
+          </label>
         </div>
 
         <div class="section">
@@ -148,6 +157,24 @@
     const status = (m) => { const s = el("wk-status"); if (s) s.textContent = m || ""; };
 
     let map = null, tileLayer = null, trackLine = null, startPin = null, endPin = null;
+    // 04.09.2026 — Maßstabsleiste + Nordpfeil in der Vorschau (Export: core/tourmap_leaflet.py)
+    let _scaleCtl = null, _northCtl = null;
+    function applyDeco() {
+      if (!map || typeof L === "undefined") return;
+      if (!document.getElementById("wk-north-style")) {
+        const st = document.createElement("style"); st.id = "wk-north-style";
+        st.textContent = ".rz-north{width:40px;height:40px;pointer-events:none}.rz-north svg{width:100%;height:100%;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}";
+        document.head.appendChild(st);
+      }
+      const wantS = !!el("wk-scale")?.checked, wantN = !!el("wk-north")?.checked;
+      if (wantS && !_scaleCtl) _scaleCtl = L.control.scale({ imperial: false, metric: true, position: "bottomright" }).addTo(map);
+      if (!wantS && _scaleCtl) { try { map.removeControl(_scaleCtl); } catch (_) {} _scaleCtl = null; }
+      if (wantN && !_northCtl) {
+        const C = L.Control.extend({ onAdd() { const d = L.DomUtil.create("div", "rz-north"); d.innerHTML = window.RZ_NORTH_SVG || ""; return d; } });
+        _northCtl = new C({ position: "topright" }).addTo(map);
+      }
+      if (!wantN && _northCtl) { try { map.removeControl(_northCtl); } catch (_) {} _northCtl = null; }
+    }
     let labelTips = [];
     let track = [];
     let extraLines = [];   // Leaflet-Layer der Extra-Tracks (§17) — beim Redraw entfernt
@@ -469,6 +496,8 @@
         line_color: lineColor,
         line_width: lineWidth,
         show_pins: true,
+        show_scale: !!el("wk-scale")?.checked,   // 04.09.2026
+        show_north: !!el("wk-north")?.checked,
         labels: labels.map((l) => ({ lat: l.lat, lon: l.lon, text: l.text, color: l.color, size: l.size })),
         consent_enabled: !!el("wk-consent")?.checked,
         consent_preview: !!el("wk-consent-preview")?.checked,
@@ -554,6 +583,7 @@
       }
       map = L.map(host, { scrollWheelZoom: true }).setView([51.16, 10.45], 5);
       tileLayer = tileFor(tileStyle0).addTo(map);
+      _scaleCtl = null; _northCtl = null; try { applyDeco(); } catch (_) {}
       _ro = new ResizeObserver(() => { try { map.invalidateSize(false); } catch (_) {} });
       _ro.observe(host);
       [120, 400, 900].forEach((ms) => setTimeout(() => { try { map.invalidateSize(false); } catch (_) {} }, ms));
@@ -636,6 +666,8 @@
     el("wk-leaflet-mode")?.addEventListener("change", () => { save({ leaflet_mode: el("wk-leaflet-mode").value }); updateLeafletHint(); });
     el("wk-leaflet-url")?.addEventListener("change", () => save({ leaflet_url: el("wk-leaflet-url").value.trim() }));
     el("wk-attribution")?.addEventListener("change", () => save({ attribution_enabled: !!el("wk-attribution").checked }));
+    el("wk-scale")?.addEventListener("change", () => { save({ show_scale: !!el("wk-scale").checked }); try { applyDeco(); } catch (_) {} });
+    el("wk-north")?.addEventListener("change", () => { save({ show_north: !!el("wk-north").checked }); try { applyDeco(); } catch (_) {} });
     el("wk-export")?.addEventListener("click", doExport);
 
     if (typeof onGpxLoaded === "function") {

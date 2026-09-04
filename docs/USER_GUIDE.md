@@ -1117,6 +1117,9 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Totals-Box** — Gesamt-Werte des Tracks
 - **Live-Box** — Werte, die während der Animation mitlaufen
 - **Höhenprofil** — animierte Linie
+- **Nordpfeil** (seit 04.09.2026, Beta-Tester-Wunsch) — dreht mit der Kamera, zeigt also immer nach Norden, auch bei gedrehter oder schwenkender Ansicht. Standard **an**, unten rechts.
+- **Maßstab** (seit 04.09.2026) — Maßstabsleiste mit runder Länge (100 m, 500 m, 2 km …), die sich beim Zoomen anpasst; gemessen in der Bildmitte. Standard **an**, unten links. Im Alpha-Render (ohne Karte) entfällt sie, weil es dort keine Karte gibt, der Nordpfeil bleibt.
+  Beide lassen sich wie jede Box abschalten und in eine andere Ecke legen. In der **Web-Karte** (Leaflet) gibt es dieselben zwei Schalter; dort ist Norden immer oben, der Maßstab kommt von Leaflet.
 
 **🆕 Stats-Editor (seit v0.9.321): du wählst, was angezeigt wird — und in welcher Reihenfolge.** Unter der Totals- und der Live-Box steht jeweils eine **Feldliste**. Häkchen setzen/entfernen bestimmt, was erscheint; mit dem **⠿-Griff ziehst du die Felder in die gewünschte Reihenfolge**. Wählbare Werte:
 - **Live (läuft mit der Animation mit):** Zurückgelegt, Verbleibend, **Tempo (km/h)**, Vergangen, **Restzeit**, Höhe, **Steigung (%)**.

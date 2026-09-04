@@ -1048,6 +1048,9 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 - **Caja de totales** — valores totales del track
 - **Caja en directo** — valores que corren durante la animación
 - **Perfil de altitud** — línea animada
+- **Flecha del norte** (desde 04.09.2026, petición de un probador) — gira con la cámara, así que siempre señala al norte aunque la vista esté girada o en barrido. Por defecto **activada**, abajo a la derecha.
+- **Escala** (desde 04.09.2026) — barra con una longitud redonda (100 m, 500 m, 2 km …) que sigue el zoom; medida en el centro del encuadre. Por defecto **activada**, abajo a la izquierda. En el render alfa (sin mapa) se omite porque no hay mapa; la flecha del norte se mantiene.
+  Ambas se pueden desactivar y mover a otra esquina como cualquier caja. El **Mapa web** (Leaflet) tiene los mismos dos interruptores; allí el norte siempre está arriba y la escala la pone Leaflet.
 
 **🆕 Editor de estadísticas (desde v0.9.321): tú eliges qué se muestra — y en qué orden.** Bajo la caja de totales y la caja en directo hay, en cada caso, una **lista de campos**. Marcar/desmarcar la casilla determina qué aparece; con el **tirador ⠿ arrastras los campos** al orden deseado. Valores seleccionables:
 - **En directo (corre con la animación):** Recorrido, Restante, **Velocidad (km/h)**, Transcurrido, **Tiempo restante**, Altitud, **Pendiente (%)**.

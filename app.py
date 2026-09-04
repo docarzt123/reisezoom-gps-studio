@@ -515,6 +515,8 @@ DEFAULT_SETTINGS = {
         "overlay_totals_position": "tl",
         "overlay_live_enabled": True,
         "overlay_live_position": "tr",
+        "overlay_north_enabled": True, "overlay_north_position": "br",   # 04.09.2026 Nordpfeil
+        "overlay_scale_enabled": True, "overlay_scale_position": "bl",   # 04.09.2026 Maßstab
         "overlay_elevation_enabled": True,
         "overlay_elevation_position": "bc",
         # v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
@@ -611,6 +613,8 @@ DEFAULT_SETTINGS = {
         "overlay_totals_position": "tl",
         "overlay_elevation_enabled": False,
         "overlay_elevation_position": "bc",
+        "overlay_north_enabled": True, "overlay_north_position": "br",   # 04.09.2026 Nordpfeil
+        "overlay_scale_enabled": True, "overlay_scale_position": "bl",   # 04.09.2026 Maßstab
         # v0.9.321 — Stats-Editor: Totals-Felder + globales Styling (gespiegelt)
         "overlay_totals_fields": ["dist_total", "moving_time", "avg_speed", "max_speed", "elev_gain", "elev_loss"],
         "overlay_font": "system",
@@ -4807,6 +4811,10 @@ class Api:
             overlay_totals_position=params.get("overlay_totals_position", "tl"),
             overlay_live_enabled=bool(params.get("overlay_live_enabled", True)),
             overlay_live_position=params.get("overlay_live_position", "tr"),
+            overlay_north_enabled=bool(params.get("overlay_north_enabled", True)),   # 04.09.2026 Nordpfeil
+            overlay_north_position=params.get("overlay_north_position", "br") or "br",
+            overlay_scale_enabled=bool(params.get("overlay_scale_enabled", True)),   # 04.09.2026 Maßstab
+            overlay_scale_position=params.get("overlay_scale_position", "bl") or "bl",
             overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", True)),
             overlay_elevation_position=params.get("overlay_elevation_position", "bc"),
             # v0.9.321 — Stats-Editor: wählbare/sortierbare Felder + globales Styling
@@ -5187,6 +5195,10 @@ class Api:
             watermark_opacity=float(params.get("watermark_opacity", 0.9) or 0.9),
             # Tour-Map (Standbild) hat keine Live-Box (zeit-animiert).
             overlay_live_enabled=False,
+            overlay_north_enabled=bool(params.get("overlay_north_enabled", True)),   # 04.09.2026 Nordpfeil
+            overlay_north_position=params.get("overlay_north_position", "br") or "br",
+            overlay_scale_enabled=bool(params.get("overlay_scale_enabled", True)),   # 04.09.2026 Maßstab
+            overlay_scale_position=params.get("overlay_scale_position", "bl") or "bl",
             overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", False)),
             overlay_elevation_position=params.get("overlay_elevation_position", "bc"),
             # v0.9.321 — Stats-Editor: Totals-Felder + globales Styling (gespiegelt)
@@ -5637,6 +5649,10 @@ class Api:
                 overlay_totals_enabled=bool(params.get("overlay_totals_enabled", True)),
                 overlay_totals_position=params.get("overlay_totals_position", "tl"),
                 overlay_live_enabled=False,
+                overlay_north_enabled=bool(params.get("overlay_north_enabled", True)),   # 04.09.2026 Nordpfeil
+                overlay_north_position=params.get("overlay_north_position", "br") or "br",
+                overlay_scale_enabled=bool(params.get("overlay_scale_enabled", True)),   # 04.09.2026 Maßstab
+                overlay_scale_position=params.get("overlay_scale_position", "bl") or "bl",
                 # v0.9.416 — Höhenprofil-Overlay explizit aus Params (Backend-Default
                 # ist True → sonst erschien es im Export trotz ausgeschalteter Vorschau).
                 overlay_elevation_enabled=bool(params.get("overlay_elevation_enabled", False)),
@@ -5756,6 +5772,8 @@ class Api:
                 "tile": st,
                 "signs": rsigns,
                 "show_pins": bool(params.get("show_pins", True)),
+                "show_scale": bool(params.get("show_scale", True)),   # 04.09.2026 Maßstabsleiste
+                "show_north": bool(params.get("show_north", True)),   # 04.09.2026 Nordpfeil
                 "start_label": params.get("start_label") or _ui_t()("webkarte.start", "Start"),
                 "end_label": params.get("end_label") or _ui_t()("webkarte.ziel", "Ziel"),
                 "view_center": params.get("view_center"),
@@ -5938,6 +5956,8 @@ class Api:
                 "tile": st,
                 "labels": list(params.get("labels") or []),
                 "show_pins": bool(params.get("show_pins", True)),
+                "show_scale": bool(params.get("show_scale", True)),   # 04.09.2026 Maßstabsleiste
+                "show_north": bool(params.get("show_north", True)),   # 04.09.2026 Nordpfeil
                 "start_label": params.get("start_label") or _ui_t()("webkarte.start", "Start"),
                 "end_label": params.get("end_label") or _ui_t()("webkarte.ziel", "Ziel"),
                 "view_center": params.get("view_center"),

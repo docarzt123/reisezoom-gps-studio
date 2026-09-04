@@ -879,7 +879,10 @@ python app.py</code></pre>
 <li><strong>Totals box</strong> — total values of the track</li>
 <li><strong>Live box</strong> — values that update during the animation</li>
 <li><strong>Elevation profile</strong> — animated line</li>
+<li><strong>North arrow</strong> (since 2026-09-04, beta-tester request) — rotates with the camera, so it always points north even when the view is turned or sweeping. Default <strong>on</strong>, bottom right.</li>
+<li><strong>Scale bar</strong> (since 2026-09-04) — bar with a round length (100 m, 500 m, 2 km …) that follows the zoom; measured at the centre of the frame. Default <strong>on</strong>, bottom left. The alpha render (no map) drops it because there is no map; the north arrow stays.</li>
 </ul>
+<p> Both can be switched off and moved to another corner like any box. The <strong>Web map</strong> (Leaflet) has the same two switches; north is always up there and the scale bar comes from Leaflet.</p>
 <p><strong>🆕 Stats editor: you choose what&#x27;s shown — and in what order.</strong> Below the Totals and the Live box there&#x27;s a <strong>field list</strong> each. Checking/unchecking determines what appears; with the <strong>⠿ handle you drag the fields into the order you want</strong>. Selectable values:</p>
 <ul>
 <li><strong>Live (updates with the animation):</strong> Traveled, Remaining, <strong>Speed (km/h)</strong>, Elapsed, <strong>Time left</strong>, Elevation, <strong>Gradient (%)</strong>.</li>
