@@ -1898,6 +1898,7 @@
   "library.sort.speed_desc": "Más rápidas primero",
   "library.sort.tags_asc": "Etiqueta A–Z",
   "library.sort_by_head": "Ordenar por esta columna",
+  "library.col_resize_tip": "Arrastrar: ancho de columna · doble clic: restablecer",
   "library.speed": "Media",
   "library.staende": "Estados de trabajo anteriores",
   "library.staende_hint": "Mientras trabajas se guarda un estado como mucho cada 10 minutos. Restaurar guarda antes el estado actual automáticamente.",

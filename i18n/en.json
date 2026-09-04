@@ -1898,6 +1898,7 @@
   "library.sort.speed_desc": "Fastest first",
   "library.sort.tags_asc": "Tag A–Z",
   "library.sort_by_head": "Sort by this column",
+  "library.col_resize_tip": "Drag: column width · double-click: reset",
   "library.speed": "Average",
   "library.staende": "Earlier working states",
   "library.staende_hint": "While you work, a state is saved at most every 10 minutes. Restoring saves the current state first, automatically.",

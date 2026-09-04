@@ -15,6 +15,10 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 #### Hinzugefügt
+- **Archiv-Liste: Spaltenbreiten per Ziehen** (Marc, 04.09.): Griff am rechten
+  Rand jeder Kopfzelle, Doppelklick setzt zurück. Die Breiten werden in den
+  Einstellungen gemerkt (`library.col_widths`) und beim nächsten Start
+  wiederhergestellt; ohne Eintrag gilt das bisherige Raster.
 - **Ruhige Kamera (3D) in allen Kartenstilen** (Marc, 04.09.: „am wichtigsten
   Satellit (kostenlos)“): Bisher nur mit Mapbox (FreeCamera). MapLibre hat
   keine FreeCamera, und seine eigene Umrechnung liefert unter der Weltkugel
