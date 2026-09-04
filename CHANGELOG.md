@@ -101,6 +101,13 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Pfeil hinkt dem Track hinterher** (Marc, 04.09.: „der Track ist schneller
+  als der Trackpunkt als Pfeil, als Punkt funktioniert es — in der Vorschau"):
+  Punkt und Pfeil bekommen dieselbe Position, aber der Pfeil ist eine
+  Symbol-Ebene, und die blendet Mapbox/MapLibre bei jeder Positionsänderung
+  300 ms über (`fadeDuration`), der Kreis nicht. Die Vorschau-Karte läuft
+  jetzt wie der Render mit `fadeDuration: 0` — der Pfeil sitzt sofort auf der
+  Spitze.
 - **Eck-Positionen ohne Übersetzung** (Marc, 04.09.: „da stimmt was mit der
   Übersetzung nicht"): die Auswahl „oben links/rechts, unten links/rechts" zeigte
   in allen Overlay-Boxen rohe Schlüssel — die vier Schlüssel fehlten in
