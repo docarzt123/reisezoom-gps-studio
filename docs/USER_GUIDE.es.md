@@ -1989,6 +1989,20 @@ funcionando.
 ### «No se puede abrir porque proviene de un desarrollador no verificado» (macOS)
 La app no está firmada con un certificado de desarrollador de Apple de 99 $/año. Solución: **clic derecho → Abrir** en lugar de doble clic (ver Instalación).
 
+### «¿Permitir que GPS Studio busque dispositivos en redes locales?» (macOS)
+macOS (desde la versión 15) lo pregunta la primera vez que abres una versión
+con firma nueva, por ejemplo tras pasar a la versión notarizada del DMG. **La
+app no busca nada en la red.** Lo que lo provoca es el servidor de teselas
+integrado: desde v0.9.651 la vista previa carga las ortofotos oficiales y el
+relieve a través de un pequeño servidor en `127.0.0.1` (el ordenador hablando
+consigo mismo), y WebKit registra esa primera conexión como «red local» aunque
+nunca sale del equipo. Aparte de eso, la app solo se comunica con los
+servicios de mapas en internet. **«Permitir» es inofensivo** y necesario para
+que la vista previa reciba teselas. Si elegiste «No permitir» y ves el mapa
+vacío: Ajustes del Sistema → Privacidad y seguridad → Red local → activar GPS
+Studio. Si dejas el diálogo abierto mucho tiempo, la app parece congelada:
+solo espera tu respuesta.
+
 ### «El equipo ha sido protegido por Windows Defender» (Windows)
 El mismo problema en Windows. **«Más información» → «Ejecutar de todas formas»**.
 
