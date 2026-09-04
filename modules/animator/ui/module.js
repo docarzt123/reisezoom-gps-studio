@@ -13413,15 +13413,36 @@ function mountAnimator(body, headerActions, opts) {
       // Scrubben, Probelauf und Render (Keyframe-Offsets rechnen darauf).
       // Vorher blieb die Basis vom Fit auf die Haupt-Tour stehen: jedes
       // Scrubben zoomte auf die erste Tour, der Fit auf alle wieder raus.
-      map.once("moveend", () => {
+      // 04.09.2026 (Marc: „das ist doch nicht WYSIWYG" — Video 1,7× weiter
+      // als die Vorschau): Die Basis wurde am NÄCHSTEN moveend abgelesen. Das
+      // kam oft nicht vom Fit (600 ms), sondern von einem dazwischen laufenden
+      // easeTo/jumpTo (Scrub, Sitz) → Basis mitten in der Fahrt (Log: fitBase
+      // 9,90, Karte danach bei 10,70). Die impliziten Zoom-Keyframes und der
+      // Render rechnen mit der Basis, die Vorschau zeigt die fertige Fahrt.
+      // Jetzt wird die Basis direkt aus denselben Grenzen berechnet
+      // (cameraForBounds, gleiche Polster/Neigung wie das Fit) — deterministisch,
+      // unabhängig davon, welche Bewegung zuerst endet.
+      const _pitch = (typeof currentPitch === "function") ? currentPitch() : 0;
+      let _sofort = false;
+      try {
+        const cam = map.cameraForBounds([[a, b], [c, d]], { padding: 60, pitch: _pitch });
+        if (cam && isFinite(cam.zoom)) {
+          _fitZoomBase = cam.zoom; _sofort = true;
+          window.__rzFitBaseDebug = cam.zoom;   // nur Prüfstand
+          applog && applog("info", "[fit] alle Touren → _fitZoomBase = " + _fitZoomBase.toFixed(3) + " (cameraForBounds)");
+          // Prüfstand/Diagnose: was hätte der alte Weg (nächstes moveend) geliefert?
+          map.once("moveend", () => { try { window.__rzFitBaseMoveend = map.getZoom(); } catch (_) {} });
+        }
+      } catch (_) {}
+      if (!_sofort) map.once("moveend", () => {
         try {
           _fitZoomBase = map.getZoom();
-          applog && applog("info", "[fit] alle Touren → _fitZoomBase = " + _fitZoomBase.toFixed(3));
+          applog && applog("info", "[fit] alle Touren → _fitZoomBase = " + _fitZoomBase.toFixed(3) + " (moveend)");
         } catch (_) {}
       });
       map.fitBounds([[a, b], [c, d]], {
         padding: 60, duration: 600,
-        pitch: (typeof currentPitch === "function") ? currentPitch() : 0,
+        pitch: _pitch,
       });
     } catch (_) {}
   }
