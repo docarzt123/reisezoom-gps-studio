@@ -8212,6 +8212,18 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # 04.09.2026 (Marc: „jetzt geht mein Masca-Projekt nicht mehr auf"): Wer aus
+    # dem Animator ins Archiv wechselt, hinterließ `letztes_modul = "library"`.
+    # Öffnen im Archiv sprang dann per switchMod("library") ins Archiv selbst =
+    # nichts passierte (Log: nur loadGlobalGpx, nie renderMod). Archiv und
+    # Einstellungen sind keine Arbeitsmodule — nie merken, beim Lesen ignorieren.
+    _KEINE_ARBEITSMODULE = {"library", "settings", "help", ""}
+
+    @staticmethod
+    def _arbeitsmodul(p: dict, fallback: str = "animator") -> str:
+        m = str((p or {}).get("letztes_modul") or "")
+        return m if m not in Api._KEINE_ARBEITSMODULE else fallback
+
     @_mit_sessions_lock
     def projekt_modul_merken(self, project_id: str, modul: str) -> dict:
         """Merken, in welchem Modul zuletzt an diesem Projekt gearbeitet wurde.
@@ -8229,6 +8241,8 @@ class Api:
         Aufräumen liefe nie wieder.
         """
         pid, m = str(project_id or ""), str(modul or "")
+        if m in Api._KEINE_ARBEITSMODULE:
+            return {"ok": True, "unveraendert": True, "grund": "kein_arbeitsmodul"}
         if not pid or not m:
             return {"ok": False, "error": "leer"}
         try:
@@ -8270,7 +8284,7 @@ class Api:
                 return {"ok": True, "weiter": False, "grund": "projekt_weg"}
             return {"ok": True, "weiter": True, "projekt_id": pid,
                     "name": _projekte.anzeigename(daten, p),
-                    "modul": p.get("letztes_modul") or "animator"}
+                    "modul": Api._arbeitsmodul(p)}
         except Exception as e:
             log.exception("letzte_sitzung")
             return {"ok": False, "error": str(e)}
@@ -8381,7 +8395,7 @@ class Api:
                     "schwarm_modus": p.get("schwarm_modus", "gleich"),
                     "schwarm_pausen": bool(p.get("schwarm_pausen", True)),
                     "gpx_paths": pfade,
-                    "letztes_modul": p.get("letztes_modul") or ""}
+                    "letztes_modul": Api._arbeitsmodul(p, "")}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -8620,7 +8634,7 @@ class Api:
                         "schwarm_pausen": bool(pr.get("schwarm_pausen", True)),
                         "created_at": pr.get("created_at"),
                         "modified_at": pr.get("modified_at"),
-                        "letztes_modul": pr.get("letztes_modul") or "",
+                        "letztes_modul": Api._arbeitsmodul(pr, ""),
                         "frei": str(pr.get("kontext", "")).startswith("frei:")
                                 and not ghs,
                     },

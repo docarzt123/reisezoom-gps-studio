@@ -120,7 +120,9 @@ function switchMod(slug) {
   // dadurch zu einem „echten" Projekt zu machen (eigene Brücke).
   try {
     const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
-    if (proj && proj.id && window.pywebview?.api?.projekt_modul_merken) {
+    // 04.09.2026 — Archiv/Einstellungen sind kein Arbeitsmodul (sonst öffnete
+    // das Archiv ein Projekt „ins Archiv" = nichts passierte).
+    if (proj && proj.id && slug !== "library" && window.pywebview?.api?.projekt_modul_merken) {
       window.pywebview.api.projekt_modul_merken(proj.id, slug);
     }
   } catch (_) {}

@@ -1244,7 +1244,8 @@ function mountLibrary(body, headerActions) {
     const info = await api().projekt_aktivieren(pid);
     if (!info || !info.ok) { toast((info && info.error) || "?", "error"); return; }
     const k = _projekte.find(x => x.id === pid) || {};
-    const modul = modulWunsch || info.letztes_modul || "animator";
+    let modul = modulWunsch || info.letztes_modul || "animator";
+    if (modul === "library" || !(window.RZGPS_MODULES || {})[modul]) modul = "animator";   // 04.09.2026 — nie „ins Archiv öffnen"
     // v0.9.612 (Q1): leeres Projekt — kein Track zu laden, Sitzung direkt
     // aktivieren und ins Modul springen (leere Karte; Reiseroute & Co.
     // speichern ihre Arbeit dann am Projekt).
