@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import html as _html
 import json
+from core.northarrow import NORTH_SVG
 
 LEAFLET_VERSION = "1.9.4"
 
@@ -141,6 +142,9 @@ def make_leaflet_html(params: dict) -> str:
         "track": track, "tracks": tracks_norm, "signs": signs, "labels": labels, "view": view,
         "lineColor": line_color, "lineWidth": line_width,
         "showPins": show_pins, "startLabel": start_label, "endLabel": end_label,
+        # 04.09.2026 — Maßstabsleiste + Nordpfeil (Beta-Tester), Standard an
+        "showScale": bool(params.get("show_scale", True)), "showNorth": bool(params.get("show_north", True)),
+        "northSvg": NORTH_SVG,
         "tile": {"url": tile.get("url"), "sub": tile.get("sub", ""),
                  "max": int(tile.get("max", 19) or 19), "attr": tile.get("attr", ""),
                  # 03.09.2026 — staatliche Orthofotos: WMS-Angaben / TMS-Flag durchreichen
@@ -208,6 +212,8 @@ LEAFLET_TEMPLATE = """<!DOCTYPE html>
     color:#1c1814;font:600 11px/1 -apple-system,system-ui,'Segoe UI',Roboto,sans-serif;
     padding:5px 8px;border-radius:6px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.3)}
   .rz-credit:hover{background:#fff}
+  .rz-north{width:40px;height:40px;pointer-events:none}
+  .rz-north svg{width:100%%;height:100%%;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}
   .rz-sign{background:none;border:0}
   .leaflet-tooltip.rz-tip{background:none;border:0;padding:0;box-shadow:none;white-space:nowrap}
   .leaflet-tooltip.rz-tip:before{display:none}
@@ -276,6 +282,12 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
     }
   });
   if (D.view && D.view.center) { map.setView(D.view.center, D.view.zoom); }
+  // 04.09.2026 — Maßstabsleiste + Nordpfeil (Leaflet: Norden ist immer oben)
+  if (D.showScale) { L.control.scale({ imperial:false, metric:true, position:'bottomright' }).addTo(map); }
+  if (D.showNorth) {
+    var RzNorth = L.Control.extend({ onAdd: function(){ var d = L.DomUtil.create('div','rz-north'); d.innerHTML = D.northSvg; return d; } });
+    new RzNorth({ position:'topright' }).addTo(map);
+  }
   else if (allB && allB.isValid()) { map.fitBounds(allB, { padding:[26,26] }); }
   else { map.setView([51.16, 10.45], 5); }
   (D.signs||[]).forEach(function(s){

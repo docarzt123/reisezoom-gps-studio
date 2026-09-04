@@ -15,6 +15,17 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 #### Hinzugefügt
+- **Nordpfeil + Maßstab** (Beta-Tester, 04.09.: „Jeder Geo-Mensch wäre
+  spätestens hier sehr überrascht. Nordpfeil und Maßstab dürfen einfach nicht
+  fehlen! Gern abschaltbar, aber bitte per Default setzen"): zwei neue
+  Overlay-Boxen in Animator, Reiseroute und Tour-Map — der Pfeil dreht mit dem
+  Kamera-Bearing (Vorschau und Render), der Maßstab hat runde Längen (100 m,
+  500 m, 2 km …) und folgt dem Zoom, gemessen in der Bildmitte wie bei
+  MapLibre. Standard an (Pfeil unten rechts, Maßstab unten links), abschaltbar
+  und in jede Ecke legbar. Web-Karte (Leaflet): Maßstabsleiste + Nordpfeil mit
+  eigenen Schaltern, ebenfalls Standard an. Alpha-Render: nur der Pfeil (keine
+  Karte, kein Maßstab). Wächter `tests/test_north_scale.py` hält Render,
+  Vorschau, Leaflet, Defaults und i18n synchron.
 - **Sternenhimmel hinter der Weltkugel** (Beta-Tester, 04.09.: „in der
   Kugel-Ansicht fehlen die schönen Sterne"): die MapLibre-Stile (Satellit
   kostenlos, OpenFreeMap, OSM, MapTiler) zeigen hinter dem Globus jetzt ein

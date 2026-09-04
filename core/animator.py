@@ -258,6 +258,14 @@ class AnimatorConfig:
     overlay_live_position: str = "tr"
     overlay_elevation_enabled: bool = True
     overlay_elevation_position: str = "bc"
+    # 04.09.2026 — Nordpfeil + Maßstab (Beta-Tester: „Jeder Geo-Mensch wäre
+    # überrascht … Nordpfeil und Maßstab dürfen nicht fehlen — abschaltbar,
+    # aber per Default an"). Pfeil dreht mit dem Kamera-Bearing, Maßstab
+    # folgt Zoom/Breite (Bildmitte). Im Alpha-Render (keine Karte) nur der Pfeil.
+    overlay_north_enabled: bool = True
+    overlay_north_position: str = "br"
+    overlay_scale_enabled: bool = True
+    overlay_scale_position: str = "bl"
     # v0.9.228 — Zeitfenster pro Overlay-Box (Nutzer-Wunsch „anzeigen ab Sek X
     # bis Sek Y"). In VIDEO-Sekunden (intro + anim + hold). from_s default 0 =
     # ab Start; to_s default 0 = bis Ende (kein oberes Limit). Der Render-Loop
@@ -1394,6 +1402,16 @@ def _overlay_css(cfg: AnimatorConfig, alpha_mode: bool = False) -> str:
      Positions-transform (sonst würde er das Zentrier-translate überschreiben). transform-
      origin je nach Ecke, damit die Box beim Aufpoppen an ihrer Kante „klebt". Default 1/1
      → kein Eingriff. */
+  /* 04.09.2026 — Nordpfeil + Maßstab (WYSIWYG: module.css .ov-north/.ov-scale) */
+  .rz-north {{ position: absolute; width: {px(72)}; height: {px(72)}; z-index: 45; pointer-events: none; }}
+  .rz-north svg {{ width: 100%; height: 100%; display: block; transform: rotate(var(--rz-north, 0deg));
+    filter: drop-shadow(0 {px(2)} {px(6)} rgba(0,0,0,.5)); }}
+  .rz-scale {{ position: absolute; z-index: 45; pointer-events: none; color: #fff; font-family: {_font};
+    font-size: {px(13)}; font-weight: 700; letter-spacing: .5px;
+    text-shadow: 0 0 {px(4)} rgba(0,0,0,.9), 0 0 {px(10)} rgba(0,0,0,.6); }}
+  .rz-scale-txt {{ margin-bottom: {px(3)}; }}
+  .rz-scale-bar {{ height: {px(8)}; width: var(--rz-scale-w, {px(120)}); box-sizing: border-box;
+    border: {px(2)} solid #fff; border-top: none; box-shadow: 0 {px(1)} {px(4)} rgba(0,0,0,.6); }}
   .pos-tl {{ top: {px(40)}; left: {px(40)}; transform: scale(var(--rz-ov-pop,1)); transform-origin: top left; }}
   .pos-tr {{ top: {px(40)}; right: {px(40)}; text-align: right; transform: scale(var(--rz-ov-pop,1)); transform-origin: top right; }}
   .pos-bl {{ bottom: {px(40)}; left: {px(40)}; transform: scale(var(--rz-ov-pop,1)); transform-origin: bottom left; }}
@@ -1852,6 +1870,49 @@ def wasserzeichen_pfad(pfad: str) -> str:
     return ""
 
 
+def _north_scale_html(cfg, with_scale: bool = True) -> str:
+    """Nordpfeil + Maßstab (04.09.2026). Pro Frame aktualisiert `__rzNorthScale`
+    (s. _north_scale_js): --rz-north (Drehung) und --rz-scale-w (Balkenbreite).
+    WYSIWYG-Spiegel: renderOverlayPreview()/_ovUpdateNorthScale() im Animator-Modul."""
+    from core.northarrow import NORTH_SVG
+    out = ""
+    if getattr(cfg, "overlay_north_enabled", True):
+        out += (f'<div id="overlay-north" class="rz-north pos-{getattr(cfg, "overlay_north_position", "br") or "br"}">'
+                f'{NORTH_SVG}</div>')
+    if with_scale and getattr(cfg, "overlay_scale_enabled", True):
+        out += (f'<div id="overlay-scale" class="rz-scale pos-{getattr(cfg, "overlay_scale_position", "bl") or "bl"}">'
+                '<div class="rz-scale-txt" id="rz-scale-txt"></div><div class="rz-scale-bar" id="rz-scale-bar"></div></div>')
+    return out
+
+
+def _north_scale_js() -> str:
+    """Treiber für Nordpfeil/Maßstab. `map` ist im Render-HTML global; im Alpha-
+    Render gibt es keine Karte → Bearing kommt als Argument aus advanceFrame."""
+    return """
+<script>
+window.__rzNorthScale = function(brgOverride, m) {
+  // m = Karte (kommt aus updateOverlays; `const map` steht in einem späteren Script → nicht lexikalisch greifen)
+  var n = document.getElementById('overlay-north'), s = document.getElementById('overlay-scale');
+  m = m || null;
+  var brg = (typeof brgOverride === 'number') ? brgOverride : ((m && m.getBearing) ? (m.getBearing() || 0) : 0);
+  if (n) n.style.setProperty('--rz-north', (-brg) + 'deg');
+  if (!s || !m || !m.unproject) return;
+  var bar = document.getElementById('rz-scale-bar'), txt = document.getElementById('rz-scale-txt');
+  if (!bar) return;
+  if (!window.__rzScaleMaxW) window.__rzScaleMaxW = bar.offsetWidth || 120;
+  var maxW = window.__rzScaleMaxW, c = m.getContainer();
+  var y = c.clientHeight / 2, x0 = c.clientWidth / 2 - maxW / 2, dist = 0;
+  try { var a = m.unproject([x0, y]), b = m.unproject([x0 + maxW, y]); dist = a.distanceTo ? a.distanceTo(b) : 0; } catch (_) { dist = 0; }
+  if (!(dist > 0) || !isFinite(dist)) return;
+  var p10 = Math.pow(10, Math.floor(Math.log(dist) / Math.LN10)), r = dist / p10;
+  r = r >= 10 ? 10 : r >= 5 ? 5 : r >= 3 ? 3 : r >= 2 ? 2 : 1;
+  var nice = r * p10;
+  s.style.setProperty('--rz-scale-w', (maxW * nice / dist) + 'px');
+  if (txt) txt.textContent = nice >= 1000 ? (Math.round(nice / 100) / 10) + ' km' : Math.round(nice) + ' m';
+};
+</script>"""
+
+
 def _watermark_html(cfg) -> str:
     """Wasserzeichen als eingebettetes <img> (data-URI, offline-fest).
 
@@ -2241,9 +2302,10 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
   </svg>
 </div>"""
     charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
-    overlays_block = (_watermark_html(cfg) + totals_html + live_html
-                      + ele_html + charts_html
-                      + _overlay_timing_js(cfg) + _chart_driver_js(cfg))
+    overlays_block = (_watermark_html(cfg)
+                      + (_north_scale_html(cfg) if cfg.show_overlays else "")
+                      + totals_html + live_html + ele_html + charts_html
+                      + _overlay_timing_js(cfg) + _chart_driver_js(cfg) + _north_scale_js())
     # JS-Block für Karten-Feinabstimmung. Wird im `style.load`-Callback
     # ausgespielt. Zwei Mechanismen parallel:
     #
@@ -3014,6 +3076,8 @@ if (SHOW_OVERLAYS && HAS_ELE) {{
 }}
 function updateOverlays(idx) {{
   if (!SHOW_OVERLAYS) return;
+  // 04.09.2026 Nordpfeil + Maßstab — updateOverlays(0) läuft VOR `const map` (TDZ) → dann ohne Karte.
+  if (window.__rzNorthScale) {{ try {{ window.__rzNorthScale(undefined, map); }} catch (_) {{ window.__rzNorthScale(); }} }}
   // v0.9.443 — Daten-Diagramm-Overlays synchron treiben. distFrac = Distanz-
   // Anteil des aktuellen Punkts → Chart-Marker landet exakt unter dem Karten-
   // Punkt (korrekte km-Labels + Wert), unabhängig von der Punktdichte.
@@ -3738,9 +3802,10 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
   </svg>
 </div>"""
     charts_html = _charts_html(cfg, ds_points, cum_dist) if cfg.show_overlays else ""
-    overlays_block = (_watermark_html(cfg) + totals_html + live_html
-                      + ele_html + charts_html
-                      + _overlay_timing_js(cfg) + _chart_driver_js(cfg))
+    overlays_block = (_watermark_html(cfg)
+                      + (_north_scale_html(cfg, with_scale=False) if cfg.show_overlays else "")
+                      + totals_html + live_html + ele_html + charts_html
+                      + _overlay_timing_js(cfg) + _chart_driver_js(cfg) + _north_scale_js())
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 {_overlay_font_link(cfg)}
@@ -3930,6 +3995,7 @@ window._ready = false;
 window.isReady = () => window._ready === true && (typeof window.__chartsReady !== 'function' || window.__chartsReady());
 window.getInitialView = () => ({{ center: [0, 0], zoom: 0 }});  // dummy fürs render-loop
 window.advanceFrame = (idx, brg, lon, lat, zm, pt) => {{
+  if (SHOW_OVERLAYS && window.__rzNorthScale) window.__rzNorthScale(brg);   // 04.09.2026 Nordpfeil (kein Maßstab ohne Karte)
   const safe = Math.max(0, Math.min(idx, totalPoints-1));
   // v0.9.55: optional Pre-Trim-Portion (projected[0..TRIM_START_IDX-1]) ausblenden.
   const sliceStart = SHOW_PRETRIM_TRACK ? 0 : Math.min(TRIM_START_IDX, safe);
