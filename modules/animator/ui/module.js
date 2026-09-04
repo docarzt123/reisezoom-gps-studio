@@ -6659,24 +6659,39 @@ function mountAnimator(body, headerActions, opts) {
       const len = Math.hypot(r[0], r[1], r[2], r[3]) || 1;
       return [r[0]/len, r[1]/len, r[2]/len, r[3]/len];
     };
+    // 04.09.2026 (Marc: „ruhige Kamera auch in die anderen Stile") — Engine-
+    // Adapter, synchron zu __rzCamRead/__rzCamApply in core/animator.py:
+    // Mapbox = FreeCamera, MapLibre = Kameraposition + Richtung/Neigung über
+    // calculateCameraOptionsFromCameraLngLatAltRotation (Höhe nicht ans Gelände
+    // geklemmt, sonst Berg-Hüpfen).
+    const _MC = () => (map && map.__rzEngine === "mapbox") ? mapboxgl.MercatorCoordinate : maplibregl.MercatorCoordinate;
+    const _camRead = () => {
+      if (typeof map.getFreeCameraOptions === "function") {
+        const fc = map.getFreeCameraOptions(); const o = fc.orientation;
+        return { pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], bp: null };
+      }
+      const r = window.rzMlCamRead(map);      // ui/js/maplibre-camera.js
+      return { pos: r.pos, ori: null, bp: r.bp };
+    };
+    const _camApply = (pos, ori, bp) => {
+      if (typeof map.setFreeCameraOptions === "function") {
+        const fc = map.getFreeCameraOptions();
+        fc.position = new (_MC())(pos[0], pos[1], pos[2]); fc.orientation = ori; map.setFreeCameraOptions(fc); return;
+      }
+      window.rzMlCamApply(map, pos, bp);
+    };
+    const _lerpBP = (a, b, u) => { const d = ((b[0] - a[0]) % 360 + 540) % 360 - 180; return [a[0] + d * u, a[1] + (b[1] - a[1]) * u]; };
     const _faithSeek = (tp) => {
       const cams = _faithCams; if (!cams || !cams.length) return;
-      if (!map || typeof map.getFreeCameraOptions !== "function") return;   // MapLibre: keine FreeCamera
-      const fc = map.getFreeCameraOptions();
-      if (cams.length === 1) {
-        const c = cams[0];
-        fc.position = new mapboxgl.MercatorCoordinate(c.pos[0], c.pos[1], c.pos[2]);
-        fc.orientation = c.ori; map.setFreeCameraOptions(fc); return;
-      }
+      if (!map) return;
+      if (cams.length === 1) { const c = cams[0]; _camApply(c.pos, c.ori, c.bp); return; }
       let lo = 0, hi = cams.length - 2;
       while (lo < hi) { const m = (lo + hi + 1) >> 1; if (cams[m].t <= tp) lo = m; else hi = m - 1; }
       const i = lo;
       const A = cams[i], B = cams[i+1], span = (B.t - A.t) || 1e-6;
       const u = Math.max(0, Math.min(1, (tp - A.t) / span));
-      fc.position = new mapboxgl.MercatorCoordinate(
-        A.pos[0]+(B.pos[0]-A.pos[0])*u, A.pos[1]+(B.pos[1]-A.pos[1])*u, A.pos[2]+(B.pos[2]-A.pos[2])*u);
-      fc.orientation = _nlerpQ(A.ori, B.ori, u);
-      map.setFreeCameraOptions(fc);
+      _camApply([A.pos[0]+(B.pos[0]-A.pos[0])*u, A.pos[1]+(B.pos[1]-A.pos[1])*u, A.pos[2]+(B.pos[2]-A.pos[2])*u],
+                A.ori ? _nlerpQ(A.ori, B.ori, u) : null, A.bp ? _lerpBP(A.bp, B.bp, u) : null);
     };
     try {
       const _fProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
@@ -6685,7 +6700,7 @@ function mountAnimator(body, headerActions, opts) {
       // 22.08.2026 — auch an, wenn nur einzelne Abschnitte „ruhig" sind.
       const _fSmoothSeg = (events || []).some((e) => e && e.smooth_in);
       const _fSmooth = _fSmoothAll || _fSmoothSeg;
-      if (_fSmooth && map && map.getFreeCameraOptions && typeof mapboxgl !== "undefined") {
+      if (_fSmooth && map) {
         // ⚠️ Stützstellen auf der ZEIT-Achse (20.08.2026), und zwar aus zwei
         // Gründen, die beide der Nutzer gefunden hat:
         //   1. `a >= 0 && a <= 1` warf jeden Keyframe im Anlauf weg — die
@@ -6720,7 +6735,8 @@ function mountAnimator(body, headerActions, opts) {
           // v0.9.511 — die Stützstellen sind TRACK-Anker; wo der Marker dann
           // steht, ist der auf den Schnitt geklemmte Anker selbst.
           const _markerAt = (a) => Math.max(_ftA, Math.min(_ftB, a));
-          const _savedCam = map.getFreeCameraOptions();
+          const _savedCam = _camRead();
+          const _savedClamp = (() => { try { return map.getCenterClampedToGround ? map.getCenterClampedToGround() : null; } catch (_) { return null; } })();
           _faithCams = _anchors.map((tz) => {
             // `tz` ist eine Zeit; `a` die zugehörige Stelle im Track.
             const a = zeitZuAnker(tz, _fti, _ftf, _ftA, _ftB);
@@ -6737,13 +6753,13 @@ function mountAnimator(body, headerActions, opts) {
               ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
               : _fStatic;
             map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
-            const fc = map.getFreeCameraOptions(), o = fc.orientation;
+            const cr = _camRead();
             let ez = null;
             try {
               const e = map.queryTerrainElevation(ll);
-              if (e != null && isFinite(e)) ez = mapboxgl.MercatorCoordinate.fromLngLat(ll, e).z;
+              if (e != null && isFinite(e)) ez = _MC().fromLngLat(ll, e).z;
             } catch (_) {}
-            return { t: tz, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], ez };
+            return { t: tz, pos: cr.pos, ori: cr.ori, bp: cr.bp, ez };
           });
           // Geländeanteil der Kamerahöhe glätten (nur der — die Flughöhe aus dem
           // Zoom bleibt bildgenau). Synchron zu __camPrepFaithful im Render.
@@ -6763,7 +6779,8 @@ function mountAnimator(body, headerActions, opts) {
               _faithCams[i].pos[2] = _faithCams[i].pos[2] + _gew[i] * (summe / (hi - lo + 1) - _ezs[i]);
             }
           }
-          try { map.setFreeCameraOptions(_savedCam); } catch (_) {}
+          try { _camApply(_savedCam.pos, _savedCam.ori, _savedCam.bp); } catch (_) {}
+          try { if (_savedClamp != null && map.setCenterClampedToGround) map.setCenterClampedToGround(_savedClamp); } catch (_) {}
           _useFaithful = true;
         }
       }
@@ -7436,14 +7453,13 @@ function mountAnimator(body, headerActions, opts) {
     try { spec = alpha ? null : resolveMapStyle(styleKey, currentBbox || null, false); } catch (_) {}
     if (noteEl) { const txt = spec ? mapStyleNoteText(spec) : ""; noteEl.textContent = txt; noteEl.hidden = !txt; }
     if (rightsEl) rightsEl.hidden = alpha || !spec || spec.videoOk;
-    // 03.09.2026 (Marc: „die Checkbox muss bei Nicht-Mapbox weg"): Die ruhige
-    // 3D-Kamera (FreeCamera) gibt es nur in Mapbox GL — Regler und Abschnitts-
-    // Schalter in der Zeitleiste nur zeigen, wenn die Karte in Mapbox läuft.
+    // 03.09.2026: Regler nur bei Mapbox. 04.09.2026 (Marc): Die ruhige Kamera
+    // läuft jetzt über den Engine-Adapter in ALLEN Stilen — Regler und
+    // Abschnitts-Schalter wieder überall zeigen.
     try {
-      const mb = !!(spec && spec.engine === "mapbox");
       const row = document.getElementById("anim-smooth-camera-row");
-      if (row && !_isStaticFrame) row.hidden = !mb;
-      document.body.classList.toggle("rz-no-freecam", !mb);
+      if (row && !_isStaticFrame) row.hidden = false;
+      document.body.classList.remove("rz-no-freecam");
     } catch (_) {}
     if (alpha || !spec || spec.videoOk) { const hc = document.querySelector('[data-help-content="map_rights"]'); if (hc) hc.hidden = true; }
     if (osmHint) osmHint.hidden = alpha || !spec || spec.kind === "raster" || spec.kind === "gov";

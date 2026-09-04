@@ -1596,7 +1596,8 @@ def _maplibre_gl_head() -> str:
                         or Path(__file__).resolve().parent.parent)
             js = (base / "ui" / "vendor" / "maplibre-gl.js").read_text(encoding="utf-8")
             css = (base / "ui" / "vendor" / "maplibre-gl.css").read_text(encoding="utf-8")
-            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>"
+            cam = (base / "ui" / "js" / "maplibre-camera.js").read_text(encoding="utf-8")   # 04.09.2026 Kamera-Adapter
+            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>\n<script>{cam}</script>"
             _log.info("maplibre-gl aus dem Bundle eingebettet (%.1f MB)", len(js) / 2**20)
         except Exception as e:
             _log.warning("maplibre-gl nicht im Bundle gefunden (%s) — CDN-Rückfall", e)
@@ -3231,6 +3232,33 @@ window.__stabCamHeight = (lon, lat) => {{ return; }};
 // Quaternion), zwischen Keyframes Position linear im 3D-Raum + Orientierung per nlerp
 // interpolieren → Kamera reitet NICHT mehr aufs Gelände, framing-treu an den KFs.
 window.__kfCams = null;
+// 04.09.2026 (Marc: „ruhige Kamera auch in die anderen Stile") — Engine-Adapter.
+// Mapbox: FreeCamera (Position Mercator + Orientierung-Quaternion). MapLibre 5:
+// kein FreeCamera, aber `transform.getCameraLngLat()/getCameraAltitude()` zum
+// Lesen und `calculateCameraOptionsFromCameraLngLatAltRotation()` zum Setzen —
+// Kameraposition + Richtung/Neigung ergeben dieselbe Ansicht. Damit die Höhe
+// NICHT wieder ans Gelände geklemmt wird (das wäre das Berg-Hüpfen), wird
+// `centerClampedToGround` aus- und die berechnete `elevation` mitgegeben.
+window.__rzMC = (typeof mapboxgl !== "undefined" && mapboxgl.MercatorCoordinate) ? mapboxgl.MercatorCoordinate : maplibregl.MercatorCoordinate;
+window.__rzCamRead = () => {{
+  if (typeof map.getFreeCameraOptions === "function") {{
+    const fc = map.getFreeCameraOptions(); const o = fc.orientation;
+    return {{ pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], bp: null }};
+  }}
+  const r = window.rzMlCamRead(map);        // ui/js/maplibre-camera.js (inline im Kopf)
+  return {{ pos: r.pos, ori: null, bp: r.bp }};
+}};
+window.__rzCamApply = (pos, ori, bp) => {{
+  if (typeof map.setFreeCameraOptions === "function") {{
+    const fc = map.getFreeCameraOptions();
+    fc.position = new window.__rzMC(pos[0], pos[1], pos[2]); fc.orientation = ori; map.setFreeCameraOptions(fc); return;
+  }}
+  window.rzMlCamApply(map, pos, bp);
+}};
+window.__rzLerpBP = (a, b, u) => {{
+  let d = ((b[0] - a[0]) % 360 + 540) % 360 - 180;   // kürzester Drehweg
+  return [a[0] + d * u, a[1] + (b[1] - a[1]) * u];
+}};
 window.__camPrepFaithful = async (camList, glattFenster) => {{
   // 25.08.2026 — VERSUCH: auf die Geländekacheln warten, bevor die Kamerahöhe
   // abgelesen wird. Ohne das springt die Karte hier in Millisekunden durch
@@ -3251,16 +3279,15 @@ window.__camPrepFaithful = async (camList, glattFenster) => {{
     try {{ if (map._render) map._render(); }} catch (e) {{}}
     await warteAufKacheln();
     try {{ if (map._render) map._render(); }} catch (e) {{}}
-    const fc = map.getFreeCameraOptions();
-    const o = fc.orientation;
-    // Geländeanteil der Kamerahöhe (Mapbox: Höhe = Gelände unter der Bildmitte
+    const cr = window.__rzCamRead();
+    // Geländeanteil der Kamerahöhe (Höhe = Gelände unter der Bildmitte
     // + Flughöhe aus dem Zoom). Nur DIESER Anteil wird unten geglättet.
     let ez = null;
     try {{
       const e = map.queryTerrainElevation([k.lng, k.lat]);
-      if (e != null && isFinite(e)) ez = mapboxgl.MercatorCoordinate.fromLngLat([k.lng, k.lat], e).z;
+      if (e != null && isFinite(e)) ez = window.__rzMC.fromLngLat([k.lng, k.lat], e).z;
     }} catch (e) {{}}
-    roh.push({{ t: k.t, pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], ez, g: (k.g == null ? 1 : k.g) }});
+    roh.push({{ t: k.t, pos: cr.pos, ori: cr.ori, bp: cr.bp, ez, g: (k.g == null ? 1 : k.g) }});
   }}
   // 22.08.2026 — Die Liste ist jetzt dicht (ein Eintrag je Bild). Das Berg-
   // Hüpfen steckt im GELÄNDEANTEIL der Kamerahöhe; nur der wird mit einem
@@ -3291,11 +3318,9 @@ window.__nlerpQuat = (a, b, t) => {{
 window.__camFaithful = (t) => {{
   const cams = window.__kfCams;
   if (!cams || cams.length === 0) return;
-  const fc = map.getFreeCameraOptions();
   if (cams.length === 1) {{
     const c = cams[0];
-    fc.position = new mapboxgl.MercatorCoordinate(c.pos[0], c.pos[1], c.pos[2]);
-    fc.orientation = c.ori; map.setFreeCameraOptions(fc); return;
+    window.__rzCamApply(c.pos, c.ori, c.bp); return;
   }}
   let lo = 0, hi = cams.length - 2;
   while (lo < hi) {{ const m = (lo + hi + 1) >> 1; if (cams[m].t <= t) lo = m; else hi = m - 1; }}
@@ -3304,9 +3329,7 @@ window.__camFaithful = (t) => {{
   const span = (B.t - A.t) || 1e-6;
   const u = Math.max(0, Math.min(1, (t - A.t) / span));
   const px = A.pos[0] + (B.pos[0]-A.pos[0])*u, py = A.pos[1] + (B.pos[1]-A.pos[1])*u, pz = A.pos[2] + (B.pos[2]-A.pos[2])*u;
-  fc.position = new mapboxgl.MercatorCoordinate(px, py, pz);
-  fc.orientation = window.__nlerpQuat(A.ori, B.ori, u);
-  map.setFreeCameraOptions(fc);
+  window.__rzCamApply([px, py, pz], A.ori ? window.__nlerpQuat(A.ori, B.ori, u) : null, A.bp ? window.__rzLerpBP(A.bp, B.bp, u) : null);
   // 25.08.2026 — Prüfstelle für die Zoom-Meldung (siehe docs/IDEAS.md §36):
   // Übernimmt Mapbox die gesetzte Kamerahöhe, oder hebt es sie über das Gelände?
   // Gemessen: `hub` ist durchgehend 0 — Mapbox übernimmt sie exakt. Der
@@ -3314,9 +3337,9 @@ window.__camFaithful = (t) => {{
   // der vorbereiteten Höhe (`__camPrepFaithful`). Wird nur mit RZ_CAMDEBUG=1
   // geloggt (ein zusätzlicher Aufruf je Bild).
   try {{
-    const nach = map.getFreeCameraOptions();
-    window.__camGesetzt = {{ soll_z: pz, ist_z: nach.position.z,
-                            hub: nach.position.z - pz, zoom: map.getZoom() }};
+    const nach = window.__rzCamRead();
+    window.__camGesetzt = {{ soll_z: pz, ist_z: nach.pos[2],
+                            hub: nach.pos[2] - pz, zoom: map.getZoom() }};
   }} catch (e) {{}}
 }};
 {color_gradient_js}
@@ -5381,15 +5404,11 @@ async def render(
             _smooth_all = bool(getattr(cfg, "smooth_camera_3d", False))
             _smooth_seg = any(isinstance(_e, dict) and _e.get("smooth_in") for _e in _events_zeit)
             _smooth_cam = (_smooth_all or _smooth_seg) and os.environ.get("RZ_NOFAITHFUL") != "1"
-            # 03.09.2026 (Marc, erster Render mit „Satellit (kostenlos)"): Die
-            # entkoppelte FreeCamera gibt es nur in Mapbox GL (`getFreeCameraOptions`);
-            # MapLibre kennt sie nicht → „is not a function", Render tot. Auf
-            # MapLibre läuft die klassische Kamera — mit Vermerk, ohne Abbruch.
-            if _smooth_cam and getattr(cfg, "map_engine", "mapbox") != "mapbox":
-                _smooth_cam = False
-                _log.warning("Ruhige Kamera (3D) nur mit Mapbox-Stilen — %s nutzt die klassische Kamera.", cfg.map_style)
-                emit(0.05, _t("animator.progress.ruhig_nur_mapbox",
-                              "Ruhige Kamera (3D) gibt es nur mit Mapbox-Stilen — klassische Kamera."))
+            # 03.09.2026: auf MapLibre gab es keine FreeCamera → klassische Kamera.
+            # 04.09.2026 (Marc): Engine-Adapter `__rzCamRead/__rzCamApply` im HTML —
+            # MapLibre 5 rechnet aus Kameraposition + Richtung/Neigung dieselbe
+            # Ansicht (`calculateCameraOptionsFromCameraLngLatAltRotation`). Die
+            # ruhige Kamera läuft damit in ALLEN Stilen.
             _use_faithful = False
             if _smooth_cam and total_frames > 2:
                 _cam_kinds = ("center", "pitch", "zoom", "bearing", "position", "rotation")
@@ -5674,7 +5693,7 @@ async def render(
                             " lat: +map.getCenter().lat.toFixed(5),"
                             " lng: +map.getCenter().lng.toFixed(5),"
                             " p: +map.getPitch().toFixed(1),"
-                            " alt: (function(){try{return +map.getFreeCameraOptions().position.z.toExponential(3);}catch(e){return null;}})(),"
+                            " alt: (function(){try{return +window.__rzCamRead().pos[2].toExponential(3);}catch(e){return null;}})(),"
                             " elev: (function(){try{var e=map.queryTerrainElevation(map.getCenter());return e==null?null:+e.toFixed(0);}catch(e){return null;}})()})"
                         )
                         _log.info("CAMDEBUG f=%d t=%.4f soll_z=%.3f soll_pitch=%.1f ist=%s",
