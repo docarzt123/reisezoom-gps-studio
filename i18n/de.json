@@ -2498,7 +2498,7 @@
   "settings.tab.standard": "Standardwerte",
   "settings.tilecache.clear": "Leeren",
   "settings.tilecache.cleared": "Kachel-Zwischenspeicher geleert",
-  "settings.tilecache.help": "Geladene Kacheln bleiben auf der Platte, ein zweiter Render derselben Gegend geht schneller und schont die Server. 0 = aus. Mapbox-Kacheln werden nicht gespeichert.",
+  "settings.tilecache.help": "Geladene Kacheln bleiben 90 Tage auf der Platte, ein zweiter Render derselben Gegend geht schneller und schont die Server; danach werden sie neu geholt (Luftbilder werden neu beflogen). 0 = aus. Mapbox-Kacheln werden nicht gespeichert.",
   "settings.tilecache.label": "Kachel-Zwischenspeicher (Render)",
   "settings.tilecache.size": "{mb} MB belegt",
   "settings.title": "Einstellungen",

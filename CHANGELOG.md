@@ -49,6 +49,11 @@ Bei jeder neuen Version:
   bei jedem Stil sichtbar.
 
 #### Geändert
+- **Kachel-Zwischenspeicher: 90 Tage Frist** (Marc, 04.09.): Gespeicherte
+  Kacheln (Luftbilder, Gelände, Untergrund, Beschriftung) gelten 90 Tage, danach
+  holt die Weiche sie neu und das Aufräumen löscht sie — Luftbilder werden neu
+  beflogen, Geländedaten aktualisiert. Die Größengrenze bleibt (Werk 2048 MB,
+  älteste zuerst).
 - **Module starten aufgeräumt** (Marc, 04.09.): Beim allerersten Öffnen eines
   Moduls sind alle Abschnitte der Seitenleiste zugeklappt. Was du aufklappst,
   merkt sich die App je Modul (`open_sections`) — auch nach Neustart und in

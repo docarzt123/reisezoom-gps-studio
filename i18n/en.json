@@ -2498,7 +2498,7 @@
   "settings.tab.standard": "Defaults",
   "settings.tilecache.clear": "Clear",
   "settings.tilecache.cleared": "Tile cache cleared",
-  "settings.tilecache.help": "Downloaded tiles stay on disk, so a second render of the same area is faster and easier on the servers. 0 = off. Mapbox tiles are never stored.",
+  "settings.tilecache.help": "Downloaded tiles stay on disk for 90 days, so a second render of the same area is faster and easier on the servers; after that they are fetched again (imagery gets re-flown). 0 = off. Mapbox tiles are never stored.",
   "settings.tilecache.label": "Tile cache (render)",
   "settings.tilecache.size": "{mb} MB used",
   "settings.title": "Settings",

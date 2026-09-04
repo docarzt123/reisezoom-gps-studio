@@ -1494,13 +1494,21 @@ def tile_cache_clear() -> int:
 
 
 def _tile_cache_prune(max_mb: int) -> None:
-    """Über der Grenze: älteste Dateien löschen, bis 90 % erreicht sind."""
+    """Älter als 90 Tage → löschen; über der Größengrenze: älteste zuerst, bis 90 % erreicht sind."""
     if not TILE_CACHE_DIR:
         return
     files = []
+    alt = 0
+    grenze = time.time() - _tileproxy.TILE_CACHE_MAX_AGE_S      # 04.09.2026: älter als 90 Tage → weg
     for f in Path(TILE_CACHE_DIR).rglob("*.bin"):
-        try: st = f.stat(); files.append((st.st_mtime, st.st_size, f))
+        try:
+            st = f.stat()
+            if st.st_mtime < grenze:
+                f.unlink(); alt += 1; continue
+            files.append((st.st_mtime, st.st_size, f))
         except OSError: pass
+    if alt:
+        _log.info("Kachel-Zwischenspeicher: %d Dateien älter als 90 Tage gelöscht", alt)
     total = sum(sz for _, sz, _ in files)
     limit = int(max_mb) * 1024 * 1024
     if total <= limit:
@@ -1549,7 +1557,7 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         url, _over = _tileproxy.wms_oversample_url(url)
         h = hashlib.sha1((url + (_tileproxy.CLAMP_KEY_SUFFIX if _terr else "")).encode("utf-8")).hexdigest()
         f = (d / h[:2] / (h + ".bin")) if d is not None else None
-        if f is not None and f.exists():
+        if f is not None and _tileproxy.cache_fresh(f):     # 90-Tage-Frist, s. tileproxy
             try:
                 raw = f.read_bytes()
                 nl = raw.index(b"\n")
