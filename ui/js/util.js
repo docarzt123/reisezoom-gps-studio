@@ -504,7 +504,15 @@ function rzSeatMapLibreCenter(map) {
     } catch (_) {}
   };
   map.once("idle", seat);
-  if (!map.__rzSeatBound) { map.__rzSeatBound = true; map.on("moveend", seat); }
+  // Nach Kamerafahrten NICHT bei jedem moveend (der Probelauf feuert eines
+  // pro Bild → jeder Sitz ein kleiner Kamerasprung = Ruckeln, Marc 04.09.),
+  // sondern erst, wenn die Karte 300 ms still steht.
+  if (!map.__rzSeatBound) {
+    map.__rzSeatBound = true;
+    let timer = null;
+    map.on("moveend", () => { if (timer) clearTimeout(timer); timer = setTimeout(() => { timer = null; seat(); }, 300); });
+    map.on("movestart", () => { if (timer) { clearTimeout(timer); timer = null; } });
+  }
 }
 window.rzSeatMapLibreCenter = rzSeatMapLibreCenter;
 
