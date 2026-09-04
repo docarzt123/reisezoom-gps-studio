@@ -6753,25 +6753,26 @@ function mountAnimator(body, headerActions, opts) {
       const r = window.rzMlCamRead(map, elevM);      // ui/js/maplibre-camera.js (elevM: bekannte Geländehöhe, 04.09.2026)
       return { pos: r.pos, ori: null, bp: r.bp };
     };
-    const _camApply = (pos, ori, bp) => {
+    const _camApply = (pos, ori, bp, eM) => {
       if (typeof map.setFreeCameraOptions === "function") {
         const fc = map.getFreeCameraOptions();
         fc.position = new (_MC())(pos[0], pos[1], pos[2]); fc.orientation = ori; map.setFreeCameraOptions(fc); return;
       }
-      window.rzMlCamApply(map, pos, bp);
+      window.rzMlCamApply(map, pos, bp, eM);   // eM: Geländehöhe der Stützstelle (04.09.2026)
     };
     const _lerpBP = (a, b, u) => { const d = ((b[0] - a[0]) % 360 + 540) % 360 - 180; return [a[0] + d * u, a[1] + (b[1] - a[1]) * u]; };
     const _faithSeek = (tp) => {
       const cams = _faithCams; if (!cams || !cams.length) return;
       if (!map) return;
-      if (cams.length === 1) { const c = cams[0]; _camApply(c.pos, c.ori, c.bp); return; }
+      if (cams.length === 1) { const c = cams[0]; _camApply(c.pos, c.ori, c.bp, c.eM); return; }
       let lo = 0, hi = cams.length - 2;
       while (lo < hi) { const m = (lo + hi + 1) >> 1; if (cams[m].t <= tp) lo = m; else hi = m - 1; }
       const i = lo;
       const A = cams[i], B = cams[i+1], span = (B.t - A.t) || 1e-6;
       const u = Math.max(0, Math.min(1, (tp - A.t) / span));
+      const _eM = (A.eM != null && B.eM != null) ? A.eM + (B.eM - A.eM) * u : (A.eM != null ? A.eM : B.eM);
       _camApply([A.pos[0]+(B.pos[0]-A.pos[0])*u, A.pos[1]+(B.pos[1]-A.pos[1])*u, A.pos[2]+(B.pos[2]-A.pos[2])*u],
-                A.ori ? _nlerpQ(A.ori, B.ori, u) : null, A.bp ? _lerpBP(A.bp, B.bp, u) : null);
+                A.ori ? _nlerpQ(A.ori, B.ori, u) : null, A.bp ? _lerpBP(A.bp, B.bp, u) : null, _eM);
     };
     try {
       const _fProj = (typeof getActiveProject === "function") ? getActiveProject() : null;
@@ -6819,16 +6820,22 @@ function mountAnimator(body, headerActions, opts) {
           let _letztEM = null;   // 04.09.2026 — letzte bekannte Geländehöhe (m), wenn Kacheln noch fehlen
           const _savedClamp = (() => { try { return map.getCenterClampedToGround ? map.getCenterClampedToGround() : null; } catch (_) { return null; } })();
           // 04.09.2026 (Marc: „Anflug verhält sich anders, je nachdem wo ich
-          // anfange"): die Schleife sprang in Millisekunden durch alle Positionen,
-          // die Geländekacheln waren dort nie geladen → Höhe aus der Position VOR
-          // dem Probelauf. Jetzt wie der Render (__camPrepFaithful): je Stützstelle
-          // kurz auf die Kacheln warten, dann Kamera lesen. Läuft asynchron; die
-          // Uhr des Probelaufs startet erst danach (siehe Ende der Funktion).
-          const _warteKacheln = async () => {
-            for (let i = 0; i < 30; i++) {                     // höchstens ~300 ms je Stützstelle
-              try { if (map.areTilesLoaded()) return; } catch (_) { return; }
-              await new Promise((r) => setTimeout(r, 10));
-            }
+          // anfange"): die Schleife sprang durch alle Positionen, ohne dass dort
+          // Geländekacheln geladen waren → Kamera mit der Höhe der Position VOR
+          // dem Probelauf gelesen, aber mit echter Höhe gesetzt. Seit dem
+          // Rundreise-Fix (rzMlCamRead/rzMlCamApply mit derselben gespeicherten
+          // Höhe) ist der Zoom unabhängig davon exakt; die Höhe selbst kommt aus
+          // dem Gelände, wo geladen, sonst aus den GPX-Höhen (× Überhöhung) —
+          // OHNE Warten auf Kacheln: 450 Stützstellen mit Warten waren 17 s, in
+          // denen die Karte sichtbar herumsprang (Marc: „Zoom an der falschen
+          // Stelle, von ganz vorne").
+          const _exag = Math.max(0, parseFloat(document.getElementById("anim-ex")?.value) || 1);
+          const _gpxEleAt = (a) => {
+            try {
+              if (!Array.isArray(_gpxElevations) || !_gpxElevations.length) return null;
+              const ci = Math.max(0, Math.min(_gpxElevations.length - 1, Math.round(_markerAt(a) * (_gpxElevations.length - 1))));
+              const v = _gpxElevations[ci]; return (v != null && isFinite(v)) ? v * _exag : null;
+            } catch (_) { return null; }
           };
           _faithBuild = async () => {
           const _out = [];
@@ -6848,18 +6855,19 @@ function mountAnimator(body, headerActions, opts) {
               ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
               : _fStatic;
             map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
-            try { if (map._render) map._render(); } catch (_) {}
-            await _warteKacheln();
-            try { if (map._render) map._render(); } catch (_) {}
             let ez = null, eM = null;
             try {
               const e = map.queryTerrainElevation(ll);
               if (e != null && isFinite(e)) { ez = _MC().fromLngLat(ll, e).z; eM = e; _letztEM = e; }
             } catch (_) {}
+            if (eM == null) {   // Kachel nicht geladen → GPX-Höhe des Streckenpunkts (× Überhöhung)
+              const g = _gpxEleAt(a);
+              if (g != null) { eM = g; _letztEM = g; try { ez = _MC().fromLngLat(ll, g).z; } catch (_) {} }
+            }
             // Kamera mit der ECHTEN Geländehöhe lesen (nicht der veralteten
             // Mittelpunkt-Höhe der Karte) — sonst hängt der Zoom vom Startpunkt ab.
             const cr = _camRead(eM != null ? eM : _letztEM);
-            _out.push({ t: tz, pos: cr.pos, ori: cr.ori, bp: cr.bp, ez });
+            _out.push({ t: tz, pos: cr.pos, ori: cr.ori, bp: cr.bp, ez, eM: (eM != null ? eM : _letztEM), z: zm });
           }
           _faithCams = _out;
           // Geländeanteil der Kamerahöhe glätten (nur der — die Flughöhe aus dem
