@@ -101,6 +101,19 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Anflug zwischen zwei Keyframes hängt vom Startpunkt des Probelaufs ab**
+  (Marc, 04.09., Masca: „von ganz vorne landet der Zoom an der falschen Stelle,
+  aus der Mitte des Intros passt es"): Der MapLibre-Kamera-Adapter las beim
+  Aufbau der Stützstellen die Mittelpunkt-Höhe der Karte, die nach `jumpTo`
+  nicht nachgeführt wird und deshalb noch von der Kameraposition VOR dem
+  Probelauf stammte; beim Setzen rechnet er aber mit der echten Geländehöhe.
+  Die Differenz lief in den Zoom, und sie hing davon ab, wo die Kamera vorher
+  stand. Zwei Änderungen: `rzMlCamRead` nimmt jetzt die Geländehöhe unter der
+  Bildmitte (Render und Vorschau), und die Vorschau wartet je Stützstelle wie
+  der Render kurz auf die Geländekacheln (asynchroner Aufbau, die Uhr startet
+  danach). Kopflos gemessen (Masca-Track, Gelände, ruhige Kamera): Kamerahöhe
+  der Stützstellen von zwei völlig verschiedenen Startlagen aus — vorher
+  1,75 % Abweichung, jetzt 0,00 %.
 - **JS-Fehler „undefined is not an object (evaluating 'e[1].key')"** (Marc,
   04.09., app.log 16:12, MapLibre `SourceCache.update`): mit Gelände und einem
   Zoom über der maxzoom einer Kachelquelle liefert MapLibres `children()` nur

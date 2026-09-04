@@ -6719,6 +6719,7 @@ function mountAnimator(body, headerActions, opts) {
     // Position linear + Orientierung per nlerp interpolieren → kein Berg-Hüpfen,
     // framing-treu an den KFs. Spiegel von __camPrepFaithful/__camFaithful im Render.
     let _faithCams = null, _useFaithful = false, _faithGew = null;
+    let _faithBuild = null;   // 04.09.2026 — asynchroner Stützstellen-Aufbau (wartet auf Geländekacheln)
     const _faithWeightAt = (tp) => {
       if (!_faithGew || !_faithGew.length) return 1;
       const i = Math.round(Math.max(0, Math.min(1, tp)) * (_faithGew.length - 1));
@@ -6737,12 +6738,12 @@ function mountAnimator(body, headerActions, opts) {
     // calculateCameraOptionsFromCameraLngLatAltRotation (Höhe nicht ans Gelände
     // geklemmt, sonst Berg-Hüpfen).
     const _MC = () => (map && map.__rzEngine === "mapbox") ? mapboxgl.MercatorCoordinate : maplibregl.MercatorCoordinate;
-    const _camRead = () => {
+    const _camRead = (elevM) => {
       if (typeof map.getFreeCameraOptions === "function") {
         const fc = map.getFreeCameraOptions(); const o = fc.orientation;
         return { pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], bp: null };
       }
-      const r = window.rzMlCamRead(map);      // ui/js/maplibre-camera.js
+      const r = window.rzMlCamRead(map, elevM);      // ui/js/maplibre-camera.js (elevM: bekannte Geländehöhe, 04.09.2026)
       return { pos: r.pos, ori: null, bp: r.bp };
     };
     const _camApply = (pos, ori, bp) => {
@@ -6808,8 +6809,23 @@ function mountAnimator(body, headerActions, opts) {
           // steht, ist der auf den Schnitt geklemmte Anker selbst.
           const _markerAt = (a) => Math.max(_ftA, Math.min(_ftB, a));
           const _savedCam = _camRead();
+          let _letztEM = null;   // 04.09.2026 — letzte bekannte Geländehöhe (m), wenn Kacheln noch fehlen
           const _savedClamp = (() => { try { return map.getCenterClampedToGround ? map.getCenterClampedToGround() : null; } catch (_) { return null; } })();
-          _faithCams = _anchors.map((tz) => {
+          // 04.09.2026 (Marc: „Anflug verhält sich anders, je nachdem wo ich
+          // anfange"): die Schleife sprang in Millisekunden durch alle Positionen,
+          // die Geländekacheln waren dort nie geladen → Höhe aus der Position VOR
+          // dem Probelauf. Jetzt wie der Render (__camPrepFaithful): je Stützstelle
+          // kurz auf die Kacheln warten, dann Kamera lesen. Läuft asynchron; die
+          // Uhr des Probelaufs startet erst danach (siehe Ende der Funktion).
+          const _warteKacheln = async () => {
+            for (let i = 0; i < 30; i++) {                     // höchstens ~300 ms je Stützstelle
+              try { if (map.areTilesLoaded()) return; } catch (_) { return; }
+              await new Promise((r) => setTimeout(r, 10));
+            }
+          };
+          _faithBuild = async () => {
+          const _out = [];
+          for (const tz of _anchors) {
             // `tz` ist eine Zeit; `a` die zugehörige Stelle im Track.
             const a = zeitZuAnker(tz, _fti, _ftf, _ftA, _ftB);
             const ip = interpolateCameraJs(_evZeit, tz, defaultPitch, defaultRotation, undefined, _previewFitBase, { cinematic: _fCine });
@@ -6825,14 +6841,20 @@ function mountAnimator(body, headerActions, opts) {
               ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
               : _fStatic;
             map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
-            const cr = _camRead();
-            let ez = null;
+            try { if (map._render) map._render(); } catch (_) {}
+            await _warteKacheln();
+            try { if (map._render) map._render(); } catch (_) {}
+            let ez = null, eM = null;
             try {
               const e = map.queryTerrainElevation(ll);
-              if (e != null && isFinite(e)) ez = _MC().fromLngLat(ll, e).z;
+              if (e != null && isFinite(e)) { ez = _MC().fromLngLat(ll, e).z; eM = e; _letztEM = e; }
             } catch (_) {}
-            return { t: tz, pos: cr.pos, ori: cr.ori, bp: cr.bp, ez };
-          });
+            // Kamera mit der ECHTEN Geländehöhe lesen (nicht der veralteten
+            // Mittelpunkt-Höhe der Karte) — sonst hängt der Zoom vom Startpunkt ab.
+            const cr = _camRead(eM != null ? eM : _letztEM);
+            _out.push({ t: tz, pos: cr.pos, ori: cr.ori, bp: cr.bp, ez });
+          }
+          _faithCams = _out;
           // Geländeanteil der Kamerahöhe glätten (nur der — die Flughöhe aus dem
           // Zoom bleibt bildgenau). Synchron zu __camPrepFaithful im Render.
           let _letzt = 0;
@@ -6854,6 +6876,8 @@ function mountAnimator(body, headerActions, opts) {
           try { _camApply(_savedCam.pos, _savedCam.ori, _savedCam.bp); } catch (_) {}
           try { if (_savedClamp != null && map.setCenterClampedToGround) map.setCenterClampedToGround(_savedClamp); } catch (_) {}
           _useFaithful = true;
+          window.__rzFaithCamsDebug = _faithCams;   // nur für den kopflosen Prüfstand
+          };   // Ende _faithBuild
         }
       }
     } catch (e) {
@@ -7140,7 +7164,23 @@ function mountAnimator(body, headerActions, opts) {
       }
     };
     if (_previewRaf) cancelAnimationFrame(_previewRaf);
-    _previewRaf = requestAnimationFrame(step);
+    if (_faithBuild) {
+      // 04.09.2026 — erst die Stützstellen mit geladenen Geländekacheln, dann
+      // die Uhr starten. -1 = „läuft, noch kein Frame" (Stopp-Klick greift).
+      _previewRaf = -1;
+      const _los = () => {
+        if (_previewRaf !== -1) return;   // inzwischen gestoppt
+        _previewT0 = performance.now() - (_startAnchor * totalMs);
+        _previewRaf = requestAnimationFrame(step);
+      };
+      _faithBuild().then(_los).catch((e) => {
+        try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + e); } catch (_) {}
+        _useFaithful = false; _faithCams = null; _faithGew = null;
+        _los();
+      });
+    } else {
+      _previewRaf = requestAnimationFrame(step);
+    }
   }
   // v0.7.6: _previewRaf wird oben in mountAnimator() deklariert (TDZ-Fix).
 
