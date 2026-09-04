@@ -3111,3 +3111,31 @@ function kursAusSpur(coords, i, basisM, minPunkte) {
 
 // 04.09.2026 — Nordpfeil (Spiegel von core/northarrow.py, Wächter tests/test_north_scale.py)
 window.RZ_NORTH_SVG = "<svg viewBox=\"0 0 64 64\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"32\" cy=\"32\" r=\"30\" class=\"rz-north-bg\" fill=\"rgba(0,0,0,0.55)\"/><text x=\"32\" y=\"15\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"800\" fill=\"#ffffff\" font-family=\"sans-serif\">N</text><polygon points=\"32,17 40,42 32,37 24,42\" fill=\"#e8452c\"/><polygon points=\"32,58 24,42 32,37 40,42\" fill=\"#ffffff\" fill-opacity=\"0.85\"/></svg>";
+
+// 04.09.2026 (Marc: „Track und Trackpunkt hängen dem Scrubber hinterher, laufen
+// nach Stopp weiter bis sie die Position erreichen"): MapLibre schickt JEDES
+// setData einzeln an den Worker (JSON.stringify der ganzen Linie, Warteschlange,
+// kein Zusammenfassen). Bei langen Tracks dauert ein Durchlauf länger als ein
+// Frame → die Schlange wächst, die Karte holt sie nach dem Stopp ab. Dieser
+// Wrapper hält pro Quelle höchstens EINEN Auftrag in der Luft und merkt sich nur
+// den jüngsten Stand; der geht raus, sobald der Worker frei ist.
+window.rzSetDataLatest = function (map, src, data) {
+  if (!src) return;
+  if (typeof src._pendingLoads !== "number") { src.setData(data); return; }   // Mapbox: kein Zähler → direkt
+  if (src._pendingLoads > 0) {
+    src.__rzPending = data;
+    if (!src.__rzFlushHooked) {
+      src.__rzFlushHooked = true;
+      const flush = () => {
+        if (src.__rzPending && src._pendingLoads === 0) { const d = src.__rzPending; src.__rzPending = null; try { src.setData(d); } catch (_) {} }
+      };
+      try { map.on("sourcedata", (e) => { if (e && e.sourceId === src.id) flush(); }); } catch (_) {}
+      try { map.on("error", (e) => { if (e && e.sourceId === src.id) flush(); }); } catch (_) {}
+      const tick = () => { flush(); if (src.__rzPending) requestAnimationFrame(tick); else src.__rzTick = false; };
+      src.__rzTickStart = () => { if (!src.__rzTick) { src.__rzTick = true; requestAnimationFrame(tick); } };
+    }
+    if (src.__rzTickStart) src.__rzTickStart();
+    return;
+  }
+  src.setData(data);
+};

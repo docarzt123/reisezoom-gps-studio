@@ -101,6 +101,16 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Track und Laufpunkt hinken dem Scrubber hinterher und laufen nach Stopp
+  weiter** (Marc, 04.09., Masca-Projekt mit Gelände): jede Positionsänderung
+  von Linie, Laufpunkt und Schwarm ging als eigener Auftrag an den
+  MapLibre-Worker, der währenddessen auch Kacheln und Gelände dekodiert.
+  Kommt er nicht hinterher, stapeln sich die Aufträge und die Karte arbeitet
+  sie nach dem Stopp ab. Neu: `rzSetDataLatest` (util.js) hält pro Quelle
+  höchstens einen Auftrag in der Luft und merkt sich nur den jüngsten Stand
+  — der Rückstand kann nicht mehr wachsen; nach Stopp springt die Linie mit
+  dem nächsten Auftrag auf die richtige Stelle. Kopflos geprüft: 4400-Punkte-
+  Track, Probelauf 80 fps, nie mehr als ein Auftrag offen.
 - **Pfeil hinkt dem Track hinterher** (Marc, 04.09.: „der Track ist schneller
   als der Trackpunkt als Pfeil, als Punkt funktioniert es — in der Vorschau"):
   Punkt und Pfeil bekommen dieselbe Position, aber der Pfeil ist eine

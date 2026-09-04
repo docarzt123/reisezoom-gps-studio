@@ -4289,7 +4289,7 @@ function mountAnimator(body, headerActions, opts) {
       const src = map.getSource("anim-dot");
       if (!src) return;
       const f = Math.max(0, Math.min(currentCoords.length - 1, +frac || 0));
-      src.setData({ type: "Feature",
+      rzSetDataLatest(map, src, { type: "Feature",
                     properties: { brg: _kursAn(currentCoords, Math.ceil(f)) },
                     geometry: { type: "Point", coordinates: coordBeiFrac(currentCoords, f) } });
     } catch (_) {}
@@ -4373,7 +4373,7 @@ function mountAnimator(body, headerActions, opts) {
           coords = currentCoords; ai0 = 0; ai1 = currentCoords.length - 1;
         }
       }
-      src.setData({
+      rzSetDataLatest(map, src, {
         type: "Feature",
         geometry: { type: "LineString", coordinates: coords },
       });
@@ -5959,7 +5959,7 @@ function mountAnimator(body, headerActions, opts) {
           : currentCoords.slice(startIdx, Math.floor(coordFrac) + 1)
               .concat([coordBeiFrac(currentCoords, coordFrac)]);
         _animSchwarmPreviewAdvance(coordFracRoh, previewFullTrack());
-        src.setData({
+        rzSetDataLatest(map, src, {
           type: "Feature",
           geometry: { type: "LineString", coordinates: coords },
         });
@@ -7085,7 +7085,7 @@ function mountAnimator(body, headerActions, opts) {
             : currentCoords.slice(startCoordIdx, Math.floor(coordFrac) + 1)
                 .concat([coordBeiFrac(currentCoords, coordFrac)]);
           _animSchwarmPreviewAdvance(coordFracRoh, previewFullTrack());
-          src.setData({
+          rzSetDataLatest(map, src, {
             type: "Feature",
             geometry: { type: "LineString", coordinates: lineCoords },
           });
@@ -7934,7 +7934,7 @@ function mountAnimator(body, headerActions, opts) {
           if (false && map && currentCoords) {
             try {
               const src = map.getSource("preview-track");
-              if (src) src.setData({
+              if (src) rzSetDataLatest(map, src, {
                 type: "Feature",
                 geometry: { type: "LineString", coordinates: currentCoords },
               });
@@ -10533,7 +10533,7 @@ function mountAnimator(body, headerActions, opts) {
       if (map && currentCoords) {
         try {
           const src = map.getSource("preview-track");
-          if (src) src.setData({
+          if (src) rzSetDataLatest(map, src, {
             type: "Feature",
             geometry: { type: "LineString", coordinates: currentCoords },
           });
@@ -12072,7 +12072,7 @@ function mountAnimator(body, headerActions, opts) {
     try {
       const src = map.getSource("preview-track");
       if (src) {
-        src.setData({ type: "Feature", geometry: { type: "LineString", coordinates: coords } });
+        rzSetDataLatest(map, src, { type: "Feature", geometry: { type: "LineString", coordinates: coords } });
       }
     } catch (_) {}
     if (lbl) lbl.textContent = `${v} / ${maxN}`;
@@ -12558,7 +12558,7 @@ function mountAnimator(body, headerActions, opts) {
       const si = Math.max(0, Math.round(a * (n - 1)));
       const ei = Math.max(si, Math.min(n - 1, Math.round(b * (n - 1))));
       const slice = currentCoords.slice(si, ei + 1);
-      src.setData({
+      rzSetDataLatest(map, src, {
         type: "Feature",
         geometry: { type: "LineString", coordinates: slice },
       });
@@ -13227,8 +13227,8 @@ function mountAnimator(body, headerActions, opts) {
         geometry: { type: "Point", coordinates: t.coords[kP] } });
     }
     try {
-      map.getSource("swarm-prev-lines").setData({ type: "FeatureCollection", features: linien });
-      map.getSource("swarm-prev-dots").setData({ type: "FeatureCollection", features: punkte });
+      rzSetDataLatest(map, map.getSource("swarm-prev-lines"), { type: "FeatureCollection", features: linien });
+      rzSetDataLatest(map, map.getSource("swarm-prev-dots"), { type: "FeatureCollection", features: punkte });
     } catch (_) {}
   }
 
