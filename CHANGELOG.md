@@ -66,6 +66,17 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Farbkanten und dunkle Rechtecke bei „Satellit (kostenlos)" in Spanien**
+  (Marc, 04.09., Masca): Zwei Ursachen, zwei Mittel in der Kachel-Weiche.
+  1) PNOA rendert unterhalb der Zoom-14-Skala ein anderes Mosaik → Kacheln
+  z12/z13 werden in 2–4-facher Pixelgröße angefordert (Mosaik von z14) und auf
+  512 px verkleinert (`scale_z`, auch Sachsen-Anhalt) — genau Marcs Idee
+  „die feinste Stufe nehmen und kleiner skalieren", nur serverseitig.
+  2) PNOA füllt das Meer küstennah mit opaken dunklen Kacheln, je Zoomstufe
+  anders zugeschnitten → Meerpixel werden über die Meerestiefe (AWS-Terrarium
+  z10, ungeklemmt, < −3 m) durchsichtig gemacht (`sea_mask`), auf allen
+  Zoomstufen gleich; darunter scheint Blue Marble durch. Standbild-/Video-
+  Warten für WMS-Stile 30 s → 90 s, Kachel-Weiche wiederholt einmal.
 - **Weiße Fläche um das Bundesland beim Herauszoomen** („Satellit (kostenlos)",
   Brandenburg bei Zoom 7, Marc 04.09.): Lag nur EINE Region unter dem Track,
   kamen ihre Kacheln als JPEG — und der Landesdienst füllt alles außerhalb

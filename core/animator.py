@@ -1545,6 +1545,8 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         if req.method != "GET" or "mapbox.com" in url or url.startswith("data:") or url.startswith("blob:"):
             await route.continue_(); return
         _terr = _tileproxy.is_terrarium_url(url)
+        # 04.09.2026 — WMS-Kacheln mit `scale_z` (PNOA) vergrößert anfordern, dann auf 512 px verkleinern (s. tileproxy)
+        url, _over = _tileproxy.wms_oversample_url(url)
         h = hashlib.sha1((url + (_tileproxy.CLAMP_KEY_SUFFIX if _terr else "")).encode("utf-8")).hexdigest()
         f = (d / h[:2] / (h + ".bin")) if d is not None else None
         if f is not None and f.exists():
@@ -1558,7 +1560,7 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
             except Exception:
                 pass
         try:
-            resp = await route.fetch()
+            resp = await route.fetch(url=url) if _over > 1 else await route.fetch()
         except Exception:
             try: await route.abort()
             except Exception: pass
@@ -1569,6 +1571,8 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
             body = await resp.body()
             if _terr and resp.status == 200:
                 body = _tileproxy.clamp_terrarium(body)   # Meerestiefen → 0 m (s. tileproxy)
+            elif _over > 1 and resp.status == 200 and ct.startswith("image/"):
+                body, ct = _tileproxy.downscale_tile(body, ct)
             if (f is not None and resp.status == 200 and len(body) < 8_000_000
                     and (ct.startswith("image/") or "protobuf" in ct or "font" in ct
                          or ct == "application/octet-stream")):
@@ -4170,7 +4174,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
         await page.set_content(html)
 
         ready = False
-        for _i in range(60):
+        for _i in range((90 if (getattr(cfg, "map_spec", None) or {}).get("kind") == "gov" else 30) * 2):   # 04.09.2026: WMS-Dienste brauchen länger
             ready = await page.evaluate("window.isReady()")
             if ready:
                 break
@@ -4492,12 +4496,16 @@ async def render_frame(
 
             check_cancel()
             ready = False
-            for _i in range(60):
+            # 04.09.2026 — WMS-Landesdienste (Satellit (kostenlos)) brauchen beim
+            # ersten Mal deutlich länger als Mapbox (PNOA-Kacheln in 4× Größe):
+            # 30 s → 90 s, sonst kam ein halb geladenes Standbild (Gelände-Kanten).
+            _ready_s = 90 if (cfg.map_spec or {}).get("kind") == "gov" else 30
+            for _i in range(_ready_s * 2):
                 ready = await page.evaluate("window.isReady()")
                 if ready: break
                 await asyncio.sleep(0.5)
             if not ready:
-                _log.warning("Standbild: Map nicht ready nach 30s — fahre fort.")
+                _log.warning("Standbild: Map nicht ready nach %ds — fahre fort.", _ready_s)
             # Auf Schild-Bilder warten (Foto-Karten), damit sie im Frame sind.
             if cfg.signs_show and cfg.signs:
                 for _i in range(40):
@@ -5163,7 +5171,7 @@ async def render(
         await page.set_content(html)
 
         ready = False
-        for _i in range(60):
+        for _i in range((90 if (getattr(cfg, "map_spec", None) or {}).get("kind") == "gov" else 30) * 2):   # 04.09.2026: WMS-Dienste brauchen länger
             ready = await page.evaluate("window.isReady()")
             if ready:
                 break
