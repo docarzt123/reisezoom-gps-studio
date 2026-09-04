@@ -685,10 +685,12 @@ input[type="color"] {
    persistiert. */
 .section-collapse-header {
   appearance: none;
-  background: transparent;
-  border: none;
-  padding: 6px 0 6px 0;
-  margin: 0 0 4px 0;
+  /* 04.09.2026 (Marc: „die Ziehharmonikas sieht man kaum") — Kopfzeile leicht
+     vom Hintergrund abgesetzt, mit Rahmen, Pfeil größer und kräftiger. */
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  padding: 7px 10px;
+  margin: 0 0 6px 0;
   cursor: pointer;
   width: 100%;
   display: flex;
@@ -706,13 +708,14 @@ input[type="color"] {
 }
 .section-collapse-header:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--text-muted);
 }
 .section-collapse-header .collapse-arrow {
-  font-size: 13px;
+  font-size: 16px;
   display: inline-block;
   transition: transform 0.18s ease;
-  opacity: 0.6;
+  opacity: 0.85;
   letter-spacing: 0;
   flex-shrink: 0;
   margin-right: 2px;
