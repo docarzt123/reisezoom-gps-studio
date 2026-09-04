@@ -6599,6 +6599,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!currentCoords || currentCoords.length < 2) return;
     if (_previewRaf && forceStart !== true) {
       // Aktuell läuft was → stoppen
+      try { if (window.__rzProbelaufBilanz) window.__rzProbelaufBilanz("Stopp"); } catch (_) {}
       cancelAnimationFrame(_previewRaf);
       _previewRaf = null;
       _previewSpeed = 1;
@@ -6930,7 +6931,21 @@ function mountAnimator(body, headerActions, opts) {
       try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + e); } catch (_) {}
       _useFaithful = false; _faithCams = null; _faithGew = null;
     }
+    // 04.09.2026 — Probelauf-Bilanz ins app.log (Marc: „ruckelt total" ist auf
+    // fremden Rechnern sonst nicht messbar): Bilder/s, längste Lücke, Kachel-Rückstand.
+    let _plN = 0, _plStart = 0, _plLast = 0, _plWorst = 0, _plPend = 0;
+    const _plBilanz = (grund) => {
+      if (_plN < 5) return;
+      const s = (performance.now() - _plStart) / 1000;
+      try { applog("info", `[probelauf] ${grund}: ${_plN} Bilder in ${s.toFixed(1)} s = ${(_plN / s).toFixed(0)} fps · längste Lücke ${Math.round(_plWorst)} ms · Kachel-Rückstand max ${_plPend} · Engine ${map && map.__rzEngine} · Fläche ${map ? map.getCanvas().width + "×" + map.getCanvas().height : "?"} · Gelände ${!!(map && map.getTerrain && map.getTerrain())}`); } catch (_) {}
+      _plN = 0;
+    };
+    window.__rzProbelaufBilanz = _plBilanz;
     const step = (now) => {
+      if (!_plN) { _plStart = now; _plLast = now; _plWorst = 0; _plPend = 0; }
+      else { const g = now - _plLast; if (g > _plWorst) _plWorst = g; _plLast = now; }
+      _plN++;
+      try { const _s = map.getSource("preview-track"); if (_s && typeof _s._pendingLoads === "number" && _s._pendingLoads > _plPend) _plPend = _s._pendingLoads; } catch (_) {}
       const elapsed = (now - _previewT0) * _previewSpeed;
       // v0.9.53: Track-Position-Trim, fixe Render-Zeit (anim + hold).
       // timelineProgress = 0..1 linear mit Zeit. tf = Position wo Anim
@@ -7196,6 +7211,7 @@ function mountAnimator(body, headerActions, opts) {
         _previewRaf = requestAnimationFrame(step);
       } else {
         _previewRaf = null;
+        _plBilanz("Ende");
         if (_tlBar) _tlBar.setPlaying(false);
         // v0.9.228 — Overlay-Boxen nach Probelauf wieder alle einblenden
         // (statische Konfig-Vorschau zeigt alle aktivierten Boxen).

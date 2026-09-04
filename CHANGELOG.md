@@ -101,6 +101,19 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Neigung über 60° kam in MapLibre-Stilen nicht an** (04.09., Prüfstand mit
+  Marcs Masca-Projekt: Keyframe 76°, Karte blieb bei 60°): MapLibres Standard
+  `maxPitch` ist 60, Mapbox erlaubt 85. Vorschau- und Render-Karte laufen jetzt
+  mit `maxPitch: 85`. Wächter in `tests/test_north_scale.py`.
+- **4K-Schnappschuss („Aktuellen Frame als Bild") eine Zoomstufe enger als die
+  Vorschau** (04.09., Standard-Projekt 3840×2160): der Schnappschuss-Zoom kommt
+  in Gerätepixeln, die Render-Seite läuft im CSS-Viewport (4K → 1920 px); der
+  Abzug von log2(dsf), den der Video-Pfad längst macht, fehlte im Standbild.
+  Gemessen: stark abweichende Pixel Vorschau↔Schnappschuss 27,5 % → 3,2 %.
+- **Probelauf-Bilanz im app.log:** nach jedem Probelauf (Ende oder Stopp) eine
+  Zeile `[probelauf] … Bilder/s · längste Lücke · Kachel-Rückstand · Engine ·
+  Fläche · Gelände` — damit „ruckelt" auf fremden Rechnern messbar wird. Marcs
+  Mac, Projekt „Standard", echte App: 59 fps über 22 s, längste Lücke 74 ms.
 - **Schilder: Filter je Frame ließ die Karte mit der Laufzeit immer träger
   werden, Schild erschien erst nach dem Stopp** (Marc, 04.09., zweite Runde):
   Die Schild-Ebene bekam in jedem Frame einen neuen Filter mit dem laufenden
