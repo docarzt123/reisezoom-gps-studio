@@ -751,10 +751,20 @@ function mountLibrary(body, headerActions) {
     renderView();
   }
 
+  // 04.09.2026 (Marc: „links steht, dass ich Projekte habe, aber es werden keine
+  // angezeigt"): Suchbegriff wirkt auf Liste UND Zähler — sonst zeigt die
+  // Seitenleiste 61 Projekte, während die Liste bei „Masca" leer bleibt.
+  function _projTrifftSuche(p, suche) {
+    if (!suche) return true;
+    return p.name.toLowerCase().includes(suche)
+      || (p.tour_namen || []).some(nm => nm.toLowerCase().includes(suche))
+      || (p.gpx_paths || []).some(pp => String(pp).split("/").pop().toLowerCase().includes(suche));
+  }
   function renderProjNav() {
     const box = document.getElementById("lib-proj-scopes");
     if (!box) return;
-    const eigene = _projekte.filter(p => !p.auto);
+    const suche = (state.search || "").trim().toLowerCase();
+    const eigene = _projekte.filter(p => !p.auto && _projTrifftSuche(p, suche));
     const n = (st) => eigene.filter(p => p.status === st).length;
     const eintraege = [
       ["alle", "🗂", T("library.projects_all", "Alle Projekte"), eigene.length],
@@ -762,7 +772,7 @@ function mountLibrary(body, headerActions) {
       ["idee", "💡", T("library.proj_st_idee", "Idee"), n("idee")],
       ["fertig", "✅", T("library.proj_st_fertig", "fertig"), n("fertig")],
       ["auto", "⚙️", T("library.proj_autos", "Automatisch angelegt"),
-       _projekte.filter(p => p.auto).length],
+       _projekte.filter(p => p.auto && _projTrifftSuche(p, suche)).length],
     ];
     box.innerHTML = eintraege.map(([k, ico, lbl, anz]) => `
       <button class="lib-nav-item${_projScope === k ? " is-on" : ""}" data-pscope="${k}" type="button">
@@ -784,9 +794,7 @@ function mountLibrary(body, headerActions) {
     const passt = (p) => (!_projFilterGh || (p.geo_hashes || []).includes(_projFilterGh))
       && (_projScope === "alle" ? true
           : _projScope === "auto" ? !!p.auto : (!p.auto && p.status === _projScope))
-      && (!suche
-          || p.name.toLowerCase().includes(suche)
-          || (p.tour_namen || []).some(nm => nm.toLowerCase().includes(suche)));
+      && _projTrifftSuche(p, suche);
     const deine = _projekte.filter(p => !p.auto && passt(p));
     const autos = _projekte.filter(p => p.auto && passt(p));
     const rang = { aktiv: 0, idee: 1, fertig: 2 };
@@ -853,12 +861,16 @@ function mountLibrary(body, headerActions) {
            <button type="button" id="lib-proj-filter-x">✕</button></div>` : "";
     const autoBlock = _projScope === "auto"
       ? `<div class="lib-proj-liste pmgr-liste">${autos.map(karte).join("")
-          || `<div class="lib-empty"><div class="lib-empty-title">${T("library.proj_leer", "Noch keine Projekte — öffne eine Tour oder starte einen Schwarm, dann entsteht hier dein Arbeitsstand.")}</div></div>`}</div>`
+          || `<div class="lib-empty"><div class="lib-empty-title">${suche
+            ? T("library.proj_keine_treffer", "Kein Projekt passt zu „{q}“ — Suchfeld leeren, um alle zu sehen.").replace("{q}", esc(state.search || ""))
+            : T("library.proj_leer", "Noch keine Projekte — öffne eine Tour oder starte einen Schwarm, dann entsteht hier dein Arbeitsstand.")}</div></div>`}</div>`
       : `${autos.length && _projScope === "alle" ? `<details class="lib-proj-autos"><summary>${T("library.proj_autos", "Automatisch angelegt")} (${autos.length})<span class="gpxi-q" data-tip="${T("library.proj_autos_tip", "Beim Öffnen einer Tour entsteht automatisch ein Arbeitsstand. Sobald du darin etwas baust oder ihn umbenennst, wandert er nach oben zu deinen Projekten.")}">?</span></summary>
         <div class="lib-proj-liste pmgr-liste">${autos.map(karte).join("")}</div></details>` : ""}`;
     box.innerHTML = `${filterChip}
       ${_projScope !== "auto" ? `<div class="lib-proj-liste pmgr-liste">${deine.map(karte).join("")
-        || `<div class="lib-empty"><div class="lib-empty-title">${T("library.proj_leer", "Noch keine Projekte — öffne eine Tour oder starte einen Schwarm, dann entsteht hier dein Arbeitsstand.")}</div></div>`}
+        || `<div class="lib-empty"><div class="lib-empty-title">${suche
+            ? T("library.proj_keine_treffer", "Kein Projekt passt zu „{q}“ — Suchfeld leeren, um alle zu sehen.").replace("{q}", esc(state.search || ""))
+            : T("library.proj_leer", "Noch keine Projekte — öffne eine Tour oder starte einen Schwarm, dann entsteht hier dein Arbeitsstand.")}</div></div>`}
       </div>` : ""}
       ${autoBlock}`;
     initHelpTips(box);

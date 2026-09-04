@@ -1810,6 +1810,7 @@
   "library.proj_geloescht": "Project deleted.",
   "library.proj_in": "This tour is used in {n} project(s) — show them",
   "library.proj_leer": "No projects yet — open a tour or start a swarm and your working state appears here.",
+  "library.proj_keine_treffer": "No project matches “{q}” — clear the search field to see all.",
   "library.proj_multi_alle": "Select all visible",
   "library.proj_multi_hinweis": "Only what is currently in the list gets selected. Automatically created working states sit in the collapsed section below — open it first.",
   "library.proj_multi_n": "projects selected",

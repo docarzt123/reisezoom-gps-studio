@@ -1810,6 +1810,7 @@
   "library.proj_geloescht": "Proyecto borrado.",
   "library.proj_in": "Esta ruta se usa en {n} proyecto(s) — verlos",
   "library.proj_leer": "Aún no hay proyectos: abre una ruta o inicia un enjambre y aquí aparecerá tu estado de trabajo.",
+  "library.proj_keine_treffer": "Ningún proyecto coincide con «{q}»: vacía el campo de búsqueda para ver todos.",
   "library.proj_multi_alle": "Seleccionar todos los visibles",
   "library.proj_multi_hinweis": "Solo se selecciona lo que está ahora en la lista. Los estados de trabajo creados automáticamente están en la sección plegada de abajo: ábrela primero.",
   "library.proj_multi_n": "proyectos seleccionados",
