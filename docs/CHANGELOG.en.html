@@ -116,9 +116,33 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.653</span>
+    <span class="version-date">4 September 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <p class="version-tagline">One beta day: smooth preview, camera hits its keyframes, WYSIWYG everywhere — plus north arrow and scale bar.</p>
+  <ul>
+    <li><strong>North arrow and scale bar</strong> as overlays in Animator, Route, Tour Map and Web map — on by default, switchable, any corner. The arrow turns with the camera, the bar follows the zoom.</li>
+    <li><strong>Smooth preview run</strong> — the scale bar read back the GPU under MapLibre terrain and the signs made the map rebuild every frame; both got worse the longer the run went. Now a steady 60 fps, and signs appear during the run.</li>
+    <li><strong>Camera lands where the keyframe says</strong> — with terrain, the camera looked at the start point’s elevation instead of the terrain at the target (up to 2.8 km off, preview and video). Pitch above 60° never arrived in free styles. Both fixed.</li>
+    <li><strong>Video = preview</strong> — zoom base, label size and the 4K snapshot now match the preview; ghost tracks in the video at preview width, signs back in the video.</li>
+    <li><strong>Starfield behind the globe</strong> for all free styles.</li>
+    <li><strong>Clear notices on the map</strong> — “no aerial imagery for this area”, “known gap (Hamburg)”, “map service not responding”, DE/EN/ES.</li>
+    <li><strong>Imagery look</strong> — saturation, contrast, brightness, hue for the official aerial imagery.</li>
+    <li><strong>“Show on map” works everywhere</strong> — places, roads, POIs, transit, borders now also on Satellite (free), OpenFreeMap and MapTiler.</li>
+    <li><strong>Smooth camera (3D) in every map style</strong>, no longer Mapbox only.</li>
+    <li><strong>Your own defaults keep every design slider</strong> — and the keyframe editor state is no longer part of them.</li>
+    <li><strong>Swarm from the archive</strong> starts without foreign keyframes; projects open from the archive again, even after a detour through it.</li>
+    <li><strong>Default map style from Settings</strong> now applies at start and to new projects.</li>
+    <li><strong>Archive: drag column widths</strong>, remembered. Modules start tidy and remember open sections. Tile cache keeps 90 days.</li>
+    <li><strong>Scrubber reacts instantly</strong> when dragged fast; trim flags and scrubber no longer overlap.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.652</span>
     <span class="version-date">3 September 2026</span>
-    <span class="version-badge">Latest</span>
   </div>
   <p class="version-tagline">Three reports from the beta test.</p>
   <ul>

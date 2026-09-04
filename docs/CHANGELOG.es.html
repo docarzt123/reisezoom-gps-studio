@@ -116,9 +116,33 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.653</span>
+    <span class="version-date">4 de septiembre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">Un día de beta: vista previa fluida, la cámara acierta los keyframes, WYSIWYG en todas partes — y flecha del norte y escala.</p>
+  <ul>
+    <li><strong>Flecha del norte y escala</strong> como overlays en Animator, Ruta, Tour Map y Mapa web — activadas por defecto, desactivables, en cualquier esquina. La flecha gira con la cámara, la escala sigue el zoom.</li>
+    <li><strong>Vista previa fluida</strong> — la escala leía la GPU bajo el terreno de MapLibre y los carteles hacían reconstruir el mapa en cada fotograma; ambos empeoraban con el tiempo. Ahora 60 fps constantes y el cartel aparece durante el recorrido.</li>
+    <li><strong>La cámara llega donde dice el keyframe</strong> — con terreno miraba a la altura del punto de partida y no al terreno de destino (hasta 2,8 km de desvío, vista previa y vídeo). Las inclinaciones por encima de 60° nunca llegaban en los estilos gratuitos. Ambos corregidos.</li>
+    <li><strong>Vídeo = vista previa</strong> — base de zoom, tamaño de etiquetas e instantánea 4K coinciden con la vista previa; las rutas fantasma con el grosor de la vista previa, los carteles vuelven al vídeo.</li>
+    <li><strong>Cielo estrellado tras el globo</strong> en todos los estilos gratuitos.</li>
+    <li><strong>Avisos claros en el mapa</strong> — «sin ortofotos para esta zona», «hueco conocido (Hamburgo)», «el servicio de mapas no responde», DE/EN/ES.</li>
+    <li><strong>Aspecto de la ortofoto</strong> — saturación, contraste, brillo y tono para las ortofotos oficiales.</li>
+    <li><strong>«Mostrar en el mapa» funciona en todas partes</strong> — lugares, carreteras, POI, transporte y fronteras también en Satélite (gratis), OpenFreeMap y MapTiler.</li>
+    <li><strong>Cámara suave (3D) en todos los estilos</strong>, ya no solo con Mapbox.</li>
+    <li><strong>Tus valores predeterminados guardan todos los controles de diseño</strong> — y el estado del editor de keyframes ya no forma parte de ellos.</li>
+    <li><strong>Enjambre desde el archivo</strong> arranca sin keyframes ajenos; los proyectos vuelven a abrirse desde el archivo, incluso tras un rodeo por él.</li>
+    <li><strong>Estilo de mapa predeterminado de los ajustes</strong> se aplica ahora al inicio y a los proyectos nuevos.</li>
+    <li><strong>Archivo: anchos de columna arrastrables</strong>, se recuerdan. Los módulos arrancan ordenados y recuerdan las secciones abiertas. La caché de teselas guarda 90 días.</li>
+    <li><strong>El scrubber reacciona al instante</strong> al arrastrar rápido; las banderas de recorte y el scrubber ya no se solapan.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.652</span>
     <span class="version-date">3 de septiembre de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">Tres avisos de la beta.</p>
   <ul>

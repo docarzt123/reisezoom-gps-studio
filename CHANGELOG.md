@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.653] – 2026-09-04
+
 #### Hinzugefügt
 - **Nordpfeil + Maßstab** (Beta-Tester, 04.09.: „Jeder Geo-Mensch wäre
   spätestens hier sehr überrascht. Nordpfeil und Maßstab dürfen einfach nicht
@@ -101,6 +103,12 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Späte Sitzungs-Neuaktivierung überschrieb frische Eingaben**: Der
+  Animator aktivierte die Sitzung der geladenen Datei beim Kartenaufbau ein
+  zweites Mal (Sekunden nach dem Laden); die Antwort ersetzte den lokalen
+  Projekt-Stand samt allem, was inzwischen verstellt war. Ist die Sitzung für
+  genau diese Datei schon aktiv, wird jetzt nur der Stand angewendet, nicht
+  erneut angefragt. Aufgefallen im Pace-Prüfstand („echtes Tempo" sprang zurück).
 - **Video ohne Schilder, Ghost-Spuren hauchdünn** (Marc, 04.09. spätabends,
   Projekt „Standard" 4K): (1) Der neue Schild-Filter (nur bei Änderung setzen)
   filterte auf `signIdx`, das nur die Vorschau-Features tragen — die
