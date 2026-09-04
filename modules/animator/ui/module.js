@@ -76,6 +76,12 @@ function mountAnimator(body, headerActions, opts) {
   // "signs" (Back-Compat zu bestehenden Projekten); Reiseroute bekommt eigene
   // "reiseroute_signs". Sonst würde Reiseroute die Animator-Schilder zeigen.
   const _SIGNS_KEY = (_MODKEY === "animator") ? "signs" : (_MODKEY + "_signs");
+  // Namen kommen aus fremden Dateien — vor dem Einsetzen in HTML entschärfen.
+  // 04.09.2026: nach OBEN gezogen — stand nach dem Ghost-Aufbau beim Öffnen und
+  // warf dort „Cannot access 'esc' before initialization" (Marcs app.log 19:37),
+  // sobald ein Projekt Ghost-Spuren hatte: die Liste blieb leer.
+  const esc = (x) => String(x ?? "").replace(/[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   // v0.8.2: Stats-Pills hier raus — die GPX-Bar links im Modul-Header
   // zeigt schon Distanz/Zeit/Aufstieg/Abstieg. Wir lassen die Stats-
   // Elemente aber als hidden Stubs im DOM stehen damit der bestehende
@@ -2744,9 +2750,6 @@ function mountAnimator(body, headerActions, opts) {
     return ids;
   }
 
-  // Namen kommen aus fremden Dateien — vor dem Einsetzen in HTML entschärfen.
-  const esc = (x) => String(x ?? "").replace(/[&<>"]/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   function _ghostListeZeichnen() {
     const box = document.getElementById("ghosts-list");

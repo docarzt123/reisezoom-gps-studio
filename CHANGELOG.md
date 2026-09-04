@@ -101,6 +101,10 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Ghost-Spuren beim Öffnen: „Cannot access 'esc' before initialization"**
+  (Marcs app.log, 04.09. 19:37): der HTML-Entschärfer `esc` stand im Modul
+  hinter dem Ghost-Aufbau, der beim Öffnen läuft — sobald ein Projekt
+  Ghost-Spuren hatte, brach die Liste ab. Nach oben gezogen.
 - **Beschriftungen in der Vorschau 2–3× so groß wie im Video** (Marc, 04.09.:
   „wir wollen überall WYSIWYG"): Ortsnamen, Straßennamen, Schilder und POI-Icons
   sind Symbol-Ebenen mit Größen in CSS-Pixeln; der Render malt sie auf einem
