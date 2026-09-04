@@ -1679,10 +1679,25 @@ class Api:
             # leere Anfangswerte), aber NIEMALS als globaler Default taugen —
             # sonst bekäme jeder neue Track z.B. die Keyframes/Trim/Foto-Pfade
             # vom Track, auf dem „Speichern" geklickt wurde.
+            # 04.09.2026 (Beta-Tester: „algunas configuraciones las carga y otras
+            # no"): Bisher wurden NUR Schlüssel übernommen, die in DEFAULT_SETTINGS
+            # stehen — 38 Regler des Animators (Linienstil, Glow, Schatten, Ebenen-
+            # Schalter, Beleuchtung, Ghost-Optik, Farbmodi, …) fielen still weg.
+            # Jetzt umgekehrt: ALLES Gestalterische kommt mit, nur Trackspezifisches
+            # (Keyframes, Schnitt, Etappen, Fotos, Schilder, Kamera-Festwerte) bleibt
+            # draußen. Neue Schlüssel landen über _session_get_global_defaults
+            # (update) genauso in neuen Projekten.
             blacklist = {
-                "animator": {"timeline_events", "render_start_anchor",
-                             "render_end_anchor", "timeline_anchor_v", "last_save_dir"},
-                "geotagger": {"last_photos_dir", "last_photos_paths"},
+                "animator": {"timeline_events", "render_start_anchor", "render_end_anchor",
+                             "timeline_anchor_v", "timeline_schema_v", "timeline_dedupe_v",
+                             "last_save_dir", "extra_tours", "ghosts", "ghost_gpx_path",
+                             "signs", "photos", "static_zoom", "static_bearing", "static_padding",
+                             "static_pins", "trim_start", "trim_end",
+                             "open_sections", "collapsed_sections"},
+                "tourmap": {"static_zoom", "static_bearing", "static_padding", "static_pins",
+                            "signs", "photos", "last_save_dir", "open_sections", "collapsed_sections"},
+                "geotagger": {"last_photos_dir", "last_photos_paths", "open_sections", "collapsed_sections"},
+                "heightanim": {"last_save_dir", "open_sections", "collapsed_sections"},
             }
             ud = {}
             for mod, defaults in DEFAULT_SETTINGS.items():
@@ -1692,8 +1707,9 @@ class Api:
                 if not isinstance(src_mod, dict):
                     continue
                 bl = blacklist.get(mod, set())
-                picked = {k: src_mod[k] for k in defaults.keys()
-                          if k in src_mod and k not in bl}
+                picked = {k: v for k, v in src_mod.items()
+                          if k not in bl and not k.startswith("_")
+                          and isinstance(v, (str, int, float, bool, list, dict, type(None)))}
                 if picked:
                     ud[mod] = picked
             with _SETTINGS_LOCK:

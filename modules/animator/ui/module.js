@@ -13111,29 +13111,34 @@ function mountAnimator(body, headerActions, opts) {
     if (!currentCoords || currentCoords.length < 2) return;
     const cumH = _cumDistFuer(_swHauptCum, currentCoords);
     const totalH = cumH[cumH.length - 1] || 0;
-    let d = totalH;
-    if (!vollesBild) {
-      const i0 = Math.max(0, Math.min(cumH.length - 1, Math.floor(coordFrac)));
-      const i1 = Math.min(cumH.length - 1, i0 + 1);
-      const f = Math.max(0, Math.min(1, coordFrac - i0));
-      d = cumH[i0] + (cumH[i1] - cumH[i0]) * f;
-    }
+    // Position der Punkte IMMER aus der Scrubber-Stelle (coordFrac); `vollesBild`
+    // betrifft nur die Linien. 04.09.2026 (Beta-Tester, 3-GPX-Schwarm): Beim
+    // Laden stand der Haupt-Punkt am Start, die Punkte der anderen Touren aber
+    // am ENDE — weil „ganzer Track" hier auch die Punkte ans Ende schob.
+    const i0 = Math.max(0, Math.min(cumH.length - 1, Math.floor(coordFrac)));
+    const i1 = Math.min(cumH.length - 1, i0 + 1);
+    const f = Math.max(0, Math.min(1, coordFrac - i0));
+    const dPunkt = cumH[i0] + (cumH[i1] - cumH[i0]) * f;
+    const dLinie = vollesBild ? totalH : dPunkt;
     // M3 — WYSIWYG zu swarmIdx (core/animator.py): 'ziel' skaliert auf den
     // Video-Fortschritt, 'uhrzeit' läuft über die gemeinsame Zeitachse,
     // 'gleich' über die zurückgelegte Distanz des Haupt-Tracks.
-    const frac = totalH > 0 ? Math.max(0, Math.min(1, d / totalH)) : 1;
+    const fracP = totalH > 0 ? Math.max(0, Math.min(1, dPunkt / totalH)) : 1;
+    const fracL = totalH > 0 ? Math.max(0, Math.min(1, dLinie / totalH)) : 1;
     const linien = [], punkte = [];
     for (const t of _swPrev) {
-      let k = _swIdxVerzoegert(t.coords.length - 1, t.zeit, t.cum,
-                               _swStartAnteil(t), frac, d, totalH);
-      k = Math.max(0, Math.min(t.coords.length - 1, k));
+      const n1 = t.coords.length - 1;
+      let kP = _swIdxVerzoegert(n1, t.zeit, t.cum, _swStartAnteil(t), fracP, dPunkt, totalH);
+      kP = Math.max(0, Math.min(n1, kP));
+      let kL = vollesBild ? _swIdxVerzoegert(n1, t.zeit, t.cum, _swStartAnteil(t), fracL, dLinie, totalH) : kP;
+      kL = Math.max(0, Math.min(n1, kL));
       linien.push({ type: "Feature", properties: { color: t.color },
         geometry: { type: "LineString",
-          coordinates: k >= 1 ? t.coords.slice(0, k + 1) : [t.coords[0], t.coords[0]] } });
+          coordinates: kL >= 1 ? t.coords.slice(0, kL + 1) : [t.coords[0], t.coords[0]] } });
       punkte.push({ type: "Feature",
         properties: { color: t.color, icon: "sw-prev-arrow-" + _swPrev.indexOf(t),
-                      brg: _swArrowAktiv() ? _kursAn(t.coords, k) : 0 },
-        geometry: { type: "Point", coordinates: t.coords[k] } });
+                      brg: _swArrowAktiv() ? _kursAn(t.coords, kP) : 0 },
+        geometry: { type: "Point", coordinates: t.coords[kP] } });
     }
     try {
       map.getSource("swarm-prev-lines").setData({ type: "FeatureCollection", features: linien });
