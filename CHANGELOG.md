@@ -101,6 +101,14 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Eck-Positionen ohne Übersetzung** (Marc, 04.09.: „da stimmt was mit der
+  Übersetzung nicht"): die Auswahl „oben links/rechts, unten links/rechts" zeigte
+  in allen Overlay-Boxen rohe Schlüssel — die vier Schlüssel fehlten in
+  DE/EN/ES (der i18n-Wächter lässt `animator.pos.` als dynamischen Präfix durch).
+- **Quellen-Nennung in der Vorschau zu groß** (Marc, 04.09.): die Attribution
+  der Karte wird jetzt mit dem Vorschau-Maßstab verkleinert (`--rz-prev-k`),
+  wie im gerenderten Video — vorher deckte sie in kleinen Vorschauen den
+  Maßstab und die unteren Boxen ab.
 - **„Auf der Karte anzeigen" greift jetzt auch auf den MapTiler-Stilen**
   (Beta-Tester, 04.09.: „die Schalter funktionieren nicht so richtig"):
   MapTiler benennt seine Ebenen in Klartext („City labels", „Sport",
