@@ -533,11 +533,11 @@ function createMap(opts) {
     mapboxgl.accessToken = token;
     lib = mapboxgl;
     // v0.9.246/274: maxZoom 18 — sonst zoomt man ins Daten-Nichts (schwarz).
-    map = new mapboxgl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 18, fadeDuration: 0 }, opts.common || {}));   // fadeDuration 0: Symbol-Ebenen (Pfeil) folgen sofort statt 300 ms Überblendung (04.09.2026)
+    map = new mapboxgl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 18, maxPitch: 85, fadeDuration: 0 }, opts.common || {}));   // maxPitch 85: MapLibre-Standard ist 60 → Keyframes mit 76° wurden geklemmt (04.09.2026)   // fadeDuration 0: Symbol-Ebenen (Pfeil) folgen sofort statt 300 ms Überblendung (04.09.2026)
   } else {
     _mapMode = "osm";
     lib = maplibregl;
-    map = new maplibregl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 20, fadeDuration: 0 }, opts.common || {}));   // fadeDuration 0: Symbol-Ebenen (Pfeil) folgen sofort statt 300 ms Überblendung (04.09.2026)
+    map = new maplibregl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 20, maxPitch: 85, fadeDuration: 0 }, opts.common || {}));   // maxPitch 85: MapLibre-Standard ist 60 → Keyframes mit 76° wurden geklemmt (04.09.2026)   // fadeDuration 0: Symbol-Ebenen (Pfeil) folgen sofort statt 300 ms Überblendung (04.09.2026)
   }
   map.__rzEngine = spec.engine;
   // 04.09.2026 (Beta-Tester: „CyclOSM bleibt schwarz") — antwortet ein

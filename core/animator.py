@@ -2395,7 +2395,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     _extra_attr = str(_spec.get("attribution") or "").replace("'", "\\'")
     common_opts = (
         "  preserveDrawingBuffer:true, antialias:true, fadeDuration:0,\n"
-        "  prefetchZoomDelta:6, attributionControl:false\n"
+        "  prefetchZoomDelta:6, attributionControl:false, maxPitch:85\n"   # maxPitch: MapLibre-Standard 60 klemmte Keyframes (04.09.2026)
     )
     attribution_init = (
         "map.addControl(new mapboxgl.AttributionControl({compact:false"
@@ -4635,7 +4635,14 @@ async def render_frame(
             if _snap_cam and len(_snap_cam) == 2:
                 center = [float(_snap_cam[0]), float(_snap_cam[1])]
                 if getattr(cfg, "snapshot_zoom", None) is not None:
-                    zoom = float(cfg.snapshot_zoom)
+                    # 04.09.2026 (Marc: „das ist doch nicht WYSIWYG", 4K-Projekt): der
+                    # Schnappschuss-Zoom kommt aus correctedZoom(map, W, H) in GERÄTE-
+                    # Pixeln; die Render-Seite läuft im CSS-Viewport W/dsf (4K → dsf 2 =
+                    # 1920 px). Ohne Abzug von log2(dsf) war der Schnappschuss bei 4K eine
+                    # ganze Zoomstufe enger als die Vorschau (bei 1920 passte es, dsf 1).
+                    # Der Video-Pfad zieht dieselbe Korrektur ab (abs_shift).
+                    _snap_dsf = _render_dsf(cfg.width, cfg.height)
+                    zoom = float(cfg.snapshot_zoom) - (math.log2(_snap_dsf) if _snap_dsf > 0 else 0.0)
             _snap_bearing = float(cfg.snapshot_bearing) if getattr(cfg, "snapshot_bearing", None) is not None else float(cfg.bearing)
             _snap_pitch = float(cfg.snapshot_pitch) if getattr(cfg, "snapshot_pitch", None) is not None else float(cfg.pitch)
             # Marker-Position: snapshot_anchor gesetzt → Teil-Track + laufender Punkt
