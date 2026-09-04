@@ -348,7 +348,7 @@ Spanien mit Kanaren, Portugal, Italien, Tschechien, Polen, Estland, Japan und
 die USA. Welche Quelle gerade greift, steht unter dem Stil-Feld
 („Luftbild: Brandenburg"). Liegt der Track außerhalb, weicht die App still auf
 die OpenFreeMap-Karte mit 3D-Gelände aus — und sagt es dir an derselben Stelle.
-Die Schalter unter **„Auf der Karte anzeigen"** (Orte, Straßen, POIs, ÖPNV, Grenzen) funktionieren auch hier: Über den Luftbildern liegen die Beschriftungs-Ebenen von OpenFreeMap (OpenStreetMap-Daten, kostenlos, ohne Schlüssel), in Vorschau und Video gleich. Nicht in den Web-Karten-Exporten. Sind die Luftbilder flau, hebt der Regler **„Luftbild-Farbkraft"** (Werk 30 %) Sättigung und Kontrast an — in Vorschau, Video und Web-Karte gleich.
+Die Schalter unter **„Auf der Karte anzeigen"** (Orte, Straßen, POIs, ÖPNV, Grenzen) funktionieren auch hier: Über den Luftbildern liegen die Beschriftungs-Ebenen von OpenFreeMap (OpenStreetMap-Daten, kostenlos, ohne Schlüssel), in Vorschau und Video gleich. Nicht in den Web-Karten-Exporten. Sind die Luftbilder flau, hilft die Gruppe **„Luftbild-Optik"**: Sättigung, Kontrast, Helligkeit und Farbton (Werk 25/8/0/0, „Standard" setzt zurück) — nur auf die Luftbilder, in Vorschau, Video und Web-Karte gleich.
 
 **3D-Gelände** gibt es jetzt mit jeder Quelle: Mapbox-Stile nutzen das
 Mapbox-Gelände, MapTiler-Stile das von MapTiler, alle kostenlosen Stile das

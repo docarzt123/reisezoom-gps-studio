@@ -147,7 +147,7 @@ def make_leaflet_html(params: dict) -> str:
                  **({"wms": tile["wms"]} if tile.get("wms") else {}),
                  **({"tms": True} if tile.get("tms") else {}),
                  **({"stack": tile["stack"]} if tile.get("stack") else {}),
-                 **({"adjust": float(tile["adjust"])} if tile.get("adjust") else {})},
+                 **({"adjust": dict(tile["adjust"])} if isinstance(tile.get("adjust"), dict) else {})},
     }
     D = json.dumps(data, ensure_ascii=False)
 
@@ -239,16 +239,17 @@ function pinIcon(color){ return L.divIcon({ className:'rz-pin',
     // erst ab z7 (darunter liefern manche Dienste Rausch-Muster) — der Blue-
     // Marble-Untergrund (t.base) füllt Meer und Ferne.
     var o = { maxZoom:22, maxNativeZoom:t.max, minZoom:(t.min||0), attribution:attr };
-    if (!t.base && D.tile.adjust > 0) o.className = 'rz-ortho';   // Farbkraft (s. Style-Block unten)
+    if (!t.base && D.tile.adjust) o.className = 'rz-ortho';   // Luftbild-Optik (s. Style-Block unten)
     return t.wms
       ? L.tileLayer.wms(t.wms.base, Object.assign(o, { layers:t.wms.layers, format:(t.wms.format||'image/jpeg'),
           version:'1.3.0', transparent:!!t.wms.transparent }))
       : L.tileLayer(t.url, Object.assign(o, { subdomains:(t.sub||''), tms:!!t.tms }));
   }
   // Stapel (mehrere Bundesländer, unten → oben): nur die oberste trägt die Nennung
-  if (D.tile.adjust > 0) {   // 04.09.2026 — Orthofotos sind oft flau: Sättigung/Kontrast wie in der App
-    var v = Math.max(0, Math.min(100, D.tile.adjust)) / 100, st = document.createElement('style');
-    st.textContent = '.rz-ortho{filter:saturate(' + (1 + v * 0.8).toFixed(2) + ') contrast(' + (1 + v * 0.25).toFixed(2) + ')}';
+  if (D.tile.adjust) {   // 04.09.2026 — Luftbild-Optik wie in der App (Sättigung/Kontrast/Helligkeit/Farbton)
+    var A = D.tile.adjust, st = document.createElement('style');
+    st.textContent = '.rz-ortho{filter:saturate(' + (1 + (A.sat||0) / 100).toFixed(2) + ') contrast(' + (1 + (A.con||0) / 100).toFixed(2)
+      + ') brightness(' + (1 + (A.bri||0) / 100 * 0.5).toFixed(2) + ') hue-rotate(' + (A.hue||0).toFixed(0) + 'deg)}';
     document.head.appendChild(st);
   }
   if (D.tile.stack && D.tile.stack.length) {
