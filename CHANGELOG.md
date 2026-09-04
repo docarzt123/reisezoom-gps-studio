@@ -143,6 +143,9 @@ Bei jeder neuen Version:
   `ui/vendor/maplibre-gl.js` (Marker `rz-patch children4`), Wächter
   `tests/test_vendor_patches.py` damit ein Vendor-Update den Patch nicht still
   verliert. Der Fehler war nicht fatal, zeigte aber den Fehlerdialog.
+  Nachtrag (17:10, „this._tiles[e].clearFadeHold"): Folgefehler desselben
+  Zweigs — nach dem ersten Guard blieb ein Eintrag in der Behalten-Liste ohne
+  Kachel übrig; zweiter Guard (`rz-patch fadehold`), Eintrag wird verworfen.
 - **Track und Laufpunkt hinken dem Scrubber hinterher und laufen nach Stopp
   weiter** (Marc, 04.09., Masca-Projekt mit Gelände): jede Positionsänderung
   von Linie, Laufpunkt und Schwarm ging als eigener Auftrag an den
