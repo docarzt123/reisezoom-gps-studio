@@ -101,6 +101,17 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Video 1,7× weiter als die Vorschau** (Marc, 04.09., Schorfheide-Projekt,
+  „das ist doch nicht WYSIWYG"): Die Zoom-Basis der Vorschau (Bezug der
+  impliziten Zoom-Keyframes und damit des Renders) wurde am NÄCHSTEN
+  `moveend` abgelesen — das kam oft nicht vom 600-ms-Fit, sondern von einem
+  dazwischen laufenden Scrub/Sitz, also mitten in der Fahrt (Marcs Log:
+  Basis 9,90, Karte danach bei 10,70 = 0,8 Zoomstufen, das Video entsprechend
+  weiter). Die Basis wird jetzt direkt aus denselben Grenzen berechnet
+  (`cameraForBounds`, gleiche Polster und Neigung wie das Fit) und ist damit
+  identisch mit dem, was die Vorschau zeigt. Kopflos: Basis 10,527 =
+  Karten-Zoom 10,527 (alter Weg hätte 10,613 geliefert); Vorschau und
+  „Aktuellen Frame als Bild" decken sich.
 - **Projekt lässt sich aus dem Archiv nicht mehr öffnen** (Marc, 04.09.:
   „jetzt geht mein Masca-Projekt nicht mehr auf"; Log: nur `loadGlobalGpx`,
   nie ein Modulwechsel): Seit 02.09. merkt sich jeder Modulwechsel das Modul
