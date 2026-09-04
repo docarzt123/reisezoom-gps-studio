@@ -495,7 +495,12 @@
     if (map.__rzSignVisKey !== visKey || map.__rzSignLastLyr !== lyr) {
       map.__rzSignVisKey = visKey; map.__rzSignLastLyr = lyr; map.__rzSignLastM = Mq;
       try {
-        map.setFilter(lyr, vis.length ? ["in", ["get", "signIdx"], ["literal", vis]] : ["==", ["get", "signIdx"], -1]);
+        // Vorschau-Features tragen `signIdx`, die Render-Features (core/animator.py)
+        // nur die Feature-`id` — beide sind der Index. (04.09.2026 abends, Marc:
+        // „nach dem Rendern fehlen die Schilder": der erste Wurf filterte nur
+        // auf `signIdx` → im Video kein einziges Schild.)
+        const _key = ["coalesce", ["get", "signIdx"], ["id"]];
+        map.setFilter(lyr, vis.length ? ["in", _key, ["literal", vis]] : ["==", _key, -1]);
       } catch (_) {}
     }
     if (!Array.isArray(metas)) return;
