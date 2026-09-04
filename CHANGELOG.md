@@ -101,6 +101,17 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Schwarm aus dem Archiv startet mit offenem Keyframe-Editor und den
+  Keyframes des vorherigen Projekts** (Marc, 04.09.): zwei Ursachen. (1) Ein
+  Projekt ohne eigene Keyframes fiel auf den globalen Zwischenspeicher zurück,
+  in den jede Keyframe-Änderung auch bei aktiver Sitzung geschrieben wurde —
+  das neue Projekt zeigte die Keyframes des alten. Jetzt: aktives Projekt ohne
+  Keyframes = keine Keyframes; der Zwischenspeicher wird nur ohne Sitzung
+  beschrieben. (2) Die eigenen Standardwerte hatten `keyframes_enabled: true`
+  mitgespeichert (Marc hatte sie mit offenem Editor gesichert) → jedes neue
+  Projekt öffnete den Editor. Der Editor-Zustand und Keyframes werden aus den
+  Standardwerten weder gespeichert noch übernommen (auch bei bereits
+  gespeicherten). Wächter `tests/test_user_defaults_keyframes.py`.
 - **Anflug zwischen zwei Keyframes hängt vom Startpunkt des Probelaufs ab**
   (Marc, 04.09., Masca: „von ganz vorne landet der Zoom an der falschen Stelle,
   aus der Mitte des Intros passt es"): Der MapLibre-Kamera-Adapter las beim

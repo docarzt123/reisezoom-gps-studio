@@ -1654,9 +1654,13 @@ class Api:
                 with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
                     raw = json.load(fh)
             ud = raw.get("user_defaults") or {}
+            # 04.09.2026 — Editor-Zustand und Keyframes nie aus alten Standardwerten
+            # übernehmen (Marc: „neues Projekt, Keyframe-Editor offen"). Ältere
+            # gespeicherte Standardwerte können `keyframes_enabled: true` tragen.
+            _nie = {"keyframes_enabled", "timeline_events"}
             for mod, vals in ud.items():
                 if mod in base and isinstance(base[mod], dict) and isinstance(vals, dict):
-                    base[mod].update(vals)
+                    base[mod].update({k: v for k, v in vals.items() if k not in _nie})
         except Exception:
             pass  # Defekte Defaults → still auf Werk zurückfallen
         return base
@@ -1692,7 +1696,8 @@ class Api:
             # draußen. Neue Schlüssel landen über _session_get_global_defaults
             # (update) genauso in neuen Projekten.
             blacklist = {
-                "animator": {"timeline_events", "render_start_anchor", "render_end_anchor",
+                "animator": {"timeline_events", "keyframes_enabled",   # 04.09.2026: Editor-Zustand ist kein „Look"
+                             "render_start_anchor", "render_end_anchor",
                              "timeline_anchor_v", "timeline_schema_v", "timeline_dedupe_v",
                              "last_save_dir", "extra_tours", "ghosts", "ghost_gpx_path",
                              "signs", "photos", "static_zoom", "static_bearing", "static_padding",

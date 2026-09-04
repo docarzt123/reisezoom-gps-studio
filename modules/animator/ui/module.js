@@ -4495,6 +4495,11 @@ function mountAnimator(body, headerActions, opts) {
       if (proj && proj[_MODKEY] && Array.isArray(proj[_MODKEY].timeline_events)) {
         return proj[_MODKEY].timeline_events;
       }
+      // 04.09.2026 (Marc: Schwarm aus dem Archiv → „Keyframes vom vorherigen
+      // Projekt"): Ein aktives Projekt OHNE eigene Keyframes hat KEINE — der
+      // globale Zwischenspeicher trägt sonst die des zuletzt bearbeiteten
+      // Projekts hinein (setTimelineEvents schrieb ihn immer mit).
+      if (proj) return [];
     }
     return _settingsCache?.[_MODKEY]?.timeline_events || [];
   }
@@ -4570,9 +4575,11 @@ function mountAnimator(body, headerActions, opts) {
   function setTimelineEvents(events) {
     if (!_settingsCache) return;
     _settingsCache[_MODKEY] = _settingsCache[_MODKEY] || {};
-    _settingsCache[_MODKEY].timeline_events = events;
     // v0.8.0: Wenn eine Session aktiv ist, speichern wir das im Projekt
     // (track-gebunden). Sonst in der globalen settings.json als Fallback.
+    // 04.09.2026 — der globale Zwischenspeicher bekommt die Keyframes NUR ohne
+    // Sitzung (sonst wanderten sie ins nächste Projekt, s. getRawTimelineEvents).
+    if (!(typeof getActiveSession === "function" && getActiveSession())) _settingsCache[_MODKEY].timeline_events = events;
     if (typeof saveProjectSettings === "function" && typeof getActiveSession === "function" && getActiveSession()) {
       saveProjectSettings(_MODKEY, { timeline_events: events });
       // Lokalen Projekt-Cache aktualisieren damit getTimelineEvents() den
