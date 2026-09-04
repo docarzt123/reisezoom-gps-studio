@@ -115,6 +115,8 @@
   "animator.field.colors_source": "Colour by",
   "animator.field.duration": "Animation (s)",
   "animator.field.exaggeration": "Terrain exaggeration",
+  "animator.field.map_saturation": "Imagery vibrance",
+  "animator.field.map_saturation_tip": "Raise saturation and contrast of the official aerial imagery — it is often dull. Same in preview, video and web map.",
   "animator.field.fly_duration": "Cinematic flight duration",
   "animator.field.follow_height": "Hold camera height",
   "animator.field.follow_height_tip": "Stops the camera from bobbing up and down over mountainous terrain. 0 = camera follows the ground, 100 = fixed cruising height (stays level no matter the terrain).",

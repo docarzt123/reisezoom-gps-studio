@@ -15,6 +15,12 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 #### Hinzugefügt
+- **Regler „Luftbild-Farbkraft"** (Marc, 04.09.: „Satellit (kostenlos) in
+  Brandenburg sieht halb tot aus"): 0–100 %, Werk 30 %, nur bei den amtlichen
+  Orthofotos sichtbar. Hebt Sättigung und Kontrast der Luftbild-Ebenen (nicht
+  des Blue-Marble-Untergrunds) — live in der Vorschau, im Video
+  (`map_saturation`, raster-saturation/-contrast) und in den Web-Karten-Exporten
+  (CSS-Filter). Je Track im Projekt gespeichert.
 - **„Auf der Karte anzeigen" (Orte · Straßen · POIs · ÖPNV · Grenzen) auch bei
   „Satellit (kostenlos)"** (Marc, 04.09.: „funktioniert bei Free Satellite
   nicht"): Rasterkarten haben keine schaltbaren Ebenen. Über den Orthofotos

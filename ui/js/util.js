@@ -217,7 +217,26 @@ function _stackAttribution(stack) {
   stack.forEach((r, i) => { let a = r.attribution || ""; if (i && a.startsWith("Luftbild: ")) a = a.slice(10); if (a && !out.includes(a)) out.push(a); });
   return out.join(" | ");
 }
-function _stackStyle(stack) {
+/** Farbkraft der Orthofotos (Spiegel von mapstyles.raster_adjust_paint). */
+function rzRasterAdjustPaint(pct) {
+  const v = Math.max(0, Math.min(100, +pct || 0)) / 100;
+  return v > 0 ? { "raster-saturation": +(v * 0.8).toFixed(3), "raster-contrast": +(v * 0.25).toFixed(3) } : {};
+}
+/** Live auf die Orthofoto-Ebenen (rz-raster-*) anwenden — Untergrund bleibt. */
+function rzApplyRasterAdjust(map, pct) {
+  if (!map || !map.getStyle) return;
+  const paint = rzRasterAdjustPaint(pct);
+  try {
+    for (const l of (map.getStyle().layers || [])) {
+      if (l.type !== "raster" || !l.id.startsWith("rz-raster")) continue;
+      map.setPaintProperty(l.id, "raster-saturation", paint["raster-saturation"] || 0);
+      map.setPaintProperty(l.id, "raster-contrast", paint["raster-contrast"] || 0);
+    }
+  } catch (_) {}
+}
+window.rzApplyRasterAdjust = rzApplyRasterAdjust;
+
+function _stackStyle(stack, rasterPct) {
   const transparent = true;   // 04.09.2026: auch einzeln als PNG mit Alpha, sonst weiß außerhalb der Grenze (synchron zu mapstyles.stack_style)
   const sources = {}, layers = [];
   const proxy = (mapCatalog().proxy_base || "").replace(/\/$/, "");
@@ -235,7 +254,11 @@ function _stackStyle(stack) {
                         : (transparent ? (r.tiles_transparent || r.tiles) : r.tiles);
     const src = { type: "raster", tiles, tileSize: 256, minzoom: r.minzoom || orthoMin, maxzoom: r.maxzoom || 19, attribution: r.attribution || "" };
     if (r.scheme === "tms" && !proxy) src.scheme = "tms";
-    sources[sid] = src; layers.push({ id: sid, type: "raster", source: sid, minzoom: 0 });
+    sources[sid] = src;
+    const lay = { id: sid, type: "raster", source: sid, minzoom: 0 };
+    const paint = rzRasterAdjustPaint(rasterPct == null ? ((mapCatalog().default_raster_pct != null) ? mapCatalog().default_raster_pct : 30) : rasterPct);
+    if (Object.keys(paint).length) lay.paint = paint;
+    layers.push(lay);
   }
   const st = { version: 8, sources, layers };
   if (!window.__rzNoGlobe) st.projection = { type: "globe" };
@@ -286,7 +309,7 @@ function _terrainSource(name, maptilerKey) {
  * Liefert { key, requested, engine, style, terrain, attribution, region, notes[], badge, videoOk }.
  * `notes` sind Codes: no_mapbox_token | no_maptiler_key | no_coverage | unknown_style
  */
-function resolveMapStyle(styleKey, bbox, wantTerrain, labels) {
+function resolveMapStyle(styleKey, bbox, wantTerrain, labels, rasterPct) {
   const cat = mapCatalog();
   const keys = cat.key_values || { mapbox: window._RZGPS_MAPBOX_TOKEN || "", maptiler: "" };
   const notes = [];
@@ -306,7 +329,7 @@ function resolveMapStyle(styleKey, bbox, wantTerrain, labels) {
     }
   }
   let style;
-  if (d.kind === "gov") style = _stackStyle(stack);
+  if (d.kind === "gov") style = _stackStyle(stack, rasterPct);
   else if (d.kind === "raster") style = _rasterStyle(d.tiles, d.tileSize, d.maxzoom, d.attribution);
   else style = String(d.style_url || "").replace("{maptiler_key}", mt);
   if (d.kind === "gov") style = _addLabelOverlay(style, labels || null);   // 04.09.2026: Orte/Straßen/… über den Orthofotos
@@ -447,7 +470,7 @@ function createMap(opts) {
   let key = opts.styleKey || (opts.mapboxStyle && _mapKeyFromMapboxUrl(opts.mapboxStyle)) || mapDefaultStyle();
   // Gelände IMMER mit auflösen (spec.terrain) — `opts.terrain` sagt nur, ob es
   // hier gleich angehängt wird; der Animator hängt es selbst an (applyTerrain).
-  const spec = resolveMapStyle(key, opts.bbox || null, true, opts.labels || null);
+  const spec = resolveMapStyle(key, opts.bbox || null, true, opts.labels || null, opts.rasterPct);
   let map, lib;
   if (spec.engine === "mapbox") {
     _mapMode = "mapbox";
@@ -567,7 +590,7 @@ window.rzStyleReady = rzStyleReady;
  */
 function applyMapStyle(map, styleKey, bbox, opts) {
   opts = opts || {};
-  const spec = resolveMapStyle(styleKey, bbox || null, true, opts.labels || null);
+  const spec = resolveMapStyle(styleKey, bbox || null, true, opts.labels || null, opts.rasterPct);
   if (!map) return { needsRemount: true, spec };
   if (map.__rzEngine && spec.engine !== map.__rzEngine) return { needsRemount: true, spec };
   map.__rzSpec = spec; map.__rzStyleKey = spec.key;

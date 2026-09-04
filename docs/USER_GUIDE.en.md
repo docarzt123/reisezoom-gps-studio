@@ -329,7 +329,7 @@ Spain incl. the Canaries, Portugal, Italy, Czechia, Poland, Estonia, Japan and
 the USA. Which source is active is shown below the style field ("Aerial
 imagery: Brandenburg"). Outside the coverage the app quietly falls back to the
 OpenFreeMap map with 3D terrain — and tells you so in the same place.
-The **"Show on map"** switches (places, roads, POIs, transit, borders) work here too: OpenFreeMap label layers (OpenStreetMap data, free, no key) sit on top of the imagery, the same in preview and video. Not in the web-map exports.
+The **"Show on map"** switches (places, roads, POIs, transit, borders) work here too: OpenFreeMap label layers (OpenStreetMap data, free, no key) sit on top of the imagery, the same in preview and video. Not in the web-map exports. If the imagery looks dull, the **"Imagery vibrance"** slider (default 30 %) raises saturation and contrast — same in preview, video and web map.
 
 **3D terrain** now works with every source: Mapbox styles use Mapbox terrain,
 MapTiler styles MapTiler's, all free styles the AWS terrain model (Mapzen). The
