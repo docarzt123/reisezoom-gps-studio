@@ -1909,7 +1909,13 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             cfg.map_style if (not _osm or cfg.map_style in _mapstyles.STYLE_BY_KEY) else "osm",
             mapbox_token=cfg.mapbox_token or "", maptiler_key=getattr(cfg, "maptiler_key", "") or "",
             bbox=bbox, want_terrain=bool(cfg.enable_terrain),
-            proxy_base=getattr(cfg, "tile_proxy_base", "") or "")
+            proxy_base=getattr(cfg, "tile_proxy_base", "") or "",
+            # 04.09.2026: Orte/Straßen/… als Vektor-Overlay über Rasterkarten (synchron zur Vorschau)
+            labels={"places": bool(cfg.show_place_labels and not cfg.hide_labels),
+                    "roads": bool(cfg.show_road_labels and not cfg.hide_labels),
+                    "pois": bool(cfg.show_poi_labels and not cfg.hide_labels),
+                    "transit": bool(cfg.show_transit_labels and not cfg.hide_labels),
+                    "admin": bool(cfg.show_admin_boundaries)})
     cfg.map_engine = _spec["engine"]
     cfg.map_spec = _spec
     if not _spec["terrain"]:
@@ -2261,6 +2267,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         "    if (l.type !== 'symbol' && l.type !== 'line') return;"
         "    const id = l.id.toLowerCase();"
         "    let want = null;"
+        "    if (id.startsWith('rz-ov-')) { want = ({places: showPlace, roads: showRoad, pois: showPoi, transit: showTransit, admin: showAdmin})[id.split('-')[2]];"
+        "      if (want == null) return; try { map.setLayoutProperty(l.id, 'visibility', want ? 'visible' : 'none'); } catch(_){} return; }"
         "    if (id.includes('admin') || id.includes('boundary') || id.includes('country-boundary')) want = showAdmin;"
         "    else if (id.includes('road') || id.includes('street') || id.includes('path')) want = (l.type === 'line') ? null : showRoad;"
         "    else if (id.includes('poi')) want = showPoi;"

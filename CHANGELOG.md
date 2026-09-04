@@ -15,6 +15,16 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 #### Hinzugefügt
+- **„Auf der Karte anzeigen" (Orte · Straßen · POIs · ÖPNV · Grenzen) auch bei
+  „Satellit (kostenlos)"** (Marc, 04.09.: „funktioniert bei Free Satellite
+  nicht"): Rasterkarten haben keine schaltbaren Ebenen. Über den Orthofotos
+  liegen jetzt die Vektor-Ebenen von OpenFreeMap (OpenMapTiles/OSM, frei, ohne
+  Schlüssel), nach Gruppen benannt (`rz-ov-<gruppe>-…`), Schnappschuss im
+  Bundle (`ui/vendor/ofm-liberty-overlay.json`, `scripts/update_ofm_overlay.py`).
+  Vorschau und Render zeigen dieselben Ebenen; die fünf Schalter greifen live.
+  Nennung „© OpenMapTiles © OpenStreetMap" wird angehängt. Nicht in den
+  Leaflet-Exporten (Web-Karte, Tour-Map-HTML) und nicht bei OSM-Rasterkarten
+  (die tragen ihre Beschriftung im Bild).
 - **Archiv-Liste: Spaltenbreiten per Ziehen** (Marc, 04.09.): Griff am rechten
   Rand jeder Kopfzelle, Doppelklick setzt zurück. Die Breiten werden in den
   Einstellungen gemerkt (`library.col_widths`) und beim nächsten Start

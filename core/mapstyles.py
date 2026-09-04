@@ -28,6 +28,9 @@ betrieben werden.
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from typing import Optional
 
 # ── Anbieter ────────────────────────────────────────────────────────────────
@@ -487,6 +490,57 @@ def raster_style(tiles: list[str], *, tile_size: int = 256, maxzoom: int = 19,
 
 TERRAIN_AWS_PROXY_ID = "terrain-aws"     # Weiche: /tile/terrain-aws/{z}/{x}/{y}
 
+# ── Beschriftungs-Overlay für Raster-Stile (04.09.2026) ──────────────────────
+# Marc: „Auf der Karte anzeigen — Orte, Straßen usw. — funktioniert bei Satellit
+# (kostenlos) nicht." Rasterkarten haben keine Ebenen, die man schalten könnte.
+# Deshalb liegen über gov-/raster-Stilen die Vektor-Ebenen von OpenFreeMap
+# (OpenMapTiles, frei, ohne Schlüssel), nach Gruppen benannt `rz-ov-<gruppe>-…`:
+# places · roads · pois · transit · admin. Schnappschuss im Bundle:
+# ui/vendor/ofm-liberty-overlay.json (scripts/update_ofm_overlay.py).
+LABEL_GROUPS = ("places", "roads", "pois", "transit", "admin")
+_OVERLAY_CACHE: Optional[dict] = None
+
+
+def label_overlay() -> dict:
+    """Der gebündelte Schnappschuss (sources/glyphs/sprite/layers) oder {}."""
+    global _OVERLAY_CACHE
+    if _OVERLAY_CACHE is None:
+        try:
+            pfad = Path(__file__).resolve().parent.parent / "ui" / "vendor" / "ofm-liberty-overlay.json"
+            _OVERLAY_CACHE = json.loads(pfad.read_text(encoding="utf-8"))
+        except Exception:      # noqa: BLE001
+            _OVERLAY_CACHE = {}
+    return _OVERLAY_CACHE
+
+
+def add_label_overlay(style, labels: Optional[dict]):
+    """Vektor-Beschriftung über einen Raster-Stil (dict) legen. `labels` =
+    {places, roads, pois, transit, admin: bool}; None = nichts anhängen.
+    Ebenen aller Gruppen kommen mit (Sichtbarkeit je Gruppe), damit die
+    Schalter in der Vorschau ohne Stilwechsel greifen."""
+    if labels is None or not isinstance(style, dict):
+        return style
+    ov = label_overlay()
+    if not ov.get("layers"):
+        return style
+    st = dict(style)
+    st["sources"] = dict(st.get("sources") or {})
+    src = dict(ov["sources"]["openmaptiles"])
+    src["attribution"] = ov.get("attribution", "")
+    st["sources"]["openmaptiles"] = src
+    st["glyphs"] = ov["glyphs"]
+    st["sprite"] = ov["sprite"]
+    layers = list(st.get("layers") or [])
+    for l in ov["layers"]:
+        l = json.loads(json.dumps(l))
+        g = (l.get("metadata") or {}).get("rz_group", "")
+        lay = dict(l.get("layout") or {})
+        lay["visibility"] = "visible" if labels.get(g, True) else "none"
+        l["layout"] = lay
+        layers.append(l)
+    st["layers"] = layers
+    return st
+
 
 def terrain_source(name: str, *, maptiler_key: str = "", proxy_base: str = "") -> Optional[dict]:
     """raster-dem-Quelle. AWS-Terrarium enthält MEERESTIEFEN (Bathymetrie):
@@ -521,7 +575,8 @@ def video_ok(key: str) -> bool:
 
 
 def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
-            bbox=None, want_terrain: bool = True, proxy_base: str = "") -> dict:
+            bbox=None, want_terrain: bool = True, proxy_base: str = "",
+            labels: Optional[dict] = None) -> dict:
     """Aus Stil-Schlüssel + Schlüsseln + Track-Lage die konkrete Karte machen.
 
     Liefert:
@@ -572,6 +627,8 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
                              maxzoom=st.get("maxzoom", 19), attribution=st.get("attribution", ""))
     else:
         style = st["style_url"].replace("{maptiler_key}", maptiler_key)
+    if st["kind"] == "gov":                       # nur Orthofotos: OSM-Raster tragen ihre Beschriftung schon im Bild
+        style = add_label_overlay(style, labels)
 
     engine = "mapbox" if st["provider"] == "mapbox" else "maplibre"
     terrain = terrain_source(st["terrain"], maptiler_key=maptiler_key, proxy_base=proxy_base) if want_terrain else None
@@ -615,6 +672,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         ],
         "keys": {"mapbox": bool(has_mapbox), "maptiler": bool(has_maptiler)},
         "base_layer": BASE_LAYER, "ortho_minzoom": ORTHO_MINZOOM,
+        "label_overlay": label_overlay(),      # Beschriftung über Raster-Stilen (JS-Spiegel)
         "terms_links": TERMS_LINKS,
         # Lokale Kachel-Weiche (core/tileproxy.py); leer = direkt zum Dienst
         "proxy_base": proxy_base or "",

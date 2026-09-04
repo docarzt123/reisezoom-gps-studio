@@ -242,6 +242,25 @@ function _stackStyle(stack) {
   return st;
 }
 
+/** Beschriftungs-Overlay über Raster-Stile (Spiegel von mapstyles.add_label_overlay).
+ *  labels = {places, roads, pois, transit, admin}; null = nichts. */
+function _addLabelOverlay(style, labels) {
+  if (!labels || !style || typeof style !== "object") return style;
+  const ov = mapCatalog().label_overlay;
+  if (!ov || !ov.layers || !ov.layers.length) return style;
+  style.sources = Object.assign({}, style.sources || {});
+  style.sources.openmaptiles = Object.assign({}, ov.sources.openmaptiles, { attribution: ov.attribution || "" });
+  style.glyphs = ov.glyphs; style.sprite = ov.sprite;
+  style.layers = (style.layers || []).slice();
+  for (const l0 of ov.layers) {
+    const l = JSON.parse(JSON.stringify(l0));
+    const g = (l.metadata && l.metadata.rz_group) || "";
+    l.layout = Object.assign({}, l.layout || {}, { visibility: (labels[g] !== false) ? "visible" : "none" });
+    style.layers.push(l);
+  }
+  return style;
+}
+
 function _rasterStyle(tiles, tileSize, maxzoom, attribution, scheme) {
   const src = { type: "raster", tiles: tiles, tileSize: tileSize || 256, maxzoom: maxzoom || 19, attribution: attribution || "" };
   if (scheme === "tms") src.scheme = "tms";
@@ -267,7 +286,7 @@ function _terrainSource(name, maptilerKey) {
  * Liefert { key, requested, engine, style, terrain, attribution, region, notes[], badge, videoOk }.
  * `notes` sind Codes: no_mapbox_token | no_maptiler_key | no_coverage | unknown_style
  */
-function resolveMapStyle(styleKey, bbox, wantTerrain) {
+function resolveMapStyle(styleKey, bbox, wantTerrain, labels) {
   const cat = mapCatalog();
   const keys = cat.key_values || { mapbox: window._RZGPS_MAPBOX_TOKEN || "", maptiler: "" };
   const notes = [];
@@ -290,6 +309,7 @@ function resolveMapStyle(styleKey, bbox, wantTerrain) {
   if (d.kind === "gov") style = _stackStyle(stack);
   else if (d.kind === "raster") style = _rasterStyle(d.tiles, d.tileSize, d.maxzoom, d.attribution);
   else style = String(d.style_url || "").replace("{maptiler_key}", mt);
+  if (d.kind === "gov") style = _addLabelOverlay(style, labels || null);   // 04.09.2026: Orte/Straßen/… über den Orthofotos
   const engine = d.provider === "mapbox" ? "mapbox" : "maplibre";
   const terrain = (wantTerrain !== false) ? _terrainSource(d.terrain, mt) : null;
   const tdef = cat.terrain[d.terrain] || {};
@@ -427,7 +447,7 @@ function createMap(opts) {
   let key = opts.styleKey || (opts.mapboxStyle && _mapKeyFromMapboxUrl(opts.mapboxStyle)) || mapDefaultStyle();
   // Gelände IMMER mit auflösen (spec.terrain) — `opts.terrain` sagt nur, ob es
   // hier gleich angehängt wird; der Animator hängt es selbst an (applyTerrain).
-  const spec = resolveMapStyle(key, opts.bbox || null, true);
+  const spec = resolveMapStyle(key, opts.bbox || null, true, opts.labels || null);
   let map, lib;
   if (spec.engine === "mapbox") {
     _mapMode = "mapbox";
@@ -547,7 +567,7 @@ window.rzStyleReady = rzStyleReady;
  */
 function applyMapStyle(map, styleKey, bbox, opts) {
   opts = opts || {};
-  const spec = resolveMapStyle(styleKey, bbox || null, true);
+  const spec = resolveMapStyle(styleKey, bbox || null, true, opts.labels || null);
   if (!map) return { needsRemount: true, spec };
   if (map.__rzEngine && spec.engine !== map.__rzEngine) return { needsRemount: true, spec };
   map.__rzSpec = spec; map.__rzStyleKey = spec.key;

@@ -329,6 +329,7 @@ España con Canarias, Portugal, Italia, Chequia, Polonia, Estonia, Japón y
 EE. UU. Qué fuente está activa se muestra bajo el campo de estilo («Ortofoto:
 Brandenburg»). Fuera de la cobertura la app pasa en silencio al mapa
 OpenFreeMap con relieve 3D — y te lo dice en el mismo sitio.
+Los interruptores de **«Mostrar en el mapa»** (lugares, carreteras, POI, transporte, fronteras) también funcionan aquí: sobre las ortofotos se colocan las capas de rotulación de OpenFreeMap (datos de OpenStreetMap, gratis, sin clave), iguales en la vista previa y en el vídeo. No en las exportaciones de mapa web.
 
 **El relieve 3D** funciona ahora con todas las fuentes: los estilos Mapbox usan
 el relieve de Mapbox, los de MapTiler el de MapTiler, todos los estilos gratis
