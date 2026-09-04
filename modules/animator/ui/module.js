@@ -1178,7 +1178,8 @@ function mountAnimator(body, headerActions, opts) {
         <div class="render-done-buttons">
           <button class="btn" id="anim-play-video">${t("animator.btn.play_video", "▶ Abspielen")}</button>
           <button class="btn" id="anim-open-folder">${t("animator.btn.reveal")}</button>
-          <button class="btn btn-primary" id="anim-new">${t("animator.btn.next")}</button>
+          <button class="btn" id="anim-save-defaults" title="${t("animator.btn.save_defaults_tip", "")}">${t("animator.btn.save_defaults", "Diesen Look für neue Tracks merken")}</button>
+          <button class="btn btn-primary" id="anim-new">${t("animator.btn.next", "Schließen")}</button>
         </div>
       </div>
     </section>
@@ -13992,6 +13993,25 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) { /* kein Render, kein Problem */ }
   })();
 
+  // 04.09.2026 (Beta-Tester, mehrere Teilstrecken nacheinander): Nach dem
+  // Render fehlten beim nächsten Track Auflösung, Kartenstil und Overlays —
+  // jeder Track hat sein eigenes Projekt, neue starten mit den Standardwerten.
+  // Den Weg über Einstellungen → Standardwerte kannte er nicht. Deshalb der
+  // Knopf direkt im „fertig"-Fenster: dieselbe Brücke wie dort.
+  function _bindSaveDefaultsBtn() {
+    const b = document.getElementById("anim-save-defaults");
+    if (!b) return;
+    b.disabled = false;
+    b.onclick = async () => {
+      const sess = (typeof getActiveSession === "function") ? getActiveSession() : null;
+      const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      try {
+        const res = await api().save_user_defaults((sess && sess.track_hash) || "", (proj && proj.id) || "");
+        if (res && res.ok) { toast(t("settings.defaults.saved", "Gespeichert — neue Tracks nutzen jetzt deinen Look."), "success"); b.disabled = true; }
+        else toast(t("settings.defaults.error", "Konnte die Standardwerte nicht speichern."), "warn");
+      } catch (_) { toast(t("settings.defaults.error", "Konnte die Standardwerte nicht speichern."), "warn"); }
+    };
+  }
   async function pollStatus() {
     // v0.9.25 — kein Bridge-Call mehr wenn Window am Schließen
     if (window.__rzgpsShuttingDown) { clearTimeout(pollTimer); return; }
@@ -14076,7 +14096,8 @@ function mountAnimator(body, headerActions, opts) {
         if (playBtn) { playBtn.textContent = t("tourmap.btn.open_image", "🖼 Bild öffnen"); playBtn.onclick = () => api().open_path(s.output); }
         document.getElementById("anim-open-folder").onclick = () => api().reveal_in_finder(s.output);
         const newBtn = document.getElementById("anim-new");
-        if (newBtn) { newBtn.textContent = t("tourmap.btn.next", "Neues Bild"); newBtn.onclick = () => { done.classList.add("hidden"); }; }
+        if (newBtn) { newBtn.textContent = t("tourmap.btn.next", "Schließen"); newBtn.onclick = () => { done.classList.add("hidden"); }; }
+        _bindSaveDefaultsBtn();
         toast(t("tourmap.toast.render_done", "Bild fertig: {file}").replace("{file}", _fileName), "success", 6000);
         return;
       }
@@ -14091,7 +14112,8 @@ function mountAnimator(body, headerActions, opts) {
       { const _pb = document.getElementById("anim-play-video");
         if (_pb) _pb.textContent = t("animator.btn.play_video", "▶ Abspielen"); }
       { const _nb = document.getElementById("anim-new");
-        if (_nb) _nb.textContent = t("animator.btn.next", "Neues Video"); }
+        if (_nb) _nb.textContent = t("animator.btn.next", "Schließen"); }
+      _bindSaveDefaultsBtn();
       const v = document.getElementById("anim-video");
       v.hidden = false;
       v.onerror = () => {
