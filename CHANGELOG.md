@@ -101,6 +101,18 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Vorschau ruckelt, Track baut sich stückweise auf, wird mit der Zeit
+  langsamer — mit Mapbox lief es flüssig** (Marc, 04.09., Projekt „Standard"
+  mit 8 Ghost-Spuren, 14 Keyframes, Bildschild, Gelände): Der neue Maßstab maß
+  seine Länge mit zwei `map.unproject` je Kartenbewegung. Unter MapLibre-Gelände
+  liest `unproject` den Gelände-Framebuffer von der GPU zurück — ein Stall von
+  ~1,2 ms je Aufruf, vier Aufrufe je Frame, gemessen 30 % der Frame-Zeit; Mapbox
+  hat diesen Rückweg nicht. Der Maßstab wird jetzt rechnerisch bestimmt (Meter
+  je Pixel aus Zoom und Breite, wie es der ScaleControl im Kern auch tut) und
+  höchstens alle 120 ms aktualisiert; dasselbe im Render. Gemessen mit Marcs
+  Projekt bei Retina-Dichte: 64→40 Bilder/s über den Lauf vorher, jetzt 120→99.
+  Damit hat auch der Karten-Worker wieder Luft — die Linie wächst wieder
+  gleichmäßig statt in Stücken.
 - **Ghost-Spuren beim Öffnen: „Cannot access 'esc' before initialization"**
   (Marcs app.log, 04.09. 19:37): der HTML-Entschärfer `esc` stand im Modul
   hinter dem Ghost-Aufbau, der beim Öffnen läuft — sobald ein Projekt
