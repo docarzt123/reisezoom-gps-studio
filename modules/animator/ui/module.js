@@ -3089,7 +3089,10 @@ function mountAnimator(body, headerActions, opts) {
     // 04.09.2026 (Marc: „Attribution in der Vorschau viel größer als im Video"):
     // der Render malt die Quellen-Nennung im CSS-Viewport rw/dsf; die Vorschau ist
     // w breit → Nennung mit demselben Faktor verkleinern (CSS: --rz-prev-k).
-    try { wrap.style.setProperty("--rz-prev-k", String(Math.max(0.2, w * Math.max(1, Math.max(rw, rh) / 1920) / rw))); } catch (_) {}
+    const _prevK = Math.max(0.2, w * Math.max(1, Math.max(rw, rh) / 1920) / rw);
+    try { wrap.style.setProperty("--rz-prev-k", String(_prevK)); } catch (_) {}
+    // 04.09.2026 — Beschriftungen ebenfalls im Render-Maßstab (WYSIWYG überall).
+    try { if (map && window.rzScaleMapLabels) window.rzScaleMapLabels(map, _prevK); } catch (_) {}
     if (map) {
       try { map.resize(); } catch (_) {}
     }
