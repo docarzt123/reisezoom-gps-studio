@@ -1987,7 +1987,7 @@ At the end, ffmpeg's `+faststart` phase takes another 2-3 min (the file size sta
 Yes, in two tiers:
 
 - **Per track:** every route remembers its **own** settings (style, color, pitch, overlays, keyframes, photos, "Smooth map" …). Open the same track again later and everything is as it was last. The track is recognized by its **content** (not by the filename).
-- **For new tracks:** a **new** track normally starts with the factory settings. If you always want the same look, go to **Settings** → **"Save current settings as default"**. From then on every new track adopts your look. With **"Reset to factory settings"** you go back to the shipped state. Existing tracks stay untouched in doing so. Track-specific things (keyframes, trim, photo selection) are deliberately not adopted as defaults.
+- **For new tracks:** a **new** track normally starts with the factory settings. If you always want the same look, go to **Settings** → **"Save current settings as default"**. From then on every new track adopts your look. With **"Reset to factory settings"** you go back to the shipped state. Existing tracks stay untouched in doing so. Track-specific things (keyframes, trim, photo selection) are deliberately not adopted as defaults. Quicker right after a render: the “Video done” window (Tour Map too) has **“Keep this look for new tracks”** — one click, same effect.
 
 ### My 4K video shimmers slightly ("like the wrong shutter speed")
 This was a known issue up to v0.9.286 and is now fixed (tile cross-fading turned off + supersampling + a slight map blur against the texture shimmer). If you still have an old video: just re-render it with the current version.

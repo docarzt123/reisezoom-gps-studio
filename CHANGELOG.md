@@ -14,6 +14,20 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+#### Geändert
+- **„Nächstes Video" heißt jetzt „Schließen"** (Beta-Tester, 04.09.): Der Knopf
+  im „Video fertig"-Fenster schloss nur das Fenster, klang aber nach „noch ein
+  Video abspielen"; der Tester suchte einen Schließen-Knopf. Auch „Neues Bild"
+  in der Tour-Map heißt jetzt „Schließen" (DE/EN/ES).
+
+#### Hinzugefügt
+- **„Diesen Look für neue Tracks merken"** im „fertig"-Fenster von Animator und
+  Tour-Map (Beta-Tester rendert mehrere Teilstrecken nacheinander und musste
+  Auflösung, Kartenstil und Overlays jedes Mal neu setzen): ein Klick macht die
+  Einstellungen des aktuellen Tracks zum Standard für alle neuen Tracks —
+  dieselbe Funktion wie Einstellungen → Standardwerte, nur dort, wo man sie
+  braucht. Bestehende Tracks bleiben unverändert.
+
 #### Behoben
 - **Archiv → Projekte: „Noch keine Projekte" trotz 61 Projekten** (Marc, 04.09.):
   Bei einem Suchbegriff („Masca") filterte nur die Liste, die Zähler links
