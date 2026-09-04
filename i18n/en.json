@@ -2046,6 +2046,7 @@
   "mapstyle.maptiler_topo": "MapTiler Topo",
   "mapstyle.missing_key": "key missing",
   "mapstyle.note.no_coverage": "No free satellite imagery for this track — using the OpenFreeMap map.",
+  "map.tile_error": "Map service not responding ({host}{status}) — tiles are missing. Try again later or pick another style.",
   "mapstyle.note.no_mapbox_token": "No Mapbox token — using Satellite (free).",
   "mapstyle.note.no_maptiler_key": "No MapTiler key — using Satellite (free).",
   "mapstyle.note.region": "Aerial imagery: {name}",

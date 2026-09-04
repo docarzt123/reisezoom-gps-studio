@@ -76,6 +76,15 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **„Auf der Karte anzeigen" wirkte auf OpenFreeMap-Karten nicht** (Beta-Tester,
+  04.09.): Die Ebenen heißen dort `label_*`, `highway-name-*`, `water_name_*` —
+  die Schalter Orte/Straßen greifen jetzt auch auf diese Namen (Vorschau und
+  Render). OSM-Rasterkarten (OSM, OpenTopoMap, CyclOSM, Humanitarian) tragen
+  ihre Beschriftung im Bild und lassen sich nicht schalten — steht so im Hinweis.
+- **Schwarze Karte ohne Erklärung** (Beta-Tester, 04.09.: „CyclOSM bleibt
+  schwarz" — der Dienst antwortete mit 502): Antwortet ein Kachel-Dienst nicht,
+  meldet die Karte jetzt einmal je Dienst „Kartendienst antwortet nicht (Host ·
+  Status)" statt stumm zu bleiben; der Fehler steht auch im Log.
 - **Farbkanten und dunkle Rechtecke bei „Satellit (kostenlos)" in Spanien**
   (Marc, 04.09., Masca): Zwei Ursachen, zwei Mittel in der Kachel-Weiche.
   1) PNOA rendert unterhalb der Zoom-14-Skala ein anderes Mosaik → Kacheln

@@ -498,6 +498,26 @@ function createMap(opts) {
     map = new maplibregl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 20 }, opts.common || {}));
   }
   map.__rzEngine = spec.engine;
+  // 04.09.2026 (Beta-Tester: „CyclOSM bleibt schwarz") — antwortet ein
+  // Kachel-Dienst nicht (502/Timeout), blieb die Karte stumm schwarz. Jetzt
+  // einmal je Karte und Dienst ein Hinweis mit dem Host, nicht öfter als
+  // alle 30 s.
+  try {
+    const seen = {};
+    map.on("error", (ev) => {
+      const e = ev && ev.error; const u = (ev && ev.tile && ev.tile.tileID) ? "" : "";
+      const msg = (e && (e.message || String(e))) || "";
+      const url = (e && (e.url || (e.resource && e.resource.url))) || (ev && ev.source && ev.source.url) || "";
+      const m = /https?:\/\/([^\/]+)/.exec(url || msg); const host = m ? m[1] : "";
+      const status = e && (e.status || (/\b(4\d\d|5\d\d)\b/.exec(msg) || [])[1]);
+      if (!host && !status) return;
+      const key = host || "?"; const now = Date.now();
+      if (seen[key] && now - seen[key] < 30000) return;
+      seen[key] = now;
+      try { toast(t("map.tile_error", "Kartendienst antwortet nicht ({host}{status}) — Kacheln fehlen. Später nochmal versuchen oder anderen Stil wählen.").replace("{host}", key).replace("{status}", status ? " · " + status : ""), "warn", 7000); } catch (_) {}
+      try { applog("warn", "[map] Kachel-Fehler " + key + " " + (status || "") + " " + msg.slice(0, 120)); } catch (_) {}
+    });
+  } catch (_) {}
   map.__rzSpec = spec;
   map.__rzStyleKey = spec.key;
   // „Stil fertig" im Mapbox-Sinn (Style-JSON geladen). MapLibres isStyleLoaded()

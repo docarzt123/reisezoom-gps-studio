@@ -2046,6 +2046,7 @@
   "mapstyle.maptiler_topo": "MapTiler Topo",
   "mapstyle.missing_key": "falta la clave",
   "mapstyle.note.no_coverage": "No hay satélite gratis para este track — se usa el mapa OpenFreeMap.",
+  "map.tile_error": "El servicio de mapas no responde ({host}{status}): faltan teselas. Inténtalo más tarde o elige otro estilo.",
   "mapstyle.note.no_mapbox_token": "Sin token de Mapbox — se usa Satélite (gratis).",
   "mapstyle.note.no_maptiler_key": "Sin clave de MapTiler — se usa Satélite (gratis).",
   "mapstyle.note.region": "Ortofoto: {name}",
