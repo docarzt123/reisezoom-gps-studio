@@ -3086,6 +3086,10 @@ function mountAnimator(body, headerActions, opts) {
     }
     wrap.style.width  = Math.round(w) + "px";
     wrap.style.height = Math.round(h) + "px";
+    // 04.09.2026 (Marc: „Attribution in der Vorschau viel größer als im Video"):
+    // der Render malt die Quellen-Nennung im CSS-Viewport rw/dsf; die Vorschau ist
+    // w breit → Nennung mit demselben Faktor verkleinern (CSS: --rz-prev-k).
+    try { wrap.style.setProperty("--rz-prev-k", String(Math.max(0.2, w * Math.max(1, Math.max(rw, rh) / 1920) / rw))); } catch (_) {}
     if (map) {
       try { map.resize(); } catch (_) {}
     }
