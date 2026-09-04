@@ -271,7 +271,7 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
             pass
     from . import net
     body = b""; ct = ""; fehler = None
-    for versuch in range(2):                    # 04.09.2026: einmal wiederholen — unter Last kippten einzelne AWS-Kacheln mit 502
+    for _versuch in range(2):                   # 04.09.2026: einmal wiederholen — unter Last kippten einzelne AWS-Kacheln mit 502
         try:
             req = urllib.request.Request(url, headers=_UA)
             with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as resp:
