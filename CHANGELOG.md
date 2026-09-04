@@ -101,6 +101,18 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Schilder: Filter je Frame ließ die Karte mit der Laufzeit immer träger
+  werden, Schild erschien erst nach dem Stopp** (Marc, 04.09., zweite Runde):
+  Die Schild-Ebene bekam in jedem Frame einen neuen Filter mit dem laufenden
+  Anker. Ein Filterwechsel lässt MapLibre (und Mapbox) die Kacheln der Ebene im
+  Worker neu bauen — 60 Aufträge je Sekunde, jeder länger als ein Frame → die
+  Warteschlange wuchs mit der Laufzeit (Linie in Stücken, immer träger), und
+  das Symbol wurde nie fertig platziert (erst nach dem Stopp, wenn der Filter
+  Ruhe hat). Jetzt wird die sichtbare Menge auf dem Hauptfaden bestimmt und
+  der Filter nur gesetzt, wenn sie sich ändert (wenige Male je Lauf). Gilt für
+  Vorschau und Render (gleiche Datei `ui/js/sign_draw.js`), alle Engines,
+  auch Windows (WebView2). Gemessen mit Marcs Projekt: `setFilter` 222→0
+  je 4 s, Schild während des Laufs sichtbar.
 - **Vorschau ruckelt, Track baut sich stückweise auf, wird mit der Zeit
   langsamer — mit Mapbox lief es flüssig** (Marc, 04.09., Projekt „Standard"
   mit 8 Ghost-Spuren, 14 Keyframes, Bildschild, Gelände): Der neue Maßstab maß
