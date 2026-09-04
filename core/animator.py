@@ -198,7 +198,11 @@ class AnimatorConfig:
     # Zoom-Interpolation, kein „Hollywood-rauszoom".
     cinematic_flyto: bool = True
     exaggeration: float = 1.5           # Terrain-3D
-    map_saturation: float = 30.0        # 04.09.2026 — Farbkraft der Orthofotos (0–100 %, nur „Satellit (kostenlos)")
+    # 04.09.2026 — Luftbild-Optik, nur „Satellit (kostenlos)" (mapstyles.ORTHO_ADJUST_DEFAULT)
+    ortho_sat: float = 25.0
+    ortho_con: float = 8.0
+    ortho_bri: float = 0.0
+    ortho_hue: float = 0.0
     enable_terrain: bool = True         # bei flat-light-Karten oft False
     line_color: str = "#ff6b35"
     line_width: float = 3.5             # Track-Linien-Dicke in px (Glow = 3× davon)
@@ -1917,7 +1921,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                     "pois": bool(cfg.show_poi_labels and not cfg.hide_labels),
                     "transit": bool(cfg.show_transit_labels and not cfg.hide_labels),
                     "admin": bool(cfg.show_admin_boundaries)},
-            raster_pct=getattr(cfg, "map_saturation", None))
+            ortho={"sat": getattr(cfg, "ortho_sat", 25.0), "con": getattr(cfg, "ortho_con", 8.0),
+                   "bri": getattr(cfg, "ortho_bri", 0.0), "hue": getattr(cfg, "ortho_hue", 0.0)})
     cfg.map_engine = _spec["engine"]
     cfg.map_spec = _spec
     if not _spec["terrain"]:

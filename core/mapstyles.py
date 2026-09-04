@@ -405,7 +405,7 @@ def stack_attribution(stack: list[dict]) -> str:
     return " | ".join(out)
 
 
-def stack_style(stack: list[dict], proxy_base: str = "", adjust_pct=None) -> dict:
+def stack_style(stack: list[dict], proxy_base: str = "", adjust=None) -> dict:
     """GL-Style mit einer Raster-Quelle je Region; unterste = größte Fläche."""
     # 04.09.2026 (Marc, Brandenburg bei Zoom 7): Auch eine EINZELNE Region
     # immer als PNG mit Alpha — als JPEG füllt der Landesdienst alles
@@ -427,7 +427,7 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust_pct=None) -> dic
             src["scheme"] = "tms"
         sources[sid] = src
         lay = {"id": sid, "type": "raster", "source": sid, "minzoom": 0}
-        paint = raster_adjust_paint(DEFAULT_RASTER_PCT if adjust_pct is None else adjust_pct)
+        paint = raster_adjust_paint(adjust)
         if paint:
             lay["paint"] = paint
         layers.append(lay)
@@ -459,7 +459,7 @@ def base_leaflet() -> dict:
             "attr": BASE_LAYER["attribution"], "base": True}
 
 
-def stack_leaflet(stack: list[dict], adjust_pct=None) -> dict:
+def stack_leaflet(stack: list[dict], adjust=None) -> dict:
     """Leaflet-Kachelangabe für einen Stapel: `stack` = Liste unten → oben,
     immer mit dem Blue-Marble-Untergrund als erster Ebene."""
     if not stack:
@@ -475,7 +475,7 @@ def stack_leaflet(stack: list[dict], adjust_pct=None) -> dict:
     if transparent:
         d["label"] = "Luftbild " + "/".join(r["name"] for r in stack)
     d["stack"] = [base_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=ORTHO_MINZOOM) for r in reversed(stack)]
-    d["adjust"] = float(DEFAULT_RASTER_PCT if adjust_pct is None else adjust_pct)   # Farbkraft (CSS-Filter im Export)
+    d["adjust"] = ortho_adjust(adjust)   # Luftbild-Optik (CSS-Filter im Export)
     return d
 
 
@@ -504,21 +504,39 @@ TERRAIN_AWS_PROXY_ID = "terrain-aws"     # Weiche: /tile/terrain-aws/{z}/{x}/{y}
 # ui/vendor/ofm-liberty-overlay.json (scripts/update_ofm_overlay.py).
 LABEL_GROUPS = ("places", "roads", "pois", "transit", "admin")
 
-# ── Farbkraft der Orthofotos (04.09.2026, Marc: „Brandenburg sieht halb tot aus") ──
-# Landesluftbilder sind oft flau. Ein Regler 0–100 % hebt Sättigung und
-# Kontrast der Orthofoto-Ebenen (nicht des Blue-Marble-Untergrunds). Werk 30.
-# GL: raster-saturation/-contrast; Leaflet: CSS filter saturate()/contrast().
-DEFAULT_RASTER_PCT = 30.0
+# ── Luftbild-Optik (04.09.2026, Marc: „Brandenburg sieht halb tot aus" / „go") ──
+# Landesluftbilder sind oft flau. Vier Regler wirken NUR auf die Orthofoto-
+# Ebenen (nicht auf den Blue-Marble-Untergrund): Sättigung, Kontrast (je
+# −100…100 %), Helligkeit (−100…100 %), Farbton (−180…180°). Werk: 25/8/0/0.
+# GL: raster-saturation/-contrast/-brightness-min/-max/-hue-rotate;
+# Leaflet-Exporte: CSS filter saturate()/contrast()/brightness()/hue-rotate().
+ORTHO_ADJUST_DEFAULT = {"sat": 25.0, "con": 8.0, "bri": 0.0, "hue": 0.0}
 
 
-def raster_adjust_paint(pct) -> dict:
-    try:
-        v = max(0.0, min(100.0, float(pct))) / 100.0
-    except (TypeError, ValueError):
-        v = 0.0
-    if v <= 0:
-        return {}
-    return {"raster-saturation": round(v * 0.8, 3), "raster-contrast": round(v * 0.25, 3)}
+def ortho_adjust(adj) -> dict:
+    """Beliebige Eingabe → vollständiges, geklemmtes Regler-Dict."""
+    out = dict(ORTHO_ADJUST_DEFAULT)
+    if isinstance(adj, dict):
+        for k in out:
+            try:
+                out[k] = float(adj.get(k, out[k]))
+            except (TypeError, ValueError):
+                pass
+    for k, lim in (("sat", 100), ("con", 100), ("bri", 100), ("hue", 180)):
+        out[k] = max(-lim, min(lim, out[k]))
+    return out
+
+
+def raster_adjust_paint(adj) -> dict:
+    """GL-Paint für eine Orthofoto-Ebene (nur Werte ≠ 0)."""
+    a = ortho_adjust(adj)
+    paint = {}
+    if a["sat"]: paint["raster-saturation"] = round(a["sat"] / 100.0, 3)
+    if a["con"]: paint["raster-contrast"] = round(a["con"] / 100.0, 3)
+    if a["bri"] > 0: paint["raster-brightness-min"] = round(a["bri"] / 100.0 * 0.5, 3)
+    if a["bri"] < 0: paint["raster-brightness-max"] = round(1.0 + a["bri"] / 100.0 * 0.5, 3)
+    if a["hue"]: paint["raster-hue-rotate"] = round(a["hue"], 1)
+    return paint
 _OVERLAY_CACHE: Optional[dict] = None
 
 
@@ -597,7 +615,7 @@ def video_ok(key: str) -> bool:
 
 def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
             bbox=None, want_terrain: bool = True, proxy_base: str = "",
-            labels: Optional[dict] = None, raster_pct=None) -> dict:
+            labels: Optional[dict] = None, ortho: Optional[dict] = None) -> dict:
     """Aus Stil-Schlüssel + Schlüsseln + Track-Lage die konkrete Karte machen.
 
     Liefert:
@@ -642,7 +660,7 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
             key = "ofm_liberty"; st = STYLE_BY_KEY[key]
 
     if st["kind"] == "gov":
-        style = stack_style(stack, proxy_base=proxy_base, adjust_pct=raster_pct)
+        style = stack_style(stack, proxy_base=proxy_base, adjust=ortho)
     elif st["kind"] == "raster":
         style = raster_style(st["tiles"], tile_size=st.get("tileSize", 256),
                              maxzoom=st.get("maxzoom", 19), attribution=st.get("attribution", ""))
@@ -694,6 +712,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         "keys": {"mapbox": bool(has_mapbox), "maptiler": bool(has_maptiler)},
         "base_layer": BASE_LAYER, "ortho_minzoom": ORTHO_MINZOOM,
         "label_overlay": label_overlay(),      # Beschriftung über Raster-Stilen (JS-Spiegel)
+        "ortho_adjust_default": ORTHO_ADJUST_DEFAULT,
         "terms_links": TERMS_LINKS,
         # Lokale Kachel-Weiche (core/tileproxy.py); leer = direkt zum Dienst
         "proxy_base": proxy_base or "",
