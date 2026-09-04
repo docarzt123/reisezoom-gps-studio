@@ -1948,6 +1948,20 @@ account. The manual button in the About dialog keeps working.
 ### "Can't be opened because it is from an unidentified developer" (macOS)
 The app is not signed with a $99/year Apple Developer cert. Solution: **right-click → Open** instead of double-clicking (see Installation).
 
+### "Allow GPS Studio to find devices on local networks?" (macOS)
+macOS (since 15) asks this the first time you start a build with a new
+signature — for example after switching to the notarized version from the
+DMG. **The app does not scan your network.** The trigger is the built-in tile
+server: since v0.9.651 the map preview loads the government aerial imagery and
+the terrain through a small server on `127.0.0.1` (the computer talking to
+itself), and WebKit reports that first connection as "local network" even
+though it never leaves the machine. Apart from that the app only talks to the
+map services on the internet. **"Allow" is harmless** and needed so the preview
+receives tiles. If you chose "Don't allow" and see an empty map: System
+Settings → Privacy & Security → Local Network → enable GPS Studio. If you leave
+the dialog open for a long time, the app looks frozen — it is only waiting for
+your answer.
+
 ### "Windows Defender protected your PC" (Windows)
 The same problem on Windows. **"More info" → "Run anyway"**.
 

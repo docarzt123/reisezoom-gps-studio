@@ -2071,6 +2071,20 @@ bestätigen, danach nie wieder. Die App ist seit v0.9.4x **von Apple signiert un
 die alte Blockade „nicht verifizierter Entwickler" mit dem Rechtsklick-Trick gibt es nicht mehr.
 Kommt sie trotzdem, ist die Datei unvollständig geladen — dann noch einmal herunterladen.
 
+### „Darf GPS Studio nach Geräten in lokalen Netzwerken suchen?" (macOS)
+Diese Frage stellt macOS (seit macOS 15) beim ersten Start einer Fassung mit
+neuer Signatur — also z. B. nach dem Wechsel auf die notarisierte Version aus
+dem DMG. **Die App sucht nichts im Netzwerk.** Auslöser ist der eingebaute
+Kachel-Server: Seit v0.9.651 holt die Karten-Vorschau die Luftbilder der
+Landesdienste und das Gelände über einen kleinen Server auf `127.0.0.1` (der
+Rechner spricht mit sich selbst), und WebKit meldet diese erste Verbindung als
+„lokales Netzwerk", obwohl sie den Rechner nie verlässt. Sonst spricht die App
+nur die Kartendienste im Internet an. **„Erlauben" ist unkritisch** und nötig,
+damit die Vorschau Kacheln bekommt. Wer „Nicht erlauben" gewählt hat und eine
+leere Karte sieht: Systemeinstellungen → Datenschutz & Sicherheit → Lokales
+Netzwerk → GPS Studio einschalten. Lässt man den Dialog lange stehen, wirkt
+die App „eingefroren" — sie wartet nur auf die Antwort.
+
 ### „Der Computer wurde durch Windows Defender geschützt" (Windows)
 Selbes Problem auf Windows. **„Weitere Informationen" → „Trotzdem ausführen"**.
 

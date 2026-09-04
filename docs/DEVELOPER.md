@@ -2552,6 +2552,15 @@ unbenutzt liegen, bis der Speicher sie verdrängt.
 wie das Video gezielt nach (bis 6 × 2 s), solange `map.areTilesLoaded()` nein
 sagt — WMS-Dienste brauchen bei 60+ Kacheln länger als der 5-s-Deckel.
 
+**macOS „Lokales Netzwerk"-Dialog (04.09.2026):** Beim ersten Start der
+notarisierten v0.9.652 fragte macOS 26, ob die App „nach Geräten in lokalen
+Netzwerken suchen" darf. Die App bindet nur `127.0.0.1` (Media-/Kachel-Server)
+und spricht sonst nur Internet-Dienste an; WebKit wertet aber die erste
+Verbindung der WebView auf `http://127.0.0.1:<port>/tile/…` als lokales Netz.
+Der Dialog kommt je Signatur einmal (TCC-Eintrag hängt an Bundle-ID +
+Signatur); „Erlauben" ist nötig für die Kachel-Weiche. Im USER_GUIDE (FAQ) in
+DE/EN/ES erklärt. Kein Code-Workaround bekannt, der ohne Weiche auskäme (CORS).
+
 **MapLibre-Fallstricke (beide gelöst, beide Wächter in `tests/test_kartenanbieter.py`):**
 - `setTerrain()` während einer Kamerafahrt → „reading 'wrap'", danach
   „Attempting to run(), but is already running" bei jedem Bild. Gelände erst

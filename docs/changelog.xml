@@ -5,8 +5,28 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 02 Sep 2026 20:56:05 +0000</lastBuildDate>
+<lastBuildDate>Fri, 04 Sep 2026 04:23:18 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.652 — Drei Meldungen aus dem Beta-Test.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-652</link>
+<guid isPermaLink="false">gps-studio-v0.9.652</guid>
+<pubDate>Thu, 03 Sep 2026 12:00:00 +0000</pubDate>
+<description>Weltkugel auch ohne Mapbox — der Anflug aus dem All funktioniert mit allen Stilen, über NASA Blue Marble hinunter ins Luftbild.
+
+Vorschau im Hochgebirge mit freien Stilen zeigte nach dem Gelände-Einschalten Fels von innen — die Kamera wird jetzt einmal neu gesetzt.
+
+Regionsnamen in deiner Sprache im Stil-Hinweis („Aerial imagery: Spain&quot; statt „Spanien&quot;).
+
+Keine Klippe mehr an der Küste bei „Satellit (kostenlos)“ — die freien Geländedaten enthalten Meerestiefen; unter 0 m wird jetzt auf 0 m geklemmt.</description>
+</item>
+<item>
+<title>v0.9.651 — Kartenanbieter zur Auswahl — Videos, die man veröffentlichen darf.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-651</link>
+<guid isPermaLink="false">gps-studio-v0.9.651</guid>
+<pubDate>Thu, 03 Sep 2026 12:00:00 +0000</pubDate>
+<description>▶ Kostenlose Satellitenbilder, die auf YouTube dürfen. Mapbox erlaubt Videos mit seinem Kartenmaterial nur mit gekauften Videorechten (Product Terms §1.7) — und genau der Mapbox-Satellit war bisher der Standardstil. Jetzt bringt GPS Studio die amtlichen Luftbilder der Landesvermessungen mit (15 Bundesländer, Österreich, Schweiz, Spanien, Frankreich, Italien, Polen, Japan, USA u. v. m.), dazu OpenFreeMap-Karten und ein 3D-Gelände ohne Mapbox. Kein Schlüssel nötig, Nennung steht automatisch im Bild.</description>
+</item>
 <item>
 <title>v0.9.650 — Weitermachen, wo du aufgehört hast.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-650</link>
@@ -152,30 +172,6 @@ Beim Scrollen lief die Liste über ihre Kopfzeile. Jetzt bleibt die Kopfzeile sa
 <guid isPermaLink="false">gps-studio-v0.9.542</guid>
 <pubDate>Tue, 25 Aug 2026 12:00:00 +0000</pubDate>
 <description>🎯 „Ruhige Kamera“ mit 3D-Gelände: Zoom repariert. Wer die ruhige Kamera mit Geländeüberhöhung nutzte und in der Vorschau nah herangezoomt hatte, bekam im Video einen ganz anderen Ausschnitt — die Kamera klebte am Boden, obwohl die Vorschau richtig aussah. Schuld war nicht die Kameraführung, sondern das Gelände: Beim Vorbereiten der Kamerafahrt waren die Geländekacheln noch nicht geladen, die Kamerahöhen wurden also aus unfertigen Daten berechnet. Jetzt wartet die App darauf — gemessen an einem betroffenen Projekt: vorher bis zu 8 Zoomstufen daneben, jetzt 0,5. Der Videoexport wurde dadurch sogar schneller.</description>
-</item>
-<item>
-<title>v0.9.541 — Windows: Projekte lassen sich wieder verschicken.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-541</link>
-<guid isPermaLink="false">gps-studio-v0.9.541</guid>
-<pubDate>Mon, 24 Aug 2026 12:00:00 +0000</pubDate>
-<description>📦 Projekt-Export und -Import repariert (Windows). Beides brach mit einer Fehlermeldung ab — schuld war ein Bindestrich im Namen des Dateifilters, den Windows nicht akzeptiert. Auf dem Mac fiel das nie auf. Jetzt gehen beide wieder, und alle anderen Dateidialoge sind gegen denselben Fehler abgesichert.
-
-🔍 Zoom-Keyframes aus älteren Fassungen werden erkannt. Wurden Keyframes vor Version 0.9.73 gesetzt, kann der Zoom im Video von der Vorschau abweichen. Die App sagt das jetzt beim Öffnen des Projekts — alte Projekte werden bewusst nicht umgerechnet, es genügt, die betroffenen Keyframes neu zu setzen.
-
-🕐 Keine erfundenen Zeitzonen mehr. Der Zeitzonen-Vorschlag schlug in einem Fall „UTC+1:45“ vor — so eine Zone gibt es nicht. Jetzt kommen nur noch real existierende Zeitzonen infrage; passt keine, wird bewusst nichts vorgeschlagen. Den Feinversatz einer falsch gehenden Uhr stellt weiterhin der Regler ein.</description>
-</item>
-<item>
-<title>v0.9.540 — Ältere Kameras: die Uhr ist nicht schuld.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-540</link>
-<guid isPermaLink="false">gps-studio-v0.9.540</guid>
-<pubDate>Mon, 24 Aug 2026 12:00:00 +0000</pubDate>
-<description>🕐 Fehlende Zeitzone wird jetzt erklärt. Kameras vor Exif 2.31 (ungefähr vor 2017) schreiben die Zeitzone nicht ins Foto — die Uhr ist völlig richtig, es fehlt nur der Abstand zu UTC. Bisher stand in der Hilfe, die Uhr sei falsch gestellt. Jetzt sagt der Geotagger selbst Bescheid, sobald solche Fotos geladen sind: mit Kameramodell und dem Weg zur Lösung.
-
-🧮 Zeitzone wird ausgerechnet, nicht nachgeschlagen. Fehlt den Fotos die Zeitzone, schlägt das Programm sie jetzt selbst vor: „Aus dem Track gerechnet: UTC+2 — damit liegen 11 von 11 Fotos im Track“, ein Klick auf Übernehmen genügt. Andere Programme fragen dafür einen Webdienst nach dem Ort und lassen die Sommerzeit von Hand dazurechnen. Hier wird gemessen: kein Internet nötig, Sommerzeit automatisch drin. Und wenn die Fotos nur eine Stunde einer Tagestour abdecken, passen viele Zeitzonen gleich gut — dann kommt bewusst kein Vorschlag statt eines geratenen.
-
-🩹 Am Rechner gefunden. Der unsichtbare Kino-Flug zwischen zwei zusammengeführten Touren zog doch einen schwarzen Bogen über die Karte — sein Schatten war nicht mitversteckt, in der Vorschau wie im fertigen Video. Behoben. Ebenso: der interne Übergangs-Marker stand als wählbares Datenfeld zwischen Puls und Trittfrequenz, und der Zeitzonen-Hinweis zählte Kameras auf, die ihre Zeitzone längst mitbringen.
-
-🧭 Die Modul-Symbole bleiben. Ist das Fenster zu schmal für die Modul-Leiste, schrumpft sie automatisch. Bisher verschwanden dabei ausgerechnet die Symbole zuerst, und übrig blieben abgeschnittene Wörter wie „Daten-Ani…&quot;. Jetzt andersherum: erst geht die kleine Unterzeile, dann werden die Namen gekürzt, und zuletzt bleiben nur noch die Symbole — den vollen Namen zeigt der Tooltip. Fenster breiter ziehen holt alles zurück.</description>
 </item>
 </channel>
 </rss>
