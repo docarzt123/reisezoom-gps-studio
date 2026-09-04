@@ -101,6 +101,21 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Kamera schaut bei Gelände auf die falsche Stelle — Probelauf UND Video,
+  ohne ruhige Kamera** (Marc, 04.09., Masca: „von ganz vorne landet der Zoom
+  an der falschen Stelle"; die eigentliche Ursache nach zwei Fehlversuchen an
+  der ruhigen Kamera, die in seinem Projekt gar nicht an war): MapLibre führt
+  die Höhe des Kartenmittelpunkts bei `setCenter`/`jumpTo` nicht nach. Startete
+  der Probelauf auf der Weltkugel (Höhe 0), schaute die Kamera bei 58° Neigung
+  auf einen Punkt in 0 m statt 1470 m Höhe — der sichtbare Ausschnitt lag
+  2,8 km neben dem Keyframe. Aus der Intro-Mitte hatte der Höhen-Sitz
+  (300 ms nach der letzten Bewegung) vorher schon die passende Höhe gesetzt,
+  deshalb „passte" es von dort. Im Video dasselbe. Jetzt bekommt jeder Frame
+  die Mittelpunkt-Höhe mit (Gelände, sonst GPX-Höhe × Überhöhung): Vorschau
+  (`_previewEleAt`) und Render (`window.__rzSetCam`, auch Mehr-Touren und
+  Kachel-Vorlauf). Mapbox regelt das selbst und bleibt unverändert. Kopflos
+  mit Marcs Masca-Projekt gemessen: Blickpunkt 2816 m → 61 m neben dem
+  Keyframe (Vorschau), Video-Standkamera 3 m; Mittelpunkt-Höhe = Geländehöhe.
 - **Standard-Kartenstil aus den Einstellungen griff nicht zuverlässig** (Marc,
   04.09.: „man muss einstellen können, welche Kartenart Standard ist … dauerhaft
   gespeichert"): Die Einstellung „Standard-Kartenstil für neue Projekte" gab es

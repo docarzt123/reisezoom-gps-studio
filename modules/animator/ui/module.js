@@ -6726,7 +6726,28 @@ function mountAnimator(body, headerActions, opts) {
     // Position linear + Orientierung per nlerp interpolieren → kein Berg-Hüpfen,
     // framing-treu an den KFs. Spiegel von __camPrepFaithful/__camFaithful im Render.
     let _faithCams = null, _useFaithful = false, _faithGew = null;
-    let _faithBuild = null;   // 04.09.2026 — asynchroner Stützstellen-Aufbau (wartet auf Geländekacheln)
+    let _faithBuild = null;   // 04.09.2026 — Stützstellen-Aufbau der ruhigen Kamera (asynchron)
+    // 04.09.2026 (Marc, Masca ohne ruhige Kamera: „von ganz vorne landet der
+    // Zoom an der falschen Stelle, aus der Intro-Mitte passt es"): MapLibre
+    // führt die Mittelpunkt-Höhe bei jumpTo NICHT nach; der Sitz (rzSeat…) läuft
+    // nur 300 ms nach der letzten Bewegung — also nie während des Probelaufs.
+    // Von vorne (Weltkugel, Höhe 0) blieb die Höhe 0, während die Kamera bei
+    // 58° Neigung auf einen Punkt in 1000 m Höhe schaute → der sichtbare
+    // Ausschnitt lag daneben. Aus der Intro-Mitte hatte der Sitz vorher schon
+    // die richtige Höhe gesetzt. Jetzt bekommt jeder Frame die Höhe mit
+    // (Gelände, sonst GPX-Höhe × Überhöhung).
+    const _previewEleAt = (lngLat, trackFrac) => {
+      try {
+        if (!map || map.__rzEngine !== "maplibre" || !map.getTerrain || !map.getTerrain()) return null;
+        if (window.__rzNoElev) return null;   // nur Prüfstand
+        const e = map.queryTerrainElevation(lngLat);
+        if (e != null && isFinite(e)) return e;
+        if (!Array.isArray(_gpxElevations) || !_gpxElevations.length) return null;
+        const ex = Math.max(0, parseFloat(document.getElementById("anim-ex")?.value) || 1);
+        const ci = Math.max(0, Math.min(_gpxElevations.length - 1, Math.round(Math.max(0, Math.min(1, +trackFrac || 0)) * (_gpxElevations.length - 1))));
+        const v = _gpxElevations[ci]; return (v != null && isFinite(v)) ? v * ex : null;
+      } catch (_) { return null; }
+    };
     const _faithWeightAt = (tp) => {
       if (!_faithGew || !_faithGew.length) return 1;
       const i = Math.round(Math.max(0, Math.min(1, tp)) * (_faithGew.length - 1));
@@ -7090,7 +7111,17 @@ function mountAnimator(body, headerActions, opts) {
       // 22.08.2026 — nur in markierten Abschnitten (Gewicht > 0) die FreeCamera;
       // sonst klassisch. Seitenleisten-Häkchen = überall. Synchron zum Render.
       if (_useFaithful && _faithWeightAt(timelineProgress) > 0) { _faithSeek(timelineProgress); }
-      else { map.jumpTo(jumpArgs); }
+      else {
+        try {
+          const _c = jumpArgs.center || (() => { const g = map.getCenter(); return [g.lng, g.lat]; })();
+          const _e = _previewEleAt(_c, coordFrac / Math.max(1, (currentCoords ? currentCoords.length : 1) - 1));
+          if (_e != null) {
+            jumpArgs.elevation = _e;
+            if (map.getCenterClampedToGround && map.getCenterClampedToGround()) map.setCenterClampedToGround(false);
+          }
+        } catch (_) {}
+        map.jumpTo(jumpArgs);
+      }
       // Padding ebenfalls mit zoomFade gewichten, damit der Welt-Offset
       // genauso sanft ausläuft wie die Drehung.
       if (_zfStep > 0 && interp.position) {
