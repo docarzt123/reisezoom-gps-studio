@@ -755,14 +755,17 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   transition: background 0.12s, box-shadow 0.12s;
 }
+/* 04.09.2026 (Beta-Tester: „los tiradores están un poco juntos"): Die Fahnen
+   rücken 6 px von der Linie weg — so bleibt zwischen Start-Fahne und
+   Scrubber-Dreieck bei 0 % sichtbar Luft, beide sind getrennt greifbar. */
 .timeline-trim-handle-start .trim-handle-kopf {
   right: 50%;
-  margin-right: -2px;              /* schließt an die Linie an */
+  margin-right: 6px;
   border-radius: 7px 0 2px 7px;    /* Fahne zeigt nach links */
 }
 .timeline-trim-handle-end .trim-handle-kopf {
   left: 50%;
-  margin-left: -2px;
+  margin-left: 6px;
   border-radius: 0 7px 7px 2px;    /* Fahne zeigt nach rechts */
 }
 .trim-handle-kopf:hover {

@@ -85,6 +85,19 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Standardwerte übernahmen nur einen Teil der Regler** (Beta-Tester, 04.09.:
+  „algunas configuraciones las carga y otras no"): „Als Standard speichern" /
+  „Diesen Look für neue Tracks merken" nahm nur Schlüssel aus der Werksliste —
+  38 Animator-Regler (Linienstil, Glow, Schatten, Ebenen-Schalter, Beleuchtung,
+  Ghost-Optik, Farbmodi, Pfeil-Stabilität, …) fielen still weg. Jetzt kommt
+  alles Gestalterische mit; draußen bleibt nur Trackspezifisches (Keyframes,
+  Schnitt, Etappen, Fotos, Schilder, feste Kamerawerte).
+- **Schwarm: Punkte der weiteren Touren standen nach dem Laden am Ende**
+  (Beta-Tester, 3-GPX-Schwarm): „Ganzer Track" schob auch die Punkte ans Ziel,
+  der Haupt-Punkt stand am Start. Punkte folgen jetzt immer der Scrubber-
+  Position, nur die Linien werden ganz gezeichnet.
+- **Schnitt-Fahnen und Scrubber-Dreieck lagen bei 0 % übereinander** (Beta-
+  Tester): Die Fahnen rücken 6 px von der Linie weg, beide bleiben getrennt greifbar.
 - **Träger Scrubber** (Marc, 04.09.: „wenn ich schnell hin und her ziehe,
   dauert es, bis er nachgemalt hat"): Die Zeitleiste meldet jede Mausbewegung,
   die Vorschau zeichnete jede einzeln nach. Jetzt wird pro Bild nur die
