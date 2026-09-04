@@ -2539,6 +2539,17 @@ WebGL-Karten Kacheln per fetch() laden. Vorschau UND Render (via
 direkt zum Dienst und `_install_tile_cache()` (Playwright-Route) übernimmt
 Zwischenspeicher + CORS im Render.
 
+**Kachel-Nachbearbeitung in der Weiche (04.09.2026):** `tileproxy.fetch_tile`
+hat je Region zwei optionale Schritte: `scale_z` (WMS in `oversample_factor()`-
+facher Größe anfordern, `downscale_tile()` auf 512 px — PNOA/Sachsen-Anhalt
+wechseln sonst das Mosaik unterhalb z14) und `sea_mask` (`apply_sea_mask()`:
+Alpha 0, wo die UNgeklemmte Terrarium-z10-Kachel < −3 m meldet; Cache-
+Schlüssel `#sea1`). Die Playwright-Route des Renders ohne Weiche macht nur das
+Oversampling (`wms_oversample_url`), nicht die Meer-Maske — die App rendert
+immer über die Weiche. Terrarium-Tiefen gibt es nur bis z10; darüber ist das
+Meer 0 m und küstennah oft +20 m „Land" (SRTM) — deshalb bleibt PNOAs dunkler
+Küstenstreifen (0–2 km) stehen, aber auf allen Zoomstufen gleich.
+
 **Beschriftungs-Overlay über Orthofotos (04.09.2026):** `mapstyles.add_label_overlay()`
 hängt an gov-Stile die OpenFreeMap-Vektor-Ebenen (Quelle `openmaptiles`, glyphs,
 sprite) aus `ui/vendor/ofm-liberty-overlay.json` (Schnappschuss via

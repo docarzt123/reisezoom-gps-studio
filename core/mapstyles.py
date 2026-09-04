@@ -196,6 +196,7 @@ ORTHO_REGIONS = [
      "attribution": "Luftbild: GeoBasis-DE/LGB (dl-de/by-2-0)"},
     {"id": "de-st", "name": "Sachsen-Anhalt", "country": "DE", "bbox": (10.56, 50.94, 13.19, 53.04), "maxzoom": 20,
      "wms": _wms("https://www.geodatenportal.sachsen-anhalt.de/wss/service/ST_LVermGeo_DOP_WMS_OpenData/guest", "lsa_lvermgeo_dop20_2"),
+     "scale_z": 14,   # Sachsen-Anhalt: anderes Mosaik unterhalb z14 (04.09.2026 gemessen)
      "attribution": "Luftbild: GeoBasis-DE/LVermGeo ST (dl-de/by-2-0)"},
     {"id": "de-sn", "name": "Sachsen", "country": "DE", "bbox": (11.87, 50.17, 15.04, 51.69), "maxzoom": 20,
      "wms": _wms("https://geodienste.sachsen.de/wms_geosn_dop-rgb/guest", "sn_dop_020"),
@@ -248,6 +249,18 @@ ORTHO_REGIONS = [
     # TRANSPARENT lässt dort den Blue-Marble-Untergrund durch.
     {"id": "es", "name": "Spanien", "country": "ES", "bbox": (-18.20, 27.60, 4.40, 43.80), "maxzoom": 19,
      "wms": _wms("https://www.ign.es/wms-inspire/pnoa-ma", "OI.OrthoimageCoverage", "image/png"),
+     # 04.09.2026 (Marc: „bei einer bestimmten Zoomstufe ändert sich krass die
+     # Farbe"): PNOA liefert unterhalb der Zoom-14-Skala ein anderes, gröberes
+     # Mosaik. Kacheln bis z13 werden deshalb in der Pixelgröße der z14-Skala
+     # angefordert (max 4×) und in der Weiche auf 512 px verkleinert — dasselbe
+     # Bildmaterial in allen Entfernungen, keine Farbkante.
+     "scale_z": 14,
+     # 04.09.2026: PNOA liefert küstennah OPAKE fast schwarze Meer-Kacheln, je
+     # Zoomstufe anders zugeschnitten → dunkle Rechtecke im Meer („Klippen" am
+     # Küstenrand). Die Weiche macht Pixel durchsichtig, wo die Meerestiefe
+     # (AWS-Terrarium, ungeklemmt) unter −3 m liegt — dann scheint überall Blue
+     # Marble durch (core/tileproxy.apply_sea_mask).
+     "sea_mask": True,
      "attribution": "Luftbild: PNOA © IGN España (CC BY 4.0)"},
     {"id": "it", "name": "Italien", "country": "IT", "bbox": (6.60, 36.60, 18.60, 47.10), "maxzoom": 18,
      "wms": _wms("https://wms.pcn.minambiente.it/ogc?map=/ms_ogc/WMS_v1.3/raster/ortofoto_colore_12.map", "OI.ORTOIMMAGINI.2012.32,OI.ORTOIMMAGINI.2012.33"),
@@ -675,7 +688,7 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
     if terrain and TERRAIN[st["terrain"]].get("attribution"):
         attribution = TERRAIN[st["terrain"]]["attribution"]
     return {
-        "key": key, "requested": style_key, "engine": engine, "style": style,
+        "key": key, "requested": style_key, "engine": engine, "style": style, "kind": st["kind"],
         "terrain": terrain, "attribution": attribution,
         "region": ({"id": region["id"], "name": "/".join(r["name"] for r in stack),
                     "ids": [r["id"] for r in stack]} if region else None),
