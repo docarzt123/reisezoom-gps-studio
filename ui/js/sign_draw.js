@@ -474,10 +474,28 @@
       map.__rzSignCacheFC = map.__rzSignFC;
       map.__rzSignLastM = null; map.__rzSignOpLast = null;
     }
-    if (map.__rzSignLastM !== Mq || map.__rzSignLastLyr !== lyr) {
-      map.__rzSignLastM = Mq; map.__rzSignLastLyr = lyr;
+    // 04.09.2026 (Marc: „läuft flüssig los und ruckelt dann mehr und mehr …
+    // Schild kommt erst nach dem Stopp"): Bisher bekam die Ebene JEDEN Frame
+    // einen neuen Filter mit dem laufenden Anker M. Ein Filterwechsel lässt
+    // MapLibre/Mapbox die Kacheln der Ebene im Worker neu bauen — je Frame ein
+    // Auftrag, der länger dauert als ein Frame → die Warteschlange wächst mit
+    // der Laufzeit (immer träger), und das Symbol wird nie fertig platziert
+    // (erscheint erst, wenn der Filter Ruhe hat = nach dem Stopp). Jetzt wird
+    // die sichtbare Menge auf dem Hauptfaden bestimmt und der Filter nur
+    // gesetzt, wenn sie sich ändert (ein paar Mal je Lauf statt 60× je Sekunde).
+    var vis = [];
+    if (Array.isArray(metas)) {
+      for (var q = 0; q < metas.length; q++) {
+        var mq = metas[q] || {};
+        var aS = (mq.a_show == null) ? -1 : mq.a_show, aH = (mq.a_hide == null) ? 2 : mq.a_hide;
+        if (M >= aS && M <= aH) vis.push(q);
+      }
+    }
+    var visKey = vis.join(",");
+    if (map.__rzSignVisKey !== visKey || map.__rzSignLastLyr !== lyr) {
+      map.__rzSignVisKey = visKey; map.__rzSignLastLyr = lyr; map.__rzSignLastM = Mq;
       try {
-        map.setFilter(lyr, ["all", ["<=", ["get", "a_show"], M], [">=", ["get", "a_hide"], M]]);
+        map.setFilter(lyr, vis.length ? ["in", ["get", "signIdx"], ["literal", vis]] : ["==", ["get", "signIdx"], -1]);
       } catch (_) {}
     }
     if (!Array.isArray(metas)) return;
