@@ -1287,6 +1287,8 @@ function setupSectionAccordions(moduleKey, root) {
   else if (Array.isArray(cur.collapsed_sections)) {
     const c = new Set(cur.collapsed_sections); open = new Set(slugs.filter(sl => !c.has(sl)));
   } else open = new Set();
+  // Prüfstände (Mock-Brücke) klicken Bedienelemente in den Abschnitten — dort alles auf.
+  if (window.__rzTestAllOpen) open = new Set(slugs);
   const persist = () => {
     if (_settingsCache) { _settingsCache[moduleKey] = Object.assign({}, _settingsCache[moduleKey] || {}, { open_sections: Array.from(open) }); }
     saveSettings({ [moduleKey]: { open_sections: Array.from(open) } });
