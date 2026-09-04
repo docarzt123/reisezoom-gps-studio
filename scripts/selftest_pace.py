@@ -25,12 +25,27 @@ from selftest_ui import MOCK_API_JS, UI_INDEX
 from selftest_archiv import I18N_MOCK_JS
 
 MOCK = """(() => {
+  window.__rzTestAllOpen = true;   // 04.09.2026: Module starten eingeklappt — Prüfstand braucht die Regler sichtbar
   const echt = window.pywebview.api;
   window.__rufe = [];
   window.__pausen = 11;
   const koords = [];
   for (let i = 0; i < 60; i++) koords.push([11 + i * 0.001, 48 + i * 0.001]);
+  // 04.09.2026 — der Prüfstand braucht eine ECHTE Sitzung mit persistierendem
+  // Projekt: Der Animator aktiviert die Sitzung beim Kartenaufbau noch einmal;
+  // kam die Antwort (früher: {ok:true} ohne Projekt) nach dem Umschalten auf
+  // „echtes Tempo", überschrieb der Rebind die Wahl mit dem Mock-Stand → „gleichmäßig".
+  // So verhält sich der Server: gespeicherte Einstellungen kommen beim nächsten
+  // Öffnen zurück.
+  window.__mockProj = window.__mockProj || { id: "p_pace", name: "Pace-Test", animator: {} };
   window.pywebview.api = new Proxy({
+    session_open_for_track: async () => ({ ok: true, session: { track_hash: "h_pace", gpx_path: "/tmp/test.gpx" },
+                                           active_project: window.__mockProj, projects: [window.__mockProj] }),
+    project_save_settings: async (...args) => {
+      const patch = args[args.length - 1], mod = args[args.length - 2];
+      if (typeof mod === "string" && patch && typeof patch === "object") { const pr = window.__mockProj; pr[mod] = Object.assign(pr[mod] || {}, patch); }
+      return { ok: true };
+    },
     // Ein Track MIT Zeit, damit „echtes Tempo" freigegeben ist.
     animator_load_gpx: async (pfad) => ({
       ok: true, coords: koords, bbox: [11, 48, 11.06, 48.06],

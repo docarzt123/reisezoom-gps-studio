@@ -12630,7 +12630,17 @@ function mountAnimator(body, headerActions, opts) {
     // Mengen-Aktivierung an und würde Ablauf und Projekt wieder auf die
     // Einzeltour zurückdrehen (Folge: Render lief als „Reise" mit doppelten
     // Etappen, 191 statt 96). Der Pending-Handler aktiviert die Menge selbst.
-    if (!_isReiseroute && typeof sessionActivate === "function"
+    // 04.09.2026 — ist die Sitzung für GENAU diese Datei schon aktiv (die
+    // GPX-Leiste hat sie beim Laden geöffnet), nicht erneut beim Server
+    // anfragen: die Antwort käme Sekunden später (Karte wird erst fertig) und
+    // ersetzte den lokalen Projekt-Stand samt allem, was der Nutzer inzwischen
+    // verstellt hat (Prüfstand: „echtes Tempo" sprang auf „gleichmäßig" zurück).
+    const _sessSchonDa = (typeof getActiveSession === "function" && getActiveSession()
+      && typeof getGlobalGpxPath === "function"
+      && _pfadNFC(getGlobalGpxPath() || "") === _pfadNFC(currentGpx || ""));
+    if (!_isReiseroute && _sessSchonDa) {
+      try { _applySessionState(); } catch (err) { console.warn("applySessionState:", err); }
+    } else if (!_isReiseroute && typeof sessionActivate === "function"
         && !(Array.isArray(window.__rzPendingTours) && window.__rzPendingTours.length)) {
       sessionActivate(res.coords, currentGpx || "")
         .then(_applySessionState)
