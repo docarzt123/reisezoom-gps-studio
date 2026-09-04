@@ -85,6 +85,10 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Träger Scrubber** (Marc, 04.09.: „wenn ich schnell hin und her ziehe,
+  dauert es, bis er nachgemalt hat"): Die Zeitleiste meldet jede Mausbewegung,
+  die Vorschau zeichnete jede einzeln nach. Jetzt wird pro Bild nur die
+  letzte Position gezeichnet, alles dazwischen übersprungen.
 - **„Auf der Karte anzeigen" wirkte auf OpenFreeMap-Karten nicht** (Beta-Tester,
   04.09.): Die Ebenen heißen dort `label_*`, `highway-name-*`, `water_name_*` —
   die Schalter Orte/Straßen greifen jetzt auch auf diese Namen (Vorschau und
