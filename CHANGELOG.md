@@ -138,6 +138,14 @@ Bei jeder neuen Version:
   Projekt öffnete den Editor. Der Editor-Zustand und Keyframes werden aus den
   Standardwerten weder gespeichert noch übernommen (auch bei bereits
   gespeicherten). Wächter `tests/test_user_defaults_keyframes.py`.
+  Nachtrag (Marc, 04.09.: „ein neu erstellter Schwarm öffnet immer noch mit
+  den Keyframes des vorherigen Projekts"): dritte Ursache — der Animator wird
+  mit dem Projekt der ERSTEN Tour gemountet, die Mengen-Sitzung wechselt dann
+  das Projekt, aber Controls, Keyframe-Editor und Zeitleiste wurden nicht neu
+  gebunden (das Projekt-Menü tut das bei jedem Wechsel, die Archiv-Übergabe
+  nicht). Jetzt wird nach dem Aktivieren der Mengen-Sitzung neu gebunden.
+  Kopflos nachgestellt (Masca mit 52 Keyframes → Schwarm aus dem Archiv):
+  vorher Editor an, „auf Keyframe #1"; jetzt Editor aus, 0 Keyframes.
 - **Anflug zwischen zwei Keyframes hängt vom Startpunkt des Probelaufs ab**
   (Marc, 04.09., Masca: „von ganz vorne landet der Zoom an der falschen Stelle,
   aus der Mitte des Intros passt es"): Der MapLibre-Kamera-Adapter las beim
