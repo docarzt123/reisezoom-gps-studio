@@ -7889,6 +7889,15 @@ function mountAnimator(body, headerActions, opts) {
             const alle = [haupt].concat(pending).filter(Boolean);
             if (alle.length >= 2 && typeof sessionActivateMenge === "function") {
               await sessionActivateMenge(alle, pendingAblauf, pendingModus, pendingPausen);
+              // 04.09.2026 (Marc: „ein neu erstellter Schwarm öffnet mit den
+              // Keyframes des vorherigen Projekts"): Das Modul war mit dem
+              // Projekt der ERSTEN Tour gemountet (Controls, Keyframe-Editor,
+              // Zeitleiste). Die Mengen-Sitzung wechselt das Projekt, aber
+              // niemand band die Oberfläche neu — im Projekt-Menü (projects.js)
+              // passiert genau das bei jedem Wechsel. Hier nachziehen.
+              try { if (typeof rebindAllSettings === "function") rebindAllSettings(); } catch (_) {}
+              try { if (typeof window._animOnProjectChanged === "function") window._animOnProjectChanged(); } catch (_) {}
+              try { applyKeyframesEnabled(); } catch (_) {}
               // Neustart-Gedächtnis: Haupt + Etappen + Ablauf + Modus.
               try { saveSettings({ last_menge: { paths: alle, ablauf: pendingAblauf,
                                                  modus: pendingModus, pausen: pendingPausen } }); } catch (_) {}
