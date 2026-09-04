@@ -1900,9 +1900,9 @@ window.__rzNorthScale = function(brgOverride, m) {
   var bar = document.getElementById('rz-scale-bar'), txt = document.getElementById('rz-scale-txt');
   if (!bar) return;
   if (!window.__rzScaleMaxW) window.__rzScaleMaxW = bar.offsetWidth || 120;
-  var maxW = window.__rzScaleMaxW, c = m.getContainer();
-  var y = c.clientHeight / 2, x0 = c.clientWidth / 2 - maxW / 2, dist = 0;
-  try { var a = m.unproject([x0, y]), b = m.unproject([x0 + maxW, y]); dist = a.distanceTo ? a.distanceTo(b) : 0; } catch (_) { dist = 0; }
+  var maxW = window.__rzScaleMaxW, dist = 0;
+  // rechnerisch statt unproject (unter MapLibre-Gelände = GPU-Rücklesen, s. Vorschau)
+  try { var lat = m.getCenter().lat, zm = m.getZoom(); dist = 40075016.686 * Math.cos(lat * Math.PI / 180) / (512 * Math.pow(2, zm)) * maxW; } catch (_) { dist = 0; }
   if (!(dist > 0) || !isFinite(dist)) return;
   var p10 = Math.pow(10, Math.floor(Math.log(dist) / Math.LN10)), r = dist / p10;
   r = r >= 10 ? 10 : r >= 5 ? 5 : r >= 3 ? 3 : r >= 2 ? 2 : 1;

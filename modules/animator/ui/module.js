@@ -12007,25 +12007,40 @@ function mountAnimator(body, headerActions, opts) {
       }
     }
     layer.innerHTML = html;
-    try { _ovUpdateNorthScale(); } catch (_) {}
+    try { _ovUpdateNorthScale(true); } catch (_) {}
   }
 
   // 04.09.2026 — Nordpfeil dreht mit dem Bearing, Maßstab folgt Zoom/Breite
   // (Bildmitte, wie MapLibre ScaleControl). Spiegel von __rzNorthScale im Render.
-  function _ovUpdateNorthScale() {
+  // 04.09.2026 (Marc: „die Vorschau ruckelt total … mit Mapbox lief es flüssig"):
+  // Die erste Fassung maß den Maßstab mit zwei `map.unproject` je Bewegung —
+  // unter MapLibre-Gelände liest unproject den Gelände-Framebuffer zurück
+  // (GPU-Stall, ~1,2 ms je Aufruf, 4 Aufrufe je Frame = 30 % der Frame-Zeit,
+  // gemessen mit Marcs Schorfheide-Projekt). Mapbox hat diesen Rückweg nicht,
+  // deshalb lief es dort flüssig. Jetzt rein rechnerisch (Meter je Pixel aus
+  // Zoom und Breite, wie ScaleControl im Kern) und höchstens alle 120 ms.
+  let _ovNSLast = 0, _ovNSKey = "";
+  function _ovUpdateNorthScale(force) {
     const layer = document.getElementById("anim-overlay-preview");
     if (!layer || !map) return;
     const n = layer.querySelector(".ov-north"), s = layer.querySelector(".ov-scale");
     if (!n && !s) return;
-    let brg = 0; try { brg = map.getBearing() || 0; } catch (_) {}
+    const now = performance.now();
+    if (!force && now - _ovNSLast < 120) return;
+    _ovNSLast = now;
+    let brg = 0, zoom = 0, lat = 0;
+    try { brg = map.getBearing() || 0; zoom = map.getZoom(); lat = map.getCenter().lat; } catch (_) {}
+    const key = brg.toFixed(1) + "|" + zoom.toFixed(2) + "|" + lat.toFixed(2);
+    if (!force && key === _ovNSKey) return;
+    _ovNSKey = key;
     if (n) n.style.setProperty("--rz-north", (-brg) + "deg");
     if (!s) return;
-    const ovs = parseFloat(getComputedStyle(layer).getPropertyValue("--overlay-scale")) || 1;
-    const host = map.getContainer(); const sw = host.clientWidth, sh = host.clientHeight;
-    const k = (layer.getBoundingClientRect().width || sw) / (layer.offsetWidth || sw);   // Layer-px → Bildschirm-px
+    const ovs = parseFloat(layer.style.getPropertyValue("--overlay-scale")) || 1;
+    const host = map.getContainer(); const sw = host.clientWidth || 1;
+    const k = (layer.offsetWidth ? sw / layer.offsetWidth : 1);   // Layer-px → Bildschirm-px (Layer ist rw breit, auf sw skaliert)
     const maxLayer = 120 * ovs, maxScreen = maxLayer * k;
-    let dist = 0;
-    try { const a = map.unproject([sw / 2 - maxScreen / 2, sh / 2]), b = map.unproject([sw / 2 + maxScreen / 2, sh / 2]); dist = a.distanceTo(b); } catch (_) {}
+    const mpp = 40075016.686 * Math.cos(lat * Math.PI / 180) / (512 * Math.pow(2, zoom));   // Meter je CSS-Pixel in der Bildmitte
+    const dist = mpp * maxScreen;
     if (!(dist > 0) || !isFinite(dist)) return;
     const p10 = Math.pow(10, Math.floor(Math.log10(dist))); let r = dist / p10;
     r = r >= 10 ? 10 : r >= 5 ? 5 : r >= 3 ? 3 : r >= 2 ? 2 : 1;
