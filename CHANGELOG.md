@@ -101,6 +101,13 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **JS-Fehler „undefined is not an object (evaluating 'e[1].key')"** (Marc,
+  04.09., app.log 16:12, MapLibre `SourceCache.update`): mit Gelände und einem
+  Zoom über der maxzoom einer Kachelquelle liefert MapLibres `children()` nur
+  ein Kind, der Code greift ungeprüft auf vier zu. Zwei Guards im gebündelten
+  `ui/vendor/maplibre-gl.js` (Marker `rz-patch children4`), Wächter
+  `tests/test_vendor_patches.py` damit ein Vendor-Update den Patch nicht still
+  verliert. Der Fehler war nicht fatal, zeigte aber den Fehlerdialog.
 - **Track und Laufpunkt hinken dem Scrubber hinterher und laufen nach Stopp
   weiter** (Marc, 04.09., Masca-Projekt mit Gelände): jede Positionsänderung
   von Linie, Laufpunkt und Schwarm ging als eigener Auftrag an den
