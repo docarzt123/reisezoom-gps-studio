@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+#### Behoben
+- **Archiv → Projekte: „Noch keine Projekte" trotz 61 Projekten** (Marc, 04.09.):
+  Bei einem Suchbegriff („Masca") filterte nur die Liste, die Zähler links
+  zeigten weiter alle Projekte, und der Leer-Text behauptete, es gäbe keine.
+  Jetzt folgen die Zähler der Suche, der Leer-Text nennt den Suchbegriff und
+  den Ausweg (Suchfeld leeren), und die Suche trifft zusätzlich Dateinamen der
+  Touren — auch wenn die Tour nicht (mehr) im Archiv steht.
+
 ## [0.9.652] – 2026-09-03
 
 ### Drei Meldungen eines Beta-Testers (Windows, spanische Oberfläche, 4 Touren als Schwarm)

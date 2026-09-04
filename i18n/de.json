@@ -1810,6 +1810,7 @@
   "library.proj_geloescht": "Projekt gelöscht.",
   "library.proj_in": "Diese Tour steckt in {n} Projekt(en) — ansehen",
   "library.proj_leer": "Noch keine Projekte — öffne eine Tour oder starte einen Schwarm, dann entsteht hier dein Arbeitsstand.",
+  "library.proj_keine_treffer": "Kein Projekt passt zu „{q}“ — Suchfeld leeren, um alle zu sehen.",
   "library.proj_multi_alle": "Alle sichtbaren auswählen",
   "library.proj_multi_hinweis": "Ausgewählt wird nur, was gerade in der Liste steht. Automatisch angelegte Arbeitsstände liegen im zugeklappten Bereich darunter — die musst du erst aufklappen.",
   "library.proj_multi_n": "Projekte ausgewählt",
