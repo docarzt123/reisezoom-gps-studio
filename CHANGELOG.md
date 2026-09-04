@@ -15,6 +15,15 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 #### Hinzugefügt
+- **Klare Hinweise auf der Karte** (Marc, 04.09.: „das muss klar in der App
+  kommuniziert werden … dann kommen solche Fragen erst gar nicht"): drei
+  Banner oben auf der Karte, DE/EN/ES. **Bekannte Lücke** („Für Hamburg gibt es
+  derzeit keine amtlichen Luftbilder — bitte einen anderen Kartenstil wählen",
+  mit Grund; Liste `KNOWN_GAPS` in mapstyles). **Keine Abdeckung** („Für diese
+  Gegend gibt es keine amtlichen Luftbilder — gezeigt wird die OpenFreeMap-
+  Karte …"). **Dienst antwortet nicht** („Der Kartendienst … antwortet nicht
+  (502) — später erneut versuchen oder anderen Stil wählen", verschwindet 20 s
+  nach dem letzten Fehler oder beim Stilwechsel).
 - **Gruppe „Luftbild-Optik"** (Marc, 04.09.: „Satellit (kostenlos) in Brandenburg
   sieht halb tot aus" → „könnte man da noch mehr einstellen?" → „go"): vier
   Regler — Sättigung, Kontrast, Helligkeit (je −100…100 %), Farbton (−180…180°)

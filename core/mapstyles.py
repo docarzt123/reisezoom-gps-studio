@@ -345,6 +345,29 @@ def bbox_tuple(bbox) -> Optional[tuple]:
     return t
 
 
+# ── Bekannte Lücken in „Satellit (kostenlos)" (04.09.2026) ────────────────
+# Gebiete, die im Rechteck eines Landesdienstes liegen, aber KEINE Luftbilder
+# liefern (durchsichtig → Blue Marble). Die Karte sagt es dann klar, statt
+# dass Tester rätseln („Satellit fehlt in meinem Fall die Kachel Hamburg").
+KNOWN_GAPS = [
+    {"id": "de-hh", "name": "Hamburg", "bbox": (9.73, 53.39, 10.33, 53.74),
+     "reason": "Der Luftbild-Dienst der Stadt Hamburg ist abgeschaltet (alle bekannten Adressen 404, Stand 04.09.2026)."},
+]
+
+
+def gaps_for_bbox(bbox) -> list[dict]:
+    """Bekannte Lücken, die das Track-Rechteck berühren."""
+    b = bbox_tuple(bbox)
+    if not b:
+        return []
+    out = []
+    for g in KNOWN_GAPS:
+        gb = g["bbox"]
+        if b[0] <= gb[2] and b[2] >= gb[0] and b[1] <= gb[3] and b[3] >= gb[1]:
+            out.append(g)
+    return out
+
+
 def regions_for_bbox(bbox) -> list[dict]:
     """Alle Orthofoto-Regionen, deren Rechteck den MITTELPUNKT des Track-
     Rechtecks enthält — kleinste Fläche zuerst (Berlin vor Brandenburg,
@@ -664,9 +687,13 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
 
     region = None
     stack: list[dict] = []
+    gaps = []
     if st["kind"] == "gov":
         stack = region_stack(bbox)
         region = stack[0] if stack else None
+        gaps = gaps_for_bbox(bbox)
+        for g in gaps:
+            notes.append(f"gap:{g['id']}")
         if region is None:
             if bbox_tuple(bbox):
                 notes.append("Satellit für diesen Track nicht verfügbar → Karte (OpenFreeMap)")
@@ -689,6 +716,7 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
         attribution = TERRAIN[st["terrain"]]["attribution"]
     return {
         "key": key, "requested": style_key, "engine": engine, "style": style, "kind": st["kind"],
+        "gaps": [{"id": g["id"], "name": g["name"], "reason": g["reason"]} for g in gaps],
         "terrain": terrain, "attribution": attribution,
         "region": ({"id": region["id"], "name": "/".join(r["name"] for r in stack),
                     "ids": [r["id"] for r in stack]} if region else None),
@@ -725,6 +753,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         "keys": {"mapbox": bool(has_mapbox), "maptiler": bool(has_maptiler)},
         "base_layer": BASE_LAYER, "ortho_minzoom": ORTHO_MINZOOM,
         "label_overlay": label_overlay(),      # Beschriftung über Raster-Stilen (JS-Spiegel)
+        "known_gaps": [{"id": g["id"], "name": g["name"], "bbox": list(g["bbox"]), "reason": g["reason"]} for g in KNOWN_GAPS],
         "ortho_adjust_default": ORTHO_ADJUST_DEFAULT,
         "terms_links": TERMS_LINKS,
         # Lokale Kachel-Weiche (core/tileproxy.py); leer = direkt zum Dienst
