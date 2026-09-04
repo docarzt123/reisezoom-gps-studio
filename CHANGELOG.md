@@ -49,6 +49,9 @@ Bei jeder neuen Version:
   bei jedem Stil sichtbar.
 
 #### Geändert
+- **Seitenleisten-Abschnitte besser sichtbar** (Marc, 04.09.: „die Ziehharmonikas
+  sieht man kaum"): Kopfzeilen der Auf-/Zuklapp-Abschnitte leicht abgesetzt
+  (eigener Hintergrund, Rahmen, Innenabstand), Pfeil größer und kräftiger.
 - **„Nächstes Video" heißt jetzt „Schließen"** (Beta-Tester, 04.09.): Der Knopf
   im „Video fertig"-Fenster schloss nur das Fenster, klang aber nach „noch ein
   Video abspielen"; der Tester suchte einen Schließen-Knopf. Auch „Neues Bild"
