@@ -108,15 +108,21 @@ def fetch_tile(region_id: str, z: int, x: int, y: int, transparent: bool,
             return 200, raw[:nl].decode("ascii", "ignore") or "image/jpeg", raw[nl + 1:]
         except Exception:
             pass
-    try:
-        from . import net
-        req = urllib.request.Request(url, headers=_UA)
-        with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as resp:
-            ct = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
-            body = resp.read()
-    except Exception as e:
-        _log.warning("Kachel %s z%d/%d/%d: %s", region_id, z, x, y, e)
-        return 502, "text/plain", str(e).encode("utf-8", "ignore")
+    from . import net
+    body = b""; ct = ""; fehler = None
+    for versuch in range(2):                    # 04.09.2026: einmal wiederholen — unter Last kippten einzelne AWS-Kacheln mit 502
+        try:
+            req = urllib.request.Request(url, headers=_UA)
+            with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as resp:
+                ct = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+                body = resp.read()
+            fehler = None
+            break
+        except Exception as e:      # noqa: BLE001
+            fehler = e
+    if fehler is not None:
+        _log.warning("Kachel %s z%d/%d/%d: %s", region_id, z, x, y, fehler)
+        return 502, "text/plain", str(fehler).encode("utf-8", "ignore")
     if not ct.startswith("image/"):
         # WMS-Fehler kommen als XML mit Status 200 — nicht als Bild ausliefern
         return 502, "text/plain", body[:400]

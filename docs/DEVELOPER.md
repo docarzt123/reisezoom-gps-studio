@@ -2539,6 +2539,15 @@ WebGL-Karten Kacheln per fetch() laden. Vorschau UND Render (via
 direkt zum Dienst und `_install_tile_cache()` (Playwright-Route) übernimmt
 Zwischenspeicher + CORS im Render.
 
+**Beschriftungs-Overlay über Orthofotos (04.09.2026):** `mapstyles.add_label_overlay()`
+hängt an gov-Stile die OpenFreeMap-Vektor-Ebenen (Quelle `openmaptiles`, glyphs,
+sprite) aus `ui/vendor/ofm-liberty-overlay.json` (Schnappschuss via
+`scripts/update_ofm_overlay.py`, Ebenen-IDs `rz-ov-<gruppe>-…`, Gruppen
+`LABEL_GROUPS`). `resolve(labels=…)` / JS `resolveMapStyle(key, bbox, terrain, labels)`;
+Animator/Tour-Map geben ihre fünf Schalter als `labels` mit, andere Module nichts.
+Die Heuristik in `applyHideLabels` (Vorschau) und `hide_labels_block` (Render)
+schaltet Overlay-Ebenen über das Präfix, Mapbox-Ebenen weiter über Namen.
+
 **Gelände-Klemme (03.09.2026):** Die AWS-Terrarium-Kacheln enthalten
 Meerestiefen — an jeder Küste stand eine dunkle Klippe bis zum Meeresgrund
 (Masca). `tileproxy.clamp_terrarium()` setzt alle Pixel mit R < 128 (Höhe

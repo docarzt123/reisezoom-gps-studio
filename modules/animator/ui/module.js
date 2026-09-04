@@ -7275,6 +7275,11 @@ function mountAnimator(body, headerActions, opts) {
     };
   }
 
+  // 04.09.2026 — die fünf Schalter als Overlay-Gruppen (mapstyles.LABEL_GROUPS).
+  function _labelsFromConfig() {
+    try { const c = getMapConfig(); return { places: !!c.showPlace, roads: !!c.showRoad, pois: !!c.showPoi, transit: !!c.showTransit, admin: !!c.showAdmin }; }
+    catch (_) { return { places: true, roads: true, pois: true, transit: true, admin: true }; }
+  }
   function applyHideLabels() {
     // Karten-Feinabstimmung in der Live-Preview anwenden (v0.5.0+).
     // Zwei Mechanismen parallel:
@@ -7312,6 +7317,14 @@ function mountAnimator(body, headerActions, opts) {
       if (l.type !== "symbol" && l.type !== "line") return;
       const id = l.id.toLowerCase();
       let want = null;
+      // Overlay-Ebenen über Rasterkarten tragen ihre Gruppe im Namen: rz-ov-<gruppe>-…
+      if (id.startsWith("rz-ov-")) {
+        const g = id.split("-")[2];
+        want = ({ places: c.showPlace, roads: c.showRoad, pois: c.showPoi, transit: c.showTransit, admin: c.showAdmin })[g];
+        if (want == null) return;
+        try { map.setLayoutProperty(l.id, "visibility", want ? "visible" : "none"); } catch (_) {}
+        return;
+      }
       if (id.includes("admin") || id.includes("boundary") || id.includes("country-boundary")) want = c.showAdmin;
       else if (id.includes("road") || id.includes("street") || id.includes("path")) want = (l.type === "line") ? null : c.showRoad;
       else if (id.includes("poi")) want = c.showPoi;
@@ -7469,7 +7482,7 @@ function mountAnimator(body, headerActions, opts) {
     _updateStyleHints(styleKey);
     // Alpha ist kein Kartenstil: Karte bleibt, wie sie ist (die Vorschau deckt sie ab).
     const key = (styleKey === "alpha") ? (map.__rzStyleKey || mapDefaultStyle()) : styleKey;
-    const r = applyMapStyle(map, key, currentBbox || null, { terrain: false });
+    const r = applyMapStyle(map, key, currentBbox || null, { terrain: false, labels: _labelsFromConfig() });
     if (r.needsRemount) {
       // Engine-Wechsel (Mapbox GL ↔ MapLibre GL): Karte neu bauen. Der Stil ist
       // über bindSetting schon gespeichert, der Neuaufbau liest ihn.
@@ -7532,6 +7545,7 @@ function mountAnimator(body, headerActions, opts) {
       // 03.09.2026 — Stil aus der gemeinsamen Liste; Alpha ist kein Kartenstil.
       styleKey: (initialStyleKey === "alpha") ? mapDefaultStyle() : initialStyleKey,
       bbox: currentBbox || null,
+      labels: _labelsFromConfig(),   // 04.09.2026: Orte/Straßen/… auch über Rasterkarten
       common: { center: [10, 51], zoom: 4, pitch: currentPitch() },
     });
     map = made.map;
