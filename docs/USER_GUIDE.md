@@ -920,6 +920,7 @@ anklickbar: einmal klicken sortiert danach, noch einmal dreht die Richtung um, e
 kleiner Pfeil zeigt an, wonach gerade sortiert wird. Leere Werte stehen immer am
 Ende — sonst begänne „Startpunkt A–Z" mit einer Bildschirmseite leerer Zellen.
 Dasselbe gilt in der Statistik für die Tabelle „Fortbewegung im Vergleich".
+**Spaltenbreiten.** Am rechten Rand jeder Spaltenüberschrift sitzt ein schmaler Griff: ziehen stellt die Breite ein, Doppelklick setzt alle Spalten zurück. Die Breiten bleiben gespeichert.
 
 **Ausblenden, aus dem Archiv nehmen, Papierkorb — was ist der Unterschied?** Die
 drei Knöpfe unten in der Detailspalte sehen ähnlich aus, tun aber sehr

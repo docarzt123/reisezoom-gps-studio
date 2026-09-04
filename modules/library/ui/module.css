@@ -201,7 +201,7 @@
   /* Vorschau · Name · Datum · Strecke · Höhe · Dauer · Schnitt ·
      Fortbewegung · Startpunkt · Schlagwörter (die letzten drei auf Wunsch
      eines Beta-Testers). Name und Startpunkt teilen sich den flexiblen Rest. */
-  grid-template-columns: 56px minmax(0, 1.4fr) 92px 78px 78px 78px 78px 104px minmax(0, 1fr) minmax(0, 0.9fr);
+  grid-template-columns: var(--lib-cols, 56px minmax(0, 1.4fr) 92px 78px 78px 78px 78px 104px minmax(0, 1fr) minmax(0, 0.9fr));
   background: none; border: none; border-bottom: 1px solid var(--border);
   color: var(--text); font: inherit; font-size: 12px; text-align: left;
   padding: 5px 6px; cursor: pointer;
@@ -698,6 +698,11 @@
 .lib-row-head .lib-th:hover { color: var(--text); }
 .lib-row-head .lib-th.is-sort { color: var(--accent); }
 .lib-th-pfeil { font-size: 9px; font-style: normal; opacity: .8; }
+/* Spaltengriff (04.09.2026): schmaler Streifen am rechten Rand der Kopfzelle */
+.lib-row-head > span { position: relative; overflow: visible; }   /* sonst schneidet overflow:hidden den Griff ab */
+.lib-th-grip { position: absolute; top: -4px; bottom: -4px; right: -8px; width: 10px; cursor: col-resize; z-index: 4; }
+.lib-th-grip::after { content: ""; position: absolute; top: 3px; bottom: 3px; left: 4px; width: 1px; background: var(--border); }
+.lib-th-grip:hover::after { background: var(--accent); width: 2px; }
 
 /* Knopf + „?"-Erklärblase bleiben beim Umbrechen zusammen. */
 .lib-act-paar { display: inline-flex; align-items: center; }

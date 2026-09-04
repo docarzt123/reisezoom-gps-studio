@@ -866,6 +866,7 @@ pulsable: un clic ordena por él, otro invierte el sentido y una pequeña flecha
 por qué se está ordenando. Los valores vacíos van siempre al final; si no, «Punto de
 inicio A–Z» empezaría con una pantalla de celdas vacías. Lo mismo vale en la
 estadística para la tabla «Actividades comparadas».
+**Ancho de columnas.** En el borde derecho de cada encabezado hay un tirador estrecho: arrastra para ajustar el ancho, doble clic para restablecer todas las columnas. Los anchos se recuerdan.
 
 **Ocultar, quitar del archivo, papelera: ¿cuál es la diferencia?** Los tres
 botones al final de la columna de detalle se parecen, pero hacen cosas muy

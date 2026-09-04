@@ -849,6 +849,7 @@ click sorts by it, another reverses the direction, a small arrow shows what is
 currently sorted. Empty values always go last — otherwise “Start point A–Z” would
 begin with a screenful of empty cells. The same applies to the “Activities compared”
 table in the statistics.
+**Column widths.** A thin grip at the right edge of every column heading: drag to set the width, double-click to reset all columns. The widths are remembered.
 
 **Hide, remove from library, trash — what is the difference?** The three buttons
 at the bottom of the detail column look similar but do very different things.

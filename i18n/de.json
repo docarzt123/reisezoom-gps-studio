@@ -1898,6 +1898,7 @@
   "library.sort.speed_desc": "Schnellste zuerst",
   "library.sort.tags_asc": "Schlagwort A–Z",
   "library.sort_by_head": "Nach dieser Spalte sortieren",
+  "library.col_resize_tip": "Ziehen: Spaltenbreite · Doppelklick: zurücksetzen",
   "library.speed": "Schnitt",
   "library.staende": "Frühere Arbeitsstände",
   "library.staende_hint": "Beim Arbeiten wird höchstens alle 10 Minuten ein Stand gesichert. Wiederherstellen sichert den jetzigen Stand vorher automatisch.",

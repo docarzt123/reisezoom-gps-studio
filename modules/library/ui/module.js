@@ -1567,6 +1567,53 @@ function mountLibrary(body, headerActions) {
     fensterThumbs(grid);
   }
 
+  // ── Spaltenbreiten der Listenansicht (04.09.2026, Marc: „oben ziehen können,
+  //    Einstellungen merken") ─────────────────────────────────────────────
+  // Gespeichert als Pixel je Spalte in settings.library.col_widths (10 Werte).
+  // Ohne Eintrag gilt das CSS-Raster (minmax/fr). Beim ersten Ziehen werden
+  // die gerade gemessenen Breiten aller Spalten übernommen, damit nichts springt.
+  function _spaltenBreiten() {
+    try { const w = _settingsCache && _settingsCache.library && _settingsCache.library.col_widths;
+      return (Array.isArray(w) && w.length === LIST_COLS.length && w.every(v => v > 0)) ? w.slice() : null; } catch (_) { return null; }
+  }
+  function _spaltenBreitenAnwenden(box, breiten) {
+    const w = breiten || _spaltenBreiten();
+    if (!w) { box.style.removeProperty("--lib-cols"); return; }
+    // letzte Spalte flexibel, damit die Zeile die Breite der Liste füllt
+    box.style.setProperty("--lib-cols", w.slice(0, -1).map(v => Math.round(v) + "px").join(" ") + " minmax(0, 1fr)");
+  }
+  function _spaltenGriffeBinden(box) {
+    const head = box.querySelector(".lib-row-head");
+    if (!head) return;
+    head.querySelectorAll("[data-grip]").forEach(g => {
+      g.addEventListener("click", (e) => e.stopPropagation());
+      g.addEventListener("dblclick", (e) => {
+        e.stopPropagation();
+        saveSettings({ library: { col_widths: null } }, { immediate: true });
+        if (_settingsCache && _settingsCache.library) delete _settingsCache.library.col_widths;
+        _spaltenBreitenAnwenden(box, null);
+      });
+      g.addEventListener("mousedown", (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const i = +g.dataset.grip;
+        const zellen = Array.from(head.children);
+        const w = _spaltenBreiten() || zellen.map(z => z.getBoundingClientRect().width);
+        const startX = e.clientX, startW = w[i];
+        document.body.style.cursor = "col-resize";
+        const move = (ev) => { w[i] = Math.max(36, startW + (ev.clientX - startX)); _spaltenBreitenAnwenden(box, w); };
+        const up = () => {
+          document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up);
+          document.body.style.cursor = "";
+          const rund = w.map(v => Math.round(v));
+          if (!_settingsCache.library) _settingsCache.library = {};
+          _settingsCache.library.col_widths = rund;
+          saveSettings({ library: { col_widths: rund } }, { immediate: true });
+        };
+        document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+      });
+    });
+  }
+
   function renderList() {
     const box = $("lib-list");
     if (!_items.length) { box.innerHTML = emptyHtml(); bindEmpty(); return; }
@@ -1576,16 +1623,22 @@ function mountLibrary(body, headerActions) {
     const sortierbar = !state.collection_id;
     box.innerHTML = `
       <div class="lib-row lib-row-head">
-        ${LIST_COLS.map(c => {
-          if (!sortierbar || !c.sort) return `<span>${esc(c.label())}</span>`;
+        ${LIST_COLS.map((c, i) => {
+          // 04.09.2026 (Marc): Griff am rechten Rand jeder Spalte — ziehen stellt
+          // die Breite ein, Doppelklick setzt zurück. Breiten in settings.library.col_widths.
+          const grip = i < LIST_COLS.length - 1
+            ? `<i class="lib-th-grip" data-grip="${i}" title="${esc(T("library.col_resize_tip", "Ziehen: Spaltenbreite · Doppelklick: zurücksetzen"))}"></i>` : "";
+          if (!sortierbar || !c.sort) return `<span>${esc(c.label())}${grip}</span>`;
           const an = sortPfeil(c);
           return `<span class="lib-th${an ? " is-sort" : ""}" data-col="${c.key}"
             role="button" tabindex="0"
             title="${esc(T("library.sort_by_head", "Nach dieser Spalte sortieren"))}"
-            >${esc(c.label())}<i class="lib-th-pfeil">${an}</i></span>`;
+            >${esc(c.label())}<i class="lib-th-pfeil">${an}</i>${grip}</span>`;
         }).join("")}
       </div>
       ${fensterHtml(box, "list", (it, i) => rowHtml(it, i))}`;
+    _spaltenBreitenAnwenden(box);
+    _spaltenGriffeBinden(box);
     box.querySelectorAll("[data-col]").forEach(th => {
       const spalte = LIST_COLS.find(c => c.key === th.dataset.col);
       const um = () => {
