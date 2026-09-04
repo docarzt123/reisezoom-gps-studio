@@ -14,6 +14,18 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+#### Hinzugefügt
+- **Ruhige Kamera (3D) in allen Kartenstilen** (Marc, 04.09.: „am wichtigsten
+  Satellit (kostenlos)“): Bisher nur mit Mapbox (FreeCamera). MapLibre hat
+  keine FreeCamera, und seine eigene Umrechnung liefert unter der Weltkugel
+  NaN — deshalb ein eigener, projektionsunabhängiger Kamera-Adapter
+  (`ui/js/maplibre-camera.js`, in Vorschau UND Render eingebettet): Kamera-
+  position + Richtung/Neigung ↔ Bildmitte/Zoom/Höhe, Blickstrahl trifft das
+  Gelände, Höhe wird nicht ans Gelände geklemmt (kein Berg-Hüpfen). Rundlauf
+  exakt (0 m, 0,0000 Zoom), Vorschau und Video mit Masca-Projekt (35 Keyframes)
+  in Satellit (kostenlos), MapTiler und Mapbox geprüft. Der Regler ist wieder
+  bei jedem Stil sichtbar.
+
 #### Geändert
 - **„Nächstes Video" heißt jetzt „Schließen"** (Beta-Tester, 04.09.): Der Knopf
   im „Video fertig"-Fenster schloss nur das Fenster, klang aber nach „noch ein
