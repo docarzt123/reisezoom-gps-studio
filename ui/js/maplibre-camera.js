@@ -60,11 +60,16 @@
     const camLat = yLat(cy);
     return { pos: [cx, cy, mercZfromAlt(altM, camLat)], bp: [map.getBearing(), map.getPitch()] };
   }
-  function rzMlCamApply(map, pos, bp) {
+  // elevOpt (Meter, optional): Geländehöhe, mit der die Stützstelle GELESEN wurde.
+  // Ist sie bekannt, wird sie fest verwendet (kein Gelände-Abgriff) — damit ist
+  // Lesen/Setzen exakt umkehrbar, auch wenn die Kacheln beim Abspielen gerade
+  // fehlen (04.09.2026: „Zoom landet an der falschen Stelle von ganz vorne").
+  function rzMlCamApply(map, pos, bp, elevOpt) {
     const b = bp[0] * D2R, p = bp[1] * D2R;
     const camLat = yLat(pos[1]);
     const altM = pos[2] / mercZfromAlt(1, camLat);
-    let elev = centerElev(map), cLng = xLng(pos[0]), cLat = camLat;
+    const fixed = (elevOpt != null && isFinite(elevOpt));
+    let elev = fixed ? elevOpt : centerElev(map), cLng = xLng(pos[0]), cLat = camLat;
     // Blickstrahl trifft Gelände. Der Meter→Mercator-Maßstab gehört zur
     // BILDMITTE (so rechnet MapLibre pixelPerMeter), nicht zur Kamera — bei
     // 100 km Abstand machte der Breitengrad-Unterschied sonst 1,8 km aus.
@@ -73,7 +78,7 @@
       const offMerc = dz * Math.tan(p) * mercZfromAlt(1, cLat);
       const cx = pos[0] + Math.sin(b) * offMerc, cy = pos[1] - Math.cos(b) * offMerc;
       const nLng = xLng(cx), nLat = yLat(cy);
-      const e2 = terrainAt(map, [nLng, nLat], elev);
+      const e2 = fixed ? elev : terrainAt(map, [nLng, nLat], elev);
       const fertig = Math.abs(e2 - elev) < 0.5 && Math.abs(nLat - cLat) < 1e-7;
       cLng = nLng; cLat = nLat; elev = e2;
       if (fertig) break;

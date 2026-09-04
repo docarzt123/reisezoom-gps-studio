@@ -136,6 +136,14 @@ Bei jeder neuen Version:
   danach). Kopflos gemessen (Masca-Track, Gelände, ruhige Kamera): Kamerahöhe
   der Stützstellen von zwei völlig verschiedenen Startlagen aus — vorher
   1,75 % Abweichung, jetzt 0,00 %.
+  Nachtrag (Marc, 04.09., „jetzt landet der Zoom an der falschen Stelle, von
+  ganz vorne"): das Warten auf Kacheln je Stützstelle dauerte bei 450 Punkten
+  (30 s × 15/s) 17 Sekunden, in denen die Karte sichtbar herumsprang. Seit
+  Lesen und Setzen dieselbe gespeicherte Geländehöhe benutzen, ist der Zoom
+  ohnehin exakt umkehrbar — das Warten ist raus; die Höhe kommt aus dem
+  Gelände, wo geladen, sonst aus den GPX-Höhen (× Überhöhung). Gemessen mit
+  Marcs Masca-Projekt (52 Keyframes, ruhige Kamera, Gelände): Aufbau 0 s,
+  Zoom am Keyframe nach dem Intro 13,388 = Sollwert 13,388.
 - **JS-Fehler „undefined is not an object (evaluating 'e[1].key')"** (Marc,
   04.09., app.log 16:12, MapLibre `SourceCache.update`): mit Gelände und einem
   Zoom über der maxzoom einer Kachelquelle liefert MapLibres `children()` nur

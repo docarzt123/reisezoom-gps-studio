@@ -3338,20 +3338,20 @@ window.__kfCams = null;
 // NICHT wieder ans Gelände geklemmt wird (das wäre das Berg-Hüpfen), wird
 // `centerClampedToGround` aus- und die berechnete `elevation` mitgegeben.
 window.__rzMC = (typeof mapboxgl !== "undefined" && mapboxgl.MercatorCoordinate) ? mapboxgl.MercatorCoordinate : maplibregl.MercatorCoordinate;
-window.__rzCamRead = () => {{
+window.__rzCamRead = (elevM) => {{
   if (typeof map.getFreeCameraOptions === "function") {{
     const fc = map.getFreeCameraOptions(); const o = fc.orientation;
     return {{ pos: [fc.position.x, fc.position.y, fc.position.z], ori: [o[0], o[1], o[2], o[3]], bp: null }};
   }}
-  const r = window.rzMlCamRead(map);        // ui/js/maplibre-camera.js (inline im Kopf)
+  const r = window.rzMlCamRead(map, elevM);   // ui/js/maplibre-camera.js (inline im Kopf); elevM = Geländehöhe (04.09.2026)
   return {{ pos: r.pos, ori: null, bp: r.bp }};
 }};
-window.__rzCamApply = (pos, ori, bp) => {{
+window.__rzCamApply = (pos, ori, bp, eM) => {{
   if (typeof map.setFreeCameraOptions === "function") {{
     const fc = map.getFreeCameraOptions();
     fc.position = new window.__rzMC(pos[0], pos[1], pos[2]); fc.orientation = ori; map.setFreeCameraOptions(fc); return;
   }}
-  window.rzMlCamApply(map, pos, bp);
+  window.rzMlCamApply(map, pos, bp, eM);   // eM: Geländehöhe der Stützstelle (04.09.2026)
 }};
 window.__rzLerpBP = (a, b, u) => {{
   let d = ((b[0] - a[0]) % 360 + 540) % 360 - 180;   // kürzester Drehweg
@@ -3372,20 +3372,23 @@ window.__camPrepFaithful = async (camList, glattFenster) => {{
     }}
   }};
   const roh = [];
+  let letztEM = null;   // 04.09.2026 — letzte bekannte Geländehöhe (m)
   for (const k of camList) {{
     map.jumpTo({{ center: [k.lng, k.lat], zoom: k.zoom, pitch: k.pitch, bearing: k.bearing }});
     try {{ if (map._render) map._render(); }} catch (e) {{}}
     await warteAufKacheln();
     try {{ if (map._render) map._render(); }} catch (e) {{}}
-    const cr = window.__rzCamRead();
     // Geländeanteil der Kamerahöhe (Höhe = Gelände unter der Bildmitte
     // + Flughöhe aus dem Zoom). Nur DIESER Anteil wird unten geglättet.
-    let ez = null;
+    let ez = null, eM = null;
     try {{
       const e = map.queryTerrainElevation([k.lng, k.lat]);
-      if (e != null && isFinite(e)) ez = window.__rzMC.fromLngLat([k.lng, k.lat], e).z;
+      if (e != null && isFinite(e)) {{ ez = window.__rzMC.fromLngLat([k.lng, k.lat], e).z; eM = e; letztEM = e; }}
     }} catch (e) {{}}
-    roh.push({{ t: k.t, pos: cr.pos, ori: cr.ori, bp: cr.bp, ez, g: (k.g == null ? 1 : k.g) }});
+    // 04.09.2026 — mit der ECHTEN Geländehöhe lesen und sie zur Stützstelle
+    // speichern; __camFaithful setzt mit derselben Höhe → exakt umkehrbar.
+    const cr = window.__rzCamRead(eM != null ? eM : letztEM);
+    roh.push({{ t: k.t, pos: cr.pos, ori: cr.ori, bp: cr.bp, ez, eM: (eM != null ? eM : letztEM), g: (k.g == null ? 1 : k.g) }});
   }}
   // 22.08.2026 — Die Liste ist jetzt dicht (ein Eintrag je Bild). Das Berg-
   // Hüpfen steckt im GELÄNDEANTEIL der Kamerahöhe; nur der wird mit einem
@@ -3418,7 +3421,7 @@ window.__camFaithful = (t) => {{
   if (!cams || cams.length === 0) return;
   if (cams.length === 1) {{
     const c = cams[0];
-    window.__rzCamApply(c.pos, c.ori, c.bp); return;
+    window.__rzCamApply(c.pos, c.ori, c.bp, c.eM); return;
   }}
   let lo = 0, hi = cams.length - 2;
   while (lo < hi) {{ const m = (lo + hi + 1) >> 1; if (cams[m].t <= t) lo = m; else hi = m - 1; }}
@@ -3427,7 +3430,8 @@ window.__camFaithful = (t) => {{
   const span = (B.t - A.t) || 1e-6;
   const u = Math.max(0, Math.min(1, (t - A.t) / span));
   const px = A.pos[0] + (B.pos[0]-A.pos[0])*u, py = A.pos[1] + (B.pos[1]-A.pos[1])*u, pz = A.pos[2] + (B.pos[2]-A.pos[2])*u;
-  window.__rzCamApply([px, py, pz], A.ori ? window.__nlerpQuat(A.ori, B.ori, u) : null, A.bp ? window.__rzLerpBP(A.bp, B.bp, u) : null);
+  const eM = (A.eM != null && B.eM != null) ? A.eM + (B.eM - A.eM) * u : (A.eM != null ? A.eM : B.eM);
+  window.__rzCamApply([px, py, pz], A.ori ? window.__nlerpQuat(A.ori, B.ori, u) : null, A.bp ? window.__rzLerpBP(A.bp, B.bp, u) : null, eM);
   // 25.08.2026 — Prüfstelle für die Zoom-Meldung (siehe docs/IDEAS.md §36):
   // Übernimmt Mapbox die gesetzte Kamerahöhe, oder hebt es sie über das Gelände?
   // Gemessen: `hub` ist durchgehend 0 — Mapbox übernimmt sie exakt. Der
