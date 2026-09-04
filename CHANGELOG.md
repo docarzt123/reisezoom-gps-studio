@@ -29,6 +29,11 @@ Bei jeder neuen Version:
   braucht. Bestehende Tracks bleiben unverändert.
 
 #### Behoben
+- **Weiße Fläche um das Bundesland beim Herauszoomen** („Satellit (kostenlos)",
+  Brandenburg bei Zoom 7, Marc 04.09.): Lag nur EINE Region unter dem Track,
+  kamen ihre Kacheln als JPEG — und der Landesdienst füllt alles außerhalb
+  seiner Grenze weiß. Jetzt immer PNG mit Alpha, darunter scheint NASA Blue
+  Marble durch; die Nachbarländer sieht man beim Herauszoomen wie erwartet.
 - **Archiv → Projekte: „Noch keine Projekte" trotz 61 Projekten** (Marc, 04.09.):
   Bei einem Suchbegriff („Masca") filterte nur die Liste, die Zähler links
   zeigten weiter alle Projekte, und der Leer-Text behauptete, es gäbe keine.

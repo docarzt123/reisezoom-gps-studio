@@ -404,7 +404,12 @@ def stack_attribution(stack: list[dict]) -> str:
 
 def stack_style(stack: list[dict], proxy_base: str = "") -> dict:
     """GL-Style mit einer Raster-Quelle je Region; unterste = größte Fläche."""
-    transparent = len(stack) > 1
+    # 04.09.2026 (Marc, Brandenburg bei Zoom 7): Auch eine EINZELNE Region
+    # immer als PNG mit Alpha — als JPEG füllt der Landesdienst alles
+    # außerhalb seiner Grenze WEISS, und der Blue-Marble-Untergrund kommt nie
+    # zum Vorschein (weiße Fläche mit Brandenburg-Insel). XYZ-Dienste ohne
+    # Alpha-Variante (AT, LU, CZ …) bleiben, wie sie sind.
+    transparent = True
     sources, layers = {}, []
     # Untergrund zuerst (ganz unten): Meer, Ferne, Lücken der Landesdienste.
     sources["rz-base"] = {"type": "raster", "tiles": list(BASE_LAYER["tiles"]), "tileSize": BASE_LAYER["tileSize"],
@@ -452,7 +457,12 @@ def stack_leaflet(stack: list[dict]) -> dict:
     immer mit dem Blue-Marble-Untergrund als erster Ebene."""
     if not stack:
         return {}
-    transparent = len(stack) > 1
+    # 04.09.2026 (Marc, Brandenburg bei Zoom 7): Auch eine EINZELNE Region
+    # immer als PNG mit Alpha — als JPEG füllt der Landesdienst alles
+    # außerhalb seiner Grenze WEISS, und der Blue-Marble-Untergrund kommt nie
+    # zum Vorschein (weiße Fläche mit Brandenburg-Insel). XYZ-Dienste ohne
+    # Alpha-Variante (AT, LU, CZ …) bleiben, wie sie sind.
+    transparent = True
     d = region_leaflet(stack[0], transparent=transparent)
     d["attr"] = stack_attribution(stack)
     if transparent:
