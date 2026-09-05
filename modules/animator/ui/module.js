@@ -244,6 +244,40 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.ortho_hue", "Farbton")} <span class="label-val" id="anim-ohue-v">0°</span></label>
             <input type="range" id="anim-ohue" min="-180" max="180" step="5" value="0">
           </div>
+          <!-- 05.09.2026 (Beta-Tester: „Kontrastregler auch auf die anderen zu hellen Karten") — Karten-Optik für Raster-/Vektorkarten -->
+          <div class="field" id="anim-mapadj-row" hidden title="${t("animator.field.mapadj_tip", "Wirkt auf die Karte, nicht auf Strecke und Overlays — in Vorschau und Video gleich. Bei Vektorkarten nur die Helligkeit.")}">
+            <label class="field-label">${t("animator.field.mapadj_title", "Karten-Optik")}
+              <button type="button" class="btn btn-ghost btn-sm" id="anim-mapadj-reset" style="margin-left:auto;">↺ ${t("animator.field.ortho_reset", "Standard")}</button></label>
+            <div class="rz-mapadj-raster">
+              <label class="field-label">${t("animator.field.ortho_sat", "Sättigung")} <span class="label-val" id="anim-msat-v">0 %</span></label>
+              <input type="range" id="anim-msat" min="-100" max="100" step="5" value="0">
+              <label class="field-label">${t("animator.field.ortho_con", "Kontrast")} <span class="label-val" id="anim-mcon-v">0 %</span></label>
+              <input type="range" id="anim-mcon" min="-100" max="100" step="2" value="0">
+            </div>
+            <label class="field-label">${t("animator.field.ortho_bri", "Helligkeit")} <span class="label-val" id="anim-mbri-v">0 %</span></label>
+            <input type="range" id="anim-mbri" min="-100" max="100" step="5" value="0">
+            <div class="rz-mapadj-raster">
+              <label class="field-label">${t("animator.field.ortho_hue", "Farbton")} <span class="label-val" id="anim-mhue-v">0°</span></label>
+              <input type="range" id="anim-mhue" min="-180" max="180" step="5" value="0">
+            </div>
+          </div>
+          <!-- 05.09.2026 (Beta-Tester: „Sterne etwas groß geraten und nicht animiert") — Sternenhimmel hinter der Weltkugel -->
+          <div class="field" id="anim-stars-row" title="${t("animator.field.stars_tip", "Der Himmel hinter der Weltkugel — sichtbar, sobald die Kamera weit genug draußen ist. In Vorschau und Video gleich.")}">
+            <label class="checkbox-row">
+              <input type="checkbox" id="anim-stars" checked>
+              <span>${t("animator.field.stars_title", "Sternenhimmel (Weltkugel)")}</span>
+            </label>
+            <div id="anim-stars-opts">
+              <label class="field-label">${t("animator.field.stars_density", "Dichte")} <span class="label-val" id="anim-stars-density-v">50 %</span></label>
+              <input type="range" id="anim-stars-density" min="0" max="100" step="5" value="50">
+              <label class="field-label">${t("animator.field.stars_size", "Größe")} <span class="label-val" id="anim-stars-size-v">50 %</span></label>
+              <input type="range" id="anim-stars-size" min="0" max="100" step="5" value="50">
+              <label class="checkbox-row">
+                <input type="checkbox" id="anim-stars-twinkle" checked>
+                <span>${t("animator.field.stars_twinkle", "Funkeln")}</span>
+              </label>
+            </div>
+          </div>
           <div class="field">
             <label class="field-label" for="anim-mc-light">${t("map_config.light_preset")}</label>
             <select id="anim-mc-light">
@@ -1713,8 +1747,8 @@ function mountAnimator(body, headerActions, opts) {
   // Luftbild-Optik: vier Regler → Projekt (ortho_*), live auf die Orthofoto-Ebenen
   for (const [id, key, unit] of [["anim-osat", "ortho_sat", " %"], ["anim-ocon", "ortho_con", " %"], ["anim-obri", "ortho_bri", " %"], ["anim-ohue", "ortho_hue", "°"]]) {
     bindLabel(id, id + "-v", unit);
-    bindSetting(id, _MODKEY, key, { type: "number", onLoad: v => { updateLabel(id + "-v", v, unit); try { if (map) rzApplyRasterAdjust(map, _currentOrtho()); } catch (_) {} } });
-    document.getElementById(id)?.addEventListener("input", () => { try { if (map) rzApplyRasterAdjust(map, _currentOrtho()); } catch (_) {} });
+    bindSetting(id, _MODKEY, key, { type: "number", onLoad: v => { updateLabel(id + "-v", v, unit); _applyMapAdjust(); } });
+    document.getElementById(id)?.addEventListener("input", _applyMapAdjust);
   }
   document.getElementById("anim-ortho-reset")?.addEventListener("click", () => {
     const d = (typeof mapCatalog === "function" && mapCatalog().ortho_adjust_default) || { sat: 25, con: 8, bri: 0, hue: 0 };
@@ -1723,6 +1757,26 @@ function mountAnimator(body, headerActions, opts) {
       el.value = String(d[k]); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change"));
     }
   });
+  // 05.09.2026 — Karten-Optik für Raster-/Vektorkarten (map_*), Standard 0; live über rz-mapadjust.js
+  for (const [id, key, unit] of [["anim-msat", "map_sat", " %"], ["anim-mcon", "map_con", " %"], ["anim-mbri", "map_bri", " %"], ["anim-mhue", "map_hue", "°"]]) {
+    bindLabel(id, id + "-v", unit);
+    bindSetting(id, _MODKEY, key, { type: "number", onLoad: v => { updateLabel(id + "-v", v, unit); _applyMapAdjust(); } });
+    document.getElementById(id)?.addEventListener("input", _applyMapAdjust);
+  }
+  document.getElementById("anim-mapadj-reset")?.addEventListener("click", () => {
+    for (const id of ["anim-msat", "anim-mcon", "anim-mbri", "anim-mhue"]) {
+      const el = document.getElementById(id); if (!el) continue;
+      el.value = "0"; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change"));
+    }
+  });
+  // 05.09.2026 — Sternenhimmel: vier Werte → Projekt (stars_*), live auf den Kartencontainer
+  bindSetting("anim-stars", _MODKEY, "stars_enabled", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
+  bindSetting("anim-stars-twinkle", _MODKEY, "stars_twinkle", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
+  for (const [id, key] of [["anim-stars-density", "stars_density"], ["anim-stars-size", "stars_size"]]) {
+    bindLabel(id, id + "-v", " %");
+    bindSetting(id, _MODKEY, key, { type: "number", onLoad: v => { updateLabel(id + "-v", v, " %"); _applyStars(); } });
+    document.getElementById(id)?.addEventListener("input", _applyStars);
+  }
   bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number" });
   // v0.9.530 (IDEAS §22) — Echtzeit ÷ Faktor. Der Faktor SCHREIBT nur die
   // Sekunden ins Dauer-Feld (und löst dessen change aus → duration_s wird wie
@@ -7460,6 +7514,34 @@ function mountAnimator(body, headerActions, opts) {
     const g = (id, d) => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : d; };
     return { sat: g("anim-osat", 25), con: g("anim-ocon", 8), bri: g("anim-obri", 0), hue: g("anim-ohue", 0) };
   }
+  /** 05.09.2026 — Karten-Optik (Raster-/Vektorkarten) und Sterne aus der Oberfläche. */
+  function _currentMapAdjust() {
+    const g = id => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : 0; };
+    return { sat: g("anim-msat"), con: g("anim-mcon"), bri: g("anim-mbri"), hue: g("anim-mhue") };
+  }
+  function _currentStars() {
+    const on = id => { const el = document.getElementById(id); return el ? !!el.checked : true; };
+    const g = (id, d) => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : d; };
+    return { enabled: on("anim-stars"), density: g("anim-stars-density", 50), size: g("anim-stars-size", 50), twinkle: on("anim-stars-twinkle") };
+  }
+  /** Optik live: Luftbilder (gov) mit ortho_*, alle anderen Stile mit map_* (Standard 0). */
+  function _applyMapAdjust() {
+    try {
+      if (!map) return;
+      const spec = map.__rzSpec;
+      if (spec && spec.engine === "mapbox") return;
+      if (spec && spec.kind === "gov") rzApplyRasterAdjust(map, _currentOrtho());
+      else rzApplyRasterAdjust(map, _currentMapAdjust(), { sat: 0, con: 0, bri: 0, hue: 0 });
+    } catch (_) {}
+  }
+  function _applyStars() {
+    try {
+      const o = _currentStars();
+      window.__rzStarsOpts = o;
+      const opts = document.getElementById("anim-stars-opts"); if (opts) opts.hidden = !o.enabled;
+      if (map && map.__rzEngine === "maplibre" && window.rzStarsApply) rzStarsApply(map.getContainer(), o);
+    } catch (_) {}
+  }
   function _labelsFromConfig() {
     try { const c = getMapConfig(); return { places: !!c.showPlace, roads: !!c.showRoad, pois: !!c.showPoi, transit: !!c.showTransit, admin: !!c.showAdmin }; }
     catch (_) { return { places: true, roads: true, pois: true, transit: true, admin: true }; }
@@ -7501,6 +7583,7 @@ function mountAnimator(body, headerActions, opts) {
       if (l.type !== "symbol" && l.type !== "line") return;
       const id = l.id.toLowerCase();
       let want = null;
+      if (/^(preview-|track-|mtrack|schwarm|anim-|ghost|dot-|rz-dim|rz-north|rz-sign)/.test(id)) return;   // eigene Ebenen (Strecke, Schilder, Abdunklung)
       // Overlay-Ebenen über Rasterkarten tragen ihre Gruppe im Namen: rz-ov-<gruppe>-…
       if (id.startsWith("rz-ov-")) {
         const g = id.split("-")[2];
@@ -7518,6 +7601,10 @@ function mountAnimator(body, headerActions, opts) {
       else if (/^(sport|food|tourism|culture|shopping|park( labels)?|healthcare|education|public|outdoor( shop| water)?|castle|housenumber)$/.test(id)) want = c.showPoi;
       else if (/^(station|transport|gondola|aerialway labels|airport( gate)?|ferry)$/.test(id)) want = c.showTransit;
       else if (id.startsWith("highway-name") || id.startsWith("highway-shield") || id.startsWith("road_shield")) want = c.showRoad;
+      // 05.09.2026 (Beta-Tester: „reagiert noch nicht wie gewohnt"): auf OpenFreeMap/MapTiler auch die
+      // Straßen- und Bahn-LINIEN mitnehmen — bei Mapbox verschwinden sie über showRoadsAndTransit ebenso.
+      else if (l.type === "line" && /^(road|highway|street|path|bridge|tunnel|footway|cycleway|motorway|trunk|primary|secondary|tertiary|minor|service|pedestrian)/.test(id)) want = c.showRoad;
+      else if (l.type === "line" && /^(rail|railway|transit|ferry|aerialway|tram|subway)/.test(id)) want = c.showTransit;
       else if (id.includes("road") || id.includes("street") || id.includes("path")) want = (l.type === "line") ? null : c.showRoad;
       else if (id.includes("poi")) want = c.showPoi;
       else if (id.includes("transit") || id.includes("airport") || id.includes("rail") || id.includes("ferry")) want = c.showTransit;
@@ -7667,6 +7754,14 @@ function mountAnimator(body, headerActions, opts) {
       document.body.classList.remove("rz-no-freecam");
       const orthoRow = document.getElementById("anim-ortho-row");   // Luftbild-Optik nur bei Orthofotos
       if (orthoRow) orthoRow.hidden = !(spec && spec.kind === "gov");
+      // 05.09.2026 — Karten-Optik für alle anderen MapLibre-Stile; Sättigung/Kontrast/Farbton nur bei Rasterkarten
+      const adjRow = document.getElementById("anim-mapadj-row");
+      if (adjRow) {
+        adjRow.hidden = !spec || spec.engine === "mapbox" || spec.kind === "gov";
+        adjRow.querySelectorAll(".rz-mapadj-raster").forEach(el => { el.hidden = !(spec && spec.kind === "raster"); });
+      }
+      const starsRow = document.getElementById("anim-stars-row");   // Mapbox bringt seinen eigenen Himmel mit
+      if (starsRow) starsRow.hidden = !!(spec && spec.engine === "mapbox");
     } catch (_) {}
     if (alpha || !spec || spec.videoOk) { const hc = document.querySelector('[data-help-content="map_rights"]'); if (hc) hc.hidden = true; }
     if (osmHint) osmHint.hidden = alpha || !spec || spec.kind === "raster" || spec.kind === "gov";
@@ -7688,6 +7783,8 @@ function mountAnimator(body, headerActions, opts) {
       rebuildPreviewLayers();
       _ghostSpurenAufbauen();     // 27.08.2026 — sonst sind sie nach dem Stilwechsel weg
       applyTerrain();
+      _applyMapAdjust();          // 05.09.2026 — Karten-Optik (Raster-Paint / Abdunkel-Ebene) je Stilart
+      _applyStars();
     });
   }
   // Nach dem Laden eines Tracks: „Satellit (kostenlos)" wählt das Land anhand
@@ -14087,6 +14184,8 @@ function mountAnimator(body, headerActions, opts) {
       cinematic_flyto: !!document.getElementById("anim-cinematic-flyto")?.checked,
       exaggeration: parseFloat(document.getElementById("anim-ex").value),
       ortho_sat: _currentOrtho().sat, ortho_con: _currentOrtho().con, ortho_bri: _currentOrtho().bri, ortho_hue: _currentOrtho().hue,
+      map_sat: _currentMapAdjust().sat, map_con: _currentMapAdjust().con, map_bri: _currentMapAdjust().bri, map_hue: _currentMapAdjust().hue,
+      stars_enabled: _currentStars().enabled, stars_density: _currentStars().density, stars_size: _currentStars().size, stars_twinkle: _currentStars().twinkle,
       enable_terrain: document.getElementById("anim-terrain").checked,
       // v0.8.17 — Classic-Mode Toggle „Kamera folgt Track" → Backend bewegt
       // Center pro Frame zum aktuellen Track-Punkt. Im KF-Modus per KF gesteuert.

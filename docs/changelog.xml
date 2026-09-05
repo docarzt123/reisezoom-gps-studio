@@ -5,8 +5,21 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Fri, 04 Sep 2026 04:23:18 +0000</lastBuildDate>
+<lastBuildDate>Fri, 04 Sep 2026 21:01:43 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.653 — Ein Beta-Tag: flüssiger Probelauf, Kamera trifft die Keyframes, WYSIWYG überall — plus Nordpfeil und Maßstab.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-653</link>
+<guid isPermaLink="false">gps-studio-v0.9.653</guid>
+<pubDate>Fri, 04 Sep 2026 12:00:00 +0000</pubDate>
+<description>Nordpfeil und Maßstab als Overlay in Animator, Reiseroute, Tour-Map und Web-Karte — Standard an, abschaltbar, in jede Ecke legbar. Der Pfeil dreht mit der Kamera, der Maßstab folgt dem Zoom.
+
+Flüssiger Probelauf — der Maßstab las unter MapLibre-Gelände die Grafikkarte zurück, und die Schilder ließen die Karte in jedem Bild neu bauen; beides kostete mit der Laufzeit immer mehr. Jetzt konstant 60 Bilder/s, das Schild erscheint während des Laufs.
+
+Kamera landet, wo der Keyframe sagt — bei Gelände schaute die Kamera auf die Höhe des Startpunkts statt auf das Gelände am Ziel (bis zu 2,8 km daneben, in Vorschau und Video). Neigungen über 60° kamen in freien Stilen nie an. Beides behoben.
+
+Video = Vorschau — Zoom-Basis, Beschriftungsgröße und der 4K-Schnappschuss stimmen jetzt mit der Vorschau überein; Ghost-Spuren im Video in Vorschau-Breite, Schilder wieder im Video.</description>
+</item>
 <item>
 <title>v0.9.652 — Drei Meldungen aus dem Beta-Test.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-652</link>
@@ -165,13 +178,6 @@ Beim Scrollen lief die Liste über ihre Kopfzeile. Jetzt bleibt die Kopfzeile sa
 <description>📂 Projekt-Import zeigt endlich, was drin ist. Nach dem Importieren einer .rzproj-Datei fehlten Keyframes und Schilder — obwohl alles in der Datei steckte. Grund: Das importierte Projekt wurde nicht nach vorn geholt, wenn der Rechner die Tour schon kannte. Dann blieb das eigene, meist leere Projekt aktiv und das importierte lag unsichtbar daneben. Jetzt ist nach dem Import das mitgebrachte Projekt aktiv; das eigene bleibt erhalten und lässt sich oben weiter auswählen.
 
 🖥 Intel-Macs: Hinweis vor dem Download. Die App läuft nur auf Macs mit Apple Silicon (M1 und neuer). Das stand bisher nur klein in der Zeile mit der Dateigröße — jetzt steht es als eigener Hinweis im Download-Knopf, im Namen des DMG-Fensters und als Textdatei im DMG. Mit der Anleitung zum Nachsehen: Apfel-Menü → „Über diesen Mac“.</description>
-</item>
-<item>
-<title>v0.9.542 — Der Zoom bleibt, wo er soll.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-542</link>
-<guid isPermaLink="false">gps-studio-v0.9.542</guid>
-<pubDate>Tue, 25 Aug 2026 12:00:00 +0000</pubDate>
-<description>🎯 „Ruhige Kamera“ mit 3D-Gelände: Zoom repariert. Wer die ruhige Kamera mit Geländeüberhöhung nutzte und in der Vorschau nah herangezoomt hatte, bekam im Video einen ganz anderen Ausschnitt — die Kamera klebte am Boden, obwohl die Vorschau richtig aussah. Schuld war nicht die Kameraführung, sondern das Gelände: Beim Vorbereiten der Kamerafahrt waren die Geländekacheln noch nicht geladen, die Kamerahöhen wurden also aus unfertigen Daten berechnet. Jetzt wartet die App darauf — gemessen an einem betroffenen Projekt: vorher bis zu 8 Zoomstufen daneben, jetzt 0,5. Der Videoexport wurde dadurch sogar schneller.</description>
 </item>
 </channel>
 </rss>

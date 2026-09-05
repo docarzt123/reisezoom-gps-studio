@@ -217,37 +217,11 @@ function _stackAttribution(stack) {
   stack.forEach((r, i) => { let a = r.attribution || ""; if (i && a.startsWith("Luftbild: ")) a = a.slice(10); if (a && !out.includes(a)) out.push(a); });
   return out.join(" | ");
 }
-/** Luftbild-Optik (Spiegel von mapstyles.ortho_adjust / raster_adjust_paint). */
-function rzOrthoAdjust(adj) {
-  const d = Object.assign({ sat: 25, con: 8, bri: 0, hue: 0 }, mapCatalog().ortho_adjust_default || {});
-  const out = Object.assign({}, d);
-  if (adj && typeof adj === "object") for (const k of Object.keys(out)) { const v = parseFloat(adj[k]); if (isFinite(v)) out[k] = v; }
-  const lim = { sat: 100, con: 100, bri: 100, hue: 180 };
-  for (const k of Object.keys(out)) out[k] = Math.max(-lim[k], Math.min(lim[k], out[k]));
-  return out;
-}
-function rzRasterAdjustPaint(adj) {
-  const a = rzOrthoAdjust(adj), paint = {};
-  if (a.sat) paint["raster-saturation"] = +(a.sat / 100).toFixed(3);
-  if (a.con) paint["raster-contrast"] = +(a.con / 100).toFixed(3);
-  if (a.bri > 0) paint["raster-brightness-min"] = +(a.bri / 100 * 0.5).toFixed(3);
-  if (a.bri < 0) paint["raster-brightness-max"] = +(1 + a.bri / 100 * 0.5).toFixed(3);
-  if (a.hue) paint["raster-hue-rotate"] = +a.hue.toFixed(1);
-  return paint;
-}
-/** Live auf die Orthofoto-Ebenen (rz-raster-*) anwenden — Untergrund bleibt. */
-function rzApplyRasterAdjust(map, adj) {
-  if (!map || !map.getStyle) return;
-  const paint = rzRasterAdjustPaint(adj);
-  const all = { "raster-saturation": 0, "raster-contrast": 0, "raster-brightness-min": 0, "raster-brightness-max": 1, "raster-hue-rotate": 0 };
-  try {
-    for (const l of (map.getStyle().layers || [])) {
-      if (l.type !== "raster" || !l.id.startsWith("rz-raster")) continue;
-      for (const k of Object.keys(all)) map.setPaintProperty(l.id, k, (k in paint) ? paint[k] : all[k]);
-    }
-  } catch (_) {}
-}
-window.rzApplyRasterAdjust = rzApplyRasterAdjust;
+/** Luftbild-Optik — Kern in ui/js/rz-mapadjust.js (05.09.2026, gemeinsam mit dem Render). */
+function rzOrthoAdjust(adj) { return window.rzOrthoAdjustNorm(adj, mapCatalog().ortho_adjust_default || {}); }
+function rzRasterAdjustPaint(adj) { return window.rzMapAdjustPaint(adj, mapCatalog().ortho_adjust_default || {}); }
+/** Live anwenden: Luftbilder (rz-raster-*) per Paint, Vektorkarten per Abdunkel-Ebene. `def` = Standard je Stilart. */
+function rzApplyRasterAdjust(map, adj, def) { return window.rzApplyMapAdjust(map, adj, def === undefined ? (mapCatalog().ortho_adjust_default || {}) : def); }
 
 function _stackStyle(stack, ortho) {
   const transparent = true;   // 04.09.2026: auch einzeln als PNG mit Alpha, sonst weiß außerhalb der Grenze (synchron zu mapstyles.stack_style)
@@ -599,7 +573,7 @@ function rzGlobeForMapLibre(map) {
       if (!pr || pr.type !== "globe") map.setProjection({ type: "globe" });
     }
     const c = map.getContainer && map.getContainer();
-    if (c) c.style.background = window.RZ_STARS_CSS || "#05070d";   // Sternenhimmel (rz-stars.js)
+    if (c) { if (window.rzStarsApply) rzStarsApply(c, window.__rzStarsOpts); else c.style.background = "#05070d"; }   // Sternenhimmel (rz-stars.js)
   } catch (_) {}
 }
 window.rzGlobeForMapLibre = rzGlobeForMapLibre;

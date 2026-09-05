@@ -1029,6 +1029,8 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 - **Elevation profile** — animated line
 - **North arrow** (since 2026-09-04, beta-tester request) — rotates with the camera, so it always points north even when the view is turned or sweeping. Default **on**, bottom right.
 - **Scale bar** (since 2026-09-04) — bar with a round length (100 m, 500 m, 2 km …) that follows the zoom; measured at the centre of the frame. Default **on**, bottom left. The alpha render (no map) drops it because there is no map; the north arrow stays.
+- **Starry sky (globe)** (since 2026-09-05, beta-tester request) — in the **Map** section: on/off, density, size and twinkle. Visible once the camera is far enough out (world approach, intro). Preview and video show the same stars. Mapbox styles do not have the group; Mapbox brings its own sky.
+- **Map look** (since 2026-09-05) — also in the **Map** section, for every map except the official aerial imagery (which has its own “Aerial look”). Raster maps such as OpenStreetMap or OpenTopoMap: saturation, contrast, brightness, hue. Vector maps such as OpenFreeMap or MapTiler: brightness only, technically a dimming layer below the track so the track stays bright while the map recedes. Default 0 = map as delivered, “↺ Default” resets.
   Both can be switched off and moved to another corner like any box. The **Web map** (Leaflet) has the same two switches; north is always up there and the scale bar comes from Leaflet.
 
 **🆕 Stats editor (since v0.9.321): you choose what's shown — and in what order.** Below the Totals and the Live box there's a **field list** each. Checking/unchecking determines what appears; with the **⠿ handle you drag the fields into the order you want**. Selectable values:

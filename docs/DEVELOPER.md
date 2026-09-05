@@ -2572,6 +2572,36 @@ unbenutzt liegen, bis der Speicher sie verdrängt.
 wie das Video gezielt nach (bis 6 × 2 s), solange `map.areTilesLoaded()` nein
 sagt — WMS-Dienste brauchen bei 60+ Kacheln länger als der 5-s-Deckel.
 
+**Sternenhimmel erzeugt statt Bild (05.09.2026):** `ui/js/rz-stars.js` zeichnet
+die 512-px-Kachel per Canvas aus einem festen Samen (Mulberry32) — Dichte 0..100
+→ 40..520 Sterne je Kachel, Größe 0..100 → Radius ×0,4..×1,6. `rzStarsApply(
+container, opts)` setzt den Container-Hintergrund und bei `twinkle` drei
+absolut positionierte Ebenen (Teilmengen je Phase) VOR die Canvas; die Vorschau
+tickt sie per rAF, das Render setzt `window.__rzStarsManual = true` und ruft
+`rzStarsTick(container, frame/fps)` aus `advanceFrame`/`advanceFrameMulti` —
+so ist das Funkeln je Bild deterministisch. Einstellungen `stars_enabled/
+density/size/twinkle` (AnimatorConfig, app.py-Defaults, Render-Payload).
+`window.RZ_STARS_CSS` bleibt als Getter für alte Aufrufer.
+
+**Karten-Optik gemeinsam (05.09.2026):** `ui/js/rz-mapadjust.js` ist der
+Kern für Vorschau UND Render (in `_maplibre_gl_head()` eingebettet). `rzApply
+MapAdjust(map, adj, def)`: gibt es Raster-Ebenen `rz-raster*` → `raster-*`-
+Paint (Untergrund `rz-base` bleibt), sonst Abdunkel-Ebene `rz-dim` (Fill über
+Welt-Polygon, schwarz/weiß je Vorzeichen, Deckung |bri|/100·0,8) vor der
+ersten eigenen Ebene (`preview-`, `track-`, `mtrack`, `schwarm`, …).
+Zwei Regler-Sätze: `ortho_*` (Luftbilder, Katalog-Standard 25/8/0/0) und
+`map_*` (alle anderen, Standard 0). Falle: `util.js` deklariert
+`rzRasterAdjustPaint` global — eine gleichnamige `window`-Eigenschaft aus
+einer anderen Datei wird überschrieben (Endlosrekursion am 05.09.), daher
+heißt der Kern `rzMapAdjustPaint`.
+
+**Straßen-Geometrie in der Schalter-Heuristik (05.09.2026):** `applyHideLabels`
+(Vorschau) und `hide_labels_block` (Render) nehmen auf Vektor-Stilen jetzt
+auch `line`-Ebenen mit Präfix road/highway/street/path/bridge/tunnel/… (→
+Straßen) und rail/railway/ferry/aerialway/… (→ Verkehr). Eigene Ebenen werden
+vorab ausgenommen (`preview-|track-|mtrack|schwarm|anim-|ghost|dot-|rz-dim|…`) —
+sonst hätte „Straßen aus" die Strecke `track-line` mit ausgeblendet.
+
 **macOS „Lokales Netzwerk"-Dialog (04.09.2026):** Beim ersten Start der
 notarisierten v0.9.652 fragte macOS 26, ob die App „nach Geräten in lokalen
 Netzwerken suchen" darf. Die App bindet nur `127.0.0.1` (Media-/Kachel-Server)

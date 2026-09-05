@@ -14,6 +14,13 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- **Sternenhimmel mit Reglern** (Beta-Tester: „die Sterne sind etwas groß geraten und nicht animiert") — im Karten-Abschnitt gibt es jetzt „Sternenhimmel (Weltkugel)" mit Ein/Aus, Dichte, Größe und Funkeln. Die Sterne werden erzeugt statt aus einem festen Bild geladen, sind kleiner als bisher und funkeln dezent in drei Phasen. Gleicher Zufallssamen in Vorschau und Video, das Funkeln tickt im Render je Bild weiter. Nur bei MapLibre-Stilen, Mapbox bringt seinen eigenen Himmel mit.
+- **Karten-Optik für alle Karten** (Beta-Tester: „kann der Kontrastregler auch auf die anderen zu hellen Karten angepasst werden?") — Rasterkarten (OpenStreetMap, OpenTopoMap, CyclOSM, HOT) bekommen Sättigung, Kontrast, Helligkeit und Farbton; Vektorkarten (OpenFreeMap, MapTiler) eine Helligkeit über eine Abdunkel-Ebene direkt unter der Strecke. Standard 0 = Karte wie geliefert. Die Luftbild-Optik der amtlichen Orthofotos bleibt eigenständig. Gemeinsamer Kern `ui/js/rz-mapadjust.js` für Vorschau und Render.
+
+### Changed
+- **„Auf der Karte anzeigen" auf OpenFreeMap/MapTiler** (Beta-Tester: „reagiert noch nicht wie gewohnt") — „Straßen" und „Verkehr" blenden dort jetzt auch die Straßen- und Bahn-Linien aus, nicht nur die Namen, wie bei Mapbox über `showRoadsAndTransit`. Eigene Ebenen (Strecke, Ghosts, Schilder) sind von der Namens-Heuristik ausgenommen.
+
 ## [0.9.653] – 2026-09-04
 
 #### Hinzugefügt

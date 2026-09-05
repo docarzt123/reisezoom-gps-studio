@@ -203,6 +203,16 @@ class AnimatorConfig:
     ortho_con: float = 8.0
     ortho_bri: float = 0.0
     ortho_hue: float = 0.0
+    # 05.09.2026 — Karten-Optik für Raster-/Vektorkarten (nicht Luftbilder), Standard 0 = Stil wie geliefert
+    map_sat: float = 0.0
+    map_con: float = 0.0
+    map_bri: float = 0.0
+    map_hue: float = 0.0
+    # 05.09.2026 — Sternenhimmel hinter der Weltkugel (MapLibre; Mapbox bringt seinen eigenen mit)
+    stars_enabled: bool = True
+    stars_density: float = 50.0
+    stars_size: float = 50.0
+    stars_twinkle: bool = True
     enable_terrain: bool = True         # bei flat-light-Karten oft False
     line_color: str = "#ff6b35"
     line_width: float = 3.5             # Track-Linien-Dicke in px (Glow = 3× davon)
@@ -1633,7 +1643,8 @@ def _maplibre_gl_head() -> str:
             css = (base / "ui" / "vendor" / "maplibre-gl.css").read_text(encoding="utf-8")
             cam = (base / "ui" / "js" / "maplibre-camera.js").read_text(encoding="utf-8")   # 04.09.2026 Kamera-Adapter
             stars = (base / "ui" / "js" / "rz-stars.js").read_text(encoding="utf-8")        # 04.09.2026 Sternenhimmel
-            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>\n<script>{stars}</script>\n<script>{cam}</script>"
+            adj = (base / "ui" / "js" / "rz-mapadjust.js").read_text(encoding="utf-8")      # 05.09.2026 Karten-Optik
+            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>\n<script>{stars}</script>\n<script>{adj}</script>\n<script>{cam}</script>"
             _log.info("maplibre-gl aus dem Bundle eingebettet (%.1f MB)", len(js) / 2**20)
         except Exception as e:
             _log.warning("maplibre-gl nicht im Bundle gefunden (%s) — CDN-Rückfall", e)
@@ -2072,6 +2083,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         multi_track_layers = "\n  ".join(_layers)
         multi_advance_js = (
             "window.advanceFrameMulti = (tourIdx, localIdx, brg, lon, lat, zm, pt, showDot) => {\n"
+            "  try { if (window.__rzStarsManual && window.rzStarsTick) rzStarsTick(map.getContainer(), (window.__rzStarsFrame++) / (window.__rzStarsFps || 30)); } catch(_){}\n"
             "  for (let i=0;i<TOUR_N;i++){\n"
             "    let c;\n"
             "    if (i < tourIdx) c = TOUR_COORDS[i];\n"
@@ -2347,6 +2359,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         "    if (l.type !== 'symbol' && l.type !== 'line') return;"
         "    const id = l.id.toLowerCase();"
         "    let want = null;"
+        "    if (/^(preview-|track-|mtrack|schwarm|anim-|ghost|dot-|rz-dim|rz-north|rz-sign)/.test(id)) return;"
         "    if (id.startsWith('rz-ov-')) { want = ({places: showPlace, roads: showRoad, pois: showPoi, transit: showTransit, admin: showAdmin})[id.split('-')[2]];"
         "      if (want == null) return; try { map.setLayoutProperty(l.id, 'visibility', want ? 'visible' : 'none'); } catch(_){} return; }"
         "    if (id.includes('admin') || id.includes('boundary') || id.includes('country-boundary')) want = showAdmin;"
@@ -2356,6 +2369,9 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         "    else if (/^(sport|food|tourism|culture|shopping|park( labels)?|healthcare|education|public|outdoor( shop| water)?|castle|housenumber)$/.test(id)) want = showPoi;"
         "    else if (/^(station|transport|gondola|aerialway labels|airport( gate)?|ferry)$/.test(id)) want = showTransit;"
         "    else if (id.startsWith('highway-name') || id.startsWith('highway-shield') || id.startsWith('road_shield')) want = showRoad;"
+        # 05.09.2026 — Straßen-/Bahn-LINIEN auf OpenFreeMap/MapTiler mit ausblenden (synchron zu applyHideLabels)
+        "    else if (l.type === 'line' && /^(road|highway|street|path|bridge|tunnel|footway|cycleway|motorway|trunk|primary|secondary|tertiary|minor|service|pedestrian)/.test(id)) want = showRoad;"
+        "    else if (l.type === 'line' && /^(rail|railway|transit|ferry|aerialway|tram|subway)/.test(id)) want = showTransit;"
         "    else if (id.includes('road') || id.includes('street') || id.includes('path')) want = (l.type === 'line') ? null : showRoad;"
         "    else if (id.includes('poi')) want = showPoi;"
         "    else if (id.includes('transit') || id.includes('airport') || id.includes('rail') || id.includes('ferry')) want = showTransit;"
@@ -2367,10 +2383,20 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     )
     # 03.09.2026 — Weltkugel auch in MapLibre (Style-URLs setzen sie nach dem
     # Laden; Raster-Stile tragen `projection` im JSON) + Weltraum-Hintergrund.
+    # 05.09.2026 — Sterne mit Reglern (rz-stars.js, Takt je Bild aus advanceFrame) und
+    # Karten-Optik (rz-mapadjust.js): Luftbilder tragen ortho_* schon im Stil, alle
+    # anderen Stile bekommen map_* live — Raster als Paint, Vektor als Abdunkel-Ebene.
+    _stars = {"enabled": bool(cfg.stars_enabled), "density": float(cfg.stars_density),
+              "size": float(cfg.stars_size), "twinkle": bool(cfg.stars_twinkle)}
+    _madj = {"sat": float(cfg.map_sat), "con": float(cfg.map_con), "bri": float(cfg.map_bri), "hue": float(cfg.map_hue)}
     globe_block = ("" if _spec["engine"] == "mapbox" else
                    "    try { const _pr = map.getProjection && map.getProjection();"
                    " if (map.setProjection && (!_pr || _pr.type !== 'globe')) map.setProjection({type:'globe'}); } catch(_){}\n"
-                   "    try { map.getContainer().style.background = (window.RZ_STARS_CSS || '#05070d'); } catch(_){}\n")
+                   f"    try {{ window.__rzStarsManual = true; window.__rzStarsOpts = {json.dumps(_stars)}; window.__rzStarsFps = {int(cfg.fps)};"
+                   " window.__rzStarsFrame = 0; if (window.rzStarsApply) rzStarsApply(map.getContainer(), window.__rzStarsOpts);"
+                   " else map.getContainer().style.background = '#05070d'; } catch(_){}\n"
+                   + ("" if _spec.get("kind") == "gov" else
+                      f"    try {{ if (window.rzApplyMapAdjust) rzApplyMapAdjust(map, {json.dumps(_madj)}, {{sat:0,con:0,bri:0,hue:0}}); }} catch(_){{}}\n"))
     terrain_block = ""
     if cfg.enable_terrain and _spec.get("terrain"):
         # Gelände hängt am Stil (Mapbox-DEM / MapTiler terrain-rgb / AWS terrarium).
@@ -3516,6 +3542,7 @@ function __rzFillGaps(arr) {{
 }}
 const COLOR_METRIC = {color_metric_js};   // elevations | speedKmh | gradePct | Sensorreihe | null (Distanz)
 window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
+  try {{ if (window.__rzStarsManual && window.rzStarsTick) rzStarsTick(map.getContainer(), (window.__rzStarsFrame++) / (window.__rzStarsFps || 30)); }} catch(_){{}}
   const safe = Math.max(0, Math.min(idx, totalPoints-1));
   // v0.9.55: optional Pre-Trim-Portion (coords[0..TRIM_START_IDX-1]) ausblenden.
   // v0.9.417: `fullTrack` (Snapshot bei „ganze Route zeigen") → GESAMTE Linie
@@ -4020,6 +4047,7 @@ window._ready = false;
 window.isReady = () => window._ready === true && (typeof window.__chartsReady !== 'function' || window.__chartsReady());
 window.getInitialView = () => ({{ center: [0, 0], zoom: 0 }});  // dummy fürs render-loop
 window.advanceFrame = (idx, brg, lon, lat, zm, pt) => {{
+  try {{ if (window.__rzStarsManual && window.rzStarsTick) rzStarsTick(map.getContainer(), (window.__rzStarsFrame++) / (window.__rzStarsFps || 30)); }} catch(_){{}}
   if (SHOW_OVERLAYS && window.__rzNorthScale) window.__rzNorthScale(brg);   // 04.09.2026 Nordpfeil (kein Maßstab ohne Karte)
   const safe = Math.max(0, Math.min(idx, totalPoints-1));
   // v0.9.55: optional Pre-Trim-Portion (projected[0..TRIM_START_IDX-1]) ausblenden.
