@@ -13991,8 +13991,13 @@ function mountAnimator(body, headerActions, opts) {
     // Video-Render → einmal je Sitzung auf die Rechtelage hinweisen, nicht sperren
     // (wer Rechte gekauft hat, darf).
     const _styleNow = document.getElementById("anim-style").value;
-    if (!alphaModeActive && !_isStaticFrame && !_snapshotRequest && !window.__rzRightsAck
-        && typeof mapStyleVideoOk === "function" && !mapStyleVideoOk(_styleNow)) {
+    // 05.09.2026 (Audit): Rechtelage des TATSÄCHLICH verwendeten Stils prüfen — ohne
+    // Mapbox-Token weicht ein Mapbox-Projekt auf Satellit (kostenlos) aus, dann ist
+    // der Hinweis „Videorechte nötig" falsch (Tester ohne Token, altes Projekt).
+    const _videoOkNow = (map && map.__rzSpec && typeof map.__rzSpec.videoOk === "boolean")
+      ? map.__rzSpec.videoOk
+      : (typeof mapStyleVideoOk === "function" ? mapStyleVideoOk(_styleNow) : true);
+    if (!alphaModeActive && !_isStaticFrame && !_snapshotRequest && !window.__rzRightsAck && !_videoOkNow) {
       openModal({
         title: t("mapstyle.rights_modal.title", "Mapbox-Stil: Videorechte nötig"),
         body: `<p>${t("mapstyle.rights_hint", "Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur mit gekauften Videorechten (Product Terms §1.7). Für YouTube & Co. einen kostenlosen Stil oder MapTiler wählen.")}</p>
