@@ -8031,21 +8031,29 @@ function mountAnimator(body, headerActions, opts) {
 
       const pending = window.__rzPendingTours;
       if (Array.isArray(pending) && pending.length) {
-        window.__rzPendingTours = null;
+        // 05.09.2026 (Beta-Tester, Windows: „Cargando rutas" blieb für immer stehen,
+        // App tot): Die Übergabe wurde hier SOFORT geleert, der eigentliche Abruf lief
+        // aber erst 1,2 s später — wurde das Modul in der Zwischenzeit neu gemountet
+        // (loadGlobalGpx + switchMod aus dem Archiv), sah der neue Mount nichts mehr
+        // und der alte Timer stieg wegen `_animUnmounted` aus: nie eine Mengen-
+        // Sitzung, Modal offen. Jetzt bleibt die Übergabe liegen, bis ein LEBENDER
+        // Mount sie wirklich abholt.
         const pendingAblauf = window.__rzPendingAblauf === "schwarm" ? "schwarm" : "reise";
-        window.__rzPendingAblauf = null;
         // IDEAS §38 M3 — Geschwindigkeitsmodus, im Archiv gewählt.
         const pendingModus = ["gleich", "ziel", "uhrzeit"].includes(window.__rzPendingModus)
           ? window.__rzPendingModus : "gleich";
         const pendingPausen = window.__rzPendingPausen !== false;
-        window.__rzPendingModus = null;
-        window.__rzPendingPausen = null;
         _animPendingToursTimer = setTimeout(async () => {
           // Wer nach dem Sprung aus dem Archiv binnen 1,2 s weiterklickt, darf
           // keine Etappen mehr in ein totes Modul schreiben — `_animPersistTours`
           // am Ende von `_animAddTourPath` würde sonst den Projekt-Stand
           // überschreiben, den das nächste Modul schon anders gesetzt hat.
-          if (_animUnmounted) return;
+          if (_animUnmounted) return;                       // der lebende Mount holt die Übergabe ab
+          if (window.__rzPendingTours !== pending) return;  // schon von einem anderen Mount abgeholt
+          window.__rzPendingTours = null;
+          window.__rzPendingAblauf = null;
+          window.__rzPendingModus = null;
+          window.__rzPendingPausen = null;
           // IDEAS §38 — ERST die Mengen-Sitzung aktivieren, DANN Etappen
           // hinzufügen: `_animAddTourPath` persistiert in die AKTIVE Sitzung,
           // und die Arbeit gehört an die Menge, nicht an die erste Tour.
@@ -8070,7 +8078,13 @@ function mountAnimator(body, headerActions, opts) {
               try { saveSettings({ last_menge: { paths: alle, ablauf: pendingAblauf,
                                                  modus: pendingModus, pausen: pendingPausen } }); } catch (_) {}
             }
-          } catch (e) { applog("warn", `[Animator] Mengen-Sitzung: ${e}`); }
+          } catch (e) {
+            applog("error", `[Animator] Mengen-Sitzung: ${e}`);
+            // ui-falle-ok: Fehler steht eine Zeile drüber im app.log; hier nur das Modal zu
+            try { tourenLadeModalZu(); } catch (_) {}
+            toast(t("schwarm.fehler.sitzung", "Die Komposition konnte nicht angelegt werden — bitte Log prüfen."), "error", 7000);
+            return;
+          }
           if (_animUnmounted) return;
           // 28.08.2026 (Marc): Ausgrau-Modal um die GESAMTE Übergabe — Restore
           // plus Nachtragen. try/finally, weil die Unmount-Ausstiege das Modal

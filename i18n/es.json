@@ -2371,6 +2371,7 @@
   "schwarm.fehler": "El render del enjambre no ha podido empezar.",
   "schwarm.fehler.token": "El enjambre necesita un token de Mapbox (ajustes).",
   "schwarm.fehler.zu_wenig": "El enjambre necesita al menos 2 rutas legibles con recorrido.",
+  "schwarm.fehler.sitzung": "No se pudo crear la composición: revisa el registro, por favor.",
   "schwarm.fertig": "Vídeo del enjambre listo:",
   "schwarm.hint": "Todas las rutas marcadas arrancan a la vez y corren en paralelo; la más larga marca la duración del vídeo.",
   "schwarm.hochkant": "Vertical (Shorts)",

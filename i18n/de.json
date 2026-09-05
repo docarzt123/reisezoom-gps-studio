@@ -2371,6 +2371,7 @@
   "schwarm.fehler": "Schwarm-Render konnte nicht starten.",
   "schwarm.fehler.token": "Der Schwarm braucht einen Mapbox-Token (Einstellungen).",
   "schwarm.fehler.zu_wenig": "Der Schwarm braucht mindestens 2 lesbare Touren mit Strecke.",
+  "schwarm.fehler.sitzung": "Die Komposition konnte nicht angelegt werden — bitte Log prüfen.",
   "schwarm.fertig": "Schwarm-Video fertig:",
   "schwarm.hint": "Alle markierten Touren starten gleichzeitig und laufen nebeneinander — die längste bestimmt die Videodauer.",
   "schwarm.hochkant": "Hochkant (Shorts)",
