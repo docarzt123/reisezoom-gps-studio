@@ -1675,6 +1675,7 @@ function mountAnimator(body, headerActions, opts) {
   // v0.8.17 — Zoom-Stufe im Classic-Modus: setzt direkt die Karten-Zoom.
   // Der Render liest dann den aktuellen Map-Zoom aus (overrideZoom-Pfad),
   // d.h. der Slider-Wert ist beim Render automatisch dabei.
+  document.getElementById("anim-zoom")?.addEventListener("input", () => { _manualCamLoeschen(); });   // 05.09.2026
   bindSetting("anim-zoom", _MODKEY, "static_zoom", { type: "number",
     onLoad: v => {
       const z = parseFloat(v);
@@ -2444,6 +2445,35 @@ function mountAnimator(body, headerActions, opts) {
   // Ziehen/Zoomen), lässt der Refit sie in Ruhe. Ein neuer Track und der
   // ⤢-Knopf geben sie wieder frei.
   let _kameraGehoertNutzer = false;
+  // 05.09.2026 (Beta-Tester, 3. Meldung „el zoom se va"; Marc: Option 2): Ohne
+  // Keyframes wird die von Hand eingestellte Karte (Zoom/Mitte/Neigung/Drehung)
+  // zur Kamera für Probelauf, Scrubben UND Video — bis „⤢ Anpassen", ein Zoom-
+  // Stufe-Slider-Eingriff oder ein gesetzter Keyframe sie ablöst. Vorher rechnete
+  // beides den Fit neu (31.08.), und der Nutzer sah seinen Zoom „weggehen".
+  // Gespeichert je Projekt (manual_cam), damit sie den Projektwechsel überlebt.
+  let _manualCam = null;
+  function _manualCamGet() {
+    try {
+      if ((getRawTimelineEvents() || []).length) return null;      // Keyframes gewinnen
+      if (_manualCam) return _manualCam;
+      const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      const mc = p && p[_MODKEY] && p[_MODKEY].manual_cam;
+      return (mc && Array.isArray(mc.center) && isFinite(mc.zoom)) ? mc : null;
+    } catch (_) { return null; }
+  }
+  function _manualCamSpeichern(mc) {
+    _manualCam = mc;
+    try { if (typeof saveProjectSettings === "function" && typeof getActiveSession === "function" && getActiveSession()) saveProjectSettings(_MODKEY, { manual_cam: mc }); } catch (_) {}
+  }
+  function _manualCamMerken() {
+    try {
+      if (!map || _previewRaf) return;
+      if ((getRawTimelineEvents() || []).length) return;
+      const c = map.getCenter();
+      _manualCamSpeichern({ center: [c.lng, c.lat], zoom: +map.getZoom().toFixed(4), pitch: +map.getPitch().toFixed(2), bearing: +map.getBearing().toFixed(2) });
+    } catch (_) {}
+  }
+  function _manualCamLoeschen() { if (_manualCam || (_manualCamGet())) _manualCamSpeichern(null); }
   let _extraTours = [];
   // IDEAS §38 — Ablauf der Mehr-Touren-Übergabe: "reise" (nacheinander, wie
   // bisher) oder "schwarm" (alle gleichzeitig). Wird im ARCHIV gewählt und
@@ -3948,7 +3978,11 @@ function mountAnimator(body, headerActions, opts) {
   function applyPreviewColorGradient(i0, i1) {
     if (!map) return;
     const metric = previewMetricArr();
-    const on = currentColorsEnabled() && _ovSeries && _ovSeries.cumDistM
+    // 05.09.2026 (Beta-Tester, Windows: „Häkchen an = eine Farbe, Häkchen aus = mehrere"):
+    // Ohne einen einzigen Farb-Stop gibt es keinen Verlauf — dann gelten die Etappen-
+    // farben weiter, genau wie im Render (`_colors_on` verlangt dort ≥ 1 Stop).
+    const _nStops = (() => { try { loadColorStops(); return (_trackColorStops || []).length; } catch (_) { return 0; } })();
+    const on = currentColorsEnabled() && _nStops >= 1 && _ovSeries && _ovSeries.cumDistM
       && (currentColorsSource() === "distance" || (metric && metric.length));
     if (!on) {
       // 23.08.2026 — Etappen: statt „kein Verlauf" die Maske, die die
@@ -5985,6 +6019,9 @@ function mountAnimator(body, headerActions, opts) {
       const tp = _fokusZiel(coordIdx) || currentCoords[coordIdx];
       easeArgs.center = tp.slice ? tp.slice() : tp;
     }
+    // 05.09.2026 — Handkamera ohne Keyframes: exakt die eingestellte Ansicht halten
+    { const _mcS = (!interp.center) ? _manualCamGet() : null;
+      if (_mcS) { easeArgs.zoom = _mcS.zoom; easeArgs.center = _mcS.center.slice(); easeArgs.pitch = _mcS.pitch; easeArgs.bearing = _mcS.bearing; } }
     // v0.9.136 — Welt-Drehung steckt jetzt in der *abgewickelten* center.lng
     // (Insta360-Modell). interpolateCameraJs liefert die bereits korrekt
     // abgewickelte center.lng (siehe _maybeFlyToInterp + _interpScalar).
@@ -6777,12 +6814,15 @@ function mountAnimator(body, headerActions, opts) {
     // die ruhige Kamera minutenlang herausglitt). Jetzt: deterministische
     // Fit-Kamera pro Lauf, wie im Video.
     let _runFitCam = fitKameraGesamt();
-    try { applog("info", "[runFitCam] " + (_runFitCam
+    const _mcRun = _manualCamGet();
+    if (_mcRun) _runFitCam = { center: { lng: _mcRun.center[0], lat: _mcRun.center[1] }, zoom: _mcRun.zoom, manual: true };
+    try { applog("info", "[runFitCam] " + (_mcRun ? "manuelle Kamera · " : "") + (_runFitCam
       ? ("zoom=" + (+_runFitCam.zoom).toFixed(2) + " center=" + JSON.stringify(_runFitCam.center))
       : "null") + " · fitBase=" + _previewFitBase); } catch (_) {}
     const _projStaticZ0 = (typeof getActiveProject === "function")
       ? getActiveProject()?.[_MODKEY]?.static_zoom : null;
-    const _runStaticBase = (typeof _projStaticZ0 === "number") ? _projStaticZ0
+    const _runStaticBase = _mcRun ? _mcRun.zoom
+      : (typeof _projStaticZ0 === "number") ? _projStaticZ0
       : (_runFitCam ? _runFitCam.zoom : null);
     // v0.9.314 — Kamera-Höhe HALTEN: eingefrorene Gelände-Referenz pro Probelauf.
     let _camStabBase = null;
@@ -7142,12 +7182,13 @@ function mountAnimator(body, headerActions, opts) {
       // deklarativ aus center.lng-Werten pro KF (= Welt-Drehung-Slider
       // setzt das im Snapshot). interpolateCameraJs interpoliert linear
       // zwischen den KF-lng-Werten.
-      const _curZoom = (interp.zoom_offset == null && _runStaticBase != null)
+      const _curZoom = _mcRun ? _mcRun.zoom
+        : (interp.zoom_offset == null && _runStaticBase != null)
         ? _runStaticBase
         : base + (interp.zoom_offset || 0);
       const jumpArgs = {
-        pitch: interp.pitch,
-        bearing: interp.bearing || 0,
+        pitch: _mcRun ? _mcRun.pitch : interp.pitch,
+        bearing: _mcRun ? _mcRun.bearing : (interp.bearing || 0),
         zoom: _curZoom,
       };
       // v0.9.136 — center.lng (abgewickelt) hat Vorrang vor Track-Punkt. Die
@@ -7877,6 +7918,7 @@ function mountAnimator(body, headerActions, opts) {
       // (02.09.2026, siehe `_kameraGehoertNutzer`).
       _kameraGehoertNutzer = true;
       _syncMapStateToUi();
+      _manualCamMerken();   // 05.09.2026 — Handkamera ohne Keyframes gilt für Probelauf, Scrub und Video
     });
 
     // v0.9.136/139 — Längengrad-Akkumulator: nur ECHTE User-Gesten
@@ -10638,6 +10680,7 @@ function mountAnimator(body, headerActions, opts) {
   window._animAddTourByPath = (p) => _animAddTourPath(p);
 
   window._animOnProjectChanged = function() {
+    _manualCam = null;   // 05.09.2026 — je Projekt gespeichert (manual_cam), nicht mitnehmen
       _selectedKfIdx = null;
       _selectedEvent = null;
       // v0.9.66: Undo-Historie pro Projekt — beim Wechsel komplett leeren.
@@ -10751,6 +10794,7 @@ function mountAnimator(body, headerActions, opts) {
   document.getElementById("anim-refit")?.addEventListener("click", () => {
     _tmCamActive = false;   // v0.9.412 — „⤢ Auf Track": übernommene Animator-Kamera aufheben
     _kameraGehoertNutzer = false;   // ausdrücklich zurück auf den Track
+    _manualCamLoeschen();           // 05.09.2026 — „Anpassen" hebt die Handkamera auf
     if (currentBbox) {
       fitTrackPreview(true);
       // v0.8.9: Refit zeigt zusätzlich die GANZE Track-Linie (= „Reset"
@@ -14195,6 +14239,8 @@ function mountAnimator(body, headerActions, opts) {
       height: parseInt(document.getElementById("anim-h").value),
       pitch: snapshotPitch,
       rotation: parseFloat(document.getElementById("anim-rot").value),
+      // 05.09.2026 — Handkamera ohne Keyframes: Neigung/Ausrichtung wie in der Vorschau, keine Drehung
+      ...(() => { try { const mc = _manualCamGet(); return mc ? { pitch: mc.pitch, bearing: mc.bearing, rotation: 0 } : {}; } catch (_) { return {}; } })(),
       // v0.9.107 — spin_dps raus (Slider entfernt). Drehung kommt aus
       // den position-/center-KF-Events, Render-Backend ignoriert spin_dps.
       spin_dps: 0,
@@ -14250,9 +14296,12 @@ function mountAnimator(body, headerActions, opts) {
       // codec/crf/frame_format kommen jetzt server-seitig aus den globalen
       // Render-Settings (Dialog „Qualität & Export"), nicht mehr aus der Sidebar.
       // v0.9.157 — override_* abgeschafft (Classic = 2 hidden KFs, s.o.).
-      // Map-Init im Backend nutzt bounds-fit; Kamera kommt pro Frame aus KFs.
-      override_center: null,
-      override_zoom: null,
+      // 05.09.2026 — wieder da, nur für die Handkamera ohne Keyframes: Map-Init
+      // (Mitte + Zoom) exakt wie die Vorschau; die Zoom-Korrektur rechnet der
+      // Render selbst (override_zoom − log2(dsf)), daher hier correctedZoom-Delta.
+      ...(() => { try { const mc = _manualCamGet(); if (!mc || !map) return { override_center: null, override_zoom: null };
+        const dz = (window.correctedZoom ? window.correctedZoom(map, w, h) : map.getZoom()) - map.getZoom();
+        return { override_center: mc.center.slice(), override_zoom: +(mc.zoom + dz).toFixed(4) }; } catch (_) { return { override_center: null, override_zoom: null }; } })(),
       // WYSIWYG-Zoom-Korrektur (gilt für KF-Modus + Classic).
       zoom_correction: zoomCorrection,
       // v0.9.224 — WYSIWYG-Größe für Schilder + Foto-Pins. lineScale =

@@ -1712,7 +1712,7 @@ class Api:
                              "render_start_anchor", "render_end_anchor",
                              "timeline_anchor_v", "timeline_schema_v", "timeline_dedupe_v",
                              "last_save_dir", "extra_tours", "ghosts", "ghost_gpx_path",
-                             "signs", "photos", "static_zoom", "static_bearing", "static_padding",
+                             "signs", "photos", "manual_cam", "static_zoom", "static_bearing", "static_padding",
                              "static_pins", "trim_start", "trim_end",
                              "open_sections", "collapsed_sections"},
                 "tourmap": {"static_zoom", "static_bearing", "static_padding", "static_pins",

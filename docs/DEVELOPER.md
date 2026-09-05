@@ -2572,6 +2572,19 @@ unbenutzt liegen, bis der Speicher sie verdrängt.
 wie das Video gezielt nach (bis 6 × 2 s), solange `map.areTilesLoaded()` nein
 sagt — WMS-Dienste brauchen bei 60+ Kacheln länger als der 5-s-Deckel.
 
+**Handkamera ohne Keyframes (05.09.2026):** `_manualCam` (module.js) wird im
+`moveend` mit Nutzer-Geste (`_kameraGehoertNutzer`) gemerkt, wenn
+`getRawTimelineEvents()` leer ist, und je Projekt als `manual_cam` gespeichert
+(app.py: projekt-eigen, nicht in den Standardwerten). Wirkung: Probelauf
+(`_runFitCam`/`_runStaticBase`/`_curZoom`/jumpArgs pitch+bearing), Scrub
+(`easeArgs`), Render-Payload (`override_center`, `override_zoom` = Zoom +
+correctedZoom-Delta, `pitch`, `bearing`, `rotation: 0`). Der Render nutzt
+override_* für den Map-Init (`override_zoom − log2(dsf)`), die Klassik-Kamera
+läuft danach über die zwei impliziten Zoom-Keyframes. Aufheben: „⤢ Anpassen",
+Zoom-Stufe-Slider, Projektwechsel (`_animOnProjectChanged`), Keyframes.
+Restabweichung Vorschau↔Video im steilen Gelände (Mittelpunkt-Höhe) bleibt
+wie bei Befund #6 des Audits.
+
 **Sentinel-2-Zwischenlage (05.09.2026):** `mapstyles.SENTINEL_LAYER` (EOX
 s2cloudless_3857, Jahrgang 2016 = CC BY-SA; 2018+ wären CC BY-NC-SA!) liegt in
 `stack_style` als `rz-raster-sentinel` über `rz-base` und unter den Landes-
