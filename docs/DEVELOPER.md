@@ -2572,6 +2572,18 @@ unbenutzt liegen, bis der Speicher sie verdrängt.
 wie das Video gezielt nach (bis 6 × 2 s), solange `map.areTilesLoaded()` nein
 sagt — WMS-Dienste brauchen bei 60+ Kacheln länger als der 5-s-Deckel.
 
+**WYSIWYG-Zoomverschiebung (05.09.2026, Audit):** `rzScaleMapLabels(map, k)`
+(util.js) skaliert nicht mehr nur `text-size`/`icon-size` um k, sondern
+verschiebt für ALLE Karten-Ebenen (außer eigenen: preview-/track/anim-/rz-…)
+`minzoom`/`maxzoom` um c = log2(1/k) nach unten (`setLayerZoomRange`) und
+ebenso die Zoom-Stützstellen in `interpolate`/`step`-Ausdrücken mit
+`["zoom"]`-Eingang sowie in Legacy-`stops`. Grund: Vorschau-Zoom = Video-Zoom
+− c (Canvas 818 CSS-px vs. 1920), Ebenen mit `minzoom 15` (POI-Symbole der
+Beschriftungs-Ebene) fehlten in der Vorschau bei 14.8, im Video bei 16.0 waren
+sie da. Originale je Ebene in `map.__rzLabelOrig[id] = {mz, xz, ts, is}`,
+Reset bei `style.load`. Messung: AUDIT-01 bei 50 % — POI-Ebene `poi_r1`
+minzoom 15 → 13.9 in der Vorschau, sichtbar wie im Schnappschuss.
+
 **Mehr-Touren-Paket (.rzproj, 05.09.2026, Audit):** `projektpaket.menge_umschlag_bauen(
 pfade, hashes, sicht, meta)` schreibt `tracks/01…NN.gpx`, `menge.json` (names,
 geo_hashes, ablauf, schwarm_modus, schwarm_pausen, active_project_id) und
