@@ -492,10 +492,11 @@ async function openSettingsModal() {
         <select id="md-rq-codec" style="width:100%;">
           <option value="h264"${_sel(rqCodec, "h264")}>${t("settings.render.codec_h264")}</option>
           <option value="h265"${_sel(rqCodec, "h265")}>${t("settings.render.codec_h265")}</option>
+          <option value="prores422"${_sel(rqCodec, "prores422")}>${t("settings.render.codec_prores422", "ProRes 422 HQ — Schnitt-Standard (.mov, groß)")}</option>
           <option value="prores"${_sel(rqCodec, "prores")}>${t("settings.render.codec_prores")}</option>
         </select>
 
-        <div id="md-rq-enc-rows" style="${rqCodec === "prores" ? "display:none;" : ""}">
+        <div id="md-rq-enc-rows" style="${String(rqCodec).startsWith("prores") ? "display:none;" : ""}">
           <div style="margin-top:8px;">
             <label class="field-label" for="md-rq-crf" style="font-size:12px; display:flex; justify-content:space-between;">
               <span>${t("settings.render.crf")}</span><span id="md-rq-crf-val">${rqCrf}</span>
@@ -635,7 +636,7 @@ function _bindSettingsModalHandlers() {
   const _codecSel = document.getElementById("md-rq-codec");
   if (_codecSel) _codecSel.onchange = () => {
     const rows = document.getElementById("md-rq-enc-rows");
-    if (rows) rows.style.display = _codecSel.value === "prores" ? "none" : "";
+    if (rows) rows.style.display = String(_codecSel.value).startsWith("prores") ? "none" : "";
   };
   const _jqSl = document.getElementById("md-rq-jq");
   if (_jqSl) _jqSl.oninput = () => { const v = document.getElementById("md-rq-jq-val"); if (v) v.textContent = _jqSl.value; };

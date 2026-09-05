@@ -2572,6 +2572,21 @@ unbenutzt liegen, bis der Speicher sie verdrängt.
 wie das Video gezielt nach (bis 6 × 2 s), solange `map.areTilesLoaded()` nein
 sagt — WMS-Dienste brauchen bei 60+ Kacheln länger als der 5-s-Deckel.
 
+**Sentinel-2-Zwischenlage (05.09.2026):** `mapstyles.SENTINEL_LAYER` (EOX
+s2cloudless_3857, Jahrgang 2016 = CC BY-SA; 2018+ wären CC BY-NC-SA!) liegt in
+`stack_style` als `rz-raster-sentinel` über `rz-base` und unter den Landes-
+diensten; JS-Spiegel `_stackStyle` (util.js) über `mapCatalog().sentinel_layer`.
+`resolve()`/`resolveMapStyle()` weichen ohne Region NICHT mehr auf
+ofm_liberty aus — der Stapel bleibt (Vermerk `no_coverage`, Banner-Text
+„gezeigt wird Sentinel-2"). Leaflet: `stack_leaflet` liefert
+`[base, sentinel, …]`, leerer Stapel = `[base, sentinel]`; die Luftbild-Optik
+wirkt auch auf Sentinel (`rz-raster*`-Präfix / kein `base`-Flag). Wächter:
+`tests/test_sentinel_stack.py`. Recherche zu freien Quellen: IDEAS §51/§52.
+
+**ProRes 422 HQ (05.09.2026):** Codec `prores422` (Einstellungen → Video-Codec):
+`prores_ks -profile:v 3 -pix_fmt yuv422p10le`, .mov, in beiden Render-Pfaden;
+`needs_mov` und `needsMov` prüfen jetzt `startsWith("prores")`.
+
 **WYSIWYG-Zoomverschiebung (05.09.2026, Audit):** `rzScaleMapLabels(map, k)`
 (util.js) skaliert nicht mehr nur `text-size`/`icon-size` um k, sondern
 verschiebt für ALLE Karten-Ebenen (außer eigenen: preview-/track/anim-/rz-…)

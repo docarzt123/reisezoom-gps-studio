@@ -4738,7 +4738,7 @@ class Api:
         # Wenn Alpha aktiv, MÜSSEN wir ProRes 4444 nutzen (H.264/H.265 in MP4
         # kann keinen Alpha-Kanal); sonst der global gewählte Codec.
         codec = "prores" if alpha else _g_codec
-        needs_mov = alpha or codec in ("prores", "prores4444")
+        needs_mov = alpha or codec in ("prores", "prores4444", "prores422")
         # v0.9.309 — Standbild (Tour-Map) → PNG, kein Video-Container.
         # v0.9.412 — Snapshot (aktueller Animator-Vorschau-Frame) → ebenfalls EIN PNG.
         _snapshot = bool(params.get("snapshot", False))
@@ -5417,7 +5417,7 @@ class Api:
         codec = (params.get("codec") or "h264").lower()
         if alpha:
             codec = "prores"   # alpha braucht ProRes 4444
-        needs_mov = alpha or codec in ("prores", "prores4444")
+        needs_mov = alpha or codec in ("prores", "prores4444", "prores422")
         target_ext = ".mov" if needs_mov else ".mp4"
 
         # Output-Dateiname: <gpx-stem>_height.<ext>

@@ -296,6 +296,21 @@ BASE_LAYER = {
     "attribution": "Hintergrund: NASA Blue Marble (GIBS)",
 }
 ORTHO_MINZOOM = 7
+# 05.09.2026 (Beta-Tester: „bei Satellit in Hamburg nix") — weltweite Zwischenlage
+# zwischen Blue Marble und den amtlichen Luftbildern: Sentinel-2 cloudless 2016
+# von EOX, CC BY-SA 4.0 (kommerziell erlaubt, Nennung Pflicht), 10 m, bis z14.
+# Die Jahrgänge 2018+ von EOX sind CC BY-NC-SA — deshalb bewusst 2016.
+# Damit ist „Satellit (kostenlos)" nirgends mehr leer; Lücken (Hamburg) und
+# Gegenden ohne Landesdienst zeigen Sentinel statt Matsch oder OpenFreeMap.
+SENTINEL_LAYER = {
+    "id": "sentinel",
+    "tiles": ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"],
+    "tileSize": 256, "maxzoom": 14,
+    "attribution": ('<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by '
+                    '<a href="https://eox.at">EOX IT Services GmbH</a> '
+                    '(Contains modified Copernicus Sentinel data 2016), CC BY-SA 4.0'),
+    "name": "Sentinel-2 (10 m, 2016)",
+}
 
 # ── Nachlesen: Bedingungen der Anbieter (Einstellungen → Karten, Handbuch) ─
 # Marc, 03.09.2026: „setze links zu den quellen … dass jeder selbst nachlesen
@@ -454,6 +469,14 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None) -> dict:
     sources["rz-base"] = {"type": "raster", "tiles": list(BASE_LAYER["tiles"]), "tileSize": BASE_LAYER["tileSize"],
                           "maxzoom": BASE_LAYER["maxzoom"], "attribution": BASE_LAYER["attribution"]}
     layers.append({"id": "rz-base", "type": "raster", "source": "rz-base", "minzoom": 0})
+    # Sentinel-2 (weltweit, 10 m) zwischen Untergrund und Landesdiensten (05.09.2026)
+    sources["rz-raster-sentinel"] = {"type": "raster", "tiles": list(SENTINEL_LAYER["tiles"]), "tileSize": SENTINEL_LAYER["tileSize"],
+                                     "maxzoom": SENTINEL_LAYER["maxzoom"], "attribution": SENTINEL_LAYER["attribution"]}
+    lay_s = {"id": "rz-raster-sentinel", "type": "raster", "source": "rz-raster-sentinel", "minzoom": 0}
+    paint_s = raster_adjust_paint(adjust)
+    if paint_s:
+        lay_s["paint"] = paint_s
+    layers.append(lay_s)
     for r in reversed(stack):            # groß → klein = unten → oben
         sid = "rz-raster-" + r["id"] if transparent else "rz-raster"
         src = {"type": "raster", "tiles": region_tiles(r, transparent=transparent, proxy_base=proxy_base),
@@ -495,11 +518,22 @@ def base_leaflet() -> dict:
             "attr": BASE_LAYER["attribution"], "base": True}
 
 
+def sentinel_leaflet() -> dict:
+    return {"label": SENTINEL_LAYER["name"], "url": SENTINEL_LAYER["tiles"][0], "sub": "", "max": SENTINEL_LAYER["maxzoom"],
+            "attr": SENTINEL_LAYER["attribution"], "sentinel": True}
+
+
 def stack_leaflet(stack: list[dict], adjust=None) -> dict:
     """Leaflet-Kachelangabe für einen Stapel: `stack` = Liste unten → oben,
-    immer mit dem Blue-Marble-Untergrund als erster Ebene."""
+    immer mit dem Blue-Marble-Untergrund als erster Ebene, darüber Sentinel-2
+    (05.09.2026, weltweit), darüber die Landesdienste. Leerer Stapel = nur
+    Untergrund + Sentinel (Gegend ohne amtliche Luftbilder)."""
     if not stack:
-        return {}
+        d = dict(sentinel_leaflet())
+        d["label"] = "Luftbild " + SENTINEL_LAYER["name"]
+        d["stack"] = [base_leaflet(), sentinel_leaflet()]
+        d["adjust"] = ortho_adjust(adjust)
+        return d
     # 04.09.2026 (Marc, Brandenburg bei Zoom 7): Auch eine EINZELNE Region
     # immer als PNG mit Alpha — als JPEG füllt der Landesdienst alles
     # außerhalb seiner Grenze WEISS, und der Blue-Marble-Untergrund kommt nie
@@ -510,7 +544,7 @@ def stack_leaflet(stack: list[dict], adjust=None) -> dict:
     d["attr"] = stack_attribution(stack)
     if transparent:
         d["label"] = "Luftbild " + "/".join(r["name"] for r in stack)
-    d["stack"] = [base_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=ORTHO_MINZOOM) for r in reversed(stack)]
+    d["stack"] = [base_leaflet(), sentinel_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=ORTHO_MINZOOM) for r in reversed(stack)]
     d["adjust"] = ortho_adjust(adjust)   # Luftbild-Optik (CSS-Filter im Export)
     return d
 
@@ -694,10 +728,10 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
         gaps = gaps_for_bbox(bbox)
         for g in gaps:
             notes.append(f"gap:{g['id']}")
-        if region is None:
-            if bbox_tuple(bbox):
-                notes.append("Satellit für diesen Track nicht verfügbar → Karte (OpenFreeMap)")
-            key = "ofm_liberty"; st = STYLE_BY_KEY[key]
+        if region is None and bbox_tuple(bbox):
+            # 05.09.2026: kein Ausweichen mehr auf OpenFreeMap — der Stapel hat jetzt
+            # weltweit Sentinel-2 (10 m) unter den Landesdiensten.
+            notes.append("no_coverage")
 
     if st["kind"] == "gov":
         style = stack_style(stack, proxy_base=proxy_base, adjust=ortho)
@@ -751,7 +785,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
             for r in ORTHO_REGIONS
         ],
         "keys": {"mapbox": bool(has_mapbox), "maptiler": bool(has_maptiler)},
-        "base_layer": BASE_LAYER, "ortho_minzoom": ORTHO_MINZOOM,
+        "base_layer": BASE_LAYER, "sentinel_layer": SENTINEL_LAYER, "ortho_minzoom": ORTHO_MINZOOM,
         "label_overlay": label_overlay(),      # Beschriftung über Raster-Stilen (JS-Spiegel)
         "known_gaps": [{"id": g["id"], "name": g["name"], "bbox": list(g["bbox"]), "reason": g["reason"]} for g in KNOWN_GAPS],
         "ortho_adjust_default": ORTHO_ADJUST_DEFAULT,
