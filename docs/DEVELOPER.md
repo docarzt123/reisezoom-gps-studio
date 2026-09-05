@@ -83,6 +83,7 @@ Reisezoom-GPS-Studio/
 │   ├── test_geotagger_e2e.py    # End-to-End mit Fixtures
 │   ├── test_app_start.py        # Headless-Bridge-Test
 │   ├── test_animator_render.py  # Mini-Render mit ffprobe-Check
+│   ├── test_render_alle_karten.py  # Release-Test: jeder Katalog-Stil rendert (Teneriffa, PNOA + Sentinel-weit); Mapbox/MapTiler nur mit Schlüssel
 │   ├── make_test_photos.py      # Fixture-Generator
 │   └── fixtures/photos/         # 6 Test-JPGs + _meta.json
 ├── scripts/
