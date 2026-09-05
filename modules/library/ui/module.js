@@ -1284,6 +1284,8 @@ function mountLibrary(body, headerActions) {
     if (typeof switchMod === "function") switchMod(modul);
   }
 
+  window.rzProjektOeffnen = projektOeffnen;   // 05.09.2026 — Import eines Mehr-Touren-Pakets öffnet so
+
   // ── Ansichten ─────────────────────────────────────────────────────────
   function renderView() {
     document.querySelectorAll(".lib-view").forEach(b => b.classList.toggle("is-on", b.dataset.view === view));

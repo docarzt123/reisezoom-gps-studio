@@ -2208,6 +2208,8 @@
   "projekt.import_fehler": "Import failed.",
   "projekt.import_kein_zip": "That is not a project file (.rzproj).",
   "projekt.import_ohne_track": "Project file without track.gpx — damaged?",
+  "projekt.export_menge_pfade": "Not all track files of this composition were found.",
+  "projekt.import_menge_unvollstaendig": "The package does not contain all tracks of the composition.",
   "projekt.import_ok": "Project imported",
   "projekt.import_track_nicht_geladen": "The projects are there, but the track could not be loaded. Open it by hand: {pfad}",
   "projekt.importiert": "imported",

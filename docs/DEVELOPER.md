@@ -2572,6 +2572,33 @@ unbenutzt liegen, bis der Speicher sie verdrängt.
 wie das Video gezielt nach (bis 6 × 2 s), solange `map.areTilesLoaded()` nein
 sagt — WMS-Dienste brauchen bei 60+ Kacheln länger als der 5-s-Deckel.
 
+**Mehr-Touren-Paket (.rzproj, 05.09.2026, Audit):** `projektpaket.menge_umschlag_bauen(
+pfade, hashes, sicht, meta)` schreibt `tracks/01…NN.gpx`, `menge.json` (names,
+geo_hashes, ablauf, schwarm_modus, schwarm_pausen, active_project_id) und
+`projekte.json` (Sitzungs-Sicht des `menge:`-Kontexts) plus `track.gpx`/
+`tour.json` der ersten Tour als Rückfall für alte Stände. `Api.projekt_
+exportieren(gpx_path, ziel, kontext)` wählt den Zweig am Präfix `menge:`; die
+Oberfläche gibt `getActiveSession().track_hash` mit. Import: `_umschlag_
+einspielen` erkennt `menge.json` → `_menge_einspielen`: Touren nach
+`projekt_importe/` (Byte-gleich = wiederverwenden), `kontext_oeffnen_menge`
+(Hash über die sortierten geo_hashes → derselbe Kontext wie beim Absender,
+wenn die Touren identisch sind), Projekte dazulegen (IDs/Namen entdoppeln),
+aktives Projekt setzen. Antwort `{menge: true, project_id}` → app.js ruft
+`window.rzProjektOeffnen(pid)` (Archiv-Modul) und lädt so alle Touren.
+Wächter: `tests/test_menge_paket.py`.
+
+**macOS odoc im Betrieb (05.09.2026):** `_macos_odoc_handler_installieren(win)`
+hängt in `_on_loaded` (via `AppHelper.callAfter`) einen NSAppleEventManager-
+Handler für `aevt/odoc` ein; Dateipfade gehen per `win.evaluate_js` (eigener
+Thread, sonst blockiert der Main-Thread) an `importProject`/`loadGlobalGpx`.
+Beim Start bleibt der bisherige `currentAppleEvent`-Weg.
+
+**Vendor-Patch tileclamp (05.09.2026):** `_getOverscaledTileIDFromLngLatZoom`
+klemmt Kachel-x/y in `[0, 2^z−1]` — MapLibres Gelände-Kachelsuche im Render-
+Loop warf sonst am Polrand (`lat = ±85.051129`) je Bild `CanonicalTileID(z=0,
+y=-1)`. Dazu Klemmung von Zoom (`getMinZoom…getMaxZoom`) und Breite (±85°) in
+`rzMlCamApply`, im klassischen Vorschau-`jumpTo` und in `__rzSetCam`.
+
 **Sternenhimmel erzeugt statt Bild (05.09.2026):** `ui/js/rz-stars.js` zeichnet
 die 512-px-Kachel per Canvas aus einem festen Samen (Mulberry32) — Dichte 0..100
 → 40..520 Sterne je Kachel, Größe 0..100 → Radius ×0,4..×1,6. `rzStarsApply(

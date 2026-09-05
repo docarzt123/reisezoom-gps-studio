@@ -2208,6 +2208,8 @@
   "projekt.import_fehler": "Import fehlgeschlagen.",
   "projekt.import_kein_zip": "Das ist keine Projekt-Datei (.rzproj).",
   "projekt.import_ohne_track": "Projekt-Datei ohne track.gpx — beschädigt?",
+  "projekt.export_menge_pfade": "Nicht alle Tour-Dateien der Komposition wurden gefunden.",
+  "projekt.import_menge_unvollstaendig": "Das Paket enthält nicht alle Touren der Komposition.",
   "projekt.import_ok": "Projekt importiert",
   "projekt.import_track_nicht_geladen": "Die Projekte sind da, aber der Track konnte nicht geladen werden. Öffne ihn von Hand: {pfad}",
   "projekt.importiert": "importiert",

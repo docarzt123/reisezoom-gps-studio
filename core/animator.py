@@ -3355,6 +3355,8 @@ window.__stabCamHeight = (lon, lat) => {{ return; }};
 // Effekt im Video). Jeder Frame bekommt jetzt die Höhe mit: Gelände, sonst
 // GPX-Höhe × Überhöhung. Mapbox regelt das selbst (setCenter reicht).
 window.__rzSetCam = (brg, lon, lat, zm, pt, idx) => {{
+  zm = Math.max(map.getMinZoom ? map.getMinZoom() : 0, Math.min(map.getMaxZoom ? map.getMaxZoom() : 24, isFinite(zm) ? zm : 0));   // 05.09.2026 (Audit): nie negativ
+  lat = Math.max(-85, Math.min(85, lat));
   const ml = (typeof map.getCenterClampedToGround === 'function');
   let e = null;
   if (ml) {{
