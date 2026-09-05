@@ -8050,10 +8050,11 @@ function mountAnimator(body, headerActions, opts) {
           // überschreiben, den das nächste Modul schon anders gesetzt hat.
           if (_animUnmounted) return;                       // der lebende Mount holt die Übergabe ab
           if (window.__rzPendingTours !== pending) return;  // schon von einem anderen Mount abgeholt
-          window.__rzPendingTours = null;
-          window.__rzPendingAblauf = null;
-          window.__rzPendingModus = null;
-          window.__rzPendingPausen = null;
+          // Läuft gerade ein anderer Mount die Mengen-Aktivierung? Dann warten — die
+          // Aktivierung baut das Modul neu, und DIESER (neue) Mount übernimmt danach.
+          for (let w = 0; window.__rzMengeAktivierung && w < 100; w++) await new Promise(r => setTimeout(r, 150));
+          if (_animUnmounted) return;
+          if (window.__rzPendingTours !== pending) return;
           // IDEAS §38 — ERST die Mengen-Sitzung aktivieren, DANN Etappen
           // hinzufügen: `_animAddTourPath` persistiert in die AKTIVE Sitzung,
           // und die Arbeit gehört an die Menge, nicht an die erste Tour.
@@ -8063,8 +8064,16 @@ function mountAnimator(body, headerActions, opts) {
           try {
             const haupt = (typeof window.getGlobalGpxPath === "function") ? window.getGlobalGpxPath() : "";
             const alle = [haupt].concat(pending).filter(Boolean);
-            if (alle.length >= 2 && typeof sessionActivateMenge === "function") {
-              await sessionActivateMenge(alle, pendingAblauf, pendingModus, pendingPausen);
+            const schluessel = alle.join("|");
+            if (alle.length >= 2 && typeof sessionActivateMenge === "function" && window.__rzMengeAktiviert !== schluessel) {
+              // Die Aktivierung remountet das Modul (Projektwechsel). Die Übergabe bleibt
+              // so lange liegen, damit der NEUE Mount sie sieht; er wartet oben, bis
+              // wir hier fertig sind, und macht dann weiter (05.09.2026, Tester + Marc:
+              // „Karte wird gezeichnet" blieb für immer stehen).
+              window.__rzMengeAktivierung = true;
+              try { await sessionActivateMenge(alle, pendingAblauf, pendingModus, pendingPausen); }
+              finally { window.__rzMengeAktivierung = false; window.__rzMengeAktiviert = schluessel; }
+              if (_animUnmounted) return;   // der neue Mount übernimmt Übergabe und Modal
               // 04.09.2026 (Marc: „ein neu erstellter Schwarm öffnet mit den
               // Keyframes des vorherigen Projekts"): Das Modul war mit dem
               // Projekt der ERSTEN Tour gemountet (Controls, Keyframe-Editor,
@@ -8078,6 +8087,10 @@ function mountAnimator(body, headerActions, opts) {
               try { saveSettings({ last_menge: { paths: alle, ablauf: pendingAblauf,
                                                  modus: pendingModus, pausen: pendingPausen } }); } catch (_) {}
             }
+            window.__rzPendingTours = null;
+            window.__rzPendingAblauf = null;
+            window.__rzPendingModus = null;
+            window.__rzPendingPausen = null;
           } catch (e) {
             applog("error", `[Animator] Mengen-Sitzung: ${e}`);
             // ui-falle-ok: Fehler steht eine Zeile drüber im app.log; hier nur das Modal zu
@@ -8133,6 +8146,7 @@ function mountAnimator(body, headerActions, opts) {
             // IMMER schließen — egal wer geöffnet hat. Ein stehen gebliebenes,
             // nicht schließbares Modal wäre eine tote App.
             _tourenLadeZu();
+            window.__rzMengeAktiviert = null;   // Schlüssel nur für die Remount-Brücke, nicht für spätere Öffnungen
           }
         }, 1200);
       }

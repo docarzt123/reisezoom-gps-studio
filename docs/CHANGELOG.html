@@ -116,10 +116,23 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.656</span>
+    <span class="version-num">v0.9.657</span>
     <span class="version-date">5. September 2026</span>
     <span class="version-badge">Aktuell</span>
   </div>
+  <p class="version-tagline">Schwarm und Reise öffnen wieder — „Karte wird gezeichnet“ bleibt nicht mehr stehen.</p>
+  <ul>
+    <li><strong>Endlosschleife beim Öffnen einer Komposition behoben</strong> — das Stil-Dropdown und die Karte starteten mit unterschiedlichen Karten-Engines; das Modul baute sich immer wieder neu. Ohne Projektwert gilt jetzt überall der Standard-Stil.</li>
+    <li><strong>Schleifenbremse</strong> — baut sich ein Modul mehr als viermal in 15 Sekunden neu, bleibt die Karte stehen statt die App einzufrieren; der Auslöser steht im Log.</li>
+    <li><strong>Übergabe aus dem Archiv</strong> übersteht den Modul-Neuaufbau beim Sitzungswechsel (keine zweite Aktivierung, Modal schließt).</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.656</span>
+    <span class="version-date">5. September 2026</span>
+    </div>
   <p class="version-tagline">Weite Zoomstufen zeigen nur noch Sentinel-2: keine Naht mehr zwischen Luftbild-Diensten, kein schwarzes Meer.</p>
   <ul>
     <li><strong>Landesluftbilder erst ab Zoom 11</strong> — weich eingeblendet bis 12,5; darunter weltweit einheitlich Sentinel-2. Sentinel ohne Luftbild-Optik.</li>

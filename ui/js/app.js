@@ -107,6 +107,7 @@ window.addEventListener("resize", () => { try { passeTabsAnBreiteAn(); } catch (
 window.getActiveMod = () => activeMod;
 
 function switchMod(slug) {
+  try { applog && applog("info", "[switchMod] " + slug + " ← " + (String(new Error().stack || "").split("\n")[1] || "")); } catch (_) {}
   if (slug === activeMod) return;
   const reg = window.RZGPS_MODULES || {};
   if (!reg[slug]) return;
@@ -132,7 +133,19 @@ function switchMod(slug) {
 
 /** 03.09.2026 — Modul neu aufbauen, wenn ein Stilwechsel die Karten-Engine
  *  wechselt (Mapbox GL ↔ MapLibre GL). Erst sauber abräumen, dann mounten. */
+let _remountZeiten = [];
 function remountActiveModule() {
+  // 05.09.2026 — Diagnose + Schleifenbremse: Wer ruft, steht im app.log. Mehr als
+  // 4 Neuaufbauten in 15 s = eine Schleife (Dropdown-Stil ≠ Karten-Engine); dann
+  // lieber die Karte so lassen, als die App totzudrehen.
+  const jetzt = Date.now();
+  _remountZeiten = _remountZeiten.filter((z) => jetzt - z < 15000);
+  _remountZeiten.push(jetzt);
+  try { applog && applog("info", "[remountActiveModule] #" + _remountZeiten.length + " " + String(new Error().stack || "").split("\n").slice(1, 3).join(" | ")); } catch (_) {}
+  if (_remountZeiten.length > 4) {
+    try { applog && applog("warn", "[remountActiveModule] Schleife erkannt — Neuaufbau ausgelassen"); } catch (_) {}
+    return;
+  }
   if (typeof activeCleanup === "function") { try { activeCleanup(); } catch (_) {} }
   activeCleanup = null;
   renderMod();
