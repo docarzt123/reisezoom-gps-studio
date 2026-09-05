@@ -14020,7 +14020,7 @@ function mountAnimator(body, headerActions, opts) {
     const alpha = document.getElementById("anim-style").value === "alpha";
     const gpxStem = (currentGpx.split("/").pop() || "tour").replace(/\.gpx$/i, "");
     // .mov für Alpha ODER ProRes-ohne-Alpha; .mp4 für H.264/H.265.
-    const needsMov = alpha || codec === "prores";
+    const needsMov = alpha || String(codec).startsWith("prores");
     // v0.9.308 — Standbild (Tour-Map): PNG statt Video.
     // v0.9.412 — Snapshot (Animator-Frame) → PNG, wie das Tour-Map-Standbild.
     const _asPng = _isStaticFrame || !!_snapshotRequest;

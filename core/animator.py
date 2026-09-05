@@ -4352,6 +4352,14 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
                 "-c:v", "prores_ks", "-profile:v", "4",
                 "-pix_fmt", "yuva444p10le", "-vendor", "ap10",
             ]
+        elif codec == "prores422":
+            # 05.09.2026 (Marc): ProRes 422 HQ — Schnitt-Standard (FCP/Resolve), halb so groß wie 4444, kein Alpha.
+            ffmpeg_cmd = [
+                ffmpeg_bin, "-y", "-loglevel", "error",
+                "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
+                "-c:v", "prores_ks", "-profile:v", "3",
+                "-pix_fmt", "yuv422p10le", "-vendor", "ap10",
+            ]
         elif codec in ("prores", "prores4444"):
             ffmpeg_cmd = [
                 ffmpeg_bin, "-y", "-loglevel", "error",
@@ -5472,6 +5480,14 @@ async def render(
                 "-c:v", "prores_ks", "-profile:v", "4",
                 "-pix_fmt", "yuva444p10le",
                 "-vendor", "ap10",   # Apple-Vendor-ID (Premiere strenger als ffmpeg)
+            ]
+        elif codec == "prores422":
+            # 05.09.2026 (Marc): ProRes 422 HQ — Schnitt-Standard (FCP/Resolve), halb so groß wie 4444, kein Alpha.
+            ffmpeg_cmd = [
+                ffmpeg_bin, "-y", "-loglevel", "error",
+                "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
+                "-c:v", "prores_ks", "-profile:v", "3",
+                "-pix_fmt", "yuv422p10le", "-vendor", "ap10",
             ]
         elif codec in ("prores", "prores4444"):
             # ProRes 4444 ohne Alpha — Studio-Master für YouTube-Master-Cuts.

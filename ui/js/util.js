@@ -233,6 +233,14 @@ function _stackStyle(stack, ortho) {
     sources["rz-base"] = { type: "raster", tiles: base.tiles.slice(), tileSize: base.tileSize || 256, maxzoom: base.maxzoom || 8, attribution: base.attribution || "" };
     layers.push({ id: "rz-base", type: "raster", source: "rz-base", minzoom: 0 });
   }
+  // 05.09.2026 — Sentinel-2 cloudless 2016 (EOX, CC BY-SA) weltweit zwischen Untergrund und Landesdiensten
+  const sen = mapCatalog().sentinel_layer;
+  if (sen && sen.tiles) {
+    sources["rz-raster-sentinel"] = { type: "raster", tiles: sen.tiles.slice(), tileSize: sen.tileSize || 256, maxzoom: sen.maxzoom || 14, attribution: sen.attribution || "" };
+    const laySen = { id: "rz-raster-sentinel", type: "raster", source: "rz-raster-sentinel", minzoom: 0 };
+    const pSen = rzRasterAdjustPaint(ortho); if (Object.keys(pSen).length) laySen.paint = pSen;
+    layers.push(laySen);
+  }
   const orthoMin = mapCatalog().ortho_minzoom || 7;
   for (const r of stack.slice().reverse()) {
     const sid = transparent ? "rz-raster-" + r.id : "rz-raster";
@@ -312,10 +320,7 @@ function resolveMapStyle(styleKey, bbox, wantTerrain, labels, ortho) {
     region = stack.length ? stack[0] : null;
     gaps = mapGapsForBbox(bbox);
     for (const g of gaps) notes.push("gap:" + g.id);
-    if (!region) {
-      if (mapBboxArray(bbox)) notes.push("no_coverage");
-      key = mapStyleKnown("ofm_liberty") ? "ofm_liberty" : "osm"; d = mapStyleDef(key);
-    }
+    if (!region && mapBboxArray(bbox)) notes.push("no_coverage");   // 05.09.2026: Stapel bleibt (Sentinel-2 weltweit)
   }
   let style;
   if (d.kind === "gov") style = _stackStyle(stack, ortho);
@@ -361,11 +366,11 @@ function rzMapCoverageBanners(map, spec) {
   if (!map) return;
   const noCov = !!(spec && (spec.notes || []).includes("no_coverage"));
   rzMapBanner(map, "no_coverage", noCov
-    ? _escHtml(t("map.banner.no_coverage", "Für diese Gegend gibt es keine amtlichen Luftbilder — gezeigt wird die OpenFreeMap-Karte. Bitte einen anderen Kartenstil wählen, z. B. MapTiler oder OpenStreetMap."))
+    ? _escHtml(t("map.banner.no_coverage", "Für diese Gegend gibt es keine amtlichen Luftbilder — gezeigt wird Sentinel-2 (10 m, 2016). Für mehr Details einen anderen Kartenstil wählen, z. B. MapTiler oder OpenStreetMap."))
     : null);
   const gaps = (spec && spec.gaps) || [];
   rzMapBanner(map, "gap", gaps.length
-    ? _escHtml(t("map.banner.gap", "Für {gebiet} gibt es derzeit keine amtlichen Luftbilder — bitte einen anderen Kartenstil wählen.").replace("{gebiet}", gaps.map(g => g.name).join(", ")))
+    ? _escHtml(t("map.banner.gap", "Für {gebiet} gibt es derzeit keine amtlichen Luftbilder — gezeigt wird Sentinel-2 (10 m, 2016).").replace("{gebiet}", gaps.map(g => g.name).join(", ")))
       + ` <small>${_escHtml(gaps.map(g => t("map.gap." + g.id + ".reason", g.reason)).join(" "))}</small>`
     : null);
 }
@@ -377,7 +382,7 @@ function mapStyleNoteText(spec) {
   for (const n of spec.notes || []) {
     if (n === "no_mapbox_token") parts.push(t("mapstyle.note.no_mapbox_token", "Kein Mapbox-Token — Satellit (kostenlos) wird verwendet."));
     else if (n === "no_maptiler_key") parts.push(t("mapstyle.note.no_maptiler_key", "Kein MapTiler-Schlüssel — Satellit (kostenlos) wird verwendet."));
-    else if (n === "no_coverage") parts.push(t("mapstyle.note.no_coverage", "Satellit für diesen Track nicht verfügbar — Karte (OpenFreeMap) wird verwendet."));
+    else if (n === "no_coverage") parts.push(t("mapstyle.note.no_coverage", "Keine amtlichen Luftbilder für diesen Track — Sentinel-2 (10 m, 2016) wird gezeigt."));
   }
   if (spec.region) parts.push(t("mapstyle.note.region", "Luftbild: {name}").replace("{name}", spec.region.name));
   return parts.join(" ");
