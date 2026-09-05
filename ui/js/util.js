@@ -237,8 +237,7 @@ function _stackStyle(stack, ortho) {
   const sen = mapCatalog().sentinel_layer;
   if (sen && sen.tiles) {
     sources["rz-raster-sentinel"] = { type: "raster", tiles: sen.tiles.slice(), tileSize: sen.tileSize || 256, maxzoom: sen.maxzoom || 14, attribution: sen.attribution || "" };
-    const laySen = { id: "rz-raster-sentinel", type: "raster", source: "rz-raster-sentinel", minzoom: 0 };
-    const pSen = rzRasterAdjustPaint(ortho); if (Object.keys(pSen).length) laySen.paint = pSen;
+    const laySen = { id: "rz-raster-sentinel", type: "raster", source: "rz-raster-sentinel", minzoom: 0 };   // ohne Luftbild-Optik (Meer wurde schwarz)
     layers.push(laySen);
   }
   const orthoMin = mapCatalog().ortho_minzoom || 7;
@@ -250,9 +249,12 @@ function _stackStyle(stack, ortho) {
     const src = { type: "raster", tiles, tileSize: 256, minzoom: r.minzoom || orthoMin, maxzoom: r.maxzoom || 19, attribution: r.attribution || "" };
     if (r.scheme === "tms" && !proxy) src.scheme = "tms";
     sources[sid] = src;
-    const lay = { id: sid, type: "raster", source: sid, minzoom: 0 };
-    const paint = rzRasterAdjustPaint(ortho);
-    if (Object.keys(paint).length) lay.paint = paint;
+    // 05.09.2026 (Spiegel von mapstyles.stack_style): Landesdienste erst ab ORTHO_FADE_FROM,
+    // weich eingeblendet bis ORTHO_FADE_TO — darunter zeigt nur Sentinel-2 (einheitlich, keine Naht).
+    const fade = mapCatalog().ortho_fade || [11, 12.5];
+    const lay = { id: sid, type: "raster", source: sid, minzoom: fade[0] };
+    const paint = Object.assign({}, rzRasterAdjustPaint(ortho), { "raster-opacity": ["interpolate", ["linear"], ["zoom"], fade[0], 0, fade[1], 1] });
+    lay.paint = paint;
     layers.push(lay);
   }
   const st = { version: 8, sources, layers };

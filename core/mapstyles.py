@@ -296,6 +296,12 @@ BASE_LAYER = {
     "attribution": "Hintergrund: NASA Blue Marble (GIBS)",
 }
 ORTHO_MINZOOM = 7
+# 05.09.2026 (Marc, Teneriffa-Schwarm bei Zoom 9: harte Naht PNOA/Sentinel, schwarzes
+# Meer): Bei weiten Zoomstufen zeigt der Stapel NUR Sentinel-2 (weltweit einheitlich);
+# die Landesdienste blenden erst ab Zoom 11 ein und sind ab 12,5 voll da. Gilt für
+# Vorschau, Video und Leaflet-Export gleich.
+ORTHO_FADE_FROM = 11.0
+ORTHO_FADE_TO = 12.5
 # 05.09.2026 (Beta-Tester: „bei Satellit in Hamburg nix") — weltweite Zwischenlage
 # zwischen Blue Marble und den amtlichen Luftbildern: Sentinel-2 cloudless 2016
 # von EOX, CC BY-SA 4.0 (kommerziell erlaubt, Nennung Pflicht), 10 m, bis z14.
@@ -472,10 +478,9 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None) -> dict:
     # Sentinel-2 (weltweit, 10 m) zwischen Untergrund und Landesdiensten (05.09.2026)
     sources["rz-raster-sentinel"] = {"type": "raster", "tiles": list(SENTINEL_LAYER["tiles"]), "tileSize": SENTINEL_LAYER["tileSize"],
                                      "maxzoom": SENTINEL_LAYER["maxzoom"], "attribution": SENTINEL_LAYER["attribution"]}
+    # Bewusst OHNE Luftbild-Optik: die ist für die flauen Landesluftbilder gedacht,
+    # auf Sentinel wurde das Meer damit schwarz (05.09.2026).
     lay_s = {"id": "rz-raster-sentinel", "type": "raster", "source": "rz-raster-sentinel", "minzoom": 0}
-    paint_s = raster_adjust_paint(adjust)
-    if paint_s:
-        lay_s["paint"] = paint_s
     layers.append(lay_s)
     for r in reversed(stack):            # groß → klein = unten → oben
         sid = "rz-raster-" + r["id"] if transparent else "rz-raster"
@@ -485,10 +490,10 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None) -> dict:
         if r.get("scheme") == "tms" and not proxy_base:   # die Weiche spiegelt y selbst
             src["scheme"] = "tms"
         sources[sid] = src
-        lay = {"id": sid, "type": "raster", "source": sid, "minzoom": 0}
-        paint = raster_adjust_paint(adjust)
-        if paint:
-            lay["paint"] = paint
+        lay = {"id": sid, "type": "raster", "source": sid, "minzoom": ORTHO_FADE_FROM}
+        paint = dict(raster_adjust_paint(adjust))
+        paint["raster-opacity"] = ["interpolate", ["linear"], ["zoom"], ORTHO_FADE_FROM, 0.0, ORTHO_FADE_TO, 1.0]
+        lay["paint"] = paint
         layers.append(lay)
     # Weltkugel: MapLibre 5 zeichnet bei kleinem Zoom einen Globus (Anflug aus
     # dem All wie bei Mapbox) — der Blue-Marble-Untergrund macht ihn erst schön.
@@ -544,7 +549,7 @@ def stack_leaflet(stack: list[dict], adjust=None) -> dict:
     d["attr"] = stack_attribution(stack)
     if transparent:
         d["label"] = "Luftbild " + "/".join(r["name"] for r in stack)
-    d["stack"] = [base_leaflet(), sentinel_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=ORTHO_MINZOOM) for r in reversed(stack)]
+    d["stack"] = [base_leaflet(), sentinel_leaflet()] + [dict(region_leaflet(r, transparent=transparent), min=int(round(ORTHO_FADE_TO))) for r in reversed(stack)]
     d["adjust"] = ortho_adjust(adjust)   # Luftbild-Optik (CSS-Filter im Export)
     return d
 
@@ -786,6 +791,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         ],
         "keys": {"mapbox": bool(has_mapbox), "maptiler": bool(has_maptiler)},
         "base_layer": BASE_LAYER, "sentinel_layer": SENTINEL_LAYER, "ortho_minzoom": ORTHO_MINZOOM,
+        "ortho_fade": [ORTHO_FADE_FROM, ORTHO_FADE_TO],
         "label_overlay": label_overlay(),      # Beschriftung über Raster-Stilen (JS-Spiegel)
         "known_gaps": [{"id": g["id"], "name": g["name"], "bbox": list(g["bbox"]), "reason": g["reason"]} for g in KNOWN_GAPS],
         "ortho_adjust_default": ORTHO_ADJUST_DEFAULT,

@@ -2585,6 +2585,16 @@ Zoom-Stufe-Slider, Projektwechsel (`_animOnProjectChanged`), Keyframes.
 Restabweichung Vorschau↔Video im steilen Gelände (Mittelpunkt-Höhe) bleibt
 wie bei Befund #6 des Audits.
 
+**Zoom-Stufung des Satellit-Stapels (05.09.2026, Marc: „bei solchen
+Zoomstufen nur der Fallback, überall"):** `ORTHO_FADE_FROM = 11`, `ORTHO_FADE_TO
+= 12.5` (mapstyles) — Landes-Ebenen `rz-raster-<id>` haben `minzoom 11` und
+`raster-opacity` als Zoom-Rampe 11→0 … 12.5→1; darunter zeigt der Stapel nur
+`rz-base` + `rz-raster-sentinel`. Sentinel trägt KEINE Luftbild-Optik (rz-
+mapadjust.js überspringt die Ebene; im Python-Stil kein Paint). JS-Spiegel in
+`_stackStyle` über `mapCatalog().ortho_fade`; Leaflet-Stapel `min = 12`.
+Grund: Teneriffa-Schwarm bei Zoom 9 — PNOA liefert dort nur Teilflächen (harte
+Naht), und die Optik-Regler färbten Sentinels Meer schwarz.
+
 **Sentinel-2-Zwischenlage (05.09.2026):** `mapstyles.SENTINEL_LAYER` (EOX
 s2cloudless_3857, Jahrgang 2016 = CC BY-SA; 2018+ wären CC BY-NC-SA!) liegt in
 `stack_style` als `rz-raster-sentinel` über `rz-base` und unter den Landes-
