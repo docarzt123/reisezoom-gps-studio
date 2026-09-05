@@ -453,13 +453,25 @@
   // Deshalb ist der Layer im Normalfall rein zoom-abhängig (scharf) und bekommt den
   // popScale-Faktor nur für die paar Zehntelsekunden, in denen ein Schild wirklich
   // aufpoppt. rzSignApplyFrame schaltet unten hin und zurück.
+  var RZ_SIGN_ZOOM_BASE = Math.pow(4.8, 1 / 12);   // 0,5 bei Zoom 8 → 2,4 bei Zoom 20
   function rzSignIconSize(withPop, scale) {
     var s = Number(scale) || 1;
     function sz(v) {
       var base = ["case", ["==", ["get", "zoomScale"], true], v * s, 1 * s];
       return withPop ? ["*", base, ["coalesce", ["get", "popScale"], 1]] : base;
     }
-    return ["interpolate", ["linear"], ["zoom"], 8, sz(0.5), 12, sz(0.8), 16, sz(1.5), 20, sz(2.4)];
+    // 05.09.2026 (Marc: „kleiner Skalierungssprung bei den Schildern" im Schorfheide-
+    // Render): MapLibre wertet eine zoomabhängige icon-size NICHT beim aktuellen
+    // Zoom aus, sondern zwischen den beiden Stützwerten, die die ZOOMSTUFE DER
+    // KACHEL einrahmen — und klemmt dort. Bei geneigter Kamera liegt ein Schild im
+    // Nahfeld oft in einer Kachel, die feiner ist als der Kartenzoom (z12-Kachel bei
+    // Zoom 11,7): Rahmen 12–16, geklemmt auf den Wert bei 12 → 3 % zu groß. Wechselt
+    // die Kachel unter dem Schild (Kamerafahrt, Filter, Aufpoppen), springt die
+    // Größe. Mit EINEM Segment 8…20 ist der Rahmen für jede Kachelstufe derselbe,
+    // die Auswertung exakt und stetig; Kamera- und Aufpopp-Ausdruck liefern
+    // identische Werte. Kurve: exponentiell 0,5 → 2,4 (Basis 4,8^(1/12)), nahe an
+    // den alten Stützwerten (bei 12: 0,84 statt 0,80; bei 16: 1,42 statt 1,50).
+    return ["interpolate", ["exponential", RZ_SIGN_ZOOM_BASE], ["zoom"], 8, sz(0.5), 20, sz(2.4)];
   }
 
   function rzSignApplyFrame(map, lyr, src, metas, M) {

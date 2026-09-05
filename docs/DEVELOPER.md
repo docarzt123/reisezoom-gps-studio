@@ -84,6 +84,7 @@ Reisezoom-GPS-Studio/
 │   ├── test_app_start.py        # Headless-Bridge-Test
 │   ├── test_animator_render.py  # Mini-Render mit ffprobe-Check
 │   ├── test_render_alle_karten.py  # Release-Test: jeder Katalog-Stil rendert (Teneriffa, PNOA + Sentinel-weit); Mapbox/MapTiler nur mit Schlüssel
+│   ├── test_line3d.py           # Wächter: rz-line3d im Schwarm-Render, Schildkurve, Vendor-Patches
 │   ├── make_test_photos.py      # Fixture-Generator
 │   └── fixtures/photos/         # 6 Test-JPGs + _meta.json
 ├── scripts/
@@ -3515,3 +3516,31 @@ das Projekt, bei der ersten echten Änderung.
 **04.09.2026 — Mittelpunkt-Höhe pro Frame (MapLibre + Gelände):** MapLibre 5 führt `transform.elevation` bei `setCenter`/`jumpTo` nicht nach (nur `rzSeatMapLibreCenter`, 300 ms nach der letzten Bewegung — im Probelauf/Render nie). Bei geneigter Kamera bestimmt diese Höhe, welcher Geländepunkt in der Bildmitte liegt; falsch = Ausschnitt kilometerweit daneben. Deshalb setzen Vorschau (`_previewEleAt` in `runTimelinePreview`, klassischer Pfad) und Render (`window.__rzSetCam` in `_make_html`: `jumpTo({center, zoom, pitch, bearing, elevation})` mit `setCenterClampedToGround(false)`) die Höhe je Frame: `queryTerrainElevation`, sonst GPX-Höhe × Überhöhung (`__RZ_EXAG`). Die ruhige Kamera hat ihren eigenen Weg (Stützstellen mit gespeicherter Höhe, `rzMlCamApply(…, eM)`). Prüfstand: `RZ_CAMDEBUG=1` loggt jetzt auch `ce` (Mittelpunkt-Höhe) und `mid_m` (Abstand Bildmitte↔Mittelpunkt).
 
 **04.09.2026 — WYSIWYG für Beschriftungen und Zoom-Basis:** (1) `rzScaleMapLabels(map, k)` in ui/js/util.js skaliert `text-size`/`icon-size` aller Symbol-Ebenen der Vorschau mit `k = Vorschau-Breite / Render-CSS-Breite` (identisch mit `--rz-prev-k`); Originale je Stil in `map.__rzLabelOrig` (Reset bei `style.load`); Zoom-Kurven (`interpolate`/`step`) an den Ausgaben skalieren, `case`/`match`/`coalesce` an den Zweigen, sonst `["*", expr, k]` nur ohne `["zoom"]` — MapLibre verwirft ungültige Ausdrücke still (kein Fehler, Wert bleibt alt!). Aufruf aus `updateAnimatorViewport()`. (2) `_fitZoomBase` kommt aus `cameraForBounds` (gleiche Polster/Neigung wie das Fit), nicht mehr vom nächsten `moveend` — der konnte von einem dazwischen laufenden Scrub/Sitz stammen (Basis mitten in der Fahrt, Video 1,7× weiter als die Vorschau). Prüfstand: Vorschau-Screenshot gegen „Aktuellen Frame als Bild" (Snapshot-Brücke mit `window.__rzSavePath`).
+
+## Linien über dem Gelände — `ui/js/rz-line3d.js` (06.09.2026)
+
+MapLibre drapiert `line`-Ebenen als Textur auf das Geländenetz. Eine Spur liegt
+dann exakt auf der Oberfläche; jeder Grat des groben Netzes verdeckt sie
+teilweise, und bei Kamerabewegung wandert die Verdeckungskante — im 4K-Video
+flimmern einzelne Tracks (Teneriffa-Schwarm). Mapbox GL hob Linien mit
+`line-z-offset` 150 m an; MapLibre kennt das nicht (der Linien-Shader hat keine
+Höhe, nur Kreise/Symbole/Extrusionen). Deshalb zeichnet `rz-line3d.js` Spuren
+als Custom Layer (`renderingMode: "3d"`): je Punkt Geländehöhe
+(`queryTerrainElevation`) + Versatz, Breite in Bildpunkten im Vertex-Shader,
+runde Kappen/Verbindungen per Abstandsfeld im Fragment-Shader, Tiefentest gegen
+das Gelände. Die Projektion kommt aus MapLibres `args.shaderData`
+(`define` + `vertexShaderPrelude`): unter `#ifdef GLOBE` `projectToSphere` +
+`interpolateProjection` (Höhe in Metern), sonst `u_projection_matrix` mit
+Merkator-z. Die Uniforms `u_projection_*` werden aus `defaultProjectionData`
+gesetzt. Höhen werden bei jeder ganzen Zoomstufe und nach dem Laden der
+DEM-Quelle nachgezogen.
+
+Eingesetzt im Schwarm-Render (`core/animator.py`, `SCHWARM_3D` = Gelände an +
+MapLibre): die drapierte Ebene `schwarm-lines` bleibt leer, `__rzSchwarmAdvance`
+setzt nur die Segment-Zähler (`setCounts`). Noch drapiert: Haupt-Track, Ghosts,
+Vorschau im Animator und Tour-Map — siehe IDEAS §53.
+
+Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
+Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
+`RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
+
