@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.654] – 2026-09-05
+
 ### Added
 - **Sternenhimmel mit Reglern** (Beta-Tester: „die Sterne sind etwas groß geraten und nicht animiert") — im Karten-Abschnitt gibt es jetzt „Sternenhimmel (Weltkugel)" mit Ein/Aus, Dichte, Größe und Funkeln. Die Sterne werden erzeugt statt aus einem festen Bild geladen, sind kleiner als bisher und funkeln dezent in drei Phasen. Gleicher Zufallssamen in Vorschau und Video, das Funkeln tickt im Render je Bild weiter. Nur bei MapLibre-Stilen, Mapbox bringt seinen eigenen Himmel mit.
 - **Karten-Optik für alle Karten** (Beta-Tester: „kann der Kontrastregler auch auf die anderen zu hellen Karten angepasst werden?") — Rasterkarten (OpenStreetMap, OpenTopoMap, CyclOSM, HOT) bekommen Sättigung, Kontrast, Helligkeit und Farbton; Vektorkarten (OpenFreeMap, MapTiler) eine Helligkeit über eine Abdunkel-Ebene direkt unter der Strecke. Standard 0 = Karte wie geliefert. Die Luftbild-Optik der amtlichen Orthofotos bleibt eigenständig. Gemeinsamer Kern `ui/js/rz-mapadjust.js` für Vorschau und Render.
