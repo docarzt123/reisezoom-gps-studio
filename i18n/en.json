@@ -2371,6 +2371,7 @@
   "schwarm.fehler": "The swarm render could not start.",
   "schwarm.fehler.token": "The swarm needs a Mapbox token (settings).",
   "schwarm.fehler.zu_wenig": "The swarm needs at least 2 readable tours with distance.",
+  "schwarm.fehler.sitzung": "The composition could not be created — please check the log.",
   "schwarm.fertig": "Swarm video done:",
   "schwarm.hint": "All selected tours start at the same time and run side by side — the longest one sets the video length.",
   "schwarm.hochkant": "Portrait (Shorts)",

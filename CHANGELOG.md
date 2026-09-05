@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.655] – 2026-09-05
+
+### Fixed
+- **Schwarm/Reise aus dem Archiv blieb bei „Touren laden … Karte wird gezeichnet“ hängen** (Beta-Tester, Windows, 3 GPX als Schwarm; App musste beendet werden) — die Übergabe der weiteren Touren an den Animator wurde sofort geleert, der eigentliche Abruf lief aber erst 1,2 s später; wurde das Modul dazwischen neu aufgebaut (erste Tour war schon offen), holte niemand die Touren ab und das Modal blieb offen. Die Übergabe bleibt jetzt liegen, bis ein lebender Animator sie abholt; schlägt das Anlegen der Komposition fehl, schließt das Modal mit Meldung statt still zu hängen.
+
 ## [0.9.654] – 2026-09-05
 
 ### Added
