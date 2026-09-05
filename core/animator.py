@@ -123,6 +123,9 @@ def _zoff_on(cfg) -> bool:
     return bool(cfg.enable_terrain and getattr(cfg, "map_engine", "mapbox") == "mapbox")
 
 
+SIGN_ZOOM_BASE = 4.8 ** (1 / 12)   # Schildgröße: 0,5 bei Zoom 8 → 2,4 bei Zoom 20 (siehe sign_draw.js)
+
+
 @dataclass
 class AnimatorConfig:
     gpx_path: str
@@ -1644,7 +1647,8 @@ def _maplibre_gl_head() -> str:
             cam = (base / "ui" / "js" / "maplibre-camera.js").read_text(encoding="utf-8")   # 04.09.2026 Kamera-Adapter
             stars = (base / "ui" / "js" / "rz-stars.js").read_text(encoding="utf-8")        # 04.09.2026 Sternenhimmel
             adj = (base / "ui" / "js" / "rz-mapadjust.js").read_text(encoding="utf-8")      # 05.09.2026 Karten-Optik
-            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>\n<script>{stars}</script>\n<script>{adj}</script>\n<script>{cam}</script>"
+            l3d = (base / "ui" / "js" / "rz-line3d.js").read_text(encoding="utf-8")        # 06.09.2026 Linien über dem Gelände
+            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>\n<script>{stars}</script>\n<script>{adj}</script>\n<script>{l3d}</script>\n<script>{cam}</script>"
             _log.info("maplibre-gl aus dem Bundle eingebettet (%.1f MB)", len(js) / 2**20)
         except Exception as e:
             _log.warning("maplibre-gl nicht im Bundle gefunden (%s) — CDN-Rückfall", e)
@@ -2397,13 +2401,23 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                    " else map.getContainer().style.background = '#05070d'; } catch(_){}\n"
                    + ("" if _spec.get("kind") == "gov" else
                       f"    try {{ if (window.rzApplyMapAdjust) rzApplyMapAdjust(map, {json.dumps(_madj)}, {{sat:0,con:0,bri:0,hue:0}}); }} catch(_){{}}\n"))
+    # Diagnose-Knöpfe (nur Env, Prüfstand): RZ_RTT_Q = Textur-Faktor der Gelände-Drapierung, RZ_MESH = Netzauflösung je Kachel
+    # 06.09.2026 (Marc: „einzelne gezeichnete tracks flimmern", Teneriffa-Schwarm 4K):
+    # MapLibre drapiert Linien AUF das Geländenetz — Grate verdecken sie stückweise,
+    # bei Kamerabewegung wandert die Kante → Flimmern. Mit Gelände zeichnet der
+    # Schwarm seine Linien deshalb über rz-line3d.js 150 m über dem Gelände (wie
+    # Mapbox mit line-z-offset). Ohne Gelände bleibt die normale Linien-Ebene.
+    sw3d_js = "true" if (cfg.enable_terrain and _spec.get("terrain") and getattr(cfg, "map_engine", "mapbox") != "mapbox") else "false"
+    _rz_terrain_extra = ""
+    if os.environ.get("RZ_RTT_Q"): _rz_terrain_extra += f", qualityFactor: {int(os.environ['RZ_RTT_Q'])}"
+    if os.environ.get("RZ_MESH"): _rz_terrain_extra += f", meshSize: {int(os.environ['RZ_MESH'])}"
     terrain_block = ""
     if cfg.enable_terrain and _spec.get("terrain"):
         # Gelände hängt am Stil (Mapbox-DEM / MapTiler terrain-rgb / AWS terrarium).
         # Quellname bleibt 'mapbox-dem', weil der Render-JS-Code ihn so kennt.
         terrain_block = f"""
     map.addSource('mapbox-dem', {json.dumps(_spec["terrain"])});
-    map.setTerrain({{ source: 'mapbox-dem', exaggeration: {cfg.exaggeration} }});
+    map.setTerrain({{ source: 'mapbox-dem', exaggeration: {cfg.exaggeration}{_rz_terrain_extra} }});
 """
 
     # Map-Init: User-Viewport-Override (Pan/Zoom in der Preview) hat Vorrang,
@@ -2676,9 +2690,13 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
 
         def _sz(v):
             return f"['case',['==',['get','zoomScale'],true],{v * _ss:.4f},{1.0 * _ss:.4f}]"
+        # 05.09.2026 — EIN Segment 8…20 (exponentiell): MapLibre klemmt die Größe an
+        # den Stützwerten um die KACHEL-Zoomstufe; bei geneigter Kamera springt sie
+        # sonst beim Kachelwechsel um ~3 % (Schorfheide). Synchron zu
+        # ui/js/sign_draw.js rzSignIconSize — bei Änderung beide pflegen.
         _sign_icon_size = (
-            "['interpolate',['linear'],['zoom'], "
-            f"8,{_sz(0.5)}, 12,{_sz(0.8)}, 16,{_sz(1.5)}, 20,{_sz(2.4)}]"
+            f"['interpolate',['exponential',{SIGN_ZOOM_BASE:.6f}],['zoom'], "
+            f"8,{_sz(0.5)}, 20,{_sz(2.4)}]"
         )
         signs_block = (
             "const __signs = " + json.dumps(signs_for_render) + ";\n"
@@ -2881,6 +2899,8 @@ const SCHWARM_COORDS = {schwarm_coords_json};
 const SCHWARM_COLORS = {schwarm_colors_json};
 const SCHWARM_STEPS = {schwarm_steps_json};
 const SCHWARM_N = SCHWARM_COORDS.length;
+const SCHWARM_3D = {sw3d_js};   // 06.09.2026 — Linien über dem Gelände (rz-line3d) statt drapiert
+window.__rzLine3dDebug = {'true' if os.environ.get('RZ_L3D_DEBUG') else 'false'};
 // IDEAS §38 M3 — Geschwindigkeitsmodus. 'gleich' = alle gleich schnell,
 // 'ziel' = Fotofinish (jede Tour skaliert, alle enden mit dem Video),
 // 'uhrzeit' = aufgezeichnete Zeitstempel (gemeinsamer Start; SCHWARM_T je
@@ -3195,6 +3215,16 @@ map.on('style.load', () => {{
                  'circle-radius': Math.max(3, {schwarm_line_width_json} * 1.5)
                                   * {float(cfg.marker_dot_size):.3f},
                  'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.2 }} }});
+    }}
+    if (SCHWARM_3D && window.rzLine3d) {{
+      // Linien 150 m über dem Gelände, Breite wie die drapierte Ebene; die drapierte
+      // Ebene bleibt leer (setData übersprungen, s. __rzSchwarmAdvance).
+      const __l3 = window.rzLine3d.create('schwarm-3d', {{ offsetM: 150 }});
+      map.addLayer(__l3, 'schwarm-dots');
+      __l3.setTracks(SCHWARM_COORDS.map((c, i) => ({{ coords: c, color: SCHWARM_COLORS[i],
+                       width: Math.max(1, {schwarm_line_width_json}), opacity: 0.9 }})));
+      __l3.setCounts(SCHWARM_COORDS.map(() => 0));
+      window.__rzSw3d = __l3;
     }}
   }}
   // v0.9.169 — Ghost-Track: die GANZE Route schwach/transparent als unterste
@@ -3519,7 +3549,13 @@ window.__rzSchwarmAdvance = (dNow) => {{
                    brg: SCHWARM_DOT_ARROW ? __rzKurs(c, k) : 0 }},
       geometry: {{ type: 'Point', coordinates: c[k] }} }});
   }}
-  map.getSource('schwarm').setData({{ type: 'FeatureCollection', features: linien }});
+  if (window.__rzSw3d) {{
+    // 06.09.2026 — Linien über dem Gelände: nur die Zähler (Segmente je Tour) setzen,
+    // die drapierte Linien-Ebene bleibt leer.
+    window.__rzSw3d.setCounts(linien.map(l => l.geometry.coordinates.length - 1));
+  }} else {{
+    map.getSource('schwarm').setData({{ type: 'FeatureCollection', features: linien }});
+  }}
   map.getSource('schwarm-dots').setData({{ type: 'FeatureCollection', features: punkte }});
 }};
 const COLOR_STOPS_VAL = {color_stops_km_json};
@@ -4520,6 +4556,31 @@ def _downscale_frame(raw: bytes, target_w: int, target_h: int,
 
 
 async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
+    if os.environ.get("RZ_L3D_DEBUG") and not getattr(page, "_rz_l3d_dumped", False):
+        page._rz_l3d_dumped = True
+        try:
+            info = await page.evaluate("""() => { try {
+              const l = window.__rzSw3d; const a = window.__rzLine3dArgs || null;
+              let sd = null; try { sd = a && a.shaderData; } catch (_) {}
+              return { proj: (map.getProjection && map.getProjection()) || null, hasLayer: !!map.getLayer('schwarm-3d'), bufs: l ? l._bufs.length : -1,
+                       tracks: l ? l._tracks.length : -1, counts: l && l._counts ? l._counts.slice(0, 5) : null, args: a, sw3d: (typeof SCHWARM_3D !== 'undefined') ? SCHWARM_3D : null,
+                       zoom: map.getZoom() };
+            } catch (e) { return { err: String(e) }; } }""")
+            import sys as _sys; _sys.stderr.write("[l3ddbg] " + json.dumps(info)[:6000] + "\n"); _sys.stderr.flush()
+        except Exception as _e:
+            import sys as _sys; _sys.stderr.write("[l3ddbg] fehler " + str(_e) + "\n")
+    if os.environ.get("RZ_SIGNDEBUG"):
+        try:
+            info = await page.evaluate("""() => { try {
+              const sc = (map.style.sourceCaches && map.style.sourceCaches['anim-signs-src']) || (map.style._otherSourceCaches && map.style._otherSourceCaches['anim-signs-src']);
+              const tiles = sc ? Object.values(sc._tiles).map(t => t.tileID.overscaledZ + '/' + t.tileID.canonical.z + (t.hasData && t.hasData() ? '' : '?')) : [];
+              const lyr = map.getLayer('anim-signs-lyr');
+              return { z: +map.getZoom().toFixed(4), pitch: +map.getPitch().toFixed(1), tiles, pop: !!map.__rzSignPopMode,
+                       filter: JSON.stringify(map.getFilter('anim-signs-lyr')).slice(0, 60) };
+            } catch (e) { return { err: String(e) }; } }""")
+            import sys as _sys; _sys.stderr.write("[signdbg] " + json.dumps(info) + "\n"); _sys.stderr.flush()
+        except Exception as _e:
+            pass
     """Einen Frame als Bild-Bytes greifen. Alpha → PNG (Transparenz), sonst je
     nach cfg.frame_format JPEG (schnell) oder PNG (verlustfrei). v0.9.245.
     ffmpeg's image2pipe-Demuxer erkennt JPEG vs PNG automatisch.

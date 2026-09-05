@@ -5,8 +5,46 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Fri, 04 Sep 2026 21:01:43 +0000</lastBuildDate>
+<lastBuildDate>Sat, 05 Sep 2026 19:54:41 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.657 — Schwarm und Reise öffnen wieder — „Karte wird gezeichnet“ bleibt nicht mehr stehen.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-657</link>
+<guid isPermaLink="false">gps-studio-v0.9.657</guid>
+<pubDate>Sat, 05 Sep 2026 12:00:00 +0000</pubDate>
+<description>Endlosschleife beim Öffnen einer Komposition behoben — das Stil-Dropdown und die Karte starteten mit unterschiedlichen Karten-Engines; das Modul baute sich immer wieder neu. Ohne Projektwert gilt jetzt überall der Standard-Stil.
+
+Schleifenbremse — baut sich ein Modul mehr als viermal in 15 Sekunden neu, bleibt die Karte stehen statt die App einzufrieren; der Auslöser steht im Log.
+
+Übergabe aus dem Archiv übersteht den Modul-Neuaufbau beim Sitzungswechsel (keine zweite Aktivierung, Modal schließt).</description>
+</item>
+<item>
+<title>v0.9.656 — Weite Zoomstufen zeigen nur noch Sentinel-2: keine Naht mehr zwischen Luftbild-Diensten, kein schwarzes Meer.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-656</link>
+<guid isPermaLink="false">gps-studio-v0.9.656</guid>
+<pubDate>Sat, 05 Sep 2026 12:00:00 +0000</pubDate>
+<description>Landesluftbilder erst ab Zoom 11 — weich eingeblendet bis 12,5; darunter weltweit einheitlich Sentinel-2. Sentinel ohne Luftbild-Optik.</description>
+</item>
+<item>
+<title>v0.9.655 — Nachtrag: Schwarm aus dem Archiv hängt nicht mehr im Lade-Fenster.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-655</link>
+<guid isPermaLink="false">gps-studio-v0.9.655</guid>
+<pubDate>Sat, 05 Sep 2026 12:00:00 +0000</pubDate>
+<description>Schwarm/Reise aus dem Archiv blieb bei „Touren laden“ hängen — wenn die erste Tour schon offen war, holte niemand die weiteren Touren ab. Behoben; Fehler beim Anlegen schließen das Fenster mit Meldung.</description>
+</item>
+<item>
+<title>v0.9.654 — Audit-Tag: Handkamera ohne Keyframes, Satellit überall, Schwarm-Pakete komplett, Sternen-Dialog, ProRes 422.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-654</link>
+<guid isPermaLink="false">gps-studio-v0.9.654</guid>
+<pubDate>Sat, 05 Sep 2026 12:00:00 +0000</pubDate>
+<description>Handkamera ohne Keyframes — wer die Karte von Hand zoomt, schwenkt oder neigt, bekommt genau diese Ansicht als Kamera — im Probelauf, beim Ziehen des Reglers und im Video. „Anpassen“ holt die Gesamtansicht zurück, ein Keyframe gewinnt.
+
+Satellit (kostenlos) ist nirgends mehr leer — weltweit liegt Sentinel-2 (10 m, 2016, frei auch für Videos) unter den amtlichen Luftbildern — Hamburg, Neuseeland, USA zeigen Satellit statt Matsch, mit Hinweis auf der Karte.
+
+Schwarm/Reise als Projekt-Paket — der .rzproj-Export nimmt jetzt alle Touren und das Schwarm-Projekt mit; der Import öffnet die Komposition direkt. Vorher kam nur die erste Tour an.
+
+Sternenhimmel mit Reglern — Ein/Aus, Dichte, Größe, Funkeln — kleiner als bisher, dezent animiert, in Vorschau und Video gleich.</description>
+</item>
 <item>
 <title>v0.9.653 — Ein Beta-Tag: flüssiger Probelauf, Kamera trifft die Keyframes, WYSIWYG überall — plus Nordpfeil und Maßstab.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-653</link>
@@ -148,36 +186,6 @@ Beim Scrollen lief die Liste über ihre Kopfzeile. Jetzt bleibt die Kopfzeile sa
 <guid isPermaLink="false">gps-studio-v0.9.556</guid>
 <pubDate>Fri, 28 Aug 2026 12:00:00 +0000</pubDate>
 <description>🗣 Keine deutschen Reste mehr. Ein Beta-Tester aus Spanien hat es gemeldet: Bei ihm stand der Knopf „Track wählen …&quot; auf Deutsch — seit mehreren Versionen. Uns fiel das nie auf, wir benutzen die App ja auf Deutsch. Das ganze Programm wurde daraufhin durchgesehen: GPX-Leiste, Geotagger (Überschreib-Warnung und der ganze Fertig-Dialog), die Karten-Fehlermeldungen und die Knopf-Hinweise sind jetzt vollständig auf Deutsch, Englisch und Spanisch. Selbst der Bildschirm, der erscheint, wenn die App gar nicht erst startet, spricht jetzt alle drei Sprachen — gerade dort steht ja jemand, der nicht weiterkommt.</description>
-</item>
-<item>
-<title>v0.9.554 — Reparieren, ohne von vorn anzufangen.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-554</link>
-<guid isPermaLink="false">gps-studio-v0.9.554</guid>
-<pubDate>Thu, 27 Aug 2026 12:00:00 +0000</pubDate>
-<description>🔁 Geheilten Track übernehmen. Wer im Animator schon gebaut hat und dann merkt, dass mit dem Track etwas nicht stimmt, musste bisher nach der Reparatur alles neu machen: Für das Programm ist der geheilte Track eine neue Tour. Jetzt fragt der Inspektor nach dem Speichern einmal nach — und nimmt Animator, Tour-Map, Geotagger und Höhen-Animator samt Fotos und Schildern mit herüber. Die alte Tour bleibt unverändert liegen. Ein Vorbehalt gehört dazu: Keyframes, Schilder und Foto-Pins sitzen an einer Stelle im Track. Wurden nur einzelne Ausreißer geglättet, merkt man nichts; wurde viel eingefügt oder abgeschnitten, können sie verrutschen. Ändert sich die Tour deutlich, weist das Programm nach der Übernahme darauf hin.</description>
-</item>
-<item>
-<title>v0.9.545 — RAW-Fotos bleiben, wo sie hingehören.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-545</link>
-<guid isPermaLink="false">gps-studio-v0.9.545</guid>
-<pubDate>Thu, 27 Aug 2026 12:00:00 +0000</pubDate>
-<description>🌍 Keine Fotos mehr im Atlantik. Manche Kameras schreiben in jedes RAW-Foto einen leeren GPS-Block mit 0/0 — eine Position mitten im Golf von Guinea. Der Geotagger hielt das für eine echte Aufnahmeposition und stellte die Fotos dorthin, während die JPEGs derselben Aufnahme richtig auf dem Track saßen. Leere Blöcke werden jetzt auch beim schnellen Einlesen erkannt und ignoriert, sodass die Zuordnung über die Uhrzeit greift. Betrifft RAW und HEIC.</description>
-</item>
-<item>
-<title>v0.9.544 — Mehrere Tracks im Hintergrund — jeder wie du willst.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-544</link>
-<guid isPermaLink="false">gps-studio-v0.9.544</guid>
-<pubDate>Thu, 27 Aug 2026 12:00:00 +0000</pubDate>
-<description>👻 Beliebig viele Ghost-Spuren. Du kannst jetzt so viele Tracks als schwache Hintergrundlinien einblenden, wie du magst — aus dem Archiv markiert oder als Datei geladen. Jede Spur bekommt ihr eigenes Aussehen: Farbe, Deckkraft, Linienbreite, gestrichelt oder durchgezogen, und einzeln ein- und ausblendbar. So zeigst du zum Beispiel den offiziellen Wanderweg als kräftige Linie, deine geplanten Runden dünn gestrichelt daneben — und darüber läuft animiert die Tour, die du tatsächlich gegangen bist.</description>
-</item>
-<item>
-<title>v0.9.543 — Importierte Projekte sind jetzt auch zu sehen.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-543</link>
-<guid isPermaLink="false">gps-studio-v0.9.543</guid>
-<pubDate>Wed, 26 Aug 2026 12:00:00 +0000</pubDate>
-<description>📂 Projekt-Import zeigt endlich, was drin ist. Nach dem Importieren einer .rzproj-Datei fehlten Keyframes und Schilder — obwohl alles in der Datei steckte. Grund: Das importierte Projekt wurde nicht nach vorn geholt, wenn der Rechner die Tour schon kannte. Dann blieb das eigene, meist leere Projekt aktiv und das importierte lag unsichtbar daneben. Jetzt ist nach dem Import das mitgebrachte Projekt aktiv; das eigene bleibt erhalten und lässt sich oben weiter auswählen.
-
-🖥 Intel-Macs: Hinweis vor dem Download. Die App läuft nur auf Macs mit Apple Silicon (M1 und neuer). Das stand bisher nur klein in der Zeile mit der Dateigröße — jetzt steht es als eigener Hinweis im Download-Knopf, im Namen des DMG-Fensters und als Textdatei im DMG. Mit der Anleitung zum Nachsehen: Apfel-Menü → „Über diesen Mac“.</description>
 </item>
 </channel>
 </rss>
