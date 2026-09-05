@@ -1946,7 +1946,15 @@ function bindSetting(elementId, section, key, opts = {}) {
   const readCurrent = () => {
     const projectSection = (isProjectModule && _activeProject && _activeProject[section]) ? _activeProject[section] : null;
     const globalSection = _settingsCache[section] || {};
-    return (projectSection && key in projectSection) ? projectSection[key] : globalSection[key];
+    if (projectSection && key in projectSection) return projectSection[key];
+    // 05.09.2026 (Marc: „Karte wird gezeichnet" stand ewig): Der Kartenstil
+    // kommt ohne Projektwert aus dem Standard-Stil (mapDefaultStyle), NICHT aus
+    // der globalen settings.json — so liest es seit 04.09. auch der Karten-Init.
+    // Vorher zeigte das Dropdown den globalen Altwert „satellite" (Mapbox), die
+    // Karte war MapLibre → applyStyle sah einen Engine-Wechsel → Modul neu →
+    // gleicher Zustand → Endlosschleife (Modal blieb offen, App tot).
+    if (isProjectModule && key === "map_style" && typeof mapDefaultStyle === "function") return mapDefaultStyle();
+    return globalSection[key];
   };
 
   const applyToElement = (cur) => {

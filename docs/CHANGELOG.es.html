@@ -116,10 +116,23 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.656</span>
+    <span class="version-num">v0.9.657</span>
     <span class="version-date">5 de septiembre de 2026</span>
     <span class="version-badge">Actual</span>
   </div>
+  <p class="version-tagline">Enjambres y viajes vuelven a abrirse: «dibujando el mapa» ya no se queda colgado.</p>
+  <ul>
+    <li><strong>Bucle infinito al abrir una composición corregido</strong>: el desplegable de estilo y el mapa arrancaban con motores distintos y el módulo se reconstruía sin parar. Sin valor de proyecto ahora vale el estilo predeterminado en todas partes.</li>
+    <li><strong>Freno de bucle</strong>: si un módulo se reconstruye más de cuatro veces en 15 segundos, el mapa se queda como está en vez de congelar la app; el origen queda en el registro.</li>
+    <li><strong>Entrega desde el archivo</strong> sobrevive a la reconstrucción del módulo al cambiar de sesión (sin segunda activación, la ventana se cierra).</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.656</span>
+    <span class="version-date">5 de septiembre de 2026</span>
+    </div>
   <p class="version-tagline">Los niveles de zoom amplios muestran solo Sentinel-2: sin costuras entre servicios de ortofoto, sin mar negro.</p>
   <ul>
     <li><strong>Ortofotos oficiales a partir del zoom 11</strong> — fundido hasta 12,5; por debajo Sentinel-2 uniforme en todo el mundo. Sentinel sin el aspecto de ortofoto.</li>

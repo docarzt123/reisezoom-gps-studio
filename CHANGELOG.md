@@ -14,6 +14,13 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.657] – 2026-09-05
+
+### Fixed
+- Opening or restoring a multi-track composition (swarm/journey) hung forever at "drawing map": the map style dropdown fell back to the legacy global value (a Mapbox style) while the map itself started with the default free style (MapLibre). The style refresh after loading the track saw an engine switch, rebuilt the module, landed in the same state and looped. Without a project value the dropdown now uses the default style, exactly like the map init. / Ein Schwarm/eine Reise blieb beim Öffnen oder Neustart ewig bei „Karte wird gezeichnet“: Das Stil-Dropdown fiel auf den globalen Altwert (Mapbox-Stil) zurück, die Karte startete mit dem Standard-Stil (MapLibre) — der Stil-Abgleich nach dem Track-Laden sah einen Engine-Wechsel, baute das Modul neu, landete im selben Zustand, Endlosschleife. Ohne Projektwert nimmt das Dropdown jetzt den Standard-Stil, genau wie der Karten-Init.
+- Module rebuild now logs its caller to app.log and refuses more than four rebuilds within 15 s (loop brake) instead of freezing the app. / Der Modul-Neuaufbau schreibt seinen Aufrufer ins app.log und lässt nach vier Neuaufbauten in 15 s aus (Schleifenbremse), statt die App einzufrieren.
+- Handover of a composition to the Animator survives the module rebuild that the session switch triggers: the pending list stays until a living mount has really picked it up; the new mount waits for the running activation instead of starting a second one. / Die Übergabe einer Komposition an den Animator übersteht den Modul-Neuaufbau des Sitzungswechsels: die Übergabe bleibt liegen, bis ein lebender Mount sie wirklich abholt; der neue Mount wartet auf die laufende Aktivierung, statt eine zweite zu starten.
+
 ## [0.9.656] – 2026-09-05
 
 ### Changed
