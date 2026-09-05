@@ -732,6 +732,12 @@
 }
 /* Hover am Kopf lässt den ganzen Balken aufleuchten (:has = Safari 15.4+/
    Chromium 105+, beide Ziel-Engines können das). */
+.timeline-trim-handle.is-rand {           /* 05.09.2026: am Rand nur die Fahne */
+  background: transparent;
+  border-left-color: transparent;
+  border-right-color: transparent;
+  box-shadow: none;
+}
 .timeline-trim-handle:has(.trim-handle-kopf:hover) {
   background: rgba(255, 230, 130, 0.4);
   box-shadow: 0 0 12px rgba(255, 230, 130, 0.7);

@@ -445,6 +445,11 @@ function mountTimelineBar(opts) {
     if (trimRegionEl)      { trimRegionEl.style.left = sPct + "%"; trimRegionEl.style.width = Math.max(0, (parseFloat(ePct) - parseFloat(sPct))).toFixed(2) + "%"; }
     if (trimHandleStartEl) trimHandleStartEl.style.left = sPct + "%";
     if (trimHandleEndEl)   trimHandleEndEl.style.left   = ePct + "%";
+    // 05.09.2026 (Beta-Tester, Windows: „die Griffe liegen übereinander"): Am Rand
+    // (Start = 0 %, Ende = 100 %) ist der Griff-Körper nur ein zweiter Strich neben
+    // Intro-Linie und Scrubber — dann bleibt allein die Fahne unter der Leiste.
+    if (trimHandleStartEl) trimHandleStartEl.classList.toggle("is-rand", sPct <= 0.05);
+    if (trimHandleEndEl)   trimHandleEndEl.classList.toggle("is-rand", ePct >= 99.95);
     _applyTrimDimToMarkers();
     // Hold + Intro folgen den jeweiligen Trim-Handles.
     _renderHoldUi();
