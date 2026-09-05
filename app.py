@@ -7010,6 +7010,8 @@ class Api:
         except Exception:
             return {"ok": False, "error": _ui_t()("projekt.import_kein_zip", "Das ist keine Projekt-Datei (.rzproj).")}
         namen = set(z.namelist())
+        if "menge.json" in namen:            # 05.09.2026 — Mehr-Touren-Paket (Schwarm/Reise)
+            return self._menge_einspielen(z, namen, quelle)
         if "track.gpx" not in namen:
             return {"ok": False, "error": _ui_t()("projekt.import_ohne_track", "Projekt-Datei ohne track.gpx — beschädigt?")}
         tour = json.loads(z.read("tour.json").decode("utf-8")) if "tour.json" in namen else {}
@@ -7189,9 +7191,13 @@ class Api:
         log.info("Umschlag eingespielt (%s): %s → %s, %d Projekt(e)", quelle, geo_hash, ziel.name, n_proj)
         return {"ok": True, "datei": str(ziel), "name": ziel.name, "geo_hash": geo_hash, "projekte": n_proj}
 
-    def projekt_exportieren(self, gpx_path: str = "", ziel: str = "") -> dict:
+    def projekt_exportieren(self, gpx_path: str = "", ziel: str = "", kontext: str = "") -> dict:
         """Aktuellen Track + alle Projekte der Session als .rzproj speichern.
-        `ziel` leer → Save-Dialog. Läuft ohne Cloud."""
+        `ziel` leer → Save-Dialog. Läuft ohne Cloud.
+        05.09.2026 (Audit): `kontext` = `menge:…` → Mehr-Touren-Paket mit allen
+        Touren und dem Schwarm-/Reise-Projekt (vorher ging das Projekt verloren)."""
+        if str(kontext or "").startswith("menge:"):
+            return self._menge_exportieren(str(kontext), ziel)
         try:
             from core import projektpaket as archiv_m     # reiner ZIP-Helfer
             src = str(gpx_path or _load_settings().get("last_gpx_path", "") or "")
@@ -7237,6 +7243,154 @@ class Api:
         except Exception as e:
             log.exception("projekt_exportieren")
             return {"ok": False, "error": str(e)}
+
+    def _menge_exportieren(self, kontext: str, ziel: str = "") -> dict:
+        """Schwarm/Reise als .rzproj: alle Touren + Projekte des Mengen-Kontexts."""
+        try:
+            from core import projektpaket as archiv_m
+            with _projekte.LOCK:
+                daten = _projekte.laden(DATEN_ORT)
+            aktiv = _projekte._aktives_projekt(daten, kontext) or {}
+            pfade = [str(p) for p in (aktiv.get("gpx_paths") or []) if p and os.path.exists(str(p))]
+            hashes = [str(h) for h in (aktiv.get("geo_hashes") or [])]
+            if len(pfade) < 2:
+                return {"ok": False, "error": _ui_t()("projekt.export_menge_pfade",
+                        "Nicht alle Tour-Dateien der Komposition wurden gefunden.")}
+            sicht = _projekte.export_sessions_sicht(daten)
+            sess = (sicht.get("sessions") or {}).get(kontext)
+            meta = {"ablauf": aktiv.get("ablauf") or "schwarm",
+                    "schwarm_modus": aktiv.get("schwarm_modus") or "gleich",
+                    "schwarm_pausen": bool(aktiv.get("schwarm_pausen", True)),
+                    "active_project_id": (daten.get("aktiv") or {}).get(kontext) or "",
+                    "name": aktiv.get("name") or ""}
+            roh = archiv_m.menge_umschlag_bauen(pfade, hashes, sess, meta)
+            if not ziel:
+                default_name = re.sub(r"[^\w\-. ]+", "_", aktiv.get("name") or "Schwarm") + ".rzproj"
+                ziel = self.pick_save_path(default_name, str(Path.home()), ["Reisezoom-Projekt (*.rzproj)"])
+                if not ziel:
+                    return {"ok": False, "cancelled": True}
+            if not ziel.lower().endswith(".rzproj"):
+                ziel += ".rzproj"
+            Path(ziel).write_bytes(roh)
+            n_proj = len((sess or {}).get("projects") or {})
+            log.info("projekt_exportieren (Menge): %s → %s (%d Touren, %d Projekte, %.1f KB)",
+                     kontext, ziel, len(pfade), n_proj, len(roh) / 1024)
+            return {"ok": True, "path": ziel, "projekte": n_proj, "bytes": len(roh), "menge": True}
+        except Exception as e:
+            log.exception("_menge_exportieren")
+            return {"ok": False, "error": str(e)}
+
+    def _menge_einspielen(self, z, namen: set, quelle: str) -> dict:
+        """Mehr-Touren-Paket (menge.json) einspielen: Touren ablegen, Mengen-
+        Kontext (wieder) anlegen, mitgebrachte Projekte dazulegen (05.09.2026)."""
+        import datetime as _dt
+        meta = json.loads(z.read("menge.json").decode("utf-8"))
+        ziel_dir = APP_SUPPORT / ("cloud_touren" if quelle == "cloud" else "projekt_importe")
+        ziel_dir.mkdir(parents=True, exist_ok=True)
+        pfade: list[str] = []
+        for i, name in enumerate(meta.get("names") or []):
+            arch = f"tracks/{i + 1:02d}.gpx"
+            if arch not in namen:
+                continue
+            basis = re.sub(r"[^\w\-. ]+", "_", str(name or f"tour_{i + 1}.gpx"))
+            if not basis.lower().endswith(".gpx"):
+                basis += ".gpx"
+            gpx_bytes = z.read(arch)
+            ziel = ziel_dir / basis
+            n = 1
+            while ziel.exists():
+                try:
+                    if ziel.read_bytes() == gpx_bytes:
+                        break
+                except OSError:
+                    pass
+                n += 1
+                ziel = ziel_dir / f"{basis[:-4]}_{n}.gpx"
+            if not ziel.exists():
+                ziel.write_bytes(gpx_bytes)
+            pfade.append(str(ziel))
+        if len(pfade) < 2:
+            return {"ok": False, "error": _ui_t()("projekt.import_menge_unvollstaendig",
+                    "Das Paket enthält nicht alle Touren der Komposition.")}
+        conn = self._lib()
+        clib.add_folder(conn, str(ziel_dir), recursive=False)
+        clib.scan(conn, LIBRARY_THUMBS, IMPORTS_DIR, folders=[str(ziel_dir)])
+        hashes = [h for h in (self._track_geo_hash(p) for p in pfade) if h]
+        # Fotos/Schild-Bilder neben die Touren (Ordner nach Menge benannt)
+        import hashlib as _hl
+        foto_dir = APP_SUPPORT / ("cloud_fotos" if quelle == "cloud" else "projekt_fotos") / ("menge_" + _hl.sha1("|".join(sorted(hashes)).encode()).hexdigest()[:12])
+        for name in sorted(namen):
+            if name.startswith("fotos/") or name.startswith("bilder/"):
+                (foto_dir / Path(name).parent.name).mkdir(parents=True, exist_ok=True)
+                (foto_dir / Path(name).parent.name / Path(name).name).write_bytes(z.read(name))
+        projekte = (json.loads(z.read("projekte.json").decode("utf-8")) if "projekte.json" in namen else None) or {}
+        if projekte:
+            text = json.dumps(projekte)
+            for name in sorted(namen):
+                if name.startswith("fotos/") or name.startswith("bilder/"):
+                    text = text.replace(f'"{name}"', json.dumps(str(foto_dir / Path(name).parent.name / Path(name).name)))
+            projekte = json.loads(text)
+            from core.projektpaket import BILD_FELDER
+            for proj in (projekte.get("projects") or {}).values():
+                if not isinstance(proj, dict):
+                    continue
+                for liste, feld, _ordner, _kante in BILD_FELDER:
+                    for eintrag in (proj.get(liste) or []):
+                        if isinstance(eintrag, dict) and eintrag.get("vorschau") and not os.path.exists(str(eintrag.get(feld) or "")):
+                            eintrag["original_" + feld] = eintrag.get(feld)
+                            eintrag[feld] = eintrag["vorschau"]
+        ablauf = "schwarm" if str(meta.get("ablauf")) == "schwarm" else "reise"
+        modus = str(meta.get("schwarm_modus") or "gleich")
+        pausen = bool(meta.get("schwarm_pausen", True))
+        n_proj = 0
+        with _projekte.LOCK:
+            daten = _projekte.laden(DATEN_ORT)
+            erg = _projekte.kontext_oeffnen_menge(daten, pfade, hashes, ablauf, modus, pausen,
+                                                  self._session_get_global_defaults())
+            key = erg["kontext"]
+            vorhanden = {pid: p for pid, p in (daten.get("projects") or {}).items() if p.get("kontext") == key}
+            namen_da = {str(p.get("name", "")).strip().lower() for p in vorhanden.values()}
+            mitgebracht: dict = {}
+            jetzt = _dt.datetime.now().isoformat(timespec="seconds")
+            for pid, proj in (projekte.get("projects") or {}).items():
+                if not isinstance(proj, dict):
+                    continue
+                urspruenglich = pid
+                if pid in (daten.get("projects") or {}):
+                    k = 1
+                    while f"{urspruenglich}_imp{k}" in daten["projects"]:
+                        k += 1
+                    pid = f"{urspruenglich}_imp{k}"
+                name = str(proj.get("name") or "").strip() or ("Schwarm" if ablauf == "schwarm" else "Reise")
+                if name.lower() in namen_da:
+                    sfx = _ui_t()("projekt.importiert", "importiert")
+                    k2 = 1
+                    while True:
+                        kand = f"{name} ({sfx})" if k2 == 1 else f"{name} ({sfx} {k2})"
+                        if kand.lower() not in namen_da:
+                            break
+                        k2 += 1
+                    name = kand
+                namen_da.add(name.lower())
+                eintrag = {"id": pid, "name": name, "status": "aktiv", "auto": False,
+                           "created_at": proj.get("created_at") or jetzt,
+                           "modified_at": proj.get("modified_at") or jetzt,
+                           "kontext": key, "ablauf": ablauf, "schwarm_modus": modus,
+                           "schwarm_pausen": pausen, "geo_hashes": sorted(set(hashes)),
+                           "gpx_paths": list(pfade)}
+                eintrag.update(_projekte._payload_von(proj))
+                daten.setdefault("projects", {})[pid] = eintrag
+                mitgebracht[urspruenglich] = pid
+                n_proj += 1
+            ziel_pid = mitgebracht.get(meta.get("active_project_id")) or (next(iter(mitgebracht.values())) if mitgebracht else None)
+            if ziel_pid:
+                daten.setdefault("aktiv", {})[key] = ziel_pid
+            _projekte.speichern(DATEN_ORT, daten)
+            aktiv_pid = (daten.get("aktiv") or {}).get(key)
+        log.info("Mengen-Umschlag eingespielt (%s): %s · %d Touren · %d Projekt(e) · aktiv=%s",
+                 quelle, key, len(pfade), n_proj, aktiv_pid)
+        return {"ok": True, "menge": True, "kontext": key, "project_id": aktiv_pid,
+                "datei": pfade[0], "name": Path(pfade[0]).name, "geo_hash": key, "projekte": n_proj}
 
     def startdatei_abholen(self) -> dict:
         """Datei, mit der die App gestartet wurde — einmalig abholbar.
@@ -10676,6 +10830,59 @@ def _prepare_html_with_cache_busting() -> str:
 _START_DATEI: list = []
 
 
+_RZ_ODOC = None
+
+
+def _macos_odoc_handler_installieren(win) -> None:
+    """05.09.2026 (Audit): Doppelklick auf .rzproj/.gpx bei LAUFENDER App.
+
+    Bisher las die App das Apple-Event nur beim Start; im Betrieb zeigte macOS
+    „kann Dateien im Format Reisezoom Projekt nicht öffnen". Jetzt hängt ein
+    Handler am NSAppleEventManager (aevt/odoc) und reicht die Datei an die
+    Oberfläche weiter — Projekt-Pakete an importProject, GPX an loadGlobalGpx."""
+    if sys.platform != "darwin":
+        return
+    from Foundation import NSObject, NSAppleEventManager  # type: ignore
+    from PyObjCTools import AppHelper  # type: ignore
+    import threading
+
+    def _weiterreichen(pfad: str):
+        js = (f"window.importProject && window.importProject({json.dumps(pfad)})"
+              if pfad.lower().endswith(".rzproj")
+              else f"window.loadGlobalGpx && window.loadGlobalGpx({json.dumps(pfad)})")
+        threading.Thread(target=lambda: win.evaluate_js(js), daemon=True).start()
+
+    class _RZOdoc(NSObject):
+        def handleOpen_reply_(self, ev, reply):
+            try:
+                liste = ev.paramDescriptorForKeyword_(0x2D2D2D2D)
+                n = liste.numberOfItems() if liste is not None else 0
+                for i in range(1, n + 1):
+                    d = liste.descriptorAtIndex_(i)
+                    url = d.stringValue() if d is not None else None
+                    if not url:
+                        continue
+                    pfad = url[7:] if url.startswith("file://") else url
+                    try:
+                        from urllib.parse import unquote
+                        pfad = unquote(pfad)
+                    except Exception:
+                        pass
+                    if os.path.exists(pfad):
+                        log.info("odoc (im Betrieb): %s", pfad)
+                        _weiterreichen(pfad)
+            except Exception as e:
+                log.warning("odoc-Handler: %s", e)
+
+    def _install():
+        global _RZ_ODOC
+        _RZ_ODOC = _RZOdoc.alloc().init()
+        NSAppleEventManager.sharedAppleEventManager().setEventHandler_andSelector_forEventClass_andEventID_(
+            _RZ_ODOC, b"handleOpen:reply:", 0x61657674, 0x6F646F63)   # 'aevt' / 'odoc'
+        log.info("odoc-Handler installiert (Dateien öffnen bei laufender App)")
+    AppHelper.callAfter(_install)
+
+
 def _macos_datei_event_abholen() -> Optional[str]:
     """Auf macOS geöffnete Datei aus dem Apple-Event holen (falls vorhanden).
 
@@ -10848,6 +11055,10 @@ def main() -> None:
         # v0.9.153: native Drop-Pfade aktivieren (alle Plattformen, vor den
         # platform-spezifischen Fenster-Returns weiter unten).
         _enable_native_drop()
+        try:
+            _macos_odoc_handler_installieren(win)      # 05.09.2026 — Doppelklick im Betrieb
+        except Exception as _e:
+            log.warning("odoc-Handler nicht installierbar: %s", _e)
         # loaded läuft auf Python-Worker-Thread → callAfter dispatcht den
         # NSWindow-Zugriff sauber auf den Cocoa-Main-Thread.
         # Auf Windows/Linux: gibt's keinen NSWindow, pywebview maximized=True

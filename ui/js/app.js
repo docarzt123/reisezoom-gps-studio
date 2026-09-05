@@ -1278,7 +1278,11 @@ window.exportCurrentCsv = () => exportCurrent("csv");
 // Session + Foto-Vorschauen in EINER Datei. Läuft ohne Cloud.
 window.exportProject = async function () {
   let res;
-  try { res = await api().projekt_exportieren(); } catch (e) { toast(String(e), "error"); return; }
+  // 05.09.2026 (Audit): Schwarm/Reise hängt am Kontext `menge:…` — den mitgeben,
+  // sonst exportiert die Brücke nur die Einzel-Sitzung der ersten Tour (leeres Paket).
+  const _sess = (typeof getActiveSession === "function") ? getActiveSession() : null;
+  const _kontext = (_sess && _sess.track_hash) || "";
+  try { res = await api().projekt_exportieren("", "", _kontext); } catch (e) { toast(String(e), "error"); return; }
   if (!res || res.cancelled) return;
   if (res.ok) toast(t("projekt.export_ok", "Projekt exportiert") + ` (${res.projekte} ${t("projekt.projekte", "Projekte")})`, "success", 5000);
   else toast(res.error || t("export.error", "Export fehlgeschlagen."), "warn", 6000);
@@ -1289,6 +1293,13 @@ window.importProject = async function (pfad) {
   if (!res || res.cancelled) return;
   if (!res.ok) { toast(res.error || t("projekt.import_fehler", "Import fehlgeschlagen."), "warn", 7000); return; }
   toast(t("projekt.import_ok", "Projekt importiert") + ` (${res.projekte} ${t("projekt.projekte", "Projekte")})`, "success", 5000);
+  // 05.09.2026 (Audit): Mehr-Touren-Paket → das Projekt wie aus dem Archiv öffnen
+  // (lädt alle Touren als Schwarm/Reise), nicht nur die erste Tour.
+  if (res.menge && res.project_id && typeof window.rzProjektOeffnen === "function") {
+    try { await window.rzProjektOeffnen(res.project_id); applog && applog("info", `[importProject] Menge geöffnet: ${res.project_id}`); }
+    catch (e) { applog && applog("error", `[importProject] Menge öffnen wirft: ${e}`); }
+    return;
+  }
   // Den Track laden → Session mit den importierten Projekten wird aktiv.
   //
   // 25.08.2026 (Beta-Tester, Video): Hier wurde JEDER Fehlschlag verschluckt —

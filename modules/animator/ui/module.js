@@ -2959,8 +2959,12 @@ function mountAnimator(body, headerActions, opts) {
       if (co.length < 2) return;
       const id = `preview-ghostspur-${i}`;
       try {
-        map.addSource(id, { type: "geojson",
-          data: { type: "Feature", geometry: { type: "LineString", coordinates: co } } });
+        // 05.09.2026 (Audit): „Source already exists" — blieb die Quelle von einem
+        // fehlgeschlagenen Ebenen-Aufbau stehen, warf addSource und die Spur fehlte.
+        const _data = { type: "Feature", geometry: { type: "LineString", coordinates: co } };
+        if (map.getSource(id)) { try { map.getSource(id).setData(_data); } catch (_) {} }
+        else map.addSource(id, { type: "geojson", data: _data });
+        if (map.getLayer(id)) { try { map.removeLayer(id); } catch (_) {} }
         map.addLayer({ id, type: "line", source: id,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
@@ -6936,6 +6940,7 @@ function mountAnimator(body, headerActions, opts) {
             } else ll = _runFitCam
               ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
               : _fStatic;
+            zm = Math.max(map.getMinZoom ? map.getMinZoom() : 0, Math.min(map.getMaxZoom ? map.getMaxZoom() : 24, isFinite(zm) ? zm : 0));   // 05.09.2026 (Audit): nie negativ
             map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
             let ez = null, eM = null;
             try {
@@ -7785,6 +7790,8 @@ function mountAnimator(body, headerActions, opts) {
       applyTerrain();
       _applyMapAdjust();          // 05.09.2026 — Karten-Optik (Raster-Paint / Abdunkel-Ebene) je Stilart
       _applyStars();
+      // 05.09.2026 (Audit): Sprite geladen? (POI-Symbole fehlten in der echten Vorschau)
+      setTimeout(() => { try { applog && applog("info", `[style] ${map.__rzStyleKey || "?"} Bilder=${(map.listImages && map.listImages().length) || 0} Ebenen=${(map.getStyle().layers || []).length} Sprite=${JSON.stringify(map.getStyle().sprite || null).slice(0, 80)}`); } catch (_) {} }, 3000);
     });
   }
   // Nach dem Laden eines Tracks: „Satellit (kostenlos)" wählt das Land anhand
@@ -13940,6 +13947,11 @@ function mountAnimator(body, headerActions, opts) {
     const cam = _animCameraCorrected(rw, rh);
     if (!cam) { toast(t("animator.snapshot.no_cam", "Karte nicht bereit."), "warn", 3000); return; }
     const at = _snapshotAnchorAndTime();
+    // 05.09.2026 (Audit): Kamera-Fährte für den WYSIWYG-Abgleich Vorschau ↔ Schnappschuss
+    try {
+      const _c = map.getCanvas(); let _e = null; try { _e = map.queryTerrainElevation(map.getCenter()); } catch (_) {}
+      applog && applog("info", `[snapshot] center=${JSON.stringify(cam.center)} zoom=${(+cam.zoom).toFixed(3)} (Vorschau ${map.getZoom().toFixed(3)}) pitch=${(+cam.pitch).toFixed(1)} bearing=${(+cam.bearing).toFixed(1)} ele=${_e == null ? "–" : (+_e).toFixed(1)} canvas=${_c.clientWidth}×${_c.clientHeight}css/${_c.width}×${_c.height}px dpr=${window.devicePixelRatio} ziel=${rw}×${rh} anker=${(+at.anchor).toFixed(4)}`);
+    } catch (_) {}
     _snapshotRequest = {
       snapshot: true,
       snapshot_center: cam.center, snapshot_zoom: cam.zoom,

@@ -18,6 +18,13 @@ Bei jeder neuen Version:
 - **Sternenhimmel mit Reglern** (Beta-Tester: „die Sterne sind etwas groß geraten und nicht animiert") — im Karten-Abschnitt gibt es jetzt „Sternenhimmel (Weltkugel)" mit Ein/Aus, Dichte, Größe und Funkeln. Die Sterne werden erzeugt statt aus einem festen Bild geladen, sind kleiner als bisher und funkeln dezent in drei Phasen. Gleicher Zufallssamen in Vorschau und Video, das Funkeln tickt im Render je Bild weiter. Nur bei MapLibre-Stilen, Mapbox bringt seinen eigenen Himmel mit.
 - **Karten-Optik für alle Karten** (Beta-Tester: „kann der Kontrastregler auch auf die anderen zu hellen Karten angepasst werden?") — Rasterkarten (OpenStreetMap, OpenTopoMap, CyclOSM, HOT) bekommen Sättigung, Kontrast, Helligkeit und Farbton; Vektorkarten (OpenFreeMap, MapTiler) eine Helligkeit über eine Abdunkel-Ebene direkt unter der Strecke. Standard 0 = Karte wie geliefert. Die Luftbild-Optik der amtlichen Orthofotos bleibt eigenständig. Gemeinsamer Kern `ui/js/rz-mapadjust.js` für Vorschau und Render.
 
+### Fixed (Audit 05.09.2026)
+- **Schwarm-/Reise-Projekte als .rzproj** — der Export nahm nur die Sitzung der ersten Tour mit; ein Mehr-Touren-Projekt kam beim Empfänger leer an (Beta-Tester-Pakete waren deshalb nicht reproduzierbar). Jetzt enthält das Paket alle Touren (`tracks/01…NN.gpx`), `menge.json` und die Projekte des Mengen-Kontexts; der Import baut die Komposition wieder auf und öffnet sie wie aus dem Archiv.
+- **macOS: Doppelklick auf .rzproj/.gpx bei laufender App** — bisher „kann Dateien im Format Reisezoom Projekt nicht öffnen"; jetzt nimmt ein Apple-Event-Handler die Datei im Betrieb an (Projekt-Paket → Import, GPX → Laden).
+- **MapLibre-Fehlerhagel am Polrand mit Gelände** („x=0, y=-1, z=0 outside of bounds", ein Fehler je Bild, sobald die Kamera bei Weltkugel-Zoom mit Gelände steht — z. B. Intro-Keyframe auf Zoom 0): Vendor-Patch `rz-patch tileclamp` + Zoom/Breite-Klemmung im Kamera-Adapter, in der Vorschau und im Render.
+- **Ghost-Spur nach Projektimport** meldete „Source already exists" und fehlte dann — Quelle wird wiederverwendet statt neu angelegt.
+- Diagnose ins app.log: `[snapshot]` (Kamera, Höhe, Canvas, DPR beim Schnappschuss) und `[style]` (Bilder/Sprite je Stil) für den WYSIWYG-Abgleich.
+
 ### Changed
 - **„Auf der Karte anzeigen" auf OpenFreeMap/MapTiler** (Beta-Tester: „reagiert noch nicht wie gewohnt") — „Straßen" und „Verkehr" blenden dort jetzt auch die Straßen- und Bahn-Linien aus, nicht nur die Namen, wie bei Mapbox über `showRoadsAndTransit`. Eigene Ebenen (Strecke, Ghosts, Schilder) sind von der Namens-Heuristik ausgenommen.
 

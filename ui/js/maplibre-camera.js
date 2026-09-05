@@ -86,7 +86,12 @@
     const dz = Math.max(1, altM - elev);
     const ppm = ctcdPx(map) * Math.cos(p) / dz;
     const worldSize = ppm / mercZfromAlt(1, cLat);
-    const zoom = Math.log2(worldSize / 512);
+    let zoom = Math.log2(worldSize / 512);
+    // 05.09.2026 (Audit): nie unter minZoom / über maxZoom, Breite innerhalb Mercator — sonst wirft
+    // MapLibres Gelände-Kachelsuche je Bild „x=0, y=-1 outside of bounds".
+    try { zoom = Math.max(map.getMinZoom ? map.getMinZoom() : 0, Math.min(map.getMaxZoom ? map.getMaxZoom() : 24, zoom)); } catch (_) { zoom = Math.max(0, zoom); }
+    if (!isFinite(zoom)) zoom = 0;
+    cLat = Math.max(-85, Math.min(85, cLat));
     try { if (map.getCenterClampedToGround && map.getCenterClampedToGround()) map.setCenterClampedToGround(false); } catch (_) {}
     map.jumpTo({ center: [cLng, cLat], zoom: zoom, bearing: bp[0], pitch: bp[1], elevation: elev });
   }

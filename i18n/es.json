@@ -2208,6 +2208,8 @@
   "projekt.import_fehler": "La importación ha fallado.",
   "projekt.import_kein_zip": "Eso no es un archivo de proyecto (.rzproj).",
   "projekt.import_ohne_track": "Archivo de proyecto sin track.gpx — ¿dañado?",
+  "projekt.export_menge_pfade": "No se han encontrado todos los archivos de ruta de esta composición.",
+  "projekt.import_menge_unvollstaendig": "El paquete no contiene todas las rutas de la composición.",
   "projekt.import_ok": "Proyecto importado",
   "projekt.import_track_nicht_geladen": "Los proyectos están ahí, pero no se pudo cargar el track. Ábrelo a mano: {pfad}",
   "projekt.importiert": "importado",

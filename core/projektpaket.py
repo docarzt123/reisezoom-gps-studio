@@ -112,31 +112,82 @@ def umschlag_bauen(conn, geo_hash: str, *, gpx_pfad: str | None = None,
                                           sort_keys=True).encode("utf-8"))
 
         if projekte:
-            # Fotos: nur Vorschaubilder, nie Originale. Der Pfad wird durch den
-            # Namen im ZIP ersetzt, damit Gerät 2 nichts sucht, was es nicht gibt.
-            kopie = json.loads(json.dumps(projekte))
-            nummern: dict = {}
-            schon: dict = {}          # gleiche Datei nur einmal ins ZIP
-            for proj in (kopie.get("projects") or {}).values():
-                if not isinstance(proj, dict):
+            kopie = _bilder_einpacken(schreiben, projekte)
+            schreiben("projekte.json", json.dumps(kopie, ensure_ascii=False,
+                                                  sort_keys=True).encode("utf-8"))
+    return puffer.getvalue()
+
+
+def _bilder_einpacken(schreiben, projekte: dict) -> dict:
+    """Fotos/Schild-Bilder als Vorschauen ins ZIP; liefert die Kopie der
+    Projekte, in der die Pfade durch die ZIP-Namen ersetzt sind (05.09.2026
+    aus umschlag_bauen herausgelöst, damit der Mengen-Umschlag dasselbe tut)."""
+    kopie = json.loads(json.dumps(projekte))
+    nummern: dict = {}
+    schon: dict = {}          # gleiche Datei nur einmal ins ZIP
+    for proj in (kopie.get("projects") or {}).values():
+        if not isinstance(proj, dict):
+            continue
+        for liste, feld, ordner, kante in BILD_FELDER:
+            for eintrag in (proj.get(liste) or []):
+                if not isinstance(eintrag, dict) or not eintrag.get(feld):
                     continue
-                for liste, feld, ordner, kante in BILD_FELDER:
-                    for eintrag in (proj.get(liste) or []):
-                        if not isinstance(eintrag, dict) or not eintrag.get(feld):
-                            continue
-                        quelle_bild = str(eintrag[feld])
-                        if (ordner, quelle_bild) in schon:
-                            eintrag["vorschau"] = schon[(ordner, quelle_bild)]
-                            continue
-                        bild = _foto_vorschau(quelle_bild, kante)
-                        if bild is None:
-                            eintrag["vorschau_fehlt"] = True
-                            continue
-                        nummern[ordner] = nummern.get(ordner, 0) + 1
-                        name = f"{ordner}/{nummern[ordner]:04d}.jpg"
-                        schreiben(name, bild)
-                        eintrag["vorschau"] = name
-                        schon[(ordner, quelle_bild)] = name
+                quelle_bild = str(eintrag[feld])
+                if (ordner, quelle_bild) in schon:
+                    eintrag["vorschau"] = schon[(ordner, quelle_bild)]
+                    continue
+                bild = _foto_vorschau(quelle_bild, kante)
+                if bild is None:
+                    eintrag["vorschau_fehlt"] = True
+                    continue
+                nummern[ordner] = nummern.get(ordner, 0) + 1
+                name = f"{ordner}/{nummern[ordner]:04d}.jpg"
+                schreiben(name, bild)
+                eintrag["vorschau"] = name
+                schon[(ordner, quelle_bild)] = name
+    return kopie
+
+
+def menge_umschlag_bauen(pfade: list, hashes: list, projekte: dict | None,
+                         meta: dict) -> bytes:
+    """Mehr-Touren-Projekt (Schwarm/Reise) als ZIP (05.09.2026, Audit).
+
+    Bisher exportierte `projekt_exportieren` nur die Sitzung EINER Tour — ein
+    Schwarm-Projekt lebt aber unter dem Kontext `menge:…` und ging verloren
+    (Beta-Tester-Pakete kamen leer an). Aufbau:
+      tracks/01.gpx … tracks/NN.gpx   alle Touren in Projekt-Reihenfolge
+      menge.json                      names, geo_hashes, ablauf, schwarm_modus,
+                                      schwarm_pausen, active_project_id
+      projekte.json                   Sitzungs-Sicht des Mengen-Kontexts
+      fotos/ bilder/                  Vorschauen wie beim Einzel-Umschlag
+    Zusätzlich track.gpx + tour.json der ERSTEN Tour, damit ältere
+    Programmstände das Paket wenigstens als Einzeltour öffnen können."""
+    puffer = io.BytesIO()
+    festes_datum = (1980, 1, 1, 0, 0, 0)
+    with zipfile.ZipFile(puffer, "w", zipfile.ZIP_DEFLATED) as z:
+        def schreiben(name: str, daten: bytes):
+            info = zipfile.ZipInfo(name, date_time=festes_datum)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(info, daten)
+        namen = []
+        for i, pfad in enumerate(pfade):
+            q = Path(pfad)
+            if not q.is_file():
+                raise FileNotFoundError(f"Tour {i + 1}: Datei nicht erreichbar ({q})")
+            roh = q.read_bytes()
+            schreiben(f"tracks/{i + 1:02d}.gpx", roh)
+            namen.append(q.name)
+            if i == 0:
+                schreiben("track.gpx", roh)
+                schreiben("tour.json", json.dumps({"geo_hash": (hashes[0] if hashes else ""),
+                                                   "name": q.stem, "filename": q.name,
+                                                   "menge": True}, ensure_ascii=False,
+                                                  sort_keys=True).encode("utf-8"))
+        m = dict(meta or {})
+        m.update({"version": 1, "names": namen, "geo_hashes": list(hashes or [])})
+        schreiben("menge.json", json.dumps(m, ensure_ascii=False, sort_keys=True).encode("utf-8"))
+        if projekte:
+            kopie = _bilder_einpacken(schreiben, projekte)
             schreiben("projekte.json", json.dumps(kopie, ensure_ascii=False,
                                                   sort_keys=True).encode("utf-8"))
     return puffer.getvalue()
