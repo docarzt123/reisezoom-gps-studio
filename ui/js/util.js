@@ -3135,26 +3135,37 @@ function rzScaleMapLabels(map, k) {
   }
   if (!(k > 0) || !isFinite(k)) return;
   map.__rzLabelK = k;
+  // 05.09.2026 (Audit): Die Vorschau läuft um c = log2(1/k) Zoomstufen TIEFER als
+  // das Video (kleinere Fläche, gleicher Ausschnitt). Größen skalieren allein reicht
+  // nicht — Ebenen mit minzoom (POI-Symbole ab z15, Ortsnamen …) und Zoom-Stützstellen
+  // sprangen in der Vorschau später an als im Video. Deshalb: Zoomgrenzen und
+  // Stützstellen um c verschieben, Ausgaben um k skalieren → preview(z) = k·video(z+c).
+  const c = Math.log2(1 / k);
   let layers = [];
   try { layers = (map.getStyle() && map.getStyle().layers) || []; } catch (_) { return; }
   if (!map.__rzLabelOrig) map.__rzLabelOrig = {};
   const orig = map.__rzLabelOrig;
+  const OWN = /^(preview-|track|mtrack|schwarm|anim-|ghost|dot-|rz-dim|rz-north|rz-sign|rz-base|rz-raster)/;
   // Zoom-Kurven dürfen nur auf oberster Ebene stehen („zoom expression must be
   // top-level"): ["*", ["interpolate", …, ["zoom"], …], k] lehnt MapLibre still
   // ab. Deshalb die AUSGABEN der Kurve skalieren, nicht die Kurve einwickeln.
   const hasZoom = (v) => { try { return JSON.stringify(v).indexOf('["zoom"]') >= 0; } catch (_) { return false; } };
+  const isZoomIn = (v) => Array.isArray(v) && v[0] === "zoom";
+  const shiftStop = (z) => (typeof z === "number") ? Math.max(0, z - c) : z;
   const scale = (v) => {
     if (typeof v === "number") return v * k;
     if (!Array.isArray(v)) return v;
     const op = v[0];
     if (op === "interpolate" || op === "interpolate-hcl" || op === "interpolate-lab") {
+      const zoomed = isZoomIn(v[2]);
       const out = v.slice(0, 3);
-      for (let i = 3; i < v.length; i += 2) { out.push(v[i]); out.push(scale(v[i + 1])); }
+      for (let i = 3; i < v.length; i += 2) { out.push(zoomed ? shiftStop(v[i]) : v[i]); out.push(scale(v[i + 1])); }
       return out;
     }
     if (op === "step") {
+      const zoomed = isZoomIn(v[1]);
       const out = [v[0], v[1], scale(v[2])];
-      for (let i = 3; i < v.length; i += 2) { out.push(v[i]); out.push(scale(v[i + 1])); }
+      for (let i = 3; i < v.length; i += 2) { out.push(zoomed ? shiftStop(v[i]) : v[i]); out.push(scale(v[i + 1])); }
       return out;
     }
     if (op === "case") { const out = [v[0]]; for (let i = 1; i < v.length - 1; i += 2) { out.push(v[i]); out.push(scale(v[i + 1])); } out.push(scale(v[v.length - 1])); return out; }
@@ -3166,16 +3177,20 @@ function rzScaleMapLabels(map, k) {
   };
   const mul = (v, def) => {
     if (v == null) return def * k;
-    if (v && typeof v === "object" && !Array.isArray(v) && Array.isArray(v.stops)) return Object.assign({}, v, { stops: v.stops.map((s) => [s[0], scale(s[1])]) });
+    if (v && typeof v === "object" && !Array.isArray(v) && Array.isArray(v.stops)) return Object.assign({}, v, { stops: v.stops.map((s) => [shiftStop(s[0]), scale(s[1])]) });
     return scale(v);
   };
   for (const l of layers) {
-    if (!l || l.type !== "symbol") continue;
+    if (!l || OWN.test(l.id)) continue;
     try {
       if (!orig[l.id]) {
-        orig[l.id] = { ts: map.getLayoutProperty(l.id, "text-size"), is: map.getLayoutProperty(l.id, "icon-size") };
+        orig[l.id] = { mz: (l.minzoom == null ? 0 : l.minzoom), xz: (l.maxzoom == null ? 24 : l.maxzoom) };
+        if (l.type === "symbol") { orig[l.id].ts = map.getLayoutProperty(l.id, "text-size"); orig[l.id].is = map.getLayoutProperty(l.id, "icon-size"); }
       }
       const o = orig[l.id];
+      // Zoomgrenzen aller Karten-Ebenen (auch Linien/Flächen): im Video sichtbar ab z → Vorschau ab z−c
+      if (map.setLayerZoomRange && (o.mz > 0 || o.xz < 24)) map.setLayerZoomRange(l.id, Math.max(0, o.mz - c), Math.min(24, o.xz - c > 0 ? o.xz - c : 0.01));
+      if (l.type !== "symbol") continue;
       map.setLayoutProperty(l.id, "text-size", mul(o.ts, 16));
       if (o.is != null || (l.layout && l.layout["icon-image"])) map.setLayoutProperty(l.id, "icon-size", mul(o.is, 1));
     } catch (_) {}

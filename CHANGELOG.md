@@ -23,6 +23,7 @@ Bei jeder neuen Version:
 - **macOS: Doppelklick auf .rzproj/.gpx bei laufender App** — bisher „kann Dateien im Format Reisezoom Projekt nicht öffnen"; jetzt nimmt ein Apple-Event-Handler die Datei im Betrieb an (Projekt-Paket → Import, GPX → Laden).
 - **MapLibre-Fehlerhagel am Polrand mit Gelände** („x=0, y=-1, z=0 outside of bounds", ein Fehler je Bild, sobald die Kamera bei Weltkugel-Zoom mit Gelände steht — z. B. Intro-Keyframe auf Zoom 0): Vendor-Patch `rz-patch tileclamp` + Zoom/Breite-Klemmung im Kamera-Adapter, in der Vorschau und im Render.
 - **Ghost-Spur nach Projektimport** meldete „Source already exists" und fehlte dann — Quelle wird wiederverwendet statt neu angelegt.
+- **WYSIWYG: Zoomschwellen der Karte in der Vorschau** — die Vorschau läuft eine gute Zoomstufe tiefer als das Video (kleinere Fläche, gleicher Ausschnitt). Ebenen mit Mindest-Zoom (POI-Symbole, Ortsnamen) und Zoom-Stützstellen erschienen deshalb in der Vorschau später als im Video: bei 50 % zeigte das Video Aussichtspunkte und Kraternamen, die Vorschau nicht. Jetzt werden Zoomgrenzen und Stützstellen aller Karten-Ebenen um genau diese Differenz verschoben (preview(z) = k·video(z+c)).
 - Diagnose ins app.log: `[snapshot]` (Kamera, Höhe, Canvas, DPR beim Schnappschuss) und `[style]` (Bilder/Sprite je Stil) für den WYSIWYG-Abgleich.
 
 ### Changed
