@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.656] – 2026-09-05
+
+### Changed
+- **Weite Zoomstufen zeigen nur Sentinel-2** (Marc, Teneriffa-Schwarm bei Zoom 9: harte Naht zwischen PNOA und Sentinel, schwarzes Meer) — die amtlichen Luftbilder blenden erst ab Zoom 11 ein und sind ab 12,5 voll da; darunter ist die Karte weltweit einheitlich. Sentinel bekommt keine Luftbild-Optik mehr (die machte das Meer schwarz). Gilt für Vorschau, Video und Leaflet-Export.
+
 ## [0.9.655] – 2026-09-05
 
 ### Fixed

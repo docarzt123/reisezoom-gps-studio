@@ -44,7 +44,7 @@
     try { layers = (map.getStyle() || {}).layers || []; } catch (_) { return; }
     let hasRaster = false;
     for (const l of layers) {
-      if (l.type !== "raster" || !l.id.startsWith("rz-raster")) continue;
+      if (l.type !== "raster" || !l.id.startsWith("rz-raster") || l.id === "rz-raster-sentinel") continue;   // Sentinel bleibt natürlich
       hasRaster = true;
       for (const k of Object.keys(ALL)) { try { map.setPaintProperty(l.id, k, (k in p) ? p[k] : ALL[k]); } catch (_) {} }
     }
