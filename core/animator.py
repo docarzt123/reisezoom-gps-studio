@@ -2900,6 +2900,8 @@ const SCHWARM_COLORS = {schwarm_colors_json};
 const SCHWARM_STEPS = {schwarm_steps_json};
 const SCHWARM_N = SCHWARM_COORDS.length;
 const SCHWARM_3D = {sw3d_js};   // 06.09.2026 — Linien über dem Gelände (rz-line3d) statt drapiert
+const LINES_3D = SCHWARM_3D;     // gilt für Haupt-Track, Ghost-Route und GPX-Ghosts genauso
+const TRACK_DASH = {_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) or 'null'};
 window.__rzLine3dDebug = {'true' if os.environ.get('RZ_L3D_DEBUG') else 'false'};
 // IDEAS §38 M3 — Geschwindigkeitsmodus. 'gleich' = alle gleich schnell,
 // 'ziel' = Fotofinish (jede Tour skaliert, alle enden mit dem Video),
@@ -3276,6 +3278,44 @@ map.on('style.load', () => {{
     + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else "")
     + (",'line-z-offset':150" if _zoff_on(cfg) else "")
     + "}});") if cfg.track_style == "tube" else "// no tube highlight"}
+  // 06.09.2026 — Linien über dem Gelände (MapLibre + 3D): die drapierten Ebenen
+  // (Ghost-Route, GPX-Ghosts, Glow, Linie, Highlight) durch rz-line3d ersetzen.
+  // Der Schatten bleibt bewusst drapiert (liegt auf dem Boden). Farben je Punkt
+  // (Farbverlauf/Etappen) kommen aus __rzPointColors, das Wachstum über setRanges.
+  window.__rzTrack3d = null;
+  if (LINES_3D && window.rzLine3d) {{
+    const __ghosts = [];
+    for (const id of Object.keys(map.getStyle().sources || {{}})) {{
+      if (!/^gpx-ghost(-[0-9]+)?$/.test(id) || !map.getLayer(id)) continue;
+      const src = map.getSource(id), dat = src && src._data;
+      const coords = dat && dat.geometry && dat.geometry.coordinates;
+      if (!coords || coords.length < 2) continue;
+      const g = (k, d) => {{ try {{ const v = map.getPaintProperty(id, k); return (v == null) ? d : v; }} catch (_) {{ return d; }} }};
+      const da = g('line-dasharray', null);
+      __ghosts.push({{ coords, color: g('line-color', '#7fa8ff'), width: +g('line-width', 2.5), opacity: +g('line-opacity', 0.6),
+                      dash: (Array.isArray(da) && da.length >= 2) ? [da[0], da[1]] : null }});
+      map.removeLayer(id);
+    }}
+    const __ghostRoute = map.getLayer('track-ghost') ? {{ coords: allCoords, color: '{cfg.ghost_track_color}', width: {cfg.line_width:.2f},
+                          opacity: {max(0.0, min(1.0, cfg.ghost_track_opacity)):.2f}, dash: TRACK_DASH }} : null;
+    const __hadShadow = !!map.getLayer('track-shadow');
+    for (const id of ['track-ghost', 'track-shadow', 'track-glow', 'track-line', 'track-highlight']) {{ if (map.getLayer(id)) map.removeLayer(id); }}
+    const __mk = (id, tracks) => {{ const l = window.rzLine3d.create(id, {{ offsetM: 150 }}); map.addLayer(l); l.setTracks(tracks); return l; }};
+    if (__ghostRoute) __mk('track-ghost-3d', [__ghostRoute]);
+    if (__ghosts.length) __mk('gpx-ghost-3d', __ghosts);
+    const __cols = window.__rzPointColors ? window.__rzPointColors() : null;
+    const __base = __cols ? '#ffffff' : '{cfg.line_color}';
+    const __layers = [];
+    // Schlagschatten ebenfalls über dem Gelände (drapiert lag er 150 m unter der Linie und
+    // zeichnete an Ecken schwarze Zacken): gleiche Höhe, Versatz in Bildpunkten, weiche Kante.
+    if (__hadShadow) __layers.push(__mk('track-shadow-3d', [{{ coords: allCoords, color: '#000000', opacity: 0.25, width: {cfg.line_width * 1.8:.2f},
+                       feather: {cfg.line_width * 0.9:.1f}, translate: [{_shadow_dxdy(cfg)[0]:.1f}, {_shadow_dxdy(cfg)[1]:.1f}], dash: TRACK_DASH }}]));
+    {("__layers.push(__mk('track-glow-3d', [{ coords: allCoords, color: __base, colors: __cols, width: " + f"{cfg.line_width * (2.0 + 0.21 * cfg.glow_strength):.2f}" + ", opacity: 0.35, feather: " + f"{max(1.0, cfg.glow_strength * 1.5):.1f}" + ", dash: (COLORS_ON ? null : TRACK_DASH) }]));") if cfg.glow_enabled and cfg.glow_strength > 0 else "// glow disabled (3d)"}
+    __layers.push(__mk('track-line-3d', [{{ coords: allCoords, color: __base, colors: __cols, width: {cfg.line_width:.2f}, opacity: 0.95, dash: ((COLORS_ON || SEG_STARTS.length) ? null : TRACK_DASH) }}]));
+    {("__layers.push(__mk('track-highlight-3d', [{ coords: allCoords, color: '#ffffff', width: " + f"{cfg.line_width * 0.35:.2f}" + ", opacity: 0.55, feather: 1.2, dash: TRACK_DASH }]));") if cfg.track_style == "tube" else "// no tube highlight (3d)"}
+    for (const l of __layers) l.setRanges([[0, 0]]);
+    window.__rzTrack3d = __layers;
+  }}
   // v0.9.156 — Multi-Track: N eigene Tour-Sources/Layer (leer wenn Single-Track).
   {multi_track_layers}
   // v0.9.509 — Laufpunkt: Kugel oder Pfeil, Größe wählbar, ein-/ausblendbar.
@@ -3579,6 +3619,36 @@ function __rzFillGaps(arr) {{
   return out;
 }}
 const COLOR_METRIC = {color_metric_js};   // elevations | speedKmh | gradePct | Sensorreihe | null (Distanz)
+// 06.09.2026 — Farbe je Track-Punkt für rz-line3d (Farbverlauf nach Distanz/Metrik
+// oder Etappenfarben mit unsichtbaren Verbindungen). Gleiche Regeln wie
+// __rzColorGradient / __rzSegMask, nur je Punkt statt als line-progress-Ausdruck.
+window.__rzPointColors = () => {{
+  const n = allCoords.length;
+  const rgb = (h) => {{ const c = window.__rzHex2rgb(h); return [c[0] / 255, c[1] / 255, c[2] / 255, 1]; }};
+  if (COLORS_ON && !(COLOR_SOURCE !== 'distance' && !COLOR_METRIC) && COLOR_STOPS_VAL && COLOR_STOPS_VAL.length) {{
+    const sv = COLOR_STOPS_VAL, sc = COLOR_STOPS_COL, m = sv.length;
+    const colAt = (v) => {{
+      if (v <= sv[0]) return sc[0];
+      if (v >= sv[m - 1]) return sc[m - 1];
+      let i = 0; while (i < m - 1 && sv[i + 1] <= v) i++;
+      if (COLOR_MODE !== 'gradient') return sc[i];
+      const span = sv[i + 1] - sv[i]; return window.__rzLerpHex(sc[i], sc[i + 1], span > 0 ? (v - sv[i]) / span : 0);
+    }};
+    const out = new Array(n);
+    for (let i = 0; i < n; i++) out[i] = rgb(colAt(COLOR_METRIC ? COLOR_METRIC[i] : (cumDistM[i] || 0) / 1000));
+    return out;
+  }}
+  if (SEG_STARTS.length) {{
+    const out = new Array(n);
+    for (let i = 0; i < n; i++) {{
+      const c = (STAGE_COLORS && STAGE_NR) ? (STAGE_COLORS[STAGE_NR[Math.max(0, Math.min(STAGE_NR.length - 1, i))]] || LINE_COLOR) : LINE_COLOR;
+      out[i] = rgb(c);
+    }}
+    for (const [a, b] of SEG_STARTS) for (let i = Math.max(0, a); i <= Math.min(n - 1, b); i++) out[i] = [0, 0, 0, 0];
+    return out;
+  }}
+  return null;
+}};
 window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
   try {{ if (window.__rzStarsManual && window.rzStarsTick) rzStarsTick(map.getContainer(), (window.__rzStarsFrame++) / (window.__rzStarsFps || 30)); }} catch(_){{}}
   const safe = Math.max(0, Math.min(idx, totalPoints-1));
@@ -3591,15 +3661,16 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
   const coords = allCoords.slice(sliceStart, sliceEnd);
   if (coords.length >= 2) {{
     map.getSource('track').setData({{type:'Feature',geometry:{{type:'LineString',coordinates:coords}}}});
+    if (window.__rzTrack3d) for (const l of window.__rzTrack3d) l.setRanges([[sliceStart, sliceEnd - 1]]);
     // v0.9.435 — Mehrfarbiger Track: line-gradient setzen.
     // v0.9.448 — Quelle ist eine Messreihe, die dieser Track nicht hergibt
     // (z.B. Puls-Einfärbung + GPX ohne Puls) → gar keinen Verlauf setzen. Sonst
     // würden die Stop-Werte als Kilometer missdeutet und der Track bekäme
     // willkürliche Farben statt sauber einfarbig zu bleiben.
-    if (COLORS_ON && !(COLOR_SOURCE !== 'distance' && !COLOR_METRIC)) {{
+    if (!LINES_3D && COLORS_ON && !(COLOR_SOURCE !== 'distance' && !COLOR_METRIC)) {{
       const g = window.__rzColorGradient(cumDistM, sliceStart, sliceEnd-1, COLOR_STOPS_VAL, COLOR_STOPS_COL, COLOR_MODE, COLOR_METRIC);
       if (g) {{ try {{ map.setPaintProperty('track-line','line-gradient',g); if (map.getLayer('track-glow')) map.setPaintProperty('track-glow','line-gradient',g); }} catch(e) {{}} }}
-    }} else if (SEG_STARTS.length) {{
+    }} else if (!LINES_3D && SEG_STARTS.length) {{
       // 23.08.2026 — Etappen: Verbindungsstücke unsichtbar (siehe __rzSegMask).
       const m = window.__rzSegMask(cumGeoM, sliceStart, sliceEnd-1, SEG_STARTS, LINE_COLOR, STAGE_COLORS, STAGE_NR);
       for (const id of ['track-line','track-glow','track-highlight']) {{
@@ -4562,7 +4633,9 @@ async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
             info = await page.evaluate("""() => { try {
               const l = window.__rzSw3d; const a = window.__rzLine3dArgs || null;
               let sd = null; try { sd = a && a.shaderData; } catch (_) {}
-              return { proj: (map.getProjection && map.getProjection()) || null, hasLayer: !!map.getLayer('schwarm-3d'), bufs: l ? l._bufs.length : -1,
+              const l3 = (map.getStyle().layers || []).map(x => x.id).filter(id => /3d$|track|ghost|shadow|glow/.test(id));
+              const tr = (window.__rzTrack3d || []).map(x => ({ id: x.id, bufs: x._bufs.map(b => ({ w: b.width, f: b.feather, t: b.translate, c: b.color, d: b.dash, segs: b.segs })) }));
+              return { layers3: l3, track3d: tr, proj: (map.getProjection && map.getProjection()) || null, hasLayer: !!map.getLayer('schwarm-3d'), bufs: l ? l._bufs.length : -1,
                        tracks: l ? l._tracks.length : -1, counts: l && l._counts ? l._counts.slice(0, 5) : null, args: a, sw3d: (typeof SCHWARM_3D !== 'undefined') ? SCHWARM_3D : null,
                        zoom: map.getZoom() };
             } catch (e) { return { err: String(e) }; } }""")

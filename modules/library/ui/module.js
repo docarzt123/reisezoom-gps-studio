@@ -1243,6 +1243,13 @@ function mountLibrary(body, headerActions) {
   async function projektOeffnen(pid, modulWunsch) {
     const info = await api().projekt_aktivieren(pid);
     if (!info || !info.ok) { toast((info && info.error) || "?", "error"); return; }
+    // 06.09.2026 (Prüfstand): Eine noch nicht abgeholte Übergabe einer FRÜHEREN
+    // Komposition darf nicht in dieses Projekt wandern — sonst bekam ein Solo-
+    // Projekt 78 fremde Etappen und eine neue Menge. Solo/Frei räumen sie hier
+    // weg; Kompositionen setzen sie unten ohnehin neu.
+    if (!(info.ablauf === "reise" || info.ablauf === "schwarm")) {
+      window.__rzPendingTours = null; window.__rzPendingAblauf = null; window.__rzPendingModus = null; window.__rzPendingPausen = null;
+    }
     const k = _projekte.find(x => x.id === pid) || {};
     let modul = modulWunsch || info.letztes_modul || "animator";
     if (modul === "library" || !(window.RZGPS_MODULES || {})[modul]) modul = "animator";   // 04.09.2026 — nie „ins Archiv öffnen"
