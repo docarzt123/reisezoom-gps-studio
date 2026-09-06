@@ -116,9 +116,26 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.658</span>
+    <span class="version-date">6 September 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <p class="version-tagline">The video is now the preview at high resolution — what you see in the trial run is what you get.</p>
+  <ul>
+    <li><strong>Preview = video (WYSIWYG)</strong> — Rendering runs the Animator preview itself, headless, at the video's pixel density, frame by frame: same map, lines, dashes, signs, overlays, same camera path. The separate, generated render page is switched off (kept in the code as a fallback).</li>
+    <li><strong>No more flickering swarm lines on 3D terrain</strong> — With terrain on, swarm lines run just above the terrain in preview and video instead of being draped onto it — ridges no longer hide them partially.</li>
+    <li><strong>Dashed ghost tracks no longer drift</strong> — Dashes are drawn as pieces on the ground, identical in preview and video.</li>
+    <li><strong>Signs no longer jump in size</strong> — During a tilted camera move the sign size changed by about 3 % when tiles switched; the size curve is now continuous.</li>
+    <li><strong>Preview brightness matches the video</strong> — The fade-in of regional aerial imagery sits at the same zoom level in the preview as in the video.</li>
+    <li><strong>Solo project after a composition</strong> — A leftover handover no longer pulls foreign tours into the next solo project.</li>
+    <li><strong>Smooth camera active again</strong> — Since v0.9.657 it silently fell back to the classic camera path (a programming error when clamping the zoom); preview and video use the smooth path again.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.657</span>
     <span class="version-date">5 September 2026</span>
-    <span class="version-badge">Latest</span>
   </div>
   <p class="version-tagline">Swarms and journeys open again — “drawing map” no longer hangs.</p>
   <ul>

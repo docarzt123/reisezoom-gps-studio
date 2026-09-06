@@ -1388,6 +1388,13 @@ Wenn du nur einen Teil des Tracks renderst, kannst du wählen ob die **Track-Lin
 ### Render-Live-Vorschau
 Während des Renders siehst du das aktuell entstehende Frame im Vorschau-Fenster. Wenn dir die Kombination aus Stil und Kamera-Winkel nicht passt: **„⨯ Abbrechen"** klicken — dann wird die halb-fertige Datei sofort gelöscht und du kannst neu konfigurieren, ohne 5 Min auf einen Render gewartet zu haben, der dann nichts wird.
 
+### Vorschau = Video (seit v0.9.658) ⭐
+Das fertige Video ist seit v0.9.658 wörtlich die Vorschau in hoher Auflösung: dieselbe Karte, dieselben Linien, Strichelungen, Schilder, Overlays und derselbe Kamerapfad, nur mit der Pixeldichte des Videos gezeichnet. Was du im Probelauf siehst, bekommst du auch — Linienbreiten und Schildgrößen sind im Video **relativ zur Bildbreite** genauso groß wie in der Vorschau. Tipp: Beurteile die Vorschau bei der Fenstergröße, mit der du auch renderst; ein deutlich breiteres Fenster zeigt (und rendert) die Schilder etwas kleiner im Verhältnis zum Bild.
+
+Beim Schwarm mit 3D-Gelände laufen die Linien jetzt auch in der Vorschau knapp über dem Gelände (kein Flimmern an Graten mehr) — genau wie im Video.
+
+Sollte ein Render mit dem neuen Weg einmal nicht durchlaufen, gibt es einen Rückfall auf den bisherigen Generator: in `settings.json` `"render_engine": "klassisch"` eintragen (oder die App mit `RZ_RENDER_KLASSISCH=1` starten). Alpha-Export (transparenter Hintergrund) und das Tour-Map-Standbild nutzen ohnehin noch den bisherigen Weg.
+
 ### 📷 Fotos auf der Karte (seit v0.9.74) ⭐
 
 Fotos mit GPS-EXIF erscheinen als kleine Thumbnails an ihrer Aufnahme-Position. Perfekt für Reise-Vlogs: Track läuft entlang, die Foto-Punkte sind als Polaroids auf der Karte sichtbar.

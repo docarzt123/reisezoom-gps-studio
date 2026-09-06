@@ -116,9 +116,26 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.658</span>
+    <span class="version-date">6 de septiembre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">El vídeo ahora es la vista previa en alta resolución: lo que ves en la prueba es lo que obtienes.</p>
+  <ul>
+    <li><strong>Vista previa = vídeo (WYSIWYG)</strong> — El render ejecuta la propia vista previa del Animator, sin ventana, con la densidad de píxeles del vídeo, fotograma a fotograma: mismo mapa, líneas, trazos, letreros, superposiciones y misma trayectoria de cámara. La página de render generada aparte queda desactivada (permanece en el código como respaldo).</li>
+    <li><strong>Las líneas del enjambre ya no parpadean sobre el terreno 3D</strong> — Con terreno, las líneas del enjambre van justo por encima del terreno en vista previa y vídeo en lugar de drapearse sobre él: las crestas ya no las ocultan parcialmente.</li>
+    <li><strong>Los tracks fantasma discontinuos ya no se desplazan</strong> — Los trazos se dibujan como piezas sobre el suelo, iguales en vista previa y vídeo.</li>
+    <li><strong>Los letreros ya no saltan de tamaño</strong> — En un movimiento de cámara inclinada el tamaño cambiaba un 3 % al cambiar de tesela; la curva de tamaño ahora es continua.</li>
+    <li><strong>Brillo de la vista previa como en el vídeo</strong> — El fundido de las ortofotos regionales está en el mismo nivel de zoom en la vista previa y en el vídeo.</li>
+    <li><strong>Proyecto individual tras una composición</strong> — Una entrega pendiente ya no arrastra rutas ajenas al siguiente proyecto individual.</li>
+    <li><strong>Cámara suave activa de nuevo</strong> — Desde la v0.9.657 caía en silencio a la trayectoria clásica de cámara (un error de programación al limitar el zoom); vista previa y vídeo vuelven a usar la trayectoria suave.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.657</span>
     <span class="version-date">5 de septiembre de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">Enjambres y viajes vuelven a abrirse: «dibujando el mapa» ya no se queda colgado.</p>
   <ul>
