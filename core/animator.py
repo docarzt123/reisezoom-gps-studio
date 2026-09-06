@@ -1648,7 +1648,8 @@ def _maplibre_gl_head() -> str:
             stars = (base / "ui" / "js" / "rz-stars.js").read_text(encoding="utf-8")        # 04.09.2026 Sternenhimmel
             adj = (base / "ui" / "js" / "rz-mapadjust.js").read_text(encoding="utf-8")      # 05.09.2026 Karten-Optik
             l3d = (base / "ui" / "js" / "rz-line3d.js").read_text(encoding="utf-8")        # 06.09.2026 Linien über dem Gelände
-            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>\n<script>{stars}</script>\n<script>{adj}</script>\n<script>{l3d}</script>\n<script>{cam}</script>"
+            dash = (base / "ui" / "js" / "rz-dash.js").read_text(encoding="utf-8")          # 06.09.2026 Strichelung als Geometrie
+            _MAPLIBRE_GL_CACHE = f"<style>{css}</style>\n<script>{js}</script>\n<script>{stars}</script>\n<script>{adj}</script>\n<script>{l3d}</script>\n<script>{dash}</script>\n<script>{cam}</script>"
             _log.info("maplibre-gl aus dem Bundle eingebettet (%.1f MB)", len(js) / 2**20)
         except Exception as e:
             _log.warning("maplibre-gl nicht im Bundle gefunden (%s) — CDN-Rückfall", e)
@@ -2757,7 +2758,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
         _teile = []
         for _i, _g in enumerate(_ghosts_alle):
             _koord = json.dumps([[float(c[0]), float(c[1])] for c in _g["coords"]])
-            _dash = ",'line-dasharray':[2,2]" if _g.get("dashed", True) else ""
+            _dash = ""   # 06.09.2026: Strichelung als Geometrie (rz-dash.js) statt dasharray — s. __rzGhostDashRebuild
             _col = str(_g.get("color") or "#7fa8ff")
             _op = max(0.0, min(1.0, float(_g.get("opacity", 0.60))))
             _w = float(_g.get("width", 2.5))
@@ -2771,7 +2772,18 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                 "layout:{'line-cap':'round','line-join':'round'},"
                 "paint:{'line-color':'" + _col + "',"
                 f"'line-width':{_w:.2f},'line-opacity':{_op:.2f}" + _dash + _gg_zoff + "}});")
-        _gpx_ghost_js = "".join(_teile)
+        _reg = json.dumps([{"id": ("gpx-ghost" if _i == 0 else f"gpx-ghost-{_i}"), "width": float(_g.get("width", 2.5)),
+                            "dashed": bool(_g.get("dashed", True))} for _i, _g in enumerate(_ghosts_alle)])
+        _gpx_ghost_js = "".join(_teile) + (
+            "window.__rzGhostDashReg = " + _reg + ";\n"
+            # 06.09.2026 — Strichelung als Geometrie am Boden (rz-dash.js), Bezug = Fit-Zoom des Videos;
+            # Python ruft das nach getInitialView() auf. Gleiche Stücke wie in der Vorschau (WYSIWYG).
+            "window.__rzGhostDashRebuild = (zoomVideo) => { try { for (const r of (window.__rzGhostDashReg || [])) {\n"
+            "  if (!r.dashed || !window.rzDashGeometry) continue; const src = map.getSource(r.id); const d = src && src._data; const co = d && d.geometry && d.geometry.coordinates;\n"
+            "  if (!co || !co.length || d.geometry.type !== 'LineString') continue;\n"
+            "  const [dM, gM] = window.rzDashMeters(r.width, [2, 2], zoomVideo, co[0][1]);\n"
+            "  src.setData({ type: 'Feature', geometry: { type: 'MultiLineString', coordinates: window.rzDashGeometry(co, dM, gM) } });\n"
+            "} } catch (e) { console.warn('ghost dash: ' + e); } };\n")
 
     # v0.9.286b (Marc-Bug: 4K flimmert „zu scharf") — leichter Tiefpass NUR auf
     # die WebGL-Karte (#map canvas = Satellit + Track-Linie), NICHT auf Overlays/
@@ -2900,7 +2912,10 @@ const SCHWARM_COLORS = {schwarm_colors_json};
 const SCHWARM_STEPS = {schwarm_steps_json};
 const SCHWARM_N = SCHWARM_COORDS.length;
 const SCHWARM_3D = {sw3d_js};   // 06.09.2026 — Linien über dem Gelände (rz-line3d) statt drapiert
-const LINES_3D = SCHWARM_3D;     // gilt für Haupt-Track, Ghost-Route und GPX-Ghosts genauso
+// 06.09.2026 (Marc, WYSIWYG): Haupt-Track/Ghosts bleiben DRAPIERT wie in der Vorschau — die
+// 3D-Ebene sah dicker/kantiger aus als die Vorschau. Code bleibt für IDEAS §53 (Vorschau + Render
+// gemeinsam umstellen), bis dahin aus.
+const LINES_3D = false;
 const TRACK_DASH = {_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) or 'null'};
 window.__rzLine3dDebug = {'true' if os.environ.get('RZ_L3D_DEBUG') else 'false'};
 // IDEAS §38 M3 — Geschwindigkeitsmodus. 'gleich' = alle gleich schnell,
@@ -4806,6 +4821,8 @@ async def render_frame(
                 zoom = view.get("zoom", 12)
             else:
                 center = [(bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2]; zoom = 12
+            try: await page.evaluate(f"window.__rzGhostDashRebuild && window.__rzGhostDashRebuild({float(zoom):.4f})")
+            except Exception as _e: _log.warning("Ghost-Strichelung: %s", _e)
 
             # v0.9.412 — Kamera-Übernahme aus der Live-Vorschau (Snapshot / „als
             # Tour-Map öffnen"): exakter Ausschnitt/Zoom/Drehung/Neigung statt Fit.
@@ -5515,6 +5532,8 @@ async def render(
         else:
             center = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
             zoom = 12
+        try: await page.evaluate(f"window.__rzGhostDashRebuild && window.__rzGhostDashRebuild({float(zoom):.4f})")
+        except Exception as _e: _log.warning("Ghost-Strichelung: %s", _e)
         # Defensive: ist center wirklich [lon, lat]?
         if not (isinstance(center, (list, tuple)) and len(center) == 2
                 and all(isinstance(v, (int, float)) for v in center)):
