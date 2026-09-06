@@ -3183,6 +3183,14 @@ function mountAnimator(body, headerActions, opts) {
       w = avW;
       h = w / targetAR;
     }
+    // 06.09.2026 — Render-Modus (gemeinsame Szene): der Viewport IST das Video in CSS-px,
+    // kein Maßstab (k = 1), keine Beschriftungs-Skalierung. Chromium liefert per
+    // device_scale_factor die Gerätepixel (4K = 1920×1080 CSS × 2).
+    if (window.__rzRenderMode && window.__rzRenderMode.w) {
+      // w/h = Video in CSS-px; alles Weitere (Nennungs-Maßstab, Overlay-Layer in
+      // Render-Pixeln + transform-scale) läuft unverändert weiter — _prevK wird 1.
+      w = window.__rzRenderMode.w; h = window.__rzRenderMode.h;
+    }
     wrap.style.width  = Math.round(w) + "px";
     wrap.style.height = Math.round(h) + "px";
     // 04.09.2026 (Marc: „Attribution in der Vorschau viel größer als im Video"):
@@ -4421,6 +4429,7 @@ function mountAnimator(body, headerActions, opts) {
   // Positionen. Default TRUE (Editier-Hilfe). User kann ausschalten für
   // echtes WYSIWYG. Affects nur Preview, nicht Render.
   function previewShowKfPins() {
+    if (window.__rzRenderMode) return false;   // Render-Modus: keine Vorschau-Pins im Bild
     const a = _activeProject?.[_MODKEY];
     if (a && "preview_show_kf_pins" in a) return !!a.preview_show_kf_pins;
     if (_settingsCache?.[_MODKEY] && "preview_show_kf_pins" in _settingsCache[_MODKEY]) {
@@ -4643,7 +4652,7 @@ function mountAnimator(body, headerActions, opts) {
     const _projZ = (typeof getActiveProject === "function")
       ? getActiveProject()?.[_MODKEY]?.static_zoom : null;
     const _fitB = effectiveFitZoomBase();
-    const zoomAbs = (typeof _projZ === "number") ? _projZ
+    const zoomAbs = (typeof _projZ === "number") ? _projZ + _rzZoomShift()
       : (_fitB != null ? _fitB
          : parseFloat(document.getElementById("anim-zoom")?.value));
     const rot = parseFloat(document.getElementById("anim-rot")?.value) || 0;
@@ -6179,9 +6188,13 @@ function mountAnimator(body, headerActions, opts) {
   // Fällt zurück auf legacy `value_offset` wenn `value_absolute` fehlt
   // (Projekte vor v0.9.73) oder `fitBase` noch nicht da ist.
   // Marc-Bug-Fix für „Erde nach Reload viel kleiner als bei Set-Zeit".
+  // 06.09.2026 — Render-Modus (gemeinsame Szene): Keyframes, manuelle Kamera und
+  // static_zoom sind im Zoom der VORSCHAU gespeichert (kleinerer Viewport). Im Video-
+  // Viewport gilt derselbe Versatz wie im klassischen Render: zoom_correction − log2(dsf).
+  function _rzZoomShift() { try { return (window.__rzRenderMode && isFinite(+window.__rzRenderMode.zoomShift)) ? +window.__rzRenderMode.zoomShift : 0; } catch (_) { return 0; } }
   function _zoomEffectiveOffset(ev, fitBase) {
     if (ev && ev.value_absolute != null && fitBase != null && isFinite(fitBase)) {
-      return ev.value_absolute - fitBase;
+      return ev.value_absolute + _rzZoomShift() - fitBase;
     }
     return ev && ev.value_offset != null ? ev.value_offset : 0;
   }
@@ -6823,14 +6836,14 @@ function mountAnimator(body, headerActions, opts) {
     // Fit-Kamera pro Lauf, wie im Video.
     let _runFitCam = fitKameraGesamt();
     const _mcRun = _manualCamGet();
-    if (_mcRun) _runFitCam = { center: { lng: _mcRun.center[0], lat: _mcRun.center[1] }, zoom: _mcRun.zoom, manual: true };
+    if (_mcRun) _runFitCam = { center: { lng: _mcRun.center[0], lat: _mcRun.center[1] }, zoom: _mcRun.zoom + _rzZoomShift(), manual: true };
     try { applog("info", "[runFitCam] " + (_mcRun ? "manuelle Kamera · " : "") + (_runFitCam
       ? ("zoom=" + (+_runFitCam.zoom).toFixed(2) + " center=" + JSON.stringify(_runFitCam.center))
       : "null") + " · fitBase=" + _previewFitBase); } catch (_) {}
     const _projStaticZ0 = (typeof getActiveProject === "function")
       ? getActiveProject()?.[_MODKEY]?.static_zoom : null;
-    const _runStaticBase = _mcRun ? _mcRun.zoom
-      : (typeof _projStaticZ0 === "number") ? _projStaticZ0
+    const _runStaticBase = _mcRun ? _mcRun.zoom + _rzZoomShift()
+      : (typeof _projStaticZ0 === "number") ? _projStaticZ0 + _rzZoomShift()
       : (_runFitCam ? _runFitCam.zoom : null);
     // v0.9.314 — Kamera-Höhe HALTEN: eingefrorene Gelände-Referenz pro Probelauf.
     let _camStabBase = null;
@@ -6977,7 +6990,10 @@ function mountAnimator(body, headerActions, opts) {
             // `tz` ist eine Zeit; `a` die zugehörige Stelle im Track.
             const a = zeitZuAnker(tz, _fti, _ftf, _ftA, _ftB);
             const ip = interpolateCameraJs(_evZeit, tz, defaultPitch, defaultRotation, undefined, _previewFitBase, { cinematic: _fCine });
-            const zm = (ip.zoom_offset == null && _runStaticBase != null)
+            // 06.09.2026 — `let`, nicht `const`: die Klemmung unten weist zm neu zu. Als const
+            // warf JEDER Aufbau „Assignment to constant variable" und die ruhige Kamera fiel
+            // seit dem Audit-Fix vom 05.09. still auf den klassischen Pfad zurück (Log-Warnung).
+            let zm = (ip.zoom_offset == null && _runStaticBase != null)
               ? _runStaticBase
               : _previewFitBase + (ip.zoom_offset || 0);
             let ll;
@@ -7315,6 +7331,7 @@ function mountAnimator(body, headerActions, opts) {
       try { _ovUpdateLiveAt(coordFrac / Math.max(1, tn - 1), coordFracRoh / Math.max(1, tn - 1)); } catch (_) {}
       // Scrubber visuell — siehe Berechnung oben (durch Trim-Handles wandernd).
       if (_tlBar) _tlBar.setScrubberBar(scrubberVis);
+      if (window.__rzStepMode) return;   // Render-Modus: Bild für Bild von außen (window.__rzPreviewStep.seek)
       if (elapsed < totalMs) {
         _previewRaf = requestAnimationFrame(step);
       } else {
@@ -7340,6 +7357,19 @@ function mountAnimator(body, headerActions, opts) {
       }
     };
     if (_previewRaf) cancelAnimationFrame(_previewRaf);
+    // 06.09.2026 — Render-Modus (gemeinsame Szene): dieselbe Schleife, aber ohne Uhr.
+    // Python ruft je Bild `window.__rzPreviewStep.seek(tSek)`; `step` rechnet mit der
+    // virtuellen Zeit (elapsed = now − T0, T0 = 0). Die ruhige Kamera (_faithBuild)
+    // wird vorher fertig aufgebaut; `ready` sagt, wann gesucht werden darf.
+    if (window.__rzStepMode) {
+      _previewRaf = -1; _previewT0 = 0; _previewSpeed = 1;
+      window.__rzPreviewStep = { totalMs, ready: false,
+        seek: (tSek) => { try { if (window.__rzStarsManual && window.rzStarsTick) rzStarsTick(map.getContainer(), +tSek || 0); } catch (_) {} step(Math.max(0, +tSek || 0) * 1000); } };
+      const _fertig = () => { window.__rzPreviewStep.ready = true; };
+      if (_faithBuild) _faithBuild().then(_fertig).catch((e) => { try { applog("warn", "[smooth-cam] Stützstellen: " + e); } catch (_) {} _useFaithful = false; _faithCams = null; _faithGew = null; _fertig(); });
+      else _fertig();
+      return;
+    }
     if (_faithBuild) {
       // 04.09.2026 — erst die Stützstellen mit geladenen Geländekacheln, dann
       // die Uhr starten. -1 = „läuft, noch kein Frame" (Stopp-Klick greift).
@@ -7359,6 +7389,18 @@ function mountAnimator(body, headerActions, opts) {
     }
   }
   // v0.7.6: _previewRaf wird oben in mountAnimator() deklariert (TDZ-Fix).
+  // 06.09.2026 — gemeinsame Szene: der Render (core/szene.py) fährt diese Vorschau
+  // kopflos in Videogröße. Er braucht: „ist alles geladen?", „Probelauf im
+  // Schrittmodus starten" und den Bild-für-Bild-Zugriff (window.__rzPreviewStep).
+  window.__rzAnimBereit = () => {
+    let styleOk = false, tilesOk = false, terrainOk = true;
+    try { styleOk = !!(map && (map.__rzStyleReady || (map.isStyleLoaded && map.isStyleLoaded()))); } catch (_) {}
+    try { tilesOk = !!(map && map.areTilesLoaded && map.areTilesLoaded()); } catch (_) {}
+    return { map: !!map, style: styleOk, tiles: tilesOk, terrain: terrainOk, coords: (currentCoords || []).length,
+             pending: !!(window.__rzPendingTours && window.__rzPendingTours.length) || !!window.__rzUebergabeLaeuft, extra: (_extraTours || []).length,
+             modal: !!document.querySelector(".touren-lade-modal:not([hidden])"), fitBase: _fitZoomBase };
+  };
+  window.__rzPreviewRun = () => { window.__rzStepMode = true; runTimelinePreview(true); };
 
   // v0.7.1: Position-Label-Provider — zeigt "Punkt N / Total · X%" in der
   // Timeline-Bar Status-Row.
@@ -7717,6 +7759,8 @@ function mountAnimator(body, headerActions, opts) {
   function applyTerrain() {
     if (!map) return;
     const want = currentTerrainOn();
+    // 06.09.2026 — Schwarm-Linien: bei Gelände über rz-line3d, sonst drapiert → bei Umschaltung neu bauen.
+    try { if (_animAblauf === "schwarm" && _swPrev.length && (!!_sw3d) !== !!(window.rzLine3d && want && map.__rzEngine !== "mapbox" && map.__rzSpec && map.__rzSpec.terrain)) setTimeout(() => { try { _animDrawExtraToursPreview(); } catch (_) {} }, 0); } catch (_) {}
     const spec = map.__rzSpec || null;
     const mapboxEngine = (map.__rzEngine === "mapbox");
     try {
@@ -8051,12 +8095,13 @@ function mountAnimator(body, headerActions, opts) {
         const pendingModus = ["gleich", "ziel", "uhrzeit"].includes(window.__rzPendingModus)
           ? window.__rzPendingModus : "gleich";
         const pendingPausen = window.__rzPendingPausen !== false;
+        window.__rzUebergabeLaeuft = true;   // 06.09.2026 — Szene wartet darauf (core/szene.py)
         _animPendingToursTimer = setTimeout(async () => {
           // Wer nach dem Sprung aus dem Archiv binnen 1,2 s weiterklickt, darf
           // keine Etappen mehr in ein totes Modul schreiben — `_animPersistTours`
           // am Ende von `_animAddTourPath` würde sonst den Projekt-Stand
           // überschreiben, den das nächste Modul schon anders gesetzt hat.
-          if (_animUnmounted) return;                       // der lebende Mount holt die Übergabe ab
+          if (_animUnmounted) return;                       // der lebende Mount holt die Übergabe ab (Flag bleibt: der neue Mount setzt es neu)
           if (window.__rzPendingTours !== pending) return;  // schon von einem anderen Mount abgeholt
           // Läuft gerade ein anderer Mount die Mengen-Aktivierung? Dann warten — die
           // Aktivierung baut das Modul neu, und DIESER (neue) Mount übernimmt danach.
@@ -8155,6 +8200,7 @@ function mountAnimator(body, headerActions, opts) {
             // nicht schließbares Modal wäre eine tote App.
             _tourenLadeZu();
             window.__rzMengeAktiviert = null;   // Schlüssel nur für die Remount-Brücke, nicht für spätere Öffnungen
+            window.__rzUebergabeLaeuft = false;
           }
         }, 1200);
       }
@@ -13303,10 +13349,12 @@ function mountAnimator(body, headerActions, opts) {
   // Entfernt alle Multi-Track-Preview-Layer/-Sources von der Karte.
   function _animClearExtraPreview() {
     if (!map) return;
-    for (const id of ["swarm-prev-lines", "swarm-prev-dots"]) {
+    for (const id of ["swarm-prev-3d", "swarm-prev-lines", "swarm-prev-dots"]) {
       try { if (map.getLayer(id)) map.removeLayer(id); } catch (_) {}
       try { if (map.getSource(id)) map.removeSource(id); } catch (_) {}
     }
+    try { if (_sw3dSrc) map.off("sourcedata", _sw3dSrc); if (_sw3dIdle) map.off("idle", _sw3dIdle); } catch (_) {}
+    _sw3d = null; _sw3dSrc = null; _sw3dIdle = null; window.__rzSw3dPrev = null;
     _swPrev = [];
     // ALLE mtour-Layer entfernen — per Präfix über den Style, nicht bis zu
     // einer festen Zahl. Der alte 64er-Deckel ließ bei 137 Reise-Etappen die
@@ -13358,6 +13406,13 @@ function mountAnimator(body, headerActions, opts) {
   }
   const _swHauptCum = {};   // Cache-Träger für den Haupt-Track
   let _swPrev = [];          // [{coords (gedünnt), cum, color}] — nur Schwarm-Modus
+  // 06.09.2026 — Schwarm-Linien über dem Gelände (rz-line3d, wie der Render seit v0.9.658):
+  // drapierte Linien am Gelände flimmern (Kanten-Verdeckung), die Vorschau IST jetzt das
+  // Video (core/szene.py), also muss sie selbst flimmerfrei sein. null = drapiert.
+  let _sw3d = null, _sw3dDirty = false, _sw3dIdle = null, _sw3dSrc = null;
+  function _sw3dSoll() {
+    return !!(window.rzLine3d && !window.__rzNo3d && map && currentTerrainOn() && map.__rzEngine !== "mapbox" && map.__rzSpec && map.__rzSpec.terrain);   // __rzNo3d: Prüfstand-Schalter
+  }
 
   function _swAusduennen(coords, maxN) {
     if (coords.length <= maxN) return coords;
@@ -13435,7 +13490,9 @@ function mountAnimator(body, headerActions, opts) {
     _swPrev = _extraTours
       .filter(tr => tr.coords && tr.coords.length >= 2)
       .map(tr => {
-        const idx = _swAusduennenIdx(tr.coords.length, 150);
+        // Render-Modus (gemeinsame Szene): feiner abtasten — Geometrie-Detail fürs Video,
+        // Aussehen identisch; 150 Punkte reichen nur für die schnelle Vorschau.
+        const idx = _swAusduennenIdx(tr.coords.length, window.__rzRenderMode ? 1500 : 150);
         const coords = idx ? idx.map(j => tr.coords[j]) : tr.coords;
         let zeit = null;
         if (_animModus === "uhrzeit") {
@@ -13496,6 +13553,20 @@ function mountAnimator(body, headerActions, opts) {
                    "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2 } });
       }
     } catch (e) { console.warn("swarm preview layers:", e); }
+    _sw3d = null;
+    if (_sw3dSoll()) {
+      try {
+        const l3 = window.rzLine3d.create("swarm-prev-3d", { offsetM: 150 });
+        map.addLayer(l3, map.getLayer("swarm-prev-dots") ? "swarm-prev-dots" : undefined);
+        l3.setTracks(_swPrev.map(t => ({ coords: t.coords, color: t.color, width: Math.max(1, lw * 0.8), opacity: 0.9 })));
+        l3.setCounts(_swPrev.map(() => 0));
+        _sw3d = l3; window.__rzSw3dPrev = l3; _sw3dDirty = true;
+        // Geländehöhen nachziehen, sobald DEM-Kacheln da sind (Start, Kamerafahrt, Gelände-Umschaltung).
+        _sw3dSrc = (e) => { if (e && e.sourceId === "mapbox-dem") _sw3dDirty = true; };
+        _sw3dIdle = () => { if (_sw3d && _sw3dDirty && map.getTerrain && map.getTerrain()) { _sw3dDirty = false; try { _sw3d.refreshElevation(); } catch (_) {} } };
+        map.on("sourcedata", _sw3dSrc); map.on("idle", _sw3dIdle);
+      } catch (e) { console.warn("swarm 3d:", e); _sw3d = null; }
+    }
     // Ruhezustand: alles voll gezeichnet, Punkte am Ziel (wie der Haupt-Track).
     _animSchwarmPreviewAdvance(0, true);
   }
@@ -13557,7 +13628,8 @@ function mountAnimator(body, headerActions, opts) {
         geometry: { type: "Point", coordinates: t.coords[kP] } });
     }
     try {
-      rzSetDataLatest(map, map.getSource("swarm-prev-lines"), { type: "FeatureCollection", features: linien });
+      if (_sw3d) _sw3d.setCounts(linien.map(l => l.geometry.coordinates.length - 1));   // Segmente je Tour (wie der Render)
+      else rzSetDataLatest(map, map.getSource("swarm-prev-lines"), { type: "FeatureCollection", features: linien });
       rzSetDataLatest(map, map.getSource("swarm-prev-dots"), { type: "FeatureCollection", features: punkte });
     } catch (_) {}
   }
@@ -14209,6 +14281,12 @@ function mountAnimator(body, headerActions, opts) {
 
     const params = {
       gpx_path: currentGpx,
+      // 06.09.2026 — gemeinsame Szene: der Render öffnet dieses Projekt kopflos in der Vorschau (core/szene.py)
+      szene_projekt_id: (typeof getActiveProject === "function" && getActiveProject()) ? (getActiveProject().id || null) : null,
+      // Vorschau-Viewport in CSS-px: der Render fährt die Vorschau in GENAU dieser Größe mit
+      // hohem device_scale_factor (Video = Vorschau hochaufgelöst, WYSIWYG ohne Umrechnung).
+      szene_vorschau_w: (document.getElementById("anim-viewport")?.clientWidth || 0),
+      szene_vorschau_h: (document.getElementById("anim-viewport")?.clientHeight || 0),
       // v0.9.156 — Multi-Track: nur senden wenn ≥1 Extra-Tour vorhanden ist.
       // Backend aktiviert den isolierten Multi-Render-Pfad ab 2 Touren. Tour 1
       // = die globale GPX (currentGpx) mit der Farbe aus der Track-Sektion.

@@ -956,3 +956,17 @@ label.chip-toggle input:checked + span {
 /* 04.09.2026 — Quellen-Nennung (Attribution) in der Vorschau im Render-Maßstab (WYSIWYG) */
 #anim-viewport .maplibregl-ctrl-bottom-right,
 #anim-viewport .mapboxgl-ctrl-bottom-right { transform: scale(var(--rz-prev-k, 1)); transform-origin: bottom right; }
+
+/* 06.09.2026 — Render-Modus (gemeinsame Szene, core/szene.py): nur der Viewport ist
+   sichtbar, exakt so groß wie das Video (CSS-px), am Ursprung — der Screenshot des
+   Browserfensters IST das Bild. Rest der Oberfläche bleibt im DOM (die Module lesen
+   ihre Einstellungen daraus), liegt aber darunter bzw. ist ausgeblendet. */
+body.rz-render-mode { overflow: hidden !important; background: #000 !important; }
+body.rz-render-mode #anim-viewport { position: fixed !important; left: 0 !important; top: 0 !important; margin: 0 !important;
+  border-radius: 0 !important; box-shadow: none !important; z-index: 90000 !important; }
+body.rz-render-mode .toast, body.rz-render-mode .toast-host, body.rz-render-mode .modal-backdrop, body.rz-render-mode .modal,
+body.rz-render-mode #anim-res-badge, body.rz-render-mode .anim-resolution-badge, body.rz-render-mode .anim-viewport-expand,
+body.rz-render-mode .rz-map-banners,
+body.rz-render-mode #anim-viewport .maplibregl-ctrl-group, body.rz-render-mode #anim-viewport .mapboxgl-ctrl-group,
+body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mode #anim-viewport .mapboxgl-ctrl-top-right { display: none !important; }
+

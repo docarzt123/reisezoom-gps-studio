@@ -3566,3 +3566,90 @@ Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
 `RZ_MESH` (Gelände-Textur/Netz, Vendor-Patch `rz-patch rttquality/meshsize`).
 
+## Gemeinsame Szene: Render = Vorschau in Videogröße — `core/szene.py` (06.09.2026)
+
+**Warum.** Bis 06.09.2026 gab es die Szene zweimal: die Vorschau in
+`modules/animator/ui/module.js` und eine aus Python erzeugte Render-Seite
+(`core/animator.py`, `_make_html`). Jede Abweichung zwischen Vorschau und Video
+(Liniendicke, Strichelung, Luftbild-Rampe, Schildgrößen, Kamera) kam daher, und
+die Spiegelregel „beide pflegen" behandelte nur das Symptom. Marc: „ich will 1:1
+das in der vorschau, wie im fertigen video".
+
+**Wie.** `render_szene(cfg, api, projekt_id, …)`:
+1. kopfloses Chromium (dieselben Flags wie bisher). Fenster in CSS-px GENAU so
+   groß wie der Vorschau-Viewport der App zum Zeitpunkt des Klicks
+   (`params.szene_vorschau_w/h`), `device_scale_factor = Video / Vorschau × SSAA`
+   (4K bei 896 px Vorschau: 4,29 × 1,25). Das Video ist damit wörtlich die
+   Vorschau in hoher Auflösung: keine Zoom-Umrechnung, kein Größenfaktor für
+   Linien/Schilder/Beschriftungen — alles, was die Vorschau relativ zu ihrer
+   Breite zeigt, zeigt das Video relativ zu seiner. (Erster Wurf mit „Fenster =
+   Video in CSS-px" lag eine Zoomstufe daneben und zeichnete Schilder/Linien
+   relativ kleiner — Keyframes, static_zoom und manuelle Kamera sind im
+   Vorschau-Zoom gespeichert.) Der Screenshot läuft wie bisher über
+   `animator._grab_frame` (SSAA-Downscale auf exakt `cfg.width×cfg.height`).
+   **Folge, die man kennen muss:** alles, was die Vorschau in CSS-px zeichnet
+   und NICHT über k skaliert (Schild-icon-size am Vorschau-Zoom, Foto-Pins,
+   Pfeil-icon-size), hat im Video denselben Bildanteil wie in der Vorschau —
+   und der hängt von der Breite des Vorschau-Viewports ab (Schilder ∝ Breite^−0,81,
+   weil die Größenkurve nur mit 4,8^(1/12) je Zoomstufe wächst). Das war beim
+   alten Render genauso (render_scale = 1920/Vorschaubreite, dazu noch ein
+   Faktor (1920/Breite)^0,19 obendrauf, weshalb alte 4K-Videos die Schilder etwa
+   20 % größer zeigten als die Vorschau — Marc wollte ausdrücklich die Vorschau).
+   Normierung auf eine Referenzbreite: IDEAS §53a.
+2. `ui/index.html` laden — die ganze App mit allen Modulen. Brücke
+   `window.pywebview.api` → `rzBridge` → laufende `app.Api`. Schreibende
+   Aufrufe (`_SCHREIBEND`, z. B. settings_set, projekt_*, library_set_*, cloud_*)
+   antworten stumm `{ok:true}`; native Dialoge sind stumm.
+3. Init-Script setzt `window.__rzRenderMode = {w,h,fps,width,height,blur,zoomShift:0}`,
+   `__rzStepMode`, `__rzStarsManual`, `__rzRightsAck`, `__rzKeinPmBoot` und
+   `body.rz-render-mode` (CSS: nur `#anim-viewport` sichtbar, fixed bei 0/0,
+   Bedienelemente/Toasts/Modale/Badges aus; Karten-Canvas-Blur = „Karte glätten"
+   wie im klassischen Render).
+4. Archiv → Projekte-Reiter → `rzProjektOeffnen(pid)` (derselbe Weg wie ein Klick
+   im Archiv, inkl. Kompositionen/Schwarm). Warten auf `window.__rzAnimBereit()`:
+   Karte, Stil, Kacheln, Track, keine offene Übergabe, kein Lade-Modal, Fit-Zoom.
+5. `window.__rzPreviewRun()` startet den Probelauf im **Schrittmodus**: dieselbe
+   `step`-Schleife wie in der App, aber ohne rAF/Uhr; `window.__rzPreviewStep.seek(tSek)`
+   setzt Bild n (Kamera, Track, Schwarm, Schilder, Overlays, Diagramme, Sterne).
+   Die ruhige Kamera baut ihre Stützstellen vorher fertig (`ready`).
+6. Je Bild: `seek` → warten (Karte idle, Kacheln, ein rAF + 60 ms) → Screenshot
+   (`_grab_frame`, inkl. SSAA-Downscale) → `FrameMuxer` (ffmpeg wie bisher, alle
+   Codecs). `render_szene_frame` liefert ein Einzelbild zur Videozeit
+   (`snapshot_time_s`, „Aktuellen Frame als Bild").
+
+**Umschalter.** `app.py` Worker: Szene, wenn `params.szene_projekt_id` da ist
+(die UI schickt die aktive Projekt-ID), sonst oder mit `RZ_RENDER_KLASSISCH=1` /
+`settings.render_engine = "klassisch"` der alte Generator. Alpha-Export
+(`transparent_background`) und Tour-Map-Standbild (`still_frame`) laufen noch
+über den alten Weg (IDEAS §53).
+
+**Schwarm über dem Gelände auch in der Vorschau.** Weil die Vorschau das Video
+ist, zeichnet `_swPrevBauen` den Schwarm bei Gelände + MapLibre über
+`rzLine3d.create("swarm-prev-3d")` (`_sw3dSoll()`, gleiche Bedingung wie
+`SCHWARM_3D` im alten Render); `_animSchwarmPreviewAdvance` setzt dann nur
+`setCounts` (Segmente je Tour), die drapierte `swarm-prev-lines`-Quelle bleibt
+leer. Höhen: `sourcedata`(mapbox-dem) setzt ein Dirty-Flag, `idle` ruft
+`refreshElevation()`. `applyTerrain` baut die Schwarm-Ebenen neu, wenn 3D ↔
+drapiert wechseln muss. `window.__rzNo3d = true` (Prüfstand) erzwingt drapiert.
+Im Render-Modus je Tour bis zu 1500 statt 150 Vorschau-Punkte. `rz-line3d.js`
+wird jetzt in `ui/index.html` geladen.
+
+**Was in der Vorschau dafür dazukam** (`module.js`): `updateAnimatorViewport`
+nimmt im Render-Modus w/h aus `__rzRenderMode` (k = 1, Overlay-Layer wie bisher
+in Render-Pixeln + transform-scale); `previewShowKfPins()` liefert im Render-
+Modus false; `runTimelinePreview` legt im Schrittmodus `window.__rzPreviewStep`
+an statt rAF; `window.__rzAnimBereit`, `window.__rzPreviewRun`.
+
+**Konsequenz für die Spiegelregel (CLAUDE.md).** Animator ↔ Render muss nicht
+mehr gespiegelt werden — es gibt nur noch die Vorschau. `core/animator.py` bleibt
+für Alpha/Tour-Map/Rückfall; Änderungen an der Optik gehören NUR noch in
+`module.js` (und die geteilten `ui/js/*`).
+
+**Prüfstand.** `scratchpad/probe/szene_dom.py` (DOM-Sonde der kopflosen Szene),
+`run59.sh` (Projekt kopflos öffnen und rendern), `run10.sh` (10 Projekte weltweit,
+AUDIT-01…10, mit Flimmer-/Wander-/DPR-Messung), `probe/occl_probe.py`,
+`probe/sw3d_probe.py`, `wys_check.py` (Einzelbild bei DSF 2 gegen Video-Bild),
+`hold_wander.py`, `vanish.py`, `messen_schorf.py`; Regel
+[[wysiwyg-visuell-am-rechner]]: Vorschau-Screenshot gegen Einzelbild-Render an
+derselben Position in der App.
+

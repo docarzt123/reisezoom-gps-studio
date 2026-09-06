@@ -5051,7 +5051,27 @@ class Api:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    if getattr(cfg, "still_frame", False) or getattr(cfg, "snapshot_center", None) is not None:
+                    # 06.09.2026 — gemeinsame Szene (Marc: echtes WYSIWYG): der Render fährt
+                    # die VORSCHAU kopflos in Videogröße, Bild für Bild (core/szene.py). Der
+                    # klassische Generator bleibt als Rückfall: RZ_RENDER_KLASSISCH=1 oder
+                    # settings.render_engine = "klassisch".
+                    _szene_pid = params.get("szene_projekt_id")
+                    _klassisch = bool(os.environ.get("RZ_RENDER_KLASSISCH")) or (_load_settings().get("render_engine") == "klassisch")
+                    _still = getattr(cfg, "still_frame", False)
+                    if _szene_pid and not _klassisch and not _still and not cfg.transparent_background:
+                        from core import szene as cszene
+                        loop.run_until_complete(cszene.render_szene(
+                            cfg, api=self, projekt_id=str(_szene_pid), params=params,
+                            on_progress=on_progress, on_preview=on_preview, is_cancelled=is_cancelled,
+                        ))
+                    elif _szene_pid and not _klassisch and not _still and getattr(cfg, "snapshot_center", None) is not None and not cfg.transparent_background:
+                        # Einzelbild aus der gemeinsamen Szene (Aktuellen Frame als Bild) — zur Videozeit des Scrubbers.
+                        from core import szene as cszene
+                        loop.run_until_complete(cszene.render_szene_frame(
+                            cfg, api=self, projekt_id=str(_szene_pid), t_sek=float(getattr(cfg, "snapshot_time_s", 0.0) or 0.0), params=params,
+                            on_progress=on_progress, is_cancelled=is_cancelled,
+                        ))
+                    elif _still or getattr(cfg, "snapshot_center", None) is not None:
                         # Standbild (Tour-Map) ODER Snapshot (Animator-Frame) — ein PNG, kein Video/ffmpeg.
                         loop.run_until_complete(canim.render_frame(
                             cfg, on_progress=on_progress, is_cancelled=is_cancelled,
