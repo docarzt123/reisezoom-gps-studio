@@ -3655,18 +3655,23 @@ Idee: hilft den Farben, nicht der Geometrie), MapLibre 5.8.0 (identisch). MapLib
 hat nur `terrainSkirtLength: 'none'` (PR #7523), kein Stitching.
 Lösung (`ui/vendor/maplibre-gl.js`):
 1. `/* rz-patch stitch */`: je Kachel und Kante (S/N/W/O) die ECHTE gerenderte
-   Nachbarkachel als Höhenquelle: `rzStitch(terrain, tile, tileMap)` sucht je Kante den
-   Nachbarn gleicher Stufe (→ nichts zu tun), sonst die gröbere Nachbarkachel (Delta 1–3),
-   holt deren `getTerrainData` (DEM-Textur, Matrix, dim, unpack) und setzt Uniforms
-   `u_rz_t0..3` (Sampler, Textureinheiten 5–8), `u_rz_m0..3` (Matrix), `u_rz_p0..3`
-   (Offset x/y der eigenen Kachel im Raster des Nachbarn, 1/2^Delta, dim), `u_rz_u0..3`
-   (unpack) sowie `u_rz_edge` (Delta je Kante, −1 = gar kein Nachbar gerendert). Im
-   Vertex-Shader (`rz_ele`, in terrain/terrainDepth/terrainCoords): ein Randvertex auf einer
-   Kante mit Delta > 0 wird linear zwischen den Stützpunkten des Nachbarn interpoliert
-   (Schrittweite 64·2^Delta), die Stützhöhen kommen bilinear aus der Nachbar-DEM an der
-   gemeinsamen Kante (`rz_map` bildet den Punkt in den Nachbarraum ab). Warum nicht die
-   Elternkachel (erster Versuch): deren eigene DEM-Kachel ist meist gar nicht geladen,
-   MapLibre weicht auf eine grobe Ahnenkachel aus → 900 m Versatz, Wände im Bild.
+   Nachbarkachel als Höhenquelle. `rzStitch(terrain, tile, tileMap)` sucht je Kante den
+   Nachbarn gleicher Stufe (nichts zu tun), sonst die gröbere Nachbarkachel (Delta 1–3);
+   für deren Kante rechnet es auf der CPU die Höhen der 129 eigenen Randpunkte aus
+   (`terrain.getElevation(nachbar, x, y)` = dieselbe DEM und dieselbe bilineare Abtastung
+   wie das Netz des Nachbarn, linear zwischen dessen Stützpunkten im Abstand 64·2^Delta) und
+   legt sie als `Float32Array(516)` am Tile ab (Cache-Signatur: Deltas, Nachbar-Keys,
+   Überhöhung — neu nur bei Kachelwechsel). Uniforms: `u_rz_edge` (Delta je Kante, −1 = gar
+   kein Nachbar gerendert) und `u_rz_h4[129]` (vec4-Array, eigener Setter mit
+   `gl.uniform4fv`). Im Vertex-Shader (`rz_ele`, terrain/terrainDepth/terrainCoords) liest
+   ein Randvertex auf einer Kante mit Delta > 0 nur noch `u_rz_h4[j/4][j%4]`, j = Kante·129 +
+   Position/64. Warum nicht Sampler im Shader (v2, 06.09. 21 Uhr): vier Nachbar-DEM-Texturen
+   im Vertex-Shader kosteten auf Software-WebGL (kopfloser Prüfstand ohne GPU, schwache
+   Rechner) das Vierfache je Bild (1,1 s → 4,8 s je 20 Bilder) und ließen den Deploy-Gate
+   (selftest_deep) in Klick-Timeouts laufen; das Uniform-Array ist so schnell wie ohne Patch.
+   Warum nicht die Elternkachel (v1-Idee): deren DEM ist meist nicht geladen, MapLibre weicht
+   auf eine grobe Ahnenkachel aus → 900 m Versatz, Wände. Prüfstand-Schalter
+   `window.__rzNoStitch = true`.
 2. `/* rz-patch skirtoffset */`: Netz in Segmente (Gitter, Schürzen S/N/W/O); im Farb-Pass
    wird das Gitter normal gezeichnet und die Schürze einer Kante NUR, wenn dort gar kein
    Nachbar ist (Delta −1), mit `polygonOffset(2,16)`. Prüfstand-Schalter

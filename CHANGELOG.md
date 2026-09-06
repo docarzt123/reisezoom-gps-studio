@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.659] – 2026-09-06
+
+### Changed
+- Terrain stitching now computes the neighbouring tile's edge heights on the CPU (129 points per edge, cached per tile until the neighbour or its DEM changes) and hands them to the terrain shaders as a small uniform array. The 0.9.658 build sampled four neighbour DEM textures in the vertex shader; on software WebGL (headless test bench, weak machines) that was four times slower per frame and broke the release gate. Frame cost is back to the pre-patch level, measured quality unchanged (Schorfheide 7, Zermatt 22, Teide 55 changing pixels in the wobble test, no cracks). / Das Gelände-Stitching rechnet die Kantenhöhen der Nachbarkachel jetzt auf der CPU (129 Punkte je Kante, je Kachel gecacht, bis Nachbar oder dessen DEM wechseln) und gibt sie den Gelände-Shadern als kleines Uniform-Array. Der Build 0.9.658 tastete vier Nachbar-DEM-Texturen im Vertex-Shader ab; auf Software-WebGL (kopfloser Prüfstand, schwache Rechner) war das viermal langsamer je Bild und ließ den Release-Gate scheitern. Bildkosten wieder wie vor dem Patch, gemessene Qualität unverändert (Schorfheide 7, Zermatt 22, Teide 55 Wechselpixel im Wackeltest, keine Risse).
+- Release test `test_render_matrix.py` rebuilt: it now measures the shared scene on a copy of the archive (wobble test, crack test, short render) instead of the old generator with pixel-grid metrics. / Release-Test `test_render_matrix.py` neu gebaut: misst jetzt die gemeinsame Szene an einer Archiv-Kopie (Wackeltest, Riss-Test, Kurzrender) statt des alten Generators mit Pixelraster-Kennzahlen.
+
 ## [0.9.658] – 2026-09-06
 
 ### Changed
