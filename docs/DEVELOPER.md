@@ -3637,17 +3637,38 @@ drapiert wechseln muss. `window.__rzNo3d = true` (Prüfstand) erzwingt drapiert.
 Im Render-Modus je Tour bis zu 1500 statt 150 Vorschau-Punkte. `rz-line3d.js`
 wird jetzt in `ui/index.html` geladen.
 
-**Gelände-Kachelnähte (offen).** Marc sah einen flimmernden Strich entlang der Kachelnähte
-(Vorschau = Video). Kopflos nachgestellt (`scratchpad/probe/seam_static.py`, Engine
-chromium|webkit): bei EXAKT gleicher Kamera 0 Wechselpixel, bei 0,1 ms Kamerazeit-Versatz
-(Sub-Pixel) 370–1300 auf geraden Linien = Grenzen zwischen Geländekacheln verschiedener
-Zoomstufe (T-Stöße, die Zacken sind Skirt/Randtexel der Nachbarkachel). Im alten Generator
-genauso (Marcs schorfheide2.0: 638 gegen 371). Getestet ohne Erfolg: meshSize 32/64/252
-(256 reißt: MapLibres Netz hat (h+1)²+6(h+1) Eckpunkte in Uint16-Indizes, bei 256 → 67 591
-> 65 535 → schwarzer Riss), qualityFactor 1/4, RTT-Pool 120, Überhöhung 1,0. Lösungsweg:
-Stitching der Kachelränder an LOD-Grenzen (Randvertices der feineren Kachel auf die Kante
-der gröberen ziehen) als Vendor-Patch, oder MapLibre-Update prüfen — IDEAS §53a. Bis dahin:
-`raster-fade-duration 0` im Render-Modus (`rzScaleMapLabels`) gegen das Kachel-Einblenden.
+**Gelände-Kachelnähte — gelöst durch zwei Vendor-Patches (06.09.2026 abends).** Marc sah
+einen flimmernden Strich entlang der Kachelnähte (Vorschau = Video; in alten Videos genauso).
+Diagnose mit `scratchpad/probe/seam_static.py` (dieselbe Zeit dreimal anfahren, ±0,1 ms =
+Sub-Pixel-Kamerawackeln, Wechselpixel ohne Track zählen): exakt gleiche Kamera 0, mit
+Wackeln 421 (Schorfheide 11 s); ohne Schürzen 12. Die **Schürzen** (senkrechte Wände an
+jeder Kachelkante, MapLibre "skirts") kämpfen entlang der gemeinsamen Kante mit der
+Oberfläche der Nachbarkachel um die Tiefe, auch zwischen gleich hohen Nachbarn (klassisches
+Z-Fighting). Ohne Schürzen entstehen aber Lücken an Silhouetten (Teide) und an
+Zoomstufen-Grenzen, weil dort die Kantenhöhen nicht übereinstimmen (feine Kachel tastet ihr
+eigenes DEM ab, grobe Nachbarkachel ihr gröberes).
+Gemessen ohne Erfolg: meshSize 32/64/252 (256 reißt: (h+1)²+6(h+1) Eckpunkte in
+Uint16-Indizes, 67 591 > 65 535), qualityFactor, RTT-Pool, Überhöhung, einheitliche
+Zoomstufe (`calculateTileZoom`; Steilgelände braucht dann hunderte Kacheln), Schürzen-
+Oberkante absenken (schlechter), Tiefen-Offset allein (nur −60 %), Mosaik-Bild (Marcs
+Idee: hilft den Farben, nicht der Geometrie), MapLibre 5.8.0 (identisch). MapLibre ≥ 6.0
+hat nur `terrainSkirtLength: 'none'` (PR #7523), kein Stitching.
+Lösung (`ui/vendor/maplibre-gl.js`):
+1. `/* rz-patch stitch */`: Uniform `u_rz_edge` (vec4, Zoomdelta zum Nachbarn S/N/W/O,
+   −1 = kein Nachbar gerendert) in den drei Gelände-Programmen (terrain, terrainDepth,
+   terrainCoords); `rz_ele(p)` in den Vertex-Shadern: liegt der Vertex auf einer Kante zu
+   einer gröberen Kachel (Delta 1–3), wird seine Höhe linear zwischen den Stützpunkten der
+   groben Kachel interpoliert (Schrittweite 64·2^Delta Tile-Einheiten). `rzEdgeVecK(keys,
+   tile)` bestimmt je Kachel die Deltas aus den gerade gerenderten Kacheln (gleich, Eltern
+   bis 3 Stufen, Kinder bis 2 Stufen).
+2. `/* rz-patch skirtoffset */`: Netz in Segmente (Gitter, Schürzen S/N/W/O); im Farb-Pass
+   wird das Gitter normal gezeichnet und die Schürze einer Kante NUR, wenn dort gar kein
+   Nachbar ist (Delta −1), mit `polygonOffset(2,16)`. Prüfstand-Schalter
+   `window.__rzSkirtMode` (`edges`|`all`|`none`) und `window.__rzSkirtOffset` ([f,u]).
+3. `/* rz-patch skirts */`: Gelände-Option `skirts:false` (Schürzen ganz weg; Prüfstand).
+Ergebnis: Schorfheide 4–16 Wechselpixel, Teide-Silhouette geschlossen, Zermatt 88.
+Bei jedem MapLibre-Update neu einpflegen; Wächter `tests/test_line3d.py` prüft die Marker,
+`rz_ele` dreimal und `u_rz_edge`.
 
 **Was in der Vorschau dafür dazukam** (`module.js`): `updateAnimatorViewport`
 nimmt im Render-Modus w/h aus `__rzRenderMode` (k = 1, Overlay-Layer wie bisher

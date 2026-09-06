@@ -129,7 +129,7 @@
     <li><strong>Preview brightness matches the video</strong> — The fade-in of regional aerial imagery sits at the same zoom level in the preview as in the video.</li>
     <li><strong>Solo project after a composition</strong> — A leftover handover no longer pulls foreign tours into the next solo project.</li>
     <li><strong>Smooth camera active again</strong> — Since v0.9.657 it silently fell back to the classic camera path (a programming error when clamping the zoom); preview and video use the smooth path again.</li>
-    <li><strong>Terrain tile seams investigated</strong> — the flickering line at tile joints is a MapLibre terrain artefact (present in older videos too), not fixed yet; analysis and approach are documented.</li>
+    <li><strong>No more flicker along terrain tile seams</strong> — tile edges are stitched at zoom-level boundaries and terrain skirts no longer fight the neighbouring tile; measured from 421 down to under 16 changing pixels.</li>
     <li><strong>Render without tile cross-fade</strong> — Half-faded tiles drew their edge as a short line.</li>
     <li><strong>Attribution always on top</strong> — Elevation profile and overlays no longer cover it.</li>
     <li><strong>Aerial imagery one level later</strong> — Regional aerial imagery fades in from zoom 12 (full at 13.5) instead of 11; Sentinel stays pixel-sharp up to there, and the terrain tile seam is far less visible.</li>
