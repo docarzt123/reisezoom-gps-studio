@@ -3634,14 +3634,17 @@ drapiert wechseln muss. `window.__rzNo3d = true` (Prüfstand) erzwingt drapiert.
 Im Render-Modus je Tour bis zu 1500 statt 150 Vorschau-Punkte. `rz-line3d.js`
 wird jetzt in `ui/index.html` geladen.
 
-**Gelände-Kachelnähte.** Marc sah einen flimmernden Strich entlang der Kachelnähte (Vorschau
-= Video). Kopflos nachgestellt (`scratchpad/probe/seam_static.py`: dieselbe Zeit dreimal
-anfahren, Wechselpixel ohne Track): MapLibres Standard-Geländenetz 128 → 370 Wechselpixel je
-Bild auf zwei geraden Linien (T-Stöße zwischen Nachbarkacheln, in Chromium UND WebKit),
-meshSize 64 → 89, 256 → 26, 512 → 28; qualityFactor ohne Einfluss. `applyTerrain` setzt
-deshalb `meshSize: 256` (Option aus dem Vendor-Patch `/* rz-patch meshsize */`), der
-Rückfall-Render ebenso. Dazu im Render-Modus `raster-fade-duration 0`
-(`rzScaleMapLabels`), sonst greift der Render halb eingeblendete Kacheln ab.
+**Gelände-Kachelnähte (offen).** Marc sah einen flimmernden Strich entlang der Kachelnähte
+(Vorschau = Video). Kopflos nachgestellt (`scratchpad/probe/seam_static.py`, Engine
+chromium|webkit): bei EXAKT gleicher Kamera 0 Wechselpixel, bei 0,1 ms Kamerazeit-Versatz
+(Sub-Pixel) 370–1300 auf geraden Linien = Grenzen zwischen Geländekacheln verschiedener
+Zoomstufe (T-Stöße, die Zacken sind Skirt/Randtexel der Nachbarkachel). Im alten Generator
+genauso (Marcs schorfheide2.0: 638 gegen 371). Getestet ohne Erfolg: meshSize 32/64/252
+(256 reißt: MapLibres Netz hat (h+1)²+6(h+1) Eckpunkte in Uint16-Indizes, bei 256 → 67 591
+> 65 535 → schwarzer Riss), qualityFactor 1/4, RTT-Pool 120, Überhöhung 1,0. Lösungsweg:
+Stitching der Kachelränder an LOD-Grenzen (Randvertices der feineren Kachel auf die Kante
+der gröberen ziehen) als Vendor-Patch, oder MapLibre-Update prüfen — IDEAS §53a. Bis dahin:
+`raster-fade-duration 0` im Render-Modus (`rzScaleMapLabels`) gegen das Kachel-Einblenden.
 
 **Was in der Vorschau dafür dazukam** (`module.js`): `updateAnimatorViewport`
 nimmt im Render-Modus w/h aus `__rzRenderMode` (k = 1, Overlay-Layer wie bisher
