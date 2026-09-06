@@ -7783,7 +7783,14 @@ function mountAnimator(body, headerActions, opts) {
         // helfen nicht; qualityFactor, RTT-Pool und Überhöhung ohne Einfluss. Siehe IDEAS §53a.
         const RZ_MESH = 128;
         if (!cur || cur.source !== "mapbox-dem" || Math.abs((cur.exaggeration || 0) - ex) > 1e-6 || (cur.meshSize || 128) !== RZ_MESH) {
-          map.setTerrain({ source: "mapbox-dem", exaggeration: ex, meshSize: RZ_MESH });
+          // 06.09.2026 abends (Marc: „flimmernder Strich an den Kachelgrenzen") — Vendor-Patches
+          // /* rz-patch stitch */ + /* rz-patch skirtoffset */: Randpunkte einer Kachel übernehmen
+          // an Stufengrenzen die Höhe der gröberen Nachbarkachel (Stitching im Shader), Schürzen
+          // werden nur noch dort gezeichnet, wo gar kein Nachbar gerendert ist (Silhouette). Ohne
+          // das kämpfen die Schürzen an jeder Kante mit der Nachbar-Oberfläche um die Tiefe:
+          // Wackeltest 421 → 4–16 Wechselpixel (Schorfheide), Teide-Silhouette bleibt geschlossen.
+          // skirts: false schaltet Schürzen ganz ab (Prüfstand). Details docs/DEVELOPER.md.
+          map.setTerrain({ source: "mapbox-dem", exaggeration: ex, meshSize: RZ_MESH, skirts: true });
           // 03.09.2026 — MapLibre: Mittelpunkt-Höhe nachziehen, sonst steckt die
           // Kamera im Hochgebirge im Berg (s. util.rzSeatMapLibreCenter).
           if (window.rzSeatMapLibreCenter) window.rzSeatMapLibreCenter(map);
