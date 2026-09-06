@@ -3292,29 +3292,35 @@ map.on('style.load', () => {{
       if (!coords || coords.length < 2) continue;
       const g = (k, d) => {{ try {{ const v = map.getPaintProperty(id, k); return (v == null) ? d : v; }} catch (_) {{ return d; }} }};
       const da = g('line-dasharray', null);
-      __ghosts.push({{ coords, color: g('line-color', '#7fa8ff'), width: +g('line-width', 2.5), opacity: +g('line-opacity', 0.6),
-                      dash: (Array.isArray(da) && da.length >= 2) ? [da[0], da[1]] : null }});
+      // Angleich an die drapierte Darstellung der Vorschau: MapLibre zeichnet drapierte
+      // Ghost-Linien etwa halb so dick wie ihre CSS-Breite (gemessen 06.09.2026, 4K:
+      // 6,5 → 9/6 px, 6 → 5 px). Entfällt, sobald die Vorschau ebenfalls rz-line3d nutzt.
+      __ghosts.push({{ coords, color: g('line-color', '#7fa8ff'), width: +g('line-width', 2.5) * 0.55, opacity: +g('line-opacity', 0.6),
+                      dash: (Array.isArray(da) && da.length >= 2) ? [da[0] * 5.0, da[1] * 1.8] : null }});   // Strich/Lücke wie drapiert: sichtbar ≈ 11 bzw. 2,6 Linienbreiten (gemessen 06.09.2026, runde Kappen eingerechnet)
       map.removeLayer(id);
     }}
-    const __ghostRoute = map.getLayer('track-ghost') ? {{ coords: allCoords, color: '{cfg.ghost_track_color}', width: {cfg.line_width:.2f},
+    const __ghostRoute = map.getLayer('track-ghost') ? {{ coords: allCoords, color: '{cfg.ghost_track_color}', width: {cfg.line_width * 0.55:.2f},
                           opacity: {max(0.0, min(1.0, cfg.ghost_track_opacity)):.2f}, dash: TRACK_DASH }} : null;
     const __hadShadow = !!map.getLayer('track-shadow');
     for (const id of ['track-ghost', 'track-shadow', 'track-glow', 'track-line', 'track-highlight']) {{ if (map.getLayer(id)) map.removeLayer(id); }}
-    const __mk = (id, tracks) => {{ const l = window.rzLine3d.create(id, {{ offsetM: 150 }}); map.addLayer(l); l.setTracks(tracks); return l; }};
-    if (__ghostRoute) __mk('track-ghost-3d', [__ghostRoute]);
-    if (__ghosts.length) __mk('gpx-ghost-3d', __ghosts);
+    // EINE Custom-Ebene für alles: die Zeichenreihenfolge der Spuren darin bestimmen wir
+    // selbst (MapLibre ordnet mehrere 3D-Custom-Layer nicht verlässlich, gemessen 06.09.2026).
+    // Reihenfolge = unten → oben: GPX-Ghosts, Gesamtroute, Schatten, Glow, Linie, Highlight.
     const __cols = window.__rzPointColors ? window.__rzPointColors() : null;
     const __base = __cols ? '#ffffff' : '{cfg.line_color}';
-    const __layers = [];
-    // Schlagschatten ebenfalls über dem Gelände (drapiert lag er 150 m unter der Linie und
-    // zeichnete an Ecken schwarze Zacken): gleiche Höhe, Versatz in Bildpunkten, weiche Kante.
-    if (__hadShadow) __layers.push(__mk('track-shadow-3d', [{{ coords: allCoords, color: '#000000', opacity: 0.25, width: {cfg.line_width * 1.8:.2f},
-                       feather: {cfg.line_width * 0.9:.1f}, translate: [{_shadow_dxdy(cfg)[0]:.1f}, {_shadow_dxdy(cfg)[1]:.1f}], dash: TRACK_DASH }}]));
-    {("__layers.push(__mk('track-glow-3d', [{ coords: allCoords, color: __base, colors: __cols, width: " + f"{cfg.line_width * (2.0 + 0.21 * cfg.glow_strength):.2f}" + ", opacity: 0.35, feather: " + f"{max(1.0, cfg.glow_strength * 1.5):.1f}" + ", dash: (COLORS_ON ? null : TRACK_DASH) }]));") if cfg.glow_enabled and cfg.glow_strength > 0 else "// glow disabled (3d)"}
-    __layers.push(__mk('track-line-3d', [{{ coords: allCoords, color: __base, colors: __cols, width: {cfg.line_width:.2f}, opacity: 0.95, dash: ((COLORS_ON || SEG_STARTS.length) ? null : TRACK_DASH) }}]));
-    {("__layers.push(__mk('track-highlight-3d', [{ coords: allCoords, color: '#ffffff', width: " + f"{cfg.line_width * 0.35:.2f}" + ", opacity: 0.55, feather: 1.2, dash: TRACK_DASH }]));") if cfg.track_style == "tube" else "// no tube highlight (3d)"}
-    for (const l of __layers) l.setRanges([[0, 0]]);
-    window.__rzTrack3d = __layers;
+    const __spuren = [], __haupt = [];
+    __ghosts.forEach((g, i) => {{ g.offsetM = 145 - i * 0.3; __spuren.push(g); }});
+    if (__ghostRoute) {{ __ghostRoute.offsetM = 147; __spuren.push(__ghostRoute); }}
+    if (__hadShadow) {{ __haupt.push(__spuren.length); __spuren.push({{ coords: allCoords, color: '#000000', opacity: 0.18, width: {cfg.line_width * 1.8:.2f},
+                       feather: {cfg.line_width * 0.9:.1f}, translate: [{_shadow_dxdy(cfg)[0]:.1f}, {_shadow_dxdy(cfg)[1]:.1f}], dash: TRACK_DASH, offsetM: 149 }}); }}
+    {("__haupt.push(__spuren.length); __spuren.push({ coords: allCoords, color: __base, colors: __cols, width: " + f"{cfg.line_width * (2.0 + 0.21 * cfg.glow_strength):.2f}" + ", opacity: 0.35, feather: " + f"{max(1.0, cfg.glow_strength * 1.5):.1f}" + ", dash: (COLORS_ON ? null : TRACK_DASH), offsetM: 150 });") if cfg.glow_enabled and cfg.glow_strength > 0 else "// glow disabled (3d)"}
+    __haupt.push(__spuren.length); __spuren.push({{ coords: allCoords, color: __base, colors: __cols, width: {cfg.line_width:.2f}, opacity: 0.95, dash: ((COLORS_ON || SEG_STARTS.length) ? null : TRACK_DASH), offsetM: 150 }});
+    {("__haupt.push(__spuren.length); __spuren.push({ coords: allCoords, color: '#ffffff', width: " + f"{cfg.line_width * 0.35:.2f}" + ", opacity: 0.55, feather: 1.2, dash: TRACK_DASH, offsetM: 150.5 });") if cfg.track_style == "tube" else "// no tube highlight (3d)"}
+    const __l3 = window.rzLine3d.create('track-3d', {{ offsetM: 150 }});
+    map.addLayer(__l3); __l3.setTracks(__spuren);
+    window.__rzTrack3dHaupt = __haupt;
+    __l3.setRanges(__spuren.map((_, i) => __haupt.includes(i) ? [0, 0] : null));
+    window.__rzTrack3d = [__l3];
   }}
   // v0.9.156 — Multi-Track: N eigene Tour-Sources/Layer (leer wenn Single-Track).
   {multi_track_layers}
@@ -3661,7 +3667,7 @@ window.advanceFrame = (idx, brg, lon, lat, zm, pt, setCam, fullTrack) => {{
   const coords = allCoords.slice(sliceStart, sliceEnd);
   if (coords.length >= 2) {{
     map.getSource('track').setData({{type:'Feature',geometry:{{type:'LineString',coordinates:coords}}}});
-    if (window.__rzTrack3d) for (const l of window.__rzTrack3d) l.setRanges([[sliceStart, sliceEnd - 1]]);
+    if (window.__rzTrack3d) {{ const H = window.__rzTrack3dHaupt || []; for (const l of window.__rzTrack3d) l.setRanges(l._tracks.map((_, i) => H.includes(i) ? [sliceStart, sliceEnd - 1] : null)); }}
     // v0.9.435 — Mehrfarbiger Track: line-gradient setzen.
     // v0.9.448 — Quelle ist eine Messreihe, die dieser Track nicht hergibt
     // (z.B. Puls-Einfärbung + GPX ohne Puls) → gar keinen Verlauf setzen. Sonst
