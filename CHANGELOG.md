@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.658] – 2026-09-06
+
 ### Changed
 - **One scene for preview and video (true WYSIWYG).** The video is no longer produced by a second, Python-generated map page. Rendering now runs the Animator preview itself, headless at the preview's own viewport size but with a high device pixel ratio (video ÷ preview, plus supersampling), and steps it frame by frame (`core/szene.py`): same layers, same line widths, same dashes, same signs, same overlays, same camera code as on screen. Python only orchestrates: browser, frame loop, screenshots, ffmpeg, progress, cancel, codecs. "Current frame as image" uses the same path. Alpha export and the Tour-Map still frame remain on the former generator for now. The former generator stays in the code as a fallback (`RZ_RENDER_KLASSISCH=1` or settings `render_engine: klassisch`) but is switched off. / **Eine Szene für Vorschau und Video (echtes WYSIWYG).** Das Video entsteht nicht mehr aus einer zweiten, von Python erzeugten Kartenseite. Der Render fährt jetzt die Animator-Vorschau selbst, kopflos in der Größe des Vorschau-Viewports, aber mit hoher Pixeldichte (Video ÷ Vorschau, plus Supersampling), Bild für Bild (`core/szene.py`): dieselben Ebenen, Linienbreiten, Strichelungen, Schilder, Overlays und derselbe Kamera-Code wie am Bildschirm. Python orchestriert nur noch: Browser, Bildschleife, Screenshots, ffmpeg, Fortschritt, Abbruch, Codecs. „Aktuellen Frame als Bild" nutzt denselben Weg. Alpha-Export und Tour-Map-Standbild laufen vorerst weiter über den bisherigen Generator. Der bisherige Generator bleibt als Rückfall im Code (`RZ_RENDER_KLASSISCH=1` oder Einstellung `render_engine: klassisch`), ist aber abgeschaltet.
 
