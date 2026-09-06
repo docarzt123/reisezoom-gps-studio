@@ -7775,12 +7775,13 @@ function mountAnimator(body, headerActions, opts) {
         if (!map.getSource("mapbox-dem")) map.addSource("mapbox-dem", spec.terrain);
         const cur = map.getTerrain ? map.getTerrain() : null;
         const ex = currentExaggeration();
-        // 06.09.2026 (Marc: „flimmernder Strich an den Kachelgrenzen"): An den Nähten zwischen
-        // Gelände-Kacheln kippen bei MapLibres Standard-Netz (128) je Bild kleine Dreiecke
-        // (T-Stöße), auch bei stehender Kamera — gemessen 370 Wechselpixel je Bild, mit
-        // meshSize 256 noch 26, mit 512 28 (qualityFactor ohne Einfluss). meshSize ist eine
-        // Gelände-Option unseres Vendor-Patches (/* rz-patch meshsize */).
-        const RZ_MESH = 256;
+        // 06.09.2026 (Marc: „flimmernder Strich an den Kachelgrenzen"): Die Naht ist die Grenze
+        // zwischen Gelände-Kacheln verschiedener Zoomstufe (T-Stöße): kopflos gemessen 370–1300
+        // Wechselpixel je Bild bei winziger Kamerabewegung, 0 bei exakt gleicher Kamera — reines
+        // Bewegungs-Artefakt von MapLibres Gelände, im alten Generator genauso (638). meshSize
+        // bleibt 128: 256 reißt (16-Bit-Index-Überlauf im Netz → schwarzer Strich), 252/64/32
+        // helfen nicht; qualityFactor, RTT-Pool und Überhöhung ohne Einfluss. Siehe IDEAS §53a.
+        const RZ_MESH = 128;
         if (!cur || cur.source !== "mapbox-dem" || Math.abs((cur.exaggeration || 0) - ex) > 1e-6 || (cur.meshSize || 128) !== RZ_MESH) {
           map.setTerrain({ source: "mapbox-dem", exaggeration: ex, meshSize: RZ_MESH });
           // 03.09.2026 — MapLibre: Mittelpunkt-Höhe nachziehen, sonst steckt die
