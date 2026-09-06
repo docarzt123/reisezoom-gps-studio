@@ -7775,8 +7775,14 @@ function mountAnimator(body, headerActions, opts) {
         if (!map.getSource("mapbox-dem")) map.addSource("mapbox-dem", spec.terrain);
         const cur = map.getTerrain ? map.getTerrain() : null;
         const ex = currentExaggeration();
-        if (!cur || cur.source !== "mapbox-dem" || Math.abs((cur.exaggeration || 0) - ex) > 1e-6) {
-          map.setTerrain({ source: "mapbox-dem", exaggeration: ex });
+        // 06.09.2026 (Marc: „flimmernder Strich an den Kachelgrenzen"): An den Nähten zwischen
+        // Gelände-Kacheln kippen bei MapLibres Standard-Netz (128) je Bild kleine Dreiecke
+        // (T-Stöße), auch bei stehender Kamera — gemessen 370 Wechselpixel je Bild, mit
+        // meshSize 256 noch 26, mit 512 28 (qualityFactor ohne Einfluss). meshSize ist eine
+        // Gelände-Option unseres Vendor-Patches (/* rz-patch meshsize */).
+        const RZ_MESH = 256;
+        if (!cur || cur.source !== "mapbox-dem" || Math.abs((cur.exaggeration || 0) - ex) > 1e-6 || (cur.meshSize || 128) !== RZ_MESH) {
+          map.setTerrain({ source: "mapbox-dem", exaggeration: ex, meshSize: RZ_MESH });
           // 03.09.2026 — MapLibre: Mittelpunkt-Höhe nachziehen, sonst steckt die
           // Kamera im Hochgebirge im Berg (s. util.rzSeatMapLibreCenter).
           if (window.rzSeatMapLibreCenter) window.rzSeatMapLibreCenter(map);
