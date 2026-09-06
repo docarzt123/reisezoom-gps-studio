@@ -40,6 +40,7 @@ in vec4 a_color;     // Farbe dieses Endpunkts (premultiplied im Fragment)
 uniform vec2 u_res;     // Bildpunkte (Breite, Höhe)
 uniform float u_halfw;  // halbe Linienbreite in Bildpunkten
 uniform float u_pxPerMerc;   // Bildpunkte je Merkator-Einheit (Strichelung)
+uniform float u_pxPerMercRef; // dito zur Zeit des Aufbaus (Bezug für die Strichlänge)
 uniform vec2 u_translate;    // Versatz in Gerätepixeln (Schlagschatten)
 out vec3 v_lw;          // (entlang, quer, Segmentlänge) × w
 out float v_w;
@@ -70,7 +71,7 @@ void main() {
   float along = (a_end < 0.5) ? -u_halfw : (L + u_halfw);
   v_lw = vec3(along, a_side * u_halfw, L) * p.w;
   v_w = p.w;
-  v_dist = a_dist * u_pxPerMerc * p.w;
+  v_dist = a_dist * p.w;   // Merkator-Strecke bis zum Segmentanfang (× w)
   v_color = a_color;
 }`;
 
@@ -83,7 +84,9 @@ in vec4 v_color;
 uniform vec4 u_color;      // Grundfarbe (× Vertexfarbe)
 uniform float u_halfw;
 uniform float u_feather;   // weiche Kante in Bildpunkten (Glow); 0.8 = normal
-uniform vec2 u_dash;       // (Strich, Lücke) in Bildpunkten; x<=0 = durchgezogen
+uniform vec2 u_dash;       // (Strich, Lücke) in Bildpunkten zur Bezugs-Zoomstufe; x<=0 = durchgezogen
+uniform float u_pxPerMerc;
+uniform float u_pxPerMercRef;
 out vec4 fragColor;
 void main() {
   vec3 lw = v_lw / v_w;
@@ -95,11 +98,15 @@ void main() {
   float f = max(0.3, u_feather);
   float a = 1.0 - smoothstep(u_halfw - f, u_halfw + 0.6, dist);
   if (u_dash.x > 0.0) {
-    // Strichelung entlang der ECHTEN Linie (nicht je Kachel) → kein Wandern
-    float d = v_dist / v_w + clamp(along, 0.0, L);
-    float period = u_dash.x + u_dash.y;
-    float m = mod(d, period);
-    float edge = min(m, u_dash.x - m);            // Abstand zur Strichkante
+    // Strichelung entlang der ECHTEN Linie, am BODEN verankert (Merkator-Strecke):
+    // beim Zoomen atmet das Muster, es wandert nicht (weder je Kachel noch vom
+    // Linienanfang her). Bezugsgröße = Strichlänge zur Zoomstufe des Aufbaus.
+    float dMerc = v_dist / v_w + clamp(along, 0.0, L) / u_pxPerMerc;
+    float dashM = u_dash.x / u_pxPerMercRef, gapM = u_dash.y / u_pxPerMercRef;
+    float period = dashM + gapM;
+    float m = mod(dMerc, period);
+    float edge = min(m, dashM - m) * u_pxPerMerc;   // Abstand zur Strichkante in Bildpunkten (negativ = in der Lücke)
+    edge += u_halfw;                                 // runde Kappen: Strich wächst um halfw je Ende
     a *= smoothstep(-0.7, 0.7, edge);
   }
   if (a <= 0.002) discard;
@@ -152,7 +159,7 @@ void main() {
                       tileMerc: U("u_projection_tile_mercator_coords"), clip: U("u_projection_clipping_plane"),
                       transition: U("u_projection_transition"),
                       res: U("u_res"), halfw: U("u_halfw"), ucolor: U("u_color"),
-                      feather: U("u_feather"), dash: U("u_dash"), pxPerMerc: U("u_pxPerMerc"), translate: U("u_translate") };
+                      feather: U("u_feather"), dash: U("u_dash"), pxPerMerc: U("u_pxPerMerc"), pxPerMercRef: U("u_pxPerMercRef"), translate: U("u_translate") };
       },
       onRemove(map, gl) {
         for (const b of this._bufs) { try { gl.deleteBuffer(b.vbo); gl.deleteBuffer(b.ibo); } catch (_) {} }
@@ -167,6 +174,7 @@ void main() {
           colors: t.colors || null, dash: (t.dash && t.dash.length >= 2) ? [+t.dash[0], +t.dash[1]] : null,
           feather: (t.feather != null) ? +t.feather : 0.8,
           translate: (t.translate && t.translate.length >= 2) ? [+t.translate[0], +t.translate[1]] : [0, 0],
+          offsetM: (t.offsetM != null) ? +t.offsetM : null,
         }));
         this._counts = null;
         if (this._gl) this._rebuild();
@@ -203,9 +211,29 @@ void main() {
           const c = t.coords, n = c.length;
           const merc = new Array(n);
           for (let i = 0; i < n; i++) {
-            const h = this._elev(c[i][0], c[i][1]) + offsetM;
+            const h = this._elev(c[i][0], c[i][1]) + ((t.offsetM != null) ? +t.offsetM : offsetM);
             const mc = MC.fromLngLat([c[i][0], c[i][1]], h);
             merc[i] = [mc.x, mc.y, mc.z, h];
+          }
+          // Glättung wie die Kachel-Vereinfachung der drapierten Linie: gleitendes Mittel
+          // über so viele Punkte, wie in ~1,5 Bildpunkte passen (Indizes bleiben 1:1,
+          // der Laufpunkt trifft weiter seinen Index). Erster/letzter Punkt bleiben.
+          if (n > 4 && t.smooth !== false) {
+            let ppm = 512 * Math.pow(2, this._map.getZoom());
+            try { const tr = this._map.transform; if (tr && tr.worldSize) ppm = tr.worldSize; } catch (_) {}
+            let segPx = 0; for (let i = 1; i < n; i++) segPx += Math.hypot(merc[i][0] - merc[i - 1][0], merc[i][1] - merc[i - 1][1]);
+            segPx = segPx / (n - 1) * ppm;
+            const w = Math.max(0, Math.min(12, Math.round(3.0 / Math.max(1e-6, segPx))));
+            if (w >= 1) {
+              const sm = new Array(n);
+              for (let i = 0; i < n; i++) {
+                const a0 = Math.max(0, i - w), b0 = Math.min(n - 1, i + w);
+                let x = 0, y = 0, z = 0, hh = 0, k = 0;
+                for (let j = a0; j <= b0; j++) { x += merc[j][0]; y += merc[j][1]; z += merc[j][2]; hh += merc[j][3]; k++; }
+                sm[i] = (i === 0 || i === n - 1) ? merc[i] : [x / k, y / k, z / k, hh / k];
+              }
+              for (let i = 0; i < n; i++) merc[i] = sm[i];
+            }
           }
           const segs = Math.max(0, n - 1);
           const cum = new Float64Array(n);   // Merkator-Strecke (xy) bis Punkt i
@@ -239,7 +267,7 @@ void main() {
           const tr = mp.getTerrain && mp.getTerrain();
           let ok = true;
           if (tr && tr.source && mp.isSourceLoaded) { try { ok = !!mp.isSourceLoaded(tr.source); } catch (_) { ok = true; } }
-          if (z !== this._lastZ || (ok && !this._elevOk) || !this._bufs.length) { this._lastZ = z; this._elevOk = ok; this._rebuild(); }
+          if (z !== this._lastZ || (ok && !this._elevOk) || !this._bufs.length) { this._lastZ = z; this._elevOk = ok; this._ppmRef = null; this._rebuild(); }
         } catch (_) {}
         if (!this._bufs.length) return;
         const m = (args && args.defaultProjectionData && args.defaultProjectionData.mainMatrix)
@@ -265,7 +293,11 @@ void main() {
         let ppm = 512 * Math.pow(2, this._map.getZoom()) * pr;
         try { const t = this._map.transform; if (t && t.worldSize) ppm = t.worldSize * pr; } catch (_) {}
         if (this._loc.pxPerMerc) gl.uniform1f(this._loc.pxPerMerc, ppm);
+        if (this._ppmRef == null) this._ppmRef = ppm;
+        if (this._loc.pxPerMercRef) gl.uniform1f(this._loc.pxPerMercRef, this._ppmRef);
         gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        // Tiefe nur LESEN (gegen das Gelände). Schreiben ließe die überlappenden Segmente einer
+        // Linie sich selbst zerschneiden (Flimmern, dünne Linie — gemessen 06.09.2026).
         if (this._depth) { gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(false); }
         else gl.disable(gl.DEPTH_TEST);
         gl.disable(gl.CULL_FACE);
