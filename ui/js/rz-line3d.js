@@ -35,10 +35,16 @@ in float a_elev;     // Höhe dieses Endpunkts in Metern (Globus)
 in float a_elevOther;
 in float a_side;     // -1 / +1
 in float a_end;      // 0 = Segmentanfang, 1 = Segmentende
+in float a_dist;     // Merkator-Strecke bis zum Segmentanfang (Strichelung)
+in vec4 a_color;     // Farbe dieses Endpunkts (premultiplied im Fragment)
 uniform vec2 u_res;     // Bildpunkte (Breite, Höhe)
 uniform float u_halfw;  // halbe Linienbreite in Bildpunkten
+uniform float u_pxPerMerc;   // Bildpunkte je Merkator-Einheit (Strichelung)
+uniform vec2 u_translate;    // Versatz in Gerätepixeln (Schlagschatten)
 out vec3 v_lw;          // (entlang, quer, Segmentlänge) × w
 out float v_w;
+out float v_dist;       // Bildpunkte bis zum Segmentanfang × w
+out vec4 v_color;
 vec4 rzProject(vec3 posMerc, float elevM) {
 #ifdef GLOBE
   // Custom Layer: „Kachel" = ganze Welt (u_projection_tile_mercator_coords = 0,0,1,1)
@@ -59,19 +65,25 @@ void main() {
   vec2 d = (L > 0.0001) ? dd / L : vec2(1.0, 0.0);
   vec2 n = vec2(-d.y, d.x);
   // Kappe: um halfw über den Endpunkt hinaus, weg vom anderen Ende
-  vec2 sp2 = sp + n * a_side * u_halfw - d * u_halfw;
+  vec2 sp2 = sp + n * a_side * u_halfw - d * u_halfw + vec2(u_translate.x, -u_translate.y);
   gl_Position = vec4(sp2 / (u_res * 0.5) * p.w, p.z, p.w);
   float along = (a_end < 0.5) ? -u_halfw : (L + u_halfw);
   v_lw = vec3(along, a_side * u_halfw, L) * p.w;
   v_w = p.w;
+  v_dist = a_dist * u_pxPerMerc * p.w;
+  v_color = a_color;
 }`;
 
   const FS = `#version 300 es
 precision highp float;
 in vec3 v_lw;
 in float v_w;
-uniform vec4 u_color;
+in float v_dist;
+in vec4 v_color;
+uniform vec4 u_color;      // Grundfarbe (× Vertexfarbe)
 uniform float u_halfw;
+uniform float u_feather;   // weiche Kante in Bildpunkten (Glow); 0.8 = normal
+uniform vec2 u_dash;       // (Strich, Lücke) in Bildpunkten; x<=0 = durchgezogen
 out vec4 fragColor;
 void main() {
   vec3 lw = v_lw / v_w;
@@ -80,9 +92,19 @@ void main() {
   if (along < 0.0) dist = length(vec2(along, across));
   else if (along > L) dist = length(vec2(along - L, across));
   else dist = abs(across);
-  float a = 1.0 - smoothstep(u_halfw - 0.8, u_halfw + 0.6, dist);
+  float f = max(0.3, u_feather);
+  float a = 1.0 - smoothstep(u_halfw - f, u_halfw + 0.6, dist);
+  if (u_dash.x > 0.0) {
+    // Strichelung entlang der ECHTEN Linie (nicht je Kachel) → kein Wandern
+    float d = v_dist / v_w + clamp(along, 0.0, L);
+    float period = u_dash.x + u_dash.y;
+    float m = mod(d, period);
+    float edge = min(m, u_dash.x - m);            // Abstand zur Strichkante
+    a *= smoothstep(-0.7, 0.7, edge);
+  }
   if (a <= 0.002) discard;
-  fragColor = vec4(u_color.rgb, u_color.a * a);
+  vec4 c = u_color * v_color;
+  fragColor = vec4(c.rgb, c.a * a);
   fragColor.rgb *= fragColor.a;   // premultiplied (MapLibre-Blend)
 }`;
 
@@ -125,27 +147,39 @@ void main() {
         this._loc = { pos: gl.getAttribLocation(p, "a_pos"), other: gl.getAttribLocation(p, "a_other"),
                       elev: gl.getAttribLocation(p, "a_elev"), elevOther: gl.getAttribLocation(p, "a_elevOther"),
                       side: gl.getAttribLocation(p, "a_side"), end: gl.getAttribLocation(p, "a_end"),
+                      dist: gl.getAttribLocation(p, "a_dist"), color: gl.getAttribLocation(p, "a_color"),
                       matrix: U("u_projection_matrix"), fallback: U("u_projection_fallback_matrix"),
                       tileMerc: U("u_projection_tile_mercator_coords"), clip: U("u_projection_clipping_plane"),
                       transition: U("u_projection_transition"),
-                      res: U("u_res"), halfw: U("u_halfw"), color: U("u_color") };
+                      res: U("u_res"), halfw: U("u_halfw"), ucolor: U("u_color"),
+                      feather: U("u_feather"), dash: U("u_dash"), pxPerMerc: U("u_pxPerMerc"), translate: U("u_translate") };
       },
       onRemove(map, gl) {
         for (const b of this._bufs) { try { gl.deleteBuffer(b.vbo); gl.deleteBuffer(b.ibo); } catch (_) {} }
         this._bufs = [];
       },
-      /** Spuren setzen: [{coords:[[lng,lat],…], color, width(px), opacity}] */
+      /** Spuren setzen: [{coords:[[lng,lat],…], color, width(px), opacity,
+       *    colors: [[r,g,b,a]…] je Punkt (optional, 0..1), dash: [strich, lücke] in
+       *    Linienbreiten (optional), feather: px (optional, Glow)}] */
       setTracks(tracks) {
         this._tracks = (tracks || []).map(t => ({
           coords: t.coords || [], color: hexToRgba(t.color, t.opacity), width: (t.width != null ? +t.width : 4),
+          colors: t.colors || null, dash: (t.dash && t.dash.length >= 2) ? [+t.dash[0], +t.dash[1]] : null,
+          feather: (t.feather != null) ? +t.feather : 0.8,
+          translate: (t.translate && t.translate.length >= 2) ? [+t.translate[0], +t.translate[1]] : [0, 0],
         }));
         this._counts = null;
         if (this._gl) this._rebuild();
         try { this._map && this._map.triggerRepaint(); } catch (_) {}
       },
-      /** Wachstum: je Spur der Index des letzten gezeichneten Punkts (inkl.); null = alles. */
+      /** Wachstum: je Spur die Zahl gezeichneter Segmente ab dem Anfang; null = alles. */
       setCounts(counts) {
-        this._counts = counts ? counts.slice() : null;
+        this._counts = counts ? counts.slice() : null; this._ranges = null;
+        try { this._map && this._map.triggerRepaint(); } catch (_) {}
+      },
+      /** Bereich je Spur: [[startIdx, endIdx]] (Punktindizes, inkl.); null = alles. */
+      setRanges(ranges) {
+        this._ranges = ranges ? ranges.map(r => r ? [r[0] | 0, r[1] | 0] : null) : null; this._counts = null;
         try { this._map && this._map.triggerRepaint(); } catch (_) {}
       },
       /** Geländehöhen neu abfragen (nach dem Laden der DEM-Kacheln). */
@@ -174,14 +208,17 @@ void main() {
             merc[i] = [mc.x, mc.y, mc.z, h];
           }
           const segs = Math.max(0, n - 1);
-          // je Segment 4 Vertices × (3 pos + 3 other + elev + elevOther + side + end) = 10 Floats
-          const verts = new Float32Array(segs * 4 * 10);
+          const cum = new Float64Array(n);   // Merkator-Strecke (xy) bis Punkt i
+          for (let i = 1; i < n; i++) cum[i] = cum[i - 1] + Math.hypot(merc[i][0] - merc[i - 1][0], merc[i][1] - merc[i - 1][1]);
+          const colAt = (i) => (t.colors && t.colors[i]) ? t.colors[i] : [1, 1, 1, 1];
+          // je Segment 4 Vertices × (3 pos + 3 other + elev + elevOther + side + end + dist + rgba) = 16 Floats
+          const verts = new Float32Array(segs * 4 * 16);
           const idx = new Uint32Array(segs * 6);
           for (let s = 0; s < segs; s++) {
             const a = merc[s], b = merc[s + 1];
-            const base = s * 40;
-            const put = (o, P, Q, side, end) => { verts.set([P[0], P[1], P[2], Q[0], Q[1], Q[2], P[3], Q[3], side, end], base + o); };
-            put(0, a, b, -1, 0); put(10, a, b, 1, 0); put(20, b, a, 1, 1); put(30, b, a, -1, 1);
+            const base = s * 64, d0 = cum[s], ca = colAt(s), cb = colAt(s + 1);
+            const put = (o, P, Q, side, end, col) => { verts.set([P[0], P[1], P[2], Q[0], Q[1], Q[2], P[3], Q[3], side, end, d0, col[0], col[1], col[2], col[3]], base + o); };
+            put(0, a, b, -1, 0, ca); put(16, a, b, 1, 0, ca); put(32, b, a, 1, 1, cb); put(48, b, a, -1, 1, cb);
             // Am Ende ist d gespiegelt, deshalb dort die Seite getauscht (siehe put oben) →
             // Vertex 2 liegt geometrisch auf derselben Seite wie Vertex 0.
             const v = s * 4, o = s * 6;
@@ -190,7 +227,7 @@ void main() {
           }
           const vbo = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
           const ibo = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
-          this._bufs.push({ vbo, ibo, segs, color: t.color, width: t.width });
+          this._bufs.push({ vbo, ibo, segs, color: t.color, width: t.width, dash: t.dash, feather: t.feather, translate: t.translate });
         }
       },
       render(gl, args) {
@@ -224,6 +261,10 @@ void main() {
           if (this._loc.transition != null) gl.uniform1f(this._loc.transition, +pd.projectionTransition || 0);
         }
         gl.uniform2f(this._loc.res, res[0], res[1]);
+        // Bildpunkte je Merkator-Einheit (Weltbreite in Gerätepixeln) — für die Strichelung
+        let ppm = 512 * Math.pow(2, this._map.getZoom()) * pr;
+        try { const t = this._map.transform; if (t && t.worldSize) ppm = t.worldSize * pr; } catch (_) {}
+        if (this._loc.pxPerMerc) gl.uniform1f(this._loc.pxPerMerc, ppm);
         gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         if (this._depth) { gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(false); }
         else gl.disable(gl.DEPTH_TEST);
@@ -231,23 +272,32 @@ void main() {
         const L = this._loc;
         for (let i = 0; i < this._bufs.length; i++) {
           const b = this._bufs[i];
-          let segs = b.segs;
+          let segs = b.segs, first = 0;
           if (this._counts && this._counts[i] != null) segs = Math.max(0, Math.min(b.segs, Math.floor(this._counts[i])));
+          if (this._ranges && this._ranges[i]) { const r = this._ranges[i]; first = Math.max(0, Math.min(b.segs, r[0])); segs = Math.max(0, Math.min(b.segs, r[1]) - first); }
           if (!segs) continue;
           gl.bindBuffer(gl.ARRAY_BUFFER, b.vbo);
-          gl.enableVertexAttribArray(L.pos); gl.vertexAttribPointer(L.pos, 3, gl.FLOAT, false, 40, 0);
-          gl.enableVertexAttribArray(L.other); gl.vertexAttribPointer(L.other, 3, gl.FLOAT, false, 40, 12);
-          if (L.elev >= 0) { gl.enableVertexAttribArray(L.elev); gl.vertexAttribPointer(L.elev, 1, gl.FLOAT, false, 40, 24); }
-          if (L.elevOther >= 0) { gl.enableVertexAttribArray(L.elevOther); gl.vertexAttribPointer(L.elevOther, 1, gl.FLOAT, false, 40, 28); }
-          gl.enableVertexAttribArray(L.side); gl.vertexAttribPointer(L.side, 1, gl.FLOAT, false, 40, 32);
-          gl.enableVertexAttribArray(L.end); gl.vertexAttribPointer(L.end, 1, gl.FLOAT, false, 40, 36);
+          const ST = 64;
+          gl.enableVertexAttribArray(L.pos); gl.vertexAttribPointer(L.pos, 3, gl.FLOAT, false, ST, 0);
+          gl.enableVertexAttribArray(L.other); gl.vertexAttribPointer(L.other, 3, gl.FLOAT, false, ST, 12);
+          if (L.elev >= 0) { gl.enableVertexAttribArray(L.elev); gl.vertexAttribPointer(L.elev, 1, gl.FLOAT, false, ST, 24); }
+          if (L.elevOther >= 0) { gl.enableVertexAttribArray(L.elevOther); gl.vertexAttribPointer(L.elevOther, 1, gl.FLOAT, false, ST, 28); }
+          gl.enableVertexAttribArray(L.side); gl.vertexAttribPointer(L.side, 1, gl.FLOAT, false, ST, 32);
+          gl.enableVertexAttribArray(L.end); gl.vertexAttribPointer(L.end, 1, gl.FLOAT, false, ST, 36);
+          if (L.dist >= 0) { gl.enableVertexAttribArray(L.dist); gl.vertexAttribPointer(L.dist, 1, gl.FLOAT, false, ST, 40); }
+          if (L.color >= 0) { gl.enableVertexAttribArray(L.color); gl.vertexAttribPointer(L.color, 4, gl.FLOAT, false, ST, 44); }
           gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.ibo);
-          gl.uniform1f(L.halfw, Math.max(0.5, b.width * pr * 0.5));
-          gl.uniform4f(L.color, b.color[0], b.color[1], b.color[2], b.color[3]);
-          gl.drawElements(gl.TRIANGLES, segs * 6, gl.UNSIGNED_INT, 0);
+          const halfw = Math.max(0.5, b.width * pr * 0.5);
+          gl.uniform1f(L.halfw, halfw);
+          gl.uniform1f(L.feather, (b.feather != null ? b.feather : 0.8) * pr);
+          if (L.translate) gl.uniform2f(L.translate, (b.translate ? b.translate[0] : 0) * pr, (b.translate ? b.translate[1] : 0) * pr);
+          if (b.dash) gl.uniform2f(L.dash, b.dash[0] * b.width * pr, b.dash[1] * b.width * pr); else gl.uniform2f(L.dash, 0, 0);
+          gl.uniform4f(L.ucolor, b.color[0], b.color[1], b.color[2], b.color[3]);
+          gl.drawElements(gl.TRIANGLES, segs * 6, gl.UNSIGNED_INT, first * 6 * 4);
         }
         gl.disableVertexAttribArray(L.pos); gl.disableVertexAttribArray(L.other);
         if (L.elev >= 0) gl.disableVertexAttribArray(L.elev); if (L.elevOther >= 0) gl.disableVertexAttribArray(L.elevOther);
+        if (L.dist >= 0) gl.disableVertexAttribArray(L.dist); if (L.color >= 0) gl.disableVertexAttribArray(L.color);
         gl.disableVertexAttribArray(L.side); gl.disableVertexAttribArray(L.end);
       },
     };

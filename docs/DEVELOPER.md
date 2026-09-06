@@ -3535,10 +3535,18 @@ Merkator-z. Die Uniforms `u_projection_*` werden aus `defaultProjectionData`
 gesetzt. Höhen werden bei jeder ganzen Zoomstufe und nach dem Laden der
 DEM-Quelle nachgezogen.
 
-Eingesetzt im Schwarm-Render (`core/animator.py`, `SCHWARM_3D` = Gelände an +
-MapLibre): die drapierte Ebene `schwarm-lines` bleibt leer, `__rzSchwarmAdvance`
-setzt nur die Segment-Zähler (`setCounts`). Noch drapiert: Haupt-Track, Ghosts,
-Vorschau im Animator und Tour-Map — siehe IDEAS §53.
+Eingesetzt im Render (`core/animator.py`, `SCHWARM_3D`/`LINES_3D` = Gelände an +
+MapLibre): Schwarm-Linien (`schwarm-3d`, Zähler über `setCounts`) und im
+Einzeltrack-Pfad `track-shadow-3d` (Versatz in Bildpunkten, weiche Kante),
+`track-glow-3d`, `track-line-3d`, `track-highlight-3d`, `track-ghost-3d`
+(Gesamtroute) und `gpx-ghost-3d` (gestrichelt). Die drapierten Ebenen werden
+nach dem Anlegen entfernt; `advanceFrame` setzt `setRanges([[sliceStart,
+sliceEnd-1]])` statt line-gradient-Ausdrücke, Farben je Punkt liefert
+`__rzPointColors` (Farbverlauf nach Distanz/Metrik, Etappenfarben,
+Verbindungen durchsichtig). Strichelung: `dash` in Linienbreiten entlang der
+echten Linie (Merkator-Strecke × Bildpunkte je Merkator-Einheit) — kein Wandern
+bei Kachelwechsel. Noch drapiert: Mehrspur-Pfad (mtrack), Vorschau im
+Animator, Tour-Map — siehe IDEAS §53.
 
 Diagnose-Knöpfe (nur Env, Prüfstand): `RZ_SIGNDEBUG=1` (Schild-Kacheln/Zoom je
 Bild), `RZ_L3D_DEBUG=1` (Projektions-Argumente der 3D-Linien), `RZ_RTT_Q`,
