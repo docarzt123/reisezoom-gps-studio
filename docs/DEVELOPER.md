@@ -3654,19 +3654,25 @@ Oberkante absenken (schlechter), Tiefen-Offset allein (nur −60 %), Mosaik-Bild
 Idee: hilft den Farben, nicht der Geometrie), MapLibre 5.8.0 (identisch). MapLibre ≥ 6.0
 hat nur `terrainSkirtLength: 'none'` (PR #7523), kein Stitching.
 Lösung (`ui/vendor/maplibre-gl.js`):
-1. `/* rz-patch stitch */`: Uniform `u_rz_edge` (vec4, Zoomdelta zum Nachbarn S/N/W/O,
-   −1 = kein Nachbar gerendert) in den drei Gelände-Programmen (terrain, terrainDepth,
-   terrainCoords); `rz_ele(p)` in den Vertex-Shadern: liegt der Vertex auf einer Kante zu
-   einer gröberen Kachel (Delta 1–3), wird seine Höhe linear zwischen den Stützpunkten der
-   groben Kachel interpoliert (Schrittweite 64·2^Delta Tile-Einheiten). `rzEdgeVecK(keys,
-   tile)` bestimmt je Kachel die Deltas aus den gerade gerenderten Kacheln (gleich, Eltern
-   bis 3 Stufen, Kinder bis 2 Stufen).
+1. `/* rz-patch stitch */`: je Kachel und Kante (S/N/W/O) die ECHTE gerenderte
+   Nachbarkachel als Höhenquelle: `rzStitch(terrain, tile, tileMap)` sucht je Kante den
+   Nachbarn gleicher Stufe (→ nichts zu tun), sonst die gröbere Nachbarkachel (Delta 1–3),
+   holt deren `getTerrainData` (DEM-Textur, Matrix, dim, unpack) und setzt Uniforms
+   `u_rz_t0..3` (Sampler, Textureinheiten 5–8), `u_rz_m0..3` (Matrix), `u_rz_p0..3`
+   (Offset x/y der eigenen Kachel im Raster des Nachbarn, 1/2^Delta, dim), `u_rz_u0..3`
+   (unpack) sowie `u_rz_edge` (Delta je Kante, −1 = gar kein Nachbar gerendert). Im
+   Vertex-Shader (`rz_ele`, in terrain/terrainDepth/terrainCoords): ein Randvertex auf einer
+   Kante mit Delta > 0 wird linear zwischen den Stützpunkten des Nachbarn interpoliert
+   (Schrittweite 64·2^Delta), die Stützhöhen kommen bilinear aus der Nachbar-DEM an der
+   gemeinsamen Kante (`rz_map` bildet den Punkt in den Nachbarraum ab). Warum nicht die
+   Elternkachel (erster Versuch): deren eigene DEM-Kachel ist meist gar nicht geladen,
+   MapLibre weicht auf eine grobe Ahnenkachel aus → 900 m Versatz, Wände im Bild.
 2. `/* rz-patch skirtoffset */`: Netz in Segmente (Gitter, Schürzen S/N/W/O); im Farb-Pass
    wird das Gitter normal gezeichnet und die Schürze einer Kante NUR, wenn dort gar kein
    Nachbar ist (Delta −1), mit `polygonOffset(2,16)`. Prüfstand-Schalter
    `window.__rzSkirtMode` (`edges`|`all`|`none`) und `window.__rzSkirtOffset` ([f,u]).
 3. `/* rz-patch skirts */`: Gelände-Option `skirts:false` (Schürzen ganz weg; Prüfstand).
-Ergebnis: Schorfheide 4–16 Wechselpixel, Teide-Silhouette geschlossen, Zermatt 88.
+Ergebnis: Schorfheide 7–8 Wechselpixel, Zermatt 36, Teide 60 und Silhouette geschlossen, keine Risse mehr (Zermatt-Riss aus dem ersten Stitching-Stand war die 20–40 m Restdifferenz der Näherung über die eigene DEM).
 Bei jedem MapLibre-Update neu einpflegen; Wächter `tests/test_line3d.py` prüft die Marker,
 `rz_ele` dreimal und `u_rz_edge`.
 
