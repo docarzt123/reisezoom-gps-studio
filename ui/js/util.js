@@ -251,7 +251,7 @@ function _stackStyle(stack, ortho) {
     sources[sid] = src;
     // 05.09.2026 (Spiegel von mapstyles.stack_style): Landesdienste erst ab ORTHO_FADE_FROM,
     // weich eingeblendet bis ORTHO_FADE_TO — darunter zeigt nur Sentinel-2 (einheitlich, keine Naht).
-    const fade = mapCatalog().ortho_fade || [11, 12.5];
+    const fade = mapCatalog().ortho_fade || [12, 13.5];   // Spiegel von mapstyles.ORTHO_FADE_* (06.09.2026: 12 → 13,5)
     const lay = { id: sid, type: "raster", source: sid, minzoom: fade[0] };
     const paint = Object.assign({}, rzRasterAdjustPaint(ortho), { "raster-opacity": ["interpolate", ["linear"], ["zoom"], fade[0], 0, fade[1], 1] });
     lay.paint = paint;
