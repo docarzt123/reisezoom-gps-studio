@@ -2411,7 +2411,7 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     sw3d_js = "true" if (cfg.enable_terrain and _spec.get("terrain") and getattr(cfg, "map_engine", "mapbox") != "mapbox") else "false"
     _rz_terrain_extra = ""
     if os.environ.get("RZ_RTT_Q"): _rz_terrain_extra += f", qualityFactor: {int(os.environ['RZ_RTT_Q'])}"
-    if os.environ.get("RZ_MESH"): _rz_terrain_extra += f", meshSize: {int(os.environ['RZ_MESH'])}"
+    _rz_terrain_extra += f", meshSize: {int(os.environ.get('RZ_MESH') or 256)}"   # 06.09.2026 — 256 wie die Vorschau (Kachelnaht-Flimmern)
     terrain_block = ""
     if cfg.enable_terrain and _spec.get("terrain"):
         # Gelände hängt am Stil (Mapbox-DEM / MapTiler terrain-rgb / AWS terrarium).

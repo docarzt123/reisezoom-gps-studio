@@ -956,6 +956,13 @@ label.chip-toggle input:checked + span {
 /* 04.09.2026 — Quellen-Nennung (Attribution) in der Vorschau im Render-Maßstab (WYSIWYG) */
 #anim-viewport .maplibregl-ctrl-bottom-right,
 #anim-viewport .mapboxgl-ctrl-bottom-right { transform: scale(var(--rz-prev-k, 1)); transform-origin: bottom right; }
+/* 06.09.2026 (Marc): Die Attribution darf NIE verdeckt werden — über Overlay-Layer (z 5)
+   und Diagramm-Layer (z 6). Der Kartencontainer bildet keinen eigenen Stapel, also greift
+   der z-index gegen die Geschwister im Viewport. Synchron zur Tour-Map. */
+#anim-viewport .maplibregl-ctrl-bottom-right,
+#anim-viewport .mapboxgl-ctrl-bottom-right,
+#anim-viewport .maplibregl-ctrl-bottom-left,
+#anim-viewport .mapboxgl-ctrl-bottom-left { z-index: 20; }
 
 /* 06.09.2026 — Render-Modus (gemeinsame Szene, core/szene.py): nur der Viewport ist
    sichtbar, exakt so groß wie das Video (CSS-px), am Ursprung — der Screenshot des

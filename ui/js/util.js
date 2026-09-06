@@ -3197,6 +3197,14 @@ function rzScaleMapLabels(map, k) {
   };
   for (const l of layers) {
     if (!l) continue;
+    // 06.09.2026 (Marc: „flimmernder Strich an den Kachelnähten" im 4K-Video): Raster-Kacheln
+    // blenden beim Nachladen 300 ms weich ein; der Render greift Bild für Bild mitten in der
+    // Überblendung ab, und die halb eingeblendete Kachel zeichnet ihren Rand als Linie, die
+    // im nächsten Bild weg ist. Im Render-Modus deshalb ohne Überblendung (wie der alte
+    // Generator seit v0.9.286); in der Live-Vorschau bleibt sie, da ist sie unsichtbar.
+    if (window.__rzRenderMode && l.type === "raster") {
+      try { map.setPaintProperty(l.id, "raster-fade-duration", 0); } catch (_) {}
+    }
     // 06.09.2026 (WYSIWYG, Marc: Render heller/bunter als Vorschau): Die Einblend-Rampe der
     // Landesluftbilder (`raster-opacity` über Zoom, minzoom) hängt am Zoom — in der Vorschau
     // liegt der Zoom um c tiefer als im Video, also Stützstellen und Zoomgrenze um c

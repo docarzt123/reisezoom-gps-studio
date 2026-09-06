@@ -3634,6 +3634,15 @@ drapiert wechseln muss. `window.__rzNo3d = true` (Prüfstand) erzwingt drapiert.
 Im Render-Modus je Tour bis zu 1500 statt 150 Vorschau-Punkte. `rz-line3d.js`
 wird jetzt in `ui/index.html` geladen.
 
+**Gelände-Kachelnähte.** Marc sah einen flimmernden Strich entlang der Kachelnähte (Vorschau
+= Video). Kopflos nachgestellt (`scratchpad/probe/seam_static.py`: dieselbe Zeit dreimal
+anfahren, Wechselpixel ohne Track): MapLibres Standard-Geländenetz 128 → 370 Wechselpixel je
+Bild auf zwei geraden Linien (T-Stöße zwischen Nachbarkacheln, in Chromium UND WebKit),
+meshSize 64 → 89, 256 → 26, 512 → 28; qualityFactor ohne Einfluss. `applyTerrain` setzt
+deshalb `meshSize: 256` (Option aus dem Vendor-Patch `/* rz-patch meshsize */`), der
+Rückfall-Render ebenso. Dazu im Render-Modus `raster-fade-duration 0`
+(`rzScaleMapLabels`), sonst greift der Render halb eingeblendete Kacheln ab.
+
 **Was in der Vorschau dafür dazukam** (`module.js`): `updateAnimatorViewport`
 nimmt im Render-Modus w/h aus `__rzRenderMode` (k = 1, Overlay-Layer wie bisher
 in Render-Pixeln + transform-scale); `previewShowKfPins()` liefert im Render-
