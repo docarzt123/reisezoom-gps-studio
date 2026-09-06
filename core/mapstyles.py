@@ -300,8 +300,13 @@ ORTHO_MINZOOM = 7
 # Meer): Bei weiten Zoomstufen zeigt der Stapel NUR Sentinel-2 (weltweit einheitlich);
 # die Landesdienste blenden erst ab Zoom 11 ein und sind ab 12,5 voll da. Gilt für
 # Vorschau, Video und Leaflet-Export gleich.
-ORTHO_FADE_FROM = 11.0
-ORTHO_FADE_TO = 12.5
+# 06.09.2026 (Marc, Schorfheide: „warum schaltet er so früh aufs Luftbild"): eine Stufe
+# später, 12 → 13,5 (1080p-Video-Zoom, 4K je +1). Rechnung: Sentinel-2 hat 10 m/px, bei
+# 4K-Zoom 13 (~12 m/px auf 53° N) ist es noch pixelgenau, erst darüber wird es weich —
+# genau da blendet das Luftbild jetzt ein. Nebeneffekt: die Gelände-Kachelnaht flimmert
+# mit halbtransparentem Luftbild rund dreimal so stark (gemessen 1276 gegen 419 px).
+ORTHO_FADE_FROM = 12.0
+ORTHO_FADE_TO = 13.5
 # 05.09.2026 (Beta-Tester: „bei Satellit in Hamburg nix") — weltweite Zwischenlage
 # zwischen Blue Marble und den amtlichen Luftbildern: Sentinel-2 cloudless 2016
 # von EOX, CC BY-SA 4.0 (kommerziell erlaubt, Nennung Pflicht), 10 m, bis z14.

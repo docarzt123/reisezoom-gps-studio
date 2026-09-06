@@ -2588,9 +2588,12 @@ Restabweichung Vorschau↔Video im steilen Gelände (Mittelpunkt-Höhe) bleibt
 wie bei Befund #6 des Audits.
 
 **Zoom-Stufung des Satellit-Stapels (05.09.2026, Marc: „bei solchen
-Zoomstufen nur der Fallback, überall"):** `ORTHO_FADE_FROM = 11`, `ORTHO_FADE_TO
-= 12.5` (mapstyles) — Landes-Ebenen `rz-raster-<id>` haben `minzoom 11` und
-`raster-opacity` als Zoom-Rampe 11→0 … 12.5→1; darunter zeigt der Stapel nur
+Zoomstufen nur der Fallback, überall"; 06.09.2026 eine Stufe später, Marc: „warum
+schaltet er so früh aufs Luftbild" — Sentinel 10 m/px reicht bis ~4K-Zoom 13, und die
+Gelände-Kachelnaht flimmert mit halbtransparentem Luftbild 3× stärker):**
+`ORTHO_FADE_FROM = 12`, `ORTHO_FADE_TO = 13.5` (mapstyles) — Landes-Ebenen
+`rz-raster-<id>` haben `minzoom 12` und
+`raster-opacity` als Zoom-Rampe 12→0 … 13.5→1; darunter zeigt der Stapel nur
 `rz-base` + `rz-raster-sentinel`. Sentinel trägt KEINE Luftbild-Optik (rz-
 mapadjust.js überspringt die Ebene; im Python-Stil kein Paint). JS-Spiegel in
 `_stackStyle` über `mapCatalog().ortho_fade`; Leaflet-Stapel `min = 12`.
