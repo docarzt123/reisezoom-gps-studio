@@ -2991,7 +2991,16 @@ function mountAnimator(body, headerActions, opts) {
       try {
         // 05.09.2026 (Audit): „Source already exists" — blieb die Quelle von einem
         // fehlgeschlagenen Ebenen-Aufbau stehen, warf addSource und die Spur fehlte.
-        const _data = { type: "Feature", geometry: { type: "LineString", coordinates: co } };
+        // 06.09.2026 — Strichelung als Geometrie am Boden (rz-dash.js): kein Wandern bei
+        // Kachelwechsel, in Vorschau und Video dieselben Stücke. Bezug = Fit-Zoom des VIDEOS
+        // (Vorschau-Zoom + log2(1/k)).
+        let _data = { type: "Feature", geometry: { type: "LineString", coordinates: co } };
+        if (g.dashed !== false && window.rzDashGeometry) {
+          const k = (map.__rzLabelK > 0) ? map.__rzLabelK : 1;
+          const zv = ((_fitZoomBase != null) ? _fitZoomBase : map.getZoom()) + Math.log2(1 / k);
+          const [dM, gM] = window.rzDashMeters(Number(g.width) || 2.5, [2, 2], zv, co[0][1]);
+          _data = { type: "Feature", geometry: { type: "MultiLineString", coordinates: window.rzDashGeometry(co, dM, gM) } };
+        }
         if (map.getSource(id)) { try { map.getSource(id).setData(_data); } catch (_) {} }
         else map.addSource(id, { type: "geojson", data: _data });
         if (map.getLayer(id)) { try { map.removeLayer(id); } catch (_) {} }
@@ -3001,7 +3010,6 @@ function mountAnimator(body, headerActions, opts) {
             "line-color": g.color || "#7fa8ff",
             "line-width": Number(g.width) || 2.5,
             "line-opacity": Number(g.opacity) != null ? Number(g.opacity) : 0.6,
-            "line-dasharray": g.dashed === false ? [1, 0] : [2, 2],
           } }, map.getLayer("preview-shadow") ? "preview-shadow"
                 : (map.getLayer("preview-line") ? "preview-line" : undefined));
         // ⚠️ Der Bezugs-Layer muss EXISTIEREN, sonst wirft Mapbox und die Spur

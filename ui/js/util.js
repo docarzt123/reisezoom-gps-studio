@@ -3196,7 +3196,25 @@ function rzScaleMapLabels(map, k) {
     return scale(v);
   };
   for (const l of layers) {
-    if (!l || OWN.test(l.id)) continue;
+    if (!l) continue;
+    // 06.09.2026 (WYSIWYG, Marc: Render heller/bunter als Vorschau): Die Einblend-Rampe der
+    // Landesluftbilder (`raster-opacity` über Zoom, minzoom) hängt am Zoom — in der Vorschau
+    // liegt der Zoom um c tiefer als im Video, also Stützstellen und Zoomgrenze um c
+    // verschieben (Ausgaben NICHT skalieren, das sind Deckkräfte).
+    if (/^rz-raster/.test(l.id)) {
+      try {
+        if (!orig[l.id]) orig[l.id] = { mz: (l.minzoom == null ? 0 : l.minzoom), xz: (l.maxzoom == null ? 24 : l.maxzoom), ro: map.getPaintProperty(l.id, "raster-opacity") };
+        const o = orig[l.id];
+        if (map.setLayerZoomRange && (o.mz > 0 || o.xz < 24)) map.setLayerZoomRange(l.id, Math.max(0, o.mz - c), Math.min(24, o.xz - c > 0 ? o.xz - c : 0.01));
+        if (Array.isArray(o.ro) && (o.ro[0] === "interpolate" || o.ro[0] === "step") && hasZoom(o.ro)) {
+          const ro = o.ro.slice(); const st = (ro[0] === "step") ? 3 : 3;
+          for (let i = st; i < ro.length; i += 2) ro[i] = shiftStop(ro[i]);
+          map.setPaintProperty(l.id, "raster-opacity", ro);
+        }
+      } catch (_) {}
+      continue;
+    }
+    if (OWN.test(l.id)) continue;
     try {
       if (!orig[l.id]) {
         orig[l.id] = { mz: (l.minzoom == null ? 0 : l.minzoom), xz: (l.maxzoom == null ? 24 : l.maxzoom) };
