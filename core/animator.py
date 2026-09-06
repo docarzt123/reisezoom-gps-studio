@@ -2917,7 +2917,7 @@ const SCHWARM_3D = {sw3d_js};   // 06.09.2026 — Linien über dem Gelände (rz-
 // gemeinsam umstellen), bis dahin aus.
 const LINES_3D = false;
 const TRACK_DASH = {_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) or 'null'};
-window.__rzLine3dDebug = {'true' if os.environ.get('RZ_L3D_DEBUG') else 'false'};
+if (typeof window !== 'undefined') window.__rzLine3dDebug = {'true' if os.environ.get('RZ_L3D_DEBUG') else 'false'};   // Node-Prüfstand (test_schwarm_m3) hat kein window
 // IDEAS §38 M3 — Geschwindigkeitsmodus. 'gleich' = alle gleich schnell,
 // 'ziel' = Fotofinish (jede Tour skaliert, alle enden mit dem Video),
 // 'uhrzeit' = aufgezeichnete Zeitstempel (gemeinsamer Start; SCHWARM_T je
