@@ -116,9 +116,25 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.660</span>
+    <span class="version-date">7. September 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <p class="version-tagline">Die App läuft komplett ohne Schlüssel &mdash; und Tour-Map und Reiseroute kommen jetzt aus derselben Szene wie das Video.</p>
+  <ul>
+    <li><strong>Alles ohne Token</strong> &mdash; Ortssuche über Photon (versteht &#8222;Teneriffa&#8220; und &#8222;Kapstadt&#8220;; Mapbox nahm Teneriffe in Australien, der Flug ab Berlin ging um die Welt), Straßenroute, Wege-Snapping und Strecke A→B über OSRM und Valhalla (FOSSGIS), Archiv-Vorschaubilder aus Sentinel-2-Satellitenkacheln, Adress-Suche standardmäßig Photon. Ein Mapbox- oder MapTiler-Schlüssel ist nur noch Zusatz für weitere Kartenstile.</li>
+    <li><strong>Tour-Map und Reiseroute auf der gemeinsamen Szene</strong> &mdash; Das Tour-Map-PNG ist ein Screenshot der Tour-Map-Vorschau in Bildgröße, das Reiseroute-Video läuft wie der Animator über die Szene und wartet, bis das Routen-GPX geladen ist.</li>
+    <li><strong>Render etwa doppelt so schnell</strong> &mdash; Symbol-Überblendung und die Angleichung der Globus-Fehlerkorrektur halten die Bildfolge nicht mehr auf. Gemessen 1080p: 562 → rund 300 ms je Bild.</li>
+    <li><strong>Reise-Kompositionen</strong> &mdash; Touren nacheinander mit Kinoflug rendern vorerst wieder über den bisherigen Generator &mdash; die Szene spielte nur die erste Tour.</li>
+    <li><strong>Behoben</strong> &mdash; Gestrichelte Tracks zeigten schwarze Stücke in den Lücken (Schatten-Muster skaliert); nach Animator → Tour-Map standen die Beschriftungs-Schalter falsch; ein Render konnte bei ungerader Bildhöhe nach zwölf Bildern abbrechen; Kachelserver-Drosselungen werden wiederholt.</li>
+    <li><strong>Spendenknöpfe</strong> &mdash; Im Über-Dialog neben den eigenen Knöpfen: OpenStreetMap Foundation, FOSSGIS e. V., OpenFreeMap, MapLibre &mdash; die freien Dienste, auf denen die App läuft.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.659</span>
     <span class="version-date">6. September 2026</span>
-    <span class="version-badge">Aktuell</span>
   </div>
   <p class="version-tagline">Gelände-Stitching ohne Tempoverlust, auch auf schwachen Rechnern.</p>
   <ul>

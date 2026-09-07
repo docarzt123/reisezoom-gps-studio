@@ -116,9 +116,25 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.660</span>
+    <span class="version-date">7 de septiembre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <p class="version-tagline">La app funciona por completo sin claves, y Tour-Map y Reiseroute salen de la misma escena que el vídeo.</p>
+  <ul>
+    <li><strong>Todo sin token</strong> &mdash; Búsqueda de lugares con Photon (entiende nombres en alemán; Mapbox resolvía &ldquo;Teneriffa&rdquo; como Teneriffe en Australia y el vuelo desde Berlín daba la vuelta al mundo), rutas por carretera, ajuste a caminos y tramo A→B con OSRM y Valhalla (FOSSGIS), miniaturas del archivo a partir de teselas Sentinel-2, búsqueda de direcciones con Photon por defecto. Una clave de Mapbox o MapTiler solo añade más estilos de mapa.</li>
+    <li><strong>Tour-Map y Reiseroute en la escena común</strong> &mdash; El PNG de Tour-Map es una captura de la vista previa de Tour-Map al tamaño de imagen; el vídeo de Reiseroute se renderiza por la escena como el Animator y espera al GPX de la ruta.</li>
+    <li><strong>Renderizado unas dos veces más rápido</strong> &mdash; El fundido de símbolos y la rampa de corrección del globo ya no frenan la secuencia de fotogramas. Medido a 1080p: 562 → unos 300 ms por fotograma.</li>
+    <li><strong>Composiciones de viaje</strong> &mdash; Las rutas una tras otra con vuelo cinematográfico vuelven por ahora al generador anterior: la escena solo reproducía la primera ruta.</li>
+    <li><strong>Corregido</strong> &mdash; Los tracks discontinuos mostraban trozos negros en los huecos (patrón de la sombra escalado); los interruptores de etiquetas quedaban mal tras Animator → Tour-Map; un render podía abortar tras doce fotogramas con altura impar; se reintentan los servidores de teselas saturados.</li>
+    <li><strong>Botones de donación</strong> &mdash; En el diálogo Acerca de, junto a los existentes: OpenStreetMap Foundation, FOSSGIS e.V., OpenFreeMap, MapLibre, los servicios libres en los que se apoya la app.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.659</span>
     <span class="version-date">6 de septiembre de 2026</span>
-    <span class="version-badge">Actual</span>
   </div>
   <p class="version-tagline">Cosido del terreno sin pérdida de velocidad, también en equipos modestos.</p>
   <ul>
