@@ -566,6 +566,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     text-align: center;
   }}
 </style>
+<script src="/downloads/gps-studio/dealbar.js" defer></script>
 </head>
 <body>
 <div class="layout">

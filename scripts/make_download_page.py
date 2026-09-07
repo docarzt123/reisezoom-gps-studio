@@ -192,6 +192,7 @@ def render(m: dict) -> str:
   .warn{{background:#fff4e5;border:1px solid #f0b37e;border-radius:10px;padding:10px 12px;
         margin:10px 0 0;font-size:14px;line-height:1.55;color:#7a4a12}}
 </style>
+<script src="/downloads/gps-studio/dealbar.js" defer></script>
 </head>
 <body>
 <div class="wrap">
