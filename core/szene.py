@@ -27,6 +27,7 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import re
 import sys
 import time
@@ -59,6 +60,7 @@ _BRIDGE_JS = r"""
 (() => {
   window.__rzKeinPmBoot = true;
   window.__rzRenderMode = __RZ_MODE__;
+  window.__rzKeep = __RZ_KEEP__;   // Diagnose: Render-Modus-Abkürzungen einzeln behalten (RZ_KEEP=trans,fade,rfade,globe)
   window.__rzStepMode = true;
   window.__rzStarsManual = true;
   window.__rzRightsAck = true;
@@ -131,6 +133,8 @@ def _ffmpeg_cmd(cfg) -> list[str]:
     return cmd
 
 
+_SEEK2 = os.environ.get("RZ_SEEK2", "0") == "1"   # Diagnose: RZ_SEEK2=1 = zwei Sprünge je Bild (brachte nichts, kostet 2×)
+
 _WARTE_BILD_JS = """async () => {
   const m = window.__rzLetzteKarte; if (!m) return false;
   const t0 = performance.now();
@@ -201,14 +205,20 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     # der VORSCHAU gespeichert (kleinerer Viewport). Wie im klassischen Render:
     # abs_shift = zoom_correction (UI: log2(rw / Vorschau-Breite)) − log2(dsf).
     mode = {"w": vp_w, "h": vp_h, "fps": cfg.fps, "width": cfg.width, "height": cfg.height, "blur": round(blur_css, 3),
-            "zoomShift": 0.0}   # Viewport = Vorschau → kein Zoom-Versatz
-    await page.add_init_script(_BRIDGE_JS.replace("__RZ_MODE__", json.dumps(mode)))
+            "zoomShift": 0.0,   # Viewport = Vorschau → kein Zoom-Versatz
+            # 07.09.2026 — Paint-Übergangsdauer im Render-Modus. 0 ms wäre 2× schneller, ließ aber auf
+            # Gelände-Stilen (Fuji OSM, Teide Satellit) die Rasterkacheln beim Zoomen in ganzen
+            # Abschnitten ungezeichnet (WYS mean_diff 22/17 statt 3/5; 60 ms genauso); 300 ms = MapLibre-
+            # Standard ist korrekt. Ursache offen (IDEAS §53a), RZ_TRANS_MS zum Messen.
+            "transMs": int(os.environ.get("RZ_TRANS_MS", "300") or 0)}
+    _keep = {k: True for k in (os.environ.get("RZ_KEEP") or "").split(",") if k}
+    await page.add_init_script(_BRIDGE_JS.replace("__RZ_MODE__", json.dumps(mode)).replace("__RZ_KEEP__", json.dumps(_keep)))
     emit(0.02, "Szene: App laden …")
     await page.goto(f"file://{UI_INDEX.resolve()}", wait_until="domcontentloaded")
     # Kachel-Cache erst NACH dem Laden der Seite einhängen: die Routen-Abfangung
     # ließ das file://-Laden der App mit net::ERR_FAILED scheitern (06.09.2026).
     try:
-        await A._install_tile_cache(page, cfg)
+        page._rz_tile_stats = await A._install_tile_cache(page, cfg)
     except Exception as e:      # noqa: BLE001
         _log.warning("Szene: Kachel-Cache nicht installiert: %s", e)
     await _warte_auf(page, "() => ({ ok: !!(window.RZGPS_MODULES && window.switchMod && window.loadGlobalGpx) })", 30, "App-Start", is_cancelled)
@@ -288,6 +298,12 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                     t = frame / cfg.fps
                     await page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})")
                     await page.evaluate(_WARTE_BILD_JS)
+                    if _SEEK2:
+                        # 07.09.2026 — mit Gelände bezieht MapLibre die Kamerahöhe auf die Bodenhöhe im
+                        # Mittelpunkt; kommen DEM-Kacheln erst nach dem Sprung, stimmt der Ausschnitt nicht
+                        # (Einzelbild-Weg macht das seit 06.09. so). Zweiter Sprung nach dem Laden.
+                        await page.evaluate(f"() => window.__rzPreviewStep.seek({t:.6f})")
+                        await page.evaluate(_WARTE_BILD_JS)
                     shot = await A._grab_frame(page, cfg)
                     if frame <= 2:
                         for _k in range(6):
@@ -307,6 +323,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
                 raise
             emit(0.92, "ffmpeg finalisiert …")
             mux.abschliessen(is_cancelled)
+            _log.info("Szene: Kacheln %s", json.dumps(getattr(page, "_rz_tile_stats", None)))
         finally:
             try: await browser.close()
             except Exception: pass
@@ -376,6 +393,10 @@ async def render_szene_frame(cfg, *, api, projekt_id: str, t_sek: float, params:
                 await page.evaluate(f"() => window.__rzPreviewStep.seek({float(t_sek):.6f})")
                 await page.evaluate(_WARTE_BILD_JS)
                 await page.wait_for_timeout(300)
+            # 07.09.2026 — Globus-Fehlerkorrektur (Vendor-Patch globeerr) gleicht sich auf der
+            # Video-Uhr an; ein Einzelbild hat keine Vorgeschichte, also die Uhr eine Sekunde
+            # vorstellen und neu zeichnen, damit die Korrektur wie im laufenden Video ankommt.
+            await page.evaluate(f"() => {{ window.__rzRenderClock = () => {float(t_sek) * 1000 + 1000:.1f}; try {{ window.__rzLetzteKarte.triggerRepaint(); }} catch (_) {{}} }}")
             await page.evaluate(_WARTE_BILD_JS)
             alt = cfg.frame_format
             try:

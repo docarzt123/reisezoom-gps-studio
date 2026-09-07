@@ -5,6 +5,21 @@ Quellen: `STRATEGIE-2026-08.md` (Markt + Reihenfolge), `AUDIT-2026-08-30.md`
 (offene Befunde), `IDEAS.md` §42/§43. **Bei Zielkonflikten gilt diese Datei;
 Änderungen hier mit Datum nachtragen.**
 
+**Durchplanung (07.09.2026):** die Ideenliste nach diesen Phasen geordnet steht in
+`docs/PLANUNG-2026-09-07.md`.
+
+**Marc-Grundsatz (07.09.2026):** *Alles ohne Mapbox — jede Funktion läuft
+ohne Token.* Umgesetzt am selben Tag: Ortssuche (Photon), Straßenroute und
+Map-Matching (OSRM/Valhalla), Archiv-Vorschaubild (Sentinel-2), Adress-Suche
+(Photon). Mapbox bleibt nur als optionaler Kartenstil mit eigenem Token.
+Neue Funktionen werden zuerst tokenfrei gebaut.
+
+**Stand 07.09.2026:** Phase 1 ist in der Substanz durch — Bibliotheks-Umbau
+(v0.9.640–650), Projekte/Archiv, Onboarding, „Session" aufgelöst; dazu kamen
+unterwegs die gemeinsame Szene (Vorschau = Video, v0.9.658/659), Tour-Map und
+Reiseroute auf der Szene, Gelände-Nähte, Render-Tempo. Offen aus Phase 1: 4
+(Vorlagen), Rest von 6 (README/Handbuch-Nummerierung).
+
 **Marc-Grundsatz (30.08.2026):** *Keine Investitionen, die das Tool nicht
 selbst trägt.* Konkret: Die Windows-Signatur (219 $/Jahr) wird erst gekauft,
 wenn die Finanzierungs-Spur sie deckt — nicht vorher.

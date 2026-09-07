@@ -3343,9 +3343,7 @@ class Api:
                     stil = "kino"
                 coords = None
                 if stil == "strasse":
-                    token = _active_mapbox_token()
-                    if not token:
-                        return {"ok": False, "error": _ui_t()("route.no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen).")}
+                    token = _active_mapbox_token() or ""    # 07.09.2026: freie Router, Mapbox nur Rückfall
                     try:
                         ende = cgpx.parse_gpx(self._ensure_gpx(touren[i].path))[0][-1]
                         start = cgpx.parse_gpx(self._ensure_gpx(touren[i + 1].path))[0][0]
@@ -3472,10 +3470,7 @@ class Api:
             if getattr(self, "_lib_maps_running", False):
                 return {"ok": False, "error": "läuft bereits"}
             self._lib_maps_running = True      # sofort belegen, unten ggf. freigeben
-        token = (_load_settings() or {}).get("mapbox_token") or ""
-        if not token.startswith("pk."):
-            self._lib_maps_running = False
-            return {"ok": False, "error": "no_token"}
+        token = (_load_settings() or {}).get("mapbox_token") or ""   # 07.09.2026: tokenfrei (Sentinel-2), Mapbox nur Rückfall
         if auto:
             try:
                 if clib.map_thumbs_pending_count(self._lib()) == 0:   # 22.08.2026: nur zählen, nicht alle Zeilen laden
@@ -4570,9 +4565,7 @@ class Api:
             if mode == "arc":
                 res = croute.arc_route(waypoints)
             else:
-                token = _active_mapbox_token()
-                if not token:
-                    return {"ok": False, "error": "no_token"}
+                token = _active_mapbox_token() or ""    # 07.09.2026: OSRM/Valhalla zuerst, Mapbox nur mit Token als Rückfall
                 _coarse = params.get("coarseness")
                 res = croute.road_route(
                     waypoints, token,
@@ -5081,6 +5074,15 @@ class Api:
                     _klassisch = bool(os.environ.get("RZ_RENDER_KLASSISCH")) or (_load_settings().get("render_engine") == "klassisch")
                     _still = getattr(cfg, "still_frame", False)
                     _szene_modul = str(params.get("szene_modul") or ("tourmap" if _still else "animator"))
+                    # 07.09.2026 — Reise (Touren NACHEINANDER, Kinoflug zwischen den Etappen): die Vorschau
+                    # spielt bisher nur die erste Tour und zeigt die weiteren als stehende Linien; der alte
+                    # Generator hat den Reise-Ablauf (van-Wijk-Kinoflug, core/animator.py). Bis die Vorschau
+                    # eine Reise abspielen kann (IDEAS §53a), rendert die Reise weiter klassisch.
+                    _reise = (len(getattr(cfg, "tracks", None) or []) >= 2
+                              and getattr(cfg, "tracks_ablauf", "reise") != "schwarm" and not _still)
+                    if _reise and not _klassisch:
+                        rlog.info("Reise-Komposition (%d Touren nacheinander) → klassischer Generator (Vorschau kennt den Ablauf noch nicht)", len(cfg.tracks))
+                        _klassisch = True
                     if _szene_pid and not _klassisch and not _still and not cfg.transparent_background:
                         from core import szene as cszene
                         loop.run_until_complete(cszene.render_szene(
@@ -8054,9 +8056,7 @@ class Api:
         als Map Matching (kein 50-m-Limit): A/B werden auf die nächste Straße gesnappt,
         dazwischen geroutet. a/b = [lon,lat]. Returns {ok, coords, matched} oder {ok:False}."""
         try:
-            token = _active_mapbox_token()
-            if not token:
-                return {"ok": False, "error": "no_token"}
+            token = _active_mapbox_token() or ""
             res = croute.directions_geometry(a, b, token, profile=str(profile or "walking"))
             return {"ok": True, "coords": res.get("coords", []), "matched": bool(res.get("matched"))}
         except croute.RouteError as e:
@@ -8072,9 +8072,7 @@ class Api:
         Luftlinie > 300 km (z. B. Flugbögen) werden übersprungen (ok:False) → Caller füllt
         sie linear. Pro Lücke ein Directions-Request; bei ~30 Lücken kurze Wartezeit."""
         try:
-            token = _active_mapbox_token()
-            if not token:
-                return {"ok": False, "error": "no_token"}
+            token = _active_mapbox_token() or ""
             prof = str(profile or "walking")
             routes = []
             for g in (gaps or []):
@@ -8104,9 +8102,7 @@ class Api:
         das Wege-/Straßennetz snappen (Track glätten). `radius_m` = Such-Radius pro
         Punkt (1–50). Returns {ok, coords, matched} oder {ok:False, error}."""
         try:
-            token = _active_mapbox_token()
-            if not token:
-                return {"ok": False, "error": "no_token"}
+            token = _active_mapbox_token() or ""
             try:
                 _r = int(radius_m)
             except Exception:  # noqa: BLE001

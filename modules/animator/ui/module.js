@@ -116,7 +116,7 @@ function mountAnimator(body, headerActions, opts) {
       <!-- v0.8.1: „Quelle"-Sektion entfernt — GPX-Picker ist jetzt
            global in der Sub-Top-Bar oben (siehe ui/js/gpx-bar.js). -->
 
-      <!-- v0.9.205 — Route / Anreise: Start+Ziel → Mapbox-Route ODER Flug-Bogen
+      <!-- v0.9.205 — Route / Anreise: Start+Ziel → Straßenroute (seit 07.09.2026 OSRM/Valhalla, Mapbox nur Rückfall) ODER Flug-Bogen
            → synthetisches GPX → wie ein normaler Track animiert. -->
       <section class="section" data-accordion-section="route">
         <button class="section-collapse-header" type="button">
@@ -7380,7 +7380,14 @@ function mountAnimator(body, headerActions, opts) {
     if (window.__rzStepMode) {
       _previewRaf = -1; _previewT0 = 0; _previewSpeed = 1;
       window.__rzPreviewStep = { totalMs, ready: false,
-        seek: (tSek) => { try { if (window.__rzStarsManual && window.rzStarsTick) rzStarsTick(map.getContainer(), +tSek || 0); } catch (_) {} step(Math.max(0, +tSek || 0) * 1000); } };
+        seek: (tSek) => {
+          // 07.09.2026 — Video-Uhr für MapLibres Globus-Fehlerkorrektur (Vendor-Patch globeerr):
+          // der 500-ms-Angleich läuft auf dieser Uhr, also gleichmäßig über 15 Bilder wie live.
+          const _ms = Math.max(0, +tSek || 0) * 1000;
+          window.__rzRenderClock = () => _ms;
+          try { if (window.__rzStarsManual && window.rzStarsTick) rzStarsTick(map.getContainer(), +tSek || 0); } catch (_) {}
+          step(_ms);
+        } };
       const _fertig = () => { window.__rzPreviewStep.ready = true; };
       if (_faithBuild) _faithBuild().then(_fertig).catch((e) => { try { applog("warn", "[smooth-cam] Stützstellen: " + e); } catch (_) {} _useFaithful = false; _faithCams = null; _faithGew = null; _fertig(); });
       else _fertig();
@@ -10179,7 +10186,7 @@ function mountAnimator(body, headerActions, opts) {
     }
 
     // ── v0.9.205 — Route / Anreise ───────────────────────────────────────────
-    // Start+Ziel → Mapbox Directions (Straße) ODER Flug-Bogen → synthetisches
+    // Start+Ziel → Straßenroute (OSRM/Valhalla, Mapbox nur mit Token als Rückfall) ODER Flug-Bogen → synthetisches
     // GPX → loadGlobalGpx → wie ein normaler Track animiert.
     // v0.9.386 — Reiseroute mit N Wegpunkten: [{text, lon, lat, label}].
     // Index 0 = Start, letzter = Ziel, dazwischen = Zwischenziele.

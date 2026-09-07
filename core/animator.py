@@ -1578,7 +1578,7 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
         except OSError as e:
             _log.warning("Kachel-Zwischenspeicher nicht nutzbar: %s", e)
             d = None
-    stats = {"hit": 0, "miss": 0, "store": 0}
+    stats = {"hit": 0, "miss": 0, "store": 0, "fehler": {}}
     cors = {"Access-Control-Allow-Origin": "*"}
 
     async def handler(route):
@@ -1601,12 +1601,26 @@ async def _install_tile_cache(page, cfg) -> Optional[dict]:
                 return
             except Exception:
                 pass
-        try:
-            resp = await route.fetch(url=url) if _over > 1 else await route.fetch()
-        except Exception:
+        # 07.09.2026 — Kachelserver drosseln (OSM 429, EOX/WMS 502/503): bis zu drei
+        # Versuche mit Pause, statt die Kachel als „Fehler" stehen zu lassen — MapLibre
+        # zeichnet dann nichts (leere Fläche im Video) und probiert es erst viel später.
+        resp = None
+        for _versuch in range(3):
+            try:
+                resp = await route.fetch(url=url) if _over > 1 else await route.fetch()
+            except Exception:
+                resp = None
+                break
+            if resp.status not in (429, 502, 503, 504):
+                break
+            stats["fehler"][str(resp.status)] = stats["fehler"].get(str(resp.status), 0) + 1
+            await asyncio.sleep(0.5 * (2 ** _versuch))
+        if resp is None:
             try: await route.abort()
             except Exception: pass
             return
+        if resp.status >= 400:
+            stats["fehler"][str(resp.status)] = stats["fehler"].get(str(resp.status), 0) + 1
         stats["miss"] += 1
         try:
             ct = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()

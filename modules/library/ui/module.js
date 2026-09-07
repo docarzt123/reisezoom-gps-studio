@@ -3770,7 +3770,7 @@ function mountLibrary(body, headerActions) {
 
         <hr class="lib-hr">
         <div class="field-label">${T("library.map_thumbs", "Vorschaubilder mit Karte")}</div>
-        <div class="lib-hint">${T("library.map_thumbs_hint", "Statt der reinen Linie eine echte Karte hinter jeder Tour. Jedes Bild wird einmal von Mapbox geholt und liegt danach auf dem Rechner — die Ansicht bleibt also offline und kostenlos. Rund 5 Minuten für 700 Touren.")}</div>
+        <div class="lib-hint">${T("library.map_thumbs_hint", "Statt der reinen Linie eine echte Karte hinter jeder Tour. Jedes Bild wird einmal aus Sentinel-2-Satellitenbildern (EOX, kein Token nötig) zusammengesetzt und liegt danach lokal.")}</div>
         <div class="lib-actions" style="margin-top:8px;">
           <button class="btn btn-sm" id="lib-maps">${T("library.map_thumbs_start", "Kartenbilder holen")}</button>
           <button class="btn btn-ghost btn-sm" id="lib-maps-stop" hidden>${T("library.stop", "Anhalten")}</button>
@@ -3998,7 +3998,7 @@ function mountLibrary(body, headerActions) {
     if (!res.ok) {
       const info = $("lib-maps-info");
       if (info) info.innerHTML = `<div class="lib-warn">${res.error === "no_token"
-        ? T("library.map_thumbs_no_token", "Dafür braucht es einen Mapbox-Token — ohne bleibt es bei der Linienzeichnung.")
+        ? T("library.map_thumbs_no_token", "Kartenbilder konnten nicht geladen werden (Internet?).")
         : esc(res.error || "")}</div>`;
       return;
     }

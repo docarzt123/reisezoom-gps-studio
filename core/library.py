@@ -43,7 +43,9 @@ Zwei Hashes pro Tour:
 from __future__ import annotations
 
 import functools
+import io
 import json
+import math
 from datetime import date as _date
 import logging
 import os
@@ -2324,6 +2326,86 @@ def _encode_polyline(points: list, precision: int = 5) -> str:
     return "".join(out)
 
 
+# ── Tokenfreies Vorschaubild (07.09.2026, Marc: „generell alles ohne Mapbox") ──
+# Sentinel-2-cloudless-Kacheln (EOX, frei, ohne Schlüssel; Nennung steht im
+# Über-Dialog und in der Quellenzeile der Karten) werden zu einem Ausschnitt
+# zusammengesetzt, die Strecke mit Pillow darübergezeichnet. Kein Chromium, keine
+# Quota — je Tour ein paar kleine JPEG-Kacheln, danach liegt das Bild lokal.
+_THUMB_TILE_URL = "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"
+_THUMB_MAX_ZOOM = 13     # Sentinel ist bis ~13 pixelscharf (10 m)
+
+
+def _thumb_zoom_for(pts: list, width: int, height: int, pad: float = 0.12) -> int:
+    """Größte Zoomstufe, bei der die Strecke (mit Rand) in width×height passt."""
+    lons = [float(p[0]) for p in pts]; lats = [float(p[1]) for p in pts]
+    for z in range(_THUMB_MAX_ZOOM, 0, -1):
+        n = 2 ** z
+        xs = [(lon + 180.0) / 360.0 * n * 256 for lon in lons]
+        ys = [(1 - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi) / 2 * n * 256
+              for lat in lats]
+        if (max(xs) - min(xs)) * (1 + 2 * pad) <= width and (max(ys) - min(ys)) * (1 + 2 * pad) <= height:
+            return z
+    return 1
+
+
+def map_thumb_render_free(pts: list, out: Path, *, width: int = 720, height: int = 400,
+                          line_color: str = "ff6b35", timeout: float = 20.0) -> bool:
+    """Vorschaubild ohne Token: Sentinel-2-Kacheln laden, Strecke zeichnen, PNG schreiben."""
+    import urllib.request
+    from PIL import Image, ImageDraw
+    from . import net
+
+    if len(pts) < 2:
+        return False
+    z = _thumb_zoom_for(pts, width, height)
+    n = 2 ** z
+    def wx(lon): return (float(lon) + 180.0) / 360.0 * n * 256
+    def wy(lat):
+        la = max(-85.05, min(85.05, float(lat)))
+        return (1 - math.log(math.tan(math.radians(la)) + 1 / math.cos(math.radians(la))) / math.pi) / 2 * n * 256
+    xs = [wx(p[0]) for p in pts]; ys = [wy(p[1]) for p in pts]
+    cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+    x0, y0 = cx - width / 2, cy - height / 2
+    img = Image.new("RGB", (width, height), (30, 40, 50))
+    tx0, tx1 = int(math.floor(x0 / 256)), int(math.floor((x0 + width) / 256))
+    ty0, ty1 = int(math.floor(y0 / 256)), int(math.floor((y0 + height) / 256))
+    for tx in range(tx0, tx1 + 1):
+        for ty in range(ty0, ty1 + 1):
+            if ty < 0 or ty >= n:
+                continue
+            url = _THUMB_TILE_URL.format(z=z, x=tx % n, y=ty)
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "ReisezoomGPSStudio"})
+                with urllib.request.urlopen(req, timeout=timeout, context=net.ssl_context()) as resp:
+                    tile = Image.open(io.BytesIO(resp.read())).convert("RGB")
+            except Exception as e:  # noqa: BLE001
+                log.warning("library: Vorschaubild-Kachel %s fehlgeschlagen: %s", url, e)
+                continue
+            img.paste(tile, (int(round(tx * 256 - x0)), int(round(ty * 256 - y0))))
+    # Strecke: dunkler Schatten + Linie (Retina-Größe, 2× wie Mapbox @2x)
+    d = ImageDraw.Draw(img)
+    line = [(x - x0, y - y0) for x, y in zip(xs, ys)]
+    col = tuple(int(line_color.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
+    d.line([(x + 1.5, y + 1.5) for x, y in line], fill=(0, 0, 0), width=8, joint="curve")
+    d.line(line, fill=col, width=5, joint="curve")
+    r = 7
+    d.ellipse([line[0][0] - r, line[0][1] - r, line[0][0] + r, line[0][1] + r], fill=(255, 255, 255), outline=col, width=3)
+    d.ellipse([line[-1][0] - r, line[-1][1] - r, line[-1][0] + r, line[-1][1] + r], fill=col, outline=(255, 255, 255), width=3)
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out.with_name(out.name + f".{os.getpid()}.tmp")
+    try:
+        img.save(tmp, format="PNG", optimize=True)
+        os.replace(tmp, out)
+    finally:
+        try:
+            if tmp.exists():
+                tmp.unlink()
+        except OSError:
+            pass
+    return True
+
+
 def map_thumb_fetch(
     conn: sqlite3.Connection,
     row: dict,
@@ -2344,8 +2426,6 @@ def map_thumb_fetch(
     import urllib.parse
     import urllib.request
 
-    if not token or not token.startswith("pk."):
-        return ""
     try:
         pts = json.loads(row.get("geom") or "[]")
     except (TypeError, ValueError):
@@ -2365,6 +2445,19 @@ def map_thumb_fetch(
         conn.commit()
         return str(out)
 
+    # 07.09.2026 — zuerst tokenfrei (Sentinel-2 + Pillow); Mapbox Static nur noch,
+    # wenn das freie Bild scheitert UND ein Token da ist.
+    try:
+        if map_thumb_render_free(pts, out, width=width * 2, height=height * 2, line_color=line_color):
+            with _DB_LOCK:
+                conn.execute("UPDATE tracks SET map_thumb = ? WHERE geo_hash = ?",
+                             (str(out), row.get("geo_hash") or ""))
+                conn.commit()
+            return str(out)
+    except Exception as e:  # noqa: BLE001
+        log.warning("library: freies Vorschaubild fehlgeschlagen (%s): %s", row.get("filename"), e)
+    if not token or not token.startswith("pk."):
+        raise RuntimeError("Vorschaubild: Sentinel-Kacheln nicht erreichbar (kein Mapbox-Rückfall ohne Token)")
     # Der Pfad steckt als kodierte Polylinie in der URL; `auto` lässt Mapbox
     # Ausschnitt und Zoom aus der Linie selbst bestimmen.
     poly = urllib.parse.quote(_encode_polyline(pts), safe="")
