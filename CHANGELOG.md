@@ -15,6 +15,7 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed
+- Download page, user guide and changelog on reisezoom.com now show the site's offer bar at the top, in the page's language (de/en/es), via `/downloads/gps-studio/dealbar.js` and the WordPress route `/wp-json/rz/v1/dealbar`. / Download-Seite, Handbuch und Changelog auf reisezoom.com zeigen oben die Angebots-Leiste der Website, in der Sprache der Seite (de/en/es), über `/downloads/gps-studio/dealbar.js` und die WordPress-Route `/wp-json/rz/v1/dealbar`.
 - Compositions load faster: the tours of a swarm or journey are parsed in one parallel call instead of one bridge call per file, and parsed files are cached, so switching modules or rendering a still no longer re-reads all files. / Kompositionen laden schneller: die Touren eines Schwarms oder einer Reise werden in einem parallelen Aufruf geparst statt Datei für Datei über die Brücke, und geparste Dateien werden zwischengespeichert — Modulwechsel oder Standbild lesen nicht mehr alle Dateien neu.
 
 ## [0.9.661] – 2026-09-07
