@@ -232,7 +232,7 @@ function mountAnimator(body, headerActions, opts) {
             <input type="range" id="anim-ex" min="0" max="4" step="0.1" value="1.5">
           </div>
           <!-- 04.09.2026 (Marc: „Brandenburg sieht halb tot aus" / „go") — Luftbild-Optik, nur bei „Satellit (kostenlos)" -->
-          <div class="field" id="anim-ortho-row" title="${t("animator.field.ortho_tip", "Wirkt nur auf die amtlichen Luftbilder (nicht auf den Untergrund) — in Vorschau, Video und Web-Karte gleich.")}">
+          <div class="field" id="anim-ortho-row" title="${t("animator.field.ortho_tip", "Wirkt auf die Luftbilder und die Sentinel-Ebene (nicht auf den Blue-Marble-Untergrund) — in Vorschau, Video und Web-Karte gleich. Standard = Sentinel unverändert.")}">
             <label class="field-label">${t("animator.field.ortho_title", "Luftbild-Optik")}
               <button type="button" class="btn btn-ghost btn-sm" id="anim-ortho-reset" style="margin-left:auto;">↺ ${t("animator.field.ortho_reset", "Standard")}</button></label>
             <label class="field-label">${t("animator.field.ortho_sat", "Sättigung")} <span class="label-val" id="anim-osat-v">25 %</span></label>
@@ -243,6 +243,9 @@ function mountAnimator(body, headerActions, opts) {
             <input type="range" id="anim-obri" min="-100" max="100" step="5" value="0">
             <label class="field-label">${t("animator.field.ortho_hue", "Farbton")} <span class="label-val" id="anim-ohue-v">0°</span></label>
             <input type="range" id="anim-ohue" min="-180" max="180" step="5" value="0">
+            <!-- 07.09.2026 (Marc: „Schärfe muss unter Farbton") — Unschärfemaske, map_sharp (gemeinsam mit anim-msharp) -->
+            <label class="field-label" title="${t("animator.field.sharp_tip", "Schärft die Karte (Unschärfemaske) — in Vorschau und Video gleich, nicht in der Web-Karte. Wirkt auf Karte und Strecke, nicht auf Zahlen, Profil und Quellenzeile. Zu viel wirkt körnig.")}">${t("animator.field.sharp_title", "Schärfe")} <span class="label-val" id="anim-osharp-v">0 %</span></label>
+            <input type="range" id="anim-osharp" min="0" max="100" step="5" value="0">
           </div>
           <!-- 05.09.2026 (Beta-Tester: „Kontrastregler auch auf die anderen zu hellen Karten") — Karten-Optik für Raster-/Vektorkarten -->
           <div class="field" id="anim-mapadj-row" hidden title="${t("animator.field.mapadj_tip", "Wirkt auf die Karte, nicht auf Strecke und Overlays — in Vorschau und Video gleich. Bei Vektorkarten nur die Helligkeit.")}">
@@ -260,6 +263,8 @@ function mountAnimator(body, headerActions, opts) {
               <label class="field-label">${t("animator.field.ortho_hue", "Farbton")} <span class="label-val" id="anim-mhue-v">0°</span></label>
               <input type="range" id="anim-mhue" min="-180" max="180" step="5" value="0">
             </div>
+            <label class="field-label" title="${t("animator.field.sharp_tip", "Schärft die Karte (Unschärfemaske) — in Vorschau und Video gleich, nicht in der Web-Karte. Wirkt auf Karte und Strecke, nicht auf Zahlen, Profil und Quellenzeile. Zu viel wirkt körnig.")}">${t("animator.field.sharp_title", "Schärfe")} <span class="label-val" id="anim-msharp-v">0 %</span></label>
+            <input type="range" id="anim-msharp" min="0" max="100" step="5" value="0">
           </div>
           <!-- 05.09.2026 (Beta-Tester: „Sterne etwas groß geraten und nicht animiert") — Sternenhimmel hinter der Weltkugel -->
           <div class="field" id="anim-stars-row" title="${t("animator.field.stars_tip", "Der Himmel hinter der Weltkugel — sichtbar, sobald die Kamera weit genug draußen ist. In Vorschau und Video gleich.")}">
@@ -278,12 +283,7 @@ function mountAnimator(body, headerActions, opts) {
               </label>
             </div>
           </div>
-          <!-- 07.09.2026 (Marc, Teneriffa: „die ganze Insel ist unscharf") — Schärfe der Karte (Unschärfemaske) -->
-          <div class="field" id="anim-sharp-row" title="${t("animator.field.sharp_tip", "Schärft die Karte (Unschärfemaske) — in Vorschau und Video gleich, nicht in der Web-Karte. Wirkt auf Karte und Strecke, nicht auf Zahlen, Profil und Quellenzeile. Zu viel wirkt körnig.")}">
-            <label class="field-label">${t("animator.field.sharp_title", "Schärfe")} <span class="label-val" id="anim-msharp-v">0 %</span></label>
-            <input type="range" id="anim-msharp" min="0" max="100" step="5" value="0">
-          </div>
-          <div class="field">
+          <div class="field" id="anim-mc-light-row"><!-- 07.09.2026: nur Mapbox Standard kennt lightPreset (Marc: „Tageszeit geht nie") -->
             <label class="field-label" for="anim-mc-light">${t("map_config.light_preset")}</label>
             <select id="anim-mc-light">
               <option value="dawn">🌅 ${t("map_config.light.dawn")}</option>
@@ -1780,9 +1780,9 @@ function mountAnimator(body, headerActions, opts) {
   }
   document.getElementById("anim-ortho-reset")?.addEventListener("click", () => {
     const d = (typeof mapCatalog === "function" && mapCatalog().ortho_adjust_default) || { sat: 25, con: 8, bri: 0, hue: 0 };
-    for (const [id, k] of [["anim-osat", "sat"], ["anim-ocon", "con"], ["anim-obri", "bri"], ["anim-ohue", "hue"]]) {
+    for (const [id, k] of [["anim-osat", "sat"], ["anim-ocon", "con"], ["anim-obri", "bri"], ["anim-ohue", "hue"], ["anim-osharp", "sharp"]]) {
       const el = document.getElementById(id); if (!el) continue;
-      el.value = String(d[k]); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change"));
+      el.value = String(k === "sharp" ? 0 : d[k]); el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change"));
     }
   });
   // 05.09.2026 — Karten-Optik für Raster-/Vektorkarten (map_*), Standard 0; live über rz-mapadjust.js
@@ -1792,15 +1792,18 @@ function mountAnimator(body, headerActions, opts) {
     document.getElementById(id)?.addEventListener("input", _applyMapAdjust);
   }
   document.getElementById("anim-mapadj-reset")?.addEventListener("click", () => {
-    for (const id of ["anim-msat", "anim-mcon", "anim-mbri", "anim-mhue"]) {
+    for (const id of ["anim-msat", "anim-mcon", "anim-mbri", "anim-mhue", "anim-msharp"]) {
       const el = document.getElementById(id); if (!el) continue;
       el.value = "0"; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change"));
     }
   });
-  // 07.09.2026 — Schärfe (map_sharp, Standard 0) → live auf die Karten-Leinwand (rz-mapadjust.js)
-  bindLabel("anim-msharp", "anim-msharp-v", " %");
-  bindSetting("anim-msharp", _MODKEY, "map_sharp", { type: "number", onLoad: v => { updateLabel("anim-msharp-v", v, " %"); _applySharpen(); } });
-  document.getElementById("anim-msharp")?.addEventListener("input", _applySharpen);
+  // 07.09.2026 — Schärfe (map_sharp, Standard 0) → live auf die Karten-Leinwand (rz-mapadjust.js).
+  // Ein Regler je Gruppe (Luftbild-Optik / Karten-Optik), beide auf denselben Wert; es ist immer nur eine Gruppe sichtbar.
+  for (const id of ["anim-osharp", "anim-msharp"]) {
+    bindLabel(id, id + "-v", " %");
+    bindSetting(id, _MODKEY, "map_sharp", { type: "number", onLoad: v => { updateLabel(id + "-v", v, " %"); _applySharpen(); } });
+    document.getElementById(id)?.addEventListener("input", () => { _sharpSync(id); _applySharpen(); });
+  }
   // 05.09.2026 — Sternenhimmel: vier Werte → Projekt (stars_*), live auf den Kartencontainer
   bindSetting("anim-stars", _MODKEY, "stars_enabled", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
   bindSetting("anim-stars-twinkle", _MODKEY, "stars_twinkle", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
@@ -7739,7 +7742,15 @@ function mountAnimator(body, headerActions, opts) {
     return { sat: g("anim-msat"), con: g("anim-mcon"), bri: g("anim-mbri"), hue: g("anim-mhue") };
   }
   function _currentSharpen() {
-    const v = parseFloat(document.getElementById("anim-msharp")?.value); return isFinite(v) ? v : 0;
+    const row = document.getElementById("anim-ortho-row");
+    const id = (row && !row.hidden) ? "anim-osharp" : "anim-msharp";
+    const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : 0;
+  }
+  /** Den Zwilling in der anderen Gruppe nachziehen (gleicher Wert, gleiches Label). */
+  function _sharpSync(fromId) {
+    const to = fromId === "anim-osharp" ? "anim-msharp" : "anim-osharp";
+    const a = document.getElementById(fromId), b = document.getElementById(to);
+    if (a && b && b.value !== a.value) { b.value = a.value; updateLabel(to + "-v", parseFloat(a.value) || 0, " %"); }
   }
   /** 07.09.2026 — Schärfe live auf die Karten-Leinwand (Vorschau = Video, s. rz-mapadjust.js). */
   function _applySharpen() {
@@ -8004,6 +8015,8 @@ function mountAnimator(body, headerActions, opts) {
       }
       const starsRow = document.getElementById("anim-stars-row");   // Mapbox bringt seinen eigenen Himmel mit
       if (starsRow) starsRow.hidden = !!(spec && spec.engine === "mapbox");
+      const lightRow = document.getElementById("anim-mc-light-row");   // 07.09.2026: Tageszeit = Mapbox-Standard-Stil, sonst wirkungslos
+      if (lightRow) lightRow.hidden = !(spec && spec.engine === "mapbox");
     } catch (_) {}
     if (alpha || !spec || spec.videoOk) { const hc = document.querySelector('[data-help-content="map_rights"]'); if (hc) hc.hidden = true; }
     if (osmHint) osmHint.hidden = alpha || !spec || spec.kind === "raster" || spec.kind === "gov";

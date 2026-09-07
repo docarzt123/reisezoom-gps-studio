@@ -125,7 +125,7 @@
   "animator.field.ortho_con": "Kontrast",
   "animator.field.ortho_bri": "Helligkeit",
   "animator.field.ortho_hue": "Farbton",
-  "animator.field.ortho_tip": "Wirkt nur auf die amtlichen Luftbilder (nicht auf den Untergrund) — in Vorschau, Video und Web-Karte gleich.",
+  "animator.field.ortho_tip": "Wirkt auf die Luftbilder und die Sentinel-Ebene (nicht auf den Blue-Marble-Untergrund) — in Vorschau, Video und Web-Karte gleich. Standard = Sentinel unverändert.",
   "animator.field.sharp_title": "Schärfe",
   "animator.field.sharp_tip": "Schärft die Karte (Unschärfemaske) — in Vorschau und Video gleich, nicht in der Web-Karte. Wirkt auf Karte und Strecke, nicht auf Zahlen, Profil und Quellenzeile. Zu viel wirkt körnig.",
   "animator.field.mapadj_title": "Karten-Optik",

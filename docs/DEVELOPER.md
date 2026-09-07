@@ -2695,12 +2695,30 @@ Abweichung 1/255) — über Inseln ohne Landesdienst bleibt es weich, daher der
 Schärfe-Regler. Wächter: `tests/test_kacheldichte.py`.
 
 **Schärfe (07.09.2026):** `rzApplyMapSharpen(map, pct)` in `rz-mapadjust.js`
-hängt einen SVG-Filter `#rz-sharpen` (feGaussianBlur σ = 1 CSS-px +
-feComposite arithmetic k2 = 1+A, k3 = −A, A = pct/100 · 1,5) per CSS `filter`
-an die WebGL-Leinwand. Screenshot (Playwright) nimmt die gefilterte Leinwand,
-HTML-Overlays bleiben unberührt. Einstellung `map_sharp` (Projekt je Modul,
-AnimatorConfig, app.py-Defaults/Params, Render-Payload); klassischer Render:
-`sharp_block` im Karten-Kopf. Bei 0 kein Filter. Web-Karten-Exporte: nicht.
+fügt einen Custom-Layer `rz-sharpen` (WebGL, `renderingMode: "2d"`) direkt vor
+der ersten Nicht-Raster-Ebene ein: `copyTexImage2D` kopiert den bis dahin
+gezeichneten Framebuffer (Untergrund, Sentinel, Luftbilder, Gelände) in eine
+Textur und zeichnet ihn als Vollbild-Quad geschärft zurück — Bild = (1+A)·c −
+A·Box5(c), Radius 1 CSS-px (`devicePixelRatio/viewport`), A = pct/100 · 2,
+premultipliziert nie über Alpha (Globus-Rand). Strecke, Schilder, Beschriftung
+liegen darüber (mit Gelände: zweiter RTT-Stapel) und bleiben unberührt.
+**Falle:** der erste Wurf war ein SVG-Filter per CSS `filter: url()` auf der
+Leinwand — lief in Chromium und im kopflosen Playwright-WebKit, aber nicht in
+der App: WKWebView ignoriert url()-Filter auf beschleunigten Ebenen (Marc:
+„Schärfe geht nie"). Deshalb alles im GL. Einstellung `map_sharp` (Projekt je
+Modul, AnimatorConfig, app.py-Defaults/Params, Render-Payload); zwei Regler
+(`anim-osharp` in der Luftbild-Optik, `anim-msharp` in der Karten-Optik, immer
+nur einer sichtbar, `_sharpSync`); klassischer Render: `sharp_block` im Karten-
+Kopf. Bei 0 keine Ebene. Web-Karten-Exporte: nicht. Nach `setStyle` wird die
+Ebene in `style.load` neu angelegt (`_applySharpen`).
+
+**Luftbild-Optik auf Sentinel (07.09.2026):** `applyAdjust` gibt der Ebene
+`rz-raster-sentinel` die Regler als Abweichung vom Werk (`a − DEF`), Python
+`stack_style` ebenso (`_sen`). Werk 25/8/0/0 lässt Sentinel unverändert (mit
+den Werkswerten direkt wurde das Meer schwarz, 05.09.); in der Schwarm-
+Übersicht (nur Sentinel sichtbar, Landesdienste ab Zoom 12) reagieren die
+Regler damit wieder. „Beleuchtung (Tageszeit)" (`anim-mc-light-row`) ist nur
+bei `engine === "mapbox"` sichtbar. Wächter `tests/test_sentinel_stack.py`.
 
 **Straßen-Geometrie in der Schalter-Heuristik (05.09.2026):** `applyHideLabels`
 (Vorschau) und `hide_labels_block` (Render) nehmen auf Vektor-Stilen jetzt
