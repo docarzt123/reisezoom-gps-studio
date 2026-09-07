@@ -2350,6 +2350,7 @@ function mountAnimator(body, headerActions, opts) {
     const vp = document.getElementById("anim-viewport"); if (!vp) return;
     vp.dataset.rzAttribPos = document.getElementById("anim-ov-attrib-pos")?.value || "br";
     vp.dataset.rzAttribW = document.getElementById("anim-ov-attrib-w")?.value || "mittel";
+    try { _applyAttribLook(); } catch (_) {}
     // Marc, 07.09.2026: nie abschaltbar — falls MapLibre sie zugeklappt hat, wieder aufklappen.
     try { vp.querySelectorAll(".maplibregl-ctrl-attrib.maplibregl-compact").forEach(el => el.classList.add("maplibregl-compact-show")); } catch (_) {}
   }
@@ -12232,7 +12233,22 @@ function mountAnimator(body, headerActions, opts) {
    *  Logo mit raus und kam nie wieder. Im fertigen Video war es trotzdem drin
    *  (der Render kennt diese Kopplung nicht), die Vorschau log also.
    *  Deshalb: nach JEDEM Neuschreiben das Wasserzeichen wieder ansetzen. */
+  // 07.09.2026 (Marc: „attributionbox wie die stats boxen"): Die Quellenzeile trägt dieselbe
+  // Optik wie die Stats-Boxen — Textfarbe, Hintergrundfarbe, Deckkraft — als CSS-Variablen am
+  // Viewport (module.css). Kein eigener Regler; was die Boxen bekommen, bekommt auch sie.
+  function _applyAttribLook() {
+    const vp = document.getElementById("anim-viewport"); if (!vp) return;
+    const fg = document.getElementById("anim-ov-textcolor")?.value || "#ffffff";
+    const bg = document.getElementById("anim-ov-bgcolor")?.value || "#000000";
+    const opV = parseFloat(document.getElementById("anim-ov-bgopacity")?.value);
+    const op = (isNaN(opV) ? 55 : opV) / 100;
+    const h = String(bg).replace("#", ""); const n = h.length === 3 ? h.split("").map(c => c + c).join("") : h;
+    const r = parseInt(n.slice(0, 2), 16) || 0, g = parseInt(n.slice(2, 4), 16) || 0, b = parseInt(n.slice(4, 6), 16) || 0;
+    vp.style.setProperty("--rz-attrib-bg", `rgba(${r},${g},${b},${op.toFixed(2)})`);
+    vp.style.setProperty("--rz-attrib-fg", fg);
+  }
   function renderOverlayPreview() {
+    try { _applyAttribLook(); } catch (_) {}
     try { _overlayBoxenRendern(); } catch (e) {
       try { applog("warn", "[anim-ov] Vorschau: " + e); } catch (_) {}
     }
