@@ -45,12 +45,16 @@ _THROTTLE_LOCKS: dict[str, threading.Lock] = {}
 # ── Anbieterwahl ─────────────────────────────────────────────────────────────
 
 def resolve_provider(provider: str, mapbox_token: str = "") -> Optional[str]:
-    """Effektiver Anbieter. 'auto' → mapbox wenn Token, sonst photon. 'off' → None."""
+    """Effektiver Anbieter. 'auto' → photon (07.09.2026, Marc: „generell alles ohne
+    Mapbox"; vorher: Mapbox, sobald ein Token da war). Mapbox nur, wenn ausdrücklich
+    gewählt UND ein Token da ist. 'off' → None."""
     p = (provider or "auto").strip().lower()
     if p in ("off", "none", "disabled"):
         return None
     if p == "auto":
-        return "mapbox" if (mapbox_token or "").strip().startswith("pk.") else "photon"
+        return "photon"
+    if p == "mapbox" and not (mapbox_token or "").strip().startswith("pk."):
+        return "photon"
     if p in ("nominatim", "photon", "mapbox"):
         return p
     return "photon"

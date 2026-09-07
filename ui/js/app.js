@@ -479,7 +479,7 @@ async function openSettingsModal() {
           <option value="nominatim"${geoProvider === "nominatim" ? " selected" : ""}>${t("settings.geocode.prov_nominatim", "Nominatim / OpenStreetMap (kein Token, langsam)")}</option>
         </select>
         <div class="muted" style="font-size:11px; line-height:1.6; margin-top:8px;">
-          <p style="margin:0 0 4px;"><b>${t("settings.geocode.prov_auto", "Automatisch")}:</b> ${t("settings.geocode.help_auto", "nimmt Mapbox, wenn oben ein Token hinterlegt ist, sonst Photon. Für die meisten die beste Wahl.")}</p>
+          <p style="margin:0 0 4px;"><b>${t("settings.geocode.prov_auto", "Automatisch")}:</b> ${t("settings.geocode.help_auto", "nimmt Photon (OpenStreetMap, kein Token). Mapbox nur, wenn du es hier ausdrücklich wählst und ein Token hinterlegt ist.")}</p>
           <p style="margin:0 0 4px;"><b>Mapbox:</b> ${t("settings.geocode.help_mapbox", "am schnellsten (~10 Abfragen/Sek, 100k/Monat gratis). Nutzt deinen Mapbox-Token von oben.")}</p>
           <p style="margin:0 0 4px;"><b>Photon:</b> ${t("settings.geocode.help_photon", "OpenStreetMap-Daten über Komoot, kein Token nötig, recht flott.")}</p>
           <p style="margin:0;"><b>Nominatim:</b> ${t("settings.geocode.help_nominatim", "direkt von OpenStreetMap, kein Token, aber nur ~1 Abfrage/Sekunde — bei vielen Fotos langsamer.")}</p>
@@ -1065,6 +1065,17 @@ async function openAboutModal() {
         </div>
       </div>
 
+      <!-- 07.09.2026 (Marc: „spendenbuttons für die freien dienste, neben den spenden für mich") — die App
+           läuft komplett ohne Schlüssel auf OpenStreetMap-Diensten; wer mag, gibt dort etwas zurück. -->
+      <div style="text-align:center; margin-top:14px;">
+        <div style="font-size:12px; font-weight:600; color:var(--text-dim);">${t("about.support.services_title", "… und die freien Dienste, auf denen die App läuft")}</div>
+        <div class="muted" style="font-size:11.5px; margin:6px auto 0; max-width:420px; line-height:1.55;">${t("about.support.services_body", "Karten, Ortssuche, Routen und Gelände kommen ohne Schlüssel von OpenStreetMap-Projekten und Vereinen. Sie leben von Spenden und Mitgliedern.")}</div>
+        <div style="margin-top:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+          ${[["https://supporting.openstreetmap.org/", "OpenStreetMap (OSMF)"], ["https://www.fossgis.de/spenden/", "FOSSGIS e.\u00a0V. (Valhalla, Nominatim)"], ["https://github.com/sponsors/hyperknot", "OpenFreeMap"], ["https://opencollective.com/maplibre", "MapLibre"]].map(([u, l]) =>
+            `<a href="#" class="md-about-link btn" data-url="${u}" style="text-decoration:none; padding:6px 12px; border-radius:8px; background:var(--bg-3); color:var(--text); font-size:12px; font-weight:600; border:1px solid var(--border);">💚&nbsp;${l}</a>`).join("")}
+        </div>
+      </div>
+
       <hr style="border:none; border-top:1px solid var(--border); margin:18px 0 12px;">
       <div style="font-size:11px; color:var(--text-muted); line-height:1.7; font-family:ui-monospace,Menlo,monospace; word-break:break-all;">
         <div><strong style="color:var(--text-dim); font-family:inherit;">${t("about.paths.app_support")}:</strong><br>${escapeHtml(info.app_support || "?")}</div>
@@ -1107,6 +1118,14 @@ async function openAboutModal() {
             <a href="#" class="md-about-link" data-url="https://www.maptiler.com/copyright/">MapTiler</a> — MapTiler Cloud Terms (eigener Schlüssel) ·
             <a href="#" class="md-about-link" data-url="https://registry.opendata.aws/terrain-tiles/">AWS Terrain Tiles</a> — Mapzen/Tilezen (SRTM, EU-DEM, 3DEP u.&nbsp;a.) ·
             ${t("about.credits.orthos", "staatliche Orthofotos der Landesvermessungen (dl-de/by-2-0, CC BY 4.0 u. a.; Nennung im Bild)")}
+          </li>
+          <!-- 07.09.2026 — Routing und Ortssuche ohne Token (OpenStreetMap-Dienste) -->
+          <li>
+            ${t("about.credits.routing", "Routen, Wege-Snapping und Ortssuche")}:
+            <a href="#" class="md-about-link" data-url="https://project-osrm.org/">OSRM</a> — BSD-2-Clause (Demo-Server, Auto) ·
+            <a href="#" class="md-about-link" data-url="https://valhalla.openstreetmap.de/">Valhalla</a> — MIT (FOSSGIS e.&nbsp;V., Fuß/Rad/Auto) ·
+            <a href="#" class="md-about-link" data-url="https://photon.komoot.io/">Photon</a> — Apache-2.0 (Komoot) ·
+            <a href="#" class="md-about-link" data-url="https://nominatim.org/">Nominatim</a> — GPL-2.0 · ${t("about.credits.routing_data", "Daten: OpenStreetMap-Mitwirkende (ODbL)")}
           </li>
           <li>
             <a href="#" class="md-about-link" data-url="https://pywebview.flowrl.com/">pywebview</a> — BSD-3-Clause ·

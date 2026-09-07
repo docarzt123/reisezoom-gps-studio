@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import math
 import ssl
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -144,6 +145,164 @@ def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
     return out
 
 
+# ── Freie Router: OSRM (Auto, unbegrenzt) + Valhalla (Fuß/Rad, FOSSGIS) ──────
+# 07.09.2026 (Marc: „wir sollten generell alles ohne mapbox machen"): Straßenroute,
+# „Strecke A→B" und Map-Matching laufen zuerst über tokenfreie OpenStreetMap-Dienste,
+# Mapbox nur noch als Rückfall, wenn ein Token hinterlegt ist.
+#  • OSRM-Demo (router.project-osrm.org): nur das Auto-Profil (bike/foot liefern dort
+#    dasselbe wie driving), keine Distanzgrenze, Map-Matching auf dem Straßennetz.
+#  • Valhalla (valhalla1.openstreetmap.de, FOSSGIS e. V.): pedestrian ≤ 100 km,
+#    bicycle ≤ 150 km, auto; trace_route = Map-Matching auf Wegen (auch Wanderwege).
+# Beide sind „fair use" (keine Massenabfragen) — die App fragt je Klick einmal.
+_OSRM_BASE = "https://router.project-osrm.org"
+_VALHALLA_BASE = "https://valhalla1.openstreetmap.de"
+_VALHALLA_COSTING = {"driving": "auto", "walking": "pedestrian", "cycling": "bicycle"}
+_VALHALLA_MAX_M = {"pedestrian": 100_000.0, "bicycle": 150_000.0, "auto": 0.0}   # 0 = keine Grenze
+_OSRM_SNAP_MAX_M = 5_000.0   # Wegpunkt weiter als 5 km von jeder Straße → kein Weg
+
+
+def _http_post_json(url: str, body: dict) -> dict:
+    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
+                                 headers={"User-Agent": "ReisezoomGPSStudio", "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT, context=_SSL_CTX) as resp:
+        raw = resp.read().decode("utf-8", errors="replace")
+    return json.loads(raw)
+
+
+def _decode_polyline(s: str, precision: int = 6) -> List[List[float]]:
+    """Google-Polyline → [[lon, lat], …]; Valhalla nutzt Präzision 1e6."""
+    out: List[List[float]] = []
+    idx = lat = lon = 0
+    faktor = 10 ** precision
+    n = len(s)
+    while idx < n:
+        for which in (0, 1):
+            shift = result = 0
+            while True:
+                if idx >= n:
+                    return out
+                b = ord(s[idx]) - 63; idx += 1
+                result |= (b & 0x1F) << shift; shift += 5
+                if b < 0x20:
+                    break
+            d = ~(result >> 1) if (result & 1) else (result >> 1)
+            if which == 0:
+                lat += d
+            else:
+                lon += d
+        out.append([lon / faktor, lat / faktor])
+    return out
+
+
+def _luftlinie_m(pts) -> float:
+    return sum(_haversine_m(a[1], a[0], b[1], b[0]) for a, b in zip(pts, pts[1:]))
+
+
+def _route_osrm(pts, profile: str) -> dict:
+    coord_str = ";".join(f"{lon:.6f},{lat:.6f}" for lon, lat in pts)
+    url = f"{_OSRM_BASE}/route/v1/driving/{coord_str}?geometries=geojson&overview=full"
+    try:
+        data = _http_get_json(url)
+    except Exception as e:  # noqa: BLE001
+        raise RouteError(f"OSRM nicht erreichbar: {e}") from e
+    code = data.get("code")
+    if code != "Ok":
+        if code == "NoRoute":
+            raise RouteError("no_route")
+        raise RouteError(f"OSRM: {data.get('message') or code}")
+    # OSRM snappt jeden Punkt auf die nächste Straße, egal wie weit (Mapbox meldete
+    # dann NoRoute): liegt ein Wegpunkt weiter als _OSRM_SNAP_MAX_M vom Netz weg
+    # (Meer, Wildnis), gilt das als „kein Weg" — sonst käme ein sinnloser Stummel.
+    for wp in data.get("waypoints") or []:
+        try:
+            if float(wp.get("distance") or 0.0) > _OSRM_SNAP_MAX_M:
+                raise RouteError("no_route")
+        except (TypeError, ValueError):
+            pass
+    r0 = (data.get("routes") or [None])[0] or {}
+    coords = [[float(c[0]), float(c[1])] for c in ((r0.get("geometry") or {}).get("coordinates") or []) if len(c) >= 2]
+    if len(coords) < 2:
+        raise RouteError("no_route")
+    return {"coords": coords, "distance_m": float(r0.get("distance") or 0.0),
+            "duration_s": float(r0.get("duration") or 0.0), "provider": "osrm"}
+
+
+def _route_valhalla(pts, profile: str) -> dict:
+    costing = _VALHALLA_COSTING.get(profile, "auto")
+    grenze = _VALHALLA_MAX_M.get(costing, 0.0)
+    if grenze and _luftlinie_m(pts) > grenze:
+        raise RouteError("zu_weit")
+    body = {"locations": [{"lon": lon, "lat": lat} for lon, lat in pts], "costing": costing, "units": "kilometers"}
+    try:
+        data = _http_post_json(f"{_VALHALLA_BASE}/route", body)
+    except urllib.error.HTTPError as e:
+        try:
+            msg = json.loads(e.read().decode("utf-8", "replace"))
+        except Exception:  # noqa: BLE001
+            msg = {}
+        ec = msg.get("error_code")
+        if ec in (442, 154, 171, 172):     # kein Weg / zu weit / Ortung fehlgeschlagen
+            raise RouteError("no_route" if ec == 442 else "zu_weit") from e
+        raise RouteError(f"Valhalla: {msg.get('error') or e}") from e
+    except Exception as e:  # noqa: BLE001
+        raise RouteError(f"Valhalla nicht erreichbar: {e}") from e
+    trip = data.get("trip") or {}
+    coords: List[List[float]] = []
+    for leg in trip.get("legs") or []:
+        seg = _decode_polyline(leg.get("shape") or "", 6)
+        if coords and seg:
+            seg = seg[1:]
+        coords.extend(seg)
+    if len(coords) < 2:
+        raise RouteError("no_route")
+    s = trip.get("summary") or {}
+    return {"coords": coords, "distance_m": float(s.get("length") or 0.0) * 1000.0,
+            "duration_s": float(s.get("time") or 0.0), "provider": "valhalla"}
+
+
+def _route_mapbox(pts, prof: str, token: str) -> dict:
+    coord_str = ";".join(f"{lon},{lat}" for lon, lat in pts)
+    url = (f"{_MAPBOX_BASE}/directions/v5/mapbox/{prof}/{coord_str}"
+           f"?geometries=geojson&overview=full&access_token={token}")
+    try:
+        data = _http_get_json(url)
+    except Exception as e:  # noqa: BLE001
+        raise RouteError(f"Directions-Anfrage fehlgeschlagen: {e}") from e
+    code = data.get("code")
+    if code != "Ok":
+        if code == "NoRoute":
+            raise RouteError("no_route")
+        raise RouteError(f"Keine Route gefunden ({data.get('message') or code or 'Unbekannter Fehler'})")
+    r0 = (data.get("routes") or [None])[0] or {}
+    coords = [[float(c[0]), float(c[1])] for c in ((r0.get("geometry") or {}).get("coordinates") or []) if len(c) >= 2]
+    if len(coords) < 2:
+        raise RouteError("Route enthält zu wenige Punkte")
+    return {"coords": coords, "distance_m": float(r0.get("distance") or 0.0),
+            "duration_s": float(r0.get("duration") or 0.0), "provider": "mapbox"}
+
+
+def route_geometry(pts, profile: str, token: str = "", *, provider: str = "auto") -> dict:
+    """Rohe Straßen-/Wege-Geometrie durch `pts` — freie Dienste zuerst, Mapbox nur mit
+    Token als Rückfall (oder zuerst bei provider="mapbox"). Wirft RouteError("no_route"),
+    wenn keiner einen Weg kennt."""
+    prof = _PROFILES.get((profile or "driving").lower(), "driving")
+    kette = ["valhalla", "osrm"] if prof in ("walking", "cycling") else ["osrm", "valhalla"]
+    if token:
+        kette = ["mapbox"] + kette if provider == "mapbox" else kette + ["mapbox"]
+    letzter: Optional[Exception] = None
+    for p in kette:
+        try:
+            if p == "osrm":
+                return _route_osrm(pts, prof)
+            if p == "valhalla":
+                return _route_valhalla(pts, prof)
+            return _route_mapbox(pts, prof, token)
+        except RouteError as e:
+            letzter = e
+            continue
+    raise letzter or RouteError("no_route")
+
+
 # ── Straßen-Route via Mapbox Directions ──────────────────────────────────────
 # Maximale Vereinfachungs-Toleranz (Douglas-Peucker) in Grad bei coarseness=1.
 # v0.9.213 — von 0.006 (~600 m) auf 0.06 (~6 km) angehoben, damit „grob" bis
@@ -157,11 +316,12 @@ _SMOOTH_POINTS = 500
 
 def road_route(
     waypoints: List[Tuple[float, float]],
-    token: str,
+    token: str = "",
     *,
     profile: str = "driving",
     grob: bool = True,
     coarseness: Optional[float] = None,
+    provider: str = "auto",
 ) -> dict:
     """Berechnet eine Straßen-Route durch alle `waypoints` ([lon, lat]).
 
@@ -173,8 +333,6 @@ def road_route(
     auch bei grober Form (löst das „Ruckeln"). `grob` ist der Alt-Fallback wenn
     `coarseness` None: True→0.55, False→0.1. Mind. 2 Wegpunkte, max 25.
     """
-    if not token:
-        raise RouteError("Mapbox-Token nicht konfiguriert")
     pts = [(float(lon), float(lat)) for lon, lat in waypoints]
     if len(pts) < 2:
         raise RouteError("Mindestens Start und Ziel nötig")
@@ -183,38 +341,12 @@ def road_route(
     if coarseness is None:
         coarseness = 0.55 if grob else 0.1
     coarseness = max(0.0, min(1.0, float(coarseness)))
-    prof = _PROFILES.get((profile or "driving").lower(), "driving")
-    coord_str = ";".join(f"{lon},{lat}" for lon, lat in pts)
-    # IMMER volle Geometrie holen — wir simplifizieren selbst (volle Kontrolle
-    # über die Grobheit via Slider, statt nur Mapbox' simplified/full-Schalter).
-    url = (
-        f"{_MAPBOX_BASE}/directions/v5/mapbox/{prof}/{coord_str}"
-        f"?geometries=geojson&overview=full&access_token={token}"
-    )
-    try:
-        data = _http_get_json(url)
-    except Exception as e:  # noqa: BLE001
-        raise RouteError(f"Directions-Anfrage fehlgeschlagen: {e}") from e
-    code = data.get("code")
-    if code != "Ok":
-        # v0.9.392 — Mapbox liefert `NoRoute`, wenn keine Route existiert. Häufigster
-        # Fall in der Praxis: das Rad-/Fußprofil hat ein Gesamtstrecken-Limit
-        # (cycling ~500 km) — eine an sich fahrbare Route wird abgelehnt, sobald die
-        # Summe aller Etappen zu groß wird (z.B. Hamburg→Dortmund→Bremen mit dem Rad,
-        # ~575 km; jede Etappe einzeln geht). Als stabilen Code weitergeben, damit das
-        # Frontend eine verständliche, profil-abhängige Meldung zeigen kann.
-        if code == "NoRoute":
-            raise RouteError("no_route")
-        msg = data.get("message") or code or "Unbekannter Fehler"
-        raise RouteError(f"Keine Route gefunden ({msg})")
-    routes = data.get("routes") or []
-    if not routes:
-        raise RouteError("Keine Route gefunden")
-    r0 = routes[0]
-    geom = (r0.get("geometry") or {}).get("coordinates") or []
-    coords = [[float(c[0]), float(c[1])] for c in geom if len(c) >= 2]
-    if len(coords) < 2:
-        raise RouteError("Route enthält zu wenige Punkte")
+    # IMMER volle Geometrie holen — wir simplifizieren selbst (volle Kontrolle über die
+    # Grobheit via Slider). 07.09.2026: freie Router zuerst (OSRM/Valhalla), Mapbox nur
+    # mit Token als Rückfall; „no_route" bleibt der stabile Code fürs Frontend
+    # (v0.9.392: Rad-/Fußprofile haben Streckengrenzen — Valhalla 100/150 km, dann OSRM).
+    r0 = route_geometry(pts, profile, token, provider=provider)
+    coords = r0["coords"]
     # 1) optisch vereinfachen (Douglas-Peucker, Toleranz aus coarseness) — legt
     #    fest, WIE grob die Stützpunkte werden.
     if coarseness > 0:
@@ -225,8 +357,9 @@ def road_route(
     coords = _catmull_rom(coords, _SMOOTH_POINTS)
     return {
         "coords": coords,
-        "distance_m": float(r0.get("distance") or 0.0),
-        "duration_s": float(r0.get("duration") or 0.0),
+        "distance_m": float(r0.get("distance_m") or 0.0),
+        "duration_s": float(r0.get("duration_s") or 0.0),
+        "provider": r0.get("provider"),
     }
 
 
@@ -407,9 +540,10 @@ def arc_route(
 def directions_geometry(
     a: List[float],
     b: List[float],
-    token: str,
+    token: str = "",
     *,
     profile: str = "walking",
+    provider: str = "auto",
 ) -> dict:
     """Reine Straßen-/Wege-Route zwischen genau zwei Punkten (Directions, overview=full).
     Anders als Map Matching kennt das KEIN 50-m-Limit: A und B werden auf die nächste
@@ -419,25 +553,14 @@ def directions_geometry(
     Returns {"coords": [[lon,lat], …], "matched": bool}. `matched`=False = keine Route
     gefunden (z.B. A/B zu weit weg von jeder Straße).
     """
-    if not token:
-        raise RouteError("Mapbox-Token nicht konfiguriert")
-    prof = _PROFILES.get(str(profile or "walking"), "walking")
-    coord_str = f"{float(a[0]):.6f},{float(a[1]):.6f};{float(b[0]):.6f},{float(b[1]):.6f}"
-    url = (
-        f"{_MAPBOX_BASE}/directions/v5/mapbox/{prof}/{coord_str}"
-        f"?geometries=geojson&overview=full&access_token={token}"
-    )
+    pts = [(float(a[0]), float(a[1])), (float(b[0]), float(b[1]))]
     try:
-        data = _http_get_json(url)
-    except Exception as e:  # noqa: BLE001
-        raise RouteError(f"Routen-Anfrage fehlgeschlagen: {e}") from e
-    if data.get("code") != "Ok" or not data.get("routes"):
-        return {"coords": [], "matched": False}
-    geom = (data["routes"][0] or {}).get("geometry", {})
-    out = geom.get("coordinates") or []
-    if len(out) >= 2:
-        return {"coords": [[float(p[0]), float(p[1])] for p in out], "matched": True}
-    return {"coords": [], "matched": False}
+        r = route_geometry(pts, profile, token, provider=provider)
+    except RouteError as e:
+        if str(e) in ("no_route", "zu_weit"):
+            return {"coords": [], "matched": False}
+        raise
+    return {"coords": r["coords"], "matched": True, "provider": r.get("provider")}
 
 
 # ── Map Matching (Track auf Straßen/Wege snappen) ────────────────────────────
@@ -452,38 +575,95 @@ _MATCH_OVERLAP = 2        # Überlappung zwischen Chunks für nahtlosere Überg�
 _MATCH_RADIUS_M = 25
 
 
-def _match_chunk(coords: List[List[float]], token: str, profile: str, radius_m: int = _MATCH_RADIUS_M):
-    """Ein Fenster (≤100 Punkte) matchen → (coords, ok). Bei „NoMatch" werden die
-    EINGANGS-Koordinaten zurückgegeben (Track reißt nicht ab) und ok=False."""
-    if len(coords) < 2:
-        return list(coords), False
-    r = max(1, min(50, int(radius_m)))   # Mapbox-Limit: 0–50 m
+def _match_chunk_mapbox(coords, token: str, profile: str, r: int):
     coord_str = ";".join(f"{c[0]:.6f},{c[1]:.6f}" for c in coords)
     radiuses = ";".join(str(r) for _ in coords)
-    url = (
-        f"{_MAPBOX_BASE}/matching/v5/mapbox/{profile}/{coord_str}"
-        f"?geometries=geojson&overview=full&tidy=true&radiuses={radiuses}"
-        f"&access_token={token}"
-    )
+    url = (f"{_MAPBOX_BASE}/matching/v5/mapbox/{profile}/{coord_str}"
+           f"?geometries=geojson&overview=full&tidy=true&radiuses={radiuses}&access_token={token}")
     try:
         data = _http_get_json(url)
     except Exception as e:  # noqa: BLE001
         raise RouteError(f"Map-Matching fehlgeschlagen: {e}") from e
     if data.get("code") != "Ok" or not data.get("matchings"):
-        return list(coords), False  # z.B. „NoMatch" → Spur zu weit weg von jedem Weg
-    geom = (data["matchings"][0] or {}).get("geometry", {})
-    out = geom.get("coordinates") or []
-    if len(out) >= 2:
-        return [[float(p[0]), float(p[1])] for p in out], True
+        return list(coords), False
+    out = ((data["matchings"][0] or {}).get("geometry") or {}).get("coordinates") or []
+    return ([[float(p[0]), float(p[1])] for p in out], True) if len(out) >= 2 else (list(coords), False)
+
+
+def _match_chunk_osrm(coords, r: int):
+    coord_str = ";".join(f"{c[0]:.6f},{c[1]:.6f}" for c in coords)
+    radiuses = ";".join(str(r) for _ in coords)
+    url = f"{_OSRM_BASE}/match/v1/driving/{coord_str}?geometries=geojson&overview=full&tidy=true&radiuses={radiuses}"
+    try:
+        data = _http_get_json(url)
+    except Exception as e:  # noqa: BLE001
+        raise RouteError(f"OSRM-Matching nicht erreichbar: {e}") from e
+    if data.get("code") != "Ok" or not data.get("matchings"):
+        return list(coords), False
+    out: List[List[float]] = []
+    for m in data["matchings"]:      # bei Lücken liefert OSRM mehrere Teilstücke
+        seg = ((m or {}).get("geometry") or {}).get("coordinates") or []
+        out.extend([[float(p[0]), float(p[1])] for p in seg])
+    return (out, True) if len(out) >= 2 else (list(coords), False)
+
+
+def _match_chunk_valhalla(coords, profile: str, r: int):
+    costing = _VALHALLA_COSTING.get(profile, "pedestrian")
+    body = {"shape": [{"lon": c[0], "lat": c[1]} for c in coords], "costing": costing,
+            "shape_match": "map_snap", "trace_options": {"search_radius": int(r)}}
+    try:
+        data = _http_post_json(f"{_VALHALLA_BASE}/trace_route", body)
+    except urllib.error.HTTPError:
+        return list(coords), False        # 400 = kein Match möglich (zu weit weg vom Wegenetz)
+    except Exception as e:  # noqa: BLE001
+        raise RouteError(f"Valhalla-Matching nicht erreichbar: {e}") from e
+    out: List[List[float]] = []
+    for leg in (data.get("trip") or {}).get("legs") or []:
+        seg = _decode_polyline(leg.get("shape") or "", 6)
+        if out and seg:
+            seg = seg[1:]
+        out.extend(seg)
+    return (out, True) if len(out) >= 2 else (list(coords), False)
+
+
+def _match_chunk(coords: List[List[float]], token: str, profile: str, radius_m: int = _MATCH_RADIUS_M,
+                 provider: str = "auto"):
+    """Ein Fenster (≤100 Punkte) matchen → (coords, ok). Bei „NoMatch" werden die
+    EINGANGS-Koordinaten zurückgegeben (Track reißt nicht ab) und ok=False.
+    07.09.2026: Valhalla (Wegenetz inkl. Wanderwege) zuerst, dann OSRM (Straßennetz),
+    Mapbox nur mit Token als Rückfall."""
+    if len(coords) < 2:
+        return list(coords), False
+    r = max(1, min(50, int(radius_m)))
+    kette = ["valhalla", "osrm"] + (["mapbox"] if token else [])
+    if token and provider == "mapbox":
+        kette = ["mapbox", "valhalla", "osrm"]
+    letzter: Optional[Exception] = None
+    for p in kette:
+        try:
+            if p == "valhalla":
+                out, ok = _match_chunk_valhalla(coords, profile, r)
+            elif p == "osrm":
+                out, ok = _match_chunk_osrm(coords, r)
+            else:
+                out, ok = _match_chunk_mapbox(coords, token, profile, r)
+        except RouteError as e:
+            letzter = e
+            continue
+        if ok:
+            return out, True
+    if letzter is not None and len(kette) == 1:
+        raise letzter
     return list(coords), False
 
 
 def map_match(
     coords: List[List[float]],
-    token: str,
+    token: str = "",
     *,
     profile: str = "walking",
     radius_m: int = _MATCH_RADIUS_M,
+    provider: str = "auto",
 ) -> dict:
     """Eine Koordinaten-Spur [[lon,lat], …] auf das Wegenetz matchen.
 
@@ -491,15 +671,13 @@ def map_match(
     eher auf parallele Wege. Returns {"coords": …, "matched": bool}. `matched`=False
     heißt, KEIN Stück konnte gesnappt werden. Wirft RouteError bei Token-/Netzfehler.
     """
-    if not token:
-        raise RouteError("Mapbox-Token nicht konfiguriert")
     prof = _PROFILES.get(str(profile or "walking"), "walking")
     pts = [[float(c[0]), float(c[1])] for c in coords if isinstance(c, (list, tuple)) and len(c) >= 2]
     if len(pts) < 2:
         raise RouteError("Mindestens 2 Punkte zum Matchen nötig")
 
     if len(pts) <= _MATCH_MAX:
-        out, ok = _match_chunk(pts, token, prof, radius_m)
+        out, ok = _match_chunk(pts, token, prof, radius_m, provider)
         return {"coords": out, "matched": ok}
 
     # Chunking mit Überlappung; gematchte Stücke aneinanderhängen (Naht-Duplikat droppen).
@@ -510,7 +688,7 @@ def map_match(
     n = len(pts)
     while i < n - 1:
         window = pts[i:i + _MATCH_MAX]
-        seg, ok = _match_chunk(window, token, prof, radius_m)
+        seg, ok = _match_chunk(window, token, prof, radius_m, provider)
         matched_any = matched_any or ok
         if result and seg:
             seg = seg[1:]  # erster Punkt überlappt mit vorigem Chunk-Ende

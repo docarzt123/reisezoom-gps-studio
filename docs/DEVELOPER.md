@@ -3625,6 +3625,15 @@ das in der vorschau, wie im fertigen video".
 `settings.render_engine = "klassisch"` der alte Generator. Nur der Alpha-Export
 (`transparent_background`) läuft noch über den alten Weg (IDEAS §53).
 
+**Reise-Komposition (07.09.2026, Befund).** `ablauf: "reise"` = Touren nacheinander.
+Die Vorschau lädt die weiteren Touren als `_extraTours` (stehende, farbige Linien)
+und animiert nur den Haupt-Track; der alte Generator (`core/animator.py`,
+`cfg.tracks` ≥ 2, `tracks_ablauf != "schwarm"`) spielt die Touren nacheinander mit
+van-Wijk-Kinoflug. Der Worker schickt Reise-Renders deshalb (noch) klassisch
+(`_reise` in `animator_start_render`). Nächster Schritt (IDEAS §53a): die Reise in
+der Vorschau abspielen — Etappen als EIN Track mit `_segStarts`, Kinoflug als
+Kamera-Übergang, Overlays je Etappe — dann fällt die Ausnahme.
+
 **Tour-Map und Reiseroute (07.09.2026).** Die UI schickt zusätzlich
 `params.szene_modul` (`_MODKEY`: `animator` | `reiseroute` | `tourmap`), und
 `_seite_vorbereiten(…, modul=…)` öffnet das Projekt über
@@ -3655,10 +3664,12 @@ Ursache waren (alles gemessen): Symbol-Überblendung allein (`_fadeDuration` 0
 brachte 0 ms), die Kachel-Abfangung (ohne Route gleich schnell), Kachelzahl
 (1,8 Anfragen je Bild). Im Render-Modus setzt `rzScaleMapLabels` deshalb
 `map.style.stylesheet.transition = {duration: 0, delay: 0}` und
-`map._fadeDuration = 0` (wie `raster-fade-duration 0`). Ergebnis nach beiden
-Patches: 1080p 153 ms/Bild (Warten 100), 4K 336 ms (Warten 107, Screenshot 224 mit
-SSAA 1,25 — nächster Hebel wäre der Screenshot, z. B. CDP `optimizeForSpeed` +
-Downscale im Worker-Thread).
+`map._fadeDuration = 0` (wie `raster-fade-duration 0`). Ergebnis mit Transition 0:
+1080p 153 ms/Bild, 4K 336 ms — **aber** Transition 0 (und 60 ms) ließ auf Gelände-Stilen
+beim Zoomen Rasterkacheln ungezeichnet (Fuji, Teide: WYS mean_diff 22/17). Deshalb bleibt
+die Paint-Transition im Render-Modus bei 300 ms (`transMs` in `__rzRenderMode`,
+Env `RZ_TRANS_MS` zum Messen); Symbol-Überblendung, Raster-Fade und Globus-Uhr bleiben.
+Offen in IDEAS §53a.
 Die restlichen Aussetzer (~750 ms, jedes dritte Bild, ohne Kachel-Anfrage) waren
 die Globus-Projektion: `style.projection.hasTransition()` ist 0,7 s nach jeder
 Fehlermessung wahr, die Korrektur gleicht sich über 0,5 s an (Vendor-Patch
@@ -3673,6 +3684,28 @@ skaliert auf exakt `cfg.width×cfg.height`, wenn Chromium anders rundet
 integer multiple of the chroma subsampling", Abbruch bei Bild 12; gefunden mit
 dem Reiseroute-Prüfstand im 1400×900-Fenster). Bei SSAA > 1 lief der Downscale
 ohnehin immer.
+
+**Routing ohne Mapbox (07.09.2026, Marc: „generell alles ohne mapbox").** `core/route.py`
+`route_geometry(pts, profile, token, provider)` ist der eine Umschalter: Kette
+`osrm → valhalla` (driving) bzw. `valhalla → osrm` (walking/cycling), `mapbox` nur
+angehängt, wenn ein Token da ist (oder vorn bei `provider="mapbox"`). OSRM-Demo
+(`router.project-osrm.org`) kennt nur das Auto-Profil (bike/foot liefern dort
+dasselbe wie driving — deshalb für Fuß/Rad zuerst Valhalla); Valhalla
+(`valhalla1.openstreetmap.de`, FOSSGIS) begrenzt pedestrian auf 100 km, bicycle
+auf 150 km (Fehlercode 154 → `zu_weit` → nächster Anbieter), Antwort als
+Polyline-6 (`_decode_polyline`). Map-Matching: `_match_chunk` (≤100 Punkte,
+Überlappung 2) Valhalla `trace_route` (map_snap, search_radius) → OSRM `match`
+(Straßennetz) → Mapbox. `road_route`/`directions_geometry`/`map_match` behalten
+ihre Signatur (`token` jetzt optional) und liefern `provider` mit. Beide Dienste
+sind Fair-Use-Demo-Server: je Klick eine Anfrage, kein Batch. Credits im
+Über-Dialog (OSRM BSD-2, Valhalla MIT, Photon Apache-2, Nominatim GPL-2, ODbL).
+
+**Archiv-Vorschaubilder ohne Token (07.09.2026).** `library.map_thumb_render_free`
+setzt Sentinel-2-cloudless-Kacheln (EOX WMTS, z ≤ 13, `_thumb_zoom_for` = größte
+Stufe, bei der die Strecke mit 12 % Rand in 720×400 passt) mit Pillow zusammen und
+zeichnet Schatten + Linie + Start/Ziel-Punkte; `map_thumb_fetch` ruft das zuerst,
+Mapbox Static nur als Rückfall mit Token. `library_map_thumbs_start` hat keine
+Token-Sperre mehr. Reverse-Geocoding `resolve_provider("auto")` = photon.
 
 **Reiseroute-Ortssuche (07.09.2026).** `route_geocode(query, limit, bias)` fragt
 zuerst `route.geocode_photon` (photon.komoot.io, `lang` = App-Sprache, optional
@@ -3740,9 +3773,15 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    `window.__rzSkirtMode` (`edges`|`all`|`none`) und `window.__rzSkirtOffset` ([f,u]).
 3. `/* rz-patch skirts */`: Gelände-Option `skirts:false` (Schürzen ganz weg; Prüfstand).
 4. `/* rz-patch globeerr */` (07.09.2026, Render-Tempo): die Globus-Projektion gleicht ihre
-   Fehlerkorrektur über 0,5 s an und meldet 0,7 s lang „Übergang" — im Render-Modus
-   (`window.__rzRenderMode`) beides 0, sonst wartete die Szene jedes dritte Bild ~750 ms
-   auf `idle`. Endzustand unverändert (der Render wartet ohnehin auf idle).
+   Fehlerkorrektur über 0,5 s Wanduhr an und meldet 0,7 s lang „Übergang" — die Szene
+   wartete deshalb jedes dritte Bild ~750 ms auf `idle`. Im Render-Modus läuft der
+   Angleich jetzt auf der **Video-Uhr** (`window.__rzRenderClock`, in `__rzPreviewStep.seek`
+   je Bild auf t gesetzt): 0,5 s Video = 15 Bilder, gleichmäßig wie live, und
+   `hasTransition` ist 0 (kein Warten). Erster Wurf „sofort springen" (Faktor 1e-6)
+   brachte Wackeln (Halte-Wechsel Median 42 px statt 1) und eine Bilddifferenz zum
+   Einzelbild (Teide mean_diff 24 statt 5), weil jede neue Messung die Projektion
+   ruckartig verzog. `render_szene_frame` stellt die Uhr nach dem Seek um +1 s vor,
+   damit die Korrektur wie im laufenden Video ankommt.
 Ergebnis: Schorfheide 7–8 Wechselpixel, Zermatt 36, Teide 60 und Silhouette geschlossen, keine Risse mehr (Zermatt-Riss aus dem ersten Stitching-Stand war die 20–40 m Restdifferenz der Näherung über die eigene DEM).
 Bei jedem MapLibre-Update neu einpflegen; Wächter `tests/test_line3d.py` prüft die Marker,
 `rz_ele` dreimal und `u_rz_edge`.

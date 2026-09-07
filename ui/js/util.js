@@ -3165,9 +3165,14 @@ function rzScaleMapLabels(map, k) {
   // Paint-Eigenschaften (Fortschritt/Verlauf, Laufpunkt), und solange ein Übergang läuft,
   // ist `map.loaded()` falsch — `idle` kam erst nach ~300 ms (gemessen: 1,8 Kacheln je Bild,
   // Überblendung schon 0, Wartezeit blieb 500 ms). Im Render-Modus Übergänge sofort.
+  const _keep = window.__rzKeep || {};   // Diagnose-Schalter (core/szene.py, RZ_KEEP)
   if (window.__rzRenderMode) {
-    try { map._fadeDuration = 0; } catch (_) {}
-    try { if (map.style && map.style.stylesheet) map.style.stylesheet.transition = { duration: 0, delay: 0 }; } catch (_) {}
+    if (!_keep.fade) { try { map._fadeDuration = 0; } catch (_) {} }
+    if (!_keep.trans) {
+      // Übergangsdauer aus dem Render-Modus (core/szene.py, RZ_TRANS_MS): 0 = sofort
+      const _tms = (window.__rzRenderMode && window.__rzRenderMode.transMs != null) ? +window.__rzRenderMode.transMs : 0;
+      try { if (map.style && map.style.stylesheet) map.style.stylesheet.transition = { duration: _tms, delay: 0 }; } catch (_) {}
+    }
   }
   // 05.09.2026 (Audit): Die Vorschau läuft um c = log2(1/k) Zoomstufen TIEFER als
   // das Video (kleinere Fläche, gleicher Ausschnitt). Größen skalieren allein reicht
@@ -3221,7 +3226,7 @@ function rzScaleMapLabels(map, k) {
     // Überblendung ab, und die halb eingeblendete Kachel zeichnet ihren Rand als Linie, die
     // im nächsten Bild weg ist. Im Render-Modus deshalb ohne Überblendung (wie der alte
     // Generator seit v0.9.286); in der Live-Vorschau bleibt sie, da ist sie unsichtbar.
-    if (window.__rzRenderMode && l.type === "raster") {
+    if (window.__rzRenderMode && !_keep.rfade && l.type === "raster") {
       try { map.setPaintProperty(l.id, "raster-fade-duration", 0); } catch (_) {}
     }
     // 06.09.2026 (WYSIWYG, Marc: Render heller/bunter als Vorschau): Die Einblend-Rampe der

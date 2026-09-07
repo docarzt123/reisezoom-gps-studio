@@ -1500,13 +1500,15 @@ Reiseroute ist ein **vollwertiger Klon des Animators**: alles was dort geht (Kar
 
 ### Workflow
 1. **GPX laden** (die Wanderung) — ganz normal über die GPX-Leiste. Im Reiseroute-Tab erscheint sie automatisch als **Ghost** (schwache Linie).
-2. Bereich **„🛫 Route / Anreise"**: **Stil** wählen — **🛣️ Straße folgen** (Mapbox-Route) oder **✈️ Flugroute (Großkreis)** (kürzester Weg auf der Kugel, wie echte Flüge — wölbt sich auf der Karte polwärts).
+2. Bereich **„🛫 Route / Anreise"**: **Stil** wählen — **🛣️ Straße folgen** (Straßenroute über OpenStreetMap-Dienste, kein Token nötig) oder **✈️ Flugroute (Großkreis)** (kürzester Weg auf der Kugel, wie echte Flüge — wölbt sich auf der Karte polwärts).
 3. **Stationen** angeben — **Start, beliebig viele Zwischenziele und Ziel**. Jede Station als **Adresse/Ort** (z.B. „Dresden Hauptbahnhof") tippen, per **📍 Klick auf die Karte** setzen, oder als `lat,lon`. **„➕ Zwischenziel"** fügt eine Station vor dem Ziel ein; **✕** entfernt eine. Mit **„📍 Klick-Modus"** klickst du die Stationen einfach **nacheinander auf die Karte** — jeder Klick erscheint als neue Station in der Liste (Esc beendet). Praktisch, wenn die echte Strecke (z.B. eine Fähre) nicht dem direkten Weg folgt.
 4. Bei „Straße folgen": **Fortbewegung** (Auto/Fuß/Rad) + **Detailgrad**-Slider (fein → grob). Grob macht eine bewusst **geschwungene, vereinfachte** Linie, die sich locker an der Route orientiert (nicht so kleinteilig wie eine echte Wanderung). Die Animation bleibt dabei immer flüssig.
 5. **„Route berechnen"** → die Strecke wird als animierter Track geladen, die Wanderung bleibt als Ghost dahinter. Distanz + Fahrtzeit stehen unter dem Button.
 6. Wie im Animator weiter: Probelauf, Kamera, Schilder, **Video rendern**.
 
 > **Detailgrad wirkt erst beim nächsten „Route berechnen"** — Slider schieben, dann neu berechnen.
+
+> **Ohne Mapbox (seit 07.09.2026):** „Straße folgen" rechnet über freie OpenStreetMap-Dienste: Auto über OSRM (beliebige Länge), Fuß und Rad über Valhalla (bis 100 km bzw. 150 km je Route, darüber springt die App auf das Straßennetz von OSRM). Ein Mapbox-Token ist nur noch ein Rückfall, wenn die freien Dienste einmal nicht antworten. Dasselbe gilt im Inspektor für „auf Wege ziehen" und „Strecke A→B".
 
 > **Ortsnamen prüfen (seit 07.09.2026):** Die Ortssuche fragt zuerst Photon (OpenStreetMap, kein Token) und versteht deutsche Namen wie „Teneriffa" oder „Kapstadt"; vorher lieferte Mapbox dafür Teneriffe in Australien, und der Flug ab Berlin ging einmal um die Welt. Ein Tippfehler findet trotzdem irgendeinen Ort („berin" → Berin in Ungarn) — die **✓-Zeile unter dem Feld** zeigt immer, was gefunden wurde. Stimmt es nicht: Namen ergänzen („Berlin, Deutschland") oder per 📍 auf der Karte setzen. Ein bereits aufgelöster Wegpunkt zieht die Suche für die nächsten Stationen zu nahen Treffern.
 
@@ -1866,7 +1868,7 @@ Diese Werte werden **als Profil gespeichert** — du tippst Name + Copyright **e
 Sobald Fotos zugeordnet sind, ermittelt die App **automatisch** zu jedem die **komplette Adresse** (Straße, Ort, Bundesland, Land) und zeigt sie im Foto-Popup. Beim Taggen wird sie als **IPTC + XMP** ins Foto geschrieben — Lightroom, Apple Fotos & Co. zeigen dann Ort und Land an. Der Button **„📍 Adressen abrufen"** ist nur noch zum **erneuten Abrufen** da.
 
 - **Clever statt langsam:** die Suche läuft als **3-Stufen-Pyramide** — erst eine Abfrage auf den Schwerpunkt aller Fotos (= Land), dann je ~1-km-Bereich eine (= Ort), dann fein die Straße. So sind alle Bilder nach wenigen Abfragen grob gefüllt, die Straße kommt nach.
-- **Anbieter wählbar** (⚙ → „Adress-Suche"): **Automatisch** (nimmt Mapbox, falls du einen Token hinterlegt hast, sonst Photon), **Mapbox** (am schnellsten, braucht Token), **Photon/Komoot** oder **Nominatim/OpenStreetMap** — alle ohne Konto außer Mapbox. Jede Option ist im Dialog erklärt.
+- **Anbieter wählbar** (⚙ → „Adress-Suche"): **Automatisch** (seit 07.09.2026 immer Photon, kein Token nötig; Mapbox nur, wenn du es ausdrücklich wählst und ein Token hinterlegt ist), **Mapbox** (am schnellsten, braucht Token), **Photon/Komoot** oder **Nominatim/OpenStreetMap** — alle ohne Konto außer Mapbox. Jede Option ist im Dialog erklärt.
 - **Abschaltbar:** In den Einstellungen lässt sich die Adress-Suche ganz **ausschalten** — dann wird gar nichts ins Internet gefunkt, und du tippst Adressen bei Bedarf von Hand ein.
 - **Pro Foto korrigierbar:** Stimmt eine Adresse nicht, übers **✎** im Foto-Popup anpassen.
 
@@ -2084,9 +2086,19 @@ Der Update-Check ruft dafür eine kleine Datei auf reisezoom.com ab (höchstens 
 
 **Die automatische Prüfung lässt sich abschalten** (⚙ Einstellungen → „Beim
 Start nach einer neuen Version suchen"). Aus heißt: Die App baut von sich aus
-keine Verbindung ins Netz auf — Karten holt sie nur, wenn du eine anzeigst,
-und dann mit deinem eigenen Mapbox-Zugang. Der manuelle Knopf im Über-Dialog
-funktioniert weiterhin.
+keine Verbindung ins Netz auf — Karten, Ortssuche und Routen holt sie nur,
+wenn du sie brauchst, von freien OpenStreetMap-Diensten (ohne Schlüssel) oder,
+falls hinterlegt, mit deinem eigenen MapTiler-/Mapbox-Zugang. Der manuelle Knopf
+im Über-Dialog funktioniert weiterhin.
+
+### Wie kann ich das Projekt unterstützen? (seit 07.09.2026)
+Im **Über-Dialog** (Logo oben links → „Über") gibt es Knöpfe zum Unterstützen:
+Ko-fi und PayPal für die Entwicklung der App (deckt Entwicklerkonto, Signatur,
+Server), und darunter die freien Dienste, auf denen die App ohne jeden Schlüssel
+läuft: OpenStreetMap Foundation, FOSSGIS e. V. (betreibt die Routen- und
+Adressdienste), OpenFreeMap (Vektorkarten) und MapLibre (die Kartenbibliothek).
+Sie leben von Spenden und Mitgliedern — jede Unterstützung dort hält auch diese
+App kostenlos.
 
 ### „Wirklich öffnen?" beim ersten Start (macOS)
 Diese Rückfrage zeigt macOS bei **jeder** aus dem Netz geladenen App, auch bei signierten — einmal
