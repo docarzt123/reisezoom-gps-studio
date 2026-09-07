@@ -5,8 +5,30 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sun, 06 Sep 2026 22:28:21 +0000</lastBuildDate>
+<lastBuildDate>Mon, 07 Sep 2026 10:53:50 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.661 — Kleine Korrektur zu 0.9.660.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-661</link>
+<guid isPermaLink="false">gps-studio-v0.9.661</guid>
+<pubDate>Mon, 07 Sep 2026 12:00:00 +0000</pubDate>
+<description>Tour-Map für Kompositionen — Schwarm- und Reise-Projekte zeigen in der Tour-Map alle Touren in ihren Farben, der Ausschnitt passt sich allen an.
+
+Über-Dialog — Die Nennungszeile für Routen und Ortssuche hat jetzt englische und spanische Texte.</description>
+</item>
+<item>
+<title>v0.9.660 — Die App läuft komplett ohne Schlüssel — und Tour-Map und Reiseroute kommen jetzt aus derselben Szene wie das Video.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-660</link>
+<guid isPermaLink="false">gps-studio-v0.9.660</guid>
+<pubDate>Mon, 07 Sep 2026 12:00:00 +0000</pubDate>
+<description>Alles ohne Token — Ortssuche über Photon (versteht „Teneriffa“ und „Kapstadt“; Mapbox nahm Teneriffe in Australien, der Flug ab Berlin ging um die Welt), Straßenroute, Wege-Snapping und Strecke A→B über OSRM und Valhalla (FOSSGIS), Archiv-Vorschaubilder aus Sentinel-2-Satellitenkacheln, Adress-Suche standardmäßig Photon. Ein Mapbox- oder MapTiler-Schlüssel ist nur noch Zusatz für weitere Kartenstile.
+
+Tour-Map und Reiseroute auf der gemeinsamen Szene — Das Tour-Map-PNG ist ein Screenshot der Tour-Map-Vorschau in Bildgröße, das Reiseroute-Video läuft wie der Animator über die Szene und wartet, bis das Routen-GPX geladen ist.
+
+Render etwa doppelt so schnell — Symbol-Überblendung und die Angleichung der Globus-Fehlerkorrektur halten die Bildfolge nicht mehr auf. Gemessen 1080p: 562 → rund 300 ms je Bild.
+
+Reise-Kompositionen — Touren nacheinander mit Kinoflug rendern vorerst wieder über den bisherigen Generator — die Szene spielte nur die erste Tour.</description>
+</item>
 <item>
 <title>v0.9.659 — Gelände-Stitching ohne Tempoverlust, auch auf schwachen Rechnern.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-659</link>
@@ -172,24 +194,6 @@ Beim Scrollen lief die Liste über ihre Kopfzeile. Jetzt bleibt die Kopfzeile sa
 <description>💧 Eigenes Wasserzeichen. Leg dein Logo ins Video: Bild wählen (PNG mit Transparenz empfohlen), Größe und Deckkraft einstellen — und die Position bestimmst du, indem du das Logo in der Vorschau einfach mit der Maus dorthin ziehst , wo es sitzen soll. Erscheint im Video, im Standbild und im Alpha-Export, bei 4K und Hochkant automatisch an derselben Stelle.
 
 ⚡ Schnelleres Einlesen vom NAS. Der Archiv-Scan öffnete jede Track-Datei zweimal — auf einem Netzlaufwerk ist jede Öffnung ein Netz-Roundtrip. Jetzt wird jede Datei genau einmal gelesen; ein Tester-Hinweis („das Einlesen hat auffällig lange gedauert&quot;) hat das aufgedeckt. Danke für den Hinweis!</description>
-</item>
-<item>
-<title>v0.9.631 — Versetzt loslaufen. Direkt importieren.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-631</link>
-<guid isPermaLink="false">gps-studio-v0.9.631</guid>
-<pubDate>Sun, 30 Aug 2026 12:00:00 +0000</pubDate>
-<description>⏱ Schwarm mit Start-Verzögerung. Jede Tour im Schwarm kann jetzt warten: „Start nach X s&quot; an jeder Zusatz-Tour — und auch die Haupt-Tour kann verzögert loslaufen, behält dabei Schatten und Laufpunkt und holt bis zum Videoende auf. So läuft z. B. die komplette geplante Runde, während der Teil, den du schon gelaufen bist, mittendrin startet. Vorschau und Video zeigen exakt dasselbe.
-
-📄 Einzelne Datei ins Archiv. Eine GPX frisch von Komoot? Einfach aufs Archiv ziehen oder „Ordner &amp; Einlesen → + Einzelne Track-Datei …&quot; — die App kopiert sie in ihren eigenen Import-Ordner (das Original bleibt liegen, Dubletten werden übersprungen) und liest sie sofort ein.</description>
-</item>
-<item>
-<title>v0.9.622 — Deine Projekte. Deine Fassungen.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-622</link>
-<guid isPermaLink="false">gps-studio-v0.9.622</guid>
-<pubDate>Sat, 29 Aug 2026 12:00:00 +0000</pubDate>
-<description>🗂 Projekte sind jetzt eigenständig. Die App startet in deiner Projektliste : jede Karte zeigt eine Karten-Vorschau, den Status (aktiv / Idee / fertig), wann zuletzt daran gearbeitet wurde — und Öffnen springt direkt ins zuletzt benutzte Werkzeug. Dieselbe Tour kann in beliebig vielen Projekten stecken (Quer-Video UND Hochkant-Short), ein Schwarm samt Tourenmenge und Geschwindigkeits-Modus ist EIN Klick, und oben in jedem Modul wechselst du per Umschalter zwischen den Projekten einer Tour. Auch ganz ohne Tour: leeres Projekt anlegen, Reiseroute planen oder Kamera-Flug bauen, Touren später dazuholen. Deine bisherigen Arbeitsstände wurden automatisch übernommen — nichts ging verloren.
-
-🧬 Touren haben jetzt Fassungen. Heilst du eine Tour und ersetzt sie im Archiv, entsteht eine neue Fassung — deine fertigen Video-Projekte bleiben an ihrer alten Fassung „gepinnt&quot; (Keyframes und Schilder verrutschen nicht!) und zeigen „⬆ neuere Fassung&quot; zum bewussten Aktualisieren. Die Tour-Detailspalte listet die ganze Kette, jede Fassung lässt sich byte-genau wiederherstellen, und mit eingerichteter Cloud wandern die Fassungen auf den Zweitrechner mit. Beim Arbeiten sichert die App außerdem alle 10 Minuten einen Arbeitsstand (🕘 auf der Projektkarte).</description>
 </item>
 </channel>
 </rss>
