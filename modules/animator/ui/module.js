@@ -2352,6 +2352,13 @@ function mountAnimator(body, headerActions, opts) {
     vp.dataset.rzAttribPos = document.getElementById("anim-ov-attrib-pos")?.value || "br";
     vp.dataset.rzAttribW = document.getElementById("anim-ov-attrib-w")?.value || "mittel";
     try { _applyAttribLook(); } catch (_) {}
+    // Leiste über die ganze Breite: gemessene Höhe als Variable, damit die unteren Overlays hochrücken
+    const _messen = () => { try {
+      const el = vp.querySelector(".maplibregl-ctrl-attrib");
+      const h = (vp.dataset.rzAttribW === "voll" && el) ? el.getBoundingClientRect().height / (parseFloat(vp.style.getPropertyValue("--rz-prev-k")) || 1) : 0;
+      vp.style.setProperty("--rz-attrib-bar-h", h.toFixed(1) + "px");
+    } catch (_) {} };
+    _messen(); requestAnimationFrame(_messen); setTimeout(_messen, 300);
     // Marc, 07.09.2026: nie abschaltbar — falls MapLibre sie zugeklappt hat, wieder aufklappen.
     try { vp.querySelectorAll(".maplibregl-ctrl-attrib.maplibregl-compact").forEach(el => el.classList.add("maplibregl-compact-show")); } catch (_) {}
   }

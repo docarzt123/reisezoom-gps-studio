@@ -989,6 +989,15 @@ label.chip-toggle input:checked + span {
 #anim-viewport[data-rz-attrib-w="voll"] .maplibregl-ctrl-bottom-right { left: 0 !important; right: 0 !important; top: auto !important; bottom: 0 !important; }
 #anim-viewport[data-rz-attrib-w="voll"] .maplibregl-ctrl-bottom-right .maplibregl-ctrl { margin: 0 !important; float: none !important; width: 100%; }
 #anim-viewport[data-rz-attrib-w="voll"] .maplibregl-ctrl-attrib { max-width: 100% !important; width: 100%; box-sizing: border-box; border-radius: 0; padding: 3px 12px !important; text-align: center; }
+/* Leiste unten → untere Overlays (Maßstab, Nordpfeil, Boxen, Höhenprofil) rücken um die Leistenhöhe
+   nach oben (--rz-attrib-bar-h setzt _applyAttribLayout aus der gemessenen Höhe). */
+#anim-viewport[data-rz-attrib-w="voll"] .overlay-preview-layer .pos-bl,
+#anim-viewport[data-rz-attrib-w="voll"] .overlay-preview-layer .pos-br,
+#anim-viewport[data-rz-attrib-w="voll"] .overlay-preview-layer .pos-bc,
+#anim-viewport[data-rz-attrib-w="voll"] .overlay-preview-layer .ov-ele-box.pos-bl,
+#anim-viewport[data-rz-attrib-w="voll"] .overlay-preview-layer .ov-ele-box.pos-br,
+#anim-viewport[data-rz-attrib-w="voll"] .overlay-preview-layer .ov-ele-box.pos-bc,
+#anim-viewport[data-rz-attrib-w="voll"] .overlay-preview-layer .ov-ele-box.pos-bcw { bottom: calc(40px * var(--overlay-scale) + var(--rz-attrib-bar-h, 0px)); }
 #anim-viewport[data-rz-attrib-pos="bl"] .maplibregl-ctrl-bottom-right,
 #anim-viewport[data-rz-attrib-pos="tl"] .maplibregl-ctrl-bottom-right { right: auto; left: 0; }
 #anim-viewport[data-rz-attrib-pos="tr"] .maplibregl-ctrl-bottom-right,
