@@ -116,9 +116,25 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.660</span>
+    <span class="version-date">7 September 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <p class="version-tagline">The app now runs entirely without keys &mdash; and Tour-Map and Reiseroute come from the same scene as the video.</p>
+  <ul>
+    <li><strong>Everything without a token</strong> &mdash; Place search via Photon (understands German place names; Mapbox resolved &ldquo;Teneriffa&rdquo; to Teneriffe in Australia and the flight from Berlin went around the world), road routes, path snapping and route A→B via OSRM and Valhalla (FOSSGIS), archive thumbnails from Sentinel-2 satellite tiles, address lookup defaults to Photon. A Mapbox or MapTiler key is only an add-on for more map styles.</li>
+    <li><strong>Tour-Map and Reiseroute on the shared scene</strong> &mdash; The Tour-Map PNG is a screenshot of the Tour-Map preview at image size; the Reiseroute video renders through the scene like the Animator and waits for the route GPX.</li>
+    <li><strong>Rendering about twice as fast</strong> &mdash; Symbol cross-fade and the globe error-correction ramp no longer stall the frame sequence. Measured at 1080p: 562 → about 300 ms per frame.</li>
+    <li><strong>Journey compositions</strong> &mdash; Tours in sequence with a cinematic flight render through the former generator again for now &mdash; the scene played only the first tour.</li>
+    <li><strong>Fixed</strong> &mdash; Dashed tracks showed black pieces in the gaps (shadow pattern scaled); label switches were wrong after Animator → Tour-Map; a render could abort after twelve frames on an odd frame height; throttled tile servers are retried.</li>
+    <li><strong>Donation buttons</strong> &mdash; In the About dialog next to the existing ones: OpenStreetMap Foundation, FOSSGIS e.V., OpenFreeMap, MapLibre &mdash; the free services the app runs on.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.659</span>
     <span class="version-date">6 September 2026</span>
-    <span class="version-badge">Latest</span>
   </div>
   <p class="version-tagline">Terrain stitching without a speed penalty, also on weak machines.</p>
   <ul>

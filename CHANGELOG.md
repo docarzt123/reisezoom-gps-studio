@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.660] – 2026-09-07
+
 ### Added
 - About dialog: donation buttons for the free services the app now runs on, next to Marc's own support buttons: OpenStreetMap Foundation, FOSSGIS e.V. (Valhalla, Nominatim), OpenFreeMap, MapLibre. / Über-Dialog: Spendenknöpfe für die freien Dienste, auf denen die App jetzt läuft, neben den eigenen Unterstützen-Knöpfen: OpenStreetMap Foundation, FOSSGIS e. V. (Valhalla, Nominatim), OpenFreeMap, MapLibre.
 
