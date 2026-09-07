@@ -3674,6 +3674,13 @@ integer multiple of the chroma subsampling", Abbruch bei Bild 12; gefunden mit
 dem Reiseroute-Prüfstand im 1400×900-Fenster). Bei SSAA > 1 lief der Downscale
 ohnehin immer.
 
+**Reiseroute-Ortssuche (07.09.2026).** `route_geocode(query, limit, bias)` fragt
+zuerst `route.geocode_photon` (photon.komoot.io, `lang` = App-Sprache, optional
+`lon/lat`-Bias = anderer aufgelöster Wegpunkt), Mapbox v5 (`route.geocode`) nur
+als Rückfall — oder zuerst, wenn `geocode_provider = "mapbox"` UND Token. Grund:
+Mapbox kennt Exonyme nicht („Teneriffa" → Teneriffe/Queensland, „Tenerife" →
+Kolumbien), Photon liefert die Insel und deutsche Labels. Ergebnis trägt `provider`.
+
 **Modulwechsel und `bindSetting`-Registry.** Animator, Reiseroute und Tour-Map
 binden dieselben Element-IDs an verschiedene Sektionen. Die Registry ersetzt
 seit 07.09.2026 nach `elementId` allein — vorher blieb der Eintrag des vorigen

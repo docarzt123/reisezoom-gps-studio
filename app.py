@@ -4507,16 +4507,38 @@ class Api:
         return ds
 
     # ── v0.9.205: Anreise/Flug-Route ──────────────────────────────────────────
-    def route_geocode(self, query: str, limit: int = 5) -> dict:
-        """Adresse/Ort → Treffer-Liste [{name, lon, lat}] (Mapbox Geocoding)."""
+    def route_geocode(self, query: str, limit: int = 5, bias: Optional[list] = None) -> dict:
+        """Adresse/Ort → Treffer-Liste [{name, lon, lat}].
+
+        07.09.2026 (Marc: „Berlin–Teneriffa fliegt einmal um die Welt statt direkt"):
+        Mapbox kannte „Teneriffa" nicht und nahm Teneriffe in Queensland. Zuerst
+        Photon (OpenStreetMap, kein Token, versteht deutsche Ortsnamen), Mapbox nur
+        als Rückfall, wenn Photon nichts findet oder nicht erreichbar ist — oder
+        wenn der Nutzer in den Einstellungen ausdrücklich Mapbox gewählt hat (dann
+        umgekehrt). `bias` = [lon, lat] eines schon aufgelösten Wegpunkts.
+        """
         try:
             token = _active_mapbox_token()
-            if not token:
-                return {"ok": False, "error": "no_token"}
-            hits = croute.geocode(query, token, limit=int(limit))
-            return {"ok": True, "results": hits}
-        except croute.RouteError as e:
-            return {"ok": False, "error": str(e)}
+            prov = str(_load_settings().get("geocode_provider") or "auto")
+            lang = _ui_sprache()
+            b = tuple(bias) if isinstance(bias, (list, tuple)) and len(bias) == 2 else None
+            reihenfolge = ["mapbox", "photon"] if prov == "mapbox" and token else ["photon", "mapbox"]
+            fehler = []
+            for p in reihenfolge:
+                try:
+                    if p == "photon":
+                        hits = croute.geocode_photon(query, limit=int(limit), lang=lang, bias=b)
+                    else:
+                        if not token:
+                            continue
+                        hits = croute.geocode(query, token, limit=int(limit))
+                except croute.RouteError as e:
+                    fehler.append(str(e)); continue
+                if hits:
+                    return {"ok": True, "results": hits, "provider": p}
+            if fehler and not token:
+                return {"ok": False, "error": fehler[0]}
+            return {"ok": True, "results": [], "provider": reihenfolge[0], "fehler": fehler}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
 

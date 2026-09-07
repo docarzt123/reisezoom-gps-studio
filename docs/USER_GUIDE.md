@@ -1508,6 +1508,8 @@ Reiseroute ist ein **vollwertiger Klon des Animators**: alles was dort geht (Kar
 
 > **Detailgrad wirkt erst beim nächsten „Route berechnen"** — Slider schieben, dann neu berechnen.
 
+> **Ortsnamen prüfen (seit 07.09.2026):** Die Ortssuche fragt zuerst Photon (OpenStreetMap, kein Token) und versteht deutsche Namen wie „Teneriffa" oder „Kapstadt"; vorher lieferte Mapbox dafür Teneriffe in Australien, und der Flug ab Berlin ging einmal um die Welt. Ein Tippfehler findet trotzdem irgendeinen Ort („berin" → Berin in Ungarn) — die **✓-Zeile unter dem Feld** zeigt immer, was gefunden wurde. Stimmt es nicht: Namen ergänzen („Berlin, Deutschland") oder per 📍 auf der Karte setzen. Ein bereits aufgelöster Wegpunkt zieht die Suche für die nächsten Stationen zu nahen Treffern.
+
 ### Stationen sortieren und prüfen (seit v0.9.538)
 
 **Reihenfolge ändern:** Jede Station hat links einen Griff **⠿** — damit ziehst

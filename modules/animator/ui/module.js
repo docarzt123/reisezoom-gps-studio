@@ -10491,7 +10491,10 @@ function mountAnimator(body, headerActions, opts) {
       if (m) { const a = parseFloat(m[1]), b = parseFloat(m[2]); w.lon = b; w.lat = a; return { coords: { lon: b, lat: a }, hadInput: true, err: null }; }
       if (txt) {
         let r;
-        try { r = await api().route_geocode(txt, 1); }
+        // 07.09.2026 — nahe Treffer bevorzugen: der zuletzt aufgelöste andere Wegpunkt als Bezug
+        let _bias = null;
+        try { const o = _routeWps.find((x, j) => j !== i && x && x.lon != null && x.lat != null); if (o) _bias = [o.lon, o.lat]; } catch (_) {}
+        try { r = await api().route_geocode(txt, 1, _bias); }
         catch (e) { return { coords: null, hadInput: true, err: "geocode_failed", detail: String(e && e.message || e) }; }
         if (r && r.ok && r.results && r.results.length) {
           const h = r.results[0]; w.lon = h.lon; w.lat = h.lat; w.label = h.name;
