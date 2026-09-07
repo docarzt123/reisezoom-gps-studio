@@ -264,12 +264,21 @@ def to_string(points, fmt: str = "gpx", name: Optional[str] = None) -> str:
     return to_gpx_string(points, name)
 
 
-def export_payload(points, fmt: str = "gpx", name: Optional[str] = None):
+def export_payload(points, fmt: str = "gpx", name: Optional[str] = None, original=None):
     """Binär-sicherer Export: gibt (bytes, mime) zurück. KMZ ist gezippt,
-    alle anderen sind UTF-8-Text."""
+    alle anderen sind UTF-8-Text. 07.09.2026: `original` = Rohbytes der Quell-GPX →
+    verlustfrei (core/gpxpatch: Metadaten, Namen, Wegpunkte, Erweiterungen bleiben);
+    ohne Original oder bei Fremdformat wie bisher aus den Punkten."""
     fmt = (fmt or "gpx").lower()
     if fmt not in EXPORT_MIME:
         fmt = "gpx"
+    if fmt == "gpx" and original:
+        try:
+            from . import gpxpatch
+            if gpxpatch.ist_gpx(original):
+                return gpxpatch.gpx_mit_punkten(original, points, name=name).encode("utf-8"), EXPORT_MIME["gpx"]
+        except Exception:  # noqa: BLE001 — verlustfrei ist Kür, die Datei muss kommen
+            pass
     if fmt == "kmz":
         return to_kmz_bytes(points, name), EXPORT_MIME["kmz"]
     return to_string(points, fmt, name).encode("utf-8"), EXPORT_MIME[fmt]

@@ -107,10 +107,12 @@ def fill_elevation(points: List[dict], dataset: str = "eudem25m",
 
     # Deckel: gleichmäßig ausdünnen statt hinten abzuschneiden
     if len(anchors) > _MAX_ANCHORS:
+        # 07.09.2026 (FOSSGIS-Test: „queried 601"): Anfang + Ende gehören zum Deckel dazu
         keep = {0, n - 1}
-        stride = len(anchors) / float(_MAX_ANCHORS)
-        keep.update(anchors[int(i * stride)] for i in range(_MAX_ANCHORS))
-        anchors = sorted(keep)
+        innen = _MAX_ANCHORS - 2
+        stride = len(anchors) / float(innen)
+        keep.update(anchors[int(i * stride)] for i in range(innen))
+        anchors = sorted(keep)[:_MAX_ANCHORS]
 
     # 2) abfragen
     try:
@@ -141,21 +143,14 @@ def fill_elevation(points: List[dict], dataset: str = "eudem25m",
 
     # 4) einsetzen
     def gain_loss(seq):
-        up = dn = 0.0
-        last = None
-        for e in seq:
-            if e is None:
-                continue
-            if last is None:
-                last = e
-                continue
-            d = e - last
-            if abs(d) >= 3.0:               # 3-m-Schwelle wie überall im Projekt
-                if d > 0:
-                    up += d
-                else:
-                    dn += -d
-                last = e
+        # 07.09.2026 (FOSSGIS-Test: drei verschiedene Auf-/Abstiege): DASSELBE Verfahren wie
+        # die kanonische Statistik (core/gpx: Glättung Fenster 5, Schwelle 3 m) — Oberfläche,
+        # API und Datei zeigen damit dieselbe Zahl.
+        from .gpx import _compute_ascent_descent
+        eles = [e for e in seq if e is not None]
+        if len(eles) < 2:
+            return 0, 0
+        up, dn = _compute_ascent_descent(eles, smooth_window=5, threshold_m=3.0)
         return round(up), round(dn)
 
     before = gain_loss([p.get("ele") for p in points])

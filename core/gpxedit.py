@@ -210,8 +210,10 @@ def save_points(
                 ele_f = float(ele)
             except (TypeError, ValueError):
                 ele_f = None
-        pts.append({"lat": lat, "lon": lon, "ele": ele_f, "time": p.get("time"), "extra": {}})
         oi = p.get("oi")
+        # 07.09.2026 — Originalindex mitgeben: core/gpxpatch übernimmt unveränderte Punkte samt Erweiterungen
+        pts.append({"lat": lat, "lon": lon, "ele": ele_f, "time": p.get("time"), "extra": {},
+                    **({"i": oi} if isinstance(oi, int) else {})})
         oi_list.append(oi if isinstance(oi, int) else None)
         si = p.get("si")
         si_list.append(si if isinstance(si, int) and si >= 0 else 0)
@@ -226,7 +228,15 @@ def save_points(
             pt["extra"] = ex or {}
 
     from . import trackio as ctrackio
-    data, _mime = ctrackio.export_payload(pts, fmt, name)
+    # 07.09.2026 — verlustfrei: Metadaten/Namen/Erweiterungen der Quell-GPX bleiben (core/gpxpatch)
+    _orig = None
+    try:
+        if fmt == "gpx" and src_path and str(src_path).lower().endswith(".gpx") and os.path.exists(src_path):
+            with open(src_path, "rb") as _f:
+                _orig = _f.read()
+    except OSError:
+        _orig = None
+    data, _mime = ctrackio.export_payload(pts, fmt, name, original=_orig)
 
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     # Atomar schreiben. „Im Archiv ersetzen" gibt hier die ORIGINAL-Datei des
