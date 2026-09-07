@@ -103,6 +103,47 @@ def geocode(query: str, token: str, *, limit: int = 1) -> List[dict]:
     return out
 
 
+def geocode_photon(query: str, *, limit: int = 1, lang: str = "de",
+                   bias: Optional[Tuple[float, float]] = None) -> List[dict]:
+    """Ort → Treffer über Photon (Komoot, OpenStreetMap-Daten, kein Token).
+    07.09.2026 (Marc: „Berlin–Teneriffa fliegt einmal um die Welt"): Mapbox kennt
+    deutsche Ortsnamen wie „Teneriffa", „Kapstadt" nicht und lieferte Teneriffe in
+    Queensland. Photon versteht die Landessprache (de/en/fr/it) und findet die Insel.
+    `bias` = (lon, lat) eines schon aufgelösten Wegpunkts: bevorzugt nahe Treffer.
+    Liste [{name, lon, lat}], leer wenn nichts gefunden; RouteError bei Netzproblemen."""
+    q = (query or "").strip()
+    if not q:
+        return []
+    plang = lang if lang in ("de", "en", "fr", "it") else "en"
+    params = {"q": q, "lang": plang, "limit": max(1, min(10, int(limit)))}
+    if bias and len(bias) == 2:
+        params["lon"] = f"{float(bias[0]):.5f}"; params["lat"] = f"{float(bias[1]):.5f}"
+    try:
+        data = _http_get_json("https://photon.komoot.io/api/?" + urllib.parse.urlencode(params))
+    except Exception as e:  # noqa: BLE001
+        raise RouteError(f"Geocoding (Photon) fehlgeschlagen: {e}") from e
+    out: List[dict] = []
+    seen = set()
+    for feat in data.get("features", []) or []:
+        geom = feat.get("geometry") or {}
+        c = geom.get("coordinates")
+        p = feat.get("properties") or {}
+        if not (isinstance(c, list) and len(c) == 2):
+            continue
+        teile = [p.get("name") or q]
+        for k in ("city", "state", "country"):
+            v = p.get(k)
+            if v and v not in teile:
+                teile.append(v)
+        name = ", ".join(teile)
+        key = (name, round(float(c[0]), 3), round(float(c[1]), 3))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"name": name, "lon": float(c[0]), "lat": float(c[1])})
+    return out
+
+
 # ── Straßen-Route via Mapbox Directions ──────────────────────────────────────
 # Maximale Vereinfachungs-Toleranz (Douglas-Peucker) in Grad bei coarseness=1.
 # v0.9.213 — von 0.006 (~600 m) auf 0.06 (~6 km) angehoben, damit „grob" bis
