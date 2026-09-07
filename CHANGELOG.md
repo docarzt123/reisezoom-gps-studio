@@ -14,6 +14,8 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.662] – 2026-09-07
+
 ### Added
 - Sharpness slider (last slider of „Luftbild-Optik" and „Karten-Optik", below „Farbton", 0–100 %, default 0): an unsharp mask drawn as a WebGL layer right above the imagery, identical in preview and video (not in the web-map exports). Affects only the imagery, not track, signs, labels, numbers, profile or source line. Reason: the free Sentinel-2 imagery is soft over islands and coasts; sharpening at 40–60 % makes it readable without changing the data. — Schärfe-Regler (Karte → „Schärfe"): Unschärfemaske auf der Karten-Leinwand, Vorschau = Video.
 
