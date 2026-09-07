@@ -953,9 +953,15 @@ label.chip-toggle input:checked + span {
 .overlay-preview-layer .ov-scale-txt { margin-bottom: calc(3px * var(--overlay-scale)); }
 .overlay-preview-layer .ov-scale-bar { height: calc(8px * var(--overlay-scale)); width: var(--rz-scale-w, calc(120px * var(--overlay-scale))); box-sizing: border-box; border: calc(2px * var(--overlay-scale)) solid #fff; border-top: none; box-shadow: 0 calc(1px * var(--overlay-scale)) calc(4px * var(--overlay-scale)) rgba(0,0,0,.6); }
 
-/* 04.09.2026 — Quellen-Nennung (Attribution) in der Vorschau im Render-Maßstab (WYSIWYG) */
-#anim-viewport .maplibregl-ctrl-bottom-right,
-#anim-viewport .mapboxgl-ctrl-bottom-right { transform: scale(var(--rz-prev-k, 1)); transform-origin: bottom right; }
+/* 04.09.2026 — Quellen-Nennung (Attribution) wurde mit --rz-prev-k verkleinert (Render-Maßstab
+   des alten Generators). 07.09.2026 (Marc: „in der vorschau fehlt die attribution"): seit die
+   Szene das Video aus der Vorschau macht, verkleinert das doppelt — ~5 px in der Vorschau, 12 px
+   im 1080p-Video, nicht lesbar, Wasserzeichen nicht platzierbar. Jetzt ohne Skalierung: normale
+   Größe in der Vorschau, im Video dieselbe relative Größe (Vorschau × Pixeldichte).
+   10 px statt MapLibres 12 px, sonst legt sich die lange Quellenzeile (Gelände, Hintergrund,
+   Beschriftung, Sentinel) im 1080p-Video als dreizeiliger weißer Balken über die ganze Breite. */
+#anim-viewport .maplibregl-ctrl-attrib,
+#anim-viewport .mapboxgl-ctrl-attrib { font-size: 9px; line-height: 1.35; max-width: 60%; }
 /* 06.09.2026 (Marc): Die Attribution darf NIE verdeckt werden — über Overlay-Layer (z 5)
    und Diagramm-Layer (z 6). Der Kartencontainer bildet keinen eigenen Stapel, also greift
    der z-index gegen die Geschwister im Viewport. Synchron zur Tour-Map. */
