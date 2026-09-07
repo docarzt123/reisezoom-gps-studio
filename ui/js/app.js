@@ -224,6 +224,7 @@ function _settingsStand() {
     maptilerKey: c.maptiler_key || "",
     mapStyleDefault: c.map_style_default || (typeof mapDefaultStyle === "function" ? mapDefaultStyle() : "free_satellite"),
     tileCacheMb: (c.tile_cache_mb != null) ? c.tile_cache_mb : 2048,
+    previewQuality: c.preview_quality || "voll",   // 07.09.2026 — Vorschau-Qualität
     // v0.9.530 (IDEAS §23): Update-Prüfung beim Start abschaltbar — danach
     // telefoniert die App von sich aus mit niemandem mehr.
     updateCheck: c.update_check_enabled !== false,
@@ -365,7 +366,7 @@ async function openSettingsModal() {
   // kommen aus `_settingsStand()` — derselben Quelle, aus der auch der
   // Speichern-Handler liest.
   const { rqFmt, rqJq, rqCodec, rqCrf, rqPreset, forceOsm, geoEnabled, geoProvider,
-          updateCheck, startFortsetzen, maptilerKey, mapStyleDefault, tileCacheMb } = _settingsStand();
+          updateCheck, startFortsetzen, maptilerKey, mapStyleDefault, tileCacheMb, previewQuality } = _settingsStand();
   const tcInfo = await api().tile_cache_info().catch(() => ({ bytes: 0 }));
   const tcMb = Math.round((tcInfo.bytes || 0) / 1048576);
   const _sel = (a, b) => (a === b ? " selected" : "");
@@ -428,6 +429,14 @@ async function openSettingsModal() {
           <label class="field-label" for="md-map-default" style="font-size:12px; margin-top:14px;">${t("settings.maps.default", "Standard-Kartenstil für neue Projekte")}</label>
           <select id="md-map-default" style="width:100%;">${(typeof mapStyleOptionsHtml === "function") ? mapStyleOptionsHtml(mapStyleDefault) : ""}</select>
           <p class="set-help" style="margin-top:4px;">${t("settings.maps.default_help", "Bestehende Projekte behalten ihren Stil; sie lassen sich im Animator bzw. in der Tour-Map umstellen.")}</p>
+          <!-- 07.09.2026 (Marc, Masca 2): Vorschau-Qualität — nur das Fenster, nie das Video -->
+          <label class="field-label" for="md-preview-quality" style="font-size:12px; margin-top:14px;">${t("settings.preview_quality", "Vorschau-Qualität (nur im Fenster)")}</label>
+          <select id="md-preview-quality" style="width:100%;">
+            <option value="voll"${_sel(previewQuality, "voll")}>${t("settings.preview_quality.voll", "voll — wie das Video")}</option>
+            <option value="flott"${_sel(previewQuality, "flott")}>${t("settings.preview_quality.flott", "flott — weniger Kacheln je Bild")}</option>
+            <option value="schnell"${_sel(previewQuality, "schnell")}>${t("settings.preview_quality.schnell", "schnell — halbe Auflösung, gröberes Gelände")}</option>
+          </select>
+          <p class="set-help" style="margin-top:4px;">${t("settings.preview_quality.help", "Ruckelt die Vorschau (viele Kacheln, Gelände, Retina), hilft «flott» oder «schnell». Video und Standbild rendern immer in voller Qualität; Kamera, Strecke und Overlays bleiben identisch.")}</p>
         </div>
 
         <div class="set-subpanel" data-subpanel="kostenlos" hidden>
@@ -814,6 +823,8 @@ function _bindSettingsModalHandlers() {
     if (newMt !== alt.maptilerKey) patch.maptiler_key = newMt;
     const newDef = document.getElementById("md-map-default")?.value || alt.mapStyleDefault;
     if (newDef !== alt.mapStyleDefault) patch.map_style_default = newDef;
+    const newPq = document.getElementById("md-preview-quality")?.value || alt.previewQuality;
+    if (newPq !== alt.previewQuality) patch.preview_quality = newPq;   // 07.09.2026 — Vorschau-Qualität
     const newTc = parseInt(document.getElementById("md-tc-mb")?.value, 10);
     if (isFinite(newTc) && newTc !== alt.tileCacheMb) patch.tile_cache_mb = Math.max(0, newTc);
 
@@ -855,7 +866,7 @@ function _bindSettingsModalHandlers() {
 
     await saveSettings(patch, { immediate: true });
 
-    if (patch.mapbox_token !== undefined || patch.force_osm !== undefined || patch.maptiler_key !== undefined || patch.map_style_default !== undefined) {
+    if (patch.mapbox_token !== undefined || patch.force_osm !== undefined || patch.maptiler_key !== undefined || patch.map_style_default !== undefined || patch.preview_quality !== undefined) {
       // Token-Wechsel ODER OSM-Umschalter ändert die Map-Engine (Mapbox ↔ OSM),
       // Token-Cache in util.js, Animator-Style-Lock, MapLibre/Mapbox-Lib-Wahl
       // etc. — sicherer Weg: komplettes UI-Reload, damit alles frisch init.
