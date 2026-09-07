@@ -57,6 +57,41 @@
       else { map.setPaintProperty("rz-dim", "fill-color", color); map.setPaintProperty("rz-dim", "fill-opacity", op); }
     } catch (_) {}
   }
+  /* 07.09.2026 (Marc, Teneriffa: „die ganze Insel ist unscharf") — Schärfe 0…100 %.
+   * Sentinel-2 (EOX 2016) trägt bei z14 nicht mehr Detail als bei z13 (gemessen), da hilft
+   * keine Kacheldichte — nur eine Unschärfemaske: Bild = (1+A)·Original − A·Weichzeichnung.
+   * Als SVG-Filter per CSS auf der WebGL-Leinwand: greift in der Vorschau wie im Video
+   * (page.screenshot nimmt die gefilterte Leinwand), nicht auf HTML-Overlays (Zahlen,
+   * Profil, Quellenzeile). Radius in CSS-Pixeln — das Renderfenster ist in CSS-Pixeln
+   * genau die Vorschau, also gleicher Look. Bei 0 kein Filter (keine Kosten). */
+  const SHARP_ID = "rz-sharpen", SHARP_MAX_A = 1.5, SHARP_RADIUS = 1.0;
+  function sharpNorm(v) { const n = parseFloat(v); return isFinite(n) ? Math.max(0, Math.min(100, n)) : 0; }
+  function sharpFilter(doc) {
+    let f = doc.getElementById(SHARP_ID);
+    if (f) return f;
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = doc.createElementNS(NS, "svg");
+    svg.setAttribute("width", "0"); svg.setAttribute("height", "0"); svg.setAttribute("aria-hidden", "true");
+    svg.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;pointer-events:none";
+    f = doc.createElementNS(NS, "filter"); f.setAttribute("id", SHARP_ID); f.setAttribute("color-interpolation-filters", "sRGB");
+    f.setAttribute("x", "0"); f.setAttribute("y", "0"); f.setAttribute("width", "100%"); f.setAttribute("height", "100%");
+    const b = doc.createElementNS(NS, "feGaussianBlur"); b.setAttribute("in", "SourceGraphic"); b.setAttribute("stdDeviation", String(SHARP_RADIUS)); b.setAttribute("result", "b");
+    const c = doc.createElementNS(NS, "feComposite"); c.setAttribute("in", "SourceGraphic"); c.setAttribute("in2", "b"); c.setAttribute("operator", "arithmetic");
+    c.setAttribute("k1", "0"); c.setAttribute("k2", "1"); c.setAttribute("k3", "0"); c.setAttribute("k4", "0");
+    f.appendChild(b); f.appendChild(c); svg.appendChild(f); (doc.body || doc.documentElement).appendChild(svg);
+    return f;
+  }
+  function applySharpen(map, pct) {
+    let cv = null; try { cv = map && map.getCanvas ? map.getCanvas() : map; } catch (_) {}
+    if (!cv || !cv.style) return;
+    const v = sharpNorm(pct), A = v / 100 * SHARP_MAX_A;
+    if (v <= 0) { cv.style.filter = ""; return; }
+    const f = sharpFilter(cv.ownerDocument || document), c = f.querySelector("feComposite");
+    c.setAttribute("k2", String(+(1 + A).toFixed(3))); c.setAttribute("k3", String(+(-A).toFixed(3)));
+    cv.style.filter = "url(#" + SHARP_ID + ")";
+  }
+  window.rzMapSharpenNorm = sharpNorm;
+  window.rzApplyMapSharpen = applySharpen;
   window.rzOrthoAdjustNorm = norm;
   window.rzMapAdjustPaint = function (adj, def) { return paint(norm(adj, def)); };   // nicht rzRasterAdjustPaint: util.js hat eine gleichnamige Funktion (globale Deklaration = window-Eigenschaft)
   window.rzApplyRasterAdjust = applyAdjust;

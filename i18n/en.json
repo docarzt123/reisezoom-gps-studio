@@ -126,6 +126,8 @@
   "animator.field.ortho_bri": "Brightness",
   "animator.field.ortho_hue": "Hue",
   "animator.field.ortho_tip": "Affects only the official aerial imagery (not the base layer) — same in preview, video and web map.",
+  "animator.field.sharp_title": "Sharpness",
+  "animator.field.sharp_tip": "Sharpens the map (unsharp mask) — same in preview and video, not in the web map. Affects map and track, not numbers, profile or source line. Too much looks grainy.",
   "animator.field.mapadj_title": "Map look",
   "animator.field.mapadj_tip": "Affects the map, not the track or overlays — same in preview and video. Vector maps: brightness only.",
   "animator.field.stars_title": "Starry sky (globe)",

@@ -2677,6 +2677,31 @@ Zwei Regler-Sätze: `ortho_*` (Luftbilder, Katalog-Standard 25/8/0/0) und
 einer anderen Datei wird überschrieben (Endlosrekursion am 05.09.), daher
 heißt der Kern `rzMapAdjustPaint`.
 
+**Kacheldichte am Pixelmaßstab (07.09.2026, Marc: „die ganze Insel ist
+unscharf"):** MapLibre wählt die Kachelstufe aus `zoom + log2(512/tileSize)`,
+ohne `devicePixelRatio`. Eine 256-px-Kachel deckt also 256 CSS-Pixel, und auf
+Retina (×2) oder im Szene-Render (DSF = Video ÷ Vorschau: ×2,35 bei 1080p aus
+818 px, ×4,7 bei 4K) wird jedes Kachelpixel entsprechend vergrößert.
+`mapstyles.tile_size_for(base, dpr)` (Python) und `rzTileSize(base)` (util.js,
+liest `devicePixelRatio`) halbieren `tileSize` je Verdopplung, höchstens zwei
+Stufen (`TILE_DENSITY_MAX_STEPS`): 128 bei ×2…×3, 64 ab ×3,4. Greift für
+`rz-base`, `rz-raster-sentinel`, die Landesdienste und `raster_style`
+(OSM/OpenTopo), nicht für `raster-dem`. Kosten: 4× bzw. 16× Kacheln je Bild —
+die Kachel-Weiche und der Render-Zwischenspeicher fangen Wiederholungen ab.
+`resolve(..., dpr=)` bekommt im klassischen Render `_render_dsf × _render_ss`.
+Befund dazu: EOX Sentinel-2 cloudless 2016 trägt bei z14 keine zusätzliche
+Zeichnung gegenüber z13 (gemessen über dem Teide: Laplace-Varianz 9 → 13, mittlere
+Abweichung 1/255) — über Inseln ohne Landesdienst bleibt es weich, daher der
+Schärfe-Regler. Wächter: `tests/test_kacheldichte.py`.
+
+**Schärfe (07.09.2026):** `rzApplyMapSharpen(map, pct)` in `rz-mapadjust.js`
+hängt einen SVG-Filter `#rz-sharpen` (feGaussianBlur σ = 1 CSS-px +
+feComposite arithmetic k2 = 1+A, k3 = −A, A = pct/100 · 1,5) per CSS `filter`
+an die WebGL-Leinwand. Screenshot (Playwright) nimmt die gefilterte Leinwand,
+HTML-Overlays bleiben unberührt. Einstellung `map_sharp` (Projekt je Modul,
+AnimatorConfig, app.py-Defaults/Params, Render-Payload); klassischer Render:
+`sharp_block` im Karten-Kopf. Bei 0 kein Filter. Web-Karten-Exporte: nicht.
+
 **Straßen-Geometrie in der Schalter-Heuristik (05.09.2026):** `applyHideLabels`
 (Vorschau) und `hide_labels_block` (Render) nehmen auf Vektor-Stilen jetzt
 auch `line`-Ebenen mit Präfix road/highway/street/path/bridge/tunnel/… (→

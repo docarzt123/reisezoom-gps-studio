@@ -211,6 +211,7 @@ class AnimatorConfig:
     map_con: float = 0.0
     map_bri: float = 0.0
     map_hue: float = 0.0
+    map_sharp: float = 0.0              # 07.09.2026 — Schärfe (Unschärfemaske auf der Leinwand), 0 = aus
     # 05.09.2026 — Sternenhimmel hinter der Weltkugel (MapLibre; Mapbox bringt seinen eigenen mit)
     stars_enabled: bool = True
     stars_density: float = 50.0
@@ -2011,7 +2012,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
             "key": "osm", "requested": cfg.map_style, "engine": "maplibre",
             "style": _mapstyles.raster_style(_tiles, maxzoom=int(getattr(cfg, "osm_max_zoom", 19) or 19),
                                              attribution=str(getattr(cfg, "osm_attribution", None)
-                                                             or "&copy; OpenStreetMap contributors")),
+                                                             or "&copy; OpenStreetMap contributors"),
+                                             dpr=_render_dsf(cfg.width, cfg.height) * _render_ss(cfg.width, cfg.height)),
             "terrain": (_mapstyles.terrain_source("aws") if cfg.enable_terrain else None),
             "attribution": (_mapstyles.TERRAIN["aws"]["attribution"] if _zoff_on(cfg) else ""),
             "region": None, "notes": [], "badge": "free", "video_ok": True, "provider": "osm",
@@ -2029,7 +2031,9 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                     "transit": bool(cfg.show_transit_labels and not cfg.hide_labels),
                     "admin": bool(cfg.show_admin_boundaries)},
             ortho={"sat": getattr(cfg, "ortho_sat", 25.0), "con": getattr(cfg, "ortho_con", 8.0),
-                   "bri": getattr(cfg, "ortho_bri", 0.0), "hue": getattr(cfg, "ortho_hue", 0.0)})
+                   "bri": getattr(cfg, "ortho_bri", 0.0), "hue": getattr(cfg, "ortho_hue", 0.0)},
+            # 07.09.2026: Kacheldichte am Pixelmaßstab des Renders (DSF × SSAA), s. mapstyles.tile_size_for
+            dpr=_render_dsf(cfg.width, cfg.height) * _render_ss(cfg.width, cfg.height))
     cfg.map_engine = _spec["engine"]
     cfg.map_spec = _spec
     if not _spec["terrain"]:
@@ -2419,6 +2423,9 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
                    " else map.getContainer().style.background = '#05070d'; } catch(_){}\n"
                    + ("" if _spec.get("kind") == "gov" else
                       f"    try {{ if (window.rzApplyMapAdjust) rzApplyMapAdjust(map, {json.dumps(_madj)}, {{sat:0,con:0,bri:0,hue:0}}); }} catch(_){{}}\n"))
+    # 07.09.2026 — Schärfe (Unschärfemaske, rz-mapadjust.js) auf der Leinwand, alle Engines (CSS-Filter)
+    sharp_block = ("" if float(getattr(cfg, "map_sharp", 0) or 0) <= 0 else
+                   f"    try {{ if (window.rzApplyMapSharpen) rzApplyMapSharpen(map, {float(cfg.map_sharp):.1f}); }} catch(_){{}}\n")
     # Diagnose-Knöpfe (nur Env, Prüfstand): RZ_RTT_Q = Textur-Faktor der Gelände-Drapierung, RZ_MESH = Netzauflösung je Kachel
     # 06.09.2026 (Marc: „einzelne gezeichnete tracks flimmern", Teneriffa-Schwarm 4K):
     # MapLibre drapiert Linien AUF das Geländenetz — Grate verdecken sie stückweise,
@@ -3211,6 +3218,7 @@ map.on('style.load', () => {{
   }} catch (_) {{}}
   {hide_labels_block}
   {globe_block}
+  {sharp_block}
   {terrain_block}
   map.addSource('track', {{type:'geojson', lineMetrics:true, data:{{type:'Feature',geometry:{{type:'LineString',coordinates:[]}}}}}});
   if (SCHWARM_N) {{
