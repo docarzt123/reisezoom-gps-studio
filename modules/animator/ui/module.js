@@ -927,9 +927,10 @@ function mountAnimator(body, headerActions, opts) {
             
             <!-- 07.09.2026 (Marc: „kann man für die attribution einstellen, wo sie erscheint und in welcher form?")
                  Quellenzeile: Ecke + Breite (schmal = hoch, breit = flach). Sie bleibt immer sichtbar. -->
-            <div class="overlay-group" id="anim-overlay-attrib-group">
+            <div class="overlay-group ov-group--on" id="anim-overlay-attrib-group">
               <label class="checkbox-row inline" style="cursor:default;">
                 <span>${t("animator.overlay.attrib", "Quellenzeile")}</span>
+                <span class="muted" style="font-size:11px; margin-left:auto;">${t("animator.overlay.attrib_always", "immer sichtbar")}</span>
               </label>
               <div class="ov-group-details">
               <select id="anim-ov-attrib-pos" class="pos-select" title="${t("animator.overlay.position")}">
