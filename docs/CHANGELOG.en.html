@@ -117,9 +117,26 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.661</span>
+    <span class="version-num">v0.9.662</span>
     <span class="version-date">7 September 2026</span>
     <span class="version-badge">Latest</span>
+  </div>
+  <p class="version-tagline">Sharper maps, a sharpness slider and a source line you can see and place.</p>
+  <ul>
+    <li><strong>Sharper maps</strong> &mdash; On Retina screens and in the video the app now fetches tiles one or two levels deeper so a tile pixel lands about 1:1 on an output pixel. Before, every tile pixel was enlarged 2–5× and the whole map looked soft. Visible on every raster map: fields, roads, text. Costs more tiles per frame; a 4K zoom-in clip takes about half as long again.</li>
+    <li><strong>Sharpness slider</strong> &mdash; Below “Hue” in the aerial and map look groups: an unsharp mask on the map image, identical in preview and video. Affects only the imagery, not track, signs or numbers. Helps most over islands and coasts without official aerial imagery, where the free Sentinel layer is soft.</li>
+    <li><strong>Aerial look also on Sentinel</strong> &mdash; In a swarm overview only the Sentinel layer is visible and the sliders seemed dead. They now act there too, as deviation from the default. “Lighting (time of day)” only appears for Mapbox, where it does something.</li>
+    <li><strong>Source line readable and placeable</strong> &mdash; The attribution is no longer shrunk in the preview, keeps the same relative size in the video, follows the look of the stats boxes and can sit in any corner or as a full-width bar at the bottom. It can never be switched off.</li>
+    <li><strong>Collapsible overlay groups</strong> &mdash; Totals, live box, elevation profile, source line, compass, scale bar: an arrow in the title row opens the settings, and the app remembers what was open.</li>
+    <li><strong>Compositions load faster</strong> &mdash; Swarm and journey tours are parsed in one go and cached; a swarm still takes 21 instead of 46 seconds.</li>
+    <li><strong>Archive</strong> &mdash; The PNG button of the archive map was hidden under the style selector and now sits at the right below the zoom buttons.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
+    <span class="version-num">v0.9.661</span>
+    <span class="version-date">7 September 2026</span>
   </div>
   <p class="version-tagline">Small correction to 0.9.660.</p>
   <ul>
