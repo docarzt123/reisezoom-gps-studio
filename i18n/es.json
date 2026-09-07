@@ -273,6 +273,7 @@
   "animator.overlay.attrib": "Línea de fuentes",
   "animator.overlay.attrib_width": "Ancho de la línea de fuentes",
   "animator.overlay.attrib_always": "siempre visible",
+  "animator.overlay.group_toggle": "Mostrar u ocultar ajustes",
   "animator.overlay.attrib_w.schmal": "estrecha",
   "animator.overlay.attrib_w.mittel": "media",
   "animator.overlay.attrib_w.breit": "ancha",

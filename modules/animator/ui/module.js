@@ -2273,17 +2273,59 @@ function mountAnimator(body, headerActions, opts) {
     { cb: "anim-ov-north",  group: "anim-overlay-north-group" },   // 04.09.2026
     { cb: "anim-ov-scale",  group: "anim-overlay-scale-group" },
   ];
+  // 07.09.2026 (Marc: „mach die einzelnen gruppen auch einklappbar wie die obergruppe, das wird
+  // sonst zu unübersichtlich"): jede Overlay-Gruppe hat einen Pfeil in der Titelzeile; Details nur,
+  // wenn das Overlay AN und die Gruppe AUFGEKLAPPT ist. Aufgeklappte Gruppen merkt sich das Modul
+  // in settings[_MODKEY].open_overlay_groups (wie open_sections der Abschnitte). Standard: zu.
+  let _ovOpen = new Set();
+  try {
+    const cur = (_settingsCache && _settingsCache[_MODKEY]) || {};
+    if (Array.isArray(cur.open_overlay_groups)) _ovOpen = new Set(cur.open_overlay_groups);
+  } catch (_) {}
+  function _ovOpenMerken() {
+    try {
+      const arr = Array.from(_ovOpen);
+      if (_settingsCache) _settingsCache[_MODKEY] = Object.assign({}, _settingsCache[_MODKEY] || {}, { open_overlay_groups: arr });
+      saveSettings({ [_MODKEY]: { open_overlay_groups: arr } });
+    } catch (_) {}
+  }
+  function _ovToggleSetup() {
+    document.querySelectorAll("#anim-overlay-groups .overlay-group").forEach(box => {
+      const row = box.querySelector(".checkbox-row");
+      if (!row || row.querySelector(".ov-group-toggle")) return;
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ov-group-toggle"; b.title = t("animator.overlay.group_toggle", "Einstellungen ein-/ausklappen");
+      b.textContent = "▾";
+      b.addEventListener("click", (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        if (_ovOpen.has(box.id)) _ovOpen.delete(box.id); else _ovOpen.add(box.id);
+        _ovOpenMerken(); _ovSyncGroups();
+      });
+      row.appendChild(b);
+    });
+  }
   function _ovSyncGroups() {
     const master = document.getElementById("anim-overlays");
     const masterOn = !master || master.checked;
+    _ovToggleSetup();
     for (const g of _OV_GROUPS) {
       const cb = document.getElementById(g.cb);
       const box = document.getElementById(g.group);
       if (!cb || !box) continue;
       const on = masterOn && cb.checked;
       box.classList.toggle("ov-group--on", on);
+      const open = _ovOpen.has(box.id);
+      box.classList.toggle("ov-group--open", on && open);
       const det = box.querySelector(".ov-group-details");
-      if (det) det.hidden = !on;
+      if (det) det.hidden = !(on && open);
+      const tg = box.querySelector(".ov-group-toggle"); if (tg) tg.hidden = !on;
+    }
+    // Quellenzeile: immer an, nur auf/zu
+    const ab = document.getElementById("anim-overlay-attrib-group");
+    if (ab) {
+      const open = _ovOpen.has(ab.id);
+      ab.classList.toggle("ov-group--open", open);
+      const det = ab.querySelector(".ov-group-details"); if (det) det.hidden = !open;
     }
     // Master aus: die gesamte Overlay-Konfiguration wird bereits von
     // syncOverlayConfigVisibility() ausgeblendet (#anim-overlay-groups.hidden) —
