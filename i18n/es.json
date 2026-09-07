@@ -2904,5 +2904,10 @@
   "attrib.bearbeitet": "modificado",
   "attrib.quellen": "Fuentes",
   "attrib.text_title": "Fuentes de mapas, ortofotos y terreno",
-  "attrib.text_bearbeitet": "Datos modificados"
+  "attrib.text_bearbeitet": "Datos modificados",
+  "settings.preview_quality": "Calidad de la vista previa (solo en la ventana)",
+  "settings.preview_quality.voll": "completa — como el vídeo",
+  "settings.preview_quality.flott": "ágil — menos teselas por fotograma",
+  "settings.preview_quality.schnell": "rápida — media resolución, terreno más grueso",
+  "settings.preview_quality.help": "Si la vista previa va a tirones (muchas teselas, terreno, Retina), prueba «ágil» o «rápida». El vídeo y la imagen fija siempre se renderizan con calidad completa; cámara, recorrido y superposiciones no cambian."
 }

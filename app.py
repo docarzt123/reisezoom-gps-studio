@@ -439,6 +439,9 @@ DEFAULT_SETTINGS = {
     "maptiler_key": "",            # MapTiler Cloud API-Key; leer → MapTiler-Stile weichen aus
     "map_style_default": "free_satellite",   # Werkseinstellung für Karten ohne eigene Wahl
     "tile_cache_mb": 2048,         # Kachel-Zwischenspeicher des Renders (0 = aus)
+    # 07.09.2026 (Marc, Masca 2: «ruckelt in der Vorschau») — Vorschau-Qualität: voll | flott | schnell.
+    # Wirkt NUR auf die Vorschau im Fenster (Kacheldichte, Pixelmaßstab, Geländenetz), nie auf Video/Standbild.
+    "preview_quality": "voll",
     # v0.9.247 — OSM-Modus erzwingen (Test): App läuft als hätte sie keinen
     # Token; der gespeicherte Token bleibt aber erhalten.
     "force_osm": False,

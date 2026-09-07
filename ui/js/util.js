@@ -289,7 +289,9 @@ const RZ_TILE_DENSITY_MAX_STEPS = 2;
 function rzTileSize(base) {
   const d = Math.max(1, Number(window.devicePixelRatio) || 1);
   let k = Math.round(Math.log2(d));
-  k = Math.max(0, Math.min(RZ_TILE_DENSITY_MAX_STEPS, k));
+  // 07.09.2026 — Vorschau-Qualität (window.__rzTileDensityMax, s. app.js rzPreviewQuality): 0 = alte Dichte
+  const maxK = (typeof window.__rzTileDensityMax === "number") ? window.__rzTileDensityMax : RZ_TILE_DENSITY_MAX_STEPS;
+  k = Math.max(0, Math.min(maxK, k));
   return Math.max(32, (base || 256) >> k);
 }
 window.rzTileSize = rzTileSize;
@@ -583,7 +585,27 @@ window.osmBlockOverlay = osmBlockOverlay;
  *   „Satellit (kostenlos)"), opts.terrain (true = Gelände des Stils gleich anhängen).
  * Returns: { map, engine: "mapbox"|"maplibre", lib, spec, styleKey }
  */
+/** 07.09.2026 (Marc, Masca 2: «ruckelt in der Vorschau ganz schön heftig … Regler für schlechtere Qualität
+ *  während der Vorschau») — Vorschau-Qualität aus den Einstellungen, NUR im Fenster (nie im Render):
+ *  voll   = wie das Video (Kacheldichte 2 Stufen, Pixelmaßstab des Bildschirms, Geländenetz 128)
+ *  flott  = Kacheldichte wie vor dem 07.09. (viermal weniger Kacheln je Bild)
+ *  schnell = dazu Pixelmaßstab 1 (auf Retina ein Viertel der Pixel) und Geländenetz 64 */
+function rzPreviewQuality() {
+  if (window.__rzRenderMode) return "voll";
+  const q = (_settingsCache && _settingsCache.preview_quality) || "voll";
+  return (q === "flott" || q === "schnell") ? q : "voll";
+}
+function rzApplyPreviewQuality() {
+  const q = rzPreviewQuality();
+  window.__rzTileDensityMax = (q === "voll") ? undefined : 0;
+  window.__rzPreviewPixelRatio = (q === "schnell") ? 1 : undefined;
+  window.__rzPreviewMesh = (q === "schnell") ? 64 : undefined;
+  return q;
+}
+window.rzPreviewQuality = rzPreviewQuality; window.rzApplyPreviewQuality = rzApplyPreviewQuality;
+
 function createMap(opts) {
+  rzApplyPreviewQuality();   // vor dem Stil-Aufbau: rzTileSize liest __rzTileDensityMax
   let key = opts.styleKey || (opts.mapboxStyle && _mapKeyFromMapboxUrl(opts.mapboxStyle)) || mapDefaultStyle();
   // Gelände IMMER mit auflösen (spec.terrain) — `opts.terrain` sagt nur, ob es
   // hier gleich angehängt wird; der Animator hängt es selbst an (applyTerrain).
@@ -599,7 +621,8 @@ function createMap(opts) {
   } else {
     _mapMode = "osm";
     lib = maplibregl;
-    map = new maplibregl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 20, maxPitch: 85, fadeDuration: 0 }, opts.common || {}));   // maxPitch 85: MapLibre-Standard ist 60 → Keyframes mit 76° wurden geklemmt (04.09.2026)   // fadeDuration 0: Symbol-Ebenen (Pfeil) folgen sofort statt 300 ms Überblendung (04.09.2026)
+    const _pq = (window.__rzPreviewPixelRatio ? { pixelRatio: window.__rzPreviewPixelRatio } : {});   // 07.09.2026 Vorschau-Qualität «schnell»
+    map = new maplibregl.Map(Object.assign({ container: opts.container, style: spec.style, maxZoom: 20, maxPitch: 85, fadeDuration: 0 }, _pq, opts.common || {}));   // maxPitch 85: MapLibre-Standard ist 60 → Keyframes mit 76° wurden geklemmt (04.09.2026)   // fadeDuration 0: Symbol-Ebenen (Pfeil) folgen sofort statt 300 ms Überblendung (04.09.2026)
   }
   map.__rzEngine = spec.engine;
   // 04.09.2026 (Beta-Tester: „CyclOSM bleibt schwarz") — antwortet ein
@@ -1572,6 +1595,7 @@ let _projectPendingZiel = null;  // { hash, id } — Ziel des offenen Patches
 async function loadSettings() {
   if (_settingsCache) return _settingsCache;
   _settingsCache = await api().settings_get();
+  try { rzApplyPreviewQuality(); } catch (_) {}
   return _settingsCache;
 }
 

@@ -2707,6 +2707,16 @@ OSMF-Standardserver: Prefetch = Bulk → absprache. Konzept: `docs/KARTENQUELLEN
 LIZENZKONZEPT.md`; nächster Schritt: Nennungs-Modus (alles im Bild / Hinweis +
 eigener Link / reisezoom-Shortlink), IDEAS §56.
 
+**Vorschau-Qualität (07.09.2026, Marc: Masca 2 ruckelt):** Einstellung
+`preview_quality` (voll | flott | schnell, app.py-Default voll). `rzApplyPreviewQuality()`
+(util.js, nach `settings_get` und vor jedem `createMap`) setzt `window.__rzTileDensityMax`
+(flott/schnell: 0 → `rzTileSize` bleibt bei der Basis-Kachelgröße), `__rzPreviewPixelRatio`
+(schnell: 1 → MapLibre-Option `pixelRatio`) und `__rzPreviewMesh` (schnell: 64 →
+`RZ_MESH` im Animator). Im Render (`window.__rzRenderMode`) immer «voll» — WYSIWYG der
+Geometrie bleibt, nur die Bildschärfe der Vorschau sinkt. Umstellen lädt die Oberfläche neu
+(wie Stil-/Token-Wechsel). Messung auf Marcs Rechner über die `[probelauf]`-Zeilen im
+app.log (fps, längste Lücke).
+
 **Verlustfreie GPX-Ausgabe (07.09.2026, FOSSGIS-Test route-3.gpx):**
 `core/gpxpatch.gpx_mit_punkten(original, points, name=)` ergänzt die ORIGINAL-GPX
 statt eine neue zu bauen. Weg A (Punktmenge gleich: Zahl + Koordinaten in

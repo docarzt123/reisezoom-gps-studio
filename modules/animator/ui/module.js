@@ -7979,7 +7979,7 @@ function mountAnimator(body, headerActions, opts) {
         // Bewegungs-Artefakt von MapLibres Gelände, im alten Generator genauso (638). meshSize
         // bleibt 128: 256 reißt (16-Bit-Index-Überlauf im Netz → schwarzer Strich), 252/64/32
         // helfen nicht; qualityFactor, RTT-Pool und Überhöhung ohne Einfluss. Siehe IDEAS §53a.
-        const RZ_MESH = 128;
+        const RZ_MESH = window.__rzPreviewMesh || 128;   // 07.09.2026 — Vorschau-Qualität «schnell»: 64
         if (!cur || cur.source !== "mapbox-dem" || Math.abs((cur.exaggeration || 0) - ex) > 1e-6 || (cur.meshSize || 128) !== RZ_MESH) {
           // 06.09.2026 abends (Marc: „flimmernder Strich an den Kachelgrenzen") — Vendor-Patches
           // /* rz-patch stitch */ + /* rz-patch skirtoffset */: Randpunkte einer Kachel übernehmen
