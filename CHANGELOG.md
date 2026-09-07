@@ -14,6 +14,14 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.661] – 2026-09-07
+
+### Added
+- Tour-Map for compositions: a swarm or journey project now shows all its tours in the Tour-Map (each in its colour), the view fits all of them, and the PNG contains them. Before, the Tour-Map only knew the first tour of a composition. / Tour-Map für Kompositionen: ein Schwarm- oder Reise-Projekt zeigt in der Tour-Map jetzt alle Touren (jede in ihrer Farbe), der Ausschnitt passt sich allen an, und das PNG enthält sie. Vorher kannte die Tour-Map nur die erste Tour einer Komposition.
+
+### Fixed
+- About dialog: the credit line for routing and place search now has English and Spanish texts (0.9.660 showed the German fallback). / Über-Dialog: die Nennungszeile für Routen und Ortssuche hat jetzt englische und spanische Texte (0.9.660 zeigte den deutschen Rückfall).
+
 ## [0.9.660] – 2026-09-07
 
 ### Added
