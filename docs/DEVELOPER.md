@@ -2707,6 +2707,20 @@ OSMF-Standardserver: Prefetch = Bulk → absprache. Konzept: `docs/KARTENQUELLEN
 LIZENZKONZEPT.md`; nächster Schritt: Nennungs-Modus (alles im Bild / Hinweis +
 eigener Link / reisezoom-Shortlink), IDEAS §56.
 
+**Quellenzeile-Modus (07.09.2026, Konzept §6):** Einstellungen `attrib_mode`
+(`voll` | `kurz`) und `attrib_link` je Modul (bindSetting, Render-Params,
+`AnimatorConfig`). Vorschau/Szene: `_applyAttribText()` (module.js) schreibt im
+Modus kurz `rzKurzNennung(ids, link)` in `.maplibregl-ctrl-attrib-inner` und hält
+den Text per MutationObserver, weil MapLibre bei jedem Quellenwechsel neu schreibt;
+zurück auf voll: `_attribHTML = ""` + `_updateAttributions()` des Controls. Die
+beteiligten Quellen = Schlüssel von `map.__rzSpec.rights.quellen` (Regionen des
+Stapels + Grundlagen). Klassischer Render (`_make_html`): Quellen-`attribution`
+aus dem Stil-JSON geleert, `customAttribution` = `kartenquellen.kurz_nennung()`.
+Kopiertext: `rzQuellenText()` / `kartenquellen.quellen_text()` (Anbieter,
+Datensatz, Lizenz + Links, „Daten bearbeitet", Link); Knopf `#anim-copy-sources`,
+Zwischenablage über `navigator.clipboard`, sonst Brücke `copy_to_clipboard`
+(pbcopy/clip/xclip). Web-Karten-Exporte bleiben immer „voll".
+
 **Kacheldichte am Pixelmaßstab (07.09.2026, Marc: „die ganze Insel ist
 unscharf"):** MapLibre wählt die Kachelstufe aus `zoom + log2(512/tileSize)`,
 ohne `devicePixelRatio`. Eine 256-px-Kachel deckt also 256 CSS-Pixel, und auf
