@@ -984,6 +984,11 @@ label.chip-toggle input:checked + span {
 #anim-viewport .maplibregl-ctrl-attrib a { color: inherit !important; opacity: 0.85; }
 #anim-viewport[data-rz-attrib-w="schmal"] .maplibregl-ctrl-attrib { max-width: 28%; }
 #anim-viewport[data-rz-attrib-w="breit"]  .maplibregl-ctrl-attrib { max-width: 70%; }
+/* 07.09.2026 (Marc: „ganz breit, und das dann ganz unten über die gesamte breite"): Leiste am
+   unteren Rand, Ecke spielt dann keine Rolle. */
+#anim-viewport[data-rz-attrib-w="voll"] .maplibregl-ctrl-bottom-right { left: 0 !important; right: 0 !important; top: auto !important; bottom: 0 !important; }
+#anim-viewport[data-rz-attrib-w="voll"] .maplibregl-ctrl-bottom-right .maplibregl-ctrl { margin: 0 !important; float: none !important; width: 100%; }
+#anim-viewport[data-rz-attrib-w="voll"] .maplibregl-ctrl-attrib { max-width: 100% !important; width: 100%; box-sizing: border-box; border-radius: 0; padding: 3px 12px !important; text-align: center; }
 #anim-viewport[data-rz-attrib-pos="bl"] .maplibregl-ctrl-bottom-right,
 #anim-viewport[data-rz-attrib-pos="tl"] .maplibregl-ctrl-bottom-right { right: auto; left: 0; }
 #anim-viewport[data-rz-attrib-pos="tr"] .maplibregl-ctrl-bottom-right,
