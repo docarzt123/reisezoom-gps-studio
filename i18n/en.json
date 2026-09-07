@@ -8,6 +8,8 @@
   "about.credits.mapdata": "Map data",
   "about.credits.orthos": "government orthophotos of the national mapping agencies (dl-de/by-2-0, CC BY 4.0 etc.; attribution on screen)",
   "about.credits.title": "Open Source components",
+  "about.credits.routing": "Routing, path snapping and place search",
+  "about.credits.routing_data": "Data: OpenStreetMap contributors (ODbL)",
   "about.paths.app_support": "App Support",
   "about.paths.renders": "Animator Renders",
   "about.paths.tour_maps": "Tour Maps",

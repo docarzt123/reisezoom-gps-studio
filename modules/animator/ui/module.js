@@ -13026,8 +13026,16 @@ function mountAnimator(body, headerActions, opts) {
     // v0.9.412 — freie Kamera aktiv (übernommen) → Auto-Fit überspringen, damit der
     // übernommene Ausschnitt beim Re-Layout/Resize nicht wieder auf den Track springt.
     if (_isStaticFrame && _tmCamActive) return;
-    const b = currentBbox;
-    if (!("min_lon" in b)) return;
+    let b = currentBbox;
+    if (!b || !("min_lon" in b)) return;
+    // 07.09.2026 — Standbild einer Komposition: Ausschnitt über ALLE Touren (Schwarm/Reise)
+    if (_isStaticFrame && _extraTours.length) {
+      b = { min_lon: b.min_lon, min_lat: b.min_lat, max_lon: b.max_lon, max_lat: b.max_lat };
+      for (const tr of _extraTours) for (const p of (tr.coords || [])) {
+        if (p[0] < b.min_lon) b.min_lon = p[0]; if (p[0] > b.max_lon) b.max_lon = p[0];
+        if (p[1] < b.min_lat) b.min_lat = p[1]; if (p[1] > b.max_lat) b.max_lat = p[1];
+      }
+    }
     // v0.9.34 (Marc-Bug-Report): Schutz gegen Animations-Interruption.
     // Wenn gerade eine fitBounds-Animation läuft (≤ 700 ms her) und der
     // neue Call ist non-animated (= ResizeObserver-Trigger), skippen.
@@ -13712,6 +13720,11 @@ function mountAnimator(body, headerActions, opts) {
     // eigenen, sauber abgetasteten Punkten (punktabstand in core/animator.py).
     if (_animAblauf === "schwarm") {
       _swPrevBauen(lw);
+      // 07.09.2026 — Tour-Map (Standbild): alle Schwarm-Touren ganz gezeichnet, keine Laufpunkte
+      if (_isStaticFrame) {
+        try { _animSchwarmPreviewAdvance(Math.max(0, (currentCoords || []).length - 1), true); } catch (_) {}
+        try { if (map.getLayer("swarm-prev-dots")) map.setLayoutProperty("swarm-prev-dots", "visibility", "none"); } catch (_) {}
+      }
       _vorschauDiagnose();
       return;
     }
@@ -13985,6 +13998,19 @@ function mountAnimator(body, headerActions, opts) {
       const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
       const a = proj?.[_MODKEY] || {};
       saved = Array.isArray(a.extra_tours) ? a.extra_tours : [];
+      // 07.09.2026 (Marc: „tourmap muss auch multitrack können, also schwarm usw."): Die Etappen
+      // einer Komposition lagen nur in der Animator-Sektion des Projekts; Tour-Map und Reiseroute
+      // sahen deshalb nur die Haupt-Tour. Fehlen sie hier, kommen sie aus der Animator-Sektion
+      // (Farben/Namen bleiben), sonst aus der Tourenliste des Projekts (gpx_paths ab der 2.).
+      if (!saved.length && proj && (proj.ablauf === "schwarm" || proj.ablauf === "reise")) {
+        const aa = proj.animator || {};
+        if (Array.isArray(aa.extra_tours) && aa.extra_tours.length) saved = aa.extra_tours;
+        else if (Array.isArray(proj.gpx_paths) && proj.gpx_paths.length >= 2) {
+          const farben = ["#35a7ff", "#ffd166", "#06d6a0", "#ef476f", "#8338ec", "#fb5607", "#00bbf9", "#9ef01a"];
+          saved = proj.gpx_paths.slice(1).map((p, i) => ({ gpx_path: p, line_color: farben[i % farben.length],
+            name: String(p).split("/").pop().replace(/\.[a-z0-9]+$/i, "") }));
+        }
+      }
       if (typeof a.fly_duration_s === "number") fly = a.fly_duration_s;
       // Ablauf-Wahrheit: ERST die Sitzung (Mengen-Sitzungen tragen `ablauf`,
       // vom Archiv gewählt), DANN das Projekt, sonst den aktuellen Wert

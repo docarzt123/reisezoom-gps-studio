@@ -8,6 +8,8 @@
   "about.credits.mapdata": "Kartendaten",
   "about.credits.orthos": "staatliche Orthofotos der Landesvermessungen (dl-de/by-2-0, CC BY 4.0 u. a.; Nennung im Bild)",
   "about.credits.title": "Open-Source-Komponenten",
+  "about.credits.routing": "Routen, Wege-Snapping und Ortssuche",
+  "about.credits.routing_data": "Daten: OpenStreetMap-Mitwirkende (ODbL)",
   "about.paths.app_support": "App Support",
   "about.paths.renders": "Animator-Renders",
   "about.paths.tour_maps": "Tour-Karten",

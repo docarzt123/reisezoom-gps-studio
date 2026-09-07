@@ -1546,6 +1546,8 @@ Die Tour-Map ist **dieselbe Oberfläche wie der Animator** — nur im **Standbil
 4. **Bildausschnitt feintunen** über die Kamera-Regler (siehe unten) oder direkt mit Pan/Zoom auf der Karte
 5. **„🗺 Karte als PNG rendern"** → Save-Dialog → PNG ist in etwa 10 Sekunden fertig
 
+**Kompositionen (seit 07.09.2026):** Öffnest du ein Schwarm- oder Reise-Projekt in der Tour-Map, zeigt sie alle Touren in ihren Farben, passt den Ausschnitt an alle an, und das PNG enthält sie; beim Schwarm zählt die Summen-Box alle Touren zusammen.
+
 Seit 07.09.2026 entsteht das PNG wie das Video aus der Vorschau selbst (siehe „Vorschau = Video"): dieselbe Karte, dieselben Beschriftungen, Schilder, Pins und die Quellenzeile, nur in der gewählten Bildgröße. Was die Vorschau relativ zu ihrer Breite zeigt, zeigt auch das Bild.
 
 ### Standbild-Kamera-Regler (seit v0.9.310)
