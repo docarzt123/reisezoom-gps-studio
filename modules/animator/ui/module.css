@@ -894,6 +894,12 @@ label.chip-toggle input:checked + span {
 }
 .overlay-group:not(.ov-group--on) .checkbox-row span { color: var(--text-muted); }
 .ov-group-details { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* 07.09.2026 — Gruppen einklappbar (Pfeil rechts in der Titelzeile) */
+.overlay-group .checkbox-row.inline { display: flex; align-items: center; }
+.ov-group-toggle { margin-left: auto; background: none; border: 0; color: var(--text-muted); font-size: 13px; line-height: 1; padding: 2px 4px; cursor: pointer; transform: rotate(-90deg); transition: transform 0.12s, color 0.12s; }
+.ov-group-toggle:hover { color: var(--text); }
+.overlay-group.ov-group--open .ov-group-toggle { transform: rotate(0deg); }
+.ov-group-toggle[hidden] { display: none; }
 .ov-group-details[hidden] { display: none; }
 
 /* Pausen-Behandlung (v0.9.506) — zwei kleine Zahlenfelder nebeneinander unter

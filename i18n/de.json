@@ -273,6 +273,7 @@
   "animator.overlay.attrib": "Quellenzeile",
   "animator.overlay.attrib_width": "Breite der Quellenzeile",
   "animator.overlay.attrib_always": "immer sichtbar",
+  "animator.overlay.group_toggle": "Einstellungen ein-/ausklappen",
   "animator.overlay.attrib_w.schmal": "schmal",
   "animator.overlay.attrib_w.mittel": "mittel",
   "animator.overlay.attrib_w.breit": "breit",
