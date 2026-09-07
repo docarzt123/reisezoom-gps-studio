@@ -2891,5 +2891,18 @@
   "rights.register.status.unknown": "nicht verifiziert",
   "rights.register.status.false": "nicht erlaubt",
   "rights.register.server.nein": "Server: kein Bild-für-Bild-Rendern",
-  "rights.register.server.absprache": "Server: nur nach Absprache / eigener Server"
+  "rights.register.server.absprache": "Server: nur nach Absprache / eigener Server",
+  "animator.overlay.attrib_mode_tip": "Voll: jede Quelle mit Lizenz im Bild. Kurz: Kurznamen der Quellen, «bearbeitet» und ein Link zu den vollständigen Angaben — der Link muss direkt zu den Quellen dieses Videos führen (eigene Seite oder Videobeschreibung).",
+  "animator.overlay.attrib_mode.voll": "voll (alle Angaben im Bild)",
+  "animator.overlay.attrib_mode.kurz": "kurz (Namen + Link)",
+  "animator.overlay.attrib_link_ph": "Link zu den Quellen, z. B. deine Seite",
+  "animator.overlay.attrib_link_tip": "Erscheint im Bild hinter «Quellen:». Leer = kein Link; dann nur Kurznamen und «bearbeitet».",
+  "animator.btn.copy_sources": "Quellentext kopieren",
+  "animator.btn.copy_sources_tip": "Vollständige Quellenangaben (Anbieter, Datensatz, Lizenz mit Links) für die Videobeschreibung oder den Abspann in die Zwischenablage.",
+  "animator.msg.sources_copied": "Quellentext in der Zwischenablage.",
+  "animator.msg.sources_copy_fail": "Konnte nicht kopieren.",
+  "attrib.bearbeitet": "bearbeitet",
+  "attrib.quellen": "Quellen",
+  "attrib.text_title": "Karten-, Luftbild- und Geländequellen",
+  "attrib.text_bearbeitet": "Daten bearbeitet"
 }

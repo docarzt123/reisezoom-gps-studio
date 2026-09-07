@@ -62,7 +62,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.govdata.de/dl-de/zero-2-0'],
   'checked_at': '2026-09-07',
   'render_server': 'ok',
-  'credit_hinweis': 'Geoportal Berlin / Digitale farbige TrueOrthophotos 2024 (DOP20RGBI)'},
+  'credit_hinweis': 'Geoportal Berlin / Digitale farbige TrueOrthophotos 2024 (DOP20RGBI)',
+  'credit_kurz': '© Geoportal Berlin'},
  {'id': 'de-hb',
   'provider': 'Landesamt GeoInformation Bremen',
   'dataset': 'ATKIS DOP20 Land Bremen – WMS wms_dop20_2023 (DOP20_2023_HB, DOP20_2023_BHV)',
@@ -84,7 +85,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://geodienste.bremen.de/wms_dop20_2023?REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0',
               'https://creativecommons.org/licenses/by/4.0/'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': '© GeoBasis-DE/Bremen CC BY'},
  {'id': 'de-sl',
   'provider': 'Landesamt für Vermessung, Geoinformation und Landentwicklung Saarland (LVGL)',
   'dataset': 'ATKIS DOP 2025 / WMS SL DOP20 (sl_dop20_rgb)',
@@ -106,7 +108,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.shop.lvgl.saarland.de/index.php?option=com_content&view=article&id=18&metaauthor=odata',
               'https://www.govdata.de/dl-de/by-2-0'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': '© GeoBasis DE/LVGL-SL dl-de/by'},
  {'id': 'de-sh',
   'provider': 'Landesamt für Vermessung und Geoinformation Schleswig-Holstein (LVermGeo SH)',
   'dataset': 'DOP20 Schleswig-Holstein – Open-Data-Dienste WMS_SH_DOP20col_OpenGBD (sh_dop20_rgb)',
@@ -127,13 +130,14 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://dienste.gdi-sh.de/WMS_SH_DOP20col_OpenGBD?Service=wms&version=1.3.0&request=getCapabilities',
               'https://creativecommons.org/licenses/by/4.0/legalcode.de'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': '© GeoBasis-DE/LVermGeo SH CC BY'},
  {'id': 'de-mv',
   'provider': 'Landesamt für innere Verwaltung Mecklenburg-Vorpommern (LAiV M-V), Amt für Geoinformation, '
               'Vermessung und Katasterwesen',
   'dataset': 'WMS Digitale Orthophotos MV (WMS_MV_DOP, mv_dop), DOP20/TrueDOP',
   'dataset_url': 'https://laiv.geodaten-mv.de/afgvk/Luftbilder/Beschreibung?produkt=DOP',
-  'license': 'Creative Commons Namensnennung 4.0 International (CC BY 4.0) — seit 09.06.2024',
+  'license': 'CC BY 4.0 (seit 06/2024)',
   'license_url': 'https://creativecommons.org/licenses/by/4.0',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -150,7 +154,9 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.geodaten-mv.de/dienste/adv_dop?REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0',
               'https://laiv.geodaten-mv.de/afgvk/Sonstiges/Nutzungsbedingungen'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': '© GeoBasis-DE/M-V CC BY',
+  'license_hinweis': 'Creative Commons Namensnennung 4.0 International (CC BY 4.0) — seit 09.06.2024'},
  {'id': 'de-ni',
   'provider': 'Landesamt für Geoinformation und Landesvermessung Niedersachsen (LGLN)',
   'dataset': 'Digitale Orthophotos Niedersachsen (DOP20), WMS NI DOP20 RGB (ni_dop20)',
@@ -174,7 +180,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.lgln.niedersachsen.de/AGNB/',
               'https://gdk.gdi-de.org/geonetwork/srv/api/records/87890b7a-5a8a-4100-8a1e-78ced663a5d4'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': '© GeoBasis-DE/LGLN CC BY'},
  {'id': 'de-bb',
   'provider': 'Landesvermessung und Geobasisinformation Brandenburg (LGB)',
   'dataset': 'Digitale Orthophotos DOP20c (WMS dop20c, inkl. Berlin-Kacheln)',
@@ -198,7 +205,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://geobroker.geobasis-bb.de/gbss.php?MODE=GetProductInformation&PRODUCTID=253b7d3d-6b42-47dc-b127-682de078b7ae',
               'https://isk.geobasis-bb.de/mapproxy/dop20c/service/wms?REQUEST=GetCapabilities&SERVICE=WMS'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': '© GeoBasis-DE/LGB dl-de/by'},
  {'id': 'de-st',
   'provider': 'Landesamt für Vermessung und Geoinformation Sachsen-Anhalt (LVermGeo)',
   'dataset': 'ATKIS DOP20 Open Data – WMS ST_LVermGeo_DOP_WMS_OpenData (lsa_lvermgeo_dop20_2)',
@@ -219,7 +227,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.lvermgeo.sachsen-anhalt.de/datei/anzeigen/id/3567,501/nutzungsbedingungen_b.pdf',
               'https://www.geodatenportal.sachsen-anhalt.de/wss/service/ST_LVermGeo_DOP_WMS_OpenData/guest?service=wms&version=1.3.0&request=getcapabilities'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': '© GeoBasis-DE/LVermGeo ST dl-de/by'},
  {'id': 'de-sn',
   'provider': 'Landesamt für Geobasisinformation Sachsen (GeoSN)',
   'dataset': 'Digitale Orthophotos RGB 20 cm – WMS SN DOP-RGB (wms_geosn_dop-rgb)',
@@ -241,12 +250,13 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.geodaten.sachsen.de/haufig-gestellte-fragen-4464.html',
               'https://geodienste.sachsen.de/wms_geosn_dop-rgb/guest?REQUEST=GetCapabilities&SERVICE=WMS'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': 'GeoSN dl-de/by'},
  {'id': 'de-th',
   'provider': 'Thüringer Landesamt für Bodenmanagement und Geoinformation (TLBG) / GDI-Th',
   'dataset': 'Digitale Orthophotos Thüringen DOP20 – WMS TH DOP20 (Geoproxy)',
   'dataset_url': 'https://tlbg.thueringen.de/geobasisdaten/luftbilder-orthophotos',
-  'license': 'dl-de/by-2-0 — ab 14.09.2026 CC BY 4.0',
+  'license': 'dl-de/by-2-0 (ab 14.09.2026 CC BY 4.0)',
   'license_url': 'https://www.govdata.de/dl-de/by-2-0',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -262,12 +272,14 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.geoproxy.geoportal-th.de/geoproxy/services/DOP20?SERVICE=WMS&REQUEST=GetCapabilities'],
   'checked_at': '2026-09-07',
   'render_server': 'ok',
-  'credit_hinweis': '© GDI-Th, dl-de/by-2-0, bearbeitet (ab 14.09.2026: © GDI-Th, CC BY 4.0, bearbeitet)'},
+  'credit_hinweis': '© GDI-Th, dl-de/by-2-0, bearbeitet (ab 14.09.2026: © GDI-Th, CC BY 4.0, bearbeitet)',
+  'credit_kurz': '© GDI-Th dl-de/by',
+  'license_hinweis': 'dl-de/by-2-0 — ab 14.09.2026 CC BY 4.0'},
  {'id': 'de-he',
   'provider': 'Hessische Verwaltung für Bodenmanagement und Geoinformation (HVBG)',
   'dataset': 'ATKIS DOP20 (he_dop20_rgb) – WMS ogc-free-images',
   'dataset_url': 'https://hvbg.hessen.de/landesvermessung/geotopographie/luftbilder/digitale-orthophotos-true-orthophoto',
-  'license': 'Datenlizenz Deutschland – Zero – Version 2.0 (dl-de/zero-2-0), § 18/§ 24 HVGG',
+  'license': 'dl-de/zero-2-0 (§ 18 HVGG)',
   'license_url': 'https://www.govdata.de/dl-de/zero-2-0',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -283,8 +295,9 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.govdata.de/dl-de/zero-2-0'],
   'checked_at': '2026-09-07',
   'render_server': 'ok',
-  'credit_hinweis': 'Geobasisdaten © Hessische Verwaltung für Bodenmanagement und Geoinformation, '
-                    'bearbeitet'},
+  'credit_hinweis': 'Geobasisdaten © Hessische Verwaltung für Bodenmanagement und Geoinformation, bearbeitet',
+  'credit_kurz': '© HVBG',
+  'license_hinweis': 'Datenlizenz Deutschland – Zero – Version 2.0 (dl-de/zero-2-0), § 18/§ 24 HVGG'},
  {'id': 'de-nw',
   'provider': 'Geobasis NRW (Bezirksregierung Köln)',
   'dataset': 'Digitale Orthophotos NW (DOP, 10 cm) – WMS NW DOP / WMTS NW DOP',
@@ -305,7 +318,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.bezreg-koeln.nrw.de/system/files/media/document/file/lizenzbedingungen_geobasis_nrw.pdf',
               'https://www.wms.nrw.de/geobasis/wms_nw_dop?SERVICE=WMS&REQUEST=GetCapabilities'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': 'Geobasis NRW'},
  {'id': 'de-rp',
   'provider': 'Landesamt für Vermessung und Geobasisinformation Rheinland-Pfalz (LVermGeoRP)',
   'dataset': 'Digitale Orthophotos 0,2 m (DOP20RGB) – WMS RP DOP20',
@@ -326,7 +340,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://geo4.service24.rlp.de/wms/rp_dop20.fcgi?REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0',
               'https://www.govdata.de/dl-de/by-2-0'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': '© GeoBasis-DE/LVermGeoRP dl-de/by'},
  {'id': 'de-bw',
   'provider': 'Landesamt für Geoinformation und Landentwicklung Baden-Württemberg (LGL)',
   'dataset': 'DOP20 – WMS/WMTS LGL-BW ATKIS DOP 20 C',
@@ -348,7 +363,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.lgl-bw.de/agb/agb-lgl.html',
               'https://mlw.baden-wuerttemberg.de/de/landesentwicklung/geoinformation/open-data'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': 'LGL BW dl-de/by'},
  {'id': 'de-by',
   'provider': 'Bayerische Vermessungsverwaltung – Landesamt für Digitalisierung, Breitband und Vermessung '
               '(LDBV)',
@@ -370,14 +386,15 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.geodaten.bayern.de/odd/m/3/html/faq.html',
               'https://geoservices.bayern.de/od/wms/dop/v1/dop20?SERVICE=WMS&REQUEST=GetCapabilities'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': 'Bayer. Vermessungsverwaltung CC BY'},
  {'id': 'lu',
   'provider': 'Administration du cadastre et de la topographie (ACT), Grand-Duché de Luxembourg – '
               'geoportail.lu',
   'dataset': 'BD-L-ORTHO – Webservices WMS et WMTS (Open Data WMTS, Layer «ortho_latest» = «Dernières '
              'Photographies aériennes orthorectifiées»; aktuell Orthophoto été 2025, GSD ≤10 cm)',
   'dataset_url': 'https://data.public.lu/en/datasets/bd-l-ortho-webservices-wms-et-wmts/',
-  'license': 'Creative Commons Zero (CC0 1.0 Universal)',
+  'license': 'CC0 1.0',
   'license_url': 'https://creativecommons.org/publicdomain/zero/1.0/',
   'commercial_video': 'true',
   'modification_notice_required': False,
@@ -412,14 +429,15 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'render_server': 'ok',
   'credit_hinweis': 'Keine Pflichtformel (CC0 – Public-Domain-Dedication, keine Namensnennung '
                     'vorgeschrieben). Freiwillig empfohlen: «Orthophoto: Administration du cadastre et de la '
-                    'topographie, geoportail.lu (CC0)»'},
+                    'topographie, geoportail.lu (CC0)»',
+  'credit_kurz': 'ACT Luxembourg CC0',
+  'license_hinweis': 'Creative Commons Zero (CC0 1.0 Universal)'},
  {'id': 'ch',
   'provider': 'Bundesamt für Landestopografie swisstopo (Federal Office of Topography swisstopo), Schweiz',
   'dataset': 'SWISSIMAGE 10 cm – Digitales Farb-Orthophotomosaik der Schweiz (WMTS-Layer '
              'ch.swisstopo.swissimage / ch.swisstopo.swissimage-product, BGDI/FSDI)',
   'dataset_url': 'https://www.swisstopo.admin.ch/en/orthoimage-swissimage-10',
-  'license': 'Nutzungsbedingungen für kostenlose Geodaten und Geodienste (OGD) von swisstopo / Terms of use '
-             'for free geodata and geoservices (OGD) from swisstopo (keine CC-Lizenz; Grundlage GeoIG/GeoIV)',
+  'license': 'swisstopo OGD-Nutzungsbedingungen',
   'license_url': 'https://www.swisstopo.admin.ch/en/terms-of-use-free-geodata-and-geoservices',
   'commercial_video': 'true',
   'modification_notice_required': False,
@@ -466,14 +484,18 @@ QUELLEN: list[dict] = [{'id': 'de-be',
                     '(Quellenangabe-Seite): ideal bei jedem Erscheinen neben den Geodaten; akzeptabel: «Die '
                     'Quelle wird an zentraler Stelle am Ende des Videos … genannt» / «The source is '
                     'mentioned in a central place at the end of the video». Bei abgeleiteten Daten optional '
-                    'Zusatz «abgeleitet von …» / «derived from …».'},
+                    'Zusatz «abgeleitet von …» / «derived from …».',
+  'credit_kurz': '© swisstopo',
+  'license_hinweis': 'Nutzungsbedingungen für kostenlose Geodaten und Geodienste (OGD) von swisstopo / Terms '
+                     'of use for free geodata and geoservices (OGD) from swisstopo (keine CC-Lizenz; '
+                     'Grundlage GeoIG/GeoIV)'},
  {'id': 'nl',
   'provider': 'Samenwerkingsverband Beeldmateriaal (Beeldmateriaal Nederland), Datenhalter Kadaster; '
               'Bereitstellung über PDOK (Publieke Dienstverlening Op de Kaart)',
   'dataset': 'Luchtfoto Actueel Ortho 25cm RGB (WMTS-Layer «Actueel_ortho25», Service «Landelijke '
              'Voorziening Beeldmateriaal»; aktuell = Luchtfoto Beeldmateriaal 2025 25cm RGB open data)',
   'dataset_url': 'https://www.pdok.nl/introductie/-/article/pdok-luchtfoto-rgb-open-',
-  'license': 'Creative Commons Naamsvermelding 4.0 Internationaal (CC BY 4.0)',
+  'license': 'CC BY 4.0',
   'license_url': 'https://creativecommons.org/licenses/by/4.0/deed.nl/',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -517,15 +539,16 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'credit_hinweis': '«Naamsvermelding verplicht, Beeldmateriaal.nl» (NGR-Metadaten, otherConstraints). '
                     'beeldmateriaal.nl: «Wel vragen wij voor publicaties te refereren aan '
                     'beeldmateriaal.nl.» Empfohlene Formel: «Luchtfoto: Beeldmateriaal.nl (CC BY 4.0)» bzw. '
-                    '«© Beeldmateriaal.nl, CC BY 4.0».'},
+                    '«© Beeldmateriaal.nl, CC BY 4.0».',
+  'credit_kurz': 'Beeldmateriaal.nl CC BY',
+  'license_hinweis': 'Creative Commons Naamsvermelding 4.0 Internationaal (CC BY 4.0)'},
  {'id': 'at',
   'provider': 'basemap.at (geoland.at / Länder Österreichs; Betrieb Stadt Wien, MA 41 '
               'GDI-Koordinierungsstelle)',
   'dataset': 'basemap.at Orthofoto (WMTS-Layer bmaporthofoto30cm, Komposit der aktuellsten '
              'Länder-Luftbilder, 29 cm / 15 cm)',
   'dataset_url': 'https://basemap.at/en/orthofoto/',
-  'license': 'Open Government Data Österreich Lizenz CC-BY 4.0 (Creative Commons Attribution 4.0 '
-             'International)',
+  'license': 'CC BY 4.0 (OGD Oesterreich)',
   'license_url': 'https://creativecommons.org/licenses/by/4.0/',
   'commercial_video': 'true',
   'modification_notice_required': False,
@@ -562,14 +585,16 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'checked_at': '2026-09-07',
   'render_server': 'ok',
   'credit_hinweis': 'Datenquelle: basemap.at  (alternativ: Grundkarte: basemap.at; EN: Data source: '
-                    'basemap.at) – „basemap.at“ ist als Link auf https://basemap.at auszuführen'},
+                    'basemap.at) – „basemap.at“ ist als Link auf https://basemap.at auszuführen',
+  'credit_kurz': 'basemap.at CC BY',
+  'license_hinweis': 'Open Government Data Österreich Lizenz CC-BY 4.0 (Creative Commons Attribution 4.0 '
+                     'International)'},
  {'id': 'cz',
   'provider': 'Český úřad zeměměřický a katastrální (ČÚZK) / Zeměměřický úřad (ZÚ)',
   'dataset': 'Ortofoto České republiky (Ortofoto ČR) – Kachel-Dienst ORTOFOTO_WM (Esri ArcGIS Server, Web '
              'Mercator)',
   'dataset_url': 'https://geoportal.cuzk.cz/Default.aspx?mode=TextMeta&metadataID=CZ-CUZK-ORTOFOTO-R&metadataXSL=full&side=ortofoto',
-  'license': 'Creative Commons CC BY 4.0 (Daten; offiziell seit 1.7.2023 Open Data) + „Podmínky poskytování '
-             'síťových služeb ČÚZK“ v1.0 vom 4.3.2016 (Dienst)',
+  'license': 'CC BY 4.0',
   'license_url': 'https://cuzk.gov.cz/Predpisy/Podminky-poskytovani-prostor-dat-a-sitovych-sluzeb/Podminky-poskytovani-prostorovych-dat-CUZK.aspx',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -609,16 +634,17 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'render_server': 'ok',
   'credit_hinweis': 'ČÚZK – on-line  (bei Nutzung des Prohlížecí-/Kacheldienstes im eigenen Produkt); für '
                     'Daten/Druckausgaben: „ČÚZK, [rok]“ (Jahr = Aktualität der Daten); Copyright-Text des '
-                    'Dienstes: „© ČÚZK“'},
+                    'Dienstes: „© ČÚZK“',
+  'credit_kurz': '© ČÚZK',
+  'license_hinweis': 'Creative Commons CC BY 4.0 (Daten; offiziell seit 1.7.2023 Open Data) + „Podmínky '
+                     'poskytování síťových služeb ČÚZK“ v1.0 vom 4.3.2016 (Dienst)'},
  {'id': 'ee',
   'provider': 'Maa- ja Ruumiamet (Republic of Estonia Land and Spatial Development Board; früher Maa-amet / '
               'Estonian Land Board)',
   'dataset': 'Eesti ortofotod (Ortofoto, 20–40 cm landesweit, 10–16 cm in Siedlungen) – TMS/WMTS-Layer '
              'foto@GMC (EPSG:3857) auf tiles.maaamet.ee',
   'dataset_url': 'https://geoportaal.maaamet.ee/est/ruumiandmed/ortofotod-p99.html',
-  'license': 'Maa- ja Ruumiameti avaandmete litsents, 01.01.2025 (eigene Open-Data-Lizenz, CC-BY-ähnlich, '
-             'nicht CC BY 4.0) – für den Kacheldienst zusätzlich „Maa- ja Ruumiameti kaarditeenuste '
-             'kasutustingimused“ (01.01.2025, geändert 16.06.2026)',
+  'license': 'Maa- ja Ruumiameti avaandmete litsents (CC-BY-aehnlich)',
   'license_url': 'https://geoportaal.maaamet.ee/opendata-licence',
   'commercial_video': 'true',
   'modification_notice_required': False,
@@ -667,13 +693,16 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'credit_hinweis': 'Maa- ja Ruumiameti ortofoto [kuupäev]  (Dienst-Bedingungen Pkt. 6); Lizenz-Beispiel: '
                     '„Ortofoto 21.05.2024, Maa- ja Ruumiamet“ / EN: „Orthophoto 21.05.2024, Republic of '
                     'Estonia Land and Spatial Development Board“ – Pflichtbestandteile: Name der Behörde, '
-                    'Datensatzname, Datenalter bzw. Auszugsdatum'},
+                    'Datensatzname, Datenalter bzw. Auszugsdatum',
+  'credit_kurz': 'Maa- ja Ruumiamet',
+  'license_hinweis': 'Maa- ja Ruumiameti avaandmete litsents, 01.01.2025 (eigene Open-Data-Lizenz, '
+                     'CC-BY-ähnlich, nicht CC BY 4.0) – für den Kacheldienst zusätzlich „Maa- ja Ruumiameti '
+                     'kaarditeenuste kasutustingimused“ (01.01.2025, geändert 16.06.2026)'},
  {'id': 'pt',
   'provider': 'Direção-Geral do Território (DGT), Portugal',
   'dataset': 'Ortofotos 25 cm - Portugal Continental - 2018 (Ortos 2018, RGB+NIR, GSD 0,25 m)',
   'dataset_url': 'https://snig.dgterritorio.gov.pt/rndg/srv/api/records/daf5479d-29c8-4e0c-b7b8-0e1791891186/formatters/snig-view',
-  'license': 'Creative Commons Attribution 4.0 International (CC BY 4.0) — im SNIG-Metadatensatz als '
-             '„Licença de utilização - CC-BY-4.0“ geführt',
+  'license': 'CC BY 4.0',
   'license_url': 'https://creativecommons.org/licenses/by/4.0/',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -716,15 +745,17 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://cartografia.dgterritorio.gov.pt/wms/ortos2018?service=wms&request=getcapabilities',
               'https://creativecommons.org/licenses/by/4.0/'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': 'DGT Portugal CC BY',
+  'license_hinweis': 'Creative Commons Attribution 4.0 International (CC BY 4.0) — im SNIG-Metadatensatz als '
+                     '„Licença de utilização - CC-BY-4.0“ geführt'},
  {'id': 'fr',
   'provider': "IGN — Institut national de l'information géographique et forestière (Géoplateforme / "
               'cartes.gouv.fr)',
   'dataset': 'BD ORTHO® (Orthophotographies IGN), WMTS-Layer ORTHOIMAGERY.ORTHOPHOTOS („Photographies '
              'aériennes“)',
   'dataset_url': 'https://cartes.gouv.fr/rechercher-une-donnee/dataset/IGNF_BD-ORTHO',
-  'license': 'Licence Ouverte / Open Licence 2.0 (Etalab) — im offiziellen Metadatensatz IGNF_BD-ORTHO als '
-             '„Licence Ouverte / Open License (compatible ODC-BY, CC-BY 2.0)“',
+  'license': 'Licence Ouverte 2.0 (Etalab)',
   'license_url': 'https://www.data.gouv.fr/pages/legal/licences/etalab-2.0/',
   'commercial_video': 'true',
   'modification_notice_required': False,
@@ -780,16 +811,17 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'credit_hinweis': '© IGN – BD ORTHO® (Géoplateforme, data.geopf.fr), <Datum der letzten '
                     'Aktualisierung/Befliegung> — LO 2.0 verlangt wörtlich nur: „mentionner la paternité de '
                     "l'« Information » : sa source (a minima le nom du « Concédant ») et la date de la "
-                    'dernière mise à jour“'},
+                    'dernière mise à jour“',
+  'credit_kurz': '© IGN France',
+  'license_hinweis': 'Licence Ouverte / Open Licence 2.0 (Etalab) — im offiziellen Metadatensatz '
+                     'IGNF_BD-ORTHO als „Licence Ouverte / Open License (compatible ODC-BY, CC-BY 2.0)“'},
  {'id': 'es',
   'provider': 'Instituto Geográfico Nacional (IGN) / Centro Nacional de Información Geográfica (CNIG), '
               'España — Sistema Cartográfico Nacional (SCNE)',
   'dataset': 'PNOA — Plan Nacional de Ortofotografía Aérea, Ortofotos PNOA máxima actualidad (WMS/WMTS '
              'pnoa-ma, Layer OI.OrthoimageCoverage)',
   'dataset_url': 'https://pnoa.ign.es/pnoa-imagen/visualizadores-y-servicios-web',
-  'license': 'Licencia de uso de los productos y servicios de datos geográficos del IGN (Orden '
-             'FOM/2807/2015), „compatible con CC-BY 4.0“ — Nutzung „conlleva la aceptación por el usuario de '
-             'una licencia CC-BY 4.0“',
+  'license': 'CC BY 4.0 (Licencia CNIG)',
   'license_url': 'https://www.ign.es/resources/licencia/Condiciones_licenciaUso_IGN.pdf',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -839,22 +871,18 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'render_server': 'ok',
   'credit_hinweis': 'Obra derivada de PNOA <año> CC-BY 4.0 scne.es (Beispiel aus der Lizenz: „Obra derivada '
                     'de PNOA 2010-2013 CC-BY scne.es“); unverändertes Produkt: „PNOA <año> CC-BY 4.0 '
-                    'scne.es“; Dienst-Formel laut WMS-AccessConstraints: „CC BY 4.0 scne.es“'},
+                    'scne.es“; Dienst-Formel laut WMS-AccessConstraints: „CC BY 4.0 scne.es“',
+  'credit_kurz': 'PNOA CC-BY scne.es',
+  'license_hinweis': 'Licencia de uso de los productos y servicios de datos geográficos del IGN (Orden '
+                     'FOM/2807/2015), „compatible con CC-BY 4.0“ — Nutzung „conlleva la aceptación por el '
+                     'usuario de una licencia CC-BY 4.0“'},
  {'id': 'it',
   'provider': "Geoportale Nazionale – Ministero dell'Ambiente e della Sicurezza Energetica (MASE, ex "
               'MATTM/MiTE); Bilddaten: AGEA (Agenzia per le Erogazioni in Agricoltura)',
   'dataset': 'Ortofoto a colori anno 2012 (Ortofoto a colori AGEA periodo 2009-2012, 50 cm/px) – WMS-Layer '
              'OI.ORTOIMMAGINI.2012',
   'dataset_url': 'http://www.pcn.minambiente.it/geoportal/catalog/search/resource/details.page?uuid=m_amte:299FN3:af07a814-4026-4b80-8ecb-818229991856',
-  'license': 'unknown – KEINE Creative-Commons-Lizenz für die Ortofoto verifizierbar. GN-FAQ: „Tutti i dati '
-             'del Geoportale nazionale, ad eccezione delle ortofoto, sono dati pubblici e sono distribuiti '
-             'con Licenza Creative Commons Attribuzione 4.0 Internazionale.“ Metadaten (RNDT/PCN, '
-             'Service-Record, Stand 2014-02-26): Vincoli di fruibilità/Altri vincoli = „Questo servizio è ad '
-             'accesso pubblico. Citare sempre la fonte del servizio.“; Vincoli di accesso = „Nessuna '
-             'Limitazione al Pubblico Accesso“. WMS-GetCapabilities: Fees = „Nessuna condizione applicata“, '
-             'AccessConstraints = „Nessuno“. Die in Sekundärquellen (alsperGIS 2016, OSM talk-it) genannte '
-             'CC BY-NC-ND 3.0 IT ist auf keiner heutigen offiziellen Seite mehr auffindbar; CC BY 3.0 IT / '
-             'IODL 2.0 nirgends belegt.',
+  'license': 'unbekannt (keine CC-Lizenz, Freigabe offen)',
   'license_url': 'https://gn.mase.gov.it/portale/faq',
   'commercial_video': 'unknown',
   'modification_notice_required': False,
@@ -915,7 +943,18 @@ QUELLEN: list[dict] = [{'id': 'de-be',
                     'Sicurezza Energetica“: IT „Ortofoto AGEA 2012 – Geoportale Nazionale, Ministero '
                     "dell'Ambiente e della Sicurezza Energetica (gn.mase.gov.it)“ / EN „Orthophoto AGEA 2012 "
                     '– Italian National Geoportal, Ministry of the Environment and Energy Security '
-                    '(gn.mase.gov.it)“'},
+                    '(gn.mase.gov.it)“',
+  'credit_kurz': 'Ortofoto AGEA/MASE',
+  'license_hinweis': 'unknown – KEINE Creative-Commons-Lizenz für die Ortofoto verifizierbar. GN-FAQ: „Tutti '
+                     'i dati del Geoportale nazionale, ad eccezione delle ortofoto, sono dati pubblici e '
+                     'sono distribuiti con Licenza Creative Commons Attribuzione 4.0 Internazionale.“ '
+                     'Metadaten (RNDT/PCN, Service-Record, Stand 2014-02-26): Vincoli di fruibilità/Altri '
+                     'vincoli = „Questo servizio è ad accesso pubblico. Citare sempre la fonte del '
+                     'servizio.“; Vincoli di accesso = „Nessuna Limitazione al Pubblico Accesso“. '
+                     'WMS-GetCapabilities: Fees = „Nessuna condizione applicata“, AccessConstraints = '
+                     '„Nessuno“. Die in Sekundärquellen (alsperGIS 2016, OSM talk-it) genannte CC BY-NC-ND '
+                     '3.0 IT ist auf keiner heutigen offiziellen Seite mehr auffindbar; CC BY 3.0 IT / IODL '
+                     '2.0 nirgends belegt.'},
  {'id': 'pl',
   'provider': 'Główny Urząd Geodezji i Kartografii (GUGiK) / Główny Geodeta Kraju – Geoportal.gov.pl',
   'dataset': 'ORTOFOTOMAPA (Ortofotomapa klasyczna, państwowy zasób geodezyjny i kartograficzny – PZGiK); '
@@ -923,14 +962,7 @@ QUELLEN: list[dict] = [{'id': 'de-be',
              'ORTOFOTOMAPA – Endpoint '
              'https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/StandardResolution',
   'dataset_url': 'https://www.geoportal.gov.pl/dane/ortofotomapa',
-  'license': 'CC BY 4.0 (dane.gov.pl-Datensatz „Ortofotomapa klasyczna prawdziwa ukośna“, Herausgeber GUGiK) '
-             'auf gesetzlicher Basis Art. 40a ust. 2 pkt 1 lit. e Prawo geodezyjne i kartograficzne („Nie '
-             'pobiera się opłaty za: 1) udostępnianie zbiorów danych: … e) ortofotomapy“). dane.gov.pl: „Na '
-             'podstawie ustawy Prawo geodezyjne i kartograficzne zbiór stanowi materiał państwowego zasobu '
-             'geodezyjnego i kartograficznego (PZGiK) i może być wykorzystywany bez ograniczeń.“ Regulamin '
-             'Geoportalu § 3 ust. 1: „Informacje publikowane w Serwisie zgodnie z art. 4 ust. 2 ustawy z '
-             'dnia 4 lutego 1994 r. o prawie autorskim i prawach pokrewnych (Dz. U. z 2022 r. poz. 2509) nie '
-             'podlegają ochronie przewidzianej ww. ustawą.“',
+  'license': 'CC BY 4.0',
   'license_url': 'https://dane.gov.pl/pl/dataset/2026,ortofotomapa',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -986,12 +1018,22 @@ QUELLEN: list[dict] = [{'id': 'de-be',
                     'warunkiem umieszczenia informacji o źródle pochodzenia.“), z. B. „Źródło: Ortofotomapa '
                     '– Główny Urząd Geodezji i Kartografii, geoportal.gov.pl“. EN (eigene Übersetzung, keine '
                     'offizielle Formel): „Based on materials of the Polish state geodetic and cartographic '
-                    'resource (PZGiK) – GUGiK, geoportal.gov.pl“'},
+                    'resource (PZGiK) – GUGiK, geoportal.gov.pl“',
+  'credit_kurz': 'GUGiK geoportal.gov.pl',
+  'license_hinweis': 'CC BY 4.0 (dane.gov.pl-Datensatz „Ortofotomapa klasyczna prawdziwa ukośna“, '
+                     'Herausgeber GUGiK) auf gesetzlicher Basis Art. 40a ust. 2 pkt 1 lit. e Prawo '
+                     'geodezyjne i kartograficzne („Nie pobiera się opłaty za: 1) udostępnianie zbiorów '
+                     'danych: … e) ortofotomapy“). dane.gov.pl: „Na podstawie ustawy Prawo geodezyjne i '
+                     'kartograficzne zbiór stanowi materiał państwowego zasobu geodezyjnego i '
+                     'kartograficznego (PZGiK) i może być wykorzystywany bez ograniczeń.“ Regulamin '
+                     'Geoportalu § 3 ust. 1: „Informacje publikowane w Serwisie zgodnie z art. 4 ust. 2 '
+                     'ustawy z dnia 4 lutego 1994 r. o prawie autorskim i prawach pokrewnych (Dz. U. z 2022 '
+                     'r. poz. 2509) nie podlegają ochronie przewidzianej ww. ustawą.“'},
  {'id': 'jp',
   'provider': '国土地理院 (GSI Japan)',
   'dataset': '地理院タイル 全国最新写真（シームレス） seamlessphoto',
   'dataset_url': 'https://maps.gsi.go.jp/development/ichiran.html',
-  'license': 'Public Data License v1.0 (PDL1.0, 国土地理院コンテンツ利用規約; CC BY 4.0-kompatibel)',
+  'license': 'GSI Terms (PDL 1.0, CC BY 4.0-kompatibel)',
   'license_url': 'https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -1016,13 +1058,14 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'render_server': 'ok',
   'credit_hinweis': '地理院タイル（国土地理院） https://maps.gsi.go.jp/development/ichiran.html — bei bearbeiteten '
                     'Inhalten zusätzlich: 「全国最新写真（シームレス）」（国土地理院）を加工して作成 / engl.: Source: GSI website (URL); '
-                    'bei Axelspace-Anteilen zusätzlich: GRUS画像（© Axelspace）'},
+                    'bei Axelspace-Anteilen zusätzlich: GRUS画像（© Axelspace）',
+  'credit_kurz': '地理院タイル (GSI)',
+  'license_hinweis': 'Public Data License v1.0 (PDL1.0, 国土地理院コンテンツ利用規約; CC BY 4.0-kompatibel)'},
  {'id': 'us',
   'provider': 'USGS National Geospatial Program (The National Map)',
   'dataset': 'USGSImageryOnly (NAIP 1 m, Blue Marble/Landsat klein\xadmaßstäbig, Alaska SPOT 10 m)',
   'dataset_url': 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer',
-  'license': "U.S. Public Domain (USGS Copyrights and Credits; The National Map: 'free and in the public "
-             "domain. There are no restrictions.')",
+  'license': 'US Public Domain',
   'license_url': 'https://www.usgs.gov/faqs/what-are-terms-uselicensing-map-services-and-data-national-map',
   'commercial_video': 'true',
   'modification_notice_required': False,
@@ -1043,14 +1086,15 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'checked_at': '2026-09-07',
   'render_server': 'ok',
   'credit_hinweis': 'Map services and data available from U.S. Geological Survey, National Geospatial '
-                    "Program. (Service-Copyright-Feld: 'USDA, USGS The National Map: Orthoimagery')"},
+                    "Program. (Service-Copyright-Feld: 'USDA, USGS The National Map: Orthoimagery')",
+  'credit_kurz': 'USGS',
+  'license_hinweis': "U.S. Public Domain (USGS Copyrights and Credits; The National Map: 'free and in the "
+                     "public domain. There are no restrictions.')"},
  {'id': 'sentinel',
   'provider': 'EOX IT Services GmbH (EOX::Maps / EOxCloudless)',
   'dataset': 'Sentinel-2 cloudless 2016 (Layer s2cloudless_3857 = s2cloudless-2016_3857)',
   'dataset_url': 'https://cloudless.eox.at/',
-  'license': '2016-Layer: Creative Commons Attribution 4.0 International (CC BY 4.0) laut WMTS-Capabilities '
-             "(nicht mehr CC BY-SA); Jahrgänge 2017–2025: CC BY-NC-SA 4.0, kommerziell nur mit 'EOX "
-             "Commercial Attribution-RestrictedUse 1.2 License'",
+  'license': 'CC BY 4.0 (Jahrgang 2016)',
   'license_url': 'https://tiles.maps.eox.at/wmts/1.0.0/WMTSCapabilities.xml',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -1079,14 +1123,16 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'credit_hinweis': 'EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified '
                     'Copernicus Sentinel data 2016) — plus Service-Vorgabe: Attribution wie in der '
                     "Demo-Karte unten rechts, z. B. 'Terrain { Data © OpenStreetMap contributers and others, "
-                    "Rendering © EOX }' mit Links auf openstreetmap.org/copyright, maps.eox.at/#data, "
-                    'eox.at'},
+                    "Rendering © EOX }' mit Links auf openstreetmap.org/copyright, maps.eox.at/#data, eox.at",
+  'credit_kurz': 'EOX Sentinel-2 CC BY',
+  'license_hinweis': '2016-Layer: Creative Commons Attribution 4.0 International (CC BY 4.0) laut '
+                     'WMTS-Capabilities (nicht mehr CC BY-SA); Jahrgänge 2017–2025: CC BY-NC-SA 4.0, '
+                     "kommerziell nur mit 'EOX Commercial Attribution-RestrictedUse 1.2 License'"},
  {'id': 'bluemarble',
   'provider': 'NASA GIBS / ESDIS (Earth Observatory Blue Marble Next Generation)',
   'dataset': 'BlueMarble_ShadedRelief_Bathymetry (WMTS epsg3857/best, EPSG3857_500m)',
   'dataset_url': 'https://www.earthdata.nasa.gov/data/tools/global-imagery-browse-services-gibs',
-  'license': 'NASA Earthdata: nicht urheberrechtlich geschützt, Daten NASA-geführter Missionen als Creative '
-             'Commons Zero (CC0) lizenziert; Earth Observatory-Bilder frei auch kommerziell nutzbar',
+  'license': 'gemeinfrei (NASA)',
   'license_url': 'https://www.earthdata.nasa.gov/engage/open-data-services-software-policies/data-use-guidance',
   'commercial_video': 'true',
   'modification_notice_required': False,
@@ -1111,15 +1157,16 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'credit_hinweis': "We acknowledge the use of imagery provided by services from NASA's Global Imagery "
                     "Browse Services (GIBS), part of NASA's Earth Science Data and Information System "
                     '(ESDIS). (Kurzform empfohlen: NASA GIBS / NASA Earth Observatory Blue Marble; '
-                    'Bathymetrie: GEBCO, British Oceanographic Data Centre)'},
+                    'Bathymetrie: GEBCO, British Oceanographic Data Centre)',
+  'credit_kurz': 'NASA Blue Marble',
+  'license_hinweis': 'NASA Earthdata: nicht urheberrechtlich geschützt, Daten NASA-geführter Missionen als '
+                     'Creative Commons Zero (CC0) lizenziert; Earth Observatory-Bilder frei auch kommerziell '
+                     'nutzbar'},
  {'id': 'terrain',
   'provider': 'Mapzen/Tilezen (Linux Foundation) auf AWS Open Data (Registry of Open Data on AWS)',
   'dataset': 'Terrain Tiles (terrarium PNG, Bucket elevation-tiles-prod)',
   'dataset_url': 'https://registry.opendata.aws/terrain-tiles/',
-  'license': 'Kein Gesamt-Lizenzname; Mischung aus Public Domain (USGS 3DEP/SRTM/GMTED2010, NOAA ETOPO1), CC '
-             'BY 3.0 NZ (LINZ), CC BY 3.0 AT (Österreich), CC BY 4.0 (Kartverket, Geoscience Australia), OGL '
-             "v3 (UK), OGL Canada, Copernicus EU-DEM, INEGI, ArcticDEM 'unlicensed' — Attribution pro Quelle "
-             'Pflicht (tilezen/joerd attribution.md)',
+  'license': 'Mix gemeinfrei / CC BY / OGL (Mapzen Terrain Tiles)',
   'license_url': 'https://github.com/tilezen/joerd/blob/master/docs/attribution.md',
   'commercial_video': 'true',
   'modification_notice_required': False,
@@ -1152,13 +1199,17 @@ QUELLEN: list[dict] = [{'id': 'de-be',
                     'Kartverket; United Kingdom terrain data © Environment Agency copyright and/or database '
                     'right 2015. All rights reserved; United States 3DEP (formerly NED) and global GMTED2010 '
                     "and SRTM terrain data courtesy of the U.S. Geological Survey. (Registry-Zitat: 'Terrain "
-                    "Tiles was accessed on DATE from https://registry.opendata.aws/terrain-tiles.')"},
+                    "Tiles was accessed on DATE from https://registry.opendata.aws/terrain-tiles.')",
+  'credit_kurz': 'Mapzen/AWS Terrain',
+  'license_hinweis': 'Kein Gesamt-Lizenzname; Mischung aus Public Domain (USGS 3DEP/SRTM/GMTED2010, NOAA '
+                     'ETOPO1), CC BY 3.0 NZ (LINZ), CC BY 3.0 AT (Österreich), CC BY 4.0 (Kartverket, '
+                     'Geoscience Australia), OGL v3 (UK), OGL Canada, Copernicus EU-DEM, INEGI, ArcticDEM '
+                     "'unlicensed' — Attribution pro Quelle Pflicht (tilezen/joerd attribution.md)"},
  {'id': 'openfreemap',
   'provider': 'OpenFreeMap (Zsolt Ero) — Daten OpenStreetMap, Schema OpenMapTiles',
   'dataset': 'OpenFreeMap Vector Tiles (OpenMapTiles-Schema, OSM-Daten)',
   'dataset_url': 'https://openfreemap.org/',
-  'license': 'Daten: ODbL 1.0 (OpenStreetMap); OpenMapTiles-Schema: Code BSD-3-Clause, Kartografie/Design CC '
-             'BY 4.0; OpenFreeMap-Code: MIT',
+  'license': 'ODbL + OpenMapTiles CC BY 4.0',
   'license_url': 'https://github.com/openmaptiles/openmaptiles/blob/master/LICENSE.md',
   'commercial_video': 'true',
   'modification_notice_required': False,
@@ -1178,13 +1229,15 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'checked_at': '2026-09-07',
   'render_server': 'ok',
   'credit_hinweis': "OpenFreeMap © OpenMapTiles Data from OpenStreetMap (OpenMapTiles-Vorgabe: '© "
-                    "OpenMapTiles © OpenStreetMap contributors'; 'OpenFreeMap' optional)"},
+                    "OpenMapTiles © OpenStreetMap contributors'; 'OpenFreeMap' optional)",
+  'credit_kurz': '© OpenMapTiles © OpenStreetMap',
+  'license_hinweis': 'Daten: ODbL 1.0 (OpenStreetMap); OpenMapTiles-Schema: Code BSD-3-Clause, '
+                     'Kartografie/Design CC BY 4.0; OpenFreeMap-Code: MIT'},
  {'id': 'osm',
   'provider': 'OpenStreetMap Foundation (OSMF)',
   'dataset': 'OpenStreetMap Standard-Tiles (openstreetmap-carto)',
   'dataset_url': 'https://www.openstreetmap.org/copyright',
-  'license': 'Daten: Open Data Commons Open Database License 1.0 (ODbL); Kartografie openstreetmap-carto: '
-             'CC0 1.0',
+  'license': 'ODbL (Daten), CC0 (Stil)',
   'license_url': 'https://opendatacommons.org/licenses/odbl/1-0/',
   'commercial_video': 'true',
   'modification_notice_required': False,
@@ -1211,13 +1264,15 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'render_server': 'absprache',
   'credit_hinweis': "© OpenStreetMap contributors (Attribution Guidelines: 'Attribution must be to "
                     "OpenStreetMap'; in Videos in einer Kartenecke und zusätzlich in Abspann/Beschreibung; "
-                    'muss lange genug lesbar sein, nicht dauerhaft bei Pan/Zoom)'},
+                    'muss lange genug lesbar sein, nicht dauerhaft bei Pan/Zoom)',
+  'credit_kurz': '© OpenStreetMap contributors',
+  'license_hinweis': 'Daten: Open Data Commons Open Database License 1.0 (ODbL); Kartografie '
+                     'openstreetmap-carto: CC0 1.0'},
  {'id': 'opentopomap',
   'provider': 'OpenTopoMap (Stefan Erhardt u. a.)',
   'dataset': 'OpenTopoMap Raster-Tiles (OSM + SRTM)',
   'dataset_url': 'https://opentopomap.org/about',
-  'license': 'Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0) für die Kartendarstellung; Daten '
-             'ODbL (OSM) + SRTM',
+  'license': 'CC BY-SA 3.0',
   'license_url': 'https://opentopomap.org/about',
   'commercial_video': 'true',
   'modification_notice_required': True,
@@ -1238,13 +1293,15 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://opentopomap.org/credits',
               'https://wiki.openstreetmap.org/wiki/OpenTopoMap'],
   'checked_at': '2026-09-07',
-  'render_server': 'absprache'},
+  'render_server': 'absprache',
+  'credit_kurz': '© OpenTopoMap (CC-BY-SA) © OpenStreetMap',
+  'license_hinweis': 'Creative Commons Attribution-ShareAlike 3.0 (CC BY-SA 3.0) für die Kartendarstellung; '
+                     'Daten ODbL (OSM) + SRTM'},
  {'id': 'cyclosm',
   'provider': 'CyclOSM-Projekt; Tile-Hosting OpenStreetMap France',
   'dataset': 'CyclOSM Raster-Tiles (a.tile-cyclosm.openstreetmap.fr/cyclosm)',
   'dataset_url': 'https://www.cyclosm.org/',
-  'license': 'Stil: BSD-3-Clause (Icons teils CC BY 4.0 / CC0 / Apache 2.0); Daten: ODbL 1.0 (OSM); '
-             'OSM-FR-Tiles laut Mentions légales CC BY-SA 2.0',
+  'license': 'ODbL (Daten), BSD-3 (Stil)',
   'license_url': 'https://github.com/cyclosm/cyclosm-cartocss-style/blob/master/LICENSE.md',
   'commercial_video': 'false',
   'modification_notice_required': False,
@@ -1273,13 +1330,15 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'checked_at': '2026-09-07',
   'render_server': 'nein',
   'credit_hinweis': "unknown (keine verbindliche Formel veröffentlicht; üblich: '© CyclOSM | Map data © "
-                    "OpenStreetMap contributors' + Hinweis 'hosted by OpenStreetMap France')"},
+                    "OpenStreetMap contributors' + Hinweis 'hosted by OpenStreetMap France')",
+  'credit_kurz': '© CyclOSM © OpenStreetMap',
+  'license_hinweis': 'Stil: BSD-3-Clause (Icons teils CC BY 4.0 / CC0 / Apache 2.0); Daten: ODbL 1.0 (OSM); '
+                     'OSM-FR-Tiles laut Mentions légales CC BY-SA 2.0'},
  {'id': 'hot',
   'provider': 'Humanitarian OpenStreetMap Team (Stil); Tile-Hosting OpenStreetMap France',
   'dataset': 'Humanitarian map style (HDM-CartoCSS) Raster-Tiles (a.tile.openstreetmap.fr/hot)',
   'dataset_url': 'https://wiki.openstreetmap.org/wiki/Humanitarian_map_style',
-  'license': 'Stil HDM-CartoCSS: CC0 1.0; Daten: ODbL 1.0 (OSM); OSM-FR-Tiles laut Mentions légales CC BY-SA '
-             '2.0',
+  'license': 'ODbL (Daten), CC0 (Stil)',
   'license_url': 'https://github.com/hotosm/HDM-CartoCSS',
   'commercial_video': 'false',
   'modification_notice_required': False,
@@ -1304,7 +1363,10 @@ QUELLEN: list[dict] = [{'id': 'de-be',
   'checked_at': '2026-09-07',
   'render_server': 'nein',
   'credit_hinweis': "© OpenStreetMap contributors (Stil CC0 ohne Pflicht-Credit; üblich: 'Tiles style by "
-                    "Humanitarian OpenStreetMap Team, hosted by OpenStreetMap France')"},
+                    "Humanitarian OpenStreetMap Team, hosted by OpenStreetMap France')",
+  'credit_kurz': '© OpenStreetMap contributors (HOT)',
+  'license_hinweis': 'Stil HDM-CartoCSS: CC0 1.0; Daten: ODbL 1.0 (OSM); OSM-FR-Tiles laut Mentions légales '
+                     'CC BY-SA 2.0'},
  {'id': 'maptiler',
   'provider': 'MapTiler AG',
   'dataset': 'MapTiler Cloud (Satellite, Outdoor, Streets …)',
@@ -1324,7 +1386,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.maptiler.com/cloud/geolayers/',
               'https://www.maptiler.com/cloud/pricing/'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'},
+  'render_server': 'ok',
+  'credit_kurz': '© MapTiler © OpenStreetMap'},
  {'id': 'mapbox',
   'provider': 'Mapbox, Inc.',
   'dataset': 'Mapbox Standard / Satellite / Outdoors (Style-URLs)',
@@ -1343,7 +1406,8 @@ QUELLEN: list[dict] = [{'id': 'de-be',
               'https://www.mapbox.com/pricing',
               'https://docs.mapbox.com/help/dive-deeper/attribution/'],
   'checked_at': '2026-09-07',
-  'render_server': 'ok'}]
+  'render_server': 'ok',
+  'credit_kurz': '© Mapbox © OpenStreetMap'}]
 
 _BY_ID = {q["id"]: q for q in QUELLEN}
 
@@ -1356,6 +1420,7 @@ def _th_lizenzwechsel() -> None:
         q["license"] = "Creative Commons Namensnennung 4.0 International (CC BY 4.0) — seit 14.09.2026"
         q["license_url"] = "https://creativecommons.org/licenses/by/4.0/"
         q["onscreen_credit"] = "© GDI-Th, CC BY 4.0, bearbeitet"
+        q["credit_kurz"] = "© GDI-Th CC BY"
 
 
 _th_lizenzwechsel()
@@ -1426,9 +1491,51 @@ def nennung(qid: str) -> str:
     return (q or {}).get("onscreen_credit") or ""
 
 
+def _ids_geordnet(ids) -> list[str]:
+    """Regionen zuerst (wie im Bild: oben liegt das Luftbild), dann Grundlagen; Doppelte raus."""
+    seen, out = set(), []
+    for i in list(ids or []):
+        k = REGION_ZU_QUELLE.get(i, STIL_ZU_QUELLE.get(i, i))
+        if k in seen or not _BY_ID.get(k):
+            continue
+        seen.add(k); out.append(k)
+    grund = [g for g in GOV_GRUNDLAGEN if g in out]
+    return [i for i in out if i not in grund] + grund
+
+
+def kurz_nennung(ids, link: str = "", bearbeitet: str = "bearbeitet", quellen_wort: str = "Quellen") -> str:
+    """Knappe Quellenzeile (Modus „kurz"): Kurznamen aller beteiligten Quellen, Änderungshinweis,
+    optional ein Link zu den vollständigen Angaben. Spiegel: util.js rzKurzNennung."""
+    teile = [_BY_ID[i].get("credit_kurz") or _BY_ID[i].get("onscreen_credit") or i for i in _ids_geordnet(ids)]
+    if bearbeitet:
+        teile.append(bearbeitet)
+    if link:
+        teile.append(f"{quellen_wort}: {link}")
+    return " · ".join(teile)
+
+
+def quellen_text(ids, link: str = "", titel: str = "Karten-, Luftbild- und Geländequellen", bearbeitet: str = "Daten bearbeitet") -> str:
+    """Vollständiger Quellentext für Videobeschreibung/Abspann: je Quelle Anbieter, Datensatz, Lizenz mit Links.
+    Spiegel: util.js rzQuellenText."""
+    zeilen = [titel + ":"]
+    for i in _ids_geordnet(ids):
+        q = _BY_ID[i]
+        z = f"- {q['provider']}: {q['dataset']} — {q['license']}"
+        if q.get("license_url"):
+            z += f" ({q['license_url']})"
+        if q.get("dataset_url"):
+            z += f" — {q['dataset_url']}"
+        zeilen.append(z)
+    if bearbeitet:
+        zeilen.append(bearbeitet + ".")
+    if link:
+        zeilen.append(link)
+    return chr(10).join(zeilen)
+
+
 def fuer_ui() -> list[dict]:
     """Schlanke Sicht für die Rechte-Tabelle (ohne Quellenlisten)."""
     return [{k: q.get(k) for k in ("id", "provider", "dataset", "dataset_url", "license", "license_url",
                                     "commercial_video", "modification_notice_required", "onscreen_credit",
-                                    "service_terms_url", "confidence", "checked_at", "notes", "render_server", "service_limits")}
+                                    "service_terms_url", "confidence", "checked_at", "notes", "render_server", "service_limits", "credit_kurz")}
             for q in QUELLEN]

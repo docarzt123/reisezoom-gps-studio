@@ -191,6 +191,33 @@ function rzStilStatus(key, regionIds) {
            rechte: Object.keys(je).filter(i => je[i] === "license_required") };
 }
 window.rzStilStatus = rzStilStatus; window.rzQuelle = rzQuelle;
+/** 07.09.2026 — Spiegel von kartenquellen._ids_geordnet/kurz_nennung/quellen_text. */
+function rzQuellenIds(ids) {
+  const seen = new Set(), out = [];
+  for (const i of (ids || [])) { const q = rzQuelle(i); if (!q || seen.has(q.id)) continue; seen.add(q.id); out.push(q.id); }
+  const grund = RZ_GOV_GRUNDLAGEN.filter(g => out.includes(g));
+  return out.filter(i => !grund.includes(i)).concat(grund);
+}
+function rzKurzNennung(ids, link) {
+  const teile = rzQuellenIds(ids).map(i => { const q = rzQuelle(i); return (q && (q.credit_kurz || q.onscreen_credit)) || i; });
+  teile.push(t("attrib.bearbeitet", "bearbeitet"));
+  if (link) teile.push(t("attrib.quellen", "Quellen") + ": " + link);
+  return teile.join(" · ");
+}
+function rzQuellenText(ids, link) {
+  const z = [t("attrib.text_title", "Karten-, Luftbild- und Geländequellen") + ":"];
+  for (const i of rzQuellenIds(ids)) {
+    const q = rzQuelle(i); if (!q) continue;
+    let s = "- " + q.provider + ": " + q.dataset + " — " + q.license;
+    if (q.license_url) s += " (" + q.license_url + ")";
+    if (q.dataset_url) s += " — " + q.dataset_url;
+    z.push(s);
+  }
+  z.push(t("attrib.text_bearbeitet", "Daten bearbeitet") + ".");
+  if (link) z.push(link);
+  return z.join("\n");
+}
+window.rzKurzNennung = rzKurzNennung; window.rzQuellenText = rzQuellenText;
 function mapStyleLabel(key) {
   const d = mapStyleDef(key);
   return d ? t("mapstyle." + key, d.label) : key;

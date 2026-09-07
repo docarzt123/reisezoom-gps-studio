@@ -2891,5 +2891,18 @@
   "rights.register.status.unknown": "not verified",
   "rights.register.status.false": "not allowed",
   "rights.register.server.nein": "server: no frame-by-frame rendering",
-  "rights.register.server.absprache": "server: only by agreement / own server"
+  "rights.register.server.absprache": "server: only by agreement / own server",
+  "animator.overlay.attrib_mode_tip": "Full: every source with its licence in the image. Short: short names of the sources, “modified” and a link to the complete details — the link must lead directly to the sources of this video (your own page or the video description).",
+  "animator.overlay.attrib_mode.voll": "full (all details in the image)",
+  "animator.overlay.attrib_mode.kurz": "short (names + link)",
+  "animator.overlay.attrib_link_ph": "Link to the sources, e.g. your page",
+  "animator.overlay.attrib_link_tip": "Shown in the image after “Sources:”. Empty = no link; then only short names and “modified”.",
+  "animator.btn.copy_sources": "Copy source text",
+  "animator.btn.copy_sources_tip": "Complete source credits (provider, dataset, licence with links) for the video description or end credits, to the clipboard.",
+  "animator.msg.sources_copied": "Source text copied to the clipboard.",
+  "animator.msg.sources_copy_fail": "Could not copy.",
+  "attrib.bearbeitet": "modified",
+  "attrib.quellen": "Sources",
+  "attrib.text_title": "Map, aerial imagery and terrain sources",
+  "attrib.text_bearbeitet": "Data modified"
 }

@@ -212,6 +212,10 @@ class AnimatorConfig:
     map_bri: float = 0.0
     map_hue: float = 0.0
     map_sharp: float = 0.0              # 07.09.2026 — Schärfe (Unschärfemaske auf der Leinwand), 0 = aus
+    # 07.09.2026 (Marc, Konzept Kartenquellen §6) — Quellenzeile: "voll" = alle Nennungen im Bild (MapLibre baut sie
+    # aus den Quellen), "kurz" = Kurznamen + «bearbeitet» + Link zu den vollständigen Angaben (attrib_link)
+    attrib_mode: str = "voll"
+    attrib_link: str = ""
     # 05.09.2026 — Sternenhimmel hinter der Weltkugel (MapLibre; Mapbox bringt seinen eigenen mit)
     stars_enabled: bool = True
     stars_density: float = 50.0
@@ -2458,6 +2462,16 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # Videos!) machen beide Bibliotheken aus der Nennung sonst ein „i"-Knöpfchen.
     # Mapbox wie MapTiler verlangen die sichtbare Nennung im Bild.
     _extra_attr = str(_spec.get("attribution") or "").replace("'", "\\'")
+    # 07.09.2026 — Modus «kurz»: Quellen-Nennungen aus dem Stil nehmen, eine knappe Zeile aus dem Register setzen
+    if str(getattr(cfg, "attrib_mode", "voll") or "voll") == "kurz":
+        from core import kartenquellen as _kq
+        _ids = [r for r in ((_spec.get("rights") or {}).get("quellen") or {}).keys()]
+        if isinstance(_spec.get("style"), dict):
+            for _src in (_spec["style"].get("sources") or {}).values():
+                if isinstance(_src, dict) and "attribution" in _src:
+                    _src["attribution"] = ""
+            style_expr = json.dumps(_spec["style"])
+        _extra_attr = _kq.kurz_nennung(_ids, str(getattr(cfg, "attrib_link", "") or "")).replace("'", "\\'")
     common_opts = (
         "  preserveDrawingBuffer:true, antialias:true, fadeDuration:0,\n"
         "  prefetchZoomDelta:6, attributionControl:false, maxPitch:85\n"   # maxPitch: MapLibre-Standard 60 klemmte Keyframes (04.09.2026)

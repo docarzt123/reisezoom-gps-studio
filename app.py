@@ -4871,6 +4871,7 @@ class Api:
             map_sat=float(params.get("map_sat", 0) or 0), map_con=float(params.get("map_con", 0) or 0),
             map_bri=float(params.get("map_bri", 0) or 0), map_hue=float(params.get("map_hue", 0) or 0),
             map_sharp=float(params.get("map_sharp", 0) or 0),
+            attrib_mode=str(params.get("attrib_mode", "voll") or "voll"), attrib_link=str(params.get("attrib_link", "") or ""),
             stars_enabled=bool(params.get("stars_enabled", True)), stars_twinkle=bool(params.get("stars_twinkle", True)),
             stars_density=float(params.get("stars_density", 50) or 0), stars_size=float(params.get("stars_size", 50) or 0),
             enable_terrain=(not _osm_render) and bool(params.get("enable_terrain", True)),
@@ -5271,6 +5272,7 @@ class Api:
             map_sat=float(params.get("map_sat", 0) or 0), map_con=float(params.get("map_con", 0) or 0),
             map_bri=float(params.get("map_bri", 0) or 0), map_hue=float(params.get("map_hue", 0) or 0),
             map_sharp=float(params.get("map_sharp", 0) or 0),
+            attrib_mode=str(params.get("attrib_mode", "voll") or "voll"), attrib_link=str(params.get("attrib_link", "") or ""),
             stars_enabled=bool(params.get("stars_enabled", True)), stars_twinkle=bool(params.get("stars_twinkle", True)),
             stars_density=float(params.get("stars_density", 50) or 0), stars_size=float(params.get("stars_size", 50) or 0),
             enable_terrain=bool(params.get("enable_terrain", True)),
@@ -6278,6 +6280,24 @@ class Api:
             return {"ok": True, "files": files}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    def copy_to_clipboard(self, text: str = "") -> dict:
+        """07.09.2026 — Text in die System-Zwischenablage (Quellentext nach dem Render). WKWebView
+        erlaubt navigator.clipboard nicht immer; pbcopy (macOS) / clip (Windows) / xclip (Linux) als Weg."""
+        import platform
+        import subprocess
+        txt = str(text or "")
+        try:
+            sysname = platform.system()
+            if sysname == "Darwin":
+                subprocess.run(["pbcopy"], input=txt.encode("utf-8"), check=True, timeout=5)
+            elif sysname == "Windows":
+                subprocess.run(["clip"], input=txt.encode("utf-16le"), check=True, timeout=5)
+            else:
+                subprocess.run(["xclip", "-selection", "clipboard"], input=txt.encode("utf-8"), check=True, timeout=5)
+            return {"ok": True}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)[:200]}
 
     def reveal_in_finder(self, path: str) -> dict:
         try:

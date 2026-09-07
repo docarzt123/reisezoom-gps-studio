@@ -950,6 +950,12 @@ function mountAnimator(body, headerActions, opts) {
                 <option value="breit">${t("animator.overlay.attrib_w.breit", "breit (flach)")}</option>
                 <option value="voll">${t("animator.overlay.attrib_w.voll", "ganze Breite (unten)")}</option>
               </select>
+              <!-- 07.09.2026 (Marc, Kartenquellen-Konzept §6): Form der Nennung — alles im Bild oder Kurzform + Link -->
+              <select id="anim-ov-attrib-mode" class="pos-select" title="${t("animator.overlay.attrib_mode_tip", "Voll: jede Quelle mit Lizenz im Bild. Kurz: Kurznamen der Quellen, «bearbeitet» und ein Link zu den vollständigen Angaben — der Link muss direkt zu den Quellen dieses Videos führen (eigene Seite oder Videobeschreibung).")}">
+                <option value="voll" selected>${t("animator.overlay.attrib_mode.voll", "voll (alle Angaben im Bild)")}</option>
+                <option value="kurz">${t("animator.overlay.attrib_mode.kurz", "kurz (Namen + Link)")}</option>
+              </select>
+              <input type="text" id="anim-ov-attrib-link" class="pos-select" placeholder="${t("animator.overlay.attrib_link_ph", "Link zu den Quellen, z. B. deine Seite")}" title="${t("animator.overlay.attrib_link_tip", "Erscheint im Bild hinter «Quellen:». Leer = kein Link; dann nur Kurznamen und «bearbeitet».")}" hidden>
               </div>
             </div>
             <!-- 04.09.2026 — Nordpfeil + Maßstab (Beta-Tester: „dürfen nicht fehlen"), Standard an -->
@@ -1288,6 +1294,7 @@ function mountAnimator(body, headerActions, opts) {
         <div class="render-done-buttons">
           <button class="btn" id="anim-play-video">${t("animator.btn.play_video", "▶ Abspielen")}</button>
           <button class="btn" id="anim-open-folder">${t("animator.btn.reveal")}</button>
+          <button class="btn" id="anim-copy-sources" title="${t("animator.btn.copy_sources_tip", "Vollständige Quellenangaben (Anbieter, Datensatz, Lizenz mit Links) für die Videobeschreibung oder den Abspann in die Zwischenablage.")}">${t("animator.btn.copy_sources", "Quellentext kopieren")}</button>
           <button class="btn" id="anim-save-defaults" title="${t("animator.btn.save_defaults_tip", "")}">${t("animator.btn.save_defaults", "Diesen Look für neue Tracks merken")}</button>
           <button class="btn btn-primary" id="anim-new">${t("animator.btn.next", "Schließen")}</button>
         </div>
@@ -2374,6 +2381,41 @@ function mountAnimator(body, headerActions, opts) {
     // Marc, 07.09.2026: nie abschaltbar — falls MapLibre sie zugeklappt hat, wieder aufklappen.
     try { vp.querySelectorAll(".maplibregl-ctrl-attrib.maplibregl-compact").forEach(el => el.classList.add("maplibregl-compact-show")); } catch (_) {}
   }
+  // 07.09.2026 — Nennungs-Modus «kurz»: MapLibre baut den Text aus den Quellen; wir ersetzen ihn (Beobachter, weil
+  // MapLibre bei jedem Quellenwechsel neu schreibt). Kurznamen aus dem Register (rzKurzNennung), Änderungshinweis, Link.
+  function _attribIds() {
+    try { const r = map && map.__rzSpec && map.__rzSpec.rights; return r ? Object.keys(r.quellen || {}) : []; } catch (_) { return []; }
+  }
+  function _attribKurzText() {
+    const link = (document.getElementById("anim-ov-attrib-link")?.value || "").trim();
+    return window.rzKurzNennung ? rzKurzNennung(_attribIds(), link) : "";
+  }
+  let _attribObs = null, _attribBusy = false;
+  function _applyAttribText() {
+    const vp = document.getElementById("anim-viewport"); if (!vp) return;
+    const mode = document.getElementById("anim-ov-attrib-mode")?.value || "voll";
+    const lnk = document.getElementById("anim-ov-attrib-link"); if (lnk) lnk.hidden = mode !== "kurz";
+    vp.dataset.rzAttribMode = mode;
+    const inner = vp.querySelector(".maplibregl-ctrl-attrib-inner, .mapboxgl-ctrl-attrib-inner");
+    if (!inner) return;
+    if (mode === "kurz") {
+      const txt = _attribKurzText();
+      if (inner.textContent !== txt) { _attribBusy = true; inner.textContent = txt; _attribBusy = false; }
+      if (!_attribObs) {
+        _attribObs = new MutationObserver(() => { if (_attribBusy) return; if ((document.getElementById("anim-ov-attrib-mode")?.value || "voll") === "kurz") _applyAttribText(); });
+        _attribObs.observe(inner, { childList: true, characterData: true, subtree: true });
+      }
+    } else {
+      if (_attribObs) { _attribObs.disconnect(); _attribObs = null; }
+      // zurück zu MapLibres eigener Zeile: Control neu schreiben lassen
+      try { const c = (map._controls || []).find(x => x && typeof x._updateAttributions === "function"); if (c) { c._attribHTML = ""; c._updateAttributions(); } } catch (_) {}   // _attribHTML leeren, sonst hält MapLibre den Text für unverändert
+    }
+    try { _applyAttribLayout(); } catch (_) {}
+  }
+  window.__animAttribText = _applyAttribText;
+  bindSetting("anim-ov-attrib-mode", _MODKEY, "attrib_mode", { onLoad: _applyAttribText, onChange: _applyAttribText });
+  bindSetting("anim-ov-attrib-link", _MODKEY, "attrib_link", { onLoad: _applyAttribText, onChange: _applyAttribText });
+  document.getElementById("anim-ov-attrib-link")?.addEventListener("input", _applyAttribText);
   bindSetting("anim-ov-attrib-pos", _MODKEY, "attrib_position", { onLoad: _applyAttribLayout, onChange: _applyAttribLayout });
   bindSetting("anim-ov-attrib-w", _MODKEY, "attrib_width", { onLoad: _applyAttribLayout, onChange: _applyAttribLayout });
   try { _applyAttribLayout(); } catch (_) {}
@@ -7741,6 +7783,21 @@ function mountAnimator(body, headerActions, opts) {
     const g = id => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : 0; };
     return { sat: g("anim-msat"), con: g("anim-mcon"), bri: g("anim-mbri"), hue: g("anim-mhue") };
   }
+  /** 07.09.2026 — Quellentext für Videobeschreibung/Abspann (Register: Anbieter, Datensatz, Lizenz, Links). */
+  function _bindCopySourcesBtn() {
+    const b = document.getElementById("anim-copy-sources"); if (!b) return;
+    b.onclick = async () => {
+      try {
+        const link = (document.getElementById("anim-ov-attrib-link")?.value || "").trim();
+        const txt = window.rzQuellenText ? rzQuellenText(_attribIds(), link) : "";
+        let ok = false;
+        try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(txt); ok = true; } } catch (_) {}
+        if (!ok) { try { const r = await api().copy_to_clipboard(txt); ok = !!(r && r.ok); } catch (_) {} }
+        if (!ok) { const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy"); ta.remove(); }
+        toast(ok ? t("animator.msg.sources_copied", "Quellentext in der Zwischenablage.") : t("animator.msg.sources_copy_fail", "Konnte nicht kopieren."), ok ? "info" : "error");
+      } catch (e) { applog("error", "[Quellentext] " + e); }
+    };
+  }
   function _currentSharpen() {
     const row = document.getElementById("anim-ortho-row");
     const id = (row && !row.hidden) ? "anim-osharp" : "anim-msharp";
@@ -8040,6 +8097,7 @@ function mountAnimator(body, headerActions, opts) {
       applyTerrain();
       _applyMapAdjust();          // 05.09.2026 — Karten-Optik (Raster-Paint / Abdunkel-Ebene) je Stilart
       _applySharpen();            // 07.09.2026 — Schärfe (CSS-Filter auf der Leinwand; setStyle tauscht sie nicht, sicher ist sicher)
+      setTimeout(() => { try { _applyAttribText(); } catch (_) {} }, 50);   // 07.09.2026 — Quellenzeile (Modus kurz) nach neuem Stil
       _applyStars();
       // 05.09.2026 (Audit): Sprite geladen? (POI-Symbole fehlten in der echten Vorschau)
       setTimeout(() => { try { applog && applog("info", `[style] ${map.__rzStyleKey || "?"} Bilder=${(map.listImages && map.listImages().length) || 0} Ebenen=${(map.getStyle().layers || []).length} Sprite=${JSON.stringify(map.getStyle().sprite || null).slice(0, 80)}`); } catch (_) {} }, 3000);
@@ -14587,6 +14645,8 @@ function mountAnimator(body, headerActions, opts) {
       ortho_sat: _currentOrtho().sat, ortho_con: _currentOrtho().con, ortho_bri: _currentOrtho().bri, ortho_hue: _currentOrtho().hue,
       map_sat: _currentMapAdjust().sat, map_con: _currentMapAdjust().con, map_bri: _currentMapAdjust().bri, map_hue: _currentMapAdjust().hue,
       map_sharp: _currentSharpen(),
+      attrib_mode: document.getElementById("anim-ov-attrib-mode")?.value || "voll",
+      attrib_link: (document.getElementById("anim-ov-attrib-link")?.value || "").trim(),
       stars_enabled: _currentStars().enabled, stars_density: _currentStars().density, stars_size: _currentStars().size, stars_twinkle: _currentStars().twinkle,
       enable_terrain: document.getElementById("anim-terrain").checked,
       // v0.8.17 — Classic-Mode Toggle „Kamera folgt Track" → Backend bewegt
@@ -14953,6 +15013,8 @@ function mountAnimator(body, headerActions, opts) {
         const playBtn = document.getElementById("anim-play-video");
         if (playBtn) { playBtn.textContent = t("tourmap.btn.open_image", "🖼 Bild öffnen"); playBtn.onclick = () => api().open_path(s.output); }
         document.getElementById("anim-open-folder").onclick = () => api().reveal_in_finder(s.output);
+      _bindCopySourcesBtn();
+        _bindCopySourcesBtn();
         const newBtn = document.getElementById("anim-new");
         if (newBtn) { newBtn.textContent = t("tourmap.btn.next", "Schließen"); newBtn.onclick = () => { done.classList.add("hidden"); }; }
         _bindSaveDefaultsBtn();
@@ -15001,6 +15063,7 @@ function mountAnimator(body, headerActions, opts) {
       const playBtn = document.getElementById("anim-play-video");
       if (playBtn) playBtn.onclick = () => api().open_path(s.output);
       document.getElementById("anim-open-folder").onclick = () => api().reveal_in_finder(s.output);
+      _bindCopySourcesBtn();
       document.getElementById("anim-new").onclick = () => {
         done.classList.add("hidden");
       };

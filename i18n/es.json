@@ -2891,5 +2891,18 @@
   "rights.register.status.unknown": "no verificado",
   "rights.register.status.false": "no permitido",
   "rights.register.server.nein": "servidor: sin renderizado fotograma a fotograma",
-  "rights.register.server.absprache": "servidor: solo con acuerdo / servidor propio"
+  "rights.register.server.absprache": "servidor: solo con acuerdo / servidor propio",
+  "animator.overlay.attrib_mode_tip": "Completo: cada fuente con su licencia en la imagen. Corto: nombres cortos de las fuentes, «modificado» y un enlace a los datos completos; el enlace debe llevar directamente a las fuentes de este vídeo (tu página o la descripción del vídeo).",
+  "animator.overlay.attrib_mode.voll": "completo (todo en la imagen)",
+  "animator.overlay.attrib_mode.kurz": "corto (nombres + enlace)",
+  "animator.overlay.attrib_link_ph": "Enlace a las fuentes, p. ej. tu página",
+  "animator.overlay.attrib_link_tip": "Aparece en la imagen tras «Fuentes:». Vacío = sin enlace; entonces solo nombres cortos y «modificado».",
+  "animator.btn.copy_sources": "Copiar texto de fuentes",
+  "animator.btn.copy_sources_tip": "Atribuciones completas (proveedor, conjunto de datos, licencia con enlaces) para la descripción del vídeo o los créditos, al portapapeles.",
+  "animator.msg.sources_copied": "Texto de fuentes copiado al portapapeles.",
+  "animator.msg.sources_copy_fail": "No se pudo copiar.",
+  "attrib.bearbeitet": "modificado",
+  "attrib.quellen": "Fuentes",
+  "attrib.text_title": "Fuentes de mapas, ortofotos y terreno",
+  "attrib.text_bearbeitet": "Datos modificados"
 }
