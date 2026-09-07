@@ -2707,6 +2707,23 @@ OSMF-Standardserver: Prefetch = Bulk → absprache. Konzept: `docs/KARTENQUELLEN
 LIZENZKONZEPT.md`; nächster Schritt: Nennungs-Modus (alles im Bild / Hinweis +
 eigener Link / reisezoom-Shortlink), IDEAS §56.
 
+**Verlustfreie GPX-Ausgabe (07.09.2026, FOSSGIS-Test route-3.gpx):**
+`core/gpxpatch.gpx_mit_punkten(original, points, name=)` ergänzt die ORIGINAL-GPX
+statt eine neue zu bauen. Weg A (Punktmenge gleich: Zahl + Koordinaten in
+Reihenfolge): nur `<ele>`/`<time>` je Punkt setzen, Schema-Reihenfolge beachtet.
+Weg B (Punktmenge verändert): Wurzel, `<metadata>`, `<wpt>`, `<rte>`,
+`<extensions>` und Kopf des ersten Tracks bleiben, Punkte neu — Originalpunkte
+über Index `i` + Koordinaten samt Erweiterungen übernommen, Segmentgrenzen aus
+`seg`. Namensräume aus dem Rohtext registriert (kein `ns0`), Kommentare gehen
+verloren (ET). `trackio.export_payload(..., original=)` nimmt das Original und
+fällt bei Fehlern auf `to_gpx_string` zurück. Aufrufer: Web `api/tools.py`
+(`_ORIGINALS`, Download), `api/export.py` (GPX→GPX), App `gpxedit.save`
+(Inspektor, `i` = `oi`), `app.export_track_as`. Höhendienst: `gain_loss` rechnet
+über `gpx._compute_ascent_descent` (Fenster 5, Schwelle 3 m) = kanonische
+Statistik; Stützstellen-Deckel schließt Anfang/Ende ein (≤ 600). Wächter
+`tests/test_gpxpatch.py`; Prüfstand Scratch `web/cgi_test.py` (tools.py als CGI
+mit route-3.gpx: alle Aktionen behalten Metadaten).
+
 **Quellenzeile-Modus (07.09.2026, Konzept §6):** Einstellungen `attrib_mode`
 (`voll` | `kurz`) und `attrib_link` je Modul (bindSetting, Render-Params,
 `AnimatorConfig`). Vorschau/Szene: `_applyAttribText()` (module.js) schreibt im

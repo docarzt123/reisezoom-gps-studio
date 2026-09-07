@@ -4281,7 +4281,14 @@ class Api:
             gpx_path = self._ensure_gpx(src)
             pts, st = cgpx.parse_gpx(gpx_path)
             name = (getattr(st, "name", None) or os.path.splitext(os.path.basename(src))[0])
-            data, _mime = ctrackio.export_payload(pts, fmt, name)
+            _orig = None   # 07.09.2026 — verlustfrei aus der Quell-GPX (core/gpxpatch)
+            try:
+                if fmt == "gpx" and str(gpx_path).lower().endswith(".gpx"):
+                    with open(gpx_path, "rb") as _f:
+                        _orig = _f.read()
+            except OSError:
+                _orig = None
+            data, _mime = ctrackio.export_payload(pts, fmt, name, original=_orig)
             label = fmt.upper()
             default_name = os.path.splitext(os.path.basename(src))[0] + "." + fmt
             dest = self.pick_save_path(default_name, str(Path.home()),
