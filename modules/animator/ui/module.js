@@ -925,6 +925,26 @@ function mountAnimator(body, headerActions, opts) {
               </div>
             </div>
             
+            <!-- 07.09.2026 (Marc: „kann man für die attribution einstellen, wo sie erscheint und in welcher form?")
+                 Quellenzeile: Ecke + Breite (schmal = hoch, breit = flach). Sie bleibt immer sichtbar. -->
+            <div class="overlay-group" id="anim-overlay-attrib-group">
+              <label class="checkbox-row inline" style="cursor:default;">
+                <span>${t("animator.overlay.attrib", "Quellenzeile")}</span>
+              </label>
+              <div class="ov-group-details">
+              <select id="anim-ov-attrib-pos" class="pos-select" title="${t("animator.overlay.position")}">
+                <option value="br">${t("animator.pos.br")}</option>
+                <option value="bl">${t("animator.pos.bl")}</option>
+                <option value="tr">${t("animator.pos.tr")}</option>
+                <option value="tl">${t("animator.pos.tl")}</option>
+              </select>
+              <select id="anim-ov-attrib-w" class="pos-select" title="${t("animator.overlay.attrib_width", "Breite der Quellenzeile")}">
+                <option value="schmal">${t("animator.overlay.attrib_w.schmal", "schmal (hoch)")}</option>
+                <option value="mittel" selected>${t("animator.overlay.attrib_w.mittel", "mittel")}</option>
+                <option value="breit">${t("animator.overlay.attrib_w.breit", "breit (flach)")}</option>
+              </select>
+              </div>
+            </div>
             <!-- 04.09.2026 — Nordpfeil + Maßstab (Beta-Tester: „dürfen nicht fehlen"), Standard an -->
             <div class="overlay-group" id="anim-overlay-north-group">
               <label class="checkbox-row inline">
@@ -2281,6 +2301,16 @@ function mountAnimator(body, headerActions, opts) {
   // 04.09.2026 — Nordpfeil + Maßstab
   bindSetting("anim-ov-north", _MODKEY, "overlay_north_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
   bindSetting("anim-ov-north-pos", _MODKEY, "overlay_north_position");
+  // 07.09.2026 — Quellenzeile: Ecke + Breite als Datenattribute am Viewport (CSS in module.css);
+  // dieselbe DOM im Render (gemeinsame Szene) → WYSIWYG ohne weiteren Code.
+  function _applyAttribLayout() {
+    const vp = document.getElementById("anim-viewport"); if (!vp) return;
+    vp.dataset.rzAttribPos = document.getElementById("anim-ov-attrib-pos")?.value || "br";
+    vp.dataset.rzAttribW = document.getElementById("anim-ov-attrib-w")?.value || "mittel";
+  }
+  bindSetting("anim-ov-attrib-pos", _MODKEY, "attrib_position", { onLoad: _applyAttribLayout, onChange: _applyAttribLayout });
+  bindSetting("anim-ov-attrib-w", _MODKEY, "attrib_width", { onLoad: _applyAttribLayout, onChange: _applyAttribLayout });
+  try { _applyAttribLayout(); } catch (_) {}
   bindSetting("anim-ov-scale", _MODKEY, "overlay_scale_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
   bindSetting("anim-ov-scale-pos", _MODKEY, "overlay_scale_position");
   // v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y"). 0 = ab Start /
@@ -11243,6 +11273,7 @@ function mountAnimator(body, headerActions, opts) {
    "anim-ov-live", "anim-ov-live-pos",
    "anim-ov-ele", "anim-ov-ele-pos",
    "anim-ov-north", "anim-ov-north-pos", "anim-ov-scale", "anim-ov-scale-pos",   // 04.09.2026
+   "anim-ov-attrib-pos", "anim-ov-attrib-w",   // 07.09.2026
    // v0.9.228 — Zeitfenster-Inputs: bei Änderung Preview neu (zeigt im
    // Probelauf das Ein-/Ausblenden).
    "anim-ov-totals-from", "anim-ov-totals-to",
