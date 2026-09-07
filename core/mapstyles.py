@@ -507,9 +507,14 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float
     # Sentinel-2 (weltweit, 10 m) zwischen Untergrund und Landesdiensten (05.09.2026)
     sources["rz-raster-sentinel"] = {"type": "raster", "tiles": list(SENTINEL_LAYER["tiles"]), "tileSize": tile_size_for(SENTINEL_LAYER["tileSize"], dpr),
                                      "maxzoom": SENTINEL_LAYER["maxzoom"], "attribution": SENTINEL_LAYER["attribution"]}
-    # Bewusst OHNE Luftbild-Optik: die ist für die flauen Landesluftbilder gedacht,
-    # auf Sentinel wurde das Meer damit schwarz (05.09.2026).
+    # Luftbild-Optik auf Sentinel als ABWEICHUNG vom Werk (07.09.2026, Marc: Regler
+    # wirkten in der Übersicht nicht): Werk 25/8/0/0 = Sentinel unverändert (mit den
+    # Werkswerten direkt wurde das Meer schwarz, 05.09.), Regler bewegen beide Ebenen.
     lay_s = {"id": "rz-raster-sentinel", "type": "raster", "source": "rz-raster-sentinel", "minzoom": 0}
+    _a = ortho_adjust(adjust); _sen = {k: _a[k] - ORTHO_ADJUST_DEFAULT[k] for k in _a}
+    _psen = raster_adjust_paint(_sen)
+    if _psen:
+        lay_s["paint"] = _psen
     layers.append(lay_s)
     for r in reversed(stack):            # groß → klein = unten → oben
         sid = "rz-raster-" + r["id"] if transparent else "rz-raster"

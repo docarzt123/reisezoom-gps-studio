@@ -43,10 +43,17 @@
     let layers = [];
     try { layers = (map.getStyle() || {}).layers || []; } catch (_) { return; }
     let hasRaster = false;
+    // 07.09.2026 (Marc, Teneriffa-Schwarm: „die Regler funktionieren nicht mehr" — in der
+    // Übersicht liegt nur Sentinel, die Landesdienste blenden erst ab Zoom 12 ein): Sentinel
+    // bekommt die Regler als ABWEICHUNG vom Werk (Werk 25/8/0/0 = Sentinel unverändert, sonst
+    // wurde das Meer schwarz, 05.09.). Beide Ebenen bewegen sich damit gleichsinnig.
+    const d = Object.assign({}, DEF, def || {});
+    const pSen = paint(norm({ sat: a.sat - d.sat, con: a.con - d.con, bri: a.bri - d.bri, hue: a.hue - d.hue }, { sat: 0, con: 0, bri: 0, hue: 0 }));
     for (const l of layers) {
-      if (l.type !== "raster" || !l.id.startsWith("rz-raster") || l.id === "rz-raster-sentinel") continue;   // Sentinel bleibt natürlich
+      if (l.type !== "raster" || !l.id.startsWith("rz-raster")) continue;
       hasRaster = true;
-      for (const k of Object.keys(ALL)) { try { map.setPaintProperty(l.id, k, (k in p) ? p[k] : ALL[k]); } catch (_) {} }
+      const pp = (l.id === "rz-raster-sentinel") ? pSen : p;
+      for (const k of Object.keys(ALL)) { try { map.setPaintProperty(l.id, k, (k in pp) ? pp[k] : ALL[k]); } catch (_) {} }
     }
     const op = hasRaster ? 0 : Math.min(0.85, Math.abs(a.bri) / 100 * 0.8);
     const color = a.bri < 0 ? "#000000" : "#ffffff";
@@ -57,38 +64,77 @@
       else { map.setPaintProperty("rz-dim", "fill-color", color); map.setPaintProperty("rz-dim", "fill-opacity", op); }
     } catch (_) {}
   }
-  /* 07.09.2026 (Marc, Teneriffa: „die ganze Insel ist unscharf") — Schärfe 0…100 %.
+  /* 07.09.2026 (Marc, Teneriffa: "die ganze Insel ist unscharf") — Schärfe 0…100 %.
    * Sentinel-2 (EOX 2016) trägt bei z14 nicht mehr Detail als bei z13 (gemessen), da hilft
    * keine Kacheldichte — nur eine Unschärfemaske: Bild = (1+A)·Original − A·Weichzeichnung.
-   * Als SVG-Filter per CSS auf der WebGL-Leinwand: greift in der Vorschau wie im Video
-   * (page.screenshot nimmt die gefilterte Leinwand), nicht auf HTML-Overlays (Zahlen,
-   * Profil, Quellenzeile). Radius in CSS-Pixeln — das Renderfenster ist in CSS-Pixeln
-   * genau die Vorschau, also gleicher Look. Bei 0 kein Filter (keine Kosten). */
-  const SHARP_ID = "rz-sharpen", SHARP_MAX_A = 1.5, SHARP_RADIUS = 1.0;
+   * Erster Wurf war ein SVG-Filter per CSS auf der Leinwand: lief in Chromium (Render) und im
+   * kopflosen WebKit, aber NICHT in der App (WKWebView legt die WebGL-Leinwand auf eine
+   * beschleunigte Ebene, und dort ignoriert WebKit url()-Filter — Marc: "Schärfe geht nie").
+   * Jetzt als Custom-Layer direkt hinter den Raster-Ebenen: kopiert den bis dahin gezeichneten
+   * Framebuffer in eine Textur (copyTexImage2D) und zeichnet ihn geschärft zurück. Strecke,
+   * Schilder, Beschriftung liegen darüber und bleiben unberührt; HTML-Overlays sowieso.
+   * Radius = 1 CSS-Pixel (devicePixelRatio) — das Renderfenster ist in CSS-Pixeln die
+   * Vorschau, also gleicher Look in Vorschau und Video. Bei 0 keine Ebene. */
+  const SHARP_ID = "rz-sharpen", SHARP_MAX_A = 2.0;
   function sharpNorm(v) { const n = parseFloat(v); return isFinite(n) ? Math.max(0, Math.min(100, n)) : 0; }
-  function sharpFilter(doc) {
-    let f = doc.getElementById(SHARP_ID);
-    if (f) return f;
-    const NS = "http://www.w3.org/2000/svg";
-    const svg = doc.createElementNS(NS, "svg");
-    svg.setAttribute("width", "0"); svg.setAttribute("height", "0"); svg.setAttribute("aria-hidden", "true");
-    svg.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;pointer-events:none";
-    f = doc.createElementNS(NS, "filter"); f.setAttribute("id", SHARP_ID); f.setAttribute("color-interpolation-filters", "sRGB");
-    f.setAttribute("x", "0"); f.setAttribute("y", "0"); f.setAttribute("width", "100%"); f.setAttribute("height", "100%");
-    const b = doc.createElementNS(NS, "feGaussianBlur"); b.setAttribute("in", "SourceGraphic"); b.setAttribute("stdDeviation", String(SHARP_RADIUS)); b.setAttribute("result", "b");
-    const c = doc.createElementNS(NS, "feComposite"); c.setAttribute("in", "SourceGraphic"); c.setAttribute("in2", "b"); c.setAttribute("operator", "arithmetic");
-    c.setAttribute("k1", "0"); c.setAttribute("k2", "1"); c.setAttribute("k3", "0"); c.setAttribute("k4", "0");
-    f.appendChild(b); f.appendChild(c); svg.appendChild(f); (doc.body || doc.documentElement).appendChild(svg);
-    return f;
+  const SHARP_VS = "attribute vec2 a_pos; varying vec2 v_uv; void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }";
+  const SHARP_FS = "precision mediump float; uniform sampler2D u_tex; uniform vec2 u_step; uniform float u_a; varying vec2 v_uv;"
+    + " void main() { vec4 c = texture2D(u_tex, v_uv);"
+    + " vec4 b = (texture2D(u_tex, v_uv + vec2(u_step.x, 0.0)) + texture2D(u_tex, v_uv - vec2(u_step.x, 0.0))"
+    + " + texture2D(u_tex, v_uv + vec2(0.0, u_step.y)) + texture2D(u_tex, v_uv - vec2(0.0, u_step.y)) + c) / 5.0;"
+    + " vec3 s = clamp(c.rgb * (1.0 + u_a) - b.rgb * u_a, 0.0, max(c.a, 0.0001));"
+    + " gl_FragColor = vec4(s, c.a); }";
+  function sharpLayer() {
+    return {
+      id: SHARP_ID, type: "custom", renderingMode: "2d", amount: 0,
+      onAdd(map, gl) {
+        this._map = map;
+        const mk = (t, src) => { const sh = gl.createShader(t); gl.shaderSource(sh, src); gl.compileShader(sh); return sh; };
+        const pr = gl.createProgram(); gl.attachShader(pr, mk(gl.VERTEX_SHADER, SHARP_VS)); gl.attachShader(pr, mk(gl.FRAGMENT_SHADER, SHARP_FS)); gl.linkProgram(pr);
+        this._pr = pr; this._aPos = gl.getAttribLocation(pr, "a_pos");
+        this._uTex = gl.getUniformLocation(pr, "u_tex"); this._uStep = gl.getUniformLocation(pr, "u_step"); this._uA = gl.getUniformLocation(pr, "u_a");
+        this._buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this._buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+        this._tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this._tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      },
+      onRemove(map, gl) { try { gl.deleteProgram(this._pr); gl.deleteBuffer(this._buf); gl.deleteTexture(this._tex); } catch (_) {} },
+      render(gl) {
+        if (!(this.amount > 0) || !this._pr) return;
+        const vp = gl.getParameter(gl.VIEWPORT), w = vp[2], h = vp[3];
+        if (!(w > 0 && h > 0)) return;
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this._tex);
+        gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, vp[0], vp[1], w, h, 0);
+        const depth = gl.isEnabled(gl.DEPTH_TEST), blend = gl.isEnabled(gl.BLEND), stencil = gl.isEnabled(gl.STENCIL_TEST), cull = gl.isEnabled(gl.CULL_FACE);
+        gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.STENCIL_TEST); gl.disable(gl.CULL_FACE);
+        gl.useProgram(this._pr);
+        const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
+        gl.uniform1i(this._uTex, 0); gl.uniform2f(this._uStep, dpr / w, dpr / h); gl.uniform1f(this._uA, this.amount);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this._buf); gl.enableVertexAttribArray(this._aPos); gl.vertexAttribPointer(this._aPos, 2, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.disableVertexAttribArray(this._aPos);
+        if (depth) gl.enable(gl.DEPTH_TEST); if (blend) gl.enable(gl.BLEND); if (stencil) gl.enable(gl.STENCIL_TEST); if (cull) gl.enable(gl.CULL_FACE);
+      },
+    };
+  }
+  /** Erste Ebene, die kein Raster mehr ist (Beschriftung, Strecke, Schilder) — die Schärfung liegt davor. */
+  function firstNonRasterLayer(layers) {
+    for (const l of layers) { if (l.id === SHARP_ID) continue; if (l.type !== "raster" && l.type !== "background" && l.type !== "hillshade") return l.id; }
+    return undefined;
   }
   function applySharpen(map, pct) {
-    let cv = null; try { cv = map && map.getCanvas ? map.getCanvas() : map; } catch (_) {}
-    if (!cv || !cv.style) return;
+    if (!map || !map.getStyle || !map.addLayer) return;
     const v = sharpNorm(pct), A = v / 100 * SHARP_MAX_A;
-    if (v <= 0) { cv.style.filter = ""; return; }
-    const f = sharpFilter(cv.ownerDocument || document), c = f.querySelector("feComposite");
-    c.setAttribute("k2", String(+(1 + A).toFixed(3))); c.setAttribute("k3", String(+(-A).toFixed(3)));
-    cv.style.filter = "url(#" + SHARP_ID + ")";
+    let layers = []; try { layers = (map.getStyle() || {}).layers || []; } catch (_) { return; }
+    try {
+      if (v <= 0) { if (map.getLayer(SHARP_ID)) map.removeLayer(SHARP_ID); map.__rzSharpen = 0; if (map.triggerRepaint) map.triggerRepaint(); return; }
+      let lay = map.__rzSharpenLayer;
+      if (!map.getLayer(SHARP_ID)) { lay = sharpLayer(); map.__rzSharpenLayer = lay; map.addLayer(lay, firstNonRasterLayer(layers)); }
+      if (lay) lay.amount = A;
+      map.__rzSharpen = v;
+      if (map.triggerRepaint) map.triggerRepaint();
+    } catch (e) { try { console.warn("rzApplyMapSharpen", e); } catch (_) {} }
   }
   window.rzMapSharpenNorm = sharpNorm;
   window.rzApplyMapSharpen = applySharpen;

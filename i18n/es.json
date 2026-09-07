@@ -125,7 +125,7 @@
   "animator.field.ortho_con": "Contraste",
   "animator.field.ortho_bri": "Brillo",
   "animator.field.ortho_hue": "Tono",
-  "animator.field.ortho_tip": "Solo afecta a las ortofotos oficiales (no al fondo); igual en la vista previa, el vídeo y el mapa web.",
+  "animator.field.ortho_tip": "Afecta a las ortofotos y a la capa Sentinel (no al fondo Blue Marble); igual en la vista previa, el vídeo y el mapa web. Estándar = Sentinel sin cambios.",
   "animator.field.sharp_title": "Nitidez",
   "animator.field.sharp_tip": "Aumenta la nitidez del mapa (máscara de enfoque); igual en la vista previa y el vídeo, no en el mapa web. Afecta al mapa y al recorrido, no a cifras, perfil ni línea de fuentes. Demasiado se ve granulado.",
   "animator.field.mapadj_title": "Aspecto del mapa",
