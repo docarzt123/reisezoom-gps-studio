@@ -964,6 +964,13 @@ label.chip-toggle input:checked + span {
 #anim-viewport .mapboxgl-ctrl-attrib { font-size: 9px; line-height: 1.35; max-width: 45%; }
 /* 07.09.2026 — Quellenzeile: Ecke + Breite (Einstellung „Quellenzeile" im Overlay-Abschnitt;
    Datenattribute setzt _applyAttribLayout in module.js). Der Ecken-Container wandert mit. */
+/* 07.09.2026 (Marc: „wichtig, das darf nicht abschaltbar sein"): Die Quellenzeile ist immer
+   aufgeklappt — MapLibres Zuklapp-Knopf (ⓘ) ist weg, der Text bleibt auch im „compact"-Modus. */
+#anim-viewport .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-inner,
+#anim-viewport .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-inner { display: block !important; }
+#anim-viewport .maplibregl-ctrl-attrib-button { display: none !important; }
+#anim-viewport .maplibregl-ctrl-attrib.maplibregl-compact { padding: 2px 8px !important; }
+#anim-viewport .maplibregl-ctrl-attrib { display: block !important; visibility: visible !important; opacity: 1 !important; }
 #anim-viewport[data-rz-attrib-w="schmal"] .maplibregl-ctrl-attrib { max-width: 28%; }
 #anim-viewport[data-rz-attrib-w="breit"]  .maplibregl-ctrl-attrib { max-width: 70%; }
 #anim-viewport[data-rz-attrib-pos="bl"] .maplibregl-ctrl-bottom-right,

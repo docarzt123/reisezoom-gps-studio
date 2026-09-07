@@ -2307,6 +2307,8 @@ function mountAnimator(body, headerActions, opts) {
     const vp = document.getElementById("anim-viewport"); if (!vp) return;
     vp.dataset.rzAttribPos = document.getElementById("anim-ov-attrib-pos")?.value || "br";
     vp.dataset.rzAttribW = document.getElementById("anim-ov-attrib-w")?.value || "mittel";
+    // Marc, 07.09.2026: nie abschaltbar — falls MapLibre sie zugeklappt hat, wieder aufklappen.
+    try { vp.querySelectorAll(".maplibregl-ctrl-attrib.maplibregl-compact").forEach(el => el.classList.add("maplibregl-compact-show")); } catch (_) {}
   }
   bindSetting("anim-ov-attrib-pos", _MODKEY, "attrib_position", { onLoad: _applyAttribLayout, onChange: _applyAttribLayout });
   bindSetting("anim-ov-attrib-w", _MODKEY, "attrib_width", { onLoad: _applyAttribLayout, onChange: _applyAttribLayout });
