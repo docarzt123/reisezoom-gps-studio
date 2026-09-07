@@ -29,6 +29,7 @@ betrieben werden.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 from typing import Optional
@@ -323,6 +324,29 @@ SENTINEL_LAYER = {
     "name": "Sentinel-2 (10 m, 2016)",
 }
 
+# ── Kacheldichte (07.09.2026, Marc: „die ganze Insel ist unscharf") ──────────
+# MapLibre wählt die Kachelstufe aus Zoom und tileSize, NICHT aus dem Pixelmaßstab
+# (devicePixelRatio): eine 256-px-Kachel deckt immer 256 CSS-Pixel. Auf Retina (×2)
+# und im Video (Video ÷ Vorschau: ×2,3 bei 1080p, ×4,7 bei 4K aus 818 px Vorschau)
+# wird jedes Kachelpixel entsprechend vergrößert — Sentinel-2 wirkte über Teneriffa
+# flächig weich, obwohl die Daten 10 m/px hergeben. Abhilfe: tileSize je Verdopplung
+# des Pixelmaßstabs halbieren → MapLibre holt eine Stufe tiefer (viermal so viele
+# Kacheln, je 256 px), das Kachelpixel landet ≈ 1:1 auf dem Ausgabepixel. Höchstens
+# zwei Stufen (16× Kacheln); darüber wird es teuer, und die Quellen sind ohnehin am
+# Ende (Sentinel z14). Spiegel in ui/js/util.js rzTileSize — bei Änderung beide pflegen.
+TILE_DENSITY_MAX_STEPS = 2
+
+
+def tile_size_for(base: int, dpr: float = 1.0) -> int:
+    """tileSize einer Raster-Quelle für den Pixelmaßstab `dpr` (1 = keine Änderung)."""
+    try:
+        d = float(dpr or 1.0)
+    except (TypeError, ValueError):
+        d = 1.0
+    k = int(round(math.log2(max(1.0, d))))
+    k = max(0, min(TILE_DENSITY_MAX_STEPS, k))
+    return max(32, int(base) >> k)
+
 # ── Nachlesen: Bedingungen der Anbieter (Einstellungen → Karten, Handbuch) ─
 # Marc, 03.09.2026: „setze links zu den quellen … dass jeder selbst nachlesen
 # kann, was in den terms steht". Alles hier ist UNSERE Lesart der Bedingungen;
@@ -467,7 +491,7 @@ def stack_attribution(stack: list[dict]) -> str:
     return " | ".join(out)
 
 
-def stack_style(stack: list[dict], proxy_base: str = "", adjust=None) -> dict:
+def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float = 1.0) -> dict:
     """GL-Style mit einer Raster-Quelle je Region; unterste = größte Fläche."""
     # 04.09.2026 (Marc, Brandenburg bei Zoom 7): Auch eine EINZELNE Region
     # immer als PNG mit Alpha — als JPEG füllt der Landesdienst alles
@@ -477,11 +501,11 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None) -> dict:
     transparent = True
     sources, layers = {}, []
     # Untergrund zuerst (ganz unten): Meer, Ferne, Lücken der Landesdienste.
-    sources["rz-base"] = {"type": "raster", "tiles": list(BASE_LAYER["tiles"]), "tileSize": BASE_LAYER["tileSize"],
+    sources["rz-base"] = {"type": "raster", "tiles": list(BASE_LAYER["tiles"]), "tileSize": tile_size_for(BASE_LAYER["tileSize"], dpr),
                           "maxzoom": BASE_LAYER["maxzoom"], "attribution": BASE_LAYER["attribution"]}
     layers.append({"id": "rz-base", "type": "raster", "source": "rz-base", "minzoom": 0})
     # Sentinel-2 (weltweit, 10 m) zwischen Untergrund und Landesdiensten (05.09.2026)
-    sources["rz-raster-sentinel"] = {"type": "raster", "tiles": list(SENTINEL_LAYER["tiles"]), "tileSize": SENTINEL_LAYER["tileSize"],
+    sources["rz-raster-sentinel"] = {"type": "raster", "tiles": list(SENTINEL_LAYER["tiles"]), "tileSize": tile_size_for(SENTINEL_LAYER["tileSize"], dpr),
                                      "maxzoom": SENTINEL_LAYER["maxzoom"], "attribution": SENTINEL_LAYER["attribution"]}
     # Bewusst OHNE Luftbild-Optik: die ist für die flauen Landesluftbilder gedacht,
     # auf Sentinel wurde das Meer damit schwarz (05.09.2026).
@@ -490,7 +514,7 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None) -> dict:
     for r in reversed(stack):            # groß → klein = unten → oben
         sid = "rz-raster-" + r["id"] if transparent else "rz-raster"
         src = {"type": "raster", "tiles": region_tiles(r, transparent=transparent, proxy_base=proxy_base),
-               "tileSize": 256, "minzoom": int(r.get("minzoom", ORTHO_MINZOOM)),
+               "tileSize": tile_size_for(256, dpr), "minzoom": int(r.get("minzoom", ORTHO_MINZOOM)),
                "maxzoom": int(r.get("maxzoom", 19)), "attribution": r["attribution"]}
         if r.get("scheme") == "tms" and not proxy_base:   # die Weiche spiegelt y selbst
             src["scheme"] = "tms"
@@ -560,11 +584,11 @@ def stack_leaflet(stack: list[dict], adjust=None) -> dict:
 
 
 def raster_style(tiles: list[str], *, tile_size: int = 256, maxzoom: int = 19,
-                 attribution: str = "", scheme: str = "xyz") -> dict:
+                 attribution: str = "", scheme: str = "xyz", dpr: float = 1.0) -> dict:
     """GL-Style-8-Objekt mit EINER Raster-Quelle. Kein Layer-maxzoom, damit
     oberhalb der letzten Kachelstufe hochskaliert statt schwarz wird
     (Marc: hochskalieren, nicht die Quelle wechseln)."""
-    src = {"type": "raster", "tiles": tiles, "tileSize": tile_size,
+    src = {"type": "raster", "tiles": tiles, "tileSize": tile_size_for(tile_size, dpr),
            "maxzoom": int(maxzoom), "attribution": attribution}
     if scheme == "tms":
         src["scheme"] = "tms"
@@ -695,8 +719,10 @@ def video_ok(key: str) -> bool:
 
 def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
             bbox=None, want_terrain: bool = True, proxy_base: str = "",
-            labels: Optional[dict] = None, ortho: Optional[dict] = None) -> dict:
+            labels: Optional[dict] = None, ortho: Optional[dict] = None,
+            dpr: float = 1.0) -> dict:
     """Aus Stil-Schlüssel + Schlüsseln + Track-Lage die konkrete Karte machen.
+    `dpr` = Pixelmaßstab des Zeichners (Kacheldichte, s. tile_size_for).
 
     Liefert:
       key        — der tatsächlich verwendete Stil (nach Ausweichen)
@@ -744,10 +770,10 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
             notes.append("no_coverage")
 
     if st["kind"] == "gov":
-        style = stack_style(stack, proxy_base=proxy_base, adjust=ortho)
+        style = stack_style(stack, proxy_base=proxy_base, adjust=ortho, dpr=dpr)
     elif st["kind"] == "raster":
         style = raster_style(st["tiles"], tile_size=st.get("tileSize", 256),
-                             maxzoom=st.get("maxzoom", 19), attribution=st.get("attribution", ""))
+                             maxzoom=st.get("maxzoom", 19), attribution=st.get("attribution", ""), dpr=dpr)
     else:
         style = st["style_url"].replace("{maptiler_key}", maptiler_key)
     if st["kind"] == "gov":                       # nur Orthofotos: OSM-Raster tragen ihre Beschriftung schon im Bild

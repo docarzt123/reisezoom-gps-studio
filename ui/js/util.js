@@ -223,6 +223,20 @@ function rzRasterAdjustPaint(adj) { return window.rzMapAdjustPaint(adj, mapCatal
 /** Live anwenden: Luftbilder (rz-raster-*) per Paint, Vektorkarten per Abdunkel-Ebene. `def` = Standard je Stilart. */
 function rzApplyRasterAdjust(map, adj, def) { return window.rzApplyMapAdjust(map, adj, def === undefined ? (mapCatalog().ortho_adjust_default || {}) : def); }
 
+/** Kacheldichte (07.09.2026, Marc: „die ganze Insel ist unscharf") — Spiegel von
+ *  mapstyles.tile_size_for: MapLibre wählt die Kachelstufe aus Zoom und tileSize, nicht
+ *  aus dem Pixelmaßstab. Auf Retina (×2) und im Video (Video ÷ Vorschau, ×2,3 … ×4,7)
+ *  wird jedes Kachelpixel sonst vergrößert. tileSize je Verdopplung halbieren → eine
+ *  Kachelstufe tiefer, ≈ 1:1. Höchstens zwei Stufen. Bei Änderung beide pflegen. */
+const RZ_TILE_DENSITY_MAX_STEPS = 2;
+function rzTileSize(base) {
+  const d = Math.max(1, Number(window.devicePixelRatio) || 1);
+  let k = Math.round(Math.log2(d));
+  k = Math.max(0, Math.min(RZ_TILE_DENSITY_MAX_STEPS, k));
+  return Math.max(32, (base || 256) >> k);
+}
+window.rzTileSize = rzTileSize;
+
 function _stackStyle(stack, ortho) {
   const transparent = true;   // 04.09.2026: auch einzeln als PNG mit Alpha, sonst weiß außerhalb der Grenze (synchron zu mapstyles.stack_style)
   const sources = {}, layers = [];
@@ -230,13 +244,13 @@ function _stackStyle(stack, ortho) {
   // Untergrund (NASA Blue Marble) ganz unten: Meer, Ferne, Lücken der Landesdienste.
   const base = mapCatalog().base_layer;
   if (base && base.tiles) {
-    sources["rz-base"] = { type: "raster", tiles: base.tiles.slice(), tileSize: base.tileSize || 256, maxzoom: base.maxzoom || 8, attribution: base.attribution || "" };
+    sources["rz-base"] = { type: "raster", tiles: base.tiles.slice(), tileSize: rzTileSize(base.tileSize || 256), maxzoom: base.maxzoom || 8, attribution: base.attribution || "" };
     layers.push({ id: "rz-base", type: "raster", source: "rz-base", minzoom: 0 });
   }
   // 05.09.2026 — Sentinel-2 cloudless 2016 (EOX, CC BY-SA) weltweit zwischen Untergrund und Landesdiensten
   const sen = mapCatalog().sentinel_layer;
   if (sen && sen.tiles) {
-    sources["rz-raster-sentinel"] = { type: "raster", tiles: sen.tiles.slice(), tileSize: sen.tileSize || 256, maxzoom: sen.maxzoom || 14, attribution: sen.attribution || "" };
+    sources["rz-raster-sentinel"] = { type: "raster", tiles: sen.tiles.slice(), tileSize: rzTileSize(sen.tileSize || 256), maxzoom: sen.maxzoom || 14, attribution: sen.attribution || "" };
     const laySen = { id: "rz-raster-sentinel", type: "raster", source: "rz-raster-sentinel", minzoom: 0 };   // ohne Luftbild-Optik (Meer wurde schwarz)
     layers.push(laySen);
   }
@@ -246,7 +260,7 @@ function _stackStyle(stack, ortho) {
     // Über die lokale Kachel-Weiche (CORS + Zwischenspeicher), wenn die App sie anbietet.
     const tiles = proxy ? [proxy + "/tile/" + r.id + "/{z}/{x}/{y}" + (transparent ? "?t=1" : "")]
                         : (transparent ? (r.tiles_transparent || r.tiles) : r.tiles);
-    const src = { type: "raster", tiles, tileSize: 256, minzoom: r.minzoom || orthoMin, maxzoom: r.maxzoom || 19, attribution: r.attribution || "" };
+    const src = { type: "raster", tiles, tileSize: rzTileSize(256), minzoom: r.minzoom || orthoMin, maxzoom: r.maxzoom || 19, attribution: r.attribution || "" };
     if (r.scheme === "tms" && !proxy) src.scheme = "tms";
     sources[sid] = src;
     // 05.09.2026 (Spiegel von mapstyles.stack_style): Landesdienste erst ab ORTHO_FADE_FROM,
@@ -282,7 +296,7 @@ function _addLabelOverlay(style, labels) {
 }
 
 function _rasterStyle(tiles, tileSize, maxzoom, attribution, scheme) {
-  const src = { type: "raster", tiles: tiles, tileSize: tileSize || 256, maxzoom: maxzoom || 19, attribution: attribution || "" };
+  const src = { type: "raster", tiles: tiles, tileSize: rzTileSize(tileSize || 256), maxzoom: maxzoom || 19, attribution: attribution || "" };
   if (scheme === "tms") src.scheme = "tms";
   // KEIN Layer-maxzoom: über der letzten Kachelstufe wird hochskaliert, nicht schwarz.
   const st = { version: 8, sources: { "rz-raster": src }, layers: [{ id: "rz-raster", type: "raster", source: "rz-raster", minzoom: 0 }] };

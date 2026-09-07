@@ -278,6 +278,11 @@ function mountAnimator(body, headerActions, opts) {
               </label>
             </div>
           </div>
+          <!-- 07.09.2026 (Marc, Teneriffa: „die ganze Insel ist unscharf") — Schärfe der Karte (Unschärfemaske) -->
+          <div class="field" id="anim-sharp-row" title="${t("animator.field.sharp_tip", "Schärft die Karte (Unschärfemaske) — in Vorschau und Video gleich, nicht in der Web-Karte. Wirkt auf Karte und Strecke, nicht auf Zahlen, Profil und Quellenzeile. Zu viel wirkt körnig.")}">
+            <label class="field-label">${t("animator.field.sharp_title", "Schärfe")} <span class="label-val" id="anim-msharp-v">0 %</span></label>
+            <input type="range" id="anim-msharp" min="0" max="100" step="5" value="0">
+          </div>
           <div class="field">
             <label class="field-label" for="anim-mc-light">${t("map_config.light_preset")}</label>
             <select id="anim-mc-light">
@@ -1792,6 +1797,10 @@ function mountAnimator(body, headerActions, opts) {
       el.value = "0"; el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change"));
     }
   });
+  // 07.09.2026 — Schärfe (map_sharp, Standard 0) → live auf die Karten-Leinwand (rz-mapadjust.js)
+  bindLabel("anim-msharp", "anim-msharp-v", " %");
+  bindSetting("anim-msharp", _MODKEY, "map_sharp", { type: "number", onLoad: v => { updateLabel("anim-msharp-v", v, " %"); _applySharpen(); } });
+  document.getElementById("anim-msharp")?.addEventListener("input", _applySharpen);
   // 05.09.2026 — Sternenhimmel: vier Werte → Projekt (stars_*), live auf den Kartencontainer
   bindSetting("anim-stars", _MODKEY, "stars_enabled", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
   bindSetting("anim-stars-twinkle", _MODKEY, "stars_twinkle", { type: "bool", onLoad: _applyStars, onChange: _applyStars });
@@ -7499,6 +7508,8 @@ function mountAnimator(body, headerActions, opts) {
   // 06.09.2026 — gemeinsame Szene: der Render (core/szene.py) fährt diese Vorschau
   // kopflos in Videogröße. Er braucht: „ist alles geladen?", „Probelauf im
   // Schrittmodus starten" und den Bild-für-Bild-Zugriff (window.__rzPreviewStep).
+  // 07.09.2026 — Griff für Sonden/Tests (wie window.__libMap): die Karte liegt sonst modul-intern.
+  try { window.__rzAnimMap = () => map; } catch (_) {}
   window.__rzAnimBereit = () => {
     let styleOk = false, tilesOk = false, terrainOk = true;
     try { styleOk = !!(map && (map.__rzStyleReady || (map.isStyleLoaded && map.isStyleLoaded()))); } catch (_) {}
@@ -7726,6 +7737,13 @@ function mountAnimator(body, headerActions, opts) {
   function _currentMapAdjust() {
     const g = id => { const v = parseFloat(document.getElementById(id)?.value); return isFinite(v) ? v : 0; };
     return { sat: g("anim-msat"), con: g("anim-mcon"), bri: g("anim-mbri"), hue: g("anim-mhue") };
+  }
+  function _currentSharpen() {
+    const v = parseFloat(document.getElementById("anim-msharp")?.value); return isFinite(v) ? v : 0;
+  }
+  /** 07.09.2026 — Schärfe live auf die Karten-Leinwand (Vorschau = Video, s. rz-mapadjust.js). */
+  function _applySharpen() {
+    try { if (map && window.rzApplyMapSharpen) rzApplyMapSharpen(map, _currentSharpen()); } catch (_) {}
   }
   function _currentStars() {
     const on = id => { const el = document.getElementById(id); return el ? !!el.checked : true; };
@@ -8008,6 +8026,7 @@ function mountAnimator(body, headerActions, opts) {
       _ghostSpurenAufbauen();     // 27.08.2026 — sonst sind sie nach dem Stilwechsel weg
       applyTerrain();
       _applyMapAdjust();          // 05.09.2026 — Karten-Optik (Raster-Paint / Abdunkel-Ebene) je Stilart
+      _applySharpen();            // 07.09.2026 — Schärfe (CSS-Filter auf der Leinwand; setStyle tauscht sie nicht, sicher ist sicher)
       _applyStars();
       // 05.09.2026 (Audit): Sprite geladen? (POI-Symbole fehlten in der echten Vorschau)
       setTimeout(() => { try { applog && applog("info", `[style] ${map.__rzStyleKey || "?"} Bilder=${(map.listImages && map.listImages().length) || 0} Ebenen=${(map.getStyle().layers || []).length} Sprite=${JSON.stringify(map.getStyle().sprite || null).slice(0, 80)}`); } catch (_) {} }, 3000);
@@ -14554,6 +14573,7 @@ function mountAnimator(body, headerActions, opts) {
       exaggeration: parseFloat(document.getElementById("anim-ex").value),
       ortho_sat: _currentOrtho().sat, ortho_con: _currentOrtho().con, ortho_bri: _currentOrtho().bri, ortho_hue: _currentOrtho().hue,
       map_sat: _currentMapAdjust().sat, map_con: _currentMapAdjust().con, map_bri: _currentMapAdjust().bri, map_hue: _currentMapAdjust().hue,
+      map_sharp: _currentSharpen(),
       stars_enabled: _currentStars().enabled, stars_density: _currentStars().density, stars_size: _currentStars().size, stars_twinkle: _currentStars().twinkle,
       enable_terrain: document.getElementById("anim-terrain").checked,
       // v0.8.17 — Classic-Mode Toggle „Kamera folgt Track" → Backend bewegt
