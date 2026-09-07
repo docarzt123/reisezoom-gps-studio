@@ -1540,7 +1540,9 @@ Die Tour-Map ist **dieselbe Oberfläche wie der Animator** — nur im **Standbil
 2. **Format wählen**: YouTube 16:9 (1920×1080) · 4K · Shorts 9:16 (1080×1920) · Instagram 1:1 (1080×1080) · oder eigene
 3. **Stil + Kamera** wie im Animator — Karten-Stil, Linien-Optik, Neigung, Zoom-Stufe, Schilder/Fotos
 4. **Bildausschnitt feintunen** über die Kamera-Regler (siehe unten) oder direkt mit Pan/Zoom auf der Karte
-5. **„🗺 Karte als PNG rendern"** → Save-Dialog → PNG ist in 3-5 Sekunden fertig
+5. **„🗺 Karte als PNG rendern"** → Save-Dialog → PNG ist in etwa 10 Sekunden fertig
+
+Seit 07.09.2026 entsteht das PNG wie das Video aus der Vorschau selbst (siehe „Vorschau = Video"): dieselbe Karte, dieselben Beschriftungen, Schilder, Pins und die Quellenzeile, nur in der gewählten Bildgröße. Was die Vorschau relativ zu ihrer Breite zeigt, zeigt auch das Bild.
 
 ### Standbild-Kamera-Regler (seit v0.9.310)
 In der **Kamera**-Sektion gibt es drei Regler, die nur im Standbild-Modus auftauchen — alle wirken **sofort live in der Vorschau**:

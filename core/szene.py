@@ -166,7 +166,7 @@ async def _warte_auf(page, js: str, timeout_s: float, was: str, is_cancelled=Non
     raise RuntimeError(f"Szene: Warten auf {was} abgebrochen nach {timeout_s:.0f}s — zuletzt {json.dumps(letzte)[:300]}")
 
 
-async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, params=None):
+async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, params=None, modul: Optional[str] = None):
     """Chromium starten, App laden, Projekt öffnen, Render-Modus. Liefert (browser, page, dsf, ss)."""
     t_pw = time.time()
     browser = await p.chromium.launch(
@@ -220,12 +220,23 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
     await page.evaluate("() => { const t = document.getElementById('lib-seg-projekte'); if (t) t.click(); }")
     await _warte_auf(page, f"() => ({{ ok: !!document.querySelector('[data-open={json.dumps(projekt_id)}]') }})", 30, "Projektkarte", is_cancelled)
     await page.wait_for_timeout(500)
-    await page.evaluate(f"() => {{ window.rzProjektOeffnen({json.dumps(projekt_id)}); }}")
+    # 07.09.2026 — das Archiv öffnet direkt im gewünschten Modul (Animator, Reiseroute, Tour-Map)
+    await page.evaluate(f"() => {{ window.rzProjektOeffnen({json.dumps(projekt_id)}, {json.dumps(modul or 'animator')}); }}")
     # Bereit = Animator hat Karte + Stil + Kacheln + Track, keine offene Übergabe, kein Lade-Modal.
     bereit_js = """() => { try { const b = window.__rzAnimBereit && window.__rzAnimBereit(); if (!b) return { ok: false, grund: 'kein Animator', mod: (typeof activeMod !== 'undefined' ? activeMod : null), karte: !!window.__rzLetzteKarte, body: (document.body && document.body.innerText || '').slice(0, 160).replace(/\\s+/g, ' ') };
-        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null; return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
+        const ok = b.map && b.style && b.tiles && b.coords >= 2 && !b.pending && !b.modal && b.fitBase != null && b.route !== false; return Object.assign({ ok }, b); } catch (e) { return { ok: false, err: String(e) }; } }"""
     info = await _warte_auf(page, bereit_js, 240, "Projekt/Animator", is_cancelled, intervall=0.5)
     _log.info("Szene: Animator bereit — %s", json.dumps(info)[:300])
+    aktiv = await page.evaluate("() => (typeof activeMod !== 'undefined' ? activeMod : null)")
+    if modul and modul != "animator" and aktiv != modul:
+        # 07.09.2026 — Rückfall: falls das Archiv nicht im gewünschten Modul geöffnet hat
+        # (Reiseroute und Tour-Map sind dasselbe Animator-Modul in anderem Modus), ausdrücklich
+        # umschalten und auf die frische Bereitschaft der neuen Einhängung warten.
+        emit(0.045, f"Szene: Modul {modul} …")
+        await page.evaluate(f"() => {{ window.__rzAnimBereit = null; window.switchMod({json.dumps(modul)}); }}")
+        await _warte_auf(page, f"() => ({{ ok: (typeof activeMod !== 'undefined' && activeMod === {json.dumps(modul)}) && typeof window.__rzAnimBereit === 'function' }})", 60, f"Modul {modul}", is_cancelled)
+        info = await _warte_auf(page, bereit_js, 240, f"Modul {modul} bereit", is_cancelled, intervall=0.5)
+        _log.info("Szene: %s bereit — %s", modul, json.dumps(info)[:300])
     # Nachladen (Gelände-Kacheln, Schilder-Bilder) kurz Zeit geben, dann Viewport prüfen.
     await page.wait_for_timeout(2500)
     vp = await page.evaluate("() => { const v = document.getElementById('anim-viewport'); const r = v && v.getBoundingClientRect(); return r ? { x: r.x, y: r.y, w: r.width, h: r.height, k: getComputedStyle(v).getPropertyValue('--rz-prev-k') } : null; }")
@@ -240,7 +251,8 @@ async def _seite_vorbereiten(p, cfg, api, projekt_id: str, is_cancelled, emit, p
 async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = None,
                        on_progress: Optional[Callable[[float, str], None]] = None,
                        on_preview: Optional[Callable[[str], None]] = None,
-                       is_cancelled: Optional[Callable[[], bool]] = None) -> str:
+                       is_cancelled: Optional[Callable[[], bool]] = None,
+                       modul: str = "animator") -> str:
     """Video über die gemeinsame Szene rendern (siehe Modul-Doku)."""
     from playwright.async_api import async_playwright
 
@@ -258,7 +270,7 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
               cfg.width, cfg.height, cfg.codec)
 
     async with async_playwright() as p:
-        browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params)
+        browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
         try:
             emit(0.05, "Szene: Probelauf im Schrittmodus …")
             await page.evaluate("() => window.__rzPreviewRun()")
@@ -302,9 +314,47 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
     return cfg.output_path
 
 
-async def render_szene_frame(cfg, *, api, projekt_id: str, t_sek: float, params: Optional[dict] = None,
+async def render_szene_still(cfg, *, api, projekt_id: str, params: Optional[dict] = None,
                              on_progress: Optional[Callable[[float, str], None]] = None,
                              is_cancelled: Optional[Callable[[], bool]] = None) -> str:
+    """Tour-Map-Standbild aus der gemeinsamen Szene: die Tour-Map-Vorschau (Animator im
+    staticFrame-Modus: ganzer Track, alle Schilder/Pins, Tour-Map-Kamera) in Videogröße
+    als PNG nach cfg.output_path. 07.09.2026 — Marc: Tour-Map auf die Szene."""
+    from playwright.async_api import async_playwright
+
+    def emit(p: float, msg: str) -> None:
+        if on_progress:
+            try: on_progress(p, msg)
+            except Exception: pass
+
+    async with async_playwright() as p:
+        browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul="tourmap")
+        try:
+            emit(0.6, "Szene: Standbild …")
+            # Kacheln/Gelände/Schilder nachladen lassen, dann zweimal ruhig abwarten (Kamerahöhe mit Gelände)
+            for _k in range(2):
+                await page.evaluate(_WARTE_BILD_JS)
+                await page.wait_for_timeout(400)
+            await page.evaluate(_WARTE_BILD_JS)
+            alt = cfg.frame_format
+            try:
+                cfg.frame_format = "png"
+                shot = await A._grab_frame(page, cfg)
+            finally:
+                cfg.frame_format = alt
+            Path(cfg.output_path).write_bytes(shot)
+            _log.info("Szene: Standbild %dx%d → %s", cfg.width, cfg.height, cfg.output_path)
+        finally:
+            try: await browser.close()
+            except Exception: pass
+    emit(1.0, "Fertig.")
+    return cfg.output_path
+
+
+async def render_szene_frame(cfg, *, api, projekt_id: str, t_sek: float, params: Optional[dict] = None,
+                             on_progress: Optional[Callable[[float, str], None]] = None,
+                             is_cancelled: Optional[Callable[[], bool]] = None,
+                       modul: str = "animator") -> str:
     """Ein Standbild der gemeinsamen Szene zur Videozeit t_sek (PNG → cfg.output_path)."""
     from playwright.async_api import async_playwright
 
@@ -314,7 +364,7 @@ async def render_szene_frame(cfg, *, api, projekt_id: str, t_sek: float, params:
             except Exception: pass
 
     async with async_playwright() as p:
-        browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params)
+        browser, page, dsf, ss = await _seite_vorbereiten(p, cfg, api, projekt_id, is_cancelled, emit, params, modul=modul)
         try:
             await page.evaluate("() => window.__rzPreviewRun()")
             await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)

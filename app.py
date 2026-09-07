@@ -5058,17 +5058,26 @@ class Api:
                     _szene_pid = params.get("szene_projekt_id")
                     _klassisch = bool(os.environ.get("RZ_RENDER_KLASSISCH")) or (_load_settings().get("render_engine") == "klassisch")
                     _still = getattr(cfg, "still_frame", False)
+                    _szene_modul = str(params.get("szene_modul") or ("tourmap" if _still else "animator"))
                     if _szene_pid and not _klassisch and not _still and not cfg.transparent_background:
                         from core import szene as cszene
                         loop.run_until_complete(cszene.render_szene(
-                            cfg, api=self, projekt_id=str(_szene_pid), params=params,
+                            cfg, api=self, projekt_id=str(_szene_pid), params=params, modul=_szene_modul,
                             on_progress=on_progress, on_preview=on_preview, is_cancelled=is_cancelled,
                         ))
+                    elif _szene_pid and not _klassisch and _still and not cfg.transparent_background:
+                        # 07.09.2026 — Tour-Map-Standbild über die gemeinsame Szene (Vorschau = Bild). Die Tour-Map
+                        # schickt bei übernommener Kamera auch snapshot_center — für die Szene unerheblich, die
+                        # Kamera IST die der Vorschau.
+                        from core import szene as cszene
+                        loop.run_until_complete(cszene.render_szene_still(
+                            cfg, api=self, projekt_id=str(_szene_pid), params=params,
+                            on_progress=on_progress, is_cancelled=is_cancelled))
                     elif _szene_pid and not _klassisch and not _still and getattr(cfg, "snapshot_center", None) is not None and not cfg.transparent_background:
                         # Einzelbild aus der gemeinsamen Szene (Aktuellen Frame als Bild) — zur Videozeit des Scrubbers.
                         from core import szene as cszene
                         loop.run_until_complete(cszene.render_szene_frame(
-                            cfg, api=self, projekt_id=str(_szene_pid), t_sek=float(getattr(cfg, "snapshot_time_s", 0.0) or 0.0), params=params,
+                            cfg, api=self, projekt_id=str(_szene_pid), t_sek=float(getattr(cfg, "snapshot_time_s", 0.0) or 0.0), params=params, modul=_szene_modul,
                             on_progress=on_progress, is_cancelled=is_cancelled,
                         ))
                     elif _still or getattr(cfg, "snapshot_center", None) is not None:

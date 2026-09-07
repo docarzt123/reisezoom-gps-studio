@@ -5,8 +5,28 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Sat, 05 Sep 2026 19:54:41 +0000</lastBuildDate>
+<lastBuildDate>Sun, 06 Sep 2026 22:28:21 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.659 — Gelände-Stitching ohne Tempoverlust, auch auf schwachen Rechnern.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-659</link>
+<guid isPermaLink="false">gps-studio-v0.9.659</guid>
+<pubDate>Sun, 06 Sep 2026 12:00:00 +0000</pubDate>
+<description>Schnelleres Gelände-Stitching — Die Nachbarhöhen werden einmal je Kachel berechnet statt bei jedem Bild im Shader abgetastet; auf Rechnern ohne starke Grafik war 0.9.658 spürbar langsamer.</description>
+</item>
+<item>
+<title>v0.9.658 — Das Video ist jetzt die Vorschau in hoher Auflösung — was du im Probelauf siehst, bekommst du auch.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-658</link>
+<guid isPermaLink="false">gps-studio-v0.9.658</guid>
+<pubDate>Sun, 06 Sep 2026 12:00:00 +0000</pubDate>
+<description>Vorschau = Video (WYSIWYG) — Der Render fährt die Animator-Vorschau selbst, kopflos, mit der Pixeldichte des Videos, Bild für Bild: dieselbe Karte, dieselben Linien, Strichelungen, Schilder, Overlays, derselbe Kamerapfad. Die zweite, eigens erzeugte Render-Seite ist abgeschaltet (bleibt als Rückfall im Code).
+
+Kein Flimmern der Schwarm-Linien am 3D-Gelände — Mit Gelände laufen die Schwarm-Linien in Vorschau und Video knapp über dem Gelände statt drauf drapiert — Grate verdecken sie nicht mehr teilweise.
+
+Gestrichelte Ghost-Tracks wandern nicht mehr — Die Striche werden als Stücke am Boden gezeichnet, in Vorschau und Video gleich.
+
+Schilder springen nicht mehr in der Größe — Bei geneigter Kamerafahrt änderte sich die Schildgröße um etwa 3 % beim Kachelwechsel; die Größenkurve ist jetzt stetig.</description>
+</item>
 <item>
 <title>v0.9.657 — Schwarm und Reise öffnen wieder — „Karte wird gezeichnet“ bleibt nicht mehr stehen.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-657</link>
@@ -170,22 +190,6 @@ Beim Scrollen lief die Liste über ihre Kopfzeile. Jetzt bleibt die Kopfzeile sa
 <description>🗂 Projekte sind jetzt eigenständig. Die App startet in deiner Projektliste : jede Karte zeigt eine Karten-Vorschau, den Status (aktiv / Idee / fertig), wann zuletzt daran gearbeitet wurde — und Öffnen springt direkt ins zuletzt benutzte Werkzeug. Dieselbe Tour kann in beliebig vielen Projekten stecken (Quer-Video UND Hochkant-Short), ein Schwarm samt Tourenmenge und Geschwindigkeits-Modus ist EIN Klick, und oben in jedem Modul wechselst du per Umschalter zwischen den Projekten einer Tour. Auch ganz ohne Tour: leeres Projekt anlegen, Reiseroute planen oder Kamera-Flug bauen, Touren später dazuholen. Deine bisherigen Arbeitsstände wurden automatisch übernommen — nichts ging verloren.
 
 🧬 Touren haben jetzt Fassungen. Heilst du eine Tour und ersetzt sie im Archiv, entsteht eine neue Fassung — deine fertigen Video-Projekte bleiben an ihrer alten Fassung „gepinnt&quot; (Keyframes und Schilder verrutschen nicht!) und zeigen „⬆ neuere Fassung&quot; zum bewussten Aktualisieren. Die Tour-Detailspalte listet die ganze Kette, jede Fassung lässt sich byte-genau wiederherstellen, und mit eingerichteter Cloud wandern die Fassungen auf den Zweitrechner mit. Beim Arbeiten sichert die App außerdem alle 10 Minuten einen Arbeitsstand (🕘 auf der Projektkarte).</description>
-</item>
-<item>
-<title>v0.9.586 — Alle auf einmal.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-586</link>
-<guid isPermaLink="false">gps-studio-v0.9.586</guid>
-<pubDate>Fri, 28 Aug 2026 12:00:00 +0000</pubDate>
-<description>🌊 Der Schwarm. Markiere im Archiv mehrere Touren (oder öffne eine Sammlung) und wähle „Als Schwarm animieren&quot; : Alle Touren starten gleichzeitig und laufen gleich schnell über die Karte — die längste bestimmt die Videodauer, kürzere sind früher im Ziel und ihr Punkt bleibt dort stehen. Die Kamera steht still über allen Touren, jede hat ihre Farbe aus dem Archiv, und ein kleiner Zähler zeigt, wie viele noch unterwegs sind. Perfekt, um ein ganzes Wandergebiet oder einen Urlaub in einem einzigen Bild zu erzählen. Einstellbar: Laufzeit, Kartenstil, Auflösung (auch Hochkant für Shorts) und Linienbreite.
-
-📁 Das Archiv komponiert. Reise und Schwarm startest du jetzt direkt an der Sammlung (⋯-Knopf oder Rechtsklick) — und die Übergabe nimmt genau das, was deine Archiv-Filter zeigen: Steht der Bereich auf „Gemachte&quot;, bleiben geplante Routen draußen; der Dialog sagt es vor dem Klick an („81 von 138 Touren sichtbar&quot;). Jede Zusammenstellung hat ihr eigenes Gedächtnis: dieselben Touren wieder gewählt, und Keyframes, Farben und Einstellungen sind wieder da — auf Wunsch auch über die Cloud auf deinem zweiten Rechner.</description>
-</item>
-<item>
-<title>v0.9.556 — In jeder Sprache dieselbe App.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-556</link>
-<guid isPermaLink="false">gps-studio-v0.9.556</guid>
-<pubDate>Fri, 28 Aug 2026 12:00:00 +0000</pubDate>
-<description>🗣 Keine deutschen Reste mehr. Ein Beta-Tester aus Spanien hat es gemeldet: Bei ihm stand der Knopf „Track wählen …&quot; auf Deutsch — seit mehreren Versionen. Uns fiel das nie auf, wir benutzen die App ja auf Deutsch. Das ganze Programm wurde daraufhin durchgesehen: GPX-Leiste, Geotagger (Überschreib-Warnung und der ganze Fertig-Dialog), die Karten-Fehlermeldungen und die Knopf-Hinweise sind jetzt vollständig auf Deutsch, Englisch und Spanisch. Selbst der Bildschirm, der erscheint, wenn die App gar nicht erst startet, spricht jetzt alle drei Sprachen — gerade dort steht ja jemand, der nicht weiterkommt.</description>
 </item>
 </channel>
 </rss>

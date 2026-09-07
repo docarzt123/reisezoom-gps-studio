@@ -1119,7 +1119,7 @@ _DASH_BASE = {
 }
 
 
-def _dasharray_mapbox(line_style: str, spacing: float = 1.0) -> str:
+def _dasharray_mapbox(line_style: str, spacing: float = 1.0, faktor: float = 1.0) -> str:
     """Liefert ein JS-Array-Literal für `line-dasharray` basierend auf dem
     Linien-Stil. Werte sind in Mapbox-Liniendicken-Einheiten — bei
     `line-width=4` ergibt `[3, 2]` z.B. 12px-Striche mit 8px-Lücken.
@@ -1134,7 +1134,10 @@ def _dasharray_mapbox(line_style: str, spacing: float = 1.0) -> str:
     base = _DASH_BASE.get(line_style)
     if not base:
         return ""
-    s = max(0.1, float(spacing))
+    # 07.09.2026 — `faktor` = Hauptlinienbreite / Ebenenbreite: breitere Ebenen (Schatten 2,2×,
+    # Glow, Röhren-Streifen) bekommen so dieselbe Pixel-Länge der Striche wie die Hauptlinie.
+    # Synchron zu modules/animator/ui/module.js (dasharrayFor).
+    s = max(0.1, float(spacing)) * max(0.01, float(faktor))
     return "[" + ", ".join(f"{v * s:.2f}" for v in base) + "]"
 
 
@@ -3267,7 +3270,7 @@ map.on('style.load', () => {{
     f"'line-width':{cfg.line_width * 2.2:.2f},"
     f"'line-blur':{cfg.shadow_strength:.1f},"
     f"'line-translate':[{_shadow_dxdy(cfg)[0]:.1f}, {_shadow_dxdy(cfg)[1]:.1f}]"
-    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else "")
+    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing, 1 / 2.2)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else "")
     + "}});") if cfg.shadow_enabled and cfg.shadow_strength > 0 else "// shadow disabled"}
   // Track-Layer: line-cap/line-join `round` für saubere Track-Endungen
   // statt Mapbox-Default `butt/miter` (kantig). Plus optionales
@@ -3281,7 +3284,7 @@ map.on('style.load', () => {{
     # ≈ 2.85 (= Backward-Compat zur alten festen 2.85), bei gs=10 → 4.10×
     # → spürbar breiterer Halo.
     f"paint:{{'line-color':'{cfg.line_color}','line-width':{cfg.line_width * (2.0 + 0.21 * cfg.glow_strength):.2f},'line-opacity':0.35,'line-blur':{cfg.glow_strength:.1f}"
-    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) and not _colors_on else "")
+    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing, 1 / (2.0 + 0.21 * cfg.glow_strength))}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) and not _colors_on else "")
     + (",'line-z-offset':150" if _zoff_on(cfg) else "")
     + "}});") if cfg.glow_enabled and cfg.glow_strength > 0 else "// glow disabled"}
   map.addLayer({{id:'track-line',type:'line',source:'track',
@@ -3290,7 +3293,7 @@ map.on('style.load', () => {{
   {("map.addLayer({id:'track-highlight',type:'line',source:'track',"
     "layout:{'line-cap':'round','line-join':'round'},"
     f"paint:{{'line-color':'#ffffff','line-width':{cfg.line_width * 0.35:.2f},'line-opacity':0.55,'line-blur':0.6"
-    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else "")
+    + (f",'line-dasharray':{_dasharray_mapbox(cfg.line_style, cfg.line_style_spacing, 1 / 0.35)}" if _dasharray_mapbox(cfg.line_style, cfg.line_style_spacing) else "")
     + (",'line-z-offset':150" if _zoff_on(cfg) else "")
     + "}});") if cfg.track_style == "tube" else "// no tube highlight"}
   // 06.09.2026 — Linien über dem Gelände (MapLibre + 3D): die drapierten Ebenen
@@ -4699,6 +4702,25 @@ async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
         raw = await page.screenshot(type="png")
 
     if _ss <= 1.0:
+        # 07.09.2026 — Szene: Fenster = Vorschau-Viewport in CSS-px × DSF (Video ÷ Vorschau).
+        # Chromium rundet die Bildhöhe (562 CSS × 1,92 = 1079,04 → 1079): ungerade Höhe, und
+        # libx265 verweigert („Picture height must be an integer multiple of the chroma
+        # subsampling") — der Render brach bei Bild 12 ab. Weicht die Bildgröße ab, exakt auf
+        # cfg.width×cfg.height bringen (nur dann; der Kopfzeilen-Blick auf das Bild ist billig).
+        try:
+            import io as _io
+            from PIL import Image as _Im
+            if _Im.open(_io.BytesIO(raw)).size != (cfg.width, cfg.height):
+                if not getattr(page, "_rz_size_logged", False):
+                    page._rz_size_logged = True
+                    try:
+                        _sz = _Im.open(_io.BytesIO(raw)).size
+                        _log.info("Frame-Größe %dx%d ≠ Ziel %dx%d — je Bild exakt skaliert", _sz[0], _sz[1], cfg.width, cfg.height)
+                    except Exception:
+                        pass
+                return _downscale_frame(raw, cfg.width, cfg.height, cfg.transparent_background, q if is_jpeg else 0)
+        except Exception:
+            pass
         return raw
     return _downscale_frame(raw, cfg.width, cfg.height,
                             cfg.transparent_background, q if is_jpeg else 0)
