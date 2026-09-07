@@ -277,6 +277,7 @@
   "animator.overlay.attrib_w.schmal": "estrecha",
   "animator.overlay.attrib_w.mittel": "media",
   "animator.overlay.attrib_w.breit": "ancha",
+  "animator.overlay.attrib_w.voll": "ancho completo (abajo)",
   "animator.overlay.position": "Posición",
   "animator.overlay.rename": "Renombrar / unidad",
   "animator.overlay.rename_default": "Predeterminado",

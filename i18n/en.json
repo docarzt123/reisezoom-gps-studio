@@ -277,6 +277,7 @@
   "animator.overlay.attrib_w.schmal": "narrow",
   "animator.overlay.attrib_w.mittel": "medium",
   "animator.overlay.attrib_w.breit": "wide",
+  "animator.overlay.attrib_w.voll": "full width (bottom)",
   "animator.overlay.position": "Position",
   "animator.overlay.rename": "Rename / unit",
   "animator.overlay.rename_default": "Default",

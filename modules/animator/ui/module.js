@@ -943,6 +943,7 @@ function mountAnimator(body, headerActions, opts) {
                 <option value="schmal">${t("animator.overlay.attrib_w.schmal", "schmal (hoch)")}</option>
                 <option value="mittel" selected>${t("animator.overlay.attrib_w.mittel", "mittel")}</option>
                 <option value="breit">${t("animator.overlay.attrib_w.breit", "breit (flach)")}</option>
+                <option value="voll">${t("animator.overlay.attrib_w.voll", "ganze Breite (unten)")}</option>
               </select>
               </div>
             </div>
