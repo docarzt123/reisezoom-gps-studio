@@ -977,6 +977,11 @@ label.chip-toggle input:checked + span {
 #anim-viewport .maplibregl-ctrl-attrib-button { display: none !important; }
 #anim-viewport .maplibregl-ctrl-attrib.maplibregl-compact { padding: 2px 8px !important; }
 #anim-viewport .maplibregl-ctrl-attrib { display: block !important; visibility: visible !important; opacity: 1 !important; }
+/* 07.09.2026 (Marc: „wie die stats boxen"): Optik der Quellenzeile = Stats-Boxen (Textfarbe,
+   Hintergrund, Deckkraft), CSS-Variablen setzt _applyAttribLook in module.js. */
+#anim-viewport .maplibregl-ctrl-attrib,
+#anim-viewport .maplibregl-ctrl-attrib.maplibregl-compact { background-color: var(--rz-attrib-bg, rgba(0,0,0,0.55)) !important; color: var(--rz-attrib-fg, #fff) !important; border-radius: 8px; }
+#anim-viewport .maplibregl-ctrl-attrib a { color: inherit !important; opacity: 0.85; }
 #anim-viewport[data-rz-attrib-w="schmal"] .maplibregl-ctrl-attrib { max-width: 28%; }
 #anim-viewport[data-rz-attrib-w="breit"]  .maplibregl-ctrl-attrib { max-width: 70%; }
 #anim-viewport[data-rz-attrib-pos="bl"] .maplibregl-ctrl-bottom-right,
