@@ -34,6 +34,8 @@ from pathlib import Path
 
 from typing import Optional
 
+from core import kartenquellen as _kq   # 07.09.2026 — Quellen-Register (Lizenz, Nennung, Video-Freigabe, Prüfdatum)
+
 # ── Anbieter ────────────────────────────────────────────────────────────────
 # badge: "free"         — kostenlos, Video erlaubt (Nennung im Bild)
 #        "key"          — eigener Schlüssel nötig; Video erlaubt (MapTiler:
@@ -285,6 +287,15 @@ ORTHO_REGIONS = [
 ]
 
 
+# 07.09.2026 (Marc: Quellen-Register) — die Nennung im Bild kommt aus dem Register:
+# vorgeschriebene Formel je Dienst (mit Änderungshinweis, wo die Lizenz ihn verlangt),
+# eine Wahrheit für Vorschau, Video, Web-Karte und Rechte-Tabelle.
+for _r in ORTHO_REGIONS:
+    _n = _kq.nennung(_r["id"])
+    if _n:
+        _r["attribution"] = "Luftbild: " + _n
+
+
 # ── Weltweiter Untergrund für die Orthofotos ────────────────────────────────
 # 03.09.2026 (Marc, Masca-Render): Die Landesdienste decken nur ihr Gebiet;
 # über dem Meer und in der Ferne (steile Kamera) kamen Kachel-Löcher und bei
@@ -310,17 +321,19 @@ ORTHO_FADE_FROM = 12.0
 ORTHO_FADE_TO = 13.5
 # 05.09.2026 (Beta-Tester: „bei Satellit in Hamburg nix") — weltweite Zwischenlage
 # zwischen Blue Marble und den amtlichen Luftbildern: Sentinel-2 cloudless 2016
-# von EOX, CC BY-SA 4.0 (kommerziell erlaubt, Nennung Pflicht), 10 m, bis z14.
-# Die Jahrgänge 2018+ von EOX sind CC BY-NC-SA — deshalb bewusst 2016.
+# von EOX, CC BY 4.0 (07.09.2026 aus den EOX-Capabilities: der 2016er Jahrgang ist
+# CC BY, nicht BY-SA; kommerziell erlaubt, Nennung Pflicht), 10 m, bis z14 (echtes
+# Detail nur bis z13). Die Jahrgänge 2017+ sind CC BY-NC-SA — deshalb bewusst 2016.
 # Damit ist „Satellit (kostenlos)" nirgends mehr leer; Lücken (Hamburg) und
 # Gegenden ohne Landesdienst zeigen Sentinel statt Matsch oder OpenFreeMap.
 SENTINEL_LAYER = {
     "id": "sentinel",
     "tiles": ["https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"],
     "tileSize": 256, "maxzoom": 14,
-    "attribution": ('<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by '
+    # Formel laut EOX-Capabilities (Quellen-Register „sentinel"): EOxCloudless … by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016)
+    "attribution": ('<a href="https://cloudless.eox.at">EOxCloudless</a> by '
                     '<a href="https://eox.at">EOX IT Services GmbH</a> '
-                    '(Contains modified Copernicus Sentinel data 2016), CC BY-SA 4.0'),
+                    '(Contains modified Copernicus Sentinel data 2016), CC BY 4.0'),
     "name": "Sentinel-2 (10 m, 2016)",
 }
 
@@ -713,13 +726,26 @@ def terrain_source(name: str, *, maptiler_key: str = "", proxy_base: str = "") -
 
 
 def style_badge(key: str) -> str:
+    """free | key | video_rights | video_warn | video_no. 07.09.2026: bei freien Rasterkarten
+    entscheidet das Quellen-Register (Server-Regeln: CyclOSM/HOT = video_no, OSM/OpenTopoMap
+    = video_warn). Bei „Satellit (kostenlos)" hängt es am Stapel → resolve()["rights"]."""
     s = STYLE_BY_KEY.get(key)
-    return PROVIDERS[s["provider"]]["badge"] if s else "free"
+    if not s:
+        return "free"
+    b = PROVIDERS[s["provider"]]["badge"]
+    if b == "free" and s["kind"] != "gov":
+        st = _kq.stil_status(key)["status"]
+        if st == "false":
+            return "video_no"
+        if st == "unknown":
+            return "video_warn"
+    return b
 
 
 def video_ok(key: str) -> bool:
-    """False nur bei Mapbox — Veröffentlichung braucht gekaufte Videorechte."""
-    return style_badge(key) != "video_rights"
+    """False bei Mapbox (gekaufte Videorechte) und bei Diensten, deren Server-Regeln das
+    Bild-für-Bild-Rendern verbieten (Quellen-Register)."""
+    return style_badge(key) not in ("video_rights", "video_no")
 
 
 def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
@@ -797,6 +823,8 @@ def resolve(style_key: str, *, mapbox_token: str = "", maptiler_key: str = "",
                     "ids": [r["id"] for r in stack]} if region else None),
         "notes": notes, "badge": style_badge(key), "video_ok": video_ok(key),
         "provider": st["provider"],
+        # 07.09.2026 — Rechtelage der tatsächlich beteiligten Quellen (Quellen-Register)
+        "rights": _kq.stil_status(key, [r["id"] for r in stack]),
     }
 
 
@@ -808,7 +836,7 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         "group_order": list(GROUP_ORDER),
         "styles": [
             {"key": s["key"], "provider": s["provider"], "kind": s["kind"], "group": s["group"],
-             "label": s["label"], "terrain": s["terrain"], "badge": PROVIDERS[s["provider"]]["badge"],
+             "label": s["label"], "terrain": s["terrain"], "badge": style_badge(s["key"]),   # 07.09.2026: aus dem Quellen-Register
              "style_url": s.get("style_url"), "tiles": s.get("tiles"), "tileSize": s.get("tileSize", 256),
              "maxzoom": s.get("maxzoom", 19), "attribution": s.get("attribution", ""),
              "available": ((s["provider"] != "mapbox" or has_mapbox)
@@ -832,6 +860,11 @@ def catalog_for_ui(*, has_mapbox: bool, has_maptiler: bool, proxy_base: str = ""
         "known_gaps": [{"id": g["id"], "name": g["name"], "bbox": list(g["bbox"]), "reason": g["reason"]} for g in KNOWN_GAPS],
         "ortho_adjust_default": ORTHO_ADJUST_DEFAULT,
         "terms_links": TERMS_LINKS,
+        # 07.09.2026 — Quellen-Register für Rechte-Tabelle und JS-Spiegel (rzStilStatus)
+        "quellen": _kq.fuer_ui(),
+        "quellen_pruefung": {"intervall_tage": _kq.PRUEF_INTERVALL_TAGE,
+                             "naechste": (_kq.naechste_pruefung().isoformat() if _kq.naechste_pruefung() else None),
+                             "faellig": _kq.faellige()},
         # Lokale Kachel-Weiche (core/tileproxy.py); leer = direkt zum Dienst
         "proxy_base": proxy_base or "",
     }

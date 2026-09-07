@@ -249,9 +249,39 @@ function rzRightsTableHtml() {
     <tbody>${rows.map(r => `<tr><th>${r[0]}</th>${r[1]}${r[2]}${r[3]}</tr>`).join("")}</tbody>
   </table>
   <p class="set-help" style="margin:6px 0 6px;">🎬 ${t("rights.video", "Video")} · 📷 ${t("rights.foto", "Foto / Standbild")} · 🌐 ${t("rights.web", "Web-Karte (Einbettung)")} — ${t("rights.legend", "✅ erlaubt · ⚠️ mit Auflage · ❌ nicht (Details in den Unter-Reitern)")}</p>
+  ${rzQuellenRegisterHtml()}
   ${rzTermsDisclaimerHtml()}
   ${rzTermsLinksHtml()}`;
 }
+
+/** 07.09.2026 (Marc: „das Quellenregister, das muss mindestens halbjährlich überprüft werden") —
+ *  je Dienst: Lizenz, Video-Freigabe, vorgeschriebene Nennung, Prüfdatum; Quelle core/kartenquellen.py. */
+function rzQuellenRegisterHtml() {
+  const cat = mapCatalog(); const q = cat.quellen || []; const pr = cat.quellen_pruefung || {};
+  if (!q.length) return "";
+  const ico = s => s === "true" ? "✅" : s === "license_required" ? "💰" : s === "false" ? "❌" : "⚠️";
+  const stTxt = s => t("rights.register.status." + s, { true: "geprüft, erlaubt", license_required: "Rechte kaufen", unknown: "nicht verifiziert", false: "nicht erlaubt" }[s] || s);
+  const srvTxt = s => s === "nein" ? t("rights.register.server.nein", "Server: kein Bild-für-Bild-Rendern") : s === "absprache" ? t("rights.register.server.absprache", "Server: nur nach Absprache / eigener Server") : "";
+  const dt = s => { try { return new Date(s).toLocaleDateString(); } catch (_) { return s || ""; } };
+  const esc = s => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const link = (u, txt) => u ? `<a href="#" class="rz-ext-link" data-url="${esc(u)}">${esc(txt)}</a> <span class="muted">↗</span>` : esc(txt);
+  const rows = q.map(x => `<tr>
+    <td>${link(x.dataset_url, x.provider)}<br><small class="muted">${esc(x.dataset)}</small></td>
+    <td>${link(x.license_url, x.license)}</td>
+    <td title="${esc(x.notes)}">${ico(x.commercial_video)} ${stTxt(x.commercial_video)}${x.render_server && x.render_server !== "ok" ? `<br><small>⚠️ ${srvTxt(x.render_server)}</small>` : ""}</td>
+    <td><small>${esc(x.onscreen_credit)}</small></td>
+    <td>${dt(x.checked_at)}</td></tr>`).join("");
+  const faellig = (pr.faellig || []);
+  const kopf = faellig.length
+    ? `<div class="terms-disclaimer">⚠️ ${t("rights.register.overdue", "{n} Einträge sind länger als {tage} Tage nicht geprüft — bitte nachlesen und das Prüfdatum setzen.").replace("{n}", faellig.length).replace("{tage}", pr.intervall_tage || 182)}</div>`
+    : `<p class="set-help">${t("rights.register.next", "Alle Einträge geprüft; nächste Prüfung fällig am {datum} (mindestens halbjährlich).").replace("{datum}", dt(pr.naechste))}</p>`;
+  return `<details class="terms-links quellen-register"><summary>${t("rights.register.title", "Quellen-Register: Lizenz, Video-Freigabe und Nennung je Dienst")} (${q.length})</summary>
+    <p class="set-help">${t("rights.register.intro", "Jeder Dienst einzeln nachgelesen: Datenlizenz, Bedingungen des Kachelservers, vorgeschriebene Nennformel. ✅ geprüft und erlaubt · 💰 Rechte kaufen · ⚠️ nicht verifiziert oder Server-Regeln · ❌ nicht erlaubt.")}</p>
+    ${kopf}
+    <div style="overflow:auto"><table class="rights-table quellen-table"><thead><tr><th>${t("rights.register.col.source", "Quelle")}</th><th>${t("rights.register.col.license", "Lizenz")}</th><th>${t("rights.register.col.video", "Kommerzielles Video")}</th><th>${t("rights.register.col.credit", "Nennung im Bild")}</th><th>${t("rights.register.col.checked", "Geprüft")}</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </details>`;
+}
+window.rzQuellenRegisterHtml = rzQuellenRegisterHtml;
 
 /** Marc, 03.09.2026: überall sagen, dass das UNSER Verständnis ist. */
 function rzTermsDisclaimerHtml() {
