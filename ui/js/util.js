@@ -1974,7 +1974,13 @@ function bindSetting(elementId, section, key, opts = {}) {
   // toten Maps operieren → Fehler + Speicher-Leak). Der Kommentar oben beschrieb das
   // Ersetzen schon als Absicht — der Code hängte bisher nur an.
   const _entry = { elementId, section, key, type, opts, isProjectModule };
-  const _ri = _bindRegistry.findIndex((r) => r.elementId === elementId && r.section === section && r.key === key);
+  // 07.09.2026 — Ersetzen nach elementId ALLEIN. Animator, Reiseroute und Tour-Map sind
+  // dasselbe Modul mit denselben Element-IDs, aber verschiedenen Sektionen: der alte
+  // Eintrag (anim-mc-roads / "animator") blieb beim Wechsel in die Tour-Map stehen, und
+  // rebindAllSettings() schrieb die Animator-Werte in die Tour-Map-Schalter (Straßen/Orte
+  // aus, obwohl das Tour-Map-Projekt nichts gesetzt hatte). Ein Element gehört immer nur
+  // zu EINER Bindung — die des gerade eingehängten Moduls.
+  const _ri = _bindRegistry.findIndex((r) => r.elementId === elementId);
   if (_ri >= 0) _bindRegistry[_ri] = _entry; else _bindRegistry.push(_entry);
 
   const evName = (el.tagName === "SELECT") ? "change"
@@ -3150,6 +3156,19 @@ function rzScaleMapLabels(map, k) {
   }
   if (!(k > 0) || !isFinite(k)) return;
   map.__rzLabelK = k;
+  // 07.09.2026 (Render-Tempo, Marc: „lässt er sich beschleunigen?"): Symbol-Ebenen blenden
+  // 300 ms weich über (MapLibre `fadeDuration`); der Render wartet je Bild auf `idle`, und
+  // das kommt erst nach der Überblendung — gemessen ~300 ms von ~500 ms Wartezeit je Bild
+  // (Schorfheide 1080p). Im Render-Modus ohne Überblendung: Beschriftungen erscheinen sofort,
+  // wie die Rasterkacheln (raster-fade-duration 0 unten). Live-Vorschau unverändert.
+  // Dazu die Paint-Übergänge (Stil-`transition`, Standard 300 ms): jeder Bildschritt setzt
+  // Paint-Eigenschaften (Fortschritt/Verlauf, Laufpunkt), und solange ein Übergang läuft,
+  // ist `map.loaded()` falsch — `idle` kam erst nach ~300 ms (gemessen: 1,8 Kacheln je Bild,
+  // Überblendung schon 0, Wartezeit blieb 500 ms). Im Render-Modus Übergänge sofort.
+  if (window.__rzRenderMode) {
+    try { map._fadeDuration = 0; } catch (_) {}
+    try { if (map.style && map.style.stylesheet) map.style.stylesheet.transition = { duration: 0, delay: 0 }; } catch (_) {}
+  }
   // 05.09.2026 (Audit): Die Vorschau läuft um c = log2(1/k) Zoomstufen TIEFER als
   // das Video (kleinere Fläche, gleicher Ausschnitt). Größen skalieren allein reicht
   // nicht — Ebenen mit minzoom (POI-Symbole ab z15, Ortsnamen …) und Zoom-Stützstellen

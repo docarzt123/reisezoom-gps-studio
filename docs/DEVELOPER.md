@@ -3622,9 +3622,64 @@ das in der vorschau, wie im fertigen video".
 
 **Umschalter.** `app.py` Worker: Szene, wenn `params.szene_projekt_id` da ist
 (die UI schickt die aktive Projekt-ID), sonst oder mit `RZ_RENDER_KLASSISCH=1` /
-`settings.render_engine = "klassisch"` der alte Generator. Alpha-Export
-(`transparent_background`) und Tour-Map-Standbild (`still_frame`) laufen noch
-über den alten Weg (IDEAS §53).
+`settings.render_engine = "klassisch"` der alte Generator. Nur der Alpha-Export
+(`transparent_background`) läuft noch über den alten Weg (IDEAS §53).
+
+**Tour-Map und Reiseroute (07.09.2026).** Die UI schickt zusätzlich
+`params.szene_modul` (`_MODKEY`: `animator` | `reiseroute` | `tourmap`), und
+`_seite_vorbereiten(…, modul=…)` öffnet das Projekt über
+`rzProjektOeffnen(pid, modul)` direkt in diesem Modul (Rückfall: `switchMod`,
+wenn `activeMod` danach nicht passt — dann wird `__rzAnimBereit` erneut
+abgewartet). Die Bereitschaft (`__rzAnimBereit`) meldet in der Reiseroute
+zusätzlich `route`: erst wahr, wenn das Routen-GPX geladen ist
+(`currentGpx === route_gpx_path`, oder `_rrGpxRestored` nach
+`_routeRestoreGpx`, oder kein Routen-Pfad hinterlegt) — sonst rendert die Szene
+den Wander-Track statt der Route, weil das Projekt zuerst die Hike-Session lädt.
+`render_szene_still` (Tour-Map, `still_frame`) macht keinen Probelauf: Modul
+`tourmap` öffnen, zweimal `_WARTE_BILD_JS` + 400 ms (Kamerahöhe mit Gelände),
+ein `_grab_frame` als PNG nach `cfg.output_path`. Dauer ≈ 10 s. Gefunden dabei:
+`line-dasharray` rechnet in Liniendicken, der 2,2× breitere Schatten hatte 2,2×
+längere Striche und stand in den Lücken der Hauptlinie als schwarze Stücke —
+jetzt skaliert `dasharrayFor(widthPx)` (Vorschau) bzw.
+`_dasharray_mapbox(…, faktor)` (klassischer Renderer) das Muster auf die
+Pixel-Länge der Hauptlinie.
+
+**Render-Tempo (gemessen 07.09.2026, Schorfheide, `probe/speed_probe.py`).** 1080p
+≈ 560 ms/Bild: Seek 4 ms, Warten auf `idle` ≈ 500 ms, Screenshot ≈ 50 ms
+(CDP `Page.captureScreenshot` mit `optimizeForSpeed` wären 15 ms, bringt aber ohne
+SSAA-Downscale nichts Belastbares). Das Warten war die 300-ms-Paint-Transition des
+Stils (`stylesheet.transition`, MapLibre-Standard): jeder Bildschritt setzt
+Paint-Eigenschaften (Fortschritt/Verlauf, Laufpunkt), und solange ein Übergang
+läuft, ist `map.loaded()` falsch — `idle` kam erst nach ~300 ms. Nicht die
+Ursache waren (alles gemessen): Symbol-Überblendung allein (`_fadeDuration` 0
+brachte 0 ms), die Kachel-Abfangung (ohne Route gleich schnell), Kachelzahl
+(1,8 Anfragen je Bild). Im Render-Modus setzt `rzScaleMapLabels` deshalb
+`map.style.stylesheet.transition = {duration: 0, delay: 0}` und
+`map._fadeDuration = 0` (wie `raster-fade-duration 0`). Ergebnis nach beiden
+Patches: 1080p 153 ms/Bild (Warten 100), 4K 336 ms (Warten 107, Screenshot 224 mit
+SSAA 1,25 — nächster Hebel wäre der Screenshot, z. B. CDP `optimizeForSpeed` +
+Downscale im Worker-Thread).
+Die restlichen Aussetzer (~750 ms, jedes dritte Bild, ohne Kachel-Anfrage) waren
+die Globus-Projektion: `style.projection.hasTransition()` ist 0,7 s nach jeder
+Fehlermessung wahr, die Korrektur gleicht sich über 0,5 s an (Vendor-Patch
+`globeerr`: im Render-Modus 0 — der Endzustand ist derselbe, der Render wartet
+ohnehin auf `idle`). Diagnose-Kette: `RZ_SPEED_VAR=diag|diag2|diag3|diag4` in
+`probe/speed_probe.py` (idle-Latenz → hasTransitions → Ebenen/Licht → Quellen/
+Projektion).
+
+**Bildgröße.** `_grab_frame` prüft seit 07.09.2026 die Größe des Screenshots und
+skaliert auf exakt `cfg.width×cfg.height`, wenn Chromium anders rundet
+(Vorschau 1000×562 × DSF 1,92 → 1920×1079: libx265 „Picture height must be an
+integer multiple of the chroma subsampling", Abbruch bei Bild 12; gefunden mit
+dem Reiseroute-Prüfstand im 1400×900-Fenster). Bei SSAA > 1 lief der Downscale
+ohnehin immer.
+
+**Modulwechsel und `bindSetting`-Registry.** Animator, Reiseroute und Tour-Map
+binden dieselben Element-IDs an verschiedene Sektionen. Die Registry ersetzt
+seit 07.09.2026 nach `elementId` allein — vorher blieb der Eintrag des vorigen
+Moduls stehen, und `rebindAllSettings()` (aus `_applySessionState`) schrieb
+dessen Werte in die Schalter des neuen Moduls (Beschriftungs-Schalter nach
+Animator → Tour-Map falsch; `probe/label_switch.py` prüft das).
 
 **Schwarm über dem Gelände auch in der Vorschau.** Weil die Vorschau das Video
 ist, zeichnet `_swPrevBauen` den Schwarm bei Gelände + MapLibre über
@@ -3677,6 +3732,10 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    Nachbar ist (Delta −1), mit `polygonOffset(2,16)`. Prüfstand-Schalter
    `window.__rzSkirtMode` (`edges`|`all`|`none`) und `window.__rzSkirtOffset` ([f,u]).
 3. `/* rz-patch skirts */`: Gelände-Option `skirts:false` (Schürzen ganz weg; Prüfstand).
+4. `/* rz-patch globeerr */` (07.09.2026, Render-Tempo): die Globus-Projektion gleicht ihre
+   Fehlerkorrektur über 0,5 s an und meldet 0,7 s lang „Übergang" — im Render-Modus
+   (`window.__rzRenderMode`) beides 0, sonst wartete die Szene jedes dritte Bild ~750 ms
+   auf `idle`. Endzustand unverändert (der Render wartet ohnehin auf idle).
 Ergebnis: Schorfheide 7–8 Wechselpixel, Zermatt 36, Teide 60 und Silhouette geschlossen, keine Risse mehr (Zermatt-Riss aus dem ersten Stitching-Stand war die 20–40 m Restdifferenz der Näherung über die eigene DEM).
 Bei jedem MapLibre-Update neu einpflegen; Wächter `tests/test_line3d.py` prüft die Marker,
 `rz_ele` dreimal und `u_rz_edge`.

@@ -3654,7 +3654,7 @@ function mountAnimator(body, headerActions, opts) {
           "line-width": lw * 2.2,
           "line-blur": st,
           "line-translate": [st * Math.cos(_sr), st * Math.sin(_sr)],
-          ...dashPaint,
+          ...(dash ? { "line-dasharray": dasharrayFor(lw * 2.2) } : {}),
           // KEIN z-offset — Shadow soll am Boden bleiben (siehe Render-Code).
         }
       });
@@ -3667,7 +3667,7 @@ function mountAnimator(body, headerActions, opts) {
       // Spiegelung core/animator.py.
       map.addLayer({ id: "preview-glow", type: "line", source: "preview-track",
         layout: trackLayout,
-        paint: { "line-color": color, "line-width": lw * (2.0 + 0.21 * gs), "line-opacity": 0.35, "line-blur": gs, ...dashPaint, ...zOffPaint } });
+        paint: { "line-color": color, "line-width": lw * (2.0 + 0.21 * gs), "line-opacity": 0.35, "line-blur": gs, ...(dash ? { "line-dasharray": dasharrayFor(lw * (2.0 + 0.21 * gs)) } : {}), ...zOffPaint } });
     }
     if (!map.getLayer("preview-line")) {
       map.addLayer({ id: "preview-line", type: "line", source: "preview-track",
@@ -3885,6 +3885,22 @@ function mountAnimator(body, headerActions, opts) {
     const base = { dashed: [3, 2], dotted: [0.1, 2], dashdot: [3, 1.5, 0.1, 1.5] }[style];
     return base ? base.map(v => v * spacing) : null;
   }
+  // 07.09.2026 — `line-dasharray` rechnet in Liniendicken: der 2,2× breitere Schatten (und der
+  // Glow) bekam 2,2× längere Striche, die in den Lücken der Hauptlinie als schwarze bzw. leuchtende
+  // Stücke standen (Tour-Map Schorfheide, Strich-Punkt). Muster auf die Pixel-Länge der Hauptlinie
+  // skalieren. Synchron zu core/animator.py (_dasharray_mapbox, Parameter `faktor`).
+  function dasharrayFor(widthPx) {
+    const d = currentDasharray();
+    if (!d) return null;
+    const lw = currentLineWidth();
+    const f = (widthPx > 0 && lw > 0) ? lw / widthPx : 1;
+    return d.map(v => v * f);
+  }
+  function dasharrayForLayer(id) {
+    let w = 0;
+    if (id !== "preview-line") { try { w = Number(map.getPaintProperty(id, "line-width")) || 0; } catch (_) {} }
+    return dasharrayFor(w);
+  }
 
   // v0.9.435 — Mehrfarbiger Track (Marc): Farb-Stops nach Distanz. Accessoren + Helper.
   // (Deklaration von _trackColorStops steht weiter oben vor dem Bindings-Block,
@@ -4012,7 +4028,7 @@ function mountAnimator(body, headerActions, opts) {
         if (!map.getLayer(id)) continue;
         try {
           map.setPaintProperty(id, "line-gradient", m || null);
-          map.setPaintProperty(id, "line-dasharray", m ? null : (currentDasharray() || null));
+          map.setPaintProperty(id, "line-dasharray", m ? null : (dasharrayForLayer(id) || null));
         } catch (_) {}
       }
       // 24.08.2026 — auch der Schatten (synchron zu core/animator.py): ohne
@@ -4022,7 +4038,7 @@ function mountAnimator(body, headerActions, opts) {
         const ms = segMaskExpr(_cumGeoM, i0, i1, _segStarts, "rgba(0,0,0,0.7)", null, null);
         try {
           map.setPaintProperty("preview-shadow", "line-gradient", ms || null);
-          map.setPaintProperty("preview-shadow", "line-dasharray", ms ? null : (currentDasharray() || null));
+          map.setPaintProperty("preview-shadow", "line-dasharray", ms ? null : (dasharrayForLayer("preview-shadow") || null));
         } catch (_) {}
       }
       _colorsPrevOn = !!m;
@@ -7397,6 +7413,11 @@ function mountAnimator(body, headerActions, opts) {
     try { styleOk = !!(map && (map.__rzStyleReady || (map.isStyleLoaded && map.isStyleLoaded()))); } catch (_) {}
     try { tilesOk = !!(map && map.areTilesLoaded && map.areTilesLoaded()); } catch (_) {}
     return { map: !!map, style: styleOk, tiles: tilesOk, terrain: terrainOk, coords: (currentCoords || []).length,
+             // 07.09.2026 — Reiseroute: bereit, sobald das Routen-GPX geladen ist (oder keins hinterlegt ist)
+             route: (() => { if (!_isReiseroute || _rrGpxRestored) return true;
+                             let rp = null; try { rp = (getActiveProject() || {})[_MODKEY]?.route_gpx_path || null; } catch (_) {}
+                             return !rp || _pfadNFC(currentGpx || "") === _pfadNFC(rp); })(),
+             gpx: currentGpx || null,
              pending: !!(window.__rzPendingTours && window.__rzPendingTours.length) || !!window.__rzUebergabeLaeuft, extra: (_extraTours || []).length,
              modal: !!document.querySelector(".touren-lade-modal:not([hidden])"), fitBase: _fitZoomBase };
   };
@@ -10446,7 +10467,7 @@ function mountAnimator(body, headerActions, opts) {
       try { a = (typeof getActiveProject === "function" ? getActiveProject() : null)?.[_MODKEY]; } catch (_) {}
       if (!a) a = (_settingsCache && _settingsCache[_MODKEY]) || {};
       const p = a.route_gpx_path;
-      if (!p) return;
+      if (!p) { _rrGpxRestored = true; return; }
       try {
         if (window.pywebview?.api?.sign_image_exists) {
           const ex = await window.pywebview.api.sign_image_exists(p);
@@ -10456,6 +10477,7 @@ function mountAnimator(body, headerActions, opts) {
         try { fitTrackPreview(true); } catch (_) {}
         _applyGhostGpx();
       } catch (_) {}
+      finally { _rrGpxRestored = true; }   // 07.09.2026 — Szene: Route steht (oder fehlt) → rendern darf beginnen
     }
     // v0.9.260 — gibt {coords, hadInput, err} zurück, damit _routeCompute die ECHTE
     // Ursache melden kann (vorher pauschal „Start fehlt", auch bei Geocoding-Fehler/
@@ -12468,6 +12490,7 @@ function mountAnimator(body, headerActions, opts) {
   // (werden dort gesetzt, sobald die UI gebunden ist).
   let _rrRouteRestoreFn = null, _rrRouteRestoreGpxFn = null;
   let _rrRestoreTimer = null;
+  let _rrGpxRestored = false;   // 07.09.2026 — Szene: erst rendern, wenn das Routen-GPX (oder sein Fehlen) feststeht
   function _reiserouteRestoreWithRetry() {
     if (!_isReiseroute) return;
     if (_rrRestoreTimer) { clearTimeout(_rrRestoreTimer); _rrRestoreTimer = null; }
@@ -12481,11 +12504,15 @@ function mountAnimator(body, headerActions, opts) {
       // whenApiReady-Closure gesetzt sind. Sonst nochmal probieren.
       if ((!hasData || !fnReady) && tries < 20) { tries++; _rrRestoreTimer = setTimeout(attempt, 150); return; }
       _rrRestoreTimer = null;
+      if (!hasData || !fnReady) { _rrGpxRestored = true; return; }
       try { if (typeof rebindAllSettings === "function") rebindAllSettings(); } catch (_) {}
       try { if (typeof applyAllPaintSettings === "function") applyAllPaintSettings(); } catch (_) {}
       try { if (typeof _rrRouteRestoreFn === "function") _rrRouteRestoreFn(); } catch (e) { try { applog("warn", `[rrRestore] routeRestore warf: ${e}`); } catch (_) {} }
       try { _ghostGpxRestore(); } catch (e) { try { applog("warn", `[rrRestore] ghostRestore warf: ${e}`); } catch (_) {} }
-      try { if (typeof _rrRouteRestoreGpxFn === "function") _rrRouteRestoreGpxFn(); } catch (e) { try { applog("warn", `[rrRestore] routeRestoreGpx warf: ${e}`); } catch (_) {} }
+      try {
+        if (typeof _rrRouteRestoreGpxFn === "function") Promise.resolve(_rrRouteRestoreGpxFn()).catch(() => {}).finally(() => { _rrGpxRestored = true; });
+        else _rrGpxRestored = true;
+      } catch (e) { _rrGpxRestored = true; try { applog("warn", `[rrRestore] routeRestoreGpx warf: ${e}`); } catch (_) {} }
     };
     attempt();
   }
@@ -14297,6 +14324,8 @@ function mountAnimator(body, headerActions, opts) {
       gpx_path: currentGpx,
       // 06.09.2026 — gemeinsame Szene: der Render öffnet dieses Projekt kopflos in der Vorschau (core/szene.py)
       szene_projekt_id: (typeof getActiveProject === "function" && getActiveProject()) ? (getActiveProject().id || null) : null,
+      // 07.09.2026 — welches Modul die Szene öffnen soll (Animator, Reiseroute oder Tour-Map = staticFrame)
+      szene_modul: _MODKEY,
       // Vorschau-Viewport in CSS-px: der Render fährt die Vorschau in GENAU dieser Größe mit
       // hohem device_scale_factor (Video = Vorschau hochaufgelöst, WYSIWYG ohne Umrechnung).
       szene_vorschau_w: (document.getElementById("anim-viewport")?.clientWidth || 0),
