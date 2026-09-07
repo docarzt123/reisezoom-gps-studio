@@ -14073,6 +14073,19 @@ function mountAnimator(body, headerActions, opts) {
     // Liste); waren Doppelte da, wird der bereinigte Stand still persistiert.
     const gesehen = new Set([_pfadNFC(currentGpx)]);
     let fehlend = 0;   // 28.08.2026 — nur ECHTE Lade-Fehlschläge zählen
+    // 07.09.2026 (Marc: „den schwarm als png ausgeben dauert ewig"): ab 3 Touren alle in EINEM
+    // Brückenaufruf parallel parsen lassen (animator_load_gpx_viele); die Schleife unten holt
+    // sich die Antworten dann aus dem Vorrat. Schlägt das fehl, bleibt der Einzelweg.
+    let _vorrat = null;
+    if (saved.length >= 3) {
+      try {
+        const pf = saved.filter(t => t && t.gpx_path).map(t => t.gpx_path);
+        const r = await api().animator_load_gpx_viele(pf);
+        if (r && r.ok && Array.isArray(r.results) && r.results.length === pf.length) {
+          _vorrat = new Map(); pf.forEach((p, i) => _vorrat.set(p, r.results[i]));
+        }
+      } catch (_) { _vorrat = null; }
+    }
     for (const t of saved) {
       if (!t || !t.gpx_path || gesehen.has(_pfadNFC(t.gpx_path))) continue;
       gesehen.add(_pfadNFC(t.gpx_path));
@@ -14082,7 +14095,7 @@ function mountAnimator(body, headerActions, opts) {
       // Die Datei kann inzwischen weg/verschoben sein — dann still überspringen,
       // statt mit einer Tour ohne Koordinaten weiterzumachen.
       try {
-        const res = await api().animator_load_gpx(t.gpx_path);
+        const res = (_vorrat && _vorrat.has(t.gpx_path)) ? _vorrat.get(t.gpx_path) : await api().animator_load_gpx(t.gpx_path);
         if (res && res.ok) {
           const pfad = res.gpx_path || t.gpx_path;
           if (gesehen.has(_pfadNFC(pfad)) && pfad !== t.gpx_path) continue;   // Cache-Pfad-Dublette

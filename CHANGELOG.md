@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Compositions load faster: the tours of a swarm or journey are parsed in one parallel call instead of one bridge call per file, and parsed files are cached, so switching modules or rendering a still no longer re-reads all files. / Kompositionen laden schneller: die Touren eines Schwarms oder einer Reise werden in einem parallelen Aufruf geparst statt Datei für Datei über die Brücke, und geparste Dateien werden zwischengespeichert — Modulwechsel oder Standbild lesen nicht mehr alle Dateien neu.
+
 ## [0.9.661] – 2026-09-07
 
 ### Added

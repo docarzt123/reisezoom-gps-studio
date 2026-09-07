@@ -4340,9 +4340,48 @@ class Api:
             log.exception("ghosts_laden")
             return {"ok": False, "error": str(e)}
 
+    # 07.09.2026 (Marc: „den schwarm als png ausgeben dauert ewig"): Ergebnis-Cache je Datei
+    # (Pfad + Größe + Änderungszeit). Eine Komposition lädt ihre Touren beim Modulwechsel
+    # und im kopflosen Render mehrfach — der zweite Durchgang kostet dann nichts mehr.
+    _GPX_CACHE: dict = {}
+    _GPX_CACHE_MAX = 300
+
+    def animator_load_gpx_viele(self, paths: list) -> dict:
+        """Mehrere Touren auf einmal (Komposition): parallel geparst, Reihenfolge wie `paths`.
+        Ergebnis {ok, results: [<animator_load_gpx-Antwort je Pfad>]}."""
+        try:
+            pf = [str(p) for p in (paths or []) if p]
+            if not pf:
+                return {"ok": True, "results": []}
+            with ThreadPoolExecutor(max_workers=min(6, max(1, len(pf)))) as ex:
+                res = list(ex.map(self.animator_load_gpx, pf))
+            return {"ok": True, "results": res}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
     def animator_load_gpx(self, path: str) -> dict:
         """Lädt eine GPX, gibt downsampled GeoJSON + Stats fürs UI zurück.
         Andere Track-Formate werden vorher automatisch nach GPX konvertiert."""
+        try:
+            st = os.stat(path)
+            key = (str(path), st.st_size, int(st.st_mtime))
+        except OSError:
+            key = None
+        if key is not None:
+            hit = Api._GPX_CACHE.get(key)
+            if hit is not None:
+                return json.loads(hit)   # eigene Kopie je Aufrufer
+        erg = self._animator_load_gpx_roh(path)
+        if key is not None and erg.get("ok"):
+            try:
+                if len(Api._GPX_CACHE) >= Api._GPX_CACHE_MAX:
+                    Api._GPX_CACHE.pop(next(iter(Api._GPX_CACHE)))
+                Api._GPX_CACHE[key] = json.dumps(erg)
+            except Exception:  # noqa: BLE001
+                pass
+        return erg
+
+    def _animator_load_gpx_roh(self, path: str) -> dict:
         try:
             orig_path = path
             path = self._ensure_gpx(path)

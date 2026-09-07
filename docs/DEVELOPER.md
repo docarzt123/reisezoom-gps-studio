@@ -3625,6 +3625,13 @@ das in der vorschau, wie im fertigen video".
 `settings.render_engine = "klassisch"` der alte Generator. Nur der Alpha-Export
 (`transparent_background`) läuft noch über den alten Weg (IDEAS §53).
 
+**Touren-Laden einer Komposition (07.09.2026).** `animator_load_gpx` hat einen
+Ergebnis-Cache (`Api._GPX_CACHE`, Schlüssel Pfad+Größe+mtime, JSON-Kopie je
+Aufruf, 300 Einträge); `animator_load_gpx_viele(paths)` parst bis zu 6 Dateien
+parallel (ThreadPoolExecutor). `_animLoadToursInner` holt ab 3 Touren alles in
+einem Aufruf (`_vorrat`) und fällt bei Fehlern auf Einzelaufrufe zurück. Anlass:
+Schwarm-Standbild (79 Touren) brauchte 46 s, davon der Großteil 79 Brückenaufrufe.
+
 **Reise-Komposition (07.09.2026, Befund).** `ablauf: "reise"` = Touren nacheinander.
 Die Vorschau lädt die weiteren Touren als `_extraTours` (stehende, farbige Linien)
 und animiert nur den Haupt-Track; der alte Generator (`core/animator.py`,
