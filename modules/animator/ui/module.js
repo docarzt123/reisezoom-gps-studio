@@ -951,11 +951,11 @@ function mountAnimator(body, headerActions, opts) {
                 <option value="voll">${t("animator.overlay.attrib_w.voll", "ganze Breite (unten)")}</option>
               </select>
               <!-- 07.09.2026 (Marc, Kartenquellen-Konzept §6): Form der Nennung — alles im Bild oder Kurzform + Link -->
-              <select id="anim-ov-attrib-mode" class="pos-select" title="${t("animator.overlay.attrib_mode_tip", "Voll: jede Quelle mit Lizenz im Bild. Kurz: Kurznamen der Quellen, «bearbeitet» und ein Link zu den vollständigen Angaben — der Link muss direkt zu den Quellen dieses Videos führen (eigene Seite oder Videobeschreibung).")}">
+              <select id="anim-ov-attrib-mode" class="pos-select" style="flex:1 1 100%;" title="${t("animator.overlay.attrib_mode_tip", "Voll: jede Quelle mit Lizenz im Bild. Kurz: Kurznamen der Quellen, «bearbeitet» und ein Link zu den vollständigen Angaben — der Link muss direkt zu den Quellen dieses Videos führen (eigene Seite oder Videobeschreibung).")}">
                 <option value="voll" selected>${t("animator.overlay.attrib_mode.voll", "voll (alle Angaben im Bild)")}</option>
                 <option value="kurz">${t("animator.overlay.attrib_mode.kurz", "kurz (Namen + Link)")}</option>
               </select>
-              <input type="text" id="anim-ov-attrib-link" class="pos-select" placeholder="${t("animator.overlay.attrib_link_ph", "Link zu den Quellen, z. B. deine Seite")}" title="${t("animator.overlay.attrib_link_tip", "Erscheint im Bild hinter «Quellen:». Leer = kein Link; dann nur Kurznamen und «bearbeitet».")}" hidden>
+              <input type="text" id="anim-ov-attrib-link" class="pos-select" style="flex:1 1 100%;" placeholder="${t("animator.overlay.attrib_link_ph", "Link zu den Quellen, z. B. deine Seite")}" title="${t("animator.overlay.attrib_link_tip", "Erscheint im Bild hinter «Quellen:». Leer = kein Link; dann nur Kurznamen und «bearbeitet».")}" hidden>
               </div>
             </div>
             <!-- 04.09.2026 — Nordpfeil + Maßstab (Beta-Tester: „dürfen nicht fehlen"), Standard an -->
@@ -2390,7 +2390,7 @@ function mountAnimator(body, headerActions, opts) {
     const link = (document.getElementById("anim-ov-attrib-link")?.value || "").trim();
     return window.rzKurzNennung ? rzKurzNennung(_attribIds(), link) : "";
   }
-  let _attribObs = null, _attribBusy = false;
+  let _attribObs = null, _attribBusy = false, _attribObsNode = null;
   function _applyAttribText() {
     const vp = document.getElementById("anim-viewport"); if (!vp) return;
     const mode = document.getElementById("anim-ov-attrib-mode")?.value || "voll";
@@ -2401,12 +2401,15 @@ function mountAnimator(body, headerActions, opts) {
     if (mode === "kurz") {
       const txt = _attribKurzText();
       if (inner.textContent !== txt) { _attribBusy = true; inner.textContent = txt; _attribBusy = false; }
+      // Nach Stilwechsel/Neuaufbau ist das Control ein NEUES Element — den Beobachter mitnehmen
+      // (sonst schreibt MapLibre beim nächsten Quellen-Update wieder die lange Zeile, gesehen 07.09. im Animator).
+      if (_attribObs && _attribObsNode !== inner) { _attribObs.disconnect(); _attribObs = null; }
       if (!_attribObs) {
         _attribObs = new MutationObserver(() => { if (_attribBusy) return; if ((document.getElementById("anim-ov-attrib-mode")?.value || "voll") === "kurz") _applyAttribText(); });
-        _attribObs.observe(inner, { childList: true, characterData: true, subtree: true });
+        _attribObs.observe(inner, { childList: true, characterData: true, subtree: true }); _attribObsNode = inner;
       }
     } else {
-      if (_attribObs) { _attribObs.disconnect(); _attribObs = null; }
+      if (_attribObs) { _attribObs.disconnect(); _attribObs = null; _attribObsNode = null; }
       // zurück zu MapLibres eigener Zeile: Control neu schreiben lassen
       try { const c = (map._controls || []).find(x => x && typeof x._updateAttributions === "function"); if (c) { c._attribHTML = ""; c._updateAttributions(); } } catch (_) {}   // _attribHTML leeren, sonst hält MapLibre den Text für unverändert
     }
@@ -7211,16 +7214,40 @@ function mountAnimator(body, headerActions, opts) {
     // 04.09.2026 — Probelauf-Bilanz ins app.log (Marc: „ruckelt total" ist auf
     // fremden Rechnern sonst nicht messbar): Bilder/s, längste Lücke, Kachel-Rückstand.
     let _plN = 0, _plStart = 0, _plLast = 0, _plWorst = 0, _plPend = 0;
+    // 07.09.2026 (Marc, Masca 2 ruckelt): dazu JS-Zeit je Bild (Skript-Anteil) und Zahl der langsamen Bilder —
+    // trennt „unser Skript ist langsam" von „WebView/GPU ist am Anschlag".
+    let _plJs = 0, _plJsMax = 0, _plSlow33 = 0, _plSlow50 = 0;
+    // Dazu: Zeit in MapLibres eigenem Zeichnen (map._render) und in den Ereignis-Handlern (map.fire) — läuft
+    // außerhalb unserer Schleife und taucht sonst in keiner Zahl auf. Nur während des Probelaufs eingehängt.
+    let _plRender = 0, _plRenderN = 0, _plFire = {}, _plHooked = false, _plOrigRender = null, _plOrigFire = null;
+    const _plHook = () => {
+      if (_plHooked || !map) return; _plHooked = true;
+      try {
+        _plOrigRender = map._render; if (typeof _plOrigRender === "function") map._render = function () { const t0 = performance.now(); try { return _plOrigRender.apply(this, arguments); } finally { _plRender += performance.now() - t0; _plRenderN++; } };
+        _plOrigFire = map.fire; if (typeof _plOrigFire === "function") map.fire = function (ev) { const t0 = performance.now(); try { return _plOrigFire.apply(this, arguments); } finally { const ty = (ev && ev.type) || String(ev); const d = performance.now() - t0; if (d > 0.05) _plFire[ty] = (_plFire[ty] || 0) + d; } };
+      } catch (_) {}
+    };
+    const _plUnhook = () => {
+      if (!_plHooked) return; _plHooked = false;
+      try { if (_plOrigRender) map._render = _plOrigRender; if (_plOrigFire) map.fire = _plOrigFire; } catch (_) {}
+    };
     const _plBilanz = (grund) => {
+      _plUnhook();
       if (_plN < 5) return;
       const s = (performance.now() - _plStart) / 1000;
-      try { applog("info", `[probelauf] ${grund}: ${_plN} Bilder in ${s.toFixed(1)} s = ${(_plN / s).toFixed(0)} fps · längste Lücke ${Math.round(_plWorst)} ms · Kachel-Rückstand max ${_plPend} · Engine ${map && map.__rzEngine} · Fläche ${map ? map.getCanvas().width + "×" + map.getCanvas().height : "?"} · Gelände ${!!(map && map.getTerrain && map.getTerrain())}`); } catch (_) {}
-      _plN = 0;
+      const top = Object.entries(_plFire).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k} ${(v / Math.max(1, _plN)).toFixed(1)}`).join(", ");
+      try { applog("info", `[probelauf] ${grund}: ${_plN} Bilder in ${s.toFixed(1)} s = ${(_plN / s).toFixed(0)} fps · längste Lücke ${Math.round(_plWorst)} ms · Bilder >33 ms: ${_plSlow33} · >50 ms: ${_plSlow50} · Skript ${(_plJs / Math.max(1, _plN)).toFixed(1)} ms/Bild (max ${Math.round(_plJsMax)}) · MapLibre-Zeichnen ${(_plRender / Math.max(1, _plN)).toFixed(1)} ms/Bild (${_plRenderN} Aufrufe) · Handler ms/Bild: ${top || "–"} · Kachel-Rückstand max ${_plPend} · Engine ${map && map.__rzEngine} · Fläche ${map ? map.getCanvas().width + "×" + map.getCanvas().height : "?"} · Gelände ${!!(map && map.getTerrain && map.getTerrain())}`); } catch (_) {}
+      _plN = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {};
     };
     window.__rzProbelaufBilanz = _plBilanz;
     const step = (now) => {
-      if (!_plN) { _plStart = now; _plLast = now; _plWorst = 0; _plPend = 0; }
-      else { const g = now - _plLast; if (g > _plWorst) _plWorst = g; _plLast = now; }
+      const _t0 = performance.now();
+      try { return _stepInner(now); }
+      finally { const d = performance.now() - _t0; _plJs += d; if (d > _plJsMax) _plJsMax = d; }
+    };
+    const _stepInner = (now) => {
+      if (!_plN) { _plStart = now; _plLast = now; _plWorst = 0; _plPend = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {}; _plHook(); }
+      else { const g = now - _plLast; if (g > _plWorst) _plWorst = g; if (g > 33) _plSlow33++; if (g > 50) _plSlow50++; _plLast = now; }
       _plN++;
       try { const _s = map.getSource("preview-track"); if (_s && typeof _s._pendingLoads === "number" && _s._pendingLoads > _plPend) _plPend = _s._pendingLoads; } catch (_) {}
       const elapsed = (now - _previewT0) * _previewSpeed;
@@ -8098,6 +8125,7 @@ function mountAnimator(body, headerActions, opts) {
       _applyMapAdjust();          // 05.09.2026 — Karten-Optik (Raster-Paint / Abdunkel-Ebene) je Stilart
       _applySharpen();            // 07.09.2026 — Schärfe (CSS-Filter auf der Leinwand; setStyle tauscht sie nicht, sicher ist sicher)
       setTimeout(() => { try { _applyAttribText(); } catch (_) {} }, 50);   // 07.09.2026 — Quellenzeile (Modus kurz) nach neuem Stil
+      try { map.once("idle", () => { try { _applyAttribText(); } catch (_) {} }); } catch (_) {}
       _applyStars();
       // 05.09.2026 (Audit): Sprite geladen? (POI-Symbole fehlten in der echten Vorschau)
       setTimeout(() => { try { applog && applog("info", `[style] ${map.__rzStyleKey || "?"} Bilder=${(map.listImages && map.listImages().length) || 0} Ebenen=${(map.getStyle().layers || []).length} Sprite=${JSON.stringify(map.getStyle().sprite || null).slice(0, 80)}`); } catch (_) {} }, 3000);
