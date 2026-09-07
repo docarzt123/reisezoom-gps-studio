@@ -158,15 +158,45 @@ function mapDefaultStyle() { const c = mapCatalog(); return c.default_style || c
 function mapStyleBadgeText(key) {
   const d = mapStyleDef(key); const b = d ? d.badge : "free";
   if (b === "video_rights") return t("mapstyle.badge.video_rights", "Video: Rechte nötig");
+  if (b === "video_no") return t("mapstyle.badge.video_no", "Video: nicht freigegeben");        // 07.09.2026 Quellen-Register (Server-Regeln)
+  if (b === "video_warn") return t("mapstyle.badge.video_warn", "Video: Server-Regeln beachten");
   if (b === "key") return t("mapstyle.badge.key", "Schlüssel nötig");
   return t("mapstyle.badge.free", "kostenlos");
 }
+/** 07.09.2026 — Spiegel von core/kartenquellen.stil_status: Rechtelage aus dem Quellen-Register.
+ *  Rang false > license_required > unknown > true; Server-Regeln „nein" zählen wie false, „absprache" wie unknown. */
+const RZ_STIL_ZU_QUELLE = { osm: "osm", topo: "opentopomap", cyclosm: "cyclosm", humanitarian: "hot",
+  ofm_liberty: "openfreemap", ofm_bright: "openfreemap", ofm_positron: "openfreemap",
+  maptiler_satellite: "maptiler", maptiler_outdoor: "maptiler", maptiler_streets: "maptiler", maptiler_topo: "maptiler", maptiler_dataviz: "maptiler", maptiler_hybrid: "maptiler",
+  satellite: "mapbox", satellite_streets: "mapbox", outdoors: "mapbox", standard: "mapbox", streets: "mapbox", dark: "mapbox", light: "mapbox" };
+const RZ_REGION_ZU_QUELLE = { "us-ak": "us", "us-hi": "us" };
+const RZ_GOV_GRUNDLAGEN = ["bluemarble", "sentinel", "terrain", "openfreemap"];
+function rzQuelle(id) {
+  const q = mapCatalog().quellen || [];
+  const qid = RZ_REGION_ZU_QUELLE[id] || RZ_STIL_ZU_QUELLE[id] || id;
+  return q.find(x => x.id === qid) || null;
+}
+function rzStilStatus(key, regionIds) {
+  const ids = key === "free_satellite" ? RZ_GOV_GRUNDLAGEN.concat((regionIds || []).map(r => RZ_REGION_ZU_QUELLE[r] || r)) : [RZ_STIL_ZU_QUELLE[key] || key];
+  const rang = { false: 3, license_required: 2, unknown: 1, true: 0 };
+  let st = "true"; const je = {}, server = {};
+  for (const i of ids) {
+    const q = rzQuelle(i); let s = q ? q.commercial_video : "unknown"; je[i] = s;
+    const rs = (q && q.render_server) || "ok";
+    if (rs !== "ok") { server[i] = rs; s = rs === "nein" ? "false" : (s === "true" ? "unknown" : s); }
+    if ((rang[s] == null ? 1 : rang[s]) > rang[st]) st = s;
+  }
+  return { status: st, quellen: je, server,
+           offen: Object.keys(je).filter(i => je[i] === "unknown"), nein: Object.keys(je).filter(i => je[i] === "false"),
+           rechte: Object.keys(je).filter(i => je[i] === "license_required") };
+}
+window.rzStilStatus = rzStilStatus; window.rzQuelle = rzQuelle;
 function mapStyleLabel(key) {
   const d = mapStyleDef(key);
   return d ? t("mapstyle." + key, d.label) : key;
 }
 /** True, wenn der Stil ohne gekaufte Videorechte veröffentlicht werden darf. */
-function mapStyleVideoOk(key) { const d = mapStyleDef(key); return !d || d.badge !== "video_rights"; }
+function mapStyleVideoOk(key) { const d = mapStyleDef(key); return !d || (d.badge !== "video_rights" && d.badge !== "video_no"); }
 
 // Mapbox-URL → Stil-Schlüssel (für alte Aufrufer, die noch `mapboxStyle` übergeben).
 function _mapKeyFromMapboxUrl(url) {
@@ -348,7 +378,8 @@ function resolveMapStyle(styleKey, bbox, wantTerrain, labels, ortho) {
   const tdef = cat.terrain[d.terrain] || {};
   return { key, requested: styleKey, engine, style, terrain, attribution: (terrain && tdef.attribution) || "",
            region: region ? { id: region.id, name: stack.map(r => mapRegionName(r)).join("/"), ids: stack.map(r => r.id) } : null, notes,
-           badge: d.badge, videoOk: d.badge !== "video_rights", provider: d.provider, kind: d.kind,
+           badge: d.badge, videoOk: d.badge !== "video_rights" && d.badge !== "video_no", provider: d.provider, kind: d.kind,
+           rights: rzStilStatus(key, stack.map(r => r.id)),   // 07.09.2026 Quellen-Register
            gaps: gaps.map(g => ({ id: g.id, name: g.name, reason: g.reason })) };
 }
 
@@ -401,6 +432,15 @@ function mapStyleNoteText(spec) {
     else if (n === "no_coverage") parts.push(t("mapstyle.note.no_coverage", "Keine amtlichen Luftbilder für diesen Track — Sentinel-2 (10 m, 2016) wird gezeigt."));
   }
   if (spec.region) parts.push(t("mapstyle.note.region", "Luftbild: {name}").replace("{name}", spec.region.name));
+  // 07.09.2026 — Rechtelage aus dem Quellen-Register (nur wenn nicht „geprüft und erlaubt")
+  const r = spec.rights;
+  if (r && r.status !== "true") {
+    const srv = Object.keys(r.server || {});
+    if (r.nein && r.nein.length) parts.push(t("mapstyle.note.rights_no", "Nicht für Videos freigegeben (Bedingungen des Anbieters): {ids}").replace("{ids}", r.nein.join(", ")));
+    if (srv.length && r.status !== "false") parts.push(t("mapstyle.note.rights_server", "Kachelserver: Bild-für-Bild-Rendern nur nach Absprache oder mit eigenem Server ({ids}).").replace("{ids}", srv.join(", ")));
+    const offen = (r.offen || []).filter(i => !srv.includes(i));
+    if (offen.length) parts.push(t("mapstyle.note.rights_unknown", "Nutzungsrechte noch nicht vollständig verifiziert: {ids}").replace("{ids}", offen.join(", ")));
+  }
   return parts.join(" ");
 }
 

@@ -14,6 +14,13 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Source register (`core/kartenquellen.py`): one entry per map service — data licence with link, tile-server terms, whether commercial videos are cleared (`true` / `license_required` / `unknown` / `false`), the prescribed credit line, and the date it was checked. 38 services researched on 2026-09-07 from the official pages (sources listed per entry). The credit line in the image now comes from the register, with the modification notice where the licence demands it (dl-de/by-2-0, CC BY 4.0). Shown in Settings → Maps → rights table as an expandable list with next review date. A guard (`tests/test_kartenquellen.py`) fails once an entry is older than 182 days, so the release suite forces the half-yearly review. — Quellen-Register je Kartendienst (Lizenz, Server-Regeln, Video-Freigabe, Nennformel, Prüfdatum), halbjährliche Prüfpflicht über die Suite.
+
+### Changed
+- Honest rights badges: CyclOSM and Humanitarian tiles are „video: not cleared" (OSM France serves non-profit sites only), OpenStreetMap standard and OpenTopoMap show „video: mind server rules" (frame-by-frame rendering from the public server only by agreement or with your own server); free satellite stays „free" unless a state service in the picture is unverified (Italy: MASE orthophotos are not under CC BY, status unknown). The style selector says which source is affected. — Ehrliche Rechte-Abzeichen aus dem Register.
+- Credit lines corrected per provider: Berlin (dl-de/zero, not dl-de/by), Mecklenburg-Vorpommern (CC BY 4.0 since 06/2024), Sachsen-Anhalt („GeoBasis-DE / LVermGeo ST"), Sachsen („Quelle: GeoSN"), Bavaria (official wording), Spain („Obra derivada de PNOA CC-BY 4.0 scne.es"), Estonia (agency renamed), EOX Sentinel-2 2016 (CC BY 4.0 per capabilities, „EOxCloudless … by EOX IT Services GmbH"). Thuringia switches to CC BY 4.0 on 2026-09-14 automatically. — Nennformeln je Anbieter korrigiert.
+
 ## [0.9.662] – 2026-09-07
 
 ### Added

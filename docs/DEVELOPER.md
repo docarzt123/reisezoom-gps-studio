@@ -2677,6 +2677,36 @@ Zwei Regler-Sätze: `ortho_*` (Luftbilder, Katalog-Standard 25/8/0/0) und
 einer anderen Datei wird überschrieben (Endlosrekursion am 05.09.), daher
 heißt der Kern `rzMapAdjustPaint`.
 
+**Quellen-Register (07.09.2026, Marc: „das Quellenregister, das muss mindestens
+halbjährlich überprüft werden"):** `core/kartenquellen.py` — je Dienst `id`
+(Regions-ID, Stil-Schlüssel oder Grundlage), `provider`, `dataset(_url)`,
+`license(_url)`, `commercial_video` (true | license_required | unknown | false),
+`render_server` (ok | absprache | nein — Bild-für-Bild-Rendern vom öffentlichen
+Server), `modification_notice_required`, `onscreen_credit` (kurze Pflichtformel,
+`credit_hinweis` = Recherche-Erläuterung), `service_terms_url`, `service_limits`,
+`confidence`, `notes`, `sources`, `checked_at`. API: `eintrag(id)`, `status(id)`,
+`nennung(id)`, `stil_status(key, region_ids)` (Rang false > license_required >
+unknown > true; `render_server` nein zählt wie false, absprache wie unknown),
+`faellige(heute)`, `naechste_pruefung()`, `fuer_ui()`. `PRUEF_INTERVALL_TAGE = 182`.
+Verbraucher: `mapstyles` schreibt beim Import die Regions-`attribution` aus
+`nennung()` („Luftbild: " + Formel), `style_badge()` liefert `video_no` /
+`video_warn` für freie Rasterstile, `resolve()["rights"]`, `catalog_for_ui()`
+liefert `quellen` + `quellen_pruefung`; JS-Spiegel `rzStilStatus()` (util.js) für
+die Vorschau (`spec.rights`, Hinweis in `mapStyleNoteText`); Rechte-Tabelle
+`rzQuellenRegisterHtml()` (app.js). Pflege: Datei ist erzeugt aus den Recherche-
+JSONs (Sitzungs-Scratch `register/gen_modul.py`, 07.09.2026), darf aber von Hand
+gepflegt werden — Eintrag nachlesen, Felder anpassen, `checked_at` setzen.
+**Wächter `tests/test_kartenquellen.py` wird rot, sobald ein Eintrag älter als 182
+Tage ist** (Release-Suite erzwingt die Halbjahresprüfung). Thüringen wechselt am
+14.09.2026 auf CC BY 4.0 — `_th_lizenzwechsel()` schaltet datumsgesteuert um.
+Befunde der Recherche (Abweichungen zum Stand davor): Berlin dl-de/zero (nicht
+by), M-V seit 06/2024 CC BY 4.0, ST heißt „LVermGeo ST", Sachsen „Quelle: GeoSN",
+EOX 2016 ist CC BY 4.0 (nicht BY-SA), Italien (MASE-Ortofoto) ausdrücklich NICHT
+unter CC BY → unknown, OSM-France-Server (CyclOSM/HOT) nur non-profit → false,
+OSMF-Standardserver: Prefetch = Bulk → absprache. Konzept: `docs/KARTENQUELLEN-
+LIZENZKONZEPT.md`; nächster Schritt: Nennungs-Modus (alles im Bild / Hinweis +
+eigener Link / reisezoom-Shortlink), IDEAS §56.
+
 **Kacheldichte am Pixelmaßstab (07.09.2026, Marc: „die ganze Insel ist
 unscharf"):** MapLibre wählt die Kachelstufe aus `zoom + log2(512/tileSize)`,
 ohne `devicePixelRatio`. Eine 256-px-Kachel deckt also 256 CSS-Pixel, und auf
