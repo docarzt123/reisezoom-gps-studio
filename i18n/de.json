@@ -2919,5 +2919,6 @@
   "gpxinspect.heal_k_outliers": "%n Tempo-Ausreißer entfernt",
   "gpxinspect.heal_k_missing_ele": "%n fehlende Höhen ergänzt",
   "gpxinspect.heal_done_data": "Geheilt: %d",
-  "gpxinspect.heal_found": "Analyse — gefunden, wird beim Heilen glattgezogen:"
+  "gpxinspect.heal_found": "Analyse — gefunden, wird beim Heilen glattgezogen:",
+  "animator.smoothcam.failed": "Ruhige Kamera konnte nicht aufgebaut werden — der Lauf nutzt die einfache Kamera. Bitte den Log schicken."
 }

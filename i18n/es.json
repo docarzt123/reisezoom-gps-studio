@@ -2919,5 +2919,6 @@
   "gpxinspect.heal_k_outliers": "%n valores atípicos de velocidad eliminados",
   "gpxinspect.heal_k_missing_ele": "%n altitudes faltantes completadas",
   "gpxinspect.heal_done_data": "Reparado: %d",
-  "gpxinspect.heal_found": "Análisis: encontrado, se corrige al reparar:"
+  "gpxinspect.heal_found": "Análisis: encontrado, se corrige al reparar:",
+  "animator.smoothcam.failed": "No se pudo construir la cámara suave — esta pasada usa la cámara simple. Por favor envía el registro."
 }

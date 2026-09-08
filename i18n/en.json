@@ -2919,5 +2919,6 @@
   "gpxinspect.heal_k_outliers": "%n speed outliers removed",
   "gpxinspect.heal_k_missing_ele": "%n missing elevations filled in",
   "gpxinspect.heal_done_data": "Healed: %d",
-  "gpxinspect.heal_found": "Analysis — found, straightened out when healing:"
+  "gpxinspect.heal_found": "Analysis — found, straightened out when healing:",
+  "animator.smoothcam.failed": "The calm camera could not be built — this run uses the simple camera. Please send the log."
 }
