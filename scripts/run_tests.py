@@ -54,6 +54,7 @@ BEDINGT = {
     "test_animator_render.py": ("token", "netz"),
     "test_schwarm_m1_render.py": ("token", "netz"),   # 28.08.2026: Schwarm über den ANIMATOR-Pfad
     "test_render_alle_karten.py": ("netz",),          # 05.09.2026: JEDER Kartenstil rendert (Mapbox/MapTiler nur mit Schlüssel, sonst übersprungen)
+    "test_tempo_szene_render.py": ("netz", "langsam"),  # 08.09.2026: Tempo-Kurve über den Szenen-Render belegt (die schnelle Fassung ist test_tempo_wirkung.py)
     "test_render_matrix.py": ("netz", "langsam"),     # 06.09.2026 abends: Gelände-Matrix über die gemeinsame Szene (Marcs Archiv-Kopie): Wackeltest, Riss-Test, Kurzrender — NUR Release (langsam)
     "test_animator_alpha.py": (),
     "test_geotagger_e2e.py": ("fixtures",),
