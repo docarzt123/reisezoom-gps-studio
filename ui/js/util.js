@@ -285,6 +285,11 @@ function rzApplyRasterAdjust(map, adj, def) { return window.rzApplyMapAdjust(map
  *  aus dem Pixelmaßstab. Auf Retina (×2) und im Video (Video ÷ Vorschau, ×2,3 … ×4,7)
  *  wird jedes Kachelpixel sonst vergrößert. tileSize je Verdopplung halbieren → eine
  *  Kachelstufe tiefer, ≈ 1:1. Höchstens zwei Stufen. Bei Änderung beide pflegen. */
+// 08.09.2026 — Projektion: Kugel nur im Weltraum-Anflug (bis Zoom 7), ab Zoom 9 Mercator, Übergang rein
+// über den Zoom. MapLibres «globe» blendet erst zwischen Zoom 11 und 12 (Wanduhr + Fehlerkorrektur), und in
+// dieser Zone kippt der Sichtkegel-Test der Kachelwahl je Bild → gröbere Kachel blitzt ein Bild lang auf.
+// Kopflos gemessen (Masca): globe 40 Rücksprünge, dieser Ausdruck 3. Spiegel: core/mapstyles.PROJECTION.
+const RZ_PROJECTION = { type: ["interpolate", ["linear"], ["zoom"], 7, "vertical-perspective", 9, "mercator"] };
 const RZ_TILE_DENSITY_MAX_STEPS = 2;
 function rzTileSize(base) {
   const d = Math.max(1, Number(window.devicePixelRatio) || 1);
@@ -331,7 +336,7 @@ function _stackStyle(stack, ortho) {
     layers.push(lay);
   }
   const st = { version: 8, sources, layers };
-  if (!window.__rzNoGlobe) st.projection = { type: "globe" };
+  if (!window.__rzNoGlobe) st.projection = RZ_PROJECTION;
   return st;
 }
 
@@ -359,7 +364,7 @@ function _rasterStyle(tiles, tileSize, maxzoom, attribution, scheme) {
   if (scheme === "tms") src.scheme = "tms";
   // KEIN Layer-maxzoom: über der letzten Kachelstufe wird hochskaliert, nicht schwarz.
   const st = { version: 8, sources: { "rz-raster": src }, layers: [{ id: "rz-raster", type: "raster", source: "rz-raster", minzoom: 0 }] };
-  if (!window.__rzNoGlobe) st.projection = { type: "globe" };   // Prüfstände ohne GPU: Globus aus
+  if (!window.__rzNoGlobe) st.projection = RZ_PROJECTION;   // Prüfstände ohne GPU: Globus aus
   return st;
 }
 
@@ -681,7 +686,8 @@ function rzGlobeForMapLibre(map) {
     if (window.__rzNoGlobe) return;
     if (typeof map.setProjection === "function") {
       const pr = map.getProjection && map.getProjection();
-      if (!pr || pr.type !== "globe") map.setProjection({ type: "globe" });
+      // 08.09.2026: Zoom-Ausdruck statt «globe» (s. RZ_PROJECTION) — nie mehr auf «globe» zurücksetzen
+      if (!pr || JSON.stringify(pr.type) !== JSON.stringify(RZ_PROJECTION.type)) map.setProjection(RZ_PROJECTION);
     }
     const c = map.getContainer && map.getContainer();
     if (c) { if (window.rzStarsApply) rzStarsApply(c, window.__rzStarsOpts); else c.style.background = "#05070d"; }   // Sternenhimmel (rz-stars.js)
