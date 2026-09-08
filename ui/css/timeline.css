@@ -640,6 +640,13 @@
 .anim-timeline-host--kf-off .timeline-intro-region {
   display: none !important;
 }
+/* 08.09.2026 (Marc) — die TEMPO-Spur bleibt auch ohne Keyframe-Editor sichtbar.
+   Sie hat mit Keyframes nichts zu tun: Halte und langsame Abschnitte sind
+   Eigenschaften der Tour, nicht der Kamera. Ohne diese Ausnahme wäre die neue
+   Spur genau für die Nutzer unerreichbar, die nie Keyframes anfassen. */
+.anim-timeline-host--kf-off .timeline-lanes { display: block !important; }
+.anim-timeline-host--kf-off .timeline-lane:not([data-kind="tempo"]) { display: none !important; }
+
 /* v0.9.9 — Mini-Track-Streifen wenn Lanes versteckt sind */
 .anim-timeline-host--kf-off #tl-track {
   min-height: 28px;
@@ -831,3 +838,47 @@ body.wert-zieht .timeline-marker.is-selected {
 }
 .timeline-easing-symbol.is-smooth { box-shadow: 0 0 0 1.5px var(--accent, #ff6b35) inset; }
 .timeline-easing-smooth-badge { position: absolute; right: -6px; top: -7px; font-size: 9px; line-height: 1; pointer-events: none; }
+
+/* ── Tempo-Spur (08.09.2026, Marc) ─────────────────────────────────────────
+   Halte und Abschnitte statt Keyframe-Marker. Ein Halt ist ein schmaler
+   Pfosten mit seinen Sekunden, ein Abschnitt ein Block mit seinem Faktor und
+   zwei Anfassern an den Rändern. Gesperrte Halte (aus den Etappen) sind
+   gestrichelt und blasser — sichtbar, aber nicht anfassbar. */
+.timeline-lane[data-kind="tempo"] .lane-track { cursor: crosshair; }
+/* Die Achslinie ist Deko und darf die Blöcke nicht abfangen — sonst geht weder
+   Rechtsklick noch Ziehen an einem Halt (08.09.2026 im Prüfstand gemessen). */
+.timeline-lane[data-kind="tempo"] .lane-axis { pointer-events: none; }
+/* Der Marker-Behälter ist sonst durchlässig (`pointer-events: none`), nur
+   Keyframe-Marker holen sich das zurück. Die Tempo-Blöcke brauchen es auch,
+   sonst gehen Rechtsklick und Ziehen ins Leere. */
+.timeline-lane[data-kind="tempo"] .lane-markers { pointer-events: none; }
+.tl-tempo-block, .tl-tempo-halt { pointer-events: auto; }
+.tl-tempo-block {
+  position: absolute; top: 3px; bottom: 3px; z-index: 2;
+  background: linear-gradient(180deg, rgba(255,169,77,.30), rgba(255,169,77,.16));
+  border: 1px solid rgba(255,169,77,.75); border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab; overflow: hidden; min-width: 10px;
+}
+.tl-tempo-block:hover { background: linear-gradient(180deg, rgba(255,169,77,.42), rgba(255,169,77,.22)); }
+.tl-tempo-text {
+  font-size: 10px; font-weight: 700; color: #ffd9ad; pointer-events: none;
+  white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+}
+.tl-tempo-rand {
+  position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize;
+}
+.tl-tempo-rand[data-rand="l"] { left: -1px; }
+.tl-tempo-rand[data-rand="r"] { right: -1px; }
+.tl-tempo-rand:hover { background: rgba(255,169,77,.55); }
+.tl-tempo-halt {
+  position: absolute; top: 2px; bottom: 2px; transform: translateX(-50%); z-index: 3;
+  appearance: none; border: 1px solid rgba(255,169,77,.9); border-radius: 5px;
+  background: rgba(255,169,77,.26); color: #ffd9ad; cursor: grab;
+  padding: 0 5px; display: flex; align-items: center;
+}
+.tl-tempo-halt:hover { background: rgba(255,169,77,.42); }
+.tl-tempo-halt.ist-gesperrt {
+  border-style: dashed; opacity: .6; cursor: default;
+}
+.tl-tempo-sek { font-size: 9.5px; font-weight: 700; white-space: nowrap; }

@@ -64,6 +64,11 @@ function mountTimelineBar(opts) {
     // v0.9.227 — Marker- + Foto-Spuren entfernt (Marc): Schilder und Fotos
     // werden längst über ihr eigenes „Schilder und Fotos"-System gesetzt,
     // nicht mehr über Keyframe-Events. Die Reserve-Spuren kosteten nur Platz.
+    // 08.09.2026 (Marc) — Tempo-Spur: Halte und Abschnitte mit eigenem Faktor.
+    // Sie rendert KEINE Keyframe-Marker, sondern Blöcke; ihre Bedienung liegt
+    // unten in `_tempoBinden` und meldet Änderungen über `onTempoChange`.
+    { kind: "tempo", label: tlT("animator.lane.tempo", "Tempo"), icon: "⏱", color: "#ffa94d",
+      tip: tlT("animator.lane.tempo_tip", "Tempo: hier anhalten oder einen Abschnitt langsamer laufen lassen. Ziehen legt einen Abschnitt an, Doppelklick öffnet ihn, Rechtsklick löscht.") },
   ];
   const lanesHtml = LANES.map(L => `
     <div class="timeline-lane" data-kind="${L.kind}" style="--lane-color: ${L.color};">
@@ -386,6 +391,154 @@ function mountTimelineBar(opts) {
   // v0.9.512 — Während des Wert-Ziehens zeigt die Zeile den laufenden Wert
   // an, sonst die Scrubber-Position. Ohne das zieht man blind.
   let _statusHint = null;
+  // ── Tempo-Spur (08.09.2026, Marc) ────────────────────────────────────────
+  // Zwei Sorten Einträge, beide an der STRECKE verankert wie Keyframes:
+  //   { art:"halt",  bei, sek, kamera }              — die Strecke steht still
+  //   { art:"tempo", von, bis, faktor }              — Abschnitt gegen die Grundraffung
+  // Die Spur zeichnet und bedient; gerechnet wird in core/tempo.py, gespeichert
+  // im Projekt. Änderungen gehen über `onTempoChange` zurück an den Animator.
+  let _tempo = [];              // die Einträge
+  let _tempoHalte = [];         // aus der Kurve: Lage der Halte in Videosekunden
+  let _tempoZieh = null;        // laufende Geste
+
+  function setTempo(liste, halte) {
+    _tempo = Array.isArray(liste) ? liste.slice() : [];
+    _tempoHalte = Array.isArray(halte) ? halte.slice() : [];
+    const el = laneMarkersEl["tempo"];
+    if (el) _tempoZeichnen(el);
+  }
+  function _tempoMelden() {
+    try { (cb.onTempoChange || (() => {}))(_tempo.slice()); } catch (e) { console.warn("onTempoChange:", e); }
+    const el = laneMarkersEl["tempo"];
+    if (el) _tempoZeichnen(el);
+  }
+  function _tempoSortiert() {
+    return _tempo.slice().sort((a, b) => (a.art === "halt" ? a.bei : a.von) - (b.art === "halt" ? b.bei : b.von));
+  }
+  /** Grenzen, in die ein Abschnitt hineinpasst — Überlappen ist verboten. */
+  function _tempoGrenzen(idx) {
+    let links = 0, rechts = 1;
+    _tempo.forEach((e, i) => {
+      if (i === idx || e.art !== "tempo") return;
+      if (e.bis <= (_tempo[idx].von ?? 0) + 1e-9) links = Math.max(links, e.bis);
+      if (e.von >= (_tempo[idx].bis ?? 1) - 1e-9) rechts = Math.min(rechts, e.von);
+    });
+    return [links, rechts];
+  }
+
+  function _tempoZeichnen(el) {
+    el.innerHTML = "";
+    for (const [i, e] of _tempo.entries()) {
+      if (!e || typeof e !== "object") continue;
+      if (e.art === "halt") {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "tl-tempo-halt" + (e.gesperrt ? " ist-gesperrt" : "");
+        b.style.left = _anchorToPct(_trackToBar(Math.max(0, Math.min(1, +e.bei || 0)))) + "%";
+        b.dataset.idx = String(i);
+        b.title = `${tlT("animator.tempo.halt", "Halt")} ${(+e.sek || 0).toFixed(1)} s`
+          + (e.gesperrt ? " · " + tlT("animator.tempo.auto", "kommt aus den Etappen") : "");
+        b.innerHTML = `<span class="tl-tempo-sek">${(+e.sek || 0).toFixed(1)}s</span>`;
+        el.appendChild(b);
+      } else if (e.art === "tempo") {
+        const von = Math.max(0, Math.min(1, +e.von || 0));
+        const bis = Math.max(von, Math.min(1, +e.bis || 0));
+        const l = _anchorToPct(_trackToBar(von)), r = _anchorToPct(_trackToBar(bis));
+        const d = document.createElement("div");
+        d.className = "tl-tempo-block";
+        d.style.left = l + "%";
+        d.style.width = Math.max(0.6, r - l) + "%";
+        d.dataset.idx = String(i);
+        const f = +e.faktor || 1;
+        d.title = `${f}× ${tlT("animator.tempo.gegen", "gegen die Grundraffung")}`;
+        d.innerHTML = `<span class="tl-tempo-rand" data-rand="l"></span>`
+          + `<span class="tl-tempo-text">${f}×</span>`
+          + `<span class="tl-tempo-rand" data-rand="r"></span>`;
+        el.appendChild(d);
+      }
+    }
+  }
+
+  function _tempoBinden() {
+    const lane = host.querySelector('.timeline-lane[data-kind="tempo"] .lane-track');
+    if (!lane) return;
+    lane.addEventListener("mousedown", (ev) => {
+      const halt = ev.target.closest(".tl-tempo-halt");
+      const block = ev.target.closest(".tl-tempo-block");
+      const rand = ev.target.closest(".tl-tempo-rand");
+      const start = _barToTrack(anchorFromClientX(ev.clientX));
+      if (halt) {
+        const i = +halt.dataset.idx;
+        if (_tempo[i] && _tempo[i].gesperrt) return;      // Etappen-Halte nicht verschieben
+        _tempoZieh = { art: "halt-schieben", i, start };
+      } else if (rand && block) {
+        _tempoZieh = { art: "rand", i: +block.dataset.idx, seite: rand.dataset.rand };
+      } else if (block) {
+        const i = +block.dataset.idx;
+        _tempoZieh = { art: "block-schieben", i, start,
+                       von0: _tempo[i].von, bis0: _tempo[i].bis };
+      } else {
+        // Leere Fläche: neuen Abschnitt aufziehen
+        _tempo.push({ art: "tempo", von: start, bis: start, faktor: 0.5 });
+        _tempoZieh = { art: "neu", i: _tempo.length - 1, start };
+      }
+      ev.preventDefault();
+      const bewegen = (e2) => {
+        const a = Math.max(0, Math.min(1, _barToTrack(anchorFromClientX(e2.clientX))));
+        const z = _tempoZieh; if (!z) return;
+        const e = _tempo[z.i]; if (!e) return;
+        if (z.art === "halt-schieben") { e.bei = a; }
+        else if (z.art === "neu") { e.von = Math.min(z.start, a); e.bis = Math.max(z.start, a); }
+        else if (z.art === "rand") {
+          if (z.seite === "l") e.von = Math.min(a, e.bis - 0.005);
+          else e.bis = Math.max(a, e.von + 0.005);
+          const [lo, hi] = _tempoGrenzen(z.i);
+          e.von = Math.max(lo, e.von); e.bis = Math.min(hi, e.bis);
+        } else if (z.art === "block-schieben") {
+          const d = a - z.start;
+          const br = z.bis0 - z.von0;
+          const [lo, hi] = _tempoGrenzen(z.i);
+          let v = Math.max(lo, Math.min(hi - br, z.von0 + d));
+          e.von = v; e.bis = v + br;
+        }
+        _tempoZeichnen(laneMarkersEl["tempo"]);
+      };
+      const hoch = () => {
+        document.removeEventListener("mousemove", bewegen, true);
+        document.removeEventListener("mouseup", hoch, true);
+        const z = _tempoZieh; _tempoZieh = null;
+        if (z && z.art === "neu") {
+          const e = _tempo[z.i];
+          // Ein Klick ohne Ziehen ist kein Abschnitt, sondern ein Halt.
+          if (e && (e.bis - e.von) < 0.01) {
+            _tempo[z.i] = { art: "halt", bei: e.von, sek: 2.0, kamera: "nichts" };
+          }
+        }
+        _tempoMelden();
+      };
+      document.addEventListener("mousemove", bewegen, true);
+      document.addEventListener("mouseup", hoch, true);
+    });
+    lane.addEventListener("contextmenu", (ev) => {
+      const el = ev.target.closest(".tl-tempo-halt, .tl-tempo-block");
+      if (!el) return;
+      ev.preventDefault();
+      const i = +el.dataset.idx;
+      if (_tempo[i] && _tempo[i].gesperrt) return;
+      _tempo.splice(i, 1);
+      _tempoMelden();
+    });
+    lane.addEventListener("dblclick", (ev) => {
+      const el = ev.target.closest(".tl-tempo-halt, .tl-tempo-block");
+      if (!el) return;
+      ev.preventDefault();
+      const i = +el.dataset.idx;
+      const e = _tempo[i];
+      if (!e || e.gesperrt) return;
+      try { (cb.onTempoOeffnen || (() => {}))(i, e); } catch (err) { console.warn("onTempoOeffnen:", err); }
+    });
+  }
+
   function setStatusHint(txt) { _statusHint = txt || null; updateStatusLabel(); }
   function updateStatusLabel() {
     if (!statusEl) return;
@@ -614,6 +767,7 @@ function mountTimelineBar(opts) {
       el.innerHTML = "";
       // Lane-spezifische Events sammeln
       let laneEvents = [];
+      if (L.kind === "tempo") { _tempoZeichnen(el); continue; }
       if (L.kind === "marker" || L.kind === "photo") {
         laneEvents = events.filter(e => e && e.kind === L.kind);
       } else {
@@ -1217,6 +1371,7 @@ function mountTimelineBar(opts) {
   _updateScrollbar();
 
   // Initial render
+  _tempoBinden();   // 08.09.2026 — Bedienung der Tempo-Spur
   refresh();
   updateStatusLabel();
 
@@ -1270,6 +1425,8 @@ function mountTimelineBar(opts) {
     getScrubberBar: () => _scrubAnchor,
     setScrubberBar: setScrubberVisual,
     updateStatusLabel,
+    setTempo,
+    getTempo: () => _tempo.slice(),
   };
 }
 

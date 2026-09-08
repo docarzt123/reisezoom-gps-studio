@@ -851,6 +851,27 @@ def resample(pts: List[TrackPoint], target: int, achse: str = "raw",
     return out
 
 
+def punkte_nach_anteilen(pts: List[TrackPoint], anteile: List[float]) -> List[TrackPoint]:
+    """Punkte an vorgegebenen Stellen (0..1 über den Track) — für die Tempo-Kurve.
+
+    08.09.2026: Die Kurve (core/tempo.py) sagt für jedes Bild, WO auf der Strecke
+    es steht. Der Render baut daraus seine Punktliste, statt selbst zu verteilen.
+    Damit zeigen Vorschau und Video dieselbe Bewegung, auch mit Halten und
+    gebremsten Abschnitten.
+    """
+    if len(pts) < 2 or not anteile:
+        return list(pts)
+    n1 = len(pts) - 1
+    raus: List[TrackPoint] = []
+    for a in anteile:
+        x = max(0.0, min(1.0, float(a))) * n1
+        j = min(n1 - 1, int(x))
+        raus.append(_interpoliere(pts[j], pts[j + 1], x - j))
+    raus[0] = pts[0]
+    raus[-1] = pts[-1]
+    return raus
+
+
 def to_json(pts: List[TrackPoint], stats: TrackStats) -> dict:
     """Serialisierbar fürs UI."""
     return {
