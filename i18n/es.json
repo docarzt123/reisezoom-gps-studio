@@ -2926,5 +2926,11 @@
   "animator.tours.ueber_kino": "Vuelo de cine",
   "animator.tours.ueber_luft": "Línea recta",
   "animator.tours.ueber_schnitt": "Corte",
-  "animator.tours.ueber_dauer": "Duración de esta transición. Vacío = el tiempo de vuelo común."
+  "animator.tours.ueber_dauer": "Duración de esta transición. Vacío = el tiempo de vuelo común.",
+  "animator.tours.sortieren": "Ordenar",
+  "animator.tours.sort_datum": "por fecha",
+  "animator.tours.sort_name": "por nombre",
+  "animator.tours.sort_um": "Invertir el orden",
+  "animator.tours.sortiert": "Etapas reordenadas.",
+  "animator.tours.bilanz": "{g} s en total — etapas {e} s, transiciones {u} s"
 }
