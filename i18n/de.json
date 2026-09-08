@@ -2926,5 +2926,11 @@
   "animator.tours.ueber_kino": "Kinoflug",
   "animator.tours.ueber_luft": "Luftlinie",
   "animator.tours.ueber_schnitt": "Schnitt",
-  "animator.tours.ueber_dauer": "Dauer dieses Übergangs. Leer = die gemeinsame Flugdauer."
+  "animator.tours.ueber_dauer": "Dauer dieses Übergangs. Leer = die gemeinsame Flugdauer.",
+  "animator.tours.sortieren": "Sortieren",
+  "animator.tours.sort_datum": "nach Datum",
+  "animator.tours.sort_name": "nach Name",
+  "animator.tours.sort_um": "Reihenfolge umkehren",
+  "animator.tours.sortiert": "Etappen neu geordnet.",
+  "animator.tours.bilanz": "Gesamt {g} s — Etappen {e} s, Übergänge {u} s"
 }

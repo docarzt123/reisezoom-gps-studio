@@ -577,6 +577,7 @@ function mountAnimator(body, headerActions, opts) {
             ${t("animator.tours.hint", "Weitere Touren werden nach der ersten animiert — die Kamera fliegt im Kino-Stil von einer zur nächsten.")}
           </p>
           <div id="anim-tours-list" class="anim-tours-list"></div>
+          <div id="anim-reise-bilanz" class="anim-reise-bilanz" hidden></div>
           <button type="button" class="btn btn-small" id="anim-tours-add" style="width:100%; margin-top:4px;">
             ＋ ${t("animator.tours.add", "Tour hinzufügen")}
           </button>
@@ -1836,7 +1837,9 @@ function mountAnimator(body, headerActions, opts) {
     bindSetting(id, _MODKEY, key, { type: "number", onLoad: v => { updateLabel(id + "-v", v, " %"); _applyStars(); } });
     document.getElementById(id)?.addEventListener("input", _applyStars);
   }
-  bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number" });
+  bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number",
+    // 08.09.2026 — die Gesamtdauer verteilt sich auf die Etappen: Bahn neu bauen.
+    onChange: () => { try { _reiseAnwenden(); } catch (_) {} } });
   // v0.9.530 (IDEAS §22) — Echtzeit ÷ Faktor. Der Faktor SCHREIBT nur die
   // Sekunden ins Dauer-Feld (und löst dessen change aus → duration_s wird wie
   // immer gespeichert) — Render, Backend und alle Rechnungen dahinter bleiben
@@ -13795,9 +13798,43 @@ function mountAnimator(body, headerActions, opts) {
     // Etappen sitzt der Übergang. Im Schwarm laufen alle gleichzeitig, dort gibt
     // es weder Etappendauer noch Übergang.
     const _reise = _animAblauf !== "schwarm";
+    // 08.09.2026 (Marc: „man muss die Touren sortieren können"): Bei fünfzehn
+    // Etappen ist Pfeil-für-Pfeil keine Ordnung. Datum kommt aus den Statistiken
+    // der Tour, sonst aus dem Dateinamen — der trägt bei Marcs Tracks das Datum
+    // vorn („2024-02-10_66 Seen #1 …"). Die erste Etappe ist der Haupt-Track und
+    // bleibt vorn; sortiert werden die folgenden.
+    const _sortSchluessel = (tr, art) => {
+      if (art === "name") return String(tr.name || tr.gpx_path || "").toLowerCase();
+      const st = tr.stats || {};
+      const d = st.started_at || st.start_time || st.date || "";
+      if (d) return String(d);
+      const datei = String(tr.gpx_path || "").split("/").pop() || "";
+      const m = datei.match(/(\d{4})[-_](\d{2})[-_](\d{2})/);
+      return m ? `${m[1]}-${m[2]}-${m[3]}` : datei.toLowerCase();
+    };
+    const _sortieren = (art) => {
+      if (art === "um") _extraTours.reverse();
+      else _extraTours.sort((a, b) => {
+        const x = _sortSchluessel(a, art), y = _sortSchluessel(b, art);
+        return x < y ? -1 : x > y ? 1 : 0;
+      });
+      _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
+      toast(t("animator.tours.sortiert", "Etappen neu geordnet."), "info", 1800);
+    };
     const _dauerFeld = (wert, titel) =>
       `<input type="number" class="anim-etappe-dauer" min="0" step="0.5" value="${wert || ""}"
               placeholder="auto" title="${_animEscapeHtml(titel)}"><span class="anim-etappe-einheit">s</span>`;
+    if (_reise && _extraTours.length > 1) {
+      const leiste = document.createElement("div");
+      leiste.className = "anim-sort-leiste";
+      leiste.innerHTML = `<span class="muted">${t("animator.tours.sortieren", "Sortieren")}</span>
+        <button type="button" class="btn btn-small" data-sort="datum">${t("animator.tours.sort_datum", "nach Datum")}</button>
+        <button type="button" class="btn btn-small" data-sort="name">${t("animator.tours.sort_name", "nach Name")}</button>
+        <button type="button" class="btn btn-small" data-sort="um" title="${t("animator.tours.sort_um", "Reihenfolge umkehren")}">⇅</button>`;
+      leiste.querySelectorAll("[data-sort]").forEach(b =>
+        b.addEventListener("click", () => _sortieren(b.dataset.sort)));
+      host.appendChild(leiste);
+    }
     if (_reise) {
       const kopf = document.createElement("div");
       kopf.className = "anim-tour-row anim-etappe-erste";
@@ -14269,10 +14306,28 @@ function mountAnimator(body, headerActions, opts) {
       for (const c of abgetastet) { coords.push(c); teilVon.push(i); istUeber.push(0); }
       teile.push({ von, bis: coords.length - 1 });
     });
-    _reiseBahn = { coords, teilVon, istUeber, teile, ansichten: null, etappen };
+    _reiseBahn = { coords, teilVon, istUeber, teile, ansichten: null, etappen,
+                   sekEtappen: etappeS.reduce((a, b) => a + b, 0),
+                   sekUeber: ueberS.reduce((a, b) => a + b, 0) };
     applog("info", `[reise] Bahn gebaut: ${etappen.length} Etappen · ${coords.length} Punkte · `
       + `Etappen ${etappeS.map(x => x.toFixed(1)).join("/")} s · Übergänge ${ueberS.slice(1).map(x => x.toFixed(1)).join("/")} s`);
+    try { _reiseBilanzZeigen(); } catch (_) {}
     return _reiseBahn;
+  }
+
+  /** Sagt, wie lang die Reise wirklich wird. 08.09.2026: In Marcs „66 Seen"
+   *  standen 12 s Animation gegen vierzehn Übergänge à 3 s — vier Fünftel des
+   *  Videos waren Flug über leere Karte, und nichts in der Oberfläche sagte das. */
+  function _reiseBilanzZeigen() {
+    const host = document.getElementById("anim-reise-bilanz");
+    if (!host) return;
+    if (!_reiseBahn) { host.hidden = true; return; }
+    const e = _reiseBahn.sekEtappen || 0, u = _reiseBahn.sekUeber || 0;
+    const g = e + u;
+    host.hidden = false;
+    host.textContent = t("animator.tours.bilanz", "Gesamt {g} s — Etappen {e} s, Übergänge {u} s")
+      .replace("{g}", g.toFixed(1)).replace("{e}", e.toFixed(1)).replace("{u}", u.toFixed(1));
+    host.classList.toggle("warnt", u > e);
   }
 
   /** Bahn als aktuellen Track übernehmen (die Vorschau rechnet damit weiter). */
@@ -14283,23 +14338,39 @@ function mountAnimator(body, headerActions, opts) {
     return true;
   }
 
-  /** Linie ohne Verbindungsstriche: je Etappe ein eigener Strang. */
+  /** Zeichnet die Reise und liefert die Geometrie für `preview-track`.
+   *
+   * ⚠️ 08.09.2026 (Marc: „sieht es so aus als seien die doppelt drin"): Erst lag
+   * die GANZE Bahn im Haupt-Track — über den Etappenlinien, die als eigene
+   * Quellen (`mtour-prev-i`) in ihrer Farbe darunter liegen. Jede Etappe war
+   * damit zweimal auf der Karte, einmal bunt und einmal in der Track-Farbe.
+   * Jetzt bekommt der Haupt-Track NUR die erste Etappe (mit Schatten, Aura und
+   * Farbverlauf wie bei einer einzelnen Tour), und jede weitere Etappe wächst in
+   * ihrer EIGENEN Linie — so wie der klassische Render sie malt. */
   function _reiseGeometrie(coords, ab) {
     if (!_reiseAktiv()) return { type: "LineString", coordinates: coords };
-    const tv = _reiseBahn.teilVon;
-    const teile = [];
-    let akt = null, letzt = -2;
-    for (let k = 0; k < coords.length; k++) {
-      const t = tv[ab + k];
-      if (t == null) continue;
-      if (t !== letzt) { akt = []; teile.push(akt); letzt = t; }
-      akt.push(coords[k]);
+    const bahn = _reiseBahn;
+    const bis = ab + coords.length - 1;      // wie weit die Vorschau gerade zeichnet
+    // Etappen 2..n in ihre eigenen Quellen, bis zum erreichten Punkt.
+    for (let i = 1; i < bahn.teile.length; i++) {
+      const t = bahn.teile[i];
+      const id = "mtour-prev-" + (i - 1);
+      let stueck = [];
+      if (bis >= t.von) {
+        const ende = Math.min(t.bis, bis);
+        if (ende > t.von) stueck = bahn.coords.slice(t.von, ende + 1);
+      }
+      try {
+        const q = map && map.getSource(id);
+        if (q) rzSetDataLatest(map, q, { type: "Feature",
+          geometry: { type: "LineString", coordinates: stueck.length >= 2 ? stueck : [] } });
+      } catch (_) {}
     }
-    const gut = teile.filter(x => x.length >= 2);
-    if (!gut.length) return { type: "LineString", coordinates: coords };
-    return gut.length === 1
-      ? { type: "LineString", coordinates: gut[0] }
-      : { type: "MultiLineString", coordinates: gut };
+    // Der Haupt-Track führt nur die erste Etappe.
+    const t0 = bahn.teile[0];
+    const von = Math.max(ab, t0.von), nach = Math.min(bis, t0.bis);
+    const eigen = (nach > von) ? bahn.coords.slice(von, nach + 1) : [];
+    return { type: "LineString", coordinates: eigen.length >= 2 ? eigen : [] };
   }
 
   /** Steht der Laufpunkt gerade in einem Übergang? */
@@ -14336,8 +14407,22 @@ function mountAnimator(body, headerActions, opts) {
       return { center: [A.c[0] + (B.c[0] - A.c[0]) * q, A.c[1] + (B.c[1] - A.c[1]) * q],
                zoom: A.z + (B.z - A.z) * q };
     }
-    // Kinoflug: heraus, hinüber, heran — dieselbe Form wie van Wijk im Render.
-    const raus = Math.min(A.z, B.z) - 1.2;
+    // Kinoflug: heraus, hinüber, heran. Wie weit heraus, hängt vom Abstand ab —
+    // ein fester Abzug ließ bei weit auseinander liegenden Etappen die ganze
+    // Fahrt über leere Karte laufen (08.09.2026 in Marcs „66 Seen" gesehen).
+    // Darum die Zoomstufe nehmen, die BEIDE Etappenmitten aufs Bild bringt.
+    if (_reiseBahn.rausZoom == null) _reiseBahn.rausZoom = {};
+    let raus = _reiseBahn.rausZoom[vonTeil];
+    if (raus == null) {
+      raus = Math.min(A.z, B.z) - 1.2;
+      try {
+        const lo = [Math.min(A.c[0], B.c[0]), Math.min(A.c[1], B.c[1])];
+        const hi = [Math.max(A.c[0], B.c[0]), Math.max(A.c[1], B.c[1])];
+        const cam = map.cameraForBounds([lo, hi], { padding: 80 });
+        if (cam && isFinite(cam.zoom)) raus = Math.min(raus, cam.zoom);
+      } catch (_) {}
+      _reiseBahn.rausZoom[vonTeil] = raus;
+    }
     const z = q < 0.5 ? A.z + (raus - A.z) * (q * 2) : raus + (B.z - raus) * ((q - 0.5) * 2);
     return { center: [A.c[0] + (B.c[0] - A.c[0]) * q, A.c[1] + (B.c[1] - A.c[1]) * q], zoom: z };
   }
@@ -14828,7 +14913,12 @@ function mountAnimator(body, headerActions, opts) {
     const lbl = document.getElementById("anim-fly-v");
     if (lbl) lbl.textContent = `${parseFloat(e.target.value).toFixed(1)} s`;
   });
-  document.getElementById("anim-fly")?.addEventListener("change", _animPersistTours);
+  document.getElementById("anim-fly")?.addEventListener("change", () => {
+    _animPersistTours();
+    // 08.09.2026 — die gemeinsame Flugdauer geht in die Etappen-Bahn ein: neu
+    // bauen, sonst zeigt die Vorschau (und die Bilanz darunter) den alten Stand.
+    try { _reiseAnwenden(); } catch (_) {}
+  });
   try { _animLoadTours(); } catch (_) {}
   if (typeof onSessionChanged === "function") {
     try { _animSessionUnsubs.push(onSessionChanged(() => {

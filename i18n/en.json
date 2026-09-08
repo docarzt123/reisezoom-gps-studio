@@ -2926,5 +2926,11 @@
   "animator.tours.ueber_kino": "Cinematic flight",
   "animator.tours.ueber_luft": "Straight line",
   "animator.tours.ueber_schnitt": "Cut",
-  "animator.tours.ueber_dauer": "How long this transition takes. Empty = the shared flight time."
+  "animator.tours.ueber_dauer": "How long this transition takes. Empty = the shared flight time.",
+  "animator.tours.sortieren": "Sort",
+  "animator.tours.sort_datum": "by date",
+  "animator.tours.sort_name": "by name",
+  "animator.tours.sort_um": "Reverse the order",
+  "animator.tours.sortiert": "Stages reordered.",
+  "animator.tours.bilanz": "{g} s in total — stages {e} s, transitions {u} s"
 }
