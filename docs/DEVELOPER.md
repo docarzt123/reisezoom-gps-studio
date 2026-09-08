@@ -3548,6 +3548,22 @@ Hier steht nur, wie es gebaut ist.
 | `<Bibliothek>/sicherungen/` | rollierende Kopien von `library.db` (5) |
 | `<Bibliothek>/.sperre` | Riegel 2, mit PID + Rechner-Kennung + Rechnername + Zeit |
 
+**Reise in der Vorschau (08.09.2026, v0.9.672):** `_reiseBauen()` (modules/animator/ui/module.js)
+setzt aus den Etappen EINE Bahn zusammen: jede Etappe wird auf so viele Punkte abgetastet, wie
+ihrem Zeitanteil entspricht (`_reiseAbtasten`), ein Übergang ist eine Reihe Wiederholungen des
+letzten Punktes. Dadurch bleibt die vorhandene Abbildung Fortschritt → Punktindex unangetastet;
+`_reiseAnwenden()` hängt die Bahn als `currentCoords` ein. Gezeichnet wird über
+`_reiseGeometrie(coords, ab)` als MultiLineString je Etappe (sonst zöge eine Gerade quer über
+die Karte, genau der Strich im zusammengeführten Track). `_reiseImUebergang(idx)` blendet den
+Laufpunkt aus, `_reiseKamera(idx)` liefert im Übergang den Flug (Kino = heraus/hinüber/heran,
+Luftlinie = linear) und innerhalb einer Etappe deren Bounds-Fit — Letzteres nur, wenn keine
+ECHTEN Keyframes gesetzt sind (`getRawTimelineEvents().length`, der Editor ist oft an, ohne dass
+einer existiert) und „Kamera folgt Track" aus ist. Die Zeitregel ist dieselbe wie in
+`core/animator.py::_reise_segmente`; Wächter: `tests/test_reise_vorschau.py` und
+`tests/test_etappen_zeitplan.py`. **Offen:** Der Szenen-Render läuft für Reisen weiter über den
+klassischen Generator (`app.py`: `_reise` → `_klassisch = True`), und die Einblendungen zeigen
+noch die Werte der Haupt-Tour statt Etappen- und Gesamtzähler (IDEAS §58).
+
 **Etappenzeiten und Übergänge in der Reise (08.09.2026, v0.9.671):** Der Zeitplan des
 Multi-Track-Renders liegt jetzt in der reinen Funktion `_reise_segmente(tours, anim_total,
 fly_frames, intro_frames, hold_frames, fps)` (core/animator.py) und ist damit ohne Render
