@@ -3882,7 +3882,7 @@ function mountAnimator(body, headerActions, opts) {
             _tlBar.setTempo(_tempoAnzeige(reise ? [] : eintraege), reise ? [] : (r.halte || []),
                             reise ? null : { dauer_s: r.dauer_s, anteile: r.map },
                             reise ? t("animator.tempo.reise_sperre",
-                                      "Die Reise bestimmt den Zeitplan — Etappen und Übergänge stellst du oben ein.")
+                                      "Der Ablauf «Nacheinander» bestimmt den Zeitplan — Etappen und Übergänge stellst du oben ein.")
                                   : null);
         } catch (_) {}
       } else { _paceMap = null; _tempoInfo = null; }

@@ -317,9 +317,8 @@ Tragen Sie umgekehrt bei **„Animation (s)"** eine Wunschlänge ein, rechnet da
 die Grundraffung passend zurück — Halte eingeschlossen. „Mach 20 Sekunden daraus"
 ergibt also wirklich 20 Sekunden.
 
-> **Bei einer Reise** (mehrere Etappen nacheinander) ist die Spur gesperrt und zeigt nur
-> an: dort machen die **Etappendauern und Übergänge** den Zeitplan, siehe nächster
-> Abschnitt.
+> **Bei mehreren Etappen** (Ablauf „Nacheinander") ist die Spur gesperrt und zeigt nur an:
+> dort machen die **Etappendauern und Übergänge** den Zeitplan, siehe nächster Abschnitt.
 
 ### Mehrere Etappen: Reihenfolge, Dauer und Übergänge
 
@@ -338,7 +337,7 @@ und darunter ihre Bedienung:
   heißt „die gemeinsame Kinoflug-Dauer ganz unten".
 
 **Die Übergänge kommen zur Animationsdauer dazu.** Unter der Liste steht deshalb, wie
-lang die Reise wirklich wird — aufgeteilt in Etappen und Übergänge. Die Zeile färbt sich
+lang das Video wirklich wird — aufgeteilt in Etappen und Übergänge. Die Zeile färbt sich
 orange, wenn die Flüge die Etappen überwiegen oder wenn feste Etappendauern den übrigen
 Etappen fast keine Zeit mehr lassen; dann steht dort auch, wie viel jeder übrigen Etappe
 bleibt. Jede Etappe behält mindestens drei Zehntelsekunden — lieber wird das Video etwas

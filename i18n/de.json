@@ -2959,7 +2959,7 @@
   "animator.tempo.langsamer": "langsamer",
   "animator.tempo.schneller": "schneller",
   "animator.tempo.normal": "normal",
-  "animator.tempo.reise_sperre": "Die Reise bestimmt den Zeitplan — Etappen und Übergänge stellst du oben ein.",
+  "animator.tempo.reise_sperre": "Der Ablauf «Nacheinander» bestimmt den Zeitplan — Etappen und Übergänge stellst du oben ein.",
   "animator.tempo.halt_hinweis": "Ein Halt verlängert das Video um seine Sekunden.",
   "animator.tempo.abschnitt_hinweis": "Der Faktor zählt gegen die Grundraffung. Langsamer heißt: dieser Abschnitt braucht mehr Videozeit.",
   "animator.tempo.entfernen": "Entfernen",
