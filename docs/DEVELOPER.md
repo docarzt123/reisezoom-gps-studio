@@ -3942,6 +3942,22 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    schaltet ab (Prüfstand). Alle 300 Aufrufe werden 150 Aufrufe alte Einträge verworfen.
    Messung (30-fps-Bildschirmaufnahme, `scratchpad flicker/blocks.py`, Masca-Intro):
    «schnell» 136 → 0 Flacker-Blöcke (zweimal), stehende Kamera vorher wie nachher 0.
+7. `/* rz-patch terraincover */` (08.09.2026, Marc: 3.png + Bildschirmaufnahme 08:22, „beim
+   langsamen Durchklicken ist die Kachel da"): Gelände-Zweig von
+   `SourceCache._updateCoveredAndRetainedTiles`. Fehlt von vier Kindkacheln EINE (neu am Bildrand,
+   noch nicht geladen), nimmt MapLibre die Elternkachel und löscht die drei geladenen Kinder aus
+   der Zeichenmenge (`for(e in t) t[e].isChildOf(parent) && delete t[e]`) → grobe Fläche für ein
+   Bild (olive = Sentinel-Eltern im RTT). Dazu `findLoadedParent` über `_loadedParentTiles`, der
+   erst am Ende von `update()` erneuert wird → veraltet, ein Bild lang gar keine Kachel (Blue
+   Marble scheint durch = dunkelblau/schwarz). Patch: geladene Kinder bleiben in der Zeichenmenge
+   (Stencil regelt die Überlappung wie ohne Gelände), Elternsuche direkt über `_getLoadedTile`.
+   Schalter `window.__rzNoTerrainCover = true` = Original. Messung Bildschirmaufnahme 30 fps
+   (ffmpeg avfoundation, `scratchpad flicker/blocks.py`, ganzer Masca-Probelauf): 89 Blöcke in
+   7 Bildern → 3 bzw. 1 Einzelblöcke; kopflos über die echte Brücke 3 harmlose Rücksprünge.
+   Diagnoseweg, der den Fall gefunden hat: Probelauf-Zähler `Kachelmengen-Wechsel / A-B-A` +
+   `[probelauf-aba]`-Beispiele (B-A = nur im Ausreißer-Bild vorhanden) → in den NORMALEN Bildern
+   stand die z14-Elternkachel, nur im Ausreißer die geladenen z15-Kinder → Ursache liegt nach der
+   Kachelwahl, in der Verdeckungslogik.
 Ergebnis: Schorfheide 7–8 Wechselpixel, Zermatt 36, Teide 60 und Silhouette geschlossen, keine Risse mehr (Zermatt-Riss aus dem ersten Stitching-Stand war die 20–40 m Restdifferenz der Näherung über die eigene DEM).
 Bei jedem MapLibre-Update neu einpflegen; Wächter `tests/test_line3d.py` prüft die Marker,
 `rz_ele` dreimal und `u_rz_edge`.
