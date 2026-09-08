@@ -7196,6 +7196,27 @@ function mountAnimator(body, headerActions, opts) {
               _faithCams[i].pos[2] = _faithCams[i].pos[2] + _gew[i] * (summe / (hi - lo + 1) - _ezs[i]);
             }
           }
+          // 08.09.2026 (Marc: Kachel-Blitzer, letzter Rest): die Zielhöhe eM der Stützstellen kommt
+          // aus queryTerrainElevation und springt zwischen DEM-Stufen um Meter (je nach dem, welche
+          // Geländekacheln gerade geladen sind — beim zweiten Probelauf anders als beim ersten).
+          // Der Zoom ist f(Kamerahöhe − eM): war nur die Kamerahöhe geglättet, zitterte der Zoom
+          // im Stützstellen-Takt (Probelauf: 30 Zoom-Richtungswechsel), und am Sichtkegelrand
+          // kippten Kacheln rein und raus. Deshalb eM mit demselben Fenster glätten. Synchron zu
+          // core/animator.py __camPrepFaithful.
+          if (_faithCams.length > 2 * _glattW + 1) {
+            let _lE = null;
+            const _ems = _faithCams.map((c) => { if (c.eM != null && isFinite(c.eM)) _lE = c.eM; return _lE; });
+            if (_ems.some((v) => v != null)) {
+              const _emsF = _ems.map((v) => (v == null ? 0 : v));
+              const _neu = _faithCams.map((c, i) => {
+                if (!_gew[i] || c.eM == null) return c.eM;
+                const lo = Math.max(0, i - _glattW), hi = Math.min(_faithCams.length - 1, i + _glattW);
+                let summe = 0; for (let j = lo; j <= hi; j++) summe += _emsF[j];
+                return c.eM + _gew[i] * (summe / (hi - lo + 1) - _emsF[i]);
+              });
+              for (let i = 0; i < _faithCams.length; i++) _faithCams[i].eM = _neu[i];
+            }
+          }
           try { _camApply(_savedCam.pos, _savedCam.ori, _savedCam.bp); } catch (_) {}
           try { if (_savedClamp != null && map.setCenterClampedToGround) map.setCenterClampedToGround(_savedClamp); } catch (_) {}
           _useFaithful = true;

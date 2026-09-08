@@ -2707,6 +2707,14 @@ OSMF-Standardserver: Prefetch = Bulk → absprache. Konzept: `docs/KARTENQUELLEN
 LIZENZKONZEPT.md`; nächster Schritt: Nennungs-Modus (alles im Bild / Hinweis +
 eigener Link / reisezoom-Shortlink), IDEAS §56.
 
+**Ruhige Kamera, Zielhöhe glätten (08.09.2026 Mittag):** `_faithBuild` (module.js) und
+`__camPrepFaithful` (core/animator.py) glätten neben der Kamerahöhe `pos[2]` jetzt auch die
+Zielhöhe `eM` der Stützstellen (gleiches Fenster, gleiche Gewichte). `eM` kommt aus
+`queryTerrainElevation` und hängt davon ab, welche DEM-Stufe gerade geladen ist, beim zweiten
+Probelauf anders als beim ersten; der Zoom ist f(Kamerahöhe minus eM), also zitterte er im
+Stützstellen-Takt (Probelauf-Zähler «Zoom-Richtungswechsel» 30 → 2) und kippte Randkacheln.
+MapLibres `_elevateCameraIfInsideTerrain` war es nicht (0 Anhebungen gemessen).
+
 **Projektion (08.09.2026, Marc: „flackert immer noch, egal in welcher Qualität"):**
 `core/mapstyles.PROJECTION` = `ui/js/util.js RZ_PROJECTION` = `["interpolate",["linear"],["zoom"],7,
 "vertical-perspective",9,"mercator"]` statt `globe`. MapLibres «globe» ist «vertical-perspective» mit
@@ -3962,6 +3970,15 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    `[probelauf-aba]`-Beispiele (B-A = nur im Ausreißer-Bild vorhanden) → in den NORMALEN Bildern
    stand die z14-Elternkachel, nur im Ausreißer die geladenen z15-Kinder → Ursache liegt nach der
    Kachelwahl, in der Verdeckungslogik.
+8. `/* rz-patch aabbmargin */` (08.09.2026 Mittag): `getTileAABB` (Mercator-Provider) baut die
+   Hüllbox fürs Frustum-Culling aus `terrain.getMinMaxElevation(tile)`: ohne DEM flach auf
+   `transform.elevation` (bei uns 0), und beim Eintreffen des eigenen DEM springt die Spanne von
+   der Eltern- auf die eigene (z. B. 0…0 bei einer Küstenkachel), die Kachel am Sichtkegelrand
+   wird ein Bild lang verworfen (dem/es-Rücksprünge «A-B» mit identischer Hüllbox). Jetzt:
+   Vereinigung mit Eltern- und Großeltern-Spanne, ±300 m Rand; ohne jede Spanne 0…5000 m. Nur
+   Culling, Überschätzen kostet ein paar Randkacheln. Schalter `window.__rzNoAabbMargin`.
+   Verworfen: «Cull-Hold» (Knoten drei Bilder halten): gehaltene Knoten wurden weiter unterteilt,
+   35 statt 50 fps und große Blitzer.
 Ergebnis: Schorfheide 7–8 Wechselpixel, Zermatt 36, Teide 60 und Silhouette geschlossen, keine Risse mehr (Zermatt-Riss aus dem ersten Stitching-Stand war die 20–40 m Restdifferenz der Näherung über die eigene DEM).
 Bei jedem MapLibre-Update neu einpflegen; Wächter `tests/test_line3d.py` prüft die Marker,
 `rz_ele` dreimal und `u_rz_edge`.
