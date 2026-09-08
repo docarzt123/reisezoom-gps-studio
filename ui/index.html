@@ -228,6 +228,9 @@
 
   // 1) Klassische JS-Fehler (inkl. Syntaxfehler in nachgeladenen Dateien)
   window.onerror = function (msg, src, line) {
+    // 08.09.2026: Shader-Übersetzungsfehler (Metal/ANGLE) enthalten den ganzen übersetzten
+    // Quelltext — davon nur die ersten drei Zeilen ins Log; die Karte schaltet in util.js um.
+    if (/MSL compilation error|Program failed to link/.test(String(msg))) msg = String(msg).split('\n').slice(0, 3).join(' | ');
     fail('JavaScript-Fehler beim Start',
       msg + (src ? ('  —  ' + String(src).split('/').pop() + ':' + line) : ''));
     return false;

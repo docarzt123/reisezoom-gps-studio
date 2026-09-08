@@ -2909,5 +2909,6 @@
   "settings.preview_quality.voll": "full — like the video",
   "settings.preview_quality.flott": "brisk — fewer tiles per frame",
   "settings.preview_quality.schnell": "fast — half resolution",
-  "settings.preview_quality.help": "If the preview stutters (many tiles, terrain, Retina), try “brisk” or “fast”. Video and still always render at full quality; camera, track and overlays stay identical."
+  "settings.preview_quality.help": "If the preview stutters (many tiles, terrain, Retina), try “brisk” or “fast”. Video and still always render at full quality; camera, track and overlays stay identical.",
+  "error.shader_fallback": "Graphics driver failed on the globe shader — the map continues without the globe"
 }
