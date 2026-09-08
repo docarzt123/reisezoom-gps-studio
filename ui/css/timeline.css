@@ -871,14 +871,49 @@ body.wert-zieht .timeline-marker.is-selected {
 .tl-tempo-rand[data-rand="l"] { left: -1px; }
 .tl-tempo-rand[data-rand="r"] { right: -1px; }
 .tl-tempo-rand:hover { background: rgba(255,169,77,.55); }
+/* Ein Halt belegt Videozeit — deshalb ein Band über genau diese Zeit, nicht
+   ein Pfosten. Schmale Halte zeigen nur das Pausenzeichen, breite auch die
+   Sekunden; beides bleibt lesbar, weil der Text nie über den Rand läuft. */
 .tl-tempo-halt {
-  position: absolute; top: 2px; bottom: 2px; transform: translateX(-50%); z-index: 3;
+  position: absolute; top: 2px; bottom: 2px; z-index: 3;
   appearance: none; border: 1px solid rgba(255,169,77,.9); border-radius: 5px;
-  background: rgba(255,169,77,.26); color: #ffd9ad; cursor: grab;
-  padding: 0 5px; display: flex; align-items: center;
+  background: repeating-linear-gradient(135deg,
+      rgba(255,169,77,.34) 0 5px, rgba(255,169,77,.18) 5px 10px);
+  color: #ffe6c9; cursor: grab; min-width: 8px;
+  padding: 0 3px; display: flex; align-items: center; justify-content: center;
+  gap: 3px; overflow: hidden; white-space: nowrap;
 }
-.tl-tempo-halt:hover { background: rgba(255,169,77,.42); }
+.tl-tempo-halt:hover { background: rgba(255,169,77,.46); }
 .tl-tempo-halt.ist-gesperrt {
-  border-style: dashed; opacity: .6; cursor: default;
+  border-style: dashed; cursor: default;
+  border-color: rgba(255,169,77,.55); color: rgba(255,230,201,.75);
+  background: repeating-linear-gradient(135deg,
+      rgba(255,169,77,.20) 0 5px, rgba(255,169,77,.07) 5px 10px);
 }
-.tl-tempo-sek { font-size: 9.5px; font-weight: 700; white-space: nowrap; }
+.tl-tempo-pause { font-size: 8px; line-height: 1; opacity: .85; pointer-events: none; }
+.tl-tempo-sek {
+  font-size: 9.5px; font-weight: 700; white-space: nowrap; pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0,0,0,.65);
+}
+
+/* Die Tempo-Spur trägt Bänder statt Punkte und ist die einzige Spur, die auch
+   ohne Keyframe-Editor steht — sie bekommt deshalb etwas mehr Höhe, damit
+   Sekunden und Faktor lesbar bleiben (Marc, 08.09.2026). */
+.timeline-lane[data-kind="tempo"] { height: 30px; }
+.timeline-lane[data-kind="tempo"] .tl-tempo-block { top: 4px; bottom: 4px; }
+.timeline-lane[data-kind="tempo"] .tl-tempo-halt { top: 3px; bottom: 3px; }
+
+/* Die Bilanz der Tempo-Kurve unter der Spur: was am Ende herauskommt.
+   Zurückhaltend, aber lesbar — sie steht dauerhaft da (Marc, 08.09.2026). */
+.timeline-tempo-bilanz {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(255, 214, 165, 0.9);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 auto;
+  text-align: left;
+}
+.timeline-tempo-bilanz.warnt { color: #ffb066; }
