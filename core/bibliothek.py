@@ -30,10 +30,14 @@ from __future__ import annotations
 import gzip
 import json
 import os
+import re
 import shutil
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -44,6 +48,12 @@ SPERRDATEI = ".sperre"
 # Wie lange eine Sperre gilt, deren Prozess nicht mehr lebt oder von einem
 # anderen Rechner stammt. Kurz genug, dass ein Absturz nicht aussperrt.
 SPERRE_VERFALL_S = 12 * 3600
+# Sperren AUS ALTEN FASSUNGEN tragen keine Rechner-Kennung, nur den Namen. Weil
+# der Name unter macOS mit dem Netz wechselt (08.09.2026: "MacBookPro.fritz.box"
+# -> "MacBook-Pro-von-Marc-2.local"), galten sie als Sperre eines fremden Rechners
+# und sperrten 12 Stunden aus. Solche Sperren verfallen darum schnell; sie gibt es
+# nur bis zum naechsten Start dieser Fassung.
+SPERRE_VERFALL_OHNE_KENNUNG_S = 15 * 60
 
 # Rollierende Sicherungen der Datenbank — der Rettungsanker für Riegel 3.
 SICHERUNGEN_MAX = 5
@@ -148,9 +158,10 @@ def _sperre_lebt(d: dict) -> bool:
         alter = time.time() - float(d.get("zeit") or 0)
     except Exception:
         alter = 0.0
-    if alter > SPERRE_VERFALL_S:
+    grenze = SPERRE_VERFALL_S if d.get("rechner_id") else SPERRE_VERFALL_OHNE_KENNUNG_S
+    if alter > grenze:
         return False
-    if str(d.get("rechner") or "") != _rechnername():
+    if not _gleicher_rechner(d):
         return True                      # fremder Rechner, noch nicht verfallen
     pid = int(d.get("pid") or 0)
     if pid <= 0:
@@ -172,6 +183,68 @@ def _rechnername() -> str:
         return "?"
 
 
+_RECHNER_ID: Optional[str] = None
+
+
+def _rechner_id() -> str:
+    """Stabile Kennung DIESES Rechners — unabhaengig vom Namen.
+
+    08.09.2026 (Marc: „Bibliothek ist bereits geoeffnet", obwohl nichts lief):
+    Der Rechnername ist unter macOS nicht stabil. Im Fritzbox-Netz meldete der
+    Mac „MacBookPro.fritz.box", spaeter „MacBook-Pro-von-Marc-2.local". Eine
+    Sperre, die beim harten Beenden liegen blieb, galt damit als Sperre eines
+    FREMDEN Rechners — und fremde Sperren werden nicht am Prozess geprueft,
+    sondern erst nach 12 Stunden ungueltig. Ergebnis: 12 Stunden ausgesperrt.
+    Deshalb identifizieren wir den Rechner ueber eine Kennung, die sich nicht
+    mit dem Netzwerk aendert; der Name bleibt nur noch fuer die Anzeige.
+    """
+    global _RECHNER_ID
+    if _RECHNER_ID:
+        return _RECHNER_ID
+    kennung = ""
+    try:
+        if sys.platform == "darwin":
+            aus = subprocess.run(["/usr/sbin/ioreg", "-rd1", "-c", "IOPlatformExpertDevice"],
+                                 capture_output=True, text=True, timeout=5).stdout
+            m = re.search(r'"IOPlatformUUID"\s*=\s*"([^"]+)"', aus)
+            if m:
+                kennung = m.group(1)
+        elif sys.platform.startswith("linux"):
+            for pfad in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+                try:
+                    kennung = Path(pfad).read_text(encoding="utf-8").strip()
+                    if kennung:
+                        break
+                except OSError:
+                    pass
+        elif sys.platform.startswith("win"):
+            aus = subprocess.run(["reg", "query", r"HKLM\SOFTWARE\Microsoft\Cryptography",
+                                  "/v", "MachineGuid"], capture_output=True, text=True, timeout=5).stdout
+            m = re.search(r"MachineGuid\s+REG_SZ\s+(\S+)", aus)
+            if m:
+                kennung = m.group(1)
+    except Exception:  # noqa: BLE001
+        kennung = ""
+    if not kennung:
+        # Notnagel: MAC-Adresse. Aendert sich seltener als der Name, und wenn
+        # sie fehlt, faellt die Pruefung sauber auf den Namen zurueck.
+        try:
+            kennung = f"mac-{uuid.getnode():x}"
+        except Exception:  # noqa: BLE001
+            kennung = ""
+    _RECHNER_ID = kennung
+    return kennung
+
+
+def _gleicher_rechner(d: dict) -> bool:
+    """Stammt die Sperre von DIESEM Rechner? Kennung schlaegt Name."""
+    fremd_id = str(d.get("rechner_id") or "")
+    eigen_id = _rechner_id()
+    if fremd_id and eigen_id:
+        return fremd_id == eigen_id
+    return str(d.get("rechner") or "") == _rechnername()
+
+
 def sperre_nehmen(ort: Path) -> dict:
     """{"ok": True} — oder {"ok": False, "belegt_von": {...}}."""
     ort = Path(ort)
@@ -184,12 +257,13 @@ def sperre_nehmen(ort: Path) -> dict:
         # Wiederverbinden nach „Bibliothek nicht erreichbar"). Die eigene
         # Sperre ist keine fremde.
         eigen = (int(alt.get("pid") or 0) == os.getpid()
-                 and str(alt.get("rechner") or "") == _rechnername())
+                 and _gleicher_rechner(alt))
         if not eigen and _sperre_lebt(alt):
             return {"ok": False, "belegt_von": alt}
     except Exception:
         pass                             # keine, kaputte oder verfallene Sperre
     s.write_text(json.dumps({"pid": os.getpid(), "rechner": _rechnername(),
+                             "rechner_id": _rechner_id(),
                              "zeit": time.time(),
                              "seit": datetime.now().astimezone().isoformat(timespec="seconds")},
                             ensure_ascii=False), encoding="utf-8")
@@ -201,7 +275,7 @@ def sperre_freigeben(ort: Path) -> None:
     s = Path(ort) / SPERRDATEI
     try:
         d = json.loads(s.read_text(encoding="utf-8"))
-        if int(d.get("pid") or 0) == os.getpid() and str(d.get("rechner") or "") == _rechnername():
+        if int(d.get("pid") or 0) == os.getpid() and _gleicher_rechner(d):
             s.unlink()
     except Exception:
         pass
