@@ -2707,6 +2707,20 @@ OSMF-Standardserver: Prefetch = Bulk → absprache. Konzept: `docs/KARTENQUELLEN
 LIZENZKONZEPT.md`; nächster Schritt: Nennungs-Modus (alles im Bild / Hinweis +
 eigener Link / reisezoom-Shortlink), IDEAS §56.
 
+**Projektion (08.09.2026, Marc: „flackert immer noch, egal in welcher Qualität"):**
+`core/mapstyles.PROJECTION` = `ui/js/util.js RZ_PROJECTION` = `["interpolate",["linear"],["zoom"],7,
+"vertical-perspective",9,"mercator"]` statt `globe`. MapLibres «globe» ist «vertical-perspective» mit
+Wanduhr-Übergang auf Mercator zwischen Zoom 11 und 12 (plus Fehlerkorrektur, s. `rz-patch globeerr`);
+in dieser Zone kippt in `coveringTiles` der Sichtkegel-Test (`pe(frustum, aabb, clip)`) für dieselbe
+Kachel mit identischer Hüllbox von Bild zu Bild (verworfen → ausgegeben → verworfen), sodass für ein
+Bild die gröbere Kachel (Sentinel-Elternkachel im RTT, oder gar keine → schwarz) über den feinen
+gezeichnet wird. Diagnoseweg, kopflos über die echte Brücke (`scratchpad flicker/run_realbridge.py`:
+Projekt öffnen wie `core/szene`, Probe-Lauf-Knopf, `map.on('render')`-Hook zählt A-B-A-Rücksprünge der
+`getRenderableIds()` je Quelle + DEM): «globe» 40 Rücksprünge, `setProjection('mercator')` 4, Zoom-
+Ausdruck 3 (zwei z1-Kacheln im All, ein echter Nachlader). `rzGlobeForMapLibre` setzt nie mehr «globe»
+zurück, sondern vergleicht gegen `RZ_PROJECTION`. Wächter: `tests/test_kacheldichte.py`. Die Hysterese
+`rz-patch lodhyst` bleibt (harmlos, hilft an echten Stufengrenzen), war aber nicht die Hauptursache.
+
 **Vorschau-Qualität (07.09.2026, Marc: Masca 2 ruckelt):** Einstellung
 `preview_quality` (voll | flott | schnell, app.py-Default voll). `rzApplyPreviewQuality()`
 (util.js, nach `settings_get` und vor jedem `createMap`) setzt `window.__rzTileDensityMax`

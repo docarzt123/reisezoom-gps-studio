@@ -308,6 +308,16 @@ BASE_LAYER = {
     "attribution": "Hintergrund: NASA Blue Marble (GIBS)",
 }
 ORTHO_MINZOOM = 7
+
+# 08.09.2026 (Marc: „Kacheln flackern, egal in welcher Qualität") — MapLibres `globe` blendet
+# zwischen Zoom 11 und 12 mit Wanduhr-Übergang und Fehlerkorrektur von der Kugel auf Mercator;
+# in dieser Zone kippt der Sichtkegel-Test der Kachelwahl von Bild zu Bild (dieselbe Kachel mit
+# identischer Hüllbox: verworfen, ausgegeben, verworfen), eine gröbere Kachel blitzt ein Bild
+# lang über den feinen auf. Kopflos gemessen (Masca-Probelauf, A-B-A-Rücksprünge der sichtbaren
+# Kachelmengen): globe 40, mercator 4, dieser Ausdruck 3. Kugel also nur im Weltraum-Anflug
+# (bis Zoom 7), ab Zoom 9 reines Mercator — der Übergang hängt allein am Zoom, ohne Uhr.
+# JS-Spiegel: RZ_PROJECTION in ui/js/util.js.
+PROJECTION = {"type": ["interpolate", ["linear"], ["zoom"], 7, "vertical-perspective", 9, "mercator"]}
 # 05.09.2026 (Marc, Teneriffa-Schwarm bei Zoom 9: harte Naht PNOA/Sentinel, schwarzes
 # Meer): Bei weiten Zoomstufen zeigt der Stapel NUR Sentinel-2 (weltweit einheitlich);
 # die Landesdienste blenden erst ab Zoom 11 ein und sind ab 12,5 voll da. Gilt für
@@ -544,7 +554,7 @@ def stack_style(stack: list[dict], proxy_base: str = "", adjust=None, dpr: float
         layers.append(lay)
     # Weltkugel: MapLibre 5 zeichnet bei kleinem Zoom einen Globus (Anflug aus
     # dem All wie bei Mapbox) — der Blue-Marble-Untergrund macht ihn erst schön.
-    return {"version": 8, "projection": {"type": "globe"}, "sources": sources, "layers": layers}
+    return {"version": 8, "projection": PROJECTION, "sources": sources, "layers": layers}
 
 
 def region_leaflet(region: dict, transparent: bool = False) -> dict:
@@ -610,7 +620,7 @@ def raster_style(tiles: list[str], *, tile_size: int = 256, maxzoom: int = 19,
            "maxzoom": int(maxzoom), "attribution": attribution}
     if scheme == "tms":
         src["scheme"] = "tms"
-    return {"version": 8, "projection": {"type": "globe"},   # 03.09.2026: Weltkugel wie bei Mapbox
+    return {"version": 8, "projection": PROJECTION,   # 03.09.2026: Weltkugel wie bei Mapbox
             "sources": {"rz-raster": src},
             "layers": [{"id": "rz-raster", "type": "raster", "source": "rz-raster", "minzoom": 0}]}
 
