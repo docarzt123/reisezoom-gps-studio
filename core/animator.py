@@ -3566,7 +3566,10 @@ window.__camPrepFaithful = async (camList, glattFenster) => {{
     // Geländeanteil der Kamerahöhe (Höhe = Gelände unter der Bildmitte
     // + Flughöhe aus dem Zoom). Nur DIESER Anteil wird unten geglättet.
     let ez = null, eM = null;
-    try {{
+    if (k.dem && k.ele != null && isFinite(k.ele)) {{
+      // 08.09.2026 — feste Kachelstufe (core/demsample), synchron zur Vorschau
+      eM = k.ele; letztEM = k.ele; try {{ ez = window.__rzMC.fromLngLat([k.lng, k.lat], k.ele).z; }} catch (_) {{}}
+    }} else try {{
       let e = map.queryTerrainElevation([k.lng, k.lat]);
       // 08.09.2026: ohne Kacheln liefert MapLibre 0, nicht null → GPX-Höhe (synchron zur Vorschau)
       if (e === 0 && k.ele != null && Math.abs(k.ele) > 50) e = null;
@@ -5908,6 +5911,21 @@ async def render(
                             "t": _zeitp, "lng": _lo, "lat": _la,
                             "zoom": zoom + _zo, "pitch": _pf, "bearing": _bf, "ele": _ele_g,
                         })
+                    # 08.09.2026 — Geländehöhe je Stützstelle aus FESTER Kachelstufe (core/demsample),
+                    # nicht aus den zufällig geladenen Höhenkacheln der Render-Seite: synchron zur
+                    # Vorschau (module.js _faithBuild, api dem_hoehen). Nur freies Gelände (Terrarium).
+                    if getattr(cfg, "enable_terrain", False) and getattr(cfg, "map_engine", "mapbox") != "mapbox" and _kf_cam_list:
+                        try:
+                            from . import demsample as _demsample
+                            _hs = _demsample.hoehen([[_k["lng"], _k["lat"]] for _k in _kf_cam_list], cache_dir=TILE_CACHE_DIR)
+                            _exg = float(getattr(cfg, "exaggeration", 1.0) or 1.0)
+                            _n_dem = 0
+                            for _k, _h in zip(_kf_cam_list, _hs):
+                                if _h is not None:
+                                    _k["ele"] = float(_h) * _exg; _k["dem"] = True; _n_dem += 1
+                            _log.info("Ruhige Kamera: Höhen fest z%d für %d/%d Stützstellen", _demsample.DEM_ZOOM, _n_dem, len(_kf_cam_list))
+                        except Exception as _e:  # noqa: BLE001
+                            _log.warning("Ruhige Kamera: feste Höhen nicht verfügbar (%s) — Kartenweg", _e)
                     _gew = ([1.0] * len(_anchors)) if _smooth_all else _timeline.glatt_gewichte(_events_zeit, _anchors, _glatt_fenster)
                     for _k, _g in zip(_kf_cam_list, _gew):
                         _k["g"] = _g

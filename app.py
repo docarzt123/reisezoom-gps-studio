@@ -157,7 +157,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.663"
+APP_VERSION = "0.9.664"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -8221,6 +8221,19 @@ class Api:
         except Exception as e:
             log.error("gpxinspect_append_track: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
+
+    def dem_hoehen(self, points: list, z: int = 13) -> dict:
+        """08.09.2026 — Geländehöhen (m) je [lng, lat] aus AWS-Terrarium-Kacheln FESTER Stufe
+        (core/demsample), gecacht in der Kachel-Weiche. Die ruhige Kamera baut ihre
+        Stützstellen damit kachelunabhängig — Vorschau und Render gleich."""
+        from core import demsample
+        try:
+            pts = list(points or [])
+            h = demsample.hoehen(pts, z=int(z or demsample.DEM_ZOOM), cache_dir=canim.TILE_CACHE_DIR)
+            n_ok = sum(1 for v in h if v is not None)
+            return {"ok": n_ok > 0, "hoehen": h, "z": int(z or demsample.DEM_ZOOM), "n": len(pts), "n_ok": n_ok}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(e).__name__}: {e}", "hoehen": []}
 
     def gpxinspect_heal(self, points: list, max_speed_kmh: float = 250.0,
                         schritte: list = None, nur_analyse: bool = False) -> dict:
