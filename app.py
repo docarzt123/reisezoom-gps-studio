@@ -86,6 +86,7 @@ import webview
 from PIL import Image, ImageOps
 
 from core import gpx as cgpx
+from core import tempo as ctempo   # 08.09.2026 — Tempo-Kurve (Raffung, Halte, Abschnitte)
 from core import imports as cimports  # v0.9.282: universelle Track-Import-Schicht
 from core import exif as cexif
 from core import geotag as cgeo
@@ -157,7 +158,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.675"
+APP_VERSION = "0.9.678"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -4700,6 +4701,49 @@ class Api:
             log.exception("animator_pause_info")
             return {"ok": False, "error": str(e)}
 
+    def animator_tempo_map(self, payload: dict) -> dict:
+        """Tempo-Kurve für Vorschau und Render — die EINE Wahrheit (core/tempo.py).
+
+        08.09.2026 (Marc): Grundlage ist eine Raffung („140-fach gegen echt"),
+        darüber liegen Halte und Tempo-Abschnitte. Wie lang das Video wird,
+        ergibt sich daraus.
+
+        payload: {gpx_path, basis: "zeit"|"strecke"|"punkte", rate, eintraege: [],
+                  fps, dauer_s (statt rate: Raffung daraus ableiten),
+                  pause_mode, pause_min_s, pause_trim_s}
+        """
+        try:
+            pfad = (payload or {}).get("gpx_path") or ""
+            if not pfad or not os.path.exists(pfad):
+                return {"ok": False, "error": _ui_t()("error.gpx_nicht_gefunden", "GPX nicht gefunden")}
+            p = dict(payload or {})
+            pts, _st = cgpx.parse_gpx(pfad)
+            basis = str(p.get("basis") or ctempo.BASIS_STRECKE)
+            pausen = str(p.get("pause_mode", "trim") or "trim")
+            ab_s = float(p.get("pause_min_s", 120) or 120)
+            auf_s = float(p.get("pause_trim_s", 5) or 5)
+            if p.get("rate") in (None, "", 0):
+                # Wunschdauer → Raffung, MIT den Halten: sie sind ein fester
+                # Zuschlag, der Streckenteil skaliert umgekehrt zur Raffung.
+                rate = ctempo.rate_fuer_wunschdauer(
+                    pts, basis, float(p.get("dauer_s") or 12),
+                    list(p.get("eintraege") or []),
+                    pausen=pausen, pause_ab_s=ab_s, pause_auf_s=auf_s)
+            else:
+                rate = float(p.get("rate"))
+            k = ctempo.kurve(pts, basis=basis, rate=rate,
+                             eintraege=list(p.get("eintraege") or []),
+                             fps=int(p.get("fps", 30) or 30),
+                             pausen=pausen, pause_ab_s=ab_s, pause_auf_s=auf_s)
+            # Die Vorschau liest die Tabelle wie bisher als Anteile 0..1.
+            return {"ok": True, "map": k["anteile"], "dauer_s": k["dauer_s"],
+                    "sek_strecke": k["sek_strecke"], "sek_halte": k["sek_halte"],
+                    "halte": k["halte"], "rate": k["rate"], "basis": k["basis"],
+                    "hinweise": k["hinweise"], "punkte": len(pts)}
+        except Exception as e:   # noqa: BLE001
+            log.warning("animator_tempo_map: %s", e)
+            return {"ok": False, "error": str(e)}
+
     def animator_pace_map(self, payload: dict) -> dict:
         """Tabelle „Fortschritt → Punkt" für die Vorschau.
 
@@ -4970,6 +5014,8 @@ class Api:
             marker_dot_size=float(params.get("marker_dot_size", 1.0) or 1.0),
             marker_dot_smooth=float(params.get("marker_dot_smooth", 5.0) or 0.0),
             pace_mode=str(params.get("pace_mode", "raw") or "raw"),
+            # 08.09.2026 — Tempo-Kurve aus der Vorschau (Halte, Abschnitte).
+            pace_map=(list(params.get("pace_map") or []) or None),
             pause_mode=str(params.get("pause_mode", "trim") or "trim"),
             pause_min_s=float(params.get("pause_min_s", 120) or 120),
             pause_trim_s=float(params.get("pause_trim_s", 5) or 5),

@@ -409,6 +409,9 @@ function mountAnimator(body, headerActions, opts) {
               ${t("animator.pace_mode.hint")}
               <div id="anim-pace-desc" style="margin-top:6px;"></div>
             </div>
+            <!-- 08.09.2026 (Marc) — was die Raffung ergibt: Gesamtlänge, davon
+                 Strecke und Halte. Die Dauer ist ab hier ein Ergebnis. -->
+            <div id="anim-tempo-bilanz" class="anim-tempo-bilanz" hidden></div>
           </div>
 
           <!-- Pausen — nur bei „Echtes Tempo" sichtbar. Ohne Behandlung wäre der
@@ -1838,8 +1841,19 @@ function mountAnimator(body, headerActions, opts) {
     document.getElementById(id)?.addEventListener("input", _applyStars);
   }
   bindSetting("anim-dur", _MODKEY, "duration_s", { type: "number",
-    // 08.09.2026 — die Gesamtdauer verteilt sich auf die Etappen: Bahn neu bauen.
-    onChange: () => { try { _reiseAnwenden(); } catch (_) {} } });
+    onChange: () => {
+      // 08.09.2026 — die Gesamtdauer verteilt sich auf die Etappen: Bahn neu bauen.
+      try { _reiseAnwenden(); } catch (_) {}
+      // Und sie ist die zweite Ansicht der Raffung: tippt der Nutzer eine Länge,
+      // wird die Raffung daraus neu abgeleitet. Schreibt die Kurve selbst in das
+      // Feld (`_tempoSchreibt`), passiert nichts — sonst drehte es sich im Kreis.
+      if (_tempoSchreibt) return;
+      try { saveProjectSettings(_MODKEY, { tempo_rate: null }); } catch (_) {}
+      // Ein Fehlschlag darf die Eingabe nicht abbrechen — die Tabelle bleibt dann
+      // die vorherige, und der nächste Anlauf holt sie nach.
+      // ui-falle-ok: Kurve wird bei jeder weiteren Änderung erneut geholt
+      try { paceMapLaden(); } catch (_) {}
+    } });
   // v0.9.530 (IDEAS §22) — Echtzeit ÷ Faktor. Der Faktor SCHREIBT nur die
   // Sekunden ins Dauer-Feld (und löst dessen change aus → duration_s wird wie
   // immer gespeichert) — Render, Backend und alle Rechnungen dahinter bleiben
@@ -3599,27 +3613,172 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) {}
   }
 
+  // ── Tempo-Kurve (08.09.2026, Marc) ───────────────────────────────────────
+  // „Alles ist eine Beschleunigung der Tour": Grundlage ist eine Raffung, darüber
+  // liegen Halte und Abschnitte mit eigenem Faktor. Gerechnet wird in
+  // core/tempo.py — eine Wahrheit für Vorschau UND Render. Die Tabelle kommt als
+  // dieselben Anteile 0..1 zurück, die `_paceMap` schon immer trug, deshalb
+  // rechnet der Rest der Vorschau unverändert weiter.
+  const _ORBIT_GRAD_JE_S = 12;  // sanft: eine halbe Umdrehung in 15 s
+  let _tempoInfo = null;        // { dauer_s, sek_strecke, sek_halte, halte[], rate, basis }
+
+  /** Steht die Videozeit gerade in einem Halt? Liefert den Halt oder null. */
+  function _tempoHaltBei(sek) {
+    const hs = (_tempoInfo && _tempoInfo.halte) || [];
+    for (const h of hs) {
+      if (sek >= h.ab_s && sek <= h.bis_s) return h;
+    }
+    return null;
+  }
+  let _tempoSchreibt = false;   // verhindert die Schleife Dauer → Kurve → Dauer
+
+  function _tempoBasis() {
+    // Die drei bisherigen Voreinstellungen SIND die drei Grundlagen.
+    const m = _paceModus();
+    return m === "real" ? "zeit" : (m === "even" ? "strecke" : "punkte");
+  }
+  // ⚠️ Die Liste lebt im Modul, nicht nur im Projekt. Ohne aktives Projekt
+  // (frische App, Prüfstand) schreibt `saveProjectSettings` in die globalen
+  // Einstellungen — läse man danach wieder aus dem Projekt, wäre die Liste leer
+  // und die gerade gezogenen Einträge verschwänden sofort wieder (08.09.2026 im
+  // Prüfstand genau so passiert).
+  let _tempoListe = null;
+  function _tempoEintraege() {
+    if (Array.isArray(_tempoListe)) return _tempoListe;
+    const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    let e = p?.[_MODKEY]?.tempo_eintraege;
+    if (!Array.isArray(e)) {
+      try { e = (_settingsCache && _settingsCache[_MODKEY] || {}).tempo_eintraege; } catch (_) { e = null; }
+    }
+    _tempoListe = Array.isArray(e) ? e.slice() : [];
+    return _tempoListe;
+  }
+  function _tempoEintraegeSetzen(liste) {
+    _tempoListe = Array.isArray(liste) ? liste.slice() : [];
+    try { saveProjectSettings(_MODKEY, { tempo_eintraege: _tempoListe }); } catch (_) {}
+  }
+  function _tempoRate() {
+    const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    const r = p?.[_MODKEY]?.tempo_rate;
+    return (typeof r === "number" && isFinite(r) && r > 0) ? r : null;
+  }
+  function _tempoRateSichern(rate, basis) {
+    try { saveProjectSettings(_MODKEY, { tempo_rate: rate, tempo_basis: basis }); } catch (_) {}
+  }
+
+  /** Die Dauer ist ab jetzt ein ERGEBNIS: Raffung plus Halte plus gebremste
+   *  Abschnitte. Sie wird in das Dauer-Feld geschrieben, damit alles dahinter
+   *  (Zeitleiste, Keyframe-Zeiten, Render-Auftrag) unverändert damit rechnet. */
+  function _tempoDauerAnzeigen(r) {
+    if (!r || !isFinite(r.dauer_s) || r.dauer_s <= 0) return;
+    const feld = document.getElementById("anim-dur");
+    const neu = Math.max(1, Math.round(r.dauer_s * 10) / 10);
+    if (feld && Math.abs(parseNum(feld.value, 0) - neu) > 0.05) {
+      _tempoSchreibt = true;
+      feld.value = neu;
+      try { feld.dispatchEvent(new Event("change", { bubbles: true })); } finally { _tempoSchreibt = false; }
+    }
+    const z = document.getElementById("anim-tempo-bilanz");
+    if (z) {
+      const raff = r.basis === "zeit" ? `${Math.round(r.rate)}×`
+        : r.basis === "strecke" ? `${(r.rate).toFixed(2)} km/s`
+        : `${Math.round(r.rate)} Pkt/s`;
+      z.hidden = false;
+      z.textContent = t("animator.tempo.bilanz", "{raff} · {ges} s — Strecke {str} s, Halte {halt} s")
+        .replace("{raff}", raff).replace("{ges}", r.dauer_s.toFixed(1))
+        .replace("{str}", r.sek_strecke.toFixed(1)).replace("{halt}", r.sek_halte.toFixed(1));
+      z.classList.toggle("warnt", r.sek_halte > r.sek_strecke);
+    }
+  }
+
+  /** Kleiner Editor für einen Tempo-Eintrag (Doppelklick in der Spur). */
+  function _tempoEintragOeffnen(i, e) {
+    const liste = _tempoEintraege().slice();
+    const eintrag = liste[i];
+    if (!eintrag) return;
+    const istHalt = eintrag.art === "halt";
+    const m = openModal({
+      title: istHalt ? t("animator.tempo.halt_titel", "Halt")
+                     : t("animator.tempo.abschnitt_titel", "Abschnitt"),
+      body: `<div class="lib-fmodal">
+        ${istHalt ? `
+          <label class="field-label" for="tempo-sek">${t("animator.tempo.sekunden", "Sekunden stehen")}</label>
+          <input type="number" id="tempo-sek" class="lib-input" min="0.1" step="0.5" value="${(+eintrag.sek || 2).toFixed(1)}">
+          <label class="field-label" for="tempo-kam" style="margin-top:10px;">${t("animator.tempo.kamera", "Kamera dabei")}</label>
+          <select id="tempo-kam" class="lib-select">
+            <option value="nichts"${eintrag.kamera !== "orbit" ? " selected" : ""}>${t("animator.tempo.kam_nichts", "steht still — deine Keyframes gelten")}</option>
+            <option value="orbit"${eintrag.kamera === "orbit" ? " selected" : ""}>${t("animator.tempo.kam_orbit", "dreht sich langsam um die Stelle")}</option>
+          </select>` : `
+          <label class="field-label" for="tempo-faktor">${t("animator.tempo.faktor", "Tempo in diesem Abschnitt")}</label>
+          <select id="tempo-faktor" class="lib-select">
+            ${[0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 4].map(f =>
+              `<option value="${f}"${Math.abs((+eintrag.faktor || 1) - f) < 1e-6 ? " selected" : ""}>${f}× ${
+                f < 1 ? t("animator.tempo.langsamer", "langsamer") : (f > 1 ? t("animator.tempo.schneller", "schneller") : t("animator.tempo.normal", "normal"))}</option>`).join("")}
+          </select>`}
+        <div class="lib-hint" style="margin-top:10px;">${
+          istHalt ? t("animator.tempo.halt_hinweis", "Ein Halt verlängert das Video um seine Sekunden.")
+                  : t("animator.tempo.abschnitt_hinweis", "Der Faktor zählt gegen die Grundraffung. Langsamer heißt: dieser Abschnitt braucht mehr Videozeit.")}</div>
+        <div class="lib-actions" style="margin-top:12px;">
+          <button class="btn btn-primary btn-sm" id="tempo-ok">${t("common.ok", "Übernehmen")}</button>
+          <button class="btn btn-ghost btn-sm lib-btn-danger" id="tempo-weg">${t("animator.tempo.entfernen", "Entfernen")}</button>
+        </div>
+      </div>`,
+    });
+    const fertig = (neueListe) => {
+      _tempoEintraegeSetzen(neueListe);
+      try { if (_tlBar && _tlBar.setTempo) _tlBar.setTempo(neueListe, (_tempoInfo && _tempoInfo.halte) || []); } catch (_) {}
+      // Ein Fehlschlag darf die Eingabe nicht abbrechen — die Tabelle bleibt dann
+      // die vorherige, und der nächste Anlauf holt sie nach.
+      // ui-falle-ok: Kurve wird bei jeder weiteren Änderung erneut geholt
+      try { paceMapLaden(); } catch (_) {}
+      m.close();
+    };
+    const ok = document.getElementById("tempo-ok");
+    if (ok) ok.onclick = () => {
+      if (istHalt) {
+        eintrag.sek = Math.max(0.1, parseFloat(document.getElementById("tempo-sek").value) || 2);
+        eintrag.kamera = document.getElementById("tempo-kam").value || "nichts";
+      } else {
+        eintrag.faktor = Math.max(0.01, parseFloat(document.getElementById("tempo-faktor").value) || 1);
+      }
+      fertig(liste);
+    };
+    const weg = document.getElementById("tempo-weg");
+    if (weg) weg.onclick = () => { liste.splice(i, 1); fertig(liste); };
+  }
+
   async function paceMapLaden() {
-    const modus = _paceModus();
     const lauf = ++_paceMapLauf;
-    // ⚠️ Auch hier neu zeichnen: beim Zurückschalten auf „wie aufgezeichnet"
-    // blieb der Marker sonst an der Stelle der alten Verteilung stehen
-    // („Punkt 538/800" statt 373), bis man ihn selbst anfasste.
-    if (!currentGpx || modus === "raw") { _paceMap = null; vorschauNeuZeichnen(); return; }
+    if (!currentGpx) { _paceMap = null; _tempoInfo = null; vorschauNeuZeichnen(); return; }
+    const basis = _tempoBasis();
+    const eintraege = _tempoEintraege();
+    // Ohne Einträge und ohne gespeicherte Raffung: die Dauer aus der Seitenleiste
+    // führt, die Raffung wird daraus abgeleitet. Genau so laufen alle bestehenden
+    // Projekte weiter (Marc: „das muss abwärtskompatibel bleiben").
+    const rate = _tempoRate();
     try {
-      const r = await api().animator_pace_map({
-        gpx_path: currentGpx, pace_mode: modus,
+      const r = await api().animator_tempo_map({
+        gpx_path: currentGpx, basis,
+        rate: rate || 0,
+        dauer_s: parseNum(document.getElementById("anim-dur")?.value, 12),
+        eintraege,
+        fps: parseNum(document.getElementById("anim-fps")?.value, 30),
         pause_mode: document.getElementById("anim-pause-mode")?.value || "trim",
         pause_min_s: (parseFloat(document.getElementById("anim-pause-min")?.value) || 2) * 60,
         pause_trim_s: (function () {
           const v = parseFloat(document.getElementById("anim-pause-trim")?.value);
           return isNaN(v) ? 5 : v;
         })(),
-        n: 600,
       });
       if (lauf !== _paceMapLauf) return;             // veraltete Antwort
-      _paceMap = (r && r.ok && Array.isArray(r.map)) ? r.map : null;
-    } catch (_) { _paceMap = null; }
+      if (r && r.ok && Array.isArray(r.map)) {
+        _paceMap = r.map;
+        _tempoInfo = r;
+        if (!rate && r.rate) _tempoRateSichern(r.rate, basis);   // einmalig ableiten
+        _tempoDauerAnzeigen(r);
+        try { if (_tlBar && _tlBar.setTempo) _tlBar.setTempo(eintraege, r.halte || []); } catch (_) {}
+      } else { _paceMap = null; _tempoInfo = null; }
+    } catch (_) { _paceMap = null; _tempoInfo = null; }
     // Tester-Befund (ein Beta-Tester, 29.08.2026: „keine Veränderung spürbar"): auf
     // gleichmäßig gelaufenen Touren verschieben die Modi den Lauf nur um
     // wenige Prozent — das IST korrekt, sieht aber nach „wirkt nicht" aus.
@@ -7610,6 +7769,16 @@ function mountAnimator(body, headerActions, opts) {
       // Ohne das bliebe die Kamera bei der Gesamtsicht der ERSTEN Tour stehen,
       // während der Punkt längst in der nächsten Etappe läuft (08.09.2026 im
       // Prüfstand genau so gemessen).
+      // 08.09.2026 — Halt mit „dreht sich": während der Standzeit dreht die
+      // Kamera langsam um die Stelle. Die Lage der Halte in Videosekunden kommt
+      // aus der Kurve (core/tempo.py), damit Vorschau und Video dasselbe tun.
+      {
+        const _tSek = (timelineProgress * totalMs - introMs) / 1000;
+        const _h = _tempoHaltBei(_tSek);
+        if (_h && _h.kamera === "orbit") {
+          jumpArgs.bearing = (jumpArgs.bearing || 0) + (_tSek - _h.ab_s) * _ORBIT_GRAD_JE_S;
+        }
+      }
       const _rKamRoh = _reiseKamera(coordFrac);
       let _rKam = _rKamRoh;
       if (_rKamRoh && _rKamRoh.etappe) {
@@ -8703,10 +8872,21 @@ function mountAnimator(body, headerActions, opts) {
     // v0.7.0: Timeline-Bar mounten (Camera-Keyframes).
     const tlHost = document.getElementById("anim-timeline-host");
     if (tlHost && typeof mountTimelineBar === "function") {
+      // Für den kopflosen Prüfstand greifbar (wie __rzGhostSpuren).
       _tlBar = mountTimelineBar({
         container: tlHost,
         getEvents: getTimelineEvents,
         getPositionLabel: timelinePositionLabel,
+        // 08.09.2026 (Marc) — Tempo-Spur: die Leiste zeichnet und bedient, die
+        // Einträge gehören ins Projekt, gerechnet wird in core/tempo.py.
+        onTempoChange:  (liste) => {
+          _tempoEintraegeSetzen(liste);
+          // Ein Fehlschlag darf die Eingabe nicht abbrechen — die Tabelle bleibt dann
+      // die vorherige, und der nächste Anlauf holt sie nach.
+      // ui-falle-ok: Kurve wird bei jeder weiteren Änderung erneut geholt
+      try { paceMapLaden(); } catch (_) {}
+        },
+        onTempoOeffnen: (i, e) => { try { _tempoEintragOeffnen(i, e); } catch (err) { applog("warn", "[tempo] " + err); } },
         // Die Zeitleiste meldet eine Stelle auf der LEISTE; die Vorschau will
         // eine Stelle im TRACK (v0.9.511).
         // 04.09.2026 (Marc: „wenn ich den Scrubber schnell hin und her ziehe,
@@ -8825,6 +9005,7 @@ function mountAnimator(body, headerActions, opts) {
           applyTrimToTrackPreview(start, end);
         },
       });
+      try { window.__rzTlBar = _tlBar; } catch (_) {}
       syncTimelineOverrideUi();
       // v0.8.11 — Track-/Hold-Trenner initial setzen + bei dur/hold-Änderung
       // nachziehen. Bindings für anim-dur/anim-hold bereits weiter oben.
@@ -11923,7 +12104,10 @@ function mountAnimator(body, headerActions, opts) {
     // 29.08.2026 (Marc): Im Schwarm sind die Gesamt-Felder SUMMEN über alle
     // Touren (Ø aus den Summen, Max/Extreme als Extremwert) — wortgleich zu
     // den swarm_*-Aggregaten in core/animator.py.
-    if (_animAblauf === "schwarm" && _extraTours.length) {
+    // 08.09.2026 — auch die Reise summiert über alle Etappen (Marc: „laufende
+    // Gesamtsumme"). Vorher zeigte die Gesamt-Einblendung die Zahlen der ERSTEN
+    // Tour, während der Punkt längst durch die dritte lief.
+    if (_extraTours.length && (_animAblauf === "schwarm" || _reiseAktiv())) {
       for (const tr of _extraTours) {
         const st = tr.stats;
         if (!st) continue;
@@ -13250,8 +13434,10 @@ function mountAnimator(body, headerActions, opts) {
     // 08.09.2026 — die erste Etappe merken; bei einer Reise ersetzt die
     // Etappen-Bahn den Track (siehe _reiseAnwenden).
     _reiseBasis = res.coords;
+    _reiseBasisSerie = res.series || null;      // Reihen der ERSTEN Etappe
+    _reiseBasisEle = res.elevations || null;
     _reiseBahn = null;
-    if (_reiseGilt()) { try { if (_reiseBauen()) currentCoords = _reiseBahn.coords; } catch (e) { applog("warn", "[reise] " + e); } }
+    if (_reiseGilt()) { try { _reiseAnwenden(); } catch (e) { applog("warn", "[reise] " + e); } }
     currentBbox = res.bbox;
     try { _refreshStyleForTrack(); } catch (_) {}   // 03.09.2026 — Land für „Satellit (kostenlos)"
     // Neuer Track = neue Ausgangslage: Die Karte darf sich wieder selbst auf
@@ -14235,6 +14421,7 @@ function mountAnimator(body, headerActions, opts) {
    *     der Marcs zusammengeführtes „66 Seen" verunstaltet).
    */
   let _reiseBasis = null;    // Koordinaten der ERSTEN Etappe, wie geladen
+  let _reiseBasisSerie = null, _reiseBasisEle = null;   // ihre Datenreihen
   let _reiseBahn = null;     // { coords, teilVon, istUeber, teile, ansichten }
 
   // Für den kopflosen Prüfstand greifbar (wie __rzGhostSpuren).
@@ -14254,22 +14441,26 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _reiseAktiv() { return !!(_reiseBahn && _reiseGilt()); }
 
-  /** Gleichmäßig auf n Punkte abtasten (auch hoch: dann Wiederholungen). */
-  function _reiseAbtasten(coords, n) {
+  /** Gleichmäßig auf n Punkte abtasten — liefert die INDEXE, damit Koordinaten
+   *  und Datenreihen (Distanz, Zeit, Höhe) denselben Griff bekommen. */
+  function _reiseAbtastIdx(len, n) {
     const raus = [];
-    const m = coords.length - 1;
-    for (let i = 0; i < n; i++) raus.push(coords[Math.round(i * m / Math.max(1, n - 1))]);
+    const m = len - 1;
+    for (let i = 0; i < n; i++) raus.push(Math.round(i * m / Math.max(1, n - 1)));
     return raus;
   }
 
   function _reiseBauen() {
     if (!_reiseGilt()) { _reiseBahn = null; return null; }
-    const etappen = [{ coords: _reiseBasis, dauer: +_animEtappe1S || 0, ueber_s: null, ueber_stil: "kino" }]
+    const etappen = [{ coords: _reiseBasis, dauer: +_animEtappe1S || 0, ueber_s: null, ueber_stil: "kino",
+                       zeit: (_reiseBasisSerie && _reiseBasisSerie.cumTimeS) || null,
+                       ele: _reiseBasisEle || null }]
       .concat(_extraTours
         .filter(t => Array.isArray(t.coords) && t.coords.length > 1)
         .map(t => ({ coords: t.coords, dauer: +t.dauer_s || 0,
                      ueber_s: (t.ueber_s == null || t.ueber_s === "") ? null : (+t.ueber_s || 0),
-                     ueber_stil: t.ueber_stil || "kino" })));
+                     ueber_stil: t.ueber_stil || "kino",
+                     zeit: Array.isArray(t.zeit) ? t.zeit : null, ele: null })));
     if (etappen.length < 2) { _reiseBahn = null; return null; }
 
     // Zeitanteile — dieselbe Regel wie core/animator.py `_reise_segmente`.
@@ -14301,18 +14492,59 @@ function mountAnimator(body, headerActions, opts) {
         for (let k = 0; k < nU; k++) { coords.push(letzter); teilVon.push(i - 1); istUeber.push(1); }
       }
       const nE = Math.max(2, Math.round(NGES * etappeS[i] / summeS));
-      const abgetastet = _reiseAbtasten(e.coords, nE);
+      const idx = _reiseAbtastIdx(e.coords.length, nE);
       const von = coords.length;
-      for (const c of abgetastet) { coords.push(c); teilVon.push(i); istUeber.push(0); }
+      for (const k of idx) { coords.push(e.coords[k]); teilVon.push(i); istUeber.push(0); }
       teile.push({ von, bis: coords.length - 1 });
+      e.__idx = idx;
     });
-    _reiseBahn = { coords, teilVon, istUeber, teile, ansichten: null, etappen,
+    // 08.09.2026 (Marc, Frage 6: „beides wäre cool") — Datenreihen der Bahn:
+    // Distanz und Zeit laufen über ALLE Etappen durch, während eines Übergangs
+    // stehen sie still. Ohne das zeigten die Einblendungen die Werte der ersten
+    // Tour, mit dem Index der Bahn gelesen — also Unsinn.
+    const serie = _reiseSerieBauen(etappen, teilVon, istUeber, teile);
+    _reiseBahn = { coords, teilVon, istUeber, teile, ansichten: null, etappen, serie,
                    sekEtappen: etappeS.reduce((a, b) => a + b, 0),
                    sekUeber: ueberS.reduce((a, b) => a + b, 0) };
     applog("info", `[reise] Bahn gebaut: ${etappen.length} Etappen · ${coords.length} Punkte · `
       + `Etappen ${etappeS.map(x => x.toFixed(1)).join("/")} s · Übergänge ${ueberS.slice(1).map(x => x.toFixed(1)).join("/")} s`);
     try { _reiseBilanzZeigen(); } catch (_) {}
     return _reiseBahn;
+  }
+
+  /** Distanz, Zeit und Höhe entlang der Bahn — durchlaufend über alle Etappen,
+   *  im Übergang stehend. Zusätzlich je Punkt der Etappen-Anteil (`etappeDist`,
+   *  `etappeZeit`), damit ein Etappenzähler daraus lesen kann. */
+  function _reiseSerieBauen(etappen, teilVon, istUeber, teile) {
+    const cumDistM = [], cumTimeS = [], ele = [], etappeDist = [], etappeZeit = [];
+    let dAcc = 0, tAcc = 0, hatZeit = true, hatHoehe = true;
+    etappen.forEach((e, i) => {
+      const idx = e.__idx || [];
+      const cum = _cumDistBerechnen(e.coords);
+      // Zeitreihe der Etappe: eigene, sonst gleichmäßig über die Distanz.
+      const zeit = (Array.isArray(e.zeit) && e.zeit.length === e.coords.length) ? e.zeit : null;
+      if (!zeit) hatZeit = false;
+      const hoehen = (Array.isArray(e.ele) && e.ele.length === e.coords.length) ? e.ele : null;
+      if (!hoehen) hatHoehe = false;
+      // Übergang VOR dieser Etappe: alles steht still
+      const nU = teile[i].von - (i === 0 ? 0 : teile[i - 1].bis + 1);
+      for (let k = 0; k < nU; k++) {
+        cumDistM.push(dAcc); cumTimeS.push(tAcc);
+        ele.push(ele.length ? ele[ele.length - 1] : 0);
+        etappeDist.push(0); etappeZeit.push(0);
+      }
+      for (const k of idx) {
+        cumDistM.push(dAcc + cum[k]);
+        cumTimeS.push(tAcc + (zeit ? (zeit[k] - zeit[0]) : 0));
+        ele.push(hoehen ? hoehen[k] : (ele.length ? ele[ele.length - 1] : 0));
+        etappeDist.push(cum[k]);
+        etappeZeit.push(zeit ? (zeit[k] - zeit[0]) : 0);
+      }
+      dAcc = cumDistM[cumDistM.length - 1];
+      tAcc = cumTimeS[cumTimeS.length - 1];
+    });
+    return { cumDistM, cumTimeS, ele, etappeDist, etappeZeit,
+             has_time: hatZeit, has_ele: hatHoehe };
   }
 
   /** Sagt, wie lang die Reise wirklich wird. 08.09.2026: In Marcs „66 Seen"
@@ -14334,6 +14566,19 @@ function mountAnimator(body, headerActions, opts) {
   function _reiseAnwenden() {
     if (!_reiseBauen()) return false;
     currentCoords = _reiseBahn.coords;
+    // Einblendungen rechnen mit `_ovSeries`/`_gpxElevations` am Index des Tracks —
+    // also müssen die Reihen zur Bahn gehören, nicht mehr zur ersten Tour.
+    const sr = _reiseBahn.serie;
+    if (sr) {
+      _ovSeries = Object.assign({}, _reiseBasisSerie || {}, {
+        cumDistM: sr.cumDistM, cumTimeS: sr.cumTimeS, ele: sr.ele,
+        has_time: sr.has_time, has_ele: sr.has_ele,
+        total_dist_m: sr.cumDistM[sr.cumDistM.length - 1],
+        total_time_s: sr.cumTimeS[sr.cumTimeS.length - 1],
+        speedKmh: null, sensors: null, stage: null,
+      });
+      _gpxElevations = sr.ele;
+    }
     try { refreshPreviewTrackData(); } catch (_) {}
     return true;
   }
@@ -15156,6 +15401,10 @@ function mountAnimator(body, headerActions, opts) {
       // hohem device_scale_factor (Video = Vorschau hochaufgelöst, WYSIWYG ohne Umrechnung).
       szene_vorschau_w: (document.getElementById("anim-viewport")?.clientWidth || 0),
       szene_vorschau_h: (document.getElementById("anim-viewport")?.clientHeight || 0),
+      // 08.09.2026 — die Tempo-Kurve fährt mit: der klassische Generator verteilt
+      // seine Punkte danach, statt selbst zu rechnen. Ohne Einträge ist sie
+      // identisch zur bisherigen Verteilung (Wächter: test_tempo_kurve.py).
+      pace_map: (_paceMap && _paceMap.length >= 2) ? _paceMap : null,
       // v0.9.156 — Multi-Track: nur senden wenn ≥1 Extra-Tour vorhanden ist.
       // Backend aktiviert den isolierten Multi-Render-Pfad ab 2 Touren. Tour 1
       // = die globale GPX (currentGpx) mit der Farbe aus der Track-Sektion.

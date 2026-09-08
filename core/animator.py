@@ -362,6 +362,9 @@ class AnimatorConfig:
     # ⚠️ Vorgabe bleibt "raw": bestehende Projekte müssen aussehen wie bisher.
     # Neue Projekte setzt die Oberfläche auf "even".
     pace_mode: str = "raw"
+    # 08.09.2026 — Tempo-Kurve: je Bild die Stelle auf der Strecke (0..1).
+    # Kommt aus der Vorschau (core/tempo.py); leer = wie bisher verteilen.
+    pace_map: Optional[list] = None
     # 29.08.2026 (Marc, Schorfheide): Haupt-Tour darf verzögert loslaufen —
     # sie bleibt Haupt (Schatten/Glow/Laufpunkt), der Schwarm läuft derweil
     # an der Videozeit. Renormiert: sie kommt trotzdem am Videoende an.
@@ -4311,6 +4314,16 @@ def _punkte_verteilen(cfg, raw_points):
     die Rohpunkte stehen in Geräte-Reihenfolge, das IST der „raw"-Modus. Die
     Anzahl bleibt dabei gleich, nur die Verteilung ändert sich.
     """
+    # 08.09.2026 — Liegt eine Tempo-Kurve bei (Halte, gebremste Abschnitte), ist
+    # sie die Wahrheit: sie sagt für jedes Bild, wo auf der Strecke es steht.
+    # Ohne sie bleibt alles wie bisher (core/tempo.py erzeugt für ein Projekt
+    # ohne Einträge exakt dieselbe Verteilung — Wächter: test_tempo_kurve.py).
+    karte = getattr(cfg, "pace_map", None)
+    if karte:
+        _log.info("Tempo-Kurve: %d Stellen aus der Vorschau übernommen", len(karte))
+        from .gpx import punkte_nach_anteilen
+        return punkte_nach_anteilen(raw_points, list(karte))
+
     modus = getattr(cfg, "pace_mode", "raw") or "raw"
     if cfg.point_count <= 0 or cfg.point_count >= len(raw_points):
         ziel = len(raw_points)

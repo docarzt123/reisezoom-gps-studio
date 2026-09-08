@@ -1057,3 +1057,11 @@ body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mo
   padding: 4px 8px; border-radius: 6px; background: var(--bg-3);
 }
 .anim-reise-bilanz.warnt { color: #f0b429; border: 1px solid rgba(240, 180, 41, .35); }
+
+/* Tempo-Bilanz (08.09.2026): Raffung, Gesamtlänge, davon Strecke und Halte.
+   Gelb, sobald mehr gestanden als gefahren wird. */
+.anim-tempo-bilanz {
+  margin-top: 6px; font-size: 11.5px; color: var(--text-dim);
+  padding: 4px 8px; border-radius: 6px; background: var(--bg-3);
+}
+.anim-tempo-bilanz.warnt { color: #f0b429; border: 1px solid rgba(240, 180, 41, .35); }
