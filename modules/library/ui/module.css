@@ -959,3 +959,21 @@
   background: rgba(120, 190, 120, .12);
 }
 body.lib-zieht .lib-nav-item { transition: background .12s ease; }
+
+/* Eigenes Ziehen (08.09.2026): das native Drag-and-Drop zog in der App-WebView
+   nicht los. Der Chip hängt am Mauszeiger und sagt, was gerade transportiert
+   wird; er darf keine Mausereignisse abfangen, sonst findet elementFromPoint
+   die Sammlung darunter nicht. */
+.lib-ziehchip {
+  position: fixed; z-index: 9500; pointer-events: none;
+  padding: 5px 10px; border-radius: 8px; font-size: 12.5px; max-width: 260px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  background: var(--accent); color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.4);
+}
+body.lib-zieht { cursor: grabbing; }
+body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
+/* ⚠️ KEIN `-webkit-user-drag: element` hier: das startet in WebKit und Blink das
+   NATIVE Ziehen, und sobald das läuft, kommen keine mousemove-Ereignisse mehr an
+   — unser eigenes Ziehen stünde ab dem ersten Bild still (08.09.2026 im
+   Prüfstand genau so gemessen: 2 statt 13 Ereignissen). */
+.lib-card, .lib-row { -webkit-user-drag: none; user-select: none; }

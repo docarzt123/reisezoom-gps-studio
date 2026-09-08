@@ -644,37 +644,9 @@ function mountLibrary(body, headerActions) {
         renderCollections(); reload();
       };
       b.oncontextmenu = (e) => { e.preventDefault(); openCollectionMenu(id); };
-      // Touren per Ziehen in die Sammlung legen (Marc, 08.09.2026).
-      b.ondragover = (e) => {
-        if (!_ziehendePfade || !_ziehendePfade.length) return;
-        e.preventDefault();
-        try { e.dataTransfer.dropEffect = "copy"; } catch (_) {}
-        b.classList.add("is-drop");
-      };
-      b.ondragleave = () => b.classList.remove("is-drop");
-      b.ondrop = async (e) => {
-        e.preventDefault();
-        b.classList.remove("is-drop");
-        const pfade = (_ziehendePfade || []).slice();
-        _ziehendePfade = null;
-        document.body.classList.remove("lib-zieht");
-        if (!pfade.length) return;
-        const vorher = await api().library_collection_items(id);
-        const ordnung = ((vorher && vorher.items) || []).map(x => x.path);
-        await api().library_collection_add(id, pfade);
-        await api().library_collection_sort_by_date(id);
-        _libUndoPush(T("library.undo.col_add", "Zur Sammlung hinzugefügt"),
-          async () => { await api().library_collection_remove(id, pfade);
-                        await api().library_collection_set_order(id, ordnung); },
-          async () => { await api().library_collection_add(id, pfade);
-                        await api().library_collection_sort_by_date(id); });
-        await reloadCollections();
-        if (_sel) renderTrackCollections(_sel);
-        if (state.collection_id) reload();
-        toast(pfade.length === 1
-          ? T("library.col_added", "Zur Sammlung hinzugefügt.")
-          : `${pfade.length} ${T("library.col_added_many", "Touren zur Sammlung hinzugefügt.")}`, "info");
-      };
+      // Das Ablegen läuft über das eigene Ziehen (siehe _ziehStarten/_ziehBeenden
+      // in bindItemClicks) — es findet diese Schaltfläche über elementFromPoint.
+      // Kein natives Drag-and-Drop: das schluckt die Mausereignisse.
     });
     // 28.08.2026 (Marc: „rechtsklick geht nicht"): Verwaltung zusätzlich über
     // einen sichtbaren ⋯-Knopf — Rechtsklick bleibt, ist aber nicht mehr der
@@ -1711,7 +1683,6 @@ function mountLibrary(body, headerActions) {
   // Meta öffnen, zur Sammlung hinzufügen und so weiter. Außerdem würde ich gern
   // per Drag and Drop eine Tour einfach in eine Sammlung ziehen können."
   let _ctxWeg = null;
-  let _ziehendePfade = null;   // Touren, die gerade gezogen werden
   function kontextmenuZu() {
     if (_ctxWeg) { try { _ctxWeg(); } catch (_) {} _ctxWeg = null; }
   }
@@ -1756,17 +1727,117 @@ function mountLibrary(body, headerActions) {
     return [it.path];
   }
 
+  /** Touren in eine Sammlung legen — der eine Weg für Ziehen mit der Maus und
+   *  für das native Drag-and-Drop. */
+  async function _inSammlungLegen(cid, pfade) {
+    if (!cid || !pfade || !pfade.length) return;
+    const vorher = await api().library_collection_items(cid);
+    const ordnung = ((vorher && vorher.items) || []).map(x => x.path);
+    await api().library_collection_add(cid, pfade);
+    await api().library_collection_sort_by_date(cid);
+    _libUndoPush(T("library.undo.col_add", "Zur Sammlung hinzugefügt"),
+      async () => { await api().library_collection_remove(cid, pfade);
+                    await api().library_collection_set_order(cid, ordnung); },
+      async () => { await api().library_collection_add(cid, pfade);
+                    await api().library_collection_sort_by_date(cid); });
+    await reloadCollections();
+    if (_sel) renderTrackCollections(_sel);
+    if (state.collection_id) reload();
+    toast(pfade.length === 1
+      ? T("library.col_added", "Zur Sammlung hinzugefügt.")
+      : `${pfade.length} ${T("library.col_added_many", "Touren zur Sammlung hinzugefügt.")}`, "info");
+  }
+
+  // 08.09.2026 (Marc: „in eine Sammlung reinziehen geht immer noch nicht"):
+  // Das native Drag-and-Drop des Browsers zieht in der App-WebView nicht
+  // zuverlässig los — im kopflosen Chromium schon, im Fenster nicht. Darum
+  // ziehen wir selbst: Maus drücken, ein Stück bewegen, über der Sammlung
+  // loslassen. Das läuft überall gleich und braucht keine Zwischenablage.
+  let _zieht = null;      // { pfade, chip, ziel } während des Ziehens
+  let _zogGerade = false; // unterdrückt den Klick direkt nach dem Ziehen
+
+  function _zielUnter(x, y) {
+    const el = document.elementFromPoint(x, y);
+    return el ? el.closest("#lib-cols .lib-nav-item[data-col]") : null;
+  }
+
+  function _ziehStarten(pfade, x, y, name) {
+    const chip = document.createElement("div");
+    chip.className = "lib-ziehchip";
+    chip.textContent = pfade.length > 1
+      ? `${pfade.length} ${T("library.tours", "Touren")}`
+      : (name || T("library.tour", "Tour"));
+    document.body.appendChild(chip);
+    document.body.classList.add("lib-zieht");
+    _zieht = { pfade, chip, ziel: null };
+    _ziehBewegen(x, y);
+  }
+
+  function _ziehBewegen(x, y) {
+    if (!_zieht) return;
+    _zieht.chip.style.left = (x + 12) + "px";
+    _zieht.chip.style.top = (y + 12) + "px";
+    const ziel = _zielUnter(x, y);
+    if (ziel !== _zieht.ziel) {
+      if (_zieht.ziel) _zieht.ziel.classList.remove("is-drop");
+      if (ziel) ziel.classList.add("is-drop");
+      _zieht.ziel = ziel;
+    }
+  }
+
+  async function _ziehBeenden(x, y) {
+    if (!_zieht) return;
+    const { pfade, chip, ziel } = _zieht;
+    _zieht = null;
+    try { chip.remove(); } catch (_) {}
+    document.body.classList.remove("lib-zieht");
+    if (ziel) {
+      ziel.classList.remove("is-drop");
+      const cid = parseInt(ziel.dataset.col, 10);
+      await _inSammlungLegen(cid, pfade);
+    }
+  }
+
   function itemKontextmenu(it, x, y) {
     const pfade = _ctxPfade(it);
     const viele = pfade.length > 1;
     const eintraege = [];
+    // Alles, was die Detailspalte rechts anbietet (Marc, 08.09.2026: „mach mal
+    // mit dem Rechtsklick alles, was ich rechts aufmachen kann, Inspektor und so
+    // weiter"). Reihenfolge wie dort: die fünf Werkzeuge, dann die Ghost-Spur.
+    const werkzeuge = [
+      ["animator", "📂 " + T("library.open_animator", "Im Animator öffnen")],
+      ["tourmap", "🗺 " + T("library.open_tourmap", "Tour-Karte")],
+      ["heightanim", "📈 " + T("library.open_height", "Daten-Animator")],
+      ["geotagger", "📷 " + T("library.open_geotagger", "Fotos verorten")],
+      ["gpxinspect", "🔍 " + T("library.open_inspect", "Inspektor")],
+    ];
     if (!viele) {
-      eintraege.push({ text: "📂 " + T("library.open_animator", "Im Animator öffnen"),
-                       tun: () => { select(it); openIn("animator"); } });
-      eintraege.push({ text: "ℹ️ " + T("library.ctx_details", "Details anzeigen"),
-                       tun: () => { select(it); } });
+      for (const [slug, text] of werkzeuge) {
+        eintraege.push({ text, tun: () => { select(it); openIn(slug); } });
+      }
+      eintraege.push("-");
+      eintraege.push({ text: "ℹ️ " + T("library.ctx_details", "Details anzeigen"), tun: () => { select(it); } });
     }
     eintraege.push({ text: "👻 " + T("library.ghost.take_short", "Als Ghost-Spur"), tun: () => alsGhost(pfade) });
+    if (!viele) {
+      eintraege.push("-");
+      eintraege.push({ text: (it.fav ? "☆ " + T("library.ctx_unfav", "Kein Favorit mehr")
+                                     : "★ " + T("library.ctx_fav", "Als Favorit merken")),
+                       tun: async () => {
+                         const neu2 = !it.fav;
+                         await api().library_set_fields(it.path, neu2, null, null);
+                         it.fav = neu2 ? 1 : 0;
+                         renderView(); renderDetail(); reloadStats();
+                       } });
+      eintraege.push({ text: "✏️ " + T("library.ctx_rename", "Umbenennen …"),
+                       tun: () => { select(it); setTimeout(() => {
+                         const f = document.getElementById("lib-d-name");
+                         if (f) { f.focus(); f.select(); }
+                       }, 250); } });
+      eintraege.push({ text: "📁↗ " + T("library.reveal", "Im Finder zeigen"),
+                       tun: () => api().library_reveal(it.path) });
+    }
     eintraege.push("-");
     eintraege.push({ text: "📁 " + (viele
                        ? `${pfade.length} ${T("library.col_add_many", "Touren zu einer Sammlung")}`
@@ -1796,6 +1867,7 @@ function mountLibrary(body, headerActions) {
   function bindItemClicks(root) {
     root.querySelectorAll("[data-i]").forEach(btn => {
       btn.onclick = (e) => {
+        if (_zogGerade) return;   // war ein Ziehen, kein Klick
         const i = parseInt(btn.dataset.i, 10);
         const it = _items[i];
         if (!it) return;
@@ -1840,19 +1912,38 @@ function mountLibrary(body, headerActions) {
       };
       // Ziehen in eine Sammlung (Marc, 08.09.2026). Gezogen wird die Auswahl,
       // wenn die angefasste Tour dazugehört, sonst diese eine.
-      btn.draggable = true;
-      btn.ondragstart = (e) => {
+      //
+      // ⚠️ NICHT über das native Drag-and-Drop des Browsers: in der App-WebView
+      // zieht es gar nicht erst los (Marcs Befund), und dort wo es losgeht,
+      // schluckt es ab dem ersten Bild alle mousemove-Ereignisse — dann steht
+      // unser eigenes Ziehen still. Genau ein Weg, überall derselbe.
+      btn.draggable = false;
+      btn.onmousedown = (e) => {
+        if (e.button !== 0) return;
         const it2 = _items[parseInt(btn.dataset.i, 10)];
         if (!it2) return;
-        const pfade = _ctxPfade(it2);
-        _ziehendePfade = pfade;
-        try {
-          e.dataTransfer.effectAllowed = "copy";
-          e.dataTransfer.setData("text/plain", pfade.join("\n"));
-        } catch (_) {}
-        document.body.classList.add("lib-zieht");
+        const x0 = e.clientX, y0 = e.clientY;
+        let los = false;
+        const bewegen = (ev) => {
+          if (!los) {
+            if (Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) < 6) return;
+            los = true;
+            _ziehStarten(_ctxPfade(it2), ev.clientX, ev.clientY, it2.name);
+          }
+          ev.preventDefault();
+          _ziehBewegen(ev.clientX, ev.clientY);
+        };
+        const hoch = async (ev) => {
+          document.removeEventListener("mousemove", bewegen, true);
+          document.removeEventListener("mouseup", hoch, true);
+          if (!los) return;
+          _zogGerade = true;
+          setTimeout(() => { _zogGerade = false; }, 0);
+          await _ziehBeenden(ev.clientX, ev.clientY);
+        };
+        document.addEventListener("mousemove", bewegen, true);
+        document.addEventListener("mouseup", hoch, true);
       };
-      btn.ondragend = () => { _ziehendePfade = null; document.body.classList.remove("lib-zieht"); };
       btn.ondblclick = () => {
         if (_multi.size > 1) return;
         // Im Ghost-Modus heißt Doppelklick „diese hier" — NICHT „öffnen", was den
