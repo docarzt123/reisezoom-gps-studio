@@ -3551,13 +3551,18 @@ Hier steht nur, wie es gebaut ist.
 **Rechtsklick-Menü und Ziehen im Archiv (08.09.2026, v0.9.668):** `bindItemClicks`
 hängt an jede Karte/Zeile ein `oncontextmenu` (baut die Einträge über `itemKontextmenu`,
 gezeichnet von `oeffneKontextmenu(x, y, eintraege)` als `.lib-ctxmenu` am Mauszeiger)
-und macht sie `draggable`. Beim `dragstart` merkt sich das Modul die betroffenen Pfade
-in `_ziehendePfade` (die Mehrfachauswahl, wenn die angefasste Tour dazugehört, sonst
-diese eine) und setzt `lib-zieht` an den `body`. Die Sammlungen in der Seitenleiste
-(`renderCollections`, `.lib-nav-item[data-col]`) nehmen den Wurf an: `library_collection_add`
-plus `library_collection_sort_by_date`, mit `_libUndoPush` zum Zurücknehmen.
-Wächter: `tests/test_archiv_rechtsklick_ziehen.py` (der Prüfstand baut die Seitenleiste
-nicht auf — die Ablage-Seite ist dort quellseitig abgesichert).
+(alle Werkzeuge der Detailspalte, Favorit, Umbenennen, Im Finder zeigen, Sammlung, Papierkorb).
+**Das Ziehen läuft NICHT über natives Drag-and-Drop.** `btn.onmousedown` verfolgt die Maus
+selbst: ab 6 px Weg startet `_ziehStarten` (Schildchen am Zeiger, `lib-zieht` am `body`),
+`_ziehBewegen` sucht das Ziel per `document.elementFromPoint` → `closest("#lib-cols .lib-nav-item[data-col]")`,
+`_ziehBeenden` legt über `_inSammlungLegen` ab (`library_collection_add` + `sort_by_date`,
+mit `_libUndoPush`). Grund: in der App-WebView zog das native DnD gar nicht erst los, und
+sobald es losgeht (Blink, oder per `-webkit-user-drag: element`) übernimmt der Browser die
+Maus und es kommt KEIN `mousemove` mehr an — im Prüfstand 2 statt 13 Ereignisse, das eigene
+Ziehen stand ab dem ersten Bild still. Deshalb steht in der CSS ausdrücklich
+`-webkit-user-drag: none` auf `.lib-card`/`.lib-row`, und `draggable` bleibt `false`.
+Wächter: `tests/test_archiv_rechtsklick_ziehen.py` (setzt ein Ablageziel ein, weil der
+Prüfstand die Seitenleiste nicht aufbaut, und zieht mit echten Mausereignissen).
 
 **Rechner-Kennung statt Rechnername (08.09.2026, v0.9.666):** Riegel 2 prüfte über
 `socket.gethostname()`, ob die Sperre vom selben Rechner stammt. Der Name ist unter macOS

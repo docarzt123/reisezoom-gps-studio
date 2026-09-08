@@ -749,10 +749,12 @@ GPX-Dateien, eine Reise aus zwanzig. Als Sammlung gehören sie zusammen:
 - **Hineinziehen:** Eine Tour (oder eine ganze Auswahl) einfach auf die Sammlung links ziehen.
   Die Sammlung leuchtet auf, sobald du darüber bist; loslassen legt die Touren hinein, und
   **Rückgängig** nimmt sie wieder heraus.
-- **Rechtsklick auf eine Tour:** öffnet ein Menü mit „Im Animator öffnen", „Details anzeigen",
-  „Als Ghost-Spur", „Zu Sammlung", „Aus dieser Sammlung nehmen" (wenn du gerade in einer bist)
-  und „In den Papierkorb". Hast du mehrere Touren markiert und klickst eine davon mit rechts an,
-  gilt das Menü für alle.
+- **Rechtsklick auf eine Tour:** öffnet dasselbe Angebot wie die Spalte rechts, nur direkt an
+  der Tour: die fünf Werkzeuge (Animator, Tour-Karte, Daten-Animator, Fotos verorten,
+  Inspektor), „Details anzeigen", „Als Ghost-Spur", Favorit, Umbenennen, „Im Finder zeigen",
+  „Zu Sammlung", „Aus dieser Sammlung nehmen" (wenn du gerade in einer bist) und „In den
+  Papierkorb". Hast du mehrere Touren markiert und klickst eine davon mit rechts an, gilt das
+  Menü für alle.
 - **Anzeigen:** Links auf die Sammlung klicken — dann siehst du nur ihre Touren, und zwar in
   **ihrer eigenen Reihenfolge** (Etappe 1, 2, 3 …), sortiert nach Datum.
 - **Verwalten:** Der **⋯-Knopf** an der Sammlung (oder ein Rechtsklick) öffnet umbenennen,

@@ -15,8 +15,8 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
-- Right-click in the tour archive opens a menu for the tour under the cursor: open in the animator, show details, take as a ghost track, add to a collection, remove from the current collection, move to trash. If the tour belongs to a running multi-selection the menu acts on all of them, otherwise it selects the one clicked first, like the Finder. — Rechtsklick im Archiv öffnet ein Menü für die angefasste Tour.
-- Tours can be dragged onto a collection in the sidebar. The collection lights up while a tour hovers over it, and the drop can be undone. — Touren lassen sich per Ziehen in eine Sammlung legen.
+- Right-click in the tour archive opens a menu for the tour under the cursor with everything the detail column offers: the five tools (animator, tour map, data animator, geotagging, inspector), show details, take as a ghost track, mark as favourite, rename, reveal in the file manager, add to a collection, remove from the current collection, move to trash. If the tour belongs to a running multi-selection the menu acts on all of them, otherwise it selects the one clicked first, like the Finder. — Rechtsklick im Archiv öffnet ein Menü für die angefasste Tour.
+- Tours can be dragged onto a collection in the sidebar: press, move, release. A label follows the cursor, the collection lights up underneath it, and the drop can be undone. This does not use the browser's native drag and drop — that never started in the app window, and where it does start it swallows every mouse move, which left the drag frozen after the first frame. — Touren lassen sich per Ziehen in eine Sammlung legen.
 
 ### Fixed
 - The track colour in the animator now reaches the preview while you pick it. The control wrote the hex label and the setting, nothing called the function that paints the layers, so the colour appeared only when the probe run rebuilt them. — Trackfarbe wirkt sofort in der Vorschau, nicht erst beim Probelauf.
