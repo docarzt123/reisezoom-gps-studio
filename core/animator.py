@@ -4380,11 +4380,16 @@ def _reise_segmente(tours: list, anim_total: int, fly_frames: int,
     offen_pts = sum(int(tours[i].get("n_raw") or 1) for i in offen) or 1
     walk_frames = [0] * N
     zugeteilt = 0
+    # ⚠️ Untergrenze wie in der Vorschau (`_reiseBauen`, MIN_ETAPPE_S = 0,3 s):
+    # feste Etappendauern gehen vom Budget ab und können die übrigen auf null
+    # drücken. Jede Etappe bekommt mindestens diese Bilder; das Video wird
+    # dadurch länger als die Vorgabe (08.09.2026).
+    min_frames = max(1, int(round(0.3 * fps)))
     for k, i in enumerate(offen):
         if k == len(offen) - 1:
-            wf = int(max(1, rest - zugeteilt))
+            wf = int(max(min_frames, rest - zugeteilt))
         else:
-            wf = int(max(1, round(rest * int(tours[i].get("n_raw") or 1) / offen_pts)))
+            wf = int(max(min_frames, round(rest * int(tours[i].get("n_raw") or 1) / offen_pts)))
         walk_frames[i] = wf
         zugeteilt += wf
     for i in range(N):

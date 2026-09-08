@@ -406,10 +406,15 @@ function mountTimelineBar(opts) {
   let _tempoKurve = null;       // { dauer_s, anteile[] } — Videozeit ↔ Strecke
   let _tempoZieh = null;        // laufende Geste
   let _tempoLetzterDruck = null;  // { i, t } — für die eigene Doppelklick-Erkennung
+  let _tempoHinweis = null;     // gesetzt = Spur gesperrt, Text steht darin
 
-  function setTempo(liste, halte, kurve) {
+  function setTempo(liste, halte, kurve, hinweis) {
     _tempo = Array.isArray(liste) ? liste.slice() : [];
     _tempoHalte = Array.isArray(halte) ? halte.slice() : [];
+    // Ein Hinweis sperrt die Spur: eine Reise bringt ihren eigenen Zeitplan mit,
+    // eigene Halte hätten dort keine Wirkung — dann lieber gar nicht erst
+    // anlegen lassen und sagen warum (Marc, 08.09.2026).
+    _tempoHinweis = (typeof hinweis === "string" && hinweis) ? hinweis : null;
     _tempoKurve = (kurve && Array.isArray(kurve.anteile) && kurve.anteile.length > 1)
       ? { dauer_s: +kurve.dauer_s || 0, anteile: kurve.anteile } : null;
     const el = laneMarkersEl["tempo"];
@@ -493,6 +498,19 @@ function mountTimelineBar(opts) {
 
   function _tempoZeichnen(el) {
     el.innerHTML = "";
+    const lane = el.closest('.timeline-lane[data-kind="tempo"]');
+    if (lane) {
+      lane.classList.toggle("ist-gesperrt", !!_tempoHinweis);
+      // ⚠️ Der Hinweis steht als Tooltip, NICHT als Text in der Spur: bei einer
+      // Reise liegen dort vierzehn Übergangs-Bänder, und der Satz lief quer
+      // darüber (08.09.2026 auf Marcs Rechner gesehen). Was die Reise kostet,
+      // sagt die Bilanz unter der Spur.
+      lane.title = _tempoHinweis || "";
+    }
+    // Wie breit die Spur wirklich ist — daran hängt, ob eine Beschriftung
+    // hineinpasst. Ein 1-Sekunden-Übergang ist 25 px breit; „⏸ 1.0s" passt da
+    // nicht und wurde zu „1.(".
+    const breitePx = el.getBoundingClientRect().width || 1000;
     for (const [i, e] of _tempo.entries()) {
       if (!e || typeof e !== "object") continue;
       if (e.art === "halt") {
@@ -509,8 +527,9 @@ function mountTimelineBar(opts) {
         b.dataset.idx = String(i);
         b.title = `${e.titel || tlT("animator.tempo.halt", "Halt")} ${(+e.sek || 0).toFixed(1)} s`
           + (e.gesperrt ? " · " + tlT("animator.tempo.gesperrt", "kommt aus einer anderen Einstellung") : "");
-        b.innerHTML = `<span class="tl-tempo-pause">⏸</span>`
-          + `<span class="tl-tempo-sek">${(+e.sek || 0).toFixed(1)}s</span>`;
+        const wPx = Math.max(1.1, r0 - l0) / 100 * breitePx;
+        b.innerHTML = (wPx >= 15 ? `<span class="tl-tempo-pause">⏸</span>` : "")
+          + (wPx >= 40 ? `<span class="tl-tempo-sek">${(+e.sek || 0).toFixed(1)}s</span>` : "");
         el.appendChild(b);
       } else if (e.art === "tempo") {
         const von = Math.max(0, Math.min(1, +e.von || 0));
@@ -525,8 +544,9 @@ function mountTimelineBar(opts) {
         d.dataset.idx = String(i);
         const f = +e.faktor || 1;
         d.title = `${f}× ${tlT("animator.tempo.gegen", "gegen die Grundraffung")}`;
+        const bPx = Math.max(0.6, r - l) / 100 * breitePx;
         d.innerHTML = `<span class="tl-tempo-rand" data-rand="l"></span>`
-          + `<span class="tl-tempo-text">${f}×</span>`
+          + (bPx >= 26 ? `<span class="tl-tempo-text">${f}×</span>` : "")
           + `<span class="tl-tempo-rand" data-rand="r"></span>`;
         el.appendChild(d);
       }
@@ -548,6 +568,7 @@ function mountTimelineBar(opts) {
     const lane = host.querySelector('.timeline-lane[data-kind="tempo"] .lane-track');
     if (!lane) return;
     lane.addEventListener("mousedown", (ev) => {
+      if (_tempoHinweis) return;                 // gesperrte Spur: nur ansehen
       const halt = ev.target.closest(".tl-tempo-halt");
       const block = ev.target.closest(".tl-tempo-block");
       const rand = ev.target.closest(".tl-tempo-rand");

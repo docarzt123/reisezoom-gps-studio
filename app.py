@@ -4713,11 +4713,35 @@ class Api:
                   pause_mode, pause_min_s, pause_trim_s}
         """
         try:
-            pfad = (payload or {}).get("gpx_path") or ""
-            if not pfad or not os.path.exists(pfad):
-                return {"ok": False, "error": _ui_t()("error.gpx_nicht_gefunden", "GPX nicht gefunden")}
             p = dict(payload or {})
-            pts, _st = cgpx.parse_gpx(pfad)
+            # Eine Reise ist EINE Strecke aus mehreren Etappen — die Raffung gilt
+            # für alles zusammen. Ohne das rechnete die Kurve nur mit der ersten
+            # Etappe und schrieb deren Dauer in das Feld, das den ganzen Reiseplan
+            # bestimmt: aus 12 s wurden 5,6 s (08.09.2026 auf Marcs Rechner).
+            pfade = [q for q in (p.get("gpx_paths") or []) if q and os.path.exists(q)]
+            if not pfade:
+                pfad = p.get("gpx_path") or ""
+                if not pfad or not os.path.exists(pfad):
+                    return {"ok": False, "error": _ui_t()("error.gpx_nicht_gefunden", "GPX nicht gefunden")}
+                pfade = [pfad]
+            pts = []
+            seg_offset = 0
+            dist_offset = 0.0
+            zeit_offset = 0.0
+            for q in pfade:
+                teil, _st = cgpx.parse_gpx(q)
+                if not teil:
+                    continue
+                max_seg = 0
+                for tp in teil:
+                    tp.seg = int(getattr(tp, "seg", 0) or 0) + seg_offset
+                    max_seg = max(max_seg, tp.seg)
+                    tp.dist_m = float(tp.dist_m or 0.0) + dist_offset
+                    tp.elapsed_s = float(tp.elapsed_s or 0.0) + zeit_offset
+                pts.extend(teil)
+                seg_offset = max_seg + 1
+                dist_offset = float(teil[-1].dist_m or 0.0)
+                zeit_offset = float(teil[-1].elapsed_s or 0.0)
             basis = str(p.get("basis") or ctempo.BASIS_STRECKE)
             pausen = str(p.get("pause_mode", "trim") or "trim")
             ab_s = float(p.get("pause_min_s", 120) or 120)
