@@ -7220,6 +7220,19 @@ function mountAnimator(body, headerActions, opts) {
     // Dazu: Zeit in MapLibres eigenem Zeichnen (map._render) und in den Ereignis-Handlern (map.fire) — läuft
     // außerhalb unserer Schleife und taucht sonst in keiner Zahl auf. Nur während des Probelaufs eingehängt.
     let _plRender = 0, _plRenderN = 0, _plFire = {}, _plHooked = false, _plOrigRender = null, _plOrigFire = null;
+    // 08.09.2026 (Marc: «Kacheln flackern», in jeder Qualität): je Bild den Zoom und die sichtbaren
+    // Kachelmengen (Raster-Quellen + Gelände) verfolgen — Richtungswechsel des Zooms und Mengen,
+    // die zum Stand von vor zwei Bildern zurückspringen (A-B-A), sind das Flackern.
+    let _plZ = [], _plZDir = 0, _plZPrevD = 0, _plSets = {}, _plSetChg = {}, _plSetABA = {}, _plABADiff = [];
+    const _plTrack = () => {
+      const z = map.getZoom();
+      if (_plZ.length) { const d = z - _plZ[_plZ.length - 1]; if (_plZPrevD && d && Math.sign(d) !== Math.sign(_plZPrevD)) _plZDir++; if (d) _plZPrevD = d; }
+      _plZ.push(z); if (_plZ.length > 3) _plZ.shift();
+      const note = (id, s) => { const h = _plSets[id] || []; if (h.length && s !== h[h.length - 1]) { _plSetChg[id] = (_plSetChg[id] || 0) + 1; if (h.length > 1 && s === h[h.length - 2]) { _plSetABA[id] = (_plSetABA[id] || 0) + 1; if (_plABADiff.length < 8) { const A = new Set(s.split(",")), B = new Set(h[h.length - 1].split(",")); _plABADiff.push(`${id}@${_plN} z${map.getZoom().toFixed(2)} B-A:[${[...B].filter((x) => !A.has(x)).join(" ")}] A-B:[${[...A].filter((x) => !B.has(x)).join(" ")}]`); } } } h.push(s); if (h.length > 3) h.shift(); _plSets[id] = h; };
+      const scs = (map.style && map.style.sourceCaches) || {};
+      for (const id of Object.keys(scs)) { if (!/^rz-raster/.test(id)) continue; const sc = scs[id]; if (sc && sc.getRenderableIds) note(id, sc.getRenderableIds().map((k) => { const t = sc.getTileByID ? sc.getTileByID(k) : null; return t && t.tileID ? `${t.tileID.canonical.z}/${t.tileID.canonical.x}/${t.tileID.canonical.y}` : String(k); }).join(",")); }
+      const t = map.terrain && map.terrain.sourceCache; if (t && t.getRenderableTiles) note("dem", t.getRenderableTiles().map((x) => `${x.tileID.canonical.z}/${x.tileID.canonical.x}/${x.tileID.canonical.y}`).join(","));
+    };
     const _plHook = () => {
       if (_plHooked || !map) return; _plHooked = true;
       try {
@@ -7236,8 +7249,9 @@ function mountAnimator(body, headerActions, opts) {
       if (_plN < 5) return;
       const s = (performance.now() - _plStart) / 1000;
       const top = Object.entries(_plFire).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k} ${(v / Math.max(1, _plN)).toFixed(1)}`).join(", ");
-      try { applog("info", `[probelauf] ${grund}: ${_plN} Bilder in ${s.toFixed(1)} s = ${(_plN / s).toFixed(0)} fps · längste Lücke ${Math.round(_plWorst)} ms · Bilder >33 ms: ${_plSlow33} · >50 ms: ${_plSlow50} · Skript ${(_plJs / Math.max(1, _plN)).toFixed(1)} ms/Bild (max ${Math.round(_plJsMax)}) · MapLibre-Zeichnen ${(_plRender / Math.max(1, _plN)).toFixed(1)} ms/Bild (${_plRenderN} Aufrufe) · Handler ms/Bild: ${top || "–"} · Kachel-Rückstand max ${_plPend} · Engine ${map && map.__rzEngine} · Fläche ${map ? map.getCanvas().width + "×" + map.getCanvas().height : "?"} · Gelände ${!!(map && map.getTerrain && map.getTerrain())}`); } catch (_) {}
-      _plN = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {};
+      try { applog("info", `[probelauf] ${grund}: ${_plN} Bilder in ${s.toFixed(1)} s = ${(_plN / s).toFixed(0)} fps · längste Lücke ${Math.round(_plWorst)} ms · Bilder >33 ms: ${_plSlow33} · >50 ms: ${_plSlow50} · Skript ${(_plJs / Math.max(1, _plN)).toFixed(1)} ms/Bild (max ${Math.round(_plJsMax)}) · MapLibre-Zeichnen ${(_plRender / Math.max(1, _plN)).toFixed(1)} ms/Bild (${_plRenderN} Aufrufe) · Handler ms/Bild: ${top || "–"} · Kachel-Rückstand max ${_plPend} · Engine ${map && map.__rzEngine} · Fläche ${map ? map.getCanvas().width + "×" + map.getCanvas().height : "?"} · Gelände ${!!(map && map.getTerrain && map.getTerrain())} · Zoom-Richtungswechsel ${_plZDir} · Kachelmengen-Wechsel ${JSON.stringify(_plSetChg)} · davon A-B-A ${JSON.stringify(_plSetABA)}`); } catch (_) {}
+      for (const d of _plABADiff) { try { applog("info", "[probelauf-aba] " + d.slice(0, 700)); } catch (_) {} }
+      _plN = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {}; _plZ = []; _plZDir = 0; _plZPrevD = 0; _plSets = {}; _plSetChg = {}; _plSetABA = {}; _plABADiff = [];
     };
     window.__rzProbelaufBilanz = _plBilanz;
     const step = (now) => {
@@ -7249,6 +7263,7 @@ function mountAnimator(body, headerActions, opts) {
       if (!_plN) { _plStart = now; _plLast = now; _plWorst = 0; _plPend = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {}; _plHook(); }
       else { const g = now - _plLast; if (g > _plWorst) _plWorst = g; if (g > 33) _plSlow33++; if (g > 50) _plSlow50++; _plLast = now; }
       _plN++;
+      try { _plTrack(); } catch (_) {}
       try { const _s = map.getSource("preview-track"); if (_s && typeof _s._pendingLoads === "number" && _s._pendingLoads > _plPend) _plPend = _s._pendingLoads; } catch (_) {}
       const elapsed = (now - _previewT0) * _previewSpeed;
       // v0.9.53: Track-Position-Trim, fixe Render-Zeit (anim + hold).
