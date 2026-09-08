@@ -935,3 +935,27 @@
 .lib-proj-chip.ist-leer { opacity: .42; }
 .lib-proj-chip.ist-leer:hover { opacity: 1; }
 .lib-proj-chip.hat-arbeit { opacity: 1; }
+
+/* ── Rechtsklick-Menü im Archiv + Ziehen in eine Sammlung (Marc, 08.09.2026) ─
+   „Es sollte im Archiv ein Rechtsklick gehen … außerdem würde ich gern per
+   Drag and Drop eine Tour einfach in eine Sammlung ziehen können." */
+.lib-ctxmenu {
+  position: fixed; z-index: 9000; min-width: 210px; padding: 5px;
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 34px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 1px;
+}
+.lib-ctxmenu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
+.lib-ctx-item {
+  appearance: none; background: none; border: 0; color: var(--text);
+  text-align: left; font-size: 13px; padding: 7px 10px; border-radius: 7px; cursor: pointer;
+  white-space: nowrap;
+}
+.lib-ctx-item:hover { background: var(--bg-3); }
+.lib-ctx-item.lib-btn-danger { color: var(--danger, #e5484d); }
+/* Ziel beim Ziehen: die Sammlung, über der die Maus steht. Während des Ziehens
+   liegt `lib-zieht` am body — so bleiben die übrigen Sammlungen ruhig. */
+.lib-nav-item.is-drop {
+  outline: 2px solid var(--accent); outline-offset: -2px;
+  background: rgba(120, 190, 120, .12);
+}
+body.lib-zieht .lib-nav-item { transition: background .12s ease; }

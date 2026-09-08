@@ -14,7 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Right-click in the tour archive opens a menu for the tour under the cursor: open in the animator, show details, take as a ghost track, add to a collection, remove from the current collection, move to trash. If the tour belongs to a running multi-selection the menu acts on all of them, otherwise it selects the one clicked first, like the Finder. — Rechtsklick im Archiv öffnet ein Menü für die angefasste Tour.
+- Tours can be dragged onto a collection in the sidebar. The collection lights up while a tour hovers over it, and the drop can be undone. — Touren lassen sich per Ziehen in eine Sammlung legen.
+
 ### Fixed
+- The track colour in the animator now reaches the preview while you pick it. The control wrote the hex label and the setting, nothing called the function that paints the layers, so the colour appeared only when the probe run rebuilt them. — Trackfarbe wirkt sofort in der Vorschau, nicht erst beim Probelauf.
 - Deleting several projects at once: the selected cards and the clicked card looked exactly the same, both a 2 px accent outline. A tester marked two cards, the counter said one, and one was deleted. The multi-selection now carries a tinted area and a check mark, the single selection only a thin neutral outline. And once a multi-selection is running, a plain click adds and removes cards too — it used to throw the whole selection away, which was invisible because both states looked alike. — Mehrere Projekte löschen: markierte und angeklickte Karte sahen gleich aus; die Mehrfachauswahl ist jetzt deutlich anders und der einfache Klick sammelt weiter mit.
 - Additional tracks: a row changed the track it was drawn from by position. If the list was reloaded in between (project switch, refresh from the source files, module switch), the row wrote into an array nobody read any more — the colour field showed the new colour while map and project kept the old one. Rows now find their track by id. Every colour change is logged. — Zusatzspuren: Farbwechsel gingen verloren, wenn die Liste zwischendurch neu geladen wurde.
 - Colour steps in the animator: the value boxes cut off longer numbers, an altitude of 331 m showed as 33. — Farbstufen: die Eingabefelder schnitten längere Zahlen ab.
