@@ -643,6 +643,15 @@ Zwischen zwei Etappen sitzt der **Übergang** mit eigenem Stil und eigener Dauer
 
 Bleibt das Dauer-Feld des Übergangs leer, gilt die gemeinsame **Flugdauer** darunter.
 
+**Der Probelauf zeigt die Reise jetzt wirklich** (seit v0.9.672): Etappe für Etappe, mit dem
+Flug dazwischen. Während eines Übergangs verschwindet der Laufpunkt — er steht ja am Ende der
+alten Etappe, und die Kamera ist unterwegs. Zwischen den Etappen zieht **keine gerade Linie**
+über die Karte; jede Etappe ist ein eigener Strang.
+
+Wer die Kamera führt: Haben Sie **Keyframes** gesetzt, gelten die. Ist **Kamera folgt Track**
+an, folgt sie dem Laufpunkt über alle Etappen. Sonst hält sie je Etappe deren Gesamtsicht,
+genau wie das gerenderte Video.
+
 ### 🌊 Der Schwarm — alle Touren laufen gleichzeitig (seit v0.9.557, voll im Animator seit v0.9.569)
 Markiere mehrere Touren (⌘/Strg-Klick) oder öffne eine Sammlung und wähle
 **„🌊 Als Schwarm animieren …"** — ein kleiner Dialog fragt nach dem

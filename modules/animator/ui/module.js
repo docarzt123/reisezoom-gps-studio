@@ -3783,7 +3783,7 @@ function mountAnimator(body, headerActions, opts) {
       });
     } else if (currentCoords) {
       map.getSource("preview-track").setData({
-        type: "Feature", geometry: { type: "LineString", coordinates: currentCoords },
+        type: "Feature", geometry: _reiseGeometrie(currentCoords, 0),
       });
     }
     // WICHTIG — Layer-Reihenfolge: shadow < glow < line (von unten nach oben).
@@ -4625,6 +4625,13 @@ function mountAnimator(body, headerActions, opts) {
     try {
       const src = map.getSource("anim-dot");
       if (!src) return;
+      // 08.09.2026 — Während eines Etappen-Übergangs steht der Laufpunkt am
+      // Ende der alten Etappe. Ihn dort liegen zu lassen sieht aus wie ein
+      // vergessener Punkt; er verschwindet für die Dauer des Flugs.
+      if (_reiseImUebergang(frac)) {
+        rzSetDataLatest(map, src, { type: "FeatureCollection", features: [] });
+        return;
+      }
       const f = Math.max(0, Math.min(currentCoords.length - 1, +frac || 0));
       rzSetDataLatest(map, src, { type: "Feature",
                     properties: { brg: _kursAn(currentCoords, Math.ceil(f)) },
@@ -4713,7 +4720,7 @@ function mountAnimator(body, headerActions, opts) {
       }
       rzSetDataLatest(map, src, {
         type: "Feature",
-        geometry: { type: "LineString", coordinates: coords },
+        geometry: _reiseGeometrie(coords, ai0),
       });
       // 🌊 Schwarm: Die Zusatz-Touren folgen demselben Stand — voll, wenn der
       // Haupt-Track voll gezeigt wird (auch im 1-Punkt-Ruhefall oben), sonst
@@ -6309,7 +6316,7 @@ function mountAnimator(body, headerActions, opts) {
         _animSchwarmPreviewAdvance(coordFracRoh, previewFullTrack());
         rzSetDataLatest(map, src, {
           type: "Feature",
-          geometry: { type: "LineString", coordinates: coords },
+          geometry: _reiseGeometrie(coords, previewFullTrack() ? 0 : startIdx),
         });
         // v0.9.434 — Track-Alterung: Gradient relativ zum Marker (coordIdx).
         const ai0 = previewFullTrack() ? 0 : startIdx;
@@ -7588,9 +7595,33 @@ function mountAnimator(body, headerActions, opts) {
         _follLastNow = now;
         jumpArgs.center = _follLL.slice();
       }
+      // 08.09.2026 — Übergang zwischen zwei Etappen: die Kamera fliegt von der
+      // Sicht der einen zur nächsten (Kinoflug oder Luftlinie, je Übergang),
+      // während der Laufpunkt am Etappenende steht. Schlägt die Keyframe- und
+      // Folge-Kamera hier bewusst: der Flug IST der Übergang.
+      // Reise: der Flug im Übergang gilt immer — er IST der Übergang. Innerhalb
+      // einer Etappe hängt es davon ab, wer die Kamera führt:
+      //   Keyframes gesetzt → seine Kamera, wir halten uns raus.
+      //   „Kamera folgt Track" → dem Laufpunkt folgen, quer über alle Etappen.
+      //   sonst → die Sicht dieser Etappe (wie der klassische Render sie hält).
+      // Ohne das bliebe die Kamera bei der Gesamtsicht der ERSTEN Tour stehen,
+      // während der Punkt längst in der nächsten Etappe läuft (08.09.2026 im
+      // Prüfstand genau so gemessen).
+      const _rKamRoh = _reiseKamera(coordFrac);
+      let _rKam = _rKamRoh;
+      if (_rKamRoh && _rKamRoh.etappe) {
+        // Nur ECHTE Keyframes zählen. Der Editor ist in vielen Projekten an,
+        // ohne dass einer gesetzt wurde — dann kommt die Kamera aus den
+        // Schiebereglern und stünde bei der Sicht der ersten Tour fest, während
+        // der Punkt schon in der nächsten Etappe läuft.
+        const _kfEcht = keyframesEnabled() && (getRawTimelineEvents() || []).length > 0;
+        if (_kfEcht) _rKam = null;
+        else if (cameraFollow2) _rKam = { center: coordBeiFrac(currentCoords, coordFrac), zoom: _curZoom };
+      }
+      if (_rKam) { jumpArgs.center = _rKam.center; jumpArgs.zoom = _rKam.zoom; }
       // position-padding mit smooth Fade-Out zwischen Zoom 4 und 8
       // (zoom <= 4: 100 %, 4..8: linear, >= 8: 0 %). Siehe scrubPreview.
-      const _zfStep = Math.max(0, Math.min(1, (8 - _curZoom) / 4));
+      const _zfStep = Math.max(0, Math.min(1, (8 - (_rKam ? _rKam.zoom : _curZoom)) / 4));
       if (jumpArgs.center) _seedLngAccum(jumpArgs.center[0]);  // v0.9.136
       // v0.9.318 — entkoppelte FreeCamera (WYSIWYG zum Render) statt setCenter/-Zoom.
       // 22.08.2026 — nur in markierten Abschnitten (Gewicht > 0) die FreeCamera;
@@ -7650,7 +7681,7 @@ function mountAnimator(body, headerActions, opts) {
           _animSchwarmPreviewAdvance(coordFracRoh, previewFullTrack());
           rzSetDataLatest(map, src, {
             type: "Feature",
-            geometry: { type: "LineString", coordinates: lineCoords },
+            geometry: _reiseGeometrie(lineCoords, fullToggle ? 0 : startCoordIdx),
           });
           // v0.9.435 — Mehrfarbiger Track: Farbverlauf im Probelauf mitführen.
           const _ci0 = fullToggle ? 0 : startCoordIdx;
@@ -13213,6 +13244,11 @@ function mountAnimator(body, headerActions, opts) {
   function drawPreview(res) {
     applog("info", `[drawPreview] n_coords=${res?.coords?.length} hasSource=${!!map?.getSource?.("preview-track")}`);
     currentCoords = res.coords;
+    // 08.09.2026 — die erste Etappe merken; bei einer Reise ersetzt die
+    // Etappen-Bahn den Track (siehe _reiseAnwenden).
+    _reiseBasis = res.coords;
+    _reiseBahn = null;
+    if (_reiseGilt()) { try { if (_reiseBauen()) currentCoords = _reiseBahn.coords; } catch (e) { applog("warn", "[reise] " + e); } }
     currentBbox = res.bbox;
     try { _refreshStyleForTrack(); } catch (_) {}   // 03.09.2026 — Land für „Satellit (kostenlos)"
     // Neuer Track = neue Ausgangslage: Die Karte darf sich wieder selbst auf
@@ -13774,6 +13810,7 @@ function mountAnimator(body, headerActions, opts) {
         _animEtappe1S = Math.max(0, parseFloat(e.target.value) || 0);
         e.target.value = _animEtappe1S || "";
         _animPersistTours();
+        try { _reiseAnwenden(); } catch (_) {}
       });
       host.appendChild(kopf);
     }
@@ -13796,12 +13833,14 @@ function mountAnimator(body, headerActions, opts) {
         ur.querySelector(".anim-ueber-stil").addEventListener("change", (e) => {
           _extraTours[i].ueber_stil = e.target.value;
           _animPersistTours(); _animRenderToursList();
+          try { _reiseAnwenden(); } catch (_) {}
         });
         ur.querySelector(".anim-ueber-s").addEventListener("change", (e) => {
           const v = e.target.value.trim();
           _extraTours[i].ueber_s = v === "" ? null : Math.max(0, parseFloat(v) || 0);
           e.target.value = _extraTours[i].ueber_s == null ? "" : _extraTours[i].ueber_s;
           _animPersistTours();
+          try { _reiseAnwenden(); } catch (_) {}
         });
         host.appendChild(ur);
       }
@@ -13829,6 +13868,7 @@ function mountAnimator(body, headerActions, opts) {
         _extraTours[i].dauer_s = Math.max(0, parseFloat(e.target.value) || 0);
         e.target.value = _extraTours[i].dauer_s || "";
         _animPersistTours();
+        try { _reiseAnwenden(); } catch (_) {}
       });
       row.querySelector(".anim-tour-color").addEventListener("input", (e) => {
         _extraTours[i].line_color = e.target.value;
@@ -14141,6 +14181,189 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   let _animExtraRetry = 0;
+  /* ── Reise: Etappen und Übergänge in EINER Bahn (08.09.2026, Marc) ────────
+   *
+   * Bis hierher spielte die Vorschau bei einer Reise nur die erste Tour ab und
+   * zeigte die übrigen als stehende Linien; gerendert wurde sie deshalb über den
+   * alten Generator, also ohne WYSIWYG. Jetzt baut die Vorschau aus den Etappen
+   * EINE Bahn:
+   *   - Jede Etappe wird auf so viele Punkte abgetastet, wie ihrem Zeitanteil
+   *     entspricht (eigene Dauer, sonst Anteil nach Umfang) — dadurch stimmt die
+   *     Zeit, ohne dass die vorhandene Abbildung Fortschritt → Punktindex
+   *     angefasst werden muss.
+   *   - Ein Übergang ist eine Reihe von Wiederholungen des letzten Punktes: der
+   *     Laufpunkt steht still, die Kamera fliegt (siehe _reiseKamera).
+   *   - Gezeichnet wird als MultiLineString je Etappe, damit zwischen den
+   *     Etappen KEINE Verbindungslinie steht (genau der Strich quer durchs Bild,
+   *     der Marcs zusammengeführtes „66 Seen" verunstaltet).
+   */
+  let _reiseBasis = null;    // Koordinaten der ERSTEN Etappe, wie geladen
+  let _reiseBahn = null;     // { coords, teilVon, istUeber, teile, ansichten }
+
+  // Für den kopflosen Prüfstand greifbar (wie __rzGhostSpuren).
+  try { window.__rzAnimCoords = () => currentCoords || []; } catch (_) {}
+  try { window.__rzRohEvents = () => (getRawTimelineEvents() || []); } catch (_) {}
+  try { window.__rzReiseBahn = () => (_reiseBahn ? {
+    punkte: _reiseBahn.coords.length, teile: _reiseBahn.teile,
+    ecken: _reiseBahn.teile.map(t => _reiseBahn.coords[t.von].map(x => +x.toFixed(3))),
+    namen: [(currentGpx || "").split("/").pop()].concat(_extraTours.map(x => (x.gpx_path || "").split("/").pop())),
+    ueber: Array.from(_reiseBahn.istUeber).reduce((a, b) => a + b, 0),
+    etappen: _reiseBahn.etappen.length,
+  } : null); } catch (_) {}
+
+  function _reiseGilt() {
+    return _animAblauf !== "schwarm" && _extraTours.length > 0
+      && Array.isArray(_reiseBasis) && _reiseBasis.length > 1;
+  }
+  function _reiseAktiv() { return !!(_reiseBahn && _reiseGilt()); }
+
+  /** Gleichmäßig auf n Punkte abtasten (auch hoch: dann Wiederholungen). */
+  function _reiseAbtasten(coords, n) {
+    const raus = [];
+    const m = coords.length - 1;
+    for (let i = 0; i < n; i++) raus.push(coords[Math.round(i * m / Math.max(1, n - 1))]);
+    return raus;
+  }
+
+  function _reiseBauen() {
+    if (!_reiseGilt()) { _reiseBahn = null; return null; }
+    const etappen = [{ coords: _reiseBasis, dauer: +_animEtappe1S || 0, ueber_s: null, ueber_stil: "kino" }]
+      .concat(_extraTours
+        .filter(t => Array.isArray(t.coords) && t.coords.length > 1)
+        .map(t => ({ coords: t.coords, dauer: +t.dauer_s || 0,
+                     ueber_s: (t.ueber_s == null || t.ueber_s === "") ? null : (+t.ueber_s || 0),
+                     ueber_stil: t.ueber_stil || "kino" })));
+    if (etappen.length < 2) { _reiseBahn = null; return null; }
+
+    // Zeitanteile — dieselbe Regel wie core/animator.py `_reise_segmente`.
+    const flugS = parseNum(document.getElementById("anim-fly")?.value, 3);
+    const gesamtS = Math.max(1, parseNum(document.getElementById("anim-dur")?.value, 20));
+    const fest = etappen.map(e => e.dauer > 0 ? e.dauer : 0);
+    const offen = etappen.map((e, i) => fest[i] ? -1 : i).filter(i => i >= 0);
+    const restS = Math.max(0, gesamtS - fest.reduce((a, b) => a + b, 0));
+    const offenPts = offen.reduce((a, i) => a + etappen[i].coords.length, 0) || 1;
+    const etappeS = etappen.map((e, i) => fest[i] ||
+      (restS * e.coords.length / offenPts));
+    const ueberS = etappen.map((e, i) => i === 0 ? 0
+      : (e.ueber_stil === "schnitt" ? 0 : (e.ueber_s == null ? flugS : e.ueber_s)));
+    const summeS = etappeS.reduce((a, b) => a + b, 0) + ueberS.reduce((a, b) => a + b, 0);
+    if (!(summeS > 0)) { _reiseBahn = null; return null; }
+
+    // Punktbudget: fein genug für die Linie, klein genug für die Vorschau.
+    const roh = etappen.reduce((a, e) => a + e.coords.length, 0);
+    const NGES = Math.max(600, Math.min(6000, roh));
+
+    const coords = [];
+    const teilVon = [];
+    const istUeber = [];
+    const teile = [];
+    etappen.forEach((e, i) => {
+      if (i > 0 && ueberS[i] > 0) {
+        const nU = Math.max(1, Math.round(NGES * ueberS[i] / summeS));
+        const letzter = coords[coords.length - 1] || e.coords[0];
+        for (let k = 0; k < nU; k++) { coords.push(letzter); teilVon.push(i - 1); istUeber.push(1); }
+      }
+      const nE = Math.max(2, Math.round(NGES * etappeS[i] / summeS));
+      const abgetastet = _reiseAbtasten(e.coords, nE);
+      const von = coords.length;
+      for (const c of abgetastet) { coords.push(c); teilVon.push(i); istUeber.push(0); }
+      teile.push({ von, bis: coords.length - 1 });
+    });
+    _reiseBahn = { coords, teilVon, istUeber, teile, ansichten: null, etappen };
+    applog("info", `[reise] Bahn gebaut: ${etappen.length} Etappen · ${coords.length} Punkte · `
+      + `Etappen ${etappeS.map(x => x.toFixed(1)).join("/")} s · Übergänge ${ueberS.slice(1).map(x => x.toFixed(1)).join("/")} s`);
+    return _reiseBahn;
+  }
+
+  /** Bahn als aktuellen Track übernehmen (die Vorschau rechnet damit weiter). */
+  function _reiseAnwenden() {
+    if (!_reiseBauen()) return false;
+    currentCoords = _reiseBahn.coords;
+    try { refreshPreviewTrackData(); } catch (_) {}
+    return true;
+  }
+
+  /** Linie ohne Verbindungsstriche: je Etappe ein eigener Strang. */
+  function _reiseGeometrie(coords, ab) {
+    if (!_reiseAktiv()) return { type: "LineString", coordinates: coords };
+    const tv = _reiseBahn.teilVon;
+    const teile = [];
+    let akt = null, letzt = -2;
+    for (let k = 0; k < coords.length; k++) {
+      const t = tv[ab + k];
+      if (t == null) continue;
+      if (t !== letzt) { akt = []; teile.push(akt); letzt = t; }
+      akt.push(coords[k]);
+    }
+    const gut = teile.filter(x => x.length >= 2);
+    if (!gut.length) return { type: "LineString", coordinates: coords };
+    return gut.length === 1
+      ? { type: "LineString", coordinates: gut[0] }
+      : { type: "MultiLineString", coordinates: gut };
+  }
+
+  /** Steht der Laufpunkt gerade in einem Übergang? */
+  function _reiseImUebergang(idx) {
+    return !!(_reiseAktiv() && _reiseBahn.istUeber[Math.max(0, Math.min(_reiseBahn.istUeber.length - 1, Math.round(idx)))]);
+  }
+
+  /** Kamera in der Reise: während eines Übergangs der Flug, sonst die Sicht der
+   *  laufenden Etappe. Zweites nur, wenn der Nutzer die Kamera nicht selbst
+   *  führt (Keyframes oder „Kamera folgt Track") — dann gilt seine.
+   *  Synchron zum klassischen Render: der hält je Etappe deren Bounds-Fit
+   *  (`tour_views`) und fliegt dazwischen. */
+  function _reiseKamera(idx) {
+    if (!_reiseAktiv() || !map) return null;
+    const i = Math.max(0, Math.min(_reiseBahn.istUeber.length - 1, Math.round(idx)));
+    if (!_reiseBahn.istUeber[i]) {
+      const teil = _reiseBahn.teilVon[i];
+      const A = _reiseAnsichten()[teil];
+      return A ? { center: A.c.slice(), zoom: A.z, etappe: true } : null;
+    }
+    // Anfang und Ende dieses Übergangs finden
+    let a = i, b = i;
+    while (a > 0 && _reiseBahn.istUeber[a - 1]) a--;
+    while (b < _reiseBahn.istUeber.length - 1 && _reiseBahn.istUeber[b + 1]) b++;
+    const vonTeil = _reiseBahn.teilVon[a];
+    const nachTeil = vonTeil + 1;
+    const ansichten = _reiseAnsichten();
+    const A = ansichten[vonTeil], B = ansichten[nachTeil];
+    if (!A || !B) return null;
+    const p = (i - a) / Math.max(1, b - a);
+    const q = p * p * (3 - 2 * p);   // smoothstep, wie im Render
+    const stil = (_reiseBahn.etappen[nachTeil] || {}).ueber_stil || "kino";
+    if (stil === "luftlinie") {
+      return { center: [A.c[0] + (B.c[0] - A.c[0]) * q, A.c[1] + (B.c[1] - A.c[1]) * q],
+               zoom: A.z + (B.z - A.z) * q };
+    }
+    // Kinoflug: heraus, hinüber, heran — dieselbe Form wie van Wijk im Render.
+    const raus = Math.min(A.z, B.z) - 1.2;
+    const z = q < 0.5 ? A.z + (raus - A.z) * (q * 2) : raus + (B.z - raus) * ((q - 0.5) * 2);
+    return { center: [A.c[0] + (B.c[0] - A.c[0]) * q, A.c[1] + (B.c[1] - A.c[1]) * q], zoom: z };
+  }
+
+  /** Sicht je Etappe (Mitte + Zoom), einmal je Bahn berechnet. */
+  function _reiseAnsichten() {
+    if (!_reiseAktiv()) return [];
+    if (_reiseBahn.ansichten) return _reiseBahn.ansichten;
+    const raus = _reiseBahn.etappen.map((e) => {
+      let mnLo = Infinity, mxLo = -Infinity, mnLa = Infinity, mxLa = -Infinity;
+      for (const c of e.coords) {
+        if (c[0] < mnLo) mnLo = c[0]; if (c[0] > mxLo) mxLo = c[0];
+        if (c[1] < mnLa) mnLa = c[1]; if (c[1] > mxLa) mxLa = c[1];
+      }
+      // `_previewFitBase` lebt im Probelauf; hier reicht die Fit-Basis des Moduls.
+      let z = (_fitZoomBase != null) ? _fitZoomBase : (map ? map.getZoom() : 10);
+      try {
+        const cam = map.cameraForBounds([[mnLo, mnLa], [mxLo, mxLa]], { padding: 60 });
+        if (cam && isFinite(cam.zoom)) z = cam.zoom;
+      } catch (_) {}
+      return { c: [(mnLo + mxLo) / 2, (mnLa + mxLa) / 2], z };
+    });
+    _reiseBahn.ansichten = raus;
+    return raus;
+  }
+
   function _animDrawExtraToursPreview() {
     if (!map) return;
     // v0.9.492 — Früher hieß es hier nur „Style noch nicht fertig → raus".
@@ -14175,6 +14398,11 @@ function mountAnimator(body, headerActions, opts) {
       _vorschauDiagnose();
       return;
     }
+    // 08.09.2026 — Reise: aus den Etappen EINE Bahn bauen, damit die Vorschau
+    // sie abspielen kann (Zeit je Etappe, Übergänge als Flug). Die Linien der
+    // einzelnen Etappen bleiben in ihrer Farbe liegen; die wachsende Linie
+    // läuft darüber.
+    try { if (_reiseGilt()) _reiseAnwenden(); else _reiseBahn = null; } catch (e) { applog("warn", "[reise] " + e); }
     _extraTours.forEach((tr, i) => {
       if (!tr.coords || tr.coords.length < 2) return;
       try {
@@ -14558,6 +14786,11 @@ function mountAnimator(body, headerActions, opts) {
                              line_color: t.line_color || "#35a7ff",
                              name: t.name || "Tour", coords: res.coords,
                              start_s: +t.start_s || 0,
+                             // 08.09.2026 — Etappendauer und Übergang mitnehmen,
+                             // sonst stehen sie beim nächsten Öffnen wieder leer.
+                             dauer_s: +t.dauer_s || 0,
+                             ueber_s: (t.ueber_s == null || t.ueber_s === "") ? null : (+t.ueber_s || 0),
+                             ueber_stil: t.ueber_stil || "kino",
                              // M3 „echte Uhrzeit": Sekunden je Koordinate
                              zeit: (res.series && res.series.cumTimeS
                                     && res.has_time !== false
