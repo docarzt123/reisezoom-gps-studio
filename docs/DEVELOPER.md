@@ -648,6 +648,98 @@ Bewusst NICHT übersetzt: `log.*`/`applog`-Ausgaben (Support-Logs für Marc),
 technische Fehlercodes wie `no_token` (die wertet das Frontend aus), Einheiten
 (bpm, W, km/h) und „UTC+2".
 
+### `core/tempo.py` — die Tempo-Kurve (seit 08.09.2026) ⚠️ PFLICHTLEKTÜRE
+
+Das Modell in einem Satz (Marc): **„Alles ist eine Beschleunigung der Tour."**
+Grundlage ist eine **Raffung** (`rate`) gegen eine **Basis** — `zeit` (x-fach
+gegenüber echt), `strecke` (km je Videosekunde) oder `punkte` (Punkte je
+Videosekunde). Die drei Basen sind genau die drei Verteilungen, die es vorher
+schon gab (`real`, `even`, `raw`), deshalb laufen bestehende Projekte
+unverändert weiter. Über der Raffung liegen **Einträge**, beide an
+Streckenanteilen 0..1 verankert wie Keyframes:
+
+```python
+{"art": "halt",  "bei": 0.42, "sek": 3.0, "kamera": "nichts"|"orbit"}
+{"art": "tempo", "von": 0.20, "bis": 0.55, "faktor": 0.5}
+```
+
+`kurve(pts, basis, rate, eintraege, fps, …)` liefert alles auf einmal:
+
+| Feld | Bedeutung |
+|---|---|
+| `anteile` | Tabelle Bild → Streckenanteil (dieselbe Form wie `pace_index_map`) |
+| `dauer_s` | wie lang das Video wird — **ein Ergebnis, keine Eingabe** |
+| `sek_strecke` / `sek_halte` | woraus sich das zusammensetzt |
+| `halte` | je Halt seine Lage in Videosekunden (`ab_s`, `bis_s`) |
+| `rate`, `basis`, `hinweise` | was wirklich gerechnet wurde |
+
+**Ein Halt ist ein Plateau in der Tabelle:** derselbe Streckenanteil steht
+mehrere Bilder lang. Deshalb braucht der Renderer keinen Sonderfall — wer die
+Tabelle abläuft, hält automatisch an.
+
+`rate_fuer_wunschdauer()` geht den Weg zurück: Aus einer Wunschlänge wird die
+Raffung, **mit** den Halten (sie sind ein fester Zuschlag, der Streckenteil
+skaliert umgekehrt zur Raffung). Ohne Zeitstempel fällt `_basis_pruefen()` von
+`zeit` auf `strecke` zurück und schreibt es in `hinweise` — sonst ergäbe eine
+Zeitachse aus lauter Nullen eine Dauer von 69 s statt 12 s (auf 59 echten Touren
+gemessen).
+
+**Brücke:** `animator_tempo_map` in `app.py`. Sie nimmt `gpx_path` **oder**
+`gpx_paths` — bei einer Reise die Pfade aller Etappen, damit die Raffung für die
+ganze Strecke gilt. Beim Aneinanderhängen bekommt jede Etappe eine eigene
+`seg`-Nummer und ihren Versatz in `dist_m`/`elapsed_s`; über eine Etappengrenze
+wird dadurch weder Strecke noch Zeit gerechnet (`compute_cumulative`-Regel).
+
+**Zeitleiste (`ui/js/timeline.js`, Spur `data-kind="tempo"`).** Die Leiste zeigt
+**Videozeit**, die Einträge hängen an der **Strecke** — dazwischen steht die
+Kurve. Deshalb:
+
+- `_haltSpanne(e)` zeichnet einen Halt als **Band** über `ab_s..bis_s`, nicht als
+  Punkt. Anlauf und Nachlauf (`rolle: "anlauf"/"nachlauf"`) füllen genau die
+  Intro- bzw. Hold-Phase der Leiste.
+- `_videoAusStrecke()` / `_streckeAusVideo()` rechnen zwischen beiden Achsen um;
+  jeder Griff in die Spur geht über `_tempoStelle(clientX)`, sonst greift man
+  neben dem, was man sieht.
+- **Der Doppelklick wird selbst erkannt** (`_tempoLetzterDruck`, 350 ms): Die
+  Spur wird nach jedem Loslassen neu gezeichnet, das angeklickte Element ist
+  beim zweiten Klick ein anderes — ein natives `dblclick` kommt nie an.
+- `setTempo(liste, halte, kurve, hinweis)`; ein `hinweis` **sperrt** die Spur
+  (Reise, siehe unten) und steht als Tooltip, nicht als Text quer über die
+  Bänder.
+
+**Im Animator** (`modules/animator/ui/module.js`): `_tempoEintraege()` hängt an
+`_tempoListeVon` (der Projekt-Id) — ohne diese Marke stand beim Projektwechsel
+die Liste des vorherigen Projekts noch da. `_tempoAnzeige()` ergänzt die
+gesperrten Einträge (Anlauf, Nachlauf, Etappen-Übergänge), die aus ihren eigenen
+Reglern kommen und nur gezeigt werden.
+
+### Reise: der Zeitplan gehört den Etappen (seit 08.09.2026)
+
+Eine Reise (`_reiseGilt()`: Ablauf ≠ Schwarm, mindestens eine Zusatztour, erste
+Etappe geladen) verteilt die Zeit selbst — `_reiseBauen()` tastet jede Etappe mit
+so vielen Punkten ab, wie ihrem Zeitanteil entspricht, und schiebt zwischen zwei
+Etappen einen Lauf gleicher Punkte als Übergang ein. Die Bahn ist damit **schon
+gleichmäßig in Videozeit**. Daraus folgen drei Regeln, die zusammengehören:
+
+1. **Die Kurve verteilt in einer Reise nichts** (`_paceMap = null`). Zwei
+   Verteilungen übereinander wären eine zweite Wahrheit. Die Kurve liefert nur
+   noch die Raffung über alle Etappen — zur Anzeige.
+2. **Die Dauer ist in einer Reise eine Vorgabe, kein Ergebnis.** `paceMapLaden()`
+   schickt darum `rate: 0` (Raffung aus der Wunschdauer ableiten) und
+   `_tempoDauerAnzeigen(r, true)` schreibt das Feld nicht.
+3. **Die Übergänge kommen zur Dauer dazu**, im Render (`_reise_segmente` hängt
+   die Flug-Segmente an `anim_total` an) wie in der Vorschau. Beide fragen
+   `animSekunden()`; ohne das war die Vorschau bei einem 104-s-Plan 100 s lang
+   und ein 1,0-s-Kinoflug dauerte 0,87 s.
+
+`_reise_segmente(...)` und `_reiseBauen()` sind **dieselbe Regel in zwei
+Sprachen** und müssen zusammen gepflegt werden (Wächter:
+`tests/test_etappen_zeitplan.py`, `tests/test_etappen_untergrenze.py`,
+`tests/test_reise_dauer_vorschau.py`). Beide klemmen eine freie Etappe bei
+**0,3 s** ab: Feste Etappendauern gehen vom Budget ab und drückten sonst die
+übrigen auf null — lieber wird das Video länger, und `_reiseBilanzZeigen()` sagt
+es (`sekFest`, `offenN`, `sekJeOffen`).
+
 ### Verteilung der Frames über den Track (v0.9.506)
 
 Die Frame-Schleife läuft über die Punkt-REIHENFOLGE

@@ -66,6 +66,32 @@ MOCK = """(() => {
       for (let i = 0; i < n; i++) { const x = i / (n - 1); map.push(x * x); }
       return { ok: true, map };
     },
+    // 08.09.2026 — die Vorschau holt die Verteilung seit der Tempo-Spur über
+    // `animator_tempo_map` (core/tempo.py). Ohne diesen Mock leitet der Proxy
+    // an die echte Brücke weiter, die es im Browser nicht gibt: `map` fehlt,
+    // `_paceMap` bleibt null, und der Test verglich wieder zweimal dasselbe.
+    // Je Basis eine andere Kurve, damit ein Unterschied eindeutig ist.
+    animator_tempo_map: async (p) => {
+      window.__tempoRufe = (window.__tempoRufe || 0) + 1;
+      window.__tempoLetzte = p;
+      const n = 200, map = [];
+      // „punkte" (= wie aufgezeichnet) läuft gerade, „zeit" quadratisch,
+      // „strecke" als Wurzel — drei klar verschiedene Verläufe.
+      for (let i = 0; i < n; i++) {
+        const x = i / (n - 1);
+        map.push(p && p.basis === "zeit" ? x * x
+               : p && p.basis === "strecke" ? Math.sqrt(x) : x);
+      }
+      const halte = (p && p.eintraege || []).filter(e => e && e.art === "halt");
+      const sekHalte = halte.reduce((a, e) => a + (+e.sek || 0), 0);
+      const wunsch = (p && +p.dauer_s) || 12;
+      const strecke = Math.max(1, wunsch - sekHalte);
+      let ab = 0;
+      halte.forEach(h => { h.ab_s = ab; ab += (+h.sek || 0); h.bis_s = ab; });
+      return { ok: true, map, dauer_s: strecke + sekHalte, sek_strecke: strecke,
+               sek_halte: sekHalte, halte, rate: (p && +p.rate) || 1,
+               basis: (p && p.basis) || "strecke", hinweise: [], punkte: 60 };
+    },
     animator_pause_info: async (p) => {
       window.__rufe.push(p);
       return { ok: true, gesamt_s: 23220, pausen: window.__pausen,

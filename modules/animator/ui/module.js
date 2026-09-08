@@ -14581,6 +14581,7 @@ function mountAnimator(body, headerActions, opts) {
   function _tempoReiseStandPruefen(n) {
     if (_tempoReiseStand === n) return;
     _tempoReiseStand = n;
+    // ui-falle-ok: ein Fehlschlag darf den Aufbau der Reise nicht abbrechen, die Kurve wird bei der nächsten Änderung erneut geholt
     setTimeout(() => { try { paceMapLaden(); } catch (_) {} }, 0);
   }
 
@@ -15039,6 +15040,20 @@ function mountAnimator(body, headerActions, opts) {
     _animDrawExtraToursPreview();
     _animFitAllTours();
   }
+
+  // Prüfstand-Griffe für den Wechsel Einzeltour ↔ Reise
+  // (tests/test_tempo_reise_wechsel.py). Genau die Wege, die auch das Archiv
+  // und der „✕"-Knopf gehen.
+  window.__rzExtraTourAnhaengen = async (pfad) => { await _animAddTourPath(pfad); return _extraTours.length; };
+  window.__rzExtraTouren = () => _extraTours;
+  window.__rzReiseGilt = () => ({ ablauf: _animAblauf, extra: _extraTours.length,
+                                  basis: (_reiseBasis || []).length, gilt: _reiseGilt() });
+  window.__rzExtraTourenLeeren = () => {
+    _extraTours.splice(0, _extraTours.length);
+    _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview();
+    try { _reiseBauen(); } catch (_) {}
+    return _extraTours.length;
+  };
 
   // v0.9.457 — Touren sind projekt-eigener State. Ohne Persistenz wäre die
   // Liste nach jedem App-Start leer und der Nutzer müsste sie neu zusammen-
