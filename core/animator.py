@@ -4345,6 +4345,60 @@ def _punkte_verteilen(cfg, raw_points):
     )
 
 
+def _reise_segmente(tours: list, anim_total: int, fly_frames: int,
+                    intro_frames: int, hold_frames: int, fps: int):
+    """Zeitplan einer Reise: welche Etappe wie lange, welcher Übergang wie lange.
+
+    08.09.2026 (Marc: „jede Etappe hat ihre Zeit und die Übergänge definiert man
+    genauso wie die Reihenfolge"). Regeln:
+      * Etappe mit eigener Dauer (`dauer_s` > 0) bekommt genau diese.
+      * Der Rest des Budgets verteilt sich wie bisher nach Umfang (`n_raw`) auf
+        die Etappen ohne Angabe.
+      * Der Übergang, der IN eine Etappe führt, steht an dieser Etappe
+        (`ueber_s`, `ueber_stil`); ohne Angabe gilt die gemeinsame Flugdauer.
+      * Stil „schnitt" heißt: kein Übergangs-Segment, harter Schnitt.
+    Liefert (walk_frames, ueber, segments).
+    """
+    N = len(tours)
+    fest = [int(round(float(t.get("dauer_s") or 0) * fps)) if float(t.get("dauer_s") or 0) > 0 else 0
+            for t in tours]
+    offen = [i for i in range(N) if not fest[i]]
+    rest = max(0, anim_total - sum(fest))
+    offen_pts = sum(int(tours[i].get("n_raw") or 1) for i in offen) or 1
+    walk_frames = [0] * N
+    zugeteilt = 0
+    for k, i in enumerate(offen):
+        if k == len(offen) - 1:
+            wf = int(max(1, rest - zugeteilt))
+        else:
+            wf = int(max(1, round(rest * int(tours[i].get("n_raw") or 1) / offen_pts)))
+        walk_frames[i] = wf
+        zugeteilt += wf
+    for i in range(N):
+        if fest[i]:
+            walk_frames[i] = max(1, fest[i])
+
+    ueber = []
+    for i in range(1, N):
+        stil = str(tours[i].get("ueber_stil") or "kino")
+        s_i = tours[i].get("ueber_s")
+        n_f = fly_frames if s_i is None else int(round(float(s_i) * fps))
+        if stil == "schnitt":
+            n_f = 0
+        ueber.append((stil, max(0, n_f)))
+
+    segments = []
+    if intro_frames > 0:
+        segments.append(("intro", 0, intro_frames))
+    for i in range(N):
+        segments.append(("walk", i, walk_frames[i]))
+        if i < N - 1 and ueber[i][1] > 0:
+            segments.append(("fly", i, ueber[i][1]))
+    if hold_frames > 0:
+        segments.append(("hold", N - 1, hold_frames))
+    return walk_frames, ueber, segments
+
+
 async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -> str:
     """v0.9.156 — Isolierter Multi-Track-Renderpfad (Marc-Wunsch 2026-06-01).
 
@@ -4392,6 +4446,13 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
             "coords": coords,
             "color": tc.get("line_color") or cfg.line_color,
             "name": tc.get("name") or Path(gpx_path).stem,
+            # 08.09.2026 (Marc: „jede Etappe hat ihre Zeit und die Übergänge
+            # definiert man genauso"): Dauer dieser Etappe in Sekunden (0 = wie
+            # bisher aus dem Gesamtbudget nach Umfang verteilt) und der Übergang,
+            # der IN diese Etappe führt (bei der ersten ohne Bedeutung).
+            "dauer_s": max(0.0, float(tc.get("dauer_s") or 0)),
+            "ueber_s": (None if tc.get("ueber_s") in (None, "") else max(0.0, float(tc.get("ueber_s")))),
+            "ueber_stil": str(tc.get("ueber_stil") or "kino"),
             "n": len(coords),
             # 22.08.2026 (Audit): seit v0.9.510 tastet _punkte_verteilen jede
             # Tour auf die Frame-Zahl hoch → `n` ist für alle kurzen Touren
@@ -4452,30 +4513,12 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
     fly_frames = max(1, int(round(float(cfg.fly_duration_s) * cfg.fps)))
     anim_total = int(max(N, round(cfg.duration_s * cfg.fps)))  # Gesamt-„Geh"-Budget
 
-    total_pts = sum(t["n_raw"] for t in tours) or 1
-    walk_frames: list[int] = []
-    assigned = 0
-    for i, t in enumerate(tours):
-        if i == N - 1:
-            wf = int(max(1, anim_total - assigned))
-        else:
-            wf = int(max(1, round(anim_total * t["n_raw"] / total_pts)))
-        walk_frames.append(wf)
-        assigned += wf
-
-    # Segmente: (kind, tour_idx, n_frames)
-    segments: list[tuple[str, int, int]] = []
-    if intro_frames > 0:
-        segments.append(("intro", 0, intro_frames))
-    for i in range(N):
-        segments.append(("walk", i, walk_frames[i]))
-        if i < N - 1:
-            segments.append(("fly", i, fly_frames))
-    if hold_frames > 0:
-        segments.append(("hold", N - 1, hold_frames))
+    walk_frames, ueber, segments = _reise_segmente(
+        tours, anim_total, fly_frames, intro_frames, hold_frames, cfg.fps)
     total_frames = sum(s[2] for s in segments)
-    _log.info("Multi-Track-Budget: total=%d frames (intro=%d, walks=%s, fly=%d×%d, hold=%d)",
-              total_frames, intro_frames, walk_frames, N - 1, fly_frames, hold_frames)
+    _log.info("Multi-Track-Budget: total=%d Bilder (Intro=%d, Etappen=%s, Übergänge=%s, Hold=%d)",
+              total_frames, intro_frames, walk_frames,
+              [f"{st}:{nf}" for st, nf in ueber], hold_frames)
 
     emit(0.02, _t("animator.progress.load_map", "Karte laden") + f" ({cfg.map_style}) …")
 
@@ -4621,11 +4664,17 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
                     brg = _bearing_at(gp)
 
                     if kind == "fly":
-                        # Übergang Tour ti → ti+1: van-Wijk-Bogen, kein Dot.
+                        # Übergang Tour ti → ti+1: kein Dot. Stil je Übergang
+                        # (08.09.2026): „kino" = van-Wijk-Bogen mit Herauszoomen,
+                        # „luftlinie" = geradeaus, Zoom linear (kein Bogen).
                         c1, z1 = tour_views[ti]
                         c2, z2 = tour_views[ti + 1]
                         p01 = _smoothstep(f / max(1, seg_n - 1))
-                        cc, zz = _timeline._van_wijk_interp(c1, c2, z1, z2, p01)
+                        if ueber[ti][0] == "luftlinie":
+                            cc = [c1[0] + (c2[0] - c1[0]) * p01, c1[1] + (c2[1] - c1[1]) * p01]
+                            zz = z1 + (z2 - z1) * p01
+                        else:
+                            cc, zz = _timeline._van_wijk_interp(c1, c2, z1, z2, p01)
                         # Tour ti bleibt voll gezeichnet, Marker aus.
                         await page.evaluate(
                             "window.advanceFrameMulti("

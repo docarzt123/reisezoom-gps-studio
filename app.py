@@ -157,7 +157,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.670"
+APP_VERSION = "0.9.671"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -4774,6 +4774,12 @@ class Api:
                     "name": t.get("name") or Path(tp).stem,
                     # 29.08.2026 — Start-Verzögerung je Zusatz-Tour (Sekunden)
                     "start_s": max(0.0, float(t.get("start_s") or 0)),
+                    # 08.09.2026 (Marc) — Etappendauer und der Übergang, der IN
+                    # diese Etappe führt. 0/leer = wie bisher (Budget nach Umfang,
+                    # gemeinsame Flugdauer).
+                    "dauer_s": max(0.0, float(t.get("dauer_s") or 0)),
+                    "ueber_s": (None if t.get("ueber_s") in (None, "") else max(0.0, float(t.get("ueber_s")))),
+                    "ueber_stil": str(t.get("ueber_stil") or "kino"),
                 })
         # Single-Track-Pfad benutzt weiter `gpx_path`. Bei Multi-Track nehmen
         # wir die erste Tour als Basis für Output-Namen etc.

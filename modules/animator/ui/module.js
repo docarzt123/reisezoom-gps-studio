@@ -2651,6 +2651,7 @@ function mountAnimator(body, headerActions, opts) {
   let _animFokusPfad = "";
   let _animDezent = false;   // 29.08.2026 — Haupt-Tour im Schwarm dezent
   let _animHauptStartS = 0;  // 29.08.2026 — Haupt-Tour startet nach X s (Schwarm)
+  let _animEtappe1S = 0;     // 08.09.2026 — eigene Dauer der ERSTEN Etappe (0 = aus dem Gesamtbudget)
   let _animSwarmForm = false; // 31.08.2026 (Beta-Tester) — Zusatz-Touren mit Haupt-Form (Pfeil)
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
   // 23.08.2026 — Etappen: Startindizes + geometrische Kumulativlänge. `line-progress`
@@ -13752,13 +13753,65 @@ function mountAnimator(body, headerActions, opts) {
       }
     }
     host.innerHTML = "";
+    // 08.09.2026 (Marc: „jede Etappe hat ihre Zeit und die Übergänge definiert
+    // man genauso wie die Reihenfolge") — im Reise-Ablauf steht die erste Etappe
+    // mit in der Liste, jede Etappe bekommt ein Dauer-Feld, und zwischen zwei
+    // Etappen sitzt der Übergang. Im Schwarm laufen alle gleichzeitig, dort gibt
+    // es weder Etappendauer noch Übergang.
+    const _reise = _animAblauf !== "schwarm";
+    const _dauerFeld = (wert, titel) =>
+      `<input type="number" class="anim-etappe-dauer" min="0" step="0.5" value="${wert || ""}"
+              placeholder="auto" title="${_animEscapeHtml(titel)}"><span class="anim-etappe-einheit">s</span>`;
+    if (_reise) {
+      const kopf = document.createElement("div");
+      kopf.className = "anim-tour-row anim-etappe-erste";
+      const nm = (currentGpx.split("/").pop() || "Tour 1").replace(/\.gpx$/i, "");
+      kopf.innerHTML = `
+        <span class="anim-tour-idx">1</span>
+        <span class="anim-tour-name" title="${_animEscapeHtml(nm)}">${_animEscapeHtml(nm)}</span>
+        ${_dauerFeld(_animEtappe1S, t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt."))}`;
+      kopf.querySelector(".anim-etappe-dauer").addEventListener("change", (e) => {
+        _animEtappe1S = Math.max(0, parseFloat(e.target.value) || 0);
+        e.target.value = _animEtappe1S || "";
+        _animPersistTours();
+      });
+      host.appendChild(kopf);
+    }
     _extraTours.forEach((tr, i) => {
+      if (_reise) {
+        const ur = document.createElement("div");
+        ur.className = "anim-ueber-row";
+        const stil = tr.ueber_stil || "kino";
+        ur.innerHTML = `
+          <span class="anim-ueber-pfeil">↳</span>
+          <select class="anim-ueber-stil" title="${t("animator.tours.ueber_stil", "Übergang zur nächsten Etappe")}">
+            <option value="kino"${stil === "kino" ? " selected" : ""}>${t("animator.tours.ueber_kino", "Kinoflug")}</option>
+            <option value="luftlinie"${stil === "luftlinie" ? " selected" : ""}>${t("animator.tours.ueber_luft", "Luftlinie")}</option>
+            <option value="schnitt"${stil === "schnitt" ? " selected" : ""}>${t("animator.tours.ueber_schnitt", "Schnitt")}</option>
+          </select>
+          <input type="number" class="anim-ueber-s" min="0" step="0.5" value="${tr.ueber_s == null ? "" : tr.ueber_s}"
+                 placeholder="${(parseNum(document.getElementById("anim-fly")?.value, 3)).toFixed(1)}"
+                 title="${t("animator.tours.ueber_dauer", "Dauer dieses Übergangs. Leer = die gemeinsame Flugdauer.")}"
+                 ${stil === "schnitt" ? "disabled" : ""}><span class="anim-etappe-einheit">s</span>`;
+        ur.querySelector(".anim-ueber-stil").addEventListener("change", (e) => {
+          _extraTours[i].ueber_stil = e.target.value;
+          _animPersistTours(); _animRenderToursList();
+        });
+        ur.querySelector(".anim-ueber-s").addEventListener("change", (e) => {
+          const v = e.target.value.trim();
+          _extraTours[i].ueber_s = v === "" ? null : Math.max(0, parseFloat(v) || 0);
+          e.target.value = _extraTours[i].ueber_s == null ? "" : _extraTours[i].ueber_s;
+          _animPersistTours();
+        });
+        host.appendChild(ur);
+      }
       const row = document.createElement("div");
       row.className = "anim-tour-row";
       row.innerHTML = `
         <span class="anim-tour-idx">${i + 2}</span>
         <input type="color" class="anim-tour-color" value="${_animEscapeHtml(tr.line_color)}" title="${t("animator.tours.color", "Farbe dieser Tour")}">
         <span class="anim-tour-name" title="${_animEscapeHtml(tr.gpx_path)}">${_animEscapeHtml(tr.name)}</span>
+        ${_reise ? _dauerFeld(tr.dauer_s, t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt.")) : ""}
         ${_animAblauf === "schwarm" ? `<span class="anim-tour-start-wrap" title="${t("animator.tours.start_delay", "Start nach … Sekunden Videozeit (0 = gemeinsamer Start)")}">⏱<input type="number" class="anim-tour-start" min="0" step="1" value="${+tr.start_s || 0}" style="width:44px">s</span>` : ""}
         <span class="anim-tour-actions">
           <button type="button" class="anim-tour-btn" data-act="up" ${i === 0 ? "disabled" : ""} title="${t("animator.tours.up", "nach oben")}">↑</button>
@@ -13771,6 +13824,11 @@ function mountAnimator(body, headerActions, opts) {
         e.target.value = _extraTours[i].start_s;
         _animPersistTours();
         try { _animSchwarmPreviewAdvance(_tlBar ? trackFracAusAnker(_tlBar.getScrubber()) : 0, previewFullTrack()); } catch (_) {}
+      });
+      row.querySelector(".anim-etappe-dauer")?.addEventListener("change", (e) => {
+        _extraTours[i].dauer_s = Math.max(0, parseFloat(e.target.value) || 0);
+        e.target.value = _extraTours[i].dauer_s || "";
+        _animPersistTours();
       });
       row.querySelector(".anim-tour-color").addEventListener("input", (e) => {
         _extraTours[i].line_color = e.target.value;
@@ -14264,7 +14322,13 @@ function mountAnimator(body, headerActions, opts) {
       saveProjectSettings(_MODKEY, {
         extra_tours: _extraTours.map(t => ({
           gpx_path: t.gpx_path, line_color: t.line_color, name: t.name,
-          start_s: +t.start_s || 0 })),
+          start_s: +t.start_s || 0,
+          // 08.09.2026 (Marc) — Etappendauer und der Übergang, der IN diese
+          // Etappe führt. 0 = wie bisher: Zeit nach Umfang, gemeinsame Flugdauer.
+          dauer_s: +t.dauer_s || 0,
+          ueber_s: (t.ueber_s === "" || t.ueber_s == null) ? null : (+t.ueber_s || 0),
+          ueber_stil: t.ueber_stil || "kino" })),
+        etappe1_dauer_s: +_animEtappe1S || 0,
         tours_ablauf: _animAblauf,
         tours_fokus: _animFokusPfad,
         tours_dezent: _animDezent,
@@ -14421,6 +14485,7 @@ function mountAnimator(body, headerActions, opts) {
       { const cb = document.getElementById("anim-schwarm-dezent");
         if (cb) cb.checked = _animDezent; }
       _animHauptStartS = Math.max(0, +a.tours_haupt_start_s || 0);
+      _animEtappe1S = Math.max(0, +a.etappe1_dauer_s || 0);
       _animSwarmForm = a.tours_dot_haupt === true;
       { const cb = document.getElementById("anim-swarm-form");
         if (cb) cb.checked = _animSwarmForm; }
@@ -14778,9 +14843,14 @@ function mountAnimator(body, headerActions, opts) {
           gpx_path: currentGpx,
           line_color: document.getElementById("anim-color").value,
           name: primaryName,
+          // 08.09.2026 — eigene Dauer der ersten Etappe (0 = aus dem Budget)
+          dauer_s: _animAblauf === "schwarm" ? 0 : (+_animEtappe1S || 0),
         }].concat(_extraTours.map(tr => ({
           gpx_path: tr.gpx_path, line_color: tr.line_color, name: tr.name,
           start_s: _animAblauf === "schwarm" ? (+tr.start_s || 0) : 0,
+          dauer_s: _animAblauf === "schwarm" ? 0 : (+tr.dauer_s || 0),
+          ueber_s: _animAblauf === "schwarm" ? null : (tr.ueber_s == null ? null : (+tr.ueber_s || 0)),
+          ueber_stil: _animAblauf === "schwarm" ? "kino" : (tr.ueber_stil || "kino"),
         })));
         return {
           tracks,

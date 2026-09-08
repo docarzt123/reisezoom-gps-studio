@@ -2920,5 +2920,11 @@
   "gpxinspect.heal_k_missing_ele": "%n missing elevations filled in",
   "gpxinspect.heal_done_data": "Healed: %d",
   "gpxinspect.heal_found": "Analysis — found, straightened out when healing:",
-  "animator.smoothcam.failed": "The calm camera could not be built — this run uses the simple camera. Please send the log."
+  "animator.smoothcam.failed": "The calm camera could not be built — this run uses the simple camera. Please send the log.",
+  "animator.tours.dauer_hint": "How long this stage runs in the video. Empty = share of the total, by size.",
+  "animator.tours.ueber_stil": "Transition to the next stage",
+  "animator.tours.ueber_kino": "Cinematic flight",
+  "animator.tours.ueber_luft": "Straight line",
+  "animator.tours.ueber_schnitt": "Cut",
+  "animator.tours.ueber_dauer": "How long this transition takes. Empty = the shared flight time."
 }
