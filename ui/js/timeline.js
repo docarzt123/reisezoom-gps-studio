@@ -153,6 +153,10 @@ function mountTimelineBar(opts) {
       </div>
       <div class="timeline-status-row">
         <div class="timeline-status" id="tl-status">—</div>
+        <!-- 08.09.2026 (Marc) — die Bilanz der Tempo-Kurve gehört dorthin, wo
+             man sie baut: unter die Spur. In der Seitenleiste stand sie in
+             einem zugeklappten Abschnitt und war praktisch unsichtbar. -->
+        <div class="timeline-tempo-bilanz" id="tl-tempo-bilanz" hidden></div>
         <!-- v0.9.125 — Timeline-Zoom-Controls. Klick auf + zoomed um 2× rein,
              auf − wieder raus. Klick auf das Label resettet auf 1× (= ganze Track).
              Mausrad über der Timeline zoomed auch (centered auf Scrubber). -->
@@ -399,13 +403,74 @@ function mountTimelineBar(opts) {
   // im Projekt. Änderungen gehen über `onTempoChange` zurück an den Animator.
   let _tempo = [];              // die Einträge
   let _tempoHalte = [];         // aus der Kurve: Lage der Halte in Videosekunden
+  let _tempoKurve = null;       // { dauer_s, anteile[] } — Videozeit ↔ Strecke
   let _tempoZieh = null;        // laufende Geste
+  let _tempoLetzterDruck = null;  // { i, t } — für die eigene Doppelklick-Erkennung
 
-  function setTempo(liste, halte) {
+  function setTempo(liste, halte, kurve) {
     _tempo = Array.isArray(liste) ? liste.slice() : [];
     _tempoHalte = Array.isArray(halte) ? halte.slice() : [];
+    _tempoKurve = (kurve && Array.isArray(kurve.anteile) && kurve.anteile.length > 1)
+      ? { dauer_s: +kurve.dauer_s || 0, anteile: kurve.anteile } : null;
     const el = laneMarkersEl["tempo"];
     if (el) _tempoZeichnen(el);
+  }
+
+  /* ── Videozeit statt Streckenanteil (08.09.2026) ────────────────────────
+   * Die Leiste zeigt VIDEOZEIT. Ein Halt kostet Videozeit, ohne dass die
+   * Strecke weiterläuft — als Punkt gezeichnet ist er deshalb eine Lüge:
+   * ein Anlauf von 5 s in einem 22-s-Video ist knapp ein Viertel der Leiste.
+   * `anteile` ist die Kurve aus core/tempo.py (Bild → Streckenanteil), also
+   * genau die Umrechnung, die auch die Vorschau und der Render benutzen.
+   * `_videoAusStrecke` ist ihre Umkehrung; auf einem Halt (Plateau) liefert
+   * sie den ANFANG des Plateaus, `_videoAusStreckeEnde` das Ende. */
+  function _videoAusStrecke(a, endeVomPlateau) {
+    const m = _tempoKurve && _tempoKurve.anteile;
+    if (!m || m.length < 2) return Math.max(0, Math.min(1, a));
+    const n1 = m.length - 1;
+    a = Math.max(0, Math.min(1, a));
+    let lo = 0, hi = n1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (m[mid] < a) lo = mid + 1; else hi = mid; }
+    if (endeVomPlateau) { while (lo < n1 && m[lo + 1] <= a + 1e-9) lo++; return lo / n1; }
+    if (lo === 0) return 0;
+    const y0 = m[lo - 1], y1 = m[lo];
+    const f = (y1 - y0) > 1e-9 ? (a - y0) / (y1 - y0) : 0;
+    return Math.max(0, Math.min(1, (lo - 1 + f) / n1));
+  }
+  /** Umgekehrt: Anteil der Anim-Phase → Streckenanteil. */
+  function _streckeAusVideo(v) {
+    const m = _tempoKurve && _tempoKurve.anteile;
+    if (!m || m.length < 2) return v;
+    const n1 = m.length - 1;
+    const x = Math.max(0, Math.min(1, v)) * n1;
+    const i = Math.min(n1 - 1, Math.floor(x));
+    return m[i] + (m[i + 1] - m[i]) * (x - i);
+  }
+  /** Die Leistenstelle eines Halts: er belegt ab_s..bis_s der Anim-Phase. */
+  function _haltSpanne(e) {
+    const ti = _introFraction || 0.0, tf = _trackFraction || 1.0;
+    if (e.gesperrt && e.rolle === "anlauf") return [0, ti];
+    if (e.gesperrt && e.rolle === "nachlauf") return [tf, 1];
+    const d = (_tempoKurve && _tempoKurve.dauer_s) || 0;
+    const bei = Math.max(0, Math.min(1, +e.bei || 0));
+    let v0 = null, v1 = null;
+    if (d > 0) {
+      // Der passende Halt aus der Kurve — gesucht über seine Stelle.
+      let best = null, ab = 1e9;
+      for (const h of _tempoHalte) {
+        const dd = Math.abs((+h.bei || 0) - bei);
+        if (dd < ab) { ab = dd; best = h; }
+      }
+      if (best && ab < 0.01 && best.ab_s != null && best.bis_s != null) {
+        v0 = best.ab_s / d; v1 = best.bis_s / d;
+      }
+    }
+    if (v0 == null) {                       // z. B. Etappen-Übergänge: nicht in der Kurve
+      v0 = _videoAusStrecke(bei, false);
+      v1 = v0 + (d > 0 ? (+e.sek || 0) / d : 0.01);
+    }
+    return [ti + Math.max(0, Math.min(1, v0)) * (tf - ti),
+            ti + Math.max(0, Math.min(1, v1)) * (tf - ti)];
   }
   function _tempoMelden() {
     try { (cb.onTempoChange || (() => {}))(_tempo.slice()); } catch (e) { console.warn("onTempoChange:", e); }
@@ -434,16 +499,25 @@ function mountTimelineBar(opts) {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "tl-tempo-halt" + (e.gesperrt ? " ist-gesperrt" : "");
-        b.style.left = _anchorToPct(_trackToBar(Math.max(0, Math.min(1, +e.bei || 0)))) + "%";
+        // Ein Halt ist ein ZEITRAUM, kein Punkt — er wird als Band gezeichnet,
+        // so breit wie er das Video verlängert. Sonst sieht ein 5-s-Anlauf
+        // genauso aus wie ein 0,2-s-Halt (Marc: „sauber lesbar").
+        const [hl, hr] = _haltSpanne(e);
+        const l0 = _anchorToPct(hl), r0 = _anchorToPct(hr);
+        b.style.left = l0 + "%";
+        b.style.width = Math.max(1.1, r0 - l0) + "%";
         b.dataset.idx = String(i);
-        b.title = `${tlT("animator.tempo.halt", "Halt")} ${(+e.sek || 0).toFixed(1)} s`
-          + (e.gesperrt ? " · " + tlT("animator.tempo.auto", "kommt aus den Etappen") : "");
-        b.innerHTML = `<span class="tl-tempo-sek">${(+e.sek || 0).toFixed(1)}s</span>`;
+        b.title = `${e.titel || tlT("animator.tempo.halt", "Halt")} ${(+e.sek || 0).toFixed(1)} s`
+          + (e.gesperrt ? " · " + tlT("animator.tempo.gesperrt", "kommt aus einer anderen Einstellung") : "");
+        b.innerHTML = `<span class="tl-tempo-pause">⏸</span>`
+          + `<span class="tl-tempo-sek">${(+e.sek || 0).toFixed(1)}s</span>`;
         el.appendChild(b);
       } else if (e.art === "tempo") {
         const von = Math.max(0, Math.min(1, +e.von || 0));
         const bis = Math.max(von, Math.min(1, +e.bis || 0));
-        const l = _anchorToPct(_trackToBar(von)), r = _anchorToPct(_trackToBar(bis));
+        const ti = _introFraction || 0.0, tf = _trackFraction || 1.0;
+        const l = _anchorToPct(ti + _videoAusStrecke(von, false) * (tf - ti));
+        const r = _anchorToPct(ti + _videoAusStrecke(bis, true) * (tf - ti));
         const d = document.createElement("div");
         d.className = "tl-tempo-block";
         d.style.left = l + "%";
@@ -459,6 +533,17 @@ function mountTimelineBar(opts) {
     }
   }
 
+  /** Zeigerstelle → Streckenanteil. Die Leiste läuft in Videozeit, die
+   *  Einträge hängen an der Strecke — dazwischen steht die Kurve. Ohne diese
+   *  Umrechnung greift man neben dem, was man sieht, sobald Halte im Spiel
+   *  sind (Marc, 08.09.2026).
+   *  ⚠️ Geklemmt: die Spur ist schmaler als die Zeitachse (Beschriftungsspalte),
+   *  ohne das entstand beim Klick am rechten Rand ein Halt bei 1,08. */
+  function _tempoStelle(clientX) {
+    const v = Math.max(0, Math.min(1, _barToTrack(anchorFromClientX(clientX))));
+    return Math.max(0, Math.min(1, _streckeAusVideo(v)));
+  }
+
   function _tempoBinden() {
     const lane = host.querySelector('.timeline-lane[data-kind="tempo"] .lane-track');
     if (!lane) return;
@@ -466,7 +551,29 @@ function mountTimelineBar(opts) {
       const halt = ev.target.closest(".tl-tempo-halt");
       const block = ev.target.closest(".tl-tempo-block");
       const rand = ev.target.closest(".tl-tempo-rand");
-      const start = _barToTrack(anchorFromClientX(ev.clientX));
+      // ⚠️ Klemmen: die Spur ist schmaler als die Zeitachse (Beschriftungsspalte),
+      // ohne das entstand beim Klick am rechten Rand ein Halt bei 1,08 — außerhalb
+      // der Strecke (08.09.2026 im Prüfstand gemessen).
+      const start = _tempoStelle(ev.clientX);
+      // ⚠️ Doppelklick selbst erkennen: nach jedem Loslassen wird die Spur neu
+      // gezeichnet, das angeklickte Element ist dann ein anderes — und der
+      // Browser feuert kein `dblclick` mehr (08.09.2026 im Prüfstand gemessen:
+      // der Editor ging nie auf). Zwei Drücker auf denselben Eintrag innerhalb
+      // von 350 ms sind ein Doppelklick.
+      const zielIdx = (halt || block) ? +(halt || block).dataset.idx : -1;
+      const jetzt = Date.now();
+      if (zielIdx >= 0 && _tempoLetzterDruck && _tempoLetzterDruck.i === zielIdx
+          && jetzt - _tempoLetzterDruck.t < 350) {
+        _tempoLetzterDruck = null;
+        const e = _tempo[zielIdx];
+        if (e && !e.gesperrt) {
+          ev.preventDefault();
+          try { (cb.onTempoOeffnen || (() => {}))(zielIdx, e); }
+          catch (err) { console.warn("onTempoOeffnen:", err); }
+        }
+        return;
+      }
+      _tempoLetzterDruck = zielIdx >= 0 ? { i: zielIdx, t: jetzt } : null;
       if (halt) {
         const i = +halt.dataset.idx;
         if (_tempo[i] && _tempo[i].gesperrt) return;      // Etappen-Halte nicht verschieben
@@ -484,7 +591,7 @@ function mountTimelineBar(opts) {
       }
       ev.preventDefault();
       const bewegen = (e2) => {
-        const a = Math.max(0, Math.min(1, _barToTrack(anchorFromClientX(e2.clientX))));
+        const a = _tempoStelle(e2.clientX);
         const z = _tempoZieh; if (!z) return;
         const e = _tempo[z.i]; if (!e) return;
         if (z.art === "halt-schieben") { e.bei = a; }
@@ -920,6 +1027,9 @@ function mountTimelineBar(opts) {
   trackEl.addEventListener("dblclick", (e) => {
     if (!_enabled) return;
     if (e.target.closest(".timeline-marker")) return;
+    // Die Tempo-Spur hat ihre eigene Bedienung — hier würde sonst zusätzlich
+    // ein Keyframe entstehen (08.09.2026).
+    if (e.target.closest('.timeline-lane[data-kind="tempo"]')) return;
     // In welcher Lane wurde geklickt? (Lane- oder Cluster-Row)
     const laneEl = e.target.closest(".timeline-lane");
     const clusterEl = e.target.closest(".timeline-cluster-row");

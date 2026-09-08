@@ -52,6 +52,19 @@ def basis_aus_pace_mode(modus: str) -> str:
     return BASIS_PUNKTE
 
 
+def _basis_pruefen(pts: Sequence, basis: str) -> str:
+    """Ohne Zeitstempel gibt es keine Zeitachse — dann zählt die Strecke.
+
+    ⚠️ Dieselbe Regel wie in `core/gpx.pace_index_map`. Ohne sie rechnete die
+    Kurve auf einer Achse aus lauter Nullen weiter und lieferte für eine geplante
+    Route (Komoot, ohne Zeiten) 69 statt 12 Sekunden — 08.09.2026 in der Matrix
+    an „Alligator Alley Loop" aufgefallen.
+    """
+    if basis == BASIS_ZEIT and (not pts or not getattr(pts[-1], "elapsed_s", 0)):
+        return BASIS_STRECKE
+    return basis
+
+
 def rate_aus_dauer(pts: Sequence, basis: str, dauer_s: float, *,
                    pausen: str = "trim", pause_ab_s: float = 120.0,
                    pause_auf_s: float = 5.0) -> float:
@@ -64,6 +77,7 @@ def rate_aus_dauer(pts: Sequence, basis: str, dauer_s: float, *,
     d = max(0.001, _sauber(dauer_s, 1.0))
     if len(pts) < 2:
         return 1.0
+    basis = _basis_pruefen(pts, basis)
     if basis == BASIS_PUNKTE:
         return (len(pts) - 1) / d
     achse = "time" if basis == BASIS_ZEIT else "dist"
@@ -116,6 +130,10 @@ def kurve(pts: Sequence, *, basis: str = BASIS_STRECKE, rate: float = 1.0,
                 "halte": [], "hinweise": ["zu wenig Punkte"], "basis": basis, "rate": rate}
 
     basis = basis if basis in (BASIS_ZEIT, BASIS_STRECKE, BASIS_PUNKTE) else BASIS_STRECKE
+    basis_gewuenscht = basis
+    basis = _basis_pruefen(pts, basis)
+    if basis != basis_gewuenscht:
+        hinweise.append("ohne Zeitstempel: über die Strecke gerechnet")
     r = _sauber(rate, 1.0)
     if r <= 0:
         r = 1.0
@@ -214,6 +232,9 @@ def kurve(pts: Sequence, *, basis: str = BASIS_STRECKE, rate: float = 1.0,
         d = zs[j + 1] - zs[j]
         f = 0.0 if d <= 0 else max(0.0, min(1.0, (ziel - zs[j]) / d))
         anteile.append(min(1.0, fs[j] + (fs[j + 1] - fs[j]) * f))
+    # Doppelte Punkte am Anfang oder Ende (gleiche Koordinate zweimal) ließen den
+    # ersten Wert bei 0,001 landen — 08.09.2026 an „66 Seen Tag 8" gesehen.
+    anteile[0] = 0.0
     anteile[-1] = 1.0
 
     return {"dauer_s": dauer, "anteile": anteile, "sek_strecke": sek_strecke,

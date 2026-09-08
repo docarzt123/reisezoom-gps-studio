@@ -3622,6 +3622,40 @@ function mountAnimator(body, headerActions, opts) {
   const _ORBIT_GRAD_JE_S = 12;  // sanft: eine halbe Umdrehung in 15 s
   let _tempoInfo = null;        // { dauer_s, sek_strecke, sek_halte, halte[], rate, basis }
 
+  /** Was in der Spur zu SEHEN ist: die eigenen Einträge plus die, die sich aus
+   *  anderen Einstellungen ergeben — Anlauf, Nachlauf und die Übergänge einer
+   *  Reise. Marc, 08.09.2026: „im Prinzip sind das ja Pausen." Sie werden
+   *  gezeigt, aber nicht angefasst: ihre Länge steht an ihrem eigenen Regler.
+   *  Gerechnet werden sie weiterhin dort, wo sie schon immer gerechnet wurden;
+   *  die Spur zeigt nur, was sie im Video bedeuten. */
+  function _tempoAnzeige(eigene) {
+    const raus = (eigene || []).slice();
+    const introS = parseNum(document.getElementById("anim-intro")?.value, 0);
+    const holdS = parseNum(document.getElementById("anim-hold")?.value, 0);
+    if (introS > 0) raus.push({ art: "halt", bei: 0, sek: introS, kamera: "nichts",
+                                gesperrt: true, rolle: "anlauf",
+                                titel: t("animator.tempo.anlauf", "Anlauf") });
+    if (holdS > 0) raus.push({ art: "halt", bei: 1, sek: holdS, kamera: "nichts",
+                               gesperrt: true, rolle: "nachlauf",
+                               titel: t("animator.tempo.nachlauf", "Nachlauf") });
+    // Etappen-Übergänge: sie sitzen am Ende ihrer Etappe und sind Halte mit Flug.
+    try {
+      if (_reiseAktiv()) {
+        const b = _reiseBahn, n1 = Math.max(1, b.coords.length - 1);
+        b.teile.forEach((teil, i) => {
+          if (i >= b.teile.length - 1) return;
+          const e = b.etappen[i + 1] || {};
+          const sek = (e.ueber_s == null) ? parseNum(document.getElementById("anim-fly")?.value, 3) : (+e.ueber_s || 0);
+          if (sek <= 0) return;
+          raus.push({ art: "halt", bei: teil.bis / n1, sek, kamera: e.ueber_stil || "kino",
+                      gesperrt: true, rolle: "uebergang",
+                      titel: t("animator.tempo.uebergang", "Übergang") });
+        });
+      }
+    } catch (_) {}
+    return raus;
+  }
+
   /** Steht die Videozeit gerade in einem Halt? Liefert den Halt oder null. */
   function _tempoHaltBei(sek) {
     const hs = (_tempoInfo && _tempoInfo.halte) || [];
@@ -3643,20 +3677,38 @@ function mountAnimator(body, headerActions, opts) {
   // und die gerade gezogenen Einträge verschwänden sofort wieder (08.09.2026 im
   // Prüfstand genau so passiert).
   let _tempoListe = null;
+  // ⚠️ … aber sie gehört zu GENAU EINEM Projekt. Ohne diese Marke blieb beim
+  // Projektwechsel die Liste des vorherigen stehen: in der echten App zeigte
+  // eine Reise ohne eigene Einträge plötzlich „Halte 4,0 s" aus dem Projekt
+  // davor (08.09.2026 auf Marcs Rechner gemessen).
+  let _tempoListeVon;
+  function _tempoProjektId() {
+    try {
+      const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+      return p ? (p.id || null) : null;
+    } catch (_) { return null; }
+  }
   function _tempoEintraege() {
-    if (Array.isArray(_tempoListe)) return _tempoListe;
+    const pid = _tempoProjektId();
+    if (Array.isArray(_tempoListe) && _tempoListeVon === pid) return _tempoListe;
     const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
     let e = p?.[_MODKEY]?.tempo_eintraege;
     if (!Array.isArray(e)) {
       try { e = (_settingsCache && _settingsCache[_MODKEY] || {}).tempo_eintraege; } catch (_) { e = null; }
     }
     _tempoListe = Array.isArray(e) ? e.slice() : [];
+    _tempoListeVon = pid;
     return _tempoListe;
   }
   function _tempoEintraegeSetzen(liste) {
     _tempoListe = Array.isArray(liste) ? liste.slice() : [];
+    _tempoListeVon = _tempoProjektId();
     try { saveProjectSettings(_MODKEY, { tempo_eintraege: _tempoListe }); } catch (_) {}
   }
+  // Prüfstand-Griff: Einträge setzen und die Kurve neu holen, ohne die Spur mit
+  // der Maus bedienen zu müssen (tests/test_tempo_spur_zeitband.py).
+  window.__rzTempoSetzen = (liste) => { _tempoEintraegeSetzen(liste); paceMapLaden(); };
+  window.__rzTempoInfo = () => _tempoInfo;
   function _tempoRate() {
     const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
     const r = p?.[_MODKEY]?.tempo_rate;
@@ -3678,15 +3730,19 @@ function mountAnimator(body, headerActions, opts) {
       feld.value = neu;
       try { feld.dispatchEvent(new Event("change", { bubbles: true })); } finally { _tempoSchreibt = false; }
     }
-    const z = document.getElementById("anim-tempo-bilanz");
-    if (z) {
-      const raff = r.basis === "zeit" ? `${Math.round(r.rate)}×`
-        : r.basis === "strecke" ? `${(r.rate).toFixed(2)} km/s`
-        : `${Math.round(r.rate)} Pkt/s`;
+    const raff = r.basis === "zeit" ? `${Math.round(r.rate)}×`
+      : r.basis === "strecke" ? `${(r.rate).toFixed(2)} km/s`
+      : `${Math.round(r.rate)} Pkt/s`;
+    const satz = t("animator.tempo.bilanz", "{raff} · {ges} s — Strecke {str} s, Halte {halt} s")
+      .replace("{raff}", raff).replace("{ges}", r.dauer_s.toFixed(1))
+      .replace("{str}", r.sek_strecke.toFixed(1)).replace("{halt}", r.sek_halte.toFixed(1));
+    // Zwei Plätze: in der Seitenleiste beim Verteilungs-Feld und — weil der
+    // Abschnitt dort meist zugeklappt ist — dauerhaft unter der Tempo-Spur.
+    for (const id of ["anim-tempo-bilanz", "tl-tempo-bilanz"]) {
+      const z = document.getElementById(id);
+      if (!z) continue;
       z.hidden = false;
-      z.textContent = t("animator.tempo.bilanz", "{raff} · {ges} s — Strecke {str} s, Halte {halt} s")
-        .replace("{raff}", raff).replace("{ges}", r.dauer_s.toFixed(1))
-        .replace("{str}", r.sek_strecke.toFixed(1)).replace("{halt}", r.sek_halte.toFixed(1));
+      z.textContent = satz;
       z.classList.toggle("warnt", r.sek_halte > r.sek_strecke);
     }
   }
@@ -3726,7 +3782,11 @@ function mountAnimator(body, headerActions, opts) {
     });
     const fertig = (neueListe) => {
       _tempoEintraegeSetzen(neueListe);
-      try { if (_tlBar && _tlBar.setTempo) _tlBar.setTempo(neueListe, (_tempoInfo && _tempoInfo.halte) || []); } catch (_) {}
+      try {
+        if (_tlBar && _tlBar.setTempo)
+          _tlBar.setTempo(neueListe, (_tempoInfo && _tempoInfo.halte) || [],
+                          _tempoInfo ? { dauer_s: _tempoInfo.dauer_s, anteile: _tempoInfo.map } : null);
+      } catch (_) {}
       // Ein Fehlschlag darf die Eingabe nicht abbrechen — die Tabelle bleibt dann
       // die vorherige, und der nächste Anlauf holt sie nach.
       // ui-falle-ok: Kurve wird bei jeder weiteren Änderung erneut geholt
@@ -3776,7 +3836,11 @@ function mountAnimator(body, headerActions, opts) {
         _tempoInfo = r;
         if (!rate && r.rate) _tempoRateSichern(r.rate, basis);   // einmalig ableiten
         _tempoDauerAnzeigen(r);
-        try { if (_tlBar && _tlBar.setTempo) _tlBar.setTempo(eintraege, r.halte || []); } catch (_) {}
+        try {
+          if (_tlBar && _tlBar.setTempo)
+            _tlBar.setTempo(_tempoAnzeige(eintraege), r.halte || [],
+                            { dauer_s: r.dauer_s, anteile: r.map });
+        } catch (_) {}
       } else { _paceMap = null; _tempoInfo = null; }
     } catch (_) { _paceMap = null; _tempoInfo = null; }
     // Tester-Befund (ein Beta-Tester, 29.08.2026: „keine Veränderung spürbar"): auf
@@ -8880,7 +8944,9 @@ function mountAnimator(body, headerActions, opts) {
         // 08.09.2026 (Marc) — Tempo-Spur: die Leiste zeichnet und bedient, die
         // Einträge gehören ins Projekt, gerechnet wird in core/tempo.py.
         onTempoChange:  (liste) => {
-          _tempoEintraegeSetzen(liste);
+          // Gesperrte (Anlauf, Nachlauf, Übergänge) gehören nicht in die Liste —
+          // sie kommen aus ihren eigenen Reglern und werden nur angezeigt.
+          _tempoEintraegeSetzen((liste || []).filter(e => e && !e.gesperrt));
           // Ein Fehlschlag darf die Eingabe nicht abbrechen — die Tabelle bleibt dann
       // die vorherige, und der nächste Anlauf holt sie nach.
       // ui-falle-ok: Kurve wird bei jeder weiteren Änderung erneut geholt
@@ -14505,7 +14571,13 @@ function mountAnimator(body, headerActions, opts) {
     const serie = _reiseSerieBauen(etappen, teilVon, istUeber, teile);
     _reiseBahn = { coords, teilVon, istUeber, teile, ansichten: null, etappen, serie,
                    sekEtappen: etappeS.reduce((a, b) => a + b, 0),
-                   sekUeber: ueberS.reduce((a, b) => a + b, 0) };
+                   sekUeber: ueberS.reduce((a, b) => a + b, 0),
+                   // Für die Bilanz: was feste Etappen belegen und was den
+                   // übrigen bleibt. Ohne diesen Hinweis quetschen zwei feste
+                   // Etappen dreizehn andere auf 0,3 s — sichtbar nur im Log
+                   // (08.09.2026 auf Marcs Rechner genau so passiert).
+                   sekFest: fest.reduce((a, b) => a + b, 0), offenN: offen.length,
+                   sekOffen: restS };
     applog("info", `[reise] Bahn gebaut: ${etappen.length} Etappen · ${coords.length} Punkte · `
       + `Etappen ${etappeS.map(x => x.toFixed(1)).join("/")} s · Übergänge ${ueberS.slice(1).map(x => x.toFixed(1)).join("/")} s`);
     try { _reiseBilanzZeigen(); } catch (_) {}
@@ -14557,9 +14629,21 @@ function mountAnimator(body, headerActions, opts) {
     const e = _reiseBahn.sekEtappen || 0, u = _reiseBahn.sekUeber || 0;
     const g = e + u;
     host.hidden = false;
-    host.textContent = t("animator.tours.bilanz", "Gesamt {g} s — Etappen {e} s, Übergänge {u} s")
+    let txt = t("animator.tours.bilanz", "Gesamt {g} s — Etappen {e} s, Übergänge {u} s")
       .replace("{g}", g.toFixed(1)).replace("{e}", e.toFixed(1)).replace("{u}", u.toFixed(1));
-    host.classList.toggle("warnt", u > e);
+    // Feste Etappendauern gehen vom Budget ab. Bleibt den übrigen weniger als
+    // eine Sekunde, huschen sie unsichtbar vorbei — das gehört gesagt.
+    const fN = _reiseBahn.offenN || 0, fRest = _reiseBahn.sekOffen || 0;
+    const eng = fN > 0 && (fRest / fN) < 1.0;
+    if (eng) {
+      txt += " · " + t("animator.tours.eng",
+        "Feste Etappen belegen {f} s — für die übrigen {n} bleiben je {z} s.")
+        .replace("{f}", (_reiseBahn.sekFest || 0).toFixed(1))
+        .replace("{n}", String(fN))
+        .replace("{z}", (fRest / fN).toFixed(1));
+    }
+    host.textContent = txt;
+    host.classList.toggle("warnt", u > e || eng);
   }
 
   /** Bahn als aktuellen Track übernehmen (die Vorschau rechnet damit weiter). */
