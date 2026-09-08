@@ -2021,8 +2021,8 @@ function mountAnimator(body, headerActions, opts) {
     const ui = colorUnitInfo();
     box.innerHTML = _trackColorStops.map((s, i) => `
       <div class="anim-color-row" data-idx="${i}" style="display:flex; gap:6px; align-items:center; margin-bottom:5px;">
-        <span class="muted" style="font-size:11px; min-width:34px;">${_animEscapeHtml(ui.label)}</span>
-        <input type="number" class="anim-color-km" data-idx="${i}"${ui.min0 ? ' min="0"' : ""} step="${ui.step}" value="${(+s.v).toFixed(ui.dec)}" style="width:60px;">
+        <span class="muted" style="font-size:11px; min-width:30px;">${_animEscapeHtml(ui.label)}</span>
+        <input type="number" class="anim-color-km" data-idx="${i}"${ui.min0 ? ' min="0"' : ""} step="${ui.step}" value="${(+s.v).toFixed(ui.dec)}" style="width:80px; min-width:0;">
         ${ui.unit ? `<span class="muted" style="font-size:11px;">${_animEscapeHtml(ui.unit)}</span>` : ""}
         <input type="color" class="anim-color-col" data-idx="${i}" value="${s.color}" style="width:34px; height:26px; padding:1px; margin-left:auto;">
         <button type="button" class="anim-color-del" data-idx="${i}" title="${_animEscapeHtml(t("animator.colors.delete", "Entfernen"))}" style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px;">🗑</button>
@@ -2945,6 +2945,18 @@ function mountAnimator(body, headerActions, opts) {
     return _ghostSpuren;
   }
 
+  // 08.09.2026 (Beta-Tester-Log: „[smooth-cam] Stützstellen-Aufbau fehlgeschlagen:
+  // TypeError: Assignment to constant variable." im Schwarm-Ablauf mit zwei
+  // Zusatztouren): Ohne Herkunft ist so eine Meldung nicht nachverfolgbar — die
+  // ruhige Kamera schaltet sich still ab und der Nutzer merkt nur, dass das Video
+  // holpert. Darum immer Datei und Zeile mitschreiben.
+  function _fehlerText(e) {
+    try {
+      const st = (e && e.stack) ? String(e.stack).split("\n").slice(0, 4).join(" | ") : "";
+      return String(e) + (st ? " · " + st : "");
+    } catch (_) { return String(e); }
+  }
+
   function ghostSpuren() { return _ghostSpuren; }
   // Für die automatischen Tests greifbar (wie window.__libMap in den anderen
   // Modulen) — der Zustand liegt sonst modul-intern.
@@ -3014,10 +3026,26 @@ function mountAnimator(body, headerActions, opts) {
 
     box.querySelectorAll(".ghost-row").forEach(row => {
       const i = parseInt(row.dataset.i, 10);
-      const spur = () => ghostSpuren()[i];
+      // 08.09.2026 (ein Beta-Tester, drei Zusatzspuren: „die Farbe der ersten Spur
+      // ändert sich nicht, die der zweiten wohl auch nicht"): Die Zeilen fassten
+      // die Spur über ihre POSITION an. Wird die Liste zwischendurch neu geladen
+      // (`_ghostSpurenLaden` legt mit `a.ghosts.slice()` ein NEUES Feld an — beim
+      // Projektwechsel, beim Auffrischen der Quelldateien, beim Modulwechsel),
+      // schreibt die Zeile in ein Feld, das keiner mehr liest: das Farbfeld zeigt
+      // die neue Farbe, Karte und Projekt behalten die alte. Jetzt wird die Spur
+      // über ihre `id` gesucht, die Position ist nur noch der Rückfall.
+      const gid = (spuren[i] && spuren[i].id) || null;
+      const spur = () => {
+        const liste = ghostSpuren();
+        return (gid && liste.find((x) => x && x.id === gid)) || liste[i] || {};
+      };
       const nachAenderung = () => { ghostSpurenSichern(); _ghostSpurenAufbauen(); };
       row.querySelector(".ghost-show").onchange = (e) => { spur().show = e.target.checked; nachAenderung(); };
-      row.querySelector(".ghost-color").oninput = (e) => { spur().color = e.target.value; nachAenderung(); };
+      row.querySelector(".ghost-color").oninput = (e) => {
+        const g = spur(); g.color = e.target.value;
+        try { applog("info", `[ghost] Farbe ${i} (${gid || "ohne id"}) → ${e.target.value}`); } catch (_) {}
+        nachAenderung();
+      };
       row.querySelector(".ghost-op").oninput = (e) => { spur().opacity = parseInt(e.target.value, 10) / 100; nachAenderung(); };
       row.querySelector(".ghost-w").oninput = (e) => { spur().width = parseFloat(e.target.value); nachAenderung(); };
       row.querySelector(".ghost-dashed").onchange = (e) => { spur().dashed = e.target.checked; nachAenderung(); };
@@ -7284,7 +7312,7 @@ function mountAnimator(body, headerActions, opts) {
       // catch einen ReferenceError versteckt, und die ruhige Kamera fiel
       // wortlos auf den klassischen Pfad zurück. Ein Fehler hier gehört
       // mindestens ins Log.
-      try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + e); } catch (_) {}
+      try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + _fehlerText(e)); } catch (_) {}
       _useFaithful = false; _faithCams = null; _faithGew = null;
     }
     // 04.09.2026 — Probelauf-Bilanz ins app.log (Marc: „ruckelt total" ist auf
@@ -7654,7 +7682,7 @@ function mountAnimator(body, headerActions, opts) {
           step(_ms);
         } };
       const _fertig = () => { window.__rzPreviewStep.ready = true; };
-      if (_faithBuild) _faithBuild().then(_fertig).catch((e) => { try { applog("warn", "[smooth-cam] Stützstellen: " + e); } catch (_) {} _useFaithful = false; _faithCams = null; _faithGew = null; _fertig(); });
+      if (_faithBuild) _faithBuild().then(_fertig).catch((e) => { try { applog("warn", "[smooth-cam] Stützstellen: " + _fehlerText(e)); } catch (_) {} _useFaithful = false; _faithCams = null; _faithGew = null; _fertig(); });
       else _fertig();
       return;
     }
@@ -7668,7 +7696,7 @@ function mountAnimator(body, headerActions, opts) {
         _previewRaf = requestAnimationFrame(step);
       };
       _faithBuild().then(_los).catch((e) => {
-        try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + e); } catch (_) {}
+        try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + _fehlerText(e)); } catch (_) {}
         _useFaithful = false; _faithCams = null; _faithGew = null;
         _los();
       });

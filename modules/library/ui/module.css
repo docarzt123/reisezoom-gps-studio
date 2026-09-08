@@ -792,7 +792,7 @@
 .lib-projwrap { padding: 4px 2px 16px; overflow-y: auto; }
 .lib-proj-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
 .lib-proj-karte { border: 1px solid rgba(127,127,127,.25); border-radius: 10px; padding: 10px 12px;
-  display: flex; flex-direction: column; gap: 6px; }
+  display: flex; flex-direction: column; gap: 6px; position: relative; }
 .lib-proj-karte.fertig { opacity: .55; }
 .lib-proj-kopf { display: flex; align-items: center; gap: 8px; }
 .lib-proj-name { font-weight: 700; flex: 1; min-width: 0; overflow: hidden;
@@ -843,7 +843,13 @@
 .lib-proj-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* v0.9.623 — Projekt-Detailspalte: gewählte Karte markieren, Tour-Zeilen klickbar */
-.lib-proj-karte.is-sel { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* 08.09.2026 (ein Beta-Tester: "alle markiert, geloescht wird nur eines"): Die
+   angeklickte Karte und die fuer Sammel-Aktionen gewaehlten Karten sahen exakt
+   gleich aus - beide 2 px Akzentrahmen. Auf dem Video waren zwei Karten
+   umrandet, gezaehlt war eine, geloescht wurde eine. Die Einzelauswahl ist
+   jetzt ein zurueckhaltender Rahmen, die Mehrfachauswahl traegt Flaeche und
+   Haken (wie im Touren-Archiv, siehe .lib-card.is-multi). */
+.lib-proj-karte.is-sel { outline: 1px solid var(--text-muted); outline-offset: -1px; }
 .lib-projd-tour { cursor: pointer; }
 .lib-projd-tour:hover { background: var(--bg-3); }
 
@@ -866,7 +872,13 @@
 .lib-proj-multibar { display: flex; align-items: center; gap: 10px; padding: 8px 10px;
   margin-bottom: 8px; background: var(--bg-3); border: 1px solid var(--accent);
   border-radius: 8px; font-size: 12.5px; }
-.lib-proj-karte.is-multi { outline: 2px solid var(--accent); outline-offset: -2px; }
+.lib-proj-karte.is-multi { outline: 2px solid var(--accent); outline-offset: -2px;
+  background: rgba(120, 190, 120, .10); }
+.lib-proj-karte.is-multi::after {
+  content: "\2713"; position: absolute; top: 6px; right: 8px; z-index: 2;
+  width: 20px; height: 20px; border-radius: 50%; background: var(--accent);
+  color: #fff; font-size: 13px; line-height: 20px; text-align: center;
+  pointer-events: none; }
 
 
 /* 02.09.2026, Schnitt 2 — eine Kachel je Tour. Zwei kleine Merkmale sagen,
