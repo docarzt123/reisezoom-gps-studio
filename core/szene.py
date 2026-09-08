@@ -114,17 +114,17 @@ def _ffmpeg_cmd(cfg) -> list[str]:
     codec = (cfg.codec or "h264").lower()
     if codec in ("prores", "prores4444") and cfg.transparent_background:
         cmd = [ffmpeg_bin, "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-               "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le", "-vendor", "ap10"]
+               *A._vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuva444p10le", "-vendor", "ap10"]
     elif codec == "prores422":
         cmd = [ffmpeg_bin, "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-               "-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le", "-vendor", "ap10"]
+               *A._vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le", "-vendor", "ap10"]
     elif codec in ("prores", "prores4444"):
         cmd = [ffmpeg_bin, "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-               "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuv444p10le", "-vendor", "ap10"]
+               *A._vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "4", "-pix_fmt", "yuv444p10le", "-vendor", "ap10"]
     else:
         vcodec = "libx265" if codec in ("h265", "hevc") else "libx264"
         cmd = [ffmpeg_bin, "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-               *(["-vf", "scale=in_range=full:out_range=tv"] if (cfg.frame_format or "jpeg").lower() == "jpeg" else []),
+               *A._vf_args(cfg),
                "-c:v", vcodec, "-preset", (cfg.encoder_preset or "fast"), "-crf", str(cfg.crf),
                "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
         if vcodec == "libx265":
@@ -289,6 +289,28 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             erwartet_ms = total_frames / cfg.fps * 1000
             if abs(float(total_ms) - erwartet_ms) > 1000:
                 _log.warning("Szene: Vorschau-Dauer %.0f ms ≠ Render-Dauer %.0f ms — die Vorschau bestimmt", float(total_ms), erwartet_ms)
+            # 08.09.2026 - Kacheln vorwaermen (wie der klassische Pfad seit v0.9.19 ueber
+            # window.prewarmTiles): N Haltepunkte ueber die Zeitachse, je einmal auf idle
+            # warten. Die Karte holt die Kacheln je Halt gebuendelt und parallel; ohne das
+            # wartet die Bildschleife bei jedem Bild einzeln auf Nachzuegler. Marcs 4K-Lauf
+            # vom 08.09.: 1826 Fehlgriffe im Zwischenspeicher, 2,1 s je Bild gegen 0,75 s
+            # warm. RZ_VORWAERMEN=0 schaltet es ab (Pruefstand).
+            # Dichte: rund 6 Haltepunkte je Sekunde Video, mindestens 12, hoechstens 200.
+            # Kalt gemessen (Masca, 4 s, 4K): ohne 2336 ms/Bild, 24 Halte 1703, 48 Halte 1611.
+            _vw_std = max(12, min(200, round(total_frames / max(1, cfg.fps) * 6)))
+            _vorwaermen = int(os.environ.get("RZ_VORWAERMEN", str(_vw_std)) or 0)
+            if _vorwaermen > 1:
+                _t_vw = time.time()
+                emit(0.05, f"Szene: Kacheln vorwärmen ({_vorwaermen}) …")
+                for _i in range(_vorwaermen):
+                    if is_cancelled and is_cancelled():
+                        raise A.RenderCancelled()
+                    _tv = (total_frames - 1) / cfg.fps * _i / (_vorwaermen - 1)
+                    await page.evaluate(f"() => window.__rzPreviewStep.seek({_tv:.6f})")
+                    await page.evaluate(_WARTE_BILD_JS)
+                _log.info("Szene: Kacheln vorgewärmt an %d Haltepunkten in %.1fs", _vorwaermen, time.time() - _t_vw)
+            # 08.09.2026 - Verkleinern uebernimmt ffmpeg (siehe _vf_args/_grab_frame).
+            cfg.skalieren_in_ffmpeg = True
             mux = FrameMuxer(_ffmpeg_cmd(cfg), cfg.output_path, total_frames, log=_log, cancelled_cls=A.RenderCancelled)
             preview_every = max(1, cfg.fps // 10)
             try:

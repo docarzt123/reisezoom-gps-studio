@@ -328,6 +328,11 @@ class AnimatorConfig:
     # (JPEG kann keine Transparenz).
     frame_format: str = "jpeg"          # "jpeg" (schnell) | "png" (verlustfrei)
     jpeg_quality: int = 92              # 1..100, nur bei frame_format="jpeg"
+    # 08.09.2026 — Verkleinern (SSAA) im ffmpeg statt in Python: der Lanczos-Schritt
+    # in PIL kostete bei 4K gemessen 187 ms je Bild auf dem kritischen Weg; ffmpeg
+    # macht dasselbe nebenher im eigenen Prozess (gemessen 745 -> 629 ms je Bild).
+    # Nur die Video-Pfade setzen das; Standbilder skalieren weiter in Python.
+    skalieren_in_ffmpeg: bool = False
     encoder_preset: str = "fast"        # libx264/265 -preset
     # OPTIONAL: UI-Viewport-Override (User hat in der Preview gepant/gezoomt).
     # Wenn None → Default: bounds-fit aus Track-Bbox.
@@ -1169,6 +1174,24 @@ def _render_dsf(width: int, height: int) -> float:
     Device-Pixel im Output → identische Optik wie Retina-Preview, downscaled
     auf 1080p-Player ergibt wieder 3.5 sichtbare Pixel = Slider-Wert. WYSIWYG."""
     return max(1.0, max(width, height) / 1920.0)
+
+
+def _vf_args(cfg) -> list[str]:
+    """Bildfilter fuer ffmpeg: exakt auf die Zielgroesse bringen (SSAA-Verkleinern
+    und Chromiums Rundung auf ungerade Hoehen) und JPEG-Vollbereich auf tv
+    normalisieren. 08.09.2026 — vorher lief das Verkleinern in PIL auf dem
+    kritischen Weg (gemessen 187 ms je Bild bei 4K)."""
+    teile = []
+    if getattr(cfg, "skalieren_in_ffmpeg", False):
+        # In voller Farbaufloesung verkleinern: der JPEG-Strom kommt als yuvj420p
+        # herein, und Lanczos auf halbierten Farbkanaelen weicht sichtbar von PIL
+        # ab (gemessen 5 % weniger Kantenenergie). Ein Zwischenschritt nach RGB
+        # kostet in ffmpeg nichts, weil der Prozess ohnehin nebenher laeuft.
+        teile.append("format=rgba" if cfg.transparent_background else "format=rgb24")
+        teile.append(f"scale={int(cfg.width)}:{int(cfg.height)}:flags=lanczos")
+    if (cfg.frame_format or "jpeg").lower() == "jpeg" and not cfg.transparent_background:
+        teile.append("scale=in_range=full:out_range=tv")
+    return ["-vf", ",".join(teile)] if teile else []
 
 
 def _render_ss(width: int, height: int) -> float:
@@ -4531,6 +4554,9 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
         emit(0.05, _t("animator.progress.map_ready", "Karte bereit, rendere Frames …"))
 
         # ── ffmpeg-Cmd (identisch zum Single-Track-Builder) ────────────────
+        # 08.09.2026 - Verkleinern (SSAA/Rundung) uebernimmt ffmpeg, nicht PIL:
+        # muss VOR dem Bau des Befehls stehen (siehe _vf_args, _grab_frame).
+        cfg.skalieren_in_ffmpeg = True
         ffmpeg_bin = find_ffmpeg()
         _log.info("ffmpeg: %s", ffmpeg_bin)
         codec = (cfg.codec or "h264").lower()
@@ -4539,7 +4565,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
             ffmpeg_cmd = [
                 ffmpeg_bin, "-y", "-loglevel", "error",
                 "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-                "-c:v", "prores_ks", "-profile:v", "4",
+                *_vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "4",
                 "-pix_fmt", "yuva444p10le", "-vendor", "ap10",
             ]
         elif codec == "prores422":
@@ -4547,14 +4573,14 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
             ffmpeg_cmd = [
                 ffmpeg_bin, "-y", "-loglevel", "error",
                 "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-                "-c:v", "prores_ks", "-profile:v", "3",
+                *_vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "3",
                 "-pix_fmt", "yuv422p10le", "-vendor", "ap10",
             ]
         elif codec in ("prores", "prores4444"):
             ffmpeg_cmd = [
                 ffmpeg_bin, "-y", "-loglevel", "error",
                 "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-                "-c:v", "prores_ks", "-profile:v", "4",
+                *_vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "4",
                 "-pix_fmt", "yuv444p10le", "-vendor", "ap10",
             ]
         else:
@@ -4567,8 +4593,7 @@ async def _render_multi(cfg: AnimatorConfig, emit, push_preview, check_cancel) -
                 # v0.9.245 — JPEG-Frames sind Full-Range (→ yuvj420p). Auf Standard-
                 # Limited-Range (tv) normalisieren, damit der Output farblich
                 # identisch zu den bisherigen PNG-Renders bleibt.
-                *(["-vf", "scale=in_range=full:out_range=tv"]
-                  if (cfg.frame_format or "jpeg").lower() == "jpeg" else []),
+                *_vf_args(cfg),
                 "-c:v", vcodec, "-preset", (cfg.encoder_preset or "fast"), "-crf", str(cfg.crf),
                 "-pix_fmt", "yuv420p", "-movflags", "+faststart",
             ]
@@ -4760,6 +4785,11 @@ async def _grab_frame(page, cfg: "AnimatorConfig") -> bytes:
     else:
         raw = await page.screenshot(type="png")
 
+    # 08.09.2026 - Video-Pfade lassen ffmpeg verkleinern (siehe _vf_args): das Bild
+    # geht so, wie es ist, in die Pipe (der PIL-Lanczos kostete bei 4K gemessen
+    # 187 ms je Bild auf dem kritischen Weg). Standbilder gehen weiter durch PIL.
+    if getattr(cfg, "skalieren_in_ffmpeg", False):
+        return raw
     if _ss <= 1.0:
         # 07.09.2026 — Szene: Fenster = Vorschau-Viewport in CSS-px × DSF (Video ÷ Vorschau).
         # Chromium rundet die Bildhöhe (562 CSS × 1,92 = 1079,04 → 1079): ungerade Höhe, und
@@ -5702,6 +5732,9 @@ async def render(
 
         emit(0.05, _t("animator.progress.map_ready", "Karte bereit, rendere Frames …"))
 
+        # 08.09.2026 - Verkleinern (SSAA/Rundung) uebernimmt ffmpeg, nicht PIL:
+        # muss VOR dem Bau des Befehls stehen (siehe _vf_args, _grab_frame).
+        cfg.skalieren_in_ffmpeg = True
         ffmpeg_bin = find_ffmpeg()
         _log.info("ffmpeg: %s", ffmpeg_bin)
         codec = (cfg.codec or "h264").lower()
@@ -5717,7 +5750,7 @@ async def render(
             ffmpeg_cmd = [
                 ffmpeg_bin, "-y", "-loglevel", "error",
                 "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-                "-c:v", "prores_ks", "-profile:v", "4",
+                *_vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "4",
                 "-pix_fmt", "yuva444p10le",
                 "-vendor", "ap10",   # Apple-Vendor-ID (Premiere strenger als ffmpeg)
             ]
@@ -5726,7 +5759,7 @@ async def render(
             ffmpeg_cmd = [
                 ffmpeg_bin, "-y", "-loglevel", "error",
                 "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-                "-c:v", "prores_ks", "-profile:v", "3",
+                *_vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "3",
                 "-pix_fmt", "yuv422p10le", "-vendor", "ap10",
             ]
         elif codec in ("prores", "prores4444"):
@@ -5735,7 +5768,7 @@ async def render(
             ffmpeg_cmd = [
                 ffmpeg_bin, "-y", "-loglevel", "error",
                 "-f", "image2pipe", "-framerate", str(cfg.fps), "-i", "-",
-                "-c:v", "prores_ks", "-profile:v", "4",
+                *_vf_args(cfg), "-c:v", "prores_ks", "-profile:v", "4",
                 "-pix_fmt", "yuv444p10le",
                 "-vendor", "ap10",
             ]
@@ -5761,8 +5794,7 @@ async def render(
                 # v0.9.245 — JPEG-Frames sind Full-Range (→ yuvj420p). Auf Standard-
                 # Limited-Range (tv) normalisieren, damit der Output farblich
                 # identisch zu den bisherigen PNG-Renders bleibt.
-                *(["-vf", "scale=in_range=full:out_range=tv"]
-                  if (cfg.frame_format or "jpeg").lower() == "jpeg" else []),
+                *_vf_args(cfg),
                 "-c:v", vcodec, "-preset", (cfg.encoder_preset or "fast"), "-crf", str(cfg.crf),
                 "-pix_fmt", pix_fmt, "-movflags", "+faststart",
             ]

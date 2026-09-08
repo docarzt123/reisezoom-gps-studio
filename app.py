@@ -157,7 +157,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.665"
+APP_VERSION = "0.9.666"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -342,6 +342,27 @@ LIBRARY_MAP_THUMBS = BIB / "bilder" / "karten"
 LIBRARY_COVERS = BIB / "bilder" / "titel"
 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
 BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _teilreste_wegraeumen(ordner: Path, alter_s: int = 24 * 3600) -> int:
+    """Liegengebliebene Render-Teildateien (`*.rzpart`) aufraeumen. 08.09.2026:
+    Wird das Fenster mitten im Render geschlossen, geht die App ueber os._exit(0)
+    raus (siehe _on_closing) — Chromium und ffmpeg sterben dabei zuverlaessig
+    (kopflos geprueft: 0 Waisen), nur die Teildatei bleibt liegen. Nur eigene
+    `.rzpart` und nur aeltere als `alter_s`, damit ein laufender Render eines
+    zweiten Fensters nicht getroffen wird."""
+    weg = 0
+    try:
+        jetzt = time.time()
+        for f in ordner.glob("*.rzpart"):
+            try:
+                if jetzt - f.stat().st_mtime > alter_s:
+                    f.unlink(); weg += 1
+            except OSError:
+                pass
+    except Exception:  # noqa: BLE001
+        return weg
+    return weg
 # 03.09.2026 — Kachel-Zwischenspeicher des Renders (Grenze folgt den Einstellungen)
 canim.TILE_CACHE_DIR = APP_SUPPORT / "_tilecache"
 DROPS_DIR.mkdir(parents=True, exist_ok=True)
@@ -11098,6 +11119,9 @@ def main() -> None:
         # die Funktion nicht" unterscheiden. Die Argumente selbst zeigen sofort,
         # welcher der beiden Fälle vorliegt.
         log.info("Keine Startdatei in den Argumenten: %r", sys.argv[1:])
+    _reste = _teilreste_wegraeumen(RENDERS_DIR)
+    if _reste:
+        log.info("Render-Teildateien aufgeraeumt: %d", _reste)
     html_path = _prepare_html_with_cache_busting()
 
     # v0.9.28 (Marc-Feedback): Fenster-Geometrie wird IMMER aus Settings
