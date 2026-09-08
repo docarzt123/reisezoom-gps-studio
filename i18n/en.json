@@ -2910,5 +2910,14 @@
   "settings.preview_quality.flott": "brisk — fewer tiles per frame",
   "settings.preview_quality.schnell": "fast — half resolution",
   "settings.preview_quality.help": "If the preview stutters (many tiles, terrain, Retina), try “brisk” or “fast”. Video and still always render at full quality; camera, track and overlays stay identical.",
-  "error.shader_fallback": "Graphics driver failed on the globe shader — the map continues without the globe"
+  "error.shader_fallback": "Graphics driver failed on the globe shader — the map continues without the globe",
+  "gpxinspect.heal_k_no_coords": "%n points without coordinates removed",
+  "gpxinspect.heal_k_duplicates": "%n duplicate points removed",
+  "gpxinspect.heal_k_spread": "%n seconds with several points spread out",
+  "gpxinspect.heal_k_backwards": "%n backwards time jumps smoothed",
+  "gpxinspect.heal_k_missing_time": "%n missing times filled in",
+  "gpxinspect.heal_k_outliers": "%n speed outliers removed",
+  "gpxinspect.heal_k_missing_ele": "%n missing elevations filled in",
+  "gpxinspect.heal_done_data": "Healed: %d",
+  "gpxinspect.heal_found": "Analysis — found, straightened out when healing:"
 }

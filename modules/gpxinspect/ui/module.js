@@ -103,6 +103,7 @@ function mountGpxInspect(body, headerActions) {
             <input type="number" id="gpxi-speed-thr" min="1" max="500" step="1" placeholder="${t("gpxinspect.tempo_cap_auto", "auto")}"> km/h
           </div>
           <div class="gpxi-mm-title">🩹 ${t("gpxinspect.heal_title", "Heilen (automatisch)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_help", "Findet automatisch GPS-Ausreißer und Lücken und behebt sie. Bereich und Aktionen wählen, dann Heilen. Rückgängig jederzeit.")}">?</span></div>
+          <div id="gpxi-heal-analysis" class="gpxi-analysis" hidden></div>
           <div class="gpxi-segrow" role="radiogroup">
             <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-track" value="track" checked> ${t("gpxinspect.scope_track", "Ganzer Track")}</label>
             <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-ab" value="ab"> ${t("gpxinspect.scope_ab", "Abschnitt A→B")}</label>
@@ -479,6 +480,7 @@ function mountGpxInspect(body, headerActions) {
     // FIT/TCX-Sensorwerte (Herzfrequenz, Temperatur …). Eingefügte Punkte haben kein oi
     // (undefined) → Backend interpoliert deren Sensoren. v0.9.334 (Nutzer-Feedback).
     _points = (res.points || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.i, si: 0 }));
+    try { analyseTrack(); } catch (_) {}
     _srcPath = res.src || path;   // v0.9.295 — konvertierter GPX-Pfad (Fremdformate), sonst Original
     _sources = [_srcPath];        // v0.9.456 — Quelle 0; „Track anhängen" hängt weitere an
     _origPath = path;             // v0.9.335 — Original-Datei (für Default-Speicherort beim „Speichern unter…")
@@ -1795,9 +1797,61 @@ function mountGpxInspect(body, headerActions) {
     updateUI();
   }
 
+  // 08.09.2026 (Marc: „wenn ich auf Heilen klicke, gehe ich davon aus, dass so was alles
+  // glattgezogen wird"): Zeiten, Doppelpunkte, Nullkoordinaten, fehlende Höhen über die Brücke
+  // (core/gpxheal) — vor Ausreißern und Lücken. Bericht kommt als Schlüssel + Zahl.
+  const _HEAL_KEYS = {
+    no_coords: ["gpxinspect.heal_k_no_coords", "%n Punkte ohne Koordinaten entfernt"],
+    duplicates: ["gpxinspect.heal_k_duplicates", "%n Doppelpunkte entfernt"],
+    spread_seconds: ["gpxinspect.heal_k_spread", "%n mehrfach belegte Sekunden verteilt"],
+    backwards: ["gpxinspect.heal_k_backwards", "%n Zeit-Rücksprünge geglättet"],
+    missing_time: ["gpxinspect.heal_k_missing_time", "%n fehlende Zeiten ergänzt"],
+    outliers: ["gpxinspect.heal_k_outliers", "%n Tempo-Ausreißer entfernt"],
+    missing_ele: ["gpxinspect.heal_k_missing_ele", "%n fehlende Höhen ergänzt"],
+  };
+  // 08.09.2026 (Marc: „ein Analysieren-Knopf schlägt vor, was man glattziehen könnte, und man hakt
+  // an, was gemacht wird"): nach dem Laden einmal prüfen, Funde als Häkchen zeigen.
+  let _healFunde = [];
+  async function analyseTrack() {
+    const box = document.getElementById("gpxi-heal-analysis");
+    if (!box) return;
+    if (!_points || _points.length < 3) { box.hidden = true; box.innerHTML = ""; _healFunde = []; return; }
+    let r = null;
+    try { r = await api().gpxinspect_heal(_points, 250, null, true); } catch (e) { r = null; }
+    _healFunde = (r && r.ok && Array.isArray(r.bericht)) ? r.bericht : [];
+    if (!_healFunde.length) { box.hidden = true; box.innerHTML = ""; return; }
+    box.innerHTML = '<div class="gpxi-analysis-title">' + t("gpxinspect.heal_found", "Analyse — gefunden, wird beim Heilen glattgezogen:") + "</div>" +
+      _healFunde.map((b) => { const k = _HEAL_KEYS[b.key]; const txt = k ? t(k[0], k[1]).replace("%n", b.n) : (b.key + " " + b.n);
+        return '<label class="gpxi-check"><input type="checkbox" data-heal="' + b.key + '" checked> ' + txt + "</label>"; }).join("");
+    box.hidden = false;
+  }
+  function _healSchritte() {
+    const box = document.getElementById("gpxi-heal-analysis");
+    if (!box || box.hidden) return null;   // keine Analyse → alles
+    return [...box.querySelectorAll("input[data-heal]")].filter((c) => c.checked).map((c) => c.getAttribute("data-heal"));
+  }
+  async function healTimesAndData() {
+    if (!_points || _points.length < 3) return "";
+    const schritte = _healSchritte();
+    if (schritte && !schritte.length) return "";
+    let r = null;
+    try { r = await api().gpxinspect_heal(_points, 250, schritte, false); } catch (e) { r = { ok: false, error: String(e) }; }
+    if (!r || !r.ok || !Array.isArray(r.points)) { try { applog("warn", "[gpxinspect] heilen (Brücke): " + (r && r.error)); } catch (_) {} return ""; }
+    const teile = (r.bericht || []).filter((b) => !schritte || schritte.indexOf(b.key) >= 0).map((b) => { const k = _HEAL_KEYS[b.key]; return k ? t(k[0], k[1]).replace("%n", b.n) : (b.key + " " + b.n); });
+    if (!teile.length) return "";
+    _points.length = 0; for (const p of r.points) _points.push(p);
+    _dirty = true;
+    try { analyseTrack(); } catch (_) {}
+    return teile.join(" · ");
+  }
   async function healAllSpikes() {
-    if (!_spikes.length && !_gaps.length) return;
     _pushUndo(t("gpxinspect.heal_all", "Auto-Heilen"));
+    const _datenMsg = await healTimesAndData();
+    if (_datenMsg) { try { detectSpikes && detectSpikes(); } catch (_) {} }
+    if (!_spikes.length && !_gaps.length) {
+      if (_datenMsg) { renderAll(); updateUI(); toast(t("gpxinspect.heal_done_data", "Geheilt: %d").replace("%d", _datenMsg), "success", 4500); }
+      return;
+    }
     // 1) Ausreißer geraderücken — verschiebt nur (kein Splice) → Indizes bleiben gültig.
     for (const g of _spikes) {
       const A = _points[g.a], B = _points[g.b], span = g.b - g.a;
@@ -1848,6 +1902,7 @@ function mountGpxInspect(body, headerActions) {
       renderAll(); updateUI();
       const msg = t("gpxinspect.heal_done_route", "Geheilt: %s Ausreißer · %r Lücken an Route angepasst, %l gerade gefüllt")
         .replace("%s", nS).replace("%r", routed).replace("%l", nG - routed)
+        + (_datenMsg ? " · " + _datenMsg : "")
         + (detour ? " (" + detour + " " + t("gpxinspect.heal_detour", "Umwege verworfen") + ")" : "")
         + (nT ? " · " + t("gpxinspect.heal_tempo_done", "%t Tempo-Stellen entzerrt").replace("%t", nT) : "");
       toast(msg, "success", 4000);
@@ -1863,6 +1918,7 @@ function mountGpxInspect(body, headerActions) {
     renderAll(); updateUI();
     toast(t("gpxinspect.heal_done", "Geheilt: %s Ausreißer, %g Lücken (+%p Punkte)")
       .replace("%s", nS).replace("%g", nG).replace("%p", fillPts)
+      + (_datenMsg ? " · " + _datenMsg : "")
       + (nT ? " · " + t("gpxinspect.heal_tempo_done", "%t Tempo-Stellen entzerrt").replace("%t", nT) : ""), "success", 3200);
   }
   // Eine Lücke mit gerade interpolierten Punkten füllen (Position/Höhe/Zeit linear). Gibt

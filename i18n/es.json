@@ -2910,5 +2910,14 @@
   "settings.preview_quality.flott": "ágil — menos teselas por fotograma",
   "settings.preview_quality.schnell": "rápida — media resolución",
   "settings.preview_quality.help": "Si la vista previa va a tirones (muchas teselas, terreno, Retina), prueba «ágil» o «rápida». El vídeo y la imagen fija siempre se renderizan con calidad completa; cámara, recorrido y superposiciones no cambian.",
-  "error.shader_fallback": "Fallo del controlador gráfico en el sombreador del globo; el mapa sigue sin globo"
+  "error.shader_fallback": "Fallo del controlador gráfico en el sombreador del globo; el mapa sigue sin globo",
+  "gpxinspect.heal_k_no_coords": "%n puntos sin coordenadas eliminados",
+  "gpxinspect.heal_k_duplicates": "%n puntos duplicados eliminados",
+  "gpxinspect.heal_k_spread": "%n segundos con varios puntos repartidos",
+  "gpxinspect.heal_k_backwards": "%n saltos de tiempo hacia atrás suavizados",
+  "gpxinspect.heal_k_missing_time": "%n tiempos faltantes completados",
+  "gpxinspect.heal_k_outliers": "%n valores atípicos de velocidad eliminados",
+  "gpxinspect.heal_k_missing_ele": "%n altitudes faltantes completadas",
+  "gpxinspect.heal_done_data": "Reparado: %d",
+  "gpxinspect.heal_found": "Análisis: encontrado, se corrige al reparar:"
 }

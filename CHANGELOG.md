@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- GPX healing (`core/gpxheal`): one pass that straightens out everything a recording gets wrong — seconds carrying several points with the same whole-second timestamp (spread evenly), backwards time jumps, missing times and elevations (interpolated), points without coordinates, exact duplicates, speed outliers; the lossless writer rewrites `<bounds>` from the real points and keeps milliseconds. The inspector's „Auto-heal" runs it first and reports what changed; the web tool „Clean GPX" became „Heal GPX" (same URL) with the report under the map. Trigger: an Insta360 Studio GPX export (10 points per second, identical second stamps, unsigned bounds) that the camera's own video software refused while a navigator's file imported fine.
+
 ## [0.9.663] – 2026-09-08
 
 ### Added
