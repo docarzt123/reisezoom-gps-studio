@@ -733,6 +733,14 @@ function rzSeatMapLibreCenter(map) {
   const seat = () => {
     try {
       if (map.isMoving && map.isMoving()) return;
+      // 08.09.2026 (Marc: "im Render folgt die Kamera dem Gelaende, in der Vorschau nicht"):
+      // Im Schrittmodus (Render) NIE nachsitzen. Dort setzt rzMlCamApply die Mittelpunkt-Hoehe
+      // je Bild selbst (feste Stuetzstellen-Hoehe, ruhige Kamera). Zwischen zwei Renderbildern
+      // steht die Karte laenger still als die 300 ms unten (Warten auf Kacheln, gemessen ~380 ms),
+      // also feuerte dieser Sitz je Bild und zog die Kamera aufs Gelaende: gemessen 119 Sitze auf
+      // 120 Bilder, Mittelpunkt-Hoehe exakt gleich der Gelaendehoehe, Schwankung bis 300 m je Bild.
+      // In der Vorschau feuert er nie (0 Sitze gemessen), weil die Uhr jedes Bild neu bewegt.
+      if (window.__rzStepMode && window.__rzPreviewStep && window.__rzPreviewStep.ready) return;
       if (!map.getTerrain || !map.getTerrain()) return;
       const e = map.queryTerrainElevation(map.getCenter());
       const have = map.getCenterElevation ? map.getCenterElevation() : 0;
