@@ -599,7 +599,7 @@ function rzApplyPreviewQuality() {
   const q = rzPreviewQuality();
   window.__rzTileDensityMax = (q === "voll") ? undefined : 0;
   window.__rzPreviewPixelRatio = (q === "schnell") ? 1 : undefined;
-  window.__rzPreviewMesh = (q === "schnell") ? 64 : undefined;
+  window.__rzPreviewMesh = undefined;   // 08.09.2026: Netz bleibt 128 — 64 gab in «schnell» 171 statt 136 Flacker-Blöcke (30-fps-Aufnahme Masca) bei kaum Tempo
   return q;
 }
 window.rzPreviewQuality = rzPreviewQuality; window.rzApplyPreviewQuality = rzApplyPreviewQuality;

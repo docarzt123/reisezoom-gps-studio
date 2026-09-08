@@ -2711,8 +2711,12 @@ eigener Link / reisezoom-Shortlink), IDEAS §56.
 `preview_quality` (voll | flott | schnell, app.py-Default voll). `rzApplyPreviewQuality()`
 (util.js, nach `settings_get` und vor jedem `createMap`) setzt `window.__rzTileDensityMax`
 (flott/schnell: 0 → `rzTileSize` bleibt bei der Basis-Kachelgröße), `__rzPreviewPixelRatio`
-(schnell: 1 → MapLibre-Option `pixelRatio`) und `__rzPreviewMesh` (schnell: 64 →
-`RZ_MESH` im Animator). Im Render (`window.__rzRenderMode`) immer «voll» — WYSIWYG der
+(schnell: 1 → MapLibre-Option `pixelRatio`) und `__rzPreviewMesh` (seit 08.09.2026 immer
+`undefined` → `RZ_MESH` 128 im Animator; 64 brachte in «schnell» 171 statt 136 Flacker-Blöcke).
+Messreihe 08.09.2026 (30-fps-Bildschirmaufnahme des Masca-Intro-Anflugs, A-B-A-Blöcke 50 px,
+`scratchpad flicker/blocks.py`): voll 58 · flott 100 · schnell ungepatcht 170 · schnell mit
+`rz-patch terrainpr` 136 · schnell + Netz 64 171. Rest = Kachel-Nachladen unter Gelände
+(MapLibre-RTT zeichnet die Kachel ein Bild lang mit Eltern-/Leer-Textur), in jeder Qualität. Im Render (`window.__rzRenderMode`) immer «voll» — WYSIWYG der
 Geometrie bleibt, nur die Bildschärfe der Vorschau sinkt. Umstellen lädt die Oberfläche neu
 (wie Stil-/Token-Wechsel). Messung auf Marcs Rechner über die `[probelauf]`-Zeilen im
 app.log (fps, längste Lücke).
@@ -3903,6 +3907,13 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    Einzelbild (Teide mean_diff 24 statt 5), weil jede neue Messung die Projektion
    ruckartig verzog. `render_szene_frame` stellt die Uhr nach dem Seek um +1 s vor,
    damit die Korrektur wie im laufenden Video ankommt.
+5. `/* rz-patch terrainpr */` (08.09.2026, Marc: „Kacheln flackern" bei Vorschau-Qualität
+   «schnell»): `schnell` gibt MapLibre `pixelRatio: 1`, aber `terrain.ts` legt Tiefen- und
+   Koordinaten-Framebuffer mit `painter.width / devicePixelRatio` an und liest
+   `pointCoordinate`/`depthAtPoint` ebenso — auf Retina also halb so groß wie die Leinwand
+   (upstream maplibre/maplibre-gl-js#5602, offen). Folge: Kacheln fielen je Bild schwarz aus
+   (30-fps-Aufnahme Masca: 72 Blöcke in 8 von 360 Bildern). Jetzt an allen fünf Stellen
+   `painter.pixelRatio`. Wächter: `tests/test_vendor_patches.py`.
 Ergebnis: Schorfheide 7–8 Wechselpixel, Zermatt 36, Teide 60 und Silhouette geschlossen, keine Risse mehr (Zermatt-Riss aus dem ersten Stitching-Stand war die 20–40 m Restdifferenz der Näherung über die eigene DEM).
 Bei jedem MapLibre-Update neu einpflegen; Wächter `tests/test_line3d.py` prüft die Marker,
 `rz_ele` dreimal und `u_rz_edge`.
