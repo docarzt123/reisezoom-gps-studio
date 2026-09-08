@@ -302,29 +302,36 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             if _vorwaermen > 1:
                 _t_vw = time.time()
                 emit(0.05, f"Szene: Kacheln vorwärmen ({_vorwaermen}) …")
-                # 08.09.2026 — Ist der Zwischenspeicher schon warm, ist jeder Halt
-                # verschenkte Zeit: Marcs zweiter Masca-Lauf kostete 90 s Vorwaermen
-                # und holte fast nichts mehr. Darum ab dem 12. Halt mitzaehlen, wie
-                # viele Kacheln wirklich noch geholt werden, und bei fast keinen
-                # Fehlgriffen abbrechen.
-                _zaehler = getattr(page, "_rz_tile_stats", None)
-                _miss0 = int((_zaehler or {}).get("miss", 0))
+                # 08.09.2026 — Ist alles schon da, ist jeder weitere Halt verschenkte
+                # Zeit (Marcs zweiter Masca-Lauf: 90 s Vorwaermen, kaum noch Ertrag).
+                # Gemessen wird die WARTEZEIT je Halt, die `_WARTE_BILD_JS` zurueckgibt,
+                # nicht der Kachel-Zaehler: rund die Haelfte der Fehlgriffe wird nie
+                # abgelegt (Dienste ohne brauchbare Antwort), der Zaehler bliebe also
+                # auch bei warmem Speicher hoch — gemessen 295 „neue" Kacheln in einem
+                # Lauf, der zu 92 Prozent aus Treffern bestand.
+                _warten = []
                 _halte = 0
                 for _i in range(_vorwaermen):
                     if is_cancelled and is_cancelled():
                         raise A.RenderCancelled()
                     _tv = (total_frames - 1) / cfg.fps * _i / (_vorwaermen - 1)
                     await page.evaluate(f"() => window.__rzPreviewStep.seek({_tv:.6f})")
-                    await page.evaluate(_WARTE_BILD_JS)
+                    _ms = await page.evaluate(_WARTE_BILD_JS)
+                    _warten.append(float(_ms) if isinstance(_ms, (int, float)) else 0.0)
                     _halte = _i + 1
-                    if _zaehler is not None and _halte >= 12 and _halte % 6 == 0:
-                        _neu = int(_zaehler.get("miss", 0)) - _miss0
-                        if _neu / _halte < 2.0:
-                            _log.info("Szene: Vorwärmen früh beendet — Kacheln liegen schon da (%d neue in %d Halten)", _neu, _halte)
+                    if _halte >= 12 and _halte % 6 == 0:
+                        _letzte = sorted(_warten[-6:])[3]
+                        # Schwelle aus Messungen (Masca, 4K): kalt wartet ein Halt
+                        # 600 bis 900 ms, warm 380 bis 400 ms. Unter 500 ms ist nichts
+                        # mehr zu holen — die verbleibende Wartezeit ist MapLibres
+                        # eigenes Nachzeichnen, nicht das Laden von Kacheln.
+                        if _letzte < 500:
+                            _log.info("Szene: Vorwärmen früh beendet — Karte wartet nur noch %.0f ms je Halt (%d von %d)",
+                                      _letzte, _halte, _vorwaermen)
                             break
-                _log.info("Szene: Kacheln vorgewärmt an %d von %d Haltepunkten in %.1fs (%d neue Kacheln)",
-                          _halte, _vorwaermen, time.time() - _t_vw,
-                          (int((_zaehler or {}).get("miss", 0)) - _miss0) if _zaehler is not None else -1)
+                _mitte = sorted(_warten)[len(_warten) // 2] if _warten else 0.0
+                _log.info("Szene: Kacheln vorgewärmt an %d von %d Haltepunkten in %.1fs (Warten je Halt im Mittel %.0f ms)",
+                          _halte, _vorwaermen, time.time() - _t_vw, _mitte)
             # 08.09.2026 - Verkleinern uebernimmt ffmpeg (siehe _vf_args/_grab_frame).
             cfg.skalieren_in_ffmpeg = True
             mux = FrameMuxer(_ffmpeg_cmd(cfg), cfg.output_path, total_frames, log=_log, cancelled_cls=A.RenderCancelled)

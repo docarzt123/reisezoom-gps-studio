@@ -2972,6 +2972,21 @@ function mountAnimator(body, headerActions, opts) {
   // Zusatztouren): Ohne Herkunft ist so eine Meldung nicht nachverfolgbar — die
   // ruhige Kamera schaltet sich still ab und der Nutzer merkt nur, dass das Video
   // holpert. Darum immer Datei und Zeile mitschreiben.
+  /** 08.09.2026 — Scheitert der Aufbau, schaltet sich die ruhige Kamera still ab:
+   *  Das Video holpert, und niemand weiß warum (ein Beta-Tester hatte genau das,
+   *  zweimal, ohne es zu merken). Einmal je Lauf sichtbar sagen, was los ist. */
+  let _ruhigMeldung = 0;
+  function _ruhigeKameraGescheitert(e) {
+    try {
+      const jetzt = Date.now();
+      if (jetzt - _ruhigMeldung < 5000) return;
+      _ruhigMeldung = jetzt;
+      toast(t("animator.smoothcam.failed",
+        "Ruhige Kamera konnte nicht aufgebaut werden — der Lauf nutzt die einfache Kamera. Bitte den Log schicken."),
+        "warn", 6000);
+    } catch (_) {}
+  }
+
   function _fehlerText(e) {
     try {
       const st = (e && e.stack) ? String(e.stack).split("\n").slice(0, 4).join(" | ") : "";
@@ -7335,6 +7350,7 @@ function mountAnimator(body, headerActions, opts) {
       // wortlos auf den klassischen Pfad zurück. Ein Fehler hier gehört
       // mindestens ins Log.
       try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + _fehlerText(e)); } catch (_) {}
+      _ruhigeKameraGescheitert(e);
       _useFaithful = false; _faithCams = null; _faithGew = null;
     }
     // 04.09.2026 — Probelauf-Bilanz ins app.log (Marc: „ruckelt total" ist auf
@@ -7704,7 +7720,7 @@ function mountAnimator(body, headerActions, opts) {
           step(_ms);
         } };
       const _fertig = () => { window.__rzPreviewStep.ready = true; };
-      if (_faithBuild) _faithBuild().then(_fertig).catch((e) => { try { applog("warn", "[smooth-cam] Stützstellen: " + _fehlerText(e)); } catch (_) {} _useFaithful = false; _faithCams = null; _faithGew = null; _fertig(); });
+      if (_faithBuild) _faithBuild().then(_fertig).catch((e) => { try { applog("warn", "[smooth-cam] Stützstellen: " + _fehlerText(e)); } catch (_) {} _ruhigeKameraGescheitert(e); _useFaithful = false; _faithCams = null; _faithGew = null; _fertig(); });
       else _fertig();
       return;
     }
@@ -7719,6 +7735,7 @@ function mountAnimator(body, headerActions, opts) {
       };
       _faithBuild().then(_los).catch((e) => {
         try { applog("warn", "[smooth-cam] Stützstellen-Aufbau fehlgeschlagen: " + _fehlerText(e)); } catch (_) {}
+      _ruhigeKameraGescheitert(e);
         _useFaithful = false; _faithCams = null; _faithGew = null;
         _los();
       });
