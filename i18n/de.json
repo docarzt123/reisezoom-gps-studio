@@ -2909,5 +2909,6 @@
   "settings.preview_quality.voll": "voll — wie das Video",
   "settings.preview_quality.flott": "flott — weniger Kacheln je Bild",
   "settings.preview_quality.schnell": "schnell — halbe Auflösung",
-  "settings.preview_quality.help": "Ruckelt die Vorschau (viele Kacheln, Gelände, Retina), hilft «flott» oder «schnell». Video und Standbild rendern immer in voller Qualität; Kamera, Strecke und Overlays bleiben identisch."
+  "settings.preview_quality.help": "Ruckelt die Vorschau (viele Kacheln, Gelände, Retina), hilft «flott» oder «schnell». Video und Standbild rendern immer in voller Qualität; Kamera, Strecke und Overlays bleiben identisch.",
+  "error.shader_fallback": "Grafiktreiber-Fehler beim Kugel-Shader — die Karte läuft ohne Weltkugel weiter"
 }

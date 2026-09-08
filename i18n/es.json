@@ -2909,5 +2909,6 @@
   "settings.preview_quality.voll": "completa — como el vídeo",
   "settings.preview_quality.flott": "ágil — menos teselas por fotograma",
   "settings.preview_quality.schnell": "rápida — media resolución",
-  "settings.preview_quality.help": "Si la vista previa va a tirones (muchas teselas, terreno, Retina), prueba «ágil» o «rápida». El vídeo y la imagen fija siempre se renderizan con calidad completa; cámara, recorrido y superposiciones no cambian."
+  "settings.preview_quality.help": "Si la vista previa va a tirones (muchas teselas, terreno, Retina), prueba «ágil» o «rápida». El vídeo y la imagen fija siempre se renderizan con calidad completa; cámara, recorrido y superposiciones no cambian.",
+  "error.shader_fallback": "Fallo del controlador gráfico en el sombreador del globo; el mapa sigue sin globo"
 }

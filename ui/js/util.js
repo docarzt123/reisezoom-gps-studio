@@ -110,7 +110,28 @@ function _rzMapboxNachzuegler(ev) {
   const datei = String(ev && ev.filename || "");
   return /getOwnLayer|_getDrapedTiles|terrain\._clearRenderCache/.test(msg) && /mapbox-gl|maplibre-gl/.test(datei);
 }
+// 08.09.2026 (Marc: „beim ersten Start kam jede Menge Code im Fenster"): WebKits Metal-Übersetzer
+// (ANGLE) scheitert sporadisch am Symbol-Shader der Kugel-Projektion („Program failed to link …
+// MSL compilation error", ein Uniform wird intern per Referenz in eine Hilfsfunktion gereicht).
+// Kam in ~25 Starts heute einmal vor, beim nächsten Start nicht. Statt Quelltext im Dialog:
+// betroffene Karten auf Mercator umschalten (der Kugel-Shader wird dann nicht gebraucht),
+// einmal loggen, kurzer Hinweis.
+function _rzShaderNotfall(ev) {
+  const msg = String(ev && (ev.message || (ev.error && ev.error.message)) || "");
+  if (!/Program failed to link|MSL compilation error/.test(msg)) return false;
+  const karten = [];
+  try { if (window.__rzLetzteKarte) karten.push(window.__rzLetzteKarte); } catch (_) {}
+  try { if (window.__rzAnimMap && window.__rzAnimMap()) karten.push(window.__rzAnimMap()); } catch (_) {}
+  try { if (window.__libMap) karten.push(window.__libMap); } catch (_) {}
+  let n = 0;
+  for (const m of new Set(karten)) { try { if (m && m.setProjection && m.__rzEngine === "maplibre") { m.setProjection({ type: "mercator" }); n++; } } catch (_) {} }
+  try { applog("warn", "[shader] Metal-Übersetzer scheiterte (" + msg.split("\n")[0].slice(0, 120) + ") → " + n + " Karte(n) auf Mercator umgeschaltet"); } catch (_) {}
+  try { toast(t("error.shader_fallback", "Grafiktreiber-Fehler beim Kugel-Shader — Karte läuft ohne Weltkugel weiter"), "warn", 7000); } catch (_) {}
+  ev.preventDefault();
+  return true;
+}
 window.addEventListener("error", (ev) => {
+  if (_rzShaderNotfall(ev)) return;
   if (_rzMapboxNachzuegler(ev)) { try { applog("warn", "[mapbox] Nachzügler nach Karten-Abbau (ignoriert): " + ev.message); } catch (_) {} ev.preventDefault(); return; }
   console.error("[JS-Fehler]", ev.error || ev.message, ev);
   try {
