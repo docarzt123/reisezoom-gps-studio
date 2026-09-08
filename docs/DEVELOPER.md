@@ -3914,6 +3914,20 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    (upstream maplibre/maplibre-gl-js#5602, offen). Folge: Kacheln fielen je Bild schwarz aus
    (30-fps-Aufnahme Masca: 72 Blöcke in 8 von 360 Bildern). Jetzt an allen fünf Stellen
    `painter.pixelRatio`. Wächter: `tests/test_vendor_patches.py`.
+6. `/* rz-patch lodhyst */` (08.09.2026, Marc: „flackert immer noch, egal in welcher Qualität"):
+   Mit Gelände (`allowVariableZoom`) rechnet `coveringTiles` je Kachelknoten eine
+   kontinuierliche Detailstufe aus dem Kamera-Abstand (`calculateTileZoom`) und rundet sie
+   ab. An der Stufengrenze kippte das von Bild zu Bild: Probelauf-Zähler «Kachelmengen-Wechsel
+   / davon A-B-A» (module.js `_plTrack`, Beispiele als `[probelauf-aba]`-Zeilen) zeigten je
+   Lauf 13 Sentinel- und 7 DEM-Mengen, die für EIN Bild eine gröbere Kachel (z12 neben den
+   z13-Kindern, DEM z9) aufnahmen und wieder verloren — die wird im RTT über die Kinder
+   gezeichnet = unscharfer Blitzer; DEM-Kachel = schwarzer Keil. Fix `rzLodHyst(e,i,l,T,M)`:
+   je Kachelknoten (Schlüssel tileSize:z/x/y, Zustand `terrain.__rzLod`, sonst am Transform)
+   wechselt die gerundete Stufe erst, wenn der kontinuierliche Wert die Grenze um
+   `window.__rzLodHyst` (Standard 0,2) überschritten hat; `window.__rzNoLodHyst = true`
+   schaltet ab (Prüfstand). Alle 300 Aufrufe werden 150 Aufrufe alte Einträge verworfen.
+   Messung (30-fps-Bildschirmaufnahme, `scratchpad flicker/blocks.py`, Masca-Intro):
+   «schnell» 136 → 0 Flacker-Blöcke (zweimal), stehende Kamera vorher wie nachher 0.
 Ergebnis: Schorfheide 7–8 Wechselpixel, Zermatt 36, Teide 60 und Silhouette geschlossen, keine Risse mehr (Zermatt-Riss aus dem ersten Stitching-Stand war die 20–40 m Restdifferenz der Näherung über die eigene DEM).
 Bei jedem MapLibre-Update neu einpflegen; Wächter `tests/test_line3d.py` prüft die Marker,
 `rz_ele` dreimal und `u_rz_edge`.

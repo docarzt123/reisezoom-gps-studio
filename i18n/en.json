@@ -2908,6 +2908,6 @@
   "settings.preview_quality": "Preview quality (window only)",
   "settings.preview_quality.voll": "full — like the video",
   "settings.preview_quality.flott": "brisk — fewer tiles per frame",
-  "settings.preview_quality.schnell": "fast — half resolution (may show tile flashes)",
+  "settings.preview_quality.schnell": "fast — half resolution",
   "settings.preview_quality.help": "If the preview stutters (many tiles, terrain, Retina), try “brisk” or “fast”. Video and still always render at full quality; camera, track and overlays stay identical."
 }
