@@ -2707,7 +2707,13 @@ OSMF-Standardserver: Prefetch = Bulk → absprache. Konzept: `docs/KARTENQUELLEN
 LIZENZKONZEPT.md`; nächster Schritt: Nennungs-Modus (alles im Bild / Hinweis +
 eigener Link / reisezoom-Shortlink), IDEAS §56.
 
-**Ruhige Kamera, Zielhöhe glätten (08.09.2026 Mittag):** `_faithBuild` (module.js) und
+**Ruhige Kamera, Zielhöhe glätten (08.09.2026 Mittag):** `_faithBuild` (module.js) und KORREKTUR (später
+am 08.09., Marc: „andere Zoomstufe je nach Startpunkt"): keine eigene geglättete eM-Reihe, sondern eM
+um genau die Verschiebung von `pos[2]` anheben (Mercator → Meter an der Kamera-Breite). Eine eigene
+Reihe brachte die Differenz zweier Reihen (eM mit GPX-Rückfall vs. `ez` = letzte Geländehöhe) in den
+Zoom, abhängig von den beim Start geladenen Höhenkacheln (Intro-Start: viele fehlen). Prüfstand
+`scratchpad flicker/run_zoomcmp.py` (Hooks `window.__rzPreviewStartAt(bar)`, `window.__rzIntroBar()`):
+Start bei 0 / warm bei 0 / am Trackbeginn — Zoom je Zeitachsen-Sekunde gleich bis 0,03.
 `__camPrepFaithful` (core/animator.py) glätten neben der Kamerahöhe `pos[2]` jetzt auch die
 Zielhöhe `eM` der Stützstellen (gleiches Fenster, gleiche Gewichte). `eM` kommt aus
 `queryTerrainElevation` und hängt davon ab, welche DEM-Stufe gerade geladen ist, beim zweiten

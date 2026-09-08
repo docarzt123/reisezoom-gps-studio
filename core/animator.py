@@ -3542,6 +3542,7 @@ window.__rzLerpBP = (a, b, u) => {{
   return [a[0] + d * u, a[1] + (b[1] - a[1]) * u];
 }};
 window.__camPrepFaithful = async (camList, glattFenster) => {{
+  try {{ if (map.setCenterClampedToGround) map.setCenterClampedToGround(false); }} catch (_) {{}}   // 08.09.2026: Aufbau ohne Boden-Klemmung (synchron zur Vorschau)
   // 25.08.2026 — VERSUCH: auf die Geländekacheln warten, bevor die Kamerahöhe
   // abgelesen wird. Ohne das springt die Karte hier in Millisekunden durch
   // Hunderte Positionen; `getFreeCameraOptions()` und `queryTerrainElevation()`
@@ -3591,20 +3592,20 @@ window.__camPrepFaithful = async (camList, glattFenster) => {{
       roh[i].pos[2] = roh[i].pos[2] + roh[i].g * (summe / (hi - lo + 1) - ezs[i]);
     }}
   }}
-  // 08.09.2026 — Zielhöhe eM ebenso glätten (synchron zur Vorschau, module.js _faithBuild):
-  // der Zoom ist f(Kamerahöhe − eM); eM aus queryTerrainElevation springt zwischen DEM-Stufen.
-  if (w > 0 && roh.length > 2 * w + 1) {{
-    let lE = null;
-    const ems = roh.map(c => {{ if (c.eM != null && isFinite(c.eM)) lE = c.eM; return lE; }});
-    if (ems.some(v => v != null)) {{
-      const emsF = ems.map(v => (v == null ? 0 : v));
-      const neu = roh.map((c, i) => {{
-        if (!c.g || c.eM == null) return c.eM;
-        const lo = Math.max(0, i - w), hi = Math.min(roh.length - 1, i + w);
-        let summe = 0; for (let j = lo; j <= hi; j++) summe += emsF[j];
-        return c.eM + c.g * (summe / (hi - lo + 1) - emsF[i]);
-      }});
-      for (let i = 0; i < roh.length; i++) roh[i].eM = neu[i];
+  // 08.09.2026 — eM um dieselbe Verschiebung wie pos[2] anheben (Mercator → Meter an der
+  // Kamera-Breite): Zoom bleibt exakt der Keyframe-Zoom, unabhängig von geladenen Höhenkacheln.
+  // Synchron zur Vorschau (module.js _faithBuild).
+  if (w > 0 && roh.length > 2 * w + 1 && ezs.some(v => v !== 0)) {{
+    const R = 6378137;
+    for (let i = 0; i < roh.length; i++) {{
+      if (!roh[i].g || roh[i].eM == null) continue;
+      const lo = Math.max(0, i - w), hi = Math.min(roh.length - 1, i + w);
+      let summe = 0;
+      for (let j = lo; j <= hi; j++) summe += ezs[j];
+      const dPos = roh[i].g * (summe / (hi - lo + 1) - ezs[i]);
+      const camLat = 360 / Math.PI * Math.atan(Math.exp((180 - roh[i].pos[1] * 360) * Math.PI / 180)) - 90;
+      const circ = 2 * Math.PI * R * Math.cos(camLat * Math.PI / 180);
+      roh[i].eM = roh[i].eM + dPos * circ;
     }}
   }}
   window.__kfCams = roh;
