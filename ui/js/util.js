@@ -491,10 +491,10 @@ function mapStyleNoteText(spec) {
   const r = spec.rights;
   if (r && r.status !== "true") {
     const srv = Object.keys(r.server || {});
-    if (r.nein && r.nein.length) parts.push(t("mapstyle.note.rights_no", "Nicht für Videos freigegeben (Bedingungen des Anbieters): {ids}").replace("{ids}", r.nein.join(", ")));
-    if (srv.length && r.status !== "false") parts.push(t("mapstyle.note.rights_server", "Kachelserver: Bild-für-Bild-Rendern nur nach Absprache oder mit eigenem Server ({ids}).").replace("{ids}", srv.join(", ")));
+    if (r.nein && r.nein.length) parts.push(t("mapstyle.note.rights_no", "Nicht für Videos frei: {ids}").replace("{ids}", r.nein.join(", ")));
+    if (srv.length && r.status !== "false") parts.push(t("mapstyle.note.rights_server", "Kachelserver: Render nur nach Absprache ({ids})").replace("{ids}", srv.join(", ")));
     const offen = (r.offen || []).filter(i => !srv.includes(i));
-    if (offen.length) parts.push(t("mapstyle.note.rights_unknown", "Nutzungsrechte noch nicht vollständig verifiziert: {ids}").replace("{ids}", offen.join(", ")));
+    if (offen.length) parts.push(t("mapstyle.note.rights_unknown", "Rechte noch offen ({n} Quellen)").replace("{n}", String(offen.length)));   // 08.09.2026: Namen stehen in der Rechte-Tabelle (Seitenleiste ohne Fließtext)
   }
   return parts.join(" ");
 }
