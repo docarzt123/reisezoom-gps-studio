@@ -99,7 +99,13 @@ def _ele_text(v) -> Optional[str]:
 
 def _time_text(v) -> Optional[str]:
     dt = _tio._parse_iso(v) if v else None
-    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if dt is not None else None
+    if dt is None:
+        return None
+    dt = dt.astimezone(timezone.utc)
+    # 08.09.2026 — Millisekunden behalten (GPX heilen verteilt 10-Hz-Punkte über die Sekunde)
+    if dt.microsecond:
+        return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{dt.microsecond // 1000:03d}Z"
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _koord(el):
@@ -198,6 +204,18 @@ def gpx_mit_punkten(original, points, *, name: Optional[str] = None, creator: Op
             else:
                 el = _neuer_punkt(ns, p)
             seg_el.append(el)
+    # 08.09.2026 — `<bounds>` immer aus den echten Punkten neu schreiben (Insta360 Studio
+    # exportierte Längengrade ohne Vorzeichen; nach Kürzen/Ausdünnen stimmten sie ohnehin nicht).
+    try:
+        meta = root.find(_q(ns, "metadata"))
+        if meta is not None and pts:
+            b = meta.find(_q(ns, "bounds"))
+            if b is not None:
+                las = [float(p["lat"]) for p in pts]; los = [float(p["lon"]) for p in pts]
+                b.set("minlat", repr(min(las))); b.set("maxlat", repr(max(las)))
+                b.set("minlon", repr(min(los))); b.set("maxlon", repr(max(los)))
+    except (TypeError, ValueError):
+        pass
     if creator:
         root.set("creator", creator)
     elif not root.get("creator"):

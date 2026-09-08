@@ -21,6 +21,14 @@ def _get(p, key):
     return getattr(p, key, None)
 
 
+def _iso_z(dt) -> str:
+    """UTC-ISO mit „Z"; Millisekunden nur, wenn vorhanden (08.09.2026, GPX heilen verteilt 10-Hz-Punkte)."""
+    dt = dt.astimezone(timezone.utc)
+    if dt.microsecond:
+        return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{dt.microsecond // 1000:03d}Z"
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _parse_iso(s):
     if not s:
         return None
@@ -92,7 +100,7 @@ def to_gpx_string(points, name: Optional[str] = None) -> str:
                 pass
         dt = _parse_iso(tm)
         if dt is not None:
-            seg.append("<time>" + dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") + "</time>")
+            seg.append("<time>" + _iso_z(dt) + "</time>")
         seg.append(_point_extensions(p))
         seg.append("</trkpt>")
         out.append("".join(seg))
@@ -117,7 +125,7 @@ def to_csv_string(points) -> str:
             f"{float(lat):.7f}",
             f"{float(lon):.7f}",
             ("" if ele is None else f"{float(ele):.2f}"),
-            ("" if dt is None else dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")),
+            ("" if dt is None else _iso_z(dt)),
         ])
         i += 1
     return buf.getvalue()
@@ -142,7 +150,7 @@ def to_geojson_string(points, name: Optional[str] = None) -> str:
                 pass
         coords.append(c)
         dt = _parse_iso(_get(p, "time"))
-        times.append(dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if dt else None)
+        times.append(_iso_z(dt) if dt else None)
     props = {"name": name or "Track"}
     if any(times):
         props["coordTimes"] = times
@@ -204,7 +212,7 @@ def to_tcx_string(points, name: Optional[str] = None) -> str:
             if dt is None:
                 dt = (last + timedelta(seconds=1)) if last else datetime(2020, 1, 1, tzinfo=timezone.utc)
             times.append(dt); last = dt
-    fz = lambda dt: dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    fz = lambda dt: _iso_z(dt)
     sid = fz(times[0]) if times else "2020-01-01T00:00:00Z"
     out = [
         '<?xml version="1.0" encoding="UTF-8"?>',

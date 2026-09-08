@@ -13,6 +13,7 @@ Die acht Module, grob in der Reihenfolge, in der man sie benutzt:
 
 **Reparieren**
 - **GPX-Inspektor** 🔍 — Track reparieren: Ausreißer heilen, Lücken füllen, Höhe korrigieren, Punkte verschieben, Anfang/Ende abschneiden, Mittelstücke rausschneiden, mehrere Aufzeichnungen verbinden
+  Seit 08.09.2026 zieht **Auto-Heilen** zuerst die Daten glatt: mehrfach belegte Sekunden (z. B. zehn Punkte je Sekunde aus Actioncams) werden über die Sekunde verteilt, Zeit-Rücksprünge geglättet, fehlende Zeiten und Höhen ergänzt, Doppelpunkte und Punkte ohne Koordinaten entfernt. Vorher zeigt ein Analyse-Kasten, was gefunden wurde, mit Häkchen je Punkt. Gleiches im Web-Werkzeug «GPX heilen».
 
 **Anreichern**
 - **Geotagger** 📷 — GPS-Koordinaten aus dem Track in JPG / RAW / Video-EXIF schreiben

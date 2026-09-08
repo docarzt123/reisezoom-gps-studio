@@ -276,3 +276,7 @@
 /* 01.09.2026 — Reduzieren: Beschriftung einzeilig, Wert rechtsbündig */
 .gpxi-reduce-lbl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .gpxi-reduce-lbl b { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--accent); }
+
+/* 08.09.2026 — Analyse-Kasten (GPX heilen): Funde mit Häkchen */
+.gpxi-analysis { margin: 4px 0 8px; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: rgba(255,255,255,0.04); }
+.gpxi-analysis-title { font-size: 12px; opacity: 0.85; margin-bottom: 4px; }

@@ -2749,6 +2749,20 @@ Geometrie bleibt, nur die Bildschärfe der Vorschau sinkt. Umstellen lädt die O
 (wie Stil-/Token-Wechsel). Messung auf Marcs Rechner über die `[probelauf]`-Zeilen im
 app.log (fps, längste Lücke).
 
+**GPX heilen (08.09.2026, `core/gpxheal.py`):** `heilen(points, max_speed_kmh=250, ausreisser=True,
+hoehen=True)` → `{ok, points, bericht:[{key, n}], stats}`. Schritte: Nullkoordinaten raus, exakte
+Doppelpunkte raus, mehrfach belegte ganze Sekunden gleichmäßig verteilen (bis zur nächsten bekannten
+Zeit, sonst 1 s), Rückwärtssprünge auf Vorgänger + 1 ms, fehlende Zeiten nach Streckenanteil
+interpolieren (Ränder: 1-s-Schritte), Tempo-Ausreißer (`gpxsimplify.clean_outliers`), fehlende Höhen
+interpolieren. Berichts-Schlüssel: no_coords, duplicates, spread_seconds, backwards, missing_time,
+outliers, missing_ele (Texte: App `gpxinspect.heal_k_*`, Web `fx_h_*`). `gpxpatch.gpx_mit_punkten`
+schreibt `<bounds>` immer aus den Punkten neu und behält Millisekunden (`_time_text`, ebenso
+`trackio._iso_z`). Brücke `gpxinspect_heal(points, max_speed_kmh)`; der Inspektor ruft sie in
+`healAllSpikes` vor Ausreißern/Lücken (`healTimesAndData`). Web: Aktion `clean` in
+`gps-studio-web/api/tools.py` läuft über `heilen`, `meta.heal` = Bericht. Wächter
+`tests/test_gpxheal.py` mit `tests/fixtures/insta360_10hz.gpx` (41 Punkte, 5 Sekunden, bounds ohne
+Vorzeichen). Anlass: Forumsfall X4-GPX ↔ X6-Video, Marcs Teneriffa-Ordner bestätigte die Form.
+
 **Verlustfreie GPX-Ausgabe (07.09.2026, FOSSGIS-Test route-3.gpx):**
 `core/gpxpatch.gpx_mit_punkten(original, points, name=)` ergänzt die ORIGINAL-GPX
 statt eine neue zu bauen. Weg A (Punktmenge gleich: Zahl + Koordinaten in

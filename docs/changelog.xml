@@ -5,8 +5,34 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Mon, 07 Sep 2026 10:53:50 +0000</lastBuildDate>
+<lastBuildDate>Tue, 08 Sep 2026 09:30:35 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.663 — Die Gelände-Vorschau flackert nicht mehr, und der Bildausschnitt hängt nicht mehr davon ab, wo man die Vorschau startet.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-663</link>
+<guid isPermaLink="false">gps-studio-v0.9.663</guid>
+<pubDate>Tue, 08 Sep 2026 12:00:00 +0000</pubDate>
+<description>Kein Kachel-Flackern mehr — Bei Kamerafahrten über Gelände blitzten Kacheln für ein Bild grob oder schwarz auf. Vier Ursachen im Kartenkern behoben (Puffergröße bei halber Auflösung, Kugel-zu-Karte-Übergang, Verdeckungslogik, Sichtbarkeitsprüfung am Bildrand) und die ruhige Kamera geglättet. Gemessen per Bildschirmaufnahme: von 89 auf 1 bis 2 Blöcke je Lauf.
+
+Weltkugel nur im Anflug — Die Kugel bleibt für den Anflug aus dem All (bis Zoom 7), ab Zoom 9 ist die Karte flach. Der Übergang hängt allein am Zoom und ruckelt nicht mehr.
+
+Bildausschnitt unabhängig vom Startpunkt — Startete man die Vorschau von vorne, stand die Kamera 1,5 km tiefer als beim Start am Trackbeginn, weil die Höhenabfrage ohne geladene Kacheln 0 lieferte. Jetzt gilt die GPX-Höhe, in Vorschau und Video.
+
+Quellenregister und Quellenzeile — Jede Kartenquelle mit Lizenz, Nutzungsbedingungen und Videofreigabe im Über-Dialog; die Quellenzeile im Bild wahlweise vollständig oder kurz mit eigenem Link, dazu ein Knopf „Quellentext kopieren“ nach jedem Render.</description>
+</item>
+<item>
+<title>v0.9.662 — Schärfere Karten, ein Schärfe-Regler und eine Quellenzeile, die man sieht und platzieren kann.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-662</link>
+<guid isPermaLink="false">gps-studio-v0.9.662</guid>
+<pubDate>Mon, 07 Sep 2026 12:00:00 +0000</pubDate>
+<description>Karten schärfer — Auf Retina-Bildschirmen und im Video holt die App die Kacheln ein bis zwei Stufen tiefer, damit ein Kachelpixel etwa auf ein Bildpixel fällt. Vorher wurde jedes Kachelpixel 2- bis 5-fach vergrößert, die ganze Karte wirkte weich. Sichtbar bei allen Rasterkarten: Felder, Straßen, Text. Kostet mehr Kacheln je Bild, eine 4K-Zoomfahrt dauert rund die Hälfte länger.
+
+Schärfe-Regler — Unter „Farbton“ in der Luftbild- und der Karten-Optik: eine Unschärfemaske auf dem Kartenbild, in Vorschau und Video gleich. Wirkt nur aufs Bild, nicht auf Strecke, Schilder, Zahlen. Hilft vor allem über Inseln und Küsten ohne amtliches Luftbild, wo die freie Sentinel-Ebene weich ist.
+
+Luftbild-Optik auch auf Sentinel — In der Übersicht eines Schwarms liegt nur die Sentinel-Ebene, die Regler schienen tot. Jetzt wirken sie auch dort, als Abweichung vom Werk. „Beleuchtung (Tageszeit)“ erscheint nur noch bei Mapbox, wo sie etwas tut.
+
+Quellenzeile lesbar und platzierbar — Die Nennung wird in der Vorschau nicht mehr geschrumpft, hat dieselbe relative Größe im Video, folgt der Optik der Stats-Boxen und lässt sich in eine Ecke oder als Leiste über die ganze Breite legen. Sie ist nie abschaltbar.</description>
+</item>
 <item>
 <title>v0.9.661 — Kleine Korrektur zu 0.9.660.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-661</link>
@@ -174,26 +200,6 @@ Beim Scrollen lief die Liste über ihre Kopfzeile. Jetzt bleibt die Kopfzeile sa
 ✋ GPS Studio schreibt nie mehr in deine Dateien. Heilst du eine Tour, entsteht daraus eine neue Version in deiner Bibliothek — deine Originaldatei bleibt unangetastet, auf das Byte genau. Brauchst du die geheilte Fassung auch außerhalb, exportierst du sie bewusst.
 
 🎯 Eine Kachel je Tour statt je Datei. Dieselbe Strecke als Komoot-Download, App-Import und geheilte Fassung war bisher dreimal im Archiv. Jetzt ist es eine Tour, erkennbar an „V3&quot; (drei Versionen) und „2×&quot; (aus zwei Dateien). Schlagworte, Favorit und dein eigener Name hängen an der Tour und überleben eine Heilung.</description>
-</item>
-<item>
-<title>v0.9.635 — Neuer Name, neues Zeichen.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-635</link>
-<guid isPermaLink="false">gps-studio-v0.9.635</guid>
-<pubDate>Tue, 01 Sep 2026 12:00:00 +0000</pubDate>
-<description>🏷 Das Tool heißt jetzt „GPS Studio by reisezoom.com&quot;. Neuer Name, neues Logo — im Programm, im Icon, im Handbuch und auf diesen Seiten. Deine Projekte, Ordner und Downloads bleiben unverändert, es ändert sich nur, was du siehst.
-
-💧 Wasserzeichen mit einem Häkchen. Neue Projekte starten mit dem GPS-Studio-Logo dezent unten rechts — ein Klick schaltet es aus, ein eigenes Bild geht auch, und die Position ziehst du mit der Maus in der Vorschau. Bestehende Projekte bekommen nachträglich nichts; deine fertigen Videos bleiben, wie sie sind.
-
-✂️ Punkte reduzieren mit Live-Vorschau. Im GPX-Inspektor schiebst du einen Regler von „alle Punkte&quot; bis „nur zwei&quot; und siehst dabei sofort auf der Karte, was übrig bliebe. Dazu neu: Zeitachse erzeugen für geplante Routen ohne Uhrzeit — danach laufen sie im Animator wie eine echte Aufzeichnung.</description>
-</item>
-<item>
-<title>v0.9.634 — Dein Logo. Dein Tempo.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-634</link>
-<guid isPermaLink="false">gps-studio-v0.9.634</guid>
-<pubDate>Mon, 31 Aug 2026 12:00:00 +0000</pubDate>
-<description>💧 Eigenes Wasserzeichen. Leg dein Logo ins Video: Bild wählen (PNG mit Transparenz empfohlen), Größe und Deckkraft einstellen — und die Position bestimmst du, indem du das Logo in der Vorschau einfach mit der Maus dorthin ziehst , wo es sitzen soll. Erscheint im Video, im Standbild und im Alpha-Export, bei 4K und Hochkant automatisch an derselben Stelle.
-
-⚡ Schnelleres Einlesen vom NAS. Der Archiv-Scan öffnete jede Track-Datei zweimal — auf einem Netzlaufwerk ist jede Öffnung ein Netz-Roundtrip. Jetzt wird jede Datei genau einmal gelesen; ein Tester-Hinweis („das Einlesen hat auffällig lange gedauert&quot;) hat das aufgedeckt. Danke für den Hinweis!</description>
 </item>
 </channel>
 </rss>

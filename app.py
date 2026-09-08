@@ -8222,6 +8222,20 @@ class Api:
             log.error("gpxinspect_append_track: %s\n%s", e, traceback.format_exc())
             return {"ok": False, "error": str(e)}
 
+    def gpxinspect_heal(self, points: list, max_speed_kmh: float = 250.0,
+                        schritte: list = None, nur_analyse: bool = False) -> dict:
+        """08.09.2026 — Alles glattziehen, was einer Aufzeichnung nicht entspricht (core/gpxheal):
+        mehrfach belegte Sekunden verteilen, Rückwärtssprünge, fehlende Zeiten/Höhen, Nullpunkte,
+        Doppelpunkte, Tempo-Ausreißer. Der Inspektor ruft es im Auto-Heilen vor dem Lückenfüllen."""
+        from core import gpxheal
+        try:
+            if nur_analyse:
+                return gpxheal.analysieren(list(points or []), max_speed_kmh=float(max_speed_kmh or 250.0))
+            return gpxheal.heilen(list(points or []), max_speed_kmh=float(max_speed_kmh or 250.0),
+                                  schritte=(None if schritte is None else list(schritte)))
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
     def gpxinspect_save(self, points: list, src_path: str,
                         out_path: str = "", fmt: str = "gpx",
                         sources: list = None) -> dict:
