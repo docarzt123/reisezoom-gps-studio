@@ -2959,6 +2959,7 @@
   "animator.tempo.langsamer": "slower",
   "animator.tempo.schneller": "faster",
   "animator.tempo.normal": "normal",
+  "animator.tempo.reise_sperre": "The journey sets the schedule — stages and transitions are configured above.",
   "animator.tempo.halt_hinweis": "A hold makes the video longer by its seconds.",
   "animator.tempo.abschnitt_hinweis": "The factor counts against the base speed-up. Slower means this section needs more video time.",
   "animator.tempo.entfernen": "Remove",

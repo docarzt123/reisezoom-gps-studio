@@ -1149,7 +1149,11 @@ function mountAnimator(body, headerActions, opts) {
             </div>
             <div class="field">
               <label class="field-label">${t("animator.field.duration")}</label>
-              <input type="number" id="anim-dur" min="3" max="60" value="12">
+              <!-- 08.09.2026 — die Obergrenze war 60 s. Seit die Dauer ein
+                   ERGEBNIS der Tempo-Kurve ist (und eine Reise aus fünfzehn
+                   Etappen besteht), ist das zu eng: eine Raffung, die 90 s
+                   ergibt, ließ sich nicht eintragen. -->
+              <input type="number" id="anim-dur" min="3" max="3600" value="12">
             </div>
             <div class="field">
               <label class="field-label">${t("animator.field.hold")}</label>
@@ -3562,18 +3566,34 @@ function mountAnimator(body, headerActions, opts) {
   //   - timeline_anchor >= track_fraction → Hold-Phase, idx = n-1 (Track steht still)
   // Bei hold_s=0 ist track_fraction=1.0 — Timeline-Anker und Track-Anker
   // sind identisch (Backward-Compat).
+  /** Wie lang die Anim-Phase WIRKLICH ist.
+   *
+   *  ⚠️ 08.09.2026 (Marc: „Render und Vorschau dürfen nicht auseinanderdriften"):
+   *  Bei einer Reise kommen die Übergänge ZUSÄTZLICH zur eingestellten Dauer —
+   *  `_reise_segmente` im Render hängt sie an, die Vorschau quetschte aber alles
+   *  in die eingestellten Sekunden. Gemessen: Plan 104 s, Probe-Lauf 100 s, ein
+   *  1,0-s-Kinoflug dauerte in der Vorschau 0,87 s. Beide fragen jetzt hier. */
+  function animSekunden() {
+    try {
+      if (_reiseBahn && _reiseGilt()) {
+        const s = (+_reiseBahn.sekEtappen || 0) + (+_reiseBahn.sekUeber || 0);
+        if (s > 0) return s;
+      }
+    } catch (_) {}
+    return parseNum(document.getElementById("anim-dur")?.value, 12);
+  }
   function trackFraction() {
     // v0.9.59: tf bezeichnet die Position auf der Timeline wo die Anim-Phase
     // ENDET. Bei intro_s > 0: tf = (intro + dur) / total. Sonst klassisch.
     const intro = parseNum(document.getElementById("anim-intro")?.value, 0);
-    const dur = parseNum(document.getElementById("anim-dur")?.value, 12);
+    const dur = animSekunden();
     const hold = parseNum(document.getElementById("anim-hold")?.value, 0);
     return (intro + dur) / Math.max(0.001, intro + dur + hold);
   }
   // v0.9.59: Intro-Bruchteil — Position wo die Anim-Phase BEGINNT (= Intro endet).
   function introFraction() {
     const intro = parseNum(document.getElementById("anim-intro")?.value, 0);
-    const dur = parseNum(document.getElementById("anim-dur")?.value, 12);
+    const dur = animSekunden();
     const hold = parseNum(document.getElementById("anim-hold")?.value, 0);
     return intro / Math.max(0.001, intro + dur + hold);
   }
@@ -3721,11 +3741,13 @@ function mountAnimator(body, headerActions, opts) {
   /** Die Dauer ist ab jetzt ein ERGEBNIS: Raffung plus Halte plus gebremste
    *  Abschnitte. Sie wird in das Dauer-Feld geschrieben, damit alles dahinter
    *  (Zeitleiste, Keyframe-Zeiten, Render-Auftrag) unverändert damit rechnet. */
-  function _tempoDauerAnzeigen(r) {
+  function _tempoDauerAnzeigen(r, nurAnzeigen) {
     if (!r || !isFinite(r.dauer_s) || r.dauer_s <= 0) return;
     const feld = document.getElementById("anim-dur");
     const neu = Math.max(1, Math.round(r.dauer_s * 10) / 10);
-    if (feld && Math.abs(parseNum(feld.value, 0) - neu) > 0.05) {
+    // Bei einer Reise ist die Dauer die Vorgabe, nicht das Ergebnis — sie darf
+    // hier nicht überschrieben werden.
+    if (!nurAnzeigen && feld && Math.abs(parseNum(feld.value, 0) - neu) > 0.05) {
       _tempoSchreibt = true;
       feld.value = neu;
       try { feld.dispatchEvent(new Event("change", { bubbles: true })); } finally { _tempoSchreibt = false; }
@@ -3738,7 +3760,9 @@ function mountAnimator(body, headerActions, opts) {
       .replace("{str}", r.sek_strecke.toFixed(1)).replace("{halt}", r.sek_halte.toFixed(1));
     // Zwei Plätze: in der Seitenleiste beim Verteilungs-Feld und — weil der
     // Abschnitt dort meist zugeklappt ist — dauerhaft unter der Tempo-Spur.
-    for (const id of ["anim-tempo-bilanz", "tl-tempo-bilanz"]) {
+    // Bei einer Reise steht unter der Spur die Reise-Bilanz — sie sagt, was
+    // Etappen und Übergänge kosten. Die Raffung gehört dann in die Seitenleiste.
+    for (const id of nurAnzeigen ? ["anim-tempo-bilanz"] : ["anim-tempo-bilanz", "tl-tempo-bilanz"]) {
       const z = document.getElementById(id);
       if (!z) continue;
       z.hidden = false;
@@ -3812,16 +3836,30 @@ function mountAnimator(body, headerActions, opts) {
     if (!currentGpx) { _paceMap = null; _tempoInfo = null; vorschauNeuZeichnen(); return; }
     const basis = _tempoBasis();
     const eintraege = _tempoEintraege();
+    // ── Eine Reise bringt ihren eigenen Zeitplan mit ────────────────────────
+    // Die Etappen und die Übergänge teilen die Animationszeit auf; die Bahn ist
+    // dadurch schon gleichmäßig in Videozeit abgetastet. Eine zweite Verteilung
+    // darüber wäre eine zweite Wahrheit. Deshalb gilt hier: die Dauer aus der
+    // Seitenleiste führt, die Raffung wird über ALLE Etappen daraus abgeleitet
+    // und nur angezeigt — die Kurve verteilt nichts (08.09.2026).
+    const reise = _reiseGilt();
     // Ohne Einträge und ohne gespeicherte Raffung: die Dauer aus der Seitenleiste
     // führt, die Raffung wird daraus abgeleitet. Genau so laufen alle bestehenden
     // Projekte weiter (Marc: „das muss abwärtskompatibel bleiben").
-    const rate = _tempoRate();
+    const rate = reise ? 0 : _tempoRate();
     try {
       const r = await api().animator_tempo_map({
-        gpx_path: currentGpx, basis,
+        gpx_path: currentGpx,
+        // Bei einer Reise gilt die Raffung für ALLE Etappen zusammen — sonst
+        // rechnet die Kurve nur mit der ersten und schreibt deren Dauer in das
+        // Feld, das den ganzen Reiseplan bestimmt (08.09.2026).
+        gpx_paths: reise
+          ? [currentGpx].concat(_extraTours.map(x => x.gpx_path).filter(Boolean))
+          : null,
+        basis,
         rate: rate || 0,
         dauer_s: parseNum(document.getElementById("anim-dur")?.value, 12),
-        eintraege,
+        eintraege: reise ? [] : eintraege,
         fps: parseNum(document.getElementById("anim-fps")?.value, 30),
         pause_mode: document.getElementById("anim-pause-mode")?.value || "trim",
         pause_min_s: (parseFloat(document.getElementById("anim-pause-min")?.value) || 2) * 60,
@@ -3832,14 +3870,17 @@ function mountAnimator(body, headerActions, opts) {
       });
       if (lauf !== _paceMapLauf) return;             // veraltete Antwort
       if (r && r.ok && Array.isArray(r.map)) {
-        _paceMap = r.map;
+        _paceMap = reise ? null : r.map;
         _tempoInfo = r;
-        if (!rate && r.rate) _tempoRateSichern(r.rate, basis);   // einmalig ableiten
-        _tempoDauerAnzeigen(r);
+        if (!reise && !rate && r.rate) _tempoRateSichern(r.rate, basis);   // einmalig ableiten
+        _tempoDauerAnzeigen(r, reise);
         try {
           if (_tlBar && _tlBar.setTempo)
-            _tlBar.setTempo(_tempoAnzeige(eintraege), r.halte || [],
-                            { dauer_s: r.dauer_s, anteile: r.map });
+            _tlBar.setTempo(_tempoAnzeige(reise ? [] : eintraege), reise ? [] : (r.halte || []),
+                            reise ? null : { dauer_s: r.dauer_s, anteile: r.map },
+                            reise ? t("animator.tempo.reise_sperre",
+                                      "Die Reise bestimmt den Zeitplan — Etappen und Übergänge stellst du oben ein.")
+                                  : null);
         } catch (_) {}
       } else { _paceMap = null; _tempoInfo = null; }
     } catch (_) { _paceMap = null; _tempoInfo = null; }
@@ -7198,7 +7239,7 @@ function mountAnimator(body, headerActions, opts) {
     // Hold-Phase wird auch berücksichtigt — der Render hat ja auch den Hold am
     // Ende mit Bearing-Sweep. Wir simulieren das durch eine kleine End-Hold-Zeit.
     const introSec = parseNum(document.getElementById("anim-intro")?.value, 0);
-    const durSec = parseNum(document.getElementById("anim-dur")?.value, 12);
+    const durSec = animSekunden();   // bei einer Reise inkl. der Übergänge
     const holdSec = parseNum(document.getElementById("anim-hold")?.value, 0);
     const introMs = Math.max(0, introSec * 1000);
     const animMs = Math.max(500, durSec * 1000);
@@ -14089,12 +14130,19 @@ function mountAnimator(body, headerActions, opts) {
     }
     if (_reise) {
       const kopf = document.createElement("div");
-      kopf.className = "anim-tour-row anim-etappe-erste";
+      kopf.className = "anim-tour-row anim-etappe-erste ist-etappe";
       const nm = (currentGpx.split("/").pop() || "Tour 1").replace(/\.gpx$/i, "");
+      // 08.09.2026 (Marc: „achte beim Multitrack, dass alles sauber lesbar
+      // ist"): In einer Zeile mit Dauer-Feld und drei Knöpfen blieb vom Namen
+      // „2024-02-10_66 Seen #1 Neus…" übrig — fünfzehn Etappen sahen alle gleich
+      // aus. Der Name bekommt jetzt die volle Breite, die Bedienung die Zeile
+      // darunter.
       kopf.innerHTML = `
         <span class="anim-tour-idx">1</span>
         <span class="anim-tour-name" title="${_animEscapeHtml(nm)}">${_animEscapeHtml(nm)}</span>
-        ${_dauerFeld(_animEtappe1S, t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt."))}`;
+        <span class="anim-etappe-zeile">
+          ${_dauerFeld(_animEtappe1S, t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt."))}
+        </span>`;
       kopf.querySelector(".anim-etappe-dauer").addEventListener("change", (e) => {
         _animEtappe1S = Math.max(0, parseFloat(e.target.value) || 0);
         e.target.value = _animEtappe1S || "";
@@ -14134,18 +14182,20 @@ function mountAnimator(body, headerActions, opts) {
         host.appendChild(ur);
       }
       const row = document.createElement("div");
-      row.className = "anim-tour-row";
+      row.className = "anim-tour-row" + (_reise ? " ist-etappe" : "");
       row.innerHTML = `
         <span class="anim-tour-idx">${i + 2}</span>
         <input type="color" class="anim-tour-color" value="${_animEscapeHtml(tr.line_color)}" title="${t("animator.tours.color", "Farbe dieser Tour")}">
         <span class="anim-tour-name" title="${_animEscapeHtml(tr.gpx_path)}">${_animEscapeHtml(tr.name)}</span>
+        ${_reise ? "<span class=\"anim-etappe-zeile\">" : ""}
         ${_reise ? _dauerFeld(tr.dauer_s, t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt.")) : ""}
         ${_animAblauf === "schwarm" ? `<span class="anim-tour-start-wrap" title="${t("animator.tours.start_delay", "Start nach … Sekunden Videozeit (0 = gemeinsamer Start)")}">⏱<input type="number" class="anim-tour-start" min="0" step="1" value="${+tr.start_s || 0}" style="width:44px">s</span>` : ""}
         <span class="anim-tour-actions">
           <button type="button" class="anim-tour-btn" data-act="up" ${i === 0 ? "disabled" : ""} title="${t("animator.tours.up", "nach oben")}">↑</button>
           <button type="button" class="anim-tour-btn" data-act="down" ${i === _extraTours.length - 1 ? "disabled" : ""} title="${t("animator.tours.down", "nach unten")}">↓</button>
           <button type="button" class="anim-tour-btn anim-tour-del" data-act="del" title="${t("animator.tours.remove", "entfernen")}">✕</button>
-        </span>`;
+        </span>
+        ${_reise ? "</span>" : ""}`;
       // 29.08.2026 (Marc, Schorfheide): Start-Verzögerung je Zusatz-Tour.
       row.querySelector(".anim-tour-start")?.addEventListener("change", (e) => {
         _extraTours[i].start_s = Math.max(0, parseFloat(e.target.value) || 0);
@@ -14499,6 +14549,10 @@ function mountAnimator(body, headerActions, opts) {
     namen: [(currentGpx || "").split("/").pop()].concat(_extraTours.map(x => (x.gpx_path || "").split("/").pop())),
     ueber: Array.from(_reiseBahn.istUeber).reduce((a, b) => a + b, 0),
     etappen: _reiseBahn.etappen.length,
+    // Der Zeitplan — daran misst der Prüfstand, ob die Vorschau so lang ist wie
+    // der Plan (tests/test_reise_dauer_vorschau.py).
+    sekEtappen: _reiseBahn.sekEtappen, sekUeber: _reiseBahn.sekUeber,
+    sekAnim: (+_reiseBahn.sekEtappen || 0) + (+_reiseBahn.sekUeber || 0),
   } : null); } catch (_) {}
 
   function _reiseGilt() {
@@ -14516,8 +14570,19 @@ function mountAnimator(body, headerActions, opts) {
     return raus;
   }
 
+  // Wie viele Etappen die Kurve zuletzt kannte. Die Raffung gilt für ALLE
+  // Etappen zusammen — ändert sich ihre Zahl, muss sie neu gerechnet werden.
+  // Ohne das lief die Kurve beim Projektstart über die erste Etappe (die Reise
+  // war da noch nicht gebaut) und blieb dabei (08.09.2026).
+  let _tempoReiseStand = null;
+  function _tempoReiseStandPruefen(n) {
+    if (_tempoReiseStand === n) return;
+    _tempoReiseStand = n;
+    setTimeout(() => { try { paceMapLaden(); } catch (_) {} }, 0);
+  }
+
   function _reiseBauen() {
-    if (!_reiseGilt()) { _reiseBahn = null; return null; }
+    if (!_reiseGilt()) { _reiseBahn = null; _tempoReiseStandPruefen(0); return null; }
     const etappen = [{ coords: _reiseBasis, dauer: +_animEtappe1S || 0, ueber_s: null, ueber_stil: "kino",
                        zeit: (_reiseBasisSerie && _reiseBasisSerie.cumTimeS) || null,
                        ele: _reiseBasisEle || null }]
@@ -14536,8 +14601,14 @@ function mountAnimator(body, headerActions, opts) {
     const offen = etappen.map((e, i) => fest[i] ? -1 : i).filter(i => i >= 0);
     const restS = Math.max(0, gesamtS - fest.reduce((a, b) => a + b, 0));
     const offenPts = offen.reduce((a, i) => a + etappen[i].coords.length, 0) || 1;
+    // ⚠️ Untergrenze: feste Etappendauern gehen vom Budget ab, und zwei feste
+    // Etappen können dreizehn andere auf 0,0 s drücken — die Reise zeigte dann
+    // vierzehn Etappen, von denen dreizehn nicht vorkamen (08.09.2026 auf Marcs
+    // Rechner gemessen). Jede Etappe bekommt mindestens diese Zeit; das Video
+    // wird dadurch länger als die Vorgabe, und die Bilanz sagt es.
+    const MIN_ETAPPE_S = 0.3;
     const etappeS = etappen.map((e, i) => fest[i] ||
-      (restS * e.coords.length / offenPts));
+      Math.max(MIN_ETAPPE_S, restS * e.coords.length / offenPts));
     const ueberS = etappen.map((e, i) => i === 0 ? 0
       : (e.ueber_stil === "schnitt" ? 0 : (e.ueber_s == null ? flugS : e.ueber_s)));
     const summeS = etappeS.reduce((a, b) => a + b, 0) + ueberS.reduce((a, b) => a + b, 0);
@@ -14577,10 +14648,13 @@ function mountAnimator(body, headerActions, opts) {
                    // Etappen dreizehn andere auf 0,3 s — sichtbar nur im Log
                    // (08.09.2026 auf Marcs Rechner genau so passiert).
                    sekFest: fest.reduce((a, b) => a + b, 0), offenN: offen.length,
-                   sekOffen: restS };
+                   // Was einer freien Etappe TATSÄCHLICH bleibt — nach der
+                   // Untergrenze, nicht davor.
+                   sekJeOffen: offen.length ? etappeS[offen[0]] : 0 };
     applog("info", `[reise] Bahn gebaut: ${etappen.length} Etappen · ${coords.length} Punkte · `
       + `Etappen ${etappeS.map(x => x.toFixed(1)).join("/")} s · Übergänge ${ueberS.slice(1).map(x => x.toFixed(1)).join("/")} s`);
     try { _reiseBilanzZeigen(); } catch (_) {}
+    _tempoReiseStandPruefen(etappen.length);
     return _reiseBahn;
   }
 
@@ -14633,17 +14707,25 @@ function mountAnimator(body, headerActions, opts) {
       .replace("{g}", g.toFixed(1)).replace("{e}", e.toFixed(1)).replace("{u}", u.toFixed(1));
     // Feste Etappendauern gehen vom Budget ab. Bleibt den übrigen weniger als
     // eine Sekunde, huschen sie unsichtbar vorbei — das gehört gesagt.
-    const fN = _reiseBahn.offenN || 0, fRest = _reiseBahn.sekOffen || 0;
-    const eng = fN > 0 && (fRest / fN) < 1.0;
+    const fN = _reiseBahn.offenN || 0, fJe = _reiseBahn.sekJeOffen || 0;
+    const eng = fN > 0 && fJe < 1.0;
     if (eng) {
       txt += " · " + t("animator.tours.eng",
         "Feste Etappen belegen {f} s — für die übrigen {n} bleiben je {z} s.")
         .replace("{f}", (_reiseBahn.sekFest || 0).toFixed(1))
         .replace("{n}", String(fN))
-        .replace("{z}", (fRest / fN).toFixed(1));
+        .replace("{z}", fJe.toFixed(1));
     }
     host.textContent = txt;
     host.classList.toggle("warnt", u > e || eng);
+    // Dieselbe Zeile unter der Tempo-Spur — dort arbeitet man, dort gehört sie
+    // hin (die Seitenleiste ist meistens zugeklappt).
+    const unten = document.getElementById("tl-tempo-bilanz");
+    if (unten) {
+      unten.hidden = false;
+      unten.textContent = txt;
+      unten.classList.toggle("warnt", u > e || eng);
+    }
   }
 
   /** Bahn als aktuellen Track übernehmen (die Vorschau rechnet damit weiter). */

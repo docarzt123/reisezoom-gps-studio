@@ -917,3 +917,7 @@ body.wert-zieht .timeline-marker.is-selected {
   text-align: left;
 }
 .timeline-tempo-bilanz.warnt { color: #ffb066; }
+
+/* Gesperrte Tempo-Spur (z. B. während einer Reise): sie zeigt nur noch, was aus
+   anderen Einstellungen kommt, und sagt in einer Zeile warum. */
+.timeline-lane[data-kind="tempo"].ist-gesperrt .lane-track { cursor: default; }

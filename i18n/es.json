@@ -2959,6 +2959,7 @@
   "animator.tempo.langsamer": "más lento",
   "animator.tempo.schneller": "más rápido",
   "animator.tempo.normal": "normal",
+  "animator.tempo.reise_sperre": "El viaje define el plan de tiempos — las etapas y transiciones se ajustan arriba.",
   "animator.tempo.halt_hinweis": "Una parada alarga el vídeo por sus segundos.",
   "animator.tempo.abschnitt_hinweis": "El factor cuenta frente a la aceleración base. Más lento significa que este tramo necesita más tiempo de vídeo.",
   "animator.tempo.entfernen": "Quitar",
