@@ -922,13 +922,18 @@ function mountLibrary(body, headerActions) {
       // 31.08.2026 (Beta-Tester: „no puedo seleccionar los que quiera para
       // borrarlos") — ⌘/Strg-Klick sammelt Projekte für Sammel-Aktionen,
       // exakt wie die Mehrfachauswahl im Touren-Archiv.
-      if (e.metaKey || e.ctrlKey) {
+      // 08.09.2026 (ein Beta-Tester: „alle markiert, gelöscht wird nur eines"):
+      // Läuft bereits eine Mehrfachauswahl, sammelt AUCH der einfache Klick —
+      // vorher warf er die ganze Auswahl weg, und weil markierte und angeklickte
+      // Karte gleich aussahen, merkte man es erst nach dem Löschen. Zurück in die
+      // Einzelauswahl kommt man über „Auswahl aufheben" oder indem man die letzte
+      // Karte wieder abwählt.
+      if (e.metaKey || e.ctrlKey || _projMulti.size) {
         const pid = k.dataset.pid;
         if (_projMulti.has(pid)) _projMulti.delete(pid); else _projMulti.add(pid);
         renderProjekte();
         return;
       }
-      if (_projMulti.size) { _projMulti.clear(); renderProjekte(); }
       _projSel = k.dataset.pid;
       box.querySelectorAll(".lib-proj-karte").forEach(x =>
         x.classList.toggle("is-sel", x.dataset.pid === _projSel));
