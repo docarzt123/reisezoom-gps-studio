@@ -2066,6 +2066,9 @@ function mountAnimator(body, headerActions, opts) {
         <button type="button" class="anim-color-del" data-idx="${i}" title="${_animEscapeHtml(t("animator.colors.delete", "Entfernen"))}" style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px;">🗑</button>
       </div>`).join("");
   }
+  // Prüfstand-Griff (tests/test_farbstufen_felder.py): eine Stufe anlegen, ohne
+  // den Knopf in der zugeklappten Seitenleiste suchen zu müssen.
+  window.__rzFarbstufe = (v) => { addColorStop(v); };
   function addColorStop(val) {
     const _v = +val || 0;
     _trackColorStops.push({ v: currentColorsSource() === "distance" ? Math.max(0, _v) : _v, color: _COL_PALETTE[_trackColorStops.length % _COL_PALETTE.length] });
