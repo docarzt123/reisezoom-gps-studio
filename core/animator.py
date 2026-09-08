@@ -3567,8 +3567,11 @@ window.__camPrepFaithful = async (camList, glattFenster) => {{
     // + Flughöhe aus dem Zoom). Nur DIESER Anteil wird unten geglättet.
     let ez = null, eM = null;
     try {{
-      const e = map.queryTerrainElevation([k.lng, k.lat]);
+      let e = map.queryTerrainElevation([k.lng, k.lat]);
+      // 08.09.2026: ohne Kacheln liefert MapLibre 0, nicht null → GPX-Höhe (synchron zur Vorschau)
+      if (e === 0 && k.ele != null && Math.abs(k.ele) > 50) e = null;
       if (e != null && isFinite(e)) {{ ez = window.__rzMC.fromLngLat([k.lng, k.lat], e).z; eM = e; letztEM = e; }}
+      else if (k.ele != null && isFinite(k.ele)) {{ eM = k.ele; letztEM = k.ele; try {{ ez = window.__rzMC.fromLngLat([k.lng, k.lat], k.ele).z; }} catch (_) {{}} }}
     }} catch (e) {{}}
     // 04.09.2026 — mit der ECHTEN Geländehöhe lesen und sie zur Stützstelle
     // speichern; __camFaithful setzt mit derselben Höhe → exakt umkehrbar.
@@ -5892,9 +5895,18 @@ async def render(
                                 _lo, _la = points[_idx].lon, points[_idx].lat
                         else:
                             _lo, _la = center[0], center[1]
+                        # 08.09.2026 — GPX-Höhe des Streckenpunkts (× Überhöhung) als Rückfall, wenn
+                        # MapLibres Höhenabfrage 0 liefert (keine Kacheln) — synchron zur Vorschau.
+                        _ele_g = None
+                        try:
+                            _pe = points[min(_idx, len(points) - 1)].ele if _idx < len(points) else None
+                            if _pe is not None and getattr(cfg, "enable_terrain", False):
+                                _ele_g = float(_pe) * float(getattr(cfg, "exaggeration", 1.0) or 1.0)
+                        except Exception:
+                            _ele_g = None
                         _kf_cam_list.append({
                             "t": _zeitp, "lng": _lo, "lat": _la,
-                            "zoom": zoom + _zo, "pitch": _pf, "bearing": _bf,
+                            "zoom": zoom + _zo, "pitch": _pf, "bearing": _bf, "ele": _ele_g,
                         })
                     _gew = ([1.0] * len(_anchors)) if _smooth_all else _timeline.glatt_gewichte(_events_zeit, _anchors, _glatt_fenster)
                     for _k, _g in zip(_kf_cam_list, _gew):

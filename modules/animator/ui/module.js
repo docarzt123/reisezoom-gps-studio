@@ -7024,11 +7024,13 @@ function mountAnimator(body, headerActions, opts) {
         if (!map || map.__rzEngine !== "maplibre" || !map.getTerrain || !map.getTerrain()) return null;
         if (window.__rzNoElev) return null;   // nur Prüfstand
         const e = map.queryTerrainElevation(lngLat);
-        if (e != null && isFinite(e)) return e;
-        if (!Array.isArray(_gpxElevations) || !_gpxElevations.length) return null;
+        if (!Array.isArray(_gpxElevations) || !_gpxElevations.length) return (e != null && isFinite(e)) ? e : null;
         const ex = Math.max(0, parseFloat(document.getElementById("anim-ex")?.value) || 1);
         const ci = Math.max(0, Math.min(_gpxElevations.length - 1, Math.round(Math.max(0, Math.min(1, +trackFrac || 0)) * (_gpxElevations.length - 1))));
-        const v = _gpxElevations[ci]; return (v != null && isFinite(v)) ? v * ex : null;
+        const v = _gpxElevations[ci]; const g = (v != null && isFinite(v)) ? v * ex : null;
+        // 08.09.2026: 0 ohne geladene Höhenkacheln = unbekannt (s. _faithBuild) → GPX-Höhe
+        if (e != null && isFinite(e) && !(e === 0 && g != null && Math.abs(g) > 50)) return e;
+        return g;
       } catch (_) { return null; }
     };
     const _faithWeightAt = (tp) => {
@@ -7172,7 +7174,12 @@ function mountAnimator(body, headerActions, opts) {
             map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
             let ez = null, eM = null;
             try {
-              const e = map.queryTerrainElevation(ll);
+              let e = map.queryTerrainElevation(ll);
+              // 08.09.2026 (Marc: „andere Zoomstufe je nach Startpunkt", Log: Anker am Trackstart
+              // eM 0,0 beim Start von vorne, 1478,7 beim Start am Track): ohne geladene Höhenkacheln
+              // liefert MapLibre 0, nicht null — der GPX-Rückfall griff nie, die Kamera stand 1,5 km
+              // tiefer zum Gelände. 0 gilt als unbekannt, wenn die GPX-Höhe dort deutlich abweicht.
+              if (e === 0) { const g0 = _gpxEleAt(a); if (g0 != null && Math.abs(g0) > 50) e = null; }
               if (e != null && isFinite(e)) { ez = _MC().fromLngLat(ll, e).z; eM = e; _letztEM = e; }
             } catch (_) {}
             if (eM == null) {   // Kachel nicht geladen → GPX-Höhe des Streckenpunkts (× Überhöhung)
@@ -7225,6 +7232,13 @@ function mountAnimator(body, headerActions, opts) {
               _faithCams[i].eM = _faithCams[i].eM + dPos * circ;
             }
           }
+          // 08.09.2026 — Diagnose „andere Zoomstufe je nach Startpunkt": Aufbau-Bilanz + Anker am Trackstart
+          try {
+            const _nGpx = _faithCams.filter((c) => c.ez == null).length;
+            const _kTS = Math.max(0, Math.min(_faithCams.length - 1, Math.round(_fti0 * (_faithCams.length - 1))));
+            const _c = _faithCams[_kTS];
+            applog("info", `[faith-build] Anker ${_faithCams.length} · ohne Gelände (GPX-Rückfall) ${_nGpx} · Klemmung vorher ${_savedClamp} · Start ${_startAnchor.toFixed(3)} · Trackstart-Anker #${_kTS}: eM ${_c.eM == null ? "null" : _c.eM.toFixed(1)} ez ${_c.ez == null ? "null" : _c.ez.toExponential(3)} pos.z ${_c.pos[2].toExponential(4)} z ${(+_c.z).toFixed(3)} bp ${JSON.stringify(_c.bp)} · fitBase ${_previewFitBase} static ${_runStaticBase}`);
+          } catch (e) { try { applog("info", "[faith-build] Bilanz-Fehler " + e); } catch (_) {} }
           try { _camApply(_savedCam.pos, _savedCam.ori, _savedCam.bp); } catch (_) {}
           try { if (_savedClamp != null && map.setCenterClampedToGround) map.setCenterClampedToGround(_savedClamp); } catch (_) {}
           _useFaithful = true;
@@ -7252,6 +7266,7 @@ function mountAnimator(body, headerActions, opts) {
     // 08.09.2026 (Marc: «Kacheln flackern», in jeder Qualität): je Bild den Zoom und die sichtbaren
     // Kachelmengen (Raster-Quellen + Gelände) verfolgen — Richtungswechsel des Zooms und Mengen,
     // die zum Stand von vor zwei Bildern zurückspringen (A-B-A), sind das Flackern.
+    let _plTrackStartLogged = false;
     let _plZ = [], _plZDir = 0, _plZPrevD = 0, _plSets = {}, _plSetChg = {}, _plSetABA = {}, _plABADiff = [];
     const _plTrack = () => {
       const z = map.getZoom();
@@ -7289,7 +7304,7 @@ function mountAnimator(body, headerActions, opts) {
       finally { const d = performance.now() - _t0; _plJs += d; if (d > _plJsMax) _plJsMax = d; }
     };
     const _stepInner = (now) => {
-      if (!_plN) { _plStart = now; _plLast = now; _plWorst = 0; _plPend = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {}; _plHook(); }
+      if (!_plN) { _plTrackStartLogged = false; _plStart = now; _plLast = now; _plWorst = 0; _plPend = 0; _plJs = 0; _plJsMax = 0; _plSlow33 = 0; _plSlow50 = 0; _plRender = 0; _plRenderN = 0; _plFire = {}; _plHook(); }
       else { const g = now - _plLast; if (g > _plWorst) _plWorst = g; if (g > 33) _plSlow33++; if (g > 50) _plSlow50++; _plLast = now; }
       _plN++;
       try { _plTrack(); } catch (_) {}
@@ -7492,6 +7507,14 @@ function mountAnimator(body, headerActions, opts) {
         } catch (_) {}
         map.jumpTo(jumpArgs);
       }
+      try {   // 08.09.2026 — Diagnose: Kamerastand beim ersten Bild ab Trackstart, einmal je Lauf
+        const _tsFrac = introFraction();
+        if (!_plTrackStartLogged && timelineProgress >= _tsFrac) {
+          _plTrackStartLogged = true;
+          const c = map.getCenter();
+          applog("info", `[faith-track] t=${(timelineProgress * totalMs / 1000).toFixed(2)}s zoom ${map.getZoom().toFixed(4)} pitch ${map.getPitch().toFixed(2)} bearing ${map.getBearing().toFixed(2)} center ${c.lng.toFixed(5)},${c.lat.toFixed(5)} elev ${((map.transform && map.transform.elevation) || 0).toFixed(1)} faithful ${_useFaithful} clamp ${!!(map.getCenterClampedToGround && map.getCenterClampedToGround())} start ${_startAnchor.toFixed(3)}`);
+        }
+      } catch (_) {}
       // Padding ebenfalls mit zoomFade gewichten, damit der Welt-Offset
       // genauso sanft ausläuft wie die Drehung.
       if (_zfStep > 0 && interp.position) {
