@@ -625,6 +625,24 @@ ihn sofort ein; **700 Dateien dauern gut 20 Sekunden.** Unterordner werden mitge
 kannst beliebig viele Ordner beobachten lassen. (Solange kein Ordner da ist, steht auf der
 leeren Fläche ein großer **„+ Ordner hinzufügen"**-Knopf.)
 
+### 🧭 Die Reise — Touren nacheinander, mit eigenen Etappenzeiten (seit v0.9.671)
+Mehrere Touren im Animator, Ablauf **Reise**: sie laufen nacheinander, dazwischen fliegt die
+Kamera zur nächsten Etappe. In der Liste **„Weitere Touren"** steht jetzt auch die erste Tour
+als **Etappe 1**, und jede Etappe hat ein eigenes Feld für ihre **Dauer im Video**:
+
+- **Feld leer** — die Etappe bekommt ihren Anteil aus der Gesamtdauer, verteilt nach Umfang.
+  Genau so lief es vorher.
+- **Zahl eingetragen** — die Etappe läuft genau so lange. Tragen Sie bei allen Etappen etwas
+  ein, ergibt deren Summe die Länge der Animation.
+
+Zwischen zwei Etappen sitzt der **Übergang** mit eigenem Stil und eigener Dauer:
+
+- **Kinoflug** — die Kamera zoomt heraus, fliegt hinüber und wieder heran (Standard).
+- **Luftlinie** — geradeaus, ohne Herauszoomen.
+- **Schnitt** — kein Übergang; das nächste Bild steht schon am Beginn der nächsten Etappe.
+
+Bleibt das Dauer-Feld des Übergangs leer, gilt die gemeinsame **Flugdauer** darunter.
+
 ### 🌊 Der Schwarm — alle Touren laufen gleichzeitig (seit v0.9.557, voll im Animator seit v0.9.569)
 Markiere mehrere Touren (⌘/Strg-Klick) oder öffne eine Sammlung und wähle
 **„🌊 Als Schwarm animieren …"** — ein kleiner Dialog fragt nach dem

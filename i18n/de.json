@@ -2920,5 +2920,11 @@
   "gpxinspect.heal_k_missing_ele": "%n fehlende Höhen ergänzt",
   "gpxinspect.heal_done_data": "Geheilt: %d",
   "gpxinspect.heal_found": "Analyse — gefunden, wird beim Heilen glattgezogen:",
-  "animator.smoothcam.failed": "Ruhige Kamera konnte nicht aufgebaut werden — der Lauf nutzt die einfache Kamera. Bitte den Log schicken."
+  "animator.smoothcam.failed": "Ruhige Kamera konnte nicht aufgebaut werden — der Lauf nutzt die einfache Kamera. Bitte den Log schicken.",
+  "animator.tours.dauer_hint": "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt.",
+  "animator.tours.ueber_stil": "Übergang zur nächsten Etappe",
+  "animator.tours.ueber_kino": "Kinoflug",
+  "animator.tours.ueber_luft": "Luftlinie",
+  "animator.tours.ueber_schnitt": "Schnitt",
+  "animator.tours.ueber_dauer": "Dauer dieses Übergangs. Leer = die gemeinsame Flugdauer."
 }

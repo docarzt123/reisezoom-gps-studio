@@ -1027,3 +1027,17 @@ body.rz-render-mode .rz-map-banners,
 body.rz-render-mode #anim-viewport .maplibregl-ctrl-group, body.rz-render-mode #anim-viewport .mapboxgl-ctrl-group,
 body.rz-render-mode #anim-viewport .maplibregl-ctrl-top-right, body.rz-render-mode #anim-viewport .mapboxgl-ctrl-top-right { display: none !important; }
 
+
+/* Etappen im Reise-Ablauf (08.09.2026, Marc): jede Etappe mit eigener Dauer,
+   dazwischen der Übergang. Die erste Etappe ist die Haupt-Tour — sie hat keine
+   Farbe in dieser Liste (die steht in „Trassierung") und keinen Übergang. */
+.anim-etappe-dauer { width: 58px; text-align: right; margin-left: auto; }
+.anim-etappe-einheit { font-size: 11px; color: var(--text-muted); margin-left: 2px; }
+.anim-etappe-erste .anim-tour-name { font-style: italic; }
+.anim-ueber-row {
+  display: flex; align-items: center; gap: 6px; margin: 2px 0 2px 18px;
+  padding: 3px 6px; border-left: 2px solid var(--border); font-size: 12px;
+}
+.anim-ueber-pfeil { color: var(--text-muted); }
+.anim-ueber-stil { flex: 1; min-width: 0; }
+.anim-ueber-s { width: 52px; text-align: right; }

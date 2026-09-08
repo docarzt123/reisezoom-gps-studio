@@ -2920,5 +2920,11 @@
   "gpxinspect.heal_k_missing_ele": "%n altitudes faltantes completadas",
   "gpxinspect.heal_done_data": "Reparado: %d",
   "gpxinspect.heal_found": "Análisis: encontrado, se corrige al reparar:",
-  "animator.smoothcam.failed": "No se pudo construir la cámara suave — esta pasada usa la cámara simple. Por favor envía el registro."
+  "animator.smoothcam.failed": "No se pudo construir la cámara suave — esta pasada usa la cámara simple. Por favor envía el registro.",
+  "animator.tours.dauer_hint": "Duración de esta etapa en el vídeo. Vacío = parte del total, según su tamaño.",
+  "animator.tours.ueber_stil": "Transición a la etapa siguiente",
+  "animator.tours.ueber_kino": "Vuelo de cine",
+  "animator.tours.ueber_luft": "Línea recta",
+  "animator.tours.ueber_schnitt": "Corte",
+  "animator.tours.ueber_dauer": "Duración de esta transición. Vacío = el tiempo de vuelo común."
 }

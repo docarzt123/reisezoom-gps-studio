@@ -3548,6 +3548,17 @@ Hier steht nur, wie es gebaut ist.
 | `<Bibliothek>/sicherungen/` | rollierende Kopien von `library.db` (5) |
 | `<Bibliothek>/.sperre` | Riegel 2, mit PID + Rechner-Kennung + Rechnername + Zeit |
 
+**Etappenzeiten und Übergänge in der Reise (08.09.2026, v0.9.671):** Der Zeitplan des
+Multi-Track-Renders liegt jetzt in der reinen Funktion `_reise_segmente(tours, anim_total,
+fly_frames, intro_frames, hold_frames, fps)` (core/animator.py) und ist damit ohne Render
+prüfbar (`tests/test_etappen_zeitplan.py`). Je Etappe `dauer_s` (0 = Anteil am Budget nach
+`n_raw`), je Übergang `ueber_s` und `ueber_stil` an der Etappe, IN die er führt
+(`kino` = van-Wijk-Bogen wie bisher, `luftlinie` = lineare Mitte und Zoom, `schnitt` = gar
+kein Segment). Die Kette: Liste im Animator (`_animRenderToursList`, erste Etappe kommt aus
+`currentGpx` + `_animEtappe1S`) → `_animPersistTours` → Render-Nutzlast `tracks[]` →
+`app.py` (`animator_start_render`) → `_render_multi`. Ohne Angaben kommt exakt das alte
+Verhalten heraus; der Wächter prüft genau das mit.
+
 **Rechtsklick-Menü und Ziehen im Archiv (08.09.2026, v0.9.668):** `bindItemClicks`
 hängt an jede Karte/Zeile ein `oncontextmenu` (baut die Einträge über `itemKontextmenu`,
 gezeichnet von `oeffneKontextmenu(x, y, eintraege)` als `.lib-ctxmenu` am Mauszeiger)
