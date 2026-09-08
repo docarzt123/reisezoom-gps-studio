@@ -7143,6 +7143,13 @@ function mountAnimator(body, headerActions, opts) {
           };
           _faithBuild = async () => {
           const _out = [];
+          // 08.09.2026 (Marc: „andere Zoomstufe je nach Startpunkt"): unten wird je Stützstelle
+          // jumpTo(zoom) gesetzt und der Zoom zurückgelesen. Klemmt MapLibre den Mittelpunkt gerade
+          // am Boden fest (Standard nach dem Start; rzMlCamApply schaltet es beim ersten Setzen ab),
+          // rechnet es den Zoom aus der Geländehöhe um — die Stützstellen hingen dann an der
+          // Vorgeschichte (erster Lauf ≠ späterer Lauf). Aufbau deshalb immer ohne Klemmung;
+          // _savedClamp wird am Ende wiederhergestellt.
+          try { if (map.setCenterClampedToGround) map.setCenterClampedToGround(false); } catch (_) {}
           for (const tz of _anchors) {
             // `tz` ist eine Zeit; `a` die zugehörige Stelle im Track.
             const a = zeitZuAnker(tz, _fti, _ftf, _ftA, _ftB);
@@ -7196,25 +7203,26 @@ function mountAnimator(body, headerActions, opts) {
               _faithCams[i].pos[2] = _faithCams[i].pos[2] + _gew[i] * (summe / (hi - lo + 1) - _ezs[i]);
             }
           }
-          // 08.09.2026 (Marc: Kachel-Blitzer, letzter Rest): die Zielhöhe eM der Stützstellen kommt
-          // aus queryTerrainElevation und springt zwischen DEM-Stufen um Meter (je nach dem, welche
-          // Geländekacheln gerade geladen sind — beim zweiten Probelauf anders als beim ersten).
-          // Der Zoom ist f(Kamerahöhe − eM): war nur die Kamerahöhe geglättet, zitterte der Zoom
-          // im Stützstellen-Takt (Probelauf: 30 Zoom-Richtungswechsel), und am Sichtkegelrand
-          // kippten Kacheln rein und raus. Deshalb eM mit demselben Fenster glätten. Synchron zu
-          // core/animator.py __camPrepFaithful.
-          if (_faithCams.length > 2 * _glattW + 1) {
-            let _lE = null;
-            const _ems = _faithCams.map((c) => { if (c.eM != null && isFinite(c.eM)) _lE = c.eM; return _lE; });
-            if (_ems.some((v) => v != null)) {
-              const _emsF = _ems.map((v) => (v == null ? 0 : v));
-              const _neu = _faithCams.map((c, i) => {
-                if (!_gew[i] || c.eM == null) return c.eM;
-                const lo = Math.max(0, i - _glattW), hi = Math.min(_faithCams.length - 1, i + _glattW);
-                let summe = 0; for (let j = lo; j <= hi; j++) summe += _emsF[j];
-                return c.eM + _gew[i] * (summe / (hi - lo + 1) - _emsF[i]);
-              });
-              for (let i = 0; i < _faithCams.length; i++) _faithCams[i].eM = _neu[i];
+          // 08.09.2026 (Marc: Kachel-Blitzer, letzter Rest; danach „andere Zoomstufe je nach
+          // Startpunkt"): Lesen und Setzen einer Stützstelle nutzen DIESELBE Zielhöhe eM, damit der
+          // Zoom exakt der Keyframe-Zoom bleibt (dz = Kamerahöhe − eM). Wird nur die Kamerahöhe
+          // geglättet, wandert die Glättungsdifferenz in den Zoom und zittert im Stützstellen-Takt
+          // (30 Zoom-Richtungswechsel je Probelauf). Eine EIGENE geglättete eM-Reihe (erster Wurf)
+          // brachte die Differenz zweier Reihen in den Zoom — abhängig davon, welche Höhenkacheln
+          // beim Start geladen waren (Marc: Start im Intro ≠ Start am Trackbeginn). Deshalb: eM um
+          // genau die Verschiebung anheben, die pos[2] bekommen hat (Mercator → Meter an der
+          // Kamera-Breite). Synchron zu core/animator.py __camPrepFaithful.
+          if (_faithCams.length > 2 * _glattW + 1 && _ezs.some((v) => v !== 0)) {
+            const R = 6378137;
+            for (let i = 0; i < _faithCams.length; i++) {
+              if (!_gew[i] || _faithCams[i].eM == null) continue;
+              const lo = Math.max(0, i - _glattW), hi = Math.min(_faithCams.length - 1, i + _glattW);
+              let summe = 0;
+              for (let j = lo; j <= hi; j++) summe += _ezs[j];
+              const dPos = _gew[i] * (summe / (hi - lo + 1) - _ezs[i]);   // dieselbe Verschiebung wie oben
+              const camLat = 360 / Math.PI * Math.atan(Math.exp((180 - _faithCams[i].pos[1] * 360) * Math.PI / 180)) - 90;
+              const circ = 2 * Math.PI * R * Math.cos(camLat * Math.PI / 180);
+              _faithCams[i].eM = _faithCams[i].eM + dPos * circ;
             }
           }
           try { _camApply(_savedCam.pos, _savedCam.ori, _savedCam.bp); } catch (_) {}
@@ -7632,6 +7640,10 @@ function mountAnimator(body, headerActions, opts) {
              modal: !!document.querySelector(".touren-lade-modal:not([hidden])"), fitBase: _fitZoomBase };
   };
   window.__rzPreviewRun = () => { window.__rzStepMode = true; runTimelinePreview(true); };
+  // 08.09.2026 — Prüfstand: Probe-Lauf ab einer Leisten-Position (0..1) starten, wie ein Klick auf
+  // den Knopf nach dem Scrubben (kein Schrittmodus). __rzIntroBar() = Leisten-Position des Trackbeginns.
+  window.__rzPreviewStartAt = (barPos) => { try { if (_tlBar && typeof _tlBar.setScrubberBar === "function") _tlBar.setScrubberBar(Math.max(0, Math.min(1, +barPos || 0))); } catch (_) {} runTimelinePreview(true); };
+  window.__rzIntroBar = () => { try { const ti = introFraction(), tf = trackFraction(); const tr = (_tlBar && typeof _tlBar.getTrim === "function") ? _tlBar.getTrim() : { start: 0, end: 1 }; const a = Math.max(0, Math.min(1, tr.start ?? 0)); return { intro: ti, track: tf, startVis: ti + a * (tf - ti) }; } catch (_) { return null; } };
 
   // v0.7.1: Position-Label-Provider — zeigt "Punkt N / Total · X%" in der
   // Timeline-Bar Status-Row.
