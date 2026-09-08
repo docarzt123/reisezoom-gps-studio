@@ -3940,6 +3940,10 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    wechselt die gerundete Stufe erst, wenn der kontinuierliche Wert die Grenze um
    `window.__rzLodHyst` (Standard 0,2) überschritten hat; `window.__rzNoLodHyst = true`
    schaltet ab (Prüfstand). Alle 300 Aufrufe werden 150 Aufrufe alte Einträge verworfen.
+   Schlüssel = tileSize + Rundungsart (r/f) + maxzoom_minzoom + z/x/y — NICHT nur tileSize:
+   Höhenmodell (floor) und Sentinel (round) teilen die Kachelgröße und überschrieben sich
+   abwechselnd, die Geländestufe kippte 13↔14, eine z13-Geländekachel ohne geladenes DEM lag
+   flach auf Meereshöhe → schwarzes Band hinter der Kammlinie / schwarze Raute (08.09. später).
    Messung (30-fps-Bildschirmaufnahme, `scratchpad flicker/blocks.py`, Masca-Intro):
    «schnell» 136 → 0 Flacker-Blöcke (zweimal), stehende Kamera vorher wie nachher 0.
 7. `/* rz-patch terraincover */` (08.09.2026, Marc: 3.png + Bildschirmaufnahme 08:22, „beim
