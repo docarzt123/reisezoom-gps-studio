@@ -3548,6 +3548,17 @@ Hier steht nur, wie es gebaut ist.
 | `<Bibliothek>/sicherungen/` | rollierende Kopien von `library.db` (5) |
 | `<Bibliothek>/.sperre` | Riegel 2, mit PID + Rechner-Kennung + Rechnername + Zeit |
 
+**Rechtsklick-Menü und Ziehen im Archiv (08.09.2026, v0.9.668):** `bindItemClicks`
+hängt an jede Karte/Zeile ein `oncontextmenu` (baut die Einträge über `itemKontextmenu`,
+gezeichnet von `oeffneKontextmenu(x, y, eintraege)` als `.lib-ctxmenu` am Mauszeiger)
+und macht sie `draggable`. Beim `dragstart` merkt sich das Modul die betroffenen Pfade
+in `_ziehendePfade` (die Mehrfachauswahl, wenn die angefasste Tour dazugehört, sonst
+diese eine) und setzt `lib-zieht` an den `body`. Die Sammlungen in der Seitenleiste
+(`renderCollections`, `.lib-nav-item[data-col]`) nehmen den Wurf an: `library_collection_add`
+plus `library_collection_sort_by_date`, mit `_libUndoPush` zum Zurücknehmen.
+Wächter: `tests/test_archiv_rechtsklick_ziehen.py` (der Prüfstand baut die Seitenleiste
+nicht auf — die Ablage-Seite ist dort quellseitig abgesichert).
+
 **Rechner-Kennung statt Rechnername (08.09.2026, v0.9.666):** Riegel 2 prüfte über
 `socket.gethostname()`, ob die Sperre vom selben Rechner stammt. Der Name ist unter macOS
 nicht stabil — im Fritzbox-Netz meldete derselbe Mac `MacBookPro.fritz.box`, später

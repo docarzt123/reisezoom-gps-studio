@@ -1323,8 +1323,25 @@ function mountAnimator(body, headerActions, opts) {
   // v0.9.310 — Standbild-Kamera-Slider (existieren im DOM unabhängig vom Modus)
   if (document.getElementById("anim-static-bearing")) bindLabel("anim-static-bearing", "anim-static-bearing-v", "°");
   if (document.getElementById("anim-static-padding")) bindLabel("anim-static-padding", "anim-static-padding-v", "%");
+  // 08.09.2026 (Marc: „ändere ich die Trackfarbe, ändert sie sich erst beim
+  // Probelauf"): Der Regler schrieb nur das Hex-Label und die Einstellung — die
+  // Karte erfuhr davon nichts. Erst der Probelauf baute die Ebenen neu. Dieselbe
+  // Klasse von Fehler wie 24.05.2026 („Trackfarbe wiederhergestellt, Vorschau
+  // zeigt die Standardfarbe"), gegen die es applyLineColorToLayers() schon gibt;
+  // nur gerufen hat es hier niemand. Beim Ziehen im Farbwähler feuert `input`
+  // dutzendfach, darum die Datenreihe (mehrfarbiger Track) nur einmal je Bild.
+  let _farbRaf = 0;
+  const _farbeLive = () => {
+    try { applyLineColorToLayers(); } catch (_) {}
+    if (_farbRaf) return;
+    _farbRaf = requestAnimationFrame(() => {
+      _farbRaf = 0;
+      try { refreshPreviewTrackData(); } catch (_) {}
+    });
+  };
   document.getElementById("anim-color").addEventListener("input", e => {
     document.getElementById("anim-color-v").textContent = e.target.value;
+    _farbeLive();
   });
 
   // Settings-Bindings (Werte aus settings.json laden + bei Änderung speichern)
@@ -2524,8 +2541,13 @@ function mountAnimator(body, headerActions, opts) {
   // Initial-Status setzen
   updateResButtons();
   bindSetting("anim-color", _MODKEY, "line_color", {
-    onLoad: v => { const lbl = document.getElementById("anim-color-v"); if (lbl) lbl.textContent = v; },
-    onChange: v => { const lbl = document.getElementById("anim-color-v"); if (lbl) lbl.textContent = v; }
+    onLoad: v => { const lbl = document.getElementById("anim-color-v"); if (lbl) lbl.textContent = v;
+                   try { applyLineColorToLayers(); } catch (_) {} },
+    onChange: v => { const lbl = document.getElementById("anim-color-v"); if (lbl) lbl.textContent = v;
+                     // 08.09.2026 — s. _farbeLive oben: auch der abgeschlossene Wechsel
+                     // (Farbwähler zu, Wert aus dem Projekt) muss auf der Karte landen.
+                     try { applyLineColorToLayers(); } catch (_) {}
+                     try { refreshPreviewTrackData(); } catch (_) {} }
   });
 
   // v0.9.115/116 — Welt-Drehung-Label-Format mit Drehungs-Counter.

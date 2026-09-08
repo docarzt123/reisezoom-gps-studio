@@ -644,6 +644,37 @@ function mountLibrary(body, headerActions) {
         renderCollections(); reload();
       };
       b.oncontextmenu = (e) => { e.preventDefault(); openCollectionMenu(id); };
+      // Touren per Ziehen in die Sammlung legen (Marc, 08.09.2026).
+      b.ondragover = (e) => {
+        if (!_ziehendePfade || !_ziehendePfade.length) return;
+        e.preventDefault();
+        try { e.dataTransfer.dropEffect = "copy"; } catch (_) {}
+        b.classList.add("is-drop");
+      };
+      b.ondragleave = () => b.classList.remove("is-drop");
+      b.ondrop = async (e) => {
+        e.preventDefault();
+        b.classList.remove("is-drop");
+        const pfade = (_ziehendePfade || []).slice();
+        _ziehendePfade = null;
+        document.body.classList.remove("lib-zieht");
+        if (!pfade.length) return;
+        const vorher = await api().library_collection_items(id);
+        const ordnung = ((vorher && vorher.items) || []).map(x => x.path);
+        await api().library_collection_add(id, pfade);
+        await api().library_collection_sort_by_date(id);
+        _libUndoPush(T("library.undo.col_add", "Zur Sammlung hinzugefügt"),
+          async () => { await api().library_collection_remove(id, pfade);
+                        await api().library_collection_set_order(id, ordnung); },
+          async () => { await api().library_collection_add(id, pfade);
+                        await api().library_collection_sort_by_date(id); });
+        await reloadCollections();
+        if (_sel) renderTrackCollections(_sel);
+        if (state.collection_id) reload();
+        toast(pfade.length === 1
+          ? T("library.col_added", "Zur Sammlung hinzugefügt.")
+          : `${pfade.length} ${T("library.col_added_many", "Touren zur Sammlung hinzugefügt.")}`, "info");
+      };
     });
     // 28.08.2026 (Marc: „rechtsklick geht nicht"): Verwaltung zusätzlich über
     // einen sichtbaren ⋯-Knopf — Rechtsklick bleibt, ist aber nicht mehr der
@@ -1675,6 +1706,93 @@ function mountLibrary(body, headerActions) {
     fensterThumbs(box);
   }
 
+  // ── Rechtsklick-Menü + Ziehen in eine Sammlung (Marc, 08.09.2026) ────────
+  // „Es sollte im Archiv ein Rechtsklick gehen, wo man dann auch sagen kann,
+  // Meta öffnen, zur Sammlung hinzufügen und so weiter. Außerdem würde ich gern
+  // per Drag and Drop eine Tour einfach in eine Sammlung ziehen können."
+  let _ctxWeg = null;
+  let _ziehendePfade = null;   // Touren, die gerade gezogen werden
+  function kontextmenuZu() {
+    if (_ctxWeg) { try { _ctxWeg(); } catch (_) {} _ctxWeg = null; }
+  }
+  function oeffneKontextmenu(x, y, eintraege) {
+    kontextmenuZu();
+    const box = document.createElement("div");
+    box.className = "lib-ctxmenu";
+    box.setAttribute("role", "menu");
+    for (const e of eintraege) {
+      if (e === "-") { box.appendChild(document.createElement("hr")); continue; }
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "lib-ctx-item" + (e.gefahr ? " lib-btn-danger" : "");
+      b.textContent = e.text;
+      b.onclick = () => { kontextmenuZu(); try { e.tun(); } catch (err) { applog && applog("warn", "[archiv-menu] " + err); } };
+      box.appendChild(b);
+    }
+    document.body.appendChild(box);
+    // Innerhalb des Fensters halten — am rechten/unteren Rand sonst abgeschnitten.
+    const r = box.getBoundingClientRect();
+    box.style.left = Math.max(4, Math.min(x, window.innerWidth - r.width - 6)) + "px";
+    box.style.top = Math.max(4, Math.min(y, window.innerHeight - r.height - 6)) + "px";
+    const zu = (ev) => { if (!ev || !box.contains(ev.target)) kontextmenuZu(); };
+    const taste = (ev) => { if (ev.key === "Escape") kontextmenuZu(); };
+    setTimeout(() => {
+      document.addEventListener("mousedown", zu, true);
+      document.addEventListener("keydown", taste, true);
+      window.addEventListener("blur", zu, true);
+    }, 0);
+    _ctxWeg = () => {
+      document.removeEventListener("mousedown", zu, true);
+      document.removeEventListener("keydown", taste, true);
+      window.removeEventListener("blur", zu, true);
+      try { box.remove(); } catch (_) {}
+    };
+  }
+
+  /** Die Touren, auf die sich eine Aktion bezieht: die Mehrfachauswahl, wenn
+   *  die angefasste Tour dazugehört — sonst nur diese eine (wie im Finder). */
+  function _ctxPfade(it) {
+    if (_multi.size && _multi.has(it.path)) return Array.from(_multi);
+    return [it.path];
+  }
+
+  function itemKontextmenu(it, x, y) {
+    const pfade = _ctxPfade(it);
+    const viele = pfade.length > 1;
+    const eintraege = [];
+    if (!viele) {
+      eintraege.push({ text: "📂 " + T("library.open_animator", "Im Animator öffnen"),
+                       tun: () => { select(it); openIn("animator"); } });
+      eintraege.push({ text: "ℹ️ " + T("library.ctx_details", "Details anzeigen"),
+                       tun: () => { select(it); } });
+    }
+    eintraege.push({ text: "👻 " + T("library.ghost.take_short", "Als Ghost-Spur"), tun: () => alsGhost(pfade) });
+    eintraege.push("-");
+    eintraege.push({ text: "📁 " + (viele
+                       ? `${pfade.length} ${T("library.col_add_many", "Touren zu einer Sammlung")}`
+                       : T("library.col_add", "Zu Sammlung")),
+                     tun: () => addToCollectionDialog(pfade) });
+    if (state.collection_id) {
+      eintraege.push({ text: "📁− " + T("library.col_remove", "Aus dieser Sammlung nehmen"),
+                       tun: async () => {
+                         const cid = state.collection_id;
+                         await api().library_collection_remove(cid, pfade);
+                         _libUndoPush(T("library.undo.col_remove", "Aus der Sammlung genommen"),
+                           async () => { await api().library_collection_add(cid, pfade); },
+                           async () => { await api().library_collection_remove(cid, pfade); });
+                         await reloadCollections(); reload();
+                       } });
+    }
+    eintraege.push("-");
+    eintraege.push({ text: "🗑 " + T("library.trash", "In den Papierkorb"), gefahr: true,
+                     tun: async () => {
+                       if (!await frageTrash(pfade.length, viele ? "" : it.path)) return;
+                       for (const p of pfade) await api().library_trash(p);
+                       _multi.clear(); reload();
+                     } });
+    oeffneKontextmenu(x, y, eintraege);
+  }
+
   function bindItemClicks(root) {
     root.querySelectorAll("[data-i]").forEach(btn => {
       btn.onclick = (e) => {
@@ -1710,6 +1828,31 @@ function mountLibrary(body, headerActions) {
         renderView();
         renderDetail();
       };
+      // Rechtsklick: Menü zur angefassten Tour (Marc, 08.09.2026). Gehört sie
+      // nicht zur laufenden Mehrfachauswahl, wird sie vorher ausgewählt — wie
+      // im Finder, sonst zielt das Menü auf etwas anderes als das Angeklickte.
+      btn.oncontextmenu = (e) => {
+        e.preventDefault();
+        const it2 = _items[parseInt(btn.dataset.i, 10)];
+        if (!it2) return;
+        if (!(_multi.size && _multi.has(it2.path))) { _multi.clear(); select(it2); }
+        itemKontextmenu(it2, e.clientX, e.clientY);
+      };
+      // Ziehen in eine Sammlung (Marc, 08.09.2026). Gezogen wird die Auswahl,
+      // wenn die angefasste Tour dazugehört, sonst diese eine.
+      btn.draggable = true;
+      btn.ondragstart = (e) => {
+        const it2 = _items[parseInt(btn.dataset.i, 10)];
+        if (!it2) return;
+        const pfade = _ctxPfade(it2);
+        _ziehendePfade = pfade;
+        try {
+          e.dataTransfer.effectAllowed = "copy";
+          e.dataTransfer.setData("text/plain", pfade.join("\n"));
+        } catch (_) {}
+        document.body.classList.add("lib-zieht");
+      };
+      btn.ondragend = () => { _ziehendePfade = null; document.body.classList.remove("lib-zieht"); };
       btn.ondblclick = () => {
         if (_multi.size > 1) return;
         // Im Ghost-Modus heißt Doppelklick „diese hier" — NICHT „öffnen", was den
