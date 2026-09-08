@@ -286,6 +286,64 @@ Keyframes — ist Feinschliff für später. Kapitel 3 erklärt es in Ruhe.
 > **Faustregel:** Erst Probe-Lauf, dann rendern. Der Probe-Lauf zeigt in Sekunden, was das
 > Rendern in Minuten produziert.
 
+### Die Tempo-Spur — anhalten und langsamer werden
+
+Unter der Karte liegt eine schmale Spur mit der Aufschrift **⏱ Tempo**. Der Gedanke
+dahinter ist einfach: **Ihr Video ist eine Beschleunigung Ihrer Tour.** Eine
+Grundraffung sagt, wie stark — „140-fach gegenüber echt", oder bei Touren ohne
+Zeitstempel „so viele Kilometer je Videosekunde". Wie lang das Video wird, ergibt
+sich daraus. Die Zeile direkt unter der Spur sagt es Ihnen laufend: die Raffung, die
+Gesamtlänge, und wie viel davon Strecke und wie viel Stillstand ist.
+
+In die Spur legen Sie zwei Dinge:
+
+- **Halt** — kurz klicken. Die Strecke bleibt an dieser Stelle stehen, das Video läuft
+  weiter. Ein Halt **verlängert** das Video um seine Sekunden. Im Editor (Doppelklick)
+  stellen Sie ein, wie lange gehalten wird und was die Kamera dabei macht: still stehen
+  (dann gelten Ihre Keyframes) oder sich langsam um die Stelle drehen.
+- **Abschnitt** — von links nach rechts ziehen. Dieser Teil der Strecke läuft mit einem
+  eigenen Faktor gegen die Grundraffung. **0,5× heißt halb so schnell** — und braucht
+  darum doppelt so viel Videozeit.
+
+Rechtsklick entfernt einen Eintrag wieder.
+
+**Jeder Eintrag ist so breit gezeichnet, wie er im Video dauert.** Ein Halt von fünf
+Sekunden ist in einem 22-Sekunden-Video knapp ein Viertel der Leiste — Sie sehen also
+direkt, wie viel Zeit er kostet. Schraffierte, gestrichelte Bänder stammen aus anderen
+Einstellungen und lassen sich hier nicht anfassen: **Anlauf** und **Nachlauf** aus den
+Video-Einstellungen, bei einer Reise zusätzlich die **Übergänge** zwischen den Etappen.
+
+Tragen Sie umgekehrt bei **„Animation (s)"** eine Wunschlänge ein, rechnet das Programm
+die Grundraffung passend zurück — Halte eingeschlossen. „Mach 20 Sekunden daraus"
+ergibt also wirklich 20 Sekunden.
+
+> **Bei einer Reise** (mehrere Etappen nacheinander) ist die Spur gesperrt und zeigt nur
+> an: dort machen die **Etappendauern und Übergänge** den Zeitplan, siehe nächster
+> Abschnitt.
+
+### Mehrere Etappen: Reihenfolge, Dauer und Übergänge
+
+Kommen mehrere Touren zusammen ins Projekt („Nacheinander"), stehen sie links unter
+**„Mehrere Touren"** als nummerierte Etappen. Jede Etappe zeigt ihre Farbe, ihren Namen
+und darunter ihre Bedienung:
+
+- **Dauer** — leer (**aut**) heißt: Diese Etappe bekommt ihren Anteil an der
+  Animationsdauer nach Umfang. Tragen Sie eine Zahl ein, bekommt sie genau diese
+  Sekunden, und der Rest teilt sich den verbleibenden Rest.
+- **↑ ↓ ✕** — Reihenfolge ändern oder Etappe entfernen. Bei vielen Etappen schneller:
+  die Knöpfe **„nach Datum"**, **„nach Name"** und **„⇅"** über der Liste.
+- Zwischen zwei Etappen steht der **Übergang**: **Kinoflug** (zoomt heraus, fliegt
+  hinüber, zoomt wieder hinein), **Luftlinie** (fährt gerade) oder **Schnitt** (springt
+  ohne Zwischenbild). Die Sekunden daneben gelten nur für diesen einen Übergang; leer
+  heißt „die gemeinsame Kinoflug-Dauer ganz unten".
+
+**Die Übergänge kommen zur Animationsdauer dazu.** Unter der Liste steht deshalb, wie
+lang die Reise wirklich wird — aufgeteilt in Etappen und Übergänge. Die Zeile färbt sich
+orange, wenn die Flüge die Etappen überwiegen oder wenn feste Etappendauern den übrigen
+Etappen fast keine Zeit mehr lassen; dann steht dort auch, wie viel jeder übrigen Etappe
+bleibt. Jede Etappe behält mindestens drei Zehntelsekunden — lieber wird das Video etwas
+länger, als dass eine Etappe unsichtbar durchrauscht.
+
 ### Schritt 7 — Mehrere Tagesdateien zu einer Tour verbinden
 
 Der häufigste Fall bei Reisen: pro Tag eine Aufzeichnung, gewünscht ist die Gesamttour.
