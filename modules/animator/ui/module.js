@@ -7152,6 +7152,23 @@ function mountAnimator(body, headerActions, opts) {
           // Vorgeschichte (erster Lauf ≠ späterer Lauf). Aufbau deshalb immer ohne Klemmung;
           // _savedClamp wird am Ende wiederhergestellt.
           try { if (map.setCenterClampedToGround) map.setCenterClampedToGround(false); } catch (_) {}
+          // 08.09.2026 (Marc: „im Render hüpft die Kamera in der Schlucht, in der Vorschau nicht"):
+          // die Geländehöhe je Stützstelle kam aus MapLibre und damit aus den Höhenkacheln, die
+          // beim Aufbau ZUFÄLLIG geladen waren — frische Seite (Render) grob, warmgespielte
+          // Vorschau fein: 400–700 m Unterschied in der Masca-Schlucht, die Kamera flog im Video
+          // tiefer. Deshalb drei Gänge: 1. Stellen bestimmen, 2. Höhen aus FESTER Kachelstufe
+          // (api dem_hoehen, core/demsample.py — gecacht), 3. Kamera lesen. Nur freies Gelände
+          // (Terrarium); Mapbox-/MapTiler-Gelände behält den Kartenweg. Synchron zu
+          // core/animator.py (_kf_cam_list „dem") und __camPrepFaithful.
+          const _demFest = () => {
+            try {
+              if (!map.getTerrain || !map.getTerrain()) return false;
+              const src = map.getSource(map.getTerrain().source);
+              const u = (((src && src.tiles) || []).join(" ") + " " + ((src && src.url) || ""));
+              return !!(src && src.encoding === "terrarium") || /terrarium|terrain-aws/.test(u);
+            } catch (_) { return false; }
+          };
+          const _plan = [];
           for (const tz of _anchors) {
             // `tz` ist eine Zeit; `a` die zugehörige Stelle im Track.
             const a = zeitZuAnker(tz, _fti, _ftf, _ftA, _ftB);
@@ -7171,9 +7188,25 @@ function mountAnimator(body, headerActions, opts) {
               ? [_runFitCam.center.lng ?? _runFitCam.center[0], _runFitCam.center.lat ?? _runFitCam.center[1]]
               : _fStatic;
             zm = Math.max(map.getMinZoom ? map.getMinZoom() : 0, Math.min(map.getMaxZoom ? map.getMaxZoom() : 24, isFinite(zm) ? zm : 0));   // 05.09.2026 (Audit): nie negativ
+            _plan.push({ tz, a, ip, zm, ll });
+          }
+          let _demH = null;
+          if (_demFest()) {
+            try {
+              const r = await api().dem_hoehen(_plan.map((q) => [q.ll[0], q.ll[1]]), 13);
+              if (r && r.ok && Array.isArray(r.hoehen) && r.hoehen.length === _plan.length) _demH = r.hoehen;
+              else { try { applog("warn", "[faith-build] dem_hoehen ohne Ergebnis: " + JSON.stringify(r && (r.error || { n_ok: r.n_ok, n: r.n }))); } catch (_) {} }
+            } catch (e) { try { applog("warn", "[faith-build] dem_hoehen fehlgeschlagen: " + e); } catch (_) {} }
+          }
+          for (let _k = 0; _k < _plan.length; _k++) {
+            const { tz, a, ip, zm, ll } = _plan[_k];
             map.jumpTo({ center: ll, zoom: zm, pitch: ip.pitch, bearing: ip.bearing || 0 });
             let ez = null, eM = null;
-            try {
+            const _hFest = _demH ? _demH[_k] : null;
+            if (_hFest != null && isFinite(_hFest)) {
+              eM = _hFest * _exag; _letztEM = eM;   // wie MapLibre: Höhe × Überhöhung
+              try { ez = _MC().fromLngLat(ll, eM).z; } catch (_) {}
+            } else try {
               let e = map.queryTerrainElevation(ll);
               // 08.09.2026 (Marc: „andere Zoomstufe je nach Startpunkt", Log: Anker am Trackstart
               // eM 0,0 beim Start von vorne, 1478,7 beim Start am Track): ohne geladene Höhenkacheln
@@ -7237,7 +7270,7 @@ function mountAnimator(body, headerActions, opts) {
             const _nGpx = _faithCams.filter((c) => c.ez == null).length;
             const _kTS = Math.max(0, Math.min(_faithCams.length - 1, Math.round(_fti0 * (_faithCams.length - 1))));
             const _c = _faithCams[_kTS];
-            applog("info", `[faith-build] Anker ${_faithCams.length} · ohne Gelände (GPX-Rückfall) ${_nGpx} · Klemmung vorher ${_savedClamp} · Start ${_startAnchor.toFixed(3)} · Trackstart-Anker #${_kTS}: eM ${_c.eM == null ? "null" : _c.eM.toFixed(1)} ez ${_c.ez == null ? "null" : _c.ez.toExponential(3)} pos.z ${_c.pos[2].toExponential(4)} z ${(+_c.z).toFixed(3)} bp ${JSON.stringify(_c.bp)} · fitBase ${_previewFitBase} static ${_runStaticBase}`);
+            applog("info", `[faith-build] Anker ${_faithCams.length} · ohne Gelände (GPX-Rückfall) ${_nGpx} · Klemmung vorher ${_savedClamp} · Start ${_startAnchor.toFixed(3)} · Trackstart-Anker #${_kTS}: eM ${_c.eM == null ? "null" : _c.eM.toFixed(1)} ez ${_c.ez == null ? "null" : _c.ez.toExponential(3)} pos.z ${_c.pos[2].toExponential(4)} z ${(+_c.z).toFixed(3)} bp ${JSON.stringify(_c.bp)} · fitBase ${_previewFitBase} static ${_runStaticBase} · Höhen ${_demH ? "fest z13" : "Karte"}`);
           } catch (e) { try { applog("info", "[faith-build] Bilanz-Fehler " + e); } catch (_) {} }
           try { _camApply(_savedCam.pos, _savedCam.ori, _savedCam.bp); } catch (_) {}
           try { if (_savedClamp != null && map.setCenterClampedToGround) map.setCenterClampedToGround(_savedClamp); } catch (_) {}

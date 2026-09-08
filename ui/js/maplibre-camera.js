@@ -94,6 +94,9 @@
     cLat = Math.max(-85, Math.min(85, cLat));
     try { if (map.getCenterClampedToGround && map.getCenterClampedToGround()) map.setCenterClampedToGround(false); } catch (_) {}
     map.jumpTo({ center: [cLng, cLat], zoom: zoom, bearing: bp[0], pitch: bp[1], elevation: elev });
+    // Prüfstand-Griff (08.09.2026): der zuletzt GESETZTE Stand — MapLibre darf ihn danach noch ändern
+    // (z. B. Kamera über das Gelände heben); Vergleich mit getZoom()/getPitch() zeigt das.
+    try { window.__rzCamSet = { zoom: zoom, pitch: bp[1], bearing: bp[0], elev: elev, alt: altM, lat: cLat, lng: cLng }; } catch (_) {}
   }
   window.rzMlCamRead = rzMlCamRead;
   window.rzMlCamApply = rzMlCamApply;

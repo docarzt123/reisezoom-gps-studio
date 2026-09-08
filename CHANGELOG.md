@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Calm camera: the terrain height per anchor now comes from a fixed DEM tile level (AWS Terrarium z13, `core/demsample.py`, bridge `dem_hoehen`, cached in the tile proxy store) instead of whatever terrain tiles MapLibre happened to have loaded while the anchors were built. A freshly opened render page only had coarse overview tiles, a warmed-up preview had fine ones — measured 400–700 m difference in the Masca gorge, so the rendered camera flew that much lower than the preview and looked jumpy. Cold and warm anchor builds are now identical (max difference 0.0 m in the headless check). Free terrain only; Mapbox/MapTiler terrain keeps the map query. — Ruhige Kamera: Geländehöhe je Stützstelle aus fester Kachelstufe statt aus zufällig geladenen Höhenkacheln; Render = Vorschau.
+
 ### Added
 - GPX healing (`core/gpxheal`): one pass that straightens out everything a recording gets wrong — seconds carrying several points with the same whole-second timestamp (spread evenly), backwards time jumps, missing times and elevations (interpolated), points without coordinates, exact duplicates, speed outliers; the lossless writer rewrites `<bounds>` from the real points and keeps milliseconds. The inspector's „Auto-heal" runs it first and reports what changed; the web tool „Clean GPX" became „Heal GPX" (same URL) with the report under the map. Trigger: an Insta360 Studio GPX export (10 points per second, identical second stamps, unsigned bounds) that the camera's own video software refused while a navigator's file imported fine.
 
