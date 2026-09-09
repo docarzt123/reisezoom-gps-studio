@@ -883,6 +883,35 @@ function mountAnimator(body, headerActions, opts) {
             <span><strong>${t("animator.toggle.overlays")}</strong></span>
           </label>
           <div class="overlay-groups" id="anim-overlay-groups">
+            <!-- 09.09.2026 (Marc): Quellenzeile ganz oben in den Overlays, Standard ganze Breite unten, volle Angaben.
+                 07.09.2026 (Marc: „kann man für die attribution einstellen, wo sie erscheint und in welcher form?")
+                 Quellenzeile: Ecke + Breite (schmal = hoch, breit = flach). Sie bleibt immer sichtbar. -->
+            <div class="overlay-group ov-group--on" id="anim-overlay-attrib-group">
+              <label class="checkbox-row inline" style="cursor:default;">
+                <span>${t("animator.overlay.attrib", "Quellenzeile")}</span>
+                <span class="muted" style="font-size:11px; margin-left:auto;">${t("animator.overlay.attrib_always", "immer sichtbar")}</span>
+              </label>
+              <div class="ov-group-details">
+              <select id="anim-ov-attrib-pos" class="pos-select" title="${t("animator.overlay.position")}">
+                <option value="br">${t("animator.pos.br")}</option>
+                <option value="bl">${t("animator.pos.bl")}</option>
+                <option value="tr">${t("animator.pos.tr")}</option>
+                <option value="tl">${t("animator.pos.tl")}</option>
+              </select>
+              <select id="anim-ov-attrib-w" class="pos-select" title="${t("animator.overlay.attrib_width", "Breite der Quellenzeile")}">
+                <option value="schmal">${t("animator.overlay.attrib_w.schmal", "schmal (hoch)")}</option>
+                <option value="mittel">${t("animator.overlay.attrib_w.mittel", "mittel")}</option>
+                <option value="breit">${t("animator.overlay.attrib_w.breit", "breit (flach)")}</option>
+                <option value="voll" selected>${t("animator.overlay.attrib_w.voll", "ganze Breite (unten)")}</option>
+              </select>
+              <!-- 07.09.2026 (Marc, Kartenquellen-Konzept §6): Form der Nennung — alles im Bild oder Kurzform + Link -->
+              <select id="anim-ov-attrib-mode" class="pos-select" style="flex:1 1 100%;" title="${t("animator.overlay.attrib_mode_tip", "Voll: jede Quelle mit Lizenz im Bild. Kurz: Kurznamen der Quellen, «bearbeitet» und ein Link zu den vollständigen Angaben — der Link muss direkt zu den Quellen dieses Videos führen (eigene Seite oder Videobeschreibung).")}">
+                <option value="voll" selected>${t("animator.overlay.attrib_mode.voll", "voll (alle Angaben im Bild)")}</option>
+                <option value="kurz">${t("animator.overlay.attrib_mode.kurz", "kurz (Namen + Link)")}</option>
+              </select>
+              <input type="text" id="anim-ov-attrib-link" class="pos-select" style="flex:1 1 100%;" placeholder="${t("animator.overlay.attrib_link_ph", "Link zu den Quellen, z. B. deine Seite")}" title="${t("animator.overlay.attrib_link_tip", "Erscheint im Bild hinter «Quellen:». Leer = kein Link; dann nur Kurznamen und «bearbeitet».")}" hidden>
+              </div>
+            </div>
             <div class="overlay-group" id="anim-overlay-totals-group">
               <label class="checkbox-row inline">
                 <input type="checkbox" id="anim-ov-totals" checked>
@@ -963,34 +992,6 @@ function mountAnimator(body, headerActions, opts) {
               </div>
             </div>
             
-            <!-- 07.09.2026 (Marc: „kann man für die attribution einstellen, wo sie erscheint und in welcher form?")
-                 Quellenzeile: Ecke + Breite (schmal = hoch, breit = flach). Sie bleibt immer sichtbar. -->
-            <div class="overlay-group ov-group--on" id="anim-overlay-attrib-group">
-              <label class="checkbox-row inline" style="cursor:default;">
-                <span>${t("animator.overlay.attrib", "Quellenzeile")}</span>
-                <span class="muted" style="font-size:11px; margin-left:auto;">${t("animator.overlay.attrib_always", "immer sichtbar")}</span>
-              </label>
-              <div class="ov-group-details">
-              <select id="anim-ov-attrib-pos" class="pos-select" title="${t("animator.overlay.position")}">
-                <option value="br">${t("animator.pos.br")}</option>
-                <option value="bl">${t("animator.pos.bl")}</option>
-                <option value="tr">${t("animator.pos.tr")}</option>
-                <option value="tl">${t("animator.pos.tl")}</option>
-              </select>
-              <select id="anim-ov-attrib-w" class="pos-select" title="${t("animator.overlay.attrib_width", "Breite der Quellenzeile")}">
-                <option value="schmal">${t("animator.overlay.attrib_w.schmal", "schmal (hoch)")}</option>
-                <option value="mittel" selected>${t("animator.overlay.attrib_w.mittel", "mittel")}</option>
-                <option value="breit">${t("animator.overlay.attrib_w.breit", "breit (flach)")}</option>
-                <option value="voll">${t("animator.overlay.attrib_w.voll", "ganze Breite (unten)")}</option>
-              </select>
-              <!-- 07.09.2026 (Marc, Kartenquellen-Konzept §6): Form der Nennung — alles im Bild oder Kurzform + Link -->
-              <select id="anim-ov-attrib-mode" class="pos-select" style="flex:1 1 100%;" title="${t("animator.overlay.attrib_mode_tip", "Voll: jede Quelle mit Lizenz im Bild. Kurz: Kurznamen der Quellen, «bearbeitet» und ein Link zu den vollständigen Angaben — der Link muss direkt zu den Quellen dieses Videos führen (eigene Seite oder Videobeschreibung).")}">
-                <option value="voll" selected>${t("animator.overlay.attrib_mode.voll", "voll (alle Angaben im Bild)")}</option>
-                <option value="kurz">${t("animator.overlay.attrib_mode.kurz", "kurz (Namen + Link)")}</option>
-              </select>
-              <input type="text" id="anim-ov-attrib-link" class="pos-select" style="flex:1 1 100%;" placeholder="${t("animator.overlay.attrib_link_ph", "Link zu den Quellen, z. B. deine Seite")}" title="${t("animator.overlay.attrib_link_tip", "Erscheint im Bild hinter «Quellen:». Leer = kein Link; dann nur Kurznamen und «bearbeitet».")}" hidden>
-              </div>
-            </div>
             <!-- 04.09.2026 — Nordpfeil + Maßstab (Beta-Tester: „dürfen nicht fehlen"), Standard an -->
             <div class="overlay-group" id="anim-overlay-north-group">
               <label class="checkbox-row inline">
@@ -2436,7 +2437,7 @@ function mountAnimator(body, headerActions, opts) {
   function _applyAttribLayout() {
     const vp = document.getElementById("anim-viewport"); if (!vp) return;
     vp.dataset.rzAttribPos = document.getElementById("anim-ov-attrib-pos")?.value || "br";
-    vp.dataset.rzAttribW = document.getElementById("anim-ov-attrib-w")?.value || "mittel";
+    vp.dataset.rzAttribW = document.getElementById("anim-ov-attrib-w")?.value || "voll";   // 09.09.2026 Standard: ganze Breite unten
     try { _applyAttribLook(); } catch (_) {}
     // Leiste über die ganze Breite: gemessene Höhe als Variable, damit die unteren Overlays hochrücken
     const _messen = () => { try {
