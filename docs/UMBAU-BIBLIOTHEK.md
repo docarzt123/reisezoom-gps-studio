@@ -147,7 +147,19 @@ Instanz die Bibliothek offen hat. Deshalb:
 - **Alles kopieren**, nicht nur Benutztes — sonst kommt der Mischmasch
   zurück.
 - **Mehrere Bibliotheken: nur nicht verbauen.** Ein Ort, änderbar, fertig.
-  Kein Umschalter, keine Zuletzt-benutzt-Liste, bis jemand danach fragt.
+  ~~Kein Umschalter, keine Zuletzt-benutzt-Liste, bis jemand danach fragt.~~
+  **Geändert 09.09.2026:** Es hat jemand gefragt, ohne es zu wissen. Ein
+  Beta-Tester (v0.9.663) stand vor „Bibliothek ist bereits geöffnet" (harter
+  Abbruch, Rechnername gewechselt → Sperre galt als fremd, 12 Stunden), klickte
+  „Anderen Ort wählen", bekam still eine leere Bibliothek und schrieb „nun ist
+  alles leer". Seitdem: der Zeiger merkt sich die letzten fünf Orte
+  (`vorher` in `bibliothek.json`), Einstellungen → Bibliothek hat **„Andere
+  Bibliothek öffnen …"** und **„Zuletzt benutzt"** (`bibliothek_wechseln`:
+  öffnet nur, was schon Bibliothek ist — legt nichts an, verschiebt nichts),
+  und „Anderen Ort wählen" fragt nach, bevor eine leere entsteht, und sagt,
+  wo die bisherige bleibt. Dazu **„Trotzdem öffnen …"** im Belegt-Dialog
+  (`bibliothek_uebernehmen`, mit Rückfrage) — die Sperre ist ein Schutz, keine
+  Falle.
 - **Die Cloud wird für den Umbau stillgelegt** und danach als eigenes Paket
   neu gebaut, dann als Bibliothekskopie. Sie ist ohnehin halb kaputt: Der
   Abgleich liest `sessions.json`, die es seit der Projekt-Umstellung nicht
@@ -159,7 +171,9 @@ Instanz die Bibliothek offen hat. Deshalb:
 Anhalten und sagen, was los ist: Archiv im Nur-Lesen-Zustand mit dem
 gemerkten Bestand, deutlicher Hinweis, Knopf „erneut suchen" und „anderen
 Ort wählen". **Niemals stillschweigend eine leere neue Bibliothek anlegen** —
-das ist der Moment, in dem Leute glauben, alles sei weg.
+das ist der Moment, in dem Leute glauben, alles sei weg. Und genau das ist am
+09.09.2026 trotzdem passiert: „Anderen Ort wählen" legte ohne Rückfrage an.
+Seitdem fragt es nach (siehe „Regeln", Mehrere Bibliotheken).
 
 ---
 

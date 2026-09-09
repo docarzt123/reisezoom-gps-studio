@@ -129,6 +129,18 @@ start and offers *Search again* or *Choose another location*. It **never**
 silently creates an empty new library — your data is not gone, it is just
 out of reach.
 
+**"Library is already open"** means a lock file says another GPS Studio has it
+open. If the app was not closed cleanly last time (crash, computer off,
+network drive gone), that is just a leftover — choose **Open anyway …**. The
+app asks once, because two instances open at the same time would overwrite
+each other's data.
+
+**Choose another location** opens a library that already lives there. If
+there is none, GPS Studio asks whether to create a new, empty one — and tells
+you where the current one stays. If you picked the wrong folder, go back via
+**Settings → Library**: **Open another library …** or one click on
+**Recently used libraries**. None of this moves or deletes anything.
+
 ### Versions of a tour
 
 A tour can have several versions: as recorded, healed, trimmed. In the

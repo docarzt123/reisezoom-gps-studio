@@ -146,6 +146,19 @@ sagt GPS Studio das beim Start und bietet *Erneut suchen* oder *Anderen Ort
 wählen* an. Es wird **niemals** stillschweigend eine leere neue Bibliothek
 angelegt — deine Daten sind dann nicht weg, sie sind nur nicht erreichbar.
 
+**„Bibliothek ist bereits geöffnet"** heißt: Eine Sperrdatei sagt, ein anderes
+GPS Studio habe sie offen. Wurde die App zuletzt nicht sauber beendet (Absturz,
+Rechner aus, Netzlaufwerk weg), ist das nur ein Überbleibsel — dann **Trotzdem
+öffnen …** wählen. Die App fragt einmal nach, weil zwei gleichzeitig offene
+Instanzen sich die Daten überschreiben würden.
+
+**Anderen Ort wählen** öffnet eine Bibliothek, die dort schon liegt. Liegt
+dort keine, fragt GPS Studio, ob eine neue, leere angelegt werden soll — und
+sagt, wo die bisherige bleibt. Wer sich vertan hat, kommt unter
+**Einstellungen → Bibliothek** zurück: **Andere Bibliothek öffnen …** oder ein
+Klick auf **Zuletzt benutzte Bibliotheken**. Nichts davon verschiebt oder
+löscht etwas.
+
 ### Versionen einer Tour
 
 Eine Tour kann mehrere Versionen haben: wie aufgezeichnet, geheilt,

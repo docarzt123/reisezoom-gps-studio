@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Library lock: "Library is already open" now offers "Open anyway …" (with a confirmation) — after a crash, a forced quit or a vanished network drive the lock was only a leftover, and on v0.9.663 a changed host name made it count as another computer's lock for twelve hours; "Search again" could not help. "Choose another location" no longer silently creates an empty library: if the folder already holds one it is opened, otherwise the app asks first and says where the current library stays. Settings → Library gained "Open another library …" and a "Recently used libraries" list (the last five locations are remembered) — the way back after picking the wrong folder. Nothing in this moves or deletes data. — Bibliothekssperre: „Trotzdem öffnen", Rückfrage vor einer leeren Bibliothek, „Andere Bibliothek öffnen" und „Zuletzt benutzt" als Rückweg.
+
 ### Changed
 - Speed lane: a single click no longer creates a two-second hold — it only moves the scrubber. A hold now comes from a double-click on free space or the right-click menu; drag still creates a section. Right-click opens a small menu everywhere in the lane: Open and Delete on an entry, "Hold here" and "Slower section here" on free space, Open on a group tile. Dragging a hold at its edge now grows the tile immediately instead of waiting for the recomputed curve. — Tempo-Spur: Klick legt keinen Halt mehr an (Doppelklick oder Menü), Rechtsklick-Menü, Halt wächst beim Ziehen sofort mit.
 

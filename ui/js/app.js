@@ -592,8 +592,10 @@ async function openSettingsModal() {
         <p class="muted" style="margin-bottom:6px; font-weight:600; color:var(--text);">${t("bib.titel", "Bibliothek")}</p>
         <div class="bib-ort" style="margin:0 0 8px"><code id="md-bib-ort">…</code></div>
         <button class="btn" id="md-bib-umziehen">${t("bib.umziehen", "An anderen Ort verschieben …")}</button>
+        <button class="btn" id="md-bib-wechseln">${t("bib.wechseln", "Andere Bibliothek öffnen …")}</button>
         <button class="btn" id="md-bib-bericht" hidden>${t("bib.bericht_zeigen", "Umzugsbericht ansehen")}</button>
         <p class="muted" style="font-size:11px; margin-top:6px;" id="md-bib-platz"></p>
+        <div id="md-bib-vorher" hidden></div>
       </div>
 
       ${window.rzCloudStillgelegt ? `
@@ -708,8 +710,39 @@ function _bindSettingsModalHandlers() {
           .replace("{n}", st.platz.versionen)
           .replace("{mb}", (st.platz.bytes / 1048576).toFixed(0));
       }
+      // 09.09.2026 — zuletzt benutzte Bibliotheken: der Rückweg nach einem
+      // unglücklichen „Anderen Ort wählen" (Beta-Tester: „nun ist alles leer").
+      const vh = document.getElementById("md-bib-vorher");
+      const liste = (st.vorher || []).filter(x => x && x.da);
+      if (vh && liste.length) {
+        vh.hidden = false;
+        vh.innerHTML = `<p class="muted" style="font-size:11px; margin:10px 0 4px;">${t("bib.zuletzt", "Zuletzt benutzte Bibliotheken:")}</p>`
+          + liste.map((x, i) => `<div class="bib-vorher-zeile"><code>${String(x.pfad).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</code><button class="btn btn-sm" data-vorher="${i}">${t("bib.oeffnen", "Öffnen")}</button></div>`).join("");
+        vh.querySelectorAll("[data-vorher]").forEach(b => {
+          b.onclick = async () => {
+            const x = liste[+b.dataset.vorher]; if (!x) return;
+            b.disabled = true;
+            const r = await api().bibliothek_wechseln(x.pfad);
+            if (r && r.ok) { location.reload(); return; }
+            b.disabled = false;
+            toast((r && (r.grund || r.error)) || "?", "warn");
+          };
+        });
+      }
     } catch (_) {}
   })();
+  const _bibWechseln = document.getElementById("md-bib-wechseln");
+  if (_bibWechseln) _bibWechseln.onclick = async () => {
+    const w = await api().bibliothek_ordner_waehlen();
+    if (!w || w.cancelled) return;
+    if (!w.ok) { toast(w.cloud
+      ? t("bib.cloud_abgelehnt", "Dieser Ordner gehört zu {dienst} und ist deshalb nicht möglich.").replace("{dienst}", w.cloud)
+      : (w.grund || w.error || "?"), "warn"); return; }
+    if (!w.vorhanden) { toast(t("bib.keine_bibliothek_dort", "In diesem Ordner liegt keine GPS-Studio-Bibliothek."), "warn", 5000); return; }
+    const r = await api().bibliothek_wechseln(w.pfad);
+    if (r && r.ok) { location.reload(); return; }
+    toast((r && (r.grund || r.error)) || "?", "warn");
+  };
   // Den Umzugsbericht gibt es nur, wenn wirklich einer stattgefunden hat.
   (async () => {
     try {
