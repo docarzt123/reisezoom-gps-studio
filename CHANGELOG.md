@@ -15,6 +15,12 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Fixed
+- Resume at start: the app reopened the project from before the last one — only a click in the projects area remembered "last open"; opening a tour from the archive or assembling a set activated its project on another path that did not. Every activation path now remembers it; a floating project (no id yet) leaves the app in the archive instead of on the wrong project. — Beim Start kam das vorletzte Projekt; jetzt merkt jeder Weg, der ein Projekt aktiv macht, das zuletzt offene.
+- Animator: after a restart the first entry could show a stretched map (blurry tiles, oversized labels and lines, overlays normal). A check now measures the map canvas against the preview area on refit, timeline change, fit and preview run, resizes when they differ and logs what it found. — Vorschau: Leinwand gegen Fläche prüfen, nachziehen, loggen.
+
+## [0.9.681] – 2026-09-09
+
+### Fixed
 - Library lock: "Library is already open" now offers "Open anyway …" (with a confirmation) — after a crash, a forced quit or a vanished network drive the lock was only a leftover, and on v0.9.663 a changed host name made it count as another computer's lock for twelve hours; "Search again" could not help. "Choose another location" no longer silently creates an empty library: if the folder already holds one it is opened, otherwise the app asks first and says where the current library stays. Settings → Library gained "Open another library …" and a "Recently used libraries" list (the last five locations are remembered) — the way back after picking the wrong folder. Nothing in this moves or deletes data. — Bibliothekssperre: „Trotzdem öffnen", Rückfrage vor einer leeren Bibliothek, „Andere Bibliothek öffnen" und „Zuletzt benutzt" als Rückweg.
 
 ### Changed
