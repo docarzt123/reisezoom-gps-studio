@@ -3424,6 +3424,45 @@ async function rzArchivTourenWaehlen(opts) {
   const gewaehlt = new Set();
   let items = [];
   let importiert = [];            // eben importierte, noch nicht im Index
+  const thumbs = new Map();       // Bildpfad → data-URL ("" = keins)
+  let _beobachter = null;
+  let _holTimer = null;
+  const _offen = new Set();       // Bildpfade sichtbarer Zeilen ohne Bild
+  const bilderHolen = async () => {
+    const fehlt = [..._offen].filter(b => !thumbs.has(b)).slice(0, 120);
+    _offen.clear();
+    if (!fehlt.length) return;
+    let r = null;
+    try { r = await api().library_thumbs(fehlt); } catch (e) { console.warn("library_thumbs:", e); }
+    const th = (r && r.ok && r.thumbs) || {};
+    for (const b of fehlt) thumbs.set(b, th[b] || "");
+    const el = document.getElementById("rz-tw-liste"); if (!el) return;
+    el.querySelectorAll(".rz-tw-bild[data-bild]").forEach(sp => {
+      const b = sp.dataset.bild;
+      if (!thumbs.has(b) || sp.querySelector("img")) return;
+      const url = thumbs.get(b);
+      if (url) { const img = document.createElement("img"); img.alt = ""; img.src = url; sp.appendChild(img); }
+      else sp.classList.add("ist-leer");
+    });
+  };
+  const bilderBeobachten = () => {
+    const el = document.getElementById("rz-tw-liste"); if (!el) return;
+    if (_beobachter) _beobachter.disconnect();
+    if (typeof IntersectionObserver !== "function") {   // Rückfall: die ersten Zeilen
+      el.querySelectorAll(".rz-tw-bild[data-bild]").forEach((sp, i) => { if (i < 60) _offen.add(sp.dataset.bild); });
+      bilderHolen(); return;
+    }
+    _beobachter = new IntersectionObserver((eintraege) => {
+      for (const e of eintraege) {
+        if (!e.isIntersecting) continue;
+        const b = e.target.dataset.bild;
+        if (b && !thumbs.has(b)) _offen.add(b);
+        _beobachter.unobserve(e.target);
+      }
+      if (_offen.size) { clearTimeout(_holTimer); _holTimer = setTimeout(bilderHolen, 60); }
+    }, { root: el, rootMargin: "200px 0px" });
+    el.querySelectorAll(".rz-tw-bild[data-bild]").forEach(sp => { if (!sp.querySelector("img")) _beobachter.observe(sp); });
+  };
   const datum = (iso) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString(); };
   const km = (it) => { const v = it.distance_km != null ? +it.distance_km : (it.distance_m != null ? it.distance_m / 1000 : null);
                        return (v == null || !isFinite(v)) ? "" : v.toFixed(1) + " km"; };
@@ -3431,8 +3470,16 @@ async function rzArchivTourenWaehlen(opts) {
     const pf = nfc(it.path);
     const schon = drin.has(pf);
     const meta = [datum(it.started_at), km(it)].filter(Boolean).join(" · ");
+    // Vorschaubild (Marc, 09.09.2026: „mach im Modal noch die Vorschaubilder
+    // dazu"): Platzhalter mit dem Bildpfad; geholt wird erst, wenn die Zeile
+    // ins Bild scrollt (library_thumbs, gebündelt) — 300 data-URLs auf einmal
+    // wären 8 MB durch die Brücke.
+    const bild = it.image
+      ? `<span class="rz-tw-bild" data-bild="${esc(it.image)}">${thumbs.has(it.image) && thumbs.get(it.image) ? `<img src="${thumbs.get(it.image)}" alt="">` : ""}</span>`
+      : `<span class="rz-tw-bild ist-leer"></span>`;
     return `<label class="rz-tw-zeile${schon ? " ist-drin" : ""}${neu ? " ist-neu" : ""}">
       <input type="checkbox" data-tpath="${esc(it.path)}"${gewaehlt.has(pf) ? " checked" : ""}${schon ? " disabled" : ""}>
+      ${bild}
       <span class="rz-tw-name">${esc(it.name || it.filename || it.path)}</span>
       <span class="rz-tw-meta">${schon ? esc(T("archiv.waehlen_schon", "schon im Projekt")) : (neu ? esc(T("archiv.waehlen_neu", "gerade importiert")) : esc(meta))}</span>
     </label>`;
@@ -3454,6 +3501,7 @@ async function rzArchivTourenWaehlen(opts) {
       zaehler();
     });
     zaehler();
+    bilderBeobachten();
   };
   const zaehler = () => {
     const ok = document.getElementById("rz-tw-ok"); if (!ok) return;
@@ -3470,7 +3518,7 @@ async function rzArchivTourenWaehlen(opts) {
   };
   return new Promise((resolve) => {
     let fertig = false;
-    const ende = (pfade) => { if (fertig) return; fertig = true; try { m.close(); } catch (_) {} resolve(pfade); };
+    const ende = (pfade) => { if (fertig) return; fertig = true; try { if (_beobachter) _beobachter.disconnect(); } catch (_) {} try { m.close(); } catch (_) {} resolve(pfade); };
     const m = openModal({
       title: "➕ " + (o.titel || T("library.proj_addtours", "Touren aus dem Archiv hinzufügen")),
       body: `<input type="search" id="rz-tw-such" class="lib-input" placeholder="${esc(T("library.search_ph", "Suchen — Name, Gegend, Schlagwort, Notiz …"))}" style="margin-bottom:8px; width:100%; box-sizing:border-box;">

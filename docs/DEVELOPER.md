@@ -4292,7 +4292,8 @@ Marc: „bei uns ist die Wahrheit das Archiv der Touren." Wer einem Projekt Tour
 hinzufügt, bekommt KEINEN Dateidialog, sondern die Auswahl aus dem Archiv:
 `await rzArchivTourenWaehlen({ ausschliessen: [pfade…], titel })` in
 `ui/js/util.js` liefert die gewählten Pfade (leer bei Abbrechen). Suche über
-`library_query`, schon geladene Pfade stehen ausgegraut, „Datei importieren …"
+`library_query`, Vorschaubilder je sichtbarer Zeile gebündelt über `library_thumbs`
+(IntersectionObserver, 120 je Anfrage — nie alle 300 auf einmal, das wären 8 MB), schon geladene Pfade stehen ausgegraut, „Datei importieren …"
 ruft `library_import_files()` (gibt seit 0.9.682 `pfade` zurück), zeigt das
 Importierte oben in der Liste und hakt es an, dann `library_scan_start`.
 Benutzt vom Animator (`_animAddTour`, Ghost-Spuren), vom Inspektor („Tracks verbinden", `einzel`), von der Web-Karte und von `pickGpx` in `ui/js/gpx-bar.js` („Tour öffnen", `einzel`, auch das macOS-Menü). Das Archiv-Modul hat bei `[data-addtours]`

@@ -462,7 +462,7 @@ python app.py</code></pre>
 <blockquote>displays: there the <strong>stage lengths and transitions</strong> make the schedule, see the next</blockquote>
 <blockquote>section.</blockquote>
 <h3 id="adding-tours-to-an-open-project">Adding tours to an open project</h3>
-<p>More tours join an open project in two ways: at the bottom of the <strong>&quot;Multiple tours&quot;</strong> section in the sidebar via <strong>&quot;Add tour&quot;</strong>, which opens a picker from the <strong>archive</strong> (search, tick several, tours already loaded are greyed out), or by selecting tours in the archive and handing them to the animator while the project is open. If a tour is not in the archive yet, <strong>&quot;Import file …&quot;</strong> in the picker adds it to the archive first and ticks it right away (FIT, KML and the like included). The section is there even with a single tour. Every tour becomes a group at the end of the chain; drag it in the timeline to place it elsewhere.</p>
+<p>More tours join an open project in two ways: at the bottom of the <strong>&quot;Multiple tours&quot;</strong> section in the sidebar via <strong>&quot;Add tour&quot;</strong>, which opens a picker from the <strong>archive</strong> (thumbnail, date and kilometres per tour; search, tick several, tours already loaded are greyed out), or by selecting tours in the archive and handing them to the animator while the project is open. If a tour is not in the archive yet, <strong>&quot;Import file …&quot;</strong> in the picker adds it to the archive first and ticks it right away (FIT, KML and the like included). The section is there even with a single tour. Every tour becomes a group at the end of the chain; drag it in the timeline to place it elsewhere.</p>
 <h3 id="groups-in-the-timeline-in-sequence-in-parallel-or-both">Groups in the timeline — in sequence, in parallel, or both</h3>
 <p>As soon as two or more tours are in the project, the speed lane above the timeline becomes the <strong>tour row</strong>: every tour is a <strong>group</strong> and gets a tile there with its name, factor and seconds. The gap between two tiles is the transition (✈ cinematic flight, ↗ straight line, ✂ cut), hatched bands are holds — before the content, or at the end when a group finishes earlier than the video. A group that runs at the same time as another gets its own row <strong>„parallel&quot;</strong> below. The rule behind it: all tours of a project are the same length — the length of the video; the arrangement lies only in where their holds sit.</p>
 <p>Everything is done with the mouse:</p>
@@ -1370,13 +1370,10 @@ python app.py</code></pre>
 <blockquote>“in the Atlantic” for you: that was the reason.</blockquote>
 <h3 id="ghost-tracks-several-routes-in-the-background">Ghost tracks: several routes in the background</h3>
 <p>Sometimes a tour only makes sense in context: the official trail, your plan, and what you actually walked. That is what the <strong>👻 Ghost tracks</strong> section in the animator is for.</p>
-<p>Add as many tracks as you need — <strong>📚 From the archive</strong> or <strong>📂 File</strong>.</p>
-<blockquote><strong>The archive route:</strong> via <strong>📚 From the archive …</strong> the library turns into a</blockquote>
-<blockquote><strong>pure picker</strong> — a bar at the top says what is being asked for, and the</blockquote>
-<blockquote>selected tour offers only <strong>👻 Use as ghost track</strong> (a double-click does it</blockquote>
-<blockquote>too). &quot;Open in animator&quot; and the other tools are hidden meanwhile, so a tour</blockquote>
-<blockquote>can&#x27;t accidentally become your main track. Several at once: mark them with</blockquote>
-<blockquote>⌘/Ctrl-click. <strong>Cancel</strong> returns the library to normal.</blockquote>
+<p>Add as many tracks as you need: <strong>＋ Add ghost track …</strong> opens the picker from the <strong>archive</strong> (search, tick several; the main track and existing ghosts are greyed out). If a file is not in the archive yet, <strong>&quot;Import file …&quot;</strong> in the picker adds it there first and ticks it.</p>
+<blockquote><strong>The other way round works too:</strong> while browsing the archive, every tour</blockquote>
+<blockquote>offers <strong>👻 Use as ghost track</strong> (also in the map popup). Several at once: mark</blockquote>
+<blockquote>them with ⌘/Ctrl-click.</blockquote>
 <p>Each track is set up on its own: colour, opacity, line width, and dashed or solid. The checkbox on the left hides a track without deleting it.</p>
 <p>A typical setup: the official trail strong and solid, the planned loops thin and dashed, and on top your actual tour, animated. The tracks belong to the project and appear in the finished video.</p>
 <h3 id="time-zone-magic">Time-zone magic</h3>

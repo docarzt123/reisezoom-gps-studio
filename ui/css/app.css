@@ -3021,5 +3021,9 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .rz-tw-zeile:hover { background: var(--bg-3); }
 .rz-tw-zeile.ist-drin { opacity: .5; cursor: default; }
 .rz-tw-zeile.ist-neu .rz-tw-meta { color: var(--accent, #ff6b35); }
+.rz-tw-bild { flex: 0 0 auto; width: 44px; height: 30px; border-radius: 4px; overflow: hidden;
+  background: var(--bg-3); display: flex; align-items: center; justify-content: center; }
+.rz-tw-bild img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rz-tw-bild.ist-leer { background: repeating-linear-gradient(135deg, var(--bg-3) 0 4px, transparent 4px 8px); }
 .rz-tw-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rz-tw-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
