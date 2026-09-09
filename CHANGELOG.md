@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.685] – 2026-09-09
+
+### Changed
+- Housekeeping: a tester's first name in a code comment removed; the name guard had a typo and did not catch it. — Tester-Name aus einem Kommentar entfernt, Wächter korrigiert.
+
 ## [0.9.684] – 2026-09-09
 
 ### Fixed

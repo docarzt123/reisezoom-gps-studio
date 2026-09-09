@@ -84,7 +84,7 @@ function mountGeotagger(body, headerActions) {
           </div>
         </div>
 
-        <!-- 23.08.2026 (Beta-Tester Knut) — Fotos ohne eingebettete Zeitzone:
+        <!-- 23.08.2026 (Beta-Tester) — Fotos ohne eingebettete Zeitzone:
              Bei Kameras vor Exif 2.31 (~2017) steht KEIN OffsetTimeOriginal im
              Bild. Die Uhr ist dann völlig richtig, es fehlt nur die Zeitzone —
              und der Nutzer sucht den Fehler bei sich. Deshalb sagen wir es hin. -->
