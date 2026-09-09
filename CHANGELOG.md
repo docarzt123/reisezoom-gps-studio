@@ -15,6 +15,7 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed
+- Help markers (?): hovering shows the help text itself in a small tooltip right away, for as long as the pointer stays on the ? — no more "Show help" hint first. Clicking still keeps the text open. — Die ?-Marker zeigen beim Überfahren sofort ihre Hilfe im Tooltip.
 - Animator sidebar: Map, then "Line" (formerly "Track": the shared look of all tracks — width, style, glow, gradient), then "Tracks" (formerly "Multiple tours") with "Ghost tracks" as a sub-item inside it. Every track is an entry under Tracks, the first one too, even when it is the only one; its colour sits at its entry like for all others. — Seitenleiste: Karte, „Linie" (vorher „Track"), darunter „Tracks" und Ghost-Spuren; jeder Track ist ein Eintrag, auch der erste, mit seiner Farbe.
 
 ### Fixed
