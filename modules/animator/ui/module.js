@@ -16181,7 +16181,7 @@ function mountAnimator(body, headerActions, opts) {
       }
       const ist = _extraTours.map(t => _pfadNFC(t.gpx_path));
       if (ziel.length && ist.length === ziel.length && ziel.every((p, i) => ist[i] === p)) {
-        if (_gruppenProjektId !== projId) { try { _gruppenAufbauen(gespeicherteGruppen); } catch (_) {} }
+        if (_gruppenProjektId !== projId) { try { _gruppenAufbauen(gespeicherteGruppen); } catch (e) { applog("warn", "[gruppen] Aufbau beim Kurzschluss: " + e); } }
         try { _animRenderToursList(); } catch (_) {}
         try { _ovRebuildEditors(); } catch (_) {}
         return;
