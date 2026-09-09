@@ -3922,6 +3922,9 @@ function mountAnimator(body, headerActions, opts) {
                                       "Der Zeitplan kommt aus den Gruppen: Kachel ziehen verschiebt sie in der Zeit, die Ränder ändern ihre Länge, Doppelklick öffnet sie.")
                                   : null);
         } catch (_) {}
+        // §60 Punkt 6 — jetzt, mit neuer Kurve UND neuer Dauer im Feld: die
+        // Keyframes an ihre Strecke nachziehen.
+        try { _keyframesNachziehen(); } catch (e) { applog("warn", "[keyframes] " + e); }
       } else { _paceMap = null; _tempoInfo = null; }
     } catch (_) { _paceMap = null; _tempoInfo = null; }
     // Tester-Befund (ein Beta-Tester, 29.08.2026: „keine Veränderung spürbar"): auf
@@ -5228,8 +5231,146 @@ function mountAnimator(body, headerActions, opts) {
     return buildDefaultEvents();
   }
 
-  function setTimelineEvents(events) {
+  /* ── Keyframe-Paar (IDEAS §60 Punkt 6, 09.09.2026) ────────────────────────
+   * Der ANKER eines Keyframes ist Fortschritt — Zeit in der Anim-Phase: so
+   * zeichnet ihn die Leiste, so interpoliert die Kamera (`ankerZuZeit`), und
+   * so unterscheiden sich zwei Keyframes in einem Halt (der Fortschritt läuft
+   * weiter, während die Strecke steht). Daneben trägt jeder Keyframe das PAAR
+   * (Gruppe, Streckenanteil, Versatz im Halt): daraus wird der Anker neu
+   * gerechnet, sobald sich Kurve oder Zeitplan ändern. Ein Keyframe bleibt so
+   * an seiner Stelle der STRECKE — auch wenn davor ein Halt eingefügt wird oder
+   * eine Gruppe länger. Ohne das Paar wanderte er mit der Zeit von seinem
+   * Motiv weg (gemessen in tests/test_keyframe_paar.py).
+   */
+  /** Umkehrung der Tempo-Kurve: Fortschritt, an dem die Strecke s erreicht
+   *  ist — auf einem Plateau (Halt) der ANFANG. */
+  function _fortschrittAusStrecke(sAnteil, ende) {
+    const m = _paceMap;
+    const a = Math.max(0, Math.min(1, +sAnteil || 0));
+    if (!m || m.length < 2) return a;
+    const n1 = m.length - 1;
+    let lo = 0, hi = n1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (m[mid] < a) lo = mid + 1; else hi = mid; }
+    if (ende) { while (lo < n1 && m[lo + 1] <= a + 1e-9) lo++; return lo / n1; }   // ENDE des Plateaus
+    if (lo === 0) return 0;
+    const y0 = m[lo - 1], y1 = m[lo];
+    const f = (y1 - y0) > 1e-9 ? (a - y0) / (y1 - y0) : 0;
+    return Math.max(0, Math.min(1, (lo - 1 + f) / n1));
+  }
+  function _streckeAusFortschritt(p) {
+    const m = _paceMap;
+    const a = Math.max(0, Math.min(1, +p || 0));
+    if (!m || m.length < 2) return a;
+    const x = a * (m.length - 1), i = Math.min(m.length - 2, Math.floor(x));
+    return m[i] + (m[i + 1] - m[i]) * (x - i);
+  }
+  /** Bahn-Index zu einer Animationszeit (Umkehrung von `_bahnZeit`). */
+  function _bahnIndexBeiZeit(tA) {
+    if (!_reiseBahn || !_reiseBahn.abschnitte) return 0;
+    for (const ab of _reiseBahn.abschnitte) {
+      if (tA <= ab.t1 + 1e-9) {
+        const q = (ab.t1 > ab.t0) ? Math.max(0, Math.min(1, (tA - ab.t0) / (ab.t1 - ab.t0))) : 0;
+        return ab.von + q * (ab.bis - ab.von);
+      }
+    }
+    return _reiseBahn.coords.length - 1;
+  }
+  /** Das Paar aus dem Anker rechnen (nach jeder Bedienung). */
+  function _keyframePaarSetzen(ev) {
+    if (!ev || !KF_LANES.includes(ev.kind)) return;
+    const a = +ev.anchor || 0;
+    if (a < -1e-9 || a > 1 + 1e-9) { delete ev.strecke; delete ev.strecke_gruppe; delete ev.halt_versatz_s; return; }   // Anlauf/Nachlauf: der Anker ist Zeit
+    if (_reiseAktiv()) {
+      const n1 = Math.max(1, _reiseBahn.coords.length - 1);
+      const idx = a * n1;
+      const ab = _bahnAbschnitt(idx);
+      const e = ab ? _reiseBahn.etappen[ab.teil] : null;
+      if (!ab || !e) return;
+      const teil = _reiseBahn.teile[ab.teil];
+      ev.strecke_gruppe = e.gruppe.id;
+      if (ab.art === "inhalt") {
+        ev.strecke = Math.max(0, Math.min(1, (idx - teil.von) / Math.max(1, teil.bis - teil.von)));
+        ev.halt_versatz_s = 0;
+      } else if (ab.art === "vor") {
+        ev.strecke = 0; ev.halt_versatz_s = Math.round((_bahnZeit(idx) - ab.t1) * 1000) / 1000;   // negativ: vor dem Inhalt
+      } else {
+        ev.strecke = 1; ev.halt_versatz_s = Math.round((_bahnZeit(idx) - ab.t0) * 1000) / 1000;
+      }
+      return;
+    }
+    const st = _streckeAusFortschritt(a);
+    const p0 = _fortschrittAusStrecke(st);
+    ev.strecke_gruppe = (_gruppen[0] && _gruppen[0].id) || "g1";
+    ev.strecke = Math.round(st * 1e6) / 1e6;
+    ev.halt_versatz_s = Math.round(Math.max(0, a - p0) * animSekunden() * 1000) / 1000;
+  }
+  /** Den Anker aus dem Paar rechnen (nach jeder Änderung an Kurve/Zeitplan). */
+  function _keyframeAnkerAusPaar(ev) {
+    if (!ev || ev.strecke == null) return null;
+    const st = Math.max(0, Math.min(1, +ev.strecke || 0));
+    const vs = +ev.halt_versatz_s || 0;
+    if (_reiseAktiv()) {
+      const k = _reiseBahn.etappen.findIndex(e => e.gruppe.id === ev.strecke_gruppe);
+      if (k < 0) return null;
+      const teil = _reiseBahn.teile[k], e = _reiseBahn.etappen[k];
+      const n1 = Math.max(1, _reiseBahn.coords.length - 1);
+      let idx;
+      if (vs > 1e-9 && st >= 1 - 1e-9) {
+        // Versatz nur bis zum Ende des Plateaus hinter der Etappe — ein Halt,
+        // der kürzer wurde, nimmt seine Keyframes mit ans Ende.
+        const i = _reiseBahn.abschnitte.findIndex(ab => ab.art === "inhalt" && ab.teil === k);
+        const nach = _reiseBahn.abschnitte[i + 1];
+        const deckel = (nach && nach.art !== "inhalt") ? (nach.t1 - nach.t0) : 0;
+        idx = _bahnIndexBeiZeit(e.lage.bis_s + Math.min(vs, deckel));
+      } else if (vs < -1e-9) {
+        const i = _reiseBahn.abschnitte.findIndex(ab => ab.art === "inhalt" && ab.teil === k);
+        const vor = _reiseBahn.abschnitte[i - 1];
+        const deckel = (vor && vor.art !== "inhalt") ? (vor.t1 - vor.t0) : 0;
+        idx = _bahnIndexBeiZeit(e.lage.von_s - Math.min(-vs, deckel));
+      } else idx = teil.von + st * (teil.bis - teil.von);
+      return Math.max(0, Math.min(1, idx / n1));
+    }
+    const dauer = Math.max(0.001, animSekunden());
+    const p0 = _fortschrittAusStrecke(st), p1 = _fortschrittAusStrecke(st, true);
+    const deckel = Math.max(0, (p1 - p0) * dauer);          // Länge des Halts an dieser Stelle
+    return Math.max(0, Math.min(1, p0 + Math.min(vs, deckel) / dauer));
+  }
+  /** Nach Kurve oder Zeitplan: alle Anker aus ihren Paaren nachziehen. */
+  function _keyframesNachziehen() {
+    let events;
+    try { events = getRawTimelineEvents(); } catch (_) { return; }
+    if (!Array.isArray(events) || !events.length) return;
+    let geaendert = 0;
+    for (const ev of events) {
+      if (!ev || !KF_LANES.includes(ev.kind)) continue;
+      if (ev.strecke == null) { _keyframePaarSetzen(ev); continue; }   // alte Projekte: Paar im Speicher ergänzen
+      const a = _keyframeAnkerAusPaar(ev);
+      if (a != null && Math.abs(a - (+ev.anchor || 0)) > 1e-6) { ev.anchor = a; geaendert++; }
+    }
+    if (geaendert) {
+      applog("info", `[keyframes] ${geaendert} Anker aus ihrem Streckenpaar nachgezogen`);
+      events.sort((a, b) => (a.anchor || 0) - (b.anchor || 0));
+      setTimelineEvents(events.slice(), { paarFest: true });
+    }
+  }
+  try {
+    window.__rzKeyframePaar = () => (getRawTimelineEvents() || []).map(e => ({ kind: e.kind, anchor: e.anchor, strecke: e.strecke, gruppe: e.strecke_gruppe, versatz: e.halt_versatz_s }));
+    window.__rzKeyframesNachziehen = () => { _keyframesNachziehen(); return window.__rzKeyframePaar(); };
+  } catch (_) {}
+
+  function setTimelineEvents(events, opts) {
     if (!_settingsCache) return;
+    // §60 Punkt 6: eine Bedienung (Setzen, Ziehen) hat den Anker geändert — das
+    // Paar folgt ihm. Kommt der Aufruf aus dem Nachziehen, stimmt es schon.
+    if (!(opts && opts.paarFest)) {
+      try {
+        for (const ev of (events || [])) {
+          if (!ev || !KF_LANES.includes(ev.kind)) continue;
+          const a = _keyframeAnkerAusPaar(ev);
+          if (a == null || Math.abs(a - (+ev.anchor || 0)) > 1e-4) _keyframePaarSetzen(ev);
+        }
+      } catch (_) {}
+    }
     _settingsCache[_MODKEY] = _settingsCache[_MODKEY] || {};
     // v0.8.0: Wenn eine Session aktiv ist, speichern wir das im Projekt
     // (track-gebunden). Sonst in der globalen settings.json als Fallback.
@@ -15320,6 +15461,7 @@ function mountAnimator(body, headerActions, opts) {
     try { _reiseBilanzZeigen(); } catch (_) {}
     try { _etappenAnLeiste(); } catch (e) { applog("warn", "[reise] " + e); }
     try { _gruppenAnLeiste(); } catch (e) { applog("warn", "[gruppen] " + e); }
+    try { _keyframesNachziehen(); } catch (e) { applog("warn", "[keyframes] " + e); }
     _tempoReiseStandPruefen(etappen.length);
     return _reiseBahn;
   }
