@@ -1903,7 +1903,7 @@ Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den
 
 Manchmal erzählt eine Tour erst im Zusammenhang: der offizielle Wanderweg, deine
 Planung, und was du am Ende wirklich gelaufen bist. Dafür gibt es im Animator den
-Abschnitt **👻 Ghost-Spuren** (in der Seitenleiste unter den Tracks).
+Unterpunkt **👻 Ghost-Spuren** in der Sektion „Tracks“.
 
 Füge so viele Tracks hinzu, wie du brauchst: **＋ Ghost-Spur hinzufügen …** öffnet
 die Auswahl aus dem **Archiv** (Suche, mehrere anhaken, der Haupt-Track und schon

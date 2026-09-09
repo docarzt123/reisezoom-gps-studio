@@ -1712,8 +1712,8 @@ Reads the capture time from the EXIF data of each photo and finds the matching t
 ### Ghost tracks: several routes in the background (since v0.9.544)
 
 Sometimes a tour only makes sense in context: the official trail, your plan, and
-what you actually walked. That is what the **👻 Ghost tracks** section in the
-animator is for.
+what you actually walked. That is what the **👻 Ghost tracks** item inside the
+animator's "Tracks" section is for.
 
 Add as many tracks as you need: **＋ Add ghost track …** opens the picker from the
 **archive** (search, tick several; the main track and existing ghosts are greyed

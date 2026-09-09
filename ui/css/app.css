@@ -3032,3 +3032,8 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .rz-tw-bild.ist-leer { background: repeating-linear-gradient(135deg, var(--bg-3) 0 4px, transparent 4px 8px); }
 .rz-tw-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rz-tw-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+
+/* Unterpunkt in einer Sektion (09.09.2026: Ghost-Spuren in „Tracks") — eigene
+   Ziehharmonika, etwas eingerückt und leiser als die Hauptköpfe. */
+.section-sub { margin-top: 10px; padding-left: 8px; border-left: 2px solid var(--border); gap: 6px; }
+.section-sub > .section-collapse-header { padding: 5px 8px; font-size: 11px; background: transparent; }

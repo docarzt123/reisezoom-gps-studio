@@ -1728,8 +1728,8 @@ No hace falta plugin de WordPress; sin Mapbox/CDN — el archivo funciona de for
 ### Trazas fantasma: varios tracks de fondo (desde v0.9.544)
 
 A veces una ruta solo se entiende en su contexto: el sendero oficial, tu
-planificación y lo que al final caminaste. Para eso está la sección
-**👻 Trazas fantasma** en el animador.
+planificación y lo que al final caminaste. Para eso está el apartado
+**👻 Trazas fantasma** dentro de la sección «Tracks» del animador.
 
 Añade tantos tracks como necesites: **＋ Añadir ruta fantasma …** abre el selector
 del **archivo** (búsqueda, marcar varias; la ruta principal y las trazas ya
