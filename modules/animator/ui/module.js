@@ -465,8 +465,7 @@ function mountAnimator(body, headerActions, opts) {
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
-          <p class="muted" style="font-size:11px;margin:0 0 8px;line-height:1.45">${t("animator.section.tours_hint", "Jeder Track hat sein eigenes Aussehen: ▸ am Eintrag öffnet Dicke, Stil, Schatten, Glow und Punktreduzierung.")}</p>
-          <!-- 09.09.2026 — Laufpunkt gilt für alle Tracks; steht deshalb hier oben. -->
+                    <!-- 09.09.2026 — Laufpunkt gilt für alle Tracks; steht deshalb hier oben. -->
           <!-- v0.9.509 — Laufpunkt. Bis v0.9.508 war er fest verdrahtet: im
                Video immer an, in der Vorschau gar nicht sichtbar. -->
           <div class="field" hidden>
@@ -517,6 +516,8 @@ function mountAnimator(body, headerActions, opts) {
                style="font-size:11px; margin:0 0 8px; line-height:1.45;">
             ${t("animator.tours.hint", "Weitere Touren werden nach der ersten animiert — die Kamera fliegt im Kino-Stil von einer zur nächsten.")}
             <div id="anim-ablauf-badge-text" style="margin-top:6px;"></div>
+            <!-- 09.09.2026 (Marc: „dass jeder Track seine Einstellungen hat, kann auch ins ?") -->
+            <div style="margin-top:6px;">${t("animator.section.tours_hint", "Jeder Track hat sein eigenes Aussehen: ▸ am Eintrag öffnet Dicke, Stil, Schatten, Glow, Punktreduzierung und Laufpunkt.")}</div>
           </div>
           <div id="anim-anordnung" class="anim-anordnung" hidden>
             <span class="anim-anordnung-label">${t("animator.anordnung.label", "Anordnen")}</span>
