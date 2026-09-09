@@ -15149,7 +15149,13 @@ function mountAnimator(body, headerActions, opts) {
   }
   /** Nach einer Änderung an den Gruppen: Plan, Bahn, Leiste, Liste, Datei. */
   function _gruppenNeu() {
-    try { _reiseAnwenden(); } catch (e) { applog("warn", "[gruppen] " + e); }
+    // ⚠️ Nicht nur die Bahn: eine Gruppe, die aus der Kette in eine eigene Zeile
+    // wandert (oder zurück), wechselt vom preview-track/mtour-Zeichnen ins
+    // Overlay — Quellen und Overlay-Liste müssen neu gebaut werden. Mit bloßem
+    // `_reiseAnwenden()` blieb ihre alte mtour-Quelle als volle Linie stehen und
+    // sie lief nie mit (09.09.2026 in der echten App gesehen: 15 Etappen, eine
+    // nach vorn gezogen, ihre Linie stand von Anfang an komplett da).
+    try { _animDrawExtraToursPreview(); } catch (e) { applog("warn", "[gruppen] " + e); }
     if (!_reiseAktiv()) { try { _gruppenPlanRechnen(); _gruppenAnLeiste(); } catch (_) {} }
     try { _animPersistTours(); } catch (_) {}
     try { _animRenderToursList(); } catch (_) {}
