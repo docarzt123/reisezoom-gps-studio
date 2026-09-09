@@ -350,8 +350,12 @@ Everything is done with the mouse:
   time (own row). It then stays where you put it.
 - **Drag the edges** — the group gets longer or shorter; what is stored is the **factor**
   (0.5× = half as fast, twice the time). The following groups move along.
-- **Drag up or down** — the stack changes. The **topmost** group leads the camera (🎥 on the
-  tile); with two running at once, the order decides.
+- **Drag up** — a group lying in parallel comes **back into the row** and runs after the group
+  that starts before it, with a transition. **Drag down** takes a group out of the row: it stays
+  at its time and runs in parallel. Both are in the tile's right-click menu too.
+- **Camera:** The **topmost** group leads the camera (🎥 on the tile). Right-click → "Camera
+  follows this group" brings another one to the top; inside the row, dragging up or down does
+  the same.
 - **Double-click** (or right-click) opens the group: name, length or factor (type one, the other
   follows), transition, „run in sequence", the tours in the group with **„detach"**, which tour
   the camera follows, and **„merge with another group"** — the tours then run at the same time

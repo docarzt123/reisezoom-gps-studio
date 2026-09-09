@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Timeline groups: dragging a parallel group **up** brings it back into the row (it runs after the group that starts before it, with a transition); dragging a group in the row **down** takes it out (stays at its time, runs in parallel). Both are in the tile's right-click menu, together with "Camera follows this group". Camera order by drag stays where no row change is possible. — Gruppen: hoch = zurück in die Reihe, runter = parallel; Rechtsklick-Menü dazu.
+
 ### Fixed
 - Start-failure page: when macOS runs the app translocated (started from the download window) and a copy already sits in Applications, the page now says so by name and, with several copies ("Reisezoom GPS Studio 2"), asks to delete all but one — a tester had started the download copy seven times while two installed copies sat in Applications. — Startfehler-Seite nennt vorhandene Kopien in Programme.
 - Speed lane: a stored speed-up was applied under whatever pace basis the project currently used. A rate saved as "2.95 km per video second" (basis distance) was read as "2.95 points per second" once the pace mode was "points", the video became 10,216 s long and the preview run seemed to hang. A rate now counts only under the basis it was derived with; if the basis differs, the sidebar duration leads, the rate is re-derived and saved with the right basis, and app.log says so. — Eine gespeicherte Raffung gilt nur unter ihrer Grundlage; sonst führt die Dauer und die Raffung wird neu abgeleitet.
