@@ -9250,7 +9250,7 @@ function mountAnimator(body, headerActions, opts) {
         onGruppeOeffnen: (id) => { try { _gruppeOeffnen(id); } catch (err) { applog("warn", "[gruppen] " + err); } },
         onGruppenStapel: (id, delta) => { if (_gruppenStapeln(id, delta)) _gruppenNeu(); },
         // 09.09.2026 — hoch in die Reihe, runter aus der Reihe (Marc: „einfach in die höhere Spur ziehen")
-        onGruppenZeile: (id, richtung) => { if (_gruppenZeileWechseln(id, richtung)) _gruppenNeu(); },
+        onGruppenZeile: (id, ziel) => { if (_gruppenZeileWechseln(id, ziel)) _gruppenNeu(); },
         // Die Zeitleiste meldet eine Stelle auf der LEISTE; die Vorschau will
         // eine Stelle im TRACK (v0.9.511).
         // 04.09.2026 (Marc: „wenn ich den Scrubber schnell hin und her ziehe,
@@ -15068,7 +15068,7 @@ function mountAnimator(body, headerActions, opts) {
         faktor: (+g.faktor > 0) ? +g.faktor : 1.0, vorlauf_s: Math.max(0, +g.vorlauf_s || 0),
         ueber_s: (g.ueber_s == null || g.ueber_s === "") ? null : Math.max(0, +g.ueber_s || 0),
         ueber_stil: g.ueber_stil || "kino", leit_gpx: String(g.leit_gpx || ""),
-        zu: g.zu !== false, fest: g.fest === true,
+        zu: g.zu !== false, fest: g.fest === true, zeile: Math.max(0, Math.trunc(+g.zeile || 0)),
         eintraege: Array.isArray(g.eintraege) ? g.eintraege.slice() : [],
         keyframes: Array.isArray(g.keyframes) ? g.keyframes.slice() : [],
         mitglieder: (Array.isArray(g.mitglieder) ? g.mitglieder : [])
@@ -15161,6 +15161,9 @@ function mountAnimator(body, headerActions, opts) {
     _gruppenPlan = S.zeitplan(_gruppen, rohS, _gruppen.length > 1 ? _gruppenWunsch() : 0);
     _gruppenPlan.rohS = rohS;
     _gruppenPlan.zeilen = S.zeilen(_gruppenPlan);
+    // Zeilenwünsche auf die Nummern bringen, die man sieht (leere Zeilen sind
+    // weggefallen) — so meint „Spur 2" beim nächsten Ziehen dasselbe wie vorher.
+    _gruppenPlan.zeilen.forEach((ids, z) => { for (const id of ids) { const g = _gruppeMitId(id); if (g && (+g.zeile || 0) >= 1 && g.zeile !== z) g.zeile = z; } });
     return _gruppenPlan;
   }
   /** Die Kette des Plans (Zeile 0) in ZEITLICHER Reihenfolge: [{g, lage}]. */
@@ -15197,7 +15200,7 @@ function mountAnimator(body, headerActions, opts) {
       return { id, name: g.name || (tour ? tour.name : id), farbe: tour ? tour.line_color : "",
                von: bar(l.von_s), bis: bar(l.bis_s), vonS: l.von_s, sek: l.inhalt_s, faktor: +g.faktor || 1,
                n: g.mitglieder.length, inKette: kette.has(id), kamera: g === _gruppen[0],
-               ueber_stil: g.ueber_stil || "kino", fest: g.fest === true };
+               ueber_stil: g.ueber_stil || "kino", fest: g.fest === true, zeile: +g.zeile || 0 };
     }).filter(Boolean));
     const gesamt = parseNum(document.getElementById("anim-intro")?.value, 0) + animSekunden()
       + parseNum(document.getElementById("anim-hold")?.value, 0);
@@ -15224,29 +15227,49 @@ function mountAnimator(body, headerActions, opts) {
    *  hingehört — hinter die letzte Ketten-Gruppe, die vor ihr beginnt; die
    *  Kette legt sie dann mit Übergang dahinter. Aus der Reihe: `fest` an ihrer
    *  jetzigen Zeit — überlappt sie, bekommt sie im Plan ihre eigene Zeile. */
-  function _gruppenZeileWechseln(id, richtung) {
+  /** Eine Gruppe in eine Spur legen (Marc, 09.09.2026: „hoch, runter, über
+   *  einer Spur bleiben → der Track rutscht in diese Spur; weiter hoch oder
+   *  runter → eigene Spur").
+   *  ziel 0 / "kette": in die Reihe — nicht mehr `fest`, in der Liste hinter
+   *    die Ketten-Gruppe, die vor ihr beginnt; die Kette legt sie mit Übergang.
+   *  ziel k ≥ 1: in Spur k — `fest` mit Zeilenwunsch k an ihrer Zeit; liegt dort
+   *    schon etwas im Weg, rutscht sie dahinter (mit Flug-Lücke).
+   *  ziel "eigen": eine neue Spur unter allen — `fest`, Zeilenwunsch = Anzahl. */
+  function _gruppenZeileWechseln(id, ziel) {
     const g = _gruppeMitId(id); if (!g) return false;
-    const lage = (_gruppenPlan && _gruppenPlan.lage) ? _gruppenPlan.lage(g.id) : null;
-    if (richtung > 0) {
-      if (!g.fest) return false;
-      const von = lage ? lage.von_s : (+g.vorlauf_s || 0);
-      g.fest = false;
+    const plan = _gruppenPlan;
+    const lage = (plan && plan.lage) ? plan.lage(g.id) : null;
+    const von = lage ? lage.von_s : (+g.vorlauf_s || 0);
+    if (ziel === 0 || ziel === "kette" || ziel === "+1" || ziel === 1 && false) {
+      if (!g.fest && !(+g.zeile || 0)) return false;
+      g.fest = false; g.zeile = 0;
       _gruppen = _gruppen.filter(x => x !== g);
       let idx = 0;
       _gruppen.forEach((x, i) => {
-        const lx = (_gruppenPlan && _gruppenPlan.lage) ? _gruppenPlan.lage(x.id) : null;
+        const lx = (plan && plan.lage) ? plan.lage(x.id) : null;
         if (!x.fest && lx && lx.von_s <= von + 1e-6) idx = i + 1;
       });
       _gruppen.splice(idx, 0, g);
       return true;
     }
-    if (richtung < 0) {
-      if (g.fest) return false;
-      g.vorlauf_s = lage ? lage.von_s : (+g.vorlauf_s || 0);
-      g.fest = true;
+    if (ziel === "eigen") {
+      const n = (plan && plan.zeilen) ? plan.zeilen.length : 1;
+      g.vorlauf_s = von; g.fest = true; g.zeile = Math.max(1, n);
       return true;
     }
-    return false;
+    const k = Math.trunc(+ziel);
+    if (!(k >= 1)) return false;
+    // In Spur k an ihrer Zeit — und wenn dort etwas im Weg liegt, dahinter.
+    const flug = parseNum(document.getElementById("anim-fly")?.value, 3);
+    const inh = lage ? lage.inhalt_s : 0;
+    let start = von;
+    const dort = ((plan && plan.zeilen && plan.zeilen[k]) || []).filter(x => x !== g.id)
+      .map(x => plan.lage(x)).filter(Boolean).sort((a, b) => a.von_s - b.von_s);
+    for (const l of dort) {
+      if (start < l.bis_s - 1e-9 && l.von_s < start + inh - 1e-9) start = l.bis_s + (g.ueber_stil === "schnitt" ? 0 : flug);
+    }
+    g.vorlauf_s = start; g.fest = true; g.zeile = k;
+    return true;
   }
   function _gruppenStapeln(id, delta) {
     const i = _gruppen.findIndex(g => g.id === id);
@@ -15283,12 +15306,12 @@ function mountAnimator(body, headerActions, opts) {
     const rohS = (_gruppenPlan && _gruppenPlan.rohS) || _gruppenRohS();
     const wunsch = _gruppenWunsch();
     if (art === "nacheinander") {
-      for (const g of _gruppen) g.fest = false;
+      for (const g of _gruppen) { g.fest = false; g.zeile = 0; }
     } else if (art === "parallel") {
-      for (const g of _gruppen) { g.fest = true; g.vorlauf_s = 0; }
+      for (const g of _gruppen) { g.fest = true; g.vorlauf_s = 0; g.zeile = 0; }
     } else if (art === "ziel") {
       // alle ab 0, alle gleichzeitig am Ziel: Inhalt = Wunsch → Faktor = roh / Wunsch
-      for (const g of _gruppen) { g.fest = true; g.vorlauf_s = 0; g.faktor = Math.max(1e-6, +rohS[g.id] || 1) / Math.max(0.3, wunsch); }
+      for (const g of _gruppen) { g.fest = true; g.vorlauf_s = 0; g.zeile = 0; g.faktor = Math.max(1e-6, +rohS[g.id] || 1) / Math.max(0.3, wunsch); }
     } else if (art === "uhrzeit") {
       // Wie aufgezeichnet: Dauer ∝ echte Dauer, Start = Uhrzeit-Versatz (wenn bekannt).
       const info = _gruppen.map(g => {
@@ -15405,7 +15428,7 @@ function mountAnimator(body, headerActions, opts) {
     window.__rzGruppeLaenge = (id, sek) => { const g = _gruppeMitId(id); if (!g) return null; _gruppeLaengeSetzen(g, +sek || 0); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppenAnordnen = (art) => { _gruppenAnordnen(art); return window.__rzGruppen(); };
     window.__rzGruppenStapeln = (id, delta) => { _gruppenStapeln(id, delta); _gruppenNeu(); return window.__rzGruppen(); };
-    window.__rzGruppenZeile = (id, richtung) => { _gruppenZeileWechseln(id, richtung); _gruppenNeu(); return window.__rzGruppen(); };
+    window.__rzGruppenZeile = (id, ziel) => { _gruppenZeileWechseln(id, ziel); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppenZusammen = (vonId, inId) => { _gruppenZusammenlegen(vonId, inId); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppenLoesen = (gpx) => { _gruppenLoesen(gpx); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppeOeffnen = (id) => _gruppeOeffnen(id);
@@ -15442,7 +15465,7 @@ function mountAnimator(body, headerActions, opts) {
   try {
     window.__rzGruppen = () => ({
       gruppen: _gruppen.map(g => ({ id: g.id, name: g.name, faktor: g.faktor, vorlauf_s: g.vorlauf_s,
-        ueber_s: g.ueber_s, ueber_stil: g.ueber_stil, leit_gpx: g.leit_gpx, fest: g.fest,
+        ueber_s: g.ueber_s, ueber_stil: g.ueber_stil, leit_gpx: g.leit_gpx, fest: g.fest, zeile: +g.zeile || 0,
         mitglieder: g.mitglieder.map(m => ({ gpx_path: m.gpx_path, vorlauf_s: m.vorlauf_s })) })),
       plan: _gruppenPlan ? { dauer_s: _gruppenPlan.dauer_s, zeilen: _gruppenPlan.zeilen,
         lagen: _gruppenPlan.lagen.map(l => ({ id: l.id, von_s: l.von_s, bis_s: l.bis_s, nachlauf_s: l.nachlauf_s })) } : null,
@@ -16078,7 +16101,7 @@ function mountAnimator(body, headerActions, opts) {
         gruppen: _gruppen.map(g => ({
           id: g.id, name: g.name || "", faktor: +g.faktor || 1, vorlauf_s: r3(+g.vorlauf_s || 0),
           ueber_s: (g.ueber_s == null) ? null : r3(+g.ueber_s), ueber_stil: g.ueber_stil || "kino",
-          leit_gpx: g.leit_gpx || "", zu: g.zu !== false, fest: g.fest === true,
+          leit_gpx: g.leit_gpx || "", zu: g.zu !== false, fest: g.fest === true, zeile: Math.max(0, Math.trunc(+g.zeile || 0)),
           mitglieder: g.mitglieder.map(m => ({ gpx_path: m.gpx_path, vorlauf_s: r3(+m.vorlauf_s || 0),
                                                sichtbar_vor_inhalt: m.sichtbar_vor_inhalt === true })) })),
         extra_tours: _extraTours.map(t => ({

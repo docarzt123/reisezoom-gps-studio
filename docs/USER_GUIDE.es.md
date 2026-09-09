@@ -352,9 +352,11 @@ Todo se hace con el ratón:
   vez (fila propia). Luego se queda donde lo dejaste.
 - **Arrastrar los bordes** — el grupo se alarga o acorta; lo que se guarda es el **factor**
   (0,5× = la mitad de rápido, el doble de tiempo). Los grupos siguientes se desplazan.
-- **Arrastrar hacia arriba** — un grupo en paralelo **vuelve a la fila** y corre tras el grupo
-  que empieza antes, con transición. **Arrastrar hacia abajo** saca un grupo de la fila: se
-  queda en su tiempo y corre en paralelo. Ambas cosas están también en el menú de clic derecho.
+- **Arrastrar arriba o abajo** — como pistas en un editor de vídeo: la fila sobre la que sueltas
+  se ilumina y el grupo entra en ella. La fila 1 es la **secuencia**: ahí corre tras el grupo
+  que empieza antes, con transición. Otra fila: se queda en su tiempo y corre en paralelo; si
+  algo estorba, se coloca detrás. Más allá de la fila superior o inferior: una **fila propia**.
+  «A la fila» y «Fila propia» están también en el menú de clic derecho.
 - **Cámara:** El grupo **de más arriba** guía la cámara (🎥 en la ficha). Clic derecho → «La
   cámara sigue a este grupo» sube otro; dentro de la fila también vale arrastrar arriba o abajo.
 - **Doble clic** (o clic derecho) abre el grupo: nombre, duración o factor (escribe uno, el otro

@@ -350,9 +350,11 @@ Everything is done with the mouse:
   time (own row). It then stays where you put it.
 - **Drag the edges** — the group gets longer or shorter; what is stored is the **factor**
   (0.5× = half as fast, twice the time). The following groups move along.
-- **Drag up** — a group lying in parallel comes **back into the row** and runs after the group
-  that starts before it, with a transition. **Drag down** takes a group out of the row: it stays
-  at its time and runs in parallel. Both are in the tile's right-click menu too.
+- **Drag up or down** — like tracks in an editing program: the row you release over lights up
+  and the group slides into it. Row 1 is the **sequence**: there it runs after the group that
+  starts before it, with a transition. Any other row: it stays at its time and runs in parallel;
+  if something is in the way there, it slides behind it. Beyond the top or bottom row: an **own
+  row**. "Into the row" and "Own row" are in the tile's right-click menu too.
 - **Camera:** The **topmost** group leads the camera (🎥 on the tile). Right-click → "Camera
   follows this group" brings another one to the top; inside the row, dragging up or down does
   the same.

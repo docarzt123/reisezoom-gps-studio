@@ -44,6 +44,7 @@
       const vor = Math.max(0, sauber(g.vorlauf_s, 0));
       const inh = inhaltDauer(g, (rohS || {})[g.id] || 0);
       lagen.push({ id: g.id, vorlauf_s: vor, inhalt_s: inh, nachlauf_s: 0,
+                   zeile: Math.max(0, Math.trunc(sauber(g.zeile, 0))),
                    get von_s() { return this.vorlauf_s; },
                    get bis_s() { return this.vorlauf_s + this.inhalt_s; },
                    get gesamt_s() { return this.vorlauf_s + this.inhalt_s + this.nachlauf_s; } });
@@ -73,15 +74,19 @@
    *  erste Zeile, in der ihr Inhalt frei liegt. Zeile 0 ist die KETTE, aus der
    *  die Vorschau ihre Bahn baut. */
   function zeilen(plan) {
+    // Erst die mit GEWÜNSCHTER Zeile (zeile ≥ 1, aus dem Ziehen in eine Spur),
+    // dann die übrigen in die erste freie; leere Zeilen fallen weg.
     const raus = [];
+    const frei = (z, l) => z >= raus.length || !raus[z].some(x => ueberlappt(l, x));
+    const rein = (z, l) => { while (raus.length <= z) raus.push([]); raus[z].push(l); };
     for (const l of plan.lagen) {
-      let drin = false;
-      for (const zeile of raus) {
-        if (!zeile.some(x => ueberlappt(l, x))) { zeile.push(l); drin = true; break; }
-      }
-      if (!drin) raus.push([l]);
+      if ((l.zeile || 0) >= 1) { let z = l.zeile; while (!frei(z, l)) z++; rein(z, l); }
     }
-    return raus.map(z => z.map(l => l.id));
+    for (const l of plan.lagen) {
+      if ((l.zeile || 0) >= 1) continue;
+      let z = 0; while (!frei(z, l)) z++; rein(z, l);
+    }
+    return raus.filter(z => z.length).map(z => z.map(l => l.id));
   }
 
   /** Aus den heutigen Projekt-Feldern die Gruppen bauen (§60, Punkt 11).

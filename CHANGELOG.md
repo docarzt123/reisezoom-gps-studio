@@ -15,7 +15,7 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed
-- Timeline groups: dragging a parallel group **up** brings it back into the row (it runs after the group that starts before it, with a transition); dragging a group in the row **down** takes it out (stays at its time, runs in parallel). Both are in the tile's right-click menu, together with "Camera follows this group". Camera order by drag stays where no row change is possible. — Gruppen: hoch = zurück in die Reihe, runter = parallel; Rechtsklick-Menü dazu.
+- Timeline groups behave like tracks in an editing program: drag a tile up or down and the row you release over lights up and takes it. Row 1 is the sequence (the group runs after the one starting before it, with a transition); any other row keeps the group at its time in parallel and slides it behind whatever is in the way; beyond the top or bottom row it gets an own row. Groups remember their row (`zeile` in the plan, Python and JS alike; rows are numbered as displayed, empty rows vanish). "Into the row", "Own row" and "Camera follows this group" are in the tile's right-click menu. — Gruppen wie Spuren: hoch/runter in die Zeile, über der man loslässt; darüber hinaus eigene Spur; Rechtsklick-Menü dazu.
 
 ### Fixed
 - Start-failure page: when macOS runs the app translocated (started from the download window) and a copy already sits in Applications, the page now says so by name and, with several copies ("Reisezoom GPS Studio 2"), asks to delete all but one — a tester had started the download copy seven times while two installed copies sat in Applications. — Startfehler-Seite nennt vorhandene Kopien in Programme.
