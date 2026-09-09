@@ -19,6 +19,9 @@ Bei jeder neuen Version:
 - Journeys: the stages can be sorted by date or by name, or their order reversed — with fifteen stages the arrow buttons alone are no ordering. — Etappen lassen sich nach Datum oder Name sortieren.
 - Journeys: a line under the list says how long the journey really is, split into stages and transitions, and turns amber when the transitions outweigh the stages. In Marc's fifteen-stage project that was 12 seconds of stages against 42 seconds of flying, and nothing in the interface said so. — Eine Zeile sagt, wie lang die Reise wirklich wird.
 
+### Added
+- `core/spuren.py`: the timetable of a project as one pure, testable layer — the foundation of the rebuild described in `docs/IDEAS.md` §60. Every track of a project is the same length, namely the length of the video: a track is *hold + content + hold*, and the whole arrangement lies in where its holds sit. „One after another" means group 2 has a long hold in front, „at the same time" means none has one. Everything is a group, even a single tour. The factor is the stored number and the length follows it. Both of today's arrangements convert into this mechanically, and the conversion is checked against the current rule (`_reise_segmente`) in four cases — same stage times, same transitions. — Der Zeitplan eines Projekts als eine reine, prüfbare Schicht.
+
 ### Changed
 - Several tours one after another now render through the scene, like everything else — the path that replays the preview frame by frame. A switch from 07.09. sent them to the old generator „until the preview can play a journey"; it can since 08.09. — Eine Etappenfolge rendert über dieselbe Szene wie alles andere.
 

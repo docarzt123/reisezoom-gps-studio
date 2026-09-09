@@ -648,6 +648,49 @@ Bewusst NICHT übersetzt: `log.*`/`applog`-Ausgaben (Support-Logs für Marc),
 technische Fehlercodes wie `no_token` (die wertet das Frontend aus), Einheiten
 (bpm, W, km/h) und „UTC+2".
 
+### `core/spuren.py` — der Zeitplan eines Projekts (seit 09.09.2026) ⚠️ PFLICHTLEKTÜRE
+
+Modell und Begründung: **`docs/IDEAS.md` §60** — der Vertrag, aus sieben
+Grilling-Runden mit Marc. Die Kurzfassung, die man beim Anfassen im Kopf haben
+muss:
+
+* **Alle Tracks eines Projekts sind gleich lang** — so lang wie das Video. Ein
+  Track ist *Halt + Inhalt + Halt*, und die ganze Anordnung steckt darin, wo
+  seine Halte sitzen. „Nacheinander" = Gruppe 2 hat vorne einen langen Halt,
+  „gleichzeitig" = keine hat einen. **Startversatz und Blocklänge gibt es als
+  eigene Begriffe nicht mehr.**
+* **Alles ist eine Gruppe**, auch eine einzelne Tour — auf der Leiste gibt es
+  nur EINEN Typ, also keine Fallunterscheidung „Track oder Gruppe?".
+* **Der Faktor ist die gespeicherte Zahl, die Länge das Ergebnis** (0,5× =
+  doppelte Videozeit). Drei Stufen, jede multipliziert die darüber: Projekt →
+  Gruppe → Abschnitt.
+* **Projektlänge = Maximum** über alle Gruppen; kürzere werden hinten
+  aufgefüllt. Ein Wunsch (`mindest_s`) darf verlängern, **nie** verkürzen.
+
+Das Modul rechnet nur — es kennt weder GPX noch Oberfläche. Wie lang der Inhalt
+einer Gruppe bei Faktor 1 wäre, sagt ihm der Aufrufer (aus `core/tempo.py`).
+Dadurch ist der ganze Zeitplan in Millisekunden prüfbar
+(`tests/test_spuren_modell.py`, 34 Prüfungen).
+
+| Funktion | wofür |
+|---|---|
+| `zeitplan(gruppen, roh_s, mindest_s)` | Lage jeder Gruppe + Projektlänge |
+| `aus_projekt(animator, roh_s, groesse)` | Umrechnung der heutigen Felder |
+| `zeilen(plan)` | welche Gruppen sich eine Zeile teilen |
+| `kamera_gruppe(gruppen)` | die oberste — sie führt |
+| `ueberlappt(a, b)` | **auf den INHALTEN**, nicht den Halten |
+
+⚠️ `ueberlappt` darf niemals die Halte einbeziehen: seit alle Tracks
+videolang sind, überlappt sonst jeder mit jedem und jede Zeile klappt auf.
+
+**Umrechnung (§60, Punkt 11):** „reise" → je Tour eine Gruppe, der Vorlauf
+wächst um die vorherigen Inhalte und die Übergänge; „schwarm" → EINE Gruppe,
+der Startversatz je Tour wird der Vorlauf des Mitglieds. Gerechnet im Speicher,
+geschrieben erst bei einer Änderung. `tests/test_spuren_modell.py` stellt die
+Umrechnung in vier Fällen **gegen `core/animator.py::_reise_segmente`** — gleiche
+Etappenzeiten, gleiche Übergänge. Das ist der Beleg für „abwärtskompatibel";
+wer die Verteilregel anfasst, muss beide Seiten anfassen.
+
 ### `core/tempo.py` — die Tempo-Kurve (seit 08.09.2026) ⚠️ PFLICHTLEKTÜRE
 
 Das Modell in einem Satz (Marc): **„Alles ist eine Beschleunigung der Tour."**
