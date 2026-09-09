@@ -3474,8 +3474,9 @@ async function rzArchivTourenWaehlen(opts) {
     // dazu"): Platzhalter mit dem Bildpfad; geholt wird erst, wenn die Zeile
     // ins Bild scrollt (library_thumbs, gebündelt) — 300 data-URLs auf einmal
     // wären 8 MB durch die Brücke.
+    const bekannt = it.image && thumbs.has(it.image);
     const bild = it.image
-      ? `<span class="rz-tw-bild" data-bild="${esc(it.image)}">${thumbs.has(it.image) && thumbs.get(it.image) ? `<img src="${thumbs.get(it.image)}" alt="">` : ""}</span>`
+      ? `<span class="rz-tw-bild${bekannt && !thumbs.get(it.image) ? " ist-leer" : ""}" data-bild="${esc(it.image)}">${bekannt && thumbs.get(it.image) ? `<img src="${thumbs.get(it.image)}" alt="">` : ""}</span>`
       : `<span class="rz-tw-bild ist-leer"></span>`;
     return `<label class="rz-tw-zeile${schon ? " ist-drin" : ""}${neu ? " ist-neu" : ""}">
       <input type="checkbox" data-tpath="${esc(it.path)}"${gewaehlt.has(pf) ? " checked" : ""}${schon ? " disabled" : ""}>
@@ -3509,19 +3510,94 @@ async function rzArchivTourenWaehlen(opts) {
     const basis = o.okText || T("library.proj_addtours_ok", "Hinzufügen");
     ok.textContent = (n > 1 && !o.okText) ? T("archiv.waehlen_ok_n", "{n} hinzufügen").replace("{n}", n) : basis;
   };
+  // Filter wie im Archiv (Marc, 09.09.2026: „blende die Sammlungen auch mit ein
+  // und die Suchfunktionen, wie im Archiv auch"): Sammlung, Jahr, Art, Länge,
+  // Sortierung, nur Favoriten. Gilt nur für dieses Modal, wird nicht gemerkt.
+  const filter = { search: "", collection_id: 0, year: 0, activity: "", min_km: null, max_km: null, sort: "date_desc", fav_only: false };
+  const params = () => {
+    const p = { search: filter.search || "", limit: 300, with_thumbs: false, sort: filter.sort || "date_desc" };
+    if (filter.collection_id) { p.collection_id = filter.collection_id; p.sort = "collection"; }
+    if (filter.year) p.year = filter.year;
+    if (filter.activity) p.activity = filter.activity;
+    if (filter.min_km != null) p.min_km = filter.min_km;
+    if (filter.max_km != null) p.max_km = filter.max_km;
+    if (filter.fav_only) p.fav_only = true;
+    return p;
+  };
+  let _ladeNr = 0;
   const laden = async (q) => {
+    if (q !== undefined) filter.search = q || "";
+    const meine = ++_ladeNr;
     try {
-      const res = await api().library_query({ search: q || "", limit: 300, with_thumbs: false, sort: "date_desc" });
+      const res = await api().library_query(params());
+      if (meine !== _ladeNr) return;                 // eine neuere Anfrage läuft schon
       items = (res && res.items) || [];
+      const z = document.getElementById("rz-tw-zahl");
+      if (z) z.textContent = (res && res.total != null && res.total > items.length)
+        ? T("archiv.waehlen_zahl", "{n} von {ges}").replace("{n}", items.length).replace("{ges}", res.total) : "";
     } catch (e) { items = []; console.warn("library_query:", e); }
     binden();
+  };
+  const filterFuellen = async () => {
+    const setz = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+    try {
+      const st = await api().library_stats({});
+      const jahre = ((st && st.years) || []).slice().reverse();
+      setz("rz-tw-jahr", `<option value="0">${esc(T("library.all_years", "Alle Jahre"))}</option>`
+        + jahre.map(y => `<option value="${+y.year}">${+y.year} (${y.n || 0})</option>`).join(""));
+      const arten = ((st && st.activities) || []).filter(a => a && a.activity);
+      setz("rz-tw-art", `<option value="">${esc(T("library.all_activities", "Alle Arten"))}</option>`
+        + arten.map(a => `<option value="${esc(a.activity)}">${esc(T("library.act." + a.activity, a.activity))} (${a.n || 0})</option>`).join(""));
+    } catch (e) { console.warn("library_stats:", e); }
+    try {
+      const r = await api().library_collections();
+      const cs = (r && r.collections) || [];
+      const sel = document.getElementById("rz-tw-sammlung");
+      if (sel) {
+        sel.innerHTML = `<option value="0">${esc(T("archiv.waehlen_alle", "Ganzes Archiv"))}</option>`
+          + cs.map(c => `<option value="${+c.id}">${esc(c.name)}${c.n != null ? ` (${c.n})` : ""}</option>`).join("");
+        sel.hidden = !cs.length;
+      }
+    } catch (e) { console.warn("library_collections:", e); }
+  };
+  const filterBinden = () => {
+    const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el[ev] = fn; };
+    on("rz-tw-sammlung", "onchange", (e) => { filter.collection_id = +e.target.value || 0; laden(); });
+    on("rz-tw-jahr", "onchange", (e) => { filter.year = +e.target.value || 0; laden(); });
+    on("rz-tw-art", "onchange", (e) => { filter.activity = e.target.value || ""; laden(); });
+    on("rz-tw-sort", "onchange", (e) => { filter.sort = e.target.value || "date_desc"; laden(); });
+    on("rz-tw-fav", "onchange", (e) => { filter.fav_only = !!e.target.checked; laden(); });
+    const km = debounce(() => {
+      const a = parseFloat((document.getElementById("rz-tw-kmmin") || {}).value);
+      const b = parseFloat((document.getElementById("rz-tw-kmmax") || {}).value);
+      filter.min_km = isFinite(a) ? a : null; filter.max_km = isFinite(b) ? b : null; laden();
+    }, 300);
+    on("rz-tw-kmmin", "oninput", km); on("rz-tw-kmmax", "oninput", km);
   };
   return new Promise((resolve) => {
     let fertig = false;
     const ende = (pfade) => { if (fertig) return; fertig = true; try { if (_beobachter) _beobachter.disconnect(); } catch (_) {} try { m.close(); } catch (_) {} resolve(pfade); };
     const m = openModal({
       title: "➕ " + (o.titel || T("library.proj_addtours", "Touren aus dem Archiv hinzufügen")),
-      body: `<input type="search" id="rz-tw-such" class="lib-input" placeholder="${esc(T("library.search_ph", "Suchen — Name, Gegend, Schlagwort, Notiz …"))}" style="margin-bottom:8px; width:100%; box-sizing:border-box;">
+      body: `<div class="rz-tw-filter">
+               <input type="search" id="rz-tw-such" class="lib-input rz-tw-such" placeholder="${esc(T("library.search_ph", "Suchen — Name, Gegend, Schlagwort, Notiz …"))}">
+               <select id="rz-tw-sammlung" class="lib-select" title="${esc(T("archiv.waehlen_sammlung_tip", "Nur Touren dieser Sammlung — in ihrer Reihenfolge"))}" hidden></select>
+               <select id="rz-tw-jahr" class="lib-select"></select>
+               <select id="rz-tw-art" class="lib-select"></select>
+               <span class="lib-km" title="${esc(T("library.km_range_tip", "Nur Touren in diesem Längenbereich"))}">
+                 <input type="number" id="rz-tw-kmmin" class="lib-kmfield" min="0" step="1" placeholder="${esc(T("library.km_from", "ab km"))}">
+                 <span class="lib-km-dash">–</span>
+                 <input type="number" id="rz-tw-kmmax" class="lib-kmfield" min="0" step="1" placeholder="${esc(T("library.km_to", "bis km"))}">
+               </span>
+               <select id="rz-tw-sort" class="lib-select">
+                 <option value="date_desc">${esc(T("library.sort.date_desc", "Neueste zuerst"))}</option>
+                 <option value="date_asc">${esc(T("library.sort.date_asc", "Älteste zuerst"))}</option>
+                 <option value="dist_desc">${esc(T("library.sort.dist_desc", "Längste zuerst"))}</option>
+                 <option value="dist_asc">${esc(T("library.sort.dist_asc", "Kürzeste zuerst"))}</option>
+               </select>
+               <label class="rz-tw-fav" title="${esc(T("archiv.waehlen_fav_tip", "Nur Favoriten"))}"><input type="checkbox" id="rz-tw-fav"> ♥</label>
+               <span class="muted rz-tw-zahl" id="rz-tw-zahl"></span>
+             </div>
              <div class="rz-tw-liste" id="rz-tw-liste"></div>
              <p class="muted" style="font-size:11px; margin:8px 0 0;">${esc(T("archiv.waehlen_import_hinweis", "Nicht im Archiv? „Datei importieren …“ nimmt die Datei ins Archiv auf und hakt sie gleich an."))}</p>`,
       footer: `<button class="btn" id="rz-tw-import" style="margin-right:auto;">${esc(T("archiv.waehlen_import", "Datei importieren …"))}</button>
@@ -3529,6 +3605,8 @@ async function rzArchivTourenWaehlen(opts) {
                <button class="btn btn-primary" id="rz-tw-ok">${esc(o.okText || T("library.proj_addtours_ok", "Hinzufügen"))}</button>`,
       onClose: () => ende([]),
     });
+    filterBinden();
+    filterFuellen();
     laden("");
     const such = document.getElementById("rz-tw-such");
     if (such) { such.oninput = debounce(() => laden(such.value.trim()), 300); try { such.focus(); } catch (_) {} }

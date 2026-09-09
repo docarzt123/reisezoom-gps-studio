@@ -350,7 +350,8 @@ und darunter ihre Bedienung:
 
 > **Weitere Touren zu einem offenen Projekt** kommen auf zwei Wegen dazu: unten in
 > dieser Sektion über **„Tour hinzufügen"**, das eine Auswahl aus dem **Archiv**
-> öffnet (mit Vorschaubild, Datum und Kilometern; Suche, mehrere anhaken, schon geladene sind ausgegraut), oder im Archiv
+> öffnet (mit Vorschaubild, Datum und Kilometern; Suche und Filter wie im Archiv:
+> Sammlung, Jahr, Art, Länge, Sortierung, Favoriten; mehrere anhaken, schon geladene sind ausgegraut), oder im Archiv
 > Touren markieren und an den Animator übergeben, während das Projekt offen ist.
 > Liegt eine Tour noch nicht im Archiv, nimmt **„Datei importieren …"** in der
 > Auswahl sie erst ins Archiv auf und hakt sie gleich an (auch FIT, KML und Co.).

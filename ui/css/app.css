@@ -3016,7 +3016,12 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .rz-map-banner-ico { flex-shrink: 0; }
 
 /* Touren aus dem Archiv auswählen (rzArchivTourenWaehlen, 09.09.2026) */
-.rz-tw-liste { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.rz-tw-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.rz-tw-filter .rz-tw-such { flex: 1 1 100%; box-sizing: border-box; }
+.rz-tw-filter .lib-select { max-width: 180px; }
+.rz-tw-fav { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; }
+.rz-tw-zahl { font-size: 11px; margin-left: auto; }
+.rz-tw-liste { max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .rz-tw-zeile { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
 .rz-tw-zeile:hover { background: var(--bg-3); }
 .rz-tw-zeile.ist-drin { opacity: .5; cursor: default; }
