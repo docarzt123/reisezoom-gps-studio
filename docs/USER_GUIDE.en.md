@@ -267,6 +267,48 @@ fine-tuning for later. Chapter 3 explains it at leisure.
 > **Rule of thumb:** preview run first, render second. The preview run shows in seconds what the
 > render produces in minutes.
 
+### The speed lane — holding and slowing down
+
+Below the map lies a narrow lane labelled **⏱ Speed**. The idea behind it is simple:
+**your video is a sped-up version of your tour.** A base speed-up says how much — "140
+times real time", or for tours without timestamps "so many kilometres per second of
+video". The length of the video follows from it. The line right under the lane keeps
+telling you: the speed-up, the total length, and how much of it is track and how much
+standing still.
+
+The lane sits **above** the keyframe lanes and is **tiled without gaps** — like the
+retime editor in Final Cut above a clip. Each tile says what applies there and for how
+long: "1.0× 6.0 s" for the base speed-up, "⏸ 4.0 s" for a hold. So you see at a glance
+what lies where.
+
+You put two things into the lane:
+
+- **Hold** — **double-click on free space** (or right-click → "Hold here"). The track
+  stays at this spot while the video runs on. A hold **lengthens** the video by its
+  seconds. In the editor (double-click the hold) you set how long it holds and what the
+  camera does meanwhile: stand still (then your keyframes apply) or slowly orbit the spot.
+- **Section** — drag from left to right. This part of the track runs at its own factor
+  against the base. **0.5× means half as fast** — and therefore needs twice the video time.
+
+A **single click** creates nothing, it only moves the scrubber — so no holds appear by
+accident. Drag a hold at its **edges** to make it longer or shorter; the tile grows with
+you right away, and the line under the lane shows the seconds as you go. **Right-click**
+opens a small menu: on an entry **Open** and **Delete**, on free space **Hold here** or
+**Slower section here**.
+
+**Every entry is drawn as wide as it lasts in the video.** A five-second hold in a
+22-second video is nearly a quarter of the bar — so you see directly how much time it
+costs. Hatched, dashed bands come from other settings and cannot be touched here:
+**lead-in** and **hold** from the video settings, and for a journey the **transitions**
+between the stages.
+
+If you instead type a wanted length into **"Animation (s)"**, the program recomputes the
+base speed-up to match — holds included. "Make it 20 seconds" really gives 20 seconds.
+
+> **With several stages** (arrangement "in sequence") the lane is locked and only
+> displays: there the **stage lengths and transitions** make the schedule, see the next
+> section.
+
 ### Groups in the timeline — in sequence, in parallel, or both (since v0.9.679)
 
 As soon as two or more tours are in the project, the speed lane above the timeline becomes

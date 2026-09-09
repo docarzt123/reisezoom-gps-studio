@@ -302,16 +302,19 @@ einen Blick, was wo liegt.
 
 In die Spur legen Sie zwei Dinge:
 
-- **Halt** — kurz klicken. Die Strecke bleibt an dieser Stelle stehen, das Video läuft
-  weiter. Ein Halt **verlängert** das Video um seine Sekunden. Im Editor (Doppelklick)
+- **Halt** — **Doppelklick auf freie Fläche** (oder Rechtsklick → „Halt hier"). Die
+  Strecke bleibt an dieser Stelle stehen, das Video läuft weiter. Ein Halt **verlängert** das Video um seine Sekunden. Im Editor (Doppelklick)
   stellen Sie ein, wie lange gehalten wird und was die Kamera dabei macht: still stehen
   (dann gelten Ihre Keyframes) oder sich langsam um die Stelle drehen.
 - **Abschnitt** — von links nach rechts ziehen. Dieser Teil der Strecke läuft mit einem
   eigenen Faktor gegen die Grundraffung. **0,5× heißt halb so schnell** — und braucht
   darum doppelt so viel Videozeit.
 
-Einen Halt ziehen Sie an seinen **Rändern** länger und kürzer; die Zeile unter der Spur
-zeigt dabei laufend die Sekunden. Rechtsklick entfernt einen Eintrag wieder.
+Ein **einfacher Klick** legt nichts an, er setzt nur den Scrubber — so entstehen keine
+Pausen aus Versehen. Einen Halt ziehen Sie an seinen **Rändern** länger und kürzer; die
+Kachel wächst dabei sofort mit, und die Zeile unter der Spur zeigt laufend die Sekunden.
+**Rechtsklick** öffnet ein kleines Menü: auf einem Eintrag **Öffnen** und **Löschen**, auf
+freier Fläche **Halt hier** oder **langsamer Abschnitt hier**.
 
 **Jeder Eintrag ist so breit gezeichnet, wie er im Video dauert.** Ein Halt von fünf
 Sekunden ist in einem 22-Sekunden-Video knapp ein Viertel der Leiste — Sie sehen also

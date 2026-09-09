@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Speed lane: a single click no longer creates a two-second hold — it only moves the scrubber. A hold now comes from a double-click on free space or the right-click menu; drag still creates a section. Right-click opens a small menu everywhere in the lane: Open and Delete on an entry, "Hold here" and "Slower section here" on free space, Open on a group tile. Dragging a hold at its edge now grows the tile immediately instead of waiting for the recomputed curve. — Tempo-Spur: Klick legt keinen Halt mehr an (Doppelklick oder Menü), Rechtsklick-Menü, Halt wächst beim Ziehen sofort mit.
+
 ### Added
 - A speed lane in the timeline. Everything in it is one idea: the video is a sped-up version of the tour. The base is a factor — 140 times real time, or so many kilometres per second of video when the tour has no timestamps — and the length follows from it. On top sit two kinds of entries, both anchored to the track like keyframes: a hold, where the track stands still for its seconds while the video runs on, and a section that runs at a factor against the base, so half speed needs twice the video time. Drag in the lane creates a section, a click creates a hold, double-click opens it, right-click deletes. A hold can slowly orbit the spot, or stay put and leave the camera to your keyframes. A line in the sidebar says what comes out: the factor, the total, and how much of it is track and how much standing. Typing a length recomputes the factor, holds included, so "make it 20 seconds" lands on 20 seconds. — Neue Tempo-Spur: Halte und langsame Abschnitte, alles als Raffung der Tour gedacht.
 - Journeys: the stages can be sorted by date or by name, or their order reversed — with fifteen stages the arrow buttons alone are no ordering. — Etappen lassen sich nach Datum oder Name sortieren.

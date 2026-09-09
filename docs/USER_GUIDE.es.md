@@ -268,6 +268,50 @@ fotogramas clave — es afinado para más adelante. El capítulo 3 lo explica co
 > **Regla práctica:** primero la prueba, luego el renderizado. La prueba muestra en segundos lo
 > que el renderizado produce en minutos.
 
+### El carril de ritmo — detenerse y ralentizar
+
+Bajo el mapa hay un carril estrecho con la etiqueta **⏱ Ritmo**. La idea es simple: **tu
+vídeo es una versión acelerada de tu ruta.** Una aceleración base dice cuánto — «140 veces
+el tiempo real», o en rutas sin marcas de tiempo «tantos kilómetros por segundo de
+vídeo». La duración del vídeo resulta de ahí. La línea justo bajo el carril te lo va
+diciendo: la aceleración, la duración total y cuánto de ella es recorrido y cuánto parada.
+
+El carril está **encima** de los carriles de keyframes y está **embaldosado sin huecos**
+— como el editor de velocidad de Final Cut sobre un clip. Cada baldosa dice qué rige ahí y
+cuánto dura: «1,0× 6,0 s» para la aceleración base, «⏸ 4,0 s» para una parada. Así ves de
+un vistazo qué hay dónde.
+
+En el carril pones dos cosas:
+
+- **Parada** — **doble clic en espacio libre** (o clic derecho → «Parada aquí»). La ruta
+  se queda en ese punto mientras el vídeo sigue. Una parada **alarga** el vídeo en sus
+  segundos. En el editor (doble clic en la parada) ajustas cuánto se detiene y qué hace la
+  cámara mientras tanto: quedarse quieta (entonces valen tus keyframes) o girar despacio
+  alrededor del punto.
+- **Tramo** — arrastra de izquierda a derecha. Esta parte de la ruta corre con su propio
+  factor frente a la base. **0,5× significa la mitad de rápido** — y por eso necesita el
+  doble de tiempo de vídeo.
+
+Un **clic simple** no crea nada, solo mueve el scrubber — así no aparecen pausas por
+descuido. Una parada se estira o acorta por sus **bordes**; la baldosa crece contigo al
+instante y la línea bajo el carril muestra los segundos mientras arrastras. El **clic
+derecho** abre un pequeño menú: sobre una entrada **Abrir** y **Borrar**, en espacio libre
+**Parada aquí** o **Tramo más lento aquí**.
+
+**Cada entrada se dibuja tan ancha como dura en el vídeo.** Una parada de cinco segundos
+en un vídeo de 22 segundos es casi un cuarto de la barra — ves directamente cuánto tiempo
+cuesta. Las bandas rayadas y discontinuas vienen de otros ajustes y aquí no se pueden
+tocar: **arranque** y **cierre** de los ajustes de vídeo, y en un viaje además las
+**transiciones** entre etapas.
+
+Si en cambio escribes una duración deseada en **«Animación (s)»**, el programa recalcula la
+aceleración base para que cuadre — paradas incluidas. «Hazlo de 20 segundos» da de verdad
+20 segundos.
+
+> **Con varias etapas** (disposición «en secuencia») el carril está bloqueado y solo
+> muestra: ahí las **duraciones de etapa y las transiciones** hacen el plan, ver la
+> sección siguiente.
+
 ### Grupos en la línea de tiempo — en secuencia, en paralelo o ambos (desde v0.9.679)
 
 En cuanto hay dos o más rutas en el proyecto, la pista de tempo sobre la línea de tiempo se
