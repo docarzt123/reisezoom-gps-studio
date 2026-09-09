@@ -325,7 +325,7 @@ base speed-up to match — holds included. "Make it 20 seconds" really gives 20 
 
 More tours join an open project in two ways: at the bottom of the **"Multiple
 tours"** section in the sidebar via **"Add tour"**, which opens a picker from the
-**archive** (search, tick several, tours already loaded are greyed out), or by
+**archive** (thumbnail, date and kilometres per tour; search, tick several, tours already loaded are greyed out), or by
 selecting tours in the archive and handing them to the animator while the project
 is open. If a tour is not in the archive yet, **"Import file …"** in the picker
 adds it to the archive first and ticks it right away (FIT, KML and the like
