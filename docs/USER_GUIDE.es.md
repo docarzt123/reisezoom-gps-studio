@@ -1725,9 +1725,12 @@ A veces una ruta solo se entiende en su contexto: el sendero oficial, tu
 planificación y lo que al final caminaste. Para eso está la sección
 **👻 Trazas fantasma** en el animador.
 
-Añade tantos tracks como necesites — **📚 Desde el archivo** (marca allí las
-rutas y elige «👻 Como traza fantasma en el animador») o **📂 Archivo**. Cada
-traza se ajusta por separado: color, opacidad, grosor de línea y discontinua o
+Añade tantos tracks como necesites: **＋ Añadir ruta fantasma …** abre el selector
+del **archivo** (búsqueda, marcar varias; la ruta principal y las trazas ya
+presentes aparecen atenuadas). Si un archivo aún no está en el archivo,
+**«Importar archivo …»** en el selector lo añade primero y lo marca. Al revés
+también: en el archivo cada ruta ofrece «👻 Como traza fantasma en el animador».
+Cada traza se ajusta por separado: color, opacidad, grosor de línea y discontinua o
 continua. La casilla de la izquierda oculta una traza sin borrarla.
 
 Un montaje típico: el sendero oficial marcado y continuo, las circulares

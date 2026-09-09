@@ -4295,7 +4295,7 @@ hinzufügt, bekommt KEINEN Dateidialog, sondern die Auswahl aus dem Archiv:
 `library_query`, schon geladene Pfade stehen ausgegraut, „Datei importieren …"
 ruft `library_import_files()` (gibt seit 0.9.682 `pfade` zurück), zeigt das
 Importierte oben in der Liste und hakt es an, dann `library_scan_start`.
-Benutzt vom Animator (`_animAddTour`). Das Archiv-Modul hat bei `[data-addtours]`
+Benutzt vom Animator (`_animAddTour`, Ghost-Spuren), vom Inspektor („Tracks verbinden", `einzel`), von der Web-Karte und von `pickGpx` in `ui/js/gpx-bar.js` („Tour öffnen", `einzel`, auch das macOS-Menü). Das Archiv-Modul hat bei `[data-addtours]`
 noch seine ältere eigene Fassung (Projekt-Kachel → Touren setzen) — bei der
 nächsten Änderung dort auf die gemeinsame umstellen. Wächter:
 `tests/test_touren_sektion_sichtbar.py`.

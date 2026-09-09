@@ -1709,14 +1709,14 @@ Sometimes a tour only makes sense in context: the official trail, your plan, and
 what you actually walked. That is what the **👻 Ghost tracks** section in the
 animator is for.
 
-Add as many tracks as you need — **📚 From the archive** or **📂 File**.
+Add as many tracks as you need: **＋ Add ghost track …** opens the picker from the
+**archive** (search, tick several; the main track and existing ghosts are greyed
+out). If a file is not in the archive yet, **"Import file …"** in the picker adds
+it there first and ticks it.
 
-> **The archive route:** via **📚 From the archive …** the library turns into a
-> **pure picker** — a bar at the top says what is being asked for, and the
-> selected tour offers only **👻 Use as ghost track** (a double-click does it
-> too). "Open in animator" and the other tools are hidden meanwhile, so a tour
-> can't accidentally become your main track. Several at once: mark them with
-> ⌘/Ctrl-click. **Cancel** returns the library to normal.
+> **The other way round works too:** while browsing the archive, every tour
+> offers **👻 Use as ghost track** (also in the map popup). Several at once: mark
+> them with ⌘/Ctrl-click.
 
 Each track is set up on its own: colour, opacity, line width, and dashed or
 solid. The checkbox on the left hides a track without deleting it.

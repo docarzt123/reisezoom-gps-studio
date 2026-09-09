@@ -335,10 +335,10 @@ function mountAnimator(body, headerActions, opts) {
                style="font-size:11px; margin-top:2px; margin-bottom:8px; line-height:1.45;">
             ${t("ghosts.intro", "Weitere Tracks als schwache Linien im Hintergrund — etwa der offizielle Weg oder deine Planungen. Jede Spur bekommt ihr eigenes Aussehen. Die Reihenfolge bestimmt, was oben liegt: Die unterste Spur wird zuletzt gezeichnet und deckt die darüber ab — mit dem Griff ⠿ verschieben.")}
           </div>
-          <div class="row-2">
-            <button class="btn btn-sm" id="ghosts-add-archive" type="button">📚 ${t("ghosts.add_archive", "Aus dem Archiv …")}</button>
-            <button class="btn btn-sm" id="ghosts-add-file" type="button">📂 ${t("ghosts.add_file", "Datei …")}</button>
-          </div>
+          <!-- 09.09.2026 (Marc: „der Dialog soll auch beim Ghost usw. kommen"):
+               EIN Knopf, die Archiv-Auswahl; Dateien von außerhalb importiert
+               man dort („Datei importieren …"). -->
+          <button class="btn btn-sm" id="ghosts-add-archive" type="button" style="width:100%;">＋ ${t("ghosts.add_archive", "Ghost-Spur hinzufügen …")}</button>
           <div id="ghosts-list"></div>
         </div>
       </section>
@@ -1538,38 +1538,29 @@ function mountAnimator(body, headerActions, opts) {
 
   // 27.08.2026 — Ghost-Spuren: Knöpfe binden und gespeicherte Spuren anzeigen.
   {
-    const ausDatei = document.getElementById("ghosts-add-file");
-    if (ausDatei) {
-      // ⚠️ `knopfBeschaeftigt(id, textKey, fallback)` nimmt eine ID und gibt die
-      // Aufräum-Funktion zurück — es FÜHRT NICHTS AUS. Mit einem Callback als
-      // zweitem Argument lief der Rumpf nie (im Oberflächentest aufgefallen:
-      // Klick „lief durch", aber nichts passierte). Muster wie im Geotagger.
-      ausDatei.onclick = async () => {
-        const frei = knopfBeschaeftigt("ghosts-add-file", "ghosts.busy", "Lade …");
+    const ausArchiv = document.getElementById("ghosts-add-archive");
+    if (ausArchiv) {
+      ausArchiv.onclick = async () => {
+        if (typeof window.rzArchivTourenWaehlen !== "function") return;
+        const drin = [currentGpx].concat((window.__rzGhostSpuren ? window.__rzGhostSpuren() : []).map(g => g.path || g.gpx_path)).filter(Boolean);
+        let pfade = [];
+        try { pfade = await window.rzArchivTourenWaehlen({ ausschliessen: drin, titel: t("ghosts.pick_titel", "Ghost-Spuren aus dem Archiv") }); }
+        catch (e) { applog && applog("warn", "[ghost] Archiv-Auswahl: " + e); return; }
+        if (!pfade || !pfade.length) return;
+        const frei = knopfBeschaeftigt("ghosts-add-archive", "ghosts.busy", "Lade …");
         try {
-          const res = await api().ghosts_laden(null, true);
+          const res = await api().ghosts_laden(pfade, false);
           applog && applog("info", `[ghost] Brücke: ok=${res && res.ok} n=${(res && res.ghosts || []).length}`);
           if (!res || !res.ok) { toast((res && res.error) || t("ghosts.load_failed", "Konnte nicht geladen werden."), "error"); return; }
-          if (res.cancelled) return;
           await _ghostsHinzufuegen(res.ghosts);
           if ((res.fehler || []).length) {
             toast(t("ghosts.partly", "{n} Datei(en) konnten nicht gelesen werden.")
               .replace("{n}", res.fehler.length), "warn", 6000);
           }
         } catch (e) {
-          applog && applog("error", `[ghost] Datei-Auswahl: ${e}`);
+          applog && applog("error", `[ghost] Archiv-Auswahl: ${e}`);
           toast(t("ghosts.load_failed", "Konnte nicht geladen werden."), "error");
         } finally { if (frei) frei(); }
-      };
-    }
-    const ausArchiv = document.getElementById("ghosts-add-archive");
-    if (ausArchiv) {
-      ausArchiv.onclick = () => {
-        // Im Archiv markiert man die Touren und schickt sie über
-        // „Als Ghost übernehmen" zurück (window.__rzPendingGhosts).
-        window.__rzGhostAuswahl = true;
-        toast(t("ghosts.pick_hint", "Im Archiv die Tour anklicken und rechts „👻 Als Ghost-Spur übernehmen“ wählen — NICHT „Im Animator öffnen“, das würde den Haupt-Track ersetzen."), "info", 9000);
-        if (typeof switchMod === "function") switchMod("library");
       };
     }
     // ⚠️ NICHT still schlucken: Ein Fehler hier heißt, dass gespeicherte

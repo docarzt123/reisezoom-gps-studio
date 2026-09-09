@@ -2805,7 +2805,13 @@ function mountGpxInspect(body, headerActions) {
     const note = document.getElementById("gpxi-join-note");
     let files;
     try {
-      files = await api().pick_file("open", window.TRACK_PICK_FILTER || [], false);
+      // 09.09.2026 — aus dem Archiv wählen (Datei von außerhalb: dort importieren).
+      if (typeof window.rzArchivTourenWaehlen === "function") {
+        files = await window.rzArchivTourenWaehlen({ einzel: true,
+          titel: t("gpxinspect.join_pick", "Track zum Verbinden wählen"), okText: t("gpxinspect.join_ok", "Verbinden") });
+      } else {
+        files = await api().pick_file("open", window.TRACK_PICK_FILTER || [], false);
+      }
     } catch (_) { files = null; }
     const path = files && files.length ? files[0] : null;
     if (!path) return;   // abgebrochen
