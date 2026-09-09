@@ -13863,6 +13863,18 @@ function mountAnimator(body, headerActions, opts) {
     _reiseBasisEle = res.elevations || null;
     _reiseBahn = null;
     try { _gruppenSync(); _gruppenAbleiten(); } catch (_) {}
+    // 09.09.2026 (Marc: „müssten da nicht 2 Tracks unter Tracks stehen?"): Die
+    // Liste war beim Projektstart gezeichnet worden, BEVOR der Haupt-Track da
+    // war (die Sitzungs-Benachrichtigung lädt die Etappen, applyGlobalGpx kommt
+    // danach) — Eintrag 1 fehlte, die Etappenfelder auch, und nichts zeichnete
+    // sie nach. Jetzt: hat sich Haupt-Track, Etappenzahl oder Gruppenzahl seit
+    // dem letzten Zeichnen geändert, wird die Liste hier nachgezogen.
+    try {
+      const sig = `${currentGpx}|${_extraTours.length}|${_gruppen.length}`;
+      const hostL = document.getElementById("anim-tours-list");
+      const fehltEintrag1 = !!(currentGpx && hostL && !hostL.querySelector(".anim-etappe-erste"));
+      if (sig !== _toursListeSignatur || fehltEintrag1) _animRenderToursList();
+    } catch (_) {}
     if (_reiseGilt()) { try { _reiseAnwenden(); } catch (e) { applog("warn", "[reise] " + e); } }
     currentBbox = res.bbox;
     try { _refreshStyleForTrack(); } catch (_) {}   // 03.09.2026 — Land für „Satellit (kostenlos)"
@@ -14238,8 +14250,10 @@ function mountAnimator(body, headerActions, opts) {
     ));
   }
 
+  let _toursListeSignatur = "";
   function _animRenderToursList() {
     try { _gruppenSync(); } catch (_) {}
+    _toursListeSignatur = `${currentGpx}|${_extraTours.length}|${_gruppen.length}`;
     // Die Kopfzeile zeigt die Zahlen der Haupt-Tour — sie soll wenigstens
     // sagen, dass noch weitere dazugehören (02.09.2026, Beta-Tester-Frage).
     try { if (typeof window.rzGpxBarExtras === "function") window.rzGpxBarExtras(_extraTours.length); } catch (_) {}
@@ -15505,6 +15519,10 @@ function mountAnimator(body, headerActions, opts) {
     window.__rzGruppenAnordnen = (art) => { _gruppenAnordnen(art); return window.__rzGruppen(); };
     window.__rzGruppenStapeln = (id, delta) => { _gruppenStapeln(id, delta); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppenZeile = (id, ziel) => { _gruppenZeileWechseln(id, ziel); _gruppenNeu(); return window.__rzGruppen(); };
+    window.__rzDrawPreview = () => {   // Prüfstand: die Vorschau mit dem geladenen Track neu zeichnen (wie ein Reload)
+      const _p = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : null;
+      const _d = (typeof getGlobalGpxData === "function") ? getGlobalGpxData() : null;
+      if (_p && _d) applyGlobalGpx(_p, _d); return !!(_p && _d); };
     window.__rzGruppenZusammen = (vonId, inId) => { _gruppenZusammenlegen(vonId, inId); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppenLoesen = (gpx) => { _gruppenLoesen(gpx); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppeOeffnen = (id) => _gruppeOeffnen(id);
