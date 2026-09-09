@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.684] – 2026-09-09
+
+### Fixed
+- Track panel: the spacing label used a translation key that did not exist, so English and Spanish showed the German fallback; the deploy gate caught it. Uses the existing "line_style_spacing" key now. — Abstand-Feld im Track-Panel mit vorhandenem Schlüssel (Deploy-Gate).
+
 ## [0.9.683] – 2026-09-09
 
 ### Added
