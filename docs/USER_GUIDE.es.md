@@ -328,7 +328,8 @@ aceleración base para que cuadre — paradas incluidas. «Hazlo de 20 segundos�
 
 A un proyecto abierto se le añaden rutas de dos formas: abajo en la sección
 **«Varias rutas»** de la barra lateral con **«Añadir ruta»**, que abre un selector
-del **archivo** (con miniatura, fecha y kilómetros; búsqueda, marcar varias, las ya cargadas aparecen atenuadas), o
+del **archivo** (con miniatura, fecha y kilómetros; búsqueda y filtros como en el archivo:
+colección, año, tipo, longitud, orden, favoritas; marcar varias, las ya cargadas aparecen atenuadas), o
 marcando rutas en el archivo y pasándolas al animador con el proyecto abierto. Si
 una ruta aún no está en el archivo, **«Importar archivo …»** en el selector la
 añade primero al archivo y la marca al momento (también FIT, KML y similares). La sección está

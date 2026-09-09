@@ -4291,8 +4291,9 @@ derselben Position in der App.
 Marc: „bei uns ist die Wahrheit das Archiv der Touren." Wer einem Projekt Touren
 hinzufügt, bekommt KEINEN Dateidialog, sondern die Auswahl aus dem Archiv:
 `await rzArchivTourenWaehlen({ ausschliessen: [pfade…], titel })` in
-`ui/js/util.js` liefert die gewählten Pfade (leer bei Abbrechen). Suche über
-`library_query`, Vorschaubilder je sichtbarer Zeile gebündelt über `library_thumbs`
+`ui/js/util.js` liefert die gewählten Pfade (leer bei Abbrechen). Suche und Filter über
+`library_query` (Sammlung → `collection_id` + `sort: "collection"`, Jahr, Art, km, Sortierung,
+`fav_only`; Listen aus `library_stats` und `library_collections`), Vorschaubilder je sichtbarer Zeile gebündelt über `library_thumbs`
 (IntersectionObserver, 120 je Anfrage — nie alle 300 auf einmal, das wären 8 MB), schon geladene Pfade stehen ausgegraut, „Datei importieren …"
 ruft `library_import_files()` (gibt seit 0.9.682 `pfade` zurück), zeigt das
 Importierte oben in der Liste und hakt es an, dann `library_scan_start`.
