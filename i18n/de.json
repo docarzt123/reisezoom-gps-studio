@@ -3050,5 +3050,13 @@
   "animator.anordnung.uhrzeit": "echte Uhrzeit",
   "animator.anordnung.uhrzeit_tip": "Wie aufgezeichnet: die Dauer jeder Gruppe folgt ihrer echten Zeit, der Start ihrer Uhrzeit",
   "animator.anordnung.uhrzeit_ohne": "Ohne Uhrzeiten in den Touren starten alle bei 0 — die Dauer folgt der echten Zeit.",
-  "animator.tempo.gruppen_hinweis": "Der Zeitplan kommt aus den Gruppen: Kachel ziehen verschiebt sie in der Zeit, die Ränder ändern ihre Länge, Doppelklick öffnet sie."
+  "animator.tempo.gruppen_hinweis": "Der Zeitplan kommt aus den Gruppen: Kachel ziehen verschiebt sie in der Zeit, die Ränder ändern ihre Länge, Doppelklick öffnet sie.",
+  "animator.stil.alle": "Aussehen auf alle übernehmen …",
+  "animator.stil.toggle": "Aussehen dieses Tracks",
+  "animator.stil.reduce": "Punkte",
+  "animator.stil.stil_abstand": "Stil + Abstand",
+  "animator.stil.quelle": "Von welchem Track?",
+  "animator.stil.was": "Was übernehmen?",
+  "animator.stil.ok": "Übernehmen",
+  "animator.section.tours_hint": "Jeder Track hat sein eigenes Aussehen: ▸ am Eintrag öffnet Dicke, Stil, Schatten, Glow und Punktreduzierung."
 }

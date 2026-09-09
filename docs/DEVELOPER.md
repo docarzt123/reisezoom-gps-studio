@@ -812,6 +812,29 @@ Wächter: `tests/test_spuren_modell.py`, `test_spuren_js_vs_py.py`, `test_gruppe
 `test_gruppen_leiste.py`, `test_gruppen_projekt.py` (echte Brücke), `test_keyframe_paar.py`,
 dazu die älteren `test_reise_dauer_vorschau.py`, `test_etappen_*`, `test_tempo_reise_wechsel.py`.
 
+### Aussehen je Track (seit 09.09.2026, v0.9.683)
+
+Die Sektion „Linie" ist `hidden`, ihre Felder (`#anim-lw`, `#anim-line-style`,
+`#anim-line-spacing`, `#anim-shadow-strength`, `#anim-glow-strength`, `#anim-pointcount`,
+`#anim-color`) bleiben der **Speicher für Track 1** — daran hängen `bindSetting`, der
+Render und alle `applyXxxToLayers`. Jede Zusatz-Tour trägt `stil = {width, line_style,
+spacing, shadow, glow, reduce_pct}` (persistiert in `extra_tours[i].stil`; fehlt ein Feld,
+gilt Track 1). Helfer in `modules/animator/ui/module.js`: `_stilVonHaupt()`,
+`_stilSetzenHaupt(patch)` (schreibt in die alten Felder und feuert input/change),
+`_stilVon(tour|"haupt")` (wirksamer Stil), `_stilSetzen(ziel, patch)`,
+`_dashFuerStil(st, layerW)` (Spiegel von `currentDasharray`), `_tourGeduennt(tr)`
+(Punktreduzierung mit Höhen/Zeiten im Gleichschritt, gemerkt in `tr.__duenn`).
+
+Vorschau: `_animDrawExtraToursPreview` legt je Kettenetappe ≥ 1 Ebenen
+`mtour-prev-{shadow,glow,line,hl}-<k>` mit dem Stil der Etappe an (Aufräumen per Präfix
+`mtour-prev-`); die Schwarm-Ebene `swarm-prev-lines` liest die Breite datengetrieben
+(`["get","width"]`). Render: die Kette läuft über die Szene (= dieselbe Oberfläche), der
+Schwarm über `core/animator.py` (`SCHWARM_WIDTHS`, Punktreduzierung in
+`_schwarm_touren_vorbereiten`); `app.py` reicht `tracks[i].stil` durch. Bewusste
+Ausnahme: der Farbverlauf („Mehrere Track-Farben") bleibt Track-1-only. UI: Panel je
+Eintrag (`_stilPanelBauen`, offen gemerkt in `_stilOffen`), Dialog
+`_stilAlleDialog` über `openModal`. Wächter: `tests/test_track_stil.py`.
+
 ### Reise: der Zeitplan gehört den Etappen (seit 08.09.2026) — abgelöst durch die Gruppen (oben), Regeln gelten weiter
 
 Eine Reise (`_reiseGilt()`: Ablauf ≠ Schwarm, mindestens eine Zusatztour, erste

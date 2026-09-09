@@ -323,7 +323,7 @@ base speed-up to match — holds included. "Make it 20 seconds" really gives 20 
 
 ### Adding tours to an open project
 
-More tours join an open project in two ways: at the bottom of the **"Tracks"** section (below "Line"; every track is an entry there, colour included, the first one too) in the sidebar via **"Add tour"**, which opens a picker from the
+More tours join an open project in two ways: at the bottom of the **"Tracks"** section (right below the map; every track is an entry there, colour included, the first one too) in the sidebar via **"Add tour"**, which opens a picker from the
 **archive** (thumbnail, date and kilometres per tour; search and filters as in the archive:
 collection, year, activity, length, sort, favourites; tick several, tours already loaded are greyed out), or by
 selecting tours in the archive and handing them to the animator while the project
@@ -332,6 +332,18 @@ adds it to the archive first and ticks it right away (FIT, KML and the like
 included). The section
 is there even with a single tour since v0.9.682. Every tour becomes a
 group at the end of the chain; drag it in the timeline to place it elsewhere.
+
+### The look of each track (since v0.9.683)
+
+Every entry under **"Tracks"** has a **▸** that opens the look of **this** track: width,
+line style (solid, dashed, dotted, dash-dot, tube) with spacing, shadow, glow and the
+point reduction in percent. The separate "Line" section is gone; a new track copies
+track 1's look when added. **"Apply look to all tracks …"** below the list copies from a
+chosen track to all others, only the ticked fields (width, style + spacing, shadow, glow,
+points; colour is unticked by default). The running dot applies to all tracks and sits at
+the top of "Tracks"; pace mode and pauses are time, not look, and live in the video
+settings. *(Multiple track colours, the gradient by elevation or speed, still applies to
+track 1 only.)*
 
 ### Groups in the timeline — in sequence, in parallel, or both (since v0.9.679)
 

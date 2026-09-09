@@ -327,7 +327,7 @@ aceleración base para que cuadre — paradas incluidas. «Hazlo de 20 segundos�
 ### Añadir rutas a un proyecto abierto
 
 A un proyecto abierto se le añaden rutas de dos formas: abajo en la sección
-**«Tracks»** de la barra lateral (bajo «Línea»; cada track es una entrada, color incluido, también el primero) con **«Añadir ruta»**, que abre un selector
+**«Tracks»** de la barra lateral (justo debajo del mapa; cada track es una entrada, color incluido, también el primero) con **«Añadir ruta»**, que abre un selector
 del **archivo** (con miniatura, fecha y kilómetros; búsqueda y filtros como en el archivo:
 colección, año, tipo, longitud, orden, favoritas; marcar varias, las ya cargadas aparecen atenuadas), o
 marcando rutas en el archivo y pasándolas al animador con el proyecto abierto. Si
@@ -335,6 +335,19 @@ una ruta aún no está en el archivo, **«Importar archivo …»** en el selecto
 añade primero al archivo y la marca al momento (también FIT, KML y similares). La sección está
 también con una sola ruta desde v0.9.682. Cada ruta se convierte en un
 grupo al final de la cadena; arrástralo en la línea de tiempo para colocarlo.
+
+### El aspecto de cada track (desde v0.9.683)
+
+Cada entrada bajo **«Tracks»** tiene un **▸** que abre el aspecto de **este** track: grosor,
+estilo de línea (continua, discontinua, punteada, raya-punto, tubo) con separación,
+sombra, brillo y la reducción de puntos en porcentaje. La sección aparte «Línea» ya no
+existe; un track nuevo copia el aspecto del track 1 al añadirse. **«Aplicar aspecto a todos
+los tracks …»** bajo la lista copia desde un track elegido a todos los demás, solo los
+campos marcados (grosor, estilo + separación, sombra, brillo, puntos; el color no está
+marcado por defecto). El punto en movimiento vale para todos los tracks y está arriba en
+«Tracks»; el modo de ritmo y las pausas son tiempo, no aspecto, y están en los ajustes de
+vídeo. *(Varios colores de track, el degradado por altura o velocidad, sigue valiendo solo
+para el track 1.)*
 
 ### Grupos en la línea de tiempo — en secuencia, en paralelo o ambos (desde v0.9.679)
 

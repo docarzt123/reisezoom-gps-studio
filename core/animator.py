@@ -2259,6 +2259,10 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     schwarm_line_width_json = json.dumps(round(max(0.5, float(cfg.line_width or 3.0)
                                                    * (1.0 if _haupt_dezent else 0.8)), 2))
     haupt_dezent_js = "true" if _haupt_dezent else "false"
+    # 09.09.2026 — Breite je Tour (Aussehen je Track); ohne eigene Breite die
+    # gemeinsame Schwarm-Breite von oben.
+    _sw_basis = max(0.5, float(cfg.line_width or 3.0) * (1.0 if _haupt_dezent else 0.8))
+    schwarm_widths_json = json.dumps([round(max(0.5, float(t.get("width") or _sw_basis)), 2) for t in _sw])
     # Bei 3D-Gelände brauchen die Linien denselben z-Offset wie der Haupt-Track,
     # sonst verschwinden sie im Berg.
     schwarm_zoff_frag = ", 'line-z-offset': 150" if _zoff_on(cfg) else ""
@@ -2973,6 +2977,7 @@ const TOTAL_DIST_M = cumDistM.length ? cumDistM[cumDistM.length - 1] : 0;
 // Haupt-Tracks, und Trim/fullTrack verhalten sich von selbst richtig.
 const SCHWARM_COORDS = {schwarm_coords_json};
 const SCHWARM_COLORS = {schwarm_colors_json};
+const SCHWARM_WIDTHS = {schwarm_widths_json};
 const SCHWARM_STEPS = {schwarm_steps_json};
 const SCHWARM_N = SCHWARM_COORDS.length;
 const SCHWARM_3D = {sw3d_js};   // 06.09.2026 — Linien über dem Gelände (rz-line3d) statt drapiert
@@ -3266,7 +3271,7 @@ map.on('style.load', () => {{
     map.addLayer({{ id: 'schwarm-lines', type: 'line', source: 'schwarm',
       layout: {{ 'line-join': 'round', 'line-cap': 'round' }},
       paint: {{ 'line-color': ['get', 'color'],
-               'line-width': Math.max(1, {schwarm_line_width_json}),
+               'line-width': ['coalesce', ['get', 'width'], Math.max(1, {schwarm_line_width_json})],
                'line-opacity': 0.9{schwarm_zoff_frag} }} }});
     map.addSource('schwarm-dots', {{ type: 'geojson', data: {{ type: 'FeatureCollection', features: [] }} }});
     // 31.08.2026 (Beta-Tester): Pfeil für ALLE Touren — je Tour ein eingefärbtes
@@ -3304,7 +3309,7 @@ map.on('style.load', () => {{
       const __l3 = window.rzLine3d.create('schwarm-3d', {{ offsetM: 150 }});
       map.addLayer(__l3, 'schwarm-dots');
       __l3.setTracks(SCHWARM_COORDS.map((c, i) => ({{ coords: c, color: SCHWARM_COLORS[i],
-                       width: Math.max(1, {schwarm_line_width_json}), opacity: 0.9 }})));
+                       width: Math.max(1, SCHWARM_WIDTHS[i] || {schwarm_line_width_json}), opacity: 0.9 }})));
       __l3.setCounts(SCHWARM_COORDS.map(() => 0));
       window.__rzSw3d = __l3;
     }}
@@ -3691,7 +3696,7 @@ window.__rzSchwarmAdvance = (dNow) => {{
   for (let i = 0; i < SCHWARM_N; i++) {{
     const c = SCHWARM_COORDS[i];
     const k = Math.max(0, Math.min(c.length - 1, swarmIdx(i, dNow)));
-    linien.push({{ type: 'Feature', properties: {{ color: SCHWARM_COLORS[i] }},
+    linien.push({{ type: 'Feature', properties: {{ color: SCHWARM_COLORS[i], width: SCHWARM_WIDTHS[i] }},
       geometry: {{ type: 'LineString', coordinates: k >= 1 ? c.slice(0, k + 1) : [c[0], c[0]] }} }});
     punkte.push({{ type: 'Feature',
       properties: {{ color: SCHWARM_COLORS[i], icon: 'rz-sw-arrow-' + i,
@@ -4812,7 +4817,9 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
                                   "max_speed_kmh": float(getattr(_st, "max_speed_kmh", 0) or 0),
                                   "ele_max": getattr(_st, "ele_max", None),
                                   "ele_min": getattr(_st, "ele_min", None)},
-                        "gpx_path": pfad})
+                        "gpx_path": pfad,
+                        # 09.09.2026 — Aussehen je Track: Breite in der Linie, Punkte in %
+                        "stil": ((t or {}).get("stil") if isinstance((t or {}).get("stil"), dict) else None)})
     if not geparst:
         return []
     l_max = max(t["laenge"] for t in geparst)
@@ -4823,8 +4830,26 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
         # M3 „echte Uhrzeit": Zeitachsen index-gleich zu den Koordinaten
         # (t_roh inkl. Pausen, t_bew gestutzt); (None, None) ohne Zeitstempel.
         t_roh, t_bew = resample_zeiten(t["points"], s)
-        raus.append({"coords": resample_aequidistant(t["points"], s),
-                     "color": t["color"], "step_m": s,
+        coords = resample_aequidistant(t["points"], s)
+        st = t.get("stil") or {}
+        # Punktreduzierung je Tour (Prozent), Zeiten im Gleichschritt — wie
+        # `_tourGeduennt` in der Vorschau.
+        try:
+            pct = max(10.0, min(100.0, float(st.get("reduce_pct") or 100)))
+        except (TypeError, ValueError):
+            pct = 100.0
+        if pct < 100 and len(coords) >= 20:
+            n = len(coords); ziel = max(10, round(n * pct / 100))
+            idx = [round(i * (n - 1) / (ziel - 1)) for i in range(ziel)]
+            coords = [coords[i] for i in idx]
+            if t_roh and len(t_roh) == n: t_roh = [t_roh[i] for i in idx]
+            if t_bew and len(t_bew) == n: t_bew = [t_bew[i] for i in idx]
+        try:
+            breite = float(st.get("width")) if st.get("width") not in (None, "") else None
+        except (TypeError, ValueError):
+            breite = None
+        raus.append({"coords": coords,
+                     "color": t["color"], "step_m": s, "width": breite,
                      "t_roh": t_roh, "t_bew": t_bew,
                      "stats": t["stats"],
                      "start_s": t.get("start_s", 0.0),
