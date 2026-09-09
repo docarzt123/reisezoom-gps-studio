@@ -345,7 +345,8 @@ ergibt also wirklich 20 Sekunden.
 ### Mehrere Etappen: Reihenfolge, Dauer und Übergänge
 
 Kommen mehrere Touren zusammen ins Projekt („Nacheinander"), stehen sie links unter
-**„Tracks"** (unter „Track") als nummerierte Etappen. Jede Etappe zeigt ihre Farbe, ihren Namen
+**„Tracks"** (unter „Linie") als nummerierte Einträge, auch der erste Track, auch wenn er der
+einzige ist. Jeder Eintrag zeigt seine Farbe (dort wird sie auch geändert), seinen Namen
 und darunter ihre Bedienung:
 
 > **Weitere Touren zu einem offenen Projekt** kommen auf zwei Wegen dazu: unten in

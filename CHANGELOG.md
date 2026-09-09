@@ -15,7 +15,7 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed
-- Animator sidebar order: Map, Track, then "Tracks" (formerly "Multiple tours") and "Ghost tracks" right below — everything about tracks in one place. — Seitenleiste: Karte, Track, darunter „Tracks" (vorher „Mehrere Touren") und Ghost-Spuren.
+- Animator sidebar: Map, then "Line" (formerly "Track": the shared look of all tracks — width, style, glow, gradient), then "Tracks" (formerly "Multiple tours") and "Ghost tracks" below. Every track is an entry under Tracks, the first one too, even when it is the only one; its colour sits at its entry like for all others. — Seitenleiste: Karte, „Linie" (vorher „Track"), darunter „Tracks" und Ghost-Spuren; jeder Track ist ein Eintrag, auch der erste, mit seiner Farbe.
 
 ### Fixed
 - Preview with 3D terrain turned coarse after a zoom jump (start of a flight, refit after regrouping): thick jagged roads, blurry imagery, oversized labels, and zooming by hand did not help while toggling terrain did. Our anti-flicker patch in MapLibre held the previously chosen terrain tile level whenever the wanted level sat close to a boundary — even two levels away, so z8 tiles stayed at zoom 10.7 and the map was drawn into a texture four times too coarse. The patch now holds only an adjacent level; a check after every camera move logs the terrain tile state and resets it if it ever sticks again. — Vorschau mit Gelände nach Zoomsprung grob: Flacker-Patch hielt eine zwei Stufen zu grobe Kachelstufe fest; korrigiert, dazu Prüfung und Log nach jeder Fahrt.

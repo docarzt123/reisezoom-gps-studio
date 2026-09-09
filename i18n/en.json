@@ -379,7 +379,7 @@
   "animator.section.source": "Source",
   "animator.section.time_size": "Time & Size",
   "animator.section.tours": "🧭 Tracks",
-  "animator.section.track": "〰️ Track",
+  "animator.section.track": "〰️ Line",
   "animator.section.video": "🎬 Video settings",
   "animator.shadow.dir": "Shadow direction",
   "animator.shadow.dir_tooltip": "Global light direction for the drop shadow — applies to the track AND all signs. 0° = right, 90° = down, 180° = left, 270° = up.",
