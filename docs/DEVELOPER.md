@@ -775,7 +775,44 @@ die Liste des vorherigen Projekts noch da. `_tempoAnzeige()` ergänzt die
 gesperrten Einträge (Anlauf, Nachlauf, Etappen-Übergänge), die aus ihren eigenen
 Reglern kommen und nur gezeigt werden.
 
-### Reise: der Zeitplan gehört den Etappen (seit 08.09.2026)
+### Gruppen: EIN Zeitplan für Etappenfolge, Schwarm und Mischformen (seit 09.09.2026) ⚠️ PFLICHTLEKTÜRE
+
+Vertrag: `docs/IDEAS.md` §60. Umsetzungs-Briefing: `docs/HANDOVER_SPUREN_UMBAU.md`.
+Jede Tour ist *Halt + Inhalt + Halt*, alle Tracks eines Projekts sind so lang wie das
+Video; die Anordnung steckt darin, wo die Halte sitzen. Alles ist eine **Gruppe**
+(auch eine einzelne Tour); Faktor auf drei Stufen (Projekt → Gruppe → Abschnitt).
+
+| Schicht | Datei | was sie tut |
+|---|---|---|
+| Modell (Vorschrift) | `core/spuren.py` | `zeitplan`, `zeilen`, `ueberlappt` (auf den INHALTEN), `aus_projekt` — geprüft gegen `_reise_segmente` |
+| Modell (läuft) | `ui/js/spuren.js` | wortgleicher Zwilling; `tests/test_spuren_js_vs_py.py` vergleicht beide per `node` an 300 Zufallsfällen |
+| Zustand | `module.js` `_gruppen`, `_gruppenPlan`, `_animAnordnung` | die EINE Wahrheit; `_animAblauf` ist nur noch ABGELEITET (eine Gruppe mit N Touren = „schwarm") |
+| Aufbau | `_gruppenAufbauen(gespeichert)` / `_gruppenSync()` | gespeicherte `animator.gruppen`, sonst Umrechnung der alten Felder IM SPEICHER; neue Touren nach `_animAnordnung` |
+| Kette | `_ketteLegen()` | alle nicht `fest` gelegten Gruppen hintereinander in Listenreihenfolge, Lücke = `ueber_s ?? Flugdauer` (Schnitt = 0) |
+| Bahn | `_reiseBauen()` | Zeile 0 des Plans (`zeilen(plan)[0]`) als EINE Bahn: `abschnitte` = vor / inhalt / ueber / nach, Punkte ∝ Zeit |
+| Overlay | `_swPrevBauen()` / `_animSchwarmPreviewAdvance()` | alles außerhalb der Bahn: Mitglieder hinter dem Taktgeber (Schwarm-Regel je Modus) und Taktgeber paralleler Gruppen (an der Animationszeit) |
+| Kamera | `_reiseKamera()` | automatisch: die OBERSTE Gruppe, deren Inhalt gerade läuft; Lücke = Flug. Echte Keyframes haben Vorrang |
+| Leiste | `timeline.js` `setGruppen(zeilen, gesamtS)` | Zeile 0 = Tempo-Spur (`.tl-gruppe`-Kacheln), weitere `data-kind="gruppe"`; Gesten melden `onGruppeZiehen/-Laenge/-Oeffnen/onGruppenStapel` |
+| Persistenz | `_animPersistTours()` | schreibt `gruppen` UND leitet die alten Felder daraus ab (`dauer_s`, `ueber_s`, `start_s`, `tours_ablauf`); geschrieben wird nur bei einer Änderung |
+| Keyframes | `_keyframePaarSetzen` / `_keyframeAnkerAusPaar` / `_keyframesNachziehen` | Anker = Fortschritt (Zeit); daneben das Paar (Gruppe, Streckenanteil, Versatz im Halt), aus dem der Anker nach jeder Kurven-/Planänderung neu kommt |
+
+**Fallen (alle gemessen):**
+- `ueberlappt` NIE auf den Halten rechnen — seit alle Tracks videolang sind, überlappt sonst alles.
+- Die Kette lässt sich NICHT aus `zeilen(plan)[0]` ablesen, solange nichts gelegt ist (dann liegt alles bei 0 und Zeile 0 hätte nur eine Gruppe) — sie wird strukturell gebildet (alle nicht `fest`).
+- `_gruppenSync()` muss bei JEDER Pool-Änderung laufen (Tour dazu, weg, Sortieren, Haupt-Track geladen) — sonst rechnet die Liste mit dem alten Stand (`gilt: true, bahn: null`).
+- `_animPersistTours()` rechnet zuerst den Plan (`_gruppenPlanRechnen`) — sonst stehen die abgeleiteten Längen vom vorigen Stand in der Datei.
+- Der Szenen-Weg (`core/szene._seite_vorbereiten`) ist READ-ONLY (`{"szene": "read-only"}`); Persistenz prüft `tests/test_gruppen_projekt.py` über eine schreibbare Brücke.
+- Ein Kompositions-Projekt trägt `kontext = menge:<hash>` (core/sessions.mengen_hash) — mit dem geo_hash der ersten Tour öffnet die App eine FREMDE Sitzung.
+- Eine neue Zeile schiebt die Leiste nach OBEN (sie hängt unten am Rand) — Prüfstände messen `y` nach jeder Umordnung neu.
+- Die Übergabe aus dem Archiv persistiert nur, wenn wirklich eine Tour dazukam (`neu > 0`) — sonst bliebe „bit-genau beim Ansehen" verletzt.
+- Der Anker eines Keyframes ist FORTSCHRITT (Zeit in der Anim-Phase), nicht Streckenanteil: so zeichnet ihn die Leiste, so interpoliert `ankerZuZeit`. Deshalb sind zwei Keyframes in einem Halt zwei — und deshalb braucht es das Paar, damit ein Keyframe bei einer Kurvenänderung an seiner Strecke bleibt.
+- `_render_multi` ist weg (Phase 6). `_reise_segmente` bleibt als Vorschrift der Verteilregel.
+
+Wächter: `tests/test_spuren_modell.py`, `test_spuren_js_vs_py.py`, `test_gruppen_vorschau.py`,
+`test_gruppen_leiste.py`, `test_gruppen_projekt.py` (echte Brücke), `test_keyframe_paar.py`,
+dazu die älteren `test_reise_dauer_vorschau.py`, `test_etappen_*`, `test_tempo_reise_wechsel.py`.
+
+### Reise: der Zeitplan gehört den Etappen (seit 08.09.2026) — abgelöst durch die Gruppen (oben), Regeln gelten weiter
 
 Eine Reise (`_reiseGilt()`: Ablauf ≠ Schwarm, mindestens eine Zusatztour, erste
 Etappe geladen) verteilt die Zeit selbst — `_reiseBauen()` tastet jede Etappe mit

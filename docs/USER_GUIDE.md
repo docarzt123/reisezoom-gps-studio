@@ -355,6 +355,43 @@ Etappen fast keine Zeit mehr lassen; dann steht dort auch, wie viel jeder übrig
 bleibt. Jede Etappe behält mindestens drei Zehntelsekunden — lieber wird das Video etwas
 länger, als dass eine Etappe unsichtbar durchrauscht.
 
+### Gruppen in der Zeitleiste — nacheinander, parallel oder beides (seit v0.9.679)
+
+Sobald zwei oder mehr Touren im Projekt sind, wird die Tempo-Spur über der Zeitleiste zur
+**Touren-Zeile**: jede Tour ist eine **Gruppe** und bekommt dort eine Kachel mit Name,
+Faktor und Sekunden. Die Lücke zwischen zwei Kacheln ist der Übergang (✈ Kinoflug,
+↗ Luftlinie, ✂ Schnitt), schraffierte Bänder sind Halte — vor dem Inhalt, oder hinten,
+wenn eine Gruppe früher fertig ist als das Video. Läuft eine Gruppe gleichzeitig mit einer
+anderen, bekommt sie darunter eine eigene Zeile **„parallel"**. Die Regel dahinter: alle
+Touren eines Projekts sind gleich lang — nämlich so lang wie das Video; die Anordnung steckt
+nur darin, wo ihre Halte liegen.
+
+Alles lässt sich mit der Maus machen:
+
+- **Kachel ziehen** — die Gruppe wandert in der Zeit. Landet sie über einer anderen, laufen
+  beide gleichzeitig (eigene Zeile). Sie bleibt dann, wo Sie sie hingelegt haben.
+- **Ränder ziehen** — die Gruppe wird länger oder kürzer; gespeichert wird der **Faktor**
+  (0,5× = halb so schnell, doppelte Zeit). Die folgenden Gruppen rücken nach.
+- **Nach oben oder unten ziehen** — der Stapel ändert sich. Die **oberste** Gruppe führt die
+  Kamera (🎥 an der Kachel); bei zwei gleichzeitig laufenden entscheidet also die Reihenfolge.
+- **Doppelklick** (oder Rechtsklick) öffnet die Gruppe: Name, Länge oder Faktor (eines
+  eintippen, das andere folgt), Übergang, „in der Reihe mitlaufen", die Touren in der Gruppe
+  mit **„lösen"**, welcher Tour die Kamera folgt, und **„mit einer anderen Gruppe
+  zusammenlegen"** — dann laufen die Touren gleichzeitig in einer Gruppe, als Schwarm.
+- **Anordnen** über der Liste rechnet einmal alles durch: **⏭ nacheinander**, **∥ alle ab 0**,
+  **🏁 gleichzeitig im Ziel** (jede Gruppe bekommt den Faktor, mit dem sie zusammen mit den
+  anderen ankommt) und **🕐 echte Uhrzeit** (Dauer und Start wie aufgezeichnet). Danach ist es
+  eine gewöhnliche Anordnung, die Sie weiterschieben können.
+
+Ein Projekt, das Sie nur öffnen und ansehen, bleibt unverändert; erst eine Änderung
+schreibt die Gruppen hinein. Alte Etappen- und Schwarm-Projekte sehen nach dem Öffnen aus
+wie vorher — der Schwarm ist jetzt einfach eine Gruppe mit mehreren Touren.
+
+**Keyframes** hängen dabei an der Strecke: Wer bei einer Brücke einen Keyframe setzt und
+später davor einen Halt einfügt oder eine frühere Gruppe verlängert, findet den Keyframe
+weiterhin an der Brücke. In einem Halt können mehrere Keyframes liegen — die Kamera darf sich
+also bewegen, während der Laufpunkt steht.
+
 ### Schritt 7 — Mehrere Tagesdateien zu einer Tour verbinden
 
 Der häufigste Fall bei Reisen: pro Tag eine Aufzeichnung, gewünscht ist die Gesamttour.
