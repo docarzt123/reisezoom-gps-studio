@@ -3798,6 +3798,13 @@ function mountAnimator(body, headerActions, opts) {
     const r = p?.[_MODKEY]?.tempo_rate;
     return (typeof r === "number" && isFinite(r) && r > 0) ? r : null;
   }
+  /** Unter welcher Grundlage die gespeicherte Raffung entstand — "" bei alten
+   *  Projekten (die kannten nur die Strecke). */
+  function _tempoBasisGespeichert() {
+    const p = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    const b = p?.[_MODKEY]?.tempo_basis;
+    return (typeof b === "string") ? b : "";
+  }
   function _tempoRateSichern(rate, basis) {
     try { saveProjectSettings(_MODKEY, { tempo_rate: rate, tempo_basis: basis }); } catch (_) {}
   }
@@ -3910,7 +3917,19 @@ function mountAnimator(body, headerActions, opts) {
     // Ohne Einträge und ohne gespeicherte Raffung: die Dauer aus der Seitenleiste
     // führt, die Raffung wird daraus abgeleitet. Genau so laufen alle bestehenden
     // Projekte weiter (Marc: „das muss abwärtskompatibel bleiben").
-    const rate = reise ? 0 : _tempoRate();
+    // 09.09.2026 (Marc: „den Probe-Lauf kann ich nicht mehr starten, das hängt"):
+    // Die Raffung war als 2,95 km je Videosekunde gespeichert (Grundlage
+    // „Strecke"), der Tempo-Modus des Projekts stand aber auf „Punkte" — die
+    // Zahl wurde als 2,95 Punkte je Sekunde gelesen, das Video 10 216 s lang,
+    // der Probe-Lauf lief unsichtbar langsam. Eine Raffung gilt nur unter der
+    // Grundlage, unter der sie entstand. Passt die nicht mehr, führt die Dauer
+    // aus der Seitenleiste und die Raffung wird neu abgeleitet und gesichert.
+    const rateGespeichert = reise ? 0 : _tempoRate();
+    const basisGespeichert = _tempoBasisGespeichert();
+    const rate = (rateGespeichert && basisGespeichert && basisGespeichert !== basis) ? 0 : rateGespeichert;
+    if (rateGespeichert && !rate) {
+      applog("info", `[tempo] Raffung ${rateGespeichert.toFixed(3)} galt für „${basisGespeichert}“, jetzt gilt „${basis}“ — wird aus der Dauer (${parseNum(document.getElementById("anim-dur")?.value, 12)} s) neu abgeleitet`);
+    }
     try {
       const r = await api().animator_tempo_map({
         gpx_path: currentGpx,
