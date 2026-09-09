@@ -313,35 +313,6 @@ function mountAnimator(body, headerActions, opts) {
       </section>
 
       <!-- Track (Akkordeon) — Farbe, Dicke, Schlagschatten, Detail-Punkte -->
-      <!-- 27.08.2026 (Marc) — Ghost-Spuren: beliebig viele Referenzlinien hinter
-           der Animation, jede mit eigenem Aussehen. Sein Anwendungsfall: der
-           offizielle Wanderweg als durchgehende Linie, die geplanten Rundtouren
-           dünn gestrichelt, darüber die gelaufene Tour animiert. -->
-      <section class="section" data-accordion-section="ghosts">
-        <button class="section-collapse-header" type="button">
-          <span>${t("ghosts.section", "👻 Ghost-Spuren")}</span>
-          <span class="collapse-arrow">▸</span>
-        </button>
-        <div class="section-collapse-body" hidden>
-          <!-- 27.08.2026 (Marc: „den beschreibungstext weg und ein ? mit tooltip") —
-               der Erklärabsatz stand dauerhaft im Weg. Jetzt hinter dem Fragezeichen,
-               gleiches Muster wie bei Tempo-Modus und Track-Punkten. -->
-          <div class="field-label" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-            <span>${t("ghosts.label", "Zusätzliche Spuren")}</span>
-            <button type="button" class="field-help" data-help="ghosts"
-                    title="${t("animator.help.show", "Erklärung anzeigen")}">?</button>
-          </div>
-          <div class="muted field-help-content" data-help-content="ghosts" hidden
-               style="font-size:11px; margin-top:2px; margin-bottom:8px; line-height:1.45;">
-            ${t("ghosts.intro", "Weitere Tracks als schwache Linien im Hintergrund — etwa der offizielle Weg oder deine Planungen. Jede Spur bekommt ihr eigenes Aussehen. Die Reihenfolge bestimmt, was oben liegt: Die unterste Spur wird zuletzt gezeichnet und deckt die darüber ab — mit dem Griff ⠿ verschieben.")}
-          </div>
-          <!-- 09.09.2026 (Marc: „der Dialog soll auch beim Ghost usw. kommen"):
-               EIN Knopf, die Archiv-Auswahl; Dateien von außerhalb importiert
-               man dort („Datei importieren …"). -->
-          <button class="btn btn-sm" id="ghosts-add-archive" type="button" style="width:100%;">＋ ${t("ghosts.add_archive", "Ghost-Spur hinzufügen …")}</button>
-          <div id="ghosts-list"></div>
-        </div>
-      </section>
 
       <section class="section" data-accordion-section="track">
         <button class="section-collapse-header" type="button">
@@ -611,6 +582,37 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.fly_duration", "Kinoflug-Dauer")} <span class="label-val" id="anim-fly-v">3.0 s</span></label>
             <input type="range" id="anim-fly" min="1" max="8" step="0.5" value="3">
           </div>
+        </div>
+      </section>
+
+      <!-- 09.09.2026 (Marc: Reihenfolge Karte · Track · Tracks · Ghost-Spuren) — unter den Tracks.
+           27.08.2026 (Marc) — Ghost-Spuren: beliebig viele Referenzlinien hinter
+           der Animation, jede mit eigenem Aussehen. Sein Anwendungsfall: der
+           offizielle Wanderweg als durchgehende Linie, die geplanten Rundtouren
+           dünn gestrichelt, darüber die gelaufene Tour animiert. -->
+      <section class="section" data-accordion-section="ghosts">
+        <button class="section-collapse-header" type="button">
+          <span>${t("ghosts.section", "👻 Ghost-Spuren")}</span>
+          <span class="collapse-arrow">▸</span>
+        </button>
+        <div class="section-collapse-body" hidden>
+          <!-- 27.08.2026 (Marc: „den beschreibungstext weg und ein ? mit tooltip") —
+               der Erklärabsatz stand dauerhaft im Weg. Jetzt hinter dem Fragezeichen,
+               gleiches Muster wie bei Tempo-Modus und Track-Punkten. -->
+          <div class="field-label" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <span>${t("ghosts.label", "Zusätzliche Spuren")}</span>
+            <button type="button" class="field-help" data-help="ghosts"
+                    title="${t("animator.help.show", "Erklärung anzeigen")}">?</button>
+          </div>
+          <div class="muted field-help-content" data-help-content="ghosts" hidden
+               style="font-size:11px; margin-top:2px; margin-bottom:8px; line-height:1.45;">
+            ${t("ghosts.intro", "Weitere Tracks als schwache Linien im Hintergrund — etwa der offizielle Weg oder deine Planungen. Jede Spur bekommt ihr eigenes Aussehen. Die Reihenfolge bestimmt, was oben liegt: Die unterste Spur wird zuletzt gezeichnet und deckt die darüber ab — mit dem Griff ⠿ verschieben.")}
+          </div>
+          <!-- 09.09.2026 (Marc: „der Dialog soll auch beim Ghost usw. kommen"):
+               EIN Knopf, die Archiv-Auswahl; Dateien von außerhalb importiert
+               man dort („Datei importieren …"). -->
+          <button class="btn btn-sm" id="ghosts-add-archive" type="button" style="width:100%;">＋ ${t("ghosts.add_archive", "Ghost-Spur hinzufügen …")}</button>
+          <div id="ghosts-list"></div>
         </div>
       </section>
 
