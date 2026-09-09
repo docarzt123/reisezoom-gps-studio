@@ -141,6 +141,7 @@
   }
 
   const api = { MIN_INHALT_S, inhaltDauer, zeitplan, kameraGruppe, ueberlappt, zeilen, ausProjekt };
+  // Im Browser am Fenster; der Prüfstand (tests/test_spuren_js_vs_py.py) lädt die
+  // Datei unter node mit einem `window`-Schatten — kein CommonJS-Export nötig.
   if (typeof window !== "undefined") window.rzSpuren = api;
-  if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();
