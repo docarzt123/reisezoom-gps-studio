@@ -3322,6 +3322,7 @@ function rzScaleMapLabels(map, k) {
   const c = Math.log2(1 / k);
   let layers = [];
   try { layers = (map.getStyle() && map.getStyle().layers) || []; } catch (_) { return; }
+  const _frisch = !map.__rzLabelOrig;          // Stil neu (style.load) → Originale neu lesen
   if (!map.__rzLabelOrig) map.__rzLabelOrig = {};
   const orig = map.__rzLabelOrig;
   let _nSym = 0, _probe = "";
@@ -3407,8 +3408,9 @@ function rzScaleMapLabels(map, k) {
   // was diese Skalierung wirklich tat — nur wenn sich etwas ändert.
   try {
     const tr = map.transform || {};
-    const zeile = `k ${k.toFixed(3)} · c ${c.toFixed(2)} · ${_nSym} Beschriftungs-Ebenen · Ebenen gesamt ${layers.length} · Zoom ${map.getZoom().toFixed(2)} · transform ${tr.width}×${tr.height} · Probe ${_probe || "-"}`;
-    if (map.__rzLabelSpur !== zeile) { map.__rzLabelSpur = zeile; if (typeof applog === "function") applog("info", "[label] " + zeile); }
+    map.__rzLabelN = (map.__rzLabelN || 0) + 1;
+    const zeile = `#${map.__rzLabelN} k ${k.toFixed(3)} · c ${c.toFixed(2)} · ${_nSym} Beschriftungs-Ebenen · Ebenen gesamt ${layers.length} · Zoom ${map.getZoom().toFixed(2)} · transform ${tr.width}×${tr.height} · frisch ${_frisch ? "ja" : "nein"} · Probe ${_probe || "-"}`;
+    if (typeof applog === "function") applog("info", "[label] " + zeile);
   } catch (_) {}
 }
 window.rzScaleMapLabels = rzScaleMapLabels;
