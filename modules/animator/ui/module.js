@@ -14797,6 +14797,7 @@ function mountAnimator(body, headerActions, opts) {
           <select class="anim-ueber-stil" title="${t("animator.tours.ueber_stil", "Übergang zur nächsten Etappe")}">
             <option value="kino"${stil === "kino" ? " selected" : ""}>${t("animator.tours.ueber_kino", "Kinoflug")}</option>
             <option value="luftlinie"${stil === "luftlinie" ? " selected" : ""}>${t("animator.tours.ueber_luft", "Luftlinie")}</option>
+            <option value="pause"${stil === "pause" ? " selected" : ""}>${t("animator.tours.ueber_pause", "Pause")}</option>
             <option value="schnitt"${stil === "schnitt" ? " selected" : ""}>${t("animator.tours.ueber_schnitt", "Schnitt")}</option>
           </select>
           <input type="number" class="anim-ueber-s" min="0" step="0.5" value="${gr.ueber_s == null ? "" : gr.ueber_s}"
@@ -15298,6 +15299,7 @@ function mountAnimator(body, headerActions, opts) {
   // Für den kopflosen Prüfstand greifbar (wie __rzGhostSpuren).
   try { window.__rzAnimCoords = () => currentCoords || []; } catch (_) {}
   try { window.__rzRohEvents = () => (getRawTimelineEvents() || []); } catch (_) {}
+  window.__rzReiseKamera = (idx) => _reiseKamera(idx);   // Prüfstand
   try { window.__rzReiseBahn = () => (_reiseBahn ? {
     punkte: _reiseBahn.coords.length, teile: _reiseBahn.teile,
     ecken: _reiseBahn.teile.map(t => _reiseBahn.coords[t.von].map(x => +x.toFixed(3))),
@@ -15350,7 +15352,7 @@ function mountAnimator(body, headerActions, opts) {
     _extraTours.forEach((t, i) => { const d = _tourGeduennt(t); raus.push({
       gpx_path: t.gpx_path, coords: d.coords || null, name: t.name || _dateiName(t.gpx_path),
       line_color: t.line_color || "#35a7ff", zeit: Array.isArray(d.zeit) ? d.zeit : null,
-      ele: (Array.isArray(d.ele) && d.coords && d.ele.length === d.coords.length) ? d.ele : null,
+      ele: _hoehenAnPunkte(d.ele, d.coords ? d.coords.length : 0),   // 09.09.2026 — 200 Höhen zu 800 Punkten: abbilden statt verwerfen
       stats: t.stats || null, haupt: false, tr: t, extraIdx: i }); });
     return raus;
   }
@@ -15434,7 +15436,7 @@ function mountAnimator(body, headerActions, opts) {
     const n = tr.coords.length, ziel = Math.max(10, Math.round(n * pct / 100));
     const idx = []; for (let i = 0; i < ziel; i++) idx.push(Math.round(i * (n - 1) / (ziel - 1)));
     const pick = (arr) => (Array.isArray(arr) && arr.length === n) ? idx.map(i => arr[i]) : null;
-    tr.__duenn = { pct, n, coords: idx.map(i => tr.coords[i]), ele: pick(tr.ele), zeit: pick(tr.zeit) };
+    tr.__duenn = { pct, n, coords: idx.map(i => tr.coords[i]), ele: pick(_hoehenAnPunkte(tr.ele, n)), zeit: pick(tr.zeit) };
     return tr.__duenn;
   }
   function _tourVon(gpx) {
@@ -15802,6 +15804,7 @@ function mountAnimator(body, headerActions, opts) {
             <select id="gr-ueber" class="lib-select">
               <option value="kino"${g.ueber_stil === "kino" ? " selected" : ""}>${t("animator.tours.ueber_kino", "Kinoflug")}</option>
               <option value="luftlinie"${g.ueber_stil === "luftlinie" ? " selected" : ""}>${t("animator.tours.ueber_luft", "Luftlinie")}</option>
+              <option value="pause"${g.ueber_stil === "pause" ? " selected" : ""}>${t("animator.tours.ueber_pause", "Pause")}</option>
               <option value="schnitt"${g.ueber_stil === "schnitt" ? " selected" : ""}>${t("animator.tours.ueber_schnitt", "Schnitt")}</option>
             </select></div>
           <div><label class="field-label" for="gr-ueber-s">${t("animator.gruppe.ueber_s", "Übergang (s)")}</label>
@@ -16040,6 +16043,13 @@ function mountAnimator(body, headerActions, opts) {
   /** Distanz, Zeit und Höhe entlang der Bahn — durchlaufend über alle Etappen,
    *  im Übergang stehend. Zusätzlich je Punkt der Etappen-Anteil (`etappeDist`,
    *  `etappeZeit`), damit ein Etappenzähler daraus lesen kann. */
+  function _hoehenAnPunkte(ele, n) {
+    if (!Array.isArray(ele) || !ele.length || !n) return null;
+    if (ele.length === n) return ele;
+    const raus = new Array(n);
+    for (let i = 0; i < n; i++) raus[i] = +ele[Math.round(i * (ele.length - 1) / Math.max(1, n - 1))] || 0;
+    return raus;
+  }
   function _reiseSerieBauen(etappen, teilVon, istUeber, teile, gesamtN) {
     const cumDistM = [], cumTimeS = [], ele = [], etappeDist = [], etappeZeit = [];
     let dAcc = 0, tAcc = 0, hatZeit = true, hatHoehe = true;
@@ -16049,7 +16059,11 @@ function mountAnimator(body, headerActions, opts) {
       // Zeitreihe der Etappe: eigene, sonst gleichmäßig über die Distanz.
       const zeit = (Array.isArray(e.zeit) && e.zeit.length === e.coords.length) ? e.zeit : null;
       if (!zeit) hatZeit = false;
-      const hoehen = (Array.isArray(e.ele) && e.ele.length === e.coords.length) ? e.ele : null;
+      // 09.09.2026 (Marc: „das Höhenprofil ist immer platt"): die Brücke liefert 800
+      // Punkte, aber nur 200 Höhen (fürs Overlay gedünnt) — der Gleichheits-Test
+      // warf sie weg und das Profil blieb eine Gerade. Jetzt auf die Punktzahl
+      // gebracht (Index-Abbildung).
+      const hoehen = _hoehenAnPunkte(e.ele, e.coords.length);
       if (!hoehen) hatHoehe = false;
       // Übergang VOR dieser Etappe: alles steht still
       const nU = teile[i].von - (i === 0 ? 0 : teile[i - 1].bis + 1);
@@ -16221,7 +16235,10 @@ function mountAnimator(body, headerActions, opts) {
   function _reiseImUebergang(idx) {
     if (!_reiseAktiv()) return false;
     const ab = _bahnAbschnitt(idx);
-    return !!(ab && ab.art === "ueber");
+    if (!ab || ab.art !== "ueber") return false;
+    // In einer PAUSE steht der Laufpunkt am Ende der Etappe davor (nichts fliegt).
+    const stil = (_reiseBahn.etappen[ab.teil + 1] || {}).ueber_stil || "kino";
+    return stil !== "pause";
   }
 
   /** Kamera in der Reise: während eines Übergangs der Flug, sonst die Sicht der
@@ -16255,6 +16272,10 @@ function mountAnimator(body, headerActions, opts) {
     const p = (i - ab.von) / Math.max(1, ab.bis - ab.von);
     const q = p * p * (3 - 2 * p);   // smoothstep, wie im Render
     const stil = (_reiseBahn.etappen[nachTeil] || {}).ueber_stil || "kino";
+    // 09.09.2026 (Marc: „Pause — es passiert nichts, der Halt bleibt aber da"):
+    // die Sicht der Etappe davor bleibt stehen, erst mit der nächsten Etappe
+    // springt das Bild (Schnitt am Ende der Pause).
+    if (stil === "pause") return { center: A.c.slice(), zoom: A.z, etappe: true };
     if (stil === "luftlinie") {
       return { center: [A.c[0] + (B.c[0] - A.c[0]) * q, A.c[1] + (B.c[1] - A.c[1]) * q],
                zoom: A.z + (B.z - A.z) * q };

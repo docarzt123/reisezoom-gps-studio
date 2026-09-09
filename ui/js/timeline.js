@@ -487,7 +487,7 @@ function mountTimelineBar(opts) {
       const sek = ges > 0 ? (bis - von) * ges : 0;
       b.title = titel + (sek > 0 ? ` · ${zahl(sek)} s` : "");
       const wPx = (bis - von) * _viewZoom * breitePx;
-      const glyph = art === "ueber" ? (stil === "luftlinie" ? "↗" : stil === "schnitt" ? "✂" : "✈") : "⏸";
+      const glyph = art === "ueber" ? (stil === "luftlinie" ? "↗" : stil === "schnitt" ? "✂" : stil === "pause" ? "⏸" : "✈") : "⏸";
       b.innerHTML = wPx >= 14 ? `<span class="tl-gruppe-glyph">${glyph}</span>` + (wPx >= 48 && sek > 0 ? `<span class="tl-gruppe-sek">${zahl(sek)} s</span>` : "") : "";
       el.appendChild(b);
     };
@@ -648,6 +648,7 @@ function mountTimelineBar(opts) {
     _menueZeigen(ev, [
       eintrag("kino", "✈ " + tlT("animator.tours.ueber_kino", "Kinoflug")),
       eintrag("luftlinie", "↗ " + tlT("animator.tours.ueber_luft", "Luftlinie")),
+      eintrag("pause", "⏸ " + tlT("animator.tours.ueber_pause", "Pause")),
       eintrag("schnitt", "✂ " + tlT("animator.tours.ueber_schnitt", "Schnitt")),
     ]);
   }

@@ -862,6 +862,18 @@ already exists"). Laufpunkt der Kette: `_dotStilAktuell(frac)` liest die laufend
 (`_bahnAbschnitt(frac).teil`), `dotSetzen` baut die Ebenen beim Etappenwechsel neu.
 Log-Spur: `[schwarm-vorschau]` je Aufbau (Stil je Tour, 3D ja/nein, Ebenen).
 
+Übergangsstile (`ueber_stil` der Gruppe, die der Übergang erreicht): `kino` (heraus,
+hinüber, heran), `luftlinie` (gerade), `pause` (09.09.2026: Kamera bleibt auf der Sicht
+davor, Laufpunkt bleibt stehen — `_reiseImUebergang` liefert false —, der Halt bleibt
+im Plan; das Bild springt mit der nächsten Etappe), `schnitt` (kein Übergangs-Abschnitt,
+Zeit 0 in `core/spuren.py`/`ui/js/spuren.js`). Entscheidung in `_reiseKamera`.
+
+Höhen der Bahn: die Brücke liefert je Track 800 Punkte, aber 200 Höhen
+(`animator_load_gpx`, fürs Overlay gedünnt). `_hoehenAnPunkte(ele, n)` bildet sie per
+Index auf die Punkte ab — in `_tourPool`, `_tourGeduennt` und `_reiseSerieBauen`. Vorher
+warf der Gleichheits-Test sie weg und das Profil der Reise war eine Gerade.
+Wächter: `tests/test_uebergang_pause.py`.
+
 ### Reise: der Zeitplan gehört den Etappen (seit 08.09.2026) — abgelöst durch die Gruppen (oben), Regeln gelten weiter
 
 Eine Reise (`_reiseGilt()`: Ablauf ≠ Schwarm, mindestens eine Zusatztour, erste

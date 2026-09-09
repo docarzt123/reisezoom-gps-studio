@@ -505,11 +505,11 @@ python app.py</code></pre>
 <ul>
 <li>Zwischen zwei Etappen steht der <strong>Übergang</strong>: <strong>Kinoflug</strong> (zoomt heraus, fliegt</li>
 </ul>
-<p> hinüber, zoomt wieder hinein), <strong>Luftlinie</strong> (fährt gerade) oder <strong>Schnitt</strong> (springt  ohne Zwischenbild). Die Sekunden daneben gelten nur für diesen einen Übergang; leer  heißt „die gemeinsame Kinoflug-Dauer ganz unten&quot;.</p>
+<p> hinüber, zoomt wieder hinein), <strong>Luftlinie</strong> (fährt gerade), <strong>Pause</strong> (nichts passiert:  das Bild und der Laufpunkt bleiben am Ende der Etappe stehen, der Halt bleibt in der  Zeitleiste, erst mit der nächsten Etappe springt das Bild) oder <strong>Schnitt</strong> (springt  ohne Zwischenbild). Die Sekunden daneben gelten nur für diesen einen Übergang; leer  heißt „die gemeinsame Kinoflug-Dauer ganz unten&quot;.</p>
 <p>In der <strong>Tempo-Spur</strong> über der Zeitleiste bekommt jede Etappe ihre eigene Kachel mit ihrem Namen und ihrer Farbe — dort sehen Sie, welche Etappe an welcher Stelle des Videos läuft und wie lange sie dauert.</p>
 <p><strong>Die Übergänge kommen zur Animationsdauer dazu.</strong> Unter der Liste steht deshalb, wie lang das Video wirklich wird — aufgeteilt in Etappen und Übergänge. Die Zeile färbt sich orange, wenn die Flüge die Etappen überwiegen oder wenn feste Etappendauern den übrigen Etappen fast keine Zeit mehr lassen; dann steht dort auch, wie viel jeder übrigen Etappe bleibt. Jede Etappe behält mindestens drei Zehntelsekunden — lieber wird das Video etwas länger, als dass eine Etappe unsichtbar durchrauscht.</p>
 <h3 id="gruppen-in-der-zeitleiste-nacheinander-parallel-oder-beides">Gruppen in der Zeitleiste — nacheinander, parallel oder beides</h3>
-<p>Sobald zwei oder mehr Touren im Projekt sind, wird die Tempo-Spur über der Zeitleiste zur <strong>Touren-Zeile</strong>: jede Tour ist eine <strong>Gruppe</strong> und bekommt dort eine Kachel mit Name, Faktor und Sekunden. Die Lücke zwischen zwei Kacheln ist der Übergang (✈ Kinoflug, ↗ Luftlinie, ✂ Schnitt), schraffierte Bänder sind Halte — vor dem Inhalt, oder hinten, wenn eine Gruppe früher fertig ist als das Video. Läuft eine Gruppe gleichzeitig mit einer anderen, bekommt sie darunter eine eigene Zeile <strong>„parallel&quot;</strong>. Die Regel dahinter: alle Touren eines Projekts sind gleich lang — nämlich so lang wie das Video; die Anordnung steckt nur darin, wo ihre Halte liegen.</p>
+<p>Sobald zwei oder mehr Touren im Projekt sind, wird die Tempo-Spur über der Zeitleiste zur <strong>Touren-Zeile</strong>: jede Tour ist eine <strong>Gruppe</strong> und bekommt dort eine Kachel mit Name, Faktor und Sekunden. Die Lücke zwischen zwei Kacheln ist der Übergang (✈ Kinoflug, ↗ Luftlinie, ⏸ Pause, ✂ Schnitt), schraffierte Bänder sind Halte — vor dem Inhalt, oder hinten, wenn eine Gruppe früher fertig ist als das Video. Läuft eine Gruppe gleichzeitig mit einer anderen, bekommt sie darunter eine eigene Zeile <strong>„parallel&quot;</strong>. Die Regel dahinter: alle Touren eines Projekts sind gleich lang — nämlich so lang wie das Video; die Anordnung steckt nur darin, wo ihre Halte liegen.</p>
 <p>Alles lässt sich mit der Maus machen:</p>
 <ul>
 <li><strong>Kachel ziehen</strong> — die Gruppe wandert in der Zeit. Landet sie über einer anderen, laufen</li>
@@ -518,7 +518,7 @@ python app.py</code></pre>
 <ul>
 <li><strong>Übergang anfassen</strong> — das Band zwischen zwei Gruppen lässt sich <strong>ziehen</strong> (Dauer des</li>
 </ul>
-<p> Übergangs) und <strong>anklicken</strong>: dann wählen Sie Kinoflug, Luftlinie oder Schnitt direkt in der  Zeitleiste. Auch der Halt vor der ersten Gruppe lässt sich ziehen.</p>
+<p> Übergangs) und <strong>anklicken</strong>: dann wählen Sie Kinoflug, Luftlinie, Pause oder Schnitt direkt in der  Zeitleiste. Auch der Halt vor der ersten Gruppe lässt sich ziehen.</p>
 <ul>
 <li><strong>Ränder ziehen</strong> — die Gruppe wird länger oder kürzer; gespeichert wird der <strong>Faktor</strong></li>
 </ul>

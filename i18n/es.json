@@ -3059,5 +3059,6 @@
   "animator.stil.was": "¿Qué aplicar?",
   "animator.stil.ok": "Aplicar",
   "animator.section.tours_hint": "Cada track tiene su propio aspecto: ▸ en la entrada abre grosor, estilo, sombra, brillo, reducción de puntos y el punto en movimiento.",
-  "animator.stil.alle_pfeile": "todas las flechas"
+  "animator.stil.alle_pfeile": "todas las flechas",
+  "animator.tours.ueber_pause": "Pausa"
 }
