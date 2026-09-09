@@ -3430,9 +3430,54 @@ function mountAnimator(body, headerActions, opts) {
       }
       if (zeile !== _kartenGroesseLetzt) { _kartenGroesseLetzt = zeile; applog("info", "[viewport] " + zeile); }
     } catch (e) { applog("warn", "[viewport] " + e); }
+    try { _gelaendePruefen(anlass); } catch (_) {}
     return false;
   }
   window.__rzKartenGroessePruefen = _kartenGroessePruefen;   // Prüfstand
+
+  /** Sind die Gelände-Kacheln (DEM) für die aktuelle Zoomstufe da?
+   *
+   *  09.09.2026 (Marc, dreimal „seltsame Auflösung": Straßen dick und treppig,
+   *  Luftbild grob, Beschriftungen groß — Gelände aus und wieder an macht es
+   *  scharf): Mit Gelände zeichnet MapLibre die ganze Karte in Texturen je
+   *  Gelände-Kachel. Fehlen die DEM-Kacheln der passenden Stufe, deckt eine
+   *  grobe Eltern-Kachel ab, und ihre Textur wird über den Bildschirm gezogen —
+   *  alles, was die Karte malt, wird treppig. Diese Prüfung schreibt den Stand
+   *  der DEM-Kacheln ins Log und lädt sie neu, wenn nichts mehr lädt und die
+   *  beste geladene Stufe weit unter der nötigen liegt. */
+  let _gelaendeLetzt = "";
+  function _gelaendePruefen(anlass) {
+    if (!map || !map.terrain) return false;
+    try {
+      const tsc = map.terrain.sourceCache;                 // TerrainSourceCache
+      const sc = tsc && tsc.sourceCache;                   // die DEM-Quelle
+      const tiles = (sc && sc._tiles) || {};
+      const z = map.getZoom();
+      const maxZ = (sc && sc._source && sc._source.maxzoom) || 15;
+      const soll = Math.max(0, Math.min(maxZ, Math.floor(z - (tsc.deltaZoom || 1))));
+      let n = 0, geladenMax = -1, laedt = 0, fehler = 0, sichtbarMax = -1;
+      for (const k in tiles) {
+        const t = tiles[k]; n++;
+        const oz = (t.tileID && t.tileID.overscaledZ) || 0;
+        if (t.state === "loaded") geladenMax = Math.max(geladenMax, oz);
+        else if (t.state === "loading" || t.state === "reloading") laedt++;
+        else if (t.state === "errored") fehler++;
+      }
+      try { for (const t of tsc.getRenderableTiles()) if (t && t.tileID) sichtbarMax = Math.max(sichtbarMax, t.tileID.overscaledZ || 0); } catch (_) {}
+      const zeile = `${anlass}: Zoom ${z.toFixed(2)} · Soll z${soll} · DEM-Kacheln ${n} · geladen bis z${geladenMax} · sichtbar bis z${sichtbarMax} · lädt ${laedt} · Fehler ${fehler}`;
+      const haengt = n > 0 && laedt === 0 && sichtbarMax >= 0 && sichtbarMax < soll - 2;
+      if (haengt) {
+        applog("warn", "[gelände] Kacheln hängen — DEM neu laden · " + zeile);
+        try { if (sc && sc.reload) sc.reload(); } catch (e) { applog("warn", "[gelände] reload: " + e); }
+        try { if (tsc.freeRtt) tsc.freeRtt(); } catch (_) {}
+        try { map.triggerRepaint(); } catch (_) {}
+        return true;
+      }
+      if (zeile !== _gelaendeLetzt) { _gelaendeLetzt = zeile; applog("info", "[gelände] " + zeile); }
+    } catch (e) { applog("warn", "[gelände] " + e); }
+    return false;
+  }
+  window.__rzGelaendePruefen = _gelaendePruefen;   // Prüfstand
 
   /**
    * Letterbox-Viewport an die gewählte Render-Auflösung anpassen.
@@ -8894,6 +8939,9 @@ function mountAnimator(body, headerActions, opts) {
     _currentStyleKey = initialStyleKey;   // v0.9.329 — Init-Stil merken (onLoad-Guard)
     // Viewport vor Map-Init dimensionieren — sonst hat Mapbox die falsche Größe.
     updateAnimatorViewport();
+    // 09.09.2026 — nach jeder Fahrt, sobald Ruhe ist: Gelände-Kacheln prüfen
+    let _gelaendeTimer = null;
+    const _gelaendeNachFahrt = () => { clearTimeout(_gelaendeTimer); _gelaendeTimer = setTimeout(() => { try { _gelaendePruefen("Ruhe nach Fahrt"); } catch (_) {} }, 1500); };
     const made = createMap({
       container: "map-canvas",
       // 03.09.2026 — Stil aus der gemeinsamen Liste; Alpha ist kein Kartenstil.
@@ -8904,6 +8952,7 @@ function mountAnimator(body, headerActions, opts) {
       common: { center: [10, 51], zoom: 4, pitch: currentPitch() },
     });
     map = made.map;
+    try { map.on("moveend", _gelaendeNachFahrt); map.on("idle", _gelaendeNachFahrt); } catch (_) {}   // 09.09.2026 Gelände-Kacheln prüfen
     try { map.on("move", () => { try { _ovUpdateNorthScale(); } catch (_) {} }); } catch (_) {}   // 04.09.2026 Nordpfeil/Maßstab
     map.addControl(new made.lib.NavigationControl(), "top-right");
     try { _updateStyleHints(initialStyleKey); } catch (_) {}
