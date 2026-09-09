@@ -1175,7 +1175,11 @@ Carga un archivo GPX y renderiza un MP4 en el que la línea del track se dibuja 
 **Overlays** (todos activables por separado, libremente colocables):
 - **Caja de totales** — valores totales del track
 - **Caja en directo** — valores que corren durante la animación
-- **Perfil de altitud** — línea animada
+- **Perfil de altitud** — línea animada. En un viaje con varias etapas (desde v0.9.683)
+  eliges debajo qué muestra el perfil: **Viaje completo** (por defecto: una curva sobre
+  todas las etapas, los límites como marcas discontinuas; transiciones y paradas quedan
+  quietas) o **Etapa en curso** (el perfil se reconstruye con cada etapa, su nombre en la
+  cabecera). Con pistas paralelas el perfil muestra el trazado de la cadena.
 - **Flecha del norte** (desde 04.09.2026, petición de un probador) — gira con la cámara, así que siempre señala al norte aunque la vista esté girada o en barrido. Por defecto **activada**, abajo a la derecha.
 - **Escala** (desde 04.09.2026) — barra con una longitud redonda (100 m, 500 m, 2 km …) que sigue el zoom; medida en el centro del encuadre. Por defecto **activada**, abajo a la izquierda. En el render alfa (sin mapa) se omite porque no hay mapa; la flecha del norte se mantiene.
 - **Ajustar el mapa a mano, sin keyframes** (desde 05.09.2026): si haces zoom, desplazas o inclinas la vista previa y no tienes keyframes, esa vista es la cámara: en la prueba, al arrastrar el tirador y en el vídeo. «⤢ Ajustar» devuelve la vista general; en cuanto pones un keyframe, manda el keyframe.

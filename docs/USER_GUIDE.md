@@ -1312,7 +1312,11 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 **Overlays** (alle einzeln togglebar, frei platzierbar):
 - **Totals-Box** — Gesamt-Werte des Tracks
 - **Live-Box** — Werte, die während der Animation mitlaufen
-- **Höhenprofil** — animierte Linie
+- **Höhenprofil** — animierte Linie. Bei einer Reise mit mehreren Etappen (seit v0.9.683)
+  wählst du darunter, was das Profil zeigt: **Ganze Reise** (Standard — eine Kurve über
+  alle Etappen, die Etappengrenzen als gestrichelte Marken; Übergänge und Halte stehen
+  still) oder **Laufende Etappe** (das Profil baut sich mit jeder Etappe neu auf, ihr Name
+  steht in der Kopfzeile). Bei parallelen Spuren zeigt das Profil die Bahn der Kette.
 - **Nordpfeil** (seit 04.09.2026, Beta-Tester-Wunsch) — dreht mit der Kamera, zeigt also immer nach Norden, auch bei gedrehter oder schwenkender Ansicht. Standard **an**, unten rechts.
 - **Maßstab** (seit 04.09.2026) — Maßstabsleiste mit runder Länge (100 m, 500 m, 2 km …), die sich beim Zoomen anpasst; gemessen in der Bildmitte. Standard **an**, unten links. Im Alpha-Render (ohne Karte) entfällt sie, weil es dort keine Karte gibt, der Nordpfeil bleibt.
   Beide lassen sich wie jede Box abschalten und in eine andere Ecke legen.

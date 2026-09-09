@@ -3060,5 +3060,8 @@
   "animator.stil.ok": "Apply",
   "animator.section.tours_hint": "Every track has its own look: ▸ on the entry opens width, style, shadow, glow, point reduction and the running dot.",
   "animator.stil.alle_pfeile": "all arrows",
-  "animator.tours.ueber_pause": "Pause"
+  "animator.tours.ueber_pause": "Pause",
+  "animator.overlay.ele_scope_reise": "Whole journey",
+  "animator.overlay.ele_scope_etappe": "Running stage",
+  "animator.overlay.ele_scope_tip": "Whole journey: one curve over all stages, boundaries as marks. Running stage: the profile rebuilds for each stage."
 }

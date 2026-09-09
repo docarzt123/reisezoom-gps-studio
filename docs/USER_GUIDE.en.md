@@ -1151,7 +1151,11 @@ Loads a GPX file and renders an MP4 in which the track line is animated, drawn o
 **Overlays** (all individually toggleable, freely placeable):
 - **Totals box** — total values of the track
 - **Live box** — values that update during the animation
-- **Elevation profile** — animated line
+- **Elevation profile** — animated line. For a journey with several stages (since v0.9.683)
+  you choose below it what the profile shows: **Whole journey** (default — one curve over
+  all stages, stage boundaries as dashed marks; transitions and holds stand still) or
+  **Running stage** (the profile rebuilds with every stage, its name in the header). With
+  parallel rows the profile shows the chain's path.
 - **North arrow** (since 2026-09-04, beta-tester request) — rotates with the camera, so it always points north even when the view is turned or sweeping. Default **on**, bottom right.
 - **Scale bar** (since 2026-09-04) — bar with a round length (100 m, 500 m, 2 km …) that follows the zoom; measured at the centre of the frame. Default **on**, bottom left. The alpha render (no map) drops it because there is no map; the north arrow stays.
 - **Set the map by hand, no keyframes** (since 2026-09-05): if you zoom, pan or tilt the preview and have no keyframes, that view is the camera for the test run, for scrubbing and for the video. “⤢ Fit” brings back the overview; once you set a keyframe, the keyframe wins.
