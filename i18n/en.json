@@ -1129,6 +1129,7 @@
   "geotagger.write.laeuft_schon": "A write operation is already running.",
   "ghosts.add_archive": "Add ghost track …",
   "ghosts.pick_titel": "Ghost tracks from the archive",
+  "ghosts.schon": "already a ghost track",
   "ghosts.busy": "Loading …",
   "ghosts.color": "Colour",
   "ghosts.dashed": "Dashed",

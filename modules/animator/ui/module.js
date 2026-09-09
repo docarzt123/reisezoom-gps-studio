@@ -1549,9 +1549,14 @@ function mountAnimator(body, headerActions, opts) {
     if (ausArchiv) {
       ausArchiv.onclick = async () => {
         if (typeof window.rzArchivTourenWaehlen !== "function") return;
-        const drin = [currentGpx].concat((window.__rzGhostSpuren ? window.__rzGhostSpuren() : []).map(g => g.path || g.gpx_path)).filter(Boolean);
+        // 09.09.2026 (Marc: „ich kann bei den Ghost-Tracks den Haupttrack nicht auswählen"):
+        // Ausgegraut ist nur, was schon Ghost-Spur ist. Der Haupt-Track und die
+        // Etappen dürfen zusätzlich als Ghost liegen (etwa die ganze Strecke schwach
+        // im Hintergrund, während sie animiert wird).
+        const drin = (window.__rzGhostSpuren ? window.__rzGhostSpuren() : []).map(g => g.path || g.gpx_path).filter(Boolean);
         let pfade = [];
-        try { pfade = await window.rzArchivTourenWaehlen({ ausschliessen: drin, titel: t("ghosts.pick_titel", "Ghost-Spuren aus dem Archiv") }); }
+        try { pfade = await window.rzArchivTourenWaehlen({ ausschliessen: drin, titel: t("ghosts.pick_titel", "Ghost-Spuren aus dem Archiv"),
+                                                          schonText: t("ghosts.schon", "schon als Ghost-Spur") }); }
         catch (e) { applog && applog("warn", "[ghost] Archiv-Auswahl: " + e); return; }
         if (!pfade || !pfade.length) return;
         const frei = knopfBeschaeftigt("ghosts-add-archive", "ghosts.busy", "Lade …");
