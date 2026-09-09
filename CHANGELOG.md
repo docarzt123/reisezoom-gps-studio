@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Overlays: the source line (attribution) now sits at the top of the Overlays section; default is full width at the bottom with full details. — Quellenzeile ganz oben in den Overlays, Standard ganze Breite unten mit vollen Angaben.
+
 ### Fixed
 - Ghost tracks: the main track (and the stages) can be picked as a ghost track again — only tracks that already are ghosts are greyed out. — Ghost-Spuren: der Haupt-Track lässt sich wieder als Ghost wählen.
 
