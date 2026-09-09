@@ -570,7 +570,11 @@ function mountAnimator(body, headerActions, opts) {
            sauber zu den weiteren Touren. Nicht weiter ausbauen; zum Reaktivieren
            nur das hidden-Attribut entfernen (Render-Pfad + extra_tours-Logik
            bleiben unangetastet im Code). -->
-      <section class="section" data-accordion-section="tours" hidden>
+      <!-- 09.09.2026 (Marc: „kann ich zu einem bestehenden Projekt weitere Touren
+           hinzufügen?" — „im Animator?"): Seit dem Gruppen-Umbau (§60) fliegt die
+           Vorschau sauber zu weiteren Touren; die Sektion ist wieder immer da, bei
+           einer einzelnen Tour mit dem Knopf „Tour hinzufügen". -->
+      <section class="section" data-accordion-section="tours">
         <button class="section-collapse-header" type="button">
           <span>${t("animator.section.tours", "🧭 Mehrere Touren")}</span>
           <span class="collapse-arrow">▸</span>
@@ -14331,8 +14335,10 @@ function mountAnimator(body, headerActions, opts) {
       }
     }
     if (toursSec) {
+      // 09.09.2026 — immer sichtbar; mit weiteren Touren klappt sie von selbst
+      // auf (sonst sieht man eine Tour und weiß nicht, wo die anderen sind).
       const show = _extraTours.length > 0;
-      toursSec.hidden = !show;
+      toursSec.hidden = false;
       if (show) {
         const body = toursSec.querySelector(".section-collapse-body");
         if (body) body.hidden = false;

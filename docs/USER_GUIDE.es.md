@@ -324,6 +324,15 @@ aceleración base para que cuadre — paradas incluidas. «Hazlo de 20 segundos�
 > muestra: ahí las **duraciones de etapa y las transiciones** hacen el plan, ver la
 > sección siguiente.
 
+### Añadir rutas a un proyecto abierto
+
+A un proyecto abierto se le añaden rutas de dos formas: abajo en la sección
+**«Varias rutas»** de la barra lateral con **«Añadir ruta»** (diálogo de archivo,
+también FIT, KML y similares), o marcando rutas en el **archivo** y pasándolas al
+animador con el proyecto abierto. Las ya cargadas se omiten. La sección está
+también con una sola ruta desde v0.9.682. Cada ruta se convierte en un
+grupo al final de la cadena; arrástralo en la línea de tiempo para colocarlo.
+
 ### Grupos en la línea de tiempo — en secuencia, en paralelo o ambos (desde v0.9.679)
 
 En cuanto hay dos o más rutas en el proyecto, la pista de tempo sobre la línea de tiempo se
