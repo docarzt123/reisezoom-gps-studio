@@ -576,9 +576,21 @@ function mountAnimator(body, headerActions, opts) {
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
-          <p class="muted" style="font-size:11px; line-height:1.45; margin:0 0 8px;">
+          <!-- 09.09.2026 (Marc: „den Hilfetext links durch ein Tooltip ? ersetzen
+               wie überall"): Zwei Dauer-Erklärungen standen fest über der Liste
+               und schoben die Etappen nach unten. Jetzt hinter dem Fragezeichen,
+               zusammen mit dem Ablauf-Satz, der vorher als eigener Kasten darüber
+               lag. -->
+          <div class="anim-tours-kopf">
+            <span class="muted" id="anim-ablauf-kurz"></span>
+            <button type="button" class="field-help" data-help="tours"
+                    title="${t("animator.help.show", "Erklärung anzeigen")}">?</button>
+          </div>
+          <div class="muted field-help-content" data-help-content="tours" hidden
+               style="font-size:11px; margin:0 0 8px; line-height:1.45;">
             ${t("animator.tours.hint", "Weitere Touren werden nach der ersten animiert — die Kamera fliegt im Kino-Stil von einer zur nächsten.")}
-          </p>
+            <div id="anim-ablauf-badge-text" style="margin-top:6px;"></div>
+          </div>
           <div id="anim-tours-list" class="anim-tours-list"></div>
           <div id="anim-reise-bilanz" class="anim-reise-bilanz" hidden></div>
           <button type="button" class="btn btn-small" id="anim-tours-add" style="width:100%; margin-top:4px;">
@@ -2676,6 +2688,7 @@ function mountAnimator(body, headerActions, opts) {
   let _animDezent = false;   // 29.08.2026 — Haupt-Tour im Schwarm dezent
   let _animHauptStartS = 0;  // 29.08.2026 — Haupt-Tour startet nach X s (Schwarm)
   let _animEtappe1S = 0;     // 08.09.2026 — eigene Dauer der ERSTEN Etappe (0 = aus dem Gesamtbudget)
+  let _animEtappe1Name = "";  // 09.09.2026 (Marc) — eigener Name der ERSTEN Etappe ("" = Dateiname)
   let _animSwarmForm = false; // 31.08.2026 (Beta-Tester) — Zusatz-Touren mit Haupt-Form (Pfeil)
   let currentCoords = null;     // letzte Track-Coords für Layer-Rebuild bei Style-Wechsel
   // 23.08.2026 — Etappen: Startindizes + geometrische Kumulativlänge. `line-progress`
@@ -3880,7 +3893,11 @@ function mountAnimator(body, headerActions, opts) {
         try {
           if (_tlBar && _tlBar.setTempo)
             _tlBar.setTempo(_tempoAnzeige(reise ? [] : eintraege), reise ? [] : (r.halte || []),
-                            reise ? null : { dauer_s: r.dauer_s, anteile: r.map },
+                            // Bei einer Etappenfolge OHNE Tabelle (die Bahn ist
+                            // schon gleichmäßig in Videozeit), aber MIT der
+                            // Länge — die Kacheln beschriften sich daraus.
+                            reise ? { dauer_s: animSekunden(), anteile: null }
+                                  : { dauer_s: r.dauer_s, anteile: r.map },
                             reise ? t("animator.tempo.reise_sperre",
                                       "Der Ablauf «Nacheinander» bestimmt den Zeitplan — Etappen und Übergänge stellst du oben ein.")
                                   : null);
@@ -13938,20 +13955,24 @@ function mountAnimator(body, headerActions, opts) {
     // IDEAS §38 — Ablauf-Anzeige: gewählt wird er im ARCHIV (Grilling Q9),
     // hier steht nur, was gerade gilt. Beim Schwarm ist der Kinoflug sinnlos
     // (es gibt keine Übergänge), also verschwindet sein Regler.
-    let badge = document.getElementById("anim-ablauf-badge");
-    if (!badge && host) {
-      badge = document.createElement("div");
-      badge.id = "anim-ablauf-badge";
-      badge.className = "hint";
-      badge.style.cssText = "margin:2px 0 8px;font-size:11.5px;opacity:.85";
-      host.parentElement.insertBefore(badge, host);
+    // 09.09.2026 — der Ablauf steht als eine Zeile über der Liste („🧭
+    // Nacheinander"), der ganze Satz dazu im ?-Tooltip. Vorher war es ein
+    // dauerhafter Kasten über der Etappenliste.
+    const schwarm = _animAblauf === "schwarm";
+    const kurz = document.getElementById("anim-ablauf-kurz");
+    if (kurz) {
+      kurz.textContent = _extraTours.length === 0 ? ""
+        : (schwarm ? "🌊 " + t("animator.ablauf.schwarm_kurz", "Gleichzeitig (Schwarm)")
+                   : "🧭 " + t("animator.ablauf.reise_kurz", "Nacheinander"));
     }
-    if (badge) {
-      badge.textContent = _animAblauf === "schwarm"
-        ? "🌊 " + t("animator.ablauf.schwarm", "Gleichzeitig (Schwarm) — die längste Tour bestimmt die Videodauer. Gewählt im Archiv.")
-        : "🧭 " + t("animator.ablauf.reise", "Nacheinander (eine Reise) — mit Kinoflug zwischen den Etappen. Gewählt im Archiv.");
-      badge.hidden = _extraTours.length === 0;
+    const badgeText = document.getElementById("anim-ablauf-badge-text");
+    if (badgeText) {
+      badgeText.textContent = schwarm
+        ? t("animator.ablauf.schwarm", "Gleichzeitig (Schwarm) — die längste Tour bestimmt die Videodauer. Gewählt im Archiv.")
+        : t("animator.ablauf.reise", "Nacheinander (eine Reise) — mit Kinoflug zwischen den Etappen. Gewählt im Archiv.");
     }
+    // Der alte Kasten kann aus einem früheren Aufbau noch dastehen.
+    document.getElementById("anim-ablauf-badge")?.remove();
     // IDEAS §38 M2 — Fokus-Tour (Marc: „kamera bleibt stehen", wenn sie fertig
     // ist). Das Dropdown steuert AUCH das „Kamera folgt Track"-Häkchen — die
     // gesamte Folge-Logik (Vorschau + Render) hängt an diesem einen Schalter,
@@ -14117,6 +14138,45 @@ function mountAnimator(body, headerActions, opts) {
       _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
       toast(t("animator.tours.sortiert", "Etappen neu geordnet."), "info", 1800);
     };
+    /** Klick auf einen Etappennamen macht daraus ein Eingabefeld (Marc,
+     *  09.09.2026). Enter oder Verlassen übernimmt, Esc verwirft. Etappe 1
+     *  bekommt einen eigenen Namen im Projekt, die weiteren schreiben in ihre
+     *  Tour — der Dateiname bleibt in beiden Fällen unangetastet. */
+    const _namenBinden = (zeile) => {
+      const el = zeile.querySelector(".anim-tour-name.ist-umbenennbar");
+      if (!el) return;
+      el.addEventListener("click", () => {
+        if (zeile.querySelector(".anim-tour-name-edit")) return;
+        const nr = parseInt(el.dataset.etappe, 10);
+        const alt = el.textContent.trim();
+        const inp = document.createElement("input");
+        inp.type = "text";
+        inp.className = "anim-tour-name-edit";
+        inp.value = alt;
+        el.replaceWith(inp);
+        inp.focus(); inp.select();
+        let fertig = false;
+        const schliessen = (speichern) => {
+          if (fertig) return;
+          fertig = true;
+          const neu = inp.value.trim();
+          if (speichern && neu && neu !== alt) {
+            if (nr === 1) _animEtappe1Name = neu;
+            else if (_extraTours[nr - 2]) _extraTours[nr - 2].name = neu;
+            _animPersistTours();
+          } else if (speichern && !neu) {
+            toast(t("animator.tours.name_leer", "Der Name darf nicht leer sein."), "info");
+          }
+          _animRenderToursList();
+          try { _reiseBilanzZeigen(); } catch (_) {}
+        };
+        inp.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") { ev.preventDefault(); schliessen(true); }
+          else if (ev.key === "Escape") { ev.preventDefault(); schliessen(false); }
+        });
+        inp.addEventListener("blur", () => schliessen(true));
+      });
+    };
     const _dauerFeld = (wert, titel) =>
       `<input type="number" class="anim-etappe-dauer" min="0" step="0.5" value="${wert || ""}"
               placeholder="auto" title="${_animEscapeHtml(titel)}"><span class="anim-etappe-einheit">s</span>`;
@@ -14134,7 +14194,10 @@ function mountAnimator(body, headerActions, opts) {
     if (_reise) {
       const kopf = document.createElement("div");
       kopf.className = "anim-tour-row anim-etappe-erste ist-etappe";
-      const nm = (currentGpx.split("/").pop() || "Tour 1").replace(/\.gpx$/i, "");
+      // 09.09.2026 (Marc: „umbenennen in der Sidebar möglich machen") — ein
+      // eigener Name gewinnt über den Dateinamen.
+      const nm = _animEtappe1Name
+        || (currentGpx.split("/").pop() || "Tour 1").replace(/\.gpx$/i, "");
       // 08.09.2026 (Marc: „achte beim Multitrack, dass alles sauber lesbar
       // ist"): In einer Zeile mit Dauer-Feld und drei Knöpfen blieb vom Namen
       // „2024-02-10_66 Seen #1 Neus…" übrig — fünfzehn Etappen sahen alle gleich
@@ -14142,10 +14205,12 @@ function mountAnimator(body, headerActions, opts) {
       // darunter.
       kopf.innerHTML = `
         <span class="anim-tour-idx">1</span>
-        <span class="anim-tour-name" title="${_animEscapeHtml(nm)}">${_animEscapeHtml(nm)}</span>
+        <span class="anim-tour-name ist-umbenennbar" data-etappe="1"
+              title="${_animEscapeHtml(t("animator.tours.umbenennen", "Etappe umbenennen"))}">${_animEscapeHtml(nm)}</span>
         <span class="anim-etappe-zeile">
           ${_dauerFeld(_animEtappe1S, t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt."))}
         </span>`;
+      _namenBinden(kopf);
       kopf.querySelector(".anim-etappe-dauer").addEventListener("change", (e) => {
         _animEtappe1S = Math.max(0, parseFloat(e.target.value) || 0);
         e.target.value = _animEtappe1S || "";
@@ -14189,7 +14254,8 @@ function mountAnimator(body, headerActions, opts) {
       row.innerHTML = `
         <span class="anim-tour-idx">${i + 2}</span>
         <input type="color" class="anim-tour-color" value="${_animEscapeHtml(tr.line_color)}" title="${t("animator.tours.color", "Farbe dieser Tour")}">
-        <span class="anim-tour-name" title="${_animEscapeHtml(tr.gpx_path)}">${_animEscapeHtml(tr.name)}</span>
+        <span class="anim-tour-name${_reise ? " ist-umbenennbar" : ""}"${_reise ? ` data-etappe="${i + 2}"` : ""}
+              title="${_animEscapeHtml(_reise ? t("animator.tours.umbenennen", "Etappe umbenennen") : tr.gpx_path)}">${_animEscapeHtml(tr.name)}</span>
         ${_reise ? "<span class=\"anim-etappe-zeile\">" : ""}
         ${_reise ? _dauerFeld(tr.dauer_s, t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt.")) : ""}
         ${_animAblauf === "schwarm" ? `<span class="anim-tour-start-wrap" title="${t("animator.tours.start_delay", "Start nach … Sekunden Videozeit (0 = gemeinsamer Start)")}">⏱<input type="number" class="anim-tour-start" min="0" step="1" value="${+tr.start_s || 0}" style="width:44px">s</span>` : ""}
@@ -14199,6 +14265,7 @@ function mountAnimator(body, headerActions, opts) {
           <button type="button" class="anim-tour-btn anim-tour-del" data-act="del" title="${t("animator.tours.remove", "entfernen")}">✕</button>
         </span>
         ${_reise ? "</span>" : ""}`;
+      _namenBinden(row);
       // 29.08.2026 (Marc, Schorfheide): Start-Verzögerung je Zusatz-Tour.
       row.querySelector(".anim-tour-start")?.addEventListener("change", (e) => {
         _extraTours[i].start_s = Math.max(0, parseFloat(e.target.value) || 0);
@@ -14658,6 +14725,7 @@ function mountAnimator(body, headerActions, opts) {
     applog("info", `[reise] Bahn gebaut: ${etappen.length} Etappen · ${coords.length} Punkte · `
       + `Etappen ${etappeS.map(x => x.toFixed(1)).join("/")} s · Übergänge ${ueberS.slice(1).map(x => x.toFixed(1)).join("/")} s`);
     try { _reiseBilanzZeigen(); } catch (_) {}
+    try { _etappenAnLeiste(); } catch (e) { applog("warn", "[reise] " + e); }
     _tempoReiseStandPruefen(etappen.length);
     return _reiseBahn;
   }
@@ -14700,6 +14768,34 @@ function mountAnimator(body, headerActions, opts) {
   /** Sagt, wie lang die Reise wirklich wird. 08.09.2026: In Marcs „66 Seen"
    *  standen 12 s Animation gegen vierzehn Übergänge à 3 s — vier Fünftel des
    *  Videos waren Flug über leere Karte, und nichts in der Oberfläche sagte das. */
+  /** Die Etappen mit Name, Farbe und ihrer Lage an die Zeitleiste geben
+   *  (Marc, 09.09.2026: „bei Multitrack sollte man sehen, welcher Track an
+   *  welcher Stelle in der Timeline läuft"). Die Bahn ist gleichmäßig in
+   *  Videozeit abgetastet, ihre Punkt-Anteile sind also direkt Leisten-Anteile
+   *  der Anim-Phase. */
+  function _etappenAnLeiste() {
+    if (!_tlBar || !_tlBar.setEtappen) return;
+    if (!_reiseBahn || !_reiseGilt()) { _tlBar.setEtappen([]); return; }
+    const ti = introFraction(), tf = trackFraction();
+    const n1 = Math.max(1, _reiseBahn.coords.length - 1);
+    const namen = [_animEtappe1Name
+                     || (currentGpx || "").split("/").pop().replace(/\.gpx$/i, "")]
+      .concat(_extraTours.map(x => x.name || ""));
+    const farben = [currentLineColor()].concat(_extraTours.map(x => x.line_color || ""));
+    // Für die Kachel zählt das Unterscheidbare: fast alle Dateinamen beginnen
+    // mit dem Datum, und in einer schmalen Kachel stand dann fünfzehnmal
+    // „2024…". Das führende Datum fliegt für die BESCHRIFTUNG raus — der
+    // Tooltip und die Seitenleiste zeigen weiter den vollen Namen.
+    const kurz = (n) => String(n || "").replace(/^\d{4}-\d{2}-\d{2}[_\s-]+/, "").trim() || String(n || "");
+    _tlBar.setEtappen(_reiseBahn.teile.map((teil, i) => ({
+      name: kurz(namen[i]) || `${i + 1}`,
+      voll: namen[i] || `${i + 1}`,
+      farbe: farben[i] || "",
+      von: ti + (teil.von / n1) * (tf - ti),
+      bis: ti + (teil.bis / n1) * (tf - ti),
+    })));
+  }
+
   function _reiseBilanzZeigen() {
     const host = document.getElementById("anim-reise-bilanz");
     if (!host) return;
@@ -15071,6 +15167,7 @@ function mountAnimator(body, headerActions, opts) {
           ueber_s: (t.ueber_s === "" || t.ueber_s == null) ? null : (+t.ueber_s || 0),
           ueber_stil: t.ueber_stil || "kino" })),
         etappe1_dauer_s: +_animEtappe1S || 0,
+        etappe1_name: _animEtappe1Name || "",
         tours_ablauf: _animAblauf,
         tours_fokus: _animFokusPfad,
         tours_dezent: _animDezent,
@@ -15228,6 +15325,7 @@ function mountAnimator(body, headerActions, opts) {
         if (cb) cb.checked = _animDezent; }
       _animHauptStartS = Math.max(0, +a.tours_haupt_start_s || 0);
       _animEtappe1S = Math.max(0, +a.etappe1_dauer_s || 0);
+      _animEtappe1Name = typeof a.etappe1_name === "string" ? a.etappe1_name : "";
       _animSwarmForm = a.tours_dot_haupt === true;
       { const cb = document.getElementById("anim-swarm-form");
         if (cb) cb.checked = _animSwarmForm; }

@@ -704,8 +704,27 @@ Kurve. Deshalb:
   Spur wird nach jedem Loslassen neu gezeichnet, das angeklickte Element ist
   beim zweiten Klick ein anderes — ein natives `dblclick` kommt nie an.
 - `setTempo(liste, halte, kurve, hinweis)`; ein `hinweis` **sperrt** die Spur
-  (Reise, siehe unten) und steht als Tooltip, nicht als Text quer über die
-  Bänder.
+  (Etappenfolge, siehe unten) und steht als Tooltip, nicht als Text quer über
+  die Bänder.
+- **Durchgehend gekachelt** (09.09.2026, Marc: „mach das Tempo in der Timeline
+  nach oben und durchgehend … dass man sieht, was wo liegt" — wie der
+  Tempo-Editor in Final Cut über dem Clip). `_tempoKacheln()` legt die Einträge
+  auf die Leiste und füllt jede Lücke mit einer `grund`-Kachel; gezeichnet wird
+  ausschließlich aus dieser Liste. `_tempoGesamtS()` liefert die Gesamtlänge des
+  Videos (aus `dauer_s` und der Lage der Anim-Phase) — daraus die Sekunden je
+  Kachel. Beschriftet wird nach Platz: ab 68 px Faktor + Dauer, ab 30 px nur der
+  Faktor, darunter nichts (ein 1-s-Übergang ist 25 px breit und las sich vorher
+  als „1.(").
+- **Die Spur steht als ERSTE in `LANES`** — sie gehört über die Keyframe-Spuren.
+- `setEtappen([{name, voll, farbe, von, bis}])`: Bei mehreren Etappen trägt jede
+  `grund`-Kachel den Namen der Etappe, die dort läuft, mit ihrer Farbe am linken
+  Rand — die Kachel IST deren Platz auf der Leiste. Gefüllt aus
+  `_etappenAnLeiste()` im Animator (`_reiseBahn.teile` → Leisten-Anteile; das
+  geht nur, weil die Bahn gleichmäßig in Videozeit abgetastet ist).
+- **Ein Halt lässt sich an den Rändern ziehen** (`art: "halt-dauer"`): Pixel →
+  Sekunden über die Spurbreite und `_tempoGesamtS()`, die Statuszeile zeigt den
+  laufenden Wert. Gesperrte Halte (Anlauf, Nachlauf, Übergänge) haben keine
+  Anfasser — ihre Länge steht an ihrem eigenen Regler.
 
 **Im Animator** (`modules/animator/ui/module.js`): `_tempoEintraege()` hängt an
 `_tempoListeVon` (der Projekt-Id) — ohne diese Marke stand beim Projektwechsel
