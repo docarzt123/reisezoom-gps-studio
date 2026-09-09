@@ -1172,36 +1172,11 @@ function i18nMeta() { return _i18nMeta; }
  * Klick schaltet um, damit es auch ohne Maus (Touch) erreichbar bleibt.
  */
 function initHelpTips(scope) {
-  if (!scope) return;
-  let tip = document.getElementById("rz-tip");
-  if (!tip) {
-    tip = document.createElement("div");
-    tip.id = "rz-tip";
-    tip.className = "rz-tip";
-    document.body.appendChild(tip);
-  }
-  const treffer = (e) => e.target.closest && e.target.closest(".rz-q, .gpxi-q");
-  function show(el) {
-    const txt = el.getAttribute("data-tip");
-    if (!txt) return;
-    tip.textContent = txt;
-    tip.style.display = "block";
-    const r = el.getBoundingClientRect();
-    const tw = tip.offsetWidth, th = tip.offsetHeight;
-    let left = r.left + r.width / 2 - tw / 2;
-    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
-    let top = r.top - th - 8;
-    if (top < 8) top = r.bottom + 8;   // oben kein Platz → drunter
-    tip.style.left = left + "px";
-    tip.style.top = top + "px";
-  }
-  const hide = () => { tip.style.display = "none"; };
-  scope.addEventListener("mouseover", (e) => { const q = treffer(e); if (q) show(q); });
-  scope.addEventListener("mouseout", (e) => { if (treffer(e)) hide(); });
-  scope.addEventListener("click", (e) => {
-    const q = treffer(e);
-    if (q) { e.preventDefault(); tip.style.display === "block" ? hide() : show(q); }
-  });
+  // 09.09.2026 — Nur noch ein Tooltip-System: `.rz-q`/`.gpxi-q` mit `data-tip`
+  // bedient der Hover-Helfer unten (.rz-hilfe-tip), der auch `[data-tip]` kennt.
+  // Diese Funktion bleibt als Aufrufpunkt der Module bestehen, tut aber nichts
+  // mehr — vorher zeichneten beide Helfer je eine Blase übereinander.
+  return;
 }
 
 /** Ein „?"-Symbol mit Erklärblase. `text` wird als Attribut gesetzt, also escapen. */
@@ -1823,7 +1798,7 @@ document.addEventListener("click", (e) => {
 // title-Tooltip wird dafür beiseitegelegt (sonst käme „Hilfe anzeigen" dazu).
 // Klick klappt den Text weiterhin dauerhaft auf (Touch, Nachlesen).
 (function () {
-  const MARKER = ".field-help, .field-help-pill, .gt-help, .ov-help, .rz-help, .gpxi-q, [data-tip]";
+  const MARKER = ".field-help, .field-help-pill, .gt-help, .ov-help, .rz-help, .rz-q, .gpxi-q, [data-tip]";
   let tip = null, aktiv = null;
   function textFuer(btn) {
     // Den nativen title IMMER beiseitelegen — auch bei Markern mit Hilfeblock, sonst
