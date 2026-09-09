@@ -3061,7 +3061,7 @@
   "animator.section.tours_hint": "Jeder Track hat sein eigenes Aussehen: ▸ am Eintrag öffnet Dicke, Stil, Schatten, Glow, Punktreduzierung und Laufpunkt.",
   "animator.stil.alle_pfeile": "alle Pfeile",
   "animator.tours.ueber_pause": "Pause",
-  "animator.overlay.ele_scope_reise": "Ganze Reise",
+  "animator.overlay.ele_scope_reise": "Ganze Strecke",
   "animator.overlay.ele_scope_etappe": "Laufende Etappe",
-  "animator.overlay.ele_scope_tip": "Ganze Reise: eine Kurve über alle Etappen, Grenzen als Marken. Laufende Etappe: das Profil baut sich je Etappe neu auf."
+  "animator.overlay.ele_scope_tip": "Ganze Strecke: eine Kurve über alle Etappen, Grenzen als Marken. Laufende Etappe: das Profil baut sich je Etappe neu auf."
 }

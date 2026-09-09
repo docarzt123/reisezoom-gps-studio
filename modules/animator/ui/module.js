@@ -392,51 +392,6 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.ghost_opacity", "Deckkraft Ghost-Track")} <span class="label-val" id="anim-ghost-opacity-v">30 %</span></label>
             <input type="range" id="anim-ghost-opacity" min="5" max="80" step="5" value="30">
           </div>
-          <!-- v0.9.435/436 — Mehrfarbiger Track (Marc): der Track wechselt die Farbe
-               nach Distanz (km / Marker / Wegpunkt) oder nach einer Messreihe —
-               hart (Bänder) oder als Verlauf.
-               v0.9.448 — Messreihe = JEDE, die auch der Daten-Animator plotten kann
-               (Höhe, Tempo, Steigung, Puls, Leistung, Trittfrequenz, Temperatur …). -->
-          <label class="checkbox-row" title="${t("animator.colors.tooltip", "Lässt den Track die Farbe wechseln — nach Distanz oder nach jeder Datenreihe, die der Track hergibt (Höhe, Tempo, Steigung, Puls, Leistung, Trittfrequenz, Temperatur …). Der Wechsel läuft hart oder als weicher Verlauf.")}">
-            <input type="checkbox" id="anim-colors-enabled">
-            <span>${t("animator.toggle.track_colors", "Mehrere Track-Farben")}</span>
-          </label>
-          <div class="field" id="anim-colors-source-field" hidden>
-            <label class="field-label" for="anim-colors-source">${t("animator.field.colors_source", "Einfärben nach")}</label>
-            <!-- v0.9.448 — Optionen werden aus dem geladenen Track befüllt
-                 (rebuildColorSourceOptions): Distanz + JEDE Datenreihe, die auch
-                 der Daten-Animator kennt (Höhe, Tempo, Steigung, Puls, Leistung,
-                 Trittfrequenz, Temperatur, …). Hier nur die Distanz als Fallback,
-                 damit vor dem ersten GPX nichts leer ist. -->
-            <select id="anim-colors-source">
-              <option value="distance">${t("animator.colors.src_distance", "Distanz (km)")}</option>
-            </select>
-          </div>
-          <div class="field" id="anim-colors-mode-field" hidden>
-            <label class="field-label" for="anim-colors-mode">${t("animator.field.colors_mode", "Übergang")}</label>
-            <select id="anim-colors-mode">
-              <option value="hard">${t("animator.colors.mode_hard", "hart (auf einen Schlag)")}</option>
-              <option value="gradient">${t("animator.colors.mode_gradient", "Verlauf")}</option>
-            </select>
-          </div>
-          <div id="anim-colors-list-field" hidden>
-            <div id="anim-colors-list" style="margin-top:4px;"></div>
-            <div class="anim-colors-btns" id="anim-color-btns-distance" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
-              <button type="button" class="btn btn-small" id="anim-color-add-km">＋ ${t("animator.colors.add_km", "ab km")}</button>
-              <button type="button" class="btn btn-small" id="anim-color-add-marker">＋ ${t("animator.colors.add_marker", "an Marker-Position")}</button>
-              <button type="button" class="btn btn-small" id="anim-color-add-wpt">＋ ${t("animator.colors.add_wpt", "an Wegpunkten")}</button>
-            </div>
-            <div class="anim-colors-btns" id="anim-color-btns-metric" style="display:none; flex-wrap:wrap; gap:6px; margin-top:6px;">
-              <button type="button" class="btn btn-small" id="anim-color-add-val">＋ <span id="anim-color-add-val-lbl">${t("animator.colors.add_ele", "ab Höhe (hier)")}</span></button>
-              <button type="button" class="btn btn-small" id="anim-color-auto">${t("animator.colors.auto", "Auto (min → max)")}</button>
-            </div>
-            <div style="margin-top:4px;">
-              <button type="button" class="field-help" data-help="colors_hint">?</button>
-              <span class="muted" style="font-size:11px;">${t("animator.colors.hint_kurz", "Wie die Farbwechsel gelten")}</span>
-            </div>
-            <div class="muted field-help-content" data-help-content="colors_hint" hidden
-                 id="anim-colors-hint" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")}</div>
-          </div>
           
         </div>
       </section>
@@ -531,6 +486,55 @@ function mountAnimator(body, headerActions, opts) {
           <button type="button" class="btn btn-small" id="anim-stil-alle" style="width:100%; margin-top:4px;" hidden>
             ⇉ ${t("animator.stil.alle", "Aussehen auf alle übernehmen …")}
           </button>
+          <!-- 09.09.2026 — Farbverlauf („Mehrere Track-Farben") gilt für Track 1; aus der
+               unsichtbaren Linie-Sektion hierher, sonst wäre er unerreichbar (test_farbstufen_felder). -->
+          <div id="anim-colors-block" style="margin-top:10px;">
+          <!-- v0.9.435/436 — Mehrfarbiger Track (Marc): der Track wechselt die Farbe
+               nach Distanz (km / Marker / Wegpunkt) oder nach einer Messreihe —
+               hart (Bänder) oder als Verlauf.
+               v0.9.448 — Messreihe = JEDE, die auch der Daten-Animator plotten kann
+               (Höhe, Tempo, Steigung, Puls, Leistung, Trittfrequenz, Temperatur …). -->
+          <label class="checkbox-row" title="${t("animator.colors.tooltip", "Lässt den Track die Farbe wechseln — nach Distanz oder nach jeder Datenreihe, die der Track hergibt (Höhe, Tempo, Steigung, Puls, Leistung, Trittfrequenz, Temperatur …). Der Wechsel läuft hart oder als weicher Verlauf.")}">
+            <input type="checkbox" id="anim-colors-enabled">
+            <span>${t("animator.toggle.track_colors", "Mehrere Track-Farben")}</span>
+          </label>
+          <div class="field" id="anim-colors-source-field" hidden>
+            <label class="field-label" for="anim-colors-source">${t("animator.field.colors_source", "Einfärben nach")}</label>
+            <!-- v0.9.448 — Optionen werden aus dem geladenen Track befüllt
+                 (rebuildColorSourceOptions): Distanz + JEDE Datenreihe, die auch
+                 der Daten-Animator kennt (Höhe, Tempo, Steigung, Puls, Leistung,
+                 Trittfrequenz, Temperatur, …). Hier nur die Distanz als Fallback,
+                 damit vor dem ersten GPX nichts leer ist. -->
+            <select id="anim-colors-source">
+              <option value="distance">${t("animator.colors.src_distance", "Distanz (km)")}</option>
+            </select>
+          </div>
+          <div class="field" id="anim-colors-mode-field" hidden>
+            <label class="field-label" for="anim-colors-mode">${t("animator.field.colors_mode", "Übergang")}</label>
+            <select id="anim-colors-mode">
+              <option value="hard">${t("animator.colors.mode_hard", "hart (auf einen Schlag)")}</option>
+              <option value="gradient">${t("animator.colors.mode_gradient", "Verlauf")}</option>
+            </select>
+          </div>
+          <div id="anim-colors-list-field" hidden>
+            <div id="anim-colors-list" style="margin-top:4px;"></div>
+            <div class="anim-colors-btns" id="anim-color-btns-distance" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+              <button type="button" class="btn btn-small" id="anim-color-add-km">＋ ${t("animator.colors.add_km", "ab km")}</button>
+              <button type="button" class="btn btn-small" id="anim-color-add-marker">＋ ${t("animator.colors.add_marker", "an Marker-Position")}</button>
+              <button type="button" class="btn btn-small" id="anim-color-add-wpt">＋ ${t("animator.colors.add_wpt", "an Wegpunkten")}</button>
+            </div>
+            <div class="anim-colors-btns" id="anim-color-btns-metric" style="display:none; flex-wrap:wrap; gap:6px; margin-top:6px;">
+              <button type="button" class="btn btn-small" id="anim-color-add-val">＋ <span id="anim-color-add-val-lbl">${t("animator.colors.add_ele", "ab Höhe (hier)")}</span></button>
+              <button type="button" class="btn btn-small" id="anim-color-auto">${t("animator.colors.auto", "Auto (min → max)")}</button>
+            </div>
+            <div style="margin-top:4px;">
+              <button type="button" class="field-help" data-help="colors_hint">?</button>
+              <span class="muted" style="font-size:11px;">${t("animator.colors.hint_kurz", "Wie die Farbwechsel gelten")}</span>
+            </div>
+            <div class="muted field-help-content" data-help-content="colors_hint" hidden
+                 id="anim-colors-hint" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.colors.hint", "Die erste Farbe gilt ab km 0 (= Track-Farbe). Jeder Eintrag setzt ab seinem km eine neue Farbe.")}</div>
+          </div>
+          </div>
           <div class="field" id="anim-fly-field" hidden style="margin-top:10px;">
             <label class="field-label">${t("animator.field.fly_duration", "Kinoflug-Dauer")} <span class="label-val" id="anim-fly-v">3.0 s</span></label>
             <input type="range" id="anim-fly" min="1" max="8" step="0.5" value="3">
@@ -931,8 +935,8 @@ function mountAnimator(body, headerActions, opts) {
               <!-- 09.09.2026 (Marc: „bau den Schalter") — Höhenprofil über die ganze Reise
                    (Etappengrenzen als Marken) oder nur die laufende Etappe (baut sich je
                    Etappe neu auf). Nur bei einer Kette mit mehreren Etappen sichtbar. -->
-              <select id="anim-ov-ele-scope" class="pos-select" hidden title="${t("animator.overlay.ele_scope_tip", "Ganze Reise: eine Kurve über alle Etappen, Grenzen als Marken. Laufende Etappe: das Profil baut sich je Etappe neu auf.")}">
-                <option value="reise">${t("animator.overlay.ele_scope_reise", "Ganze Reise")}</option>
+              <select id="anim-ov-ele-scope" class="pos-select" hidden title="${t("animator.overlay.ele_scope_tip", "Ganze Strecke: eine Kurve über alle Etappen, Grenzen als Marken. Laufende Etappe: das Profil baut sich je Etappe neu auf.")}">
+                <option value="reise">${t("animator.overlay.ele_scope_reise", "Ganze Strecke")}</option>
                 <option value="etappe">${t("animator.overlay.ele_scope_etappe", "Laufende Etappe")}</option>
               </select>
               <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
