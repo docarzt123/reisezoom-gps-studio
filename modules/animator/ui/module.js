@@ -3404,6 +3404,40 @@ function mountAnimator(body, headerActions, opts) {
     }
   }
 
+  /** Passt die MapLibre-Leinwand zur Vorschau-Fläche? Wenn nicht: nachziehen und
+   *  ins Log schreiben.
+   *
+   *  09.09.2026 (Marc: „nach einem Neustart stimmt mit der Auflösung in der Vorschau
+   *  was nicht — einmal raus und wieder rein behebt es"): Auf dem Bild waren
+   *  Kacheln unscharf, Beschriftungen und Linien zu groß, die HTML-Overlays aber
+   *  normal — alles, was MapLibre malt, war gestreckt. Das passiert, wenn die
+   *  Leinwand ihre Größe vom Anlegen behält, während die Fläche danach schrumpft
+   *  (die Zeitleiste bekommt ihre Gruppen-Zeile erst, wenn die Etappen da sind).
+   *  Diese Prüfung misst beides und sagt im Log, was sie vorfand. */
+  let _kartenGroesseLetzt = "";
+  function _kartenGroessePruefen(anlass) {
+    if (!map) return false;
+    try {
+      const cv = map.getCanvas();
+      const wrap = document.getElementById("anim-viewport");
+      if (!cv || !wrap) return false;
+      const pr = (typeof map.getPixelRatio === "function") ? map.getPixelRatio() : (window.devicePixelRatio || 1);
+      const fw = wrap.clientWidth, fh = wrap.clientHeight;
+      const zeile = `${anlass}: Fläche ${fw}×${fh} css · Leinwand ${cv.width}×${cv.height} px = ${cv.clientWidth}×${cv.clientHeight} css · Pixelmaß ${pr} · k ${wrap.style.getPropertyValue("--rz-prev-k") || "?"}`;
+      const passt = Math.abs(cv.clientWidth - fw) <= 1 && Math.abs(cv.clientHeight - fh) <= 1
+        && Math.abs(cv.width - Math.round(fw * pr)) <= 2 && Math.abs(cv.height - Math.round(fh * pr)) <= 2;
+      if (!passt) {
+        try { map.resize(); } catch (_) {}
+        applog("warn", "[viewport] Leinwand passte nicht zur Fläche — nachgezogen · " + zeile);
+        try { if (window.rzScaleMapLabels) window.rzScaleMapLabels(map); } catch (_) {}
+        return true;
+      }
+      if (zeile !== _kartenGroesseLetzt) { _kartenGroesseLetzt = zeile; applog("info", "[viewport] " + zeile); }
+    } catch (e) { applog("warn", "[viewport] " + e); }
+    return false;
+  }
+  window.__rzKartenGroessePruefen = _kartenGroessePruefen;   // Prüfstand
+
   /**
    * Letterbox-Viewport an die gewählte Render-Auflösung anpassen.
    * Identisches Pattern wie Tour-Map — Vorschau und Render zeigen damit
@@ -7395,6 +7429,7 @@ function mountAnimator(body, headerActions, opts) {
       } catch (_) {}
     }
     if (!currentCoords || currentCoords.length < 2) return;
+    _kartenGroessePruefen("Probe-Lauf");
     if (_previewRaf && forceStart !== true) {
       // Aktuell läuft was → stoppen
       try { if (window.__rzProbelaufBilanz) window.__rzProbelaufBilanz("Stopp"); } catch (_) {}
@@ -9142,6 +9177,7 @@ function mountAnimator(body, headerActions, opts) {
       clearTimeout(_resizeRefitTimer);
       _resizeRefitTimer = setTimeout(() => {
         updateAnimatorViewport();
+        _kartenGroessePruefen("Flächenänderung");
         // Die Fläche darf sich neu vermessen — die Kamera bleibt, wenn sie
         // dem Nutzer gehört (Welt-Sicht, eigenes Ziehen/Zoomen).
         if (currentBbox && !_kameraGehoertNutzer) fitTrackPreview(false);
@@ -9164,6 +9200,7 @@ function mountAnimator(body, headerActions, opts) {
         _tlResizeTimer = setTimeout(() => {
           syncTimelineHeight();
           updateAnimatorViewport();
+          _kartenGroessePruefen("Zeitleiste");
           if (currentBbox && !_kameraGehoertNutzer) fitTrackPreview(false);
         }, 200);
       });
@@ -15864,6 +15901,7 @@ function mountAnimator(body, headerActions, opts) {
       // unabhängig davon, welche Bewegung zuerst endet.
       const _pitch = (typeof currentPitch === "function") ? currentPitch() : 0;
       let _sofort = false;
+      _kartenGroessePruefen("Fit");
       try {
         const cam = map.cameraForBounds([[a, b], [c, d]], { padding: 60, pitch: _pitch });
         if (cam && isFinite(cam.zoom)) {
