@@ -8818,9 +8818,22 @@ function mountAnimator(body, headerActions, opts) {
     } catch (_) {}
   }
 
+  /** Welche Farbe die Haupt-Linie (preview-track) gerade führt: bei einer Bahn die
+   *  Tour ihrer ERSTEN Etappe (09.09.2026, Marc: „die Tracks haben in der Vorschau
+   *  die gleiche Farbe" — die Kette begann mit der zweiten Tour, gezeichnet wurde
+   *  sie in der Farbe der ersten). */
+  function _bahnLinienFarbe() {
+    try {
+      if (_reiseAktiv() && _reiseBahn && _reiseBahn.etappen && _reiseBahn.etappen[0]) {
+        const tour = _reiseBahn.etappen[0].tour;
+        if (tour && !tour.haupt && tour.line_color) return tour.line_color;
+      }
+    } catch (_) {}
+    return null;
+  }
   function applyLineColorToLayers() {
     if (!map) return;
-    const color = currentLineColor();
+    const color = _bahnLinienFarbe() || currentLineColor();
     try {
       if (map.getLayer("preview-glow")) map.setPaintProperty("preview-glow", "line-color", color);
       if (map.getLayer("preview-line")) map.setPaintProperty("preview-line", "line-color", color);
@@ -15063,6 +15076,10 @@ function mountAnimator(body, headerActions, opts) {
     // der Plan (tests/test_reise_dauer_vorschau.py).
     sekEtappen: _reiseBahn.sekEtappen, sekUeber: _reiseBahn.sekUeber, sekHalte: _reiseBahn.sekHalte,
     sekAnim: +_reiseBahn.sekAnim || 0,
+    // 09.09.2026 — Farbe/Höhen der Bahn (tests/test_gruppen_leiste.py §7d)
+    erste: (_reiseBahn.etappen[0] && _reiseBahn.etappen[0].tour.gpx_path) || "",
+    has_ele: !!(_reiseBahn.serie && _reiseBahn.serie.has_ele),
+    eleSpann: (() => { const e = _reiseBahn.serie && _reiseBahn.serie.ele; if (!e || !e.length) return 0; let lo = Infinity, hi = -Infinity; for (const v of e) { if (v < lo) lo = v; if (v > hi) hi = v; } return hi - lo; })(),
     abschnitte: _reiseBahn.abschnitte.map(a => ({ art: a.art, teil: a.teil, t0: +a.t0.toFixed(3), t1: +a.t1.toFixed(3), von: a.von, bis: a.bis })),
   } : null); } catch (_) {}
 
@@ -15101,7 +15118,8 @@ function mountAnimator(body, headerActions, opts) {
     _extraTours.forEach((t, i) => raus.push({
       gpx_path: t.gpx_path, coords: t.coords || null, name: t.name || _dateiName(t.gpx_path),
       line_color: t.line_color || "#35a7ff", zeit: Array.isArray(t.zeit) ? t.zeit : null,
-      ele: null, stats: t.stats || null, haupt: false, tr: t, extraIdx: i }));
+      ele: (Array.isArray(t.ele) && t.coords && t.ele.length === t.coords.length) ? t.ele : null,
+      stats: t.stats || null, haupt: false, tr: t, extraIdx: i }));
     return raus;
   }
   function _tourVon(gpx) {
@@ -15818,6 +15836,7 @@ function mountAnimator(body, headerActions, opts) {
       if (_reiseBasisSerie) { _ovSeries = _reiseBasisSerie; _gpxElevations = _reiseBasisEle || _gpxElevations; }
       try { refreshPreviewTrackData(); } catch (_) {}
     }
+    try { applyLineColorToLayers(); } catch (_) {}
   }
   /** Bahn als aktuellen Track übernehmen (die Vorschau rechnet damit weiter). */
   function _reiseAnwenden() {
@@ -15837,6 +15856,7 @@ function mountAnimator(body, headerActions, opts) {
       _gpxElevations = sr.ele;
     }
     try { refreshPreviewTrackData(); } catch (_) {}
+    try { applyLineColorToLayers(); } catch (_) {}   // 09.09.2026 — Farbe der ersten Etappe der Kette
     return true;
   }
 
@@ -16151,6 +16171,9 @@ function mountAnimator(body, headerActions, opts) {
     const color = _TOUR_PALETTE[_extraTours.length % _TOUR_PALETTE.length];
     const name = (path.split("/").pop() || "Tour").replace(/\.[^.]+$/i, "");
     _extraTours.push({ gpx_path: path, line_color: color, name, coords,
+                       // 09.09.2026 (Marc: „Höhenprofil ist glatt") — die Höhen der Etappe, sonst
+                       // zeichnet die Bahn für sie 0 m und das Profil wird eine Gerade.
+                       ele: (_ladeRes && Array.isArray(_ladeRes.elevations)) ? _ladeRes.elevations : null,
                        zeit: (_ladeRes && _ladeRes.series && _ladeRes.series.cumTimeS
                               && _ladeRes.series.cumTimeS.length === (coords || []).length)
                              ? _ladeRes.series.cumTimeS : null,
@@ -16456,6 +16479,7 @@ function mountAnimator(body, headerActions, opts) {
           _extraTours.push({ gpx_path: pfad,
                              line_color: t.line_color || "#35a7ff",
                              name: t.name || "Tour", coords: res.coords,
+                             ele: Array.isArray(res.elevations) ? res.elevations : null,   // 09.09.2026 Höhenprofil
                              start_s: +t.start_s || 0,
                              // 08.09.2026 — Etappendauer und Übergang mitnehmen,
                              // sonst stehen sie beim nächsten Öffnen wieder leer.
