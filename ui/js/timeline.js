@@ -414,6 +414,218 @@ function mountTimelineBar(opts) {
   // auf der Leiste. Die Grund-Kacheln der Tempo-Spur SIND die Etappen — sie
   // tragen deshalb deren Namen statt „1,0×".
   let _tempoEtappen = [];       // [{ name, farbe, von, bis }] in Leisten-Anteilen
+  // ── Gruppen-Zeilen (IDEAS §60, Phase 3 — 09.09.2026) ─────────────────────
+  // Ab zwei Gruppen IST die Tempo-Spur die erste Zeile der Gruppen: jede Kachel
+  // eine Gruppe (Name, Faktor, Sekunden), die Lücke zwischen zwei Inhalten der
+  // Übergang, davor und dahinter die Halte. Gruppen, deren Inhalte sich
+  // überlappen, bekommen eigene Zeilen darunter (`data-kind="gruppe"`).
+  // Bedienung: Kachel ziehen = in der Zeit verschieben, Ränder = Länge (Faktor),
+  // Doppelklick/Rechtsklick = öffnen, Kachel nach oben/unten ziehen = Stapel.
+  let _gruppenZeilen = [];      // [[{id, name, farbe, von, bis, vonS, sek, faktor, n, inKette, kamera, ueber_stil, fest}]]
+  let _gruppenZieh = null;
+  let _gruppenLetzterDruck = null;
+  let _gruppenGesamtS = 0;      // Länge des ganzen Videos — vom Animator mitgegeben, damit Pixel ↔ Sekunden stimmen
+
+  function setGruppen(zeilen, gesamtS) {
+    _gruppenZeilen = Array.isArray(zeilen) ? zeilen.map(z => (z || []).slice()) : [];
+    _gruppenGesamtS = (+gesamtS > 0) ? +gesamtS : 0;
+    _gruppenZeilenSicherstellen();
+    const el = laneMarkersEl["tempo"];
+    if (el) _tempoZeichnen(el);
+  }
+  /** So viele Zusatz-Zeilen anlegen, wie der Plan braucht (Zeile 0 ist die Tempo-Spur). */
+  function _gruppenZeilenSicherstellen() {
+    const lanes = host.querySelector(".timeline-lanes");
+    const tempoLane = host.querySelector('.timeline-lane[data-kind="tempo"]');
+    if (!lanes || !tempoLane) return;
+    const soll = Math.max(0, _gruppenZeilen.length - 1);
+    const da = Array.from(lanes.querySelectorAll('.timeline-lane[data-kind="gruppe"]'));
+    for (let i = da.length; i < soll; i++) {
+      const lane = document.createElement("div");
+      lane.className = "timeline-lane";
+      lane.dataset.kind = "gruppe";
+      lane.dataset.zeile = String(i + 1);
+      lane.style.setProperty("--lane-color", "#7fb8ff");
+      lane.innerHTML = `<div class="lane-label" title="${tlT("animator.lane.gruppe_tip", "Parallel: diese Gruppen laufen gleichzeitig mit der Zeile darüber. Ziehen verschiebt, die Ränder ändern die Länge, Doppelklick öffnet.")}"><span class="lane-icon">∥</span><span class="lane-name">${tlT("animator.lane.gruppe", "parallel")}</span></div>
+        <div class="lane-track"><div class="lane-axis"></div><div class="lane-markers" id="tl-lane-gruppe-${i + 1}"></div></div>`;
+      // hinter der letzten Gruppen-Zeile bzw. hinter der Tempo-Spur
+      const vorher = lanes.querySelectorAll('.timeline-lane[data-kind="gruppe"]');
+      const anker = vorher.length ? vorher[vorher.length - 1] : tempoLane;
+      anker.insertAdjacentElement("afterend", lane);
+      _gruppenBinden(lane.querySelector(".lane-track"), i + 1);
+    }
+    const jetzt = Array.from(lanes.querySelectorAll('.timeline-lane[data-kind="gruppe"]'));
+    for (let i = soll; i < jetzt.length; i++) jetzt[i].remove();
+    tempoLane.classList.toggle("ist-gruppen", _gruppenZeilen.length > 0);
+    const name = tempoLane.querySelector(".lane-name"), icon = tempoLane.querySelector(".lane-icon");
+    if (name) name.textContent = _gruppenZeilen.length ? tlT("animator.lane.gruppen", "Touren") : tlT("animator.lane.tempo", "Tempo");
+    if (icon) icon.textContent = _gruppenZeilen.length ? "🎥" : "⏱";
+    const label = tempoLane.querySelector(".lane-label");
+    if (label) label.title = _gruppenZeilen.length
+      ? tlT("animator.lane.gruppen_tip", "Jede Kachel ist eine Gruppe von Touren; die Kamera folgt der obersten, die gerade läuft. Ziehen verschiebt eine Gruppe in der Zeit, die Ränder ändern ihre Länge, Doppelklick öffnet sie, nach oben oder unten ziehen ordnet den Stapel.")
+      : tlT("animator.lane.tempo_tip", "Tempo: hier anhalten oder einen Abschnitt langsamer laufen lassen. Ziehen legt einen Abschnitt an, Doppelklick öffnet ihn, Rechtsklick löscht.");
+  }
+  /** Sekunden des ganzen Videos je Leisten-Anteil — und umgekehrt. */
+  function _gruppenSekJeAnteil() {
+    if (_gruppenGesamtS > 0) return _gruppenGesamtS;
+    const ges = _tempoGesamtS();
+    return ges > 0 ? ges : 0;
+  }
+  /** Eine Zeile zeichnen: Halte und Übergänge als Bänder, Inhalte als Kacheln. */
+  function _gruppenZeileZeichnen(el, zeile) {
+    const gruppen = (_gruppenZeilen[zeile] || []).slice().sort((a, b) => a.von - b.von);
+    const ti = _introFraction || 0.0, tf = _trackFraction || 1.0;
+    const breitePx = el.getBoundingClientRect().width || 1000;
+    const ges = _gruppenSekJeAnteil();
+    const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const band = (von, bis, art, titel, stil) => {
+      if (bis - von < 0.0005) return;
+      const b = document.createElement("div");
+      b.className = "tl-gruppe-band tl-gruppe-" + art;
+      b.style.left = _anchorToPct(von) + "%";
+      b.style.width = Math.max(0.3, _anchorToPct(bis) - _anchorToPct(von)) + "%";
+      const sek = ges > 0 ? (bis - von) * ges : 0;
+      b.title = titel + (sek > 0 ? ` · ${zahl(sek)} s` : "");
+      const wPx = (bis - von) * _viewZoom * breitePx;
+      const glyph = art === "ueber" ? (stil === "luftlinie" ? "↗" : stil === "schnitt" ? "✂" : "✈") : "⏸";
+      b.innerHTML = wPx >= 14 ? `<span class="tl-gruppe-glyph">${glyph}</span>` + (wPx >= 48 && sek > 0 ? `<span class="tl-gruppe-sek">${zahl(sek)} s</span>` : "") : "";
+      el.appendChild(b);
+    };
+    let pos = ti;
+    gruppen.forEach((g, i) => {
+      if (i === 0) band(pos, g.von, "halt", tlT("animator.gruppe.halt_vor", "Halt vor dem Inhalt"));
+      else band(pos, g.von, "ueber", tlT("animator.gruppe.uebergang", "Übergang"), g.ueber_stil);
+      const k = document.createElement("button");
+      k.type = "button";
+      k.className = "tl-gruppe" + (g.kamera ? " ist-kamera" : "") + (g.fest ? " ist-fest" : "") + (g.n > 1 ? " hat-mitglieder" : "");
+      k.dataset.id = g.id;
+      k.draggable = false;
+      k.style.left = _anchorToPct(g.von) + "%";
+      k.style.width = Math.max(0.4, _anchorToPct(g.bis) - _anchorToPct(g.von)) + "%";
+      if (g.farbe) k.style.borderLeftColor = g.farbe;
+      const wPx = (g.bis - g.von) * _viewZoom * breitePx;
+      const fTxt = zahl(+g.faktor || 1) + "×";
+      const sTxt = g.sek > 0 ? zahl(g.sek) + " s" : "";
+      k.title = `${g.name || g.id}` + (g.n > 1 ? ` · ${g.n} ${tlT("animator.gruppe.touren", "Touren")}` : "")
+        + ` · ${fTxt} · ${sTxt}` + (g.kamera ? " · " + tlT("animator.gruppe.kamera", "die Kamera folgt dieser Gruppe") : "")
+        + "\n" + tlT("animator.gruppe.tip", "Ziehen: in der Zeit verschieben · Ränder: Länge · Doppelklick: öffnen");
+      const name = wPx >= 44 ? `<span class="tl-gruppe-name">${(g.n > 1 ? "👥 " : "")}${_esc(g.name || g.id)}</span>` : "";
+      const zahlen = wPx >= 96 ? `<span class="tl-gruppe-zahlen">${fTxt}${sTxt ? " · " + sTxt : ""}</span>`
+        : (wPx >= 60 && Math.abs((+g.faktor || 1) - 1) > 1e-9 ? `<span class="tl-gruppe-zahlen">${fTxt}</span>` : "");
+      k.innerHTML = `<span class="tl-gruppe-rand" data-rand="l"></span>${name}${zahlen}<span class="tl-gruppe-rand" data-rand="r"></span>`;
+      el.appendChild(k);
+      pos = g.bis;
+    });
+    if (pos < tf - 0.0005) band(pos, tf, "halt", tlT("animator.gruppe.halt_nach", "Halt nach dem Inhalt (Auffüllen bis zum Ende)"));
+  }
+  function _esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function _gruppenAlleZeichnen() {
+    _gruppenZeilen.forEach((_z, i) => {
+      const el = i === 0 ? laneMarkersEl["tempo"] : host.querySelector(`#tl-lane-gruppe-${i}`);
+      if (!el) return;
+      el.innerHTML = "";
+      _gruppenZeileZeichnen(el, i);
+    });
+  }
+  function _gruppeVonId(id) {
+    for (const z of _gruppenZeilen) for (const g of z) if (g.id === id) return g;
+    return null;
+  }
+  /** Bedienung einer Gruppen-Zeile (die Tempo-Spur bindet dasselbe in `_tempoBinden`). */
+  function _gruppenBinden(lane, zeile) {
+    if (!lane) return;
+    lane.addEventListener("mousedown", (ev) => _gruppenMausDruck(ev, lane, zeile));
+    lane.addEventListener("contextmenu", (ev) => {
+      const k = ev.target.closest(".tl-gruppe");
+      if (!k) return;
+      ev.preventDefault();
+      try { (cb.onGruppeOeffnen || (() => {}))(k.dataset.id); } catch (e) { console.warn("onGruppeOeffnen:", e); }
+    });
+  }
+  function _gruppenMausDruck(ev, lane, zeile) {
+    const k = ev.target.closest(".tl-gruppe");
+    if (!k || ev.button !== 0) return false;
+    const rand = ev.target.closest(".tl-gruppe-rand");
+    const id = k.dataset.id;
+    const g = _gruppeVonId(id);
+    if (!g) return false;
+    ev.preventDefault();
+    // Doppelklick selbst erkennen — die Zeile wird nach jedem Loslassen neu
+    // gezeichnet, ein natives dblclick kommt nie an (dieselbe Falle wie in der
+    // Tempo-Spur, 08.09.2026 gemessen).
+    const jetzt = Date.now();
+    if (_gruppenLetzterDruck && _gruppenLetzterDruck.id === id && jetzt - _gruppenLetzterDruck.t < 350) {
+      _gruppenLetzterDruck = null;
+      try { (cb.onGruppeOeffnen || (() => {}))(id); } catch (e) { console.warn("onGruppeOeffnen:", e); }
+      return true;
+    }
+    _gruppenLetzterDruck = { id, t: jetzt };
+    // Die Kacheln liegen in Prozent des Marker-Behälters — daran rechnet sich
+    // ein Pixel in Sekunden um (nicht an der Spur, die ist breiter).
+    const mk = lane.querySelector(".lane-markers") || lane;
+    const spurPx = mk.getBoundingClientRect().width || 1;
+    const ges = _gruppenSekJeAnteil();
+    const sekJePx = ges > 0 ? ges / spurPx / _viewZoom : 0;
+    const laneH = lane.getBoundingClientRect().height || 30;
+    _gruppenZieh = { id, art: rand ? "laenge" : "zeit", seite: rand ? rand.dataset.rand : null,
+                     x0: ev.clientX, y0: ev.clientY, vonS0: +g.vonS || 0, sek0: +g.sek || 0,
+                     el: k, links0: parseFloat(k.style.left) || 0, breite0: parseFloat(k.style.width) || 0,
+                     bewegt: false, stapel: 0 };
+    const bewegen = (e2) => {
+      const z = _gruppenZieh; if (!z) return;
+      const dx = e2.clientX - z.x0, dy = e2.clientY - z.y0;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) z.bewegt = true;
+      const dS = sekJePx > 0 ? dx * sekJePx : 0;
+      const dPct = dx / spurPx * 100;
+      if (z.art === "zeit") {
+        // nach oben/unten gezogen: Stapel — die Kachel bleibt stehen, die Zeile hebt sich ab
+        const stufen = Math.round(dy / Math.max(20, laneH));
+        z.stapel = Math.max(-1, Math.min(1, -stufen));
+        if (z.stapel) {
+          z.el.style.left = z.links0 + "%";
+          z.el.classList.toggle("zieht-hoch", z.stapel > 0);
+          z.el.classList.toggle("zieht-runter", z.stapel < 0);
+          setStatusHint(z.stapel > 0 ? tlT("animator.gruppe.stapel_hoch", "Gruppe nach oben (Kamera-Vorrang)")
+                                     : tlT("animator.gruppe.stapel_runter", "Gruppe nach unten"));
+        } else {
+          z.el.classList.remove("zieht-hoch", "zieht-runter");
+          const neuS = Math.max(0, z.vonS0 + dS);
+          z.el.style.left = Math.max(0, z.links0 + dPct) + "%";
+          setStatusHint(`${tlT("animator.gruppe.ab", "ab")} ${neuS.toFixed(1)} s`);
+        }
+      } else {
+        const neu = Math.max(0.3, z.seite === "l" ? z.sek0 - dS : z.sek0 + dS);
+        if (z.seite === "l") {
+          z.el.style.left = (z.links0 + dPct) + "%";
+          z.el.style.width = Math.max(0.4, z.breite0 - dPct) + "%";
+        } else {
+          z.el.style.width = Math.max(0.4, z.breite0 + dPct) + "%";
+        }
+        setStatusHint(`${neu.toFixed(1)} s`);
+      }
+    };
+    const hoch = (e2) => {
+      document.removeEventListener("mousemove", bewegen, true);
+      document.removeEventListener("mouseup", hoch, true);
+      const z = _gruppenZieh; _gruppenZieh = null;
+      setStatusHint(null);
+      if (!z || !z.bewegt) { _gruppenAlleZeichnen(); return; }
+      const dx = e2.clientX - z.x0;
+      const dS = sekJePx > 0 ? dx * sekJePx : 0;
+      try {
+        if (z.art === "zeit" && z.stapel) (cb.onGruppenStapel || (() => {}))(z.id, z.stapel);
+        else if (z.art === "zeit") (cb.onGruppeZiehen || (() => {}))(z.id, Math.max(0, z.vonS0 + dS), z.seite);
+        else {
+          const neu = Math.max(0.3, z.seite === "l" ? z.sek0 - dS : z.sek0 + dS);
+          (cb.onGruppeLaenge || (() => {}))(z.id, neu, z.seite);
+        }
+      } catch (e) { console.warn("Gruppen-Geste:", e); }
+      _gruppenAlleZeichnen();
+    };
+    document.addEventListener("mousemove", bewegen, true);
+    document.addEventListener("mouseup", hoch, true);
+    return true;
+  }
 
   function setEtappen(liste) {
     _tempoEtappen = Array.isArray(liste) ? liste.slice() : [];
@@ -567,7 +779,14 @@ function mountTimelineBar(opts) {
   function _tempoZeichnen(el) {
     el.innerHTML = "";
     const lane = el.closest('.timeline-lane[data-kind="tempo"]');
+    if (_gruppenZeilen.length) {
+      // §60: ab zwei Gruppen ist diese Spur die erste Gruppen-Zeile.
+      if (lane) { lane.classList.add("ist-gruppen"); lane.classList.toggle("ist-gesperrt", !!_tempoHinweis); lane.title = _tempoHinweis || ""; }
+      _gruppenAlleZeichnen();
+      return;
+    }
     if (lane) {
+      lane.classList.remove("ist-gruppen");
       lane.classList.toggle("ist-gesperrt", !!_tempoHinweis);
       // ⚠️ Der Hinweis steht als Tooltip, NICHT als Text in der Spur: bei einer
       // Reise liegen dort vierzehn Übergangs-Bänder, und der Satz lief quer
@@ -651,6 +870,7 @@ function mountTimelineBar(opts) {
     const lane = host.querySelector('.timeline-lane[data-kind="tempo"] .lane-track');
     if (!lane) return;
     lane.addEventListener("mousedown", (ev) => {
+      if (_gruppenZeilen.length) { _gruppenMausDruck(ev, lane, 0); return; }   // §60: Gruppen-Zeile
       if (_tempoHinweis) return;                 // gesperrte Spur: nur ansehen
       const halt = ev.target.closest(".tl-tempo-halt");
       const block = ev.target.closest(".tl-tempo-block");
@@ -753,6 +973,8 @@ function mountTimelineBar(opts) {
       document.addEventListener("mouseup", hoch, true);
     });
     lane.addEventListener("contextmenu", (ev) => {
+      const k = ev.target.closest(".tl-gruppe");
+      if (k) { ev.preventDefault(); try { (cb.onGruppeOeffnen || (() => {}))(k.dataset.id); } catch (e) { console.warn("onGruppeOeffnen:", e); } return; }
       const el = ev.target.closest(".tl-tempo-halt, .tl-tempo-block");
       if (!el) return;
       ev.preventDefault();
@@ -1664,6 +1886,8 @@ function mountTimelineBar(opts) {
     updateStatusLabel,
     setTempo,
     getTempo: () => _tempo.slice(),
+    setGruppen,
+    getGruppen: () => _gruppenZeilen.map(z => z.slice()),
   };
 }
 

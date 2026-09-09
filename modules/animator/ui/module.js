@@ -591,6 +591,13 @@ function mountAnimator(body, headerActions, opts) {
             ${t("animator.tours.hint", "Weitere Touren werden nach der ersten animiert — die Kamera fliegt im Kino-Stil von einer zur nächsten.")}
             <div id="anim-ablauf-badge-text" style="margin-top:6px;"></div>
           </div>
+          <div id="anim-anordnung" class="anim-anordnung" hidden>
+            <span class="anim-anordnung-label">${t("animator.anordnung.label", "Anordnen")}</span>
+            <button type="button" class="btn btn-small" data-anordnung="nacheinander" title="${t("animator.anordnung.nacheinander_tip", "Alle Gruppen hintereinander, mit Übergängen dazwischen")}">⏭ ${t("animator.anordnung.nacheinander", "nacheinander")}</button>
+            <button type="button" class="btn btn-small" data-anordnung="parallel" title="${t("animator.anordnung.parallel_tip", "Alle Gruppen starten bei 0 und laufen gleichzeitig")}">∥ ${t("animator.anordnung.parallel", "alle ab 0")}</button>
+            <button type="button" class="btn btn-small" data-anordnung="ziel" title="${t("animator.anordnung.ziel_tip", "Alle starten bei 0 und kommen gleichzeitig an — jede Gruppe bekommt ihren Faktor")}">🏁 ${t("animator.anordnung.ziel", "gleichzeitig im Ziel")}</button>
+            <button type="button" class="btn btn-small" data-anordnung="uhrzeit" title="${t("animator.anordnung.uhrzeit_tip", "Wie aufgezeichnet: die Dauer jeder Gruppe folgt ihrer echten Zeit, der Start ihrer Uhrzeit")}">🕐 ${t("animator.anordnung.uhrzeit", "echte Uhrzeit")}</button>
+          </div>
           <div id="anim-tours-list" class="anim-tours-list"></div>
           <div id="anim-reise-bilanz" class="anim-reise-bilanz" hidden></div>
           <button type="button" class="btn btn-small" id="anim-tours-add" style="width:100%; margin-top:4px;">
@@ -3911,8 +3918,8 @@ function mountAnimator(body, headerActions, opts) {
                             // Länge — die Kacheln beschriften sich daraus.
                             reise ? { dauer_s: animSekunden(), anteile: null }
                                   : { dauer_s: r.dauer_s, anteile: r.map },
-                            reise ? t("animator.tempo.reise_sperre",
-                                      "Der Ablauf «Nacheinander» bestimmt den Zeitplan — Etappen und Übergänge stellst du oben ein.")
+                            reise ? t("animator.tempo.gruppen_hinweis",
+                                      "Der Zeitplan kommt aus den Gruppen: Kachel ziehen verschiebt sie in der Zeit, die Ränder ändern ihre Länge, Doppelklick öffnet sie.")
                                   : null);
         } catch (_) {}
       } else { _paceMap = null; _tempoInfo = null; }
@@ -8963,7 +8970,10 @@ function mountAnimator(body, headerActions, opts) {
               try { await _animAddTourPath(p); neu++; } catch (e) { console.warn("pending tour:", e); }
             }
             if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
-            _animPersistTours();
+            // §60 Punkt 11: geschrieben wird erst bei einer ÄNDERUNG — kam nichts
+            // Neues dazu, bleibt die Projektdatei bit-genau (09.09.2026 gemessen:
+            // das bloße Öffnen aus dem Archiv schrieb sonst die Gruppen hinein).
+            if (neu > 0) _animPersistTours();
             await _tourenLadeAbschluss();
             applog("info", `[Animator] Mengen-Übergabe: ${pending.length} Etappe(n), davon ${neu} neu (Ablauf: ${pendingAblauf})`);
           } finally {
@@ -9041,6 +9051,11 @@ function mountAnimator(body, headerActions, opts) {
       try { paceMapLaden(); } catch (_) {}
         },
         onTempoOeffnen: (i, e) => { try { _tempoEintragOeffnen(i, e); } catch (err) { applog("warn", "[tempo] " + err); } },
+        // §60 (09.09.2026) — Gruppen-Zeilen: ziehen, Länge, öffnen, stapeln
+        onGruppeZiehen: (id, vonS) => { const g = _gruppeMitId(id); if (!g) return; g.vorlauf_s = Math.max(0, +vonS || 0); g.fest = true; _gruppenNeu(); },
+        onGruppeLaenge: (id, sek) => { const g = _gruppeMitId(id); if (!g) return; _gruppeLaengeSetzen(g, +sek || 0); _gruppenNeu(); },
+        onGruppeOeffnen: (id) => { try { _gruppeOeffnen(id); } catch (err) { applog("warn", "[gruppen] " + err); } },
+        onGruppenStapel: (id, delta) => { if (_gruppenStapeln(id, delta)) _gruppenNeu(); },
         // Die Zeitleiste meldet eine Stelle auf der LEISTE; die Vorschau will
         // eine Stelle im TRACK (v0.9.511).
         // 04.09.2026 (Marc: „wenn ich den Scrubber schnell hin und her ziehe,
@@ -14357,6 +14372,7 @@ function mountAnimator(body, headerActions, opts) {
       host.appendChild(row);
     });
     if (flyField) flyField.hidden = _gruppen.length < 2;
+    { const an = document.getElementById("anim-anordnung"); if (an) an.hidden = _extraTours.length === 0; }
   }
 
   // Entfernt alle Multi-Track-Preview-Layer/-Sources von der Karte.
@@ -14968,6 +14984,199 @@ function mountAnimator(body, headerActions, opts) {
     }
     return null;
   }
+  /** Die Gruppen-Zeilen an die Zeitleiste geben (§60 Punkt 7): Zeile 0 ist
+   *  die Kette (= die Tempo-Spur), darunter je Zeile die parallel laufenden. */
+  function _gruppenAnLeiste() {
+    if (!_tlBar || !_tlBar.setGruppen) return;
+    const plan = _gruppenPlan;
+    if (!plan || _gruppen.length < 2 || !_reiseAktiv()) { _tlBar.setGruppen([]); return; }
+    const ti = introFraction(), tf = trackFraction(), dauer = Math.max(0.001, plan.dauer_s || 0);
+    const bar = (sek) => ti + Math.max(0, Math.min(1, sek / dauer)) * (tf - ti);
+    const kette = new Set(_reiseBahn.kette.map(k => k.g.id));
+    const zeilen = (plan.zeilen || []).map(ids => ids.map(id => {
+      const g = _gruppen.find(x => x.id === id); const l = plan.lage(id);
+      if (!g || !l) return null;
+      const tour = _tourVon((g.mitglieder[0] || {}).gpx_path);
+      return { id, name: g.name || (tour ? tour.name : id), farbe: tour ? tour.line_color : "",
+               von: bar(l.von_s), bis: bar(l.bis_s), vonS: l.von_s, sek: l.inhalt_s, faktor: +g.faktor || 1,
+               n: g.mitglieder.length, inKette: kette.has(id), kamera: g === _gruppen[0],
+               ueber_stil: g.ueber_stil || "kino", fest: g.fest === true };
+    }).filter(Boolean));
+    const gesamt = parseNum(document.getElementById("anim-intro")?.value, 0) + animSekunden()
+      + parseNum(document.getElementById("anim-hold")?.value, 0);
+    _tlBar.setGruppen(zeilen, gesamt);
+  }
+  /** Nach einer Änderung an den Gruppen: Plan, Bahn, Leiste, Liste, Datei. */
+  function _gruppenNeu() {
+    try { _reiseAnwenden(); } catch (e) { applog("warn", "[gruppen] " + e); }
+    if (!_reiseAktiv()) { try { _gruppenPlanRechnen(); _gruppenAnLeiste(); } catch (_) {} }
+    try { _animPersistTours(); } catch (_) {}
+    try { _animRenderToursList(); } catch (_) {}
+    try { scrubPreview(_tlBar ? _tlBar.getScrubber() : 0); } catch (_) {}
+  }
+  function _gruppeMitId(id) { return _gruppen.find(g => g.id === id) || null; }
+  /** Eine Gruppe im Stapel verschieben (+1 = nach oben = mehr Kamera-Vorrang). */
+  function _gruppenStapeln(id, delta) {
+    const i = _gruppen.findIndex(g => g.id === id);
+    const j = i - delta;
+    if (i < 0 || j < 0 || j >= _gruppen.length) return false;
+    const [g] = _gruppen.splice(i, 1);
+    _gruppen.splice(j, 0, g);
+    return true;
+  }
+  /** Zwei Gruppen zusammenlegen: die Mitglieder von `vonId` wandern in `inId`. */
+  function _gruppenZusammenlegen(vonId, inId) {
+    const a = _gruppeMitId(vonId), b = _gruppeMitId(inId);
+    if (!a || !b || a === b) return false;
+    for (const m of a.mitglieder) b.mitglieder.push(m);
+    _gruppen = _gruppen.filter(g => g !== a);
+    return true;
+  }
+  /** Ein Mitglied aus seiner Gruppe lösen: es wird eine eigene Gruppe direkt dahinter. */
+  function _gruppenLoesen(gpx) {
+    const gv = _gruppeVon(gpx);
+    if (!gv || gv.g.mitglieder.length < 2) return false;
+    const [m] = gv.g.mitglieder.splice(gv.j, 1);
+    const neu = _gruppeNeu(_gruppenIdFrei(), m.gpx_path, gv.g.vorlauf_s);
+    neu.mitglieder[0].vorlauf_s = m.vorlauf_s;
+    neu.fest = true;   // liegt erst einmal parallel zu seiner alten Gruppe
+    _gruppen.splice(gv.gi + 1, 0, neu);
+    return true;
+  }
+  /** Die Anordnungs-Knöpfe (§60 Punkt 9): jeder rechnet EINMAL Faktoren und
+   *  Halte — danach ist es eine gewöhnliche Anordnung, die man weiterschiebt. */
+  function _gruppenAnordnen(art) {
+    if (!_gruppen.length) return;
+    _gruppenPlanRechnen();
+    const rohS = (_gruppenPlan && _gruppenPlan.rohS) || _gruppenRohS();
+    const wunsch = _gruppenWunsch();
+    if (art === "nacheinander") {
+      for (const g of _gruppen) g.fest = false;
+    } else if (art === "parallel") {
+      for (const g of _gruppen) { g.fest = true; g.vorlauf_s = 0; }
+    } else if (art === "ziel") {
+      // alle ab 0, alle gleichzeitig am Ziel: Inhalt = Wunsch → Faktor = roh / Wunsch
+      for (const g of _gruppen) { g.fest = true; g.vorlauf_s = 0; g.faktor = Math.max(1e-6, +rohS[g.id] || 1) / Math.max(0.3, wunsch); }
+    } else if (art === "uhrzeit") {
+      // Wie aufgezeichnet: Dauer ∝ echte Dauer, Start = Uhrzeit-Versatz (wenn bekannt).
+      const info = _gruppen.map(g => {
+        const tour = _tourVon((g.mitglieder[0] || {}).gpx_path);
+        const st = (tour && tour.stats) || {};
+        const dauer = Math.max(1, +st.duration_s || 0);
+        let start = null;
+        const roh = st.started_at || st.start_time || null;
+        if (roh) { const d = Date.parse(roh); if (isFinite(d)) start = d / 1000; }
+        return { g, dauer, start };
+      });
+      const starts = info.filter(x => x.start != null).map(x => x.start);
+      const t0 = starts.length === info.length && starts.length ? Math.min(...starts) : null;
+      const ende = Math.max(...info.map(x => (t0 != null ? x.start - t0 : 0) + x.dauer));
+      const k = wunsch / Math.max(1, ende);          // Videosekunden je echter Sekunde
+      for (const x of info) {
+        x.g.fest = true;
+        x.g.vorlauf_s = t0 != null ? Math.max(0, (x.start - t0) * k) : 0;
+        const inhalt = Math.max(0.3, x.dauer * k);
+        x.g.faktor = Math.max(1e-6, +rohS[x.g.id] || 1) / inhalt;
+      }
+      if (t0 == null) toast(t("animator.anordnung.uhrzeit_ohne", "Ohne Uhrzeiten in den Touren starten alle bei 0 — die Dauer folgt der echten Zeit."), "info", 4000);
+    }
+    _gruppenNeu();
+  }
+  /** Der Gruppen-Editor (Doppelklick auf eine Kachel): Name, Länge oder
+   *  Faktor, Übergang, Lage, Mitglieder, Zusammenlegen. */
+  function _gruppeOeffnen(id) {
+    const g = _gruppeMitId(id);
+    if (!g) return;
+    _gruppenPlanRechnen();
+    const gi = _gruppen.indexOf(g);
+    const L = _gruppeLaenge(g);
+    const roh = (_gruppenPlan && _gruppenPlan.rohS && _gruppenPlan.rohS[g.id]) || L;
+    const tour0 = _tourVon((g.mitglieder[0] || {}).gpx_path);
+    const andere = _gruppen.filter(x => x !== g);
+    const m = openModal({
+      title: `👥 ${_animEscapeHtml(g.name || (tour0 ? tour0.name : g.id))}`,
+      body: `<div class="lib-fmodal anim-gruppe-modal">
+        <label class="field-label" for="gr-name">${t("animator.gruppe.name", "Name")}</label>
+        <input type="text" id="gr-name" class="lib-input" value="${_animEscapeHtml(g.name || "")}" placeholder="${_animEscapeHtml(tour0 ? tour0.name : "")}">
+        <div class="anim-gruppe-zeile">
+          <div><label class="field-label" for="gr-sek">${t("animator.gruppe.laenge", "Länge im Video (s)")}</label>
+            <input type="number" id="gr-sek" class="lib-input" min="0.3" step="0.5" value="${(Math.round(L * 10) / 10)}"></div>
+          <div><label class="field-label" for="gr-faktor">${t("animator.gruppe.faktor", "Faktor")}</label>
+            <input type="number" id="gr-faktor" class="lib-input" min="0.01" step="0.1" value="${(Math.round((+g.faktor || 1) * 100) / 100)}"></div>
+        </div>
+        <div class="lib-hint">${t("animator.gruppe.faktor_hinweis", "Gespeichert wird der Faktor gegen die Grundraffung; die Länge ist das Ergebnis. 0,5× ist halb so schnell und braucht doppelt so viel Videozeit.")}</div>
+        ${gi > 0 ? `<div class="anim-gruppe-zeile" style="margin-top:8px">
+          <div><label class="field-label" for="gr-ueber">${t("animator.tours.ueber_stil", "Übergang zur nächsten Etappe")}</label>
+            <select id="gr-ueber" class="lib-select">
+              <option value="kino"${g.ueber_stil === "kino" ? " selected" : ""}>${t("animator.tours.ueber_kino", "Kinoflug")}</option>
+              <option value="luftlinie"${g.ueber_stil === "luftlinie" ? " selected" : ""}>${t("animator.tours.ueber_luft", "Luftlinie")}</option>
+              <option value="schnitt"${g.ueber_stil === "schnitt" ? " selected" : ""}>${t("animator.tours.ueber_schnitt", "Schnitt")}</option>
+            </select></div>
+          <div><label class="field-label" for="gr-ueber-s">${t("animator.gruppe.ueber_s", "Übergang (s)")}</label>
+            <input type="number" id="gr-ueber-s" class="lib-input" min="0" step="0.5" value="${g.ueber_s == null ? "" : g.ueber_s}" placeholder="${parseNum(document.getElementById("anim-fly")?.value, 3).toFixed(1)}"></div>
+        </div>` : ""}
+        <label class="chk" style="margin-top:8px"><input type="checkbox" id="gr-kette"${g.fest ? "" : " checked"}>
+          <span>${t("animator.gruppe.kette", "In der Reihe mitlaufen (nach der vorigen Gruppe)")}</span></label>
+        <div class="lib-hint">${t("animator.gruppe.kette_hinweis", "Aus: die Gruppe bleibt, wo du sie hingezogen hast — auch parallel zu anderen.")}</div>
+        <label class="field-label" style="margin-top:10px">${t("animator.gruppe.mitglieder", "Touren in dieser Gruppe")}</label>
+        <div class="anim-gruppe-mitglieder">${g.mitglieder.map((mm, j) => {
+          const tr = _tourVon(mm.gpx_path);
+          return `<div class="anim-gruppe-mitglied"><span class="anim-gruppe-farbe" style="background:${_animEscapeHtml((tr && tr.line_color) || "#888")}"></span>
+            <span class="anim-gruppe-mname" title="${_animEscapeHtml(mm.gpx_path)}">${_animEscapeHtml(tr ? tr.name : mm.gpx_path)}</span>
+            ${j === 0 ? `<span class="muted">${t("animator.gruppe.takt", "gibt den Takt")}</span>` : ""}
+            ${g.mitglieder.length > 1 ? `<button type="button" class="btn btn-small" data-loesen="${_animEscapeHtml(mm.gpx_path)}" title="${t("animator.gruppe.loesen_tip", "Wird eine eigene Gruppe, zunächst parallel")}">${t("animator.gruppe.loesen", "lösen")}</button>` : ""}
+          </div>`; }).join("")}</div>
+        ${g.mitglieder.length > 1 ? `<label class="field-label" for="gr-leit" style="margin-top:8px">${t("animator.fokus.label", "Kamera folgt")}</label>
+          <select id="gr-leit" class="lib-select"><option value="">${t("animator.fokus.none", "niemandem (Gesamtsicht)")}</option>
+          ${g.mitglieder.map(mm => { const tr = _tourVon(mm.gpx_path); return `<option value="${_animEscapeHtml(mm.gpx_path)}"${g.leit_gpx === mm.gpx_path ? " selected" : ""}>${_animEscapeHtml(tr ? tr.name : mm.gpx_path)}</option>`; }).join("")}</select>` : ""}
+        ${andere.length ? `<label class="field-label" for="gr-zusammen" style="margin-top:10px">${t("animator.gruppe.zusammen", "Mit einer anderen Gruppe zusammenlegen")}</label>
+          <select id="gr-zusammen" class="lib-select"><option value="">—</option>
+          ${andere.map(x => { const tr = _tourVon((x.mitglieder[0] || {}).gpx_path); return `<option value="${_animEscapeHtml(x.id)}">${_animEscapeHtml(x.name || (tr ? tr.name : x.id))}${x.mitglieder.length > 1 ? ` (${x.mitglieder.length})` : ""}</option>`; }).join("")}</select>
+          <div class="lib-hint">${t("animator.gruppe.zusammen_hinweis", "Die Touren laufen dann gleichzeitig in einer Gruppe — als Schwarm.")}</div>` : ""}
+        <div class="lib-actions" style="margin-top:12px;">
+          <button class="btn btn-primary btn-sm" id="gr-ok">${t("common.ok", "Übernehmen")}</button>
+          ${gi > 0 ? `<button class="btn btn-ghost btn-sm" id="gr-hoch" title="${t("animator.gruppe.stapel_hoch", "Gruppe nach oben (Kamera-Vorrang)")}">⬆ ${t("animator.gruppe.nach_oben", "nach oben")}</button>` : ""}
+          ${gi < _gruppen.length - 1 ? `<button class="btn btn-ghost btn-sm" id="gr-runter" title="${t("animator.gruppe.stapel_runter", "Gruppe nach unten")}">⬇ ${t("animator.gruppe.nach_unten", "nach unten")}</button>` : ""}
+        </div>
+      </div>`,
+    });
+    // Länge ↔ Faktor gekoppelt: wer eines eingibt, sieht das andere.
+    const sekEl = document.getElementById("gr-sek"), fEl = document.getElementById("gr-faktor");
+    if (sekEl && fEl) {
+      sekEl.addEventListener("input", () => { const v = parseFloat(sekEl.value); if (v > 0) fEl.value = (Math.round(roh / Math.max(0.3, v) * 100) / 100); });
+      fEl.addEventListener("input", () => { const v = parseFloat(fEl.value); if (v > 0) sekEl.value = (Math.round(roh / v * 10) / 10); });
+    }
+    const ok = document.getElementById("gr-ok");
+    if (ok) ok.onclick = () => {
+      g.name = (document.getElementById("gr-name")?.value || "").trim();
+      const f = parseFloat(fEl?.value);
+      if (f > 0) g.faktor = f;
+      const ue = document.getElementById("gr-ueber"); if (ue) g.ueber_stil = ue.value || "kino";
+      const us = document.getElementById("gr-ueber-s"); if (us) { const v = us.value.trim(); g.ueber_s = v === "" ? null : Math.max(0, parseFloat(v) || 0); }
+      const ke = document.getElementById("gr-kette"); if (ke) g.fest = !ke.checked;
+      const le = document.getElementById("gr-leit"); if (le) { g.leit_gpx = le.value || ""; if (g === _gruppen[0]) _animFokusPfad = g.leit_gpx; }
+      const zu = document.getElementById("gr-zusammen");
+      // Die andere Gruppe kommt HIERHER: Name, Faktor und Lage dieser Gruppe bleiben.
+      if (zu && zu.value) _gruppenZusammenlegen(zu.value, g.id);
+      m.close();
+      _gruppenNeu();
+    };
+    const hoch = document.getElementById("gr-hoch"); if (hoch) hoch.onclick = () => { _gruppenStapeln(g.id, 1); m.close(); _gruppenNeu(); };
+    const runter = document.getElementById("gr-runter"); if (runter) runter.onclick = () => { _gruppenStapeln(g.id, -1); m.close(); _gruppenNeu(); };
+    document.querySelectorAll(".anim-gruppe-modal [data-loesen]").forEach(b => b.addEventListener("click", () => {
+      _gruppenLoesen(b.dataset.loesen); m.close(); _gruppenNeu();
+    }));
+  }
+  // Prüfstand-Griffe für die Bedienung (tests/test_gruppen_leiste.py)
+  try {
+    window.__rzGruppeZiehen = (id, vonS) => { const g = _gruppeMitId(id); if (!g) return null; g.vorlauf_s = Math.max(0, +vonS || 0); g.fest = true; _gruppenNeu(); return window.__rzGruppen(); };
+    window.__rzGruppeLaenge = (id, sek) => { const g = _gruppeMitId(id); if (!g) return null; _gruppeLaengeSetzen(g, +sek || 0); _gruppenNeu(); return window.__rzGruppen(); };
+    window.__rzGruppenAnordnen = (art) => { _gruppenAnordnen(art); return window.__rzGruppen(); };
+    window.__rzGruppenStapeln = (id, delta) => { _gruppenStapeln(id, delta); _gruppenNeu(); return window.__rzGruppen(); };
+    window.__rzGruppenZusammen = (vonId, inId) => { _gruppenZusammenlegen(vonId, inId); _gruppenNeu(); return window.__rzGruppen(); };
+    window.__rzGruppenLoesen = (gpx) => { _gruppenLoesen(gpx); _gruppenNeu(); return window.__rzGruppen(); };
+    window.__rzGruppeOeffnen = (id) => _gruppeOeffnen(id);
+  } catch (_) {}
   /** Länge des Inhalts einer Gruppe im Video (aus dem Plan). */
   function _gruppeLaenge(g) {
     const l = _gruppenPlan && g ? _gruppenPlan.lage(g.id) : null;
@@ -15110,6 +15319,7 @@ function mountAnimator(body, headerActions, opts) {
       + (sekHalte > 0 ? ` · Halte ${sekHalte.toFixed(1)} s` : "") + ` · gesamt ${dauer.toFixed(1)} s (Flug ${flugS.toFixed(1)} s)`);
     try { _reiseBilanzZeigen(); } catch (_) {}
     try { _etappenAnLeiste(); } catch (e) { applog("warn", "[reise] " + e); }
+    try { _gruppenAnLeiste(); } catch (e) { applog("warn", "[gruppen] " + e); }
     _tempoReiseStandPruefen(etappen.length);
     return _reiseBahn;
   }
@@ -15238,6 +15448,7 @@ function mountAnimator(body, headerActions, opts) {
    *  (Gruppen 2 → 1, etwa nach dem Entfernen einer Tour). */
   function _reiseAblegen() {
     _reiseBahn = null;
+    try { if (_tlBar && _tlBar.setGruppen) _tlBar.setGruppen([]); } catch (_) {}
     if (_reiseBasis && currentCoords !== _reiseBasis) {
       currentCoords = _reiseBasis;
       if (_reiseBasisSerie) { _ovSeries = _reiseBasisSerie; _gpxElevations = _reiseBasisEle || _gpxElevations; }
@@ -15603,6 +15814,8 @@ function mountAnimator(body, headerActions, opts) {
   // klicken. `coords` bleibt draußen (kann bei langen Tracks Megabytes sein)
   // und wird beim Laden aus der GPX nachgezogen.
   function _animPersistTours() {
+    // Prüfstand-Spur: WER schreibt? (§60 Punkt 11 verspricht: beim bloßen Ansehen niemand.)
+    try { if (window.__rzPersistTrace) console.log("[persist] " + String(new Error().stack || "").split("\n").slice(1, 6).map(x => x.trim()).join(" | ")); } catch (_) {}
     try {
       // 09.09.2026 (§60): die Gruppen sind die Wahrheit; die alten Felder
       // (Etappendauer, Übergang, Startversatz, Ablauf) werden DARAUS abgeleitet,
@@ -15915,6 +16128,9 @@ function mountAnimator(body, headerActions, opts) {
   window.__animLoadTours = _animLoadTours;
 
   document.getElementById("anim-tours-add")?.addEventListener("click", _animAddTour);
+  document.querySelectorAll("#anim-anordnung [data-anordnung]").forEach(b => b.addEventListener("click", () => {
+    try { _gruppenAnordnen(b.dataset.anordnung); } catch (e) { applog("warn", "[anordnung] " + e); }
+  }));
   document.getElementById("anim-fly")?.addEventListener("input", (e) => {
     const lbl = document.getElementById("anim-fly-v");
     if (lbl) lbl.textContent = `${parseFloat(e.target.value).toFixed(1)} s`;
