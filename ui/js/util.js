@@ -3478,7 +3478,7 @@ window.rzScaleMapLabels = rzScaleMapLabels;
  *   const pfade = await rzArchivTourenWaehlen({ ausschliessen: [pfad, …] });
  *   → Liste gewählter Pfade, leer bei Abbrechen.
  *   Optionen: titel · ausschliessen · einzel (nur EINE Tour, wie „Track öffnen")
- *   · okText (Beschriftung des Bestätigen-Knopfs).
+ *   · okText (Beschriftung des Bestätigen-Knopfs) · schonText (Text am ausgegrauten Eintrag).
  */
 async function rzArchivTourenWaehlen(opts) {
   const o = opts || {};
@@ -3547,7 +3547,7 @@ async function rzArchivTourenWaehlen(opts) {
       <input type="checkbox" data-tpath="${esc(it.path)}"${gewaehlt.has(pf) ? " checked" : ""}${schon ? " disabled" : ""}>
       ${bild}
       <span class="rz-tw-name">${esc(it.name || it.filename || it.path)}</span>
-      <span class="rz-tw-meta">${schon ? esc(T("archiv.waehlen_schon", "schon im Projekt")) : (neu ? esc(T("archiv.waehlen_neu", "gerade importiert")) : esc(meta))}</span>
+      <span class="rz-tw-meta">${schon ? esc(o.schonText || T("archiv.waehlen_schon", "schon im Projekt")) : (neu ? esc(T("archiv.waehlen_neu", "gerade importiert")) : esc(meta))}</span>
     </label>`;
   };
   const liste = () => {

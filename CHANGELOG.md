@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Ghost tracks: the main track (and the stages) can be picked as a ghost track again — only tracks that already are ghosts are greyed out. — Ghost-Spuren: der Haupt-Track lässt sich wieder als Ghost wählen.
+
 ### Changed
 - Timeline groups: the transition band between two groups can be dragged (transition length) and clicked to choose cinematic flight, straight line or cut right there; the hold before the first group can be dragged too. — Übergänge in der Zeitleiste ziehen und per Klick den Stil wählen; der Halt vor der ersten Gruppe ist ziehbar.
 - Help markers (?): hovering shows the help text itself in a small tooltip right away, for as long as the pointer stays on the ? — no more "Show help" hint first. Clicking still keeps the text open. — Die ?-Marker zeigen beim Überfahren sofort ihre Hilfe im Tooltip.
