@@ -4230,6 +4230,15 @@ Lösung (`ui/vendor/maplibre-gl.js`):
    wechselt die gerundete Stufe erst, wenn der kontinuierliche Wert die Grenze um
    `window.__rzLodHyst` (Standard 0,2) überschritten hat; `window.__rzNoLodHyst = true`
    schaltet ab (Prüfstand). Alle 300 Aufrufe werden 150 Aufrufe alte Einträge verworfen.
+   **Korrektur 09.09.2026 (`rz-patch lodhyst2`)** — Marc sah dreimal eine „seltsame Auflösung":
+   Straßen dick und treppig, Luftbild grob, Beschriftungen groß; Gelände aus/an machte es scharf.
+   Die `[gelände]`-Spur zeigte bei Zoom 10,67 nur DEM-Kacheln bis z8, nichts lud. Grund: die
+   Hysterese verglich den kontinuierlichen Wert nur mit der Grenze der NEUEN Stufe und hielt
+   sonst die ALTE — nach einem Zoomsprung (7,6 → 10,7 am Flugbeginn) also z8 statt z10, und
+   das dauerhaft, weil der Wert nahe der Grenze blieb. Jetzt wird nur gehalten, wenn alte und
+   neue Stufe benachbart sind (`1===Math.abs(F-p.z)`). Fangriemen: `_gelaendePruefen` in
+   module.js (nach jeder Fahrt/Ruhe) leert `terrain.__rzLod`, lädt die DEM-Quelle neu und gibt
+   die RTT frei, wenn die beste sichtbare DEM-Stufe unter floor(Zoom)−1 liegt und nichts lädt.
    Schlüssel = tileSize + Rundungsart (r/f) + maxzoom_minzoom + z/x/y — NICHT nur tileSize:
    Höhenmodell (floor) und Sentinel (round) teilen die Kachelgröße und überschrieben sich
    abwechselnd, die Geländestufe kippte 13↔14, eine z13-Geländekachel ohne geladenes DEM lag

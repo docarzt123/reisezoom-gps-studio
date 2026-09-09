@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Preview with 3D terrain turned coarse after a zoom jump (start of a flight, refit after regrouping): thick jagged roads, blurry imagery, oversized labels, and zooming by hand did not help while toggling terrain did. Our anti-flicker patch in MapLibre held the previously chosen terrain tile level whenever the wanted level sat close to a boundary — even two levels away, so z8 tiles stayed at zoom 10.7 and the map was drawn into a texture four times too coarse. The patch now holds only an adjacent level; a check after every camera move logs the terrain tile state and resets it if it ever sticks again. — Vorschau mit Gelände nach Zoomsprung grob: Flacker-Patch hielt eine zwei Stufen zu grobe Kachelstufe fest; korrigiert, dazu Prüfung und Log nach jeder Fahrt.
+
 ### Changed
 - Timeline groups behave like tracks in an editing program: drag a tile up or down and the row you release over lights up and takes it. Row 1 is the sequence (the group runs after the one starting before it, with a transition); any other row keeps the group at its time in parallel and slides it behind whatever is in the way; beyond the top or bottom row it gets an own row. Groups remember their row (`zeile` in the plan, Python and JS alike; rows are numbered as displayed, empty rows vanish). "Into the row", "Own row" and "Camera follows this group" are in the tile's right-click menu. — Gruppen wie Spuren: hoch/runter in die Zeile, über der man loslässt; darüber hinaus eigene Spur; Rechtsklick-Menü dazu.
 
