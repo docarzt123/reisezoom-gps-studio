@@ -1830,12 +1830,15 @@ document.addEventListener("click", (e) => {
   const MARKER = ".field-help, .field-help-pill, .gt-help, .ov-help, .rz-help, .gpxi-q, [data-tip]";
   let tip = null, aktiv = null;
   function textFuer(btn) {
+    // Den nativen title IMMER beiseitelegen — auch bei Markern mit Hilfeblock, sonst
+    // stehen zwei Tooltips übereinander („Hilfe anzeigen / verstecken" + Text;
+    // Marc, 09.09.2026 abends, Screenshot).
+    if (btn.title) { btn.dataset.tip = btn.title; btn.removeAttribute("title"); }
     const key = btn.dataset.help;
     if (key) {
       const c = document.querySelector(`.field-help-content[data-help-content="${key}"]`);
       if (c && c.innerHTML.trim()) return { html: c.innerHTML };
     }
-    if (btn.title) { btn.dataset.tip = btn.title; btn.removeAttribute("title"); }
     const t = btn.dataset.tip;
     return t ? { text: t } : null;
   }
