@@ -295,6 +295,11 @@ Zeitstempel „so viele Kilometer je Videosekunde". Wie lang das Video wird, erg
 sich daraus. Die Zeile direkt unter der Spur sagt es Ihnen laufend: die Raffung, die
 Gesamtlänge, und wie viel davon Strecke und wie viel Stillstand ist.
 
+Die Spur liegt **über** den Keyframe-Spuren und ist **lückenlos gekachelt** — wie der
+Tempo-Editor in Final Cut über dem Clip. Jede Kachel sagt, was dort gilt und wie lange
+es dauert: „1,0× 6,0 s" für die Grundraffung, „⏸ 4,0 s" für einen Halt. So sehen Sie auf
+einen Blick, was wo liegt.
+
 In die Spur legen Sie zwei Dinge:
 
 - **Halt** — kurz klicken. Die Strecke bleibt an dieser Stelle stehen, das Video läuft
@@ -305,7 +310,8 @@ In die Spur legen Sie zwei Dinge:
   eigenen Faktor gegen die Grundraffung. **0,5× heißt halb so schnell** — und braucht
   darum doppelt so viel Videozeit.
 
-Rechtsklick entfernt einen Eintrag wieder.
+Einen Halt ziehen Sie an seinen **Rändern** länger und kürzer; die Zeile unter der Spur
+zeigt dabei laufend die Sekunden. Rechtsklick entfernt einen Eintrag wieder.
 
 **Jeder Eintrag ist so breit gezeichnet, wie er im Video dauert.** Ein Halt von fünf
 Sekunden ist in einem 22-Sekunden-Video knapp ein Viertel der Leiste — Sie sehen also
@@ -329,12 +335,18 @@ und darunter ihre Bedienung:
 - **Dauer** — leer (**aut**) heißt: Diese Etappe bekommt ihren Anteil an der
   Animationsdauer nach Umfang. Tragen Sie eine Zahl ein, bekommt sie genau diese
   Sekunden, und der Rest teilt sich den verbleibenden Rest.
+- **Name** — anklicken, tippen, Enter: die Etappe heißt fortan so. Die Datei auf der
+  Festplatte bleibt unangetastet, der Name gehört zum Projekt.
 - **↑ ↓ ✕** — Reihenfolge ändern oder Etappe entfernen. Bei vielen Etappen schneller:
   die Knöpfe **„nach Datum"**, **„nach Name"** und **„⇅"** über der Liste.
 - Zwischen zwei Etappen steht der **Übergang**: **Kinoflug** (zoomt heraus, fliegt
   hinüber, zoomt wieder hinein), **Luftlinie** (fährt gerade) oder **Schnitt** (springt
   ohne Zwischenbild). Die Sekunden daneben gelten nur für diesen einen Übergang; leer
   heißt „die gemeinsame Kinoflug-Dauer ganz unten".
+
+In der **Tempo-Spur** über der Zeitleiste bekommt jede Etappe ihre eigene Kachel mit
+ihrem Namen und ihrer Farbe — dort sehen Sie, welche Etappe an welcher Stelle des Videos
+läuft und wie lange sie dauert.
 
 **Die Übergänge kommen zur Animationsdauer dazu.** Unter der Liste steht deshalb, wie
 lang das Video wirklich wird — aufgeteilt in Etappen und Übergänge. Die Zeile färbt sich

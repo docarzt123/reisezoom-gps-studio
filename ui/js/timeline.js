@@ -46,6 +46,13 @@ function mountTimelineBar(opts) {
   // Lanes, deren Wert sich mit Option+Ziehen verändern lässt (v0.9.512).
   const WERT_LANES = ["pitch", "bearing", "zoom", "position"];
   const LANES = [
+    // 09.09.2026 (Marc: „mach das Tempo in der Timeline nach oben und
+    // durchgehend") — die Tempo-Spur steht ÜBER den Keyframe-Spuren, wie der
+    // Tempo-Editor in Final Cut über dem Clip. Sie rendert keine
+    // Keyframe-Marker, sondern eine durchgehende Kachelung; ihre Bedienung
+    // liegt unten in `_tempoBinden` und meldet über `onTempoChange`.
+    { kind: "tempo", label: tlT("animator.lane.tempo", "Tempo"), icon: "⏱", color: "#ffa94d",
+      tip: tlT("animator.lane.tempo_tip", "Tempo: hier anhalten oder einen Abschnitt langsamer laufen lassen. Ziehen legt einen Abschnitt an, Doppelklick öffnet ihn, Rechtsklick löscht.") },
     { kind: "pitch",    label: tlT("animator.lane.pitch",    "Pitch"),     icon: "📐", color: "#5aa9ff" },
     { kind: "bearing",  label: tlT("animator.lane.bearing",  "Drehung"),   icon: "🧭", color: "#6cdd9b" },
     { kind: "zoom",     label: tlT("animator.lane.zoom",     "Zoom"),      icon: "🔍", color: "#c397ff" },
@@ -64,11 +71,6 @@ function mountTimelineBar(opts) {
     // v0.9.227 — Marker- + Foto-Spuren entfernt (Marc): Schilder und Fotos
     // werden längst über ihr eigenes „Schilder und Fotos"-System gesetzt,
     // nicht mehr über Keyframe-Events. Die Reserve-Spuren kosteten nur Platz.
-    // 08.09.2026 (Marc) — Tempo-Spur: Halte und Abschnitte mit eigenem Faktor.
-    // Sie rendert KEINE Keyframe-Marker, sondern Blöcke; ihre Bedienung liegt
-    // unten in `_tempoBinden` und meldet Änderungen über `onTempoChange`.
-    { kind: "tempo", label: tlT("animator.lane.tempo", "Tempo"), icon: "⏱", color: "#ffa94d",
-      tip: tlT("animator.lane.tempo_tip", "Tempo: hier anhalten oder einen Abschnitt langsamer laufen lassen. Ziehen legt einen Abschnitt an, Doppelklick öffnet ihn, Rechtsklick löscht.") },
   ];
   const lanesHtml = LANES.map(L => `
     <div class="timeline-lane" data-kind="${L.kind}" style="--lane-color: ${L.color};">
@@ -407,6 +409,24 @@ function mountTimelineBar(opts) {
   let _tempoZieh = null;        // laufende Geste
   let _tempoLetzterDruck = null;  // { i, t } — für die eigene Doppelklick-Erkennung
   let _tempoHinweis = null;     // gesetzt = Spur gesperrt, Text steht darin
+  // 09.09.2026 (Marc: „bei Multitrack sollte man sehen, welcher Track an welcher
+  // Stelle in der Timeline läuft"): Die Etappen mit Name, Farbe und ihrer Lage
+  // auf der Leiste. Die Grund-Kacheln der Tempo-Spur SIND die Etappen — sie
+  // tragen deshalb deren Namen statt „1,0×".
+  let _tempoEtappen = [];       // [{ name, farbe, von, bis }] in Leisten-Anteilen
+
+  function setEtappen(liste) {
+    _tempoEtappen = Array.isArray(liste) ? liste.slice() : [];
+    const el = laneMarkersEl["tempo"];
+    if (el) _tempoZeichnen(el);
+  }
+  /** Welche Etappe an dieser Stelle der Leiste läuft. */
+  function _etappeBei(pos) {
+    for (const e of _tempoEtappen) {
+      if (pos >= e.von - 1e-6 && pos <= e.bis + 1e-6) return e;
+    }
+    return null;
+  }
 
   function setTempo(liste, halte, kurve, hinweis) {
     _tempo = Array.isArray(liste) ? liste.slice() : [];
@@ -415,8 +435,13 @@ function mountTimelineBar(opts) {
     // eigene Halte hätten dort keine Wirkung — dann lieber gar nicht erst
     // anlegen lassen und sagen warum (Marc, 08.09.2026).
     _tempoHinweis = (typeof hinweis === "string" && hinweis) ? hinweis : null;
-    _tempoKurve = (kurve && Array.isArray(kurve.anteile) && kurve.anteile.length > 1)
-      ? { dauer_s: +kurve.dauer_s || 0, anteile: kurve.anteile } : null;
+    // ⚠️ Auch OHNE Tabelle merken: bei einer Etappenfolge verteilt die Kurve
+    // nichts (die Bahn ist schon gleichmäßig in Videozeit), die Sekunden für
+    // die Beschriftung braucht die Spur trotzdem.
+    _tempoKurve = kurve
+      ? { dauer_s: +kurve.dauer_s || 0,
+          anteile: (Array.isArray(kurve.anteile) && kurve.anteile.length > 1) ? kurve.anteile : null }
+      : null;
     const el = laneMarkersEl["tempo"];
     if (el) _tempoZeichnen(el);
   }
@@ -496,6 +521,49 @@ function mountTimelineBar(opts) {
     return [links, rechts];
   }
 
+  /** Wie lang das ganze Video ist — aus der Kurve und der Lage der Anim-Phase.
+   *  Ohne Kurve bleibt es 0 und die Kacheln zeigen nur ihren Faktor. */
+  function _tempoGesamtS() {
+    const d = (_tempoKurve && _tempoKurve.dauer_s) || 0;
+    const ti = _introFraction || 0.0, tf = _trackFraction || 1.0;
+    const spanne = tf - ti;
+    return (d > 0 && spanne > 0.001) ? d / spanne : 0;
+  }
+
+  /** Die Spur als lückenlose Folge von Kacheln — wie der Tempo-Editor in Final
+   *  Cut über dem Clip (Marc, 09.09.2026: „durchgehend … dass man sieht, was wo
+   *  liegt"). Jede Kachel weiß, was sie ist, wie lang sie dauert und ob man sie
+   *  anfassen darf. Zwischen den Einträgen steht die Grundraffung mit 1,0×. */
+  function _tempoKacheln() {
+    const ti = _introFraction || 0.0, tf = _trackFraction || 1.0;
+    const teile = [];
+    for (const [i, e] of _tempo.entries()) {
+      if (!e || typeof e !== "object") continue;
+      if (e.art === "halt") {
+        const [l, r] = _haltSpanne(e);
+        teile.push({ von: l, bis: Math.max(l, r), art: "halt", idx: i,
+                     gesperrt: !!e.gesperrt, sek: +e.sek || 0, titel: e.titel || "" });
+      } else if (e.art === "tempo") {
+        const von = Math.max(0, Math.min(1, +e.von || 0));
+        const bis = Math.max(von, Math.min(1, +e.bis || 0));
+        teile.push({ von: ti + _videoAusStrecke(von, false) * (tf - ti),
+                     bis: ti + _videoAusStrecke(bis, true) * (tf - ti),
+                     art: "tempo", idx: i, gesperrt: false, faktor: +e.faktor || 1 });
+      }
+    }
+    teile.sort((a, b) => a.von - b.von || a.bis - b.bis);
+    // Lücken mit der Grundraffung füllen — so ist die Spur durchgehend belegt.
+    const raus = [];
+    let pos = 0;
+    for (const t of teile) {
+      if (t.von > pos + 0.004) raus.push({ von: pos, bis: t.von, art: "grund", faktor: 1 });
+      raus.push(t);
+      pos = Math.max(pos, t.bis);
+    }
+    if (pos < 0.996) raus.push({ von: pos, bis: 1, art: "grund", faktor: 1 });
+    return raus;
+  }
+
   function _tempoZeichnen(el) {
     el.innerHTML = "";
     const lane = el.closest('.timeline-lane[data-kind="tempo"]');
@@ -510,46 +578,61 @@ function mountTimelineBar(opts) {
     // Wie breit die Spur wirklich ist — daran hängt, ob eine Beschriftung
     // hineinpasst. Ein 1-Sekunden-Übergang ist 25 px breit; „⏸ 1.0s" passt da
     // nicht und wurde zu „1.(".
+    // Wie breit die Spur wirklich ist — daran hängt, ob eine Beschriftung
+    // hineinpasst. Ein 1-Sekunden-Übergang ist 25 px breit; „⏸ 1.0s" passt da
+    // nicht und wurde zu „1.(".
     const breitePx = el.getBoundingClientRect().width || 1000;
-    for (const [i, e] of _tempo.entries()) {
-      if (!e || typeof e !== "object") continue;
-      if (e.art === "halt") {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "tl-tempo-halt" + (e.gesperrt ? " ist-gesperrt" : "");
-        // Ein Halt ist ein ZEITRAUM, kein Punkt — er wird als Band gezeichnet,
-        // so breit wie er das Video verlängert. Sonst sieht ein 5-s-Anlauf
-        // genauso aus wie ein 0,2-s-Halt (Marc: „sauber lesbar").
-        const [hl, hr] = _haltSpanne(e);
-        const l0 = _anchorToPct(hl), r0 = _anchorToPct(hr);
-        b.style.left = l0 + "%";
-        b.style.width = Math.max(1.1, r0 - l0) + "%";
-        b.dataset.idx = String(i);
-        b.title = `${e.titel || tlT("animator.tempo.halt", "Halt")} ${(+e.sek || 0).toFixed(1)} s`
-          + (e.gesperrt ? " · " + tlT("animator.tempo.gesperrt", "kommt aus einer anderen Einstellung") : "");
-        const wPx = Math.max(1.1, r0 - l0) / 100 * breitePx;
-        b.innerHTML = (wPx >= 15 ? `<span class="tl-tempo-pause">⏸</span>` : "")
-          + (wPx >= 40 ? `<span class="tl-tempo-sek">${(+e.sek || 0).toFixed(1)}s</span>` : "");
-        el.appendChild(b);
-      } else if (e.art === "tempo") {
-        const von = Math.max(0, Math.min(1, +e.von || 0));
-        const bis = Math.max(von, Math.min(1, +e.bis || 0));
-        const ti = _introFraction || 0.0, tf = _trackFraction || 1.0;
-        const l = _anchorToPct(ti + _videoAusStrecke(von, false) * (tf - ti));
-        const r = _anchorToPct(ti + _videoAusStrecke(bis, true) * (tf - ti));
-        const d = document.createElement("div");
-        d.className = "tl-tempo-block";
-        d.style.left = l + "%";
-        d.style.width = Math.max(0.6, r - l) + "%";
-        d.dataset.idx = String(i);
-        const f = +e.faktor || 1;
-        d.title = `${f}× ${tlT("animator.tempo.gegen", "gegen die Grundraffung")}`;
-        const bPx = Math.max(0.6, r - l) / 100 * breitePx;
-        d.innerHTML = `<span class="tl-tempo-rand" data-rand="l"></span>`
-          + (bPx >= 26 ? `<span class="tl-tempo-text">${f}×</span>` : "")
-          + `<span class="tl-tempo-rand" data-rand="r"></span>`;
-        el.appendChild(d);
+    const gesamtS = _tempoGesamtS();
+    const sek = (t) => gesamtS > 0 ? (t.bis - t.von) * gesamtS : 0;
+    const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString(undefined,
+      { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+    for (const t of _tempoKacheln()) {
+      const l = _anchorToPct(t.von), r = _anchorToPct(t.bis);
+      const breite = Math.max(0.4, r - l);
+      const wPx = breite / 100 * breitePx;
+      const d = t.sek != null ? +t.sek : sek(t);
+      const dauerTxt = d > 0 ? zahl(d) + " s" : "";
+      const el2 = document.createElement(t.art === "grund" ? "div" : "button");
+      if (t.art !== "grund") el2.type = "button";
+      el2.style.left = l + "%";
+      el2.style.width = breite + "%";
+      if (t.idx != null) el2.dataset.idx = String(t.idx);
+
+      if (t.art === "halt") {
+        el2.className = "tl-tempo-kachel tl-tempo-halt" + (t.gesperrt ? " ist-gesperrt" : "");
+        el2.title = `${t.titel || tlT("animator.tempo.halt", "Halt")} ${zahl(d)} s`
+          + (t.gesperrt ? " · " + tlT("animator.tempo.gesperrt", "kommt aus einer anderen Einstellung") : "");
+        el2.innerHTML = (wPx >= 14 ? `<span class="tl-tempo-pause">⏸</span>` : "")
+          + (wPx >= 46 ? `<span class="tl-tempo-sek">${dauerTxt}</span>` : "")
+          // Eigene Halte lassen sich an den Rändern länger und kürzer ziehen
+          // (Marc, 09.09.2026: „die Pausenblöcke kann ich nicht anfassen").
+          + (t.gesperrt ? "" : `<span class="tl-tempo-rand" data-rand="l"></span>`
+                             + `<span class="tl-tempo-rand" data-rand="r"></span>`);
+      } else {
+        const f = t.art === "tempo" ? (+t.faktor || 1) : 1;
+        const fTxt = zahl(f) + "×";
+        el2.className = t.art === "tempo" ? "tl-tempo-kachel tl-tempo-block"
+                                          : "tl-tempo-kachel tl-tempo-grund";
+        // Bei mehreren Etappen trägt die Grund-Kachel den NAMEN der Etappe, die
+        // dort läuft — sie ist genau deren Platz auf der Leiste.
+        const et = t.art === "grund" ? _etappeBei((t.von + t.bis) / 2) : null;
+        if (et && et.farbe) el2.style.borderLeft = `3px solid ${et.farbe}`;
+        el2.title = t.art === "tempo"
+          ? `${fTxt} ${tlT("animator.tempo.gegen", "gegen die Grundraffung")}` + (dauerTxt ? ` · ${dauerTxt}` : "")
+          : (et ? (et.voll || et.name) + (dauerTxt ? ` · ${dauerTxt}` : "")
+                : tlT("animator.tempo.grund", "Grundraffung") + (dauerTxt ? ` · ${dauerTxt}` : ""));
+        // „1,0× 3,4 s" — Faktor UND Dauer, damit man sieht, was wo liegt.
+        let txt = wPx >= 68 ? `${fTxt} ${dauerTxt}` : (wPx >= 30 ? fTxt : "");
+        if (et) {
+          el2.classList.add("hat-etappe");
+          txt = wPx >= 44 ? et.name : "";
+        }
+        el2.innerHTML = (t.art === "tempo" ? `<span class="tl-tempo-rand" data-rand="l"></span>` : "")
+          + (txt ? `<span class="tl-tempo-text">${txt}</span>` : "")
+          + (t.art === "tempo" ? `<span class="tl-tempo-rand" data-rand="r"></span>` : "");
       }
+      el.appendChild(el2);
     }
   }
 
@@ -595,7 +678,16 @@ function mountTimelineBar(opts) {
         return;
       }
       _tempoLetzterDruck = zielIdx >= 0 ? { i: zielIdx, t: jetzt } : null;
-      if (halt) {
+      if (rand && halt) {
+        // 09.09.2026 (Marc: „die Pausenblöcke kann ich aktuell nicht anfassen
+        // und länger oder kürzer ziehen"): Ein Halt hat jetzt zwei Anfasser.
+        // Gezogen wird seine DAUER — links wie rechts, die Stelle im Track
+        // bleibt, weil ein Halt dort ohnehin nur Zeit einfügt.
+        const i = +halt.dataset.idx;
+        if (_tempo[i] && _tempo[i].gesperrt) return;
+        _tempoZieh = { art: "halt-dauer", i, seite: rand.dataset.rand,
+                       x0: ev.clientX, sek0: +_tempo[i].sek || 0 };
+      } else if (halt) {
         const i = +halt.dataset.idx;
         if (_tempo[i] && _tempo[i].gesperrt) return;      // Etappen-Halte nicht verschieben
         _tempoZieh = { art: "halt-schieben", i, start };
@@ -615,7 +707,19 @@ function mountTimelineBar(opts) {
         const a = _tempoStelle(e2.clientX);
         const z = _tempoZieh; if (!z) return;
         const e = _tempo[z.i]; if (!e) return;
-        if (z.art === "halt-schieben") { e.bei = a; }
+        if (z.art === "halt-dauer") {
+          // Pixel → Sekunden: die Spur zeigt Videozeit, ihre ganze Breite ist
+          // die Gesamtlänge des Videos.
+          const spur = lane.getBoundingClientRect().width || 1;
+          const ges = _tempoGesamtS();
+          const dx = (e2.clientX - z.x0) * (z.seite === "l" ? -1 : 1);
+          const dS = ges > 0 ? dx / spur * ges : dx / 40;
+          e.sek = Math.max(0.2, Math.round((z.sek0 + dS) * 10) / 10);
+          // Die Statuszeile zeigt beim Ziehen den laufenden Wert — sonst zieht
+          // man blind (dieselbe Regel wie beim Wert-Ziehen, v0.9.512).
+          setStatusHint(`${tlT("animator.tempo.halt", "Halt")} ${e.sek.toFixed(1)} s`);
+        }
+        else if (z.art === "halt-schieben") { e.bei = a; }
         else if (z.art === "neu") { e.von = Math.min(z.start, a); e.bis = Math.max(z.start, a); }
         else if (z.art === "rand") {
           if (z.seite === "l") e.von = Math.min(a, e.bis - 0.005);
@@ -635,6 +739,7 @@ function mountTimelineBar(opts) {
         document.removeEventListener("mousemove", bewegen, true);
         document.removeEventListener("mouseup", hoch, true);
         const z = _tempoZieh; _tempoZieh = null;
+        setStatusHint(null);
         if (z && z.art === "neu") {
           const e = _tempo[z.i];
           // Ein Klick ohne Ziehen ist kein Abschnitt, sondern ein Halt.
@@ -1535,6 +1640,7 @@ function mountTimelineBar(opts) {
 
   return {
     destroy: () => { for (const [ev, fn] of _winListeners.splice(0)) { try { window.removeEventListener(ev, fn); } catch (_) {} } },
+    setEtappen,
     trackToBar: _trackToBar,
     barToTrack: _barToTrack,
     getScrubberTrack,

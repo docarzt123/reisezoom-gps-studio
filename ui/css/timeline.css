@@ -852,13 +852,35 @@ body.wert-zieht .timeline-marker.is-selected {
    Keyframe-Marker holen sich das zurück. Die Tempo-Blöcke brauchen es auch,
    sonst gehen Rechtsklick und Ziehen ins Leere. */
 .timeline-lane[data-kind="tempo"] .lane-markers { pointer-events: none; }
-.tl-tempo-block, .tl-tempo-halt { pointer-events: auto; }
-.tl-tempo-block {
-  position: absolute; top: 3px; bottom: 3px; z-index: 2;
-  background: linear-gradient(180deg, rgba(255,169,77,.30), rgba(255,169,77,.16));
-  border: 1px solid rgba(255,169,77,.75); border-radius: 5px;
+.tl-tempo-block, .tl-tempo-halt, .tl-tempo-grund { pointer-events: auto; }
+
+/* ── Durchgehende Kachelung (09.09.2026, Marc) ────────────────────────────
+   „Mach das Tempo in der Timeline nach oben und durchgehend mit ×1, 1 sec …
+   dass man sieht, was wo liegt" — wie der Tempo-Editor in Final Cut über dem
+   Clip. Die Spur ist lückenlos belegt: zwischen den Einträgen steht die
+   Grundraffung, jede Kachel nennt ihren Faktor und ihre Dauer. */
+.tl-tempo-kachel {
+  position: absolute; top: 3px; bottom: 3px;
   display: flex; align-items: center; justify-content: center;
-  cursor: grab; overflow: hidden; min-width: 10px;
+  overflow: hidden; box-sizing: border-box;
+  font-size: 10px; white-space: nowrap;
+  border: 1px solid transparent; border-radius: 4px;
+  appearance: none; padding: 0;
+}
+/* Die Grundraffung ist der ruhige Untergrund — sichtbar, aber leise. */
+.tl-tempo-grund {
+  z-index: 1; cursor: crosshair;
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.45);
+}
+.tl-tempo-grund:hover { background: rgba(255, 255, 255, 0.075); }
+.tl-tempo-block {
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(255,169,77,.30), rgba(255,169,77,.16));
+  border-color: rgba(255,169,77,.75);
+  color: #ffd9ad;
+  cursor: grab; min-width: 10px;
 }
 .tl-tempo-block:hover { background: linear-gradient(180deg, rgba(255,169,77,.42), rgba(255,169,77,.22)); }
 .tl-tempo-text {
@@ -875,13 +897,12 @@ body.wert-zieht .timeline-marker.is-selected {
    ein Pfosten. Schmale Halte zeigen nur das Pausenzeichen, breite auch die
    Sekunden; beides bleibt lesbar, weil der Text nie über den Rand läuft. */
 .tl-tempo-halt {
-  position: absolute; top: 2px; bottom: 2px; z-index: 3;
-  appearance: none; border: 1px solid rgba(255,169,77,.9); border-radius: 5px;
+  z-index: 3;
+  border-color: rgba(255,169,77,.9);
   background: repeating-linear-gradient(135deg,
       rgba(255,169,77,.34) 0 5px, rgba(255,169,77,.18) 5px 10px);
   color: #ffe6c9; cursor: grab; min-width: 8px;
-  padding: 0 3px; display: flex; align-items: center; justify-content: center;
-  gap: 3px; overflow: hidden; white-space: nowrap;
+  padding: 0 3px; gap: 3px;
 }
 .tl-tempo-halt:hover { background: rgba(255,169,77,.46); }
 .tl-tempo-halt.ist-gesperrt {
@@ -921,3 +942,23 @@ body.wert-zieht .timeline-marker.is-selected {
 /* Gesperrte Tempo-Spur (z. B. während einer Reise): sie zeigt nur noch, was aus
    anderen Einstellungen kommt, und sagt in einer Zeile warum. */
 .timeline-lane[data-kind="tempo"].ist-gesperrt .lane-track { cursor: default; }
+
+/* Der Anfasser sitzt jetzt auch in einem Halt (Dauer ziehen) — er darf den
+   Text nicht verdecken und muss über ihm liegen. */
+.tl-tempo-halt .tl-tempo-rand { z-index: 2; }
+.tl-tempo-halt .tl-tempo-pause, .tl-tempo-halt .tl-tempo-sek { position: relative; z-index: 1; }
+/* Die Spur ist mit Kacheln gepflastert — die Achslinie darunter würde
+   durchscheinen und die Kanten unruhig machen. */
+.timeline-lane[data-kind="tempo"] .lane-axis { display: none; }
+
+/* Eine Grund-Kachel, die eine Etappe ist, trägt deren Namen und links ihren
+   Farbstreifen — so sieht man auf einen Blick, welcher Track wo läuft. */
+.tl-tempo-grund.hat-etappe {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.72);
+  padding: 0 4px;
+}
+.tl-tempo-grund.hat-etappe:hover { background: rgba(255, 255, 255, 0.11); }
+.tl-tempo-grund .tl-tempo-text {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+}
