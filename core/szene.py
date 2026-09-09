@@ -285,10 +285,21 @@ async def render_szene(cfg, *, api, projekt_id: str, params: Optional[dict] = No
             emit(0.05, "Szene: Probelauf im Schrittmodus …")
             await page.evaluate("() => window.__rzPreviewRun()")
             await _warte_auf(page, "() => ({ ok: !!(window.__rzPreviewStep && window.__rzPreviewStep.ready) })", 120, "Probelauf-Start", is_cancelled)
-            total_ms = await page.evaluate("() => window.__rzPreviewStep.totalMs")
+            # ⚠️ 09.09.2026 (Marc) — DIE VORSCHAU BESTIMMT DIE LÄNGE, und zwar wirklich.
+            # Hier stand dieser Satz bisher nur als Warnung im Log, gerechnet wurde
+            # weiter mit `duration_s` aus den Einstellungen. Bei einer Etappenfolge
+            # kommen die Übergänge aber ZUSÄTZLICH zur eingestellten Dauer: gemessen
+            # 8,00 s Video gegen 11,00 s Vorschau — die letzten drei Sekunden fehlten
+            # schlicht. Zwei Quellen für eine Zahl, dieselbe Sorte Riss wie beim
+            # Zeitplan der Etappen.
+            total_ms = float(await page.evaluate("() => window.__rzPreviewStep.totalMs"))
             erwartet_ms = total_frames / cfg.fps * 1000
-            if abs(float(total_ms) - erwartet_ms) > 1000:
-                _log.warning("Szene: Vorschau-Dauer %.0f ms ≠ Render-Dauer %.0f ms — die Vorschau bestimmt", float(total_ms), erwartet_ms)
+            aus_vorschau = max(1, int(round(total_ms / 1000.0 * cfg.fps)))
+            if aus_vorschau != total_frames:
+                _log.info("Szene: Länge kommt aus der Vorschau — %d statt %d Bildern "
+                          "(%.2f s statt %.2f s)", aus_vorschau, total_frames,
+                          total_ms / 1000.0, erwartet_ms / 1000.0)
+                total_frames = aus_vorschau
             # 08.09.2026 - Kacheln vorwaermen (wie der klassische Pfad seit v0.9.19 ueber
             # window.prewarmTiles): N Haltepunkte ueber die Zeitachse, je einmal auf idle
             # warten. Die Karte holt die Kacheln je Halt gebuendelt und parallel; ohne das

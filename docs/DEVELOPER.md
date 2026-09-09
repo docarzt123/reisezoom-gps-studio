@@ -3671,9 +3671,20 @@ Luftlinie = linear) und innerhalb einer Etappe deren Bounds-Fit — Letzteres nu
 ECHTEN Keyframes gesetzt sind (`getRawTimelineEvents().length`, der Editor ist oft an, ohne dass
 einer existiert) und „Kamera folgt Track" aus ist. Die Zeitregel ist dieselbe wie in
 `core/animator.py::_reise_segmente`; Wächter: `tests/test_reise_vorschau.py` und
-`tests/test_etappen_zeitplan.py`. **Offen:** Der Szenen-Render läuft für Reisen weiter über den
-klassischen Generator (`app.py`: `_reise` → `_klassisch = True`), und die Einblendungen zeigen
-noch die Werte der Haupt-Tour statt Etappen- und Gesamtzähler (IDEAS §58).
+`tests/test_etappen_zeitplan.py`. **Seit 09.09.2026 rendert eine Etappenfolge über die
+Szene** — die Weiche `_reise → _klassisch` in `app.py` ist weg, weil ihre Begründung
+(„bis die Vorschau eine Reise abspielen kann") seit dem 08.09. nicht mehr gilt. Wächter:
+`tests/test_reise_szene_render.py`. **Offen:** die Einblendungen zeigen noch die Werte der
+Haupt-Tour statt Etappen- und Gesamtzähler (IDEAS §58).
+
+**Die Vorschau bestimmt die Länge (09.09.2026) ⚠️.** `core/szene.py` rechnete die
+Bildzahl aus `intro_s + duration_s + hold_s` und schrieb bei Abweichung nur eine
+Warnung „die Vorschau bestimmt" ins Log — gerechnet wurde weiter mit den
+Einstellungen. Bei einer Etappenfolge kommen die Übergänge aber ZUSÄTZLICH zur
+eingestellten Dauer: gemessen 8,00 s Video gegen 23,00 s Vorschau, der Rest fehlte
+schlicht. `total_frames` kommt jetzt aus `window.__rzPreviewStep.totalMs`, die
+Einstellungen sind nur noch die Erwartung fürs Log. Wer eine zweite Längenquelle
+einbaut, baut denselben Riss wieder ein.
 
 **Etappenzeiten und Übergänge in der Reise (08.09.2026, v0.9.671):** Der Zeitplan des
 Multi-Track-Renders liegt jetzt in der reinen Funktion `_reise_segmente(tours, anim_total,
@@ -3966,10 +3977,11 @@ Schwarm-Standbild (79 Touren) brauchte 46 s, davon der Großteil 79 Brückenaufr
 Die Vorschau lädt die weiteren Touren als `_extraTours` (stehende, farbige Linien)
 und animiert nur den Haupt-Track; der alte Generator (`core/animator.py`,
 `cfg.tracks` ≥ 2, `tracks_ablauf != "schwarm"`) spielt die Touren nacheinander mit
-van-Wijk-Kinoflug. Der Worker schickt Reise-Renders deshalb (noch) klassisch
-(`_reise` in `animator_start_render`). Nächster Schritt (IDEAS §53a): die Reise in
-der Vorschau abspielen — Etappen als EIN Track mit `_segStarts`, Kinoflug als
-Kamera-Übergang, Overlays je Etappe — dann fällt die Ausnahme.
+van-Wijk-Kinoflug. Der Worker schickte Reise-Renders deshalb klassisch
+(`_reise` in `animator_start_render`). **Erledigt am 09.09.2026:** die Vorschau spielt
+die Etappenfolge seit dem 08.09. ab, die Ausnahme ist gefallen, der Render geht über die
+Szene. Beim Entfernen kam der Fehler zum Vorschein, den die Ausnahme verdeckt hatte —
+siehe „Die Vorschau bestimmt die Länge" unten.
 
 **Tour-Map und Reiseroute (07.09.2026).** Die UI schickt zusätzlich
 `params.szene_modul` (`_MODKEY`: `animator` | `reiseroute` | `tourmap`), und
