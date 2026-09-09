@@ -1313,7 +1313,7 @@ Lädt eine GPX-Datei und rendert ein MP4 in dem die Track-Linie animiert über e
 - **Totals-Box** — Gesamt-Werte des Tracks
 - **Live-Box** — Werte, die während der Animation mitlaufen
 - **Höhenprofil** — animierte Linie. Bei einer Reise mit mehreren Etappen (seit v0.9.683)
-  wählst du darunter, was das Profil zeigt: **Ganze Reise** (Standard — eine Kurve über
+  wählst du darunter, was das Profil zeigt: **Ganze Strecke** (Standard — eine Kurve über
   alle Etappen, die Etappengrenzen als gestrichelte Marken; Übergänge und Halte stehen
   still) oder **Laufende Etappe** (das Profil baut sich mit jeder Etappe neu auf, ihr Name
   steht in der Kopfzeile). Bei parallelen Spuren zeigt das Profil die Bahn der Kette.
