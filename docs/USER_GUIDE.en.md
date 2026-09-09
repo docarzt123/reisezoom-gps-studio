@@ -347,6 +347,9 @@ Everything is done with the mouse:
 
 - **Drag a tile** — the group moves in time. Dropped over another one, both run at the same
   time (own row). It then stays where you put it.
+- **Grab a transition** — the band between two groups can be **dragged** (transition length)
+  and **clicked**: pick cinematic flight, straight line or cut right in the timeline. The hold
+  before the first group can be dragged too.
 - **Drag the edges** — the group gets longer or shorter; what is stored is the **factor**
   (0.5× = half as fast, twice the time). The following groups move along.
 - **Drag up or down** — like tracks in an editing program: the row you release over lights up

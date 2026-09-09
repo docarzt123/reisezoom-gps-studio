@@ -9313,6 +9313,12 @@ function mountAnimator(body, headerActions, opts) {
         onGruppenStapel: (id, delta) => { if (_gruppenStapeln(id, delta)) _gruppenNeu(); },
         // 09.09.2026 — hoch in die Reihe, runter aus der Reihe (Marc: „einfach in die höhere Spur ziehen")
         onGruppenZeile: (id, ziel) => { if (_gruppenZeileWechseln(id, ziel)) _gruppenNeu(); },
+        // 09.09.2026 — Bänder in der Zeitleiste: Übergang (Stil/Dauer) und Halt vor der ersten Gruppe
+        onGruppeUebergang: (id, patch) => { const g = _gruppeMitId(id); if (!g) return;
+          if (patch && patch.stil) g.ueber_stil = patch.stil;
+          if (patch && patch.ueber_s != null) g.ueber_s = Math.max(0, +patch.ueber_s || 0);
+          g.fest = false; _gruppenNeu(); try { _animRenderToursList(); } catch (_) {} },
+        onGruppeVorlauf: (id, sek) => { const g = _gruppeMitId(id); if (!g) return; g.vorlauf_s = Math.max(0, +sek || 0); _gruppenNeu(); },
         // Die Zeitleiste meldet eine Stelle auf der LEISTE; die Vorschau will
         // eine Stelle im TRACK (v0.9.511).
         // 04.09.2026 (Marc: „wenn ich den Scrubber schnell hin und her ziehe,
