@@ -3324,6 +3324,7 @@ function rzScaleMapLabels(map, k) {
   try { layers = (map.getStyle() && map.getStyle().layers) || []; } catch (_) { return; }
   if (!map.__rzLabelOrig) map.__rzLabelOrig = {};
   const orig = map.__rzLabelOrig;
+  let _nSym = 0, _probe = "";
   const OWN = /^(preview-|track|mtrack|schwarm|anim-|ghost|dot-|rz-dim|rz-north|rz-sign|rz-base|rz-raster)/;
   // Zoom-Kurven dürfen nur auf oberster Ebene stehen („zoom expression must be
   // top-level"): ["*", ["interpolate", …, ["zoom"], …], k] lehnt MapLibre still
@@ -3398,8 +3399,17 @@ function rzScaleMapLabels(map, k) {
       if (l.type !== "symbol") continue;
       map.setLayoutProperty(l.id, "text-size", mul(o.ts, 16));
       if (o.is != null || (l.layout && l.layout["icon-image"])) map.setLayoutProperty(l.id, "icon-size", mul(o.is, 1));
+      _nSym++; if (!_probe) { try { _probe = l.id + "=" + JSON.stringify(map.getLayoutProperty(l.id, "text-size")).slice(0, 40); } catch (_) {} }
     } catch (_) {}
   }
+  // 09.09.2026 (Marc, zweimal „seltsame Auflösung": Beschriftungen, Linien,
+  // Laufpunkt ~3× zu groß, Overlays normal; Leinwand passte laut Log): Spur,
+  // was diese Skalierung wirklich tat — nur wenn sich etwas ändert.
+  try {
+    const tr = map.transform || {};
+    const zeile = `k ${k.toFixed(3)} · c ${c.toFixed(2)} · ${_nSym} Beschriftungs-Ebenen · Ebenen gesamt ${layers.length} · Zoom ${map.getZoom().toFixed(2)} · transform ${tr.width}×${tr.height} · Probe ${_probe || "-"}`;
+    if (map.__rzLabelSpur !== zeile) { map.__rzLabelSpur = zeile; if (typeof applog === "function") applog("info", "[label] " + zeile); }
+  } catch (_) {}
 }
 window.rzScaleMapLabels = rzScaleMapLabels;
 
