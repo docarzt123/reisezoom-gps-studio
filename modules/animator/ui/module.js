@@ -928,6 +928,13 @@ function mountAnimator(body, headerActions, opts) {
                 <option value="bl">${t("animator.pos.bl")}</option>
                 <option value="br">${t("animator.pos.br")}</option>
               </select>
+              <!-- 09.09.2026 (Marc: „bau den Schalter") — Höhenprofil über die ganze Reise
+                   (Etappengrenzen als Marken) oder nur die laufende Etappe (baut sich je
+                   Etappe neu auf). Nur bei einer Kette mit mehreren Etappen sichtbar. -->
+              <select id="anim-ov-ele-scope" class="pos-select" hidden title="${t("animator.overlay.ele_scope_tip", "Ganze Reise: eine Kurve über alle Etappen, Grenzen als Marken. Laufende Etappe: das Profil baut sich je Etappe neu auf.")}">
+                <option value="reise">${t("animator.overlay.ele_scope_reise", "Ganze Reise")}</option>
+                <option value="etappe">${t("animator.overlay.ele_scope_etappe", "Laufende Etappe")}</option>
+              </select>
               <div class="ov-timing" title="${t("animator.overlay.timing_tip")}">
                 <span class="ov-timing-lbl">⏱ ${t("animator.overlay.timing")}</span>
                 <input type="number" id="anim-ov-ele-from" class="ov-time-in" min="0" step="0.5" placeholder="0">
@@ -2432,6 +2439,7 @@ function mountAnimator(body, headerActions, opts) {
   bindSetting("anim-ov-live-pos", _MODKEY, "overlay_live_position");
   bindSetting("anim-ov-ele", _MODKEY, "overlay_elevation_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
   bindSetting("anim-ov-ele-pos", _MODKEY, "overlay_elevation_position");
+  bindSetting("anim-ov-ele-scope", _MODKEY, "overlay_elevation_scope");   // 09.09.2026 — ganze Reise | laufende Etappe
   // 04.09.2026 — Nordpfeil + Maßstab
   bindSetting("anim-ov-north", _MODKEY, "overlay_north_enabled", { type: "bool", onLoad: _ovSyncGroups, onChange: _ovSyncGroups });
   bindSetting("anim-ov-north-pos", _MODKEY, "overlay_north_position");
@@ -12350,7 +12358,7 @@ function mountAnimator(body, headerActions, opts) {
   ["anim-overlays",
    "anim-ov-totals", "anim-ov-totals-pos",
    "anim-ov-live", "anim-ov-live-pos",
-   "anim-ov-ele", "anim-ov-ele-pos",
+   "anim-ov-ele", "anim-ov-ele-pos", "anim-ov-ele-scope",
    "anim-ov-north", "anim-ov-north-pos", "anim-ov-scale", "anim-ov-scale-pos",   // 04.09.2026
    "anim-ov-attrib-pos", "anim-ov-attrib-w",   // 07.09.2026
    // v0.9.228 — Zeitfenster-Inputs: bei Änderung Preview neu (zeigt im
@@ -12795,20 +12803,75 @@ function mountAnimator(body, headerActions, opts) {
     try { _chartsPreviewAdvance(frac); } catch (_) {}
   }
 
+  // ── Höhenprofil: Ausschnitt (09.09.2026, Marc: „bau den Schalter") ──────────
+  // „reise": eine Kurve über alle Etappen, Etappengrenzen als Marken.
+  // „etappe": nur die laufende Etappe (Index-Bereich ihrer Punkte); das Profil
+  // baut sich mit jedem Etappenwechsel neu auf. Ohne Kette gibt es nichts zu
+  // wählen — dann ist der Ausschnitt der ganze Track.
+  function _ovEleScope() {
+    const sel = document.getElementById("anim-ov-ele-scope");
+    const kette = _reiseAktiv() && _reiseBahn && _reiseBahn.teile && _reiseBahn.teile.length > 1;
+    if (sel) sel.hidden = !kette;
+    return (kette && sel && sel.value === "etappe") ? "etappe" : "reise";
+  }
+  /** Ausschnitt der Höhenreihe für den Bahn-Index `idx`: {von, bis, name, marken[]}. */
+  function _ovEleAusschnitt(idx) {
+    const n = (_gpxElevations || []).length;
+    const alles = { von: 0, bis: Math.max(0, n - 1), name: "", marken: [] };
+    if (!_reiseAktiv() || !_reiseBahn || !_reiseBahn.teile || _reiseBahn.teile.length < 2) return alles;
+    if (_ovEleScope() === "etappe") {
+      const i = Math.max(0, Math.min(n - 1, Math.round(+idx || 0)));
+      const k = Math.max(0, Math.min(_reiseBahn.teile.length - 1, _reiseBahn.teilVon[i] || 0));
+      const te = _reiseBahn.teile[k];
+      const e = _reiseBahn.etappen[k];
+      return { von: te.von, bis: te.bis, k, name: (e && e.tour && e.tour.name) || "", marken: [] };
+    }
+    // Ganze Reise: Marken an jedem Etappenbeginn ab der zweiten
+    return Object.assign(alles, { marken: _reiseBahn.teile.slice(1).map(te => te.von) });
+  }
+  let _ovEleAusschnittZuletzt = null;
   // Höhenprofil progressiv bis zum Marker füllen (wie ele-active-line im Render).
   function _ovUpdateEleProfileAt(frac) {
     const line = document.getElementById("ov-ele-line");
     if (!line || !_gpxElevations || _gpxElevations.length < 2) return;
     const W = 1000, H = 120, PY = 10;
-    const eMin = Math.min(..._gpxElevations), eMax = Math.max(..._gpxElevations);
-    const eRng = (eMax - eMin) || 1;
-    const yOf = (e) => H - PY - ((e - eMin) / eRng) * (H - PY * 2);
-    const xOf = (i) => (i / Math.max(1, _gpxElevations.length - 1)) * W;
     const n = _gpxElevations.length;
     let idx = Math.round(Math.max(0, Math.min(1, frac)) * (n - 1));
     if (idx < 0) idx = 0; else if (idx > n - 1) idx = n - 1;
+    const a = _ovEleAusschnitt(idx);
+    const key = a.von + ":" + a.bis;
+    const teil = _gpxElevations.slice(a.von, a.bis + 1);
+    const eMin = Math.min(...teil), eMax = Math.max(...teil);
+    const eRng = (eMax - eMin) || 1;
+    const yOf = (e) => H - PY - ((e - eMin) / eRng) * (H - PY * 2);
+    const xOf = (i) => ((i - a.von) / Math.max(1, a.bis - a.von)) * W;
+    if (key !== _ovEleAusschnittZuletzt) {
+      // Etappenwechsel (oder anderer Ausschnitt): Hintergrundkurve, Marken, Kopfzeile neu
+      _ovEleAusschnittZuletzt = key;
+      const bg = document.getElementById("ov-ele-bg");
+      if (bg) {
+        bg.setAttribute("points", teil.map((e, i) => `${xOf(a.von + i).toFixed(1)},${yOf(e).toFixed(1)}`).join(" "));
+        // Etappen-Marken neu setzen (die Kette kann nach dem Aufbau der Box entstanden sein)
+        const svg = bg.parentNode;
+        svg.querySelectorAll(".ov-ele-marke").forEach(m => m.remove());
+        const anker = document.getElementById("ov-ele-fill");
+        a.marken.forEach(i => {
+          const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          l.setAttribute("class", "ov-ele-marke");
+          l.setAttribute("x1", xOf(i).toFixed(1)); l.setAttribute("x2", xOf(i).toFixed(1));
+          l.setAttribute("y1", "0"); l.setAttribute("y2", String(H));
+          l.setAttribute("stroke", "rgba(255,255,255,0.35)"); l.setAttribute("stroke-width", "1"); l.setAttribute("stroke-dasharray", "3 3");
+          if (anker) svg.insertBefore(l, anker); else svg.appendChild(l);
+        });
+      }
+      const mm = document.querySelector(".ov-ele-minmax");
+      if (mm) mm.textContent = `${t("animator.overlay.ele_min", "Min")} ${Math.round(eMin)} m · ${t("animator.overlay.ele_max", "Max")} ${Math.round(eMax)} m`;
+      const tt = document.querySelector(".ov-ele-title");
+      if (tt) tt.textContent = t("animator.overlay.elevation_title") + (a.name ? " · " + a.name : "");
+    }
     const pairs = [];
-    for (let i = 0; i <= idx; i++) pairs.push([xOf(i), yOf(_gpxElevations[i])]);
+    for (let i = a.von; i <= Math.min(idx, a.bis); i++) pairs.push([xOf(i), yOf(_gpxElevations[i])]);
+    if (!pairs.length) pairs.push([xOf(a.von), yOf(_gpxElevations[a.von])]);
     const ps = pairs.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
     line.setAttribute("points", ps);
     const fill = document.getElementById("ov-ele-fill");
@@ -12821,6 +12884,11 @@ function mountAnimator(body, headerActions, opts) {
       dot.setAttribute("cy", pairs[pairs.length - 1][1].toFixed(1));
     }
   }
+  window.__rzOvEle = (frac) => { _ovUpdateEleProfileAt(frac); const b = document.getElementById("ov-ele-bg");
+    return { scope: _ovEleScope(), titel: (document.querySelector(".ov-ele-title") || {}).textContent || "",
+             bgPunkte: b ? b.getAttribute("points").split(" ").length : 0,
+             marken: document.querySelectorAll(".ov-ele-marke").length,
+             minmax: (document.querySelector(".ov-ele-minmax") || {}).textContent || "" }; };   // Prüfstand
   // ════════════════════════════════════════════════════════════════════════
   // v0.9.443 — Daten-Diagramme als Overlay
   // Jedes Diagramm ist ein voll gestaltetes Daten-Animator-Chart, im Render als
@@ -13354,15 +13422,20 @@ function mountAnimator(body, headerActions, opts) {
     let eleSvg = "";
     if (ele && _gpxElevations && _gpxElevations.length > 1) {
       const W = 1000, H = 120, PY = 10;
-      const eMin = Math.min(..._gpxElevations);
-      const eMax = Math.max(..._gpxElevations);
+      // 09.09.2026 — Ausschnitt nach Schalter (Ruhezustand = Ende → letzte Etappe)
+      const _a = _ovEleAusschnitt(_gpxElevations.length - 1);
+      _ovEleAusschnittZuletzt = _a.von + ":" + _a.bis;
+      const _teil = _gpxElevations.slice(_a.von, _a.bis + 1);
+      const eMin = Math.min(..._teil);
+      const eMax = Math.max(..._teil);
       const eRng = (eMax - eMin) || 1;
       const yOf = (e) => H - PY - ((e - eMin) / eRng) * (H - PY * 2);
-      const xOf = (i) => (i / Math.max(1, _gpxElevations.length - 1)) * W;
-      const bgPts = _gpxElevations.map((e, i) => `${xOf(i).toFixed(1)},${yOf(e).toFixed(1)}`).join(" ");
-      const half = _gpxElevations.length;   // v0.9.290: voll gefüllt (Endzustand)
+      const xOf = (i) => ((i - _a.von) / Math.max(1, _a.bis - _a.von)) * W;
+      const bgPts = _teil.map((e, i) => `${xOf(_a.von + i).toFixed(1)},${yOf(e).toFixed(1)}`).join(" ");
+      const markenSvg = _a.marken.map(i => `<line class="ov-ele-marke" x1="${xOf(i).toFixed(1)}" y1="0" x2="${xOf(i).toFixed(1)}" y2="${H}" stroke="rgba(255,255,255,0.35)" stroke-width="1" stroke-dasharray="3 3"/>`).join("");
+      const titelZusatz = _a.name ? " · " + _animEscapeHtml(_a.name) : "";
       const activePairs = [];
-      for (let i = 0; i < half; i++) activePairs.push([xOf(i), yOf(_gpxElevations[i])]);
+      for (let i = _a.von; i <= _a.bis; i++) activePairs.push([xOf(i), yOf(_gpxElevations[i])]);
       const activePts = activePairs.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
       const fillPts = activePairs.length >= 2
         ? `${activePairs[0][0].toFixed(1)},${H} ${activePts} ${activePairs[activePairs.length - 1][0].toFixed(1)},${H}`
@@ -13371,7 +13444,7 @@ function mountAnimator(body, headerActions, opts) {
       const dotY = activePairs.length ? activePairs[activePairs.length - 1][1].toFixed(1) : 0;
       eleSvg = `
         <div class="ov-ele-header">
-          <span class="ov-ele-title">${t("animator.overlay.elevation_title")}</span>
+          <span class="ov-ele-title">${t("animator.overlay.elevation_title")}${titelZusatz}</span>
           <span class="ov-ele-minmax">${t("animator.overlay.ele_min", "Min")} ${Math.round(eMin)} m · ${t("animator.overlay.ele_max", "Max")} ${Math.round(eMax)} m</span>
         </div>
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="ov-ele-svg">
@@ -13381,7 +13454,8 @@ function mountAnimator(body, headerActions, opts) {
               <stop offset="100%" stop-color="${color}" stop-opacity="0.02"/>
             </linearGradient>
           </defs>
-          <polyline points="${bgPts}" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+          <polyline id="ov-ele-bg" points="${bgPts}" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+          ${markenSvg}
           <polygon id="ov-ele-fill" points="${fillPts}" fill="url(#ov-ele-grad)"/>
           <polyline id="ov-ele-line" points="${activePts}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
           <circle id="ov-ele-dot" cx="${dotX}" cy="${dotY}" r="4.5" fill="#ffffff" stroke="${color}" stroke-width="2"/>
@@ -17251,6 +17325,7 @@ function mountAnimator(body, headerActions, opts) {
       overlay_scale_position: document.getElementById("anim-ov-scale-pos")?.value || "bl",
       overlay_elevation_enabled: !_isReiseroute && !!document.getElementById("anim-ov-ele")?.checked,
       overlay_elevation_position: document.getElementById("anim-ov-ele-pos")?.value || "bottom-right",
+      overlay_elevation_scope: document.getElementById("anim-ov-ele-scope")?.value || "reise",   // 09.09.2026
       // v0.9.228 — Overlay-Zeitfenster (Nutzer „ab Sek X bis Sek Y"). Leeres
       // Feld / 0 = ab Start bzw. bis Ende.
       overlay_totals_from_s: parseNum(document.getElementById("anim-ov-totals-from")?.value, 0),
@@ -17803,6 +17878,7 @@ function mountAnimator(body, headerActions, opts) {
         // → ohne dieses Feld erschien es im Export, auch wenn die Vorschau es aus hat).
         overlay_elevation_enabled: !!document.getElementById("anim-ov-ele")?.checked,
         overlay_elevation_position: document.getElementById("anim-ov-ele-pos")?.value || "bottom-right",
+        overlay_elevation_scope: document.getElementById("anim-ov-ele-scope")?.value || "reise",   // 09.09.2026
         overlay_totals_fields: (typeof _ovGetFields === "function") ? _ovGetFields("totals") : null,
         overlay_field_overrides: (typeof _ovOverrides === "function") ? _ovOverrides() : {},
         overlay_font: document.getElementById("anim-ov-font")?.value || "system",

@@ -15,6 +15,7 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Added
+- Elevation profile overlay: for journeys with several stages a switch "Whole journey" (default; stage boundaries as dashed marks) / "Running stage" (profile rebuilds per stage, stage name in the header). — Höhenprofil: Schalter „Ganze Reise" (Marken an den Etappengrenzen) / „Laufende Etappe" (baut sich je Etappe neu auf).
 - Transitions: a fourth style "Pause" next to cinematic flight, straight line and cut — nothing moves, picture and running dot stay at the end of the previous stage, the hold stays in the timeline, the picture jumps with the next stage (timeline menu and sidebar). — Übergang „Pause": nichts passiert, der Halt bleibt, das Bild springt erst mit der nächsten Etappe.
 
 ### Fixed

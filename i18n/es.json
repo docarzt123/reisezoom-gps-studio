@@ -3060,5 +3060,8 @@
   "animator.stil.ok": "Aplicar",
   "animator.section.tours_hint": "Cada track tiene su propio aspecto: ▸ en la entrada abre grosor, estilo, sombra, brillo, reducción de puntos y el punto en movimiento.",
   "animator.stil.alle_pfeile": "todas las flechas",
-  "animator.tours.ueber_pause": "Pausa"
+  "animator.tours.ueber_pause": "Pausa",
+  "animator.overlay.ele_scope_reise": "Viaje completo",
+  "animator.overlay.ele_scope_etappe": "Etapa en curso",
+  "animator.overlay.ele_scope_tip": "Viaje completo: una curva sobre todas las etapas, límites como marcas. Etapa en curso: el perfil se reconstruye en cada etapa."
 }

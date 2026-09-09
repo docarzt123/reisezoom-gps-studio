@@ -874,6 +874,16 @@ Index auf die Punkte ab — in `_tourPool`, `_tourGeduennt` und `_reiseSerieBaue
 warf der Gleichheits-Test sie weg und das Profil der Reise war eine Gerade.
 Wächter: `tests/test_uebergang_pause.py`.
 
+Höhenprofil-Ausschnitt (09.09.2026, „bau den Schalter"): `#anim-ov-ele-scope`
+(`overlay_elevation_scope`: `reise` | `etappe`, nur bei Kette > 1 Etappe sichtbar,
+`_ovEleScope()`). `_ovEleAusschnitt(idx)` liefert `{von, bis, name, marken}` — bei
+„etappe" den Index-Bereich `teile[teilVon[idx]]`, bei „reise" alles plus Marken an den
+Etappenbeginnen. `_ovUpdateEleProfileAt` baut Hintergrundkurve, Marken (`.ov-ele-marke`),
+Min/Max und Titel neu, sobald sich der Ausschnitt ändert (`_ovEleAusschnittZuletzt`);
+`renderOverlayPreview` nutzt denselben Ausschnitt für den Ruhezustand (Ende = letzte
+Etappe). Der Render läuft über die Szene (= diese UI); der klassische Pfad ignoriert das
+Feld. Prüfstand-Haken `window.__rzOvEle(frac)`.
+
 ### Reise: der Zeitplan gehört den Etappen (seit 08.09.2026) — abgelöst durch die Gruppen (oben), Regeln gelten weiter
 
 Eine Reise (`_reiseGilt()`: Ablauf ≠ Schwarm, mindestens eine Zusatztour, erste
