@@ -340,14 +340,18 @@ grupo al final de la cadena; arrástralo en la línea de tiempo para colocarlo.
 
 Cada entrada bajo **«Tracks»** tiene un **▸** que abre el aspecto de **este** track: grosor,
 estilo de línea (continua, discontinua, punteada, raya-punto, tubo) con separación,
-sombra, brillo y la reducción de puntos en porcentaje. La sección aparte «Línea» ya no
-existe; un track nuevo copia el aspecto del track 1 al añadirse. **«Aplicar aspecto a todos
-los tracks …»** bajo la lista copia desde un track elegido a todos los demás, solo los
-campos marcados (grosor, estilo + separación, sombra, brillo, puntos; el color no está
-marcado por defecto). El punto en movimiento vale para todos los tracks y está arriba en
-«Tracks»; el modo de ritmo y las pausas son tiempo, no aspecto, y están en los ajustes de
-vídeo. *(Varios colores de track, el degradado por altura o velocidad, sigue valiendo solo
-para el track 1.)*
+sombra, brillo, la reducción de puntos en porcentaje y el **punto en movimiento** (mostrar,
+bola o flecha en el sentido de la marcha, tamaño; la «calma de la flecha» vale para todas
+las flechas). La sección aparte «Línea» ya no existe, tampoco el bloque global «Punto en
+movimiento» ni la casilla «forma de la ruta principal para todas»; un track nuevo copia el
+aspecto del track 1 al añadirse. Vale en cada pista: una ruta que corre en paralelo en su
+propia pista lleva también su sombra, brillo, patrón y su propio punto. **«Aplicar aspecto a
+todos los tracks …»** bajo la lista copia desde un track elegido a todos los demás, solo
+los campos marcados (grosor, estilo + separación, sombra, brillo, puntos, punto en
+movimiento; el color no está marcado por defecto). El modo de ritmo y las pausas son
+tiempo, no aspecto, y están en los ajustes de vídeo. *(Varios colores de track, el
+degradado por altura o velocidad, sigue valiendo solo para el track 1; con terreno 3D las
+pistas secundarias con estilo se posan sobre el terreno como la línea principal.)*
 
 ### Grupos en la línea de tiempo — en secuencia, en paralelo o ambos (desde v0.9.679)
 

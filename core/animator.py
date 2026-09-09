@@ -2232,9 +2232,9 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     _anim_dauer = max(0.1, float(getattr(cfg, "duration_s", 0) or 0) or 20.0)
     # 31.08.2026 (Beta-Tester): Pfeil-Form für alle Schwarm-Touren — nur wenn die
     # Haupt-Tour selbst den Pfeil nutzt UND das Häkchen gesetzt ist.
-    schwarm_dot_arrow_js = ("true" if (getattr(cfg, "schwarm_dot_haupt_form", False)
-                                       and str(getattr(cfg, "marker_dot_style", "dot")) == "arrow")
-                            else "false")
+    # 09.09.2026 — die Form gehört jedem Track (stil.dot_style); „Pfeil für alle"
+    # gibt es nicht mehr, der Schalter bleibt nur für alte Projekte lesbar.
+    schwarm_dot_arrow_js = "false"
     schwarm_start_json = json.dumps([
         round(min(0.95, max(0.0, float(t.get("start_s") or 0) / _anim_dauer)), 4)
         for t in _sw])
@@ -2263,6 +2263,39 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # gemeinsame Schwarm-Breite von oben.
     _sw_basis = max(0.5, float(cfg.line_width or 3.0) * (1.0 if _haupt_dezent else 0.8))
     schwarm_widths_json = json.dumps([round(max(0.5, float(t.get("width") or _sw_basis)), 2) for t in _sw])
+    # 09.09.2026 — Aussehen und Laufpunkt je Tour (Schatten, Glow, Muster, Röhre,
+    # Kugel/Pfeil/Größe). Fehlt ein Feld, gilt die Haupt-Tour. Synchron zu
+    # _swPrevBauen in module.js.
+    def _sw_zahl(st, k, d):
+        try:
+            return float(st.get(k)) if st.get(k) not in (None, "") else float(d)
+        except (TypeError, ValueError):
+            return float(d)
+    _sw_stil, _sw_dash_keys = [], {}
+    for t in _sw:
+        st = t.get("stil") or {}
+        ls = str(st.get("line_style") or cfg.line_style or "solid")
+        sp = _sw_zahl(st, "spacing", cfg.line_style_spacing or 1.0)
+        base = _DASH_BASE.get(ls)
+        dash = [round(v * max(0.1, sp), 2) for v in base] if base else None
+        dk = f"{ls}|{sp:g}" if dash else "solid"
+        _sw_dash_keys.setdefault(dk, dash)
+        ds = st.get("dot_show")
+        _sw_stil.append({
+            "width": round(max(0.5, float(t.get("width") or _sw_basis)), 2),
+            "shadow": _sw_zahl(st, "shadow", cfg.shadow_strength if cfg.shadow_enabled else 0),
+            "glow": _sw_zahl(st, "glow", cfg.glow_strength if cfg.glow_enabled else 0),
+            "dk": dk, "tube": 1 if ls == "tube" else 0,
+            "dotShow": bool(cfg.marker_dot_show) if ds is None else bool(ds),
+            "dotStyle": "arrow" if str(st.get("dot_style") or cfg.marker_dot_style) == "arrow" else "dot",
+            "dotSize": max(0.1, _sw_zahl(st, "dot_size", cfg.marker_dot_size or 1.0)),
+        })
+    schwarm_stil_json = json.dumps(_sw_stil)
+    schwarm_dash_json = json.dumps([{"key": k, "dash": d} for k, d in _sw_dash_keys.items()])
+    _sw_schatten = [x["shadow"] for x in _sw_stil if x["shadow"] > 0]
+    _sw_smittel = (sum(_sw_schatten) / len(_sw_schatten)) if _sw_schatten else 0.0
+    _sw_sr = math.radians(float(getattr(cfg, "shadow_dir", 45.0) or 45.0))
+    schwarm_shadow_tr_json = json.dumps([round(_sw_smittel * math.cos(_sw_sr), 2), round(_sw_smittel * math.sin(_sw_sr), 2)])
     # Bei 3D-Gelände brauchen die Linien denselben z-Offset wie der Haupt-Track,
     # sonst verschwinden sie im Berg.
     schwarm_zoff_frag = ", 'line-z-offset': 150" if _zoff_on(cfg) else ""
@@ -2466,7 +2499,10 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     # bei Kamerabewegung wandert die Kante → Flimmern. Mit Gelände zeichnet der
     # Schwarm seine Linien deshalb über rz-line3d.js 150 m über dem Gelände (wie
     # Mapbox mit line-z-offset). Ohne Gelände bleibt die normale Linien-Ebene.
-    sw3d_js = "true" if (cfg.enable_terrain and _spec.get("terrain") and getattr(cfg, "map_engine", "mapbox") != "mapbox") else "false"
+    # 09.09.2026 — mit Schatten/Glow/Muster je Tour drapiert wie die Hauptlinie (rz-line3d
+    # kennt nur Farbe und Breite); synchron zu _swPrevGestaltet in module.js.
+    _sw_gestaltet = any(x["shadow"] > 0 or x["glow"] > 0 or x["dk"] != "solid" for x in _sw_stil)
+    sw3d_js = "true" if (cfg.enable_terrain and _spec.get("terrain") and getattr(cfg, "map_engine", "mapbox") != "mapbox" and not _sw_gestaltet) else "false"
     _rz_terrain_extra = ""
     if os.environ.get("RZ_RTT_Q"): _rz_terrain_extra += f", qualityFactor: {int(os.environ['RZ_RTT_Q'])}"
     _rz_terrain_extra += f", meshSize: {int(os.environ.get('RZ_MESH') or 128)}"   # 06.09.2026 — Vendor-Patches stitch/skirtoffset wirken auch hier
@@ -2996,7 +3032,10 @@ const SCHWARM_MODUS = {schwarm_modus_json};
 const SCHWARM_T = {schwarm_t_json};
 const SCHWARM_T_AXIS = {schwarm_t_axis_json};
 const SCHWARM_START = {schwarm_start_json};   // Start-Verzögerung je Tour (Anteil 0..1)
-const SCHWARM_DOT_ARROW = {schwarm_dot_arrow_js};   // 31.08.2026 (Beta-Tester): Pfeil für alle Touren
+const SCHWARM_DOT_ARROW = {schwarm_dot_arrow_js};   // 31.08.2026 (Beta-Tester): Pfeil für alle Touren — seit 09.09.2026 je Tour (SCHWARM_STIL)
+const SCHWARM_STIL = {schwarm_stil_json};
+const SCHWARM_DASH = {schwarm_dash_json};
+const SCHWARM_SHADOW_TR = {schwarm_shadow_tr_json};
 function swarmIdx(i, dNow) {{
   const c = SCHWARM_COORDS[i];
   const frac0 = TOTAL_DIST_M > 0 ? Math.min(1, dNow / TOTAL_DIST_M) : 1;
@@ -3268,41 +3307,40 @@ map.on('style.load', () => {{
   map.addSource('track', {{type:'geojson', lineMetrics:true, data:{{type:'Feature',geometry:{{type:'LineString',coordinates:[]}}}}}});
   if (SCHWARM_N) {{
     map.addSource('schwarm', {{ type: 'geojson', data: {{ type: 'FeatureCollection', features: [] }} }});
-    map.addLayer({{ id: 'schwarm-lines', type: 'line', source: 'schwarm',
-      layout: {{ 'line-join': 'round', 'line-cap': 'round' }},
-      paint: {{ 'line-color': ['get', 'color'],
-               'line-width': ['coalesce', ['get', 'width'], Math.max(1, {schwarm_line_width_json})],
-               'line-opacity': 0.9{schwarm_zoff_frag} }} }});
+    // 09.09.2026 — Aussehen je Tour: Schatten, Glow, Linie je Muster, Röhre, Laufpunkt
+    // als Kugel oder Pfeil — wortgleich zu _swPrevBauen (module.js).
+    const __swLay = {{ 'line-join': 'round', 'line-cap': 'round' }};
+    map.addLayer({{ id: 'schwarm-shadow', type: 'line', source: 'schwarm', filter: ['>', ['get', 'shadow'], 0], layout: __swLay,
+      paint: {{ 'line-color': 'rgba(0,0,0,0.7)', 'line-width': ['*', ['get', 'width'], 2.2], 'line-blur': ['get', 'shadow'],
+               'line-translate': SCHWARM_SHADOW_TR {schwarm_zoff_frag} }} }});
+    map.addLayer({{ id: 'schwarm-glow', type: 'line', source: 'schwarm', filter: ['>', ['get', 'glow'], 0], layout: __swLay,
+      paint: {{ 'line-color': ['get', 'color'], 'line-width': ['*', ['get', 'width'], ['+', 2.0, ['*', 0.21, ['get', 'glow']]]],
+               'line-blur': ['get', 'glow'], 'line-opacity': 0.8 {schwarm_zoff_frag} }} }});
+    SCHWARM_DASH.forEach((d, n) => {{
+      const paint = {{ 'line-color': ['get', 'color'], 'line-width': ['coalesce', ['get', 'width'], Math.max(1, {schwarm_line_width_json})], 'line-opacity': 0.9 {schwarm_zoff_frag} }};
+      if (d.dash) paint['line-dasharray'] = d.dash;
+      map.addLayer({{ id: 'schwarm-lines' + (n ? '-' + n : ''), type: 'line', source: 'schwarm',
+        filter: ['==', ['get', 'dk'], d.key], layout: __swLay, paint }});
+    }});
+    map.addLayer({{ id: 'schwarm-hl', type: 'line', source: 'schwarm', filter: ['==', ['get', 'tube'], 1], layout: __swLay,
+      paint: {{ 'line-color': 'rgba(255,255,255,0.9)', 'line-width': ['*', ['get', 'width'], 0.35], 'line-opacity': 0.9 {schwarm_zoff_frag} }} }});
     map.addSource('schwarm-dots', {{ type: 'geojson', data: {{ type: 'FeatureCollection', features: [] }} }});
-    // 31.08.2026 (Beta-Tester): Pfeil für ALLE Touren — je Tour ein eingefärbtes
-    // Pfeil-Bild, Symbol-Layer mit Fahrtrichtungs-Rotation. Größe an den
-    // bisherigen Kreis angelehnt (Durchmesser ≈ 2·radius), OHNE RENDER_SCALE
-    // (die schwarm-dots skalieren auch nicht mit — Lehre aus v0.9.619).
-    if (SCHWARM_DOT_ARROW) {{
-      for (let i = 0; i < SCHWARM_N; i++) {{
-        try {{ map.addImage('rz-sw-arrow-' + i, __rzPfeilBild(SCHWARM_COLORS[i]), {{pixelRatio: 2}}); }} catch (e) {{}}
-      }}
-      map.addLayer({{ id: 'schwarm-dots', type: 'symbol', source: 'schwarm-dots',
-        layout: {{ 'icon-image': ['get', 'icon'],
-                 // 02.09.2026 (Beta-Tester: „solo se puede modificar el tamaño
-                 // de la ruta principal") — der Größenregler galt nur für die
-                 // Haupt-Tour; die Pfeile der übrigen Touren hingen allein an
-                 // der Linienbreite. Jetzt zieht der Regler alle mit.
-                 // 03.09.2026 (Beta-Tester: Haupt-Pfeil größer als alle anderen):
-                 // dieselbe Größe wie der Haupt-Pfeil (rz-arrow: Regler × RENDER_SCALE),
-                 // vorher an die Linienbreite gekoppelt und ohne RENDER_SCALE —
-                 // bei 4K wuchs nur der Haupt-Pfeil mit. Synchron zu module.js swarm-prev-dots.
-                 'icon-size': {float(cfg.marker_dot_size):.3f} * RENDER_SCALE,
-                 'icon-rotate': ['get', 'brg'], 'icon-rotation-alignment': 'map',
-                 'icon-pitch-alignment': 'map', 'icon-allow-overlap': true,
-                 'icon-ignore-placement': true }} }});
-    }} else {{
-      map.addLayer({{ id: 'schwarm-dots', type: 'circle', source: 'schwarm-dots',
-        paint: {{ 'circle-color': ['get', 'color'],
-                 'circle-radius': Math.max(3, {schwarm_line_width_json} * 1.5)
-                                  * {float(cfg.marker_dot_size):.3f},
-                 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.2 }} }});
+    // Pfeil je Tour in Tour-Farbe — immer bereit, jede Tour hat ihre eigene Form.
+    // Größe: Regler je Tour × RENDER_SCALE (wie der Haupt-Pfeil rz-arrow).
+    for (let i = 0; i < SCHWARM_N; i++) {{
+      try {{ map.addImage('rz-sw-arrow-' + i, __rzPfeilBild(SCHWARM_COLORS[i]), {{pixelRatio: 2}}); }} catch (e) {{}}
     }}
+    map.addLayer({{ id: 'schwarm-dots', type: 'circle', source: 'schwarm-dots',
+      filter: ['all', ['get', 'dotShow'], ['!=', ['get', 'dotStyle'], 'arrow']],
+      paint: {{ 'circle-color': ['get', 'color'],
+               'circle-radius': ['*', ['get', 'dotSize'], ['max', 3, ['*', ['get', 'width'], 1.5]]],
+               'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.2 }} }});
+    map.addLayer({{ id: 'schwarm-dots-arrow', type: 'symbol', source: 'schwarm-dots',
+      filter: ['all', ['get', 'dotShow'], ['==', ['get', 'dotStyle'], 'arrow']],
+      layout: {{ 'icon-image': ['get', 'icon'], 'icon-size': ['*', ['get', 'dotSize'], RENDER_SCALE],
+               'icon-rotate': ['get', 'brg'], 'icon-rotation-alignment': 'map',
+               'icon-pitch-alignment': 'map', 'icon-allow-overlap': true,
+               'icon-ignore-placement': true }} }});
     if (SCHWARM_3D && window.rzLine3d) {{
       // Linien 150 m über dem Gelände, Breite wie die drapierte Ebene; die drapierte
       // Ebene bleibt leer (setData übersprungen, s. __rzSchwarmAdvance).
@@ -3696,11 +3734,14 @@ window.__rzSchwarmAdvance = (dNow) => {{
   for (let i = 0; i < SCHWARM_N; i++) {{
     const c = SCHWARM_COORDS[i];
     const k = Math.max(0, Math.min(c.length - 1, swarmIdx(i, dNow)));
-    linien.push({{ type: 'Feature', properties: {{ color: SCHWARM_COLORS[i], width: SCHWARM_WIDTHS[i] }},
+    const st = SCHWARM_STIL[i] || {{}};
+    linien.push({{ type: 'Feature', properties: {{ color: SCHWARM_COLORS[i], width: SCHWARM_WIDTHS[i], shadow: st.shadow || 0, glow: st.glow || 0,
+                                                dk: st.dk || 'solid', tube: st.tube || 0 }},
       geometry: {{ type: 'LineString', coordinates: k >= 1 ? c.slice(0, k + 1) : [c[0], c[0]] }} }});
     punkte.push({{ type: 'Feature',
-      properties: {{ color: SCHWARM_COLORS[i], icon: 'rz-sw-arrow-' + i,
-                   brg: SCHWARM_DOT_ARROW ? __rzKurs(c, k) : 0 }},
+      properties: {{ color: SCHWARM_COLORS[i], icon: 'rz-sw-arrow-' + i, width: SCHWARM_WIDTHS[i],
+                   dotShow: st.dotShow !== false, dotStyle: st.dotStyle || 'dot', dotSize: st.dotSize || 1,
+                   brg: (st.dotStyle === 'arrow') ? __rzKurs(c, k) : 0 }},
       geometry: {{ type: 'Point', coordinates: c[k] }} }});
   }}
   if (window.__rzSw3d) {{
@@ -4849,7 +4890,7 @@ def _schwarm_touren_vorbereiten(cfg: AnimatorConfig) -> list:
         except (TypeError, ValueError):
             breite = None
         raus.append({"coords": coords,
-                     "color": t["color"], "step_m": s, "width": breite,
+                     "color": t["color"], "step_m": s, "width": breite, "stil": st,
                      "t_roh": t_roh, "t_bew": t_bew,
                      "stats": t["stats"],
                      "start_s": t.get("start_s", 0.0),

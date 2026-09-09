@@ -835,6 +835,33 @@ Ausnahme: der Farbverlauf („Mehrere Track-Farben") bleibt Track-1-only. UI: Pa
 Eintrag (`_stilPanelBauen`, offen gemerkt in `_stilOffen`), Dialog
 `_stilAlleDialog` über `openModal`. Wächter: `tests/test_track_stil.py`.
 
+Laufpunkt je Track (09.09.2026 abends, Marc: „warum ist das global?"): `stil` trägt auch
+`dot_show`, `dot_style`, `dot_size`; Track 1 speichert weiter in `#anim-dot-*` (Block
+`hidden`), „Ruhe des Pfeils" bleibt eine Zahl für alle Pfeile. Schwarm-Vorschau
+(`_swPrevBauen`): EINE Quelle, Features mit `width/shadow/glow/dk/tube` bzw.
+`dotShow/dotStyle/dotSize/brg`, Ebenen `swarm-prev-{shadow,glow,lines[-n] je Muster,
+hl,dots,dots-arrow}` mit Filtern (line-dasharray ist nicht datengetrieben → eine Ebene je
+Muster; line-translate nicht → Mittel der Schatten). Bei 3D-Gelände nur dann rz-line3d,
+wenn keine Tour gestaltet ist (`_swPrevGestaltet`), sonst drapiert wie die Hauptlinie.
+Render-Spiegel in `core/animator.py`: `SCHWARM_STIL`, `SCHWARM_DASH`, `SCHWARM_SHADOW_TR`,
+Ebenen `schwarm-{shadow,glow,lines[-n],hl,dots,dots-arrow}`, `sw3d_js` mit
+`_sw_gestaltet`; `SCHWARM_DOT_ARROW`/`schwarm_dot_haupt_form` sind nur noch Altlast.
+⚠️ Persistenz: `stil` MUSS in `_animPersistTours` stehen (extra_tours), nicht nur in
+`_gruppenLegacy` — der erste Anlauf hatte es nur dort, die Werte waren nach dem Neustart weg.
+
+Die KETTE wird über die Haupt-Ebenen `preview-*` gezeichnet. Liegt vorne in der Kette eine
+Zusatz-Tour (Marc, Rauen: Track 1 in der parallelen Spur, Track 2 in der Kette), gilt für
+diese Ebenen ihr Stil: `_bahnStil()` (Stil von `_reiseBahn.etappen[0].tour`, sonst null)
+speist `currentLineWidth`, `currentShadowStrength`, `currentGlowStrength`,
+`currentDasharray`, `currentLineStyleName` (Röhre) — analog zu `_bahnLinienFarbe`.
+`_bahnStilAnwenden()` (nach `_reiseAnwenden`/`_reiseAblegen`/`_stilSetzen`) zieht die
+Ebenen nach, ENTKOPPELT per `setTimeout(0)`: `_reiseAnwenden` läuft innerhalb von
+`_animDrawExtraToursPreview`, und `applyLineStyle → rebuildPreviewLayers →
+_animDrawExtraToursPreview` würde sonst verschachtelt laufen („Source swarm-prev-lines
+already exists"). Laufpunkt der Kette: `_dotStilAktuell(frac)` liest die laufende Etappe
+(`_bahnAbschnitt(frac).teil`), `dotSetzen` baut die Ebenen beim Etappenwechsel neu.
+Log-Spur: `[schwarm-vorschau]` je Aufbau (Stil je Tour, 3D ja/nein, Ebenen).
+
 ### Reise: der Zeitplan gehört den Etappen (seit 08.09.2026) — abgelöst durch die Gruppen (oben), Regeln gelten weiter
 
 Eine Reise (`_reiseGilt()`: Ablauf ≠ Schwarm, mindestens eine Zusatztour, erste

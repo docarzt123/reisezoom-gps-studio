@@ -469,7 +469,7 @@ function mountAnimator(body, headerActions, opts) {
           <!-- 09.09.2026 — Laufpunkt gilt für alle Tracks; steht deshalb hier oben. -->
           <!-- v0.9.509 — Laufpunkt. Bis v0.9.508 war er fest verdrahtet: im
                Video immer an, in der Vorschau gar nicht sichtbar. -->
-          <div class="field">
+          <div class="field" hidden>
             <label class="checkbox-row">
               <input type="checkbox" id="anim-dot-show" checked>
               <span>${t("animator.dot.show", "Laufpunkt zeigen")}</span>
@@ -3643,8 +3643,45 @@ function mountAnimator(body, headerActions, opts) {
    * Re-Build der Track-Layer auf die Map. Wird aufgerufen nach `style.load`
    * (denn setStyle entfernt alle Sources/Layer).
    */
+  /** 09.09.2026 (Marc, Rauen: Track 1 in der parallelen Spur, Track 2 vorne in der
+   *  Kette — „ich kann nicht für jeden Track einzeln einstellen"): Die Kette wird
+   *  über die preview-*-Ebenen gezeichnet; die nahmen immer den Stil von Track 1,
+   *  nur die Farbe folgte schon der ersten Etappe (_bahnLinienFarbe). Jetzt gilt
+   *  für Breite, Muster, Schatten, Glow und Röhre dasselbe: der Stil der ersten
+   *  Etappe der Kette, sonst Track 1 (null). */
+  function _bahnStil() {
+    try {
+      if (_reiseAktiv() && _reiseBahn && _reiseBahn.etappen && _reiseBahn.etappen[0]) {
+        const tour = _reiseBahn.etappen[0].tour;
+        if (tour && !tour.haupt) return _stilVon(tour);
+      }
+    } catch (_) {}
+    return null;
+  }
+  function currentLineStyleName() {
+    const b = _bahnStil();
+    return (b && b.line_style) || document.getElementById("anim-line-style")?.value || "solid";
+  }
+  let _bahnStilZuletzt = null;
+  /** Nach jedem Bahn-Aufbau: hat sich der wirksame Stil der Kette geändert, die
+   *  Haupt-Ebenen nachziehen (Muster braucht den Neuaufbau, s. applyLineStyle). */
+  function _bahnStilAnwenden() {
+    const b = _bahnStil();
+    const key = JSON.stringify(b);
+    if (key === _bahnStilZuletzt) return;
+    _bahnStilZuletzt = key;
+    // Entkoppelt: _reiseAnwenden läuft INNERHALB von _animDrawExtraToursPreview, und
+    // applyLineStyle → rebuildPreviewLayers → _animDrawExtraToursPreview würde sonst
+    // verschachtelt laufen („Source swarm-prev-lines already exists", 09.09.2026).
+    setTimeout(() => {
+      try { applyLineStyle(); } catch (_) {}
+      try { applyLineWidthToLayers(); applyShadowToLayers(); applyGlowToLayers(); applyTrackStyle(); } catch (_) {}
+      try { dotEbenenAufbauen(); } catch (e) { applog("warn", "[anim-dot] Kette: " + e); }
+    }, 0);
+  }
   function currentLineWidth() {
-    const w = parseFloat(document.getElementById("anim-lw")?.value) || 3.5;
+    const b = _bahnStil();
+    const w = b ? Math.max(0.5, +b.width || 3.5) : (parseFloat(document.getElementById("anim-lw")?.value) || 3.5);
     // Dezent-Modus (Schwarm): Haupt-Linie in Schwarm-Breite — Spiegel des
     // cfg.line_width-Overrides in core/animator.py.
     return hauptDezent() ? Math.max(0.5, Math.round(w * 0.8 * 100) / 100) : w;
@@ -4175,7 +4212,8 @@ function mountAnimator(body, headerActions, opts) {
 
 
   function currentShadowStrength() {
-    return parseFloat(document.getElementById("anim-shadow-strength")?.value) || 0;
+    const b = _bahnStil();
+    return b ? (+b.shadow || 0) : (parseFloat(document.getElementById("anim-shadow-strength")?.value) || 0);
   }
   function currentShadowDir() {   // v0.9.478 — globale Schatten-Richtung (Grad)
     var v = parseFloat(document.getElementById("anim-shadow-dir")?.value);
@@ -4189,7 +4227,8 @@ function mountAnimator(body, headerActions, opts) {
     return currentGlowStrength() > 0;
   }
   function currentGlowStrength() {
-    return parseFloat(document.getElementById("anim-glow-strength")?.value) || 0;
+    const b = _bahnStil();
+    return b ? (+b.glow || 0) : (parseFloat(document.getElementById("anim-glow-strength")?.value) || 0);
   }
   function currentAlphaEnabled() {
     // v0.6.0: Alpha-Modus = Stil "alpha". Vorher eigene Checkbox.
@@ -4527,8 +4566,9 @@ function mountAnimator(body, headerActions, opts) {
   // rebuildPreviewLayers() (beim Anlegen der Layer) als auch in applyLineStyle()
   // (beim Live-Wechsel) benutzt. Bei tube/solid: null (= keine dasharray).
   function currentDasharray() {
-    const style = document.getElementById("anim-line-style")?.value || "solid";
-    const spacing = Math.max(0.1, parseFloat(document.getElementById("anim-line-spacing")?.value) || 1);
+    const b = _bahnStil();
+    const style = currentLineStyleName();
+    const spacing = Math.max(0.1, b ? (+b.spacing || 1) : (parseFloat(document.getElementById("anim-line-spacing")?.value) || 1));
     const base = { dashed: [3, 2], dotted: [0.1, 2], dashdot: [3, 1.5, 0.1, 1.5] }[style];
     return base ? base.map(v => v * spacing) : null;
   }
@@ -4727,7 +4767,7 @@ function mountAnimator(body, headerActions, opts) {
   // (Marc-Wunsch: gehört zu den 2D-Linien-Stilen).
   function applyTrackStyle() {
     if (!map) return;
-    const style = document.getElementById("anim-line-style")?.value || "solid";
+    const style = currentLineStyleName();
     const lw = currentLineWidth();
     try {
       if (map.getLayer("preview-highlight")) {
@@ -5016,8 +5056,12 @@ function mountAnimator(body, headerActions, opts) {
       });
       return;
     }
-    const farbe = document.getElementById("anim-color")?.value || "#ff6b35";
-    const gr = dotGroesse();
+    // 09.09.2026 — in der Kette trägt der Laufpunkt das Aussehen der LAUFENDEN
+    // Etappe (Form, Größe, Farbe je Track); sonst Track 1.
+    const dst = _dotStilAktuell();
+    _dotStufeZuletzt = dst.key;
+    const farbe = dst.farbe;
+    const gr = dst.size;
     try {
       if (!map.getSource("anim-dot")) {
         map.addSource("anim-dot", { type: "geojson",
@@ -5027,7 +5071,7 @@ function mountAnimator(body, headerActions, opts) {
       ["anim-dot-arrow", "anim-dot-core", "anim-dot-glow"].forEach(id => {
         if (map.getLayer(id)) map.removeLayer(id);
       });
-      if (!dotZeigen() || !currentCoords) return;
+      if (!dst.show || !currentCoords) return;
       if (hauptDezent()) {
         // currentLineWidth() ist im Dezent-Modus schon auf Schwarm-Breite
         // reduziert — Radius exakt wie die schwarm-dots im Render.
@@ -5035,7 +5079,7 @@ function mountAnimator(body, headerActions, opts) {
           paint: { "circle-radius": Math.max(3, currentLineWidth() * 1.5), "circle-color": farbe,
                    "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2,
                    "circle-pitch-alignment": "map" } });
-      } else if (dotStil() === "arrow") {
+      } else if (dst.style === "arrow") {
         try {
           if (map.hasImage("anim-arrow")) map.removeImage("anim-arrow");
           map.addImage("anim-arrow", _pfeilBild(farbe), { pixelRatio: 2 });
@@ -5060,11 +5104,33 @@ function mountAnimator(body, headerActions, opts) {
   /** Position + Fahrtrichtung setzen (jeder Frame bzw. bei jedem Scrubben).
    *  v0.9.510 — nimmt BRUCHTEILE und interpoliert zwischen den Punkten:
    *  der Laufpunkt gleitet, statt von Punkt zu Punkt zu hüpfen. */
+  let _dotStufeZuletzt = null, _dotFracZuletzt = 0;
+  /** Aussehen des Laufpunkts an der Stelle `frac`: in der Kette das der laufenden
+   *  Etappe (stil.dot_* ihres Tracks, ihre Farbe), sonst Track 1. */
+  function _dotStilAktuell(frac) {
+    const f = (frac == null) ? _dotFracZuletzt : frac;
+    try {
+      if (_reiseAktiv() && _reiseBahn && _reiseBahn.etappen) {
+        const ab = _bahnAbschnitt(f);
+        const e = ab ? _reiseBahn.etappen[ab.teil] : null;
+        if (e && e.tour && !e.tour.haupt) {
+          const st = _stilVon(e.tour);
+          return { key: "e" + ab.teil, show: st.dot_show !== false, style: st.dot_style === "arrow" ? "arrow" : "dot",
+                   size: Math.max(0.1, +st.dot_size || 1), farbe: e.tour.line_color || "#35a7ff" };
+        }
+      }
+    } catch (_) {}
+    return { key: "haupt", show: dotZeigen(), style: dotStil(), size: dotGroesse(),
+             farbe: document.getElementById("anim-color")?.value || "#ff6b35" };
+  }
   function dotSetzen(frac) {
     if (!map || !currentCoords) return;
     try {
       const src = map.getSource("anim-dot");
       if (!src) return;
+      _dotFracZuletzt = +frac || 0;
+      // Etappenwechsel in der Kette → Ebenen mit dem Aussehen der neuen Etappe
+      if (_dotStufeZuletzt !== null && _dotStilAktuell(frac).key !== _dotStufeZuletzt) dotEbenenAufbauen();
       // 08.09.2026 — Während eines Etappen-Übergangs steht der Laufpunkt am
       // Ende der alten Etappe. Ihn dort liegen zu lassen sieht aus wie ein
       // vergessener Punkt; er verschwindet für die Dauer des Flugs.
@@ -8777,7 +8843,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!map) return;
     const want = currentTerrainOn();
     // 06.09.2026 — Schwarm-Linien: bei Gelände über rz-line3d, sonst drapiert → bei Umschaltung neu bauen.
-    try { if (_swPrev.length && (!!_sw3d) !== !!(window.rzLine3d && want && map.__rzEngine !== "mapbox" && map.__rzSpec && map.__rzSpec.terrain)) setTimeout(() => { try { _animDrawExtraToursPreview(); } catch (_) {} }, 0); } catch (_) {}
+    try { if (_swPrev.length && (!!_sw3d) !== !!(window.rzLine3d && want && map.__rzEngine !== "mapbox" && map.__rzSpec && map.__rzSpec.terrain && !_swPrevGestaltet())) setTimeout(() => { try { _animDrawExtraToursPreview(); } catch (_) {} }, 0); } catch (_) {}
     const spec = map.__rzSpec || null;
     const mapboxEngine = (map.__rzEngine === "mapbox");
     try {
@@ -14310,13 +14376,32 @@ function mountAnimator(body, headerActions, opts) {
       <div class="anim-stil-zeile"><label>${t("animator.field.glow_strength", "Glow-Stärke")} <b data-v="glow">${st.glow}</b></label>
         <input type="range" data-stil="glow" min="0" max="10" step="0.5" value="${st.glow}"></div>
       <div class="anim-stil-zeile"><label>${t("animator.stil.reduce", "Punkte")} <b data-v="reduce_pct">${st.reduce_pct}</b> %</label>
-        <input type="range" data-stil="reduce_pct" min="10" max="100" step="1" value="${st.reduce_pct}"></div>`;
+        <input type="range" data-stil="reduce_pct" min="10" max="100" step="1" value="${st.reduce_pct}"></div>
+      <div class="anim-stil-zeile ist-check"><label><input type="checkbox" data-stil="dot_show"${st.dot_show ? " checked" : ""}> ${t("animator.dot.show", "Laufpunkt zeigen")}</label></div>
+      <div class="anim-stil-zeile" data-nur-dot ${st.dot_show ? "" : "hidden"}><label>${t("animator.dot.style", "Form")}</label>
+        <select data-stil="dot_style"><option value="dot"${st.dot_style !== "arrow" ? " selected" : ""}>${t("animator.dot.style_dot", "Kugel")}</option><option value="arrow"${st.dot_style === "arrow" ? " selected" : ""}>${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option></select></div>
+      <div class="anim-stil-zeile" data-nur-dot ${st.dot_show ? "" : "hidden"}><label>${t("animator.dot.size", "Größe")} <b data-v="dot_size">${st.dot_size}</b>×</label>
+        <input type="range" data-stil="dot_size" min="0.5" max="3" step="0.1" value="${st.dot_size}"></div>
+      <div class="anim-stil-zeile" data-nur-pfeil ${st.dot_show && st.dot_style === "arrow" ? "" : "hidden"}><label>${t("animator.dot.smooth", "Ruhe des Pfeils")} <b data-v="dot_smooth">${dotGlaettung()}</b> <span class="muted">(${t("animator.stil.alle_pfeile", "alle Pfeile")})</span></label>
+        <input type="range" data-global="anim-dot-smooth" min="0" max="10" step="1" value="${dotGlaettung()}"></div>`;
+    // „Ruhe des Pfeils" ist die Lesebreite der Richtung — eine Zahl für alle Pfeile.
+    el.querySelectorAll("[data-global]").forEach(inp => inp.addEventListener("input", () => {
+      const ziel = document.getElementById(inp.dataset.global); if (!ziel) return;
+      ziel.value = inp.value; ziel.dispatchEvent(new Event("input", { bubbles: true }));
+      const b = el.querySelector('[data-v="dot_smooth"]'); if (b) b.textContent = inp.value;
+    }));
     el.querySelectorAll("[data-stil]").forEach(inp => {
       const k = inp.dataset.stil;
       const zeig = () => { const b = el.querySelector(`[data-v="${k}"]`); if (b) b.textContent = inp.value; };
+      const sicht = () => {
+        const show = el.querySelector('[data-stil="dot_show"]').checked, pfeil = el.querySelector('[data-stil="dot_style"]').value === "arrow";
+        el.querySelectorAll("[data-nur-dot]").forEach(z => { z.hidden = !show; });
+        el.querySelectorAll("[data-nur-pfeil]").forEach(z => { z.hidden = !(show && pfeil); });
+      };
       const anwenden = () => {
-        const wert = (k === "line_style") ? inp.value : parseFloat(inp.value);
+        const wert = (k === "line_style" || k === "dot_style") ? inp.value : (k === "dot_show") ? inp.checked : parseFloat(inp.value);
         if (k === "line_style") { const m = el.querySelector("[data-nur-muster]"); if (m) m.hidden = (wert === "solid" || wert === "tube"); }
+        if (k === "dot_show" || k === "dot_style") sicht();
         _stilSetzen(ziel, { [k]: wert });
       };
       inp.addEventListener("input", () => { zeig(); if (k !== "reduce_pct" || ziel === "haupt") anwenden(); });
@@ -14341,7 +14426,8 @@ function mountAnimator(body, headerActions, opts) {
       .concat(_extraTours.map((tr, i) => ({ key: String(i), name: tr.name || _dateiName(tr.gpx_path) })));
     const felder = [["width", t("animator.field.line_width", "Track-Dicke"), true], ["line_style", t("animator.stil.stil_abstand", "Stil + Abstand"), true],
                     ["shadow", t("animator.field.shadow_strength", "Schatten"), true], ["glow", t("animator.field.glow_strength", "Glow"), true],
-                    ["reduce_pct", t("animator.stil.reduce", "Punkte (%)"), true], ["color", t("animator.tours.color", "Farbe"), false]];
+                    ["reduce_pct", t("animator.stil.reduce", "Punkte (%)"), true], ["dot", t("animator.dot.show", "Laufpunkt"), true],
+                    ["color", t("animator.tours.color", "Farbe"), false]];
     const m = openModal({
       title: "⇉ " + t("animator.stil.alle", "Aussehen auf alle übernehmen …"),
       body: `<div class="anim-stil-alle">
@@ -14366,6 +14452,7 @@ function mountAnimator(body, headerActions, opts) {
       if (gew.has("shadow")) patch.shadow = src.shadow;
       if (gew.has("glow")) patch.glow = src.glow;
       if (gew.has("reduce_pct")) patch.reduce_pct = src.reduce_pct;
+      if (gew.has("dot")) { patch.dot_show = src.dot_show; patch.dot_style = src.dot_style; patch.dot_size = src.dot_size; }
       if (q !== "haupt") { _stilSetzenHaupt(patch); if (gew.has("color") && srcFarbe) { const f = document.getElementById("anim-color"); if (f) { f.value = srcFarbe; f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true })); } } }
       _extraTours.forEach((tr, i) => {
         if (String(i) === q) return;
@@ -14531,7 +14618,7 @@ function mountAnimator(body, headerActions, opts) {
       });
     }
     if (sfWrap) {
-      sfWrap.hidden = !(_istSchwarm() && _extraTours.length > 0);
+      sfWrap.hidden = true;   // 09.09.2026 — die Form gehört jetzt jedem Track selbst (Panel unter dem Eintrag)
       const cb = sfWrap.querySelector("#anim-swarm-form");
       if (cb) cb.checked = _animSwarmForm;
     }
@@ -14807,6 +14894,9 @@ function mountAnimator(body, headerActions, opts) {
   // Entfernt alle Multi-Track-Preview-Layer/-Sources von der Karte.
   function _animClearExtraPreview() {
     if (!map) return;
+    try {   // 09.09.2026 — alle swarm-prev-*-Ebenen (Schatten, Glow, je Muster, Röhre, Punkte)
+      for (const l of (map.getStyle()?.layers || [])) if (l.id && l.id.startsWith("swarm-prev-")) { try { map.removeLayer(l.id); } catch (_) {} }
+    } catch (_) {}
     for (const id of ["swarm-prev-3d", "swarm-prev-lines", "swarm-prev-dots"]) {
       try { if (map.getLayer(id)) map.removeLayer(id); } catch (_) {}
       try { if (map.getSource(id)) map.removeSource(id); } catch (_) {}
@@ -14868,8 +14958,14 @@ function mountAnimator(body, headerActions, opts) {
   // drapierte Linien am Gelände flimmern (Kanten-Verdeckung), die Vorschau IST jetzt das
   // Video (core/szene.py), also muss sie selbst flimmerfrei sein. null = drapiert.
   let _sw3d = null, _sw3dDirty = false, _sw3dIdle = null, _sw3dSrc = null;
+  /** 09.09.2026 — Trägt eine Schwarm-Tour Schatten, Glow, Muster oder Röhre? Dann
+   *  drapiert wie die Hauptlinie und die Kettenetappen (rz-line3d kennt nur Farbe
+   *  und Breite). Synchron zu sw3d_js in core/animator.py. */
+  function _swPrevGestaltet() {
+    return _swPrev.some(t => { const st = t.stil || {}; return (+st.shadow || 0) > 0 || (+st.glow || 0) > 0 || (st.line_style && st.line_style !== "solid"); });
+  }
   function _sw3dSoll() {
-    return !!(window.rzLine3d && !window.__rzNo3d && map && currentTerrainOn() && map.__rzEngine !== "mapbox" && map.__rzSpec && map.__rzSpec.terrain);   // __rzNo3d: Prüfstand-Schalter
+    return !!(window.rzLine3d && !window.__rzNo3d && map && currentTerrainOn() && map.__rzEngine !== "mapbox" && map.__rzSpec && map.__rzSpec.terrain) && !_swPrevGestaltet();   // __rzNo3d: Prüfstand-Schalter
   }
 
   function _swAusduennen(coords, maxN) {
@@ -14914,8 +15010,8 @@ function mountAnimator(body, headerActions, opts) {
    *  'uhrzeit'/'gleich' laufen mit echter Geschwindigkeit später los. */
   /** 31.08.2026 (Beta-Tester): Zusatz-Touren mit Haupt-Form (Pfeil) — nur im
    *  Schwarm, nur wenn die Haupt-Tour selbst auf „Pfeil" steht. */
-  function _swArrowAktiv() {
-    return _istSchwarm() && _animSwarmForm && dotStil() === "arrow";
+  function _swArrowAktiv() {   // 09.09.2026: Form je Tour — „aktiv", sobald eine Tour den Pfeil trägt
+    return _swPrev.some(t => t.dot && t.dot.style === "arrow");
   }
   /** Startanteil eines Mitglieds: sein Vorlauf gegen den Inhalt seiner Gruppe
    *  (§60) — für Einträge der Vorschau-Liste wie für Pool-Touren. */
@@ -15031,10 +15127,12 @@ function mountAnimator(body, headerActions, opts) {
           const achse = _swAchseFuer(tour.tr || tour);
           if (achse) zeit = idx ? idx.map(k => achse[k]) : achse;
         }
+        const st = _stilVon(tour);   // 09.09.2026 — Aussehen je Tour (Linie UND Laufpunkt)
         liste.push({ coords, cum: _cumDistBerechnen(coords), zeit,
                      dauer: zeit ? zeit[zeit.length - 1] : 0,
                      color: tour.line_color || "#35a7ff", gpx_path: tour.gpx_path,
-                     width: Math.max(0.5, +_stilVon(tour).width || lw),   // 09.09.2026 — Breite je Tour
+                     width: Math.max(0.5, +st.width || lw), stil: st,
+                     dot: { show: st.dot_show !== false, style: st.dot_style === "arrow" ? "arrow" : "dot", size: Math.max(0.1, +st.dot_size || 1) },
                      gruppe: g, gi, j, rolle: j === 0 ? "takt" : "mitglied",
                      inKette, lage, vorlauf: +m.vorlauf_s || 0 });
       });
@@ -15054,41 +15152,65 @@ function mountAnimator(body, headerActions, opts) {
     }
     if (!_swPrev.length) return;
     try {
+      // 09.09.2026 (Marc: „ich kann nicht für jeden Track einzeln einstellen"):
+      // Alles, was nicht in der Bahn liegt, lief über EINE Ebene mit einer Breite.
+      // Jetzt trägt jedes Feature sein Aussehen, und die Ebenen filtern danach:
+      // Schatten, Glow, Linie je Muster (line-dasharray ist nicht datengetrieben,
+      // darum eine Ebene je Muster), Röhren-Streifen, Laufpunkt als Kugel oder
+      // Pfeil. Synchron zum Render (core/animator.py, schwarm-*).
+      const lay = { "line-cap": "round", "line-join": "round" };
+      const schatten = _swPrev.map(t => +t.stil.shadow || 0).filter(x => x > 0);
+      const sMittel = schatten.length ? schatten.reduce((x, y) => x + y, 0) / schatten.length : 0;
+      const sr = currentShadowDir() * Math.PI / 180;
       map.addSource("swarm-prev-lines", { type: "geojson",
         data: { type: "FeatureCollection", features: [] } });
-      map.addLayer({ id: "swarm-prev-lines", type: "line", source: "swarm-prev-lines",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": ["get", "color"], "line-width": ["coalesce", ["get", "width"], Math.max(1, lw * 0.8)],
-                 "line-opacity": 0.9 } });
+      map.addLayer({ id: "swarm-prev-shadow", type: "line", source: "swarm-prev-lines", filter: [">", ["get", "shadow"], 0], layout: lay,
+        paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": ["*", ["get", "width"], 2.2], "line-blur": ["get", "shadow"],
+                 "line-translate": [sMittel * Math.cos(sr), sMittel * Math.sin(sr)] } });
+      map.addLayer({ id: "swarm-prev-glow", type: "line", source: "swarm-prev-lines", filter: [">", ["get", "glow"], 0], layout: lay,
+        paint: { "line-color": ["get", "color"], "line-width": ["*", ["get", "width"], ["+", 2.0, ["*", 0.21, ["get", "glow"]]]],
+                 "line-blur": ["get", "glow"], "line-opacity": 0.8 } });
+      const muster = new Map();
+      _swPrev.forEach(t => { const d = _dashFuerStil(t.stil, t.stil.width); t.dk = d ? t.stil.line_style + "|" + (+t.stil.spacing || 1) : "solid"; if (!muster.has(t.dk)) muster.set(t.dk, d); });
+      let n = 0;
+      for (const [dk, d] of muster) {
+        const paint = { "line-color": ["get", "color"], "line-width": ["coalesce", ["get", "width"], Math.max(1, lw * 0.8)], "line-opacity": 0.9 };
+        if (d) paint["line-dasharray"] = d;
+        map.addLayer({ id: "swarm-prev-lines" + (n ? "-" + n : ""), type: "line", source: "swarm-prev-lines",
+          filter: ["==", ["get", "dk"], dk], layout: lay, paint });
+        n++;
+      }
+      map.addLayer({ id: "swarm-prev-hl", type: "line", source: "swarm-prev-lines", filter: ["==", ["get", "tube"], 1], layout: lay,
+        paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": ["*", ["get", "width"], 0.35], "line-opacity": 0.9 } });
       map.addSource("swarm-prev-dots", { type: "geojson",
         data: { type: "FeatureCollection", features: [] } });
-      if (_swArrowAktiv()) {
-        // Pfeil je Tour in Tour-Farbe — wortgleich zum Render (rz-sw-arrow-i).
-        _swPrev.forEach((t, i) => {
-          try {
-            if (map.hasImage("sw-prev-arrow-" + i)) map.removeImage("sw-prev-arrow-" + i);
-            map.addImage("sw-prev-arrow-" + i, _pfeilBild(t.color), { pixelRatio: 2 });
-          } catch (_) {}
-        });
-        map.addLayer({ id: "swarm-prev-dots", type: "symbol", source: "swarm-prev-dots",
-          layout: { "icon-image": ["get", "icon"],
-                    // 02.09.2026: Der Größenregler gilt für ALLE Touren, nicht
-                    // nur für die Haupt-Tour (wortgleich zum Render).
-                    // 03.09.2026 (Beta-Tester: „la flecha de la ruta principal la
-                    // hace más grande que todas las demás"): dieselbe Größe wie der
-                    // Haupt-Pfeil (anim-dot-arrow: icon-size = Regler), nicht mehr an
-                    // die Linienbreite gekoppelt — alle Pfeile gleich groß.
-                    "icon-size": dotGroesse(),
-                    "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
-                    "icon-pitch-alignment": "map", "icon-allow-overlap": true,
-                    "icon-ignore-placement": true } });
-      } else {
-        map.addLayer({ id: "swarm-prev-dots", type: "circle", source: "swarm-prev-dots",
-          paint: { "circle-color": ["get", "color"],
-                   "circle-radius": Math.max(3, lw * 1.2) * dotGroesse(),
-                   "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2 } });
-      }
-    } catch (e) { console.warn("swarm preview layers:", e); }
+      // Pfeil je Tour in Tour-Farbe — wortgleich zum Render (rz-sw-arrow-i); immer
+      // bereit, weil jede Tour ihre eigene Form hat.
+      _swPrev.forEach((t, i) => {
+        try {
+          if (map.hasImage("sw-prev-arrow-" + i)) map.removeImage("sw-prev-arrow-" + i);
+          map.addImage("sw-prev-arrow-" + i, _pfeilBild(t.color), { pixelRatio: 2 });
+        } catch (_) {}
+      });
+      map.addLayer({ id: "swarm-prev-dots", type: "circle", source: "swarm-prev-dots",
+        filter: ["all", ["get", "dotShow"], ["!=", ["get", "dotStyle"], "arrow"]],
+        paint: { "circle-color": ["get", "color"],
+                 "circle-radius": ["*", ["get", "dotSize"], ["max", 3, ["*", ["get", "width"], 1.2]]],
+                 "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.2 } });
+      map.addLayer({ id: "swarm-prev-dots-arrow", type: "symbol", source: "swarm-prev-dots",
+        filter: ["all", ["get", "dotShow"], ["==", ["get", "dotStyle"], "arrow"]],
+        layout: { "icon-image": ["get", "icon"], "icon-size": ["get", "dotSize"],
+                  "icon-rotate": ["get", "brg"], "icon-rotation-alignment": "map",
+                  "icon-pitch-alignment": "map", "icon-allow-overlap": true,
+                  "icon-ignore-placement": true } });
+    } catch (e) { try { applog("warn", "[schwarm-vorschau] Ebenen: " + e); } catch (_) {} console.warn("swarm preview layers:", e); }
+    // Diagnose ins app.log (Marc-Regel): Aussehen je Tour und die angelegten Ebenen —
+    // nur so sieht man, ob ein Stil beim Start ankommt oder erst nach einer Änderung.
+    try {
+      const ebenen = (map.getStyle()?.layers || []).map(l => l.id).filter(id => id.startsWith("swarm-prev-"));
+      applog("info", "[schwarm-vorschau] " + _swPrev.map((t, i) => `${i}:${t.dk}/b${t.width}/s${+t.stil.shadow || 0}/g${+t.stil.glow || 0}/${t.dot.show ? t.dot.style : "aus"}`).join(" ")
+        + ` · 3D ${_sw3dSoll()} · Ebenen: ${ebenen.join(",")} · extra.stil=${JSON.stringify(_extraTours.map(t => t.stil))}`);
+    } catch (_) {}
     _sw3d = null;
     if (_sw3dSoll()) {
       try {
@@ -15144,12 +15266,15 @@ function mountAnimator(body, headerActions, opts) {
       const kP = _swIndexFuer(t, coordFrac, tA, false);
       const kL = vollesBild ? _swIndexFuer(t, coordFrac, tA, true) : kP;
       t.__k = kP;
-      linien.push({ type: "Feature", properties: { color: t.color, width: t.width },
+      const st = t.stil || {}, dot = t.dot || { show: true, style: "dot", size: 1 };
+      linien.push({ type: "Feature", properties: { color: t.color, width: t.width, shadow: +st.shadow || 0, glow: +st.glow || 0,
+                                                   dk: t.dk || "solid", tube: st.line_style === "tube" ? 1 : 0 },
         geometry: { type: "LineString",
           coordinates: kL >= 1 ? t.coords.slice(0, kL + 1) : [t.coords[0], t.coords[0]] } });
       punkte.push({ type: "Feature",
-        properties: { color: t.color, icon: "sw-prev-arrow-" + _swPrev.indexOf(t),
-                      brg: _swArrowAktiv() ? _kursAn(t.coords, kP) : 0 },
+        properties: { color: t.color, icon: "sw-prev-arrow-" + _swPrev.indexOf(t), width: t.width,
+                      dotShow: !!dot.show, dotStyle: dot.style, dotSize: dot.size,
+                      brg: dot.style === "arrow" ? _kursAn(t.coords, kP) : 0 },
         geometry: { type: "Point", coordinates: t.coords[kP] } });
     }
     try {
@@ -15243,12 +15368,23 @@ function mountAnimator(body, headerActions, opts) {
   // Track 1 speichert in den (unsichtbaren) Linie-Feldern — dort hängen bindSetting,
   // Render und alle applyXxx dran. Jede weitere Tour trägt `stil` als eigenes Objekt
   // im Projekt (extra_tours[i].stil); fehlt ein Feld (alte Projekte), gilt Track 1.
-  const STIL_FELDER = ["width", "line_style", "spacing", "shadow", "glow", "reduce_pct"];
+  // 09.09.2026 (Marc: „warum ist das global? das könnte man doch auch auf
+  // Trackebene ziehen") — der Laufpunkt (zeigen, Form, Größe) gehört auch dazu.
+  const STIL_FELDER = ["width", "line_style", "spacing", "shadow", "glow", "reduce_pct", "dot_show", "dot_style", "dot_size"];
+  // Der Punkte-Regler von Track 1 (#anim-pointcount) zählt in PUNKTEN (10 … n),
+  // das Panel in Prozent — hier wird umgerechnet.
+  function _hauptPunkteProzent() {
+    const sl = document.getElementById("anim-pointcount");
+    if (!sl || sl.disabled) return 100;
+    const mx = parseInt(sl.max) || 100, v = parseInt(sl.value) || mx;
+    return Math.max(10, Math.min(100, Math.round(v / mx * 100)));
+  }
   function _stilVonHaupt() {
     const v = (id, d) => { const el = document.getElementById(id); const x = el ? parseFloat(el.value) : NaN; return isFinite(x) ? x : d; };
     return { width: v("anim-lw", 3.5), line_style: document.getElementById("anim-line-style")?.value || "solid",
              spacing: v("anim-line-spacing", 1), shadow: v("anim-shadow-strength", 0), glow: v("anim-glow-strength", 0),
-             reduce_pct: v("anim-pointcount", 100) };
+             reduce_pct: _hauptPunkteProzent(),
+             dot_show: dotZeigen(), dot_style: dotStil(), dot_size: dotGroesse() };
   }
   function _stilSetzenHaupt(patch) {
     const setz = (id, wert) => { const el = document.getElementById(id); if (!el || wert == null) return;
@@ -15258,7 +15394,13 @@ function mountAnimator(body, headerActions, opts) {
     if (patch.spacing != null) setz("anim-line-spacing", patch.spacing);
     if (patch.shadow != null) setz("anim-shadow-strength", patch.shadow);
     if (patch.glow != null) setz("anim-glow-strength", patch.glow);
-    if (patch.reduce_pct != null) setz("anim-pointcount", patch.reduce_pct);
+    if (patch.reduce_pct != null) {
+      const sl = document.getElementById("anim-pointcount");
+      if (sl && !sl.disabled) { const mx = parseInt(sl.max) || 100; setz("anim-pointcount", Math.max(10, Math.round(mx * Math.max(10, Math.min(100, +patch.reduce_pct)) / 100))); }
+    }
+    if (patch.dot_show != null) { const cb = document.getElementById("anim-dot-show"); if (cb) { cb.checked = !!patch.dot_show; cb.dispatchEvent(new Event("change", { bubbles: true })); } }
+    if (patch.dot_style != null) setz("anim-dot-style", patch.dot_style);
+    if (patch.dot_size != null) setz("anim-dot-size", patch.dot_size);
   }
   /** Der wirksame Stil einer Tour: Pool-Eintrag, Zusatz-Tour oder "haupt". */
   function _stilVon(x) {
@@ -15267,7 +15409,10 @@ function mountAnimator(body, headerActions, opts) {
     const tr = x.tr || x;
     const st = (tr && tr.stil && typeof tr.stil === "object") ? tr.stil : {};
     const raus = Object.assign({}, haupt);
-    for (const k of STIL_FELDER) if (st[k] != null && st[k] !== "") raus[k] = (k === "line_style") ? String(st[k]) : +st[k];
+    for (const k of STIL_FELDER) {
+      if (st[k] == null || st[k] === "") continue;
+      raus[k] = (k === "line_style" || k === "dot_style") ? String(st[k]) : (k === "dot_show") ? !!st[k] : +st[k];
+    }
     return raus;
   }
   function _stilSetzen(ziel, patch) {
@@ -15277,6 +15422,8 @@ function mountAnimator(body, headerActions, opts) {
     if (patch.reduce_pct != null) tr.__duenn = null;
     _animPersistTours();
     try { _animDrawExtraToursPreview(); } catch (_) {}
+    try { _bahnStilAnwenden(); } catch (_) {}   // die Tour könnte vorne in der Kette liegen
+    try { if (patch.dot_show != null || patch.dot_style != null || patch.dot_size != null) dotEbenenAufbauen(); } catch (e) { applog("warn", "[anim-dot] je Track: " + e); }
   }
   /** Muster (line-dasharray) eines Stils für eine Ebene der Breite `layerW`
    *  — Spiegel von currentDasharray/dasharrayFor für beliebige Tracks. */
@@ -16016,6 +16163,7 @@ function mountAnimator(body, headerActions, opts) {
       try { refreshPreviewTrackData(); } catch (_) {}
     }
     try { applyLineColorToLayers(); } catch (_) {}
+    try { _bahnStilAnwenden(); } catch (_) {}
   }
   /** Bahn als aktuellen Track übernehmen (die Vorschau rechnet damit weiter). */
   function _reiseAnwenden() {
@@ -16036,6 +16184,7 @@ function mountAnimator(body, headerActions, opts) {
     }
     try { refreshPreviewTrackData(); } catch (_) {}
     try { applyLineColorToLayers(); } catch (_) {}   // 09.09.2026 — Farbe der ersten Etappe der Kette
+    try { _bahnStilAnwenden(); } catch (_) {}         // … und ihr Aussehen (Breite, Muster, Schatten, Glow, Röhre)
     return true;
   }
 
@@ -16247,7 +16396,7 @@ function mountAnimator(body, headerActions, opts) {
     // 07.09.2026 — Tour-Map (Standbild): alle Touren ganz gezeichnet, keine Laufpunkte
     if (_isStaticFrame && _swPrev.length) {
       try { _animSchwarmPreviewAdvance(Math.max(0, (currentCoords || []).length - 1), true); } catch (_) {}
-      try { if (map.getLayer("swarm-prev-dots")) map.setLayoutProperty("swarm-prev-dots", "visibility", "none"); } catch (_) {}
+      try { for (const id of ["swarm-prev-dots", "swarm-prev-dots-arrow"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none"); } catch (_) {}
     }
     _vorschauDiagnose();
   }
@@ -16441,7 +16590,11 @@ function mountAnimator(body, headerActions, opts) {
           // Etappe führt. 0 = wie bisher: Zeit nach Umfang, gemeinsame Flugdauer.
           dauer_s: +t.dauer_s || 0,
           ueber_s: (t.ueber_s === "" || t.ueber_s == null) ? null : (+t.ueber_s || 0),
-          ueber_stil: t.ueber_stil || "kino" })),
+          ueber_stil: t.ueber_stil || "kino",
+          // 09.09.2026 — Aussehen je Track. Beim ersten Anlauf stand das nur in
+          // _gruppenLegacy (Speicher-Umrechnung), nicht HIER — die Einstellungen
+          // von Track 2 waren nach dem Neustart weg (Marc, 09.09.2026 abends).
+          stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null })),
         etappe1_dauer_s: +_animEtappe1S || 0,
         etappe1_name: _animEtappe1Name || "",
         tours_ablauf: _animAblauf,
