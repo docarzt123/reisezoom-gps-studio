@@ -441,6 +441,24 @@ python app.py</code></pre>
 <p>Everything else — map style, tilt, track colour, the on-screen numbers, signs, keyframes — is fine-tuning for later. Chapter 3 explains it at leisure.</p>
 <blockquote><strong>Rule of thumb:</strong> preview run first, render second. The preview run shows in seconds what the</blockquote>
 <blockquote>render produces in minutes.</blockquote>
+<h3 id="the-speed-lane-holding-and-slowing-down">The speed lane — holding and slowing down</h3>
+<p>Below the map lies a narrow lane labelled <strong>⏱ Speed</strong>. The idea behind it is simple: <strong>your video is a sped-up version of your tour.</strong> A base speed-up says how much — &quot;140 times real time&quot;, or for tours without timestamps &quot;so many kilometres per second of video&quot;. The length of the video follows from it. The line right under the lane keeps telling you: the speed-up, the total length, and how much of it is track and how much standing still.</p>
+<p>The lane sits <strong>above</strong> the keyframe lanes and is <strong>tiled without gaps</strong> — like the retime editor in Final Cut above a clip. Each tile says what applies there and for how long: &quot;1.0× 6.0 s&quot; for the base speed-up, &quot;⏸ 4.0 s&quot; for a hold. So you see at a glance what lies where.</p>
+<p>You put two things into the lane:</p>
+<ul>
+<li><strong>Hold</strong> — <strong>double-click on free space</strong> (or right-click → &quot;Hold here&quot;). The track</li>
+</ul>
+<p> stays at this spot while the video runs on. A hold <strong>lengthens</strong> the video by its  seconds. In the editor (double-click the hold) you set how long it holds and what the  camera does meanwhile: stand still (then your keyframes apply) or slowly orbit the spot.</p>
+<ul>
+<li><strong>Section</strong> — drag from left to right. This part of the track runs at its own factor</li>
+</ul>
+<p> against the base. <strong>0.5× means half as fast</strong> — and therefore needs twice the video time.</p>
+<p>A <strong>single click</strong> creates nothing, it only moves the scrubber — so no holds appear by accident. Drag a hold at its <strong>edges</strong> to make it longer or shorter; the tile grows with you right away, and the line under the lane shows the seconds as you go. <strong>Right-click</strong> opens a small menu: on an entry <strong>Open</strong> and <strong>Delete</strong>, on free space <strong>Hold here</strong> or <strong>Slower section here</strong>.</p>
+<p><strong>Every entry is drawn as wide as it lasts in the video.</strong> A five-second hold in a 22-second video is nearly a quarter of the bar — so you see directly how much time it costs. Hatched, dashed bands come from other settings and cannot be touched here: <strong>lead-in</strong> and <strong>hold</strong> from the video settings, and for a journey the <strong>transitions</strong> between the stages.</p>
+<p>If you instead type a wanted length into <strong>&quot;Animation (s)&quot;</strong>, the program recomputes the base speed-up to match — holds included. &quot;Make it 20 seconds&quot; really gives 20 seconds.</p>
+<blockquote><strong>With several stages</strong> (arrangement &quot;in sequence&quot;) the lane is locked and only</blockquote>
+<blockquote>displays: there the <strong>stage lengths and transitions</strong> make the schedule, see the next</blockquote>
+<blockquote>section.</blockquote>
 <h3 id="groups-in-the-timeline-in-sequence-in-parallel-or-both">Groups in the timeline — in sequence, in parallel, or both</h3>
 <p>As soon as two or more tours are in the project, the speed lane above the timeline becomes the <strong>tour row</strong>: every tour is a <strong>group</strong> and gets a tile there with its name, factor and seconds. The gap between two tiles is the transition (✈ cinematic flight, ↗ straight line, ✂ cut), hatched bands are holds — before the content, or at the end when a group finishes earlier than the video. A group that runs at the same time as another gets its own row <strong>„parallel&quot;</strong> below. The rule behind it: all tours of a project are the same length — the length of the video; the arrangement lies only in where their holds sit.</p>
 <p>Everything is done with the mouse:</p>

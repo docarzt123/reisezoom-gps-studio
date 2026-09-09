@@ -52,7 +52,7 @@ function mountTimelineBar(opts) {
     // Keyframe-Marker, sondern eine durchgehende Kachelung; ihre Bedienung
     // liegt unten in `_tempoBinden` und meldet über `onTempoChange`.
     { kind: "tempo", label: tlT("animator.lane.tempo", "Tempo"), icon: "⏱", color: "#ffa94d",
-      tip: tlT("animator.lane.tempo_tip", "Tempo: hier anhalten oder einen Abschnitt langsamer laufen lassen. Ziehen legt einen Abschnitt an, Doppelklick öffnet ihn, Rechtsklick löscht.") },
+      tip: tlT("animator.lane.tempo_tip", "Tempo: hier anhalten oder einen Abschnitt langsamer laufen lassen. Ziehen legt einen Abschnitt an, Doppelklick auf freie Fläche einen Halt, Doppelklick auf einen Eintrag öffnet ihn, Rechtsklick zeigt das Menü.") },
     { kind: "pitch",    label: tlT("animator.lane.pitch",    "Pitch"),     icon: "📐", color: "#5aa9ff" },
     { kind: "bearing",  label: tlT("animator.lane.bearing",  "Drehung"),   icon: "🧭", color: "#6cdd9b" },
     { kind: "zoom",     label: tlT("animator.lane.zoom",     "Zoom"),      icon: "🔍", color: "#c397ff" },
@@ -463,7 +463,7 @@ function mountTimelineBar(opts) {
     const label = tempoLane.querySelector(".lane-label");
     if (label) label.title = _gruppenZeilen.length
       ? tlT("animator.lane.gruppen_tip", "Jede Kachel ist eine Gruppe von Touren; die Kamera folgt der obersten, die gerade läuft. Ziehen verschiebt eine Gruppe in der Zeit, die Ränder ändern ihre Länge, Doppelklick öffnet sie, nach oben oder unten ziehen ordnet den Stapel.")
-      : tlT("animator.lane.tempo_tip", "Tempo: hier anhalten oder einen Abschnitt langsamer laufen lassen. Ziehen legt einen Abschnitt an, Doppelklick öffnet ihn, Rechtsklick löscht.");
+      : tlT("animator.lane.tempo_tip", "Tempo: hier anhalten oder einen Abschnitt langsamer laufen lassen. Ziehen legt einen Abschnitt an, Doppelklick auf freie Fläche einen Halt, Doppelklick auf einen Eintrag öffnet ihn, Rechtsklick zeigt das Menü.");
   }
   /** Sekunden des ganzen Videos je Leisten-Anteil — und umgekehrt. */
   function _gruppenSekJeAnteil() {
@@ -539,8 +539,14 @@ function mountTimelineBar(opts) {
       const k = ev.target.closest(".tl-gruppe");
       if (!k) return;
       ev.preventDefault();
-      try { (cb.onGruppeOeffnen || (() => {}))(k.dataset.id); } catch (e) { console.warn("onGruppeOeffnen:", e); }
+      _gruppenMenue(ev, k.dataset.id);
     });
+  }
+  function _gruppenMenue(ev, id) {
+    _menueZeigen(ev, [
+      { text: tlT("animator.tempo.menu_oeffnen", "Öffnen …"),
+        tun: () => { try { (cb.onGruppeOeffnen || (() => {}))(id); } catch (e) { console.warn("onGruppeOeffnen:", e); } } },
+    ]);
   }
   function _gruppenMausDruck(ev, lane, zeile) {
     const k = ev.target.closest(".tl-gruppe");
@@ -763,6 +769,27 @@ function mountTimelineBar(opts) {
                      art: "tempo", idx: i, gesperrt: false, faktor: +e.faktor || 1 });
       }
     }
+    // 09.09.2026 (Marc: „wenn ich eine Pause länger ziehe, wird der Block nicht
+    // länger"): Die Lage der Halte kommt aus der Kurve, und die wird erst nach
+    // dem Loslassen neu geholt — während des Ziehens stand der Block still und
+    // nur die Zahl lief. Deshalb wächst der gezogene Halt hier sofort mit, und
+    // alles rechts davon rückt so weit nach; die Kurve räumt danach auf.
+    const z = _tempoZieh;
+    const d = (_tempoKurve && _tempoKurve.dauer_s) || 0;
+    if (z && z.art === "halt-dauer" && d > 0) {
+      const halt = teile.find(t => t.idx === z.i);
+      const sek = +(_tempo[z.i] || {}).sek || 0;
+      if (halt) {
+        const delta = (sek - (+z.sek0 || 0)) / d * (tf - ti);
+        const bisAlt = halt.bis;
+        halt.bis = Math.max(halt.von, Math.min(tf, halt.bis + delta));
+        for (const t of teile) {
+          if (t === halt || t.gesperrt || t.von < bisAlt - 1e-6) continue;
+          t.von = Math.max(halt.bis, Math.min(tf, t.von + delta));
+          t.bis = Math.max(t.von, Math.min(tf, t.bis + delta));
+        }
+      }
+    }
     teile.sort((a, b) => a.von - b.von || a.bis - b.bis);
     // Lücken mit der Grundraffung füllen — so ist die Spur durchgehend belegt.
     const raus = [];
@@ -866,6 +893,85 @@ function mountTimelineBar(opts) {
     return Math.max(0, Math.min(1, _streckeAusVideo(v)));
   }
 
+  /** Einen Halt an einer Streckenstelle anlegen (Doppelklick, Menü). */
+  function _tempoHaltAnlegen(stelle) {
+    if (_tempoHinweis) return;
+    _tempo.push({ art: "halt", bei: Math.max(0, Math.min(1, stelle)), sek: 2.0, kamera: "nichts" });
+    _tempoMelden();
+  }
+  /** Einen Abschnitt (0,5×) ab einer Streckenstelle anlegen — ein Zehntel der
+   *  Strecke, bis zum nächsten Eintrag gekürzt. Danach lässt er sich ziehen. */
+  function _tempoAbschnittAnlegen(stelle) {
+    if (_tempoHinweis) return;
+    const von = Math.max(0, Math.min(0.99, stelle));
+    _tempo.push({ art: "tempo", von, bis: Math.min(1, von + 0.1), faktor: 0.5 });
+    const i = _tempo.length - 1, e = _tempo[i];
+    const [lo, hi] = _tempoGrenzen(i);
+    e.von = Math.max(lo, e.von); e.bis = Math.min(hi, e.bis);
+    if (e.bis - e.von < 0.005) { _tempo.splice(i, 1); return; }
+    _tempoMelden();
+  }
+  /** Das Rechtsklick-Menü der Tempo-Spur (09.09.2026, Marc: „generell müsste
+   *  da in der Timeline Rechtsklick gehen, dass ich so was wieder rausnehme"). */
+  function _tempoMenue(ev, lane) {
+    if (_tempoHinweis) return;
+    const el = ev.target.closest(".tl-tempo-halt, .tl-tempo-block");
+    const i = el ? +el.dataset.idx : -1;
+    const e = i >= 0 ? _tempo[i] : null;
+    if (e && !e.gesperrt) {
+      _menueZeigen(ev, [
+        { text: tlT("animator.tempo.menu_oeffnen", "Öffnen …"),
+          tun: () => { try { (cb.onTempoOeffnen || (() => {}))(i, e); } catch (err) { console.warn("onTempoOeffnen:", err); } } },
+        { text: tlT("animator.tempo.menu_loeschen", "Löschen"), gefaehrlich: true,
+          tun: () => { _tempo.splice(i, 1); _tempoMelden(); } },
+      ]);
+      return;
+    }
+    if (e && e.gesperrt) return;                       // Anlauf, Nachlauf, Übergänge: nur ansehen
+    const stelle = _tempoStelle(ev.clientX);
+    _menueZeigen(ev, [
+      { text: tlT("animator.tempo.menu_halt", "Halt hier (2 s)"), tun: () => _tempoHaltAnlegen(stelle) },
+      { text: tlT("animator.tempo.menu_abschnitt", "Langsamer Abschnitt hier (0,5×)"), tun: () => _tempoAbschnittAnlegen(stelle) },
+    ]);
+  }
+  /** Ein kleines Menü an der Maus; schließt bei Klick daneben, Escape, Scrollen. */
+  let _menueEl = null;
+  function _menueSchliessen() {
+    if (_menueEl) { _menueEl.remove(); _menueEl = null; }
+    document.removeEventListener("mousedown", _menueAussen, true);
+    document.removeEventListener("keydown", _menueTaste, true);
+    document.removeEventListener("scroll", _menueSchliessen, true);
+  }
+  function _menueAussen(ev) { if (_menueEl && !_menueEl.contains(ev.target)) _menueSchliessen(); }
+  function _menueTaste(ev) { if (ev.key === "Escape") { ev.preventDefault(); _menueSchliessen(); } }
+  function _menueZeigen(ev, eintraege) {
+    _menueSchliessen();
+    if (!eintraege || !eintraege.length) return;
+    const m = document.createElement("div");
+    m.className = "tl-menue";
+    m.setAttribute("role", "menu");
+    for (const e of eintraege) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "tl-menue-eintrag" + (e.gefaehrlich ? " ist-gefaehrlich" : "");
+      b.setAttribute("role", "menuitem");
+      b.textContent = e.text;
+      b.addEventListener("mousedown", (x) => x.stopPropagation());
+      b.addEventListener("click", (x) => { x.preventDefault(); x.stopPropagation(); _menueSchliessen(); try { e.tun(); } catch (err) { console.warn("Menü:", err); } });
+      m.appendChild(b);
+    }
+    document.body.appendChild(m);
+    // Erst messen, dann setzen — das Menü bleibt im Fenster.
+    const w = m.offsetWidth || 180, h = m.offsetHeight || 60;
+    m.style.left = Math.max(4, Math.min(window.innerWidth - w - 4, ev.clientX)) + "px";
+    m.style.top = Math.max(4, Math.min(window.innerHeight - h - 4, ev.clientY)) + "px";
+    _menueEl = m;
+    setTimeout(() => {
+      document.addEventListener("mousedown", _menueAussen, true);
+      document.addEventListener("keydown", _menueTaste, true);
+      document.addEventListener("scroll", _menueSchliessen, true);
+    }, 0);
+  }
+
   function _tempoBinden() {
     const lane = host.querySelector('.timeline-lane[data-kind="tempo"] .lane-track');
     if (!lane) return;
@@ -897,7 +1003,18 @@ function mountTimelineBar(opts) {
         }
         return;
       }
-      _tempoLetzterDruck = zielIdx >= 0 ? { i: zielIdx, t: jetzt } : null;
+      // 09.09.2026 (Marc: „ein Klick macht direkt eine Zwei-Sekunden-Pause,
+      // sonst hat man ständig Pausen"): Ein Klick auf leere Fläche setzt nur
+      // noch den Scrubber. Einen Halt legt der DOPPELKLICK auf leere Fläche an
+      // (oder das Rechtsklick-Menü); Ziehen bleibt der Abschnitt.
+      if (zielIdx < 0 && !halt && !block && !rand && _tempoLetzterDruck && _tempoLetzterDruck.i === -1
+          && jetzt - _tempoLetzterDruck.t < 350 && Math.abs(_tempoLetzterDruck.x - ev.clientX) < 6) {
+        _tempoLetzterDruck = null;
+        ev.preventDefault();
+        _tempoHaltAnlegen(start);
+        return;
+      }
+      _tempoLetzterDruck = zielIdx >= 0 ? { i: zielIdx, t: jetzt } : { i: -1, t: jetzt, x: ev.clientX };
       if (rand && halt) {
         // 09.09.2026 (Marc: „die Pausenblöcke kann ich aktuell nicht anfassen
         // und länger oder kürzer ziehen"): Ein Halt hat jetzt zwei Anfasser.
@@ -920,7 +1037,7 @@ function mountTimelineBar(opts) {
       } else {
         // Leere Fläche: neuen Abschnitt aufziehen
         _tempo.push({ art: "tempo", von: start, bis: start, faktor: 0.5 });
-        _tempoZieh = { art: "neu", i: _tempo.length - 1, start };
+        _tempoZieh = { art: "neu", i: _tempo.length - 1, start, clientX: ev.clientX };
       }
       ev.preventDefault();
       const bewegen = (e2) => {
@@ -962,9 +1079,16 @@ function mountTimelineBar(opts) {
         setStatusHint(null);
         if (z && z.art === "neu") {
           const e = _tempo[z.i];
-          // Ein Klick ohne Ziehen ist kein Abschnitt, sondern ein Halt.
+          // Ein Klick ohne Ziehen ist kein Abschnitt — und seit 09.09.2026
+          // auch kein Halt mehr: er setzt den Scrubber an diese Stelle.
           if (e && (e.bis - e.von) < 0.01) {
-            _tempo[z.i] = { art: "halt", bei: e.von, sek: 2.0, kamera: "nichts" };
+            _tempo.splice(z.i, 1);
+            _tempoZeichnen(laneMarkersEl["tempo"]);
+            const anker = anchorFromClientX(z.clientX);
+            setScrubberVisual(anker);
+            try { if (cb.onScrub) cb.onScrub(anker); if (cb.onScrubEnd) cb.onScrubEnd(_barToTrack(anker)); }
+            catch (err) { console.warn("scrub:", err); }
+            return;
           }
         }
         _tempoMelden();
@@ -974,14 +1098,10 @@ function mountTimelineBar(opts) {
     });
     lane.addEventListener("contextmenu", (ev) => {
       const k = ev.target.closest(".tl-gruppe");
-      if (k) { ev.preventDefault(); try { (cb.onGruppeOeffnen || (() => {}))(k.dataset.id); } catch (e) { console.warn("onGruppeOeffnen:", e); } return; }
-      const el = ev.target.closest(".tl-tempo-halt, .tl-tempo-block");
-      if (!el) return;
+      if (k) { ev.preventDefault(); _gruppenMenue(ev, k.dataset.id); return; }
+      if (_gruppenZeilen.length) return;
       ev.preventDefault();
-      const i = +el.dataset.idx;
-      if (_tempo[i] && _tempo[i].gesperrt) return;
-      _tempo.splice(i, 1);
-      _tempoMelden();
+      _tempoMenue(ev, lane);
     });
     lane.addEventListener("dblclick", (ev) => {
       const el = ev.target.closest(".tl-tempo-halt, .tl-tempo-block");
@@ -1886,6 +2006,7 @@ function mountTimelineBar(opts) {
     updateStatusLabel,
     setTempo,
     getTempo: () => _tempo.slice(),
+    getScrubAnchor: () => _scrubAnchor,
     setGruppen,
     getGruppen: () => _gruppenZeilen.map(z => z.slice()),
   };

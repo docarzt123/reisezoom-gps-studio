@@ -441,6 +441,24 @@ python app.py</code></pre>
 <p>Todo lo demás — estilo de mapa, inclinación, color del track, las cifras superpuestas, carteles, fotogramas clave — es afinado para más adelante. El capítulo 3 lo explica con calma.</p>
 <blockquote><strong>Regla práctica:</strong> primero la prueba, luego el renderizado. La prueba muestra en segundos lo</blockquote>
 <blockquote>que el renderizado produce en minutos.</blockquote>
+<h3 id="el-carril-de-ritmo-detenerse-y-ralentizar">El carril de ritmo — detenerse y ralentizar</h3>
+<p>Bajo el mapa hay un carril estrecho con la etiqueta <strong>⏱ Ritmo</strong>. La idea es simple: <strong>tu vídeo es una versión acelerada de tu ruta.</strong> Una aceleración base dice cuánto — «140 veces el tiempo real», o en rutas sin marcas de tiempo «tantos kilómetros por segundo de vídeo». La duración del vídeo resulta de ahí. La línea justo bajo el carril te lo va diciendo: la aceleración, la duración total y cuánto de ella es recorrido y cuánto parada.</p>
+<p>El carril está <strong>encima</strong> de los carriles de keyframes y está <strong>embaldosado sin huecos</strong> — como el editor de velocidad de Final Cut sobre un clip. Cada baldosa dice qué rige ahí y cuánto dura: «1,0× 6,0 s» para la aceleración base, «⏸ 4,0 s» para una parada. Así ves de un vistazo qué hay dónde.</p>
+<p>En el carril pones dos cosas:</p>
+<ul>
+<li><strong>Parada</strong> — <strong>doble clic en espacio libre</strong> (o clic derecho → «Parada aquí»). La ruta</li>
+</ul>
+<p> se queda en ese punto mientras el vídeo sigue. Una parada <strong>alarga</strong> el vídeo en sus  segundos. En el editor (doble clic en la parada) ajustas cuánto se detiene y qué hace la  cámara mientras tanto: quedarse quieta (entonces valen tus keyframes) o girar despacio  alrededor del punto.</p>
+<ul>
+<li><strong>Tramo</strong> — arrastra de izquierda a derecha. Esta parte de la ruta corre con su propio</li>
+</ul>
+<p> factor frente a la base. <strong>0,5× significa la mitad de rápido</strong> — y por eso necesita el  doble de tiempo de vídeo.</p>
+<p>Un <strong>clic simple</strong> no crea nada, solo mueve el scrubber — así no aparecen pausas por descuido. Una parada se estira o acorta por sus <strong>bordes</strong>; la baldosa crece contigo al instante y la línea bajo el carril muestra los segundos mientras arrastras. El <strong>clic derecho</strong> abre un pequeño menú: sobre una entrada <strong>Abrir</strong> y <strong>Borrar</strong>, en espacio libre <strong>Parada aquí</strong> o <strong>Tramo más lento aquí</strong>.</p>
+<p><strong>Cada entrada se dibuja tan ancha como dura en el vídeo.</strong> Una parada de cinco segundos en un vídeo de 22 segundos es casi un cuarto de la barra — ves directamente cuánto tiempo cuesta. Las bandas rayadas y discontinuas vienen de otros ajustes y aquí no se pueden tocar: <strong>arranque</strong> y <strong>cierre</strong> de los ajustes de vídeo, y en un viaje además las <strong>transiciones</strong> entre etapas.</p>
+<p>Si en cambio escribes una duración deseada en <strong>«Animación (s)»</strong>, el programa recalcula la aceleración base para que cuadre — paradas incluidas. «Hazlo de 20 segundos» da de verdad 20 segundos.</p>
+<blockquote><strong>Con varias etapas</strong> (disposición «en secuencia») el carril está bloqueado y solo</blockquote>
+<blockquote>muestra: ahí las <strong>duraciones de etapa y las transiciones</strong> hacen el plan, ver la</blockquote>
+<blockquote>sección siguiente.</blockquote>
 <h3 id="grupos-en-la-l-nea-de-tiempo-en-secuencia-en-paralelo-o-ambos">Grupos en la línea de tiempo — en secuencia, en paralelo o ambos</h3>
 <p>En cuanto hay dos o más rutas en el proyecto, la pista de tempo sobre la línea de tiempo se convierte en la <strong>fila de rutas</strong>: cada ruta es un <strong>grupo</strong> y recibe allí una ficha con su nombre, factor y segundos. El hueco entre dos fichas es la transición (✈ vuelo de cine, ↗ línea recta, ✂ corte); las bandas rayadas son paradas — antes del contenido, o al final cuando un grupo termina antes que el vídeo. Un grupo que corre a la vez que otro recibe debajo su propia fila <strong>„en paralelo&quot;</strong>. La regla de fondo: todas las rutas de un proyecto duran lo mismo — lo que dura el vídeo; la disposición está solo en dónde quedan sus paradas.</p>
 <p>Todo se hace con el ratón:</p>
