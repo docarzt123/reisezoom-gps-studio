@@ -585,15 +585,13 @@ function mountAnimator(body, headerActions, opts) {
             <label class="field-label">${t("animator.field.fly_duration", "Kinoflug-Dauer")} <span class="label-val" id="anim-fly-v">3.0 s</span></label>
             <input type="range" id="anim-fly" min="1" max="8" step="0.5" value="3">
           </div>
-        </div>
-      </section>
-
-      <!-- 09.09.2026 (Marc: Reihenfolge Karte · Track · Tracks · Ghost-Spuren) — unter den Tracks.
+          <!-- 09.09.2026 (Marc: „Ghost-Spuren soll ein Unterpunkt von Tracks sein“) — als
+               eingeschachtelter Abschnitt IN der Tracks-Sektion (eigene Ziehharmonika).
            27.08.2026 (Marc) — Ghost-Spuren: beliebig viele Referenzlinien hinter
            der Animation, jede mit eigenem Aussehen. Sein Anwendungsfall: der
            offizielle Wanderweg als durchgehende Linie, die geplanten Rundtouren
            dünn gestrichelt, darüber die gelaufene Tour animiert. -->
-      <section class="section" data-accordion-section="ghosts">
+      <section class="section section-sub" data-accordion-section="ghosts">
         <button class="section-collapse-header" type="button">
           <span>${t("ghosts.section", "👻 Ghost-Spuren")}</span>
           <span class="collapse-arrow">▸</span>
@@ -618,6 +616,9 @@ function mountAnimator(body, headerActions, opts) {
           <div id="ghosts-list"></div>
         </div>
       </section>
+        </div>
+      </section>
+
 
 
       <!-- Kamera (Akkordeon) — v0.8.16 Marc-Refactor:
