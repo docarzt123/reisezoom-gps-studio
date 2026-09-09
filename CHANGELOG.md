@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Changed
+- Animator: the "Line" section is gone; every track entry under "Tracks" expands (▸) to its own look — width, line style with spacing, shadow, glow and point reduction in percent. New tracks copy track 1's look. "Apply look to all tracks …" copies chosen fields (checkboxes; colour unticked by default) from one track to all others. The running dot moved to the top of "Tracks"; pace mode and pauses moved to the video settings. Preview stages and the swarm render carry each track's width/style; the colour gradient stays track-1-only. — „Linie" ist weg: jeder Track hat unter „Tracks" sein eigenes Aussehen (▸), „Aussehen auf alle übernehmen …" mit Checkboxen; Laufpunkt oben in „Tracks", Tempo-Modus und Pausen in den Video-Einstellungen.
+
 ### Fixed
 - Multi-track preview: when the chain starts with a stage other than the first track (e.g. track 1 laid in parallel), the main line took the first track's colour; it now takes the colour of the stage it actually draws. Stages loaded as extra tours carried no elevations, so the elevation profile of a journey was flat; their heights now travel along. — Bahn in der Farbe ihrer ersten Etappe; Höhen der Zusatz-Touren laufen mit, das Profil ist nicht mehr flach.
 

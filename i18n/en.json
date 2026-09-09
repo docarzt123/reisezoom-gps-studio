@@ -3050,5 +3050,13 @@
   "animator.anordnung.uhrzeit": "real time",
   "animator.anordnung.uhrzeit_tip": "As recorded: every group's length follows its real duration, its start its clock time",
   "animator.anordnung.uhrzeit_ohne": "Without clock times in the tours all start at 0 — the length follows the real duration.",
-  "animator.tempo.gruppen_hinweis": "The schedule comes from the groups: drag a tile to move it in time, the edges change its length, double-click opens it."
+  "animator.tempo.gruppen_hinweis": "The schedule comes from the groups: drag a tile to move it in time, the edges change its length, double-click opens it.",
+  "animator.stil.alle": "Apply look to all tracks …",
+  "animator.stil.toggle": "Look of this track",
+  "animator.stil.reduce": "Points",
+  "animator.stil.stil_abstand": "Style + spacing",
+  "animator.stil.quelle": "From which track?",
+  "animator.stil.was": "What to apply?",
+  "animator.stil.ok": "Apply",
+  "animator.section.tours_hint": "Every track has its own look: ▸ on the entry opens width, style, shadow, glow and point reduction."
 }

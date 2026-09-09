@@ -314,106 +314,17 @@ function mountAnimator(body, headerActions, opts) {
 
       <!-- Track (Akkordeon) — Farbe, Dicke, Schlagschatten, Detail-Punkte -->
 
-      <section class="section" data-accordion-section="track">
+      <!-- 09.09.2026 (Marc: „Linie komplett ausbauen und alles nur am Track aufklappbar
+           machen"): Diese Sektion ist unsichtbar. Ihre Felder bleiben der SPEICHER für
+           Track 1 (bindSetting, Render, alle applyXxx lesen sie); bedient werden sie
+           über das Aufklapp-Panel am Eintrag 1 unter „Tracks". Laufpunkt steht jetzt
+           oben in „Tracks", Tempo-Modus und Pausen in den Video-Einstellungen. -->
+      <section class="section" data-accordion-section="track" hidden>
         <button class="section-collapse-header" type="button">
           <span>${t("animator.section.track")}</span>
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
-          <!-- v0.9.509 — Laufpunkt. Bis v0.9.508 war er fest verdrahtet: im
-               Video immer an, in der Vorschau gar nicht sichtbar. -->
-          <div class="field">
-            <label class="checkbox-row">
-              <input type="checkbox" id="anim-dot-show" checked>
-              <span>${t("animator.dot.show", "Laufpunkt zeigen")}</span>
-            </label>
-            <div id="anim-dot-opts" style="margin-top:8px;">
-              <label class="field-label">${t("animator.dot.style", "Form")}</label>
-              <select id="anim-dot-style" class="select">
-                <option value="dot">${t("animator.dot.style_dot", "Kugel")}</option>
-                <option value="arrow">${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>
-              </select>
-              <label class="field-label" style="margin-top:8px;">${t("animator.dot.size", "Größe")}
-                <span class="label-val" id="anim-dot-size-v">1.0×</span>
-              </label>
-              <input type="range" id="anim-dot-size" min="0.5" max="3" step="0.1" value="1">
-              <!-- 02.09.2026 (Marc: „vielleicht braucht man einen schieberegler,
-                   wenn der pfeil gewählt wird") — wie ruhig der Pfeil liegt.
-                   Nur bei Pfeil sichtbar; bei der Kugel gibt es keine Richtung. -->
-              <div id="anim-dot-smooth-row" hidden>
-                <label class="field-label" style="margin-top:8px;">${t("animator.dot.smooth", "Ruhe des Pfeils")}
-                  <button type="button" class="field-help" data-help="dot_smooth"
-                          title="${t("animator.help.show")}">?</button>
-                  <span class="label-val" id="anim-dot-smooth-v">5</span>
-                </label>
-                <input type="range" id="anim-dot-smooth" min="0" max="10" step="1" value="5">
-                <div class="muted field-help-content" data-help-content="dot_smooth" hidden
-                     style="font-size:11px; margin-top:6px; line-height:1.45;">
-                  ${t("animator.dot.smooth_hint", "Links folgt der Pfeil jeder Zuckung, rechts zeigt er die grobe Richtung. In Klammern steht, aus wie viel Streckenlänge um den Punkt herum die Richtung abgelesen wird.")}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- v0.9.506 — Verteilung der Frames über den Track. Beschriftet nach
-               dem ERGEBNIS, nicht nach dem Rechenweg: wer „zeitbasiert" liest,
-               erwartet das Gegenteil von dem, was er sieht (nach Zeit abgetastet
-               = wechselndes Tempo im Bild). -->
-          <div class="field">
-            <label class="field-label">${t("animator.field.pace_mode")}
-              <button type="button" class="field-help" data-help="pace_mode"
-                      title="${t("animator.help.show")}">?</button>
-            </label>
-            <select id="anim-pace" class="select">
-              <option value="even">${t("animator.pace.even")}</option>
-              <option value="real">${t("animator.pace.real")}</option>
-              <option value="raw">${t("animator.pace.raw")}</option>
-            </select>
-            <!-- 02.09.2026 (Marc: „im Animator stehen wieder jede Menge
-                 Erklärtexte in der Sidebar, die sollen weg — stattdessen ein
-                 klickbares ? mit dem Text drin"): Der tour-spezifische Satz
-                 („Wirkung bei dieser Tour …") stand dauerhaft unter dem Feld.
-                 Er ist nützlich, aber nicht ständig — deshalb liegt er jetzt
-                 im selben Hilfe-Block wie die allgemeine Erklärung. -->
-            <div class="muted field-help-content" data-help-content="pace_mode" hidden
-                 style="font-size:11px; margin-top:6px; line-height:1.45;">
-              ${t("animator.pace_mode.hint")}
-              <div id="anim-pace-desc" style="margin-top:6px;"></div>
-            </div>
-            <!-- 08.09.2026 (Marc) — was die Raffung ergibt: Gesamtlänge, davon
-                 Strecke und Halte. Die Dauer ist ab hier ein Ergebnis. -->
-            <div id="anim-tempo-bilanz" class="anim-tempo-bilanz" hidden></div>
-          </div>
-
-          <!-- Pausen — nur bei „Echtes Tempo" sichtbar. Ohne Behandlung wäre der
-               ehrlichste Modus der langweiligste: eine gemessene Bergtour hätte
-               63 von 232 Sekunden Standbild gehabt, in 27 Einfrierern. -->
-          <div class="field" id="anim-pause-box" hidden>
-            <label class="field-label">${t("animator.field.pause_mode")}
-              <button type="button" class="field-help" data-help="pause_info"
-                      title="${t("animator.help.show")}">?</button>
-            </label>
-            <select id="anim-pause-mode" class="select">
-              <option value="trim">${t("animator.pause.trim")}</option>
-              <option value="skip">${t("animator.pause.skip")}</option>
-              <option value="show">${t("animator.pause.show")}</option>
-            </select>
-            <div class="anim-pause-row" id="anim-pause-nums">
-              <label class="anim-pause-num">
-                <span>${t("animator.pause.min")}</span>
-                <input type="number" id="anim-pause-min" min="0.5" max="60" step="0.5" value="2">
-                <span class="muted">${t("animator.unit.min")}</span>
-              </label>
-              <label class="anim-pause-num" id="anim-pause-trim-box">
-                <span>${t("animator.pause.trim_to")}</span>
-                <input type="number" id="anim-pause-trim" min="0" max="60" step="1" value="5">
-                <span class="muted">${t("animator.unit.sec")}</span>
-              </label>
-            </div>
-            <div class="muted field-help-content" data-help-content="pause_info" hidden
-                 id="anim-pause-info" style="font-size:11px; margin-top:6px; line-height:1.5;"></div>
-          </div>
-
           <div class="field">
             <label class="field-label">${t("animator.field.point_count")}
               <span class="label-val" id="anim-pointcount-v">— / —</span>
@@ -554,6 +465,44 @@ function mountAnimator(body, headerActions, opts) {
           <span class="collapse-arrow">▸</span>
         </button>
         <div class="section-collapse-body" hidden>
+          <p class="muted" style="font-size:11px;margin:0 0 8px;line-height:1.45">${t("animator.section.tours_hint", "Jeder Track hat sein eigenes Aussehen: ▸ am Eintrag öffnet Dicke, Stil, Schatten, Glow und Punktreduzierung.")}</p>
+          <!-- 09.09.2026 — Laufpunkt gilt für alle Tracks; steht deshalb hier oben. -->
+          <!-- v0.9.509 — Laufpunkt. Bis v0.9.508 war er fest verdrahtet: im
+               Video immer an, in der Vorschau gar nicht sichtbar. -->
+          <div class="field">
+            <label class="checkbox-row">
+              <input type="checkbox" id="anim-dot-show" checked>
+              <span>${t("animator.dot.show", "Laufpunkt zeigen")}</span>
+            </label>
+            <div id="anim-dot-opts" style="margin-top:8px;">
+              <label class="field-label">${t("animator.dot.style", "Form")}</label>
+              <select id="anim-dot-style" class="select">
+                <option value="dot">${t("animator.dot.style_dot", "Kugel")}</option>
+                <option value="arrow">${t("animator.dot.style_arrow", "Pfeil in Fahrtrichtung")}</option>
+              </select>
+              <label class="field-label" style="margin-top:8px;">${t("animator.dot.size", "Größe")}
+                <span class="label-val" id="anim-dot-size-v">1.0×</span>
+              </label>
+              <input type="range" id="anim-dot-size" min="0.5" max="3" step="0.1" value="1">
+              <!-- 02.09.2026 (Marc: „vielleicht braucht man einen schieberegler,
+                   wenn der pfeil gewählt wird") — wie ruhig der Pfeil liegt.
+                   Nur bei Pfeil sichtbar; bei der Kugel gibt es keine Richtung. -->
+              <div id="anim-dot-smooth-row" hidden>
+                <label class="field-label" style="margin-top:8px;">${t("animator.dot.smooth", "Ruhe des Pfeils")}
+                  <button type="button" class="field-help" data-help="dot_smooth"
+                          title="${t("animator.help.show")}">?</button>
+                  <span class="label-val" id="anim-dot-smooth-v">5</span>
+                </label>
+                <input type="range" id="anim-dot-smooth" min="0" max="10" step="1" value="5">
+                <div class="muted field-help-content" data-help-content="dot_smooth" hidden
+                     style="font-size:11px; margin-top:6px; line-height:1.45;">
+                  ${t("animator.dot.smooth_hint", "Links folgt der Pfeil jeder Zuckung, rechts zeigt er die grobe Richtung. In Klammern steht, aus wie viel Streckenlänge um den Punkt herum die Richtung abgelesen wird.")}
+                </div>
+              </div>
+            </div>
+          </div>
+
+
           <!-- 09.09.2026 (Marc: „den Hilfetext links durch ein Tooltip ? ersetzen
                wie überall"): Zwei Dauer-Erklärungen standen fest über der Liste
                und schoben die Etappen nach unten. Jetzt hinter dem Fragezeichen,
@@ -580,6 +529,10 @@ function mountAnimator(body, headerActions, opts) {
           <div id="anim-reise-bilanz" class="anim-reise-bilanz" hidden></div>
           <button type="button" class="btn btn-small" id="anim-tours-add" style="width:100%; margin-top:4px;">
             ＋ ${t("animator.tours.add", "Tour hinzufügen")}
+          </button>
+          <!-- 09.09.2026 — das Aussehen EINES Tracks auf alle kopieren, Feld für Feld wählbar. -->
+          <button type="button" class="btn btn-small" id="anim-stil-alle" style="width:100%; margin-top:4px;" hidden>
+            ⇉ ${t("animator.stil.alle", "Aussehen auf alle übernehmen …")}
           </button>
           <div class="field" id="anim-fly-field" hidden style="margin-top:10px;">
             <label class="field-label">${t("animator.field.fly_duration", "Kinoflug-Dauer")} <span class="label-val" id="anim-fly-v">3.0 s</span></label>
@@ -1241,6 +1194,66 @@ function mountAnimator(body, headerActions, opts) {
             <input type="range" id="anim-map-smoothing" min="0" max="3" step="0.1" value="1.3">
             <div class="muted" style="font-size:11px; margin-top:4px; line-height:1.4;">${t("animator.field.map_smoothing_hint")}</div>
           </div>
+          <!-- 09.09.2026 — Tempo-Modus und Pausen sind Zeit, nicht Aussehen: aus „Linie“ hierher. -->
+          <!-- v0.9.506 — Verteilung der Frames über den Track. Beschriftet nach
+               dem ERGEBNIS, nicht nach dem Rechenweg: wer „zeitbasiert" liest,
+               erwartet das Gegenteil von dem, was er sieht (nach Zeit abgetastet
+               = wechselndes Tempo im Bild). -->
+          <div class="field">
+            <label class="field-label">${t("animator.field.pace_mode")}
+              <button type="button" class="field-help" data-help="pace_mode"
+                      title="${t("animator.help.show")}">?</button>
+            </label>
+            <select id="anim-pace" class="select">
+              <option value="even">${t("animator.pace.even")}</option>
+              <option value="real">${t("animator.pace.real")}</option>
+              <option value="raw">${t("animator.pace.raw")}</option>
+            </select>
+            <!-- 02.09.2026 (Marc: „im Animator stehen wieder jede Menge
+                 Erklärtexte in der Sidebar, die sollen weg — stattdessen ein
+                 klickbares ? mit dem Text drin"): Der tour-spezifische Satz
+                 („Wirkung bei dieser Tour …") stand dauerhaft unter dem Feld.
+                 Er ist nützlich, aber nicht ständig — deshalb liegt er jetzt
+                 im selben Hilfe-Block wie die allgemeine Erklärung. -->
+            <div class="muted field-help-content" data-help-content="pace_mode" hidden
+                 style="font-size:11px; margin-top:6px; line-height:1.45;">
+              ${t("animator.pace_mode.hint")}
+              <div id="anim-pace-desc" style="margin-top:6px;"></div>
+            </div>
+            <!-- 08.09.2026 (Marc) — was die Raffung ergibt: Gesamtlänge, davon
+                 Strecke und Halte. Die Dauer ist ab hier ein Ergebnis. -->
+            <div id="anim-tempo-bilanz" class="anim-tempo-bilanz" hidden></div>
+          </div>
+
+          <!-- Pausen — nur bei „Echtes Tempo" sichtbar. Ohne Behandlung wäre der
+               ehrlichste Modus der langweiligste: eine gemessene Bergtour hätte
+               63 von 232 Sekunden Standbild gehabt, in 27 Einfrierern. -->
+          <div class="field" id="anim-pause-box" hidden>
+            <label class="field-label">${t("animator.field.pause_mode")}
+              <button type="button" class="field-help" data-help="pause_info"
+                      title="${t("animator.help.show")}">?</button>
+            </label>
+            <select id="anim-pause-mode" class="select">
+              <option value="trim">${t("animator.pause.trim")}</option>
+              <option value="skip">${t("animator.pause.skip")}</option>
+              <option value="show">${t("animator.pause.show")}</option>
+            </select>
+            <div class="anim-pause-row" id="anim-pause-nums">
+              <label class="anim-pause-num">
+                <span>${t("animator.pause.min")}</span>
+                <input type="number" id="anim-pause-min" min="0.5" max="60" step="0.5" value="2">
+                <span class="muted">${t("animator.unit.min")}</span>
+              </label>
+              <label class="anim-pause-num" id="anim-pause-trim-box">
+                <span>${t("animator.pause.trim_to")}</span>
+                <input type="number" id="anim-pause-trim" min="0" max="60" step="1" value="5">
+                <span class="muted">${t("animator.unit.sec")}</span>
+              </label>
+            </div>
+            <div class="muted field-help-content" data-help-content="pause_info" hidden
+                 id="anim-pause-info" style="font-size:11px; margin-top:6px; line-height:1.5;"></div>
+          </div>
+
         </div>
       </section>
 
@@ -14276,6 +14289,99 @@ function mountAnimator(body, headerActions, opts) {
     ));
   }
 
+  // ── 09.09.2026 — Aufklapp-Panel „Aussehen" je Track-Eintrag ──────────────
+  // Welche Einträge offen sind, überlebt das Neuzeichnen der Liste (Schlüssel:
+  // "haupt" oder der GPX-Pfad).
+  const _stilOffen = new Set();
+  function _stilPanelBauen(ziel, tr) {
+    const st = _stilVon(ziel === "haupt" ? "haupt" : tr);
+    const opt = (v, k) => `<option value="${v}"${st.line_style === v ? " selected" : ""}>${t("animator.line_style." + k, k)}</option>`;
+    const el = document.createElement("div");
+    el.className = "anim-stil-panel";
+    el.innerHTML = `
+      <div class="anim-stil-zeile"><label>${t("animator.field.line_width", "Track-Dicke")} <b data-v="width">${st.width}</b> px</label>
+        <input type="range" data-stil="width" min="1" max="10" step="0.5" value="${st.width}"></div>
+      <div class="anim-stil-zeile"><label>${t("animator.field.line_style", "Linien-Stil")}</label>
+        <select data-stil="line_style">${opt("solid","solid")}${opt("dashed","dashed")}${opt("dotted","dotted")}${opt("dashdot","dashdot")}${opt("tube","tube")}</select></div>
+      <div class="anim-stil-zeile" data-nur-muster ${st.line_style === "solid" || st.line_style === "tube" ? "hidden" : ""}><label>${t("animator.field.line_spacing", "Abstand")} <b data-v="spacing">${st.spacing}</b>×</label>
+        <input type="range" data-stil="spacing" min="0.5" max="5" step="0.25" value="${st.spacing}"></div>
+      <div class="anim-stil-zeile"><label>${t("animator.field.shadow_strength", "Schatten-Stärke")} <b data-v="shadow">${st.shadow}</b></label>
+        <input type="range" data-stil="shadow" min="0" max="10" step="0.5" value="${st.shadow}"></div>
+      <div class="anim-stil-zeile"><label>${t("animator.field.glow_strength", "Glow-Stärke")} <b data-v="glow">${st.glow}</b></label>
+        <input type="range" data-stil="glow" min="0" max="10" step="0.5" value="${st.glow}"></div>
+      <div class="anim-stil-zeile"><label>${t("animator.stil.reduce", "Punkte")} <b data-v="reduce_pct">${st.reduce_pct}</b> %</label>
+        <input type="range" data-stil="reduce_pct" min="10" max="100" step="1" value="${st.reduce_pct}"></div>`;
+    el.querySelectorAll("[data-stil]").forEach(inp => {
+      const k = inp.dataset.stil;
+      const zeig = () => { const b = el.querySelector(`[data-v="${k}"]`); if (b) b.textContent = inp.value; };
+      const anwenden = () => {
+        const wert = (k === "line_style") ? inp.value : parseFloat(inp.value);
+        if (k === "line_style") { const m = el.querySelector("[data-nur-muster]"); if (m) m.hidden = (wert === "solid" || wert === "tube"); }
+        _stilSetzen(ziel, { [k]: wert });
+      };
+      inp.addEventListener("input", () => { zeig(); if (k !== "reduce_pct" || ziel === "haupt") anwenden(); });
+      inp.addEventListener("change", () => { zeig(); anwenden(); });
+    });
+    return el;
+  }
+  function _stilToggleBauen(schluessel, ziel, tr, row) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "anim-tour-btn anim-stil-toggle";
+    b.title = t("animator.stil.toggle", "Aussehen dieses Tracks");
+    b.textContent = _stilOffen.has(schluessel) ? "▾" : "▸";
+    b.addEventListener("click", () => {
+      if (_stilOffen.has(schluessel)) _stilOffen.delete(schluessel); else _stilOffen.add(schluessel);
+      _animRenderToursList();
+    });
+    return b;
+  }
+  // Der Dialog „Aussehen auf alle übernehmen": Quelle wählen, Felder ankreuzen.
+  function _stilAlleDialog(quelleSchluessel) {
+    const namen = [{ key: "haupt", name: _animEtappe1Name || (currentGpx || "Tour 1").split("/").pop().replace(/\.gpx$/i, "") }]
+      .concat(_extraTours.map((tr, i) => ({ key: String(i), name: tr.name || _dateiName(tr.gpx_path) })));
+    const felder = [["width", t("animator.field.line_width", "Track-Dicke"), true], ["line_style", t("animator.stil.stil_abstand", "Stil + Abstand"), true],
+                    ["shadow", t("animator.field.shadow_strength", "Schatten"), true], ["glow", t("animator.field.glow_strength", "Glow"), true],
+                    ["reduce_pct", t("animator.stil.reduce", "Punkte (%)"), true], ["color", t("animator.tours.color", "Farbe"), false]];
+    const m = openModal({
+      title: "⇉ " + t("animator.stil.alle", "Aussehen auf alle übernehmen …"),
+      body: `<div class="anim-stil-alle">
+        <label class="field-label">${t("animator.stil.quelle", "Von welchem Track?")}</label>
+        <select id="anim-stil-quelle" class="lib-select" style="width:100%">${namen.map(n => `<option value="${n.key}"${n.key === quelleSchluessel ? " selected" : ""}>${_animEscapeHtml(n.name)}</option>`).join("")}</select>
+        <div class="muted" style="font-size:11px;margin:10px 0 4px">${t("animator.stil.was", "Was übernehmen?")}</div>
+        ${felder.map(([k, l, an]) => `<label class="anim-stil-check"><input type="checkbox" data-feld="${k}"${an ? " checked" : ""}> ${l}</label>`).join("")}
+      </div>`,
+      footer: `<button type="button" class="btn" id="anim-stil-abbrechen">${t("common.cancel", "Abbrechen")}</button>
+               <button type="button" class="btn btn-primary" id="anim-stil-ok">${t("animator.stil.ok", "Übernehmen")}</button>`,
+    });
+    const box = document.getElementById("modal-body");
+    document.getElementById("anim-stil-abbrechen").addEventListener("click", () => m.close());
+    document.getElementById("anim-stil-ok").addEventListener("click", () => {
+      const q = box.querySelector("#anim-stil-quelle").value;
+      const gew = new Set([...box.querySelectorAll("[data-feld]:checked")].map(c => c.dataset.feld));
+      const src = _stilVon(q === "haupt" ? "haupt" : _extraTours[+q]);
+      const srcFarbe = q === "haupt" ? (document.getElementById("anim-color") || {}).value : (_extraTours[+q] || {}).line_color;
+      const patch = {};
+      if (gew.has("width")) patch.width = src.width;
+      if (gew.has("line_style")) { patch.line_style = src.line_style; patch.spacing = src.spacing; }
+      if (gew.has("shadow")) patch.shadow = src.shadow;
+      if (gew.has("glow")) patch.glow = src.glow;
+      if (gew.has("reduce_pct")) patch.reduce_pct = src.reduce_pct;
+      if (q !== "haupt") { _stilSetzenHaupt(patch); if (gew.has("color") && srcFarbe) { const f = document.getElementById("anim-color"); if (f) { f.value = srcFarbe; f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true })); } } }
+      _extraTours.forEach((tr, i) => {
+        if (String(i) === q) return;
+        tr.stil = Object.assign({}, tr.stil || {}, patch); tr.__duenn = null;
+        if (gew.has("color") && srcFarbe) tr.line_color = srcFarbe;
+      });
+      _animPersistTours();
+      try { _animDrawExtraToursPreview(); } catch (_) {}
+      _animRenderToursList();
+      m.close();
+    });
+  }
+  window.__rzStilAlle = _stilAlleDialog;
+  window.__rzStilVon = (i) => _stilVon(i == null ? "haupt" : _extraTours[i]);
+  window.__rzExtraTours = () => _extraTours;   // Prüfstand
+
   let _toursListeSignatur = "";
   function _animRenderToursList() {
     try { _gruppenSync(); } catch (_) {}
@@ -14594,7 +14700,9 @@ function mountAnimator(body, headerActions, opts) {
         e.target.value = _gruppeFeldWert(currentGpx);
         _animPersistTours();
       });
+      (kopf.querySelector(".anim-etappe-zeile") || kopf).appendChild(_stilToggleBauen("haupt", "haupt", null, kopf));
       host.appendChild(kopf);
+      if (_stilOffen.has("haupt")) host.appendChild(_stilPanelBauen("haupt", null));
     }
     _extraTours.forEach((tr, i) => {
       // 09.09.2026 (§60): die Felder gehören der GRUPPE der Tour. Etappendauer
@@ -14643,6 +14751,7 @@ function mountAnimator(body, headerActions, opts) {
         ${_reise && takt ? _dauerFeld(_gruppeFeldWert(tr.gpx_path), t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt.")) : ""}
         ${(gv && !takt && gr.mitglieder.length > 1) ? `<span class="anim-tour-start-wrap" title="${t("animator.tours.start_delay", "Start nach … Sekunden Videozeit (0 = gemeinsamer Start)")}">⏱<input type="number" class="anim-tour-start" min="0" step="1" value="${+gr.mitglieder[gv.j].vorlauf_s || 0}" style="width:44px">s</span>` : ""}
         <span class="anim-tour-actions">
+          <button type="button" class="anim-tour-btn anim-stil-toggle" data-act="stil" title="${t("animator.stil.toggle", "Aussehen dieses Tracks")}">${_stilOffen.has(tr.gpx_path) ? "▾" : "▸"}</button>
           <button type="button" class="anim-tour-btn" data-act="up" ${i === 0 ? "disabled" : ""} title="${t("animator.tours.up", "nach oben")}">↑</button>
           <button type="button" class="anim-tour-btn" data-act="down" ${i === _extraTours.length - 1 ? "disabled" : ""} title="${t("animator.tours.down", "nach unten")}">↓</button>
           <button type="button" class="anim-tour-btn anim-tour-del" data-act="del" title="${t("animator.tours.remove", "entfernen")}">✕</button>
@@ -14668,10 +14777,15 @@ function mountAnimator(body, headerActions, opts) {
       row.querySelector(".anim-tour-color").addEventListener("input", (e) => {
         _extraTours[i].line_color = e.target.value;
         _animPersistTours();
-        try {
-          if (map && map.getLayer("mtour-prev-line-" + i))
-            map.setPaintProperty("mtour-prev-line-" + i, "line-color", e.target.value);
+        try {   // 09.09.2026 — Linie UND Glow dieser Etappe; Schwarm-Linien über die Quelle
+          if (map && map.getLayer("mtour-prev-line-" + i)) map.setPaintProperty("mtour-prev-line-" + i, "line-color", e.target.value);
+          if (map && map.getLayer("mtour-prev-glow-" + i)) map.setPaintProperty("mtour-prev-glow-" + i, "line-color", e.target.value);
+          if (map && map.getSource("swarm-prev-lines")) _animDrawExtraToursPreview();
         } catch (_) {}
+      });
+      row.querySelector('[data-act="stil"]').addEventListener("click", () => {
+        if (_stilOffen.has(tr.gpx_path)) _stilOffen.delete(tr.gpx_path); else _stilOffen.add(tr.gpx_path);
+        _animRenderToursList();
       });
       row.querySelector('[data-act="up"]').addEventListener("click", () => {
         if (i > 0) { _gruppenTauschen(_extraTours[i].gpx_path, _extraTours[i - 1].gpx_path); const tmp = _extraTours[i - 1]; _extraTours[i - 1] = _extraTours[i]; _extraTours[i] = tmp; _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); }
@@ -14683,7 +14797,9 @@ function mountAnimator(body, headerActions, opts) {
         _extraTours.splice(i, 1); _gruppenSync(); _gruppenAbleiten(); _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
       });
       host.appendChild(row);
+      if (_stilOffen.has(tr.gpx_path)) host.appendChild(_stilPanelBauen(i, tr));
     });
+    { const b = document.getElementById("anim-stil-alle"); if (b) { b.hidden = _extraTours.length === 0; if (!b.__rzGebunden) { b.__rzGebunden = true; b.addEventListener("click", () => _stilAlleDialog("haupt")); } } }
     if (flyField) flyField.hidden = _gruppen.length < 2;
     { const an = document.getElementById("anim-anordnung"); if (an) an.hidden = _extraTours.length === 0; }
   }
@@ -14705,7 +14821,7 @@ function mountAnimator(body, headerActions, opts) {
     // Karte (Marc, 28.08.2026: „da steht 138, aber auf der karte sind mehr").
     try {
       for (const l of (map.getStyle()?.layers || [])) {
-        if (l.id && l.id.startsWith("mtour-prev-line-")) {
+        if (l.id && l.id.startsWith("mtour-prev-")) {   // 09.09.2026 auch -shadow-/-glow-/-hl-
           try { map.removeLayer(l.id); } catch (_) {}
         }
       }
@@ -14918,6 +15034,7 @@ function mountAnimator(body, headerActions, opts) {
         liste.push({ coords, cum: _cumDistBerechnen(coords), zeit,
                      dauer: zeit ? zeit[zeit.length - 1] : 0,
                      color: tour.line_color || "#35a7ff", gpx_path: tour.gpx_path,
+                     width: Math.max(0.5, +_stilVon(tour).width || lw),   // 09.09.2026 — Breite je Tour
                      gruppe: g, gi, j, rolle: j === 0 ? "takt" : "mitglied",
                      inKette, lage, vorlauf: +m.vorlauf_s || 0 });
       });
@@ -14941,7 +15058,7 @@ function mountAnimator(body, headerActions, opts) {
         data: { type: "FeatureCollection", features: [] } });
       map.addLayer({ id: "swarm-prev-lines", type: "line", source: "swarm-prev-lines",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": ["get", "color"], "line-width": Math.max(1, lw * 0.8),
+        paint: { "line-color": ["get", "color"], "line-width": ["coalesce", ["get", "width"], Math.max(1, lw * 0.8)],
                  "line-opacity": 0.9 } });
       map.addSource("swarm-prev-dots", { type: "geojson",
         data: { type: "FeatureCollection", features: [] } });
@@ -14977,7 +15094,7 @@ function mountAnimator(body, headerActions, opts) {
       try {
         const l3 = window.rzLine3d.create("swarm-prev-3d", { offsetM: 150 });
         map.addLayer(l3, map.getLayer("swarm-prev-dots") ? "swarm-prev-dots" : undefined);
-        l3.setTracks(_swPrev.map(t => ({ coords: t.coords, color: t.color, width: Math.max(1, lw * 0.8), opacity: 0.9 })));
+        l3.setTracks(_swPrev.map(t => ({ coords: t.coords, color: t.color, width: Math.max(1, t.width || lw * 0.8), opacity: 0.9 })));
         l3.setCounts(_swPrev.map(() => 0));
         _sw3d = l3; window.__rzSw3dPrev = l3; _sw3dDirty = true;
         // Geländehöhen nachziehen, sobald DEM-Kacheln da sind (Start, Kamerafahrt, Gelände-Umschaltung).
@@ -15027,7 +15144,7 @@ function mountAnimator(body, headerActions, opts) {
       const kP = _swIndexFuer(t, coordFrac, tA, false);
       const kL = vollesBild ? _swIndexFuer(t, coordFrac, tA, true) : kP;
       t.__k = kP;
-      linien.push({ type: "Feature", properties: { color: t.color },
+      linien.push({ type: "Feature", properties: { color: t.color, width: t.width },
         geometry: { type: "LineString",
           coordinates: kL >= 1 ? t.coords.slice(0, kL + 1) : [t.coords[0], t.coords[0]] } });
       punkte.push({ type: "Feature",
@@ -15115,12 +15232,73 @@ function mountAnimator(body, headerActions, opts) {
                   zeit: (_reiseBasisSerie && _reiseBasisSerie.cumTimeS) || null,
                   ele: _reiseBasisEle || null, stats: _gpxStats || null, haupt: true, tr: null });
     }
-    _extraTours.forEach((t, i) => raus.push({
-      gpx_path: t.gpx_path, coords: t.coords || null, name: t.name || _dateiName(t.gpx_path),
-      line_color: t.line_color || "#35a7ff", zeit: Array.isArray(t.zeit) ? t.zeit : null,
-      ele: (Array.isArray(t.ele) && t.coords && t.ele.length === t.coords.length) ? t.ele : null,
-      stats: t.stats || null, haupt: false, tr: t, extraIdx: i }));
+    _extraTours.forEach((t, i) => { const d = _tourGeduennt(t); raus.push({
+      gpx_path: t.gpx_path, coords: d.coords || null, name: t.name || _dateiName(t.gpx_path),
+      line_color: t.line_color || "#35a7ff", zeit: Array.isArray(d.zeit) ? d.zeit : null,
+      ele: (Array.isArray(d.ele) && d.coords && d.ele.length === d.coords.length) ? d.ele : null,
+      stats: t.stats || null, haupt: false, tr: t, extraIdx: i }); });
     return raus;
+  }
+  // ── Aussehen je Track (09.09.2026, Marc: „jeder Track komplett alle Einstellungen") ──
+  // Track 1 speichert in den (unsichtbaren) Linie-Feldern — dort hängen bindSetting,
+  // Render und alle applyXxx dran. Jede weitere Tour trägt `stil` als eigenes Objekt
+  // im Projekt (extra_tours[i].stil); fehlt ein Feld (alte Projekte), gilt Track 1.
+  const STIL_FELDER = ["width", "line_style", "spacing", "shadow", "glow", "reduce_pct"];
+  function _stilVonHaupt() {
+    const v = (id, d) => { const el = document.getElementById(id); const x = el ? parseFloat(el.value) : NaN; return isFinite(x) ? x : d; };
+    return { width: v("anim-lw", 3.5), line_style: document.getElementById("anim-line-style")?.value || "solid",
+             spacing: v("anim-line-spacing", 1), shadow: v("anim-shadow-strength", 0), glow: v("anim-glow-strength", 0),
+             reduce_pct: v("anim-pointcount", 100) };
+  }
+  function _stilSetzenHaupt(patch) {
+    const setz = (id, wert) => { const el = document.getElementById(id); if (!el || wert == null) return;
+      el.value = String(wert); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
+    if (patch.width != null) setz("anim-lw", patch.width);
+    if (patch.line_style != null) setz("anim-line-style", patch.line_style);
+    if (patch.spacing != null) setz("anim-line-spacing", patch.spacing);
+    if (patch.shadow != null) setz("anim-shadow-strength", patch.shadow);
+    if (patch.glow != null) setz("anim-glow-strength", patch.glow);
+    if (patch.reduce_pct != null) setz("anim-pointcount", patch.reduce_pct);
+  }
+  /** Der wirksame Stil einer Tour: Pool-Eintrag, Zusatz-Tour oder "haupt". */
+  function _stilVon(x) {
+    const haupt = _stilVonHaupt();
+    if (!x || x === "haupt" || x.haupt) return haupt;
+    const tr = x.tr || x;
+    const st = (tr && tr.stil && typeof tr.stil === "object") ? tr.stil : {};
+    const raus = Object.assign({}, haupt);
+    for (const k of STIL_FELDER) if (st[k] != null && st[k] !== "") raus[k] = (k === "line_style") ? String(st[k]) : +st[k];
+    return raus;
+  }
+  function _stilSetzen(ziel, patch) {
+    if (ziel === "haupt") { _stilSetzenHaupt(patch); return; }
+    const tr = _extraTours[ziel]; if (!tr) return;
+    tr.stil = Object.assign({}, tr.stil || {}, patch);
+    if (patch.reduce_pct != null) tr.__duenn = null;
+    _animPersistTours();
+    try { _animDrawExtraToursPreview(); } catch (_) {}
+  }
+  /** Muster (line-dasharray) eines Stils für eine Ebene der Breite `layerW`
+   *  — Spiegel von currentDasharray/dasharrayFor für beliebige Tracks. */
+  function _dashFuerStil(st, layerW) {
+    const base = { dashed: [3, 2], dotted: [0.1, 2], dashdot: [3, 1.5, 0.1, 1.5] }[st.line_style];
+    if (!base) return null;
+    const sp = Math.max(0.1, +st.spacing || 1);
+    const f = (layerW > 0 && st.width > 0) ? st.width / layerW : 1;
+    return base.map(v => v * sp * f);
+  }
+  /** Punktreduzierung je Zusatz-Tour (Prozent der Punkte), mit Höhen und Zeiten
+   *  im Gleichschritt; gemerkt an der Tour, bis sich das Prozent ändert. */
+  function _tourGeduennt(tr) {
+    const st = _stilVon(tr);
+    const pct = Math.max(10, Math.min(100, +st.reduce_pct || 100));
+    if (pct >= 100 || !tr.coords || tr.coords.length < 20) return { coords: tr.coords, ele: tr.ele, zeit: tr.zeit };
+    if (tr.__duenn && tr.__duenn.pct === pct && tr.__duenn.n === tr.coords.length) return tr.__duenn;
+    const n = tr.coords.length, ziel = Math.max(10, Math.round(n * pct / 100));
+    const idx = []; for (let i = 0; i < ziel; i++) idx.push(Math.round(i * (n - 1) / (ziel - 1)));
+    const pick = (arr) => (Array.isArray(arr) && arr.length === n) ? idx.map(i => arr[i]) : null;
+    tr.__duenn = { pct, n, coords: idx.map(i => tr.coords[i]), ele: pick(tr.ele), zeit: pick(tr.zeit) };
+    return tr.__duenn;
   }
   function _tourVon(gpx) {
     const k = _pfadNFC(gpx);
@@ -15172,7 +15350,8 @@ function mountAnimator(body, headerActions, opts) {
       tours_haupt_start_s: +_animHauptStartS || 0, tours_fokus: _animFokusPfad || "",
       extra_tours: _extraTours.map(t => ({ gpx_path: t.gpx_path, name: t.name, line_color: t.line_color,
         dauer_s: +t.dauer_s || 0, ueber_s: (t.ueber_s == null || t.ueber_s === "") ? null : +t.ueber_s,
-        ueber_stil: t.ueber_stil || "kino", start_s: +t.start_s || 0 })),
+        ueber_stil: t.ueber_stil || "kino", start_s: +t.start_s || 0,
+        stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null })),   // 09.09.2026 Aussehen je Track
     };
   }
   /** Gruppen aufbauen: aus dem Projekt gespeicherte, sonst Umrechnung der
@@ -16032,14 +16211,34 @@ function mountAnimator(body, headerActions, opts) {
       _reiseBahn.etappen.forEach((e, i) => {
         if (i === 0 || !e.coords || e.coords.length < 2) return;
         const id = _mtourQuelle(e.tour);
+        const k = id.slice("mtour-prev-".length);
+        // 09.09.2026 — jede Etappe mit IHREM Aussehen: Schatten, Glow, Linie, Röhre
+        const st = _stilVon(e.tour);
+        const farbe = e.tour.line_color || "#35a7ff";
+        const lay = { "line-cap": "round", "line-join": "round" };
+        const dash = (w) => { const d = _dashFuerStil(st, w); return d ? { "line-dasharray": d } : {}; };
         try {
           map.addSource(id, { type: "geojson",
             data: { type: "Feature", geometry: { type: "LineString", coordinates: e.coords } } });
+          if (st.shadow > 0) {
+            const sr = currentShadowDir() * Math.PI / 180;
+            map.addLayer({ id: "mtour-prev-shadow-" + k, type: "line", source: id, layout: lay,
+              paint: { "line-color": "rgba(0,0,0,0.7)", "line-width": st.width * 2.2, "line-blur": st.shadow,
+                       "line-translate": [st.shadow * Math.cos(sr), st.shadow * Math.sin(sr)], ...dash(st.width * 2.2) } });
+          }
+          if (st.glow > 0) {
+            map.addLayer({ id: "mtour-prev-glow-" + k, type: "line", source: id, layout: lay,
+              paint: { "line-color": farbe, "line-width": st.width * (2.0 + 0.21 * st.glow), "line-blur": st.glow,
+                       "line-opacity": 0.8, ...dash(st.width * (2.0 + 0.21 * st.glow)) } });
+          }
           map.addLayer({
-            id: "mtour-prev-line-" + id.slice("mtour-prev-".length), type: "line", source: id,
-            layout: { "line-cap": "round", "line-join": "round" },
-            paint: { "line-color": e.tour.line_color || "#35a7ff", "line-width": lw, "line-opacity": 0.9 },
+            id: "mtour-prev-line-" + k, type: "line", source: id, layout: lay,
+            paint: { "line-color": farbe, "line-width": st.width, "line-opacity": 0.9, ...dash(st.width) },
           });
+          if (st.line_style === "tube") {
+            map.addLayer({ id: "mtour-prev-hl-" + k, type: "line", source: id, layout: lay,
+              paint: { "line-color": "rgba(255,255,255,0.9)", "line-width": st.width * 0.35, "line-opacity": 0.9 } });
+          }
         } catch (err) { console.warn("extra-tour preview:", err); }
       });
       try { refreshPreviewTrackData(); } catch (_) {}
@@ -16171,6 +16370,7 @@ function mountAnimator(body, headerActions, opts) {
     const color = _TOUR_PALETTE[_extraTours.length % _TOUR_PALETTE.length];
     const name = (path.split("/").pop() || "Tour").replace(/\.[^.]+$/i, "");
     _extraTours.push({ gpx_path: path, line_color: color, name, coords,
+                       stil: _stilVonHaupt(),   // 09.09.2026 — neue Tracks übernehmen das Aussehen von Track 1
                        // 09.09.2026 (Marc: „Höhenprofil ist glatt") — die Höhen der Etappe, sonst
                        // zeichnet die Bahn für sie 0 m und das Profil wird eine Gerade.
                        ele: (_ladeRes && Array.isArray(_ladeRes.elevations)) ? _ladeRes.elevations : null,
@@ -16480,6 +16680,7 @@ function mountAnimator(body, headerActions, opts) {
                              line_color: t.line_color || "#35a7ff",
                              name: t.name || "Tour", coords: res.coords,
                              ele: Array.isArray(res.elevations) ? res.elevations : null,   // 09.09.2026 Höhenprofil
+                             stil: (t.stil && typeof t.stil === "object") ? Object.assign({}, t.stil) : null,
                              start_s: +t.start_s || 0,
                              // 08.09.2026 — Etappendauer und Übergang mitnehmen,
                              // sonst stehen sie beim nächsten Öffnen wieder leer.
@@ -16790,6 +16991,7 @@ function mountAnimator(body, headerActions, opts) {
           dauer_s: _animAblauf === "schwarm" ? 0 : (+_animEtappe1S || 0),
         }].concat(_extraTours.map(tr => ({
           gpx_path: tr.gpx_path, line_color: tr.line_color, name: tr.name,
+          stil: _stilVon(tr),   // 09.09.2026 — Aussehen je Track (wirksam, mit Track-1-Vorgaben aufgefüllt)
           start_s: _animAblauf === "schwarm" ? (+tr.start_s || 0) : 0,
           dauer_s: _animAblauf === "schwarm" ? 0 : (+tr.dauer_s || 0),
           ueber_s: _animAblauf === "schwarm" ? null : (tr.ueber_s == null ? null : (+tr.ueber_s || 0)),

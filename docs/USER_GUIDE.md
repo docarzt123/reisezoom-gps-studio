@@ -345,7 +345,7 @@ ergibt also wirklich 20 Sekunden.
 ### Mehrere Etappen: Reihenfolge, Dauer und Übergänge
 
 Kommen mehrere Touren zusammen ins Projekt („Nacheinander"), stehen sie links unter
-**„Tracks"** (unter „Linie") als nummerierte Einträge, auch der erste Track, auch wenn er der
+**„Tracks"** (direkt unter der Karte) als nummerierte Einträge, auch der erste Track, auch wenn er der
 einzige ist. Jeder Eintrag zeigt seine Farbe (dort wird sie auch geändert), seinen Namen
 und darunter ihre Bedienung:
 
@@ -365,6 +365,16 @@ und darunter ihre Bedienung:
   Festplatte bleibt unangetastet, der Name gehört zum Projekt.
 - **↑ ↓ ✕** — Reihenfolge ändern oder Etappe entfernen. Bei vielen Etappen schneller:
   die Knöpfe **„nach Datum"**, **„nach Name"** und **„⇅"** über der Liste.
+- **▸ Aussehen** — klappt unter dem Eintrag das Aussehen **dieses** Tracks auf: Dicke,
+  Linien-Stil (durchgezogen, gestrichelt, gepunktet, Strich-Punkt, Röhre) mit Abstand,
+  Schatten, Glow und die Punktreduzierung in Prozent. Eine eigene Sektion „Linie" gibt es
+  seit v0.9.683 nicht mehr; ein neuer Track übernimmt beim Hinzufügen das Aussehen von
+  Track 1. **„Aussehen auf alle übernehmen …"** unter der Liste kopiert von einem
+  gewählten Track auf alle anderen, und zwar nur die angekreuzten Felder (Dicke, Stil +
+  Abstand, Schatten, Glow, Punkte; die Farbe ist standardmäßig nicht angekreuzt). Der
+  Laufpunkt gilt für alle Tracks und steht oben in „Tracks"; Tempo-Modus und Pausen
+  sind Zeit, nicht Aussehen, und stehen in den Video-Einstellungen. *(Mehrere
+  Track-Farben, also der Farbverlauf nach Höhe oder Tempo, gilt weiterhin nur für Track 1.)*
 - Zwischen zwei Etappen steht der **Übergang**: **Kinoflug** (zoomt heraus, fliegt
   hinüber, zoomt wieder hinein), **Luftlinie** (fährt gerade) oder **Schnitt** (springt
   ohne Zwischenbild). Die Sekunden daneben gelten nur für diesen einen Übergang; leer

@@ -3050,5 +3050,13 @@
   "animator.anordnung.uhrzeit": "hora real",
   "animator.anordnung.uhrzeit_tip": "Como se grabó: la duración de cada grupo sigue su tiempo real, y el inicio su hora",
   "animator.anordnung.uhrzeit_ohne": "Sin horas en las rutas todas empiezan en 0; la duración sigue el tiempo real.",
-  "animator.tempo.gruppen_hinweis": "El horario sale de los grupos: arrastra una ficha para moverla en el tiempo, los bordes cambian su duración, doble clic la abre."
+  "animator.tempo.gruppen_hinweis": "El horario sale de los grupos: arrastra una ficha para moverla en el tiempo, los bordes cambian su duración, doble clic la abre.",
+  "animator.stil.alle": "Aplicar aspecto a todos los tracks …",
+  "animator.stil.toggle": "Aspecto de este track",
+  "animator.stil.reduce": "Puntos",
+  "animator.stil.stil_abstand": "Estilo + separación",
+  "animator.stil.quelle": "¿De qué track?",
+  "animator.stil.was": "¿Qué aplicar?",
+  "animator.stil.ok": "Aplicar",
+  "animator.section.tours_hint": "Cada track tiene su propio aspecto: ▸ en la entrada abre grosor, estilo, sombra, brillo y reducción de puntos."
 }
