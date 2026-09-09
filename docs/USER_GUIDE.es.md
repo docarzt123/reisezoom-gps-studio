@@ -350,6 +350,9 @@ Todo se hace con el ratón:
 
 - **Arrastrar una ficha** — el grupo se mueve en el tiempo. Si cae sobre otro, ambos corren a la
   vez (fila propia). Luego se queda donde lo dejaste.
+- **Tocar una transición** — la banda entre dos grupos se puede **arrastrar** (duración de la
+  transición) y **pulsar**: eliges vuelo, línea recta o corte directamente en la línea de tiempo.
+  La parada antes del primer grupo también se arrastra.
 - **Arrastrar los bordes** — el grupo se alarga o acorta; lo que se guarda es el **factor**
   (0,5× = la mitad de rápido, el doble de tiempo). Los grupos siguientes se desplazan.
 - **Arrastrar arriba o abajo** — como pistas en un editor de vídeo: la fila sobre la que sueltas

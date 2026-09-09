@@ -3012,6 +3012,8 @@
   "animator.gruppe.halt_vor": "Hold before the content",
   "animator.gruppe.halt_nach": "Hold after the content (filled up to the end)",
   "animator.gruppe.uebergang": "Transition",
+  "animator.gruppe.band_tip": "Drag: length",
+  "animator.gruppe.ueber_tip": "Drag: length · click: flight, straight line or cut",
   "animator.gruppe.touren": "tours",
   "animator.gruppe.kamera": "the camera follows this group",
   "animator.gruppe.tip": "Drag: move in time · up/down: into another row, beyond the rows: own row · edges: length · double-click or right-click: open",

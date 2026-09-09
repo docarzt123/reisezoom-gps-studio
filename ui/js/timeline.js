@@ -478,10 +478,11 @@ function mountTimelineBar(opts) {
     const breitePx = el.getBoundingClientRect().width || 1000;
     const ges = _gruppenSekJeAnteil();
     const zahl = (v) => (Math.round(v * 10) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    const band = (von, bis, art, titel, stil) => {
+    const band = (von, bis, art, titel, stil, gid) => {
       if (bis - von < 0.0005) return;
       const b = document.createElement("div");
-      b.className = "tl-gruppe-band tl-gruppe-" + art;
+      b.className = "tl-gruppe-band tl-gruppe-" + art + (gid ? " ist-anfassbar" : "");
+      if (gid) { b.dataset.id = gid; b.dataset.art = art; }
       b.style.left = _anchorToPct(von) + "%";
       b.style.width = Math.max(0.3, _anchorToPct(bis) - _anchorToPct(von)) + "%";
       const sek = ges > 0 ? (bis - von) * ges : 0;
@@ -493,8 +494,12 @@ function mountTimelineBar(opts) {
     };
     let pos = ti;
     gruppen.forEach((g, i) => {
-      if (i === 0) band(pos, g.von, "halt", tlT("animator.gruppe.halt_vor", "Halt vor dem Inhalt"));
-      else band(pos, g.von, "ueber", tlT("animator.gruppe.uebergang", "Übergang"), g.ueber_stil);
+      // 09.09.2026 (Marc: „Pausen kann man nicht länger/kürzer ziehen? … auf die
+      // Verbindungspausen klicken und wählen: Flug, Luftlinie, Schnitt"): der
+      // Halt vor der ersten Gruppe und jeder Übergang sind anfassbar — ziehen
+      // ändert die Dauer, ein Klick auf den Übergang öffnet die Wahl des Stils.
+      if (i === 0) band(pos, g.von, "halt", tlT("animator.gruppe.halt_vor", "Halt vor dem Inhalt") + " · " + tlT("animator.gruppe.band_tip", "Ziehen: Dauer"), null, g.id);
+      else band(pos, g.von, "ueber", tlT("animator.gruppe.uebergang", "Übergang") + " · " + tlT("animator.gruppe.ueber_tip", "Ziehen: Dauer · Klick: Flug, Luftlinie oder Schnitt"), g.ueber_stil, g.id);
       const k = document.createElement("button");
       k.type = "button";
       k.className = "tl-gruppe" + (g.kamera ? " ist-kamera" : "") + (g.fest ? " ist-fest" : "") + (g.n > 1 ? " hat-mitglieder" : "");
@@ -574,6 +579,8 @@ function mountTimelineBar(opts) {
     if (!lane) return;
     lane.addEventListener("mousedown", (ev) => _gruppenMausDruck(ev, lane, zeile));
     lane.addEventListener("contextmenu", (ev) => {
+      const ub = ev.target.closest(".tl-gruppe-ueber.ist-anfassbar");
+      if (ub) { ev.preventDefault(); _gruppenUebergangMenue(ev, ub.dataset.id, _gruppeVonId(ub.dataset.id)); return; }
       const k = ev.target.closest(".tl-gruppe");
       if (!k) return;
       ev.preventDefault();
@@ -594,7 +601,60 @@ function mountTimelineBar(opts) {
       tun: () => { try { (cb.onGruppenStapel || (() => {}))(id, 99); } catch (e) { console.warn("onGruppenStapel:", e); } } });
     _menueZeigen(ev, eintraege);
   }
+  /** Ein Band (Halt vor der ersten Gruppe, Übergang) ziehen = Dauer ändern;
+   *  ein Klick ohne Ziehen auf einen Übergang = Stil wählen (09.09.2026). */
+  function _gruppenBandDruck(ev, lane, b) {
+    const id = b.dataset.id, art = b.dataset.art;
+    const g = _gruppeVonId(id); if (!g) return false;
+    ev.preventDefault();
+    const mk = lane.querySelector(".lane-markers") || lane;
+    const spurPx = mk.getBoundingClientRect().width || 1;
+    const ges = _gruppenSekJeAnteil();
+    const sekJePx = ges > 0 ? ges / spurPx / _viewZoom : 0;
+    const breite0 = parseFloat(b.style.width) || 0;
+    const sek0 = ges > 0 ? breite0 / 100 * ges : 0;
+    let bewegt = false;
+    const bewegen = (e2) => {
+      const dx = e2.clientX - ev.clientX;
+      if (Math.abs(dx) > 2) bewegt = true;
+      if (!bewegt) return;
+      const neu = Math.max(0, sek0 + dx * sekJePx);
+      b.style.width = Math.max(0.3, breite0 + dx / spurPx * 100) + "%";
+      setStatusHint((art === "ueber" ? tlT("animator.gruppe.uebergang", "Übergang") : tlT("animator.tempo.halt", "Halt")) + ` ${neu.toFixed(1)} s`);
+    };
+    const hoch = (e2) => {
+      document.removeEventListener("mousemove", bewegen, true);
+      document.removeEventListener("mouseup", hoch, true);
+      setStatusHint(null);
+      if (bewegt) {
+        const neu = Math.max(0, Math.round((sek0 + (e2.clientX - ev.clientX) * sekJePx) * 10) / 10);
+        try {
+          if (art === "ueber") (cb.onGruppeUebergang || (() => {}))(id, { ueber_s: neu });
+          else (cb.onGruppeVorlauf || (() => {}))(id, neu);
+        } catch (e) { console.warn("Band-Geste:", e); }
+        _gruppenAlleZeichnen();
+        return;
+      }
+      if (art === "ueber") _gruppenUebergangMenue(e2, id, g);
+      else _gruppenAlleZeichnen();
+    };
+    document.addEventListener("mousemove", bewegen, true);
+    document.addEventListener("mouseup", hoch, true);
+    return true;
+  }
+  function _gruppenUebergangMenue(ev, id, g) {
+    const stil = (g && g.ueber_stil) || "kino";
+    const eintrag = (wert, text) => ({ text: (stil === wert ? "✓ " : "\u2003") + text,
+      tun: () => { try { (cb.onGruppeUebergang || (() => {}))(id, { stil: wert }); } catch (e) { console.warn("onGruppeUebergang:", e); } } });
+    _menueZeigen(ev, [
+      eintrag("kino", "✈ " + tlT("animator.tours.ueber_kino", "Kinoflug")),
+      eintrag("luftlinie", "↗ " + tlT("animator.tours.ueber_luft", "Luftlinie")),
+      eintrag("schnitt", "✂ " + tlT("animator.tours.ueber_schnitt", "Schnitt")),
+    ]);
+  }
   function _gruppenMausDruck(ev, lane, zeile) {
+    const b = ev.target.closest(".tl-gruppe-band.ist-anfassbar");
+    if (b && ev.button === 0) return _gruppenBandDruck(ev, lane, b);
     const k = ev.target.closest(".tl-gruppe");
     if (!k || ev.button !== 0) return false;
     const rand = ev.target.closest(".tl-gruppe-rand");
@@ -1152,6 +1212,8 @@ function mountTimelineBar(opts) {
       document.addEventListener("mouseup", hoch, true);
     });
     lane.addEventListener("contextmenu", (ev) => {
+      const ub = ev.target.closest(".tl-gruppe-ueber.ist-anfassbar");
+      if (ub) { ev.preventDefault(); _gruppenUebergangMenue(ev, ub.dataset.id, _gruppeVonId(ub.dataset.id)); return; }
       const k = ev.target.closest(".tl-gruppe");
       if (k) { ev.preventDefault(); _gruppenMenue(ev, k.dataset.id); return; }
       if (_gruppenZeilen.length) return;

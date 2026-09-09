@@ -1031,3 +1031,7 @@ body.wert-zieht .timeline-marker.is-selected {
 
 /* Ziel-Spur beim senkrechten Ziehen einer Gruppe (09.09.2026) */
 .timeline-lane.ist-ziel .lane-track { box-shadow: inset 0 0 0 2px rgba(255,169,77,.75); background: rgba(255,169,77,.08); }
+
+/* Anfassbare Bänder (09.09.2026): Halt vor der ersten Gruppe und Übergänge — ziehen = Dauer, Klick = Stil */
+.tl-gruppe-band.ist-anfassbar { cursor: ew-resize; pointer-events: auto; }
+.tl-gruppe-band.ist-anfassbar:hover { filter: brightness(1.35); }

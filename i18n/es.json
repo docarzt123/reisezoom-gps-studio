@@ -3012,6 +3012,8 @@
   "animator.gruppe.halt_vor": "Parada antes del contenido",
   "animator.gruppe.halt_nach": "Parada tras el contenido (relleno hasta el final)",
   "animator.gruppe.uebergang": "Transición",
+  "animator.gruppe.band_tip": "Arrastrar: duración",
+  "animator.gruppe.ueber_tip": "Arrastrar: duración · clic: vuelo, línea recta o corte",
   "animator.gruppe.touren": "rutas",
   "animator.gruppe.kamera": "la cámara sigue a este grupo",
   "animator.gruppe.tip": "Arrastrar: mover en el tiempo · arriba/abajo: a otra fila, más allá: fila propia · bordes: duración · doble clic o clic derecho: abrir",

@@ -396,6 +396,9 @@ Alles lässt sich mit der Maus machen:
 
 - **Kachel ziehen** — die Gruppe wandert in der Zeit. Landet sie über einer anderen, laufen
   beide gleichzeitig (eigene Zeile). Sie bleibt dann, wo Sie sie hingelegt haben.
+- **Übergang anfassen** — das Band zwischen zwei Gruppen lässt sich **ziehen** (Dauer des
+  Übergangs) und **anklicken**: dann wählen Sie Kinoflug, Luftlinie oder Schnitt direkt in der
+  Zeitleiste. Auch der Halt vor der ersten Gruppe lässt sich ziehen.
 - **Ränder ziehen** — die Gruppe wird länger oder kürzer; gespeichert wird der **Faktor**
   (0,5× = halb so schnell, doppelte Zeit). Die folgenden Gruppen rücken nach.
 - **Nach oben oder unten ziehen** — wie Spuren im Schnittprogramm: Die Zeile, über der Sie

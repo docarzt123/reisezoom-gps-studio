@@ -3012,6 +3012,8 @@
   "animator.gruppe.halt_vor": "Halt vor dem Inhalt",
   "animator.gruppe.halt_nach": "Halt nach dem Inhalt (Auffüllen bis zum Ende)",
   "animator.gruppe.uebergang": "Übergang",
+  "animator.gruppe.band_tip": "Ziehen: Dauer",
+  "animator.gruppe.ueber_tip": "Ziehen: Dauer · Klick: Flug, Luftlinie oder Schnitt",
   "animator.gruppe.touren": "Touren",
   "animator.gruppe.kamera": "die Kamera folgt dieser Gruppe",
   "animator.gruppe.tip": "Ziehen: in der Zeit verschieben · hoch/runter: in eine andere Spur, darüber hinaus: eigene Spur · Ränder: Länge · Doppelklick oder Rechtsklick: öffnen",
