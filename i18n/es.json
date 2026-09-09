@@ -3058,5 +3058,6 @@
   "animator.stil.quelle": "¿De qué track?",
   "animator.stil.was": "¿Qué aplicar?",
   "animator.stil.ok": "Aplicar",
-  "animator.section.tours_hint": "Cada track tiene su propio aspecto: ▸ en la entrada abre grosor, estilo, sombra, brillo y reducción de puntos."
+  "animator.section.tours_hint": "Cada track tiene su propio aspecto: ▸ en la entrada abre grosor, estilo, sombra, brillo, reducción de puntos y el punto en movimiento.",
+  "animator.stil.alle_pfeile": "todas las flechas"
 }

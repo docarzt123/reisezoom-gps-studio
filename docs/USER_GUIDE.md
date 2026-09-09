@@ -367,14 +367,19 @@ und darunter ihre Bedienung:
   die Knöpfe **„nach Datum"**, **„nach Name"** und **„⇅"** über der Liste.
 - **▸ Aussehen** — klappt unter dem Eintrag das Aussehen **dieses** Tracks auf: Dicke,
   Linien-Stil (durchgezogen, gestrichelt, gepunktet, Strich-Punkt, Röhre) mit Abstand,
-  Schatten, Glow und die Punktreduzierung in Prozent. Eine eigene Sektion „Linie" gibt es
-  seit v0.9.683 nicht mehr; ein neuer Track übernimmt beim Hinzufügen das Aussehen von
-  Track 1. **„Aussehen auf alle übernehmen …"** unter der Liste kopiert von einem
+  Schatten, Glow, die Punktreduzierung in Prozent und den **Laufpunkt** (zeigen, Kugel
+  oder Pfeil in Fahrtrichtung, Größe; „Ruhe des Pfeils" gilt für alle Pfeile). Eine eigene
+  Sektion „Linie" gibt es seit v0.9.683 nicht mehr, ein globales „Laufpunkt" und das
+  Häkchen „Form der Haupt-Tour für alle" auch nicht; ein neuer Track übernimmt beim
+  Hinzufügen das Aussehen von Track 1. Das gilt auf jeder Spur: auch eine Tour, die
+  parallel in eigener Spur läuft, trägt Schatten, Glow, Muster und ihren eigenen
+  Laufpunkt. **„Aussehen auf alle übernehmen …"** unter der Liste kopiert von einem
   gewählten Track auf alle anderen, und zwar nur die angekreuzten Felder (Dicke, Stil +
-  Abstand, Schatten, Glow, Punkte; die Farbe ist standardmäßig nicht angekreuzt). Der
-  Laufpunkt gilt für alle Tracks und steht oben in „Tracks"; Tempo-Modus und Pausen
-  sind Zeit, nicht Aussehen, und stehen in den Video-Einstellungen. *(Mehrere
-  Track-Farben, also der Farbverlauf nach Höhe oder Tempo, gilt weiterhin nur für Track 1.)*
+  Abstand, Schatten, Glow, Punkte, Laufpunkt; die Farbe ist standardmäßig nicht
+  angekreuzt). Tempo-Modus und Pausen sind Zeit, nicht Aussehen, und stehen in den
+  Video-Einstellungen. *(Mehrere Track-Farben, also der Farbverlauf nach Höhe oder Tempo,
+  gilt weiterhin nur für Track 1; bei 3D-Gelände liegen gestaltete Nebenspuren wie die
+  Hauptlinie auf dem Gelände.)*
 - Zwischen zwei Etappen steht der **Übergang**: **Kinoflug** (zoomt heraus, fliegt
   hinüber, zoomt wieder hinein), **Luftlinie** (fährt gerade) oder **Schnitt** (springt
   ohne Zwischenbild). Die Sekunden daneben gelten nur für diesen einen Übergang; leer

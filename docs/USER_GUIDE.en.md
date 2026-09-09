@@ -336,14 +336,17 @@ group at the end of the chain; drag it in the timeline to place it elsewhere.
 ### The look of each track (since v0.9.683)
 
 Every entry under **"Tracks"** has a **▸** that opens the look of **this** track: width,
-line style (solid, dashed, dotted, dash-dot, tube) with spacing, shadow, glow and the
-point reduction in percent. The separate "Line" section is gone; a new track copies
-track 1's look when added. **"Apply look to all tracks …"** below the list copies from a
-chosen track to all others, only the ticked fields (width, style + spacing, shadow, glow,
-points; colour is unticked by default). The running dot applies to all tracks and sits at
-the top of "Tracks"; pace mode and pauses are time, not look, and live in the video
+line style (solid, dashed, dotted, dash-dot, tube) with spacing, shadow, glow, the point
+reduction in percent and the **running dot** (show, ball or arrow in travel direction,
+size; "arrow smoothing" applies to all arrows). The separate "Line" section is gone, so
+are the global "Running dot" block and the "main tour's dot shape for all" checkbox; a
+new track copies track 1's look when added. This holds on every row: a tour running in
+parallel on its own row carries its shadow, glow, pattern and its own dot too. **"Apply
+look to all tracks …"** below the list copies from a chosen track to all others, only the
+ticked fields (width, style + spacing, shadow, glow, points, running dot; colour is
+unticked by default). Pace mode and pauses are time, not look, and live in the video
 settings. *(Multiple track colours, the gradient by elevation or speed, still applies to
-track 1 only.)*
+track 1 only; with 3D terrain, styled side tracks are draped like the main line.)*
 
 ### Groups in the timeline — in sequence, in parallel, or both (since v0.9.679)
 

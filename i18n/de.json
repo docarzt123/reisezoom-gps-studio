@@ -3058,5 +3058,6 @@
   "animator.stil.quelle": "Von welchem Track?",
   "animator.stil.was": "Was übernehmen?",
   "animator.stil.ok": "Übernehmen",
-  "animator.section.tours_hint": "Jeder Track hat sein eigenes Aussehen: ▸ am Eintrag öffnet Dicke, Stil, Schatten, Glow und Punktreduzierung."
+  "animator.section.tours_hint": "Jeder Track hat sein eigenes Aussehen: ▸ am Eintrag öffnet Dicke, Stil, Schatten, Glow, Punktreduzierung und Laufpunkt.",
+  "animator.stil.alle_pfeile": "alle Pfeile"
 }
