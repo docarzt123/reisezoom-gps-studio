@@ -527,6 +527,15 @@ function mountTimelineBar(opts) {
       _gruppenZeileZeichnen(el, i);
     });
   }
+  /** Was Hoch/Runter für DIESE Kachel heißt: +1 = in die Reihe (sie liegt
+   *  parallel), −1 = aus der Reihe (sie liegt in der Reihe und es gibt noch
+   *  andere), 0 = kein Zeilenwechsel möglich → Kamera-Reihenfolge. */
+  function _gruppenZeilenWechsel(g, richtung) {
+    if (!g) return 0;
+    if (richtung > 0) return g.fest ? 1 : 0;
+    if (richtung < 0) return (!g.fest && _gruppenZeilen.length && _gruppenZeilen[0].length > 1) ? -1 : 0;
+    return 0;
+  }
   function _gruppeVonId(id) {
     for (const z of _gruppenZeilen) for (const g of z) if (g.id === id) return g;
     return null;
@@ -543,10 +552,18 @@ function mountTimelineBar(opts) {
     });
   }
   function _gruppenMenue(ev, id) {
-    _menueZeigen(ev, [
+    const g = _gruppeVonId(id);
+    const eintraege = [
       { text: tlT("animator.tempo.menu_oeffnen", "Öffnen …"),
         tun: () => { try { (cb.onGruppeOeffnen || (() => {}))(id); } catch (e) { console.warn("onGruppeOeffnen:", e); } } },
-    ]);
+    ];
+    if (g && g.fest) eintraege.push({ text: tlT("animator.gruppe.zeile_rein", "In die Reihe (läuft nach der vorigen Gruppe)"),
+      tun: () => { try { (cb.onGruppenZeile || (() => {}))(id, 1); } catch (e) { console.warn("onGruppenZeile:", e); } } });
+    else if (g && _gruppenZeilen.length && _gruppenZeilen[0].length > 1) eintraege.push({ text: tlT("animator.gruppe.zeile_raus", "Aus der Reihe (bleibt an ihrer Zeit, parallel)"),
+      tun: () => { try { (cb.onGruppenZeile || (() => {}))(id, -1); } catch (e) { console.warn("onGruppenZeile:", e); } } });
+    if (g && !g.kamera) eintraege.push({ text: tlT("animator.gruppe.menu_kamera", "Kamera folgt dieser Gruppe (nach oben)"),
+      tun: () => { try { (cb.onGruppenStapel || (() => {}))(id, 99); } catch (e) { console.warn("onGruppenStapel:", e); } } });
+    _menueZeigen(ev, eintraege);
   }
   function _gruppenMausDruck(ev, lane, zeile) {
     const k = ev.target.closest(".tl-gruppe");
@@ -591,7 +608,15 @@ function mountTimelineBar(opts) {
           z.el.style.left = z.links0 + "%";
           z.el.classList.toggle("zieht-hoch", z.stapel > 0);
           z.el.classList.toggle("zieht-runter", z.stapel < 0);
-          setStatusHint(z.stapel > 0 ? tlT("animator.gruppe.stapel_hoch", "Gruppe nach oben (Kamera-Vorrang)")
+          // 09.09.2026 (Marc: „ich fass einen an und zieh ihn einfach in die
+          // höhere Spur rein, sodass ich nur noch eine Trackspur hab"): Hoch aus
+          // einer parallelen Zeile heißt „in die Reihe", runter aus der Reihe
+          // heißt „parallel, bleibt an ihrer Zeit". Nur wo es keine Zeile zu
+          // wechseln gibt, bleibt es die Kamera-Reihenfolge.
+          const wechsel = _gruppenZeilenWechsel(g, z.stapel);
+          setStatusHint(wechsel > 0 ? tlT("animator.gruppe.zeile_rein", "In die Reihe (läuft nach der vorigen Gruppe)")
+                      : wechsel < 0 ? tlT("animator.gruppe.zeile_raus", "Aus der Reihe (bleibt an ihrer Zeit, parallel)")
+                      : z.stapel > 0 ? tlT("animator.gruppe.stapel_hoch", "Gruppe nach oben (Kamera-Vorrang)")
                                      : tlT("animator.gruppe.stapel_runter", "Gruppe nach unten"));
         } else {
           z.el.classList.remove("zieht-hoch", "zieht-runter");
@@ -619,7 +644,11 @@ function mountTimelineBar(opts) {
       const dx = e2.clientX - z.x0;
       const dS = sekJePx > 0 ? dx * sekJePx : 0;
       try {
-        if (z.art === "zeit" && z.stapel) (cb.onGruppenStapel || (() => {}))(z.id, z.stapel);
+        if (z.art === "zeit" && z.stapel) {
+          const wechsel = _gruppenZeilenWechsel(g, z.stapel);
+          if (wechsel) (cb.onGruppenZeile || (() => {}))(z.id, wechsel);
+          else (cb.onGruppenStapel || (() => {}))(z.id, z.stapel);
+        }
         else if (z.art === "zeit") (cb.onGruppeZiehen || (() => {}))(z.id, Math.max(0, z.vonS0 + dS), z.seite);
         else {
           const neu = Math.max(0.3, z.seite === "l" ? z.sek0 - dS : z.sek0 + dS);

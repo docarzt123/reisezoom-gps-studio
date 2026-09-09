@@ -397,8 +397,13 @@ Alles lässt sich mit der Maus machen:
   beide gleichzeitig (eigene Zeile). Sie bleibt dann, wo Sie sie hingelegt haben.
 - **Ränder ziehen** — die Gruppe wird länger oder kürzer; gespeichert wird der **Faktor**
   (0,5× = halb so schnell, doppelte Zeit). Die folgenden Gruppen rücken nach.
-- **Nach oben oder unten ziehen** — der Stapel ändert sich. Die **oberste** Gruppe führt die
-  Kamera (🎥 an der Kachel); bei zwei gleichzeitig laufenden entscheidet also die Reihenfolge.
+- **Nach oben ziehen** — eine parallel liegende Gruppe kommt **zurück in die Reihe** und läuft
+  nach der Gruppe, die vor ihr beginnt, mit Übergang. **Nach unten ziehen** nimmt eine Gruppe
+  aus der Reihe: sie bleibt an ihrer Zeit stehen und läuft parallel. Beides steht auch im
+  Rechtsklick-Menü der Kachel.
+- **Kamera:** Die **oberste** Gruppe führt die Kamera (🎥 an der Kachel). Rechtsklick →
+  „Kamera folgt dieser Gruppe" holt eine andere nach oben; innerhalb der Reihe geht das auch
+  per Hoch-/Runterziehen.
 - **Doppelklick** (oder Rechtsklick) öffnet die Gruppe: Name, Länge oder Faktor (eines
   eintippen, das andere folgt), Übergang, „in der Reihe mitlaufen", die Touren in der Gruppe
   mit **„lösen"**, welcher Tour die Kamera folgt, und **„mit einer anderen Gruppe

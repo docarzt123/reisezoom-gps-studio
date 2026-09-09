@@ -9249,6 +9249,8 @@ function mountAnimator(body, headerActions, opts) {
         onGruppeLaenge: (id, sek) => { const g = _gruppeMitId(id); if (!g) return; _gruppeLaengeSetzen(g, +sek || 0); _gruppenNeu(); },
         onGruppeOeffnen: (id) => { try { _gruppeOeffnen(id); } catch (err) { applog("warn", "[gruppen] " + err); } },
         onGruppenStapel: (id, delta) => { if (_gruppenStapeln(id, delta)) _gruppenNeu(); },
+        // 09.09.2026 — hoch in die Reihe, runter aus der Reihe (Marc: „einfach in die höhere Spur ziehen")
+        onGruppenZeile: (id, richtung) => { if (_gruppenZeileWechseln(id, richtung)) _gruppenNeu(); },
         // Die Zeitleiste meldet eine Stelle auf der LEISTE; die Vorschau will
         // eine Stelle im TRACK (v0.9.511).
         // 04.09.2026 (Marc: „wenn ich den Scrubber schnell hin und her ziehe,
@@ -15217,10 +15219,39 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _gruppeMitId(id) { return _gruppen.find(g => g.id === id) || null; }
   /** Eine Gruppe im Stapel verschieben (+1 = nach oben = mehr Kamera-Vorrang). */
+  /** Eine Gruppe in die Reihe holen (+1) oder aus ihr lösen (−1).
+   *  In die Reihe: nicht mehr `fest`, und in der Liste dorthin, wo sie zeitlich
+   *  hingehört — hinter die letzte Ketten-Gruppe, die vor ihr beginnt; die
+   *  Kette legt sie dann mit Übergang dahinter. Aus der Reihe: `fest` an ihrer
+   *  jetzigen Zeit — überlappt sie, bekommt sie im Plan ihre eigene Zeile. */
+  function _gruppenZeileWechseln(id, richtung) {
+    const g = _gruppeMitId(id); if (!g) return false;
+    const lage = (_gruppenPlan && _gruppenPlan.lage) ? _gruppenPlan.lage(g.id) : null;
+    if (richtung > 0) {
+      if (!g.fest) return false;
+      const von = lage ? lage.von_s : (+g.vorlauf_s || 0);
+      g.fest = false;
+      _gruppen = _gruppen.filter(x => x !== g);
+      let idx = 0;
+      _gruppen.forEach((x, i) => {
+        const lx = (_gruppenPlan && _gruppenPlan.lage) ? _gruppenPlan.lage(x.id) : null;
+        if (!x.fest && lx && lx.von_s <= von + 1e-6) idx = i + 1;
+      });
+      _gruppen.splice(idx, 0, g);
+      return true;
+    }
+    if (richtung < 0) {
+      if (g.fest) return false;
+      g.vorlauf_s = lage ? lage.von_s : (+g.vorlauf_s || 0);
+      g.fest = true;
+      return true;
+    }
+    return false;
+  }
   function _gruppenStapeln(id, delta) {
     const i = _gruppen.findIndex(g => g.id === id);
-    const j = i - delta;
-    if (i < 0 || j < 0 || j >= _gruppen.length) return false;
+    const j = Math.max(0, Math.min(_gruppen.length - 1, i - delta));   // 99 = ganz nach oben
+    if (i < 0 || j === i) return false;
     const [g] = _gruppen.splice(i, 1);
     _gruppen.splice(j, 0, g);
     return true;
@@ -15374,6 +15405,7 @@ function mountAnimator(body, headerActions, opts) {
     window.__rzGruppeLaenge = (id, sek) => { const g = _gruppeMitId(id); if (!g) return null; _gruppeLaengeSetzen(g, +sek || 0); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppenAnordnen = (art) => { _gruppenAnordnen(art); return window.__rzGruppen(); };
     window.__rzGruppenStapeln = (id, delta) => { _gruppenStapeln(id, delta); _gruppenNeu(); return window.__rzGruppen(); };
+    window.__rzGruppenZeile = (id, richtung) => { _gruppenZeileWechseln(id, richtung); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppenZusammen = (vonId, inId) => { _gruppenZusammenlegen(vonId, inId); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppenLoesen = (gpx) => { _gruppenLoesen(gpx); _gruppenNeu(); return window.__rzGruppen(); };
     window.__rzGruppeOeffnen = (id) => _gruppeOeffnen(id);

@@ -352,8 +352,11 @@ Todo se hace con el ratón:
   vez (fila propia). Luego se queda donde lo dejaste.
 - **Arrastrar los bordes** — el grupo se alarga o acorta; lo que se guarda es el **factor**
   (0,5× = la mitad de rápido, el doble de tiempo). Los grupos siguientes se desplazan.
-- **Arrastrar arriba o abajo** — cambia la pila. El grupo **de más arriba** guía la cámara (🎥 en
-  la ficha); con dos corriendo a la vez decide el orden.
+- **Arrastrar hacia arriba** — un grupo en paralelo **vuelve a la fila** y corre tras el grupo
+  que empieza antes, con transición. **Arrastrar hacia abajo** saca un grupo de la fila: se
+  queda en su tiempo y corre en paralelo. Ambas cosas están también en el menú de clic derecho.
+- **Cámara:** El grupo **de más arriba** guía la cámara (🎥 en la ficha). Clic derecho → «La
+  cámara sigue a este grupo» sube otro; dentro de la fila también vale arrastrar arriba o abajo.
 - **Doble clic** (o clic derecho) abre el grupo: nombre, duración o factor (escribe uno, el otro
   sigue), transición, „correr en secuencia", las rutas del grupo con **„separar"**, a qué ruta
   sigue la cámara, y **„unir con otro grupo"** — entonces las rutas corren a la vez en un grupo,
