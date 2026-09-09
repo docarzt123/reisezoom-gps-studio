@@ -1870,6 +1870,10 @@ document.addEventListener("click", (e) => {
   document.addEventListener("scroll", weg, true);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") weg(); });
   window.__rzHilfeTip = () => tip;   // Prüfstand
+  document.addEventListener("focusin", (e) => { const btn = e.target.closest && e.target.closest(MARKER); if (btn) zeigen(btn); });
+  document.addEventListener("focusout", weg);
+  window.addEventListener("scroll", weg, true);
+  window.addEventListener("resize", weg);
 })();
 
 // v0.9.12 — Render-Lock-Helper. Setzt/entfernt `body.is-rendering`
@@ -3106,63 +3110,11 @@ function showRenderEngineMissingModal(browsersPath, onSuccess) {
   };
 }
 
-// v0.9.365 — Eigener Hilfe-Tooltip für die „?"-Badges (.gt-help) und alle Elemente
-// mit [data-help]. Grund: pywebview/WKWebView zeigt native HTML-`title`-Tooltips
-// NICHT an → die ganzen Hilfetexte kamen nie. Dieser schwebende Tooltip hängt am
-// <body> (position:fixed, hoher z-index) und wird daher nicht von der Sidebar
-// (overflow) abgeschnitten. Liest den Text aus `data-tip`/`title`/`aria-label`,
-// verschiebt `title` einmalig nach `data-tip` (killt den toten nativen Tooltip).
-(function rzHelpTooltip() {
-  if (window.__rzHelpTipInit) return;
-  window.__rzHelpTipInit = true;
-  let tip = null;
-  const SEL = ".gt-help, [data-help]";
-  function ensure() {
-    if (!tip) {
-      tip = document.createElement("div");
-      tip.className = "rz-tip";
-      tip.setAttribute("role", "tooltip");
-      document.body.appendChild(tip);
-    }
-    return tip;
-  }
-  function textFor(el) {
-    if (el.hasAttribute("title")) {           // einmalig umziehen → kein nativer (toter) Tooltip
-      const t = el.getAttribute("title");
-      if (t) el.setAttribute("data-tip", t);
-      el.removeAttribute("title");
-    }
-    return el.getAttribute("data-tip") || el.getAttribute("data-help") || el.getAttribute("aria-label") || "";
-  }
-  function show(el) {
-    const txt = textFor(el);
-    if (!txt) return;
-    const tEl = ensure();
-    tEl.textContent = txt;
-    tEl.style.display = "block";
-    tEl.style.left = "-9999px";
-    tEl.style.top = "0px";
-    const r = el.getBoundingClientRect();
-    const tw = tEl.offsetWidth, th = tEl.offsetHeight, pad = 8, m = 6;
-    let left = r.left - tw - pad;                 // bevorzugt links (Sidebar ist links)
-    if (left < m) left = r.right + pad;           // sonst rechts daneben
-    if (left + tw > window.innerWidth - m) left = window.innerWidth - tw - m;
-    if (left < m) left = m;
-    let top = r.top + r.height / 2 - th / 2;
-    if (top < m) top = m;
-    if (top + th > window.innerHeight - m) top = window.innerHeight - th - m;
-    tEl.style.left = left + "px";
-    tEl.style.top = top + "px";
-  }
-  function hide() { if (tip) tip.style.display = "none"; }
-  function near(e) { return (e.target && e.target.closest) ? e.target.closest(SEL) : null; }
-  document.addEventListener("mouseover", (e) => { const el = near(e); if (el) show(el); });
-  document.addEventListener("mouseout",  (e) => { if (near(e)) hide(); });
-  document.addEventListener("focusin",   (e) => { const el = near(e); if (el) show(el); });
-  document.addEventListener("focusout",  hide);
-  window.addEventListener("scroll", hide, true);
-  window.addEventListener("resize", hide);
-})();
+// 09.09.2026 — Der ältere Helfer `rzHelpTooltip` (.rz-tip, seit v0.9.4xx für
+// [data-help]) ist entfernt: Er zeigte neben dem neuen Tooltip den title und,
+// nachdem der title weg war, den Hilfe-SCHLÜSSEL („tours"; Marc, Screenshot
+// 20:12). Tastatur-Fokus, Scrollen und Größenänderung übernimmt der neue Helfer
+// (.rz-hilfe-tip, oben).
 
 // ── v0.9.522 — Warte-Zustand sichtbar machen (alle Module) ─────────────────
 // Marc-Regel vom 21.08.2026: JEDER Klick, hinter dem mehr als ein
