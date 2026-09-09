@@ -3402,3 +3402,111 @@ function rzScaleMapLabels(map, k) {
   }
 }
 window.rzScaleMapLabels = rzScaleMapLabels;
+
+/* ── Touren aus dem Archiv auswählen (09.09.2026) ──────────────────────────
+ * Marc: „bei uns ist die Wahrheit das Archiv der Touren" — wer einem Projekt
+ * Touren hinzufügt, wählt sie aus dem Archiv, nicht aus dem Dateisystem. Ist
+ * eine Tour noch nicht drin, importiert „Datei importieren …" sie ERST ins
+ * Archiv und hakt sie dann an. Gemeinsam für Animator (und alles, was danach
+ * kommt); das Archiv-Modul hat seine eigene ältere Fassung bei [data-addtours].
+ *
+ *   const pfade = await rzArchivTourenWaehlen({ ausschliessen: [pfad, …] });
+ *   → Liste gewählter Pfade, leer bei Abbrechen.
+ */
+async function rzArchivTourenWaehlen(opts) {
+  const o = opts || {};
+  const T = (k, f) => { try { return t(k, f); } catch (_) { return f; } };
+  const esc = (x) => String(x ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const nfc = (x) => { try { return String(x || "").normalize("NFC"); } catch (_) { return String(x || ""); } };
+  const drin = new Set((o.ausschliessen || []).map(nfc));
+  const gewaehlt = new Set();
+  let items = [];
+  let importiert = [];            // eben importierte, noch nicht im Index
+  const datum = (iso) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString(); };
+  const km = (it) => { const v = it.distance_km != null ? +it.distance_km : (it.distance_m != null ? it.distance_m / 1000 : null);
+                       return (v == null || !isFinite(v)) ? "" : v.toFixed(1) + " km"; };
+  const zeile = (it, neu) => {
+    const pf = nfc(it.path);
+    const schon = drin.has(pf);
+    const meta = [datum(it.started_at), km(it)].filter(Boolean).join(" · ");
+    return `<label class="rz-tw-zeile${schon ? " ist-drin" : ""}${neu ? " ist-neu" : ""}">
+      <input type="checkbox" data-tpath="${esc(it.path)}"${gewaehlt.has(pf) ? " checked" : ""}${schon ? " disabled" : ""}>
+      <span class="rz-tw-name">${esc(it.name || it.filename || it.path)}</span>
+      <span class="rz-tw-meta">${schon ? esc(T("archiv.waehlen_schon", "schon im Projekt")) : (neu ? esc(T("archiv.waehlen_neu", "gerade importiert")) : esc(meta))}</span>
+    </label>`;
+  };
+  const liste = () => {
+    const alle = importiert.map(it => zeile(it, true)).concat(items.filter(it => !importiert.some(x => nfc(x.path) === nfc(it.path))).map(it => zeile(it, false)));
+    return alle.join("") || `<p class="muted">${esc(T("library.keine_treffer", "Keine Treffer."))}</p>`;
+  };
+  const binden = () => {
+    const el = document.getElementById("rz-tw-liste"); if (!el) return;
+    el.innerHTML = liste();
+    el.querySelectorAll("[data-tpath]").forEach(cb => cb.onchange = () => {
+      const pf = nfc(cb.dataset.tpath);
+      if (cb.checked) gewaehlt.add(pf); else gewaehlt.delete(pf);
+      zaehler();
+    });
+    zaehler();
+  };
+  const zaehler = () => {
+    const ok = document.getElementById("rz-tw-ok"); if (!ok) return;
+    const n = gewaehlt.size;
+    ok.textContent = n ? T("archiv.waehlen_ok_n", "{n} hinzufügen").replace("{n}", n) : T("library.proj_addtours_ok", "Hinzufügen");
+  };
+  const laden = async (q) => {
+    try {
+      const res = await api().library_query({ search: q || "", limit: 300, with_thumbs: false, sort: "date_desc" });
+      items = (res && res.items) || [];
+    } catch (e) { items = []; console.warn("library_query:", e); }
+    binden();
+  };
+  return new Promise((resolve) => {
+    let fertig = false;
+    const ende = (pfade) => { if (fertig) return; fertig = true; try { m.close(); } catch (_) {} resolve(pfade); };
+    const m = openModal({
+      title: "➕ " + (o.titel || T("library.proj_addtours", "Touren aus dem Archiv hinzufügen")),
+      body: `<input type="search" id="rz-tw-such" class="lib-input" placeholder="${esc(T("library.search_ph", "Suchen — Name, Gegend, Schlagwort, Notiz …"))}" style="margin-bottom:8px; width:100%; box-sizing:border-box;">
+             <div class="rz-tw-liste" id="rz-tw-liste"></div>
+             <p class="muted" style="font-size:11px; margin:8px 0 0;">${esc(T("archiv.waehlen_import_hinweis", "Nicht im Archiv? „Datei importieren …“ nimmt die Datei ins Archiv auf und hakt sie gleich an."))}</p>`,
+      footer: `<button class="btn" id="rz-tw-import" style="margin-right:auto;">${esc(T("archiv.waehlen_import", "Datei importieren …"))}</button>
+               <button class="btn" id="rz-tw-ab">${esc(T("common.cancel", "Abbrechen"))}</button>
+               <button class="btn btn-primary" id="rz-tw-ok">${esc(T("library.proj_addtours_ok", "Hinzufügen"))}</button>`,
+      onClose: () => ende([]),
+    });
+    laden("");
+    const such = document.getElementById("rz-tw-such");
+    if (such) { such.oninput = debounce(() => laden(such.value.trim()), 300); try { such.focus(); } catch (_) {} }
+    const ab = document.getElementById("rz-tw-ab"); if (ab) ab.onclick = () => ende([]);
+    const ok = document.getElementById("rz-tw-ok"); if (ok) ok.onclick = () => {
+      if (!gewaehlt.size) { toast(T("library.proj_addtours_leer", "Nichts angehakt — erst Touren auswählen."), "warn", 2600); return; }
+      // Reihenfolge wie angezeigt (jüngste zuerst), nicht wie angehakt.
+      const reihe = importiert.concat(items).map(it => nfc(it.path)).filter(pf => gewaehlt.has(pf));
+      for (const pf of gewaehlt) if (!reihe.includes(pf)) reihe.push(pf);
+      ende(reihe);
+    };
+    const imp = document.getElementById("rz-tw-import"); if (imp) imp.onclick = async () => {
+      imp.disabled = true;
+      try {
+        const r = await api().library_import_files();
+        if (r && r.ok && Array.isArray(r.pfade) && r.pfade.length) {
+          for (const pf of r.pfade) {
+            const name = String(pf).split(/[\\/]/).pop();
+            if (!importiert.some(x => nfc(x.path) === nfc(pf))) importiert.unshift({ path: pf, name, filename: name });
+            if (!drin.has(nfc(pf))) gewaehlt.add(nfc(pf));
+          }
+          toast(T("archiv.waehlen_importiert", "{n} Datei(en) ins Archiv übernommen und angehakt.").replace("{n}", r.pfade.length), "success", 2600);
+          binden();
+          try { api().library_scan_start(false); } catch (_) {}
+        } else if (r && r.ok) {
+          toast(T("archiv.waehlen_import_nichts", "Nichts importiert — die Datei liegt vielleicht schon im Archiv. Dann oben suchen."), "info", 3200);
+          await laden(such ? such.value.trim() : "");
+        } else if (r && !r.cancelled) {
+          toast((r && r.error) || "?", "error");
+        }
+      } catch (e) { toast(String(e), "error"); }
+      imp.disabled = false;
+    };
+  });
+}
+window.rzArchivTourenWaehlen = rzArchivTourenWaehlen;

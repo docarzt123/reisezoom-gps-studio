@@ -15,7 +15,7 @@ Bei jeder neuen Version:
 ## [Unreleased]
 
 ### Changed
-- Animator: the "Multiple tours" section is visible again with a single tour, so "Add tour" is reachable for an open project; it was hidden since v0.9.464 because the preview did not fly cleanly to further tours — the group model fixed that. — „Mehrere Touren" ist auch bei einer Tour da, „Tour hinzufügen" erreichbar.
+- Animator: the "Multiple tours" section is visible again with a single tour, so "Add tour" is reachable for an open project; it was hidden since v0.9.464 because the preview did not fly cleanly to further tours — the group model fixed that. "Add tour" now opens a picker from the archive (search, tick several, loaded tours greyed out) instead of a file dialog — the archive is the truth; "Import file …" inside the picker takes a file into the archive first and ticks it. The shared picker lives in `rzArchivTourenWaehlen` (ui/js/util.js). — „Mehrere Touren" ist auch bei einer Tour da; „Tour hinzufügen" wählt aus dem Archiv, „Datei importieren …" nimmt Fremdes erst ins Archiv.
 
 ### Fixed
 - Resume at start: the app reopened the project from before the last one — only a click in the projects area remembered "last open"; opening a tour from the archive or assembling a set activated its project on another path that did not. Every activation path now remembers it; a floating project (no id yet) leaves the app in the archive instead of on the wrong project. — Beim Start kam das vorletzte Projekt; jetzt merkt jeder Weg, der ein Projekt aktiv macht, das zuletzt offene.

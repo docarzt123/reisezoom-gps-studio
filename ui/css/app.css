@@ -3014,3 +3014,12 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .rz-map-banner { display: flex; gap: 8px; align-items: flex-start; background: rgba(20, 16, 12, 0.92); color: #fff; border: 1px solid rgba(255, 176, 96, 0.7); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; line-height: 1.35; box-shadow: 0 2px 10px rgba(0,0,0,.4); pointer-events: auto; }
 .rz-map-banner small { display: block; opacity: .75; margin-top: 2px; font-size: 11px; }
 .rz-map-banner-ico { flex-shrink: 0; }
+
+/* Touren aus dem Archiv auswählen (rzArchivTourenWaehlen, 09.09.2026) */
+.rz-tw-liste { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.rz-tw-zeile { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.rz-tw-zeile:hover { background: var(--bg-3); }
+.rz-tw-zeile.ist-drin { opacity: .5; cursor: default; }
+.rz-tw-zeile.ist-neu .rz-tw-meta { color: var(--accent, #ff6b35); }
+.rz-tw-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rz-tw-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
