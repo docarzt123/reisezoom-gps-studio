@@ -268,6 +268,41 @@ fotogramas clave — es afinado para más adelante. El capítulo 3 lo explica co
 > **Regla práctica:** primero la prueba, luego el renderizado. La prueba muestra en segundos lo
 > que el renderizado produce en minutos.
 
+### Grupos en la línea de tiempo — en secuencia, en paralelo o ambos (desde v0.9.679)
+
+En cuanto hay dos o más rutas en el proyecto, la pista de tempo sobre la línea de tiempo se
+convierte en la **fila de rutas**: cada ruta es un **grupo** y recibe allí una ficha con su
+nombre, factor y segundos. El hueco entre dos fichas es la transición (✈ vuelo de cine,
+↗ línea recta, ✂ corte); las bandas rayadas son paradas — antes del contenido, o al final
+cuando un grupo termina antes que el vídeo. Un grupo que corre a la vez que otro recibe
+debajo su propia fila **„en paralelo"**. La regla de fondo: todas las rutas de un proyecto
+duran lo mismo — lo que dura el vídeo; la disposición está solo en dónde quedan sus paradas.
+
+Todo se hace con el ratón:
+
+- **Arrastrar una ficha** — el grupo se mueve en el tiempo. Si cae sobre otro, ambos corren a la
+  vez (fila propia). Luego se queda donde lo dejaste.
+- **Arrastrar los bordes** — el grupo se alarga o acorta; lo que se guarda es el **factor**
+  (0,5× = la mitad de rápido, el doble de tiempo). Los grupos siguientes se desplazan.
+- **Arrastrar arriba o abajo** — cambia la pila. El grupo **de más arriba** guía la cámara (🎥 en
+  la ficha); con dos corriendo a la vez decide el orden.
+- **Doble clic** (o clic derecho) abre el grupo: nombre, duración o factor (escribe uno, el otro
+  sigue), transición, „correr en secuencia", las rutas del grupo con **„separar"**, a qué ruta
+  sigue la cámara, y **„unir con otro grupo"** — entonces las rutas corren a la vez en un grupo,
+  como enjambre.
+- **Ordenar** sobre la lista lo calcula todo una vez: **⏭ en secuencia**, **∥ todos desde 0**,
+  **🏁 llegar a la vez** (cada grupo recibe el factor con el que llega junto a los demás) y
+  **🕐 hora real** (duración e inicio como se grabó). Después es una disposición normal que puedes
+  seguir moviendo.
+
+Un proyecto que solo abres y miras queda intacto; solo un cambio escribe los grupos en él. Los
+proyectos antiguos de etapas y enjambre se ven como antes al abrirlos — el enjambre es ahora
+simplemente un grupo con varias rutas.
+
+Los **keyframes** cuelgan de la ruta: pon uno en un puente, inserta después una parada antes o
+alarga un grupo anterior, y el keyframe sigue en el puente. Una parada puede llevar varios
+keyframes — la cámara puede moverse mientras el punto está quieto.
+
 ### Paso 7 — Unir archivos diarios en una sola ruta
 
 El caso más frecuente en un viaje: una grabación por día, pero quieres el recorrido completo.

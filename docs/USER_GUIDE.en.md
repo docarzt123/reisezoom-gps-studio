@@ -267,6 +267,41 @@ fine-tuning for later. Chapter 3 explains it at leisure.
 > **Rule of thumb:** preview run first, render second. The preview run shows in seconds what the
 > render produces in minutes.
 
+### Groups in the timeline — in sequence, in parallel, or both (since v0.9.679)
+
+As soon as two or more tours are in the project, the speed lane above the timeline becomes
+the **tour row**: every tour is a **group** and gets a tile there with its name, factor and
+seconds. The gap between two tiles is the transition (✈ cinematic flight, ↗ straight line,
+✂ cut), hatched bands are holds — before the content, or at the end when a group finishes
+earlier than the video. A group that runs at the same time as another gets its own row
+**„parallel"** below. The rule behind it: all tours of a project are the same length — the
+length of the video; the arrangement lies only in where their holds sit.
+
+Everything is done with the mouse:
+
+- **Drag a tile** — the group moves in time. Dropped over another one, both run at the same
+  time (own row). It then stays where you put it.
+- **Drag the edges** — the group gets longer or shorter; what is stored is the **factor**
+  (0.5× = half as fast, twice the time). The following groups move along.
+- **Drag up or down** — the stack changes. The **topmost** group leads the camera (🎥 on the
+  tile); with two running at once, the order decides.
+- **Double-click** (or right-click) opens the group: name, length or factor (type one, the other
+  follows), transition, „run in sequence", the tours in the group with **„detach"**, which tour
+  the camera follows, and **„merge with another group"** — the tours then run at the same time
+  in one group, as a swarm.
+- **Arrange** above the list computes everything once: **⏭ in sequence**, **∥ all from 0**,
+  **🏁 finish together** (every group gets the factor that makes it arrive with the others) and
+  **🕐 real time** (length and start as recorded). After that it is an ordinary arrangement you
+  can keep shifting.
+
+A project you only open and look at stays untouched; only a change writes the groups into it.
+Old stage and swarm projects look as before after opening — the swarm is simply a group with
+several tours now.
+
+**Keyframes** hang on the track: set one at a bridge, insert a hold before it later or make an
+earlier group longer, and the keyframe is still at the bridge. A hold can carry several
+keyframes — the camera may move while the marker stands.
+
 ### Step 7 — Joining daily files into one tour
 
 The most common case on a trip: one recording per day, but you want the whole journey.
