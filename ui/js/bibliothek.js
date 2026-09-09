@@ -53,6 +53,60 @@
     return m[g] || g || (r && r.error) || "?";
   }
 
+  /* ── Zuletzt benutzte Orte (09.09.2026) ─────────────────────────────────
+   * Wer bei „bereits geöffnet" oder „nicht erreichbar" einen anderen Ort
+   * gewählt hat, kommt hier mit einem Klick zurück. */
+  function vorherListe(st) {
+    var v = (st && st.vorher) || [];
+    v = v.filter(function (x) { return x && x.da; });
+    if (!v.length) return "";
+    return '<div class="bib-vorher"><p class="muted bib-klein">' + T("bib.zuletzt", "Zuletzt benutzte Bibliotheken:") + "</p>" +
+      v.map(function (x, i) {
+        return '<div class="bib-vorher-zeile"><code>' + x.pfad + '</code>' +
+               '<button class="btn btn-sm" data-vorher="' + i + '">' + T("bib.oeffnen", "Öffnen") + "</button></div>";
+      }).join("") + "</div>";
+  }
+  function vorherBinden(el, st) {
+    var v = ((st && st.vorher) || []).filter(function (x) { return x && x.da; });
+    el.querySelectorAll("[data-vorher]").forEach(function (b) {
+      b.onclick = async function () {
+        var x = v[+b.dataset.vorher]; if (!x) return;
+        b.disabled = true;
+        var r = await api().bibliothek_wechseln(x.pfad);
+        if (r && r.ok) { weg(); location.reload(); } else { b.disabled = false; pruefen(); }
+      };
+    });
+  }
+
+  /* „Anderen Ort wählen …" — liegt dort schon eine Bibliothek, wird sie
+   * geöffnet. Liegt dort keine, wird NACHGEFRAGT, bevor eine leere entsteht,
+   * und gesagt, wo die bisherige bleibt (09.09.2026, Beta-Tester: „nun ist
+   * alles leer"). */
+  async function andererOrt(st) {
+    var w = await api().bibliothek_ordner_waehlen();
+    if (!w || !w.ok) return;
+    if (w.vorhanden) {
+      var r = await api().bibliothek_wechseln(w.pfad);
+      if (r && r.ok) { weg(); location.reload(); } else pruefen();
+      return;
+    }
+    var alt = (st && st.problem && st.problem.ort) || (st && st.ort) || "";
+    var el = schale(
+      '<h2>' + T("bib.neu_dort_titel", "Dort ist keine Bibliothek") + "</h2>" +
+      '<p>' + T("bib.neu_dort_text", "In diesem Ordner liegt keine GPS-Studio-Bibliothek. Soll dort eine neue, leere angelegt werden?") + "</p>" +
+      '<div class="bib-ort"><code>' + w.pfad + "</code></div>" +
+      (alt ? '<p class="muted bib-klein">' + T("bib.alte_bleibt", "Deine bisherige Bibliothek bleibt unangetastet unter {ort} und lässt sich unter Einstellungen → Bibliothek → „Zuletzt benutzt“ wieder öffnen.").replace("{ort}", alt) + "</p>" : "") +
+      '<div class="bib-knoepfe">' +
+      '<button class="btn" id="bib-neu-zurueck">' + T("bib.zurueck", "Zurück") + "</button>" +
+      '<button class="btn btn-primary" id="bib-neu-ja">' + T("bib.neu_dort_ja", "Leere Bibliothek anlegen") + "</button></div>");
+    el.querySelector("#bib-neu-zurueck").onclick = function () { pruefen(); };
+    el.querySelector("#bib-neu-ja").onclick = async function () {
+      var b = el.querySelector("#bib-neu-ja"); b.disabled = true;
+      var r = await api().bibliothek_festlegen(w.pfad);
+      if (r && r.ok) { weg(); location.reload(); } else { b.disabled = false; pruefen(); }
+    };
+  }
+
   function mb(n) {
     if (!n) return "0 MB";
     return (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + " MB";
@@ -124,6 +178,7 @@
       '<div class="bib-ort"><code>' + (st.problem.ort || "") + "</code></div>" +
       '<p class="muted bib-klein">' + T("bib.fehlt_beruhigung",
         "Es wurde nichts gelöscht und nichts neu angelegt. Deine Daten liegen dort, wo sie waren.") + "</p>" +
+      vorherListe(st) +
       '<div class="bib-knoepfe">' +
       '<button class="btn btn-primary" id="bib-nochmal">' + T("bib.erneut_suchen", "Erneut suchen") + "</button>" +
       '<button class="btn" id="bib-anderer">' + T("bib.anderer_ort", "Anderen Ort wählen …") + "</button></div>");
@@ -131,12 +186,8 @@
       var r = await api().bibliothek_erneut();
       if (r && r.ok) { weg(); location.reload(); } else pruefen();
     };
-    el.querySelector("#bib-anderer").onclick = async function () {
-      var w = await api().bibliothek_ordner_waehlen();
-      if (!w || !w.ok) return;
-      var r = await api().bibliothek_festlegen(w.pfad);
-      if (r && r.ok) { weg(); location.reload(); }
-    };
+    el.querySelector("#bib-anderer").onclick = function () { andererOrt(st); };
+    vorherBinden(el, st);
   }
 
   /* ── Von einer anderen Instanz belegt (Riegel 2) ────────────────────── */
@@ -149,18 +200,36 @@
       '<div class="bib-ort"><code>' + (st.problem.ort || "") + "</code></div>" +
       (v.rechner ? '<p class="muted bib-klein">' + T("bib.belegt_von", "Geöffnet von {rechner}, seit {seit}.")
         .replace("{rechner}", v.rechner).replace("{seit}", (v.seit || "").replace("T", " ")) + "</p>" : "") +
+      vorherListe(st) +
+      '<p class="muted bib-klein">' + T("bib.belegt_hinweis",
+        "Wurde GPS Studio zuletzt nicht sauber beendet (Absturz, Rechner aus, Netzlaufwerk weg), ist die Sperre nur ein Überbleibsel. Dann: „Trotzdem öffnen“.") + "</p>" +
       '<div class="bib-knoepfe">' +
       '<button class="btn btn-primary" id="bib-nochmal">' + T("bib.erneut_suchen", "Erneut suchen") + "</button>" +
+      '<button class="btn" id="bib-uebernehmen">' + T("bib.uebernehmen", "Trotzdem öffnen …") + "</button>" +
       '<button class="btn" id="bib-anderer">' + T("bib.anderer_ort", "Anderen Ort wählen …") + "</button></div>");
     el.querySelector("#bib-nochmal").onclick = async function () {
       var r = await api().bibliothek_erneut();
       if (r && r.ok) { weg(); location.reload(); } else pruefen();
     };
-    el.querySelector("#bib-anderer").onclick = async function () {
-      var w = await api().bibliothek_ordner_waehlen();
-      if (!w || !w.ok) return;
-      var r = await api().bibliothek_festlegen(w.pfad);
-      if (r && r.ok) { weg(); location.reload(); }
+    el.querySelector("#bib-anderer").onclick = function () { andererOrt(st); };
+    vorherBinden(el, st);
+    // 09.09.2026 (Beta-Tester, 12 Stunden ausgesperrt): die Sperre übernehmen —
+    // nach einer klaren Rückfrage, weil zwei offene Instanzen Daten kosten.
+    el.querySelector("#bib-uebernehmen").onclick = function () {
+      var e2 = schale(
+        '<h2>' + T("bib.uebernehmen_titel", "Sperre übernehmen?") + "</h2>" +
+        '<p>' + T("bib.uebernehmen_text",
+          "Nur wenn du sicher bist, dass kein anderes GPS Studio diese Bibliothek gerade offen hat — auch nicht auf einem anderen Rechner. Zwei gleichzeitig würden sich gegenseitig die Daten überschreiben.") + "</p>" +
+        '<div class="bib-ort"><code>' + (st.problem.ort || "") + "</code></div>" +
+        '<div class="bib-knoepfe">' +
+        '<button class="btn" id="bib-ueb-zurueck">' + T("bib.zurueck", "Zurück") + "</button>" +
+        '<button class="btn btn-primary" id="bib-ueb-ja">' + T("bib.uebernehmen_ja", "Ja, Sperre übernehmen und öffnen") + "</button></div>");
+      e2.querySelector("#bib-ueb-zurueck").onclick = function () { pruefen(); };
+      e2.querySelector("#bib-ueb-ja").onclick = async function () {
+        var b = e2.querySelector("#bib-ueb-ja"); b.disabled = true;
+        var r = await api().bibliothek_uebernehmen();
+        if (r && r.ok) { weg(); location.reload(); } else { b.disabled = false; pruefen(); }
+      };
     };
   }
 
@@ -180,6 +249,7 @@
       '<p>' + T("bib.defekt_text",
         "Die Datenbank deiner Bibliothek lässt sich nicht lesen. Deine Trackdateien sind davon nicht betroffen — nur der Index. Du kannst eine Sicherung zurückholen; die beschädigte Datei wird dabei nicht gelöscht, sondern beiseitegelegt.") + "</p>" +
       '<div class="bib-sicherungen">' + liste + "</div>" +
+      vorherListe(st) +
       '<div class="bib-knoepfe">' +
       (sich.length ? '<button class="btn btn-primary" id="bib-zurueck">' +
         T("bib.sicherung_zurueck", "Ausgewählte Sicherung zurückholen") + "</button>" : "") +
@@ -192,12 +262,8 @@
       var r = await api().bibliothek_wiederherstellen(w.value);
       if (r && r.ok) { weg(); location.reload(); } else { b.disabled = false; pruefen(); }
     };
-    el.querySelector("#bib-anderer").onclick = async function () {
-      var w = await api().bibliothek_ordner_waehlen();
-      if (!w || !w.ok) return;
-      var r = await api().bibliothek_festlegen(w.pfad);
-      if (r && r.ok) { weg(); location.reload(); }
-    };
+    el.querySelector("#bib-anderer").onclick = function () { andererOrt(st); };
+    vorherBinden(el, st);
   }
 
   /* ── Umzug fehlgeschlagen ───────────────────────────────────────────── */

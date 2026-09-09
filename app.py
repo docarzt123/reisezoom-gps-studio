@@ -158,7 +158,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.680"
+APP_VERSION = "0.9.681"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -2768,6 +2768,12 @@ class Api:
         zeigt sie statt des Archivs eine Erklärung mit Auswegen."""
         d = {"bereit": BIB_BEREIT, "ort": str(BIB), "problem": BIB_PROBLEM,
              "erststart": BIB_ERSTSTART}
+        # 09.09.2026 — die zuletzt benutzten Orte, damit man nach einem
+        # unglücklichen „Anderen Ort wählen" mit einem Klick zurückkommt.
+        try:
+            d["vorher"] = cbib.vorherige_orte(APP_SUPPORT)
+        except Exception:
+            d["vorher"] = []
         b = getattr(self, "_bib_umzug_bericht", None)
         if not b and BIB_BEREIT:
             # Nach einem Neustart liegt der Bericht nur noch in der Bibliothek.
@@ -2836,6 +2842,53 @@ class Api:
             return {"ok": BIB_BEREIT, "status": self.bibliothek_status()}
         except Exception as e:
             log.exception("bibliothek_festlegen")
+            return {"ok": False, "error": str(e)}
+
+    def bibliothek_wechseln(self, pfad: str) -> dict:
+        """Eine VORHANDENE Bibliothek öffnen — nichts anlegen, nichts verschieben.
+
+        09.09.2026 (Beta-Tester): Nach „Anderen Ort wählen" war seine alte
+        Bibliothek nicht weg, nur nicht mehr eingestellt. Das ist der Rückweg:
+        Einstellungen → Bibliothek → „Andere Bibliothek öffnen …" beziehungsweise
+        „Zuletzt benutzt"."""
+        global BIB_ORT
+        try:
+            ziel = Path(pfad).expanduser()
+            if not cbib.ist_bibliothek(ziel):
+                return {"ok": False, "grund": "keine_bibliothek", "pfad": str(ziel)}
+            try:
+                if getattr(self, "_lib_conn", None) is not None:
+                    self._lib_conn.close()
+            except Exception:
+                pass
+            self._lib_conn = None
+            if BIB_BEREIT:
+                cbib.sperre_freigeben(BIB)
+            cbib.ort_schreiben(APP_SUPPORT, ziel)
+            BIB_ORT = ziel
+            self._bib_oeffnen()
+            log.info("Bibliothek gewechselt: %s (bereit=%s)", ziel, BIB_BEREIT)
+            return {"ok": BIB_BEREIT, "status": self.bibliothek_status()}
+        except Exception as e:
+            log.exception("bibliothek_wechseln")
+            return {"ok": False, "error": str(e)}
+
+    def bibliothek_uebernehmen(self) -> dict:
+        """„Trotzdem öffnen": die fremde Sperre entfernen und öffnen. Die
+        Oberfläche hat vorher gefragt."""
+        global BIB_PROBLEM
+        try:
+            ort = BIB_ORT or BIB
+            r = cbib.sperre_uebernehmen(ort)
+            log.warning("Bibliothek: Sperre auf Wunsch übernommen — %s (war: %s)", ort, r.get("war"))
+            if not r.get("ok"):
+                return r
+            BIB_PROBLEM = {}
+            self._lib_conn = None
+            self._bib_oeffnen()
+            return {"ok": BIB_BEREIT, "status": self.bibliothek_status()}
+        except Exception as e:
+            log.exception("bibliothek_uebernehmen")
             return {"ok": False, "error": str(e)}
 
     def bibliothek_erneut(self) -> dict:

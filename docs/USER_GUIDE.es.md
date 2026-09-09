@@ -128,6 +128,18 @@ arrancar y ofrece *Buscar de nuevo* o *Elegir otra ubicación*. **Nunca** crea
 en silencio una biblioteca vacía: tus datos no se han perdido, solo no están
 accesibles.
 
+**«La biblioteca ya está abierta»** significa que un archivo de bloqueo dice
+que otro GPS Studio la tiene abierta. Si la app no se cerró bien la última vez
+(cierre forzado, equipo apagado, unidad de red desconectada), es solo un
+resto: elige **Abrir de todos modos …**. La app pregunta una vez, porque dos
+instancias abiertas a la vez se sobrescribirían los datos.
+
+**Elegir otra ubicación** abre una biblioteca que ya esté ahí. Si no hay
+ninguna, GPS Studio pregunta si crear una nueva y vacía, y dice dónde queda la
+actual. Si te equivocaste de carpeta, vuelves por **Ajustes → Biblioteca**:
+**Abrir otra biblioteca …** o un clic en **Bibliotecas usadas recientemente**.
+Nada de esto mueve ni borra nada.
+
 ### Versiones de una ruta
 
 Una ruta puede tener varias versiones: como se grabó, curada, recortada. En

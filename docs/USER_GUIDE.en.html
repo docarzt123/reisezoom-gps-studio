@@ -349,6 +349,8 @@ python app.py</code></pre>
 <p> creates a new <strong>version</strong> in your library — your original file stays  untouched. If you need the healed file outside the app, use <em>Export  version …</em>.</p>
 <h3 id="when-the-library-is-not-there">When the library is not there</h3>
 <p>If it lives on an external drive that is not connected, GPS Studio says so on start and offers <em>Search again</em> or <em>Choose another location</em>. It <strong>never</strong> silently creates an empty new library — your data is not gone, it is just out of reach.</p>
+<p><strong>&quot;Library is already open&quot;</strong> means a lock file says another GPS Studio has it open. If the app was not closed cleanly last time (crash, computer off, network drive gone), that is just a leftover — choose <strong>Open anyway …</strong>. The app asks once, because two instances open at the same time would overwrite each other&#x27;s data.</p>
+<p><strong>Choose another location</strong> opens a library that already lives there. If there is none, GPS Studio asks whether to create a new, empty one — and tells you where the current one stays. If you picked the wrong folder, go back via <strong>Settings → Library</strong>: <strong>Open another library …</strong> or one click on <strong>Recently used libraries</strong>. None of this moves or deletes anything.</p>
 <h3 id="versions-of-a-tour">Versions of a tour</h3>
 <p>A tour can have several versions: as recorded, healed, trimmed. In the archive the card shows „V3&quot; when there are three; the list is in the detail column. What matters for your videos:</p>
 <ul>

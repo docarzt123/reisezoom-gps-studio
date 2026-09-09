@@ -85,14 +85,62 @@ def ort_lesen(app_support: Path) -> Optional[Path]:
         return None
 
 
+VORHER_MAX = 5
+
+
 def ort_schreiben(app_support: Path, ort: Path) -> None:
+    """Den Zeiger setzen — und den bisherigen Ort MERKEN.
+
+    09.09.2026 (Beta-Tester): Bei „Bibliothek ist bereits geöffnet" klickte er
+    „Anderen Ort wählen", bekam eine leere Bibliothek und schrieb „nun ist
+    alles leer". Seine Daten lagen unversehrt am alten Ort — nur wusste die
+    App den nicht mehr. Deshalb steht der bisherige Ort ab jetzt als `vorher`
+    im Zeiger, und die Oberfläche bietet ihn zum Zurückwechseln an.
+    """
     z = zeiger_datei(app_support)
     z.parent.mkdir(parents=True, exist_ok=True)
+    vorher: list = []
+    try:
+        d = json.loads(z.read_text(encoding="utf-8"))
+        alt = str(d.get("pfad") or "").strip()
+        vorher = [str(x) for x in (d.get("vorher") or []) if x]
+        if alt:
+            vorher.insert(0, alt)
+    except Exception:
+        pass
+    gesehen = set()
+    rein = []
+    for x in vorher:
+        if x == str(ort) or x in gesehen:
+            continue
+        gesehen.add(x)
+        rein.append(x)
     tmp = z.with_suffix(f".tmp{os.getpid()}")
     tmp.write_text(json.dumps({"pfad": str(ort),
-                               "gewaehlt_am": datetime.now().astimezone().isoformat(timespec="seconds")},
+                               "gewaehlt_am": datetime.now().astimezone().isoformat(timespec="seconds"),
+                               "vorher": rein[:VORHER_MAX]},
                               ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(tmp, z)
+
+
+def vorherige_orte(app_support: Path) -> list:
+    """Die zuletzt benutzten Orte, jüngster zuerst — je mit `da` (ist heute
+    eine Bibliothek erreichbar) für die Oberfläche."""
+    try:
+        d = json.loads(zeiger_datei(app_support).read_text(encoding="utf-8"))
+        raus = []
+        for x in (d.get("vorher") or []):
+            x = str(x or "").strip()
+            if not x:
+                continue
+            try:
+                da = ist_bibliothek(Path(x))
+            except Exception:
+                da = False
+            raus.append({"pfad": x, "da": bool(da)})
+        return raus
+    except Exception:
+        return []
 
 
 # ── Riegel 1: keine Cloud-Sync-Ordner ───────────────────────────────────────
@@ -268,6 +316,29 @@ def sperre_nehmen(ort: Path) -> dict:
                              "seit": datetime.now().astimezone().isoformat(timespec="seconds")},
                             ensure_ascii=False), encoding="utf-8")
     return {"ok": True}
+
+
+def sperre_uebernehmen(ort: Path) -> dict:
+    """Eine FREMDE Sperre auf ausdrücklichen Wunsch entfernen.
+
+    09.09.2026 (Beta-Tester, v0.9.663): Die App war hart beendet worden, der
+    Rechnername hatte gewechselt, die Sperre galt als fremd — und „Erneut
+    suchen" half zwölf Stunden lang nicht. Wer sicher ist, dass kein anderes
+    GPS Studio die Bibliothek offen hat, darf sie übernehmen; die Oberfläche
+    fragt vorher nach und sagt, was passieren kann.
+    """
+    s = Path(ort) / SPERRDATEI
+    try:
+        alt = json.loads(s.read_text(encoding="utf-8"))
+    except Exception:
+        alt = {}
+    try:
+        s.unlink()
+    except FileNotFoundError:
+        pass
+    except OSError as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "war": alt}
 
 
 def sperre_freigeben(ort: Path) -> None:

@@ -2916,6 +2916,10 @@ body.is-rendering .modal-overlay * {
 .bib-warn { color: var(--warn); font-size: 12px; }
 .bib-warn li { margin-left: 16px; }
 .bib-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+/* Zuletzt benutzte Bibliotheken (09.09.2026) — Pfad und ein Öffnen-Knopf je Zeile. */
+.bib-vorher { margin-top: 10px; }
+.bib-vorher-zeile { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.bib-vorher-zeile code { flex: 1; font-size: 11px; overflow-wrap: anywhere; color: var(--text-dim); }
 .bib-sicherungen { display: flex; flex-direction: column; gap: 4px; margin: 12px 0; }
 .bib-sicherung {
   display: flex; gap: 8px; align-items: center; font-size: 13px;
