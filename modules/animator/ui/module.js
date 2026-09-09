@@ -213,7 +213,7 @@ function mountAnimator(body, headerActions, opts) {
                  (Seitenleisten-Regel: kein Fließtext ≥ 60 Zeichen offen). -->
             <div class="rz-style-rights" id="anim-style-rights" hidden style="display:flex; align-items:center; gap:6px;">
               <span>${t("mapstyle.rights_short", "⚠️ Mapbox: Video nur mit gekauften Rechten")}</span>
-              <button type="button" class="field-help" data-help="map_rights" title="${t("animator.help.show", "Erklärung anzeigen")}">?</button>
+              <button type="button" class="field-help" data-help="map_rights">?</button>
             </div>
             <div class="muted field-help-content" data-help-content="map_rights" hidden style="font-size:11px; margin-top:2px; line-height:1.45;">
               ${t("mapstyle.rights_hint", "Mapbox erlaubt die Veröffentlichung von Videos mit seinem Kartenmaterial nur mit gekauften Videorechten (Product Terms §1.7). Für YouTube & Co. einen kostenlosen Stil oder MapTiler wählen.")}
@@ -330,8 +330,7 @@ function mountAnimator(body, headerActions, opts) {
               <span class="label-val" id="anim-pointcount-v">— / —</span>
               <!-- v0.8.19 — Hint als klick-Tooltip statt Dauer-Text:
                    liest man einmal, dann nicht mehr. -->
-              <button type="button" class="field-help" data-help="point_count"
-                      title="${t("animator.help.show")}">?</button>
+              <button type="button" class="field-help" data-help="point_count">?</button>
             </label>
             <input type="range" id="anim-pointcount" min="10" max="100" step="1" value="100" disabled>
             <div class="muted field-help-content" data-help-content="point_count" hidden
@@ -432,8 +431,7 @@ function mountAnimator(body, headerActions, opts) {
               <button type="button" class="btn btn-small" id="anim-color-auto">${t("animator.colors.auto", "Auto (min → max)")}</button>
             </div>
             <div style="margin-top:4px;">
-              <button type="button" class="field-help" data-help="colors_hint"
-                      title="${t("animator.help.show")}">?</button>
+              <button type="button" class="field-help" data-help="colors_hint">?</button>
               <span class="muted" style="font-size:11px;">${t("animator.colors.hint_kurz", "Wie die Farbwechsel gelten")}</span>
             </div>
             <div class="muted field-help-content" data-help-content="colors_hint" hidden
@@ -488,8 +486,7 @@ function mountAnimator(body, headerActions, opts) {
                    Nur bei Pfeil sichtbar; bei der Kugel gibt es keine Richtung. -->
               <div id="anim-dot-smooth-row" hidden>
                 <label class="field-label" style="margin-top:8px;">${t("animator.dot.smooth", "Ruhe des Pfeils")}
-                  <button type="button" class="field-help" data-help="dot_smooth"
-                          title="${t("animator.help.show")}">?</button>
+                  <button type="button" class="field-help" data-help="dot_smooth">?</button>
                   <span class="label-val" id="anim-dot-smooth-v">5</span>
                 </label>
                 <input type="range" id="anim-dot-smooth" min="0" max="10" step="1" value="5">
@@ -509,8 +506,7 @@ function mountAnimator(body, headerActions, opts) {
                lag. -->
           <div class="anim-tours-kopf">
             <span class="muted" id="anim-ablauf-kurz"></span>
-            <button type="button" class="field-help" data-help="tours"
-                    title="${t("animator.help.show", "Erklärung anzeigen")}">?</button>
+            <button type="button" class="field-help" data-help="tours">?</button>
           </div>
           <div class="muted field-help-content" data-help-content="tours" hidden
                style="font-size:11px; margin:0 0 8px; line-height:1.45;">
@@ -556,8 +552,7 @@ function mountAnimator(body, headerActions, opts) {
                gleiches Muster wie bei Tempo-Modus und Track-Punkten. -->
           <div class="field-label" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
             <span>${t("ghosts.label", "Zusätzliche Spuren")}</span>
-            <button type="button" class="field-help" data-help="ghosts"
-                    title="${t("animator.help.show", "Erklärung anzeigen")}">?</button>
+            <button type="button" class="field-help" data-help="ghosts">?</button>
           </div>
           <div class="muted field-help-content" data-help-content="ghosts" hidden
                style="font-size:11px; margin-top:2px; margin-bottom:8px; line-height:1.45;">
@@ -753,8 +748,7 @@ function mountAnimator(body, headerActions, opts) {
                   <input type="checkbox" id="anim-kf-follow-track">
                   <span>🚶 ${t("animator.kf.follow_track")}</span>
                 </label>
-                <button type="button" class="field-help" data-help="kf-follow-hint"
-                        title="${t("animator.help.show")}">?</button>
+                <button type="button" class="field-help" data-help="kf-follow-hint">?</button>
               </div>
               <div class="muted field-help-content" data-help-content="kf-follow-hint" hidden
                    style="font-size:11px; margin-top:6px; line-height:1.45;">
@@ -771,10 +765,8 @@ function mountAnimator(body, headerActions, opts) {
               <!-- v0.8.20 — Hilfetexte als ?-Tooltips zusammengefasst.
                    Marc-Wunsch: „liest man auch nur 1x". -->
               <div style="display:flex; gap:8px; margin-top:10px; flex-wrap: wrap;">
-                <button type="button" class="field-help-pill" data-help="kf-edit-hint"
-                        title="${t("animator.help.show")}">? ${t("animator.help.label.kf_edit")}</button>
-                <button type="button" class="field-help-pill" data-help="kf-delete-hint"
-                        title="${t("animator.help.show")}">? ${t("animator.help.label.kf_delete")}</button>
+                <button type="button" class="field-help-pill" data-help="kf-edit-hint">? ${t("animator.help.label.kf_edit")}</button>
+                <button type="button" class="field-help-pill" data-help="kf-delete-hint">? ${t("animator.help.label.kf_delete")}</button>
               </div>
               <div class="muted field-help-content" data-help-content="kf-edit-hint" hidden
                    style="font-size:11px; margin-top:6px; line-height:1.45;">
@@ -1058,8 +1050,7 @@ function mountAnimator(body, headerActions, opts) {
                 </div>
                 <div id="anim-wm-name" class="muted-note" style="margin-top:4px; word-break:break-all;"></div>
                 <div style="margin-top:6px">
-                  <button type="button" class="field-help" data-help="wm_drag"
-                          title="${t("animator.help.show")}">?</button>
+                  <button type="button" class="field-help" data-help="wm_drag">?</button>
                   <span class="muted-note">🖱 ${t("animator.wm.drag_kurz", "Platzieren")}</span>
                 </div>
                 <div class="muted-note field-help-content" data-help-content="wm_drag" hidden
@@ -1085,7 +1076,7 @@ function mountAnimator(body, headerActions, opts) {
           <div style="display:flex; gap:6px; align-items:center;">
             <button type="button" class="btn btn-subtle" style="flex:1;" id="anim-signs-place">${t("signs.place_button", "📍 Auf Track")}</button>
             <button type="button" class="btn btn-subtle" style="flex:1;" id="anim-signs-place-free">${t("signs.place_free_button", "📌 Frei platzieren")}</button>
-            <button type="button" class="field-help" data-help="signs-photos" title="${t("animator.help.show")}">?</button>
+            <button type="button" class="field-help" data-help="signs-photos">?</button>
           </div>
           <div class="muted field-help-content" data-help-content="signs-photos" hidden style="font-size:11px; margin-top:6px; line-height:1.45;">
             ${t("signs.help", "Schilder und Fotos entlang der Route — ein Foto ist ein Schild mit Bild. Mit „📷 Fotos hinzufügen“ kommen Fotos (mit GPS) automatisch an ihre Aufnahme-Koordinaten. Alles erscheint im Video, sobald der Marker den Punkt erreicht. In der Liste: ⠿ ziehen zum Sortieren, Häkchen = an/aus, ✎ = bearbeiten, ✕ = löschen.")}
@@ -1202,8 +1193,7 @@ function mountAnimator(body, headerActions, opts) {
                = wechselndes Tempo im Bild). -->
           <div class="field">
             <label class="field-label">${t("animator.field.pace_mode")}
-              <button type="button" class="field-help" data-help="pace_mode"
-                      title="${t("animator.help.show")}">?</button>
+              <button type="button" class="field-help" data-help="pace_mode">?</button>
             </label>
             <select id="anim-pace" class="select">
               <option value="even">${t("animator.pace.even")}</option>
@@ -1231,8 +1221,7 @@ function mountAnimator(body, headerActions, opts) {
                63 von 232 Sekunden Standbild gehabt, in 27 Einfrierern. -->
           <div class="field" id="anim-pause-box" hidden>
             <label class="field-label">${t("animator.field.pause_mode")}
-              <button type="button" class="field-help" data-help="pause_info"
-                      title="${t("animator.help.show")}">?</button>
+              <button type="button" class="field-help" data-help="pause_info">?</button>
             </label>
             <select id="anim-pause-mode" class="select">
               <option value="trim">${t("animator.pause.trim")}</option>
