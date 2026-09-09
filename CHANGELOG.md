@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Added
+- Transitions: a fourth style "Pause" next to cinematic flight, straight line and cut — nothing moves, picture and running dot stay at the end of the previous stage, the hold stays in the timeline, the picture jumps with the next stage (timeline menu and sidebar). — Übergang „Pause": nichts passiert, der Halt bleibt, das Bild springt erst mit der nächsten Etappe.
+
+### Fixed
+- Elevation profile of a journey was always flat: the bridge delivers 800 points but only 200 elevations per track, and the equality check dropped them. Elevations are now mapped onto the points. — Höhenprofil der Reise war immer platt (800 Punkte, 200 Höhen); jetzt auf die Punkte abgebildet.
+
 ### Changed
 - Animator: the "Line" section is gone; every track entry under "Tracks" expands (▸) to its own look — width, line style with spacing, shadow, glow and point reduction in percent. New tracks copy track 1's look. "Apply look to all tracks …" copies chosen fields (checkboxes; colour unticked by default) from one track to all others. The running dot (show, ball/arrow, size) is per track as well; the global dot block and the "main tour's shape for all" checkbox are gone. Tours on parallel rows (swarm mechanics) now carry shadow, glow, dash pattern, tube and their own dot in preview and render (draped instead of the 3D line when styled); pace mode and pauses moved to the video settings. The colour gradient stays track-1-only. — „Linie" ist weg: jeder Track hat unter „Tracks" sein eigenes Aussehen (▸) samt Laufpunkt, „Aussehen auf alle übernehmen …" mit Checkboxen; parallele Spuren tragen Schatten, Glow, Muster und eigenen Laufpunkt; Tempo-Modus und Pausen in den Video-Einstellungen.
 

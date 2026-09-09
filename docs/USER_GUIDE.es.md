@@ -358,7 +358,7 @@ pistas secundarias con estilo se posan sobre el terreno como la línea principal
 En cuanto hay dos o más rutas en el proyecto, la pista de tempo sobre la línea de tiempo se
 convierte en la **fila de rutas**: cada ruta es un **grupo** y recibe allí una ficha con su
 nombre, factor y segundos. El hueco entre dos fichas es la transición (✈ vuelo de cine,
-↗ línea recta, ✂ corte); las bandas rayadas son paradas — antes del contenido, o al final
+↗ línea recta, ⏸ pausa, ✂ corte); las bandas rayadas son paradas — antes del contenido, o al final
 cuando un grupo termina antes que el vídeo. Un grupo que corre a la vez que otro recibe
 debajo su propia fila **„en paralelo"**. La regla de fondo: todas las rutas de un proyecto
 duran lo mismo — lo que dura el vídeo; la disposición está solo en dónde quedan sus paradas.
@@ -368,7 +368,7 @@ Todo se hace con el ratón:
 - **Arrastrar una ficha** — el grupo se mueve en el tiempo. Si cae sobre otro, ambos corren a la
   vez (fila propia). Luego se queda donde lo dejaste.
 - **Tocar una transición** — la banda entre dos grupos se puede **arrastrar** (duración de la
-  transición) y **pulsar**: eliges vuelo, línea recta o corte directamente en la línea de tiempo.
+  transición) y **pulsar**: eliges vuelo, línea recta, pausa (no pasa nada: imagen y punto se quedan al final de la etapa, la parada permanece, la imagen salta con la etapa siguiente) o corte directamente en la línea de tiempo.
   La parada antes del primer grupo también se arrastra.
 - **Arrastrar los bordes** — el grupo se alarga o acorta; lo que se guarda es el **factor**
   (0,5× = la mitad de rápido, el doble de tiempo). Los grupos siguientes se desplazan.

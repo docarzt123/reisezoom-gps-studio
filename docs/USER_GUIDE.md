@@ -381,7 +381,9 @@ und darunter ihre Bedienung:
   gilt weiterhin nur für Track 1; bei 3D-Gelände liegen gestaltete Nebenspuren wie die
   Hauptlinie auf dem Gelände.)*
 - Zwischen zwei Etappen steht der **Übergang**: **Kinoflug** (zoomt heraus, fliegt
-  hinüber, zoomt wieder hinein), **Luftlinie** (fährt gerade) oder **Schnitt** (springt
+  hinüber, zoomt wieder hinein), **Luftlinie** (fährt gerade), **Pause** (nichts passiert:
+  das Bild und der Laufpunkt bleiben am Ende der Etappe stehen, der Halt bleibt in der
+  Zeitleiste, erst mit der nächsten Etappe springt das Bild) oder **Schnitt** (springt
   ohne Zwischenbild). Die Sekunden daneben gelten nur für diesen einen Übergang; leer
   heißt „die gemeinsame Kinoflug-Dauer ganz unten".
 
@@ -401,7 +403,7 @@ länger, als dass eine Etappe unsichtbar durchrauscht.
 Sobald zwei oder mehr Touren im Projekt sind, wird die Tempo-Spur über der Zeitleiste zur
 **Touren-Zeile**: jede Tour ist eine **Gruppe** und bekommt dort eine Kachel mit Name,
 Faktor und Sekunden. Die Lücke zwischen zwei Kacheln ist der Übergang (✈ Kinoflug,
-↗ Luftlinie, ✂ Schnitt), schraffierte Bänder sind Halte — vor dem Inhalt, oder hinten,
+↗ Luftlinie, ⏸ Pause, ✂ Schnitt), schraffierte Bänder sind Halte — vor dem Inhalt, oder hinten,
 wenn eine Gruppe früher fertig ist als das Video. Läuft eine Gruppe gleichzeitig mit einer
 anderen, bekommt sie darunter eine eigene Zeile **„parallel"**. Die Regel dahinter: alle
 Touren eines Projekts sind gleich lang — nämlich so lang wie das Video; die Anordnung steckt
@@ -412,7 +414,7 @@ Alles lässt sich mit der Maus machen:
 - **Kachel ziehen** — die Gruppe wandert in der Zeit. Landet sie über einer anderen, laufen
   beide gleichzeitig (eigene Zeile). Sie bleibt dann, wo Sie sie hingelegt haben.
 - **Übergang anfassen** — das Band zwischen zwei Gruppen lässt sich **ziehen** (Dauer des
-  Übergangs) und **anklicken**: dann wählen Sie Kinoflug, Luftlinie oder Schnitt direkt in der
+  Übergangs) und **anklicken**: dann wählen Sie Kinoflug, Luftlinie, Pause oder Schnitt direkt in der
   Zeitleiste. Auch der Halt vor der ersten Gruppe lässt sich ziehen.
 - **Ränder ziehen** — die Gruppe wird länger oder kürzer; gespeichert wird der **Faktor**
   (0,5× = halb so schnell, doppelte Zeit). Die folgenden Gruppen rücken nach.

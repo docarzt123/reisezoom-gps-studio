@@ -3059,5 +3059,6 @@
   "animator.stil.was": "What to apply?",
   "animator.stil.ok": "Apply",
   "animator.section.tours_hint": "Every track has its own look: ▸ on the entry opens width, style, shadow, glow, point reduction and the running dot.",
-  "animator.stil.alle_pfeile": "all arrows"
+  "animator.stil.alle_pfeile": "all arrows",
+  "animator.tours.ueber_pause": "Pause"
 }
