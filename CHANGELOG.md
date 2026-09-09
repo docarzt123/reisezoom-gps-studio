@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Speed lane: a stored speed-up was applied under whatever pace basis the project currently used. A rate saved as "2.95 km per video second" (basis distance) was read as "2.95 points per second" once the pace mode was "points", the video became 10,216 s long and the preview run seemed to hang. A rate now counts only under the basis it was derived with; if the basis differs, the sidebar duration leads, the rate is re-derived and saved with the right basis, and app.log says so. — Eine gespeicherte Raffung gilt nur unter ihrer Grundlage; sonst führt die Dauer und die Raffung wird neu abgeleitet.
+
 ### Changed
 - Animator: the "Multiple tours" section is visible again with a single tour, so "Add tour" is reachable for an open project; it was hidden since v0.9.464 because the preview did not fly cleanly to further tours — the group model fixed that. "Add tour" now opens a picker from the archive (thumbnail, date and kilometres per row, loaded lazily in batches; search and the archive's filters — collection (in its order), year, activity, length, sort, favourites; tick several, loaded tours greyed out) instead of a file dialog — the archive is the truth; "Import file …" inside the picker takes a file into the archive first and ticks it. The shared picker lives in `rzArchivTourenWaehlen` (ui/js/util.js) and is used wherever a tour was picked from the file system before: ghost tracks (one button "Add ghost track …" instead of archive/file), the inspector's "Join tracks", the web map's "Add track", and the header's "Open tour" (single pick). — „Mehrere Touren" ist auch bei einer Tour da; „Tour hinzufügen", Ghost-Spuren, Tracks verbinden, Web-Karte und „Tour öffnen" wählen aus dem Archiv, „Datei importieren …" nimmt Fremdes erst ins Archiv.
 
