@@ -3037,3 +3037,12 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
    Ziehharmonika, etwas eingerückt und leiser als die Hauptköpfe. */
 .section-sub { margin-top: 10px; padding-left: 8px; border-left: 2px solid var(--border); gap: 6px; }
 .section-sub > .section-collapse-header { padding: 5px 8px; font-size: 11px; background: transparent; }
+
+/* Hilfe-Tooltip beim Überfahren eines ? (09.09.2026) — sofort, ohne „Hilfe anzeigen". */
+.rz-hilfe-tip {
+  position: fixed; z-index: 10060; max-width: 340px; pointer-events: none;
+  background: rgba(28, 30, 36, 0.97); color: #e8e8ec; border: 1px solid rgba(255,255,255,.14);
+  border-radius: 8px; padding: 8px 10px; font-size: 11.5px; line-height: 1.45;
+  box-shadow: 0 8px 24px rgba(0,0,0,.45); white-space: normal;
+}
+.rz-hilfe-tip a { color: var(--accent, #ff6b35); }

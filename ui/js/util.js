@@ -1820,6 +1820,59 @@ document.addEventListener("click", (e) => {
   btn.classList.toggle("is-open", willShow);
 });
 
+// 09.09.2026 (Marc: „mach die ganzen ? so, dass da nicht ‚Hilfe anzeigen' kommt,
+// wenn man hovert, sondern direkt die Hilfe im kleinen Tooltip, solange man über
+// dem ? ist"): Ein Hilfe-Marker zeigt beim Überfahren SOFORT seinen Text — den
+// Inhalt seines `.field-help-content`-Blocks, sonst seinen `title`. Der native
+// title-Tooltip wird dafür beiseitegelegt (sonst käme „Hilfe anzeigen" dazu).
+// Klick klappt den Text weiterhin dauerhaft auf (Touch, Nachlesen).
+(function () {
+  const MARKER = ".field-help, .field-help-pill, .gt-help, .ov-help, .rz-help, .gpxi-q, [data-tip]";
+  let tip = null, aktiv = null;
+  function textFuer(btn) {
+    const key = btn.dataset.help;
+    if (key) {
+      const c = document.querySelector(`.field-help-content[data-help-content="${key}"]`);
+      if (c && c.innerHTML.trim()) return { html: c.innerHTML };
+    }
+    if (btn.title) { btn.dataset.tip = btn.title; btn.removeAttribute("title"); }
+    const t = btn.dataset.tip;
+    return t ? { text: t } : null;
+  }
+  function zeigen(btn) {
+    const inhalt = textFuer(btn);
+    if (!inhalt) return;
+    weg();
+    tip = document.createElement("div");
+    tip.className = "rz-hilfe-tip";
+    tip.setAttribute("role", "tooltip");
+    if (inhalt.html) tip.innerHTML = inhalt.html; else tip.textContent = inhalt.text;
+    document.body.appendChild(tip);
+    const r = btn.getBoundingClientRect();
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = r.left, y = r.bottom + 6;
+    if (x + w > window.innerWidth - 8) x = Math.max(8, window.innerWidth - w - 8);
+    if (y + h > window.innerHeight - 8) y = Math.max(8, r.top - h - 6);
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+    aktiv = btn;
+  }
+  function weg() { if (tip) { tip.remove(); tip = null; } aktiv = null; }
+  document.addEventListener("mouseover", (e) => {
+    const btn = e.target.closest && e.target.closest(MARKER);
+    if (!btn || btn === aktiv) return;
+    zeigen(btn);
+  });
+  document.addEventListener("mouseout", (e) => {
+    if (!aktiv) return;
+    const nach = e.relatedTarget;
+    if (nach && aktiv.contains(nach)) return;
+    weg();
+  });
+  document.addEventListener("scroll", weg, true);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") weg(); });
+  window.__rzHilfeTip = () => tip;   // Prüfstand
+})();
+
 // v0.9.12 — Render-Lock-Helper. Setzt/entfernt `body.is-rendering`
 // damit der Render-Lock-Style (siehe app.css) greift. Module rufen das
 // beim Start + bei Done/Cancel/Error. Idempotent.
