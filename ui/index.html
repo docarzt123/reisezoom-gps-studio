@@ -44,6 +44,8 @@
       tr_1: 'Dieses Fenster schließen.',
       tr_2: 'Das Download-Fenster mit dem <b>Reisezoom-Symbol</b> öffnen und das Symbol <b>in den Ordner „Programme" ziehen</b> — nicht doppelklicken, sondern rüberziehen.',
       tr_3: 'Die App danach aus dem <b>Programme-Ordner</b> (oder Launchpad) starten. Beim ersten Mal ggf. <b>Rechtsklick → „Öffnen"</b>.',
+      tr_kopien: 'Die App liegt schon in <b>Programme</b>: {n}. Bitte <b>von dort</b> starten (Launchpad oder Finder → Programme), nicht aus dem Download-Fenster — das Download-Laufwerk danach auswerfen.',
+      tr_kopien_mehr: 'Es liegen <b>mehrere Kopien</b> in Programme. Alle bis auf eine löschen (im Finder in den Papierkorb ziehen), sonst startet Launchpad mal die eine, mal die andere.',
       log_kopf: 'Klappt es trotzdem nicht? Schick uns den Log',
       log_text: 'Der Log zeigt genau, was schiefgelaufen ist — am einfachsten so:',
       log_desktop: '📄 Log auf den Schreibtisch legen',
@@ -62,6 +64,8 @@
       tr_1: 'Close this window.',
       tr_2: 'Open the download window with the <b>Reisezoom icon</b> and <b>drag the icon into the "Applications" folder</b> — drag it, do not double-click it.',
       tr_3: 'Then start the app from the <b>Applications folder</b> (or Launchpad). The first time you may need <b>right-click → "Open"</b>.',
+      tr_kopien: 'The app is already in <b>Applications</b>: {n}. Please start it <b>from there</b> (Launchpad or Finder → Applications), not from the download window — then eject the download disk image.',
+      tr_kopien_mehr: 'There are <b>several copies</b> in Applications. Delete all but one (drag to the Trash in Finder), otherwise Launchpad opens one or the other at random.',
       log_kopf: 'Still not working? Send us the log',
       log_text: 'The log shows exactly what went wrong — easiest this way:',
       log_desktop: '📄 Put the log on the desktop',
@@ -80,6 +84,8 @@
       tr_1: 'Cierra esta ventana.',
       tr_2: 'Abre la ventana de descarga con el <b>icono de Reisezoom</b> y <b>arrastra el icono a la carpeta «Aplicaciones»</b>: arrástralo, no hagas doble clic.',
       tr_3: 'Después inicia la aplicación desde la <b>carpeta Aplicaciones</b> (o el Launchpad). La primera vez quizá necesites <b>clic derecho → «Abrir»</b>.',
+      tr_kopien: 'La aplicación ya está en <b>Aplicaciones</b>: {n}. Inícala <b>desde ahí</b> (Launchpad o Finder → Aplicaciones), no desde la ventana de descarga; después expulsa la imagen de disco.',
+      tr_kopien_mehr: 'Hay <b>varias copias</b> en Aplicaciones. Borra todas menos una (arrástralas a la Papelera en el Finder); si no, Launchpad abre una u otra al azar.',
       log_kopf: '¿Sigue sin funcionar? Mándanos el registro',
       log_text: 'El registro muestra exactamente qué ha fallado; lo más sencillo es así:',
       log_desktop: '📄 Dejar el registro en el escritorio',
@@ -200,22 +206,32 @@
 
     // v0.9.472 — kam der Fehler ohne AppTranslocation-Pfad im Text (z. B.
     // Zeitüberschreitung), trotzdem das Backend fragen und die Anleitung nachziehen.
-    if (!isTranslo) {
-      try {
-        var api = window.pywebview && window.pywebview.api;
-        if (api && api.startup_env) {
-          var q = api.startup_env();
-          if (q && q.then) q.then(function (env) {
-            if (env && env.translocated) {
-              var slot = document.getElementById('rz-translo');
-              if (slot && !slot.innerHTML) slot.innerHTML = transloBanner();
-              var sub = document.getElementById('rz-se-sub');
-              if (sub) sub.textContent = 'Fast geschafft — es fehlt nur der letzte Installations-Schritt.';
-            }
-          }).catch(function () {});
-        }
-      } catch (e) {}
-    }
+    // 09.09.2026 (Beta-Tester): Das Backend weiß, ob die App schon in Programme
+    // liegt — und ob mehrfach („Reisezoom GPS Studio 2.app"). Dann sagt die
+    // Seite das ausdrücklich, statt nur „rüberziehen" zu wiederholen.
+    try {
+      var api = window.pywebview && window.pywebview.api;
+      if (api && api.startup_env) {
+        var q = api.startup_env();
+        if (q && q.then) q.then(function (env) {
+          if (!env || !env.translocated) return;
+          var slot = document.getElementById('rz-translo');
+          if (slot && !slot.innerHTML) slot.innerHTML = transloBanner();
+          var sub = document.getElementById('rz-se-sub');
+          if (sub) sub.textContent = TX.sub_translo;
+          var kopien = (env.kopien || []).filter(Boolean);
+          if (slot && kopien.length && !document.getElementById('rz-kopien')) {
+            var namen = kopien.map(function (k) { return '„' + esc(String(k).replace(/\.app$/, '')) + '“'; }).join(', ');
+            var txt = TX.tr_kopien.replace('{n}', namen) + (kopien.length > 1 ? '<br><br>' + TX.tr_kopien_mehr : '');
+            var box2 = document.createElement('div');
+            box2.id = 'rz-kopien';
+            box2.setAttribute('style', 'background:#10301c;border:1px solid #3fb950;border-radius:8px;padding:12px 14px;margin:-8px 0 22px;color:#c9e9d1;font-size:13px');
+            box2.innerHTML = txt;
+            slot.parentNode.insertBefore(box2, slot.nextSibling);
+          }
+        }).catch(function () {});
+      }
+    } catch (e) {}
   };
 
   // WICHTIG: Der Fehler-Bildschirm erscheint NUR solange die Oberfläche noch nicht

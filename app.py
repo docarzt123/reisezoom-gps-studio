@@ -424,6 +424,12 @@ def _detect_startup_env() -> dict:
         blob = (exe + " " + root)
         info["translocated"] = "/AppTranslocation/" in blob
         info["in_applications"] = "/applications/" in exe.lower()
+        # 09.09.2026 (Beta-Tester): Er startete die App aus dem Download-Fenster,
+        # obwohl sie längst in Programme lag — sogar zweimal („Reisezoom GPS
+        # Studio 2.app"). Die Startfehler-Seite soll das sagen können.
+        if sys.platform == "darwin":
+            import glob as _glob
+            info["kopien"] = sorted(Path(x).name for x in _glob.glob("/Applications/Reisezoom GPS Studio*.app"))
     except Exception:
         pass
     return info

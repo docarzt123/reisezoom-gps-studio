@@ -3418,7 +3418,8 @@ function mountAnimator(body, headerActions, opts) {
       if (!cv || !wrap) return false;
       const pr = (typeof map.getPixelRatio === "function") ? map.getPixelRatio() : (window.devicePixelRatio || 1);
       const fw = wrap.clientWidth, fh = wrap.clientHeight;
-      const zeile = `${anlass}: Fläche ${fw}×${fh} css · Leinwand ${cv.width}×${cv.height} px = ${cv.clientWidth}×${cv.clientHeight} css · Pixelmaß ${pr} · k ${wrap.style.getPropertyValue("--rz-prev-k") || "?"}`;
+      const tr = map.transform || {};
+      const zeile = `${anlass}: Fläche ${fw}×${fh} css · Leinwand ${cv.width}×${cv.height} px = ${cv.clientWidth}×${cv.clientHeight} css · transform ${tr.width}×${tr.height} · Pixelmaß ${pr} · k ${wrap.style.getPropertyValue("--rz-prev-k") || "?"} · labelK ${map.__rzLabelK} · Zoom ${map.getZoom().toFixed(2)}`;
       const passt = Math.abs(cv.clientWidth - fw) <= 1 && Math.abs(cv.clientHeight - fh) <= 1
         && Math.abs(cv.width - Math.round(fw * pr)) <= 2 && Math.abs(cv.height - Math.round(fh * pr)) <= 2;
       if (!passt) {
