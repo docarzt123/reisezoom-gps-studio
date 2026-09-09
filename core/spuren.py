@@ -64,6 +64,10 @@ class Gruppe:
     ueber_s: Optional[float] = None  # Regel für die Kette: Lücke davor (None = gemeinsame Flugdauer)
     zu: bool = True                 # Zeile zugeklappt?
     fest: bool = False              # von Hand gelegt — die Kette schiebt sie nicht mehr
+    # 09.09.2026 (Marc: „hoch, runter, über einer Spur bleiben → der Track
+    # rutscht in diese Spur; weiter hoch/runter → eigene Spur"): eine gewünschte
+    # Zeile, 1-basiert; 0 = wie bisher die erste freie. Nur für `fest` sinnvoll.
+    zeile: int = 0
 
     @property
     def takt_gpx(self) -> str:
@@ -80,6 +84,7 @@ class Lage:
     vorlauf_s: float
     inhalt_s: float
     nachlauf_s: float
+    zeile: int = 0                  # gewünschte Zeile (0 = automatisch)
 
     @property
     def von_s(self) -> float:
@@ -141,7 +146,8 @@ def zeitplan(gruppen: List[Gruppe], roh_s: Dict[str, float],
     for g in gruppen:
         vor = max(0.0, _sauber(g.vorlauf_s, 0.0))
         inh = inhalt_dauer(g, roh_s.get(g.id, 0.0))
-        roh_teil.append(Lage(id=g.id, vorlauf_s=vor, inhalt_s=inh, nachlauf_s=0.0))
+        roh_teil.append(Lage(id=g.id, vorlauf_s=vor, inhalt_s=inh, nachlauf_s=0.0,
+                             zeile=max(0, int(_sauber(getattr(g, "zeile", 0), 0)))))
 
     dauer = max([l.bis_s for l in roh_teil], default=0.0)
     if mindest_s > dauer + 1e-9:
@@ -170,17 +176,37 @@ def ueberlappt(a: Lage, b: Lage) -> bool:
 
 
 def zeilen(plan: Plan) -> List[List[str]]:
-    """Welche Gruppen sich eine Zeile teilen können — in der Reihenfolge der
-    Liste, jede Gruppe in die erste Zeile, in der ihr Inhalt frei liegt."""
+    """Welche Gruppen sich eine Zeile teilen — in der Reihenfolge der Liste.
+
+    Erst die Gruppen mit GEWÜNSCHTER Zeile (`zeile` ≥ 1, aus dem Ziehen in eine
+    Spur): sie kommen in diese Zeile, und wenn dort schon etwas überlappt, in
+    die nächste freie darunter. Dann die übrigen: jede in die erste Zeile, in
+    der ihr Inhalt frei liegt. Leere Zeilen fallen weg — die Nummern der
+    Oberfläche sind die Nummern der vollen Zeilen."""
     raus: List[List[Lage]] = []
+
+    def frei(z: int, l: Lage) -> bool:
+        return z >= len(raus) or not any(ueberlappt(l, x) for x in raus[z])
+
+    def rein(z: int, l: Lage) -> None:
+        while len(raus) <= z:
+            raus.append([])
+        raus[z].append(l)
+
     for l in plan.lagen:
-        for zeile in raus:
-            if not any(ueberlappt(l, x) for x in zeile):
-                zeile.append(l)
-                break
-        else:
-            raus.append([l])
-    return [[l.id for l in zeile] for zeile in raus]
+        if l.zeile >= 1:
+            z = l.zeile
+            while not frei(z, l):
+                z += 1
+            rein(z, l)
+    for l in plan.lagen:
+        if l.zeile >= 1:
+            continue
+        z = 0
+        while not frei(z, l):
+            z += 1
+        rein(z, l)
+    return [[l.id for l in zeile] for zeile in raus if zeile]
 
 
 # ── Umrechnung bestehender Projekte (§60, Punkt 11) ────────────────────────

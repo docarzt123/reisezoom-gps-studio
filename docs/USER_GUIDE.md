@@ -397,10 +397,12 @@ Alles lässt sich mit der Maus machen:
   beide gleichzeitig (eigene Zeile). Sie bleibt dann, wo Sie sie hingelegt haben.
 - **Ränder ziehen** — die Gruppe wird länger oder kürzer; gespeichert wird der **Faktor**
   (0,5× = halb so schnell, doppelte Zeit). Die folgenden Gruppen rücken nach.
-- **Nach oben ziehen** — eine parallel liegende Gruppe kommt **zurück in die Reihe** und läuft
-  nach der Gruppe, die vor ihr beginnt, mit Übergang. **Nach unten ziehen** nimmt eine Gruppe
-  aus der Reihe: sie bleibt an ihrer Zeit stehen und läuft parallel. Beides steht auch im
-  Rechtsklick-Menü der Kachel.
+- **Nach oben oder unten ziehen** — wie Spuren im Schnittprogramm: Die Zeile, über der Sie
+  loslassen, leuchtet auf, und die Gruppe rutscht hinein. Zeile 1 ist die **Reihe**: dort läuft
+  sie nach der Gruppe, die vor ihr beginnt, mit Übergang. Eine andere Zeile: sie bleibt an
+  ihrer Zeit und läuft parallel; liegt dort schon etwas im Weg, rutscht sie dahinter. Über die
+  oberste oder unter die unterste Zeile hinaus: eine **eigene Spur**. „In die Reihe" und
+  „Eigene Spur" stehen auch im Rechtsklick-Menü der Kachel.
 - **Kamera:** Die **oberste** Gruppe führt die Kamera (🎥 an der Kachel). Rechtsklick →
   „Kamera folgt dieser Gruppe" holt eine andere nach oben; innerhalb der Reihe geht das auch
   per Hoch-/Runterziehen.

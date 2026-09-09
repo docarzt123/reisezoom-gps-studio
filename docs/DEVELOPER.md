@@ -676,7 +676,7 @@ Dadurch ist der ganze Zeitplan in Millisekunden prüfbar
 |---|---|
 | `zeitplan(gruppen, roh_s, mindest_s)` | Lage jeder Gruppe + Projektlänge |
 | `aus_projekt(animator, roh_s, groesse)` | Umrechnung der heutigen Felder |
-| `zeilen(plan)` | welche Gruppen sich eine Zeile teilen |
+| `zeilen(plan)` | welche Gruppen sich eine Zeile teilen — erst die mit Zeilenwunsch (`Gruppe.zeile` ≥ 1, aus dem Ziehen in eine Spur; überlappt dort etwas, rutscht sie in die nächste), dann die übrigen in die erste freie; leere Zeilen fallen weg, `_gruppenPlanRechnen` schreibt die sichtbaren Nummern zurück |
 | `kamera_gruppe(gruppen)` | die oberste — sie führt |
 | `ueberlappt(a, b)` | **auf den INHALTEN**, nicht den Halten |
 

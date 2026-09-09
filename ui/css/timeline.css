@@ -1028,3 +1028,6 @@ body.wert-zieht .timeline-marker.is-selected {
 }
 .tl-menue-eintrag:hover, .tl-menue-eintrag:focus-visible { background: rgba(255,169,77,.22); outline: none; }
 .tl-menue-eintrag.ist-gefaehrlich:hover { background: rgba(255, 90, 90, .28); }
+
+/* Ziel-Spur beim senkrechten Ziehen einer Gruppe (09.09.2026) */
+.timeline-lane.ist-ziel .lane-track { box-shadow: inset 0 0 0 2px rgba(255,169,77,.75); background: rgba(255,169,77,.08); }

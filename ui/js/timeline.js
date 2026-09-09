@@ -530,11 +530,40 @@ function mountTimelineBar(opts) {
   /** Was Hoch/Runter für DIESE Kachel heißt: +1 = in die Reihe (sie liegt
    *  parallel), −1 = aus der Reihe (sie liegt in der Reihe und es gibt noch
    *  andere), 0 = kein Zeilenwechsel möglich → Kamera-Reihenfolge. */
-  function _gruppenZeilenWechsel(g, richtung) {
-    if (!g) return 0;
-    if (richtung > 0) return g.fest ? 1 : 0;
-    if (richtung < 0) return (!g.fest && _gruppenZeilen.length && _gruppenZeilen[0].length > 1) ? -1 : 0;
+  /** Alle Zeilen der Gruppen als Elemente: [Tempo-Spur, Gruppen-Zeile 1, …]. */
+  function _gruppenZeilenElemente() {
+    const raus = [];
+    const t = host.querySelector('.timeline-lane[data-kind="tempo"]'); if (t) raus.push(t);
+    host.querySelectorAll('.timeline-lane[data-kind="gruppe"]').forEach(z => raus.push(z));
+    return raus;
+  }
+  /** In welcher Zeile eine Gruppe gerade liegt. */
+  function _gruppenZeileVon(id) {
+    for (let z = 0; z < _gruppenZeilen.length; z++) if (_gruppenZeilen[z].some(g => g.id === id)) return z;
     return 0;
+  }
+  /** Wohin ein senkrechter Zug führt: { ziel: 0|k|"eigen", el } oder null (keine Änderung).
+   *  Über einer Zeile → diese Zeile; über der obersten oder unter der untersten
+   *  hinaus → eigene Spur (Marc, 09.09.2026). */
+  function _gruppenZielSpur(id, clientY) {
+    const zeilen = _gruppenZeilenElemente();
+    if (!zeilen.length) return null;
+    const eigene = _gruppenZeileVon(id);
+    const rects = zeilen.map(z => z.getBoundingClientRect());
+    const rand = 10;
+    if (clientY < rects[0].top - rand) return { ziel: "eigen", el: null, oben: true };
+    if (clientY > rects[rects.length - 1].bottom + rand) return { ziel: "eigen", el: null, oben: false };
+    for (let z = 0; z < rects.length; z++) {
+      if (clientY >= rects[z].top && clientY <= rects[z].bottom) {
+        if (z === eigene) return null;
+        return { ziel: z, el: zeilen[z] };
+      }
+    }
+    return null;
+  }
+  function _gruppenZielMarkieren(el) {
+    host.querySelectorAll(".timeline-lane.ist-ziel").forEach(x => { if (x !== el) x.classList.remove("ist-ziel"); });
+    if (el) el.classList.add("ist-ziel");
   }
   function _gruppeVonId(id) {
     for (const z of _gruppenZeilen) for (const g of z) if (g.id === id) return g;
@@ -557,10 +586,10 @@ function mountTimelineBar(opts) {
       { text: tlT("animator.tempo.menu_oeffnen", "Öffnen …"),
         tun: () => { try { (cb.onGruppeOeffnen || (() => {}))(id); } catch (e) { console.warn("onGruppeOeffnen:", e); } } },
     ];
-    if (g && g.fest) eintraege.push({ text: tlT("animator.gruppe.zeile_rein", "In die Reihe (läuft nach der vorigen Gruppe)"),
-      tun: () => { try { (cb.onGruppenZeile || (() => {}))(id, 1); } catch (e) { console.warn("onGruppenZeile:", e); } } });
-    else if (g && _gruppenZeilen.length && _gruppenZeilen[0].length > 1) eintraege.push({ text: tlT("animator.gruppe.zeile_raus", "Aus der Reihe (bleibt an ihrer Zeit, parallel)"),
-      tun: () => { try { (cb.onGruppenZeile || (() => {}))(id, -1); } catch (e) { console.warn("onGruppenZeile:", e); } } });
+    if (g && (g.fest || _gruppenZeileVon(id) > 0)) eintraege.push({ text: tlT("animator.gruppe.zeile_rein", "In die Reihe (läuft nach der vorigen Gruppe)"),
+      tun: () => { try { (cb.onGruppenZeile || (() => {}))(id, 0); } catch (e) { console.warn("onGruppenZeile:", e); } } });
+    if (g) eintraege.push({ text: tlT("animator.gruppe.zeile_eigen", "Eigene Spur (bleibt an ihrer Zeit)"),
+      tun: () => { try { (cb.onGruppenZeile || (() => {}))(id, "eigen"); } catch (e) { console.warn("onGruppenZeile:", e); } } });
     if (g && !g.kamera) eintraege.push({ text: tlT("animator.gruppe.menu_kamera", "Kamera folgt dieser Gruppe (nach oben)"),
       tun: () => { try { (cb.onGruppenStapel || (() => {}))(id, 99); } catch (e) { console.warn("onGruppenStapel:", e); } } });
     _menueZeigen(ev, eintraege);
@@ -601,23 +630,21 @@ function mountTimelineBar(opts) {
       const dS = sekJePx > 0 ? dx * sekJePx : 0;
       const dPct = dx / spurPx * 100;
       if (z.art === "zeit") {
-        // nach oben/unten gezogen: Stapel — die Kachel bleibt stehen, die Zeile hebt sich ab
-        const stufen = Math.round(dy / Math.max(20, laneH));
-        z.stapel = Math.max(-1, Math.min(1, -stufen));
-        if (z.stapel) {
+        // Senkrecht gezogen: die Ziel-Spur (Marc, 09.09.2026: „hoch, runter,
+        // über einer Spur bleiben → der Track rutscht in diese Spur; weiter
+        // hoch oder runter → eigene Spur"). Die Kachel bleibt stehen, die
+        // Ziel-Zeile hebt sich ab.
+        const ziel = (Math.abs(dy) > Math.max(12, laneH * 0.45)) ? _gruppenZielSpur(z.id, e2.clientY) : null;
+        z.ziel = ziel ? ziel.ziel : null;
+        z.stapel = ziel ? (dy < 0 ? 1 : -1) : 0;
+        _gruppenZielMarkieren(ziel ? ziel.el : null);
+        if (ziel) {
           z.el.style.left = z.links0 + "%";
-          z.el.classList.toggle("zieht-hoch", z.stapel > 0);
-          z.el.classList.toggle("zieht-runter", z.stapel < 0);
-          // 09.09.2026 (Marc: „ich fass einen an und zieh ihn einfach in die
-          // höhere Spur rein, sodass ich nur noch eine Trackspur hab"): Hoch aus
-          // einer parallelen Zeile heißt „in die Reihe", runter aus der Reihe
-          // heißt „parallel, bleibt an ihrer Zeit". Nur wo es keine Zeile zu
-          // wechseln gibt, bleibt es die Kamera-Reihenfolge.
-          const wechsel = _gruppenZeilenWechsel(g, z.stapel);
-          setStatusHint(wechsel > 0 ? tlT("animator.gruppe.zeile_rein", "In die Reihe (läuft nach der vorigen Gruppe)")
-                      : wechsel < 0 ? tlT("animator.gruppe.zeile_raus", "Aus der Reihe (bleibt an ihrer Zeit, parallel)")
-                      : z.stapel > 0 ? tlT("animator.gruppe.stapel_hoch", "Gruppe nach oben (Kamera-Vorrang)")
-                                     : tlT("animator.gruppe.stapel_runter", "Gruppe nach unten"));
+          z.el.classList.toggle("zieht-hoch", dy < 0);
+          z.el.classList.toggle("zieht-runter", dy > 0);
+          setStatusHint(ziel.ziel === 0 ? tlT("animator.gruppe.zeile_rein", "In die Reihe (läuft nach der vorigen Gruppe)")
+                      : ziel.ziel === "eigen" ? tlT("animator.gruppe.zeile_eigen", "Eigene Spur (bleibt an ihrer Zeit)")
+                      : tlT("animator.gruppe.zeile_spur", "In Spur {n}").replace("{n}", ziel.ziel + 1));
         } else {
           z.el.classList.remove("zieht-hoch", "zieht-runter");
           const neuS = Math.max(0, z.vonS0 + dS);
@@ -640,14 +667,13 @@ function mountTimelineBar(opts) {
       document.removeEventListener("mouseup", hoch, true);
       const z = _gruppenZieh; _gruppenZieh = null;
       setStatusHint(null);
+      _gruppenZielMarkieren(null);
       if (!z || !z.bewegt) { _gruppenAlleZeichnen(); return; }
       const dx = e2.clientX - z.x0;
       const dS = sekJePx > 0 ? dx * sekJePx : 0;
       try {
         if (z.art === "zeit" && z.stapel) {
-          const wechsel = _gruppenZeilenWechsel(g, z.stapel);
-          if (wechsel) (cb.onGruppenZeile || (() => {}))(z.id, wechsel);
-          else (cb.onGruppenStapel || (() => {}))(z.id, z.stapel);
+          if (z.ziel != null) (cb.onGruppenZeile || (() => {}))(z.id, z.ziel);
         }
         else if (z.art === "zeit") (cb.onGruppeZiehen || (() => {}))(z.id, Math.max(0, z.vonS0 + dS), z.seite);
         else {
