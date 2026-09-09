@@ -14437,7 +14437,7 @@ function mountAnimator(body, headerActions, opts) {
         <input type="range" data-stil="width" min="1" max="10" step="0.5" value="${st.width}"></div>
       <div class="anim-stil-zeile"><label>${t("animator.field.line_style", "Linien-Stil")}</label>
         <select data-stil="line_style">${opt("solid","solid")}${opt("dashed","dashed")}${opt("dotted","dotted")}${opt("dashdot","dashdot")}${opt("tube","tube")}</select></div>
-      <div class="anim-stil-zeile" data-nur-muster ${st.line_style === "solid" || st.line_style === "tube" ? "hidden" : ""}><label>${t("animator.field.line_spacing", "Abstand")} <b data-v="spacing">${st.spacing}</b>×</label>
+      <div class="anim-stil-zeile" data-nur-muster ${st.line_style === "solid" || st.line_style === "tube" ? "hidden" : ""}><label>${t("animator.field.line_style_spacing", "Punktabstand")} <b data-v="spacing">${st.spacing}</b>×</label>
         <input type="range" data-stil="spacing" min="0.5" max="5" step="0.25" value="${st.spacing}"></div>
       <div class="anim-stil-zeile"><label>${t("animator.field.shadow_strength", "Schatten-Stärke")} <b data-v="shadow">${st.shadow}</b></label>
         <input type="range" data-stil="shadow" min="0" max="10" step="0.5" value="${st.shadow}"></div>
