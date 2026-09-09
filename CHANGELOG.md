@@ -20,6 +20,12 @@ Bei jeder neuen Version:
 - Journeys: a line under the list says how long the journey really is, split into stages and transitions, and turns amber when the transitions outweigh the stages. In Marc's fifteen-stage project that was 12 seconds of stages against 42 seconds of flying, and nothing in the interface said so. — Eine Zeile sagt, wie lang die Reise wirklich wird.
 
 ### Changed
+- Several tours one after another now render through the scene, like everything else — the path that replays the preview frame by frame. A switch from 07.09. sent them to the old generator „until the preview can play a journey"; it can since 08.09. — Eine Etappenfolge rendert über dieselbe Szene wie alles andere.
+
+### Fixed
+- The scene takes the video length from the preview instead of from the duration field — it said so in a log warning but did not do it. The transitions of a journey come on top of the set duration, so the render stopped early: measured 8.00 s of video against a 23.00 s preview, the rest simply missing. — Die Szene nimmt die Videolänge von der Vorschau, nicht aus dem Feld.
+
+### Changed
 - The speed lane sits above the keyframe lanes and is tiled without gaps, the way Final Cut's retime editor sits above a clip: between the entries stands the base speed-up, and every tile names its factor and how long it takes — „1,0× 6,0 s", „⏸ 4,0 s". You see what lies where instead of guessing between markers. — Die Tempo-Spur steht oben und ist durchgehend gekachelt.
 - With several stages every base tile carries the name of the stage running there, with that stage's colour on its left edge — the tile is exactly that stage's place on the bar. A leading date in the file name is dropped for the label (fifteen stages all read „2024…"); the tooltip and the sidebar keep the full name. — Bei mehreren Etappen steht der Name der Etappe in ihrer Kachel.
 - Stages can be renamed in the sidebar: click the name, type, Enter. The file on disk is untouched; the name travels with the project, including for the first stage. — Etappen lassen sich in der Seitenleiste umbenennen.

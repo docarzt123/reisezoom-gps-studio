@@ -5224,15 +5224,12 @@ class Api:
                     _klassisch = bool(os.environ.get("RZ_RENDER_KLASSISCH")) or (_load_settings().get("render_engine") == "klassisch")
                     _still = getattr(cfg, "still_frame", False)
                     _szene_modul = str(params.get("szene_modul") or ("tourmap" if _still else "animator"))
-                    # 07.09.2026 — Reise (Touren NACHEINANDER, Kinoflug zwischen den Etappen): die Vorschau
-                    # spielt bisher nur die erste Tour und zeigt die weiteren als stehende Linien; der alte
-                    # Generator hat den Reise-Ablauf (van-Wijk-Kinoflug, core/animator.py). Bis die Vorschau
-                    # eine Reise abspielen kann (IDEAS §53a), rendert die Reise weiter klassisch.
-                    _reise = (len(getattr(cfg, "tracks", None) or []) >= 2
-                              and getattr(cfg, "tracks_ablauf", "reise") != "schwarm" and not _still)
-                    if _reise and not _klassisch:
-                        rlog.info("Reise-Komposition (%d Touren nacheinander) → klassischer Generator (Vorschau kennt den Ablauf noch nicht)", len(cfg.tracks))
-                        _klassisch = True
+                    # 07.09.2026 stand hier eine Weiche: Touren NACHEINANDER gingen stur zum
+                    # klassischen Generator, „bis die Vorschau eine Reise abspielen kann".
+                    # 09.09.2026 — sie kann es (Etappen mit ihrer Zeit, Übergänge als Flug), also
+                    # ist die Weiche weg: eine Etappenfolge rendert über dieselbe Szene wie alles
+                    # andere. Der Schwarm lief ohnehin schon darüber. Rückfall bleibt
+                    # RZ_RENDER_KLASSISCH=1 bzw. settings.render_engine = "klassisch".
                     if _szene_pid and not _klassisch and not _still and not cfg.transparent_background:
                         from core import szene as cszene
                         loop.run_until_complete(cszene.render_szene(
