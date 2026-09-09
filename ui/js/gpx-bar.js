@@ -325,6 +325,15 @@
   }
 
   async function pickGpx() {
+    // 09.09.2026 (Marc: „bei uns ist die Wahrheit das Archiv der Touren"): erst
+    // die Archiv-Auswahl; eine Datei von außerhalb geht dort über „Datei
+    // importieren …" ins Archiv und wird dann geöffnet.
+    if (typeof window.rzArchivTourenWaehlen === "function") {
+      const pfade = await window.rzArchivTourenWaehlen({ einzel: true,
+        titel: t("gpxbar.open_archiv", "Tour öffnen"), okText: t("gpxbar.open_ok", "Öffnen") });
+      if (pfade && pfade.length) await window.loadGlobalGpx(pfade[0]);
+      return;
+    }
     const files = await api().pick_file("open", window.TRACK_PICK_FILTER, false);
     if (!files || !files.length) return;
     await window.loadGlobalGpx(files[0]);

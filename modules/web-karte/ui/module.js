@@ -364,11 +364,21 @@
     }
     async function addTrack() {
       let files = [];
-      try { files = await window.pywebview.api.pick_file("open", window.TRACK_PICK_FILTER, false); } catch (_) {}
-      const path = Array.isArray(files) ? files[0] : (typeof files === "string" ? files : "");
-      if (!path) return;
-      const name = (path.split("/").pop() || "Track").replace(/\.[^.]+$/, "");
-      tracks.push({ path, name, color: TRK_PALETTE[tracks.length % TRK_PALETTE.length], width: lineWidth0, show_pins: true, coords: [] });
+      try {
+        // 09.09.2026 — aus dem Archiv wählen, mehrere auf einmal; Fremdes dort importieren.
+        if (typeof window.rzArchivTourenWaehlen === "function") {
+          files = await window.rzArchivTourenWaehlen({ ausschliessen: tracks.map(x => x.path) });
+        } else {
+          files = await window.pywebview.api.pick_file("open", window.TRACK_PICK_FILTER, false);
+        }
+      } catch (_) {}
+      const pfade = Array.isArray(files) ? files : (typeof files === "string" ? [files] : []);
+      if (!pfade.length) return;
+      for (const path of pfade) {
+        if (tracks.some(x => x.path === path)) continue;
+        const name = (path.split("/").pop() || "Track").replace(/\.[^.]+$/, "");
+        tracks.push({ path, name, color: TRK_PALETTE[tracks.length % TRK_PALETTE.length], width: lineWidth0, show_pins: true, coords: [] });
+      }
       persistTracks(); renderTrackList();
       status(T("webkarte.loading", "Lade Track …"));
       await loadExtraTracks();

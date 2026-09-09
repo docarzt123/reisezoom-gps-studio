@@ -3412,6 +3412,8 @@ window.rzScaleMapLabels = rzScaleMapLabels;
  *
  *   const pfade = await rzArchivTourenWaehlen({ ausschliessen: [pfad, …] });
  *   → Liste gewählter Pfade, leer bei Abbrechen.
+ *   Optionen: titel · ausschliessen · einzel (nur EINE Tour, wie „Track öffnen")
+ *   · okText (Beschriftung des Bestätigen-Knopfs).
  */
 async function rzArchivTourenWaehlen(opts) {
   const o = opts || {};
@@ -3444,6 +3446,10 @@ async function rzArchivTourenWaehlen(opts) {
     el.innerHTML = liste();
     el.querySelectorAll("[data-tpath]").forEach(cb => cb.onchange = () => {
       const pf = nfc(cb.dataset.tpath);
+      if (o.einzel && cb.checked) {                 // nur eine: die anderen abhaken
+        gewaehlt.clear();
+        el.querySelectorAll("[data-tpath]").forEach(x => { if (x !== cb) x.checked = false; });
+      }
       if (cb.checked) gewaehlt.add(pf); else gewaehlt.delete(pf);
       zaehler();
     });
@@ -3452,7 +3458,8 @@ async function rzArchivTourenWaehlen(opts) {
   const zaehler = () => {
     const ok = document.getElementById("rz-tw-ok"); if (!ok) return;
     const n = gewaehlt.size;
-    ok.textContent = n ? T("archiv.waehlen_ok_n", "{n} hinzufügen").replace("{n}", n) : T("library.proj_addtours_ok", "Hinzufügen");
+    const basis = o.okText || T("library.proj_addtours_ok", "Hinzufügen");
+    ok.textContent = (n > 1 && !o.okText) ? T("archiv.waehlen_ok_n", "{n} hinzufügen").replace("{n}", n) : basis;
   };
   const laden = async (q) => {
     try {
@@ -3471,7 +3478,7 @@ async function rzArchivTourenWaehlen(opts) {
              <p class="muted" style="font-size:11px; margin:8px 0 0;">${esc(T("archiv.waehlen_import_hinweis", "Nicht im Archiv? „Datei importieren …“ nimmt die Datei ins Archiv auf und hakt sie gleich an."))}</p>`,
       footer: `<button class="btn" id="rz-tw-import" style="margin-right:auto;">${esc(T("archiv.waehlen_import", "Datei importieren …"))}</button>
                <button class="btn" id="rz-tw-ab">${esc(T("common.cancel", "Abbrechen"))}</button>
-               <button class="btn btn-primary" id="rz-tw-ok">${esc(T("library.proj_addtours_ok", "Hinzufügen"))}</button>`,
+               <button class="btn btn-primary" id="rz-tw-ok">${esc(o.okText || T("library.proj_addtours_ok", "Hinzufügen"))}</button>`,
       onClose: () => ende([]),
     });
     laden("");
@@ -3490,10 +3497,11 @@ async function rzArchivTourenWaehlen(opts) {
       try {
         const r = await api().library_import_files();
         if (r && r.ok && Array.isArray(r.pfade) && r.pfade.length) {
+          if (o.einzel) gewaehlt.clear();
           for (const pf of r.pfade) {
             const name = String(pf).split(/[\\/]/).pop();
             if (!importiert.some(x => nfc(x.path) === nfc(pf))) importiert.unshift({ path: pf, name, filename: name });
-            if (!drin.has(nfc(pf))) gewaehlt.add(nfc(pf));
+            if (!drin.has(nfc(pf)) && (!o.einzel || !gewaehlt.size)) gewaehlt.add(nfc(pf));
           }
           toast(T("archiv.waehlen_importiert", "{n} Datei(en) ins Archiv übernommen und angehakt.").replace("{n}", r.pfade.length), "success", 2600);
           binden();
