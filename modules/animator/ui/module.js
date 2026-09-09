@@ -2674,10 +2674,18 @@ function mountAnimator(body, headerActions, opts) {
   }
   function _manualCamLoeschen() { if (_manualCam || (_manualCamGet())) _manualCamSpeichern(null); }
   let _extraTours = [];
-  // IDEAS §38 — Ablauf der Mehr-Touren-Übergabe: "reise" (nacheinander, wie
-  // bisher) oder "schwarm" (alle gleichzeitig). Wird im ARCHIV gewählt und
-  // hier nur ANGEZEIGT (Grilling Q9: kein Umschalter im Animator).
+  // IDEAS §60 (09.09.2026) — die EINE Wahrheit über die Zeit sind die GRUPPEN
+  // (ui/js/spuren.js): jede Tour ist Halt + Inhalt + Halt, alle gleich lang.
+  // `_animAblauf` ist seitdem ABGELEITET (eine Gruppe mit mehreren Touren =
+  // „schwarm", sonst „reise") und dient nur noch den alten Weichen;
+  // `_animAnordnung` ist die Anfangslage aus dem Archiv (§60 Punkt 9): sie
+  // sagt, wohin eine NEUE Tour kommt (Mitglied der ersten Gruppe oder eigene
+  // Gruppe hinten in der Kette).
   let _animAblauf = "reise";
+  let _animAnordnung = "reise";
+  let _gruppen = [];            // [{id, name, faktor, vorlauf_s, ueber_s, ueber_stil, leit_gpx, zu, fest, mitglieder:[{gpx_path, vorlauf_s, sichtbar_vor_inhalt}]}]
+  let _gruppenPlan = null;      // zuletzt gerechneter Zeitplan (Animationszeit, 0 = Ende des Anlaufs)
+  let _gruppenProjektId = null; // für welches Projekt die Gruppen aufgebaut wurden
   // IDEAS §38 M3 — Geschwindigkeitsmodus des Schwarms (Archiv-Wahl, Sitzung
   // trägt die Wahrheit): "gleich" | "ziel" (Fotofinish) | "uhrzeit".
   let _animModus = "gleich";
@@ -3591,8 +3599,10 @@ function mountAnimator(body, headerActions, opts) {
    *  1,0-s-Kinoflug dauerte in der Vorschau 0,87 s. Beide fragen jetzt hier. */
   function animSekunden() {
     try {
+      // 09.09.2026 (§60): bei mehreren Gruppen sagt der Zeitplan, wie lang die
+      // Anim-Phase ist — Inhalte, Lücken (Übergänge) und Füll-Halte zusammen.
       if (_reiseBahn && _reiseGilt()) {
-        const s = (+_reiseBahn.sekEtappen || 0) + (+_reiseBahn.sekUeber || 0);
+        const s = +_reiseBahn.sekAnim || 0;
         if (s > 0) return s;
       }
     } catch (_) {}
@@ -3678,15 +3688,17 @@ function mountAnimator(body, headerActions, opts) {
     try {
       if (_reiseAktiv()) {
         const b = _reiseBahn, n1 = Math.max(1, b.coords.length - 1);
-        b.teile.forEach((teil, i) => {
-          if (i >= b.teile.length - 1) return;
-          const e = b.etappen[i + 1] || {};
-          const sek = (e.ueber_s == null) ? parseNum(document.getElementById("anim-fly")?.value, 3) : (+e.ueber_s || 0);
-          if (sek <= 0) return;
-          raus.push({ art: "halt", bei: teil.bis / n1, sek, kamera: e.ueber_stil || "kino",
-                      gesperrt: true, rolle: "uebergang",
-                      titel: t("animator.tempo.uebergang", "Übergang") });
-        });
+        for (const ab of b.abschnitte) {
+          if (ab.art === "inhalt") continue;
+          const sek = ab.t1 - ab.t0;
+          if (sek <= 0.001) continue;
+          const e = b.etappen[ab.art === "ueber" ? ab.teil + 1 : ab.teil] || {};
+          raus.push({ art: "halt", bei: (ab.art === "vor" ? ab.bis : ab.von) / n1, sek,
+                      kamera: ab.art === "ueber" ? (e.ueber_stil || "kino") : "nichts",
+                      gesperrt: true, rolle: ab.art === "ueber" ? "uebergang" : "halt",
+                      titel: ab.art === "ueber" ? t("animator.tempo.uebergang", "Übergang")
+                                                 : t("animator.tempo.halt_titel", "Halt") });
+        }
       }
     } catch (_) {}
     return raus;
@@ -3870,7 +3882,8 @@ function mountAnimator(body, headerActions, opts) {
         // rechnet die Kurve nur mit der ersten und schreibt deren Dauer in das
         // Feld, das den ganzen Reiseplan bestimmt (08.09.2026).
         gpx_paths: reise
-          ? [currentGpx].concat(_extraTours.map(x => x.gpx_path).filter(Boolean))
+          ? (_reiseBahn ? _reiseBahn.etappen.map(e => e.tour.gpx_path)
+                        : [currentGpx].concat(_extraTours.map(x => x.gpx_path).filter(Boolean)))
           : null,
         basis,
         rate: rate || 0,
@@ -3990,8 +4003,12 @@ function mountAnimator(body, headerActions, opts) {
    *  auch in der Vorschau: Anteil der Animationsdauer, wortgleich zum Render
    *  (_haupt_delay_frames in core/animator.py). Nur im Schwarm aktiv. */
   function hauptStartAnteil() {
-    if (_animAblauf !== "schwarm" || !_extraTours.length) return 0;
-    const sek = +_animHauptStartS || 0;
+    // 09.09.2026 (§60): der eigene Vorlauf des Taktgebers IN seiner Gruppe —
+    // nur ohne Bahn (eine Gruppe), in der Kette wäre die Renormierung falsch.
+    if (_reiseAktiv() || !_istSchwarm()) return 0;
+    const g = _gruppen[0], m = g && g.mitglieder[0];
+    if (!m || _pfadNFC(m.gpx_path) !== _pfadNFC(currentGpx)) return 0;
+    const sek = +m.vorlauf_s || 0;
     if (sek <= 0) return 0;
     const dur = parseInt(document.getElementById("anim-dur")?.value) || 20;
     return Math.min(0.95, Math.max(0, sek / Math.max(0.1, dur)));
@@ -4796,7 +4813,7 @@ function mountAnimator(body, headerActions, opts) {
   /** Schwarm + „Haupt-Tour nicht hervorheben"? Dann Laufpunkt/Linie im
    *  Schwarm-Stil — synchron zu haupt_dezent_js in core/animator.py. */
   function hauptDezent() {
-    return _animAblauf === "schwarm" && _extraTours.length > 0 && _animDezent;
+    return _istSchwarm() && _extraTours.length > 0 && _animDezent;
   }
   function dotStil()    { return document.getElementById("anim-dot-style")?.value || "dot"; }
   function dotGroesse() { return parseFloat(document.getElementById("anim-dot-size")?.value) || 1; }
@@ -8485,7 +8502,7 @@ function mountAnimator(body, headerActions, opts) {
     if (!map) return;
     const want = currentTerrainOn();
     // 06.09.2026 — Schwarm-Linien: bei Gelände über rz-line3d, sonst drapiert → bei Umschaltung neu bauen.
-    try { if (_animAblauf === "schwarm" && _swPrev.length && (!!_sw3d) !== !!(window.rzLine3d && want && map.__rzEngine !== "mapbox" && map.__rzSpec && map.__rzSpec.terrain)) setTimeout(() => { try { _animDrawExtraToursPreview(); } catch (_) {} }, 0); } catch (_) {}
+    try { if (_swPrev.length && (!!_sw3d) !== !!(window.rzLine3d && want && map.__rzEngine !== "mapbox" && map.__rzSpec && map.__rzSpec.terrain)) setTimeout(() => { try { _animDrawExtraToursPreview(); } catch (_) {} }, 0); } catch (_) {}
     const spec = map.__rzSpec || null;
     const mapboxEngine = (map.__rzEngine === "mapbox");
     try {
@@ -8856,6 +8873,7 @@ function mountAnimator(body, headerActions, opts) {
           // hinzufügen: `_animAddTourPath` persistiert in die AKTIVE Sitzung,
           // und die Arbeit gehört an die Menge, nicht an die erste Tour.
           _animAblauf = pendingAblauf;
+          _animAnordnung = pendingAblauf;
           _animModus = pendingModus;
           _animPausen = pendingPausen;
           try {
@@ -8912,8 +8930,17 @@ function mountAnimator(body, headerActions, opts) {
             if (_animUnmounted) return;
             if (_tourenLadeAbgebrochen()) { _tourenLadeAbbruchAusfuehren(); return; }
             _animAblauf = pendingAblauf;   // die Sitzung hat ihn schon, das Modul jetzt auch
+            _animAnordnung = pendingAblauf;
             _animModus = pendingModus;
             _animPausen = pendingPausen;
+            // §60 Punkt 9: eine NEU gewählte Anordnung legt die Gruppen neu —
+            // nur wenn sie sich von der gespeicherten unterscheidet, sonst
+            // blieben Änderungen aus der Zeitleiste auf der Strecke.
+            try {
+              const _pa = (typeof getActiveProject === "function") ? getActiveProject() : null;
+              const _alt = _pa && _pa[_MODKEY] ? _pa[_MODKEY].tours_ablauf : null;
+              if (_alt && _alt !== pendingAblauf) { _gruppenAufbauen(null); _animPersistTours(); }
+            } catch (_) {}
             // Erst bestimmen, was wirklich FEHLT — der Zähler lief sonst über
             // alle 137 Etappen, obwohl fast alles längst geladen war (sah aus
             // wie „er lädt schon wieder alles", Marc 28.08.2026).
@@ -12062,7 +12089,7 @@ function mountAnimator(body, headerActions, opts) {
   const _ovAvail = (req) => req === "time" ? _ovHasTime()
     : req === "ele" ? _ovHasEle()
     : req === "stages" ? _ovHasStages()
-    : req === "schwarm" ? (_animAblauf === "schwarm" && _extraTours.length > 0) : true;
+    : req === "schwarm" ? (_istSchwarm() && _extraTours.length > 0) : true;
   const _ovFmtKm = (km) => km < 100 ? km.toFixed(1) + " km" : km.toFixed(0) + " km";
   const _ovFmtDur = (sec) => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), x = sec % 60, p = n => n < 10 ? "0" + n : "" + n; return h > 0 ? h + ":" + p(m) + ":" + p(x) : p(m) + ":" + p(x); };
   // Font-Stacks (Spiegel von core/animator.py _OVERLAY_FONTS). Google-Fonts werden
@@ -12234,7 +12261,7 @@ function mountAnimator(body, headerActions, opts) {
     // 08.09.2026 — auch die Reise summiert über alle Etappen (Marc: „laufende
     // Gesamtsumme"). Vorher zeigte die Gesamt-Einblendung die Zahlen der ERSTEN
     // Tour, während der Punkt längst durch die dritte lief.
-    if (_extraTours.length && (_animAblauf === "schwarm" || _reiseAktiv())) {
+    if (_extraTours.length && (_istSchwarm() || _reiseAktiv())) {
       for (const tr of _extraTours) {
         const st = tr.stats;
         if (!st) continue;
@@ -13564,6 +13591,7 @@ function mountAnimator(body, headerActions, opts) {
     _reiseBasisSerie = res.series || null;      // Reihen der ERSTEN Etappe
     _reiseBasisEle = res.elevations || null;
     _reiseBahn = null;
+    try { _gruppenSync(); _gruppenAbleiten(); } catch (_) {}
     if (_reiseGilt()) { try { _reiseAnwenden(); } catch (e) { applog("warn", "[reise] " + e); } }
     currentBbox = res.bbox;
     try { _refreshStyleForTrack(); } catch (_) {}   // 03.09.2026 — Land für „Satellit (kostenlos)"
@@ -13940,6 +13968,7 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function _animRenderToursList() {
+    try { _gruppenSync(); } catch (_) {}
     // Die Kopfzeile zeigt die Zahlen der Haupt-Tour — sie soll wenigstens
     // sagen, dass noch weitere dazugehören (02.09.2026, Beta-Tester-Frage).
     try { if (typeof window.rzGpxBarExtras === "function") window.rzGpxBarExtras(_extraTours.length); } catch (_) {}
@@ -13958,17 +13987,22 @@ function mountAnimator(body, headerActions, opts) {
     // 09.09.2026 — der Ablauf steht als eine Zeile über der Liste („🧭
     // Nacheinander"), der ganze Satz dazu im ?-Tooltip. Vorher war es ein
     // dauerhafter Kasten über der Etappenliste.
+    // 09.09.2026 (§60): eine Gruppe mit mehreren Touren = Schwarm, mehrere
+    // Gruppen mit je einer = Nacheinander, alles andere ist gemischt.
     const schwarm = _animAblauf === "schwarm";
+    const gemischt = _gruppen.length > 1 && _istSchwarm();
     const kurz = document.getElementById("anim-ablauf-kurz");
     if (kurz) {
       kurz.textContent = _extraTours.length === 0 ? ""
         : (schwarm ? "🌊 " + t("animator.ablauf.schwarm_kurz", "Gleichzeitig (Schwarm)")
-                   : "🧭 " + t("animator.ablauf.reise_kurz", "Nacheinander"));
+           : gemischt ? "🧩 " + t("animator.ablauf.gruppen_kurz", "Gruppen")
+                      : "🧭 " + t("animator.ablauf.reise_kurz", "Nacheinander"));
     }
     const badgeText = document.getElementById("anim-ablauf-badge-text");
     if (badgeText) {
       badgeText.textContent = schwarm
         ? t("animator.ablauf.schwarm", "Gleichzeitig (Schwarm) — die längste Tour bestimmt die Videodauer. Gewählt im Archiv.")
+        : gemischt ? t("animator.ablauf.gruppen", "Gruppen — die Touren einer Gruppe laufen gleichzeitig, die Gruppen nacheinander. Jede Gruppe ist eine Zeile in der Zeitleiste.")
         : t("animator.ablauf.reise", "Nacheinander (eine Reise) — mit Kinoflug zwischen den Etappen. Gewählt im Archiv.");
     }
     // Der alte Kasten kann aus einem früheren Aufbau noch dastehen.
@@ -13989,6 +14023,9 @@ function mountAnimator(body, headerActions, opts) {
       fokusWrap.querySelector("#anim-fokus").addEventListener("change", (e) => {
         const wert = e.target.value;
         _animFokusPfad = (wert === "" || wert === "haupt") ? "" : wert;
+        { const gv = _animFokusPfad ? _gruppeVon(_animFokusPfad) : null;
+          for (const g of _gruppen) if (g.mitglieder.length > 1) g.leit_gpx = (gv && gv.g === g) ? _animFokusPfad : "";
+          if (!gv && _gruppen[0]) _gruppen[0].leit_gpx = ""; }
         const cb = document.getElementById("anim-camera-follow");
         if (cb) {
           const soll = wert !== "";
@@ -14050,6 +14087,8 @@ function mountAnimator(body, headerActions, opts) {
       inp.addEventListener("change", () => {
         _animHauptStartS = Math.max(0, parseFloat(inp.value) || 0);
         inp.value = _animHauptStartS;
+        const gv = _gruppeVon(currentGpx);
+        if (gv) gv.g.mitglieder[gv.j].vorlauf_s = _animHauptStartS;
         _animPersistTours();
       });
     }
@@ -14075,18 +14114,18 @@ function mountAnimator(body, headerActions, opts) {
       });
     }
     if (sfWrap) {
-      sfWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
+      sfWrap.hidden = !(_istSchwarm() && _extraTours.length > 0);
       const cb = sfWrap.querySelector("#anim-swarm-form");
       if (cb) cb.checked = _animSwarmForm;
     }
     if (hsWrap) {
-      hsWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
+      hsWrap.hidden = !(_istSchwarm() && _extraTours.length > 0);
       const inp = hsWrap.querySelector("#anim-haupt-start");
       if (inp && document.activeElement !== inp) inp.value = _animHauptStartS;
     }
-    if (dzWrap) dzWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
+    if (dzWrap) dzWrap.hidden = !(_istSchwarm() && _extraTours.length > 0);
     if (fokusWrap) {
-      fokusWrap.hidden = !(_animAblauf === "schwarm" && _extraTours.length > 0);
+      fokusWrap.hidden = !(_istSchwarm() && _extraTours.length > 0);
       const sel = fokusWrap.querySelector("#anim-fokus");
       if (sel && !fokusWrap.hidden) {
         const cb = document.getElementById("anim-camera-follow");
@@ -14114,7 +14153,13 @@ function mountAnimator(body, headerActions, opts) {
     // mit in der Liste, jede Etappe bekommt ein Dauer-Feld, und zwischen zwei
     // Etappen sitzt der Übergang. Im Schwarm laufen alle gleichzeitig, dort gibt
     // es weder Etappendauer noch Übergang.
-    const _reise = _animAblauf !== "schwarm";
+    const _reise = _gruppen.length > 1;
+    const _gruppeFeldWert = (gpx) => {
+      const gv = _gruppeVon(gpx);
+      if (!gv || Math.abs((+gv.g.faktor || 1) - 1) < 1e-9) return "";
+      const L = _gruppeLaenge(gv.g);
+      return L > 0 ? (Math.round(L * 10) / 10) : "";
+    };
     // 08.09.2026 (Marc: „man muss die Touren sortieren können"): Bei fünfzehn
     // Etappen ist Pfeil-für-Pfeil keine Ordnung. Datum kommt aus den Statistiken
     // der Tour, sonst aus dem Dateinamen — der trägt bei Marcs Tracks das Datum
@@ -14135,6 +14180,7 @@ function mountAnimator(body, headerActions, opts) {
         const x = _sortSchluessel(a, art), y = _sortSchluessel(b, art);
         return x < y ? -1 : x > y ? 1 : 0;
       });
+      _gruppenNachPool();
       _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
       toast(t("animator.tours.sortiert", "Etappen neu geordnet."), "info", 1800);
     };
@@ -14208,22 +14254,31 @@ function mountAnimator(body, headerActions, opts) {
         <span class="anim-tour-name ist-umbenennbar" data-etappe="1"
               title="${_animEscapeHtml(t("animator.tours.umbenennen", "Etappe umbenennen"))}">${_animEscapeHtml(nm)}</span>
         <span class="anim-etappe-zeile">
-          ${_dauerFeld(_animEtappe1S, t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt."))}
+          ${_dauerFeld(_gruppeFeldWert(currentGpx), t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt."))}
         </span>`;
       _namenBinden(kopf);
       kopf.querySelector(".anim-etappe-dauer").addEventListener("change", (e) => {
-        _animEtappe1S = Math.max(0, parseFloat(e.target.value) || 0);
-        e.target.value = _animEtappe1S || "";
-        _animPersistTours();
+        const L = Math.max(0, parseFloat(e.target.value) || 0);
+        const gv = _gruppeVon(currentGpx);
+        if (gv) _gruppeLaengeSetzen(gv.g, L);
+        _animEtappe1S = L;
         try { _reiseAnwenden(); } catch (_) {}
+        e.target.value = _gruppeFeldWert(currentGpx);
+        _animPersistTours();
       });
       host.appendChild(kopf);
     }
     _extraTours.forEach((tr, i) => {
-      if (_reise) {
+      // 09.09.2026 (§60): die Felder gehören der GRUPPE der Tour. Etappendauer
+      // und Übergang zeigt nur ihr Taktgeber (erstes Mitglied); der eigene
+      // Start nur ein Mitglied hinter dem Taktgeber.
+      const gv = _gruppeVon(tr.gpx_path);
+      const takt = !!(gv && gv.j === 0);
+      const gr = gv ? gv.g : null;
+      if (_reise && takt && gv.gi > 0) {
         const ur = document.createElement("div");
         ur.className = "anim-ueber-row";
-        const stil = tr.ueber_stil || "kino";
+        const stil = gr.ueber_stil || "kino";
         ur.innerHTML = `
           <span class="anim-ueber-pfeil">↳</span>
           <select class="anim-ueber-stil" title="${t("animator.tours.ueber_stil", "Übergang zur nächsten Etappe")}">
@@ -14231,21 +14286,21 @@ function mountAnimator(body, headerActions, opts) {
             <option value="luftlinie"${stil === "luftlinie" ? " selected" : ""}>${t("animator.tours.ueber_luft", "Luftlinie")}</option>
             <option value="schnitt"${stil === "schnitt" ? " selected" : ""}>${t("animator.tours.ueber_schnitt", "Schnitt")}</option>
           </select>
-          <input type="number" class="anim-ueber-s" min="0" step="0.5" value="${tr.ueber_s == null ? "" : tr.ueber_s}"
+          <input type="number" class="anim-ueber-s" min="0" step="0.5" value="${gr.ueber_s == null ? "" : gr.ueber_s}"
                  placeholder="${(parseNum(document.getElementById("anim-fly")?.value, 3)).toFixed(1)}"
                  title="${t("animator.tours.ueber_dauer", "Dauer dieses Übergangs. Leer = die gemeinsame Flugdauer.")}"
                  ${stil === "schnitt" ? "disabled" : ""}><span class="anim-etappe-einheit">s</span>`;
         ur.querySelector(".anim-ueber-stil").addEventListener("change", (e) => {
-          _extraTours[i].ueber_stil = e.target.value;
-          _animPersistTours(); _animRenderToursList();
+          gr.ueber_stil = e.target.value; gr.fest = false;
           try { _reiseAnwenden(); } catch (_) {}
+          _animPersistTours(); _animRenderToursList();
         });
         ur.querySelector(".anim-ueber-s").addEventListener("change", (e) => {
           const v = e.target.value.trim();
-          _extraTours[i].ueber_s = v === "" ? null : Math.max(0, parseFloat(v) || 0);
-          e.target.value = _extraTours[i].ueber_s == null ? "" : _extraTours[i].ueber_s;
-          _animPersistTours();
+          gr.ueber_s = v === "" ? null : Math.max(0, parseFloat(v) || 0); gr.fest = false;
+          e.target.value = gr.ueber_s == null ? "" : gr.ueber_s;
           try { _reiseAnwenden(); } catch (_) {}
+          _animPersistTours();
         });
         host.appendChild(ur);
       }
@@ -14257,8 +14312,8 @@ function mountAnimator(body, headerActions, opts) {
         <span class="anim-tour-name${_reise ? " ist-umbenennbar" : ""}"${_reise ? ` data-etappe="${i + 2}"` : ""}
               title="${_animEscapeHtml(_reise ? t("animator.tours.umbenennen", "Etappe umbenennen") : tr.gpx_path)}">${_animEscapeHtml(tr.name)}</span>
         ${_reise ? "<span class=\"anim-etappe-zeile\">" : ""}
-        ${_reise ? _dauerFeld(tr.dauer_s, t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt.")) : ""}
-        ${_animAblauf === "schwarm" ? `<span class="anim-tour-start-wrap" title="${t("animator.tours.start_delay", "Start nach … Sekunden Videozeit (0 = gemeinsamer Start)")}">⏱<input type="number" class="anim-tour-start" min="0" step="1" value="${+tr.start_s || 0}" style="width:44px">s</span>` : ""}
+        ${_reise && takt ? _dauerFeld(_gruppeFeldWert(tr.gpx_path), t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt.")) : ""}
+        ${(gv && !takt && gr.mitglieder.length > 1) ? `<span class="anim-tour-start-wrap" title="${t("animator.tours.start_delay", "Start nach … Sekunden Videozeit (0 = gemeinsamer Start)")}">⏱<input type="number" class="anim-tour-start" min="0" step="1" value="${+gr.mitglieder[gv.j].vorlauf_s || 0}" style="width:44px">s</span>` : ""}
         <span class="anim-tour-actions">
           <button type="button" class="anim-tour-btn" data-act="up" ${i === 0 ? "disabled" : ""} title="${t("animator.tours.up", "nach oben")}">↑</button>
           <button type="button" class="anim-tour-btn" data-act="down" ${i === _extraTours.length - 1 ? "disabled" : ""} title="${t("animator.tours.down", "nach unten")}">↓</button>
@@ -14268,16 +14323,19 @@ function mountAnimator(body, headerActions, opts) {
       _namenBinden(row);
       // 29.08.2026 (Marc, Schorfheide): Start-Verzögerung je Zusatz-Tour.
       row.querySelector(".anim-tour-start")?.addEventListener("change", (e) => {
-        _extraTours[i].start_s = Math.max(0, parseFloat(e.target.value) || 0);
-        e.target.value = _extraTours[i].start_s;
+        const v = Math.max(0, parseFloat(e.target.value) || 0);
+        if (gv) gr.mitglieder[gv.j].vorlauf_s = v;
+        _extraTours[i].start_s = v;
+        e.target.value = v;
         _animPersistTours();
         try { _animSchwarmPreviewAdvance(_tlBar ? trackFracAusAnker(_tlBar.getScrubber()) : 0, previewFullTrack()); } catch (_) {}
       });
       row.querySelector(".anim-etappe-dauer")?.addEventListener("change", (e) => {
-        _extraTours[i].dauer_s = Math.max(0, parseFloat(e.target.value) || 0);
-        e.target.value = _extraTours[i].dauer_s || "";
-        _animPersistTours();
+        const L = Math.max(0, parseFloat(e.target.value) || 0);
+        if (gr) _gruppeLaengeSetzen(gr, L);
         try { _reiseAnwenden(); } catch (_) {}
+        e.target.value = _gruppeFeldWert(tr.gpx_path);
+        _animPersistTours();
       });
       row.querySelector(".anim-tour-color").addEventListener("input", (e) => {
         _extraTours[i].line_color = e.target.value;
@@ -14288,17 +14346,17 @@ function mountAnimator(body, headerActions, opts) {
         } catch (_) {}
       });
       row.querySelector('[data-act="up"]').addEventListener("click", () => {
-        if (i > 0) { const tmp = _extraTours[i - 1]; _extraTours[i - 1] = _extraTours[i]; _extraTours[i] = tmp; _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); }
+        if (i > 0) { _gruppenTauschen(_extraTours[i].gpx_path, _extraTours[i - 1].gpx_path); const tmp = _extraTours[i - 1]; _extraTours[i - 1] = _extraTours[i]; _extraTours[i] = tmp; _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); }
       });
       row.querySelector('[data-act="down"]').addEventListener("click", () => {
-        if (i < _extraTours.length - 1) { const tmp = _extraTours[i + 1]; _extraTours[i + 1] = _extraTours[i]; _extraTours[i] = tmp; _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); }
+        if (i < _extraTours.length - 1) { _gruppenTauschen(_extraTours[i].gpx_path, _extraTours[i + 1].gpx_path); const tmp = _extraTours[i + 1]; _extraTours[i + 1] = _extraTours[i]; _extraTours[i] = tmp; _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); }
       });
       row.querySelector('[data-act="del"]').addEventListener("click", () => {
-        _extraTours.splice(i, 1); _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
+        _extraTours.splice(i, 1); _gruppenSync(); _gruppenAbleiten(); _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview(); _animFitAllTours();
       });
       host.appendChild(row);
     });
-    if (flyField) flyField.hidden = _extraTours.length === 0 || _animAblauf === "schwarm";
+    if (flyField) flyField.hidden = _gruppen.length < 2;
   }
 
   // Entfernt alle Multi-Track-Preview-Layer/-Sources von der Karte.
@@ -14412,13 +14470,77 @@ function mountAnimator(body, headerActions, opts) {
   /** 31.08.2026 (Beta-Tester): Zusatz-Touren mit Haupt-Form (Pfeil) — nur im
    *  Schwarm, nur wenn die Haupt-Tour selbst auf „Pfeil" steht. */
   function _swArrowAktiv() {
-    return _animAblauf === "schwarm" && _animSwarmForm && dotStil() === "arrow";
+    return _istSchwarm() && _animSwarmForm && dotStil() === "arrow";
+  }
+  /** Startanteil eines Mitglieds: sein Vorlauf gegen den Inhalt seiner Gruppe
+   *  (§60) — für Einträge der Vorschau-Liste wie für Pool-Touren. */
+  function _swStartAnteilVon(eintrag) {
+    const sek = +((eintrag && eintrag.vorlauf) || 0);
+    if (sek <= 0) return 0;
+    const inhalt = (eintrag.lage && eintrag.lage.inhalt_s > 0) ? eintrag.lage.inhalt_s
+      : (parseInt(document.getElementById("anim-dur")?.value) || 20);
+    return Math.min(0.95, Math.max(0, sek / Math.max(0.1, inhalt)));
   }
   function _swStartAnteil(x) {
-    const sek = +((x && x.start_s) || 0);
-    if (sek <= 0) return 0;
-    const dur = parseInt(document.getElementById("anim-dur")?.value) || 20;
-    return Math.min(0.95, Math.max(0, sek / Math.max(0.1, dur)));
+    const gv = (x && x.gpx_path) ? _gruppeVon(x.gpx_path) : null;
+    if (!gv) return 0;
+    return _swStartAnteilVon({ vorlauf: gv.g.mitglieder[gv.j].vorlauf_s,
+                               lage: _gruppenPlan ? _gruppenPlan.lage(gv.g.id) : null });
+  }
+  /** Fortschritt des TAKTGEBERS einer Gruppe (erstes Mitglied) an der Stelle
+   *  der Vorschau: in der Kette aus der Bahn, außerhalb aus der Animationszeit. */
+  function _swTakt(eintrag, coordFrac, tA, voll) {
+    const g = eintrag.gruppe;
+    let taktCoords = null, cumT = null, lokal = 0;
+    if (eintrag.inKette && _reiseAktiv()) {
+      const k = _reiseBahn.kette.findIndex(x => x.g === g);
+      const teil = _reiseBahn.teile[k], e = _reiseBahn.etappen[k];
+      if (!teil || !e) return null;
+      taktCoords = e.coords; cumT = _cumDistFuer(e.tour, e.coords);
+      const n1 = taktCoords.length - 1;
+      if (voll) lokal = n1;
+      else if (coordFrac <= teil.von) lokal = 0;
+      else if (coordFrac >= teil.bis) lokal = n1;
+      else lokal = (coordFrac - teil.von) / Math.max(1e-9, teil.bis - teil.von) * n1;
+    } else if (eintrag.inKette) {
+      if (!currentCoords || currentCoords.length < 2) return null;
+      taktCoords = currentCoords; cumT = _cumDistFuer(_swHauptCum, currentCoords);
+      lokal = voll ? taktCoords.length - 1 : coordFrac;
+    } else {
+      const tour = _tourVon((g.mitglieder[0] || {}).gpx_path);
+      if (!tour || !tour.coords || tour.coords.length < 2) return null;
+      taktCoords = tour.coords; cumT = _cumDistFuer(tour.tr || _swHauptCum, taktCoords);
+      const l = eintrag.lage;
+      const q = voll ? 1 : ((l && l.inhalt_s > 0) ? Math.max(0, Math.min(1, (tA - l.von_s) / l.inhalt_s)) : 1);
+      lokal = q * (taktCoords.length - 1);
+    }
+    const n1 = taktCoords.length - 1;
+    lokal = Math.max(0, Math.min(n1, lokal));
+    const i0 = Math.floor(lokal), i1 = Math.min(n1, i0 + 1), f = lokal - i0;
+    const d = cumT[i0] + (cumT[i1] - cumT[i0]) * f;
+    const totD = cumT[n1] || 0;
+    return { frac: totD > 0 ? Math.max(0, Math.min(1, d / totD)) : 1, d, totD, lokal, n1 };
+  }
+  /** Index einer Vorschau-Tour an der Stelle der Vorschau — Mitglied: der
+   *  Schwarm-Regel nach ihrem Taktgeber; Taktgeber außerhalb der Kette: aus
+   *  der Animationszeit. `voll` = ganze Linie (Ruhezustand). */
+  function _swIndexFuer(eintrag, coordFrac, tA, voll) {
+    const n1 = eintrag.coords.length - 1;
+    if (eintrag.rolle === "takt") {
+      const l = eintrag.lage;
+      const q = voll ? 1 : ((l && l.inhalt_s > 0) ? Math.max(0, Math.min(1, (tA - l.von_s) / l.inhalt_s)) : 1);
+      return Math.max(0, Math.min(n1, Math.round(q * n1)));
+    }
+    const P = _swTakt(eintrag, coordFrac, tA, voll);
+    if (!P) return 0;
+    const k = _swIdxVerzoegert(n1, eintrag.zeit, eintrag.cum, _swStartAnteilVon(eintrag), P.frac, P.d, P.totD);
+    return Math.max(0, Math.min(n1, k));
+  }
+  /** Animationszeit an der Stelle der Vorschau (Bahn-Index bzw. Track-Index). */
+  function _swZeitBei(coordFrac) {
+    if (_reiseAktiv()) return _bahnZeit(coordFrac);
+    const n1 = Math.max(1, (currentCoords || []).length - 1);
+    return Math.max(0, Math.min(1, coordFrac / n1)) * animSekunden();
   }
   function _swIdxVerzoegert(n1, achse, cum, s0, frac0, d, totD) {
     if (_animModus === "ziel") {
@@ -14442,23 +14564,36 @@ function mountAnimator(body, headerActions, opts) {
   let _swPrevTAxis = 0;
 
   function _swPrevBauen(lw) {
-    _swPrev = _extraTours
-      .filter(tr => tr.coords && tr.coords.length >= 2)
-      .map(tr => {
+    // 09.09.2026 (§60): in diese Liste kommt, was NICHT in der Bahn liegt —
+    // jedes Mitglied hinter dem Taktgeber seiner Gruppe (der Schwarm) und der
+    // Taktgeber jeder Gruppe außerhalb der Kette (parallel laufend).
+    const plan = _gruppenPlan || _gruppenPlanRechnen();
+    const kette = _reiseAktiv() ? _reiseBahn.kette.map(k => k.g) : (_gruppen.length ? [_gruppen[0]] : []);
+    const liste = [];
+    _gruppen.forEach((g, gi) => {
+      const inKette = kette.includes(g);
+      const lage = plan ? plan.lage(g.id) : null;
+      g.mitglieder.forEach((m, j) => {
+        if (j === 0 && inKette) return;
+        const tour = _tourVon(m.gpx_path);
+        if (!tour || !tour.coords || tour.coords.length < 2) return;
         // Render-Modus (gemeinsame Szene): feiner abtasten — Geometrie-Detail fürs Video,
         // Aussehen identisch; 150 Punkte reichen nur für die schnelle Vorschau.
-        const idx = _swAusduennenIdx(tr.coords.length, window.__rzRenderMode ? 1500 : 150);
-        const coords = idx ? idx.map(j => tr.coords[j]) : tr.coords;
+        const idx = _swAusduennenIdx(tour.coords.length, window.__rzRenderMode ? 1500 : 150);
+        const coords = idx ? idx.map(k => tour.coords[k]) : tour.coords;
         let zeit = null;
         if (_animModus === "uhrzeit") {
-          const achse = _swAchseFuer(tr);
-          if (achse) zeit = idx ? idx.map(j => achse[j]) : achse;
+          const achse = _swAchseFuer(tour.tr || tour);
+          if (achse) zeit = idx ? idx.map(k => achse[k]) : achse;
         }
-        return { coords, cum: _cumDistBerechnen(coords), zeit,
-                 start_s: +tr.start_s || 0,
-                 dauer: zeit ? zeit[zeit.length - 1] : 0,
-                 color: tr.line_color || "#35a7ff" };
+        liste.push({ coords, cum: _cumDistBerechnen(coords), zeit,
+                     dauer: zeit ? zeit[zeit.length - 1] : 0,
+                     color: tour.line_color || "#35a7ff", gpx_path: tour.gpx_path,
+                     gruppe: g, gi, j, rolle: j === 0 ? "takt" : "mitglied",
+                     inKette, lage, vorlauf: +m.vorlauf_s || 0 });
       });
+    });
+    _swPrev = liste;
     // Achse = längste Dauer, Haupt-Track zählt mit (er läuft selbst linear).
     _swPrevTAxis = 0;
     if (_animModus === "uhrzeit") {
@@ -14529,51 +14664,40 @@ function mountAnimator(body, headerActions, opts) {
   /** Kamera-Ziel der Fokus-Tour in der Vorschau — synchron zu
    *  `fokus_koordinate` in core/animator.py (geklemmt: Kamera bleibt stehen). */
   function _fokusZiel(coordFrac) {
-    if (_animAblauf !== "schwarm" || !_animFokusPfad) return null;
-    const tr = _extraTours.find(x => x.gpx_path === _animFokusPfad);
-    if (!tr || !tr.coords || tr.coords.length < 2) return null;
+    if (!_animFokusPfad || !_istSchwarm()) return null;
+    const gv = _gruppeVon(_animFokusPfad);
+    const tour = _tourVon(_animFokusPfad);
+    if (!gv || gv.j === 0 || !tour || !tour.coords || tour.coords.length < 2) return null;
     if (!currentCoords || currentCoords.length < 2) return null;
-    const cumH = _cumDistFuer(_swHauptCum, currentCoords);
-    const totalH = cumH[cumH.length - 1] || 0;
-    const i0 = Math.max(0, Math.min(cumH.length - 1, Math.floor(coordFrac)));
-    const i1 = Math.min(cumH.length - 1, i0 + 1);
-    const f = Math.max(0, Math.min(1, coordFrac - i0));
-    const d = cumH[i0] + (cumH[i1] - cumH[i0]) * f;
-    // M3 — synchron zu fokus_koordinate (core/animator.py).
-    const frac = totalH > 0 ? Math.max(0, Math.min(1, d / totalH)) : 1;
-    const k = _swIdxVerzoegert(tr.coords.length - 1, _swAchseFuer(tr),
-                               _cumDistFuer(tr, tr.coords), _swStartAnteil(tr),
-                               frac, d, totalH);
-    return tr.coords[Math.max(0, Math.min(tr.coords.length - 1, k))];
+    // Mit der VOLLEN Punktzahl (nicht der gedünnten Vorschau-Linie), damit die
+    // Kamera gleitet — M3, synchron zu fokus_koordinate (core/animator.py).
+    const kette = _reiseAktiv() ? _reiseBahn.kette.map(k => k.g) : (_gruppen.length ? [_gruppen[0]] : []);
+    const eintrag = { coords: tour.coords, cum: _cumDistFuer(tour.tr || tour, tour.coords),
+                      zeit: _animModus === "uhrzeit" ? _swAchseFuer(tour.tr || tour) : null,
+                      gruppe: gv.g, j: gv.j, rolle: "mitglied", inKette: kette.includes(gv.g),
+                      lage: _gruppenPlan ? _gruppenPlan.lage(gv.g.id) : null,
+                      vorlauf: +gv.g.mitglieder[gv.j].vorlauf_s || 0 };
+    const k = _swIndexFuer(eintrag, coordFrac, _swZeitBei(coordFrac), false);
+    return tour.coords[Math.max(0, Math.min(tour.coords.length - 1, k))];
   }
 
   function _animSchwarmPreviewAdvance(coordFrac, vollesBild) {
-    if (_animAblauf !== "schwarm" || !_swPrev.length || !map) return;
+    if (!_swPrev.length || !map) return;
     if (!map.getSource("swarm-prev-lines")) return;
     if (!currentCoords || currentCoords.length < 2) return;
-    const cumH = _cumDistFuer(_swHauptCum, currentCoords);
-    const totalH = cumH[cumH.length - 1] || 0;
     // Position der Punkte IMMER aus der Scrubber-Stelle (coordFrac); `vollesBild`
     // betrifft nur die Linien. 04.09.2026 (Beta-Tester, 3-GPX-Schwarm): Beim
     // Laden stand der Haupt-Punkt am Start, die Punkte der anderen Touren aber
     // am ENDE — weil „ganzer Track" hier auch die Punkte ans Ende schob.
-    const i0 = Math.max(0, Math.min(cumH.length - 1, Math.floor(coordFrac)));
-    const i1 = Math.min(cumH.length - 1, i0 + 1);
-    const f = Math.max(0, Math.min(1, coordFrac - i0));
-    const dPunkt = cumH[i0] + (cumH[i1] - cumH[i0]) * f;
-    const dLinie = vollesBild ? totalH : dPunkt;
-    // M3 — WYSIWYG zu swarmIdx (core/animator.py): 'ziel' skaliert auf den
-    // Video-Fortschritt, 'uhrzeit' läuft über die gemeinsame Zeitachse,
-    // 'gleich' über die zurückgelegte Distanz des Haupt-Tracks.
-    const fracP = totalH > 0 ? Math.max(0, Math.min(1, dPunkt / totalH)) : 1;
-    const fracL = totalH > 0 ? Math.max(0, Math.min(1, dLinie / totalH)) : 1;
+    // 09.09.2026 (§60): je Eintrag nach Rolle — Mitglieder folgen dem Taktgeber
+    // ihrer Gruppe (Schwarm-Regel je Modus, wortgleich zu swarmIdx im Kern),
+    // Taktgeber außerhalb der Kette laufen an der Animationszeit.
+    const tA = _swZeitBei(coordFrac);
     const linien = [], punkte = [];
     for (const t of _swPrev) {
-      const n1 = t.coords.length - 1;
-      let kP = _swIdxVerzoegert(n1, t.zeit, t.cum, _swStartAnteil(t), fracP, dPunkt, totalH);
-      kP = Math.max(0, Math.min(n1, kP));
-      let kL = vollesBild ? _swIdxVerzoegert(n1, t.zeit, t.cum, _swStartAnteil(t), fracL, dLinie, totalH) : kP;
-      kL = Math.max(0, Math.min(n1, kL));
+      const kP = _swIndexFuer(t, coordFrac, tA, false);
+      const kL = vollesBild ? _swIndexFuer(t, coordFrac, tA, true) : kP;
+      t.__k = kP;
       linien.push({ type: "Feature", properties: { color: t.color },
         geometry: { type: "LineString",
           coordinates: kL >= 1 ? t.coords.slice(0, kL + 1) : [t.coords[0], t.coords[0]] } });
@@ -14616,20 +14740,282 @@ function mountAnimator(body, headerActions, opts) {
   try { window.__rzReiseBahn = () => (_reiseBahn ? {
     punkte: _reiseBahn.coords.length, teile: _reiseBahn.teile,
     ecken: _reiseBahn.teile.map(t => _reiseBahn.coords[t.von].map(x => +x.toFixed(3))),
-    namen: [(currentGpx || "").split("/").pop()].concat(_extraTours.map(x => (x.gpx_path || "").split("/").pop())),
+    namen: _reiseBahn.etappen.map(e => (e.tour.gpx_path || "").split("/").pop()),
     ueber: Array.from(_reiseBahn.istUeber).reduce((a, b) => a + b, 0),
     etappen: _reiseBahn.etappen.length,
     // Der Zeitplan — daran misst der Prüfstand, ob die Vorschau so lang ist wie
     // der Plan (tests/test_reise_dauer_vorschau.py).
-    sekEtappen: _reiseBahn.sekEtappen, sekUeber: _reiseBahn.sekUeber,
-    sekAnim: (+_reiseBahn.sekEtappen || 0) + (+_reiseBahn.sekUeber || 0),
+    sekEtappen: _reiseBahn.sekEtappen, sekUeber: _reiseBahn.sekUeber, sekHalte: _reiseBahn.sekHalte,
+    sekAnim: +_reiseBahn.sekAnim || 0,
+    abschnitte: _reiseBahn.abschnitte.map(a => ({ art: a.art, teil: a.teil, t0: +a.t0.toFixed(3), t1: +a.t1.toFixed(3), von: a.von, bis: a.bis })),
   } : null); } catch (_) {}
 
+  /** Braucht die Vorschau eine Bahn? Ab ZWEI Gruppen — Kette, Lücken und
+   *  Füll-Halte gibt es nur dann. Eine Gruppe (Einzeltour oder Schwarm) läuft
+   *  wie immer direkt am Haupt-Track, mit Tempo-Kurve und allem. */
   function _reiseGilt() {
-    return _animAblauf !== "schwarm" && _extraTours.length > 0
-      && Array.isArray(_reiseBasis) && _reiseBasis.length > 1;
+    return _gruppen.length > 1 && Array.isArray(_reiseBasis) && _reiseBasis.length > 1;
   }
   function _reiseAktiv() { return !!(_reiseBahn && _reiseGilt()); }
+
+  /* ── Gruppen: die eine Wahrheit über die Zeit (IDEAS §60, 09.09.2026) ──────
+   *
+   * Jede Tour ist Halt + Inhalt + Halt, alle Tracks eines Projekts sind gleich
+   * lang. Die Rechnung liegt in ui/js/spuren.js (wortgleich zu core/spuren.py);
+   * hier steht, was die Oberfläche dazutut:
+   *   - der POOL: Haupt-Tour + Zusatz-Touren mit ihren Koordinaten,
+   *   - der AUFBAU aus dem Projekt (gespeicherte Gruppen, sonst Umrechnung der
+   *     alten Felder — §60 Punkt 11),
+   *   - der ABGLEICH mit dem Pool (Tour weg → Mitglied weg; neue Tour → nach
+   *     der Anordnung einsortiert),
+   *   - die KETTE: Zeile 0 des Plans, in Listenreihenfolge sequenziell gelegt
+   *     (Lücke = Übergang), solange eine Gruppe nicht von Hand gelegt (`fest`)
+   *     wurde. Daraus baut `_reiseBauen` die Bahn.
+   */
+  function _dateiName(pfad) { return String(pfad || "").split("/").pop().replace(/\.[^.]+$/i, ""); }
+  function _tourPool() {
+    const raus = [];
+    if (currentGpx) {
+      raus.push({ gpx_path: currentGpx, coords: _reiseBasis || currentCoords || null,
+                  name: _animEtappe1Name || _dateiName(currentGpx),
+                  line_color: (typeof currentLineColor === "function") ? currentLineColor() : (document.getElementById("anim-color")?.value || "#ff6b35"),
+                  zeit: (_reiseBasisSerie && _reiseBasisSerie.cumTimeS) || null,
+                  ele: _reiseBasisEle || null, stats: _gpxStats || null, haupt: true, tr: null });
+    }
+    _extraTours.forEach((t, i) => raus.push({
+      gpx_path: t.gpx_path, coords: t.coords || null, name: t.name || _dateiName(t.gpx_path),
+      line_color: t.line_color || "#35a7ff", zeit: Array.isArray(t.zeit) ? t.zeit : null,
+      ele: null, stats: t.stats || null, haupt: false, tr: t, extraIdx: i }));
+    return raus;
+  }
+  function _tourVon(gpx) {
+    const k = _pfadNFC(gpx);
+    return _tourPool().find(t => _pfadNFC(t.gpx_path) === k) || null;
+  }
+  function _gruppeVon(gpx) {
+    const k = _pfadNFC(gpx);
+    for (let gi = 0; gi < _gruppen.length; gi++) {
+      const j = _gruppen[gi].mitglieder.findIndex(m => _pfadNFC(m.gpx_path) === k);
+      if (j >= 0) return { g: _gruppen[gi], gi, j };
+    }
+    return null;
+  }
+  /** Gibt es eine Gruppe mit mehreren Touren? (Dann gelten die Schwarm-Optionen.) */
+  function _istSchwarm() { return _gruppen.some(g => g.mitglieder.length > 1); }
+  function _gruppenMass(tour) {
+    if (!tour) return 1;
+    const n = tour.stats && +tour.stats.n_points;
+    return (n > 0) ? n : Math.max(1, (tour.coords || []).length);
+  }
+  function _gruppenWunsch() { return Math.max(0.1, parseNum(document.getElementById("anim-dur")?.value, 12)); }
+  /** Inhaltslänge je Gruppe bei Faktor 1: der Wunsch, nach Umfang der
+   *  Taktgeber verteilt — bei EINER Gruppe der ganze Wunsch. Dieselbe Regel
+   *  wie `_reise_segmente` (Budget nach Punktzahl). */
+  function _gruppenRohS() {
+    const wunsch = _gruppenWunsch();
+    const mass = _gruppen.map(g => _gruppenMass(_tourVon((g.mitglieder[0] || {}).gpx_path)));
+    const summe = mass.reduce((a, b) => a + b, 0) || 1;
+    const raus = {};
+    _gruppen.forEach((g, i) => { raus[g.id] = _gruppen.length === 1 ? wunsch : wunsch * mass[i] / summe; });
+    return raus;
+  }
+  function _gruppeNeu(id, gpx, vorlauf) {
+    return { id, name: "", faktor: 1.0, vorlauf_s: vorlauf || 0, ueber_s: null, ueber_stil: "kino",
+             leit_gpx: "", zu: true, fest: false, eintraege: [], keyframes: [],
+             mitglieder: [{ gpx_path: gpx, vorlauf_s: 0, sichtbar_vor_inhalt: false }] };
+  }
+  function _gruppenIdFrei() {
+    let n = _gruppen.length + 1;
+    while (_gruppen.some(g => g.id === "g" + n)) n++;
+    return "g" + n;
+  }
+  /** Die alten Projektfelder als das Wörterbuch, das `ausProjekt` versteht. */
+  function _gruppenLegacy() {
+    return {
+      haupt_gpx: currentGpx || "", tours_ablauf: _animAnordnung, duration_s: _gruppenWunsch(),
+      fly_duration_s: parseNum(document.getElementById("anim-fly")?.value, 3),
+      etappe1_dauer_s: +_animEtappe1S || 0, etappe1_name: _animEtappe1Name || "",
+      tours_haupt_start_s: +_animHauptStartS || 0, tours_fokus: _animFokusPfad || "",
+      extra_tours: _extraTours.map(t => ({ gpx_path: t.gpx_path, name: t.name, line_color: t.line_color,
+        dauer_s: +t.dauer_s || 0, ueber_s: (t.ueber_s == null || t.ueber_s === "") ? null : +t.ueber_s,
+        ueber_stil: t.ueber_stil || "kino", start_s: +t.start_s || 0 })),
+    };
+  }
+  /** Gruppen aufbauen: aus dem Projekt gespeicherte, sonst Umrechnung der
+   *  heutigen Felder (im Speicher — geschrieben wird erst bei einer Änderung). */
+  function _gruppenAufbauen(gespeichert) {
+    const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+    _gruppenProjektId = proj ? proj.id : null;
+    const pool = _tourPool();
+    const da = new Set(pool.map(t => _pfadNFC(t.gpx_path)));
+    let raus = [];
+    if (Array.isArray(gespeichert) && gespeichert.length) {
+      raus = gespeichert.map((g, i) => ({
+        id: String(g.id || ("g" + (i + 1))), name: String(g.name || ""),
+        faktor: (+g.faktor > 0) ? +g.faktor : 1.0, vorlauf_s: Math.max(0, +g.vorlauf_s || 0),
+        ueber_s: (g.ueber_s == null || g.ueber_s === "") ? null : Math.max(0, +g.ueber_s || 0),
+        ueber_stil: g.ueber_stil || "kino", leit_gpx: String(g.leit_gpx || ""),
+        zu: g.zu !== false, fest: g.fest === true,
+        eintraege: Array.isArray(g.eintraege) ? g.eintraege.slice() : [],
+        keyframes: Array.isArray(g.keyframes) ? g.keyframes.slice() : [],
+        mitglieder: (Array.isArray(g.mitglieder) ? g.mitglieder : [])
+          .filter(m => m && m.gpx_path && da.has(_pfadNFC(m.gpx_path)))
+          .map(m => ({ gpx_path: m.gpx_path, vorlauf_s: Math.max(0, +m.vorlauf_s || 0),
+                       sichtbar_vor_inhalt: m.sichtbar_vor_inhalt === true })),
+      })).filter(g => g.mitglieder.length);
+    } else {
+      const roh = {}, groesse = {};
+      const wunsch = _gruppenWunsch();
+      const summe = pool.reduce((a, t) => a + _gruppenMass(t), 0) || 1;
+      pool.forEach(t => { groesse[t.gpx_path] = _gruppenMass(t); roh[t.gpx_path] = wunsch * _gruppenMass(t) / summe; });
+      // Beim Schwarm ist die Inhaltslänge der EINEN Gruppe der ganze Wunsch.
+      if (_animAnordnung === "schwarm" && pool.length) roh[pool[0].gpx_path] = wunsch;
+      raus = window.rzSpuren ? window.rzSpuren.ausProjekt(_gruppenLegacy(), roh, groesse) : [];
+    }
+    _gruppen = raus;
+    _gruppenSync();
+    _gruppenAbleiten();
+    return _gruppen;
+  }
+  /** Gruppen mit dem Pool abgleichen: verschwundene Touren raus, neue nach
+   *  der Anordnung dazu, leere Gruppen weg, Kennungen eindeutig. */
+  function _gruppenSync() {
+    const pool = _tourPool();
+    const da = new Set(pool.map(t => _pfadNFC(t.gpx_path)));
+    for (const g of _gruppen) g.mitglieder = g.mitglieder.filter(m => da.has(_pfadNFC(m.gpx_path)));
+    _gruppen = _gruppen.filter(g => g.mitglieder.length);
+    const drin = new Set();
+    _gruppen.forEach(g => g.mitglieder.forEach(m => drin.add(_pfadNFC(m.gpx_path))));
+    for (const t of pool) {
+      if (drin.has(_pfadNFC(t.gpx_path))) continue;
+      drin.add(_pfadNFC(t.gpx_path));
+      if (_animAnordnung === "schwarm" && _gruppen.length) {
+        _gruppen[0].mitglieder.push({ gpx_path: t.gpx_path, vorlauf_s: 0, sichtbar_vor_inhalt: false });
+      } else {
+        // hinten an die Kette: die Lücke legt `_ketteLegen` (gemeinsame Flugdauer)
+        _gruppen.push(_gruppeNeu(_gruppenIdFrei(), t.gpx_path, 0));
+      }
+    }
+    const ids = new Set();
+    for (const g of _gruppen) {
+      if (ids.has(g.id)) g.id = _gruppenIdFrei();
+      ids.add(g.id);
+    }
+  }
+  /** Die alten Weichen aus den Gruppen ableiten. */
+  function _gruppenAbleiten() {
+    _animAblauf = (_gruppen.length === 1 && _gruppen[0].mitglieder.length > 1) ? "schwarm" : "reise";
+    try {
+      const g0 = _gruppen[0];
+      if (g0 && g0.mitglieder.length > 1) {
+        _animFokusPfad = g0.leit_gpx || "";
+        const m0 = g0.mitglieder[0];
+        _animHauptStartS = (m0 && _pfadNFC(m0.gpx_path) === _pfadNFC(currentGpx)) ? (+m0.vorlauf_s || 0) : 0;
+      }
+    } catch (_) {}
+  }
+  /** Die Kette sequenziell legen: Zeile 0 des Plans in Listenreihenfolge, jede
+   *  nicht von Hand gelegte Gruppe hinter die vorige, Lücke = ihr Übergang
+   *  (eigene Sekunden, sonst die gemeinsame Flugdauer; Schnitt = 0). */
+  function _ketteLegen(rohS) {
+    const S = window.rzSpuren;
+    if (!S || _gruppen.length < 2) return;
+    const flug = parseNum(document.getElementById("anim-fly")?.value, 3);
+    // Die Kette BILDEN alle nicht von Hand gelegten Gruppen, in Listenreihen-
+    // folge hintereinander. (Sie aus dem Plan abzulesen ginge nicht: solange
+    // nichts gelegt ist, liegt alles bei 0 und die Zeile 0 hätte nur eine.)
+    // Von Hand gelegte (`fest`) behalten ihre Zeit; überlappen sie, bekommen
+    // sie im Plan ihre eigene Zeile.
+    let pos = null;
+    for (const g of _gruppen) {
+      if (g.fest) continue;
+      const inh = S.inhaltDauer(g, rohS[g.id]);
+      if (pos != null) {
+        const luecke = g.ueber_stil === "schnitt" ? 0 : (g.ueber_s == null ? flug : Math.max(0, +g.ueber_s || 0));
+        g.vorlauf_s = pos + luecke;
+      }
+      pos = g.vorlauf_s + inh;
+    }
+  }
+  /** Der Zeitplan: Abgleich, Rohlängen, Kette legen, rechnen. */
+  function _gruppenPlanRechnen() {
+    const S = window.rzSpuren;
+    if (!S) { _gruppenPlan = null; return null; }
+    _gruppenSync();
+    if (!_gruppen.length) { _gruppenPlan = null; return null; }
+    const rohS = _gruppenRohS();
+    _ketteLegen(rohS);
+    _gruppenPlan = S.zeitplan(_gruppen, rohS, _gruppen.length > 1 ? _gruppenWunsch() : 0);
+    _gruppenPlan.rohS = rohS;
+    _gruppenPlan.zeilen = S.zeilen(_gruppenPlan);
+    return _gruppenPlan;
+  }
+  /** Die Kette des Plans (Zeile 0) in ZEITLICHER Reihenfolge: [{g, lage}]. */
+  function _gruppenKette(plan) {
+    if (!plan) return [];
+    const ids = plan.zeilen && plan.zeilen[0] ? plan.zeilen[0] : [];
+    return ids.map(id => ({ g: _gruppen.find(x => x.id === id), lage: plan.lage(id) }))
+      .filter(x => x.g && x.lage)
+      .sort((a, b) => a.lage.von_s - b.lage.von_s);
+  }
+  /** Welche Gruppe bei Animationszeit t den INHALT laufen hat — die oberste. */
+  function _gruppeLaeuftBei(tA, plan) {
+    plan = plan || _gruppenPlan;
+    if (!plan) return null;
+    for (const g of _gruppen) {
+      const l = plan.lage(g.id);
+      if (l && tA >= l.von_s - 1e-9 && tA < l.bis_s - 1e-9) return { g, lage: l };
+    }
+    return null;
+  }
+  /** Länge des Inhalts einer Gruppe im Video (aus dem Plan). */
+  function _gruppeLaenge(g) {
+    const l = _gruppenPlan && g ? _gruppenPlan.lage(g.id) : null;
+    return l ? l.inhalt_s : 0;
+  }
+  /** Länge eingeben → Faktor speichern (§60 Punkt 4). 0 = Faktor 1 (Anteil). */
+  function _gruppeLaengeSetzen(g, L) {
+    if (!g) return;
+    const rohS = (_gruppenPlan && _gruppenPlan.rohS) ? _gruppenPlan.rohS : _gruppenRohS();
+    const roh = Math.max(1e-6, +rohS[g.id] || 0);
+    g.faktor = (L > 0) ? roh / Math.max(0.3, L) : 1.0;
+  }
+  /** Zwei Touren tauschen: in derselben Gruppe die Mitglieder, sonst die Gruppen. */
+  function _gruppenTauschen(gpxA, gpxB) {
+    const a = _gruppeVon(gpxA), b = _gruppeVon(gpxB);
+    if (!a || !b) return;
+    if (a.g === b.g) {
+      const m = a.g.mitglieder; const tmp = m[a.j]; m[a.j] = m[b.j]; m[b.j] = tmp;
+    } else {
+      const tmp = _gruppen[a.gi]; _gruppen[a.gi] = _gruppen[b.gi]; _gruppen[b.gi] = tmp;
+    }
+  }
+  /** Gruppen in die Reihenfolge des Pools bringen (nach dem Sortieren). */
+  function _gruppenNachPool() {
+    const pool = _tourPool().map(t => _pfadNFC(t.gpx_path));
+    const rang = (g) => { const i = pool.indexOf(_pfadNFC((g.mitglieder[0] || {}).gpx_path)); return i < 0 ? 1e9 : i; };
+    _gruppen.sort((x, y) => rang(x) - rang(y));
+  }
+  // Prüfstand-Griffe (tests/test_gruppen_vorschau.py)
+  try {
+    window.__rzGruppen = () => ({
+      gruppen: _gruppen.map(g => ({ id: g.id, name: g.name, faktor: g.faktor, vorlauf_s: g.vorlauf_s,
+        ueber_s: g.ueber_s, ueber_stil: g.ueber_stil, leit_gpx: g.leit_gpx, fest: g.fest,
+        mitglieder: g.mitglieder.map(m => ({ gpx_path: m.gpx_path, vorlauf_s: m.vorlauf_s })) })),
+      plan: _gruppenPlan ? { dauer_s: _gruppenPlan.dauer_s, zeilen: _gruppenPlan.zeilen,
+        lagen: _gruppenPlan.lagen.map(l => ({ id: l.id, von_s: l.von_s, bis_s: l.bis_s, nachlauf_s: l.nachlauf_s })) } : null,
+      ablauf: _animAblauf, anordnung: _animAnordnung, animSekunden: animSekunden(),
+      bahn: _reiseAktiv(), gilt: _reiseGilt(),
+      overlay: _swPrev.map(x => ({ gpx_path: x.gpx_path, rolle: x.rolle, gruppe: x.gruppe.id, k: x.__k == null ? null : x.__k, n1: x.coords.length - 1 })),
+    });
+    // Scrubben wie mit der Maus — liefert die Stelle im Track (Bruchteil-Index).
+    window.__rzScrubZu = (anker) => { scrubPreview(anker); return trackFracAusAnker(anker); };
+    window.__rzGruppenSetzen = (liste) => {
+      _gruppenAufbauen(liste);
+      _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview();
+      return window.__rzGruppen();
+    };
+  } catch (_) {}
 
   /** Gleichmäßig auf n Punkte abtasten — liefert die INDEXE, damit Koordinaten
    *  und Datenreihen (Distanz, Zeit, Höhe) denselben Griff bekommen. */
@@ -14653,87 +15039,100 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   function _reiseBauen() {
-    if (!_reiseGilt()) { _reiseBahn = null; _tempoReiseStandPruefen(0); return null; }
-    const etappen = [{ coords: _reiseBasis, dauer: +_animEtappe1S || 0, ueber_s: null, ueber_stil: "kino",
-                       zeit: (_reiseBasisSerie && _reiseBasisSerie.cumTimeS) || null,
-                       ele: _reiseBasisEle || null }]
-      .concat(_extraTours
-        .filter(t => Array.isArray(t.coords) && t.coords.length > 1)
-        .map(t => ({ coords: t.coords, dauer: +t.dauer_s || 0,
-                     ueber_s: (t.ueber_s == null || t.ueber_s === "") ? null : (+t.ueber_s || 0),
-                     ueber_stil: t.ueber_stil || "kino",
-                     zeit: Array.isArray(t.zeit) ? t.zeit : null, ele: null })));
-    if (etappen.length < 2) { _reiseBahn = null; return null; }
-
-    // Zeitanteile — dieselbe Regel wie core/animator.py `_reise_segmente`.
+    if (!_reiseGilt()) { _reiseBahn = null; _gruppenPlanRechnen(); _tempoReiseStandPruefen(0); return null; }
+    // 09.09.2026 (§60) — die Bahn kommt aus dem ZEITPLAN der Gruppen: die
+    // Kette (Zeile 0) in zeitlicher Folge, dazwischen Lücken = Übergänge,
+    // davor und dahinter Füll-Halte. Dieselbe Mechanik wie zuvor die Etappen,
+    // nur dass die Zeiten jetzt EINE Rechnung haben (ui/js/spuren.js).
+    const plan = _gruppenPlanRechnen();
+    const kette = _gruppenKette(plan).filter(k => {
+      const tour = _tourVon((k.g.mitglieder[0] || {}).gpx_path);
+      return tour && Array.isArray(tour.coords) && tour.coords.length > 1;
+    });
+    if (!plan || !(plan.dauer_s > 0) || !kette.length) { _reiseBahn = null; return null; }
+    const dauer = plan.dauer_s;
     const flugS = parseNum(document.getElementById("anim-fly")?.value, 3);
-    const gesamtS = Math.max(1, parseNum(document.getElementById("anim-dur")?.value, 20));
-    const fest = etappen.map(e => e.dauer > 0 ? e.dauer : 0);
-    const offen = etappen.map((e, i) => fest[i] ? -1 : i).filter(i => i >= 0);
-    const restS = Math.max(0, gesamtS - fest.reduce((a, b) => a + b, 0));
-    const offenPts = offen.reduce((a, i) => a + etappen[i].coords.length, 0) || 1;
-    // ⚠️ Untergrenze: feste Etappendauern gehen vom Budget ab, und zwei feste
-    // Etappen können dreizehn andere auf 0,0 s drücken — die Reise zeigte dann
-    // vierzehn Etappen, von denen dreizehn nicht vorkamen (08.09.2026 auf Marcs
-    // Rechner gemessen). Jede Etappe bekommt mindestens diese Zeit; das Video
-    // wird dadurch länger als die Vorgabe, und die Bilanz sagt es.
-    const MIN_ETAPPE_S = 0.3;
-    const etappeS = etappen.map((e, i) => fest[i] ||
-      Math.max(MIN_ETAPPE_S, restS * e.coords.length / offenPts));
-    const ueberS = etappen.map((e, i) => i === 0 ? 0
-      : (e.ueber_stil === "schnitt" ? 0 : (e.ueber_s == null ? flugS : e.ueber_s)));
-    const summeS = etappeS.reduce((a, b) => a + b, 0) + ueberS.reduce((a, b) => a + b, 0);
-    if (!(summeS > 0)) { _reiseBahn = null; return null; }
 
-    // Punktbudget: fein genug für die Linie, klein genug für die Vorschau.
+    // Abschnitte in Animationszeit: vor | inhalt | ueber | nach
+    const abschnitte = [];
+    let t = 0;
+    kette.forEach((k, i) => {
+      if (k.lage.von_s > t + 1e-6) abschnitte.push({ art: i === 0 ? "vor" : "ueber", teil: i === 0 ? 0 : i - 1, t0: t, t1: k.lage.von_s });
+      abschnitte.push({ art: "inhalt", teil: i, t0: k.lage.von_s, t1: k.lage.bis_s });
+      t = k.lage.bis_s;
+    });
+    if (dauer > t + 1e-6) abschnitte.push({ art: "nach", teil: kette.length - 1, t0: t, t1: dauer });
+
+    const etappen = kette.map((k, i) => {
+      const tour = _tourVon(k.g.mitglieder[0].gpx_path);
+      const luecke = i === 0 ? 0 : Math.max(0, k.lage.von_s - kette[i - 1].lage.bis_s);
+      return { coords: tour.coords, zeit: tour.zeit, ele: tour.ele, gruppe: k.g, lage: k.lage, tour,
+               ueber_stil: k.g.ueber_stil || "kino", ueber_s: luecke, dauer: k.lage.inhalt_s };
+    });
+
+    // Punktbudget ∝ Zeit: fein genug für die Linie, klein genug für die Vorschau.
     const roh = etappen.reduce((a, e) => a + e.coords.length, 0);
     const NGES = Math.max(600, Math.min(6000, roh));
-
-    const coords = [];
-    const teilVon = [];
-    const istUeber = [];
-    const teile = [];
-    etappen.forEach((e, i) => {
-      if (i > 0 && ueberS[i] > 0) {
-        const nU = Math.max(1, Math.round(NGES * ueberS[i] / summeS));
-        const letzter = coords[coords.length - 1] || e.coords[0];
-        for (let k = 0; k < nU; k++) { coords.push(letzter); teilVon.push(i - 1); istUeber.push(1); }
+    const coords = [], teilVon = [], istUeber = [], teile = [];
+    for (const ab of abschnitte) {
+      const dt = Math.max(0, ab.t1 - ab.t0);
+      ab.von = coords.length;
+      if (ab.art === "inhalt") {
+        const e = etappen[ab.teil];
+        const nE = Math.max(2, Math.round(NGES * dt / dauer));
+        const idx = _reiseAbtastIdx(e.coords.length, nE);
+        for (const k of idx) { coords.push(e.coords[k]); teilVon.push(ab.teil); istUeber.push(0); }
+        teile.push({ von: ab.von, bis: coords.length - 1 });
+        e.__idx = idx;
+      } else {
+        const nU = Math.max(1, Math.round(NGES * dt / dauer));
+        // „vor": der Laufpunkt steht am ANFANG der ersten Etappe; sonst am Ende der letzten.
+        const stell = ab.art === "vor" ? etappen[0].coords[0] : (coords[coords.length - 1] || etappen[ab.teil].coords[0]);
+        for (let k = 0; k < nU; k++) { coords.push(stell); teilVon.push(ab.teil); istUeber.push(ab.art === "ueber" ? 1 : 0); }
       }
-      const nE = Math.max(2, Math.round(NGES * etappeS[i] / summeS));
-      const idx = _reiseAbtastIdx(e.coords.length, nE);
-      const von = coords.length;
-      for (const k of idx) { coords.push(e.coords[k]); teilVon.push(i); istUeber.push(0); }
-      teile.push({ von, bis: coords.length - 1 });
-      e.__idx = idx;
-    });
-    // 08.09.2026 (Marc, Frage 6: „beides wäre cool") — Datenreihen der Bahn:
-    // Distanz und Zeit laufen über ALLE Etappen durch, während eines Übergangs
-    // stehen sie still. Ohne das zeigten die Einblendungen die Werte der ersten
-    // Tour, mit dem Index der Bahn gelesen — also Unsinn.
-    const serie = _reiseSerieBauen(etappen, teilVon, istUeber, teile);
-    _reiseBahn = { coords, teilVon, istUeber, teile, ansichten: null, etappen, serie,
-                   sekEtappen: etappeS.reduce((a, b) => a + b, 0),
-                   sekUeber: ueberS.reduce((a, b) => a + b, 0),
-                   // Für die Bilanz: was feste Etappen belegen und was den
-                   // übrigen bleibt. Ohne diesen Hinweis quetschen zwei feste
-                   // Etappen dreizehn andere auf 0,3 s — sichtbar nur im Log
-                   // (08.09.2026 auf Marcs Rechner genau so passiert).
-                   sekFest: fest.reduce((a, b) => a + b, 0), offenN: offen.length,
-                   // Was einer freien Etappe TATSÄCHLICH bleibt — nach der
-                   // Untergrenze, nicht davor.
-                   sekJeOffen: offen.length ? etappeS[offen[0]] : 0 };
-    applog("info", `[reise] Bahn gebaut: ${etappen.length} Etappen · ${coords.length} Punkte · `
-      + `Etappen ${etappeS.map(x => x.toFixed(1)).join("/")} s · Übergänge ${ueberS.slice(1).map(x => x.toFixed(1)).join("/")} s`);
+      ab.bis = coords.length - 1;
+    }
+    const serie = _reiseSerieBauen(etappen, teilVon, istUeber, teile, coords.length);
+    const sekEtappen = abschnitte.filter(x => x.art === "inhalt").reduce((a, x) => a + (x.t1 - x.t0), 0);
+    const sekUeber = abschnitte.filter(x => x.art === "ueber").reduce((a, x) => a + (x.t1 - x.t0), 0);
+    const sekHalte = abschnitte.filter(x => x.art === "vor" || x.art === "nach").reduce((a, x) => a + (x.t1 - x.t0), 0);
+    // Für die Bilanz: was Gruppen mit eigenem Faktor belegen und was den
+    // übrigen bleibt — ohne den Hinweis quetschten zwei feste Etappen dreizehn
+    // andere auf 0,3 s, sichtbar nur im Log (08.09.2026 auf Marcs Rechner).
+    const offen = kette.filter(k => Math.abs((+k.g.faktor || 1) - 1) < 1e-9);
+    _reiseBahn = { coords, teilVon, istUeber, teile, abschnitte, ansichten: null, etappen, serie, kette, plan,
+                   sekEtappen, sekUeber, sekHalte, sekAnim: dauer,
+                   sekFest: kette.filter(k => Math.abs((+k.g.faktor || 1) - 1) >= 1e-9).reduce((a, k) => a + k.lage.inhalt_s, 0),
+                   offenN: offen.length,
+                   sekJeOffen: offen.length ? Math.min(...offen.map(k => k.lage.inhalt_s)) : 0 };
+    applog("info", `[reise] Bahn gebaut: ${etappen.length} Etappen in der Kette (${_gruppen.length} Gruppen) · ${coords.length} Punkte · `
+      + `Etappen ${etappen.map(e => e.dauer.toFixed(1)).join("/")} s · Übergänge ${etappen.slice(1).map(e => e.ueber_s.toFixed(1)).join("/")} s`
+      + (sekHalte > 0 ? ` · Halte ${sekHalte.toFixed(1)} s` : "") + ` · gesamt ${dauer.toFixed(1)} s (Flug ${flugS.toFixed(1)} s)`);
     try { _reiseBilanzZeigen(); } catch (_) {}
     try { _etappenAnLeiste(); } catch (e) { applog("warn", "[reise] " + e); }
     _tempoReiseStandPruefen(etappen.length);
     return _reiseBahn;
   }
+  /** Abschnitt der Bahn an einem Index — und die Animationszeit dort. */
+  function _bahnAbschnitt(idx) {
+    if (!_reiseBahn || !_reiseBahn.abschnitte) return null;
+    const i = Math.max(0, Math.min(_reiseBahn.coords.length - 1, Math.round(+idx || 0)));
+    for (const ab of _reiseBahn.abschnitte) if (i >= ab.von && i <= ab.bis) return ab;
+    return _reiseBahn.abschnitte[_reiseBahn.abschnitte.length - 1] || null;
+  }
+  function _bahnZeit(frac) {
+    if (!_reiseBahn || !_reiseBahn.abschnitte) return 0;
+    const f = Math.max(0, Math.min(_reiseBahn.coords.length - 1, +frac || 0));
+    const ab = _bahnAbschnitt(f);
+    if (!ab) return 0;
+    const q = (ab.bis > ab.von) ? Math.max(0, Math.min(1, (f - ab.von) / (ab.bis - ab.von))) : 0;
+    return ab.t0 + q * (ab.t1 - ab.t0);
+  }
 
   /** Distanz, Zeit und Höhe entlang der Bahn — durchlaufend über alle Etappen,
    *  im Übergang stehend. Zusätzlich je Punkt der Etappen-Anteil (`etappeDist`,
    *  `etappeZeit`), damit ein Etappenzähler daraus lesen kann. */
-  function _reiseSerieBauen(etappen, teilVon, istUeber, teile) {
+  function _reiseSerieBauen(etappen, teilVon, istUeber, teile, gesamtN) {
     const cumDistM = [], cumTimeS = [], ele = [], etappeDist = [], etappeZeit = [];
     let dAcc = 0, tAcc = 0, hatZeit = true, hatHoehe = true;
     etappen.forEach((e, i) => {
@@ -14761,6 +15160,13 @@ function mountAnimator(body, headerActions, opts) {
       dAcc = cumDistM[cumDistM.length - 1];
       tAcc = cumTimeS[cumTimeS.length - 1];
     });
+    // Füll-Halt hinten (§60): die Reihen laufen bis zum Ende der Bahn weiter, stehend.
+    while (gesamtN && cumDistM.length < gesamtN) {
+      cumDistM.push(dAcc); cumTimeS.push(tAcc);
+      ele.push(ele.length ? ele[ele.length - 1] : 0);
+      etappeDist.push(etappeDist.length ? etappeDist[etappeDist.length - 1] : 0);
+      etappeZeit.push(etappeZeit.length ? etappeZeit[etappeZeit.length - 1] : 0);
+    }
     return { cumDistM, cumTimeS, ele, etappeDist, etappeZeit,
              has_time: hatZeit, has_ele: hatHoehe };
   }
@@ -14778,10 +15184,8 @@ function mountAnimator(body, headerActions, opts) {
     if (!_reiseBahn || !_reiseGilt()) { _tlBar.setEtappen([]); return; }
     const ti = introFraction(), tf = trackFraction();
     const n1 = Math.max(1, _reiseBahn.coords.length - 1);
-    const namen = [_animEtappe1Name
-                     || (currentGpx || "").split("/").pop().replace(/\.gpx$/i, "")]
-      .concat(_extraTours.map(x => x.name || ""));
-    const farben = [currentLineColor()].concat(_extraTours.map(x => x.line_color || ""));
+    const namen = _reiseBahn.etappen.map(e => e.gruppe.name || e.tour.name || "");
+    const farben = _reiseBahn.etappen.map(e => e.tour.line_color || "");
     // Für die Kachel zählt das Unterscheidbare: fast alle Dateinamen beginnen
     // mit dem Datum, und in einer schmalen Kachel stand dann fünfzehnmal
     // „2024…". Das führende Datum fliegt für die BESCHRIFTUNG raus — der
@@ -14803,8 +15207,10 @@ function mountAnimator(body, headerActions, opts) {
     const e = _reiseBahn.sekEtappen || 0, u = _reiseBahn.sekUeber || 0;
     const g = e + u;
     host.hidden = false;
+    const h = _reiseBahn.sekHalte || 0;
     let txt = t("animator.tours.bilanz", "Gesamt {g} s — Etappen {e} s, Übergänge {u} s")
-      .replace("{g}", g.toFixed(1)).replace("{e}", e.toFixed(1)).replace("{u}", u.toFixed(1));
+      .replace("{g}", (g + h).toFixed(1)).replace("{e}", e.toFixed(1)).replace("{u}", u.toFixed(1));
+    if (h > 0.05) txt += " · " + t("animator.tours.bilanz_halte", "Halte {h} s").replace("{h}", h.toFixed(1));
     // Feste Etappendauern gehen vom Budget ab. Bleibt den übrigen weniger als
     // eine Sekunde, huschen sie unsichtbar vorbei — das gehört gesagt.
     const fN = _reiseBahn.offenN || 0, fJe = _reiseBahn.sekJeOffen || 0;
@@ -14828,9 +15234,19 @@ function mountAnimator(body, headerActions, opts) {
     }
   }
 
+  /** Die Bahn wieder ablegen: der Haupt-Track und seine Reihen kehren zurück
+   *  (Gruppen 2 → 1, etwa nach dem Entfernen einer Tour). */
+  function _reiseAblegen() {
+    _reiseBahn = null;
+    if (_reiseBasis && currentCoords !== _reiseBasis) {
+      currentCoords = _reiseBasis;
+      if (_reiseBasisSerie) { _ovSeries = _reiseBasisSerie; _gpxElevations = _reiseBasisEle || _gpxElevations; }
+      try { refreshPreviewTrackData(); } catch (_) {}
+    }
+  }
   /** Bahn als aktuellen Track übernehmen (die Vorschau rechnet damit weiter). */
   function _reiseAnwenden() {
-    if (!_reiseBauen()) return false;
+    if (!_reiseBauen()) { _reiseAblegen(); return false; }
     currentCoords = _reiseBahn.coords;
     // Einblendungen rechnen mit `_ovSeries`/`_gpxElevations` am Index des Tracks —
     // also müssen die Reihen zur Bahn gehören, nicht mehr zur ersten Tour.
@@ -14858,6 +15274,10 @@ function mountAnimator(body, headerActions, opts) {
    * Jetzt bekommt der Haupt-Track NUR die erste Etappe (mit Schatten, Aura und
    * Farbverlauf wie bei einer einzelnen Tour), und jede weitere Etappe wächst in
    * ihrer EIGENEN Linie — so wie der klassische Render sie malt. */
+  /** Quelle, in der eine Tour liegt, wenn sie NICHT im preview-track steckt. */
+  function _mtourQuelle(tour) {
+    return tour && tour.haupt ? "mtour-prev-haupt" : "mtour-prev-" + (tour ? tour.extraIdx : 0);
+  }
   function _reiseGeometrie(coords, ab) {
     if (!_reiseAktiv()) return { type: "LineString", coordinates: coords };
     const bahn = _reiseBahn;
@@ -14865,7 +15285,7 @@ function mountAnimator(body, headerActions, opts) {
     // Etappen 2..n in ihre eigenen Quellen, bis zum erreichten Punkt.
     for (let i = 1; i < bahn.teile.length; i++) {
       const t = bahn.teile[i];
-      const id = "mtour-prev-" + (i - 1);
+      const id = _mtourQuelle(bahn.etappen[i].tour);
       let stueck = [];
       if (bis >= t.von) {
         const ende = Math.min(t.bis, bis);
@@ -14886,7 +15306,9 @@ function mountAnimator(body, headerActions, opts) {
 
   /** Steht der Laufpunkt gerade in einem Übergang? */
   function _reiseImUebergang(idx) {
-    return !!(_reiseAktiv() && _reiseBahn.istUeber[Math.max(0, Math.min(_reiseBahn.istUeber.length - 1, Math.round(idx)))]);
+    if (!_reiseAktiv()) return false;
+    const ab = _bahnAbschnitt(idx);
+    return !!(ab && ab.art === "ueber");
   }
 
   /** Kamera in der Reise: während eines Übergangs der Flug, sonst die Sicht der
@@ -14896,22 +15318,28 @@ function mountAnimator(body, headerActions, opts) {
    *  (`tour_views`) und fliegt dazwischen. */
   function _reiseKamera(idx) {
     if (!_reiseAktiv() || !map) return null;
-    const i = Math.max(0, Math.min(_reiseBahn.istUeber.length - 1, Math.round(idx)));
-    if (!_reiseBahn.istUeber[i]) {
-      const teil = _reiseBahn.teilVon[i];
-      const A = _reiseAnsichten()[teil];
+    const i = Math.max(0, Math.min(_reiseBahn.coords.length - 1, Math.round(idx)));
+    const ab = _bahnAbschnitt(i);
+    if (!ab) return null;
+    // 09.09.2026 (§60, Klarstellung): Keyframes gehören der obersten Gruppe;
+    // die AUTOMATISCHE Kamera folgt der obersten Gruppe, deren Inhalt gerade
+    // läuft — auch wenn die außerhalb der Kette (parallel) liegt.
+    const tA = _bahnZeit(i);
+    const laeuft = _gruppeLaeuftBei(tA);
+    if (laeuft && !_reiseBahn.kette.some(k => k.g === laeuft.g)) {
+      const A = _gruppenAnsicht(laeuft.g);
       return A ? { center: A.c.slice(), zoom: A.z, etappe: true } : null;
     }
-    // Anfang und Ende dieses Übergangs finden
-    let a = i, b = i;
-    while (a > 0 && _reiseBahn.istUeber[a - 1]) a--;
-    while (b < _reiseBahn.istUeber.length - 1 && _reiseBahn.istUeber[b + 1]) b++;
-    const vonTeil = _reiseBahn.teilVon[a];
-    const nachTeil = vonTeil + 1;
+    if (ab.art !== "ueber") {
+      const A = _reiseAnsichten()[ab.teil];
+      return A ? { center: A.c.slice(), zoom: A.z, etappe: true } : null;
+    }
+    // Übergang: Flug von der Sicht der Etappe davor zur Sicht der Etappe danach.
+    const vonTeil = ab.teil, nachTeil = vonTeil + 1;
     const ansichten = _reiseAnsichten();
     const A = ansichten[vonTeil], B = ansichten[nachTeil];
     if (!A || !B) return null;
-    const p = (i - a) / Math.max(1, b - a);
+    const p = (i - ab.von) / Math.max(1, ab.bis - ab.von);
     const q = p * p * (3 - 2 * p);   // smoothstep, wie im Render
     const stil = (_reiseBahn.etappen[nachTeil] || {}).ueber_stil || "kino";
     if (stil === "luftlinie") {
@@ -14938,26 +15366,40 @@ function mountAnimator(body, headerActions, opts) {
     return { center: [A.c[0] + (B.c[0] - A.c[0]) * q, A.c[1] + (B.c[1] - A.c[1]) * q], zoom: z };
   }
 
-  /** Sicht je Etappe (Mitte + Zoom), einmal je Bahn berechnet. */
+  /** Sicht einer Gruppe (Mitte + Zoom über ALLE Mitglieder), je Bahn gecacht. */
+  function _gruppenAnsicht(g) {
+    if (!g || !map) return null;
+    if (_reiseBahn) {
+      if (!_reiseBahn.ansichtJe) _reiseBahn.ansichtJe = {};
+      if (_reiseBahn.ansichtJe[g.id]) return _reiseBahn.ansichtJe[g.id];
+    }
+    let mnLo = Infinity, mxLo = -Infinity, mnLa = Infinity, mxLa = -Infinity, n = 0;
+    for (const m of g.mitglieder) {
+      const tour = _tourVon(m.gpx_path);
+      for (const c of ((tour && tour.coords) || [])) {
+        if (c[0] < mnLo) mnLo = c[0]; if (c[0] > mxLo) mxLo = c[0];
+        if (c[1] < mnLa) mnLa = c[1]; if (c[1] > mxLa) mxLa = c[1];
+        n++;
+      }
+    }
+    if (!n) return null;
+    // `_previewFitBase` lebt im Probelauf; hier reicht die Fit-Basis des Moduls.
+    let z = (_fitZoomBase != null) ? _fitZoomBase : (map ? map.getZoom() : 10);
+    try {
+      const cam = map.cameraForBounds([[mnLo, mnLa], [mxLo, mxLa]], { padding: 60 });
+      if (cam && isFinite(cam.zoom)) z = cam.zoom;
+    } catch (_) {}
+    const raus = { c: [(mnLo + mxLo) / 2, (mnLa + mxLa) / 2], z };
+    if (_reiseBahn) _reiseBahn.ansichtJe[g.id] = raus;
+    return raus;
+  }
+
+  /** Sicht je Kettenetappe (= ihre Gruppe), einmal je Bahn berechnet. */
   function _reiseAnsichten() {
     if (!_reiseAktiv()) return [];
     if (_reiseBahn.ansichten) return _reiseBahn.ansichten;
-    const raus = _reiseBahn.etappen.map((e) => {
-      let mnLo = Infinity, mxLo = -Infinity, mnLa = Infinity, mxLa = -Infinity;
-      for (const c of e.coords) {
-        if (c[0] < mnLo) mnLo = c[0]; if (c[0] > mxLo) mxLo = c[0];
-        if (c[1] < mnLa) mnLa = c[1]; if (c[1] > mxLa) mxLa = c[1];
-      }
-      // `_previewFitBase` lebt im Probelauf; hier reicht die Fit-Basis des Moduls.
-      let z = (_fitZoomBase != null) ? _fitZoomBase : (map ? map.getZoom() : 10);
-      try {
-        const cam = map.cameraForBounds([[mnLo, mnLa], [mxLo, mxLa]], { padding: 60 });
-        if (cam && isFinite(cam.zoom)) z = cam.zoom;
-      } catch (_) {}
-      return { c: [(mnLo + mxLo) / 2, (mnLa + mxLa) / 2], z };
-    });
-    _reiseBahn.ansichten = raus;
-    return raus;
+    _reiseBahn.ansichten = _reiseBahn.etappen.map(e => _gruppenAnsicht(e.gruppe));
+    return _reiseBahn.ansichten;
   }
 
   function _animDrawExtraToursPreview() {
@@ -14984,35 +15426,36 @@ function mountAnimator(body, headerActions, opts) {
     // Touren als Features (ein setData pro Bild statt 96) und je Tour auf
     // höchstens ~150 Vorschau-Punkte gedünnt — der Render rechnet ohnehin mit
     // eigenen, sauber abgetasteten Punkten (punktabstand in core/animator.py).
-    if (_animAblauf === "schwarm") {
-      _swPrevBauen(lw);
-      // 07.09.2026 — Tour-Map (Standbild): alle Schwarm-Touren ganz gezeichnet, keine Laufpunkte
-      if (_isStaticFrame) {
-        try { _animSchwarmPreviewAdvance(Math.max(0, (currentCoords || []).length - 1), true); } catch (_) {}
-        try { if (map.getLayer("swarm-prev-dots")) map.setLayoutProperty("swarm-prev-dots", "visibility", "none"); } catch (_) {}
-      }
-      _vorschauDiagnose();
-      return;
+    // 09.09.2026 (§60) — EIN Weg für alles: erst der Zeitplan der Gruppen (ab
+    // zwei Gruppen als Bahn: Kette, Lücken, Füll-Halte), dann je Kettenetappe
+    // ab der zweiten eine eigene Quelle in ihrer Farbe (die erste liegt im
+    // preview-track), zuletzt die Schwarm-Mechanik für alles, was einer Gruppe
+    // folgt oder parallel zur Kette läuft.
+    try { if (_reiseGilt()) _reiseAnwenden(); else { _reiseAblegen(); _gruppenPlanRechnen(); } }
+    catch (e) { applog("warn", "[reise] " + e); }
+    if (_reiseAktiv()) {
+      _reiseBahn.etappen.forEach((e, i) => {
+        if (i === 0 || !e.coords || e.coords.length < 2) return;
+        const id = _mtourQuelle(e.tour);
+        try {
+          map.addSource(id, { type: "geojson",
+            data: { type: "Feature", geometry: { type: "LineString", coordinates: e.coords } } });
+          map.addLayer({
+            id: "mtour-prev-line-" + id.slice("mtour-prev-".length), type: "line", source: id,
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": e.tour.line_color || "#35a7ff", "line-width": lw, "line-opacity": 0.9 },
+          });
+        } catch (err) { console.warn("extra-tour preview:", err); }
+      });
+      try { refreshPreviewTrackData(); } catch (_) {}
     }
-    // 08.09.2026 — Reise: aus den Etappen EINE Bahn bauen, damit die Vorschau
-    // sie abspielen kann (Zeit je Etappe, Übergänge als Flug). Die Linien der
-    // einzelnen Etappen bleiben in ihrer Farbe liegen; die wachsende Linie
-    // läuft darüber.
-    try { if (_reiseGilt()) _reiseAnwenden(); else _reiseBahn = null; } catch (e) { applog("warn", "[reise] " + e); }
-    _extraTours.forEach((tr, i) => {
-      if (!tr.coords || tr.coords.length < 2) return;
-      try {
-        map.addSource("mtour-prev-" + i, {
-          type: "geojson",
-          data: { type: "Feature", geometry: { type: "LineString", coordinates: tr.coords } },
-        });
-        map.addLayer({
-          id: "mtour-prev-line-" + i, type: "line", source: "mtour-prev-" + i,
-          layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": tr.line_color, "line-width": lw, "line-opacity": 0.9 },
-        });
-      } catch (e) { console.warn("extra-tour preview:", e); }
-    });
+    _swPrevBauen(lw);
+    // 07.09.2026 — Tour-Map (Standbild): alle Touren ganz gezeichnet, keine Laufpunkte
+    if (_isStaticFrame && _swPrev.length) {
+      try { _animSchwarmPreviewAdvance(Math.max(0, (currentCoords || []).length - 1), true); } catch (_) {}
+      try { if (map.getLayer("swarm-prev-dots")) map.setLayoutProperty("swarm-prev-dots", "visibility", "none"); } catch (_) {}
+    }
+    _vorschauDiagnose();
   }
 
   /** Diagnose ins app.log (Marc-Regel): Nach dem Vorschau-Aufbau einmal
@@ -15032,7 +15475,7 @@ function mountAnimator(body, headerActions, opts) {
         const src = map.getSource("swarm-prev-lines");
         swFeat = (src && src._data && src._data.features) ? src._data.features.length : -1;
       } catch (_) {}
-      applog("info", `[Vorschau-Diagnose] ablauf=${_animAblauf} extraTours=${_extraTours.length} `
+      applog("info", `[Vorschau-Diagnose] ablauf=${_animAblauf} gruppen=${_gruppen.length} extraTours=${_extraTours.length} bahn=${_reiseAktiv() ? _reiseBahn.etappen.length : 0} overlay=${_swPrev.length} `
         + `swarmFeatures=${swFeat} customLayer(${eigene.length}): ${eigene.join(", ")}`);
     } catch (e) { try { applog("warn", `[Vorschau-Diagnose] ${e}`); } catch (_) {} }
   }
@@ -15131,6 +15574,9 @@ function mountAnimator(body, headerActions, opts) {
                               && _ladeRes.series.cumTimeS.length === (coords || []).length)
                              ? _ladeRes.series.cumTimeS : null,
                        stats: (_ladeRes && _ladeRes.stats) || null });
+    // §60: die neue Tour sofort einsortieren (Mitglied oder eigene Gruppe),
+    // sonst rechnen Liste und Vorschau mit dem alten Stand.
+    _gruppenSync(); _gruppenAbleiten();
     _animPersistTours();
     _animRenderToursList();
     _animDrawExtraToursPreview();
@@ -15146,6 +15592,7 @@ function mountAnimator(body, headerActions, opts) {
                                   basis: (_reiseBasis || []).length, gilt: _reiseGilt() });
   window.__rzExtraTourenLeeren = () => {
     _extraTours.splice(0, _extraTours.length);
+    _gruppenSync(); _gruppenAbleiten();
     _animPersistTours(); _animRenderToursList(); _animDrawExtraToursPreview();
     try { _reiseBauen(); } catch (_) {}
     return _extraTours.length;
@@ -15157,7 +15604,30 @@ function mountAnimator(body, headerActions, opts) {
   // und wird beim Laden aus der GPX nachgezogen.
   function _animPersistTours() {
     try {
+      // 09.09.2026 (§60): die Gruppen sind die Wahrheit; die alten Felder
+      // (Etappendauer, Übergang, Startversatz, Ablauf) werden DARAUS abgeleitet,
+      // damit ältere Fassungen und der klassische Renderpfad das Projekt lesen.
+      _gruppenAbleiten();
+      _gruppenPlanRechnen();   // die abgeleiteten Längen kommen aus dem AKTUELLEN Plan
+      const r3 = (x) => Math.round(x * 1000) / 1000;
+      const alt = (gpx) => {
+        const gv = _gruppeVon(gpx);
+        if (!gv) return { dauer_s: 0, ueber_s: null, ueber_stil: "kino", start_s: 0 };
+        const g = gv.g, takt = gv.j === 0;
+        const L = (takt && Math.abs((+g.faktor || 1) - 1) >= 1e-9) ? r3(_gruppeLaenge(g)) : 0;
+        return { dauer_s: L, ueber_s: takt ? g.ueber_s : null, ueber_stil: takt ? (g.ueber_stil || "kino") : "kino",
+                 start_s: r3(+g.mitglieder[gv.j].vorlauf_s || 0) };
+      };
+      const haupt = alt(currentGpx);
+      _animEtappe1S = haupt.dauer_s;
+      _extraTours.forEach(t => { const a = alt(t.gpx_path); t.dauer_s = a.dauer_s; t.ueber_s = a.ueber_s; t.ueber_stil = a.ueber_stil; t.start_s = a.start_s; });
       saveProjectSettings(_MODKEY, {
+        gruppen: _gruppen.map(g => ({
+          id: g.id, name: g.name || "", faktor: +g.faktor || 1, vorlauf_s: r3(+g.vorlauf_s || 0),
+          ueber_s: (g.ueber_s == null) ? null : r3(+g.ueber_s), ueber_stil: g.ueber_stil || "kino",
+          leit_gpx: g.leit_gpx || "", zu: g.zu !== false, fest: g.fest === true,
+          mitglieder: g.mitglieder.map(m => ({ gpx_path: m.gpx_path, vorlauf_s: r3(+m.vorlauf_s || 0),
+                                               sichtbar_vor_inhalt: m.sichtbar_vor_inhalt === true })) })),
         extra_tours: _extraTours.map(t => ({
           gpx_path: t.gpx_path, line_color: t.line_color, name: t.name,
           start_s: +t.start_s || 0,
@@ -15286,9 +15756,13 @@ function mountAnimator(body, headerActions, opts) {
   async function _animLoadToursInner() {
     let saved = [];
     let fly = 3;
+    let gespeicherteGruppen = null;   // §60: die Gruppen des Projekts, wenn es welche hat
+    let projId = null;
     try {
       const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
       const a = proj?.[_MODKEY] || {};
+      projId = proj ? proj.id : null;
+      if (Array.isArray(a.gruppen) && a.gruppen.length) gespeicherteGruppen = a.gruppen;
       saved = Array.isArray(a.extra_tours) ? a.extra_tours : [];
       // 07.09.2026 (Marc: „tourmap muss auch multitrack können, also schwarm usw."): Die Etappen
       // einer Komposition lagen nur in der Animator-Sektion des Projekts; Tour-Map und Reiseroute
@@ -15314,6 +15788,7 @@ function mountAnimator(body, headerActions, opts) {
       } else if (a.tours_ablauf === "schwarm" || a.tours_ablauf === "reise") {
         _animAblauf = a.tours_ablauf;
       }
+      _animAnordnung = _animAblauf;   // Anfangslage (§60 Punkt 9)
       // M3 — Modus-Wahrheit: die Sitzung trägt ihn (vom Archiv gewählt).
       if (sess && ["gleich", "ziel", "uhrzeit"].includes(sess.schwarm_modus)) {
         _animModus = sess.schwarm_modus;
@@ -15351,6 +15826,7 @@ function mountAnimator(body, headerActions, opts) {
       }
       const ist = _extraTours.map(t => _pfadNFC(t.gpx_path));
       if (ziel.length && ist.length === ziel.length && ziel.every((p, i) => ist[i] === p)) {
+        if (_gruppenProjektId !== projId) { try { _gruppenAufbauen(gespeicherteGruppen); } catch (_) {} }
         try { _animRenderToursList(); } catch (_) {}
         try { _ovRebuildEditors(); } catch (_) {}
         return;
@@ -15424,6 +15900,9 @@ function mountAnimator(body, headerActions, opts) {
       try { toast(t("animator.tours.missing_n", "{n} gespeicherte Tour(en) wurden nicht gefunden — Details im Log.")
         .replace("{n}", fehlend), "warn", 6000); } catch (_) {}
     }
+    // §60: Gruppen aufbauen — gespeicherte, sonst Umrechnung der alten Felder
+    // (im Speicher; geschrieben wird erst bei einer Änderung).
+    try { _gruppenAufbauen(gespeicherteGruppen); } catch (e) { applog("warn", "[gruppen] " + e); }
     if (_extraTours.length !== saved.length) _animPersistTours();
     await _tourenLadeAbschluss();
     } finally {

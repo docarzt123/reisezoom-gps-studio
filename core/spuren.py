@@ -19,6 +19,13 @@ Modell und Begründung stehen in `docs/IDEAS.md` §60 (Marc, 09.09.2026). Kurz:
 Dieses Modul rechnet nur — es kennt weder GPX noch Oberfläche. Wie lang der
 Inhalt einer Gruppe bei Faktor 1 wäre, sagt ihm der Aufrufer (aus
 `core/tempo.py`). Dadurch ist der ganze Zeitplan in Millisekunden prüfbar.
+
+Zeiten sind ANIMATIONSZEIT: 0 = Ende des Anlaufs (`intro_s`). Anlauf und
+Nachlauf des Projekts liegen davor und dahinter und gehören allen Gruppen —
+so bleibt die Leiste mit `introFraction`/`trackFraction` unverändert.
+
+Das wortgleiche Gegenstück für die Oberfläche ist `ui/js/spuren.js`; dass beide
+dasselbe rechnen, misst `tests/test_spuren_js_vs_py.py` an zufälligen Fällen.
 """
 from __future__ import annotations
 
@@ -52,13 +59,18 @@ class Gruppe:
     vorlauf_s: float = 0.0          # Halt VOR dem Inhalt
     eintraege: List[dict] = field(default_factory=list)   # Halte/Abschnitte
     keyframes: List[dict] = field(default_factory=list)
-    leit_gpx: str = ""              # Leit-Tour; leer = alle Mitglieder ins Bild
+    leit_gpx: str = ""              # Leit-Tour (Kamera); leer = alle Mitglieder ins Bild
     ueber_stil: str = "kino"        # Stil des Übergangs, der IN diese Gruppe führt
+    ueber_s: Optional[float] = None  # Regel für die Kette: Lücke davor (None = gemeinsame Flugdauer)
     zu: bool = True                 # Zeile zugeklappt?
+    fest: bool = False              # von Hand gelegt — die Kette schiebt sie nicht mehr
 
     @property
-    def haupt_gpx(self) -> str:
-        return self.leit_gpx or (self.mitglieder[0].gpx_path if self.mitglieder else "")
+    def takt_gpx(self) -> str:
+        """Die Tour, aus der die Zeit der Gruppe kommt: IMMER das erste Mitglied.
+        `leit_gpx` führt nur die Kamera — beim Schwarm war das die Fokus-Tour,
+        gelaufen ist die Vorschau trotzdem am Haupt-Track."""
+        return self.mitglieder[0].gpx_path if self.mitglieder else ""
 
 
 @dataclass
@@ -121,8 +133,8 @@ def zeitplan(gruppen: List[Gruppe], roh_s: Dict[str, float],
 
     Die Projektlänge ist das MAXIMUM über alle Gruppen (Vorlauf + Inhalt); was
     kürzer ist, wird hinten aufgefüllt, damit alle gleich lang sind. `mindest_s`
-    (z. B. der Wunsch aus dem Feld „Animation (s)" samt Anlauf/Nachlauf) kann
-    das Video verlängern, niemals verkürzen — sonst fiele hinten etwas ab.
+    (der Wunsch aus dem Feld „Animation (s)") kann das Video verlängern,
+    niemals verkürzen — sonst fiele hinten etwas ab.
     """
     hinweise: List[str] = []
     roh_teil: List[Lage] = []
@@ -195,16 +207,18 @@ def aus_projekt(animator: dict, roh_s: Dict[str, float],
     pfade = [p for p in pfade if p]
     if not pfade:
         return []
-    intro_s = max(0.0, _sauber(a.get("intro_s"), 0.0))
     namen = [str(a.get("etappe1_name") or "")] + [str(t.get("name") or "") for t in extra]
     farben = [str(a.get("line_color") or "")] + [str(t.get("line_color") or "") for t in extra]
 
     if str(a.get("tours_ablauf") or "reise") == "schwarm":
-        g = Gruppe(id="g1", name=namen[0] or "", vorlauf_s=intro_s,
+        g = Gruppe(id="g1", name=namen[0] or "", vorlauf_s=0.0,
                    leit_gpx=str(a.get("schwarm_fokus_gpx") or a.get("tours_fokus") or ""))
+        # Der eigene Startversatz je Tour wird ihr Vorlauf IN der Gruppe — auch
+        # der des Haupt-Tracks (`tours_haupt_start_s`).
         g.mitglieder = [
             Mitglied(gpx_path=p, name=n, farbe=f,
-                     vorlauf_s=max(0.0, _sauber((extra[i - 1] if i else {}).get("start_s"), 0.0)))
+                     vorlauf_s=max(0.0, _sauber((extra[i - 1] if i else {}).get("start_s")
+                                                if i else a.get("tours_haupt_start_s"), 0.0)))
             for i, (p, n, f) in enumerate(zip(pfade, namen, farben))]
         return [g]
 
@@ -226,19 +240,21 @@ def aus_projekt(animator: dict, roh_s: Dict[str, float],
 
     flug_s = _sauber(a.get("fly_duration_s"), 3.0)
     gruppen: List[Gruppe] = []
-    pos = intro_s
+    pos = 0.0
     for i, p in enumerate(pfade):
+        eigen_s: Optional[float] = None
         if i > 0:
             stil = str((extra[i - 1] or {}).get("ueber_stil") or "kino")
             eigen = (extra[i - 1] or {}).get("ueber_s")
-            ueber = 0.0 if stil == "schnitt" else (
-                flug_s if eigen in (None, "") else max(0.0, _sauber(eigen, 0.0)))
+            eigen_s = None if eigen in (None, "") else max(0.0, _sauber(eigen, 0.0))
+            ueber = 0.0 if stil == "schnitt" else (flug_s if eigen_s is None else eigen_s)
             pos += ueber
         else:
             stil = "kino"
         roh = max(1e-6, _sauber(roh_s.get(p), laengen[i]))
         g = Gruppe(id=f"g{i + 1}", name=namen[i] or "", vorlauf_s=pos,
-                   faktor=roh / max(MIN_INHALT_S, laengen[i]), ueber_stil=stil)
+                   faktor=roh / max(MIN_INHALT_S, laengen[i]), ueber_stil=stil,
+                   ueber_s=eigen_s)
         g.mitglieder = [Mitglied(gpx_path=p, name=namen[i], farbe=farben[i])]
         gruppen.append(g)
         pos += laengen[i]
