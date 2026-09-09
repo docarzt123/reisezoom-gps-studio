@@ -1807,17 +1807,13 @@ function onMapReady(map, cb) {
 // Pattern wird durch die ganze App benutzt (Animator + Tour-Map + ggf. mehr).
 // Single delegated listener auf document — funktioniert auch wenn die Buttons
 // nach Mount dynamisch eingefügt werden.
+// 09.09.2026 (Marc: „das Hilfe anzeigen/verstecken kann weg, das ? mit dem Tooltip
+// reicht"): Klick klappt NICHTS mehr in der Seitenleiste auf — der Hilfeblock bleibt
+// versteckt und dient nur noch als Text für den Tooltip beim Überfahren.
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".field-help, .field-help-pill");
   if (!btn) return;
   e.preventDefault();
-  const key = btn.dataset.help;
-  if (!key) return;
-  const content = document.querySelector(`.field-help-content[data-help-content="${key}"]`);
-  if (!content) return;
-  const willShow = content.hidden;
-  content.hidden = !willShow;
-  btn.classList.toggle("is-open", willShow);
 });
 
 // 09.09.2026 (Marc: „mach die ganzen ? so, dass da nicht ‚Hilfe anzeigen' kommt,

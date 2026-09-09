@@ -170,8 +170,7 @@ function mountTimelineBar(opts) {
         </div>
         <!-- v0.9.1 — Hilfetexte als ?-Tooltip (Marc-Spec). Klick auf das ?
              toggelt die Tastatur-Belegung + Geste-Tipp ein/aus. -->
-        <button type="button" class="field-help" data-help="timeline-keys"
-                title="${tlT('animator.help.show', 'Hilfe anzeigen / verstecken')}">?</button>
+        <button type="button" class="field-help" data-help="timeline-keys">?</button>
       </div>
       <div class="timeline-actions">
         <button type="button" class="btn btn-primary timeline-btn-snap" id="tl-btn-snap"
