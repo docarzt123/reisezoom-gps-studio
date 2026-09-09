@@ -323,8 +323,7 @@ base speed-up to match — holds included. "Make it 20 seconds" really gives 20 
 
 ### Adding tours to an open project
 
-More tours join an open project in two ways: at the bottom of the **"Multiple
-tours"** section in the sidebar via **"Add tour"**, which opens a picker from the
+More tours join an open project in two ways: at the bottom of the **"Tracks"** section (below "Track") in the sidebar via **"Add tour"**, which opens a picker from the
 **archive** (thumbnail, date and kilometres per tour; search and filters as in the archive:
 collection, year, activity, length, sort, favourites; tick several, tours already loaded are greyed out), or by
 selecting tours in the archive and handing them to the animator while the project

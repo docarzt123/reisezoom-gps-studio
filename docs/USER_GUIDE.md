@@ -345,11 +345,11 @@ ergibt also wirklich 20 Sekunden.
 ### Mehrere Etappen: Reihenfolge, Dauer und Übergänge
 
 Kommen mehrere Touren zusammen ins Projekt („Nacheinander"), stehen sie links unter
-**„Mehrere Touren"** als nummerierte Etappen. Jede Etappe zeigt ihre Farbe, ihren Namen
+**„Tracks"** (unter „Track") als nummerierte Etappen. Jede Etappe zeigt ihre Farbe, ihren Namen
 und darunter ihre Bedienung:
 
 > **Weitere Touren zu einem offenen Projekt** kommen auf zwei Wegen dazu: unten in
-> dieser Sektion über **„Tour hinzufügen"**, das eine Auswahl aus dem **Archiv**
+> dieser Sektion „Tracks" über **„Tour hinzufügen"**, das eine Auswahl aus dem **Archiv**
 > öffnet (mit Vorschaubild, Datum und Kilometern; Suche und Filter wie im Archiv:
 > Sammlung, Jahr, Art, Länge, Sortierung, Favoriten; mehrere anhaken, schon geladene sind ausgegraut), oder im Archiv
 > Touren markieren und an den Animator übergeben, während das Projekt offen ist.
@@ -1902,7 +1902,7 @@ Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den
 
 Manchmal erzählt eine Tour erst im Zusammenhang: der offizielle Wanderweg, deine
 Planung, und was du am Ende wirklich gelaufen bist. Dafür gibt es im Animator den
-Abschnitt **👻 Ghost-Spuren**.
+Abschnitt **👻 Ghost-Spuren** (in der Seitenleiste unter den Tracks).
 
 Füge so viele Tracks hinzu, wie du brauchst: **＋ Ghost-Spur hinzufügen …** öffnet
 die Auswahl aus dem **Archiv** (Suche, mehrere anhaken, der Haupt-Track und schon
