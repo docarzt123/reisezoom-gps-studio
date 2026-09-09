@@ -379,7 +379,7 @@
   "animator.section.source": "Quelle",
   "animator.section.time_size": "Zeit & Größe",
   "animator.section.tours": "🧭 Tracks",
-  "animator.section.track": "〰️ Track",
+  "animator.section.track": "〰️ Linie",
   "animator.section.video": "🎬 Video-Einstellungen",
   "animator.shadow.dir": "Schatten-Richtung",
   "animator.shadow.dir_tooltip": "Globale Lichtrichtung für den Schlagschatten — gilt für Track UND alle Schilder. 0° = rechts, 90° = unten, 180° = links, 270° = oben.",

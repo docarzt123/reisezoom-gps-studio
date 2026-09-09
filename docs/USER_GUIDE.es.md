@@ -327,7 +327,7 @@ aceleración base para que cuadre — paradas incluidas. «Hazlo de 20 segundos�
 ### Añadir rutas a un proyecto abierto
 
 A un proyecto abierto se le añaden rutas de dos formas: abajo en la sección
-**«Tracks»** de la barra lateral (bajo «Trazado») con **«Añadir ruta»**, que abre un selector
+**«Tracks»** de la barra lateral (bajo «Línea»; cada track es una entrada, color incluido, también el primero) con **«Añadir ruta»**, que abre un selector
 del **archivo** (con miniatura, fecha y kilómetros; búsqueda y filtros como en el archivo:
 colección, año, tipo, longitud, orden, favoritas; marcar varias, las ya cargadas aparecen atenuadas), o
 marcando rutas en el archivo y pasándolas al animador con el proyecto abierto. Si

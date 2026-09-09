@@ -379,7 +379,7 @@
   "animator.section.source": "Fuente",
   "animator.section.time_size": "Tiempo y tamaño",
   "animator.section.tours": "🧭 Tracks",
-  "animator.section.track": "〰️ Trazado",
+  "animator.section.track": "〰️ Línea",
   "animator.section.video": "🎬 Ajustes de vídeo",
   "animator.shadow.dir": "Dirección de la sombra",
   "animator.shadow.dir_tooltip": "Dirección global de la luz para la sombra paralela — se aplica al track Y a todos los carteles. 0° = derecha, 90° = abajo, 180° = izquierda, 270° = arriba.",

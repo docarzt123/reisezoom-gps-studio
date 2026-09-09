@@ -428,7 +428,10 @@ function mountAnimator(body, headerActions, opts) {
               ${t("animator.point_count.hint")}
             </div>
           </div>
-          <div class="field">
+          <!-- 09.09.2026 (Marc: „ein Track ist immer ein Eintrag unter Tracks"): Die Farbe
+               des ersten Tracks steht bei seinem Eintrag in der Liste, wie bei allen anderen.
+               Das Feld bleibt im DOM (bindSetting, Handler, Render lesen es), nur unsichtbar. -->
+          <div class="field" hidden>
             <label class="field-label">${t("animator.field.color")} <span class="label-val" id="anim-color-v">#ff6b35</span></label>
             <input type="color" id="anim-color" value="#ff6b35">
           </div>
@@ -1374,6 +1377,7 @@ function mountAnimator(body, headerActions, opts) {
   };
   document.getElementById("anim-color").addEventListener("input", e => {
     document.getElementById("anim-color-v").textContent = e.target.value;
+    try { const sw = document.querySelector(".anim-tour-color-haupt"); if (sw && sw.value !== e.target.value) sw.value = e.target.value; } catch (_) {}   // 09.09.2026 — Eintrag 1 in „Tracks" zeigt dieselbe Farbe
     _farbeLive();
   });
 
@@ -14506,9 +14510,12 @@ function mountAnimator(body, headerActions, opts) {
         b.addEventListener("click", () => _sortieren(b.dataset.sort)));
       host.appendChild(leiste);
     }
-    if (_reise) {
+    if (currentGpx) {
+      // 09.09.2026 (Marc: „ein Track ist immer ein Eintrag unter Tracks — ist nur
+      // ein Track drin, ist da eben auch nur ein Track zu sehen"): Eintrag 1 steht
+      // immer, mit seiner Farbe; Etappendauer nur, wenn es mehrere gibt.
       const kopf = document.createElement("div");
-      kopf.className = "anim-tour-row anim-etappe-erste ist-etappe";
+      kopf.className = "anim-tour-row anim-etappe-erste" + (_reise ? " ist-etappe" : "");
       // 09.09.2026 (Marc: „umbenennen in der Sidebar möglich machen") — ein
       // eigener Name gewinnt über den Dateinamen.
       const nm = _animEtappe1Name
@@ -14518,15 +14525,27 @@ function mountAnimator(body, headerActions, opts) {
       // „2024-02-10_66 Seen #1 Neus…" übrig — fünfzehn Etappen sahen alle gleich
       // aus. Der Name bekommt jetzt die volle Breite, die Bedienung die Zeile
       // darunter.
+      const hauptFarbe = (document.getElementById("anim-color") || {}).value || "#ff6b35";
       kopf.innerHTML = `
         <span class="anim-tour-idx">1</span>
+        <input type="color" class="anim-tour-color anim-tour-color-haupt" value="${_animEscapeHtml(hauptFarbe)}" title="${t("animator.tours.color", "Farbe dieser Tour")}">
         <span class="anim-tour-name ist-umbenennbar" data-etappe="1"
               title="${_animEscapeHtml(t("animator.tours.umbenennen", "Etappe umbenennen"))}">${_animEscapeHtml(nm)}</span>
-        <span class="anim-etappe-zeile">
+        ${_reise ? `<span class="anim-etappe-zeile">
           ${_dauerFeld(_gruppeFeldWert(currentGpx), t("animator.tours.dauer_hint", "Dauer dieser Etappe im Video. Leer = aus der Gesamtdauer nach Umfang verteilt."))}
-        </span>`;
+        </span>` : ""}`;
       _namenBinden(kopf);
-      kopf.querySelector(".anim-etappe-dauer").addEventListener("change", (e) => {
+      // Farbe des ersten Tracks: schreibt in das (unsichtbare) Feld der Linie,
+      // damit alle bestehenden Wege (bindSetting, Vorschau, Render) mitgehen.
+      kopf.querySelector(".anim-tour-color-haupt").addEventListener("input", (e) => {
+        const f = document.getElementById("anim-color");
+        if (!f) return;
+        f.value = e.target.value;
+        f.dispatchEvent(new Event("input", { bubbles: true }));
+        f.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      const _dauerEl = kopf.querySelector(".anim-etappe-dauer");
+      if (_dauerEl) _dauerEl.addEventListener("change", (e) => {
         const L = Math.max(0, parseFloat(e.target.value) || 0);
         const gv = _gruppeVon(currentGpx);
         if (gv) _gruppeLaengeSetzen(gv.g, L);
