@@ -321,6 +321,15 @@ base speed-up to match — holds included. "Make it 20 seconds" really gives 20 
 > displays: there the **stage lengths and transitions** make the schedule, see the next
 > section.
 
+### Adding tours to an open project
+
+More tours join an open project in two ways: at the bottom of the **"Multiple
+tours"** section in the sidebar via **"Add tour"** (file dialog, FIT, KML and the
+like included), or by selecting tours in the **archive** and handing them to the
+animator while the project is open. Tours already loaded are skipped. The section
+is there even with a single tour since v0.9.682. Every tour becomes a
+group at the end of the chain; drag it in the timeline to place it elsewhere.
+
 ### Groups in the timeline — in sequence, in parallel, or both (since v0.9.679)
 
 As soon as two or more tours are in the project, the speed lane above the timeline becomes
