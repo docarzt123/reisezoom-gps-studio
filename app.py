@@ -158,7 +158,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.681"
+APP_VERSION = "0.9.682"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -874,6 +874,13 @@ def _einstellung_merken(schluessel: str, wert) -> None:
     Python durch diese Funktion.
     """
     with _SETTINGS_LOCK:
+        # 09.09.2026 — Prüfstände leiten APP_SUPPORT auf einen Wegwerf-Ordner um,
+        # SETTINGS_FILE zeigt aber weiter auf die ECHTE Datei des Nutzers. Ohne
+        # diese Sperre landete beim Testlauf die Kennung eines Testprojekts als
+        # „zuletzt offen" in Marcs settings.json.
+        if SETTINGS_FILE.parent != APP_SUPPORT:
+            log.debug("Einstellung %s nicht gemerkt: APP_SUPPORT umgeleitet (Prüfstand)", schluessel)
+            return
         s = _load_settings() or {}
         if s.get(schluessel) == wert:
             return
@@ -1993,6 +2000,7 @@ class Api:
             tour = (daten.get("touren") or {}).get(track_hash) or {}
             log.info("session_open_for_track: hash=%s name=%r active=%r",
                      track_hash, tour.get("name"), active_proj.get("name"))
+            self._letztes_projekt_nachziehen(daten, track_hash)
             return {
                 "ok": True,
                 "track_hash": track_hash,
@@ -2065,6 +2073,7 @@ class Api:
             aktiv = _projekte._aktives_projekt(daten, schluessel) or {}
             log.info("session_open_for_menge: %s · %d Touren · ablauf=%s · modus=%s(P=%s) · neu=%s",
                      schluessel, len(pfade), ablauf, modus, pausen, neu_angelegt)
+            self._letztes_projekt_nachziehen(daten, schluessel)
             sicht = _projekte.session_sicht(daten, schluessel)
             return {"ok": True, "track_hash": schluessel,
                     "session": sicht,
@@ -2193,6 +2202,8 @@ class Api:
             if not project_id:
                 p_neu = _projekte._aktives_projekt(daten, track_hash)
                 project_id = (p_neu or {}).get("id", "")
+                # Eben erst entstanden — ab jetzt ist es das zuletzt offene.
+                self._letztes_projekt_nachziehen(daten, track_hash)
             # E3 (IDEAS §39): Arbeitsstand-Historie — gedrosselt (10 min),
             # damit nicht jeder Regler-Zug einen Stand anlegt.
             try:
@@ -8817,6 +8828,25 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     @_mit_sessions_lock
+    def _letztes_projekt_nachziehen(self, daten: dict, kontext: str) -> None:
+        """Was in diesem Kontext aktiv ist, ist das zuletzt offene Projekt.
+
+        09.09.2026 (Marc: „jetzt wurde das falsche Projekt geladen — ich hatte
+        vorher extra eins mit nur einem Track aufgemacht"): Gemerkt wurde bisher
+        nur in `projekt_aktivieren` (Klick im Projekte-Bereich). Wer eine Tour aus
+        dem Archiv öffnet oder eine Menge zusammenstellt, aktiviert ihr Projekt
+        auf anderem Weg — und beim nächsten Start kam das Projekt von davor.
+        Ein schwebendes Projekt (noch keine Kennung) lässt sich nicht
+        wiederherstellen; dann bleibt es beim Archiv statt beim falschen Projekt.
+        """
+        try:
+            pid = str((daten.get("aktiv") or {}).get(kontext) or "")
+            s = _load_settings() or {}
+            if str(s.get("letztes_projekt") or "") != pid:
+                _einstellung_merken("letztes_projekt", pid)
+        except Exception:
+            log.debug("letztes_projekt nicht nachgezogen", exc_info=True)
+
     def projekt_aktivieren(self, project_id: str) -> dict:
         """Öffnen aus dem Projekte-Bereich: macht das Projekt in seinem Kontext
         aktiv und liefert alles, was das Frontend zum Laden braucht."""
