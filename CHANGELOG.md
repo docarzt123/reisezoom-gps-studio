@@ -14,6 +14,9 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+### Fixed
+- Multi-track preview: when the chain starts with a stage other than the first track (e.g. track 1 laid in parallel), the main line took the first track's colour; it now takes the colour of the stage it actually draws. Stages loaded as extra tours carried no elevations, so the elevation profile of a journey was flat; their heights now travel along. — Bahn in der Farbe ihrer ersten Etappe; Höhen der Zusatz-Touren laufen mit, das Profil ist nicht mehr flach.
+
 ### Changed
 - Overlays: the source line (attribution) now sits at the top of the Overlays section; default is full width at the bottom with full details. — Quellenzeile ganz oben in den Overlays, Standard ganze Breite unten mit vollen Angaben.
 
