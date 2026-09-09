@@ -3465,9 +3465,15 @@ function mountAnimator(body, headerActions, opts) {
       }
       try { for (const t of tsc.getRenderableTiles()) if (t && t.tileID) sichtbarMax = Math.max(sichtbarMax, t.tileID.overscaledZ || 0); } catch (_) {}
       const zeile = `${anlass}: Zoom ${z.toFixed(2)} · Soll z${soll} · DEM-Kacheln ${n} · geladen bis z${geladenMax} · sichtbar bis z${sichtbarMax} · lädt ${laedt} · Fehler ${fehler}`;
-      const haengt = n > 0 && laedt === 0 && sichtbarMax >= 0 && sichtbarMax < soll - 2;
+      // Netz und Boden: die nahen Kacheln erreichen normalerweise floor(Zoom);
+      // liegt das Beste zwei Stufen darunter und lädt nichts, ist etwas
+      // eingefroren (gefunden 09.09.2026: der Flacker-Patch lodhyst hielt nach
+      // einem Zoomsprung die alte Stufe fest — Patch korrigiert, das hier ist
+      // der Fangriemen).
+      const haengt = n > 0 && laedt === 0 && sichtbarMax >= 0 && sichtbarMax < Math.floor(z) - 1 && Math.floor(z) - 1 <= maxZ;
       if (haengt) {
-        applog("warn", "[gelände] Kacheln hängen — DEM neu laden · " + zeile);
+        applog("warn", "[gelände] Kacheln hängen — Stufenspeicher leeren, DEM neu laden · " + zeile);
+        try { map.terrain.__rzLod = null; } catch (_) {}
         try { if (sc && sc.reload) sc.reload(); } catch (e) { applog("warn", "[gelände] reload: " + e); }
         try { if (tsc.freeRtt) tsc.freeRtt(); } catch (_) {}
         try { map.triggerRepaint(); } catch (_) {}
