@@ -15932,16 +15932,21 @@ function mountAnimator(body, headerActions, opts) {
   }
 
   async function _animAddTour() {
-    let files = null;
-    try {
-      // v0.9.282 — auch FIT/NMEA/KML/… als Extra-Tour zulassen (Backend konvertiert).
-      files = await api().pick_file("open", window.TRACK_PICK_FILTER, false);
-    } catch (e) {
-      console.warn("pick_file (tours):", e);
+    // 09.09.2026 (Marc: „ich hätte erwartet, dass ich ein Modal des Archivs
+    // kriege — bei uns ist die Wahrheit das Archiv der Touren"): Auswahl aus
+    // dem Archiv statt Dateidialog. Was nicht im Archiv liegt, importiert man
+    // dort („Datei importieren …") und es wird gleich angehakt.
+    if (typeof window.rzArchivTourenWaehlen !== "function") return;
+    const drin = [currentGpx].concat(_extraTours.map(t => t.gpx_path)).filter(Boolean);
+    let pfade = [];
+    try { pfade = await window.rzArchivTourenWaehlen({ ausschliessen: drin }); }
+    catch (e) { applog("warn", "[tours] Archiv-Auswahl: " + e); return; }
+    if (!pfade || !pfade.length) return;
+    let neu = 0;
+    for (const p of pfade) {
+      try { await _animAddTourPath(p); neu++; } catch (e) { applog("warn", "[tours] " + p + ": " + e); }
     }
-    if (!files || !files.length) return;
-    let path = files[0];
-    return _animAddTourPath(path);
+    if (neu > 0) { try { _animPersistTours(); } catch (_) {} }
   }
 
   /** Wie _animAddTour(), aber ohne Dialog — das Archiv übergibt ganze

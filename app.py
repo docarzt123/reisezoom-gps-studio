@@ -3282,7 +3282,7 @@ class Api:
                 return {"ok": False, "cancelled": True}
             ziel = APP_SUPPORT / "import"
             ziel.mkdir(parents=True, exist_ok=True)
-            kopiert, uebersprungen = [], 0
+            kopiert, uebersprungen, pfade = [], 0, []
             for roh in paths:
                 src = Path(str(roh))
                 if not src.is_file() or src.suffix.lower() not in exts:
@@ -3300,10 +3300,13 @@ class Api:
                     continue
                 shutil.copy2(src, d)
                 kopiert.append(d.name)
+                pfade.append(str(d))
             clib.add_folder(self._lib(), str(ziel), recursive=False)
             log.info("library_import_files: %d kopiert, %d übersprungen → %s",
                      len(kopiert), uebersprungen, ziel)
-            return {"ok": True, "kopiert": len(kopiert),
+            # 09.09.2026 — die Archiv-Auswahl (rzArchivTourenWaehlen) hakt das
+            # Importierte gleich an; dafür braucht sie die vollen Pfade.
+            return {"ok": True, "kopiert": len(kopiert), "pfade": pfade,
                     "uebersprungen": uebersprungen, "folder": str(ziel)}
         except Exception as e:
             log.exception("library_import_files")

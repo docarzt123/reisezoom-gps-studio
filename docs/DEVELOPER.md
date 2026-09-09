@@ -4284,3 +4284,18 @@ AUDIT-01…10, mit Flimmer-/Wander-/DPR-Messung), `probe/occl_probe.py`,
 [[wysiwyg-visuell-am-rechner]]: Vorschau-Screenshot gegen Einzelbild-Render an
 derselben Position in der App.
 
+
+
+## Touren aus dem Archiv auswählen — `rzArchivTourenWaehlen` (09.09.2026)
+
+Marc: „bei uns ist die Wahrheit das Archiv der Touren." Wer einem Projekt Touren
+hinzufügt, bekommt KEINEN Dateidialog, sondern die Auswahl aus dem Archiv:
+`await rzArchivTourenWaehlen({ ausschliessen: [pfade…], titel })` in
+`ui/js/util.js` liefert die gewählten Pfade (leer bei Abbrechen). Suche über
+`library_query`, schon geladene Pfade stehen ausgegraut, „Datei importieren …"
+ruft `library_import_files()` (gibt seit 0.9.682 `pfade` zurück), zeigt das
+Importierte oben in der Liste und hakt es an, dann `library_scan_start`.
+Benutzt vom Animator (`_animAddTour`). Das Archiv-Modul hat bei `[data-addtours]`
+noch seine ältere eigene Fassung (Projekt-Kachel → Touren setzen) — bei der
+nächsten Änderung dort auf die gemeinsame umstellen. Wächter:
+`tests/test_touren_sektion_sichtbar.py`.

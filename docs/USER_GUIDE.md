@@ -349,10 +349,12 @@ Kommen mehrere Touren zusammen ins Projekt („Nacheinander"), stehen sie links 
 und darunter ihre Bedienung:
 
 > **Weitere Touren zu einem offenen Projekt** kommen auf zwei Wegen dazu: unten in
-> dieser Sektion über **„Tour hinzufügen"** (Dateidialog, auch FIT, KML und Co.),
-> oder im **Archiv** Touren markieren und an den Animator übergeben, während das
-> Projekt offen ist. Schon geladene werden übersprungen. Die Sektion ist seit
-> v0.9.682 auch bei einer einzelnen Tour da.
+> dieser Sektion über **„Tour hinzufügen"**, das eine Auswahl aus dem **Archiv**
+> öffnet (Suche, mehrere anhaken, schon geladene sind ausgegraut), oder im Archiv
+> Touren markieren und an den Animator übergeben, während das Projekt offen ist.
+> Liegt eine Tour noch nicht im Archiv, nimmt **„Datei importieren …"** in der
+> Auswahl sie erst ins Archiv auf und hakt sie gleich an (auch FIT, KML und Co.).
+> Die Sektion ist seit v0.9.682 auch bei einer einzelnen Tour da.
 
 - **Dauer** — leer (**aut**) heißt: Diese Etappe bekommt ihren Anteil an der
   Animationsdauer nach Umfang. Tragen Sie eine Zahl ein, bekommt sie genau diese
