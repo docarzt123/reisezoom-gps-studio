@@ -3157,5 +3157,10 @@
   "install.aufr_kopien": "En Aplicaciones hay {n} copias más de la aplicación.",
   "install.aufr_frage": "¿Expulsar la imagen y mover las copias a la papelera?",
   "install.aufr_knopf": "Ordenar",
-  "install.aufr_ok": "Ordenado."
+  "install.aufr_ok": "Ordenado.",
+  "menu.reset": "Restablecer ajustes y reiniciar …",
+  "reset.titel": "¿Restablecer Reisezoom GPS Studio?",
+  "reset.text": "Los ajustes (posición de la ventana, estilo de mapa, último proyecto abierto, todos los controles) vuelven a los valores de fábrica. Tus rutas, proyectos y el archivo se conservan, también las claves de mapas y el idioma. Los ajustes antiguos quedan guardados como copia al lado.",
+  "reset.knopf": "Restablecer",
+  "common.quit": "Salir"
 }

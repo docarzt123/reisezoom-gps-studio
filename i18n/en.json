@@ -3157,5 +3157,10 @@
   "install.aufr_kopien": "There are {n} more copies of the app in Applications.",
   "install.aufr_frage": "Eject the image and move the copies to the trash?",
   "install.aufr_knopf": "Tidy up",
-  "install.aufr_ok": "Tidied up."
+  "install.aufr_ok": "Tidied up.",
+  "menu.reset": "Reset settings and restart …",
+  "reset.titel": "Reset Reisezoom GPS Studio?",
+  "reset.text": "Settings (window position, map style, last open project, all sliders) go back to factory defaults. Your tours, projects and the archive stay, map keys and language too. The old settings are kept as a backup next to them.",
+  "reset.knopf": "Reset",
+  "common.quit": "Quit"
 }

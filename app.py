@@ -11677,6 +11677,80 @@ def _macos_datei_event_abholen() -> Optional[str]:
     return None
 
 
+# ── 10.09.2026 — Reset-Start (Marc: „bei FCPX gibt's sowas auch") ─────────────────────
+# Wie Final Cut: ⌘⌥ beim Start gedrückt halten (Windows: Strg+Alt), oder `--reset`, oder
+# Hilfe → „Einstellungen zurücksetzen …". Die Einstellungen wandern in eine Sicherung,
+# die App startet frisch im Archiv. Bibliothek, Projekte und Touren bleiben unangetastet;
+# Karten-Schlüssel und Sprache werden mitgenommen — sonst wäre der Reset eine Strafe.
+RESET_BEHALTEN = ("mapbox_token", "maptiler_key", "language", "onboarding_done")
+
+
+def _reset_einstellungen(grund: str = "") -> dict:
+    """settings.json sichern und durch Werkseinstellungen (plus Schlüssel/Sprache) ersetzen."""
+    try:
+        alt = _load_settings() if SETTINGS_FILE.exists() else {}
+        sicherung = ""
+        if SETTINGS_FILE.exists():
+            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+            ziel = SETTINGS_FILE.with_name(f"settings.reset-{ts}.json")
+            SETTINGS_FILE.rename(ziel)
+            sicherung = str(ziel)
+        neu = json.loads(json.dumps(DEFAULT_SETTINGS))
+        for k in RESET_BEHALTEN:
+            if k in alt:
+                neu[k] = alt[k]
+        neu["letztes_projekt"] = ""
+        neu["active_module"] = "library"
+        neu.pop("window", None)
+        _save_settings(neu)
+        log.warning("RESET: Einstellungen zurückgesetzt (%s) — Sicherung %s", grund or "?", sicherung or "keine")
+        return {"ok": True, "sicherung": sicherung}
+    except Exception as e:  # noqa: BLE001
+        log.exception("Reset der Einstellungen fehlgeschlagen")
+        return {"ok": False, "error": str(e)}
+
+
+def _reset_tasten_gedrueckt() -> bool:
+    """⌘⌥ (Mac) bzw. Strg+Alt (Windows) beim Start gedrückt?"""
+    try:
+        if sys.platform == "darwin":
+            from AppKit import NSEvent  # type: ignore
+            fl = int(NSEvent.modifierFlags())
+            return bool(fl & (1 << 20)) and bool(fl & (1 << 19))   # Command + Option
+        if sys.platform == "win32":
+            import ctypes
+            gk = ctypes.windll.user32.GetAsyncKeyState
+            return bool(gk(0x11) & 0x8000) and bool(gk(0x12) & 0x8000)   # Ctrl + Alt
+    except Exception:
+        pass
+    return False
+
+
+def _reset_gewuenscht() -> str:
+    if "--reset" in sys.argv[1:]:
+        return "argument --reset"
+    if _reset_tasten_gedrueckt():
+        return "Tasten beim Start"
+    return ""
+
+
+def _app_neu_starten() -> None:
+    """Die App neu starten (gebündelt) — abgekoppelt, danach beenden wir uns hart."""
+    import subprocess
+    try:
+        if sys.platform == "darwin" and STARTUP_ENV.get("frozen"):
+            b = cinstall.bundle_pfad()
+            if b:
+                subprocess.Popen(["/bin/sh", "-c", f'sleep 1; open -n "{b}"'], start_new_session=True,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif sys.platform == "win32" and STARTUP_ENV.get("frozen"):
+            subprocess.Popen([sys.executable], close_fds=True, creationflags=0x00000008)  # DETACHED_PROCESS
+    except Exception as e:  # noqa: BLE001
+        log.warning("Neustart konnte nicht angestoßen werden: %s", e)
+    import threading
+    threading.Timer(0.6, lambda: os._exit(0)).start()
+
+
 def _startdatei_aus_argv() -> Optional[str]:
     """Erste geöffnete Datei aus den Startargumenten (.rzproj oder Track)."""
     endungen = (".rzproj", ".gpx", ".fit", ".kml", ".kmz", ".tcx", ".geojson", ".nmea")
@@ -11692,6 +11766,12 @@ def _startdatei_aus_argv() -> Optional[str]:
 
 
 def main() -> None:
+    # 10.09.2026 — Reset-Start (⌘⌥ / Strg+Alt gedrückt halten, oder --reset), wie bei FCPX.
+    # Die Rückfrage kommt als nativer Dialog, sobald das Fenster steht (ein NSAlert VOR dem
+    # Fenster bleibt unsichtbar, weil pywebview das Launching selbst macht). Danach Neustart.
+    _rg = _reset_gewuenscht()
+    if _rg:
+        log.warning("RESET angefordert (%s) — Rückfrage folgt nach dem Fensteraufbau", _rg)
     api = Api()
     _START_DATEI.clear()
     _sd = _startdatei_aus_argv()
@@ -11978,6 +12058,21 @@ def main() -> None:
         def _open_quickstart_from_menu(): _trigger_js("window.openQuickstart && window.openQuickstart()")
         def _open_user_guide_from_menu(): _trigger_js("window.pywebview && window.pywebview.api.open_user_guide()")
         def _open_log_from_menu():        _trigger_js("window.pywebview && window.pywebview.api.open_log()")
+        def _reset_from_menu(grund: str = "Menü Hilfe"):
+            # 10.09.2026 — nativer Dialog, nicht unsere Oberfläche: beim Tester nahm die
+            # keine Klicks an, das Menü oben aber schon. Danach Neustart frisch im Archiv.
+            try:
+                ok = win.create_confirmation_dialog(
+                    _strings.get("reset.titel", "Reisezoom GPS Studio zurücksetzen?"),
+                    _strings.get("reset.text", "Einstellungen (Fensterlage, Kartenstil, zuletzt offenes Projekt, alle Regler) werden auf Werkseinstellung gesetzt. Deine Touren, Projekte und das Archiv bleiben, Karten-Schlüssel und Sprache auch. Die alten Einstellungen liegen als Sicherung daneben."))
+            except Exception as e:  # noqa: BLE001
+                log.warning("Reset-Dialog: %s", e); ok = False
+            if not ok:
+                return
+            r = _reset_einstellungen(grund)
+            if r.get("ok"):
+                _app_neu_starten()
+        _reset_start_hook = (lambda: _reset_from_menu(_rg)) if _rg else None
         def _open_about_from_menu():      _trigger_js("window.openAboutModal && window.openAboutModal()")
         def _open_mapbox_help_from_menu():_trigger_js("window.openMapboxHelpModal && window.openMapboxHelpModal()")
 
@@ -12011,6 +12106,7 @@ def main() -> None:
         _menu_settings   = _strings.get("menu.settings", "Settings…")
         _menu_help       = _strings.get("menu.help", "Help")
         _menu_quickstart = _strings.get("menu.quickstart", "Erste Schritte")
+        _menu_reset = _strings.get("menu.reset", "Einstellungen zurücksetzen und neu starten …")
         _menu_user_guide = _strings.get("menu.user_guide", "User Guide")
         _menu_log        = _strings.get("menu.open_log", "Open Log File")
         _menu_about      = _strings.get("menu.about", "About Reisezoom GPS Studio")
@@ -12051,6 +12147,7 @@ def main() -> None:
                 MenuAction(_menu_mapbox, _open_mapbox_help_from_menu),
                 MenuAction(_menu_feedback, _open_feedback_from_menu),
                 MenuAction(_menu_log, _open_log_from_menu),
+                MenuAction(_menu_reset, _reset_from_menu),
                 MenuSeparator(),
                 MenuAction(_menu_support, _open_support_from_menu),
                 MenuAction(_menu_youtube, _open_youtube),
@@ -12070,8 +12167,10 @@ def main() -> None:
     # vergaßen sich deshalb still bei jedem Neustart. Beim Testen aufgefallen:
     # Position gespeichert, Neustart, weg. Es ist eine lokale Desktop-App —
     # die WebKit-Daten liegen in ~/Library/WebKit/com.reisezoom.gpsstudio.
+    _lok = {"global.ok": _strings.get("common.ok", "OK"), "global.cancel": _strings.get("common.cancel", "Abbrechen"),
+            "global.quit": _strings.get("common.quit", "Beenden")} if menu else {}
     if menu:
-        webview.start(debug=debug, private_mode=False, menu=menu)
+        webview.start(func=_reset_start_hook, debug=debug, private_mode=False, menu=menu, localization=_lok)
     else:
         webview.start(debug=debug, private_mode=False)
     # Cleanup beim Shutdown

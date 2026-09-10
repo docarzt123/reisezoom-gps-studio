@@ -3157,5 +3157,10 @@
   "install.aufr_kopien": "In Programme liegen {n} weitere Kopien der App.",
   "install.aufr_frage": "Image auswerfen und Kopien in den Papierkorb legen?",
   "install.aufr_knopf": "Aufräumen",
-  "install.aufr_ok": "Aufgeräumt."
+  "install.aufr_ok": "Aufgeräumt.",
+  "menu.reset": "Einstellungen zurücksetzen und neu starten …",
+  "reset.titel": "Reisezoom GPS Studio zurücksetzen?",
+  "reset.text": "Einstellungen (Fensterlage, Kartenstil, zuletzt offenes Projekt, alle Regler) werden auf Werkseinstellung gesetzt. Deine Touren, Projekte und das Archiv bleiben, Karten-Schlüssel und Sprache auch. Die alten Einstellungen liegen als Sicherung daneben.",
+  "reset.knopf": "Zurücksetzen",
+  "common.quit": "Beenden"
 }

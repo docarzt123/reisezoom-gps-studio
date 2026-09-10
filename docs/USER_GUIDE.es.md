@@ -2180,6 +2180,9 @@ ninguna conexión por sí misma — solo descarga mapas cuando muestras uno, con
 tu propia cuenta de Mapbox. El botón manual del diálogo Acerca de sigue
 funcionando.
 
+### La aplicación ya no reacciona, restablecer los ajustes (desde v0.9.688)
+Como en Final Cut: **mantén ⌘⌥ al iniciar** (Windows: **Ctrl+Alt**) hasta que aparezca la pregunta «¿Restablecer?». O, con la aplicación abierta, **Ayuda → «Restablecer ajustes y reiniciar …»**, que funciona aunque la interfaz ya no reaccione a los clics. La posición de la ventana, el estilo de mapa, el último proyecto abierto y todos los controles vuelven a los valores de fábrica. Tus rutas, proyectos y el archivo se conservan, también las claves de mapas y el idioma. Los ajustes antiguos quedan como `settings.reset-<hora>.json` junto al archivo nuevo.
+
 ### «No se puede abrir porque proviene de un desarrollador no verificado» (macOS)
 La app no está firmada con un certificado de desarrollador de Apple de 99 $/año. Solución: **clic derecho → Abrir** en lugar de doble clic (ver Instalación).
 
