@@ -1858,7 +1858,7 @@ function mountLibrary(body, headerActions) {
     eintraege.push({ text: "🗑 " + T("library.trash", "In den Papierkorb"), gefahr: true,
                      tun: async () => {
                        if (!await frageTrash(pfade.length, viele ? "" : it.path)) return;
-                       for (const p of pfade) await api().library_trash(p);
+                       await trashViele(pfade);
                        _multi.clear(); reload();
                      } });
     oeffneKontextmenu(x, y, eintraege);
@@ -2903,12 +2903,7 @@ function mountLibrary(body, headerActions) {
     const mTrash = $("lib-m-trash");
     if (mTrash) mTrash.onclick = async () => {
       if (!await frageTrash(_multi.size)) return;
-      let ok = 0;
-      for (const p of pfade()) {
-        const r = await api().library_trash(p);
-        if (r && r.ok) ok++;
-        status(`${ok} / ${_multi.size}`);
-      }
+      await trashViele(pfade(), status);
       _multi.clear(); reload();
     };
   }
@@ -3452,6 +3447,39 @@ function mountLibrary(body, headerActions) {
       const ok = document.getElementById("lib-trash-ok");
       if (ok) ok.onclick = () => ende(true);
     });
+  }
+
+  /** 10.09.2026 (Tester-Video: ausgeblendete Touren markiert, Papierkorb, sie blieben liegen):
+   *  Bei Mehrfachauswahl verschluckte die Schleife die Antwort des Backends — „wird von
+   *  Projekten benutzt" (jede im Animator geöffnete Tour hat ein Projekt) und „das ist die
+   *  Kopie in der Bibliothek" kamen nie an. Jetzt: erst alle versuchen, dann EINE Rückfrage
+   *  für die benutzten (Tour + Projekte löschen), Rest melden. */
+  async function trashViele(pfade, status) {
+    let ok = 0; const benutzt = []; const fehler = [];
+    for (const p of pfade) {
+      let r; try { r = await api().library_trash(p); } catch (e) { r = { ok: false, error: String(e) }; }
+      if (r && r.ok) ok++;
+      else if (r && r.grund === "benutzt") benutzt.push({ path: p, projekte: r.projekte || [] });
+      else fehler.push((r && r.error) || "?");
+      if (status) status(`${ok} / ${pfade.length}`);
+    }
+    if (benutzt.length) {
+      const liste = [...new Set(benutzt.flatMap(b => b.projekte))].slice(0, 8).join(", ");
+      const weiter = await rzConfirm(
+        "🗑 " + T("library.tour_mit_projekten", "Tour und diese Projekte löschen"),
+        T("library.touren_benutzt_frage", "{n} Tour(en) werden von Projekten benutzt: {liste}. Touren und Projekte zusammen löschen?")
+          .replace("{n}", benutzt.length).replace("{liste}", liste),
+        T("library.tour_mit_projekten", "Tour und diese Projekte löschen"), true);
+      if (weiter) {
+        for (const b of benutzt) {
+          let r; try { r = await api().library_trash(b.path, true); } catch (e) { r = { ok: false, error: String(e) }; }
+          if (r && r.ok) ok++; else fehler.push((r && r.error) || "?");
+        }
+      }
+    }
+    if (ok) toast(T("library.trash_done_n", "{n} in den Papierkorb gelegt.").replace("{n}", ok), "info");
+    if (fehler.length) toast(T("library.trash_fehler_n", "{n} nicht möglich: {grund}").replace("{n}", fehler.length).replace("{grund}", fehler[0]), "error", 7000);
+    return ok;
   }
 
   async function confirmTrash(it) {

@@ -3143,5 +3143,8 @@
   "gpxinspect.ab_ab": "Tramo A→B: punto #{a} a #{b}, {n} entre medias.",
   "gpxinspect.sub_ab": "Tramo entre A y B",
   "gpxinspect.sub_a": "En el punto A",
-  "gpxinspect.sub_track": "Track completo"
+  "gpxinspect.sub_track": "Track completo",
+  "library.touren_benutzt_frage": "{n} ruta(s) se usan en proyectos: {liste}. ¿Borrar rutas y proyectos juntos?",
+  "library.trash_done_n": "{n} movida(s) a la papelera.",
+  "library.trash_fehler_n": "{n} no fue posible: {grund}"
 }

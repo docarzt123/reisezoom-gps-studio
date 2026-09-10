@@ -3143,5 +3143,8 @@
   "gpxinspect.ab_ab": "Section A→B: point #{a} to #{b}, {n} in between.",
   "gpxinspect.sub_ab": "Section between A and B",
   "gpxinspect.sub_a": "At point A",
-  "gpxinspect.sub_track": "Whole track"
+  "gpxinspect.sub_track": "Whole track",
+  "library.touren_benutzt_frage": "{n} tour(s) are used by projects: {liste}. Delete tours and projects together?",
+  "library.trash_done_n": "{n} moved to the trash.",
+  "library.trash_fehler_n": "{n} not possible: {grund}"
 }

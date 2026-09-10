@@ -3143,5 +3143,8 @@
   "gpxinspect.ab_ab": "Abschnitt A→B: Punkt #{a} bis #{b}, {n} dazwischen.",
   "gpxinspect.sub_ab": "Abschnitt zwischen A und B",
   "gpxinspect.sub_a": "Am Punkt A",
-  "gpxinspect.sub_track": "Ganzer Track"
+  "gpxinspect.sub_track": "Ganzer Track",
+  "library.touren_benutzt_frage": "{n} Tour(en) werden von Projekten benutzt: {liste}. Touren und Projekte zusammen löschen?",
+  "library.trash_done_n": "{n} in den Papierkorb gelegt.",
+  "library.trash_fehler_n": "{n} nicht möglich: {grund}"
 }
