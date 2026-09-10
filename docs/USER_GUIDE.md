@@ -2351,6 +2351,9 @@ Adressdienste), OpenFreeMap (Vektorkarten) und MapLibre (die Kartenbibliothek).
 Sie leben von Spenden und Mitgliedern — jede Unterstützung dort hält auch diese
 App kostenlos.
 
+### Die App reagiert nicht mehr, Einstellungen zurücksetzen (seit v0.9.688)
+Wie bei Final Cut: Beim Start **⌘⌥ gedrückt halten** (Windows: **Strg+Alt**), bis die Rückfrage „Zurücksetzen?“ kommt. Oder in der laufenden App **Hilfe → „Einstellungen zurücksetzen und neu starten …“**, das geht auch, wenn die Oberfläche selbst nicht mehr auf Klicks reagiert. Zurück auf Werkseinstellung gehen Fensterlage, Kartenstil, zuletzt offenes Projekt und alle Regler. Deine Touren, Projekte und das Archiv bleiben, Karten-Schlüssel und Sprache auch. Die alten Einstellungen liegen als `settings.reset-<Zeit>.json` neben der neuen Datei, falls du etwas nachschlagen willst.
+
 ### „Wirklich öffnen?" beim ersten Start (macOS)
 Diese Rückfrage zeigt macOS bei **jeder** aus dem Netz geladenen App, auch bei signierten — einmal
 bestätigen, danach nie wieder. Die App ist seit v0.9.4x **von Apple signiert und notarisiert**;

@@ -1552,6 +1552,18 @@ window.addEventListener("DOMContentLoaded", async () => {
     }, { once: true, capture: true });
   } catch (_) {}
 
+  // 10.09.2026 (Beta-Tester, 22 Sitzungen ohne einen Klick, alle sauber gebootet):
+  // Deckt etwas Unsichtbares die Oberfläche ab? Nach dem Laden einmal loggen, welches
+  // Element an drei Stellen (Seitenleiste, Karte, Zeitleiste) ganz oben liegt.
+  setTimeout(() => {
+    try {
+      const w = window.innerWidth, h = window.innerHeight;
+      const punkte = { seitenleiste: [Math.round(w * 0.1), Math.round(h * 0.5)], karte: [Math.round(w * 0.6), Math.round(h * 0.4)], zeitleiste: [Math.round(w * 0.6), Math.round(h * 0.9)] };
+      const wer = (x, y) => { const el = document.elementFromPoint(x, y); if (!el) return "nichts"; const cs = getComputedStyle(el); return (el.tagName || "?").toLowerCase() + (el.id ? "#" + el.id : "") + (el.className && typeof el.className === "string" ? "." + el.className.trim().split(/\s+/).slice(0, 2).join(".") : "") + (cs.position === "fixed" ? " [fixed z" + cs.zIndex + "]" : ""); };
+      applog && applog("info", "[oberfläche] oben liegt: " + Object.entries(punkte).map(([k, p]) => `${k}=${wer(p[0], p[1])}`).join(" · ") + ` · Fenster ${w}×${h} · Modal ${(document.getElementById("modal-overlay") || {}).hidden === false ? "OFFEN" : "zu"}`);
+    } catch (_) {}
+  }, 6000);
+
   // 10.09.2026 (Marc: „DAU-Problem"): Läuft die App nicht aus Programme, oder liegt
   // das Download-Image noch eingehängt / eine zweite Kopie in Programme → einmal
   // anbieten, das mit einem Klick zu erledigen (Selbst-Installation bzw. Aufräumen).

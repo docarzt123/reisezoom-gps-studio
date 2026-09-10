@@ -2112,6 +2112,9 @@ Clicking **📧 Feedback / bug report to Marc** (or on a render error) opens a m
 6. Send
 
 
+### The app no longer reacts, reset the settings (since v0.9.688)
+Like Final Cut: **hold ⌘⌥ while starting** (Windows: **Ctrl+Alt**) until the “Reset?” question appears. Or, in the running app, **Help → “Reset settings and restart …”**, which works even when the interface itself no longer reacts to clicks. Window position, map style, last open project and all sliders go back to factory defaults. Your tours, projects and the archive stay, map keys and language too. The old settings are kept as `settings.reset-<time>.json` next to the new file.
+
 ### Log file
 On render errors an error modal opens automatically with an expandable log excerpt + "Show in Finder", "Open log", "📧 Send to Marc" buttons. You can find the full log file at any time at:
 - macOS: `~/Library/Application Support/Reisezoom GPS Studio/logs/app.log`
