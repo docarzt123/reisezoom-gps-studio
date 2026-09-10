@@ -5,8 +5,34 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Tue, 08 Sep 2026 09:30:35 +0000</lastBuildDate>
+<lastBuildDate>Wed, 09 Sep 2026 19:56:32 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.685</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-685</link>
+<guid isPermaLink="false">gps-studio-v0.9.685</guid>
+<pubDate>Wed, 09 Sep 2026 12:00:00 +0000</pubDate>
+<description>Übergang „Pause“ und Höhenprofil — Neben Kinoflug, Luftlinie und Schnitt gibt es die Pause: nichts passiert, Bild und Laufpunkt bleiben am Ende der Etappe stehen, der Halt bleibt, das Bild springt erst mit der nächsten Etappe. Das Höhenprofil einer Reise war immer platt (800 Punkte gegen 200 Höhen) — behoben. Neu darunter der Schalter „Ganze Strecke“ (Etappengrenzen als Marken) oder „Laufende Etappe“ (baut sich je Etappe neu auf, Name in der Kopfzeile).
+
+Aussehen je Track — Die Sektion „Linie“ ist weg. Jeder Eintrag unter „Tracks“ klappt mit ▸ sein eigenes Aussehen auf: Dicke, Linien-Stil mit Abstand, Schatten, Glow und Punktreduzierung in Prozent. Auch der Laufpunkt (zeigen, Kugel oder Pfeil, Größe) gehört jedem Track; das Häkchen „Form der Haupt-Tour für alle“ entfällt. Parallele Spuren zeigen Schatten, Glow, Muster und ihren eigenen Laufpunkt in Vorschau und Video. Ein neuer Track übernimmt das Aussehen von Track 1. „Aussehen auf alle übernehmen …“ kopiert von einem Track auf alle anderen, nur die angekreuzten Felder (die Farbe ist standardmäßig nicht dabei). Tempo-Modus und Pausen stehen in den Video-Einstellungen. Liegt eine Zusatz-Tour vorne in der Kette, zeichnet die Hauptlinie ihr Aussehen, und der Laufpunkt folgt der laufenden Etappe.
+
+Mehrere Tracks: Farbe und Höhenprofil — Beginnt die Reihe mit einer anderen Etappe als dem ersten Track, hatte die Linie trotzdem dessen Farbe; jetzt die Farbe der Etappe, die sie zeichnet. Zusatz-Touren brachten keine Höhen mit, das Profil war eine Gerade; jetzt laufen ihre Höhen mit.
+
+Quellenzeile — steht jetzt ganz oben in den Overlays; Standard ist die ganze Breite unten mit vollen Angaben.</description>
+</item>
+<item>
+<title>v0.9.681 — Mehrere Touren in einem Video: nacheinander, gleichzeitig oder beides — als Gruppen in der Zeitleiste, mit Tempo-Spur und Keyframes, die an der Strecke bleiben.</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-681</link>
+<guid isPermaLink="false">gps-studio-v0.9.681</guid>
+<pubDate>Wed, 09 Sep 2026 12:00:00 +0000</pubDate>
+<description>Bibliothek: „Trotzdem öffnen“ und der Rückweg — „Bibliothek ist bereits geöffnet“ bietet jetzt „Trotzdem öffnen …“ an (mit Rückfrage): nach Absturz, hartem Beenden oder verschwundenem Netzlaufwerk ist die Sperre nur ein Überbleibsel. „Anderen Ort wählen“ öffnet eine dort liegende Bibliothek und fragt sonst nach, bevor eine leere entsteht — und sagt, wo die bisherige bleibt. Einstellungen → Bibliothek hat „Andere Bibliothek öffnen …“ und „Zuletzt benutzte Bibliotheken“. Nichts davon verschiebt oder löscht etwas.
+
+Gruppen in der Zeitleiste — Jede Tour ist eine Gruppe mit Halt, Inhalt und Halt; alle sind so lang wie das Video. Die Tempo-Spur zeigt sie als Kacheln mit Name, Faktor und Sekunden, Übergänge als Lücken, Halte als Bänder; gleichzeitig laufende Gruppen bekommen eigene Zeilen. Ziehen verschiebt in der Zeit, die Ränder ändern die Länge, nach oben oder unten ziehen ordnet den Stapel (die oberste führt die Kamera), Doppelklick öffnet die Gruppe: Name, Länge oder Faktor, Übergang, Touren lösen oder Gruppen zusammenlegen.
+
+Anordnen mit einem Klick — Nacheinander, alle ab 0, gleichzeitig im Ziel oder echte Uhrzeit: jeder Knopf rechnet einmal Faktoren und Halte, danach schiebt man weiter.
+
+Tempo-Spur — Halte und langsamere Abschnitte als lückenlose Kachelung über der Zeitleiste, wie ein Tempo-Editor: Ziehen legt einen Abschnitt an, Doppelklick auf freie Fläche einen Halt (ein einfacher Klick setzt nur den Scrubber), Doppelklick auf einen Eintrag öffnet ihn, Rechtsklick zeigt ein Menü mit Öffnen, Löschen, Halt hier. Halte sind an den Rändern ziehbar und wachsen dabei sofort mit. Die Dauer ist ein Ergebnis aus Raffung, Halten und Abschnitten.</description>
+</item>
 <item>
 <title>v0.9.663 — Die Gelände-Vorschau flackert nicht mehr, und der Bildausschnitt hängt nicht mehr davon ab, wo man die Vorschau startet.</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-663</link>
@@ -182,24 +208,6 @@ Beim Scrollen lief die Liste über ihre Kopfzeile. Jetzt bleibt die Kopfzeile sa
 <guid isPermaLink="false">gps-studio-v0.9.646</guid>
 <pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
 <description>⌚ Wer mit Uhr aufzeichnet, hatte keine echte Sicherheitskopie. Von einer Garmin- oder Suunto-Datei landete die Rohaufzeichnung unverändert in der Bibliothek — GPS Studio selbst konnte sie dort nicht mehr lesen. Ab jetzt wird beim Aufnehmen umgewandelt, und was schon falsch liegt, bringt die App beim nächsten Start einmalig in Ordnung — aus dem, was gespeichert ist. Die Originaldatei von damals brauchst du dafür nicht.</description>
-</item>
-<item>
-<title>v0.9.645 — Die Cloud spiegelt jetzt deine Bibliothek.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-645</link>
-<guid isPermaLink="false">gps-studio-v0.9.645</guid>
-<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
-<description>☁️ Die Cloud ist eine Kopie deiner Bibliothek. Vorher lud GPS Studio je Tour ein eigenes Paket hoch, in dem Verzeichnis, Sammlungen, Projekte und Fotos steckten — ein zweites Datenmodell neben dem echten. Jetzt geht schlicht hoch, was in deiner Bibliothek liegt: die Touren mit allen Versionen, deine Projekte und alles, was du selbst eingetragen hast. Verschlüsselt, bevor es dein Gerät verlässt.</description>
-</item>
-<item>
-<title>v0.9.640 — Deine Touren haben jetzt ein Zuhause.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-640</link>
-<guid isPermaLink="false">gps-studio-v0.9.640</guid>
-<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
-<description>📚 Die Bibliothek. GPS Studio bewahrt deine Touren ab jetzt an einem Ort auf, den du selbst bestimmst — mit einer eigenen Kopie jeder Tour. Beobachtete Ordner sind nur noch die Quelle: Räumst du draußen auf, bleibt deine Tour vollständig da. Beim ersten Start fragt die App in drei Schritten, wo die Bibliothek liegen soll; dein bisheriger Bestand zieht dabei von selbst um (vorher gesichert, und der alte Stand wird nur umbenannt, nie gelöscht).
-
-✋ GPS Studio schreibt nie mehr in deine Dateien. Heilst du eine Tour, entsteht daraus eine neue Version in deiner Bibliothek — deine Originaldatei bleibt unangetastet, auf das Byte genau. Brauchst du die geheilte Fassung auch außerhalb, exportierst du sie bewusst.
-
-🎯 Eine Kachel je Tour statt je Datei. Dieselbe Strecke als Komoot-Download, App-Import und geheilte Fassung war bisher dreimal im Archiv. Jetzt ist es eine Tour, erkennbar an „V3&quot; (drei Versionen) und „2×&quot; (aus zwei Dateien). Schlagworte, Favorit und dein eigener Name hängen an der Tour und überleben eine Heilung.</description>
 </item>
 </channel>
 </rss>

@@ -1791,6 +1791,30 @@ Lee la hora de captura de los datos EXIF de cada foto y busca en el track GPX el
 4. **Comprobar el offset** (ver «Zonas horarias» más abajo) — normalmente cuadra directamente
 5. **«Escribir GPS en las fotos»** → **elegir carpeta de destino** → las **copias** ya etiquetadas aterrizan ahí, tus **originales quedan intactos** → listo, la carpeta se abre
 
+### Varios tracks a la vez: el archivo los encuentra (desde v0.9.686)
+
+Con una cámara sin GPS acabas a menudo con 2000 fotos y una docena de tracks. Ya no
+hace falta pasar el geotagger track por track:
+
+1. **Cargar una carpeta de fotos** («📁 Cargar carpeta entera»). Los GPX junto a las
+   fotos se incorporan **al archivo** y se te avisa. Cuentan como **indicados**.
+2. El **archivo** compara las horas de captura con **todas** las rutas que conoce y
+   muestra una **lista de confirmación**: una casilla por ruta, el número de fotos que
+   caen en ella y cuántas fotos no encajan en **ninguna** ruta (esas quedan sin tocar).
+   Lo que traes tú aparece como «indicado». ¿Falta una ruta? **«Del archivo …»** la
+   añade con el selector habitual.
+3. **«Usar tracks»**: todos los tracks elegidos quedan en el mapa con su propio color y
+   la barra lateral los lista con su número de fotos. Cada foto cae en el track cuya
+   ventana de tiempo encaja; zona horaria, desfases de cámara y escritura funcionan
+   como antes, foto a foto contra su track.
+
+Si una foto encaja en **dos** tracks (registrador y móvil en paralelo), gana el punto
+más cercano, los tracks indicados primero. La foto lleva entonces el chip **«↔ también:
+…»**, la lista dice «n de ellas encajan también en otra ruta» y el resumen cuenta «n en
+dos rutas». **«🗂 Tracks del archivo …»** en la barra lateral añade más tracks en
+cualquier momento. El track principal (el primero de la lista) sigue siendo el de la
+barra GPX; la sesión le pertenece.
+
 ### Así se guardan las fotos etiquetadas (desde v0.9.372)
 - **Tus originales nunca se tocan.** Al escribir eliges **una vez una carpeta de destino**; ahí la app escribe las **copias** ya etiquetadas. Los originales quedan así conservados como respaldo — ya no hay un ZIP de backup aparte (innecesario).
 - **Un flujo unificado**, tanto si has cargado las fotos con **arrastrar y soltar** como con **«Elegir carpeta»**: siempre surge una carpeta limpia con las imágenes etiquetadas. El diálogo de finalización muestra **«Guardado en …»** + **«Abrir carpeta»**.

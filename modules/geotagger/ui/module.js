@@ -58,6 +58,13 @@ function mountGeotagger(body, headerActions) {
           <span>${t("geotagger.toggle.folder_recursive")}</span>
         </label>
         <div class="file-label small-info" id="gt-photos-info" hidden></div>
+        <!-- 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks: Liste der geladenen
+             Tracks in ihrer Farbe, dazu der Weg ins Archiv. -->
+        <div id="gt-tracks-box" hidden style="margin-top:8px;">
+          <div class="small-info" id="gt-tracks-info"></div>
+          <div id="gt-tracks-liste" class="gt-tracks-liste"></div>
+        </div>
+        <button class="btn btn-block btn-small" id="gt-tracks-archiv" style="margin-top:6px;">🗂 ${t("geotagger.tracks.archiv_btn", "Tracks aus dem Archiv …")}</button>
       </div>
 
       <div class="section">
@@ -261,6 +268,9 @@ function mountGeotagger(body, headerActions) {
   // v0.9.163 — Track-Klick-Info-Popup + Übersicht-Filter
   let _gtTrackPopup = null;   // mapLib().Popup für Track-Punkt-Klick
   let _gtFilter = null;       // null | "tagged" | "unsicher" | "oor" | "notime" | "hasgps"
+  // 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks auf einmal. [{path,name,coords,bbox,
+  // farbe,vorgegeben,n_points}], der erste ist der Haupt-Track (Sitzung, GPX-Leiste).
+  let _gtTracks = [];
   // v0.9.164 — Kamera-Filter + Tag-Auswahl (Checkbox je Foto, default an)
   let _gtCamFilter = null;    // null oder Kamera-String
   const _gtUnchecked = new Set();  // Pfade die NICHT getaggt werden (Häkchen aus)
@@ -1027,6 +1037,10 @@ function mountGeotagger(body, headerActions) {
       if (isUnmounted) return;
       const st = await api().geotagger_get_state();
       if (isUnmounted) return;
+      if (st && st.ok && Array.isArray(st.tracks) && st.tracks.length > 1) {
+        _gtTracks = st.tracks; currentGpxPath = st.primary || _gtTracks[0].path;   // 10.09.2026
+        _gtTracksListe();
+      }
       if (st && st.ok && st.has_state && Array.isArray(st.photos) && st.photos.length) {
         photos = st.photos;
         renderPhotoGrid();
@@ -1060,6 +1074,9 @@ function mountGeotagger(body, headerActions) {
 
   async function loadGpxByPath(path) {
     if (isUnmounted) return;
+    // 10.09.2026 — die globale GPX-Leiste meldet den Haupt-Track nach dem Aktivieren der
+    // Sitzung erneut; bei mehreren Tracks darf das die Liste nicht neu laden.
+    if (_gtTracks.length > 1 && path === currentGpxPath) return;
     const res = await api().geotagger_load_gpx(path);
     if (isUnmounted) return;
     if (!res.ok) {
@@ -1069,6 +1086,8 @@ function mountGeotagger(body, headerActions) {
     }
     if (window.hideSourceMissingBanner) window.hideSourceMissingBanner();
     currentGpxPath = path;
+    _gtTracks = Array.isArray(res.tracks) && res.tracks.length ? res.tracks : [res];   // 10.09.2026
+    _gtTracksListe();
     _gtUpdateSnapAvail();             // v0.9.166 — Snap-Toggle aktivieren (Track da)
     setLabel("gt-gpx-path", path.split("/").slice(-1)[0]);
     // v0.8.0: Session aktivieren — gleiche Settings wie in Animator/Tour-Map
@@ -1095,17 +1114,128 @@ function mountGeotagger(body, headerActions) {
         if (map) {
           clearInterval(_gtMapWait);
           _gtMapWait = null;
-          if (typeof onMapReady === "function") onMapReady(map, () => showTrack(res));
-          else showTrack(res);
+          if (typeof onMapReady === "function") onMapReady(map, () => showTracks());
+          else showTracks();
         }
       }, 100);
     } else {
-      if (typeof onMapReady === "function") onMapReady(map, () => showTrack(res));
-      else showTrack(res);
+      if (typeof onMapReady === "function") onMapReady(map, () => showTracks());
+      else showTracks();
     }
     updateMatches();
     toast(t("geotagger.gpx_geladen", "GPX geladen: ") + res.name, "success", 2500);
   }
+
+  // ── 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks: Archiv findet sie ────────
+  /** Sidebar-Liste der geladenen Tracks (Farbe, Name, Foto-Zahl, „vorgegeben"). */
+  function _gtTracksListe() {
+    const box = document.getElementById("gt-tracks-box");
+    const liste = document.getElementById("gt-tracks-liste");
+    const info = document.getElementById("gt-tracks-info");
+    if (!box || !liste) return;
+    if (_gtTracks.length < 2) { box.hidden = true; liste.innerHTML = ""; return; }
+    box.hidden = false;
+    const zaehl = {};
+    matches.forEach(m => { if (m.track_path && m.lat != null && m.in_range) zaehl[m.track_path] = (zaehl[m.track_path] || 0) + 1; });
+    if (info) info.textContent = t("geotagger.tracks.info", "{n} Tracks — jedes Foto landet auf dem Track, dessen Zeit passt.").replace("{n}", _gtTracks.length);
+    liste.innerHTML = _gtTracks.map(tr => `
+      <div class="gt-track-zeile" title="${_gtEsc(tr.path || "")}">
+        <span class="gt-track-dot" style="background:${_gtEsc(tr.farbe || "#35a7ff")}"></span>
+        <span class="gt-track-name">${_gtEsc(tr.name || "")}</span>
+        <span class="gt-track-meta">${zaehl[tr.path] || 0}${tr.vorgegeben ? " · " + _gtEsc(t("geotagger.tracks.vorgegeben", "vorgegeben")) : ""}</span>
+      </div>`).join("");
+  }
+  /** Mehrere Tracks laden (Haupt-Track = erster) und wie einen einzelnen anwenden. */
+  async function _gtTracksLaden(paths, vorgegeben) {
+    if (isUnmounted || !paths || !paths.length) return;
+    const res = await api().geotagger_load_gpx_viele(paths, Array.from(vorgegeben || []));
+    if (isUnmounted) return;
+    if (!res || !res.ok) { toast((res && res.error) || "?", "error"); return; }
+    _gtTracks = res.tracks || [];
+    const haupt = _gtTracks[0];
+    if (!haupt) return;
+    if (res.fehler && res.fehler.length) toast(t("geotagger.tracks.unlesbar", "{n} Track(s) nicht lesbar — übersprungen").replace("{n}", res.fehler.length), "warn", 6000);
+    if (window.hideSourceMissingBanner) window.hideSourceMissingBanner();
+    currentGpxPath = haupt.path;
+    _gtUpdateSnapAvail();
+    setLabel("gt-gpx-path", haupt.path.split("/").slice(-1)[0]);
+    if (typeof sessionActivate === "function" && haupt.coords) {
+      try {
+        await sessionActivate(haupt.coords, haupt.path);   // meldet den Pfad erneut → Guard in loadGpxByPath
+        if (typeof rebindAllSettings === "function") rebindAllSettings();
+      } catch (err) { console.warn("sessionActivate (geotagger, mehrere):", err); }
+    }
+    _gtMitKarte(() => showTracks());
+    _gtTracksListe();
+    updateMatches();
+    toast(t("geotagger.tracks.geladen", "{n} Tracks geladen").replace("{n}", _gtTracks.length), "success", 2500);
+  }
+  /** Kandidaten sammeln (GPX aus dem Foto-Ordner → Archiv; Zusatz aus der Archiv-Auswahl;
+   *  alle Touren des Archivs, deren Zeit passt) und zur Bestätigung zeigen. */
+  async function _gtTracksVorschlagen(folder, zusatz) {
+    try {
+      let vorgegeben = Array.from(zusatz || []);
+      if (folder) {
+        const imp = await api().geotagger_import_gpx_aus_ordner(folder);
+        if (isUnmounted) return;
+        if (imp && imp.ok && Array.isArray(imp.pfade) && imp.pfade.length) {
+          vorgegeben = vorgegeben.concat(imp.pfade);
+          if (imp.neu > 0) toast(t("geotagger.tracks.importiert", "{n} Track(s) neben den Fotos ins Archiv aufgenommen").replace("{n}", imp.neu), "info", 5000);
+        }
+      }
+      _gtTracks.forEach(tr => { if (tr.path && !vorgegeben.includes(tr.path)) vorgegeben.push(tr.path); });
+      const k = await api().geotagger_tracks_fuer_fotos(vorgegeben);
+      if (isUnmounted) return;
+      if (!k || !k.ok) { if (k && k.error) toast(k.error, "error"); return; }
+      if (!k.tracks || !k.tracks.length) {
+        toast(t("geotagger.tracks.keine", "Kein Track im Archiv passt zu den Aufnahmezeiten. Über „Tracks aus dem Archiv …“ kannst du selbst wählen."), "warn", 8000);
+        return;
+      }
+      _gtTracksDialog(k, new Set(vorgegeben));
+    } catch (err) { console.warn("_gtTracksVorschlagen:", err); }
+  }
+  function _gtTracksDialog(k, vgSet) {
+    const datum = (iso) => { try { return iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : ""; } catch (_) { return ""; } };
+    const rows = k.tracks.map((tr, i) => `
+      <label class="modal-gpx-pick-row gt-track-wahl">
+        <input type="checkbox" name="gt-track-wahl" value="${i}" checked>
+        <div class="modal-gpx-pick-info">
+          <div class="modal-gpx-pick-name">${_gtEsc(tr.name || tr.path.split("/").pop())}${tr.vorgegeben ? ` <span class="gt-chip track">${_gtEsc(t("geotagger.tracks.vorgegeben", "vorgegeben"))}</span>` : ""}</div>
+          <div class="modal-gpx-pick-meta">📅 ${datum(tr.time_start)} · 📷 ${_gtEsc(t("geotagger.tracks.fotos", "{n} Fotos").replace("{n}", tr.n_fotos))}${tr.doppel ? ` · ↔ ${_gtEsc(t("geotagger.tracks.doppel", "{n} davon passen auch auf eine andere Tour").replace("{n}", tr.doppel))}` : ""}</div>
+        </div>
+      </label>`).join("");
+    openModal({
+      title: t("geotagger.tracks.dialog_title", "Tracks zu den Fotos"),
+      body: `
+        <p class="muted">${_gtEsc(t("geotagger.tracks.dialog_body", "{n} Tour(en) passen zu den Aufnahmezeiten. Angehakte werden verwendet; {ohne} Foto(s) passen auf keine Tour und bleiben unangetastet.").replace("{n}", k.tracks.length).replace("{ohne}", k.ohne || 0))}</p>
+        <div class="modal-gpx-pick-list" id="gt-track-wahl-liste">${rows}</div>`,
+      footer: `
+        <button class="btn" id="gt-track-wahl-archiv">🗂 ${t("geotagger.tracks.aus_archiv", "Aus dem Archiv …")}</button>
+        <button class="btn" id="gt-track-wahl-nein">${t("common.cancel", "Abbrechen")}</button>
+        <button class="btn btn-primary" id="gt-track-wahl-ok">${t("geotagger.tracks.verwenden", "Tracks verwenden")}</button>`,
+    });
+    document.getElementById("gt-track-wahl-nein").onclick = () => openModal({}).close();
+    document.getElementById("gt-track-wahl-archiv").onclick = async () => {
+      openModal({}).close();
+      if (typeof window.rzArchivTourenWaehlen !== "function") return;
+      const mehr = await window.rzArchivTourenWaehlen({ titel: t("geotagger.tracks.archiv_btn", "Tracks aus dem Archiv …"), ausschliessen: k.tracks.map(x => x.path) });
+      if (Array.isArray(mehr) && mehr.length) await _gtTracksVorschlagen(null, Array.from(vgSet).concat(mehr));
+    };
+    document.getElementById("gt-track-wahl-ok").onclick = async () => {
+      const sel = Array.from(document.querySelectorAll('input[name="gt-track-wahl"]:checked')).map(cb => k.tracks[parseInt(cb.value)].path);
+      openModal({}).close();
+      if (!sel.length) return;
+      await _gtTracksLaden(sel, vgSet);
+    };
+  }
+  document.getElementById("gt-tracks-archiv")?.addEventListener("click", async () => {
+    if (typeof window.rzArchivTourenWaehlen !== "function") return;
+    const mehr = await window.rzArchivTourenWaehlen({ titel: t("geotagger.tracks.archiv_btn", "Tracks aus dem Archiv …"), ausschliessen: _gtTracks.map(x => x.path) });
+    if (!Array.isArray(mehr) || !mehr.length) return;
+    if (photos.length) await _gtTracksVorschlagen(null, mehr);
+    else await _gtTracksLaden(_gtTracks.map(x => x.path).concat(mehr), new Set(_gtTracks.filter(x => x.vorgegeben).map(x => x.path).concat(mehr)));
+  });
+  window.__rzGtTracks = () => ({ tracks: _gtTracks.map(x => ({ path: x.path, name: x.name, farbe: x.farbe, vorgegeben: !!x.vorgegeben })), haupt: currentGpxPath });   // Prüfstand
 
   // v0.8.1: GPX-Picker ist global in der Sub-Top-Bar.
   // v0.9.31: GPX-Clear (z.B. via „Session schließen" oder ✕-Button im
@@ -1125,6 +1255,7 @@ function mountGeotagger(body, headerActions) {
         referencePath = null;
         refMode = false;
         currentGpxPath = null;
+        _gtTracks = []; _gtTracksListe();   // 10.09.2026
         try { markers.forEach(m => { try { m.remove(); } catch (_) {} }); } catch (_) {}
         markers = [];
         // Track-Layer von der Karte runter
@@ -1132,6 +1263,8 @@ function mountGeotagger(body, headerActions) {
           try {
             const src = map.getSource("gt-track");
             if (src) src.setData({ type: "Feature", geometry: { type: "LineString", coordinates: [] } });
+            for (const l of (map.getStyle()?.layers || [])) if (l.id && l.id.startsWith("gt-track-x")) { try { map.removeLayer(l.id); } catch (_) {} }
+            for (const sid of Object.keys(map.getStyle()?.sources || {})) if (sid.startsWith("gt-track-x")) { try { map.removeSource(sid); } catch (_) {} }
           } catch (_) {}
         }
         // UI-Reset
@@ -1158,6 +1291,47 @@ function mountGeotagger(body, headerActions) {
   // v0.8.4: Initial-Apply läuft jetzt im onMapReady-Callback oben
   // (zusammen mit Track-Layer-Setup) — robust gegen Race-Conditions.
 
+  /** 10.09.2026 — alle geladenen Tracks zeichnen: der Haupt-Track in gt-track, die
+   *  übrigen in gt-track-x<i> in ihrer Farbe; Sicht auf alle zusammen. */
+  function showTracks() {
+    if (isUnmounted || !map) return;
+    const haupt = _gtTracks[0];
+    if (!haupt || !haupt.coords) return;
+    showTrack(haupt);
+    // veraltete Zusatz-Ebenen weg
+    try {
+      for (const l of (map.getStyle()?.layers || [])) if (l.id && l.id.startsWith("gt-track-x")) { try { map.removeLayer(l.id); } catch (_) {} }
+      for (const sid of Object.keys(map.getStyle()?.sources || {})) if (sid.startsWith("gt-track-x")) { try { map.removeSource(sid); } catch (_) {} }
+    } catch (_) {}
+    let lo = [haupt.bbox.min_lon, haupt.bbox.min_lat], hi = [haupt.bbox.max_lon, haupt.bbox.max_lat];
+    _gtTracks.slice(1).forEach((tr, i) => {
+      if (!tr.coords || tr.coords.length < 2) return;
+      const id = "gt-track-x" + (i + 1);
+      try {
+        map.addSource(id, { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: tr.coords } } });
+        map.addLayer({ id: id + "-glow", type: "line", source: id,
+          paint: { "line-color": tr.farbe || "#35a7ff", "line-width": 7, "line-opacity": 0.35, "line-blur": 3 } });
+        map.addLayer({ id: id + "-line", type: "line", source: id,
+          paint: { "line-color": tr.farbe || "#35a7ff", "line-width": 2.5, "line-opacity": 0.95 } });
+      } catch (err) { applog && applog("warn", "[Geotagger showTracks] " + id + ": " + err); }
+      if (tr.bbox) { lo = [Math.min(lo[0], tr.bbox.min_lon), Math.min(lo[1], tr.bbox.min_lat)]; hi = [Math.max(hi[0], tr.bbox.max_lon), Math.max(hi[1], tr.bbox.max_lat)]; }
+    });
+    if (_gtTracks.length > 1) { try { map.fitBounds([lo, hi], { padding: 80, duration: 600 }); } catch (_) {} }
+    // Haupt-Linie in ihrer Farbe (bei mehreren Tracks), sonst das gewohnte Orange
+    try {
+      const f = _gtTracks.length > 1 ? (haupt.farbe || "#ff6b35") : "#ff6b35";
+      if (map.getLayer("gt-track-line")) map.setPaintProperty("gt-track-line", "line-color", f);
+      if (map.getLayer("gt-track-glow")) map.setPaintProperty("gt-track-glow", "line-color", f);
+    } catch (_) {}
+  }
+  function _gtMitKarte(fn) {
+    if (!map) {
+      _gtMapWait = setInterval(() => {
+        if (isUnmounted) { clearInterval(_gtMapWait); _gtMapWait = null; return; }
+        if (map) { clearInterval(_gtMapWait); _gtMapWait = null; if (typeof onMapReady === "function") onMapReady(map, fn); else fn(); }
+      }, 100);
+    } else if (typeof onMapReady === "function") onMapReady(map, fn); else fn();
+  }
   function showTrack(res) {
     if (isUnmounted || !map) return;          // v0.9.29
     // v0.8.5: defensive — wenn gt-track source noch nicht da ist (Race),
@@ -1238,81 +1412,12 @@ function mountGeotagger(body, headerActions) {
     // KEIN GPX geladen ist (sonst würde es das vom User aktiv geladene
     // einfach überschreiben, was nervig wäre)
     if (!currentGpxPath && photos.length > 0) {
-      offerNearbyGpx(folder);
+      _gtTracksVorschlagen(folder);   // 10.09.2026 — das Archiv findet die Tracks (Issue #7)
     }
   });
 
-  /** v0.9.27 (Nutzer-Feedback): findet GPX-Dateien in der Nähe des
-   *  Foto-Ordners und bietet dem User an, eine davon zu laden. */
-  async function offerNearbyGpx(folder) {
-    try {
-      const res = await api().geotagger_find_gpx_near(folder);
-      if (!res.ok || !res.matches || !res.matches.length) return;
-      const matches = res.matches;
-      if (matches.length === 1) {
-        // Genau ein Treffer → kompakter Toast mit Ja/Nein-Buttons via Modal
-        const m = matches[0];
-        const sizeKb = (m.size / 1024).toFixed(0);
-        openModal({
-          title: t("geotagger.gpx_nearby.title_single"),
-          body: `
-            <p>${t("geotagger.gpx_nearby.body_single")}</p>
-            <div class="modal-stat-row"><span class="label">${t("geotagger.gpx_nearby.col_file")}</span><span class="val mono">${m.name}</span></div>
-            <div class="modal-stat-row"><span class="label">${t("geotagger.gpx_nearby.col_path")}</span><span class="val muted mono" style="font-size:11px; word-break:break-all;">${m.path}</span></div>
-            <div class="modal-stat-row"><span class="label">${t("geotagger.gpx_nearby.col_size")}</span><span class="val">${sizeKb} KB</span></div>
-          `,
-          footer: `
-            <button class="btn" id="md-nogpx">${t("geotagger.gpx_nearby.no")}</button>
-            <button class="btn btn-primary" id="md-yesgpx">${t("geotagger.gpx_nearby.yes_single")}</button>
-          `,
-        });
-        document.getElementById("md-nogpx").onclick = () => openModal({}).close();
-        document.getElementById("md-yesgpx").onclick = async () => {
-          openModal({}).close();
-          await loadGpxByPath(m.path);
-        };
-      } else {
-        // Mehrere Treffer → Auswahl-Modal
-        const rows = matches.map((m, i) => {
-          const sizeKb = (m.size / 1024).toFixed(0);
-          const when = new Date(m.mtime * 1000).toLocaleDateString("de-DE", {
-            year: "numeric", month: "short", day: "numeric",
-          });
-          const parent = m.path.split("/").slice(-2, -1)[0];
-          return `
-            <label class="modal-gpx-pick-row">
-              <input type="radio" name="md-gpx" value="${i}" ${i === 0 ? "checked" : ""}>
-              <div class="modal-gpx-pick-info">
-                <div class="modal-gpx-pick-name">${m.name}</div>
-                <div class="modal-gpx-pick-meta">📂 ${parent} · 📅 ${when} · ${sizeKb} KB</div>
-              </div>
-            </label>
-          `;
-        }).join("");
-        openModal({
-          title: t("geotagger.gpx_nearby.title_multi").replace("{n}", matches.length),
-          body: `
-            <p class="muted">${t("geotagger.gpx_nearby.body_multi")}</p>
-            <div class="modal-gpx-pick-list">${rows}</div>
-          `,
-          footer: `
-            <button class="btn" id="md-nogpx">${t("geotagger.gpx_nearby.no")}</button>
-            <button class="btn btn-primary" id="md-yesgpx">${t("geotagger.gpx_nearby.yes_multi")}</button>
-          `,
-        });
-        document.getElementById("md-nogpx").onclick = () => openModal({}).close();
-        document.getElementById("md-yesgpx").onclick = async () => {
-          const sel = document.querySelector('input[name="md-gpx"]:checked');
-          if (!sel) return;
-          const m = matches[parseInt(sel.value)];
-          openModal({}).close();
-          await loadGpxByPath(m.path);
-        };
-      }
-    } catch (err) {
-      console.warn("offerNearbyGpx:", err);
-    }
-  }
+  // 10.09.2026 — der frühere Nähe-Dialog (offerNearbyGpx, Radio-Buttons) ist durch
+  // die Archiv-Bestätigungsliste ersetzt (_gtTracksVorschlagen, IDEAS §61).
 
   let thumbPollTimer = null;
   function stopThumbPolling() {
@@ -2063,6 +2168,13 @@ function mountGeotagger(body, headerActions) {
         _gtEsc(t("geotagger.unsicher.chip", "unsichere Position"))} <span class="dim">(${
         _gtEsc(t("geotagger.unsicher.detail", "{zeit} Lücke, {weg} weiter")
           .replace("{zeit}", l.zeit).replace("{weg}", l.weg))})</span></span>`);
+    }
+    // 10.09.2026 — bei mehreren Tracks: welcher, und ob ein anderer auch passte
+    if (_gtTracks.length > 1 && m.track_name) {
+      c.push(`<span class="gt-chip track" title="${_gtEsc(m.track_path || "")}"><span class="gt-track-dot" style="background:${_gtEsc(m.track_farbe || "#35a7ff")}"></span> ${_gtEsc(m.track_name)}</span>`);
+      if (Array.isArray(m.doppel) && m.doppel.length) {
+        c.push(`<span class="gt-chip doppel" title="${_gtEsc(t("geotagger.chip.doppel_tip", "Dieses Foto liegt auch im Zeitfenster dieser Tour(en). Genommen wurde der nähere Punkt (vorgegebene Tracks zuerst)."))}">↔ ${_gtEsc(t("geotagger.chip.doppel", "auch: {namen}").replace("{namen}", m.doppel.map(x => x.name).join(", ")))}</span>`);
+      }
     }
     if (m.light_phase) c.push(`<span class="gt-chip sun">${_GT_SUN_EMOJI[m.light_phase] || "☀️"} ${t("geotagger.light." + m.light_phase, m.light_phase)}</span>`);
     if (m.dir != null && _gtWriteDirection()) { const _ds = m.dir_src === "exif" ? "cam" : (m.dir_src === "logged" ? "logged" : (m.dir_src === "manual" ? "manual" : "move")); c.push(`<span class="gt-chip">🧭 ${gtCompass(m.dir)} ${Math.round(m.dir)}° <span class="dim">(${t("geotagger.dir." + _ds, m.dir_src)})</span></span>`); }
@@ -2991,8 +3103,10 @@ function mountGeotagger(body, headerActions) {
         ${oor ? `<span class="gt-sum-line"><span class="warn">!</span> ${t("geotagger.summary.out_of_range", { n: oor })}</span><br>` : ""}
         ${skip ? `<span class="gt-sum-line"><span class="err">?</span> ${t("geotagger.summary.no_exif_time", { n: skip })}</span><br>` : ""}
         ${existing ? `<span class="gt-sum-line" style="color:var(--text-muted)">⌃ ${t("geotagger.summary.existing", { n: existing })}</span>` : ""}
+        ${_gtTracks.length > 1 ? `<span class="gt-sum-line">↔ ${_gtEsc(t("geotagger.summary.doppel", "{n} auf zwei Touren").replace("{n}", matches.filter(m => m.in_range && Array.isArray(m.doppel) && m.doppel.length).length))}</span><br>` : ""}
       `;
     }
+    _gtTracksListe();   // 10.09.2026 — Foto-Zahl je Track
     renderFilterBar();
   }
 

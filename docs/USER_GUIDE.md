@@ -1906,11 +1906,37 @@ Kein WordPress-Plugin nötig; kein Mapbox/CDN — die Datei läuft eigenständig
 Liest die Aufnahmezeit aus den EXIF-Daten jedes Fotos und sucht im GPX-Track den dazu passenden Track-Punkt. Schreibt die GPS-Koordinaten als EXIF-Tag ins Foto. **Funktioniert mit JPG, RAW (CR3/NEF/ARW/RAF/RW2/ORF/DNG/PEF/RWL/SRW/HEIC) und Video (MP4/MOV/INSV)** (Web-Tool: nur JPG).
 
 ### Workflow
-1. **GPX laden** — die Karte zeigt den Track
+1. **GPX laden** — die Karte zeigt den Track. Oder erst die Fotos laden: dann sucht
+   das Archiv die passenden Tracks selbst (siehe „Mehrere Tracks auf einmal" unten)
 2. **Fotos auswählen** — entweder „📁 Fotos auswählen", „📁 Ganzen Ordner laden", oder Drag & Drop
 3. **Foto-Tiles** erscheinen in der Mitte mit Thumbnails. Marker auf der Karte zeigen wo jedes Foto basierend auf Aufnahmezeit zugeordnet wurde. **Weitere Fotos reinziehen oder einen weiteren Ordner laden ergänzt die Liste** (seit v0.9.176 — wird *hinzugefügt*, nicht ersetzt; Dubletten werden übersprungen). Zum Leeren das **„🗑 Alle entfernen"** nutzen.
 4. **Offset prüfen** (siehe „Zeitzonen" unten) — meist passt's direkt
 5. **„GPS in Fotos schreiben"** → **Zielordner wählen** → die fertig getaggten **Kopien** landen dort, deine **Originale bleiben unangetastet** → fertig, der Ordner öffnet sich
+
+### Mehrere Tracks auf einmal — das Archiv findet sie (seit v0.9.686)
+
+Wer mit einer Kamera ohne GPS unterwegs war, hat am Ende oft 2000 Fotos und ein
+Dutzend Tracks. Du musst nicht mehr je Track den Geotagger laufen lassen:
+
+1. **Ordner mit Fotos laden** („📁 Ganzen Ordner laden"). Liegen GPX-Dateien neben
+   den Fotos, nimmt die App sie **ins Archiv** auf und sagt es dir. Diese Dateien
+   gelten als **vorgegeben**.
+2. Das **Archiv** vergleicht die Aufnahmezeiten mit **allen** Touren, die es kennt,
+   und zeigt eine **Bestätigungsliste**: je Tour ein Häkchen, dazu die Zahl der Fotos,
+   die auf sie fallen, und wie viele Fotos auf **keine** Tour passen (die bleiben
+   unangetastet). Was du selbst mitgebracht hast, ist als „vorgegeben" markiert.
+   Fehlt eine Tour, holt **„Aus dem Archiv …"** sie über die gewohnte Auswahl dazu.
+3. **„Tracks verwenden"** — alle gewählten Tracks liegen in eigener Farbe auf der
+   Karte, die Seitenleiste listet sie mit ihrer Foto-Zahl. Jedes Foto landet auf dem
+   Track, dessen Zeitfenster passt; Zeitzone, Kamera-Offsets und das Schreiben laufen
+   wie bisher, nur je Foto gegen seinen Track.
+
+Passt ein Foto auf **zwei** Tracks (Logger und Handy liefen parallel), gewinnt der
+nähere Punkt, vorgegebene Tracks zuerst. Das Foto trägt dann den Chip **„↔ auch: …"**,
+die Liste zeigt „n davon passen auch auf eine andere Tour", und die Übersicht zählt
+„n auf zwei Touren". Über **„🗂 Tracks aus dem Archiv …"** in der Seitenleiste kannst
+du jederzeit weitere Tracks dazunehmen. Der Haupt-Track (der erste der Liste) ist
+weiterhin der in der GPX-Leiste; die Sitzung gehört ihm.
 
 ### So werden die getaggten Fotos gespeichert (seit v0.9.372)
 - **Deine Originale werden nie angefasst.** Beim Schreiben wählst du **einmal einen Zielordner**; dorthin schreibt die App die fertig getaggten **Kopien**. Die Originale bleiben damit als Sicherung erhalten — ein separates Backup-ZIP gibt es nicht mehr (unnötig).
