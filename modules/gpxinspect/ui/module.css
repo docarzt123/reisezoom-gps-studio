@@ -285,3 +285,18 @@
 .gpxi-wz-tabelle { width: 100%; border-collapse: collapse; font-size: 12px; }
 .gpxi-wz-tabelle th, .gpxi-wz-tabelle td { padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--border, rgba(255,255,255,0.08)); }
 .gpxi-wz-tabelle th:first-child, .gpxi-wz-tabelle td:first-child { text-align: left; }
+
+/* 10.09.2026 (Marc: „übersichtlicher") — sechs gleiche Klapp-Abschnitte statt Mischung
+   aus Titeln, Trennstrichen und zwei <details>; Speichern klebt unten. */
+.gpxi-sec { margin: 0; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.025); }
+.gpxi-sec > summary { cursor: pointer; user-select: none; padding: 7px 10px; margin: 0; list-style: none; display: flex; align-items: center; gap: 6px; }
+.gpxi-sec > summary::-webkit-details-marker { display: none; }
+.gpxi-sec > summary::before { content: "▸"; color: var(--text-muted); font-size: 11px; width: 10px; flex: 0 0 auto; }
+.gpxi-sec[open] > summary::before { content: "▾"; }
+.gpxi-sec > summary .gpxi-q { margin-left: auto; }
+.gpxi-sec-body { display: flex; flex-direction: column; gap: 6px; padding: 2px 10px 10px; }
+.gpxi-sec-body .gpxi-act, .gpxi-sec-body .gpxi-clear { width: 100%; }
+.gpxi-ab-status { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+.gpxi-foot { position: sticky; bottom: 0; background: var(--panel-bg, var(--bg, #1b1b1f)); padding: 8px 0 2px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.gpxi-sub { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); margin-top: 6px; }
+.gpxi-undorow .btn { font-size: 12px; white-space: nowrap; padding: 6px 4px; }

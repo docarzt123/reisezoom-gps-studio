@@ -2026,8 +2026,18 @@ tour map, geotagger, elevation animator, plus photos and signs.
 **The old tour stays untouched.** If you don't like the result, just open the
 original file again.
 
-### 🧰 More tools — everything the web can do (since v0.9.687)
-At the bottom of the sidebar, above the save button, you find the same tools as on reisezoom.com/gps — here without size limit, without upload, and the sensors (heart rate, cadence …) stay with the points:
+### 🗂 How the sidebar is organised (since v0.9.687)
+The track figures and ↩︎/↪︎ at the top, **Save** and **Discard** pinned at the bottom. In between six collapsible sections — whatever you leave open stays open next time:
+
+1. **Look & check** — colour by speed, splits table. Nothing is changed here.
+2. **Heal (automatic)** — outliers, gaps, impossible speed.
+3. **Edit (anchors A→B)** — a status line at the top says which anchor is still missing; below, grouped by *section between A and B*, *at point A* (delete, trim before/after, start here, split here) and *whole track* (reverse).
+4. **Points & times** — reduce (evenly), simplify by deviation, create a time axis, set times.
+5. **Join tracks**
+6. **Correct elevation**
+
+### 🧰 The tools from the web (since v0.9.687)
+The sections hold the same tools as on reisezoom.com/gps — here without size limit, without upload, and the sensors (heart rate, cadence …) stay with the points:
 
 - **Reverse** — the track runs backwards. Timestamps are mirrored (the start stays the start), otherwise the clock would run backwards.
 - **Start here (anchor A)** — start a loop somewhere else: set anchor A, click, the old beginning is appended at the end. If start and end are far apart, the note says so (it was not a closed loop).

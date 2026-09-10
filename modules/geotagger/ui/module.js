@@ -1164,11 +1164,18 @@ function mountGeotagger(body, headerActions) {
     // Sitzung nur wechseln, wenn der Haupt-Track ein anderer ist — ein Sitzungswechsel
     // leert die Undo-Stapel (rebindAllSettings), und Undo soll bei gleichem
     // Haupt-Track die Track-Liste zurückholen können (10.09.2026).
-    if (hauptNeu && typeof sessionActivate === "function" && haupt.coords) {
+    if (hauptNeu) {
+      // 10.09.2026 (Echt-Test): über die globale GPX-Leiste laden — sonst zeigte die Leiste
+      // oben weiter den alten Track und Animator/Tour-Karte hingen an einer anderen Tour
+      // als der Geotagger. loadGlobalGpx aktiviert die Sitzung mit; unser Guard in
+      // loadGpxByPath lässt die Track-Liste dabei stehen.
+      const liste = _gtTracks;
       try {
-        await sessionActivate(haupt.coords, haupt.path);   // meldet den Pfad erneut → Guard in loadGpxByPath
-        if (typeof rebindAllSettings === "function") rebindAllSettings();
-      } catch (err) { console.warn("sessionActivate (geotagger, mehrere):", err); }
+        if (typeof window.loadGlobalGpx === "function") await window.loadGlobalGpx(haupt.path);
+        else if (typeof sessionActivate === "function" && haupt.coords) { await sessionActivate(haupt.coords, haupt.path); if (typeof rebindAllSettings === "function") rebindAllSettings(); }
+      } catch (err) { console.warn("loadGlobalGpx (geotagger, mehrere):", err); }
+      if (isUnmounted) return;
+      _gtTracks = liste; currentGpxPath = haupt.path;
     }
     _gtMitKarte(() => showTracks());
     _gtTracksListe();
@@ -1189,10 +1196,19 @@ function mountGeotagger(body, headerActions) {
         }
       }
       _gtTracks.forEach(tr => { if (tr.path && !vorgegeben.includes(tr.path)) vorgegeben.push(tr.path); });
+      // 10.09.2026 (Echt-Test): ein schon offener Track bleibt vorgegeben — er steht in der Liste,
+      // die Fotos anderer Tage bekommen trotzdem ihre Tracks dazu.
+      if (currentGpxPath && !vorgegeben.includes(currentGpxPath)) vorgegeben.push(currentGpxPath);
+      // 10.09.2026 (Echt-Test): die Aufnahmezeiten kommen aus dem Hintergrund-Leser — ohne
+      // Warten zählte der Dialog nur die Fotos, die schon gelesen waren (2 statt 3).
+      for (let i = 0; i < 40 && (thumbPollTimer || i < 2) && photos.some(p => p && !p.photo_time && !p.error); i++) {
+        await new Promise(r => setTimeout(r, 250));
+        if (isUnmounted) return;
+      }
       const k = await api().geotagger_tracks_fuer_fotos(vorgegeben);
       if (isUnmounted) return;
       if (!k || !k.ok) { if (k && k.error) toast(k.error, "error"); return; }
-      if (!k.tracks || !k.tracks.length) {
+      if (!k.tracks || !k.tracks.length || !k.tracks.some(tr => tr.n_fotos > 0)) {
         toast(t("geotagger.tracks.keine", "Kein Track im Archiv passt zu den Aufnahmezeiten. Über „Tracks aus dem Archiv …“ kannst du selbst wählen."), "warn", 8000);
         return;
       }
@@ -1203,7 +1219,7 @@ function mountGeotagger(body, headerActions) {
     const datum = (iso) => { try { return iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : ""; } catch (_) { return ""; } };
     const rows = k.tracks.map((tr, i) => `
       <label class="modal-gpx-pick-row gt-track-wahl">
-        <input type="checkbox" name="gt-track-wahl" value="${i}" checked>
+        <input type="checkbox" name="gt-track-wahl" value="${i}" ${(tr.n_fotos > 0 || k.tracks.length === 1) ? "checked" : ""}>
         <div class="modal-gpx-pick-info">
           <div class="modal-gpx-pick-name">${_gtEsc(tr.name || tr.path.split("/").pop())}${tr.vorgegeben ? ` <span class="gt-chip track">${_gtEsc(t("geotagger.tracks.vorgegeben", "vorgegeben"))}</span>` : ""}</div>
           <div class="modal-gpx-pick-meta">📅 ${datum(tr.time_start)} · 📷 ${_gtEsc(t("geotagger.tracks.fotos", "{n} Fotos").replace("{n}", tr.n_fotos))}${tr.doppel ? ` · ↔ ${_gtEsc(t("geotagger.tracks.doppel", "{n} davon passen auch auf eine andere Tour").replace("{n}", tr.doppel))}` : ""}</div>
@@ -1230,6 +1246,16 @@ function mountGeotagger(body, headerActions) {
       const sel = Array.from(document.querySelectorAll('input[name="gt-track-wahl"]:checked')).map(cb => k.tracks[parseInt(cb.value)].path);
       openModal({}).close();
       if (!sel.length) return;
+      // 10.09.2026 (Echt-Test): der Dialog zählte mit der aus den Tracks errechneten Zeitzone,
+      // die Zuordnung danach lief mit der eingestellten (0) — die Fotos der kurzen Tour
+      // fielen raus. Die errechnete Zone wird deshalb gleich übernommen (Undo-fähig über
+      // den Einstellungs-Snapshot, und der Offset-Regler zeigt sie).
+      if (k.tz_minuten != null && k.tz_minuten !== getTzOffsetMinutes() && photos.some(p => p && p.photo_time && !p.tz_known)) {
+        tzOffsetMin = k.tz_minuten;
+        saveSettings({ geotagger: { tz_offset_minutes: tzOffsetMin } });
+        updateOffsetDisplay();
+        toast(t("geotagger.tz_hint.applied", "Kamera-Zeitzone auf {tz} gesetzt.").replace("{tz}", _tzLabelKurz(k.tz_minuten)), "info", 4000);
+      }
       await _gtTracksLaden(sel, vgSet);
     };
   }
@@ -1336,7 +1362,7 @@ function mountGeotagger(body, headerActions) {
         if (isUnmounted) { clearInterval(_gtMapWait); _gtMapWait = null; return; }
         if (map) { clearInterval(_gtMapWait); _gtMapWait = null; if (typeof onMapReady === "function") onMapReady(map, fn); else fn(); }
       }, 100);
-    } else if (typeof onMapReady === "function") onMapReady(map, fn); else fn();
+    } else if (typeof onMapReady === "function") onMapReady(map, () => { if (!isUnmounted && map) fn(); }); else fn();
   }
   function showTrack(res) {
     if (isUnmounted || !map) return;          // v0.9.29
@@ -1417,7 +1443,9 @@ function mountGeotagger(body, headerActions) {
     // v0.9.27 (Nutzer-Feedback): GPX-Auto-Detect anbieten — nur wenn aktuell
     // KEIN GPX geladen ist (sonst würde es das vom User aktiv geladene
     // einfach überschreiben, was nervig wäre)
-    if (!currentGpxPath && photos.length > 0) {
+    // 10.09.2026 (Echt-Test): auch mit offenem Track — sonst passierte bei Marcs Ablauf
+    // (Track offen, dann Foto-Ordner) gar nichts; der offene Track bleibt vorgegeben.
+    if (photos.length > 0) {
       _gtTracksVorschlagen(folder);   // 10.09.2026 — das Archiv findet die Tracks (Issue #7)
     }
   });
@@ -3338,6 +3366,17 @@ function mountGeotagger(body, headerActions) {
     currentGpxPath = null;
     _gtResetFiltersAndOffset();  // v0.9.362 — Filter, Zeit-Offset, Richtungen/Adressen, Undo
     _gtHideTrackPopup();       // v0.9.163 — Track-Klick-Popup schließen
+    // 10.09.2026 (Echt-Test): Track-Liste, Foto-Fenster und Zeitzonen-Hinweis blieben
+    // nach „Workspace leeren" stehen — die Tracks galten beim nächsten Ordner als „vorgegeben".
+    _gtTracks = []; try { _gtTracksListe(); } catch (_) {}
+    try { hidePhotoPopup(); } catch (_) {}
+    try { const tz = document.getElementById("gt-tz-hinweis"); if (tz) tz.hidden = true; _tzVorschlag = null; _tzVorschlagKey = null; } catch (_) {}
+    if (map) {
+      try {
+        for (const l of (map.getStyle()?.layers || [])) if (l.id && l.id.startsWith("gt-track-x")) { try { map.removeLayer(l.id); } catch (_) {} }
+        for (const sid of Object.keys(map.getStyle()?.sources || {})) if (sid.startsWith("gt-track-x")) { try { map.removeSource(sid); } catch (_) {} }
+      } catch (_) {}
+    }
     // v0.9.27 (Nutzer-Feedback): persistierten Foto-State auch leeren
     try { saveSettings({ geotagger: { last_photos_dir: "", last_photos_paths: [] } }); } catch (_) {}
     // 3) Marker von der Karte entfernen
@@ -3819,7 +3858,7 @@ function mountGeotagger(body, headerActions) {
         ${errBlock}
       `,
       footer: `
-        ${canOpen ? '<button class="btn btn-primary" id="md-open">${t("geotagger.done.open_folder", "Ordner öffnen")}</button>' : ''}
+        ${canOpen ? `<button class="btn btn-primary" id="md-open">${t("geotagger.done.open_folder", "Ordner öffnen")}</button>` : ''}
         <button class="btn ${canOpen ? '' : 'btn-primary'}" id="md-ok">OK</button>
       `,
       closable: true,

@@ -2073,8 +2073,18 @@ geoetiquetador, animador de altitud, junto con fotos y carteles.
 **La ruta antigua queda intacta.** Si el resultado no te gusta, abre de nuevo
 el archivo original.
 
-### 🧰 Más herramientas — todo lo que puede la web (desde v0.9.687)
-Abajo en la barra lateral, encima del botón de guardar, están las mismas herramientas que en reisezoom.com/gps — aquí sin límite de tamaño, sin subida, y los sensores (pulso, cadencia …) se quedan con los puntos:
+### 🗂 Cómo está organizada la barra lateral (desde v0.9.687)
+Arriba las cifras del track y ↩︎/↪︎, abajo fijos **Guardar** y **Descartar**. Entre medias seis secciones plegables; lo que dejes abierto sigue abierto la próxima vez:
+
+1. **Mirar y comprobar** — colorear por velocidad, tabla de parciales. Aquí no se cambia nada.
+2. **Curar (automático)** — valores atípicos, huecos, velocidad imposible.
+3. **Editar (anclas A→B)** — arriba una línea de estado que dice qué ancla falta; debajo agrupado por *tramo entre A y B*, *en el punto A* (borrar, recortar antes/después, inicio aquí, dividir aquí) y *track completo* (invertir).
+4. **Puntos y tiempos** — reducir (uniforme), simplificar por desviación, crear eje de tiempo, ajustar tiempos.
+5. **Unir tracks**
+6. **Corregir altitud**
+
+### 🧰 Las herramientas de la web (desde v0.9.687)
+Las secciones contienen las mismas herramientas que en reisezoom.com/gps — aquí sin límite de tamaño, sin subida, y los sensores (pulso, cadencia …) se quedan con los puntos:
 
 - **Invertir** — el track corre al revés. Las marcas de tiempo se reflejan (el inicio sigue siendo el inicio); si no, el reloj iría hacia atrás.
 - **Inicio aquí (ancla A)** — empezar una ruta circular en otro sitio: poner el ancla A, pulsar, y el comienzo antiguo se añade al final. Si inicio y final están lejos, el aviso lo dice (no era una ruta cerrada).

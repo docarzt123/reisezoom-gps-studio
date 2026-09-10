@@ -9620,6 +9620,51 @@ class Api:
             log.exception("geotagger_import_gpx_aus_ordner")
             return {"ok": False, "error": str(e)}
 
+    def _gt_zeitzone_mehrere(self, ohne_tz: list, fotos: list, eintraege: list, tz_known: set,
+                             max_gap_seconds: float) -> tuple[float, dict, set]:
+        """10.09.2026 (Echt-Test): Kamera-Zeitzone über MEHRERE Tracks. Über alle Punkte
+        zusammen ist die Zone bei einer 8-h-Tagestour beliebig (60/120/180 passen gleich
+        gut) — und die falsche Wahl warf die Fotos der kurzen zweiten Tour raus. Deshalb:
+        Kandidaten je Track UND zusammen sammeln, jeden durchrechnen und die Zone nehmen,
+        bei der die meisten Fotos auf irgendeinen Track fallen. Gleichstand: die Zone, die
+        ein einzelner Track eindeutig nennt, dann die des Rechners, dann die kleinere.
+        Liefert (minuten, {minuten: treffer}, eindeutige_minuten)."""
+        kandidaten_tz: dict[float, int] = {}
+        eindeutig: set[float] = set()
+        try:
+            lokal = (datetime.now().astimezone().utcoffset() or timedelta(0)).total_seconds() / 60.0
+        except Exception:
+            lokal = 0.0
+        for m in (0.0, lokal):
+            kandidaten_tz.setdefault(float(m), 0)
+        versuche = [e.points for e in eintraege]
+        alle = [pt for e in eintraege for pt in e.points]
+        alle.sort(key=lambda p: (p.time is None, p.time or ""))
+        versuche.append(alle)
+        for pts in versuche:
+            try:
+                r = cgeo.zeitzone_raten(ohne_tz, pts, max_gap_seconds=300.0)
+            except Exception as e:
+                log.warning("_gt_zeitzone_mehrere: %s", e)
+                continue
+            if r.get("minuten") is not None:
+                kandidaten_tz.setdefault(float(r["minuten"]), 0)
+                if r.get("eindeutig") and pts is not alle:
+                    eindeutig.add(float(r["minuten"]))
+            for m, _n in (r.get("kandidaten") or []):
+                kandidaten_tz.setdefault(float(m), 0)
+        for m in list(kandidaten_tz):
+            try:
+                z = cgeo.zuordnen_mehrere(fotos, eintraege, max_gap_seconds=float(max_gap_seconds),
+                                          tz_offset_seconds=m * 60.0, tz_known_paths=tz_known)
+                kandidaten_tz[m] = sum(1 for _mm, i, _w in z if i is not None)
+            except Exception as e:
+                log.warning("_gt_zeitzone_mehrere: Zone %s: %s", m, e)
+        beste = max(kandidaten_tz.values()) if kandidaten_tz else 0
+        gleich = [m for m, n in kandidaten_tz.items() if n == beste]
+        gleich.sort(key=lambda m: (m not in eindeutig, abs(m - lokal), abs(m)))
+        return (gleich[0] if gleich else 0.0), kandidaten_tz, eindeutig
+
     def geotagger_tracks_fuer_fotos(self, vorgegeben: list | None = None,
                                      max_gap_seconds: float = 1800.0) -> dict:
         """10.09.2026 (IDEAS §61) — Welche Tracks passen zu den geladenen Fotos?
@@ -9629,6 +9674,8 @@ class Api:
         allen Kandidaten raten und je Track die Fotos zählen. Tracks ohne Foto
         fliegen raus — außer sie sind vorgegeben."""
         try:
+            import time as _time
+            _t0 = _time.monotonic()
             fotos = [(p["path"], datetime.fromisoformat(p["photo_time"]))
                      for p in self._gtg_photos if p.get("photo_time")]
             vg = [str(x) for x in (vorgegeben or []) if x]
@@ -9636,23 +9683,46 @@ class Api:
                 return {"ok": True, "tracks": [], "ohne": 0, "gesamt": 0, "tz_minuten": None}
             kandidaten: list[str] = list(dict.fromkeys(vg))
             if fotos:
-                zeiten = sorted(t for _, t in fotos)
-                von = (zeiten[0] - timedelta(hours=15)).date().isoformat()
-                bis = (zeiten[-1] + timedelta(hours=15)).date().isoformat()
+                # 10.09.2026 (Echt-Test): je Aufnahme-Tag fragen, nicht über die ganze Spanne —
+                # ein einzelnes Foto von 2020 dazwischen zog sonst 500 Archiv-Touren (13 s).
+                tage: list[str] = []
+                for _p, t in fotos:
+                    for d in {(t - timedelta(hours=15)).date(), t.date(), (t + timedelta(hours=15)).date()}:
+                        if d.isoformat() not in tage:
+                            tage.append(d.isoformat())
+                tage.sort()
                 try:
-                    res = clib.query(self._lib(), von=von, bis=bis, limit=500, include_merged=False)
-                    for it in res.get("items") or []:
-                        pf = str(it.get("path") or "")
-                        if pf and pf not in kandidaten and Path(pf).exists():
-                            kandidaten.append(pf)
+                    for d in tage:
+                        res = clib.query(self._lib(), von=d, bis=d, limit=50, include_merged=False)
+                        for it in res.get("items") or []:
+                            pf = str(it.get("path") or "")
+                            if pf and pf not in kandidaten and Path(pf).exists():
+                                kandidaten.append(pf)
                 except Exception as e:
                     log.warning("geotagger_tracks_fuer_fotos: Archiv-Abfrage: %s", e)
             geladen, fehler = [], []
+            gesehen: dict[str, int] = {}
             for pf in kandidaten:
                 try:
-                    geladen.append(self._gt_track_laden(pf, vorgegeben=pf in vg))
+                    tr = self._gt_track_laden(pf, vorgegeben=pf in vg)
                 except Exception as e:
                     fehler.append({"path": pf, "error": str(e)})
+                    continue
+                # 10.09.2026 (Echt-Test): dieselbe Tour lag im Archiv noch einmal unter anderem
+                # Pfad (Import neben den Fotos + Original) und zählte als „passt auch auf eine
+                # andere Tour". Gleiche Koordinaten = eine Tour; vorgegebene Fassung gewinnt.
+                try:
+                    geo = _sessions.compute_track_hash([(q.lon, q.lat) for q in tr["points"]]) if len(tr["points"]) >= 2 else ""
+                except Exception:
+                    geo = ""
+                if geo and geo in gesehen:
+                    alt_i = gesehen[geo]
+                    if tr["vorgegeben"] and not geladen[alt_i]["vorgegeben"]:
+                        geladen[alt_i] = tr
+                    continue
+                if geo:
+                    gesehen[geo] = len(geladen)
+                geladen.append(tr)
             if not geladen:
                 return {"ok": True, "tracks": [], "ohne": len(fotos), "gesamt": len(fotos),
                         "tz_minuten": None, "fehler": fehler}
@@ -9660,18 +9730,14 @@ class Api:
             tz_min = 0.0
             ohne_tz = [(p["path"], datetime.fromisoformat(p["photo_time"]))
                        for p in self._gtg_photos if p.get("photo_time") and not p.get("tz_known")]
-            if ohne_tz:
-                alle = [pt for tr in geladen for pt in tr["points"]]
-                alle.sort(key=lambda p: (p.time is None, p.time or ""))
-                try:
-                    r = cgeo.zeitzone_raten(ohne_tz, alle, max_gap_seconds=300.0)
-                    if r.get("minuten") is not None:
-                        tz_min = float(r["minuten"])
-                except Exception as e:
-                    log.warning("geotagger_tracks_fuer_fotos: Zeitzone: %s", e)
             tz_known = {p["path"] for p in self._gtg_photos if p.get("tz_known")}
             eintraege = [cgeo.TrackEintrag(tr["points"], vorgegeben=tr["vorgegeben"],
                                            gewicht=tr["gewicht"], name=tr["name"]) for tr in geladen]
+            if ohne_tz:
+                tz_min, kandidaten_tz, eindeutig = self._gt_zeitzone_mehrere(
+                    ohne_tz, fotos, eintraege, tz_known, float(max_gap_seconds))
+                log.info("Geotagger: Zeitzone für %d Fotos ohne Zone: %+.0f min (Treffer %s, eindeutig %s)",
+                         len(ohne_tz), tz_min, sorted(kandidaten_tz.items()), sorted(eindeutig))
             zu = cgeo.zuordnen_mehrere(fotos, eintraege, max_gap_seconds=float(max_gap_seconds),
                                        tz_offset_seconds=tz_min * 60.0, tz_known_paths=tz_known)
             n_je = [0] * len(geladen)
@@ -9696,6 +9762,8 @@ class Api:
                 raus.append(k)
             # vorgegebene zuerst, dann nach Foto-Zahl
             raus.sort(key=lambda x: (not x["vorgegeben"], -x["n_fotos"], x.get("time_start") or ""))
+            log.info("Geotagger: Tracks zu %d Fotos: %d Kandidaten geprüft, %d passen, %d Fotos ohne Tour (%.1f s)",
+                     len(fotos), len(kandidaten), len(raus), ohne, _time.monotonic() - _t0)
             return {"ok": True, "tracks": raus, "ohne": ohne, "gesamt": len(fotos),
                     "tz_minuten": tz_min if ohne_tz else None, "fehler": fehler}
         except Exception as e:
@@ -10408,6 +10476,25 @@ class Api:
                         "eindeutig": False, "kandidaten": []}
             r = cgeo.zeitzone_raten(phs, self._gtg_track,
                                     max_gap_seconds=float(max_gap_seconds))
+            # 10.09.2026 (Echt-Test): bei mehreren Tracks entscheidet, mit welcher Zone die
+            # meisten Fotos auf IRGENDEINEN Track fallen — über die 8-h-Haupttour allein war
+            # die Zone beliebig, und der Vorschlag blieb aus.
+            if len(self._gtg_tracks) > 1:
+                try:
+                    fotos = [(p["path"], datetime.fromisoformat(p["photo_time"]))
+                             for p in self._gtg_photos if p.get("photo_time")]
+                    tz_known = {p["path"] for p in self._gtg_photos if p.get("tz_known")}
+                    eintraege = [cgeo.TrackEintrag(tr["points"], vorgegeben=tr.get("vorgegeben", False),
+                                                   gewicht=tr.get("gewicht", 0.0), name=tr.get("name")) for tr in self._gtg_tracks]
+                    tz_min, kand, eind = self._gt_zeitzone_mehrere(phs, fotos, eintraege, tz_known, 1800.0)
+                    treffer = kand.get(tz_min, 0)
+                    if treffer > 0:
+                        gleich = [m for m, n in kand.items() if n == treffer]
+                        r = {"minuten": int(tz_min), "treffer": treffer, "gesamt": len(phs),
+                             "eindeutig": len(gleich) == 1 or tz_min in eind, "band": None,
+                             "kandidaten": sorted(kand.items())}
+                except Exception as e:
+                    log.warning("geotagger_zeitzone_vorschlag (mehrere): %s", e)
             r["ok"] = True
             return r
         except Exception as e:

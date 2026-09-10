@@ -16,6 +16,13 @@ Bei jeder neuen Version:
 
 ## [0.9.687] – 2026-09-10
 
+### Changed
+- GPX Inspector sidebar reorganised (Marc: "übersichtlicher"): six uniform collapsible sections — Look & check, Heal (automatic), Edit (anchors A→B, grouped into section / at point A / whole track), Points & times, Join tracks, Correct elevation — undo/redo at the top, save/discard pinned at the bottom, a status line that says what the anchors need. Open sections are remembered. — Inspektor-Seitenleiste in sechs gleiche Klapp-Abschnitte sortiert, Undo oben, Speichern klebt unten, Anker-Statuszeile.
+
+### Fixed
+- Geotagger with several tracks (real-app test): the suggestion also runs while a track is open (the open track stays listed, unchecked when no photo fits); the camera time zone is now chosen across all tracks (the one that puts most photos on any track) and applied on "use tracks", so the counts in the dialog match the result; the same tour under two archive paths no longer counts as "also fits another tour"; the archive is queried per photo day (13 s → 0.2 s with a stray photo from 2020); the dialog waits for the EXIF reader; the main track goes through the global GPX bar, so the bar and the other modules follow; "clear workspace" also clears the track list, photo window and time-zone hint. — Geotagger mit mehreren Tracks: Vorschlag auch bei offenem Track, Zeitzone über alle Tracks und automatisch übernommen, keine Doppel-Zählung derselben Tour, Archiv je Foto-Tag, GPX-Leiste folgt dem Haupt-Track, Workspace leeren räumt alles.
+- Geotagger "done" dialog showed a raw template string on the "open folder" button. — Knopf „Ordner öffnen" zeigte Platzhalter-Code.
+
 ### Added
 - GPX Inspector: every tool of the web version is now in the app as well — reverse, move the start of a loop (anchor A), split at anchor A (keep part 1/2 or save both as files next to the source), set times (shift / start time / total duration), simplify by deviation (Douglas-Peucker) and a splits table per km with copy. Same core as the web (`core/gpxtools`, `core/gpxsimplify`), no size limit, no upload; sensors stay with the points; every step can be undone. — GPX-Inspektor: alle Werkzeuge der Web-Version auch in der App (Block „Weitere Werkzeuge"): Umkehren, Startpunkt verschieben, Teilen, Zeiten setzen, Ausdünnen nach Abweichung, Runden-Tabelle. Undo für jeden Schritt.
 
