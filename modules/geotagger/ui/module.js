@@ -1146,8 +1146,9 @@ function mountGeotagger(body, headerActions) {
       </div>`).join("");
   }
   /** Mehrere Tracks laden (Haupt-Track = erster) und wie einen einzelnen anwenden. */
-  async function _gtTracksLaden(paths, vorgegeben) {
+  async function _gtTracksLaden(paths, vorgegeben, ausUndo) {
     if (isUnmounted || !paths || !paths.length) return;
+    if (!ausUndo) { try { _gtgPushUndo(t("undo.gt_tracks", "Tracks geladen"), { force: true }); } catch (_) {} }   // 10.09.2026
     const res = await api().geotagger_load_gpx_viele(paths, Array.from(vorgegeben || []));
     if (isUnmounted) return;
     if (!res || !res.ok) { toast((res && res.error) || "?", "error"); return; }
@@ -1156,10 +1157,14 @@ function mountGeotagger(body, headerActions) {
     if (!haupt) return;
     if (res.fehler && res.fehler.length) toast(t("geotagger.tracks.unlesbar", "{n} Track(s) nicht lesbar — übersprungen").replace("{n}", res.fehler.length), "warn", 6000);
     if (window.hideSourceMissingBanner) window.hideSourceMissingBanner();
+    const hauptNeu = haupt.path !== currentGpxPath;
     currentGpxPath = haupt.path;
     _gtUpdateSnapAvail();
     setLabel("gt-gpx-path", haupt.path.split("/").slice(-1)[0]);
-    if (typeof sessionActivate === "function" && haupt.coords) {
+    // Sitzung nur wechseln, wenn der Haupt-Track ein anderer ist — ein Sitzungswechsel
+    // leert die Undo-Stapel (rebindAllSettings), und Undo soll bei gleichem
+    // Haupt-Track die Track-Liste zurückholen können (10.09.2026).
+    if (hauptNeu && typeof sessionActivate === "function" && haupt.coords) {
       try {
         await sessionActivate(haupt.coords, haupt.path);   // meldet den Pfad erneut → Guard in loadGpxByPath
         if (typeof rebindAllSettings === "function") rebindAllSettings();
@@ -1235,6 +1240,7 @@ function mountGeotagger(body, headerActions) {
     if (photos.length) await _gtTracksVorschlagen(null, mehr);
     else await _gtTracksLaden(_gtTracks.map(x => x.path).concat(mehr), new Set(_gtTracks.filter(x => x.vorgegeben).map(x => x.path).concat(mehr)));
   });
+  window.__rzGtTracksLaden = (p, vg) => _gtTracksLaden(p, new Set(vg || []));   // Prüfstand
   window.__rzGtTracks = () => ({ tracks: _gtTracks.map(x => ({ path: x.path, name: x.name, farbe: x.farbe, vorgegeben: !!x.vorgegeben })), haupt: currentGpxPath });   // Prüfstand
 
   // v0.8.1: GPX-Picker ist global in der Sub-Top-Bar.
@@ -2753,6 +2759,9 @@ function mountGeotagger(body, headerActions) {
       camSetTime: Object.assign({}, _gtCamSetTime),       // v0.9.370
       globSetTime: _gtGlobalSetTime,
       ref: referencePath,
+      // 10.09.2026 — mehrere Tracks (Issue #7): Liste und Vorgabe gehören zum Undo
+      tracks: _gtTracks.map(x => x.path),
+      vorgegeben: _gtTracks.filter(x => x.vorgegeben).map(x => x.path),
     };
   }
   function _gtUndoRestoreState(s) {
@@ -2772,6 +2781,13 @@ function mountGeotagger(body, headerActions) {
     Object.assign(_gtCamSetTime, s.camSetTime || {});
     if (typeof s.globSetTime === "boolean") _gtGlobalSetTime = s.globSetTime;
     referencePath = s.ref || null;
+    // 10.09.2026 — Track-Liste zurück (andere Liste → neu laden; leer bleibt, was ist)
+    try {
+      if (Array.isArray(s.tracks) && s.tracks.length) {
+        const jetzt = _gtTracks.map(x => x.path);
+        if (JSON.stringify(jetzt) !== JSON.stringify(s.tracks)) _gtTracksLaden(s.tracks, new Set(s.vorgegeben || []), true);
+      }
+    } catch (_) {}
     // alles neu aufbauen
     try { _gtMergeManual(); } catch (_) {}
     try { matches.forEach(_gtApplyManualDir); } catch (_) {}

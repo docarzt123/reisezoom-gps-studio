@@ -3079,5 +3079,10 @@
   "geotagger.tracks.verwenden": "Tracks verwenden",
   "geotagger.chip.doppel": "auch: {namen}",
   "geotagger.chip.doppel_tip": "Dieses Foto liegt auch im Zeitfenster dieser Tour(en). Genommen wurde der nähere Punkt (vorgegebene Tracks zuerst).",
-  "geotagger.summary.doppel": "{n} auf zwei Touren"
+  "geotagger.summary.doppel": "{n} auf zwei Touren",
+  "undo.tracks_geaendert": "Tracks geändert",
+  "undo.tempo_geaendert": "Tempo-Spur geändert",
+  "undo.ghosts_geaendert": "Ghost-Spuren geändert",
+  "undo.laufpunkt_geaendert": "Laufpunkt geändert",
+  "undo.gt_tracks": "Tracks geladen"
 }

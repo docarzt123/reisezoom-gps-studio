@@ -1660,6 +1660,10 @@ function mountAnimator(body, headerActions, opts) {
       try { _chartsLoad(); _chartsRenderList(); } catch (_) {}
       try { renderOverlayPreview(); } catch (_) {}
       try { _chartsPreviewRender(true); } catch (_) {}
+      // 10.09.2026 — Tracks/Gruppen/Aussehen, Tempo-Spur, Ghost-Spuren, Laufpunkt
+      // liegen im Speicher des Moduls, nicht in gebundenen Feldern: aus dem
+      // wiederhergestellten Block nachziehen.
+      try { _animUndoNachziehen(snap); } catch (e) { try { applog("warn", "[undo] nachziehen: " + e); } catch (_) {} }
       // 4) Keyframe-/Trim-/Timeline-spezifische Wiederherstellung (wie bisher).
       const masterCb = document.getElementById("anim-kf-enabled");
       if (masterCb) masterCb.checked = !!snap.keyframes_enabled;
@@ -1676,6 +1680,46 @@ function mountAnimator(body, headerActions, opts) {
     toast: (msg) => { if (typeof toast === "function") toast(msg, "info", 1000); },
   });
   window.__rzUndoControllers[_MODKEY] = _animUndoCtrl;
+  /** 10.09.2026 (Marc: „Undo muss für alles gehen") — nach dem Zurückschreiben des
+   *  Einstellungs-Blocks die Modul-Zustände nachziehen, die nicht an Feldern hängen. */
+  function _animUndoNachziehen(snap) {
+    // Tempo-Spur: Liste verwerfen, aus dem Projekt neu lesen, Kurve holen
+    _tempoListe = null; _tempoListeVon = null;
+    try { paceMapLaden(); } catch (e) { applog("warn", "[undo] tempo: " + e); }
+    // Ghost-Spuren
+    try { _ghostSpurenLaden(); _ghostListeZeichnen(); _ghostSpurenAufbauen(); } catch (e) { applog("warn", "[undo] ghosts: " + e); }
+    // Laufpunkt (Felder sind nicht gebunden)
+    try { paceAusProjekt(); } catch (_) {}
+    // Tracks, Gruppen, Aussehen je Track
+    _animEtappe1S = Math.max(0, +snap.etappe1_dauer_s || 0);
+    _animEtappe1Name = typeof snap.etappe1_name === "string" ? snap.etappe1_name : "";
+    if (snap.tours_ablauf === "schwarm" || snap.tours_ablauf === "reise") { _animAblauf = snap.tours_ablauf; _animAnordnung = _animAblauf; }
+    const saved = Array.isArray(snap.extra_tours) ? snap.extra_tours : [];
+    const ist = _extraTours.map(x => _pfadNFC(x.gpx_path)).sort();
+    const soll = saved.map(x => _pfadNFC(x.gpx_path)).sort();
+    if (JSON.stringify(ist) !== JSON.stringify(soll)) {
+      // Andere Menge (Tour dazu/weg): voll neu laden — die Kurzschluss-Prüfung
+      // des Laders greift nur bei gleicher Liste.
+      _extraTours = []; _gruppenProjektId = null;
+      try { _animLoadTours(); } catch (_) {}
+      return;
+    }
+    const nachPfad = new Map(_extraTours.map(x => [_pfadNFC(x.gpx_path), x]));
+    _extraTours = saved.map(sv => {
+      const x = nachPfad.get(_pfadNFC(sv.gpx_path)); if (!x) return null;
+      x.line_color = sv.line_color || x.line_color; x.name = sv.name || x.name;
+      x.dauer_s = +sv.dauer_s || 0; x.ueber_s = (sv.ueber_s == null || sv.ueber_s === "") ? null : (+sv.ueber_s || 0);
+      x.ueber_stil = sv.ueber_stil || "kino"; x.start_s = +sv.start_s || 0;
+      x.stil = (sv.stil && typeof sv.stil === "object") ? Object.assign({}, sv.stil) : null; x.__duenn = null;
+      return x;
+    }).filter(Boolean);
+    _gruppenProjektId = null;
+    try { _gruppenAufbauen(Array.isArray(snap.gruppen) && snap.gruppen.length ? snap.gruppen : null); } catch (e) { applog("warn", "[undo] gruppen: " + e); }
+    try { _animDrawExtraToursPreview(); } catch (_) {}
+    try { _animRenderToursList(); } catch (_) {}
+    try { _bahnStilAnwenden(); } catch (_) {}
+    try { dotEbenenAufbauen(); } catch (e) { applog("warn", "[undo] laufpunkt: " + e); }
+  }
   // Aliase damit existing-Code-Sites (animUndo/animRedo, _animPushUndo, _animResetUndoStacks) weiter funktionieren
   const _animPushUndo = (label, opts) => _animUndoCtrl.push(label, opts);
   const animUndo = () => _animUndoCtrl.undo();
@@ -3076,6 +3120,7 @@ function mountAnimator(body, headerActions, opts) {
   try { window.__rzGhostSpuren = () => _ghostSpuren; } catch (_) {}
 
   function ghostSpurenSichern() {
+    try { if (!window.__rzUndoApplying) _animPushUndo(t("undo.ghosts_geaendert", "Ghost-Spuren geändert")); } catch (_) {}   // 10.09.2026
     try { saveProjectSettings(_MODKEY, { ghosts: _ghostSpuren }); } catch (e) {
       applog && applog("warn", `[ghost] speichern: ${e}`);
     }
@@ -3902,6 +3947,7 @@ function mountAnimator(body, headerActions, opts) {
     return _tempoListe;
   }
   function _tempoEintraegeSetzen(liste) {
+    try { if (!window.__rzUndoApplying) _animPushUndo(t("undo.tempo_geaendert", "Tempo-Spur geändert")); } catch (_) {}   // 10.09.2026
     _tempoListe = Array.isArray(liste) ? liste.slice() : [];
     _tempoListeVon = _tempoProjektId();
     try { saveProjectSettings(_MODKEY, { tempo_eintraege: _tempoListe }); } catch (_) {}
@@ -12142,6 +12188,7 @@ function mountAnimator(body, headerActions, opts) {
     const smV = document.getElementById("anim-dot-smooth-v");
     if (smV) smV.textContent = dotGlaettung() + " (" + kursGlaettung(dotGlaettung()).basisM + " m)";
     if (!speichern) return;
+    try { if (!window.__rzUndoApplying) _animPushUndo(t("undo.laufpunkt_geaendert", "Laufpunkt geändert")); } catch (_) {}   // 10.09.2026
     const patch = { marker_dot_show: dotZeigen(), marker_dot_style: dotStil(),
                     marker_dot_size: dotGroesse(), marker_dot_smooth: dotGlaettung() };
     if (typeof saveProjectSettings === "function") saveProjectSettings(_MODKEY, patch);
@@ -16644,7 +16691,14 @@ function mountAnimator(body, headerActions, opts) {
   // Liste nach jedem App-Start leer und der Nutzer müsste sie neu zusammen-
   // klicken. `coords` bleibt draußen (kann bei langen Tracks Megabytes sein)
   // und wird beim Laden aus der GPX nachgezogen.
-  function _animPersistTours() {
+  function _animPersistTours(undoLabel) {
+    // 10.09.2026 (Marc: „Undo muss für alles gehen") — der Schnappschuss VOR dem
+    // Schreiben ist der alte Stand des Projekts; nicht beim Laden und nicht
+    // während ein Undo gerade angewendet wird.
+    try {
+      if (!_animToursLaufend && !window.__rzUndoApplying)
+        _animPushUndo(undoLabel || t("undo.tracks_geaendert", "Tracks geändert"));
+    } catch (_) {}
     // Prüfstand-Spur: WER schreibt? (§60 Punkt 11 verspricht: beim bloßen Ansehen niemand.)
     try { if (window.__rzPersistTrace) console.log("[persist] " + String(new Error().stack || "").split("\n").slice(1, 6).map(x => x.trim()).join(" | ")); } catch (_) {}
     try {
@@ -16808,7 +16862,8 @@ function mountAnimator(body, headerActions, opts) {
     let projId = null;
     try {
       const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
-      const a = proj?.[_MODKEY] || {};
+      // 10.09.2026 — ohne Projekt (Prüfstand, Undo ohne Sitzung) den Modul-Block nehmen
+      const a = proj?.[_MODKEY] || (window.rzReadModuleSettings ? window.rzReadModuleSettings(_MODKEY) : null) || {};
       projId = proj ? proj.id : null;
       if (Array.isArray(a.gruppen) && a.gruppen.length) gespeicherteGruppen = a.gruppen;
       saved = Array.isArray(a.extra_tours) ? a.extra_tours : [];
