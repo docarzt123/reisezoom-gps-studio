@@ -8572,7 +8572,7 @@ function mountAnimator(body, headerActions, opts) {
     // Gleiche Lösung wie bei den Esc-Handlern weiter unten: Handle global
     // halten und den alten vor dem neuen abmelden.
     if (window.__rzAnimKeyNav) {
-      try { window.removeEventListener("keydown", window.__rzAnimKeyNav); } catch (_) {}
+      try { window.removeEventListener("keydown", window.__rzAnimKeyNav, true); window.removeEventListener("keydown", window.__rzAnimKeyNav); } catch (_) {}
     }
     const _keyNav = (e) => {
       // Nur reagieren wenn der Animator gerade sichtbar ist
@@ -8584,9 +8584,27 @@ function mountAnimator(body, headerActions, opts) {
       // Nicht bei Input/Textarea/Select
       const ae = document.activeElement;
       const tag = (ae?.tagName || "").toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select") return;
-      // Editierbare Elemente auch raus (contentEditable)
-      if (ae?.isContentEditable) return;
+      // 10.09.2026 (Marc: „Leertaste geht nicht immer — wenn ich in der Sidebar was
+      // verstelle"): Nach einem Regler, Häkchen oder Auswahlfeld behält DAS den Fokus,
+      // und der Handler hielt jedes <input> für eine Texteingabe. Jetzt ist nur eine
+      // echte Texteingabe tabu (dort braucht man das Leerzeichen); bei Regler, Häkchen,
+      // Auswahl und Knöpfen startet die Leertaste die Vorschau — und wird geschluckt,
+      // damit sie nicht nebenbei das Häkchen kippt oder das Menü aufklappt.
+      const istText = ae?.isContentEditable || tag === "textarea"
+        || (tag === "input" && !/^(range|checkbox|radio|color|button|submit|reset|file)$/i.test(ae.type || "text"));
+      const istSpace = (e.key === " " || e.code === "Space");
+      if (istText) return;
+      { const ov = document.getElementById("modal-overlay"); if (ov && !ov.hidden) return; }   // Dialog offen: Tasten gehören ihm
+      if (!istSpace && (tag === "input" || tag === "select")) return;   // Pfeile gehören dem Regler
+      if (istSpace) {
+        // Space: Probe-Lauf toggle (Start/Stop). Ohne Koordinaten-Vorprüfung — der
+        // Probe-Lauf holt sich den Track selbst nach (Cold-Start-Heilung), und genau
+        // dieser stille Ausstieg war das zweite „geht manchmal nicht".
+        window.__rzAnimSpaceZaehler = (window.__rzAnimSpaceZaehler || 0) + 1;   // Prüfstand
+        runTimelinePreview();
+        e.preventDefault(); e.stopPropagation();
+        return;
+      }
       if (!currentCoords || currentCoords.length < 2) return;
 
       const step = e.shiftKey ? 10 : 1;
@@ -8602,10 +8620,6 @@ function mountAnimator(body, headerActions, opts) {
         handled = true;
       } else if (e.key === "End") {
         jumpToAnchor(1);
-        handled = true;
-      } else if (e.key === " " || e.code === "Space") {
-        // Space: Probe-Lauf toggle (Start/Stop)
-        runTimelinePreview();
         handled = true;
       } else if (e.key === "k" || e.key === "K") {
         // v0.8.20 — K: Keyframe an aktueller Scrubber-Position hinzufügen
@@ -8632,7 +8646,9 @@ function mountAnimator(body, headerActions, opts) {
       }
     };
     window.__rzAnimKeyNav = _keyNav;
-    window.addEventListener("keydown", _keyNav);
+    // Capture-Phase: sonst kann ein fokussiertes Element (Karten-Canvas, Zeitleiste,
+    // Modal) die Taste vorher schlucken, und „Space geht manchmal nicht" bleibt.
+    window.addEventListener("keydown", _keyNav, true);
   }
 
   function jumpTrackPoints(delta) {
@@ -18040,7 +18056,7 @@ function mountAnimator(body, headerActions, opts) {
     try { if (window.__rzGpxUnsub_anim) { window.__rzGpxUnsub_anim(); window.__rzGpxUnsub_anim = null; } } catch (_) {}
     // Tastatur-Steuerung der Timeline abmelden (siehe bindTimelineKeyNav).
     if (window.__rzAnimKeyNav) {
-      try { window.removeEventListener("keydown", window.__rzAnimKeyNav); } catch (_) {}
+      try { window.removeEventListener("keydown", window.__rzAnimKeyNav, true); window.removeEventListener("keydown", window.__rzAnimKeyNav); } catch (_) {}
       window.__rzAnimKeyNav = null;
     }
     // Die vier Projekt-Abos geben je eine Abmelde-Funktion zurück; ohne die
