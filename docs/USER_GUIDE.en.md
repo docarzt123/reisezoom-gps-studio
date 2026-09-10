@@ -2087,7 +2087,6 @@ Clicking **📧 Feedback / bug report to Marc** (or on a render error) opens a m
 5. In the message text, replace the placeholder `[insert your text here]` with a short description — what you did, what didn't work
 6. Send
 
-**If you have a local mail program** (Mac Mail.app, Outlook Desktop, Thunderbird): the **"📧 Open local mail program"** button at the bottom left — then everything is pre-filled automatically.
 
 ### Log file
 On render errors an error modal opens automatically with an expandable log excerpt + "Show in Finder", "Open log", "📧 Send to Marc" buttons. You can find the full log file at any time at:

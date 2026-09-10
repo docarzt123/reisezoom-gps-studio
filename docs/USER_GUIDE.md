@@ -2295,7 +2295,6 @@ Beim Klick auf **📧 Feedback / Bug-Report an Marc** (oder bei einem Render-Feh
 5. Im Nachrichten-Text den Platzhalter `[hier deinen Text einfügen]` durch eine kurze Beschreibung ersetzen — was du gemacht hast, was nicht funktioniert hat
 6. Senden
 
-**Falls du ein lokales Mail-Programm hast** (Mac Mail.app, Outlook Desktop, Thunderbird): Button **„📧 Lokales Mail-Programm öffnen"** unten links — dann ist alles automatisch vorbefüllt.
 
 ### Logdatei
 Bei Render-Fehlern öffnet sich automatisch ein Fehler-Modal mit ausklappbarem Log-Auszug + Buttons „Im Finder zeigen", „Log öffnen", „📧 An Marc senden". Die volle Logdatei findest du jederzeit unter:

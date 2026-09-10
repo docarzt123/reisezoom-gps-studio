@@ -1208,8 +1208,7 @@ function parseNum(value, fallback = 0) {
 /**
  * Öffnet das Bug-Report-Modal: zeigt Marc's Mail-Adresse + Subject + Body
  * mit Copy-Buttons. User kopiert was er braucht und fügt's in sein
- * Webmail/Mail-Programm ein. Für User die ein lokales Mail-Programm haben
- * gibt's zusätzlich einen Button der `mailto:` öffnet.
+ * Webmail/Mail-Programm ein. (Der frühere mailto-Knopf ist seit 10.09.2026 weg.)
  *
  * @param {string} context - Optional, z.B. Crash-Kurzfehler
  */
@@ -1280,7 +1279,6 @@ async function openBugReportModal(context = "") {
       </p>
     `,
     footer: `
-      <button class="btn btn-left" data-url="${escapeHtml(r.mailto)}" id="md-br-mailto">📧 ${t("bugreport.btn.mailto")}</button>
       <button class="btn btn-primary" id="md-br-ok">${t("common.ok")}</button>
     `,
   });
@@ -1303,10 +1301,10 @@ async function openBugReportModal(context = "") {
     });
   });
 
-  // Optional mailto-Button — für die User die ein Mail-Programm haben
-  document.getElementById("md-br-mailto").onclick = () => {
-    api().open_url(r.mailto);
-  };
+  // 10.09.2026 (Marc: „wir machen es generell nur mit Kopieren") — der
+  // mailto-Knopf ist weg: ohne Standard-Mailprogramm tat er stumm nichts (ein
+  // Beta-Tester hielt den Dialog deshalb für kaputt). Kopieren + Log auf den
+  // Schreibtisch decken jeden Weg ab, Webmail eingeschlossen.
 
   // v0.9.471 — DAU-sicherer Log-Versand: kompletten Log auf den Schreibtisch
   // legen (Nutzer zieht die Datei in die Mail). Behebt den Fall, dass nur der
