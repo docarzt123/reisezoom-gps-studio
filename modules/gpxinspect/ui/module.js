@@ -85,6 +85,8 @@ function mountGpxInspect(body, headerActions) {
       // 01.09.2026: nach Undo/Redo hat der Track eine andere Punktzahl —
       // Regler-Maximum und Vorschau müssen mitziehen.
       try { reduzierReglerSync(); } catch (_) {}
+      // 10.09.2026 (Echt-Test): nach Undo einer Reparatur muss der Befund-Kasten zurückkommen.
+      try { analyseTrack(); } catch (_) {}
     },
     toast: (m) => { try { toast(m, "info", 1000); } catch (_) {} },
     throttleMs: 0,
