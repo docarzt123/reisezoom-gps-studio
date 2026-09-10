@@ -15,6 +15,8 @@ Modules:
 
 ## 1 · Installation
 
+> **Mac, in short (since v0.9.688):** open the DMG and simply double-click the app. If that runs it from the download window, it shows a button **“Install into Applications and start”**. One click: it copies itself to Applications, removes older copies, ejects the download image and restarts. Dragging to Applications is no longer needed. If a download image or a second copy is still around later, the app asks once whether to tidy up.
+
 ### Download
 Grab the right version for your operating system:
 

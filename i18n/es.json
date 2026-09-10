@@ -3146,5 +3146,16 @@
   "gpxinspect.sub_track": "Track completo",
   "library.touren_benutzt_frage": "{n} ruta(s) se usan en proyectos: {liste}. ¿Borrar rutas y proyectos juntos?",
   "library.trash_done_n": "{n} movida(s) a la papelera.",
-  "library.trash_fehler_n": "{n} no fue posible: {grund}"
+  "library.trash_fehler_n": "{n} no fue posible: {grund}",
+  "install.titel": "¿Instalar en «Aplicaciones»?",
+  "install.frage": "La aplicación se está ejecutando desde {ort}. ¿Copiarla a la carpeta Aplicaciones y reiniciarla desde ahí? La imagen de descarga se expulsa de paso.",
+  "install.knopf": "Instalar y reiniciar",
+  "install.fehler": "La instalación ha fallado: {e}",
+  "install.neustart": "Instalada: la aplicación se reinicia enseguida.",
+  "install.aufr_titel": "¿Ordenar?",
+  "install.aufr_image": "La imagen de descarga sigue montada.",
+  "install.aufr_kopien": "En Aplicaciones hay {n} copias más de la aplicación.",
+  "install.aufr_frage": "¿Expulsar la imagen y mover las copias a la papelera?",
+  "install.aufr_knopf": "Ordenar",
+  "install.aufr_ok": "Ordenado."
 }

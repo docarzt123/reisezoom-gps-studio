@@ -3146,5 +3146,16 @@
   "gpxinspect.sub_track": "Whole track",
   "library.touren_benutzt_frage": "{n} tour(s) are used by projects: {liste}. Delete tours and projects together?",
   "library.trash_done_n": "{n} moved to the trash.",
-  "library.trash_fehler_n": "{n} not possible: {grund}"
+  "library.trash_fehler_n": "{n} not possible: {grund}",
+  "install.titel": "Install into “Applications”?",
+  "install.frage": "The app is running from {ort}. Copy it into the Applications folder and restart from there? The download image is ejected on the way.",
+  "install.knopf": "Install and restart",
+  "install.fehler": "Installation failed: {e}",
+  "install.neustart": "Installed — the app restarts in a second.",
+  "install.aufr_titel": "Tidy up?",
+  "install.aufr_image": "The download image is still mounted.",
+  "install.aufr_kopien": "There are {n} more copies of the app in Applications.",
+  "install.aufr_frage": "Eject the image and move the copies to the trash?",
+  "install.aufr_knopf": "Tidy up",
+  "install.aufr_ok": "Tidied up."
 }

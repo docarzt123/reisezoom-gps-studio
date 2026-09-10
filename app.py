@@ -90,6 +90,7 @@ from core import tempo as ctempo   # 08.09.2026 — Tempo-Kurve (Raffung, Halte,
 from core import imports as cimports  # v0.9.282: universelle Track-Import-Schicht
 from core import exif as cexif
 from core import geotag as cgeo
+from core import installation as cinstall  # 10.09.2026 — Selbst-Installation nach Programme (Mac)
 from core import sun as csun
 from core import sensors as csens  # v0.9.507 — übersetzte Sensor-Labels  # v0.9.333 — Sonnenstand + Blickrichtung (Lichtstempel)
 from core import geocode as cgeocode  # v0.9.337 — Reverse-Geocoding (Adresse) via OSM
@@ -158,7 +159,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.687"
+APP_VERSION = "0.9.688"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -6539,6 +6540,78 @@ class Api:
         „in den Programme-Ordner ziehen"-Anleitung statt des kryptischen „beschädigt"."""
         try:
             return {"ok": True, **STARTUP_ENV}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── 10.09.2026 — Selbst-Installation (Marc: „das ist ein DAU-Problem") ─────────
+    def install_lage(self) -> dict:
+        """Wo läuft die App, was liegt herum? Für die Startseite (Translocation) und
+        den Aufräum-Hinweis nach dem Start: Bundle-Pfad, in Programme?, Download-
+        Images mit unserer App, Kopien in Programme (auch „… 2.app")."""
+        try:
+            if sys.platform != "darwin" or not STARTUP_ENV.get("frozen"):
+                return {"ok": True, "mac": False, "frozen": bool(STARTUP_ENV.get("frozen"))}
+            b = cinstall.bundle_pfad()
+            kopien = [str(x) for x in cinstall.kopien_in_programme()]
+            images = [str(x) for x in cinstall.images_mit_app()]
+            lage = {"ok": True, "mac": True, "frozen": True, "bundle": str(b or ""),
+                    "translocated": cinstall.ist_translocation(b),
+                    "in_programme": cinstall.in_programme(b),
+                    "kopien": kopien, "images": images,
+                    "fremde_kopien": [k for k in kopien if not b or Path(k).resolve() != b.resolve()]}
+            if images or len(kopien) > 1 or not lage["in_programme"]:
+                log.info("Installations-Lage: bundle=%s in_programme=%s translocated=%s images=%s kopien=%s",
+                         b, lage["in_programme"], lage["translocated"], images, kopien)
+            return lage
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def selbst_installieren(self) -> dict:
+        """Das laufende Bundle nach /Applications kopieren, ältere Kopien in den
+        Papierkorb, Quarantäne weg, Download-Image auswerfen, neue Kopie starten,
+        diese hier beenden. Ein Knopf statt „Symbol nach Programme ziehen"."""
+        try:
+            if sys.platform != "darwin":
+                return {"ok": False, "error": "nur macOS"}
+            b = cinstall.bundle_pfad()
+            if not b:
+                return {"ok": False, "error": "kein App-Bundle (Entwicklungsstart?)"}
+            images = cinstall.images_mit_app()
+            res = cinstall.installieren(b, papierkorb=clib._in_den_papierkorb,
+                                        log=lambda m: log.info("Selbst-Installation: %s", m))
+            if not res.get("ok"):
+                log.warning("Selbst-Installation fehlgeschlagen: %s", res.get("error"))
+                return res
+            log.info("Selbst-Installation: fertig → %s; Images %s; ersetzt %s — Neustart",
+                     res["ziel"], images, res.get("ersetzt"))
+            cinstall.neu_starten_und_auswerfen(Path(res["ziel"]), images)
+            import threading
+            threading.Timer(0.8, lambda: os._exit(0)).start()
+            return {**res, "images": [str(x) for x in images], "neustart": True}
+        except Exception as e:
+            log.exception("selbst_installieren")
+            return {"ok": False, "error": str(e)}
+
+    def install_aufraeumen(self) -> dict:
+        """Nach dem Start aus Programme: Download-Image auswerfen und überzählige
+        Kopien in Programme in den Papierkorb (die laufende bleibt)."""
+        try:
+            if sys.platform != "darwin":
+                return {"ok": False, "error": "nur macOS"}
+            b = cinstall.bundle_pfad()
+            weg, fehler = [], []
+            for k in cinstall.kopien_in_programme():
+                if b and k.resolve() == b.resolve():
+                    continue
+                try:
+                    clib._in_den_papierkorb(k); weg.append(str(k))
+                except Exception as e:  # noqa: BLE001
+                    fehler.append(f"{k}: {e}")
+            images = cinstall.images_mit_app()
+            fehler += cinstall.auswerfen(images)
+            log.info("Installation aufgeräumt: Kopien weg %s, Images %s, Fehler %s", weg, images, fehler)
+            return {"ok": not fehler, "kopien_weg": weg, "images_weg": [str(x) for x in images],
+                    "error": "; ".join(fehler) if fehler else ""}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 

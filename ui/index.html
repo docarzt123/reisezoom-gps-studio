@@ -53,7 +53,12 @@
       log_fuss: 'Der Schreibtisch-Knopf legt eine Datei <b>Reisezoom-GPS-Studio-Log….txt</b> auf deinen Schreibtisch — die kannst du einfach in die Mail an Marc ziehen. Bitte zusammen mit einem Screenshot von <b>Apple-Menü → „Über diesen Mac"</b> — damit ist das Problem meist sofort klar.',
       log_ok: '✓ Liegt auf dem Schreibtisch — in die Mail ziehen',
       log_fehler: 'Konnte den Log nicht ablegen. Bitte „📂 Log-Ordner öffnen" nutzen und die Datei app.log von Hand anhängen.',
-      pfad_manuell: 'Bitte den Pfad manuell im Finder öffnen:'
+      pfad_manuell: 'Bitte den Pfad manuell im Finder öffnen:',
+      inst_btn: '🚀 In „Programme“ installieren und starten',
+      inst_lauf: 'Installiere … das dauert einen Moment.',
+      inst_ok: '✓ Installiert — die App startet gleich neu.',
+      inst_fehler: 'Das hat nicht geklappt: {e}. Dann bitte den Weg unten.',
+      inst_hinweis: 'Oder mit einem Klick: Die App kopiert sich selbst in den Programme-Ordner, wirft das Download-Image aus und startet neu.'
     },
     en: {
       titel: 'GPS Studio could not start',
@@ -73,7 +78,12 @@
       log_fuss: 'The desktop button puts a file <b>Reisezoom-GPS-Studio-Log….txt</b> on your desktop — just drag it into an email to Marc. Please add a screenshot of <b>Apple menu → "About This Mac"</b>; that usually makes the problem obvious.',
       log_ok: '✓ On your desktop — drag it into the email',
       log_fehler: 'Could not save the log. Please use "📂 Open the log folder" and attach app.log by hand.',
-      pfad_manuell: 'Please open the path manually in Finder:'
+      pfad_manuell: 'Please open the path manually in Finder:',
+      inst_btn: '🚀 Install into “Applications” and start',
+      inst_lauf: 'Installing … this takes a moment.',
+      inst_ok: '✓ Installed — the app restarts in a second.',
+      inst_fehler: 'That did not work: {e}. Please use the steps below.',
+      inst_hinweis: 'Or with one click: the app copies itself into the Applications folder, ejects the download image and restarts.'
     },
     es: {
       titel: 'GPS Studio no ha podido arrancar',
@@ -93,7 +103,12 @@
       log_fuss: 'El botón del escritorio deja un archivo <b>Reisezoom-GPS-Studio-Log….txt</b> en tu escritorio; solo tienes que arrastrarlo al correo para Marc. Añade también una captura de <b>menú Apple → «Acerca de este Mac»</b>: con eso el problema suele verse enseguida.',
       log_ok: '✓ Está en el escritorio: arrástralo al correo',
       log_fehler: 'No se ha podido guardar el registro. Usa «📂 Abrir la carpeta del registro» y adjunta app.log a mano.',
-      pfad_manuell: 'Abre la ruta manualmente en el Finder:'
+      pfad_manuell: 'Abre la ruta manualmente en el Finder:',
+      inst_btn: '🚀 Instalar en «Aplicaciones» e iniciar',
+      inst_lauf: 'Instalando … tarda un momento.',
+      inst_ok: '✓ Instalada: la aplicación se reinicia enseguida.',
+      inst_fehler: 'No ha funcionado: {e}. Usa los pasos de abajo.',
+      inst_hinweis: 'O con un clic: la aplicación se copia sola a la carpeta Aplicaciones, expulsa la imagen de descarga y se reinicia.'
     }
   };
   // sprache-ok-ende
@@ -129,8 +144,13 @@
   // (App Translocation: App wurde direkt aus DMG/Downloads gestartet statt aus
   // /Programme). Das ist der häufigste „beschädigt"-Fall beim Beta-Tester.
   function transloBanner() {
+    var BTN2 = 'font:700 14px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;border:0;border-radius:8px;padding:11px 18px;cursor:pointer;background:#3fb950;color:#04140a;margin:4px 0 12px';
     return '<div style="background:#3a2a10;border:1px solid #ff6b35;border-radius:8px;padding:14px 16px;margin-bottom:22px">' +
       '<div style="font-size:16px;font-weight:700;color:#ffb38a;margin-bottom:8px">' + TX.tr_kopf + '</div>' +
+      // 10.09.2026 (Marc: „das ist ein DAU-Problem"): ein Knopf statt Anleitung.
+      '<button id="rz-selbst-install" style="' + BTN2 + '">' + TX.inst_btn + '</button>' +
+      '<div id="rz-selbst-install-status" style="color:#c9e9d1;font-size:13px;margin-bottom:10px"></div>' +
+      '<div style="color:#e6c9b3;font-size:12.5px;margin-bottom:10px">' + TX.inst_hinweis + '</div>' +
       '<div style="color:#e6c9b3;font-size:13px;margin-bottom:10px">' + TX.tr_text + '</div>' +
       '<ol style="color:#e6c9b3;font-size:13px;margin:0;padding-left:18px;line-height:1.75">' +
         '<li>' + TX.tr_1 + '</li>' +
@@ -138,6 +158,24 @@
         '<li>' + TX.tr_3 + '</li>' +
       '</ol>' +
     '</div>';
+  }
+
+  function bindSelbstInstall() {
+    var b = document.getElementById('rz-selbst-install');
+    if (!b || b.__gebunden) return;
+    b.__gebunden = true;
+    b.onclick = function () {
+      var st = document.getElementById('rz-selbst-install-status');
+      b.disabled = true; b.style.opacity = '0.6';
+      if (st) st.textContent = TX.inst_lauf;
+      var api = window.pywebview && window.pywebview.api;
+      function fehl(e) { b.disabled = false; b.style.opacity = '1'; if (st) st.textContent = TX.inst_fehler.replace('{e}', String(e || '?')); }
+      try {
+        var pr = api && api.selbst_installieren && api.selbst_installieren();
+        if (pr && pr.then) pr.then(function (r) { if (r && r.ok) { if (st) st.textContent = TX.inst_ok; } else fehl(r && r.error); }).catch(fehl);
+        else fehl('keine Verbindung');
+      } catch (e) { fehl(e); }
+    };
   }
 
   window.__rzShowStartError = function (title, detail) {
@@ -182,6 +220,7 @@
         '</div>' +
       '</div>';
     (document.body || document.documentElement).appendChild(box);
+    bindSelbstInstall();
 
     // v0.9.472 — DAU-sicher: kompletten Log als Datei auf den Schreibtisch legen.
     var db = document.getElementById('rz-desktop-log');
@@ -216,7 +255,7 @@
         if (q && q.then) q.then(function (env) {
           if (!env || !env.translocated) return;
           var slot = document.getElementById('rz-translo');
-          if (slot && !slot.innerHTML) slot.innerHTML = transloBanner();
+          if (slot && !slot.innerHTML) { slot.innerHTML = transloBanner(); bindSelbstInstall(); }
           var sub = document.getElementById('rz-se-sub');
           if (sub) sub.textContent = TX.sub_translo;
           var kopien = (env.kopien || []).filter(Boolean);
