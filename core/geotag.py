@@ -383,7 +383,7 @@ def zuordnen_mehrere(
             raus.append((je_track[0][j], None, []))
             continue
 
-        def rang(i):
+        def rang(i, j=j):
             m = je_track[i][j]
             return (0 if tracks[i].vorgegeben else 1,
                     abs(m.time_delta_s or 0.0),
