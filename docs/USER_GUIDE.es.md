@@ -15,6 +15,8 @@ Módulos:
 
 ## 1 · Instalación
 
+> **Mac, en corto (desde v0.9.688):** abre el DMG y haz doble clic en la aplicación. Si así se ejecuta desde la ventana de descarga, muestra un botón **«Instalar en Aplicaciones e iniciar»**. Un clic: se copia a Aplicaciones, quita las copias antiguas, expulsa la imagen de descarga y se reinicia. Ya no hace falta arrastrarla a Aplicaciones. Si más tarde sigue habiendo una imagen de descarga o una segunda copia, la aplicación pregunta una vez si quieres ordenar.
+
 ### Descarga
 Descarga la versión adecuada para tu sistema operativo:
 

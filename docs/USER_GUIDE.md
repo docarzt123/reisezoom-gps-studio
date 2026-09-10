@@ -31,6 +31,8 @@ Der Reiter **Overlay** ist ein Platzhalter für eine noch nicht gebaute Funktion
 
 ## 1 · Installation
 
+> **Mac, kurz (seit v0.9.688):** DMG öffnen und die App einfach doppelklicken. Läuft sie dadurch aus dem Download-Fenster, zeigt sie einen Knopf **„In Programme installieren und starten“**. Ein Klick: Sie kopiert sich nach Programme, räumt ältere Kopien weg, wirft das Download-Image aus und startet neu. Das Ziehen nach Programme ist damit nicht mehr nötig. Liegt später noch ein Download-Image herum oder eine zweite Kopie in Programme, fragt die App einmal, ob sie aufräumen soll.
+
 ### Download
 Lade dir die richtige Version für dein Betriebssystem:
 

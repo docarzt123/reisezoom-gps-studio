@@ -1539,6 +1539,50 @@ window.addEventListener("DOMContentLoaded", async () => {
   // 25 s den Start-Fehler-Bildschirm mit dem Log-Pfad ein.
   window.__rzBooted = true;
 
+  // 10.09.2026 (Beta-Tester „kann nichts anklicken"): Klick-Zeuge. Die erste
+  // Maus-Eingabe in der Oberfläche steht im Log — fehlt die Zeile, kommt kein
+  // Klick bei der WebView an; sonst hakt es in unserem Code.
+  try {
+    const _t0 = Date.now();
+    document.addEventListener("pointerdown", (e) => {
+      try {
+        const el = e.target; const id = el && el.id ? "#" + el.id : "";
+        applog && applog("info", `[eingabe] erster Klick nach ${((Date.now() - _t0) / 1000).toFixed(1)} s auf ${el && el.tagName ? el.tagName.toLowerCase() : "?"}${id} @${Math.round(e.clientX)},${Math.round(e.clientY)}`);
+      } catch (_) {}
+    }, { once: true, capture: true });
+  } catch (_) {}
+
+  // 10.09.2026 (Marc: „DAU-Problem"): Läuft die App nicht aus Programme, oder liegt
+  // das Download-Image noch eingehängt / eine zweite Kopie in Programme → einmal
+  // anbieten, das mit einem Klick zu erledigen (Selbst-Installation bzw. Aufräumen).
+  setTimeout(async () => {
+    try {
+      const lage = await api().install_lage();
+      if (!lage || !lage.ok || !lage.mac || !lage.frozen) return;
+      const kopienFremd = (lage.fremde_kopien || []).length, images = (lage.images || []).length;
+      if (!lage.in_programme) {
+        const ok = await rzConfirm(t("install.titel", "In „Programme“ installieren?"),
+          t("install.frage", "Die App läuft gerade aus {ort}. Soll sie sich in den Programme-Ordner kopieren und von dort neu starten? Das Download-Image wird dabei ausgeworfen.").replace("{ort}", lage.bundle ? lage.bundle.replace(/\/[^/]+$/, "") : "?"),
+          t("install.knopf", "Installieren und neu starten"), false);
+        if (!ok) return;
+        const r = await api().selbst_installieren();
+        if (!r || !r.ok) toast(t("install.fehler", "Installation fehlgeschlagen: {e}").replace("{e}", (r && r.error) || "?"), "error", 8000);
+        else toast(t("install.neustart", "Installiert — die App startet gleich neu."), "success", 4000);
+        return;
+      }
+      if (images || kopienFremd) {
+        const ok = await rzConfirm(t("install.aufr_titel", "Aufräumen?"),
+          (images ? t("install.aufr_image", "Das Download-Image ist noch eingehängt.") + " " : "")
+          + (kopienFremd ? t("install.aufr_kopien", "In Programme liegen {n} weitere Kopien der App.").replace("{n}", kopienFremd) + " " : "")
+          + t("install.aufr_frage", "Image auswerfen und Kopien in den Papierkorb legen?"),
+          t("install.aufr_knopf", "Aufräumen"), false);
+        if (!ok) return;
+        const r = await api().install_aufraeumen();
+        toast(r && r.ok ? t("install.aufr_ok", "Aufgeräumt.") : t("install.fehler", "Installation fehlgeschlagen: {e}").replace("{e}", (r && r.error) || "?"), r && r.ok ? "success" : "error", 6000);
+      }
+    } catch (_) {}
+  }, 2500);
+
   // v0.9.27 (Nutzer-Feedback): letztes GPX automatisch wieder laden,
   // damit ein App-Restart nicht den Track verliert. Async, blockiert
   // den Module-Mount nicht.

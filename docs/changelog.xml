@@ -5,8 +5,28 @@
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html</link>
 <description>Was sich in jeder Version von GPS Studio ändert.</description>
 <language>de</language>
-<lastBuildDate>Wed, 09 Sep 2026 19:56:32 +0000</lastBuildDate>
+<lastBuildDate>Thu, 10 Sep 2026 10:35:53 +0000</lastBuildDate>
 <atom:link href="https://reisezoom.com/downloads/gps-studio/latest/changelog.xml" rel="self" type="application/rss+xml"/>
+<item>
+<title>v0.9.687</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-687</link>
+<guid isPermaLink="false">gps-studio-v0.9.687</guid>
+<pubDate>Thu, 10 Sep 2026 12:00:00 +0000</pubDate>
+<description>Farbzonen: Zahl abgeschnitten — Bei „Mehrere Track-Farben“ wurde das Feld „ab … m“ so schmal, dass dreistellige Zahlen abgeschnitten waren (Windows). Das Feld hat jetzt eine feste Breite.
+
+Archiv: mehrere Touren in den Papierkorb — Mehrere markieren (z. B. alle ausgeblendeten) und „In den Papierkorb“ tat scheinbar nichts: Touren, die ein Projekt benutzt (jede im Animator geöffnete hat eins), lehnte das Archiv still ab. Jetzt kommt eine Rückfrage „Touren und Projekte zusammen löschen?“, und was nicht geht, wird gesagt.
+
+Inspektor aufgeräumt — Sechs gleiche Klapp-Abschnitte statt Titel, Trennstriche und Mischformen: Anschauen &amp; prüfen, Heilen, Bearbeiten (Anker A→B, sortiert nach Abschnitt / am Punkt A / ganzer Track), Punkte &amp; Zeiten, Tracks verbinden, Höhe korrigieren. Rückgängig oben, Speichern klebt unten, eine Statuszeile sagt, was die Anker brauchen. Offene Abschnitte werden gemerkt.
+
+Geotagger mit mehreren Tracks, nachgebessert — Der Track-Vorschlag kommt jetzt auch, wenn schon ein Track offen ist. Die Kamera-Zeitzone wird über alle Tracks bestimmt (die, bei der die meisten Fotos auf irgendeinen Track fallen) und beim Übernehmen gleich gesetzt; die Zahlen im Dialog stimmen so mit dem Ergebnis überein. Dieselbe Tour unter zwei Archiv-Pfaden zählt nicht mehr als Doppel-Treffer, das Archiv wird je Foto-Tag gefragt (ein verirrtes Foto von 2020 kostete 13 Sekunden), die GPX-Leiste oben folgt dem Haupt-Track, „Workspace leeren“ räumt auch Track-Liste und Foto-Fenster.</description>
+</item>
+<item>
+<title>v0.9.686</title>
+<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-686</link>
+<guid isPermaLink="false">gps-studio-v0.9.686</guid>
+<pubDate>Thu, 10 Sep 2026 12:00:00 +0000</pubDate>
+<description>Geotagger: mehrere Tracks auf einmal — Ordner mit Fotos laden, fertig: GPX-Dateien neben den Fotos wandern ins Archiv, das Archiv sucht zu den Aufnahmezeiten alle passenden Touren und zeigt eine Bestätigungsliste (Häkchen je Tour, Fotos je Tour, Fotos ohne Tour). „Aus dem Archiv …“ holt weitere dazu. Jedes Foto landet auf dem Track, dessen Zeit passt; vorgegebene Tracks gewinnen, sonst der nähere Punkt; „↔ auch: …“ zeigt Doppel-Treffer. Alle Tracks in eigener Farbe auf der Karte, Liste in der Seitenleiste. (GitHub-Issue #7)</description>
+</item>
 <item>
 <title>v0.9.685</title>
 <link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-685</link>
@@ -194,20 +214,6 @@ Beim Scrollen lief die Liste über ihre Kopfzeile. Jetzt bleibt die Kopfzeile sa
 <guid isPermaLink="false">gps-studio-v0.9.648</guid>
 <pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
 <description>➤ Der Pfeil in Fahrtrichtung zappelt nicht mehr. Er nahm seine Richtung aus einem einzigen Wegstück — bei sekündlicher Aufzeichnung sind das ein bis drei Meter, also genau die Größenordnung, in der GPS rauscht. Jetzt liest er sie aus einem längeren Stück Strecke ab: An einer echten Bergtour sinkt der Sprung von Bild zu Bild von 22,6° auf 3,5°. Wie ruhig er liegen soll, stellst du selbst ein — der Regler „Ruhe des Pfeils&quot; erscheint, sobald du die Pfeil-Form wählst.</description>
-</item>
-<item>
-<title>v0.9.647 — Kleiner Nachzügler zu v0.9.646.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-647</link>
-<guid isPermaLink="false">gps-studio-v0.9.647</guid>
-<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
-<description>Drei Texte im Dialog „Doppelte finden&quot; standen in der englischen und spanischen Fassung auf Deutsch da. Sonst ist alles wie in v0.9.646 — die Neuerungen stehen dort.</description>
-</item>
-<item>
-<title>v0.9.646 — Nachgeprüft: fünf Dinge, die nur fast stimmten.</title>
-<link>https://reisezoom.com/downloads/gps-studio/latest/changelog.html#v0-9-646</link>
-<guid isPermaLink="false">gps-studio-v0.9.646</guid>
-<pubDate>Wed, 02 Sep 2026 12:00:00 +0000</pubDate>
-<description>⌚ Wer mit Uhr aufzeichnet, hatte keine echte Sicherheitskopie. Von einer Garmin- oder Suunto-Datei landete die Rohaufzeichnung unverändert in der Bibliothek — GPS Studio selbst konnte sie dort nicht mehr lesen. Ab jetzt wird beim Aufnehmen umgewandelt, und was schon falsch liegt, bringt die App beim nächsten Start einmalig in Ordnung — aus dem, was gespeichert ist. Die Originaldatei von damals brauchst du dafür nicht.</description>
 </item>
 </channel>
 </rss>

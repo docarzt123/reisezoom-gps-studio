@@ -3146,5 +3146,16 @@
   "gpxinspect.sub_track": "Ganzer Track",
   "library.touren_benutzt_frage": "{n} Tour(en) werden von Projekten benutzt: {liste}. Touren und Projekte zusammen löschen?",
   "library.trash_done_n": "{n} in den Papierkorb gelegt.",
-  "library.trash_fehler_n": "{n} nicht möglich: {grund}"
+  "library.trash_fehler_n": "{n} nicht möglich: {grund}",
+  "install.titel": "In „Programme“ installieren?",
+  "install.frage": "Die App läuft gerade aus {ort}. Soll sie sich in den Programme-Ordner kopieren und von dort neu starten? Das Download-Image wird dabei ausgeworfen.",
+  "install.knopf": "Installieren und neu starten",
+  "install.fehler": "Installation fehlgeschlagen: {e}",
+  "install.neustart": "Installiert — die App startet gleich neu.",
+  "install.aufr_titel": "Aufräumen?",
+  "install.aufr_image": "Das Download-Image ist noch eingehängt.",
+  "install.aufr_kopien": "In Programme liegen {n} weitere Kopien der App.",
+  "install.aufr_frage": "Image auswerfen und Kopien in den Papierkorb legen?",
+  "install.aufr_knopf": "Aufräumen",
+  "install.aufr_ok": "Aufgeräumt."
 }

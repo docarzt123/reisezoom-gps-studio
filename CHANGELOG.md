@@ -14,6 +14,12 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.688] – 2026-09-10
+
+### Added
+- macOS: the app installs itself. Started from the download image or the Downloads folder (macOS then runs it from a locked folder and it cannot find its files), the start page now has one button: "Install into Applications and start" — copies the bundle to /Applications, moves older copies (also "… 2.app") to the trash, removes the quarantine flag, ejects the download image and restarts from Applications. After a normal start the app offers once to tidy up a still-mounted download image or extra copies in Applications; started from anywhere else than Applications it offers to install itself. (Beta tester could not get past the drag-to-Applications step.) — macOS: die App installiert sich selbst nach Programme; ein Knopf auf der Startseite statt Anleitung; Aufräumen von Download-Image und Doppel-Kopien nach dem Start.
+- Log: the first mouse click in the interface is recorded ("[eingabe] erster Klick …") — tells apart "the view gets no clicks" from "our code does not react". — Klick-Zeuge im Log.
+
 ## [0.9.687] – 2026-09-10
 
 ### Changed
