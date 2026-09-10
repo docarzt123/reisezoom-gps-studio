@@ -3223,5 +3223,6 @@
   "library.err_repairable_hint": "These files are broken but the points are still there — cut-off transfer, an “&” in the name, missing header. “Repair” puts a healthy copy into the archive as a tour; your file stays as it is.",
   "library.err_repair_btn": "🩹 Repair",
   "library.err_repaired": "Repaired: {name} is now a tour in the archive ({n} points).",
-  "library.err_repair_failed": "Repair not possible: {e}"
+  "library.err_repair_failed": "Repair not possible: {e}",
+  "gpxinspect.heal_done_route_short": "%r gaps fitted to paths, %l filled straight"
 }

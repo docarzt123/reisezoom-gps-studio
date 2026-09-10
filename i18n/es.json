@@ -3223,5 +3223,6 @@
   "library.err_repairable_hint": "Estos archivos están rotos, pero los puntos siguen ahí — transferencia cortada, un «&» en el nombre, cabecera ausente. «Reparar» guarda una copia sana como ruta en el archivo; tu archivo queda como está.",
   "library.err_repair_btn": "🩹 Reparar",
   "library.err_repaired": "Reparado: {name} ahora es una ruta del archivo ({n} puntos).",
-  "library.err_repair_failed": "Reparación no posible: {e}"
+  "library.err_repair_failed": "Reparación no posible: {e}",
+  "gpxinspect.heal_done_route_short": "%r huecos ajustados a caminos, %l rellenados en recta"
 }

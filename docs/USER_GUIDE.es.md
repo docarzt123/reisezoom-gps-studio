@@ -2062,7 +2062,7 @@ En cuanto un track está en el Inspector, el cuadro de hallazgos aparece **arrib
 «Revisión del track: 2 saltos, 1 hueco (240 m), reloj mal puesto (1989)». Cada línea tiene una
 **casilla** (rojo y amarillo marcados de antemano, los avisos grises no) y **«🩹 Reparar»**
 ejecuta exactamente los pasos marcados: poner los saltos sobre la línea (la hora se mantiene),
-rellenar huecos con puntos en línea recta, suavizar la velocidad imposible (la distancia se
+rellenar huecos — con el perfil de **«Rellenar huecos como»** siguiendo caminos reales (preseleccionado según la actividad de la ruta, si no según la velocidad; línea recta solo con «Línea recta», sin red o si la ruta sería un rodeo), suavizar la velocidad imposible (la distancia se
 mantiene, la ruta dura unos segundos más), arreglar el tiempo hacia atrás, quitar puntos
 duplicados, repartir segundos repetidos, agrupar la deriva en parada en un solo punto (la pausa
 sigue siendo pausa), interpolar altitudes basura y ausentes, descartar los puntos de arranque

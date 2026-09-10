@@ -3223,5 +3223,6 @@
   "library.err_repairable_hint": "Diese Dateien sind kaputt, aber die Punkte sind noch da — abgeschnittene Übertragung, ein „&“ im Namen, fehlende Kopfzeile. „Reparieren“ legt eine heile Fassung als Tour ins Archiv; deine Datei bleibt, wie sie ist.",
   "library.err_repair_btn": "🩹 Reparieren",
   "library.err_repaired": "Repariert: {name} liegt jetzt als Tour im Archiv ({n} Punkte).",
-  "library.err_repair_failed": "Reparatur nicht möglich: {e}"
+  "library.err_repair_failed": "Reparatur nicht möglich: {e}",
+  "gpxinspect.heal_done_route_short": "%r Lücken an Wege angepasst, %l gerade gefüllt"
 }

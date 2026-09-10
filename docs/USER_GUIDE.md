@@ -2213,7 +2213,7 @@ Kasten schließt — so sieht man genau, was das Heilen verändert hat.
 Sobald ein Track im Inspektor liegt, steht **ganz oben** der Befund-Kasten: „Track-Check:
 2 Sprünge, 1 Lücke (240 m), Uhr steht falsch (1989)". Jede Zeile hat ein **Häkchen** — rot und
 gelb sind vorbelegt, graue Hinweise nicht — und **„🩹 Reparieren"** führt genau die angehakten
-Schritte aus: Sprünge auf die Linie legen (Zeit bleibt), Lücken mit Luftlinien-Punkten füllen,
+Schritte aus: Sprünge auf die Linie legen (Zeit bleibt), Lücken füllen — mit dem Profil aus **„Lücken füllen als“** entlang echter Wege (vorbelegt aus der Fortbewegungsart der Tour, sonst aus dem Tempo geschätzt; Luftlinie nur bei „Luftlinie“, ohne Netz oder wenn die Route ein Umweg wäre),
 unmögliches Tempo entzerren (Strecke bleibt, die Tour wird ein paar Sekunden länger), Zeit
 rückwärts glätten, Doppelpunkte entfernen, gleiche Sekunden verteilen, Standdrift auf einen Ort
 zusammenziehen (die Pause bleibt eine Pause), Höhen-Müll und fehlende Höhen interpolieren,

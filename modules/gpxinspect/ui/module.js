@@ -1895,6 +1895,7 @@ function mountGpxInspect(body, headerActions) {
     if (isUnmounted) return;
     if (!r || !r.ok) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
     _tc = r;
+    try { _profilAusArt(r.activity); } catch (_) {}
     _healFunde = (r.befunde || []).filter((b) => !(b.key in _TC_OHNE_SCHRITT)).map((b) => ({ key: b.key, n: b.n }));
     const kurz = (typeof rzTrackCheckKurz === "function") ? rzTrackCheckKurz(r.befunde, 4) : "";
     const zeile = (typeof rzTrackCheckZeile === "function") ? rzTrackCheckZeile : (b) => b.key + " " + b.n;
@@ -1928,6 +1929,24 @@ function mountGpxInspect(body, headerActions) {
       const el = document.getElementById(ziel); if (el) { try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {} }
     });
   }
+  /** Pause ≥ 2 min mit ≤ 100 m Versatz (Wirtshaus) — im Kern kein Befund, hier auch nicht füllen. */
+  function _istPauseLuecke(g) {
+    const A = _points[g.a], B = _points[g.b];
+    if (!A || !B || !A.time || !B.time) return false;
+    const dt = (Date.parse(B.time) - Date.parse(A.time)) / 1000;
+    return dt >= 120 && g.dist <= 100;
+  }
+  /** Profil aus der Fortbewegungsart der Archiv-Tour vorbelegen (schlägt die Tempo-Schätzung,
+   *  nie die Handwahl). Ohne passende Art bleibt, was profilVorschlagen gewählt hat. */
+  function _profilAusArt(art) {
+    if (_profilManuell || !art) return;
+    const sel = document.getElementById("gpxi-profile"); if (!sel) return;
+    const a = String(art).toLowerCase();
+    const wahl = /wander|spazier|lauf|hiking|walk|run|trail/.test(a) ? "walking"
+      : /rad|bike|cycl|gravel|mtb|velo/.test(a) ? "cycling"
+      : /auto|motor|car|driv|moped/.test(a) ? "driving" : "";
+    if (wahl) sel.value = wahl;
+  }
   async function trackCheckOk(key, ok) {
     if (!_origPath) return;
     let r; try { r = await api().library_track_check_ok(_origPath, key, !!ok); } catch (e) { r = { ok: false, error: String(e) }; }
@@ -1939,16 +1958,35 @@ function mountGpxInspect(body, headerActions) {
   async function trackCheckReparieren() {
     const box = document.getElementById("gpxi-heal-analysis");
     if (!box || _mmBusy || _drawMode) return;
-    const schritte = [...box.querySelectorAll("input[data-heal]")].filter((c) => c.checked).map((c) => c.getAttribute("data-heal"));
+    let schritte = [...box.querySelectorAll("input[data-heal]")].filter((c) => c.checked).map((c) => c.getAttribute("data-heal"));
     if (!schritte.length) { toast(t("trackcheck.nothing_selected", "Nichts angehakt — nichts zu reparieren."), "info", 2400); return; }
+    // 10.09.2026 (Marc: „wäre nicht besser anhand der Fortbewegungsart die Karte zu nutzen?"):
+    // Lücken laufen über das Profil aus „Lücken füllen als" — Wege statt Luftlinie. Der Kern
+    // füllt dann nicht, die Lücken werden nach den anderen Schritten hier geroutet.
+    const fillMode = (document.getElementById("gpxi-profile") || {}).value || "linear";
+    const lueckenRouten = schritte.indexOf("gaps") >= 0 && fillMode !== "linear";
+    if (lueckenRouten) schritte = schritte.filter((k) => k !== "gaps");
     _pushUndo(t("trackcheck.repair", "Track-Check reparieren"));
     merkeVorher();
-    let r = null;
-    try { r = await api().gpxinspect_heal(_points, 250, schritte, false); } catch (e) { r = { ok: false, error: String(e) }; }
+    let r = { ok: true, points: _points.slice(), bericht: [] };
+    if (schritte.length) {
+      try { r = await api().gpxinspect_heal(_points, 250, schritte, false); } catch (e) { r = { ok: false, error: String(e) }; }
+    }
     if (isUnmounted) return;
     if (!r || !r.ok || !Array.isArray(r.points)) { toast(t("trackcheck.error", "Track-Check nicht möglich: {e}").replace("{e}", (r && r.error) || "?"), "error"); return; }
     const teile = (r.bericht || []).filter((b) => schritte.indexOf(b.key) >= 0).map((b) => { const k = _HEAL_KEYS[b.key]; return k ? t(k[0], k[1]).replace("%n", b.n) : (b.key + " " + b.n); });
     _points.length = 0; for (const p of r.points) _points.push(p);
+    if (lueckenRouten) {
+      // dieselben Lücken wie im Kasten: ab 100 m (core/trackcheck.LUECKE_MIN_M), nie Wirtshaus-Pause
+      _spikeSet = new Set();
+      const gaps = detectGaps().filter((g) => g.dist >= 100 && !_istPauseLuecke(g));
+      if (gaps.length) {
+        const { routed, detour } = await _lueckenRouten(gaps, _gapSpacing(), fillMode);
+        if (isUnmounted) return;
+        teile.push(t("gpxinspect.heal_done_route_short", "%r Lücken an Wege angepasst, %l gerade gefüllt").replace("%r", routed).replace("%l", gaps.length - routed)
+          + (detour ? " (" + detour + " " + t("gpxinspect.heal_detour", "Umwege verworfen") + ")" : ""));
+      }
+    }
     _dirty = true; clearSpikes(); _selA = _selB = null;
     _hasTime = _points.length > 0 && _points.every(p => !!p.time);
     _eleInvalidate();
@@ -2009,31 +2047,7 @@ function mountGpxInspect(body, headerActions) {
     // 2) Lücken füllen — von HINTEN nach VORNE, damit Indizes gültig bleiben.
     if (fillMode !== "linear" && nG) {
       // Route-Modus: jede Lücke entlang echter Wege/Straßen (Profil) routen.
-      const gapsAB = _gaps.map((g) => [_points[g.a].lon, _points[g.a].lat, _points[g.b].lon, _points[g.b].lat]);
-      _mmBusy = true; updateUI();
-      toast(t("gpxinspect.gap_routing", "Suche Routen für %g Lücken …").replace("%g", nG), "info", 4000);
-      let res;
-      try { res = await api().gpxinspect_route_gaps(gapsAB, fillMode); }
-      catch (e) { res = { ok: false, error: String(e) }; }
-      _mmBusy = false;
-      if (res && res.error === "no_token") {
-        toast(t("gpxinspect.match_no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen) — fülle linear."), "warn", 3500);
-      }
-      const routes = (res && res.ok && Array.isArray(res.routes)) ? res.routes : [];
-      let routed = 0, fillPts = 0, detour = 0;
-      const order = _gaps.map((g, i) => ({ g, i })).sort((x, y) => y.g.a - x.g.a);
-      for (const { g, i } of order) {
-        const r = routes[i];
-        // v0.9.315 — nur anwenden, wenn die Route KEIN Umweg/Schleife ist (sonst gerade
-        // füllen). Schützt saubere Spuren davor, an Kreuzungen verbogen zu werden.
-        if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2 && !_routeIsDetour(r.coords, g.dist, 2.5)) {
-          _applyRoutedRange(g.a, g.b, r.coords);   // ersetzt [a..b] durch die Wege-Route
-          routed++;
-        } else {
-          if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2) detour++;  // war Route, aber Umweg
-          fillPts += _linearFillGap(g, spacing);   // Fallback: gerade Linie (Flugbögen ODER verworfener Umweg)
-        }
-      }
+      const { routed, detour } = await _lueckenRouten(_gaps, spacing, fillMode);
       const nT = ((document.getElementById("gpxi-heal-tempo") || {}).checked) ? tempoEntzerren() : 0;
       _dirty = true; clearSpikes(); _selA = _selB = null;
       renderAll(); updateUI();
@@ -2057,6 +2071,37 @@ function mountGpxInspect(body, headerActions) {
       .replace("%s", nS).replace("%g", nG).replace("%p", fillPts)
       + (_datenMsg ? " · " + _datenMsg : "")
       + (nT ? " · " + t("gpxinspect.heal_tempo_done", "%t Tempo-Stellen entzerrt").replace("%t", nT) : ""), "success", 3200);
+  }
+  /** Lücken entlang echter Wege füllen (Profil walking/cycling/driving, OSRM/Mapbox); Umwege
+   *  und unerreichbare Lücken werden gerade gefüllt. Ändert _points von hinten nach vorne.
+   *  Gemeinsam für „Heilen (automatisch)" und „Reparieren" im Befund-Kasten (10.09.2026). */
+  async function _lueckenRouten(gaps, spacing, fillMode) {
+    const gapsAB = gaps.map((g) => [_points[g.a].lon, _points[g.a].lat, _points[g.b].lon, _points[g.b].lat]);
+    _mmBusy = true; updateUI();
+    toast(t("gpxinspect.gap_routing", "Suche Routen für %g Lücken …").replace("%g", gaps.length), "info", 4000);
+    let res;
+    try { res = await api().gpxinspect_route_gaps(gapsAB, fillMode); }
+    catch (e) { res = { ok: false, error: String(e) }; }
+    _mmBusy = false;
+    if (res && res.error === "no_token") {
+      toast(t("gpxinspect.match_no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen) — fülle linear."), "warn", 3500);
+    }
+    const routes = (res && res.ok && Array.isArray(res.routes)) ? res.routes : [];
+    let routed = 0, fillPts = 0, detour = 0;
+    const order = gaps.map((g, i) => ({ g, i })).sort((x, y) => y.g.a - x.g.a);
+    for (const { g, i } of order) {
+      const r = routes[i];
+      // v0.9.315 — nur anwenden, wenn die Route KEIN Umweg/Schleife ist (sonst gerade
+      // füllen). Schützt saubere Spuren davor, an Kreuzungen verbogen zu werden.
+      if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2 && !_routeIsDetour(r.coords, g.dist, 2.5)) {
+        _applyRoutedRange(g.a, g.b, r.coords);
+        routed++;
+      } else {
+        if (r && r.ok && Array.isArray(r.coords) && r.coords.length >= 2) detour++;
+        fillPts += _linearFillGap(g, spacing);
+      }
+    }
+    return { routed, fillPts, detour };
   }
   // Eine Lücke mit gerade interpolierten Punkten füllen (Position/Höhe/Zeit linear). Gibt
   // die Anzahl eingefügter Punkte zurück. b = a+1 → reines Einfügen bei a+1.

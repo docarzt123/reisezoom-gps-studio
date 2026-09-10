@@ -2013,7 +2013,7 @@ see exactly what healing changed.
 As soon as a track is in the Inspector, the findings box sits **at the very top**: "Track check:
 2 spikes, 1 gap (240 m), clock is wrong (1989)". Every line has a **checkbox** — red and yellow
 preselected, grey notes not — and **"🩹 Repair"** runs exactly the ticked steps: put spikes on
-the line (time stays), fill gaps with straight-line points, smooth impossible speed (distance
+the line (time stays), fill gaps — with the profile from **“Fill gaps as”** along real paths (preset from the tour's activity, otherwise estimated from speed; straight line only for “Straight line”, without network or when the route would be a detour), smooth impossible speed (distance
 stays, the tour gets a few seconds longer), fix time running backwards, remove duplicate
 points, spread repeated seconds, collapse standstill drift onto one spot (the pause stays a
 pause), interpolate garbage and missing elevation, drop cold-start points. Then the **before →
