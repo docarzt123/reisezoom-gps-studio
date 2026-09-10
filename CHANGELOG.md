@@ -14,6 +14,11 @@ Bei jeder neuen Version:
 
 ## [Unreleased]
 
+## [0.9.687] – 2026-09-10
+
+### Added
+- GPX Inspector: every tool of the web version is now in the app as well — reverse, move the start of a loop (anchor A), split at anchor A (keep part 1/2 or save both as files next to the source), set times (shift / start time / total duration), simplify by deviation (Douglas-Peucker) and a splits table per km with copy. Same core as the web (`core/gpxtools`, `core/gpxsimplify`), no size limit, no upload; sensors stay with the points; every step can be undone. — GPX-Inspektor: alle Werkzeuge der Web-Version auch in der App (Block „Weitere Werkzeuge"): Umkehren, Startpunkt verschieben, Teilen, Zeiten setzen, Ausdünnen nach Abweichung, Runden-Tabelle. Undo für jeden Schritt.
+
 ## [0.9.686] – 2026-09-10
 
 ### Changed

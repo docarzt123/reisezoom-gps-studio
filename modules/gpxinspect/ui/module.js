@@ -69,6 +69,9 @@ function mountGpxInspect(body, headerActions) {
       _points = JSON.parse(JSON.stringify((snap && snap.points) || []));
       _dirty = !!(snap && snap.dirty);
       if (snap && Array.isArray(snap.sources)) _sources = snap.sources.slice();
+      // 10.09.2026: Zeiten-Werkzeuge/Umkehren ändern die Uhr — nach Undo/Redo neu ableiten
+      _hasTime = _points.length > 0 && _points.every(p => !!p.time);
+      { const r = document.getElementById("gpxi-speedrow"); if (r) r.hidden = _hasTime; }
       // A/B-Auswahl ist UI-Zustand (keine Daten) → nach Undo/Redo behalten, solange die
       // Anker-Indizes noch im Track liegen. Nur ungültige (out of range) verwerfen.
       const _n = _points.length;
@@ -248,6 +251,46 @@ function mountGpxInspect(body, headerActions) {
           </div>
           <button class="btn btn-primary gpxi-act" id="gpxi-ele-apply" disabled>⛰ ${t("gpxinspect.ele_apply", "Diese Höhe übernehmen")}</button>
           <div class="gpxi-note muted" id="gpxi-ele-result"></div>
+          <hr class="gpxi-hr">
+          <!-- 10.09.2026 (Marc: „die App muss alles können, was auch im Web geht") — die
+               Web-Werkzeuge im Inspektor: Umkehren, Startpunkt, Teilen, Zeiten,
+               Ausdünnen nach Abweichung, Runden-Tabelle. Optik kommt danach. -->
+          <div class="gpxi-mm-title">🧰 ${t("gpxinspect.wz_title", "Weitere Werkzeuge")}<span class="gpxi-q" data-tip="${t("gpxinspect.wz_help", "Umkehren, Startpunkt verschieben, Teilen, Zeiten setzen, Ausdünnen nach Abweichung und die Runden-Tabelle — dieselben Werkzeuge wie im Web, hier ohne Größenlimit und ohne Upload.")}">?</span></div>
+          <button class="btn gpxi-act" id="gpxi-wz-reverse" title="${t("gpxinspect.wz_reverse_tip", "Den Track rückwärts laufen lassen. Zeitstempel werden gespiegelt (Start bleibt der Start), sonst liefe die Uhr rückwärts.")}">🔁 ${t("gpxinspect.wz_reverse", "Umkehren")}</button>
+          <button class="btn gpxi-act" id="gpxi-wz-rotate" disabled title="${t("gpxinspect.wz_rotate_tip", "Bei einer Rundtour woanders anfangen: Anker A wird der neue Start, der alte Anfang hängt sich hinten an.")}">🚩 ${t("gpxinspect.wz_rotate", "Startpunkt hierher (Anker A)")}</button>
+          <button class="btn gpxi-act" id="gpxi-wz-split" disabled title="${t("gpxinspect.wz_split_tip", "Den Track an Anker A in zwei Teile schneiden. Der Schnittpunkt gehört zu beiden Teilen.")}">✂ ${t("gpxinspect.wz_split", "Hier teilen (Anker A) …")}</button>
+          <div class="gpxi-fillrow">
+            <label>${t("gpxinspect.wz_tol", "Ausdünnen, Abweichung")}</label>
+            <input type="number" id="gpxi-wz-tol" min="0.5" max="200" step="0.5" value="5"> m
+            <button class="btn btn-small gpxi-act" id="gpxi-wz-simplify" title="${t("gpxinspect.wz_simplify_tip", "Douglas-Peucker: entfernt Punkte, die weniger als diesen Abstand von der Linie abweichen. Start und Ziel bleiben immer.")}">📉 ${t("gpxinspect.wz_simplify", "Ausdünnen")}</button>
+          </div>
+          <div class="gpxi-fillrow">
+            <label>${t("gpxinspect.wz_retime", "Zeiten")}</label>
+            <select id="gpxi-wz-retime-mode">
+              <option value="shift" selected>${t("gpxinspect.wz_retime_shift", "verschieben um")}</option>
+              <option value="start">${t("gpxinspect.wz_retime_start", "Start setzen auf")}</option>
+              <option value="duration">${t("gpxinspect.wz_retime_duration", "Dauer setzen auf")}</option>
+            </select>
+          </div>
+          <div class="gpxi-fillrow" id="gpxi-wz-retime-row-shift">
+            <label>${t("gpxinspect.wz_retime_shift_lbl", "Versatz")}</label>
+            <input type="number" id="gpxi-wz-shift" step="60" value="3600"> s
+          </div>
+          <div class="gpxi-fillrow" id="gpxi-wz-retime-row-start" hidden>
+            <label>${t("gpxinspect.wz_retime_start_lbl", "Startzeit")}</label>
+            <input type="datetime-local" id="gpxi-wz-start">
+          </div>
+          <div class="gpxi-fillrow" id="gpxi-wz-retime-row-duration" hidden>
+            <label>${t("gpxinspect.wz_retime_duration_lbl", "Dauer")}</label>
+            <input type="number" id="gpxi-wz-duration" min="1" step="1" value="60"> min
+          </div>
+          <button class="btn gpxi-act" id="gpxi-wz-retime-run" title="${t("gpxinspect.wz_retime_tip", "Alle Zeitstempel verschieben (Zeitzone, vergessene Sommerzeit, Kamera-Abgleich), auf eine Startzeit legen oder auf eine Gesamtdauer stauchen/strecken. Ohne Uhr: erst oben „Zeitachse erzeugen“.")}">⏱ ${t("gpxinspect.wz_retime_run", "Zeiten anwenden")}</button>
+          <div class="gpxi-fillrow">
+            <label>${t("gpxinspect.wz_splits", "Runden je")}</label>
+            <input type="number" id="gpxi-wz-every" min="0.1" max="100" step="0.5" value="1"> km
+            <button class="btn btn-small gpxi-act" id="gpxi-wz-splits" title="${t("gpxinspect.wz_splits_tip", "Zwischenzeiten je Abschnitt: Strecke, Dauer, Tempo, Höhenmeter. Zum Kopieren als Tabelle.")}">📊 ${t("gpxinspect.wz_splits_run", "Runden-Tabelle")}</button>
+          </div>
+          <div class="gpxi-note muted" id="gpxi-wz-note"></div>
           <hr class="gpxi-hr">
           <button class="btn btn-primary" id="gpxi-save" disabled>💾 ${t("gpxinspect.save", "Geheilten Track speichern …")}</button>
           <button class="btn gpxi-reset" id="gpxi-reset" disabled>↩︎ ${t("gpxinspect.reset", "Änderungen verwerfen")}</button>
@@ -2641,6 +2684,13 @@ function mountGpxInspect(body, headerActions) {
     setDisabled("gpxi-trim-before", !(haveA && !haveB) || _drawMode || _selA < 1);
     setDisabled("gpxi-trim-after",  !(haveA && !haveB) || _drawMode || _selA > _points.length - 2);
     setDisabled("gpxi-delete", !hasBetween || _drawMode);
+    // 10.09.2026 — Web-Werkzeuge: Startpunkt und Teilen brauchen Anker A (allein)
+    setDisabled("gpxi-wz-rotate", !(haveA && !haveB) || _drawMode || _selA < 1);
+    setDisabled("gpxi-wz-split", !(haveA && !haveB) || _drawMode || _selA < 1 || _selA > _points.length - 2 || _points.length < 4);
+    setDisabled("gpxi-wz-reverse", _drawMode || _points.length < 2);
+    setDisabled("gpxi-wz-simplify", _drawMode || _points.length < 3);
+    setDisabled("gpxi-wz-retime-run", _drawMode || _points.length < 2 || !_hasTime);
+    setDisabled("gpxi-wz-splits", _drawMode || _points.length < 2);
     // Map Matching: Bereich sobald A+B gesetzt sind (≥2 Punkte reichen zum Snappen —
     // anders als „Lücke füllen" braucht es KEINE Punkte dazwischen); ganzer Track sobald Punkte da.
     setDisabled("gpxi-match-sel", !both || _drawMode || _mmBusy);
@@ -2682,7 +2732,127 @@ function mountGpxInspect(body, headerActions) {
   function setDisabled(id, dis) { const el = document.getElementById(id); if (el) el.disabled = !!dis; }
 
   // ── Listener ─────────────────────────────────────────────────────────────────
+  // ── 10.09.2026 — Web-Werkzeuge im Inspektor (Marc: „die App muss alles können") ──
+  function _wzPayload() { return _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi, si: p.si || 0 })); }
+  function _wzUebernehmen(neuePunkte, label) {
+    _pushUndo(label);
+    merkeVorher();
+    _points = (neuePunkte || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi, si: p.si || 0 }));
+    _hasTime = _points.length > 0 && _points.every(p => !!p.time);
+    _dirty = true; clearSpikes(); clearSelection();
+    _eleInvalidate();
+    renderAll(); updateUI(); zeigeVorherNachher();
+    try { reduzierReglerSync(true); } catch (_) {}
+    try { _pfeileBerechnen(); _punktFormAnwenden(); renderPoints(); } catch (_) {}
+    { const r = document.getElementById("gpxi-speedrow"); if (r) r.hidden = _hasTime; }
+  }
+  async function _wzAnwenden(action, params, label) {
+    if (!_points.length) return null;
+    let res;
+    try { res = await api().gpxinspect_werkzeug(action, _wzPayload(), params || {}); }
+    catch (e) { res = { ok: false, error: String(e) }; }
+    if (isUnmounted) return null;
+    if (!res || !res.ok) { toast((res && (res.hint || res.error)) || t("gpxinspect.wz_fehler", "Werkzeug fehlgeschlagen"), "error", 6000); return null; }
+    return res;
+  }
+  const _wzNote = (txt) => { const n = document.getElementById("gpxi-wz-note"); if (n) n.textContent = txt || ""; };
+  async function wzReverse() {
+    const r = await _wzAnwenden("reverse", {}, t("gpxinspect.wz_reverse", "Umkehren"));
+    if (!r) return;
+    _wzUebernehmen(r.points, t("gpxinspect.wz_reverse", "Umkehren"));
+    _wzNote(r.times_mirrored ? t("gpxinspect.wz_reverse_ok", "Umgekehrt, Zeiten gespiegelt.") : t("gpxinspect.wz_reverse_ok_ohne", "Umgekehrt."));
+  }
+  async function wzRotate() {
+    if (_selA === null || _selB !== null) return;
+    const r = await _wzAnwenden("rotate", { at_index: _selA }, t("gpxinspect.wz_rotate", "Startpunkt"));
+    if (!r) return;
+    _wzUebernehmen(r.points, t("gpxinspect.wz_rotate_undo", "Startpunkt verschoben"));
+    _wzNote(r.is_loop ? t("gpxinspect.wz_rotate_ok", "Neuer Start gesetzt.")
+      : t("gpxinspect.wz_rotate_gap", "Neuer Start gesetzt — Achtung: Start und Ziel lagen {m} m auseinander, das ist keine geschlossene Runde.").replace("{m}", Math.round(r.gap_m || 0)));
+  }
+  async function wzSplit() {
+    if (_selA === null || _selB !== null) return;
+    const r = await _wzAnwenden("split", { at_index: _selA }, t("gpxinspect.wz_split", "Teilen"));
+    if (!r || !r.parts) return;
+    const km = (m) => (m / 1000).toFixed(1) + " km";
+    const wahl = await new Promise((res) => {
+      const m = openModal({
+        title: "✂ " + t("gpxinspect.wz_split_title", "Track teilen"),
+        body: `<div class="lib-fmodal"><p>${t("gpxinspect.wz_split_body", "Teil 1: {n1} Punkte, {l1} · Teil 2: {n2} Punkte, {l2}. Der Schnittpunkt gehört zu beiden Teilen.")
+          .replace("{n1}", r.counts[0]).replace("{l1}", km(r.lengths_m[0])).replace("{n2}", r.counts[1]).replace("{l2}", km(r.lengths_m[1]))}</p></div>`,
+        footer: `<button class="btn" id="gpxi-wz-sp-abbruch">${t("common.cancel", "Abbrechen")}</button>
+                 <button class="btn" id="gpxi-wz-sp-1">${t("gpxinspect.wz_split_keep1", "Teil 1 behalten")}</button>
+                 <button class="btn" id="gpxi-wz-sp-2">${t("gpxinspect.wz_split_keep2", "Teil 2 behalten")}</button>
+                 <button class="btn btn-primary" id="gpxi-wz-sp-beide">${t("gpxinspect.wz_split_both", "Beide als Dateien speichern")}</button>`,
+      });
+      const fertig = (w) => { m.close(); res(w); };
+      document.getElementById("gpxi-wz-sp-abbruch").onclick = () => fertig("abbruch");
+      document.getElementById("gpxi-wz-sp-1").onclick = () => fertig(1);
+      document.getElementById("gpxi-wz-sp-2").onclick = () => fertig(2);
+      document.getElementById("gpxi-wz-sp-beide").onclick = () => fertig("beide");
+    });
+    if (wahl === "abbruch") return;
+    if (wahl === "beide") {
+      let res;
+      try { res = await api().gpxinspect_save_teile(r.parts, _srcPath, _sources.length > 1 ? _sources : null); }
+      catch (e) { res = { ok: false, error: String(e) }; }
+      if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
+      const txt = t("gpxinspect.wz_split_saved", "Gespeichert: ") + (res.pfade || []).join(" · ");
+      _wzNote(txt); toast(txt, "success", 7000);
+      return;
+    }
+    _wzUebernehmen(r.parts[wahl - 1], t("gpxinspect.wz_split_undo", "Track geteilt"));
+    _wzNote(t("gpxinspect.wz_split_kept", "Teil {k} behalten, der andere ist verworfen (Rückgängig holt ihn zurück).").replace("{k}", wahl));
+  }
+  async function wzSimplify() {
+    const tol = parseFloat(document.getElementById("gpxi-wz-tol")?.value) || 5;
+    const r = await _wzAnwenden("simplify", { tol_m: tol }, t("gpxinspect.wz_simplify", "Ausdünnen"));
+    if (!r) return;
+    if (!r.removed) { toast(t("gpxinspect.wz_simplify_nichts", "Nichts zu entfernen — kein Punkt weicht mehr als {m} m ab.").replace("{m}", tol), "info", 3000); return; }
+    _wzUebernehmen(r.points, t("gpxinspect.wz_simplify", "Ausdünnen"));
+    _wzNote(t("gpxinspect.wz_simplify_ok", "{n} Punkte entfernt, {k} bleiben (Abweichung ≤ {m} m).").replace("{n}", r.removed).replace("{k}", r.kept).replace("{m}", r.tol_m));
+  }
+  function _wzRetimeZeilen() {
+    const mode = document.getElementById("gpxi-wz-retime-mode")?.value || "shift";
+    for (const m of ["shift", "start", "duration"]) { const row = document.getElementById("gpxi-wz-retime-row-" + m); if (row) row.hidden = (m !== mode); }
+    if (mode === "start") { const inp = document.getElementById("gpxi-wz-start"); if (inp && !inp.value && _points[0] && _points[0].time) { try { const d = new Date(_points[0].time); const pad = (x) => String(x).padStart(2, "0"); inp.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; } catch (_) {} } }
+  }
+  async function wzRetime() {
+    const mode = document.getElementById("gpxi-wz-retime-mode")?.value || "shift";
+    const params = { mode };
+    if (mode === "shift") params.shift_s = parseFloat(document.getElementById("gpxi-wz-shift")?.value) || 0;
+    if (mode === "start") { const v = document.getElementById("gpxi-wz-start")?.value; if (!v) { toast(t("gpxinspect.wz_retime_start_fehlt", "Bitte eine Startzeit wählen."), "warning", 3000); return; } params.start_iso = new Date(v).toISOString(); }
+    if (mode === "duration") params.duration_s = (parseFloat(document.getElementById("gpxi-wz-duration")?.value) || 0) * 60;
+    const r = await _wzAnwenden("retime", params, t("gpxinspect.wz_retime", "Zeiten"));
+    if (!r) return;
+    _wzUebernehmen(r.points, t("gpxinspect.wz_retime_undo", "Zeiten geändert"));
+    _wzNote(t("gpxinspect.wz_retime_ok", "Zeiten neu: {a} bis {b}, Dauer {d} min, Ø {v} km/h").replace("{a}", _fmtPtTime(r.start)).replace("{b}", _fmtPtTime(r.end)).replace("{d}", Math.round((r.duration_s || 0) / 60)).replace("{v}", r.avg_kmh != null ? r.avg_kmh : "–"));
+  }
+  async function wzSplits() {
+    const every = parseFloat(document.getElementById("gpxi-wz-every")?.value) || 1;
+    const r = await _wzAnwenden("splits", { every_km: every }, t("gpxinspect.wz_splits_run", "Runden-Tabelle"));
+    if (!r || !Array.isArray(r.splits)) return;
+    const fmtD = (s) => (s == null ? "–" : _fmtDur(s * 1000));
+    const rows = r.splits.map((z, i) => `<tr><td>${(i + 1)}</td><td>${z.km.toFixed(2)}</td><td>${(z.dist_m / 1000).toFixed(2)}</td><td>${fmtD(z.duration_s)}</td><td>${z.kmh != null ? z.kmh.toFixed(1) : "–"}</td><td>${Math.round(z.up_m)}</td><td>${Math.round(z.down_m)}</td></tr>`).join("");
+    const csv = ["Nr;km bis;Strecke km;Dauer;km/h;Auf m;Ab m"].concat(r.splits.map((z, i) => [i + 1, z.km.toFixed(2), (z.dist_m / 1000).toFixed(2), fmtD(z.duration_s), z.kmh != null ? z.kmh.toFixed(1) : "", Math.round(z.up_m), Math.round(z.down_m)].join(";"))).join("\n");
+    const m = openModal({
+      title: "📊 " + t("gpxinspect.wz_splits_title", "Runden-Tabelle") + ` (${r.every_km} km · ${r.total_km} km)`,
+      body: `<div style="max-height:52vh;overflow:auto"><table class="gpxi-wz-tabelle"><thead><tr><th>#</th><th>${t("gpxinspect.wz_col_km", "km bis")}</th><th>${t("gpxinspect.wz_col_dist", "Strecke")}</th><th>${t("gpxinspect.wz_col_dur", "Dauer")}</th><th>km/h</th><th>↑ m</th><th>↓ m</th></tr></thead><tbody>${rows}</tbody></table></div>`,
+      footer: `<button class="btn" id="gpxi-wz-sp-copy">📋 ${t("gpxinspect.wz_copy", "Als Tabelle kopieren")}</button><button class="btn btn-primary" id="gpxi-wz-sp-ok">${t("common.ok", "OK")}</button>`,
+    });
+    document.getElementById("gpxi-wz-sp-ok").onclick = () => m.close();
+    document.getElementById("gpxi-wz-sp-copy").onclick = async () => { try { await navigator.clipboard.writeText(csv); toast(t("gpxinspect.wz_copied", "Tabelle kopiert (Semikolon-getrennt, passt in jede Tabellenkalkulation)."), "success", 3000); } catch (_) { toast(t("bugreport.copy_failed", "Konnte nicht in Zwischenablage kopieren."), "error", 3000); } };
+  }
+  window.__rzGpxiWerkzeug = { reverse: wzReverse, rotate: wzRotate, split: wzSplit, simplify: wzSimplify, retime: wzRetime, splits: wzSplits,
+    punkte: () => _points, ankerA: (i) => { _selA = i; _selB = null; renderPoints(); updateUI(); } };   // Prüfstand
   const _on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
+  _on("gpxi-wz-reverse", wzReverse);
+  _on("gpxi-wz-rotate", wzRotate);
+  _on("gpxi-wz-split", wzSplit);
+  _on("gpxi-wz-simplify", wzSimplify);
+  _on("gpxi-wz-retime-run", wzRetime);
+  _on("gpxi-wz-splits", wzSplits);
+  { const sel = document.getElementById("gpxi-wz-retime-mode"); if (sel) sel.addEventListener("change", _wzRetimeZeilen); }
   _on("gpxi-heal", healSegment);
   _on("gpxi-fill", fillGap);
   _on("gpxi-drawfill", startDraw);

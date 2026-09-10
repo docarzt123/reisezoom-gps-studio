@@ -2073,6 +2073,18 @@ geoetiquetador, animador de altitud, junto con fotos y carteles.
 **La ruta antigua queda intacta.** Si el resultado no te gusta, abre de nuevo
 el archivo original.
 
+### 🧰 Más herramientas — todo lo que puede la web (desde v0.9.687)
+Abajo en la barra lateral, encima del botón de guardar, están las mismas herramientas que en reisezoom.com/gps — aquí sin límite de tamaño, sin subida, y los sensores (pulso, cadencia …) se quedan con los puntos:
+
+- **Invertir** — el track corre al revés. Las marcas de tiempo se reflejan (el inicio sigue siendo el inicio); si no, el reloj iría hacia atrás.
+- **Inicio aquí (ancla A)** — empezar una ruta circular en otro sitio: poner el ancla A, pulsar, y el comienzo antiguo se añade al final. Si inicio y final están lejos, el aviso lo dice (no era una ruta cerrada).
+- **Dividir aquí (ancla A) …** — corta en el ancla A en dos partes; el punto de corte pertenece a ambas. En el diálogo: **conservar parte 1**, **conservar parte 2** o **guardar ambas como archivos** (`<nombre>_teil1.gpx`, `_teil2.gpx` junto al original, no se sobrescribe nada).
+- **Simplificar, desviación** — Douglas-Peucker: elimina los puntos que se desvían menos de los metros indicados de la línea; inicio y final se mantienen siempre. («Reducir» más arriba toma en cambio cada n-ésimo punto de forma uniforme.)
+- **Tiempos** — *desplazar* (segundos, también negativos: zona horaria, horario de verano olvidado, sincronización de cámara), *fijar inicio en* (fecha/hora), *fijar duración en* (minutos, comprime o estira todos los intervalos). Necesita marcas de tiempo; sin reloj, usa antes «crear eje de tiempo» arriba.
+- **Parciales cada … km → Tabla de parciales** — tiempos parciales por tramo: distancia, duración, ritmo, desnivel positivo y negativo. «Copiar como tabla» la deja separada por punto y coma en el portapapeles (vale para cualquier hoja de cálculo).
+
+Cada paso es un paso de deshacer (⌘Z). Inicio y dividir necesitan exactamente **un** ancla (A sin B).
+
 ### Deshacer
 **⌘Z** deshace cualquier edición, **⌘⇧Z** rehace (o los botones ↩︎/↪︎). Al cargar un track nuevo, el historial arranca de cero.
 

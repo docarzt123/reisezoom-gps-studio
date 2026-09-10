@@ -158,7 +158,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.686"
+APP_VERSION = "0.9.687"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -8424,6 +8424,65 @@ class Api:
                                   schritte=(None if schritte is None else list(schritte)))
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    def gpxinspect_werkzeug(self, action: str, points: list, params: dict = None) -> dict:
+        """10.09.2026 (Marc: „die App muss alles können, was auch im Web geht") — die
+        Web-Werkzeuge im Inspektor, über denselben Kern (core/gpxtools, core/gpxsimplify):
+          reverse   Track umkehren (Zeiten gespiegelt)
+          rotate    Startpunkt an Index `at_index` verschieben (Rundtour)
+          split     an Index `at_index` teilen → {parts: [a, b], counts, lengths_m}
+          retime    Zeiten: mode shift|start|duration|speed (+ shift_s, start_iso, duration_s, speed_kmh)
+          splits    Runden-Tabelle je `every_km` (reine Auswertung)
+          simplify  Douglas-Peucker mit `tol_m`
+        Punkte behalten ihre Zusatzfelder (oi/si) — die Sensoren bleiben beim Speichern."""
+        from core import gpxtools, gpxsimplify
+        q = dict(params or {})
+        pts = list(points or [])
+        try:
+            a = str(action or "").lower()
+            if a == "reverse":
+                return gpxtools.reverse_points(pts)
+            if a == "rotate":
+                return gpxtools.rotate_start(pts, int(q.get("at_index") or 0))
+            if a == "split":
+                return gpxtools.split_points(pts, at_index=int(q.get("at_index") or 0))
+            if a == "retime":
+                return gpxtools.retime_points(
+                    pts, mode=str(q.get("mode") or "shift"), shift_s=float(q.get("shift_s") or 0),
+                    start_iso=(q.get("start_iso") or None),
+                    duration_s=(None if q.get("duration_s") in (None, "") else float(q["duration_s"])),
+                    speed_kmh=(None if q.get("speed_kmh") in (None, "") else float(q["speed_kmh"])))
+            if a == "splits":
+                return gpxtools.km_splits(pts, float(q.get("every_km") or 1.0))
+            if a == "simplify":
+                return gpxsimplify.simplify_points(pts, q.get("tol_m", 5))
+            return {"ok": False, "error": f"unbekanntes Werkzeug: {a}"}
+        except Exception as e:  # noqa: BLE001
+            log.warning("gpxinspect_werkzeug(%s): %s", action, e)
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    def gpxinspect_save_teile(self, parts: list, src_path: str, sources: list = None) -> dict:
+        """Beide Hälften nach dem Teilen als Dateien neben die Quelle: <name>_teil1.gpx, _teil2.gpx."""
+        try:
+            src = src_path or "track.gpx"
+            stem, _ext = os.path.splitext(os.path.basename(src))
+            ordner = os.path.dirname(src) or os.getcwd()
+            raus = []
+            for k, pts in enumerate(parts or [], start=1):
+                out = os.path.join(ordner, f"{stem}_teil{k}.gpx")
+                n = 1
+                while os.path.exists(out):
+                    n += 1
+                    out = os.path.join(ordner, f"{stem}_teil{k}-{n}.gpx")
+                res = cgpxedit.save_points(list(pts or []), out, name=f"{stem} Teil {k}", src_path=src_path,
+                                           fmt="gpx", sources=list(sources) if sources else None)
+                if not res.get("ok"):
+                    return {"ok": False, "error": res.get("error") or "Speichern fehlgeschlagen", "pfade": raus}
+                raus.append(out)
+            return {"ok": True, "pfade": raus}
+        except Exception as e:  # noqa: BLE001
+            log.error("gpxinspect_save_teile: %s", e)
+            return {"ok": False, "error": str(e)}
 
     def gpxinspect_save(self, points: list, src_path: str,
                         out_path: str = "", fmt: str = "gpx",

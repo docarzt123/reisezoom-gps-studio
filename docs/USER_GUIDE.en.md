@@ -2026,6 +2026,18 @@ tour map, geotagger, elevation animator, plus photos and signs.
 **The old tour stays untouched.** If you don't like the result, just open the
 original file again.
 
+### 🧰 More tools — everything the web can do (since v0.9.687)
+At the bottom of the sidebar, above the save button, you find the same tools as on reisezoom.com/gps — here without size limit, without upload, and the sensors (heart rate, cadence …) stay with the points:
+
+- **Reverse** — the track runs backwards. Timestamps are mirrored (the start stays the start), otherwise the clock would run backwards.
+- **Start here (anchor A)** — start a loop somewhere else: set anchor A, click, the old beginning is appended at the end. If start and end are far apart, the note says so (it was not a closed loop).
+- **Split here (anchor A) …** — cuts at anchor A into two parts; the cut point belongs to both. In the dialog: **keep part 1**, **keep part 2** or **save both as files** (`<name>_teil1.gpx`, `_teil2.gpx` next to the source, nothing is overwritten).
+- **Simplify, deviation** — Douglas-Peucker: removes points that deviate less than the given metres from the line; start and end always stay. (“Reduce” further up takes every n-th point evenly instead.)
+- **Times** — *shift by* (seconds, negative allowed: time zone, forgotten DST, camera sync), *set start to* (date/time), *set duration to* (minutes, squeezes or stretches all intervals). Needs timestamps — without a clock, use “create time axis” above first.
+- **Splits every … km → Splits table** — split times per section: distance, duration, pace, climb and descent. “Copy as table” puts it semicolon-separated on the clipboard (fits any spreadsheet).
+
+Every step is an undo step (⌘Z). Start and split need exactly **one** anchor (A without B).
+
 ### Undo
 **⌘Z** undoes every edit, **⌘⇧Z** redoes it (or the ↩︎/↪︎ buttons). When you load a new track, the history starts fresh.
 
