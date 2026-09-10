@@ -86,3 +86,29 @@ gelb), Grau nie auf der Kachel.
 1. Kern + Wächter (halber Tag). 2. Archiv (Spalten, Marke, Detailspalte, Alle prüfen, Frage
 nach Update). 3. Inspektor-Kasten. 4. Animator-Toast. 5. XML-Reparatur. 6. Doku, Build,
 Echt-Test, Commit. Web-Übernahme später, eigener Schritt.
+
+## 6. Stand der Umsetzung (10.09.2026 abends, v0.9.688 lokal)
+
+Gebaut und mit Wächtern abgedeckt: Kern (`core/trackcheck.py`, 13 Punkt-Befunde), Heil-Schritte
+(`core/gpxheal.py`), Archiv (Spalten, Kachel-Marke, Detailspalte, „Alle Touren prüfen", Frage nach
+dem Update, „Ist so in Ordnung"), Inspektor-Befund-Kasten mit Häkchen und „Reparieren", Lade-Hinweis
+mit Knopf, XML-Reparatur (`core/gpxrepair.py`, Fehlerliste „beschädigt, reparierbar"). Web später.
+
+**Abweichungen von §2–§4, beim Bauen entschieden (an Marcs Archiv gemessen, 726 Touren):**
+
+| Punkt | Spezifikation | Umgesetzt | Warum |
+|---|---|---|---|
+| Ort von „Alle prüfen" | ⋯-Menü | Knopf **„🩺 Alle Touren prüfen" links unten** neben „Doppelte finden" | Das Archiv hat kein ⋯-Menü; der Hinweis bei „Später" nennt diesen Ort |
+| Lücken | detectGaps Stufe 5 (≈ 42 m) | zusätzlich **≥ 100 m**, nie bei **Pause ≥ 2 min mit ≤ 100 m Versatz** (Wirtshaus), nur bei Tracks **mit Zeit** | ab 42 m trugen 186 von 413 aufgezeichneten Touren die Marke, ab 100 m sind es 86; die Reparatur füllt genau diese, der Befund verschwindet. Geplante Routen ohne Zeit haben naturgemäß weite Abstände |
+| Geplante Routen | nicht erwähnt | Aufzeichnungs-Befunde (Sprünge, Lücken, Tempo, Standdrift, Doppelpunkte, Sekunden, Zeit rückwärts, Uhr) **entfallen bei geplanten Routen**; Höhe/Zeit-Hinweise bleiben | Komoot-Planungen tragen Kunst-Zeiten: 303 von 313 geplanten Touren hätten „Lücken" gemeldet |
+| Höhe fehlt | `ele` fehlt | nur wenn **teilweise** fehlt (bekannte Werte da) | ganz ohne Höhe gibt es nichts zu interpolieren, der Befund bliebe stehen |
+| Standdrift | eigener Befund | wird **vor** den Sprüngen bestimmt, das Gezitter im Knäuel zählt nicht als Sprung | sonst meldete jede Pause zusätzlich Sprünge |
+| Tempo | tempoEntzerren | Sprung-Gruppen werden eingeteilt: **raus und zurück = Sprung**, **dauerhafter Versatz = Tempo** | derselbe Punkt darf nicht doppelt zählen; die Reparatur ist eine andere (Position vs. Zeit) |
+| Standdrift-Reparatur | Punkte auf einen Ort | plus **Rampe** zum nächsten Punkt im üblichen Tempo | sonst entstünde am Ende der Pause ein neuer Sprung |
+
+**Gemessen (Marcs Archiv, 10.09.2026):** 726 Touren in 19–21 s (≈ 30 s je 1000). Marken: 16 rot,
+146 gelb, 564 ohne. Arten: Lücken 86, Tempo 57, Standdrift 37, Sprünge 16, Doppelpunkte 8,
+gleiche Sekunden 1. Ohne die Regeln oben: 515 gelb.
+
+**Offen:** Echt-Test in der App (Marcs Archiv „Alle prüfen", X5-10-Hz-Track, Track mit Lücke,
+abgeschnittene Datei) — nur mit Marcs Freigabe für den Rechner. Web-Übernahme.

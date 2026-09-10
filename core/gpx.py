@@ -61,6 +61,9 @@ class TrackStats:
     # v0.9.501 — Tour-Ebene aus FIT (session/sport/device_info/weather), roh.
     # Leer bei GPX ohne Sidecar — kein Format außer FIT liefert so etwas.
     tour_meta: dict = field(default_factory=dict)
+    # 10.09.2026 (Track-Check): Punkte, deren <time> ohne Z/Offset kam und als UTC
+    # übernommen wurde — der Inspektor zeigt das als grauen Hinweis (Geotagger!).
+    zeit_ohne_zone: int = 0
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -400,6 +403,7 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
 
     pts: List[TrackPoint] = []
     seg_namen: List[str] = []
+    _ohne_zone = 0
     # 03.09.2026 (Beta-Tester, 3 zusammengeführte Routen): Der Name der DATEI
     # steht in <metadata><name> — das Zusammenführen schreibt den gewählten
     # Namen genau dorthin, jede Etappe behält ihren eigenen <trk><name>. Bisher
@@ -423,6 +427,8 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
             for p in seg.points:
                 t_iso = None
                 if p.time is not None:
+                    if not p.time.tzinfo:
+                        _ohne_zone += 1
                     t = p.time if p.time.tzinfo else p.time.replace(tzinfo=timezone.utc)
                     t_iso = t.astimezone(timezone.utc).isoformat()
                 _extra = _read_point_extensions(p)   # gpxtpx/gpxpx (Strava/Garmin)
@@ -456,6 +462,8 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
             for p in route.points:
                 t_iso = None
                 if p.time is not None:
+                    if not p.time.tzinfo:
+                        _ohne_zone += 1
                     t = p.time if p.time.tzinfo else p.time.replace(tzinfo=timezone.utc)
                     t_iso = t.astimezone(timezone.utc).isoformat()
                 pts.append(TrackPoint(lat=p.latitude, lon=p.longitude, ele=p.elevation,
@@ -550,6 +558,7 @@ def parse_gpx(path: str, text: str | None = None) -> tuple[List[TrackPoint], Tra
         name=name,
         sensor_fields=sensor_fields,
         tour_meta=_tour_meta,
+        zeit_ohne_zone=_ohne_zone,
     )
     return pts, stats
 

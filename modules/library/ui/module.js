@@ -62,6 +62,7 @@ function mountLibrary(body, headerActions) {
   // Hintergrundlauf „Kartenbilder holen": läuft ohne Zutun, die Kacheln sollen
   // die eintröpfelnden Bilder von selbst zeigen.
   let _autoThumbs = null, _autoWatch = null, _autoTick = 0;
+  let _checkLauf = null;   // 10.09.2026 — laufender Track-Check „Alle prüfen" (Fortschritt im Kopf)
   let _autoPlaces = null;   // läuft der Ortslauf gerade?
   // Mehrfachauswahl: Menge der gewählten Pfade. Ist mehr als eine Tour gewählt,
   // zeigt die rechte Spalte das Sammel-Panel statt der Einzel-Ansicht — Werkzeuge
@@ -247,6 +248,7 @@ function mountLibrary(body, headerActions) {
       <div class="lib-nav-foot">
         <button class="btn btn-primary btn-sm" id="lib-folders-btn" type="button">📂 ${T("library.folders_btn", "Ordner & Einlesen")}</button>
         <button class="btn btn-ghost btn-sm" id="lib-dupes" type="button">${T("library.duplicates", "Doppelte finden")}</button>
+        <button class="btn btn-ghost btn-sm" id="lib-check-all" type="button" title="${esc(T("trackcheck.all_tip", "Prüft jede Tour im Archiv auf Sprünge, Lücken und andere Aufzeichnungsfehler. Etwa eine Minute je 1000 Touren, abbrechbar. Es wird nur gezählt, nichts verändert."))}">${T("trackcheck.all_btn", "🩺 Alle Touren prüfen")}</button>
         <div class="lib-nav-hint" id="lib-nav-hint"></div>
       </div>
       </div>
@@ -680,6 +682,9 @@ function mountLibrary(body, headerActions) {
       ${_autoThumbs ? `<span class="lib-head-auto">🗺️ ${T("library.map_thumbs_auto", "Kartenbilder werden geladen")} ${_autoThumbs.done || 0}/${_autoThumbs.total || "?"}</span>` : ""}
       ${_ortAktiv ? `<button class="lib-head-ort is-on" id="lib-ort-aus" type="button" title="${T("library.area_off", "Nur Treffer im Text zeigen")}">📍 ${T("library.found_area", "Gegend")}: <b>${esc(_ortAktiv.name.split(",")[0])}</b> — ${_total} ${T("library.tours_here", "Touren hier")}${_ortAktiv.textTreffer ? ` · ${_ortAktiv.textTreffer} ${T("library.by_name", "über den Namen")}` : ""} ✕</button>` : ""}
       ${_autoPlaces ? `<span class="lib-head-auto">📍 ${T("library.places_auto", "Gegenden werden benannt")} ${_autoPlaces.done || 0}/${_autoPlaces.total || "?"}</span>` : ""}
+      ${_checkLauf ? `<span class="lib-head-check">${T("trackcheck.progress", "🩺 Track-Check: prüfe {done} von {total}")
+          .replace("{done}", _checkLauf.done || 0).replace("{total}", _checkLauf.total || "?")}
+          <button type="button" id="lib-check-stop">${T("trackcheck.cancel", "Abbrechen")}</button></span>` : ""}
       ${s.n_failed ? `<button class="lib-head-warn${s.n_nogps === s.n_failed ? " is-calm" : ""}" id="lib-show-errors">${s.n_failed} ${
         // Ist ALLES nur „ohne Koordinaten" (Rolle, Halle, Kraftraum), dann ist
         // nichts kaputt — dann darf hier auch nicht „nicht lesbar" stehen.
@@ -693,6 +698,8 @@ function mountLibrary(body, headerActions) {
     if (eb) eb.onclick = () => showErrors(false);
     const aus = $("lib-ort-aus");
     if (aus) aus.onclick = () => { _ortAus = true; reload(); };
+    const cs = $("lib-check-stop");
+    if (cs) cs.onclick = () => { api().library_track_check_stop().catch(() => {}); };
   }
 
   function fillYearOptions() {
@@ -1380,6 +1387,12 @@ function mountLibrary(body, headerActions) {
       (it.n_dateien || 1) > 1 ? `<span class="lib-badge-in lib-badge-orte" title="${esc(
           T("library.orte_titel", "Diese Tour stammt aus {n} Dateien. Sie liegt vollständig in deiner Bibliothek.")
             .replace("{n}", it.n_dateien))}">${it.n_dateien}×</span>` : "",
+      // 10.09.2026 — Track-Check (docs/TRACK-CHECK.md): Warnschild, rot vor gelb,
+      // grau nie. Abgewählte Arten („Ist so in Ordnung") zählen nicht mehr.
+      (it.check && it.check.marke) ? `<span class="lib-badge-in lib-badge-check is-${it.check.marke}" title="${esc(
+          T("trackcheck.badge_tip", "Track-Check: {liste} — {stufe}. Klick zeigt die Details.")
+            .replace("{liste}", window.rzTrackCheckKurz ? rzTrackCheckKurz(it.check.befunde) : "")
+            .replace("{stufe}", window.rzTrackCheckStufeText ? rzTrackCheckStufeText(it.check.marke) : ""))}">⚠︎</span>` : "",
     ].filter(Boolean).join("");
     return `
       ${linksOben ? `<span class="lib-badge-grp">${linksOben}</span>` : ""}
@@ -2992,6 +3005,7 @@ function mountLibrary(body, headerActions) {
       ${!it.exists ? `<div class="lib-warn">${it.missing_since
           ? T("library.missing_long", "Diese Datei ist gerade nicht auffindbar — vermutlich liegt sie auf einer Platte, die nicht angeschlossen ist. Die Tour bleibt im Archiv; sobald die Datei wieder da ist, geht alles weiter. Nach 90 Tagen ohne Wiedersehen verschwindet der Eintrag (deine Angaben dazu bleiben trotzdem erhalten).")
           : T("library.file_gone", "Die Datei liegt nicht mehr an diesem Ort.")}</div>` : ""}
+      ${checkBoxHtml(it)}
 
       <div class="lib-actions">
         ${_ghostModus()
@@ -3080,6 +3094,7 @@ function mountLibrary(body, headerActions) {
 
     box.querySelectorAll("[data-open]").forEach(b => { b.onclick = () => openIn(b.dataset.open); });
     box.querySelectorAll("[data-ghost]").forEach(b => { b.onclick = () => alsGhost(_sel ? [_sel.path] : []); });
+    bindCheckBox(it);
     _ghostBannerBinden();
     initHelpTips(box);   // „?"-Erklärblasen der Detailspalte
 
@@ -3992,6 +4007,86 @@ function mountLibrary(body, headerActions) {
     if (ok !== false && typeof switchMod === "function") switchMod(slug);
   }
 
+  // ── Track-Check (10.09.2026, docs/TRACK-CHECK.md) ─────────────────────
+  // Detailspalte: „Track-Check: 3 Sprünge, 1 Lücke" + Knöpfe. Je Befund
+  // „Ist so in Ordnung" (dauerhaft, je Version und Art), Abgewähltes grau mit
+  // „wieder anzeigen". Nichts läuft ungefragt: „Prüfen" rechnet EINE Tour neu.
+  function checkBoxHtml(it) {
+    if (it.error || !it.exists) return "";
+    const c = it.check || {};
+    const zeile = (b) => `<div class="lib-check-row${b.stufe === "grau" ? " is-grau" : ""}" data-key="${esc(b.key)}">
+        <span class="lib-check-dot" style="background:${b.stufe === "rot" ? "#e53935" : b.stufe === "gelb" ? "#d4a017" : "var(--text-muted)"}"></span>
+        <span class="lib-check-txt">${esc(rzTrackCheckZeile(b))}</span>
+        <button type="button" class="lib-check-ok" data-check-ok="${esc(b.key)}" title="${esc(T("trackcheck.btn_ok_tip", "Diese Befund-Art bei dieser Tour nicht mehr melden — weder auf der Kachel noch beim Laden."))}">${T("trackcheck.btn_ok", "Ist so in Ordnung")}</button>
+      </div>`;
+    const abgew = (c.abgewaehlt || []);
+    const marke = c.marke || "";
+    const titel = !c.geprueft ? T("trackcheck.unchecked", "Track-Check: noch nicht geprüft.")
+      : (c.befunde || []).length ? `${T("trackcheck.title", "Track-Check")}: ${esc(rzTrackCheckKurz(c.befunde, 4))}`
+      : T("trackcheck.ok_none", "Track-Check: alles in Ordnung.");
+    const reparierbar = (c.befunde || []).some(b => b.stufe !== "grau");
+    return `<div class="lib-check${marke ? " is-" + marke : ""}" id="lib-check-box">
+      <div class="lib-check-title"><span class="lib-check-dot"></span><span>${titel}</span></div>
+      ${(c.befunde || []).map(zeile).join("")}
+      ${abgew.length ? `<div class="lib-check-hidden">${(T("trackcheck.hidden_n", "{n} Befund-Art ausgeblendet:|{n} Befund-Arten ausgeblendet:").split("|")[abgew.length === 1 ? 0 : 1] || "").replace("{n}", abgew.length)}
+        ${abgew.map(b => `<div class="lib-check-row is-grau" data-key="${esc(b.key)}"><span class="lib-check-txt">${esc(rzTrackCheckZeile(b))}</span>
+          <button type="button" class="lib-check-ok" data-check-show="${esc(b.key)}">${T("trackcheck.btn_show_again", "wieder anzeigen")}</button></div>`).join("")}</div>` : ""}
+      <div class="lib-check-actions">
+        ${reparierbar ? `<button class="btn btn-primary btn-sm" data-open="gpxinspect" id="lib-check-repair">${T("trackcheck.btn_repair", "Im Inspektor reparieren")}</button>` : ""}
+        <button class="btn btn-ghost btn-sm" id="lib-check-run">${c.geprueft ? T("trackcheck.btn_recheck", "Neu prüfen") : T("trackcheck.btn_check", "Prüfen")}</button>
+      </div>
+    </div>`;
+  }
+  function bindCheckBox(it) {
+    const box = $("lib-check-box");
+    if (!box) return;
+    const uebernehmen = (res) => {
+      if (!res || !res.ok) { toast(T("trackcheck.error", "Track-Check nicht möglich: {e}").replace("{e}", (res && res.error) || "?"), "error"); return false; }
+      if (res.track) Object.assign(it, res.track); else if (res.check) it.check = res.check;
+      renderDetail();
+      renderView();     // Kachel-Marke nachziehen
+      return true;
+    };
+    const run = $("lib-check-run");
+    if (run) run.onclick = async () => {
+      run.disabled = true;
+      let r; try { r = await api().library_track_check(it.path); } catch (e) { r = { ok: false, error: String(e) }; }
+      if (uebernehmen(r)) toast(T("trackcheck.rechecked", "Neu geprüft."), "info", 1600);
+    };
+    box.querySelectorAll("[data-check-ok]").forEach(b => b.onclick = async () => {
+      let r; try { r = await api().library_track_check_ok(it.path, b.dataset.checkOk, true); } catch (e) { r = { ok: false, error: String(e) }; }
+      uebernehmen(r);
+    });
+    box.querySelectorAll("[data-check-show]").forEach(b => b.onclick = async () => {
+      let r; try { r = await api().library_track_check_ok(it.path, b.dataset.checkShow, false); } catch (e) { r = { ok: false, error: String(e) }; }
+      uebernehmen(r);
+    });
+  }
+  async function trackCheckAlleStarten(nurUngeprueft) {
+    let r; try { r = await api().library_track_check_alle(!!nurUngeprueft); } catch (e) { r = { ok: false, error: String(e) }; }
+    if (!r || !r.ok) { toast(T("trackcheck.error", "Track-Check nicht möglich: {e}").replace("{e}", (r && r.error) || "?"), "error"); return; }
+    _checkLauf = { done: 0, total: 0, running: true };
+    renderHead();
+    setTimeout(watchAutoThumbs, 800);
+  }
+  // Nach dem Update EINMAL fragen (Marc: „nichts im Hintergrund, nach dem Update
+  // wird gefragt, nicht nochmal, und sagen wo man es findet").
+  async function trackCheckFrage() {
+    let st; try { st = await api().library_track_check_stand(); } catch (_) { return; }
+    if (_unmounted || !st || !st.ok || st.gefragt || st.laeuft || !(st.ungeprueft > 0)) return;
+    const merken = () => { try { api().library_track_check_gefragt(); } catch (_) {} };
+    const m = openModal({
+      title: T("trackcheck.frage_titel", "Track-Check: Bestand jetzt prüfen?"),
+      body: `<p style="font-size:13px;line-height:1.55">${esc(T("trackcheck.frage_text", "GPS Studio kann jetzt jede Tour auf Sprünge, Lücken und andere Aufzeichnungsfehler prüfen und die Reparatur mit einem Klick anbieten. Sollen die {n} vorhandenen Touren jetzt geprüft werden? Das dauert etwa eine Minute je 1000 Touren. Es wird nur gezählt, an den Dateien ändert sich nichts.").replace("{n}", st.ungeprueft))}</p>`,
+      footer: `<button class="btn" id="lib-check-frage-spaeter">${T("trackcheck.frage_spaeter", "Später")}</button>
+               <button class="btn btn-primary" id="lib-check-frage-ja">${T("trackcheck.frage_ja", "Jetzt prüfen")}</button>`,
+      onClose: () => { merken(); },
+    });
+    const ja = $("lib-check-frage-ja"), sp = $("lib-check-frage-spaeter");
+    if (ja) ja.onclick = () => { m.close(); trackCheckAlleStarten(true); };
+    if (sp) sp.onclick = () => { m.close(); toast(T("trackcheck.frage_spaeter_hint", "Alles klar — nicht wieder fragen. Du findest es jederzeit im Archiv links unten unter „Alle Touren prüfen“."), "info", 6000); };
+  }
+
   // ── Ordner + Einlesen ─────────────────────────────────────────────────
   let _foldersModal = null;
 
@@ -4330,7 +4425,9 @@ function mountLibrary(body, headerActions) {
     };
     const items = (res && res.items) || [];
     const ohne = items.filter(i => i.error_kind === "no_points");
-    const kaputt = items.filter(i => i.error_kind !== "no_points");
+    // 10.09.2026 — Track-Check `xml_broken`: beschädigt, aber reparierbar (eigene Gruppe mit Knopf)
+    const reparierbar = items.filter(i => i.error_kind === "broken_repairable");
+    const kaputt = items.filter(i => i.error_kind !== "no_points" && i.error_kind !== "broken_repairable");
     const gesamt = (zahlen && zahlen.gesamt) || items.length;
     const gekuerzt = gesamt > items.length;
 
@@ -4350,6 +4447,7 @@ function mountLibrary(body, headerActions) {
         </label>
         <button class="btn btn-ghost btn-sm lib-err-zeigen" data-zeigen="${esc(i.path)}"
                 title="${T("library.err_reveal_tip", "Die Datei im Finder zeigen — sie wird nicht verändert")}">📁</button>
+        ${i.error_kind === "broken_repairable" ? `<button class="btn btn-primary btn-sm" data-reparieren="${esc(i.path)}">${T("library.err_repair_btn", "🩹 Reparieren")}</button>` : ""}
       </div>`;
     const gruppe = (titel, hinweis, liste) => !liste.length ? "" : `
       <div class="lib-dupe-group">
@@ -4359,7 +4457,7 @@ function mountLibrary(body, headerActions) {
       </div>`;
 
     openModal({
-      title: kaputt.length
+      title: (kaputt.length || reparierbar.length)
         ? T("library.unreadable", "Datei(en) nicht lesbar")
         : T("library.no_track_n", "Datei(en) ohne Strecke"),
       body: `<div class="lib-dupes">${items.length ? `
@@ -4393,6 +4491,10 @@ function mountLibrary(body, headerActions) {
                    + "Typisch für Aufzeichnungen ohne GPS: Rolle, Kraftraum, Bahnschwimmen. "
                    + "Eine Tour lässt sich daraus nicht bauen."),
                  ohne)}
+        ${gruppe(T("library.err_repairable", "beschädigt, reparierbar"),
+                 T("library.err_repairable_hint",
+                   "Diese Dateien sind kaputt, aber die Punkte sind noch da — abgeschnittene Übertragung, ein „&“ im Namen, fehlende Kopfzeile. „Reparieren“ legt eine heile Fassung als Tour ins Archiv; deine Datei bleibt, wie sie ist."),
+                 reparierbar)}
         ${gruppe(T("library.err_broken", "nicht lesbar"),
                  T("library.err_broken_hint",
                    "Diese Dateien konnten nicht gelesen werden — abgebrochene Übertragung, "
@@ -4422,6 +4524,25 @@ function mountLibrary(body, headerActions) {
 
     if (!items.length) return;
 
+    // Reparieren (Track-Check `xml_broken`): heile Fassung als Tour, Datei bleibt.
+    document.querySelectorAll("[data-reparieren]").forEach(b => {
+      b.onclick = async (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        b.disabled = true;
+        let r; try { r = await api().library_repair_file(b.dataset.reparieren); } catch (e) { r = { ok: false, error: String(e) }; }
+        if (r && r.ok) {
+          const name = String(b.dataset.reparieren || "").split(/[\\/]/).pop();
+          toast(T("library.err_repaired", "Repariert: {name} liegt jetzt als Tour im Archiv ({n} Punkte).").replace("{name}", name).replace("{n}", r.n_points || 0), "success", 5000);
+          applog("info", `[Archiv] repariert: ${name} → ${(r.geo_hash || "").slice(0, 12)} (${(r.schritte || []).join(",")})`);
+          await reload(); await reloadStats();
+          openModal({}).close();
+          showErrors(zeigeWeg);
+        } else {
+          b.disabled = false;
+          toast(T("library.err_repair_failed", "Reparatur nicht möglich: {e}").replace("{e}", (r && r.error) || "?"), "error", 5000);
+        }
+      };
+    });
     // Die Datei im Finder zeigen, bevor man über sie entscheidet.
     document.querySelectorAll("[data-zeigen]").forEach(b => {
       b.onclick = (ev) => {
@@ -4750,6 +4871,7 @@ function mountLibrary(body, headerActions) {
   $("lib-map-png").onclick = saveMapPng;
   $("lib-folders-btn").onclick = openFoldersModal;
   $("lib-dupes").onclick = showDuplicates;
+  $("lib-check-all").onclick = () => trackCheckAlleStarten(false);
   $("lib-col-new").onclick = () => addToCollectionDialog([]);
   document.querySelectorAll(".lib-view").forEach(b => {
     b.onclick = () => {
@@ -4801,17 +4923,26 @@ function mountLibrary(body, headerActions) {
     let st = null, ort = null;
     try { st = await api().library_map_thumbs_status(); } catch (_) { return; }
     try { ort = await api().library_places_status(); } catch (_) {}
+    let chk = null;
+    try { chk = await api().library_track_check_status(); } catch (_) {}
     if (_unmounted) return;
-    const wasRunning = !!_autoThumbs || !!_autoPlaces;
+    const wasRunning = !!_autoThumbs || !!_autoPlaces || !!_checkLauf;
     _autoThumbs = (st && st.running) ? st : null;
     _autoPlaces = (ort && ort.running) ? ort : null;
+    const checkWar = !!_checkLauf;
+    _checkLauf = (chk && chk.running) ? chk : null;
+    if (checkWar && !_checkLauf && chk && chk.result) {
+      const r = chk.result;
+      toast(T("trackcheck.done_toast", "Track-Check fertig: {n} Touren geprüft — {rot} rot, {gelb} gelb.")
+        .replace("{n}", r.n || 0).replace("{rot}", r.rot || 0).replace("{gelb}", r.gelb || 0), "success", 5000);
+    }
     // 22.08.2026 (Audit): nie mitten ins Tippen (Notiz/Schlagworte) hinein neu
     // rendern — der Auto-Tick ersetzte die Textarea und fraß die Eingabe.
     const tippt = (() => {
       const a = document.activeElement;
       return !!(a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT") && body.contains(a));
     })();
-    if (_autoThumbs || _autoPlaces) {
+    if (_autoThumbs || _autoPlaces || _checkLauf) {
       renderHead();
       if (++_autoTick % 4 === 0 && !tippt) reload();
     } else if (wasRunning) {
@@ -4821,6 +4952,7 @@ function mountLibrary(body, headerActions) {
   }
   _autoWatch = setInterval(watchAutoThumbs, 5000);
   watchAutoThumbs();
+  trackCheckFrage();
 
   return function cleanup() {
     _unmounted = true;

@@ -730,6 +730,38 @@ tracks. La app la lee de inmediato; **700 archivos tardan unos 20 segundos.** La
 se incluyen. Puedes vigilar tantas carpetas como quieras. (Mientras no haya ninguna carpeta,
 el área vacía muestra un gran botón **«+ Añadir carpeta»**.)
 
+### 🩺 Revisión del track — el archivo te dice qué falla en un track (desde v0.9.688)
+Un salto GPS, un hueco o una cámara que escribe diez puntos por segundo suelen verse solo en el
+vídeo final. Por eso el archivo revisa cada ruta al importarla y muestra en la tarjeta, arriba a
+la izquierda, una **señal de aviso ⚠︎**: **rojo** = se ve en el vídeo (saltos, valores erróneos
+de arranque en frío, altitudes basura, archivo dañado), **amarillo** = empeora imagen o datos
+(huecos, altitud ausente, velocidad imposible, tiempo hacia atrás, puntos duplicados, segundos
+repetidos, deriva en parada, reloj mal puesto). Avisos como «sin marcas de tiempo» (ruta
+planificada) u «horas sin zona horaria» son grises y no llevan señal. Solo se informa de lo que
+la app también puede reparar.
+
+En la **columna de detalles** aparece la línea «Revisión del track: 3 saltos, 1 hueco (240 m)»
+con tres opciones: **«Reparar en el Inspector»** abre la ruta allí con el cuadro de hallazgos,
+**«Revisar de nuevo»** vuelve a calcular la ruta (p. ej. tras una reparación) y, por hallazgo,
+**«Así está bien»**: la app deja de avisar de ese tipo en esta ruta, ni en la tarjeta ni al
+cargar. Los tipos ocultos quedan en gris debajo con «mostrar de nuevo». Una nueva versión de la
+ruta (tras sanar) se revisa de nuevo.
+
+**Lo que nunca es un hallazgo:** una pausa en el mismo sitio (una posada), una noche con
+kilómetros de por medio (ruta de varios días), el salto entre dos etapas y la separación amplia
+de puntos en rutas planificadas sin hora.
+
+**Cuándo se revisa:** al importar, al abrir en el Inspector, por ruta con «Revisar de nuevo» y
+para todo el archivo con **«🩺 Revisar todas las rutas»** abajo a la izquierda (progreso en la
+cabecera, «Cancelar» al lado; aproximadamente un minuto por cada 1000 rutas). Tras la
+actualización el archivo pregunta **una vez** si revisar las rutas existentes; con «Más tarde»
+no vuelve a preguntar y te dice dónde está el botón. **Nada corre sin preguntar en segundo
+plano.** Revisar solo cuenta; tus archivos no cambian.
+
+**Archivos dañados:** si un GPX aparece en la lista de errores como «dañado, reparable»
+(transferencia cortada, un «&» en el nombre, cabecera ausente), **«🩹 Reparar»** guarda una
+copia sana como ruta en el archivo. Tu archivo queda como está.
+
 ### 🌊 El enjambre — todas las rutas a la vez (desde v0.9.557, completo en el Animador desde v0.9.569)
 Marca varias rutas (⌘/Ctrl+clic) o abre una colección y elige
 **«🌊 Animar como enjambre …»**: un pequeño diálogo pregunta por el **modo de
@@ -2024,6 +2056,24 @@ Tras el auto-curado aparece una caja **«Antes → Después»**: puntos, distanc
 velocidad máxima y desnivel comparados (las mejoras en verde), y la **ruta
 antigua permanece en el mapa como línea gris discontinua** hasta que cierres la
 caja — así se ve exactamente qué cambió el curado.
+
+### 🩺 El cuadro de hallazgos — revisión al abrir (desde v0.9.688)
+En cuanto un track está en el Inspector, el cuadro de hallazgos aparece **arriba del todo**:
+«Revisión del track: 2 saltos, 1 hueco (240 m), reloj mal puesto (1989)». Cada línea tiene una
+**casilla** (rojo y amarillo marcados de antemano, los avisos grises no) y **«🩹 Reparar»**
+ejecuta exactamente los pasos marcados: poner los saltos sobre la línea (la hora se mantiene),
+rellenar huecos con puntos en línea recta, suavizar la velocidad imposible (la distancia se
+mantiene, la ruta dura unos segundos más), arreglar el tiempo hacia atrás, quitar puntos
+duplicados, repartir segundos repetidos, agrupar la deriva en parada en un solo punto (la pausa
+sigue siendo pausa), interpolar altitudes basura y ausentes, descartar los puntos de arranque
+en frío. Después aparece el cuadro **antes → después**, **⌘Z** lo deshace todo y la revisión se
+repite: lo reparado desaparece del cuadro.
+
+Los hallazgos sin arreglo automático tienen un salto en lugar de casilla: «reloj mal puesto»
+lleva a **Ajustar horas**, «sin marcas de tiempo» a **Crear eje de tiempo**. Si la ruta está en
+el archivo, cada hallazgo tiene **«Así está bien»**: ese tipo deja de avisarse en esta ruta
+(véase Archivo). Si prefieres rellenar huecos siguiendo caminos reales, sigue usando **Sanar
+(automático)** con el perfil de vías; las casillas del cuadro también valen allí.
 
 ### 🩹 Auto-sanar: valores atípicos + huecos (desde v0.9.295)
 En lugar de buscar a mano: **🩹 Auto-sanar** escanea todo el track y muestra como **vista previa en el mapa** lo que haría — antes de que se cambie nada:

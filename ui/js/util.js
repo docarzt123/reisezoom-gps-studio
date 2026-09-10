@@ -3639,3 +3639,73 @@ async function rzArchivTourenWaehlen(opts) {
   });
 }
 window.rzArchivTourenWaehlen = rzArchivTourenWaehlen;
+
+// ── Track-Check (10.09.2026, docs/TRACK-CHECK.md) — Wortlaut der Befunde ──────
+// Ein Text je Befund-Art, geteilt zwischen Archiv (Kachel, Detailspalte),
+// Inspektor (Befund-Kasten) und Animator (Toast). Die Sprachdatei trägt
+// Einzahl|Mehrzahl mit „|" getrennt; Platzhalter {n} {m} {min} {jahr}.
+const _RZ_TC_FALLBACK = {
+  spikes: "{n} Sprung|{n} Sprünge", cold_start: "Kaltstart-Ausreißer am Anfang ({n} Punkte)",
+  ele_garbage: "Höhen-Müll ({n} Werte)", xml_broken: "Datei beschädigt, reparierbar",
+  gaps: "{n} Lücke ({m} m)|{n} Lücken (größte {m} m)", missing_ele: "Höhe fehlt ({n} Punkte)",
+  tempo: "Unmögliches Tempo ({n} Stelle)|Unmögliches Tempo ({n} Stellen)", backwards: "Zeit läuft rückwärts ({n})",
+  duplicates: "{n} Doppelpunkt|{n} Doppelpunkte", spread_seconds: "{n} Sekunde mehrfach belegt|{n} Sekunden mehrfach belegt (10-Hz-Aufzeichnung)",
+  standstill: "Standdrift ({n} Stelle, {min} min)|Standdrift ({n} Stellen, {min} min)", clock_off: "Uhr steht falsch (Datum {jahr})",
+  no_time: "Ohne Zeitstempel (geplante Route)", local_time: "Zeiten ohne Zeitzone, als UTC übernommen",
+};
+window.rzTrackCheckZeile = function(b) {
+  if (!b || !b.key) return "";
+  const key = "trackcheck.k_" + b.key;
+  const fb = _RZ_TC_FALLBACK[b.key] || (b.key + " {n}");
+  const roh = (typeof t === "function") ? t(key, fb) : fb;
+  const teile = String(roh).split("|");
+  const n = Number(b.n || 0);
+  let s = (teile.length > 1 && n !== 1) ? teile[1] : teile[0];
+  const d = b.detail || {};
+  return s.replace("{n}", n).replace("{m}", d.max_m != null ? d.max_m : "")
+          .replace("{min}", d.min != null ? d.min : "").replace("{jahr}", d.jahr != null ? d.jahr : "");
+};
+window.rzTrackCheckKurz = function(befunde, max) {
+  const liste = (befunde || []).filter(b => b && b.stufe !== "grau");
+  const teile = liste.slice(0, max || 3).map(window.rzTrackCheckZeile).filter(Boolean);
+  if (liste.length > (max || 3)) teile.push("…");
+  return teile.join(", ");
+};
+window.rzTrackCheckStufeText = function(stufe) {
+  const T = (typeof t === "function") ? t : (k, d) => d;
+  return stufe === "rot" ? T("trackcheck.stufe_rot", "sieht man im fertigen Video")
+       : stufe === "gelb" ? T("trackcheck.stufe_gelb", "verschlechtert Bild oder Daten")
+       : T("trackcheck.stufe_grau", "nur ein Hinweis");
+};
+
+// Toast mit einem Knopf (z. B. „Im Inspektor reparieren"). Gleiche Kachel wie toast().
+window.rzToastMitKnopf = function(msg, knopf, onClick, type, durationMs) {
+  const el = document.getElementById("toast");
+  if (!el) return;
+  el.textContent = "";
+  const sp = document.createElement("span"); sp.textContent = msg; el.appendChild(sp);
+  const b = document.createElement("button"); b.className = "toast-btn"; b.type = "button"; b.textContent = knopf;
+  b.onclick = () => { el.hidden = true; clearTimeout(window._toastTimer); try { onClick && onClick(); } catch (_) {} };
+  el.appendChild(b);
+  el.className = "toast " + (type || "info");
+  el.hidden = false;
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => { el.hidden = true; }, durationMs || 9000);
+};
+// Lade-Hinweis (docs/TRACK-CHECK.md, Animator-Zeile): einmal je Tour und Sitzung, auch bei
+// stummen Ladewegen, nie im Inspektor (dort steht der Kasten). Knopf springt in den Inspektor.
+window.__rzTrackCheckGezeigt = new Set();
+window.rzTrackCheckHinweis = async function(path) {
+  if (!path || window.__rzTrackCheckGezeigt.has(path)) return false;
+  if (typeof activeMod !== "undefined" && activeMod === "gpxinspect") return false;
+  window.__rzTrackCheckGezeigt.add(path);
+  let r = null;
+  try { r = await api().trackcheck_datei(path); } catch (_) { return false; }
+  if (!r || !r.ok || !r.marke) return false;
+  const T = (typeof t === "function") ? t : (k, d) => d;
+  const msg = T("trackcheck.toast", "Track-Check: {liste}.").replace("{liste}", window.rzTrackCheckKurz(r.befunde, 3));
+  window.rzToastMitKnopf(msg, T("trackcheck.btn_repair", "Im Inspektor reparieren"),
+    () => { if (typeof switchMod === "function") switchMod("gpxinspect"); }, r.marke === "rot" ? "warn" : "info", 10000);
+  try { if (window.applog) window.applog("info", "[track-check] Hinweis beim Laden: " + r.marke + " " + (r.befunde || []).map(b => b.key + ":" + b.n).join(" ")); } catch (_) {}
+  return true;
+};

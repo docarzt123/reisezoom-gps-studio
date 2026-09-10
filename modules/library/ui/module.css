@@ -977,3 +977,29 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
    — unser eigenes Ziehen stünde ab dem ersten Bild still (08.09.2026 im
    Prüfstand genau so gemessen: 2 statt 13 Ereignissen). */
 .lib-card, .lib-row { -webkit-user-drag: none; user-select: none; }
+
+/* ── Track-Check (10.09.2026, docs/TRACK-CHECK.md) ─────────────────────────
+ * Warnschild in der Marken-Reihe oben links (rot vor gelb, grau nie) und die
+ * Zeile mit Knöpfen in der Detailspalte. */
+.lib-badge-in.lib-badge-check { font-size: 10.5px; padding: 2px 5px; color: #fff; }
+.lib-badge-check.is-rot  { background: #c62828; }
+.lib-badge-check.is-gelb { background: #b8860b; }
+.lib-check { margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 11.5px; line-height: 1.5;
+  border: 1px solid var(--border); background: rgba(255,255,255,.03); }
+.lib-check.is-rot  { border-color: rgba(198,40,40,.6); }
+.lib-check.is-gelb { border-color: rgba(184,134,11,.6); }
+.lib-check-title { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.lib-check-title .lib-check-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--text-muted); }
+.lib-check.is-rot .lib-check-dot { background: #e53935; }
+.lib-check.is-gelb .lib-check-dot { background: #d4a017; }
+.lib-check-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.lib-check-row.is-grau { color: var(--text-muted); }
+.lib-check-row .lib-check-txt { flex: 1; }
+.lib-check-row .lib-check-ok { background: none; border: none; padding: 0; font: inherit; font-size: 11px;
+  color: var(--text-muted); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.lib-check-row .lib-check-ok:hover { color: var(--text); }
+.lib-check-hidden { margin-top: 6px; color: var(--text-muted); }
+.lib-check-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.lib-head-check { font-size: 11.5px; color: var(--text-muted); display: inline-flex; gap: 6px; align-items: center; }
+.lib-head-check button { background: none; border: none; padding: 0; font: inherit; color: var(--warn); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px; }
