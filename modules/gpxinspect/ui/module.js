@@ -33,6 +33,7 @@ function mountGpxInspect(body, headerActions) {
   let _sources = [];
   let _origPath = null;    // v0.9.335 — Original-Datei des Nutzers (für Default-Speicherort)
   let _hasTime = false, _hasEle = false, _hasSensors = false;
+  let _localTimeN = 0, _tc = null;   // 10.09.2026 — Track-Check: Zeiten ohne Zone, letztes Ergebnis
   let _selA = null, _selB = null;   // Anker-Indizes (a <= b)
   let _dirty = false;
   let _drawMode = false;            // Pfad-zeichnen-Modus aktiv?
@@ -101,6 +102,10 @@ function mountGpxInspect(body, headerActions) {
             <button class="btn" id="gpxi-undo" disabled title="⌘Z">↩︎ ${t("gpxinspect.undo", "Rückgängig")}</button>
             <button class="btn" id="gpxi-redo" disabled title="⌘⇧Z">↪︎ ${t("gpxinspect.redo", "Wiederherstellen")}</button>
           </div>
+          <!-- 10.09.2026 — Track-Check (docs/TRACK-CHECK.md): Befund-Kasten ganz oben.
+               Häkchen je Befund (rot/gelb vorbelegt, grau nicht), „Reparieren" führt nur
+               die angehakten Schritte aus (core/gpxheal), Vorher/Nachher wie beim Heilen. -->
+          <div id="gpxi-heal-analysis" class="gpxi-analysis gpxi-tc" hidden></div>
 
           <details class="gpxi-sec" data-sec="pruefen">
             <summary class="gpxi-mm-title">🔍 ${t("gpxinspect.sec_pruefen", "Anschauen & prüfen")}<span class="gpxi-q" data-tip="${t("gpxinspect.sec_pruefen_help", "Erst gucken, dann anfassen: Tempo-Färbung zeigt Ausreißer, die Runden-Tabelle die Zwischenzeiten. Hier wird nichts verändert.")}">?</span></summary>
@@ -123,7 +128,6 @@ function mountGpxInspect(body, headerActions) {
           <details class="gpxi-sec" data-sec="heilen">
             <summary class="gpxi-mm-title">🩹 ${t("gpxinspect.heal_title", "Heilen (automatisch)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_help", "Findet automatisch GPS-Ausreißer und Lücken und behebt sie. Bereich und Aktionen wählen, dann Heilen. Rückgängig jederzeit.")}">?</span></summary>
             <div class="gpxi-sec-body">
-          <div id="gpxi-heal-analysis" class="gpxi-analysis" hidden></div>
           <div class="gpxi-segrow" role="radiogroup">
             <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-track" value="track" checked> ${t("gpxinspect.scope_track", "Ganzer Track")}</label>
             <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-ab" value="ab"> ${t("gpxinspect.scope_ab", "Abschnitt A→B")}</label>
@@ -542,6 +546,7 @@ function mountGpxInspect(body, headerActions) {
     _sources = [_srcPath];        // v0.9.456 — Quelle 0; „Track anhängen" hängt weitere an
     _origPath = path;             // v0.9.335 — Original-Datei (für Default-Speicherort beim „Speichern unter…")
     _hasTime = !!res.has_time; _hasEle = !!res.has_ele; _hasSensors = !!res.has_sensors;
+    _localTimeN = res.local_time_n || 0;   // 10.09.2026 — Zeiten ohne Zeitzone (Track-Check, grau)
     _selA = _selB = null; _dirty = false;
     _drawMode = false; _drawPts = [];
     clearSpikes();
@@ -1865,27 +1870,100 @@ function mountGpxInspect(body, headerActions) {
     missing_time: ["gpxinspect.heal_k_missing_time", "%n fehlende Zeiten ergänzt"],
     outliers: ["gpxinspect.heal_k_outliers", "%n Tempo-Ausreißer entfernt"],
     missing_ele: ["gpxinspect.heal_k_missing_ele", "%n fehlende Höhen ergänzt"],
+    cold_start: ["gpxinspect.heal_k_cold_start", "%n Kaltstart-Punkte verworfen"],
+    spikes: ["gpxinspect.heal_k_spikes", "%n Sprünge geradegerückt"],
+    tempo: ["gpxinspect.heal_k_tempo", "%n Tempo-Stellen entzerrt"],
+    gaps: ["gpxinspect.heal_k_gaps", "%n Lücken gefüllt"],
+    standstill: ["gpxinspect.heal_k_standstill", "%n Standdrift-Stellen zusammengezogen"],
+    ele_garbage: ["gpxinspect.heal_k_ele_garbage", "%n Höhen-Müll-Werte ersetzt"],
   };
   // 08.09.2026 (Marc: „ein Analysieren-Knopf schlägt vor, was man glattziehen könnte, und man hakt
   // an, was gemacht wird"): nach dem Laden einmal prüfen, Funde als Häkchen zeigen.
   let _healFunde = [];
+  // 10.09.2026 — Track-Check (docs/TRACK-CHECK.md): beim Öffnen prüfen (core/trackcheck,
+  // dieselben Schwellen wie Archiv und Heilen), Befund-Kasten oben. Ohne Archiv-Zeile
+  // gibt es kein „Ist so in Ordnung" — die Abwahl hängt an der Version im Archiv.
+  const _TC_OHNE_SCHRITT = { clock_off: "retime", no_time: "timeline", local_time: "", xml_broken: "" };
   async function analyseTrack() {
     const box = document.getElementById("gpxi-heal-analysis");
     if (!box) return;
-    if (!_points || _points.length < 3) { box.hidden = true; box.innerHTML = ""; _healFunde = []; return; }
+    if (!_points || _points.length < 3) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
     let r = null;
-    try { r = await api().gpxinspect_heal(_points, 250, null, true); } catch (e) { r = null; }
-    _healFunde = (r && r.ok && Array.isArray(r.bericht)) ? r.bericht : [];
-    if (!_healFunde.length) { box.hidden = true; box.innerHTML = ""; return; }
-    box.innerHTML = '<div class="gpxi-analysis-title">' + t("gpxinspect.heal_found", "Analyse — gefunden, wird beim Heilen glattgezogen:") + "</div>" +
-      _healFunde.map((b) => { const k = _HEAL_KEYS[b.key]; const txt = k ? t(k[0], k[1]).replace("%n", b.n) : (b.key + " " + b.n);
-        return '<label class="gpxi-check"><input type="checkbox" data-heal="' + b.key + '" checked> ' + txt + "</label>"; }).join("");
-    box.hidden = false;
+    try { r = await api().gpxinspect_track_check(_points, _origPath || "", _localTimeN || 0); } catch (e) { r = null; }
+    if (isUnmounted) return;
+    if (!r || !r.ok) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
+    _tc = r;
+    _healFunde = (r.befunde || []).filter((b) => !(b.key in _TC_OHNE_SCHRITT)).map((b) => ({ key: b.key, n: b.n }));
+    const kurz = (typeof rzTrackCheckKurz === "function") ? rzTrackCheckKurz(r.befunde, 4) : "";
+    const zeile = (typeof rzTrackCheckZeile === "function") ? rzTrackCheckZeile : (b) => b.key + " " + b.n;
+    const stufeTxt = (typeof rzTrackCheckStufeText === "function") ? rzTrackCheckStufeText : () => "";
+    const okKnopf = (k) => r.im_archiv
+      ? `<button type="button" class="gpxi-tc-ok" data-tc-ok="${k}" title="${t("trackcheck.btn_ok_tip", "Diese Befund-Art bei dieser Tour nicht mehr melden — weder auf der Kachel noch beim Laden.")}">${t("trackcheck.btn_ok", "Ist so in Ordnung")}</button>` : "";
+    const rows = (r.befunde || []).map((b) => {
+      const ohne = _TC_OHNE_SCHRITT[b.key];
+      if (ohne !== undefined) {
+        const sprung = ohne === "retime" ? `<button type="button" class="gpxi-tc-ok" data-tc-goto="retime">${t("trackcheck.goto_retime", "Zeiten setzen")}</button>`
+          : ohne === "timeline" ? `<button type="button" class="gpxi-tc-ok" data-tc-goto="timeline">${t("trackcheck.goto_timeline", "Zeitachse erzeugen")}</button>` : "";
+        return `<div class="gpxi-tc-row is-${b.stufe}"><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)}</span>${sprung}${okKnopf(b.key)}</div>`;
+      }
+      return `<label class="gpxi-tc-row is-${b.stufe}"><input type="checkbox" data-heal="${b.key}"${b.stufe === "grau" ? "" : " checked"}><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)} <span class="gpxi-tc-stufe">${stufeTxt(b.stufe)}</span></span>${okKnopf(b.key)}</label>`;
+    }).join("");
+    const abgew = (r.abgewaehlt || []).map((b) => `<div class="gpxi-tc-row is-grau"><span class="gpxi-tc-txt">${zeile(b)}</span><button type="button" class="gpxi-tc-ok" data-tc-show="${b.key}">${t("trackcheck.btn_show_again", "wieder anzeigen")}</button></div>`).join("");
+    const hatSchritt = _healFunde.length > 0;
+    box.innerHTML = `<div class="gpxi-tc-title is-${r.marke || (r.hoechste || "leer")}"><span class="gpxi-tc-dot"></span>${
+        (r.befunde || []).length ? t("trackcheck.title", "Track-Check") + ": " + kurz : t("trackcheck.inspector_none", "Track-Check: nichts gefunden 👍")}</div>`
+      + rows
+      + (abgew ? `<div class="gpxi-tc-hidden">${abgew}</div>` : "")
+      + (hatSchritt ? `<div class="gpxi-tc-actions"><button class="btn btn-primary btn-sm" id="gpxi-tc-repair" title="${t("trackcheck.repair_hint", "Repariert nur, was angehakt ist. Vorher/Nachher erscheint unten, Rückgängig geht jederzeit.")}">${t("trackcheck.repair_btn", "🩹 Reparieren")}</button></div>` : "");
+    box.hidden = !(r.befunde || []).length && !abgew;
+    const rep = document.getElementById("gpxi-tc-repair");
+    if (rep) rep.onclick = trackCheckReparieren;
+    box.querySelectorAll("[data-tc-ok]").forEach((b) => b.onclick = () => trackCheckOk(b.dataset.tcOk, true));
+    box.querySelectorAll("[data-tc-show]").forEach((b) => b.onclick = () => trackCheckOk(b.dataset.tcShow, false));
+    box.querySelectorAll("[data-tc-goto]").forEach((b) => b.onclick = () => {
+      const ziel = b.dataset.tcGoto === "retime" ? "gpxi-wz-retime-run" : "gpxi-speedrow";
+      const sec = document.querySelector('.gpxi-sec[data-sec="bearbeiten"]'); if (sec) sec.open = true;
+      const el = document.getElementById(ziel); if (el) { try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {} }
+    });
+  }
+  async function trackCheckOk(key, ok) {
+    if (!_origPath) return;
+    let r; try { r = await api().library_track_check_ok(_origPath, key, !!ok); } catch (e) { r = { ok: false, error: String(e) }; }
+    if (!r || !r.ok) { toast(t("trackcheck.error", "Track-Check nicht möglich: {e}").replace("{e}", (r && r.error) || "?"), "error"); return; }
+    try { await analyseTrack(); } catch (_) {}
+  }
+  // Reparieren = die angehakten Schritte über core/gpxheal, alles andere bleibt. Undo,
+  // Vorher/Nachher und Neuprüfung wie beim Heilen (Marc: Undo für alles).
+  async function trackCheckReparieren() {
+    const box = document.getElementById("gpxi-heal-analysis");
+    if (!box || _mmBusy || _drawMode) return;
+    const schritte = [...box.querySelectorAll("input[data-heal]")].filter((c) => c.checked).map((c) => c.getAttribute("data-heal"));
+    if (!schritte.length) { toast(t("trackcheck.nothing_selected", "Nichts angehakt — nichts zu reparieren."), "info", 2400); return; }
+    _pushUndo(t("trackcheck.repair", "Track-Check reparieren"));
+    merkeVorher();
+    let r = null;
+    try { r = await api().gpxinspect_heal(_points, 250, schritte, false); } catch (e) { r = { ok: false, error: String(e) }; }
+    if (isUnmounted) return;
+    if (!r || !r.ok || !Array.isArray(r.points)) { toast(t("trackcheck.error", "Track-Check nicht möglich: {e}").replace("{e}", (r && r.error) || "?"), "error"); return; }
+    const teile = (r.bericht || []).filter((b) => schritte.indexOf(b.key) >= 0).map((b) => { const k = _HEAL_KEYS[b.key]; return k ? t(k[0], k[1]).replace("%n", b.n) : (b.key + " " + b.n); });
+    _points.length = 0; for (const p of r.points) _points.push(p);
+    _dirty = true; clearSpikes(); _selA = _selB = null;
+    _hasTime = _points.length > 0 && _points.every(p => !!p.time);
+    _eleInvalidate();
+    renderAll(); updateUI(); zeigeVorherNachher();
+    try { reduzierReglerSync(); } catch (_) {}
+    try { _pfeileBerechnen(); _punktFormAnwenden(); renderPoints(); } catch (_) {}
+    toast(t("trackcheck.repaired", "Repariert: {liste}").replace("{liste}", teile.join(" · ") || "—"), "success", 4500);
+    try { await analyseTrack(); } catch (_) {}
+    try { map.fitBounds(_trackBounds(), { padding: 50, duration: 600 }); } catch (_) {}
   }
   function _healSchritte() {
     const box = document.getElementById("gpxi-heal-analysis");
     if (!box || box.hidden) return null;   // keine Analyse → alles
-    return [...box.querySelectorAll("input[data-heal]")].filter((c) => c.checked).map((c) => c.getAttribute("data-heal"));
+    // Sprünge, Lücken und Tempo macht dieser Heil-Weg selbst (mit Routen-Profil und
+    // Karten-Vorschau) — der Kern soll sie hier nicht vorwegnehmen.
+    const selbst = ["spikes", "gaps", "tempo"];
+    return [...box.querySelectorAll("input[data-heal]")].filter((c) => c.checked).map((c) => c.getAttribute("data-heal")).filter((k) => selbst.indexOf(k) < 0);
   }
   async function healTimesAndData() {
     if (!_points || _points.length < 3) return "";

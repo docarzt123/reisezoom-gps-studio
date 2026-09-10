@@ -146,6 +146,9 @@
       } catch (_) {}
       _renderCurrent();
       notifyGpxLoaded();
+      // 10.09.2026 — Track-Check-Hinweis (docs/TRACK-CHECK.md): einmal je Tour und
+      // Sitzung, auch bei stummen Ladewegen (Archiv, Sitzung, App-Start).
+      if (!(opts && opts.menge)) { try { window.rzTrackCheckHinweis && window.rzTrackCheckHinweis(path); } catch (_) {} }
       // Kennt das Archiv diese Tour? (27.08.2026, Marc) — nicht bei Ladevorgängen,
       // die aus dem Archiv selbst, aus der Cloud oder vom App-Start kommen.
       if (!stumm) { try { await window.archivFrage(path); } catch (_) {} }

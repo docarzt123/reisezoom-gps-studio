@@ -151,6 +151,8 @@ def load_points(path: str) -> dict:
         "has_ele": has_ele,
         "has_sensors": has_sensors,
         "bbox": bbox,
+        # 10.09.2026 (Track-Check): Zeiten ohne Zeitzone, als UTC übernommen
+        "local_time_n": int(getattr(stats, "zeit_ohne_zone", 0) or 0),
     }
 
 

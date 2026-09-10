@@ -2542,6 +2542,14 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `library_scan_start(force=False)` | `{ok}` | Einlesen im Hintergrund-Thread (Muster wie beim Render) |
 | `library_scan_status()` | `{running, done, total, current, added, updated, failed, result?}` | Fortschritt fürs Polling |
 | `library_scan_stop()` | `{ok}` | Abbrechen |
+| `library_track_check(path)` | `{ok, check, track}` | Eine Tour neu prüfen (Track-Check, 10.09.2026) |
+| `library_track_check_alle(nur_ungeprueft=True)` / `_status()` / `_stop()` | `{ok}` / `{running, done, total, current, result?}` | Bestand prüfen im Hintergrund, nur auf Knopfdruck |
+| `library_track_check_stand()` | `{ok, total, ungeprueft, rot, gelb, gefragt, laeuft}` | Für die einmalige Frage nach dem Update |
+| `library_track_check_gefragt()` | `{ok}` | Frage beantwortet — nie wieder stellen |
+| `library_track_check_ok(path, key, ok)` | `{ok, check, track}` | „Ist so in Ordnung" je Version und Befund-Art |
+| `library_repair_file(path)` | `{ok, geo_hash, n_points, schritte}` | Beschädigte GPX reparieren → Version in der Bibliothek |
+| `gpxinspect_track_check(points, path, local_time_n)` | `{ok, befunde, abgewaehlt, marke, ok_liste, im_archiv}` | Befund-Kasten im Inspektor |
+| `trackcheck_datei(path)` | `{ok, befunde, marke, quelle}` | Lade-Hinweis (Archiv-Ergebnis oder Datei einmal lesen) |
 | `library_query(params)` | `{ok, total, items[]}` | Filtern/Suchen/Sortieren. `with_thumbs` hängt die Vorschaubilder als data-URL an (~3 KB je Kachel) und setzt `has_session` aus `sessions.json` |
 | `library_stats(params)` | `{ok, n_tracks, total_km, total_ascent_m, total_hours, avg_km, longest_km, years[], months[], activities[], longest[5], done{n,km}, planned{n,km}, tags[], n_hidden, n_failed}` | Zahlen zur **aktuellen Auswahl** — nimmt dieselben Filter wie `library_query` (v0.9.491) |
 | `library_set_fields(path, fav?, tags?, note?)` | `{ok, track}` | Favorit/Schlagwörter/Notiz |
@@ -3034,6 +3042,35 @@ schreibt `<bounds>` immer aus den Punkten neu und behält Millisekunden (`_time_
 `gps-studio-web/api/tools.py` läuft über `heilen`, `meta.heal` = Bericht. Wächter
 `tests/test_gpxheal.py` mit `tests/fixtures/insta360_10hz.gpx` (41 Punkte, 5 Sekunden, bounds ohne
 Vorzeichen). Anlass: Forumsfall X4-GPX ↔ X6-Video, Marcs Teneriffa-Ordner bestätigte die Form.
+
+**Track-Check (10.09.2026, `core/trackcheck.py`, Spezifikation `docs/TRACK-CHECK.md` = die Wahrheit):**
+`pruefen(points, stufe=5, local_time_n=0)` → `{befunde:[{key, stufe, n, detail}], hoechste, n_points, ms}` —
+reine Zählung, kein Heil-Lauf (≈ 30 ms je Tagestour, 726 Touren in 21 s). Erkennungen liefern Indizes und
+werden von `gpxheal.heilen` für die Reparatur wiederverwendet: `kaltstart`, `standdrift` (vor den
+Sprüngen — das Gezitter im Knäuel ist kein Sprung), `sprung_gruppen` (Portierung von `detectSpikes`;
+jede Gruppe wird in `spikes` = raus und zurück bzw. `tempo` = dauerhafter Versatz eingeteilt),
+`luecken` (Portierung von `detectGaps`; nur mit Zeit, nie über Etappengrenzen, nie Nachtpause > 2 h
+mit > 2 km), `hoehen_muell`, `zeit_befunde`. Tempo-Rechnungen laufen auf einer virtuell geglätteten
+Zeitachse (`_zeiten_glaetten`: gleiche Sekunden verteilt, Rücksprünge +1 ms), sonst wäre jeder
+Punkt eines 10-Hz-Tracks ein Sprung. `filtern(befunde, ok)` blendet abgewählte Arten aus und liefert
+`marke` (rot/gelb, grau nie). `gpxheal.SCHRITTE` = no_coords, duplicates, spread_seconds, backwards,
+missing_time, cold_start, standstill, spikes, tempo, outliers, gaps, ele_garbage, missing_ele.
+Bibliothek: Spalten `check_json/check_stufe/check_ts` (technisch, entstehen in `_row_from_file`),
+`check_ok` (Nutzer-Eingabe, Wahrheit in `track_meta.check_ok` je geo_hash); `_to_dict` liefert
+`check = {befunde, abgewaehlt, marke, hoechste, ok, ts, geprueft}`. Funktionen `track_check_datei`,
+`track_check_alle` (sperrt je Datei, nicht den Lauf), `track_check_stand`, `set_check_ok`,
+`punkte_lesen`. `core/gpxrepair.py`: `analysieren(bytes)`/`reparieren(bytes)` für abgeschnittene
+Dateien, unmaskiertes `&`/`<`, fehlenden Kopf/Namensraum, Nullbytes; der Scan setzt dafür
+`error_kind = broken_repairable` + Befund `xml_broken` (PARSER_VERSION 3 liest Fehler-Zeilen einmal
+neu), `library_repair_file` legt die heile Fassung als Version in der Bibliothek ab und räumt die
+Fehler-Zeile weg. Oberfläche: `rzTrackCheckZeile/Kurz/StufeText` (util.js, Texte `trackcheck.k_*`
+mit Einzahl|Mehrzahl), Archiv `badges()`/`checkBoxHtml()`/`trackCheckFrage()` (Flag
+`track_check_gefragt` in settings), Inspektor `analyseTrack()`/`trackCheckReparieren()` im Kasten
+`#gpxi-heal-analysis` (Häkchen `input[data-heal]` gelten auch für den alten Heil-Weg, der
+Sprünge/Lücken/Tempo aber selbst macht), Lade-Hinweis `rzTrackCheckHinweis` aus `loadGlobalGpx`
+(einmal je Pfad und Sitzung, nie im Inspektor, Toast mit Knopf `rzToastMitKnopf`). Wächter:
+`tests/test_trackcheck.py`, `test_trackcheck_archiv.py`, `test_trackcheck_archiv_ui.py`,
+`test_inspektor_trackcheck.py`, `test_trackcheck_hinweis.py`, `test_gpxrepair.py`.
 
 **Verlustfreie GPX-Ausgabe (07.09.2026, FOSSGIS-Test route-3.gpx):**
 `core/gpxpatch.gpx_mit_punkten(original, points, name=)` ergänzt die ORIGINAL-GPX

@@ -786,6 +786,37 @@ ihn sofort ein; **700 Dateien dauern gut 20 Sekunden.** Unterordner werden mitge
 kannst beliebig viele Ordner beobachten lassen. (Solange kein Ordner da ist, steht auf der
 leeren Fläche ein großer **„+ Ordner hinzufügen"**-Knopf.)
 
+### 🩺 Track-Check — das Archiv sagt dir, was am Track nicht stimmt (seit v0.9.688)
+Ein GPS-Sprung, eine Lücke oder eine Kamera mit zehn Punkten je Sekunde fällt sonst erst im
+fertigen Video auf. Deshalb prüft das Archiv jede Tour beim Einlesen und zeigt auf der Kachel
+oben links ein **Warnschild ⚠︎**: **rot** = sieht man im Video (Sprünge, Kaltstart-Ausreißer,
+Höhen-Müll, beschädigte Datei), **gelb** = verschlechtert Bild oder Daten (Lücken, fehlende
+Höhe, unmögliches Tempo, Zeit rückwärts, Doppelpunkte, gleiche Sekunden, Standdrift, Uhr
+falsch). Hinweise wie „ohne Zeitstempel" (geplante Route) oder „Zeiten ohne Zeitzone" sind grau
+und bekommen kein Schild. Gemeldet wird nur, was die App auch reparieren kann.
+
+In der **Detailspalte** steht die Zeile „Track-Check: 3 Sprünge, 1 Lücke (240 m)" mit drei
+Möglichkeiten: **„Im Inspektor reparieren"** öffnet die Tour dort mit dem Befund-Kasten,
+**„Neu prüfen"** rechnet die Tour neu (z. B. nach einer Reparatur), und je Befund
+**„Ist so in Ordnung"** — dann meldet die App diese Art bei dieser Tour nicht mehr, weder auf
+der Kachel noch beim Laden. Ausgeblendete Arten stehen grau darunter mit „wieder anzeigen".
+Eine neue Version der Tour (nach dem Heilen) wird frisch geprüft.
+
+**Was nie ein Befund ist:** eine Pause am selben Ort (Wirtshaus), eine Nachtpause mit
+Kilometern dazwischen (Mehrtagestour), der Sprung zwischen zwei Etappen und weite Punktabstände
+in geplanten Routen ohne Zeit.
+
+**Wann geprüft wird:** beim Einlesen, beim Öffnen im Inspektor, je Tour auf „Neu prüfen" und
+für den ganzen Bestand über **„🩺 Alle Touren prüfen"** links unten (Fortschritt oben in der
+Kopfzeile, „Abbrechen" daneben; etwa eine Minute je 1000 Touren). Nach dem Update fragt das
+Archiv **einmal**, ob es den Bestand prüfen soll — bei „Später" fragt es nie wieder und sagt, wo
+der Knopf ist. **Nichts läuft ungefragt im Hintergrund.** Geprüft wird nur gezählt; an deinen
+Dateien ändert sich dabei nichts.
+
+**Beschädigte Dateien:** Steht eine GPX in der Fehlerliste als „beschädigt, reparierbar"
+(abgeschnittene Übertragung, ein „&" im Namen, fehlende Kopfzeile), legt **„🩹 Reparieren"** eine
+heile Fassung als Tour ins Archiv. Deine Datei bleibt, wie sie ist.
+
 ### 🧭 Die Reise — Touren nacheinander, mit eigenen Etappenzeiten (seit v0.9.671)
 Mehrere Touren im Animator, Ablauf **Reise**: sie laufen nacheinander, dazwischen fliegt die
 Kamera zur nächsten Etappe. In der Liste **„Weitere Touren"** steht jetzt auch die erste Tour
@@ -2177,6 +2208,23 @@ Nach dem Auto-Heilen erscheint ein **„Vorher → Nachher"-Kasten**: Punkte,
 Strecke, Max. Tempo und Höhenmeter im Vergleich (Verbesserungen grün), und der
 **alte Track bleibt als graue gestrichelte Linie** auf der Karte, bis du den
 Kasten schließt — so sieht man genau, was das Heilen verändert hat.
+
+### 🩺 Der Befund-Kasten — Track-Check beim Öffnen (seit v0.9.688)
+Sobald ein Track im Inspektor liegt, steht **ganz oben** der Befund-Kasten: „Track-Check:
+2 Sprünge, 1 Lücke (240 m), Uhr steht falsch (1989)". Jede Zeile hat ein **Häkchen** — rot und
+gelb sind vorbelegt, graue Hinweise nicht — und **„🩹 Reparieren"** führt genau die angehakten
+Schritte aus: Sprünge auf die Linie legen (Zeit bleibt), Lücken mit Luftlinien-Punkten füllen,
+unmögliches Tempo entzerren (Strecke bleibt, die Tour wird ein paar Sekunden länger), Zeit
+rückwärts glätten, Doppelpunkte entfernen, gleiche Sekunden verteilen, Standdrift auf einen Ort
+zusammenziehen (die Pause bleibt eine Pause), Höhen-Müll und fehlende Höhen interpolieren,
+Kaltstart-Punkte verwerfen. Danach erscheint der **Vorher → Nachher**-Kasten, **⌘Z** nimmt alles
+zurück, und der Track-Check läuft neu — was repariert ist, verschwindet aus dem Kasten.
+
+Befunde ohne Automatik bekommen einen Sprung statt eines Häkchens: „Uhr steht falsch" führt zu
+**Zeiten setzen**, „ohne Zeitstempel" zu **Zeitachse erzeugen**. Liegt die Tour im Archiv, steht
+je Befund **„Ist so in Ordnung"** — die Art wird für diese Tour nicht mehr gemeldet (siehe
+Archiv). Wer Lücken lieber entlang echter Wege füllt, nimmt weiter **Heilen (automatisch)** mit
+dem Wege-Profil; die Häkchen im Kasten gelten dort mit.
 
 ### 🩹 Auto-Heilen: Ausreißer + Lücken (seit v0.9.295)
 Statt von Hand zu suchen: **🩹 Auto-Heilen** scannt den ganzen Track und zeigt als **Vorschau auf der Karte**, was es tun würde — bevor etwas geändert wird:

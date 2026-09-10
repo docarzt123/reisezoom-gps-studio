@@ -64,6 +64,8 @@ from .gpx import _haversine_m
 from . import imports as cimports
 from . import fitmeta as _fitmeta
 from . import sessions as csessions
+from . import trackcheck as _trackcheck
+from . import gpxrepair as _gpxrepair
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +78,7 @@ SCHEMA_VERSION = 2
 INDEX_EXTS = {".gpx"} | set(cimports.IMPORT_EXTS)
 # Hochzählen, wenn der Track-Leser Dateien versteht, die er vorher als Fehler
 # ablegte (dann werden Fehler-Zeilen beim nächsten Scan einmal neu gelesen).
-PARSER_VERSION = 2   # 2 = Routen (<rte>) als Track, 22.08.2026
+PARSER_VERSION = 3   # 2 = Routen (<rte>) als Track, 22.08.2026 · 3 = beschädigte GPX auf Reparierbarkeit prüfen, 10.09.2026
 
 # Endungen, die NICHTS über den Inhalt aussagen. `.json` liegt in jedem
 # Programmordner, `.log` und `.txt` sowieso überall. Wer beim Einlesen einen
@@ -286,6 +288,8 @@ _TECH_COLS = [
     # 02.09.2026: 1 = unsere Kopie im Versionsspeicher, 0 = Datei des Nutzers.
     # Technisch, weil es am Fundort hängt und beim Einlesen entsteht.
     "speicher",
+    # 10.09.2026 — Track-Check-Ergebnis entsteht beim Einlesen.
+    "check_json", "check_stufe", "check_ts",
 ]
 
 # Spalten, die eine ältere Datenbank noch nicht hat. Beim Öffnen nachgezogen —
@@ -332,6 +336,17 @@ _ADD_COLS = [
     # Eigene Spalte statt in `tags`: `tags` gehört dem Nutzer, und ein Neu-Scan
     # darf dessen Eingaben nicht überschreiben.
     ("fit_profile", "TEXT DEFAULT ''"),
+    # 10.09.2026 — Track-Check (docs/TRACK-CHECK.md): die gezählten Befunde je
+    # Datei (JSON-Liste), die höchste Stufe (rot/gelb/grau/leer) und wann
+    # geprüft wurde (leer = noch nie). Nichts davon läuft ungefragt: Import,
+    # „Prüfen", „Alle prüfen" und die einmalige Frage nach dem Update.
+    ("check_json", "TEXT DEFAULT ''"),
+    ("check_stufe", "TEXT DEFAULT ''"),
+    ("check_ts", "TEXT DEFAULT ''"),
+    # „Ist so in Ordnung": abgewählte Befund-Arten (Kommaliste). Nutzer-Eingabe,
+    # Wahrheit steht in `track_meta.check_ok` (je geo_hash — eine neue Version
+    # wird frisch geprüft und hat ihre eigene Liste).
+    ("check_ok", "TEXT DEFAULT ''"),
 ]
 
 
@@ -519,7 +534,7 @@ def _migrate_meta_spalten(conn: sqlite3.Connection) -> None:
     # Favorit und eigener Name der alten Version wurden gelöscht. Sie gehören
     # an die Tour und müssen eine Heilung überleben.
     for name, typ in (("activity_user", "TEXT DEFAULT ''"), ("color", "TEXT DEFAULT ''"),
-                      ("tour_id", "TEXT DEFAULT ''")):
+                      ("tour_id", "TEXT DEFAULT ''"), ("check_ok", "TEXT DEFAULT ''")):
         if name not in cols:
             log.info("library: track_meta.%s wird ergänzt", name)
             conn.execute(f"ALTER TABLE track_meta ADD COLUMN {name} {typ}")
@@ -1054,6 +1069,10 @@ def _row_from_file(path: Path, folder: str, thumbs_dir: Path, import_cache: Path
         "recorded_src": _rec_src,
         "geom": json.dumps(_simplify(coords), separators=(",", ":")),
     })
+    # 10.09.2026 — Track-Check gleich beim Einlesen: die Punkte liegen hier
+    # ohnehin im Speicher, ein zweites Öffnen wäre der teure Teil (2–20 ms
+    # je Tour, gemessen). Ein Fehler darin darf den Index nie kippen.
+    row.update(_check_werte(pts, stats, path.name, geplant=not _rec))
 
     thumb = thumbs_dir / f"{row['geo_hash']}.png"
     if not thumb.exists():
@@ -1194,11 +1213,19 @@ def scan(
             # gehört nicht in denselben Topf wie eine kaputte Datei, sonst steht
             # bei jemandem mit 61 Hallen-Einheiten „61 Dateien nicht lesbar".
             kind = "no_points" if isinstance(e, cimports.NoTrackPoints) else "broken"
+            _rep = None
             if kind == "no_points":
                 ohne_punkte += 1
                 log.debug("library: %s enthält keine Koordinaten (kein Fehler)", p.name)
             else:
-                log.warning("library: %s konnte nicht gelesen werden: %s", p.name, e)
+                # 10.09.2026 — Track-Check `xml_broken`: ließe sich die Datei
+                # reparieren (abgeschnitten, unmaskiertes &, Kopf fehlt)? Nur
+                # GPX und nur bis 50 MB — die Fehlerliste bietet dann „Reparieren".
+                _rep = _reparierbar(p)
+                if _rep:
+                    kind = "broken_repairable"
+                log.warning("library: %s konnte nicht gelesen werden: %s%s", p.name, e,
+                            " — reparierbar (%s)" % ",".join(_rep["gruende"]) if _rep else "")
             try:
                 # Zeit und Größe werden mitgeschrieben (früher 0/0). Nur damit
                 # erkennt der nächste Durchlauf, dass sich an dieser Datei nichts
@@ -1211,11 +1238,17 @@ def scan(
                 except OSError:
                     _mt, _sz = 0, 0
                 with _DB_LOCK:
-                    _upsert(conn, {
+                    _zeile = {
                         "path": sp, "folder": folder, "filename": p.name,
                         "mtime": _mt, "size": _sz, "indexed_at": _now_iso(),
                         "error": str(e)[:300], "error_kind": kind, "name": p.stem,
-                    })
+                        "check_json": "", "check_stufe": "", "check_ts": "",
+                    }
+                    if _rep:
+                        _zeile.update({
+                            "check_json": json.dumps(_gpxrepair.befund(_rep["gruende"], _rep["n_points"]), separators=(",", ":")),
+                            "check_stufe": "rot", "check_ts": _now_iso()})
+                    _upsert(conn, _zeile)
             except Exception:
                 pass
         if progress and (i % 10 == 0 or i == total - 1):
@@ -1314,7 +1347,7 @@ REGISTER_HOOK: Optional[Callable[[], tuple]] = None
 # ein. Auch das gehört eine Ebene höher (`app.py`), deshalb wieder ein Haken.
 AUFNAHME_HOOK: Optional[Callable[[sqlite3.Connection], dict]] = None
 
-_META_COLS = ["fav", "tags", "note", "cover", "recorded_user", "display_name", "hidden", "color"]
+_META_COLS = ["fav", "tags", "note", "cover", "recorded_user", "display_name", "hidden", "color", "check_ok"]
 # Sonderfall: in `track_meta` heißt die Spalte `activity_user` (leer = Schätzung
 # gilt), in `tracks` schlicht `activity`. Deshalb wird sie getrennt gespiegelt.
 
@@ -1911,7 +1944,207 @@ def _to_dict(r: sqlite3.Row, with_geom: bool = False) -> dict:
     # steht schon in der Zeile.
     d["exists"] = not d["missing_since"]
     d["missing_days"] = round(_days_since(d["missing_since"])) if d["missing_since"] else 0
+    d["check"] = _check_dict(d)
+    d.pop("check_json", None)
     return d
+
+
+# ── Track-Check (10.09.2026, docs/TRACK-CHECK.md) ─────────────────────────────
+
+def _check_werte(pts, stats, name: str = "", geplant: bool = False) -> dict:
+    """Befunde zählen → die drei Spalten. Nie eine Ausnahme nach draußen."""
+    try:
+        r = _trackcheck.pruefen(pts, local_time_n=int(getattr(stats, "zeit_ohne_zone", 0) or 0),
+                                geplant=bool(geplant))
+        return {"check_json": json.dumps(r["befunde"], separators=(",", ":"), ensure_ascii=False),
+                "check_stufe": r["hoechste"], "check_ts": _now_iso()}
+    except Exception as e:  # noqa: BLE001
+        log.warning("track-check: %s: %s", name, e)
+        return {"check_json": "", "check_stufe": "", "check_ts": ""}
+
+
+def _check_dict(d: dict) -> dict:
+    """Aus den Spalten den Block, den die Oberfläche zeigt: sichtbare Befunde
+    (ohne die abgewählten), Marke für die Kachel (rot/gelb/leer), Abgewähltes."""
+    try:
+        befunde = json.loads(d.get("check_json") or "[]")
+    except (TypeError, ValueError):
+        befunde = []
+    ok = [k for k in (d.get("check_ok") or "").split(",") if k]
+    f = _trackcheck.filtern(befunde if isinstance(befunde, list) else [], ok)
+    return {"befunde": f["befunde"], "abgewaehlt": f["abgewaehlt"], "marke": f["marke"],
+            "hoechste": f["hoechste"], "ok": ok, "ts": d.get("check_ts") or "",
+            "geprueft": bool(d.get("check_ts"))}
+
+
+def punkte_lesen(path: str, import_cache: Path):
+    """Punkte + Stats einer Archiv-Datei (auch .gpx.gz und Fremdformate)."""
+    p = Path(path)
+    gpx_path = str(p)
+    if p.suffix.lower() != ".gpx" and not p.name.lower().endswith(".gpx.gz"):
+        gpx_path = cimports.ensure_gpx(str(p), import_cache)
+    text = None
+    if gpx_path == str(p) and p.name.lower().endswith(".gpx.gz"):
+        import gzip as _gzip
+        with _gzip.open(p, "rt", encoding="utf-8") as fh:
+            text = fh.read()
+    return cgpx.parse_gpx(gpx_path, text=text)
+
+
+@_locked
+def track_check_datei(conn: sqlite3.Connection, path: str, import_cache: Path) -> dict:
+    """Eine Datei (neu) prüfen und die Spalten schreiben. Liefert den Check-Block."""
+    r = conn.execute("SELECT path, filename, recorded, recorded_user FROM tracks WHERE path = ?", (path,)).fetchone()
+    if not r:
+        return {"ok": False, "error": "nicht im Archiv"}
+    try:
+        pts, stats = punkte_lesen(path, import_cache)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    w = _check_werte(pts, stats, r["filename"] or "", geplant=not ist_aufgezeichnet(r))
+    if not w["check_ts"]:
+        return {"ok": False, "error": "Prüfung fehlgeschlagen"}
+    conn.execute("UPDATE tracks SET check_json = ?, check_stufe = ?, check_ts = ? WHERE path = ?",
+                 (w["check_json"], w["check_stufe"], w["check_ts"], path))
+    conn.commit()
+    row = conn.execute("SELECT check_json, check_stufe, check_ts, check_ok FROM tracks WHERE path = ?",
+                       (path,)).fetchone()
+    return {"ok": True, "check": _check_dict(dict(row))}
+
+
+def _reparierbar(p: Path) -> Optional[dict]:
+    """Beschädigte GPX auf Reparierbarkeit prüfen (core/gpxrepair). None = nein."""
+    try:
+        if p.suffix.lower() != ".gpx" or p.stat().st_size > 50 * 1024 * 1024:
+            return None
+        a = _gpxrepair.analysieren(p.read_bytes())
+        return a if a.get("reparierbar") else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def datei_reparieren(path: str) -> dict:
+    """Die reparierte Fassung einer beschädigten Datei erzeugen (nur Bytes, nichts
+    geschrieben): {"ok", "data", "schritte", "n_points"}."""
+    p = Path(path)
+    try:
+        data = p.read_bytes()
+    except OSError as e:
+        return {"ok": False, "error": str(e)}
+    return _gpxrepair.reparieren(data)
+
+
+@_locked
+def fehlerzeile_repariert(conn: sqlite3.Connection, path: str, neu_gh: str) -> None:
+    """Die alte Fehler-Zeile wegräumen und vermerken, wohin die Reparatur führte."""
+    conn.execute("UPDATE tracks SET hidden = 1, error = ? WHERE path = ?",
+                 (f"repariert → {neu_gh}", path))
+    conn.commit()
+
+
+def ist_aufgezeichnet(row) -> bool:
+    """Gemacht oder geplant? Die Hand-Korrektur schlägt die Schätzung."""
+    try:
+        eff = row["recorded_user"]
+    except (KeyError, IndexError):
+        eff = None
+    if eff is None:
+        try:
+            eff = row["recorded"]
+        except (KeyError, IndexError):
+            eff = 1
+    return bool(int(eff or 0)) if eff is not None else True
+
+
+def _check_kandidaten(conn: sqlite3.Connection, nur_ungeprueft: bool) -> list:
+    wo = ("COALESCE(error,'') = '' AND COALESCE(haupt,1) = 1 "
+          "AND COALESCE(missing_since,'') = ''")
+    if nur_ungeprueft:
+        wo += " AND COALESCE(check_ts,'') = ''"
+    return [r["path"] for r in conn.execute(
+        f"SELECT path FROM tracks WHERE {wo} ORDER BY started_at DESC").fetchall()]
+
+
+def track_check_alle(conn: sqlite3.Connection, import_cache: Path, *,
+                     nur_ungeprueft: bool = True,
+                     progress: Optional[Callable[[dict], None]] = None,
+                     should_stop: Optional[Callable[[], bool]] = None) -> dict:
+    """Den Bestand prüfen — nur auf Knopfdruck oder nach der einmaligen Frage
+    nach dem Update (Marc: „nichts läuft ungefragt im Hintergrund"). Sperrt die
+    Datenbank je Datei, nicht für den ganzen Lauf: das Archiv bleibt bedienbar."""
+    with _DB_LOCK:
+        pfade = _check_kandidaten(conn, nur_ungeprueft)
+    total = len(pfade)
+    n = rot = gelb = fehler = 0
+    t0 = time.perf_counter()
+    for i, pf in enumerate(pfade):
+        if should_stop and should_stop():
+            break
+        if progress:
+            progress({"done": i, "total": total, "current": os.path.basename(pf)})
+        r = track_check_datei(conn, pf, import_cache)
+        if r.get("ok"):
+            n += 1
+            m = (r.get("check") or {}).get("marke") or ""
+            rot += m == "rot"
+            gelb += m == "gelb"
+        else:
+            fehler += 1
+    res = {"ok": True, "n": n, "total": total, "rot": rot, "gelb": gelb, "fehler": fehler,
+           "abgebrochen": bool(should_stop and should_stop()),
+           "sekunden": round(time.perf_counter() - t0, 1)}
+    if progress:
+        progress(dict(res, done=n + fehler))
+    log.info("track-check: %d von %d geprüft — %d rot, %d gelb, %d Fehler, %.1f s",
+             n, total, rot, gelb, fehler, res["sekunden"])
+    return res
+
+
+@_locked
+def track_check_stand(conn: sqlite3.Connection) -> dict:
+    """Wie viele Touren sind ungeprüft, wie viele tragen eine Marke?"""
+    rows = conn.execute(
+        "SELECT check_json, check_ts, check_ok FROM tracks WHERE COALESCE(error,'') = '' "
+        "AND COALESCE(haupt,1) = 1 AND COALESCE(missing_since,'') = ''").fetchall()
+    total = len(rows)
+    ungeprueft = rot = gelb = 0
+    for r in rows:
+        if not r["check_ts"]:
+            ungeprueft += 1
+            continue
+        m = _check_dict(dict(r))["marke"]
+        rot += m == "rot"
+        gelb += m == "gelb"
+    return {"ok": True, "total": total, "ungeprueft": ungeprueft, "geprueft": total - ungeprueft,
+            "rot": rot, "gelb": gelb}
+
+
+@_locked
+def set_check_ok(conn: sqlite3.Connection, path: str, key: str, ok: bool) -> dict:
+    """„Ist so in Ordnung" je Version (geo_hash) und Befund-Art an/aus."""
+    key = str(key or "").strip()
+    if key not in _trackcheck.STUFEN:
+        return {"ok": False, "error": "unbekannte Befund-Art"}
+    r = conn.execute("SELECT geo_hash, name FROM tracks WHERE path = ?", (path,)).fetchone()
+    if not r or not r["geo_hash"]:
+        return {"ok": False, "error": "nicht im Archiv"}
+    gh = r["geo_hash"]
+    now = _now_iso()
+    conn.execute("INSERT INTO track_meta(geo_hash, last_name, first_seen, last_seen) "
+                 "VALUES(?,?,?,?) ON CONFLICT(geo_hash) DO NOTHING", (gh, r["name"] or "", now, now))
+    m = conn.execute("SELECT check_ok FROM track_meta WHERE geo_hash = ?", (gh,)).fetchone()
+    liste = [k for k in ((m["check_ok"] if m else "") or "").split(",") if k]
+    if ok and key not in liste:
+        liste.append(key)
+    if not ok:
+        liste = [k for k in liste if k != key]
+    wert = ",".join(liste)
+    conn.execute("UPDATE track_meta SET check_ok = ?, last_seen = ? WHERE geo_hash = ?", (wert, now, gh))
+    conn.execute("UPDATE tracks SET check_ok = ? WHERE geo_hash = ?", (wert, gh))
+    conn.commit()
+    row = conn.execute("SELECT check_json, check_stufe, check_ts, check_ok FROM tracks WHERE path = ?",
+                       (path,)).fetchone()
+    return {"ok": True, "check": _check_dict(dict(row))}
 
 
 @_locked
@@ -2822,9 +3055,11 @@ def dismiss_all_errors(conn: sqlite3.Connection, nur_art: str = "") -> int:
     """
     wo = "error != '' AND COALESCE(hidden,0) = 0"
     args: list = []
-    if nur_art in ("no_points", "broken"):
+    if nur_art == "no_points":
         wo += " AND error_kind = ?"
         args.append(nur_art)
+    elif nur_art == "broken":
+        wo += " AND error_kind IN ('broken', 'broken_repairable')"
     cur = conn.execute(f"UPDATE tracks SET hidden = 1 WHERE {wo}", args)
     conn.commit()
     return cur.rowcount or 0

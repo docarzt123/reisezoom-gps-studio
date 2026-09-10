@@ -723,6 +723,36 @@ away; **700 files take a good 20 seconds.** Sub-folders are included. You can wa
 folders as you like. (While there is no folder, the empty area shows a big **“+ Add folder”**
 button.)
 
+### 🩺 Track check — the archive tells you what is wrong with a track (since v0.9.688)
+A GPS spike, a gap or a camera writing ten points per second usually shows up only in the
+finished video. So the archive checks every tour on import and shows a **warning sign ⚠︎** top
+left on the tile: **red** = visible in the video (spikes, cold-start outliers, garbage elevation,
+damaged file), **yellow** = degrades picture or data (gaps, missing elevation, impossible speed,
+time running backwards, duplicate points, repeated seconds, standstill drift, clock set wrong).
+Notes such as "no timestamps" (planned route) or "times without time zone" are grey and get no
+sign. Only what the app can repair is reported.
+
+The **detail column** shows the line "Track check: 3 spikes, 1 gap (240 m)" with three
+options: **"Repair in Inspector"** opens the tour there with the findings box, **"Check again"**
+recomputes the tour (e.g. after a repair), and per finding **"That's fine as it is"** — the app
+then stops reporting that kind for this tour, neither on the tile nor when loading. Hidden kinds
+are listed in grey below with "show again". A new version of the tour (after healing) is checked
+afresh.
+
+**What is never a finding:** a pause at the same place (inn), an overnight break with kilometres
+in between (multi-day tour), the jump between two stages, and wide point spacing in planned
+routes without time.
+
+**When it checks:** on import, when opened in the Inspector, per tour via "Check again" and for
+the whole archive via **"🩺 Check all tours"** bottom left (progress in the header, "Cancel" next
+to it; about a minute per 1000 tours). After the update the archive asks **once** whether to
+check the existing tours — "Later" never asks again and tells you where the button is.
+**Nothing runs unasked in the background.** Checking only counts; your files are not changed.
+
+**Damaged files:** if a GPX appears in the error list as "damaged, repairable" (cut-off
+transfer, an "&" in the name, missing header), **"🩹 Repair"** puts a healthy copy into the
+archive as a tour. Your file stays as it is.
+
 ### 🌊 The swarm — all tours run at once (since v0.9.557, fully in the Animator since v0.9.569)
 Select several tours (⌘/Ctrl-click) or open a collection and choose
 **"🌊 Animate as a swarm …"** — a small dialog asks for the **speed mode**,
@@ -1978,6 +2008,23 @@ After auto-healing, a **"Before → After" box** appears: points, distance,
 max. speed and elevation compared (improvements in green), and the **old track
 stays on the map as a grey dashed line** until you close the box — so you can
 see exactly what healing changed.
+
+### 🩺 The findings box — track check on opening (since v0.9.688)
+As soon as a track is in the Inspector, the findings box sits **at the very top**: "Track check:
+2 spikes, 1 gap (240 m), clock is wrong (1989)". Every line has a **checkbox** — red and yellow
+preselected, grey notes not — and **"🩹 Repair"** runs exactly the ticked steps: put spikes on
+the line (time stays), fill gaps with straight-line points, smooth impossible speed (distance
+stays, the tour gets a few seconds longer), fix time running backwards, remove duplicate
+points, spread repeated seconds, collapse standstill drift onto one spot (the pause stays a
+pause), interpolate garbage and missing elevation, drop cold-start points. Then the **before →
+after** box appears, **⌘Z** takes everything back, and the track check runs again — what is
+repaired disappears from the box.
+
+Findings without an automatic fix get a jump instead of a checkbox: "clock is wrong" leads to
+**Set times**, "no timestamps" to **Create timeline**. If the tour is in the archive, each
+finding has **"That's fine as it is"** — the kind is no longer reported for this tour (see
+archive). If you prefer to fill gaps along real paths, keep using **Heal (automatic)** with the
+route profile; the ticks in the box apply there too.
 
 ### 🩹 Auto-heal: outliers + gaps (since v0.9.295)
 Instead of searching by hand: **🩹 Auto-heal** scans the whole track and shows as a **preview on the map** what it would do — before anything is changed:

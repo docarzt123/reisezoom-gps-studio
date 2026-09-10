@@ -3834,6 +3834,78 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # ── Track-Check (10.09.2026, docs/TRACK-CHECK.md) ──────────────────────────
+    def library_track_check(self, path: str) -> dict:
+        """Eine Tour (neu) prüfen — auf Knopfdruck in der Detailspalte."""
+        try:
+            r = clib.track_check_datei(self._lib(), path, IMPORTS_DIR)
+            if r.get("ok"):
+                r["track"] = clib.get_track(self._lib(), path)
+            return r
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def library_track_check_alle(self, nur_ungeprueft: bool = True) -> dict:
+        """Den Bestand prüfen — im Hintergrund, mit Fortschritt und Abbruch. Startet
+        NUR auf Knopfdruck („Alle Touren prüfen") oder nach der einmaligen Frage."""
+        with self._start_lock:
+            if getattr(self, "_lib_check_running", False):
+                return {"ok": False, "error": "läuft bereits"}
+            self._lib_check_running = True
+        self._lib_check_stop = False
+        self._lib_check_state = {"done": 0, "total": 0, "current": "", "running": True}
+
+        def worker():
+            try:
+                res = clib.track_check_alle(
+                    self._lib(), IMPORTS_DIR, nur_ungeprueft=bool(nur_ungeprueft),
+                    progress=lambda p: self._lib_check_state.update(p),
+                    should_stop=lambda: self._lib_check_stop)
+                self._lib_check_state["result"] = res
+            except Exception as e:  # noqa: BLE001
+                log.exception("library_track_check_alle")
+                self._lib_check_state["error"] = str(e)
+            finally:
+                self._lib_check_state["running"] = False
+                self._lib_check_running = False
+
+        threading.Thread(target=worker, daemon=True, name="library-track-check").start()
+        return {"ok": True}
+
+    def library_track_check_status(self) -> dict:
+        return dict(getattr(self, "_lib_check_state", {"running": False}))
+
+    def library_track_check_stop(self) -> dict:
+        self._lib_check_stop = True
+        return {"ok": True}
+
+    def library_track_check_stand(self) -> dict:
+        """Wie viel ist ungeprüft — und wurde nach dem Update schon gefragt?"""
+        try:
+            r = clib.track_check_stand(self._lib())
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+        try:
+            r["gefragt"] = bool(_load_settings().get("track_check_gefragt"))
+        except Exception:  # noqa: BLE001
+            r["gefragt"] = True
+        r["laeuft"] = bool(getattr(self, "_lib_check_running", False))
+        return r
+
+    def library_track_check_gefragt(self) -> dict:
+        """Die Frage nach dem Update wurde beantwortet — nie wieder stellen."""
+        return self.settings_set({"track_check_gefragt": True})
+
+    def library_track_check_ok(self, path: str, key: str, ok: bool = True) -> dict:
+        """„Ist so in Ordnung" je Tour und Befund-Art setzen oder zurücknehmen."""
+        try:
+            r = clib.set_check_ok(self._lib(), path, key, bool(ok))
+            if r.get("ok"):
+                r["track"] = clib.get_track(self._lib(), path)
+            return r
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
     def library_set_color(self, path: str, color: str = "") -> dict:
         """Track-Farbe für die Übersichtskarte. Leer = wieder automatisch."""
         try:
@@ -4141,6 +4213,44 @@ class Api:
             return {"ok": True, "groups": clib.duplicates(self._lib())}
         except Exception as e:
             return {"ok": False, "error": str(e), "groups": []}
+
+    def library_repair_file(self, path: str) -> dict:
+        """10.09.2026 — Track-Check `xml_broken`: eine beschädigte GPX reparieren
+        (abgeschnitten, unmaskiertes &/<, Kopf fehlt). Die reparierte Fassung wird
+        als Version in der Bibliothek abgelegt und als Tour aufgenommen; die Datei
+        des Nutzers bleibt unangetastet, ihre Fehler-Zeile wird weggeräumt."""
+        try:
+            r = clib.datei_reparieren(str(path or ""))
+            if not r.get("ok"):
+                return {"ok": False, "error": r.get("error") or "nicht reparierbar",
+                        "schritte": r.get("schritte") or []}
+            GPX_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            tmp = GPX_CACHE_DIR / f"repariert-{uuid.uuid4().hex[:10]}.gpx"
+            tmp.write_bytes(r["data"])
+            try:
+                gh = self._track_geo_hash(str(tmp))
+                if not gh:
+                    return {"ok": False, "error": "keine Strecke nach der Reparatur"}
+                cbib.version_bytes_ablegen(BIB, r["data"], gh)
+            finally:
+                tmp.unlink(missing_ok=True)
+            conn = self._lib()
+            auf = clib.version_aufnehmen(conn, cbib.version_datei(BIB, gh), LIBRARY_THUMBS, IMPORTS_DIR,
+                                         map_thumbs_dir=LIBRARY_MAP_THUMBS, covers_dir=LIBRARY_COVERS)
+            if not auf.get("ok"):
+                return {"ok": False, "error": auf.get("error") or "Aufnahme fehlgeschlagen"}
+            try:
+                clib.touren_bestimmen(conn)
+            except Exception:  # noqa: BLE001
+                log.exception("touren_bestimmen nach Reparatur")
+            clib.fehlerzeile_repariert(conn, str(path), gh)
+            log.info("[track-check] Datei repariert: %s → %s (%s, %d Punkte)",
+                     os.path.basename(str(path)), gh[:12], ",".join(r.get("schritte") or []), r.get("n_points") or 0)
+            return {"ok": True, "geo_hash": gh, "n_points": int(r.get("n_points") or 0),
+                    "schritte": r.get("schritte") or [], "vorhanden": bool(auf.get("vorhanden"))}
+        except Exception as e:  # noqa: BLE001
+            log.exception("library_repair_file")
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
     def library_forget(self, path: str) -> dict:
         """Nimmt eine Tour aus dem Archiv. Die Datei selbst bleibt liegen —
@@ -8497,6 +8607,56 @@ class Api:
                                   schritte=(None if schritte is None else list(schritte)))
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    def trackcheck_datei(self, path: str) -> dict:
+        """10.09.2026 — Track-Check für den Lade-Hinweis (Animator, Tour-Map …): steht
+        die Datei geprüft im Archiv, gilt das gespeicherte Ergebnis samt Abwahl; sonst
+        wird die Datei einmal gelesen und gezählt (nichts wird gespeichert)."""
+        from core import trackcheck
+        ok_liste = []
+        try:
+            t = clib.get_track(self._lib(), path)
+            if t and (t.get("check") or {}).get("geprueft"):
+                c = t["check"]
+                return {"ok": True, "befunde": c["befunde"], "marke": c["marke"], "hoechste": c["hoechste"],
+                        "quelle": "archiv"}
+            if t:
+                ok_liste = list((t.get("check") or {}).get("ok") or [])
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            pts, stats = clib.punkte_lesen(path, IMPORTS_DIR)
+            _rec, _ = clib._recorded_guess(pts, stats, os.path.basename(str(path)))
+            r = trackcheck.pruefen(pts, local_time_n=int(getattr(stats, "zeit_ohne_zone", 0) or 0),
+                                   geplant=not _rec)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+        f = trackcheck.filtern(r["befunde"], ok_liste)
+        return {"ok": True, "befunde": f["befunde"], "marke": f["marke"], "hoechste": f["hoechste"],
+                "quelle": "datei", "ms": r["ms"]}
+
+    def gpxinspect_track_check(self, points: list, path: str = "", local_time_n: int = 0) -> dict:
+        """10.09.2026 — Track-Check auf den Punkten im Inspektor (core/trackcheck), dazu
+        die abgewählten Arten dieser Tour aus dem Archiv (leer bei Dateien außerhalb)."""
+        from core import trackcheck
+        ok_liste, im_archiv, geplant = [], False, False
+        if path:
+            try:
+                t = clib.get_track(self._lib(), path)
+                if t:
+                    im_archiv = True
+                    ok_liste = list((t.get("check") or {}).get("ok") or [])
+                    geplant = not bool(t.get("recorded_eff", 1))
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            r = trackcheck.pruefen(list(points or []), local_time_n=int(local_time_n or 0), geplant=geplant)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+        f = trackcheck.filtern(r["befunde"], ok_liste)
+        return {"ok": True, "befunde": f["befunde"], "abgewaehlt": f["abgewaehlt"],
+                "hoechste": f["hoechste"], "marke": f["marke"], "ok_liste": ok_liste,
+                "im_archiv": im_archiv, "n_points": r["n_points"], "ms": r["ms"]}
 
     def gpxinspect_werkzeug(self, action: str, points: list, params: dict = None) -> dict:
         """10.09.2026 (Marc: „die App muss alles können, was auch im Web geht") — die
