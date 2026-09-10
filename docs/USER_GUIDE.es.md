@@ -2134,7 +2134,6 @@ Al hacer clic en **📧 Feedback / reporte de bug a Marc** (o ante un error de r
 5. En el texto del mensaje, reemplazar el marcador de posición `[hier deinen Text einfügen]` por una breve descripción — qué has hecho, qué no ha funcionado
 6. Enviar
 
-**Si tienes un programa de correo local** (Mac Mail.app, Outlook Desktop, Thunderbird): botón **«📧 Abrir el programa de correo local»** abajo a la izquierda — entonces todo está prellenado automáticamente.
 
 ### Archivo de log
 Ante errores de render se abre automáticamente un modal de error con un extracto de log desplegable + los botones «Mostrar en el Finder», «Abrir log», «📧 Enviar a Marc». El archivo de log completo lo encuentras en cualquier momento en:
