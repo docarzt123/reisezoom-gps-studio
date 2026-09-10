@@ -8639,7 +8639,7 @@ class Api:
         """10.09.2026 — Track-Check auf den Punkten im Inspektor (core/trackcheck), dazu
         die abgewählten Arten dieser Tour aus dem Archiv (leer bei Dateien außerhalb)."""
         from core import trackcheck
-        ok_liste, im_archiv, geplant = [], False, False
+        ok_liste, im_archiv, geplant, activity = [], False, False, ""
         if path:
             try:
                 t = clib.get_track(self._lib(), path)
@@ -8647,6 +8647,7 @@ class Api:
                     im_archiv = True
                     ok_liste = list((t.get("check") or {}).get("ok") or [])
                     geplant = not bool(t.get("recorded_eff", 1))
+                    activity = str(t.get("activity") or "")
             except Exception:  # noqa: BLE001
                 pass
         try:
@@ -8656,7 +8657,7 @@ class Api:
         f = trackcheck.filtern(r["befunde"], ok_liste)
         return {"ok": True, "befunde": f["befunde"], "abgewaehlt": f["abgewaehlt"],
                 "hoechste": f["hoechste"], "marke": f["marke"], "ok_liste": ok_liste,
-                "im_archiv": im_archiv, "n_points": r["n_points"], "ms": r["ms"]}
+                "im_archiv": im_archiv, "activity": activity, "n_points": r["n_points"], "ms": r["ms"]}
 
     def gpxinspect_werkzeug(self, action: str, points: list, params: dict = None) -> dict:
         """10.09.2026 (Marc: „die App muss alles können, was auch im Web geht") — die
