@@ -2144,8 +2144,8 @@ function mountAnimator(body, headerActions, opts) {
     const ui = colorUnitInfo();
     box.innerHTML = _trackColorStops.map((s, i) => `
       <div class="anim-color-row" data-idx="${i}" style="display:flex; gap:6px; align-items:center; margin-bottom:5px;">
-        <span class="muted" style="font-size:11px; min-width:30px;">${_animEscapeHtml(ui.label)}</span>
-        <input type="number" class="anim-color-km" data-idx="${i}"${ui.min0 ? ' min="0"' : ""} step="${ui.step}" value="${(+s.v).toFixed(ui.dec)}" style="width:80px; min-width:0;">
+        <span class="muted" style="font-size:11px; min-width:30px; flex:0 0 auto;">${_animEscapeHtml(ui.label)}</span>
+        <input type="number" class="anim-color-km" data-idx="${i}"${ui.min0 ? ' min="0"' : ""} step="${ui.step}" value="${(+s.v).toFixed(ui.dec)}" style="flex:0 0 84px; width:84px; min-width:84px;">
         ${ui.unit ? `<span class="muted" style="font-size:11px;">${_animEscapeHtml(ui.unit)}</span>` : ""}
         <input type="color" class="anim-color-col" data-idx="${i}" value="${s.color}" style="width:34px; height:26px; padding:1px; margin-left:auto;">
         <button type="button" class="anim-color-del" data-idx="${i}" title="${_animEscapeHtml(t("animator.colors.delete", "Entfernen"))}" style="background:none; border:0; cursor:pointer; font-size:15px; padding:2px 4px;">🗑</button>
