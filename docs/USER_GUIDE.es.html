@@ -1593,6 +1593,17 @@ python app.py</code></pre>
 <blockquote>desplazan todo en esa medida — revisa entonces fotogramas y carteles. Si la</blockquote>
 <blockquote>ruta cambió de forma apreciable, la aplicación lo dice tras el traslado.</blockquote>
 <p><strong>La ruta antigua queda intacta.</strong> Si el resultado no te gusta, abre de nuevo el archivo original.</p>
+<h3 id="m-s-herramientas-todo-lo-que-puede-la-web">🧰 Más herramientas — todo lo que puede la web</h3>
+<p>Abajo en la barra lateral, encima del botón de guardar, están las mismas herramientas que en reisezoom.com/gps — aquí sin límite de tamaño, sin subida, y los sensores (pulso, cadencia …) se quedan con los puntos:</p>
+<ul>
+<li><strong>Invertir</strong> — el track corre al revés. Las marcas de tiempo se reflejan (el inicio sigue siendo el inicio); si no, el reloj iría hacia atrás.</li>
+<li><strong>Inicio aquí (ancla A)</strong> — empezar una ruta circular en otro sitio: poner el ancla A, pulsar, y el comienzo antiguo se añade al final. Si inicio y final están lejos, el aviso lo dice (no era una ruta cerrada).</li>
+<li><strong>Dividir aquí (ancla A) …</strong> — corta en el ancla A en dos partes; el punto de corte pertenece a ambas. En el diálogo: <strong>conservar parte 1</strong>, <strong>conservar parte 2</strong> o <strong>guardar ambas como archivos</strong> (<code>&lt;nombre&gt;_teil1.gpx</code>, <code>_teil2.gpx</code> junto al original, no se sobrescribe nada).</li>
+<li><strong>Simplificar, desviación</strong> — Douglas-Peucker: elimina los puntos que se desvían menos de los metros indicados de la línea; inicio y final se mantienen siempre. («Reducir» más arriba toma en cambio cada n-ésimo punto de forma uniforme.)</li>
+<li><strong>Tiempos</strong> — <em>desplazar</em> (segundos, también negativos: zona horaria, horario de verano olvidado, sincronización de cámara), <em>fijar inicio en</em> (fecha/hora), <em>fijar duración en</em> (minutos, comprime o estira todos los intervalos). Necesita marcas de tiempo; sin reloj, usa antes «crear eje de tiempo» arriba.</li>
+<li><strong>Parciales cada … km → Tabla de parciales</strong> — tiempos parciales por tramo: distancia, duración, ritmo, desnivel positivo y negativo. «Copiar como tabla» la deja separada por punto y coma en el portapapeles (vale para cualquier hoja de cálculo).</li>
+</ul>
+<p>Cada paso es un paso de deshacer (⌘Z). Inicio y dividir necesitan exactamente <strong>un</strong> ancla (A sin B).</p>
 <h3 id="deshacer">Deshacer</h3>
 <p><strong>⌘Z</strong> deshace cualquier edición, <strong>⌘⇧Z</strong> rehace (o los botones ↩︎/↪︎). Al cargar un track nuevo, el historial arranca de cero.</p>
 <h3 id="guardar">Guardar</h3>
@@ -1646,7 +1657,6 @@ python app.py</code></pre>
 <li>En el texto del mensaje, reemplazar el marcador de posición <code>[hier deinen Text einfügen]</code> por una breve descripción — qué has hecho, qué no ha funcionado</li>
 <li>Enviar</li>
 </ol>
-<p><strong>Si tienes un programa de correo local</strong> (Mac Mail.app, Outlook Desktop, Thunderbird): botón <strong>«📧 Abrir el programa de correo local»</strong> abajo a la izquierda — entonces todo está prellenado automáticamente.</p>
 <h3 id="archivo-de-log">Archivo de log</h3>
 <p>Ante errores de render se abre automáticamente un modal de error con un extracto de log desplegable + los botones «Mostrar en el Finder», «Abrir log», «📧 Enviar a Marc». El archivo de log completo lo encuentras en cualquier momento en:</p>
 <ul>

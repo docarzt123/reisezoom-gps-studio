@@ -1582,6 +1582,17 @@ python app.py</code></pre>
 <blockquote>keyframes and signs then. If the tour changed noticeably, the app says so</blockquote>
 <blockquote>after the transfer.</blockquote>
 <p><strong>The old tour stays untouched.</strong> If you don&#x27;t like the result, just open the original file again.</p>
+<h3 id="more-tools-everything-the-web-can-do">🧰 More tools — everything the web can do</h3>
+<p>At the bottom of the sidebar, above the save button, you find the same tools as on reisezoom.com/gps — here without size limit, without upload, and the sensors (heart rate, cadence …) stay with the points:</p>
+<ul>
+<li><strong>Reverse</strong> — the track runs backwards. Timestamps are mirrored (the start stays the start), otherwise the clock would run backwards.</li>
+<li><strong>Start here (anchor A)</strong> — start a loop somewhere else: set anchor A, click, the old beginning is appended at the end. If start and end are far apart, the note says so (it was not a closed loop).</li>
+<li><strong>Split here (anchor A) …</strong> — cuts at anchor A into two parts; the cut point belongs to both. In the dialog: <strong>keep part 1</strong>, <strong>keep part 2</strong> or <strong>save both as files</strong> (<code>&lt;name&gt;_teil1.gpx</code>, <code>_teil2.gpx</code> next to the source, nothing is overwritten).</li>
+<li><strong>Simplify, deviation</strong> — Douglas-Peucker: removes points that deviate less than the given metres from the line; start and end always stay. (“Reduce” further up takes every n-th point evenly instead.)</li>
+<li><strong>Times</strong> — <em>shift by</em> (seconds, negative allowed: time zone, forgotten DST, camera sync), <em>set start to</em> (date/time), <em>set duration to</em> (minutes, squeezes or stretches all intervals). Needs timestamps — without a clock, use “create time axis” above first.</li>
+<li><strong>Splits every … km → Splits table</strong> — split times per section: distance, duration, pace, climb and descent. “Copy as table” puts it semicolon-separated on the clipboard (fits any spreadsheet).</li>
+</ul>
+<p>Every step is an undo step (⌘Z). Start and split need exactly <strong>one</strong> anchor (A without B).</p>
 <h3 id="undo">Undo</h3>
 <p><strong>⌘Z</strong> undoes every edit, <strong>⌘⇧Z</strong> redoes it (or the ↩︎/↪︎ buttons). When you load a new track, the history starts fresh.</p>
 <h3 id="saving">Saving</h3>
@@ -1635,7 +1646,6 @@ python app.py</code></pre>
 <li>In the message text, replace the placeholder <code>[insert your text here]</code> with a short description — what you did, what didn&#x27;t work</li>
 <li>Send</li>
 </ol>
-<p><strong>If you have a local mail program</strong> (Mac Mail.app, Outlook Desktop, Thunderbird): the <strong>&quot;📧 Open local mail program&quot;</strong> button at the bottom left — then everything is pre-filled automatically.</p>
 <h3 id="log-file">Log file</h3>
 <p>On render errors an error modal opens automatically with an expandable log excerpt + &quot;Show in Finder&quot;, &quot;Open log&quot;, &quot;📧 Send to Marc&quot; buttons. You can find the full log file at any time at:</p>
 <ul>

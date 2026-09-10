@@ -1709,6 +1709,17 @@ python app.py</code></pre>
 <p>Deshalb fragt der Inspektor jetzt <strong>einmal nach dem Speichern</strong>, ob deine Arbeit mitkommen soll. Sagst du ja, wandern <strong>alle Projekte der Tour</strong> herüber, mit allem drin: <strong>Animator</strong> (Kamera, Keyframes, Aussehen), <strong>Tour-Karte</strong>, <strong>Geotagger</strong>, <strong>Höhen-Animator</strong>, dazu <strong>Fotos</strong> und <strong>Schilder</strong>. Das zuletzt aktive Projekt ist danach wieder vorn.</p>
 <blockquote><strong>Wichtig, ehrlich gesagt:</strong> Je nachdem, <strong>wie viel</strong> geheilt wurde, passt die Übernahme nicht überall. Keyframes, Schilder und Foto-Pins sitzen an einer <strong>Stelle im Track</strong>. Hast du nur ein paar Ausreißer geglättet, merkst du gar nichts. Hast du dagegen viele Punkte eingefügt oder den Anfang abgeschnitten, verschiebt sich alles um genau diesen Anteil — dann bitte kurz durch die Keyframes und Schilder gehen. Hat sich die Tour deutlich geändert, sagt dir die App das nach der Übernahme ausdrücklich.</blockquote>
 <p><strong>Die alte Tour bleibt unangetastet.</strong> Gefällt dir das Ergebnis nicht, öffne einfach wieder die Originaldatei — dort liegt alles unverändert.</p>
+<h3 id="weitere-werkzeuge-alles-was-das-web-kann">🧰 Weitere Werkzeuge — alles, was das Web kann</h3>
+<p>Unten in der Seitenleiste, vor dem Speichern-Knopf, stehen dieselben Werkzeuge wie auf reisezoom.com/gps — hier ohne Größenlimit, ohne Upload, und die Sensoren (Puls, Trittfrequenz …) bleiben an den Punkten:</p>
+<ul>
+<li><strong>Umkehren</strong> — der Track läuft rückwärts. Die Zeitstempel werden gespiegelt (der Start bleibt der Start), sonst liefe die Uhr rückwärts.</li>
+<li><strong>Startpunkt hierher (Anker A)</strong> — bei einer Rundtour woanders anfangen: Anker A setzen, klicken, der alte Anfang hängt sich hinten an. Liegen Start und Ziel weit auseinander, sagt der Hinweis das (dann war es keine geschlossene Runde).</li>
+<li><strong>Hier teilen (Anker A) …</strong> — schneidet an Anker A in zwei Teile; der Schnittpunkt gehört zu beiden. Im Dialog: <strong>Teil 1 behalten</strong>, <strong>Teil 2 behalten</strong> oder <strong>beide als Dateien speichern</strong> (<code>&lt;name&gt;_teil1.gpx</code>, <code>_teil2.gpx</code> neben der Quelle, nichts wird überschrieben).</li>
+<li><strong>Ausdünnen, Abweichung</strong> — Douglas-Peucker: entfernt Punkte, die weniger als die angegebenen Meter von der Linie abweichen; Start und Ziel bleiben immer. (Das „Reduzieren&quot; weiter oben nimmt dagegen gleichmäßig jeden n-ten Punkt.)</li>
+<li><strong>Zeiten</strong> — <em>verschieben um</em> (Sekunden, auch negativ: Zeitzone, vergessene Sommerzeit, Kamera-Abgleich), <em>Start setzen auf</em> (Datum/Uhrzeit), <em>Dauer setzen auf</em> (Minuten, staucht oder streckt alle Abstände). Braucht Zeitstempel — ohne Uhr erst oben „Zeitachse erzeugen&quot;.</li>
+<li><strong>Runden je … km → Runden-Tabelle</strong> — Zwischenzeiten je Abschnitt: Strecke, Dauer, Tempo, Höhenmeter auf und ab. „Als Tabelle kopieren&quot; legt sie Semikolon-getrennt in die Zwischenablage (passt in jede Tabellenkalkulation).</li>
+</ul>
+<p>Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau <strong>einen</strong> Anker (A ohne B).</p>
 <h3 id="r-ckg-ngig">Rückgängig</h3>
 <p><strong>⌘Z</strong> macht jede Bearbeitung rückgängig, <strong>⌘⇧Z</strong> stellt wieder her (oder die ↩︎/↪︎-Buttons). Beim Laden eines neuen Tracks startet die Historie frisch.</p>
 <h3 id="speichern">Speichern</h3>
@@ -1762,7 +1773,6 @@ python app.py</code></pre>
 <li>Im Nachrichten-Text den Platzhalter <code>[hier deinen Text einfügen]</code> durch eine kurze Beschreibung ersetzen — was du gemacht hast, was nicht funktioniert hat</li>
 <li>Senden</li>
 </ol>
-<p><strong>Falls du ein lokales Mail-Programm hast</strong> (Mac Mail.app, Outlook Desktop, Thunderbird): Button <strong>„📧 Lokales Mail-Programm öffnen&quot;</strong> unten links — dann ist alles automatisch vorbefüllt.</p>
 <h3 id="logdatei">Logdatei</h3>
 <p>Bei Render-Fehlern öffnet sich automatisch ein Fehler-Modal mit ausklappbarem Log-Auszug + Buttons „Im Finder zeigen&quot;, „Log öffnen&quot;, „📧 An Marc senden&quot;. Die volle Logdatei findest du jederzeit unter:</p>
 <ul>

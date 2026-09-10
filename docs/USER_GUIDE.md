@@ -2234,6 +2234,18 @@ Deshalb fragt der Inspektor jetzt **einmal nach dem Speichern**, ob deine Arbeit
 
 **Die alte Tour bleibt unangetastet.** Gefällt dir das Ergebnis nicht, öffne einfach wieder die Originaldatei — dort liegt alles unverändert.
 
+### 🧰 Weitere Werkzeuge — alles, was das Web kann (seit v0.9.687)
+Unten in der Seitenleiste, vor dem Speichern-Knopf, stehen dieselben Werkzeuge wie auf reisezoom.com/gps — hier ohne Größenlimit, ohne Upload, und die Sensoren (Puls, Trittfrequenz …) bleiben an den Punkten:
+
+- **Umkehren** — der Track läuft rückwärts. Die Zeitstempel werden gespiegelt (der Start bleibt der Start), sonst liefe die Uhr rückwärts.
+- **Startpunkt hierher (Anker A)** — bei einer Rundtour woanders anfangen: Anker A setzen, klicken, der alte Anfang hängt sich hinten an. Liegen Start und Ziel weit auseinander, sagt der Hinweis das (dann war es keine geschlossene Runde).
+- **Hier teilen (Anker A) …** — schneidet an Anker A in zwei Teile; der Schnittpunkt gehört zu beiden. Im Dialog: **Teil 1 behalten**, **Teil 2 behalten** oder **beide als Dateien speichern** (`<name>_teil1.gpx`, `_teil2.gpx` neben der Quelle, nichts wird überschrieben).
+- **Ausdünnen, Abweichung** — Douglas-Peucker: entfernt Punkte, die weniger als die angegebenen Meter von der Linie abweichen; Start und Ziel bleiben immer. (Das „Reduzieren" weiter oben nimmt dagegen gleichmäßig jeden n-ten Punkt.)
+- **Zeiten** — *verschieben um* (Sekunden, auch negativ: Zeitzone, vergessene Sommerzeit, Kamera-Abgleich), *Start setzen auf* (Datum/Uhrzeit), *Dauer setzen auf* (Minuten, staucht oder streckt alle Abstände). Braucht Zeitstempel — ohne Uhr erst oben „Zeitachse erzeugen".
+- **Runden je … km → Runden-Tabelle** — Zwischenzeiten je Abschnitt: Strecke, Dauer, Tempo, Höhenmeter auf und ab. „Als Tabelle kopieren" legt sie Semikolon-getrennt in die Zwischenablage (passt in jede Tabellenkalkulation).
+
+Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau **einen** Anker (A ohne B).
+
 ### Rückgängig
 **⌘Z** macht jede Bearbeitung rückgängig, **⌘⇧Z** stellt wieder her (oder die ↩︎/↪︎-Buttons). Beim Laden eines neuen Tracks startet die Historie frisch.
 

@@ -280,3 +280,8 @@
 /* 08.09.2026 — Analyse-Kasten (GPX heilen): Funde mit Häkchen */
 .gpxi-analysis { margin: 4px 0 8px; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: rgba(255,255,255,0.04); }
 .gpxi-analysis-title { font-size: 12px; opacity: 0.85; margin-bottom: 4px; }
+
+/* 10.09.2026 — Web-Werkzeuge im Inspektor: Runden-Tabelle */
+.gpxi-wz-tabelle { width: 100%; border-collapse: collapse; font-size: 12px; }
+.gpxi-wz-tabelle th, .gpxi-wz-tabelle td { padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--border, rgba(255,255,255,0.08)); }
+.gpxi-wz-tabelle th:first-child, .gpxi-wz-tabelle td:first-child { text-align: left; }
