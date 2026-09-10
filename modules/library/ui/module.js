@@ -674,6 +674,9 @@ function mountLibrary(body, headerActions) {
 
   function renderHead() {
     const s = _stats || {};
+    // 10.09.2026 (Echt-Test): der Track-Check-Lauf ruft das auch nach einem
+    // Modulwechsel — dann gibt es die Kopfzeile nicht mehr.
+    if (_unmounted || !$("lib-head")) return;
     $("lib-head").innerHTML = `
       <span class="lib-head-count">${_total} ${T("library.tours", "Touren")}</span>
       <span class="lib-head-title">${esc(scopeTitle())}</span>
@@ -4066,14 +4069,16 @@ function mountLibrary(body, headerActions) {
     let r; try { r = await api().library_track_check_alle(!!nurUngeprueft); } catch (e) { r = { ok: false, error: String(e) }; }
     if (!r || !r.ok) { toast(T("trackcheck.error", "Track-Check nicht möglich: {e}").replace("{e}", (r && r.error) || "?"), "error"); return; }
     _checkLauf = { done: 0, total: 0, running: true };
-    renderHead();
-    setTimeout(watchAutoThumbs, 800);
+    if (!_unmounted) { renderHead(); setTimeout(watchAutoThumbs, 800); }
   }
   // Nach dem Update EINMAL fragen (Marc: „nichts im Hintergrund, nach dem Update
   // wird gefragt, nicht nochmal, und sagen wo man es findet").
   async function trackCheckFrage() {
     let st; try { st = await api().library_track_check_stand(); } catch (_) { return; }
-    if (_unmounted || !st || !st.ok || st.gefragt || st.laeuft || !(st.ungeprueft > 0)) return;
+    // Nur fragen, solange das Archiv wirklich vor dem Nutzer steht (beim Start wird
+    // es kurz gemountet und dann das letzte Modul wiederhergestellt — Echt-Test 10.09.).
+    const imArchiv = (typeof activeMod === "undefined") || activeMod === "library";
+    if (_unmounted || !imArchiv || !$("lib-head") || !st || !st.ok || st.gefragt || st.laeuft || !(st.ungeprueft > 0)) return;
     const merken = () => { try { api().library_track_check_gefragt(); } catch (_) {} };
     const m = openModal({
       title: T("trackcheck.frage_titel", "Track-Check: Bestand jetzt prüfen?"),

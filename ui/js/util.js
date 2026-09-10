@@ -3702,6 +3702,10 @@ window.rzTrackCheckHinweis = async function(path) {
   let r = null;
   try { r = await api().trackcheck_datei(path); } catch (_) { return false; }
   if (!r || !r.ok || !r.marke) return false;
+  // „Im Inspektor reparieren" aus dem Archiv lädt erst und wechselt dann das Modul —
+  // kurz warten und noch einmal nachsehen, sonst liegt der Toast über dem Kasten (Echt-Test 10.09.).
+  await new Promise((res) => setTimeout(res, 400));
+  if (typeof activeMod !== "undefined" && activeMod === "gpxinspect") return false;
   const T = (typeof t === "function") ? t : (k, d) => d;
   const msg = T("trackcheck.toast", "Track-Check: {liste}.").replace("{liste}", window.rzTrackCheckKurz(r.befunde, 3));
   window.rzToastMitKnopf(msg, T("trackcheck.btn_repair", "Im Inspektor reparieren"),
