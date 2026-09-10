@@ -16,6 +16,9 @@ Bei jeder neuen Version:
 
 ## [0.9.688] – 2026-09-10
 
+### Fixed
+- Animator: the space bar did not start the trial run after adjusting something in the sidebar — the slider, checkbox or select kept the focus and the key handler treated every input as a text field. Space now starts/stops the trial run everywhere except in real text fields (and never toggles the focused checkbox or opens the select); it is also caught before other elements can swallow it and no longer bails out silently when the track state was not yet mirrored. — Leertaste startet den Probe-Lauf jetzt immer, außer in echten Textfeldern.
+
 ### Added
 - macOS: the app installs itself. Started from the download image or the Downloads folder (macOS then runs it from a locked folder and it cannot find its files), the start page now has one button: "Install into Applications and start" — copies the bundle to /Applications, moves older copies (also "… 2.app") to the trash, removes the quarantine flag, ejects the download image and restarts from Applications. After a normal start the app offers once to tidy up a still-mounted download image or extra copies in Applications; started from anywhere else than Applications it offers to install itself. (Beta tester could not get past the drag-to-Applications step.) — macOS: die App installiert sich selbst nach Programme; ein Knopf auf der Startseite statt Anleitung; Aufräumen von Download-Image und Doppel-Kopien nach dem Start.
 - Log: the first mouse click in the interface is recorded ("[eingabe] erster Klick …") — tells apart "the view gets no clicks" from "our code does not react". — Klick-Zeuge im Log.
