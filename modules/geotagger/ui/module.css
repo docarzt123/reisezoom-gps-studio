@@ -567,3 +567,13 @@ body.gt-dragging, body.gt-dragging * { user-select: none !important; cursor: gra
 .gt-tz-hinweis b { font-weight: 600; }
 .gt-tz-vorschlag { margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .gt-tz-vorschlag .btn { padding: 3px 9px; font-size: 11px; }
+
+/* 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks: Liste in der Seitenleiste, Chips */
+.gt-tracks-liste { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.gt-track-zeile { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 6px; border-radius: 5px; background: var(--panel-2, rgba(255,255,255,0.03)); }
+.gt-track-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.gt-track-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gt-track-meta { flex: 0 0 auto; font-size: 11px; color: var(--text-dim, #aaa); }
+.gt-chip.track { display: inline-flex; align-items: center; gap: 4px; }
+.gt-chip.doppel { opacity: .85; }
+.gt-track-wahl .gt-chip.track { font-size: 10px; margin-left: 4px; }

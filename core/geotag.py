@@ -338,3 +338,57 @@ def derive_offset_from_reference(
     photo_as_utc = reference_photo_time_local.replace(tzinfo=timezone.utc)
     offset = (track_time - photo_as_utc).total_seconds()
     return offset
+
+
+# ── Mehrere Tracks auf einmal (IDEAS §61, GitHub-Issue #7, 10.09.2026) ────────
+#
+# Der Geotagger hielt bisher genau einen Track. Wer 2200 Fotos auf 10–15 Touren
+# hat, musste ihn je Track laufen lassen. Jetzt: je Track die gewohnte Zuordnung
+# (`match_photos`, unverändert), dann je Foto den Treffer wählen.
+#
+# Regeln (mit Marc geklärt, 09.09.2026):
+#   * Treffer = Foto liegt im Zeitfenster des Tracks (mit dem heutigen
+#     Spielraum `max_gap_seconds`). Außerhalb aller Tracks → kein Treffer,
+#     das Foto bleibt unangetastet.
+#   * Trifft ein Foto MEHRERE Tracks: der nähere Punkt (kleinster |Zeitabstand|)
+#     gewinnt, VORGEGEBENE Tracks (vom Nutzer mitgebracht/eingelesen) zuerst,
+#     bei Gleichstand der längere Track. Die anderen Treffer bleiben als
+#     `doppel` sichtbar, damit man einzeln umhängen kann.
+
+@dataclass
+class TrackEintrag:
+    points: List[TrackPoint]
+    vorgegeben: bool = False
+    gewicht: float = 0.0     # Länge in m (oder Punktzahl) — entscheidet bei Gleichstand
+    name: str = ""
+
+
+def zuordnen_mehrere(
+    photo_times: list[tuple[str, Optional[datetime]]],
+    tracks: List[TrackEintrag],
+    **kw,
+) -> list[tuple[PhotoMatch, Optional[int], list[int]]]:
+    """Je Foto: (gewählter Treffer, Index des Tracks oder None, weitere Track-Indizes
+    mit Treffer). `kw` geht 1:1 an `match_photos` (Offset, Spielraum, Zeitzone …)."""
+    if not tracks:
+        return [(PhotoMatch(path=p, photo_time_local=t, matched_time_utc=None, lat=None,
+                            lon=None, alt=None, track_index=None, time_delta_s=None,
+                            in_range=False), None, []) for p, t in photo_times]
+    je_track = [match_photos(photo_times, tr.points, **kw) for tr in tracks]
+    raus = []
+    for j in range(len(photo_times)):
+        treffer = [i for i, ms in enumerate(je_track) if ms[j].in_range and ms[j].lat is not None]
+        if not treffer:
+            # kein Track passt — den erstbesten Nicht-Treffer durchreichen (Zeit fehlt o. ä.)
+            raus.append((je_track[0][j], None, []))
+            continue
+
+        def rang(i):
+            m = je_track[i][j]
+            return (0 if tracks[i].vorgegeben else 1,
+                    abs(m.time_delta_s or 0.0),
+                    -(tracks[i].gewicht or 0.0))
+        treffer.sort(key=rang)
+        best = treffer[0]
+        raus.append((je_track[best][j], best, treffer[1:]))
+    return raus

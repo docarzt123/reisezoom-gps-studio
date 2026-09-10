@@ -1720,6 +1720,29 @@ Reads the capture time from the EXIF data of each photo and finds the matching t
 4. **Check the offset** (see "Time zones" below) — usually it fits right away
 5. **"Write GPS into photos"** → **choose a target folder** → the fully tagged **copies** land there, your **originals stay untouched** → done, the folder opens
 
+### Several tracks at once — the archive finds them (since v0.9.686)
+
+Shooting with a camera without GPS often ends with 2000 photos and a dozen tracks.
+You no longer run the geotagger once per track:
+
+1. **Load a folder of photos** ("📁 Load whole folder"). GPX files next to the photos
+   are taken **into the archive** and you are told so. They count as **provided**.
+2. The **archive** compares the capture times with **all** tours it knows and shows a
+   **confirmation list**: a checkbox per tour, the number of photos falling on it, and
+   how many photos fit **no** tour (those stay untouched). What you brought yourself
+   is marked "provided". Missing a tour? **"From the archive …"** adds it via the usual
+   picker.
+3. **"Use tracks"** — all chosen tracks lie on the map in their own colour, the sidebar
+   lists them with their photo count. Every photo lands on the track whose time window
+   fits; time zone, camera offsets and writing work as before, per photo against its
+   track.
+
+If a photo fits **two** tracks (logger and phone ran in parallel), the nearer point
+wins, provided tracks first. The photo then carries the chip **"↔ also: …"**, the list
+says "n of them also fit another tour", and the summary counts "n on two tours".
+**"🗂 Tracks from the archive …"** in the sidebar adds more tracks at any time. The main
+track (first in the list) stays the one in the GPX bar; the session belongs to it.
+
 ### How the tagged photos are saved (since v0.9.372)
 - **Your originals are never touched.** When writing, you choose **a target folder once**; the app writes the fully tagged **copies** there. The originals thus remain as a backup — there's no separate backup ZIP anymore (unnecessary).
 - **A single consistent flow**, whether you loaded the photos via **drag & drop** or via **"Choose folder"**: a clean folder with the tagged images always results. The done dialog shows **"Saved in …"** + **"Open folder"**.

@@ -22,7 +22,7 @@ import threading
 import time
 import traceback
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -158,7 +158,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.685"
+APP_VERSION = "0.9.686"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1364,6 +1364,12 @@ class Api:
         self._gtg_track: list[cgpx.TrackPoint] = []
         self._gtg_display: list[cgpx.TrackPoint] = []  # v0.9.167 — gezeichnete (downsampled) Linie für Snap
         self._gtg_stats: Optional[cgpx.TrackStats] = None
+        # 10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks auf einmal. Jeder Eintrag:
+        # {path, orig_path, name, points, display, stats, coords, bbox, time_start,
+        #  time_end, n_points, vorgegeben, farbe}. `_gtg_track`/`_gtg_display` sind
+        # dann die nach Zeit zusammengelegten Punkte ALLER Tracks (Zeitzonen-Rat,
+        # Referenz-Offset, Einrasten), `_gtg_stats` die des Haupt-Tracks (erster).
+        self._gtg_tracks: list[dict] = []
         self._gtg_photos: list[dict] = []  # [{path, photo_time, ...}]
         # Lazy-Thumb-Worker
         self._thumb_worker: Optional[threading.Thread] = None
@@ -9423,41 +9429,218 @@ class Api:
 
     # ── Geotagger ─────────────────────────────────────────────────────────────
 
+    _GT_FARBEN = ["#ff6b35", "#35a7ff", "#7ed957", "#ffd166", "#c77dff", "#4ecdc4",
+                  "#ff8fa3", "#ffa94d", "#a0e7e5", "#f4a261", "#e76f51", "#8ecae6"]
+
+    def _gt_track_laden(self, path: str, vorgegeben: bool = False) -> dict:
+        """Einen Track für den Geotagger lesen: volle Punkte + gezeichnete Linie.
+        Wirft bei unlesbarer Datei (der Aufrufer meldet)."""
+        import math
+        orig_path = path
+        path = self._ensure_gpx(path)   # v0.9.282: FIT/NMEA/KML/… → GPX
+        pts, stats = cgpx.parse_gpx(path)
+        # v0.9.529 — geo_hash-Cache füttern (siehe animator_load_gpx)
+        self._merke_geo_hash(orig_path, [(p.lon, p.lat) for p in pts])
+        # v0.9.168 — dynamische Punktdichte statt fix 800: 50 Punkte je km
+        # (aufgerundet). So bleibt ein kurzer Track fein, ein 100-km-Track
+        # bekommt entsprechend mehr Punkte (statt grob auf 800 gestaucht).
+        # Obergrenze 100000 ist KEIN Qualitätslimit, sondern nur eine
+        # Notbremse gegen kaputte/absurde GPX (Millionen Punkte würden die
+        # WebView beim Übertragen einfrieren).
+        km = (stats.distance_m or 0) / 1000.0
+        target = max(2, min(100000, math.ceil(km) * 50))
+        ds = cgpx.downsample(pts, target)
+        return {
+            "path": str(orig_path), "gpx_path": str(path), "orig_path": str(orig_path),
+            "name": stats.name or Path(path).stem,
+            "points": pts, "display": ds, "stats": stats,
+            "coords": [[p.lon, p.lat] for p in ds],
+            "bbox": stats.bbox,
+            "time_start": pts[0].time if pts else None,
+            "time_end": pts[-1].time if pts else None,
+            "n_points": stats.n_points,
+            "vorgegeben": bool(vorgegeben),
+            "gewicht": float(stats.distance_m or len(pts)),
+        }
+
+    def _gt_tracks_setzen(self, liste: list[dict]) -> None:
+        """Track-Liste übernehmen; Farben vergeben; zusammengelegte Punkte bauen."""
+        for i, tr in enumerate(liste):
+            tr["farbe"] = self._GT_FARBEN[i % len(self._GT_FARBEN)]
+        self._gtg_tracks = liste
+        if not liste:
+            self._gtg_track, self._gtg_display, self._gtg_stats = [], [], None
+            return
+        alle = [p for tr in liste for p in tr["points"]]
+        # nach Zeit sortieren (Punkte ohne Zeit hinten anstellen, Reihenfolge stabil)
+        alle.sort(key=lambda p: (p.time is None, p.time or ""))
+        self._gtg_track = alle
+        self._gtg_display = [p for tr in liste for p in tr["display"]]
+        self._gtg_stats = liste[0]["stats"]
+
+    def _gt_track_kurz(self, tr: dict) -> dict:
+        """Was die Oberfläche über einen Track wissen muss (ohne Punktlisten)."""
+        return {k: tr.get(k) for k in ("path", "name", "coords", "bbox", "time_start",
+                                       "time_end", "n_points", "vorgegeben", "farbe")}
+
     def geotagger_load_gpx(self, path: str) -> dict:
+        """Einen Track laden. 10.09.2026: Ist der Pfad schon in der Track-Liste (die
+        globale GPX-Leiste ruft das beim Aktivieren der Sitzung erneut), wird er nur
+        zum Haupt-Track — die übrigen Tracks bleiben. Ein NEUER Pfad ersetzt die
+        Liste (wie bisher: ein Track)."""
         try:
-            import math
-            orig_path = path
-            path = self._ensure_gpx(path)   # v0.9.282: FIT/NMEA/KML/… → GPX
-            pts, stats = cgpx.parse_gpx(path)
-            # v0.9.529 — geo_hash-Cache füttern (siehe animator_load_gpx)
-            self._merke_geo_hash(orig_path, [(p.lon, p.lat) for p in pts])
-            self._gtg_track = pts
-            self._gtg_stats = stats
-            # v0.9.168 — dynamische Punktdichte statt fix 800: 50 Punkte je km
-            # (aufgerundet). So bleibt ein kurzer Track fein, ein 100-km-Track
-            # bekommt entsprechend mehr Punkte (statt grob auf 800 gestaucht).
-            # Obergrenze 100000 ist KEIN Qualitätslimit, sondern nur eine
-            # Notbremse gegen kaputte/absurde GPX (Millionen Punkte würden die
-            # WebView beim Übertragen einfrieren). Greift erst ab ~2000 km UND
-            # entsprechend vielen Roh-Punkten — praktisch nie. `downsample` fügt
-            # ohnehin nie Punkte hinzu: effektiv min(Ziel, echte Punktzahl).
-            km = (stats.distance_m or 0) / 1000.0
-            target = max(2, min(100000, math.ceil(km) * 50))
-            ds = cgpx.downsample(pts, target)
-            # Genau diese (downsampled) Punkte werden als Linie gezeichnet (siehe
-            # coords unten). Beim „Auf Track einrasten" (v0.9.167) projizieren wir
-            # auf EXAKT diese Linie, sonst sitzt der Pin neben der sichtbaren Linie.
-            self._gtg_display = ds
-            return {
-                "ok": True,
-                "name": stats.name or Path(path).stem,
-                "coords": [[p.lon, p.lat] for p in ds],
-                "bbox": stats.bbox,
-                "time_start": pts[0].time,
-                "time_end": pts[-1].time,
-                "n_points": stats.n_points,
-            }
+            bekannt = [t for t in self._gtg_tracks if t.get("path") == path or t.get("gpx_path") == path]
+            if bekannt and len(self._gtg_tracks) > 1:
+                rest = [t for t in self._gtg_tracks if t is not bekannt[0]]
+                self._gt_tracks_setzen([bekannt[0]] + rest)
+                tr = bekannt[0]
+            else:
+                tr = self._gt_track_laden(path)
+                self._gt_tracks_setzen([tr])
+            out = self._gt_track_kurz(tr)
+            out.update({"ok": True, "tracks": [self._gt_track_kurz(t) for t in self._gtg_tracks],
+                        "primary": self._gtg_tracks[0]["path"]})
+            return out
         except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def geotagger_load_gpx_viele(self, paths: list, vorgegeben: list | None = None) -> dict:
+        """10.09.2026 (IDEAS §61, Issue #7) — mehrere Tracks auf einmal. Der erste ist
+        der Haupt-Track (Sitzung, GPX-Leiste); `vorgegeben` = Pfade, die der Nutzer
+        selbst mitgebracht oder eingelesen hat — sie gewinnen bei Doppel-Treffern."""
+        try:
+            vg = {str(x) for x in (vorgegeben or [])}
+            liste, fehler = [], []
+            gesehen = set()
+            for p in (paths or []):
+                p = str(p)
+                if not p or p in gesehen:
+                    continue
+                gesehen.add(p)
+                try:
+                    liste.append(self._gt_track_laden(p, vorgegeben=p in vg))
+                except Exception as e:
+                    fehler.append({"path": p, "error": str(e)})
+                    log.warning("geotagger_load_gpx_viele: %s unlesbar (%s)", p, e)
+            if not liste:
+                return {"ok": False, "error": _ui_t()("error.kein_track_lesbar", "Kein Track lesbar"), "fehler": fehler}
+            self._gt_tracks_setzen(liste)
+            log.info("Geotagger: %d Tracks geladen (%d vorgegeben), Haupt-Track %s",
+                     len(liste), sum(1 for t in liste if t["vorgegeben"]), liste[0]["name"])
+            return {"ok": True, "tracks": [self._gt_track_kurz(t) for t in liste],
+                    "primary": liste[0]["path"], "fehler": fehler}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _gt_gpx_ins_archiv(self, paths: list) -> dict:
+        """GPX-Dateien (z. B. aus dem Foto-Ordner) ins Archiv nehmen und die Pfade der
+        Archiv-Kopien liefern — auch für Dateien, die schon drin waren."""
+        ziel = APP_SUPPORT / "import"
+        r = self.library_import_files([str(p) for p in paths]) if paths else {"ok": True, "kopiert": 0, "pfade": []}
+        raus = list(r.get("pfade") or [])
+        for p in paths:
+            src = Path(str(p))
+            d = ziel / src.name
+            if str(d) not in raus and d.exists() and src.exists() and d.stat().st_size == src.stat().st_size:
+                raus.append(str(d))
+        return {"ok": bool(r.get("ok", True)), "pfade": raus, "neu": int(r.get("kopiert") or 0)}
+
+    def geotagger_import_gpx_aus_ordner(self, folder: str) -> dict:
+        """10.09.2026 (Marc: „wenn GPX im Ordner sind, kommt ein Hinweis, dass die dem
+        Archiv hinzugefügt wurden") — Tracks neben den Fotos finden und ins Archiv
+        nehmen; die Archiv-Pfade gelten dann als VORGEGEBEN."""
+        try:
+            n = self.geotagger_find_gpx_near(folder)
+            gefunden = [m["path"] for m in (n.get("matches") or [])] if n.get("ok") else []
+            if not gefunden:
+                return {"ok": True, "pfade": [], "neu": 0, "gefunden": 0}
+            r = self._gt_gpx_ins_archiv(gefunden)
+            r["gefunden"] = len(gefunden)
+            return r
+        except Exception as e:
+            log.exception("geotagger_import_gpx_aus_ordner")
+            return {"ok": False, "error": str(e)}
+
+    def geotagger_tracks_fuer_fotos(self, vorgegeben: list | None = None,
+                                     max_gap_seconds: float = 1800.0) -> dict:
+        """10.09.2026 (IDEAS §61) — Welche Tracks passen zu den geladenen Fotos?
+        Kandidaten: die vorgegebenen Pfade (immer dabei) plus alle Touren des
+        Archivs, deren Zeitfenster die Aufnahmezeiten berührt (±15 h, weil die
+        Kamera-Zeitzone hier noch unbekannt sein kann). Dann die Zeitzone aus
+        allen Kandidaten raten und je Track die Fotos zählen. Tracks ohne Foto
+        fliegen raus — außer sie sind vorgegeben."""
+        try:
+            fotos = [(p["path"], datetime.fromisoformat(p["photo_time"]))
+                     for p in self._gtg_photos if p.get("photo_time")]
+            vg = [str(x) for x in (vorgegeben or []) if x]
+            if not fotos and not vg:
+                return {"ok": True, "tracks": [], "ohne": 0, "gesamt": 0, "tz_minuten": None}
+            kandidaten: list[str] = list(dict.fromkeys(vg))
+            if fotos:
+                zeiten = sorted(t for _, t in fotos)
+                von = (zeiten[0] - timedelta(hours=15)).date().isoformat()
+                bis = (zeiten[-1] + timedelta(hours=15)).date().isoformat()
+                try:
+                    res = clib.query(self._lib(), von=von, bis=bis, limit=500, include_merged=False)
+                    for it in res.get("items") or []:
+                        pf = str(it.get("path") or "")
+                        if pf and pf not in kandidaten and Path(pf).exists():
+                            kandidaten.append(pf)
+                except Exception as e:
+                    log.warning("geotagger_tracks_fuer_fotos: Archiv-Abfrage: %s", e)
+            geladen, fehler = [], []
+            for pf in kandidaten:
+                try:
+                    geladen.append(self._gt_track_laden(pf, vorgegeben=pf in vg))
+                except Exception as e:
+                    fehler.append({"path": pf, "error": str(e)})
+            if not geladen:
+                return {"ok": True, "tracks": [], "ohne": len(fotos), "gesamt": len(fotos),
+                        "tz_minuten": None, "fehler": fehler}
+            # Zeitzone der Kamera-Uhr: aus allen Kandidaten zusammen (eine Reise = eine Zone)
+            tz_min = 0.0
+            ohne_tz = [(p["path"], datetime.fromisoformat(p["photo_time"]))
+                       for p in self._gtg_photos if p.get("photo_time") and not p.get("tz_known")]
+            if ohne_tz:
+                alle = [pt for tr in geladen for pt in tr["points"]]
+                alle.sort(key=lambda p: (p.time is None, p.time or ""))
+                try:
+                    r = cgeo.zeitzone_raten(ohne_tz, alle, max_gap_seconds=300.0)
+                    if r.get("minuten") is not None:
+                        tz_min = float(r["minuten"])
+                except Exception as e:
+                    log.warning("geotagger_tracks_fuer_fotos: Zeitzone: %s", e)
+            tz_known = {p["path"] for p in self._gtg_photos if p.get("tz_known")}
+            eintraege = [cgeo.TrackEintrag(tr["points"], vorgegeben=tr["vorgegeben"],
+                                           gewicht=tr["gewicht"], name=tr["name"]) for tr in geladen]
+            zu = cgeo.zuordnen_mehrere(fotos, eintraege, max_gap_seconds=float(max_gap_seconds),
+                                       tz_offset_seconds=tz_min * 60.0, tz_known_paths=tz_known)
+            n_je = [0] * len(geladen)
+            doppel_je = [0] * len(geladen)
+            ohne = 0
+            for _m, i, weitere in zu:
+                if i is None:
+                    ohne += 1
+                    continue
+                n_je[i] += 1
+                if weitere:
+                    doppel_je[i] += 1
+                    for w in weitere:
+                        doppel_je[w] += 1
+            raus = []
+            for i, tr in enumerate(geladen):
+                if n_je[i] == 0 and not tr["vorgegeben"]:
+                    continue
+                k = self._gt_track_kurz(tr)
+                k.pop("coords", None)
+                k.update({"n_fotos": n_je[i], "doppel": doppel_je[i]})
+                raus.append(k)
+            # vorgegebene zuerst, dann nach Foto-Zahl
+            raus.sort(key=lambda x: (not x["vorgegeben"], -x["n_fotos"], x.get("time_start") or ""))
+            return {"ok": True, "tracks": raus, "ohne": ohne, "gesamt": len(fotos),
+                    "tz_minuten": tz_min if ohne_tz else None, "fehler": fehler}
+        except Exception as e:
+            log.exception("geotagger_tracks_fuer_fotos")
             return {"ok": False, "error": str(e)}
 
     def geotagger_track_point_at(self, lon: float, lat: float) -> dict:
@@ -9653,6 +9836,9 @@ class Api:
                 "has_state": has_photos,
                 "photos": [dict(p) for p in self._gtg_photos] if has_photos else [],
                 "thumb_progress": dict(self._thumb_progress),
+                # 10.09.2026 — die Track-Liste überlebt den Modulwechsel wie die Fotos
+                "tracks": [self._gt_track_kurz(t) for t in self._gtg_tracks],
+                "primary": self._gtg_tracks[0]["path"] if self._gtg_tracks else None,
             }
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -9679,6 +9865,7 @@ class Api:
             self._gtg_track = []
             self._gtg_display = []
             self._gtg_stats = None
+            self._gtg_tracks = []
             self._gtg_photos = []
             # v0.9.190: exiftool-Daemons beim Session-Reset herunterfahren, damit
             # kein `-stay_open`-Prozess idle weiterläuft (und bei einem späteren
@@ -10185,16 +10372,23 @@ class Api:
                    for p in self._gtg_photos]
             tz_known_paths = {p["path"] for p in self._gtg_photos if p.get("tz_known")}
             offset_by_path = self._build_offset_by_path(cam_offsets)
-            matches = cgeo.match_photos(phs, self._gtg_track,
-                                        offset_seconds=offset_seconds,
-                                        max_gap_seconds=max_gap_seconds,
-                                        tz_offset_seconds=float(tz_offset_minutes) * 60.0,
-                                        tz_known_paths=tz_known_paths,
-                                        offset_by_path=offset_by_path)
+            kw = dict(offset_seconds=offset_seconds, max_gap_seconds=max_gap_seconds,
+                      tz_offset_seconds=float(tz_offset_minutes) * 60.0,
+                      tz_known_paths=tz_known_paths, offset_by_path=offset_by_path)
+            # 10.09.2026 (IDEAS §61) — je Track die gewohnte Zuordnung, dann je Foto
+            # den Treffer wählen (core/geotag.py: zuordnen_mehrere).
+            tracks = self._gtg_tracks or [{"points": self._gtg_track, "vorgegeben": False,
+                                           "gewicht": 0.0, "name": "", "path": "", "farbe": None}]
+            eintraege = [cgeo.TrackEintrag(t["points"], vorgegeben=t.get("vorgegeben", False),
+                                           gewicht=t.get("gewicht", 0.0), name=t.get("name", "")) for t in tracks]
+            zu = cgeo.zuordnen_mehrere(phs, eintraege, **kw)
+            matches = [m for m, _i, _w in zu]
+            track_von = [tracks[i] if i is not None else None for _m, i, _w in zu]
+            doppel_von = [[tracks[w] for w in weitere] for _m, _i, weitere in zu]
             # v0.9.364 — Kameras, deren eigenes Foto-GPS ignoriert werden soll (→ Zeit).
             ignore_gps_paths = self._build_ignore_gps_paths(ignore_gps, cam_ignore_gps)
             out = []
-            for p, m in zip(self._gtg_photos, matches):
+            for p, m, tr, dop in zip(self._gtg_photos, matches, track_von, doppel_von):
                 # v0.9.339 — Hat das Foto schon eigenes GPS, hat DAS Vorrang vor der
                 # Zeit-Zuordnung: Position = eigenes GPS, immer „platzierbar". Die
                 # Zeit-Zuordnung (track_index, matched_time) bleibt nur als Info für
@@ -10236,16 +10430,21 @@ class Api:
                     "existing_gps": None if ignore else p["existing_gps"],
                     "pos_src": pos_src,
                     "gps_ignored": ignore,   # v0.9.364 — für Anzeige/Badge
+                    # 10.09.2026 — welcher Track (bei mehreren) und wer sonst noch träfe
+                    "track_path": tr.get("path") if tr else None,
+                    "track_name": tr.get("name") if tr else None,
+                    "track_farbe": tr.get("farbe") if tr else None,
+                    "doppel": [{"path": x.get("path"), "name": x.get("name")} for x in dop],
                 }
                 # v0.9.333 — Lichtstempel + Blickrichtung (Sonnenstand aus GPS+Zeit,
                 # Kamerarichtung aus EXIF oder Bewegung). Nur für echte Treffer.
-                self._enrich_geotag(d, p, m)
+                self._enrich_geotag(d, p, m, (tr or {}).get("points"))
                 out.append(d)
             return {"ok": True, "matches": out}
         except Exception as e:
             return {"ok": False, "error": str(e), "trace": traceback.format_exc()}
 
-    def _enrich_geotag(self, d: dict, p: dict, m) -> None:
+    def _enrich_geotag(self, d: dict, p: dict, m, punkte=None) -> None:
         """v0.9.333 — hängt Lichtstempel (Sonnenstand) + Blickrichtung an einen Match.
         Richtung: EXIF-Kamerakurs (GPSImgDirection) bevorzugt, sonst Bewegungsrichtung
         aus den Track-Nachbarpunkten. Logik in core/sun.py (gespiegelt vom Web-Tool)."""
@@ -10264,8 +10463,8 @@ class Api:
             direction, dsrc = p.get("img_dir"), None
             if direction is not None:
                 dsrc = "exif"
-            elif m.track_index is not None and self._gtg_track:
-                tr = self._gtg_track
+            elif m.track_index is not None and (punkte or self._gtg_track):
+                tr = punkte or self._gtg_track   # 10.09.2026 — der Track DIESES Fotos
                 i = m.track_index
                 logged = None
                 if 0 <= i < len(tr):

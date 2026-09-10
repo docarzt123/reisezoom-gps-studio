@@ -3063,5 +3063,21 @@
   "animator.tours.ueber_pause": "Pause",
   "animator.overlay.ele_scope_reise": "Ganze Strecke",
   "animator.overlay.ele_scope_etappe": "Laufende Etappe",
-  "animator.overlay.ele_scope_tip": "Ganze Strecke: eine Kurve über alle Etappen, Grenzen als Marken. Laufende Etappe: das Profil baut sich je Etappe neu auf."
+  "animator.overlay.ele_scope_tip": "Ganze Strecke: eine Kurve über alle Etappen, Grenzen als Marken. Laufende Etappe: das Profil baut sich je Etappe neu auf.",
+  "geotagger.tracks.archiv_btn": "Tracks aus dem Archiv …",
+  "geotagger.tracks.importiert": "{n} Track(s) neben den Fotos ins Archiv aufgenommen",
+  "geotagger.tracks.keine": "Kein Track im Archiv passt zu den Aufnahmezeiten. Über „Tracks aus dem Archiv …“ kannst du selbst wählen.",
+  "geotagger.tracks.unlesbar": "{n} Track(s) nicht lesbar — übersprungen",
+  "geotagger.tracks.geladen": "{n} Tracks geladen",
+  "geotagger.tracks.info": "{n} Tracks — jedes Foto landet auf dem Track, dessen Zeit passt.",
+  "geotagger.tracks.vorgegeben": "vorgegeben",
+  "geotagger.tracks.fotos": "{n} Fotos",
+  "geotagger.tracks.doppel": "{n} davon passen auch auf eine andere Tour",
+  "geotagger.tracks.dialog_title": "Tracks zu den Fotos",
+  "geotagger.tracks.dialog_body": "{n} Tour(en) passen zu den Aufnahmezeiten. Angehakte werden verwendet; {ohne} Foto(s) passen auf keine Tour und bleiben unangetastet.",
+  "geotagger.tracks.aus_archiv": "Aus dem Archiv …",
+  "geotagger.tracks.verwenden": "Tracks verwenden",
+  "geotagger.chip.doppel": "auch: {namen}",
+  "geotagger.chip.doppel_tip": "Dieses Foto liegt auch im Zeitfenster dieser Tour(en). Genommen wurde der nähere Punkt (vorgegebene Tracks zuerst).",
+  "geotagger.summary.doppel": "{n} auf zwei Touren"
 }

@@ -4382,3 +4382,38 @@ Benutzt vom Animator (`_animAddTour`, Ghost-Spuren), vom Inspektor („Tracks ve
 noch seine ältere eigene Fassung (Projekt-Kachel → Touren setzen) — bei der
 nächsten Änderung dort auf die gemeinsame umstellen. Wächter:
 `tests/test_touren_sektion_sichtbar.py`.
+
+
+## Geotagger: mehrere Tracks auf einmal (IDEAS §61, GitHub-Issue #7, 10.09.2026)
+
+Der Geotagger hält eine **Track-Liste** (`Api._gtg_tracks`, je Eintrag Pfad, Name,
+Punkte, gezeichnete Linie, Stats, `vorgegeben`, `farbe`); `_gtg_track`/`_gtg_display`
+sind die nach Zeit zusammengelegten Punkte ALLER Tracks (Zeitzonen-Rat,
+Referenz-Offset, Einrasten), `_gtg_stats` die des Haupt-Tracks (erster Eintrag).
+
+* **Kern** `core/geotag.py: zuordnen_mehrere(photo_times, [TrackEintrag], **kw)` — je
+  Track die unveränderte `match_photos`, dann je Foto der Treffer: in_range-Kandidaten
+  sortiert nach (nicht vorgegeben, |Zeitabstand|, −Gewicht). Rückgabe je Foto
+  `(PhotoMatch, Track-Index | None, weitere Track-Indizes)`.
+* **Brücke**: `geotagger_load_gpx(path)` behält die Liste, wenn der Pfad schon drin ist
+  (die globale GPX-Leiste meldet den Haupt-Track nach `sessionActivate` erneut) und
+  macht ihn zum Haupt-Track; ein neuer Pfad ersetzt die Liste (ein Track wie bisher).
+  `geotagger_load_gpx_viele(paths, vorgegeben)`, `geotagger_import_gpx_aus_ordner(folder)`
+  (Nähe-Suche → `library_import_files` → Archiv-Pfade, auch für schon vorhandene),
+  `geotagger_tracks_fuer_fotos(vorgegeben)` (Kandidaten = vorgegeben + Archiv-Abfrage
+  `clib.query(von, bis)` über die Aufnahmezeiten ±15 h, weil die Kamera-Zeitzone noch
+  unbekannt sein kann; dann `zeitzone_raten` über alle Kandidaten, dann zählen; Tracks
+  ohne Foto fliegen raus, außer vorgegeben). `geotagger_match` liefert je Foto
+  `track_path/track_name/track_farbe/doppel`; `_enrich_geotag` bekommt die Punkte des
+  Foto-Tracks. `geotagger_get_state` trägt `tracks`+`primary` für den Modulwechsel.
+* **Oberfläche** `modules/geotagger/ui/module.js`: `_gtTracks`, Ordner-Handler →
+  `_gtTracksVorschlagen(folder)` → `_gtTracksDialog` (Bestätigungsliste, „Aus dem
+  Archiv …" über `rzArchivTourenWaehlen`) → `_gtTracksLaden` (Haupt-Track aktiviert die
+  Sitzung; `loadGpxByPath` hat den Guard „bekannter Haupt-Track bei >1 Tracks: nichts
+  tun"). `showTracks()` zeichnet den Haupt-Track in `gt-track`, die übrigen in
+  `gt-track-x<i>` in ihrer Farbe. Chips `.gt-chip.track/.doppel`, Sidebar-Liste
+  `#gt-tracks-liste`, Knopf `#gt-tracks-archiv`. Der alte Nähe-Dialog
+  (`offerNearbyGpx`, Radio-Buttons) ist ersetzt. Prüfstand-Haken `window.__rzGtTracks()`.
+* **Wächter** `tests/test_geotagger_mehrere_tracks.py`: Kern (Tage, Abend ohne Track,
+  Doppel-Treffer mit Vorrang und Gleichstand), Brücke mit Wegwerf-Bibliothek, Mock-UI
+  (Liste, vorgegeben, Doppel, Laden, Seitenleiste).
