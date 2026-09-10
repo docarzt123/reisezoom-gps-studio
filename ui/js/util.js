@@ -108,7 +108,9 @@ function parseTimeOffset(input) {
 function _rzMapboxNachzuegler(ev) {
   const msg = String(ev && (ev.message || (ev.error && ev.error.message)) || "");
   const datei = String(ev && ev.filename || "");
-  return /getOwnLayer|_getDrapedTiles|terrain\._clearRenderCache/.test(msg) && /mapbox-gl|maplibre-gl/.test(datei);
+  // 10.09.2026: WebKit-Wortlaut für „Karte schon abgebaut" (map.getLayer nach map.remove():
+  // `this.style` ist dann undefined) — gleicher Nachzügler, kein Nutzerfehler.
+  return /getOwnLayer|_getDrapedTiles|terrain\._clearRenderCache|this\.style\.(getLayer|getSource|setPaintProperty)|this\.style is undefined/.test(msg) && /mapbox-gl|maplibre-gl/.test(datei);
 }
 // 08.09.2026 (Marc: „beim ersten Start kam jede Menge Code im Fenster"): WebKits Metal-Übersetzer
 // (ANGLE) scheitert sporadisch am Symbol-Shader der Kugel-Projektion („Program failed to link …
@@ -1888,8 +1890,12 @@ function rzSwallow(err, context) {
 }
 // Optional: globale Error-Capture
 window.addEventListener("error", (e) => {
-  if (_rzMapboxNachzuegler(e)) return;
-  applog("error", `[window.onerror] ${e.message} @ ${e.filename}:${e.lineno}`);
+  // 10.09.2026: Stack mitschreiben — bei Nachzüglern (Karte abgebaut) steht sonst nur
+  // „maplibre-gl.js:46", und WER die tote Karte noch anfasst, bleibt unsichtbar.
+  let stack = "";
+  try { stack = String((e.error && e.error.stack) || "").split("\n").slice(0, 6).map(z => z.trim().replace(/^.*\/(ui|modules)\//, "")).join(" ← "); } catch (_) {}
+  if (_rzMapboxNachzuegler(e)) { applog("warn", `[karte] Nachzügler nach Karten-Abbau: ${e.message} | ${stack}`); return; }
+  applog("error", `[window.onerror] ${e.message} @ ${e.filename}:${e.lineno}` + (stack ? ` | ${stack}` : ""));
 });
 window.addEventListener("unhandledrejection", (e) => {
   applog("error", `[unhandledrejection] ${e.reason}`);

@@ -21,6 +21,7 @@ Bei jeder neuen Version:
 
 ### Fixed
 - Geotagger with several tracks (real-app test): the suggestion also runs while a track is open (the open track stays listed, unchecked when no photo fits); the camera time zone is now chosen across all tracks (the one that puts most photos on any track) and applied on "use tracks", so the counts in the dialog match the result; the same tour under two archive paths no longer counts as "also fits another tour"; the archive is queried per photo day (13 s → 0.2 s with a stray photo from 2020); the dialog waits for the EXIF reader; the main track goes through the global GPX bar, so the bar and the other modules follow; "clear workspace" also clears the track list, photo window and time-zone hint. — Geotagger mit mehreren Tracks: Vorschlag auch bei offenem Track, Zeitzone über alle Tracks und automatisch übernommen, keine Doppel-Zählung derselben Tour, Archiv je Foto-Tag, GPX-Leiste folgt dem Haupt-Track, Workspace leeren räumt alles.
+- Error log now records the first stack frames of a JavaScript error; a late `map.getLayer` on an already removed map (WebKit wording `this.style.getLayer`) counts as a harmless straggler like the known ones (warning in the log, no red toast). — Fehler-Log schreibt den Stack mit; Nachzügler nach Karten-Abbau in WebKit-Wortlaut erkannt.
 - Geotagger "done" dialog showed a raw template string on the "open folder" button. — Knopf „Ordner öffnen" zeigte Platzhalter-Code.
 
 ### Added
