@@ -2234,8 +2234,18 @@ Deshalb fragt der Inspektor jetzt **einmal nach dem Speichern**, ob deine Arbeit
 
 **Die alte Tour bleibt unangetastet.** Gefällt dir das Ergebnis nicht, öffne einfach wieder die Originaldatei — dort liegt alles unverändert.
 
-### 🧰 Weitere Werkzeuge — alles, was das Web kann (seit v0.9.687)
-Unten in der Seitenleiste, vor dem Speichern-Knopf, stehen dieselben Werkzeuge wie auf reisezoom.com/gps — hier ohne Größenlimit, ohne Upload, und die Sensoren (Puls, Trittfrequenz …) bleiben an den Punkten:
+### 🗂 So ist die Seitenleiste aufgebaut (seit v0.9.687)
+Oben die Zahlen zum Track und ↩︎/↪︎, unten fest **Speichern** und **Verwerfen**. Dazwischen sechs Klapp-Abschnitte — was du offen lässt, bleibt beim nächsten Mal offen:
+
+1. **Anschauen & prüfen** — nach Tempo einfärben, Runden-Tabelle. Hier wird nichts verändert.
+2. **Heilen (automatisch)** — Ausreißer, Lücken, unmögliches Tempo.
+3. **Bearbeiten (Anker A→B)** — oben eine Statuszeile, die sagt, welcher Anker noch fehlt; darunter sortiert nach *Abschnitt zwischen A und B*, *am Punkt A* (löschen, davor/danach abschneiden, Startpunkt hierher, hier teilen) und *ganzer Track* (Umkehren).
+4. **Punkte & Zeiten** — Reduzieren (gleichmäßig), Ausdünnen ab Abweichung, Zeitachse erzeugen, Zeiten setzen.
+5. **Tracks verbinden**
+6. **Höhe korrigieren**
+
+### 🧰 Die Werkzeuge aus dem Web (seit v0.9.687)
+In den Abschnitten stecken dieselben Werkzeuge wie auf reisezoom.com/gps — hier ohne Größenlimit, ohne Upload, und die Sensoren (Puls, Trittfrequenz …) bleiben an den Punkten:
 
 - **Umkehren** — der Track läuft rückwärts. Die Zeitstempel werden gespiegelt (der Start bleibt der Start), sonst liefe die Uhr rückwärts.
 - **Startpunkt hierher (Anker A)** — bei einer Rundtour woanders anfangen: Anker A setzen, klicken, der alte Anfang hängt sich hinten an. Liegen Start und Ziel weit auseinander, sagt der Hinweis das (dann war es keine geschlossene Runde).

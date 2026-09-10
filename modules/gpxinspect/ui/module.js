@@ -97,7 +97,14 @@ function mountGpxInspect(body, headerActions) {
         <div class="gpxi-panel" id="gpxi-panel" hidden>
           <div class="gpxi-stat" id="gpxi-stat"></div>
           <div class="gpxi-statgrid" id="gpxi-statgrid"></div>
-          <div class="gpxi-stat-help">${t("gpxinspect.points_help_short", "Was ein Punkt ist")}<span class="gpxi-q" data-tip="${t("gpxinspect.points_help", "Ein Track besteht aus vielen einzelnen Messpunkten — jedes Mal, wenn dein Gerät die Position aufgezeichnet hat. Ein Punkt alle 1–10 Sekunden ist üblich; bei einer langen Tour kommen so schnell mehrere tausend zusammen. Auf der Karte ist jeder Punkt ein kleiner Kreis, den du anklicken kannst. Mehr Punkte heißt nicht besser: Beim Heilen werden Ausreißer entfernt und Lücken aufgefüllt, dabei ändert sich die Zahl.")}">?</span></div>
+          <div class="gpxi-undorow">
+            <button class="btn" id="gpxi-undo" disabled title="⌘Z">↩︎ ${t("gpxinspect.undo", "Rückgängig")}</button>
+            <button class="btn" id="gpxi-redo" disabled title="⌘⇧Z">↪︎ ${t("gpxinspect.redo", "Wiederherstellen")}</button>
+          </div>
+
+          <details class="gpxi-sec" data-sec="pruefen">
+            <summary class="gpxi-mm-title">🔍 ${t("gpxinspect.sec_pruefen", "Anschauen & prüfen")}<span class="gpxi-q" data-tip="${t("gpxinspect.sec_pruefen_help", "Erst gucken, dann anfassen: Tempo-Färbung zeigt Ausreißer, die Runden-Tabelle die Zwischenzeiten. Hier wird nichts verändert.")}">?</span></summary>
+            <div class="gpxi-sec-body">
           <label class="gpxi-check" id="gpxi-speedcolor-row"><input type="checkbox" id="gpxi-speedcolor">
             🌡️ ${t("gpxinspect.speedcolor", "Nach Tempo einfärben")}<span class="gpxi-q" data-tip="${t("gpxinspect.speedcolor_help", "Färbt den Track nach Geschwindigkeit zwischen den Punkten: grün = normal, gelb = zügig, orange = sehr schnell, rot = Ausreißer-verdächtig. So springen GPS-Sprünge sofort ins Auge — dann Heilen oder den Abschnitt manuell glätten. Braucht Zeitstempel.")}">?</span></label>
           <div class="gpxi-speedlegend" id="gpxi-speedlegend" hidden></div>
@@ -105,7 +112,17 @@ function mountGpxInspect(body, headerActions) {
             <label>${t("gpxinspect.speedthr", "Rot ab")}<span class="gpxi-q" data-tip="${t("gpxinspect.speedthr_help", "Ab welchem Tempo ein Stück als Ausreißer gilt (rot). Leer = automatisch aus dieser Tour selbst (grün bis zum üblichen Tempo, rot erst deutlich darüber) — das passt für Wandern wie für Autofahrten. Trägst du eine Zahl ein, gilt sie fest: grün bis zu einem Drittel, gelb bis zwei Dritteln, orange bis zur Schwelle, rot darüber.")}">?</span></label>
             <input type="number" id="gpxi-speed-thr" min="1" max="500" step="1" placeholder="${t("gpxinspect.tempo_cap_auto", "auto")}"> km/h
           </div>
-          <div class="gpxi-mm-title">🩹 ${t("gpxinspect.heal_title", "Heilen (automatisch)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_help", "Findet automatisch GPS-Ausreißer und Lücken und behebt sie. Bereich und Aktionen wählen, dann Heilen. Rückgängig jederzeit.")}">?</span></div>
+          <div class="gpxi-fillrow">
+            <label>${t("gpxinspect.wz_splits", "Runde je")}</label>
+            <input type="number" id="gpxi-wz-every" min="0.1" max="100" step="0.5" value="1"> km
+          </div>
+          <button class="btn gpxi-act" id="gpxi-wz-splits" title="${t("gpxinspect.wz_splits_tip", "Zwischenzeiten je Abschnitt: Strecke, Dauer, Tempo, Höhenmeter. Zum Kopieren als Tabelle.")}">📊 ${t("gpxinspect.wz_splits_run", "Runden-Tabelle")}</button>
+          <div class="gpxi-stat-help">${t("gpxinspect.points_help_short", "Was ein Punkt ist")}<span class="gpxi-q" data-tip="${t("gpxinspect.points_help", "Ein Track besteht aus vielen einzelnen Messpunkten — jedes Mal, wenn dein Gerät die Position aufgezeichnet hat. Ein Punkt alle 1–10 Sekunden ist üblich; bei einer langen Tour kommen so schnell mehrere tausend zusammen. Auf der Karte ist jeder Punkt ein kleiner Kreis, den du anklicken kannst. Mehr Punkte heißt nicht besser: Beim Heilen werden Ausreißer entfernt und Lücken aufgefüllt, dabei ändert sich die Zahl.")}">?</span></div>
+            </div>
+          </details>
+          <details class="gpxi-sec" data-sec="heilen">
+            <summary class="gpxi-mm-title">🩹 ${t("gpxinspect.heal_title", "Heilen (automatisch)")}<span class="gpxi-q" data-tip="${t("gpxinspect.heal_help", "Findet automatisch GPS-Ausreißer und Lücken und behebt sie. Bereich und Aktionen wählen, dann Heilen. Rückgängig jederzeit.")}">?</span></summary>
+            <div class="gpxi-sec-body">
           <div id="gpxi-heal-analysis" class="gpxi-analysis" hidden></div>
           <div class="gpxi-segrow" role="radiogroup">
             <label class="gpxi-seg"><input type="radio" name="gpxi-heal-scope" id="gpxi-scope-track" value="track" checked> ${t("gpxinspect.scope_track", "Ganzer Track")}</label>
@@ -149,16 +166,55 @@ function mountGpxInspect(body, headerActions) {
             <label class="gpxi-check"><input type="checkbox" id="gpxi-before-toggle" checked>
               ${t("gpxinspect.baft_show_before", "Vorher-Track auf der Karte zeigen (grau gestrichelt)")}</label>
           </div>
-          <div class="gpxi-undorow">
-            <button class="btn" id="gpxi-undo" disabled title="⌘Z">↩︎ ${t("gpxinspect.undo", "Rückgängig")}</button>
-            <button class="btn" id="gpxi-redo" disabled title="⌘⇧Z">↪︎ ${t("gpxinspect.redo", "Wiederherstellen")}</button>
-          </div>
-
-          <hr class="gpxi-hr">
-          <!-- 31.08.2026 (der MTB-Kollege eines Beta-Testers): Punkte reduzieren + Tempo
-               umschreiben — direkt am Track, speichern wie nach dem Heilen. -->
-          <details class="gpxi-manual" id="gpxi-toolbox">
-            <summary class="gpxi-mm-title">✂️ ${t("gpxinspect.tools_title", "Reduzieren & Tempo")}<span class="gpxi-q" data-tip="${t("gpxinspect.tools_help", "Punktzahl der Datei verkleinern (echte Punkte bleiben, gleichmäßig nach Strecke gewählt) oder die Zeitstempel auf ein Wunsch-Ø-Tempo umschreiben — z. B. um eine geplante Route mit realistischer Geschwindigkeit zu animieren. Beides landet erst beim Speichern in einer Datei.")}">?</span></summary>
+            </div>
+          </details>
+          <details class="gpxi-sec" data-sec="bearbeiten">
+            <summary class="gpxi-mm-title">✏️ ${t("gpxinspect.sec_bearbeiten", "Bearbeiten (Anker A→B)")}<span class="gpxi-q" data-tip="${t("gpxinspect.manual_help", "Zwei Punkte auf der Karte klicken (A grün, B rot), dann eine Aktion für den Abschnitt dazwischen wählen — z. B. Punkte dazwischen löschen. Umkehren geht immer; Startpunkt und Teilen brauchen nur A.")}">?</span></summary>
+            <div class="gpxi-sec-body">
+          <div class="gpxi-sel gpxi-ab-status" id="gpxi-ab-status"></div>
+          <div class="gpxi-sub">${t("gpxinspect.sub_ab", "Abschnitt zwischen A und B")}</div>
+            <button class="btn gpxi-act" id="gpxi-heal" disabled
+              title="${t("gpxinspect.heal_tip", "Die Punkte zwischen A und B auf die direkte Linie legen (Position + Höhe interpoliert). Zeitstempel bleiben → Geschwindigkeit wird wieder realistisch.")}">
+              🩹 ${t("gpxinspect.heal", "Sprung glätten (A→B gerade)")}</button>
+            <button class="btn gpxi-act" id="gpxi-fill" disabled
+              title="${t("gpxinspect.fill_tip", "Zwischen A und B neue Punkte einfügen (Position, Höhe und Zeit interpoliert).")}">
+              ➕ ${t("gpxinspect.fill", "Lücke füllen (Luftlinie)")}</button>
+            <button class="btn gpxi-act" id="gpxi-match-sel" disabled
+              title="${t("gpxinspect.match_sel_tip", "Findet die echte Straßen-/Wege-Route zwischen A und B (Wege-Profil oben). Robust gegen GPS-Drift.")}">
+              🛣 ${t("gpxinspect.match_sel", "Strecke A→B (Straße folgen)")}</button>
+            <button class="btn gpxi-act" id="gpxi-drawfill" disabled
+              title="${t("gpxinspect.drawfill_tip", "Pfad zwischen A und B selbst auf der Karte zeichnen. Wird mit Position, Höhe und Zeit aufgefüllt.")}">
+              ✏️ ${t("gpxinspect.drawfill", "Pfad zeichnen & füllen")}</button>
+            <div class="gpxi-drawbox" id="gpxi-drawbox" hidden>
+              <div class="gpxi-drawhint" id="gpxi-drawhint"></div>
+              <button class="btn btn-primary gpxi-act" id="gpxi-draw-apply" disabled>✓ ${t("gpxinspect.draw_apply", "Pfad übernehmen")}</button>
+              <button class="btn gpxi-act" id="gpxi-draw-undo" disabled>⤺ ${t("gpxinspect.draw_undo", "Letzten Punkt zurück")}</button>
+              <button class="btn gpxi-act" id="gpxi-draw-cancel">✕ ${t("gpxinspect.draw_cancel", "Zeichnen abbrechen")}</button>
+            </div>
+            <button class="btn gpxi-act gpxi-del" id="gpxi-delete" disabled
+              title="${t("gpxinspect.delete_tip", "Die Punkte zwischen A und B ganz entfernen (Schleifen/Abstecher rausschneiden). A und B bleiben, die Linie verbindet sie direkt.")}">
+              ✂️ ${t("gpxinspect.delete", "Punkte zwischen A→B rausschneiden")}</button>
+          <div class="gpxi-sub">${t("gpxinspect.sub_a", "Am Punkt A")}</div>
+            <button class="btn gpxi-act gpxi-del" id="gpxi-delete-one" disabled
+              title="${t("gpxinspect.delete_one_tip", "Den ausgewählten Punkt (Anker A) entfernen. Geht auch mit Entf/Backspace.")}">
+              🗑 ${t("gpxinspect.delete_one", "Diesen Punkt löschen")}</button>
+            <button class="btn gpxi-act gpxi-del" id="gpxi-trim-before" disabled
+              title="${t("gpxinspect.trim_before_tip", "Den Track-Anfang bis zu diesem Punkt entfernen — dieser Punkt wird der neue Start (z. B. Anfahrt oder Stillstand am Anfang wegschneiden).")}">
+              ⏮ ${t("gpxinspect.trim_before", "Alles davor abschneiden")}</button>
+            <button class="btn gpxi-act gpxi-del" id="gpxi-trim-after" disabled
+              title="${t("gpxinspect.trim_after_tip", "Alles nach diesem Punkt entfernen — dieser Punkt wird das neue Ende (z. B. vergessenes Stoppen der Aufzeichnung am Tourende wegschneiden).")}">
+              ⏭ ${t("gpxinspect.trim_after", "Alles danach abschneiden")}</button>
+            <button class="btn gpxi-act" id="gpxi-wz-rotate" disabled title="${t("gpxinspect.wz_rotate_tip", "Bei einer Rundtour woanders anfangen: Anker A wird der neue Start, der alte Anfang hängt sich hinten an.")}">🚩 ${t("gpxinspect.wz_rotate", "Startpunkt hierher (Anker A)")}</button>
+            <button class="btn gpxi-act" id="gpxi-wz-split" disabled title="${t("gpxinspect.wz_split_tip", "Den Track an Anker A in zwei Teile schneiden. Der Schnittpunkt gehört zu beiden Teilen.")}">✂ ${t("gpxinspect.wz_split", "Hier teilen (Anker A) …")}</button>
+          <div class="gpxi-sub">${t("gpxinspect.sub_track", "Ganzer Track")}</div>
+            <button class="btn gpxi-act" id="gpxi-wz-reverse" title="${t("gpxinspect.wz_reverse_tip", "Den Track rückwärts laufen lassen. Zeitstempel werden gespiegelt (Start bleibt der Start), sonst liefe die Uhr rückwärts.")}">🔁 ${t("gpxinspect.wz_reverse", "Umkehren")}</button>
+            <button class="btn gpxi-clear" id="gpxi-clearsel" disabled>${t("gpxinspect.clear_sel", "Auswahl aufheben")}</button>
+            </div>
+          </details>
+          <details class="gpxi-sec" data-sec="punkte">
+            <summary class="gpxi-mm-title">📉 ${t("gpxinspect.sec_punkte", "Punkte & Zeiten")}<span class="gpxi-q" data-tip="${t("gpxinspect.sec_punkte_help", "Punktzahl verkleinern (gleichmäßig nach Strecke oder nach Abweichung von der Linie) und die Zeitstempel umschreiben: Zeitachse für Routen ohne Uhr, Zeiten verschieben, Startzeit oder Gesamtdauer setzen. Alles landet erst beim Speichern in einer Datei.")}">?</span></summary>
+            <div class="gpxi-sec-body">
+          <div id="gpxi-toolbox">
             <label class="field-label gpxi-reduce-lbl" style="margin-top:2px">
               <span>${t("gpxinspect.reduce_label", "Punkte reduzieren auf")}</span>
               <b id="gpxi-reduce-v">—</b></label>
@@ -185,85 +241,12 @@ function mountGpxInspect(body, headerActions) {
               </div>
             </div>
             <div class="gpxi-sel" id="gpxi-tools-info"></div>
-          </details>
-
-          <details class="gpxi-manual" open>
-            <summary class="gpxi-mm-title">✏️ ${t("gpxinspect.manual_title", "Manuell bearbeiten (A→B)")}<span class="gpxi-q" data-tip="${t("gpxinspect.manual_help", "Zwei Punkte auf der Karte klicken (A grün, B rot), dann eine Aktion für den Abschnitt dazwischen wählen — z. B. Punkte dazwischen löschen.")}">?</span></summary>
-            <button class="btn gpxi-act" id="gpxi-heal" disabled
-              title="${t("gpxinspect.heal_tip", "Die Punkte zwischen A und B auf die direkte Linie legen (Position + Höhe interpoliert). Zeitstempel bleiben → Geschwindigkeit wird wieder realistisch.")}">
-              🩹 ${t("gpxinspect.heal", "Sprung glätten (A→B gerade)")}</button>
-            <button class="btn gpxi-act" id="gpxi-fill" disabled
-              title="${t("gpxinspect.fill_tip", "Zwischen A und B neue Punkte einfügen (Position, Höhe und Zeit interpoliert).")}">
-              ➕ ${t("gpxinspect.fill", "Lücke füllen (Luftlinie)")}</button>
-            <button class="btn gpxi-act" id="gpxi-match-sel" disabled
-              title="${t("gpxinspect.match_sel_tip", "Findet die echte Straßen-/Wege-Route zwischen A und B (Wege-Profil oben). Robust gegen GPS-Drift.")}">
-              🛣 ${t("gpxinspect.match_sel", "Strecke A→B (Straße folgen)")}</button>
-            <button class="btn gpxi-act" id="gpxi-drawfill" disabled
-              title="${t("gpxinspect.drawfill_tip", "Pfad zwischen A und B selbst auf der Karte zeichnen. Wird mit Position, Höhe und Zeit aufgefüllt.")}">
-              ✏️ ${t("gpxinspect.drawfill", "Pfad zeichnen & füllen")}</button>
-            <div class="gpxi-drawbox" id="gpxi-drawbox" hidden>
-              <div class="gpxi-drawhint" id="gpxi-drawhint"></div>
-              <button class="btn btn-primary gpxi-act" id="gpxi-draw-apply" disabled>✓ ${t("gpxinspect.draw_apply", "Pfad übernehmen")}</button>
-              <button class="btn gpxi-act" id="gpxi-draw-undo" disabled>⤺ ${t("gpxinspect.draw_undo", "Letzten Punkt zurück")}</button>
-              <button class="btn gpxi-act" id="gpxi-draw-cancel">✕ ${t("gpxinspect.draw_cancel", "Zeichnen abbrechen")}</button>
-            </div>
-            <button class="btn gpxi-act gpxi-del" id="gpxi-delete-one" disabled
-              title="${t("gpxinspect.delete_one_tip", "Den ausgewählten Punkt (Anker A) entfernen. Geht auch mit Entf/Backspace.")}">
-              🗑 ${t("gpxinspect.delete_one", "Diesen Punkt löschen")}</button>
-            <button class="btn gpxi-act gpxi-del" id="gpxi-trim-before" disabled
-              title="${t("gpxinspect.trim_before_tip", "Den Track-Anfang bis zu diesem Punkt entfernen — dieser Punkt wird der neue Start (z. B. Anfahrt oder Stillstand am Anfang wegschneiden).")}">
-              ⏮ ${t("gpxinspect.trim_before", "Alles davor abschneiden")}</button>
-            <button class="btn gpxi-act gpxi-del" id="gpxi-trim-after" disabled
-              title="${t("gpxinspect.trim_after_tip", "Alles nach diesem Punkt entfernen — dieser Punkt wird das neue Ende (z. B. vergessenes Stoppen der Aufzeichnung am Tourende wegschneiden).")}">
-              ⏭ ${t("gpxinspect.trim_after", "Alles danach abschneiden")}</button>
-            <button class="btn gpxi-act gpxi-del" id="gpxi-delete" disabled
-              title="${t("gpxinspect.delete_tip", "Die Punkte zwischen A und B ganz entfernen (Schleifen/Abstecher rausschneiden). A und B bleiben, die Linie verbindet sie direkt.")}">
-              ✂️ ${t("gpxinspect.delete", "Punkte zwischen A→B rausschneiden")}</button>
-            <button class="btn gpxi-clear" id="gpxi-clearsel" disabled>${t("gpxinspect.clear_sel", "Auswahl aufheben")}</button>
-          </details>
-          <hr class="gpxi-hr">
-          <!-- v0.9.456 — Mehrere Aufzeichnungen zu EINEM Track verbinden.
-               Der Sprung an der Nahtstelle wird bewusst NICHT automatisch
-               überbrückt: eine gerade Linie dort wäre eine erfundene Strecke.
-               Stattdessen beziffern wir die Lücke und verweisen aufs Heilen. -->
-          <div class="gpxi-mm-title">🔗 ${t("gpxinspect.join_title", "Tracks verbinden")}<span class="gpxi-q" data-tip="${t("gpxinspect.join_help", "Hängt eine weitere Aufzeichnung an diesen Track — z. B. wenn die Uhr mittendrin gestoppt hat oder eine Mehrtagestour als eine Datei pro Tag vorliegt. Sensordaten (Puls, Leistung …) bleiben pro Abschnitt erhalten.")}">?</span></div>
-          <div class="gpxi-fillrow">
-            <label>${t("gpxinspect.join_where", "Einfügen")}</label>
-            <select id="gpxi-join-mode">
-              <option value="append" selected>${t("gpxinspect.join_append", "am Ende")}</option>
-              <option value="prepend">${t("gpxinspect.join_prepend", "am Anfang")}</option>
-              <option value="time">${t("gpxinspect.join_time", "nach Uhrzeit")}</option>
-            </select>
           </div>
           <div class="gpxi-fillrow">
-            <label>${t("gpxinspect.join_pause", "Pause dazwischen")}</label>
-            <input type="number" id="gpxi-join-pause" min="0" max="86400" step="30" value="0"> s
-          </div>
-          <button class="btn gpxi-act" id="gpxi-join" disabled>➕ ${t("gpxinspect.join_run", "Weiteren Track anhängen …")}</button>
-          <div class="gpxi-note muted" id="gpxi-join-note"></div>
-          <hr class="gpxi-hr">
-          <div class="gpxi-mm-title">⛰ ${t("gpxinspect.ele_title", "Höhe korrigieren")}<span class="gpxi-q" data-tip="${t("gpxinspect.ele_help", "GPS-Höhe ist verrauscht. Lädt das Höhenprofil aus der Karte; darunter mischst du GPS und Karte mit dem Regler. Braucht Mapbox-Token + Internet.")}">?</span></div>
-          <button class="btn gpxi-act" id="gpxi-ele-load">🗺 ${t("gpxinspect.ele_load", "Höhenprofil aus Karte laden")}</button>
-          <div class="gpxi-fillrow gpxi-sensrow">
-            <label>${t("gpxinspect.ele_weight", "GPS ⟷ Karte")}</label>
-            <input type="range" id="gpxi-ele-weight" min="0" max="100" step="5" value="70" disabled>
-            <span id="gpxi-ele-weight-val" class="gpxi-sensval">70 %</span>
-          </div>
-          <button class="btn btn-primary gpxi-act" id="gpxi-ele-apply" disabled>⛰ ${t("gpxinspect.ele_apply", "Diese Höhe übernehmen")}</button>
-          <div class="gpxi-note muted" id="gpxi-ele-result"></div>
-          <hr class="gpxi-hr">
-          <!-- 10.09.2026 (Marc: „die App muss alles können, was auch im Web geht") — die
-               Web-Werkzeuge im Inspektor: Umkehren, Startpunkt, Teilen, Zeiten,
-               Ausdünnen nach Abweichung, Runden-Tabelle. Optik kommt danach. -->
-          <div class="gpxi-mm-title">🧰 ${t("gpxinspect.wz_title", "Weitere Werkzeuge")}<span class="gpxi-q" data-tip="${t("gpxinspect.wz_help", "Umkehren, Startpunkt verschieben, Teilen, Zeiten setzen, Ausdünnen nach Abweichung und die Runden-Tabelle — dieselben Werkzeuge wie im Web, hier ohne Größenlimit und ohne Upload.")}">?</span></div>
-          <button class="btn gpxi-act" id="gpxi-wz-reverse" title="${t("gpxinspect.wz_reverse_tip", "Den Track rückwärts laufen lassen. Zeitstempel werden gespiegelt (Start bleibt der Start), sonst liefe die Uhr rückwärts.")}">🔁 ${t("gpxinspect.wz_reverse", "Umkehren")}</button>
-          <button class="btn gpxi-act" id="gpxi-wz-rotate" disabled title="${t("gpxinspect.wz_rotate_tip", "Bei einer Rundtour woanders anfangen: Anker A wird der neue Start, der alte Anfang hängt sich hinten an.")}">🚩 ${t("gpxinspect.wz_rotate", "Startpunkt hierher (Anker A)")}</button>
-          <button class="btn gpxi-act" id="gpxi-wz-split" disabled title="${t("gpxinspect.wz_split_tip", "Den Track an Anker A in zwei Teile schneiden. Der Schnittpunkt gehört zu beiden Teilen.")}">✂ ${t("gpxinspect.wz_split", "Hier teilen (Anker A) …")}</button>
-          <div class="gpxi-fillrow">
-            <label>${t("gpxinspect.wz_tol", "Ausdünnen, Abweichung")}</label>
+            <label>${t("gpxinspect.wz_tol", "Ausdünnen ab Abweichung")}</label>
             <input type="number" id="gpxi-wz-tol" min="0.5" max="200" step="0.5" value="5"> m
-            <button class="btn btn-small gpxi-act" id="gpxi-wz-simplify" title="${t("gpxinspect.wz_simplify_tip", "Douglas-Peucker: entfernt Punkte, die weniger als diesen Abstand von der Linie abweichen. Start und Ziel bleiben immer.")}">📉 ${t("gpxinspect.wz_simplify", "Ausdünnen")}</button>
           </div>
+          <button class="btn gpxi-act" id="gpxi-wz-simplify" title="${t("gpxinspect.wz_simplify_tip", "Douglas-Peucker: entfernt Punkte, die weniger als diesen Abstand von der Linie abweichen. Start und Ziel bleiben immer.")}">📉 ${t("gpxinspect.wz_simplify", "Ausdünnen (Abweichung)")}</button>
           <div class="gpxi-fillrow">
             <label>${t("gpxinspect.wz_retime", "Zeiten")}</label>
             <select id="gpxi-wz-retime-mode">
@@ -285,16 +268,46 @@ function mountGpxInspect(body, headerActions) {
             <input type="number" id="gpxi-wz-duration" min="1" step="1" value="60"> min
           </div>
           <button class="btn gpxi-act" id="gpxi-wz-retime-run" title="${t("gpxinspect.wz_retime_tip", "Alle Zeitstempel verschieben (Zeitzone, vergessene Sommerzeit, Kamera-Abgleich), auf eine Startzeit legen oder auf eine Gesamtdauer stauchen/strecken. Ohne Uhr: erst oben „Zeitachse erzeugen“.")}">⏱ ${t("gpxinspect.wz_retime_run", "Zeiten anwenden")}</button>
-          <div class="gpxi-fillrow">
-            <label>${t("gpxinspect.wz_splits", "Runden je")}</label>
-            <input type="number" id="gpxi-wz-every" min="0.1" max="100" step="0.5" value="1"> km
-            <button class="btn btn-small gpxi-act" id="gpxi-wz-splits" title="${t("gpxinspect.wz_splits_tip", "Zwischenzeiten je Abschnitt: Strecke, Dauer, Tempo, Höhenmeter. Zum Kopieren als Tabelle.")}">📊 ${t("gpxinspect.wz_splits_run", "Runden-Tabelle")}</button>
-          </div>
           <div class="gpxi-note muted" id="gpxi-wz-note"></div>
-          <hr class="gpxi-hr">
+            </div>
+          </details>
+          <details class="gpxi-sec" data-sec="verbinden">
+            <summary class="gpxi-mm-title">🔗 ${t("gpxinspect.join_title", "Tracks verbinden")}<span class="gpxi-q" data-tip="${t("gpxinspect.join_help", "Hängt eine weitere Aufzeichnung an diesen Track — z. B. wenn die Uhr mittendrin gestoppt hat oder eine Mehrtagestour als eine Datei pro Tag vorliegt. Sensordaten (Puls, Leistung …) bleiben pro Abschnitt erhalten.")}">?</span></summary>
+            <div class="gpxi-sec-body">
+          <div class="gpxi-fillrow">
+            <label>${t("gpxinspect.join_where", "Einfügen")}</label>
+            <select id="gpxi-join-mode">
+              <option value="append" selected>${t("gpxinspect.join_append", "am Ende")}</option>
+              <option value="prepend">${t("gpxinspect.join_prepend", "am Anfang")}</option>
+              <option value="time">${t("gpxinspect.join_time", "nach Uhrzeit")}</option>
+            </select>
+          </div>
+          <div class="gpxi-fillrow">
+            <label>${t("gpxinspect.join_pause", "Pause dazwischen")}</label>
+            <input type="number" id="gpxi-join-pause" min="0" max="86400" step="30" value="0"> s
+          </div>
+          <button class="btn gpxi-act" id="gpxi-join" disabled>➕ ${t("gpxinspect.join_run", "Weiteren Track anhängen …")}</button>
+          <div class="gpxi-note muted" id="gpxi-join-note"></div>
+            </div>
+          </details>
+          <details class="gpxi-sec" data-sec="hoehe">
+            <summary class="gpxi-mm-title">⛰ ${t("gpxinspect.ele_title", "Höhe korrigieren")}<span class="gpxi-q" data-tip="${t("gpxinspect.ele_help", "GPS-Höhe ist verrauscht. Lädt das Höhenprofil aus der Karte; darunter mischst du GPS und Karte mit dem Regler. Braucht Mapbox-Token + Internet.")}">?</span></summary>
+            <div class="gpxi-sec-body">
+          <button class="btn gpxi-act" id="gpxi-ele-load">🗺 ${t("gpxinspect.ele_load", "Höhenprofil aus Karte laden")}</button>
+          <div class="gpxi-fillrow gpxi-sensrow">
+            <label>${t("gpxinspect.ele_weight", "GPS ⟷ Karte")}</label>
+            <input type="range" id="gpxi-ele-weight" min="0" max="100" step="5" value="70" disabled>
+            <span id="gpxi-ele-weight-val" class="gpxi-sensval">70 %</span>
+          </div>
+          <button class="btn btn-primary gpxi-act" id="gpxi-ele-apply" disabled>⛰ ${t("gpxinspect.ele_apply", "Diese Höhe übernehmen")}</button>
+          <div class="gpxi-note muted" id="gpxi-ele-result"></div>
+            </div>
+          </details>
+          <div class="gpxi-foot">
           <button class="btn btn-primary" id="gpxi-save" disabled>💾 ${t("gpxinspect.save", "Geheilten Track speichern …")}</button>
           <button class="btn gpxi-reset" id="gpxi-reset" disabled>↩︎ ${t("gpxinspect.reset", "Änderungen verwerfen")}</button>
           <div class="gpxi-note muted" id="gpxi-note"></div>
+          </div>
         </div>
     </div>
     <section class="canvas" id="gpxi-canvaswrap">
@@ -523,6 +536,7 @@ function mountGpxInspect(body, headerActions) {
     // FIT/TCX-Sensorwerte (Herzfrequenz, Temperatur …). Eingefügte Punkte haben kein oi
     // (undefined) → Backend interpoliert deren Sensoren. v0.9.334 (Nutzer-Feedback).
     _points = (res.points || []).map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.i, si: 0 }));
+    { const n = document.getElementById("gpxi-wz-note"); if (n) n.textContent = ""; }   // 10.09.2026 — alter Hinweis weg
     try { analyseTrack(); } catch (_) {}
     _srcPath = res.src || path;   // v0.9.295 — konvertierter GPX-Pfad (Fremdformate), sonst Original
     _sources = [_srcPath];        // v0.9.456 — Quelle 0; „Track anhängen" hängt weitere an
@@ -2651,6 +2665,15 @@ function mountGpxInspect(body, headerActions) {
     // Auswahl-Text
     const selEl = document.getElementById("gpxi-sel");
     const haveA = _selA !== null, haveB = _selB !== null;
+    // 10.09.2026 — Statuszeile im Abschnitt „Bearbeiten": ausgegraute Knöpfe sagten
+    // nicht, was ihnen fehlt.
+    { const st = document.getElementById("gpxi-ab-status");
+      if (st) {
+        if (_drawMode) st.textContent = t("gpxinspect.ab_draw", "Zeichenmodus — den Pfad auf der Karte klicken.");
+        else if (!haveA) st.textContent = t("gpxinspect.ab_none", "Punkt auf der Karte anklicken → Anker A. Zweiter Klick → B.");
+        else if (!haveB) st.textContent = t("gpxinspect.ab_a", "Anker A: Punkt #{n}. Zweiter Klick setzt B; Werkzeuge mit „A“ sind frei.").replace("{n}", _selA + 1);
+        else st.textContent = t("gpxinspect.ab_ab", "Abschnitt A→B: Punkt #{a} bis #{b}, {n} dazwischen.").replace("{a}", _selA + 1).replace("{b}", _selB + 1).replace("{n}", _selB - _selA - 1);
+      } }
     if (selEl) {
       // 02.09.2026 (Marc: „was bedeutet hier ‚keine auswahl‘, für was ist das?")
       // — die Zeile gehört zum Bereich „Abschnitt A→B" und stand auch dann da,
@@ -2845,6 +2868,26 @@ function mountGpxInspect(body, headerActions) {
   }
   window.__rzGpxiWerkzeug = { reverse: wzReverse, rotate: wzRotate, split: wzSplit, simplify: wzSimplify, retime: wzRetime, splits: wzSplits,
     punkte: () => _points, ankerA: (i) => { _selA = i; _selB = null; renderPoints(); updateUI(); } };   // Prüfstand
+  // 10.09.2026 (Marc: „der Inspektor muss übersichtlicher werden") — sechs gleiche
+  // Klapp-Abschnitte; offen bleibt, was der Nutzer zuletzt offen hatte (settings.json
+  // gpxinspect.open_sections). Erster Start: Prüfen, Heilen, Bearbeiten offen.
+  (function _gpxiAbschnitte() {
+    const secs = Array.from(document.querySelectorAll("details.gpxi-sec"));
+    if (!secs.length) return;
+    let open;
+    try {
+      const cur = (typeof window.rzReadModuleSettings === "function") ? (window.rzReadModuleSettings("gpxinspect") || {}) : {};
+      open = Array.isArray(cur.open_sections) ? new Set(cur.open_sections) : new Set(["pruefen", "heilen", "bearbeiten"]);
+    } catch (_) { open = new Set(["pruefen", "heilen", "bearbeiten"]); }
+    if (window.__rzTestAllOpen) open = new Set(secs.map(d => d.dataset.sec));
+    secs.forEach(d => {
+      d.open = open.has(d.dataset.sec);
+      d.addEventListener("toggle", () => {
+        if (d.open) open.add(d.dataset.sec); else open.delete(d.dataset.sec);
+        try { saveSettings({ gpxinspect: { open_sections: Array.from(open) } }); } catch (_) {}
+      });
+    });
+  })();
   const _on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
   _on("gpxi-wz-reverse", wzReverse);
   _on("gpxi-wz-rotate", wzRotate);
