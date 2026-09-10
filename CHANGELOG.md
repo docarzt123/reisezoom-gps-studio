@@ -17,6 +17,7 @@ Bei jeder neuen Version:
 ## [0.9.686] – 2026-09-10
 
 ### Added
+- Undo/Redo for everything built recently: per-track look (panel and "apply to all"), running dot, group rows and transitions in the timeline, tempo lane holds and sections, ghost tracks, adding/removing tours, and the geotagger's track list (as long as the main track stays; a new main track is a session switch and clears the stacks like everywhere). — Undo/Redo für alle Neuerungen: Aussehen je Track, Laufpunkt, Gruppen-Zeilen und Übergänge, Tempo-Spur, Ghost-Spuren, Touren dazu/weg, Track-Liste im Geotagger.
 - Geotagger: several tracks at once (GitHub issue #7). Loading a photo folder imports GPX files next to the photos into the archive, the archive searches all its tours by capture time and shows a confirmation list (checkbox, photo count per tour, photos without a tour); "From the archive …" adds more. Every photo lands on the track whose time window fits; provided tracks win ties, the nearer point otherwise; a photo fitting two tracks shows "↔ also: …". All tracks on the map in their own colour, sidebar list with photo counts, "Tracks from the archive …" button. Core `zuordnen_mehrere`, bridge `geotagger_load_gpx_viele`/`geotagger_tracks_fuer_fotos`/`geotagger_import_gpx_aus_ordner`. — Geotagger mit mehreren Tracks auf einmal: das Archiv findet die Tracks zu den Fotos, Bestätigungsliste, GPX aus dem Foto-Ordner landen im Archiv, vorgegebene Tracks gewinnen bei Doppel-Treffern.
 
 ## [0.9.685] – 2026-09-09

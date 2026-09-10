@@ -4417,3 +4417,23 @@ Referenz-Offset, Einrasten), `_gtg_stats` die des Haupt-Tracks (erster Eintrag).
 * **Wächter** `tests/test_geotagger_mehrere_tracks.py`: Kern (Tage, Abend ohne Track,
   Doppel-Treffer mit Vorrang und Gleichstand), Brücke mit Wegwerf-Bibliothek, Mock-UI
   (Liste, vorgegeben, Doppel, Laden, Seitenleiste).
+
+
+## Undo für alles (Marc-Regel 10.09.2026)
+
+Jede Bedienung, die den Projektstand anfasst, muss rückgängig machbar sein. Der
+Animator-Controller (`_animUndoCtrl`, Schnappschuss = ganzer Modul-Block) bekommt
+seine Schritte an den **Schreibstellen**, nicht an den Gesten: `_animPersistTours(label)`
+(Tracks, Gruppen, Aussehen je Track, Zeilen, Übergänge — nicht beim Laden, nicht während
+Undo), `_tempoEintraegeSetzen` (Tempo-Spur), `ghostSpurenSichern` (Ghost-Spuren),
+`dotGeaendert(true)` (Laufpunkt). Gebundene Felder pushen über `bindSetting` selbst.
+Beim Anwenden zieht `_animUndoNachziehen(snap)` die Speicher-Zustände nach: Tempo-Liste
+verwerfen + `paceMapLaden`, Ghosts neu laden/zeichnen, `paceAusProjekt` (Laufpunkt),
+`extra_tours` Feld für Feld in die vorhandenen Objekte (gleiche Menge) oder voller
+Neu-Lader (andere Menge: `_extraTours = []`, `_gruppenProjektId = null`, `_animLoadTours`),
+dann `_gruppenAufbauen(snap.gruppen)`, Vorschau, Liste, `_bahnStilAnwenden`, Laufpunkt.
+Der Lader nimmt ohne Projekt den Modul-Block (`rzReadModuleSettings`), sonst wäre Undo im
+Prüfstand leer. Geotagger: `tracks`/`vorgegeben` im `extraSnapshot`, `_gtTracksLaden`
+pusht vorher; die Sitzung wird nur gewechselt, wenn der Haupt-Track ein anderer ist
+(ein Sitzungswechsel leert die Stapel — `rebindAllSettings`). Wächter:
+`tests/test_undo_neuerungen.py`, Geotagger-Teil in `tests/test_geotagger_mehrere_tracks.py`.

@@ -3079,5 +3079,10 @@
   "geotagger.tracks.verwenden": "Usar tracks",
   "geotagger.chip.doppel": "también: {namen}",
   "geotagger.chip.doppel_tip": "Esta foto también está dentro de la ventana de tiempo de esta(s) ruta(s). Se tomó el punto más cercano (tracks indicados primero).",
-  "geotagger.summary.doppel": "{n} en dos rutas"
+  "geotagger.summary.doppel": "{n} en dos rutas",
+  "undo.tracks_geaendert": "Tracks cambiados",
+  "undo.tempo_geaendert": "Carril de ritmo cambiado",
+  "undo.ghosts_geaendert": "Pistas fantasma cambiadas",
+  "undo.laufpunkt_geaendert": "Punto en movimiento cambiado",
+  "undo.gt_tracks": "Tracks cargados"
 }
