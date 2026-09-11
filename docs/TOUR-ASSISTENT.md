@@ -176,6 +176,8 @@ Fortschritt als Zeilenliste im Fenster („Track geprüft: 2 Sprünge, 1 Lücke 
   Archiv-Auswahl ist sortiert genug); eine Datei von außen geht zuerst ins Archiv. Tests:
   `tests/test_assistent.py` (Wegwerf-Archiv), Browser-Schritt in `scripts/selftest_vorlagen.py`.
   Nicht in der echten App geprüft; Lücken-Routing braucht Netz (im Test keins → gerade gefüllt).
+- 11.09.2026 (abends): **PAUSIERT, als experimentell markiert** (Marc: „an sich ganz ok, aber irgendwie gefällt es mir
+  nicht … ein anderes mal weiter“). Stand und offene Ideen: docs/IDEAS.md §62.
 - 11.09.2026 (später Nachmittag): **Highlights-Fenster im Animator** (Marc: „rolle das erst wieder über den
   Animator aus … komplettes Modal"): Fotoordner, Quellen, „Highlights finden", Vorschlagsliste mit Häkchen/Text,
   „Als Schilder übernehmen". Damit sind Teile von Stufe 2 (Fotos zuordnen, Serien) und Stufe 3 (Foto am Ort,
