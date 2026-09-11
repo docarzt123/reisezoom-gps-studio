@@ -35,43 +35,51 @@
       footer: `<button class="btn" id="ass-ab">${tt("common.cancel", "Abbrechen")}</button>
                <button class="btn btn-primary" id="ass-los" ${pfad ? "" : "disabled"}>🧭 ${tt("assistent.los", "Los")}</button>`,
       onClose: () => { _offen = false; },
+      restorePrevious: () => wire(),
     });
-    const nameEl = document.getElementById("ass-name");
-    const los = document.getElementById("ass-los");
-    const setzePfad = (p) => {
-      pfad = p || "";
-      const n = document.getElementById("ass-track-name");
+    // Die Archiv-Auswahl ist ein Fenster ÜBER diesem: beim Zurückkommen baut openModal
+    // den Rumpf aus HTML neu auf, die Ereignis-Handler sind weg (Marc: „ich kann Los
+    // nicht klicken"). Deshalb hängt ALLES an `wire()`, das openModal über
+    // `restorePrevious` nach jedem Zurückholen erneut ruft. Zustand lebt in Variablen.
+    let vid = standard, name = pfad ? pfad.split("/").pop().replace(/\.[^.]+$/, "") : "";
+    let laeuft = false;
+    const $ = (id) => document.getElementById(id);
+    function wire() {
+      const nameEl = $("ass-name"), sel = $("ass-vorlage"), los = $("ass-los"), n = $("ass-track-name");
       if (n) n.textContent = pfad ? pfad.split("/").pop() : tt("assistent.track_keiner", "noch keiner gewählt");
-      if (nameEl && !nameEl.value.trim() && pfad) nameEl.value = pfad.split("/").pop().replace(/\.[^.]+$/, "");
-      if (los) los.disabled = !pfad;
-    };
-    const ba = document.getElementById("ass-track-archiv");
-    if (ba) ba.onclick = async () => {
-      if (typeof window.rzArchivTourenWaehlen !== "function") return;
-      const pf = await window.rzArchivTourenWaehlen({ einzel: true, titel: tt("assistent.track_archiv_titel", "Tour für den Assistenten"), okText: tt("common.next", "Weiter") });
-      if (pf && pf.length) setzePfad(pf[0]);
-    };
-    const bd = document.getElementById("ass-track-datei");
-    if (bd) bd.onclick = async () => {
-      const files = await api().pick_file("open", window.TRACK_PICK_FILTER, false);
-      if (files && files.length) setzePfad(files[0]);
-    };
-    const ab = document.getElementById("ass-ab"); if (ab) ab.onclick = () => m.close();
-    if (los) los.onclick = async () => {
-      if (!pfad) return;
-      const vid = (document.getElementById("ass-vorlage") || {}).value || "";
-      const name = (nameEl && nameEl.value || "").trim();
-      los.disabled = true; if (ba) ba.disabled = true; if (bd) bd.disabled = true;
-      const ol = document.getElementById("ass-schritte");
-      const fe = document.getElementById("ass-fehler");
+      if (nameEl) { nameEl.value = name; nameEl.oninput = () => { name = nameEl.value; }; }
+      if (sel) { sel.value = vid; if (sel.value !== vid) vid = sel.value; sel.onchange = () => { vid = sel.value; }; }
+      if (los) los.disabled = !pfad || laeuft;
+      const ba = $("ass-track-archiv"), bd = $("ass-track-datei"), ab = $("ass-ab");
+      const setzePfad = (p) => {
+        pfad = p || "";
+        if (pfad && !name.trim()) name = pfad.split("/").pop().replace(/\.[^.]+$/, "");
+        wire();
+      };
+      if (ba) ba.onclick = async () => {
+        if (typeof window.rzArchivTourenWaehlen !== "function") return;
+        const pf = await window.rzArchivTourenWaehlen({ einzel: true, titel: tt("assistent.track_archiv_titel", "Tour für den Assistenten"), okText: tt("common.next", "Weiter") });
+        if (pf && pf.length) setzePfad(pf[0]); else wire();
+      };
+      if (bd) bd.onclick = async () => {
+        const files = await api().pick_file("open", window.TRACK_PICK_FILTER, false);
+        if (files && files.length) setzePfad(files[0]);
+      };
+      if (ab) ab.onclick = () => m.close();
+      if (los) los.onclick = lauf;
+    }
+    async function lauf() {
+      if (!pfad || laeuft) return;
+      laeuft = true; wire();
+      const ol = $("ass-schritte"), fe = $("ass-fehler");
       if (ol) { ol.hidden = false; ol.innerHTML = `<li class="ass-lauf">⏳ ${esc(tt("assistent.laeuft", "Track wird geprüft und repariert …"))}</li>`; }
       if (fe) fe.hidden = true;
       let r;
-      try { r = await api().assistent_lauf(pfad, vid, name); } catch (e) { r = { ok: false, error: String(e), schritte: [] }; }
+      try { r = await api().assistent_lauf(pfad, vid, name.trim()); } catch (e) { r = { ok: false, error: String(e), schritte: [] }; }
       if (ol) ol.innerHTML = (r && r.schritte || []).map(s => `<li class="${s.ok ? "ok" : "fehl"}">${s.ok ? "✅" : "⚠️"} ${esc(s.text)}</li>`).join("");
       if (!r || !r.ok) {
         if (fe) { fe.hidden = false; fe.textContent = tt("assistent.fehler", "Abgebrochen: {e}").replace("{e}", (r && r.error) || "?"); }
-        los.disabled = false; if (ba) ba.disabled = false; if (bd) bd.disabled = false;
+        laeuft = false; wire();
         return;
       }
       try { applog("info", "[assistent] fertig: Projekt " + r.project_id + " (" + (r.schritte || []).length + " Schritte)"); } catch (_) {}
@@ -84,7 +92,8 @@
         if (typeof switchMod === "function") switchMod("library");
         window.dispatchEvent(new CustomEvent("rz-projekt-oeffnen", { detail: { id: r.project_id, modul: "animator" } }));
       }, 600);
-    };
+    }
+    wire();
   }
   window.openTourAssistent = openTourAssistent;
   // ⌘⇧N / Strg+Umschalt+N
