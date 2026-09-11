@@ -670,6 +670,26 @@ snapshots under `…/sessions/`.
 
 ---
 
+### 🧭 Tour assistant — from the tour to the finished project (since v0.9.689) ⭐
+
+**File → “Tour assistant…” (⌘⇧N).** One window, three inputs, one button:
+
+1. **Track**: “From the archive …” or “File …” (a file from outside is added to the archive first).
+2. **Template**: preset with ★ “My default”.
+3. **Project name**: preset with the name of the tour.
+
+**“Go”** does the rest and shows every step as a line:
+
+- **Track check with repair** of all red and yellow findings. Whatever you marked as “That's fine
+  as it is” in the archive stays untouched. Gaps are routed along paths by the tour's activity
+  (hiking → walking, bike → cycling, car → driving), straight only when no route fits or there is
+  no network. The result becomes a **new version** in the archive; your file stays unchanged.
+- **Project with the template** on that version.
+- **Jump into the Animator** with the project open.
+
+If there was nothing to repair, the list says so and the project hangs on the original file.
+Photos and highlights come in the next stages of the assistant.
+
 ### 🖼 Project tiles show the last state (since v0.9.689)
 
 The app photographs the preview of the open module (map with track in the Animator and Tour

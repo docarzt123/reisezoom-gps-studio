@@ -167,6 +167,11 @@ Fortschritt als Zeilenliste im Fenster („Track geprüft: 2 Sprünge, 1 Lücke 
 
 ## 5. Stand der Umsetzung
 
+- 11.09.2026 (Mittag): **Stufe 1 gebaut** — `Api.assistent_lauf`, `ui/js/assistent.js`, Menüpunkt
+  Datei → „Tour-Assistent…“ (⌘⇧N). Abweichung: kein „zuletzt importierte vorgeschlagen“ (die
+  Archiv-Auswahl ist sortiert genug); eine Datei von außen geht zuerst ins Archiv. Tests:
+  `tests/test_assistent.py` (Wegwerf-Archiv), Browser-Schritt in `scripts/selftest_vorlagen.py`.
+  Nicht in der echten App geprüft; Lücken-Routing braucht Netz (im Test keins → gerade gefüllt).
 - 11.09.2026: Spezifikation geschrieben. **Stufe 0 (Vorlagen) gebaut** (v0.9.689 lokal): `core/vorlagen.py`,
   Brücken, Archiv-Reiter, 🧩 auf der Projekt-Kachel, Kopfzeilen-Menü, Vorlagen-Feld bei „Neues Projekt“,
   Migration der alten `user_defaults`, Undo im Archiv und im Modul. Tests: Kern (49), Brücken (28), Browser (38).

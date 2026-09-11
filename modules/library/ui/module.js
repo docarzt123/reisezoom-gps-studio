@@ -4984,6 +4984,16 @@ function mountLibrary(body, headerActions) {
     }; }
   window.addEventListener("rz-vorlagen-geaendert", () => { if (!_unmounted && _vorlView) renderVorlagen(); });
   // 11.09.2026 — frisches Projekt-Vorschaubild: Sitzungs-Cache der Kachel verwerfen.
+  // 11.09.2026 — Tour-Assistent: ein eben angelegtes Projekt öffnen (mit Track, im Modul).
+  const _projektAufZuruf = async (id, modul) => {
+    if (_unmounted || !id) return;
+    const res = await api().projekte_liste();
+    _projekte = (res && res.projekte) || [];
+    window.__rzProjektOeffnenId = null;
+    await projektOeffnen(id, modul || "animator");
+  };
+  window.addEventListener("rz-projekt-oeffnen", (e) => { const d = (e && e.detail) || {}; _projektAufZuruf(d.id, d.modul); });
+  if (window.__rzProjektOeffnenId) { const id = window.__rzProjektOeffnenId; setTimeout(() => _projektAufZuruf(id, "animator"), 50); }
   window.addEventListener("rz-projekt-vorschau", (e) => { const id = e && e.detail && e.detail.id; if (id) delete _projThumbCache[id]; });
   // Q19/Q21: Ein AUSDRÜCKLICHER Sprung („Alle Projekte …" im Topbar-Menü)
   // setzt diese Flagge; hier wird sie genau einmal verbraucht.

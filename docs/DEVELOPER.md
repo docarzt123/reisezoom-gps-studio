@@ -2553,6 +2553,7 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `vorlage_anwenden(project_id, vid)` | `{ok, vorher, nachher, project, vorlage}` | Modul-Blöcke davor/danach; erzwingt vorher einen Arbeitsstand |
 | `projekt_module_schreiben(project_id, module)` | `{ok, project}` | Undo-Gegenstück: ganze Modul-Blöcke zurück |
 | `projekt_aus_vorlage_anlegen(name, vid)` | wie `projekt_frei_anlegen` | Leeres Projekt mit dieser Vorlage |
+| `assistent_lauf(path, vorlage_id, name)` | `{ok, project_id, tour_path, schritte:[{key, text, ok}]}` | Tour-Assistent Stufe 1 (11.09.2026): Archiv-Aufnahme bei Bedarf, Track-Check-Reparatur (rot+gelb ohne `check_ok`, Lücken geroutet nach Fortbewegungsart) → `library_track_ersetzen` (neue Version) → `projekt_aus_vorlage_anlegen` + `projekt_touren_setzen` auf die Versionsdatei |
 | `projekt_vorschau_speichern(project_id, data_url)` | `{ok}` | Vorschaubild aus dem letzten Stand (11.09.2026) → `bilder/projekte/<pid>.jpg`; `projekt_thumbs` bevorzugt es, `vorlage_anlegen/aktualisieren` kopieren es nach `bilder/vorlagen/` |
 | `library_track_check_ok(path, key, ok)` | `{ok, check, track}` | „Ist so in Ordnung" je Version und Befund-Art |
 | `library_repair_file(path)` | `{ok, geo_hash, n_points, schritte}` | Beschädigte GPX reparieren → Version in der Bibliothek |
@@ -3068,6 +3069,18 @@ Oberfläche: `ui/js/vorlagen.js` (Fenster, `rzVorlageAufAktivesProjekt` = Anwend
 `ui/js/projects.js` (`rzNeuesProjektModal` mit Vorlagen-Feld → `projectCreate(name, copy, vorlageId)`).
 Tests: `tests/test_vorlagen.py` (Kern), `tests/test_vorlagen_bridge.py` (echte `Api` gegen Wegwerf-Ordner),
 `scripts/selftest_vorlagen.py` (Browser, 38 Prüfungen) via `tests/test_vorlagen_ui.py`.
+
+**Tour-Assistent Stufe 1 (11.09.2026, `Api.assistent_lauf`, `ui/js/assistent.js`, Spec `docs/TOUR-ASSISTENT.md` §3):**
+Eine Brücke für den ganzen Lauf, damit die Oberfläche nur Zeilen zeigt. Reihenfolge: `clib.get_track` (sonst
+`library_import_files`) → Check aus der Archivzeile oder `clib.track_check_datei` → Befunde rot/gelb minus
+`check_ok` minus alles ohne Heil-Schritt (`gpxheal.SCHRITTE`) → `gpxinspect_load` → `gpxheal.heilen(schritte ohne gaps)`
+→ Lücken: `trackcheck.luecken` auf dem geheilten Stand, Profil aus `activity` (`_assistent_profil`, wie
+`_profilAusArt` im Inspektor), `gpxinspect_route_gaps`, Umweg-Regel 2,5× Luftlinie, sonst `gpxheal._luecke_fuellen`
+→ `library_track_ersetzen(pts, pfad, pfad)` → Projekt hängt an `cbib.version_datei(BIB, geo_hash)` (nicht an der
+Quelldatei — sonst zeigte `_track_geo_hash` auf die alte Version). Die Oberfläche öffnet das Projekt über das
+Archiv (`rz-projekt-oeffnen` / `window.__rzProjektOeffnenId` → `projektOeffnen`), weil dort der Weg für
+Solo/Reise/Version liegt. Menü: `MenuAction(_menu_assistent)` → `window.openTourAssistent()`; ⌘⇧N in
+`assistent.js`. Test: `tests/test_assistent.py` (Wegwerf-Archiv mit sauberem Track, Sprung, „Ist so in Ordnung“).
 
 **Projekt-Vorschaubild aus dem letzten Stand (11.09.2026, `ui/js/util.js`):** `rzProjektVorschauAufnehmen(grund)`
 fotografiert das offene Modul — MapLibre-Karte über `map.once("render")` + `triggerRepaint()` (kein

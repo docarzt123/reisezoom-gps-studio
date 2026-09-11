@@ -731,6 +731,27 @@ Fassungen unter `…/sessions/`.
 
 ---
 
+### 🧭 Tour-Assistent — von der Tour zum fertigen Projekt (seit v0.9.689) ⭐
+
+**Datei → „Tour-Assistent…“ (⌘⇧N).** Ein Fenster, drei Angaben, ein Knopf:
+
+1. **Track**: „Aus dem Archiv …“ oder „Datei …“ (eine Datei von außerhalb kommt zuerst ins Archiv).
+2. **Vorlage**: vorbelegt mit ★ „Mein Standard“.
+3. **Projektname**: vorbelegt mit dem Namen der Tour.
+
+**„Los“** erledigt den Rest und zeigt jeden Schritt als Zeile:
+
+- **Track-Check mit Reparatur** aller roten und gelben Befunde. Was du im Archiv als „Ist so in
+  Ordnung“ markiert hast, bleibt unangetastet. Lücken laufen entlang der Wege nach der
+  Fortbewegungsart der Tour (Wandern → zu Fuß, Rad → Rad, Auto → Straße), gerade nur, wenn keine
+  Route passt oder kein Netz da ist. Das Ergebnis wird eine **neue Version** im Archiv, deine Datei
+  bleibt unverändert.
+- **Projekt mit der Vorlage** auf dieser Version.
+- **Sprung in den Animator** mit dem geöffneten Projekt.
+
+Gab es nichts zu reparieren, steht das so in der Liste und das Projekt hängt an der Originaldatei.
+Fotos und Highlights kommen in den nächsten Stufen des Assistenten.
+
 ### 🖼 Projekt-Kacheln zeigen den letzten Stand (seit v0.9.689)
 
 Die App fotografiert die Vorschau des offenen Moduls (Karte mit Track im Animator und in der
