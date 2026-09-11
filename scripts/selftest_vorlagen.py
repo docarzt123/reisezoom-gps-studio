@@ -254,7 +254,8 @@ async def main():
               "Aufnahme schickt das Bild des aktiven Projekts an die Brücke", str(r[-1:]))
 
         print("\n━━━ 6d. Tour-Assistent (Fenster, Lauf, Sprung ins Projekt) ━━━")
-        await pg.evaluate("window.rzArchivTourenWaehlen = async () => ['/mock/t2.gpx']")
+        # Wie in der App: die Auswahl ist ein Fenster ÜBER dem Assistenten (Marc: „ich kann Los nicht klicken“).
+        await pg.evaluate("window.rzArchivTourenWaehlen = async () => { const mm = openModal({ title: 'Auswahl', body: '<p>…</p>', footer: '' }); await new Promise(r => setTimeout(r, 80)); mm.close(); return ['/mock/t2.gpx']; }")
         await pg.keyboard.press("Meta+Shift+N")
         await pg.wait_for_timeout(400)
         sagen(bool(await pg.query_selector("#ass-los")), "⌘⇧N öffnet den Assistenten")
