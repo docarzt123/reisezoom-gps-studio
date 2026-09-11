@@ -79,6 +79,7 @@
 
     body.innerHTML = `
       <aside class="panel" id="wk-panel">
+        ${typeof window.rzVorlagenLeiste === "function" ? window.rzVorlagenLeiste("wk") : ""}
         <div class="section">
           <div class="muted" style="font-size:11px; line-height:1.5; margin:0 0 12px;">
             ${T("webkarte.intro", "Leichte, interaktive Karte fürs Web. Track kommt automatisch aus dem GPX; Beschriftungen setzt du direkt auf der Karte. Die Vorschau hier ist exakt der Export.")}

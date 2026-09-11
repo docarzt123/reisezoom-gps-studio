@@ -3049,3 +3049,10 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
   box-shadow: 0 8px 24px rgba(0,0,0,.45); white-space: normal;
 }
 .rz-hilfe-tip a { color: var(--accent, #ff6b35); }
+
+/* 11.09.2026 — Vorlagen-Leiste oben in den Gestaltungs-Modulen (ui/js/vorlagen.js) */
+.vorl-leiste { display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+  border-bottom: 1px solid rgba(127,127,127,.25); background: rgba(127,127,127,.06); }
+.vorl-leiste-ico { flex: 0 0 auto; }
+.vorl-leiste-select { flex: 1 1 auto; min-width: 0; }
+.vorl-leiste .btn { flex: 0 0 auto; }

@@ -207,6 +207,21 @@ async def main():
         r = await rufe("vorlage_anlegen")
         sagen(r and r[-1]["args"] == ["Aus Kachel", "pa"], "Speichern ruft vorlage_anlegen(Name, pa)")
 
+        print("\n━━━ 6b. Vorlagen-Leiste oben in den Gestaltungs-Modulen ━━━")
+        for slug, prefix in (("heightanim", "ha"), ("webkarte", "wk"), ("animator", "anim")):
+            await pg.evaluate(f"switchMod('{slug}')")
+            await pg.wait_for_timeout(900)
+            n = await pg.eval_on_selector_all(f"#{prefix}-vorl-select option", "e => e.length")
+            sagen(n >= 2, f"{slug}: Leiste mit Vorlagen-Auswahl oben in der Seitenleiste", f"{n} Optionen")
+            sagen(bool(await pg.query_selector(f"#{prefix}-vorl-anwenden")) and bool(await pg.query_selector(f"#{prefix}-vorl-speichern")),
+                  f"{slug}: „Anwenden“ + 💾 vorhanden")
+        await pg.click("#anim-vorl-speichern")
+        await pg.wait_for_timeout(300)
+        sagen(not await pg.query_selector("#vorl-sp-name"), "ohne aktives Projekt: Speichern öffnet kein Fenster, nur Hinweis")
+        await pg.evaluate("switchMod('library')")
+        await pg.wait_for_timeout(900)
+        await pg.click("#lib-seg-vorlagen"); await pg.wait_for_timeout(400)
+
         print("\n━━━ 7. Neues Projekt daraus + Namensfenster mit Vorlagen-Feld ━━━")
         await pg.evaluate("""(() => { window.__mods = []; switchMod = (m) => { window.__mods.push(m); };
           window.sessionActivateFrei = async (k) => { window.__frei = k; }; })()""")

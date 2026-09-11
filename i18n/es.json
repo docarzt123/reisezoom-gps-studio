@@ -3262,5 +3262,6 @@
   "vorlagen.undo_label": "Plantilla aplicada",
   "vorlagen.undo_standard": "Plantilla estándar definida",
   "vorlagen.undo_umbenannt": "Plantilla renombrada",
-  "vorlagen.undo_geloescht": "Plantilla eliminada"
+  "vorlagen.undo_geloescht": "Plantilla eliminada",
+  "vorlagen.leiste_tip": "Plantilla = mapa, forma del track, cámara, superposiciones, estilo de carteles, render; nada ligado al track. Aplicar es un paso ⌘Z."
 }

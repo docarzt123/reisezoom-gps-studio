@@ -91,7 +91,10 @@ für Vorlagen UND „eigene Standardwerte“:
 3. **Projekt-Menü in der Kopfzeile** (der Projekt-Knopf): **„🧩 Vorlage anwenden…“** und
    **„🧩 Als Vorlage speichern…“**. „Neues Projekt“ bekommt im Namensfenster ein Feld
    **„Vorlage“**, vorbelegt mit dem Stern.
-4. **Automatisch**: jedes neue Projekt startet mit der Stern-Vorlage (siehe 2.2).
+4. **Im Modul**: Animator, Tour-Map, Daten-Animator und Web-Karte haben oben in der
+   Seitenleiste eine **Vorlagen-Leiste** (🧩 Auswahl · „Anwenden“ · 💾 „Als Vorlage
+   speichern…“) für das laufende Projekt.
+5. **Automatisch**: jedes neue Projekt startet mit der Stern-Vorlage (siehe 2.2).
 
 **Anwenden** überschreibt je Modul nur die Schlüssel, die in der Vorlage stehen; alles
 Trackgebundene (Keyframes, Schilder, Fotos, Gruppen, Schnitt …) bleibt stehen.
@@ -167,7 +170,7 @@ Fortschritt als Zeilenliste im Fenster („Track geprüft: 2 Sprünge, 1 Lücke 
 - 11.09.2026: Spezifikation geschrieben. **Stufe 0 (Vorlagen) gebaut** (v0.9.689 lokal): `core/vorlagen.py`,
   Brücken, Archiv-Reiter, 🧩 auf der Projekt-Kachel, Kopfzeilen-Menü, Vorlagen-Feld bei „Neues Projekt“,
   Migration der alten `user_defaults`, Undo im Archiv und im Modul. Tests: Kern (49), Brücken (28), Browser (38).
-  **Abweichung von §2.3, Stelle 4:** kein eigener „Vorlage anwenden ▾“-Knopf in den Seitenleisten der Module —
-  das Projekt-Menü der Kopfzeile ist überall dieselbe Stelle (weniger Klone, Marc-Regel Spiegelung). **Offen:**
+  Stelle 4 (Marc: „Vorlagen müssen für alle module gelten wo man grafisch was baut"): Vorlagen-Leiste oben in der
+  Seitenleiste von Animator, Tour-Map, Daten-Animator und Web-Karte (`rzVorlagenLeiste`: Auswahl, Anwenden, 💾). **Offen:**
   Anwenden im Modul in der echten App prüfen (nur kopflos/Mock geprüft); Block „Assistent“ (Fotoanzahl,
   Highlight-Arten) kommt mit Stufe 2/3.

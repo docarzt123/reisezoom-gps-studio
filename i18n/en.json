@@ -3262,5 +3262,6 @@
   "vorlagen.undo_label": "Template applied",
   "vorlagen.undo_standard": "Default template set",
   "vorlagen.undo_umbenannt": "Template renamed",
-  "vorlagen.undo_geloescht": "Template deleted"
+  "vorlagen.undo_geloescht": "Template deleted",
+  "vorlagen.leiste_tip": "Template = map, track shape, camera, overlays, sign style, render — nothing track-bound. Applying is one ⌘Z step."
 }

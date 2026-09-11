@@ -31,6 +31,7 @@ function mountHeightAnim(body, headerActions) {
   // — Wrapper-Divs wie .anim-layout würden das Grid zerschießen.
   body.innerHTML = `
     <aside class="panel" id="height-panel">
+        ${typeof window.rzVorlagenLeiste === "function" ? window.rzVorlagenLeiste("ha") : ""}
         <!-- v0.9.437 (Daten-Animator) — Serien-Auswahl ganz oben: WAS wird
              animiert? Wird aus dem geladenen Track gefüllt (Höhe/Tempo/Steigung
              + Sensoren wie Puls/Leistung). Ohne Track/nur eine Reihe: disabled. -->

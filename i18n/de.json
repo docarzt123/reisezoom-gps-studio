@@ -3262,5 +3262,6 @@
   "vorlagen.undo_label": "Vorlage angewendet",
   "vorlagen.undo_standard": "Standard-Vorlage gesetzt",
   "vorlagen.undo_umbenannt": "Vorlage umbenannt",
-  "vorlagen.undo_geloescht": "Vorlage gelöscht"
+  "vorlagen.undo_geloescht": "Vorlage gelöscht",
+  "vorlagen.leiste_tip": "Vorlage = Karte, Track-Form, Kamera, Overlays, Schilder-Stil, Render — nichts Trackgebundenes. Anwenden ist ein ⌘Z-Schritt."
 }
