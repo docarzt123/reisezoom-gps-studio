@@ -1956,6 +1956,8 @@ function saveProjectSettings(module, patch) {
   }
   _mergePatchInto(_activeProject[module], patch);
 
+  // 11.09.2026 — nach einer Änderung das Vorschaubild des Projekts nachziehen.
+  try { rzProjektVorschauPlanen(); } catch (_) {}
   // Pending-Patch akkumulieren (analog saveSettings)
   if (!_projectPendingPatch) _projectPendingPatch = {};
   if (!_projectPendingPatch[module]) _projectPendingPatch[module] = {};
@@ -2284,6 +2286,131 @@ window.rzReadModuleSettings = function (section) {
   }
   return (_settingsCache && _settingsCache[section]) || {};
 };
+/* ── 11.09.2026 — Vorschaubild des Projekts aus dem letzten Stand ─────────────
+ * Marc: „wenn ich Satelliten einstelle und die Farbe vom Track ändere, dass man
+ * die direkt auch sieht in dem Vorschaubild." Die Oberfläche fotografiert die
+ * Vorschau des offenen Moduls (Karte mit Track im Animator/Tour-Map, Diagramm
+ * im Daten-Animator, Karte in der Web-Karte) und schickt sie verkleinert an
+ * projekt_vorschau_speichern. Ausgelöst 4 s nach der letzten Änderung und beim
+ * Verlassen des Moduls; Bilder ohne Inhalt (leer/schwarz) werden verworfen. */
+let _vorschauTimer = null;
+function rzProjektVorschauPlanen() {
+  clearTimeout(_vorschauTimer);
+  _vorschauTimer = setTimeout(() => { rzProjektVorschauAufnehmen("geaendert"); }, 4000);
+}
+function _vorschauVerkleinern(quelle, w, h) {
+  const ZW = 480, ZH = 270;
+  const cv = document.createElement("canvas");
+  cv.width = ZW; cv.height = ZH;
+  const cx = cv.getContext("2d");
+  cx.fillStyle = "#101418"; cx.fillRect(0, 0, ZW, ZH);
+  const s = Math.max(ZW / w, ZH / h);          // cover
+  const dw = w * s, dh = h * s;
+  cx.drawImage(quelle, (ZW - dw) / 2, (ZH - dh) / 2, dw, dh);
+  // Leer/schwarz? (WebGL ohne preserveDrawingBuffer liefert sonst Nichts)
+  const px = cx.getImageData(0, 0, ZW, ZH).data;
+  let hell = 0;
+  for (let i = 0; i < px.length; i += 4 * 97) { if (px[i] + px[i + 1] + px[i + 2] > 60) hell++; }
+  if (hell < 8) return null;
+  return cv.toDataURL("image/jpeg", 0.82);
+}
+function _vorschauVonMap(map) {
+  return new Promise((resolve) => {
+    let fertig = false;
+    const nimm = () => {
+      if (fertig) return; fertig = true;
+      try { const c = map.getCanvas(); resolve(_vorschauVerkleinern(c, c.width, c.height)); }
+      catch (_) { resolve(null); }
+    };
+    try { map.once("render", nimm); map.triggerRepaint(); } catch (_) { nimm(); }
+    setTimeout(nimm, 1500);
+  });
+}
+function _vorschauVonSvg(svg) {
+  return new Promise((resolve) => {
+    try {
+      const r = svg.getBoundingClientRect();
+      const w = Math.max(2, Math.round(r.width)), h = Math.max(2, Math.round(r.height));
+      const klon = svg.cloneNode(true);
+      klon.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      klon.setAttribute("width", String(w)); klon.setAttribute("height", String(h));
+      const bg = getComputedStyle(svg.parentElement || svg).backgroundColor;
+      const xml = new XMLSerializer().serializeToString(klon);
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+        const cx = cv.getContext("2d");
+        cx.fillStyle = (bg && bg !== "rgba(0, 0, 0, 0)") ? bg : "#101418"; cx.fillRect(0, 0, w, h);
+        cx.drawImage(img, 0, 0);
+        resolve(_vorschauVerkleinern(cv, w, h));
+      };
+      img.onerror = () => resolve(null);
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
+    } catch (_) { resolve(null); }
+  });
+}
+function _vorschauVonLeaflet(host) {
+  // Kacheln sind <img> (fremde Herkunft → Canvas „tainted"): erst mit Kacheln
+  // versuchen, sonst nur die Track-Ebene (SVG) auf dunklem Grund.
+  return new Promise(async (resolve) => {
+    try {
+      const r = host.getBoundingClientRect();
+      const w = Math.max(2, Math.round(r.width)), h = Math.max(2, Math.round(r.height));
+      const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+      const cx = cv.getContext("2d");
+      cx.fillStyle = "#1b2026"; cx.fillRect(0, 0, w, h);
+      let mitKacheln = true;
+      host.querySelectorAll(".leaflet-tile-container img.leaflet-tile-loaded, img.leaflet-tile").forEach(im => {
+        const b = im.getBoundingClientRect();
+        try { cx.drawImage(im, b.left - r.left, b.top - r.top, b.width, b.height); } catch (_) { mitKacheln = false; }
+      });
+      let ok = null;
+      try { ok = _vorschauVerkleinern(cv, w, h); } catch (_) { ok = null; mitKacheln = false; }
+      if (!mitKacheln || !ok) {
+        // Nur die Vektor-Ebene
+        const cv2 = document.createElement("canvas"); cv2.width = w; cv2.height = h;
+        const c2 = cv2.getContext("2d"); c2.fillStyle = "#1b2026"; c2.fillRect(0, 0, w, h);
+        const svg = host.querySelector(".leaflet-overlay-pane svg");
+        if (svg) {
+          const d = await _vorschauVonSvg(svg);
+          resolve(d); return;
+        }
+        resolve(null); return;
+      }
+      resolve(ok);
+    } catch (_) { resolve(null); }
+  });
+}
+async function rzProjektVorschauAufnehmen(grund) {
+  clearTimeout(_vorschauTimer);
+  const proj = _activeProject;
+  if (!_activeSession || !proj || !proj.id) return false;
+  let data = null, quelle = "";
+  try {
+    const anim = document.getElementById("anim-panel");
+    if (anim && anim.offsetParent && typeof window.__rzAnimMap === "function" && window.__rzAnimMap()) {
+      quelle = "karte"; data = await _vorschauVonMap(window.__rzAnimMap());
+    } else {
+      const svg = document.getElementById("height-svg");
+      const wk = document.getElementById("wk-map");
+      if (svg && svg.offsetParent) { quelle = "diagramm"; data = await _vorschauVonSvg(svg); }
+      else if (wk && wk.offsetParent) { quelle = "webkarte"; data = await _vorschauVonLeaflet(wk); }
+    }
+  } catch (e) { try { applog("warn", "[vorschau] " + e); } catch (_) {} }
+  if (!data) return false;
+  try {
+    const r = await api().projekt_vorschau_speichern(proj.id, data);
+    if (r && r.ok) {
+      try { applog("info", "[vorschau] Projektbild gespeichert (" + quelle + ", " + grund + ", " + Math.round(data.length / 1024) + " kB)"); } catch (_) {}
+      window.dispatchEvent(new CustomEvent("rz-projekt-vorschau", { detail: { id: proj.id } }));
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+window.rzProjektVorschauAufnehmen = rzProjektVorschauAufnehmen;
+window.rzProjektVorschauPlanen = rzProjektVorschauPlanen;
+
 /** 11.09.2026 — Modul-Block im Speicher ersetzen OHNE Rückschreiben (die Brücke
  *  hat schon gespeichert; z. B. nach vorlage_anwenden). */
 window.rzSetModuleSettingsLocal = function (section, obj) {

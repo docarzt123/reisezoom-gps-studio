@@ -74,6 +74,7 @@ VORL_MOCK_JS = r"""
                nachher: { animator: { line_color: "#ff00ff" } }, project: { id: pid } }; },
     projekt_module_schreiben: async (pid, module) => { merken("projekt_module_schreiben", [pid, module]); return { ok: true }; },
     projekt_touren_setzen: async (pid, pfade) => { merken("projekt_touren_setzen", [pid, pfade]); return { ok: true, kontext: "gh9", ablauf: "solo" }; },
+    projekt_vorschau_speichern: async (pid, data) => { merken("projekt_vorschau_speichern", [pid, String(data).slice(0, 22), String(data).length]); return { ok: true }; },
     projekt_aus_vorlage_anlegen: async (name, vid) => { merken("projekt_aus_vorlage_anlegen", [name, vid]);
       return { ok: true, track_hash: "frei:vorl", session: { track_hash: "frei:vorl", name, stats: {} },
                active_project: { id: "pvorl", name, is_active: true }, projects: [{ id: "pvorl", name, is_active: true }] }; },
@@ -224,6 +225,28 @@ async def main():
         await pg.evaluate("switchMod('library')")
         await pg.wait_for_timeout(900)
         await pg.click("#lib-seg-vorlagen"); await pg.wait_for_timeout(400)
+
+        print("\n━━━ 6c. Vorschaubild aus dem letzten Stand (Pipeline mit Stub-Karte) ━━━")
+        leer = await pg.evaluate("""(() => { const c = document.createElement('canvas'); c.width = 300; c.height = 200; return _vorschauVerkleinern(c, 300, 200); })()""")
+        sagen(leer is None, "leere/schwarze Karte wird verworfen")
+        voll = await pg.evaluate("""(() => { const c = document.createElement('canvas'); c.width = 300; c.height = 200;
+          const x = c.getContext('2d'); x.fillStyle = '#88aaff'; x.fillRect(0, 0, 300, 200); return _vorschauVerkleinern(c, 300, 200); })()""")
+        sagen(isinstance(voll, str) and voll.startswith("data:image/jpeg") and len(voll) < 60000, "Bild mit Inhalt → JPEG 480×270", str(len(voll or "")))
+        await pg.evaluate("""(async () => {
+          if (typeof sessionActivateFrei === 'function') await sessionActivateFrei('frei:abc123');
+          const c = document.createElement('canvas'); c.width = 640; c.height = 360;
+          const x = c.getContext('2d'); x.fillStyle = '#3366aa'; x.fillRect(0, 0, 640, 360);
+          window.__rzAnimMap = () => ({ getCanvas: () => c, once: (ev, cb) => setTimeout(cb, 10), triggerRepaint: () => {} });
+          // Das Archiv ist offen (switchMod ist seit Schritt 7 ein Stummel) — ein sichtbarer
+          // Stellvertreter für die Animator-Seitenleiste reicht der Aufnahme als Merkmal.
+          let p = document.getElementById('anim-panel');
+          if (!p) { p = document.createElement('div'); p.id = 'anim-panel'; p.style.cssText = 'position:absolute;left:0;top:0;width:10px;height:10px;'; document.body.appendChild(p); }
+          window.__vs = await rzProjektVorschauAufnehmen('test');
+        })()""")
+        await pg.wait_for_timeout(300)
+        r = await rufe("projekt_vorschau_speichern")
+        sagen(await pg.evaluate("window.__vs") is True and r and r[-1]["args"][0] == "pf" and r[-1]["args"][1].startswith("data:image/jpeg"),
+              "Aufnahme schickt das Bild des aktiven Projekts an die Brücke", str(r[-1:]))
 
         print("\n━━━ 7. Neues Projekt daraus + Namensfenster mit Vorlagen-Feld ━━━")
         await pg.evaluate("""(() => { window.__mods = []; switchMod = (m) => { window.__mods.push(m); };

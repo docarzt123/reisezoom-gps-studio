@@ -2553,6 +2553,7 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `vorlage_anwenden(project_id, vid)` | `{ok, vorher, nachher, project, vorlage}` | Modul-Blöcke davor/danach; erzwingt vorher einen Arbeitsstand |
 | `projekt_module_schreiben(project_id, module)` | `{ok, project}` | Undo-Gegenstück: ganze Modul-Blöcke zurück |
 | `projekt_aus_vorlage_anlegen(name, vid)` | wie `projekt_frei_anlegen` | Leeres Projekt mit dieser Vorlage |
+| `projekt_vorschau_speichern(project_id, data_url)` | `{ok}` | Vorschaubild aus dem letzten Stand (11.09.2026) → `bilder/projekte/<pid>.jpg`; `projekt_thumbs` bevorzugt es, `vorlage_anlegen/aktualisieren` kopieren es nach `bilder/vorlagen/` |
 | `library_track_check_ok(path, key, ok)` | `{ok, check, track}` | „Ist so in Ordnung" je Version und Befund-Art |
 | `library_repair_file(path)` | `{ok, geo_hash, n_points, schritte}` | Beschädigte GPX reparieren → Version in der Bibliothek |
 | `gpxinspect_track_check(points, path, local_time_n)` | `{ok, befunde, abgewaehlt, marke, ok_liste, im_archiv}` | Befund-Kasten im Inspektor |
@@ -3067,6 +3068,13 @@ Oberfläche: `ui/js/vorlagen.js` (Fenster, `rzVorlageAufAktivesProjekt` = Anwend
 `ui/js/projects.js` (`rzNeuesProjektModal` mit Vorlagen-Feld → `projectCreate(name, copy, vorlageId)`).
 Tests: `tests/test_vorlagen.py` (Kern), `tests/test_vorlagen_bridge.py` (echte `Api` gegen Wegwerf-Ordner),
 `scripts/selftest_vorlagen.py` (Browser, 38 Prüfungen) via `tests/test_vorlagen_ui.py`.
+
+**Projekt-Vorschaubild aus dem letzten Stand (11.09.2026, `ui/js/util.js`):** `rzProjektVorschauAufnehmen(grund)`
+fotografiert das offene Modul — MapLibre-Karte über `map.once("render")` + `triggerRepaint()` (kein
+`preserveDrawingBuffer` nötig), Daten-Animator über das serialisierte `#height-svg`, Web-Karte über die
+Leaflet-Kacheln (bei „tainted" Canvas nur die Vektor-Ebene) — verkleinert auf 480×270 JPEG und verwirft leere/
+schwarze Bilder (Helligkeits-Stichprobe). Ausgelöst von `saveProjectSettings` (4 s Verzögerung, `rzProjektVorschauPlanen`)
+und in `switchMod` vor `activeCleanup`. Das Archiv leert bei `rz-projekt-vorschau` seinen Kachel-Cache.
 
 **Track-Check (10.09.2026, `core/trackcheck.py`, Spezifikation `docs/TRACK-CHECK.md` = die Wahrheit):**
 `pruefen(points, stufe=5, local_time_n=0)` → `{befunde:[{key, stufe, n, detail}], hoechste, n_points, ms}` —

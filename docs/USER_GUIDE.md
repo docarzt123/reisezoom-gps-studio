@@ -731,6 +731,15 @@ Fassungen unter `…/sessions/`.
 
 ---
 
+### 🖼 Projekt-Kacheln zeigen den letzten Stand (seit v0.9.689)
+
+Die App fotografiert die Vorschau des offenen Moduls (Karte mit Track im Animator und in der
+Tour-Map, Diagramm im Daten-Animator, Karte in der Web-Karte) vier Sekunden nach der letzten
+Änderung und beim Verlassen des Moduls. Die Projekt-Kachel im Archiv zeigt dieses Bild statt des
+Tour-Thumbnails: Satellit, Trackfarbe und Overlays sind beim Auswählen direkt zu sehen. Vorlagen
+übernehmen das Bild des Projekts, aus dem sie entstanden sind. Die Bilder liegen unter
+`Bibliothek/bilder/projekte/`.
+
 ### 🧩 Vorlagen — leere Projekte mit deinem Look (seit v0.9.689) ⭐
 
 **Eine Vorlage ist ein leeres Projekt:** alles Gestalterische, nichts, was am Track hängt.
