@@ -700,9 +700,15 @@ longitude), otherwise from the tour's location. The format follows the app langu
   highest and lowest point (when the tour climbs at least 150 m), the fastest stretch (from 6 km/h)
   and the steepest stretch (from 8 %), each with its value, and start/finish with the place name. The signs then sit
   in the Animator and the Tour Map in the project's sign style and can be edited or deleted like
-  any sign. Without network there is one line and no signs. The same is available without the
-  assistant: in the Animator and the Tour Map the button **“🏔 Highlights from OpenStreetMap”** in
-  the signs section adds them to the existing signs, as one ⌘Z step.
+  any sign. Without network there is one line and no signs. Without the assistant use the
+  **highlights window**: in the Animator and the Tour Map, **“🏔 Highlights from OpenStreetMap”** in
+  the signs section. Add photo folders, tick the sources (places from OpenStreetMap, track spots,
+  stops with photos) and “Find highlights”. The app matches every photo to the track (GPS,
+  otherwise capture time), attaches photos to nearby places, finds stops with photos (named via
+  the geocoder), groups photo series and lists single photos. In the list you tick or untick and
+  edit the sign text; recommended rows are pre-ticked, minor places without a photo unticked. “Add
+  as signs” creates the signs, photo cards where a photo belongs, as one ⌘Z step. Photo files are
+  not modified.
 - **Jump into the Animator** with the project open.
 
 If there was nothing to repair, the list says so and the project hangs on the original file.

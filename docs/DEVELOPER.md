@@ -2553,6 +2553,7 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `vorlage_anwenden(project_id, vid)` | `{ok, vorher, nachher, project, vorlage}` | Modul-Blöcke davor/danach; erzwingt vorher einen Arbeitsstand |
 | `projekt_module_schreiben(project_id, module)` | `{ok, project}` | Undo-Gegenstück: ganze Modul-Blöcke zurück |
 | `projekt_aus_vorlage_anlegen(name, vid)` | wie `projekt_frei_anlegen` | Leeres Projekt mit dieser Vorlage |
+| `highlights_vorschlaege(path, foto_quellen, quellen)` | `{ok, vorschlaege:[{id, art, symbol, text, km, uhrzeit, lat, lon, idx, frac, foto, thumb, grund, empfohlen, n_fotos, dauer_s}], n_fotos, n_zugeordnet, netz, tz}` | Highlights-Fenster (11.09.2026): OSM + Track-Stellen + `halte_punkte` + `fotos_zuordnen` (GPS ≤ 150 m, sonst Aufnahmezeit in der Tour-Zone) → `vorschlaege`; Halt-Namen per Photon (≤ 8 Rufe); Thumbs 160 px nur für Vorschläge |
 | `highlights_schilder(path, stil)` | `{ok, netz, n, n_pois, schilder, kurz, start, ziel}` | Knopf im Animator/Tour-Map (11.09.2026); Oberfläche legt sie zu den Schildern (Text-Dedupe) und pusht Undo |
 | `assistent_lauf(path, vorlage_id, name, highlights=True)` | `{ok, project_id, tour_path, schritte:[{key, text, ok}]}` | Tour-Assistent Stufe 1 (11.09.2026): Archiv-Aufnahme bei Bedarf, Track-Check-Reparatur (rot+gelb ohne `check_ok`, Lücken geroutet nach Fortbewegungsart) → `library_track_ersetzen` (neue Version) → `projekt_aus_vorlage_anlegen` + `projekt_touren_setzen` auf die Versionsdatei |
 | `projekt_vorschau_speichern(project_id, data_url)` | `{ok}` | Vorschaubild aus dem letzten Stand (11.09.2026) → `bilder/projekte/<pid>.jpg`; `projekt_thumbs` bevorzugt es, `vorlage_anlegen/aktualisieren` kopieren es nach `bilder/vorlagen/` |
@@ -3082,6 +3083,14 @@ Quelldatei — sonst zeigte `_track_geo_hash` auf die alte Version). Die Oberfl�
 Archiv (`rz-projekt-oeffnen` / `window.__rzProjektOeffnenId` → `projektOeffnen`), weil dort der Weg für
 Solo/Reise/Version liegt. Menü: `MenuAction(_menu_assistent)` → `window.openTourAssistent()`; ⌘⇧N in
 `assistent.js`. Test: `tests/test_assistent.py` (Wegwerf-Archiv mit sauberem Track, Sprung, „Ist so in Ordnung“).
+
+**Highlights-Fenster (11.09.2026, `_animSignsHighlights` in modules/animator, Marc: „komplettes Modal, groß in der Mitte"):**
+Zustand `_hlState` (Ordner, Quellen, Vorschläge mit `an`), Overlay-Klasse `hl-gross` für die Breite, Brücke
+`highlights_vorschlaege`, Übernehmen baut Schilder aus `_SIGN_DEFAULTS` + Stil aus `_animSignLast` (Foto → `imageSrc`
++ `thumb`, `anchorMode: "track"`) und ruft `_animSignsSave(list, label)` → ein ⌘Z-Schritt. Kern: `halte_punkte`
+(≥ 180 s in 40 m), `fotos_zuordnen` (GPS ≤ 150 m, sonst Zeit; EXIF-Zeit = Ortszeit → mit `tz_offset_min`),
+`vorschlaege` (Foto an Ort ≤ 300 m/20 min, Halt nur mit Fotos, Serien 5 min/100 m, Rest als Einzelfoto abgewählt;
+`NUR_MIT_FOTO` für Nebensächliches). Prüfstand: Marcs 72-km-Tour + 87 Fotos → 93 Vorschläge in 11 s.
 
 **Datum/Uhrzeit in den Einblendungen (11.09.2026, `core/zeitzone.py`):** Tracks tragen UTC; die Zone kommt aus
 `zone_fuer(lat, lon, land)` — `land` = deutscher Ländername aus `tracks.country` (Ortslauf), Mehrzonen-Länder über den

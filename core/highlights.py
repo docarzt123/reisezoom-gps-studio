@@ -503,3 +503,206 @@ def highlights_fuer_track(points: List[dict], *, max_n: Optional[int] = None,
         return {"pois": [], "gewaehlt": [], "netz": False, "radius_m": 0}
     gew = auswaehlen(points, pois, max_n=max_n, radius_m=KORRIDOR_M)
     return {"pois": pois, "gewaehlt": gew, "netz": True, "radius_m": KORRIDOR_M}
+
+
+# ── 5) Halte-Punkte, Fotos, Vorschläge (Highlights-Fenster, 11.09.2026) ─────
+#
+# Marc: „man klickt auf highlights, da kommt ein modal, wo man einen fotoordner
+# hinzufügen kann … er versucht highlights zu finden, über stehen bleiben + foto
+# oder poi + foto … dann kriegt man eine liste mit dem, was gefunden wurde und
+# was die app vorschlägt, das kann man an- oder abwählen und den text ändern."
+
+HALT_MIN_S = 180.0          # so lange muss man stehen, damit es ein Halt ist
+HALT_RADIUS_M = 40.0        # … innerhalb dieses Umkreises
+FOTO_NAH_M = 300.0          # Foto gehört zu einem Highlight, wenn es so nah … (Ort bis 120 m neben dem Weg + Foto daneben)
+FOTO_NAH_S = 20 * 60.0      # … und zeitlich so nah liegt
+FOTO_GPS_MAX_M = 150.0      # GPS-Foto weiter weg vom Track → nach Zeit zuordnen
+SERIE_S = 5 * 60.0          # Foto-Serie: mehrere Fotos in fünf Minuten …
+SERIE_M = 100.0             # … am selben Fleck
+NUR_MIT_FOTO = {"huette", "kunst", "denkmal", "museum", "ort", "turm", "quelle", "hoehle", "ruine", "sehenswert"}
+ART_SYMBOL = {"halt": "⏸", "serie": "📷", "foto": "📷"}
+
+
+def halte_punkte(points: List[dict], *, min_s: float = HALT_MIN_S, radius_m: float = HALT_RADIUS_M) -> List[dict]:
+    """Stellen, an denen man ≥ min_s im Umkreis radius_m geblieben ist.
+    [{idx, idx_a, idx_b, dauer_s, lat, lon, frac}] — ohne Anfang/Ende (3 %)."""
+    n = len(points)
+    ts = [_parse_t(p.get("time")) for p in points]
+    if n < 3 or any(t is None for t in ts):
+        return []
+    out = []
+    i = 0
+    while i < n - 1:
+        j = i + 1
+        while j < n and _haversine_m(float(points[i]["lat"]), float(points[i]["lon"]),
+                                     float(points[j]["lat"]), float(points[j]["lon"])) <= radius_m:
+            j += 1
+        dauer = ts[j - 1] - ts[i]
+        if dauer >= min_s and j - 1 > i:
+            m = (i + j - 1) // 2
+            out.append({"idx": m, "idx_a": i, "idx_b": j - 1, "dauer_s": float(dauer),
+                        "lat": float(points[m]["lat"]), "lon": float(points[m]["lon"])})
+            i = j
+        else:
+            i += 1
+    cum = _kumuliert(points)
+    ges = cum[-1] or 1.0
+    for h in out:
+        h["frac"] = cum[h["idx"]] / ges
+    return [h for h in out if 0.03 < h["frac"] < 0.97]
+
+
+def _kumuliert(points: List[dict]) -> List[float]:
+    cum = [0.0]
+    for i in range(1, len(points)):
+        a, b = points[i - 1], points[i]
+        cum.append(cum[-1] + _haversine_m(float(a["lat"]), float(a["lon"]), float(b["lat"]), float(b["lon"])))
+    return cum
+
+
+def fotos_zuordnen(points: List[dict], fotos: List[dict], tz_off_min: int = 0) -> List[dict]:
+    """Jedem Foto einen Trackpunkt geben: über GPS (≤ FOTO_GPS_MAX_M), sonst über
+    die Aufnahmezeit (EXIF ist Ortszeit ohne Zone → mit dem Versatz der Tour nach
+    UTC). Liefert Kopien mit idx/frac/epoch/abstand_m (idx None = kein Bezug)."""
+    n = len(points)
+    if n < 2:
+        return [dict(f, idx=None) for f in fotos]
+    cum = _kumuliert(points)
+    ges = cum[-1] or 1.0
+    ts = [_parse_t(p.get("time")) for p in points]
+    hat_zeit = all(t is not None for t in ts) and ts[-1] > ts[0]
+    out = []
+    for f in fotos:
+        g = dict(f, idx=None, frac=None, abstand_m=None)
+        ep = None
+        dt = f.get("datetime")
+        if dt:
+            try:
+                from datetime import datetime, timezone
+                d = datetime.fromisoformat(str(dt).replace("Z", "+00:00"))
+                if d.tzinfo is None:
+                    ep = d.replace(tzinfo=timezone.utc).timestamp() - int(tz_off_min) * 60
+                else:
+                    ep = d.timestamp()
+            except Exception:  # noqa: BLE001
+                ep = None
+        g["epoch"] = ep
+        if f.get("lat") is not None and f.get("lon") is not None:
+            i, d = _naechster_index(points, float(f["lat"]), float(f["lon"]))
+            if i >= 0 and d <= FOTO_GPS_MAX_M:
+                g.update(idx=i, frac=cum[i] / ges, abstand_m=d)
+        if g["idx"] is None and ep is not None and hat_zeit and ts[0] - 600 <= ep <= ts[-1] + 600:
+            import bisect
+            k = bisect.bisect_left(ts, ep)
+            k = max(0, min(n - 1, k))
+            if k > 0 and abs(ts[k - 1] - ep) < abs(ts[k] - ep):
+                k -= 1
+            g.update(idx=k, frac=cum[k] / ges, abstand_m=0.0, per_zeit=True)
+        out.append(g)
+    return out
+
+
+def _nahes_foto(hl: dict, fotos: List[dict], points: List[dict], ts) -> Optional[dict]:
+    """Das zeitlich/räumlich nächste Foto zu einem Highlight, oder None."""
+    best, bd = None, None
+    for f in fotos:
+        if f.get("idx") is None or f.get("_verbraucht"):
+            continue
+        d = _haversine_m(float(hl["lat"]), float(hl["lon"]), float(points[f["idx"]]["lat"]), float(points[f["idx"]]["lon"]))
+        if d > FOTO_NAH_M:
+            continue
+        if ts and f.get("epoch") is not None and ts[hl["idx"]] is not None and abs(f["epoch"] - ts[hl["idx"]]) > FOTO_NAH_S:
+            continue
+        if bd is None or d < bd:
+            best, bd = f, d
+    return best
+
+
+def vorschlaege(points: List[dict], *, pois: Optional[List[dict]] = None, track: Optional[List[dict]] = None,
+                halte: Optional[List[dict]] = None, fotos: Optional[List[dict]] = None,
+                labels: Optional[dict] = None, halt_namen: Optional[dict] = None) -> List[dict]:
+    """Die Vorschlagsliste fürs Fenster: Highlights (OSM + Track) mit passendem Foto,
+    Halte-Punkte mit Fotos, Foto-Serien unterwegs, übrige Fotos. Sortiert nach
+    Strecke. `empfohlen`: hoher Rang oder Foto dabei; niedriger Rang nur mit Foto."""
+    cum = _kumuliert(points)
+    ges = cum[-1] or 1.0
+    ts = [_parse_t(p.get("time")) for p in points]
+    if any(t is None for t in ts):
+        ts = None
+    fotos = [f for f in (fotos or []) if f.get("idx") is not None]
+    out = []
+
+    def _km(idx):
+        return round(cum[idx] / 1000.0, 1)
+
+    def _ep(idx):
+        return ts[idx] if ts else None
+
+    for p in (pois or []) + (track or []):
+        idx = p.get("idx")
+        if idx is None:
+            continue
+        f = _nahes_foto(p, fotos, points, ts)
+        if f:
+            f["_verbraucht"] = True
+        art = p.get("art", "")
+        text = _text(p, labels or {})
+        out.append({"art": art, "symbol": p.get("symbol", ""), "text": text, "name": p.get("name", ""),
+                    "lat": float(p["lat"]), "lon": float(p["lon"]), "idx": idx, "frac": cum[idx] / ges,
+                    "km": _km(idx), "epoch": _ep(idx), "foto": (f.get("path") if f else None),
+                    "grund": ("poi_foto" if (f and art not in TRACK_ARTEN) else "poi" if art not in TRACK_ARTEN else "track"),
+                    "empfohlen": bool(f) or art not in NUR_MIT_FOTO})
+    # Halte-Punkte: nur mit Fotos (Marc: „stehen bleiben + foto")
+    for h in (halte or []):
+        dabei = [f for f in fotos if not f.get("_verbraucht") and h["idx_a"] - 5 <= f["idx"] <= h["idx_b"] + 5]
+        if not dabei:
+            continue
+        dabei.sort(key=lambda f: abs(f["idx"] - h["idx"]))
+        f = dabei[0]
+        for x in dabei:
+            x["_verbraucht"] = True
+        name = (halt_namen or {}).get(h["idx"], "")
+        minuten = int(round(h["dauer_s"] / 60.0))
+        text = name or (labels or {}).get("halt", "Pause") + f"\n{minuten} min"
+        out.append({"art": "halt", "symbol": ART_SYMBOL["halt"], "text": text, "name": name,
+                    "lat": h["lat"], "lon": h["lon"], "idx": h["idx"], "frac": h["frac"], "km": _km(h["idx"]),
+                    "epoch": _ep(h["idx"]), "foto": f.get("path"), "grund": "halt_foto", "empfohlen": True,
+                    "dauer_s": h["dauer_s"], "n_fotos": len(dabei)})
+    # Serien: mehrere Fotos in SERIE_S/SERIE_M, nicht verbraucht
+    rest = sorted([f for f in fotos if not f.get("_verbraucht")], key=lambda f: (f.get("epoch") or 0, f["idx"]))
+    i = 0
+    while i < len(rest):
+        j = i + 1
+        while j < len(rest):
+            a, b = rest[i], rest[j]
+            nah_t = (a.get("epoch") is None or b.get("epoch") is None or abs(b["epoch"] - a["epoch"]) <= SERIE_S)
+            nah_m = _haversine_m(float(points[a["idx"]]["lat"]), float(points[a["idx"]]["lon"]),
+                                 float(points[b["idx"]]["lat"]), float(points[b["idx"]]["lon"])) <= SERIE_M
+            if nah_t and nah_m:
+                j += 1
+            else:
+                break
+        gruppe = rest[i:j]
+        if len(gruppe) >= 2:
+            f = gruppe[len(gruppe) // 2]
+            for x in gruppe:
+                x["_verbraucht"] = True
+            idx = f["idx"]
+            out.append({"art": "serie", "symbol": ART_SYMBOL["serie"], "text": "", "name": "",
+                        "lat": float(points[idx]["lat"]), "lon": float(points[idx]["lon"]), "idx": idx,
+                        "frac": cum[idx] / ges, "km": _km(idx), "epoch": _ep(idx), "foto": f.get("path"),
+                        "grund": "serie", "empfohlen": True, "n_fotos": len(gruppe)})
+        i = j
+    # Übrige Fotos, abgewählt
+    for f in fotos:
+        if f.get("_verbraucht"):
+            continue
+        idx = f["idx"]
+        out.append({"art": "foto", "symbol": ART_SYMBOL["foto"], "text": "", "name": "",
+                    "lat": float(points[idx]["lat"]), "lon": float(points[idx]["lon"]), "idx": idx,
+                    "frac": cum[idx] / ges, "km": _km(idx), "epoch": _ep(idx), "foto": f.get("path"),
+                    "grund": "foto", "empfohlen": False})
+    out.sort(key=lambda v: (v["frac"], v["art"]))
+    for k, v in enumerate(out):
+        v["id"] = f"v{k}"
+    return out

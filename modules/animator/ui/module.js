@@ -1644,7 +1644,8 @@ function mountAnimator(body, headerActions, opts) {
       try {
         const s = JSON.parse(JSON.stringify(window.rzReadModuleSettings(_MODKEY) || {}));
         // 11.09.2026 — Schilder (Projekt-Wurzel) gehören zum Undo-Stand des Moduls.
-        try { if (_activeProject && Array.isArray(_activeProject[_SIGNS_KEY])) s.__signs = JSON.parse(JSON.stringify(_activeProject[_SIGNS_KEY].map(x => { const o = { ...x }; delete o._imgEl; return o; }))); } catch (_) {}
+        // Immer mitgeben — auch leer: sonst fehlt der Rückweg zu „keine Schilder" (erster Highlights-Lauf).
+        try { if (_activeProject) s.__signs = JSON.parse(JSON.stringify((Array.isArray(_activeProject[_SIGNS_KEY]) ? _activeProject[_SIGNS_KEY] : []).map(x => { const o = { ...x }; delete o._imgEl; return o; }))); } catch (_) {}
         return s;
       } catch (_) { return null; }
     },
@@ -10482,54 +10483,133 @@ function mountAnimator(body, headerActions, opts) {
     }
     // 11.09.2026 — Highlights aus OpenStreetMap als Schilder (gleiche Quelle wie der
     // Tour-Assistent). Dazu zu den vorhandenen; gleicher Text = nicht doppelt.
-    async function _animSignsHighlights(btn) {
+    // 11.09.2026 — Highlights-Fenster (Marc: „ein komplettes Highlights-Modal, groß in der
+    // Mitte: Fotoordner hinzufügen, Highlights finden, Liste mit Vorschlägen, an-/abwählen,
+    // Text ändern"). Quellen: OSM-Orte, Track-Stellen, Halte-Punkte + Fotos, Foto-Serien.
+    const _hlState = { ordner: [], quellen: { osm: true, track: true, halte: true }, vs: [], info: null };
+    const _hlEsc = (x) => String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    function _hlGrund(v) {
+      const g = { poi: t("hl.grund_poi", "Ort aus OpenStreetMap"), poi_foto: t("hl.grund_poi_foto", "Ort aus OpenStreetMap, Foto dabei"),
+                  track: t("hl.grund_track", "Aus dem Track"), halt_foto: t("hl.grund_halt", "Halt mit Fotos"),
+                  serie: t("hl.grund_serie", "Foto-Serie"), foto: t("hl.grund_foto", "Einzelnes Foto") };
+      let s = g[v.grund] || v.grund || "";
+      if (v.n_fotos > 1) s += " · " + t("hl.n_fotos", "{n} Fotos").replace("{n}", v.n_fotos);
+      if (v.dauer_s) s += " · " + Math.round(v.dauer_s / 60) + " min";
+      return s;
+    }
+    function _hlRender() {
+      const box = document.getElementById("hl-liste");
+      if (!box) return;
+      const vs = _hlState.vs;
+      if (!vs.length) {
+        box.innerHTML = `<div class="lib-hint">${_hlEsc(_hlState.info ? t("hl.leer", "Nichts gefunden — anderen Ordner oder andere Quellen probieren.") : t("hl.start_hint", "Fotoordner hinzufügen (optional), dann „Highlights finden“."))}</div>`;
+      } else {
+        box.innerHTML = vs.map(v => `<div class="hl-zeile${v.an ? "" : " aus"}" data-id="${v.id}">
+            <label class="hl-check"><input type="checkbox" data-hlon="${v.id}"${v.an ? " checked" : ""}></label>
+            <div class="hl-thumb">${v.thumb ? `<img src="${v.thumb}" alt="">` : `<span class="hl-sym">${_hlEsc(v.symbol || "🚩")}</span>`}</div>
+            <div class="hl-mitte">
+              <div class="hl-meta">${_hlEsc(v.symbol || "")} <b>${v.km} km</b>${v.uhrzeit ? " · " + _hlEsc(v.uhrzeit) : ""} · <span class="muted">${_hlEsc(_hlGrund(v))}</span></div>
+              <textarea class="hl-text" data-hltext="${v.id}" rows="2" placeholder="${_hlEsc(t("hl.text_ph", "Text auf dem Schild (leer = nur Foto)"))}">${_hlEsc(v.text || "")}</textarea>
+            </div>
+            ${v.foto ? `<button type="button" class="btn btn-ghost btn-sm" data-hlnofoto="${v.id}" title="${_hlEsc(t("hl.foto_weg", "Foto entfernen"))}">🖼✕</button>` : ""}
+          </div>`).join("");
+      }
+      const n = vs.filter(v => v.an).length;
+      const cnt = document.getElementById("hl-count"); if (cnt) cnt.textContent = t("hl.ausgewaehlt", "{n} ausgewählt").replace("{n}", n);
+      const ok = document.getElementById("hl-uebernehmen"); if (ok) ok.disabled = !n;
+      box.querySelectorAll("[data-hlon]").forEach(cb => cb.onchange = () => { const v = vs.find(x => x.id === cb.dataset.hlon); if (v) { v.an = cb.checked; cb.closest(".hl-zeile").classList.toggle("aus", !v.an); } const c = document.getElementById("hl-count"); const m = vs.filter(x => x.an).length; if (c) c.textContent = t("hl.ausgewaehlt", "{n} ausgewählt").replace("{n}", m); const o = document.getElementById("hl-uebernehmen"); if (o) o.disabled = !m; });
+      box.querySelectorAll("[data-hltext]").forEach(ta => ta.oninput = () => { const v = vs.find(x => x.id === ta.dataset.hltext); if (v) v.text = ta.value; });
+      box.querySelectorAll("[data-hlnofoto]").forEach(b => b.onclick = () => { const v = vs.find(x => x.id === b.dataset.hlnofoto); if (v) { v.foto = null; v.thumb = ""; _hlRender(); } });
+    }
+    function _hlOrdnerRender() {
+      const el = document.getElementById("hl-ordner");
+      if (!el) return;
+      el.innerHTML = _hlState.ordner.map((o, i) => `<span class="hl-chip">📂 ${_hlEsc(String(o).split("/").pop())} <button type="button" data-hlrm="${i}" title="${_hlEsc(t("common.remove", "Entfernen"))}">✕</button></span>`).join("")
+        || `<span class="muted">${_hlEsc(t("hl.kein_ordner", "noch kein Fotoordner"))}</span>`;
+      el.querySelectorAll("[data-hlrm]").forEach(b => b.onclick = () => { _hlState.ordner.splice(+b.dataset.hlrm, 1); _hlOrdnerRender(); });
+    }
+    async function _hlFinden() {
       const pfad = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
-      const lg = (m) => { try { applog("info", "[signs] Highlights: " + m); } catch (_) {} };
-      if (!pfad || !_activeProject) { lg("kein Track/Projekt (" + !!pfad + "/" + !!_activeProject + ")"); toast(t("signs.highlights_nogpx", "Erst einen Track öffnen."), "warn"); return; }
-      // Marc (11.09.2026): „muss ein Feedback-Modal kommen, sonst denkt man, die App
-      // sei abgestürzt" — Fenster mit Fortschritt, danach Ergebnis-Liste.
-      const esc = (x) => String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-      const m = openModal({
-        title: t("signs.highlights_btn", "🏔 Highlights aus OpenStreetMap"),
-        body: `<ol class="ass-schritte" id="anim-hl-schritte"><li class="ass-lauf"><span class="ass-spinner"></span> ${esc(t("signs.highlights_busy", "🏔 Frage OpenStreetMap …"))} <span class="ass-sek" id="anim-hl-sek"></span><div class="lib-hint">${esc(t("signs.highlights_wait", "OpenStreetMap antwortet manchmal langsam — bis zu einer Minute, mit Ausweich-Server."))}</div></li></ol>`,
-        footer: `<button class="btn btn-primary" id="anim-hl-zu" disabled>${t("common.close", "Schließen")}</button>`,
-        closable: false,
-      });
-      const zeigen = (zeilen, ok) => {
-        const ol = document.getElementById("anim-hl-schritte");
-        if (ol) ol.innerHTML = zeilen.map(z => `<li class="${z.ok ? "ok" : "fehl"}">${z.ok ? "✅" : "⚠️"} ${esc(z.text)}</li>`).join("");
-        const zu = document.getElementById("anim-hl-zu"); if (zu) { zu.disabled = false; zu.onclick = () => m.close(); }
-        m.update({ closable: true });
-      };
-      if (btn) btn.disabled = true;
+      const btn = document.getElementById("hl-finden"), st = document.getElementById("hl-status");
+      if (!pfad) { if (st) st.textContent = t("signs.highlights_nogpx", "Erst einen Track öffnen."); return; }
       const t0 = performance.now();
-      const tick = setInterval(() => { const s = document.getElementById("anim-hl-sek"); if (s) s.textContent = Math.round((performance.now() - t0) / 1000) + " s"; }, 500);
+      if (btn) btn.disabled = true;
+      if (st) st.innerHTML = `<span class="ass-spinner"></span> ${_hlEsc(t("hl.sucht", "Suche Highlights …"))} <span class="ass-sek" id="hl-sek"></span>`;
+      const tick = setInterval(() => { const s = document.getElementById("hl-sek"); if (s) s.textContent = Math.round((performance.now() - t0) / 1000) + " s"; }, 500);
       let r;
-      try {
-        const stil = { style: _animSignLast.style, color: _animSignLast.color, size: _animSignLast.size,
-                       font: _animSignLast.font, weight: _animSignLast.weight };
-        r = await api().highlights_schilder(pfad, stil);
-      } catch (e) { r = { ok: false, error: String(e) }; }
+      try { r = await api().highlights_vorschlaege(pfad, _hlState.ordner.slice(), _hlState.quellen); } catch (e) { r = { ok: false, error: String(e) }; }
       clearInterval(tick);
       if (btn) btn.disabled = false;
-      if (!r || !r.ok) { lg("Fehler " + ((r && r.error) || "?")); zeigen([{ ok: false, text: t("signs.highlights_fehler", "Highlights: {e}").replace("{e}", (r && r.error) || "?") }]); return; }
-      if (!r.netz) { lg("kein Netz"); zeigen([{ ok: false, text: t("assistent.s_hl_netz", "Highlights: OpenStreetMap nicht erreichbar — keine Schilder") }]); return; }
-      const vorhanden = new Set(_animSignsList().map(s => String(s.text || "").trim()));
-      const neu = (r.schilder || []).filter(s => s.text && !vorhanden.has(String(s.text).trim()));
-      const zeilen = [{ ok: true, text: t("signs.highlights_gefragt", "OpenStreetMap befragt: {p} Orte im Korridor von {r} m").replace("{p}", r.n_pois || 0).replace("{r}", r.radius_m || 120) }];
-      if (!neu.length) {
-        lg("keine neuen (pois=" + (r.n_pois || 0) + ")");
-        zeilen.push({ ok: false, text: (r.n_pois || 0) ? t("signs.highlights_none", "Keine neuen Highlights gefunden.") : t("signs.highlights_leer", "Entlang dieser Strecke kennt OpenStreetMap keine benannten Highlights.") });
-        zeigen(zeilen); return;
+      if (!r || !r.ok) { if (st) st.textContent = t("signs.highlights_fehler", "Highlights: {e}").replace("{e}", (r && r.error) || "?"); return; }
+      _hlState.info = r;
+      _hlState.vs = (r.vorschlaege || []).map(v => ({ ...v, an: !!v.empfohlen }));
+      if (st) st.textContent = t("hl.gefunden", "{n} Vorschläge · {f} von {g} Fotos dem Track zugeordnet{netz}")
+        .replace("{n}", _hlState.vs.length).replace("{f}", r.n_zugeordnet || 0).replace("{g}", r.n_fotos || 0)
+        .replace("{netz}", r.netz === false ? " · " + t("hl.kein_netz", "OpenStreetMap nicht erreichbar") : "");
+      try { applog("info", "[highlights] Fenster: " + _hlState.vs.length + " Vorschläge, " + (r.n_zugeordnet || 0) + "/" + (r.n_fotos || 0) + " Fotos"); } catch (_) {}
+      _hlRender();
+    }
+    function _hlUebernehmen(m) {
+      const gew = _hlState.vs.filter(v => v.an);
+      if (!gew.length) return;
+      const vorhanden = new Set(_animSignsList().map(s => String(s.text || "").trim() + "|" + String(s.imageSrc || "").split(/[\\/]/).pop()));
+      const list = _animSignsList().slice();
+      let neu = 0;
+      for (const v of gew) {
+        const key = String(v.text || "").trim() + "|" + String(v.foto || "").split(/[\\/]/).pop();
+        if (vorhanden.has(key) || (!v.text && !v.foto)) continue;
+        vorhanden.add(key);
+        list.push({ ...(_SIGN_DEFAULTS),
+          style: _animSignLast.style, color: _animSignLast.color, size: _animSignLast.size, font: _animSignLast.font, weight: _animSignLast.weight,
+          before: 1, after: 4, entry: "fade",
+          lat: Number(v.lat), lon: Number(v.lon), text: String(v.text || ""), anchorMode: "track", visible: true,
+          ...(v.foto ? { imageSrc: v.foto, thumb: v.thumb || undefined } : {}) });
+        neu++;
       }
-      const l = _animSignsList().concat(neu);
-      _animSignsSave(l, t("signs.highlights_undo", "Highlights aus OpenStreetMap"));
+      m.close();
+      if (!neu) { toast(t("signs.highlights_none", "Keine neuen Highlights gefunden."), "info"); return; }
+      _animSignsSave(list, t("hl.undo", "Highlights übernommen"));
       _animSignsAttachToMap(); _animSignsRenderList();
-      lg(neu.length + " neu (" + (r.kurz || "") + ")");
-      zeilen.push({ ok: true, text: t("signs.highlights_done", "{n} Highlights als Schilder gesetzt: {liste}").replace("{n}", neu.length).replace("{liste}", r.kurz || "") });
-      if (r.start || r.ziel) zeilen.push({ ok: true, text: t("signs.highlights_startziel", "Start/Ziel: {a} → {b}").replace("{a}", r.start || "?").replace("{b}", r.ziel || "?") });
-      zeilen.push({ ok: true, text: t("signs.highlights_undo_hint", "Rückgängig mit ⌘Z; jedes Schild lässt sich in der Liste ändern oder löschen.") });
-      zeigen(zeilen);
+      try { applog("info", "[highlights] übernommen: " + neu); } catch (_) {}
+      toast(t("hl.uebernommen", "{n} Highlights als Schilder übernommen — Rückgängig mit ⌘Z.").replace("{n}", neu), "success", 4000);
+    }
+    async function _animSignsHighlights() {
+      const pfad = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+      if (!pfad || !_activeProject) { toast(t("signs.highlights_nogpx", "Erst einen Track öffnen."), "warn"); return; }
+      const ov = document.getElementById("modal-overlay"); if (ov) ov.classList.add("hl-gross");
+      const m = openModal({
+        title: "🏔 " + t("hl.titel", "Highlights"),
+        body: `<div class="hl-dialog">
+            <div class="hl-kopf">
+              <div class="hl-ordner" id="hl-ordner"></div>
+              <button type="button" class="btn btn-sm" id="hl-ordner-add">📂 ${_hlEsc(t("hl.ordner_add", "Fotoordner hinzufügen …"))}</button>
+            </div>
+            <div class="hl-quellen">
+              <label><input type="checkbox" id="hl-q-osm" ${_hlState.quellen.osm ? "checked" : ""}> ${_hlEsc(t("hl.q_osm", "Orte aus OpenStreetMap"))}</label>
+              <label><input type="checkbox" id="hl-q-track" ${_hlState.quellen.track ? "checked" : ""}> ${_hlEsc(t("hl.q_track", "Track-Stellen (höchster/tiefster Punkt, schnellste, steilste)"))}</label>
+              <label><input type="checkbox" id="hl-q-halte" ${_hlState.quellen.halte ? "checked" : ""}> ${_hlEsc(t("hl.q_halte", "Halte-Punkte mit Fotos"))}</label>
+              <button type="button" class="btn btn-primary btn-sm" id="hl-finden">🔎 ${_hlEsc(t("hl.finden", "Highlights finden"))}</button>
+            </div>
+            <div class="lib-hint" id="hl-status"></div>
+            <div class="hl-liste" id="hl-liste"></div>
+          </div>`,
+        footer: `<span class="muted" id="hl-count"></span>
+                 <button class="btn" id="hl-ab">${_hlEsc(t("common.cancel", "Abbrechen"))}</button>
+                 <button class="btn btn-primary" id="hl-uebernehmen" disabled>${_hlEsc(t("hl.uebernehmen", "Als Schilder übernehmen"))}</button>`,
+        onClose: () => { if (ov) ov.classList.remove("hl-gross"); },
+      });
+      _hlOrdnerRender(); _hlRender();
+      const add = document.getElementById("hl-ordner-add");
+      if (add) add.onclick = async () => {
+        let res = null;
+        try { res = await api().pick_file("folder", []); } catch (_) {}
+        const p = Array.isArray(res) ? res[0] : (res && res.path) || res;
+        if (p && typeof p === "string" && !_hlState.ordner.includes(p)) { _hlState.ordner.push(p); _hlOrdnerRender(); }
+      };
+      ["osm", "track", "halte"].forEach(k => { const cb = document.getElementById("hl-q-" + k); if (cb) cb.onchange = () => { _hlState.quellen[k] = cb.checked; }; });
+      const f = document.getElementById("hl-finden"); if (f) f.onclick = _hlFinden;
+      const ab = document.getElementById("hl-ab"); if (ab) ab.onclick = () => m.close();
+      const ok = document.getElementById("hl-uebernehmen"); if (ok) ok.onclick = () => _hlUebernehmen(m);
     }
     // v0.9.198 — Sichtbarkeit / Reihenfolge / Massenschalter
     function _animSignsSetVisible(idx, on) {
@@ -11389,7 +11469,7 @@ function mountAnimator(body, headerActions, opts) {
         addGtg.addEventListener("click", () => _animSignsImportFromGeotagger());
       }
       const hlBtn = document.getElementById("anim-signs-highlights");
-      if (hlBtn && !hlBtn._wired) { hlBtn._wired = true; hlBtn.addEventListener("click", () => _animSignsHighlights(hlBtn)); }
+      if (hlBtn && !hlBtn._wired) { hlBtn._wired = true; hlBtn.addEventListener("click", () => _animSignsHighlights()); }
       // v0.9.198 — Master „Alle an" / „Alle aus"
       const allOn = document.getElementById("anim-signs-all-on");
       if (allOn && !allOn._wired) { allOn._wired = true; allOn.addEventListener("click", () => _animSignsSetAllVisible(true)); }

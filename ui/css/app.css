@@ -3067,3 +3067,21 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
   border: 2px solid rgba(127,127,127,.35); border-top-color: var(--accent, #ff6b35); animation: ass-spin .8s linear infinite; }
 @keyframes ass-spin { to { transform: rotate(360deg); } }
 .ass-sek { color: var(--text-muted); font-variant-numeric: tabular-nums; margin-left: 4px; }
+
+/* 11.09.2026 — Highlights-Fenster (modules/animator, _animSignsHighlights) */
+#modal-overlay.hl-gross .modal { width: min(980px, 94vw); max-width: 94vw; }
+.hl-dialog { display: flex; flex-direction: column; gap: 10px; max-height: 70vh; }
+.hl-kopf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hl-ordner { display: flex; gap: 6px; flex-wrap: wrap; flex: 1 1 auto; }
+.hl-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; background: rgba(127,127,127,.15); font-size: 12px; }
+.hl-chip button { border: 0; background: transparent; cursor: pointer; color: var(--text-muted); }
+.hl-quellen { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.hl-quellen label { display: inline-flex; align-items: center; gap: 4px; }
+.hl-liste { overflow-y: auto; flex: 1 1 auto; min-height: 120px; display: flex; flex-direction: column; gap: 6px; }
+.hl-zeile { display: grid; grid-template-columns: 24px 96px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; border: 1px solid rgba(127,127,127,.25); border-radius: 8px; }
+.hl-zeile.aus { opacity: .5; }
+.hl-thumb { width: 96px; height: 64px; border-radius: 6px; overflow: hidden; background: rgba(127,127,127,.12); display: flex; align-items: center; justify-content: center; }
+.hl-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hl-sym { font-size: 26px; }
+.hl-meta { font-size: 12px; margin-bottom: 4px; }
+.hl-text { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-size: 13px; }
