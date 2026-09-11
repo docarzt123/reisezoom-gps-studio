@@ -693,8 +693,9 @@ de las versiones en `…/sessions/`.
   cambia.
 - **Proyecto con la plantilla** sobre esa versión.
 - **Puntos destacados como carteles** (casilla, activada por defecto): cumbres, puertos, miradores,
-  cascadas, refugios, castillos, ruinas, monumentos, atracciones de OpenStreetMap a 120 m del
-  track, ordenados (cumbres primero), cada nombre una vez, repartidos por la ruta, máximo ocho.
+  cascadas, refugios, castillos, ruinas, monumentos, atracciones y lagos (en la orilla) de
+  OpenStreetMap a 120 m del track; los pueblos hasta 400 m rellenan huecos. Ordenados (cumbres
+  primero, lo cercano antes), cada nombre una vez, repartidos por la ruta, uno cada 5 km, de ocho a dieciséis.
   Además el punto más alto (si la ruta sube al menos 150 m) y salida/meta con el nombre del lugar.
   Los carteles quedan en el Animador y el Tour Map con el estilo de carteles del proyecto y se
   editan o borran como cualquier cartel. Sin red hay una línea y ningún cartel. Lo mismo sin el
