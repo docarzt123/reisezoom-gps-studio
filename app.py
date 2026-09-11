@@ -1860,7 +1860,7 @@ class Api:
         """Bestehende Vorlage mit dem Look dieses Projekts überschreiben."""
         try:
             if vorlage_id == _vorlagen.REISEZOOM_ID:
-                return {"ok": False, "error": "Reisezoom-Standard"}
+                return {"ok": False, "error": _ui_t()("vorlagen.err_reisezoom", "Reisezoom-Standard lässt sich nicht ändern")}
             daten = _projekte.laden(DATEN_ORT)
             p = (daten.get("projects") or {}).get(project_id) or {}
             if not p:
@@ -1869,7 +1869,7 @@ class Api:
             vorher = json.loads(json.dumps((vd.get("vorlagen") or {}).get(vorlage_id) or {}))
             v = _vorlagen.aktualisieren(vd, vorlage_id, p, quelle=_projekte.anzeigename(daten, p))
             if not v:
-                return {"ok": False, "error": "Vorlage nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("vorlagen.err_fehlt", "Vorlage nicht gefunden")}
             _vorlagen.speichern(DATEN_ORT, vd)
             self._vorlage_bild_uebernehmen(vorlage_id, project_id)
             return {"ok": True, "vorher": vorher}
@@ -1881,7 +1881,7 @@ class Api:
             vd = self._vorlagen_laden()
             alt = ((vd.get("vorlagen") or {}).get(vorlage_id) or {}).get("name", "")
             if not _vorlagen.umbenennen(vd, vorlage_id, name or ""):
-                return {"ok": False, "error": "Vorlage nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("vorlagen.err_fehlt", "Vorlage nicht gefunden")}
             _vorlagen.speichern(DATEN_ORT, vd)
             return {"ok": True, "vorher": alt}
         except Exception as e:
@@ -1894,7 +1894,7 @@ class Api:
             war_standard = _vorlagen.standard_id(vd) == vorlage_id
             v = _vorlagen.loeschen(vd, vorlage_id)
             if not v:
-                return {"ok": False, "error": "Vorlage nicht gefunden oder mitgeliefert"}
+                return {"ok": False, "error": _ui_t()("vorlagen.err_fehlt_oder_mitgeliefert", "Vorlage nicht gefunden oder mitgeliefert")}
             _vorlagen.speichern(DATEN_ORT, vd)
             return {"ok": True, "vorlage": v, "war_standard": war_standard}
         except Exception as e:
@@ -1919,7 +1919,7 @@ class Api:
             vd = self._vorlagen_laden()
             vorher = _vorlagen.standard_id(vd)
             if not _vorlagen.standard_setzen(vd, vorlage_id):
-                return {"ok": False, "error": "Vorlage nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("vorlagen.err_fehlt", "Vorlage nicht gefunden")}
             _vorlagen.speichern(DATEN_ORT, vd)
             return {"ok": True, "vorher": vorher}
         except Exception as e:
@@ -1939,7 +1939,7 @@ class Api:
             vd = self._vorlagen_laden()
             v = _vorlagen.holen(vd, vorlage_id, DEFAULT_SETTINGS)
             if not v:
-                return {"ok": False, "error": "Vorlage nicht gefunden"}
+                return {"ok": False, "error": _ui_t()("vorlagen.err_fehlt", "Vorlage nicht gefunden")}
             try:
                 _projekte.stand_schreiben(DATEN_ORT, p, erzwingen=True)
             except Exception:
@@ -9747,7 +9747,7 @@ class Api:
             kopf, b64 = data_url.split(",", 1)
             raw = base64.b64decode(b64)
             if len(raw) < 200 or len(raw) > 4_000_000:
-                return {"ok": False, "error": "Bildgröße"}
+                return {"ok": False, "error": _ui_t()("projekt.vorschau_err_groesse", "Vorschaubild hat keine gültige Größe")}
             ext = ".png" if "image/png" in kopf else ".jpg"
             PROJEKT_VORSCHAU.mkdir(parents=True, exist_ok=True)
             for alt in PROJEKT_VORSCHAU.glob(f"{pid}.*"):

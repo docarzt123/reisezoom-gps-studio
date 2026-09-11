@@ -3344,5 +3344,9 @@
   "hl.n_fotos": "{n} photos",
   "common.remove": "Remove",
   "hl.experimentell": "Experimental",
-  "hl.experimentell_hint": "Experimental — selection and texts are first suggestions; undo with ⌘Z. Feedback welcome."
+  "hl.experimentell_hint": "Experimental — selection and texts are first suggestions; undo with ⌘Z. Feedback welcome.",
+  "vorlagen.err_reisezoom": "The Reisezoom default cannot be changed",
+  "vorlagen.err_fehlt": "Template not found",
+  "vorlagen.err_fehlt_oder_mitgeliefert": "Template not found or built in",
+  "projekt.vorschau_err_groesse": "Preview image has no valid size"
 }
