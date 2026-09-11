@@ -3344,5 +3344,9 @@
   "hl.n_fotos": "{n} Fotos",
   "common.remove": "Entfernen",
   "hl.experimentell": "Experimentell",
-  "hl.experimentell_hint": "Experimentell — Auswahl und Texte sind erste Vorschläge; Rückgängig mit ⌘Z. Feedback willkommen."
+  "hl.experimentell_hint": "Experimentell — Auswahl und Texte sind erste Vorschläge; Rückgängig mit ⌘Z. Feedback willkommen.",
+  "vorlagen.err_reisezoom": "Reisezoom-Standard lässt sich nicht ändern",
+  "vorlagen.err_fehlt": "Vorlage nicht gefunden",
+  "vorlagen.err_fehlt_oder_mitgeliefert": "Vorlage nicht gefunden oder mitgeliefert",
+  "projekt.vorschau_err_groesse": "Vorschaubild hat keine gültige Größe"
 }

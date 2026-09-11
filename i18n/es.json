@@ -3344,5 +3344,9 @@
   "hl.n_fotos": "{n} fotos",
   "common.remove": "Quitar",
   "hl.experimentell": "Experimental",
-  "hl.experimentell_hint": "Experimental: la selección y los textos son primeras propuestas; deshacer con ⌘Z. Comentarios bienvenidos."
+  "hl.experimentell_hint": "Experimental: la selección y los textos son primeras propuestas; deshacer con ⌘Z. Comentarios bienvenidos.",
+  "vorlagen.err_reisezoom": "El ajuste predeterminado de Reisezoom no se puede cambiar",
+  "vorlagen.err_fehlt": "Plantilla no encontrada",
+  "vorlagen.err_fehlt_oder_mitgeliefert": "Plantilla no encontrada o integrada",
+  "projekt.vorschau_err_groesse": "La imagen de vista previa no tiene un tamaño válido"
 }
