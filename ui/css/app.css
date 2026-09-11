@@ -3061,3 +3061,9 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .ass-track-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .ass-schritte { margin: 12px 0 0; padding-left: 4px; list-style: none; font-size: 13px; line-height: 1.6; }
 .ass-schritte li.fehl { color: var(--warn, #e0a030); }
+
+/* 11.09.2026 — laufende Anzeige in Assistent/Highlights (Marc: „da muss eine Animation laufen") */
+.ass-spinner { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px;
+  border: 2px solid rgba(127,127,127,.35); border-top-color: var(--accent, #ff6b35); animation: ass-spin .8s linear infinite; }
+@keyframes ass-spin { to { transform: rotate(360deg); } }
+.ass-sek { color: var(--text-muted); font-variant-numeric: tabular-nums; margin-left: 4px; }
