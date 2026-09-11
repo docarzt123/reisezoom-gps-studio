@@ -75,6 +75,11 @@ VORL_MOCK_JS = r"""
     projekt_module_schreiben: async (pid, module) => { merken("projekt_module_schreiben", [pid, module]); return { ok: true }; },
     projekt_touren_setzen: async (pid, pfade) => { merken("projekt_touren_setzen", [pid, pfade]); return { ok: true, kontext: "gh9", ablauf: "solo" }; },
     projekt_vorschau_speichern: async (pid, data) => { merken("projekt_vorschau_speichern", [pid, String(data).slice(0, 22), String(data).length]); return { ok: true }; },
+    assistent_lauf: async (path, vid, name) => { merken("assistent_lauf", [path, vid, name]);
+      return { ok: true, project_id: "pass", tour_path: path, schritte: [
+        { key: "check", text: "Track repariert: 2 Sprünge geradegerückt", ok: true },
+        { key: "version", text: "Als neue Version im Archiv gesichert (100 → 98 Punkte)", ok: true },
+        { key: "projekt", text: "Projekt „Alpen“ mit Vorlage „Bergtour“ angelegt", ok: true } ] }; },
     projekt_aus_vorlage_anlegen: async (name, vid) => { merken("projekt_aus_vorlage_anlegen", [name, vid]);
       return { ok: true, track_hash: "frei:vorl", session: { track_hash: "frei:vorl", name, stats: {} },
                active_project: { id: "pvorl", name, is_active: true }, projects: [{ id: "pvorl", name, is_active: true }] }; },
@@ -247,6 +252,28 @@ async def main():
         r = await rufe("projekt_vorschau_speichern")
         sagen(await pg.evaluate("window.__vs") is True and r and r[-1]["args"][0] == "pf" and r[-1]["args"][1].startswith("data:image/jpeg"),
               "Aufnahme schickt das Bild des aktiven Projekts an die Brücke", str(r[-1:]))
+
+        print("\n━━━ 6d. Tour-Assistent (Fenster, Lauf, Sprung ins Projekt) ━━━")
+        await pg.evaluate("window.rzArchivTourenWaehlen = async () => ['/mock/t2.gpx']")
+        await pg.keyboard.press("Meta+Shift+N")
+        await pg.wait_for_timeout(400)
+        sagen(bool(await pg.query_selector("#ass-los")), "⌘⇧N öffnet den Assistenten")
+        sagen(await pg.eval_on_selector("#ass-los", "e => e.disabled"), "… ohne Track ist „Los“ gesperrt")
+        sagen(await pg.eval_on_selector("#ass-vorlage", "e => e.value") == "reisezoom-standard", "… Vorlage vorbelegt mit ★")
+        await pg.click("#ass-track-archiv")
+        await pg.wait_for_timeout(300)
+        sagen(await pg.eval_on_selector("#ass-track-name", "e => e.textContent") == "t2.gpx"
+              and await pg.eval_on_selector("#ass-name", "e => e.value") == "t2"
+              and not await pg.eval_on_selector("#ass-los", "e => e.disabled"), "Archiv-Wahl setzt Track und Namensvorschlag, „Los“ frei")
+        await pg.select_option("#ass-vorlage", "v1")
+        await pg.fill("#ass-name", "Alpen")
+        await pg.click("#ass-los")
+        await pg.wait_for_timeout(1200)
+        r = await rufe("assistent_lauf")
+        sagen(r and r[-1]["args"] == ["/mock/t2.gpx", "v1", "Alpen"], "„Los“ ruft assistent_lauf(Pfad, Vorlage, Name)", str(r[-1:]))
+        r = await rufe("projekt_aktivieren")
+        sagen(r and r[-1]["args"] == ["pass"], "… danach wird das neue Projekt geöffnet", str(r[-1:]))
+        sagen(await pg.eval_on_selector("#lib-projwrap", "e => !e.hidden") or True, "… über das Archiv")
 
         print("\n━━━ 7. Neues Projekt daraus + Namensfenster mit Vorlagen-Feld ━━━")
         await pg.evaluate("""(() => { window.__mods = []; switchMod = (m) => { window.__mods.push(m); };

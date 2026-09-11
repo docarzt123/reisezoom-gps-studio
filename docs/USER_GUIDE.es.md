@@ -676,6 +676,27 @@ de las versiones en `…/sessions/`.
 
 ---
 
+### 🧭 Asistente de ruta — de la ruta al proyecto terminado (desde v0.9.689) ⭐
+
+**Archivo → «Asistente de ruta…» (⌘⇧N).** Una ventana, tres datos, un botón:
+
+1. **Track**: «Del archivo …» o «Fichero …» (un fichero externo se añade primero al archivo).
+2. **Plantilla**: predefinida con ★ «Mi estándar».
+3. **Nombre del proyecto**: predefinido con el nombre de la ruta.
+
+**«Adelante»** hace el resto y muestra cada paso como una línea:
+
+- **Revisión del track con reparación** de todos los hallazgos rojos y amarillos. Lo que marcaste
+  en el archivo como «Así está bien» se respeta. Los huecos se enrutan por caminos según la
+  actividad de la ruta (senderismo → a pie, bici → bici, coche → carretera), en línea recta solo
+  si no hay ruta o no hay red. El resultado es una **nueva versión** en el archivo; tu fichero no
+  cambia.
+- **Proyecto con la plantilla** sobre esa versión.
+- **Salto al Animador** con el proyecto abierto.
+
+Si no había nada que reparar, la lista lo dice y el proyecto queda ligado al fichero original.
+Las fotos y los puntos destacados llegan en las siguientes etapas del asistente.
+
 ### 🖼 Las tarjetas de proyecto muestran el último estado (desde v0.9.689)
 
 La app fotografía la vista previa del módulo abierto (mapa con track en el Animador y el Tour

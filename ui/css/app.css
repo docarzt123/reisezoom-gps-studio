@@ -3055,3 +3055,9 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
   border-bottom: 1px solid rgba(127,127,127,.25); background: rgba(127,127,127,.06); }
 .vorl-leiste-btn { flex: 1 1 auto; text-align: left; }
 .vorl-leiste .btn { min-width: 0; }
+
+/* 11.09.2026 — Tour-Assistent (ui/js/assistent.js) */
+.ass-track { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.ass-track-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.ass-schritte { margin: 12px 0 0; padding-left: 4px; list-style: none; font-size: 13px; line-height: 1.6; }
+.ass-schritte li.fehl { color: var(--warn, #e0a030); }

@@ -1971,6 +1971,170 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # ── Tour-Assistent, Stufe 1 (11.09.2026, docs/TOUR-ASSISTENT.md §3) ──────────
+
+    @staticmethod
+    def _assistent_profil(activity: str) -> str:
+        """Fortbewegungsart der Tour → Routing-Profil (wie _profilAusArt im Inspektor)."""
+        import re
+        a = str(activity or "").lower()
+        if re.search(r"wander|spazier|lauf|hiking|walk|run|trail", a):
+            return "walking"
+        if re.search(r"rad|bike|cycl|gravel|mtb|velo", a):
+            return "cycling"
+        if re.search(r"auto|motor|car|driv|moped", a):
+            return "driving"
+        return ""
+
+    @staticmethod
+    def _assistent_route_einsetzen(pts: list, a: int, b: int, coords: list) -> int:
+        """Lücke a→b mit einer gerouteten Geometrie [[lon,lat],…] füllen; Zeit und
+        Höhe laufen linear über die Streckenlänge. Liefert die Zahl neuer Punkte."""
+        from datetime import datetime, timezone
+        A, B = pts[a], pts[b]
+        inner = [c for c in coords[1:-1] if isinstance(c, (list, tuple)) and len(c) >= 2]
+        if not inner:
+            return 0
+        kette = [[float(A["lon"]), float(A["lat"])]] + [[float(c[0]), float(c[1])] for c in inner] + [[float(B["lon"]), float(B["lat"])]]
+        cum = [0.0]
+        for i in range(1, len(kette)):
+            cum.append(cum[-1] + cgpx._haversine_m(kette[i - 1][1], kette[i - 1][0], kette[i][1], kette[i][0]))
+        ges = cum[-1] or 1.0
+
+        def _t(s):
+            try:
+                return datetime.fromisoformat(str(s).replace("Z", "+00:00")) if s else None
+            except Exception:  # noqa: BLE001
+                return None
+        tA, tB = _t(A.get("time")), _t(B.get("time"))
+        eA, eB = A.get("ele"), B.get("ele")
+        neu = []
+        for i in range(1, len(kette) - 1):
+            f = cum[i] / ges
+            p = {"lat": kette[i][1], "lon": kette[i][0], "ele": None, "time": None}
+            if eA is not None and eB is not None:
+                p["ele"] = round(float(eA) + (float(eB) - float(eA)) * f, 1)
+            elif eA is not None:
+                p["ele"] = eA
+            if tA and tB:
+                p["time"] = (tA + (tB - tA) * f).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+            neu.append(p)
+        pts[a + 1:b] = neu
+        return len(neu)
+
+    def assistent_lauf(self, path: str, vorlage_id: str = "", name: str = "") -> dict:
+        """Tour-Assistent Stufe 1: Track-Check-Reparatur (rot + gelb, „Ist so in
+        Ordnung" bleibt), Lücken entlang der Wege nach Fortbewegungsart, Ergebnis
+        als neue Version im Archiv, ein Projekt mit der Vorlage, fertig für den
+        Animator. Antwort: {ok, project_id, tour_path, schritte:[{key, text, ok}]}."""
+        from core import gpxheal, trackcheck
+        zeilen = []
+        T = _ui_t()
+
+        def zeile(key, text, ok=True):
+            zeilen.append({"key": key, "text": text, "ok": bool(ok)})
+        try:
+            pfad = str(path or "").strip()
+            if not pfad or not Path(pfad).exists():
+                return {"ok": False, "error": T("assistent.err_datei", "Track-Datei nicht gefunden."), "schritte": zeilen}
+            conn = self._lib()
+            t = clib.get_track(conn, pfad)
+            if not t:
+                # Datei von außerhalb → zuerst ins Archiv (die Wahrheit ist das Archiv).
+                r = self.library_import_files([pfad])
+                if not (r or {}).get("ok"):
+                    return {"ok": False, "error": (r or {}).get("error") or T("assistent.err_archiv", "Konnte die Tour nicht ins Archiv nehmen."), "schritte": zeilen}
+                neu_pfade = [p for p in ((r or {}).get("paths") or (r or {}).get("imported") or []) if isinstance(p, str)]
+                for kand in neu_pfade + [pfad]:
+                    t = clib.get_track(conn, kand)
+                    if t:
+                        pfad = kand
+                        break
+                if not t:
+                    return {"ok": False, "error": T("assistent.err_archiv", "Konnte die Tour nicht ins Archiv nehmen."), "schritte": zeilen}
+                zeile("archiv", T("assistent.s_archiv", "Tour ins Archiv genommen"))
+            tour_name = str(t.get("display_name") or t.get("name") or Path(pfad).stem)
+
+            # 1) Track-Check
+            check = t.get("check") if isinstance(t.get("check"), dict) else None
+            if not check or not check.get("geprueft"):
+                rc = clib.track_check_datei(conn, pfad, IMPORTS_DIR)
+                check = (rc or {}).get("check") or {}
+            ok_liste = set(check.get("ok") or [])
+            befunde = [b for b in (check.get("befunde") or [])
+                       if trackcheck.STUFEN.get(b.get("key")) in ("rot", "gelb")
+                       and b.get("key") not in ok_liste and b.get("key") in gpxheal.SCHRITTE]
+            tour_path = pfad
+            if not befunde:
+                zeile("check", T("assistent.s_check_ok", "Track geprüft: nichts zu reparieren"))
+            else:
+                keys = [b.get("key") for b in befunde]
+                load = self.gpxinspect_load(pfad)
+                if not (load or {}).get("ok"):
+                    return {"ok": False, "error": (load or {}).get("error") or "?", "schritte": zeilen}
+                pts = list(load.get("points") or [])
+                n0 = len(pts)
+                heil = gpxheal.heilen(pts, schritte=[k for k in keys if k != "gaps"])
+                if not heil.get("ok"):
+                    return {"ok": False, "error": heil.get("error") or "?", "schritte": zeilen}
+                pts = list(heil.get("points") or [])
+                geroutet = gerade = 0
+                if "gaps" in keys:
+                    sp = trackcheck._Spur(pts)
+                    lk = trackcheck.luecken(sp, flags=trackcheck.sprung_gruppen(sp)["flags"])
+                    prof = self._assistent_profil(t.get("activity") or "")
+                    routen = []
+                    if prof and lk:
+                        rr = self.gpxinspect_route_gaps(
+                            [[pts[g["a"]]["lon"], pts[g["a"]]["lat"], pts[g["b"]]["lon"], pts[g["b"]]["lat"]] for g in lk], prof)
+                        routen = (rr or {}).get("routes") or []
+                    for i, g in sorted(enumerate(lk), key=lambda x: -x[1]["a"]):
+                        r = routen[i] if i < len(routen) else None
+                        cc = (r or {}).get("coords") or []
+                        laenge = 0.0
+                        for j in range(1, len(cc)):
+                            laenge += cgpx._haversine_m(cc[j - 1][1], cc[j - 1][0], cc[j][1], cc[j][0])
+                        if r and r.get("ok") and len(cc) >= 2 and laenge <= 2.5 * max(1.0, float(g["dist"])):
+                            self._assistent_route_einsetzen(pts, g["a"], g["b"], cc)
+                            geroutet += 1
+                        else:
+                            gpxheal._luecke_fuellen(pts, g["a"], g["b"], g["dist"])
+                            gerade += 1
+                bericht = {b["key"]: b.get("n", 0) for b in (heil.get("bericht") or [])}
+                teile = []
+                for k in keys:
+                    if k == "gaps":
+                        teile.append(T("assistent.s_gaps", "{r} Lücken an Wege angepasst, {l} gerade gefüllt").replace("{r}", str(geroutet)).replace("{l}", str(gerade)))
+                    else:
+                        ik = "gpxinspect.heal_k_" + ("spread" if k == "spread_seconds" else k)
+                        teile.append(T(ik, k).replace("%n", str(bericht.get(k, ""))).strip())
+                zeile("check", T("assistent.s_check", "Track repariert: {liste}").replace("{liste}", ", ".join(teile)))
+                ers = self.library_track_ersetzen(pts, pfad, pfad)
+                if not (ers or {}).get("ok"):
+                    return {"ok": False, "error": (ers or {}).get("error") or "?", "schritte": zeilen}
+                if ers.get("geo_hash"):
+                    vp = cbib.version_datei(BIB, ers["geo_hash"])
+                    if vp.exists():
+                        tour_path = str(vp)
+                zeile("version", T("assistent.s_version", "Als neue Version im Archiv gesichert ({a} → {b} Punkte)").replace("{a}", str(n0)).replace("{b}", str(len(pts))))
+
+            # 2) Projekt aus Vorlage
+            pr = self.projekt_aus_vorlage_anlegen((name or "").strip() or tour_name, vorlage_id or "")
+            if not (pr or {}).get("ok"):
+                return {"ok": False, "error": (pr or {}).get("error") or "?", "schritte": zeilen}
+            pid = (pr.get("active_project") or {}).get("id") or ""
+            ts = self.projekt_touren_setzen(pid, [tour_path])
+            if not (ts or {}).get("ok"):
+                return {"ok": False, "error": (ts or {}).get("error") or "?", "schritte": zeilen}
+            vd = self._vorlagen_laden()
+            v = self._vorlage_holen(vd, vorlage_id or "") or {}
+            zeile("projekt", T("assistent.s_projekt", "Projekt „{p}“ mit Vorlage „{v}“ angelegt").replace("{p}", (pr.get("active_project") or {}).get("name", "")).replace("{v}", str(v.get("name") or "")))
+            log.info("[assistent] %s → Projekt %s (%d Schritte)", Path(pfad).name, pid, len(zeilen))
+            return {"ok": True, "project_id": pid, "tour_path": tour_path, "schritte": zeilen}
+        except Exception as e:
+            log.error("assistent_lauf: %s\n%s", e, traceback.format_exc())
+            return {"ok": False, "error": str(e), "schritte": zeilen}
+
     def projekt_aus_vorlage_anlegen(self, name: str = "", vorlage_id: str = "") -> dict:
         """„Neues Projekt daraus" auf der Vorlagen-Kachel: leeres Projekt mit
         dieser Vorlage — Vertrag wie projekt_frei_anlegen."""
@@ -12476,6 +12640,7 @@ def main() -> None:
         def _export_geojson_from_menu(): _trigger_js("window.exportCurrent && window.exportCurrent('geojson')")
         # v0.9.288 — Topbar aufgeräumt → diese Aktionen leben jetzt im Menü.
         def _open_track_from_menu():    _trigger_js("window.pickGpx && window.pickGpx()")
+        def _open_assistent_from_menu(): _trigger_js("window.openTourAssistent && window.openTourAssistent()")
         def _open_feedback_from_menu(): _trigger_js("window.openBugReportModal && window.openBugReportModal('Feedback (Menü)')")
         # v0.9.289 — Spenden/Unterstützen: öffnet den Über-Dialog (enthält den Block)
         def _open_support_from_menu():  _trigger_js("window.openAboutModal && window.openAboutModal()")
@@ -12497,6 +12662,7 @@ def main() -> None:
         _menu_support    = _strings.get("menu.support", "Entwicklung unterstützen")
         _menu_blog       = _strings.get("menu.blog", "Blog – reisezoom.com")
         _menu_youtube    = _strings.get("menu.youtube", "YouTube-Kanal")
+        _menu_assistent = _strings.get("menu.assistent", "Tour-Assistent…")
         _menu_export_gpx = _strings.get("menu.export_gpx", "Als GPX exportieren…")
         _menu_export_kml = _strings.get("menu.export_kml", "Als KML exportieren…")
         _menu_export_kmz = _strings.get("menu.export_kmz", "Als KMZ exportieren…")
@@ -12511,6 +12677,8 @@ def main() -> None:
         menu = [
             Menu(_menu_file, [
                 MenuAction(_menu_open_track, _open_track_from_menu),
+                MenuAction(_menu_assistent, _open_assistent_from_menu),
+                MenuSeparator(),
                 MenuAction(_menu_export_gpx, _export_gpx_from_menu),
                 MenuAction(_menu_export_kml, _export_kml_from_menu),
                 MenuAction(_menu_export_kmz, _export_kmz_from_menu),
