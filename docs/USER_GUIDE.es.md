@@ -697,7 +697,9 @@ de las versiones en `…/sessions/`.
   track, ordenados (cumbres primero), cada nombre una vez, repartidos por la ruta, máximo ocho.
   Además el punto más alto (si la ruta sube al menos 150 m) y salida/meta con el nombre del lugar.
   Los carteles quedan en el Animador y el Tour Map con el estilo de carteles del proyecto y se
-  editan o borran como cualquier cartel. Sin red hay una línea y ningún cartel.
+  editan o borran como cualquier cartel. Sin red hay una línea y ningún cartel. Lo mismo sin el
+  asistente: en el Animador y el Tour Map, el botón **«🏔 Puntos destacados de OpenStreetMap»** de la
+  sección de carteles los añade a los carteles existentes, como un paso ⌘Z.
 - **Salto al Animador** con el proyecto abierto.
 
 Si no había nada que reparar, la lista lo dice y el proyecto queda ligado al fichero original.

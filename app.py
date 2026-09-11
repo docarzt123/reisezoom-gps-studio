@@ -2022,46 +2022,73 @@ class Api:
         pts[a + 1:b] = neu
         return len(neu)
 
+    def _highlights_schilder_fuer(self, pts: list, stil: dict) -> dict:
+        """Highlights aus OSM + höchster Punkt + Start/Ziel mit Ortsnamen → Schild-Dicts.
+        Gemeinsam für den Assistenten und den Knopf im Animator/Tour-Map.
+        Antwort: {netz, n_pois, gewaehlt, schilder, kurz, start, ziel}."""
+        from core import highlights as chl
+        from core import geocode as cgeocode
+        T = _ui_t()
+        res = chl.highlights_fuer_track(pts)
+        if not res["pois"] and not res["netz"]:
+            return {"netz": False, "n_pois": 0, "gewaehlt": [], "schilder": [], "kurz": "", "start": "", "ziel": ""}
+
+        def ort(p):
+            try:
+                a = cgeocode.reverse(float(p["lat"]), float(p["lon"]), provider="photon", lang=_ui_sprache())
+                return (a or {}).get("city") or ""
+            except Exception:  # noqa: BLE001
+                return ""
+        start = ort(pts[0]) if pts else ""
+        ziel = ort(pts[-1]) if pts else ""
+        s_txt = (T("assistent.s_start", "Start") + ("\n" + start if start else "")) if pts else ""
+        z_txt = (T("assistent.s_ziel", "Ziel") + ("\n" + ziel if ziel else "")) if pts else ""
+        hl = T("assistent.s_hoechster", "Höchster Punkt")
+        schilder = chl.schilder_bauen(res["gewaehlt"], stil=stil or {}, hoechster_label=hl,
+                                      start=s_txt, ziel=z_txt, points=pts)
+        return {"netz": True, "n_pois": len(res["pois"]), "gewaehlt": res["gewaehlt"], "schilder": schilder,
+                "kurz": chl.kurzliste(res["gewaehlt"], hl), "start": start, "ziel": ziel}
+
     def _assistent_highlights(self, pid: str, pts: list, T, zeile) -> None:
         """Stufe 3 (Marc: „erst mal nur POIs mit Schildern markieren"): Highlights aus
         OSM + höchster Punkt + Start/Ziel mit Ortsnamen → Schilder im Projekt."""
-        from core import highlights as chl
-        from core import geocode as cgeocode
         try:
-            res = chl.highlights_fuer_track(pts)
-            if not res["pois"] and not res["netz"]:
-                zeile("highlights", T("assistent.s_hl_netz", "Highlights: OpenStreetMap nicht erreichbar — keine Schilder"), ok=False)
-                return
-            def ort(p):
-                try:
-                    a = cgeocode.reverse(float(p["lat"]), float(p["lon"]), provider="photon", lang=_ui_sprache())
-                    return (a or {}).get("city") or ""
-                except Exception:  # noqa: BLE001
-                    return ""
-            start = ort(pts[0]) if pts else ""
-            ziel = ort(pts[-1]) if pts else ""
-            s_txt = (T("assistent.s_start", "Start") + ("\n" + start if start else "")) if pts else ""
-            z_txt = (T("assistent.s_ziel", "Ziel") + ("\n" + ziel if ziel else "")) if pts else ""
             daten = _projekte.laden(DATEN_ORT)
             p = (daten.get("projects") or {}).get(pid)
             if not p:
                 return
             a = p.get("animator") or {}
             stil = {"style": a.get("signs_style") or "signpost", "color": a.get("line_color") or "#ff6b35"}
-            schilder = chl.schilder_bauen(res["gewaehlt"], stil=stil,
-                                          hoechster_label=T("assistent.s_hoechster", "Höchster Punkt"),
-                                          start=s_txt, ziel=z_txt, points=pts)
-            p["signs"] = schilder
-            p["tourmap_signs"] = json.loads(json.dumps(schilder))
+            r = self._highlights_schilder_fuer(pts, stil)
+            if not r["netz"]:
+                zeile("highlights", T("assistent.s_hl_netz", "Highlights: OpenStreetMap nicht erreichbar — keine Schilder"), ok=False)
+                return
+            p["signs"] = r["schilder"]
+            p["tourmap_signs"] = json.loads(json.dumps(r["schilder"]))
             _projekte._angefasst(p)
             _projekte.speichern(DATEN_ORT, daten)
             zeile("highlights", T("assistent.s_hl", "{n} Highlights als Schilder: {liste}")
-                  .replace("{n}", str(len(res["gewaehlt"])))
-                  .replace("{liste}", chl.kurzliste(res["gewaehlt"], T("assistent.s_hoechster", "Höchster Punkt")) or "—")
-                  + (f" · {start} → {ziel}" if (start or ziel) else ""))
+                  .replace("{n}", str(len(r["gewaehlt"]))).replace("{liste}", r["kurz"] or "—")
+                  + (f" · {r['start']} → {r['ziel']}" if (r["start"] or r["ziel"]) else ""))
         except Exception as e:  # noqa: BLE001
             log.warning("[assistent] Highlights: %s", e)
             zeile("highlights", T("assistent.s_hl_fehler", "Highlights: {e}").replace("{e}", str(e)), ok=False)
+
+    def highlights_schilder(self, path: str, stil: dict = None) -> dict:
+        """Knopf „Highlights aus OpenStreetMap" im Animator/Tour-Map (Marc, 11.09.2026):
+        für den offenen Track die Highlight-Schilder liefern — die Oberfläche legt sie zu
+        den vorhandenen und macht daraus einen ⌘Z-Schritt."""
+        try:
+            load = self.gpxinspect_load(str(path or ""))
+            pts = list(((load or {}).get("points")) or [])
+            if not pts:
+                return {"ok": False, "error": (load or {}).get("error") or _ui_t()("assistent.err_datei", "Track-Datei nicht gefunden.")}
+            r = self._highlights_schilder_fuer(pts, dict(stil or {}))
+            return {"ok": True, **{k: r[k] for k in ("netz", "n_pois", "schilder", "kurz", "start", "ziel")},
+                    "n": len(r["gewaehlt"])}
+        except Exception as e:  # noqa: BLE001
+            log.error("highlights_schilder: %s\n%s", e, traceback.format_exc())
+            return {"ok": False, "error": str(e)}
 
     def assistent_lauf(self, path: str, vorlage_id: str = "", name: str = "",
                        highlights: bool = True) -> dict:

@@ -2553,6 +2553,7 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `vorlage_anwenden(project_id, vid)` | `{ok, vorher, nachher, project, vorlage}` | Modul-Blöcke davor/danach; erzwingt vorher einen Arbeitsstand |
 | `projekt_module_schreiben(project_id, module)` | `{ok, project}` | Undo-Gegenstück: ganze Modul-Blöcke zurück |
 | `projekt_aus_vorlage_anlegen(name, vid)` | wie `projekt_frei_anlegen` | Leeres Projekt mit dieser Vorlage |
+| `highlights_schilder(path, stil)` | `{ok, netz, n, n_pois, schilder, kurz, start, ziel}` | Knopf im Animator/Tour-Map (11.09.2026); Oberfläche legt sie zu den Schildern (Text-Dedupe) und pusht Undo |
 | `assistent_lauf(path, vorlage_id, name, highlights=True)` | `{ok, project_id, tour_path, schritte:[{key, text, ok}]}` | Tour-Assistent Stufe 1 (11.09.2026): Archiv-Aufnahme bei Bedarf, Track-Check-Reparatur (rot+gelb ohne `check_ok`, Lücken geroutet nach Fortbewegungsart) → `library_track_ersetzen` (neue Version) → `projekt_aus_vorlage_anlegen` + `projekt_touren_setzen` auf die Versionsdatei |
 | `projekt_vorschau_speichern(project_id, data_url)` | `{ok}` | Vorschaubild aus dem letzten Stand (11.09.2026) → `bilder/projekte/<pid>.jpg`; `projekt_thumbs` bevorzugt es, `vorlage_anlegen/aktualisieren` kopieren es nach `bilder/vorlagen/` |
 | `library_track_check_ok(path, key, ok)` | `{ok, check, track}` | „Ist so in Ordnung" je Version und Befund-Art |
@@ -3090,7 +3091,11 @@ ergänzt `hoechster_punkt` (Rang 3, nur bei ≥ 150 m Hub, nicht am Rand, nicht 
 liefert Schild-Dicts (`SCHILD_BASIS` = Wegweiser, before 1 / after 4, fade) mit Stil aus dem Projekt. In `Api.assistent_lauf`
 über `_assistent_highlights` (Start/Ziel-Ortsname via `geocode.reverse(provider="photon")`), schreibt `signs` und
 `tourmap_signs` ins Projekt. Tests: `tests/test_highlights.py` (Fake-Overpass), `tests/test_assistent.py` (1).
-Gemessen an vier Archiv-Touren: 1–10 POIs je Tour in ~3 s.
+Gemessen an vier Archiv-Touren: 1–10 POIs je Tour in ~3 s. Knopf `#anim-signs-highlights` → `_animSignsHighlights` →
+`highlights_schilder`. **Undo für Schilder (11.09.2026):** der Animator-Snapshot trägt `__signs` (Projekt-Wurzel
+`_SIGNS_KEY` ohne `_imgEl`), `apply` stellt sie über `_animSignsSave` wieder her, und `_animSignsSave(list, label)`
+pusht den Stand DAVOR (gedrosselt; mit `label` erzwungen) — damit sind Setzen, Ziehen, Löschen, Ein/Aus, Reihenfolge
+und der Highlights-Knopf ⌘Z-Schritte.
 
 **Projekt-Vorschaubild aus dem letzten Stand (11.09.2026, `ui/js/util.js`):** `rzProjektVorschauAufnehmen(grund)`
 fotografiert das offene Modul — MapLibre-Karte über `map.once("render")` + `triggerRepaint()` (kein
