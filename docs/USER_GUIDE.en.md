@@ -670,6 +670,14 @@ snapshots under `…/sessions/`.
 
 ---
 
+### 🕒 Date and time in the stats overlays (since v0.9.689)
+
+The stats editor of the Animator (and the Tour Map) has four new fields: in the **totals box**
+“Date” (one day, or a range for multi-day tours) and “Time” (from – to), in the **live box**
+“Date & time” and “Time” at the current point. Shown in the **tour's local time**: the time zone
+comes from the tour's country in the archive (Canary Islands, Azores and multi-zone countries by
+longitude), otherwise from the tour's location. The format follows the app language.
+
 ### 🧭 Tour assistant — from the tour to the finished project (since v0.9.689) ⭐
 
 **File → “Tour assistant…” (⌘⇧N).** One window, three inputs, one button:

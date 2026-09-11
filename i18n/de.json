@@ -3311,5 +3311,9 @@
   "signs.highlights_wait": "OpenStreetMap antwortet manchmal langsam — bis zu einer Minute, mit Ausweich-Server.",
   "assistent.s_tiefster": "Tiefster Punkt",
   "assistent.s_schnellster": "Schnellste Stelle",
-  "assistent.s_steilster": "Steilste Stelle"
+  "assistent.s_steilster": "Steilste Stelle",
+  "animator.statsfield.date": "Datum",
+  "animator.statsfield.time_span": "Uhrzeit",
+  "animator.statsfield.datetime_now": "Datum & Uhrzeit",
+  "animator.statsfield.time_now": "Uhrzeit"
 }

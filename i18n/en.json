@@ -3311,5 +3311,9 @@
   "signs.highlights_wait": "OpenStreetMap sometimes answers slowly — up to a minute, with a fallback server.",
   "assistent.s_tiefster": "Lowest point",
   "assistent.s_schnellster": "Fastest stretch",
-  "assistent.s_steilster": "Steepest stretch"
+  "assistent.s_steilster": "Steepest stretch",
+  "animator.statsfield.date": "Date",
+  "animator.statsfield.time_span": "Time",
+  "animator.statsfield.datetime_now": "Date & time",
+  "animator.statsfield.time_now": "Time"
 }

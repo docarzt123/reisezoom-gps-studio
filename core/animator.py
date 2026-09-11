@@ -96,6 +96,7 @@ from .gpx import (parse_gpx as core_parse_gpx, downsample, TrackPoint, resample,
                   unsichtbare_bereiche as core_gpx_bereiche, laufpunkt_aus_bereiche as core_gpx_dot,
                   etappen_reihen as core_gpx_etappen)
 from . import i18n as _i18n
+from . import zeitzone as _zeit   # 11.09.2026 — Datum/Uhrzeit in den Einblendungen
 from . import timeline as _timeline  # v0.7.0: Camera-Keyframe-Interpolation
 from . import sensors as _sensors    # v0.9.331: FIT-Sensorfeld-Registry
 from . import heightanim as _cheight  # v0.9.443: Daten-Diagramme als Overlay
@@ -398,6 +399,8 @@ class AnimatorConfig:
     # und „HÖHENPROFIL", während die Vorschau korrekt Spanisch zeigte.
     # Leer = Deutsch (die einprogrammierten Fallbacks).
     ui_lang: str = ""
+    # 11.09.2026 — Zeitzone der Tour (aus dem Archiv-Land); leer = aus der Lage.
+    tz_name: str = ""
     # v0.9.509 — Der Laufpunkt („die Kugel"), der die Strecke abfährt.
     # ⚠️ Bis v0.9.508 war er fest verdrahtet: im Video immer an, in der Vorschau
     # gar nicht vorhanden. Man konnte also erst nach dem Rendern sehen, wie er
@@ -633,6 +636,11 @@ OVERLAY_LIVE_FIELDS = [
      "js": "fmtDurJS(Math.max(0,TOTAL_TIME_S-cumTimeS[idx]))"},
     {"id": "ele_now",      "requires": "ele",  "label": "H&ouml;he",
      "js": "Math.round(elevations[idx])+' m'"},
+    # 11.09.2026 (Marc) — Datum und Uhrzeit am aktuellen Punkt (Zeitzone der Tour).
+    {"id": "datetime_now", "requires": "time", "label": "Datum &amp; Uhrzeit",
+     "js": "fmtDateTimeJS(epochS[idx],TZ_OFF_MIN,DATE_LANG)"},
+    {"id": "time_now",     "requires": "time", "label": "Uhrzeit",
+     "js": "fmtTimeJS(epochS[idx],TZ_OFF_MIN)"},
     {"id": "grade",        "requires": "ele",  "label": "Steigung",
      "js": "(gradePct[idx]>=0?'+':'')+gradePct[idx].toFixed(0)+' %'"},
     # 29.08.2026 (Marc) — kumulierte Höhenmeter bis zum aktuellen Punkt.
@@ -677,6 +685,11 @@ OVERLAY_TOTAL_FIELDS = [
      "py": lambda ts: _format_km(_sw(ts, "swarm_dist_m", ts["distance_m"]))},
     {"id": "duration",   "requires": "time", "label": "Zeit",
      "py": lambda ts: _format_dur(_sw(ts, "swarm_duration_s", ts["duration_s"]))},
+    # 11.09.2026 (Marc) — Datum (Mehrtagestour: Zeitraum) und Uhrzeit von … bis.
+    {"id": "date",       "requires": "time", "label": "Datum",
+     "py": lambda ts: _zeit.fmt_zeitraum(ts.get("start_epoch"), ts.get("end_epoch"), ts.get("tz_offset_min", 0), ts.get("lang", "de"))},
+    {"id": "time_span",  "requires": "time", "label": "Uhrzeit",
+     "py": lambda ts: _zeit.fmt_uhrzeit_spanne(ts.get("start_epoch"), ts.get("end_epoch"), ts.get("tz_offset_min", 0))},
     {"id": "moving_time", "requires": "time", "label": "Bewegungszeit",
      "py": lambda ts: _format_dur(_sw(ts, "swarm_moving_s",
                                       ts.get("moving_time_s") or ts.get("duration_s") or 0))},
@@ -2190,6 +2203,17 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     total_desc_json = json.dumps(round(float(total_stats.get("descent_m") or 0), 1))
     cum_dist_json = json.dumps(cum_dist)
     cum_time_json = json.dumps(cum_time)
+    # 11.09.2026 — absolute Zeit je Punkt + Zeitzone (Datum/Uhrzeit-Felder).
+    _ep = [_zeit.epoch_von_iso(getattr(p, "time", None)) for p in ds_points]
+    _ep_da = [e for e in _ep if e is not None]
+    _e1, _e2 = (_ep_da[0], _ep_da[-1]) if _ep_da else (None, None)
+    _mid = ds_points[len(ds_points) // 2] if ds_points else None
+    _tzn = getattr(cfg, "tz_name", "") or _zeit.zone_fuer(getattr(_mid, "lat", None), getattr(_mid, "lon", None))
+    _tz_off = _zeit.offset_min(_tzn, _e1)
+    epoch_json = json.dumps(_ep)
+    tz_off_json = json.dumps(_tz_off)
+    lang_json = json.dumps(getattr(cfg, "ui_lang", "") or "de")
+    zeit_js = _zeit.JS_FORMATE
     # v0.9.435 — Mehrfarbiger Track: Helper + Konstanten fürs Render-Template.
     # Quelle bestimmt, wonach eingefärbt wird (Distanz/Höhe/Tempo). Stop-Wert unter
     # "v" (Legacy: "km"). Stops nach Wert sortieren; bei Distanz Wert 0 mit line_color
@@ -2350,6 +2374,8 @@ def _make_html(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist: list[
     sensor_series_json = _overlay_sensor_series_json(
         ds_points, getattr(cfg, "overlay_live_fields", None), extra_keys=_color_extra)
     total_stats = dict(total_stats)
+    total_stats.update({"start_epoch": _e1, "end_epoch": _e2, "tz_offset_min": _tz_off,
+                        "lang": getattr(cfg, "ui_lang", "") or "de"})
     # v0.9.324 — Max-Tempo + Fahrzeit kommen aus den VOLL aufgelösten Track-Stats
     # (TrackStats.max_speed_kmh/moving_time_s). Die ds_points-Werte sind nur
     # Fallback, falls der Aufrufer sie nicht mitliefert — Downsampling würde
@@ -2981,6 +3007,9 @@ const cumGeoM = (() => {{
 const elevations = {elevations_json};
 const cumDistM = {cum_dist_json};
 const cumTimeS = {cum_time_json};
+const epochS = {epoch_json};   // 11.09.2026 — absolute Zeit je Punkt (Datum/Uhrzeit-Felder)
+const TZ_OFF_MIN = {tz_off_json};
+const DATE_LANG = {lang_json};
 const speedKmh = {speed_json};   // v0.9.321 — Stats-Editor: Pro-Punkt-Tempo
 const gradePct = {grade_json};   // v0.9.321 — Pro-Punkt-Steigung %
 const sensorSeries = {sensor_series_json};   // v0.9.330 — FIT-Sensorwerte pro Punkt (key → [werte])
@@ -3102,6 +3131,7 @@ function swarmDoneM(idx) {{
 const TOTAL_TIME_S = cumTimeS.length ? cumTimeS[cumTimeS.length - 1] : 0;
 function fmtKmJS(km){{ return km < 100 ? km.toFixed(1)+' km' : km.toFixed(0)+' km'; }}
 function fmtDurJS(sec){{ sec=Math.max(0,Math.floor(sec)); var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60,p=function(n){{return n<10?'0'+n:''+n;}}; return h>0?h+':'+p(m)+':'+p(s):p(m)+':'+p(s); }}
+{zeit_js}
 const totalPoints = allCoords.length;
 const SHOW_OVERLAYS = {str(cfg.show_overlays).lower()};
 // v0.9.55 (Marc): Pre-Trim-Sichtbarkeit. Wenn False, startet die gezeichnete
@@ -4042,6 +4072,17 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     total_desc_json = json.dumps(round(float(total_stats.get("descent_m") or 0), 1))
     cum_dist_json = json.dumps(cum_dist)
     cum_time_json = json.dumps(cum_time)
+    # 11.09.2026 — absolute Zeit je Punkt + Zeitzone (Datum/Uhrzeit-Felder).
+    _ep = [_zeit.epoch_von_iso(getattr(p, "time", None)) for p in ds_points]
+    _ep_da = [e for e in _ep if e is not None]
+    _e1, _e2 = (_ep_da[0], _ep_da[-1]) if _ep_da else (None, None)
+    _mid = ds_points[len(ds_points) // 2] if ds_points else None
+    _tzn = getattr(cfg, "tz_name", "") or _zeit.zone_fuer(getattr(_mid, "lat", None), getattr(_mid, "lon", None))
+    _tz_off = _zeit.offset_min(_tzn, _e1)
+    epoch_json = json.dumps(_ep)
+    tz_off_json = json.dumps(_tz_off)
+    lang_json = json.dumps(getattr(cfg, "ui_lang", "") or "de")
+    zeit_js = _zeit.JS_FORMATE
     ele_min = min(eles)
     ele_max = max(eles)
     min_lon, min_lat, max_lon, max_lat = bbox
@@ -4066,6 +4107,8 @@ def _make_html_alpha(cfg: AnimatorConfig, ds_points: list[TrackPoint], cum_dist:
     grade_json = json.dumps([round(x, 2) for x in grade_pct])
     sensor_series_json = _overlay_sensor_series_json(ds_points, getattr(cfg, "overlay_live_fields", None))
     total_stats = dict(total_stats)
+    total_stats.update({"start_epoch": _e1, "end_epoch": _e2, "tz_offset_min": _tz_off,
+                        "lang": getattr(cfg, "ui_lang", "") or "de"})
     # v0.9.324 — Max-Tempo + Fahrzeit kommen aus den VOLL aufgelösten Track-Stats
     # (TrackStats.max_speed_kmh/moving_time_s). Die ds_points-Werte sind nur
     # Fallback, falls der Aufrufer sie nicht mitliefert — Downsampling würde
@@ -4191,6 +4234,9 @@ const cumGeoM = (() => {{
 const elevations = {elevations_json};
 const cumDistM = {cum_dist_json};
 const cumTimeS = {cum_time_json};
+const epochS = {epoch_json};   // 11.09.2026 — absolute Zeit je Punkt (Datum/Uhrzeit-Felder)
+const TZ_OFF_MIN = {tz_off_json};
+const DATE_LANG = {lang_json};
 const speedKmh = {speed_json};   // v0.9.321 — Stats-Editor: Pro-Punkt-Tempo
 const gradePct = {grade_json};   // v0.9.321 — Pro-Punkt-Steigung %
 const sensorSeries = {sensor_series_json};   // v0.9.330 — FIT-Sensorwerte pro Punkt (key → [werte])
@@ -4215,6 +4261,7 @@ const TOTAL_DIST_M = cumDistM.length ? cumDistM[cumDistM.length - 1] : 0;
 const TOTAL_TIME_S = cumTimeS.length ? cumTimeS[cumTimeS.length - 1] : 0;
 function fmtKmJS(km){{ return km < 100 ? km.toFixed(1)+' km' : km.toFixed(0)+' km'; }}
 function fmtDurJS(sec){{ sec=Math.max(0,Math.floor(sec)); var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60,p=function(n){{return n<10?'0'+n:''+n;}}; return h>0?h+':'+p(m)+':'+p(s):p(m)+':'+p(s); }}
+{zeit_js}
 const totalPoints = allCoords.length;
 const SHOW_OVERLAYS = {str(cfg.show_overlays).lower()};
 // v0.9.55 (Marc): Pre-Trim-Sichtbarkeit. Wenn False, startet die gezeichnete

@@ -12534,6 +12534,8 @@ function mountAnimator(body, headerActions, opts) {
       { id: "dist_done", req: "none" }, { id: "dist_left", req: "none" },
       { id: "speed", req: "time" }, { id: "time_elapsed", req: "time" }, { id: "time_left", req: "time" },
       { id: "ele_now", req: "ele" }, { id: "grade", req: "ele" },
+      // 11.09.2026 (Marc) — Datum & Uhrzeit am aktuellen Punkt.
+      { id: "datetime_now", req: "time" }, { id: "time_now", req: "time" },
       // 29.08.2026 (Marc) — kumulierte Höhenmeter bis zum aktuellen Punkt.
       { id: "asc_done", req: "ele" }, { id: "desc_done", req: "ele" },
       // 23.08.2026 — Etappen-Werte (nur bei zusammengeführten Touren). SYNCHRON
@@ -12545,6 +12547,7 @@ function mountAnimator(body, headerActions, opts) {
     ],
     totals: [
       { id: "dist_total", req: "none" }, { id: "duration", req: "time" },
+      { id: "date", req: "time" }, { id: "time_span", req: "time" },   // 11.09.2026 — Datum (Zeitraum), Uhrzeit von–bis
       { id: "moving_time", req: "time" }, { id: "avg_speed", req: "time" }, { id: "avg_speed_total", req: "time" }, { id: "max_speed", req: "time" },
       { id: "elev_gain", req: "ele" }, { id: "elev_loss", req: "ele" },
       { id: "ele_high", req: "ele" }, { id: "ele_low", req: "ele" },
@@ -12563,6 +12566,7 @@ function mountAnimator(body, headerActions, opts) {
     asc_done: "Bergauf bisher", desc_done: "Bergab bisher",
     dist_total: "Strecke", duration: "Zeit", moving_time: "Bewegungszeit", avg_speed: "Ø Tempo", avg_speed_total: "Ø Tempo (gesamt)", max_speed: "Max. Tempo",
     elev_gain: "Bergauf", elev_loss: "Bergab", ele_high: "Höchster Punkt", ele_low: "Tiefster Punkt",
+    date: "Datum", time_span: "Uhrzeit", datetime_now: "Datum & Uhrzeit", time_now: "Uhrzeit",
   };
   // v0.9.330 — FIT-Sensorfelder dynamisch an den Live-Katalog anhängen (id = "sensor:<key>").
   const _ovSensorMeta = (key) => (_ovSensorFields || []).find(f => f.key === key);
@@ -12789,7 +12793,14 @@ function mountAnimator(body, headerActions, opts) {
     const avgTotal = dur > 0 ? (km / (dur / 3600)) : 0;
     const avgMov = movS > 0 ? (km / (movS / 3600)) : 0;
     const lastEle = (_gpxElevations && _gpxElevations.length) ? Math.round(_gpxElevations[_gpxElevations.length - 1]) : (s.ele_max != null ? Math.round(s.ele_max) : null);
+    // 11.09.2026 — Datum/Uhrzeit aus den Zeitreihen (Zeitzone der Tour, s. core/zeitzone).
+    const _sr = _ovSeries || {};
+    const _off = _sr.tz_offset_min || 0, _lang = _sr.lang || "de";
     switch (id) {
+      case "date": return fmtDateRangeJS(_sr.start_epoch, _sr.end_epoch, _off, _lang);
+      case "time_span": return fmtTimeSpanJS(_sr.start_epoch, _sr.end_epoch, _off);
+      case "datetime_now": return fmtDateTimeJS(_sr.end_epoch, _off, _lang);
+      case "time_now": return fmtTimeJS(_sr.end_epoch, _off);
       case "dist_done": case "dist_total": return _ovFmtKm(km);
       case "dist_left": return _ovFmtKm(0);
       case "speed": case "avg_speed": return avgMov.toFixed(1) + " km/h";
@@ -12906,6 +12917,8 @@ function mountAnimator(body, headerActions, opts) {
           case "time_elapsed": if (sr.has_time) v = _ovFmtDur(sr.cumTimeS[i] + (_sw ? _sw.tzeit : 0)); break;
           case "time_left": if (sr.has_time) v = _ovFmtDur(Math.max(0, totT - sr.cumTimeS[i])); break;
           case "ele_now": if (sr.has_ele) v = Math.round(sr.ele[i]) + " m"; break;
+          case "datetime_now": if (sr.has_time && sr.epochS) v = fmtDateTimeJS(sr.epochS[i], sr.tz_offset_min || 0, sr.lang || "de"); break;
+          case "time_now": if (sr.has_time && sr.epochS) v = fmtTimeJS(sr.epochS[i], sr.tz_offset_min || 0); break;
           case "asc_done": if (sr.has_ele) v = "↑ " + Math.round(_ovCumHm(sr).asc[i] + (_sw ? _sw.asc : 0)) + " m"; break;
           // 29.08.2026 (Marc: „noch unterwegs funktioniert nicht") — das Feld
           // hatte in der VORSCHAU keinen Rechen-Fall (nur im Render). Spiegel

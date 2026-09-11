@@ -3311,5 +3311,9 @@
   "signs.highlights_wait": "OpenStreetMap a veces responde despacio: hasta un minuto, con servidor de reserva.",
   "assistent.s_tiefster": "Punto más bajo",
   "assistent.s_schnellster": "Tramo más rápido",
-  "assistent.s_steilster": "Tramo más empinado"
+  "assistent.s_steilster": "Tramo más empinado",
+  "animator.statsfield.date": "Fecha",
+  "animator.statsfield.time_span": "Hora",
+  "animator.statsfield.datetime_now": "Fecha y hora",
+  "animator.statsfield.time_now": "Hora"
 }

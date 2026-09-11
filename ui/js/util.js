@@ -3860,3 +3860,42 @@ window.rzTrackCheckHinweis = async function(path) {
   try { if (window.applog) window.applog("info", "[track-check] Hinweis beim Laden: " + r.marke + " " + (r.befunde || []).map(b => b.key + ":" + b.n).join(" ")); } catch (_) {}
   return true;
 };
+
+/* ── 11.09.2026 — Datum/Uhrzeit-Formate, SPIEGEL von core/zeitzone.JS_FORMATE (Test prüft Gleichheit) ── */
+function _rzLokal(epoch, offMin){ return new Date((epoch + (offMin||0)*60) * 1000); }
+function _rz2(n){ return n < 10 ? '0' + n : '' + n; }
+var _RZ_MON_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDateJS(epoch, offMin, lang){
+  if (epoch == null) return '—';
+  var d = _rzLokal(epoch, offMin), D = d.getUTCDate(), M = d.getUTCMonth(), Y = d.getUTCFullYear();
+  if (lang === 'en') return D + ' ' + _RZ_MON_EN[M] + ' ' + Y;
+  if (lang === 'es') return _rz2(D) + '/' + _rz2(M + 1) + '/' + Y;
+  return _rz2(D) + '.' + _rz2(M + 1) + '.' + Y;
+}
+function fmtTimeJS(epoch, offMin){
+  if (epoch == null) return '—';
+  var d = _rzLokal(epoch, offMin);
+  return _rz2(d.getUTCHours()) + ':' + _rz2(d.getUTCMinutes());
+}
+function fmtDateTimeJS(epoch, offMin, lang){ return epoch == null ? '—' : fmtDateJS(epoch, offMin, lang) + ' ' + fmtTimeJS(epoch, offMin); }
+function fmtDateRangeJS(e1, e2, offMin, lang){
+  if (e1 == null) return '—';
+  if (e2 == null) return fmtDateJS(e1, offMin, lang);
+  var a = _rzLokal(e1, offMin), b = _rzLokal(e2, offMin);
+  var aD = a.getUTCDate(), aM = a.getUTCMonth(), aY = a.getUTCFullYear(), bD = b.getUTCDate(), bM = b.getUTCMonth(), bY = b.getUTCFullYear();
+  if (aY === bY && aM === bM && aD === bD) return fmtDateJS(e1, offMin, lang);
+  if (lang === 'en') {
+    if (aY === bY && aM === bM) return aD + '–' + bD + ' ' + _RZ_MON_EN[aM] + ' ' + aY;
+    if (aY === bY) return aD + ' ' + _RZ_MON_EN[aM] + ' – ' + bD + ' ' + _RZ_MON_EN[bM] + ' ' + aY;
+    return fmtDateJS(e1, offMin, lang) + ' – ' + fmtDateJS(e2, offMin, lang);
+  }
+  if (lang === 'es') {
+    if (aY === bY && aM === bM) return _rz2(aD) + '–' + _rz2(bD) + '/' + _rz2(aM + 1) + '/' + aY;
+    if (aY === bY) return _rz2(aD) + '/' + _rz2(aM + 1) + ' – ' + _rz2(bD) + '/' + _rz2(bM + 1) + '/' + aY;
+    return fmtDateJS(e1, offMin, lang) + ' – ' + fmtDateJS(e2, offMin, lang);
+  }
+  if (aY === bY && aM === bM) return _rz2(aD) + '.–' + _rz2(bD) + '.' + _rz2(aM + 1) + '.' + aY;
+  if (aY === bY) return _rz2(aD) + '.' + _rz2(aM + 1) + '.–' + _rz2(bD) + '.' + _rz2(bM + 1) + '.' + aY;
+  return fmtDateJS(e1, offMin, lang) + ' – ' + fmtDateJS(e2, offMin, lang);
+}
+function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == null) return fmtTimeJS(e1, offMin); return fmtTimeJS(e1, offMin) + ' – ' + fmtTimeJS(e2, offMin); }
