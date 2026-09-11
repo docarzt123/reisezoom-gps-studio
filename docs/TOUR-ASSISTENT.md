@@ -172,6 +172,10 @@ Fortschritt als Zeilenliste im Fenster („Track geprüft: 2 Sprünge, 1 Lücke 
   Archiv-Auswahl ist sortiert genug); eine Datei von außen geht zuerst ins Archiv. Tests:
   `tests/test_assistent.py` (Wegwerf-Archiv), Browser-Schritt in `scripts/selftest_vorlagen.py`.
   Nicht in der echten App geprüft; Lücken-Routing braucht Netz (im Test keins → gerade gefüllt).
+- 11.09.2026 (Nachmittag): **Stufe 3 vorgezogen** (Marc: „lass erst mal nur POIs mit Schildern markieren") —
+  `core/highlights.py`, Häkchen im Assistenten. Abweichung von §4: Schilder ohne Foto (Fotos = Stufe 2, offen);
+  Highlight-Arten fest in `ARTEN`, noch nicht in der Vorlage. Praxis an vier Archiv-Touren: Gipfel mit Höhe,
+  Miradores, Burg, Kunst am Weg — 1–10 Treffer je Tour in ~3 s.
 - 11.09.2026: Spezifikation geschrieben. **Stufe 0 (Vorlagen) gebaut** (v0.9.689 lokal): `core/vorlagen.py`,
   Brücken, Archiv-Reiter, 🧩 auf der Projekt-Kachel, Kopfzeilen-Menü, Vorlagen-Feld bei „Neues Projekt“,
   Migration der alten `user_defaults`, Undo im Archiv und im Modul. Tests: Kern (49), Brücken (28), Browser (38).

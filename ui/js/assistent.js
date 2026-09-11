@@ -30,6 +30,7 @@
           ${window.rzVorlageAuswahlHtml(liste, standard, "ass-vorlage")}</label>
         <label class="vorl-feld">${tt("assistent.name", "Projektname")}
           <input type="text" id="ass-name" class="lib-input" value="${esc(pfad ? pfad.split("/").pop().replace(/\.[^.]+$/, "") : "")}" placeholder="${esc(tt("assistent.name_ph", "leer = Name der Tour"))}"></label>
+        <label class="check-row vorl-feld"><input type="checkbox" id="ass-highlights" checked> ${tt("assistent.highlights", "Highlights als Schilder setzen (Gipfel, Aussichtspunkte, Hütten, Burgen … aus OpenStreetMap; Start und Ziel mit Ortsname)")}</label>
         <ol class="ass-schritte" id="ass-schritte" hidden></ol>
         <div class="lib-hint" id="ass-fehler" hidden></div>`,
       footer: `<button class="btn" id="ass-ab">${tt("common.cancel", "Abbrechen")}</button>
@@ -41,7 +42,7 @@
     // den Rumpf aus HTML neu auf, die Ereignis-Handler sind weg (Marc: „ich kann Los
     // nicht klicken"). Deshalb hängt ALLES an `wire()`, das openModal über
     // `restorePrevious` nach jedem Zurückholen erneut ruft. Zustand lebt in Variablen.
-    let vid = standard, name = pfad ? pfad.split("/").pop().replace(/\.[^.]+$/, "") : "";
+    let vid = standard, name = pfad ? pfad.split("/").pop().replace(/\.[^.]+$/, "") : "", highlights = true;
     let laeuft = false;
     const $ = (id) => document.getElementById(id);
     function wire() {
@@ -50,6 +51,7 @@
       if (nameEl) { nameEl.value = name; nameEl.oninput = () => { name = nameEl.value; }; }
       if (sel) { sel.value = vid; if (sel.value !== vid) vid = sel.value; sel.onchange = () => { vid = sel.value; }; }
       if (los) los.disabled = !pfad || laeuft;
+      const hl = $("ass-highlights"); if (hl) { hl.checked = highlights; hl.onchange = () => { highlights = hl.checked; }; }
       const ba = $("ass-track-archiv"), bd = $("ass-track-datei"), ab = $("ass-ab");
       const setzePfad = (p) => {
         pfad = p || "";
@@ -75,7 +77,7 @@
       if (ol) { ol.hidden = false; ol.innerHTML = `<li class="ass-lauf">⏳ ${esc(tt("assistent.laeuft", "Track wird geprüft und repariert …"))}</li>`; }
       if (fe) fe.hidden = true;
       let r;
-      try { r = await api().assistent_lauf(pfad, vid, name.trim()); } catch (e) { r = { ok: false, error: String(e), schritte: [] }; }
+      try { r = await api().assistent_lauf(pfad, vid, name.trim(), highlights); } catch (e) { r = { ok: false, error: String(e), schritte: [] }; }
       if (ol) ol.innerHTML = (r && r.schritte || []).map(s => `<li class="${s.ok ? "ok" : "fehl"}">${s.ok ? "✅" : "⚠️"} ${esc(s.text)}</li>`).join("");
       if (!r || !r.ok) {
         if (fe) { fe.hidden = false; fe.textContent = tt("assistent.fehler", "Abgebrochen: {e}").replace("{e}", (r && r.error) || "?"); }

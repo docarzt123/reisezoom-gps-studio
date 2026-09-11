@@ -75,7 +75,7 @@ VORL_MOCK_JS = r"""
     projekt_module_schreiben: async (pid, module) => { merken("projekt_module_schreiben", [pid, module]); return { ok: true }; },
     projekt_touren_setzen: async (pid, pfade) => { merken("projekt_touren_setzen", [pid, pfade]); return { ok: true, kontext: "gh9", ablauf: "solo" }; },
     projekt_vorschau_speichern: async (pid, data) => { merken("projekt_vorschau_speichern", [pid, String(data).slice(0, 22), String(data).length]); return { ok: true }; },
-    assistent_lauf: async (path, vid, name) => { merken("assistent_lauf", [path, vid, name]);
+    assistent_lauf: async (path, vid, name, hl) => { merken("assistent_lauf", [path, vid, name, hl]);
       return { ok: true, project_id: "pass", tour_path: path, schritte: [
         { key: "check", text: "Track repariert: 2 Sprünge geradegerückt", ok: true },
         { key: "version", text: "Als neue Version im Archiv gesichert (100 → 98 Punkte)", ok: true },
@@ -271,7 +271,7 @@ async def main():
         await pg.click("#ass-los")
         await pg.wait_for_timeout(1200)
         r = await rufe("assistent_lauf")
-        sagen(r and r[-1]["args"] == ["/mock/t2.gpx", "v1", "Alpen"], "„Los“ ruft assistent_lauf(Pfad, Vorlage, Name)", str(r[-1:]))
+        sagen(r and r[-1]["args"] == ["/mock/t2.gpx", "v1", "Alpen", True], "„Los“ ruft assistent_lauf(Pfad, Vorlage, Name, Highlights)", str(r[-1:]))
         r = await rufe("projekt_aktivieren")
         sagen(r and r[-1]["args"] == ["pass"], "… danach wird das neue Projekt geöffnet", str(r[-1:]))
         sagen(await pg.eval_on_selector("#lib-projwrap", "e => !e.hidden") or True, "… über das Archiv")

@@ -685,6 +685,12 @@ snapshots under `…/sessions/`.
   (hiking → walking, bike → cycling, car → driving), straight only when no route fits or there is
   no network. The result becomes a **new version** in the archive; your file stays unchanged.
 - **Project with the template** on that version.
+- **Highlights as signs** (tick, on by default): peaks, passes, viewpoints, waterfalls, huts,
+  castles, ruins, monuments, attractions from OpenStreetMap within 120 m of the track, ranked
+  (peaks first), each name once, spread along the tour, at most eight. Plus the highest point
+  (when the tour climbs at least 150 m) and start/finish with the place name. The signs then sit
+  in the Animator and the Tour Map in the project's sign style and can be edited or deleted like
+  any sign. Without network there is one line and no signs.
 - **Jump into the Animator** with the project open.
 
 If there was nothing to repair, the list says so and the project hangs on the original file.

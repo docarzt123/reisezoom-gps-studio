@@ -692,6 +692,12 @@ de las versiones en `…/sessions/`.
   si no hay ruta o no hay red. El resultado es una **nueva versión** en el archivo; tu fichero no
   cambia.
 - **Proyecto con la plantilla** sobre esa versión.
+- **Puntos destacados como carteles** (casilla, activada por defecto): cumbres, puertos, miradores,
+  cascadas, refugios, castillos, ruinas, monumentos, atracciones de OpenStreetMap a 120 m del
+  track, ordenados (cumbres primero), cada nombre una vez, repartidos por la ruta, máximo ocho.
+  Además el punto más alto (si la ruta sube al menos 150 m) y salida/meta con el nombre del lugar.
+  Los carteles quedan en el Animador y el Tour Map con el estilo de carteles del proyecto y se
+  editan o borran como cualquier cartel. Sin red hay una línea y ningún cartel.
 - **Salto al Animador** con el proyecto abierto.
 
 Si no había nada que reparar, la lista lo dice y el proyecto queda ligado al fichero original.

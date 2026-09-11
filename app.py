@@ -2022,7 +2022,49 @@ class Api:
         pts[a + 1:b] = neu
         return len(neu)
 
-    def assistent_lauf(self, path: str, vorlage_id: str = "", name: str = "") -> dict:
+    def _assistent_highlights(self, pid: str, pts: list, T, zeile) -> None:
+        """Stufe 3 (Marc: „erst mal nur POIs mit Schildern markieren"): Highlights aus
+        OSM + höchster Punkt + Start/Ziel mit Ortsnamen → Schilder im Projekt."""
+        from core import highlights as chl
+        from core import geocode as cgeocode
+        try:
+            res = chl.highlights_fuer_track(pts)
+            if not res["pois"] and not res["netz"]:
+                zeile("highlights", T("assistent.s_hl_netz", "Highlights: OpenStreetMap nicht erreichbar — keine Schilder"), ok=False)
+                return
+            def ort(p):
+                try:
+                    a = cgeocode.reverse(float(p["lat"]), float(p["lon"]), provider="photon", lang=_ui_sprache())
+                    return (a or {}).get("city") or ""
+                except Exception:  # noqa: BLE001
+                    return ""
+            start = ort(pts[0]) if pts else ""
+            ziel = ort(pts[-1]) if pts else ""
+            s_txt = (T("assistent.s_start", "Start") + ("\n" + start if start else "")) if pts else ""
+            z_txt = (T("assistent.s_ziel", "Ziel") + ("\n" + ziel if ziel else "")) if pts else ""
+            daten = _projekte.laden(DATEN_ORT)
+            p = (daten.get("projects") or {}).get(pid)
+            if not p:
+                return
+            a = p.get("animator") or {}
+            stil = {"style": a.get("signs_style") or "signpost", "color": a.get("line_color") or "#ff6b35"}
+            schilder = chl.schilder_bauen(res["gewaehlt"], stil=stil,
+                                          hoechster_label=T("assistent.s_hoechster", "Höchster Punkt"),
+                                          start=s_txt, ziel=z_txt, points=pts)
+            p["signs"] = schilder
+            p["tourmap_signs"] = json.loads(json.dumps(schilder))
+            _projekte._angefasst(p)
+            _projekte.speichern(DATEN_ORT, daten)
+            zeile("highlights", T("assistent.s_hl", "{n} Highlights als Schilder: {liste}")
+                  .replace("{n}", str(len(res["gewaehlt"])))
+                  .replace("{liste}", chl.kurzliste(res["gewaehlt"], T("assistent.s_hoechster", "Höchster Punkt")) or "—")
+                  + (f" · {start} → {ziel}" if (start or ziel) else ""))
+        except Exception as e:  # noqa: BLE001
+            log.warning("[assistent] Highlights: %s", e)
+            zeile("highlights", T("assistent.s_hl_fehler", "Highlights: {e}").replace("{e}", str(e)), ok=False)
+
+    def assistent_lauf(self, path: str, vorlage_id: str = "", name: str = "",
+                       highlights: bool = True) -> dict:
         """Tour-Assistent Stufe 1: Track-Check-Reparatur (rot + gelb, „Ist so in
         Ordnung" bleibt), Lücken entlang der Wege nach Fortbewegungsart, Ergebnis
         als neue Version im Archiv, ein Projekt mit der Vorlage, fertig für den
@@ -2065,6 +2107,7 @@ class Api:
                        if trackcheck.STUFEN.get(b.get("key")) in ("rot", "gelb")
                        and b.get("key") not in ok_liste and b.get("key") in gpxheal.SCHRITTE]
             tour_path = pfad
+            pts = []
             if not befunde:
                 zeile("check", T("assistent.s_check_ok", "Track geprüft: nichts zu reparieren"))
             else:
@@ -2129,6 +2172,10 @@ class Api:
             vd = self._vorlagen_laden()
             v = self._vorlage_holen(vd, vorlage_id or "") or {}
             zeile("projekt", T("assistent.s_projekt", "Projekt „{p}“ mit Vorlage „{v}“ angelegt").replace("{p}", (pr.get("active_project") or {}).get("name", "")).replace("{v}", str(v.get("name") or "")))
+            if highlights:
+                hl_pts = pts if befunde else list(((self.gpxinspect_load(tour_path) or {}).get("points")) or [])
+                if hl_pts:
+                    self._assistent_highlights(pid, hl_pts, T, zeile)
             log.info("[assistent] %s → Projekt %s (%d Schritte)", Path(pfad).name, pid, len(zeilen))
             return {"ok": True, "project_id": pid, "tour_path": tour_path, "schritte": zeilen}
         except Exception as e:
