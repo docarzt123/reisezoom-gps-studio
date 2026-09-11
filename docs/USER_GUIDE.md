@@ -748,8 +748,9 @@ Fassungen unter `…/sessions/`.
   bleibt unverändert.
 - **Projekt mit der Vorlage** auf dieser Version.
 - **Highlights als Schilder** (Häkchen, Standard an): Gipfel, Pässe, Aussichtspunkte, Wasserfälle,
-  Hütten, Burgen, Ruinen, Denkmäler, Sehenswürdigkeiten aus OpenStreetMap im Korridor von 120 m um
-  den Track, geordnet (Gipfel zuerst), jeder Name einmal, über die Tour verteilt, höchstens acht.
+  Hütten, Burgen, Ruinen, Denkmäler, Sehenswürdigkeiten und Seen (am Ufer) aus OpenStreetMap im
+  Korridor von 120 m um den Track; Dörfer bis 400 m füllen Lücken. Geordnet (Gipfel zuerst, Nahes vor
+  Fernem), jeder Name einmal, über die Tour verteilt, je 5 km eines, acht bis sechzehn.
   Dazu der höchste Punkt (wenn die Tour mindestens 150 m steigt) und Start/Ziel mit Ortsname.
   Die Schilder stehen danach in Animator und Tour-Map im Schilder-Stil des Projekts und lassen sich
   dort wie jedes Schild ändern oder löschen. Ohne Netz gibt es eine Zeile und keine Schilder.

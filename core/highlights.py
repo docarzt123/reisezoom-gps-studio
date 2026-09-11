@@ -35,8 +35,9 @@ from . import net as cnet
 log = logging.getLogger("core.highlights")
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-KORRIDOR_M = 400.0          # so weit darf ein Ort neben dem Track liegen (11.09.2026: 120 war zu eng — Schloss 344 m, Aussicht 173 m);
-                            # der Abstand zählt in der Bewertung (Rang + m/150), Nahes gewinnt
+KORRIDOR_M = 120.0          # so weit darf ein Ort neben dem Track liegen (Marc: „120 m passen schon — dann war da halt nix")
+ORT_KORRIDOR_M = 400.0      # Dörfer/Städte: der Mittelpunkt liegt selten am Weg — weiter, und sie füllen nur Lücken
+SEE_KORRIDOR_M = 60.0       # Seen: Abstand zum UFER (Rechteck der Fläche), nicht zur Mitte
 MAX_POLYLINE_PUNKTE = 200   # (für _polylinie; die Abfrage nutzt seit 11.09.2026 die Bounding-Box)
 OVERPASS_TIMEOUT_S = 20     # Server-Limit; der Client wartet 5 s länger
 MAX_SCHILDER = 8            # Untergrenze; je 5 km ein Schild, höchstens MAX_SCHILDER_LANG
@@ -68,9 +69,12 @@ ARTEN = {
     ("tourism", "museum"): ("museum", 4, "🏛"),
     ("man_made", "lighthouse"): ("leuchtturm", 2, "🗼"),
     ("man_made", "tower"): ("turm", 5, "🗼"),
+    ("natural", "water"): ("see", 2, "🌊"),       # nur Seen/Teiche (Flüsse/Kanäle werden ausgesiebt)
+    ("place", "town"): ("ort", 6, "🏘"),
     ("place", "village"): ("ort", 6, "🏘"),
     ("place", "hamlet"): ("ort", 7, "🏘"),
 }
+KEIN_SEE = {"river", "canal", "stream", "ditch", "drain", "wastewater", "basin", "moat"}
 
 
 def _haversine_m(lat1, lon1, lat2, lon2) -> float:
@@ -117,7 +121,8 @@ def overpass_abfrage(points: List[dict], radius_m: float = KORRIDOR_M) -> str:
     bbox = f"{s:.5f},{w:.5f},{n:.5f},{e:.5f}"
     gross = (n - s) * (e - w) > BBOX_GROSS_GRAD2
     zeilen = [f'nwr["{k}"="{v}"]["name"]({bbox});' for (k, v) in ARTEN if not (gross and k == "place")]
-    return f"[out:json][timeout:{OVERPASS_TIMEOUT_S}];(" + "".join(zeilen) + ");out center tags;"
+    # `bb` = Rechteck der Fläche (Seen: Abstand zum Ufer), `center` für Punkte/Wege
+    return f"[out:json][timeout:{OVERPASS_TIMEOUT_S}];(" + "".join(zeilen) + ");out center bb tags;"
 
 
 #: Reihenfolge der Versuche: Hauptserver, noch einmal Hauptserver, dann Spiegel.
@@ -170,7 +175,13 @@ def osm_pois(points: List[dict], *, radius_m: float = KORRIDOR_M,
             continue
         lat = el.get("lat", (el.get("center") or {}).get("lat"))
         lon = el.get("lon", (el.get("center") or {}).get("lon"))
+        bounds = el.get("bounds") if isinstance(el.get("bounds"), dict) else None
+        if (lat is None or lon is None) and bounds:
+            lat = (float(bounds["minlat"]) + float(bounds["maxlat"])) / 2
+            lon = (float(bounds["minlon"]) + float(bounds["maxlon"])) / 2
         if lat is None or lon is None:
+            continue
+        if tags.get("natural") == "water" and str(tags.get("water") or "").lower() in KEIN_SEE:
             continue
         art = None
         for (k, v), (a, rang, sym) in ARTEN.items():
@@ -187,8 +198,11 @@ def osm_pois(points: List[dict], *, radius_m: float = KORRIDOR_M,
             ele = float(str(tags.get("ele") or "").replace(",", ".").split()[0])
         except Exception:  # noqa: BLE001
             ele = None
-        out.append({"lat": float(lat), "lon": float(lon), "name": name, "art": art[0],
-                    "rang": art[1], "symbol": art[2], "ele": ele, "osm_id": el.get("id")})
+        eintrag = {"lat": float(lat), "lon": float(lon), "name": name, "art": art[0],
+                   "rang": art[1], "symbol": art[2], "ele": ele, "osm_id": el.get("id")}
+        if bounds and art[0] == "see":
+            eintrag["bounds"] = {k: float(bounds[k]) for k in ("minlat", "minlon", "maxlat", "maxlon")}
+        out.append(eintrag)
     return out
 
 
@@ -242,10 +256,27 @@ def max_schilder_fuer(laenge_m: float) -> int:
     return int(max(MAX_SCHILDER, min(MAX_SCHILDER_LANG, round(laenge_m / 5000.0))))
 
 
+def _naechster_index_rechteck(points: List[dict], b: dict) -> tuple[int, float]:
+    """Nächster Trackpunkt zum Rechteck (Seen: Ufer statt Mitte)."""
+    n = len(points)
+    if n == 0:
+        return -1, float("inf")
+    schritt = max(1, n // 2000)
+    bi, bd = -1, float("inf")
+    for i in range(0, n, schritt):
+        p = points[i]
+        la = min(max(float(p["lat"]), b["minlat"]), b["maxlat"])
+        lo = min(max(float(p["lon"]), b["minlon"]), b["maxlon"])
+        d = _haversine_m(float(p["lat"]), float(p["lon"]), la, lo)
+        if d < bd:
+            bd, bi = d, i
+    return bi, bd
+
+
 def auswaehlen(points: List[dict], pois: List[dict], *, max_n: Optional[int] = None,
                radius_m: float = KORRIDOR_M, min_abstand_anteil: float = MIN_ABSTAND_ANTEIL) -> List[dict]:
-    # radius_m: Korridor beim Rasten an den Track. Bewertung = Rang + Abstand/100 m,
-    # damit ein Aussichtspunkt direkt am Weg vor einem 300 m entfernten steht.
+    # radius_m: Korridor beim Rasten an den Track (Orte: ORT_KORRIDOR_M, Seen: Ufer ≤ SEE_KORRIDOR_M).
+    # Bewertung = Rang + Abstand/100 m, damit Nahes vor Fernem steht.
     """Rang, Eindeutigkeit, Korridor, Verteilung. Liefert die gewählten POIs mit
     `idx` (Trackpunkt) und `frac` (Anteil der Strecke), nach Strecke sortiert."""
     n = len(points)
@@ -267,13 +298,21 @@ def auswaehlen(points: List[dict], pois: List[dict], *, max_n: Optional[int] = N
         if key in gesehen:
             continue
         if p.get("idx") is None:
-            idx, d = _naechster_index(points, p["lat"], p["lon"])
-            if idx < 0 or d > radius_m:
+            if p.get("art") == "see" and p.get("bounds"):
+                idx, d = _naechster_index_rechteck(points, p["bounds"])
+                grenze = SEE_KORRIDOR_M
+            else:
+                idx, d = _naechster_index(points, p["lat"], p["lon"])
+                grenze = ORT_KORRIDOR_M if p.get("art") == "ort" else radius_m
+            if idx < 0 or d > grenze:
                 continue
             p = dict(p, idx=idx, abstand_m=d)
+            if p.get("art") == "see":
+                # Das Schild steht am Weg, wo er dem See am nächsten kommt — nicht mitten im Wasser.
+                p["lat"], p["lon"] = float(points[idx]["lat"]), float(points[idx]["lon"])
         gesehen.add(key)
         p["frac"] = cum[p["idx"]] / ges
-        p["score"] = float(p.get("rang", 9)) + float(p.get("abstand_m", 0.0)) / 150.0
+        p["score"] = float(p.get("rang", 9)) + float(p.get("abstand_m", 0.0)) / 100.0
         kand.append(p)
 
     # Höchster Punkt nur, wenn OSM dort keinen Gipfel/Pass kennt
