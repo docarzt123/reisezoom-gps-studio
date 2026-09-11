@@ -42,7 +42,8 @@ MAX_POLYLINE_PUNKTE = 200   # (für _polylinie; die Abfrage nutzt seit 11.09.202
 OVERPASS_TIMEOUT_S = 20     # Server-Limit; der Client wartet 5 s länger
 MAX_SCHILDER = 8            # Untergrenze; je 5 km ein Schild, höchstens MAX_SCHILDER_LANG
 MAX_SCHILDER_LANG = 16
-MIN_ABSTAND_ANTEIL = 0.03   # zwischen zwei Schildern mindestens 3 % der Strecke
+MIN_ABSTAND_ANTEIL = 0.03   # zwischen zwei Schildern mindestens 3 % der Strecke …
+MIN_ABSTAND_M = 800.0       # … aber nie mehr als 800 m (70-km-Tour: sonst fielen die Track-Stellen weg)
 HUB_MIN_M = 150.0           # „Höchster Punkt" nur ab so viel Höhenunterschied
 
 #: OSM-Tags, die ein Highlight ausmachen → (Art, Rang: kleiner = wichtiger, Symbol)
@@ -207,6 +208,86 @@ def osm_pois(points: List[dict], *, radius_m: float = KORRIDOR_M,
 
 
 # ── 2) Track-eigene Highlights ─────────────────────────────────────────────
+#
+# Marc (11.09.2026): „sowas wie höchster Punkt, tiefster Punkt, höchste
+# Geschwindigkeit, stärkste Steigung". Alle Rang 3 (ein benannter Ort gewinnt),
+# Werte geglättet über ein Fenster, damit kein GPS-Sprung die schnellste Stelle wird.
+
+TRACK_ARTEN = {"hoechster": "⛰", "tiefster": "🕳", "schnellster": "🚀", "steilster": "📐"}
+TEMPO_FENSTER_S = 30.0      # Tempo über mindestens 30 s
+STEIGUNG_FENSTER_M = 100.0  # Steigung über mindestens 100 m
+TEMPO_MIN_KMH = 6.0         # darunter kein „schnellste Stelle"-Schild (Spaziergang)
+STEIGUNG_MIN_PCT = 8.0      # darunter kein „steilste Stelle"-Schild
+
+
+def _parse_t(s):
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(str(s).replace("Z", "+00:00")).timestamp() if s else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def track_highlights(points: List[dict]) -> List[dict]:
+    """Höchster/tiefster Punkt (nur bei ≥ HUB_MIN_M Höhenunterschied), schnellste
+    Stelle (Tempo über ≥ 30 s), steilste Stelle (Steigung über ≥ 100 m)."""
+    n = len(points)
+    if n < 3:
+        return []
+    out = []
+    eles = [(i, float(p["ele"])) for i, p in enumerate(points) if p.get("ele") is not None]
+    if eles:
+        hi = max(eles, key=lambda x: x[1]); lo = min(eles, key=lambda x: x[1])
+        if hi[1] - lo[1] >= HUB_MIN_M:
+            for art, (i, e) in (("hoechster", hi), ("tiefster", lo)):
+                out.append({"lat": float(points[i]["lat"]), "lon": float(points[i]["lon"]), "idx": i,
+                            "name": "", "art": art, "rang": 3, "symbol": TRACK_ARTEN[art], "ele": e, "wert": e})
+    # Strecke und Zeit kumuliert
+    cum = [0.0]
+    for i in range(1, n):
+        a, b = points[i - 1], points[i]
+        cum.append(cum[-1] + _haversine_m(float(a["lat"]), float(a["lon"]), float(b["lat"]), float(b["lon"])))
+    ts = [_parse_t(p.get("time")) for p in points]
+    if all(t is not None for t in ts) and ts[-1] - ts[0] > TEMPO_FENSTER_S:
+        best, bi = 0.0, -1
+        j = 0
+        for i in range(n):
+            while j < n and ts[j] - ts[i] < TEMPO_FENSTER_S:
+                j += 1
+            if j >= n:
+                break
+            dt = ts[j] - ts[i]
+            if dt > 0:
+                v = (cum[j] - cum[i]) / dt * 3.6
+                if v > best:
+                    best, bi = v, (i + j) // 2
+        if bi >= 0 and best >= TEMPO_MIN_KMH:
+            out.append({"lat": float(points[bi]["lat"]), "lon": float(points[bi]["lon"]), "idx": bi,
+                        "name": "", "art": "schnellster", "rang": 3, "symbol": TRACK_ARTEN["schnellster"],
+                        "ele": None, "wert": best})
+    if eles and len(eles) > 2 and cum[-1] > STEIGUNG_FENSTER_M:
+        el = {i: e for i, e in eles}
+        idx = [i for i, _ in eles]
+        best, bi = 0.0, -1
+        j = 0
+        for a in range(len(idx)):
+            i = idx[a]
+            while j < len(idx) and cum[idx[j]] - cum[i] < STEIGUNG_FENSTER_M:
+                j += 1
+            if j >= len(idx):
+                break
+            k = idx[j]
+            dd = cum[k] - cum[i]
+            if dd > 0:
+                g = (el[k] - el[i]) / dd * 100.0
+                if g > best:
+                    best, bi = g, (i + k) // 2
+        if bi >= 0 and best >= STEIGUNG_MIN_PCT:
+            out.append({"lat": float(points[bi]["lat"]), "lon": float(points[bi]["lon"]), "idx": bi,
+                        "name": "", "art": "steilster", "rang": 3, "symbol": TRACK_ARTEN["steilster"],
+                        "ele": None, "wert": best})
+    return out
+
 
 def hoechster_punkt(points: List[dict]) -> Optional[dict]:
     best, bi = None, -1
@@ -290,6 +371,7 @@ def auswaehlen(points: List[dict], pois: List[dict], *, max_n: Optional[int] = N
     ges = cum[-1] or 1.0
     if max_n is None:
         max_n = max_schilder_fuer(ges)
+    min_abstand_anteil = min(min_abstand_anteil, MIN_ABSTAND_M / ges)
 
     kand = []
     gesehen = set()
@@ -315,19 +397,18 @@ def auswaehlen(points: List[dict], pois: List[dict], *, max_n: Optional[int] = N
         p["score"] = float(p.get("rang", 9)) + float(p.get("abstand_m", 0.0)) / 100.0
         kand.append(p)
 
-    # Höchster Punkt nur, wenn OSM dort keinen Gipfel/Pass kennt
-    hp = hoechster_punkt(points)
-    if hp is not None:
-        eles = [float(p["ele"]) for p in points if p.get("ele") is not None]
-        hub = (max(eles) - min(eles)) if eles else 0.0
+    # Track-eigene Highlights: nicht am Rand, und der höchste Punkt nicht dort,
+    # wo OSM schon einen Gipfel/Pass kennt.
+    for hp in track_highlights(points):
         frac = cum[hp["idx"]] / ges
-        # Nur, wenn die Tour wirklich hinaufgeht (sonst „Höchster Punkt" auf dem
-        # Dorfspaziergang), nicht am Rand, und nicht dort, wo OSM schon einen Gipfel kennt.
-        if hub >= HUB_MIN_M and 0.05 < frac < 0.95 and not any(
+        if not (0.03 < frac < 0.97):
+            continue
+        if hp["art"] == "hoechster" and any(
                 k.get("art") in ("gipfel", "pass") and abs(k["frac"] - frac) * ges < 300 for k in kand):
-            hp["frac"] = frac
-            hp["score"] = float(hp["rang"])
-            kand.append(hp)
+            continue
+        hp["frac"] = frac
+        hp["score"] = float(hp["rang"])
+        kand.append(hp)
 
     # Verteilen: nach Rang nehmen, aber Mindestabstand entlang der Strecke halten
     gewaehlt: List[dict] = []
@@ -354,12 +435,27 @@ SCHILD_BASIS = {
 }
 
 
-def _text(p: dict, hoechster_label: str) -> str:
+def _text(p: dict, labels) -> str:
+    """`labels` = Text je Track-Art (dict) — oder nur der Text für „hoechster" (alt)."""
+    if isinstance(labels, str):
+        labels = {"hoechster": labels}
+    labels = labels or {}
+    art = p.get("art")
     name = (p.get("name") or "").strip()
+    if art in TRACK_ARTEN:
+        name = labels.get(art) or {"hoechster": "Höchster Punkt", "tiefster": "Tiefster Punkt",
+                                   "schnellster": "Schnellste Stelle", "steilster": "Steilste Stelle"}[art]
+        w = p.get("wert")
+        if w is not None:
+            if art in ("hoechster", "tiefster"):
+                return f"{name}\n{int(round(float(w)))} m"
+            if art == "schnellster":
+                return f"{name}\n{float(w):.0f} km/h"
+            if art == "steilster":
+                return f"{name}\n{float(w):.0f} %"
+        return name
     ele = p.get("ele")
-    if p.get("art") == "hoechster":
-        name = hoechster_label
-    if ele is not None and p.get("art") in ("gipfel", "pass", "hoechster", "huette"):
+    if ele is not None and art in ("gipfel", "pass", "huette"):
         try:
             return f"{name}\n{int(round(float(ele)))} m"
         except (TypeError, ValueError):
@@ -368,7 +464,7 @@ def _text(p: dict, hoechster_label: str) -> str:
 
 
 def schilder_bauen(gewaehlt: List[dict], *, stil: Optional[dict] = None,
-                   hoechster_label: str = "Höchster Punkt",
+                   hoechster_label="Höchster Punkt",
                    start: str = "", ziel: str = "", points: Optional[List[dict]] = None) -> List[dict]:
     """Schild-Dicts wie sie Animator/Tour-Map lesen (`signs`, `tourmap_signs`).
     `stil` überschreibt die Basis (z. B. style/size/color aus dem Projekt)."""
@@ -389,10 +485,10 @@ def schilder_bauen(gewaehlt: List[dict], *, stil: Optional[dict] = None,
     return out
 
 
-def kurzliste(gewaehlt: List[dict], hoechster_label: str = "Höchster Punkt") -> str:
+def kurzliste(gewaehlt: List[dict], hoechster_label="Höchster Punkt") -> str:
     teile = []
     for p in gewaehlt:
-        nm = hoechster_label if p.get("art") == "hoechster" else (p.get("name") or "")
+        nm = _text(p, hoechster_label).split("\n")[0] if p.get("art") in TRACK_ARTEN else (p.get("name") or "")
         teile.append(f"{p.get('symbol', '')} {nm}".strip())
     return ", ".join(teile)
 

@@ -688,8 +688,9 @@ snapshots under `…/sessions/`.
 - **Highlights as signs** (tick, on by default): peaks, passes, viewpoints, waterfalls, huts,
   castles, ruins, monuments, attractions and lakes (at the shore) from OpenStreetMap within 120 m
   of the track; villages up to 400 m fill gaps. Ranked (peaks first, near before far), each name
-  once, spread along the tour, one per 5 km, eight to sixteen. Plus the highest point
-  (when the tour climbs at least 150 m) and start/finish with the place name. The signs then sit
+  once, spread along the tour, one per 5 km, eight to sixteen. Plus, from the track itself, the
+  highest and lowest point (when the tour climbs at least 150 m), the fastest stretch (from 6 km/h)
+  and the steepest stretch (from 8 %), each with its value, and start/finish with the place name. The signs then sit
   in the Animator and the Tour Map in the project's sign style and can be edited or deleted like
   any sign. Without network there is one line and no signs. The same is available without the
   assistant: in the Animator and the Tour Map the button **“🏔 Highlights from OpenStreetMap”** in

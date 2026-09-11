@@ -3308,5 +3308,8 @@
   "signs.highlights_leer": "A lo largo de esta ruta OpenStreetMap no conoce puntos destacados con nombre.",
   "signs.highlights_startziel": "Salida/meta: {a} → {b}",
   "signs.highlights_undo_hint": "Deshacer con ⌘Z; cada cartel se puede editar o borrar en la lista.",
-  "signs.highlights_wait": "OpenStreetMap a veces responde despacio: hasta un minuto, con servidor de reserva."
+  "signs.highlights_wait": "OpenStreetMap a veces responde despacio: hasta un minuto, con servidor de reserva.",
+  "assistent.s_tiefster": "Punto más bajo",
+  "assistent.s_schnellster": "Tramo más rápido",
+  "assistent.s_steilster": "Tramo más empinado"
 }
