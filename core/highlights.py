@@ -118,12 +118,30 @@ def overpass_abfrage(points: List[dict], radius_m: float = KORRIDOR_M) -> str:
     return f"[out:json][timeout:{OVERPASS_TIMEOUT_S}];(" + "".join(zeilen) + ");out center tags;"
 
 
-def _http_overpass(query: str, timeout: float = OVERPASS_TIMEOUT_S + 5) -> dict:
+#: Reihenfolge der Versuche: Hauptserver, noch einmal Hauptserver, dann Spiegel.
+#: Der Hauptserver antwortet unter Last mit 504 (11.09.2026, 14:48 bei Marc).
+OVERPASS_SERVER = (OVERPASS_URL, OVERPASS_URL, "https://overpass.kumi.systems/api/interpreter")
+
+
+def _http_overpass_einmal(url: str, query: str, timeout: float) -> dict:
     data = urllib.parse.urlencode({"data": query}).encode("utf-8")
-    req = urllib.request.Request(OVERPASS_URL, data=data,
+    req = urllib.request.Request(url, data=data,
                                  headers={"User-Agent": "ReisezoomGPSStudio", "Content-Type": "application/x-www-form-urlencoded"})
     with urllib.request.urlopen(req, timeout=timeout, context=cnet.ssl_context()) as resp:
         return json.loads(resp.read().decode("utf-8", errors="replace"))
+
+
+def _http_overpass(query: str, timeout: float = OVERPASS_TIMEOUT_S + 5) -> dict:
+    """Mit Wiederholung: 504/Zeitüberschreitung → nächster Versuch. Wirft den
+    letzten Fehler, wenn alle scheitern."""
+    letzter = None
+    for i, url in enumerate(OVERPASS_SERVER):
+        try:
+            return _http_overpass_einmal(url, query, timeout)
+        except Exception as e:  # noqa: BLE001
+            letzter = e
+            log.warning("Overpass Versuch %d/%d (%s): %s", i + 1, len(OVERPASS_SERVER), url.split("/")[2], str(e)[:80])
+    raise letzter if letzter else RuntimeError("Overpass")
 
 
 class KeinNetz(Exception):

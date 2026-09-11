@@ -3307,5 +3307,6 @@
   "signs.highlights_gefragt": "OpenStreetMap consultado: {p} lugares a {r} m del track",
   "signs.highlights_leer": "A lo largo de esta ruta OpenStreetMap no conoce puntos destacados con nombre.",
   "signs.highlights_startziel": "Salida/meta: {a} → {b}",
-  "signs.highlights_undo_hint": "Deshacer con ⌘Z; cada cartel se puede editar o borrar en la lista."
+  "signs.highlights_undo_hint": "Deshacer con ⌘Z; cada cartel se puede editar o borrar en la lista.",
+  "signs.highlights_wait": "OpenStreetMap a veces responde despacio: hasta un minuto, con servidor de reserva."
 }

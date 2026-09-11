@@ -74,10 +74,13 @@
       if (!pfad || laeuft) return;
       laeuft = true; wire();
       const ol = $("ass-schritte"), fe = $("ass-fehler");
-      if (ol) { ol.hidden = false; ol.innerHTML = `<li class="ass-lauf">⏳ ${esc(tt("assistent.laeuft", "Track wird geprüft und repariert …"))}</li>`; }
+      if (ol) { ol.hidden = false; ol.innerHTML = `<li class="ass-lauf"><span class="ass-spinner"></span> ${esc(tt("assistent.laeuft", "Track wird geprüft und repariert …"))} <span class="ass-sek" id="ass-sek"></span></li>`; }
       if (fe) fe.hidden = true;
+      const t0 = performance.now();
+      const tick = setInterval(() => { const s = document.getElementById("ass-sek"); if (s) s.textContent = Math.round((performance.now() - t0) / 1000) + " s"; }, 500);
       let r;
       try { r = await api().assistent_lauf(pfad, vid, name.trim(), highlights); } catch (e) { r = { ok: false, error: String(e), schritte: [] }; }
+      clearInterval(tick);
       if (ol) ol.innerHTML = (r && r.schritte || []).map(s => `<li class="${s.ok ? "ok" : "fehl"}">${s.ok ? "✅" : "⚠️"} ${esc(s.text)}</li>`).join("");
       if (!r || !r.ok) {
         if (fe) { fe.hidden = false; fe.textContent = tt("assistent.fehler", "Abgebrochen: {e}").replace("{e}", (r && r.error) || "?"); }

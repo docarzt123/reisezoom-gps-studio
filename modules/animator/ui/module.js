@@ -10491,7 +10491,7 @@ function mountAnimator(body, headerActions, opts) {
       const esc = (x) => String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const m = openModal({
         title: t("signs.highlights_btn", "🏔 Highlights aus OpenStreetMap"),
-        body: `<ol class="ass-schritte" id="anim-hl-schritte"><li class="ass-lauf">⏳ ${esc(t("signs.highlights_busy", "🏔 Frage OpenStreetMap …"))}</li></ol>`,
+        body: `<ol class="ass-schritte" id="anim-hl-schritte"><li class="ass-lauf"><span class="ass-spinner"></span> ${esc(t("signs.highlights_busy", "🏔 Frage OpenStreetMap …"))} <span class="ass-sek" id="anim-hl-sek"></span><div class="lib-hint">${esc(t("signs.highlights_wait", "OpenStreetMap antwortet manchmal langsam — bis zu einer Minute, mit Ausweich-Server."))}</div></li></ol>`,
         footer: `<button class="btn btn-primary" id="anim-hl-zu" disabled>${t("common.close", "Schließen")}</button>`,
         closable: false,
       });
@@ -10502,12 +10502,15 @@ function mountAnimator(body, headerActions, opts) {
         m.update({ closable: true });
       };
       if (btn) btn.disabled = true;
+      const t0 = performance.now();
+      const tick = setInterval(() => { const s = document.getElementById("anim-hl-sek"); if (s) s.textContent = Math.round((performance.now() - t0) / 1000) + " s"; }, 500);
       let r;
       try {
         const stil = { style: _animSignLast.style, color: _animSignLast.color, size: _animSignLast.size,
                        font: _animSignLast.font, weight: _animSignLast.weight };
         r = await api().highlights_schilder(pfad, stil);
       } catch (e) { r = { ok: false, error: String(e) }; }
+      clearInterval(tick);
       if (btn) btn.disabled = false;
       if (!r || !r.ok) { lg("Fehler " + ((r && r.error) || "?")); zeigen([{ ok: false, text: t("signs.highlights_fehler", "Highlights: {e}").replace("{e}", (r && r.error) || "?") }]); return; }
       if (!r.netz) { lg("kein Netz"); zeigen([{ ok: false, text: t("assistent.s_hl_netz", "Highlights: OpenStreetMap nicht erreichbar — keine Schilder") }]); return; }
