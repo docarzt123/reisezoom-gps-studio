@@ -2546,6 +2546,13 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `library_track_check_alle(nur_ungeprueft=True)` / `_status()` / `_stop()` | `{ok}` / `{running, done, total, current, result?}` | Bestand prüfen im Hintergrund, nur auf Knopfdruck |
 | `library_track_check_stand()` | `{ok, total, ungeprueft, rot, gelb, gefragt, laeuft}` | Für die einmalige Frage nach dem Update |
 | `library_track_check_gefragt()` | `{ok}` | Frage beantwortet — nie wieder stellen |
+| `vorlagen_liste()` | `{ok, vorlagen:[{id, name, mitgeliefert, standard, map_style, format, line_color, font, module, module_bloecke}], standard}` | Vorlagen (11.09.2026), Reisezoom-Standard zuerst |
+| `vorlage_anlegen(name, project_id)` / `vorlage_aktualisieren(vid, project_id)` | `{ok, vorlage}` / `{ok, vorher}` | Aus einem Projekt (Sperrliste `core/vorlagen.TRACKGEBUNDEN`) |
+| `vorlage_umbenennen(vid, name)` / `vorlage_loeschen(vid)` / `vorlage_wieder_einsetzen(vorlage, als_standard)` | `{ok, vorher}` / `{ok, vorlage, war_standard}` / `{ok}` | Antworten tragen den Stand davor — das Archiv-Undo braucht ihn |
+| `vorlage_standard_setzen(vid)` | `{ok, vorher}` | ★ „Mein Standard“ (leer/`reisezoom-standard` = Werk) |
+| `vorlage_anwenden(project_id, vid)` | `{ok, vorher, nachher, project, vorlage}` | Modul-Blöcke davor/danach; erzwingt vorher einen Arbeitsstand |
+| `projekt_module_schreiben(project_id, module)` | `{ok, project}` | Undo-Gegenstück: ganze Modul-Blöcke zurück |
+| `projekt_aus_vorlage_anlegen(name, vid)` | wie `projekt_frei_anlegen` | Leeres Projekt mit dieser Vorlage |
 | `library_track_check_ok(path, key, ok)` | `{ok, check, track}` | „Ist so in Ordnung" je Version und Befund-Art |
 | `library_repair_file(path)` | `{ok, geo_hash, n_points, schritte}` | Beschädigte GPX reparieren → Version in der Bibliothek |
 | `gpxinspect_track_check(points, path, local_time_n)` | `{ok, befunde, abgewaehlt, marke, ok_liste, im_archiv}` | Befund-Kasten im Inspektor |
@@ -3042,6 +3049,24 @@ schreibt `<bounds>` immer aus den Punkten neu und behält Millisekunden (`_time_
 `gps-studio-web/api/tools.py` läuft über `heilen`, `meta.heal` = Bericht. Wächter
 `tests/test_gpxheal.py` mit `tests/fixtures/insta360_10hz.gpx` (41 Punkte, 5 Sekunden, bounds ohne
 Vorzeichen). Anlass: Forumsfall X4-GPX ↔ X6-Video, Marcs Teneriffa-Ordner bestätigte die Form.
+
+**Vorlagen (11.09.2026, `core/vorlagen.py`, Spezifikation `docs/TOUR-ASSISTENT.md` §2 = die Wahrheit):**
+Eine Vorlage = `{id, name, created_at, modified_at, quelle, module:{animator, tourmap, geotagger, heightanim,
+webkarte}}` in `<Bibliothek>/vorlagen.json` (`{"schema", "vorlagen", "standard"}`). `TRACKGEBUNDEN` ist die EINE
+Sperrliste je Modul (Keyframes, Schnitt, Gruppen, Etappen, Zusatz-Touren, Ghosts, Tour-Farben, Tempo-Einträge,
+Schilder, Fotos, Wegpunkte, letzte Ordner, Editor-Zustand); `modul_filtern`/`aus_projekt` wenden sie an,
+`anwenden(projekt, vorlage)` überschreibt nur Vorlagen-Schlüssel und liefert die Blöcke davor (Undo),
+`defaults_mit_vorlage(werk, vorlage)` baut die Vorgaben für neue Projekte. „Reisezoom-Standard“ (`REISEZOOM_ID`)
+liegt nie in der Datei — `liste()`/`holen()` erzeugen ihn aus `DEFAULT_SETTINGS`. `Api._vorlagen_laden()` lädt und
+migriert einmalig `settings.json["user_defaults"]` (v0.9.287) in eine Vorlage „Meine Standardwerte“ mit ★;
+`_session_get_global_defaults(vorlage_id="")` = Werk + (gewählte | ★-)Vorlage + `map_style_default`;
+`save_user_defaults`/`reset_user_defaults`/`get_user_defaults_info` arbeiten seitdem auf der ★-Vorlage.
+Oberfläche: `ui/js/vorlagen.js` (Fenster, `rzVorlageAufAktivesProjekt` = Anwenden im Modul über
+`createUndoController().applyState(state, label, before)` — neu in `util.js`), Archiv-Reiter + 🧩 in
+`modules/library/ui/module.js` (Archiv-Undo über `_libUndoPush` mit den `vorher`-Antworten), Kopfzeile in
+`ui/js/projects.js` (`rzNeuesProjektModal` mit Vorlagen-Feld → `projectCreate(name, copy, vorlageId)`).
+Tests: `tests/test_vorlagen.py` (Kern), `tests/test_vorlagen_bridge.py` (echte `Api` gegen Wegwerf-Ordner),
+`scripts/selftest_vorlagen.py` (Browser, 38 Prüfungen) via `tests/test_vorlagen_ui.py`.
 
 **Track-Check (10.09.2026, `core/trackcheck.py`, Spezifikation `docs/TRACK-CHECK.md` = die Wahrheit):**
 `pruefen(points, stufe=5, local_time_n=0)` → `{befunde:[{key, stufe, n, detail}], hoechste, n_points, ms}` —

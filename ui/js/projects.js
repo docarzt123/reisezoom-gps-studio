@@ -109,6 +109,10 @@
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="duplicate">⎘ ${tT("topbar.project.action_duplicate", "Aktuelles duplizieren")}</button>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="rename">✎ ${tT("topbar.project.action_rename", "Umbenennen …")}</button>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action menu-action-danger" data-action="delete">🗑 ${tT("topbar.project.action_delete", "Aktuelles löschen")}</button>`;
+      // 11.09.2026 — Vorlagen (docs/TOUR-ASSISTENT.md §2.3, Stelle 3)
+      html += `<div class="topbar-project-menu-sep"></div>`;
+      html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="vorlage_anwenden">🧩 ${tT("vorlagen.menu_anwenden", "Vorlage anwenden …")}</button>`;
+      html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="vorlage_speichern">🧩 ${tT("vorlagen.menu_speichern", "Als Vorlage speichern …")}</button>`;
       html += `<div class="topbar-project-menu-sep"></div>`;
       html += `<button type="button" class="topbar-project-menu-item menu-action" data-action="alle">🗂 ${tT("topbar.project.action_all", "Alle Projekte …")}</button>`;
       // v0.9.28: Session komplett schließen — clearGlobalGpx leert Track,
@@ -145,13 +149,13 @@
             window.dispatchEvent(new CustomEvent("rz-projekte-anzeigen"));
           } else if (action === "new") {
             menu.hidden = true;
-            const name = await promptModal(
-              tT("topbar.project.new_title", "Neues Projekt"),
-              tT("topbar.project.new_msg", "Name für das neue Projekt:"),
-              suggestName(projects, "Projekt"),
-            );
+            // 11.09.2026: Name + Vorlage in einem Fenster (Vorlage vorbelegt mit ★).
+            const wahl = (typeof window.rzNeuesProjektModal === "function")
+              ? await window.rzNeuesProjektModal(suggestName(projects, "Projekt"))
+              : null;
+            const name = wahl && wahl.name;
             if (name) {
-              await projectCreate(name, "");
+              await projectCreate(name, "", wahl.vorlageId || "");
               if (typeof rebindAllSettings === "function") rebindAllSettings();
               if (typeof window._animOnProjectChanged === "function") window._animOnProjectChanged();
             }
@@ -190,6 +194,16 @@
               if (typeof rebindAllSettings === "function") rebindAllSettings();
               if (typeof window._animOnProjectChanged === "function") window._animOnProjectChanged();
             }
+          } else if (action === "vorlage_anwenden") {
+            menu.hidden = true;
+            if (typeof window.rzVorlageAnwendenModal === "function") {
+              await window.rzVorlageAnwendenModal(project.id, project.name, {
+                anwenden: (vid) => window.rzVorlageAufAktivesProjekt(vid),
+              });
+            }
+          } else if (action === "vorlage_speichern") {
+            menu.hidden = true;
+            if (typeof window.rzVorlageSpeichernModal === "function") await window.rzVorlageSpeichernModal(project.id, project.name);
           } else if (action === "export_project") {
             menu.hidden = true;
             if (window.exportProject) await window.exportProject();

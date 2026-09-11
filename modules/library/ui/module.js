@@ -237,6 +237,12 @@ function mountLibrary(body, headerActions) {
         <nav class="lib-scopes" id="lib-proj-scopes"></nav>
         <button class="lib-nav-add" id="lib-proj-new" type="button">+ ${T("library.proj_new", "Neues Projekt")}</button>
       </div>
+      <!-- 11.09.2026 — Vorlagen = leere Projekte (docs/TOUR-ASSISTENT.md §2.3, Stelle 1) -->
+      <div id="lib-nav-vorlagen" hidden>
+        <div class="lib-nav-title">${T("vorlagen.titel", "Vorlagen")}</div>
+        <div class="lib-nav-hint" style="margin:0 0 10px">${T("vorlagen.nav_hint", "Eine Vorlage ist ein leeres Projekt: Karte, Track-Form, Kamera, Overlays, Schilder-Stil, Render. ★ = Mein Standard für neue Projekte.")}</div>
+        <button class="lib-nav-add" id="lib-vorl-new" type="button">+ ${T("vorlagen.neu_aus_projekt", "Neue Vorlage aus Projekt …")}</button>
+      </div>
       <div id="lib-nav-touren">
       <div class="lib-nav-title">${T("library.section_library", "Bibliothek")}</div>
       <nav class="lib-scopes" id="lib-scopes"></nav>
@@ -261,6 +267,7 @@ function mountLibrary(body, headerActions) {
              Vollbild-Manager (ui/js/projekte.js). -->
         <div class="pmgr-seg" role="group">
           <button type="button" class="pmgr-seg-btn" id="lib-seg-projekte">🗂 ${T("pm.title", "Projekte")}</button>
+          <button type="button" class="pmgr-seg-btn" id="lib-seg-vorlagen">🧩 ${T("vorlagen.titel", "Vorlagen")}</button>
           <button type="button" class="pmgr-seg-btn is-on" id="lib-seg-touren">📚 ${T("pm.seg_archive", "Touren-Archiv")}</button>
         </div>
         <input type="search" id="lib-search" class="lib-search"
@@ -338,6 +345,7 @@ function mountLibrary(body, headerActions) {
         </div>
         <div class="lib-stats" id="lib-stats" hidden></div>
         <div class="lib-projwrap" id="lib-projwrap" hidden></div>
+        <div class="lib-projwrap lib-vorlwrap" id="lib-vorlwrap" hidden></div>
       </div>
     </section>
 
@@ -745,8 +753,33 @@ function mountLibrary(body, headerActions) {
   let _projSel = "";            // v0.9.623 — gewähltes Projekt (Detailspalte)
   let _projFilterGh = "";   // Detailspalte: „Projekte dieser Tour" zeigen
 
+  // 11.09.2026 — dritte Ansicht „Vorlagen" (nicht gemerkt: man startet in
+  // Projekten oder Touren, Vorlagen sind ein bewusster Abstecher).
+  let _vorlView = false;
+  function vorlViewSetzen(an) {
+    _vorlView = !!an;
+    if (_vorlView) _projView = false;
+    const bar = document.querySelector(".lib-bar");
+    if (bar) bar.classList.toggle("proj-mode", _projView || _vorlView);
+    const sv = document.getElementById("lib-seg-vorlagen");
+    const sp = document.getElementById("lib-seg-projekte");
+    const st = document.getElementById("lib-seg-touren");
+    if (sv) sv.classList.toggle("is-on", _vorlView);
+    if (sp) sp.classList.toggle("is-on", _projView);
+    if (st) st.classList.toggle("is-on", !_projView && !_vorlView);
+    const nv = document.getElementById("lib-nav-vorlagen");
+    const np = document.getElementById("lib-nav-projekte");
+    const nt = document.getElementById("lib-nav-touren");
+    if (nv) nv.hidden = !_vorlView;
+    if (np) np.hidden = !_projView;
+    if (nt) nt.hidden = _projView || _vorlView;
+    renderView();
+  }
   function projViewSetzen(an) {
     _projView = !!an;
+    _vorlView = false;
+    { const sv = document.getElementById("lib-seg-vorlagen"); if (sv) sv.classList.remove("is-on");
+      const nv = document.getElementById("lib-nav-vorlagen"); if (nv) nv.hidden = true; }
     // 02.09.2026 (Marc): Was zuletzt offen war, soll beim nächsten Start
     // wieder offen sein. Gemerkt wird beim Umschalten, nicht beim Verlassen —
     // so überlebt es auch einen Absturz.
@@ -862,6 +895,7 @@ function mountLibrary(body, headerActions) {
             <button class="btn btn-primary btn-sm" data-open="${p.id}">${T("library.proj_open", "Öffnen")}</button>
             <button class="btn btn-ghost btn-sm" data-ren="${p.id}" title="${T("library.rename", "Umbenennen")}">✎</button>
             <button class="btn btn-ghost btn-sm" data-dup="${p.id}" title="${T("library.col_duplicate", "Duplizieren")}">⎘</button>
+            <button class="btn btn-ghost btn-sm" data-vorl="${p.id}" title="${T("vorlagen.kachel_tip", "Vorlage anwenden oder als Vorlage speichern")}">🧩</button>
             <button class="btn btn-ghost btn-sm" data-st="${p.id}" title="${T("library.staende", "Frühere Arbeitsstände")}">🕘</button>${p.frei ? `
             <button class="btn btn-ghost btn-sm" data-addtours="${p.id}" title="${T("library.proj_addtours", "Touren aus dem Archiv hinzufügen")}">➕</button>` : ""}
             <button class="btn btn-ghost btn-sm lib-btn-danger" data-del="${p.id}" title="${T("library.proj_delete", "Projekt löschen")}">🗑</button>
@@ -1039,6 +1073,7 @@ function mountLibrary(body, headerActions) {
       await api().projekt_duplizieren(b.dataset.dup);
       renderProjekte();
     });
+    box.querySelectorAll("[data-vorl]").forEach(b => b.onclick = (e) => { e.stopPropagation(); projektVorlageModal(b.dataset.vorl); });
     // E3: Arbeitsstand-Historie — Liste + Wiederherstellen (der jetzige
     // Stand wird vorher selbst gesichert).
     box.querySelectorAll("[data-st]").forEach(b => b.onclick = async (e) => {
@@ -1258,6 +1293,149 @@ function mountLibrary(body, headerActions) {
 
   /** Öffnen (Q22): Solo lädt die Tour und springt ins zuletzt benutzte Modul;
    *  Kompositionen gehen den bewährten Übergabe-Weg (Pending + Lade-Modal). */
+  /** 11.09.2026 — Vorlagen-Kacheln (Spec §2.3, Stelle 1). Reisezoom-Standard
+   *  ist mitgeliefert (kein ✎/🗑), der ★ zeigt „Mein Standard". */
+  async function renderVorlagen() {
+    const box = $("lib-vorlwrap");
+    if (!box) return;
+    const { liste } = await window.rzVorlagenListe(true);
+    const suche = (state.search || "").trim().toLowerCase();
+    const zeigen = liste.filter(v => !suche || String(v.name).toLowerCase().includes(suche));
+    const karte = (v) => `<div class="lib-proj-karte lib-vorl-karte${v.standard ? " ist-standard" : ""}" data-vid="${esc(v.id)}">
+        <div class="lib-proj-thumb lib-vorl-thumb" style="${v.line_color ? `--vorl-farbe:${esc(v.line_color)}` : ""}">🧩</div>
+        <div class="lib-proj-kopf">
+          <span class="lib-proj-name">${v.standard ? "★ " : ""}${esc(v.name)}</span>
+          ${v.mitgeliefert ? `<span class="lib-proj-status">${T("vorlagen.mitgeliefert", "mitgeliefert")}</span>` : ""}
+        </div>
+        <div class="lib-proj-sub">${window.rzVorlageKurz(v) || T("vorlagen.leer_kurz", "ohne Angaben")}</div>
+        <div class="lib-proj-fuss">
+          <span class="lib-proj-wann">${v.quelle ? T("vorlagen.aus", "aus „{q}“").replace("{q}", esc(v.quelle)) + " · " : ""}${v.modified_at ? fmtDate(v.modified_at) : ""}</span>
+          <span class="lib-proj-akt">
+            <button class="btn btn-primary btn-sm" data-vneu="${esc(v.id)}" title="${T("vorlagen.neu_projekt_tip", "Leeres Projekt mit dieser Vorlage anlegen und im Animator öffnen")}">➕ ${T("vorlagen.neu_projekt", "Neues Projekt daraus")}</button>
+            <button class="btn btn-ghost btn-sm${v.standard ? " is-on" : ""}" data-vstd="${esc(v.id)}" title="${T("vorlagen.standard_tip", "Als „Mein Standard“ setzen — neue Projekte starten damit")}">${v.standard ? "★" : "☆"}</button>${v.mitgeliefert ? "" : `
+            <button class="btn btn-ghost btn-sm" data-vren="${esc(v.id)}" title="${T("library.rename", "Umbenennen")}">✎</button>
+            <button class="btn btn-ghost btn-sm lib-btn-danger" data-vdel="${esc(v.id)}" title="${T("vorlagen.loeschen", "Vorlage löschen")}">🗑</button>`}
+          </span>
+        </div>
+      </div>`;
+    box.innerHTML = `<div class="lib-proj-liste pmgr-liste">${zeigen.map(karte).join("")
+      || `<div class="lib-empty"><div class="lib-empty-title">${T("vorlagen.keine_treffer", "Keine Vorlage passt zur Suche.")}</div></div>`}</div>`;
+    box.querySelectorAll("[data-vneu]").forEach(b => b.onclick = async () => {
+      const v = liste.find(x => x.id === b.dataset.vneu) || {};
+      const wahl = await window.rzNeuesProjektModal(v.name || "", T("vorlagen.neu_projekt", "Neues Projekt daraus"), b.dataset.vneu);
+      if (!wahl) return;
+      const r = await api().projekt_aus_vorlage_anlegen(wahl.name, wahl.vorlageId || b.dataset.vneu);
+      if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
+      try { if (typeof clearGlobalGpx === "function") clearGlobalGpx(); } catch (_) {}
+      if (typeof sessionActivateFrei === "function") await sessionActivateFrei(r.track_hash);
+      if (typeof rebindAllSettings === "function") rebindAllSettings();
+      window.dispatchEvent(new CustomEvent("rz-projekt-angelegt"));
+      if (typeof switchMod === "function") switchMod("animator");
+    });
+    box.querySelectorAll("[data-vstd]").forEach(b => b.onclick = async () => {
+      const r = await api().vorlage_standard_setzen(b.dataset.vstd);
+      if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
+      const vorher = r.vorher, nachher = b.dataset.vstd;
+      _libUndoPush(T("vorlagen.undo_standard", "Standard-Vorlage gesetzt"),
+        async () => { await api().vorlage_standard_setzen(vorher); window.rzVorlagenCacheLeeren(); },
+        async () => { await api().vorlage_standard_setzen(nachher); window.rzVorlagenCacheLeeren(); });
+      window.rzVorlagenCacheLeeren();
+      toast(T("vorlagen.standard_gesetzt", "Neue Projekte starten jetzt mit dieser Vorlage."), "info");
+      renderVorlagen();
+    });
+    box.querySelectorAll("[data-vren]").forEach(b => b.onclick = () => {
+      const v = liste.find(x => x.id === b.dataset.vren) || {};
+      const m = openModal({
+        title: "✎ " + T("library.rename", "Umbenennen"),
+        body: `<input type="text" id="lib-vorl-neuname" class="lib-input" value="${esc(v.name || "")}">`,
+        footer: `<button class="btn" id="lib-vr-ab">${T("common.cancel", "Abbrechen")}</button>
+                 <button class="btn btn-primary" id="lib-vr-ok">OK</button>`,
+      });
+      const ok = document.getElementById("lib-vr-ok");
+      if (ok) ok.onclick = async () => {
+        const neu = ((document.getElementById("lib-vorl-neuname") || {}).value || "").trim();
+        m.close();
+        if (!neu || neu === v.name) return;
+        const r = await api().vorlage_umbenennen(b.dataset.vren, neu);
+        if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
+        const alt = r.vorher || v.name;
+        _libUndoPush(T("vorlagen.undo_umbenannt", "Vorlage umbenannt"),
+          async () => { await api().vorlage_umbenennen(b.dataset.vren, alt); window.rzVorlagenCacheLeeren(); },
+          async () => { await api().vorlage_umbenennen(b.dataset.vren, neu); window.rzVorlagenCacheLeeren(); });
+        window.rzVorlagenCacheLeeren();
+        renderVorlagen();
+      };
+      const ab = document.getElementById("lib-vr-ab");
+      if (ab) ab.onclick = () => m.close();
+    });
+    box.querySelectorAll("[data-vdel]").forEach(b => b.onclick = async () => {
+      const v = liste.find(x => x.id === b.dataset.vdel) || {};
+      const ok = await window.rzConfirm(T("vorlagen.loeschen", "Vorlage löschen"),
+        T("vorlagen.loeschen_frage", "„{n}“ löschen? Bestehende Projekte behalten ihren Look. Rückgängig mit ⌘Z.").replace("{n}", v.name || ""),
+        T("vorlagen.loeschen_btn", "Löschen"), true);
+      if (!ok) return;
+      const r = await api().vorlage_loeschen(b.dataset.vdel);
+      if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
+      const weg = r.vorlage, warStd = !!r.war_standard;
+      _libUndoPush(T("vorlagen.undo_geloescht", "Vorlage gelöscht"),
+        async () => { await api().vorlage_wieder_einsetzen(weg, warStd); window.rzVorlagenCacheLeeren(); },
+        async () => { await api().vorlage_loeschen(weg.id); window.rzVorlagenCacheLeeren(); });
+      window.rzVorlagenCacheLeeren();
+      toast(T("vorlagen.geloescht", "Vorlage gelöscht."), "info");
+      renderVorlagen();
+    });
+  }
+
+  /** 🧩 auf der Projekt-Kachel (Spec §2.3, Stelle 2): anwenden ODER als neue
+   *  Vorlage speichern. Anwenden ist im Archiv-Undo (alle Module zurück). */
+  async function projektVorlageModal(pid) {
+    const p = _projekte.find(x => x.id === pid) || {};
+    const { liste, standard } = await window.rzVorlagenListe(true);
+    const m = openModal({
+      title: "🧩 " + T("vorlagen.titel", "Vorlagen") + " — " + esc(p.name || ""),
+      body: `<div class="vorl-block">
+               <div class="lib-nav-title">${T("vorlagen.anwenden_titel", "Vorlage anwenden")}</div>
+               <div class="lib-hint">${T("vorlagen.anwenden_kurz", "Karte, Track-Form, Kamera, Overlays, Schilder-Stil und Render aus der Vorlage; Keyframes, Schilder, Fotos, Gruppen und Schnitt bleiben.")}</div>
+               ${window.rzVorlageAuswahlHtml(liste, standard, "lib-pv-vorlage")}
+               <button class="btn btn-primary btn-sm" id="lib-pv-anwenden" style="margin-top:6px">${T("vorlagen.anwenden_btn", "Anwenden")}</button>
+             </div>
+             <div class="vorl-block" style="margin-top:14px">
+               <div class="lib-nav-title">${T("vorlagen.speichern_titel", "Als Vorlage speichern")}</div>
+               <input type="text" id="lib-pv-name" class="lib-input" value="${esc(p.name || "")}" placeholder="${T("vorlagen.name", "Name der Vorlage")}">
+               <button class="btn btn-sm" id="lib-pv-speichern" style="margin-top:6px">${T("vorlagen.speichern_btn", "Speichern")}</button>
+             </div>`,
+      footer: `<button class="btn" id="lib-pv-zu">${T("common.close", "Schließen")}</button>`,
+    });
+    const zu = document.getElementById("lib-pv-zu"); if (zu) zu.onclick = () => m.close();
+    const an = document.getElementById("lib-pv-anwenden");
+    if (an) an.onclick = async () => {
+      const vid = (document.getElementById("lib-pv-vorlage") || {}).value || "";
+      m.close();
+      const r = await api().vorlage_anwenden(pid, vid);
+      if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
+      const vorher = r.vorher || {}, nachher = r.nachher || {};
+      _libUndoPush(T("vorlagen.undo_label", "Vorlage angewendet"),
+        async () => { await api().projekt_module_schreiben(pid, vorher); },
+        async () => { await api().projekt_module_schreiben(pid, nachher); });
+      // Ist genau dieses Projekt gerade aktiv, den Speicher-Stand mitziehen.
+      try { const ap = (typeof getActiveProject === "function") ? getActiveProject() : null;
+        if (ap && ap.id === pid) { for (const sec in nachher) window.rzSetModuleSettingsLocal(sec, nachher[sec]); } } catch (_) {}
+      applog("info", "[vorlagen] im Archiv angewendet: " + (r.vorlage || vid) + " auf " + pid);
+      toast(T("vorlagen.angewendet", "Vorlage „{n}“ angewendet.").replace("{n}", r.vorlage || ""), "success");
+      renderProjekte();
+    };
+    const sp = document.getElementById("lib-pv-speichern");
+    if (sp) sp.onclick = async () => {
+      const name = ((document.getElementById("lib-pv-name") || {}).value || "").trim();
+      if (!name) return;
+      m.close();
+      const r = await api().vorlage_anlegen(name, pid);
+      if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
+      window.rzVorlagenCacheLeeren();
+      toast(T("vorlagen.gespeichert", "Vorlage „{n}“ gespeichert.").replace("{n}", (r.vorlage || {}).name || name), "success");
+    };
+  }
+
   async function projektOeffnen(pid, modulWunsch) {
     const info = await api().projekt_aktivieren(pid);
     if (!info || !info.ok) { toast((info && info.error) || "?", "error"); return; }
@@ -1314,6 +1492,15 @@ function mountLibrary(body, headerActions) {
   // ── Ansichten ─────────────────────────────────────────────────────────
   function renderView() {
     document.querySelectorAll(".lib-view").forEach(b => b.classList.toggle("is-on", b.dataset.view === view));
+    { const vw = $("lib-vorlwrap"); if (vw) vw.hidden = !_vorlView; }
+    if (_vorlView) {
+      $("lib-projwrap").hidden = true; $("lib-head").hidden = true;
+      $("lib-grid").hidden = true; $("lib-list").hidden = true; $("lib-mapwrap").hidden = true; $("lib-stats").hidden = true;
+      { const d = $("lib-detail"); if (d) { d.hidden = false;
+          d.innerHTML = `<div class="lib-detail-empty" style="padding:14px">${T("vorlagen.detail_hint", "Vorlagen sind leere Projekte. „Neues Projekt daraus“ legt ein Projekt mit diesem Look an; im Projekt-Menü der Kopfzeile und auf jeder Projekt-Kachel (🧩) wendest du eine Vorlage auf bestehende Projekte an.")}</div>`; } }
+      renderVorlagen();
+      return;
+    }
     const pv = _projView;
     $("lib-projwrap").hidden = !pv;
     $("lib-head").hidden = pv;
@@ -4737,8 +4924,42 @@ function mountLibrary(body, headerActions) {
     }; }
   { const sp = document.getElementById("lib-seg-projekte");
     const st = document.getElementById("lib-seg-touren");
-    if (sp) sp.onclick = () => { if (!_projView) projViewSetzen(true); };
-    if (st) st.onclick = () => { if (_projView) projViewSetzen(false); }; }
+    const sv = document.getElementById("lib-seg-vorlagen");
+    if (sp) sp.onclick = () => { if (!_projView || _vorlView) projViewSetzen(true); };
+    if (st) st.onclick = () => { if (_projView || _vorlView) projViewSetzen(false); };
+    if (sv) sv.onclick = () => { if (!_vorlView) vorlViewSetzen(true); }; }
+  { const nv = document.getElementById("lib-vorl-new");
+    if (nv) nv.onclick = async () => {
+      // Projekt wählen → Name → Vorlage anlegen.
+      const res = await api().projekte_liste();
+      const alle = ((res && res.projekte) || []).filter(p => !p.auto)
+        .sort((a, b) => String(b.modified_at || "").localeCompare(String(a.modified_at || "")));
+      if (!alle.length) { toast(T("vorlagen.keine_projekte", "Noch kein Projekt, aus dem eine Vorlage entstehen könnte."), "info"); return; }
+      const m = openModal({
+        title: "🧩 " + T("vorlagen.neu_aus_projekt", "Neue Vorlage aus Projekt …"),
+        body: `<label class="vorl-feld">${T("vorlagen.projekt_waehlen", "Projekt")}
+                 <select id="lib-vn-proj" class="lib-select" style="width:100%">${alle.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("")}</select></label>
+               <label class="vorl-feld">${T("vorlagen.name", "Name der Vorlage")}
+                 <input type="text" id="lib-vn-name" class="lib-input" value="${esc(alle[0].name)}"></label>`,
+        footer: `<button class="btn" id="lib-vn-ab">${T("common.cancel", "Abbrechen")}</button>
+                 <button class="btn btn-primary" id="lib-vn-ok">${T("vorlagen.speichern_btn", "Speichern")}</button>`,
+      });
+      const sel = document.getElementById("lib-vn-proj"), inp = document.getElementById("lib-vn-name");
+      if (sel && inp) sel.onchange = () => { const p = alle.find(x => x.id === sel.value); if (p) inp.value = p.name; };
+      const ok = document.getElementById("lib-vn-ok");
+      if (ok) ok.onclick = async () => {
+        const name = (inp && inp.value || "").trim(), pid = sel && sel.value;
+        if (!name || !pid) return;
+        m.close();
+        const r = await api().vorlage_anlegen(name, pid);
+        if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
+        window.rzVorlagenCacheLeeren();
+        toast(T("vorlagen.gespeichert", "Vorlage „{n}“ gespeichert.").replace("{n}", (r.vorlage || {}).name || name), "success");
+        renderVorlagen();
+      };
+      const ab = document.getElementById("lib-vn-ab"); if (ab) ab.onclick = () => m.close();
+    }; }
+  window.addEventListener("rz-vorlagen-geaendert", () => { if (!_unmounted && _vorlView) renderVorlagen(); });
   // Q19/Q21: Ein AUSDRÜCKLICHER Sprung („Alle Projekte …" im Topbar-Menü)
   // setzt diese Flagge; hier wird sie genau einmal verbraucht.
   // 02.09.2026: Ohne Flagge entscheidet das Gedächtnis — die Ansicht, die

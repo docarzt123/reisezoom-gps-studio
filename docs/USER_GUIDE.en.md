@@ -670,6 +670,44 @@ snapshots under `…/sessions/`.
 
 ---
 
+### 🧩 Templates — empty projects with your look (since v0.9.689) ⭐
+
+**A template is an empty project:** everything design-related, nothing that hangs on the track.
+It carries map style and map sliders, track shape (line, width, colour, glow, shadow, age colour,
+colour-zone mode), running dot, camera, tempo base, pause mode, all overlays (font, colours,
+positions, fields), sign style and size, photo size, stars, watermark, render settings; for the
+Tour Map also format, margin, pins; for the data animator chart style, series, axes, stats fields;
+for the geotagger camera offsets, time-from-track, backup, keywords. **Never in it:** keyframes,
+trim, timeline events, groups, stages, extra tours, ghosts, sign positions, photos, waypoints.
+
+**Where to find them — four places, none of them needs the tour assistant:**
+
+1. **Archive → tab “Templates”** (next to “Projects” and “Tour archive”). Tiles with map style ·
+   format · colour dot of the line · font. Buttons per tile: **➕ New project from this** (empty
+   project with this look, jumps into the Animator), **☆/★** sets “My default”, **✎** rename,
+   **🗑** delete. On the left: **“New template from project …”**. **“Reisezoom default”** is built
+   in (factory settings) and cannot be changed.
+2. **Project tile → 🧩**: a small window with “Apply template” (selection) and “Save as new
+   template” (name).
+3. **Project menu in the header bar**: **“🧩 Apply template …”** and **“🧩 Save as template …”**.
+   **“New project”** now also asks for the template (preset: ★).
+4. **Automatically:** every new project (opening a track, handing over a collection, “New
+   project”) starts with the **★ template** (“My default”). Without your own star, Reisezoom
+   default applies.
+
+**Applying** overwrites only what the template carries — keyframes, signs, photos, groups and trim
+of your project stay. **Undo works everywhere:** in a module “Template applied” is a normal ⌘Z
+step (the other modules change in the background too; before that the app saves a work state you
+can bring back under 🕘 “Earlier work states”); in the archive ⌘Z restores all modules of the
+project, re-creates a deleted template and puts back the previous star.
+
+**Your previous “own defaults”** (Settings → “Save current settings as default”) become the
+template **“Meine Standardwerte”** with ★ on first start — nothing is lost. The button in
+Settings and “Keep this look for new tracks” in the “Video done” window now write the ★ template
+(“My default”).
+
+---
+
 ### Export & import a project (.rzproj, since v0.9.537)
 
 **Hand over a project as one file — no cloud needed.** In the project menu
@@ -2224,7 +2262,7 @@ At the end, ffmpeg's `+faststart` phase takes another 2-3 min (the file size sta
 Yes, in two tiers:
 
 - **Per track:** every route remembers its **own** settings (style, color, pitch, overlays, keyframes, photos, "Smooth map" …). Open the same track again later and everything is as it was last. The track is recognized by its **content** (not by the filename).
-- **For new tracks:** a **new** track normally starts with the factory settings. If you always want the same look, go to **Settings** → **"Save current settings as default"**. From then on every new track adopts your look. With **"Reset to factory settings"** you go back to the shipped state. Existing tracks stay untouched in doing so. Track-specific things (keyframes, trim, photo selection) are deliberately not adopted as defaults. Quicker right after a render: the “Video done” window (Tour Map too) has **“Keep this look for new tracks”** — one click, same effect.
+- **For new tracks:** a **new** track normally starts with the factory settings. If you always want the same look, go to **Settings** → **"Save current settings as default"**. From then on every new track adopts your look. With **"Reset to factory settings"** you go back to the shipped state. Existing tracks stay untouched in doing so. Track-specific things (keyframes, trim, photo selection) are deliberately not adopted as defaults. Quicker right after a render: the “Video done” window (Tour Map too) has **“Keep this look for new tracks”** — one click, same effect. Since v0.9.689 this is a **template** with ★ (“My default”, Archive → Templates) — see “🧩 Templates” above.
 
 ### My 4K video shimmers slightly ("like the wrong shutter speed")
 This was a known issue up to v0.9.286 and is now fixed (tile cross-fading turned off + supersampling + a slight map blur against the texture shimmer). If you still have an old video: just re-render it with the current version.

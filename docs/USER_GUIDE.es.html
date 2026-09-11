@@ -697,6 +697,28 @@ python app.py</code></pre>
 <h4 id="d-nde-se-guarda">Dónde se guarda</h4>
 <p><code>…/Reisezoom GPS Studio/projekte.json</code> (carpetas de trabajo), <code>touren.json</code> (datos de rutas + versiones), <code>projekt_staende/</code> (estados 🕘), snapshots GPX de las versiones en <code>…/sessions/</code>.</p>
 <hr>
+<h3 id="plantillas-proyectos-vac-os-con-tu-aspecto">🧩 Plantillas — proyectos vacíos con tu aspecto ⭐</h3>
+<p><strong>Una plantilla es un proyecto vacío:</strong> todo lo relativo al diseño, nada que dependa del track. Contiene estilo de mapa y reguladores del mapa, forma del track (línea, ancho, color, brillo, sombra, color de envejecimiento, modo de zonas de color), punto en movimiento, cámara, base de ritmo, modo de pausa, todas las superposiciones (fuente, colores, posiciones, campos), estilo y tamaño de carteles, tamaño de fotos, estrellas, marca de agua, ajustes de render; en el Tour Map además formato, margen, pines; en el animador de datos estilo de gráfico, series, ejes, campos de estadística; en el geotagger desfases de cámara, hora desde el track, copia de seguridad, palabras clave. <strong>Nunca dentro:</strong> keyframes, recorte, eventos de la línea de tiempo, grupos, etapas, rutas adicionales, fantasmas, posiciones de carteles, fotos, waypoints.</p>
+<p><strong>Dónde encontrarlas — cuatro sitios, ninguno necesita el asistente de ruta:</strong></p>
+<ol>
+<li><strong>Archivo → pestaña «Plantillas»</strong> (junto a «Proyectos» y «Archivo de rutas»). Tarjetas con</li>
+</ol>
+<p> estilo de mapa · formato · punto de color de la línea · fuente. Botones por tarjeta: <strong>➕ Nuevo  proyecto con esta</strong> (proyecto vacío con este aspecto, salta al Animador), <strong>☆/★</strong> define «Mi  estándar», <strong>✎</strong> renombrar, <strong>🗑</strong> eliminar. A la izquierda: <strong>«Nueva plantilla desde proyecto …»</strong>.  <strong>«Reisezoom estándar»</strong> viene incluida (ajustes de fábrica) y no se puede cambiar.</p>
+<ol>
+<li><strong>Tarjeta de proyecto → 🧩</strong>: una ventana pequeña con «Aplicar plantilla» (selección) y</li>
+</ol>
+<p> «Guardar como nueva plantilla» (nombre).</p>
+<ol>
+<li><strong>Menú de proyecto en la barra superior</strong>: <strong>«🧩 Aplicar plantilla …»</strong> y **«🧩 Guardar como</li>
+</ol>
+<p> plantilla …»<strong>. </strong>«Nuevo proyecto»** ahora también pregunta por la plantilla (predefinida: ★).</p>
+<ol>
+<li><strong>Automáticamente:</strong> cada proyecto nuevo (abrir un track, entregar una colección, «Nuevo</li>
+</ol>
+<p> proyecto») empieza con la <strong>plantilla ★</strong> («Mi estándar»). Sin estrella propia rige Reisezoom  estándar.</p>
+<p><strong>Aplicar</strong> solo sobrescribe lo que trae la plantilla: keyframes, carteles, fotos, grupos y recorte de tu proyecto se mantienen. <strong>Deshacer funciona en todas partes:</strong> en un módulo «Plantilla aplicada» es un paso ⌘Z normal (los demás módulos cambian en segundo plano; antes la app guarda un estado de trabajo que recuperas en 🕘 «Estados de trabajo anteriores»); en el archivo ⌘Z restaura todos los módulos del proyecto, recrea una plantilla eliminada y devuelve la estrella anterior.</p>
+<p><strong>Tus antiguos «valores propios por defecto»</strong> (Ajustes → «Guardar ajustes actuales como predeterminados») se convierten al primer inicio en la plantilla <strong>«Meine Standardwerte»</strong> con ★: no se pierde nada. El botón de Ajustes y «Recordar este aspecto para tracks nuevos» en la ventana «Vídeo listo» escriben desde ahora la plantilla ★ («Mi estándar»).</p>
+<hr>
 <h3 id="exportar-e-importar-un-proyecto-rzproj">Exportar e importar un proyecto (.rzproj)</h3>
 <p><strong>Entregar un proyecto en un solo archivo — sin nube.</strong> En el menú de proyecto (clic en «Sesión · Proyecto» arriba) o en «Archivo → Exportar proyecto» se crea un archivo <code>.rzproj</code>: la ruta, <strong>todos los proyectos</strong> de la sesión (keyframes, carteles, superposiciones, ajustes), los datos de la ruta del archivo (nombre, etiquetas, nota) y <strong>miniaturas</strong> de tus fotos y las <strong>imágenes de tus carteles</strong> — las fotos originales se quedan contigo.</p>
 <p><strong>Importar:</strong> «Archivo → Importar proyecto», el menú de proyecto, o arrastra el <code>.rzproj</code> a la app. La ruta entra en el archivo (carpeta «projekt_importe») y los proyectos se unen a la sesión de esa ruta. Si la ruta ya existe, los proyectos se <strong>añaden</strong> — nada se sobrescribe, los homónimos reciben «(importado)». Si faltan las fotos originales en el otro ordenador, las fotos apuntan a las miniaturas incluidas.</p>
@@ -1713,7 +1735,7 @@ python app.py</code></pre>
 <p>Sí, en dos niveles:</p>
 <ul>
 <li><strong>Por track:</strong> cada ruta recuerda sus <strong>propios</strong> ajustes (estilo, color, pitch, overlays, keyframes, fotos, «Suavizar mapa»…). Si abres el mismo track más tarde, todo está como la última vez. El track se reconoce por su <strong>contenido</strong> (no por el nombre de archivo).</li>
-<li><strong>Para tracks nuevos:</strong> un track <strong>nuevo</strong> arranca normalmente con los ajustes de fábrica. Si quieres siempre el mismo look, ve a <strong>Ajustes</strong> → <strong>«Guardar los ajustes actuales como valores por defecto»</strong>. A partir de ahí, cada track nuevo adopta tu look. Con <strong>«Restablecer los ajustes de fábrica»</strong> vuelves al estado de entrega. Los tracks existentes quedan intactos con ello. Lo específico del track (keyframes, trim, selección de fotos) no se adopta a propósito como valor por defecto. Más rápido justo después del render: la ventana «Vídeo listo» (también en el Tour-Map) tiene <strong>«Guardar este aspecto para rutas nuevas»</strong>: un clic, mismo efecto.</li>
+<li><strong>Para tracks nuevos:</strong> un track <strong>nuevo</strong> arranca normalmente con los ajustes de fábrica. Si quieres siempre el mismo look, ve a <strong>Ajustes</strong> → <strong>«Guardar los ajustes actuales como valores por defecto»</strong>. A partir de ahí, cada track nuevo adopta tu look. Con <strong>«Restablecer los ajustes de fábrica»</strong> vuelves al estado de entrega. Los tracks existentes quedan intactos con ello. Lo específico del track (keyframes, trim, selección de fotos) no se adopta a propósito como valor por defecto. Más rápido justo después del render: la ventana «Vídeo listo» (también en el Tour-Map) tiene <strong>«Guardar este aspecto para rutas nuevas»</strong>: un clic, mismo efecto. esto es una <strong>plantilla</strong> con ★ («Mi estándar», Archivo → Plantillas): véase «🧩 Plantillas» más arriba.</li>
 </ul>
 <h3 id="mi-v-deo-en-4k-parpadea-un-poco-como-si-la-exposici-n-fuera-incorrecta">Mi vídeo en 4K parpadea un poco («como si la exposición fuera incorrecta»)</h3>
 <p>Eso era un tema conocido y ya está corregido (fundido de teselas desactivado + supersampling + un ligero difuminado del mapa contra el parpadeo de textura). Si aún tienes un vídeo antiguo: simplemente vuelve a renderizarlo con la versión actual.</p>

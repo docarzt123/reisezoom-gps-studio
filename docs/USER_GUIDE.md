@@ -731,6 +731,45 @@ Fassungen unter `…/sessions/`.
 
 ---
 
+### 🧩 Vorlagen — leere Projekte mit deinem Look (seit v0.9.689) ⭐
+
+**Eine Vorlage ist ein leeres Projekt:** alles Gestalterische, nichts, was am Track hängt.
+Drin sind Kartenstil und Karten-Regler, Track-Form (Linie, Breite, Farbe, Glow, Schatten,
+Alterungsfarbe, Farbzonen-Modus), Laufpunkt, Kamera, Tempo-Basis, Pausen-Modus, alle Overlays
+(Schrift, Farben, Positionen, Felder), Schilder-Stil und -Größe, Foto-Größe, Sterne,
+Wasserzeichen, Render-Einstellungen; bei der Tour-Map dazu Format, Rand, Pins; beim
+Daten-Animator Diagramm-Stil, Reihen, Achsen, Statistik-Felder; beim Geotagger Kamera-Versätze,
+Zeit-aus-Track, Backup, Schlagwörter. **Nie drin:** Keyframes, Schnitt, Zeitleisten-Ereignisse,
+Gruppen, Etappen, Zusatz-Touren, Ghosts, Schilder-Positionen, Fotos, Wegpunkte.
+
+**Wo du sie findest — vier Stellen, alle ohne den Tour-Assistenten:**
+
+1. **Archiv → Reiter „Vorlagen“** (neben „Projekte“ und „Touren-Archiv“). Kacheln mit
+   Kartenstil · Format · Farbpunkt der Linie · Schrift. Knöpfe je Kachel: **➕ Neues Projekt
+   daraus** (leeres Projekt mit diesem Look, springt in den Animator), **☆/★** setzt „Mein
+   Standard“, **✎** umbenennen, **🗑** löschen. Links: **„Neue Vorlage aus Projekt …“**.
+   **„Reisezoom-Standard“** ist mitgeliefert (Werkseinstellungen) und lässt sich nicht ändern.
+2. **Projekt-Kachel → 🧩**: ein kleines Fenster mit „Vorlage anwenden“ (Auswahl) und „Als
+   neue Vorlage speichern“ (Name).
+3. **Projekt-Menü in der Kopfzeile**: **„🧩 Vorlage anwenden …“** und **„🧩 Als Vorlage
+   speichern …“**. **„Neues Projekt“** fragt jetzt auch nach der Vorlage (vorbelegt: ★).
+4. **Automatisch:** jedes neue Projekt (Track öffnen, Sammlung übergeben, „Neues Projekt“)
+   startet mit der **★-Vorlage** („Mein Standard“). Ohne eigenen Stern gilt Reisezoom-Standard.
+
+**Anwenden** überschreibt nur, was die Vorlage trägt — Keyframes, Schilder, Fotos, Gruppen und
+Schnitt deines Projekts bleiben stehen. **Rückgängig geht überall:** im Modul ist „Vorlage
+angewendet“ ein normaler ⌘Z-Schritt (die anderen Module ändern sich im Hintergrund mit; vorher
+sichert die App einen Arbeitsstand, den du unter 🕘 „Frühere Arbeitsstände“ zurückholst); im
+Archiv holt ⌘Z alle Module des Projekts zurück, legt eine gelöschte Vorlage wieder an und setzt
+den vorherigen Stern.
+
+**Deine bisherigen „eigenen Standardwerte“** (Einstellungen → „Aktuelle Einstellungen als Standard
+speichern“) werden beim ersten Start einmalig zur Vorlage **„Meine Standardwerte“** mit ★ — nichts
+geht verloren. Der Knopf in den Einstellungen und „Diesen Look für neue Tracks merken“ im
+„Video fertig“-Fenster schreiben ab jetzt die ★-Vorlage („Mein Standard“).
+
+---
+
 ### Projekt exportieren & importieren (.rzproj, seit v0.9.537)
 
 **Ein Projekt als eine Datei weitergeben — ganz ohne Cloud.** Im Projekt-Menü
@@ -2447,7 +2486,7 @@ Am Ende dauert ffmpeg's `+faststart`-Phase nochmal 2-3 Min (Dateigröße bleibt 
 Ja, in zwei Stufen:
 
 - **Pro Track:** Jede Strecke merkt sich ihre **eigenen** Einstellungen (Stil, Farbe, Pitch, Overlays, Keyframes, Fotos, „Karte glätten" …). Öffnest du denselben Track später wieder, ist alles wie zuletzt. Erkannt wird der Track am **Inhalt** (nicht am Dateinamen).
-- **Für neue Tracks:** Ein **neuer** Track startet normalerweise mit den Werkseinstellungen. Wenn du immer denselben Look willst, geh in die **Einstellungen** → **„Aktuelle Einstellungen als Standard speichern"**. Ab dann übernimmt jeder neue Track deinen Look. Mit **„Auf Werkseinstellungen zurücksetzen"** geht's wieder zum Auslieferungszustand. Bestehende Tracks bleiben dabei unangetastet. Track-spezifisches (Keyframes, Trim, Foto-Auswahl) wird absichtlich nicht als Standard übernommen. Schneller geht es direkt nach dem Render: Im „Video fertig“-Fenster (auch bei der Tour-Map) gibt es **„Diesen Look für neue Tracks merken“** — ein Klick, dieselbe Wirkung.
+- **Für neue Tracks:** Ein **neuer** Track startet normalerweise mit den Werkseinstellungen. Wenn du immer denselben Look willst, geh in die **Einstellungen** → **„Aktuelle Einstellungen als Standard speichern"**. Ab dann übernimmt jeder neue Track deinen Look. Mit **„Auf Werkseinstellungen zurücksetzen"** geht's wieder zum Auslieferungszustand. Bestehende Tracks bleiben dabei unangetastet. Track-spezifisches (Keyframes, Trim, Foto-Auswahl) wird absichtlich nicht als Standard übernommen. Schneller geht es direkt nach dem Render: Im „Video fertig“-Fenster (auch bei der Tour-Map) gibt es **„Diesen Look für neue Tracks merken“** — ein Klick, dieselbe Wirkung. Seit v0.9.689 ist das eine **Vorlage** mit ★ („Mein Standard“, Archiv → Vorlagen) — siehe „🧩 Vorlagen“ oben.
 
 ### Mein 4K-Video flimmert leicht („wie falsche Belichtungszeit")
 Das war ein bekanntes Thema bis v0.9.286 und ist jetzt behoben (Kachel-Überblendung abgeschaltet + Supersampling + ein leichter Karten-Weichzeichner gegen das Textur-Flimmern). Falls du noch ein altes Video hast: einfach mit der aktuellen Version neu rendern.

@@ -698,6 +698,28 @@ python app.py</code></pre>
 <h4 id="where-things-are-stored">Where things are stored</h4>
 <p><code>…/Reisezoom GPS Studio/projekte.json</code> (working folders), <code>touren.json</code> (tour facts + versions), <code>projekt_staende/</code> (🕘 states), version GPX snapshots under <code>…/sessions/</code>.</p>
 <hr>
+<h3 id="templates-empty-projects-with-your-look">🧩 Templates — empty projects with your look ⭐</h3>
+<p><strong>A template is an empty project:</strong> everything design-related, nothing that hangs on the track. It carries map style and map sliders, track shape (line, width, colour, glow, shadow, age colour, colour-zone mode), running dot, camera, tempo base, pause mode, all overlays (font, colours, positions, fields), sign style and size, photo size, stars, watermark, render settings; for the Tour Map also format, margin, pins; for the data animator chart style, series, axes, stats fields; for the geotagger camera offsets, time-from-track, backup, keywords. <strong>Never in it:</strong> keyframes, trim, timeline events, groups, stages, extra tours, ghosts, sign positions, photos, waypoints.</p>
+<p><strong>Where to find them — four places, none of them needs the tour assistant:</strong></p>
+<ol>
+<li><strong>Archive → tab “Templates”</strong> (next to “Projects” and “Tour archive”). Tiles with map style ·</li>
+</ol>
+<p> format · colour dot of the line · font. Buttons per tile: <strong>➕ New project from this</strong> (empty  project with this look, jumps into the Animator), <strong>☆/★</strong> sets “My default”, <strong>✎</strong> rename,  <strong>🗑</strong> delete. On the left: <strong>“New template from project …”</strong>. <strong>“Reisezoom default”</strong> is built  in (factory settings) and cannot be changed.</p>
+<ol>
+<li><strong>Project tile → 🧩</strong>: a small window with “Apply template” (selection) and “Save as new</li>
+</ol>
+<p> template” (name).</p>
+<ol>
+<li><strong>Project menu in the header bar</strong>: <strong>“🧩 Apply template …”</strong> and <strong>“🧩 Save as template …”</strong>.</li>
+</ol>
+<p> <strong>“New project”</strong> now also asks for the template (preset: ★).</p>
+<ol>
+<li><strong>Automatically:</strong> every new project (opening a track, handing over a collection, “New</li>
+</ol>
+<p> project”) starts with the <strong>★ template</strong> (“My default”). Without your own star, Reisezoom  default applies.</p>
+<p><strong>Applying</strong> overwrites only what the template carries — keyframes, signs, photos, groups and trim of your project stay. <strong>Undo works everywhere:</strong> in a module “Template applied” is a normal ⌘Z step (the other modules change in the background too; before that the app saves a work state you can bring back under 🕘 “Earlier work states”); in the archive ⌘Z restores all modules of the project, re-creates a deleted template and puts back the previous star.</p>
+<p><strong>Your previous “own defaults”</strong> (Settings → “Save current settings as default”) become the template <strong>“Meine Standardwerte”</strong> with ★ on first start — nothing is lost. The button in Settings and “Keep this look for new tracks” in the “Video done” window now write the ★ template (“My default”).</p>
+<hr>
 <h3 id="export-import-a-project-rzproj">Export &amp; import a project (.rzproj)</h3>
 <p><strong>Hand over a project as one file — no cloud needed.</strong> In the project menu (click “Session · Project” at the top) or via “File → Export project” you get a <code>.rzproj</code> file: the track, <strong>all projects</strong> of the session (keyframes, signs, overlays, settings), the tour data from the archive (name, tags, note) and <strong>preview images</strong> of your photos plus the <strong>images of your signs</strong> — the original photos stay with you.</p>
 <p><strong>Import:</strong> “File → Import project”, the project menu, or simply drop the <code>.rzproj</code> onto the app. The track is added to the archive (folder “projekt_importe”), the projects attach to the track&#x27;s session. If the track already exists, the projects are <strong>added</strong> — nothing is overwritten, same-named ones get “(imported)”. If the original photos are missing on the other computer, the photos point to the bundled previews.</p>
@@ -1702,7 +1724,7 @@ python app.py</code></pre>
 <p>Yes, in two tiers:</p>
 <ul>
 <li><strong>Per track:</strong> every route remembers its <strong>own</strong> settings (style, color, pitch, overlays, keyframes, photos, &quot;Smooth map&quot; …). Open the same track again later and everything is as it was last. The track is recognized by its <strong>content</strong> (not by the filename).</li>
-<li><strong>For new tracks:</strong> a <strong>new</strong> track normally starts with the factory settings. If you always want the same look, go to <strong>Settings</strong> → <strong>&quot;Save current settings as default&quot;</strong>. From then on every new track adopts your look. With <strong>&quot;Reset to factory settings&quot;</strong> you go back to the shipped state. Existing tracks stay untouched in doing so. Track-specific things (keyframes, trim, photo selection) are deliberately not adopted as defaults. Quicker right after a render: the “Video done” window (Tour Map too) has <strong>“Keep this look for new tracks”</strong> — one click, same effect.</li>
+<li><strong>For new tracks:</strong> a <strong>new</strong> track normally starts with the factory settings. If you always want the same look, go to <strong>Settings</strong> → <strong>&quot;Save current settings as default&quot;</strong>. From then on every new track adopts your look. With <strong>&quot;Reset to factory settings&quot;</strong> you go back to the shipped state. Existing tracks stay untouched in doing so. Track-specific things (keyframes, trim, photo selection) are deliberately not adopted as defaults. Quicker right after a render: the “Video done” window (Tour Map too) has <strong>“Keep this look for new tracks”</strong> — one click, same effect. this is a <strong>template</strong> with ★ (“My default”, Archive → Templates) — see “🧩 Templates” above.</li>
 </ul>
 <h3 id="my-4k-video-shimmers-slightly-like-the-wrong-shutter-speed">My 4K video shimmers slightly (&quot;like the wrong shutter speed&quot;)</h3>
 <p>This was a known issue and is now fixed (tile cross-fading turned off + supersampling + a slight map blur against the texture shimmer). If you still have an old video: just re-render it with the current version.</p>
