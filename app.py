@@ -2077,6 +2077,94 @@ class Api:
             log.warning("[assistent] Highlights: %s", e)
             zeile("highlights", T("assistent.s_hl_fehler", "Highlights: {e}").replace("{e}", str(e)), ok=False)
 
+    def highlights_vorschlaege(self, path: str, foto_quellen: list = None, quellen: dict = None) -> dict:
+        """Highlights-Fenster (Marc, 11.09.2026): Vorschläge für den offenen Track —
+        OSM-Orte, Track-Stellen, Halte-Punkte mit Fotos, Foto-Serien, übrige Fotos.
+        `foto_quellen` = Ordner/Dateien; `quellen` = {osm, track, halte} (bool)."""
+        from core import highlights as chl
+        from core import geocode as cgeocode
+        from core import photos as cphotos
+        T = _ui_t()
+        q = {"osm": True, "track": True, "halte": True}
+        q.update({k: bool(v) for k, v in (quellen or {}).items()})
+        try:
+            load = self.gpxinspect_load(str(path or ""))
+            pts = list(((load or {}).get("points")) or [])
+            if len(pts) < 2:
+                return {"ok": False, "error": (load or {}).get("error") or T("assistent.err_datei", "Track-Datei nicht gefunden.")}
+            tz = self._tz_fuer_track(path)
+            e0 = next((czeit.epoch_von_iso(p.get("time")) for p in pts if p.get("time")), None)
+            tz_off = czeit.offset_min(tz, e0)
+            info = {"tz": tz, "tz_offset_min": tz_off, "netz": True}
+            # Fotos lesen (Datum + GPS; Thumbs erst für die Vorschläge)
+            fotos = []
+            for pfad in cphotos.expand_paths(list(foto_quellen or [])):
+                if not cexif.is_photo(pfad):
+                    continue
+                f = {"path": pfad, "lat": None, "lon": None, "datetime": None}
+                try:
+                    g = cexif.read_gps(pfad)
+                    if g:
+                        f["lat"], f["lon"] = float(g[0]), float(g[1])
+                except Exception:  # noqa: BLE001
+                    pass
+                try:
+                    d = cexif.read_datetime(pfad)
+                    if d:
+                        f["datetime"] = d.isoformat()
+                except Exception:  # noqa: BLE001
+                    pass
+                fotos.append(f)
+            fz = chl.fotos_zuordnen(pts, fotos, tz_off)
+            info["n_fotos"] = len(fotos)
+            info["n_zugeordnet"] = sum(1 for f in fz if f.get("idx") is not None)
+            pois = []
+            if q["osm"]:
+                r = chl.highlights_fuer_track(pts)
+                info["netz"] = r["netz"]
+                pois = r["gewaehlt"]
+                pois = [p for p in pois if p.get("art") not in chl.TRACK_ARTEN]
+            track = chl.track_highlights(pts) if q["track"] else []
+            cum = chl._kumuliert(pts); ges = cum[-1] or 1.0
+            for h in track:
+                h["frac"] = cum[h["idx"]] / ges
+            track = [h for h in track if 0.03 < h["frac"] < 0.97]
+            halte = chl.halte_punkte(pts) if q["halte"] else []
+            labels = {"hoechster": T("assistent.s_hoechster", "Höchster Punkt"), "tiefster": T("assistent.s_tiefster", "Tiefster Punkt"),
+                      "schnellster": T("assistent.s_schnellster", "Schnellste Stelle"), "steilster": T("assistent.s_steilster", "Steilste Stelle"),
+                      "halt": T("hl.pause", "Pause")}
+            # Namen der Halte-Punkte (nur die mit Fotos, höchstens 8 Geocoder-Rufe)
+            halt_namen = {}
+            if halte and fz:
+                n_ruf = 0
+                for h in halte:
+                    if n_ruf >= 8:
+                        break
+                    if not any(f.get("idx") is not None and h["idx_a"] - 5 <= f["idx"] <= h["idx_b"] + 5 for f in fz):
+                        continue
+                    try:
+                        a = cgeocode.reverse(h["lat"], h["lon"], provider="photon", lang=_ui_sprache())
+                        nm = (a or {}).get("street") or (a or {}).get("city") or ""
+                        if nm:
+                            halt_namen[h["idx"]] = nm
+                    except Exception:  # noqa: BLE001
+                        pass
+                    n_ruf += 1
+            vs = chl.vorschlaege(pts, pois=pois, track=track, halte=halte, fotos=fz, labels=labels, halt_namen=halt_namen)
+            for v in vs:
+                v["uhrzeit"] = czeit.fmt_uhrzeit(v.get("epoch"), tz_off) if v.get("epoch") else ""
+                if v.get("foto"):
+                    try:
+                        v["thumb"] = cphotos.thumbnail_data_url(v["foto"], max_px=160) or ""
+                    except Exception:  # noqa: BLE001
+                        v["thumb"] = ""
+            log.info("[highlights] Vorschläge für %s: %d (Fotos %d/%d, OSM %d, Track %d, Halte %d)",
+                     Path(str(path)).name, len(vs), info["n_zugeordnet"], info["n_fotos"], len(pois), len(track), len(halte))
+            return {"ok": True, "vorschlaege": vs, **info}
+        except Exception as e:  # noqa: BLE001
+            log.error("highlights_vorschlaege: %s\n%s", e, traceback.format_exc())
+            return {"ok": False, "error": str(e)}
+
     def highlights_schilder(self, path: str, stil: dict = None) -> dict:
         """Knopf „Highlights aus OpenStreetMap" im Animator/Tour-Map (Marc, 11.09.2026):
         für den offenen Track die Highlight-Schilder liefern — die Oberfläche legt sie zu

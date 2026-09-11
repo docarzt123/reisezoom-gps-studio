@@ -707,9 +707,15 @@ longitud), si no de la ubicación de la ruta. El formato sigue el idioma de la a
   Además, del propio track: punto más alto y más bajo (si la ruta sube al menos 150 m), tramo más
   rápido (desde 6 km/h) y tramo más empinado (desde 8 %), cada uno con su valor, y salida/meta con el nombre del lugar.
   Los carteles quedan en el Animador y el Tour Map con el estilo de carteles del proyecto y se
-  editan o borran como cualquier cartel. Sin red hay una línea y ningún cartel. Lo mismo sin el
-  asistente: en el Animador y el Tour Map, el botón **«🏔 Puntos destacados de OpenStreetMap»** de la
-  sección de carteles los añade a los carteles existentes, como un paso ⌘Z.
+  editan o borran como cualquier cartel. Sin red hay una línea y ningún cartel. Sin el asistente
+  está la **ventana de puntos destacados**: en el Animador y el Tour Map, **«🏔 Puntos destacados de
+  OpenStreetMap»** en la sección de carteles. Añade carpetas de fotos, marca las fuentes (lugares
+  de OpenStreetMap, puntos del track, paradas con fotos) y «Buscar puntos destacados». La app
+  asigna cada foto al track (GPS, si no la hora de captura), une fotos a lugares cercanos,
+  encuentra paradas con fotos (nombradas con el geocodificador), agrupa series y lista fotos
+  sueltas. En la lista marcas o desmarcas y editas el texto; lo recomendado viene marcado, lo
+  secundario sin foto desmarcado. «Añadir como carteles» crea los carteles, tarjetas con foto donde
+  corresponde, como un paso ⌘Z. Los archivos de foto no se modifican.
 - **Salto al Animador** con el proyecto abierto.
 
 Si no había nada que reparar, la lista lo dice y el proyecto queda ligado al fichero original.

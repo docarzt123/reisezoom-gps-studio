@@ -764,9 +764,14 @@ App-Sprache. Liegt die Tour nicht im Archiv, gilt die Zone der Lage.
   schnellste Stelle (ab 6 km/h) und steilste Stelle (ab 8 %), jeweils mit Wert, sowie Start/Ziel mit Ortsname.
   Die Schilder stehen danach in Animator und Tour-Map im Schilder-Stil des Projekts und lassen sich
   dort wie jedes Schild ändern oder löschen. Ohne Netz gibt es eine Zeile und keine Schilder.
-  Denselben Vorgang gibt es auch ohne Assistent: in Animator und Tour-Map in der Schilder-Sektion
-  der Knopf **„🏔 Highlights aus OpenStreetMap“** legt sie zu den vorhandenen Schildern, als ein
-  ⌘Z-Schritt.
+  Ohne Assistent geht es über das **Highlights-Fenster**: in Animator und Tour-Map in der
+  Schilder-Sektion **„🏔 Highlights aus OpenStreetMap“**. Dort Fotoordner hinzufügen, Quellen
+  anhaken (Orte aus OpenStreetMap, Track-Stellen, Halte-Punkte mit Fotos) und „Highlights finden“.
+  Die App ordnet jedes Foto dem Track zu (GPS, sonst Aufnahmezeit), hängt Fotos an Orte in der
+  Nähe, findet Halte-Punkte mit Fotos (benannt über den Geocoder), fasst Foto-Serien zusammen und
+  listet Einzelfotos. In der Liste hakst du an oder ab und änderst den Schildtext; Empfohlenes ist
+  vorgehakt, Nebensächliches ohne Foto abgewählt. „Als Schilder übernehmen“ legt die Schilder an,
+  Foto-Karten wo ein Foto dazugehört, als ein ⌘Z-Schritt. Die Fotodateien werden nicht verändert.
 - **Sprung in den Animator** mit dem geöffneten Projekt.
 
 Gab es nichts zu reparieren, steht das so in der Liste und das Projekt hängt an der Originaldatei.

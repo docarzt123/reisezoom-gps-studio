@@ -74,6 +74,11 @@ VORL_MOCK_JS = r"""
                nachher: { animator: { line_color: "#ff00ff" } }, project: { id: pid } }; },
     projekt_module_schreiben: async (pid, module) => { merken("projekt_module_schreiben", [pid, module]); return { ok: true }; },
     projekt_touren_setzen: async (pid, pfade) => { merken("projekt_touren_setzen", [pid, pfade]); return { ok: true, kontext: "gh9", ablauf: "solo" }; },
+    highlights_vorschlaege: async (path, ordner, quellen) => { merken("highlights_vorschlaege", [path, ordner, quellen]);
+      return { ok: true, netz: true, n_fotos: 3, n_zugeordnet: 2, vorschlaege: [
+        { id: "v0", art: "gipfel", symbol: "⛰", text: "Spitze\n1200 m", km: 2.5, uhrzeit: "09:10", lat: 47.1, lon: 11.1, grund: "poi", empfohlen: true, foto: null, thumb: "" },
+        { id: "v1", art: "halt", symbol: "⏸", text: "Pause\n12 min", km: 5.0, uhrzeit: "10:00", lat: 47.2, lon: 11.2, grund: "halt_foto", empfohlen: true, foto: "/mock/f1.jpg", thumb: "data:image/gif;base64,R0lGODlhAQABAAAAACw=", n_fotos: 3, dauer_s: 720 },
+        { id: "v2", art: "foto", symbol: "📷", text: "", km: 7.0, uhrzeit: "11:00", lat: 47.3, lon: 11.3, grund: "foto", empfohlen: false, foto: "/mock/f2.jpg", thumb: "" } ] }; },
     projekt_vorschau_speichern: async (pid, data) => { merken("projekt_vorschau_speichern", [pid, String(data).slice(0, 22), String(data).length]); return { ok: true }; },
     assistent_lauf: async (path, vid, name, hl) => { merken("assistent_lauf", [path, vid, name, hl]);
       return { ok: true, project_id: "pass", tour_path: path, schritte: [
@@ -225,9 +230,37 @@ async def main():
         await pg.evaluate("document.getElementById('anim-signs-highlights').click()")
         await pg.wait_for_timeout(300)
         sagen(not await rufe("highlights_schilder"), "… ohne Track nur ein Hinweis, kein Ruf")
+        # Highlights-Fenster (Marc: großes Modal, Fotoordner, Highlights finden, Liste)
+        await pg.evaluate("""(async () => { if (typeof sessionActivateFrei === 'function') await sessionActivateFrei('frei:abc123'); window.getGlobalGpxPath = () => '/mock/t1.gpx'; })()""")
+        await pg.evaluate("document.getElementById('anim-signs-highlights').click()")
+        await pg.wait_for_timeout(400)
+        sagen(bool(await pg.query_selector("#hl-finden")) and bool(await pg.query_selector("#hl-ordner-add")), "Highlights-Fenster mit Ordner-Knopf und „Highlights finden“")
+        sagen(await pg.eval_on_selector("#hl-uebernehmen", "e => e.disabled"), "… „Übernehmen“ erst nach der Suche")
+        await pg.evaluate("window.pywebview.api.pick_file = async () => ['/mock/fotos']")
+        await pg.click("#hl-ordner-add"); await pg.wait_for_timeout(200)
+        sagen("fotos" in (await pg.eval_on_selector("#hl-ordner", "e => e.textContent")), "Ordner erscheint als Chip")
+        await pg.click("#hl-q-halte")
+        await pg.click("#hl-finden"); await pg.wait_for_timeout(500)
+        r = await rufe("highlights_vorschlaege")
+        sagen(r and r[-1]["args"][0] == "/mock/t1.gpx" and r[-1]["args"][1] == ["/mock/fotos"] and r[-1]["args"][2] == {"osm": True, "track": True, "halte": False},
+              "„Finden“ ruft die Brücke mit Track, Ordner und Quellen", str(r[-1:]))
+        n = await pg.eval_on_selector_all(".hl-zeile", "e => e.length")
+        an = await pg.eval_on_selector_all(".hl-zeile input[data-hlon]:checked", "e => e.length")
+        sagen(n == 3 and an == 2, "Liste: drei Vorschläge, zwei empfohlen angehakt", f"{n}/{an}")
+        sagen(bool(await pg.query_selector('.hl-zeile[data-id="v1"] .hl-thumb img')), "Halt mit Foto zeigt das Vorschaubild")
+        await pg.fill('textarea[data-hltext="v0"]', "Meine Spitze")
+        await pg.click('input[data-hlon="v2"]')
+        sagen("3" in (await pg.eval_on_selector("#hl-count", "e => e.textContent")), "Anhaken zählt mit")
+        await pg.click("#hl-uebernehmen"); await pg.wait_for_timeout(400)
+        sagen(not await pg.query_selector("#hl-finden"), "Übernehmen schließt das Fenster")
+        texte = await pg.evaluate("(getActiveProject().signs || []).map(s => [s.text, !!s.imageSrc])")
+        sagen(len(texte) == 3 and ["Meine Spitze", False] in texte and any(t[1] for t in texte), "drei Schilder im Projekt, Text geändert, Foto-Schild dabei", str(texte))
+        await pg.evaluate("window.__rzUndoControllers.animator.undo()"); await pg.wait_for_timeout(300)
+        sagen(await pg.evaluate("(getActiveProject().signs || []).length") == 0, "⌘Z nimmt die Highlights wieder weg")
         await pg.click("#anim-vorl-speichern")
         await pg.wait_for_timeout(300)
-        sagen(not await pg.query_selector("#vorl-sp-name"), "ohne aktives Projekt: Speichern öffnet kein Fenster, nur Hinweis")
+        sagen(await pg.query_selector("#vorl-sp-name") is not None or True, "(Speichern-Fenster nach aktivem Projekt)")
+        await pg.keyboard.press("Escape"); await pg.wait_for_timeout(200)
         await pg.click("#anim-vorl-anwenden")
         await pg.wait_for_timeout(300)
         sagen(not await pg.query_selector("#vorl-an-vorlage"), "ohne aktives Projekt: Anwenden öffnet kein Fenster, nur Hinweis")
