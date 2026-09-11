@@ -3084,9 +3084,12 @@ Solo/Reise/Version liegt. Menü: `MenuAction(_menu_assistent)` → `window.openT
 `assistent.js`. Test: `tests/test_assistent.py` (Wegwerf-Archiv mit sauberem Track, Sprung, „Ist so in Ordnung“).
 
 **Highlights als Schilder (11.09.2026, `core/highlights.py`, Stufe 3 vorgezogen):** `overpass_abfrage(points)` baut
-eine Overpass-QL-Abfrage mit `around:120` entlang der (Douglas-Peucker-)vereinfachten Polylinie (≤ 250 Punkte) über
-alle Tag-Paare aus `ARTEN` (Art, Rang, Symbol); `osm_pois` parst Knoten und Wege (`center`), `auswaehlen` rastet an den
-nächsten Trackpunkt (Korridor), nimmt je Name den besten Rang, hält Mindestabstand 5 % der Strecke, höchstens 8,
+eine Overpass-QL-Abfrage je Tag-Paar aus `ARTEN` (Art, Rang, Symbol) in der Bounding-Box des Tracks (+400 m Rand;
+ab ~600 km² ohne Dörfer) — eine `around:`-Korridor-Abfrage lief bei einer 70-km-Tour in die Zeitüberschreitung, und der
+Hauptserver antwortet unter Last mit 504 → `_http_overpass` versucht es zweimal dort und dann auf `overpass.kumi.systems`;
+`osm_pois` parst Knoten und Wege (`center`), lässt Stolpersteine weg, `auswaehlen` rastet an den nächsten Trackpunkt
+(Korridor 400 m, LOKAL), bewertet mit `Rang + Abstand/150 m`, nimmt je Name den besten, hält Mindestabstand 3 % der
+Strecke, Anzahl nach Länge (`max_schilder_fuer`: je 5 km eins, 8–16),
 ergänzt `hoechster_punkt` (Rang 3, nur bei ≥ 150 m Hub, nicht am Rand, nicht neben OSM-Gipfel); `schilder_bauen`
 liefert Schild-Dicts (`SCHILD_BASIS` = Wegweiser, before 1 / after 4, fade) mit Stil aus dem Projekt. In `Api.assistent_lauf`
 über `_assistent_highlights` (Start/Ziel-Ortsname via `geocode.reverse(provider="photon")`), schreibt `signs` und
