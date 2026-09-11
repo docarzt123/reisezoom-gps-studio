@@ -103,6 +103,7 @@ from core import tileproxy as ctileproxy  # 03.09.2026 — Kachel-Weiche (CORS +
 from core import merge as cmerge   # 23.08.2026 — mehrere Touren zu einem Track
 from core import sessions as _sessions
 from core import projekte as _projekte  # v0.8.0: Sessions + Projekte
+from core import vorlagen as _vorlagen   # 11.09.2026: Vorlagen = leere Projekte (docs/TOUR-ASSISTENT.md)
 # v0.9.310 — core/tourmap.py entfernt: Tour-Map rendert jetzt über
 # canim.render_frame() (Standbild-Modus des Animators). Kein ctmap mehr.
 from core import i18n as ci18n
@@ -159,7 +160,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.688"
+APP_VERSION = "0.9.689"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -1681,9 +1682,35 @@ class Api:
 
     # ── v0.8.0: Sessions + Projekte ────────────────────────────────────────
 
-    def _session_get_global_defaults(self) -> dict:
+    def _vorlagen_laden(self) -> dict:
+        """11.09.2026 — Vorlagen laden; beim ersten Mal wandern die alten
+        „eigenen Standardwerte" (settings.json["user_defaults"], v0.9.287) in
+        eine Vorlage „Meine Standardwerte" mit Stern (Spec §2.2)."""
+        daten = _vorlagen.laden(DATEN_ORT)
+        try:
+            with _SETTINGS_LOCK:
+                raw = _load_settings()
+                ud = raw.get("user_defaults")
+                if ud:
+                    if _vorlagen.migrieren_user_defaults(daten, ud):
+                        _vorlagen.speichern(DATEN_ORT, daten)
+                    raw.pop("user_defaults", None)
+                    _save_settings(raw)
+        except Exception:
+            log.debug("user_defaults-Migration", exc_info=True)
+        return daten
+
+    def _vorlage_holen(self, daten: dict, vid: str = ""):
+        return _vorlagen.holen(daten, vid or _vorlagen.standard_id(daten), DEFAULT_SETTINGS)
+
+    def _session_get_global_defaults(self, vorlage_id: str = "") -> dict:
         """Liefert die echten Modul-Default-Werte (`DEFAULT_SETTINGS`) als
         Basis für „Neues Projekt" — NICHT settings.json.
+
+        11.09.2026: Darüber liegt die VORLAGE — die mit `vorlage_id` gewählte,
+        sonst die Stern-Vorlage („Mein Standard"), sonst Reisezoom-Standard
+        (= reine Werkswerte). Die früheren `user_defaults` sind in eine Vorlage
+        überführt (siehe _vorlagen_laden).
 
         v0.8.10-Marc-Bug: vorher wurde settings.json zurückgegeben.
         settings.json kann aber user-modifizierte Werte enthalten (z.B.
@@ -1704,14 +1731,12 @@ class Api:
             if SETTINGS_FILE.exists():
                 with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
                     raw = json.load(fh)
-            ud = raw.get("user_defaults") or {}
-            # 04.09.2026 — Editor-Zustand und Keyframes nie aus alten Standardwerten
-            # übernehmen (Marc: „neues Projekt, Keyframe-Editor offen"). Ältere
-            # gespeicherte Standardwerte können `keyframes_enabled: true` tragen.
-            _nie = {"keyframes_enabled", "timeline_events"}
-            for mod, vals in ud.items():
-                if mod in base and isinstance(base[mod], dict) and isinstance(vals, dict):
-                    base[mod].update({k: v for k, v in vals.items() if k not in _nie})
+            # Vorlage drüberlegen — die Sperrliste (core/vorlagen.TRACKGEBUNDEN)
+            # hält Editor-Zustand, Keyframes & Co. draußen (Regel vom 04.09.2026).
+            vd = self._vorlagen_laden()
+            vorl = self._vorlage_holen(vd, vorlage_id)
+            if vorl and vorl.get("id") != _vorlagen.REISEZOOM_ID:
+                base = _vorlagen.defaults_mit_vorlage(base, vorl)
             # 04.09.2026 (Marc: „man muss einstellen können, welche Kartenart
             # Standard ist … dauerhaft"): Einstellungen → „Standard-Kartenstil für
             # neue Projekte" gewinnt gegen gemerkte Standardwerte und Werk.
@@ -1725,16 +1750,13 @@ class Api:
         return base
 
     def save_user_defaults(self, track_hash: str = "", project_id: str = "") -> dict:
-        """Speichert den aktuellen Look als eigene Standardwerte für NEUE Tracks
-        (Marc-Wunsch v0.9.287). Quelle: das angegebene aktive Projekt aus
-        sessions.json (Source-of-Truth, immer aktuell, da saveProjectSettings
-        sofort persistiert). Ohne Session → globale settings.json (Scratch-Stand
-        bei keinem geladenen GPX).
-
-        Es werden NUR Keys übernommen, die in DEFAULT_SETTINGS[modul] existieren —
-        damit bleibt track-spezifischer Kram (Keyframes/`timeline_events`, Fotos,
-        Route, Trim, Welt-Offsets) automatisch draußen und vergiftet keine neuen
-        Tracks. Bestehende Projekte werden NICHT verändert."""
+        """Speichert den aktuellen Look als „Mein Standard" für NEUE Tracks
+        (Marc-Wunsch v0.9.287). Seit 11.09.2026 ist das eine VORLAGE mit Stern
+        (docs/TOUR-ASSISTENT.md §2.2): liegt der Stern auf Reisezoom-Standard,
+        entsteht „Mein Standard"; sonst wird die Stern-Vorlage überschrieben.
+        Die Sperrliste `core/vorlagen.TRACKGEBUNDEN` hält Trackgebundenes
+        (Keyframes, Schnitt, Etappen, Fotos, Schilder, Kamera-Festwerte) draußen.
+        Bestehende Projekte werden NICHT verändert."""
         try:
             source = {}
             if track_hash and project_id:
@@ -1742,81 +1764,210 @@ class Api:
                 source = (daten.get("projects") or {}).get(project_id) or {}
             if not source:
                 source = _load_settings()  # Fallback: globaler Scratch-Stand
-            # Track-spezifische Keys, die ZWAR in DEFAULT_SETTINGS stehen (als
-            # leere Anfangswerte), aber NIEMALS als globaler Default taugen —
-            # sonst bekäme jeder neue Track z.B. die Keyframes/Trim/Foto-Pfade
-            # vom Track, auf dem „Speichern" geklickt wurde.
-            # 04.09.2026 (Beta-Tester: „algunas configuraciones las carga y otras
-            # no"): Bisher wurden NUR Schlüssel übernommen, die in DEFAULT_SETTINGS
-            # stehen — 38 Regler des Animators (Linienstil, Glow, Schatten, Ebenen-
-            # Schalter, Beleuchtung, Ghost-Optik, Farbmodi, …) fielen still weg.
-            # Jetzt umgekehrt: ALLES Gestalterische kommt mit, nur Trackspezifisches
-            # (Keyframes, Schnitt, Etappen, Fotos, Schilder, Kamera-Festwerte) bleibt
-            # draußen. Neue Schlüssel landen über _session_get_global_defaults
-            # (update) genauso in neuen Projekten.
-            blacklist = {
-                "animator": {"timeline_events", "keyframes_enabled",   # 04.09.2026: Editor-Zustand ist kein „Look"
-                             "render_start_anchor", "render_end_anchor",
-                             "timeline_anchor_v", "timeline_schema_v", "timeline_dedupe_v",
-                             "last_save_dir", "extra_tours", "ghosts", "ghost_gpx_path",
-                             "signs", "photos", "manual_cam", "static_zoom", "static_bearing", "static_padding",
-                             "static_pins", "trim_start", "trim_end",
-                             "open_sections", "collapsed_sections"},
-                "tourmap": {"static_zoom", "static_bearing", "static_padding", "static_pins",
-                            "signs", "photos", "last_save_dir", "open_sections", "collapsed_sections"},
-                "geotagger": {"last_photos_dir", "last_photos_paths", "open_sections", "collapsed_sections"},
-                "heightanim": {"last_save_dir", "open_sections", "collapsed_sections"},
-            }
-            ud = {}
-            for mod, defaults in DEFAULT_SETTINGS.items():
-                if not isinstance(defaults, dict):
-                    continue
-                src_mod = source.get(mod)
-                if not isinstance(src_mod, dict):
-                    continue
-                bl = blacklist.get(mod, set())
-                picked = {k: v for k, v in src_mod.items()
-                          if k not in bl and not k.startswith("_")
-                          and isinstance(v, (str, int, float, bool, list, dict, type(None)))}
-                if picked:
-                    ud[mod] = picked
-            with _SETTINGS_LOCK:
-                raw = {}
-                if SETTINGS_FILE.exists():
-                    with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
-                        raw = json.load(fh)
-                raw["user_defaults"] = ud
-                _save_settings(raw)
-            return {"ok": True, "modules": list(ud.keys())}
+            vd = self._vorlagen_laden()
+            sid = _vorlagen.standard_id(vd)
+            quelle = str(source.get("name") or "")
+            if sid == _vorlagen.REISEZOOM_ID:
+                v = _vorlagen.anlegen(vd, _vorlagen.MEIN_STANDARD_NAME, source, quelle=quelle)
+                _vorlagen.standard_setzen(vd, v["id"])
+            else:
+                v = _vorlagen.aktualisieren(vd, sid, source, quelle=quelle)
+            _vorlagen.speichern(DATEN_ORT, vd)
+            return {"ok": True, "modules": list((v or {}).get("module") or {}),
+                    "vorlage": (v or {}).get("name", ""), "vorlage_id": (v or {}).get("id", "")}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
     def reset_user_defaults(self) -> dict:
-        """Entfernt die eigenen Standardwerte → neue Tracks starten wieder mit
-        den Werkseinstellungen. Bestehende Projekte bleiben unberührt."""
+        """Stern zurück auf Reisezoom-Standard → neue Tracks starten wieder mit
+        den Werkseinstellungen. Die Vorlage selbst bleibt erhalten, bestehende
+        Projekte bleiben unberührt."""
         try:
-            with _SETTINGS_LOCK:
-                raw = {}
-                if SETTINGS_FILE.exists():
-                    with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
-                        raw = json.load(fh)
-                had = bool(raw.pop("user_defaults", None))
-                _save_settings(raw)
+            vd = self._vorlagen_laden()
+            had = _vorlagen.standard_id(vd) != _vorlagen.REISEZOOM_ID
+            _vorlagen.standard_setzen(vd, _vorlagen.REISEZOOM_ID)
+            _vorlagen.speichern(DATEN_ORT, vd)
             return {"ok": True, "had_custom": had}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
     def get_user_defaults_info(self) -> dict:
-        """Status für die UI: gibt es eigene Standardwerte?"""
+        """Status für die UI: liegt der Stern auf einer eigenen Vorlage?"""
         try:
-            raw = {}
-            if SETTINGS_FILE.exists():
-                with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
-                    raw = json.load(fh)
-            ud = raw.get("user_defaults") or {}
-            return {"ok": True, "has_custom": bool(ud), "modules": list(ud.keys())}
+            vd = self._vorlagen_laden()
+            v = self._vorlage_holen(vd) or {}
+            eigen = v.get("id", _vorlagen.REISEZOOM_ID) != _vorlagen.REISEZOOM_ID
+            return {"ok": True, "has_custom": eigen, "modules": list(v.get("module") or {}),
+                    "vorlage": v.get("name", ""), "vorlage_id": v.get("id", "")}
         except Exception as e:
             return {"ok": False, "error": str(e), "has_custom": False}
+
+    # ── Vorlagen (11.09.2026, docs/TOUR-ASSISTENT.md §2) ─────────────────────
+
+    def vorlagen_liste(self) -> dict:
+        """Alle Vorlagen als Kachel-Daten (Reisezoom-Standard zuerst) plus die
+        Modul-Blöcke, damit die Oberfläche im Modul ohne zweiten Ruf anwenden kann."""
+        try:
+            vd = self._vorlagen_laden()
+            karten = _vorlagen.liste(vd, DEFAULT_SETTINGS)
+            for k in karten:
+                v = _vorlagen.holen(vd, k["id"], DEFAULT_SETTINGS) or {}
+                k["module_bloecke"] = v.get("module") or {}
+            return {"ok": True, "vorlagen": karten, "standard": _vorlagen.standard_id(vd)}
+        except Exception as e:
+            log.error("vorlagen_liste: %s", e)
+            return {"ok": False, "error": str(e), "vorlagen": []}
+
+    def vorlage_anlegen(self, name: str = "", project_id: str = "") -> dict:
+        """„Als Vorlage speichern": aus dem Projekt alles Gestalterische ziehen."""
+        try:
+            daten = _projekte.laden(DATEN_ORT)
+            p = (daten.get("projects") or {}).get(project_id) or {}
+            if not p:
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            vd = self._vorlagen_laden()
+            v = _vorlagen.anlegen(vd, (name or "").strip() or _projekte.anzeigename(daten, p),
+                                  p, quelle=_projekte.anzeigename(daten, p))
+            _vorlagen.speichern(DATEN_ORT, vd)
+            return {"ok": True, "vorlage": {k: v[k] for k in ("id", "name")}}
+        except Exception as e:
+            log.error("vorlage_anlegen: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    def vorlage_aktualisieren(self, vorlage_id: str, project_id: str) -> dict:
+        """Bestehende Vorlage mit dem Look dieses Projekts überschreiben."""
+        try:
+            if vorlage_id == _vorlagen.REISEZOOM_ID:
+                return {"ok": False, "error": "Reisezoom-Standard"}
+            daten = _projekte.laden(DATEN_ORT)
+            p = (daten.get("projects") or {}).get(project_id) or {}
+            if not p:
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            vd = self._vorlagen_laden()
+            vorher = json.loads(json.dumps((vd.get("vorlagen") or {}).get(vorlage_id) or {}))
+            v = _vorlagen.aktualisieren(vd, vorlage_id, p, quelle=_projekte.anzeigename(daten, p))
+            if not v:
+                return {"ok": False, "error": "Vorlage nicht gefunden"}
+            _vorlagen.speichern(DATEN_ORT, vd)
+            return {"ok": True, "vorher": vorher}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def vorlage_umbenennen(self, vorlage_id: str, name: str) -> dict:
+        try:
+            vd = self._vorlagen_laden()
+            alt = ((vd.get("vorlagen") or {}).get(vorlage_id) or {}).get("name", "")
+            if not _vorlagen.umbenennen(vd, vorlage_id, name or ""):
+                return {"ok": False, "error": "Vorlage nicht gefunden"}
+            _vorlagen.speichern(DATEN_ORT, vd)
+            return {"ok": True, "vorher": alt}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def vorlage_loeschen(self, vorlage_id: str) -> dict:
+        """Gibt die gelöschte Vorlage zurück — das Archiv-Undo setzt sie wieder ein."""
+        try:
+            vd = self._vorlagen_laden()
+            war_standard = _vorlagen.standard_id(vd) == vorlage_id
+            v = _vorlagen.loeschen(vd, vorlage_id)
+            if not v:
+                return {"ok": False, "error": "Vorlage nicht gefunden oder mitgeliefert"}
+            _vorlagen.speichern(DATEN_ORT, vd)
+            return {"ok": True, "vorlage": v, "war_standard": war_standard}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def vorlage_wieder_einsetzen(self, vorlage: dict, als_standard: bool = False) -> dict:
+        """Undo von Löschen."""
+        try:
+            if not isinstance(vorlage, dict) or not vorlage.get("id"):
+                return {"ok": False, "error": "keine Vorlage"}
+            vd = self._vorlagen_laden()
+            _vorlagen.wieder_einsetzen(vd, vorlage)
+            if als_standard:
+                _vorlagen.standard_setzen(vd, vorlage["id"])
+            _vorlagen.speichern(DATEN_ORT, vd)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def vorlage_standard_setzen(self, vorlage_id: str) -> dict:
+        try:
+            vd = self._vorlagen_laden()
+            vorher = _vorlagen.standard_id(vd)
+            if not _vorlagen.standard_setzen(vd, vorlage_id):
+                return {"ok": False, "error": "Vorlage nicht gefunden"}
+            _vorlagen.speichern(DATEN_ORT, vd)
+            return {"ok": True, "vorher": vorher}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    @_mit_sessions_lock
+    def vorlage_anwenden(self, project_id: str, vorlage_id: str) -> dict:
+        """Vorlage auf ein Projekt legen. Trackgebundenes bleibt stehen (Spec
+        §2.3). Vorher wird ein Arbeitsstand erzwungen (E3-Historie), damit
+        auch die im Hintergrund geänderten Module zurückholbar sind (§2.4).
+        Antwort: {vorher, nachher} = betroffene Modul-Blöcke, plus das Projekt."""
+        try:
+            daten = _projekte.laden(DATEN_ORT)
+            p = (daten.get("projects") or {}).get(project_id)
+            if not p:
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            vd = self._vorlagen_laden()
+            v = _vorlagen.holen(vd, vorlage_id, DEFAULT_SETTINGS)
+            if not v:
+                return {"ok": False, "error": "Vorlage nicht gefunden"}
+            try:
+                _projekte.stand_schreiben(DATEN_ORT, p, erzwingen=True)
+            except Exception:
+                log.exception("Projekt-Stand vor Vorlage")
+            vorher = _vorlagen.anwenden(p, v)
+            _projekte._angefasst(p)
+            _projekte.speichern(DATEN_ORT, daten)
+            nachher = {m: json.loads(json.dumps(p.get(m) or {})) for m in vorher}
+            log.info("Vorlage %r auf Projekt %s angewendet (%s)", v.get("name"), project_id, ", ".join(vorher))
+            return {"ok": True, "vorher": vorher, "nachher": nachher, "project": p,
+                    "vorlage": v.get("name", "")}
+        except Exception as e:
+            log.error("vorlage_anwenden: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    @_mit_sessions_lock
+    def projekt_module_schreiben(self, project_id: str, module: dict) -> dict:
+        """Undo-Gegenstück zu vorlage_anwenden: ganze Modul-Blöcke zurückschreiben."""
+        try:
+            daten = _projekte.laden(DATEN_ORT)
+            p = (daten.get("projects") or {}).get(project_id)
+            if not p:
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            for m, block in (module or {}).items():
+                if m in _vorlagen.MODULE and isinstance(block, dict):
+                    p[m] = json.loads(json.dumps(block))
+            _projekte._angefasst(p)
+            _projekte.speichern(DATEN_ORT, daten)
+            return {"ok": True, "project": p}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def projekt_aus_vorlage_anlegen(self, name: str = "", vorlage_id: str = "") -> dict:
+        """„Neues Projekt daraus" auf der Vorlagen-Kachel: leeres Projekt mit
+        dieser Vorlage — Vertrag wie projekt_frei_anlegen."""
+        try:
+            daten = _projekte.laden(DATEN_ORT)
+            vd = self._vorlagen_laden()
+            v = self._vorlage_holen(vd, vorlage_id) or {}
+            p = _projekte.projekt_frei_anlegen(
+                daten, (name or "").strip() or str(v.get("name") or ""),
+                self._session_get_global_defaults(vorlage_id))
+            _projekte.speichern(DATEN_ORT, daten)
+            k = p["kontext"]
+            return {"ok": True, "track_hash": k,
+                    "session": _projekte.session_sicht(daten, k) | {"track_hash": k},
+                    "active_project": p,
+                    "projects": _projekte.projekte_im(daten, k)}
+        except Exception as e:
+            log.error("projekt_aus_vorlage_anlegen: %s", e)
+            return {"ok": False, "error": str(e)}
 
     def _sessions_migrieren(self) -> None:
         """v0.9.529 — sessions.json einmalig auf Schema 2 heben (kanonischer
@@ -2139,7 +2290,7 @@ class Api:
 
     @_mit_sessions_lock
     def session_create_project(self, track_hash: str, name: str,
-                                copy_from_id: str = "") -> dict:
+                                copy_from_id: str = "", vorlage_id: str = "") -> dict:
         """Legt ein neues Projekt an. `copy_from_id` leer → Defaults aus
         settings.json. Gefüllt → Duplikat des angegebenen Projekts.
         Macht das neue Projekt automatisch zum aktiven."""
@@ -2147,7 +2298,7 @@ class Api:
             daten = _projekte.laden(DATEN_ORT)
             if not _projekte.projekte_im(daten, track_hash):
                 return {"ok": False, "error": _ui_t()("error.session_nicht_gefunden", "Session nicht gefunden")}
-            defaults = self._session_get_global_defaults()
+            defaults = self._session_get_global_defaults(vorlage_id or "")
             proj = _projekte.create(daten, track_hash,
                                     name or _sessions.DEFAULT_PROJECT_NAME,
                                     defaults, copy_from_id=copy_from_id or None)

@@ -117,9 +117,20 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.689</span>
+    <span class="version-date">11 September 2026</span>
+    <span class="version-badge">Latest</span>
+  </div>
+  <ul>
+    <li><strong>Templates: empty projects with your look</strong> &mdash; A template carries everything design-related (map style and map sliders, track shape, glow, shadow, running dot, camera, tempo base, overlays with fonts and colours, sign style, photo size, stars, watermark, render settings; Tour Map format, margin, pins; data animator chart style, series, axes; geotagger camera offsets) and nothing that hangs on the track (keyframes, trim, groups, stages, sign positions, photos, waypoints). Four places: a third tab “Templates” in the archive next to “Projects” and “Tour archive” (tiles with map style · format · colour dot · font, ★ = “My default”, “New project from this”, rename, delete, “New template from project …”; “Reisezoom default” is built in), a 🧩 on every project tile (apply a template or save as template), “Apply template …” and “Save as template …” in the project menu of the header bar, and “New project” asks for the template (preset ★). Applying overwrites only what the template carries; everything track-bound stays. Undo everywhere: one step “Template applied” in the module (a work state is saved before), in the archive ⌘Z restores all modules of the project, re-creates a deleted template and puts back the previous ★. New projects start with the ★ template; your previous own defaults become a template “Meine Standardwerte” with ★ on first start.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.688</span>
     <span class="version-date">10 September 2026</span>
-    <span class="version-badge">Latest</span>
+    
   </div>
   <ul>
     <li><strong>Track check: the app tells you what is wrong with a track</strong> &mdash; before you see it in the video, and offers the repair with one click. Fourteen kinds of findings, only what the app can repair: spikes, cold-start outliers, garbage elevation, damaged file (red &mdash; visible in the finished video); gaps, missing elevation, impossible speed, time running backwards, duplicate points, seconds used several times (10 Hz action cams), standstill drift, clock set wrong (yellow &mdash; degrades picture or data); no timestamps, times without time zone (grey, note only). Three places: a warning sign on the archive tile with a line and buttons in the detail column (“Repair in Inspector”, “Check again”, “That's fine as it is” per kind of finding), a findings box at the top of the Inspector with a checkbox per finding and one “Repair” that runs only what is ticked (undo, before/after as usual), and a hint when a track is loaded in any other module. “Repair” fills gaps along real paths using the profile from “Fill gaps as” (preset from the tour's activity), straight line only on request, offline or on detours. Checked on import, when opened in the Inspector, per tour on request and for the whole archive via “Check all tours” (bottom left, progress in the header, can be cancelled); after the update the archive asks once whether to check the existing tours (about a minute per 1000 tours). Nothing runs unasked in the background. A pause at the same place, an overnight break with kilometres in between and the jump between stages are never a finding. Damaged GPX files (cut off, “&amp;” in the name, missing header) appear in the error list as “damaged, repairable” with a repair button; the healthy copy lands in the archive as a tour, your file stays untouched.</li>

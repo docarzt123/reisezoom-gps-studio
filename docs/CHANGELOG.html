@@ -117,9 +117,20 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.689</span>
+    <span class="version-date">11. September 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <ul>
+    <li><strong>Vorlagen: leere Projekte mit deinem Look</strong> &mdash; Eine Vorlage trägt alles Gestalterische (Kartenstil und Karten-Regler, Track-Form, Glow, Schatten, Laufpunkt, Kamera, Tempo-Basis, Overlays mit Schrift und Farben, Schilder-Stil, Foto-Größe, Sterne, Wasserzeichen, Render-Einstellungen; bei der Tour-Map Format, Rand, Pins; beim Daten-Animator Diagramm-Stil, Reihen, Achsen; beim Geotagger Kamera-Versätze) und nichts, was am Track hängt (Keyframes, Schnitt, Gruppen, Etappen, Schilder-Positionen, Fotos, Wegpunkte). Vier Stellen: im Archiv ein dritter Reiter „Vorlagen“ neben „Projekte“ und „Touren-Archiv“ (Kacheln mit Kartenstil · Format · Farbpunkt · Schrift, ★ = „Mein Standard“, „Neues Projekt daraus“, umbenennen, löschen, „Neue Vorlage aus Projekt …“; „Reisezoom-Standard“ ist mitgeliefert), auf jeder Projekt-Kachel ein 🧩 (Vorlage anwenden oder als Vorlage speichern), im Projekt-Menü der Kopfzeile „Vorlage anwenden …“ und „Als Vorlage speichern …“, und „Neues Projekt“ fragt nach der Vorlage (vorbelegt ★). Anwenden überschreibt nur, was die Vorlage trägt; Trackgebundenes bleibt stehen. Rückgängig überall: im Modul ein Schritt „Vorlage angewendet“ (vorher wird ein Arbeitsstand gesichert), im Archiv holt ⌘Z alle Module des Projekts zurück, legt eine gelöschte Vorlage wieder an und setzt den vorherigen ★. Neue Projekte starten mit der ★-Vorlage; deine bisherigen eigenen Standardwerte werden beim ersten Start zur Vorlage „Meine Standardwerte“ mit ★.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.688</span>
     <span class="version-date">10. September 2026</span>
-    <span class="version-badge">Aktuell</span>
+    
   </div>
   <ul>
     <li><strong>Track-Check: die App sagt, was am Track nicht stimmt</strong> &mdash; bevor du es im Video siehst, und bietet die Reparatur mit einem Klick an. Vierzehn Befund-Arten, nur was die App auch reparieren kann: Sprünge, Kaltstart-Ausreißer, Höhen-Müll, beschädigte Datei (rot &mdash; sieht man im fertigen Video); Lücken, fehlende Höhe, unmögliches Tempo, Zeit rückwärts, Doppelpunkte, gleiche Sekunden (10-Hz-Actioncams), Standdrift, Uhr falsch (gelb &mdash; verschlechtert Bild oder Daten); ohne Zeitstempel, Zeiten ohne Zeitzone (grau, nur Hinweis). Drei Orte: Warnschild auf der Archiv-Kachel mit Zeile und Knöpfen in der Detailspalte („Im Inspektor reparieren“, „Neu prüfen“, „Ist so in Ordnung“ je Befund-Art), Befund-Kasten ganz oben im Inspektor mit Häkchen je Befund und einem „Reparieren“, das nur Angehaktes ausführt (Rückgängig, Vorher/Nachher wie gewohnt), und ein Hinweis beim Laden in jedem anderen Modul. „Reparieren“ füllt Lücken entlang echter Wege mit dem Profil aus „Lücken füllen als“ (vorbelegt aus der Fortbewegungsart der Tour), Luftlinie nur auf Wunsch, ohne Netz oder bei Umwegen. Geprüft wird beim Import, beim Öffnen im Inspektor, je Tour auf Knopfdruck und fürs ganze Archiv über „Alle Touren prüfen“ (links unten, Fortschritt oben, abbrechbar); nach dem Update fragt das Archiv einmal, ob der Bestand geprüft werden soll (etwa eine Minute je 1000 Touren). Nichts läuft ungefragt im Hintergrund. Eine Wirtshaus-Pause am selben Ort, eine Nachtpause mit Kilometern dazwischen und der Sprung zwischen Etappen sind nie ein Befund. Beschädigte GPX-Dateien (abgeschnitten, „&amp;“ im Namen, Kopf fehlt) stehen in der Fehlerliste als „beschädigt, reparierbar“ mit Reparieren-Knopf; die heile Fassung landet als Tour im Archiv, deine Datei bleibt.</li>

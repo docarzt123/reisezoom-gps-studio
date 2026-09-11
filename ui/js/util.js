@@ -1694,9 +1694,10 @@ async function projectSetActive(projectId) {
   return res;
 }
 
-async function projectCreate(name, copyFromId) {
+async function projectCreate(name, copyFromId, vorlageId) {
   if (!_activeSession) return null;
-  const res = await api().session_create_project(_activeSession.track_hash, name || "", copyFromId || "");
+  // 11.09.2026: `vorlageId` = Vorlage für das neue Projekt (leer = Stern/„Mein Standard").
+  const res = await api().session_create_project(_activeSession.track_hash, name || "", copyFromId || "", vorlageId || "");
   if (!res || !res.ok) return null;
   _activeProject = res.active_project;
   _projectsList = res.projects || [];
@@ -2283,6 +2284,14 @@ window.rzReadModuleSettings = function (section) {
   }
   return (_settingsCache && _settingsCache[section]) || {};
 };
+/** 11.09.2026 — Modul-Block im Speicher ersetzen OHNE Rückschreiben (die Brücke
+ *  hat schon gespeichert; z. B. nach vorlage_anwenden). */
+window.rzSetModuleSettingsLocal = function (section, obj) {
+  if (_activeSession && _activeProject && obj && typeof obj === "object") {
+    _activeProject[section] = JSON.parse(JSON.stringify(obj));
+  }
+};
+window.rzActiveModuleForUndo = function () { return _rzActiveModuleForUndo(); };
 window.rzWriteModuleSettings = function (section, obj) {
   if (_rzIsProjectSection(section) && _activeSession && _activeProject) {
     _activeProject[section] = JSON.parse(JSON.stringify(obj));
@@ -2698,9 +2707,20 @@ window.createUndoController = function(opts) {
     redoStack = [];
     lastSnapAt = 0;
   }
+  /** 11.09.2026 (Vorlagen, docs/TOUR-ASSISTENT.md §2.4) — einen neuen Zustand
+   *  als EINEN Undo-Schritt anwenden: der Stand davor (`before`, sonst der
+   *  jetzige Snapshot) kommt auf den Stapel, dann läuft dasselbe `apply` wie
+   *  bei Undo/Redo — so zieht das Modul alle sichtbaren Wirkungen nach. */
+  function applyState(state, label, before) {
+    if (state == null) return false;
+    const vorher = (before !== undefined && before !== null) ? before : (opts.snapshot ? opts.snapshot() : null);
+    if (vorher != null) pushSnap(label || "Vorlage", { force: true, state: vorher });
+    _runApply(state);
+    return true;
+  }
   return {
     push: pushSnap,
-    undo, redo, reset,
+    undo, redo, reset, applyState,
     canUndo: () => undoStack.length > 0,
     canRedo: () => redoStack.length > 0,
     _stackSize: () => undoStack.length,

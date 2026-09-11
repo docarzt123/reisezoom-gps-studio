@@ -117,9 +117,20 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.689</span>
+    <span class="version-date">11 de septiembre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <ul>
+    <li><strong>Plantillas: proyectos vacíos con tu aspecto</strong> &mdash; Una plantilla contiene todo lo relativo al diseño (estilo de mapa y reguladores del mapa, forma del track, brillo, sombra, punto en movimiento, cámara, base de ritmo, superposiciones con fuentes y colores, estilo de carteles, tamaño de fotos, estrellas, marca de agua, ajustes de render; en el Tour Map formato, margen, pines; en el animador de datos estilo de gráfico, series, ejes; en el geotagger desfases de cámara) y nada que dependa del track (keyframes, recorte, grupos, etapas, posiciones de carteles, fotos, waypoints). Cuatro sitios: una tercera pestaña «Plantillas» en el archivo junto a «Proyectos» y «Archivo de rutas» (tarjetas con estilo de mapa · formato · punto de color · fuente, ★ = «Mi estándar», «Nuevo proyecto con esta», renombrar, eliminar, «Nueva plantilla desde proyecto …»; «Reisezoom estándar» viene incluida), un 🧩 en cada tarjeta de proyecto (aplicar plantilla o guardar como plantilla), «Aplicar plantilla …» y «Guardar como plantilla …» en el menú de proyecto de la barra superior, y «Nuevo proyecto» pregunta por la plantilla (predefinida ★). Aplicar solo sobrescribe lo que trae la plantilla; lo ligado al track se mantiene. Deshacer en todas partes: en el módulo un paso «Plantilla aplicada» (antes se guarda un estado de trabajo), en el archivo ⌘Z restaura todos los módulos del proyecto, recrea una plantilla eliminada y devuelve la ★ anterior. Los proyectos nuevos empiezan con la plantilla ★; tus antiguos valores propios se convierten en la plantilla «Meine Standardwerte» con ★ al primer inicio.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.688</span>
     <span class="version-date">10 de septiembre de 2026</span>
-    <span class="version-badge">Actual</span>
+    
   </div>
   <ul>
     <li><strong>Revisión del track: la app te dice qué falla en un track</strong> &mdash; antes de que lo veas en el vídeo, y ofrece la reparación con un clic. Catorce tipos de hallazgo, solo lo que la app puede reparar: saltos, valores erróneos de arranque en frío, altitudes basura, archivo dañado (rojo &mdash; se ve en el vídeo final); huecos, altitud ausente, velocidad imposible, tiempo hacia atrás, puntos duplicados, segundos repetidos (cámaras de acción a 10 Hz), deriva en parada, reloj mal puesto (amarillo &mdash; empeora imagen o datos); sin marcas de tiempo, horas sin zona horaria (gris, solo aviso). Tres lugares: una señal de aviso en la tarjeta del archivo con una línea y botones en la columna de detalles («Reparar en el Inspector», «Revisar de nuevo», «Así está bien» por tipo de hallazgo), un cuadro de hallazgos arriba del todo en el Inspector con una casilla por hallazgo y un «Reparar» que solo ejecuta lo marcado (deshacer, antes/después como siempre), y un aviso al cargar un track en cualquier otro módulo. «Reparar» rellena huecos siguiendo caminos reales con el perfil de «Rellenar huecos como» (preseleccionado según la actividad), línea recta solo a petición, sin red o en rodeos. Se revisa al importar, al abrir en el Inspector, por ruta a petición y para todo el archivo con «Revisar todas las rutas» (abajo a la izquierda, progreso arriba, cancelable); tras la actualización el archivo pregunta una vez si revisar las rutas existentes (aproximadamente un minuto por cada 1000 rutas). Nada corre sin preguntar en segundo plano. Una pausa en el mismo sitio, una noche con kilómetros de por medio y el salto entre etapas nunca son un hallazgo. Los GPX dañados (cortados, «&amp;» en el nombre, cabecera ausente) aparecen en la lista de errores como «dañado, reparable» con botón de reparar; la copia sana se guarda como ruta en el archivo, tu archivo queda intacto.</li>
