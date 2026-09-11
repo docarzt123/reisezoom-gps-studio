@@ -3090,7 +3090,9 @@ Hauptserver antwortet unter Last mit 504 → `_http_overpass` versucht es zweima
 `osm_pois` parst Knoten und Wege (`center` + `bb`), lässt Stolpersteine und Flüsse/Kanäle weg, `auswaehlen` rastet an den
 nächsten Trackpunkt (Korridor 120 m LOKAL — Marc: „120 m passen schon"; Orte bis 400 m, sie füllen nur Lücken; Seen
 über den Abstand zum RECHTECK der Fläche ≤ 60 m, Schild am Weg), bewertet mit `Rang + Abstand/100 m`, nimmt je Name den
-besten, hält Mindestabstand 3 % der Strecke, Anzahl nach Länge (`max_schilder_fuer`: je 5 km eins, 8–16),
+besten, hält Mindestabstand 3 % der Strecke, Anzahl nach Länge (`max_schilder_fuer`: je 5 km eins, 8–16), Mindestabstand 3 % aber ≤ 800 m; `track_highlights` liefert
+höchster/tiefster Punkt (Hub ≥ 150 m), schnellste Stelle (Fenster 30 s, ≥ 6 km/h) und steilste Stelle (Fenster 100 m, ≥ 8 %)
+als Rang-3-Kandidaten mit `wert`,
 ergänzt `hoechster_punkt` (Rang 3, nur bei ≥ 150 m Hub, nicht am Rand, nicht neben OSM-Gipfel); `schilder_bauen`
 liefert Schild-Dicts (`SCHILD_BASIS` = Wegweiser, before 1 / after 4, fade) mit Stil aus dem Projekt. In `Api.assistent_lauf`
 über `_assistent_highlights` (Start/Ziel-Ortsname via `geocode.reverse(provider="photon")`), schreibt `signs` und

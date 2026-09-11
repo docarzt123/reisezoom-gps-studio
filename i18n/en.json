@@ -3308,5 +3308,8 @@
   "signs.highlights_leer": "Along this route OpenStreetMap knows no named highlights.",
   "signs.highlights_startziel": "Start/finish: {a} → {b}",
   "signs.highlights_undo_hint": "Undo with ⌘Z; every sign can be edited or deleted in the list.",
-  "signs.highlights_wait": "OpenStreetMap sometimes answers slowly — up to a minute, with a fallback server."
+  "signs.highlights_wait": "OpenStreetMap sometimes answers slowly — up to a minute, with a fallback server.",
+  "assistent.s_tiefster": "Lowest point",
+  "assistent.s_schnellster": "Fastest stretch",
+  "assistent.s_steilster": "Steepest stretch"
 }

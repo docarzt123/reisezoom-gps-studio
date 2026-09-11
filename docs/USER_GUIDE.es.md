@@ -696,7 +696,8 @@ de las versiones en `…/sessions/`.
   cascadas, refugios, castillos, ruinas, monumentos, atracciones y lagos (en la orilla) de
   OpenStreetMap a 120 m del track; los pueblos hasta 400 m rellenan huecos. Ordenados (cumbres
   primero, lo cercano antes), cada nombre una vez, repartidos por la ruta, uno cada 5 km, de ocho a dieciséis.
-  Además el punto más alto (si la ruta sube al menos 150 m) y salida/meta con el nombre del lugar.
+  Además, del propio track: punto más alto y más bajo (si la ruta sube al menos 150 m), tramo más
+  rápido (desde 6 km/h) y tramo más empinado (desde 8 %), cada uno con su valor, y salida/meta con el nombre del lugar.
   Los carteles quedan en el Animador y el Tour Map con el estilo de carteles del proyecto y se
   editan o borran como cualquier cartel. Sin red hay una línea y ningún cartel. Lo mismo sin el
   asistente: en el Animador y el Tour Map, el botón **«🏔 Puntos destacados de OpenStreetMap»** de la

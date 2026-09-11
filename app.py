@@ -2043,7 +2043,8 @@ class Api:
         ziel = ort(pts[-1]) if pts else ""
         s_txt = (T("assistent.s_start", "Start") + ("\n" + start if start else "")) if pts else ""
         z_txt = (T("assistent.s_ziel", "Ziel") + ("\n" + ziel if ziel else "")) if pts else ""
-        hl = T("assistent.s_hoechster", "Höchster Punkt")
+        hl = {"hoechster": T("assistent.s_hoechster", "Höchster Punkt"), "tiefster": T("assistent.s_tiefster", "Tiefster Punkt"),
+              "schnellster": T("assistent.s_schnellster", "Schnellste Stelle"), "steilster": T("assistent.s_steilster", "Steilste Stelle")}
         schilder = chl.schilder_bauen(res["gewaehlt"], stil=stil or {}, hoechster_label=hl,
                                       start=s_txt, ziel=z_txt, points=pts)
         return {"netz": True, "n_pois": len(res["pois"]), "gewaehlt": res["gewaehlt"], "schilder": schilder,
