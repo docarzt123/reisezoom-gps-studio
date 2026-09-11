@@ -3083,6 +3083,14 @@ Archiv (`rz-projekt-oeffnen` / `window.__rzProjektOeffnenId` → `projektOeffnen
 Solo/Reise/Version liegt. Menü: `MenuAction(_menu_assistent)` → `window.openTourAssistent()`; ⌘⇧N in
 `assistent.js`. Test: `tests/test_assistent.py` (Wegwerf-Archiv mit sauberem Track, Sprung, „Ist so in Ordnung“).
 
+**Datum/Uhrzeit in den Einblendungen (11.09.2026, `core/zeitzone.py`):** Tracks tragen UTC; die Zone kommt aus
+`zone_fuer(lat, lon, land)` — `land` = deutscher Ländername aus `tracks.country` (Ortslauf), Mehrzonen-Länder über den
+Längengrad, ohne Land Europa-Streifen bzw. `Etc/GMT±h`. `Api._tz_fuer_track(path, ds)` liefert sie; `animator_load_gpx`
+gibt `series.epochS/start_epoch/end_epoch/tz_offset_min/lang` mit, `AnimatorConfig.tz_name` geht in den Render (dort
+`epochS`, `TZ_OFF_MIN`, `DATE_LANG` + `JS_FORMATE` als `{zeit_js}` in BEIDEN Vorlagen). Felder: totals `date`/`time_span`
+(`fmt_zeitraum`/`fmt_uhrzeit_spanne`), live `datetime_now`/`time_now`. `JS_FORMATE` steht wortgleich in `ui/js/util.js`;
+`tests/test_zeitzone.py` prüft die Gleichheit — bei Änderung beide Stellen. Windows braucht `tzdata` (siehe requirements).
+
 **Highlights als Schilder (11.09.2026, `core/highlights.py`, Stufe 3 vorgezogen):** `overpass_abfrage(points)` baut
 eine Overpass-QL-Abfrage je Tag-Paar aus `ARTEN` (Art, Rang, Symbol) in der Bounding-Box des Tracks (+400 m Rand;
 ab ~600 km² ohne Dörfer) — eine `around:`-Korridor-Abfrage lief bei einer 70-km-Tour in die Zeitüberschreitung, und der

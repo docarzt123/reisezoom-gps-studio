@@ -731,6 +731,15 @@ Fassungen unter `…/sessions/`.
 
 ---
 
+### 🕒 Datum und Uhrzeit in den Statistik-Einblendungen (seit v0.9.689)
+
+Im Stats-Editor des Animators (und der Tour-Map) gibt es vier neue Felder: in der **Gesamt-Box**
+„Datum“ (ein Tag, bei Mehrtagestouren ein Zeitraum wie 12.–14.08.2026) und „Uhrzeit“ (von – bis),
+in der **Live-Box** „Datum & Uhrzeit“ und „Uhrzeit“ am aktuellen Punkt. Angezeigt wird die
+**Ortszeit der Tour**: Die Zeitzone kommt aus dem Land der Tour im Archiv (Kanaren, Azoren und
+Länder mit mehreren Zonen nach Längengrad), sonst aus der Lage der Tour. Das Format folgt der
+App-Sprache. Liegt die Tour nicht im Archiv, gilt die Zone der Lage.
+
 ### 🧭 Tour-Assistent — von der Tour zum fertigen Projekt (seit v0.9.689) ⭐
 
 **Datei → „Tour-Assistent…“ (⌘⇧N).** Ein Fenster, drei Angaben, ein Knopf:

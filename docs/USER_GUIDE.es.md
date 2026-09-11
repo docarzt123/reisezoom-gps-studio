@@ -676,6 +676,14 @@ de las versiones en `…/sessions/`.
 
 ---
 
+### 🕒 Fecha y hora en las estadísticas superpuestas (desde v0.9.689)
+
+El editor de estadísticas del Animador (y del Tour Map) tiene cuatro campos nuevos: en la **caja
+total** «Fecha» (un día o, en rutas de varios días, un periodo) y «Hora» (de – a), en la **caja en
+vivo** «Fecha y hora» y «Hora» en el punto actual. Se muestra la **hora local de la ruta**: la zona
+horaria sale del país de la ruta en el archivo (Canarias, Azores y países con varias zonas según la
+longitud), si no de la ubicación de la ruta. El formato sigue el idioma de la app.
+
 ### 🧭 Asistente de ruta — de la ruta al proyecto terminado (desde v0.9.689) ⭐
 
 **Archivo → «Asistente de ruta…» (⌘⇧N).** Una ventana, tres datos, un botón:

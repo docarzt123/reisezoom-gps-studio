@@ -120,6 +120,7 @@ from core import sign_raster as csignraster  # v0.9.418: serverseitige Schild-Ra
 from core import gpxedit as cgpxedit  # v0.9.233: GPX-Inspektor (Track heilen/füllen)
 from core import gpxmerge as cgpxmerge  # v0.9.456: mehrere Tracks zu einem verschmelzen
 from core import trackio as ctrackio  # v0.9.297: Track→GPX/CSV-String (geteilt mit Web)
+from core import zeitzone as czeit    # 11.09.2026: Zeitzone + Datum/Uhrzeit für die Einblendungen
 
 
 # Pfade: in PyInstaller-Bundle liegt UI in sys._MEIPASS, sonst im Source-Tree.
@@ -5019,6 +5020,21 @@ class Api:
                 pass
         return erg
 
+    def _tz_fuer_track(self, path: str, ds=None) -> str:
+        """Zeitzone der Tour: Land aus der Archiv-Zeile (Ortslauf), Lage aus dem Track."""
+        land, lat, lon = "", None, None
+        try:
+            t = clib.get_track(self._lib(), str(path or ""))
+            if t:
+                land = str(t.get("country") or "")
+                lat, lon = t.get("center_lat"), t.get("center_lon")
+        except Exception:  # noqa: BLE001
+            pass
+        if (lat is None or lon is None) and ds:
+            m = ds[len(ds) // 2]
+            lat, lon = getattr(m, "lat", None), getattr(m, "lon", None)
+        return czeit.zone_fuer(lat, lon, land)
+
     def _animator_load_gpx_roh(self, path: str) -> dict:
         try:
             orig_path = path
@@ -5041,6 +5057,13 @@ class Api:
             has_ele = stats.ele_max is not None and stats.ele_min is not None
             cum_dist = [p.dist_m for p in ds]
             cum_time = [p.elapsed_s for p in ds]
+            # 11.09.2026 (Marc: „in den Stats fehlt Datum und Uhrzeit") — absolute
+            # Zeit je Punkt + Zeitzone der Tour (Land aus dem Archiv, sonst Lage).
+            epochs = [czeit.epoch_von_iso(getattr(p, "time", None)) for p in ds]
+            _ep_da = [e for e in epochs if e is not None]
+            e_start, e_end = (_ep_da[0], _ep_da[-1]) if _ep_da else (None, None)
+            tz_name = self._tz_fuer_track(path, ds)
+            tz_off = czeit.offset_min(tz_name, e_start)
             eles_full = [p.ele if p.ele is not None else 0.0 for p in ds]
             _spd, _grd, _, _ = canim._overlay_compute_speed_grade(
                 ds, cum_dist, cum_time, eles_full, has_time, has_ele)
@@ -5077,6 +5100,8 @@ class Api:
                 "total_time_s": stats.duration_s,
                 "has_time": has_time,
                 "has_ele": has_ele,
+                "epochS": epochs, "start_epoch": e_start, "end_epoch": e_end,
+                "tz_name": tz_name, "tz_offset_min": tz_off, "lang": _ui_sprache(),
                 "waypoints": wp_out,
                 # 23.08.2026 — Etappen-Werte fürs Overlay (siehe gpx.etappen_reihen)
                 "stage": cgpx.etappen_reihen(ds, stats.seg_names),
@@ -5107,6 +5132,7 @@ class Api:
                     # damit die Live-Vorschau echte Werte zeigt statt Schätz-Heuristik.
                     "moving_time_s": stats.moving_time_s,
                     "max_speed_kmh": stats.max_speed_kmh,
+                    "start_epoch": e_start, "end_epoch": e_end, "tz_offset_min": tz_off,
                 },
                 "series": series,
                 # v0.9.331 — vorhandene Sensorfelder [{key,label,unit}] fürs UI.
@@ -5551,6 +5577,7 @@ class Api:
             _be_track_style = params.get("track_style", "flat")
         cfg = canim.AnimatorConfig(
             ui_lang=_ui_sprache(),
+            tz_name=self._tz_fuer_track(gpx_path),
             gpx_path=gpx_path,
             output_path=out_path,
             mapbox_token=_active_mapbox_token(),
@@ -5965,6 +5992,7 @@ class Api:
         # Render-Pipeline, kein Doppel-Code mehr. Felder 1:1 wie früher.
         cfg = canim.AnimatorConfig(
             ui_lang=_ui_sprache(),
+            tz_name=self._tz_fuer_track(gpx_path),
             gpx_path=gpx_path,
             output_path=out_path,
             mapbox_token=token,
@@ -6241,6 +6269,7 @@ class Api:
 
         cfg = cheight.HeightConfig(
             ui_lang=_ui_sprache(),
+            tz_name=self._tz_fuer_track(gpx_path),
             gpx_path=gpx_path,
             output_path=out_path,
             codec=codec,
@@ -6350,6 +6379,7 @@ class Api:
 
             cfg = cheight.HeightConfig(
             ui_lang=_ui_sprache(),
+                tz_name=self._tz_fuer_track(gpx_path),
                 gpx_path=gpx_path, output_path=out_path,
                 **_height_visual_cfg_kwargs(params),
             )
@@ -6457,6 +6487,7 @@ class Api:
 
             cfg = canim.AnimatorConfig(
             ui_lang=_ui_sprache(),
+                tz_name=self._tz_fuer_track(gpx_path),
                 gpx_path=gpx_path,
                 output_path="",           # kein Playwright/Screenshot → ungenutzt
                 mapbox_token="",          # OSM ist tokenfrei

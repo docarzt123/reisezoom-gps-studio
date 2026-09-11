@@ -153,6 +153,9 @@ if not _IS_GEO:
     ]
 # Native libheif/.dylib aus pillow-heif mitnehmen
 data_files += collect_data_files("pillow_heif", include_py_files=False)
+# 11.09.2026 — Zeitzonen-Datenbank für core/zeitzone (Datum/Uhrzeit in den Einblendungen):
+# macOS hat /usr/share/zoneinfo, Windows nicht → tzdata mitnehmen.
+data_files += collect_data_files("tzdata", include_py_files=True)
 
 # Plattform-spezifische Imports
 if _sys.platform == "darwin":
@@ -205,6 +208,7 @@ _excludes = [
 if _IS_GEO:
     _excludes += ["imageio_ffmpeg", "playwright"]
 
+hidden += ["tzdata", "zoneinfo"]   # 11.09.2026 — Zeitzonen
 a = Analysis(
     ["app.py"],
     pathex=[],
