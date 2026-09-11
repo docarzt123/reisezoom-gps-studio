@@ -692,7 +692,7 @@ trim, timeline events, groups, stages, extra tours, ghosts, sign positions, phot
 3. **Project menu in the header bar**: **“🧩 Apply template …”** and **“🧩 Save as template …”**.
    **“New project”** now also asks for the template (preset: ★).
 4. **In the module:** Animator, Tour Map, data animator and web map have a **template bar at the top of the
-   sidebar** (🧩 selection · “Apply” · 💾 “Save as template…”) for the current project.
+   sidebar** (“🧩 Apply template…” · 💾 “Save as template…”; no selection field, a template is only the starting point) for the current project.
 5. **Automatically:** every new project (opening a track, handing over a collection, “New
    project”) starts with the **★ template** (“My default”). Without your own star, Reisezoom
    default applies.

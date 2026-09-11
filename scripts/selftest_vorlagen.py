@@ -212,13 +212,15 @@ async def main():
         for slug, prefix in (("heightanim", "ha"), ("webkarte", "wk"), ("animator", "anim")):
             await pg.evaluate(f"switchMod('{slug}')")
             await pg.wait_for_timeout(900)
-            n = await pg.eval_on_selector_all(f"#{prefix}-vorl-select option", "e => e.length")
-            sagen(n >= 2, f"{slug}: Leiste mit Vorlagen-Auswahl oben in der Seitenleiste", f"{n} Optionen")
+            sagen(not await pg.query_selector(f"#{prefix}-vorl-leiste select"), f"{slug}: Leiste ohne Auswahl (täuscht keinen Zustand vor)")
             sagen(bool(await pg.query_selector(f"#{prefix}-vorl-anwenden")) and bool(await pg.query_selector(f"#{prefix}-vorl-speichern")),
-                  f"{slug}: „Anwenden“ + 💾 vorhanden")
+                  f"{slug}: „Vorlage anwenden …“ + 💾 vorhanden")
         await pg.click("#anim-vorl-speichern")
         await pg.wait_for_timeout(300)
         sagen(not await pg.query_selector("#vorl-sp-name"), "ohne aktives Projekt: Speichern öffnet kein Fenster, nur Hinweis")
+        await pg.click("#anim-vorl-anwenden")
+        await pg.wait_for_timeout(300)
+        sagen(not await pg.query_selector("#vorl-an-vorlage"), "ohne aktives Projekt: Anwenden öffnet kein Fenster, nur Hinweis")
         await pg.evaluate("switchMod('library')")
         await pg.wait_for_timeout(900)
         await pg.click("#lib-seg-vorlagen"); await pg.wait_for_timeout(400)
