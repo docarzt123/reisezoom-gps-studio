@@ -747,6 +747,12 @@ Fassungen unter `…/sessions/`.
   Route passt oder kein Netz da ist. Das Ergebnis wird eine **neue Version** im Archiv, deine Datei
   bleibt unverändert.
 - **Projekt mit der Vorlage** auf dieser Version.
+- **Highlights als Schilder** (Häkchen, Standard an): Gipfel, Pässe, Aussichtspunkte, Wasserfälle,
+  Hütten, Burgen, Ruinen, Denkmäler, Sehenswürdigkeiten aus OpenStreetMap im Korridor von 120 m um
+  den Track, geordnet (Gipfel zuerst), jeder Name einmal, über die Tour verteilt, höchstens acht.
+  Dazu der höchste Punkt (wenn die Tour mindestens 150 m steigt) und Start/Ziel mit Ortsname.
+  Die Schilder stehen danach in Animator und Tour-Map im Schilder-Stil des Projekts und lassen sich
+  dort wie jedes Schild ändern oder löschen. Ohne Netz gibt es eine Zeile und keine Schilder.
 - **Sprung in den Animator** mit dem geöffneten Projekt.
 
 Gab es nichts zu reparieren, steht das so in der Liste und das Projekt hängt an der Originaldatei.

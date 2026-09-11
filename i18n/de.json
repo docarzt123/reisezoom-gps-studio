@@ -3287,5 +3287,12 @@
   "assistent.s_check": "Track repariert: {liste}",
   "assistent.s_gaps": "{r} Lücken an Wege angepasst, {l} gerade gefüllt",
   "assistent.s_version": "Als neue Version im Archiv gesichert ({a} → {b} Punkte)",
-  "assistent.s_projekt": "Projekt „{p}“ mit Vorlage „{v}“ angelegt"
+  "assistent.s_projekt": "Projekt „{p}“ mit Vorlage „{v}“ angelegt",
+  "assistent.highlights": "Highlights als Schilder setzen (Gipfel, Aussichtspunkte, Hütten, Burgen … aus OpenStreetMap; Start und Ziel mit Ortsname)",
+  "assistent.s_hl": "{n} Highlights als Schilder: {liste}",
+  "assistent.s_hl_netz": "Highlights: OpenStreetMap nicht erreichbar — keine Schilder",
+  "assistent.s_hl_fehler": "Highlights: {e}",
+  "assistent.s_hoechster": "Höchster Punkt",
+  "assistent.s_start": "Start",
+  "assistent.s_ziel": "Ziel"
 }

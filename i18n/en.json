@@ -3287,5 +3287,12 @@
   "assistent.s_check": "Track repaired: {liste}",
   "assistent.s_gaps": "{r} gaps routed along paths, {l} filled straight",
   "assistent.s_version": "Saved as a new version in the archive ({a} → {b} points)",
-  "assistent.s_projekt": "Project “{p}” created with template “{v}”"
+  "assistent.s_projekt": "Project “{p}” created with template “{v}”",
+  "assistent.highlights": "Set highlights as signs (peaks, viewpoints, huts, castles … from OpenStreetMap; start and finish with place name)",
+  "assistent.s_hl": "{n} highlights as signs: {liste}",
+  "assistent.s_hl_netz": "Highlights: OpenStreetMap not reachable — no signs",
+  "assistent.s_hl_fehler": "Highlights: {e}",
+  "assistent.s_hoechster": "Highest point",
+  "assistent.s_start": "Start",
+  "assistent.s_ziel": "Finish"
 }

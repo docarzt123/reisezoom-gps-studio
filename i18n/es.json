@@ -3287,5 +3287,12 @@
   "assistent.s_check": "Track reparado: {liste}",
   "assistent.s_gaps": "{r} huecos ajustados a caminos, {l} rellenados en línea recta",
   "assistent.s_version": "Guardado como nueva versión en el archivo ({a} → {b} puntos)",
-  "assistent.s_projekt": "Proyecto «{p}» creado con la plantilla «{v}»"
+  "assistent.s_projekt": "Proyecto «{p}» creado con la plantilla «{v}»",
+  "assistent.highlights": "Poner puntos destacados como carteles (cumbres, miradores, refugios, castillos … de OpenStreetMap; salida y meta con nombre del lugar)",
+  "assistent.s_hl": "{n} puntos destacados como carteles: {liste}",
+  "assistent.s_hl_netz": "Puntos destacados: OpenStreetMap no accesible — sin carteles",
+  "assistent.s_hl_fehler": "Puntos destacados: {e}",
+  "assistent.s_hoechster": "Punto más alto",
+  "assistent.s_start": "Salida",
+  "assistent.s_ziel": "Meta"
 }

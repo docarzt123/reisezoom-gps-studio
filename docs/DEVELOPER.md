@@ -2553,7 +2553,7 @@ Alles in `class Api` in `app.py`. Aus JS via `window.pywebview.api.<method>(...)
 | `vorlage_anwenden(project_id, vid)` | `{ok, vorher, nachher, project, vorlage}` | Modul-Blöcke davor/danach; erzwingt vorher einen Arbeitsstand |
 | `projekt_module_schreiben(project_id, module)` | `{ok, project}` | Undo-Gegenstück: ganze Modul-Blöcke zurück |
 | `projekt_aus_vorlage_anlegen(name, vid)` | wie `projekt_frei_anlegen` | Leeres Projekt mit dieser Vorlage |
-| `assistent_lauf(path, vorlage_id, name)` | `{ok, project_id, tour_path, schritte:[{key, text, ok}]}` | Tour-Assistent Stufe 1 (11.09.2026): Archiv-Aufnahme bei Bedarf, Track-Check-Reparatur (rot+gelb ohne `check_ok`, Lücken geroutet nach Fortbewegungsart) → `library_track_ersetzen` (neue Version) → `projekt_aus_vorlage_anlegen` + `projekt_touren_setzen` auf die Versionsdatei |
+| `assistent_lauf(path, vorlage_id, name, highlights=True)` | `{ok, project_id, tour_path, schritte:[{key, text, ok}]}` | Tour-Assistent Stufe 1 (11.09.2026): Archiv-Aufnahme bei Bedarf, Track-Check-Reparatur (rot+gelb ohne `check_ok`, Lücken geroutet nach Fortbewegungsart) → `library_track_ersetzen` (neue Version) → `projekt_aus_vorlage_anlegen` + `projekt_touren_setzen` auf die Versionsdatei |
 | `projekt_vorschau_speichern(project_id, data_url)` | `{ok}` | Vorschaubild aus dem letzten Stand (11.09.2026) → `bilder/projekte/<pid>.jpg`; `projekt_thumbs` bevorzugt es, `vorlage_anlegen/aktualisieren` kopieren es nach `bilder/vorlagen/` |
 | `library_track_check_ok(path, key, ok)` | `{ok, check, track}` | „Ist so in Ordnung" je Version und Befund-Art |
 | `library_repair_file(path)` | `{ok, geo_hash, n_points, schritte}` | Beschädigte GPX reparieren → Version in der Bibliothek |
@@ -3081,6 +3081,16 @@ Quelldatei — sonst zeigte `_track_geo_hash` auf die alte Version). Die Oberfl�
 Archiv (`rz-projekt-oeffnen` / `window.__rzProjektOeffnenId` → `projektOeffnen`), weil dort der Weg für
 Solo/Reise/Version liegt. Menü: `MenuAction(_menu_assistent)` → `window.openTourAssistent()`; ⌘⇧N in
 `assistent.js`. Test: `tests/test_assistent.py` (Wegwerf-Archiv mit sauberem Track, Sprung, „Ist so in Ordnung“).
+
+**Highlights als Schilder (11.09.2026, `core/highlights.py`, Stufe 3 vorgezogen):** `overpass_abfrage(points)` baut
+eine Overpass-QL-Abfrage mit `around:120` entlang der (Douglas-Peucker-)vereinfachten Polylinie (≤ 250 Punkte) über
+alle Tag-Paare aus `ARTEN` (Art, Rang, Symbol); `osm_pois` parst Knoten und Wege (`center`), `auswaehlen` rastet an den
+nächsten Trackpunkt (Korridor), nimmt je Name den besten Rang, hält Mindestabstand 5 % der Strecke, höchstens 8,
+ergänzt `hoechster_punkt` (Rang 3, nur bei ≥ 150 m Hub, nicht am Rand, nicht neben OSM-Gipfel); `schilder_bauen`
+liefert Schild-Dicts (`SCHILD_BASIS` = Wegweiser, before 1 / after 4, fade) mit Stil aus dem Projekt. In `Api.assistent_lauf`
+über `_assistent_highlights` (Start/Ziel-Ortsname via `geocode.reverse(provider="photon")`), schreibt `signs` und
+`tourmap_signs` ins Projekt. Tests: `tests/test_highlights.py` (Fake-Overpass), `tests/test_assistent.py` (1).
+Gemessen an vier Archiv-Touren: 1–10 POIs je Tour in ~3 s.
 
 **Projekt-Vorschaubild aus dem letzten Stand (11.09.2026, `ui/js/util.js`):** `rzProjektVorschauAufnehmen(grund)`
 fotografiert das offene Modul — MapLibre-Karte über `map.once("render")` + `triggerRepaint()` (kein
