@@ -92,8 +92,8 @@ für Vorlagen UND „eigene Standardwerte“:
    **„🧩 Als Vorlage speichern…“**. „Neues Projekt“ bekommt im Namensfenster ein Feld
    **„Vorlage“**, vorbelegt mit dem Stern.
 4. **Im Modul**: Animator, Tour-Map, Daten-Animator und Web-Karte haben oben in der
-   Seitenleiste eine **Vorlagen-Leiste** (🧩 Auswahl · „Anwenden“ · 💾 „Als Vorlage
-   speichern…“) für das laufende Projekt.
+   Seitenleiste eine **Vorlagen-Leiste** („🧩 Vorlage anwenden…“ · 💾 „Als Vorlage speichern…“) für das laufende
+   Projekt — bewusst ohne Auswahlfeld: eine Vorlage ist nur die Basis, kein Zustand.
 5. **Automatisch**: jedes neue Projekt startet mit der Stern-Vorlage (siehe 2.2).
 
 **Anwenden** überschreibt je Modul nur die Schlüssel, die in der Vorlage stehen; alles
@@ -171,6 +171,6 @@ Fortschritt als Zeilenliste im Fenster („Track geprüft: 2 Sprünge, 1 Lücke 
   Brücken, Archiv-Reiter, 🧩 auf der Projekt-Kachel, Kopfzeilen-Menü, Vorlagen-Feld bei „Neues Projekt“,
   Migration der alten `user_defaults`, Undo im Archiv und im Modul. Tests: Kern (49), Brücken (28), Browser (38).
   Stelle 4 (Marc: „Vorlagen müssen für alle module gelten wo man grafisch was baut"): Vorlagen-Leiste oben in der
-  Seitenleiste von Animator, Tour-Map, Daten-Animator und Web-Karte (`rzVorlagenLeiste`: Auswahl, Anwenden, 💾). **Offen:**
+  Seitenleiste von Animator, Tour-Map, Daten-Animator und Web-Karte (`rzVorlagenLeiste`: zwei Knöpfe, kein Auswahlfeld — Marc: „die Vorlage ist ja nur die Basis“). **Offen:**
   Anwenden im Modul in der echten App prüfen (nur kopflos/Mock geprüft); Block „Assistent“ (Fotoanzahl,
   Highlight-Arten) kommt mit Stufe 2/3.

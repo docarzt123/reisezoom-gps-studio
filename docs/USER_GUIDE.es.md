@@ -700,7 +700,7 @@ adicionales, fantasmas, posiciones de carteles, fotos, waypoints.
 3. **Menú de proyecto en la barra superior**: **«🧩 Aplicar plantilla …»** y **«🧩 Guardar como
    plantilla …»**. **«Nuevo proyecto»** ahora también pregunta por la plantilla (predefinida: ★).
 4. **En el módulo:** Animador, Tour Map, animador de datos y mapa web tienen **una barra de plantillas arriba en la
-   barra lateral** (🧩 selección · «Aplicar» · 💾 «Guardar como plantilla…») para el proyecto actual.
+   barra lateral** («🧩 Aplicar plantilla…» · 💾 «Guardar como plantilla…»; sin campo de selección, una plantilla es solo la base) para el proyecto actual.
 5. **Automáticamente:** cada proyecto nuevo (abrir un track, entregar una colección, «Nuevo
    proyecto») empieza con la **plantilla ★** («Mi estándar»). Sin estrella propia rige Reisezoom
    estándar.

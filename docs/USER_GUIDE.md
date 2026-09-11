@@ -754,7 +754,7 @@ Gruppen, Etappen, Zusatz-Touren, Ghosts, Schilder-Positionen, Fotos, Wegpunkte.
 3. **Projekt-Menü in der Kopfzeile**: **„🧩 Vorlage anwenden …“** und **„🧩 Als Vorlage
    speichern …“**. **„Neues Projekt“** fragt jetzt auch nach der Vorlage (vorbelegt: ★).
 4. **Im Modul:** Animator, Tour-Map, Daten-Animator und Web-Karte haben **oben in der Seitenleiste eine
-   Vorlagen-Leiste** (🧩 Auswahl · „Anwenden“ · 💾 „Als Vorlage speichern…“) für das laufende Projekt.
+   Vorlagen-Leiste** („🧩 Vorlage anwenden…“ · 💾 „Als Vorlage speichern…“; kein Auswahlfeld, denn eine Vorlage ist nur die Basis) für das laufende Projekt.
 5. **Automatisch:** jedes neue Projekt (Track öffnen, Sammlung übergeben, „Neues Projekt“)
    startet mit der **★-Vorlage** („Mein Standard“). Ohne eigenen Stern gilt Reisezoom-Standard.
 
