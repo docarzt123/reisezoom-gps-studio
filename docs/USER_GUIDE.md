@@ -746,7 +746,7 @@ Gruppen, Etappen, Zusatz-Touren, Ghosts, Schilder-Positionen, Fotos, Wegpunkte.
 
 1. **Archiv → Reiter „Vorlagen“** (neben „Projekte“ und „Touren-Archiv“). Kacheln mit
    Kartenstil · Format · Farbpunkt der Linie · Schrift. Knöpfe je Kachel: **➕ Neues Projekt
-   daraus** (leeres Projekt mit diesem Look, springt in den Animator), **☆/★** setzt „Mein
+   daraus** (erst die Touren aus dem Archiv wählen, dann Name, dann mit Track im Animator), **☆/★** setzt „Mein
    Standard“, **✎** umbenennen, **🗑** löschen. Links: **„Neue Vorlage aus Projekt …“**.
    **„Reisezoom-Standard“** ist mitgeliefert (Werkseinstellungen) und lässt sich nicht ändern.
 2. **Projekt-Kachel → 🧩**: ein kleines Fenster mit „Vorlage anwenden“ (Auswahl) und „Als

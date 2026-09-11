@@ -3235,7 +3235,7 @@
   "vorlagen.leer_kurz": "sin datos",
   "vorlagen.aus": "de «{q}»",
   "vorlagen.neu_projekt": "Nuevo proyecto con esta",
-  "vorlagen.neu_projekt_tip": "Crear un proyecto vacío con esta plantilla y abrirlo en el Animador",
+  "vorlagen.neu_projekt_tip": "Elegir rutas, crear un proyecto con esta plantilla y abrirlo en el Animador",
   "vorlagen.standard_tip": "Definir como «Mi estándar»: los proyectos nuevos empiezan con ella",
   "vorlagen.standard_gesetzt": "Los proyectos nuevos empiezan ahora con esta plantilla.",
   "vorlagen.loeschen": "Eliminar plantilla",
@@ -3263,5 +3263,7 @@
   "vorlagen.undo_standard": "Plantilla estándar definida",
   "vorlagen.undo_umbenannt": "Plantilla renombrada",
   "vorlagen.undo_geloescht": "Plantilla eliminada",
-  "vorlagen.leiste_tip": "Plantilla = mapa, forma del track, cámara, superposiciones, estilo de carteles, render; nada ligado al track. Aplicar es un paso ⌘Z."
+  "vorlagen.leiste_tip": "Plantilla = mapa, forma del track, cámara, superposiciones, estilo de carteles, render; nada ligado al track. Aplicar es un paso ⌘Z.",
+  "common.next": "Siguiente",
+  "vorlagen.touren_waehlen": "Elegir rutas"
 }

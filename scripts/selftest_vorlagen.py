@@ -73,6 +73,7 @@ VORL_MOCK_JS = r"""
       return { ok: true, vorlage: "Bergtour", vorher: { animator: { line_color: "#000000" } },
                nachher: { animator: { line_color: "#ff00ff" } }, project: { id: pid } }; },
     projekt_module_schreiben: async (pid, module) => { merken("projekt_module_schreiben", [pid, module]); return { ok: true }; },
+    projekt_touren_setzen: async (pid, pfade) => { merken("projekt_touren_setzen", [pid, pfade]); return { ok: true, kontext: "gh9", ablauf: "solo" }; },
     projekt_aus_vorlage_anlegen: async (name, vid) => { merken("projekt_aus_vorlage_anlegen", [name, vid]);
       return { ok: true, track_hash: "frei:vorl", session: { track_hash: "frei:vorl", name, stats: {} },
                active_project: { id: "pvorl", name, is_active: true }, projects: [{ id: "pvorl", name, is_active: true }] }; },
@@ -227,19 +228,29 @@ async def main():
           window.sessionActivateFrei = async (k) => { window.__frei = k; }; })()""")
         await pg.click("#lib-seg-vorlagen")
         await pg.wait_for_timeout(400)
+        await pg.evaluate("""(() => { window.__loads = []; window.loadGlobalGpx = async (p, o) => { window.__loads.push([p, o || {}]); return true; }; })()""")
         await pg.click('.lib-vorl-karte[data-vid="v1"] [data-vneu]')
+        await pg.wait_for_timeout(400)
+        sagen(bool(await pg.query_selector("#lib-tp-liste")), "zuerst kommt die Touren-Auswahl aus dem Archiv (Marc)")
+        await pg.click('#lib-tp-ok')
+        await pg.wait_for_timeout(200)
+        sagen(bool(await pg.query_selector("#lib-tp-liste")), "… ohne Haken geht es nicht weiter")
+        await pg.click('[data-tpath="/mock/t1.gpx"]')
+        await pg.click('#lib-tp-ok')
         await pg.wait_for_timeout(300)
         sagen(bool(await pg.query_selector("#vorl-np-name")) and bool(await pg.query_selector("#vorl-np-vorlage")),
-              "Namensfenster mit Vorlagen-Feld")
+              "dann das Namensfenster mit Vorlagen-Feld")
         sagen(await pg.eval_on_selector("#vorl-np-vorlage", "e => e.value") == "v1", "… Vorlage der Kachel vorgewählt")
+        sagen(await pg.eval_on_selector("#vorl-np-name", "e => e.value") == "t1", "… Name vorbelegt mit der Tour")
         await pg.fill("#vorl-np-name", "Alpen-Film")
         await pg.click("#vorl-np-ok")
-        await pg.wait_for_timeout(400)
+        await pg.wait_for_timeout(600)
         r = await rufe("projekt_aus_vorlage_anlegen")
         sagen(r and r[-1]["args"] == ["Alpen-Film", "v1"], "ruft projekt_aus_vorlage_anlegen(Name, v1)")
-        mods = await pg.evaluate("window.__mods")
-        sagen(mods and mods[-1] == "animator" and await pg.evaluate("window.__frei") == "frei:vorl",
-              "… aktiviert das leere Projekt und springt in den Animator", str(mods))
+        r = await rufe("projekt_touren_setzen")
+        sagen(r and r[-1]["args"] == ["pvorl", ["/mock/t1.gpx"]], "… legt die gewählte Tour ins Projekt", str(r[-1:]))
+        r = await rufe("projekt_aktivieren")
+        sagen(r and r[-1]["args"] == ["pvorl"], "… und öffnet das Projekt (mit Track, im Animator)")
         # Das Namensfenster allein (Kopfzeile „Neues Projekt"): Stern ist vorbelegt
         await pg.evaluate("(() => { window.__np = window.rzNeuesProjektModal('Projekt 2'); return 1; })()")
         await pg.wait_for_timeout(300)
