@@ -112,6 +112,7 @@ function mountAnimator(body, headerActions, opts) {
 
   body.innerHTML = `
     <aside class="panel" id="anim-panel">
+      ${typeof window.rzVorlagenLeiste === "function" ? window.rzVorlagenLeiste(_MODKEY === "animator" ? "anim" : "tmap") : ""}
 
       <!-- v0.8.1: „Quelle"-Sektion entfernt — GPX-Picker ist jetzt
            global in der Sub-Top-Bar oben (siehe ui/js/gpx-bar.js). -->

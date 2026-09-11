@@ -151,6 +151,49 @@
 
   const MODUL_SEKTION = { animator: "animator", tourmap: "tourmap", heightanim: "heightanim", geotagger: "geotagger" };
 
+  /** Vorlagen-Leiste oben in der Seitenleiste eines Gestaltungs-Moduls (Marc,
+   *  11.09.2026: „im animator selber … Vorlagen müssen für alle module gelten wo
+   *  man grafisch was baut"). Liefert HTML; die Knöpfe werden verdrahtet, sobald
+   *  das Element im DOM steht (rAF-Wiederholung, wie rzMakePanelUndoController). */
+  function rzVorlagenLeiste(prefix) {
+    const sel = prefix + "-vorl-select", an = prefix + "-vorl-anwenden", sp = prefix + "-vorl-speichern";
+    let tries = 0;
+    const wire = () => {
+      const s = document.getElementById(sel);
+      if (!s) return false;
+      rzVorlagenListe(true).then(({ liste, standard }) => {
+        if (!document.getElementById(sel)) return;
+        s.innerHTML = liste.map(v => `<option value="${esc(v.id)}"${v.id === standard ? " selected" : ""}>${v.standard ? "★ " : ""}${esc(v.name)}</option>`).join("");
+      });
+      const a = document.getElementById(an), b = document.getElementById(sp);
+      if (a) a.onclick = () => rzVorlageAufAktivesProjekt(s.value || "");
+      if (b) b.onclick = () => {
+        const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
+        if (!proj || !proj.id) { toast(tt("vorlagen.kein_projekt", "Kein Projekt aktiv."), "warn"); return; }
+        rzVorlageSpeichernModal(proj.id, proj.name || "").then(v => { if (v) rzVorlagenLeisteAuffrischen(); });
+      };
+      return true;
+    };
+    const retry = () => { if (wire() || ++tries > 60) return; requestAnimationFrame(retry); };
+    requestAnimationFrame(retry);
+    return `<div class="vorl-leiste" id="${esc(prefix)}-vorl-leiste" title="${esc(tt("vorlagen.leiste_tip", "Vorlage = Karte, Track-Form, Kamera, Overlays, Schilder-Stil, Render — nichts Trackgebundenes. Anwenden ist ein ⌘Z-Schritt."))}">
+      <span class="vorl-leiste-ico">🧩</span>
+      <select id="${esc(sel)}" class="vorl-leiste-select"></select>
+      <button type="button" class="btn btn-sm" id="${esc(an)}">${tt("vorlagen.anwenden_btn", "Anwenden")}</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="${esc(sp)}" title="${esc(tt("vorlagen.menu_speichern", "Als Vorlage speichern …"))}">💾</button>
+    </div>`;
+  }
+  /** Alle sichtbaren Leisten neu füllen (nach Speichern/Umbenennen/Stern). */
+  function rzVorlagenLeisteAuffrischen() {
+    document.querySelectorAll(".vorl-leiste-select").forEach(s => {
+      rzVorlagenListe(true).then(({ liste, standard }) => {
+        const cur = s.value;
+        s.innerHTML = liste.map(v => `<option value="${esc(v.id)}"${v.id === (liste.some(x => x.id === cur) ? cur : standard) ? " selected" : ""}>${v.standard ? "★ " : ""}${esc(v.name)}</option>`).join("");
+      });
+    });
+  }
+  window.addEventListener("rz-vorlagen-geaendert", rzVorlagenLeisteAuffrischen);
+
   /** Vorlage auf das AKTIVE Projekt legen — im Modul, mit Undo-Schritt. */
   async function rzVorlageAufAktivesProjekt(vid) {
     const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
@@ -174,6 +217,8 @@
       if (ctrl && typeof ctrl.push === "function") { try { ctrl.push(label, { force: true }); } catch (_) {} }
       try { window.__rzUndoApplying = true; if (typeof rebindAllSettings === "function") rebindAllSettings(); }
       finally { setTimeout(() => { window.__rzUndoApplying = false; }, 0); }
+      // Daten-Animator und Web-Karte lesen ihr Projekt beim Sitzungs-Ereignis neu.
+      try { if (typeof _notifySessionChanged === "function") _notifySessionChanged(); } catch (_) {}
       try { if (typeof window._animOnProjectChanged === "function") window._animOnProjectChanged(); } catch (_) {}
     }
     try { applog("info", "[vorlagen] angewendet: " + (r.vorlage || vid) + " auf " + proj.id + " (" + Object.keys(nachher).join(",") + ", Modul " + (mod || "-") + ")"); } catch (_) {}
@@ -188,4 +233,6 @@
   window.rzVorlageSpeichernModal = rzVorlageSpeichernModal;
   window.rzVorlageAnwendenModal = rzVorlageAnwendenModal;
   window.rzVorlageAufAktivesProjekt = rzVorlageAufAktivesProjekt;
+  window.rzVorlagenLeiste = rzVorlagenLeiste;
+  window.rzVorlagenLeisteAuffrischen = rzVorlagenLeisteAuffrischen;
 })();
