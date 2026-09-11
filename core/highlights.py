@@ -35,11 +35,13 @@ from . import net as cnet
 log = logging.getLogger("core.highlights")
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-KORRIDOR_M = 120.0          # so weit darf ein Ort neben dem Track liegen
+KORRIDOR_M = 400.0          # so weit darf ein Ort neben dem Track liegen (11.09.2026: 120 war zu eng — Schloss 344 m, Aussicht 173 m);
+                            # der Abstand zählt in der Bewertung (Rang + m/150), Nahes gewinnt
 MAX_POLYLINE_PUNKTE = 200   # (für _polylinie; die Abfrage nutzt seit 11.09.2026 die Bounding-Box)
 OVERPASS_TIMEOUT_S = 20     # Server-Limit; der Client wartet 5 s länger
-MAX_SCHILDER = 8
-MIN_ABSTAND_ANTEIL = 0.05   # zwischen zwei Schildern mindestens 5 % der Strecke
+MAX_SCHILDER = 8            # Untergrenze; je 5 km ein Schild, höchstens MAX_SCHILDER_LANG
+MAX_SCHILDER_LANG = 16
+MIN_ABSTAND_ANTEIL = 0.03   # zwischen zwei Schildern mindestens 3 % der Strecke
 HUB_MIN_M = 150.0           # „Höchster Punkt" nur ab so viel Höhenunterschied
 
 #: OSM-Tags, die ein Highlight ausmachen → (Art, Rang: kleiner = wichtiger, Symbol)
@@ -56,7 +58,7 @@ ARTEN = {
     ("tourism", "alpine_hut"): ("huette", 3, "🏠"),
     ("tourism", "wilderness_hut"): ("huette", 3, "🏠"),
     ("amenity", "shelter"): ("huette", 5, "🏠"),
-    ("historic", "castle"): ("burg", 2, "🏰"),
+    ("historic", "castle"): ("burg", 1, "🏰"),
     ("historic", "ruins"): ("ruine", 3, "🏚"),
     ("historic", "monument"): ("denkmal", 4, "🗿"),
     ("historic", "memorial"): ("denkmal", 5, "🗿"),
@@ -177,6 +179,9 @@ def osm_pois(points: List[dict], *, radius_m: float = KORRIDOR_M,
                     art = (a, rang, sym)
         if not art:
             continue
+        # Stolpersteine sind Denkmäler mit Personennamen — als Schild auf der Wanderung fehl am Platz.
+        if "stolperstein" in (str(tags.get("memorial:type") or "") + str(tags.get("memorial") or "")).lower():
+            continue
         ele = None
         try:
             ele = float(str(tags.get("ele") or "").replace(",", ".").split()[0])
@@ -232,9 +237,15 @@ def _naechster_index(points: List[dict], lat: float, lon: float, schritt_hint: i
     return bi, bd
 
 
-def auswaehlen(points: List[dict], pois: List[dict], *, max_n: int = MAX_SCHILDER,
+def max_schilder_fuer(laenge_m: float) -> int:
+    """Je 5 km ein Schild, mindestens MAX_SCHILDER, höchstens MAX_SCHILDER_LANG."""
+    return int(max(MAX_SCHILDER, min(MAX_SCHILDER_LANG, round(laenge_m / 5000.0))))
+
+
+def auswaehlen(points: List[dict], pois: List[dict], *, max_n: Optional[int] = None,
                radius_m: float = KORRIDOR_M, min_abstand_anteil: float = MIN_ABSTAND_ANTEIL) -> List[dict]:
-    # radius_m: Korridor beim Rasten an den Track (gleich dem der Abfrage)
+    # radius_m: Korridor beim Rasten an den Track. Bewertung = Rang + Abstand/100 m,
+    # damit ein Aussichtspunkt direkt am Weg vor einem 300 m entfernten steht.
     """Rang, Eindeutigkeit, Korridor, Verteilung. Liefert die gewählten POIs mit
     `idx` (Trackpunkt) und `frac` (Anteil der Strecke), nach Strecke sortiert."""
     n = len(points)
@@ -246,6 +257,8 @@ def auswaehlen(points: List[dict], pois: List[dict], *, max_n: int = MAX_SCHILDE
         a, b = points[i - 1], points[i]
         cum.append(cum[-1] + _haversine_m(float(a["lat"]), float(a["lon"]), float(b["lat"]), float(b["lon"])))
     ges = cum[-1] or 1.0
+    if max_n is None:
+        max_n = max_schilder_fuer(ges)
 
     kand = []
     gesehen = set()
@@ -260,6 +273,7 @@ def auswaehlen(points: List[dict], pois: List[dict], *, max_n: int = MAX_SCHILDE
             p = dict(p, idx=idx, abstand_m=d)
         gesehen.add(key)
         p["frac"] = cum[p["idx"]] / ges
+        p["score"] = float(p.get("rang", 9)) + float(p.get("abstand_m", 0.0)) / 150.0
         kand.append(p)
 
     # Höchster Punkt nur, wenn OSM dort keinen Gipfel/Pass kennt
@@ -273,11 +287,12 @@ def auswaehlen(points: List[dict], pois: List[dict], *, max_n: int = MAX_SCHILDE
         if hub >= HUB_MIN_M and 0.05 < frac < 0.95 and not any(
                 k.get("art") in ("gipfel", "pass") and abs(k["frac"] - frac) * ges < 300 for k in kand):
             hp["frac"] = frac
+            hp["score"] = float(hp["rang"])
             kand.append(hp)
 
     # Verteilen: nach Rang nehmen, aber Mindestabstand entlang der Strecke halten
     gewaehlt: List[dict] = []
-    for p in sorted(kand, key=lambda x: (x.get("rang", 9), x.get("name", ""))):
+    for p in sorted(kand, key=lambda x: (x.get("score", 9.0), x.get("name", ""))):
         if len(gewaehlt) >= max_n:
             break
         if any(abs(p["frac"] - g["frac"]) < min_abstand_anteil for g in gewaehlt):
@@ -343,21 +358,13 @@ def kurzliste(gewaehlt: List[dict], hoechster_label: str = "Höchster Punkt") ->
     return ", ".join(teile)
 
 
-KORRIDOR_WEIT_M = 400.0     # zweiter Versuch, wenn im engen Korridor nichts liegt
-
-
-def highlights_fuer_track(points: List[dict], *, max_n: int = MAX_SCHILDER,
+def highlights_fuer_track(points: List[dict], *, max_n: Optional[int] = None,
                           http: Optional[Callable[[str], dict]] = None) -> dict:
-    """Alles in einem: {pois, gewaehlt, netz, radius_m}. Erst 120 m; liegt dort
-    nichts, noch einmal mit 400 m (Dorfspaziergang, Uferweg). `netz` = False nur,
-    wenn Overpass nicht antwortete."""
+    """Alles in einem: {pois, gewaehlt, netz, radius_m}. `netz` = False nur,
+    wenn Overpass nicht antwortete (keine Treffer ≠ kein Netz)."""
     try:
-        pois = osm_pois(points, radius_m=KORRIDOR_WEIT_M, http=http)   # Box mit weitem Rand, EINE Abfrage
+        pois = osm_pois(points, radius_m=KORRIDOR_M, http=http)
     except KeinNetz:
         return {"pois": [], "gewaehlt": [], "netz": False, "radius_m": 0}
-    radius = KORRIDOR_M
-    gew = auswaehlen(points, pois, max_n=max_n, radius_m=radius)
-    if not gew or all(g.get("art") == "hoechster" for g in gew):
-        radius = KORRIDOR_WEIT_M
-        gew = auswaehlen(points, pois, max_n=max_n, radius_m=radius)
-    return {"pois": pois, "gewaehlt": gew, "netz": True, "radius_m": radius}
+    gew = auswaehlen(points, pois, max_n=max_n, radius_m=KORRIDOR_M)
+    return {"pois": pois, "gewaehlt": gew, "netz": True, "radius_m": KORRIDOR_M}
