@@ -343,6 +343,11 @@ LIBRARY_THUMBS = BIB / "bilder" / "vorschau"
 # und selbst gewählte Titelbilder.
 LIBRARY_MAP_THUMBS = BIB / "bilder" / "karten"
 LIBRARY_COVERS = BIB / "bilder" / "titel"
+# 11.09.2026 (Marc: „das Vorschaubild aus dem letzten Stand nehmen"): die Oberfläche
+# fotografiert die Vorschau des Projekts (Karte, Trackfarbe, Overlays) und legt sie
+# hier ab — die Projekt-Kachel zeigt sie statt des Tour-Thumbnails.
+PROJEKT_VORSCHAU = BIB / "bilder" / "projekte"
+VORLAGEN_VORSCHAU = BIB / "bilder" / "vorlagen"
 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
 BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -1813,10 +1818,25 @@ class Api:
             for k in karten:
                 v = _vorlagen.holen(vd, k["id"], DEFAULT_SETTINGS) or {}
                 k["module_bloecke"] = v.get("module") or {}
+                k["thumb"] = self._vorschau_data_url(self._vorschau_datei(VORLAGEN_VORSCHAU, k["id"]))
             return {"ok": True, "vorlagen": karten, "standard": _vorlagen.standard_id(vd)}
         except Exception as e:
             log.error("vorlagen_liste: %s", e)
             return {"ok": False, "error": str(e), "vorlagen": []}
+
+    def _vorlage_bild_uebernehmen(self, vorlage_id: str, project_id: str) -> None:
+        """Vorschaubild des Quell-Projekts zur Vorlage kopieren (falls es eins gibt)."""
+        try:
+            import shutil
+            q = self._vorschau_datei(PROJEKT_VORSCHAU, str(project_id))
+            if not q:
+                return
+            VORLAGEN_VORSCHAU.mkdir(parents=True, exist_ok=True)
+            for alt in VORLAGEN_VORSCHAU.glob(f"{vorlage_id}.*"):
+                alt.unlink(missing_ok=True)
+            shutil.copyfile(q, VORLAGEN_VORSCHAU / f"{vorlage_id}{q.suffix}")
+        except Exception:
+            log.debug("Vorlagen-Bild", exc_info=True)
 
     def vorlage_anlegen(self, name: str = "", project_id: str = "") -> dict:
         """„Als Vorlage speichern": aus dem Projekt alles Gestalterische ziehen."""
@@ -1829,6 +1849,7 @@ class Api:
             v = _vorlagen.anlegen(vd, (name or "").strip() or _projekte.anzeigename(daten, p),
                                   p, quelle=_projekte.anzeigename(daten, p))
             _vorlagen.speichern(DATEN_ORT, vd)
+            self._vorlage_bild_uebernehmen(v["id"], project_id)
             return {"ok": True, "vorlage": {k: v[k] for k in ("id", "name")}}
         except Exception as e:
             log.error("vorlage_anlegen: %s", e)
@@ -1849,6 +1870,7 @@ class Api:
             if not v:
                 return {"ok": False, "error": "Vorlage nicht gefunden"}
             _vorlagen.speichern(DATEN_ORT, vd)
+            self._vorlage_bild_uebernehmen(vorlage_id, project_id)
             return {"ok": True, "vorher": vorher}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -9351,6 +9373,48 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def projekt_vorschau_speichern(self, project_id: str, data_url: str) -> dict:
+        """11.09.2026 — Vorschaubild des Projekts aus der Oberfläche (JPEG/PNG als
+        data-URL, schon verkleinert). Letzter Stand gewinnt, ein Bild je Projekt."""
+        import base64
+        try:
+            pid = str(project_id or "").strip()
+            if not pid or not isinstance(data_url, str) or "," not in data_url:
+                return {"ok": False, "error": "keine Daten"}
+            daten = _projekte.laden(DATEN_ORT)
+            if pid not in (daten.get("projects") or {}):
+                return {"ok": False, "error": _ui_t()("error.projekt_nicht_gefunden", "Projekt nicht gefunden")}
+            kopf, b64 = data_url.split(",", 1)
+            raw = base64.b64decode(b64)
+            if len(raw) < 200 or len(raw) > 4_000_000:
+                return {"ok": False, "error": "Bildgröße"}
+            ext = ".png" if "image/png" in kopf else ".jpg"
+            PROJEKT_VORSCHAU.mkdir(parents=True, exist_ok=True)
+            for alt in PROJEKT_VORSCHAU.glob(f"{pid}.*"):
+                if alt.suffix != ext:
+                    alt.unlink(missing_ok=True)
+            (PROJEKT_VORSCHAU / f"{pid}{ext}").write_bytes(raw)
+            return {"ok": True}
+        except Exception as e:
+            log.error("projekt_vorschau_speichern: %s", e)
+            return {"ok": False, "error": str(e)}
+
+    @staticmethod
+    def _vorschau_datei(ordner: Path, key: str):
+        for ext in (".jpg", ".png"):
+            p = ordner / f"{key}{ext}"
+            if p.exists():
+                return p
+        return None
+
+    @staticmethod
+    def _vorschau_data_url(p) -> str:
+        import base64
+        if not p:
+            return ""
+        mime = "image/png" if p.suffix == ".png" else "image/jpeg"
+        return f"data:{mime};base64," + base64.b64encode(p.read_bytes()).decode("ascii")
+
     def projekt_thumbs(self, project_ids: list) -> dict:
         """v0.9.615 (Marc: „die projekte brauchen eine bessere vorschau"):
         Karten-Vorschau je Projektkarte. Solo = das echte Karten-Thumbnail der
@@ -9362,12 +9426,17 @@ class Api:
         out = {}
         try:
             daten = _projekte.laden(DATEN_ORT)
-            conn = self._lib()
+            conn = None   # 11.09.2026: erst holen, wenn eine Tour nachgeschlagen wird (eigene Bilder brauchen keine DB)
             for pid in (project_ids or [])[:80]:
                 pr = (daten.get("projects") or {}).get(str(pid))
                 if not pr:
                     continue
                 kontext = str(pr.get("kontext") or "")
+                # 11.09.2026: das selbst fotografierte Bild des letzten Stands gewinnt.
+                eigen = self._vorschau_datei(PROJEKT_VORSCHAU, str(pid))
+                if eigen:
+                    out[str(pid)] = self._vorschau_data_url(eigen)
+                    continue
                 ghs = list(pr.get("geo_hashes") or [])
                 if not ghs and kontext and not kontext.startswith(("frei:", "menge:")):
                     ghs = [kontext]
@@ -9386,6 +9455,7 @@ class Api:
                     geoms = []
                     for gh in ghs[:200]:
                         try:
+                            conn = conn or self._lib()
                             row = conn.execute(
                                 "SELECT geom FROM tracks WHERE geo_hash = ? "
                                 "AND geom IS NOT NULL AND geom != '' LIMIT 1",

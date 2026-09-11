@@ -111,6 +111,8 @@ function switchMod(slug) {
   if (slug === activeMod) return;
   const reg = window.RZGPS_MODULES || {};
   if (!reg[slug]) return;
+  // 11.09.2026 — Vorschaubild des Projekts aus dem letzten Stand, bevor das Modul geht.
+  try { if (typeof rzProjektVorschauAufnehmen === "function") rzProjektVorschauAufnehmen("wechsel"); } catch (_) {}
   if (typeof activeCleanup === "function") activeCleanup();
   activeMod = slug;
   saveSettings({ active_module: slug });

@@ -670,6 +670,14 @@ snapshots under `…/sessions/`.
 
 ---
 
+### 🖼 Project tiles show the last state (since v0.9.689)
+
+The app photographs the preview of the open module (map with track in the Animator and Tour
+Map, chart in the data animator, map in the web map) four seconds after the last change and
+when leaving the module. The project tile in the archive shows this picture instead of the tour
+thumbnail: satellite, track colour and overlays are visible when choosing. Templates take over
+the picture of the project they were made from. The pictures live in `Bibliothek/bilder/projekte/`.
+
 ### 🧩 Templates — empty projects with your look (since v0.9.689) ⭐
 
 **A template is an empty project:** everything design-related, nothing that hangs on the track.

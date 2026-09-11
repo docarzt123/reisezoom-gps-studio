@@ -676,6 +676,15 @@ de las versiones en `…/sessions/`.
 
 ---
 
+### 🖼 Las tarjetas de proyecto muestran el último estado (desde v0.9.689)
+
+La app fotografía la vista previa del módulo abierto (mapa con track en el Animador y el Tour
+Map, gráfico en el animador de datos, mapa en el mapa web) cuatro segundos después del último
+cambio y al salir del módulo. La tarjeta de proyecto en el archivo muestra esa imagen en lugar de
+la miniatura de la ruta: satélite, color del track y superposiciones se ven al elegir. Las
+plantillas toman la imagen del proyecto del que nacieron. Las imágenes están en
+`Bibliothek/bilder/projekte/`.
+
 ### 🧩 Plantillas — proyectos vacíos con tu aspecto (desde v0.9.689) ⭐
 
 **Una plantilla es un proyecto vacío:** todo lo relativo al diseño, nada que dependa del track.

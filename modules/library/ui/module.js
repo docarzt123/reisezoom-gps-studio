@@ -1259,7 +1259,7 @@ function mountLibrary(body, headerActions) {
     const suche = (state.search || "").trim().toLowerCase();
     const zeigen = liste.filter(v => !suche || String(v.name).toLowerCase().includes(suche));
     const karte = (v) => `<div class="lib-proj-karte lib-vorl-karte${v.standard ? " ist-standard" : ""}" data-vid="${esc(v.id)}">
-        <div class="lib-proj-thumb lib-vorl-thumb" style="${v.line_color ? `--vorl-farbe:${esc(v.line_color)}` : ""}">🧩</div>
+        <div class="lib-proj-thumb lib-vorl-thumb" style="${v.line_color ? `--vorl-farbe:${esc(v.line_color)}` : ""}">${v.thumb ? `<img src="${v.thumb}" alt="">` : "🧩"}</div>
         <div class="lib-proj-kopf">
           <span class="lib-proj-name">${v.standard ? "★ " : ""}${esc(v.name)}</span>
           ${v.mitgeliefert ? `<span class="lib-proj-status">${T("vorlagen.mitgeliefert", "mitgeliefert")}</span>` : ""}
@@ -4983,6 +4983,8 @@ function mountLibrary(body, headerActions) {
       const ab = document.getElementById("lib-vn-ab"); if (ab) ab.onclick = () => m.close();
     }; }
   window.addEventListener("rz-vorlagen-geaendert", () => { if (!_unmounted && _vorlView) renderVorlagen(); });
+  // 11.09.2026 — frisches Projekt-Vorschaubild: Sitzungs-Cache der Kachel verwerfen.
+  window.addEventListener("rz-projekt-vorschau", (e) => { const id = e && e.detail && e.detail.id; if (id) delete _projThumbCache[id]; });
   // Q19/Q21: Ein AUSDRÜCKLICHER Sprung („Alle Projekte …" im Topbar-Menü)
   // setzt diese Flagge; hier wird sie genau einmal verbraucht.
   // 02.09.2026: Ohne Flagge entscheidet das Gedächtnis — die Ansicht, die
