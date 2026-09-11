@@ -3342,5 +3342,7 @@
   "hl.grund_serie": "Foto-Serie",
   "hl.grund_foto": "Einzelnes Foto",
   "hl.n_fotos": "{n} Fotos",
-  "common.remove": "Entfernen"
+  "common.remove": "Entfernen",
+  "hl.experimentell": "Experimentell",
+  "hl.experimentell_hint": "Experimentell — Auswahl und Texte sind erste Vorschläge; Rückgängig mit ⌘Z. Feedback willkommen."
 }

@@ -1100,7 +1100,7 @@ function mountAnimator(body, headerActions, opts) {
           <!-- 11.09.2026 (Marc: „gibts im animator auch einen knopf?") — Highlights aus OpenStreetMap
                für den offenen Track, dazu zu den vorhandenen Schildern, als ein ⌘Z-Schritt. -->
           <button type="button" class="btn btn-subtle" style="width:100%; margin-top:6px;" id="anim-signs-highlights"
-                  title="${t("signs.highlights_tip", "Gipfel, Pässe, Aussichtspunkte, Hütten, Burgen … aus OpenStreetMap im Korridor um den Track, dazu höchster Punkt und Start/Ziel mit Ortsname. Kommt zu den vorhandenen Schildern; Rückgängig mit ⌘Z.")}">${t("signs.highlights_btn", "🏔 Highlights aus OpenStreetMap")}</button>
+                  title="${t("signs.highlights_tip", "Gipfel, Pässe, Aussichtspunkte, Hütten, Burgen … aus OpenStreetMap im Korridor um den Track, dazu höchster Punkt und Start/Ziel mit Ortsname. Kommt zu den vorhandenen Schildern; Rückgängig mit ⌘Z.")}">${t("signs.highlights_btn", "🏔 Highlights aus OpenStreetMap")} <span class="hl-exp-tag">${t("hl.experimentell", "Experimentell")}</span></button>
           <div class="muted" id="anim-signs-place-hint" style="font-size:11px; margin-top:4px; display:none;">${t("signs.place_active", "Klick auf den Track, um das Schild zu setzen … (Esc bricht ab)")}</div>
           <div class="field" style="margin-top:8px;">
             <label class="checkbox">
@@ -10578,8 +10578,9 @@ function mountAnimator(body, headerActions, opts) {
       if (!pfad || !_activeProject) { toast(t("signs.highlights_nogpx", "Erst einen Track öffnen."), "warn"); return; }
       const ov = document.getElementById("modal-overlay"); if (ov) ov.classList.add("hl-gross");
       const m = openModal({
-        title: "🏔 " + t("hl.titel", "Highlights"),
+        title: "🏔 " + t("hl.titel", "Highlights") + " · " + t("hl.experimentell", "Experimentell"),
         body: `<div class="hl-dialog">
+            <div class="lib-hint hl-exp">🧪 ${_hlEsc(t("hl.experimentell_hint", "Experimentell — Auswahl und Texte sind erste Vorschläge; Rückgängig mit ⌘Z. Feedback willkommen."))}</div>
             <div class="hl-kopf">
               <div class="hl-ordner" id="hl-ordner"></div>
               <button type="button" class="btn btn-sm" id="hl-ordner-add">📂 ${_hlEsc(t("hl.ordner_add", "Fotoordner hinzufügen …"))}</button>

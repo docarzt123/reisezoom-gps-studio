@@ -3085,3 +3085,5 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .hl-sym { font-size: 26px; }
 .hl-meta { font-size: 12px; margin-bottom: 4px; }
 .hl-text { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-size: 13px; }
+.hl-exp { border-left: 3px solid #e0a030; padding-left: 8px; }
+.hl-exp-tag { font-size: 10px; padding: 1px 5px; border-radius: 8px; background: rgba(224,160,48,.25); margin-left: 4px; vertical-align: middle; }

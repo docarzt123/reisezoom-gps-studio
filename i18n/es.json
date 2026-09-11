@@ -3342,5 +3342,7 @@
   "hl.grund_serie": "Serie de fotos",
   "hl.grund_foto": "Foto suelta",
   "hl.n_fotos": "{n} fotos",
-  "common.remove": "Quitar"
+  "common.remove": "Quitar",
+  "hl.experimentell": "Experimental",
+  "hl.experimentell_hint": "Experimental: la selección y los textos son primeras propuestas; deshacer con ⌘Z. Comentarios bienvenidos."
 }
