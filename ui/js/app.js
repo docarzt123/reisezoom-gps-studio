@@ -1554,6 +1554,31 @@ window.addEventListener("DOMContentLoaded", async () => {
     }, { once: true, capture: true });
   } catch (_) {}
 
+  // 11.09.2026 (Beta-Tester: „Maus reagiert nicht", Log endet nach dem Track-Aufbau):
+  // Herzschlag. Zählt Maus-Bewegungen, Klicks und gezeichnete Bilder und schreibt
+  // alle 10 s (nach 3 min: jede Minute) eine Zeile. Lesart im Log:
+  //   • Zeilen hören auf            → JavaScript blockiert (Endlosschleife / Hänger)
+  //   • Zeilen laufen, bilder=0     → Zeichnen steht (GPU/WebGL), Skript lebt
+  //   • Zeilen laufen, bewegt=0     → keine Maus-Ereignisse kommen in der WebView an
+  //   • alles läuft                 → Oberfläche lebt, das Problem sitzt in der Bedienung
+  try {
+    const _hz = { t0: Date.now(), bewegt: 0, klicks: 0, tasten: 0, bilder: 0, n: 0 };
+    document.addEventListener("pointermove", () => { _hz.bewegt++; }, { capture: true, passive: true });
+    document.addEventListener("pointerdown", () => { _hz.klicks++; }, { capture: true, passive: true });
+    document.addEventListener("keydown", () => { _hz.tasten++; }, { capture: true, passive: true });
+    const _raf = () => { _hz.bilder++; requestAnimationFrame(_raf); };
+    requestAnimationFrame(_raf);
+    const _tick = () => {
+      _hz.n++;
+      const sek = Math.round((Date.now() - _hz.t0) / 1000);
+      const mod = (typeof activeMod !== "undefined") ? activeMod : "?";
+      applog && applog("info", `[herz] ${sek} s · Modul ${mod} · bewegt ${_hz.bewegt} · Klicks ${_hz.klicks} · Tasten ${_hz.tasten} · Bilder ${_hz.bilder}`);
+      _hz.bewegt = 0; _hz.klicks = 0; _hz.tasten = 0; _hz.bilder = 0;
+      setTimeout(_tick, sek < 180 ? 10000 : 60000);
+    };
+    setTimeout(_tick, 10000);
+  } catch (_) {}
+
   // 10.09.2026 (Beta-Tester, 22 Sitzungen ohne einen Klick, alle sauber gebootet):
   // Deckt etwas Unsichtbares die Oberfläche ab? Nach dem Laden einmal loggen, welches
   // Element an drei Stellen (Seitenleiste, Karte, Zeitleiste) ganz oben liegt.
