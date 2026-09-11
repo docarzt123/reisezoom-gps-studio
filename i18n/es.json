@@ -3294,5 +3294,14 @@
   "assistent.s_hl_fehler": "Puntos destacados: {e}",
   "assistent.s_hoechster": "Punto más alto",
   "assistent.s_start": "Salida",
-  "assistent.s_ziel": "Meta"
+  "assistent.s_ziel": "Meta",
+  "signs.highlights_btn": "🏔 Puntos destacados de OpenStreetMap",
+  "signs.highlights_tip": "Cumbres, puertos, miradores, refugios, castillos … de OpenStreetMap en el corredor del track, más el punto más alto y salida/meta con nombre del lugar. Se añaden a los carteles existentes; deshacer con ⌘Z.",
+  "signs.highlights_busy": "🏔 Consultando OpenStreetMap …",
+  "signs.highlights_nogpx": "Abre primero un track.",
+  "signs.highlights_fehler": "Puntos destacados: {e}",
+  "signs.highlights_none": "No se encontraron puntos destacados nuevos.",
+  "signs.highlights_done": "{n} puntos destacados puestos como carteles: {liste}",
+  "signs.highlights_undo": "Puntos destacados de OpenStreetMap",
+  "signs.undo": "Carteles"
 }

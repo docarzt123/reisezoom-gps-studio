@@ -690,7 +690,9 @@ snapshots under `…/sessions/`.
   (peaks first), each name once, spread along the tour, at most eight. Plus the highest point
   (when the tour climbs at least 150 m) and start/finish with the place name. The signs then sit
   in the Animator and the Tour Map in the project's sign style and can be edited or deleted like
-  any sign. Without network there is one line and no signs.
+  any sign. Without network there is one line and no signs. The same is available without the
+  assistant: in the Animator and the Tour Map the button **“🏔 Highlights from OpenStreetMap”** in
+  the signs section adds them to the existing signs, as one ⌘Z step.
 - **Jump into the Animator** with the project open.
 
 If there was nothing to repair, the list says so and the project hangs on the original file.

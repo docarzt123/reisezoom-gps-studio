@@ -753,6 +753,9 @@ Fassungen unter `…/sessions/`.
   Dazu der höchste Punkt (wenn die Tour mindestens 150 m steigt) und Start/Ziel mit Ortsname.
   Die Schilder stehen danach in Animator und Tour-Map im Schilder-Stil des Projekts und lassen sich
   dort wie jedes Schild ändern oder löschen. Ohne Netz gibt es eine Zeile und keine Schilder.
+  Denselben Vorgang gibt es auch ohne Assistent: in Animator und Tour-Map in der Schilder-Sektion
+  der Knopf **„🏔 Highlights aus OpenStreetMap“** legt sie zu den vorhandenen Schildern, als ein
+  ⌘Z-Schritt.
 - **Sprung in den Animator** mit dem geöffneten Projekt.
 
 Gab es nichts zu reparieren, steht das so in der Liste und das Projekt hängt an der Originaldatei.

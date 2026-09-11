@@ -1097,6 +1097,10 @@ function mountAnimator(body, headerActions, opts) {
             <button type="button" class="btn btn-subtle" style="flex:1;" id="anim-signs-add-photos">${t("signs.add_photos", "📷 Fotos hinzufügen")}</button>
             <button type="button" class="btn btn-subtle" style="flex:1;" id="anim-signs-add-gtg">${t("photos.from_geotagger", "Aus Geotagger")}</button>
           </div>
+          <!-- 11.09.2026 (Marc: „gibts im animator auch einen knopf?") — Highlights aus OpenStreetMap
+               für den offenen Track, dazu zu den vorhandenen Schildern, als ein ⌘Z-Schritt. -->
+          <button type="button" class="btn btn-subtle" style="width:100%; margin-top:6px;" id="anim-signs-highlights"
+                  title="${t("signs.highlights_tip", "Gipfel, Pässe, Aussichtspunkte, Hütten, Burgen … aus OpenStreetMap im Korridor um den Track, dazu höchster Punkt und Start/Ziel mit Ortsname. Kommt zu den vorhandenen Schildern; Rückgängig mit ⌘Z.")}">${t("signs.highlights_btn", "🏔 Highlights aus OpenStreetMap")}</button>
           <div class="muted" id="anim-signs-place-hint" style="font-size:11px; margin-top:4px; display:none;">${t("signs.place_active", "Klick auf den Track, um das Schild zu setzen … (Esc bricht ab)")}</div>
           <div class="field" style="margin-top:8px;">
             <label class="checkbox">
@@ -1637,15 +1641,22 @@ function mountAnimator(body, headerActions, opts) {
     // Schatten, Overlays/Stats-Editor + Styling, Karten-Labels, Keyframes/Trim …).
     // Damit ist JEDE Sidebar-Einstellung undo-bar, nicht nur Keyframes.
     snapshot: () => {
-      try { return JSON.parse(JSON.stringify(window.rzReadModuleSettings(_MODKEY) || {})); }
-      catch (_) { return null; }
+      try {
+        const s = JSON.parse(JSON.stringify(window.rzReadModuleSettings(_MODKEY) || {}));
+        // 11.09.2026 — Schilder (Projekt-Wurzel) gehören zum Undo-Stand des Moduls.
+        try { if (_activeProject && Array.isArray(_activeProject[_SIGNS_KEY])) s.__signs = JSON.parse(JSON.stringify(_activeProject[_SIGNS_KEY].map(x => { const o = { ...x }; delete o._imgEl; return o; }))); } catch (_) {}
+        return s;
+      } catch (_) { return null; }
     },
     apply: (snap) => {
       if (!snap) return;
       let before = {};
       try { before = JSON.parse(JSON.stringify(window.rzReadModuleSettings(_MODKEY) || {})); } catch (_) {}
+      const signsSnap = Array.isArray(snap.__signs) ? snap.__signs : null;
+      if ("__signs" in snap) { snap = { ...snap }; delete snap.__signs; }
       // 1) Vollen Settings-Block wiederherstellen (Projekt oder global).
       try { window.rzWriteModuleSettings(_MODKEY, snap); } catch (_) {}
+      if (signsSnap) { try { if (typeof window._animSignsNachUndo === "function") window._animSignsNachUndo(signsSnap); } catch (_) {} }
       // 2) Gebundene Controls: Werte + sichtbare Wirkung (Farbe→Karte, Breite, …).
       try { if (typeof rebindAllSettings === "function") rebindAllSettings(); } catch (_) {}
       try { if (typeof rzReapplySection === "function") rzReapplySection(_MODKEY, before); } catch (_) {}
@@ -9978,8 +9989,11 @@ function mountAnimator(body, headerActions, opts) {
       if (!sn || (sn.style || "callout") !== "callout") return "bottom";
       return (["top", "left", "right"].indexOf(sn.calloutDir) >= 0) ? sn.calloutDir : "bottom";
     }
-    function _animSignsSave(list) {
+    function _animSignsSave(list, undoLabel) {
       if (!_activeProject) return;
+      // 11.09.2026 — jede Schilder-Änderung ist ein ⌘Z-Schritt: der Snapshot des
+      // Animators enthält die Schilder (`__signs`), gepusht wird der Stand DAVOR.
+      try { if (!window.__rzUndoApplying && _animUndoCtrl) _animUndoCtrl.push(undoLabel || t("signs.undo", "Schilder"), { force: !!undoLabel }); } catch (_) {}
       // In-Memory: normalisiert, BEHÄLT transiente Bild-Felder (`_imgEl`/`thumb`),
       // damit Bilder nicht bei jedem Save neu geladen werden müssen.
       const inMem = (list || []).map(_animSignNormalize);
@@ -10399,6 +10413,8 @@ function mountAnimator(body, headerActions, opts) {
       _animSignsApplyMarkerAnchor(a);
     }
     let _animSignDragFrom = -1;   // v0.9.198 — Drag-Reorder Quell-Index
+    // 11.09.2026 — Undo-Rückweg (der Controller steht weiter oben, außerhalb dieses Blocks).
+    window._animSignsNachUndo = (l) => { _animSignsSave(l); _animSignsAttachToMap(); _animSignsRenderList(); };
     function _animSignsRenderList() {
       const host = document.getElementById("anim-signs-list");
       if (!host) return;
@@ -10463,6 +10479,31 @@ function mountAnimator(body, headerActions, opts) {
       if (cnt) cnt.textContent = list.length
         ? (list.length === 1 ? t("signs.count_one", "1 Eintrag") : t("signs.count_other", "%d Einträge").replace("%d", list.length))
         : "";
+    }
+    // 11.09.2026 — Highlights aus OpenStreetMap als Schilder (gleiche Quelle wie der
+    // Tour-Assistent). Dazu zu den vorhandenen; gleicher Text = nicht doppelt.
+    async function _animSignsHighlights(btn) {
+      const pfad = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
+      if (!pfad || !_activeProject) { toast(t("signs.highlights_nogpx", "Erst einen Track öffnen."), "warn"); return; }
+      const alt = btn ? btn.textContent : "";
+      if (btn) { btn.disabled = true; btn.textContent = t("signs.highlights_busy", "🏔 Frage OpenStreetMap …"); }
+      let r;
+      try {
+        const stil = { style: _animSignLast.style, color: _animSignLast.color, size: _animSignLast.size,
+                       font: _animSignLast.font, weight: _animSignLast.weight };
+        r = await api().highlights_schilder(pfad, stil);
+      } catch (e) { r = { ok: false, error: String(e) }; }
+      if (btn) { btn.disabled = false; btn.textContent = alt; }
+      if (!r || !r.ok) { toast(t("signs.highlights_fehler", "Highlights: {e}").replace("{e}", (r && r.error) || "?"), "error"); return; }
+      if (!r.netz) { toast(t("assistent.s_hl_netz", "Highlights: OpenStreetMap nicht erreichbar — keine Schilder"), "warn"); return; }
+      const vorhanden = new Set(_animSignsList().map(s => String(s.text || "").trim()));
+      const neu = (r.schilder || []).filter(s => s.text && !vorhanden.has(String(s.text).trim()));
+      if (!neu.length) { toast(t("signs.highlights_none", "Keine neuen Highlights gefunden."), "info"); return; }
+      const l = _animSignsList().concat(neu);
+      _animSignsSave(l, t("signs.highlights_undo", "Highlights aus OpenStreetMap"));
+      _animSignsAttachToMap(); _animSignsRenderList();
+      try { applog("info", "[signs] Highlights: " + neu.length + " neu (" + (r.kurz || "") + ")"); } catch (_) {}
+      toast(t("signs.highlights_done", "{n} Highlights als Schilder gesetzt: {liste}").replace("{n}", neu.length).replace("{liste}", r.kurz || ""), "success", 5000);
     }
     // v0.9.198 — Sichtbarkeit / Reihenfolge / Massenschalter
     function _animSignsSetVisible(idx, on) {
@@ -11320,6 +11361,8 @@ function mountAnimator(body, headerActions, opts) {
       if (addGtg && !addGtg._wired) {
         addGtg._wired = true;
         addGtg.addEventListener("click", () => _animSignsImportFromGeotagger());
+      const hlBtn = document.getElementById("anim-signs-highlights");
+      if (hlBtn && !hlBtn._wired) { hlBtn._wired = true; hlBtn.addEventListener("click", () => _animSignsHighlights(hlBtn)); }
       }
       // v0.9.198 — Master „Alle an" / „Alle aus"
       const allOn = document.getElementById("anim-signs-all-on");

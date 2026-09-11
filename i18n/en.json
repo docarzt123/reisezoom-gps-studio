@@ -3294,5 +3294,14 @@
   "assistent.s_hl_fehler": "Highlights: {e}",
   "assistent.s_hoechster": "Highest point",
   "assistent.s_start": "Start",
-  "assistent.s_ziel": "Finish"
+  "assistent.s_ziel": "Finish",
+  "signs.highlights_btn": "🏔 Highlights from OpenStreetMap",
+  "signs.highlights_tip": "Peaks, passes, viewpoints, huts, castles … from OpenStreetMap within the corridor around the track, plus the highest point and start/finish with place name. Added to the existing signs; undo with ⌘Z.",
+  "signs.highlights_busy": "🏔 Asking OpenStreetMap …",
+  "signs.highlights_nogpx": "Open a track first.",
+  "signs.highlights_fehler": "Highlights: {e}",
+  "signs.highlights_none": "No new highlights found.",
+  "signs.highlights_done": "{n} highlights set as signs: {liste}",
+  "signs.highlights_undo": "Highlights from OpenStreetMap",
+  "signs.undo": "Signs"
 }

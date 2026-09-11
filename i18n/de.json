@@ -3294,5 +3294,14 @@
   "assistent.s_hl_fehler": "Highlights: {e}",
   "assistent.s_hoechster": "Höchster Punkt",
   "assistent.s_start": "Start",
-  "assistent.s_ziel": "Ziel"
+  "assistent.s_ziel": "Ziel",
+  "signs.highlights_btn": "🏔 Highlights aus OpenStreetMap",
+  "signs.highlights_tip": "Gipfel, Pässe, Aussichtspunkte, Hütten, Burgen … aus OpenStreetMap im Korridor um den Track, dazu höchster Punkt und Start/Ziel mit Ortsname. Kommt zu den vorhandenen Schildern; Rückgängig mit ⌘Z.",
+  "signs.highlights_busy": "🏔 Frage OpenStreetMap …",
+  "signs.highlights_nogpx": "Erst einen Track öffnen.",
+  "signs.highlights_fehler": "Highlights: {e}",
+  "signs.highlights_none": "Keine neuen Highlights gefunden.",
+  "signs.highlights_done": "{n} Highlights als Schilder gesetzt: {liste}",
+  "signs.highlights_undo": "Highlights aus OpenStreetMap",
+  "signs.undo": "Schilder"
 }

@@ -221,6 +221,10 @@ async def main():
             sagen(not await pg.query_selector(f"#{prefix}-vorl-leiste select"), f"{slug}: Leiste ohne Auswahl (täuscht keinen Zustand vor)")
             sagen(bool(await pg.query_selector(f"#{prefix}-vorl-anwenden")) and bool(await pg.query_selector(f"#{prefix}-vorl-speichern")),
                   f"{slug}: „Vorlage anwenden …“ + 💾 vorhanden")
+        sagen(bool(await pg.query_selector("#anim-signs-highlights")), "Animator: Knopf „Highlights aus OpenStreetMap“ in der Schilder-Sektion")
+        await pg.evaluate("document.getElementById('anim-signs-highlights').click()")
+        await pg.wait_for_timeout(300)
+        sagen(not await rufe("highlights_schilder"), "… ohne Track nur ein Hinweis, kein Ruf")
         await pg.click("#anim-vorl-speichern")
         await pg.wait_for_timeout(300)
         sagen(not await pg.query_selector("#vorl-sp-name"), "ohne aktives Projekt: Speichern öffnet kein Fenster, nur Hinweis")
