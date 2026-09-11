@@ -113,7 +113,12 @@
         return false;
       }
       window.hideSourceMissingBanner();
-      if (window.applog) window.applog("info", `[loadGlobalGpx] parsed n_coords=${res.coords?.length}`);
+      // 11.09.2026 (Beta-Tester „nichts geht mehr" im Animator, Verdacht: riesiger Track):
+      // die Vorschau sieht nur 800 Punkte — die echte Größe stand nirgends im Log.
+      if (window.applog) {
+        const st = res.stats || {}, stg = (res.series && res.series.stage) || {};
+        window.applog("info", `[loadGlobalGpx] parsed n_coords=${res.coords?.length} · Track: ${st.n_points ?? "?"} Punkte · ${st.distance_km != null ? st.distance_km.toFixed(1) : "?"} km · ${st.duration_s != null ? Math.round(st.duration_s / 3600) : "?"} h · ${stg.gesamt ?? "?"} Etappen · Zeit ${st.start_epoch ? new Date(st.start_epoch * 1000).toISOString().slice(0, 10) : "-"}…${st.end_epoch ? new Date(st.end_epoch * 1000).toISOString().slice(0, 10) : "-"}`);
+      }
       _gpxPath = path;
       _gpxData = res;
       // 28.08.2026 (Marc: „der lädt immer noch zu viele touren / geht mehrmals

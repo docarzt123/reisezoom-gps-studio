@@ -1836,6 +1836,9 @@ function mountGpxInspect(body, headerActions) {
   function _zoomToGap(k) {
     const g = _gaps[k]; if (!g || !map) return;
     const A = _points[g.a], B = _points[g.b];
+    // 11.09.2026 (Tester-Log: „undefined is not an object (evaluating 'A.lat')"): nach
+    // Heilen/Löschen zeigt die Lückenliste noch auf alte Indizes → kein Sprung statt Fehler.
+    if (!A || !B) { if (window.applog) window.applog("warn", `[gpxinspect] Lücke ${k}: Punkte ${g.a}/${g.b} nicht mehr vorhanden (n=${_points.length})`); return; }
     try {
       map.fitBounds([[Math.min(A.lon, B.lon), Math.min(A.lat, B.lat)], [Math.max(A.lon, B.lon), Math.max(A.lat, B.lat)]],
         { padding: 120, duration: 500, maxZoom: 17 });
