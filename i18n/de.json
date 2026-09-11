@@ -3303,5 +3303,9 @@
   "signs.highlights_none": "Keine neuen Highlights gefunden.",
   "signs.highlights_done": "{n} Highlights als Schilder gesetzt: {liste}",
   "signs.highlights_undo": "Highlights aus OpenStreetMap",
-  "signs.undo": "Schilder"
+  "signs.undo": "Schilder",
+  "signs.highlights_gefragt": "OpenStreetMap befragt: {p} Orte im Korridor von {r} m",
+  "signs.highlights_leer": "Entlang dieser Strecke kennt OpenStreetMap keine benannten Highlights.",
+  "signs.highlights_startziel": "Start/Ziel: {a} → {b}",
+  "signs.highlights_undo_hint": "Rückgängig mit ⌘Z; jedes Schild lässt sich in der Liste ändern oder löschen."
 }

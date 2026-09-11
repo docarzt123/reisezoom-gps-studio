@@ -2030,8 +2030,8 @@ class Api:
         from core import geocode as cgeocode
         T = _ui_t()
         res = chl.highlights_fuer_track(pts)
-        if not res["pois"] and not res["netz"]:
-            return {"netz": False, "n_pois": 0, "gewaehlt": [], "schilder": [], "kurz": "", "start": "", "ziel": ""}
+        if not res["netz"]:
+            return {"netz": False, "n_pois": 0, "gewaehlt": [], "schilder": [], "kurz": "", "start": "", "ziel": "", "radius_m": 0}
 
         def ort(p):
             try:
@@ -2047,7 +2047,8 @@ class Api:
         schilder = chl.schilder_bauen(res["gewaehlt"], stil=stil or {}, hoechster_label=hl,
                                       start=s_txt, ziel=z_txt, points=pts)
         return {"netz": True, "n_pois": len(res["pois"]), "gewaehlt": res["gewaehlt"], "schilder": schilder,
-                "kurz": chl.kurzliste(res["gewaehlt"], hl), "start": start, "ziel": ziel}
+                "kurz": chl.kurzliste(res["gewaehlt"], hl), "start": start, "ziel": ziel,
+                "radius_m": res.get("radius_m", 0)}
 
     def _assistent_highlights(self, pid: str, pts: list, T, zeile) -> None:
         """Stufe 3 (Marc: „erst mal nur POIs mit Schildern markieren"): Highlights aus
@@ -2084,7 +2085,8 @@ class Api:
             if not pts:
                 return {"ok": False, "error": (load or {}).get("error") or _ui_t()("assistent.err_datei", "Track-Datei nicht gefunden.")}
             r = self._highlights_schilder_fuer(pts, dict(stil or {}))
-            return {"ok": True, **{k: r[k] for k in ("netz", "n_pois", "schilder", "kurz", "start", "ziel")},
+            log.info("[highlights] %s: netz=%s pois=%d gewählt=%d radius=%s", Path(str(path)).name, r["netz"], r["n_pois"], len(r["gewaehlt"]), r.get("radius_m"))
+            return {"ok": True, **{k: r[k] for k in ("netz", "n_pois", "schilder", "kurz", "start", "ziel", "radius_m")},
                     "n": len(r["gewaehlt"])}
         except Exception as e:  # noqa: BLE001
             log.error("highlights_schilder: %s\n%s", e, traceback.format_exc())

@@ -3303,5 +3303,9 @@
   "signs.highlights_none": "No new highlights found.",
   "signs.highlights_done": "{n} highlights set as signs: {liste}",
   "signs.highlights_undo": "Highlights from OpenStreetMap",
-  "signs.undo": "Signs"
+  "signs.undo": "Signs",
+  "signs.highlights_gefragt": "OpenStreetMap asked: {p} places within {r} m of the track",
+  "signs.highlights_leer": "Along this route OpenStreetMap knows no named highlights.",
+  "signs.highlights_startziel": "Start/finish: {a} → {b}",
+  "signs.highlights_undo_hint": "Undo with ⌘Z; every sign can be edited or deleted in the list."
 }

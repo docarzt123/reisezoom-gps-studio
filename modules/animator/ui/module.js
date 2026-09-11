@@ -10484,26 +10484,49 @@ function mountAnimator(body, headerActions, opts) {
     // Tour-Assistent). Dazu zu den vorhandenen; gleicher Text = nicht doppelt.
     async function _animSignsHighlights(btn) {
       const pfad = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : "";
-      if (!pfad || !_activeProject) { toast(t("signs.highlights_nogpx", "Erst einen Track öffnen."), "warn"); return; }
-      const alt = btn ? btn.textContent : "";
-      if (btn) { btn.disabled = true; btn.textContent = t("signs.highlights_busy", "🏔 Frage OpenStreetMap …"); }
+      const lg = (m) => { try { applog("info", "[signs] Highlights: " + m); } catch (_) {} };
+      if (!pfad || !_activeProject) { lg("kein Track/Projekt (" + !!pfad + "/" + !!_activeProject + ")"); toast(t("signs.highlights_nogpx", "Erst einen Track öffnen."), "warn"); return; }
+      // Marc (11.09.2026): „muss ein Feedback-Modal kommen, sonst denkt man, die App
+      // sei abgestürzt" — Fenster mit Fortschritt, danach Ergebnis-Liste.
+      const esc = (x) => String(x == null ? "" : x).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      const m = openModal({
+        title: t("signs.highlights_btn", "🏔 Highlights aus OpenStreetMap"),
+        body: `<ol class="ass-schritte" id="anim-hl-schritte"><li class="ass-lauf">⏳ ${esc(t("signs.highlights_busy", "🏔 Frage OpenStreetMap …"))}</li></ol>`,
+        footer: `<button class="btn btn-primary" id="anim-hl-zu" disabled>${t("common.close", "Schließen")}</button>`,
+        closable: false,
+      });
+      const zeigen = (zeilen, ok) => {
+        const ol = document.getElementById("anim-hl-schritte");
+        if (ol) ol.innerHTML = zeilen.map(z => `<li class="${z.ok ? "ok" : "fehl"}">${z.ok ? "✅" : "⚠️"} ${esc(z.text)}</li>`).join("");
+        const zu = document.getElementById("anim-hl-zu"); if (zu) { zu.disabled = false; zu.onclick = () => m.close(); }
+        m.update({ closable: true });
+      };
+      if (btn) btn.disabled = true;
       let r;
       try {
         const stil = { style: _animSignLast.style, color: _animSignLast.color, size: _animSignLast.size,
                        font: _animSignLast.font, weight: _animSignLast.weight };
         r = await api().highlights_schilder(pfad, stil);
       } catch (e) { r = { ok: false, error: String(e) }; }
-      if (btn) { btn.disabled = false; btn.textContent = alt; }
-      if (!r || !r.ok) { toast(t("signs.highlights_fehler", "Highlights: {e}").replace("{e}", (r && r.error) || "?"), "error"); return; }
-      if (!r.netz) { toast(t("assistent.s_hl_netz", "Highlights: OpenStreetMap nicht erreichbar — keine Schilder"), "warn"); return; }
+      if (btn) btn.disabled = false;
+      if (!r || !r.ok) { lg("Fehler " + ((r && r.error) || "?")); zeigen([{ ok: false, text: t("signs.highlights_fehler", "Highlights: {e}").replace("{e}", (r && r.error) || "?") }]); return; }
+      if (!r.netz) { lg("kein Netz"); zeigen([{ ok: false, text: t("assistent.s_hl_netz", "Highlights: OpenStreetMap nicht erreichbar — keine Schilder") }]); return; }
       const vorhanden = new Set(_animSignsList().map(s => String(s.text || "").trim()));
       const neu = (r.schilder || []).filter(s => s.text && !vorhanden.has(String(s.text).trim()));
-      if (!neu.length) { toast(t("signs.highlights_none", "Keine neuen Highlights gefunden."), "info"); return; }
+      const zeilen = [{ ok: true, text: t("signs.highlights_gefragt", "OpenStreetMap befragt: {p} Orte im Korridor von {r} m").replace("{p}", r.n_pois || 0).replace("{r}", r.radius_m || 120) }];
+      if (!neu.length) {
+        lg("keine neuen (pois=" + (r.n_pois || 0) + ")");
+        zeilen.push({ ok: false, text: (r.n_pois || 0) ? t("signs.highlights_none", "Keine neuen Highlights gefunden.") : t("signs.highlights_leer", "Entlang dieser Strecke kennt OpenStreetMap keine benannten Highlights.") });
+        zeigen(zeilen); return;
+      }
       const l = _animSignsList().concat(neu);
       _animSignsSave(l, t("signs.highlights_undo", "Highlights aus OpenStreetMap"));
       _animSignsAttachToMap(); _animSignsRenderList();
-      try { applog("info", "[signs] Highlights: " + neu.length + " neu (" + (r.kurz || "") + ")"); } catch (_) {}
-      toast(t("signs.highlights_done", "{n} Highlights als Schilder gesetzt: {liste}").replace("{n}", neu.length).replace("{liste}", r.kurz || ""), "success", 5000);
+      lg(neu.length + " neu (" + (r.kurz || "") + ")");
+      zeilen.push({ ok: true, text: t("signs.highlights_done", "{n} Highlights als Schilder gesetzt: {liste}").replace("{n}", neu.length).replace("{liste}", r.kurz || "") });
+      if (r.start || r.ziel) zeilen.push({ ok: true, text: t("signs.highlights_startziel", "Start/Ziel: {a} → {b}").replace("{a}", r.start || "?").replace("{b}", r.ziel || "?") });
+      zeilen.push({ ok: true, text: t("signs.highlights_undo_hint", "Rückgängig mit ⌘Z; jedes Schild lässt sich in der Liste ändern oder löschen.") });
+      zeigen(zeilen);
     }
     // v0.9.198 — Sichtbarkeit / Reihenfolge / Massenschalter
     function _animSignsSetVisible(idx, on) {
@@ -11361,9 +11384,9 @@ function mountAnimator(body, headerActions, opts) {
       if (addGtg && !addGtg._wired) {
         addGtg._wired = true;
         addGtg.addEventListener("click", () => _animSignsImportFromGeotagger());
+      }
       const hlBtn = document.getElementById("anim-signs-highlights");
       if (hlBtn && !hlBtn._wired) { hlBtn._wired = true; hlBtn.addEventListener("click", () => _animSignsHighlights(hlBtn)); }
-      }
       // v0.9.198 — Master „Alle an" / „Alle aus"
       const allOn = document.getElementById("anim-signs-all-on");
       if (allOn && !allOn._wired) { allOn._wired = true; allOn.addEventListener("click", () => _animSignsSetAllVisible(true)); }

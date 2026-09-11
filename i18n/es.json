@@ -3303,5 +3303,9 @@
   "signs.highlights_none": "No se encontraron puntos destacados nuevos.",
   "signs.highlights_done": "{n} puntos destacados puestos como carteles: {liste}",
   "signs.highlights_undo": "Puntos destacados de OpenStreetMap",
-  "signs.undo": "Carteles"
+  "signs.undo": "Carteles",
+  "signs.highlights_gefragt": "OpenStreetMap consultado: {p} lugares a {r} m del track",
+  "signs.highlights_leer": "A lo largo de esta ruta OpenStreetMap no conoce puntos destacados con nombre.",
+  "signs.highlights_startziel": "Salida/meta: {a} → {b}",
+  "signs.highlights_undo_hint": "Deshacer con ⌘Z; cada cartel se puede editar o borrar en la lista."
 }
