@@ -683,8 +683,8 @@ trim, timeline events, groups, stages, extra tours, ghosts, sign positions, phot
 **Where to find them — four places, none of them needs the tour assistant:**
 
 1. **Archive → tab “Templates”** (next to “Projects” and “Tour archive”). Tiles with map style ·
-   format · colour dot of the line · font. Buttons per tile: **➕ New project from this** (empty
-   project with this look, jumps into the Animator), **☆/★** sets “My default”, **✎** rename,
+   format · colour dot of the line · font. Buttons per tile: **➕ New project from this** (first
+   choose the tours from the archive, then the name, then into the Animator with the track), **☆/★** sets “My default”, **✎** rename,
    **🗑** delete. On the left: **“New template from project …”**. **“Reisezoom default”** is built
    in (factory settings) and cannot be changed.
 2. **Project tile → 🧩**: a small window with “Apply template” (selection) and “Save as new

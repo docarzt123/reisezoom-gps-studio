@@ -692,7 +692,7 @@ adicionales, fantasmas, posiciones de carteles, fotos, waypoints.
 
 1. **Archivo → pestaña «Plantillas»** (junto a «Proyectos» y «Archivo de rutas»). Tarjetas con
    estilo de mapa · formato · punto de color de la línea · fuente. Botones por tarjeta: **➕ Nuevo
-   proyecto con esta** (proyecto vacío con este aspecto, salta al Animador), **☆/★** define «Mi
+   proyecto con esta** (primero eliges las rutas del archivo, luego el nombre, y al Animador con el track), **☆/★** define «Mi
    estándar», **✎** renombrar, **🗑** eliminar. A la izquierda: **«Nueva plantilla desde proyecto …»**.
    **«Reisezoom estándar»** viene incluida (ajustes de fábrica) y no se puede cambiar.
 2. **Tarjeta de proyecto → 🧩**: una ventana pequeña con «Aplicar plantilla» (selección) y

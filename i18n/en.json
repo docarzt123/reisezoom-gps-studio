@@ -3235,7 +3235,7 @@
   "vorlagen.leer_kurz": "no details",
   "vorlagen.aus": "from “{q}”",
   "vorlagen.neu_projekt": "New project from this",
-  "vorlagen.neu_projekt_tip": "Create an empty project with this template and open it in the Animator",
+  "vorlagen.neu_projekt_tip": "Choose tours, create a project with this template and open it in the Animator",
   "vorlagen.standard_tip": "Set as “My default” — new projects start with it",
   "vorlagen.standard_gesetzt": "New projects now start with this template.",
   "vorlagen.loeschen": "Delete template",
@@ -3263,5 +3263,7 @@
   "vorlagen.undo_standard": "Default template set",
   "vorlagen.undo_umbenannt": "Template renamed",
   "vorlagen.undo_geloescht": "Template deleted",
-  "vorlagen.leiste_tip": "Template = map, track shape, camera, overlays, sign style, render — nothing track-bound. Applying is one ⌘Z step."
+  "vorlagen.leiste_tip": "Template = map, track shape, camera, overlays, sign style, render — nothing track-bound. Applying is one ⌘Z step.",
+  "common.next": "Next",
+  "vorlagen.touren_waehlen": "Choose tours"
 }

@@ -3235,7 +3235,7 @@
   "vorlagen.leer_kurz": "ohne Angaben",
   "vorlagen.aus": "aus „{q}“",
   "vorlagen.neu_projekt": "Neues Projekt daraus",
-  "vorlagen.neu_projekt_tip": "Leeres Projekt mit dieser Vorlage anlegen und im Animator öffnen",
+  "vorlagen.neu_projekt_tip": "Touren wählen, Projekt mit dieser Vorlage anlegen und im Animator öffnen",
   "vorlagen.standard_tip": "Als „Mein Standard“ setzen — neue Projekte starten damit",
   "vorlagen.standard_gesetzt": "Neue Projekte starten jetzt mit dieser Vorlage.",
   "vorlagen.loeschen": "Vorlage löschen",
@@ -3263,5 +3263,7 @@
   "vorlagen.undo_standard": "Standard-Vorlage gesetzt",
   "vorlagen.undo_umbenannt": "Vorlage umbenannt",
   "vorlagen.undo_geloescht": "Vorlage gelöscht",
-  "vorlagen.leiste_tip": "Vorlage = Karte, Track-Form, Kamera, Overlays, Schilder-Stil, Render — nichts Trackgebundenes. Anwenden ist ein ⌘Z-Schritt."
+  "vorlagen.leiste_tip": "Vorlage = Karte, Track-Form, Kamera, Overlays, Schilder-Stil, Render — nichts Trackgebundenes. Anwenden ist ein ⌘Z-Schritt.",
+  "common.next": "Weiter",
+  "vorlagen.touren_waehlen": "Touren wählen"
 }

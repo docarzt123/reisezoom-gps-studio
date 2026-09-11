@@ -1105,54 +1105,11 @@ function mountLibrary(body, headerActions) {
     // v0.9.612: Touren aus dem Archiv in ein leeres Projekt legen.
     box.querySelectorAll("[data-addtours]").forEach(b => b.onclick = async (e) => {
       e.stopPropagation();
-      // Abnahme 29.08.2026: die Suche fragt jetzt das ARCHIV (vorher wurden
-      // nur die ersten 300 geladenen Zeilen clientseitig gefiltert — Treffer
-      // außerhalb fehlten). Gewählte Touren überleben die Suche (Pfad-Set).
-      const gewaehlt = new Set();
-      let items = [];
-      const liste = () => (items.map((it) => `
-        <label class="lib-fassung" style="cursor:pointer;">
-          <input type="checkbox" data-tpath="${esc(it.path)}"${gewaehlt.has(it.path) ? " checked" : ""}>
-          <span class="lib-fassung-info">${esc(it.name || it.filename || it.path)}</span>
-        </label>`).join("")
-        || `<p>${T("library.keine_treffer", "Keine Treffer.")}</p>`);
-      const laden = async (q) => {
-        const res = await api().library_query({ search: q || "", limit: 300, with_thumbs: false });
-        items = (res && res.items) || [];
-        const el = document.getElementById("lib-tp-liste");
-        if (el) {
-          el.innerHTML = liste();
-          el.querySelectorAll("[data-tpath]").forEach(cb => cb.onchange = () => {
-            if (cb.checked) gewaehlt.add(cb.dataset.tpath);
-            else gewaehlt.delete(cb.dataset.tpath);
-          });
-        }
-      };
-      const m = openModal({
-        title: "➕ " + T("library.proj_addtours", "Touren aus dem Archiv hinzufügen"),
-        body: `<input type="search" id="lib-tp-such" class="lib-input" placeholder="${esc(T("library.search_ph", "Suchen — Name, Ort, Schlagwort …"))}" style="margin-bottom:8px;">
-               <div style="max-height:50vh;overflow-y:auto;" id="lib-tp-liste"></div>`,
-        footer: `<button class="btn" id="lib-tp-ab">${T("common.cancel", "Abbrechen")}</button>
-                 <button class="btn btn-primary" id="lib-tp-ok">${T("library.proj_addtours_ok", "Hinzufügen")}</button>`,
-      });
-      await laden("");
-      const such = document.getElementById("lib-tp-such");
-      if (such) such.oninput = debounce(() => { laden(such.value.trim()); }, 300);
-      const ok = document.getElementById("lib-tp-ok");
-      if (ok) ok.onclick = async () => {
-        const pfade = [...gewaehlt];
-        if (!pfade.length) {
-          // Abnahme 29.08.2026: leeres Bestätigen endete STUMM.
-          toast(T("library.proj_addtours_leer", "Nichts angehakt — erst Touren auswählen."), "warn", 2600);
-          return;
-        }
-        m.close();
-        const r = await api().projekt_touren_setzen(b.dataset.addtours, pfade);
-        if (r && r.ok) { toast(T("library.proj_tours_gesetzt", "{n} Tour(en) hinzugefügt.").replace("{n}", pfade.length), "info"); renderProjekte(); }
-        else toast((r && r.error) || "?", "error");
-      };
-      const ab = document.getElementById("lib-tp-ab");
-      if (ab) ab.onclick = () => m.close();
+      const pfade = await tourenWaehlenModal();
+      if (!pfade) return;
+      const r = await api().projekt_touren_setzen(b.dataset.addtours, pfade);
+      if (r && r.ok) { toast(T("library.proj_tours_gesetzt", "{n} Tour(en) hinzugefügt.").replace("{n}", pfade.length), "info"); renderProjekte(); }
+      else toast((r && r.error) || "?", "error");
     });
     box.querySelectorAll("[data-up]").forEach(b => b.onclick = (e) => {
       e.stopPropagation();
@@ -1322,15 +1279,26 @@ function mountLibrary(body, headerActions) {
       || `<div class="lib-empty"><div class="lib-empty-title">${T("vorlagen.keine_treffer", "Keine Vorlage passt zur Suche.")}</div></div>`}</div>`;
     box.querySelectorAll("[data-vneu]").forEach(b => b.onclick = async () => {
       const v = liste.find(x => x.id === b.dataset.vneu) || {};
-      const wahl = await window.rzNeuesProjektModal(v.name || "", T("vorlagen.neu_projekt", "Neues Projekt daraus"), b.dataset.vneu);
+      // Marc (11.09.2026): „wenn du sagst daraus ein projekt erstellen muss direkt
+      // die auswahl der touren kommen" — erst Touren, dann Name (vorbelegt mit der
+      // ersten Tour), dann mit Track im Animator landen. Abbrechen = kein Projekt.
+      const pfade = await tourenWaehlenModal({
+        titel: "🧩 " + T("vorlagen.neu_projekt", "Neues Projekt daraus") + " — " + T("vorlagen.touren_waehlen", "Touren wählen"),
+        okLabel: T("common.next", "Weiter") });
+      if (!pfade) return;
+      const vorschlag = String(pfade[0] || "").split("/").pop().replace(/\.[^.]+$/, "") || v.name || "";
+      const wahl = await window.rzNeuesProjektModal(vorschlag, T("vorlagen.neu_projekt", "Neues Projekt daraus"), b.dataset.vneu);
       if (!wahl) return;
       const r = await api().projekt_aus_vorlage_anlegen(wahl.name, wahl.vorlageId || b.dataset.vneu);
       if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return; }
-      try { if (typeof clearGlobalGpx === "function") clearGlobalGpx(); } catch (_) {}
-      if (typeof sessionActivateFrei === "function") await sessionActivateFrei(r.track_hash);
-      if (typeof rebindAllSettings === "function") rebindAllSettings();
+      const pid = (r.active_project || {}).id;
+      const r2 = await api().projekt_touren_setzen(pid, pfade);
+      if (!r2 || !r2.ok) { toast((r2 && r2.error) || "?", "error"); return; }
       window.dispatchEvent(new CustomEvent("rz-projekt-angelegt"));
-      if (typeof switchMod === "function") switchMod("animator");
+      const res = await api().projekte_liste();
+      _projekte = (res && res.projekte) || [];
+      toast(T("library.proj_angelegt", "Projekt angelegt."), "info");
+      await projektOeffnen(pid, "animator");
     });
     box.querySelectorAll("[data-vstd]").forEach(b => b.onclick = async () => {
       const r = await api().vorlage_standard_setzen(b.dataset.vstd);
@@ -1434,6 +1402,61 @@ function mountLibrary(body, headerActions) {
       window.rzVorlagenCacheLeeren();
       toast(T("vorlagen.gespeichert", "Vorlage „{n}“ gespeichert.").replace("{n}", (r.vorlage || {}).name || name), "success");
     };
+  }
+
+  /** Touren aus dem Archiv wählen (Mehrfach; die Suche fragt das ARCHIV, gewählte
+   *  Touren überleben die Suche — Abnahme 29.08.2026). Löst mit der Pfadliste oder
+   *  null (Abbrechen). Genutzt von ➕ auf der Projekt-Kachel und von „Neues Projekt
+   *  daraus" bei den Vorlagen (11.09.2026, Marc: „muss direkt die auswahl der
+   *  touren kommen"). */
+  function tourenWaehlenModal(opts) {
+    opts = opts || {};
+    return new Promise(async (resolve) => {
+      let fertig = false;
+      const gewaehlt = new Set();
+      let items = [];
+      const liste = () => (items.map((it) => `
+        <label class="lib-fassung" style="cursor:pointer;">
+          <input type="checkbox" data-tpath="${esc(it.path)}"${gewaehlt.has(it.path) ? " checked" : ""}>
+          <span class="lib-fassung-info">${esc(it.name || it.filename || it.path)}</span>
+        </label>`).join("")
+        || `<p>${T("library.keine_treffer", "Keine Treffer.")}</p>`);
+      const laden = async (q) => {
+        const res = await api().library_query({ search: q || "", limit: 300, with_thumbs: false });
+        items = (res && res.items) || [];
+        const el = document.getElementById("lib-tp-liste");
+        if (el) {
+          el.innerHTML = liste();
+          el.querySelectorAll("[data-tpath]").forEach(cb => cb.onchange = () => {
+            if (cb.checked) gewaehlt.add(cb.dataset.tpath);
+            else gewaehlt.delete(cb.dataset.tpath);
+          });
+        }
+      };
+      const m = openModal({
+        title: opts.titel || ("➕ " + T("library.proj_addtours", "Touren aus dem Archiv hinzufügen")),
+        body: `<input type="search" id="lib-tp-such" class="lib-input" placeholder="${esc(T("library.search_ph", "Suchen — Name, Ort, Schlagwort …"))}" style="margin-bottom:8px;">
+               <div style="max-height:50vh;overflow-y:auto;" id="lib-tp-liste"></div>`,
+        footer: `<button class="btn" id="lib-tp-ab">${T("common.cancel", "Abbrechen")}</button>
+                 <button class="btn btn-primary" id="lib-tp-ok">${opts.okLabel || T("library.proj_addtours_ok", "Hinzufügen")}</button>`,
+        onClose: () => { if (!fertig) { fertig = true; resolve(null); } },
+      });
+      await laden("");
+      const such = document.getElementById("lib-tp-such");
+      if (such) such.oninput = debounce(() => { laden(such.value.trim()); }, 300);
+      const ok = document.getElementById("lib-tp-ok");
+      if (ok) ok.onclick = () => {
+        const pfade = [...gewaehlt];
+        if (!pfade.length) {
+          // Abnahme 29.08.2026: leeres Bestätigen endete STUMM.
+          toast(T("library.proj_addtours_leer", "Nichts angehakt — erst Touren auswählen."), "warn", 2600);
+          return;
+        }
+        fertig = true; m.close(); resolve(pfade);
+      };
+      const ab = document.getElementById("lib-tp-ab");
+      if (ab) ab.onclick = () => { fertig = true; m.close(); resolve(null); };
+    });
   }
 
   async function projektOeffnen(pid, modulWunsch) {

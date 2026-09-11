@@ -83,8 +83,8 @@ für Vorlagen UND „eigene Standardwerte“:
 1. **Archiv → Reiter „Vorlagen“** neben „Touren“ und „Projekte“ (gleiche Filterzeile,
    Suche wirkt). Kacheln: Name, ★ wenn Standard, Kurzzeile (Kartenstil · Format ·
    Linienfarbe als Farbpunkt · Schrift), Datum. Knöpfe je Kachel: **★ Als Standard**,
-   **➕ Neues Projekt daraus** (leeres Projekt mit dieser Vorlage, springt in den
-   Animator), **✎ Umbenennen**, **🗑 Löschen** (nicht bei mitgelieferter). Oben:
+   **➕ Neues Projekt daraus** (zuerst die Touren aus dem Archiv wählen — Marc: „muss
+   direkt die auswahl der touren kommen“ —, dann Name, dann mit Track im Animator), **✎ Umbenennen**, **🗑 Löschen** (nicht bei mitgelieferter). Oben:
    **„➕ Neue Vorlage aus Projekt…“** (Projekt wählen, Name eingeben).
 2. **Projekt-Kachel im Archiv**: Knopf **🧩** öffnet ein kleines Fenster mit zwei Teilen:
    „Vorlage anwenden“ (Auswahl + Knopf) und „Als neue Vorlage speichern“ (Name + Knopf).
