@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import urllib.parse
 import urllib.request
 from typing import Callable, List, Optional
@@ -35,7 +36,8 @@ log = logging.getLogger("core.highlights")
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 KORRIDOR_M = 120.0          # so weit darf ein Ort neben dem Track liegen
-MAX_POLYLINE_PUNKTE = 250   # Overpass mag keine Roman-langen Abfragen
+MAX_POLYLINE_PUNKTE = 200   # (für _polylinie; die Abfrage nutzt seit 11.09.2026 die Bounding-Box)
+OVERPASS_TIMEOUT_S = 20     # Server-Limit; der Client wartet 5 s länger
 MAX_SCHILDER = 8
 MIN_ABSTAND_ANTEIL = 0.05   # zwischen zwei Schildern mindestens 5 % der Strecke
 HUB_MIN_M = 150.0           # „Höchster Punkt" nur ab so viel Höhenunterschied
@@ -94,19 +96,29 @@ def _polylinie(points: List[dict]) -> List[List[float]]:
     return [[float(p["lat"]), float(p["lon"])] for p in out]
 
 
+BBOX_GROSS_GRAD2 = 0.05     # ab ~600 km² keine Dörfer/Weiler mehr abfragen (Tausende Treffer)
+
+
 def overpass_abfrage(points: List[dict], radius_m: float = KORRIDOR_M) -> str:
-    """Overpass-QL: benannte Highlights im Korridor um die (vereinfachte) Polylinie."""
-    poly = _polylinie(points)
-    if len(poly) < 2:
+    """Overpass-QL: benannte Highlights je Tag-Art in der Bounding-Box des Tracks
+    (mit `radius_m` Rand). Die Box wird über den Tag-Index beantwortet — eine
+    Korridor-Abfrage (`around:` mit Polylinie) lief bei einer 70-km-Tour in die
+    Zeitüberschreitung (11.09.2026). Der Korridor wird danach LOKAL gefiltert."""
+    pts = [p for p in points if p.get("lat") is not None and p.get("lon") is not None]
+    if len(pts) < 2:
         return ""
-    around = f"around:{int(radius_m)}," + ",".join(f"{la:.5f},{lo:.5f}" for la, lo in poly)
-    zeilen = []
-    for (k, v) in ARTEN:
-        zeilen.append(f'nwr["{k}"="{v}"]["name"]({around});')
-    return "[out:json][timeout:25];(" + "".join(zeilen) + ");out center tags;"
+    lats = [float(p["lat"]) for p in pts]
+    lons = [float(p["lon"]) for p in pts]
+    dlat = radius_m / 111_000.0
+    dlon = radius_m / (111_000.0 * max(0.2, math.cos(math.radians(sum(lats) / len(lats)))))
+    s, w, n, e = min(lats) - dlat, min(lons) - dlon, max(lats) + dlat, max(lons) + dlon
+    bbox = f"{s:.5f},{w:.5f},{n:.5f},{e:.5f}"
+    gross = (n - s) * (e - w) > BBOX_GROSS_GRAD2
+    zeilen = [f'nwr["{k}"="{v}"]["name"]({bbox});' for (k, v) in ARTEN if not (gross and k == "place")]
+    return f"[out:json][timeout:{OVERPASS_TIMEOUT_S}];(" + "".join(zeilen) + ");out center tags;"
 
 
-def _http_overpass(query: str, timeout: float = 30.0) -> dict:
+def _http_overpass(query: str, timeout: float = OVERPASS_TIMEOUT_S + 5) -> dict:
     data = urllib.parse.urlencode({"data": query}).encode("utf-8")
     req = urllib.request.Request(OVERPASS_URL, data=data,
                                  headers={"User-Agent": "ReisezoomGPSStudio", "Content-Type": "application/x-www-form-urlencoded"})
@@ -114,10 +126,14 @@ def _http_overpass(query: str, timeout: float = 30.0) -> dict:
         return json.loads(resp.read().decode("utf-8", errors="replace"))
 
 
+class KeinNetz(Exception):
+    """Overpass nicht erreichbar (Netz, Zeitüberschreitung, Serverfehler)."""
+
+
 def osm_pois(points: List[dict], *, radius_m: float = KORRIDOR_M,
              http: Optional[Callable[[str], dict]] = None) -> List[dict]:
     """Highlights aus OSM: [{lat, lon, name, art, rang, symbol, ele, tags}]. `http`
-    kann für Tests ersetzt werden. Ohne Netz: leere Liste (loggt eine Warnung)."""
+    kann für Tests ersetzt werden. Ohne Netz: KeinNetz (kein Treffer ≠ kein Netz)."""
     q = overpass_abfrage(points, radius_m)
     if not q:
         return []
@@ -125,7 +141,7 @@ def osm_pois(points: List[dict], *, radius_m: float = KORRIDOR_M,
         res = (http or _http_overpass)(q)
     except Exception as e:  # noqa: BLE001
         log.warning("Overpass nicht erreichbar: %s", e)
-        return []
+        raise KeinNetz(str(e)) from e
     out = []
     for el in (res or {}).get("elements") or []:
         tags = el.get("tags") or {}
@@ -200,6 +216,7 @@ def _naechster_index(points: List[dict], lat: float, lon: float, schritt_hint: i
 
 def auswaehlen(points: List[dict], pois: List[dict], *, max_n: int = MAX_SCHILDER,
                radius_m: float = KORRIDOR_M, min_abstand_anteil: float = MIN_ABSTAND_ANTEIL) -> List[dict]:
+    # radius_m: Korridor beim Rasten an den Track (gleich dem der Abfrage)
     """Rang, Eindeutigkeit, Korridor, Verteilung. Liefert die gewählten POIs mit
     `idx` (Trackpunkt) und `frac` (Anteil der Strecke), nach Strecke sortiert."""
     n = len(points)
@@ -308,10 +325,21 @@ def kurzliste(gewaehlt: List[dict], hoechster_label: str = "Höchster Punkt") ->
     return ", ".join(teile)
 
 
+KORRIDOR_WEIT_M = 400.0     # zweiter Versuch, wenn im engen Korridor nichts liegt
+
+
 def highlights_fuer_track(points: List[dict], *, max_n: int = MAX_SCHILDER,
                           http: Optional[Callable[[str], dict]] = None) -> dict:
-    """Alles in einem: {pois, gewaehlt, netz: bool}."""
-    pois = osm_pois(points, http=http)
-    netz = bool(pois) or http is not None
-    gew = auswaehlen(points, pois, max_n=max_n)
-    return {"pois": pois, "gewaehlt": gew, "netz": netz}
+    """Alles in einem: {pois, gewaehlt, netz, radius_m}. Erst 120 m; liegt dort
+    nichts, noch einmal mit 400 m (Dorfspaziergang, Uferweg). `netz` = False nur,
+    wenn Overpass nicht antwortete."""
+    try:
+        pois = osm_pois(points, radius_m=KORRIDOR_WEIT_M, http=http)   # Box mit weitem Rand, EINE Abfrage
+    except KeinNetz:
+        return {"pois": [], "gewaehlt": [], "netz": False, "radius_m": 0}
+    radius = KORRIDOR_M
+    gew = auswaehlen(points, pois, max_n=max_n, radius_m=radius)
+    if not gew or all(g.get("art") == "hoechster" for g in gew):
+        radius = KORRIDOR_WEIT_M
+        gew = auswaehlen(points, pois, max_n=max_n, radius_m=radius)
+    return {"pois": pois, "gewaehlt": gew, "netz": True, "radius_m": radius}
