@@ -161,6 +161,10 @@ Fortschritt als Zeilenliste im Fenster („Track geprüft: 2 Sprünge, 1 Lücke 
 - **Stufe 3 — Highlights** (Q7): Gipfel/Pässe aus dem Track, POIs aus OpenStreetMap
   (Overpass), Namen über den Geocoder; als **Schilder** mit Foto, wenn ein Foto ≤ 200 m
   und ≤ 20 min entfernt liegt. Highlight-Arten kommen aus der Vorlage.
+  **Entscheidung 11.09.2026 (Marc, nach dem Unterstand „Pilz“):** Sobald Fotos da sind (Stufe 2),
+  kommen Orte mit niedrigem Rang (Unterstände, Kunst am Weg, Denkmäler, Museen, Dörfer) **nur
+  mit Foto** als Schild; Gipfel, Pässe, Seen, Aussichtspunkte, Burgen und die Track-Stellen
+  (höchster/tiefster Punkt, schnellste/steilste Stelle) bleiben auch ohne Foto.
 - **Stufe 4 — Fotoordner überwachen** (Q2) wie die GPX-Ordner, dazu die Übersichtsseite
   (Q12).
 - Nicht Teil des Assistenten: Export (Q6), Routenplanung (Nordstern-Grenze).
