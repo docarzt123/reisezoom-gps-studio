@@ -517,6 +517,23 @@ def fps_lesen(conn: sqlite3.Connection, pfade: list) -> dict:
     return raus
 
 
+def fp_setzen(conn: sqlite3.Connection, werte: dict) -> int:
+    """Nachträglich gelernte Cache-Schlüssel merken.
+
+    Bibliotheken von vor dieser Fassung haben die Spalte leer. Wer ohnehin ein
+    Vorschaubild baut, hat den Wert gerade in der Hand — dann steht er beim
+    nächsten Öffnen bereit und die Seite kommt ohne einen einzigen `stat` aus.
+    """
+    n = 0
+    for pfad, fp in (werte or {}).items():
+        if fp:
+            n += conn.execute("UPDATE fotos SET fp = ? WHERE path = ? AND "
+                              "COALESCE(fp,'') != ?", (fp, pfad, fp)).rowcount or 0
+    if n:
+        conn.commit()
+    return n
+
+
 def fp_lesen(conn: sqlite3.Connection, path: str) -> str:
     r = conn.execute("SELECT fp FROM fotos WHERE path = ?", (path,)).fetchone()
     return (r["fp"] or "") if r else ""

@@ -267,6 +267,70 @@
     gesamt = r.n || 0;
     geladen = geladen.concat(r.fotos || []);
     zeichnen();
+    thumbsNachholen();          // absichtlich ohne await: die Seite steht schon
+  }
+
+  /* Vorschaubilder, die noch nicht im Cache liegen, in Häppchen nachholen.
+     Ein Video-Vorschaubild dauert Sekunden — 240 am Stück waren Minuten
+     Stille. Jetzt steht die Seite sofort und die Bilder tröpfeln herein, mit
+     sichtbarem Fortschritt und Abbrechen (Marc, 12.09.2026: „überall
+     userfeedback"). */
+  const THUMB_HAPPEN = 12;
+  let thumbLauf = 0;
+
+  async function thumbsNachholen() {
+    const lauf = ++thumbLauf;
+    const offen = geladen.filter(f => !f.thumb_url).map(f => f.path);
+    if (!offen.length) return;
+    if (window.rzStatus) {
+      window.rzStatus.start("foto-thumbs", {
+        titel: T("fotos.titel", "Fotos"),
+        text: T("fotos.thumbs_holen", "Vorschaubilder erzeugen"),
+        gesamt: offen.length, abbrechen: true,
+      });
+    }
+    let fertig = 0;
+    for (let i = 0; i < offen.length; i += THUMB_HAPPEN) {
+      if (lauf !== thumbLauf || !angemeldet) break;
+      if (window.rzStatus && window.rzStatus.abgebrochen("foto-thumbs")) break;
+      const teil = offen.slice(i, i + THUMB_HAPPEN);
+      const r = await api().fotos_thumbs(teil).catch(() => null);
+      if (lauf !== thumbLauf || !angemeldet) break;
+      const bilder = (r && r.thumbs) || {};
+      let neu = 0;
+      geladen.forEach((f) => {
+        if (!f.thumb_url && bilder[f.path]) { f.thumb_url = bilder[f.path]; neu++; }
+      });
+      fertig += teil.length;
+      if (neu) bilderEinsetzen(bilder);
+      if (window.rzStatus) {
+        window.rzStatus.schritt("foto-thumbs", {
+          n: fertig, gesamt: offen.length,
+          text: T("fotos.thumbs_holen", "Vorschaubilder erzeugen"),
+        });
+      }
+    }
+    if (window.rzStatus && lauf === thumbLauf) window.rzStatus.fertig("foto-thumbs", "");
+  }
+
+  /** Die neuen Bilder in die schon gezeichneten Kacheln hängen — ohne das
+      ganze Raster neu zu bauen, sonst springt die Ansicht beim Blättern. */
+  function bilderEinsetzen(bilder) {
+    if (!haupt) return;
+    geladen.forEach((f, i) => {
+      if (!bilder[f.path]) return;
+      const k = haupt.querySelector(`.foto-kachel[data-foto="${i}"]`);
+      if (!k) return;
+      const leer = k.querySelector(".foto-kachel-leer");
+      if (leer) {
+        const img = document.createElement("img");
+        img.loading = "lazy"; img.alt = ""; img.src = bilder[f.path];
+        leer.replaceWith(img);
+      } else {
+        const img = k.querySelector("img");
+        if (img && !img.getAttribute("src")) img.src = bilder[f.path];
+      }
+    });
   }
 
   async function filterwerteLaden() {
@@ -319,7 +383,16 @@
     const teile = [T("fotos.kopf", "{n} Dateien").replace("{n}", num(gesamt))];
     if (stand.ungelesen) teile.push(T("fotos.kopf_offen", "{n} noch ohne Aufnahmedaten").replace("{n}", num(stand.ungelesen)));
     if (stand.ohne_koordinate) teile.push(T("fotos.kopf_ohne_gps", "{n} ohne Koordinate").replace("{n}", num(stand.ohne_koordinate)));
-    return `<div class="lib-head">${esc(teile.join(" · "))}</div>`;
+    // Solange nichts eingelesen ist, gibt es auch keine Vorschaubilder im
+    // Speicher — dann muss JEDES Bild einzeln vom Laufwerk kommen. Das steht
+    // hier als Satz, mit dem Knopf daneben, statt dass man sich wundert.
+    const offen = stand.ungelesen
+      ? `<button class="btn btn-sm" id="foto-kopf-scan" type="button">${T("fotos.kopf_einlesen", "Jetzt einlesen")}</button>`
+      : "";
+    const hinweis = stand.ungelesen
+      ? `<div class="muted" style="margin-top:4px">${T("fotos.kopf_offen_hilfe", "Erst nach dem Einlesen liegen Aufnahmedaten und Vorschaubilder in der Bibliothek — bis dahin holt die Ansicht jedes Bild einzeln vom Laufwerk.")}</div>`
+      : "";
+    return `<div class="lib-head">${esc(teile.join(" · "))} ${offen}${hinweis}</div>`;
   }
 
   function kachelHtml(f, i) {
@@ -786,6 +859,9 @@
       };
     });
 
+    const kopfScan = haupt.querySelector("#foto-kopf-scan");
+    if (kopfScan) kopfScan.onclick = () => scanStarten();
+
     if (ansicht === "karte") karteZeichnen(box);
     else if (ansicht === "touren") tourenZeichnen(box);
     else rasterZeichnen(box);
@@ -793,14 +869,35 @@
 
   async function mount(hauptEl, navEl) {
     haupt = hauptEl; nav = navEl; angemeldet = true;
-    haupt.innerHTML = `<div class="lib-detail-empty" style="padding:20px">${T("common.loading", "Lädt …")}</div>`;
+    // Jeder Schritt sagt, was er tut: bei zehntausenden Dateien dauert das
+    // sonst lange genug, dass man die App für tot hält.
+    const schritt = (text) => {
+      if (haupt) {
+        haupt.innerHTML = `<div class="lib-detail-empty" style="padding:20px">
+          <div>${esc(text)}</div>
+          <div class="muted" style="margin-top:6px">${T("fotos.laden_hinweis", "Der Bestand liegt in der Bibliothek — das geht auch ohne das Laufwerk.")}</div>
+        </div>`;
+      }
+      if (window.rzStatus) {
+        if (!window.rzStatus.laeuft("foto-oeffnen")) {
+          window.rzStatus.start("foto-oeffnen", { titel: T("fotos.titel", "Fotos"), text: text });
+        } else {
+          window.rzStatus.schritt("foto-oeffnen", { text: text });
+        }
+      }
+    };
+    schritt(T("fotos.laden_ordner", "Ordner lesen …"));
     const r = await api().fotos_ordner().catch(() => null);
     if (!angemeldet) return;
     if (r && r.ok) { ordner = r.ordner || []; stand = r.stand || {}; }
+    schritt(T("fotos.laden_werte", "Kameras und Jahre zählen …"));
     await filterwerteLaden();
     if (!angemeldet) return;
     navZeichnen();
+    schritt(T("fotos.laden_seite", "{n} Dateien im Bestand — erste Seite holen …")
+      .replace("{n}", num(stand.gesamt || gesamt || 0)));
     await neuLaden(true);
+    if (window.rzStatus) window.rzStatus.fertig("foto-oeffnen", "");
     // Läuft gerade ein Scan (etwa aus einer früheren Sitzung im Hintergrund),
     // zeigt die Leiste ihn sofort an, statt ihn zu verschweigen.
     try {
@@ -811,6 +908,7 @@
 
   function unmount() {
     angemeldet = false;
+    thumbLauf++;                // ein laufendes Nachholen von Bildern beenden
     clearTimeout(scanTimer);
     if (karte) { try { karte.remove(); } catch (_) {} }
     karte = null; karteLib = null; karteBereit = false;

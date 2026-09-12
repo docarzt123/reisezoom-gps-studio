@@ -3493,5 +3493,12 @@
   "fotos.b_verorten": "Im Geotagger verorten",
   "fotos.d_tour": "Tour",
   "fotos.verorten_track": "Track laden …",
-  "fotos.verorten_ordner": "Fotos einlesen …"
+  "fotos.verorten_ordner": "Fotos einlesen …",
+  "fotos.laden_ordner": "Ordner lesen …",
+  "fotos.laden_werte": "Kameras und Jahre zählen …",
+  "fotos.laden_seite": "{n} Dateien im Bestand — erste Seite holen …",
+  "fotos.laden_hinweis": "Der Bestand liegt in der Bibliothek — das geht auch ohne das Laufwerk.",
+  "fotos.thumbs_holen": "Vorschaubilder erzeugen",
+  "fotos.kopf_einlesen": "Jetzt einlesen",
+  "fotos.kopf_offen_hilfe": "Erst nach dem Einlesen liegen Aufnahmedaten und Vorschaubilder in der Bibliothek — bis dahin holt die Ansicht jedes Bild einzeln vom Laufwerk."
 }
