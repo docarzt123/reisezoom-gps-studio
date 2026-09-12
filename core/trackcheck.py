@@ -45,6 +45,12 @@ STUFEN: Dict[str, str] = {
     "clock_off": "gelb",
     "no_time": "grau",
     "local_time": "grau",
+    # 12.09.2026 — Übersetzen (Fähre, Flug, Zug im Tunnel): eine echte Strecke ohne
+    # Aufzeichnung. Weder Ausreißer noch Lücke, deshalb eine eigene Art — und grau,
+    # weil daran nichts zu reparieren ist. Anlass: die Nordsee-Fähre in einer
+    # Beta-Tester-Reise wurde je nach Pausenlänge einmal verschluckt (Nachtpausen-
+    # Regel) und einmal fast als Ausreißer behandelt. Gleiches Ereignis, zwei Urteile.
+    "uebersetzen": "grau",
 }
 REIHENFOLGE = tuple(STUFEN.keys())
 _RANG = {"rot": 3, "gelb": 2, "grau": 1, "": 0}
@@ -58,6 +64,22 @@ NACHTPAUSE_M = 2000.0            # … Sprung > 2 km = Mehrtagestour, keine Lüc
 # (10.09.2026): ab 42 m hätten 186 Touren „Lücken" getragen, ab 100 m sind es 86 —
 # und die Reparatur füllt genau diese, der Befund verschwindet also.
 LUECKE_MIN_M = 100.0
+# ── Übersetzen (12.09.2026) ────────────────────────────────────────────────
+# Ab dieser Distanz in EINEM Segment ist es keine Aufzeichnungslücke mehr, sondern
+# eine Strecke, die ohne Aufzeichnung zurückgelegt wurde: Fähre, Flug, Autozug.
+# 10 km ist bewusst hoch — darunter liegen die Stadtlücken (die größte in der
+# Tester-Reise: 3,3 km in Edinburgh), darüber lag dort nur die Nordsee.
+UEBERSETZEN_MIN_M = 10000.0
+# Schneller als das ist kein Fahrzeug mehr, sondern ein kaputter Punkt.
+UEBERSETZEN_MAX_MS = 330.0       # ≈ 1190 km/h (Verkehrsflugzeug mit Reserve)
+# Fluggeschwindigkeit gilt erst ab Flugdistanz. Darunter ist ein Fahrzeug am Werk
+# (Fähre, Autozug, Tunnel) — alles Schnellere ist ein kaputter Punkt.
+UEBERSETZEN_FLUG_AB_M = 300000.0
+UEBERSETZEN_FAHRZEUG_MAX_MS = 60.0   # 216 km/h
+# Kommt der Track binnen weniger Punkte wieder zurück, war es ein Ausreißer und
+# kein Übersetzen — dann greift weiter die Sprung-Erkennung.
+UEBERSETZEN_RUECKKEHR = 0.5      # Anteil der Sprungweite
+
 PAUSE_S = 120.0                  # Pause ≥ 2 min UND …
 PAUSE_M = 100.0                  # … höchstens 100 m weiter = Wirtshaus (Handy lag drinnen), keine Lücke
 # Aufzeichnungs-Phänomene: bei GEPLANTEN Routen (Komoot-Planung trägt Kunst-Zeiten!) nie ein
@@ -240,6 +262,112 @@ def median_tempo(sp: _Spur) -> float:
     return _median(vs)
 
 
+def uebersetzen(sp: _Spur) -> List[dict]:
+    """Strecken, die ohne Aufzeichnung zurückgelegt wurden: Fähre, Flug, Autozug.
+
+    12.09.2026. Erkannt an: ein einzelnes Segment über `UEBERSETZEN_MIN_M`, das
+    NICHT zurückkehrt (sonst ist es ein Ausreißer) und dessen Tempo zu einem
+    Fahrzeug passt. Die Pausenlänge spielt bewusst KEINE Rolle mehr — genau daran
+    hing es vorher, ob dieselbe Fähre als Nachtpause verschluckt oder beinahe als
+    Ausreißer behandelt wurde.
+
+    Rückgabe je Übersetzen: {a, b, dist, dauer_s, tempo_ms}. `a`/`b` sind die
+    Punkte davor und danach; repariert wird daran nie etwas.
+    """
+    out: List[dict] = []
+    for i in range(sp.n - 1):
+        L = sp.L[i]
+        if L is None or L < UEBERSETZEN_MIN_M or i in sp.ausgeschlossen:
+            continue
+        dt = sp.dt(i, i + 1)
+        if dt is not None and dt > 0:
+            v = L / dt
+            grenze = (UEBERSETZEN_MAX_MS if L >= UEBERSETZEN_FLUG_AB_M
+                      else UEBERSETZEN_FAHRZEUG_MAX_MS)
+            if v > grenze:
+                continue      # zu schnell für die Strecke → kaputter Punkt
+        # Ein Punkt zwischen ZWEI weiten Sprüngen ist kein Hafen, sondern ein
+        # Ausreißer: In der Tester-Reise lag genau so ein Punkt hinter der Ankunft
+        # (197 km zurück und sofort wieder her). Der gehört der Sprung-Erkennung.
+        vor = sp.L[i - 1] if i > 0 else None
+        if vor is not None and vor >= UEBERSETZEN_MIN_M:
+            continue
+        # Kehrt der Track wieder zurück, war es ein Ausreißer. Entscheidend ist,
+        # wo er BLEIBT, nicht der nächste Punkt: In der Tester-Reise lag direkt
+        # nach der Ankunft ein einzelner falscher Punkt zurück im Abfahrtshafen —
+        # ein Blick auf den Nachbarn hätte die echte Überfahrt verworfen.
+        nah = weit = 0
+        for j in range(i + 2, min(i + 8, sp.n)):
+            if sp.d(i, j) < L * UEBERSETZEN_RUECKKEHR:
+                nah += 1
+            else:
+                weit += 1
+        if nah > weit:
+            continue
+        out.append({"a": i, "b": i + 1, "dist": L, "dauer_s": dt,
+                    "tempo_ms": (L / dt) if dt and dt > 0 else None})
+    return out
+
+
+def abschnitte(sp: _Spur, grenzen: Optional[Sequence[int]] = None) -> List[dict]:
+    """Den Track in Abschnitte zerlegen und je Abschnitt das typische Tempo messen.
+
+    12.09.2026 (IDEAS §63). Anlass: In einer Womo-Reise mit Spaziergängen ergab der
+    Median über den GANZEN Track eine Ausreißer-Schwelle von 539 km/h — in den
+    Fußabschnitten konnte damit nie etwas auffallen. Geschnitten wird an
+    Etappengrenzen, an Übersetzen und an langen Pausen; jeder Abschnitt bekommt
+    seinen eigenen Median.
+
+    Rückgabe je Abschnitt: {von, bis, median_ms, n}.
+    """
+    schnitte = set(int(x) for x in (grenzen or []))
+    for i in range(sp.n - 1):
+        if sp.L[i] is None:                       # Etappengrenze
+            schnitte.add(i)
+            continue
+        dt = sp.dt(i, i + 1)
+        if dt is not None and dt > NACHTPAUSE_S:  # lange Pause = neuer Abschnitt
+            schnitte.add(i)
+    for u in uebersetzen(sp):
+        schnitte.add(u["a"])
+
+    raus: List[dict] = []
+    start = 0
+    for ende in sorted(schnitte) + [sp.n - 1]:
+        if ende < start:
+            continue
+        vs = []
+        for i in range(start, min(ende, sp.n - 1)):
+            L = sp.L[i]
+            dt = sp.dt(i, i + 1)
+            if L is not None and dt is not None and dt > 0 and i not in sp.ausgeschlossen:
+                vs.append(L / dt)
+        raus.append({"von": start, "bis": ende, "n": ende - start + 1,
+                     "median_ms": _median(vs)})
+        start = ende + 1
+    return [a for a in raus if a["n"] > 1]
+
+
+# Ein Abschnitt braucht genug Punkte, damit sein Median etwas heißt. Darunter
+# erbt er den Gesamt-Median — sonst bestimmt ein Zwei-Punkte-Schnipsel mit einem
+# kaputten Zeitstempel die Schwelle für seine Umgebung.
+ABSCHNITT_MIN_PUNKTE = 20
+
+
+def _median_je_punkt(sp: _Spur) -> List[float]:
+    """Für jeden Punkt das typische Tempo SEINES Abschnitts — die Grundlage der
+    abschnittsweisen Schwellen. Kurze Abschnitte und solche ohne eigenes Tempo
+    erben den Gesamt-Median, damit nie durch Null geteilt wird."""
+    gesamt = median_tempo(sp)
+    werte = [gesamt] * max(1, sp.n)
+    for a in abschnitte(sp):
+        m = a["median_ms"] if a["n"] >= ABSCHNITT_MIN_PUNKTE else 0.0
+        m = m or gesamt
+        for i in range(a["von"], min(a["bis"] + 1, sp.n)):
+            werte[i] = m
+    return werte
+
+
 def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD) -> dict:
     """Portierung von detectSpikes (Inspektor). Gruppen aufeinanderfolgender Ausreißer-
     Punkte {a, b, von, bis}: a/b sind die gesunden Nachbarn. Zusätzlich wird jede Gruppe
@@ -258,10 +386,26 @@ def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD) -> dict:
     med_speed = median_tempo(sp) if have_time else 0.0
     REL_SPEED = _lerp(12, 3, stufe)
     SPEED_THR = max(4.2, med_speed * REL_SPEED) if med_speed > 0 else math.inf
+    # 12.09.2026 (IDEAS §63) — die Tempo-Schwelle je ABSCHNITT statt über den ganzen
+    # Track. In einer Womo-Reise mit Spaziergängen lag die globale Schwelle bei
+    # 539 km/h; im Fußabschnitt konnte damit nie etwas auffallen.
+    med_je_punkt = _median_je_punkt(sp) if have_time else []
+
+    def _schwelle(i: int) -> float:
+        if not med_je_punkt:
+            return SPEED_THR
+        m = med_je_punkt[min(i, len(med_je_punkt) - 1)]
+        return max(4.2, m * REL_SPEED) if m and m > 0 else SPEED_THR
+
+    # Übersetzen ist kein Ausreißer: die Segmente einer Fähr-/Flugstrecke nehmen an
+    # der Sprung-Erkennung gar nicht erst teil.
+    ueber = {u["a"] for u in uebersetzen(sp)}
     flags = [False] * n
     for i in range(1, n - 1):
         inD, outD = sp.L[i - 1], sp.L[i]
         if inD is None or outD is None or (i - 1) in sp.ausgeschlossen or i in sp.ausgeschlossen:
+            continue
+        if (i - 1) in ueber or i in ueber:
             continue
         chord = sp.d(i - 1, i + 1)
         detour = inD + outD - chord
@@ -276,7 +420,7 @@ def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD) -> dict:
             speed_bad = v_in > SPEED_CAP or v_out > SPEED_CAP
         if big_jump and returns and speed_bad:
             flags[i] = True
-        elif have_time and (v_in > SPEED_THR or v_out > SPEED_THR):
+        elif have_time and (v_in > _schwelle(i) or v_out > _schwelle(i)):
             flags[i] = True
     spikes, tempo = [], []
     fl = set()
@@ -296,7 +440,10 @@ def sprung_gruppen(sp: _Spur, stufe: float = STUFE_STANDARD) -> dict:
             i = j + 1
         else:
             i += 1
-    return {"spikes": spikes, "tempo": tempo, "flags": fl, "speed_thr": SPEED_THR}
+    return {"spikes": spikes, "tempo": tempo, "flags": fl, "speed_thr": SPEED_THR,
+            # Für Oberfläche und Tests: woran wurde tatsächlich gemessen?
+            "schwellen_je_abschnitt": sorted({round(max(4.2, m * REL_SPEED), 2)
+                                              for m in set(med_je_punkt)}) if have_time else []}
 
 
 def luecken(sp: _Spur, stufe: float = STUFE_STANDARD, spacing: float = LUECKE_ABSTAND_M,
@@ -411,7 +558,11 @@ def standdrift(sp: _Spur) -> List[dict]:
 def zeit_befunde(sp: _Spur) -> dict:
     """backwards, duplicates, spread_seconds, clock_off, no_time — aus den ROHEN Zeiten."""
     n = sp.n
-    r = {"backwards": 0, "duplicates": 0, "spread_seconds": 0, "clock_off": None, "no_time": not sp.hat_zeit}
+    # 12.09.2026 — zusätzlich die Fundstellen, damit der Inspektor sie auf der Karte
+    # markieren kann (Marc: „klar und deutlich gekennzeichnet, was er als fehler erkennt").
+    r = {"backwards": 0, "duplicates": 0, "spread_seconds": 0, "clock_off": None,
+         "no_time": not sp.hat_zeit,
+         "stellen_backwards": [], "stellen_duplicates": [], "stellen_spread": []}
     if n == 0:
         return r
     # Doppelpunkte: gleiche Position UND gleiche Zeit (wie gpxheal)
@@ -424,6 +575,7 @@ def zeit_befunde(sp: _Spur) -> dict:
         else:
             seen.add(k)
     r["duplicates"] = len(dup)
+    r["stellen_duplicates"] = sorted(dup)
     if not sp.hat_zeit:
         return r
     ts = [None if i in dup else sp.ts_roh[i] for i in range(n)]
@@ -438,14 +590,16 @@ def zeit_befunde(sp: _Spur) -> dict:
             j += 1
         if j - i > 1 and float(ts[i]).is_integer():
             r["spread_seconds"] += 1
+            r["stellen_spread"].append(i)
         i = j
     # rückwärts: streng kleiner, oder gleich mit Sekundenbruchteil
     last = None
-    for t in ts:
+    for i, t in enumerate(ts):
         if t is None:
             continue
         if last is not None and (t < last or (t == last and not float(t).is_integer())):
             r["backwards"] += 1
+            r["stellen_backwards"].append(i)
         last = t
     first = next((t for t in sp.ts_roh if t is not None), None)
     if first is not None:
@@ -465,36 +619,57 @@ def pruefen(points, *, stufe: float = STUFE_STANDARD, local_time_n: int = 0,
     sp = _Spur(list(points or []))
     b: List[dict] = []
 
-    def add(key, n, **detail):
+    # 12.09.2026 (Marc: „im inspektor muss klar und deutlich gekennzeichnet werden,
+    # was er als fehler erkennt"): zu jedem Befund die Fundstellen als Punkt-Indizes.
+    # Gedeckelt, weil 27.000 Punkte × Liste sonst die Brücke füllen — die Oberfläche
+    # springt die Stellen der Reihe nach an, dafür reichen 300.
+    STELLEN_MAX = 300
+
+    def add(key, n, stellen=None, **detail):
         if n and not (geplant and key in NUR_AUFZEICHNUNG):
-            b.append({"key": key, "stufe": STUFEN[key], "n": int(n), "detail": detail})
+            eintrag = {"key": key, "stufe": STUFEN[key], "n": int(n), "detail": detail}
+            if stellen:
+                idx = sorted({int(x) for x in stellen if x is not None})
+                eintrag["stellen"] = idx[:STELLEN_MAX]
+                eintrag["stellen_gekappt"] = len(idx) > STELLEN_MAX
+            b.append(eintrag)
 
     ks = kaltstart(sp)
     if ks:
-        add("cold_start", ks["n"], dist_m=round(ks["dist"]))
+        add("cold_start", ks["n"], stellen=range(0, ks["n"]), dist_m=round(ks["dist"]))
         sp.ausgeschlossen.update(range(0, ks["n"]))
     # Standdrift VOR den Sprüngen: das Gezitter im Knäuel ist kein Sprung, es wird
     # als Ganzes zusammengezogen (gpxheal macht es in derselben Reihenfolge).
     sd = standdrift(sp)
     if sd:
-        add("standstill", len(sd), min=round(sum(x["s"] for x in sd) / 60.0))
+        add("standstill", len(sd), stellen=[x["a"] for x in sd],
+            min=round(sum(x["s"] for x in sd) / 60.0))
         for x in sd:
             sp.ausgeschlossen.update(range(x["a"], x["b"] + 1))
+    # 12.09.2026 — Übersetzen zuerst: Fähre, Flug und Autozug sind weder Ausreißer
+    # noch Lücke. Sie werden nur benannt, nie repariert, und nehmen an den beiden
+    # folgenden Erkennungen nicht teil (`uebersetzen` wird dort erneut gerufen).
+    ub = uebersetzen(sp)
+    if ub:
+        add("uebersetzen", len(ub), stellen=[u["a"] for u in ub],
+            max_km=round(max(u["dist"] for u in ub) / 1000),
+            km_gesamt=round(sum(u["dist"] for u in ub) / 1000))
     sg = sprung_gruppen(sp, stufe)
-    add("spikes", len(sg["spikes"]))
-    add("tempo", len(sg["tempo"]))
-    lk = luecken(sp, stufe, spacing, sg["flags"])
+    add("spikes", len(sg["spikes"]), stellen=[g["von"] for g in sg["spikes"]])
+    add("tempo", len(sg["tempo"]), stellen=[g["von"] for g in sg["tempo"]])
+    lk = luecken(sp, stufe, spacing, sg["flags"] | {u["a"] for u in ub})
     if lk:
-        add("gaps", len(lk), max_m=round(max(g["dist"] for g in lk)))
+        add("gaps", len(lk), stellen=[g["a"] for g in lk],
+            max_m=round(max(g["dist"] for g in lk)))
     hm = hoehen_muell(sp)
-    add("ele_garbage", len(hm))
+    add("ele_garbage", len(hm), stellen=hm)
     fehlt = sum(1 for e in sp.ele if e is None)
     if fehlt and fehlt < sp.n:
         add("missing_ele", fehlt)
     z = zeit_befunde(sp)
-    add("backwards", z["backwards"])
-    add("duplicates", z["duplicates"])
-    add("spread_seconds", z["spread_seconds"])
+    add("backwards", z["backwards"], stellen=z.get("stellen_backwards"))
+    add("duplicates", z["duplicates"], stellen=z.get("stellen_duplicates"))
+    add("spread_seconds", z["spread_seconds"], stellen=z.get("stellen_spread"))
     if z["clock_off"] is not None:
         add("clock_off", 1, jahr=z["clock_off"])
     if z["no_time"] and sp.n:

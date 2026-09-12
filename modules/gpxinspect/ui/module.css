@@ -318,3 +318,13 @@
 .gpxi-tc-ok:hover { color: var(--text); }
 .gpxi-tc-hidden { margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border); }
 .gpxi-tc-actions { margin-top: 6px; display: flex; gap: 6px; }
+
+/* 12.09.2026 (Marc: „klar und deutlich gekennzeichnet, was er als fehler erkennt
+   und wie er es reparieren würde") — der Reparatur-Satz unter jeder Befund-Zeile. */
+.gpxi-tc-rep {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.35;
+  margin-top: 2px;
+  opacity: .72;
+}
