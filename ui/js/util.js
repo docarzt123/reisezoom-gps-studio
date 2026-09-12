@@ -1632,6 +1632,23 @@ async function sessionActivate(coords, gpxPath) {
     _activeSession = res.session;
     _activeProject = res.active_project;
     _projectsList = res.projects || [];
+    // 12.09.2026 — Dieselbe Tour aus einer anderen Datei: sagen statt schweigen.
+    // Ein Beta-Tester exportierte seine Reise neu, landete im vorhandenen
+    // Projekt und hielt die App für kaputt („kann die Tracks nicht auswählen").
+    // Eine Tour ist ihr Streckenverlauf, nicht ihr Dateiname — dann muss die
+    // Oberfläche das auch sagen.
+    try {
+      const tourName = (res.session && res.session.name) || "";
+      const dateiName = (gpxPath || "").split("/").pop().replace(/\.[^.]+$/, "");
+      if (res.bekannt && gpxPath && tourName && tourName.trim() !== dateiName.trim()
+          && !window.__rzGleicheTourGesagt) {
+        window.__rzGleicheTourGesagt = true;
+        setTimeout(() => { window.__rzGleicheTourGesagt = false; }, 15000);
+        toast(t("session.gleiche_tour",
+          "Dieselbe Strecke wie „{tour}“ — die App hat dein vorhandenes Projekt geöffnet. Eine Tour erkennt sie am Streckenverlauf, nicht am Dateinamen.")
+          .replace("{tour}", tourName), "info", 8000);
+      }
+    } catch (_) {}
     // Notify UI-Listener (Topbar-Dropdown rendert sich neu)
     _notifySessionChanged();
     return res;
@@ -3899,3 +3916,139 @@ function fmtDateRangeJS(e1, e2, offMin, lang){
   return fmtDateJS(e1, offMin, lang) + ' – ' + fmtDateJS(e2, offMin, lang);
 }
 function fmtTimeSpanJS(e1, e2, offMin){ if (e1 == null) return '—'; if (e2 == null) return fmtTimeJS(e1, offMin); return fmtTimeJS(e1, offMin) + ' – ' + fmtTimeJS(e2, offMin); }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Ladeanzeige — „schreib hin, was gerade passiert" (Marc, 12.09.2026)
+ *
+ * Marc nach dem Tester-Hänger: „überall wo etwas geladen wird brauchen wir ab
+ * jetzt visuelles feedback, am besten sogar mit einer ausgabe wo genau steht,
+ * was passiert. sonst denkt jeder die app hängt, wenn es mal länger dauert."
+ *
+ * Bewusst KEIN Modal: ein Kasten unten rechts, der die Bedienung nicht sperrt.
+ * Mehrere Vorgänge stapeln sich untereinander. Wer will, gibt `abbrechen` mit —
+ * dann steht ein Knopf da und `rzStatus.abgebrochen(id)` sagt der Schleife, dass
+ * sie aufhören soll.
+ *
+ *   const s = rzStatus.start("fotos", { titel: "Fotos", text: "Vorschaubilder …",
+ *                                       gesamt: 2830, abbrechen: true });
+ *   rzStatus.schritt("fotos", { n: 120, text: "Vorschaubilder werden geholt" });
+ *   if (rzStatus.abgebrochen("fotos")) return;
+ *   rzStatus.fertig("fotos", "2830 Fotos bereit");
+ * ────────────────────────────────────────────────────────────────────────── */
+(function () {
+  const _vorgaenge = new Map();   // id → {el, gesamt, abbruch, t0}
+
+  function _behaelter() {
+    let box = document.getElementById("rz-status-box");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "rz-status-box";
+      document.body.appendChild(box);
+    }
+    return box;
+  }
+
+  function _zeile(id) {
+    const v = _vorgaenge.get(id);
+    return v ? v.el : null;
+  }
+
+  function start(id, opt) {
+    opt = opt || {};
+    let v = _vorgaenge.get(id);
+    if (!v) {
+      const el = document.createElement("div");
+      el.className = "rz-status";
+      el.innerHTML = `
+        <div class="rz-status-kopf">
+          <span class="rz-status-punkt"></span>
+          <span class="rz-status-titel"></span>
+          <button type="button" class="rz-status-ab" hidden>${t("common.cancel", "Abbrechen")}</button>
+        </div>
+        <div class="rz-status-text"></div>
+        <div class="rz-status-balken"><i></i></div>`;
+      _behaelter().appendChild(el);
+      v = { el, gesamt: 0, abbruch: false, t0: Date.now() };
+      _vorgaenge.set(id, v);
+      const ab = el.querySelector(".rz-status-ab");
+      if (ab) ab.onclick = () => {
+        v.abbruch = true;
+        ab.disabled = true;
+        schritt(id, { text: t("status.wird_abgebrochen", "Wird abgebrochen …") });
+      };
+    }
+    v.abbruch = false;
+    v.gesamt = Number(opt.gesamt || 0);
+    v.el.querySelector(".rz-status-titel").textContent = opt.titel || "";
+    v.el.querySelector(".rz-status-ab").hidden = !opt.abbrechen;
+    v.el.classList.remove("ist-fertig", "ist-fehler");
+    schritt(id, { text: opt.text || "", n: 0 });
+    return id;
+  }
+
+  function schritt(id, opt) {
+    const v = _vorgaenge.get(id);
+    if (!v) return;
+    opt = opt || {};
+    if (opt.gesamt != null) v.gesamt = Number(opt.gesamt);
+    const txt = v.el.querySelector(".rz-status-text");
+    const bal = v.el.querySelector(".rz-status-balken > i");
+    let zeile = opt.text || "";
+    if (opt.n != null && v.gesamt > 0) {
+      // Zahlen gehören dazu: „ist es viel oder gleich vorbei?" ist die Frage,
+      // die den Eindruck „hängt" verhindert.
+      zeile += (zeile ? " — " : "") + `${_rzZahl(opt.n)} / ${_rzZahl(v.gesamt)}`;
+      bal.style.width = Math.max(2, Math.min(100, 100 * opt.n / v.gesamt)) + "%";
+      v.el.querySelector(".rz-status-balken").classList.remove("ist-unbestimmt");
+    } else if (opt.n == null) {
+      v.el.querySelector(".rz-status-balken").classList.add("ist-unbestimmt");
+    }
+    if (zeile) txt.textContent = zeile;
+  }
+
+  function abgebrochen(id) {
+    const v = _vorgaenge.get(id);
+    return !!(v && v.abbruch);
+  }
+
+  function _weg(id, verzoegerung) {
+    const v = _vorgaenge.get(id);
+    if (!v) return;
+    setTimeout(() => {
+      try { v.el.remove(); } catch (_) {}
+      _vorgaenge.delete(id);
+      const box = document.getElementById("rz-status-box");
+      if (box && !box.children.length) box.remove();
+    }, verzoegerung);
+  }
+
+  function fertig(id, text) {
+    const v = _vorgaenge.get(id);
+    if (!v) return;
+    v.el.classList.add("ist-fertig");
+    v.el.querySelector(".rz-status-ab").hidden = true;
+    const dauer = Math.round((Date.now() - v.t0) / 1000);
+    schritt(id, { text: (text || t("status.fertig", "Fertig"))
+      + (dauer >= 3 ? ` (${dauer} s)` : ""), n: v.gesamt || null });
+    _weg(id, 2200);
+  }
+
+  function fehler(id, text) {
+    const v = _vorgaenge.get(id);
+    if (!v) return;
+    v.el.classList.add("ist-fehler");
+    v.el.querySelector(".rz-status-ab").hidden = true;
+    schritt(id, { text: text || t("status.fehler", "Fehlgeschlagen") });
+    _weg(id, 6000);
+  }
+
+  function laeuft(id) { return _vorgaenge.has(id); }
+
+  function _rzZahl(n) {
+    let loc = null;
+    try { loc = (typeof i18nMeta === "function") ? i18nMeta().active : null; } catch (_) {}
+    return Math.round(Number(n) || 0).toLocaleString(loc || undefined);
+  }
+
+  window.rzStatus = { start, schritt, fertig, fehler, abgebrochen, laeuft };
+})();

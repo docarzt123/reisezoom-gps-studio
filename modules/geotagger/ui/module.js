@@ -1430,9 +1430,24 @@ function mountGeotagger(body, headerActions) {
     showGridLoader(0, 0, t("geotagger.busy.lese_ordner", "Lese Ordner …"));
     await malPause();
     let res;
+    // 12.09.2026 — auch sichtbar, wenn man während des Lesens das Modul wechselt.
+    if (window.rzStatus) {
+      window.rzStatus.start("gt-ordner", {
+        titel: t("geotagger.busy.lese_ordner", "Lese Ordner …"),
+        text: folder.split("/").slice(-2).join("/"),
+      });
+    }
     try {
       res = await api().geotagger_load_photos_from_folder(folder, recursive);
     } finally { if (frei) frei(); if (frei2) frei2(); }
+    if (window.rzStatus) {
+      if (res && res.ok) {
+        window.rzStatus.fertig("gt-ordner", t("photos.laden_fertig", "{n} Fotos bereit")
+          .replace("{n}", ((res.photos) || []).length));
+      } else {
+        window.rzStatus.fehler("gt-ordner", (res && res.error) || "");
+      }
+    }
     if (!res.ok) { toast(res.error, "error"); return; }
     photos = _gtMergeRegistered(res.photos);   // v0.9.176 — ergänzen statt ersetzen
     renderPhotoGrid();

@@ -9800,6 +9800,15 @@ function mountAnimator(body, headerActions, opts) {
     }
     async function _animPhotosLoadFromPaths(pathsOrFolder) {
       if (!window.pywebview?.api?.photos_load) return;
+      // 12.09.2026 — Ein Ordner mit tausenden Bildern wird gelesen; ohne
+      // Anzeige sieht das aus, als täte die App nichts.
+      const ladeId = "anim-fotos-laden";
+      if (window.rzStatus) {
+        window.rzStatus.start(ladeId, {
+          titel: t("photos.laden_titel", "Fotos des Projekts"),
+          text: t("photos.ordner_wird_gelesen", "Ordner wird gelesen — Aufnahmedaten und Vorschaubilder"),
+        });
+      }
       try {
         const res = await window.pywebview.api.photos_load(pathsOrFolder);
         const photos = (res && res.photos) || [];
@@ -9822,8 +9831,13 @@ function mountAnimator(body, headerActions, opts) {
         _animPhotosSaveListToProject(merged);
         _animPhotosApplyToMapEnsured();
         _animPhotosRenderList();
+        if (window.rzStatus) {
+          window.rzStatus.fertig(ladeId, t("photos.laden_fertig", "{n} Fotos bereit")
+            .replace("{n}", photos.length));
+        }
       } catch (e) {
         applog("error", `[anim-photos] load fehlgeschlagen: ${e}`);
+        if (window.rzStatus) window.rzStatus.fehler(ladeId, String(e));
         toast(t("photos.toast_load_error", "Fotos konnten nicht geladen werden."), "err", 3500);
       }
     }
@@ -9851,6 +9865,14 @@ function mountAnimator(body, headerActions, opts) {
       _animPhotosApplyToMap();
       _animPhotosRenderList();
     }
+    // 12.09.2026 — Wie viele Vorschaubilder je Brückenaufruf. Anlass: ein
+    // Beta-Tester hatte 2830 Fotos im Projekt, und die App holte sie in EINEM
+    // Aufruf. Gemessen auf schneller SSD: 63 s; auf seiner externen Platte
+    // Minuten — in denen die Oberfläche tot wirkte, weil nichts davon zu sehen
+    // war. Jetzt: Häppchen, sichtbarer Fortschritt, Abbrechen.
+    const _FOTO_HAPPEN = 50;
+    let _animFotoLadeLauf = 0;
+
     async function _animPhotosRefreshThumbsAfterRestore() {
       // Nach Projekt-Aktivieren: persistierte Pfade haben kein `thumb` mehr.
       // Diese Funktion holt sie nach + applied auf die Map.
@@ -9860,26 +9882,78 @@ function mountAnimator(body, headerActions, opts) {
         _animPhotosRenderList();
         return;
       }
+      // Die Liste steht SOFORT (ohne Bilder) — man sieht, dass etwas da ist,
+      // statt auf eine leere Spalte zu starren.
+      _animPhotosRenderList();
+
+      const lauf = ++_animFotoLadeLauf;
       const paths = persisted.map(p => p.path).filter(Boolean);
-      try {
-        const res = await window.pywebview.api.photos_refresh_thumbs(paths);
-        const fresh = (res && res.photos) || [];
-        // Nur Thumb-Felder mergen — Position-Updates aus EXIF lassen wir
-        // gewinnen, falls sich GPS zwischen Speichern und Reload geändert hat.
-        const byPath = new Map(fresh.map(p => [p.path, p]));
-        const merged = persisted.map(p => {
-          const fr = byPath.get(p.path);
-          if (!fr) return p;
-          return { ...p, ...fr };
+      const status = "anim-fotos";
+      const vieleFotos = paths.length > _FOTO_HAPPEN;
+      if (vieleFotos && window.rzStatus) {
+        window.rzStatus.start(status, {
+          titel: t("photos.laden_titel", "Fotos des Projekts"),
+          text: t("photos.laden_text", "Vorschaubilder werden geholt"),
+          gesamt: paths.length, abbrechen: true,
         });
-        // In-Memory updaten (wir persistieren NICHT nochmal — keine Änderung
-        // an den persistierten Werten, nur Thumb-Anreicherung).
-        if (_activeProject) _activeProject.photos = merged;
-      } catch (e) {
-        applog("warn", `[anim-photos] refresh-thumbs fehlgeschlagen: ${e}`);
+      }
+
+      const byPath = new Map();
+      let fehler = 0;
+      for (let i = 0; i < paths.length; i += _FOTO_HAPPEN) {
+        // Ein neuer Lauf (anderes Projekt/Track) überholt den alten.
+        if (lauf !== _animFotoLadeLauf) return;
+        if (vieleFotos && window.rzStatus && window.rzStatus.abgebrochen(status)) {
+          applog("info", `[anim-photos] Abbruch bei ${i} von ${paths.length}`);
+          window.rzStatus.fertig(status, t("photos.laden_abgebrochen", "Abgebrochen — {n} von {m} geladen")
+            .replace("{n}", i).replace("{m}", paths.length));
+          break;
+        }
+        const teil = paths.slice(i, i + _FOTO_HAPPEN);
+        try {
+          const res = await window.pywebview.api.photos_refresh_thumbs(teil);
+          for (const p of (res && res.photos) || []) byPath.set(p.path, p);
+        } catch (e) {
+          fehler += teil.length;
+          applog("warn", `[anim-photos] refresh-thumbs fehlgeschlagen: ${e}`);
+        }
+        if (vieleFotos && window.rzStatus) {
+          window.rzStatus.schritt(status, {
+            n: Math.min(i + _FOTO_HAPPEN, paths.length),
+            text: t("photos.laden_text", "Vorschaubilder werden geholt"),
+          });
+        }
+        // Zwischenstand zeigen, nicht erst am Ende: alle paar Häppchen die
+        // Liste neu zeichnen, damit die Bilder sichtbar hereintröpfeln.
+        if (byPath.size && (i / _FOTO_HAPPEN) % 4 === 3) {
+          _animPhotosMergeThumbs(persisted, byPath);
+          _animPhotosRenderList();
+        }
+      }
+
+      _animPhotosMergeThumbs(persisted, byPath);
+      if (vieleFotos && window.rzStatus && window.rzStatus.laeuft(status)) {
+        if (fehler) {
+          window.rzStatus.fehler(status, t("photos.laden_fehler", "{n} Fotos nicht lesbar").replace("{n}", fehler));
+        } else {
+          window.rzStatus.fertig(status, t("photos.laden_fertig", "{n} Fotos bereit").replace("{n}", byPath.size));
+        }
       }
       _animPhotosApplyToMapEnsured();
       _animPhotosRenderList();
+    }
+
+    /** Thumb-Felder in die gespeicherte Liste mischen. Positionen aus EXIF
+     *  gewinnen, falls sich das GPS seit dem Speichern geändert hat. */
+    function _animPhotosMergeThumbs(persisted, byPath) {
+      if (!byPath.size) return;
+      const merged = persisted.map(p => {
+        const fr = byPath.get(p.path);
+        return fr ? { ...p, ...fr } : p;
+      });
+      // In-Memory updaten (wir persistieren NICHT nochmal — keine Änderung
+      // an den persistierten Werten, nur Thumb-Anreicherung).
+      if (_activeProject) _activeProject.photos = merged;
     }
     // ── v0.9.171 — Wegpunkt-Schilder ───────────────────────────────────────
     // Analog zu den Foto-Pins, aber als HTML-Marker (Sprechblase) mit Text.

@@ -4672,3 +4672,67 @@ blöd."
 - Oberfläche: Verwaltung in den Einstellungen (Reiter *Bibliothek & Cloud*),
   im Archiv nur der Name (`#lib-bibname`), Klick öffnet
   `openSettingsModal("bibliothek")`. Wächter: `tests/test_bibliothek_verwaltung.py`.
+
+## Ladeanzeige — Pflicht bei allem, was dauern kann (Marc-Regel 12.09.2026)
+
+**Marc, nach dem Tester-Hänger:** „überall wo etwas geladen wird brauchen wir ab
+jetzt visuelles feedback, am besten sogar mit einer ausgabe wo genau steht, was
+passiert. sonst denkt jeder die app hängt, wenn es mal länger dauert."
+
+**Werkzeug: `window.rzStatus`** (`ui/js/util.js`, Stil in `ui/app.css`). Ein
+Kasten unten rechts, der die Bedienung **nicht** sperrt; mehrere Vorgänge
+stapeln sich. Kein Modal — ein Modal nimmt die App weg, und genau das ist beim
+Warten das Falsche.
+
+```js
+window.rzStatus.start("fotos", { titel: t("photos.laden_titel", "Fotos"),
+                                 text: t("photos.laden_text", "Vorschaubilder …"),
+                                 gesamt: n, abbrechen: true });
+window.rzStatus.schritt("fotos", { n: i, text: "…" });   // Zahl + Balken
+if (window.rzStatus.abgebrochen("fotos")) return;        // Abbruch-Knopf
+window.rzStatus.fertig("fotos", "…");                    // oder .fehler(id, text)
+```
+
+**Die Regel für neue Bedienungen:** Jeder Weg, der auf die Brücke, auf die
+Platte oder ins Netz geht und länger als etwa eine Sekunde dauern kann, zeigt
+(1) **dass** etwas läuft, (2) **was** gerade läuft, (3) **wie weit** es ist,
+sobald die Gesamtzahl bekannt ist, und (4) einen **Abbrechen**-Knopf, wenn ein
+Abbruch möglich ist. Ohne Gesamtzahl wandert der Balken, statt eine Zahl zu
+erfinden.
+
+**Und: lange Arbeit in Häppchen.** Ein Brückenaufruf über tausende Dateien ist
+auch mit Anzeige falsch — er liefert erst am Ende etwas. Beispiel
+`_animPhotosRefreshThumbsAfterRestore` (`modules/animator/ui/module.js`): 50
+Fotos je Aufruf, Zwischenstand alle vier Häppchen in die Liste, Abbruch zwischen
+den Häppchen, ein neuer Lauf überholt den alten (`_animFotoLadeLauf`).
+
+**Warum diese Regel entstand (gemessen am 12.09.2026).** Ein Beta-Tester hatte
+2830 Fotos in einem Projekt. Beim Öffnen holte die App alle Vorschaubilder in
+EINEM Aufruf: 63 s auf interner SSD, auf seiner externen Platte Minuten — ohne
+ein Zeichen auf dem Schirm. Er hat viermal abgebrochen und die App für kaputt
+gehalten; weil er abbrach, füllte sich der Vorschaubild-Cache nie, und es begann
+jedes Mal von vorn. Mit Cache dauert derselbe Vorgang 1,7 s.
+
+## Die Bibliothek springt ein, wenn die Quelldatei fehlt (12.09.2026)
+
+`animator_load_gpx` prüft vor dem Parsen, ob die Datei existiert. Fehlt sie,
+sucht `_bibliothek_ersatz` die Tour über ihren Pfad im Archiv, holt den
+`geo_hash` und packt die Version aus dem Bibliotheks-Speicher aus
+(`Api._version_pfad`). Das Ergebnis trägt dann `ersatz: {quelle, fehlt, pfad,
+name}`; die Oberfläche sagt es dem Nutzer (`ui/js/gpx-bar.js`), statt still
+etwas anderes zu laden.
+
+Anlass: Der Tester hatte seine Exportdatei gelöscht und neu exportiert; sein
+Projekt zeigte weiter auf den alten Pfad und lief mit „Reisezoom kann GPS-Daten
+nicht laden" auf — obwohl die Tour vollständig in der Bibliothek lag. „Die
+Bibliothek ist die Wahrheit" muss auch für den Ladeweg gelten.
+
+## „Dieselbe Tour, andere Datei" wird gesagt (12.09.2026)
+
+`session_open_for_track` liefert zusätzlich `bekannt: true`, wenn dieser
+Streckenverlauf schon ein Projekt hat. `sessionActivate` (`ui/js/util.js`) zeigt
+dann einen Hinweis, sofern der Dateiname vom Tour-Namen abweicht. Grund: Der
+Tester exportierte dieselbe Reise neu, landete im vorhandenen Projekt
+„Schottland" und schloss daraus, er könne keine Tracks mehr auswählen. Die
+Identität über den Streckenverlauf ist richtig (siehe Session-Modell), aber sie
+muss sichtbar sein.

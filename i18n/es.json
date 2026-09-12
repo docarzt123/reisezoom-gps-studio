@@ -3434,5 +3434,18 @@
   "fotos.d_stichworte": "Palabras clave",
   "fotos.d_pfad": "Ubicado en",
   "fotos.d_alle_tags": "Todos los datos de captura",
-  "common.loading": "Cargando …"
+  "common.loading": "Cargando …",
+  "status.fertig": "Listo",
+  "status.fehler": "Ha fallado",
+  "status.wird_abgebrochen": "Cancelando …",
+  "track.laden_titel": "Cargando track",
+  "track.laden_fertig": "{n} puntos leídos",
+  "track.aus_bibliothek": "El archivo «{d}» ya no existe: la ruta viene de tu biblioteca.",
+  "photos.laden_titel": "Fotos del proyecto",
+  "photos.laden_text": "Obteniendo miniaturas",
+  "photos.laden_fertig": "{n} fotos listas",
+  "photos.laden_abgebrochen": "Cancelado: {n} de {m} cargadas",
+  "photos.laden_fehler": "{n} fotos no se pudieron leer",
+  "photos.ordner_wird_gelesen": "Leyendo la carpeta: datos de captura y miniaturas",
+  "session.gleiche_tour": "La misma ruta que «{tour}»: la aplicación ha abierto tu proyecto existente. Reconoce una ruta por su trazado, no por el nombre del archivo."
 }
