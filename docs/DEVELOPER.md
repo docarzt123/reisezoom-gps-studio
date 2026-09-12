@@ -4707,6 +4707,40 @@ eine `a or b or c`-Kette hielt das für „nichts gefunden". Fotos aus UTC galte
 als „Zeitzone geraten". Jetzt `core/exif._erste_tz()` mit `is not None`.
 
 
+### Von selbst aktuell bleiben (12.09.2026, v0.9.693)
+
+Marc: „wenn ich einen ordner hinzugefügt habe, dann will ich doch auch, dass der
+gemonitort wird … und wenn sich im ordner etwas geändert hat, muss das die app ja
+auch merken."
+
+Zwei Arbeiten mit sehr verschiedenen Kosten, deshalb zwei Regeln:
+
+| Arbeit | Kosten | Wann |
+|---|---|---|
+| Ungelesenes weiterlesen (Durchgang 2) | nur die Dateien, die ohnehin dran sind | immer beim Öffnen |
+| Vollständig nachsehen (Durchgang 1) | Lauf über **jede** Datei in jedem Ordner | höchstens alle `NACHSCHAU_STUNDEN` = 6 h |
+
+Gemessen auf Marcs NAS im WLAN (25.200 Dateien): allein der Baumlauf für
+Durchgang 1 läuft in Minuten, nicht Sekunden — bei jedem Öffnen wäre das
+unbenutzbar. Der Zeitpunkt des letzten vollständigen Blicks steht in
+`meta['fotos_nachschau']` (`letzte_nachschau` / `nachschau_merken`).
+
+- `cfotos.was_zu_tun(conn)` → `{ungelesen, nachschau_faellig, letzte_nachschau,
+  ordner_da, ordner}`. Ohne erreichbaren Ordner ist nichts fällig: ein Lauf ins
+  Leere würde nur die Ordnerliste durchgehen und nichts finden.
+- `Api.fotos_aufholen()` entscheidet danach und ruft `fotos_scan_start(
+  ohne_liste=...)`. `ohne_liste` überspringt Durchgang 1 — dasselbe Gerüst,
+  dieselbe Anzeige, derselbe Abbruch.
+- Die Einstellung `fotos_auto` (Standard: an) schaltet alles ab; das Häkchen
+  sitzt in der Foto-Seitenleiste, nicht in den Einstellungen, weil es dort
+  gebraucht wird.
+- `ui/js/fotos.js#aufholen()` läuft am Ende von `mount()` **ohne await**: die
+  Seite steht längst, das hier ist Nacharbeit.
+
+Wächter: `tests/test_fotos_aufholen.py` — erster Lauf, kein zweiter ohne Anlass,
+neue Datei, geänderte Datei (andere Aufnahmezeit), abgeschaltet, Laufwerk weg.
+
+
 ## Mehrere Bibliotheken (12.09.2026, v0.9.690)
 
 Wechseln konnte die App schon (`ort_schreiben` merkt den bisherigen Ort unter

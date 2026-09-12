@@ -117,11 +117,12 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.693</span>
+    <span class="version-num">v0.9.694</span>
     <span class="version-date">12 de septiembre de 2026</span>
     <span class="version-badge">Actual</span>
   </div>
   <ul>
+    <li><strong>Las carpetas de fotos vigiladas se vigilan de verdad</strong> &mdash; Al abrir el área de fotos, la aplicación continúa por sí sola donde se quedó la última pasada. Los archivos aún no leídos se procesan siempre; una <em>revisión completa</em> de las carpetas, que encuentra archivos nuevos, cambiados y borrados, se hace como mucho cada seis horas, porque en una unidad de red esa pasada dura minutos. Ambas cosas en segundo plano, con progreso y botón de cancelar. Quien no lo quiera (punto de acceso, wifi ajeno) desmarca <em>Mantener al día por sí solo</em> en la barra lateral.</li>
     <li><strong>El área de fotos dice qué está haciendo</strong> &mdash; Al abrirla solo ponía «Cargando …» y con muchos archivos podía tardar minutos: la página traía 240 miniaturas <em>incluidas</em> las imágenes, y una miniatura de vídeo desde una unidad de red tarda alrededor de un segundo. Ahora cada paso se nombra (leer carpetas, contar cámaras y años, traer la primera página), la página solo consulta la base de datos y aparece de inmediato, y las miniaturas que faltan llegan después por tandas con contador, barra y botón de cancelar. Si falta escanear, la cabecera lo dice y ofrece el botón al lado.</li>
     <li><strong>Fotos: la columna derecha responde ya a toda la pregunta</strong> &mdash; Haz clic en una imagen y a la derecha aparecen la vista previa grande, los <strong>hallazgos con su solución</strong>, un mapa pequeño y todos los datos de captura. Cada hallazgo dice qué se detectó <em>y</em> cómo se resolvería: si falta la coordenada y una ruta grabada cubre la hora de captura, aparece su nombre y un botón lleva al Geotagger, con la ruta cargada y la carpeta de fotos leída. Si ninguna ruta cubre esa hora, eso es lo que dice, sin botones que no lleven a nada. El mapa muestra el lugar y debajo el recorrido de la ruta.</li>
     <li><strong>Fotos en una unidad de red: las miniaturas sobreviven a la desconexión</strong> &mdash; La clave del caché de miniaturas se formaba con la fecha de modificación y el tamaño del archivo original. Sin el NAS no se podía calcular y un caché lleno de miniaturas terminadas quedaba inalcanzable: una cuadrícula gris en el tren. Ahora la clave vive en la biblioteca. Cuadrícula, búsqueda, mapa y agrupación por rutas siguen funcionando sin la unidad.</li>

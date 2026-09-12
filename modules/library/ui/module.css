@@ -1169,3 +1169,8 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
   color: var(--accent, #2f7fd1); cursor: pointer; font: inherit; text-align: left;
 }
 .foto-d-tour:hover { text-decoration: underline; }
+.foto-auto {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--text-muted);
+  margin-top: 6px; cursor: pointer;
+}

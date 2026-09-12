@@ -3500,5 +3500,7 @@
   "fotos.laden_hinweis": "Der Bestand liegt in der Bibliothek — das geht auch ohne das Laufwerk.",
   "fotos.thumbs_holen": "Vorschaubilder erzeugen",
   "fotos.kopf_einlesen": "Jetzt einlesen",
-  "fotos.kopf_offen_hilfe": "Erst nach dem Einlesen liegen Aufnahmedaten und Vorschaubilder in der Bibliothek — bis dahin holt die Ansicht jedes Bild einzeln vom Laufwerk."
+  "fotos.kopf_offen_hilfe": "Erst nach dem Einlesen liegen Aufnahmedaten und Vorschaubilder in der Bibliothek — bis dahin holt die Ansicht jedes Bild einzeln vom Laufwerk.",
+  "fotos.auto": "Von selbst aktuell halten",
+  "fotos.auto_tip": "Beim Öffnen weiterlesen, wo der letzte Lauf aufhörte, und höchstens alle sechs Stunden nachsehen, ob sich in den Ordnern etwas geändert hat."
 }

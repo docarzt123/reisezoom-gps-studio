@@ -117,11 +117,12 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.693</span>
+    <span class="version-num">v0.9.694</span>
     <span class="version-date">12 September 2026</span>
     <span class="version-badge">Current</span>
   </div>
   <ul>
+    <li><strong>Watched photo folders are actually watched</strong> &mdash; Opening the photo area now carries on by itself where the last run stopped. Files that are still unread are always picked up; a <em>full look</em> through the folders, which finds new, changed and deleted files, runs at most every six hours, because on a network drive such a pass takes minutes. Both run in the background, with progress and a cancel button. If you would rather it did not (hotspot, someone else's Wi-Fi), untick <em>Keep up to date by itself</em> in the sidebar.</li>
     <li><strong>The photo area says what it is doing</strong> &mdash; Opening it showed only "Loading …", and with many files that could take minutes: the page fetched 240 tiles <em>including</em> their thumbnails, and one video thumbnail from a network drive takes about a second. Now every step names itself (reading folders, counting cameras and years, fetching the first page), the page asks the database only and stands at once, and the missing thumbnails arrive afterwards in small batches with a count, a bar and a cancel button. If the scan is still pending, the header says so and offers the button right there.</li>
     <li><strong>Photos: the right-hand column now answers the whole question</strong> &mdash; Click a picture and the column shows the large preview, the <strong>findings with a way to solve them</strong>, a small map and all capture data. Each finding says what was detected <em>and</em> how it would be solved: if the coordinate is missing and a recorded tour covers the capture time, that tour is named and a button takes you to the Geotagger &mdash; track loaded, photo folder read in. If no tour covers the time, that is what it says, with no button leading nowhere. The map shows the spot with the tour's course underneath.</li>
     <li><strong>Photos on a network drive: thumbnails survive the disconnect</strong> &mdash; The thumbnail cache key was built from the original file's modification time and size. With the NAS away the key could not be computed and a full cache of finished thumbnails was unreachable &mdash; a grey grid on the train. The key now lives in the library. Grid, search, map and tour grouping keep working without the drive.</li>

@@ -117,11 +117,12 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.693</span>
+    <span class="version-num">v0.9.694</span>
     <span class="version-date">12. September 2026</span>
     <span class="version-badge">Aktuell</span>
   </div>
   <ul>
+    <li><strong>Beobachtete Fotoordner werden auch beobachtet</strong> &mdash; Beim Öffnen des Fotobereichs macht die App von selbst dort weiter, wo der letzte Lauf aufhörte. Noch ungelesene Dateien kommen immer dran; ein <em>vollständiger Blick</em> in die Ordner, der neue, geänderte und gelöschte Dateien findet, läuft höchstens alle sechs Stunden &mdash; auf einem Netzlaufwerk dauert so ein Durchgang Minuten. Beides im Hintergrund, mit Anzeige und Abbrechen. Wer das nicht will (Hotspot, fremdes WLAN), nimmt in der Seitenleiste das Häkchen <em>Von selbst aktuell halten</em> heraus.</li>
     <li><strong>Der Fotobereich sagt, was er gerade tut</strong> &mdash; Beim Öffnen stand nur „Lädt …", und bei vielen Dateien konnte das Minuten dauern: Die Seite holte 240 Kacheln <em>samt</em> Vorschaubildern, und ein Video-Vorschaubild von einem Netzlaufwerk dauert rund eine Sekunde. Jetzt nennt jeder Schritt sich selbst (Ordner lesen, Kameras und Jahre zählen, erste Seite holen), die Seite fragt nur die Datenbank und steht sofort, und die fehlenden Vorschaubilder kommen danach in Häppchen mit Zähler, Balken und Abbrechen herein. Steht das Einlesen noch aus, sagt die Kopfzeile das und bietet den Knopf gleich daneben an.</li>
     <li><strong>Fotos: die Spalte rechts beantwortet jetzt die ganze Frage</strong> &mdash; Klick auf ein Bild, und rechts stehen die große Vorschau, die <strong>Befunde mit Lösungsweg</strong>, eine kleine Karte und alle Aufnahmedaten. Jeder Befund sagt, was erkannt wurde <em>und</em> wie es zu lösen wäre: Fehlt die Koordinate und deckt eine aufgezeichnete Tour die Aufnahmezeit ab, steht deren Name da und ein Knopf führt in den Geotagger &mdash; Track geladen, Fotoordner eingelesen. Deckt keine Tour die Zeit ab, steht genau das da, ohne Knopf ins Leere. Die Karte zeigt die Aufnahmestelle und darunter den Verlauf der Tour, zu der das Bild gehört.</li>
     <li><strong>Fotos vom Netzlaufwerk: Vorschaubilder überleben die Trennung</strong> &mdash; Der Schlüssel des Vorschau-Speichers hing an Änderungszeit und Größe der Originaldatei. War das NAS weg, ließ er sich nicht berechnen, und ein voller Speicher fertiger Vorschaubilder war unerreichbar &mdash; graues Raster im Zug. Der Schlüssel steht jetzt in der Bibliothek. Raster, Suche, Karte und Tour-Gruppierung laufen ohne das Laufwerk weiter.</li>

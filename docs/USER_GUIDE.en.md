@@ -1270,6 +1270,28 @@ keywords, place names. On top of that: year, camera and *with / without
 coordinates*. On the left you see at a glance how many files have no coordinates
 or no capture time — one click filters for them.
 
+### Scanning — and what happens by itself
+
+A folder you add is actually watched. When you open the photo area, the app
+carries on where the last run stopped:
+
+- **Files not read yet** are always picked up. That only touches files which are
+  due anyway.
+- **A full look** at what changed in the folders — new, changed and deleted
+  files — runs at most every six hours. On a network drive such a pass takes
+  minutes, so not on every visit. **Scan** in the sidebar does it right away.
+
+Both run in the background, say what they are doing in the bottom right, and can
+be cancelled. If you would rather they did not — on a hotspot, on someone else's
+Wi-Fi — untick **Keep up to date by itself** in the sidebar.
+
+> **Why the first scan matters:** capture data and thumbnails are created during
+> it and then live in the library on your own machine. Before that, every tile
+> has to fetch its picture from the drive one by one — about a second each for
+> videos. While anything is outstanding, the header above the grid says so and
+> offers the button right there.
+
+
 ### What the stock knows about a photo
 
 Click a tile and the right-hand column shows everything about that file:

@@ -1440,6 +1440,29 @@ Objektiv, Stichwörter, Ortsangaben. Dazu kommen Jahr, Kamera und *mit / ohne
 Koordinate*. Links siehst du auf einen Blick, wie viele Dateien ohne
 Koordinate oder ohne Aufnahmezeit sind — ein Klick darauf filtert danach.
 
+### Einlesen — und was von selbst passiert
+
+Ein Ordner, den du aufnimmst, wird auch beobachtet. Beim Öffnen des
+Fotobereichs macht die App dort weiter, wo der letzte Lauf aufhörte:
+
+- **Noch nicht gelesene Dateien** werden immer nachgeholt. Das fasst nur die
+  Dateien an, die ohnehin dran sind.
+- **Vollständig nachsehen**, was sich in den Ordnern geändert hat — neue,
+  geänderte und gelöschte Dateien — läuft höchstens alle sechs Stunden. Auf
+  einem Netzlaufwerk dauert ein solcher Durchgang Minuten, deshalb nicht bei
+  jedem Öffnen. Sofort geht es über **Einlesen** in der Seitenleiste.
+
+Beides läuft im Hintergrund, sagt unten rechts was es tut, und lässt sich
+abbrechen. Willst du das nicht — unterwegs am Hotspot, im fremden WLAN — nimm
+in der Seitenleiste das Häkchen **Von selbst aktuell halten** heraus.
+
+> **Warum das erste Einlesen wichtig ist:** Aufnahmedaten und Vorschaubilder
+> entstehen genau dabei und liegen danach in der Bibliothek auf deinem Rechner.
+> Vorher muss jede Kachel ihr Bild einzeln vom Laufwerk holen — bei Videos rund
+> eine Sekunde pro Stück. Solange etwas aussteht, sagt das die Kopfzeile über
+> dem Raster und bietet den Knopf gleich daneben an.
+
+
 ### Was der Bestand über ein Foto weiß
 
 Klick auf eine Kachel, und die Spalte rechts zeigt alles zu dieser Datei:
