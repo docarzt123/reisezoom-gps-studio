@@ -255,6 +255,7 @@
 <li><a href="#2-getting-started" data-anchor="2-getting-started">2 · Getting Started</a></li>
 <li><a href="#2b-opening-track-files-many-formats" data-anchor="2b-opening-track-files-many-formats">2b · Opening track files — many formats ⭐</a></li>
 <li><a href="#2c-module-library-every-tour-in-one-place" data-anchor="2c-module-library-every-tour-in-one-place">2c · Module: Library 📚 — every tour in one place ⭐</a></li>
+<li><a href="#2d-photos-your-picture-stock-in-the-archive" data-anchor="2d-photos-your-picture-stock-in-the-archive">2d · Photos 📷 — your picture stock in the archive ⭐</a></li>
 <li><a href="#3-module-animator-render-a-gpx-as-a-video" data-anchor="3-module-animator-render-a-gpx-as-a-video">3 · Module: Animator — render a GPX as a video</a></li>
 <li><a href="#3c-merging-several-tours-into-one-video" data-anchor="3c-merging-several-tours-into-one-video">3c · Merging several tours into one video 🧭</a></li>
 <li><a href="#4-module-travel-route-the-journey-there-as-a-video" data-anchor="4-module-travel-route-the-journey-there-as-a-video">4 · Module: Travel Route — the journey there as a video 🛣️</a></li>
@@ -264,6 +265,7 @@
 <li><a href="#6-module-geotagger-tag-photos-with-gps" data-anchor="6-module-geotagger-tag-photos-with-gps">6 · Module: Geotagger — tag photos with GPS</a></li>
 <li><a href="#7-module-gpx-inspector-repair-a-track" data-anchor="7-module-gpx-inspector-repair-a-track">7 · Module: GPX Inspector — repair a track 🔍</a></li>
 <li><a href="#8-general-features" data-anchor="8-general-features">8 · General Features</a></li>
+<li><a href="#8a-what-is-happening-right-now-the-status-box" data-anchor="8a-what-is-happening-right-now-the-status-box">8a · What is happening right now — the status box ⭐</a></li>
 <li><a href="#9-help-feedback-bug-reports" data-anchor="9-help-feedback-bug-reports">9 · Help, Feedback &amp; Bug Reports</a></li>
 <li><a href="#10-faq" data-anchor="10-faq">10 · FAQ</a></li>
 <li><a href="#11-keyboard-shortcuts-macos" data-anchor="11-keyboard-shortcuts-macos">11 · Keyboard Shortcuts (macOS)</a></li>
@@ -348,6 +350,24 @@ python app.py</code></pre>
 <li><strong>GPS Studio never writes to your files.</strong> Healing a tour in the inspector</li>
 </ul>
 <p> creates a new <strong>version</strong> in your library — your original file stays  untouched. If you need the healed file outside the app, use <em>Export  version …</em>.</p>
+<h3 id="several-libraries-keeping-work-and-testing-apart">Several libraries — keeping work and testing apart ⭐</h3>
+<p>You can keep more than one library and switch between them.</p>
+<ul>
+<li><strong>Give it a name:</strong> Settings → <em>Library &amp; Cloud</em> → <strong>Name of this library</strong></li>
+</ul>
+<p> (say &quot;Work&quot; or &quot;Test&quot;). The name lives inside the library itself and travels  with the folder.</p>
+<ul>
+<li><strong>Seeing which one you are in:</strong> the name of the open library sits at the top</li>
+</ul>
+<p> of the archive. Clicking it opens the management.</p>
+<ul>
+<li><strong>Switching:</strong> the list <strong>Known libraries</strong> holds every library GPS Studio has</li>
+</ul>
+<p> opened. <em>Open</em> switches (the app restarts for it), <em>Remove from list</em> only  forgets it — <strong>nothing on disk is ever deleted</strong>.</p>
+<ul>
+<li><strong>Backup as ZIP:</strong> <em>Create backup …</em> packs the whole library into a ZIP whose</li>
+</ul>
+<p> name carries a timestamp, so an existing backup is never overwritten. Without  the tick, thumbnails and the rolling database copies stay out: both are  rebuilt by themselves and the file gets much smaller. With <em>Include  everything</em> you get a complete image.</p>
 <h3 id="when-the-library-is-not-there">When the library is not there</h3>
 <p>If it lives on an external drive that is not connected, GPS Studio says so on start and offers <em>Search again</em> or <em>Choose another location</em>. It <strong>never</strong> silently creates an empty new library — your data is not gone, it is just out of reach.</p>
 <p><strong>&quot;Library is already open&quot;</strong> means a lock file says another GPS Studio has it open. If the app was not closed cleanly last time (crash, computer off, network drive gone), that is just a leftover — choose <strong>Open anyway …</strong>. The app asks once, because two instances open at the same time would overwrite each other&#x27;s data.</p>
@@ -930,6 +950,37 @@ python app.py</code></pre>
 <p>Every tour gets <strong>its own colour</strong>, derived from its route — with seven hundred tours all lines would otherwise look the same and none could be followed. The colour stays the same across sessions. Favourites keep their signal colour.</p>
 <p>If you dislike one, set your own under <strong>“Track colour on the map”</strong> in the detail column; <strong>“Automatic”</strong> restores the derived one. This colour applies <strong>to the library only</strong> — the animator and the tour map keep their own per-project colour.</p>
 <p>Top left on the map sits <strong>🖼 PNG</strong>: it saves the map exactly as it looks right now — same section, same zoom, same colours.</p>
+<hr>
+<h2 id="2d-photos-your-picture-stock-in-the-archive">2d · Photos 📷 — your picture stock in the archive ⭐</h2>
+<h3 id="what-it-does">What it does</h3>
+<p>Next to <em>Projects</em>, <em>Templates</em> and <em>Tour archive</em> the archive has a fourth area: <strong>Photos</strong>. You name folders, GPS Studio indexes the photos <strong>and videos</strong> in them and shows them by day, on a map, or grouped by tour. It only ever <strong>reads</strong> — none of your files is changed.</p>
+<h3 id="taking-folders-in-and-reading-them">Taking folders in and reading them</h3>
+<p>Pick <strong>Add folder …</strong> on the left; subfolders come along. Reading then happens in two passes:</p>
+<ol>
+<li><strong>Finding files</strong> — seconds, and the view already stands.</li>
+<li><strong>Reading capture data</strong> — time, coordinates, camera, lens and everything</li>
+</ol>
+<p> else in the file, plus the thumbnails. This runs in the background, shows its  progress and can be cancelled. Next time it carries on where it stopped.</p>
+<p>A folder you remove only disappears from the stock; the files stay where they are.</p>
+<h3 id="the-three-views">The three views</h3>
+<ul>
+<li><strong>▦ Grid</strong> — grouped by day, newest first. A small <strong>!</strong> on a tile means</li>
+</ul>
+<p> something is missing (capture time, time zone or coordinates). Videos carry  their length in the bottom right.</p>
+<ul>
+<li><strong>🌍 Map</strong> — a density cloud of every file with coordinates; the more of them</li>
+</ul>
+<p> in one spot, the bigger and stronger the dot. Clicking the cloud shows on the  right which files are there and <strong>which of your tours passed by</strong>. The tick  <em>Show tours as lines</em> lays your routes faintly underneath.</p>
+<ul>
+<li><strong>🥾 By tour</strong> — which photos belong to which tour. GPS Studio works that out</li>
+</ul>
+<p> from the tour&#x27;s time window; it is written into no file. Clicking a tour shows  its files in the grid.</p>
+<h3 id="searching-and-filtering">Searching and filtering</h3>
+<p>The search box covers everything the files carry: file name, camera, lens, keywords, place names. On top of that: year, camera and <em>with / without coordinates</em>. On the left you see at a glance how many files have no coordinates or no capture time — one click filters for them.</p>
+<h3 id="what-the-stock-knows-about-a-photo">What the stock knows about a photo</h3>
+<p>Click a tile and the right-hand column shows a large preview, capture time (with the note <em>guessed</em> when the time zone was not in the file), camera, lens, aperture, exposure, ISO, size, place and coordinates. At the bottom <strong>All capture data</strong> unfolds every single entry the file holds.</p>
+<h3 id="what-does-not-work-yet">What does not work (yet)</h3>
+<p>This first stage only reads. Locating photos without a track through their time neighbours, building a track out of located photos, and editing capture data here are stages of their own. To locate photos with a track, keep using the <strong>Geotagger</strong> (chapter 6).</p>
 <hr>
 <h2 id="3-module-animator-render-a-gpx-as-a-video">3 · Module: Animator — render a GPX as a video</h2>
 <h3 id="what-it-does">What it does</h3>
@@ -1690,6 +1741,17 @@ python app.py</code></pre>
 </ul>
 <h3 id="app-logo-stats-in-the-header">App logo + stats in the header</h3>
 <p>Top left: the app icon + name. In the middle (when a GPX is loaded): stats pills (distance, time, ascent, descent). Top right: <strong>?</strong> (help) and <strong>⚙</strong> (settings).</p>
+<hr>
+<h2 id="8a-what-is-happening-right-now-the-status-box">8a · What is happening right now — the status box ⭐</h2>
+<p>Whenever something takes a little longer, <strong>a small box appears in the bottom right</strong>. It says <strong>what</strong> is running (for example &quot;Fetching thumbnails&quot;), <strong>how far</strong> it has got (&quot;1,200 / 2,830&quot;) and offers <strong>Cancel</strong> where cancelling is possible. The app stays usable, the box locks nothing.</p>
+<p>You see it when a track loads, when the project&#x27;s photos are fetched, when the Geotagger reads a photo folder, and while the photo stock is being indexed.</p>
+<p><strong>Photos now arrive in chunks.</strong> If a project holds many photos, the list is there immediately and the pictures trickle in. The first time takes a while (every picture is read once), after that it is quick because the thumbnails are kept.</p>
+<h3 id="picking-photos">Picking photos</h3>
+<p>When you pull photos into a project — through <strong>From Geotagger</strong> or from a folder — GPS Studio first shows a <strong>list with thumbnails and checkboxes</strong>. Up to 60 photos everything is preselected. Above that the app proposes a selection spread over time (at most 40), because in the Animator <strong>every photo becomes a sign</strong>: a hundred signs on one tour are no longer a story, they are a wall. <strong>All</strong>, <strong>None</strong> and <strong>Propose a spread</strong> change the preselection in one click.</p>
+<h3 id="when-the-track-file-is-gone">When the track file is gone</h3>
+<p>If a project points at a file you deleted or moved, GPS Studio takes <strong>the copy from your library</strong> and tells you so. This used to be an error message.</p>
+<h3 id="that-is-the-same-tour">&quot;That is the same tour&quot;</h3>
+<p>Export the same trip again from your tracking app and GPS Studio recognises it by its <strong>path on the map</strong>, not by its file name — and opens your existing project with all the work in it. A note tells you. If you deliberately want to work on it separately, create a second project for the same tour from the project menu.</p>
 <hr>
 <h2 id="9-help-feedback-bug-reports">9 · Help, Feedback &amp; Bug Reports</h2>
 <h3 id="help-menu">Help menu</h3>

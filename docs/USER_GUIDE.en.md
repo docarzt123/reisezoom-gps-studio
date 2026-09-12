@@ -124,6 +124,24 @@ copy. Two consequences:
   untouched. If you need the healed file outside the app, use *Export
   version …*.
 
+### Several libraries — keeping work and testing apart (since v0.9.690) ⭐
+
+You can keep more than one library and switch between them.
+
+* **Give it a name:** Settings → *Library & Cloud* → **Name of this library**
+  (say "Work" or "Test"). The name lives inside the library itself and travels
+  with the folder.
+* **Seeing which one you are in:** the name of the open library sits at the top
+  of the archive. Clicking it opens the management.
+* **Switching:** the list **Known libraries** holds every library GPS Studio has
+  opened. *Open* switches (the app restarts for it), *Remove from list* only
+  forgets it — **nothing on disk is ever deleted**.
+* **Backup as ZIP:** *Create backup …* packs the whole library into a ZIP whose
+  name carries a timestamp, so an existing backup is never overwritten. Without
+  the tick, thumbnails and the rolling database copies stay out: both are
+  rebuilt by themselves and the file gets much smaller. With *Include
+  everything* you get a complete image.
+
 ### When the library is not there
 
 If it lives on an external drive that is not connected, GPS Studio says so on
@@ -1211,6 +1229,63 @@ section, same zoom, same colours.
 
 ---
 
+## 2d · Photos 📷 — your picture stock in the archive (since v0.9.690) ⭐
+
+### What it does
+
+Next to *Projects*, *Templates* and *Tour archive* the archive has a fourth
+area: **Photos**. You name folders, GPS Studio indexes the photos **and videos**
+in them and shows them by day, on a map, or grouped by tour. It only ever
+**reads** — none of your files is changed.
+
+### Taking folders in and reading them
+
+Pick **Add folder …** on the left; subfolders come along. Reading then happens
+in two passes:
+
+1. **Finding files** — seconds, and the view already stands.
+2. **Reading capture data** — time, coordinates, camera, lens and everything
+   else in the file, plus the thumbnails. This runs in the background, shows its
+   progress and can be cancelled. Next time it carries on where it stopped.
+
+A folder you remove only disappears from the stock; the files stay where they are.
+
+### The three views
+
+* **▦ Grid** — grouped by day, newest first. A small **!** on a tile means
+  something is missing (capture time, time zone or coordinates). Videos carry
+  their length in the bottom right.
+* **🌍 Map** — a density cloud of every file with coordinates; the more of them
+  in one spot, the bigger and stronger the dot. Clicking the cloud shows on the
+  right which files are there and **which of your tours passed by**. The tick
+  *Show tours as lines* lays your routes faintly underneath.
+* **🥾 By tour** — which photos belong to which tour. GPS Studio works that out
+  from the tour's time window; it is written into no file. Clicking a tour shows
+  its files in the grid.
+
+### Searching and filtering
+
+The search box covers everything the files carry: file name, camera, lens,
+keywords, place names. On top of that: year, camera and *with / without
+coordinates*. On the left you see at a glance how many files have no coordinates
+or no capture time — one click filters for them.
+
+### What the stock knows about a photo
+
+Click a tile and the right-hand column shows a large preview, capture time (with
+the note *guessed* when the time zone was not in the file), camera, lens,
+aperture, exposure, ISO, size, place and coordinates. At the bottom **All
+capture data** unfolds every single entry the file holds.
+
+### What does not work (yet)
+
+This first stage only reads. Locating photos without a track through their time
+neighbours, building a track out of located photos, and editing capture data
+here are stages of their own. To locate photos with a track, keep using the
+**Geotagger** (chapter 6).
+
+---
+
 ## 3 · Module: Animator — render a GPX as a video
 
 ### What it does
@@ -2221,6 +2296,45 @@ You can:
 
 ### App logo + stats in the header
 Top left: the app icon + name. In the middle (when a GPX is loaded): stats pills (distance, time, ascent, descent). Top right: **?** (help) and **⚙** (settings).
+
+---
+
+## 8a · What is happening right now — the status box (since v0.9.690) ⭐
+
+Whenever something takes a little longer, **a small box appears in the bottom
+right**. It says **what** is running (for example "Fetching thumbnails"), **how
+far** it has got ("1,200 / 2,830") and offers **Cancel** where cancelling is
+possible. The app stays usable, the box locks nothing.
+
+You see it when a track loads, when the project's photos are fetched, when the
+Geotagger reads a photo folder, and while the photo stock is being indexed.
+
+**Photos now arrive in chunks.** If a project holds many photos, the list is
+there immediately and the pictures trickle in. The first time takes a while
+(every picture is read once), after that it is quick because the thumbnails are
+kept.
+
+### Picking photos (since v0.9.690)
+
+When you pull photos into a project — through **From Geotagger** or from a
+folder — GPS Studio first shows a **list with thumbnails and checkboxes**. Up to
+60 photos everything is preselected. Above that the app proposes a selection
+spread over time (at most 40), because in the Animator **every photo becomes a
+sign**: a hundred signs on one tour are no longer a story, they are a wall.
+**All**, **None** and **Propose a spread** change the preselection in one click.
+
+### When the track file is gone
+
+If a project points at a file you deleted or moved, GPS Studio takes **the copy
+from your library** and tells you so. This used to be an error message.
+
+### "That is the same tour"
+
+Export the same trip again from your tracking app and GPS Studio recognises it
+by its **path on the map**, not by its file name — and opens your existing
+project with all the work in it. A note tells you. If you deliberately want to
+work on it separately, create a second project for the same tour from the
+project menu.
 
 ---
 
