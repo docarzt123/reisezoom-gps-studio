@@ -1278,6 +1278,15 @@ Above the grid you see **either** the **Scan now** button **or**, while a scan i
 running, its progress with a cancel button. Never both at once.
 
 
+While the automatic catch-up is on, the area above the grid shows what is
+happening rather than a button. Only when you cancel does **Carry on** appear —
+the next run continues where the cancelled one stopped.
+
+And the app opens where you closed it: if you were last in the archive under
+Photos, that is where the next start puts you, instead of the Animator with the
+last project.
+
+
 ### Scanning — and what happens by itself
 
 A folder you add is actually watched. When you open the photo area, the app

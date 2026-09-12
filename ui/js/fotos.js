@@ -42,6 +42,8 @@
   let rasterBox = null;       // der Kasten, in dem das Raster steht
   let fussWache = null;       // beobachtet das Ende der Liste (Endlos-Blättern)
   let nachladend = false;
+  let aufholStart = false;    // angestoßen, aber der Lauf meldet sich erst gleich
+  let abgebrochen = false;    // der Mensch hat gestoppt — dann NICHT wieder von selbst
 
   function num(n) {
     let loc = null;
@@ -194,12 +196,21 @@
      höchstens alle sechs Stunden; das Weiterlesen fasst nur an, was ohnehin
      dran ist. */
   async function aufholen() {
+    if (abgebrochen) return null;
+    aufholStart = true;
+    kopfAuffrischen();
     const r = await api().fotos_aufholen().catch(() => null);
-    if (r && r.gestartet) scanBeobachten();
+    if (r && r.gestartet) {
+      scanBeobachten();
+    } else {
+      aufholStart = false;
+      kopfAuffrischen();
+    }
     return r;
   }
 
   async function scanStarten() {
+    abgebrochen = false;
     if (!ordner.length) {
       toast(T("fotos.kein_ordner", "Erst einen Fotoordner hinzufügen."), "info");
       return;
@@ -227,6 +238,7 @@
       try { st = await api().fotos_scan_status(); } catch (_) { st = null; }
       if (!st) return;
       scanStand = st;
+      if (st.running) aufholStart = false;
       kopfAuffrischen();
       // Auch im großen Kasten unten rechts anzeigen — dann sieht man den
       // Fortschritt, selbst wenn man inzwischen im Animator arbeitet
@@ -438,6 +450,13 @@
      läuft es, dann steht hier der Stand und Abbrechen. Oder es läuft nicht,
      dann steht hier der Knopf. */
   function kopfArbeitHtml() {
+    // Zwischen „gleich geht es los" und „es läuft" liegt eine Sekunde, in der
+    // sonst der Knopf stünde und man nicht wüsste, ob nun eingelesen wird
+    // (Marc, 12.09.2026: „ich blick's immer noch nicht … liest er jetzt ein
+    // oder nicht?"). Also: sobald das Aufholen angestoßen ist, steht das da.
+    if (aufholStart && !(scanStand && scanStand.running)) {
+      return ` <span class="foto-kopf-laeuft">⏳ ${esc(T("fotos.kopf_startet", "Liest ein …"))}</span>`;
+    }
     if (scanStand && scanStand.running) {
       const phase = scanStand.phase === "dateien"
         ? T("fotos.scan_dateien", "Dateien suchen")
@@ -452,8 +471,14 @@
     if (!stand.ungelesen) return "";
     // Solange nichts eingelesen ist, gibt es auch keine Vorschaubilder im
     // Speicher — dann muss JEDES Bild einzeln vom Laufwerk kommen.
-    return ` <button class="btn btn-sm" id="foto-kopf-scan" type="button">${T("fotos.kopf_einlesen", "Jetzt einlesen")}</button>
-      <div class="muted" style="margin-top:4px">${T("fotos.kopf_offen_hilfe", "Erst nach dem Einlesen liegen Aufnahmedaten und Vorschaubilder in der Bibliothek — bis dahin holt die Ansicht jedes Bild einzeln vom Laufwerk.")}</div>`;
+    const wort = abgebrochen
+      ? T("fotos.kopf_weiter", "Weiterlesen")
+      : T("fotos.kopf_einlesen", "Jetzt einlesen");
+    const satz = abgebrochen
+      ? T("fotos.kopf_abgebrochen", "Abgebrochen. Der nächste Lauf macht dort weiter, wo dieser aufhörte.")
+      : T("fotos.kopf_offen_hilfe", "Erst nach dem Einlesen liegen Aufnahmedaten und Vorschaubilder in der Bibliothek — bis dahin holt die Ansicht jedes Bild einzeln vom Laufwerk.");
+    return ` <button class="btn btn-sm" id="foto-kopf-scan" type="button">${wort}</button>
+      <div class="muted" style="margin-top:4px">${satz}</div>`;
   }
 
   /** Nur die Kopfzeile auffrischen — das Raster bleibt, wo es ist. */
@@ -467,7 +492,7 @@
     const start = neu.querySelector("#foto-kopf-scan");
     if (start) start.onclick = () => scanStarten();
     const stop = neu.querySelector("#foto-kopf-stop");
-    if (stop) stop.onclick = () => api().fotos_scan_stop();
+    if (stop) stop.onclick = () => { abgebrochen = true; api().fotos_scan_stop(); };
   }
 
   function kachelHtml(f, i) {
@@ -1002,7 +1027,7 @@
     const kopfScan = haupt.querySelector("#foto-kopf-scan");
     if (kopfScan) kopfScan.onclick = () => scanStarten();
     const kopfStop = haupt.querySelector("#foto-kopf-stop");
-    if (kopfStop) kopfStop.onclick = () => api().fotos_scan_stop();
+    if (kopfStop) kopfStop.onclick = () => { abgebrochen = true; api().fotos_scan_stop(); };
 
     if (ansicht === "karte") karteZeichnen(box);
     else if (ansicht === "touren") tourenZeichnen(box);

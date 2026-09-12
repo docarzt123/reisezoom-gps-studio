@@ -3505,5 +3505,8 @@
   "fotos.auto_tip": "On opening, carry on where the last run stopped, and look for changes in the folders at most every six hours.",
   "fotos.kopf_laeuft": "Scanning — {p} {n}",
   "fotos.alle_da": "All {n} files loaded.",
-  "fotos.geladen_von": "{a} of {b}"
+  "fotos.geladen_von": "{a} of {b}",
+  "fotos.kopf_startet": "Scanning …",
+  "fotos.kopf_weiter": "Carry on",
+  "fotos.kopf_abgebrochen": "Cancelled. The next run carries on where this one stopped."
 }

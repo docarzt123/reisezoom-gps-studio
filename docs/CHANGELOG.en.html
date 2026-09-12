@@ -117,11 +117,13 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.695</span>
+    <span class="version-num">v0.9.696</span>
     <span class="version-date">12 September 2026</span>
     <span class="version-badge">Current</span>
   </div>
   <ul>
+    <li><strong>No button for work that is already running</strong> &mdash; With the automatic catch-up on, opening the photo area says "Scanning …" from the first moment, then shows the count and a cancel button, instead of offering "Scan now". The button only returns after you cancel, and is then called <em>Carry on</em>.</li>
+    <li><strong>The app opens where you closed it</strong> &mdash; Until now the only rule was: last project, hence the Animator. If the archive was the last thing open, the archive comes back &mdash; in the area you were in, Photos included.</li>
     <li><strong>Endless scrolling in the photo grid &mdash; and a header that does not contradict itself</strong> &mdash; At the end of the list the view loads on by itself and <em>appends</em> instead of redrawing everything: it no longer jumps back to the top, and no photo appears twice at the seam of a day. The foot says how many of how many are loaded. The header now shows <strong>either</strong> "Scan now" <strong>or</strong> the running scan with a count and a cancel button &mdash; never both.</li>
     <li><strong>Watched photo folders are actually watched</strong> &mdash; Opening the photo area now carries on by itself where the last run stopped. Files that are still unread are always picked up; a <em>full look</em> through the folders, which finds new, changed and deleted files, runs at most every six hours, because on a network drive such a pass takes minutes. Both run in the background, with progress and a cancel button. If you would rather it did not (hotspot, someone else's Wi-Fi), untick <em>Keep up to date by itself</em> in the sidebar.</li>
     <li><strong>The photo area says what it is doing</strong> &mdash; Opening it showed only "Loading …", and with many files that could take minutes: the page fetched 240 tiles <em>including</em> their thumbnails, and one video thumbnail from a network drive takes about a second. Now every step names itself (reading folders, counting cameras and years, fetching the first page), the page asks the database only and stands at once, and the missing thumbnails arrive afterwards in small batches with a count, a bar and a cancel button. If the scan is still pending, the header says so and offers the button right there.</li>

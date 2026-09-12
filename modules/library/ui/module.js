@@ -773,6 +773,10 @@ function mountLibrary(body, headerActions) {
   function fotoViewSetzen(an) {
     _fotoView = !!an;
     if (_fotoView) { _projView = false; _vorlView = false; }
+    // Gemerkt wie die Projekt-Ansicht: Wer zuletzt bei den Fotos war, landet
+    // beim nächsten Start wieder dort (Marc, 12.09.2026).
+    store.setJson("fotoview", _fotoView);
+    if (_fotoView) store.setJson("projview", false);
     const bar = document.querySelector(".lib-bar");
     if (bar) bar.classList.toggle("proj-mode", _projView || _vorlView || _fotoView);
     [["lib-seg-fotos", _fotoView], ["lib-seg-vorlagen", _vorlView],
@@ -799,6 +803,7 @@ function mountLibrary(body, headerActions) {
     _vorlView = !!an;
     if (_vorlView) _projView = false;
     if (_vorlView && _fotoView) { _fotoView = false; if (window.rzFotos) window.rzFotos.unmount(); }
+    if (_vorlView) store.setJson("fotoview", false);
     const bar = document.querySelector(".lib-bar");
     if (bar) bar.classList.toggle("proj-mode", _projView || _vorlView);
     const sv = document.getElementById("lib-seg-vorlagen");
@@ -819,6 +824,7 @@ function mountLibrary(body, headerActions) {
     _projView = !!an;
     _vorlView = false;
     if (_fotoView) { _fotoView = false; if (window.rzFotos) window.rzFotos.unmount(); }
+    store.setJson("fotoview", false);
     { const sv = document.getElementById("lib-seg-vorlagen"); if (sv) sv.classList.remove("is-on");
       const nv = document.getElementById("lib-nav-vorlagen"); if (nv) nv.hidden = true; }
     // 02.09.2026 (Marc): Was zuletzt offen war, soll beim nächsten Start
@@ -5063,6 +5069,8 @@ function mountLibrary(body, headerActions) {
   if (window.__rzStartProjekte) {
     window.__rzStartProjekte = false;
     projViewSetzen(true);
+  } else if (!window.__rzKeinPmBoot && store.getJson("fotoview", false)) {
+    fotoViewSetzen(true);
   } else {
     const zuletzt = window.__rzKeinPmBoot ? false : store.getJson("projview", true);
     if (zuletzt !== _projView) projViewSetzen(zuletzt);
@@ -5241,7 +5249,10 @@ function mountLibrary(body, headerActions) {
       window.__rzFortsetzenGeprueft = true;
       try {
         const r = await api().letzte_sitzung();
-        if (r && r.ok && r.weiter && r.projekt_id) {
+        // War zuletzt das Archiv offen, bleibt es das auch: dort arbeitet man
+        // nicht an einem Projekt, und ins Modul zu springen würde genau den
+        // Ort verlassen, an dem man aufgehört hat.
+        if (r && r.ok && r.weiter && r.projekt_id && r.zuletzt_modul !== "library") {
           await projektOeffnen(r.projekt_id, r.modul || undefined);
         }
       } catch (e) {
