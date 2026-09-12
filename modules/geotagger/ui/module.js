@@ -1418,8 +1418,14 @@ function mountGeotagger(body, headerActions) {
   document.getElementById("gt-pick-folder").addEventListener("click", async () => {
     const folders = await api().pick_file("folder");
     if (!folders || !folders.length) return;
-    const folder = folders[0];
-    const recursive = document.getElementById("gt-folder-recursive").checked;
+    const recCb0 = document.getElementById("gt-folder-recursive");
+    await _gtOrdnerLaden(folders[0], !!(recCb0 && recCb0.checked));
+  });
+
+  // 12.09.2026 — derselbe Weg, aber auch von außen aufrufbar: der Fotobestand
+  // im Archiv schickt „Dieses Bild verorten" hierher (window.__rzGtOrdnerLaden).
+  async function _gtOrdnerLaden(folder, recursive) {
+    if (!folder) return;
     // v0.9.27 (Nutzer-Feedback): Ordner + Rekursiv-State persistieren
     saveSettings({ geotagger: { last_photos_dir: folder, last_photos_paths: [], folder_recursive: recursive } });
     stopThumbPolling();
@@ -1463,7 +1469,9 @@ function mountGeotagger(body, headerActions) {
     if (photos.length > 0) {
       _gtTracksVorschlagen(folder);   // 10.09.2026 — das Archiv findet die Tracks (Issue #7)
     }
-  });
+  }
+
+  window.__rzGtOrdnerLaden = _gtOrdnerLaden;
 
   // 10.09.2026 — der frühere Nähe-Dialog (offerNearbyGpx, Radio-Buttons) ist durch
   // die Archiv-Bestätigungsliste ersetzt (_gtTracksVorschlagen, IDEAS §61).

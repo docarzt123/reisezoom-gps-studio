@@ -1442,11 +1442,33 @@ Koordinate oder ohne Aufnahmezeit sind — ein Klick darauf filtert danach.
 
 ### Was der Bestand über ein Foto weiß
 
-Klick auf eine Kachel, und rechts stehen große Vorschau, Aufnahmezeit (mit dem
-Hinweis *geraten*, wenn die Zeitzone nicht in der Datei stand), Kamera,
-Objektiv, Blende, Belichtung, ISO, Größe, Ort und Koordinate. Ganz unten lässt
-sich **Alle Aufnahmedaten** ausklappen: jede einzelne Angabe, die in der Datei
-steht.
+Klick auf eine Kachel, und die Spalte rechts zeigt alles zu dieser Datei:
+
+**Das Bild groß**, darunter die **Befunde**. Jeder Befund sagt zwei Dinge — was
+erkannt wurde und wie es zu lösen wäre. Fehlt die Koordinate und liegt die
+Aufnahmezeit in einer aufgezeichneten Tour, steht deren Name da und ein Knopf
+**„Im Geotagger verorten"** führt direkt hinüber: der Track ist geladen, der
+Fotoordner eingelesen. Deckt keine Tour die Zeit ab, steht genau das da — ohne
+Knopf, der ins Leere führt. Fehlt die Aufnahmezeit ganz, ist ehrlich vermerkt,
+dass das erst der EXIF-Editor lösen kann.
+
+**Die kleine Karte** zeigt die Aufnahmestelle als Punkt. Gehört das Bild zu
+einer Tour, liegt deren Verlauf als Linie darunter und der Ausschnitt fasst
+beides — so siehst du sofort, an welcher Stelle der Reise das Bild entstand.
+Ein Klick auf den Tournamen öffnet sie im Animator.
+
+**Die Aufnahmedaten**: Zeit (mit dem Vermerk *geraten*, wenn die Zeitzone nicht
+in der Datei stand), Kamera, Objektiv, Blende, Belichtung, ISO, Größe, Ort und
+Koordinate. Ganz unten klappt **Alle Aufnahmedaten** jeden einzelnen Eintrag
+auf, den die Datei mitbringt.
+
+> **Unterwegs ohne das Laufwerk?** Aufnahmedaten und Vorschaubilder liegen in
+> der Bibliothek auf deinem Rechner. Raster, Suche, Karte und die Gruppierung
+> nach Touren funktionieren also auch, wenn das NAS oder die externe Platte
+> gerade nicht da ist. Der Ordner ist dann als *nicht da* gekennzeichnet, und
+> ein Einlesen rührt den Bestand nicht an: Es wird nichts als fehlend markiert
+> und nichts als fehlerhaft abgestempelt, noch ungelesene Dateien kommen beim
+> nächsten Mal dran.
 
 ### Was (noch) nicht geht
 
@@ -2642,6 +2664,16 @@ damit die Vorschau Kacheln bekommt. Wer „Nicht erlauben" gewählt hat und eine
 leere Karte sieht: Systemeinstellungen → Datenschutz & Sicherheit → Lokales
 Netzwerk → GPS Studio einschalten. Lässt man den Dialog lange stehen, wirkt
 die App „eingefroren" — sie wartet nur auf die Antwort.
+
+### „GPS Studio möchte auf Apple Music und deine Mediathek zugreifen" (macOS)
+Diese Frage kommt, während der Fotobestand **Videos** einliest. **Die App rührt
+deine Musik nicht an.** Auslöser ist das Vorschaubild: Für ein Video lässt GPS
+Studio zuerst QuickLook einen Rahmen zeichnen (`qlmanage`), weil das rund
+viermal sparsamer ist als ein eigener Decode — und QuickLook lädt dafür Apples
+Medien-Bausteine. macOS schreibt die Frage dann dem Programm zu, das QuickLook
+gerufen hat, also uns. **„Nicht erlauben" ist die richtige Antwort:** Es geht
+nichts verloren, denn wo QuickLook aussteigt, springt der eingebaute
+Video-Decoder ein. macOS merkt sich die Antwort, die Frage kommt nicht wieder.
 
 ### „Der Computer wurde durch Windows Defender geschützt" (Windows)
 Selbes Problem auf Windows. **„Weitere Informationen" → „Trotzdem ausführen"**.

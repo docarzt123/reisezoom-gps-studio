@@ -117,6 +117,20 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.692</span>
+    <span class="version-date">12 de septiembre de 2026</span>
+    <span class="version-badge">Actual</span>
+  </div>
+  <ul>
+    <li><strong>Fotos: la columna derecha responde ya a toda la pregunta</strong> &mdash; Haz clic en una imagen y a la derecha aparecen la vista previa grande, los <strong>hallazgos con su solución</strong>, un mapa pequeño y todos los datos de captura. Cada hallazgo dice qué se detectó <em>y</em> cómo se resolvería: si falta la coordenada y una ruta grabada cubre la hora de captura, aparece su nombre y un botón lleva al Geotagger, con la ruta cargada y la carpeta de fotos leída. Si ninguna ruta cubre esa hora, eso es lo que dice, sin botones que no lleven a nada. El mapa muestra el lugar y debajo el recorrido de la ruta.</li>
+    <li><strong>Fotos en una unidad de red: las miniaturas sobreviven a la desconexión</strong> &mdash; La clave del caché de miniaturas se formaba con la fecha de modificación y el tamaño del archivo original. Sin el NAS no se podía calcular y un caché lleno de miniaturas terminadas quedaba inalcanzable: una cuadrícula gris en el tren. Ahora la clave vive en la biblioteca. Cuadrícula, búsqueda, mapa y agrupación por rutas siguen funcionando sin la unidad.</li>
+    <li><strong>Una unidad ausente ya no estropea el archivo</strong> &mdash; Las carpetas no accesibles se omiten y se marcan como tales, nada se marca como ausente y los archivos que no se pueden abrir ahora se <em>aplazan en lugar de sellarse</em>. Antes, un archivo así contaba para siempre como «datos de captura ilegibles» y no volvía a mirarse.</li>
+    <li><strong>La zona horaria +00:00 contaba como supuesta</strong> &mdash; Fotos de Gran Bretaña en invierno, de Islandia o de cámaras que sellan en UTC figuraban como «zona horaria supuesta» aunque el archivo la indicaba.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.691</span>
     <span class="version-date">12 de septiembre de 2026</span>
     <span class="version-badge">Actual</span>

@@ -129,6 +129,9 @@ CREATE TABLE IF NOT EXISTS fotos (
     hay           TEXT DEFAULT '',
 
     thumb         INTEGER DEFAULT 0,   -- 1 = Vorschaubild liegt im Cache
+    -- Schlüssel des Vorschaubild-Caches, gemerkt aus Änderungszeit und Größe.
+    -- Steht hier, damit die Vorschau auch ohne das Laufwerk gefunden wird.
+    fp            TEXT,
     fehlt_seit    TEXT,
     indexed_at    TEXT,
     error         TEXT DEFAULT ''
@@ -170,6 +173,11 @@ def schema_anlegen(conn: sqlite3.Connection) -> None:
     """Tabellen und Volltext-Index anlegen. Idempotent, von `open_db` gerufen."""
     global _FTS_OK
     conn.executescript(SCHEMA)
+    # Nachträgliche Spalten: bestehende Bibliotheken kennen `fp` noch nicht.
+    # Der Wert füllt sich beim nächsten Durchgang 1 von selbst.
+    spalten = {r[1] for r in conn.execute("PRAGMA table_info(fotos)")}
+    if "fp" not in spalten:
+        conn.execute("ALTER TABLE fotos ADD COLUMN fp TEXT")
     try:
         conn.executescript(_FTS_SQL)
         _FTS_OK = True
@@ -315,23 +323,27 @@ def durchgang1(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
             p = str(f)
             alle_pfade.add(p)
             gesehen += 1
-            alt = conn.execute("SELECT mtime, size FROM fotos WHERE path = ?", (p,)).fetchone()
+            fp = cphotos.fingerprint_aus(p, st.st_mtime_ns, st.st_size)
+            alt = conn.execute("SELECT mtime, size, fp FROM fotos WHERE path = ?", (p,)).fetchone()
             if alt is None:
                 conn.execute(
-                    "INSERT INTO fotos(path, ordner, dateiname, mtime, size, art, fehlt_seit) "
-                    "VALUES(?,?,?,?,?,?,NULL)",
-                    (p, o, f.name, st.st_mtime, st.st_size, art_von(p)))
+                    "INSERT INTO fotos(path, ordner, dateiname, mtime, size, art, fp, fehlt_seit) "
+                    "VALUES(?,?,?,?,?,?,?,NULL)",
+                    (p, o, f.name, st.st_mtime, st.st_size, art_von(p), fp))
                 neu += 1
             else:
                 if abs((alt["mtime"] or 0) - st.st_mtime) > 1 or (alt["size"] or 0) != st.st_size:
                     # Datei hat sich geändert → Aufnahmedaten neu lesen lassen.
-                    conn.execute("UPDATE fotos SET mtime = ?, size = ?, indexed_at = NULL, "
+                    conn.execute("UPDATE fotos SET mtime = ?, size = ?, fp = ?, indexed_at = NULL, "
                                  "fehlt_seit = NULL WHERE path = ?",
-                                 (st.st_mtime, st.st_size, p))
+                                 (st.st_mtime, st.st_size, fp, p))
                     geaendert += 1
                 else:
                     conn.execute("UPDATE fotos SET fehlt_seit = NULL WHERE path = ? "
                                  "AND fehlt_seit IS NOT NULL", (p,))
+                    if (alt["fp"] or "") != fp:
+                        # Bibliothek von vor dieser Fassung: Wert nachtragen.
+                        conn.execute("UPDATE fotos SET fp = ? WHERE path = ?", (fp, p))
             if fortschritt and gesehen % 200 == 0:
                 conn.commit()
                 fortschritt(gesehen, 0)
@@ -388,13 +400,26 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
     """Aufnahmedaten (alle Tags) und Vorschaubilder für alles Ungelesene."""
     offen = _offene(conn, grenze)
     gesamt = len(offen)
-    fertig = fehler = 0
+    fertig = fehler = fern = 0
 
     for i in range(0, gesamt, STAPEL):
         if stop and stop():
             conn.commit()
-            return {"abbruch": True, "fertig": fertig, "gesamt": gesamt, "fehler": fehler}
+            return {"abbruch": True, "fertig": fertig, "gesamt": gesamt,
+                    "fehler": fehler, "fern": fern}
         teil = offen[i:i + STAPEL]
+        # Nicht erreichbare Dateien werden ÜBERSPRUNGEN, nicht als fehlerhaft
+        # abgestempelt: sonst gilt ein Foto auf dem abgeschalteten NAS für immer
+        # als „keine Aufnahmedaten lesbar" und wird nie wieder angefasst.
+        # (Marc, 12.09.2026: Fotos liegen auf einem NAS im WLAN.)
+        weg = [r for r in teil if not Path(r["path"]).is_file()]
+        if weg:
+            fern += len(weg)
+            teil = [r for r in teil if Path(r["path"]).is_file()]
+        if not teil:
+            if fortschritt:
+                fortschritt(fertig, gesamt)
+            continue
         pfade = [r["path"] for r in teil]
         groessen = {x["path"]: (x["size"] or 0) for x in conn.execute(
             "SELECT path, size FROM fotos WHERE path IN (%s)"
@@ -470,7 +495,31 @@ def durchgang2(conn: sqlite3.Connection, fortschritt: Optional[Callable] = None,
         if fortschritt:
             fortschritt(fertig, gesamt)
 
-    return {"fertig": fertig, "gesamt": gesamt, "fehler": fehler}
+    if fern:
+        log.info("fotos: %d Dateien gerade nicht erreichbar — beim nächsten Lauf dran", fern)
+    return {"fertig": fertig, "gesamt": gesamt, "fehler": fehler, "fern": fern}
+
+
+def fps_lesen(conn: sqlite3.Connection, pfade: list) -> dict:
+    """Die gemerkten Cache-Schlüssel zu diesen Pfaden — ein Zugriff für alle.
+
+    Damit kommen die Vorschaubilder auch dann aus dem Cache, wenn das Laufwerk
+    gerade nicht erreichbar ist (NAS im WLAN, Platte am Schreibtisch).
+    """
+    raus = {}
+    pfade = [p for p in (pfade or []) if p]
+    for i in range(0, len(pfade), 400):
+        teil = pfade[i:i + 400]
+        platz = ",".join("?" for _ in teil)
+        for r in conn.execute(f"SELECT path, fp FROM fotos WHERE path IN ({platz})", tuple(teil)):
+            if r["fp"]:
+                raus[r["path"]] = r["fp"]
+    return raus
+
+
+def fp_lesen(conn: sqlite3.Connection, path: str) -> str:
+    r = conn.execute("SELECT fp FROM fotos WHERE path = ?", (path,)).fetchone()
+    return (r["fp"] or "") if r else ""
 
 
 def _thumb_versuch(path: str) -> tuple:
@@ -684,6 +733,69 @@ def tour_zu_zeit(fenster: list, utc: Optional[float],
     if not treffer:
         return None
     return min(treffer, key=lambda t: t["bis"] - t["von"])
+
+
+def tour_fuer_foto(conn: sqlite3.Connection, d: dict) -> Optional[dict]:
+    """Welche Tour deckt die Aufnahmezeit dieses Fotos ab — mit Streckenverlauf.
+
+    Der Verlauf (`geom`) liegt im Archiv schon vereinfacht vor, er kostet also
+    nichts extra. Damit kann die Detailspalte das Bild AUF seiner Tour zeigen.
+    """
+    t = tour_zu_zeit(tour_fenster(conn), d.get("aufnahme_utc"))
+    if not t:
+        return None
+    r = conn.execute("SELECT geom, COALESCE(missing_since,'') AS weg FROM tracks "
+                     "WHERE path = ? LIMIT 1", (t["path"],)).fetchone()
+    geom = []
+    if r and r["geom"]:
+        try:
+            geom = json.loads(r["geom"])
+        except (TypeError, ValueError):
+            geom = []
+    return {"name": t["name"], "geo_hash": t["geo_hash"], "path": t["path"],
+            "von": t["von"], "bis": t["bis"], "geom": geom,
+            "datei_da": bool(r and not r["weg"])}
+
+
+# Was an einem Foto fehlt, als Schlüssel. Der Text steht in der Oberfläche —
+# hier nur der Befund, die Stufe und ob wir ihn lösen können.
+def befunde_foto(conn: sqlite3.Connection, d: dict,
+                 tour: Optional[dict] = None) -> list:
+    """Erkannte Mängel eines Fotos samt Lösungsweg.
+
+    Marc, 12.09.2026: „anzeigen was für probleme gemeldet werden und ob wir die
+    lösen können." Also nicht nur „keine Koordinate", sondern: es gibt eine Tour
+    zu dieser Zeit, der Geotagger kann das Bild verorten — oder eben nicht.
+    """
+    raus = []
+
+    def fund(key, stufe, loesbar, aktion="", **rest):
+        raus.append(dict({"key": key, "stufe": stufe, "loesbar": bool(loesbar),
+                          "aktion": aktion}, **rest))
+
+    if d.get("fehlt_seit"):
+        fund("datei_weg", "gelb", False, "", seit=d.get("fehlt_seit"))
+    if d.get("error"):
+        fund("lesefehler", "rot", False, "", text=str(d.get("error"))[:200])
+
+    hat_zeit = d.get("aufnahme_utc") is not None
+    if not hat_zeit:
+        fund("keine_zeit", "rot", False, "", mtime=d.get("mtime"))
+    elif not d.get("tz_bekannt"):
+        # Mit Track lässt sich die Zeitzone berechnen, ohne bleibt sie geraten.
+        fund("zeitzone_geraten", "gelb", bool(tour), "geotagger" if tour else "",
+             tour=(tour or {}).get("name", ""))
+
+    if d.get("lat") is None or d.get("lon") is None:
+        if tour and tour.get("geom"):
+            fund("keine_koordinate", "gelb", True, "geotagger",
+                 tour=tour.get("name", ""), tour_pfad=tour.get("path", ""),
+                 tour_da=bool(tour.get("datei_da")))
+        elif hat_zeit:
+            fund("keine_koordinate", "gelb", False, "")
+        else:
+            fund("keine_koordinate", "gelb", False, "")
+    return raus
 
 
 def touren_zu_fotos(conn: sqlite3.Connection, filter: Optional[dict] = None) -> list:

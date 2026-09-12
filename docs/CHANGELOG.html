@@ -117,6 +117,20 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.692</span>
+    <span class="version-date">12. September 2026</span>
+    <span class="version-badge">Aktuell</span>
+  </div>
+  <ul>
+    <li><strong>Fotos: die Spalte rechts beantwortet jetzt die ganze Frage</strong> &mdash; Klick auf ein Bild, und rechts stehen die große Vorschau, die <strong>Befunde mit Lösungsweg</strong>, eine kleine Karte und alle Aufnahmedaten. Jeder Befund sagt, was erkannt wurde <em>und</em> wie es zu lösen wäre: Fehlt die Koordinate und deckt eine aufgezeichnete Tour die Aufnahmezeit ab, steht deren Name da und ein Knopf führt in den Geotagger &mdash; Track geladen, Fotoordner eingelesen. Deckt keine Tour die Zeit ab, steht genau das da, ohne Knopf ins Leere. Die Karte zeigt die Aufnahmestelle und darunter den Verlauf der Tour, zu der das Bild gehört.</li>
+    <li><strong>Fotos vom Netzlaufwerk: Vorschaubilder überleben die Trennung</strong> &mdash; Der Schlüssel des Vorschau-Speichers hing an Änderungszeit und Größe der Originaldatei. War das NAS weg, ließ er sich nicht berechnen, und ein voller Speicher fertiger Vorschaubilder war unerreichbar &mdash; graues Raster im Zug. Der Schlüssel steht jetzt in der Bibliothek. Raster, Suche, Karte und Tour-Gruppierung laufen ohne das Laufwerk weiter.</li>
+    <li><strong>Abwesendes Laufwerk verfälscht den Bestand nicht mehr</strong> &mdash; Nicht erreichbare Ordner werden übersprungen und als solche gekennzeichnet, nichts wird als fehlend markiert, und Dateien, die gerade nicht zu öffnen sind, werden <em>vertagt statt abgestempelt</em>. Vorher galt eine solche Datei für immer als „keine Aufnahmedaten lesbar" und kam nie wieder dran.</li>
+    <li><strong>Zeitzone +00:00 galt fälschlich als geraten</strong> &mdash; Fotos aus Großbritannien im Winter, aus Island oder aus Kameras, die in UTC stempeln, wurden als „Zeitzone geraten" geführt, obwohl sie die Angabe mitbrachten.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.691</span>
     <span class="version-date">12. September 2026</span>
     <span class="version-badge">Aktuell</span>

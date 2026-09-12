@@ -16,6 +16,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import sys
 import tempfile
 import threading
@@ -162,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.691"
+APP_VERSION = "0.9.692"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -460,6 +461,44 @@ except Exception:
 # danach aus Disk gezogen. Spart Sekunden pro Reload eines Projekts mit
 # vielen Fotos.
 cphotos.set_cache_dir(APP_SUPPORT / "photo_thumb_cache")
+
+
+_FP_SPERRE = threading.Lock()
+_FP_CONN = None
+_FP_MERK: dict = {}
+
+
+def _foto_fp_ersatz(pfad: str) -> str:
+    """Cache-Schlüssel aus dem Fotobestand, wenn die Datei nicht erreichbar ist.
+
+    Greift für JEDEN Weg zum Vorschaubild — also auch für Projekt-Fotos im
+    Animator, nicht nur für das Archiv-Raster. Eigene, schlanke Verbindung
+    (nur ein SELECT, kein Schema-Lauf) mit Gedächtnis, weil dieser Weg bei
+    einem abwesenden Laufwerk für JEDES Bild einmal gegangen wird.
+    """
+    global _FP_CONN
+    if not pfad:
+        return ""
+    with _FP_SPERRE:
+        if pfad in _FP_MERK:
+            return _FP_MERK[pfad]
+        try:
+            if not BIB_BEREIT or not Path(LIBRARY_DB).is_file():
+                return ""
+            if _FP_CONN is None:
+                _FP_CONN = sqlite3.connect(str(LIBRARY_DB), check_same_thread=False)
+                _FP_CONN.row_factory = sqlite3.Row
+            wert = cfotos.fp_lesen(_FP_CONN, pfad)
+        except Exception:
+            _FP_CONN = None
+            return ""
+        if len(_FP_MERK) > 20000:
+            _FP_MERK.clear()
+        _FP_MERK[pfad] = wert
+        return wert
+
+
+cphotos.set_fingerprint_ersatz(_foto_fp_ersatz)
 
 # Default-Settings — werden mit gespeicherten Werten gemerged
 DEFAULT_SETTINGS = {
@@ -4029,6 +4068,14 @@ class Api:
                 # Eigene Verbindung: der Scan läuft lange, die Oberfläche fragt
                 # währenddessen weiter ab (core/library serialisiert per Lock).
                 conn = clib.open_db(LIBRARY_DB)
+                # Was gerade nicht erreichbar ist, sagen statt stillzuschweigen:
+                # ein NAS im WLAN ist unterwegs eben weg, und dann findet der
+                # Scan dort nichts — ohne Hinweis sieht das nach einem Fehler aus.
+                ferne = [o["path"] for o in cfotos.ordner_liste(conn) if not o["da"]]
+                if ferne:
+                    self._foto_scan_state["ferne_ordner"] = ferne
+                    log.info("[fotos] %d Ordner gerade nicht erreichbar: %s",
+                             len(ferne), ", ".join(ferne[:3]))
                 r1 = cfotos.durchgang1(
                     conn,
                     fortschritt=lambda n, g: self._foto_scan_state.update(
@@ -4119,19 +4166,35 @@ class Api:
             if not d:
                 return {"ok": False, "error": "nicht im Bestand"}
             d["tags"] = cfotos.tags_lesen(conn, path)
-            d["thumb_url"] = cphotos.thumb_data_url_gecacht(path, cphotos.THUMB_GROSS_PX)
+            d["thumb_url"] = cphotos.thumb_data_url_gecacht(
+                path, cphotos.THUMB_GROSS_PX, cfotos.fp_lesen(conn, path))
+            # Die Tour zur Aufnahmezeit (mit Verlauf für die kleine Karte) und
+            # die Befunde samt Lösungsweg — beides braucht die Detailspalte.
+            tour = cfotos.tour_fuer_foto(conn, d)
+            d["tour"] = tour
+            d["befunde"] = cfotos.befunde_foto(conn, d, tour)
             return {"ok": True, "foto": d}
         except Exception as e:
             log.exception("fotos_details")
             return {"ok": False, "error": str(e)}
 
     def fotos_thumbs(self, paths: list = None, gross: bool = False) -> dict:
-        """Vorschaubilder nachliefern (die große Fassung erst auf Abruf)."""
+        """Vorschaubilder nachliefern (die große Fassung erst auf Abruf).
+
+        Die Cache-Schlüssel kommen aus der Bibliothek, ein Zugriff für alle
+        Pfade. So stehen die Vorschauen auch dann im Raster, wenn das Laufwerk
+        gerade nicht da ist — unterwegs ohne NAS ist das der Normalfall.
+        """
         px = cphotos.THUMB_GROSS_PX if gross else cphotos.THUMB_RASTER_PX
+        pfade = list(paths or [])[:200]
+        try:
+            fps = cfotos.fps_lesen(self._lib(), pfade)
+        except Exception:
+            fps = {}
         raus = {}
-        for p in list(paths or [])[:200]:
+        for p in pfade:
             try:
-                raus[p] = cphotos.thumb_data_url_gecacht(p, px)
+                raus[p] = cphotos.thumb_data_url_gecacht(p, px, fps.get(p))
             except Exception:
                 raus[p] = None
         return {"ok": True, "thumbs": raus}

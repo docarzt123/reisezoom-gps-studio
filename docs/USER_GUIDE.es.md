@@ -1304,11 +1304,32 @@ coordenadas o no tienen hora; un clic filtra por ellos.
 
 ### Lo que el fondo sabe de una foto
 
-Haz clic en una miniatura y la columna derecha muestra una vista previa grande,
-la hora de captura (con la nota *estimada* si la zona horaria no estaba en el
-archivo), cámara, objetivo, diafragma, exposición, ISO, tamaño, lugar y
-coordenadas. Abajo, **Todos los datos de captura** despliega cada entrada que
-contiene el archivo.
+Haz clic en una miniatura y la columna derecha muestra todo sobre ese archivo:
+
+**La imagen en grande** y debajo los **hallazgos**. Cada hallazgo dice dos
+cosas: qué se ha detectado y cómo se resolvería. Si falta la coordenada y la
+hora de captura cae dentro de una ruta grabada, aparece su nombre y un botón
+**«Ubicar en el Geotagger»** lleva directamente allí: ruta cargada, carpeta de
+fotos leída. Si ninguna ruta cubre esa hora, eso es lo que dice, sin un botón
+que no lleve a ninguna parte. Si falta por completo la hora de captura, se
+reconoce que solo el editor EXIF podrá arreglarlo.
+
+**El mapa pequeño** muestra el lugar como un punto. Si la imagen pertenece a una
+ruta, su recorrido queda debajo como línea y el encuadre abarca ambos, así ves
+enseguida en qué punto del viaje se tomó. Un clic en el nombre de la ruta la
+abre en el Animador.
+
+**Los datos de captura**: hora (con la nota *supuesta* cuando la zona horaria no
+estaba en el archivo), cámara, objetivo, diafragma, exposición, ISO, tamaño,
+lugar y coordenadas. Abajo, **Todos los datos de captura** despliega cada
+entrada que trae el archivo.
+
+> **¿De viaje sin la unidad?** Los datos de captura y las miniaturas están en la
+> biblioteca de tu ordenador. La cuadrícula, la búsqueda, el mapa y la
+> agrupación por rutas siguen funcionando aunque el NAS o el disco externo no
+> estén. La carpeta se marca como *no disponible* y un escaneo no toca el
+> archivo: nada se marca como ausente, nada se sella como defectuoso y los
+> archivos aún no leídos se procesan la próxima vez.
 
 ### Lo que todavía no hace
 
@@ -2462,6 +2483,18 @@ que la vista previa reciba teselas. Si elegiste «No permitir» y ves el mapa
 vacío: Ajustes del Sistema → Privacidad y seguridad → Red local → activar GPS
 Studio. Si dejas el diálogo abierto mucho tiempo, la app parece congelada:
 solo espera tu respuesta.
+
+### «GPS Studio quiere acceder a Apple Music y a tu biblioteca» (macOS)
+Aparece mientras el archivo de fotos indexa **vídeos**. **La aplicación no toca
+tu música.** Lo provoca la miniatura: para un vídeo, GPS Studio deja primero que
+QuickLook dibuje un fotograma (`qlmanage`), porque cuesta unas cuatro veces
+menos que descodificarlo por nuestra cuenta, y para ello QuickLook carga los
+componentes multimedia de Apple. macOS atribuye entonces la pregunta a quien
+llamó a QuickLook, es decir, a nosotros. **«No permitir» es la respuesta
+correcta:** no se pierde nada, porque donde QuickLook se rinde entra el
+descodificador de vídeo incorporado. macOS recuerda la respuesta, así que la
+pregunta no vuelve.
+
 
 ### «El equipo ha sido protegido por Windows Defender» (Windows)
 El mismo problema en Windows. **«Más información» → «Ejecutar de todas formas»**.

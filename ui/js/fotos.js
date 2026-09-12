@@ -36,6 +36,7 @@
   let scanTimer = 0;
   let karte = null, karteLib = null, karteBereit = false, spurenAn = false;
   let auswahl = null;
+  let dKarte = null;          // die kleine Karte in der Detailspalte
 
   function num(n) {
     let loc = null;
@@ -185,6 +186,15 @@
     clearTimeout(scanTimer);
     const box = nav && nav.querySelector("#foto-scan-stand");
     const knopf = nav && nav.querySelector("#foto-scan");
+    // Ein abwesendes Laufwerk ist kein Fehler, aber es muss dastehen: sonst
+    // wirkt ein Scan ohne Fund wie ein Defekt (Fotos auf einem NAS im WLAN).
+    const fernText = (st) => {
+      const f = (st && st.ferne_ordner) || [];
+      if (!f.length) return "";
+      const namen = f.map((x) => String(x).split("/").pop()).slice(0, 3).join(", ");
+      return T("fotos.ordner_fern", "Nicht erreichbar") + ": " + namen
+             + (f.length > 3 ? " +" + (f.length - 3) : "");
+    };
     const tick = async () => {
       let st = null;
       try { st = await api().fotos_scan_status(); } catch (_) { st = null; }
@@ -206,7 +216,8 @@
                                                  gesamt: st.total || 0 });
           if (window.rzStatus.abgebrochen("foto-scan")) api().fotos_scan_stop();
         } else if (window.rzStatus.laeuft("foto-scan")) {
-          window.rzStatus.fertig("foto-scan", st.error ? String(st.error) : "");
+          window.rzStatus.fertig("foto-scan",
+            st.error ? String(st.error) : fernText(st));
         }
       }
       if (box) {
@@ -219,7 +230,7 @@
           const sp = box.querySelector("#foto-scan-stop");
           if (sp) sp.onclick = () => api().fotos_scan_stop();
         } else {
-          box.textContent = st.error ? String(st.error) : "";
+          box.textContent = st.error ? String(st.error) : fernText(st);
         }
       }
       if (knopf) knopf.disabled = !!st.running;
@@ -552,12 +563,114 @@
 
   // ── Detailspalte ────────────────────────────────────────────────────────
 
+  /* Was erkannt wurde und wie es zu lösen ist — in dieser Reihenfolge, denn
+     „keine Koordinate" allein hilft niemandem (Marc, 12.09.2026: „anzeigen was
+     für probleme gemeldet werden und ob wir die lösen können"). Der Kern liefert
+     nur Schlüssel, der Text steht hier. */
+  function befundText(b) {
+    const tour = b.tour || "";
+    switch (b.key) {
+      case "datei_weg":
+        return [T("fotos.b_weg", "Datei nicht erreichbar"),
+                T("fotos.b_weg_hilfe", "Laufwerk verbinden und neu einlesen. Aufnahmedaten und Vorschau liegen in der Bibliothek, sie bleiben sichtbar.")];
+      case "lesefehler":
+        return [T("fotos.b_fehler", "Aufnahmedaten nicht lesbar") + (b.text ? " — " + b.text : ""),
+                T("fotos.b_fehler_hilfe", "Beim nächsten Einlesen wird es erneut versucht.")];
+      case "keine_zeit":
+        return [T("fotos.b_zeit", "Keine Aufnahmezeit im Bild"),
+                T("fotos.b_zeit_hilfe", "Ohne Zeit lässt sich weder Tour noch Ort zuordnen. Nachtragen geht erst mit dem EXIF-Editor — der ist geplant.")];
+      case "zeitzone_geraten":
+        return [T("fotos.b_tz", "Zeitzone geraten (UTC angenommen)"),
+                b.loesbar
+                  ? T("fotos.b_tz_hilfe_tour", "Der Geotagger rechnet sie aus dem Track „{t}“ aus.").replace("{t}", tour)
+                  : T("fotos.b_tz_hilfe", "Mit einem Track zu dieser Zeit wäre sie berechenbar.")];
+      case "keine_koordinate":
+        return [T("fotos.b_ort", "Keine Koordinate im Bild"),
+                b.loesbar
+                  ? T("fotos.b_ort_hilfe_tour", "Zu dieser Zeit läuft der Track „{t}“ — der Geotagger kann das Bild damit verorten.").replace("{t}", tour)
+                  : T("fotos.b_ort_hilfe", "Kein aufgezeichneter Track deckt diese Zeit ab. Verorten über Zeitnachbarn ist geplant.")];
+      default:
+        return [b.key, ""];
+    }
+  }
+
+  function befundeHtml(befunde) {
+    if (!befunde || !befunde.length) {
+      return `<div class="foto-befund is-ok">✓ ${T("fotos.b_keine", "Nichts zu beanstanden — Zeit und Ort sind vollständig.")}</div>`;
+    }
+    return befunde.map((b) => {
+      const [was, wie] = befundText(b);
+      const punkt = b.stufe === "rot" ? "#e53935" : b.stufe === "gelb" ? "#d4a017" : "var(--text-muted)";
+      const knopf = (b.aktion === "geotagger" && b.loesbar)
+        ? `<button type="button" class="btn btn-sm foto-befund-tun" data-tun="geotagger"
+             data-tour="${esc(b.tour_pfad || "")}">${T("fotos.b_verorten", "Im Geotagger verorten")}</button>` : "";
+      return `<div class="foto-befund">
+          <div class="foto-befund-kopf"><span class="foto-befund-punkt" style="background:${punkt}"></span>
+            <span>${esc(was)}</span></div>
+          ${wie ? `<div class="foto-befund-hilfe">${b.loesbar ? "→ " : ""}${esc(wie)}</div>` : ""}
+          ${knopf}
+        </div>`;
+    }).join("");
+  }
+
+  /** Die kleine Karte: wo das Bild entstand, und die Tour dazu. */
+  function detailKarte(d, tour) {
+    const el = document.getElementById("foto-d-karte");
+    if (!el || typeof createMap !== "function") return;
+    const hatOrt = d.lat != null && d.lon != null;
+    const linie = (tour && tour.geom && tour.geom.length > 1) ? tour.geom : null;
+    if (!hatOrt && !linie) { el.hidden = true; return; }
+    el.hidden = false;
+    let lib = null;
+    try {
+      const created = createMap({
+        container: "foto-d-karte",
+        styleKey: (typeof mapDefaultStyle === "function") ? mapDefaultStyle() : undefined,
+        common: { center: hatOrt ? [+d.lon, +d.lat] : linie[0], zoom: hatOrt ? 12 : 8,
+                  attributionControl: false, interactive: true },
+      });
+      dKarte = created.map; lib = created.lib;
+      window.__fotoDKarte = dKarte;          // Prüfstand
+    } catch (_) { return; }
+    const m = dKarte;
+    m.on("load", () => {
+      if (linie) {
+        m.addSource("d-spur", { type: "geojson",
+          data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: linie } } });
+        m.addLayer({ id: "d-spur-linie", type: "line", source: "d-spur",
+                     layout: { "line-cap": "round", "line-join": "round" },
+                     paint: { "line-color": "#2f7fd1", "line-width": 3, "line-opacity": 0.9 } });
+      }
+      if (hatOrt) {
+        m.addSource("d-punkt", { type: "geojson",
+          data: { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [+d.lon, +d.lat] } } });
+        m.addLayer({ id: "d-punkt-kreis", type: "circle", source: "d-punkt",
+                     paint: { "circle-radius": 7, "circle-color": "#ff922b",
+                              "circle-stroke-width": 2, "circle-stroke-color": "#fff" } });
+      }
+      // Ausschnitt: das Bild UND seine Tour, damit man beides im Zusammenhang sieht.
+      try {
+        const b = new lib.LngLatBounds();
+        if (linie) linie.forEach((c) => b.extend(c));
+        if (hatOrt) b.extend([+d.lon, +d.lat]);
+        m.fitBounds(b, { padding: 28, maxZoom: hatOrt && !linie ? 13 : 12, duration: 0 });
+      } catch (_) {}
+    });
+  }
+
+  function detailKarteWeg() {
+    if (!dKarte) return;
+    try { dKarte.remove(); } catch (_) {}
+    dKarte = null;
+  }
+
   async function detailZeigen(f) {
     if (!f) return;
     auswahl = f.path;
     const box = document.getElementById("lib-detail");
     if (!box) return;
     box.hidden = false;
+    detailKarteWeg();
     box.innerHTML = `<div class="foto-detail"><div class="muted">${T("common.loading", "Lädt …")}</div></div>`;
     const r = await api().fotos_details(f.path).catch(() => null);
     const d = (r && r.ok && r.foto) || f;
@@ -565,11 +678,17 @@
     const zeile = (label, wert) => wert
       ? `<div class="foto-detail-zeile"><span class="muted">${esc(label)}</span> ${esc(wert)}</div>` : "";
     const tags = (d.tags && Object.keys(d.tags)) || [];
+    const tour = d.tour || null;
+    const befunde = d.befunde || null;
     box.innerHTML = `
       <div class="foto-detail">
         ${d.thumb_url ? `<img class="foto-detail-bild" src="${d.thumb_url}" alt="">` : ""}
         <div class="foto-detail-kopf">${esc(d.dateiname || "")}</div>
-        ${m.length ? `<div class="foto-detail-warn">⚠ ${esc(m.join(" · "))}</div>` : ""}
+        ${befunde ? befundeHtml(befunde)
+                  : (m.length ? `<div class="foto-detail-warn">⚠ ${esc(m.join(" · "))}</div>` : "")}
+        <div class="foto-d-karte" id="foto-d-karte" hidden></div>
+        ${tour ? `<div class="foto-detail-zeile"><span class="muted">${T("fotos.d_tour", "Tour")}</span>
+            <button type="button" class="foto-d-tour" data-tour="${esc(tour.path || "")}">${esc(tour.name || "")}</button></div>` : ""}
         ${zeile(T("fotos.d_zeit", "Aufnahme"), d.tag_lokal ? `${d.tag_lokal} ${uhrzeit(d)}${d.tz_bekannt ? "" : " (" + T("fotos.geraten", "geraten") + ")"}` : "")}
         ${zeile(T("fotos.d_kamera", "Kamera"), d.kamera)}
         ${zeile(T("fotos.d_objektiv", "Objektiv"), d.objektiv)}
@@ -588,6 +707,46 @@
           </details>` : ""}
       </div>`;
     document.querySelectorAll(".foto-kachel.is-on").forEach(el => el.classList.remove("is-on"));
+    detailKarte(d, tour);
+    const tunKnopf = box.querySelector('[data-tun="geotagger"]');
+    if (tunKnopf) tunKnopf.onclick = () => verortenStarten(d, tunKnopf.dataset.tour || "");
+    const tourKnopf = box.querySelector(".foto-d-tour");
+    if (tourKnopf) tourKnopf.onclick = () => tourOeffnen(tourKnopf.dataset.tour || "");
+  }
+
+  /** „Im Geotagger verorten": Track laden, Modul wechseln, Ordner übergeben. */
+  async function verortenStarten(d, tourPfad) {
+    const ordnerPfad = d.ordner || "";
+    if (window.rzStatus) {
+      window.rzStatus.start("foto-verorten", {
+        titel: T("fotos.b_verorten", "Im Geotagger verorten"),
+        text: T("fotos.verorten_track", "Track laden …"),
+      });
+    }
+    try {
+      if (tourPfad && typeof window.loadGlobalGpx === "function") {
+        await window.loadGlobalGpx(tourPfad, { stumm: true });
+      }
+      if (typeof switchMod === "function") switchMod("geotagger");
+      if (window.rzStatus) {
+        window.rzStatus.schritt("foto-verorten",
+          { text: T("fotos.verorten_ordner", "Fotos einlesen …") });
+      }
+      // Kleine Pause: das Modul muss erst stehen, bevor es den Ordner liest.
+      await new Promise((r) => setTimeout(r, 350));
+      if (ordnerPfad && typeof window.__rzGtOrdnerLaden === "function") {
+        await window.__rzGtOrdnerLaden(ordnerPfad, false);
+      }
+      if (window.rzStatus) window.rzStatus.fertig("foto-verorten", "");
+    } catch (e) {
+      if (window.rzStatus) window.rzStatus.fehler("foto-verorten", String(e && e.message ? e.message : e));
+    }
+  }
+
+  async function tourOeffnen(pfad) {
+    if (!pfad || typeof window.loadGlobalGpx !== "function") return;
+    const ok = await window.loadGlobalGpx(pfad, { stumm: true });
+    if (ok !== false && typeof switchMod === "function") switchMod("animator");
   }
 
   // ── Gerüst ──────────────────────────────────────────────────────────────
