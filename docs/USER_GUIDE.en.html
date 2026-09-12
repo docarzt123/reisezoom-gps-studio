@@ -977,6 +977,22 @@ python app.py</code></pre>
 <p> from the tour&#x27;s time window; it is written into no file. Clicking a tour shows  its files in the grid.</p>
 <h3 id="searching-and-filtering">Searching and filtering</h3>
 <p>The search box covers everything the files carry: file name, camera, lens, keywords, place names. On top of that: year, camera and <em>with / without coordinates</em>. On the left you see at a glance how many files have no coordinates or no capture time — one click filters for them.</p>
+<h3 id="scanning-and-what-happens-by-itself">Scanning — and what happens by itself</h3>
+<p>A folder you add is actually watched. When you open the photo area, the app carries on where the last run stopped:</p>
+<ul>
+<li><strong>Files not read yet</strong> are always picked up. That only touches files which are</li>
+</ul>
+<p> due anyway.</p>
+<ul>
+<li><strong>A full look</strong> at what changed in the folders — new, changed and deleted</li>
+</ul>
+<p> files — runs at most every six hours. On a network drive such a pass takes  minutes, so not on every visit. <strong>Scan</strong> in the sidebar does it right away.</p>
+<p>Both run in the background, say what they are doing in the bottom right, and can be cancelled. If you would rather they did not — on a hotspot, on someone else&#x27;s Wi-Fi — untick <strong>Keep up to date by itself</strong> in the sidebar.</p>
+<blockquote><strong>Why the first scan matters:</strong> capture data and thumbnails are created during</blockquote>
+<blockquote>it and then live in the library on your own machine. Before that, every tile</blockquote>
+<blockquote>has to fetch its picture from the drive one by one — about a second each for</blockquote>
+<blockquote>videos. While anything is outstanding, the header above the grid says so and</blockquote>
+<blockquote>offers the button right there.</blockquote>
 <h3 id="what-the-stock-knows-about-a-photo">What the stock knows about a photo</h3>
 <p>Click a tile and the right-hand column shows everything about that file:</p>
 <p><strong>The picture, large</strong>, and below it the <strong>findings</strong>. Each finding says two things — what was detected and how it would be solved. If the coordinate is missing and the capture time falls inside a recorded tour, that tour is named and a button <strong>&quot;Place in Geotagger&quot;</strong> takes you straight there: track loaded, photo folder read in. If no tour covers the time, that is what it says — no button that leads nowhere. If the capture time is missing entirely, the line admits that only the EXIF editor will fix it.</p>

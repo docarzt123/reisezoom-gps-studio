@@ -3500,5 +3500,7 @@
   "fotos.laden_hinweis": "El archivo está en la biblioteca; esto funciona también sin la unidad.",
   "fotos.thumbs_holen": "Creando miniaturas",
   "fotos.kopf_einlesen": "Escanear ahora",
-  "fotos.kopf_offen_hilfe": "Solo tras el escaneo los datos de captura y las miniaturas están en la biblioteca; hasta entonces la vista trae cada imagen de la unidad una a una."
+  "fotos.kopf_offen_hilfe": "Solo tras el escaneo los datos de captura y las miniaturas están en la biblioteca; hasta entonces la vista trae cada imagen de la unidad una a una.",
+  "fotos.auto": "Mantener al día por sí solo",
+  "fotos.auto_tip": "Al abrir, continúa donde se quedó la última pasada y busca cambios en las carpetas como mucho cada seis horas."
 }

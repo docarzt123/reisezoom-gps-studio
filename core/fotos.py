@@ -517,6 +517,50 @@ def fps_lesen(conn: sqlite3.Connection, pfade: list) -> dict:
     return raus
 
 
+# Wie lange ein vollständiger Blick in die Ordner gilt, bevor er beim Öffnen
+# des Bereichs erneut läuft. Auf einem NAS im WLAN kostet ein solcher Durchlauf
+# Minuten (gemessen am 12.09.2026), deshalb nicht bei jedem Öffnen.
+NACHSCHAU_STUNDEN = 6
+
+
+def letzte_nachschau(conn: sqlite3.Connection) -> Optional[float]:
+    r = conn.execute("SELECT value FROM meta WHERE key = 'fotos_nachschau'").fetchone()
+    try:
+        return float(r["value"]) if r and r["value"] else None
+    except (TypeError, ValueError):
+        return None
+
+
+def nachschau_merken(conn: sqlite3.Connection) -> None:
+    conn.execute("INSERT INTO meta(key, value) VALUES('fotos_nachschau', ?) "
+                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                 (str(datetime.now(timezone.utc).timestamp()),))
+    conn.commit()
+
+
+def was_zu_tun(conn: sqlite3.Connection) -> dict:
+    """Was beim Öffnen des Bereichs von selbst nachgeholt werden sollte.
+
+    Marc, 12.09.2026: „wenn ich einen ordner hinzugefügt habe, dann will ich
+    doch auch, dass der gemonitort wird … und wenn sich im ordner etwas
+    geändert hat, muss das die app ja auch merken."
+
+    Zwei getrennte Fragen: **Ungelesenes** weiterlesen kostet nur die Dateien,
+    die ohnehin drankommen — das ist immer fällig. Ein **vollständiger Blick**
+    in die Ordner kostet auf einem Netzlaufwerk Minuten, der läuft nur, wenn er
+    lange genug her ist.
+    """
+    offen = conn.execute("SELECT COUNT(*) FROM fotos WHERE indexed_at IS NULL "
+                         "AND fehlt_seit IS NULL").fetchone()[0]
+    letzte = letzte_nachschau(conn)
+    alt = (datetime.now(timezone.utc).timestamp() - letzte) if letzte else None
+    faellig = (letzte is None) or (alt is not None and alt > NACHSCHAU_STUNDEN * 3600)
+    erreichbar = [o["path"] for o in ordner_liste(conn) if o["da"]]
+    return {"ungelesen": int(offen), "nachschau_faellig": bool(faellig and erreichbar),
+            "letzte_nachschau": letzte, "ordner_da": len(erreichbar),
+            "ordner": len(ordner_liste(conn))}
+
+
 def fp_setzen(conn: sqlite3.Connection, werte: dict) -> int:
     """Nachträglich gelernte Cache-Schlüssel merken.
 

@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.693"
+APP_VERSION = "0.9.694"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -509,6 +509,11 @@ DEFAULT_SETTINGS = {
     # Abschaltbar in den Einstellungen; dann startet die App im Archiv.
     "start_fortsetzen": True,
     "letztes_projekt": "",         # id, gesetzt von `projekt_aktivieren`
+    # 12.09.2026 — Der Fotobestand holt beim Öffnen von selbst nach, was fehlt:
+    # Ungelesenes immer, ein vollständiger Blick in die Ordner höchstens alle
+    # sechs Stunden. Abschaltbar, weil das auf einem Netzlaufwerk oder am
+    # Hotspot nicht ungefragt laufen soll.
+    "fotos_auto": True,
     "language": "auto",            # 'auto' | 'de' | 'en' | 'es'
     "mapbox_token": "",            # leer → Mapbox-Stile weichen auf „Satellit (kostenlos)" aus
     # 03.09.2026 — Kartenanbieter zur Auswahl (core/mapstyles.py)
@@ -4046,7 +4051,40 @@ class Api:
             log.exception("fotos_ordner_weg")
             return {"ok": False, "error": str(e)}
 
-    def fotos_scan_start(self, ordner: str = "", nur_liste: bool = False) -> dict:
+    def fotos_aufholen(self) -> dict:
+        """Von selbst weitermachen, wo der letzte Lauf aufhörte.
+
+        Marc, 12.09.2026: „wenn ich einen ordner hinzugefügt habe, dann will ich
+        doch auch, dass der gemonitort wird … und wenn sich im ordner etwas
+        geändert hat, muss das die app ja auch merken."
+
+        Zwei getrennte Kosten: Ungelesenes weiterlesen fasst nur die Dateien an,
+        die ohnehin dran sind. Ein vollständiger Blick in die Ordner kostet auf
+        einem Netzlaufwerk Minuten — der läuft nur, wenn er lange genug her ist
+        (`cfotos.NACHSCHAU_STUNDEN`). Beides im Hintergrund, sichtbar und
+        abbrechbar; wer es nicht will, schaltet es im Bereich ab.
+        """
+        try:
+            if not _load_settings().get("fotos_auto", True):
+                return {"ok": True, "gestartet": False, "grund": "abgeschaltet"}
+            if getattr(self, "_foto_scan_running", False):
+                return {"ok": True, "gestartet": False, "grund": "läuft bereits"}
+            tun = cfotos.was_zu_tun(self._lib())
+            if not tun["ordner_da"]:
+                return {"ok": True, "gestartet": False, "grund": "kein Ordner erreichbar",
+                        "tun": tun}
+            if not tun["ungelesen"] and not tun["nachschau_faellig"]:
+                return {"ok": True, "gestartet": False, "grund": "nichts zu tun", "tun": tun}
+            res = self.fotos_scan_start(ohne_liste=not tun["nachschau_faellig"])
+            res["gestartet"] = bool(res.get("ok"))
+            res["tun"] = tun
+            return res
+        except Exception as e:
+            log.exception("fotos_aufholen")
+            return {"ok": False, "error": str(e), "gestartet": False}
+
+    def fotos_scan_start(self, ordner: str = "", nur_liste: bool = False,
+                         ohne_liste: bool = False) -> dict:
         """Einlesen im Hintergrund, in zwei Durchgängen.
 
         Erst die Dateiliste (Sekunden, danach steht die Ansicht), dann die
@@ -4076,11 +4114,19 @@ class Api:
                     self._foto_scan_state["ferne_ordner"] = ferne
                     log.info("[fotos] %d Ordner gerade nicht erreichbar: %s",
                              len(ferne), ", ".join(ferne[:3]))
-                r1 = cfotos.durchgang1(
-                    conn,
-                    fortschritt=lambda n, g: self._foto_scan_state.update(
-                        {"phase": "dateien", "done": n, "total": g}),
-                    stop=lambda: self._foto_scan_stop, ordner=nur)
+                if ohne_liste:
+                    # Nur das Ungelesene nachholen: ein vollständiger Blick in
+                    # die Ordner lohnt nicht bei jedem Öffnen.
+                    r1 = {"uebersprungen": True}
+                    self._foto_scan_state.update({"phase": "daten", "done": 0, "total": 0})
+                else:
+                    r1 = cfotos.durchgang1(
+                        conn,
+                        fortschritt=lambda n, g: self._foto_scan_state.update(
+                            {"phase": "dateien", "done": n, "total": g}),
+                        stop=lambda: self._foto_scan_stop, ordner=nur)
+                    if not r1.get("abbruch") and not nur:
+                        cfotos.nachschau_merken(conn)
                 self._foto_scan_state.update({"dateien": r1, "neu": r1.get("neu", 0)})
                 if not nur_liste and not self._foto_scan_stop:
                     self._foto_scan_state.update({"phase": "daten", "done": 0, "total": 0})

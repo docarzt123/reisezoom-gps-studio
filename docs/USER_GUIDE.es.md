@@ -1302,6 +1302,29 @@ objetivo, palabras clave, lugares. Además: año, cámara y *con / sin
 coordenadas*. A la izquierda ves de un vistazo cuántos archivos no tienen
 coordenadas o no tienen hora; un clic filtra por ellos.
 
+### Escanear, y qué ocurre por sí solo
+
+Una carpeta que añades queda realmente vigilada. Al abrir el área de fotos, la
+aplicación continúa donde se quedó la última pasada:
+
+- **Los archivos aún no leídos** se procesan siempre. Eso solo toca archivos que
+  tocaban de todos modos.
+- **La revisión completa** de lo que ha cambiado en las carpetas —archivos
+  nuevos, cambiados y borrados— se hace como mucho cada seis horas. En una
+  unidad de red esa pasada dura minutos, así que no en cada visita. Con
+  **Escanear** en la barra lateral se hace al momento.
+
+Ambas cosas van en segundo plano, dicen abajo a la derecha qué hacen y se pueden
+cancelar. Si prefieres que no ocurra —en un punto de acceso, en una wifi
+ajena— desmarca **Mantener al día por sí solo** en la barra lateral.
+
+> **Por qué importa el primer escaneo:** los datos de captura y las miniaturas
+> se crean ahí y luego viven en la biblioteca de tu ordenador. Antes de eso,
+> cada miniatura tiene que traer su imagen de la unidad una a una: alrededor de
+> un segundo por vídeo. Mientras quede algo pendiente, la cabecera sobre la
+> cuadrícula lo dice y ofrece el botón al lado.
+
+
 ### Lo que el fondo sabe de una foto
 
 Haz clic en una miniatura y la columna derecha muestra todo sobre ese archivo:

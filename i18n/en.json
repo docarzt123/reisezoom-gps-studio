@@ -3500,5 +3500,7 @@
   "fotos.laden_hinweis": "The stock lives in the library — this works without the drive too.",
   "fotos.thumbs_holen": "Creating thumbnails",
   "fotos.kopf_einlesen": "Scan now",
-  "fotos.kopf_offen_hilfe": "Only after the scan do capture data and thumbnails live in the library — until then the view fetches every picture from the drive one by one."
+  "fotos.kopf_offen_hilfe": "Only after the scan do capture data and thumbnails live in the library — until then the view fetches every picture from the drive one by one.",
+  "fotos.auto": "Keep up to date by itself",
+  "fotos.auto_tip": "On opening, carry on where the last run stopped, and look for changes in the folders at most every six hours."
 }

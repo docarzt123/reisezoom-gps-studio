@@ -37,6 +37,7 @@
   let karte = null, karteLib = null, karteBereit = false, spurenAn = false;
   let auswahl = null;
   let dKarte = null;          // die kleine Karte in der Detailspalte
+  let autoAn = true;          // beim Öffnen von selbst nachholen
 
   function num(n) {
     let loc = null;
@@ -105,6 +106,10 @@
       <button class="btn btn-ghost btn-sm" id="foto-scan" type="button">
         ${T("fotos.scan", "Einlesen")}</button>
       <div id="foto-scan-stand" class="lib-nav-hint"></div>
+      <label class="foto-auto" title="${T("fotos.auto_tip", "Beim Öffnen weiterlesen, wo der letzte Lauf aufhörte, und höchstens alle sechs Stunden nachsehen, ob sich in den Ordnern etwas geändert hat.")}">
+        <input type="checkbox" id="foto-auto"${autoAn ? " checked" : ""}>
+        <span>${T("fotos.auto", "Von selbst aktuell halten")}</span>
+      </label>
       ${(s.ungelesen || 0) ? `<div class="lib-nav-hint">${T("fotos.ungelesen", "{n} Dateien noch ohne Aufnahmedaten").replace("{n}", num(s.ungelesen))}</div>` : ""}
     `;
 
@@ -168,9 +173,27 @@
     };
     const scan = nav.querySelector("#foto-scan");
     if (scan) scan.onclick = () => scanStarten();
+    const auto = nav.querySelector("#foto-auto");
+    if (auto) auto.onchange = async () => {
+      autoAn = !!auto.checked;
+      try { await api().settings_set({ fotos_auto: autoAn }); } catch (_) {}
+      if (autoAn) aufholen();
+    };
   }
 
   // ── Einlesen ────────────────────────────────────────────────────────────
+
+  /* Beim Öffnen weitermachen, wo der letzte Lauf aufhörte — und ab und zu
+     nachsehen, ob sich in den Ordnern etwas geändert hat. Marc, 12.09.2026:
+     „wenn ich einen ordner hinzugefügt habe, dann will ich doch auch, dass der
+     gemonitort wird." Das Nachsehen kostet auf einem NAS Minuten, deshalb
+     höchstens alle sechs Stunden; das Weiterlesen fasst nur an, was ohnehin
+     dran ist. */
+  async function aufholen() {
+    const r = await api().fotos_aufholen().catch(() => null);
+    if (r && r.gestartet) scanBeobachten();
+    return r;
+  }
 
   async function scanStarten() {
     if (!ordner.length) {
@@ -254,15 +277,23 @@
 
   // ── Laden ───────────────────────────────────────────────────────────────
 
+  // Zwei Ladevorgänge gleichzeitig hängten dieselbe Seite zweimal an (im
+  // Prüfstand: 20 Kacheln statt 10). Seit das Aufholen im Hintergrund die
+  // Ansicht nachzieht, passiert das leicht — also eine Laufnummer.
+  let ladeLauf = 0;
+
   async function neuLaden(leise) {
+    ladeLauf++;
     geladen = [];
     await mehrLaden(leise);
   }
 
   async function mehrLaden(leise) {
+    const lauf = ladeLauf;
     const r = await api().fotos_abfrage({
       filter: filter, limit: SEITE, offset: geladen.length, mit_thumbs: true,
     }).catch(() => null);
+    if (lauf !== ladeLauf || !angemeldet) return;   // inzwischen überholt
     if (!r || !r.ok) { if (!leise) toast((r && r.error) || "?", "warn"); return; }
     gesamt = r.n || 0;
     geladen = geladen.concat(r.fotos || []);
@@ -886,6 +917,10 @@
         }
       }
     };
+    try {
+      const st = await api().settings_get();
+      autoAn = (st && st.fotos_auto) !== false;
+    } catch (_) { autoAn = true; }
     schritt(T("fotos.laden_ordner", "Ordner lesen …"));
     const r = await api().fotos_ordner().catch(() => null);
     if (!angemeldet) return;
@@ -898,6 +933,8 @@
       .replace("{n}", num(stand.gesamt || gesamt || 0)));
     await neuLaden(true);
     if (window.rzStatus) window.rzStatus.fertig("foto-oeffnen", "");
+    if (!angemeldet) return;
+    if (autoAn) aufholen();
     // Läuft gerade ein Scan (etwa aus einer früheren Sitzung im Hintergrund),
     // zeigt die Leiste ihn sofort an, statt ihn zu verschweigen.
     try {

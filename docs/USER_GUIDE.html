@@ -1070,6 +1070,22 @@ python app.py</code></pre>
 <p> rechnet GPS Studio über das Zeitfenster der Tour; sie steht nirgends in den  Dateien. Ein Klick auf eine Tour zeigt ihre Dateien im Raster.</p>
 <h3 id="suchen-und-filtern">Suchen und filtern</h3>
 <p>Das Suchfeld durchsucht alles, was in den Dateien steht: Dateiname, Kamera, Objektiv, Stichwörter, Ortsangaben. Dazu kommen Jahr, Kamera und <em>mit / ohne Koordinate</em>. Links siehst du auf einen Blick, wie viele Dateien ohne Koordinate oder ohne Aufnahmezeit sind — ein Klick darauf filtert danach.</p>
+<h3 id="einlesen-und-was-von-selbst-passiert">Einlesen — und was von selbst passiert</h3>
+<p>Ein Ordner, den du aufnimmst, wird auch beobachtet. Beim Öffnen des Fotobereichs macht die App dort weiter, wo der letzte Lauf aufhörte:</p>
+<ul>
+<li><strong>Noch nicht gelesene Dateien</strong> werden immer nachgeholt. Das fasst nur die</li>
+</ul>
+<p> Dateien an, die ohnehin dran sind.</p>
+<ul>
+<li><strong>Vollständig nachsehen</strong>, was sich in den Ordnern geändert hat — neue,</li>
+</ul>
+<p> geänderte und gelöschte Dateien — läuft höchstens alle sechs Stunden. Auf  einem Netzlaufwerk dauert ein solcher Durchgang Minuten, deshalb nicht bei  jedem Öffnen. Sofort geht es über <strong>Einlesen</strong> in der Seitenleiste.</p>
+<p>Beides läuft im Hintergrund, sagt unten rechts was es tut, und lässt sich abbrechen. Willst du das nicht — unterwegs am Hotspot, im fremden WLAN — nimm in der Seitenleiste das Häkchen <strong>Von selbst aktuell halten</strong> heraus.</p>
+<blockquote><strong>Warum das erste Einlesen wichtig ist:</strong> Aufnahmedaten und Vorschaubilder</blockquote>
+<blockquote>entstehen genau dabei und liegen danach in der Bibliothek auf deinem Rechner.</blockquote>
+<blockquote>Vorher muss jede Kachel ihr Bild einzeln vom Laufwerk holen — bei Videos rund</blockquote>
+<blockquote>eine Sekunde pro Stück. Solange etwas aussteht, sagt das die Kopfzeile über</blockquote>
+<blockquote>dem Raster und bietet den Knopf gleich daneben an.</blockquote>
 <h3 id="was-der-bestand-ber-ein-foto-wei">Was der Bestand über ein Foto weiß</h3>
 <p>Klick auf eine Kachel, und die Spalte rechts zeigt alles zu dieser Datei:</p>
 <p><strong>Das Bild groß</strong>, darunter die <strong>Befunde</strong>. Jeder Befund sagt zwei Dinge — was erkannt wurde und wie es zu lösen wäre. Fehlt die Koordinate und liegt die Aufnahmezeit in einer aufgezeichneten Tour, steht deren Name da und ein Knopf <strong>„Im Geotagger verorten&quot;</strong> führt direkt hinüber: der Track ist geladen, der Fotoordner eingelesen. Deckt keine Tour die Zeit ab, steht genau das da — ohne Knopf, der ins Leere führt. Fehlt die Aufnahmezeit ganz, ist ehrlich vermerkt, dass das erst der EXIF-Editor lösen kann.</p>
