@@ -72,13 +72,50 @@ def _file_fingerprint(path: str) -> Optional[str]:
     """SHA1 aus (abs path, mtime ns, size). Robust gegen Dateinamens-Reuse."""
     try:
         st = os.stat(path)
-        h = hashlib.sha1()
-        h.update(os.path.abspath(path).encode("utf-8"))
-        h.update(str(st.st_mtime_ns).encode("ascii"))
-        h.update(str(st.st_size).encode("ascii"))
-        return h.hexdigest()
     except OSError:
         return None
+    return fingerprint_aus(path, st.st_mtime_ns, st.st_size)
+
+
+def fingerprint_aus(path: str, mtime_ns: int, size: int) -> str:
+    """Derselbe Schlüssel, aber aus übergebenen Werten.
+
+    Gebraucht, wenn die Datei gerade NICHT erreichbar ist: der Fotobestand
+    merkt sich den Fingerabdruck in der Bibliothek, damit die Vorschaubilder
+    auch ohne NAS aus dem Cache kommen (Marc, 12.09.2026: „was passiert, wenn
+    ich unterwegs bin und keinen zugriff habe").
+    """
+    h = hashlib.sha1()
+    h.update(os.path.abspath(path).encode("utf-8"))
+    h.update(str(int(mtime_ns)).encode("ascii"))
+    h.update(str(int(size)).encode("ascii"))
+    return h.hexdigest()
+
+
+# Ersatzquelle für den Fingerabdruck, wenn die Datei nicht erreichbar ist.
+# Wird von app.py auf den Fotobestand gesetzt; nimmt einen Pfad, gibt einen
+# Fingerabdruck oder None.
+_fp_ersatz = None
+
+
+def set_fingerprint_ersatz(fn) -> None:
+    global _fp_ersatz
+    _fp_ersatz = fn
+
+
+def _fingerprint(path: str, fp: Optional[str] = None) -> Optional[str]:
+    """Fingerabdruck: übergeben schlägt Datei schlägt Gedächtnis."""
+    if fp:
+        return fp
+    eigen = _file_fingerprint(path)
+    if eigen:
+        return eigen
+    if _fp_ersatz is not None:
+        try:
+            return _fp_ersatz(path) or None
+        except Exception as e:
+            _log.debug("fingerprint-ersatz fehlgeschlagen (%s): %s", path, e)
+    return None
 
 
 def _cache_get(fp: str) -> Optional[bytes]:
@@ -212,32 +249,42 @@ def _thumb_bytes_fuer(path: str, max_px: int) -> Optional[bytes]:
         return None
 
 
-def thumb_gecacht(path: str, max_px: int = THUMB_RASTER_PX) -> Optional[bytes]:
-    """Vorschaubild aus dem Platten-Cache, sonst erzeugen und hineinlegen."""
-    fp = _file_fingerprint(path)
-    schluessel = f"{fp}@{int(max_px)}" if fp else ""
+def thumb_gecacht(path: str, max_px: int = THUMB_RASTER_PX,
+                  fp: Optional[str] = None) -> Optional[bytes]:
+    """Vorschaubild aus dem Platten-Cache, sonst erzeugen und hineinlegen.
+
+    `fp` ist der gemerkte Fingerabdruck aus dem Fotobestand. Damit findet der
+    Cache seine Bilder auch dann, wenn das Laufwerk gerade nicht da ist.
+    """
+    schluessel = _fingerprint(path, fp)
+    schluessel = f"{schluessel}@{int(max_px)}" if schluessel else ""
     if schluessel:
         da = _cache_get(schluessel)
         if da:
             return da
+    if not os.path.isfile(path):
+        return None            # nichts im Cache und die Datei ist weg
     data = _thumb_bytes_fuer(path, int(max_px))
     if data and schluessel:
         _cache_put(schluessel, data)
     return data
 
 
-def thumb_data_url_gecacht(path: str, max_px: int = THUMB_RASTER_PX) -> Optional[str]:
+def thumb_data_url_gecacht(path: str, max_px: int = THUMB_RASTER_PX,
+                           fp: Optional[str] = None) -> Optional[str]:
     """Wie `thumb_gecacht`, aber gleich als data-URL für die Oberfläche."""
-    return _to_data_url(thumb_gecacht(path, max_px))
+    return _to_data_url(thumb_gecacht(path, max_px, fp))
 
 
 def _get_thumbnail_data_url(path: str) -> Optional[str]:
     """Cache-aware Wrapper. Liefert data-URL oder None."""
-    fp = _file_fingerprint(path)
+    fp = _fingerprint(path)
     if fp:
         cached = _cache_get(fp)
         if cached:
             return _to_data_url(cached)
+    if not os.path.isfile(path):
+        return None
     data = _make_thumbnail_bytes(path)
     if data is None:
         return None

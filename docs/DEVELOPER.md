@@ -4650,6 +4650,63 @@ einem echten MP4) und `tests/test_fotos_ui.py` (echte Oberfläche an der echten
 Brücke, Playwright, **eigene Testbibliothek** — der Prüfstand darf Marcs
 Arbeitsbibliothek nicht anfassen).
 
+### Ohne das Laufwerk (12.09.2026, v0.9.692)
+
+Marcs Bilder liegen auf einem NAS im WLAN — unterwegs ist der Ordner also weg.
+Drei Stellen mussten dafür gerade gezogen werden:
+
+1. **Der Vorschau-Schlüssel.** `core/photos._file_fingerprint` bildet ihn aus
+   `abspath + st_mtime_ns + st_size`. Ohne Datei kein `stat()`, also kein
+   Schlüssel — und ein voller Cache fertiger Vorschaubilder war unerreichbar.
+   Jetzt merkt sich `fotos.fp` denselben Wert (`fingerprint_aus`), `fps_lesen`
+   holt ihn für eine ganze Seite in einem Zugriff, und `photos.thumb_gecacht`
+   nimmt ihn als drittes Argument. Für Wege ohne Bibliothekszugriff (Animator,
+   Projekt-Fotos) setzt `app.py` zusätzlich `set_fingerprint_ersatz` — eine
+   schlanke eigene Verbindung mit Gedächtnis, weil dieser Weg bei abwesendem
+   Laufwerk für jedes Bild einmal gegangen wird. **Die Formel darf sich nie
+   ändern**, sonst verliert jeder bestehende Cache seinen Schlüssel.
+2. **Durchgang 1** nimmt nur Ordner mit `da == True`. Dadurch läuft die
+   Fehlt-Markierung am Ende gar nicht erst über abwesende Ordner — sonst wäre
+   nach einer Zugfahrt der halbe Bestand als verschwunden markiert.
+3. **Durchgang 2** überspringt Dateien, die gerade nicht zu öffnen sind
+   (`fern` im Ergebnis), statt sie mit `indexed_at` und „keine Aufnahmedaten
+   lesbar" abzustempeln. Ein abgestempeltes Foto käme nie wieder dran, weil
+   `_offene()` nur nach `indexed_at IS NULL` sucht.
+
+Wächter: `tests/test_fotos_ohne_laufwerk.py` — schiebt den Ordner mit `shutil.move`
+beiseite und prüft alle drei Punkte, inklusive der Rückkehr des Laufwerks.
+
+### Die Detailspalte (12.09.2026, v0.9.692)
+
+Marc: „anzeigen was für probleme gemeldet werden und ob wir die lösen können …
+und wenn es zu einem track gehört auch den track auf der karte zeigen."
+
+- `fotos.tour_fuer_foto(conn, d)` — `tour_zu_zeit` über `tour_fenster`, dazu
+  `tracks.geom` (liegt bereits vereinfacht in der Datenbank, kostet also
+  nichts) für die kleine Karte.
+- `fotos.befunde_foto(conn, d, tour)` — gibt **Schlüssel**, Stufe, `loesbar`
+  und `aktion` zurück, keinen Text: die Sprache gehört in die Oberfläche
+  (`check_hartkodierte_sprache.py`). `loesbar` ist kein Etikett, sondern eine
+  Aussage über die Daten — „keine Koordinate" ist nur dann lösbar, wenn eine
+  Tour die Aufnahmezeit abdeckt UND ihr Verlauf vorliegt.
+- `fotos_details` hängt beides an; `ui/js/fotos.js` rendert `befundText()`
+  (was erkannt wurde / wie es zu lösen wäre) und `detailKarte()` (Punkt +
+  Tourlinie, Ausschnitt über beides).
+- Der Knopf „Im Geotagger verorten" geht denselben Weg wie `openIn()` im
+  Archiv: `loadGlobalGpx(tourPfad)` → `switchMod("geotagger")` → der neu
+  ausgeklammerte `window.__rzGtOrdnerLaden(ordner, rekursiv)` im
+  Geotagger-Modul liest den Fotoordner ein.
+
+Wächter: `tests/test_fotos_detailspalte.py` — Brücke und echte Oberfläche, mit
+drei Fotos (vollständig / ohne Ort mit Tour / ohne Ort ohne Tour) und einem
+Track mit echtem `geom`. Er prüft ausdrücklich auch das Nicht-Versprechen: ohne
+Track darf kein Knopf erscheinen.
+
+**Falle, gefunden beim Bau:** `_parse_exif_tz_minutes("+00:00")` ist `0`, und
+eine `a or b or c`-Kette hielt das für „nichts gefunden". Fotos aus UTC galten
+als „Zeitzone geraten". Jetzt `core/exif._erste_tz()` mit `is not None`.
+
+
 ## Mehrere Bibliotheken (12.09.2026, v0.9.690)
 
 Wechseln konnte die App schon (`ort_schreiben` merkt den bisherigen Ort unter

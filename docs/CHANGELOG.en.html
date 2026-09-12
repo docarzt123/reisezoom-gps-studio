@@ -117,6 +117,20 @@
 
 <article class="version latest">
   <div class="version-head">
+    <span class="version-num">v0.9.692</span>
+    <span class="version-date">12 September 2026</span>
+    <span class="version-badge">Current</span>
+  </div>
+  <ul>
+    <li><strong>Photos: the right-hand column now answers the whole question</strong> &mdash; Click a picture and the column shows the large preview, the <strong>findings with a way to solve them</strong>, a small map and all capture data. Each finding says what was detected <em>and</em> how it would be solved: if the coordinate is missing and a recorded tour covers the capture time, that tour is named and a button takes you to the Geotagger &mdash; track loaded, photo folder read in. If no tour covers the time, that is what it says, with no button leading nowhere. The map shows the spot with the tour's course underneath.</li>
+    <li><strong>Photos on a network drive: thumbnails survive the disconnect</strong> &mdash; The thumbnail cache key was built from the original file's modification time and size. With the NAS away the key could not be computed and a full cache of finished thumbnails was unreachable &mdash; a grey grid on the train. The key now lives in the library. Grid, search, map and tour grouping keep working without the drive.</li>
+    <li><strong>An absent drive no longer damages the stock</strong> &mdash; Unreachable folders are skipped and labelled as such, nothing is marked as missing, and files that cannot be opened right now are <em>postponed instead of stamped</em>. Before, such a file counted as "no capture data readable" forever and was never looked at again.</li>
+    <li><strong>Time zone +00:00 counted as guessed</strong> &mdash; Photos from Britain in winter, from Iceland or from cameras that stamp UTC were listed as "time zone guessed" although the file said so.</li>
+  </ul>
+</article>
+
+<article class="version">
+  <div class="version-head">
     <span class="version-num">v0.9.691</span>
     <span class="version-date">12 September 2026</span>
     <span class="version-badge">Latest</span>

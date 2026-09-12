@@ -1272,10 +1272,31 @@ or no capture time — one click filters for them.
 
 ### What the stock knows about a photo
 
-Click a tile and the right-hand column shows a large preview, capture time (with
-the note *guessed* when the time zone was not in the file), camera, lens,
-aperture, exposure, ISO, size, place and coordinates. At the bottom **All
-capture data** unfolds every single entry the file holds.
+Click a tile and the right-hand column shows everything about that file:
+
+**The picture, large**, and below it the **findings**. Each finding says two
+things — what was detected and how it would be solved. If the coordinate is
+missing and the capture time falls inside a recorded tour, that tour is named
+and a button **"Place in Geotagger"** takes you straight there: track loaded,
+photo folder read in. If no tour covers the time, that is what it says — no
+button that leads nowhere. If the capture time is missing entirely, the line
+admits that only the EXIF editor will fix it.
+
+**The small map** shows the spot as a dot. If the picture belongs to a tour, the
+tour's course lies underneath as a line and the view fits both, so you see at
+once where on the trip the picture was taken. A click on the tour's name opens
+it in the Animator.
+
+**The capture data**: time (with the note *guessed* when the time zone was not
+in the file), camera, lens, aperture, exposure, ISO, size, place and
+coordinates. At the bottom **All capture data** unfolds every single entry the
+file holds.
+
+> **On the road without the drive?** Capture data and thumbnails live in the
+> library on your own machine. Grid, search, map and the grouping by tour keep
+> working when the NAS or the external disk is not there. The folder is marked
+> *not there*, and a scan leaves the stock alone: nothing is marked as missing,
+> nothing is stamped as broken, and files not yet read are picked up next time.
 
 ### What does not work (yet)
 
@@ -2404,6 +2425,16 @@ receives tiles. If you chose "Don't allow" and see an empty map: System
 Settings → Privacy & Security → Local Network → enable GPS Studio. If you leave
 the dialog open for a long time, the app looks frozen — it is only waiting for
 your answer.
+
+### "GPS Studio would like to access Apple Music and your media library" (macOS)
+This appears while the photo library is indexing **videos**. **The app never
+touches your music.** The trigger is the preview image: for a video, GPS Studio
+first lets QuickLook draw a frame (`qlmanage`), because that costs about four
+times less than decoding it ourselves — and QuickLook loads Apple's media
+components to do it. macOS then attributes the question to whoever called
+QuickLook, which is us. **"Don't Allow" is the right answer:** nothing is lost,
+because wherever QuickLook gives up, the built-in video decoder steps in. macOS
+remembers your answer, so the question won't come back.
 
 ### "Windows Defender protected your PC" (Windows)
 The same problem on Windows. **"More info" → "Run anyway"**.

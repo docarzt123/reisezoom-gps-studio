@@ -835,6 +835,20 @@ def _parse_exif_tz_minutes(v: Any) -> Optional[int]:
     return sign * (int(m.group(2)) * 60 + int(m.group(3)))
 
 
+def _erste_tz(info: dict, *namen: str) -> Optional[int]:
+    """Erster auswertbarer Zeitzonen-Versatz — **0 ist ein Wert**, kein Nichts.
+
+    Mit `a or b` fiel eine echte UTC-Angabe (+00:00 → 0) durch und das Foto galt
+    als „Zeitzone geraten": Großbritannien im Winter, Island, Kameras die in UTC
+    stempeln. Aufgefallen am 12.09.2026 beim Prüfstand der Detailspalte.
+    """
+    for n in namen:
+        v = _parse_exif_tz_minutes(info.get(n))
+        if v is not None:
+            return v
+    return None
+
+
 def _to_utc(dt_naive: Optional[datetime], tz_minutes: Optional[int]) -> Optional[datetime]:
     """Wenn ein TZ-Offset bekannt ist, konvertiere die naive lokale Zeit zu UTC
     (als naive datetime zurück — Match-Logik klebt sowieso `tzinfo=utc` an)."""
@@ -891,9 +905,7 @@ def _exiftool_read_meta(path: str) -> dict:
         dt = _parse_exif_datetime(info.get(key))
         if dt:
             break
-    tz_min = (_parse_exif_tz_minutes(info.get("OffsetTimeOriginal"))
-              or _parse_exif_tz_minutes(info.get("OffsetTime"))
-              or _parse_exif_tz_minutes(info.get("OffsetTimeDigitized")))
+    tz_min = _erste_tz(info, "OffsetTimeOriginal", "OffsetTime", "OffsetTimeDigitized")
     # v0.9.373 — Fallback für RAW/DNG OHNE Exif-Offset (z.B. vivo-DNG): Zeitzone aus
     # der GPS-UTC-Zeit ableiten. Sonst gilt das Foto als „tz unbekannt" und seine
     # Lokalzeit wird als UTC fehlinterpretiert → falscher Track-Match (JPG↔DNG-Divergenz).
@@ -937,9 +949,7 @@ def _meta_aus_info(info: dict) -> dict:
         dt = _parse_exif_datetime(info.get(key))
         if dt:
             break
-    tz_min = (_parse_exif_tz_minutes(info.get("OffsetTimeOriginal"))
-              or _parse_exif_tz_minutes(info.get("OffsetTime"))
-              or _parse_exif_tz_minutes(info.get("OffsetTimeDigitized")))
+    tz_min = _erste_tz(info, "OffsetTimeOriginal", "OffsetTime", "OffsetTimeDigitized")
     if tz_min is None:
         tz_min = _tz_minutes_from_gps(dt, info.get("GPSDateTime"))
     lat, lon, alt = info.get("GPSLatitude"), info.get("GPSLongitude"), info.get("GPSAltitude")
@@ -1239,8 +1249,7 @@ def _exiftool_read_video_meta(path: str) -> dict:
     # schreibt exiftool's Default sie auch korrekt als UTC; ältere/falsch
     # konfigurierte Cams haben TZ-Offsets. Wir nehmen den Wert als naive UTC
     # an — falls TZ-Tag vorhanden, ziehen wir ab.
-    tz_min = (_parse_exif_tz_minutes(info.get("OffsetTimeOriginal"))
-              or _parse_exif_tz_minutes(info.get("OffsetTime")))
+    tz_min = _erste_tz(info, "OffsetTimeOriginal", "OffsetTime")
     if tz_min is not None and dt is not None:
         dt = _to_utc(dt, tz_min)
 
