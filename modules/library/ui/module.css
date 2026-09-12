@@ -1019,3 +1019,125 @@ body.lib-zieht .lib-card, body.lib-zieht .lib-row { cursor: grabbing; }
    aus der Kachel laufen (der ➕ des Nachbarn lag sonst unter fremden Chips). */
 .lib-proj-fuss { flex-wrap: wrap; row-gap: 4px; }
 .lib-proj-akt { flex-wrap: wrap; justify-content: flex-end; }
+
+/* 12.09.2026 — Name der geöffneten Bibliothek in der Archiv-Leiste (Marc:
+   „im archiv sollte nur der name der bibliothek stehen"). Zurückhaltend: ein
+   Text-Knopf, kein Schild, der bei „Test" sofort ins Auge fällt. */
+.lib-bibname {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 11.5px;
+  opacity: .8;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.lib-bibname:hover { opacity: 1; border-color: var(--accent); }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Foto-Bestand (12.09.2026, IDEAS §64) — dritter Bereich im Archiv.
+   Bewusst dieselben Bausteine wie die Touren-Ansicht (.lib-bar, .lib-head,
+   .lib-nav-item), damit es nicht wie ein fremdes Programm wirkt.
+   ────────────────────────────────────────────────────────────────────────── */
+.lib-fotowrap { display: flex; flex-direction: column; overflow: hidden; }
+.foto-body { flex: 1; min-height: 0; overflow: auto; padding: 0 10px 16px; }
+
+.foto-tag { margin-top: 14px; }
+.foto-tag-kopf {
+  align-items: baseline;
+  background: var(--panel, #1b1e24);
+  display: flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 8px;
+  padding: 6px 2px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.foto-raster {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+}
+.foto-kachel {
+  aspect-ratio: 1 / 1;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+}
+.foto-kachel img { height: 100%; object-fit: cover; width: 100%; display: block; }
+.foto-kachel:hover { border-color: var(--accent); }
+.foto-kachel.is-on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.foto-kachel-leer {
+  align-items: center; display: flex; font-size: 26px; height: 100%;
+  justify-content: center; opacity: .5;
+}
+.foto-kachel-zeit, .foto-kachel-art, .foto-kachel-warn {
+  background: rgba(0, 0, 0, .6);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 4px;
+  position: absolute;
+}
+.foto-kachel-zeit { bottom: 3px; left: 3px; }
+.foto-kachel-art { bottom: 3px; right: 3px; }
+.foto-kachel-warn { background: rgba(230, 120, 20, .9); font-weight: 700; right: 3px; top: 3px; }
+
+.foto-ordner { align-items: center; display: flex; gap: 4px; padding: 2px 0; }
+.foto-ordner-txt { flex: 1; font-size: 11.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.foto-kartewrap { height: 100%; position: relative; }
+.foto-karte { height: 100%; min-height: 320px; width: 100%; }
+.foto-karte-spuren {
+  background: var(--panel, rgba(20, 22, 28, .88));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  font-size: 11.5px;
+  gap: 6px;
+  left: 10px;
+  padding: 5px 8px;
+  position: absolute;
+  top: 10px;
+  z-index: 3;
+}
+
+.foto-touren { display: flex; flex-direction: column; gap: 4px; padding: 10px 2px; }
+.foto-tour {
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 8px 10px;
+  text-align: left;
+}
+.foto-tour:hover { border-color: var(--accent); }
+.foto-tour.ist-ohne { cursor: default; opacity: .65; }
+.foto-tour-name { font-size: 12.5px; font-weight: 600; }
+.foto-tour-zahl { font-size: 11px; opacity: .75; }
+
+.foto-detail { padding: 12px; }
+.foto-detail-bild { border-radius: 6px; margin-bottom: 8px; width: 100%; }
+.foto-detail-kopf { font-size: 13px; font-weight: 600; word-break: break-all; }
+.foto-detail-warn {
+  background: rgba(230, 120, 20, .14);
+  border-left: 3px solid rgba(230, 120, 20, .9);
+  border-radius: 3px;
+  font-size: 11.5px;
+  margin: 6px 0;
+  padding: 5px 7px;
+}
+.foto-detail-zeile { font-size: 11.5px; padding: 2px 0; }
+.foto-detail-tags { font-size: 11px; margin-top: 10px; }
+.foto-detail-tags summary { cursor: pointer; opacity: .8; }
+.foto-tagliste { max-height: 320px; overflow: auto; padding-top: 6px; }
+.foto-tagzeile { padding: 1px 0; word-break: break-word; }

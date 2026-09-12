@@ -345,7 +345,10 @@ function _bindMapQuiz() {
 window.rzRightsTableHtml = rzRightsTableHtml;
 window.rzMapQuizHtml = rzMapQuizHtml;
 
-async function openSettingsModal() {
+async function openSettingsModal(reiter) {
+  // 12.09.2026 — Aufruf mit Reiter-Namen ("bibliothek") öffnet den Dialog dort.
+  // Der Reiter-Wähler unten liest denselben Merkschlüssel.
+  if (reiter) { try { window.localStorage.setItem("rz_settings_tab", String(reiter)); } catch (_) {} }
   const meta = i18nMeta();
   const available = meta.available || [];
   const { current } = _settingsStand();
@@ -598,6 +601,31 @@ async function openSettingsModal() {
         <button class="btn" id="md-bib-bericht" hidden>${t("bib.bericht_zeigen", "Umzugsbericht ansehen")}</button>
         <p class="muted" style="font-size:11px; margin-top:6px;" id="md-bib-platz"></p>
         <div id="md-bib-vorher" hidden></div>
+
+        <!-- 12.09.2026 (Marc: „test- und arbeitsbibliothek sind bei mir eins
+             und das ist blöd") — Name, Liste, Sicherung. Wechseln konnte die
+             App schon, es fehlte die sichtbare Verwaltung. -->
+        <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:12px;">
+          <label class="field-label" for="md-bib-name" style="font-size:12px;">${t("bib.name_label", "Name dieser Bibliothek")}</label>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="text" id="md-bib-name" maxlength="60" style="flex:1;"
+                   placeholder="${t("bib.name_platzhalter", "z. B. Arbeit oder Test")}">
+            <button class="btn" id="md-bib-name-save">${t("common.save", "Speichern")}</button>
+          </div>
+          <p class="set-help" style="margin-top:4px;">${t("bib.name_help", "Der Name liegt in der Bibliothek selbst und zieht mit, wenn der Ordner wandert. Er steht oben im Archiv, damit du Test und Arbeit nicht verwechselst.")}</p>
+
+          <p class="muted" style="margin:14px 0 6px; font-weight:600; color:var(--text);">${t("bib.liste_titel", "Bekannte Bibliotheken")}</p>
+          <div id="md-bib-liste"></div>
+          <p class="set-help" style="margin-top:4px;">${t("bib.liste_help", "„Aus der Liste nehmen“ löscht keine Daten — der Ordner bleibt, die App merkt sich ihn nur nicht mehr.")}</p>
+
+          <p class="muted" style="margin:14px 0 6px; font-weight:600; color:var(--text);">${t("bib.zip_titel", "Sicherung als ZIP")}</p>
+          <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer;">
+            <input type="checkbox" id="md-bib-zip-alles">
+            <span>${t("bib.zip_alles", "Alles mitnehmen (auch Vorschaubilder und alte Datenbank-Kopien)")}</span>
+          </label>
+          <button class="btn" id="md-bib-zip" style="margin-top:8px;">${t("bib.zip_start", "Sicherung erstellen …")}</button>
+          <p class="set-help" style="margin-top:4px;" id="md-bib-zip-hinweis">${t("bib.zip_help", "Ohne Häkchen bleiben Vorschaubilder und die rollierenden Datenbank-Kopien draußen; beides entsteht beim nächsten Öffnen neu. Der Dateiname bekommt einen Zeitstempel, eine vorhandene Sicherung wird nie überschrieben.")}</p>
+        </div>
       </div>
 
       ${window.rzCloudStillgelegt ? `
@@ -732,6 +760,101 @@ function _bindSettingsModalHandlers() {
         });
       }
     } catch (_) {}
+  })();
+  // ── Bibliotheken verwalten (12.09.2026, Marc) ────────────────────────────
+  // Name, Liste bekannter Bibliotheken, ZIP-Sicherung. Bewusst hier und nicht
+  // im Archiv: „einstellungen reicht, dann bleibt das archiv schlank."
+  (async () => {
+    const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g,
+      c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const feld = document.getElementById("md-bib-name");
+    const speichern = document.getElementById("md-bib-name-save");
+    const liste = document.getElementById("md-bib-liste");
+    if (!feld && !liste) return;
+
+    async function listeZeichnen() {
+      if (!liste) return;
+      let r = null;
+      try { r = await api().bibliothek_liste(); } catch (_) { r = null; }
+      const orte = (r && r.orte) || [];
+      if (!orte.length) { liste.innerHTML = ""; return; }
+      liste.innerHTML = orte.map((x, i) => `
+        <div class="bib-vorher-zeile" style="align-items:center;">
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:12.5px; font-weight:${x.aktiv ? "600" : "400"};">
+              ${x.aktiv ? "● " : ""}${esc(x.name)}${x.aktiv ? ` <span class="muted" style="font-weight:400;">${t("bib.aktiv", "geöffnet")}</span>` : ""}
+              ${x.da ? "" : ` <span class="muted">${t("bib.nicht_da", "nicht erreichbar")}</span>`}
+            </div>
+            <code style="font-size:10.5px; opacity:.75; word-break:break-all;">${esc(x.pfad)}</code>
+          </div>
+          ${x.aktiv ? "" : `<button class="btn btn-sm" data-bibopen="${i}"${x.da ? "" : " disabled"}>${t("bib.oeffnen", "Öffnen")}</button>
+          <button class="btn btn-sm" data-bibforget="${i}">${t("bib.vergessen", "Aus der Liste nehmen")}</button>`}
+        </div>`).join("");
+      liste.querySelectorAll("[data-bibopen]").forEach(b => {
+        b.onclick = async () => {
+          const x = orte[+b.dataset.bibopen]; if (!x) return;
+          b.disabled = true;
+          const r2 = await api().bibliothek_wechseln(x.pfad);
+          if (r2 && r2.ok) { location.reload(); return; }
+          b.disabled = false;
+          toast((r2 && (r2.grund || r2.error)) || "?", "warn");
+        };
+      });
+      liste.querySelectorAll("[data-bibforget]").forEach(b => {
+        b.onclick = async () => {
+          const x = orte[+b.dataset.bibforget]; if (!x) return;
+          // rzConfirm(titel, text, knopf, gefahr) — global aus ui/js/projects.js
+          const ok = await window.rzConfirm(
+            t("bib.vergessen_titel", "Aus der Liste nehmen?"),
+            t("bib.vergessen_frage", "„{name}“ verschwindet nur aus dieser Liste. Der Ordner und alle Daten darin bleiben unberührt.").replace("{name}", x.name),
+            t("bib.vergessen", "Aus der Liste nehmen"), false);
+          if (!ok) return;
+          try { await api().bibliothek_vergessen(x.pfad); } catch (_) {}
+          listeZeichnen();
+        };
+      });
+    }
+
+    try {
+      const r = await api().bibliothek_name();
+      if (feld && r && r.ok) feld.value = r.name || "";
+    } catch (_) {}
+    listeZeichnen();
+
+    if (speichern && feld) speichern.onclick = async () => {
+      speichern.disabled = true;
+      try {
+        const r = await api().bibliothek_name(feld.value || "");
+        if (r && r.ok) {
+          feld.value = r.name || "";
+          toast(t("bib.name_gespeichert", "Name gespeichert"), "success");
+          if (typeof window.rzBibNameZeigen === "function") window.rzBibNameZeigen(r.name);
+          listeZeichnen();
+        } else { toast((r && r.error) || "?", "warn"); }
+      } catch (e) { toast(String(e), "warn"); }
+      speichern.disabled = false;
+    };
+
+    const zipBtn = document.getElementById("md-bib-zip");
+    if (zipBtn) zipBtn.onclick = async () => {
+      const alles = !!(document.getElementById("md-bib-zip-alles") || {}).checked;
+      const hinweis = document.getElementById("md-bib-zip-hinweis");
+      zipBtn.disabled = true;
+      const vorher = zipBtn.textContent;
+      zipBtn.textContent = t("bib.zip_laeuft", "Wird gesichert …");
+      try {
+        const r = await api().bibliothek_zip(alles);
+        if (r && r.ok) {
+          const mb = (r.bytes / 1048576).toFixed(0);
+          toast(t("bib.zip_fertig", "Sicherung fertig: {mb} MB").replace("{mb}", mb), "success", 6000);
+          if (hinweis) hinweis.textContent = t("bib.zip_liegt", "Liegt als {pfad}").replace("{pfad}", r.pfad);
+        } else if (!(r && r.abbruch)) {
+          toast((r && r.error) || "?", "warn");
+        }
+      } catch (e) { toast(String(e), "warn"); }
+      zipBtn.textContent = vorher;
+      zipBtn.disabled = false;
+    };
   })();
   const _bibWechseln = document.getElementById("md-bib-wechseln");
   if (_bibWechseln) _bibWechseln.onclick = async () => {

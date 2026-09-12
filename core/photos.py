@@ -183,6 +183,54 @@ def thumbnail_data_url(path: str, max_px: int = 600) -> Optional[str]:
         return None
 
 
+# ── Vorschaubilder für den Foto-Bestand (12.09.2026, IDEAS §64) ─────────────
+#
+# Der Bestand braucht dieselben Bilder wie die Foto-Pins, nur größer und auch
+# für Videos. Deshalb EIN Platten-Cache für alle, die Größe steckt im Schlüssel.
+# Marc dazu („warum 2 größen?"): der Scan erzeugt nur die kleine, die große
+# entsteht beim ersten Ansehen — also effektiv eine Größe im Durchlauf.
+THUMB_RASTER_PX = 220     # Raster im Archiv (Retina-fähig bis ~110 CSS-px)
+THUMB_GROSS_PX = 600      # große Vorschau, erst auf Abruf
+
+
+def _thumb_bytes_fuer(path: str, max_px: int) -> Optional[bytes]:
+    """Vorschaubild in beliebiger Größe — Foto ODER Video, ohne Cache."""
+    try:
+        if cexif.is_video(path):
+            data = (cexif.extract_video_embedded_thumbnail(path)
+                    or cexif.extract_quicklook_thumbnail(path, size=max_px)
+                    or cexif.extract_video_thumbnail(path))
+            return _pil_thumb_from_bytes(data, max_px) if data else None
+        if cexif.is_heif(path):
+            return cexif.extract_heif_thumbnail(path, size=max_px)
+        if cexif.is_raw(path):
+            prev = cexif.extract_raw_preview(path)
+            return _pil_thumb_from_bytes(prev, max_px) if prev else None
+        return _pil_thumb_from_file(path, max_px)
+    except Exception as e:
+        _log.debug("thumb (%s, %s px) fehlgeschlagen: %s", path, max_px, e)
+        return None
+
+
+def thumb_gecacht(path: str, max_px: int = THUMB_RASTER_PX) -> Optional[bytes]:
+    """Vorschaubild aus dem Platten-Cache, sonst erzeugen und hineinlegen."""
+    fp = _file_fingerprint(path)
+    schluessel = f"{fp}@{int(max_px)}" if fp else ""
+    if schluessel:
+        da = _cache_get(schluessel)
+        if da:
+            return da
+    data = _thumb_bytes_fuer(path, int(max_px))
+    if data and schluessel:
+        _cache_put(schluessel, data)
+    return data
+
+
+def thumb_data_url_gecacht(path: str, max_px: int = THUMB_RASTER_PX) -> Optional[str]:
+    """Wie `thumb_gecacht`, aber gleich als data-URL für die Oberfläche."""
+    return _to_data_url(thumb_gecacht(path, max_px))
+
+
 def _get_thumbnail_data_url(path: str) -> Optional[str]:
     """Cache-aware Wrapper. Liefert data-URL oder None."""
     fp = _file_fingerprint(path)

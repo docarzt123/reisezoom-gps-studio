@@ -112,6 +112,7 @@ from core import photos as cphotos  # v0.9.74: Foto-Pins für Animator + Tour-Ma
 from core import route as croute  # v0.9.205: Anreise/Flug-Route (Directions/Arc)
 from core import heightanim as cheight  # v0.9.92: Höhen-Animator-Modul (Phase 1, Skelett)
 from core import library as clib  # v0.9.486: Tour-Archiv (durchsuchbarer Track-Katalog)
+from core import fotos as cfotos  # 12.09.2026: Foto-Bestand (IDEAS §64), gleiche Datenbank
 from core import bibliothek as cbib  # 02.09.2026: die Tour-Bibliothek (Wahrheit statt Datei-Index)
 from core import umzug as cumzug    # 02.09.2026: Altbestand → Bibliothek
 from core import tourmap_html as ctourhtml  # v0.9.406: Tour-Map → interaktiver Leaflet-HTML-Export
@@ -161,7 +162,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.689"
+APP_VERSION = "0.9.690"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -3315,7 +3316,78 @@ class Api:
                 d["platz"] = cbib.platz_bericht(BIB)
             except Exception:
                 pass
+            # 12.09.2026 — der Name steht im Archiv-Kopf, damit man Test- und
+            # Arbeitsbibliothek nicht verwechselt (Marc).
+            try:
+                d["name"] = cbib.name_lesen(BIB)
+            except Exception:
+                d["name"] = Path(BIB).name
         return d
+
+    # ── Bibliotheken verwalten (Marc, 12.09.2026) ──────────────────────────
+    #
+    # „bei mir sind test- und arbeitsbibliothek im moment eins und das ist
+    # blöd." Wechseln gab es schon; hier kommen Name, Liste und ZIP dazu. Die
+    # Verwaltung sitzt in den Einstellungen, im Archiv steht nur der Name
+    # (Marc: „dann bleibt das Archiv schlank").
+
+    def bibliothek_liste(self) -> dict:
+        """Alle bekannten Bibliotheken, die aktive zuerst."""
+        try:
+            return {"ok": True, "orte": cbib.bekannte_orte(APP_SUPPORT, BIB if BIB_BEREIT else None)}
+        except Exception as e:
+            log.exception("bibliothek_liste")
+            return {"ok": False, "error": str(e), "orte": []}
+
+    def bibliothek_name(self, name: str = "", pfad: str = "") -> dict:
+        """Namen lesen (ohne `name`) oder setzen. `pfad` leer = die aktive."""
+        try:
+            ort = Path(pfad) if pfad else BIB
+            if not ort or not cbib.ist_bibliothek(ort):
+                return {"ok": False, "error": "kein Bibliotheks-Ordner"}
+            if name:
+                return {"ok": True, "name": cbib.name_setzen(ort, name)}
+            return {"ok": True, "name": cbib.name_lesen(ort)}
+        except Exception as e:
+            log.exception("bibliothek_name")
+            return {"ok": False, "error": str(e)}
+
+    def bibliothek_vergessen(self, pfad: str) -> dict:
+        """Einen Ort aus der Liste nehmen — löscht nichts auf der Platte."""
+        try:
+            ok = cbib.ort_vergessen(APP_SUPPORT, pfad)
+            return {"ok": bool(ok), "orte": cbib.bekannte_orte(APP_SUPPORT, BIB if BIB_BEREIT else None)}
+        except Exception as e:
+            log.exception("bibliothek_vergessen")
+            return {"ok": False, "error": str(e)}
+
+    def bibliothek_zip(self, alles: bool = False, ziel: str = "") -> dict:
+        """Die aktive Bibliothek als ZIP sichern.
+
+        `alles=False` lässt Vorschaubilder und die rollierenden
+        Datenbank-Kopien weg (beides entsteht neu). Ohne `ziel` fragt der
+        Speichern-Dialog; der Vorschlag trägt einen Zeitstempel.
+        """
+        if not BIB_BEREIT:
+            return {"ok": False, "error": "keine Bibliothek offen"}
+        try:
+            if not ziel:
+                ziel = self.pick_save_path(cbib.zip_name_vorschlag(BIB),
+                                           str(Path.home() / "Desktop"),
+                                           ("ZIP (*.zip)",))
+                if not ziel:
+                    return {"ok": False, "abbruch": True}
+            if not str(ziel).lower().endswith(".zip"):
+                ziel = str(ziel) + ".zip"
+            res = cbib.zip_sichern(BIB, Path(ziel), alles=bool(alles))
+            if res.get("ok"):
+                log.info("[bibliothek] ZIP %s · %s Dateien · %.1f MB%s",
+                         res["pfad"], res["dateien"], res["bytes"] / 1048576,
+                         " (alles)" if alles else " (ohne Bilder/Sicherungen)")
+            return res
+        except Exception as e:
+            log.exception("bibliothek_zip")
+            return {"ok": False, "error": str(e)}
 
     def bibliothek_pruefen(self, pfad: str) -> dict:
         """Taugt dieser Ort? Für den Auswahldialog — ohne etwas anzulegen."""
@@ -3883,6 +3955,195 @@ class Api:
     def library_scan_stop(self) -> dict:
         self._lib_scan_stop = True
         return {"ok": True}
+
+    # ── Foto-Bestand (12.09.2026, IDEAS §64) ───────────────────────────────
+    #
+    # Marc: „man gibt wie beim archiv einen oder mehrere ordner und das tool
+    # zeigt die bilder auf einer karte an oder nach datum." Stufe 1 liest nur;
+    # der Bestand liegt in derselben Datenbank wie die Touren.
+
+    def fotos_ordner(self) -> dict:
+        try:
+            return {"ok": True, "ordner": cfotos.ordner_liste(self._lib()),
+                    "stand": cfotos.stand(self._lib())}
+        except Exception as e:
+            log.exception("fotos_ordner")
+            return {"ok": False, "error": str(e), "ordner": []}
+
+    def fotos_ordner_hinzu(self, path: str = "", recursive: bool = True) -> dict:
+        """Fotoordner aufnehmen. Ohne `path` fragt der Ordner-Dialog.
+
+        Eigene Liste, nicht die der Tracks (Marc: „eigener ordner, dass man
+        auch weiß, dass es hier definitiv um fotos geht").
+        """
+        try:
+            if not path:
+                gewaehlt = self.pick_file("folder")
+                path = (gewaehlt or [""])[0] if isinstance(gewaehlt, (list, tuple)) else (gewaehlt or "")
+                if not path:
+                    return {"ok": False, "abbruch": True}
+            if not cfotos.ordner_hinzu(self._lib(), path, bool(recursive)):
+                return {"ok": False, "error": "kein Ordner"}
+            return {"ok": True, "ordner": cfotos.ordner_liste(self._lib())}
+        except Exception as e:
+            log.exception("fotos_ordner_hinzu")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_ordner_weg(self, path: str, mit_fotos: bool = True) -> dict:
+        try:
+            cfotos.ordner_weg(self._lib(), path, bool(mit_fotos))
+            return {"ok": True, "ordner": cfotos.ordner_liste(self._lib()),
+                    "stand": cfotos.stand(self._lib())}
+        except Exception as e:
+            log.exception("fotos_ordner_weg")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_scan_start(self, ordner: str = "", nur_liste: bool = False) -> dict:
+        """Einlesen im Hintergrund, in zwei Durchgängen.
+
+        Erst die Dateiliste (Sekunden, danach steht die Ansicht), dann die
+        Aufnahmedaten und Vorschaubilder. Abbrechbar, Fortschritt über
+        `fotos_scan_status()` — dasselbe Muster wie der Track-Scan.
+        """
+        with self._start_lock:
+            if getattr(self, "_foto_scan_running", False):
+                return {"ok": False, "error": "läuft bereits"}
+            self._foto_scan_running = True
+        self._foto_scan_stop = False
+        self._foto_scan_state = {"running": True, "phase": "dateien", "done": 0,
+                                 "total": 0, "neu": 0}
+        nur = [ordner] if ordner else None
+
+        def worker():
+            conn = None
+            try:
+                # Eigene Verbindung: der Scan läuft lange, die Oberfläche fragt
+                # währenddessen weiter ab (core/library serialisiert per Lock).
+                conn = clib.open_db(LIBRARY_DB)
+                r1 = cfotos.durchgang1(
+                    conn,
+                    fortschritt=lambda n, g: self._foto_scan_state.update(
+                        {"phase": "dateien", "done": n, "total": g}),
+                    stop=lambda: self._foto_scan_stop, ordner=nur)
+                self._foto_scan_state.update({"dateien": r1, "neu": r1.get("neu", 0)})
+                if not nur_liste and not self._foto_scan_stop:
+                    self._foto_scan_state.update({"phase": "daten", "done": 0, "total": 0})
+                    r2 = cfotos.durchgang2(
+                        conn,
+                        fortschritt=lambda n, g: self._foto_scan_state.update(
+                            {"phase": "daten", "done": n, "total": g}),
+                        stop=lambda: self._foto_scan_stop)
+                    self._foto_scan_state.update({"daten": r2})
+                self._foto_scan_state["stand"] = cfotos.stand(conn)
+                log.info("[fotos] Scan fertig · %s", self._foto_scan_state.get("stand"))
+            except Exception as e:
+                log.exception("fotos_scan")
+                self._foto_scan_state["error"] = str(e)
+            finally:
+                if conn is not None:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+                self._foto_scan_state["running"] = False
+                self._foto_scan_running = False
+
+        threading.Thread(target=worker, daemon=True, name="foto-scan").start()
+        return {"ok": True}
+
+    def fotos_scan_status(self) -> dict:
+        return dict(getattr(self, "_foto_scan_state", {"running": False}))
+
+    def fotos_scan_stop(self) -> dict:
+        self._foto_scan_stop = True
+        return {"ok": True}
+
+    def fotos_abfrage(self, params: dict = None) -> dict:
+        """Eine Seite des Bestands. `mit_thumbs` hängt die Vorschaubilder an —
+        nur für die gezeigte Seite, sonst wird die Antwort riesig."""
+        p = dict(params or {})
+        mit_thumbs = p.pop("mit_thumbs", True)
+        try:
+            res = cfotos.abfrage(self._lib(), p.pop("filter", None) or {},
+                                 limit=int(p.pop("limit", 300)),
+                                 offset=int(p.pop("offset", 0)),
+                                 sortierung=p.pop("sortierung", "zeit_neu"))
+            if mit_thumbs:
+                for f in res["fotos"]:
+                    f["thumb_url"] = cphotos.thumb_data_url_gecacht(
+                        f["path"], cphotos.THUMB_RASTER_PX)
+            res["ok"] = True
+            return res
+        except Exception as e:
+            log.exception("fotos_abfrage")
+            return {"ok": False, "error": str(e), "fotos": [], "n": 0}
+
+    def fotos_tage(self, filter: dict = None) -> dict:
+        try:
+            return {"ok": True, "tage": cfotos.tage(self._lib(), filter or {})}
+        except Exception as e:
+            log.exception("fotos_tage")
+            return {"ok": False, "error": str(e), "tage": []}
+
+    def fotos_punkte(self, filter: dict = None, raster: int = 3) -> dict:
+        """Punktwolke für die Karte — zusammengefasst, damit Dichte sichtbar wird."""
+        try:
+            return {"ok": True, "punkte": cfotos.punkte(self._lib(), filter or {}, raster)}
+        except Exception as e:
+            log.exception("fotos_punkte")
+            return {"ok": False, "error": str(e), "punkte": []}
+
+    def fotos_filterwerte(self) -> dict:
+        try:
+            conn = self._lib()
+            return {"ok": True, "kameras": cfotos.kameras(conn),
+                    "jahre": cfotos.jahre(conn), "stand": cfotos.stand(conn)}
+        except Exception as e:
+            log.exception("fotos_filterwerte")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_details(self, path: str) -> dict:
+        """Eine Datei mit allen gelesenen Tags — für die Detailansicht."""
+        try:
+            conn = self._lib()
+            d = cfotos.zeile(conn, path)
+            if not d:
+                return {"ok": False, "error": "nicht im Bestand"}
+            d["tags"] = cfotos.tags_lesen(conn, path)
+            d["thumb_url"] = cphotos.thumb_data_url_gecacht(path, cphotos.THUMB_GROSS_PX)
+            return {"ok": True, "foto": d}
+        except Exception as e:
+            log.exception("fotos_details")
+            return {"ok": False, "error": str(e)}
+
+    def fotos_thumbs(self, paths: list = None, gross: bool = False) -> dict:
+        """Vorschaubilder nachliefern (die große Fassung erst auf Abruf)."""
+        px = cphotos.THUMB_GROSS_PX if gross else cphotos.THUMB_RASTER_PX
+        raus = {}
+        for p in list(paths or [])[:200]:
+            try:
+                raus[p] = cphotos.thumb_data_url_gecacht(p, px)
+            except Exception:
+                raus[p] = None
+        return {"ok": True, "thumbs": raus}
+
+    def fotos_touren(self, filter: dict = None) -> dict:
+        """Der Bestand nach Touren gruppiert — der Punkt, den kein anderes
+        Fototool haben kann: die Touren liegen hier schon."""
+        try:
+            return {"ok": True, "touren": cfotos.touren_zu_fotos(self._lib(), filter or {})}
+        except Exception as e:
+            log.exception("fotos_touren")
+            return {"ok": False, "error": str(e), "touren": []}
+
+    def fotos_einer_tour(self, geo_hash: str = "", path: str = "") -> dict:
+        try:
+            res = cfotos.fotos_einer_tour(self._lib(), geo_hash, path)
+            res["ok"] = True
+            return res
+        except Exception as e:
+            log.exception("fotos_einer_tour")
+            return {"ok": False, "error": str(e), "fotos": []}
 
     def library_query(self, params: dict = None) -> dict:
         """Gefilterte Trefferliste. `with_thumbs` hängt die Vorschaubilder als

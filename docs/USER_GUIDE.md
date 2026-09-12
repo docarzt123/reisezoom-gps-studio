@@ -141,6 +141,27 @@ GPS Studio eine eigene Kopie davon. Zwei Folgen:
   deine Originaldatei bleibt unangetastet. Brauchst du die geheilte Fassung
   auch draußen, exportierst du sie über *Version exportieren …*.
 
+### Mehrere Bibliotheken — Arbeit und Test trennen (seit v0.9.690) ⭐
+
+Du kannst mehrere Bibliotheken führen und zwischen ihnen wechseln. Praktisch,
+wenn du eine zum Arbeiten und eine zum Ausprobieren willst.
+
+* **Name vergeben:** Einstellungen → *Bibliothek & Cloud* → **Name dieser
+  Bibliothek** (etwa „Arbeit" oder „Test"). Der Name liegt in der Bibliothek
+  selbst und zieht mit, wenn du den Ordner verschiebst.
+* **Wo du siehst, worin du arbeitest:** Oben im Archiv steht der Name der
+  geöffneten Bibliothek. Ein Klick darauf öffnet die Verwaltung.
+* **Wechseln:** In der Liste **Bekannte Bibliotheken** steht jede, die GPS
+  Studio schon einmal offen hatte. *Öffnen* wechselt (die App startet dabei
+  neu), *Aus der Liste nehmen* vergisst sie nur — **Dateien werden dabei nie
+  gelöscht**.
+* **Sicherung als ZIP:** Der Knopf *Sicherung erstellen …* packt die ganze
+  Bibliothek in eine ZIP-Datei mit Zeitstempel im Namen, eine vorhandene
+  Sicherung wird also nie überschrieben. Ohne Häkchen bleiben Vorschaubilder
+  und die rollierenden Datenbank-Kopien draußen — beides entsteht von selbst
+  wieder, und die Sicherung wird deutlich kleiner. Mit Häkchen *Alles
+  mitnehmen* bekommst du ein vollständiges Abbild.
+
 ### Wenn die Bibliothek mal nicht da ist
 
 Liegt sie auf einer externen Platte, die gerade nicht angeschlossen ist,
@@ -1372,6 +1393,67 @@ Karte"** deine eigene; **„Automatisch"** stellt die abgeleitete wieder her. Di
 
 Oben links auf der Karte liegt **🖼 PNG**: Damit sicherst du die Karte genau so, wie sie
 gerade zu sehen ist — selber Ausschnitt, selbe Zoomstufe, selbe Farben.
+
+---
+
+## 2d · Fotos 📷 — dein Bildbestand im Archiv (seit v0.9.690) ⭐
+
+### Was es macht
+
+Im Archiv gibt es oben neben *Projekte*, *Vorlagen* und *Touren-Archiv* einen
+vierten Bereich: **Fotos**. Du gibst Ordner an, GPS Studio liest Fotos **und
+Videos** darin ein und zeigt sie nach Tagen, auf einer Karte oder nach Touren
+gruppiert. Es wird dabei **nur gelesen** — an deinen Dateien ändert sich nichts.
+
+### Ordner aufnehmen und einlesen
+
+Links **Ordner hinzufügen …** wählen; Unterordner kommen mit. Danach läuft das
+Einlesen in zwei Durchgängen:
+
+1. **Dateien suchen** — dauert Sekunden, danach steht die Liste schon.
+2. **Aufnahmedaten lesen** — Zeit, Koordinate, Kamera, Objektiv und alle
+   weiteren Angaben aus der Datei, dazu die Vorschaubilder. Das läuft im
+   Hintergrund, zeigt seinen Fortschritt und lässt sich abbrechen. Beim
+   nächsten Mal macht es dort weiter, wo es aufgehört hat.
+
+Ein Ordner, den du wieder entfernst, verschwindet nur aus dem Bestand. Die
+Dateien bleiben liegen.
+
+### Die drei Ansichten
+
+* **▦ Raster** — nach Tagen gegliedert, neueste zuerst. Ein kleines **!** auf
+  der Kachel heißt: hier fehlt etwas (Aufnahmezeit, Zeitzone oder Koordinate).
+  Videos tragen ihre Länge unten rechts.
+* **🌍 Karte** — eine Punktwolke aus allen Dateien mit Koordinate; je mehr an
+  einer Stelle liegen, desto größer und kräftiger der Punkt. Ein Klick in die
+  Wolke zeigt rechts, welche Dateien dort liegen und **welche deiner Touren
+  dort vorbeikam**. Mit dem Häkchen *Touren als Linien zeigen* legst du deine
+  Strecken blass darunter.
+* **🥾 Nach Touren** — welche Fotos zu welcher Tour gehören. Die Zuordnung
+  rechnet GPS Studio über das Zeitfenster der Tour; sie steht nirgends in den
+  Dateien. Ein Klick auf eine Tour zeigt ihre Dateien im Raster.
+
+### Suchen und filtern
+
+Das Suchfeld durchsucht alles, was in den Dateien steht: Dateiname, Kamera,
+Objektiv, Stichwörter, Ortsangaben. Dazu kommen Jahr, Kamera und *mit / ohne
+Koordinate*. Links siehst du auf einen Blick, wie viele Dateien ohne
+Koordinate oder ohne Aufnahmezeit sind — ein Klick darauf filtert danach.
+
+### Was der Bestand über ein Foto weiß
+
+Klick auf eine Kachel, und rechts stehen große Vorschau, Aufnahmezeit (mit dem
+Hinweis *geraten*, wenn die Zeitzone nicht in der Datei stand), Kamera,
+Objektiv, Blende, Belichtung, ISO, Größe, Ort und Koordinate. Ganz unten lässt
+sich **Alle Aufnahmedaten** ausklappen: jede einzelne Angabe, die in der Datei
+steht.
+
+### Was (noch) nicht geht
+
+Diese erste Stufe liest nur. Fotos ohne Koordinate über ihre zeitlichen
+Nachbarn zu verorten, aus verorteten Fotos einen Track zu bauen und die
+Aufnahmedaten hier zu ändern sind eigene Ausbaustufen. Zum Verorten mit einem
+Track nimmst du weiterhin den **Geotagger** (Kapitel 6).
 
 ---
 

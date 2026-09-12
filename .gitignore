@@ -77,6 +77,9 @@ sessions.json.vor-e1-*
 library.db
 library.db-journal
 library_thumbs/
+# 12.09.2026 — Foto-Vorschaubilder des Bestands (Dev-Modus legt sie im Repo ab;
+# sie gehören zum Rechner, nicht zu den Daten)
+photo_thumb_cache/
 
 
 # v0.9.61 — exiftool-Binary (~54 MB, via scripts/setup_vendor_exiftool.sh laden)

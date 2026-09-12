@@ -255,6 +255,7 @@
 <li><a href="#2-erste-schritte" data-anchor="2-erste-schritte">2 · Erste Schritte</a></li>
 <li><a href="#2b-track-dateien-ffnen-viele-formate" data-anchor="2b-track-dateien-ffnen-viele-formate">2b · Track-Dateien öffnen — viele Formate ⭐</a></li>
 <li><a href="#2c-modul-archiv-alle-touren-an-einem-ort" data-anchor="2c-modul-archiv-alle-touren-an-einem-ort">2c · Modul: Archiv 📚 — alle Touren an einem Ort ⭐</a></li>
+<li><a href="#2d-fotos-dein-bildbestand-im-archiv" data-anchor="2d-fotos-dein-bildbestand-im-archiv">2d · Fotos 📷 — dein Bildbestand im Archiv ⭐</a></li>
 <li><a href="#3-modul-animator-gpx-als-video-rendern" data-anchor="3-modul-animator-gpx-als-video-rendern">3 · Modul: Animator — GPX als Video rendern</a></li>
 <li><a href="#3c-mehrere-touren-zu-einem-video-zusammenf-hren" data-anchor="3c-mehrere-touren-zu-einem-video-zusammenf-hren">3c · Mehrere Touren zu einem Video zusammenführen 🧭</a></li>
 <li><a href="#4-modul-reiseroute-anreise-als-video" data-anchor="4-modul-reiseroute-anreise-als-video">4 · Modul: Reiseroute — Anreise als Video 🛣️</a></li>
@@ -364,6 +365,24 @@ python app.py</code></pre>
 <li><strong>GPS Studio schreibt nie in deine Dateien.</strong> Heilst du eine Tour im</li>
 </ul>
 <p> Inspektor, entsteht daraus eine neue <strong>Version</strong> in deiner Bibliothek  deine Originaldatei bleibt unangetastet. Brauchst du die geheilte Fassung  auch draußen, exportierst du sie über <em>Version exportieren …</em>.</p>
+<h3 id="mehrere-bibliotheken-arbeit-und-test-trennen">Mehrere Bibliotheken — Arbeit und Test trennen ⭐</h3>
+<p>Du kannst mehrere Bibliotheken führen und zwischen ihnen wechseln. Praktisch, wenn du eine zum Arbeiten und eine zum Ausprobieren willst.</p>
+<ul>
+<li><strong>Name vergeben:</strong> Einstellungen → <em>Bibliothek &amp; Cloud</em> → **Name dieser</li>
+</ul>
+<p> Bibliothek** (etwa „Arbeit&quot; oder „Test&quot;). Der Name liegt in der Bibliothek  selbst und zieht mit, wenn du den Ordner verschiebst.</p>
+<ul>
+<li><strong>Wo du siehst, worin du arbeitest:</strong> Oben im Archiv steht der Name der</li>
+</ul>
+<p> geöffneten Bibliothek. Ein Klick darauf öffnet die Verwaltung.</p>
+<ul>
+<li><strong>Wechseln:</strong> In der Liste <strong>Bekannte Bibliotheken</strong> steht jede, die GPS</li>
+</ul>
+<p> Studio schon einmal offen hatte. <em>Öffnen</em> wechselt (die App startet dabei  neu), <em>Aus der Liste nehmen</em> vergisst sie nur — <strong>Dateien werden dabei nie  gelöscht</strong>.</p>
+<ul>
+<li><strong>Sicherung als ZIP:</strong> Der Knopf <em>Sicherung erstellen …</em> packt die ganze</li>
+</ul>
+<p> Bibliothek in eine ZIP-Datei mit Zeitstempel im Namen, eine vorhandene  Sicherung wird also nie überschrieben. Ohne Häkchen bleiben Vorschaubilder  und die rollierenden Datenbank-Kopien draußen — beides entsteht von selbst  wieder, und die Sicherung wird deutlich kleiner. Mit Häkchen <em>Alles  mitnehmen</em> bekommst du ein vollständiges Abbild.</p>
 <h3 id="wenn-die-bibliothek-mal-nicht-da-ist">Wenn die Bibliothek mal nicht da ist</h3>
 <p>Liegt sie auf einer externen Platte, die gerade nicht angeschlossen ist, sagt GPS Studio das beim Start und bietet <em>Erneut suchen</em> oder <em>Anderen Ort wählen</em> an. Es wird <strong>niemals</strong> stillschweigend eine leere neue Bibliothek angelegt — deine Daten sind dann nicht weg, sie sind nur nicht erreichbar.</p>
 <p><strong>„Bibliothek ist bereits geöffnet&quot;</strong> heißt: Eine Sperrdatei sagt, ein anderes GPS Studio habe sie offen. Wurde die App zuletzt nicht sauber beendet (Absturz, Rechner aus, Netzlaufwerk weg), ist das nur ein Überbleibsel — dann <strong>Trotzdem öffnen …</strong> wählen. Die App fragt einmal nach, weil zwei gleichzeitig offene Instanzen sich die Daten überschreiben würden.</p>
@@ -1023,6 +1042,37 @@ python app.py</code></pre>
 <p>Jede Tour bekommt eine <strong>eigene Farbe</strong>, abgeleitet aus ihrem Streckenverlauf — bei siebenhundert Touren wären sonst alle Linien gleich und keine mehr zu verfolgen. Die Farbe bleibt über Sitzungen hinweg dieselbe. Favoriten behalten ihre Signalfarbe.</p>
 <p>Gefällt dir eine Farbe nicht, setzt du in der Detailspalte unter <strong>„Track-Farbe auf der Karte&quot;</strong> deine eigene; <strong>„Automatisch&quot;</strong> stellt die abgeleitete wieder her. Diese Farbe gilt <strong>nur im Archiv</strong> — Animator und Tour-Karte haben ihre eigene Farbwahl je Projekt.</p>
 <p>Oben links auf der Karte liegt <strong>🖼 PNG</strong>: Damit sicherst du die Karte genau so, wie sie gerade zu sehen ist — selber Ausschnitt, selbe Zoomstufe, selbe Farben.</p>
+<hr>
+<h2 id="2d-fotos-dein-bildbestand-im-archiv">2d · Fotos 📷 — dein Bildbestand im Archiv ⭐</h2>
+<h3 id="was-es-macht">Was es macht</h3>
+<p>Im Archiv gibt es oben neben <em>Projekte</em>, <em>Vorlagen</em> und <em>Touren-Archiv</em> einen vierten Bereich: <strong>Fotos</strong>. Du gibst Ordner an, GPS Studio liest Fotos <strong>und Videos</strong> darin ein und zeigt sie nach Tagen, auf einer Karte oder nach Touren gruppiert. Es wird dabei <strong>nur gelesen</strong> — an deinen Dateien ändert sich nichts.</p>
+<h3 id="ordner-aufnehmen-und-einlesen">Ordner aufnehmen und einlesen</h3>
+<p>Links <strong>Ordner hinzufügen …</strong> wählen; Unterordner kommen mit. Danach läuft das Einlesen in zwei Durchgängen:</p>
+<ol>
+<li><strong>Dateien suchen</strong> — dauert Sekunden, danach steht die Liste schon.</li>
+<li><strong>Aufnahmedaten lesen</strong> — Zeit, Koordinate, Kamera, Objektiv und alle</li>
+</ol>
+<p> weiteren Angaben aus der Datei, dazu die Vorschaubilder. Das läuft im  Hintergrund, zeigt seinen Fortschritt und lässt sich abbrechen. Beim  nächsten Mal macht es dort weiter, wo es aufgehört hat.</p>
+<p>Ein Ordner, den du wieder entfernst, verschwindet nur aus dem Bestand. Die Dateien bleiben liegen.</p>
+<h3 id="die-drei-ansichten">Die drei Ansichten</h3>
+<ul>
+<li><strong>▦ Raster</strong> — nach Tagen gegliedert, neueste zuerst. Ein kleines <strong>!</strong> auf</li>
+</ul>
+<p> der Kachel heißt: hier fehlt etwas (Aufnahmezeit, Zeitzone oder Koordinate).  Videos tragen ihre Länge unten rechts.</p>
+<ul>
+<li><strong>🌍 Karte</strong> — eine Punktwolke aus allen Dateien mit Koordinate; je mehr an</li>
+</ul>
+<p> einer Stelle liegen, desto größer und kräftiger der Punkt. Ein Klick in die  Wolke zeigt rechts, welche Dateien dort liegen und <strong>welche deiner Touren  dort vorbeikam</strong>. Mit dem Häkchen <em>Touren als Linien zeigen</em> legst du deine  Strecken blass darunter.</p>
+<ul>
+<li><strong>🥾 Nach Touren</strong> — welche Fotos zu welcher Tour gehören. Die Zuordnung</li>
+</ul>
+<p> rechnet GPS Studio über das Zeitfenster der Tour; sie steht nirgends in den  Dateien. Ein Klick auf eine Tour zeigt ihre Dateien im Raster.</p>
+<h3 id="suchen-und-filtern">Suchen und filtern</h3>
+<p>Das Suchfeld durchsucht alles, was in den Dateien steht: Dateiname, Kamera, Objektiv, Stichwörter, Ortsangaben. Dazu kommen Jahr, Kamera und <em>mit / ohne Koordinate</em>. Links siehst du auf einen Blick, wie viele Dateien ohne Koordinate oder ohne Aufnahmezeit sind — ein Klick darauf filtert danach.</p>
+<h3 id="was-der-bestand-ber-ein-foto-wei">Was der Bestand über ein Foto weiß</h3>
+<p>Klick auf eine Kachel, und rechts stehen große Vorschau, Aufnahmezeit (mit dem Hinweis <em>geraten</em>, wenn die Zeitzone nicht in der Datei stand), Kamera, Objektiv, Blende, Belichtung, ISO, Größe, Ort und Koordinate. Ganz unten lässt sich <strong>Alle Aufnahmedaten</strong> ausklappen: jede einzelne Angabe, die in der Datei steht.</p>
+<h3 id="was-noch-nicht-geht">Was (noch) nicht geht</h3>
+<p>Diese erste Stufe liest nur. Fotos ohne Koordinate über ihre zeitlichen Nachbarn zu verorten, aus verorteten Fotos einen Track zu bauen und die Aufnahmedaten hier zu ändern sind eigene Ausbaustufen. Zum Verorten mit einem Track nimmst du weiterhin den <strong>Geotagger</strong> (Kapitel 6).</p>
 <hr>
 <h2 id="3-modul-animator-gpx-als-video-rendern">3 · Modul: Animator — GPX als Video rendern</h2>
 <h3 id="was-es-macht">Was es macht</h3>

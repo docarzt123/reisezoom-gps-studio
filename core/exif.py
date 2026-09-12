@@ -510,6 +510,28 @@ class _ExifToolDaemon:
         except Exception:
             return None
 
+    def read_tags_json_viele(self, paths: list[str], tags: list[str],
+                             numeric: bool = True) -> list[dict]:
+        """Wie `read_tags_json`, aber für VIELE Dateien in EINEM Aufruf.
+
+        12.09.2026, für den Foto-Bestand (§64): der Scan liest tausende
+        Dateien. Ein Aufruf je Datei kostet den Daemon-Umlauf je Datei; ein
+        Aufruf je 40 Dateien liest dieselben Daten in einem Bruchteil.
+        Rückgabe: die JSON-Sätze von exiftool, je mit `SourceFile`.
+        """
+        if not paths:
+            return []
+        args = [f"-{t}" for t in tags] + ["-j"]
+        if numeric:
+            args.append("-n")
+        args += [str(x) for x in paths]
+        try:
+            out = self._send_and_read_text(args)
+            data = json.loads(out or "[]")
+            return data if isinstance(data, list) else []
+        except Exception:
+            return []
+
     def read_binary_tag(self, path: str, tag: str) -> Optional[bytes]:
         """Liest einen Binary-Tag (z.B. PreviewImage) als bytes."""
         try:
@@ -889,6 +911,106 @@ def _exiftool_read_meta(path: str) -> dict:
         "alt": float(alt) if alt is not None else None,
         "camera": _camera_label(info.get("Make"), info.get("Model")),
     }
+
+
+# ── Stapel-Lesen für den Foto-Bestand (12.09.2026, IDEAS §64) ───────────────
+#
+# Zwei Läufe je Stapel, weil beides gebraucht wird: numerisch für Zeit und
+# Koordinate (Rechnen), lesbar für die Suche („1/200" statt 0.005). Gemessen am
+# 12.09.2026 an 40 echten Dateien: alle Tags zu lesen kostet nicht mehr als die
+# acht Kernfelder (~12 ms je Datei), der Platz ist die einzige Frage.
+
+_META_TAGS_VIELE = [
+    "DateTimeOriginal", "CreateDate", "ModifyDate",
+    "OffsetTimeOriginal", "OffsetTime", "OffsetTimeDigitized",
+    "GPSLatitude", "GPSLongitude", "GPSAltitude", "GPSDateTime",
+    "Make", "Model",
+    "ImageWidth", "ImageHeight", "Duration", "Rotation", "Orientation",
+]
+
+
+def _meta_aus_info(info: dict) -> dict:
+    """Aus einem exiftool-Satz (numerisch) die Kernwerte machen — dieselbe
+    Auslegung wie `_exiftool_read_meta`, nur ohne eigenen Aufruf."""
+    dt = None
+    for key in ("DateTimeOriginal", "CreateDate", "ModifyDate"):
+        dt = _parse_exif_datetime(info.get(key))
+        if dt:
+            break
+    tz_min = (_parse_exif_tz_minutes(info.get("OffsetTimeOriginal"))
+              or _parse_exif_tz_minutes(info.get("OffsetTime"))
+              or _parse_exif_tz_minutes(info.get("OffsetTimeDigitized")))
+    if tz_min is None:
+        tz_min = _tz_minutes_from_gps(dt, info.get("GPSDateTime"))
+    lat, lon, alt = info.get("GPSLatitude"), info.get("GPSLongitude"), info.get("GPSAltitude")
+
+    def zahl(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    # 12.09.2026 — Kameras ohne Empfang schreiben gern 0/0 in die Datei. Das ist
+    # ein Punkt im Golf von Guinea, keine Koordinate: als „keine" behandeln,
+    # sonst sitzt im Foto-Bestand eine Wolke vor Afrika.
+    if (zahl(lat) is not None and zahl(lon) is not None
+            and abs(zahl(lat)) < 1e-4 and abs(zahl(lon)) < 1e-4):
+        lat = lon = None
+
+    return {
+        "datetime": _to_utc(dt, tz_min),
+        "tz_minutes": tz_min,
+        "lat": zahl(lat), "lon": zahl(lon), "alt": zahl(alt),
+        "camera": _camera_label(info.get("Make"), info.get("Model")),
+        "breite": zahl(info.get("ImageWidth")), "hoehe": zahl(info.get("ImageHeight")),
+        "dauer_s": zahl(info.get("Duration")),
+    }
+
+
+def read_meta_viele(paths: list[str]) -> dict:
+    """Kernwerte für viele Dateien: {Pfad: dict wie `_exiftool_read_meta`}."""
+    raus: dict = {}
+    if not paths:
+        return raus
+    try:
+        saetze = _ensure_daemon().read_tags_json_viele(list(paths), _META_TAGS_VIELE, numeric=True)
+    except Exception:
+        return raus
+    for info in saetze:
+        quelle = str(info.get("SourceFile") or "").strip()
+        if quelle:
+            raus[quelle] = _meta_aus_info(info)
+    return raus
+
+
+def read_alle_tags_viele(paths: list[str]) -> dict:
+    """Alle menschenlesbaren Tags für viele Dateien: {Pfad: {Tag: Wert}}.
+
+    Gefiltert wie `read_photo_details`: keine Binärblöcke, keine Romane.
+    Grundlage der Foto-Suche (Objektiv, Stichwörter, Ort, Software …).
+    """
+    raus: dict = {}
+    if not paths:
+        return raus
+    try:
+        saetze = _ensure_daemon().read_tags_json_viele(list(paths), ["All"], numeric=False)
+    except Exception:
+        return raus
+    for info in saetze:
+        quelle = str(info.get("SourceFile") or "").strip()
+        if not quelle:
+            continue
+        tags = {}
+        for k, v in info.items():
+            if k == "SourceFile" or k in _PHOTO_BINARY_TAGS:
+                continue
+            sv = str(v)
+            low = sv.lower()
+            if len(sv) > 220 or "use -b" in low or "binary data" in low:
+                continue
+            tags[k] = sv
+        raus[quelle] = tags
+    return raus
 
 
 def _exiftool_read_datetime(path: str) -> Optional[datetime]:

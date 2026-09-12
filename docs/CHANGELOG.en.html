@@ -117,11 +117,13 @@
 
 <article class="version latest">
   <div class="version-head">
-    <span class="version-num">v0.9.689</span>
-    <span class="version-date">11 September 2026</span>
+    <span class="version-num">v0.9.690</span>
+    <span class="version-date">12 September 2026</span>
     <span class="version-badge">Latest</span>
   </div>
   <ul>
+    <li><strong>Photos in the archive</strong> &mdash; Next to “Projects”, “Templates” and “Tour archive” there is now a <strong>Photos</strong> area: point it at folders and GPS Studio indexes the photos <em>and videos</em> in them &mdash; grouped by day, as a density cloud on the map (the more files at a spot, the stronger the dot), or grouped by tour. The tour match is computed from each tour’s time window; no pure photo tool can do that, because your tours already live here. A click on the cloud says which tour passed there. The search covers everything the file carries: file name, camera, lens, keywords, place. Missing capture time, guessed time zone and missing coordinates are marked on the picture. This first stage <strong>only reads</strong> &mdash; no file is ever changed.</li>
+    <li><strong>Several libraries</strong> &mdash; Every library can be named (Settings → Library); the name shows at the top of the archive, and a click opens the management with all known libraries to switch between. That keeps your working library apart from the one you experiment in. Also new: <strong>backup as ZIP</strong> with a timestamped name &mdash; lean (without thumbnails and old database copies, both rebuild themselves) or complete.</li>
     <li><strong>Template error texts</strong> &mdash; “Template not found” and friends showed up in German in English and Spanish; now translated.</li>
     <li><strong>More diagnostics in the log when “the mouse does nothing”</strong> &mdash; The load line now states the real size of the track (points, km, hours, stages, date range), and a heartbeat line every 10 seconds counts mouse moves, clicks, keys and drawn frames. The log then shows whether the script is blocked, drawing has stalled or no mouse events arrive. Also fixed: an error in the track inspector when jumping to a gap after healing.</li>
     <li><strong>Highlights window (experimental)</strong> &mdash; The button in the signs section now opens a big window: add photo folders, tick the sources (places from OpenStreetMap, track spots, stops with photos), “Find highlights”. The app matches every photo to the track (GPS, otherwise capture time in the tour's time zone), attaches a photo to a place within 300 m and 20 minutes, finds stops (three minutes within 40 m) with photos and names them via the geocoder, groups photo series (five minutes, 100 m) and lists single photos. Per row: checkbox, symbol, km and time, thumbnail, reason and an editable sign text. Recommended rows are pre-ticked (important places, everything with a photo); minor places without a photo are listed unticked. “Add as signs” creates the signs (photo cards where a photo belongs) as one ⌘Z step; existing signs stay. Photos are only placed in the project, the files are not written.</li>
