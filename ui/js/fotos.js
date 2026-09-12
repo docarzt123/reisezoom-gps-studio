@@ -189,6 +189,26 @@
       let st = null;
       try { st = await api().fotos_scan_status(); } catch (_) { st = null; }
       if (!st) return;
+      // Auch im großen Kasten unten rechts anzeigen — dann sieht man den
+      // Fortschritt, selbst wenn man inzwischen im Animator arbeitet
+      // (Marc, 12.09.2026: „überall visuelles Feedback").
+      if (window.rzStatus) {
+        const phase2 = st.phase === "dateien"
+          ? T("fotos.scan_dateien", "Dateien suchen")
+          : T("fotos.scan_daten", "Aufnahmedaten lesen");
+        if (st.running) {
+          if (!window.rzStatus.laeuft("foto-scan")) {
+            window.rzStatus.start("foto-scan", { titel: T("fotos.titel", "Fotos"),
+                                                 text: phase2, gesamt: st.total || 0,
+                                                 abbrechen: true });
+          }
+          window.rzStatus.schritt("foto-scan", { text: phase2, n: st.done || 0,
+                                                 gesamt: st.total || 0 });
+          if (window.rzStatus.abgebrochen("foto-scan")) api().fotos_scan_stop();
+        } else if (window.rzStatus.laeuft("foto-scan")) {
+          window.rzStatus.fertig("foto-scan", st.error ? String(st.error) : "");
+        }
+      }
       if (box) {
         if (st.running) {
           const phase = st.phase === "dateien"

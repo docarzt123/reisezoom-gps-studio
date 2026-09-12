@@ -103,16 +103,37 @@
   window.loadGlobalGpx = async function(path, opts) {
     if (!path) return false;
     const stumm = !!(opts && opts.stumm);
+    const ladeId = "track-laden";
     try {
       if (window.applog) window.applog("info", `[loadGlobalGpx] start path=${path}`);
+      // 12.09.2026 (Marc: „überall wo etwas geladen wird brauchen wir visuelles
+      // Feedback"): Das Lesen einer großen Datei dauert; ohne Anzeige wirkt die
+      // App tot. Der Kasten unten rechts sagt, was gerade passiert.
+      if (window.rzStatus) {
+        window.rzStatus.start(ladeId, {
+          titel: t("track.laden_titel", "Track wird geladen"),
+          text: (path || "").split("/").pop(),
+        });
+      }
       const res = await api().animator_load_gpx(path);
       if (!res || !res.ok) {
+        if (window.rzStatus) window.rzStatus.fehler(ladeId, res?.error || t("error.gpx_generic", "GPX-Fehler"));
         if (window.applog) window.applog("error", `[loadGlobalGpx] parse fail: ${res?.error}`);
         if (window.isMissingFileError(res?.error)) window.showSourceMissingBanner(path);
         else toast(res?.error || t("error.gpx_generic", "GPX-Fehler"), "error");
         return false;
       }
       window.hideSourceMissingBanner();
+      // Die Quelldatei war weg, die Bibliothek hatte ihre eigene Kopie — sagen,
+      // statt still etwas anderes zu laden (Beta-Tester, 12.09.2026).
+      if (res.ersatz) {
+        const nm = res.ersatz.name || (res.ersatz.fehlt || "").split("/").pop();
+        if (window.applog) window.applog("warn", `[loadGlobalGpx] Quelldatei fehlt (${res.ersatz.fehlt}) → Bibliothekskopie`);
+        toast(t("track.aus_bibliothek", "Die Datei „{d}“ gibt es nicht mehr — die Tour kommt aus deiner Bibliothek.")
+          .replace("{d}", (res.ersatz.fehlt || "").split("/").pop()), "info", 7000);
+        path = res.ersatz.pfad || path;
+        if (nm && window.applog) window.applog("info", `[loadGlobalGpx] Ersatz-Tour: ${nm}`);
+      }
       // 11.09.2026 (Beta-Tester „nichts geht mehr" im Animator, Verdacht: riesiger Track):
       // die Vorschau sieht nur 800 Punkte — die echte Größe stand nirgends im Log.
       if (window.applog) {
@@ -149,6 +170,11 @@
           saveSettings(patch);
         }
       } catch (_) {}
+      if (window.rzStatus) {
+        const st2 = res.stats || {};
+        window.rzStatus.fertig(ladeId, t("track.laden_fertig", "{n} Punkte gelesen")
+          .replace("{n}", (st2.n_points || (res.coords || []).length || 0).toLocaleString()));
+      }
       _renderCurrent();
       notifyGpxLoaded();
       // 10.09.2026 — Track-Check-Hinweis (docs/TRACK-CHECK.md): einmal je Tour und
@@ -159,6 +185,7 @@
       if (!stumm) { try { await window.archivFrage(path); } catch (_) {} }
       return true;
     } catch (err) {
+      if (window.rzStatus) window.rzStatus.fehler(ladeId, String(err));
       console.warn("loadGlobalGpx error:", err);
       if (window.isMissingFileError(err)) window.showSourceMissingBanner(path);
       else toast(t("error.gpx_load", "GPX konnte nicht geladen werden") + ": " + err, "error");

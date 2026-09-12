@@ -2519,6 +2519,39 @@ Oben links: App-Icon + Name. In der Mitte (wenn ein GPX geladen ist): Stats-Pill
 
 ---
 
+## 8a · Was gerade passiert — die Ladeanzeige (seit v0.9.690) ⭐
+
+Dauert etwas länger, erscheint **unten rechts ein kleiner Kasten**. Er sagt,
+**was** gerade läuft (etwa „Vorschaubilder werden geholt"), **wie weit** es ist
+(„1.200 / 2.830") und lässt sich **abbrechen**, wo ein Abbruch möglich ist. Die
+App bleibt dabei bedienbar — der Kasten sperrt nichts.
+
+Du siehst ihn beim Laden eines Tracks, beim Holen der Fotos eines Projekts,
+beim Einlesen eines Foto-Ordners im Geotagger und beim Einlesen des
+Foto-Bestands. Kennst du die App von früher: Genau das fehlte vorher, und
+längere Vorgänge sahen aus, als hinge sie.
+
+**Fotos kommen jetzt häppchenweise.** Hat ein Projekt viele Fotos, steht die
+Liste sofort da und die Bilder tröpfeln herein, statt dass du auf alles
+gleichzeitig wartest. Beim ersten Mal dauert es (jedes Bild wird einmal
+gelesen), danach geht es schnell, weil die Vorschaubilder gespeichert bleiben.
+
+### Wenn die Track-Datei nicht mehr da ist
+
+Zeigt ein Projekt auf eine Datei, die du gelöscht oder verschoben hast, nimmt
+GPS Studio **die Kopie aus deiner Bibliothek** und sagt dir das. Früher kam an
+dieser Stelle nur eine Fehlermeldung.
+
+### „Das ist dieselbe Tour"
+
+Exportierst du dieselbe Reise noch einmal aus deiner Tracking-App, erkennt GPS
+Studio sie an ihrem **Streckenverlauf**, nicht am Dateinamen — und öffnet dein
+vorhandenes Projekt mit all deiner Arbeit daran. Ein Hinweis sagt dir das. Wenn
+du bewusst getrennt weiterarbeiten willst, lege über das Projekt-Menü ein
+zweites Projekt für dieselbe Tour an.
+
+---
+
 ## 9 · Hilfe, Feedback & Bug-Reports
 
 ### Hilfe-Menü

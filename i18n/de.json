@@ -3434,5 +3434,18 @@
   "fotos.d_stichworte": "Stichwörter",
   "fotos.d_pfad": "Liegt in",
   "fotos.d_alle_tags": "Alle Aufnahmedaten",
-  "common.loading": "Lädt …"
+  "common.loading": "Lädt …",
+  "status.fertig": "Fertig",
+  "status.fehler": "Fehlgeschlagen",
+  "status.wird_abgebrochen": "Wird abgebrochen …",
+  "track.laden_titel": "Track wird geladen",
+  "track.laden_fertig": "{n} Punkte gelesen",
+  "track.aus_bibliothek": "Die Datei „{d}“ gibt es nicht mehr — die Tour kommt aus deiner Bibliothek.",
+  "photos.laden_titel": "Fotos des Projekts",
+  "photos.laden_text": "Vorschaubilder werden geholt",
+  "photos.laden_fertig": "{n} Fotos bereit",
+  "photos.laden_abgebrochen": "Abgebrochen — {n} von {m} geladen",
+  "photos.laden_fehler": "{n} Fotos nicht lesbar",
+  "photos.ordner_wird_gelesen": "Ordner wird gelesen — Aufnahmedaten und Vorschaubilder",
+  "session.gleiche_tour": "Dieselbe Strecke wie „{tour}“ — die App hat dein vorhandenes Projekt geöffnet. Eine Tour erkennt sie am Streckenverlauf, nicht am Dateinamen."
 }

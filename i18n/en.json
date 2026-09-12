@@ -3434,5 +3434,18 @@
   "fotos.d_stichworte": "Keywords",
   "fotos.d_pfad": "Located in",
   "fotos.d_alle_tags": "All capture data",
-  "common.loading": "Loading …"
+  "common.loading": "Loading …",
+  "status.fertig": "Done",
+  "status.fehler": "Failed",
+  "status.wird_abgebrochen": "Cancelling …",
+  "track.laden_titel": "Loading track",
+  "track.laden_fertig": "{n} points read",
+  "track.aus_bibliothek": "The file “{d}” is gone — the tour comes from your library instead.",
+  "photos.laden_titel": "Project photos",
+  "photos.laden_text": "Fetching thumbnails",
+  "photos.laden_fertig": "{n} photos ready",
+  "photos.laden_abgebrochen": "Cancelled — {n} of {m} loaded",
+  "photos.laden_fehler": "{n} photos could not be read",
+  "photos.ordner_wird_gelesen": "Reading folder — capture data and thumbnails",
+  "session.gleiche_tour": "Same route as “{tour}” — the app opened your existing project. It recognises a tour by its path on the map, not by its file name."
 }

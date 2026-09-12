@@ -2509,6 +2509,12 @@ class Api:
                 rz_id = ""
                 if gpx_path and str(gpx_path).lower().endswith(".gpx"):
                     rz_id = cgpxedit.read_rz_id(gpx_path)
+                # 12.09.2026 — War diese Tour VOR diesem Aufruf schon bekannt?
+                # Der Beta-Tester exportierte dieselbe Reise neu, landete
+                # dadurch im vorhandenen Projekt und dachte, er könne keine
+                # Tracks mehr auswählen. Die Oberfläche sagt es ihm jetzt —
+                # dafür braucht sie diese Auskunft.
+                schon_bekannt = track_hash in (daten.get("touren") or {})
                 active_proj = _projekte.kontext_oeffnen_einzel(
                     daten, track_hash, coords, gpx_path or None,
                     SESSIONS_GPX_DIR, defaults, ui_hash=ui_hash,
@@ -2521,6 +2527,9 @@ class Api:
             return {
                 "ok": True,
                 "track_hash": track_hash,
+                # True = diese Koordinaten kannte die App schon (gleiche Tour,
+                # andere Datei). Die Oberfläche weist darauf hin.
+                "bekannt": bool(schon_bekannt),
                 "session": {
                     "track_hash": track_hash,
                     "name": tour.get("name", ""),
@@ -5347,9 +5356,49 @@ class Api:
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}
 
+    def _bibliothek_ersatz(self, path: str) -> tuple:
+        """Die Quelldatei ist weg — hat die Bibliothek eine eigene Kopie?
+
+        12.09.2026, Beta-Tester: Er hatte seine Export-Datei gelöscht und neu
+        exportiert. Beim Öffnen seines Projekts kam „Reisezoom kann GPS-Daten
+        nicht laden" — obwohl die Tour längst in der Bibliothek liegt. Genau
+        dafür gibt es sie („die Bibliothek ist die Wahrheit", UMBAU-BIBLIOTHEK
+        Schnitt 1), also wird sie hier auch benutzt.
+
+        Rückgabe: (Pfad der Kopie oder "", Name der Tour).
+        """
+        if not path or not BIB_BEREIT:
+            return "", ""
+        try:
+            zeile = clib.get_track(self._lib(), str(path))
+            gh = (zeile or {}).get("geo_hash") or ""
+            name = (zeile or {}).get("display_name") or (zeile or {}).get("name") or ""
+            if not gh:
+                return "", ""
+            ersatz = Api._version_pfad(gh)
+            if ersatz and Path(ersatz).is_file():
+                log.info("[ersatz] Quelldatei fehlt (%s) → Bibliothekskopie %s",
+                         Path(path).name, Path(ersatz).name)
+                return str(ersatz), name
+        except Exception:
+            log.exception("_bibliothek_ersatz")
+        return "", ""
+
     def animator_load_gpx(self, path: str) -> dict:
         """Lädt eine GPX, gibt downsampled GeoJSON + Stats fürs UI zurück.
-        Andere Track-Formate werden vorher automatisch nach GPX konvertiert."""
+        Andere Track-Formate werden vorher automatisch nach GPX konvertiert.
+
+        Fehlt die Datei draußen, springt die Bibliothekskopie ein (siehe
+        `_bibliothek_ersatz`); das Ergebnis sagt es über `ersatz`.
+        """
+        if path and not Path(path).exists():
+            ersatz, name = self._bibliothek_ersatz(path)
+            if ersatz:
+                erg = self.animator_load_gpx(ersatz)
+                if erg.get("ok"):
+                    erg["ersatz"] = {"quelle": "bibliothek", "fehlt": str(path),
+                                     "pfad": ersatz, "name": name}
+                return erg
         try:
             st = os.stat(path)
             key = (str(path), st.st_size, int(st.st_mtime))
