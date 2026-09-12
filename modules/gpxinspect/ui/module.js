@@ -2165,17 +2165,31 @@ function mountGpxInspect(body, headerActions) {
     vs.sort((x, y) => x - y);
     return vs[Math.floor(vs.length / 2)];
   }
-  /** Welches Routen-Profil passt HIER? Leer = die Wahl des Nutzers gilt. */
-  function _profilFuerLuecke(g, fallback) {
-    if (_profilManuell) return fallback;
+  /** Welches Routen-Profil passt HIER? Aus dem Tempo um die Lücke herum. */
+  function _profilAusTempo(g) {
     const v = _tempoUm(g.a, 150);
-    if (!v) return fallback;
+    if (!v) return "";
     return v < 2.5 ? "walking" : (v < 7 ? "cycling" : "driving");   // 9 / 25 km/h
+  }
+  /** Ein Profil je Lücke — aber nur, wenn der Track wirklich gemischt ist.
+   *
+   *  12.09.2026: Die abschnittsweise Wahl ist für Mischtouren gedacht (Womo-Fahrt
+   *  mit Spaziergängen). Bei einer gewöhnlichen Tour bleibt die Einstellung des
+   *  Nutzers stehen — sie kommt aus „Lücken füllen als" oder aus der
+   *  Fortbewegungsart im Archiv, und die weiß es besser als ein Tempo-Median
+   *  (Schieben am Berg, Stau, Ampeln). Erst wenn die Lücken in VERSCHIEDENEN
+   *  Tempo-Welten liegen, entscheidet das Tempo je Lücke.
+   */
+  function _profileFuerLuecken(gaps, fallback) {
+    const geraten = gaps.map((g) => _profilAusTempo(g));
+    const arten = new Set(geraten.filter(Boolean));
+    if (_profilManuell || arten.size < 2) return gaps.map(() => fallback);
+    return geraten.map((x) => x || fallback);
   }
 
   async function _lueckenRouten(gaps, spacing, fillMode) {
     const gapsAB = gaps.map((g) => [_points[g.a].lon, _points[g.a].lat, _points[g.b].lon, _points[g.b].lat]);
-    const profile = gaps.map((g) => _profilFuerLuecke(g, fillMode));
+    const profile = _profileFuerLuecken(gaps, fillMode);
     _mmBusy = true; updateUI();
     const arten = [...new Set(profile)];
     toast(arten.length > 1
