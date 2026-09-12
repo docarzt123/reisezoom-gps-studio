@@ -423,6 +423,14 @@ def open_db(db_path: Path) -> sqlite3.Connection:
         if n:
             log.info("library: %d Speicher-Zeile(n) markiert", n)
     _fts_einrichten(conn)
+    # 12.09.2026 (IDEAS §64) — der Foto-Bestand liegt in derselben Datenbank
+    # (Marc: „in die bestehende"). Eigenes Modul, eigene Tabellen, damit das
+    # Track-Archiv davon nichts wissen muss.
+    try:
+        from . import fotos as _fotos
+        _fotos.schema_anlegen(conn)
+    except Exception:
+        log.exception("library: Foto-Tabellen konnten nicht angelegt werden")
     conn.commit()
     return conn
 

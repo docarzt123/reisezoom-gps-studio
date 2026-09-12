@@ -683,6 +683,164 @@ def version_weg(ort: Path, version_id: str) -> bool:
         return False
 
 
+# ── Name, Liste, ZIP-Sicherung (Marc, 12.09.2026) ───────────────────────────
+#
+# Anlass (Marc): „bei mir sind test- und arbeitsbibliothek im moment eins und
+# das ist blöd." Wechseln konnte die App schon (`ort_schreiben` + `vorher`), es
+# fehlten der NAME und die sichtbare Liste. Der Name liegt in der Kenndatei der
+# Bibliothek, nicht im Zeiger — so zieht er mit, wenn der Ordner wandert.
+
+# Ordner, die eine ZIP-Sicherung im Sparmodus auslässt: beide entstehen von
+# selbst wieder. `bilder` sind Vorschau-/Kartenbilder, `sicherungen` sind die
+# rollierenden Kopien von library.db (bei Marc 77 von 150 MB).
+ZIP_SPARSAM_AUS = ("bilder", "sicherungen")
+
+
+def name_lesen(ort: Path) -> str:
+    """Der Anzeigename dieser Bibliothek — Rückfall: der Ordnername."""
+    ort = Path(ort)
+    try:
+        n = str(stempel_lesen(ort, "name") or "").strip()
+    except Exception:
+        n = ""
+    return n or ort.name or str(ort)
+
+
+def name_setzen(ort: Path, name: str) -> str:
+    """Namen in die Kenndatei schreiben. Leer = zurück zum Ordnernamen."""
+    name = " ".join(str(name or "").split())[:60]
+    stempel_setzen(Path(ort), "name", name)
+    return name_lesen(ort)
+
+
+def bekannte_orte(app_support: Path, aktiv: Optional[Path] = None) -> list:
+    """Alle Bibliotheken, die diese App kennt — die aktive zuerst.
+
+    Je Eintrag: `pfad`, `name`, `da` (liegt dort heute eine Bibliothek),
+    `aktiv`. Für die Liste in den Einstellungen.
+    """
+    raus: list = []
+    gesehen = set()
+
+    def rein(pfad: str, ist_aktiv: bool) -> None:
+        pfad = str(pfad or "").strip()
+        if not pfad or pfad in gesehen:
+            return
+        gesehen.add(pfad)
+        p = Path(pfad)
+        try:
+            da = ist_bibliothek(p)
+        except Exception:
+            da = False
+        raus.append({"pfad": pfad, "name": name_lesen(p) if da else p.name,
+                     "da": bool(da), "aktiv": bool(ist_aktiv)})
+
+    if aktiv:
+        rein(str(aktiv), True)
+    for x in vorherige_orte(app_support):
+        rein(x.get("pfad", ""), False)
+    return raus
+
+
+def ort_vergessen(app_support: Path, pfad: str) -> bool:
+    """Einen Ort aus der Liste nehmen. Löscht NICHTS auf der Platte.
+
+    Bewusst so: „löschen" in der Oberfläche heißt „aus meiner Liste", nie
+    „Daten weg". Wer eine Bibliothek wirklich loswerden will, wirft den Ordner
+    selbst in den Papierkorb — dann sieht er, was er wegwirft.
+    """
+    z = zeiger_datei(app_support)
+    try:
+        d = json.loads(z.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    pfad = str(pfad or "").strip()
+    if not pfad or pfad == str(d.get("pfad") or "").strip():
+        return False          # die aktive Bibliothek bleibt in der Liste
+    vorher = [str(x) for x in (d.get("vorher") or []) if str(x).strip() and str(x) != pfad]
+    d["vorher"] = vorher
+    tmp = z.with_suffix(f".tmp{os.getpid()}")
+    try:
+        tmp.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, z)
+    except OSError:
+        return False
+    return True
+
+
+def zip_name_vorschlag(ort: Path) -> str:
+    """Dateiname mit Zeitstempel — Regel: nie eine vorhandene Sicherung
+    überschreiben (CLAUDE.md, Marc 28.06.2026)."""
+    stamp = datetime.now().strftime("%Y%m%d-%H%M")
+    roh = re.sub(r"[^\w\-]+", "-", name_lesen(ort), flags=re.UNICODE).strip("-")
+    return f"{stamp}-Bibliothek-{roh or 'GPS-Studio'}.zip"
+
+
+def zip_sichern(ort: Path, ziel: Path, alles: bool = False,
+                fortschritt=None) -> dict:
+    """Die Bibliothek als ZIP sichern.
+
+    `alles=False` (Vorgabe) lässt `bilder/` und `sicherungen/` weg — beides
+    entsteht neu. `alles=True` nimmt den Ordner vollständig, ohne die Sperre.
+    `fortschritt(n, gesamt)` wird gelegentlich gerufen, für die Oberfläche.
+    """
+    import zipfile
+
+    ort = Path(ort)
+    ziel = Path(ziel)
+    if not ist_bibliothek(ort):
+        return {"ok": False, "error": "kein Bibliotheks-Ordner"}
+
+    aus = () if alles else ZIP_SPARSAM_AUS
+
+    def mitnehmen(rel: Path) -> bool:
+        teile = rel.parts
+        if not teile:
+            return False
+        if teile[0] == SPERRDATEI or teile[-1] == ".DS_Store":
+            return False
+        if teile[0].endswith(".zip"):
+            return False
+        return teile[0] not in aus
+
+    dateien = []
+    for f in ort.rglob("*"):
+        if not f.is_file():
+            continue
+        try:
+            rel = f.relative_to(ort)
+        except ValueError:
+            continue
+        if mitnehmen(rel):
+            dateien.append((f, rel))
+
+    ziel.parent.mkdir(parents=True, exist_ok=True)
+    tmp = ziel.with_name(ziel.name + f".teil{os.getpid()}")
+    roh = 0
+    try:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
+            for i, (f, rel) in enumerate(dateien):
+                try:
+                    roh += f.stat().st_size
+                    z.write(f, str(rel))
+                except OSError:
+                    continue
+                if fortschritt and (i % 50 == 0):
+                    try:
+                        fortschritt(i, len(dateien))
+                    except Exception:
+                        pass
+        os.replace(tmp, ziel)
+    except (OSError, ValueError) as e:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "pfad": str(ziel), "dateien": len(dateien),
+            "bytes": ziel.stat().st_size, "roh_bytes": roh, "alles": bool(alles)}
+
+
 def platz_bericht(ort: Path) -> dict:
     """Wie viel Platz braucht die Bibliothek? Für die Einstellungen."""
     n = roh = 0

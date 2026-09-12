@@ -4569,3 +4569,106 @@ Prüfstand leer. Geotagger: `tracks`/`vorgegeben` im `extraSnapshot`, `_gtTracks
 pusht vorher; die Sitzung wird nur gewechselt, wenn der Haupt-Track ein anderer ist
 (ein Sitzungswechsel leert die Stapel — `rebindAllSettings`). Wächter:
 `tests/test_undo_neuerungen.py`, Geotagger-Teil in `tests/test_geotagger_mehrere_tracks.py`.
+
+## Der Foto-Bestand (12.09.2026, IDEAS §64, v0.9.690)
+
+**Warum.** Fotos lagen dreifach herum: der Geotagger scannte Ordner
+(`settings.geotagger.last_photos_*`), die Tour-Map hielt ihre Pins im Projekt
+(`project.photos`), das Highlights-Fenster seine Ordner nur im Speicher
+(`_hlState.ordner`). Dreimal dieselben Dateien, dreimal EXIF neu gelesen, kein
+gemeinsamer Bestand — und kein Index, der eine Suche tragen könnte.
+
+**Wo es liegt.** `core/fotos.py` (Kern), `ui/js/fotos.js` (Oberfläche),
+Tabellen in **derselben** Datenbank wie die Touren (`library.db`). `open_db`
+ruft am Ende `fotos.schema_anlegen(conn)`; das Track-Archiv weiß von den
+Foto-Tabellen nichts.
+
+- `foto_ordner(path, added_at, recursive)` — eigene Ordnerliste, bewusst nicht
+  die der Tracks (Marc: „eigener Ordner, dass man auch weiß, dass es hier
+  definitiv um Fotos geht"). Ein Track-Scan liest nie Fotos mit.
+- `fotos(path PK, …)` — Kernfelder mit Index (Zeit, Tag, Jahr, Kamera, Art,
+  Ordner), dazu `tags_blob` (alle übrigen Tags als zlib-gepacktes JSON) und
+  `hay` für den Volltext.
+- `fotos_fts` — FTS5 mit Trigramm wie `tracks_fts`, gepflegt von Triggern.
+  Fällt die SQLite-Version zu alt aus, schaltet `_FTS_OK` auf den LIKE-Weg über
+  `hay` um; die Abfrage sieht gleich aus.
+
+**Zwei Durchgänge.** `durchgang1` läuft über `os.scandir` und schreibt nur
+Pfad, Ordner, mtime, Größe und Art — Sekunden, danach steht die Liste.
+`durchgang2` holt in Stapeln von 60 die Aufnahmedaten (zwei exiftool-Aufrufe je
+Stapel: `read_meta_viele` numerisch zum Rechnen, `read_alle_tags_viele` lesbar
+für die Suche) und legt die Vorschaubilder an. Beide sind abbrechbar und
+nehmen beim nächsten Lauf dort wieder auf, wo sie standen (`indexed_at IS NULL`).
+
+**Gemessen am 12.09.2026** (Marcs Bilder-Ordner, echte Dateien):
+
+- Alle Tags lesen kostet nicht mehr als acht Felder — rund 12 ms je Datei.
+- Je Datei bleiben ~113 sinnvolle Tags, 6,5 KB als Text, **1,9 KB gepackt**
+  (2200 Dateien ≈ 4 MB, 100.000 ≈ 186 MB).
+- Der Bremsklotz sind die **Vorschaubilder**: 590 ms je Datei, davon über 500
+  für das Bild (große TIFFs, Videos). Mit vier Fäden (`THUMB_FAEDEN`) sind es
+  ~300 ms, aus dem Cache 0,3 ms. Deshalb erzeugt der Scan nur die kleine Größe
+  (220 px), die große (600 px) entsteht beim ersten Ansehen.
+
+**Vorschaubilder** liegen im bestehenden Platten-Cache aus `core/photos.py`
+(`thumb_gecacht`, Schlüssel = Fingerabdruck + `@Größe`), der jetzt auch Videos
+kann. Er gehört zum Rechner, nicht zu den Daten, und bleibt darum im App-Ordner
+(`APP_SUPPORT/photo_thumb_cache`) — siehe die Liste in `core/bibliothek.py`.
+
+**Fotos ↔ Touren wird gerechnet, nicht gespeichert** (`tour_fenster`,
+`tour_zu_zeit`, `touren_zu_fotos`). Grund: eine gespeicherte Zuordnung müsste
+nach jeder Zeitzonen-Korrektur neu geschrieben werden. Bei Überschneidung
+gewinnt die **kürzere** Tour — ein Spaziergang innerhalb einer Womo-Etappe ist
+der genauere Treffer. Spielraum 30 min wie im Geotagger.
+
+**Fallen, die hier schon zugeschnappt sind:**
+
+- `COALESCE(display_name, name, …)` liefert bei den Touren den **leeren Text**,
+  weil beide Spalten mit `''` vorbelegt sind — `NULLIF` gehört dazu, sonst
+  heißt jede Tour „—".
+- Kameras ohne Empfang schreiben **0/0** ins Bild. Das ist ein Punkt im Golf
+  von Guinea; `_meta_aus_info` wirft solche Koordinaten weg, sonst sitzt in der
+  Punktwolke eine Ansammlung vor Afrika.
+- `ordner_hinzu` löst den Pfad auf (`resolve`). Unter macOS ist `/var` ein
+  Verweis auf `/private/var` — ein Test, der mit dem unaufgelösten Pfad sucht,
+  findet nichts.
+- Der Ordner-Dialog ist **nativ** (Python). Im kopflosen Prüfstand lässt er
+  sich nicht klicken: dort den Ordner über die Brücke aufnehmen
+  (`fotos_ordner_hinzu(pfad, true)`) und danach „Einlesen" drücken.
+
+**Oberfläche.** Kein eigenes Modul, sondern der vierte Bereich des Archivs
+(Marc: „so wie man auch zwischen Projekten und Touren wechselt"). Der
+Umschalter `#lib-seg-fotos` setzt `_fotoView`; `renderView()` blendet das
+Touren-Archiv aus und zeigt `#lib-fotowrap`, das `ui/js/fotos.js` füllt.
+`window.rzFotos.mount(wrap, nav)` / `.unmount()` — der Cleanup des Moduls ruft
+`unmount`, sonst bleiben Karte und Scan-Wecker stehen. Drei Ansichten: Raster
+nach Tagen, Karte (Dichte-Wolke plus optional die Touren als blasse Linien) und
+Gruppierung nach Touren.
+
+**Prüfstände.** `tests/test_fotos_bestand.py` (Kern, mit erzeugten Fotos und
+einem echten MP4) und `tests/test_fotos_ui.py` (echte Oberfläche an der echten
+Brücke, Playwright, **eigene Testbibliothek** — der Prüfstand darf Marcs
+Arbeitsbibliothek nicht anfassen).
+
+## Mehrere Bibliotheken (12.09.2026, v0.9.690)
+
+Wechseln konnte die App schon (`ort_schreiben` merkt den bisherigen Ort unter
+`vorher`, `bibliothek_wechseln` springt hin). Es fehlten Name und sichtbare
+Verwaltung — Marc: „test und arbeitsbibliothek sind bei mir eins und das ist
+blöd."
+
+- `name_lesen` / `name_setzen` legen den Namen in die **Kenndatei der
+  Bibliothek** (`bibliothek.json` im Bibliotheksordner, Stempel `name`), nicht
+  in den Zeiger. So zieht er mit, wenn der Ordner wandert. Rückfall: Ordnername.
+- `bekannte_orte(app_support, aktiv)` = aktive Bibliothek plus `vorher`, je mit
+  `da` und `name`. `ort_vergessen` nimmt einen Ort aus der Liste und **löscht
+  nichts**; die aktive Bibliothek lässt sich nicht vergessen.
+- `zip_sichern(ort, ziel, alles=False)` packt die Bibliothek; ohne `alles`
+  bleiben `bilder/` und `sicherungen/` draußen (beide entstehen neu — bei Marc
+  126 von 150 MB), die Sperre nie. Der Vorschlagsname trägt einen Zeitstempel
+  (`zip_name_vorschlag`), eine vorhandene Sicherung wird also nie überschrieben.
+- Brücke: `bibliothek_liste`, `bibliothek_name`, `bibliothek_vergessen`,
+  `bibliothek_zip`; `bibliothek_status` liefert zusätzlich `name`.
+- Oberfläche: Verwaltung in den Einstellungen (Reiter *Bibliothek & Cloud*),
+  im Archiv nur der Name (`#lib-bibname`), Klick öffnet
+  `openSettingsModal("bibliothek")`. Wächter: `tests/test_bibliothek_verwaltung.py`.

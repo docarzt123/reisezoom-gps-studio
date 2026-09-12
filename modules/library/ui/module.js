@@ -243,6 +243,9 @@ function mountLibrary(body, headerActions) {
         <div class="lib-nav-hint" style="margin:0 0 10px">${T("vorlagen.nav_hint", "Eine Vorlage ist ein leeres Projekt: Karte, Track-Form, Kamera, Overlays, Schilder-Stil, Render. ★ = Mein Standard für neue Projekte.")}</div>
         <button class="lib-nav-add" id="lib-vorl-new" type="button">+ ${T("vorlagen.neu_aus_projekt", "Neue Vorlage aus Projekt …")}</button>
       </div>
+      <!-- 12.09.2026 (IDEAS §64) — dritter Bereich: der Foto-Bestand. Inhalt
+           kommt aus ui/js/fotos.js, damit dieses Modul nicht weiter wächst. -->
+      <div id="lib-nav-fotos" hidden></div>
       <div id="lib-nav-touren">
       <div class="lib-nav-title">${T("library.section_library", "Bibliothek")}</div>
       <nav class="lib-scopes" id="lib-scopes"></nav>
@@ -269,7 +272,14 @@ function mountLibrary(body, headerActions) {
           <button type="button" class="pmgr-seg-btn" id="lib-seg-projekte">🗂 ${T("pm.title", "Projekte")}</button>
           <button type="button" class="pmgr-seg-btn" id="lib-seg-vorlagen">🧩 ${T("vorlagen.titel", "Vorlagen")}</button>
           <button type="button" class="pmgr-seg-btn is-on" id="lib-seg-touren">📚 ${T("pm.seg_archive", "Touren-Archiv")}</button>
+          <button type="button" class="pmgr-seg-btn" id="lib-seg-fotos">📷 ${T("fotos.titel", "Fotos")}</button>
         </div>
+        <!-- 12.09.2026 (Marc): im Archiv steht nur der NAME der Bibliothek, ein
+             Klick öffnet die Verwaltung in den Einstellungen — „dann bleibt das
+             archiv schlank". Verhindert, dass man in der Testbibliothek
+             arbeitet, ohne es zu merken. -->
+        <button type="button" class="lib-bibname" id="lib-bibname" hidden
+                title="${T("library.bibname_tip", "Geöffnete Bibliothek — klicken für Name, Wechseln und Sicherung")}"></button>
         <input type="search" id="lib-search" class="lib-search"
                value="${esc(state.search || "")}"
                placeholder="${T("library.search_ph", "Suchen — Name, Ort, Schlagwort …")}">
@@ -346,6 +356,7 @@ function mountLibrary(body, headerActions) {
         <div class="lib-stats" id="lib-stats" hidden></div>
         <div class="lib-projwrap" id="lib-projwrap" hidden></div>
         <div class="lib-projwrap lib-vorlwrap" id="lib-vorlwrap" hidden></div>
+        <div class="lib-projwrap lib-fotowrap" id="lib-fotowrap" hidden></div>
       </div>
     </section>
 
@@ -756,9 +767,38 @@ function mountLibrary(body, headerActions) {
   // 11.09.2026 — dritte Ansicht „Vorlagen" (nicht gemerkt: man startet in
   // Projekten oder Touren, Vorlagen sind ein bewusster Abstecher).
   let _vorlView = false;
+  // 12.09.2026 (IDEAS §64) — vierter Zustand: der Foto-Bestand. Wie Vorlagen
+  // nicht gemerkt; man kommt der Touren wegen ins Archiv.
+  let _fotoView = false;
+  function fotoViewSetzen(an) {
+    _fotoView = !!an;
+    if (_fotoView) { _projView = false; _vorlView = false; }
+    const bar = document.querySelector(".lib-bar");
+    if (bar) bar.classList.toggle("proj-mode", _projView || _vorlView || _fotoView);
+    [["lib-seg-fotos", _fotoView], ["lib-seg-vorlagen", _vorlView],
+     ["lib-seg-projekte", _projView],
+     ["lib-seg-touren", !_projView && !_vorlView && !_fotoView]].forEach(([id, an2]) => {
+      const b = document.getElementById(id);
+      if (b) b.classList.toggle("is-on", !!an2);
+    });
+    [["lib-nav-fotos", _fotoView], ["lib-nav-vorlagen", _vorlView],
+     ["lib-nav-projekte", _projView],
+     ["lib-nav-touren", !_projView && !_vorlView && !_fotoView]].forEach(([id, an2]) => {
+      const n = document.getElementById(id);
+      if (n) n.hidden = !an2;
+    });
+    if (_fotoView && window.rzFotos) {
+      window.rzFotos.mount(document.getElementById("lib-fotowrap"),
+                           document.getElementById("lib-nav-fotos"));
+    } else if (!_fotoView && window.rzFotos) {
+      window.rzFotos.unmount();
+    }
+    renderView();
+  }
   function vorlViewSetzen(an) {
     _vorlView = !!an;
     if (_vorlView) _projView = false;
+    if (_vorlView && _fotoView) { _fotoView = false; if (window.rzFotos) window.rzFotos.unmount(); }
     const bar = document.querySelector(".lib-bar");
     if (bar) bar.classList.toggle("proj-mode", _projView || _vorlView);
     const sv = document.getElementById("lib-seg-vorlagen");
@@ -778,6 +818,7 @@ function mountLibrary(body, headerActions) {
   function projViewSetzen(an) {
     _projView = !!an;
     _vorlView = false;
+    if (_fotoView) { _fotoView = false; if (window.rzFotos) window.rzFotos.unmount(); }
     { const sv = document.getElementById("lib-seg-vorlagen"); if (sv) sv.classList.remove("is-on");
       const nv = document.getElementById("lib-nav-vorlagen"); if (nv) nv.hidden = true; }
     // 02.09.2026 (Marc): Was zuletzt offen war, soll beim nächsten Start
@@ -1515,6 +1556,20 @@ function mountLibrary(body, headerActions) {
   // ── Ansichten ─────────────────────────────────────────────────────────
   function renderView() {
     document.querySelectorAll(".lib-view").forEach(b => b.classList.toggle("is-on", b.dataset.view === view));
+    { const fw = $("lib-fotowrap"); if (fw) fw.hidden = !_fotoView; }
+    if (_fotoView) {
+      // Der Foto-Bestand bringt eigene Leiste und eigene Ansichten mit; das
+      // Archiv tritt komplett zurück, nur die Detailspalte wird geteilt.
+      ["lib-projwrap", "lib-vorlwrap", "lib-head", "lib-grid", "lib-list",
+       "lib-mapwrap", "lib-stats"].forEach(id => { const e = $(id); if (e) e.hidden = true; });
+      { const d = $("lib-detail");
+        if (d && !d.querySelector(".foto-detail")) {
+          d.hidden = false;
+          d.innerHTML = `<div class="lib-detail-empty" style="padding:14px">${
+            T("fotos.detail_hint", "Datei anklicken — dann stehen hier Aufnahmedaten, Ort und was fehlt.")}</div>`;
+        } }
+      return;
+    }
     { const vw = $("lib-vorlwrap"); if (vw) vw.hidden = !_vorlView; }
     if (_vorlView) {
       $("lib-projwrap").hidden = true; $("lib-head").hidden = true;
@@ -4948,9 +5003,14 @@ function mountLibrary(body, headerActions) {
   { const sp = document.getElementById("lib-seg-projekte");
     const st = document.getElementById("lib-seg-touren");
     const sv = document.getElementById("lib-seg-vorlagen");
-    if (sp) sp.onclick = () => { if (!_projView || _vorlView) projViewSetzen(true); };
-    if (st) st.onclick = () => { if (_projView || _vorlView) projViewSetzen(false); };
-    if (sv) sv.onclick = () => { if (!_vorlView) vorlViewSetzen(true); }; }
+    const sf = document.getElementById("lib-seg-fotos");
+    if (sp) sp.onclick = () => { if (!_projView || _vorlView || _fotoView) projViewSetzen(true); };
+    if (st) st.onclick = () => {
+      if (_fotoView) { fotoViewSetzen(false); return; }
+      if (_projView || _vorlView) projViewSetzen(false);
+    };
+    if (sv) sv.onclick = () => { if (!_vorlView) vorlViewSetzen(true); };
+    if (sf) sf.onclick = () => { if (!_fotoView) fotoViewSetzen(true); }; }
   { const nv = document.getElementById("lib-vorl-new");
     if (nv) nv.onclick = async () => {
       // Projekt wählen → Name → Vorlage anlegen.
@@ -5131,6 +5191,19 @@ function mountLibrary(body, headerActions) {
   } catch (_) {}
   $("lib-map-png").onclick = saveMapPng;
   $("lib-folders-btn").onclick = openFoldersModal;
+  // 12.09.2026 — Name der geöffneten Bibliothek; Klick öffnet die Verwaltung.
+  (function bibName() {
+    const b = $("lib-bibname");
+    if (!b) return;
+    const zeigen = (name) => {
+      if (!name) { b.hidden = true; return; }
+      b.textContent = "📖 " + name;
+      b.hidden = false;
+    };
+    window.rzBibNameZeigen = zeigen;
+    b.onclick = () => { if (typeof window.openSettingsModal === "function") window.openSettingsModal("bibliothek"); };
+    api().bibliothek_status().then(st => { if (!_unmounted) zeigen(st && st.name); }).catch(() => {});
+  })();
   $("lib-dupes").onclick = showDuplicates;
   $("lib-check-all").onclick = () => trackCheckAlleStarten(false);
   $("lib-col-new").onclick = () => addToCollectionDialog([]);
@@ -5223,6 +5296,9 @@ function mountLibrary(body, headerActions) {
     closeMapPopup();
     if (_map) { try { _map.remove(); } catch (_) {} _map = null; _mapReady = false; }
     try { delete window.__libMap; } catch (_) { window.__libMap = null; }
+    // 12.09.2026 — der Foto-Bestand hat seine eigene Karte und einen Wecker
+    // für den Scan; beides muss beim Modulwechsel mit weg.
+    if (window.rzFotos) { try { window.rzFotos.unmount(); } catch (_) {} }
     body.classList.remove("lib-mode");
   };
 }
