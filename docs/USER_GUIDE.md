@@ -1449,6 +1449,15 @@ gerade eingelesen wird — der Stand mit Abbrechen. Beides nebeneinander gibt es
 nicht mehr.
 
 
+Solange die Automatik an ist, steht über dem Raster kein Knopf, sondern was
+gerade passiert. Erst wenn du abbrichst, erscheint **Weiterlesen** — der nächste
+Lauf macht dort weiter, wo der abgebrochene aufhörte.
+
+Und: Die App geht dort wieder auf, wo du sie geschlossen hast. Warst du zuletzt
+im Archiv bei den Fotos, landest du beim nächsten Start wieder dort, statt im
+Animator mit dem zuletzt geöffneten Projekt.
+
+
 ### Einlesen — und was von selbst passiert
 
 Ein Ordner, den du aufnimmst, wird auch beobachtet. Beim Öffnen des

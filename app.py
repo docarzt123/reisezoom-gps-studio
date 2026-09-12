@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.695"
+APP_VERSION = "0.9.696"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -10053,9 +10053,15 @@ class Api:
             p = (daten.get("projects") or {}).get(pid)
             if not p:
                 return {"ok": True, "weiter": False, "grund": "projekt_weg"}
+            # 12.09.2026 (Marc: „ich schließe die App, und wenn ich sie wieder
+            # aufmache, geht sie im Animator auf und nicht im Archiv bei den
+            # Fotos"): Das zuletzt geöffnete Projekt ist nur die halbe Antwort.
+            # War das Archiv das Letzte, was offen war, gehört es auch wieder
+            # nach vorn — dort wird ja nicht an einem Projekt gearbeitet.
             return {"ok": True, "weiter": True, "projekt_id": pid,
                     "name": _projekte.anzeigename(daten, p),
-                    "modul": Api._arbeitsmodul(p)}
+                    "modul": Api._arbeitsmodul(p),
+                    "zuletzt_modul": str(s.get("active_module") or "")}
         except Exception as e:
             log.exception("letzte_sitzung")
             return {"ok": False, "error": str(e)}

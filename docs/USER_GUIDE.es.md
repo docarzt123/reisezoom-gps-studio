@@ -1310,6 +1310,14 @@ Sobre la cuadrícula aparece **o bien** el botón **Escanear ahora**, **o bien**
 mientras se escanea, el progreso con un botón de cancelar. Nunca ambos a la vez.
 
 
+Mientras el automatismo esté activado, sobre la cuadrícula no hay un botón sino
+lo que está ocurriendo. Solo al cancelar aparece **Continuar**: la siguiente
+pasada sigue donde se quedó la cancelada.
+
+Y la aplicación se abre donde la cerraste: si lo último fue el archivo en Fotos,
+ahí vuelves al arrancar, en lugar del Animador con el último proyecto.
+
+
 ### Escanear, y qué ocurre por sí solo
 
 Una carpeta que añades queda realmente vigilada. Al abrir el área de fotos, la

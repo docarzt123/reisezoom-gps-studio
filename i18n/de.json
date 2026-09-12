@@ -3505,5 +3505,8 @@
   "fotos.auto_tip": "Beim Öffnen weiterlesen, wo der letzte Lauf aufhörte, und höchstens alle sechs Stunden nachsehen, ob sich in den Ordnern etwas geändert hat.",
   "fotos.kopf_laeuft": "Liest ein — {p} {n}",
   "fotos.alle_da": "Alle {n} Dateien geladen.",
-  "fotos.geladen_von": "{a} von {b}"
+  "fotos.geladen_von": "{a} von {b}",
+  "fotos.kopf_startet": "Liest ein …",
+  "fotos.kopf_weiter": "Weiterlesen",
+  "fotos.kopf_abgebrochen": "Abgebrochen. Der nächste Lauf macht dort weiter, wo dieser aufhörte."
 }

@@ -3505,5 +3505,8 @@
   "fotos.auto_tip": "Al abrir, continúa donde se quedó la última pasada y busca cambios en las carpetas como mucho cada seis horas.",
   "fotos.kopf_laeuft": "Escaneando — {p} {n}",
   "fotos.alle_da": "Todos los {n} archivos cargados.",
-  "fotos.geladen_von": "{a} de {b}"
+  "fotos.geladen_von": "{a} de {b}",
+  "fotos.kopf_startet": "Escaneando …",
+  "fotos.kopf_weiter": "Continuar",
+  "fotos.kopf_abgebrochen": "Cancelado. La próxima pasada continúa donde se quedó esta."
 }
