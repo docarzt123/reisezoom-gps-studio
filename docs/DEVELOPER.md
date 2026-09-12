@@ -4789,3 +4789,26 @@ Feld „Lücken füllen als" schlägt das weiterhin.
 
 Wächter: `tests/test_uebersetzen_abschnitte.py` (gebaute Tracks, keine fremden
 Reisedaten).
+
+## Fotos auswählen statt alles nehmen (12.09.2026)
+
+`PhotoPins.waehlen(photos, opts)` (`ui/js/photos.js`) öffnet eine Liste mit
+Vorschaubildern, Aufnahmezeit und Häkchen und liefert die Auswahl als Promise
+(leeres Array = abgebrochen). Sie hängt vor jedem Weg, der Fotos ins Projekt
+holt: `_animPhotosLoadFromPaths`, `_animPhotosLoadFromGeotagger` und
+`_animSignsAddPhotosFromBridge` (letzteres gilt auch für die Tour-Map, die
+dasselbe Modul spiegelt).
+
+**Vorauswahl:** bis `WAHL_ALLE_BIS` (60) alles, darüber `WAHL_VORSCHLAG_MAX`
+(40) gleichmäßig über die nach Aufnahmezeit sortierte Liste verteilt. Der Text
+im Dialog nennt beide Zahlen und den Grund.
+
+**Warum:** Marc: „ich hab ‚aus geotagger übernehmen‘ eh so verstanden, dass man
+da aus einer liste auswählt." Der Knopf nahm aber alles, was der Geotagger hielt
+und was Koordinaten hatte. Ein Beta-Tester hatte gerade 2842 Fotos geotaggt und
+bekam damit 2830 Fotos ins Projekt — und im Animator wird aus jedem Foto ein
+**Schild**. Das war die Ursache des Animator-Hängers, den wir vorher nur
+abgefedert hatten (Häppchen + Ladeanzeige).
+
+Wächter: `tests/test_foto_auswahl.py` (300 erzeugte Fotos, echte Brücke, echte
+Oberfläche).

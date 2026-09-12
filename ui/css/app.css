@@ -3158,3 +3158,49 @@ body.rz-no-freecam .easing-modal-smooth { display: none !important; }
 .rz-status.ist-fertig .rz-status-balken > i { background: #37b24d; width: 100%; }
 .rz-status.ist-fehler .rz-status-punkt { animation: none; background: #e03131; }
 .rz-status.ist-fehler .rz-status-balken > i { background: #e03131; }
+
+/* 12.09.2026 — Foto-Auswahl („aus einer Liste auswählen", Marc). Kacheln mit
+   Häkchen; die gewählten heben sich deutlich ab, damit man auf einen Blick
+   sieht, was mitkommt. */
+.foto-wahl-leiste { align-items: center; display: flex; gap: 6px; margin: 8px 0 6px; }
+.foto-wahl-zahl { font-size: 11.5px; margin-left: auto; opacity: .8; }
+.foto-wahl-raster {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  max-height: 52vh;
+  overflow: auto;
+  padding: 2px;
+}
+.foto-wahl-kachel {
+  aspect-ratio: 1 / 1;
+  background: rgba(255, 255, 255, .05);
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: .5;
+  overflow: hidden;
+  position: relative;
+}
+.foto-wahl-kachel.ist-an { border-color: var(--accent, #ff7a1a); opacity: 1; }
+.foto-wahl-kachel img { height: 100%; object-fit: cover; width: 100%; display: block; }
+.foto-wahl-kachel input {
+  left: 4px;
+  position: absolute;
+  top: 4px;
+  z-index: 2;
+}
+.foto-wahl-leer {
+  align-items: center; display: flex; font-size: 24px; height: 100%;
+  justify-content: center; opacity: .6;
+}
+.foto-wahl-zeit {
+  background: rgba(0, 0, 0, .6);
+  border-radius: 4px;
+  bottom: 3px;
+  color: #fff;
+  font-size: 10px;
+  left: 3px;
+  padding: 1px 4px;
+  position: absolute;
+}

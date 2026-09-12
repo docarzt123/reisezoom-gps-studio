@@ -9827,14 +9827,18 @@ function mountAnimator(body, headerActions, opts) {
           toast(t("photos.toast_loaded", "%n Fotos geladen.")
                 .replace("%n", photos.length), "ok", 2500);
         }
-        const merged = PhotoPins.dedupePaths(_animPhotosList(), photos);
-        _animPhotosSaveListToProject(merged);
-        _animPhotosApplyToMapEnsured();
-        _animPhotosRenderList();
         if (window.rzStatus) {
           window.rzStatus.fertig(ladeId, t("photos.laden_fertig", "{n} Fotos bereit")
             .replace("{n}", photos.length));
         }
+        // 12.09.2026 (Marc: „aus geotagger übernehmen habe ich so verstanden,
+        // dass man da aus einer liste auswählt"): erst zeigen, dann übernehmen.
+        const wahl = await PhotoPins.waehlen(photos);
+        if (!wahl.length) return;
+        const merged = PhotoPins.dedupePaths(_animPhotosList(), wahl);
+        _animPhotosSaveListToProject(merged);
+        _animPhotosApplyToMapEnsured();
+        _animPhotosRenderList();
       } catch (e) {
         applog("error", `[anim-photos] load fehlgeschlagen: ${e}`);
         if (window.rzStatus) window.rzStatus.fehler(ladeId, String(e));
@@ -9843,20 +9847,37 @@ function mountAnimator(body, headerActions, opts) {
     }
     async function _animPhotosLoadFromGeotagger() {
       if (!window.pywebview?.api?.photos_from_geotagger) return;
+      const ladeId = "anim-fotos-gtg";
+      if (window.rzStatus) {
+        window.rzStatus.start(ladeId, {
+          titel: t("photos.from_geotagger", "Aus Geotagger"),
+          text: t("photos.laden_text", "Vorschaubilder werden geholt"),
+        });
+      }
       try {
         const res = await window.pywebview.api.photos_from_geotagger();
         const photos = (res && res.photos) || [];
+        if (window.rzStatus) {
+          window.rzStatus.fertig(ladeId, t("photos.laden_fertig", "{n} Fotos bereit")
+            .replace("{n}", photos.length));
+        }
         if (photos.length === 0) {
           toast(t("photos.toast_gtg_empty", "Keine Geotagger-Fotos mit GPS gefunden."), "warn", 3500);
           return;
         }
-        const merged = PhotoPins.dedupePaths(_animPhotosList(), photos);
+        // Auswählen statt alles nehmen (Marc, 12.09.2026).
+        const wahl = await PhotoPins.waehlen(photos, {
+          titel: t("photos.wahl_titel_gtg", "Welche Fotos aus dem Geotagger?"),
+        });
+        if (!wahl.length) return;
+        const merged = PhotoPins.dedupePaths(_animPhotosList(), wahl);
         _animPhotosSaveListToProject(merged);
         _animPhotosApplyToMapEnsured();
         _animPhotosRenderList();
         toast(t("photos.toast_loaded", "%n Fotos geladen.")
-              .replace("%n", photos.length), "ok", 2500);
+              .replace("%n", wahl.length), "ok", 2500);
       } catch (e) {
+        if (window.rzStatus) window.rzStatus.fehler(ladeId, String(e));
         applog("error", `[anim-photos] from-geotagger fehlgeschlagen: ${e}`);
       }
     }
@@ -11387,7 +11408,15 @@ function mountAnimator(body, headerActions, opts) {
     async function _animSignsAddPhotosFromBridge(loader) {
       try {
         const res = await loader();
-        const photos = (res && res.photos) || [];
+        let photos = (res && res.photos) || [];
+        // 12.09.2026 — im Animator wird aus JEDEM Foto ein Schild. Ohne Auswahl
+        // entstanden aus einem Klick 2830 Schilder (Beta-Tester). Also fragen.
+        if (photos.length > 1 && window.PhotoPins && PhotoPins.waehlen) {
+          photos = await PhotoPins.waehlen(photos, {
+            titel: t("photos.wahl_titel_schilder", "Welche Fotos sollen Schilder werden?"),
+          });
+          if (!photos.length) return;
+        }
         if (!photos.length) {
           // v0.9.199 — ohne GPS ≠ Lesefehler. Klare Meldung statt pauschal „kein GPS".
           if ((res && res.failed_count) > 0 && !(res.skipped_count > 0)) {

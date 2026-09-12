@@ -3465,5 +3465,15 @@
   "trackcheck.btn_zeigen": "Mostrar",
   "trackcheck.btn_zeigen_tip": "Marca los puntos en el mapa y salta por ellos uno a uno.",
   "trackcheck.stelle_von": "Punto {i} de {n}",
-  "trackcheck.keine_stellen": "Este hallazgo no tiene un punto concreto que mostrar."
+  "trackcheck.keine_stellen": "Este hallazgo no tiene un punto concreto que mostrar.",
+  "photos.wahl_titel": "¿Qué fotos quieres incluir?",
+  "photos.wahl_titel_gtg": "¿Qué fotos del geoetiquetador?",
+  "photos.wahl_titel_schilder": "¿Qué fotos deben convertirse en carteles?",
+  "photos.wahl_viele": "Se han encontrado {n} fotos con coordenadas. Se proponen {v}, repartidas de forma uniforme en el tiempo; con más, el mapa se vuelve ilegible y la carga se alarga. Puedes cambiarlo.",
+  "photos.wahl_wenige": "Se han encontrado {n} fotos con coordenadas. Marca las que quieras.",
+  "photos.wahl_alle": "Todas",
+  "photos.wahl_keine": "Ninguna",
+  "photos.wahl_verteilt": "Proponer reparto",
+  "photos.wahl_zahl": "{n} de {m} seleccionadas",
+  "photos.wahl_ok": "Usar estas"
 }
