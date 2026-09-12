@@ -123,6 +123,25 @@ tiene su propia copia. Dos consecuencias:
   inspector se crea una **versión** nueva en tu biblioteca; tu archivo
   original queda intacto. Si la necesitas fuera, usa *Exportar versión …*.
 
+### Varias bibliotecas: separar trabajo y pruebas (desde v0.9.690) ⭐
+
+Puedes mantener varias bibliotecas y cambiar entre ellas.
+
+* **Ponerle nombre:** Ajustes → *Biblioteca y nube* → **Nombre de esta
+  biblioteca** (por ejemplo «Trabajo» o «Pruebas»). El nombre se guarda dentro
+  de la propia biblioteca y viaja con la carpeta.
+* **Ver en cuál estás:** el nombre de la biblioteca abierta aparece en la parte
+  superior del archivo. Al hacer clic se abre la gestión.
+* **Cambiar:** la lista **Bibliotecas conocidas** contiene todas las que GPS
+  Studio ha abierto. *Abrir* cambia (la aplicación se reinicia para ello),
+  *Quitar de la lista* solo la olvida: **nunca se borra nada del disco**.
+* **Copia de seguridad en ZIP:** *Crear copia de seguridad …* empaqueta toda la
+  biblioteca en un ZIP con marca de tiempo en el nombre, así nunca se
+  sobrescribe una copia anterior. Sin la casilla marcada se omiten las
+  miniaturas y las copias rotativas de la base de datos: ambas se regeneran
+  solas y el archivo resulta mucho más pequeño. Con *Incluir todo* obtienes una
+  imagen completa.
+
 ### Si la biblioteca no está
 
 Si vive en un disco externo que no está conectado, GPS Studio lo dice al
@@ -1241,6 +1260,65 @@ mismo encuadre, mismo zoom, mismos colores.
 
 ---
 
+## 2d · Fotos 📷 — tu fondo de imágenes en el archivo (desde v0.9.690) ⭐
+
+### Qué hace
+
+Junto a *Proyectos*, *Plantillas* y *Archivo de rutas*, el archivo tiene un
+cuarto área: **Fotos**. Indicas carpetas, GPS Studio indexa las fotos **y los
+vídeos** que contienen y los muestra por días, en un mapa o agrupados por ruta.
+Solo **lee**: ninguno de tus archivos se modifica.
+
+### Añadir carpetas y leerlas
+
+A la izquierda, **Añadir carpeta …**; las subcarpetas se incluyen. La lectura
+ocurre en dos pasadas:
+
+1. **Buscar archivos** — segundos, y la vista ya está.
+2. **Leer datos de captura** — hora, coordenadas, cámara, objetivo y todo lo
+   demás, además de las miniaturas. Ocurre en segundo plano, muestra su progreso
+   y se puede cancelar. La próxima vez continúa donde lo dejó.
+
+Una carpeta que quitas solo desaparece del fondo; los archivos siguen donde
+estaban.
+
+### Las tres vistas
+
+* **▦ Cuadrícula** — agrupada por días, la más reciente primero. Una pequeña
+  **!** en una miniatura significa que falta algo (hora de captura, zona horaria
+  o coordenadas). Los vídeos llevan su duración abajo a la derecha.
+* **🌍 Mapa** — una nube de densidad con todos los archivos que tienen
+  coordenadas: cuantos más hay en un punto, más grande e intenso. Al hacer clic
+  en la nube verás a la derecha qué archivos hay allí y **por qué ruta tuya
+  pasaste**. La casilla *Mostrar rutas como líneas* dibuja tus trayectos debajo.
+* **🥾 Por ruta** — qué fotos pertenecen a qué ruta. GPS Studio lo calcula con la
+  ventana temporal de la ruta; no se escribe en ningún archivo. Al hacer clic en
+  una ruta verás sus archivos en la cuadrícula.
+
+### Buscar y filtrar
+
+El campo de búsqueda abarca todo lo que hay en los archivos: nombre, cámara,
+objetivo, palabras clave, lugares. Además: año, cámara y *con / sin
+coordenadas*. A la izquierda ves de un vistazo cuántos archivos no tienen
+coordenadas o no tienen hora; un clic filtra por ellos.
+
+### Lo que el fondo sabe de una foto
+
+Haz clic en una miniatura y la columna derecha muestra una vista previa grande,
+la hora de captura (con la nota *estimada* si la zona horaria no estaba en el
+archivo), cámara, objetivo, diafragma, exposición, ISO, tamaño, lugar y
+coordenadas. Abajo, **Todos los datos de captura** despliega cada entrada que
+contiene el archivo.
+
+### Lo que todavía no hace
+
+Esta primera etapa solo lee. Ubicar fotos sin track a partir de sus vecinas en
+el tiempo, construir un track con fotos ya ubicadas y editar aquí los datos de
+captura son etapas propias. Para ubicar fotos con un track sigue usando el
+**geoetiquetador** (capítulo 6).
+
+---
+
 ## 3 · Módulo: Animator — renderizar el GPX como vídeo
 
 ### Qué hace
@@ -2275,6 +2353,45 @@ Puedes:
 
 ### Logo de la app + estadísticas en la cabecera
 Arriba a la izquierda: icono de la app + nombre. En el centro (cuando hay un GPX cargado): pastillas de estadísticas (distancia, tiempo, ascenso, descenso). Arriba a la derecha: **?** (ayuda) y **⚙** (ajustes).
+
+---
+
+## 8a · Qué está pasando ahora mismo: el aviso de carga (desde v0.9.690) ⭐
+
+Cuando algo tarda un poco, **aparece un recuadro abajo a la derecha**. Indica
+**qué** se está haciendo (por ejemplo «Obteniendo miniaturas»), **cuánto lleva**
+(«1.200 / 2.830») y ofrece **Cancelar** cuando es posible. La aplicación sigue
+siendo utilizable; el recuadro no bloquea nada.
+
+Lo verás al cargar un track, al obtener las fotos de un proyecto, cuando el
+geoetiquetador lee una carpeta y mientras se indexa el fondo de fotos.
+
+**Las fotos llegan ahora por tandas.** Si un proyecto tiene muchas, la lista
+aparece enseguida y las imágenes van llegando. La primera vez tarda (cada imagen
+se lee una vez); después va rápido porque las miniaturas se conservan.
+
+### Elegir fotos (desde v0.9.690)
+
+Cuando incorporas fotos a un proyecto, ya sea con **Desde el geoetiquetador** o
+desde una carpeta, GPS Studio muestra primero una **lista con miniaturas y
+casillas**. Hasta 60 fotos se preseleccionan todas. Por encima, la aplicación
+propone una selección repartida en el tiempo (como máximo 40), porque en el
+animador **cada foto se convierte en un cartel**: cien carteles en una ruta ya
+no son un relato, son un muro. **Todas**, **Ninguna** y **Proponer reparto**
+cambian la preselección con un clic.
+
+### Si el archivo del track ya no está
+
+Si un proyecto apunta a un archivo que borraste o moviste, GPS Studio toma **la
+copia de tu biblioteca** y te lo dice. Antes aquí solo salía un error.
+
+### «Es la misma ruta»
+
+Si exportas otra vez el mismo viaje desde tu aplicación de grabación, GPS Studio
+lo reconoce por su **trazado**, no por el nombre del archivo, y abre tu proyecto
+existente con todo tu trabajo. Un aviso te lo indica. Si quieres trabajar por
+separado a propósito, crea un segundo proyecto para la misma ruta desde el menú
+de proyectos.
 
 ---
 

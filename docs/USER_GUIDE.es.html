@@ -255,6 +255,7 @@
 <li><a href="#2-primeros-pasos" data-anchor="2-primeros-pasos">2 · Primeros pasos</a></li>
 <li><a href="#2b-abrir-archivos-de-track-muchos-formatos" data-anchor="2b-abrir-archivos-de-track-muchos-formatos">2b · Abrir archivos de track — muchos formatos ⭐</a></li>
 <li><a href="#2c-m-dulo-archivo-todas-las-rutas-en-un-solo-sitio" data-anchor="2c-m-dulo-archivo-todas-las-rutas-en-un-solo-sitio">2c · Módulo: Archivo 📚 — todas las rutas en un solo sitio ⭐</a></li>
+<li><a href="#2d-fotos-tu-fondo-de-im-genes-en-el-archivo" data-anchor="2d-fotos-tu-fondo-de-im-genes-en-el-archivo">2d · Fotos 📷 — tu fondo de imágenes en el archivo ⭐</a></li>
 <li><a href="#3-m-dulo-animator-renderizar-el-gpx-como-v-deo" data-anchor="3-m-dulo-animator-renderizar-el-gpx-como-v-deo">3 · Módulo: Animator — renderizar el GPX como vídeo</a></li>
 <li><a href="#3c-combinar-varias-rutas-en-un-v-deo" data-anchor="3c-combinar-varias-rutas-en-un-v-deo">3c · Combinar varias rutas en un vídeo 🧭</a></li>
 <li><a href="#4-m-dulo-ruta-de-viaje-la-llegada-como-v-deo" data-anchor="4-m-dulo-ruta-de-viaje-la-llegada-como-v-deo">4 · Módulo: Ruta de viaje — la llegada como vídeo 🛣️</a></li>
@@ -264,6 +265,7 @@
 <li><a href="#6-m-dulo-geotagger-etiquetar-fotos-con-gps" data-anchor="6-m-dulo-geotagger-etiquetar-fotos-con-gps">6 · Módulo: Geotagger — etiquetar fotos con GPS</a></li>
 <li><a href="#7-m-dulo-inspector-gpx-reparar-el-track" data-anchor="7-m-dulo-inspector-gpx-reparar-el-track">7 · Módulo: Inspector GPX — reparar el track 🔍</a></li>
 <li><a href="#8-funciones-generales" data-anchor="8-funciones-generales">8 · Funciones generales</a></li>
+<li><a href="#8a-qu-est-pasando-ahora-mismo-el-aviso-de-carga" data-anchor="8a-qu-est-pasando-ahora-mismo-el-aviso-de-carga">8a · Qué está pasando ahora mismo: el aviso de carga ⭐</a></li>
 <li><a href="#9-ayuda-feedback-y-reportes-de-bugs" data-anchor="9-ayuda-feedback-y-reportes-de-bugs">9 · Ayuda, feedback y reportes de bugs</a></li>
 <li><a href="#10-faq" data-anchor="10-faq">10 · FAQ</a></li>
 <li><a href="#11-atajos-de-teclado-macos" data-anchor="11-atajos-de-teclado-macos">11 · Atajos de teclado (macOS)</a></li>
@@ -348,6 +350,24 @@ python app.py</code></pre>
 <li><strong>GPS Studio no escribe nunca en tus archivos.</strong> Al curar una ruta en el</li>
 </ul>
 <p> inspector se crea una <strong>versión</strong> nueva en tu biblioteca; tu archivo  original queda intacto. Si la necesitas fuera, usa <em>Exportar versión …</em>.</p>
+<h3 id="varias-bibliotecas-separar-trabajo-y-pruebas">Varias bibliotecas: separar trabajo y pruebas ⭐</h3>
+<p>Puedes mantener varias bibliotecas y cambiar entre ellas.</p>
+<ul>
+<li><strong>Ponerle nombre:</strong> Ajustes → <em>Biblioteca y nube</em> → **Nombre de esta</li>
+</ul>
+<p> biblioteca** (por ejemplo «Trabajo» o «Pruebas»). El nombre se guarda dentro  de la propia biblioteca y viaja con la carpeta.</p>
+<ul>
+<li><strong>Ver en cuál estás:</strong> el nombre de la biblioteca abierta aparece en la parte</li>
+</ul>
+<p> superior del archivo. Al hacer clic se abre la gestión.</p>
+<ul>
+<li><strong>Cambiar:</strong> la lista <strong>Bibliotecas conocidas</strong> contiene todas las que GPS</li>
+</ul>
+<p> Studio ha abierto. <em>Abrir</em> cambia (la aplicación se reinicia para ello),  <em>Quitar de la lista</em> solo la olvida: <strong>nunca se borra nada del disco</strong>.</p>
+<ul>
+<li><strong>Copia de seguridad en ZIP:</strong> <em>Crear copia de seguridad …</em> empaqueta toda la</li>
+</ul>
+<p> biblioteca en un ZIP con marca de tiempo en el nombre, así nunca se  sobrescribe una copia anterior. Sin la casilla marcada se omiten las  miniaturas y las copias rotativas de la base de datos: ambas se regeneran  solas y el archivo resulta mucho más pequeño. Con <em>Incluir todo</em> obtienes una  imagen completa.</p>
 <h3 id="si-la-biblioteca-no-est">Si la biblioteca no está</h3>
 <p>Si vive en un disco externo que no está conectado, GPS Studio lo dice al arrancar y ofrece <em>Buscar de nuevo</em> o <em>Elegir otra ubicación</em>. <strong>Nunca</strong> crea en silencio una biblioteca vacía: tus datos no se han perdido, solo no están accesibles.</p>
 <p><strong>«La biblioteca ya está abierta»</strong> significa que un archivo de bloqueo dice que otro GPS Studio la tiene abierta. Si la app no se cerró bien la última vez (cierre forzado, equipo apagado, unidad de red desconectada), es solo un resto: elige <strong>Abrir de todos modos …</strong>. La app pregunta una vez, porque dos instancias abiertas a la vez se sobrescribirían los datos.</p>
@@ -933,6 +953,37 @@ python app.py</code></pre>
 <p>Cada ruta recibe <strong>su propio color</strong>, derivado de su recorrido — con setecientas rutas todas las líneas serían iguales y no se podría seguir ninguna. El color se mantiene entre sesiones. Las favoritas conservan su color de señal.</p>
 <p>Si alguno no te gusta, pon el tuyo en <strong>«Color del track en el mapa»</strong> en la columna de detalle; <strong>«Automático»</strong> restaura el derivado. Este color vale <strong>solo en el archivo</strong> — el animador y el mapa de ruta tienen su propio color por proyecto.</p>
 <p>Arriba a la izquierda del mapa está <strong>🖼 PNG</strong>: guarda el mapa exactamente como se ve ahora mismo encuadre, mismo zoom, mismos colores.</p>
+<hr>
+<h2 id="2d-fotos-tu-fondo-de-im-genes-en-el-archivo">2d · Fotos 📷 — tu fondo de imágenes en el archivo ⭐</h2>
+<h3 id="qu-hace">Qué hace</h3>
+<p>Junto a <em>Proyectos</em>, <em>Plantillas</em> y <em>Archivo de rutas</em>, el archivo tiene un cuarto área: <strong>Fotos</strong>. Indicas carpetas, GPS Studio indexa las fotos <strong>y los vídeos</strong> que contienen y los muestra por días, en un mapa o agrupados por ruta. Solo <strong>lee</strong>: ninguno de tus archivos se modifica.</p>
+<h3 id="a-adir-carpetas-y-leerlas">Añadir carpetas y leerlas</h3>
+<p>A la izquierda, <strong>Añadir carpeta …</strong>; las subcarpetas se incluyen. La lectura ocurre en dos pasadas:</p>
+<ol>
+<li><strong>Buscar archivos</strong> — segundos, y la vista ya está.</li>
+<li><strong>Leer datos de captura</strong> — hora, coordenadas, cámara, objetivo y todo lo</li>
+</ol>
+<p> demás, además de las miniaturas. Ocurre en segundo plano, muestra su progreso  y se puede cancelar. La próxima vez continúa donde lo dejó.</p>
+<p>Una carpeta que quitas solo desaparece del fondo; los archivos siguen donde estaban.</p>
+<h3 id="las-tres-vistas">Las tres vistas</h3>
+<ul>
+<li><strong>▦ Cuadrícula</strong> — agrupada por días, la más reciente primero. Una pequeña</li>
+</ul>
+<p> <strong>!</strong> en una miniatura significa que falta algo (hora de captura, zona horaria  o coordenadas). Los vídeos llevan su duración abajo a la derecha.</p>
+<ul>
+<li><strong>🌍 Mapa</strong> — una nube de densidad con todos los archivos que tienen</li>
+</ul>
+<p> coordenadas: cuantos más hay en un punto, más grande e intenso. Al hacer clic  en la nube verás a la derecha qué archivos hay allí y <strong>por qué ruta tuya  pasaste</strong>. La casilla <em>Mostrar rutas como líneas</em> dibuja tus trayectos debajo.</p>
+<ul>
+<li><strong>🥾 Por ruta</strong> — qué fotos pertenecen a qué ruta. GPS Studio lo calcula con la</li>
+</ul>
+<p> ventana temporal de la ruta; no se escribe en ningún archivo. Al hacer clic en  una ruta verás sus archivos en la cuadrícula.</p>
+<h3 id="buscar-y-filtrar">Buscar y filtrar</h3>
+<p>El campo de búsqueda abarca todo lo que hay en los archivos: nombre, cámara, objetivo, palabras clave, lugares. Además: año, cámara y <em>con / sin coordenadas</em>. A la izquierda ves de un vistazo cuántos archivos no tienen coordenadas o no tienen hora; un clic filtra por ellos.</p>
+<h3 id="lo-que-el-fondo-sabe-de-una-foto">Lo que el fondo sabe de una foto</h3>
+<p>Haz clic en una miniatura y la columna derecha muestra una vista previa grande, la hora de captura (con la nota <em>estimada</em> si la zona horaria no estaba en el archivo), cámara, objetivo, diafragma, exposición, ISO, tamaño, lugar y coordenadas. Abajo, <strong>Todos los datos de captura</strong> despliega cada entrada que contiene el archivo.</p>
+<h3 id="lo-que-todav-a-no-hace">Lo que todavía no hace</h3>
+<p>Esta primera etapa solo lee. Ubicar fotos sin track a partir de sus vecinas en el tiempo, construir un track con fotos ya ubicadas y editar aquí los datos de captura son etapas propias. Para ubicar fotos con un track sigue usando el <strong>geoetiquetador</strong> (capítulo 6).</p>
 <hr>
 <h2 id="3-m-dulo-animator-renderizar-el-gpx-como-v-deo">3 · Módulo: Animator — renderizar el GPX como vídeo</h2>
 <h3 id="qu-hace">Qué hace</h3>
@@ -1701,6 +1752,17 @@ python app.py</code></pre>
 </ul>
 <h3 id="logo-de-la-app-estad-sticas-en-la-cabecera">Logo de la app + estadísticas en la cabecera</h3>
 <p>Arriba a la izquierda: icono de la app + nombre. En el centro (cuando hay un GPX cargado): pastillas de estadísticas (distancia, tiempo, ascenso, descenso). Arriba a la derecha: <strong>?</strong> (ayuda) y <strong>⚙</strong> (ajustes).</p>
+<hr>
+<h2 id="8a-qu-est-pasando-ahora-mismo-el-aviso-de-carga">8a · Qué está pasando ahora mismo: el aviso de carga ⭐</h2>
+<p>Cuando algo tarda un poco, <strong>aparece un recuadro abajo a la derecha</strong>. Indica <strong>qué</strong> se está haciendo (por ejemplo «Obteniendo miniaturas»), <strong>cuánto lleva</strong> («1.200 / 2.830») y ofrece <strong>Cancelar</strong> cuando es posible. La aplicación sigue siendo utilizable; el recuadro no bloquea nada.</p>
+<p>Lo verás al cargar un track, al obtener las fotos de un proyecto, cuando el geoetiquetador lee una carpeta y mientras se indexa el fondo de fotos.</p>
+<p><strong>Las fotos llegan ahora por tandas.</strong> Si un proyecto tiene muchas, la lista aparece enseguida y las imágenes van llegando. La primera vez tarda (cada imagen se lee una vez); después va rápido porque las miniaturas se conservan.</p>
+<h3 id="elegir-fotos">Elegir fotos</h3>
+<p>Cuando incorporas fotos a un proyecto, ya sea con <strong>Desde el geoetiquetador</strong> o desde una carpeta, GPS Studio muestra primero una <strong>lista con miniaturas y casillas</strong>. Hasta 60 fotos se preseleccionan todas. Por encima, la aplicación propone una selección repartida en el tiempo (como máximo 40), porque en el animador <strong>cada foto se convierte en un cartel</strong>: cien carteles en una ruta ya no son un relato, son un muro. <strong>Todas</strong>, <strong>Ninguna</strong> y <strong>Proponer reparto</strong> cambian la preselección con un clic.</p>
+<h3 id="si-el-archivo-del-track-ya-no-est">Si el archivo del track ya no está</h3>
+<p>Si un proyecto apunta a un archivo que borraste o moviste, GPS Studio toma <strong>la copia de tu biblioteca</strong> y te lo dice. Antes aquí solo salía un error.</p>
+<h3 id="es-la-misma-ruta">«Es la misma ruta»</h3>
+<p>Si exportas otra vez el mismo viaje desde tu aplicación de grabación, GPS Studio lo reconoce por su <strong>trazado</strong>, no por el nombre del archivo, y abre tu proyecto existente con todo tu trabajo. Un aviso te lo indica. Si quieres trabajar por separado a propósito, crea un segundo proyecto para la misma ruta desde el menú de proyectos.</p>
 <hr>
 <h2 id="9-ayuda-feedback-y-reportes-de-bugs">9 · Ayuda, feedback y reportes de bugs</h2>
 <h3 id="men-de-ayuda">Menú de ayuda</h3>
