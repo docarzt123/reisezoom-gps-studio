@@ -1440,6 +1440,15 @@ Objektiv, Stichwörter, Ortsangaben. Dazu kommen Jahr, Kamera und *mit / ohne
 Koordinate*. Links siehst du auf einen Blick, wie viele Dateien ohne
 Koordinate oder ohne Aufnahmezeit sind — ein Klick darauf filtert danach.
 
+Das Raster lädt beim Blättern von selbst nach: Bist du unten angekommen,
+kommt die nächste Seite dazu, ohne dass du klickst. Unten steht, wie viele von
+wie vielen geladen sind, und am Ende, dass alles da ist.
+
+Über dem Raster steht **entweder** der Knopf **Jetzt einlesen** **oder** — wenn
+gerade eingelesen wird — der Stand mit Abbrechen. Beides nebeneinander gibt es
+nicht mehr.
+
+
 ### Einlesen — und was von selbst passiert
 
 Ein Ordner, den du aufnimmst, wird auch beobachtet. Beim Öffnen des

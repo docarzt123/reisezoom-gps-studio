@@ -3502,5 +3502,8 @@
   "fotos.kopf_einlesen": "Scan now",
   "fotos.kopf_offen_hilfe": "Only after the scan do capture data and thumbnails live in the library — until then the view fetches every picture from the drive one by one.",
   "fotos.auto": "Keep up to date by itself",
-  "fotos.auto_tip": "On opening, carry on where the last run stopped, and look for changes in the folders at most every six hours."
+  "fotos.auto_tip": "On opening, carry on where the last run stopped, and look for changes in the folders at most every six hours.",
+  "fotos.kopf_laeuft": "Scanning — {p} {n}",
+  "fotos.alle_da": "All {n} files loaded.",
+  "fotos.geladen_von": "{a} of {b}"
 }

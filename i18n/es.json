@@ -3502,5 +3502,8 @@
   "fotos.kopf_einlesen": "Escanear ahora",
   "fotos.kopf_offen_hilfe": "Solo tras el escaneo los datos de captura y las miniaturas están en la biblioteca; hasta entonces la vista trae cada imagen de la unidad una a una.",
   "fotos.auto": "Mantener al día por sí solo",
-  "fotos.auto_tip": "Al abrir, continúa donde se quedó la última pasada y busca cambios en las carpetas como mucho cada seis horas."
+  "fotos.auto_tip": "Al abrir, continúa donde se quedó la última pasada y busca cambios en las carpetas como mucho cada seis horas.",
+  "fotos.kopf_laeuft": "Escaneando — {p} {n}",
+  "fotos.alle_da": "Todos los {n} archivos cargados.",
+  "fotos.geladen_von": "{a} de {b}"
 }
