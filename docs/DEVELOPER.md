@@ -4679,7 +4679,7 @@ blöd."
 jetzt visuelles feedback, am besten sogar mit einer ausgabe wo genau steht, was
 passiert. sonst denkt jeder die app hängt, wenn es mal länger dauert."
 
-**Werkzeug: `window.rzStatus`** (`ui/js/util.js`, Stil in `ui/app.css`). Ein
+**Werkzeug: `window.rzStatus`** (`ui/js/util.js`, Stil in `ui/css/app.css`). Ein
 Kasten unten rechts, der die Bedienung **nicht** sperrt; mehrere Vorgänge
 stapeln sich. Kein Modal — ein Modal nimmt die App weg, und genau das ist beim
 Warten das Falsche.
