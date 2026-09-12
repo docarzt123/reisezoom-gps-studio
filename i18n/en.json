@@ -3465,5 +3465,15 @@
   "trackcheck.btn_zeigen": "Show",
   "trackcheck.btn_zeigen_tip": "Mark the spots on the map and jump through them one by one.",
   "trackcheck.stelle_von": "Spot {i} of {n}",
-  "trackcheck.keine_stellen": "This finding has no single spot to show."
+  "trackcheck.keine_stellen": "This finding has no single spot to show.",
+  "photos.wahl_titel": "Which photos should come along?",
+  "photos.wahl_titel_gtg": "Which photos from the Geotagger?",
+  "photos.wahl_titel_schilder": "Which photos should become signs?",
+  "photos.wahl_viele": "{n} photos with coordinates found. {v} of them are proposed, spread evenly over time — more than that makes the map unreadable and loading slow. Change it as you like.",
+  "photos.wahl_wenige": "{n} photos with coordinates found. Tick the ones you want.",
+  "photos.wahl_alle": "All",
+  "photos.wahl_keine": "None",
+  "photos.wahl_verteilt": "Propose a spread",
+  "photos.wahl_zahl": "{n} of {m} selected",
+  "photos.wahl_ok": "Use these"
 }

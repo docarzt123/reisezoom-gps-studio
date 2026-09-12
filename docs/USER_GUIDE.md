@@ -2536,6 +2536,16 @@ Liste sofort da und die Bilder tröpfeln herein, statt dass du auf alles
 gleichzeitig wartest. Beim ersten Mal dauert es (jedes Bild wird einmal
 gelesen), danach geht es schnell, weil die Vorschaubilder gespeichert bleiben.
 
+### Fotos auswählen (seit v0.9.690)
+
+Holst du Fotos ins Projekt — über **Aus Geotagger** oder über einen Ordner —
+zeigt GPS Studio dir erst eine **Liste mit Vorschaubildern und Häkchen**. Bis 60
+Fotos ist alles vorgewählt. Bei mehr schlägt die App eine über die Zeit
+verteilte Auswahl vor (höchstens 40), weil im Animator aus **jedem Foto ein
+Schild** wird: Hundert Schilder auf einer Tour sind keine Erzählung mehr,
+sondern eine Wand. Mit **Alle**, **Keine** und **Verteilt vorschlagen** änderst
+du die Vorauswahl in einem Klick.
+
 ### Wenn die Track-Datei nicht mehr da ist
 
 Zeigt ein Projekt auf eine Datei, die du gelöscht oder verschoben hast, nimmt

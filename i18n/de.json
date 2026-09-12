@@ -3465,5 +3465,15 @@
   "trackcheck.btn_zeigen": "Zeigen",
   "trackcheck.btn_zeigen_tip": "Die Fundstellen auf der Karte markieren und der Reihe nach anspringen.",
   "trackcheck.stelle_von": "Stelle {i} von {n}",
-  "trackcheck.keine_stellen": "Für diesen Befund gibt es keine einzelne Stelle."
+  "trackcheck.keine_stellen": "Für diesen Befund gibt es keine einzelne Stelle.",
+  "photos.wahl_titel": "Welche Fotos sollen mit?",
+  "photos.wahl_titel_gtg": "Welche Fotos aus dem Geotagger?",
+  "photos.wahl_titel_schilder": "Welche Fotos sollen Schilder werden?",
+  "photos.wahl_viele": "{n} Fotos mit Koordinate gefunden. Vorgeschlagen sind {v} davon, gleichmäßig über die Zeit verteilt — bei mehr wird die Karte unlesbar und das Laden dauert. Du kannst frei ändern.",
+  "photos.wahl_wenige": "{n} Fotos mit Koordinate gefunden. Hake ab, was mit soll.",
+  "photos.wahl_alle": "Alle",
+  "photos.wahl_keine": "Keine",
+  "photos.wahl_verteilt": "Verteilt vorschlagen",
+  "photos.wahl_zahl": "{n} von {m} gewählt",
+  "photos.wahl_ok": "Übernehmen"
 }

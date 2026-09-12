@@ -566,6 +566,114 @@
     document.body.appendChild(backdrop);
   }
 
+  /* ────────────────────────────────────────────────────────────────────────
+   * Fotos auswählen statt alles nehmen (12.09.2026, Marc)
+   *
+   * Marc: „ich hab ‚aus geotagger übernehmen‘ eh so verstanden, dass man da aus
+   * einer liste auswählt." So war es nicht: der Knopf nahm jedes Foto mit
+   * Koordinate. Ein Beta-Tester hatte gerade 2842 Fotos geotaggt und bekam auf
+   * einen Klick 2830 Schilder in sein Projekt — im Animator wird aus jedem Foto
+   * ein Schild.
+   *
+   * Die Liste zeigt Vorschaubilder mit Häkchen, nach Aufnahmezeit sortiert.
+   * Vorgewählt ist, was sinnvoll ist: bei wenigen Fotos alle, bei vielen eine
+   * über die Zeit VERTEILTE Auswahl (wie das Highlights-Fenster es macht) —
+   * nie stumm alles.
+   * ──────────────────────────────────────────────────────────────────────── */
+  const WAHL_ALLE_BIS = 60;      // bis hierhin ist „alle" die vernünftige Vorwahl
+  const WAHL_VORSCHLAG_MAX = 40; // darüber: so viele, gleichmäßig verteilt
+
+  function _wahlVorauswahl(photos) {
+    const n = photos.length;
+    if (n <= WAHL_ALLE_BIS) return photos.map((_, i) => i);
+    const schritt = n / WAHL_VORSCHLAG_MAX;
+    const idx = [];
+    for (let k = 0; k < WAHL_VORSCHLAG_MAX; k++) idx.push(Math.min(n - 1, Math.round(k * schritt)));
+    return [...new Set(idx)];
+  }
+
+  function _wahlZeit(p) {
+    if (!p || !p.datetime) return "";
+    try {
+      const d = new Date(p.datetime);
+      if (isNaN(d)) return "";
+      return d.toLocaleString(undefined, { day: "2-digit", month: "2-digit",
+                                           hour: "2-digit", minute: "2-digit" });
+    } catch (_) { return ""; }
+  }
+
+  /** Auswahl-Liste. Liefert die gewählten Fotos (leer = abgebrochen). */
+  function waehlen(photos, opts) {
+    photos = Array.isArray(photos) ? photos.slice() : [];
+    opts = opts || {};
+    if (photos.length < 2) return Promise.resolve(photos);
+    photos.sort((a, b) => String(a.datetime || "").localeCompare(String(b.datetime || "")));
+    const vor = new Set(_wahlVorauswahl(photos));
+    const viele = photos.length > WAHL_ALLE_BIS;
+
+    const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const kacheln = photos.map((p, i) => `
+      <label class="foto-wahl-kachel${vor.has(i) ? " ist-an" : ""}" title="${esc((p.path || "").split("/").pop())}">
+        <input type="checkbox" data-fw="${i}"${vor.has(i) ? " checked" : ""}>
+        ${p.thumb ? `<img src="${p.thumb}" alt="" loading="lazy">`
+                  : `<span class="foto-wahl-leer">🖼</span>`}
+        <span class="foto-wahl-zeit">${esc(_wahlZeit(p))}</span>
+      </label>`).join("");
+
+    return new Promise((fertig) => {
+      const m = openModal({
+        title: opts.titel || t("photos.wahl_titel", "Welche Fotos sollen mit?"),
+        body: `
+          <p class="muted">${esc(viele
+            ? t("photos.wahl_viele", "{n} Fotos mit Koordinate gefunden. Vorgeschlagen sind {v} davon, gleichmäßig über die Zeit verteilt — bei mehr wird die Karte unlesbar und das Laden dauert. Du kannst frei ändern.")
+                .replace("{n}", photos.length).replace("{v}", vor.size)
+            : t("photos.wahl_wenige", "{n} Fotos mit Koordinate gefunden. Hake ab, was mit soll.")
+                .replace("{n}", photos.length))}</p>
+          <div class="foto-wahl-leiste">
+            <button type="button" class="btn btn-sm" id="foto-wahl-alle">${t("photos.wahl_alle", "Alle")}</button>
+            <button type="button" class="btn btn-sm" id="foto-wahl-keine">${t("photos.wahl_keine", "Keine")}</button>
+            <button type="button" class="btn btn-sm" id="foto-wahl-verteilt">${t("photos.wahl_verteilt", "Verteilt vorschlagen")}</button>
+            <span class="foto-wahl-zahl" id="foto-wahl-zahl"></span>
+          </div>
+          <div class="foto-wahl-raster" id="foto-wahl-raster">${kacheln}</div>`,
+        footer: `
+          <button class="btn" id="foto-wahl-ab">${t("common.cancel", "Abbrechen")}</button>
+          <button class="btn btn-primary" id="foto-wahl-ok">${t("photos.wahl_ok", "Übernehmen")}</button>`,
+      });
+
+      const raster = document.getElementById("foto-wahl-raster");
+      const zahl = document.getElementById("foto-wahl-zahl");
+      const gewaehlt = () => Array.from(raster.querySelectorAll("input[data-fw]:checked"))
+        .map((c) => photos[+c.dataset.fw]);
+      const zaehlen = () => {
+        const n = raster.querySelectorAll("input[data-fw]:checked").length;
+        zahl.textContent = t("photos.wahl_zahl", "{n} von {m} gewählt")
+          .replace("{n}", n).replace("{m}", photos.length);
+        raster.querySelectorAll("input[data-fw]").forEach((c) =>
+          c.closest(".foto-wahl-kachel").classList.toggle("ist-an", c.checked));
+      };
+      const setzen = (pruefer) => {
+        raster.querySelectorAll("input[data-fw]").forEach((c) => { c.checked = pruefer(+c.dataset.fw); });
+        zaehlen();
+      };
+      raster.addEventListener("change", zaehlen);
+      document.getElementById("foto-wahl-alle").onclick = () => setzen(() => true);
+      document.getElementById("foto-wahl-keine").onclick = () => setzen(() => false);
+      document.getElementById("foto-wahl-verteilt").onclick = () => {
+        const neu = new Set(_wahlVorauswahl(photos));
+        setzen((i) => neu.has(i));
+      };
+      document.getElementById("foto-wahl-ab").onclick = () => { m.close(); fertig([]); };
+      document.getElementById("foto-wahl-ok").onclick = () => {
+        const sel = gewaehlt();
+        m.close();
+        fertig(sel);
+      };
+      zaehlen();
+    });
+  }
+
   window.PhotoPins = {
     attachToMap,
     updateSize,
@@ -574,6 +682,7 @@
     dedupePaths,
     renderList,
     openPickChoice,
+    waehlen,
     // v0.9.79 — Phase 2: Foto-pop-in
     computeTrackAnchors,
     setMarkerAnchor,
