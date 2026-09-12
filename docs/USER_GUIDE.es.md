@@ -1302,6 +1302,14 @@ objetivo, palabras clave, lugares. Además: año, cámara y *con / sin
 coordenadas*. A la izquierda ves de un vistazo cuántos archivos no tienen
 coordenadas o no tienen hora; un clic filtra por ellos.
 
+La cuadrícula sigue cargando al desplazarte: al llegar abajo se añade la
+página siguiente sin hacer clic. Al pie se indica cuántos de cuántos están
+cargados y, al final, que ya está todo.
+
+Sobre la cuadrícula aparece **o bien** el botón **Escanear ahora**, **o bien**,
+mientras se escanea, el progreso con un botón de cancelar. Nunca ambos a la vez.
+
+
 ### Escanear, y qué ocurre por sí solo
 
 Una carpeta que añades queda realmente vigilada. Al abrir el área de fotos, la

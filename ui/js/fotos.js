@@ -38,6 +38,10 @@
   let auswahl = null;
   let dKarte = null;          // die kleine Karte in der Detailspalte
   let autoAn = true;          // beim Öffnen von selbst nachholen
+  let scanStand = null;       // was der Scan gerade tut (für die Kopfzeile)
+  let rasterBox = null;       // der Kasten, in dem das Raster steht
+  let fussWache = null;       // beobachtet das Ende der Liste (Endlos-Blättern)
+  let nachladend = false;
 
   function num(n) {
     let loc = null;
@@ -222,6 +226,8 @@
       let st = null;
       try { st = await api().fotos_scan_status(); } catch (_) { st = null; }
       if (!st) return;
+      scanStand = st;
+      kopfAuffrischen();
       // Auch im großen Kasten unten rechts anzeigen — dann sieht man den
       // Fortschritt, selbst wenn man inzwischen im Animator arbeitet
       // (Marc, 12.09.2026: „überall visuelles Feedback").
@@ -290,14 +296,23 @@
 
   async function mehrLaden(leise) {
     const lauf = ladeLauf;
-    const r = await api().fotos_abfrage({
-      filter: filter, limit: SEITE, offset: geladen.length, mit_thumbs: true,
-    }).catch(() => null);
-    if (lauf !== ladeLauf || !angemeldet) return;   // inzwischen überholt
-    if (!r || !r.ok) { if (!leise) toast((r && r.error) || "?", "warn"); return; }
-    gesamt = r.n || 0;
-    geladen = geladen.concat(r.fotos || []);
-    zeichnen();
+    const ab = geladen.length;
+    nachladend = true;
+    try {
+      const r = await api().fotos_abfrage({
+        filter: filter, limit: SEITE, offset: ab, mit_thumbs: true,
+      }).catch(() => null);
+      if (lauf !== ladeLauf || !angemeldet) return;   // inzwischen überholt
+      if (!r || !r.ok) { if (!leise) toast((r && r.error) || "?", "warn"); return; }
+      gesamt = r.n || 0;
+      geladen = geladen.concat(r.fotos || []);
+      // Beim Weiterblättern nur anhängen: ein vollständiges Neuzeichnen würde
+      // die Ansicht nach oben reißen und bei tausenden Kacheln hängen.
+      if (ab && ansicht === "raster") rasterAnhaengen(ab);
+      else zeichnen();
+    } finally {
+      nachladend = false;
+    }
     thumbsNachholen();          // absichtlich ohne await: die Seite steht schon
   }
 
@@ -414,16 +429,45 @@
     const teile = [T("fotos.kopf", "{n} Dateien").replace("{n}", num(gesamt))];
     if (stand.ungelesen) teile.push(T("fotos.kopf_offen", "{n} noch ohne Aufnahmedaten").replace("{n}", num(stand.ungelesen)));
     if (stand.ohne_koordinate) teile.push(T("fotos.kopf_ohne_gps", "{n} ohne Koordinate").replace("{n}", num(stand.ohne_koordinate)));
+    return `<div class="lib-head" id="foto-kopf">${esc(teile.join(" · "))}${kopfArbeitHtml()}</div>`;
+  }
+
+  /* Es darf nie beides gleichzeitig dastehen — „Jetzt einlesen" und ein
+     laufendes Einlesen (Marc, 12.09.2026: „der button jetzt einlesen ist immer
+     noch da, das ist verwirrend. liest er jetzt ein oder nicht?"). Entweder
+     läuft es, dann steht hier der Stand und Abbrechen. Oder es läuft nicht,
+     dann steht hier der Knopf. */
+  function kopfArbeitHtml() {
+    if (scanStand && scanStand.running) {
+      const phase = scanStand.phase === "dateien"
+        ? T("fotos.scan_dateien", "Dateien suchen")
+        : T("fotos.scan_daten", "Aufnahmedaten lesen");
+      const zahl = scanStand.total
+        ? `${num(scanStand.done)} / ${num(scanStand.total)}`
+        : num(scanStand.done);
+      return ` <span class="foto-kopf-laeuft">⏳ ${esc(T("fotos.kopf_laeuft", "Liest ein — {p} {n}")
+        .replace("{p}", phase).replace("{n}", zahl))}</span>
+        <button class="btn btn-sm" id="foto-kopf-stop" type="button">${T("common.cancel", "Abbrechen")}</button>`;
+    }
+    if (!stand.ungelesen) return "";
     // Solange nichts eingelesen ist, gibt es auch keine Vorschaubilder im
-    // Speicher — dann muss JEDES Bild einzeln vom Laufwerk kommen. Das steht
-    // hier als Satz, mit dem Knopf daneben, statt dass man sich wundert.
-    const offen = stand.ungelesen
-      ? `<button class="btn btn-sm" id="foto-kopf-scan" type="button">${T("fotos.kopf_einlesen", "Jetzt einlesen")}</button>`
-      : "";
-    const hinweis = stand.ungelesen
-      ? `<div class="muted" style="margin-top:4px">${T("fotos.kopf_offen_hilfe", "Erst nach dem Einlesen liegen Aufnahmedaten und Vorschaubilder in der Bibliothek — bis dahin holt die Ansicht jedes Bild einzeln vom Laufwerk.")}</div>`
-      : "";
-    return `<div class="lib-head">${esc(teile.join(" · "))} ${offen}${hinweis}</div>`;
+    // Speicher — dann muss JEDES Bild einzeln vom Laufwerk kommen.
+    return ` <button class="btn btn-sm" id="foto-kopf-scan" type="button">${T("fotos.kopf_einlesen", "Jetzt einlesen")}</button>
+      <div class="muted" style="margin-top:4px">${T("fotos.kopf_offen_hilfe", "Erst nach dem Einlesen liegen Aufnahmedaten und Vorschaubilder in der Bibliothek — bis dahin holt die Ansicht jedes Bild einzeln vom Laufwerk.")}</div>`;
+  }
+
+  /** Nur die Kopfzeile auffrischen — das Raster bleibt, wo es ist. */
+  function kopfAuffrischen() {
+    if (!haupt) return;
+    const el = haupt.querySelector("#foto-kopf");
+    if (!el) return;
+    el.outerHTML = kopfHtml();
+    const neu = haupt.querySelector("#foto-kopf");
+    if (!neu) return;
+    const start = neu.querySelector("#foto-kopf-scan");
+    if (start) start.onclick = () => scanStarten();
+    const stop = neu.querySelector("#foto-kopf-stop");
+    if (stop) stop.onclick = () => api().fotos_scan_stop();
   }
 
   function kachelHtml(f, i) {
@@ -442,37 +486,102 @@
   }
 
   function rasterZeichnen(box) {
+    rasterBox = box;
     if (!geladen.length) {
       box.innerHTML = `<div class="lib-detail-empty" style="padding:20px">${
         stand.gesamt ? T("fotos.leer_filter", "Kein Treffer für diese Auswahl.")
                      : T("fotos.leer", "Noch keine Fotos im Bestand. Links einen Ordner hinzufügen, dann einlesen.")}</div>`;
       return;
     }
+    box.innerHTML = gruppenHtml(0) + fussHtml();
+    rasterVerdrahten(box, 0);
+  }
+
+  /** Die Tagesgruppen ab einem Index — so kann angehängt werden, ohne das
+      ganze Raster neu zu bauen (sonst springt beim Weiterblättern die
+      Ansicht nach oben). */
+  function gruppenHtml(ab) {
     const gruppen = [];
     let letzte = null;
-    geladen.forEach((f, i) => {
+    for (let i = ab; i < geladen.length; i++) {
+      const f = geladen[i];
       const tag = f.tag_lokal || "";
-      if (!letzte || letzte.tag !== tag) {
-        letzte = { tag, fotos: [] };
-        gruppen.push(letzte);
-      }
+      if (!letzte || letzte.tag !== tag) { letzte = { tag, fotos: [] }; gruppen.push(letzte); }
       letzte.fotos.push([f, i]);
-    });
-    box.innerHTML = gruppen.map(g => `
-      <div class="foto-tag">
+    }
+    return gruppen.map(g => `
+      <div class="foto-tag" data-tag="${esc(g.tag)}">
         <div class="foto-tag-kopf">${esc(tagText(g.tag))}
           <span class="muted">${num(g.fotos.length)}</span></div>
         <div class="foto-raster">${g.fotos.map(([f, i]) => kachelHtml(f, i)).join("")}</div>
-      </div>`).join("")
-      + (geladen.length < gesamt
-        ? `<button class="btn" id="foto-mehr" type="button" style="margin:12px auto; display:block">
-             ${T("fotos.mehr", "Weitere {n} laden").replace("{n}", num(Math.min(SEITE, gesamt - geladen.length)))}</button>`
-        : "");
-    const mehr = box.querySelector("#foto-mehr");
-    if (mehr) mehr.onclick = () => { mehr.disabled = true; mehrLaden(); };
+      </div>`).join("");
+  }
+
+  /* Der Fuß ist zugleich die Stelle, an der weitergeladen wird: kommt er in
+     Sicht, holt die Ansicht die nächste Seite von selbst (Marc, 12.09.2026:
+     „bau ein infinity scrolling"). Der Knopf bleibt als Rückfallweg — wer mit
+     der Tastatur unterwegs ist, kommt sonst nie ans Ende. */
+  function fussHtml() {
+    if (geladen.length >= gesamt) {
+      return `<div class="foto-fuss muted">${T("fotos.alle_da", "Alle {n} Dateien geladen.").replace("{n}", num(gesamt))}</div>`;
+    }
+    return `<div class="foto-fuss" id="foto-fuss">
+      <button class="btn" id="foto-mehr" type="button">${T("fotos.mehr", "Weitere {n} laden")
+        .replace("{n}", num(Math.min(SEITE, gesamt - geladen.length)))}</button>
+      <div class="muted" style="margin-top:4px">${T("fotos.geladen_von", "{a} von {b}")
+        .replace("{a}", num(geladen.length)).replace("{b}", num(gesamt))}</div>
+    </div>`;
+  }
+
+  function rasterVerdrahten(box, ab) {
     box.querySelectorAll("[data-foto]").forEach(b => {
+      if (+b.dataset.foto < ab) return;
       b.onclick = () => detailZeigen(geladen[+b.dataset.foto]);
     });
+    const mehr = box.querySelector("#foto-mehr");
+    if (mehr) mehr.onclick = () => { mehr.disabled = true; mehrLaden(); };
+    fussBeobachten(box);
+  }
+
+  function fussBeobachten(box) {
+    if (fussWache) { try { fussWache.disconnect(); } catch (_) {} fussWache = null; }
+    const fuss = box.querySelector("#foto-fuss");
+    if (!fuss || typeof IntersectionObserver !== "function") return;
+    fussWache = new IntersectionObserver((eintraege) => {
+      if (!eintraege.some(e => e.isIntersecting)) return;
+      if (nachladend || geladen.length >= gesamt || !angemeldet) return;
+      mehrLaden(true);
+      // `box` ist selbst der scrollende Kasten (.foto-body) — nicht das
+      // Fenster: mit `root: null` würde die Wache nie auslösen.
+    }, { root: box, rootMargin: "600px" });
+    fussWache.observe(fuss);
+  }
+
+  /** Nach dem Nachladen nur das Neue anhängen. */
+  function rasterAnhaengen(ab) {
+    const box = rasterBox;
+    if (!box || !box.isConnected) { zeichnen(); return; }
+    const fuss = box.querySelector(".foto-fuss");
+    if (fuss) fuss.remove();
+    // Fällt der erste neue Tag mit dem letzten gezeigten zusammen, wächst die
+    // vorhandene Gruppe weiter, statt eine zweite mit demselben Datum zu
+    // beginnen.
+    const letzteGruppe = box.querySelector(".foto-tag:last-of-type");
+    const neuHtml = gruppenHtml(ab);
+    const huelle = document.createElement("div");
+    huelle.innerHTML = neuHtml;
+    const ersteNeue = huelle.querySelector(".foto-tag");
+    if (letzteGruppe && ersteNeue &&
+        letzteGruppe.dataset.tag === ersteNeue.dataset.tag) {
+      const zielRaster = letzteGruppe.querySelector(".foto-raster");
+      const quelle = ersteNeue.querySelector(".foto-raster");
+      if (zielRaster && quelle) zielRaster.insertAdjacentHTML("beforeend", quelle.innerHTML);
+      const zahl = letzteGruppe.querySelector(".foto-tag-kopf .muted");
+      if (zahl) zahl.textContent = num(zielRaster.querySelectorAll(".foto-kachel").length);
+      ersteNeue.remove();
+    }
+    box.insertAdjacentHTML("beforeend", huelle.innerHTML + fussHtml());
+    rasterVerdrahten(box, ab);
   }
 
   async function tourenZeichnen(box) {
@@ -892,6 +1001,8 @@
 
     const kopfScan = haupt.querySelector("#foto-kopf-scan");
     if (kopfScan) kopfScan.onclick = () => scanStarten();
+    const kopfStop = haupt.querySelector("#foto-kopf-stop");
+    if (kopfStop) kopfStop.onclick = () => api().fotos_scan_stop();
 
     if (ansicht === "karte") karteZeichnen(box);
     else if (ansicht === "touren") tourenZeichnen(box);
@@ -946,6 +1057,8 @@
   function unmount() {
     angemeldet = false;
     thumbLauf++;                // ein laufendes Nachholen von Bildern beenden
+    if (fussWache) { try { fussWache.disconnect(); } catch (_) {} fussWache = null; }
+    rasterBox = null;
     clearTimeout(scanTimer);
     if (karte) { try { karte.remove(); } catch (_) {} }
     karte = null; karteLib = null; karteBereit = false;

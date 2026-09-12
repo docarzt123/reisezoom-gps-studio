@@ -1270,6 +1270,14 @@ keywords, place names. On top of that: year, camera and *with / without
 coordinates*. On the left you see at a glance how many files have no coordinates
 or no capture time — one click filters for them.
 
+The grid loads on as you scroll: reach the bottom and the next page is added
+without a click. The foot says how many of how many are loaded, and at the end
+that everything is there.
+
+Above the grid you see **either** the **Scan now** button **or**, while a scan is
+running, its progress with a cancel button. Never both at once.
+
+
 ### Scanning — and what happens by itself
 
 A folder you add is actually watched. When you open the photo area, the app
