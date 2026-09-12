@@ -3493,5 +3493,12 @@
   "fotos.b_verorten": "Place in Geotagger",
   "fotos.d_tour": "Tour",
   "fotos.verorten_track": "Loading track …",
-  "fotos.verorten_ordner": "Reading photos …"
+  "fotos.verorten_ordner": "Reading photos …",
+  "fotos.laden_ordner": "Reading folders …",
+  "fotos.laden_werte": "Counting cameras and years …",
+  "fotos.laden_seite": "{n} files in the stock — fetching the first page …",
+  "fotos.laden_hinweis": "The stock lives in the library — this works without the drive too.",
+  "fotos.thumbs_holen": "Creating thumbnails",
+  "fotos.kopf_einlesen": "Scan now",
+  "fotos.kopf_offen_hilfe": "Only after the scan do capture data and thumbnails live in the library — until then the view fetches every picture from the drive one by one."
 }

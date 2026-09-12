@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.692"
+APP_VERSION = "0.9.693"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -4125,9 +4125,16 @@ class Api:
                                  offset=int(p.pop("offset", 0)),
                                  sortierung=p.pop("sortierung", "zeit_neu"))
             if mit_thumbs:
+                # NUR aus dem Cache: die Seite muss sofort stehen. Was fehlt,
+                # holt die Oberfläche danach in Häppchen über `fotos_thumbs`
+                # — mit sichtbarem Fortschritt. Vorher baute diese Schleife bis
+                # zu 240 Vorschaubilder am Stück; bei Videos sind das Minuten
+                # ohne ein Zeichen auf dem Schirm (Marc, 12.09.2026).
+                fps = cfotos.fps_lesen(self._lib(), [f["path"] for f in res["fotos"]])
                 for f in res["fotos"]:
                     f["thumb_url"] = cphotos.thumb_data_url_gecacht(
-                        f["path"], cphotos.THUMB_RASTER_PX)
+                        f["path"], cphotos.THUMB_RASTER_PX, fps.get(f["path"]),
+                        nur_cache=True)
             res["ok"] = True
             return res
         except Exception as e:
@@ -4192,11 +4199,33 @@ class Api:
         except Exception:
             fps = {}
         raus = {}
-        for p in pfade:
+        gelernt = {}
+
+        def eins(pfad):
             try:
-                raus[p] = cphotos.thumb_data_url_gecacht(p, px, fps.get(p))
+                fp = fps.get(pfad)
+                if not fp:
+                    # Einmal `stat`, und der Wert bleibt gemerkt: beim nächsten
+                    # Öffnen kommt die Seite ohne Dateizugriff aus.
+                    fp = cphotos.fingerprint_datei(pfad)
+                    if fp:
+                        gelernt[pfad] = fp
+                return pfad, cphotos.thumb_data_url_gecacht(pfad, px, fp)
             except Exception:
-                raus[p] = None
+                return pfad, None
+
+        # Bewusst NACHEINANDER. Vier Fäden waren auf einem WLAN-NAS messbar
+        # langsamer als einer (12.09.2026), weil sich die Lesezugriffe
+        # gegenseitig ausbremsen — und dieser Weg läuft nebenher, während der
+        # Mensch schon blättert. Der Massenlauf ist Durchgang 2 des Scans.
+        for pfad in pfade:
+            _, url = eins(pfad)
+            raus[pfad] = url
+        if gelernt:
+            try:
+                cfotos.fp_setzen(self._lib(), gelernt)
+            except Exception:
+                log.debug("fp_setzen fehlgeschlagen", exc_info=True)
         return {"ok": True, "thumbs": raus}
 
     def fotos_touren(self, filter: dict = None) -> dict:

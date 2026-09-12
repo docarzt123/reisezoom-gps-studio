@@ -103,10 +103,21 @@ def set_fingerprint_ersatz(fn) -> None:
     _fp_ersatz = fn
 
 
-def _fingerprint(path: str, fp: Optional[str] = None) -> Optional[str]:
+def fingerprint_datei(path: str) -> Optional[str]:
+    """Öffentlich: der Fingerabdruck aus der Datei selbst (ein `stat`)."""
+    return _file_fingerprint(path)
+
+
+def _fingerprint(path: str, fp: Optional[str] = None,
+                 ohne_stat: bool = False) -> Optional[str]:
     """Fingerabdruck: übergeben schlägt Datei schlägt Gedächtnis."""
     if fp:
         return fp
+    if ohne_stat:
+        # Ein `stat` auf einem Netzlaufwerk kostet ~35 ms. Mal 240 Kacheln sind
+        # das 8 Sekunden, bevor überhaupt etwas zu sehen ist (gemessen am
+        # 12.09.2026 auf Marcs NAS). Wer sofort antworten muss, verzichtet.
+        return None
     eigen = _file_fingerprint(path)
     if eigen:
         return eigen
@@ -250,18 +261,24 @@ def _thumb_bytes_fuer(path: str, max_px: int) -> Optional[bytes]:
 
 
 def thumb_gecacht(path: str, max_px: int = THUMB_RASTER_PX,
-                  fp: Optional[str] = None) -> Optional[bytes]:
+                  fp: Optional[str] = None, nur_cache: bool = False) -> Optional[bytes]:
     """Vorschaubild aus dem Platten-Cache, sonst erzeugen und hineinlegen.
 
     `fp` ist der gemerkte Fingerabdruck aus dem Fotobestand. Damit findet der
     Cache seine Bilder auch dann, wenn das Laufwerk gerade nicht da ist.
     """
-    schluessel = _fingerprint(path, fp)
+    schluessel = _fingerprint(path, fp, ohne_stat=nur_cache)
     schluessel = f"{schluessel}@{int(max_px)}" if schluessel else ""
     if schluessel:
         da = _cache_get(schluessel)
         if da:
             return da
+    if nur_cache:
+        # Der Aufrufer will sofort antworten (eine Bildschirmseite im Raster):
+        # ein Vorschaubild ERZEUGEN dauert bei Videos Sekunden, und 240 davon
+        # sind Minuten, in denen die Oberfläche schweigt. Fehlende werden
+        # hinterher in Häppchen nachgeholt.
+        return None
     if not os.path.isfile(path):
         return None            # nichts im Cache und die Datei ist weg
     data = _thumb_bytes_fuer(path, int(max_px))
@@ -271,9 +288,10 @@ def thumb_gecacht(path: str, max_px: int = THUMB_RASTER_PX,
 
 
 def thumb_data_url_gecacht(path: str, max_px: int = THUMB_RASTER_PX,
-                           fp: Optional[str] = None) -> Optional[str]:
+                           fp: Optional[str] = None,
+                           nur_cache: bool = False) -> Optional[str]:
     """Wie `thumb_gecacht`, aber gleich als data-URL für die Oberfläche."""
-    return _to_data_url(thumb_gecacht(path, max_px, fp))
+    return _to_data_url(thumb_gecacht(path, max_px, fp, nur_cache))
 
 
 def _get_thumbnail_data_url(path: str) -> Optional[str]:

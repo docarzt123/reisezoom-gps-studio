@@ -3493,5 +3493,12 @@
   "fotos.b_verorten": "Ubicar en el Geotagger",
   "fotos.d_tour": "Ruta",
   "fotos.verorten_track": "Cargando ruta …",
-  "fotos.verorten_ordner": "Leyendo fotos …"
+  "fotos.verorten_ordner": "Leyendo fotos …",
+  "fotos.laden_ordner": "Leyendo carpetas …",
+  "fotos.laden_werte": "Contando cámaras y años …",
+  "fotos.laden_seite": "{n} archivos en el archivo: obteniendo la primera página …",
+  "fotos.laden_hinweis": "El archivo está en la biblioteca; esto funciona también sin la unidad.",
+  "fotos.thumbs_holen": "Creando miniaturas",
+  "fotos.kopf_einlesen": "Escanear ahora",
+  "fotos.kopf_offen_hilfe": "Solo tras el escaneo los datos de captura y las miniaturas están en la biblioteca; hasta entonces la vista trae cada imagen de la unidad una a una."
 }
