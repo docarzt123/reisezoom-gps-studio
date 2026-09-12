@@ -3816,6 +3816,9 @@ const _RZ_TC_FALLBACK = {
   duplicates: "{n} Doppelpunkt|{n} Doppelpunkte", spread_seconds: "{n} Sekunde mehrfach belegt|{n} Sekunden mehrfach belegt (10-Hz-Aufzeichnung)",
   standstill: "Standdrift ({n} Stelle, {min} min)|Standdrift ({n} Stellen, {min} min)", clock_off: "Uhr steht falsch (Datum {jahr})",
   no_time: "Ohne Zeitstempel (geplante Route)", local_time: "Zeiten ohne Zeitzone, als UTC übernommen",
+  // 12.09.2026 — Fähre, Flug, Autozug: eine echte Strecke ohne Aufzeichnung.
+  // Grau, weil daran nichts zu reparieren ist.
+  uebersetzen: "{n} Überfahrt ohne Aufzeichnung ({km} km)|{n} Überfahrten ohne Aufzeichnung ({km} km)",
 };
 window.rzTrackCheckZeile = function(b) {
   if (!b || !b.key) return "";
@@ -3827,6 +3830,7 @@ window.rzTrackCheckZeile = function(b) {
   let s = (teile.length > 1 && n !== 1) ? teile[1] : teile[0];
   const d = b.detail || {};
   return s.replace("{n}", n).replace("{m}", d.max_m != null ? d.max_m : "")
+          .replace("{km}", d.km_gesamt != null ? d.km_gesamt : (d.max_km != null ? d.max_km : ""))
           .replace("{min}", d.min != null ? d.min : "").replace("{jahr}", d.jahr != null ? d.jahr : "");
 };
 window.rzTrackCheckKurz = function(befunde, max) {

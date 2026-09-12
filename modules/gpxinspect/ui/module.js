@@ -41,6 +41,10 @@ function mountGpxInspect(body, headerActions) {
   // v0.9.239 — Auto-Despike: erkannte Ausreißer-Gruppen + Navigations-State.
   let _spikes = [];                 // [{a,b,from,to}] a=Anker vor, b=Anker nach
   let _spikeSet = new Set();        // Punkt-Indizes die als Ausreißer markiert sind
+  // 12.09.2026 — Fundstellen des Track-Checks, die gerade auf der Karte markiert sind.
+  let _tcMarkiert = new Set();
+  let _tcZeigeKey = "";             // welche Befund-Art ist markiert
+  let _tcZeigeIdx = -1;             // welche Stelle davon wurde zuletzt angesprungen
   let _spikeIdx = -1;               // aktuell anvisierter Ausreißer (für Navigation)
   let _gaps = [];                   // v0.9.294 — erkannte Lücken [{a,b,dist}] (b=a+1) für Auto-Heilen
   let _despikeRan = false;          // wurde schon mind. 1× gesucht? (Slider live-Update)
@@ -399,22 +403,28 @@ function mountGpxInspect(body, headerActions) {
           // Zoom-Interpolate MUSS oben stehen (Mapbox erlaubt kein zoom-interpolate
           // innerhalb eines case) — die Spike-Vergrößerung steckt im Output pro Stop.
           "circle-radius": ["interpolate", ["linear"], ["zoom"],
-            9,  ["case", ["boolean", ["get", "spike"], false], 4,  2.2],
-            14, ["case", ["boolean", ["get", "spike"], false], 7,  4.5],
-            18, ["case", ["boolean", ["get", "spike"], false], 10, 7]],
+            9,  ["case", ["boolean", ["get", "fund"], false], 6, ["boolean", ["get", "spike"], false], 4,  2.2],
+            14, ["case", ["boolean", ["get", "fund"], false], 10, ["boolean", ["get", "spike"], false], 7,  4.5],
+            18, ["case", ["boolean", ["get", "fund"], false], 14, ["boolean", ["get", "spike"], false], 10, 7]],
           "circle-color": ["case",
             ["==", ["get", "sel"], "a"], "#22c55e",
             ["==", ["get", "sel"], "b"], "#ef4444",
+            // 12.09.2026 (Marc: „im inspektor muss klar gekennzeichnet werden, was er
+            // als fehler erkennt"): die Fundstellen des Track-Checks in Magenta —
+            // bewusst eine Farbe, die sonst nirgends vorkommt.
+            ["boolean", ["get", "fund"], false], "#e11d9c",
             ["boolean", ["get", "spike"], false], "#f59e0b",
             // 29.08.2026 — Tempo-Einfärbung: bei 2 788 dichten Punkten sieht
             // man die Kreise, nicht die Linie darunter — also färben BEIDE.
             ["coalesce", ["get", "sc"], "#cfe6ff"]],
           "circle-stroke-width": ["case",
+            ["boolean", ["get", "fund"], false], 2.6,
             ["boolean", ["get", "spike"], false], 2.4,
             ["boolean", ["get", "anchor"], false], 2.2, 0.6],
           "circle-stroke-color": ["case",
             ["==", ["get", "sel"], "a"], "#0a7a32",
             ["==", ["get", "sel"], "b"], "#a11",
+            ["boolean", ["get", "fund"], false], "#ffffff",
             ["boolean", ["get", "spike"], false], "#7c4a02",
             // 29.08.2026 — Tempo-Einfärbung: Rand folgt der Füllfarbe, sonst
             // übertönt das Standard-Blau die winzigen Kreise komplett.
@@ -1063,6 +1073,7 @@ function mountGpxInspect(body, headerActions) {
       feats[i] = {
         type: "Feature",
         properties: { i: i, sel: sel, anchor: (sel !== ""), spike: _spikeSet.has(i),
+                      fund: _tcMarkiert.has(i),
                       sc: _speedFarben ? _speedFarben[i] : null,
                       // Fahrtrichtung an dieser Stelle — nur für die
                       // Pfeil-Darstellung. Dieselbe Rechnung wie beim
@@ -1888,7 +1899,53 @@ function mountGpxInspect(body, headerActions) {
   // 10.09.2026 — Track-Check (docs/TRACK-CHECK.md): beim Öffnen prüfen (core/trackcheck,
   // dieselben Schwellen wie Archiv und Heilen), Befund-Kasten oben. Ohne Archiv-Zeile
   // gibt es kein „Ist so in Ordnung" — die Abwahl hängt an der Version im Archiv.
-  const _TC_OHNE_SCHRITT = { clock_off: "retime", no_time: "timeline", local_time: "", xml_broken: "" };
+  // 12.09.2026 — „uebersetzen" (Fähre, Flug, Autozug) bekommt bewusst KEIN Häkchen:
+  // daran ist nichts zu reparieren, die Strecke wurde wirklich zurückgelegt.
+  const _TC_OHNE_SCHRITT = { clock_off: "retime", no_time: "timeline", local_time: "",
+                             xml_broken: "", uebersetzen: "" };
+  // 12.09.2026 (Marc: „klar und deutlich gekennzeichnet, was er als fehler erkennt und
+  // wie er es reparieren würde"): je Befund-Art ein Satz, was die Reparatur TUT. Steht
+  // unter der Befund-Zeile, damit niemand raten muss, was ein Häkchen auslöst.
+  const _TC_REPARATUR = {
+    spikes: ["trackcheck.rep_spikes", "Reparatur: Der ausgerissene Punkt wandert zurück auf die Linie zwischen seinen Nachbarn."],
+    cold_start: ["trackcheck.rep_cold_start", "Reparatur: Die ersten Punkte vor dem ersten echten Empfang werden entfernt."],
+    ele_garbage: ["trackcheck.rep_ele_garbage", "Reparatur: Unmögliche Höhenwerte werden aus den Nachbarn neu berechnet."],
+    gaps: ["trackcheck.rep_gaps", "Reparatur: Die Lücke wird gefüllt — entlang echter Wege, wenn ein Profil gewählt ist, sonst geradlinig."],
+    missing_ele: ["trackcheck.rep_missing_ele", "Reparatur: Fehlende Höhen werden aus den Nachbarpunkten ergänzt."],
+    tempo: ["trackcheck.rep_tempo", "Reparatur: Nicht die Strecke, nur die Zeit wird entzerrt — der Track bleibt, wo er ist."],
+    backwards: ["trackcheck.rep_backwards", "Reparatur: Rückwärts laufende Zeitstempel werden aufsteigend geradegezogen."],
+    duplicates: ["trackcheck.rep_duplicates", "Reparatur: Doppelte Punkte an derselben Stelle werden zu einem zusammengefasst."],
+    spread_seconds: ["trackcheck.rep_spread_seconds", "Reparatur: Mehrfach belegte Sekunden werden gleichmäßig über die Sekunde verteilt."],
+    standstill: ["trackcheck.rep_standstill", "Reparatur: Das Gezitter im Stand wird auf einen Punkt zusammengezogen."],
+  };
+
+  /** Die Fundstellen einer Befund-Art auf der Karte markieren und der Reihe nach
+   *  anspringen. Zweiter Klick = nächste Stelle. */
+  function trackCheckZeigen(key) {
+    const b = ((_tc && _tc.befunde) || []).find((x) => x.key === key);
+    const stellen = (b && b.stellen) || [];
+    if (!stellen.length) {
+      toast(t("trackcheck.keine_stellen", "Für diesen Befund gibt es keine einzelne Stelle."), "info", 2500);
+      return;
+    }
+    if (_tcZeigeKey !== key) { _tcZeigeKey = key; _tcZeigeIdx = -1; _tcMarkiert = new Set(stellen); }
+    _tcZeigeIdx = (_tcZeigeIdx + 1) % stellen.length;
+    const i = Math.max(0, Math.min(_points.length - 1, stellen[_tcZeigeIdx]));
+    const p = _points[i];
+    renderPoints();
+    if (p && map) {
+      try { map.easeTo({ center: [p.lon, p.lat], zoom: Math.max(map.getZoom(), 15), duration: 700 }); } catch (_) {}
+    }
+    toast(t("trackcheck.stelle_von", "Stelle {i} von {n}").replace("{i}", _tcZeigeIdx + 1)
+      .replace("{n}", stellen.length) + ((b && b.stellen_gekappt) ? " +" : ""), "info", 1800);
+  }
+
+  function trackCheckMarkierungWeg() {
+    if (!_tcMarkiert.size) return;
+    _tcMarkiert = new Set(); _tcZeigeKey = ""; _tcZeigeIdx = -1;
+    renderPoints();
+  }
+
   async function analyseTrack() {
     const box = document.getElementById("gpxi-heal-analysis");
     if (!box) return;
@@ -1910,9 +1967,17 @@ function mountGpxInspect(body, headerActions) {
       if (ohne !== undefined) {
         const sprung = ohne === "retime" ? `<button type="button" class="gpxi-tc-ok" data-tc-goto="retime">${t("trackcheck.goto_retime", "Zeiten setzen")}</button>`
           : ohne === "timeline" ? `<button type="button" class="gpxi-tc-ok" data-tc-goto="timeline">${t("trackcheck.goto_timeline", "Zeitachse erzeugen")}</button>` : "";
-        return `<div class="gpxi-tc-row is-${b.stufe}"><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)}</span>${sprung}${okKnopf(b.key)}</div>`;
+        const erklaerung = b.key === "uebersetzen"
+          ? ` <span class="gpxi-tc-stufe">${t("trackcheck.uebersetzen_hinweis", "Fähre, Flug oder Autozug: Die Strecke wurde wirklich zurückgelegt, nur ohne Aufzeichnung. Daran wird nichts repariert.")}</span>` : "";
+        const zeigen2 = (b.stellen && b.stellen.length)
+          ? `<button type="button" class="gpxi-tc-ok" data-tc-zeig="${b.key}">${t("trackcheck.btn_zeigen", "Zeigen")}</button>` : "";
+        return `<div class="gpxi-tc-row is-${b.stufe}"><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)}${erklaerung}</span>${zeigen2}${sprung}${okKnopf(b.key)}</div>`;
       }
-      return `<label class="gpxi-tc-row is-${b.stufe}"><input type="checkbox" data-heal="${b.key}"${b.stufe === "grau" ? "" : " checked"}><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)} <span class="gpxi-tc-stufe">${stufeTxt(b.stufe)}</span></span>${okKnopf(b.key)}</label>`;
+      const rep = _TC_REPARATUR[b.key];
+      const repTxt = rep ? `<span class="gpxi-tc-rep">${t(rep[0], rep[1])}</span>` : "";
+      const zeigen = (b.stellen && b.stellen.length)
+        ? `<button type="button" class="gpxi-tc-ok" data-tc-zeig="${b.key}" title="${t("trackcheck.btn_zeigen_tip", "Die Fundstellen auf der Karte markieren und der Reihe nach anspringen.")}">${t("trackcheck.btn_zeigen", "Zeigen")}</button>` : "";
+      return `<label class="gpxi-tc-row is-${b.stufe}"><input type="checkbox" data-heal="${b.key}"${b.stufe === "grau" ? "" : " checked"}><span class="gpxi-tc-dot"></span><span class="gpxi-tc-txt">${zeile(b)} <span class="gpxi-tc-stufe">${stufeTxt(b.stufe)}</span>${repTxt}</span>${zeigen}${okKnopf(b.key)}</label>`;
     }).join("");
     const abgew = (r.abgewaehlt || []).map((b) => `<div class="gpxi-tc-row is-grau"><span class="gpxi-tc-txt">${zeile(b)}</span><button type="button" class="gpxi-tc-ok" data-tc-show="${b.key}">${t("trackcheck.btn_show_again", "wieder anzeigen")}</button></div>`).join("");
     const hatSchritt = _healFunde.length > 0;
@@ -1924,6 +1989,10 @@ function mountGpxInspect(body, headerActions) {
     box.hidden = !(r.befunde || []).length && !abgew;
     const rep = document.getElementById("gpxi-tc-repair");
     if (rep) rep.onclick = trackCheckReparieren;
+    box.querySelectorAll("[data-tc-zeig]").forEach((b) => b.onclick = (ev) => {
+      ev.preventDefault(); ev.stopPropagation();   // nicht das Häkchen umschalten
+      trackCheckZeigen(b.dataset.tcZeig);
+    });
     box.querySelectorAll("[data-tc-ok]").forEach((b) => b.onclick = () => trackCheckOk(b.dataset.tcOk, true));
     box.querySelectorAll("[data-tc-show]").forEach((b) => b.onclick = () => trackCheckOk(b.dataset.tcShow, false));
     box.querySelectorAll("[data-tc-goto]").forEach((b) => b.onclick = () => {
@@ -1990,7 +2059,7 @@ function mountGpxInspect(body, headerActions) {
           + (detour ? " (" + detour + " " + t("gpxinspect.heal_detour", "Umwege verworfen") + ")" : ""));
       }
     }
-    _dirty = true; clearSpikes(); _selA = _selB = null;
+    _dirty = true; clearSpikes(); trackCheckMarkierungWeg(); _selA = _selB = null;
     _hasTime = _points.length > 0 && _points.every(p => !!p.time);
     _eleInvalidate();
     renderAll(); updateUI(); zeigeVorherNachher();
@@ -2078,13 +2147,52 @@ function mountGpxInspect(body, headerActions) {
   /** Lücken entlang echter Wege füllen (Profil walking/cycling/driving, OSRM/Mapbox); Umwege
    *  und unerreichbare Lücken werden gerade gefüllt. Ändert _points von hinten nach vorne.
    *  Gemeinsam für „Heilen (automatisch)" und „Reparieren" im Befund-Kasten (10.09.2026). */
+  /** Typisches Tempo um einen Punkt herum (m/s) — für das Lücken-Profil je Abschnitt.
+   *  12.09.2026 (IDEAS §63): In einer Womo-Reise mit Spaziergängen ist EIN Profil für
+   *  den ganzen Track falsch. Gemessen wird lokal, nicht global. */
+  function _tempoUm(idx, fenster) {
+    const vs = [];
+    const von = Math.max(0, idx - fenster), bis = Math.min(_points.length - 1, idx + fenster);
+    for (let i = von; i < bis; i++) {
+      const a = _points[i], b = _points[i + 1];
+      if (!a || !b || !a.time || !b.time) continue;
+      const dt = (new Date(b.time) - new Date(a.time)) / 1000;
+      if (!(dt > 0) || dt > 600) continue;         // Pausen zählen nicht mit
+      const d = _haversine(a, b);
+      if (d > 0) vs.push(d / dt);
+    }
+    if (!vs.length) return 0;
+    vs.sort((x, y) => x - y);
+    return vs[Math.floor(vs.length / 2)];
+  }
+  /** Welches Routen-Profil passt HIER? Leer = die Wahl des Nutzers gilt. */
+  function _profilFuerLuecke(g, fallback) {
+    if (_profilManuell) return fallback;
+    const v = _tempoUm(g.a, 150);
+    if (!v) return fallback;
+    return v < 2.5 ? "walking" : (v < 7 ? "cycling" : "driving");   // 9 / 25 km/h
+  }
+
   async function _lueckenRouten(gaps, spacing, fillMode) {
     const gapsAB = gaps.map((g) => [_points[g.a].lon, _points[g.a].lat, _points[g.b].lon, _points[g.b].lat]);
+    const profile = gaps.map((g) => _profilFuerLuecke(g, fillMode));
     _mmBusy = true; updateUI();
-    toast(t("gpxinspect.gap_routing", "Suche Routen für %g Lücken …").replace("%g", gaps.length), "info", 4000);
+    const arten = [...new Set(profile)];
+    toast(arten.length > 1
+      ? t("gpxinspect.gap_routing_mix", "Suche Routen für %g Lücken — je Abschnitt passend (%a) …")
+          .replace("%g", gaps.length).replace("%a", arten.join(", "))
+      : t("gpxinspect.gap_routing", "Suche Routen für %g Lücken …").replace("%g", gaps.length), "info", 4000);
+    if (window.rzStatus) {
+      window.rzStatus.start("luecken-routen", {
+        titel: t("gpxinspect.gap_routing_titel", "Lücken an Wege anpassen"),
+        text: t("gpxinspect.gap_routing", "Suche Routen für %g Lücken …").replace("%g", gaps.length),
+        gesamt: gaps.length,
+      });
+    }
     let res;
-    try { res = await api().gpxinspect_route_gaps(gapsAB, fillMode); }
+    try { res = await api().gpxinspect_route_gaps(gapsAB, profile); }
     catch (e) { res = { ok: false, error: String(e) }; }
+    if (window.rzStatus) window.rzStatus.fertig("luecken-routen", "");
     _mmBusy = false;
     if (res && res.error === "no_token") {
       toast(t("gpxinspect.match_no_token", "Kein Mapbox-Token konfiguriert (siehe Einstellungen) — fülle linear."), "warn", 3500);

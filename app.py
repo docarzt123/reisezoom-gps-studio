@@ -9348,9 +9348,13 @@ class Api:
         sie linear. Pro Lücke ein Directions-Request; bei ~30 Lücken kurze Wartezeit."""
         try:
             token = _active_mapbox_token() or ""
-            prof = str(profile or "walking")
+            # 12.09.2026 (IDEAS §63) — `profile` darf jetzt auch eine LISTE sein, eine
+            # je Lücke. Anlass: eine Womo-Reise mit Spaziergängen; ein Profil für den
+            # ganzen Track routet den Fußweg über die Landstraße und umgekehrt.
+            prof_liste = list(profile) if isinstance(profile, (list, tuple)) else None
+            prof = str(profile or "walking") if prof_liste is None else "walking"
             routes = []
-            for g in (gaps or []):
+            for idx, g in enumerate(gaps or []):
                 try:
                     alon, alat, blon, blat = float(g[0]), float(g[1]), float(g[2]), float(g[3])
                 except Exception:  # noqa: BLE001
@@ -9361,10 +9365,14 @@ class Api:
                     dist = 0.0
                 if dist > 300000:   # interkontinental → Mapbox routet das nicht
                     routes.append({"ok": False, "reason": "too_far"}); continue
+                p_hier = prof
+                if prof_liste is not None and idx < len(prof_liste) and prof_liste[idx]:
+                    p_hier = str(prof_liste[idx])
                 try:
-                    res = croute.directions_geometry([alon, alat], [blon, blat], token, profile=prof)
+                    res = croute.directions_geometry([alon, alat], [blon, blat], token, profile=p_hier)
                     cc = res.get("coords", [])
-                    routes.append({"ok": bool(res.get("matched")) and len(cc) >= 2, "coords": cc})
+                    routes.append({"ok": bool(res.get("matched")) and len(cc) >= 2,
+                                   "coords": cc, "profil": p_hier})
                 except Exception as e:  # noqa: BLE001
                     routes.append({"ok": False, "error": str(e)})
             return {"ok": True, "routes": routes}

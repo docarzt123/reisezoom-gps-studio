@@ -4736,3 +4736,56 @@ Tester exportierte dieselbe Reise neu, landete im vorhandenen Projekt
 „Schottland" und schloss daraus, er könne keine Tracks mehr auswählen. Die
 Identität über den Streckenverlauf ist richtig (siehe Session-Modell), aber sie
 muss sichtbar sein.
+
+## Übersetzen, Abschnitte, sichtbare Befunde (12.09.2026, v0.9.690)
+
+Drei zusammenhängende Änderungen am Track-Check, alle aus einer einzigen
+Beta-Tester-Reise: 39 Tage Womo mit Spaziergängen und zweimal Nordsee-Fähre.
+
+**1. „Übersetzen" ist eine eigene Befund-Art** (`uebersetzen`, grau, nie
+repariert). `core/trackcheck.uebersetzen` erkennt ein einzelnes Segment ab
+`UEBERSETZEN_MIN_M` (10 km), das nicht zurückkehrt und dessen Tempo zur Distanz
+passt: unter 300 km höchstens 216 km/h (Fähre, Autozug, Tunnel), darüber bis
+Fluggeschwindigkeit. Diese Segmente nehmen an Sprung- und Lücken-Erkennung nicht
+mehr teil.
+
+*Warum es das braucht:* Vorher entschied die **Pausenlänge** über die Art.
+Dieselbe Fähre wurde einmal von der Nachtpausen-Regel verschluckt (5 h, > 2 km)
+und einmal beinahe zum Ausreißer (18 min). Gleiches Ereignis, zwei Urteile.
+
+*Zwei Fallen, die beim Bauen zuschnappten:*
+
+- **Die Rückkehr-Prüfung darf nicht den Nachbarn ansehen.** Direkt hinter der
+  Ankunft lag in der echten Datei ein einzelner falscher Punkt zurück im
+  Abfahrtshafen. Ein Blick auf `i+2` hätte die echte Überfahrt als Ausreißer
+  verworfen. Gezählt wird jetzt über ein Fenster (`i+2 … i+7`): wo der Track
+  **bleibt**, entscheidet.
+- **Ein Punkt zwischen zwei weiten Sprüngen ist kein Hafen.** Ohne diese Regel
+  wurde genau jener falsche Punkt selbst zum „Übersetzen".
+
+**2. Schwellen je Abschnitt** (`abschnitte`, `_median_je_punkt`, IDEAS §63).
+Geschnitten wird an Etappengrenzen, langen Pausen und Übersetzen; jeder
+Abschnitt ab `ABSCHNITT_MIN_PUNKTE` (20) bekommt seinen eigenen Median, kürzere
+erben den Gesamt-Median. `sprung_gruppen` nimmt die Tempo-Schwelle daraus.
+
+*Gemessen an der Tester-Reise:* global lag die Schwelle bei **539 km/h** — in
+den Fußabschnitten konnte nie etwas auffallen. Jetzt reicht die Spanne von
+7,3 m/s (Gehen) bis zu den Fahrabschnitten.
+
+**3. Jeder Befund trägt seine Fundstellen** (`stellen`, gedeckelt auf 300, plus
+`stellen_gekappt`). Der Inspektor markiert sie auf Klick in Magenta
+(`fund`-Eigenschaft der Punkt-Ebene, eine Farbe, die sonst nirgends vorkommt),
+springt sie der Reihe nach an, und unter jeder Befund-Zeile steht ein Satz, was
+die Reparatur **tut** (`_TC_REPARATUR`, i18n `trackcheck.rep_*`).
+
+Marc dazu: „im inspektor muss klar und deutlich gekennzeichnet werden, was er
+als fehler erkennt und wie er es reparieren würde."
+
+**4. Lücken-Profil je Abschnitt.** `gpxinspect_route_gaps(gaps, profile)` nimmt
+`profile` jetzt auch als **Liste** — eine je Lücke. Die Oberfläche misst das
+Tempo um jede Lücke herum (`_tempoUm`, 150 Punkte je Seite, Pausen über 10 min
+zählen nicht mit) und wählt walking / cycling / driving. Eine Handauswahl im
+Feld „Lücken füllen als" schlägt das weiterhin.
+
+Wächter: `tests/test_uebersetzen_abschnitte.py` (gebaute Tracks, keine fremden
+Reisedaten).
