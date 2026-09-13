@@ -163,7 +163,7 @@ else:
 ci18n.set_i18n_dir(I18N_DIR)
 
 # App-Version — wird im Über-Dialog + im Topbar gezeigt. Bei Release bumpen.
-APP_VERSION = "0.9.704"
+APP_VERSION = "0.9.705"
 
 # ── Cloud ────────────────────────────────────────────────────────────────────
 # War vom 02.09.2026 für die Dauer des Bibliotheks-Umbaus stillgelegt. Seit
@@ -9806,7 +9806,7 @@ class Api:
             with clib._DB_LOCK:
                 vorher = ceint.stand(conn, eid)
                 if vorher is None:
-                    return {"ok": False, "error": "Einteilung nicht gefunden"}
+                    return {"ok": False, "error": _ui_t()("error.einteilung_fehlt", "Einteilung nicht gefunden")}
                 if aktion == "setzen":
                     ceint.bereich_setzen(conn, eid, float(q["t0"]), float(q["t1"]), str(q["art"]),
                                          str(q.get("name") or ""))
@@ -9851,7 +9851,7 @@ class Api:
             with clib._DB_LOCK:
                 vorher = ceint.stand(conn, eid)
                 if vorher is None:
-                    return {"ok": False, "error": "Einteilung nicht gefunden"}
+                    return {"ok": False, "error": _ui_t()("error.einteilung_fehlt", "Einteilung nicht gefunden")}
                 ceint.entfernen(conn, eid)
                 return self._einteilung_antwort(conn, vorher["tour"], {"eid": eid, "vorher": vorher})
         except Exception as e:  # noqa: BLE001

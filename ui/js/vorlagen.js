@@ -186,7 +186,7 @@
   async function rzVorlageAufAktivesProjekt(vid) {
     const proj = (typeof getActiveProject === "function") ? getActiveProject() : null;
     if (!proj || !proj.id) { toast(tt("vorlagen.kein_projekt", "Kein Projekt aktiv."), "warn"); return false; }
-    const r = await api().vorlage_anwenden(proj.id, vid);
+    const r = await rzWarten("vorlage_anwenden", () => api().vorlage_anwenden(proj.id, vid));
     if (!r || !r.ok) { toast((r && r.error) || "?", "error"); return false; }
     const nachher = r.nachher || {}, vorher = r.vorher || {};
     // 1) Speicher-Stand aller betroffenen Module nachziehen (Brücke hat gespeichert).

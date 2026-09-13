@@ -2622,9 +2622,7 @@ vorhersagen, dreht sich ein Ring. Wo ein Abbruch möglich ist, steht **Abbrechen
 Solange das Fenster offen ist, wartet die App auf diesen Vorgang; ein Fehler bleibt
 stehen, bis du **OK** klickst.
 
-Du siehst es beim Laden eines Tracks, beim Holen der Fotos eines Projekts, beim
-Öffnen eines Projekts mit vielen Foto-Schildern und beim Einlesen eines Foto-Ordners
-im Geotagger. **Was im Hintergrund läuft**, ohne dass du warten musst, etwa das
+Du siehst es überall, wo du wartest: beim Laden von Tracks und Fotos, beim Prüfen, Reparieren und Speichern im Inspektor, beim Zusammenführen und Importieren im Archiv, beim Wechsel der Bibliothek, beim Cloud-Abgleich, bei Routen- und Adresssuche und bei Exporten (seit v0.9.705). **Was im Hintergrund läuft**, ohne dass du warten musst, etwa das
 Einlesen des Foto-Bestands, bleibt **ein kleiner Kasten unten rechts**, der nichts sperrt. Kennst du die App von früher: Genau das fehlte vorher, und
 längere Vorgänge sahen aus, als hinge sie.
 

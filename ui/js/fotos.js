@@ -316,7 +316,7 @@
     const ab = geladen.length;
     nachladend = true;
     try {
-      const r = await api().fotos_abfrage({
+      const r = await api().fotos_abfrage({   // warte-ok: Endlos-Blättern lädt still nach
         filter: filter, limit: SEITE, offset: ab, mit_thumbs: true,
       }).catch(() => null);
       if (lauf !== ladeLauf || !angemeldet) return;   // inzwischen überholt
@@ -736,7 +736,7 @@
 
   async function tourenZeichnen(box) {
     box.innerHTML = `<div class="lib-detail-empty" style="padding:20px">${T("common.loading", "Lädt …")}</div>`;
-    const r = await api().fotos_touren(filter).catch(() => null);
+    const r = await rzWarten("fotos_touren", () => api().fotos_touren(filter)).catch(() => null);
     if (!r || !r.ok) { box.innerHTML = `<div class="lib-detail-empty" style="padding:20px">${esc((r && r.error) || "?")}</div>`; return; }
     const liste = r.touren || [];
     if (!liste.length) {
@@ -761,7 +761,7 @@
       b.onclick = async () => {
         const g = liste[+b.dataset.ftour];
         if (!g || g.ohne_tour) return;
-        const r2 = await api().fotos_einer_tour(g.geo_hash || "", g.path || "").catch(() => null);
+        const r2 = await rzWarten("fotos_einer_tour", () => api().fotos_einer_tour(g.geo_hash || "", g.path || "")).catch(() => null);
         if (!r2 || !r2.ok) return;
         filter = Object.assign({}, filter, { von_utc: r2.von - 1800, bis_utc: r2.bis + 1800 });
         ansicht = "raster";
@@ -838,7 +838,7 @@
   const leer = () => ({ type: "FeatureCollection", features: [] });
 
   async function punkteLaden() {
-    const r = await api().fotos_punkte(filter, 3).catch(() => null);
+    const r = await rzWarten("fotos_punkte", () => api().fotos_punkte(filter, 3)).catch(() => null);
     const punkte = (r && r.punkte) || [];
     const daten = {
       type: "FeatureCollection",
@@ -888,9 +888,9 @@
     const [lon, lat] = coords;
     const box = document.getElementById("lib-detail");
     if (!box) return;
-    const r = await api().fotos_abfrage({
+    const r = await rzWarten("fotos_abfrage", () => api().fotos_abfrage({
       filter: Object.assign({}, filter, { gps: "mit" }), limit: 500, mit_thumbs: false,
-    }).catch(() => null);
+    })).catch(() => null);
     const nahe = ((r && r.fotos) || []).filter(f =>
       Math.abs((f.lat || 0) - lat) < 0.002 && Math.abs((f.lon || 0) - lon) < 0.002);
     box.hidden = false;
@@ -909,9 +909,9 @@
     const zeiten = nahe.map(f => f.aufnahme_utc).filter(Boolean);
     let tourText = "";
     if (zeiten.length) {
-      const tr = await api().fotos_touren({
+      const tr = await rzWarten("fotos_touren", () => api().fotos_touren({
         von_utc: Math.min.apply(null, zeiten) - 60, bis_utc: Math.max.apply(null, zeiten) + 60,
-      }).catch(() => null);
+      })).catch(() => null);
       const echte = ((tr && tr.touren) || []).filter(g => !g.ohne_tour);
       tourText = echte.length
         ? T("fotos.stelle_touren", "Hier war: {t}").replace("{t}", echte.map(g => g.name).join(", "))

@@ -752,7 +752,7 @@ function _bindSettingsModalHandlers() {
           b.onclick = async () => {
             const x = liste[+b.dataset.vorher]; if (!x) return;
             b.disabled = true;
-            const r = await api().bibliothek_wechseln(x.pfad);
+            const r = await rzWarten("bibliothek_wechseln", () => api().bibliothek_wechseln(x.pfad));
             if (r && r.ok) { location.reload(); return; }
             b.disabled = false;
             toast((r && (r.grund || r.error)) || "?", "warn");
@@ -794,7 +794,7 @@ function _bindSettingsModalHandlers() {
         b.onclick = async () => {
           const x = orte[+b.dataset.bibopen]; if (!x) return;
           b.disabled = true;
-          const r2 = await api().bibliothek_wechseln(x.pfad);
+          const r2 = await rzWarten("bibliothek_wechseln", () => api().bibliothek_wechseln(x.pfad));
           if (r2 && r2.ok) { location.reload(); return; }
           b.disabled = false;
           toast((r2 && (r2.grund || r2.error)) || "?", "warn");
@@ -864,7 +864,7 @@ function _bindSettingsModalHandlers() {
       ? t("bib.cloud_abgelehnt", "Dieser Ordner gehört zu {dienst} und ist deshalb nicht möglich.").replace("{dienst}", w.cloud)
       : (w.grund || w.error || "?"), "warn"); return; }
     if (!w.vorhanden) { toast(t("bib.keine_bibliothek_dort", "In diesem Ordner liegt keine GPS-Studio-Bibliothek."), "warn", 5000); return; }
-    const r = await api().bibliothek_wechseln(w.pfad);
+    const r = await rzWarten("bibliothek_wechseln", () => api().bibliothek_wechseln(w.pfad));
     if (r && r.ok) { location.reload(); return; }
     toast((r && (r.grund || r.error)) || "?", "warn");
   };
@@ -1446,7 +1446,7 @@ async function openFirstRunMapboxModal() {
 async function checkForUpdate(force = false) {
   const banner = document.getElementById("update-banner");
   let res;
-  try { res = await api().check_for_update(!!force); }
+  try { res = force ? await rzWarten("check_for_update", () => api().check_for_update(true)) : await api().check_for_update(false); }
   catch (_) { if (force) toast(t("update.error"), "warn"); return; }
   if (!res || !res.ok) { if (force) toast(t("update.error"), "warn"); return; }
 

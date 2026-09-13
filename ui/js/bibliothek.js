@@ -72,7 +72,7 @@
       b.onclick = async function () {
         var x = v[+b.dataset.vorher]; if (!x) return;
         b.disabled = true;
-        var r = await api().bibliothek_wechseln(x.pfad);
+        var r = await rzWarten("bibliothek_wechseln", () => api().bibliothek_wechseln(x.pfad));
         if (r && r.ok) { weg(); location.reload(); } else { b.disabled = false; pruefen(); }
       };
     });
@@ -86,7 +86,7 @@
     var w = await api().bibliothek_ordner_waehlen();
     if (!w || !w.ok) return;
     if (w.vorhanden) {
-      var r = await api().bibliothek_wechseln(w.pfad);
+      var r = await rzWarten("bibliothek_wechseln", () => api().bibliothek_wechseln(w.pfad));
       if (r && r.ok) { weg(); location.reload(); } else pruefen();
       return;
     }
@@ -227,7 +227,7 @@
       e2.querySelector("#bib-ueb-zurueck").onclick = function () { pruefen(); };
       e2.querySelector("#bib-ueb-ja").onclick = async function () {
         var b = e2.querySelector("#bib-ueb-ja"); b.disabled = true;
-        var r = await api().bibliothek_uebernehmen();
+        var r = await rzWarten("bibliothek_uebernehmen", () => api().bibliothek_uebernehmen());
         if (r && r.ok) { weg(); location.reload(); } else { b.disabled = false; pruefen(); }
       };
     };
@@ -259,7 +259,7 @@
       var w = el.querySelector('input[name="bib-sich"]:checked');
       if (!w) return;
       b.disabled = true;
-      var r = await api().bibliothek_wiederherstellen(w.value);
+      var r = await rzWarten("bibliothek_wiederherstellen", () => api().bibliothek_wiederherstellen(w.value));
       if (r && r.ok) { weg(); location.reload(); } else { b.disabled = false; pruefen(); }
     };
     el.querySelector("#bib-anderer").onclick = function () { andererOrt(st); };

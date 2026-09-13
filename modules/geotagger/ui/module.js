@@ -1077,7 +1077,7 @@ function mountGeotagger(body, headerActions) {
     // 10.09.2026 — die globale GPX-Leiste meldet den Haupt-Track nach dem Aktivieren der
     // Sitzung erneut; bei mehreren Tracks darf das die Liste nicht neu laden.
     if (_gtTracks.length > 1 && path === currentGpxPath) return;
-    const res = await api().geotagger_load_gpx(path);
+    const res = await rzWarten("geotagger_load_gpx", () => api().geotagger_load_gpx(path));
     if (isUnmounted) return;
     if (!res.ok) {
       if (window.isMissingFileError && window.isMissingFileError(res.error)) window.showSourceMissingBanner(path);
@@ -1149,7 +1149,7 @@ function mountGeotagger(body, headerActions) {
   async function _gtTracksLaden(paths, vorgegeben, ausUndo) {
     if (isUnmounted || !paths || !paths.length) return;
     if (!ausUndo) { try { _gtgPushUndo(t("undo.gt_tracks", "Tracks geladen"), { force: true }); } catch (_) {} }   // 10.09.2026
-    const res = await api().geotagger_load_gpx_viele(paths, Array.from(vorgegeben || []));
+    const res = await rzWarten("geotagger_load_gpx_viele", () => api().geotagger_load_gpx_viele(paths, Array.from(vorgegeben || [])));
     if (isUnmounted) return;
     if (!res || !res.ok) { toast((res && res.error) || "?", "error"); return; }
     _gtTracks = res.tracks || [];
@@ -1188,7 +1188,7 @@ function mountGeotagger(body, headerActions) {
     try {
       let vorgegeben = Array.from(zusatz || []);
       if (folder) {
-        const imp = await api().geotagger_import_gpx_aus_ordner(folder);
+        const imp = await rzWarten("geotagger_import_gpx_aus_ordner", () => api().geotagger_import_gpx_aus_ordner(folder));
         if (isUnmounted) return;
         if (imp && imp.ok && Array.isArray(imp.pfade) && imp.pfade.length) {
           vorgegeben = vorgegeben.concat(imp.pfade);
@@ -1205,7 +1205,7 @@ function mountGeotagger(body, headerActions) {
         await new Promise(r => setTimeout(r, 250));
         if (isUnmounted) return;
       }
-      const k = await api().geotagger_tracks_fuer_fotos(vorgegeben);
+      const k = await rzWarten("geotagger_tracks_fuer_fotos", () => api().geotagger_tracks_fuer_fotos(vorgegeben));
       if (isUnmounted) return;
       if (!k || !k.ok) { if (k && k.error) toast(k.error, "error"); return; }
       if (!k.tracks || !k.tracks.length || !k.tracks.some(tr => tr.n_fotos > 0)) {
@@ -1487,7 +1487,7 @@ function mountGeotagger(body, headerActions) {
   async function loadPhotos(files) {
     stopThumbPolling();
     // Phase 1: schnelle Registrierung (path + name + is_raw/is_video)
-    const res = await api().geotagger_register_photos(files);
+    const res = await rzWarten("geotagger_register_photos", () => api().geotagger_register_photos(files));
     if (!res.ok) { toast(res.error, "error"); return; }
     photos = _gtMergeRegistered(res.photos);   // v0.9.176 — ergänzen statt ersetzen
     renderPhotoGrid();
@@ -2306,7 +2306,7 @@ function mountGeotagger(body, headerActions) {
     if (refMode) {
       if (!selectedPath) { toast(t("geotagger.toast.select_photo"), "warn"); return; }
       const { lng, lat } = e.lngLat;
-      const res = await api().geotagger_compute_offset_from_reference(selectedPath, lat, lng);
+      const res = await rzWarten("geotagger_compute_offset_from_reference", () => api().geotagger_compute_offset_from_reference(selectedPath, lat, lng));
       if (!res.ok) { toast(res.error, "error"); return; }
       _gtgPushUndo(t("undo.referenz_offset_gesetzt", "Referenz-Offset gesetzt"), { force: true });   // v0.9.359 — undoable
       setOffsetFromSeconds(res.offset_seconds);   // v0.9.354 — wirkt auf den aktuellen Kamera-Kontext
@@ -3960,7 +3960,7 @@ function mountGeotagger(body, headerActions) {
     const folders = await api().pick_file("folder");
     if (!folders || !folders.length) return;  // abgebrochen
     const dest = folders[0];
-    const res = await api().geotagger_export_tagged(items, dest);
+    const res = await rzWarten("geotagger_export_tagged", () => api().geotagger_export_tagged(items, dest));
     if (!res || !res.ok) {
       toast(t("geotagger.export.fehler", "Export fehlgeschlagen: ") + ((res && res.error) || "?"), "error");
       return;
@@ -4151,7 +4151,7 @@ function mountGeotagger(body, headerActions) {
       hideGridLoader();
       return;
     }
-    const res = await api().geotagger_register_photos(uploadedPaths);
+    const res = await api().geotagger_register_photos(uploadedPaths);   // warte-ok: Drop-Import zählt selbst mit (onProgress)
     if (!res.ok) { toast(res.error, "error"); return; }
     if (res.warning) toast(res.warning, "warn", 6000);   // v0.9.176 — RAW/exiftool-Hinweis auch beim Drop
 

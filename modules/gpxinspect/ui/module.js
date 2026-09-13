@@ -524,7 +524,12 @@ function mountGpxInspect(body, headerActions) {
       });
       // Schon ein globales GPX geladen?
       const cur = (typeof getGlobalGpxPath === "function") ? getGlobalGpxPath() : null;
-      if (cur) loadTrack(cur);
+      // 13.09.2026 — nur laden, wenn dieser Track nicht schon offen ist oder gerade lädt.
+      // Wurde die Karte erst NACH dem Laden fertig (langsamer Rechner, Software-GL), lud
+      // sie den Track ein zweites Mal und warf alles weg, was inzwischen bearbeitet war
+      // (gefunden am Wächter „Umkehren").
+      if (cur && cur !== _origPath && cur !== _ladePfad) loadTrack(cur);
+      else if (cur) { try { renderAll(); updateUI(); } catch (_) {} }
       // Nachträgliches Resize, falls das Layout erst nach onMapReady steht.
       setTimeout(() => { if (!isUnmounted && map) { try { map.resize(); } catch (_) {} } }, 350);
     });
@@ -538,9 +543,12 @@ function mountGpxInspect(body, headerActions) {
   }
 
   // ── Laden / Anzeige ────────────────────────────────────────────────────────
+  let _ladePfad = null;   // 13.09.2026 — Track, der gerade geladen wird (gegen Doppel-Laden)
   async function loadTrack(path) {
     let res;
-    try { res = await api().gpxinspect_load(path); } catch (e) { res = { ok: false, error: String(e) }; }
+    _ladePfad = path;
+    try { res = await rzWarten("gpxinspect_load", () => api().gpxinspect_load(path)); } catch (e) { res = { ok: false, error: String(e) }; }
+    finally { if (_ladePfad === path) _ladePfad = null; }
     if (isUnmounted) return;
     if (!res || !res.ok) {
       if (window.isMissingFileError && window.isMissingFileError(res && res.error)) window.showSourceMissingBanner(path);
@@ -1451,7 +1459,7 @@ function mountGpxInspect(body, headerActions) {
     _mmBusy = true; updateUI();
     toast(t("gpxinspect.matching", "Matche auf das Wegenetz …"), "info", 2000);
     let res;
-    try { res = await api().gpxinspect_map_match(coords, profile, radius); }
+    try { res = await rzWarten("gpxinspect_map_match", () => api().gpxinspect_map_match(coords, profile, radius)); }
     catch (e) { res = { ok: false, error: String(e) }; }
     _mmBusy = false;
     if (!res || !res.ok) {
@@ -1485,7 +1493,7 @@ function mountGpxInspect(body, headerActions) {
     _mmBusy = true; updateUI();
     toast(t("gpxinspect.routing", "Suche Route zwischen A und B …"), "info", 2000);
     let res;
-    try { res = await api().gpxinspect_route_ab([A.lon, A.lat], [B.lon, B.lat], profile); }
+    try { res = await rzWarten("gpxinspect_route_ab", () => api().gpxinspect_route_ab([A.lon, A.lat], [B.lon, B.lat], profile)); }
     catch (e) { res = { ok: false, error: String(e) }; }
     _mmBusy = false;
     if (!res || !res.ok) {
@@ -1955,7 +1963,7 @@ function mountGpxInspect(body, headerActions) {
     if (!box) return;
     if (!_points || _points.length < 3) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
     let r = null;
-    try { r = await api().gpxinspect_track_check(_points, _origPath || "", _localTimeN || 0); } catch (e) { r = null; }
+    try { r = await rzWarten("gpxinspect_track_check", () => api().gpxinspect_track_check(_points, _origPath || "", _localTimeN || 0)); } catch (e) { r = null; }
     if (isUnmounted) return;
     if (!r || !r.ok) { box.hidden = true; box.innerHTML = ""; _healFunde = []; _tc = null; return; }
     _tc = r;
@@ -2055,7 +2063,7 @@ function mountGpxInspect(body, headerActions) {
     merkeVorher();
     let r = { ok: true, points: _points.slice(), bericht: [] };
     if (schritte.length) {
-      try { r = await api().gpxinspect_heal(_points, 250, schritte, false, aktivitaet); } catch (e) { r = { ok: false, error: String(e) }; }
+      try { r = await rzWarten("gpxinspect_heal", () => api().gpxinspect_heal(_points, 250, schritte, false, aktivitaet)); } catch (e) { r = { ok: false, error: String(e) }; }
     }
     if (isUnmounted) return;
     if (!r || !r.ok || !Array.isArray(r.points)) { toast(t("trackcheck.error", "Track-Check nicht möglich: {e}").replace("{e}", (r && r.error) || "?"), "error"); return; }
@@ -2068,7 +2076,7 @@ function mountGpxInspect(body, headerActions) {
       _spikeSet = new Set();
       let gaps = [];
       try {
-        const lr = await api().gpxinspect_luecken(_points, aktivitaet, mitKlein);
+        const lr = await rzWarten("gpxinspect_luecken", () => api().gpxinspect_luecken(_points, aktivitaet, mitKlein));
         gaps = ((lr && lr.luecken) || []).filter((g) => !nurKlein || g.stufe === "grau");
       } catch (_) { gaps = []; }
       if (isUnmounted) return;
@@ -2102,7 +2110,7 @@ function mountGpxInspect(body, headerActions) {
     const schritte = _healSchritte();
     if (schritte && !schritte.length) return "";
     let r = null;
-    try { r = await api().gpxinspect_heal(_points, 250, schritte, false, (_tc && _tc.activity) || ""); } catch (e) { r = { ok: false, error: String(e) }; }
+    try { r = await rzWarten("gpxinspect_heal", () => api().gpxinspect_heal(_points, 250, schritte, false, (_tc && _tc.activity) || "")); } catch (e) { r = { ok: false, error: String(e) }; }
     if (!r || !r.ok || !Array.isArray(r.points)) { try { applog("warn", "[gpxinspect] heilen (Brücke): " + (r && r.error)); } catch (_) {} return ""; }
     const teile = (r.bericht || []).filter((b) => !schritte || schritte.indexOf(b.key) >= 0).map((b) => { const k = _HEAL_KEYS[b.key]; return k ? t(k[0], k[1]).replace("%n", b.n) : (b.key + " " + b.n); });
     if (!teile.length) return "";
@@ -2771,8 +2779,8 @@ function mountGpxInspect(body, headerActions) {
         const payload = _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi, si: p.si || 0 }));
         let res;
         try {
-          res = await api().library_track_ersetzen(payload, _srcPath, origPfad,
-                                                   _sources.length > 1 ? _sources : null);
+          res = await rzWarten("library_track_ersetzen", () => api().library_track_ersetzen(payload, _srcPath, origPfad,
+                                                   _sources.length > 1 ? _sources : null));
         } catch (e) { res = { ok: false, error: String(e) }; }
         if (isUnmounted) return;
         if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
@@ -2806,8 +2814,8 @@ function mountGpxInspect(body, headerActions) {
     const payload = _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi, si: p.si || 0 }));
     let res;
     try {
-      res = await api().gpxinspect_save(payload, _srcPath, dest, fmt,
-                                        _sources.length > 1 ? _sources : null);
+      res = await rzWarten("gpxinspect_save", () => api().gpxinspect_save(payload, _srcPath, dest, fmt,
+                                        _sources.length > 1 ? _sources : null));
     } catch (e) { res = { ok: false, error: String(e) }; }
     if (isUnmounted) return;
     if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
@@ -3042,7 +3050,7 @@ function mountGpxInspect(body, headerActions) {
   async function _wzAnwenden(action, params, label) {
     if (!_points.length) return null;
     let res;
-    try { res = await api().gpxinspect_werkzeug(action, _wzPayload(), params || {}); }
+    try { res = await rzWarten("gpxinspect_werkzeug", () => api().gpxinspect_werkzeug(action, _wzPayload(), params || {})); }
     catch (e) { res = { ok: false, error: String(e) }; }
     if (isUnmounted) return null;
     if (!res || !res.ok) { toast((res && (res.hint || res.error)) || t("gpxinspect.wz_fehler", "Werkzeug fehlgeschlagen"), "error", 6000); return null; }
@@ -3087,7 +3095,7 @@ function mountGpxInspect(body, headerActions) {
     if (wahl === "abbruch") return;
     if (wahl === "beide") {
       let res;
-      try { res = await api().gpxinspect_save_teile(r.parts, _srcPath, _sources.length > 1 ? _sources : null); }
+      try { res = await rzWarten("gpxinspect_save_teile", () => api().gpxinspect_save_teile(r.parts, _srcPath, _sources.length > 1 ? _sources : null)); }
       catch (e) { res = { ok: false, error: String(e) }; }
       if (!res || !res.ok) { toast((res && res.error) || "Speichern fehlgeschlagen", "error", 6000); return; }
       const txt = t("gpxinspect.wz_split_saved", "Gespeichert: ") + (res.pfade || []).join(" · ");
@@ -3306,9 +3314,9 @@ function mountGpxInspect(body, headerActions) {
     await malPause();
     let res;
     try {
-      res = await api().gpxinspect_append_track(
+      res = await rzWarten("gpxinspect_append_track", () => api().gpxinspect_append_track(
         _points.map(p => ({ lat: p.lat, lon: p.lon, ele: p.ele, time: p.time, oi: p.oi, si: p.si || 0 })),
-        path, mode, pause, _sources.length);
+        path, mode, pause, _sources.length));
     } catch (e) { res = { ok: false, error: String(e) }; }
     if (frei) frei();
     if (isUnmounted) return;

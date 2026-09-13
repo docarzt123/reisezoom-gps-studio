@@ -2395,8 +2395,7 @@ far** it has got ("1,200 / 2,830 (42 %)") with a bar. If the amount cannot be kn
 ring spins. Where cancelling is possible there is a **Cancel** button. While the window
 is open the app waits for that task; an error stays until you click **OK**.
 
-You see it when a track loads, when the project's photos are fetched, when a project
-with many photo signs opens and when the Geotagger reads a photo folder. **Work that
+You see it wherever you wait: loading tracks and photos, checking, repairing and saving in the Inspector, merging and importing in the archive, switching libraries, cloud sync, route and address search and exports (since v0.9.705). **Work that
 runs in the background** without making you wait, such as indexing the photo stock,
 stays **a small box at the bottom right** that locks nothing.
 

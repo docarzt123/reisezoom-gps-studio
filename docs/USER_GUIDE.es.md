@@ -2452,8 +2452,7 @@ Cuando tienes que esperar a la app, **aparece una ventana en el centro de la pan
 cantidad, gira un anillo. Cuando es posible cancelar, aparece **Cancelar**. Mientras la
 ventana está abierta, la app espera a esa tarea; un error se queda hasta que pulsas **OK**.
 
-La verás al cargar un track, al obtener las fotos de un proyecto, al abrir un proyecto
-con muchos carteles con foto y cuando el geoetiquetador lee una carpeta. **Lo que corre
+La verás siempre que esperes: al cargar tracks y fotos, al comprobar, reparar y guardar en el inspector, al unir e importar en el archivo, al cambiar de biblioteca, al sincronizar con la nube, al buscar rutas y direcciones y al exportar (desde v0.9.705). **Lo que corre
 en segundo plano** sin hacerte esperar, como indexar el fondo de fotos, sigue siendo
 **un pequeño recuadro abajo a la derecha** que no bloquea nada.
 
