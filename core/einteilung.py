@@ -408,6 +408,31 @@ def _nachbarn(e: dict, bid_a: str, bid_b: str):
     return l, r, zwischen
 
 
+def teilen_bei_zeit(conn: sqlite3.Connection, eid: str, t: float, kurz_s: float = 600.0) -> dict:
+    """Logbuch §68: einen Eintrag an einer Uhrzeit teilen — egal, welcher rohe Bereich
+    darunter liegt. Marc (13.09.2026): „da kommt: Schnitt liegt nicht im Bereich" —
+    der sichtbare Eintrag reicht über einen aufgegangenen kurzen Halt hinaus, der rohe
+    Bereich nicht. Fällt der Schnitt in so einen kurzen Halt, wird der Halt zur echten
+    Grenze: er verschwindet, der Bereich davor endet, der danach beginnt am Schnitt."""
+    e = _laden(conn, eid)
+    t = float(t)
+    bereiche = [b for b in e["bereiche"] if not _ist_punkt(b)]
+    b = next((x for x in bereiche if x["t0"] < t < x["t1"]), None)
+    if b is None:
+        raise ValueError("Schnitt liegt nicht im Bereich")
+    kurz = b["art"] in ("halt", "pause") and b.get("quelle") == "auto" and (b["t1"] - b["t0"]) < kurz_s
+    if kurz:
+        davor = [x for x in bereiche if x["t1"] <= b["t0"] + 1e-6]
+        danach = [x for x in bereiche if x["t0"] >= b["t1"] - 1e-6]
+        if davor and danach:
+            l = max(davor, key=lambda x: x["t1"]); r = min(danach, key=lambda x: x["t0"])
+            e["bereiche"] = [x for x in e["bereiche"] if x is not b]
+            l["t1"] = r["t0"] = t
+            l["quelle"] = r["quelle"] = "hand"
+            return _schreiben(conn, e)
+    return teilen(conn, eid, b["id"], t)
+
+
 def zusammenlegen(conn: sqlite3.Connection, eid: str, bid_a: str, bid_b: str) -> dict:
     """Zwei Bereiche zu einem — auch über verborgene kurze Halte hinweg. Art und Name vom längeren."""
     e = _laden(conn, eid)
