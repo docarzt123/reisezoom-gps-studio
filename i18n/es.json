@@ -3812,5 +3812,18 @@
   "logbuch.einst.pois_menge": "La pista de POI muestra como máximo",
   "logbuch.einst.stueck": "unidades",
   "logbuch.archiv.noch_keins": "Aún no hay cuaderno: se crea al abrir la ruta en el inspector.",
-  "logbuch.archiv.tage": "{n} días"
+  "logbuch.archiv.tage": "{n} días",
+  "logbuch.spur_eigene": "Propias",
+  "logbuch.spur_befunde": "Hallazgos",
+  "logbuch.eigene_tip": "Mostrar pistas propias (p. ej. «con los niños»); se crean con ＋ A→B",
+  "logbuch.befunde_tip": "Hallazgos de la comprobación del track como pista; clic salta allí",
+  "logbuch.befund_klick": "Clic: mostrar el lugar",
+  "logbuch.eigen.titel": "Pista propia",
+  "logbuch.eigen.ohne_name": "(sin nombre)",
+  "logbuch.eigen.neu": "Nueva pista …",
+  "logbuch.eigen.frage": "Nombre de la pista propia, p. ej. «con los niños»",
+  "logbuch.eigen.bereich_name": "Etiqueta del tramo (puede quedar vacía)",
+  "logbuch.eigen.entfernen": "Quitar tramo",
+  "logbuch.eigen.spur_entfernen": "Quitar toda la pista",
+  "logbuch.undo.eigen": "Cuaderno: pista propia"
 }

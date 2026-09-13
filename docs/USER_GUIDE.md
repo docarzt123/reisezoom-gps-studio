@@ -2597,6 +2597,10 @@ Jeder Schritt ist ein Undo-Schritt (⌘Z). Startpunkt und Teilen brauchen genau 
 
 **⤢ Großes Fenster:** das ganze Logbuch als verschiebbare, in der Größe veränderbare Tabelle — Spalten Zeit, Art, Name, Ort, Dauer, km, Höhenmeter, Tempo, sortierbar per Klick auf den Kopf; Häkchen für Mehrfachauswahl (Umschalt-Klick für einen Bereich) mit Sammelleiste *Art ändern · Zusammenlegen · Löschen*; Doppelklick auf den Namen benennt um; Klick auf eine Zeile wählt den Eintrag auf der Karte; ⋯ und Rechtsklick wie in der Liste.
 
+**Befunde und eigene Spuren (seit v0.9.711):** Das Häkchen **Befunde** zeigt jede Fundstelle des Track-Checks als Raute in ihrer Farbe im Zeitstrahl — Klick springt auf der Karte hin und markiert den Befund wie „Zeigen“ im Kasten. **Eigene Spuren** („mit den Kindern“, „Regen“): Anker A und B setzen → **＋ A→B → Eigene Spur …** → bestehende Spur wählen oder neue benennen, Abschnitt beschriften; das Häkchen **Eigene** zeigt sie als eigene Zeile, Rechtsklick auf einen Abschnitt benennt um oder entfernt ihn (oder die ganze Spur) — alles mit ⌘Z. Der Zeitstrahl wächst und schrumpft mit den sichtbaren Spuren.
+
+**Im Archiv:** Unter den Kennzahlen einer Tour steht die **Kurzfassung des Logbuchs** („5 h Fahrt · 1 Fähre · 2 Wanderungen · höchster Punkt 1.240 m“, bei Reisen die Zahl der Tage) — oder ehrlich „noch kein Logbuch“, bis du die Tour einmal im Inspektor geöffnet hast.
+
 > Das Logbuch gibt es für Touren im **Archiv** (es gehört zur Tour, nicht zur Datei). Eine Datei von außerhalb bekommt einen Hinweis. Bearbeiten, Ortsnamen und Sehenswürdigkeiten kommen in den nächsten Stufen — der Plan steht in `docs/LOGBUCH.md`.
 
 ### Rückgängig

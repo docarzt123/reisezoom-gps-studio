@@ -3244,6 +3244,36 @@ function mountLibrary(body, headerActions) {
       </div>`;
   }
 
+  /** Logbuch-Kurzfassung im Detail (Q20): „5 h Fahrt · 1 Fähre · 2 Wanderungen · höchster Punkt 1.240 m". */
+  const _LB_KURZ_ICON = { fahrt: "🚗", uebersetzen: "⛴", wanderung: "🥾", spaziergang: "🚶", gehen: "🚶", rad: "🚴", laufen: "🏃",
+                          wassersport: "🛶", pause: "☕", uebernachtung: "🌙" };
+  const _LB_KURZ_DE = { fahrt: "Fahrt", uebersetzen: "Fähre", wanderung: "Wanderung", spaziergang: "Spaziergang", gehen: "Gehen", rad: "Rad",
+                        laufen: "Laufen", wassersport: "Wassersport", pause: "Pause", uebernachtung: "Übernachtung" };
+  function _lbDauerKurz(sek) {
+    const h = Math.floor(sek / 3600), m = Math.round((sek - h * 3600) / 60);
+    return h ? (m ? T("logbuch.dauer_hm", "{h} h {m} min", { h, m }) : T("logbuch.dauer_h", "{h} h", { h })) : T("logbuch.dauer_m", "{m} min", { m });
+  }
+  async function _logbuchKurz(it) {
+    const box = document.getElementById("lib-d-logbuch"); if (!box || !it || !it.path) return;
+    let r; try { r = await api().logbuch_kurz(it.path); } catch (_) { r = null; }   // warte-ok: sofort, nur Datenbank
+    if (_unmounted || _sel !== it || !r || !r.ok) return;
+    if (!r.vorhanden) {
+      box.hidden = false;
+      box.innerHTML = `<div class="lib-logbuch-titel">📖 ${T("logbuch.titel", "Logbuch")}</div>
+        <div class="lib-hint">${T("logbuch.archiv.noch_keins", "Noch kein Logbuch — es entsteht beim Öffnen der Tour im Inspektor.")}</div>`;
+      return;
+    }
+    const z = r.zusammenfassung || {}, teile = [];
+    for (const art of ["fahrt", "rad", "laufen"]) if (z[art]) teile.push(`<span class="lib-logbuch-chip">${_LB_KURZ_ICON[art]} ${_lbDauerKurz(z[art].dauer_s)} ${T("logbuch.art." + art, _LB_KURZ_DE[art])}</span>`);
+    for (const art of ["uebersetzen", "wanderung", "spaziergang", "gehen", "wassersport", "pause", "uebernachtung"]) if (z[art]) {
+      const n = z[art].anzahl; teile.push(`<span class="lib-logbuch-chip">${_LB_KURZ_ICON[art]} ${n} ${n === 1 ? T("logbuch.art." + art, _LB_KURZ_DE[art]) : T("logbuch.mehrzahl." + art, _LB_KURZ_DE[art])}</span>`);
+    }
+    if (r.hoechster && r.hoechster.ele != null) teile.push(`<span class="lib-logbuch-chip">⛰ ${T("logbuch.hoechster", "höchster Punkt {m} m", { m: Math.round(r.hoechster.ele).toLocaleString(rzSprachCode()) })}</span>`);
+    box.hidden = false;
+    box.innerHTML = `<div class="lib-logbuch-titel">📖 ${T("logbuch.titel", "Logbuch")}${r.tage > 1 ? ` <small>· ${T("logbuch.archiv.tage", "{n} Tage", { n: r.tage })}</small>` : ""}</div>
+      <div class="lib-logbuch-chips">${teile.join("")}</div>`;
+  }
+
   function renderDetail() {
     // 13.09.2026 (Echt-App-Test): Im Foto-Bereich gehört die rechte Spalte den Fotos.
     // Der Start lud die Tourenliste nach und schrieb danach das Tour-Detail hinein.
@@ -3311,6 +3341,9 @@ function mountLibrary(body, headerActions) {
       <div class="lib-detail-rows" id="lib-d-rows">
         ${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}
       </div>
+      <!-- 13.09.2026 — Logbuch-Kurzfassung (docs/LOGBUCH.md Q20): kommt nach dem Rendern
+           aus der gespeicherten Einteilung, ohne die Punkte zu lesen. -->
+      <div class="lib-logbuch" id="lib-d-logbuch" hidden></div>
       <!-- 02.09.2026 (Marc): Die Versionen gehören DIREKT unter die Kennzahlen —
            beim Anklicken zeigt die Tabelle darüber die Werte dieser Version.
            Sonst sind zwei Versionen derselben Tour nicht unterscheidbar. -->
@@ -3380,6 +3413,7 @@ function mountLibrary(body, headerActions) {
       </div>`;
 
     box.querySelectorAll("[data-open]").forEach(b => { b.onclick = () => openIn(b.dataset.open); });
+    try { _logbuchKurz(it); } catch (_) {}
     box.querySelectorAll("[data-ghost]").forEach(b => { b.onclick = () => alsGhost(_sel ? [_sel.path] : []); });
     bindCheckBox(it);
     _ghostBannerBinden();

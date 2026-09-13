@@ -3812,5 +3812,18 @@
   "logbuch.einst.pois_menge": "POI track shows at most",
   "logbuch.einst.stueck": "items",
   "logbuch.archiv.noch_keins": "No logbook yet — it is created when the tour is opened in the inspector.",
-  "logbuch.archiv.tage": "{n} days"
+  "logbuch.archiv.tage": "{n} days",
+  "logbuch.spur_eigene": "Own",
+  "logbuch.spur_befunde": "Findings",
+  "logbuch.eigene_tip": "Show your own tracks (e.g. “with the kids”) — create via ＋ A→B",
+  "logbuch.befunde_tip": "Findings of the track check as a track; click jumps there",
+  "logbuch.befund_klick": "Click: show the spot",
+  "logbuch.eigen.titel": "Own track",
+  "logbuch.eigen.ohne_name": "(unnamed)",
+  "logbuch.eigen.neu": "New track …",
+  "logbuch.eigen.frage": "Name of your own track, e.g. “with the kids”",
+  "logbuch.eigen.bereich_name": "Label of the part (may stay empty)",
+  "logbuch.eigen.entfernen": "Remove part",
+  "logbuch.eigen.spur_entfernen": "Remove whole track",
+  "logbuch.undo.eigen": "Logbook: own track"
 }
